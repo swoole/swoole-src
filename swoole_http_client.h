@@ -102,6 +102,7 @@ typedef struct
 
 #ifdef SW_HAVE_ZLIB
     z_stream gzip_stream;
+    swString *gzip_buffer;
 #endif
 
     /**

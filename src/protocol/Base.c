@@ -45,7 +45,7 @@ int swProtocol_get_package_length(swProtocol *protocol, swConnection *conn, char
     return protocol->package_body_offset + body_length;
 }
 
-static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, void *object, swString *buffer)
+static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swConnection *conn, swString *buffer)
 {
 #if 0
     static count;
@@ -74,7 +74,14 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, void 
 
     uint32_t length = buffer->offset + eof_pos + protocol->package_eof_len;
     //swNotice("#[4] count=%d, length=%d", count, length);
-    protocol->onPackage(object, buffer->str, length);
+    if (protocol->onPackage(conn, buffer->str, length) < 0)
+    {
+        return SW_ERR;
+    }
+    if (conn->removed)
+    {
+        return SW_OK;
+    }
 
     //there are remaining data
     if (length < buffer->length)
@@ -103,7 +110,14 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, void 
             else
             {
                 length = eof_pos + protocol->package_eof_len;
-                protocol->onPackage(object, remaining_data, length);
+                if (protocol->onPackage(conn, remaining_data, length) < 0)
+                {
+                    return SW_ERR;
+                }
+                if (conn->removed)
+                {
+                    return SW_OK;
+                }
                 //swNotice("#[2] count=%d, remaining_length=%d, length=%d", count, remaining_length, length);
                 remaining_data += length;
                 remaining_length -= length;

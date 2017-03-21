@@ -119,10 +119,11 @@ static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
     uint32_t send_len = sizeof(task->data.info) + task->data.info.len;
     uint16_t target_worker_id;
     swServer *serv = SwooleG.serv;
+    int fd = task->data.info.fd;
 
     if (task->target_worker_id < 0)
     {
-        schedule_key = task->data.info.fd;
+        schedule_key = fd;
 #ifndef SW_USE_RINGBUFFER
         if (SwooleTG.factory_lock_target)
         {
@@ -139,7 +140,23 @@ static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
         else
 #endif
         {
-            target_worker_id = swServer_worker_schedule(serv, schedule_key);
+            if (serv->dispatch_mode == SW_DISPATCH_USERFUNC)
+            {
+                int ret = serv->dispatch_func(serv, swServer_connection_get(serv, fd), &task->data);
+                //discard the data packet.
+                if (ret < 0)
+                {
+                    return SW_OK;
+                }
+                else
+                {
+                    target_worker_id = ret;
+                }
+            }
+            else
+            {
+                target_worker_id = swServer_worker_schedule(serv, schedule_key);
+            }
         }
     }
     else
@@ -149,10 +166,10 @@ static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
 
     if (swEventData_is_stream(task->data.info.type))
     {
-        swConnection *conn = swServer_connection_get(serv, task->data.info.fd);
+        swConnection *conn = swServer_connection_get(serv, fd);
         if (conn == NULL || conn->active == 0)
         {
-            swWarn("dispatch[type=%d] failed, connection#%d is not active.", task->data.info.type, task->data.info.fd);
+            swWarn("dispatch[type=%d] failed, connection#%d is not active.", task->data.info.type, fd);
             return SW_ERR;
         }
         //server active close, discard data.
@@ -311,8 +328,15 @@ static int swFactoryProcess_end(swFactory *factory, int fd)
         if (serv->onClose != NULL)
         {
             info.fd = fd;
-            info.from_id =  conn->from_id;
-            info.from_fd =  conn->from_fd;
+            if (conn->close_actively)
+            {
+                info.from_id = -1;
+            }
+            else
+            {
+                info.from_id = conn->from_id;
+            }
+            info.from_fd = conn->from_fd;
             serv->onClose(serv, &info);
         }
         conn->closing = 0;

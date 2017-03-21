@@ -909,7 +909,7 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
                 SW_ALLOC_INIT_ZVAL(result);
                 ZVAL_BOOL(result, 0);
 
-                zend_update_property_string(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("error"), client->response.server_msg TSRMLS_CC);
+                zend_update_property_stringl(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("error"), client->response.server_msg, client->response.l_server_msg TSRMLS_CC);
                 zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("errno"), client->response.error_code TSRMLS_CC);
             }
             //ResultSet

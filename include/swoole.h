@@ -126,6 +126,11 @@ typedef unsigned long ulong_t;
 
 #define SW_START_LINE  "-------------------------START----------------------------"
 #define SW_END_LINE    "-------------------------END------------------------------"
+#define SW_ECHO_GREEN             "\e[32m%s\e[0m"
+#define SW_ECHO_RED               "\e[31m%s\e[0m"
+#define SW_ECHO_YELLOW            "\e[33m%s\e[0m"
+#define SW_ECHO_CYAN_BLUE         "\e[36m%s\e[0m"
+
 #define SW_SPACE       ' '
 #define SW_CRLF        "\r\n"
 #define SW_CRLF_LEN    2
@@ -267,6 +272,7 @@ enum swFactory_dispatch_mode
     SW_DISPATCH_QUEUE = 3,
     SW_DISPATCH_IPMOD = 4,
     SW_DISPATCH_UIDMOD = 5,
+    SW_DISPATCH_USERFUNC = 6,
 };
 
 enum swWorker_status
@@ -465,6 +471,10 @@ typedef struct _swConnection
     uint32_t closing :1;
     uint32_t close_force :1;
     uint32_t close_reset :1;
+    /**
+     * server is actively close the connection
+     */
+    uint32_t close_actively :1;
 
     uint32_t removed :1;
     uint32_t overflow :1;
@@ -709,13 +719,21 @@ typedef struct _swPipe
 
     int (*read)(struct _swPipe *, void *recv, int length);
     int (*write)(struct _swPipe *, void *send, int length);
-    int (*getFd)(struct _swPipe *, int isWriteFd);
+    int (*getFd)(struct _swPipe *, int master);
     int (*close)(struct _swPipe *);
 } swPipe;
+
+enum _swPipe_close_which
+{
+    SW_PIPE_CLOSE_MASTER = 1,
+    SW_PIPE_CLOSE_WORKER = 2,
+    SW_PIPE_CLOSE_BOTH   = 0,
+};
 
 int swPipeBase_create(swPipe *p, int blocking);
 int swPipeEventfd_create(swPipe *p, int blocking, int semaphore, int timeout);
 int swPipeUnsock_create(swPipe *p, int blocking, int protocol);
+int swPipeUnsock_close_ext(swPipe *p, int which);
 
 static inline int swPipeNotify_auto(swPipe *p, int blocking, int semaphore)
 {

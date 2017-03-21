@@ -20,8 +20,29 @@
 
 #define SW_MODULE_INIT_FUNC    "swModule_init"
 
+static swHashMap *loaded_modules = NULL;
+
 swModule* swModule_load(char *so_file)
 {
+    if (loaded_modules == NULL)
+    {
+        loaded_modules = swHashMap_new(8, NULL);
+    }
+    else
+    {
+        swModule *find = swHashMap_find(loaded_modules, so_file, strlen(so_file));
+        if (find)
+        {
+            return find;
+        }
+    }
+
+    if (access(so_file, R_OK) < 0)
+    {
+        swWarn("module file[%s] not found.", so_file);
+        return NULL;
+    }
+
     int (*init_func)(swModule*);
     void *handle = dlopen(so_file, RTLD_LAZY);
 
@@ -57,6 +78,7 @@ swModule* swModule_load(char *so_file)
         return NULL;
     }
     module->handle = handle;
+    swHashMap_add(loaded_modules, so_file, strlen(so_file), module);
     return module;
 }
 

@@ -23,9 +23,29 @@
 #define SW_SOCK_ASYNC    1
 #define SW_SOCK_SYNC     0
 
+#define SW_HTTPS_PROXY_HANDSHAKE_RESPONSE  "HTTP/1.1 200 Connection established"
+
 enum swClient_pipe_flag
 {
     SW_CLIENT_PIPE_TCP_SESSION = 1,
+};
+
+enum swHttp_proxy_state
+{
+    SW_HTTP_PROXY_STATE_WAIT = 0,
+    SW_HTTP_PROXY_STATE_HANDSHAKE,
+    SW_HTTP_PROXY_STATE_READY,
+};
+
+struct _http_proxy
+{
+    uint8_t state;
+    int proxy_port;
+    char *proxy_host;
+    
+    char *target_host;
+    int target_port;
+    char buf[600];
 };
 
 typedef struct _swClient
@@ -47,6 +67,7 @@ typedef struct _swClient
     uint32_t released :1;
     uint32_t destroyed :1;
     uint32_t redirect :1;
+    uint32_t http2 :1;
 
     /**
      * one package: length check
@@ -56,6 +77,7 @@ typedef struct _swClient
 
     swProtocol protocol;
     struct _swSocks5 *socks5_proxy;
+    struct _http_proxy* http_proxy;
 
     uint32_t reuse_count;
 

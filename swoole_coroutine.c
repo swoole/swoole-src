@@ -186,6 +186,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     int coro_status;
     COROG.current_coro->cid = cid;
     COROG.current_coro->start_time = time(NULL);
+    COROG.current_coro->function = NULL;
     COROG.current_coro->post_callback = post_callback;
     COROG.current_coro->post_callback_params = params;
     COROG.require = 1;
@@ -212,6 +213,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
 #else
 #define TASK_SLOT \
     ((int)((ZEND_MM_ALIGNED_SIZE(sizeof(coro_task)) + ZEND_MM_ALIGNED_SIZE(sizeof(zval)) - 1) / ZEND_MM_ALIGNED_SIZE(sizeof(zval))))
+
 int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval *retval, void *post_callback, void* params)
 {
     int cid = alloc_cidmap();
@@ -221,14 +223,14 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
         return CORO_LIMIT;
     }
     zend_function *func = fci_cache->function_handler;
-    zend_op_array *op_array = (zend_op_array *)fci_cache->function_handler;
+    zend_op_array *op_array = (zend_op_array *) fci_cache->function_handler;
     zend_object *object;
     int i;
     zend_vm_stack_init();
 
-    COROG.current_coro = (coro_task *)EG(vm_stack_top);
-    zend_execute_data *call = (zend_execute_data *)(EG(vm_stack_top));
-    EG(vm_stack_top) = (zval *)((char *)call + TASK_SLOT * sizeof(zval));
+    COROG.current_coro = (coro_task *) EG(vm_stack_top);
+    zend_execute_data *call = (zend_execute_data *) (EG(vm_stack_top));
+    EG(vm_stack_top) = (zval *) ((char *) call + TASK_SLOT * sizeof(zval));
     object = (func->common.fn_flags & ZEND_ACC_STATIC) ? NULL : fci_cache->object;
     call = zend_vm_stack_push_call_frame(ZEND_CALL_TOP_FUNCTION | ZEND_CALL_ALLOCATED, fci_cache->function_handler, argc, fci_cache->called_scope, object);
 
@@ -252,6 +254,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     ++COROG.coro_num;
     COROG.current_coro->cid = cid;
     COROG.current_coro->start_time = time(NULL);
+    COROG.current_coro->function = NULL;
     COROG.current_coro->post_callback = post_callback;
     COROG.current_coro->post_callback_params = params;
     COROG.require = 1;
@@ -280,6 +283,10 @@ sw_inline void coro_close(TSRMLS_D)
         COROG.current_coro->post_callback(COROG.current_coro->post_callback_params);
     }
     free_cidmap(COROG.current_coro->cid);
+    if (COROG.current_coro->function)
+    {
+        sw_zval_free(COROG.current_coro->function);
+    }
 
     void **arguments = EG(current_execute_data)->function_state.arguments;
 
@@ -324,6 +331,11 @@ sw_inline void coro_close(TSRMLS_D)
 #else
 sw_inline void coro_close(TSRMLS_D)
 {
+    if (COROG.current_coro->function)
+    {
+        sw_zval_free(COROG.current_coro->function);
+        COROG.current_coro->function = NULL;
+    }
     efree(EG(vm_stack));
     efree(COROG.allocated_return_value_ptr);
     EG(vm_stack) = COROG.origin_vm_stack;
@@ -510,6 +522,7 @@ sw_inline void coro_yield()
 sw_inline void coro_handle_timeout()
 {
     swLinkedList *timeout_list = SwooleWG.coro_timeout_list;
+    swTimer_node *tnode = NULL;
     if (timeout_list != NULL && timeout_list->num > 0)
     {
 		php_context *cxt = (php_context *)swLinkedList_pop(timeout_list);
@@ -533,7 +546,7 @@ sw_inline void coro_handle_timeout()
 			else
 			{
 				context->state = SW_CORO_CONTEXT_RUNNING;
-				swTimer_node *tnode = swTimer_add(&SwooleG.timer, scc->ms, 0, scc);
+				tnode = swTimer_add(&SwooleG.timer, scc->ms, 0, scc);
 
 				if (tnode == NULL)
 				{
@@ -550,8 +563,6 @@ sw_inline void coro_handle_timeout()
 			scc = (swTimer_coro_callback *)swLinkedList_pop(timeout_list);
 		}
 	}
-
-	SwooleG.main_reactor->timeout_msec = SwooleG.timer.num == 0 ? -1 : 100;
 }
 
 /* allocate cid for coroutine */

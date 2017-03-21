@@ -84,11 +84,13 @@ static int client_select_wait(zval *sock_array, fd_set *fds TSRMLS_DC);
 
 static void client_onConnect(swClient *cli);
 static void client_onReceive(swClient *cli, char *data, uint32_t length);
-static int client_onPackage(swConnection *conn, char *data, uint32_t length);
 static void client_onClose(swClient *cli);
 static void client_onError(swClient *cli);
 static void client_onBufferFull(swClient *cli);
 static void client_onBufferEmpty(swClient *cli);
+#ifdef SW_USE_OPENSSL
+static void client_check_ssl_setting(swClient *cli, zval *zset TSRMLS_DC);
+#endif
 
 static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_client_callback_type type)
 {
@@ -98,7 +100,7 @@ static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_cli
     zval *retval = NULL;
     zval **args[1];
 
-    client_callback *cb = swoole_get_property(zobject, 0);
+    client_callback *cb = swoole_get_property(zobject, client_property_callback);
     char *callback_name;
 
     switch(type)
@@ -283,7 +285,7 @@ void swoole_client_init(int module_number TSRMLS_DC)
     zend_declare_class_constant_long(swoole_client_class_entry_ptr, ZEND_STRL("MSG_WAITALL"), MSG_WAITALL TSRMLS_CC);
 }
 
-static int client_onPackage(swConnection *conn, char *data, uint32_t length)
+int php_swoole_client_onPackage(swConnection *conn, char *data, uint32_t length)
 {
     client_onReceive(conn->object, data, length);
     return SW_OK;
@@ -394,6 +396,74 @@ static void client_onBufferEmpty(swClient *cli)
     client_execute_callback(zobject, SW_CLIENT_CB_onBufferEmpty);
 }
 
+#ifdef SW_USE_OPENSSL
+static void client_check_ssl_setting(swClient *cli, zval *zset TSRMLS_DC)
+{
+    HashTable *vht = Z_ARRVAL_P(zset);
+    zval *v;
+
+    if (php_swoole_array_get_value(vht, "ssl_method", v))
+    {
+        convert_to_long(v);
+        cli->ssl_method = (int) Z_LVAL_P(v);
+    }
+    if (php_swoole_array_get_value(vht, "ssl_compress", v))
+    {
+        convert_to_boolean(v);
+        cli->ssl_disable_compress = !Z_BVAL_P(v);
+    }
+    if (php_swoole_array_get_value(vht, "ssl_cert_file", v))
+    {
+        convert_to_string(v);
+        cli->ssl_cert_file = strdup(Z_STRVAL_P(v));
+        if (access(cli->ssl_cert_file, R_OK) < 0)
+        {
+            swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", cli->ssl_cert_file);
+            return;
+        }
+    }
+    if (php_swoole_array_get_value(vht, "ssl_key_file", v))
+    {
+        convert_to_string(v);
+        cli->ssl_key_file = strdup(Z_STRVAL_P(v));
+        if (access(cli->ssl_key_file, R_OK) < 0)
+        {
+            swoole_php_fatal_error(E_ERROR, "ssl key file[%s] not found.", cli->ssl_key_file);
+            return;
+        }
+    }
+    if (cli->ssl_cert_file && !cli->ssl_key_file)
+    {
+        swoole_php_fatal_error(E_ERROR, "ssl require key file.");
+        return;
+    }
+}
+#endif
+
+int php_swoole_client_isset_callback(zval *zobject, int type TSRMLS_DC)
+{
+    client_callback *cb = swoole_get_property(zobject, client_property_callback);
+    switch (type)
+    {
+    case SW_CLIENT_CB_onConnect:
+        return cb->onConnect != NULL;
+    case SW_CLIENT_CB_onError:
+        return cb->onError != NULL;
+    case SW_CLIENT_CB_onClose:
+        return cb->onClose != NULL;
+    case SW_CLIENT_CB_onBufferFull:
+        return cb->onBufferFull != NULL;
+    case SW_CLIENT_CB_onBufferEmpty:
+        return cb->onBufferEmpty != NULL;
+#ifdef SW_USE_OPENSSL
+    case SW_CLIENT_CB_onSSLReady:
+        return cb->onSSLReady != NULL;
+#endif
+    default:
+        return SW_FALSE;
+    }
+}
+
 void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
 {
     HashTable *vht;
@@ -433,7 +503,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
         }
         bzero(cli->protocol.package_eof, SW_DATA_EOF_MAXLEN);
         memcpy(cli->protocol.package_eof, Z_STRVAL_P(v), Z_STRLEN_P(v));
-        cli->protocol.onPackage = client_onPackage;
+        cli->protocol.onPackage = php_swoole_client_onPackage;
     }
     //open length check
     if (php_swoole_array_get_value(vht, "open_length_check", v))
@@ -441,7 +511,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
         convert_to_boolean(v);
         cli->open_length_check = Z_BVAL_P(v);
         cli->protocol.get_package_length = swProtocol_get_package_length;
-        cli->protocol.onPackage = client_onPackage;
+        cli->protocol.onPackage = php_swoole_client_onPackage;
     }
     //package length size
     if (php_swoole_array_get_value(vht, "package_length_type", v))
@@ -604,44 +674,26 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
             cli->socks5_proxy->l_password = Z_STRLEN_P(v);
         }
     }
+    if (php_swoole_array_get_value(vht, "http_proxy_host", v))
+    {
+        convert_to_string(v);
+        char *host = Z_STRVAL_P(v);
+        if (php_swoole_array_get_value(vht, "http_proxy_port", v))
+        {
+            convert_to_long(v);
+            cli->http_proxy = ecalloc(1,sizeof(struct _http_proxy));
+            cli->http_proxy->proxy_host = strdup(host);
+            cli->http_proxy->proxy_port = Z_LVAL_P(v);
+        }
+        else
+        {
+            swSysError("http_proxy_port can not be null");
+        }
+    }
 #ifdef SW_USE_OPENSSL
     if (cli->open_ssl)
     {
-        if (php_swoole_array_get_value(vht, "ssl_method", v))
-        {
-            convert_to_long(v);
-            cli->ssl_method = (int) Z_LVAL_P(v);
-        }
-        if (php_swoole_array_get_value(vht, "ssl_compress", v))
-        {
-            convert_to_boolean(v);
-            cli->ssl_disable_compress = !Z_BVAL_P(v);
-        }
-        if (php_swoole_array_get_value(vht, "ssl_cert_file", v))
-        {
-            convert_to_string(v);
-            cli->ssl_cert_file = strdup(Z_STRVAL_P(v));
-            if (access(cli->ssl_cert_file, R_OK) < 0)
-            {
-                swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", cli->ssl_cert_file);
-                return;
-            }
-        }
-        if (php_swoole_array_get_value(vht, "ssl_key_file", v))
-        {
-            convert_to_string(v);
-            cli->ssl_key_file = strdup(Z_STRVAL_P(v));
-            if (access(cli->ssl_key_file, R_OK) < 0)
-            {
-                swoole_php_fatal_error(E_ERROR, "ssl key file[%s] not found.", cli->ssl_key_file);
-                return;
-            }
-        }
-        if (cli->ssl_cert_file && !cli->ssl_key_file)
-        {
-            swoole_php_fatal_error(E_ERROR, "ssl require key file.");
-            return;
-        }
+        client_check_ssl_setting(cli, zset TSRMLS_CC);
     }
 #endif
 }
@@ -764,6 +816,11 @@ void php_swoole_client_free(zval *zobject, swClient *cli TSRMLS_DC)
     if (cli->socks5_proxy)
     {
         efree(cli->socks5_proxy);
+    }
+    //http proxy config
+    if (cli->http_proxy)
+    {
+        efree(cli->http_proxy);
     }
     if (cli->protocol.private_data)
     {
@@ -1751,11 +1808,16 @@ static PHP_METHOD(swoole_client, enableSSL)
         swoole_php_fatal_error(E_WARNING, "SSL has been enabled.");
         RETURN_FALSE;
     }
+    cli->open_ssl = 1;
+    zval *zset = sw_zend_read_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("setting"), 1 TSRMLS_CC);
+    if (zset && !ZVAL_IS_NULL(zset))
+    {
+        client_check_ssl_setting(cli, zset TSRMLS_CC);
+    }
     if (swClient_enable_ssl_encrypt(cli) < 0)
     {
         RETURN_FALSE;
     }
-    cli->open_ssl = 1;
     if (cli->async)
     {
         zval *zcallback;

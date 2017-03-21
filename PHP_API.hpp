@@ -27,6 +27,10 @@ extern "C"
 #include "php_streams.h"
 #include "php_network.h"
 
+#if PHP_MAJOR_VERSION < 7
+#error "only supports PHP7 or later."
+#endif
+
 #include "zend_interfaces.h"
 #include "zend_exceptions.h"
 #include "zend_variables.h"
@@ -124,11 +128,11 @@ public:
     }
     void operator =(int v)
     {
-        ZVAL_LONG(&val, (long )v);
+        ZVAL_LONG(ptr(), (long )v);
     }
     void operator =(long v)
     {
-        ZVAL_LONG(&val, v);
+        ZVAL_LONG(ptr(), v);
     }
     void operator =(string &str)
     {
@@ -161,45 +165,49 @@ public:
             return &val;
         }
     }
+    inline void addRef()
+    {
+        zval_add_ref(ptr());
+    }
     inline int type()
     {
-        return Z_TYPE(val);
+        return Z_TYPE_P(ptr());
     }
     inline bool isString()
     {
-        return Z_TYPE(val) == IS_STRING;
+        return Z_TYPE_P(ptr()) == IS_STRING;
     }
     inline bool isArray()
     {
-        return Z_TYPE(val) == IS_ARRAY;
+        return Z_TYPE_P(ptr()) == IS_ARRAY;
     }
     inline bool isObject()
     {
-        return Z_TYPE(val) == IS_OBJECT;
+        return Z_TYPE_P(ptr()) == IS_OBJECT;
     }
     inline bool isInt()
     {
-        return Z_TYPE(val) == IS_LONG;
+        return Z_TYPE_P(ptr()) == IS_LONG;
     }
     inline bool isFloat()
     {
-        return Z_TYPE(val) == IS_DOUBLE;
+        return Z_TYPE_P(ptr()) == IS_DOUBLE;
     }
     inline bool isBool()
     {
-        return Z_TYPE(val) == IS_TRUE || Z_TYPE(val) == IS_FALSE;
+        return Z_TYPE_P(ptr()) == IS_TRUE || Z_TYPE_P(ptr()) == IS_FALSE;
     }
     inline bool isNull()
     {
-        return Z_TYPE(val) == IS_NULL;
+        return Z_TYPE_P(ptr()) == IS_NULL;
     }
     inline bool isResource()
     {
-        return Z_TYPE(val) == IS_RESOURCE;
+        return Z_TYPE_P(ptr()) == IS_RESOURCE;
     }
     inline bool isReference()
     {
-        return Z_TYPE(val) == IS_REFERENCE;
+        return Z_TYPE_P(ptr()) == IS_REFERENCE;
     }
     inline string toString()
     {
@@ -240,6 +248,14 @@ public:
             convert_to_boolean(ptr());
         }
         return Z_TYPE_P(ptr()) == IS_TRUE;
+    }
+    inline int length()
+    {
+        if (!isString())
+        {
+            convert_to_string(ptr());
+        }
+        return Z_STRLEN_P(ptr());
     }
 protected:
     bool reference;
@@ -341,11 +357,19 @@ public:
     Array(zval *v) :
             Variant(v)
     {
-
+        if(Z_TYPE_P(v)!=IS_ARRAY)
+        {
+            php_error_docref(NULL, E_ERROR, "cpp moudle array construct args must be zend array");
+        }
     }
     Array(Variant &v) :
             Variant()
     {
+        if(!v.isArray())
+        {
+            php_error_docref(NULL, E_ERROR, "cpp moudle array construct args must be zend array");
+        }
+            
         memcpy(&val, v.ptr(), sizeof(val));
         zval_add_ref(&val);
     }
@@ -391,8 +415,10 @@ public:
     }
     void append(Array &v)
     {
-        zval_add_ref(v.ptr());
-        add_next_index_zval(ptr(), v.ptr());
+        zend_array *arr = zend_array_dup(Z_ARR_P(v.ptr()));
+        zval array;
+        ZVAL_ARR(&array, arr);
+        add_next_index_zval(ptr(), &array);
     }
     //------------------------------------
     void set(const char *key, Variant &v)
@@ -475,6 +501,10 @@ public:
     {
         return Z_ARRVAL_P(ptr())->nNumOfElements;
     }
+    bool empty()
+    {
+        return Z_ARRVAL_P(ptr())->nNumOfElements == 0;
+    }
 };
 
 class Args
@@ -493,12 +523,16 @@ public:
     {
         return argc;
     }
+    bool empty()
+    {
+        return argc == 0;
+    }
     Array toArray()
     {
         Array array;
         for (int i = 0; i < argc; i++)
         {
-            array.append(argv[i]);
+            array.append(Variant(argv[i]));
         }
         return array;
     }
@@ -785,6 +819,7 @@ void registerFunction(const char *name, function_t func)
         function_map[name] = func;
     }
 }
+
 void registerConstant(const char *name, long v)
 {
     zend_constant c;

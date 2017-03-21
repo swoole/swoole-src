@@ -44,6 +44,10 @@
 #include "http2.h"
 #endif
 
+#ifdef SW_USE_PICOHTTPPARSER
+#include "thirdparty/picohttpparser/picohttpparser.h"
+#endif
+
 static swArray *http_client_array;
 
 swString *swoole_http_buffer;
@@ -131,6 +135,75 @@ static inline void http_header_key_format(char *key, int length)
         }
     }
 }
+
+#ifdef SW_USE_PICOHTTPPARSER
+enum flags
+{
+    F_CONNECTION_KEEP_ALIVE = 1 << 1,
+    F_CONNECTION_CLOSE = 1 << 2,
+};
+
+static inline long http_fast_parse(php_http_parser *parser, char *data, size_t length)
+{
+    http_context *ctx = parser->data;
+    const char *method;
+    size_t method_len;
+    int minor_version;
+    struct phr_header headers[64];
+    size_t num_headers = sizeof(headers) / sizeof(headers[0]);
+    const char *path;
+    size_t path_len;
+
+    int n = phr_parse_request(data, length, &method, &method_len, &path, &path_len, &minor_version, headers, &num_headers, 0);
+    if (n < 0)
+    {
+        return SW_ERR;
+    }
+
+    char *p = memchr(path, '?', path_len);
+    if (p)
+    {
+        http_request_on_path(parser, path, p - path);
+        http_request_on_query_string(parser, p + 1, path + path_len - p - 1);
+    }
+    else
+    {
+        http_request_on_path(parser, path, path_len);
+    }
+
+    int i;
+    for (i = 0; i < num_headers; i++)
+    {
+        if (strncasecmp(headers[i].name, "Connection", headers[i].name_len) == 0
+                && strncasecmp(headers[i].value, "keep-alive", headers[i].value_len) == 0)
+        {
+            parser->flags |= F_CONNECTION_KEEP_ALIVE;
+        }
+        else
+        {
+            parser->flags |= F_CONNECTION_CLOSE;
+        }
+        if (http_request_on_header_field(parser, headers[i].name, headers[i].name_len) < 0)
+        {
+            return SW_ERR;
+        }
+        if (http_request_on_header_value(parser, headers[i].value, headers[i].value_len) < 0)
+        {
+            return SW_ERR;
+        }
+    }
+    parser->method = swHttp_get_method(method, method_len) - 1;
+    parser->http_major = 1;
+    parser->http_minor = minor_version;
+    ctx->request.version = 100 + minor_version;
+    if (n < length)
+    {
+        http_request_on_body(parser, data + n, length - n);
+    }
+    http_request_on_headers_complete(parser);
+    return SW_OK;
+}
+#endif
 
 #ifdef SW_HAVE_ZLIB
 static int http_response_compress(swString *body, int level);
@@ -441,6 +514,11 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
     if (j < length)
     {
         vlen = i - j;
+        if (klen >= SW_HTTP_COOKIE_KEYLEN)
+        {
+            swWarn("cookie key is too large.");
+            return;
+        }
         keybuf[klen - 1] = 0;
         if (vlen >= SW_HTTP_COOKIE_VALLEN)
         {
@@ -921,8 +999,6 @@ static int http_onReceive(swServer *serv, swEventData *req)
 
     parser->data = ctx;
 
-    php_http_parser_init(parser, PHP_HTTP_REQUEST);
-
     zval *zdata;
     SW_MAKE_STD_ZVAL(zdata);
     ctx->request.zdata = zdata;
@@ -931,7 +1007,13 @@ static int http_onReceive(swServer *serv, swEventData *req)
 
     swTrace("httpRequest %d bytes:\n---------------------------------------\n%s\n", (int)Z_STRLEN_P(zdata), Z_STRVAL_P(zdata));
 
+#ifdef SW_USE_PICOHTTPPARSER
+    long n = http_fast_parse(parser, Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
+#else
+    php_http_parser_init(parser, PHP_HTTP_REQUEST);
     long n = php_http_parser_execute(parser, &http_parser_settings, Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
+#endif
+
     if (n < 0)
     {
         sw_zval_ptr_dtor(&zdata);

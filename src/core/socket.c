@@ -338,10 +338,13 @@ int swSocket_bind(int sock, int type, char *host, int *port)
         addr_in6.sin6_port = htons(*port);
         addr_in6.sin6_family = AF_INET6;
         ret = bind(sock, (struct sockaddr *) &addr_in6, sizeof(addr_in6));
-
-        len = sizeof(addr_in6);
-        if (getsockname(sock, (struct sockaddr *)&addr_in6, &len) != -1) {
-            *port = ntohs(addr_in6.sin6_port);
+        if (ret == 0 && *port == 0)
+        {
+            len = sizeof(addr_in6);
+            if (getsockname(sock, (struct sockaddr *) &addr_in6, &len) != -1)
+            {
+                *port = ntohs(addr_in6.sin6_port);
+            }
         }
     }
     //IPv4
@@ -352,10 +355,13 @@ int swSocket_bind(int sock, int type, char *host, int *port)
         addr_in4.sin_port = htons(*port);
         addr_in4.sin_family = AF_INET;
         ret = bind(sock, (struct sockaddr *) &addr_in4, sizeof(addr_in4));
-
-        len = sizeof(addr_in4);
-        if (getsockname(sock, (struct sockaddr *)&addr_in4, &len) != -1) {
-            *port = ntohs(addr_in4.sin_port);
+        if (ret == 0 && *port == 0)
+        {
+            len = sizeof(addr_in4);
+            if (getsockname(sock, (struct sockaddr *) &addr_in4, &len) != -1)
+            {
+                *port = ntohs(addr_in4.sin_port);
+            }
         }
     }
     //bind failed

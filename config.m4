@@ -59,6 +59,9 @@ PHP_ARG_ENABLE(mysqlnd, enable mysqlnd support,
 PHP_ARG_ENABLE(coroutine, whether to enable coroutine,
 [  --enable-coroutine      Enable coroutine (requires PHP >= 5.5)], yes, no)
 
+PHP_ARG_ENABLE(picohttpparser, enable picohttpparser support,
+[  --enable-picohttpparser       Do you have picohttpparser?], no, no)
+
 PHP_ARG_WITH(swoole, swoole support,
 [  --with-swoole           With swoole support])
 
@@ -140,6 +143,21 @@ AC_COMPILE_IFELSE([
 )
 AC_MSG_RESULT([$CLANG])
 
+AC_MSG_CHECKING([if compiling with low version gcc.])
+AC_COMPILE_IFELSE([
+    AC_LANG_PROGRAM([], [[
+        #if defined(__GNUC__) && ((__GNUC__ <= 4 && __GNUC_MINOR__ < 8))
+        #error "low version gcc."
+        #endif
+    ]])],
+    [GCC_LOW_VERSION=no], [GCC_LOW_VERSION=yes]
+)
+AC_MSG_RESULT([$GCC_LOW_VERSION])
+
+if test "$GCC_LOW_VERSION" = "yes"; then
+    CFLAGS="$CFLAGS -fno-strict-aliasing"
+fi
+
 if test "$CLANG" = "yes"; then
     CFLAGS="$CFLAGS -std=gnu89"
 fi
@@ -200,9 +218,9 @@ if test "$PHP_SWOOLE" != "no"; then
         if test "$PHP_OPENSSL_DIR" != "no"; then
             AC_DEFINE(HAVE_OPENSSL, 1, [have openssl])
             PHP_ADD_INCLUDE("${PHP_OPENSSL_DIR}/include")
-            PHP_ADD_LIBRARY_WITH_PATH(ssl, "${PHP_OPENSSL_DIR}/lib")
+            PHP_ADD_LIBRARY_WITH_PATH(ssl, "${PHP_OPENSSL_DIR}/${PHP_LIBDIR}")
         else
-            AC_CHECK_LIB(ssl, SSL_library_init, AC_DEFINE(HAVE_OPENSSL, 1, [have openssl]))
+            AC_CHECK_LIB(ssl, SSL_connect, AC_DEFINE(HAVE_OPENSSL, 1, [have openssl]))
         fi
 
         AC_DEFINE(SW_USE_OPENSSL, 1, [enable openssl support])
@@ -278,6 +296,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_table.c \
         swoole_http_server.c \
         swoole_http_v2_server.c \
+        swoole_http_v2_client.c \
         swoole_websocket_server.c \
         swoole_http_client.c \
         swoole_http_client_coro.c \
@@ -356,10 +375,20 @@ if test "$PHP_SWOOLE" != "no"; then
     swoole_source_file="$swoole_source_file thirdparty/php_http_parser.c"
     swoole_source_file="$swoole_source_file thirdparty/multipart_parser.c"
 
+    if test "$PHP_PICOHTTPPARSER" = "yes"; then
+        AC_DEFINE(SW_USE_PICOHTTPPARSER, 1, [enable picohttpparser support])
+        swoole_source_file="$swoole_source_file thirdparty/picohttpparser/picohttpparser.c"
+    fi
+
     PHP_NEW_EXTENSION(swoole, $swoole_source_file, $ext_shared)
 
     PHP_ADD_INCLUDE([$ext_srcdir])
     PHP_ADD_INCLUDE([$ext_srcdir/include])
+
+    if test "$PHP_PICOHTTPPARSER" = "yes"; then
+        PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/picohttpparser])
+        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/picohttpparser)
+    fi
 
     PHP_ADD_BUILD_DIR($ext_builddir/src/core)
     PHP_ADD_BUILD_DIR($ext_builddir/src/memory)

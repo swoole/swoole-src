@@ -41,6 +41,7 @@
 #define SW_SOCKET_OVERFLOW_WAIT    100
 #define SW_SOCKET_MAX_DEFAULT      65536
 #define SW_SOCKET_BUFFER_SIZE      (8*1024*1024)
+#define SW_SYSTEMD_FDS_START       3
 
 #define SW_GLOBAL_MEMORY_PAGESIZE  (1024*1024*2) //全局内存的分页
 
@@ -53,7 +54,7 @@
 #define SW_TIMER_TYPE_CORO         1             //定时器特殊类型，支持协程超时切换
 //#define SW_CONNECTION_LIST_EXPAND  (4096*2)  //动态扩容的数量
 
-#define SW_HOST_MAXSIZE            128
+#define SW_HOST_MAXSIZE            104  // Linux has 108 UNIX_PATH_MAX, but BSD/MacOS limit is only 104
 
 //#define SW_DEBUG                 //debug
 #define SW_LOG_NO_SRCINFO          //no source info

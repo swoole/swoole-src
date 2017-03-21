@@ -35,10 +35,10 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2017-01-24</date>
+    <date>2017-03-17</date>
     <time>09:50:10</time>
     <version>
-		<release>2.0.6</release>
+		<release>2.0.7</release>
 		<api>2.0</api>
     </version>
     <stability>
@@ -47,8 +47,8 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-    - Fixed http client and redis client conflicts
-    - Fixed the coroutine client cannot use the SplQueue on PHP5
+    - Added Coroutine::create function, allows user to create coroutine
+    - Fixed HttpClient crash
     </notes>
 	<contents>
 		<dir name="/">
@@ -100,9 +100,10 @@
 			<file role="src" name="swoole_table.c" />
 			<file role="src" name="swoole_buffer.c" />
 			<file role="src" name="swoole_http_server.c" />
-			<file role="src" name="swoole_http_v2_server.c" />
 			<file role="src" name="swoole_http_client.h" />
 			<file role="src" name="swoole_http_client.c" />
+			<file role="src" name="swoole_http_v2_client.c" />
+			<file role="src" name="swoole_http_v2_server.c" />
 			<file role="src" name="swoole_http.h" />
 			<file role="src" name="swoole_websocket_server.c" />
 			<file role="src" name="swoole_atomic.c" />
@@ -113,6 +114,8 @@
 			<file role="src" name="swoole_module.c" />
 			<file role="src" name="swoole_mmap.c" />
 			<file role="src" name="swoole_channel.c" />
+            <file role="src" name="swoole_serialize.h" />
+            <file role="src" name="swoole_serialize.c" />
 			<file role="src" name="swoole_coroutine.h" />
 			<file role="src" name="swoole_coroutine.c" />
 			<file role="src" name="swoole_coroutine_util.c" />
@@ -125,6 +128,10 @@
 				<file role="src" name="php_http_parser.h" />
 				<file role="src" name="multipart_parser.c" />
 				<file role="src" name="multipart_parser.h" />
+				<dir name="picohttpparser">
+					<file role="src" name="picohttpparser.c" />
+					<file role="src" name="picohttpparser.h" />
+				</dir>
 			</dir>
             <dir name="benchmark">
                 <file role="src" name="async.php" />
@@ -238,12 +245,25 @@
 				</dir>
 				<dir name="server">
 					<file role="src" name="echo.php" />
-					<file role="src" name="msgqueue.php" />
+					<file role="src" name="ip_dispatch.php" />
+					<file role="src" name="unix_stream.php" />
+					<file role="src" name="listen_1k_port.php" />
+					<file role="src" name="fixed_header_client.php" />
+					<file role="src" name="fixed_header_server.php" />
+					<file role="src" name="local_listener.php" />
+					<file role="src" name="single.php" />
 				</dir>
 				<dir name="http">
 					<file role="src" name="server.php" />
 					<file role="src" name="client.php" />
 					<file role="src" name="curl.php" />
+					<file role="src" name="async_client.php" />
+					<file role="src" name="async_websocket.php" />
+					<file role="src" name="download.php" />
+				</dir>
+				<dir name="http2">
+					<file role="src" name="server.php" />
+					<file role="src" name="client.php" />
 				</dir>
 				<dir name="length">
                     <file role="src" name="server.php" />
@@ -273,6 +293,7 @@
 				</dir>
 				<dir name="task">
 					<file role="src" name="task.php" />
+					<file role="src" name="task_coro.php" />
 					<file role="src" name="shared_client.php" />
 					<file role="src" name="shared_server.php" />
 				</dir>
@@ -303,8 +324,14 @@
                 </dir>
                 <dir name="redis">
                     <file role="src" name="client.php" />
+                    <file role="src" name="server.php" />
+                    <file role="src" name="subscribe.php" />
+                </dir>
+                <dir name="mmap">
+                    <file role="src" name="mmap.php" />
                 </dir>
 				<file role="src" name="server.php" />
+                <file role="src" name="channel.php" />
 				<file role="src" name="mysql_proxy_server.php" />
 				<file role="src" name="proxy_sync.php" />
 				<file role="src" name="sendfile_server.php" />

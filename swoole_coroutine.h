@@ -93,6 +93,10 @@ typedef struct _coro_global
 struct _coro_task
 {
     int cid;
+    /**
+     * user coroutine
+     */
+    zval *function;
     time_t start_time;
     void (*post_callback)(void *param);
     void *post_callback_params;
