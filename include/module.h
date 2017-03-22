@@ -36,6 +36,7 @@ typedef struct _swModule
 } swModule;
 
 swModule* swModule_load(char *so_file);
+void swModule_free(swModule* module);
 int swModule_register_global_function(const char *name, void* func);
 void* swModule_get_global_function(char *name, uint32_t length);
 

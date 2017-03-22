@@ -47,6 +47,12 @@ extern "C"
 #include <string>
 #include <vector>
 
+#ifdef ECLIPSE_HELPER
+#include <map>
+#define unordered_map map
+#define nullptr_t void*
+#endif
+
 #define MAX_ARGC        20
 #define VAR_DUMP_LEVEL  10
 
@@ -269,6 +275,45 @@ protected:
     }
 };
 
+class String
+{
+public:
+    String(const char *str)
+    {
+        value = zend_string_init(str, strlen(str), 0);
+    }
+    String(string &str)
+    {
+        value = zend_string_init(str.c_str(), str.length(), 0);
+    }
+    size_t length()
+    {
+        return value->len;
+    }
+    char* c_str()
+    {
+        return value->val;
+    }
+    ~String()
+    {
+        zend_string_free(value);
+    }
+    void extend(size_t new_size)
+    {
+        value = zend_string_extend(value, new_size, 0);
+    }
+    void tolower()
+    {
+        zend_str_tolower(value->val, value->len);
+    }
+    zend_string* ptr()
+    {
+        return value;
+    }
+protected:
+    zend_string *value;
+};
+
 class ArrayIterator
 {
 public:
@@ -486,9 +531,8 @@ public:
     }
     bool remove(const char *key)
     {
-        zend_string *_key = zend_string_init(key, strlen(key), 0);
-        bool ret = zend_hash_del(Z_ARRVAL_P(ptr()), _key) == SUCCESS;
-        zend_string_free(_key);
+        String _key(key);
+        bool ret = zend_hash_del(Z_ARRVAL_P(ptr()),  _key.ptr()) == SUCCESS;
         return ret;
     }
     void clean()
@@ -497,9 +541,8 @@ public:
     }
     bool exists(const char *key)
     {
-        zend_string *_key = zend_string_init(key, strlen(key), 0);
-        bool ret = zend_hash_exists(Z_ARRVAL_P(ptr()), _key) == SUCCESS;
-        zend_string_free(_key);
+        String _key(key);
+        bool ret = zend_hash_exists(Z_ARRVAL_P(ptr()), _key.ptr()) == SUCCESS;
         return ret;
     }
     ArrayIterator begin()
@@ -819,16 +862,30 @@ static void _exec_method(zend_execute_data *data, zval *return_value)
 
 typedef struct _zend_internal_arg_info ArgInfo;
 
-void registerFunction(const char *name, function_t func)
+bool registerFunction(const char *name, function_t func)
 {
-    zend_function_entry functions[] = {
+    zend_function_entry _functions[] = {
         {name, _exec_function, NULL, 0, 0},
         {NULL, NULL, NULL,}
     };
-    if (zend_register_functions(NULL, functions, NULL, MODULE_PERSISTENT) == SUCCESS)
+    if (zend_register_functions(NULL, _functions, NULL, MODULE_PERSISTENT) == SUCCESS)
     {
         function_map[name] = func;
+        return true;
     }
+    else
+    {
+        return false;
+    }
+}
+
+void unregisterFunction(string &name)
+{
+    zend_function_entry _functions[] = {
+        {name.c_str(), _exec_function, NULL, 0, 0},
+        {NULL, NULL, NULL,}
+    };
+    zend_unregister_functions(_functions, 1, NULL);
 }
 
 void registerConstant(const char *name, long v)
@@ -1117,6 +1174,21 @@ public:
                         &constants[i].value);
             }
         }
+        activated = true;
+        return true;
+    }
+    bool deactivate()
+    {
+        if (!activated)
+        {
+            return false;
+        }
+        zend_string *lowercase_name = zend_string_alloc(class_name.length(), 1);
+        zend_str_tolower_copy(ZSTR_VAL(lowercase_name), class_name.c_str(), class_name.length());
+        lowercase_name = zend_new_interned_string(lowercase_name);
+        zend_hash_del(CG(class_table), lowercase_name);
+        zend_string_release(lowercase_name);
+        activated = false;
         return true;
     }
     bool alias(const char *alias_name)
@@ -1132,16 +1204,49 @@ public:
         }
         return true;
     }
+    string getName()
+    {
+        return class_name;
+    }
+public :    zend_class_entry _ce;
+
 private:
     bool activated;
     string class_name;
     string parent_class_name;
     zend_class_entry *parent_ce;
-    zend_class_entry _ce;
+
     zend_class_entry *ce;
     unordered_map<string, zend_class_entry *> interfaces;
     vector<Method> methods;
     vector<Property> propertys;
     vector<Constant> constants;
 };
+
+static unordered_map<string, Class*> classes;
+
+void registerClass(Class *c)
+{
+    /**
+     * 激活类
+     */
+    c->activate();
+    classes[c->getName()] = c;
+}
+
+void destory()
+{
+    for (auto i = classes.begin(); i != classes.end(); i++)
+    {
+        Class *c = i->second;
+        c->deactivate();
+    }
+    for (auto i = function_map.begin(); i != function_map.end(); i++)
+    {
+        string name = i->first;
+        unregisterFunction(name);
+    }
+}
+
+//namespace end
 }

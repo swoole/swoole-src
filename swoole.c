@@ -271,6 +271,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_strerror, 0, 0, 1)
     ZEND_ARG_INFO(0, errno)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_load_module, 0, 0, 1)
+    ZEND_ARG_INFO(0, module_file)
+ZEND_END_ARG_INFO()
+
 #ifdef HAVE_PCRE
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_connection_iterator_offsetExists, 0, 0, 1)
     ZEND_ARG_INFO(0, fd)
@@ -328,7 +332,7 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_get_local_ip, arginfo_swoole_void)
     PHP_FE(swoole_strerror, arginfo_swoole_strerror)
     PHP_FE(swoole_errno, arginfo_swoole_void)
-    PHP_FE(swoole_load_module, NULL)
+    PHP_FE(swoole_load_module, arginfo_swoole_load_module)
     PHP_FE_END /* Must be the last line in swoole_functions[] */
 };
 
@@ -965,7 +969,6 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
     }
 
     SwooleWG.reactor_wait_onexit = 0;
-
     return SUCCESS;
 }
 

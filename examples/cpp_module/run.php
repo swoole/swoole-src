@@ -1,5 +1,5 @@
 <?php
-swoole_load_module(__DIR__.'/test.so');
+$module = swoole_load_module(__DIR__.'/test.so');
 
 function test()
 {
@@ -118,3 +118,4 @@ if (in_array('ext', $options))
   var_dump($ret);
   }
 //sleep(1000);
+$module->destory();

@@ -26,6 +26,7 @@ using namespace PHP;
 extern "C"
 {
     int swModule_init(swModule *);
+    void swModule_destory(swModule *);
 }
 
 void cpp_hello_world(Args &args, Variant &retval);
@@ -58,47 +59,51 @@ int swModule_init(swModule *module)
     string str("test");
     PHP::registerConstant("CPP_CONSTANTS_STRING", str);
 
-    Class c("CppClass");
+    Class *c = new Class("CppClass");
     /**
      * 注册构造方法
      */
-    c.addMethod("__construct", CppClass_construct, CONSTRUCT);
+    c->addMethod("__construct", CppClass_construct, CONSTRUCT);
     /**
      * 普通方法
      */
-    c.addMethod("test2", CppClass_test2);
+    c->addMethod("test2", CppClass_test2);
     /**
      * 静态方法
      */
-    c.addMethod("test", CppClass_test, STATIC);
+    c->addMethod("test", CppClass_test, STATIC);
     /**
      * 实现接口
      */
-    c.implements("Countable");
-    c.addMethod("count", CppClass_count);
+    c->implements("Countable");
+    c->addMethod("count", CppClass_count);
     /**
      * 添加默认属性
      */
-    c.addProperty("name", 1234);
+    c->addProperty("name", 1234);
     /**
      * 添加常量
      */
-    c.addConstant("VERSION", "1.9.0");
+    c->addConstant("VERSION", "1.9.0");
+    /**
+     * 注册类
+     */
+    PHP::registerClass(c);
     /**
      * 读取全局变量
      */
     Variant server = PHP::getGlobalVariant("_SERVER");
     if (server.isArray())
     {
-      Variant shell = Array(server)["SHELL"];
-      var_dump(shell);
+        Variant shell = Array(server)["SHELL"];
+        var_dump(shell);
     }
-    /**
-     * 激活类
-     */
-    c.activate();
-
     return SW_OK;
+}
+
+void swModule_destory(swModule *module)
+{
+    PHP::destory();
 }
 
 int test_get_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t length)
