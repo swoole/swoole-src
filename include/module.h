@@ -16,10 +16,6 @@
 #ifndef SW_MODULE_H_
 #define SW_MODULE_H_
 
-#include "swoole.h"
-#include "Server.h"
-#include "Client.h"
-
 #ifdef __cplusplus
 extern "C"
 {
@@ -30,9 +26,6 @@ typedef struct _swModule
     void *handle;
     char *file;
     char *name;
-    int (*beforeDispatch)(struct _swModule*, swServer *, swEventData *data);
-    int (*beforeReceive)(struct _swModule*, swServer *, swEventData *data);
-    int (*shutdown)(struct _swModule*);
 } swModule;
 
 swModule* swModule_load(char *so_file);
