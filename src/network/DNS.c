@@ -300,6 +300,18 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
         swWarn("domain name is too long.");
         return SW_ERR;
     }
+
+    int key_len = snprintf(key, sizeof(key), "%s-%d", domain, swoole_dns_request_id);
+    if (!request_map)
+    {
+        request_map = swHashMap_new(128, NULL);
+    }
+    else if (swHashMap_find(request_map, key, key_len))
+    {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_DNSLOOKUP_DUPLICATE_REQUEST, "duplicate request.");
+        return SW_ERR;
+    }
+
     request->domain = strndup(domain, len + 1);
     if (request->domain == NULL)
     {
@@ -357,12 +369,7 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
         return SW_ERR;
     }
 
-    if (!request_map)
-    {
-        request_map = swHashMap_new(128, NULL);
-    }
-    int n = snprintf(key, sizeof(key), "%s-%d", domain, swoole_dns_request_id);
-    swHashMap_add(request_map, key, n, request);
+    swHashMap_add(request_map, key, key_len, request);
     swoole_dns_request_id++;
     return SW_OK;
 }

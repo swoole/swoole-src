@@ -31,6 +31,7 @@ enum swErrorCode
     SW_ERROR_FILE_NOT_EXIST = 700,
     SW_ERROR_FILE_TOO_LARGE,
     SW_ERROR_FILE_EMPTY,
+    SW_ERROR_DNSLOOKUP_DUPLICATE_REQUEST,
 
     /**
      * connection error
