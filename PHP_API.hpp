@@ -1208,14 +1208,13 @@ public:
     {
         return class_name;
     }
-public :    zend_class_entry _ce;
 
-private:
+protected:
     bool activated;
     string class_name;
     string parent_class_name;
     zend_class_entry *parent_ce;
-
+    zend_class_entry _ce;
     zend_class_entry *ce;
     unordered_map<string, zend_class_entry *> interfaces;
     vector<Method> methods;
