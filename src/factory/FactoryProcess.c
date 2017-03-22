@@ -115,21 +115,19 @@ static int swFactoryProcess_notify(swFactory *factory, swDataHead *ev)
  */
 static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
 {
-    uint32_t schedule_key;
     uint32_t send_len = sizeof(task->data.info) + task->data.info.len;
-    uint16_t target_worker_id;
+    int target_worker_id;
     swServer *serv = SwooleG.serv;
     int fd = task->data.info.fd;
 
     if (task->target_worker_id < 0)
     {
-        schedule_key = fd;
 #ifndef SW_USE_RINGBUFFER
         if (SwooleTG.factory_lock_target)
         {
             if (SwooleTG.factory_target_worker < 0)
             {
-                target_worker_id = swServer_worker_schedule(serv, schedule_key);
+                target_worker_id = swServer_worker_schedule(serv, fd, &task->data);
                 SwooleTG.factory_target_worker = target_worker_id;
             }
             else
@@ -140,28 +138,17 @@ static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
         else
 #endif
         {
-            if (serv->dispatch_mode == SW_DISPATCH_USERFUNC)
-            {
-                int ret = serv->dispatch_func(serv, swServer_connection_get(serv, fd), &task->data);
-                //discard the data packet.
-                if (ret < 0)
-                {
-                    return SW_OK;
-                }
-                else
-                {
-                    target_worker_id = ret;
-                }
-            }
-            else
-            {
-                target_worker_id = swServer_worker_schedule(serv, schedule_key);
-            }
+            target_worker_id = swServer_worker_schedule(serv, fd, &task->data);
         }
     }
     else
     {
         target_worker_id = task->target_worker_id;
+    }
+    //discard the data packet.
+    if (target_worker_id < 0)
+    {
+        return SW_OK;
     }
 
     if (swEventData_is_stream(task->data.info.type))

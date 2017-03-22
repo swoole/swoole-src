@@ -729,10 +729,9 @@ static sw_inline swWorker* swServer_get_worker(swServer *serv, uint16_t worker_i
     swWarn("worker#%d is not exist.", worker_id);
     return NULL;
 }
-
-static sw_inline uint32_t swServer_worker_schedule(swServer *serv, uint32_t schedule_key)
+static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swEventData *data)
 {
-    uint32_t target_worker_id = 0;
+    uint16_t target_worker_id = 0;
 
     //polling mode
     if (serv->dispatch_mode == SW_DISPATCH_ROUND)
@@ -742,16 +741,16 @@ static sw_inline uint32_t swServer_worker_schedule(swServer *serv, uint32_t sche
     //Using the FD touch access to hash
     else if (serv->dispatch_mode == SW_DISPATCH_FDMOD)
     {
-        target_worker_id = schedule_key % serv->worker_num;
+        target_worker_id = fd % serv->worker_num;
     }
     //Using the IP touch access to hash
     else if (serv->dispatch_mode == SW_DISPATCH_IPMOD)
     {
-        swConnection *conn = swServer_connection_get(serv, schedule_key);
+        swConnection *conn = swServer_connection_get(serv, fd);
         //UDP
         if (conn == NULL)
         {
-            target_worker_id = schedule_key % serv->worker_num;
+            target_worker_id = fd % serv->worker_num;
         }
         //IPv4
         else if (conn->socket_type == SW_SOCK_TCP)
@@ -771,10 +770,10 @@ static sw_inline uint32_t swServer_worker_schedule(swServer *serv, uint32_t sche
     }
     else if (serv->dispatch_mode == SW_DISPATCH_UIDMOD)
     {
-        swConnection *conn = swServer_connection_get(serv, schedule_key);
+        swConnection *conn = swServer_connection_get(serv, fd);
         if (conn == NULL)
         {
-            target_worker_id = schedule_key % serv->worker_num;
+            target_worker_id = fd % serv->worker_num;
         }
         else if (conn->uid)
         {
@@ -782,8 +781,13 @@ static sw_inline uint32_t swServer_worker_schedule(swServer *serv, uint32_t sche
         }
         else
         {
-            target_worker_id = schedule_key % serv->worker_num;
+            target_worker_id = fd % serv->worker_num;
         }
+    }
+    //schedule by dispatch function
+    else if (serv->dispatch_mode == SW_DISPATCH_USERFUNC)
+    {
+        return serv->dispatch_func(serv, swServer_connection_get(serv, fd), data);
     }
     //Preemptive distribution
     else
