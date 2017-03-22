@@ -1031,6 +1031,12 @@ static PHP_METHOD(swoole_mysql, close)
         RETURN_FALSE;
     }
 
+    if (client->cli->socket->closing)
+    {
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSING, "The mysql connection[%d] is closing.", client->fd);
+        RETURN_FALSE;
+    }
+
     zend_update_property_bool(swoole_mysql_class_entry_ptr, getThis(), ZEND_STRL("connected"), 0 TSRMLS_CC);
     SwooleG.main_reactor->del(SwooleG.main_reactor, client->fd);
 
@@ -1044,6 +1050,7 @@ static PHP_METHOD(swoole_mysql, close)
     zval *object = getThis();
     if (client->onClose)
     {
+        client->cli->socket->closing = 1;
         args[0] = &object;
         if (sw_call_user_function_ex(EG(function_table), NULL, client->onClose, &retval, 1, args, 0, NULL TSRMLS_CC) != SUCCESS)
         {
