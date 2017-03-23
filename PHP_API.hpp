@@ -590,6 +590,7 @@ public:
         {
             array.append(Variant(argv[i]));
         }
+        array.addRef();
         return array;
     }
     Variant operator [](int i)
@@ -1239,6 +1240,7 @@ void destory()
     {
         Class *c = i->second;
         c->deactivate();
+        delete c;
     }
     for (auto i = function_map.begin(); i != function_map.end(); i++)
     {
