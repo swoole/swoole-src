@@ -255,6 +255,11 @@ public:
         }
         return Z_TYPE_P(ptr()) == IS_TRUE;
     }
+    void copy(Variant &v)
+    {
+        ZVAL_COPY_VALUE(ptr(), v.ptr());
+        addRef();
+    }
     inline int length()
     {
         if (!isString())
@@ -426,12 +431,9 @@ public:
             php_error_docref(NULL, E_ERROR, "cpp moudle array construct args must be zend array");
         }
     }
-    void append(Variant &v)
-    {
-        add_next_index_zval(ptr(), v.ptr());
-    }
     void append(Variant v)
     {
+        v.addRef();
         add_next_index_zval(ptr(), v.ptr());
     }
     void append(const char *str)
@@ -627,6 +629,7 @@ static inline Variant _call(zval *object, zval *func, Array &args)
     if (call_user_function(EG(function_table), object, func, &_retval, args.count(), params) == 0)
     {
         retval = Variant(&_retval);
+        retval.addRef();
     }
     return retval;
 }
@@ -1390,6 +1393,7 @@ public:
         {
             ZVAL_COPY_VALUE(retval.ptr(), member_p);
         }
+        retval.addRef();
         return retval;
     }
 
@@ -1400,6 +1404,7 @@ public:
 
     void set(const char *name, Array &v)
     {
+        v.addRef();
         zend_update_property(Z_OBJCE_P(ptr()), ptr(), name, strlen(name), v.ptr());
     }
     void set(const char *name, string &v)
