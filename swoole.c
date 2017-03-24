@@ -26,6 +26,18 @@
 #include <ext/spl/spl_iterators.h>
 #endif
 
+#if PHP_MAJOR_VERSION >= 7
+#include <ext/standard/php_string.h>
+
+static void load_module(char *extension_dir, zval *name)
+{
+    zend_string *tmp = php_trim(Z_STR_P(name), NULL, 0, 3);
+    zend_string *file = strpprintf(0, "%s/%s", extension_dir, ZSTR_VAL(tmp));
+    swModule_load(ZSTR_VAL(file));
+    zend_string_free(file);
+}
+#endif
+
 ZEND_DECLARE_MODULE_GLOBALS(swoole)
 
 extern sapi_module_struct sapi_module;
@@ -498,6 +510,10 @@ STD_PHP_INI_ENTRY("swoole.fast_serialize", "Off", PHP_INI_ALL, OnUpdateBool, fas
  * Unix socket buffer size
  */
 STD_PHP_INI_ENTRY("swoole.unixsock_buffer_size", "8388608", PHP_INI_ALL, OnUpdateLong, socket_buffer_size, zend_swoole_globals, swoole_globals)
+/**
+ * load c++ modules
+ */
+STD_PHP_INI_ENTRY("swoole.modules", "", PHP_INI_SYSTEM, OnUpdateString, modules, zend_swoole_globals, swoole_globals)
 PHP_INI_END()
 
 static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
@@ -507,6 +523,7 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
     swoole_globals->display_errors = 1;
     swoole_globals->use_namespace = 0;
     swoole_globals->fast_serialize = 0;
+    swoole_globals->modules = NULL;
 }
 
 int php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data, uint32_t length)
@@ -815,6 +832,40 @@ PHP_MINIT_FUNCTION(swoole)
     {
         SWOOLE_G(cli) = 1;
     }
+
+#if PHP_MAJOR_VERSION >= 7
+    if (SWOOLE_G(modules) && strlen(SWOOLE_G(modules)) > 0)
+    {
+        char *extension_dir = zend_ini_string(ZEND_STRL("extension_dir"), 0);
+        zend_string *str = zend_string_init(SWOOLE_G(modules), strlen(SWOOLE_G(modules)), 0);
+        zend_string *delim = zend_string_init(",", 1, 0);
+        char *p1 = ZSTR_VAL(str);
+        char *endp = ZSTR_VAL(str) + ZSTR_LEN(str);
+        char *p2 = (char *) php_memnstr(ZSTR_VAL(str), ZSTR_VAL(delim), ZSTR_LEN(delim), endp);
+        zval tmp;
+        if (p2 == NULL)
+        {
+            ZVAL_STR_COPY(&tmp, str);
+            load_module(extension_dir, &tmp);
+        }
+        else
+        {
+            do
+            {
+                ZVAL_STRINGL(&tmp, p1, p2 - p1);
+                load_module(extension_dir, &tmp);
+                p1 = p2 + ZSTR_LEN(delim);
+                p2 = (char *) php_memnstr(p1, ZSTR_VAL(delim), ZSTR_LEN(delim), endp);
+            } while (p2 != NULL);
+
+            if (p1 <= endp)
+            {
+                ZVAL_STRINGL(&tmp, p1, endp - p1);
+                load_module(extension_dir, &tmp);
+            }
+        }
+    }
+#endif
 
     swoole_objects.size = 65536;
     swoole_objects.array = calloc(swoole_objects.size, sizeof(void*));
