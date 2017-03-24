@@ -298,6 +298,7 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
     if (len >= sizeof(key))
     {
         swWarn("domain name is too long.");
+        sw_free(request);
         return SW_ERR;
     }
 
@@ -316,6 +317,7 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
     if (request->domain == NULL)
     {
         swWarn("strdup(%d) failed.", len + 1);
+        sw_free(request);
         return SW_ERR;
     }
 
@@ -325,6 +327,8 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
     if (domain_encode(request->domain, len, _domain_name) < 0)
     {
         swWarn("invalid domain[%s].", domain);
+        sw_strdup_free(request->domain);
+        sw_free(request);
         return SW_ERR;
     }
 
@@ -345,28 +349,30 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
         }
         if (swClient_create(resolver_socket, SW_SOCK_UDP, 0) < 0)
         {
+            sw_free(resolver_socket);
+            sw_strdup_free(request->domain);
+            sw_free(request);
             return SW_ERR;
         }
         if (resolver_socket->connect(resolver_socket, SwooleG.dns_server_v4, SW_DNS_SERVER_PORT, 1, 0) < 0)
         {
-            resolver_socket->close(resolver_socket);
+            do_close: resolver_socket->close(resolver_socket);
+            swClient_free(resolver_socket);
+            sw_free(resolver_socket);
+            sw_strdup_free(request->domain);
+            sw_free(request);
             return SW_ERR;
         }
         SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_DNS_RESOLVER, swDNSResolver_onReceive);
         if (SwooleG.main_reactor->add(SwooleG.main_reactor, resolver_socket->socket->fd, SW_FD_DNS_RESOLVER))
         {
-            resolver_socket->close(resolver_socket);
-            return SW_ERR;
+            goto do_close;
         }
     }
 
     if (resolver_socket->send(resolver_socket, (char *) packet, steps, 0) < 0)
     {
-        resolver_socket->close(resolver_socket);
-        swClient_free(resolver_socket);
-        sw_free(resolver_socket);
-        resolver_socket = NULL;
-        return SW_ERR;
+        goto do_close;
     }
 
     swHashMap_add(request_map, key, key_len, request);
