@@ -57,5 +57,5 @@ $s2 = substr($src, $pos2 + strlen('/*generater-2*/'), $pos3 - $pos2 - strlen('/*
 $s3 = substr($src, $pos4 + strlen('/*generater-3*/'), $pos4);
 
 $src = trim($s1) . "\n/*generater-1*/\n" . trim($exec_function_code) . "\n/*generater-2*/\n" .
-    trim($s2) . "\n/*generater-3*/\n" . SPACE_4.trim($exec_method_code) . "\n/*generater-4*/\n" . SPACE_4.trim($s3) . "\n\n";
+    trim($s2) . "\n" . SPACE_4 . "/*generater-3*/\n" . SPACE_4 . trim($exec_method_code) . "\n" . SPACE_4 . "/*generater-4*/\n" . SPACE_4 . trim($s3) . "\n\n";
 file_put_contents($dir . '/PHP_API.hpp', $src);

@@ -1045,7 +1045,7 @@ public:
         Variant _func(func);
         return _call(ptr(), _func.ptr());
     }
-/*generater-3*/
+    /*generater-3*/
     Variant exec(const char *func, Variant v1)
     {
         Variant _func(func);
@@ -1376,7 +1376,7 @@ public:
         args.append(v20.ptr());
         return _call(ptr(), _func.ptr(), args);
     }
-/*generater-4*/
+    /*generater-4*/
     Variant get(const char *name)
     {
         Variant retval;
