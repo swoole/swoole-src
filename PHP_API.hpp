@@ -287,6 +287,10 @@ public:
     {
         value = zend_string_init(str, strlen(str), 0);
     }
+    String(const char *str, size_t len)
+    {
+        value = zend_string_init(str, len, 0);
+    }
     String(string &str)
     {
         value = zend_string_init(str.c_str(), str.length(), 0);
@@ -992,6 +996,17 @@ void var_dump(Variant &v)
 {
     php_var_dump(v.ptr(), VAR_DUMP_LEVEL);
 }
+void throwException(const char *name, const char *message, int code = 0)
+{
+    String class_name(name);
+    zend_class_entry *ce = zend_lookup_class(class_name.ptr());
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' undefined.", name);
+        return;
+    }
+    zend_throw_exception(ce, message, code TSRMLS_CC);
+}
 
 Variant getGlobalVariant(const char *name)
 {
@@ -1472,11 +1487,9 @@ Object create(const char *name, Array &args)
 
 Object create(const char *name)
 {
-    zend_string *class_name = zend_string_init(name, strlen(name), 0);
+    String class_name(name);
     Object object;
-
-    zend_class_entry *ce = zend_lookup_class(class_name);
-    zend_string_free(class_name);
+    zend_class_entry *ce = zend_lookup_class(class_name.ptr());
     if (ce == NULL)
     {
         php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
@@ -1492,6 +1505,7 @@ Object create(const char *name)
 }
 
 #define function(f) #f, f
+#define defineMethod(c, m) void c##_##m(Object &_this, Args &args, Variant &retval)
 typedef void (*function_t)(Args &, Variant &retval);
 typedef void (*method_t)(Object &, Args &, Variant &retval);
 static unordered_map<string, function_t> function_map;
@@ -1924,6 +1938,32 @@ void destory()
         unregisterFunction(name);
     }
 }
+
+/*generater-5*/
+Object newObject(const char *name, Variant v1)
+{
+    zend_string *class_name = zend_string_init(name, strlen(name), 0);
+    Object object;
+    zend_class_entry *ce = zend_lookup_class(class_name);
+    zend_string_free(class_name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    v1.addRef();
+    object = Object(&zobject);
+    Array args;
+    args.append(v1.ptr());
+    object.call("__construct", args);
+    return object;
+}
+/*generater-6*/
 
 //namespace end
 }
