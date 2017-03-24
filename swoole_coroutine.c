@@ -336,13 +336,13 @@ sw_inline void coro_close(TSRMLS_D)
         sw_zval_free(COROG.current_coro->function);
         COROG.current_coro->function = NULL;
     }
+    free_cidmap(COROG.current_coro->cid);
     efree(EG(vm_stack));
     efree(COROG.allocated_return_value_ptr);
     EG(vm_stack) = COROG.origin_vm_stack;
     EG(vm_stack_top) = COROG.origin_vm_stack_top;
     EG(vm_stack_end) = COROG.origin_vm_stack_end;
     --COROG.coro_num;
-    free_cidmap(COROG.current_coro->cid);
     swTrace("closing coro and %d remained. usage size: %zu. malloc size: %zu", COROG.coro_num, zend_memory_usage(0), zend_memory_usage(1));
 }
 #endif
