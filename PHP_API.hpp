@@ -653,6 +653,7 @@ Variant call(const char *func, Array &args)
     Variant _func(func);
     return _call(NULL, _func.ptr(), args);
 }
+/*generater-1*/
 Variant exec(const char *func, Variant v1)
 {
     Variant _func(func);
@@ -737,7 +738,253 @@ Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, V
     args.append(v8.ptr());
     return _call(NULL, _func.ptr(), args);
 }
-
+Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9)
+{
+    Variant _func(func);
+    Array args;
+    args.append(v1.ptr());
+    args.append(v2.ptr());
+    args.append(v3.ptr());
+    args.append(v4.ptr());
+    args.append(v5.ptr());
+    args.append(v6.ptr());
+    args.append(v7.ptr());
+    args.append(v8.ptr());
+    args.append(v9.ptr());
+    return _call(NULL, _func.ptr(), args);
+}
+Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10)
+{
+    Variant _func(func);
+    Array args;
+    args.append(v1.ptr());
+    args.append(v2.ptr());
+    args.append(v3.ptr());
+    args.append(v4.ptr());
+    args.append(v5.ptr());
+    args.append(v6.ptr());
+    args.append(v7.ptr());
+    args.append(v8.ptr());
+    args.append(v9.ptr());
+    args.append(v10.ptr());
+    return _call(NULL, _func.ptr(), args);
+}
+Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11)
+{
+    Variant _func(func);
+    Array args;
+    args.append(v1.ptr());
+    args.append(v2.ptr());
+    args.append(v3.ptr());
+    args.append(v4.ptr());
+    args.append(v5.ptr());
+    args.append(v6.ptr());
+    args.append(v7.ptr());
+    args.append(v8.ptr());
+    args.append(v9.ptr());
+    args.append(v10.ptr());
+    args.append(v11.ptr());
+    return _call(NULL, _func.ptr(), args);
+}
+Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12)
+{
+    Variant _func(func);
+    Array args;
+    args.append(v1.ptr());
+    args.append(v2.ptr());
+    args.append(v3.ptr());
+    args.append(v4.ptr());
+    args.append(v5.ptr());
+    args.append(v6.ptr());
+    args.append(v7.ptr());
+    args.append(v8.ptr());
+    args.append(v9.ptr());
+    args.append(v10.ptr());
+    args.append(v11.ptr());
+    args.append(v12.ptr());
+    return _call(NULL, _func.ptr(), args);
+}
+Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13)
+{
+    Variant _func(func);
+    Array args;
+    args.append(v1.ptr());
+    args.append(v2.ptr());
+    args.append(v3.ptr());
+    args.append(v4.ptr());
+    args.append(v5.ptr());
+    args.append(v6.ptr());
+    args.append(v7.ptr());
+    args.append(v8.ptr());
+    args.append(v9.ptr());
+    args.append(v10.ptr());
+    args.append(v11.ptr());
+    args.append(v12.ptr());
+    args.append(v13.ptr());
+    return _call(NULL, _func.ptr(), args);
+}
+Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14)
+{
+    Variant _func(func);
+    Array args;
+    args.append(v1.ptr());
+    args.append(v2.ptr());
+    args.append(v3.ptr());
+    args.append(v4.ptr());
+    args.append(v5.ptr());
+    args.append(v6.ptr());
+    args.append(v7.ptr());
+    args.append(v8.ptr());
+    args.append(v9.ptr());
+    args.append(v10.ptr());
+    args.append(v11.ptr());
+    args.append(v12.ptr());
+    args.append(v13.ptr());
+    args.append(v14.ptr());
+    return _call(NULL, _func.ptr(), args);
+}
+Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14, Variant v15)
+{
+    Variant _func(func);
+    Array args;
+    args.append(v1.ptr());
+    args.append(v2.ptr());
+    args.append(v3.ptr());
+    args.append(v4.ptr());
+    args.append(v5.ptr());
+    args.append(v6.ptr());
+    args.append(v7.ptr());
+    args.append(v8.ptr());
+    args.append(v9.ptr());
+    args.append(v10.ptr());
+    args.append(v11.ptr());
+    args.append(v12.ptr());
+    args.append(v13.ptr());
+    args.append(v14.ptr());
+    args.append(v15.ptr());
+    return _call(NULL, _func.ptr(), args);
+}
+Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14, Variant v15, Variant v16)
+{
+    Variant _func(func);
+    Array args;
+    args.append(v1.ptr());
+    args.append(v2.ptr());
+    args.append(v3.ptr());
+    args.append(v4.ptr());
+    args.append(v5.ptr());
+    args.append(v6.ptr());
+    args.append(v7.ptr());
+    args.append(v8.ptr());
+    args.append(v9.ptr());
+    args.append(v10.ptr());
+    args.append(v11.ptr());
+    args.append(v12.ptr());
+    args.append(v13.ptr());
+    args.append(v14.ptr());
+    args.append(v15.ptr());
+    args.append(v16.ptr());
+    return _call(NULL, _func.ptr(), args);
+}
+Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14, Variant v15, Variant v16, Variant v17)
+{
+    Variant _func(func);
+    Array args;
+    args.append(v1.ptr());
+    args.append(v2.ptr());
+    args.append(v3.ptr());
+    args.append(v4.ptr());
+    args.append(v5.ptr());
+    args.append(v6.ptr());
+    args.append(v7.ptr());
+    args.append(v8.ptr());
+    args.append(v9.ptr());
+    args.append(v10.ptr());
+    args.append(v11.ptr());
+    args.append(v12.ptr());
+    args.append(v13.ptr());
+    args.append(v14.ptr());
+    args.append(v15.ptr());
+    args.append(v16.ptr());
+    args.append(v17.ptr());
+    return _call(NULL, _func.ptr(), args);
+}
+Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14, Variant v15, Variant v16, Variant v17, Variant v18)
+{
+    Variant _func(func);
+    Array args;
+    args.append(v1.ptr());
+    args.append(v2.ptr());
+    args.append(v3.ptr());
+    args.append(v4.ptr());
+    args.append(v5.ptr());
+    args.append(v6.ptr());
+    args.append(v7.ptr());
+    args.append(v8.ptr());
+    args.append(v9.ptr());
+    args.append(v10.ptr());
+    args.append(v11.ptr());
+    args.append(v12.ptr());
+    args.append(v13.ptr());
+    args.append(v14.ptr());
+    args.append(v15.ptr());
+    args.append(v16.ptr());
+    args.append(v17.ptr());
+    args.append(v18.ptr());
+    return _call(NULL, _func.ptr(), args);
+}
+Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14, Variant v15, Variant v16, Variant v17, Variant v18, Variant v19)
+{
+    Variant _func(func);
+    Array args;
+    args.append(v1.ptr());
+    args.append(v2.ptr());
+    args.append(v3.ptr());
+    args.append(v4.ptr());
+    args.append(v5.ptr());
+    args.append(v6.ptr());
+    args.append(v7.ptr());
+    args.append(v8.ptr());
+    args.append(v9.ptr());
+    args.append(v10.ptr());
+    args.append(v11.ptr());
+    args.append(v12.ptr());
+    args.append(v13.ptr());
+    args.append(v14.ptr());
+    args.append(v15.ptr());
+    args.append(v16.ptr());
+    args.append(v17.ptr());
+    args.append(v18.ptr());
+    args.append(v19.ptr());
+    return _call(NULL, _func.ptr(), args);
+}
+Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14, Variant v15, Variant v16, Variant v17, Variant v18, Variant v19, Variant v20)
+{
+    Variant _func(func);
+    Array args;
+    args.append(v1.ptr());
+    args.append(v2.ptr());
+    args.append(v3.ptr());
+    args.append(v4.ptr());
+    args.append(v5.ptr());
+    args.append(v6.ptr());
+    args.append(v7.ptr());
+    args.append(v8.ptr());
+    args.append(v9.ptr());
+    args.append(v10.ptr());
+    args.append(v11.ptr());
+    args.append(v12.ptr());
+    args.append(v13.ptr());
+    args.append(v14.ptr());
+    args.append(v15.ptr());
+    args.append(v16.ptr());
+    args.append(v17.ptr());
+    args.append(v18.ptr());
+    args.append(v19.ptr());
+    args.append(v20.ptr());
+    return _call(NULL, _func.ptr(), args);
+}
+/*generater-2*/
 void var_dump(Variant &v)
 {
     php_var_dump(v.ptr(), VAR_DUMP_LEVEL);
@@ -798,6 +1045,7 @@ public:
         Variant _func(func);
         return _call(ptr(), _func.ptr());
     }
+/*generater-3*/
     Variant exec(const char *func, Variant v1)
     {
         Variant _func(func);
@@ -882,6 +1130,253 @@ public:
         args.append(v8.ptr());
         return _call(ptr(), _func.ptr(), args);
     }
+    Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9)
+    {
+        Variant _func(func);
+        Array args;
+        args.append(v1.ptr());
+        args.append(v2.ptr());
+        args.append(v3.ptr());
+        args.append(v4.ptr());
+        args.append(v5.ptr());
+        args.append(v6.ptr());
+        args.append(v7.ptr());
+        args.append(v8.ptr());
+        args.append(v9.ptr());
+        return _call(ptr(), _func.ptr(), args);
+    }
+    Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10)
+    {
+        Variant _func(func);
+        Array args;
+        args.append(v1.ptr());
+        args.append(v2.ptr());
+        args.append(v3.ptr());
+        args.append(v4.ptr());
+        args.append(v5.ptr());
+        args.append(v6.ptr());
+        args.append(v7.ptr());
+        args.append(v8.ptr());
+        args.append(v9.ptr());
+        args.append(v10.ptr());
+        return _call(ptr(), _func.ptr(), args);
+    }
+    Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11)
+    {
+        Variant _func(func);
+        Array args;
+        args.append(v1.ptr());
+        args.append(v2.ptr());
+        args.append(v3.ptr());
+        args.append(v4.ptr());
+        args.append(v5.ptr());
+        args.append(v6.ptr());
+        args.append(v7.ptr());
+        args.append(v8.ptr());
+        args.append(v9.ptr());
+        args.append(v10.ptr());
+        args.append(v11.ptr());
+        return _call(ptr(), _func.ptr(), args);
+    }
+    Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12)
+    {
+        Variant _func(func);
+        Array args;
+        args.append(v1.ptr());
+        args.append(v2.ptr());
+        args.append(v3.ptr());
+        args.append(v4.ptr());
+        args.append(v5.ptr());
+        args.append(v6.ptr());
+        args.append(v7.ptr());
+        args.append(v8.ptr());
+        args.append(v9.ptr());
+        args.append(v10.ptr());
+        args.append(v11.ptr());
+        args.append(v12.ptr());
+        return _call(ptr(), _func.ptr(), args);
+    }
+    Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13)
+    {
+        Variant _func(func);
+        Array args;
+        args.append(v1.ptr());
+        args.append(v2.ptr());
+        args.append(v3.ptr());
+        args.append(v4.ptr());
+        args.append(v5.ptr());
+        args.append(v6.ptr());
+        args.append(v7.ptr());
+        args.append(v8.ptr());
+        args.append(v9.ptr());
+        args.append(v10.ptr());
+        args.append(v11.ptr());
+        args.append(v12.ptr());
+        args.append(v13.ptr());
+        return _call(ptr(), _func.ptr(), args);
+    }
+    Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14)
+    {
+        Variant _func(func);
+        Array args;
+        args.append(v1.ptr());
+        args.append(v2.ptr());
+        args.append(v3.ptr());
+        args.append(v4.ptr());
+        args.append(v5.ptr());
+        args.append(v6.ptr());
+        args.append(v7.ptr());
+        args.append(v8.ptr());
+        args.append(v9.ptr());
+        args.append(v10.ptr());
+        args.append(v11.ptr());
+        args.append(v12.ptr());
+        args.append(v13.ptr());
+        args.append(v14.ptr());
+        return _call(ptr(), _func.ptr(), args);
+    }
+    Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14, Variant v15)
+    {
+        Variant _func(func);
+        Array args;
+        args.append(v1.ptr());
+        args.append(v2.ptr());
+        args.append(v3.ptr());
+        args.append(v4.ptr());
+        args.append(v5.ptr());
+        args.append(v6.ptr());
+        args.append(v7.ptr());
+        args.append(v8.ptr());
+        args.append(v9.ptr());
+        args.append(v10.ptr());
+        args.append(v11.ptr());
+        args.append(v12.ptr());
+        args.append(v13.ptr());
+        args.append(v14.ptr());
+        args.append(v15.ptr());
+        return _call(ptr(), _func.ptr(), args);
+    }
+    Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14, Variant v15, Variant v16)
+    {
+        Variant _func(func);
+        Array args;
+        args.append(v1.ptr());
+        args.append(v2.ptr());
+        args.append(v3.ptr());
+        args.append(v4.ptr());
+        args.append(v5.ptr());
+        args.append(v6.ptr());
+        args.append(v7.ptr());
+        args.append(v8.ptr());
+        args.append(v9.ptr());
+        args.append(v10.ptr());
+        args.append(v11.ptr());
+        args.append(v12.ptr());
+        args.append(v13.ptr());
+        args.append(v14.ptr());
+        args.append(v15.ptr());
+        args.append(v16.ptr());
+        return _call(ptr(), _func.ptr(), args);
+    }
+    Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14, Variant v15, Variant v16, Variant v17)
+    {
+        Variant _func(func);
+        Array args;
+        args.append(v1.ptr());
+        args.append(v2.ptr());
+        args.append(v3.ptr());
+        args.append(v4.ptr());
+        args.append(v5.ptr());
+        args.append(v6.ptr());
+        args.append(v7.ptr());
+        args.append(v8.ptr());
+        args.append(v9.ptr());
+        args.append(v10.ptr());
+        args.append(v11.ptr());
+        args.append(v12.ptr());
+        args.append(v13.ptr());
+        args.append(v14.ptr());
+        args.append(v15.ptr());
+        args.append(v16.ptr());
+        args.append(v17.ptr());
+        return _call(ptr(), _func.ptr(), args);
+    }
+    Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14, Variant v15, Variant v16, Variant v17, Variant v18)
+    {
+        Variant _func(func);
+        Array args;
+        args.append(v1.ptr());
+        args.append(v2.ptr());
+        args.append(v3.ptr());
+        args.append(v4.ptr());
+        args.append(v5.ptr());
+        args.append(v6.ptr());
+        args.append(v7.ptr());
+        args.append(v8.ptr());
+        args.append(v9.ptr());
+        args.append(v10.ptr());
+        args.append(v11.ptr());
+        args.append(v12.ptr());
+        args.append(v13.ptr());
+        args.append(v14.ptr());
+        args.append(v15.ptr());
+        args.append(v16.ptr());
+        args.append(v17.ptr());
+        args.append(v18.ptr());
+        return _call(ptr(), _func.ptr(), args);
+    }
+    Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14, Variant v15, Variant v16, Variant v17, Variant v18, Variant v19)
+    {
+        Variant _func(func);
+        Array args;
+        args.append(v1.ptr());
+        args.append(v2.ptr());
+        args.append(v3.ptr());
+        args.append(v4.ptr());
+        args.append(v5.ptr());
+        args.append(v6.ptr());
+        args.append(v7.ptr());
+        args.append(v8.ptr());
+        args.append(v9.ptr());
+        args.append(v10.ptr());
+        args.append(v11.ptr());
+        args.append(v12.ptr());
+        args.append(v13.ptr());
+        args.append(v14.ptr());
+        args.append(v15.ptr());
+        args.append(v16.ptr());
+        args.append(v17.ptr());
+        args.append(v18.ptr());
+        args.append(v19.ptr());
+        return _call(ptr(), _func.ptr(), args);
+    }
+    Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14, Variant v15, Variant v16, Variant v17, Variant v18, Variant v19, Variant v20)
+    {
+        Variant _func(func);
+        Array args;
+        args.append(v1.ptr());
+        args.append(v2.ptr());
+        args.append(v3.ptr());
+        args.append(v4.ptr());
+        args.append(v5.ptr());
+        args.append(v6.ptr());
+        args.append(v7.ptr());
+        args.append(v8.ptr());
+        args.append(v9.ptr());
+        args.append(v10.ptr());
+        args.append(v11.ptr());
+        args.append(v12.ptr());
+        args.append(v13.ptr());
+        args.append(v14.ptr());
+        args.append(v15.ptr());
+        args.append(v16.ptr());
+        args.append(v17.ptr());
+        args.append(v18.ptr());
+        args.append(v19.ptr());
+        args.append(v20.ptr());
+        return _call(ptr(), _func.ptr(), args);
+    }
+/*generater-4*/
     Variant get(const char *name)
     {
         Variant retval;
@@ -907,8 +1402,11 @@ public:
     {
         zend_update_property(Z_OBJCE_P(ptr()), ptr(), name, strlen(name), v.ptr());
     }
-
     void set(const char *name, string &v)
+    {
+        zend_update_property_stringl(Z_OBJCE_P(ptr()), ptr(), name, strlen(name), v.c_str(), v.length());
+    }
+    void set(const char *name, string v)
     {
         zend_update_property_stringl(Z_OBJCE_P(ptr()), ptr(), name, strlen(name), v.c_str(), v.length());
     }
@@ -1424,3 +1922,4 @@ void destory()
 
 //namespace end
 }
+
