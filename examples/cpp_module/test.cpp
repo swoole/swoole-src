@@ -18,6 +18,8 @@
 #include <iostream>
 
 #include "PHP_API.hpp"
+#include "swoole.h"
+#include "Server.h"
 #include "module.h"
 
 using namespace std;
@@ -114,23 +116,26 @@ int test_get_length(swProtocol *protocol, swConnection *conn, char *data, uint32
 
 int dispatch_function(swServer *serv, swConnection *conn, swEventData *data)
 {
-    printf("cpp, type=%d, size=%d\n", data->info.type, data->info.len);
-    return data->info.len % serv->worker_num;
+    int worker_id = rand() % serv->worker_num;
+    printf("cpp, dst_worker_id=%d, type=%d, size=%d\n", worker_id, data->info.type, data->info.len);
+    return worker_id;
 }
 
 void testRedis()
 {
     cout << "=====================Test Redis==================\n";
     Object redis = PHP::create("redis");
-    Array args;
-    args.append("127.0.0.1");
-    args.append(6379);
-    auto ret = redis.call("connect", args);
-
-    Array args2;
-    args2.append("key");
-    Variant ret2 = redis.call("get", args2);
-    printf("value=%s\n", ret2.toCString());
+    auto ret1 = redis.exec("connect", "127.0.0.1", 6379);
+    //connect success
+    if (ret1.toBool())
+    {
+        auto ret2 = redis.exec("get", "key");
+        printf("value=%s\n", ret2.toCString());
+    }
+    else
+    {
+        cout << "connect to redis server failed." << endl;
+    }
 }
 
 void CppClass_construct(Object &_this, Args &args, Variant &retval)
