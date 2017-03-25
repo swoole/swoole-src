@@ -256,7 +256,7 @@ static void php_swoole_dns_callback_coro(char *domain, swDNSResolver_result *res
     //update cache
     dns_cache *cache = swHashMap_find(request_cache_map, Z_STRVAL_P(req->domain), Z_STRLEN_P(req->domain));
     if (cache == NULL )
-    { //new
+    {
         cache= emalloc(sizeof(dns_cache));
         swHashMap_add(request_cache_map,Z_STRVAL_P(req->domain), Z_STRLEN_P(req->domain) ,cache);
         cache->zaddress=swString_new(20);
@@ -264,9 +264,6 @@ static void php_swoole_dns_callback_coro(char *domain, swDNSResolver_result *res
 
     swString_write_ptr(cache->zaddress,0,Z_STRVAL_P(zaddress), Z_STRLEN_P(zaddress));
 
-
-    //赋值
-  //  (*cache->zaddress) = (*zaddress);
     cache->update_time = (int64_t)swTimer_get_now_msec + (int64_t)(SwooleG.dns_cache_refresh_time*1000);
 
     if(req->useless){
@@ -293,7 +290,6 @@ static void php_swoole_dns_callback_coro(char *domain, swDNSResolver_result *res
     //说明已经yield走了
     free_zdata:
     // free 上下文
-    zaddress->re
     sw_zval_ptr_dtor(&zaddress);
     efree(req->context);
     efree(req);
@@ -304,7 +300,6 @@ static void php_swoole_dns_timeout_coro(php_context *cxt)
 {
 
     zval *retval = NULL;
-    //zval *zdata; //return value
     zval *zaddress;
 
 #if PHP_MAJOR_VERSION < 7
@@ -318,7 +313,6 @@ static void php_swoole_dns_timeout_coro(php_context *cxt)
     dns_cache *cache = swHashMap_find(request_cache_map, Z_STRVAL_P(req->domain), Z_STRLEN_P(req->domain));
     if (cache != NULL && cache->update_time > (int64_t)swTimer_get_now_msec )
     {
-        //说明cache 还没有过期,那么就可以直接返回了
         SW_ZVAL_STRINGL(zaddress, (*cache->zaddress).str,(*cache->zaddress).length, 1);
     }else{
         //不然就是空了
@@ -1055,26 +1049,21 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro)
     }
     if (!request_cache_map)
     {
-        request_cache_map = swHashMap_new(256, NULL); //支持自动扩容
+        request_cache_map = swHashMap_new(256, NULL);
     }
 
     //find cache
     dns_cache *cache = swHashMap_find(request_cache_map, Z_STRVAL_P(domain), Z_STRLEN_P(domain));
-
     if (cache != NULL && cache->update_time > (int64_t)swTimer_get_now_msec )
     {
-        //说明cache 还没有过期,那么就可以直接返回了
-     //   SW_RETURN_STRING(Z_STRVAL_P(cache->zaddress),1);
         SW_RETURN_STRINGL((*cache->zaddress).str,(*cache->zaddress).length,1);
-
     }
-    //如果过期了,就需要去update了
 
     dns_request *req = emalloc(sizeof(dns_request));
     req->domain = domain;
     sw_copy_to_stack(req->domain, req->_domain);
-    req->useless=0;
-    //add for coro
+    req->useless = 0;
+
     php_context *sw_current_context = emalloc(sizeof(php_context));
     sw_current_context->onTimeout = php_swoole_dns_timeout_coro;
     sw_current_context->state = SW_CORO_CONTEXT_RUNNING;
