@@ -19,7 +19,7 @@
 #include <dlfcn.h>
 
 #define SW_MODULE_INIT_FUNC    "swModule_init"
-#define SW_MODULE_DESTORY_FUNC    "swModule_destory"
+#define SW_MODULE_DESTORY_FUNC    "swModule_destroy"
 
 static swHashMap *loaded_modules = NULL;
 

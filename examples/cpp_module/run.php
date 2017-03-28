@@ -118,4 +118,4 @@ if (in_array('ext', $options))
   var_dump($ret);
   }
 //sleep(1000);
-$module->destory();
+$module->destroy();

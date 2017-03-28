@@ -1,10 +1,13 @@
 <?php
 $dir = dirname(__DIR__);
 define('SPACE_4', str_repeat(' ', 4));
-define('SPACE_8', SPACE_4.SPACE_4);
+define('SPACE_8', SPACE_4 . SPACE_4);
+define('DELIMITER', '/*generator*/');
+
 $src = file_get_contents($dir . '/PHP_API.hpp');
 $r = preg_match('/\#define\s+MAX_ARGC\s+(\d+)/', $src, $match);
-if (!$r) {
+if (!$r)
+{
     exit("no MAX_ARGC\n");
 }
 
@@ -12,50 +15,92 @@ $maxArgc = $match[1];
 
 //生成函数执行代码
 $out = '';
-for ($i = 1; $i <= $maxArgc; $i++) {
-    $out .= 'Variant exec(const char *func, ';
+for ($i = 1; $i <= $maxArgc; $i++)
+{
+    $out .= "\n".'Variant exec(const char *func, ';
     $list = [];
-    for ($j = 1; $j <= $i; $j++) {
+    for ($j = 1; $j <= $i; $j++)
+    {
         $list[] = 'Variant v' . $j;
     }
     $out .= implode(', ', $list);
     $out .= ")\n{\n";
-    $out .= SPACE_4."Variant _func(func);\n".SPACE_4."Array args;\n";
-    for ($j = 1; $j <= $i; $j++) {
-        $out .= SPACE_4."args.append(v" . ($j).".ptr());\n";
+    $out .= SPACE_4 . "Variant _func(func);\n" . SPACE_4 . "Array args;\n";
+    for ($j = 1; $j <= $i; $j++)
+    {
+        $out .= SPACE_4 . "args.append(v" . ($j) . ".ptr());\n";
     }
-    $out .= SPACE_4."return _call(NULL, _func.ptr(), args);\n}\n";
+    $out .= SPACE_4 . "return _call(NULL, _func.ptr(), args);\n}";
 }
 $exec_function_code = $out;
 
 //生成对象方法执行代码
 $out = '';
-for ($i = 1; $i <= $maxArgc; $i++) {
-    $out .= SPACE_4.'Variant exec(const char *func, ';
+for ($i = 1; $i <= $maxArgc; $i++)
+{
+    $out .= "\n".SPACE_4 . 'Variant exec(const char *func, ';
     $list = [];
-    for ($j = 1; $j <= $i; $j++) {
+    for ($j = 1; $j <= $i; $j++)
+    {
         $list[] = 'Variant v' . $j;
     }
     $out .= implode(', ', $list);
-    $out .= ")\n".SPACE_4."{\n";
-    $out .= SPACE_8."Variant _func(func);\n".SPACE_8."Array args;\n";
-    for ($j = 1; $j <= $i; $j++) {
-        $out .= SPACE_8."args.append(v" . ($j).".ptr());\n";
+    $out .= ")\n" . SPACE_4 . "{\n";
+    $out .= SPACE_8 . "Variant _func(func);\n" . SPACE_8 . "Array args;\n";
+    for ($j = 1; $j <= $i; $j++)
+    {
+        $out .= SPACE_8 . "args.append(v" . ($j) . ".ptr());\n";
     }
-    $out .= SPACE_8."return _call(ptr(), _func.ptr(), args);\n".SPACE_4."}\n";
+    $out .= SPACE_8 . "return _call(ptr(), _func.ptr(), args);\n" . SPACE_4 . "}";
 }
-$exec_method_code = $out;
+$exec_method_code = $out."\n".SPACE_4;
 
-$pos1 = strpos($src, '/*generater-1*/');
-$pos2 = strpos($src, '/*generater-2*/');
-$pos3 = strpos($src, '/*generater-3*/');
-$pos4 = strpos($src, '/*generater-4*/');
+//生成对象创建代码
+$out = '';
+for ($i = 1; $i <= $maxArgc; $i++)
+{
+    $out .= "\nObject newObject(const char *name, ";
+    $list = [];
+    for ($j = 1; $j <= $i; $j++)
+    {
+        $list[] = 'Variant v' . $j;
+    }
+    $out .= implode(', ', $list);
+    $out .= ")\n" . "{\n";
+    $out .= <<<CODE
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;\n
+CODE;
+    for ($j = 1; $j <= $i; $j++)
+    {
+        $out .= SPACE_4 . "v" . ($j) . ".addRef();\n";
+        $out .= SPACE_4 . "args.append(v" . ($j) . ".ptr());\n";
+    }
+    $out .= SPACE_4 . "object.call(\"__construct\", args);\n" . SPACE_4 . "return object;\n}";
+}
+$new_object_code = $out."\n";
 
+$parts = explode(DELIMITER, $src);
 
-$s1 = substr($src, 0, $pos1);
-$s2 = substr($src, $pos2 + strlen('/*generater-2*/'), $pos3 - $pos2 - strlen('/*generater-3*/'));
-$s3 = substr($src, $pos4 + strlen('/*generater-3*/'), $pos4);
-
-$src = trim($s1) . "\n/*generater-1*/\n" . trim($exec_function_code) . "\n/*generater-2*/\n" .
-    trim($s2) . "\n" . SPACE_4 . "/*generater-3*/\n" . SPACE_4 . trim($exec_method_code) . "\n" . SPACE_4 . "/*generater-4*/\n" . SPACE_4 . trim($s3) . "\n\n";
+$src = implode(DELIMITER, [
+        $parts[0],
+        $exec_function_code,
+        $parts[2],
+        $exec_method_code,
+        $parts[4],
+        $new_object_code,
+        $parts[6],
+    ]);
 file_put_contents($dir . '/PHP_API.hpp', $src);

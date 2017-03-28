@@ -688,7 +688,7 @@ Variant call(const char *func, Array &args)
     Variant _func(func);
     return _call(NULL, _func.ptr(), args);
 }
-/*generater-1*/
+/*generator*/
 Variant exec(const char *func, Variant v1)
 {
     Variant _func(func);
@@ -1018,8 +1018,7 @@ Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, V
     args.append(v19.ptr());
     args.append(v20.ptr());
     return _call(NULL, _func.ptr(), args);
-}
-/*generater-2*/
+}/*generator*/
 void var_dump(Variant &v)
 {
     php_var_dump(v.ptr(), VAR_DUMP_LEVEL);
@@ -1097,7 +1096,7 @@ public:
         Variant _func(func);
         return _call(ptr(), _func.ptr());
     }
-    /*generater-3*/
+    /*generator*/
     Variant exec(const char *func, Variant v1)
     {
         Variant _func(func);
@@ -1428,7 +1427,7 @@ public:
         args.append(v20.ptr());
         return _call(ptr(), _func.ptr(), args);
     }
-    /*generater-4*/
+    /*generator*/
     Variant get(const char *name)
     {
         Variant retval;
@@ -1995,13 +1994,13 @@ void registerClass(Class *c)
     classes[c->getName()] = c;
 }
 
-void destory()
+void destroy()
 {
     for (auto i = classes.begin(); i != classes.end(); i++)
     {
         Class *c = i->second;
         c->deactivate();
-        delete c;
+        //delete c;
     }
     for (auto i = function_map.begin(); i != function_map.end(); i++)
     {
@@ -2014,11 +2013,15 @@ template<typename T>
 Variant newResource(const char *name, T *v)
 {
     Resource *_c = resource_map[name];
+    if (!_c)
+    {
+        return nullptr;
+    }
     zend_resource *res = zend_register_resource(static_cast<void*>(v), _c->type);
     return Variant(res);
 }
 
-/*generater-5*/
+/*generator*/
 Object newObject(const char *name, Variant v1)
 {
     Object object;
@@ -2033,15 +2036,793 @@ Object newObject(const char *name, Variant v1)
     {
         return object;
     }
-    v1.addRef();
     object = Object(&zobject);
     Array args;
+    v1.addRef();
     args.append(v1.ptr());
     object.call("__construct", args);
     return object;
 }
-/*generater-6*/
+Object newObject(const char *name, Variant v1, Variant v2)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    v2.addRef();
+    args.append(v2.ptr());
+    object.call("__construct", args);
+    return object;
+}
+Object newObject(const char *name, Variant v1, Variant v2, Variant v3)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    v2.addRef();
+    args.append(v2.ptr());
+    v3.addRef();
+    args.append(v3.ptr());
+    object.call("__construct", args);
+    return object;
+}
+Object newObject(const char *name, Variant v1, Variant v2, Variant v3, Variant v4)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    v2.addRef();
+    args.append(v2.ptr());
+    v3.addRef();
+    args.append(v3.ptr());
+    v4.addRef();
+    args.append(v4.ptr());
+    object.call("__construct", args);
+    return object;
+}
+Object newObject(const char *name, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    v2.addRef();
+    args.append(v2.ptr());
+    v3.addRef();
+    args.append(v3.ptr());
+    v4.addRef();
+    args.append(v4.ptr());
+    v5.addRef();
+    args.append(v5.ptr());
+    object.call("__construct", args);
+    return object;
+}
+Object newObject(const char *name, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    v2.addRef();
+    args.append(v2.ptr());
+    v3.addRef();
+    args.append(v3.ptr());
+    v4.addRef();
+    args.append(v4.ptr());
+    v5.addRef();
+    args.append(v5.ptr());
+    v6.addRef();
+    args.append(v6.ptr());
+    object.call("__construct", args);
+    return object;
+}
+Object newObject(const char *name, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    v2.addRef();
+    args.append(v2.ptr());
+    v3.addRef();
+    args.append(v3.ptr());
+    v4.addRef();
+    args.append(v4.ptr());
+    v5.addRef();
+    args.append(v5.ptr());
+    v6.addRef();
+    args.append(v6.ptr());
+    v7.addRef();
+    args.append(v7.ptr());
+    object.call("__construct", args);
+    return object;
+}
+Object newObject(const char *name, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    v2.addRef();
+    args.append(v2.ptr());
+    v3.addRef();
+    args.append(v3.ptr());
+    v4.addRef();
+    args.append(v4.ptr());
+    v5.addRef();
+    args.append(v5.ptr());
+    v6.addRef();
+    args.append(v6.ptr());
+    v7.addRef();
+    args.append(v7.ptr());
+    v8.addRef();
+    args.append(v8.ptr());
+    object.call("__construct", args);
+    return object;
+}
+Object newObject(const char *name, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    v2.addRef();
+    args.append(v2.ptr());
+    v3.addRef();
+    args.append(v3.ptr());
+    v4.addRef();
+    args.append(v4.ptr());
+    v5.addRef();
+    args.append(v5.ptr());
+    v6.addRef();
+    args.append(v6.ptr());
+    v7.addRef();
+    args.append(v7.ptr());
+    v8.addRef();
+    args.append(v8.ptr());
+    v9.addRef();
+    args.append(v9.ptr());
+    object.call("__construct", args);
+    return object;
+}
+Object newObject(const char *name, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    v2.addRef();
+    args.append(v2.ptr());
+    v3.addRef();
+    args.append(v3.ptr());
+    v4.addRef();
+    args.append(v4.ptr());
+    v5.addRef();
+    args.append(v5.ptr());
+    v6.addRef();
+    args.append(v6.ptr());
+    v7.addRef();
+    args.append(v7.ptr());
+    v8.addRef();
+    args.append(v8.ptr());
+    v9.addRef();
+    args.append(v9.ptr());
+    v10.addRef();
+    args.append(v10.ptr());
+    object.call("__construct", args);
+    return object;
+}
+Object newObject(const char *name, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    v2.addRef();
+    args.append(v2.ptr());
+    v3.addRef();
+    args.append(v3.ptr());
+    v4.addRef();
+    args.append(v4.ptr());
+    v5.addRef();
+    args.append(v5.ptr());
+    v6.addRef();
+    args.append(v6.ptr());
+    v7.addRef();
+    args.append(v7.ptr());
+    v8.addRef();
+    args.append(v8.ptr());
+    v9.addRef();
+    args.append(v9.ptr());
+    v10.addRef();
+    args.append(v10.ptr());
+    v11.addRef();
+    args.append(v11.ptr());
+    object.call("__construct", args);
+    return object;
+}
+Object newObject(const char *name, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    v2.addRef();
+    args.append(v2.ptr());
+    v3.addRef();
+    args.append(v3.ptr());
+    v4.addRef();
+    args.append(v4.ptr());
+    v5.addRef();
+    args.append(v5.ptr());
+    v6.addRef();
+    args.append(v6.ptr());
+    v7.addRef();
+    args.append(v7.ptr());
+    v8.addRef();
+    args.append(v8.ptr());
+    v9.addRef();
+    args.append(v9.ptr());
+    v10.addRef();
+    args.append(v10.ptr());
+    v11.addRef();
+    args.append(v11.ptr());
+    v12.addRef();
+    args.append(v12.ptr());
+    object.call("__construct", args);
+    return object;
+}
+Object newObject(const char *name, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    v2.addRef();
+    args.append(v2.ptr());
+    v3.addRef();
+    args.append(v3.ptr());
+    v4.addRef();
+    args.append(v4.ptr());
+    v5.addRef();
+    args.append(v5.ptr());
+    v6.addRef();
+    args.append(v6.ptr());
+    v7.addRef();
+    args.append(v7.ptr());
+    v8.addRef();
+    args.append(v8.ptr());
+    v9.addRef();
+    args.append(v9.ptr());
+    v10.addRef();
+    args.append(v10.ptr());
+    v11.addRef();
+    args.append(v11.ptr());
+    v12.addRef();
+    args.append(v12.ptr());
+    v13.addRef();
+    args.append(v13.ptr());
+    object.call("__construct", args);
+    return object;
+}
+Object newObject(const char *name, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    v2.addRef();
+    args.append(v2.ptr());
+    v3.addRef();
+    args.append(v3.ptr());
+    v4.addRef();
+    args.append(v4.ptr());
+    v5.addRef();
+    args.append(v5.ptr());
+    v6.addRef();
+    args.append(v6.ptr());
+    v7.addRef();
+    args.append(v7.ptr());
+    v8.addRef();
+    args.append(v8.ptr());
+    v9.addRef();
+    args.append(v9.ptr());
+    v10.addRef();
+    args.append(v10.ptr());
+    v11.addRef();
+    args.append(v11.ptr());
+    v12.addRef();
+    args.append(v12.ptr());
+    v13.addRef();
+    args.append(v13.ptr());
+    v14.addRef();
+    args.append(v14.ptr());
+    object.call("__construct", args);
+    return object;
+}
+Object newObject(const char *name, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14, Variant v15)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    v2.addRef();
+    args.append(v2.ptr());
+    v3.addRef();
+    args.append(v3.ptr());
+    v4.addRef();
+    args.append(v4.ptr());
+    v5.addRef();
+    args.append(v5.ptr());
+    v6.addRef();
+    args.append(v6.ptr());
+    v7.addRef();
+    args.append(v7.ptr());
+    v8.addRef();
+    args.append(v8.ptr());
+    v9.addRef();
+    args.append(v9.ptr());
+    v10.addRef();
+    args.append(v10.ptr());
+    v11.addRef();
+    args.append(v11.ptr());
+    v12.addRef();
+    args.append(v12.ptr());
+    v13.addRef();
+    args.append(v13.ptr());
+    v14.addRef();
+    args.append(v14.ptr());
+    v15.addRef();
+    args.append(v15.ptr());
+    object.call("__construct", args);
+    return object;
+}
+Object newObject(const char *name, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14, Variant v15, Variant v16)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    v2.addRef();
+    args.append(v2.ptr());
+    v3.addRef();
+    args.append(v3.ptr());
+    v4.addRef();
+    args.append(v4.ptr());
+    v5.addRef();
+    args.append(v5.ptr());
+    v6.addRef();
+    args.append(v6.ptr());
+    v7.addRef();
+    args.append(v7.ptr());
+    v8.addRef();
+    args.append(v8.ptr());
+    v9.addRef();
+    args.append(v9.ptr());
+    v10.addRef();
+    args.append(v10.ptr());
+    v11.addRef();
+    args.append(v11.ptr());
+    v12.addRef();
+    args.append(v12.ptr());
+    v13.addRef();
+    args.append(v13.ptr());
+    v14.addRef();
+    args.append(v14.ptr());
+    v15.addRef();
+    args.append(v15.ptr());
+    v16.addRef();
+    args.append(v16.ptr());
+    object.call("__construct", args);
+    return object;
+}
+Object newObject(const char *name, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14, Variant v15, Variant v16, Variant v17)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    v2.addRef();
+    args.append(v2.ptr());
+    v3.addRef();
+    args.append(v3.ptr());
+    v4.addRef();
+    args.append(v4.ptr());
+    v5.addRef();
+    args.append(v5.ptr());
+    v6.addRef();
+    args.append(v6.ptr());
+    v7.addRef();
+    args.append(v7.ptr());
+    v8.addRef();
+    args.append(v8.ptr());
+    v9.addRef();
+    args.append(v9.ptr());
+    v10.addRef();
+    args.append(v10.ptr());
+    v11.addRef();
+    args.append(v11.ptr());
+    v12.addRef();
+    args.append(v12.ptr());
+    v13.addRef();
+    args.append(v13.ptr());
+    v14.addRef();
+    args.append(v14.ptr());
+    v15.addRef();
+    args.append(v15.ptr());
+    v16.addRef();
+    args.append(v16.ptr());
+    v17.addRef();
+    args.append(v17.ptr());
+    object.call("__construct", args);
+    return object;
+}
+Object newObject(const char *name, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14, Variant v15, Variant v16, Variant v17, Variant v18)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    v2.addRef();
+    args.append(v2.ptr());
+    v3.addRef();
+    args.append(v3.ptr());
+    v4.addRef();
+    args.append(v4.ptr());
+    v5.addRef();
+    args.append(v5.ptr());
+    v6.addRef();
+    args.append(v6.ptr());
+    v7.addRef();
+    args.append(v7.ptr());
+    v8.addRef();
+    args.append(v8.ptr());
+    v9.addRef();
+    args.append(v9.ptr());
+    v10.addRef();
+    args.append(v10.ptr());
+    v11.addRef();
+    args.append(v11.ptr());
+    v12.addRef();
+    args.append(v12.ptr());
+    v13.addRef();
+    args.append(v13.ptr());
+    v14.addRef();
+    args.append(v14.ptr());
+    v15.addRef();
+    args.append(v15.ptr());
+    v16.addRef();
+    args.append(v16.ptr());
+    v17.addRef();
+    args.append(v17.ptr());
+    v18.addRef();
+    args.append(v18.ptr());
+    object.call("__construct", args);
+    return object;
+}
+Object newObject(const char *name, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14, Variant v15, Variant v16, Variant v17, Variant v18, Variant v19)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    v2.addRef();
+    args.append(v2.ptr());
+    v3.addRef();
+    args.append(v3.ptr());
+    v4.addRef();
+    args.append(v4.ptr());
+    v5.addRef();
+    args.append(v5.ptr());
+    v6.addRef();
+    args.append(v6.ptr());
+    v7.addRef();
+    args.append(v7.ptr());
+    v8.addRef();
+    args.append(v8.ptr());
+    v9.addRef();
+    args.append(v9.ptr());
+    v10.addRef();
+    args.append(v10.ptr());
+    v11.addRef();
+    args.append(v11.ptr());
+    v12.addRef();
+    args.append(v12.ptr());
+    v13.addRef();
+    args.append(v13.ptr());
+    v14.addRef();
+    args.append(v14.ptr());
+    v15.addRef();
+    args.append(v15.ptr());
+    v16.addRef();
+    args.append(v16.ptr());
+    v17.addRef();
+    args.append(v17.ptr());
+    v18.addRef();
+    args.append(v18.ptr());
+    v19.addRef();
+    args.append(v19.ptr());
+    object.call("__construct", args);
+    return object;
+}
+Object newObject(const char *name, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14, Variant v15, Variant v16, Variant v17, Variant v18, Variant v19, Variant v20)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    v2.addRef();
+    args.append(v2.ptr());
+    v3.addRef();
+    args.append(v3.ptr());
+    v4.addRef();
+    args.append(v4.ptr());
+    v5.addRef();
+    args.append(v5.ptr());
+    v6.addRef();
+    args.append(v6.ptr());
+    v7.addRef();
+    args.append(v7.ptr());
+    v8.addRef();
+    args.append(v8.ptr());
+    v9.addRef();
+    args.append(v9.ptr());
+    v10.addRef();
+    args.append(v10.ptr());
+    v11.addRef();
+    args.append(v11.ptr());
+    v12.addRef();
+    args.append(v12.ptr());
+    v13.addRef();
+    args.append(v13.ptr());
+    v14.addRef();
+    args.append(v14.ptr());
+    v15.addRef();
+    args.append(v15.ptr());
+    v16.addRef();
+    args.append(v16.ptr());
+    v17.addRef();
+    args.append(v17.ptr());
+    v18.addRef();
+    args.append(v18.ptr());
+    v19.addRef();
+    args.append(v19.ptr());
+    v20.addRef();
+    args.append(v20.ptr());
+    object.call("__construct", args);
+    return object;
+}
+/*generator*/
 
 //namespace end
 }
-

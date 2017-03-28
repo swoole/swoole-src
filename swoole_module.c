@@ -26,11 +26,11 @@ static zval *loaded_modules = NULL;
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_module_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
-static PHP_METHOD(swoole_module, destory);
+static PHP_METHOD(swoole_module, destroy);
 
 static const zend_function_entry swoole_module_methods[] =
 {
-    PHP_ME(swoole_module, destory, arginfo_swoole_module_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_module, destroy, arginfo_swoole_module_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
@@ -76,7 +76,7 @@ PHP_FUNCTION(swoole_load_module)
     sw_zend_hash_update(Z_ARRVAL_P(loaded_modules), file, len + 1, return_value, sizeof(return_value), NULL);
 }
 
-static PHP_METHOD(swoole_module, destory)
+static PHP_METHOD(swoole_module, destroy)
 {
     swModule *module = swoole_get_object(getThis());
     if (module)

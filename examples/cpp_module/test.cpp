@@ -28,7 +28,7 @@ using namespace PHP;
 extern "C"
 {
     int swModule_init(swModule *);
-    void swModule_destory(swModule *);
+    void swModule_destroy(swModule *);
 }
 
 void cpp_hello_world(Args &args, Variant &retval);
@@ -103,9 +103,9 @@ int swModule_init(swModule *module)
     return SW_OK;
 }
 
-void swModule_destory(swModule *module)
+void swModule_destroy(swModule *module)
 {
-    PHP::destory();
+    PHP::destroy();
 }
 
 int test_get_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t length)
