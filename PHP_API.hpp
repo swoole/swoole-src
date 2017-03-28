@@ -60,6 +60,13 @@ using namespace std;
 
 namespace PHP
 {
+struct Resource
+{
+    const char *name;
+    int type;
+};
+static unordered_map<string, Resource *> resource_map;
+
 class Variant
 {
 public:
@@ -124,6 +131,11 @@ public:
     {
         ref_val = v;
         reference = ref;
+    }
+    Variant(zend_resource *res)
+    {
+        init();
+        ZVAL_RES(ptr(), res);
     }
     ~Variant()
     {
@@ -267,6 +279,22 @@ public:
             convert_to_string(ptr());
         }
         return Z_STRLEN_P(ptr());
+    }
+    template<class T>
+    T* toResource(const char *name)
+    {
+        if (!isResource())
+        {
+            php_error_docref(NULL, E_WARNING, "Variant is not a resource type.");
+            return NULL;
+        }
+        void *_ptr = NULL;
+        Resource *_c = resource_map[name];
+        if ((_ptr = zend_fetch_resource(Z_RES_P(ptr()), name, _c->type)) == NULL)
+        {
+            return NULL;
+        }
+        return static_cast<T *>(_ptr);
     }
 protected:
     bool reference;
@@ -996,10 +1024,16 @@ void var_dump(Variant &v)
 {
     php_var_dump(v.ptr(), VAR_DUMP_LEVEL);
 }
+
+static inline zend_class_entry *getClassEntry(const char *name)
+{
+    String class_name(name, strlen(name));
+    return zend_lookup_class(class_name.ptr());
+}
+
 void throwException(const char *name, const char *message, int code = 0)
 {
-    String class_name(name);
-    zend_class_entry *ce = zend_lookup_class(class_name.ptr());
+    zend_class_entry *ce = getClassEntry(name);
     if (ce == NULL)
     {
         php_error_docref(NULL, E_WARNING, "class '%s' undefined.", name);
@@ -1466,10 +1500,8 @@ public:
 
 Object create(const char *name, Array &args)
 {
-    zend_string *class_name = zend_string_init(name, strlen(name), 0);
+    zend_class_entry *ce = getClassEntry(name);
     Object object;
-    zend_class_entry *ce = zend_lookup_class(class_name);
-    zend_string_free(class_name);
     if (ce == NULL)
     {
         php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
@@ -1487,9 +1519,8 @@ Object create(const char *name, Array &args)
 
 Object create(const char *name)
 {
-    String class_name(name);
     Object object;
-    zend_class_entry *ce = zend_lookup_class(class_name.ptr());
+    zend_class_entry *ce = getClassEntry(name);
     if (ce == NULL)
     {
         php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
@@ -1507,6 +1538,7 @@ Object create(const char *name)
 #define function(f) #f, f
 #define defineMethod(c, m) void c##_##m(Object &_this, Args &args, Variant &retval)
 typedef void (*function_t)(Args &, Variant &retval);
+typedef void (*resource_dtor)(zend_resource *);
 typedef void (*method_t)(Object &, Args &, Variant &retval);
 static unordered_map<string, function_t> function_map;
 static unordered_map<string, unordered_map<string, method_t> > method_map;
@@ -1568,6 +1600,20 @@ bool registerFunction(const char *name, function_t func)
     {
         return false;
     }
+}
+
+bool registerResource(const char *name, resource_dtor dtor)
+{
+    Resource *res = new Resource;
+    int type = zend_register_list_destructors_ex(dtor, NULL, name, 0);
+    if (type < 0)
+    {
+        return false;
+    }
+    res->type = type;
+    res->name = name;
+    resource_map[name] = res;
+    return true;
 }
 
 void unregisterFunction(string &name)
@@ -1724,8 +1770,7 @@ public:
             return false;
         }
         parent_class_name = _parent_class;
-        zend_string *parent_class_name = zend_string_init(_parent_class, strlen(_parent_class), 0);
-        parent_ce = zend_lookup_class(parent_class_name);
+        parent_ce = getClassEntry(_parent_class);
         return parent_ce != NULL;
     }
     bool implements(const char *name)
@@ -1738,9 +1783,7 @@ public:
         {
             return false;
         }
-        zend_string *_name = zend_string_init(name, strlen(name), 0);
-        zend_class_entry *interface_ce = zend_lookup_class(_name);
-        zend_string_free(_name);
+        zend_class_entry *interface_ce = getClassEntry(name);
         if (interface_ce == NULL)
         {
             return false;
@@ -1838,16 +1881,9 @@ public:
          */
         for (int i = 0; i != propertys.size(); i++)
         {
-            if (Z_TYPE(propertys[i].value) == IS_STRING)
-            {
-                zend_declare_property_stringl(ce, propertys[i].name.c_str(), propertys[i].name.length(),
-                        Z_STRVAL(propertys[i].value), Z_STRLEN(propertys[i].value), propertys[i].flags);
-            }
-            else
-            {
-                zend_declare_property(ce, propertys[i].name.c_str(), propertys[i].name.length(), &propertys[i].value,
-                        propertys[i].flags);
-            }
+            Property p = propertys[i];
+            zval_add_ref(&p.value);
+            zend_declare_property(ce, p.name.c_str(), p.name.length(), &p.value, p.flags);
         }
         /**
          * register constant
@@ -1899,7 +1935,42 @@ public:
     {
         return class_name;
     }
-
+    Variant getStaticProperty(string p_name)
+    {
+        if (!activated)
+        {
+            return nullptr;
+        }
+        return Variant(zend_read_static_property(ce, p_name.c_str(), p_name.length(), 1));
+    }
+    bool setStaticProperty(string p_name, Variant value)
+    {
+        if (!activated)
+        {
+            return false;
+        }
+        value.addRef();
+        return zend_update_static_property(ce, p_name.c_str(), p_name.length(), value.ptr()) == SUCCESS;
+    }
+    static Variant get(const char *name, string p_name)
+    {
+        zend_class_entry *_tmp_ce = getClassEntry(name);
+        if (!_tmp_ce)
+        {
+            return nullptr;
+        }
+        return Variant(zend_read_static_property(_tmp_ce, p_name.c_str(), p_name.length(), 1));
+    }
+    static bool set(const char *name, string p_name, Variant value)
+    {
+        zend_class_entry *_tmp_ce = getClassEntry(name);
+        if (!_tmp_ce)
+        {
+            return false;
+        }
+        value.addRef();
+        return zend_update_static_property(_tmp_ce, p_name.c_str(), p_name.length(), value.ptr()) == SUCCESS;
+    }
 protected:
     bool activated;
     string class_name;
@@ -1939,13 +2010,19 @@ void destory()
     }
 }
 
+template<typename T>
+Variant newResource(const char *name, T *v)
+{
+    Resource *_c = resource_map[name];
+    zend_resource *res = zend_register_resource(static_cast<void*>(v), _c->type);
+    return Variant(res);
+}
+
 /*generater-5*/
 Object newObject(const char *name, Variant v1)
 {
-    zend_string *class_name = zend_string_init(name, strlen(name), 0);
     Object object;
-    zend_class_entry *ce = zend_lookup_class(class_name);
-    zend_string_free(class_name);
+    zend_class_entry *ce = getClassEntry(name);
     if (ce == NULL)
     {
         php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
