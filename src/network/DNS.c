@@ -94,7 +94,7 @@ static int swDNSResolver_get_server()
 {
     FILE *fp;
     char line[100];
-    char buf[16];
+    char buf[16] = {0};
 
     if ((fp = fopen(SW_DNS_SERVER_CONF, "rt")) == NULL)
     {
@@ -112,7 +112,16 @@ static int swDNSResolver_get_server()
         }
     }
     fclose(fp);
-    SwooleG.dns_server_v4 = strdup(buf);
+
+    if (strlen(buf) == 0)
+    {
+        SwooleG.dns_server_v4 = strdup(SW_DNS_DEFAULT_SERVER);
+    }
+    else
+    {
+        SwooleG.dns_server_v4 = strdup(buf);
+    }
+
     return SW_OK;
 }
 
