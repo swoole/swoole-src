@@ -119,7 +119,6 @@ static int swAioLinux_onFinish(swReactor *reactor, swEvent *event)
                 aio_ev.task_id = aiocb->aio_reqprio;
                 SwooleAIO.callback(&aio_ev);
             }
-            i += n;
             finished_aio -= n;
             SwooleAIO.task_num -= n;
         }
