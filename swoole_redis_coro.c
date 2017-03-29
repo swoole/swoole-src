@@ -3486,7 +3486,7 @@ static PHP_METHOD(swoole_redis_coro, eval)
     SW_REDIS_COMMAND_ARGV_FILL(script, script_len)
 
     char keys_num_str[32] = {0};
-    sprintf(keys_num_str, "%ld", params_num);
+    sprintf(keys_num_str, "%ld", keys_num);
     SW_REDIS_COMMAND_ARGV_FILL(keys_num_str, strlen(keys_num_str));
 
     zval *param;
@@ -3530,7 +3530,7 @@ static PHP_METHOD(swoole_redis_coro, evalSha)
     SW_REDIS_COMMAND_ARGV_FILL(sha, sha_len)
 
     char keys_num_str[32] = {0};
-    sprintf(keys_num_str, "%ld", params_num);
+    sprintf(keys_num_str, "%ld", keys_num);
     SW_REDIS_COMMAND_ARGV_FILL(keys_num_str, strlen(keys_num_str));
 
     zval *param;
