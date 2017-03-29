@@ -71,7 +71,9 @@ multipart_parser* multipart_parser_init(const char *boundary, size_t boundary_le
     memcpy(p->multipart_boundary + 2, boundary, boundary_length);
     p->multipart_boundary[2 + boundary_length] = 0;
 
-    swTrace("boundary: %s\r\n\r\n", p->multipart_boundary);
+#if 0
+    printf("boundary: %s\r\n\r\n", p->multipart_boundary);
+#endif
 
     p->boundary_length = boundary_length + 2;
     p->lookbehind = (p->multipart_boundary + p->boundary_length + 1);

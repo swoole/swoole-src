@@ -256,7 +256,7 @@ static int swClient_inet_addr(swClient *cli, char *host, int port)
         cli->server_addr.addr.un.sun_family = AF_UNIX;
         strncpy(cli->server_addr.addr.un.sun_path, host, sizeof(cli->server_addr.addr.un.sun_path) - 1);
         cli->server_addr.addr.un.sun_path[sizeof(cli->server_addr.addr.un.sun_path) - 1] = 0;
-        cli->server_addr.len = strlen(cli->server_addr.addr.un);
+        cli->server_addr.len = strlen(cli->server_addr.addr.un.sun_path);
         return SW_OK;
     }
     else
