@@ -78,7 +78,7 @@ static sw_inline void* swoole_aio_malloc(size_t __size)
 
     if (SwooleAIO.mode == SW_AIO_LINUX)
     {
-        int buf_len = __size + (sysconf(_SC_PAGESIZE) - (__size % sysconf(_SC_PAGESIZE)));
+        size_t buf_len = __size + (sysconf(_SC_PAGESIZE) - (__size % sysconf(_SC_PAGESIZE)));
         if (posix_memalign((void **) &memory, sysconf(_SC_PAGESIZE), buf_len) != 0)
         {
             return NULL;

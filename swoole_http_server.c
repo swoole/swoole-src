@@ -796,6 +796,10 @@ static int multipart_body_on_header_complete(multipart_parser* p)
     char file_path[SW_HTTP_UPLOAD_TMPDIR_SIZE];
     snprintf(file_path, SW_HTTP_UPLOAD_TMPDIR_SIZE, "%s/swoole.upfile.XXXXXX", SwooleG.serv->upload_tmp_dir);
     int tmpfile = swoole_tmpfile(file_path);
+    if (tmpfile < 0)
+    {
+        return 0;
+    }
 
     FILE *fp = fdopen(tmpfile, "wb+");
     if (fp == NULL)

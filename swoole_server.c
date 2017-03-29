@@ -2443,7 +2443,13 @@ PHP_METHOD(swoole_server, taskWaitMulti)
     int i = 0;
     int n_task = Z_ARRVAL_P(tasks)->nNumOfElements;
 
-    int list_of_id[1024];
+    if (n_task >= SW_MAX_CONCURRENT_TASK)
+    {
+        swoole_php_fatal_error(E_WARNING, "too many concurrent tasks.");
+        RETURN_FALSE;
+    }
+
+    int list_of_id[SW_MAX_CONCURRENT_TASK];
 
     uint64_t notify;
     swEventData *task_result = &(SwooleG.task_result[SwooleWG.id]);
