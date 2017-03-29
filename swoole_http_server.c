@@ -2088,7 +2088,6 @@ static PHP_METHOD(swoole_http_response, cookie)
 {
     char *name, *value = NULL, *path = NULL, *domain = NULL;
     long expires = 0;
-    int encode = 1;
     zend_bool secure = 0, httponly = 0;
     zend_size_t name_len, value_len = 0, path_len = 0, domain_len = 0;
 
@@ -2122,16 +2121,11 @@ static PHP_METHOD(swoole_http_response, cookie)
     }
 
     len += name_len;
-    if (encode && value)
+    if (value)
     {
         int encoded_value_len;
         encoded_value = sw_php_url_encode(value, value_len, &encoded_value_len);
         len += encoded_value_len;
-    }
-    else if (value)
-    {
-        encoded_value = estrdup(value);
-        len += value_len;
     }
     if (path)
     {
@@ -2203,7 +2197,6 @@ static PHP_METHOD(swoole_http_response, rawcookie)
 {
     char *name, *value = NULL, *path = NULL, *domain = NULL;
     long expires = 0;
-    int encode = 0;
     zend_bool secure = 0, httponly = 0;
     zend_size_t name_len, value_len = 0, path_len = 0, domain_len = 0;
 
@@ -2237,13 +2230,7 @@ static PHP_METHOD(swoole_http_response, rawcookie)
     }
 
     len += name_len;
-    if (encode && value)
-    {
-        int encoded_value_len;
-        encoded_value = sw_php_url_encode(value, value_len, &encoded_value_len);
-        len += encoded_value_len;
-    }
-    else if (value)
+    if (value)
     {
         encoded_value = estrdup(value);
         len += value_len;
