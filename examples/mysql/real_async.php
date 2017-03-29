@@ -9,7 +9,6 @@ $server = array(
 
 $db->on('close', function() use($db) {
     echo "mysql is closed.\n";
-    var_dump($db->close());
 });
 
 $r = $db->connect($server, function ($db, $result)
