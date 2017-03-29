@@ -358,7 +358,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject TSRMLS_DC)
     zval *zsetting = sw_zend_read_property(swoole_server_class_entry_ptr, zobject, ZEND_STRL("setting"), 1 TSRMLS_CC);
     if (zsetting == NULL || ZVAL_IS_NULL(zsetting))
     {
-        SW_MAKE_STD_ZVAL(zsetting);
+        SW_ALLOC_INIT_ZVAL(zsetting);
         array_init(zsetting);
         zend_update_property(swoole_server_class_entry_ptr, zobject, ZEND_STRL("setting"), zsetting TSRMLS_CC);
     }

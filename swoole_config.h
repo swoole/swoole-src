@@ -223,6 +223,7 @@
 
 #define SW_DNS_HOST_BUFFER_SIZE          16
 #define SW_DNS_SERVER_PORT               53
+#define SW_DNS_DEFAULT_SERVER            "8.8.8.8"
 
 //#define SW_HTTP_CLIENT_ENABLE
 

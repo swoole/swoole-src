@@ -94,7 +94,7 @@ static int swDNSResolver_get_server()
 {
     FILE *fp;
     char line[100];
-    char buf[16];
+    char buf[16] = {0};
 
     if ((fp = fopen(SW_DNS_SERVER_CONF, "rt")) == NULL)
     {
@@ -112,7 +112,16 @@ static int swDNSResolver_get_server()
         }
     }
     fclose(fp);
-    SwooleG.dns_server_v4 = strdup(buf);
+
+    if (strlen(buf) == 0)
+    {
+        SwooleG.dns_server_v4 = strdup(SW_DNS_DEFAULT_SERVER);
+    }
+    else
+    {
+        SwooleG.dns_server_v4 = strdup(buf);
+    }
+
     return SW_OK;
 }
 
@@ -287,18 +296,10 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
 
     _domain_name = &packet[steps];
 
-    swDNS_lookup_request *request = sw_malloc(sizeof(swDNS_lookup_request));
-    if (request == NULL)
-    {
-        swWarn("malloc(%d) failed.", (int ) sizeof(swDNS_lookup_request));
-        return SW_ERR;
-    }
-
     int len = strlen(domain);
     if (len >= sizeof(key))
     {
         swWarn("domain name is too long.");
-        sw_free(request);
         return SW_ERR;
     }
 
@@ -313,6 +314,12 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
         return SW_ERR;
     }
 
+    swDNS_lookup_request *request = sw_malloc(sizeof(swDNS_lookup_request));
+    if (request == NULL)
+    {
+        swWarn("malloc(%d) failed.", (int ) sizeof(swDNS_lookup_request));
+        return SW_ERR;
+    }
     request->domain = strndup(domain, len + 1);
     if (request->domain == NULL)
     {
@@ -320,7 +327,6 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
         sw_free(request);
         return SW_ERR;
     }
-
     request->data = data;
     request->callback = callback;
 

@@ -1484,7 +1484,7 @@ static PHP_METHOD(swoole_http_server, start)
     zval *zsetting = sw_zend_read_property(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("setting"), 1 TSRMLS_CC);
     if (zsetting == NULL || ZVAL_IS_NULL(zsetting))
     {
-        SW_MAKE_STD_ZVAL(zsetting);
+        SW_ALLOC_INIT_ZVAL(zsetting);
         array_init(zsetting);
         zend_update_property(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("setting"), zsetting TSRMLS_CC);
     }
