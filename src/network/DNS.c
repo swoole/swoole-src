@@ -287,18 +287,10 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
 
     _domain_name = &packet[steps];
 
-    swDNS_lookup_request *request = sw_malloc(sizeof(swDNS_lookup_request));
-    if (request == NULL)
-    {
-        swWarn("malloc(%d) failed.", (int ) sizeof(swDNS_lookup_request));
-        return SW_ERR;
-    }
-
     int len = strlen(domain);
     if (len >= sizeof(key))
     {
         swWarn("domain name is too long.");
-        sw_free(request);
         return SW_ERR;
     }
 
@@ -313,6 +305,12 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
         return SW_ERR;
     }
 
+    swDNS_lookup_request *request = sw_malloc(sizeof(swDNS_lookup_request));
+    if (request == NULL)
+    {
+        swWarn("malloc(%d) failed.", (int ) sizeof(swDNS_lookup_request));
+        return SW_ERR;
+    }
     request->domain = strndup(domain, len + 1);
     if (request->domain == NULL)
     {
@@ -320,7 +318,6 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
         sw_free(request);
         return SW_ERR;
     }
-
     request->data = data;
     request->callback = callback;
 
