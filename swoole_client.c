@@ -590,7 +590,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
     {
         convert_to_long(v);
         value = (int) Z_LVAL_P(v);
-        if (value <= 0 || value > SW_MAX_INT)
+        if (value <= 0)
         {
             value = SW_MAX_INT;
         }
