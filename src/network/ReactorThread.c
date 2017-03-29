@@ -712,7 +712,7 @@ int swReactorThread_send(swSendData *_send)
         }
 
         swListenPort *port = swServer_get_port(serv, fd);
-        if (serv->onBufferFull && conn->out_buffer->length >= port->buffer_high_watermark)
+        if (serv->onBufferFull && conn->high_watermark == 0 && conn->out_buffer->length >= port->buffer_high_watermark)
         {
             swServer_tcp_notify(serv, conn, SW_EVENT_BUFFER_FULL);
             conn->high_watermark = 1;
