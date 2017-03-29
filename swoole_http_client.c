@@ -1682,7 +1682,10 @@ int http_response_uncompress(z_stream *stream, swString *buffer, char *body, int
         {
             if (buffer->length + 4096 >= buffer->size)
             {
-                swString_extend(buffer, buffer->size * 2);
+                if (swString_extend(buffer, buffer->size * 2) < 0)
+                {
+                    return SW_ERR;
+                }
             }
             if (stream->avail_in == 0)
             {

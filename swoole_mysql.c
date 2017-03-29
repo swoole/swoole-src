@@ -638,12 +638,12 @@ static int mysql_response(mysql_client *client)
             else if (client->response.response_type == 0)
             {
                 /* affected rows */
-                ret = mysql_length_coded_binary(p, (ulong_t *) &client->response.affected_rows, &nul, n_buf);
+                ret = mysql_length_coded_binary(p, &client->response.affected_rows, &nul, n_buf);
                 n_buf -= ret;
                 p += ret;
 
                 /* insert id */
-                ret = mysql_length_coded_binary(p, (ulong_t *) &client->response.insert_id, &nul, n_buf);
+                ret = mysql_length_coded_binary(p, &client->response.insert_id, &nul, n_buf);
                 n_buf -= ret;
                 p += ret;
 
@@ -662,7 +662,7 @@ static int mysql_response(mysql_client *client)
             else
             {
                 //Protocol::LengthEncodedInteger
-                ret = mysql_length_coded_binary(p - 1, (ulong_t *) &client->response.num_column, &nul, n_buf + 1);
+                ret = mysql_length_coded_binary(p - 1, &client->response.num_column, &nul, n_buf + 1);
                 if (ret < 0)
                 {
                     return SW_ERR;

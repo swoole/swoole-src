@@ -1839,7 +1839,10 @@ static int http_response_compress(swString *body, int level)
 
     if (memory_size > swoole_zlib_buffer->size)
     {
-        swString_extend(swoole_zlib_buffer, memory_size);
+        if (swString_extend(swoole_zlib_buffer, memory_size) < 0)
+        {
+            return SW_ERR;
+        }
     }
 
     z_stream zstream;

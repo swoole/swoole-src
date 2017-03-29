@@ -2018,7 +2018,7 @@ static int client_select_wait(zval *sock_array, fd_set *fds TSRMLS_DC)
 #if PHP_MAJOR_VERSION < 7
     HashTable *new_hash;
     char *key = NULL;
-    zval **dest_element;
+    zval **dest_element = NULL;
     uint32_t key_len;
 
     ALLOC_HASHTABLE(new_hash);
