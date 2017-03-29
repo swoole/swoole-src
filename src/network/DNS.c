@@ -142,12 +142,13 @@ static int swDNSResolver_onReceive(swReactor *reactor, swEvent *event)
     char name[10][254];
     int i, j;
 
-    if (recv(event->fd, packet, 65536, 0) <= 0)
+    int ret = recv(event->fd, packet, sizeof(packet) - 1, 0);
+    if (ret <= 0)
     {
-        //cli->close(cli);
         return SW_ERR;
     }
 
+    packet[ret] = 0;
     header = (swDNSResolver_header *) &packet;
     steps = sizeof(swDNSResolver_header);
 
