@@ -344,6 +344,8 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
         resolver_socket = sw_malloc(sizeof(swClient));
         if (resolver_socket == NULL)
         {
+            sw_strdup_free(request->domain);
+            sw_free(request);
             swWarn("malloc failed.");
             return SW_ERR;
         }
