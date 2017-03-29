@@ -77,6 +77,7 @@ static CPINLINE int swoole_string_new (size_t size, seriaString *str, zend_uchar
     }
 
     SBucketType real_type;
+    bzero(&real_type, sizeof(real_type));
     real_type.data_type = type;
     *(SBucketType*) (str->buffer + str->offset) = real_type;
     str->offset += sizeof (SBucketType);
@@ -608,6 +609,7 @@ static void swoole_serialize_arr (seriaString *buffer, zend_array *zvalue)
     ZEND_HASH_FOREACH_KEY_VAL (zvalue, index, key, data)
     {
         SBucketType type;
+        bzero(&type, sizeof(type));
         type.data_type = Z_TYPE_P (data);
         //start point
         size_t p = buffer->offset;
