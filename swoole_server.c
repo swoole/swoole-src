@@ -25,7 +25,7 @@
 #include "zend_smart_str.h"
 #endif
 
-static int php_swoole_task_id;
+static int php_swoole_task_id = 0;
 static int udp_server_socket;
 static int dgram_server_socket;
 
@@ -69,6 +69,10 @@ int php_swoole_task_pack(swEventData *task, zval *data TSRMLS_DC)
     task->info.type = SW_EVENT_TASK;
     //field fd save task_id
     task->info.fd = php_swoole_task_id++;
+    if (php_swoole_task_id >= SW_MAX_INT)
+    {
+        php_swoole_task_id = 0;
+    }
     //field from_id save the worker_id
     task->info.from_id = SwooleWG.id;
     swTask_type(task) = 0;
@@ -2485,20 +2489,24 @@ PHP_METHOD(swoole_server, taskWaitMulti)
         swTask_type(&buf) |= SW_TASK_WAITALL;
         dst_worker_id = -1;
         sw_atomic_fetch_add(&SwooleStats->tasking_num, 1);
-        if (swProcessPool_dispatch_blocking(&SwooleGS->task_workers, &buf, (int*) &dst_worker_id) >= 0)
-        {
-            list_of_id[i] = task_id;
-        }
-        else
+        if (swProcessPool_dispatch_blocking(&SwooleGS->task_workers, &buf, (int*) &dst_worker_id) < 0)
         {
             sw_atomic_fetch_sub(&SwooleStats->tasking_num, 1);
             swoole_php_fatal_error(E_WARNING, "taskwait failed. Error: %s[%d]", strerror(errno), errno);
+            task_id = -1;
             fail:
             add_index_bool(return_value, i, 0);
             n_task --;
         }
+        list_of_id[i] = task_id;
         i++;
     SW_HASHTABLE_FOREACH_END();
+
+    if (n_task == 0)
+    {
+        SwooleG.error = SW_ERROR_TASK_DISPATCH_FAIL;
+        RETURN_FALSE;
+    }
 
     double _now = swoole_microtime();
     while (n_task > 0)
@@ -2533,7 +2541,7 @@ PHP_METHOD(swoole_server, taskWaitMulti)
         result = (swEventData *) (content->str + content->offset);
         task_id = result->info.fd;
         zdata = php_swoole_task_unpack(result TSRMLS_CC);
-        for (j = 0; j < n_task; j++)
+        for (j = 0; j < Z_ARRVAL_P(tasks)->nNumOfElements; j++)
         {
             if (list_of_id[j] == task_id)
             {

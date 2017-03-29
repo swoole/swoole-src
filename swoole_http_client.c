@@ -820,19 +820,19 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
     swString_clear(http_client_buffer);
     swString_append_ptr(http_client_buffer, hcc->request_method, strlen(hcc->request_method));
     hcc->request_method = NULL;
-    swString_append_ptr (http_client_buffer, ZEND_STRL (" "));
+    swString_append_ptr(http_client_buffer, ZEND_STRL(" "));
 #ifdef SW_USE_OPENSSL
-    if (http->cli->http_proxy&&!http->cli->open_ssl)
+    if (http->cli->http_proxy && !http->cli->open_ssl)
 #else
     if (http->cli->http_proxy)
 #endif
     {
-        sw_zend_hash_find (Z_ARRVAL_P (send_header), ZEND_STRS ("Host"), (void **) &value); //checked before
+        sw_zend_hash_find(Z_ARRVAL_P(send_header), ZEND_STRS("Host"), (void **) &value); //checked before
         char *pre = "http://";
-        int len = http->uri_len + Z_STRLEN_P (value) + strlen (pre) + 1;
-        void *addr = ecalloc (len, 1);
-        snprintf (addr, len, "%s%s%s", pre, Z_STRVAL_P (value), http->uri);
-        efree (http->uri);
+        int len = http->uri_len + Z_STRLEN_P(value) + strlen(pre) + 1;
+        void *addr = ecalloc(len, 1);
+        snprintf(addr, len, "%s%s%s", pre, Z_STRVAL_P(value), http->uri);
+        efree(http->uri);
         http->uri = addr;
         http->uri_len = len;
     }

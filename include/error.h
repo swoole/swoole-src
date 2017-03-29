@@ -56,6 +56,7 @@ enum swErrorCode
      * task error
      */
     SW_ERROR_TASK_PACKAGE_TOO_BIG = 2001,
+    SW_ERROR_TASK_DISPATCH_FAIL,
 
     /**
      * http2 protocol error

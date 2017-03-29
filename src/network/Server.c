@@ -1205,7 +1205,8 @@ int swserver_add_systemd_socket(swServer *serv)
         case AF_UNIX:
             ls->type = sock_type == SOCK_STREAM ? SW_SOCK_UNIX_STREAM : SW_SOCK_UNIX_DGRAM;
             ls->port = 0;
-            strncpy(ls->host, address.addr.un.sun_path, SW_HOST_MAXSIZE);
+            strncpy(ls->host, address.addr.un.sun_path, SW_HOST_MAXSIZE - 1);
+            ls->host[SW_HOST_MAXSIZE - 1] = 0;
             break;
         default:
             swWarn("Unknown socket type[%d].", sock_type);
