@@ -787,8 +787,11 @@ static int multipart_body_on_header_complete(multipart_parser* p)
     zval *multipart_header = ctx->current_multipart_header;
     zval *zrequest_object = ctx->request.zobject;
     zval *zerr = NULL;
-    sw_zend_hash_find(Z_ARRVAL_P(multipart_header), ZEND_STRS("error"), (void **) &zerr);
-    if (Z_LVAL_P(zerr) != HTTP_UPLOAD_ERR_OK)
+    if (sw_zend_hash_find(Z_ARRVAL_P(multipart_header), ZEND_STRS("error"), (void **) &zerr) == FAILURE)
+    {
+        return 0;
+    }
+    if (Z_TYPE_P(zerr) == IS_LONG && Z_LVAL_P(zerr) != HTTP_UPLOAD_ERR_OK)
     {
         return 0;
     }
