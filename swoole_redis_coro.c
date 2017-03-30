@@ -3467,15 +3467,19 @@ static PHP_METHOD(swoole_redis_coro, eval)
 {
     char *script;
     zend_size_t script_len;
-    zval *params;
-    long keys_num;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sal", &script, &script_len, &params, &keys_num) == FAILURE)
+    zval *params = NULL;
+    long keys_num = 0;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|al", &script, &script_len, &params, &keys_num) == FAILURE)
     {
         return;
     }
 
-    HashTable *params_ht = Z_ARRVAL_P(params);
-    uint32_t params_num = zend_hash_num_elements(params_ht);
+    HashTable *params_ht = NULL;
+    uint32_t params_num = 0;
+    if (params) {
+        params_ht = Z_ARRVAL_P(params);
+        params_num = zend_hash_num_elements(params_ht);
+    }
 
     SW_REDIS_COMMAND_CHECK
     int i = 0;
@@ -3489,17 +3493,19 @@ static PHP_METHOD(swoole_redis_coro, eval)
     sprintf(keys_num_str, "%ld", keys_num);
     SW_REDIS_COMMAND_ARGV_FILL(keys_num_str, strlen(keys_num_str));
 
-    zval *param;
-    SW_HASHTABLE_FOREACH_START(params_ht, param)
+    if (params_ht) {
+        zval *param;
+        SW_HASHTABLE_FOREACH_START(params_ht, param)
 #if PHP_MAJOR_VERSION < 7
-        convert_to_string(param);
-        SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL_P(param), Z_STRLEN_P(param))
+            convert_to_string(param);
+            SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL_P(param), Z_STRLEN_P(param))
 #else
-        zend_string *param_str = zval_get_string(param);
-        SW_REDIS_COMMAND_ARGV_FILL(param_str->val, param_str->len)
-        zend_string_release(param_str);
+            zend_string *param_str = zval_get_string(param);
+            SW_REDIS_COMMAND_ARGV_FILL(param_str->val, param_str->len)
+            zend_string_release(param_str);
 #endif
-    SW_HASHTABLE_FOREACH_END();
+        SW_HASHTABLE_FOREACH_END();
+    }
 
     SW_REDIS_COMMAND(params_num + 3)
     efree(argvlen);
@@ -3511,15 +3517,19 @@ static PHP_METHOD(swoole_redis_coro, evalSha)
 {
     char *sha;
     zend_size_t sha_len;
-    zval *params;
-    long keys_num;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sal", &sha, &sha_len, &params, &keys_num) == FAILURE)
+    zval *params = NULL;
+    long keys_num = 0;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|al", &sha, &sha_len, &params, &keys_num) == FAILURE)
     {
         return;
     }
 
-    HashTable *params_ht = Z_ARRVAL_P(params);
-    uint32_t params_num = zend_hash_num_elements(params_ht);
+    HashTable *params_ht = NULL;
+    uint32_t params_num = 0;
+    if (params) {
+        params_ht = Z_ARRVAL_P(params);
+        params_num = zend_hash_num_elements(params_ht);
+    }
 
     SW_REDIS_COMMAND_CHECK
     int i = 0;
@@ -3533,17 +3543,19 @@ static PHP_METHOD(swoole_redis_coro, evalSha)
     sprintf(keys_num_str, "%ld", keys_num);
     SW_REDIS_COMMAND_ARGV_FILL(keys_num_str, strlen(keys_num_str));
 
-    zval *param;
-    SW_HASHTABLE_FOREACH_START(params_ht, param)
+    if (params) {
+        zval *param;
+        SW_HASHTABLE_FOREACH_START(params_ht, param)
 #if PHP_MAJOR_VERSION < 7
-        convert_to_string(param);
-        SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL_P(param), Z_STRLEN_P(param))
+            convert_to_string(param);
+            SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL_P(param), Z_STRLEN_P(param))
 #else
-        zend_string *param_str = zval_get_string(param);
-        SW_REDIS_COMMAND_ARGV_FILL(param_str->val, param_str->len)
-        zend_string_release(param_str);
+            zend_string *param_str = zval_get_string(param);
+            SW_REDIS_COMMAND_ARGV_FILL(param_str->val, param_str->len)
+            zend_string_release(param_str);
 #endif
-    SW_HASHTABLE_FOREACH_END();
+        SW_HASHTABLE_FOREACH_END();
+    }
 
     SW_REDIS_COMMAND(params_num + 3)
     efree(argvlen);
