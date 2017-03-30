@@ -385,6 +385,8 @@ if test "$PHP_SWOOLE" != "no"; then
     PHP_ADD_INCLUDE([$ext_srcdir])
     PHP_ADD_INCLUDE([$ext_srcdir/include])
 
+    PHP_INSTALL_HEADERS([ext/swoole], [*.h *.hpp include/*.h])
+
     if test "$PHP_PICOHTTPPARSER" = "yes"; then
         PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/picohttpparser])
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/picohttpparser)
