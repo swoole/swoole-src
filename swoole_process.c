@@ -42,7 +42,7 @@ static PHP_METHOD(swoole_process, exec);
 
 static void php_swoole_onSignal(int signo);
 
-static uint32_t php_swoole_worker_round_id = 1;
+static uint32_t php_swoole_worker_round_id = 0;
 static zval *signal_callback[SW_SIGNO_MAX];
 static zend_class_entry swoole_process_ce;
 zend_class_entry *swoole_process_class_entry_ptr;
@@ -236,12 +236,16 @@ static PHP_METHOD(swoole_process, __construct)
     swWorker *process = emalloc(sizeof(swWorker));
     bzero(process, sizeof(swWorker));
 
-    process->id = php_swoole_worker_round_id++;
-
+    int base = 1;
+    if (SwooleG.serv && SwooleGS->start)
+    {
+        base = SwooleG.serv->worker_num + SwooleG.task_worker_num + SwooleG.serv->user_worker_num;
+    }
     if (php_swoole_worker_round_id == 0)
     {
-        php_swoole_worker_round_id = 1;
+        php_swoole_worker_round_id = base;
     }
+    process->id = php_swoole_worker_round_id++;
 
     if (redirect_stdin_and_stdout)
     {

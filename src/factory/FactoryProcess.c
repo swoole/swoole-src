@@ -221,10 +221,9 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
      */
     if (resp->length > 0)
     {
-        if (worker->send_shm == NULL)
+        if (worker == NULL || worker->send_shm == NULL)
         {
-            swWarn("send failed, data is too big.");
-            return SW_ERR;
+            goto pack_data;
         }
 
         //worker process
@@ -236,6 +235,7 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
             //cannot use send_shm
             if (!swBuffer_empty(_pipe_socket->out_buffer))
             {
+                pack_data:
                 if (swTaskWorker_large_pack(&ev_data, resp->data, resp->length) < 0)
                 {
                     return SW_ERR;

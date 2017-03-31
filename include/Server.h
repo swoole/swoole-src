@@ -725,8 +725,6 @@ static sw_inline swWorker* swServer_get_worker(swServer *serv, uint16_t worker_i
         return serv->user_workers[worker_id - task_worker_max];
     }
 
-    //Unkown worker_id
-    swWarn("worker#%d is not exist.", worker_id);
     return NULL;
 }
 static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swEventData *data)
