@@ -270,6 +270,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     {
         coro_status = CORO_YIELD;
     }
+    COROG.require = 0;
     return coro_status;
 }
 #endif
@@ -368,8 +369,6 @@ sw_inline php_context *sw_coro_save(zval *return_value, zval **return_value_ptr,
 #else
 sw_inline php_context *sw_coro_save(zval *return_value, php_context *sw_current_context)
 {
-
-    
     strncpy(SWCC(uid), COROG.uid, 20);
     SWCC(current_coro_return_value_ptr) = return_value;
     SWCC(current_execute_data) = EG(current_execute_data);
@@ -431,16 +430,16 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval **coro_re
         //coro yield
         coro_status = CORO_YIELD;
     }
-	COROG.require = 0;
+    COROG.require = 0;
     if (unused)
     {
         sw_zval_ptr_dtor(&saved_return_value);
     }
-	if (unlikely(coro_status == CORO_END && EG(exception)))
-	{
-		sw_zval_ptr_dtor(&retval);
-		zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
-	}
+    if (unlikely(coro_status == CORO_END && EG(exception)))
+    {
+        sw_zval_ptr_dtor(&retval);
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+    }
 
     return coro_status;
 }
@@ -460,7 +459,8 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
     zend_vm_stack_free_call_frame(current);
 
     EG(current_execute_data) = current->prev_execute_data;
-    //EG(current_task) = COROG.current_coro;
+    COROG.current_coro = SWCC(current_task);
+    COROG.require = 1;
 #if PHP_MINOR_VERSION < 1
     EG(scope) = EG(current_execute_data)->func->op_array.scope;
 #endif
@@ -471,7 +471,7 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
         ZVAL_COPY(SWCC(current_coro_return_value_ptr), retval);
     }
     EG(current_execute_data)->opline++;
-    
+
     int coro_status;
     if (!setjmp(*swReactorCheckPoint))
     {
@@ -485,6 +485,7 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
         //coro yield
         coro_status = CORO_YIELD;
     }
+    COROG.require = 0;
 
     if (unlikely(coro_status == CORO_END && EG(exception)))
     {
@@ -501,7 +502,7 @@ int sw_coro_resume_parent(php_context *sw_current_context, zval *retval, zval *c
     EG(vm_stack_end) = SWCC(current_vm_stack_end);
 
     EG(current_execute_data) = SWCC(current_execute_data);
-    //EG(current_task) = COROG.current_coro;
+    COROG.current_coro = SWCC(current_task);
     strncpy(COROG.uid, SWCC(uid), 20);
     COROG.allocated_return_value_ptr = SWCC(allocated_return_value_ptr);
     return CORO_END;
