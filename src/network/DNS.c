@@ -227,8 +227,8 @@ static int swDNSResolver_onReceive(swReactor *reactor, swEvent *event)
 
     char key[1024];
     int request_id = ntohs(header->id);
-    int n = snprintf(key, sizeof(key), "%s-%d", _domain_name, request_id);
-    swDNS_lookup_request *request = swHashMap_find(request_map, key, n);
+    int key_len = snprintf(key, sizeof(key), "%s-%d", _domain_name, request_id);
+    swDNS_lookup_request *request = swHashMap_find(request_map, key, key_len);
     if (request == NULL)
     {
         swWarn("bad response, request_id=%d.", request_id);
@@ -254,7 +254,7 @@ static int swDNSResolver_onReceive(swReactor *reactor, swEvent *event)
     }
 
     request->callback(request->domain, &result, request->data);
-    swHashMap_del_int(request_map, request_id);
+    swHashMap_del(request_map, key, key_len);
     sw_strdup_free(request->domain);
     sw_free(request);
 
