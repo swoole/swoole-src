@@ -14,6 +14,10 @@ else
     $server->data = array();
 }
 
+$server->setHandler('COMMAND', function ($fd, $data) use ($server) {
+    return Server::format(Server::STATUS, 'OK');
+});
+
 $server->setHandler('GET', function ($fd, $data) use ($server) {
     if (count($data) == 0)
     {
