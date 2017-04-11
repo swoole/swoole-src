@@ -524,37 +524,45 @@ static int mysql_handshake(mysql_connector *connector, char *buf, int len)
     tmp[connector->user_len] = '\0';
     tmp += (connector->user_len + 1);
 
-    //auth-response
-    char hash_0[20];
-    bzero(hash_0, sizeof(hash_0));
-    php_swoole_sha1(connector->password, connector->password_len, (uchar *) hash_0);
-
-    char hash_1[20];
-    bzero(hash_1, sizeof(hash_1));
-    php_swoole_sha1(hash_0, sizeof(hash_0), (uchar *) hash_1);
-
-    char str[40];
-    memcpy(str, request.auth_plugin_data, 20);
-    memcpy(str + 20, hash_1, 20);
-
-    char hash_2[20];
-    php_swoole_sha1(str, sizeof(str), (uchar *) hash_2);
-
-    char hash_3[20];
-
-    int *a = (int *) hash_2;
-    int *b = (int *) hash_0;
-    int *c = (int *) hash_3;
-
-    int i;
-    for (i = 0; i < 5; i++)
+    if (connector->password_len > 0)
     {
-        c[i] = a[i] ^ b[i];
-    }
+        //auth-response
+        char hash_0[20];
+        bzero(hash_0, sizeof (hash_0));
+        php_swoole_sha1(connector->password, connector->password_len, (uchar *) hash_0);
 
-    *tmp = 20;
-    memcpy(tmp + 1, hash_3, 20);
-    tmp += 21;
+        char hash_1[20];
+        bzero(hash_1, sizeof (hash_1));
+        php_swoole_sha1(hash_0, sizeof (hash_0), (uchar *) hash_1);
+
+        char str[40];
+        memcpy(str, request.auth_plugin_data, 20);
+        memcpy(str + 20, hash_1, 20);
+
+        char hash_2[20];
+        php_swoole_sha1(str, sizeof (str), (uchar *) hash_2);
+
+        char hash_3[20];
+
+        int *a = (int *) hash_2;
+        int *b = (int *) hash_0;
+        int *c = (int *) hash_3;
+
+        int i;
+        for (i = 0; i < 5; i++)
+        {
+            c[i] = a[i] ^ b[i];
+        }
+
+        *tmp = 20;
+        memcpy(tmp + 1, hash_3, 20);
+        tmp += 21;
+    }
+    else
+    {
+         *tmp = 0;
+         tmp++;
+    }
 
     //string[NUL]    database
     memcpy(tmp, connector->database, connector->database_len);
