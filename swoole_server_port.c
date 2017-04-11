@@ -16,6 +16,9 @@
 
 #include "php_swoole.h"
 #include "module.h"
+#ifdef SW_COROUTINE
+#include "swoole_coroutine.h"
+#endif
 
 zend_class_entry swoole_server_port_ce;
 zend_class_entry *swoole_server_port_class_entry_ptr;
@@ -422,7 +425,13 @@ static PHP_METHOD(swoole_server_port, on)
 
 #ifdef PHP_SWOOLE_CHECK_CALLBACK
     char *func_name = NULL;
+
+#ifdef SW_COROUTINE
+    zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
+    if (!sw_zend_is_callable_ex(cb, NULL, 0, &func_name, NULL, func_cache, NULL TSRMLS_CC))
+#else
     if (!sw_zend_is_callable(cb, 0, &func_name TSRMLS_CC))
+#endif
     {
         swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
         efree(func_name);
@@ -501,6 +510,9 @@ static PHP_METHOD(swoole_server_port, on)
             {
                 SwooleG.serv->onBufferEmpty = php_swoole_onBufferEmpty;
             }
+#ifdef SW_COROUTINE
+            property->caches[i] = func_cache;
+#endif
             break;
         }
     }

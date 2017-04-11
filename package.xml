@@ -35,19 +35,20 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2017-03-16</date>
+    <date>2017-03-17</date>
     <time>09:50:10</time>
     <version>
-		<release>1.9.8</release>
-		<api>1.9</api>
+		<release>2.0.7</release>
+		<api>2.0</api>
     </version>
     <stability>
-        <release>stable</release>
-        <api>stable</api>
+        <release>beta</release>
+        <api>beta</api>
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Fix some compilation errors
+    - Added Coroutine::create function, allows user to create coroutine
+    - Fixed HttpClient crash
     </notes>
 	<contents>
 		<dir name="/">
@@ -82,6 +83,7 @@
 				<file role="src" name="module.h" />
 				<file role="src" name="socks5.h" />
 				<file role="src" name="redis.h" />
+				<file role="src" name="coroutine.h" />
 			</dir>
 			<file role="src" name="php_swoole.h" />
 			<file role="src" name="php7_wrapper.h" />
@@ -100,6 +102,7 @@
 			<file role="src" name="swoole_table.c" />
 			<file role="src" name="swoole_buffer.c" />
 			<file role="src" name="swoole_http_server.c" />
+			<file role="src" name="swoole_http_client.h" />
 			<file role="src" name="swoole_http_client.c" />
 			<file role="src" name="swoole_http_v2_client.c" />
 			<file role="src" name="swoole_http_v2_server.c" />
@@ -113,8 +116,15 @@
 			<file role="src" name="swoole_module.c" />
 			<file role="src" name="swoole_mmap.c" />
 			<file role="src" name="swoole_channel.c" />
-			<file role="src" name="swoole_serialize.h" />
-			<file role="src" name="swoole_serialize.c" />
+            <file role="src" name="swoole_serialize.h" />
+            <file role="src" name="swoole_serialize.c" />
+			<file role="src" name="swoole_coroutine.h" />
+			<file role="src" name="swoole_coroutine.c" />
+			<file role="src" name="swoole_coroutine_util.c" />
+			<file role="src" name="swoole_client_coro.c" />
+			<file role="src" name="swoole_http_client_coro.c" />
+			<file role="src" name="swoole_redis_coro.c" />
+			<file role="src" name="swoole_mysql_coro.c" />
 			<dir name="thirdparty">
 				<file role="src" name="php_http_parser.c" />
 				<file role="src" name="php_http_parser.h" />
@@ -217,7 +227,7 @@
 					<file role="src" name="Mqtt.c" />
 					<file role="src" name="Socks5.c" />
 					<file role="src" name="MimeTypes.c" />
-                    <file role="src" name="Redis.c" />
+					<file role="src" name="Redis.c" />
 				</dir>
 			</dir>
 			<dir name="examples">
@@ -335,7 +345,7 @@
 	<dependencies>
 		<required>
 			<php>
-				<min>5.3.10</min>
+				<min>5.5.0</min>
 			</php>
 			<pearinstaller>
 				<min>1.4.0</min>

@@ -16,108 +16,9 @@
 */
 
 #include "php_swoole.h"
-#include "websocket.h"
-#include "thirdparty/php_http_parser.h"
-
-#include "ext/standard/base64.h"
-
-#ifdef SW_HAVE_ZLIB
-#include <zlib.h>
-#endif
-
-enum http_client_state
-{
-    HTTP_CLIENT_STATE_WAIT,
-    HTTP_CLIENT_STATE_READY,
-    HTTP_CLIENT_STATE_BUSY,
-    //WebSocket
-    HTTP_CLIENT_STATE_UPGRADE,
-    HTTP_CLIENT_STATE_WAIT_CLOSE,
-};
-
-typedef struct
-{
-    zval *onConnect;
-    zval *onError;
-    zval *onClose;
-    zval *onMessage;
-    zval *onResponse;
-
-#if PHP_MAJOR_VERSION >= 7
-    zval _object;
-    zval _request_body;
-    zval _request_header;
-    zval _request_upload_files;
-    zval _download_file;
-    zval _cookies;
-    zval _onConnect;
-    zval _onError;
-    zval _onClose;
-    zval _onMessage;
-#endif
-
-    zval *cookies;
-    zval *request_header;
-    zval *request_body;
-    zval *request_upload_files;
-    zval *download_file;
-    off_t download_offset;
-    char *request_method;
-    int callback_index;
-
-} http_client_property;
-
-typedef struct
-{
-    swClient *cli;
-    char *host;
-    zend_size_t host_len;
-    long port;
-    double timeout;
-    char* uri;
-    zend_size_t uri_len;
-
-    char *tmp_header_field_name;
-    zend_size_t tmp_header_field_name_len;
-
-#ifdef SW_HAVE_ZLIB
-    z_stream gzip_stream;
-    swString *gzip_buffer;
-#endif
-
-    /**
-     * download page
-     */
-    int file_fd;
-
-    php_http_parser parser;
-
-    swString *body;
-
-    uint8_t state;       //0 wait 1 ready 2 busy
-    uint8_t keep_alive;  //0 no 1 keep
-    uint8_t upgrade;
-    uint8_t gzip;
-    uint8_t chunked;     //Transfer-Encoding: chunked
-    uint8_t completed;
-    uint8_t websocket_mask;
-    uint8_t download;    //save http response to file
-
-} http_client;
-
-
-
-#ifdef SW_HAVE_ZLIB
-extern swString *swoole_zlib_buffer;
-#endif
+#include "swoole_http_client.h"
 
 static swString *http_client_buffer;
-
-static int http_client_parser_on_header_field(php_http_parser *parser, const char *at, size_t length);
-static int http_client_parser_on_header_value(php_http_parser *parser, const char *at, size_t length);
-static int http_client_parser_on_body(php_http_parser *parser, const char *at, size_t length);
-static int http_client_parser_on_headers_complete(php_http_parser *parser);
-static int http_client_parser_on_message_complete(php_http_parser *parser);
 
 static void http_client_onReceive(swClient *cli, char *data, uint32_t length);
 static void http_client_onConnect(swClient *cli);
@@ -126,8 +27,6 @@ static void http_client_onError(swClient *cli);
 static int http_client_onMessage(swConnection *conn, char *data, uint32_t length);
 
 static int http_client_send_http_request(zval *zobject TSRMLS_DC);
-static http_client* http_client_create(zval *object TSRMLS_DC);
-static void http_client_free(zval *object TSRMLS_DC);
 static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zval *callback TSRMLS_DC);
 
 #ifdef SW_HAVE_ZLIB
@@ -136,33 +35,6 @@ static void http_init_gzip_stream(http_client *);
 extern voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size);
 extern void php_zlib_free(voidpf opaque, voidpf address);
 #endif
-
-static sw_inline void http_client_swString_append_headers(swString* swStr, char* key, zend_size_t key_len, char* data, zend_size_t data_len)
-{
-    swString_append_ptr(swStr, key, key_len);
-    swString_append_ptr(swStr, ZEND_STRL(": "));
-    swString_append_ptr(swStr, data, data_len);
-    swString_append_ptr(swStr, ZEND_STRL("\r\n"));
-}
-
-static sw_inline void http_client_append_content_length(swString* buf, int length)
-{
-    char content_length_str[32];
-    int n = snprintf(content_length_str, sizeof(content_length_str), "Content-Length: %d\r\n\r\n", length);
-    swString_append_ptr(buf, content_length_str, n);
-}
-
-static sw_inline void http_client_create_token(int length, char *buf)
-{
-    char characters[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!\"§$%&/()=[]{}";
-    int i;
-    assert(length < 1024);
-    for (i = 0; i < length; i++)
-    {
-        buf[i] = characters[rand() % sizeof(characters) - 1];
-    }
-    buf[length] = '\0';
-}
 
 static const php_http_parser_settings http_parser_settings =
 {
@@ -364,7 +236,7 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
 
     http->uri = estrdup(uri);
     http->uri_len = uri_len;
-    
+
     if (callback == NULL || ZVAL_IS_NULL(callback))
     {
         swoole_php_fatal_error(E_WARNING, "response callback is not set.");
@@ -453,7 +325,7 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
         }
         //client settings
         php_swoole_client_check_setting(http->cli, zset TSRMLS_CC);
-        
+
         if (http->cli->http_proxy)
         {
             zval *send_header = hcc->request_header;
@@ -483,7 +355,7 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
     cli->onConnect = http_client_onConnect;
     cli->onClose = http_client_onClose;
     cli->onError = http_client_onError;
-    
+
     return cli->connect(cli, http->host, http->port, http->timeout, 0);
 }
 
@@ -1111,7 +983,7 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
     return ret;
 }
 
-static void http_client_free(zval *object TSRMLS_DC)
+void http_client_free(zval *object TSRMLS_DC)
 {
     http_client *http = swoole_get_object(object);
     if (!http)
@@ -1142,7 +1014,7 @@ static void http_client_free(zval *object TSRMLS_DC)
     efree(http);
 }
 
-static http_client* http_client_create(zval *object TSRMLS_DC)
+http_client* http_client_create(zval *object TSRMLS_DC)
 {
     zval *ztmp;
     http_client *http;
@@ -1512,7 +1384,7 @@ static PHP_METHOD(swoole_http_client, on)
     RETURN_TRUE;
 }
 
-static int http_client_parser_on_header_field(php_http_parser *parser, const char *at, size_t length)
+int http_client_parser_on_header_field(php_http_parser *parser, const char *at, size_t length)
 {
 // #if PHP_MAJOR_VERSION < 7
 //     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
@@ -1525,7 +1397,7 @@ static int http_client_parser_on_header_field(php_http_parser *parser, const cha
     return 0;
 }
 
-static int http_client_parser_on_header_value(php_http_parser *parser, const char *at, size_t length)
+int http_client_parser_on_header_value(php_http_parser *parser, const char *at, size_t length)
 {
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
@@ -1701,7 +1573,7 @@ int http_response_uncompress(z_stream *stream, swString *buffer, char *body, int
 }
 #endif
 
-static int http_client_parser_on_body(php_http_parser *parser, const char *at, size_t length)
+int http_client_parser_on_body(php_http_parser *parser, const char *at, size_t length)
 {
     http_client* http = (http_client*) parser->data;
     if (swString_append_ptr(http->body, (char *) at, length) < 0)
@@ -1735,7 +1607,7 @@ static int http_client_parser_on_body(php_http_parser *parser, const char *at, s
     return 0;
 }
 
-static int http_client_parser_on_headers_complete(php_http_parser *parser)
+int http_client_parser_on_headers_complete(php_http_parser *parser)
 {
     http_client* http = (http_client*) parser->data;
     //no content-length
@@ -1746,7 +1618,7 @@ static int http_client_parser_on_headers_complete(php_http_parser *parser)
     return 0;
 }
 
-static int http_client_parser_on_message_complete(php_http_parser *parser)
+int http_client_parser_on_message_complete(php_http_parser *parser)
 {
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);

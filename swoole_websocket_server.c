@@ -16,6 +16,9 @@
 
 #include "php_swoole.h"
 #include "swoole_http.h"
+#ifdef SW_COROUTINE
+#include "swoole_coroutine.h"
+#endif
 
 #include <ext/standard/url.h>
 #include <ext/standard/sha1.h>
@@ -96,22 +99,44 @@ void swoole_websocket_onOpen(http_context *ctx)
     }
     conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
 
+#ifndef SW_COROUTINE
     zval *zcallback = php_swoole_server_get_callback(SwooleG.serv, conn->from_fd, SW_SERVER_CB_onOpen);
     if (zcallback)
+#else
+    zend_fcall_info_cache *cache = php_swoole_server_get_cache(SwooleG.serv, conn->from_fd, SW_SERVER_CB_onOpen);
+    if (cache)
+#endif
     {
-        zval **args[2];
         swServer *serv = SwooleG.serv;
         zval *zserv = (zval *) serv->ptr2;
         zval *zrequest_object = ctx->request.zobject;
         zval *retval = NULL;
 
+#ifndef SW_COROUTINE
+        zval **args[2];
         args[0] = &zserv;
         args[1] = &zrequest_object;
-
+#else
+        zval *args[2];
+        args[0] = zserv;
+        args[1] = zrequest_object;
+#endif
+#ifndef SW_COROUTINE
         if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0,  NULL TSRMLS_CC) == FAILURE)
         {
-            php_error_docref(NULL TSRMLS_CC, E_WARNING, "onOpen handler error");
+            swoole_php_error(E_WARNING, "onOpen handler error");
         }
+#else
+        int ret = coro_create(cache, args, 2, &retval, NULL, NULL);
+        if (ret != 0)
+        {
+            if (ret == CORO_LIMIT)
+            {
+                SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
+            }
+            return;
+        }
+#endif
         if (EG(exception))
         {
             zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
@@ -233,16 +258,38 @@ int swoole_websocket_onMessage(swEventData *req)
     swServer *serv = SwooleG.serv;
     zval *zserv = (zval *) serv->ptr2;
 
+#ifndef SW_COROUTINE
     zval **args[2];
     args[0] = &zserv;
     args[1] = &zframe;
+#else
+    zval *args[2];
+    args[0] = zserv;
+    args[1] = zframe;
+#endif
 
     zval *retval = NULL;
+
+#ifndef SW_COROUTINE
     zval *zcallback = php_swoole_server_get_callback(serv, req->info.from_fd, SW_SERVER_CB_onMessage);
     if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "onMessage handler error");
+        swoole_php_error(E_WARNING, "onMessage handler error");
     }
+#else
+    zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onMessage);
+    int ret = coro_create(cache, args, 2, &retval, NULL, NULL);
+    if (ret != 0)
+    {
+        sw_zval_ptr_dtor(&zdata);
+        sw_zval_ptr_dtor(&zframe);
+        if (ret == CORO_LIMIT)
+        {
+            SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
+        }
+        return SW_OK;
+    }
+#endif
     if (EG(exception))
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
@@ -336,14 +383,21 @@ static PHP_METHOD(swoole_websocket_server, on)
 
     swServer *serv = swoole_get_object(getThis());
 
+#ifdef PHP_SWOOLE_CHECK_CALLBACK
     char *func_name = NULL;
+#ifndef SW_COROUTINE
     if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
+#else
+    zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
+    if (!sw_zend_is_callable_ex(callback, NULL, 0, &func_name, NULL, func_cache, NULL TSRMLS_CC))
+#endif
     {
-        php_error_docref(NULL TSRMLS_CC, E_ERROR, "Function '%s' is not callable", func_name);
+        swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
         efree(func_name);
         RETURN_FALSE;
     }
     efree(func_name);
+#endif
 
     serv->listen_list->open_websocket_protocol = 1;
 
@@ -352,12 +406,18 @@ static PHP_METHOD(swoole_websocket_server, on)
         zend_update_property(swoole_websocket_server_class_entry_ptr, getThis(), ZEND_STRL("onOpen"), callback TSRMLS_CC);
         php_sw_server_callbacks[SW_SERVER_CB_onOpen] = sw_zend_read_property(swoole_websocket_server_class_entry_ptr, getThis(), ZEND_STRL("onOpen"), 0 TSRMLS_CC);
         sw_copy_to_stack(php_sw_server_callbacks[SW_SERVER_CB_onOpen], _php_sw_server_callbacks[SW_SERVER_CB_onOpen]);
+#ifdef SW_COROUTINE
+        php_sw_server_caches[SW_SERVER_CB_onOpen] = func_cache;
+#endif
     }
     else if (strncasecmp("message", Z_STRVAL_P(event_name), Z_STRLEN_P(event_name)) == 0)
     {
         zend_update_property(swoole_websocket_server_class_entry_ptr, getThis(), ZEND_STRL("onMessage"), callback TSRMLS_CC);
         php_sw_server_callbacks[SW_SERVER_CB_onMessage] = sw_zend_read_property(swoole_websocket_server_class_entry_ptr, getThis(), ZEND_STRL("onMessage"), 0 TSRMLS_CC);
         sw_copy_to_stack(php_sw_server_callbacks[SW_SERVER_CB_onMessage], _php_sw_server_callbacks[SW_SERVER_CB_onMessage]);
+#ifdef SW_COROUTINE
+        php_sw_server_caches[SW_SERVER_CB_onMessage] = func_cache;
+#endif
     }
     else
     {

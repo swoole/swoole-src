@@ -18,6 +18,9 @@
 #include "module.h"
 #include "Connection.h"
 
+#ifdef SW_COROUTINE
+#include "swoole_coroutine.h"
+#endif
 #include "ext/standard/php_var.h"
 #if PHP_MAJOR_VERSION < 7
 #include "ext/standard/php_smart_str.h"
@@ -37,6 +40,10 @@ static struct
 } server_port_list;
 
 zval *php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
+#ifdef SW_COROUTINE
+zend_fcall_info_cache *php_sw_server_caches[PHP_SERVER_CALLBACK_NUM];
+#endif
+
 static swHashMap *task_callbacks;
 
 #if PHP_MAJOR_VERSION >= 7
@@ -360,6 +367,15 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject TSRMLS_DC)
 
     swTrace("Create swoole_server host=%s, port=%d, mode=%d, type=%d", serv->listen_list->host, (int) serv->listen_list->port, serv->factory_mode, (int) serv->listen_list->type);
 
+#ifdef SW_COROUTINE
+    coro_init(TSRMLS_C);
+#endif
+
+    /**
+     * Master Process ID
+     */
+    zend_update_property_long(swoole_server_class_entry_ptr, zobject, ZEND_STRL("master_pid"), getpid() TSRMLS_CC);
+
     zval *zsetting = sw_zend_read_property(swoole_server_class_entry_ptr, zobject, ZEND_STRL("setting"), 1 TSRMLS_CC);
     if (zsetting == NULL || ZVAL_IS_NULL(zsetting))
     {
@@ -578,7 +594,11 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
 {
     swFactory *factory = &serv->factory;
     zval *zserv = (zval *) serv->ptr2;
+#ifdef SW_COROUTINE
+    zval *args[4];
+#else
     zval **args[4];
+#endif
 
     zval *zfd;
     zval *zfrom_id;
@@ -587,14 +607,6 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
 
     SWOOLE_GET_TSRMLS;
 
-    zval *callback = php_swoole_server_get_callback(serv, req->info.from_fd, SW_SERVER_CB_onReceive);
-    if (callback == NULL || ZVAL_IS_NULL(callback))
-    {
-        swoole_php_fatal_error(E_WARNING, "onReceive callback is null.");
-        return SW_OK;
-    }
-
-    //UDP使用from_id作为port,fd做为ip
     php_swoole_udp_t udp_info;
     swDgramPacket *packet;
 
@@ -655,6 +667,14 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
         php_swoole_get_recv_data(zdata, req, NULL, 0);
     }
 
+#ifndef SW_COROUTINE
+    zval *callback = php_swoole_server_get_callback(serv, req->info.from_fd, SW_SERVER_CB_onReceive);
+    if (callback == NULL || ZVAL_IS_NULL(callback))
+    {
+        swoole_php_fatal_error(E_WARNING, "onReceive callback is null.");
+        return SW_OK;
+    }
+
     args[0] = &zserv;
     args[1] = &zfd;
     args[2] = &zfrom_id;
@@ -664,6 +684,26 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
     {
         swoole_php_fatal_error(E_WARNING, "onReceive handler error.");
     }
+#else
+    args[0] = zserv;
+    args[1] = zfd;
+    args[2] = zfrom_id;
+    args[3] = zdata;
+
+    zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onReceive);
+    int ret = coro_create(cache, args, 4, &retval, NULL, NULL);
+    if (ret != 0)
+    {
+        sw_zval_ptr_dtor(&zfd);
+        sw_zval_ptr_dtor(&zfrom_id);
+        sw_zval_ptr_dtor(&zdata);
+        if (ret == CORO_LIMIT)
+        {
+            SwooleG.serv->factory.end(&SwooleG.serv->factory, req->info.fd);
+        }
+        return SW_OK;
+    }
+#endif
     if (EG(exception))
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
@@ -681,7 +721,12 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
 int php_swoole_onPacket(swServer *serv, swEventData *req)
 {
     zval *zserv = (zval *) serv->ptr2;
+
+#ifdef SW_COROUTINE
+    zval *args[3];
+#else
     zval **args[3];
+#endif
 
     zval *zdata;
     zval *zaddr;
@@ -698,18 +743,10 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
     packet = (swDgramPacket*) buffer->str;
 
     add_assoc_long(zaddr, "server_socket", req->info.from_fd);
-
     swConnection *from_sock = swServer_connection_get(serv, req->info.from_fd);
     if (from_sock)
     {
         add_assoc_long(zaddr, "server_port", swConnection_get_port(from_sock));
-    }
-
-    zval *callback = php_swoole_server_get_callback(serv, req->info.from_fd, SW_SERVER_CB_onPacket);
-    if (callback == NULL || ZVAL_IS_NULL(callback))
-    {
-        swoole_php_fatal_error(E_WARNING, "onPacket callback is null.");
-        return SW_OK;
     }
 
     char address[INET6_ADDRSTRLEN];
@@ -738,14 +775,37 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
         dgram_server_socket = req->info.from_fd;
     }
 
+#ifndef SW_COROUTINE
     args[0] = &zserv;
     args[1] = &zdata;
     args[2] = &zaddr;
+
+    zval *callback = php_swoole_server_get_callback(serv, req->info.from_fd, SW_SERVER_CB_onPacket);
+    if (callback == NULL || ZVAL_IS_NULL(callback))
+    {
+        swoole_php_fatal_error(E_WARNING, "onPacket callback is null.");
+        return SW_OK;
+    }
 
     if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onPacket handler error.");
     }
+#else
+    args[0] = zserv;
+    args[1] = zdata;
+    args[2] = zaddr;
+
+    zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onPacket);
+    int ret = coro_create(cache, args, 3, &retval, NULL, NULL);
+    if (ret != 0)
+    {
+        sw_zval_ptr_dtor(&zaddr);
+        sw_zval_ptr_dtor(&zdata);
+        return SW_OK;
+    }
+#endif
+
     if (EG(exception))
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
@@ -1157,21 +1217,28 @@ static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker
     }
 }
 
+#ifdef SW_COROUTINE
+void php_swoole_onConnect_finish(void *param)
+{
+    swServer *serv = SwooleG.serv;
+    swTrace("onConnect finish and send confirm");
+    swServer_confirm(serv, (uint32_t) (long) param);
+}
+#endif
+
 void php_swoole_onConnect(swServer *serv, swDataHead *info)
 {
     zval *zserv = (zval *) serv->ptr2;
     zval *zfd;
     zval *zfrom_id;
+#ifdef SW_COROUTINE
+    zval *args[3];
+#else
     zval **args[3];
+#endif
     zval *retval = NULL;
 
     SWOOLE_GET_TSRMLS;
-
-    zval *callback = php_swoole_server_get_callback(serv, info->from_fd, SW_SERVER_CB_onConnect);
-    if (callback == NULL || ZVAL_IS_NULL(callback))
-    {
-        return;
-    }
 
     SW_MAKE_STD_ZVAL(zfd);
     ZVAL_LONG(zfd, info->fd);
@@ -1179,14 +1246,48 @@ void php_swoole_onConnect(swServer *serv, swDataHead *info)
     SW_MAKE_STD_ZVAL(zfrom_id);
     ZVAL_LONG(zfrom_id, info->from_id);
 
+#ifndef SW_COROUTINE
     args[0] = &zserv;
     args[1] = &zfd;
     args[2] = &zfrom_id;
+#else
+    args[0] = zserv;
+    sw_zval_add_ref(&zserv);
+    args[1] = zfd;
+    args[2] = zfrom_id;
+#endif
+
+#ifndef SW_COROUTINE
+    zval *callback = php_swoole_server_get_callback(serv, info->from_fd, SW_SERVER_CB_onConnect);
+    if (callback == NULL || ZVAL_IS_NULL(callback))
+    {
+        return;
+    }
 
     if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         swoole_php_error(E_WARNING, "onConnect handler error.");
     }
+#else
+    int ret;
+    zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, info->from_fd, SW_SERVER_CB_onConnect);
+    if (serv->enable_delay_receive)
+    {
+        ret = coro_create(cache, args, 3, &retval, php_swoole_onConnect_finish, (void*) (long) info->fd);
+    }
+    else
+    {
+        ret = coro_create(cache, args, 3, &retval, NULL, NULL);
+    }
+
+    if (ret != 0)
+    {
+        sw_zval_ptr_dtor(&zfd);
+        sw_zval_ptr_dtor(&zfrom_id);
+        return;
+    }
+#endif
+
     if (EG(exception))
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
@@ -1489,6 +1590,17 @@ PHP_METHOD(swoole_server, set)
             serv->worker_num = SwooleG.cpu_num;
         }
     }
+#ifdef SW_COROUTINE
+	if (php_swoole_array_get_value(vht, "max_coro_num", v))
+	{
+		convert_to_long(v);
+		COROG.max_coro_num = (int) Z_LVAL_P(v);
+		if (COROG.max_coro_num <= 0)
+		{
+			COROG.max_coro_num = DEFAULT_MAX_CORO_NUM;
+		}
+	}
+#endif
     //dispatch_mode
     if (php_swoole_array_get_value(vht, "dispatch_mode", v))
     {
@@ -1727,7 +1839,12 @@ PHP_METHOD(swoole_server, on)
 
 #ifdef PHP_SWOOLE_CHECK_CALLBACK
     char *func_name = NULL;
+#ifdef SW_COROUTINE
+    zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
+    if (!sw_zend_is_callable_ex(cb, NULL, 0, &func_name, NULL, func_cache, NULL TSRMLS_CC))
+#else
     if (!sw_zend_is_callable(cb, 0, &func_name TSRMLS_CC))
+#endif
     {
         swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
         efree(func_name);
@@ -1780,6 +1897,10 @@ PHP_METHOD(swoole_server, on)
             zend_update_property(swoole_server_class_entry_ptr, getThis(), property_name, l_property_name, cb TSRMLS_CC);
             php_sw_server_callbacks[i] = sw_zend_read_property(swoole_server_class_entry_ptr, getThis(), property_name, l_property_name, 0 TSRMLS_CC);
             sw_copy_to_stack(php_sw_server_callbacks[i], _php_sw_server_callbacks[i]);
+
+#ifdef SW_COROUTINE
+            php_sw_server_caches[i] = func_cache;
+#endif
             break;
         }
     }
