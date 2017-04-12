@@ -205,6 +205,7 @@ void swProcessPool_shutdown(swProcessPool *pool)
     swWorker *worker;
     SwooleG.running = 0;
 
+	swSignal_none();
     //concurrent kill
     for (i = 0; i < pool->run_worker_num; i++)
     {

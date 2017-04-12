@@ -46,7 +46,7 @@
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "1.9.9-alpha"
+#define PHP_SWOOLE_VERSION  "2.0.7"
 #define PHP_SWOOLE_CHECK_CALLBACK
 
 /**
@@ -192,6 +192,9 @@ enum php_swoole_server_callback_type
 typedef struct
 {
     zval *callbacks[PHP_SERVER_CALLBACK_NUM];
+#ifdef SW_COROUTINE
+    zend_fcall_info_cache *caches[PHP_SERVER_CALLBACK_NUM];
+#endif
 #if PHP_MAJOR_VERSION >= 7
     zval _callbacks[PHP_SERVER_CALLBACK_NUM];
 #endif
@@ -341,6 +344,15 @@ void swoole_table_init(int module_number TSRMLS_DC);
 void swoole_lock_init(int module_number TSRMLS_DC);
 void swoole_atomic_init(int module_number TSRMLS_DC);
 void swoole_client_init(int module_number TSRMLS_DC);
+#ifdef SW_COROUTINE
+void swoole_client_coro_init(int module_number TSRMLS_DC);
+#ifdef SW_USE_REDIS
+void swoole_redis_coro_init(int module_number TSRMLS_DC);
+#endif
+void swoole_mysql_coro_init(int module_number TSRMLS_DC);
+void swoole_http_client_coro_init(int module_number TSRMLS_DC);
+void swoole_coroutine_util_init(int module_number TSRMLS_DC);
+#endif
 void swoole_http_client_init(int module_number TSRMLS_DC);
 #ifdef SW_USE_REDIS
 void swoole_redis_init(int module_number TSRMLS_DC);
