@@ -546,11 +546,11 @@ void swPort_free(swListenPort *port)
     if (port->ssl)
     {
         swSSL_free_context(port->ssl_context);
-        sw_strdup_free(port->ssl_cert_file);
-        sw_strdup_free(port->ssl_key_file);
+        sw_free(port->ssl_cert_file);
+        sw_free(port->ssl_key_file);
         if (port->ssl_client_cert_file)
         {
-            sw_strdup_free(port->ssl_client_cert_file);
+            sw_free(port->ssl_client_cert_file);
         }
     }
 #endif

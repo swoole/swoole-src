@@ -115,11 +115,11 @@ static int swDNSResolver_get_server()
 
     if (strlen(buf) == 0)
     {
-        SwooleG.dns_server_v4 = strdup(SW_DNS_DEFAULT_SERVER);
+        SwooleG.dns_server_v4 = sw_strdup(SW_DNS_DEFAULT_SERVER);
     }
     else
     {
-        SwooleG.dns_server_v4 = strdup(buf);
+        SwooleG.dns_server_v4 = sw_strdup(buf);
     }
 
     return SW_OK;
@@ -255,7 +255,7 @@ static int swDNSResolver_onReceive(swReactor *reactor, swEvent *event)
 
     request->callback(request->domain, &result, request->data);
     swHashMap_del(request_map, key, key_len);
-    sw_strdup_free(request->domain);
+    sw_free(request->domain);
     sw_free(request);
 
     return SW_OK;
@@ -321,7 +321,7 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
         swWarn("malloc(%d) failed.", (int ) sizeof(swDNS_lookup_request));
         return SW_ERR;
     }
-    request->domain = strndup(domain, len + 1);
+    request->domain = sw_strndup(domain, len + 1);
     if (request->domain == NULL)
     {
         swWarn("strdup(%d) failed.", len + 1);
@@ -334,7 +334,7 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
     if (domain_encode(request->domain, len, _domain_name) < 0)
     {
         swWarn("invalid domain[%s].", domain);
-        sw_strdup_free(request->domain);
+        sw_free(request->domain);
         sw_free(request);
         return SW_ERR;
     }
@@ -351,7 +351,7 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
         resolver_socket = sw_malloc(sizeof(swClient));
         if (resolver_socket == NULL)
         {
-            sw_strdup_free(request->domain);
+            sw_free(request->domain);
             sw_free(request);
             swWarn("malloc failed.");
             return SW_ERR;
@@ -359,7 +359,7 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
         if (swClient_create(resolver_socket, SW_SOCK_UDP, 0) < 0)
         {
             sw_free(resolver_socket);
-            sw_strdup_free(request->domain);
+            sw_free(request->domain);
             sw_free(request);
             return SW_ERR;
         }
@@ -368,7 +368,7 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
             do_close: resolver_socket->close(resolver_socket);
             swClient_free(resolver_socket);
             sw_free(resolver_socket);
-            sw_strdup_free(request->domain);
+            sw_free(request->domain);
             sw_free(request);
             return SW_ERR;
         }

@@ -415,7 +415,7 @@ static void client_check_ssl_setting(swClient *cli, zval *zset TSRMLS_DC)
     if (php_swoole_array_get_value(vht, "ssl_cert_file", v))
     {
         convert_to_string(v);
-        cli->ssl_cert_file = strdup(Z_STRVAL_P(v));
+        cli->ssl_cert_file = sw_strdup(Z_STRVAL_P(v));
         if (access(cli->ssl_cert_file, R_OK) < 0)
         {
             swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", cli->ssl_cert_file);
@@ -425,7 +425,7 @@ static void client_check_ssl_setting(swClient *cli, zval *zset TSRMLS_DC)
     if (php_swoole_array_get_value(vht, "ssl_key_file", v))
     {
         convert_to_string(v);
-        cli->ssl_key_file = strdup(Z_STRVAL_P(v));
+        cli->ssl_key_file = sw_strdup(Z_STRVAL_P(v));
         if (access(cli->ssl_key_file, R_OK) < 0)
         {
             swoole_php_fatal_error(E_ERROR, "ssl key file[%s] not found.", cli->ssl_key_file);
@@ -648,7 +648,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
         convert_to_string(v);
         cli->socks5_proxy = emalloc(sizeof(swSocks5));
         bzero(cli->socks5_proxy, sizeof(swSocks5));
-        cli->socks5_proxy->host = strdup(Z_STRVAL_P(v));
+        cli->socks5_proxy->host = sw_strdup(Z_STRVAL_P(v));
         cli->socks5_proxy->dns_tunnel = 1;
 
         if (php_swoole_array_get_value(vht, "socks5_port", v))
@@ -682,7 +682,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
         {
             convert_to_long(v);
             cli->http_proxy = ecalloc(1,sizeof(struct _http_proxy));
-            cli->http_proxy->proxy_host = strdup(host);
+            cli->http_proxy->proxy_host = sw_strdup(host);
             cli->http_proxy->proxy_port = Z_LVAL_P(v);
         }
         else

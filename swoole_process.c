@@ -905,7 +905,7 @@ static PHP_METHOD(swoole_process, exec)
     char **exec_args = emalloc(sizeof(char*) * (exec_argc + 2));
 
     zval *value = NULL;
-    exec_args[0] = strdup(execfile);
+    exec_args[0] = sw_strdup(execfile);
     int i = 1;
 
     SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(args), value)
