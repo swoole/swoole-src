@@ -1271,6 +1271,9 @@ void php_swoole_onConnect(swServer *serv, swDataHead *info)
 #else
     int ret;
     zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, info->from_fd, SW_SERVER_CB_onConnect);
+    if (cache == NULL) {
+        return;
+    }
     if (serv->enable_delay_receive)
     {
         ret = coro_create(cache, args, 3, &retval, php_swoole_onConnect_finish, (void*) (long) info->fd);
