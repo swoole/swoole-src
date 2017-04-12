@@ -514,7 +514,7 @@ long swoole_file_get_size(FILE *fp)
     long pos = ftell(fp);
     fseek(fp, 0L, SEEK_END);
     long size = ftell(fp);
-    fseek(fp, pos, SEEK_SET); 
+    fseek(fp, pos, SEEK_SET);
     return size;
 }
 
@@ -934,11 +934,11 @@ int swoole_gethostbyname(int flags, char *name, char *addr)
     }
     if (__af == AF_INET)
     {
-        strcpy(addr, addr_list[index].v4);
+        memcpy(addr, addr_list[index].v4, host_entry->h_length);
     }
     else
     {
-        strcpy(addr, addr_list[index].v6);
+        memcpy(addr, addr_list[index].v6, host_entry->h_length);
     }
     return SW_OK;
 }
