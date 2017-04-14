@@ -714,7 +714,7 @@ static void http2_client_send_request(zval *zobject, http2_client_request *req T
     }
     else
     {
-        swHttp2_set_frame_header(buffer, SW_HTTP2_TYPE_HEADERS, n, 0, hcc->stream_id);
+        swHttp2_set_frame_header(buffer, SW_HTTP2_TYPE_HEADERS, n, SW_HTTP2_FLAG_END_HEADERS, hcc->stream_id);
     }
 
     http2_client_stream *stream = emalloc(sizeof(http2_client_stream));
