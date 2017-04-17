@@ -555,7 +555,7 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
 
     read_from_pipe:
 
-    if (read(event->fd, &task, sizeof(task)) > 0)
+    if (read(event->fd, &task, sizeof(task)) == sizeof(task))
     {
         ret = swWorker_onTask(factory, &task);
 #ifndef SW_WORKER_RECV_AGAIN
