@@ -20,6 +20,11 @@
 #include <sys/stat.h>
 #include <sys/resource.h>
 #include <sys/ioctl.h>
+#include <limits.h>
+
+#ifdef HAVE_EXECINFO
+#include <execinfo.h>
+#endif
 
 void swoole_init(void)
 {
@@ -40,16 +45,10 @@ void swoole_init(void)
     SwooleG.cpu_num = sysconf(_SC_NPROCESSORS_ONLN);
     SwooleG.pagesize = getpagesize();
     SwooleG.pid = getpid();
+    SwooleG.socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
 
     //get system uname
     uname(&SwooleG.uname);
-
-#if defined(HAVE_REUSEPORT) && defined(HAVE_EPOLL)
-    if (swoole_version_compare(SwooleG.uname.release, "3.9.0") >= 0)
-    {
-        SwooleG.reuse_port = 1;
-    }
-#endif
 
     //random seed
     srandom(time(NULL));
@@ -70,6 +69,8 @@ void swoole_init(void)
 
     //init global lock
     swMutex_create(&SwooleGS->lock, 1);
+    swMutex_create(&SwooleGS->lock_2, 1);
+    swMutex_create(&SwooleG.lock, 0);
 
     if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0)
     {
@@ -79,6 +80,29 @@ void swoole_init(void)
     else
     {
         SwooleG.max_sockets = (uint32_t) rlmt.rlim_cur;
+    }
+
+    SwooleG.module_stack = swString_new(8192);
+    if (SwooleG.module_stack == NULL)
+    {
+        exit(3);
+    }
+
+    if (!SwooleG.task_tmpdir)
+    {
+        SwooleG.task_tmpdir = strndup(SW_TASK_TMP_FILE, sizeof(SW_TASK_TMP_FILE));
+        SwooleG.task_tmpdir_len = sizeof(SW_TASK_TMP_FILE);
+    }
+
+    char *tmp_dir = swoole_dirname(SwooleG.task_tmpdir);
+    //create tmp dir
+    if (access(tmp_dir, R_OK) < 0 && swoole_mkdir_recursive(tmp_dir) < 0)
+    {
+        swWarn("create task tmp dir(%s) failed.", tmp_dir);
+    }
+    if (tmp_dir)
+    {
+        sw_strdup_free(tmp_dir);
     }
 
     //init signalfd
@@ -146,6 +170,10 @@ void swoole_dump_bin(char *data, char type, int size)
 {
     int i;
     int type_size = swoole_type_size(type);
+    if (type_size <= 0)
+    {
+        return;
+    }
     int n = size / type_size;
 
     for (i = 0; i < n; i++)
@@ -155,14 +183,38 @@ void swoole_dump_bin(char *data, char type, int size)
     printf("\n");
 }
 
+void swoole_dump_hex(char *data, int outlen)
+{
+    long i;
+    for (i = 0; i < outlen; ++i)
+    {
+        if ((i & 0x0fu) == 0)
+        {
+            printf("%08zX: ", i);
+        }
+        printf("%02X ", data[i]);
+        if (((i + 1) & 0x0fu) == 0)
+        {
+            printf("\n");
+        }
+    }
+    printf("\n");
+}
+
 /**
  * Recursive directory creation
  */
 int swoole_mkdir_recursive(const char *dir)
 {
-    char tmp[1024];
-    strncpy(tmp, dir, 1024);
-    int i, len = strlen(tmp);
+    char tmp[PATH_MAX];
+    int i, len = strlen(dir);
+
+    if (len + 1 > PATH_MAX) /* PATH_MAX limit includes string trailing null character */
+    {
+        swWarn("mkdir(%s) failed. Path exceeds %d characters limit.", dir, PATH_MAX - 1);
+        return -1;
+    }
+    strncpy(tmp, dir, len + 1);
 
     if (dir[len - 1] != '/')
     {
@@ -224,6 +276,9 @@ int swoole_type_size(char type)
 {
     switch (type)
     {
+    case 'c':
+    case 'C':
+        return 1;
     case 's':
     case 'S':
     case 'n':
@@ -246,11 +301,6 @@ char* swoole_dec2hex(int value, int base)
     static char digits[] = "0123456789abcdefghijklmnopqrstuvwxyz";
     char buf[(sizeof(unsigned long) << 3) + 1];
     char *ptr, *end;
-
-    if (base < 2 || base > 36)
-    {
-        return NULL;
-    }
 
     end = ptr = buf + sizeof(buf) - 1;
     *ptr = '\0';
@@ -333,12 +383,24 @@ int swoole_system_random(int min, int max)
     next_random_byte = (char *) &random_value;
     bytes_to_read = sizeof(random_value);
 
-    if (read(dev_random_fd, next_random_byte, bytes_to_read) < 0)
+    if (read(dev_random_fd, next_random_byte, bytes_to_read) < bytes_to_read)
     {
-        swSysError("read() failed.");
+        swSysError("read() from /dev/urandom failed.");
         return SW_ERR;
     }
     return min + (random_value % (max - min + 1));
+}
+
+void swoole_redirect_stdout(int new_fd)
+{
+    if (dup2(new_fd, STDOUT_FILENO) < 0)
+    {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "dup2(STDOUT_FILENO) failed. Error: %s[%d]", strerror(errno), errno);
+    }
+    if (dup2(new_fd, STDERR_FILENO) < 0)
+    {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "dup2(STDERR_FILENO) failed. Error: %s[%d]", strerror(errno), errno);
+    }
 }
 
 void swoole_update_time(void)
@@ -430,15 +492,15 @@ void swoole_rtrim(char *str, int len)
 
 int swoole_tmpfile(char *filename)
 {
-#ifdef HAVE_MKOSTEMP
-    int tmp_fd = mkostemp(filename, O_WRONLY);
+#if defined(HAVE_MKOSTEMP) && defined(HAVE_EPOLL)
+    int tmp_fd = mkostemp(filename, O_WRONLY | O_CREAT);
 #else
     int tmp_fd = mkstemp(filename);
 #endif
 
     if (tmp_fd < 0)
     {
-        swSysError("mkdtemp(%s) failed.", filename);
+        swSysError("mkstemp(%s) failed.", filename);
         return SW_ERR;
     }
     else
@@ -452,43 +514,59 @@ long swoole_file_get_size(FILE *fp)
     long pos = ftell(fp);
     fseek(fp, 0L, SEEK_END);
     long size = ftell(fp);
-    fseek(fp, pos, SEEK_SET); 
+    fseek(fp, pos, SEEK_SET);
     return size;
 }
 
-swString* swoole_file_get_contents(char *filename)
+long swoole_file_size(char *filename)
 {
     struct stat file_stat;
     if (lstat(filename, &file_stat) < 0)
     {
-        swWarn("lstat(%s) failed. Error: %s[%d]", filename, strerror(errno), errno);
-        return NULL;
+        swSysError("lstat(%s) failed.", filename);
+        SwooleG.error = errno;
+        return -1;
     }
-    if (file_stat.st_size > SW_MAX_FILE_CONTENT)
+    return file_stat.st_size;
+}
+
+swString* swoole_file_get_contents(char *filename)
+{
+    long filesize = swoole_file_size(filename);
+    if (filesize < 0)
     {
-        swWarn("file is too big");
         return NULL;
     }
+    else if (filesize == 0)
+    {
+        swoole_error_log(SW_LOG_TRACE, SW_ERROR_FILE_EMPTY, "file[%s] is empty.", filename);
+        return NULL;
+    }
+    else if (filesize > SW_MAX_FILE_CONTENT)
+    {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_FILE_TOO_LARGE, "file[%s] is too large.", filename);
+        return NULL;
+    }
+
     int fd = open(filename, O_RDONLY);
     if (fd < 0)
     {
         swWarn("open(%s) failed. Error: %s[%d]", filename, strerror(errno), errno);
         return NULL;
     }
-
-    swString *content = swString_new(file_stat.st_size);
+    swString *content = swString_new(filesize);
     if (!content)
     {
-        swWarn("malloc failed");
+        close(fd);
         return NULL;
     }
 
     int readn = 0;
     int n;
 
-    while(readn < file_stat.st_size)
+    while(readn < filesize)
     {
-        n = pread(fd, content->str + readn, file_stat.st_size - readn, readn);
+        n = pread(fd, content->str + readn, filesize - readn, readn);
         if (n < 0)
         {
             if (errno == EINTR)
@@ -497,14 +575,66 @@ swString* swoole_file_get_contents(char *filename)
             }
             else
             {
-                swWarn("pread() failed. Error: %s[%d]", strerror(errno), errno);
+                swSysError("pread(%d, %ld, %d) failed.", fd, filesize - readn, readn);
                 swString_free(content);
+                close(fd);
                 return NULL;
             }
         }
         readn += n;
     }
+    close(fd);
+    content->length = readn;
     return content;
+}
+
+int swoole_file_put_contents(char *filename, char *content, size_t length)
+{
+    if (length <= 0)
+    {
+        swoole_error_log(SW_LOG_TRACE, SW_ERROR_FILE_EMPTY, "content is empty.");
+        return SW_ERR;
+    }
+    if (length > SW_MAX_FILE_CONTENT)
+    {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_FILE_TOO_LARGE, "content is too large.");
+        return SW_ERR;
+    }
+
+    int fd = open(filename, O_WRONLY | O_TRUNC | O_CREAT, 0666);
+    if (fd < 0)
+    {
+        swSysError("open(%s) failed.", filename);
+        return SW_ERR;
+    }
+
+    int n, chunk_size, written = 0;
+
+    while(written < length)
+    {
+        chunk_size = length - written;
+        if (chunk_size > SW_BUFFER_SIZE_BIG)
+        {
+            chunk_size = SW_BUFFER_SIZE_BIG;
+        }
+        n = write(fd, content + written, chunk_size);
+        if (n < 0)
+        {
+            if (errno == EINTR)
+            {
+                continue;
+            }
+            else
+            {
+                swSysError("write(%d, %d) failed.", fd, chunk_size);
+                close(fd);
+                return -1;
+            }
+        }
+        written += n;
+    }
+    close(fd);
+    return SW_OK;
 }
 
 int swoole_sync_readfile(int fd, void *buf, int len)
@@ -589,38 +719,6 @@ void swBreakPoint()
 
 }
 
-int swWrite(int fd, void *buf, int count)
-{
-    int nwritten = 0, totlen = 0;
-    while (totlen != count)
-    {
-        nwritten = write(fd, buf, count - totlen);
-        if (nwritten == 0)
-        {
-            return totlen;
-        }
-        if (nwritten == -1)
-        {
-            if (errno == EINTR)
-            {
-                continue;
-            }
-            else if (errno == EAGAIN)
-            {
-                swYield();
-                continue;
-            }
-            else
-            {
-                return -1;
-            }
-        }
-        totlen += nwritten;
-        buf += nwritten;
-    }
-    return totlen;
-}
-
 void swoole_ioctl_set_block(int sock, int nonblock)
 {
     int ret;
@@ -636,7 +734,7 @@ void swoole_ioctl_set_block(int sock, int nonblock)
     }
 }
 
-void swoole_fcntl_set_block(int sock, int nonblock)
+void swoole_fcntl_set_option(int sock, int nonblock, int cloexec)
 {
     int opts, ret;
     do
@@ -658,6 +756,17 @@ void swoole_fcntl_set_block(int sock, int nonblock)
     {
         opts = opts & ~O_NONBLOCK;
     }
+
+#ifdef O_CLOEXEC
+    if (cloexec)
+    {
+        opts = opts | O_CLOEXEC;
+    }
+    else
+    {
+        opts = opts & ~O_CLOEXEC;
+    }
+#endif
 
     do
     {
@@ -736,6 +845,36 @@ static char *swoole_kmp_search(char *haystack, size_t haylen, char *needle, uint
     return NULL;
 }
 
+int swoole_itoa(char *buf, long value)
+{
+    long i = 0, j;
+    long sign_mask;
+    unsigned long nn;
+
+    sign_mask = value >> (sizeof(long) * 8 - 1);
+    nn = (value + sign_mask) ^ sign_mask;
+    do
+    {
+        buf[i++] = nn % 10 + '0';
+    } while (nn /= 10);
+
+    buf[i] = '-';
+    i += sign_mask & 1;
+    buf[i] = '\0';
+
+    int s_len = i;
+    char swap;
+
+    for (i = 0, j = s_len - 1; i < j; ++i, --j)
+    {
+        swap = buf[i];
+        buf[i] = buf[j];
+        buf[j] = swap;
+    }
+    buf[s_len] = 0;
+    return s_len;
+}
+
 char *swoole_kmp_strnstr(char *haystack, char *needle, uint32_t length)
 {
     if (!haystack || !needle)
@@ -756,6 +895,70 @@ char *swoole_kmp_strnstr(char *haystack, char *needle, uint32_t length)
     free(borders);
     return match;
 }
+
+/**
+ * DNS lookup
+ */
+int swoole_gethostbyname(int flags, char *name, char *addr)
+{
+    int __af = flags & (~SW_DNS_LOOKUP_RANDOM);
+    int index = 0;
+
+    struct hostent *host_entry;
+    if (!(host_entry = gethostbyname2(name, __af)))
+    {
+        return SW_ERR;
+    }
+
+    union
+    {
+        char v4[INET_ADDRSTRLEN];
+        char v6[INET6_ADDRSTRLEN];
+    } addr_list[SW_DNS_HOST_BUFFER_SIZE];
+
+    int i = 0;
+    for (i = 0; i < SW_DNS_HOST_BUFFER_SIZE; i++)
+    {
+        if (host_entry->h_addr_list[i] == NULL)
+        {
+            break;
+        }
+        if (__af == AF_INET)
+        {
+            memcpy(addr_list[i].v4, host_entry->h_addr_list[i], host_entry->h_length);
+        }
+        else
+        {
+            memcpy(addr_list[i].v6, host_entry->h_addr_list[i], host_entry->h_length);
+        }
+    }
+    if (__af == AF_INET)
+    {
+        memcpy(addr, addr_list[index].v4, host_entry->h_length);
+    }
+    else
+    {
+        memcpy(addr, addr_list[index].v6, host_entry->h_length);
+    }
+    return SW_OK;
+}
+
+#ifdef HAVE_EXECINFO
+void swoole_print_trace(void)
+{
+    int size = 16;
+    void* array[16];
+    int stack_num = backtrace(array, size);
+    char** stacktrace = backtrace_symbols(array, stack_num);
+    int i;
+
+    for (i = 0; i < stack_num; ++i)
+    {
+        printf("%s\n", stacktrace[i]);
+    }
+    free(stacktrace);
+}
+#endif
 
 #ifndef HAVE_CLOCK_GETTIME
 #ifdef __MACH__

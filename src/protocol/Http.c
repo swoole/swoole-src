@@ -14,10 +14,31 @@
  +----------------------------------------------------------------------+
  */
 #include "swoole.h"
-#include "Http.h"
+#include "http.h"
+#include "http2.h"
 
 #include <assert.h>
 #include <stddef.h>
+
+static const char *method_strings[] =
+{
+    "DELETE", "GET", "HEAD", "POST", "PUT", "PATCH", "CONNECT", "OPTIONS", "TRACE", "COPY", "LOCK", "MKCOL", "MOVE",
+    "PROPFIND", "PROPPATCH", "UNLOCK", "REPORT", "MKACTIVITY", "CHECKOUT", "MERGE", "M-SEARCH", "NOTIFY",
+    "SUBSCRIBE", "UNSUBSCRIBE", "PRI",
+};
+
+int swHttp_get_method(const char *method_str, int method_len)
+{
+    int i;
+    for (i = 0; i < HTTP_PRI; i++)
+    {
+        if (strncasecmp(method_strings[i], method_str, method_len) == 0)
+        {
+            return i + 1;
+        }
+    }
+    return -1;
+}
 
 /**
  * only GET/POST
@@ -70,6 +91,22 @@ int swHttpRequest_get_protocol(swHttpRequest *request)
         request->offset = 8;
         buf += 8;
     }
+#ifdef SW_USE_HTTP2
+    //HTTP2 Connection Preface
+    else if (memcmp(buf, "PRI", 3) == 0)
+    {
+        request->method = HTTP_PRI;
+        if (memcmp(buf, SW_HTTP2_PRI_STRING, sizeof(SW_HTTP2_PRI_STRING) - 1) == 0)
+        {
+            request->buffer->offset = sizeof(SW_HTTP2_PRI_STRING) - 1;
+            return SW_OK;
+        }
+        else
+        {
+            return SW_ERR;
+        }
+    }
+#endif
     else
     {
         return SW_ERR;
@@ -114,16 +151,17 @@ int swHttpRequest_get_protocol(swHttpRequest *request)
 void swHttpRequest_free(swConnection *conn)
 {
     swHttpRequest *request = conn->object;
-    if (request)
+    if (!request)
     {
-        if (request->buffer)
-        {
-            swString_free(request->buffer);
-        }
-        bzero(request, sizeof(swHttpRequest));
-        sw_free(request);
-        conn->object = NULL;
+        return;
     }
+    if (request->buffer)
+    {
+        swString_free(request->buffer);
+    }
+    bzero(request, sizeof(swHttpRequest));
+    sw_free(request);
+    conn->object = NULL;
 }
 
 /**
@@ -137,65 +175,33 @@ int swHttpRequest_get_content_length(swHttpRequest *request)
 
     char *pe = buf + len;
     char *p;
-    char state = 0;
+    char *eol;
 
     for (p = buf; p < pe; p++)
     {
-        if (*p == '\r' && *(p + 1) == '\n')
+        if (*p == '\r' && pe - p > sizeof("Content-Length"))
         {
-            if (state == 0)
+            if (strncasecmp(p, SW_STRL("\r\nContent-Length") - 1) == 0)
             {
-                if (strncasecmp(p + 2, SW_STRL("Content-Length") - 1) == 0)
-                {
-                    p += sizeof("Content-Length: ");
-                    request->content_length = atoi(p);
-                    state = 1;
-                }
-                else
+                //strlen("\r\n") + strlen("Content-Length")
+                p += (2 + (sizeof("Content-Length:") - 1));
+                //skip space
+                if (*p == ' ')
                 {
                     p++;
                 }
-            }
-            else
-            {
-                if (memcmp(p + 2, SW_STRL("\r\n") - 1) == 0)
+                eol = strstr(p, "\r\n");
+                if (eol == NULL)
                 {
-                    //strlen(header) + sizeof("\r\n\r\n")
-                    request->header_length = p - buffer->str + sizeof("\r\n\r\n") - 1;
-                    buffer->offset = request->header_length;
-                    return SW_OK;
+                    return SW_ERR;
                 }
+                request->content_length = atoi(p);
+                return SW_OK;
             }
         }
     }
 
     return SW_ERR;
-}
-
-int swHttpRequest_have_content_length(swHttpRequest *request)
-{
-    swString *buffer = request->buffer;
-    char *buf = buffer->str + buffer->offset;
-    int len = buffer->length - buffer->offset;
-
-    char *pe = buf + len;
-    char *p;
-
-    for (p = buf; p < pe; p++)
-    {
-        if (*p == '\r' && *(p + 1) == '\n')
-        {
-            if (strncasecmp(p + 2, SW_STRL("Content-Length") - 1) == 0)
-            {
-                return SW_TRUE;
-            }
-            else
-            {
-                p++;
-            }
-        }
-    }
-    return SW_FALSE;
 }
 
 #ifdef SW_HTTP_100_CONTINUE
@@ -213,9 +219,9 @@ int swHttpRequest_has_expect_header(swHttpRequest *request)
     for (p = buf; p < pe; p++)
     {
 
-        if (*p == '\r' && *(p + 1) == '\n')
+        if (*p == '\r' && pe - p > sizeof("\r\nExpect"))
         {
-            if (strncasecmp(p + 2, SW_STRL("Expect") - 1) == 0)
+            if (strncasecmp(p + 2, SW_STRL("\r\nExpect") - 1) == 0)
             {
                 p += sizeof("Expect: ") + 1;
                 if (strncasecmp(p, SW_STRL("100-continue") - 1) == 0)
@@ -238,21 +244,25 @@ int swHttpRequest_has_expect_header(swHttpRequest *request)
 #endif
 
 /**
- * POST get header-length
+ * header-length
  */
 int swHttpRequest_get_header_length(swHttpRequest *request)
 {
     swString *buffer = request->buffer;
+    char *buf = buffer->str + buffer->offset;
+    int len = buffer->length - buffer->offset;
 
-    int n = swoole_strnpos(buffer->str, buffer->length, "\r\n\r\n", 4);
-    if (n < 0)
+    char *pe = buf + len;
+    char *p;
+
+    for (p = buf; p < pe; p++)
     {
-        return SW_ERR;
+        if (*p == '\r' && p + 4 <= pe && memcmp(p, "\r\n\r\n", 4) == 0)
+        {
+            //strlen(header) + strlen("\r\n\r\n")
+            request->header_length = p - buffer->str + 4;
+            return SW_OK;
+        }
     }
-    else
-    {
-        //strlen(header) + sizeof("\r\n\r\n")
-        request->header_length = n + 4;
-        return SW_OK;
-    }
+    return SW_ERR;
 }

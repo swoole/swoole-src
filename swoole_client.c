@@ -15,6 +15,8 @@
 */
 
 #include "php_swoole.h"
+#include "socks5.h"
+#include "module.h"
 
 #include "ext/standard/basic_functions.h"
 
@@ -24,14 +26,31 @@ typedef struct
     zval *onReceive;
     zval *onClose;
     zval *onError;
+    zval *onBufferFull;
+    zval *onBufferEmpty;
+#ifdef SW_USE_OPENSSL
+    zval *onSSLReady;
+#endif
+
+#if PHP_MAJOR_VERSION >= 7
+    zval _object;
+    zval _onConnect;
+    zval _onReceive;
+    zval _onClose;
+    zval _onError;
+    zval _onBufferFull;
+    zval _onBufferEmpty;
+#ifdef SW_USE_OPENSSL
+    zval _onSSLReady;
+#endif
+#endif
+
 } client_callback;
 
-enum client_callback_type
+enum client_property
 {
-    SW_CLIENT_CALLBACK_onConnect = 1,
-    SW_CLIENT_CALLBACK_onReceive,
-    SW_CLIENT_CALLBACK_onError,
-    SW_CLIENT_CALLBACK_onClose,
+    client_property_callback = 0,
+    client_property_socket = 1,
 };
 
 static PHP_METHOD(swoole_client, __construct);
@@ -40,10 +59,16 @@ static PHP_METHOD(swoole_client, set);
 static PHP_METHOD(swoole_client, connect);
 static PHP_METHOD(swoole_client, recv);
 static PHP_METHOD(swoole_client, send);
+static PHP_METHOD(swoole_client, pipe);
 static PHP_METHOD(swoole_client, sendfile);
 static PHP_METHOD(swoole_client, sendto);
 static PHP_METHOD(swoole_client, sleep);
 static PHP_METHOD(swoole_client, wakeup);
+#ifdef SW_USE_OPENSSL
+static PHP_METHOD(swoole_client, enableSSL);
+static PHP_METHOD(swoole_client, getPeerCert);
+static PHP_METHOD(swoole_client, verifyPeerCert);
+#endif
 static PHP_METHOD(swoole_client, isConnected);
 static PHP_METHOD(swoole_client, getsockname);
 static PHP_METHOD(swoole_client, getpeername);
@@ -59,40 +84,53 @@ static int client_select_wait(zval *sock_array, fd_set *fds TSRMLS_DC);
 
 static void client_onConnect(swClient *cli);
 static void client_onReceive(swClient *cli, char *data, uint32_t length);
-static int client_onPackage(swConnection *conn, char *data, uint32_t length);
 static void client_onClose(swClient *cli);
 static void client_onError(swClient *cli);
-static void client_free(zval *object, swClient *cli TSRMLS_DC);
-
-static sw_inline void client_execute_callback(swClient *cli, enum client_callback_type type)
-{
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+static void client_onBufferFull(swClient *cli);
+static void client_onBufferEmpty(swClient *cli);
+#ifdef SW_USE_OPENSSL
+static void client_check_ssl_setting(swClient *cli, zval *zset TSRMLS_DC);
 #endif
 
+static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_client_callback_type type)
+{
+    SWOOLE_GET_TSRMLS;
 
     zval *callback = NULL;
     zval *retval = NULL;
     zval **args[1];
-    zval *zobject = cli->object;
 
-    client_callback *cb = swoole_get_property(zobject, 0);
+    client_callback *cb = swoole_get_property(zobject, client_property_callback);
     char *callback_name;
 
     switch(type)
     {
-    case SW_CLIENT_CALLBACK_onConnect:
+    case SW_CLIENT_CB_onConnect:
         callback = cb->onConnect;
         callback_name = "onConnect";
         break;
-    case SW_CLIENT_CALLBACK_onError:
+    case SW_CLIENT_CB_onError:
         callback = cb->onError;
         callback_name = "onError";
         break;
-    case SW_CLIENT_CALLBACK_onClose:
+    case SW_CLIENT_CB_onClose:
         callback = cb->onClose;
         callback_name = "onClose";
         break;
+    case SW_CLIENT_CB_onBufferFull:
+        callback = cb->onBufferFull;
+        callback_name = "onBufferFull";
+        break;
+    case SW_CLIENT_CB_onBufferEmpty:
+        callback = cb->onBufferEmpty;
+        callback_name = "onBufferEmpty";
+        break;
+#ifdef SW_USE_OPENSSL
+    case SW_CLIENT_CB_onSSLReady:
+        callback = cb->onSSLReady;
+        callback_name = "onSSLReady";
+        break;
+#endif
     default:
         return;
     }
@@ -119,27 +157,106 @@ static sw_inline void client_execute_callback(swClient *cli, enum client_callbac
     }
 }
 
-static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC);
+static sw_inline swClient* client_get_ptr(zval *zobject TSRMLS_DC)
+{
+    swClient *cli = swoole_get_object(zobject);
+    if (cli && cli->socket && cli->socket->active == 1)
+    {
+        return cli;
+    }
+    else
+    {
+        swoole_php_fatal_error(E_WARNING, "client is not connected to server.");
+        return NULL;
+    }
+}
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_void, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_construct, 0, 0, 1)
+    ZEND_ARG_INFO(0, type)
+    ZEND_ARG_INFO(0, async)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_set, 0, 0, 1)
+    ZEND_ARG_ARRAY_INFO(0, settings, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_connect, 0, 0, 1)
+    ZEND_ARG_INFO(0, host)
+    ZEND_ARG_INFO(0, port)
+    ZEND_ARG_INFO(0, timeout)
+    ZEND_ARG_INFO(0, sock_flag)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_recv, 0, 0, 0)
+    ZEND_ARG_INFO(0, size)
+    ZEND_ARG_INFO(0, flag)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_send, 0, 0, 1)
+    ZEND_ARG_INFO(0, data)
+    ZEND_ARG_INFO(0, flag)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_pipe, 0, 0, 1)
+    ZEND_ARG_INFO(0, dst_socket)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_sendfile, 0, 0, 1)
+    ZEND_ARG_INFO(0, filename)
+    ZEND_ARG_INFO(0, offset)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_sendto, 0, 0, 3)
+    ZEND_ARG_INFO(0, ip)
+    ZEND_ARG_INFO(0, port)
+    ZEND_ARG_INFO(0, data)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_close, 0, 0, 0)
+    ZEND_ARG_INFO(0, force)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_on, 0, 0, 2)
+    ZEND_ARG_INFO(0, event_name)
+    ZEND_ARG_INFO(0, callback)
+ZEND_END_ARG_INFO()
+
+#ifdef SW_USE_OPENSSL
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_enableSSL, 0, 0, 0)
+    ZEND_ARG_INFO(0, callback)
+ZEND_END_ARG_INFO()
+#endif
 
 static const zend_function_entry swoole_client_methods[] =
 {
-    PHP_ME(swoole_client, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
-    PHP_ME(swoole_client, __destruct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
-    PHP_ME(swoole_client, set, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, connect, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, recv, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, send, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, sendfile, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, sendto, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, sleep, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, wakeup, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, isConnected, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, getsockname, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, getpeername, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, close, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client, on, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, __construct, arginfo_swoole_client_construct, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+    PHP_ME(swoole_client, __destruct, arginfo_swoole_client_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
+    PHP_ME(swoole_client, set, arginfo_swoole_client_set, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, connect, arginfo_swoole_client_connect, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, recv, arginfo_swoole_client_recv, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, send, arginfo_swoole_client_send, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, pipe, arginfo_swoole_client_pipe, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, sendfile, arginfo_swoole_client_sendfile, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, sendto, arginfo_swoole_client_sendto, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, sleep, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, wakeup, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
+    PHP_MALIAS(swoole_client, pause, sleep, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
+    PHP_MALIAS(swoole_client, resume, wakeup, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
+#ifdef SW_USE_OPENSSL
+    PHP_ME(swoole_client, enableSSL, arginfo_swoole_client_enableSSL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, getPeerCert, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, verifyPeerCert, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
+#endif
+    PHP_ME(swoole_client, isConnected, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, getsockname, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, getpeername, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, close, arginfo_swoole_client_close, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, on, arginfo_swoole_client_on, ZEND_ACC_PUBLIC)
 #ifdef SWOOLE_SOCKETS_SUPPORT
-    PHP_ME(swoole_client, getSocket, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, getSocket, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
 #endif
     PHP_FE_END
 };
@@ -153,10 +270,12 @@ void swoole_client_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_client_ce, "swoole_client", "Swoole\\Client", swoole_client_methods);
     swoole_client_class_entry_ptr = zend_register_internal_class(&swoole_client_ce TSRMLS_CC);
+    SWOOLE_CLASS_ALIAS(swoole_client, "Swoole\\Client");
 
     zend_declare_property_long(swoole_client_class_entry_ptr, SW_STRL("errCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(swoole_client_class_entry_ptr, SW_STRL("sock")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_bool(swoole_client_class_entry_ptr, SW_STRL("reuse")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_client_class_entry_ptr, SW_STRL("reuseCount")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
 
     php_sw_long_connections = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
 
@@ -166,7 +285,7 @@ void swoole_client_init(int module_number TSRMLS_DC)
     zend_declare_class_constant_long(swoole_client_class_entry_ptr, ZEND_STRL("MSG_WAITALL"), MSG_WAITALL TSRMLS_CC);
 }
 
-static int client_onPackage(swConnection *conn, char *data, uint32_t length)
+int php_swoole_client_onPackage(swConnection *conn, char *data, uint32_t length)
 {
     client_onReceive(conn->object, data, length);
     return SW_OK;
@@ -217,135 +336,83 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
 
 static void client_onConnect(swClient *cli)
 {
-    client_execute_callback(cli, SW_CLIENT_CALLBACK_onConnect);
+    zval *zobject = cli->object;
+#ifdef SW_USE_OPENSSL
+    if (cli->ssl_wait_handshake)
+    {
+        client_execute_callback(zobject, SW_CLIENT_CB_onSSLReady);
+    }
+    else
+#endif
+    if (!cli->redirect)
+    {
+        client_execute_callback(zobject, SW_CLIENT_CB_onConnect);
+    }
+    else
+    {
+        SWOOLE_GET_TSRMLS;
+        client_callback *cb = swoole_get_property(zobject, 0);
+        if (!cb || !cb->onReceive)
+        {
+            swoole_php_fatal_error(E_ERROR, "no receive callback.");
+        }
+    }
 }
 
 static void client_onClose(swClient *cli)
 {
-    client_execute_callback(cli, SW_CLIENT_CALLBACK_onClose);
+    SWOOLE_GET_TSRMLS;
+    zval *zobject = cli->object;
+    if (!cli->released)
+    {
+        php_swoole_client_free(zobject, cli TSRMLS_CC);
+    }
+    client_execute_callback(zobject, SW_CLIENT_CB_onClose);
+    sw_zval_ptr_dtor(&zobject);
 }
 
 static void client_onError(swClient *cli)
 {
-    client_execute_callback(cli, SW_CLIENT_CALLBACK_onError);
+    SWOOLE_GET_TSRMLS;
+    zval *zobject = cli->object;
+    zend_update_property_long(swoole_client_class_entry_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error TSRMLS_CC);
+    if (!cli->released)
+    {
+        php_swoole_client_free(zobject, cli TSRMLS_CC);
+    }
+    client_execute_callback(zobject, SW_CLIENT_CB_onError);
+    sw_zval_ptr_dtor(&zobject);
 }
 
-static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
+static void client_onBufferFull(swClient *cli)
 {
-    HashTable *vht;
-    zval *v;
-    int value = 1;
+    zval *zobject = cli->object;
+    client_execute_callback(zobject, SW_CLIENT_CB_onBufferFull);
+}
 
-    vht = Z_ARRVAL_P(zset);
+static void client_onBufferEmpty(swClient *cli)
+{
+    zval *zobject = cli->object;
+    client_execute_callback(zobject, SW_CLIENT_CB_onBufferEmpty);
+}
 
-    //buffer: check eof
-    if (sw_zend_hash_find(vht, ZEND_STRS("open_eof_split"), (void **) &v) == SUCCESS
-            || sw_zend_hash_find(vht, ZEND_STRS("open_eof_check"), (void **) &v) == SUCCESS)
-    {
-        convert_to_boolean(v);
-        cli->open_eof_check = Z_BVAL_P(v);
-        cli->protocol.split_by_eof = 1;
-    }
-    //package eof
-    if (sw_zend_hash_find(vht, ZEND_STRS("package_eof"), (void **) &v) == SUCCESS)
-    {
-        convert_to_string(v);
-        cli->protocol.package_eof_len = Z_STRLEN_P(v);
-        if (cli->protocol.package_eof_len > SW_DATA_EOF_MAXLEN)
-        {
-            swoole_php_fatal_error(E_ERROR, "pacakge_eof max length is %d", SW_DATA_EOF_MAXLEN);
-            return;
-        }
-        bzero(cli->protocol.package_eof, SW_DATA_EOF_MAXLEN);
-        memcpy(cli->protocol.package_eof, Z_STRVAL_P(v), Z_STRLEN_P(v));
-        cli->protocol.onPackage = client_onPackage;
-    }
-    //open length check
-    if (sw_zend_hash_find(vht, ZEND_STRS("open_length_check"), (void **) &v) == SUCCESS)
-    {
-        convert_to_boolean(v);
-        cli->open_length_check = Z_BVAL_P(v);
-        cli->protocol.get_package_length = swProtocol_get_package_length;
-        cli->protocol.onPackage = client_onPackage;
-    }
-    //package length size
-    if (sw_zend_hash_find(vht, ZEND_STRS("package_length_type"), (void **) &v) == SUCCESS)
-    {
-        convert_to_string(v);
-        cli->protocol.package_length_type = Z_STRVAL_P(v)[0];
-        cli->protocol.package_length_size = swoole_type_size(cli->protocol.package_length_type);
-
-        if (cli->protocol.package_length_size == 0)
-        {
-            swoole_php_fatal_error(E_ERROR, "unknow package_length_type, see pack(). Link: http://php.net/pack");
-            return;
-        }
-    }
-    //package length offset
-    if (sw_zend_hash_find(vht, ZEND_STRS("package_length_offset"), (void **) &v) == SUCCESS)
-    {
-        convert_to_long(v);
-        cli->protocol.package_length_offset = (int) Z_LVAL_P(v);
-    }
-    //package body start
-    if (sw_zend_hash_find(vht, ZEND_STRS("package_body_offset"), (void **) &v) == SUCCESS)
-    {
-        convert_to_long(v);
-        cli->protocol.package_body_offset = (int) Z_LVAL_P(v);
-    }
-    /**
-     * package max length
-     */
-    if (sw_zend_hash_find(vht, ZEND_STRS("package_max_length"), (void **) &v) == SUCCESS)
-    {
-        convert_to_long(v);
-        cli->protocol.package_max_length = (int) Z_LVAL_P(v);
-    }
-    else
-    {
-        cli->protocol.package_max_length = SW_BUFFER_INPUT_SIZE;
-    }
-    /**
-     * socket send/recv buffer size
-     */
-    if (sw_zend_hash_find(vht, ZEND_STRS("socket_buffer_size"), (void **) &v) == SUCCESS)
-    {
-        convert_to_long(v);
-        value = (int) Z_LVAL_P(v);
-        swSocket_set_buffer_size(cli->socket->fd, value);
-    }
-    /**
-     * socket send/recv buffer size
-     */
-    if (sw_zend_hash_find(vht, ZEND_STRS("buffer_input_size"), (void **) &v) == SUCCESS)
-    {
-        convert_to_long(v);
-        cli->buffer_input_size = (int) Z_LVAL_P(v);
-    }
-    /**
-     * TCP_NODELAY
-     */
-    if (sw_zend_hash_find(vht, ZEND_STRS("open_tcp_nodelay"), (void **) &v) == SUCCESS)
-    {
-        value = 1;
-        if (setsockopt(cli->socket->fd, IPPROTO_TCP, TCP_NODELAY, &value, sizeof(value)) < 0)
-        {
-            swSysError("setsockopt(%d, TCP_NODELAY) failed.", cli->socket->fd);
-        }
-    }
 #ifdef SW_USE_OPENSSL
-    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_method"), (void **) &v) == SUCCESS)
+static void client_check_ssl_setting(swClient *cli, zval *zset TSRMLS_DC)
+{
+    HashTable *vht = Z_ARRVAL_P(zset);
+    zval *v;
+
+    if (php_swoole_array_get_value(vht, "ssl_method", v))
     {
         convert_to_long(v);
         cli->ssl_method = (int) Z_LVAL_P(v);
-        cli->open_ssl = 1;
     }
-    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_compress"), (void **) &v) == SUCCESS)
+    if (php_swoole_array_get_value(vht, "ssl_compress", v))
     {
         convert_to_boolean(v);
         cli->ssl_disable_compress = !Z_BVAL_P(v);
     }
-    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_cert_file"), (void **) &v) == SUCCESS)
+    if (php_swoole_array_get_value(vht, "ssl_cert_file", v))
     {
         convert_to_string(v);
         cli->ssl_cert_file = strdup(Z_STRVAL_P(v));
@@ -354,9 +421,8 @@ static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
             swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", cli->ssl_cert_file);
             return;
         }
-        cli->open_ssl = 1;
     }
-    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_key_file"), (void **) &v) == SUCCESS)
+    if (php_swoole_array_get_value(vht, "ssl_key_file", v))
     {
         convert_to_string(v);
         cli->ssl_key_file = strdup(Z_STRVAL_P(v));
@@ -370,6 +436,264 @@ static void client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
     {
         swoole_php_fatal_error(E_ERROR, "ssl require key file.");
         return;
+    }
+}
+#endif
+
+int php_swoole_client_isset_callback(zval *zobject, int type TSRMLS_DC)
+{
+    client_callback *cb = swoole_get_property(zobject, client_property_callback);
+    switch (type)
+    {
+    case SW_CLIENT_CB_onConnect:
+        return cb->onConnect != NULL;
+    case SW_CLIENT_CB_onError:
+        return cb->onError != NULL;
+    case SW_CLIENT_CB_onClose:
+        return cb->onClose != NULL;
+    case SW_CLIENT_CB_onBufferFull:
+        return cb->onBufferFull != NULL;
+    case SW_CLIENT_CB_onBufferEmpty:
+        return cb->onBufferEmpty != NULL;
+#ifdef SW_USE_OPENSSL
+    case SW_CLIENT_CB_onSSLReady:
+        return cb->onSSLReady != NULL;
+#endif
+    default:
+        return SW_FALSE;
+    }
+}
+
+void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
+{
+    HashTable *vht;
+    zval *v;
+    int value = 1;
+
+    char *bind_address = NULL;
+    int bind_port = 0;
+
+    vht = Z_ARRVAL_P(zset);
+
+    //buffer: eof check
+    if (php_swoole_array_get_value(vht, "open_eof_check", v))
+    {
+        convert_to_boolean(v);
+        cli->open_eof_check = Z_BVAL_P(v);
+    }
+    //buffer: split package with eof
+    if (php_swoole_array_get_value(vht, "open_eof_split", v))
+    {
+        convert_to_boolean(v);
+        cli->protocol.split_by_eof = Z_BVAL_P(v);
+        if (cli->protocol.split_by_eof)
+        {
+            cli->open_eof_check = 1;
+        }
+    }
+    //package eof
+    if (php_swoole_array_get_value(vht, "package_eof", v))
+    {
+        convert_to_string(v);
+        cli->protocol.package_eof_len = Z_STRLEN_P(v);
+        if (cli->protocol.package_eof_len > SW_DATA_EOF_MAXLEN)
+        {
+            swoole_php_fatal_error(E_ERROR, "pacakge_eof max length is %d", SW_DATA_EOF_MAXLEN);
+            return;
+        }
+        bzero(cli->protocol.package_eof, SW_DATA_EOF_MAXLEN);
+        memcpy(cli->protocol.package_eof, Z_STRVAL_P(v), Z_STRLEN_P(v));
+        cli->protocol.onPackage = php_swoole_client_onPackage;
+    }
+    //open length check
+    if (php_swoole_array_get_value(vht, "open_length_check", v))
+    {
+        convert_to_boolean(v);
+        cli->open_length_check = Z_BVAL_P(v);
+        cli->protocol.get_package_length = swProtocol_get_package_length;
+        cli->protocol.onPackage = php_swoole_client_onPackage;
+    }
+    //package length size
+    if (php_swoole_array_get_value(vht, "package_length_type", v))
+    {
+        convert_to_string(v);
+        cli->protocol.package_length_type = Z_STRVAL_P(v)[0];
+        cli->protocol.package_length_size = swoole_type_size(cli->protocol.package_length_type);
+
+        if (cli->protocol.package_length_size == 0)
+        {
+            swoole_php_fatal_error(E_ERROR, "Unknown package_length_type name '%c', see pack(). Link: http://php.net/pack", cli->protocol.package_length_type);
+            return;
+        }
+    }
+    //length function
+    if (php_swoole_array_get_value(vht, "package_length_func", v))
+    {
+        while(1)
+        {
+            if (Z_TYPE_P(v) == IS_STRING)
+            {
+                swProtocol_length_function func = swModule_get_global_function(Z_STRVAL_P(v), Z_STRLEN_P(v));
+                if (func != NULL)
+                {
+                    cli->protocol.get_package_length = func;
+                    break;
+                }
+            }
+
+            char *func_name = NULL;
+            if (!sw_zend_is_callable(v, 0, &func_name TSRMLS_CC))
+            {
+                swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+                efree(func_name);
+                return;
+            }
+            efree(func_name);
+            cli->protocol.get_package_length = php_swoole_length_func;
+            sw_zval_add_ref(&v);
+            cli->protocol.private_data = sw_zval_dup(v);
+            break;
+        }
+
+        cli->protocol.package_length_size = 0;
+        cli->protocol.package_length_type = '\0';
+        cli->protocol.package_length_offset = SW_BUFFER_SIZE;
+    }
+    //package length offset
+    if (php_swoole_array_get_value(vht, "package_length_offset", v))
+    {
+        convert_to_long(v);
+        cli->protocol.package_length_offset = (int) Z_LVAL_P(v);
+    }
+    //package body start
+    if (php_swoole_array_get_value(vht, "package_body_offset", v))
+    {
+        convert_to_long(v);
+        cli->protocol.package_body_offset = (int) Z_LVAL_P(v);
+    }
+    /**
+     * package max length
+     */
+    if (php_swoole_array_get_value(vht, "package_max_length", v))
+    {
+        convert_to_long(v);
+        cli->protocol.package_max_length = (int) Z_LVAL_P(v);
+    }
+    else
+    {
+        cli->protocol.package_max_length = SW_BUFFER_INPUT_SIZE;
+    }
+    /**
+     * socket send/recv buffer size
+     */
+    if (php_swoole_array_get_value(vht, "socket_buffer_size", v))
+    {
+        convert_to_long(v);
+        value = (int) Z_LVAL_P(v);
+        if (value <= 0)
+        {
+            value = SW_MAX_INT;
+        }
+        swSocket_set_buffer_size(cli->socket->fd, value);
+        cli->socket->buffer_size = cli->buffer_input_size = value;
+    }
+    if (php_swoole_array_get_value(vht, "buffer_high_watermark", v))
+    {
+        convert_to_long(v);
+        value = (int) Z_LVAL_P(v);
+        cli->buffer_high_watermark = value;
+    }
+    if (php_swoole_array_get_value(vht, "buffer_low_watermark", v))
+    {
+        convert_to_long(v);
+        value = (int) Z_LVAL_P(v);
+        cli->buffer_low_watermark = value;
+    }
+    /**
+     * bind address
+     */
+    if (php_swoole_array_get_value(vht, "bind_address", v))
+    {
+        convert_to_string(v);
+        bind_address = Z_STRVAL_P(v);
+    }
+    /**
+     * bind port
+     */
+    if (php_swoole_array_get_value(vht, "bind_port", v))
+    {
+        convert_to_long(v);
+        bind_port = (int) Z_LVAL_P(v);
+    }
+    if (bind_address)
+    {
+        swSocket_bind(cli->socket->fd, cli->type, bind_address, &bind_port);
+    }
+    /**
+     * TCP_NODELAY
+     */
+    if (php_swoole_array_get_value(vht, "open_tcp_nodelay", v))
+    {
+        value = 1;
+        if (setsockopt(cli->socket->fd, IPPROTO_TCP, TCP_NODELAY, &value, sizeof(value)) < 0)
+        {
+            swSysError("setsockopt(%d, TCP_NODELAY) failed.", cli->socket->fd);
+        }
+    }
+    /**
+     * socks5 proxy
+     */
+    if (php_swoole_array_get_value(vht, "socks5_host", v))
+    {
+        convert_to_string(v);
+        cli->socks5_proxy = emalloc(sizeof(swSocks5));
+        bzero(cli->socks5_proxy, sizeof(swSocks5));
+        cli->socks5_proxy->host = strdup(Z_STRVAL_P(v));
+        cli->socks5_proxy->dns_tunnel = 1;
+
+        if (php_swoole_array_get_value(vht, "socks5_port", v))
+        {
+            convert_to_long(v);
+            cli->socks5_proxy->port = Z_LVAL_P(v);
+        }
+        else
+        {
+            swoole_php_fatal_error(E_ERROR, "socks5 proxy require server port option.");
+            return;
+        }
+        if (php_swoole_array_get_value(vht, "socks5_username", v))
+        {
+            convert_to_string(v);
+            cli->socks5_proxy->username = Z_STRVAL_P(v);
+            cli->socks5_proxy->l_username = Z_STRLEN_P(v);
+        }
+        if (php_swoole_array_get_value(vht, "socks5_password", v))
+        {
+            convert_to_string(v);
+            cli->socks5_proxy->password = Z_STRVAL_P(v);
+            cli->socks5_proxy->l_password = Z_STRLEN_P(v);
+        }
+    }
+    if (php_swoole_array_get_value(vht, "http_proxy_host", v))
+    {
+        convert_to_string(v);
+        char *host = Z_STRVAL_P(v);
+        if (php_swoole_array_get_value(vht, "http_proxy_port", v))
+        {
+            convert_to_long(v);
+            cli->http_proxy = ecalloc(1,sizeof(struct _http_proxy));
+            cli->http_proxy->proxy_host = strdup(host);
+            cli->http_proxy->proxy_port = Z_LVAL_P(v);
+        }
+        else
+        {
+            swSysError("http_proxy_port can not be null");
+        }
+    }
+#ifdef SW_USE_OPENSSL
+    if (cli->open_ssl)
+    {
+        client_check_ssl_setting(cli, zset TSRMLS_CC);
     }
 #endif
 }
@@ -393,7 +717,7 @@ void php_swoole_at_shutdown(char *function)
         swoole_php_fatal_error(E_WARNING, "Unable to register shutdown function [swoole_event_wait]");
     }
 #else
-    
+
     zval *callback;
     SW_MAKE_STD_ZVAL(callback);
     SW_ZVAL_STRING(callback, "swoole_event_wait", 1);
@@ -431,7 +755,7 @@ void php_swoole_at_shutdown(char *function)
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
 #endif
-    
+
 #endif
 }
 
@@ -486,8 +810,23 @@ void php_swoole_check_reactor()
     SwooleWG.reactor_init = 1;
 }
 
-static void client_free(zval *object, swClient *cli TSRMLS_DC)
+void php_swoole_client_free(zval *zobject, swClient *cli TSRMLS_DC)
 {
+    //socks5 proxy config
+    if (cli->socks5_proxy)
+    {
+        efree(cli->socks5_proxy);
+    }
+    //http proxy config
+    if (cli->http_proxy)
+    {
+        efree(cli->http_proxy);
+    }
+    if (cli->protocol.private_data)
+    {
+        zval *zcallback = cli->protocol.private_data;
+        sw_zval_free(zcallback);
+    }
     //long tcp connection, delete from php_sw_long_connections
     if (cli->keep)
     {
@@ -496,22 +835,23 @@ static void client_free(zval *object, swClient *cli TSRMLS_DC)
             swoole_php_fatal_error(E_WARNING, "delete from hashtable failed.");
         }
         efree(cli->server_str);
+        swClient_free(cli);
         pefree(cli, 1);
     }
     else
     {
         efree(cli->server_str);
+        swClient_free(cli);
         efree(cli);
     }
     //unset object
-    swoole_set_object(object, NULL);
+    swoole_set_object(zobject, NULL);
 }
 
-swClient* php_swoole_client_create_socket(zval *object, char *host, int host_len, int port)
+swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port)
 {
     zval *ztype;
     int async = 0;
-    int packet_mode = 0;
     char conn_key[SW_LONG_CONNECTION_KEY_LEN];
     int conn_key_len = 0;
     uint64_t tmp_buf;
@@ -529,13 +869,7 @@ swClient* php_swoole_client_create_socket(zval *object, char *host, int host_len
         return NULL;
     }
 
-    long type_tmp = Z_LVAL_P(ztype);
-    packet_mode = type_tmp & SW_MODE_PACKET;
-    packet_mode >>= 4;
-    long type = type_tmp & (~SW_MODE_PACKET);
-
-    //debug
-    //swTrace("type:%d,type_tmp:%d\r\n",type,type_tmp);
+    long type = Z_LVAL_P(ztype);
 
     //new flag, swoole-1.6.12+
     if (type & SW_FLAG_ASYNC)
@@ -544,7 +878,6 @@ swClient* php_swoole_client_create_socket(zval *object, char *host, int host_len
     }
 
     swClient *cli;
-
     bzero(conn_key, SW_LONG_CONNECTION_KEY_LEN);
     zval *connection_id = sw_zend_read_property(swoole_client_class_entry_ptr, object, ZEND_STRL("id"), 1 TSRMLS_CC);
 
@@ -585,6 +918,8 @@ swClient* php_swoole_client_create_socket(zval *object, char *host, int host_len
             {
                 swSocket_clean(cli->socket->fd);
             }
+            cli->reuse_count ++;
+            zend_update_property_long(swoole_client_class_entry_ptr, object, ZEND_STRL("reuseCount"), cli->reuse_count TSRMLS_CC);
         }
     }
     else
@@ -618,41 +953,43 @@ swClient* php_swoole_client_create_socket(zval *object, char *host, int host_len
     }
 #endif
 
-    if (packet_mode == 1)
-    {
-        cli->packet_mode = 1;
-    }
     return cli;
 }
 
 static PHP_METHOD(swoole_client, __construct)
 {
     long async = 0;
-    zval *ztype;
+    long type = 0;
     char *id = NULL;
     zend_size_t len = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|ls", &ztype, &async, &id, &len) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|ls", &type, &async, &id, &len) == FAILURE)
     {
         swoole_php_fatal_error(E_ERROR, "require socket type param.");
         RETURN_FALSE;
     }
 
-#if PHP_MEMORY_DEBUG
-    php_vmstat.new_client++;
-#endif
-
     if (async == 1)
     {
-        Z_LVAL_P(ztype) = Z_LVAL_P(ztype) | SW_FLAG_ASYNC;
+        type |= SW_FLAG_ASYNC;
     }
 
-    if ((Z_LVAL_P(ztype) & SW_FLAG_ASYNC))
+    if ((type & SW_FLAG_ASYNC))
     {
+        if ((type & SW_FLAG_KEEP) && SWOOLE_G(cli))
+        {
+            swoole_php_fatal_error(E_ERROR, "The 'SWOOLE_KEEP' flag can only be used in the php-fpm or apache environment.");
+        }
         php_swoole_check_reactor();
     }
 
-    zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("type"), ztype TSRMLS_CC);
+    int client_type = php_swoole_socktype(type);
+    if (client_type < SW_SOCK_TCP || client_type > SW_SOCK_UNIX_STREAM)
+    {
+        swoole_php_fatal_error(E_ERROR, "Unknown client type '%d'.", client_type);
+    }
+
+    zend_update_property_long(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("type"), type TSRMLS_CC);
     if (id)
     {
         zend_update_property_stringl(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("id"), id, len TSRMLS_CC);
@@ -669,51 +1006,33 @@ static PHP_METHOD(swoole_client, __construct)
 static PHP_METHOD(swoole_client, __destruct)
 {
     swClient *cli = swoole_get_object(getThis());
-
     //no keep connection
-    if (cli && !cli->keep)
+    if (cli)
     {
-        cli->close(cli);
-        client_free(getThis(), cli TSRMLS_CC);
+        zval *zobject = getThis();
+        zval *retval = NULL;
+        sw_zend_call_method_with_0_params(&zobject, swoole_client_class_entry_ptr, NULL, "close", &retval);
+        if (retval)
+        {
+            sw_zval_ptr_dtor(&retval);
+        }
     }
-
     //free memory
-    client_callback *cb = swoole_get_property(getThis(), 0);
+    client_callback *cb = swoole_get_property(getThis(), client_property_callback);
     if (cb)
     {
-        if (cb->onConnect)
-        {
-            sw_zval_ptr_dtor(&cb->onConnect);
-        }
-        if (cb->onReceive)
-        {
-            sw_zval_ptr_dtor(&cb->onReceive);
-        }
-        if (cb->onError)
-        {
-            sw_zval_ptr_dtor(&cb->onError);
-        }
-        if (cb->onClose)
-        {
-            sw_zval_ptr_dtor(&cb->onClose);
-        }
-
-#if PHP_MAJOR_VERSION >= 7
-        swoole_efree(cb->onConnect);
-        swoole_efree(cb->onReceive);
-        swoole_efree(cb->onError);
-        swoole_efree(cb->onClose);
-#endif
-
         efree(cb);
-        swoole_set_property(getThis(), 0, NULL);
+        swoole_set_property(getThis(), client_property_callback, NULL);
     }
-
-#if PHP_MEMORY_DEBUG
-    php_vmstat.free_client++;
-    if (php_vmstat.free_client % 10000 == 0)
+#ifdef SWOOLE_SOCKETS_SUPPORT
+    zval *zsocket = swoole_get_property(getThis(), client_property_socket);
+    if (zsocket)
     {
-        printf("php_vmstat.free_client=%d\n", php_vmstat.free_client);
+        sw_zval_ptr_dtor(&zsocket);
+#if PHP_MAJOR_VERSION >= 7
+        efree(zsocket);
+#endif
+        swoole_set_property(getThis(), client_property_socket, NULL);
     }
 #endif
 }
@@ -725,7 +1044,9 @@ static PHP_METHOD(swoole_client, set)
     {
         return;
     }
+    php_swoole_array_separate(zset);
     zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("setting"), zset TSRMLS_CC);
+    sw_zval_ptr_dtor(&zset);
     RETURN_TRUE;
 }
 
@@ -747,12 +1068,18 @@ static PHP_METHOD(swoole_client, connect)
         RETURN_FALSE;
     }
 
-    swClient *cli = php_swoole_client_create_socket(getThis(), host, host_len, port);
+    swClient *cli = swoole_get_object(getThis());
+    if (cli)
+    {
+        swoole_php_fatal_error(E_WARNING, "The client is already connected server.");
+        RETURN_FALSE;
+    }
+
+    cli = php_swoole_client_new(getThis(), host, host_len, port);
     if (cli == NULL)
     {
         RETURN_FALSE;
     }
-
     swoole_set_object(getThis(), cli);
 
     if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6)
@@ -784,35 +1111,21 @@ static PHP_METHOD(swoole_client, connect)
     zval *zset = sw_zend_read_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("setting"), 1 TSRMLS_CC);
     if (zset && !ZVAL_IS_NULL(zset))
     {
-        client_check_setting(cli, zset TSRMLS_CC);
+        php_swoole_client_check_setting(cli, zset TSRMLS_CC);
     }
-
-#ifdef SW_USE_OPENSSL
-    //ssl/tls
-    if (cli->open_ssl && swClient_enable_ssl_encrypt(cli) < 0)
-    {
-        swoole_php_fatal_error(E_ERROR, "no receive callback.");
-        RETURN_FALSE;
-    }
-#endif
 
     //nonblock async
     if (cli->async)
     {
         client_callback *cb = swoole_get_property(getThis(), 0);
-        if (!cb || !cb->onReceive)
+        if (!cb)
         {
-            swoole_php_fatal_error(E_ERROR, "no receive callback.");
+            swoole_php_fatal_error(E_ERROR, "no event callback function.");
             RETURN_FALSE;
         }
 
         if (swSocket_is_stream(cli->type))
         {
-            cli->onConnect = client_onConnect;
-            cli->onClose = client_onClose;
-            cli->onError = client_onError;
-            cli->onReceive = client_onReceive;
-
             if (!cb->onConnect)
             {
                 swoole_php_fatal_error(E_ERROR, "no connect callback.");
@@ -828,10 +1141,27 @@ static PHP_METHOD(swoole_client, connect)
                 swoole_php_fatal_error(E_ERROR, "no close callback.");
                 RETURN_FALSE;
             }
+            cli->onConnect = client_onConnect;
+            cli->onClose = client_onClose;
+            cli->onError = client_onError;
+            cli->onReceive = client_onReceive;
             cli->reactor_fdtype = PHP_SWOOLE_FD_STREAM_CLIENT;
+            if (!cb->onBufferFull)
+            {
+                cli->onBufferFull = client_onBufferFull;
+            }
+            if (!cb->onBufferEmpty)
+            {
+                cli->onBufferEmpty = client_onBufferEmpty;
+            }
         }
         else
         {
+            if (!cb || !cb->onReceive)
+            {
+                swoole_php_fatal_error(E_ERROR, "no receive callback.");
+                RETURN_FALSE;
+            }
             if (cb->onConnect)
             {
                 cli->onConnect = client_onConnect;
@@ -844,20 +1174,16 @@ static PHP_METHOD(swoole_client, connect)
             cli->reactor_fdtype = PHP_SWOOLE_FD_DGRAM_CLIENT;
         }
 
-        zval *obj = getThis();
-#if PHP_MAJOR_VERSION >= 7
-        cli->object = (zval *) emalloc(sizeof(zval));
-        ZVAL_DUP(cli->object, obj);
-#else
-        cli->object = obj;
-#endif
-        sw_zval_add_ref(&obj);
+        zval *zobject = getThis();
+        cli->object = zobject;
+        sw_copy_to_stack(cli->object, cb->_object);
+        sw_zval_add_ref(&zobject);
     }
 
     //nonblock async
     if (cli->connect(cli, host, port, timeout, sock_flag) < 0)
     {
-        swoole_php_error(E_WARNING, "connect to server[%s:%d] failed. Error: %s [%d]", host, (int)port, strerror(errno), errno);
+        swoole_php_sys_error(E_WARNING, "connect to server[%s:%d] failed.", host, (int )port);
         zend_update_property_long(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, errno TSRMLS_CC);
         RETURN_FALSE;
     }
@@ -881,37 +1207,17 @@ static PHP_METHOD(swoole_client, send)
         RETURN_FALSE;
     }
 
-    swClient *cli = swoole_get_object(getThis());
+    swClient *cli = client_get_ptr(getThis() TSRMLS_CC);
     if (!cli)
     {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
-        RETURN_FALSE;
-    }
-
-    if (cli->socket->active == 0)
-    {
-        swoole_php_error(E_WARNING, "server is not connected.");
         RETURN_FALSE;
     }
 
     //clear errno
     SwooleG.error = 0;
-    int ret;
-
-    if (cli->packet_mode == 1)
-    {
-        uint32_t len_tmp = htonl(data_len);
-        ret = cli->send(cli, (char *) &len_tmp, 4, flags);
-        if (ret < 0)
-        {
-            goto send_error;
-        }
-    }
-
-    ret = cli->send(cli, data, data_len, flags);
+    int ret = cli->send(cli, data, data_len, flags);
     if (ret < 0)
     {
-        send_error:
         SwooleG.error = errno;
         swoole_php_sys_error(E_WARNING, "send(%d) %d bytes failed.", cli->socket->fd, data_len);
         zend_update_property_long(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
@@ -926,9 +1232,8 @@ static PHP_METHOD(swoole_client, send)
 static PHP_METHOD(swoole_client, sendto)
 {
     char* ip;
-    char* ip_len;
-    zend_size_t port;
-
+    zend_size_t ip_len;
+    long port;
     char *data;
     zend_size_t len;
 
@@ -946,14 +1251,13 @@ static PHP_METHOD(swoole_client, sendto)
     swClient *cli = swoole_get_object(getThis());
     if (!cli)
     {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
-        RETURN_FALSE;
-    }
-
-    if (cli->socket->active == 0)
-    {
-        swoole_php_error(E_WARNING, "server is not connected.");
-        RETURN_FALSE;
+        cli = php_swoole_client_new(getThis(), ip, ip_len, port);
+        if (cli == NULL)
+        {
+            RETURN_FALSE;
+        }
+        cli->socket->active = 1;
+        swoole_set_object(getThis(), cli);
     }
 
     int ret;
@@ -977,8 +1281,9 @@ static PHP_METHOD(swoole_client, sendfile)
 {
     char *file;
     zend_size_t file_len;
+    long offset = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &file, &file_len) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|l", &file, &file_len, &offset) == FAILURE)
     {
         return;
     }
@@ -988,26 +1293,20 @@ static PHP_METHOD(swoole_client, sendfile)
         RETURN_FALSE;
     }
 
-    swClient *cli = swoole_get_object(getThis());
+    swClient *cli = client_get_ptr(getThis() TSRMLS_CC);
     if (!cli)
     {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
         RETURN_FALSE;
     }
-
+    //only stream socket can sendfile
     if (!(cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6 || cli->type == SW_SOCK_UNIX_STREAM))
     {
         swoole_php_error(E_WARNING, "dgram socket cannot use sendfile.");
         RETURN_FALSE;
     }
-    if (cli->socket->active == 0)
-    {
-        swoole_php_error(E_WARNING, "Server is not connected.");
-        RETURN_FALSE;
-    }
     //clear errno
     SwooleG.error = 0;
-    int ret = cli->sendfile(cli, file);
+    int ret = cli->sendfile(cli, file, offset);
     if (ret < 0)
     {
         SwooleG.error = errno;
@@ -1040,21 +1339,9 @@ static PHP_METHOD(swoole_client, recv)
         flags = MSG_WAITALL;
     }
 
-    swClient *cli = swoole_get_object(getThis());
+    swClient *cli = client_get_ptr(getThis() TSRMLS_CC);
     if (!cli)
     {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
-        RETURN_FALSE;
-    }
-
-    if ((flags & MSG_WAITALL) && buf_len > SW_PHP_CLIENT_BUFFER_SIZE)
-    {
-        buf_len = SW_PHP_CLIENT_BUFFER_SIZE;
-    }
-
-    if (cli->socket->active == 0)
-    {
-        swoole_php_error(E_WARNING, "server is not connected.");
         RETURN_FALSE;
     }
 
@@ -1161,11 +1448,16 @@ static PHP_METHOD(swoole_client, recv)
         //error package
         if (buf_len < 0)
         {
-            RETURN_FALSE;
+            RETURN_EMPTY_STRING();
         }
         //empty package
         else if (buf_len == header_len)
         {
+            SW_RETURN_STRINGL(stack_buf, header_len, 1);
+        }
+        else if (buf_len > protocol->package_max_length)
+        {
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "Package is too big. package_length=%d", (int )buf_len);
             RETURN_EMPTY_STRING();
         }
 
@@ -1178,28 +1470,12 @@ static PHP_METHOD(swoole_client, recv)
             ret += header_len;
         }
     }
-    else if (cli->packet_mode == 1)
-    {
-        uint32_t len_tmp = 0;
-        ret = cli->recv(cli, (char*) &len_tmp, 4, MSG_WAITALL);
-        if (ret < 0)
-        {
-            swoole_php_error(E_WARNING, "recv() header failed. Error: %s [%d]", strerror(errno), errno);
-            RETURN_FALSE;
-        }
-        else
-        {
-            len_tmp = ntohl(len_tmp);
-            buf_len = len_tmp;
-        }
-
-        buf = emalloc(buf_len + 1);
-        SwooleG.error = 0;
-        //PACKET mode, must use waitall.
-        ret = cli->recv(cli, buf, buf_len, MSG_WAITALL);
-    }
     else
     {
+        if (!(flags & MSG_WAITALL) && buf_len > SW_PHP_CLIENT_BUFFER_SIZE)
+        {
+            buf_len = SW_PHP_CLIENT_BUFFER_SIZE;
+        }
         buf = emalloc(buf_len + 1);
         SwooleG.error = 0;
         ret = cli->recv(cli, buf, buf_len, flags);
@@ -1246,15 +1522,9 @@ static PHP_METHOD(swoole_client, isConnected)
 
 static PHP_METHOD(swoole_client, getsockname)
 {
-    swClient *cli = swoole_get_object(getThis());
+    swClient *cli = client_get_ptr(getThis() TSRMLS_CC);
     if (!cli)
     {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
-        RETURN_FALSE;
-    }
-    if (!cli->socket->active)
-    {
-        swoole_php_error(E_WARNING, "not connected to the server");
         RETURN_FALSE;
     }
 
@@ -1295,10 +1565,19 @@ static PHP_METHOD(swoole_client, getsockname)
 #ifdef SWOOLE_SOCKETS_SUPPORT
 static PHP_METHOD(swoole_client, getSocket)
 {
-    swClient *cli = swoole_get_object(getThis());
-    if (!cli || !cli->socket)
+    zval *zsocket = swoole_get_property(getThis(), client_property_socket);
+    if (zsocket)
     {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
+        RETURN_ZVAL(zsocket, 1, NULL);
+    }
+    swClient *cli = client_get_ptr(getThis() TSRMLS_CC);
+    if (!cli)
+    {
+        RETURN_FALSE;
+    }
+    if (cli->keep)
+    {
+        swoole_php_fatal_error(E_WARNING, "The getSocket method cannot be used for long connection.");
         RETURN_FALSE;
     }
     php_socket *socket_object = swoole_convert_to_socket(cli->socket->fd);
@@ -1306,22 +1585,18 @@ static PHP_METHOD(swoole_client, getSocket)
     {
         RETURN_FALSE;
     }
-    SW_ZEND_REGISTER_RESOURCE(return_value, (void *) socket_object, php_sockets_le_socket());
+    SW_ZEND_REGISTER_RESOURCE(return_value, (void * ) socket_object, php_sockets_le_socket());
+    zsocket = sw_zval_dup(return_value);
+    sw_zval_add_ref(&zsocket);
+    swoole_set_property(getThis(), client_property_socket, zsocket);
 }
 #endif
 
 static PHP_METHOD(swoole_client, getpeername)
 {
-    swClient *cli = swoole_get_object(getThis());
+    swClient *cli = client_get_ptr(getThis() TSRMLS_CC);
     if (!cli)
     {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
-        RETURN_FALSE;
-    }
-
-    if (!cli->socket->active)
-    {
-        swoole_php_error(E_WARNING, "not connected to the server");
         RETURN_FALSE;
     }
 
@@ -1364,14 +1639,9 @@ static PHP_METHOD(swoole_client, close)
     }
 
     swClient *cli = swoole_get_object(getThis());
-    if (!cli)
+    if (!cli || !cli->socket)
     {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
-        RETURN_FALSE;
-    }
-    if (!cli->socket)
-    {
-        swoole_php_error(E_WARNING, "not connected to the server");
+        swoole_php_fatal_error(E_WARNING, "client is not connected to server.");
         RETURN_FALSE;
     }
     if (cli->socket->closed)
@@ -1379,15 +1649,24 @@ static PHP_METHOD(swoole_client, close)
         swoole_php_error(E_WARNING, "client socket is closed.");
         RETURN_FALSE;
     }
+    if (cli->async && cli->socket->active == 0)
+    {
+        zval *zobject = getThis();
+        sw_zval_ptr_dtor(&zobject);
+    }
     //Connection error, or short tcp connection.
     //No keep connection
     if (force || !cli->keep || swConnection_error(SwooleG.error) == SW_CLOSE)
     {
+        cli->released = 1;
         ret = cli->close(cli);
-        client_free(getThis(), cli TSRMLS_CC);
+        php_swoole_client_free(getThis(), cli TSRMLS_CC);
     }
-    zval *obj = getThis();
-    sw_zval_ptr_dtor(&obj);
+    else
+    {
+        //unset object
+        swoole_set_object(getThis(), NULL);
+    }
     SW_CHECK_RETURN(ret);
 }
 
@@ -1402,6 +1681,27 @@ static PHP_METHOD(swoole_client, on)
         return;
     }
 
+    zval *ztype = sw_zend_read_property(swoole_client_class_entry_ptr, getThis(), SW_STRL("type")-1, 0 TSRMLS_CC);
+    if (ztype == NULL || ZVAL_IS_NULL(ztype))
+    {
+        swoole_php_fatal_error(E_ERROR, "get swoole_client->type failed.");
+        return;
+    }
+
+    if (!(Z_LVAL_P(ztype) & SW_FLAG_ASYNC))
+    {
+        swoole_php_fatal_error(E_ERROR, "sync-client cannot set event callback.");
+        return;
+    }
+
+    client_callback *cb = swoole_get_property(getThis(), client_property_callback);
+    if (!cb)
+    {
+        cb = emalloc(sizeof(client_callback));
+        bzero(cb, sizeof(client_callback));
+        swoole_set_property(getThis(), client_property_callback, cb);
+    }
+
 #ifdef PHP_SWOOLE_CHECK_CALLBACK
     char *func_name = NULL;
     if (!sw_zend_is_callable(zcallback, 0, &func_name TSRMLS_CC))
@@ -1413,40 +1713,45 @@ static PHP_METHOD(swoole_client, on)
     efree(func_name);
 #endif
 
-    client_callback *cb = swoole_get_property(getThis(), 0);
-    if (!cb)
-    {
-        cb = emalloc(sizeof(client_callback));
-        bzero(cb, sizeof(client_callback));
-        swoole_set_property(getThis(), 0, cb);
-    }
-
-#if PHP_MAJOR_VERSION >= 7
-    zval *tmp = emalloc(sizeof(zval));
-    ZVAL_DUP(tmp,zcallback);
-    zcallback = tmp;
-#endif
-    sw_zval_add_ref(&zcallback);
-
     if (strncasecmp("connect", cb_name, cb_name_len) == 0)
     {
-        cb->onConnect = zcallback;
+        zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("onConnect"), zcallback TSRMLS_CC);
+        cb->onConnect = sw_zend_read_property(swoole_client_class_entry_ptr,  getThis(), ZEND_STRL("onConnect"), 0 TSRMLS_CC);
+        sw_copy_to_stack(cb->onConnect, cb->_onConnect);
     }
     else if (strncasecmp("receive", cb_name, cb_name_len) == 0)
     {
-        cb->onReceive = zcallback;
+        zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("onReceive"), zcallback TSRMLS_CC);
+        cb->onReceive = sw_zend_read_property(swoole_client_class_entry_ptr,  getThis(), ZEND_STRL("onReceive"), 0 TSRMLS_CC);
+        sw_copy_to_stack(cb->onReceive, cb->_onReceive);
     }
     else if (strncasecmp("close", cb_name, cb_name_len) == 0)
     {
-        cb->onClose = zcallback;
+        zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("onClose"), zcallback TSRMLS_CC);
+        cb->onClose = sw_zend_read_property(swoole_client_class_entry_ptr,  getThis(), ZEND_STRL("onClose"), 0 TSRMLS_CC);
+        sw_copy_to_stack(cb->onClose, cb->_onClose);
     }
     else if (strncasecmp("error", cb_name, cb_name_len) == 0)
     {
-        cb->onError = zcallback;
+        zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("onError"), zcallback TSRMLS_CC);
+        cb->onError = sw_zend_read_property(swoole_client_class_entry_ptr,  getThis(), ZEND_STRL("onError"), 0 TSRMLS_CC);
+        sw_copy_to_stack(cb->onError, cb->_onError);
+    }
+    else if (strncasecmp("bufferFull", cb_name, cb_name_len) == 0)
+    {
+        zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("onBufferFull"), zcallback TSRMLS_CC);
+        cb->onBufferFull = sw_zend_read_property(swoole_client_class_entry_ptr,  getThis(), ZEND_STRL("onBufferFull"), 0 TSRMLS_CC);
+        sw_copy_to_stack(cb->onBufferFull, cb->_onBufferFull);
+    }
+    else if (strncasecmp("bufferEmpty", cb_name, cb_name_len) == 0)
+    {
+        zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("onBufferEmpty"), zcallback TSRMLS_CC);
+        cb->onBufferEmpty = sw_zend_read_property(swoole_client_class_entry_ptr,  getThis(), ZEND_STRL("onBufferEmpty"), 0 TSRMLS_CC);
+        sw_copy_to_stack(cb->onBufferEmpty, cb->_onBufferEmpty);
     }
     else
     {
-        swoole_php_fatal_error(E_WARNING, "swoole_client: event callback[%s] is unknow", cb_name);
+        swoole_php_fatal_error(E_WARNING, "Unknown event callback type name '%s'.", cb_name);
         RETURN_FALSE;
     }
     RETURN_TRUE;
@@ -1454,19 +1759,11 @@ static PHP_METHOD(swoole_client, on)
 
 static PHP_METHOD(swoole_client, sleep)
 {
-    swClient *cli = swoole_get_object(getThis());
+    swClient *cli = client_get_ptr(getThis() TSRMLS_CC);
     if (!cli)
     {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
         RETURN_FALSE;
     }
-
-    if (cli->socket->active == 0)
-    {
-        swoole_php_error(E_WARNING, "server is not connected.");
-        RETURN_FALSE;
-    }
-
     int ret;
     if (cli->socket->events & SW_EVENT_WRITE)
     {
@@ -1481,19 +1778,11 @@ static PHP_METHOD(swoole_client, sleep)
 
 static PHP_METHOD(swoole_client, wakeup)
 {
-    swClient *cli = swoole_get_object(getThis());
+    swClient *cli = client_get_ptr(getThis() TSRMLS_CC);
     if (!cli)
     {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
         RETURN_FALSE;
     }
-
-    if (cli->socket->active == 0)
-    {
-        swoole_php_error(E_WARNING, "server is not connected.");
-        RETURN_FALSE;
-    }
-
     int ret;
     if (cli->socket->events & SW_EVENT_WRITE)
     {
@@ -1504,6 +1793,157 @@ static PHP_METHOD(swoole_client, wakeup)
         ret = SwooleG.main_reactor->add(SwooleG.main_reactor, cli->socket->fd, cli->socket->fdtype | SW_EVENT_READ);
     }
     SW_CHECK_RETURN(ret);
+}
+
+#ifdef SW_USE_OPENSSL
+static PHP_METHOD(swoole_client, enableSSL)
+{
+    swClient *cli = client_get_ptr(getThis() TSRMLS_CC);
+    if (!cli)
+    {
+        RETURN_FALSE;
+    }
+    if (cli->type != SW_SOCK_TCP && cli->type != SW_SOCK_TCP6)
+    {
+        swoole_php_fatal_error(E_WARNING, "cannot use enableSSL.");
+        RETURN_FALSE;
+    }
+    if (cli->socket->ssl)
+    {
+        swoole_php_fatal_error(E_WARNING, "SSL has been enabled.");
+        RETURN_FALSE;
+    }
+    cli->open_ssl = 1;
+    zval *zset = sw_zend_read_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("setting"), 1 TSRMLS_CC);
+    if (zset && !ZVAL_IS_NULL(zset))
+    {
+        client_check_ssl_setting(cli, zset TSRMLS_CC);
+    }
+    if (swClient_enable_ssl_encrypt(cli) < 0)
+    {
+        RETURN_FALSE;
+    }
+    if (cli->async)
+    {
+        zval *zcallback;
+        if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "z", &zcallback) == FAILURE)
+        {
+            return;
+        }
+#ifdef PHP_SWOOLE_CHECK_CALLBACK
+        char *func_name = NULL;
+        if (!sw_zend_is_callable(zcallback, 0, &func_name TSRMLS_CC))
+        {
+            swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+            efree(func_name);
+            return;
+        }
+        efree(func_name);
+#endif
+
+        client_callback *cb = swoole_get_property(getThis(), client_property_callback);
+        if (!cb)
+        {
+            swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client.");
+            RETURN_FALSE;
+        }
+        zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("onSSLReady"), zcallback TSRMLS_CC);
+        cb->onSSLReady = sw_zend_read_property(swoole_client_class_entry_ptr,  getThis(), ZEND_STRL("onSSLReady"), 0 TSRMLS_CC);
+        sw_copy_to_stack(cb->onSSLReady, cb->_onSSLReady);
+        cli->ssl_wait_handshake = 1;
+        cli->socket->ssl_state = SW_SSL_STATE_WAIT_STREAM;
+
+        SwooleG.main_reactor->set(SwooleG.main_reactor, cli->socket->fd, SW_FD_STREAM_CLIENT | SW_EVENT_WRITE);
+    }
+    else
+    {
+        if (swClient_ssl_handshake(cli) < 0)
+        {
+            RETURN_FALSE;
+        }
+    }
+
+    RETURN_TRUE;
+}
+
+static PHP_METHOD(swoole_client, getPeerCert)
+{
+    swClient *cli = client_get_ptr(getThis() TSRMLS_CC);
+    if (!cli)
+    {
+        RETURN_FALSE;
+    }
+    if (!cli->socket->ssl)
+    {
+        swoole_php_fatal_error(E_WARNING, "SSL no ready.");
+        RETURN_FALSE;
+    }
+    char buf[8192];
+    int n = swSSL_get_client_certificate(cli->socket->ssl, buf, sizeof(buf));
+    if (n < 0)
+    {
+        RETURN_FALSE;
+    }
+    SW_RETURN_STRINGL(buf, n, 1);
+}
+
+static PHP_METHOD(swoole_client, verifyPeerCert)
+{
+    swClient *cli = client_get_ptr(getThis() TSRMLS_CC);
+    if (!cli)
+    {
+        RETURN_FALSE;
+    }
+    if (!cli->socket->ssl)
+    {
+        swoole_php_fatal_error(E_WARNING, "SSL no ready.");
+        RETURN_FALSE;
+    }
+    zend_bool allow_self_signed = 0;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|b", &allow_self_signed) == FAILURE)
+    {
+        return;
+    }
+    SW_CHECK_RETURN(swSSL_verify(cli->socket, allow_self_signed));
+}
+#endif
+
+static PHP_METHOD(swoole_client, pipe)
+{
+    swClient *cli = client_get_ptr(getThis() TSRMLS_CC);
+    if (!cli)
+    {
+        RETURN_FALSE;
+    }
+    zval *write_socket;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &write_socket) == FAILURE)
+    {
+        return;
+    }
+
+    int fd;
+    int flags = 0;
+
+    //server session id
+    if (SW_Z_TYPE_P(write_socket) == IS_LONG)
+    {
+        fd = Z_LVAL_P(write_socket);
+        swConnection *conn = swWorker_get_connection(SwooleG.serv, fd);
+        if (conn == NULL)
+        {
+            RETURN_FALSE;
+        }
+        flags = SW_CLIENT_PIPE_TCP_SESSION;
+    }
+    else
+    {
+        fd = swoole_convert_to_fd(write_socket TSRMLS_CC);
+        if (fd < 0)
+        {
+            RETURN_FALSE;
+        }
+    }
+    SW_CHECK_RETURN(cli->pipe(cli, fd, flags));
 }
 
 PHP_FUNCTION(swoole_client_select)
@@ -1567,46 +2007,38 @@ PHP_FUNCTION(swoole_client_select)
 static int client_select_wait(zval *sock_array, fd_set *fds TSRMLS_DC)
 {
     zval *element = NULL;
-    zval *zsock;
-    zval **dest_element;
-    HashTable *new_hash;
-    zend_class_entry *ce;
+    int sock;
 
-    char *key = NULL;
-    int num = 0;
-    ulong_t num_key = 0;
-    uint32_t key_len = 0;
-
+    ulong_t num = 0;
     if (SW_Z_TYPE_P(sock_array) != IS_ARRAY)
     {
         return 0;
     }
 
+#if PHP_MAJOR_VERSION < 7
+    HashTable *new_hash;
+    char *key = NULL;
+    zval **dest_element = NULL;
+    uint32_t key_len;
+
     ALLOC_HASHTABLE(new_hash);
     zend_hash_init(new_hash, zend_hash_num_elements(Z_ARRVAL_P(sock_array)), NULL, ZVAL_PTR_DTOR, 0);
 
     SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(sock_array), element)
-        if (Z_TYPE_P(element) != IS_OBJECT)
+        sock = swoole_convert_to_fd(element TSRMLS_CC);
+        if (sock < 0)
         {
-            swoole_php_fatal_error(E_WARNING, "object is not swoole_client object[1].");
             continue;
         }
-        ce = Z_OBJCE_P(element);
-        zsock = sw_zend_read_property(ce, element, SW_STRL("sock")-1, 0 TSRMLS_CC);
-        if (zsock == NULL || ZVAL_IS_NULL(zsock))
+        if ((sock < FD_SETSIZE) && FD_ISSET(sock, fds))
         {
-            swoole_php_fatal_error(E_WARNING, "object is not swoole_client object[2].");
-            continue;
-        }
-        if ((Z_LVAL(*zsock) < FD_SETSIZE) && FD_ISSET(Z_LVAL(*zsock), fds))
-        {
-            switch (sw_zend_hash_get_current_key(Z_ARRVAL_P(sock_array), &key, &key_len, &num_key))
+            switch (sw_zend_hash_get_current_key(Z_ARRVAL_P(sock_array), &key, &key_len, &num))
             {
             case HASH_KEY_IS_STRING:
                 sw_zend_hash_add(new_hash, key, key_len, (void * ) &element, sizeof(zval *), (void ** )&dest_element);
                 break;
             case HASH_KEY_IS_LONG:
-                sw_zend_hash_index_update(new_hash, num_key, (void * ) &element, sizeof(zval *), (void ** )&dest_element);
+                sw_zend_hash_index_update(new_hash, num, (void * ) &element, sizeof(zval *), (void ** )&dest_element);
                 break;
             }
             if (dest_element)
@@ -1622,49 +2054,77 @@ static int client_select_wait(zval *sock_array, fd_set *fds TSRMLS_DC)
 
     zend_hash_internal_pointer_reset(new_hash);
     Z_ARRVAL_P(sock_array) = new_hash;
+#else
+    zval new_array;
+    array_init(&new_array);
+    zend_ulong num_key;
+    zend_string *key;
+    zval *dest_element;
 
+
+    ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(sock_array), num_key, key, element)
+    {
+        sock = swoole_convert_to_fd(element TSRMLS_CC);
+        if (sock < 0)
+        {
+            continue;
+        }
+        if ((sock < FD_SETSIZE) && FD_ISSET(sock, fds))
+        {
+            if (key)
+            {
+                dest_element = zend_hash_add(Z_ARRVAL(new_array), key, element);
+            }
+            else
+            {
+                dest_element = zend_hash_index_update(Z_ARRVAL(new_array), num_key, element);
+            }
+            if (dest_element)
+            {
+                Z_ADDREF_P(dest_element);
+            }
+        }
+        num++;
+    } ZEND_HASH_FOREACH_END();
+
+    zval_ptr_dtor(sock_array);
+    ZVAL_COPY_VALUE(sock_array, &new_array);
+#endif
     return num ? 1 : 0;
 }
 
 static int client_select_add(zval *sock_array, fd_set *fds, int *max_fd TSRMLS_DC)
 {
     zval *element = NULL;
-    zval *zsock;
-    zend_class_entry *ce;
-
     if (SW_Z_TYPE_P(sock_array) != IS_ARRAY)
     {
         return 0;
     }
 
+    int sock;
     int num = 0;
+
     SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(sock_array), element)
-        if (Z_TYPE_P(element) != IS_OBJECT)
+        sock = swoole_convert_to_fd(element TSRMLS_CC);
+        if (sock < 0)
         {
-            swoole_php_fatal_error(E_WARNING, "object is not swoole_client object[1].");
             continue;
         }
-        ce = Z_OBJCE_P(element);
-        zsock = sw_zend_read_property(ce, element, SW_STRL("sock")-1, 0 TSRMLS_CC);
-        if (zsock == NULL || ZVAL_IS_NULL(zsock))
+        if (sock < FD_SETSIZE)
         {
-            swoole_php_fatal_error(E_WARNING, "object is not swoole_client object[2].");
-            continue;
-        }
-        if (Z_LVAL(*zsock) < FD_SETSIZE)
-        {
-            FD_SET(Z_LVAL(*zsock), fds);
+            FD_SET(sock, fds);
         }
         else
         {
-            swoole_php_fatal_error(E_WARNING, "socket[%ld] > FD_SETSIZE[%d].", Z_LVAL(*zsock), FD_SETSIZE);
+            swoole_php_fatal_error(E_WARNING, "socket[%d] > FD_SETSIZE[%d].", sock, FD_SETSIZE);
             continue;
         }
-        if (Z_LVAL(*zsock) > *max_fd)
+        if (sock > *max_fd)
         {
-            *max_fd = Z_LVAL(*zsock);
+            *max_fd = sock;
         }
         num ++;
     SW_HASHTABLE_FOREACH_END();
+
     return num ? 1 : 0;
 }

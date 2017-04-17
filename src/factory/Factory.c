@@ -30,6 +30,7 @@ int swFactory_create(swFactory *factory)
 
 int swFactory_start(swFactory *factory)
 {
+    SwooleWG.run_always = 1;
     return SW_OK;
 }
 
@@ -123,14 +124,22 @@ int swFactory_end(swFactory *factory, int fd)
         if (serv->onClose != NULL)
         {
             info.fd = fd;
-            info.from_id =  conn->from_id;
-            info.from_fd =  conn->from_fd;
+            if (conn->close_actively)
+            {
+                info.from_id = -1;
+            }
+            else
+            {
+                info.from_id = conn->from_id;
+            }
+            info.from_fd = conn->from_fd;
             serv->onClose(serv, &info);
         }
         conn->closing = 0;
         conn->closed = 1;
+        conn->close_errno = 0;
 
-        if (swBuffer_empty(conn->out_buffer))
+        if (swBuffer_empty(conn->out_buffer) || conn->removed)
         {
             swReactor *reactor = &serv->reactor_threads[SwooleTG.id].reactor;
             return swReactorThread_close(reactor, conn->fd);

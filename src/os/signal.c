@@ -18,11 +18,9 @@
 
 #ifdef HAVE_SIGNALFD
 #include <sys/signalfd.h>
-static void swSignalfd_set(int signo, __sighandler_t callback);
+static void swSignalfd_set(int signo, swSignalHander callback);
 static void swSignalfd_clear();
 static int swSignalfd_onSignal(swReactor *reactor, swEvent *event);
-
-#define SW_SIGNAL_INIT_NUM    8
 
 static sigset_t signalfd_mask;
 static int signal_fd = 0;
@@ -30,12 +28,13 @@ static int signal_fd = 0;
 
 typedef struct
 {
-    swSignalFunc callback;
+    swSignalHander callback;
     uint16_t signo;
     uint16_t active;
 } swSignal;
 
 static swSignal signals[SW_SIGNO_MAX];
+static int _lock = 0;
 
 static void swSignal_async_handler(int signo);
 
@@ -56,12 +55,19 @@ void swSignal_none(void)
 /**
  * setup signal
  */
-swSignalFunc swSignal_set(int sig, swSignalFunc func, int restart, int mask)
+swSignalHander swSignal_set(int sig, swSignalHander func, int restart, int mask)
 {
+    //ignore
     if (func == NULL)
     {
-        func =  SIG_IGN;
+        func = SIG_IGN;
     }
+    //clear
+    else if ((long) func == -1)
+    {
+        func = SIG_DFL;
+    }
+
     struct sigaction act, oact;
     act.sa_handler = func;
     if (mask)
@@ -80,7 +86,7 @@ swSignalFunc swSignal_set(int sig, swSignalFunc func, int restart, int mask)
     return oact.sa_handler;
 }
 
-void swSignal_add(int signo, swSignalFunc func)
+void swSignal_add(int signo, swSignalHander func)
 {
 #ifdef HAVE_SIGNALFD
     if (SwooleG.use_signalfd)
@@ -105,7 +111,14 @@ static void swSignal_async_handler(int signo)
     }
     else
     {
+        //discard signal
+        if (_lock)
+        {
+            return;
+        }
+        _lock = 1;
         swSignal_callback(signo);
+        _lock = 0;
     }
 }
 
@@ -116,7 +129,7 @@ void swSignal_callback(int signo)
         swWarn("signal[%d] numberis invalid.", signo);
         return;
     }
-    swSignalFunc callback = signals[signo].callback;
+    swSignalHander callback = signals[signo].callback;
     if (!callback)
     {
         swWarn("signal[%d] callback is null.", signo);
@@ -132,7 +145,19 @@ void swSignal_clear(void)
     {
         swSignalfd_clear();
     }
+    else
 #endif
+    {
+        int i;
+        for (i = 0; i < SW_SIGNO_MAX; i++)
+        {
+            if (signals[i].active)
+            {
+                swSignal_set(signals[i].signo, (swSignalHander) -1, 1, 0);
+            }
+        }
+    }
+    bzero(&signals, sizeof(signals));
 }
 
 #ifdef HAVE_SIGNALFD
@@ -142,19 +167,16 @@ void swSignalfd_init()
     bzero(&signals, sizeof(signals));
 }
 
-static void swSignalfd_set(int signo, __sighandler_t callback)
+static void swSignalfd_set(int signo, swSignalHander callback)
 {
-    if (callback == NULL)
+    if (callback == NULL && signals[signo].active)
     {
-        if (signals[signo].active)
-        {
-            sigdelset(&signalfd_mask, signo);
-            bzero(&signals[signo], sizeof(swSignal));
+        sigdelset(&signalfd_mask, signo);
+        bzero(&signals[signo], sizeof(swSignal));
 
-            if (signal_fd > 0)
-            {
-                sigprocmask(SIG_BLOCK, &signalfd_mask, NULL);
-            }
+        if (signal_fd > 0)
+        {
+            sigprocmask(SIG_BLOCK, &signalfd_mask, NULL);
         }
     }
     else
@@ -195,16 +217,14 @@ int swSignalfd_setup(swReactor *reactor)
 
 static void swSignalfd_clear()
 {
-    if (sigprocmask(SIG_UNBLOCK, &signalfd_mask, NULL) < 0)
-    {
-        swSysError("sigprocmask(SIG_UNBLOCK) failed.");
-    }
-    bzero(&signals, sizeof(signals));
-    bzero(&signalfd_mask, sizeof(signalfd_mask));
-
     if (signal_fd)
     {
+        if (sigprocmask(SIG_UNBLOCK, &signalfd_mask, NULL) < 0)
+        {
+            swSysError("sigprocmask(SIG_UNBLOCK) failed.");
+        }
         close(signal_fd);
+        bzero(&signalfd_mask, sizeof(signalfd_mask));
     }
     signal_fd = 0;
 }

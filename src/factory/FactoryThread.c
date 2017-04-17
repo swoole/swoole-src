@@ -57,6 +57,7 @@ int swFactoryThread_create(swFactory *factory, int worker_num)
 
     if (swThreadPool_create(&object->workers, worker_num) < 0)
     {
+        sw_free(object);
         return SW_ERR;
     }
 
@@ -91,6 +92,7 @@ int swFactoryThread_create(swFactory *factory, int worker_num)
 static int swFactoryThread_start(swFactory *factory)
 {
     swFactoryThread *object = factory->object;
+    SwooleWG.run_always = 1;
     swThreadPool_run(&object->workers);
     return SW_OK;
 }
@@ -194,6 +196,12 @@ static void swFactoryThread_onStart(swThreadPool *pool, int id)
 
     SwooleTG.id = serv->reactor_num + id;
     SwooleTG.type = SW_THREAD_WORKER;
+
+    SwooleTG.buffer_input = swServer_create_worker_buffer(serv);
+    if (!SwooleTG.buffer_input)
+    {
+        return;
+    }
 
     //cpu affinity setting
 #ifdef HAVE_CPU_AFFINITY

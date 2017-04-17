@@ -1,14 +1,14 @@
 <?php
 $server = new swoole_server('0.0.0.0', 9905, SWOOLE_PROCESS, SWOOLE_SOCK_UDP);
-$server->set(['worker_num' => 1]);
+for ($i = 0; $i < 20; $i++)
+{
+    $server->listen('0.0.0.0', 9906 + $i, SWOOLE_SOCK_UDP);
+}
+$server->set(['worker_num' => 4]);
+
 $server->on('Packet', function (swoole_server $serv, $data, $addr)
 {
-    $serv->sendto($addr['address'], $addr['port'], "Swoole: $data");
-    var_dump( $addr, strlen($data));
+    $serv->sendto($addr['address'], $addr['port'], "Swoole: $data", $addr['server_socket']);
 });
-//$server->on('receive', function (swoole_server $serv, $fd, $reactor_id, $data)
-//{
-//    var_dump($data);
-//    var_dump($serv->connection_info($fd, $reactor_id));
-//});
+
 $server->start();

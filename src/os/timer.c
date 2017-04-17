@@ -97,26 +97,36 @@ static int swSystemTimer_timerfd_set(swTimer *timer, long interval)
     struct itimerspec timer_set;
     bzero(&timer_set, sizeof(timer_set));
 
-    if (timer->fd == 0)
+    if (interval < 0)
     {
-        timer->fd = timerfd_create(CLOCK_REALTIME, TFD_NONBLOCK | TFD_CLOEXEC);
-        if (timer->fd < 0)
+        if (timer->fd == 0)
         {
-            swWarn("timerfd_create() failed. Error: %s[%d]", strerror(errno), errno);
-            return SW_ERR;
+            return SW_OK;
         }
     }
-
-    timer_set.it_interval.tv_sec = sec;
-    timer_set.it_interval.tv_nsec = msec * 1000 * 1000;
-
-    timer_set.it_value.tv_sec = now.tv_sec + sec;
-    timer_set.it_value.tv_nsec = (now.tv_usec * 1000) + timer_set.it_interval.tv_nsec;
-
-    if (timer_set.it_value.tv_nsec > 1e9)
+    else
     {
-        timer_set.it_value.tv_nsec = timer_set.it_value.tv_nsec - 1e9;
-        timer_set.it_value.tv_sec += 1;
+        timer_set.it_interval.tv_sec = sec;
+        timer_set.it_interval.tv_nsec = msec * 1000 * 1000;
+
+        timer_set.it_value.tv_sec = now.tv_sec + sec;
+        timer_set.it_value.tv_nsec = (now.tv_usec * 1000) + timer_set.it_interval.tv_nsec;
+
+        if (timer_set.it_value.tv_nsec > 1e9)
+        {
+            timer_set.it_value.tv_nsec = timer_set.it_value.tv_nsec - 1e9;
+            timer_set.it_value.tv_sec += 1;
+        }
+
+        if (timer->fd == 0)
+        {
+            timer->fd = timerfd_create(CLOCK_REALTIME, TFD_NONBLOCK | TFD_CLOEXEC);
+            if (timer->fd < 0)
+            {
+                swWarn("timerfd_create() failed. Error: %s[%d]", strerror(errno), errno);
+                return SW_ERR;
+            }
+        }
     }
 
     if (timerfd_settime(timer->fd, TFD_TIMER_ABSTIME, &timer_set, NULL) == -1)
@@ -146,18 +156,21 @@ static int swSystemTimer_signal_set(swTimer *timer, long interval)
         swWarn("gettimeofday() failed. Error: %s[%d]", strerror(errno), errno);
         return SW_ERR;
     }
+    bzero(&timer_set, sizeof(timer_set));
 
-    memset(&timer_set, 0, sizeof(timer_set));
-    timer_set.it_interval.tv_sec = sec;
-    timer_set.it_interval.tv_usec = msec * 1000;
-
-    timer_set.it_value.tv_sec = sec;
-    timer_set.it_value.tv_usec = timer_set.it_interval.tv_usec;
-
-    if (timer_set.it_value.tv_usec > 1e6)
+    if (interval > 0)
     {
-        timer_set.it_value.tv_usec = timer_set.it_value.tv_usec - 1e6;
-        timer_set.it_value.tv_sec += 1;
+        timer_set.it_interval.tv_sec = sec;
+        timer_set.it_interval.tv_usec = msec * 1000;
+
+        timer_set.it_value.tv_sec = sec;
+        timer_set.it_value.tv_usec = timer_set.it_interval.tv_usec;
+
+        if (timer_set.it_value.tv_usec > 1e6)
+        {
+            timer_set.it_value.tv_usec = timer_set.it_value.tv_usec - 1e6;
+            timer_set.it_value.tv_sec += 1;
+        }
     }
 
     if (setitimer(ITIMER_REAL, &timer_set, NULL) < 0)
@@ -207,7 +220,7 @@ int swSystemTimer_event_handler(swReactor *reactor, swEvent *event)
     uint64_t exp;
     swTimer *timer = &SwooleG.timer;
 
-    if (read(timer->fd, &exp, sizeof(uint64_t)) < 0)
+    if (read(timer->fd, &exp, sizeof(uint64_t)) != sizeof(uint64_t))
     {
         return SW_ERR;
     }

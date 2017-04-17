@@ -84,6 +84,7 @@ int swReactorEpoll_create(swReactor *reactor, int max_event_num)
     if (reactor_object->events == NULL)
     {
         swWarn("malloc[1] failed.");
+        sw_free(reactor_object);
         return SW_ERR;
     }
     //epoll create
@@ -91,6 +92,7 @@ int swReactorEpoll_create(swReactor *reactor, int max_event_num)
     if (reactor_object->epfd < 0)
     {
         swWarn("epoll_create failed. Error: %s[%d]", strerror(errno), errno);
+        sw_free(reactor_object);
         return SW_ERR;
     }
     //binding method
@@ -127,11 +129,6 @@ static int swReactorEpoll_add(swReactor *reactor, int fd, int fdtype)
     fd_.fd = fd;
     fd_.fdtype = swReactor_fdtype(fdtype);
     e.events = swReactorEpoll_event_set(fdtype);
-
-    if (e.events & EPOLLOUT)
-    {
-        assert(fd > 2);
-    }
 
     memcpy(&(e.data.u64), &fd_, sizeof(fd_));
     ret = epoll_ctl(object->epfd, EPOLL_CTL_ADD, fd, &e);
@@ -283,6 +280,11 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
             if ((events[i].events & (EPOLLERR | EPOLLHUP)) && !event.socket->removed)
 #endif
             {
+                //ignore ERR and HUP, because event is already processed at IN and OUT handler.
+                if ((events[i].events & EPOLLIN) || (events[i].events & EPOLLOUT))
+                {
+                    continue;
+                }
                 handle = swReactor_getHandle(reactor, SW_EVENT_ERROR, event.type);
                 ret = handle(reactor, &event);
                 if (ret < 0)

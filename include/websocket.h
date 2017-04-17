@@ -22,11 +22,12 @@ extern "C"
 {
 #endif
 
-#include "Http.h"
+#include "http.h"
 
 #define SW_WEBSOCKET_GUID "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 #define SW_WEBSOCKET_HEADER_LEN  2
 #define SW_WEBSOCKET_MASK_LEN    4
+#define SW_WEBSOCKET_MASK_DATA   "258E"
 #define SW_WEBSOCKET_EXT16_LENGTH 0x7E
 #define SW_WEBSOCKET_EXT16_MAX_LEN 0xFFFF
 #define SW_WEBSOCKET_EXT64_LENGTH 0x7F
@@ -92,7 +93,8 @@ enum swWebsocketCode
 int swWebSocket_get_package_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 void swWebSocket_encode(swString *buffer, char *data, size_t length, char opcode, int finish, int mask);
 void swWebSocket_decode(swWebSocket_frame *frame, swString *data);
-void swWebSocket_print_frame(swWebSocket_frame *frm);
+void swWebSocket_print_frame(swWebSocket_frame *frame);
+int swWebSocket_dispatch_frame(swConnection *conn, char *data, uint32_t length);
 
 #ifdef __cplusplus
 }

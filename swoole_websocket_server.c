@@ -16,6 +16,9 @@
 
 #include "php_swoole.h"
 #include "swoole_http.h"
+#ifdef SW_COROUTINE
+#include "swoole_coroutine.h"
+#endif
 
 #include <ext/standard/url.h>
 #include <ext/standard/sha1.h>
@@ -29,21 +32,13 @@
 #include "base64.h"
 #include "thirdparty/php_http_parser.h"
 
-zend_class_entry swoole_websocket_server_ce;
-zend_class_entry *swoole_websocket_server_class_entry_ptr;
+static zend_class_entry swoole_websocket_server_ce;
+static zend_class_entry *swoole_websocket_server_class_entry_ptr;
 
-zend_class_entry swoole_websocket_frame_ce;
-zend_class_entry *swoole_websocket_frame_class_entry_ptr;
+static zend_class_entry swoole_websocket_frame_ce;
+static zend_class_entry *swoole_websocket_frame_class_entry_ptr;
 
-enum websocket_callback
-{
-    WEBSOCKET_CALLBACK_onOpen = 0,
-    WEBSOCKET_CALLBACK_onMessage,
-};
-
-static int websocket_handshake(swoole_http_client *client);
-static void sha1(const char *str, int _len, unsigned char *digest);
-static zval* websocket_callbacks[2];
+static int websocket_handshake(swListenPort *, http_context *);
 
 static PHP_METHOD(swoole_websocket_server, on);
 static PHP_METHOD(swoole_websocket_server, push);
@@ -88,47 +83,60 @@ const zend_function_entry swoole_websocket_server_methods[] =
     PHP_FE_END
 };
 
-int swoole_websocket_isset_onMessage(void)
-{
-    return (websocket_callbacks[WEBSOCKET_CALLBACK_onMessage] != NULL);
-}
-
-void swoole_websocket_onOpen(swoole_http_client *client)
+void swoole_websocket_onOpen(http_context *ctx)
 {
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
-    int fd = client->fd;
+    int fd = ctx->fd;
 
     swConnection *conn = swWorker_get_connection(SwooleG.serv, fd);
     if (!conn)
     {
-        swWarn("connection[%d] is closed.", fd);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "session[%d] is closed.", fd);
         return;
     }
     conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
 
-    if (websocket_callbacks[WEBSOCKET_CALLBACK_onOpen])
+#ifndef SW_COROUTINE
+    zval *zcallback = php_swoole_server_get_callback(SwooleG.serv, conn->from_fd, SW_SERVER_CB_onOpen);
+    if (zcallback)
+#else
+    zend_fcall_info_cache *cache = php_swoole_server_get_cache(SwooleG.serv, conn->from_fd, SW_SERVER_CB_onOpen);
+    if (cache)
+#endif
     {
-        zval **args[2];
         swServer *serv = SwooleG.serv;
         zval *zserv = (zval *) serv->ptr2;
-        zval *zrequest_object = client->request.zrequest_object;
+        zval *zrequest_object = ctx->request.zobject;
         zval *retval = NULL;
 
-#ifdef __CYGWIN__
-        //TODO: memory error on cygwin.
-        sw_zval_add_ref(&zrequest_object);
-#endif
-
+#ifndef SW_COROUTINE
+        zval **args[2];
         args[0] = &zserv;
         args[1] = &zrequest_object;
-
-        if (sw_call_user_function_ex(EG(function_table), NULL, websocket_callbacks[WEBSOCKET_CALLBACK_onOpen], &retval, 2, args, 0,  NULL TSRMLS_CC) == FAILURE)
+#else
+        zval *args[2];
+        args[0] = zserv;
+        args[1] = zrequest_object;
+#endif
+#ifndef SW_COROUTINE
+        if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0,  NULL TSRMLS_CC) == FAILURE)
         {
-            php_error_docref(NULL TSRMLS_CC, E_WARNING, "onOpen handler error");
+            swoole_php_error(E_WARNING, "onOpen handler error");
         }
+#else
+        int ret = coro_create(cache, args, 2, &retval, NULL, NULL);
+        if (ret != 0)
+        {
+            if (ret == CORO_LIMIT)
+            {
+                SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
+            }
+            return;
+        }
+#endif
         if (EG(exception))
         {
             zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
@@ -143,8 +151,9 @@ void swoole_websocket_onOpen(swoole_http_client *client)
 /**
  * default onRequest callback
  */
-void swoole_websocket_onReuqest(swoole_http_client *client)
+void swoole_websocket_onRequest(http_context *ctx)
 {
+    SWOOLE_GET_TSRMLS;
     char *content = "<html><body><h2>HTTP ERROR 400</h2><hr><i>Powered by "SW_HTTP_SERVER_SOFTWARE" ("PHP_SWOOLE_VERSION")</i></body></html>";
     char *bad_request = "HTTP/1.1 400 Bad Request\r\n"\
             "Content-Type: text/html; charset=UTF-8\r\n"\
@@ -155,11 +164,13 @@ void swoole_websocket_onReuqest(swoole_http_client *client)
     char buf[512];
 
     int n = sprintf(buf, bad_request, strlen(content), content);
-    swServer_tcp_send(SwooleG.serv, client->fd, buf, n);
-    SwooleG.serv->factory.end(&SwooleG.serv->factory, client->fd);
+    swServer_tcp_send(SwooleG.serv, ctx->fd, buf, n);
+    ctx->end = 1;
+    SwooleG.serv->factory.end(&SwooleG.serv->factory, ctx->fd);
+    swoole_http_context_free(ctx TSRMLS_CC);
 }
 
-static void sha1(const char *str, int _len, unsigned char *digest)
+void php_swoole_sha1(const char *str, int _len, unsigned char *digest)
 {
     PHP_SHA1_CTX context;
     PHP_SHA1Init(&context);
@@ -167,13 +178,13 @@ static void sha1(const char *str, int _len, unsigned char *digest)
     PHP_SHA1Final(digest, &context);
 }
 
-static int websocket_handshake(swoole_http_client *client)
+static int websocket_handshake(swListenPort *port, http_context *ctx)
 {
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
-    zval *header = client->request.zheader;
+    zval *header = ctx->request.zheader;
     HashTable *ht = Z_ARRVAL_P(header);
     zval *pData;
 
@@ -194,7 +205,7 @@ static int websocket_handshake(swoole_http_client *client)
 
     char sha1_str[20];
     bzero(sha1_str, sizeof(sha1_str));
-    sha1(sec_websocket_accept, Z_STRLEN_P(pData) + sizeof(SW_WEBSOCKET_GUID) - 1, (unsigned char *) sha1_str);
+    php_swoole_sha1(sec_websocket_accept, Z_STRLEN_P(pData) + sizeof(SW_WEBSOCKET_GUID) - 1, (unsigned char *) sha1_str);
 
     char encoded_str[50];
     bzero(encoded_str, sizeof(encoded_str));
@@ -205,11 +216,17 @@ static int websocket_handshake(swoole_http_client *client)
 
     swString_append_ptr(swoole_http_buffer, _buf, n);
     swString_append_ptr(swoole_http_buffer, ZEND_STRL("Sec-WebSocket-Version: "SW_WEBSOCKET_VERSION"\r\n"));
+    if (port->websocket_subprotocol)
+    {
+        swString_append_ptr(swoole_http_buffer, ZEND_STRL("Sec-WebSocket-Protocol: "));
+        swString_append_ptr(swoole_http_buffer, port->websocket_subprotocol, port->websocket_subprotocol_length);
+        swString_append_ptr(swoole_http_buffer, ZEND_STRL("\r\n"));
+    }
     swString_append_ptr(swoole_http_buffer, ZEND_STRL("Server: "SW_WEBSOCKET_SERVER_SOFTWARE"\r\n\r\n"));
 
     swTrace("websocket header len:%ld\n%s \n", swoole_http_buffer->length, swoole_http_buffer->str);
 
-    return swServer_tcp_send(SwooleG.serv, client->fd, swoole_http_buffer->str, swoole_http_buffer->length);
+    return swServer_tcp_send(SwooleG.serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length);
 }
 
 int swoole_websocket_onMessage(swEventData *req)
@@ -219,13 +236,15 @@ int swoole_websocket_onMessage(swEventData *req)
 #endif
 
     int fd = req->info.fd;
+
     zval *zdata;
     SW_MAKE_STD_ZVAL(zdata);
-    zdata = php_swoole_get_recv_data(zdata, req TSRMLS_CC);
 
-    char *buf = Z_STRVAL_P(zdata);
-    long finish = buf[0] ? 1 : 0;
-    long opcode = buf[1] ? 1 : 0;
+    char frame_header[2];
+    php_swoole_get_recv_data(zdata, req, frame_header, 2);
+
+    long finish = frame_header[0] ? 1 : 0;
+    long opcode = frame_header[1];
 
     zval *zframe;
     SW_MAKE_STD_ZVAL(zframe);
@@ -234,60 +253,77 @@ int swoole_websocket_onMessage(swEventData *req)
     zend_update_property_long(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("fd"), fd TSRMLS_CC);
     zend_update_property_bool(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("finish"), finish TSRMLS_CC);
     zend_update_property_long(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("opcode"), opcode TSRMLS_CC);
-    zend_update_property_stringl(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("data"), buf + 2, (Z_STRLEN_P(zdata) - 2) TSRMLS_CC);
+    zend_update_property(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("data"), zdata TSRMLS_CC);
 
     swServer *serv = SwooleG.serv;
     zval *zserv = (zval *) serv->ptr2;
 
+#ifndef SW_COROUTINE
     zval **args[2];
     args[0] = &zserv;
     args[1] = &zframe;
+#else
+    zval *args[2];
+    args[0] = zserv;
+    args[1] = zframe;
+#endif
 
     zval *retval = NULL;
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, websocket_callbacks[WEBSOCKET_CALLBACK_onMessage], &retval, 2,
-            args, 0, NULL TSRMLS_CC) == FAILURE)
+#ifndef SW_COROUTINE
+    zval *zcallback = php_swoole_server_get_callback(serv, req->info.from_fd, SW_SERVER_CB_onMessage);
+    if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "onMessage handler error");
+        swoole_php_error(E_WARNING, "onMessage handler error");
     }
-
+#else
+    zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onMessage);
+    int ret = coro_create(cache, args, 2, &retval, NULL, NULL);
+    if (ret != 0)
+    {
+        sw_zval_ptr_dtor(&zdata);
+        sw_zval_ptr_dtor(&zframe);
+        if (ret == CORO_LIMIT)
+        {
+            SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
+        }
+        return SW_OK;
+    }
+#endif
     if (EG(exception))
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
-
     if (retval)
     {
         sw_zval_ptr_dtor(&retval);
     }
-
     sw_zval_ptr_dtor(&zdata);
     sw_zval_ptr_dtor(&zframe);
-
     return SW_OK;
 }
 
-int swoole_websocket_onHandshake(swoole_http_client *client)
+int swoole_websocket_onHandshake(swListenPort *port, http_context *ctx)
 {
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
-    int fd = client->fd;
-    int ret = websocket_handshake(client);
+    int fd = ctx->fd;
+    int ret = websocket_handshake(port, ctx);
     if (ret == SW_ERR)
     {
         SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
     }
     else
     {
-        swoole_websocket_onOpen(client);
+        swoole_websocket_onOpen(ctx);
     }
 
     //free client data
-    if (!client->end)
+    if (!ctx->end)
     {
-        swoole_http_request_free(client TSRMLS_CC);
+        swoole_http_context_free(ctx TSRMLS_CC);
     }
 
     return SW_OK;
@@ -297,12 +333,15 @@ void swoole_websocket_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_websocket_server_ce, "swoole_websocket_server", "Swoole\\WebSocket\\Server", swoole_websocket_server_methods);
     swoole_websocket_server_class_entry_ptr = sw_zend_register_internal_class_ex(&swoole_websocket_server_ce, swoole_http_server_class_entry_ptr, "swoole_http_server" TSRMLS_CC);
+    SWOOLE_CLASS_ALIAS(swoole_websocket_server, "Swoole\\WebSocket\\Server");
 
     SWOOLE_INIT_CLASS_ENTRY(swoole_websocket_frame_ce, "swoole_websocket_frame", "Swoole\\WebSocket\\Frame", NULL);
     swoole_websocket_frame_class_entry_ptr = zend_register_internal_class(&swoole_websocket_frame_ce TSRMLS_CC);
+    SWOOLE_CLASS_ALIAS(swoole_websocket_frame, "Swoole\\WebSocket\\Frame");
 
     REGISTER_LONG_CONSTANT("WEBSOCKET_OPCODE_TEXT", WEBSOCKET_OPCODE_TEXT_FRAME, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("WEBSOCKET_OPCODE_BINARY", WEBSOCKET_OPCODE_BINARY_FRAME, CONST_CS | CONST_PERSISTENT);
+    REGISTER_LONG_CONSTANT("WEBSOCKET_OPCODE_PING", WEBSOCKET_OPCODE_PING, CONST_CS | CONST_PERSISTENT);
 
     REGISTER_LONG_CONSTANT("WEBSOCKET_STATUS_CONNECTION", WEBSOCKET_STATUS_CONNECTION, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("WEBSOCKET_STATUS_HANDSHAKE", WEBSOCKET_STATUS_HANDSHAKE, CONST_CS | CONST_PERSISTENT);
@@ -316,7 +355,7 @@ zval* php_swoole_websocket_unpack(swString *data TSRMLS_DC)
     swWebSocket_decode(&frame, data);
 
     zval *zframe;
-    SW_MAKE_STD_ZVAL(zframe);
+    SW_ALLOC_INIT_ZVAL(zframe);
     object_init_ex(zframe, swoole_websocket_frame_class_entry_ptr);
 
     zend_update_property_bool(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("finish"), frame.header.FIN TSRMLS_CC);
@@ -326,7 +365,7 @@ zval* php_swoole_websocket_unpack(swString *data TSRMLS_DC)
     return zframe;
 }
 
-static PHP_METHOD( swoole_websocket_server, on)
+static PHP_METHOD(swoole_websocket_server, on)
 {
     zval *callback;
     zval *event_name;
@@ -344,32 +383,41 @@ static PHP_METHOD( swoole_websocket_server, on)
 
     swServer *serv = swoole_get_object(getThis());
 
+#ifdef PHP_SWOOLE_CHECK_CALLBACK
     char *func_name = NULL;
+#ifndef SW_COROUTINE
     if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
+#else
+    zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
+    if (!sw_zend_is_callable_ex(callback, NULL, 0, &func_name, NULL, func_cache, NULL TSRMLS_CC))
+#endif
     {
-        php_error_docref(NULL TSRMLS_CC, E_ERROR, "Function '%s' is not callable", func_name);
+        swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
         efree(func_name);
         RETURN_FALSE;
     }
     efree(func_name);
-
-#if PHP_MAJOR_VERSION >= 7
-    zval *callback_copy = emalloc(sizeof(zval));
-    memcpy(callback_copy, callback, sizeof(zval));
-    callback = callback_copy;
 #endif
 
     serv->listen_list->open_websocket_protocol = 1;
 
     if (strncasecmp("open", Z_STRVAL_P(event_name), Z_STRLEN_P(event_name)) == 0)
     {
-        sw_zval_add_ref(&callback);
-        websocket_callbacks[0] = callback;
+        zend_update_property(swoole_websocket_server_class_entry_ptr, getThis(), ZEND_STRL("onOpen"), callback TSRMLS_CC);
+        php_sw_server_callbacks[SW_SERVER_CB_onOpen] = sw_zend_read_property(swoole_websocket_server_class_entry_ptr, getThis(), ZEND_STRL("onOpen"), 0 TSRMLS_CC);
+        sw_copy_to_stack(php_sw_server_callbacks[SW_SERVER_CB_onOpen], _php_sw_server_callbacks[SW_SERVER_CB_onOpen]);
+#ifdef SW_COROUTINE
+        php_sw_server_caches[SW_SERVER_CB_onOpen] = func_cache;
+#endif
     }
     else if (strncasecmp("message", Z_STRVAL_P(event_name), Z_STRLEN_P(event_name)) == 0)
     {
-        sw_zval_add_ref(&callback);
-        websocket_callbacks[1] = callback;
+        zend_update_property(swoole_websocket_server_class_entry_ptr, getThis(), ZEND_STRL("onMessage"), callback TSRMLS_CC);
+        php_sw_server_callbacks[SW_SERVER_CB_onMessage] = sw_zend_read_property(swoole_websocket_server_class_entry_ptr, getThis(), ZEND_STRL("onMessage"), 0 TSRMLS_CC);
+        sw_copy_to_stack(php_sw_server_callbacks[SW_SERVER_CB_onMessage], _php_sw_server_callbacks[SW_SERVER_CB_onMessage]);
+#ifdef SW_COROUTINE
+        php_sw_server_caches[SW_SERVER_CB_onMessage] = func_cache;
+#endif
     }
     else
     {
@@ -476,7 +524,7 @@ static PHP_METHOD(swoole_websocket_server, unpack)
     }
 
     zval *zframe = php_swoole_websocket_unpack(&buffer TSRMLS_CC);
-    RETURN_ZVAL(zframe, 1, 0);
+    RETURN_ZVAL(zframe, 1, 1);
 }
 
 static PHP_METHOD(swoole_websocket_server, exist)
@@ -505,6 +553,16 @@ static PHP_METHOD(swoole_websocket_server, exist)
     if (conn->active == 0 || conn->closed)
     {
         RETURN_FALSE;
+    }
+    swConnection *server_sock = swServer_connection_get(serv, conn->from_fd);
+    if (server_sock)
+    {
+        swListenPort *port = server_sock->object;
+        //not websocket port
+        if (port && !port->open_websocket_protocol)
+        {
+            RETURN_TRUE;
+        }
     }
     //have not handshake
     if (conn->websocket_status < WEBSOCKET_STATUS_ACTIVE)

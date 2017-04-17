@@ -18,7 +18,6 @@
 
 #include "swoole.h"
 #include "Server.h"
-#include "Connection.h"
 
 #include <sys/stat.h>
 
@@ -57,7 +56,7 @@ int swConnection_onSendfile(swConnection *conn, swBuffer_trunk *chunk)
     }
 #endif
 
-    int sendn = (task->filesize - task->offset > SW_SENDFILE_TRUNK) ? SW_SENDFILE_TRUNK : task->filesize - task->offset;
+    int sendn = (task->filesize - task->offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : task->filesize - task->offset;
     ret = swoole_sendfile(conn->fd, task->fd, &task->offset, sendn);
     swTrace("ret=%d|task->offset=%ld|sendn=%d|filesize=%ld", ret, task->offset, sendn, task->filesize);
 
@@ -66,7 +65,7 @@ int swConnection_onSendfile(swConnection *conn, swBuffer_trunk *chunk)
         switch (swConnection_error(errno))
         {
         case SW_ERROR:
-            swSysError("sendfile() failed.");
+            swSysError("sendfile(%s, %ld, %d) failed.", task->filename, task->offset, sendn);
             swBuffer_pop_trunk(conn->out_buffer, chunk);
             return SW_OK;
         case SW_CLOSE:
@@ -136,6 +135,7 @@ int swConnection_buffer_send(swConnection *conn)
             swWarn("send to fd[%d] failed. Error: %s[%d]", conn->fd, strerror(errno), errno);
             break;
         case SW_CLOSE:
+            conn->close_errno = errno;
             conn->close_wait = 1;
             return SW_ERR;
         case SW_WAIT:
@@ -212,11 +212,11 @@ void swConnection_sendfile_destructor(swBuffer_trunk *chunk)
 {
     swTask_sendfile *task = chunk->store.ptr;
     close(task->fd);
-    sw_free(task->filename);
+    sw_strdup_free(task->filename);
     sw_free(task);
 }
 
-int swConnection_sendfile(swConnection *conn, char *filename)
+int swConnection_sendfile(swConnection *conn, char *filename, off_t offset)
 {
     if (conn->out_buffer == NULL)
     {
@@ -240,12 +240,13 @@ int swConnection_sendfile(swConnection *conn, char *filename)
     int file_fd = open(filename, O_RDONLY);
     if (file_fd < 0)
     {
-        free(task->filename);
+        sw_strdup_free(task->filename);
         free(task);
-        swSysError("open(%s) failed.", task->filename);
+        swSysError("open(%s) failed.", filename);
         return SW_ERR;
     }
     task->fd = file_fd;
+    task->offset = offset;
 
     struct stat file_stat;
     if (fstat(file_fd, &file_stat) < 0)

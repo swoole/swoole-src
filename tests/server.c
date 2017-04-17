@@ -2,7 +2,7 @@
 #include "swoole.h"
 #include "Server.h"
 
-int my_onReceive(swFactory *factory, swEventData *req);
+int my_onReceive(swServer *serv, swEventData *req);
 void my_onStart(swServer *serv);
 void my_onShutdown(swServer *serv);
 void my_onConnect(swServer *serv, swDataHead *info);
@@ -79,8 +79,9 @@ swUnitTest(server_test)
 
 static int receive_count = 0;
 
-int my_onReceive(swFactory *factory, swEventData *req)
+int my_onReceive(swServer *serv, swEventData *req)
 {
+	swFactory *factory = &serv->factory;
 	int ret;
 	char resp_data[SW_BUFFER_SIZE];
 	swSendData resp;

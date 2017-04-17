@@ -21,7 +21,6 @@
 #include <grp.h>
 
 static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event);
-static void swWorker_signal_init(void);
 
 int swWorker_create(swWorker *worker)
 {
@@ -47,17 +46,21 @@ void swWorker_free(swWorker *worker)
     }
 }
 
-static void swWorker_signal_init(void)
+void swWorker_signal_init(void)
 {
+    swSignal_clear();
     swSignal_add(SIGHUP, NULL);
     swSignal_add(SIGPIPE, NULL);
-    swSignal_add(SIGUSR1, NULL);
+    swSignal_add(SIGUSR1, swWorker_signal_handler);
     swSignal_add(SIGUSR2, NULL);
     //swSignal_add(SIGINT, swWorker_signal_handler);
     swSignal_add(SIGTERM, swWorker_signal_handler);
     swSignal_add(SIGALRM, swSystemTimer_signal_handler);
     //for test
     swSignal_add(SIGVTALRM, swWorker_signal_handler);
+#ifdef SIGRTMIN
+    swSignal_set(SIGRTMIN, swWorker_signal_handler, 1, 0);
+#endif
 }
 
 void swWorker_signal_handler(int signo)
@@ -84,9 +87,46 @@ void swWorker_signal_handler(int signo)
         swWarn("SIGVTALRM coming");
         break;
     case SIGUSR1:
+        if (SwooleG.main_reactor)
+        {
+            swWorker *worker = SwooleWG.worker;
+            swWarn(" the worker %d get the signo", worker->pid);
+            SwooleWG.reload = 1;
+            SwooleWG.reload_count = 0;
+
+            //删掉read管道
+            swConnection *socket = swReactor_get(SwooleG.main_reactor, worker->pipe_worker);
+            if (socket->events & SW_EVENT_WRITE)
+            {
+                socket->events &= (~SW_EVENT_READ);
+                if (SwooleG.main_reactor->set(SwooleG.main_reactor, worker->pipe_worker, socket->fdtype | socket->events) < 0)
+                {
+                    swSysError("reactor->set(%d, SW_EVENT_READ) failed.", worker->pipe_worker);
+                }
+            }
+            else
+            {
+                if (SwooleG.main_reactor->del(SwooleG.main_reactor, worker->pipe_worker) < 0)
+                {
+                    swSysError("reactor->del(%d) failed.", worker->pipe_worker);
+                }
+            }
+        }
+        else
+        {
+            SwooleG.running = 0;
+        }
+        break;
+
     case SIGUSR2:
         break;
     default:
+#ifdef SIGRTMIN
+        if (signo == SIGRTMIN)
+        {
+            swServer_reopen_log_file(SwooleG.serv);
+        }
+#endif
         break;
     }
 }
@@ -123,12 +163,12 @@ static sw_inline int swWorker_discard_data(swServer *serv, swEventData *task)
         memcpy(&package, task->data, sizeof(package));
         swReactorThread *thread = swServer_get_thread(SwooleG.serv, task->info.from_id);
         thread->buffer_input->free(thread->buffer_input, package.data);
-        swWarn("[1]received the wrong data[%d bytes] from socket#%d", package.length, fd);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_DISCARD_TIMEOUT_DATA, "[1]received the wrong data[%d bytes] from socket#%d", package.length, fd);
     }
     else
 #endif
     {
-        swWarn("[1]received the wrong data[%d bytes] from socket#%d", task->info.len, fd);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_DISCARD_TIMEOUT_DATA, "[1]received the wrong data[%d bytes] from socket#%d", task->info.len, fd);
     }
     return SW_TRUE;
 }
@@ -214,8 +254,8 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
 
     case SW_EVENT_CLOSE:
 #ifdef SW_USE_OPENSSL
-        conn = swServer_connection_verify(serv, task->info.fd);
-        if (conn && conn->ssl_client_cert.length)
+        conn = swServer_connection_verify_no_ssl(serv, task->info.fd);
+        if (conn && conn->ssl_client_cert.length > 0)
         {
             free(conn->ssl_client_cert.str);
             bzero(&conn->ssl_client_cert, sizeof(conn->ssl_client_cert.str));
@@ -229,7 +269,7 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         //SSL client certificate
         if (task->info.len > 0)
         {
-            conn = swServer_connection_verify(serv, task->info.fd);
+            conn = swServer_connection_verify_no_ssl(serv, task->info.fd);
             conn->ssl_client_cert.str = strndup(task->data, task->info.len);
             conn->ssl_client_cert.size = conn->ssl_client_cert.length = task->info.len;
         }
@@ -237,6 +277,20 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         if (serv->onConnect)
         {
             serv->onConnect(serv, &task->info);
+        }
+        break;
+
+    case SW_EVENT_BUFFER_FULL:
+        if (serv->onBufferFull)
+        {
+            serv->onBufferFull(serv, &task->info);
+        }
+        break;
+
+    case SW_EVENT_BUFFER_EMPTY:
+        if (serv->onBufferEmpty)
+        {
+            serv->onBufferEmpty(serv, &task->info);
         }
         break;
 
@@ -399,6 +453,12 @@ int swWorker_loop(swFactory *factory, int worker_id)
 
 #ifndef SW_WORKER_USE_SIGNALFD
     SwooleG.use_signalfd = 0;
+#elif defined(HAVE_SIGNALFD)
+    SwooleG.use_signalfd = 1;
+#endif
+    //timerfd
+#ifdef HAVE_TIMERFD
+    SwooleG.use_timerfd = 1;
 #endif
 
     //worker_id
@@ -406,8 +466,6 @@ int swWorker_loop(swFactory *factory, int worker_id)
     SwooleWG.request_count = 0;
     SwooleG.pid = getpid();
 
-    //signal init
-    swWorker_signal_init();
     swWorker *worker = swServer_get_worker(serv, worker_id);
     swServer_worker_init(serv, worker);
 
@@ -424,15 +482,29 @@ int swWorker_loop(swFactory *factory, int worker_id)
         return SW_ERR;
     }
     
-    serv->workers[worker_id].status = SW_WORKER_IDLE;
+    worker->status = SW_WORKER_IDLE;
 
-    int pipe_worker = serv->workers[worker_id].pipe_worker;
+    int pipe_worker = worker->pipe_worker;
 
     swSetNonBlock(pipe_worker);
     SwooleG.main_reactor->ptr = serv;
     SwooleG.main_reactor->add(SwooleG.main_reactor, pipe_worker, SW_FD_PIPE | SW_EVENT_READ);
     SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_PIPE, swWorker_onPipeReceive);
     SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_PIPE | SW_FD_WRITE, swReactor_onWrite);
+
+    /**
+     * set pipe buffer size
+     */
+    int i;
+    swConnection *pipe_socket;
+    for (i = 0; i < serv->worker_num + SwooleG.task_worker_num; i++)
+    {
+        worker = swServer_get_worker(serv, i);
+        pipe_socket = swReactor_get(SwooleG.main_reactor, worker->pipe_master);
+        pipe_socket->buffer_size = serv->pipe_buffer_size;
+        pipe_socket = swReactor_get(SwooleG.main_reactor, worker->pipe_worker);
+        pipe_socket->buffer_size = serv->pipe_buffer_size;
+    }
 
     swWorker_onStart(serv);
 
@@ -454,30 +526,19 @@ int swWorker_loop(swFactory *factory, int worker_id)
 /**
  * Send data to ReactorThread
  */
-int swWorker_send2reactor(swEventData *ev_data, size_t sendn, int fd)
+int swWorker_send2reactor(swEventData *ev_data, size_t sendn, int session_id)
 {
     int ret;
     swServer *serv = SwooleG.serv;
-
-    /**
-     * reactor_id: The fd in which the reactor.
-     */
-    int reactor_id = ev_data->info.from_id;
-    int pipe_index = fd % serv->reactor_pipe_num;
-
-    /**
-     * pipe_worker_id: The pipe in which worker.
-     */
-    int pipe_worker_id = reactor_id + (pipe_index * serv->reactor_num);
-    swWorker *worker = swServer_get_worker(serv, pipe_worker_id);
+    int _pipe_fd = swWorker_get_send_pipe(serv, session_id, ev_data->info.from_id);
 
     if (SwooleG.main_reactor)
     {
-        ret = SwooleG.main_reactor->write(SwooleG.main_reactor, worker->pipe_worker, ev_data, sendn);
+        ret = SwooleG.main_reactor->write(SwooleG.main_reactor, _pipe_fd, ev_data, sendn);
     }
     else
     {
-        ret = swSocket_write_blocking(worker->pipe_worker, ev_data, sendn);
+        ret = swSocket_write_blocking(_pipe_fd, ev_data, sendn);
     }
     return ret;
 }
@@ -494,7 +555,7 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
 
     read_from_pipe:
 
-    if (read(event->fd, &task, sizeof(task)) > 0)
+    if (read(event->fd, &task, sizeof(task)) == sizeof(task))
     {
         ret = swWorker_onTask(factory, &task);
 #ifndef SW_WORKER_RECV_AGAIN

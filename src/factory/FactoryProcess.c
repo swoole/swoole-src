@@ -115,20 +115,19 @@ static int swFactoryProcess_notify(swFactory *factory, swDataHead *ev)
  */
 static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
 {
-    uint32_t schedule_key;
     uint32_t send_len = sizeof(task->data.info) + task->data.info.len;
-    uint16_t target_worker_id;
+    int target_worker_id;
     swServer *serv = SwooleG.serv;
+    int fd = task->data.info.fd;
 
     if (task->target_worker_id < 0)
     {
-        schedule_key = task->data.info.fd;
 #ifndef SW_USE_RINGBUFFER
         if (SwooleTG.factory_lock_target)
         {
             if (SwooleTG.factory_target_worker < 0)
             {
-                target_worker_id = swServer_worker_schedule(serv, schedule_key);
+                target_worker_id = swServer_worker_schedule(serv, fd, &task->data);
                 SwooleTG.factory_target_worker = target_worker_id;
             }
             else
@@ -139,29 +138,33 @@ static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
         else
 #endif
         {
-            target_worker_id = swServer_worker_schedule(serv, schedule_key);
+            target_worker_id = swServer_worker_schedule(serv, fd, &task->data);
         }
     }
     else
     {
         target_worker_id = task->target_worker_id;
     }
+    //discard the data packet.
+    if (target_worker_id < 0)
+    {
+        return SW_OK;
+    }
 
     if (swEventData_is_stream(task->data.info.type))
     {
-        swConnection *conn = swServer_connection_get(serv, task->data.info.fd);
+        swConnection *conn = swServer_connection_get(serv, fd);
         if (conn == NULL || conn->active == 0)
         {
-            swWarn("dispatch[type=%d] failed, connection#%d is not active.", task->data.info.type, task->data.info.fd);
+            swWarn("dispatch[type=%d] failed, connection#%d is not active.", task->data.info.type, fd);
             return SW_ERR;
         }
         //server active close, discard data.
         if (conn->closed)
         {
+            //Connection has been clsoed by server
             if (!(task->data.info.type == SW_EVENT_CLOSE && conn->close_force))
             {
-                swWarn("dispatch[type=%d] failed, connection#%d[session_id=%d] is closed by server.",
-                        task->data.info.type, task->data.info.fd, conn->session_id);
                 return SW_OK;
             }
         }
@@ -180,28 +183,36 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 {
     int ret, sendn;
     swServer *serv = factory->ptr;
-    int fd = resp->info.fd;
+    int session_id = resp->info.fd;
 
-    swConnection *conn = swServer_connection_verify(serv, fd);
+    swConnection *conn;
+    if (resp->info.type != SW_EVENT_CLOSE)
+    {
+        conn = swServer_connection_verify(serv, session_id);
+    }
+    else
+    {
+        conn = swServer_connection_verify_no_ssl(serv, session_id);
+    }
     if (!conn)
     {
-        swWarn("session#%d does not exist.", fd);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "connection[fd=%d] does not exists.", session_id);
         return SW_ERR;
     }
     else if ((conn->closed || conn->removed) && resp->info.type != SW_EVENT_CLOSE)
     {
         int _len = resp->length > 0 ? resp->length : resp->info.len;
-        swWarn("send %d byte failed, because session#%d is closed.", _len, fd);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "send %d byte failed, because connection[fd=%d] is closed.", _len, session_id);
         return SW_ERR;
     }
     else if (conn->overflow)
     {
-        swWarn("send failed, session#%d output buffer has been overflowed.", fd);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "send failed, connection[fd=%d] output buffer has been overflowed.", session_id);
         return SW_ERR;
     }
 
     swEventData ev_data;
-    ev_data.info.fd = fd;
+    ev_data.info.fd = session_id;
     ev_data.info.type = resp->info.type;
     swWorker *worker = swServer_get_worker(serv, SwooleWG.id);
 
@@ -210,25 +221,40 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
      */
     if (resp->length > 0)
     {
-        if (worker->send_shm == NULL)
+        if (worker == NULL || worker->send_shm == NULL)
         {
-            swWarn("send failed, data is too big.");
-            return SW_ERR;
+            goto pack_data;
+        }
+
+        //worker process
+        if (SwooleG.main_reactor)
+        {
+            int _pipe_fd = swWorker_get_send_pipe(serv, session_id, conn->from_id);
+            swConnection *_pipe_socket = swReactor_get(SwooleG.main_reactor, _pipe_fd);
+
+            //cannot use send_shm
+            if (!swBuffer_empty(_pipe_socket->out_buffer))
+            {
+                pack_data:
+                if (swTaskWorker_large_pack(&ev_data, resp->data, resp->length) < 0)
+                {
+                    return SW_ERR;
+                }
+                ev_data.info.from_fd = SW_RESPONSE_TMPFILE;
+                goto send_to_reactor_thread;
+            }
         }
 
         swPackage_response response;
-
-        worker->lock.lock(&worker->lock);
-
         response.length = resp->length;
         response.worker_id = SwooleWG.id;
-
-        //swWarn("BigPackage, length=%d|worker_id=%d", response.length, response.worker_id);
-
-        ev_data.info.from_fd = SW_RESPONSE_BIG;
+        ev_data.info.from_fd = SW_RESPONSE_SHM;
         ev_data.info.len = sizeof(response);
-
         memcpy(ev_data.data, &response, sizeof(response));
+
+        swTrace("[Worker] big response, length=%d|worker_id=%d", response.length, response.worker_id);
+
+        worker->lock.lock(&worker->lock);
         memcpy(worker->send_shm, resp->data, resp->length);
     }
     else
@@ -240,11 +266,11 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
         ev_data.info.from_fd = SW_RESPONSE_SMALL;
     }
 
-    ev_data.info.from_id = conn->from_id;
-
+    send_to_reactor_thread: ev_data.info.from_id = conn->from_id;
     sendn = ev_data.info.len + sizeof(resp->info);
+
     swTrace("[Worker] send: sendn=%d|type=%d|content=%s", sendn, resp->info.type, resp->data);
-    ret = swWorker_send2reactor(&ev_data, sendn, fd);
+    ret = swWorker_send2reactor(&ev_data, sendn, session_id);
     if (ret < 0)
     {
         swWarn("sendto to reactor failed. Error: %s [%d]", strerror(errno), errno);
@@ -266,7 +292,7 @@ static int swFactoryProcess_end(swFactory *factory, int fd)
     swConnection *conn = swWorker_get_connection(serv, fd);
     if (conn == NULL || conn->active == 0)
     {
-        //swWarn("can not close. Connection[%d] not found.", _send.info.fd);
+        SwooleG.error = SW_ERROR_SESSION_NOT_EXIST;
         return SW_ERR;
     }
     else if (conn->close_force)
@@ -275,7 +301,7 @@ static int swFactoryProcess_end(swFactory *factory, int fd)
     }
     else if (conn->closing)
     {
-        swRuntimeError(SW_ERROR_SERVER_WORKER_CLOSING, "The connection[%d] is closing.", fd);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSING, "The connection[%d] is closing.", fd);
         return SW_ERR;
     }
     else if (conn->closed)
@@ -289,12 +315,20 @@ static int swFactoryProcess_end(swFactory *factory, int fd)
         if (serv->onClose != NULL)
         {
             info.fd = fd;
-            info.from_id =  conn->from_id;
-            info.from_fd =  conn->from_fd;
+            if (conn->close_actively)
+            {
+                info.from_id = -1;
+            }
+            else
+            {
+                info.from_id = conn->from_id;
+            }
+            info.from_fd = conn->from_fd;
             serv->onClose(serv, &info);
         }
         conn->closing = 0;
         conn->closed = 1;
+        conn->close_errno = 0;
         return factory->finish(factory, &_send);
     }
 }

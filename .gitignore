@@ -7,6 +7,7 @@
 *~
 *.so
 *.loT
+*.pid
 Debug/*
 modules/*
 /.deps
@@ -55,5 +56,13 @@ modules/*
 /examples/ssl/ca.crt
 /examples/ssl/client.key
 /examples/ssl/client.pfx
+/examples/ssl/client
 /examples/ssl/corpssl.crt
 /examples/ssl/corpssl.key
+/examples/ext
+/examples/cpp_module/.cproject
+/examples/cpp_module/.project
+/benchmark/.idea/
+examples/c_module/.cproject
+examples/c_module/.project
+/tools/.idea/

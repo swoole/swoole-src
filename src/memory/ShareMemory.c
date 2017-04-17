@@ -63,7 +63,7 @@ void sw_shm_free(void *ptr)
     swShareMemory *object = ptr - sizeof(swShareMemory);
 #ifdef SW_DEBUG
     char check = *(char *)(ptr + object->size); //尝试访问
-    swTrace("check:%c\n", check);
+    swTrace("check: %c", check);
 #endif
     swShareMemory_mmap_free(object);
 }
@@ -73,7 +73,7 @@ void* sw_shm_realloc(void *ptr, size_t new_size)
     swShareMemory *object = ptr - sizeof(swShareMemory);
 #ifdef SW_DEBUG
     char check = *(char *)(ptr + object->size); //尝试访问
-    swTrace("check:%c\n", check);
+    swTrace("check: %c", check);
 #endif
     void *new_ptr;
     new_ptr = sw_shm_malloc(new_size);
@@ -99,16 +99,23 @@ void *swShareMemory_mmap_create(swShareMemory *object, int size, char *mapfile)
 #ifdef MAP_ANONYMOUS
     flag |= MAP_ANONYMOUS;
 #else
-    if(mapfile == NULL)
+    if (mapfile == NULL)
     {
         mapfile = "/dev/zero";
     }
-    if((tmpfd = open(mapfile, O_RDWR)) < 0)
+    if ((tmpfd = open(mapfile, O_RDWR)) < 0)
     {
         return NULL;
     }
     strncpy(object->mapfile, mapfile, SW_SHM_MMAP_FILE_LEN);
     object->tmpfd = tmpfd;
+#endif
+
+#if defined(SW_USE_HUGEPAGE) && defined(MAP_HUGETLB)
+    if (size > 2 * 1024 * 1024)
+    {
+        flag |= MAP_HUGETLB;
+    }
 #endif
 
     mem = mmap(NULL, size, PROT_READ | PROT_WRITE, flag, tmpfd, 0);
@@ -150,7 +157,7 @@ void *swShareMemory_sysv_create(swShareMemory *object, int size, int key)
         swWarn("shmget() failed. Error: %s[%d]", strerror(errno), errno);
         return NULL;
     }
-    if ((mem = shmat(shmid, NULL, 0)) < 0)
+    if ((mem = shmat(shmid, NULL, 0)) == (void *) -1)
     {
         swWarn("shmat() failed. Error: %s[%d]", strerror(errno), errno);
         return NULL;

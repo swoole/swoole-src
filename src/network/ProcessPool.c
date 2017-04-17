@@ -23,17 +23,22 @@ static void swProcessPool_free(swProcessPool *pool);
 /**
  * Process manager
  */
-int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, key_t msgqueue_key, int create_pipe)
+int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, key_t msgqueue_key, int ipc_type)
 {
     bzero(pool, sizeof(swProcessPool));
 
     pool->worker_num = worker_num;
     pool->max_request = max_request;
 
-    if (msgqueue_key > 0)
+    if (ipc_type == SW_IPC_MSGQUEUE)
     {
         pool->use_msgqueue = 1;
         pool->msgqueue_key = msgqueue_key;
+    }
+    else
+    {
+        pool->use_msgqueue = 0;
+        pool->msgqueue_key = 0;
     }
     
     pool->workers = SwooleG.memory_pool->alloc(SwooleG.memory_pool, worker_num * sizeof(swWorker));
@@ -64,7 +69,7 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
             return SW_ERR;
         }
     }
-    else if (create_pipe)
+    else
     {
         pool->pipes = sw_calloc(worker_num, sizeof(swPipe));
         if (pool->pipes == NULL)
@@ -186,6 +191,10 @@ int swProcessPool_dispatch_blocking(swProcessPool *pool, swEventData *data, int 
     {
         swWarn("send %d bytes to worker#%d failed.", sendn, *dst_worker_id);
     }
+    else
+    {
+        sw_atomic_fetch_add(&worker->tasking_num, 1);
+    }
 
     return ret;
 }
@@ -196,6 +205,8 @@ void swProcessPool_shutdown(swProcessPool *pool)
     swWorker *worker;
     SwooleG.running = 0;
 
+	swSignal_none();
+    //concurrent kill
     for (i = 0; i < pool->run_worker_num; i++)
     {
         worker = &pool->workers[i];
@@ -204,6 +215,10 @@ void swProcessPool_shutdown(swProcessPool *pool)
             swSysError("kill(%d) failed.", worker->pid);
             continue;
         }
+    }
+    for (i = 0; i < pool->run_worker_num; i++)
+    {
+        worker = &pool->workers[i];
         if (swWaitpid(worker->pid, &status, 0) < 0)
         {
             swSysError("waitpid(%d) failed.", worker->pid);
@@ -324,6 +339,7 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
         {
             if (errno == EINTR && SwooleG.signal_alarm)
             {
+                alarm_handler: SwooleG.signal_alarm = 0;
                 swTimer_select(&SwooleG.timer);
             }
             continue;
@@ -335,6 +351,14 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
         SwooleWG.worker->status = SW_WORKER_BUSY;
         ret = pool->onTask(pool, &out.buf);
         SwooleWG.worker->status = SW_WORKER_IDLE;
+
+        /**
+         * timer
+         */
+        if (SwooleG.signal_alarm)
+        {
+            goto alarm_handler;
+        }
 
         if (ret >= 0 && !worker_task_always)
         {
@@ -413,6 +437,7 @@ int swProcessPool_wait(swProcessPool *pool)
             if (new_pid < 0)
             {
                 swWarn("Fork worker process failed. Error: %s [%d]", strerror(errno), errno);
+                sw_free(reload_workers);
                 return SW_ERR;
             }
             swHashMap_del_int(pool->map, pid);
@@ -437,6 +462,7 @@ int swProcessPool_wait(swProcessPool *pool)
             reload_worker_i++;
         }
     }
+    sw_free(reload_workers);
     return SW_OK;
 }
 
@@ -454,6 +480,12 @@ static void swProcessPool_free(swProcessPool *pool)
         }
         sw_free(pool->pipes);
     }
+    else if (pool->msgqueue_key == 0)
+    {
+        pool->queue->remove = 1;
+        swMsgQueue_free(pool->queue);
+    }
+
     if (pool->map)
     {
         swHashMap_free(pool->map);

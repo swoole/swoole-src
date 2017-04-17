@@ -19,12 +19,32 @@
 static int swReactorTimer_init(long msec);
 static int swReactorTimer_set(swTimer *timer, long exec_msec);
 
+static int swReactorTimer_now(struct timeval *time)
+{
+#if defined(SW_USE_MONOTONIC_TIME) && defined(CLOCK_MONOTONIC)
+    struct timespec _now;
+    if (clock_gettime(CLOCK_MONOTONIC, &_now) < 0)
+    {
+        swSysError("clock_gettime(CLOCK_MONOTONIC) failed.");
+        return SW_ERR;
+    }
+    time->tv_sec = _now.tv_sec;
+    time->tv_usec = _now.tv_nsec / 1000;
+#else
+    if (gettimeofday(time, NULL) < 0)
+    {
+        swSysError("gettimeofday() failed.");
+        return SW_ERR;
+    }
+#endif
+    return SW_OK;
+}
+
 static sw_inline int64_t swTimer_get_relative_msec()
 {
     struct timeval now;
-    if (gettimeofday(&now, NULL) < 0)
+    if (swReactorTimer_now(&now) < 0)
     {
-        swSysError("gettimeofday() failed.");
         return SW_ERR;
     }
     int64_t msec1 = (now.tv_sec - SwooleG.timer.basetime.tv_sec) * 1000;
@@ -40,9 +60,8 @@ int swTimer_init(long msec)
         return SW_ERR;
     }
 
-    if (gettimeofday(&SwooleG.timer.basetime, NULL) < 0)
+    if (swReactorTimer_now(&SwooleG.timer.basetime) < 0)
     {
-        swSysError("gettimeofday() failed.");
         return SW_ERR;
     }
 
@@ -103,17 +122,20 @@ swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *data)
     int64_t now_msec = swTimer_get_relative_msec();
     if (now_msec < 0)
     {
+        sw_free(tnode);
         return NULL;
     }
 
     tnode->data = data;
+    tnode->type = 0; 
     tnode->exec_msec = now_msec + _msec;
     tnode->interval = interval ? _msec : 0;
     tnode->remove = 0;
 
-    if (timer->_next_msec > _msec)
+    if (timer->_next_msec < 0 || timer->_next_msec > _msec)
     {
         timer->set(timer, _msec);
+        timer->_next_msec = _msec;
     }
 
     tnode->id = timer->_next_id++;
@@ -131,11 +153,16 @@ swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *data)
 void swTimer_del(swTimer *timer, swTimer_node *tnode)
 {
     swHeap_remove(timer->heap, tnode->heap_node);
+    if (tnode->heap_node)
+    {
+        sw_free(tnode->heap_node);
+    }
+    sw_free(tnode);
 }
 
 int swTimer_select(swTimer *timer)
 {
-    int now_msec = swTimer_get_relative_msec();
+    int64_t now_msec = swTimer_get_relative_msec();
     if (now_msec < 0)
     {
         return SW_ERR;
@@ -158,13 +185,17 @@ int swTimer_select(swTimer *timer)
             if (!tnode->remove)
             {
                 int64_t _now_msec = swTimer_get_relative_msec();
-                if (_now_msec > 0)
+                if (_now_msec <= 0)
+                {
+                    tnode->exec_msec = now_msec + tnode->interval;
+                }
+                else if (tnode->exec_msec + tnode->interval < _now_msec)
                 {
                     tnode->exec_msec = _now_msec + tnode->interval;
                 }
                 else
                 {
-                    tnode->exec_msec = now_msec + tnode->interval;
+                    tnode->exec_msec += tnode->interval;
                 }
                 swHeap_change_priority(timer->heap, tnode->exec_msec, tmp);
                 continue;
@@ -175,11 +206,13 @@ int swTimer_select(swTimer *timer)
         {
             timer->onAfter(timer, tnode);
         }
+        timer->num --;
         swHeap_pop(timer->heap);
     }
 
-    if (!tnode)
+    if (!tnode || !tmp)
     {
+        timer->_next_msec = -1;
         timer->set(timer, -1);
     }
     else

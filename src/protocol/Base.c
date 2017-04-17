@@ -36,7 +36,7 @@ int swProtocol_get_package_length(swProtocol *protocol, swConnection *conn, char
     body_length = swoole_unpack(protocol->package_length_type, data + length_offset);
     //Length error
     //Protocol length is not legitimate, out of bounds or exceed the allocated length
-    if (body_length < 0 || body_length > protocol->package_max_length)
+    if (body_length < 0)
     {
         swWarn("invalid package, remote_addr=%s:%d, length=%d, size=%d.", swConnection_get_ip(conn), swConnection_get_port(conn), body_length, size);
         return SW_ERR;
@@ -45,7 +45,7 @@ int swProtocol_get_package_length(swProtocol *protocol, swConnection *conn, char
     return protocol->package_body_offset + body_length;
 }
 
-static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, void *object, swString *buffer)
+static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swConnection *conn, swString *buffer)
 {
 #if 0
     static count;
@@ -74,7 +74,14 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, void 
 
     uint32_t length = buffer->offset + eof_pos + protocol->package_eof_len;
     //swNotice("#[4] count=%d, length=%d", count, length);
-    protocol->onPackage(object, buffer->str, length);
+    if (protocol->onPackage(conn, buffer->str, length) < 0)
+    {
+        return SW_ERR;
+    }
+    if (conn->removed)
+    {
+        return SW_OK;
+    }
 
     //there are remaining data
     if (length < buffer->length)
@@ -103,7 +110,14 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, void 
             else
             {
                 length = eof_pos + protocol->package_eof_len;
-                protocol->onPackage(object, remaining_data, length);
+                if (protocol->onPackage(conn, remaining_data, length) < 0)
+                {
+                    return SW_ERR;
+                }
+                if (conn->removed)
+                {
+                    return SW_OK;
+                }
                 //swNotice("#[2] count=%d, remaining_length=%d, length=%d", count, remaining_length, length);
                 remaining_data += length;
                 remaining_length -= length;
@@ -121,21 +135,34 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, void 
  */
 int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swString *buffer)
 {
-    char *recvbuf;
-    uint32_t recvbuf_size;
+    int package_length;
+    uint32_t recv_size;
+    char swap[SW_BUFFER_SIZE_STD];
 
-    do_recv: recvbuf = buffer->str + buffer->length;
-    recvbuf_size = buffer->offset > 0 ? buffer->offset - buffer->length : protocol->package_length_offset + protocol->package_length_size;
+    do_recv:
+	if (conn->active == 0)
+	{
+		return SW_OK;
+	}
+    if (buffer->offset > 0)
+    {
+        recv_size = buffer->offset - buffer->length;
+    }
+    else
+    {
+        recv_size = protocol->package_length_offset + protocol->package_length_size;
+    }
 
-    int n = swConnection_recv(conn, recvbuf, recvbuf_size, 0);
+    int n = swConnection_recv(conn, buffer->str + buffer->length, recv_size, 0);
     if (n < 0)
     {
         switch (swConnection_error(errno))
         {
         case SW_ERROR:
-            swSysError("recv from socket#%d failed.", conn->fd);
+            swSysError("recv(%d, %d) failed.", conn->fd, recv_size);
             return SW_OK;
         case SW_CLOSE:
+            conn->close_errno = errno;
             return SW_ERR;
         default:
             return SW_OK;
@@ -147,23 +174,47 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
     }
     else
     {
-        conn->last_time = SwooleGS->now;
         buffer->length += n;
 
         if (conn->recv_wait)
         {
-            if (buffer->length == buffer->offset)
+            if (buffer->length >= buffer->offset)
             {
-                do_package:
-                protocol->onPackage(conn, buffer->str, buffer->length);
+                do_dispatch:
+                if (protocol->onPackage(conn, buffer->str, buffer->offset) < 0)
+                {
+                    return SW_ERR;
+                }
+                if (conn->removed)
+                {
+                    return SW_OK;
+                }
                 conn->recv_wait = 0;
-                swString_clear(buffer);
+
+                int remaining_length = buffer->length - buffer->offset;
+                if (remaining_length > 0)
+                {
+                    assert(remaining_length < sizeof(swap));
+                    memcpy(swap, buffer->str + buffer->offset, remaining_length);
+                    memcpy(buffer->str, swap, remaining_length);
+                    buffer->offset = 0;
+                    buffer->length = remaining_length;
+                    goto do_get_length;
+                }
+                else
+                {
+                    swString_clear(buffer);
+                    goto do_recv;
+                }
             }
-            return SW_OK;
+            else
+            {
+                return SW_OK;
+            }
         }
         else
         {
-            int package_length = protocol->get_package_length(protocol, conn, buffer->str, buffer->length);
+            do_get_length: package_length = protocol->get_package_length(protocol, conn, buffer->str, buffer->length);
             //invalid package, close connection.
             if (package_length < 0)
             {
@@ -173,6 +224,11 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
             else if (package_length == 0)
             {
                 return SW_OK;
+            }
+            else if (package_length > protocol->package_max_length)
+            {
+                swWarn("package is too big, remote_addr=%s:%d, length=%d.", swConnection_get_ip(conn), swConnection_get_port(conn), package_length);
+                return SW_ERR;
             }
             //get length success
             else
@@ -186,9 +242,10 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
                 }
                 conn->recv_wait = 1;
                 buffer->offset = package_length;
-                if (buffer->length == package_length)
+
+                if (buffer->length >= package_length)
                 {
-                    goto do_package;
+                    goto do_dispatch;
                 }
                 else
                 {
@@ -212,9 +269,9 @@ int swProtocol_recv_check_eof(swProtocol *protocol, swConnection *conn, swString
     recv_data: buf_size = buffer->size - buffer->length;
     char *buf_ptr = buffer->str + buffer->length;
 
-    if (buf_size > SW_BUFFER_SIZE)
+    if (buf_size > SW_BUFFER_SIZE_STD)
     {
-        buf_size = SW_BUFFER_SIZE;
+        buf_size = SW_BUFFER_SIZE_STD;
     }
 
     int n = swConnection_recv(conn, buf_ptr, buf_size, 0);
@@ -227,6 +284,7 @@ int swProtocol_recv_check_eof(swProtocol *protocol, swConnection *conn, swString
             swSysError("recv from socket#%d failed.", conn->fd);
             return SW_OK;
         case SW_CLOSE:
+            conn->close_errno = errno;
             return SW_ERR;
         default:
             return SW_OK;
@@ -238,7 +296,6 @@ int swProtocol_recv_check_eof(swProtocol *protocol, swConnection *conn, swString
     }
     else
     {
-        conn->last_time = SwooleGS->now;
         buffer->length += n;
 
         if (buffer->length < protocol->package_eof_len)
@@ -259,7 +316,14 @@ int swProtocol_recv_check_eof(swProtocol *protocol, swConnection *conn, swString
         }
         else if (memcmp(buffer->str + buffer->length - protocol->package_eof_len, protocol->package_eof, protocol->package_eof_len) == 0)
         {
-            protocol->onPackage(conn, buffer->str, buffer->length);
+            if (protocol->onPackage(conn, buffer->str, buffer->length) < 0)
+            {
+                return SW_ERR;
+            }
+            if (conn->removed)
+            {
+                return SW_OK;
+            }
             swString_clear(buffer);
             return SW_OK;
         }

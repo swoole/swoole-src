@@ -18,6 +18,10 @@
 #include "Connection.h"
 #include "async.h"
 
+#ifdef SW_COROUTINE
+#include "coroutine.h"
+#endif
+
 static void swReactor_onTimeout_and_Finish(swReactor *reactor);
 static void swReactor_onTimeout(swReactor *reactor);
 static void swReactor_onFinish(swReactor *reactor);
@@ -28,28 +32,15 @@ int swReactor_create(swReactor *reactor, int max_event)
     int ret;
     bzero(reactor, sizeof(swReactor));
 
-    //event less than SW_REACTOR_MINEVENTS, use poll/select
-    if (max_event <= SW_REACTOR_MINEVENTS)
-    {
-#ifdef SW_MAINREACTOR_USE_POLL
-        ret = swReactorPoll_create(reactor, SW_REACTOR_MINEVENTS);
-#else
-        ret = swReactorSelect_create(reactor);
-#endif
-    }
-    //use epoll or kqueue
-    else
-    {
 #ifdef HAVE_EPOLL
-        ret = swReactorEpoll_create(reactor, max_event);
+    ret = swReactorEpoll_create(reactor, max_event);
 #elif defined(HAVE_KQUEUE)
-        ret = swReactorKqueue_create(reactor, max_event);
-#elif defined(SW_MAINREACTOR_USE_POLL)
-        ret = swReactorPoll_create(reactor, max_event);
+    ret = swReactorKqueue_create(reactor, max_event);
+#elif defined(HAVE_POLL)
+    ret = swReactorPoll_create(reactor, max_event);
 #else
-        ret = swReactorSelect_create(reactor);
+    ret = swReactorSelect_create(reactor);
 #endif
-    }
 
     reactor->running = 1;
 
@@ -193,28 +184,47 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
         swTimer_select(&SwooleG.timer);
     }
 
-    //swoole_server
-    if (SwooleG.serv)
+#ifdef SW_COROUTINE
+    //coro timeout
+    if (!swIsMaster()) {
+        coro_handle_timeout();
+    }
+#endif
+
+    //server master
+    if (SwooleG.serv && SwooleTG.update_time)
     {
-        if (SwooleTG.update_time)
+        swoole_update_time();
+        int32_t timeout_msec = SwooleG.main_reactor->timeout_msec;
+        if (timeout_msec < 0 || timeout_msec > 1000)
         {
-            swoole_update_time();
+            SwooleG.main_reactor->timeout_msec = 1000;
         }
     }
-    //not swoole_server
-    else
+    //server worker
+    swWorker *worker = SwooleWG.worker;
+    if (worker != NULL)
     {
-        //client exit
-        if (SwooleG.timer.num <= 0)
+        if (SwooleWG.reload == 1)
         {
-            if (SwooleAIO.init && reactor->event_num == 1 && SwooleAIO.task_num == 0)
+            SwooleWG.reload_count++;
+
+            if (reactor->event_num <= 2 || SwooleWG.reload_count >= SW_MAX_RELOAD_WAIT)
             {
                 reactor->running = 0;
             }
-            else if (reactor->event_num == 0)
-            {
-                reactor->running = 0;
-            }
+        }
+    }
+    //client
+    if (SwooleG.serv == NULL && SwooleG.timer.num <= 0)
+    {
+        if (SwooleAIO.init && reactor->event_num == 1 && SwooleAIO.task_num == 0)
+        {
+            reactor->running = 0;
+        }
+        else if (reactor->event_num == 0)
+        {
+            reactor->running = 0;
         }
     }
 #ifdef SW_USE_MALLOC_TRIM
@@ -261,18 +271,17 @@ int swReactor_close(swReactor *reactor, int fd)
     if (socket->out_buffer)
     {
         swBuffer_free(socket->out_buffer);
-        socket->out_buffer = NULL;
     }
-
     if (socket->in_buffer)
     {
         swBuffer_free(socket->in_buffer);
-        socket->in_buffer = NULL;
     }
-
+    if (socket->websocket_buffer)
+    {
+        swString_free(socket->websocket_buffer);
+    }
     bzero(socket, sizeof(swConnection));
     socket->removed = 1;
-
     return close(fd);
 }
 
@@ -282,11 +291,20 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
     swConnection *socket = swReactor_get(reactor, fd);
     swBuffer *buffer = socket->out_buffer;
 
-    assert(fd > 2);
-
     if (socket->fd == 0)
     {
         socket->fd = fd;
+    }
+
+    if (socket->buffer_size == 0)
+    {
+        socket->buffer_size = SwooleG.socket_buffer_size;
+    }
+
+    if (n > socket->buffer_size)
+    {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "data is too large, cannot exceed buffer size.");
+        return SW_ERR;
     }
 
     if (swBuffer_empty(buffer))
@@ -362,15 +380,15 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
     {
         append_buffer:
 
-        if (buffer->length > SwooleG.socket_buffer_size)
+        if (buffer->length > socket->buffer_size)
         {
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "socket#%d output buffer overflow.", fd);
             if (SwooleG.socket_dontwait)
             {
                 return SW_ERR;
             }
             else
             {
-                swWarn("socket[fd=%d, type=%d] output buffer overflow, reactor will block.", fd, socket->fdtype);
                 swYield();
                 swSocket_wait(fd, SW_SOCKET_OVERFLOW_WAIT, SW_EVENT_WRITE);
             }

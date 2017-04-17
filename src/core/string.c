@@ -78,12 +78,6 @@ swString *swString_dup(const char *src_str, int length)
     return str;
 }
 
-void swString_free(swString *str)
-{
-    sw_free(str->str);
-    sw_free(str);
-}
-
 int swString_append(swString *str, swString *append_str)
 {
     int new_size = str->length + append_str->length;
@@ -96,6 +90,25 @@ int swString_append(swString *str, swString *append_str)
     }
     memcpy(str->str + str->length, append_str->str, append_str->length);
     str->length += append_str->length;
+    return SW_OK;
+}
+
+int swString_append_int(swString *str, int value)
+{
+    char buf[16];
+    int s_len = swoole_itoa(buf, value);
+
+    int new_size = str->length + s_len;
+    if (new_size > str->size)
+    {
+        if (swString_extend(str, swoole_size_align(new_size * 2, sysconf(_SC_PAGESIZE))) < 0)
+        {
+            return SW_ERR;
+        }
+    }
+
+    memcpy(str->str + str->length, buf, s_len);
+    str->length += s_len;
     return SW_OK;
 }
 
@@ -114,6 +127,48 @@ int swString_append_ptr(swString *str, char *append_str, int length)
     return SW_OK;
 }
 
+int swString_write(swString *str, off_t offset, swString *write_str)
+{
+    int new_length = offset + write_str->length;
+    if (new_length > str->size)
+    {
+        if (swString_extend(str, swoole_size_align(new_length * 2, sysconf(_SC_PAGESIZE))) < 0)
+        {
+            return SW_ERR;
+        }
+    }
+
+    memcpy(str->str + offset, write_str->str, write_str->length);
+
+    if (new_length > str->length)
+    {
+        str->length = new_length;
+    }
+
+    return SW_OK;
+}
+
+int swString_write_ptr(swString *str, off_t offset, char *write_str, int length)
+{
+    int new_length = offset + length;
+    if (new_length > str->size)
+    {
+        if (swString_extend(str, swoole_size_align(new_length * 2, sysconf(_SC_PAGESIZE))) < 0)
+        {
+            return SW_ERR;
+        }
+    }
+
+    memcpy(str->str + offset, write_str, length);
+
+    if (new_length > str->length)
+    {
+        str->length = new_length;
+    }
+
+    return SW_OK;
+}
+
 int swString_extend(swString *str, size_t new_size)
 {
     assert(new_size > str->size);
@@ -126,6 +181,20 @@ int swString_extend(swString *str, size_t new_size)
     str->str = new_str;
     str->size = new_size;
     return SW_OK;
+}
+
+char* swString_alloc(swString *str, size_t __size)
+{
+    if (str->length + __size < str->size)
+    {
+        if (swString_extend_align(str, str->length + __size) < 0)
+        {
+            return NULL;
+        }
+    }
+    char *tmp = str->str + str->length;
+    str->length += __size;
+    return tmp;
 }
 
 uint32_t swoole_utf8_decode(u_char **p, size_t n)
@@ -209,3 +278,17 @@ size_t swoole_utf8_length(u_char *p, size_t n)
     return len;
 }
 
+static char characters[] =
+{ 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W',
+        'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's',
+        't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', };
+
+void swoole_random_string(char *buf, size_t size)
+{
+    int i;
+    for (i = 0; i < size; i++)
+    {
+        buf[i] = characters[swoole_rand(0, sizeof(characters) - 1)];
+    }
+    buf[i] = '\0';
+}
