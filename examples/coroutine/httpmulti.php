@@ -13,7 +13,7 @@ class Server
 
     public function run()
     {
-        $this->server = new Swoole\Http\Server("0.0.0.0", 9502);
+        $this->server = new Swoole\Http\Server("0.0.0.0", 9508);
         $this->server->set([
             'worker_num' => 1,
             'daemonize' => true,
@@ -114,7 +114,19 @@ class Server
         }
     }
 
- private static function tcpmulti(){
+ private static function coro_dns(){
+    swoole_async_set(array('use_async_resolver'=>1));
+    swoole_async_set(array('dns_cache_refresh_time'=>0));
+    $ret=swoole_async_dns_lookup_coro("www.baidu.com",0.5);
+    error_log(' ip and host '.$host.print_r($ret,true),'3','/home/yuanyizhi/markyuan/markyuan.log');
+    return $ret;
+//  swoole_async_dns_lookup("www.baidu.com", function($host, $ip){
+//  error_log(' ip and host '.$host.'  and  ip '.$ip,'3','/home/yuanyizhi/markyuan/markyuan.log');
+//  });
+    }
+
+
+private static function tcpmulti(){
         $cliAA = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
         $cliBB = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
         $retAA = $cliAA ->connect("0.0.0.0", 9511);
@@ -133,8 +145,9 @@ class Server
 //        self::http();
         //self::https();
 //        self::tcp();
-        self::tcpmulti();
-        $response->end('xxxx');
+      //  self::tcpmulti();
+        $ret=self::coro_dns();
+        $response->end(print_r($ret,true));
     }
 
 

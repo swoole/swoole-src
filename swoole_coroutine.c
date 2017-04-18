@@ -26,6 +26,9 @@
 jmp_buf *swReactorCheckPoint = NULL;
 coro_global COROG;
 
+static int alloc_cidmap();
+static void free_cidmap(int cid);
+
 int coro_init(TSRMLS_D)
 {
 #if PHP_MAJOR_VERSION < 7
@@ -58,7 +61,8 @@ void coro_check(TSRMLS_D)
 int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval **retval, void *post_callback, void* params)
 {
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-    if (__builtin_expect(COROG.coro_num >= COROG.max_coro_num, 0))
+    int cid = alloc_cidmap();
+    if (unlikely(COROG.coro_num >= COROG.max_coro_num) && unlikely(cid != -1))
     {
         swWarn("exceed max number of coro %d", COROG.coro_num);
         return CORO_LIMIT;
@@ -180,9 +184,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     COROG.current_coro = (coro_task *)ZEND_VM_STACK_ELEMETS(EG(argument_stack));
 
     int coro_status;
-    struct timeval tv;
-    gettimeofday((struct timeval *) &tv, (struct timezone *) NULL);
-    snprintf(COROG.uid, 21, "%08x%05x%07.7F", (int)tv.tv_sec, (int)tv.tv_usec, php_combined_lcg(TSRMLS_C) * 10);
+    COROG.current_coro->cid = cid;
     COROG.current_coro->start_time = time(NULL);
     COROG.current_coro->function = NULL;
     COROG.current_coro->post_callback = post_callback;
@@ -214,7 +216,8 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
 
 int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval *retval, void *post_callback, void* params)
 {
-    if (__builtin_expect(COROG.coro_num >= COROG.max_coro_num, 0))
+    int cid = alloc_cidmap();
+    if (unlikely(COROG.coro_num >= COROG.max_coro_num) && unlikely(cid != -1))
     {
         swWarn("exceed max number of coro %d", COROG.coro_num);
         return CORO_LIMIT;
@@ -249,6 +252,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     zend_init_execute_data(call, op_array, retval);
 
     ++COROG.coro_num;
+    COROG.current_coro->cid = cid;
     COROG.current_coro->start_time = time(NULL);
     COROG.current_coro->function = NULL;
     COROG.current_coro->post_callback = post_callback;
@@ -256,9 +260,6 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     COROG.require = 1;
 
     int coro_status;
-    struct timeval tv;
-    gettimeofday((struct timeval *) &tv, (struct timezone *) NULL);
-    snprintf(COROG.uid, 21, "%08x%05x%07.7F", (int)tv.tv_sec, (int)tv.tv_usec, php_combined_lcg(TSRMLS_C) * 10);
     if (!setjmp(*swReactorCheckPoint))
     {
         zend_execute_ex(call);
@@ -282,6 +283,7 @@ sw_inline void coro_close(TSRMLS_D)
     {
         COROG.current_coro->post_callback(COROG.current_coro->post_callback_params);
     }
+    free_cidmap(COROG.current_coro->cid);
     if (COROG.current_coro->function)
     {
         sw_zval_free(COROG.current_coro->function);
@@ -335,6 +337,7 @@ sw_inline void coro_close(TSRMLS_D)
         sw_zval_free(COROG.current_coro->function);
         COROG.current_coro->function = NULL;
     }
+    free_cidmap(COROG.current_coro->cid);
     efree(EG(vm_stack));
     efree(COROG.allocated_return_value_ptr);
     EG(vm_stack) = COROG.origin_vm_stack;
@@ -349,7 +352,6 @@ sw_inline void coro_close(TSRMLS_D)
 sw_inline php_context *sw_coro_save(zval *return_value, zval **return_value_ptr, php_context *sw_current_context)
 {
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-    strncpy(SWCC(uid), COROG.uid, 20);
     SWCC(current_coro_return_value_ptr_ptr) = return_value_ptr;
     SWCC(current_coro_return_value_ptr) = return_value;
     SWCC(current_eg_return_value_ptr_ptr) = EG(return_value_ptr_ptr);
@@ -369,7 +371,6 @@ sw_inline php_context *sw_coro_save(zval *return_value, zval **return_value_ptr,
 #else
 sw_inline php_context *sw_coro_save(zval *return_value, php_context *sw_current_context)
 {
-    strncpy(SWCC(uid), COROG.uid, 20);
     SWCC(current_coro_return_value_ptr) = return_value;
     SWCC(current_execute_data) = EG(current_execute_data);
     SWCC(current_vm_stack) = EG(vm_stack);
@@ -387,7 +388,6 @@ sw_inline php_context *sw_coro_save(zval *return_value, php_context *sw_current_
 int sw_coro_resume(php_context *sw_current_context, zval *retval, zval **coro_retval)
 {
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-    strncpy(COROG.uid, SWCC(uid), 20);
     //free unused return value
     zval *saved_return_value = sw_current_context->current_coro_return_value_ptr;
     zend_bool unused = sw_current_context->current_execute_data->opline->result_type & EXT_TYPE_UNUSED;
@@ -464,7 +464,6 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
 #if PHP_MINOR_VERSION < 1
     EG(scope) = EG(current_execute_data)->func->op_array.scope;
 #endif
-    strncpy(COROG.uid, SWCC(uid), 20);
     COROG.allocated_return_value_ptr = SWCC(allocated_return_value_ptr);
     if ( EG(current_execute_data)->opline->result_type != IS_UNUSED)
     {
@@ -503,7 +502,6 @@ int sw_coro_resume_parent(php_context *sw_current_context, zval *retval, zval *c
 
     EG(current_execute_data) = SWCC(current_execute_data);
     COROG.current_coro = SWCC(current_task);
-    strncpy(COROG.uid, SWCC(uid), 20);
     COROG.allocated_return_value_ptr = SWCC(allocated_return_value_ptr);
     return CORO_END;
 }
@@ -567,6 +565,90 @@ sw_inline void coro_handle_timeout()
 			scc = (swTimer_coro_callback *)swLinkedList_pop(timeout_list);
 		}
 	}
+}
+
+/* allocate cid for coroutine */
+typedef struct cidmap 
+{
+    uint32_t nr_free;
+    char page[4096];
+} cidmap_t;
+
+/* 1 <= cid <= 32768 */
+static cidmap_t cidmap = { 0x8000, {0} };
+
+static int last_cid = -1;
+
+static int test_and_set_bit(int cid, void *addr)
+{
+    uint32_t mask = 1U << (cid & 0x1f);
+    uint32_t *p = ((uint32_t*)addr) + (cid >> 5);
+    uint32_t old = *p;
+
+    *p = old | mask; 
+
+    return (old & mask) == 0;
+}
+
+static void clear_bit(int cid, void *addr)
+{
+    uint32_t mask = 1U << (cid & 0x1f);
+    uint32_t *p = ((uint32_t*)addr) + (cid >> 5);
+    uint32_t old = *p;
+
+    *p = old & ~mask;
+}
+
+/* find next free cid */
+static int find_next_zero_bit(void *addr, int cid)
+{
+    uint32_t *p;
+    uint32_t mask;
+    int mark = cid;
+
+    cid++;
+    cid &= 0x7fff;
+    while (cid != mark)
+    {
+        mask = 1U << (cid & 0x1f);
+        p = ((uint32_t*)addr) + (cid >> 5);
+
+        if ((~(*p) & mask))
+        {
+            break;
+        }
+        ++cid;
+        cid &= 0x7fff;
+    }
+
+    return cid;
+}
+
+static int alloc_cidmap()
+{
+    int cid;
+    
+    if (cidmap.nr_free == 0)
+    {
+        return -1;
+    }
+
+    cid = find_next_zero_bit(&cidmap.page, last_cid);
+    if (test_and_set_bit(cid, &cidmap.page))
+    {
+        --cidmap.nr_free;
+        last_cid = cid;
+        return cid + 1;
+    }
+
+    return -1;
+}
+
+static void free_cidmap(int cid)
+{
+    cid--;
+    cidmap.nr_free++;
+    clear_bit(cid, &cidmap.page);
 }
 #endif
 
