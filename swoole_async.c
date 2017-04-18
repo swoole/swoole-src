@@ -20,6 +20,14 @@
 
 #include "ext/standard/file.h"
 
+
+#ifdef SW_COROUTINE
+#include "swoole_coroutine.h"
+#include "ext/standard/basic_functions.h"
+#include <setjmp.h>
+#endif
+
+
 typedef struct
 {
 #if PHP_MAJOR_VERSION >= 7
@@ -50,15 +58,50 @@ typedef struct
 #endif
     zval *callback;
     zval *domain;
+//#ifdef SW_COROUTINE
+    php_context *context;  //add for coro
+    uint8_t useless; //1 代表没有用
+    long timeout_id;
+//#endif
+
+
 } dns_request;
+
+typedef struct
+{
+    swString *zaddress;
+    int64_t  update_time;
+} dns_cache;
+
+
+
+extern int swReactorTimer_now(struct timeval *time);
 
 static void php_swoole_check_aio();
 static void php_swoole_aio_onComplete(swAio_event *event);
 static void php_swoole_dns_callback(char *domain, swDNSResolver_result *result, void *data);
+static void php_swoole_dns_callback_coro(char *domain, swDNSResolver_result *result, void *data);
+static void php_swoole_dns_timeout_coro(php_context *cxt);
+
 static void php_swoole_file_request_free(void *data);
 
 static swHashMap *php_swoole_open_files;
 static swHashMap *php_swoole_aio_request;
+
+static swHashMap *request_cache_map = NULL; //以domin为区分
+
+
+static sw_inline int64_t swTimer_get_now_msec()
+{
+    struct timeval now;
+    if (swReactorTimer_now(&now) < 0)
+    {
+        return SW_ERR;
+    }
+    int64_t msec1 = (now.tv_sec) * 1000;
+    int64_t msec2 = (now.tv_usec) / 1000;
+    return msec1 + msec2;
+}
 
 static sw_inline void swoole_aio_free(void *ptr)
 {
@@ -181,6 +224,118 @@ static void php_swoole_dns_callback(char *domain, swDNSResolver_result *result, 
     }
     sw_zval_ptr_dtor(&zaddress);
 }
+
+//用于coro 回调
+static void php_swoole_dns_callback_coro(char *domain, swDNSResolver_result *result, void *data)
+{
+    SWOOLE_GET_TSRMLS;
+    dns_request *req = data;
+    zval *retval = NULL;
+
+    zval *zaddress;
+    char *address;
+    SW_MAKE_STD_ZVAL(zaddress);
+    if (result->num > 0)
+    {
+        if (SwooleG.dns_lookup_random)
+        {
+            address = result->hosts[rand() % result->num].address;
+        }
+        else
+        {
+            address = result->hosts[0].address;
+        }
+
+        SW_ZVAL_STRING(zaddress, address, 1);
+    }
+    else
+    {
+        SW_ZVAL_STRING(zaddress, "", 1);
+    }
+
+    //update cache
+    dns_cache *cache = swHashMap_find(request_cache_map, Z_STRVAL_P(req->domain), Z_STRLEN_P(req->domain));
+    if (cache == NULL )
+    {
+        cache= emalloc(sizeof(dns_cache));
+        swHashMap_add(request_cache_map,Z_STRVAL_P(req->domain), Z_STRLEN_P(req->domain) ,cache);
+        cache->zaddress=swString_new(20);
+    };
+
+    swString_write_ptr(cache->zaddress,0,Z_STRVAL_P(zaddress), Z_STRLEN_P(zaddress));
+
+    cache->update_time = (int64_t)swTimer_get_now_msec + (int64_t)(SwooleG.dns_cache_refresh_time*1000);
+
+    if(req->useless){
+        efree(req);
+        return;
+    }
+    //timeout
+    if (req->timeout_id > 0)
+    {
+        php_swoole_clear_timer_coro(req->timeout_id TSRMLS_CC);
+        req->timeout_id=0;
+    }
+
+    int ret = coro_resume(req->context, zaddress, &retval);
+    if (ret > 0)
+    {
+        goto free_zdata;
+    }
+
+    if (retval != NULL)
+    {
+        sw_zval_ptr_dtor(&retval);
+    }
+    //说明已经yield走了
+    free_zdata:
+    // free 上下文
+    sw_zval_ptr_dtor(&zaddress);
+    efree(req->context);
+    efree(req);
+}
+
+//用于timeout
+static void php_swoole_dns_timeout_coro(php_context *cxt)
+{
+
+    zval *retval = NULL;
+    zval *zaddress;
+
+#if PHP_MAJOR_VERSION < 7
+    dns_request *req =(dns_request *) cxt->coro_params ;
+#else
+    dns_request *req =(dns_request *) cxt->coro_params.value.ptr ;
+#endif
+
+    SW_MAKE_STD_ZVAL(zaddress);
+
+    dns_cache *cache = swHashMap_find(request_cache_map, Z_STRVAL_P(req->domain), Z_STRLEN_P(req->domain));
+    if (cache != NULL && cache->update_time > (int64_t)swTimer_get_now_msec )
+    {
+        SW_ZVAL_STRINGL(zaddress, (*cache->zaddress).str,(*cache->zaddress).length, 1);
+    }else{
+        //不然就是空了
+        SW_ZVAL_STRING(zaddress, "", 1);
+    };
+
+    int ret = coro_resume(req->context, zaddress, &retval);
+    if (ret > 0)
+    {
+        goto free_zdata;
+    }
+
+    if (retval != NULL)
+    {
+        sw_zval_ptr_dtor(&retval);
+    }
+    free_zdata:
+    sw_zval_ptr_dtor(&zaddress);
+    efree(req->context);
+    req->useless = 1;
+
+}
+
 
 static void php_swoole_aio_onComplete(swAio_event *event)
 {
@@ -762,6 +917,11 @@ PHP_FUNCTION(swoole_async_set)
         convert_to_boolean(v);
         SwooleG.use_signalfd = Z_BVAL_P(v);
     }
+    if (php_swoole_array_get_value(vht, "dns_cache_refresh_time", v))
+    {
+          convert_to_double(v);
+          SwooleG.dns_cache_refresh_time = Z_DVAL_P(v);
+    }
     if (php_swoole_array_get_value(vht, "socket_buffer_size", v))
     {
         convert_to_long(v);
@@ -841,8 +1001,10 @@ PHP_FUNCTION(swoole_async_dns_lookup)
     if (SwooleG.use_async_resolver)
     {
         php_swoole_check_reactor();
+
         SW_CHECK_RETURN(swDNSResolver_request(Z_STRVAL_P(domain), php_swoole_dns_callback, (void *) req));
     }
+
 
     /**
      * Use thread pool
@@ -862,4 +1024,66 @@ PHP_FUNCTION(swoole_async_dns_lookup)
     memcpy(buf, Z_STRVAL_P(domain), Z_STRLEN_P(domain));
     php_swoole_check_aio();
     SW_CHECK_RETURN(swAio_dns_lookup(req, buf, buf_size));
+}
+
+
+PHP_FUNCTION(swoole_async_dns_lookup_coro)
+{
+    zval *domain;
+    double timeout = SW_CLIENT_DEFAULT_TIMEOUT;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|d", &domain, &timeout) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+    coro_check(TSRMLS_C);
+    if (Z_TYPE_P(domain) != IS_STRING)
+    {
+        swoole_php_fatal_error(E_WARNING, "invalid domain name.");
+        RETURN_FALSE;
+    }
+
+    if (Z_STRLEN_P(domain) == 0)
+    {
+        swoole_php_fatal_error(E_WARNING, "domain name empty.");
+        RETURN_FALSE;
+    }
+    if (!request_cache_map)
+    {
+        request_cache_map = swHashMap_new(256, NULL);
+    }
+
+    //find cache
+    dns_cache *cache = swHashMap_find(request_cache_map, Z_STRVAL_P(domain), Z_STRLEN_P(domain));
+    if (cache != NULL && cache->update_time > (int64_t)swTimer_get_now_msec )
+    {
+        SW_RETURN_STRINGL((*cache->zaddress).str,(*cache->zaddress).length,1);
+    }
+
+    dns_request *req = emalloc(sizeof(dns_request));
+    req->domain = domain;
+    sw_copy_to_stack(req->domain, req->_domain);
+    req->useless = 0;
+
+    php_context *sw_current_context = emalloc(sizeof(php_context));
+    sw_current_context->onTimeout = php_swoole_dns_timeout_coro;
+    sw_current_context->state = SW_CORO_CONTEXT_RUNNING;
+#if PHP_MAJOR_VERSION < 7
+    sw_current_context->coro_params = req;
+#else
+    sw_current_context->coro_params.value.ptr = (void * ) req;
+#endif
+    req->context=sw_current_context;
+
+    php_swoole_check_reactor();
+    int ret=swDNSResolver_request(Z_STRVAL_P(domain), php_swoole_dns_callback_coro, (void *) req);
+    if( ret== SW_ERR ){
+        SW_CHECK_RETURN(ret);
+    }
+    //add timeout
+    if (php_swoole_add_timer_coro((int)(timeout*1000), 0, &req->timeout_id, (void *)sw_current_context, NULL TSRMLS_CC))
+    {
+        sw_current_context->state = SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST;
+    }
+    coro_save(sw_current_context);
+    coro_yield();
 }

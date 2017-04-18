@@ -288,7 +288,9 @@ static void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
         // del the reactor handle
         if(swLinkedList_append(SwooleWG.coro_timeout_list, scc->data) == SW_OK)
         {
-			if (SwooleG.main_reactor->del(SwooleG.main_reactor, scc->cli_fd) == SW_ERR)
+
+
+			if ( (scc->cli_fd > 0) && (SwooleG.main_reactor->del(SwooleG.main_reactor, scc->cli_fd) == SW_ERR))
 			{
 				swSysError("reactor->del(%d) failed.", scc->cli_fd);
 			}

@@ -1841,6 +1841,7 @@ typedef struct
     uint8_t dns_lookup_random :1;
     uint8_t use_async_resolver :1;
 
+
     /**
      * Timer used pipe
      */
@@ -1899,6 +1900,7 @@ typedef struct
 
     char *dns_server_v4;
     char *dns_server_v6;
+    double dns_cache_refresh_time;
 
     swLock lock;
     swString *module_stack;
