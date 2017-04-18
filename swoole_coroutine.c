@@ -271,6 +271,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     {
         coro_status = CORO_YIELD;
     }
+    COROG.require = 0;
     return coro_status;
 }
 #endif
@@ -429,16 +430,16 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval **coro_re
         //coro yield
         coro_status = CORO_YIELD;
     }
-	COROG.require = 0;
+    COROG.require = 0;
     if (unused)
     {
         sw_zval_ptr_dtor(&saved_return_value);
     }
-	if (unlikely(coro_status == CORO_END && EG(exception)))
-	{
-		sw_zval_ptr_dtor(&retval);
-		zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
-	}
+    if (unlikely(coro_status == CORO_END && EG(exception)))
+    {
+        sw_zval_ptr_dtor(&retval);
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+    }
 
     return coro_status;
 }
@@ -469,7 +470,7 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
         ZVAL_COPY(SWCC(current_coro_return_value_ptr), retval);
     }
     EG(current_execute_data)->opline++;
-    
+
     int coro_status;
     if (!setjmp(*swReactorCheckPoint))
     {
@@ -483,6 +484,7 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
         //coro yield
         coro_status = CORO_YIELD;
     }
+    COROG.require = 0;
 
     if (unlikely(coro_status == CORO_END && EG(exception)))
     {
