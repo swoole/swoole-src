@@ -53,6 +53,7 @@ typedef struct
     uint32_t window_size;
     uint32_t max_concurrent_streams;
     uint32_t max_frame_size;
+    uint32_t max_header_list_size;
 
     nghttp2_hd_inflater *inflater;
     zval *object;
@@ -508,6 +509,10 @@ static int http2_client_onFrame(zval *zobject, zval *zdata TSRMLS_DC)
             case SW_HTTP2_SETTINGS_MAX_FRAME_SIZE:
                 hcc->max_frame_size = value;
                 swTraceLog(SW_TRACE_HTTP2, "setting: max_frame_size=%d.", value);
+                break;
+            case SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE:
+                hcc->max_header_list_size = value;
+                swTraceLog(SW_TRACE_HTTP2, "setting: max_header_list_size=%d.", value);
                 break;
             default:
                 swWarn("unknown option[%d].", id);
