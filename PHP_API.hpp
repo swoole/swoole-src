@@ -272,6 +272,10 @@ public:
         ZVAL_COPY_VALUE(ptr(), v.ptr());
         addRef();
     }
+    void copy(char *str, size_t size)
+    {
+        ZVAL_STRINGL(ptr(), str, size);
+    }
     inline int length()
     {
         if (!isString())

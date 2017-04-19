@@ -175,9 +175,22 @@ typedef unsigned long ulong_t;
 #define sw_realloc             realloc
 
 #if defined(SW_USE_JEMALLOC) || defined(SW_USE_TCMALLOC)
-#define sw_strdup_free(str)
+static sw_inline char* sw_strdup(const char *s)
+{
+    size_t l = strlen(s) + 1;
+    char *p = sw_malloc(l);
+    memcpy(p, s, l);
+    return p;
+}
+static sw_inline char* sw_strndup(const char *s, size_t n)
+{
+    char *p = sw_malloc(n);
+    strncpy(p, s, n);
+    return p;
+}
 #else
-#define sw_strdup_free(str)     free(str)
+#define sw_strdup              strdup
+#define sw_strndup             strndup
 #endif
 
 #define METHOD_DEF(class,name,...)  class##_##name(class *object, ##__VA_ARGS__)

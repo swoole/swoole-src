@@ -1547,19 +1547,19 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "chroot", v))
     {
         convert_to_string(v);
-        SwooleG.chroot = strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
+        SwooleG.chroot = sw_strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
     }
     //user
     if (php_swoole_array_get_value(vht, "user", v))
     {
         convert_to_string(v);
-        SwooleG.user = strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
+        SwooleG.user = sw_strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
     }
     //group
     if (php_swoole_array_get_value(vht, "group", v))
     {
         convert_to_string(v);
-        SwooleG.group = strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
+        SwooleG.group = sw_strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
     }
     //daemonize
     if (php_swoole_array_get_value(vht, "daemonize", v))
@@ -1571,7 +1571,7 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "pid_file", v))
     {
         convert_to_string(v);
-        serv->pid_file = strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
+        serv->pid_file = sw_strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
     }
     //reactor thread num
     if (php_swoole_array_get_value(vht, "reactor_num", v))
@@ -1627,7 +1627,7 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "log_file", v))
     {
         convert_to_string(v);
-        SwooleG.log_file = strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
+        SwooleG.log_file = sw_strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
     }
     //log_level
     if (php_swoole_array_get_value(vht, "log_level", v))
@@ -1777,7 +1777,7 @@ PHP_METHOD(swoole_server, set)
             swoole_php_fatal_error(E_ERROR, "option upload_tmp_dir [%s] is too long.", Z_STRVAL_P(v));
             RETURN_FALSE;
         }
-        serv->upload_tmp_dir = strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
+        serv->upload_tmp_dir = sw_strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
     }
 
     /**

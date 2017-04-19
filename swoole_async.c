@@ -944,7 +944,7 @@ PHP_FUNCTION(swoole_async_set)
     if (php_swoole_array_get_value(vht, "dns_server", v))
     {
         convert_to_string(v);
-        SwooleG.dns_server_v4 = strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
+        SwooleG.dns_server_v4 = sw_strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
     }
     if (php_swoole_array_get_value(vht, "use_async_resolver", v))
     {

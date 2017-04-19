@@ -270,7 +270,7 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         if (task->info.len > 0)
         {
             conn = swServer_connection_verify_no_ssl(serv, task->info.fd);
-            conn->ssl_client_cert.str = strndup(task->data, task->info.len);
+            conn->ssl_client_cert.str = sw_strndup(task->data, task->info.len);
             conn->ssl_client_cert.size = conn->ssl_client_cert.length = task->info.len;
         }
 #endif

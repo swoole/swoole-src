@@ -70,7 +70,7 @@ swModule* swModule_load(char *so_file)
         dlclose(handle);
         return NULL;
     }
-    module->file = strdup(so_file);
+    module->file = sw_strdup(so_file);
     //init module
     if ((*init_func)(module) < 0)
     {
@@ -96,7 +96,7 @@ void swModule_free(swModule* module)
     }
     dlclose(module->handle);
     swHashMap_del(loaded_modules, module->file, strlen(module->file));
-    sw_strdup_free(module->file);
+    sw_free(module->file);
     sw_free(module);
 }
 
