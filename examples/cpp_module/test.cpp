@@ -48,8 +48,8 @@ int swModule_init(swModule *module)
     swModule_register_global_function((char *) "test_get_length", (void *) test_get_length);
     swModule_register_global_function((char *) "my_dispatch_function", (void *) dispatch_function);
 
-    PHP::registerFunction(function(cpp_hello_world));
-    PHP::registerFunction(function(cpp_test));
+    PHP::registerFunction(PHPX_NAME(cpp_hello_world));
+    PHP::registerFunction(PHPX_NAME(cpp_test));
     PHP::registerConstant("CPP_CONSTANTS_INT", 1234);
 
     Array array;
@@ -185,14 +185,14 @@ void cpp_hello_world(Args &args, Variant &retval)
  * $module = swoole_load_module(__DIR__.'/test.so');
  * cpp_test("abc", 1234, 459.55, "hello");
  */
-void cpp_test(Args &params, Variant &_retval)
+static PHPX_FUNCTION(cpp_test)
 {
-    printf("key[0] = %s\n", params[0].toCString());
-    printf("key[1] = %ld\n", params[1].toInt());
-    printf("key[2] = %f\n", params[2].toFloat());
-    if (params.count() == 4)
+    printf("key[0] = %s\n", args[0].toCString());
+    printf("key[1] = %ld\n", args[1].toInt());
+    printf("key[2] = %f\n", args[2].toFloat());
+    if (args.count() == 4)
     {
-        printf("key[3] = %s\n", params[3].toCString());
+        printf("key[3] = %s\n", args[3].toCString());
     }
     /**
      * 调用PHP代码中的test2函数
@@ -204,11 +204,11 @@ void cpp_test(Args &params, Variant &_retval)
     array.append("123456789");
     array.append("tianfenghan");
 
-    Variant retval = PHP::call("test2", array);
+    Variant _retval = PHP::call("test2", array);
     /**
      * test2函数返回了数组
      */
-    if (retval.isArray())
+    if (_retval.isArray())
     {
         //把变量转成数组
         Array arr(retval);
@@ -220,7 +220,7 @@ void cpp_test(Args &params, Variant &_retval)
     /**
      * test2函数返回了对象
      */
-    else if (retval.isObject())
+    else if (_retval.isObject())
     {
         //把变量转为对象
         Object obj(retval);
@@ -300,6 +300,6 @@ void cpp_test(Args &params, Variant &_retval)
     }
     else
     {
-        cout << "return value=" << retval.toString() << endl;
+        cout << "return value=" << _retval.toString() << endl;
     }
 }

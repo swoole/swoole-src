@@ -1542,8 +1542,10 @@ Object create(const char *name)
     return object;
 }
 
-#define function(f) #f, f
-#define defineMethod(c, m) void c##_##m(Object &_this, Args &args, Variant &retval)
+#define PHPX_NAME(n)      #n, n
+#define PHPX_FUNCTION(c)  void c(Args &args, Variant &retval)
+#define PHPX_METHOD(c, m) void c##_##m(Object &_this, Args &args, Variant &retval)
+
 typedef void (*function_t)(Args &, Variant &retval);
 typedef void (*resource_dtor)(zend_resource *);
 typedef void (*method_t)(Object &, Args &, Variant &retval);
