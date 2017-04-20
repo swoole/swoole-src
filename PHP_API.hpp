@@ -1491,6 +1491,10 @@ public:
     {
         return string(Z_OBJCE_P(ptr())->name->val, Z_OBJCE_P(ptr())->name->len);
     }
+    uint32_t getId()
+    {
+        return Z_OBJ_HANDLE(*ptr());
+    }
     bool methodExists(const char *name)
     {
         return zend_hash_str_exists(&Z_OBJCE_P(ptr())->function_table, name, strlen(name));
