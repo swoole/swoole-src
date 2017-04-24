@@ -254,9 +254,14 @@ static int swClient_inet_addr(swClient *cli, char *host, int port)
     else if (cli->type == SW_SOCK_UNIX_STREAM || cli->type == SW_SOCK_UNIX_DGRAM)
     {
         cli->server_addr.addr.un.sun_family = AF_UNIX;
-        strncpy(cli->server_addr.addr.un.sun_path, host, sizeof(cli->server_addr.addr.un.sun_path));
-        cli->server_addr.len = sizeof(cli->server_addr.addr.un);
+        strncpy(cli->server_addr.addr.un.sun_path, host, sizeof(cli->server_addr.addr.un.sun_path) - 1);
+        cli->server_addr.addr.un.sun_path[sizeof(cli->server_addr.addr.un.sun_path) - 1] = 0;
+        cli->server_addr.len = sizeof(cli->server_addr.addr.un.sun_path);
         return SW_OK;
+    }
+    else
+    {
+        return SW_ERR;
     }
 #ifndef SW_COROUTINE
     if (cli->async)
@@ -543,7 +548,8 @@ static int swClient_tcp_send_async(swClient *cli, char *data, int length, int fl
     }
     else
     {
-        if (cli->onBufferFull && cli->socket->out_buffer && cli->socket->out_buffer->length >= cli->buffer_high_watermark)
+        if (cli->onBufferFull && cli->socket->out_buffer && cli->socket->high_watermark == 0
+                && cli->socket->out_buffer->length >= cli->buffer_high_watermark)
         {
             cli->socket->high_watermark = 1;
             cli->onBufferFull(cli);

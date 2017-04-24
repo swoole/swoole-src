@@ -238,8 +238,8 @@ typedef union
 typedef struct
 {
     mysql_field *columns;
-    uint16_t num_column;
-    uint16_t index_column;
+    ulong_t num_column;
+    ulong_t index_column;
     uint32_t num_row;
     uint8_t wait_recv;
     uint8_t response_type;

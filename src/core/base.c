@@ -90,7 +90,7 @@ void swoole_init(void)
 
     if (!SwooleG.task_tmpdir)
     {
-        SwooleG.task_tmpdir = strndup(SW_TASK_TMP_FILE, sizeof(SW_TASK_TMP_FILE));
+        SwooleG.task_tmpdir = sw_strndup(SW_TASK_TMP_FILE, sizeof(SW_TASK_TMP_FILE));
         SwooleG.task_tmpdir_len = sizeof(SW_TASK_TMP_FILE);
     }
 
@@ -102,7 +102,7 @@ void swoole_init(void)
     }
     if (tmp_dir)
     {
-        sw_strdup_free(tmp_dir);
+        sw_free(tmp_dir);
     }
 
     //init signalfd
@@ -247,7 +247,7 @@ int swoole_mkdir_recursive(const char *dir)
  */
 char* swoole_dirname(char *file)
 {
-    char *dirname = strdup(file);
+    char *dirname = sw_strdup(file);
     if (dirname == NULL)
     {
         swWarn("strdup() failed.");
@@ -311,7 +311,7 @@ char* swoole_dec2hex(int value, int base)
         value /= base;
     } while (ptr > buf && value);
 
-    return strndup(ptr, end - ptr);
+    return sw_strndup(ptr, end - ptr);
 }
 
 int swoole_sync_writefile(int fd, void *data, int len)
@@ -383,9 +383,9 @@ int swoole_system_random(int min, int max)
     next_random_byte = (char *) &random_value;
     bytes_to_read = sizeof(random_value);
 
-    if (read(dev_random_fd, next_random_byte, bytes_to_read) < 0)
+    if (read(dev_random_fd, next_random_byte, bytes_to_read) < bytes_to_read)
     {
-        swSysError("read() failed.");
+        swSysError("read() from /dev/urandom failed.");
         return SW_ERR;
     }
     return min + (random_value % (max - min + 1));
@@ -514,7 +514,7 @@ long swoole_file_get_size(FILE *fp)
     long pos = ftell(fp);
     fseek(fp, 0L, SEEK_END);
     long size = ftell(fp);
-    fseek(fp, pos, SEEK_SET); 
+    fseek(fp, pos, SEEK_SET);
     return size;
 }
 
@@ -934,11 +934,11 @@ int swoole_gethostbyname(int flags, char *name, char *addr)
     }
     if (__af == AF_INET)
     {
-        strcpy(addr, addr_list[index].v4);
+        memcpy(addr, addr_list[index].v4, host_entry->h_length);
     }
     else
     {
-        strcpy(addr, addr_list[index].v6);
+        memcpy(addr, addr_list[index].v6, host_entry->h_length);
     }
     return SW_OK;
 }

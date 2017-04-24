@@ -408,8 +408,7 @@ int swSSL_accept(swConnection *conn)
     {
         return SW_ERROR;
     }
-    err = ERR_GET_REASON(ERR_peek_error());
-    swWarn("SSL_do_handshake() failed. Error: %s[%ld]", ERR_reason_error_string(err), err);
+    swWarn("SSL_do_handshake() failed. Error: [%ld].", err);
     return SW_ERROR;
 }
 
@@ -445,10 +444,6 @@ int swSSL_connect(swConnection *conn)
 
 void swSSL_close(swConnection *conn)
 {
-    SSL_set_quiet_shutdown(conn->ssl, 1);
-    SSL_set_shutdown(conn->ssl, SSL_RECEIVED_SHUTDOWN | SSL_SENT_SHUTDOWN);
-
-    SSL_shutdown(conn->ssl);
     SSL_free(conn->ssl);
     conn->ssl = NULL;
 }
@@ -465,23 +460,14 @@ ssize_t swSSL_recv(swConnection *conn, void *__buf, size_t __n)
             conn->ssl_want_read = 1;
             errno = EAGAIN;
             return SW_ERR;
-            break;
 
         case SSL_ERROR_WANT_WRITE:
             conn->ssl_want_write = 1;
             errno = EAGAIN;
             return SW_ERR;
 
-        case SSL_ERROR_SYSCALL:
-        case SSL_ERROR_SSL:
-            n = ERR_GET_REASON(ERR_peek_error());
-            swWarn("SSL_read(%d, %ld) failed, Reason: %s[%d].", conn->fd, __n, ERR_reason_error_string((ulong_t )n), n);
-            errno = SW_ERROR_SSL_BAD_CLIENT;
-            return SW_ERR;
-
         default:
-            swWarn("SSL_read(%d, %ld) failed, errno=%d.", conn->fd, __n, _errno);
-            return SW_ERR;
+            break;
         }
     }
     return n;
@@ -498,22 +484,14 @@ ssize_t swSSL_send(swConnection *conn, void *__buf, size_t __n)
             conn->ssl_want_read = 1;
             errno = EAGAIN;
             return SW_ERR;
-            break;
 
         case SSL_ERROR_WANT_WRITE:
             conn->ssl_want_write = 1;
             errno = EAGAIN;
             return SW_ERR;
 
-        case SSL_ERROR_SYSCALL:
-        case SSL_ERROR_SSL:
-            n = ERR_GET_REASON(ERR_peek_error());
-            swWarn("SSL_write(%d, %ld) failed, Reason: %s[%d].", conn->fd, __n, ERR_reason_error_string((ulong_t )n), n);
-            errno = SW_ERROR_SSL_BAD_CLIENT;
-            return SW_ERR;
-
         default:
-            return SW_ERR;
+            break;
         }
     }
     return n;

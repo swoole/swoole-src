@@ -112,7 +112,7 @@ static PHP_METHOD(swoole_server_port, set)
     {
         convert_to_long(v);
         port->socket_buffer_size = (int) Z_LVAL_P(v);
-        if (port->socket_buffer_size <= 0 || port->socket_buffer_size > SW_MAX_INT)
+        if (port->socket_buffer_size <= 0)
         {
             port->socket_buffer_size = SW_MAX_INT;
         }
@@ -189,7 +189,7 @@ static PHP_METHOD(swoole_server_port, set)
     if (php_swoole_array_get_value(vht, "websocket_subprotocol", v))
     {
         convert_to_string(v);
-        port->websocket_subprotocol = strdup(Z_STRVAL_P(v));
+        port->websocket_subprotocol = sw_strdup(Z_STRVAL_P(v));
         port->websocket_subprotocol_length = Z_STRLEN_P(v);
     }
 #ifdef SW_USE_HTTP2
@@ -321,7 +321,7 @@ static PHP_METHOD(swoole_server_port, set)
                 swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", Z_STRVAL_P(v));
                 return;
             }
-            port->ssl_cert_file = strdup(Z_STRVAL_P(v));
+            port->ssl_cert_file = sw_strdup(Z_STRVAL_P(v));
             port->open_ssl_encrypt = 1;
         }
         if (php_swoole_array_get_value(vht, "ssl_key_file", v))
@@ -332,7 +332,7 @@ static PHP_METHOD(swoole_server_port, set)
                 swoole_php_fatal_error(E_ERROR, "ssl key file[%s] not found.", Z_STRVAL_P(v));
                 return;
             }
-            port->ssl_key_file = strdup(Z_STRVAL_P(v));
+            port->ssl_key_file = sw_strdup(Z_STRVAL_P(v));
         }
         if (php_swoole_array_get_value(vht, "ssl_method", v))
         {
@@ -348,7 +348,7 @@ static PHP_METHOD(swoole_server_port, set)
                 swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", port->ssl_cert_file);
                 return;
             }
-            port->ssl_client_cert_file = strdup(Z_STRVAL_P(v));
+            port->ssl_client_cert_file = sw_strdup(Z_STRVAL_P(v));
         }
         if (php_swoole_array_get_value(vht, "ssl_verify_depth", v))
         {
@@ -378,17 +378,17 @@ static PHP_METHOD(swoole_server_port, set)
         if (php_swoole_array_get_value(vht, "ssl_ciphers", v))
         {
             convert_to_string(v);
-            port->ssl_config.ciphers = strdup(Z_STRVAL_P(v));
+            port->ssl_config.ciphers = sw_strdup(Z_STRVAL_P(v));
         }
         if (php_swoole_array_get_value(vht, "ssl_ecdh_curve", v))
         {
             convert_to_string(v);
-            port->ssl_config.ecdh_curve = strdup(Z_STRVAL_P(v));
+            port->ssl_config.ecdh_curve = sw_strdup(Z_STRVAL_P(v));
         }
         if (php_swoole_array_get_value(vht, "ssl_dhparam", v))
         {
             convert_to_string(v);
-            port->ssl_config.dhparam = strdup(Z_STRVAL_P(v));
+            port->ssl_config.dhparam = sw_strdup(Z_STRVAL_P(v));
         }
         //    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_session_cache"), (void **) &v) == SUCCESS)
         //    {

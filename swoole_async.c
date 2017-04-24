@@ -121,7 +121,7 @@ static sw_inline void* swoole_aio_malloc(size_t __size)
 
     if (SwooleAIO.mode == SW_AIO_LINUX)
     {
-        int buf_len = __size + (sysconf(_SC_PAGESIZE) - (__size % sysconf(_SC_PAGESIZE)));
+        size_t buf_len = __size + (sysconf(_SC_PAGESIZE) - (__size % sysconf(_SC_PAGESIZE)));
         if (posix_memalign((void **) &memory, sysconf(_SC_PAGESIZE), buf_len) != 0)
         {
             return NULL;
@@ -944,7 +944,7 @@ PHP_FUNCTION(swoole_async_set)
     if (php_swoole_array_get_value(vht, "dns_server", v))
     {
         convert_to_string(v);
-        SwooleG.dns_server_v4 = strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
+        SwooleG.dns_server_v4 = sw_strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
     }
     if (php_swoole_array_get_value(vht, "use_async_resolver", v))
     {

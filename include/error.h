@@ -31,6 +31,7 @@ enum swErrorCode
     SW_ERROR_FILE_NOT_EXIST = 700,
     SW_ERROR_FILE_TOO_LARGE,
     SW_ERROR_FILE_EMPTY,
+    SW_ERROR_DNSLOOKUP_DUPLICATE_REQUEST,
 
     /**
      * connection error
@@ -55,6 +56,7 @@ enum swErrorCode
      * task error
      */
     SW_ERROR_TASK_PACKAGE_TOO_BIG = 2001,
+    SW_ERROR_TASK_DISPATCH_FAIL,
 
     /**
      * http2 protocol error

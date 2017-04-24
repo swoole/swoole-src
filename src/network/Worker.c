@@ -270,7 +270,7 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         if (task->info.len > 0)
         {
             conn = swServer_connection_verify_no_ssl(serv, task->info.fd);
-            conn->ssl_client_cert.str = strndup(task->data, task->info.len);
+            conn->ssl_client_cert.str = sw_strndup(task->data, task->info.len);
             conn->ssl_client_cert.size = conn->ssl_client_cert.length = task->info.len;
         }
 #endif
@@ -555,7 +555,7 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
 
     read_from_pipe:
 
-    if (read(event->fd, &task, sizeof(task)) > 0)
+    if (read(event->fd, &task, sizeof(task)) == sizeof(task))
     {
         ret = swWorker_onTask(factory, &task);
 #ifndef SW_WORKER_RECV_AGAIN

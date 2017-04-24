@@ -415,7 +415,7 @@ static void client_check_ssl_setting(swClient *cli, zval *zset TSRMLS_DC)
     if (php_swoole_array_get_value(vht, "ssl_cert_file", v))
     {
         convert_to_string(v);
-        cli->ssl_cert_file = strdup(Z_STRVAL_P(v));
+        cli->ssl_cert_file = sw_strdup(Z_STRVAL_P(v));
         if (access(cli->ssl_cert_file, R_OK) < 0)
         {
             swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", cli->ssl_cert_file);
@@ -425,7 +425,7 @@ static void client_check_ssl_setting(swClient *cli, zval *zset TSRMLS_DC)
     if (php_swoole_array_get_value(vht, "ssl_key_file", v))
     {
         convert_to_string(v);
-        cli->ssl_key_file = strdup(Z_STRVAL_P(v));
+        cli->ssl_key_file = sw_strdup(Z_STRVAL_P(v));
         if (access(cli->ssl_key_file, R_OK) < 0)
         {
             swoole_php_fatal_error(E_ERROR, "ssl key file[%s] not found.", cli->ssl_key_file);
@@ -590,7 +590,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
     {
         convert_to_long(v);
         value = (int) Z_LVAL_P(v);
-        if (value <= 0 || value > SW_MAX_INT)
+        if (value <= 0)
         {
             value = SW_MAX_INT;
         }
@@ -648,7 +648,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
         convert_to_string(v);
         cli->socks5_proxy = emalloc(sizeof(swSocks5));
         bzero(cli->socks5_proxy, sizeof(swSocks5));
-        cli->socks5_proxy->host = strdup(Z_STRVAL_P(v));
+        cli->socks5_proxy->host = sw_strdup(Z_STRVAL_P(v));
         cli->socks5_proxy->dns_tunnel = 1;
 
         if (php_swoole_array_get_value(vht, "socks5_port", v))
@@ -682,7 +682,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
         {
             convert_to_long(v);
             cli->http_proxy = ecalloc(1,sizeof(struct _http_proxy));
-            cli->http_proxy->proxy_host = strdup(host);
+            cli->http_proxy->proxy_host = sw_strdup(host);
             cli->http_proxy->proxy_port = Z_LVAL_P(v);
         }
         else
@@ -1649,6 +1649,11 @@ static PHP_METHOD(swoole_client, close)
         swoole_php_error(E_WARNING, "client socket is closed.");
         RETURN_FALSE;
     }
+    if (cli->async && cli->socket->active == 0)
+    {
+        zval *zobject = getThis();
+        sw_zval_ptr_dtor(&zobject);
+    }
     //Connection error, or short tcp connection.
     //No keep connection
     if (force || !cli->keep || swConnection_error(SwooleG.error) == SW_CLOSE)
@@ -2013,7 +2018,7 @@ static int client_select_wait(zval *sock_array, fd_set *fds TSRMLS_DC)
 #if PHP_MAJOR_VERSION < 7
     HashTable *new_hash;
     char *key = NULL;
-    zval **dest_element;
+    zval **dest_element = NULL;
     uint32_t key_len;
 
     ALLOC_HASHTABLE(new_hash);

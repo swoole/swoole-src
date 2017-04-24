@@ -18,6 +18,8 @@
 #include <iostream>
 
 #include "PHP_API.hpp"
+#include "swoole.h"
+#include "Server.h"
 #include "module.h"
 
 using namespace std;
@@ -26,6 +28,7 @@ using namespace PHP;
 extern "C"
 {
     int swModule_init(swModule *);
+    void swModule_destroy(swModule *);
 }
 
 void cpp_hello_world(Args &args, Variant &retval);
@@ -45,8 +48,8 @@ int swModule_init(swModule *module)
     swModule_register_global_function((char *) "test_get_length", (void *) test_get_length);
     swModule_register_global_function((char *) "my_dispatch_function", (void *) dispatch_function);
 
-    PHP::registerFunction(function(cpp_hello_world));
-    PHP::registerFunction(function(cpp_test));
+    PHP::registerFunction(PHPX_NAME(cpp_hello_world));
+    PHP::registerFunction(PHPX_NAME(cpp_test));
     PHP::registerConstant("CPP_CONSTANTS_INT", 1234);
 
     Array array;
@@ -58,47 +61,51 @@ int swModule_init(swModule *module)
     string str("test");
     PHP::registerConstant("CPP_CONSTANTS_STRING", str);
 
-    Class c("CppClass");
+    Class *c = new Class("CppClass");
     /**
      * 注册构造方法
      */
-    c.addMethod("__construct", CppClass_construct, CONSTRUCT);
+    c->addMethod("__construct", CppClass_construct, CONSTRUCT);
     /**
      * 普通方法
      */
-    c.addMethod("test2", CppClass_test2);
+    c->addMethod("test2", CppClass_test2);
     /**
      * 静态方法
      */
-    c.addMethod("test", CppClass_test, STATIC);
+    c->addMethod("test", CppClass_test, STATIC);
     /**
      * 实现接口
      */
-    c.implements("Countable");
-    c.addMethod("count", CppClass_count);
+    c->implements("Countable");
+    c->addMethod("count", CppClass_count);
     /**
      * 添加默认属性
      */
-    c.addProperty("name", 1234);
+    c->addProperty("name", 1234);
     /**
      * 添加常量
      */
-    c.addConstant("VERSION", "1.9.0");
+    c->addConstant("VERSION", "1.9.0");
+    /**
+     * 注册类
+     */
+    PHP::registerClass(c);
     /**
      * 读取全局变量
      */
     Variant server = PHP::getGlobalVariant("_SERVER");
     if (server.isArray())
     {
-      Variant shell = Array(server)["SHELL"];
-      var_dump(shell);
+        Variant shell = Array(server)["SHELL"];
+        var_dump(shell);
     }
-    /**
-     * 激活类
-     */
-    c.activate();
-
     return SW_OK;
+}
+
+void swModule_destroy(swModule *module)
+{
+    PHP::destroy();
 }
 
 int test_get_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t length)
@@ -109,23 +116,26 @@ int test_get_length(swProtocol *protocol, swConnection *conn, char *data, uint32
 
 int dispatch_function(swServer *serv, swConnection *conn, swEventData *data)
 {
-    printf("cpp, type=%d, size=%d\n", data->info.type, data->info.len);
-    return data->info.len % serv->worker_num;
+    int worker_id = rand() % serv->worker_num;
+    printf("cpp, dst_worker_id=%d, type=%d, size=%d\n", worker_id, data->info.type, data->info.len);
+    return worker_id;
 }
 
 void testRedis()
 {
     cout << "=====================Test Redis==================\n";
     Object redis = PHP::create("redis");
-    Array args;
-    args.append("127.0.0.1");
-    args.append(6379);
-    auto ret = redis.call("connect", args);
-
-    Array args2;
-    args2.append("key");
-    Variant ret2 = redis.call("get", args2);
-    printf("value=%s\n", ret2.toCString());
+    auto ret1 = redis.exec("connect", "127.0.0.1", 6379);
+    //connect success
+    if (ret1.toBool())
+    {
+        auto ret2 = redis.exec("get", "key");
+        printf("value=%s\n", ret2.toCString());
+    }
+    else
+    {
+        cout << "connect to redis server failed." << endl;
+    }
 }
 
 void CppClass_construct(Object &_this, Args &args, Variant &retval)
@@ -175,14 +185,14 @@ void cpp_hello_world(Args &args, Variant &retval)
  * $module = swoole_load_module(__DIR__.'/test.so');
  * cpp_test("abc", 1234, 459.55, "hello");
  */
-void cpp_test(Args &params, Variant &_retval)
+static PHPX_FUNCTION(cpp_test)
 {
-    printf("key[0] = %s\n", params[0].toCString());
-    printf("key[1] = %ld\n", params[1].toInt());
-    printf("key[2] = %f\n", params[2].toFloat());
-    if (params.count() == 4)
+    printf("key[0] = %s\n", args[0].toCString());
+    printf("key[1] = %ld\n", args[1].toInt());
+    printf("key[2] = %f\n", args[2].toFloat());
+    if (args.count() == 4)
     {
-        printf("key[3] = %s\n", params[3].toCString());
+        printf("key[3] = %s\n", args[3].toCString());
     }
     /**
      * 调用PHP代码中的test2函数
@@ -194,11 +204,11 @@ void cpp_test(Args &params, Variant &_retval)
     array.append("123456789");
     array.append("tianfenghan");
 
-    Variant retval = PHP::call("test2", array);
+    Variant _retval = PHP::call("test2", array);
     /**
      * test2函数返回了数组
      */
-    if (retval.isArray())
+    if (_retval.isArray())
     {
         //把变量转成数组
         Array arr(retval);
@@ -210,7 +220,7 @@ void cpp_test(Args &params, Variant &_retval)
     /**
      * test2函数返回了对象
      */
-    else if (retval.isObject())
+    else if (_retval.isObject())
     {
         //把变量转为对象
         Object obj(retval);
@@ -290,6 +300,6 @@ void cpp_test(Args &params, Variant &_retval)
     }
     else
     {
-        cout << "return value=" << retval.toString() << endl;
+        cout << "return value=" << _retval.toString() << endl;
     }
 }

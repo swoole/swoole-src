@@ -725,65 +725,63 @@ static sw_inline swWorker* swServer_get_worker(swServer *serv, uint16_t worker_i
         return serv->user_workers[worker_id - task_worker_max];
     }
 
-    //Unkown worker_id
-    swWarn("worker#%d is not exist.", worker_id);
     return NULL;
 }
 
-static sw_inline uint32_t swServer_worker_schedule(swServer *serv, uint32_t schedule_key)
+static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swEventData *data)
 {
-    uint32_t target_worker_id = 0;
+    uint32_t key;
 
     //polling mode
     if (serv->dispatch_mode == SW_DISPATCH_ROUND)
     {
-        target_worker_id = sw_atomic_fetch_add(&serv->worker_round_id, 1) % serv->worker_num;
+        key = sw_atomic_fetch_add(&serv->worker_round_id, 1);
     }
     //Using the FD touch access to hash
     else if (serv->dispatch_mode == SW_DISPATCH_FDMOD)
     {
-        target_worker_id = schedule_key % serv->worker_num;
+        key = fd;
     }
     //Using the IP touch access to hash
     else if (serv->dispatch_mode == SW_DISPATCH_IPMOD)
     {
-        swConnection *conn = swServer_connection_get(serv, schedule_key);
+        swConnection *conn = swServer_connection_get(serv, fd);
         //UDP
         if (conn == NULL)
         {
-            target_worker_id = schedule_key % serv->worker_num;
+            key = fd;
         }
         //IPv4
         else if (conn->socket_type == SW_SOCK_TCP)
         {
-            target_worker_id = conn->info.addr.inet_v4.sin_addr.s_addr % serv->worker_num;
+            key = conn->info.addr.inet_v4.sin_addr.s_addr;
         }
         //IPv6
         else
         {
 #ifdef HAVE_KQUEUE
-            uint32_t ipv6_last_int = *(((uint32_t *) &conn->info.addr.inet_v6.sin6_addr) + 3);
-            target_worker_id = ipv6_last_int % serv->worker_num;
+            key = *(((uint32_t *) &conn->info.addr.inet_v6.sin6_addr) + 3);
 #else
-            target_worker_id = conn->info.addr.inet_v6.sin6_addr.s6_addr32[3] % serv->worker_num;
+            key = conn->info.addr.inet_v6.sin6_addr.s6_addr32[3];
 #endif
         }
     }
     else if (serv->dispatch_mode == SW_DISPATCH_UIDMOD)
     {
-        swConnection *conn = swServer_connection_get(serv, schedule_key);
+        swConnection *conn = swServer_connection_get(serv, fd);
         if (conn == NULL)
         {
-            target_worker_id = schedule_key % serv->worker_num;
-        }
-        else if (conn->uid)
-        {
-            target_worker_id = conn->uid % serv->worker_num;
+            key = fd;
         }
         else
         {
-            target_worker_id = schedule_key % serv->worker_num;
+            key = conn->uid;
         }
+    }
+    //schedule by dispatch function
+    else if (serv->dispatch_mode == SW_DISPATCH_USERFUNC)
+    {
+        return serv->dispatch_func(serv, swServer_connection_get(serv, fd), data);
     }
     //Preemptive distribution
     else
@@ -791,15 +789,16 @@ static sw_inline uint32_t swServer_worker_schedule(swServer *serv, uint32_t sche
         int i;
         for (i = 0; i < serv->worker_num + 1; i++)
         {
-            target_worker_id = sw_atomic_fetch_add(&serv->worker_round_id, 1) % serv->worker_num;
-            if (serv->workers[target_worker_id].status == SW_WORKER_IDLE)
+            key = sw_atomic_fetch_add(&serv->worker_round_id, 1) % serv->worker_num;
+            if (serv->workers[key].status == SW_WORKER_IDLE)
             {
                 break;
             }
         }
-        //swWarn("schedule=%d|round=%d\n", target_worker_id, *round);
+        swTraceLog(SW_TRACE_SERVER, "schedule=%d, round=%d\n", key, serv->worker_round_id);
+        return key;
     }
-    return target_worker_id;
+    return key % serv->worker_num;
 }
 
 void swServer_worker_onStart(swServer *serv);

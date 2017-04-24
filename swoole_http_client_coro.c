@@ -498,13 +498,13 @@ static int http_client_coro_send_http_request(zval *zobject TSRMLS_DC)
 
     int ret;
     http_client *http = swoole_get_object(zobject);
-    if (!http->cli)
+    if (!http->cli || !http->cli->socket )
     {
         swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_http_client.");
         return SW_ERR;
     }
 
-    if (!http->cli->socket && http->cli->socket->active == 0)
+    if (http->cli->socket->active == 0)
     {
         swoole_php_error(E_WARNING, "server is not connected.");
         return SW_ERR;

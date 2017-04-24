@@ -640,13 +640,13 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
 {
     int ret;
     http_client *http = swoole_get_object(zobject);
-    if (!http->cli)
+    if (!http->cli || !http->cli->socket)
     {
         swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_http_client.");
         return SW_ERR;
     }
 
-    if (!http->cli->socket && http->cli->socket->active == 0)
+    if (http->cli->socket->active == 0)
     {
         swoole_php_error(E_WARNING, "server is not connected.");
         return SW_ERR;
@@ -692,19 +692,19 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
     swString_clear(http_client_buffer);
     swString_append_ptr(http_client_buffer, hcc->request_method, strlen(hcc->request_method));
     hcc->request_method = NULL;
-    swString_append_ptr (http_client_buffer, ZEND_STRL (" "));
+    swString_append_ptr(http_client_buffer, ZEND_STRL(" "));
 #ifdef SW_USE_OPENSSL
-    if (http->cli->http_proxy&&!http->cli->open_ssl)
+    if (http->cli->http_proxy && !http->cli->open_ssl)
 #else
     if (http->cli->http_proxy)
 #endif
     {
-        sw_zend_hash_find (Z_ARRVAL_P (send_header), ZEND_STRS ("Host"), (void **) &value); //checked before
+        sw_zend_hash_find(Z_ARRVAL_P(send_header), ZEND_STRS("Host"), (void **) &value); //checked before
         char *pre = "http://";
-        int len = http->uri_len + Z_STRLEN_P (value) + strlen (pre) + 1;
-        void *addr = ecalloc (len, 1);
-        snprintf (addr, len, "%s%s%s", pre, Z_STRVAL_P (value), http->uri);
-        efree (http->uri);
+        int len = http->uri_len + Z_STRLEN_P(value) + strlen(pre) + 1;
+        void *addr = ecalloc(len, 1);
+        snprintf(addr, len, "%s%s%s", pre, Z_STRVAL_P(value), http->uri);
+        efree(http->uri);
         http->uri = addr;
         http->uri_len = len;
     }
@@ -1554,7 +1554,10 @@ int http_response_uncompress(z_stream *stream, swString *buffer, char *body, int
         {
             if (buffer->length + 4096 >= buffer->size)
             {
-                swString_extend(buffer, buffer->size * 2);
+                if (swString_extend(buffer, buffer->size * 2) < 0)
+                {
+                    return SW_ERR;
+                }
             }
             if (stream->avail_in == 0)
             {

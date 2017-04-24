@@ -428,7 +428,7 @@ static int swManager_loop_async(swFactory *factory)
     {
         serv->onManagerStop(serv);
     }
-
+    swHashMap_free(pidMap);
     return SW_OK;   
 }
 

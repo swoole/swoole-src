@@ -53,6 +53,7 @@ typedef struct
     uint32_t window_size;
     uint32_t max_concurrent_streams;
     uint32_t max_frame_size;
+    uint32_t max_header_list_size;
 
     nghttp2_hd_inflater *inflater;
     zval *object;
@@ -509,6 +510,10 @@ static int http2_client_onFrame(zval *zobject, zval *zdata TSRMLS_DC)
                 hcc->max_frame_size = value;
                 swTraceLog(SW_TRACE_HTTP2, "setting: max_frame_size=%d.", value);
                 break;
+            case SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE:
+                hcc->max_header_list_size = value;
+                swTraceLog(SW_TRACE_HTTP2, "setting: max_header_list_size=%d.", value);
+                break;
             default:
                 swWarn("unknown option[%d].", id);
                 break;
@@ -714,7 +719,7 @@ static void http2_client_send_request(zval *zobject, http2_client_request *req T
     }
     else
     {
-        swHttp2_set_frame_header(buffer, SW_HTTP2_TYPE_HEADERS, n, 0, hcc->stream_id);
+        swHttp2_set_frame_header(buffer, SW_HTTP2_TYPE_HEADERS, n, SW_HTTP2_FLAG_END_HEADERS, hcc->stream_id);
     }
 
     http2_client_stream *stream = emalloc(sizeof(http2_client_stream));

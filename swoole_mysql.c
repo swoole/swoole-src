@@ -33,7 +33,6 @@ static PHP_METHOD(swoole_mysql, escape);
 static PHP_METHOD(swoole_mysql, query);
 static PHP_METHOD(swoole_mysql, close);
 static PHP_METHOD(swoole_mysql, on);
-static PHP_METHOD(swoole_mysql, getBuffer);
 
 static zend_class_entry swoole_mysql_ce;
 static zend_class_entry *swoole_mysql_class_entry_ptr;
@@ -291,7 +290,6 @@ static const zend_function_entry swoole_mysql_methods[] =
     PHP_ME(swoole_mysql, escape, arginfo_swoole_mysql_escape, ZEND_ACC_PUBLIC)
 #endif
     PHP_ME(swoole_mysql, query, arginfo_swoole_mysql_query, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_mysql, getBuffer, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_mysql, close, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_mysql, on, arginfo_swoole_mysql_on, ZEND_ACC_PUBLIC)
     PHP_FE_END
@@ -520,37 +518,45 @@ int mysql_handshake(mysql_connector *connector, char *buf, int len)
     tmp[connector->user_len] = '\0';
     tmp += (connector->user_len + 1);
 
-    //auth-response
-    char hash_0[20];
-    bzero(hash_0, sizeof(hash_0));
-    php_swoole_sha1(connector->password, connector->password_len, (uchar *) hash_0);
-
-    char hash_1[20];
-    bzero(hash_1, sizeof(hash_1));
-    php_swoole_sha1(hash_0, sizeof(hash_0), (uchar *) hash_1);
-
-    char str[40];
-    memcpy(str, request.auth_plugin_data, 20);
-    memcpy(str + 20, hash_1, 20);
-
-    char hash_2[20];
-    php_swoole_sha1(str, sizeof(str), (uchar *) hash_2);
-
-    char hash_3[20];
-
-    int *a = (int *) hash_2;
-    int *b = (int *) hash_0;
-    int *c = (int *) hash_3;
-
-    int i;
-    for (i = 0; i < 5; i++)
+    if (connector->password_len > 0)
     {
-        c[i] = a[i] ^ b[i];
-    }
+        //auth-response
+        char hash_0[20];
+        bzero(hash_0, sizeof (hash_0));
+        php_swoole_sha1(connector->password, connector->password_len, (uchar *) hash_0);
 
-    *tmp = 20;
-    memcpy(tmp + 1, hash_3, 20);
-    tmp += 21;
+        char hash_1[20];
+        bzero(hash_1, sizeof (hash_1));
+        php_swoole_sha1(hash_0, sizeof (hash_0), (uchar *) hash_1);
+
+        char str[40];
+        memcpy(str, request.auth_plugin_data, 20);
+        memcpy(str + 20, hash_1, 20);
+
+        char hash_2[20];
+        php_swoole_sha1(str, sizeof (str), (uchar *) hash_2);
+
+        char hash_3[20];
+
+        int *a = (int *) hash_2;
+        int *b = (int *) hash_0;
+        int *c = (int *) hash_3;
+
+        int i;
+        for (i = 0; i < 5; i++)
+        {
+            c[i] = a[i] ^ b[i];
+        }
+
+        *tmp = 20;
+        memcpy(tmp + 1, hash_3, 20);
+        tmp += 21;
+    }
+    else
+    {
+         *tmp = 0;
+         tmp++;
+    }
 
     //string[NUL]    database
     memcpy(tmp, connector->database, connector->database_len);
@@ -634,12 +640,12 @@ int mysql_response(mysql_client *client)
             else if (client->response.response_type == 0)
             {
                 /* affected rows */
-                ret = mysql_length_coded_binary(p, (ulong_t *) &client->response.affected_rows, &nul, n_buf);
+                ret = mysql_length_coded_binary(p, &client->response.affected_rows, &nul, n_buf);
                 n_buf -= ret;
                 p += ret;
 
                 /* insert id */
-                ret = mysql_length_coded_binary(p, (ulong_t *) &client->response.insert_id, &nul, n_buf);
+                ret = mysql_length_coded_binary(p, &client->response.insert_id, &nul, n_buf);
                 n_buf -= ret;
                 p += ret;
 
@@ -658,7 +664,7 @@ int mysql_response(mysql_client *client)
             else
             {
                 //Protocol::LengthEncodedInteger
-                ret = mysql_length_coded_binary(p - 1, (ulong_t *) &client->response.num_column, &nul, n_buf + 1);
+                ret = mysql_length_coded_binary(p - 1, &client->response.num_column, &nul, n_buf + 1);
                 if (ret < 0)
                 {
                     return SW_ERR;
@@ -1027,6 +1033,12 @@ static PHP_METHOD(swoole_mysql, close)
         RETURN_FALSE;
     }
 
+    if (client->cli->socket->closing)
+    {
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSING, "The mysql connection[%d] is closing.", client->fd);
+        RETURN_FALSE;
+    }
+
     zend_update_property_bool(swoole_mysql_class_entry_ptr, getThis(), ZEND_STRL("connected"), 0 TSRMLS_CC);
     SwooleG.main_reactor->del(SwooleG.main_reactor, client->fd);
 
@@ -1040,6 +1052,7 @@ static PHP_METHOD(swoole_mysql, close)
     zval *object = getThis();
     if (client->onClose)
     {
+        client->cli->socket->closing = 1;
         args[0] = &object;
         if (sw_call_user_function_ex(EG(function_table), NULL, client->onClose, &retval, 1, args, 0, NULL TSRMLS_CC) != SUCCESS)
         {
@@ -1418,19 +1431,6 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
         }
     }
     return SW_OK;
-}
-
-static PHP_METHOD(swoole_mysql, getBuffer)
-{
-
-    mysql_client *client = swoole_get_object(getThis());
-    if (!client)
-    {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_mysql.");
-        RETURN_FALSE;
-    }
-
-    SW_RETURN_STRINGL(client->buffer->str, client->buffer->length, 1);//TODO zero malloc
 }
 
 #ifdef SW_USE_MYSQLND

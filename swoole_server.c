@@ -28,7 +28,7 @@
 #include "zend_smart_str.h"
 #endif
 
-static int php_swoole_task_id;
+static int php_swoole_task_id = 0;
 static int udp_server_socket;
 static int dgram_server_socket;
 
@@ -76,6 +76,10 @@ int php_swoole_task_pack(swEventData *task, zval *data TSRMLS_DC)
     task->info.type = SW_EVENT_TASK;
     //field fd save task_id
     task->info.fd = php_swoole_task_id++;
+    if (php_swoole_task_id >= SW_MAX_INT)
+    {
+        php_swoole_task_id = 0;
+    }
     //field from_id save the worker_id
     task->info.from_id = SwooleWG.id;
     swTask_type(task) = 0;
@@ -343,6 +347,7 @@ static zval* php_swoole_server_add_port(swListenPort *port TSRMLS_DC)
     zend_update_property_string(swoole_server_port_class_entry_ptr, port_object, ZEND_STRL("host"), port->host TSRMLS_CC);
     zend_update_property_long(swoole_server_port_class_entry_ptr, port_object, ZEND_STRL("port"), port->port TSRMLS_CC);
     zend_update_property_long(swoole_server_port_class_entry_ptr, port_object, ZEND_STRL("type"), port->type TSRMLS_CC);
+    zend_update_property_long(swoole_server_port_class_entry_ptr, port_object, ZEND_STRL("sock"), port->sock TSRMLS_CC);
 
     add_next_index_zval(server_port_list.zports, port_object);
 
@@ -374,7 +379,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject TSRMLS_DC)
     zval *zsetting = sw_zend_read_property(swoole_server_class_entry_ptr, zobject, ZEND_STRL("setting"), 1 TSRMLS_CC);
     if (zsetting == NULL || ZVAL_IS_NULL(zsetting))
     {
-        SW_MAKE_STD_ZVAL(zsetting);
+        SW_ALLOC_INIT_ZVAL(zsetting);
         array_init(zsetting);
         zend_update_property(swoole_server_class_entry_ptr, zobject, ZEND_STRL("setting"), zsetting TSRMLS_CC);
     }
@@ -534,7 +539,7 @@ static int php_swoole_task_finish(swServer *serv, zval *data TSRMLS_DC)
 
     ret = swTaskWorker_finish(serv, data_str, data_len, flags);
 #if PHP_MAJOR_VERSION >= 7
-    if (SWOOLE_G(fast_serialize))
+    if (SWOOLE_G(fast_serialize) && serialized_string)
     {
         zend_string_release(serialized_string);
     }
@@ -1542,19 +1547,19 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "chroot", v))
     {
         convert_to_string(v);
-        SwooleG.chroot = strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
+        SwooleG.chroot = sw_strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
     }
     //user
     if (php_swoole_array_get_value(vht, "user", v))
     {
         convert_to_string(v);
-        SwooleG.user = strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
+        SwooleG.user = sw_strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
     }
     //group
     if (php_swoole_array_get_value(vht, "group", v))
     {
         convert_to_string(v);
-        SwooleG.group = strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
+        SwooleG.group = sw_strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
     }
     //daemonize
     if (php_swoole_array_get_value(vht, "daemonize", v))
@@ -1566,7 +1571,7 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "pid_file", v))
     {
         convert_to_string(v);
-        serv->pid_file = strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
+        serv->pid_file = sw_strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
     }
     //reactor thread num
     if (php_swoole_array_get_value(vht, "reactor_num", v))
@@ -1622,7 +1627,7 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "log_file", v))
     {
         convert_to_string(v);
-        SwooleG.log_file = strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
+        SwooleG.log_file = sw_strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
     }
     //log_level
     if (php_swoole_array_get_value(vht, "log_level", v))
@@ -1772,7 +1777,7 @@ PHP_METHOD(swoole_server, set)
             swoole_php_fatal_error(E_ERROR, "option upload_tmp_dir [%s] is too long.", Z_STRVAL_P(v));
             RETURN_FALSE;
         }
-        serv->upload_tmp_dir = strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
+        serv->upload_tmp_dir = sw_strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
     }
 
     /**
@@ -2567,7 +2572,13 @@ PHP_METHOD(swoole_server, taskWaitMulti)
     int i = 0;
     int n_task = Z_ARRVAL_P(tasks)->nNumOfElements;
 
-    int list_of_id[1024];
+    if (n_task >= SW_MAX_CONCURRENT_TASK)
+    {
+        swoole_php_fatal_error(E_WARNING, "too many concurrent tasks.");
+        RETURN_FALSE;
+    }
+
+    int list_of_id[SW_MAX_CONCURRENT_TASK];
 
     uint64_t notify;
     swEventData *task_result = &(SwooleG.task_result[SwooleWG.id]);
@@ -2603,20 +2614,24 @@ PHP_METHOD(swoole_server, taskWaitMulti)
         swTask_type(&buf) |= SW_TASK_WAITALL;
         dst_worker_id = -1;
         sw_atomic_fetch_add(&SwooleStats->tasking_num, 1);
-        if (swProcessPool_dispatch_blocking(&SwooleGS->task_workers, &buf, (int*) &dst_worker_id) >= 0)
-        {
-            list_of_id[i] = task_id;
-        }
-        else
+        if (swProcessPool_dispatch_blocking(&SwooleGS->task_workers, &buf, (int*) &dst_worker_id) < 0)
         {
             sw_atomic_fetch_sub(&SwooleStats->tasking_num, 1);
             swoole_php_fatal_error(E_WARNING, "taskwait failed. Error: %s[%d]", strerror(errno), errno);
+            task_id = -1;
             fail:
             add_index_bool(return_value, i, 0);
             n_task --;
         }
+        list_of_id[i] = task_id;
         i++;
     SW_HASHTABLE_FOREACH_END();
+
+    if (n_task == 0)
+    {
+        SwooleG.error = SW_ERROR_TASK_DISPATCH_FAIL;
+        RETURN_FALSE;
+    }
 
     double _now = swoole_microtime();
     while (n_task > 0)
@@ -2651,7 +2666,7 @@ PHP_METHOD(swoole_server, taskWaitMulti)
         result = (swEventData *) (content->str + content->offset);
         task_id = result->info.fd;
         zdata = php_swoole_task_unpack(result TSRMLS_CC);
-        for (j = 0; j < n_task; j++)
+        for (j = 0; j < Z_ARRVAL_P(tasks)->nNumOfElements; j++)
         {
             if (list_of_id[j] == task_id)
             {

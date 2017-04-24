@@ -28,6 +28,7 @@
 #define SW_MAX_WORKER_GROUP        2
 #define SW_MAX_FILE_CONTENT        (64*1024*1024) //for swoole_file_get_contents
 #define SW_MAX_LISTEN_PORT         60000
+#define SW_MAX_CONCURRENT_TASK     1024
 
 //#define SW_USE_MALLOC_TRIM
 #define SW_USE_EVENT_TIMER
@@ -224,6 +225,7 @@
 
 #define SW_DNS_HOST_BUFFER_SIZE          16
 #define SW_DNS_SERVER_PORT               53
+#define SW_DNS_DEFAULT_SERVER            "8.8.8.8"
 
 //#define SW_HTTP_CLIENT_ENABLE
 

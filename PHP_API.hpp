@@ -47,13 +47,26 @@ extern "C"
 #include <string>
 #include <vector>
 
-#define MAX_ARGC        20
-#define VAR_DUMP_LEVEL  10
+#ifdef ECLIPSE_HELPER
+#include <map>
+#define unordered_map map
+#define nullptr_t void*
+#endif
+
+#define PHPX_MAX_ARGC        20
+#define PHPX_VAR_DUMP_LEVEL  10
 
 using namespace std;
 
 namespace PHP
 {
+struct Resource
+{
+    const char *name;
+    int type;
+};
+static unordered_map<string, Resource *> resource_map;
+
 class Variant
 {
 public:
@@ -118,6 +131,11 @@ public:
     {
         ref_val = v;
         reference = ref;
+    }
+    Variant(zend_resource *res)
+    {
+        init();
+        ZVAL_RES(ptr(), res);
     }
     ~Variant()
     {
@@ -249,6 +267,15 @@ public:
         }
         return Z_TYPE_P(ptr()) == IS_TRUE;
     }
+    void copy(Variant &v)
+    {
+        ZVAL_COPY_VALUE(ptr(), v.ptr());
+        addRef();
+    }
+    void copy(char *str, size_t size)
+    {
+        ZVAL_STRINGL(ptr(), str, size);
+    }
     inline int length()
     {
         if (!isString())
@@ -256,6 +283,22 @@ public:
             convert_to_string(ptr());
         }
         return Z_STRLEN_P(ptr());
+    }
+    template<class T>
+    T* toResource(const char *name)
+    {
+        if (!isResource())
+        {
+            php_error_docref(NULL, E_WARNING, "Variant is not a resource type.");
+            return NULL;
+        }
+        void *_ptr = NULL;
+        Resource *_c = resource_map[name];
+        if ((_ptr = zend_fetch_resource(Z_RES_P(ptr()), name, _c->type)) == NULL)
+        {
+            return NULL;
+        }
+        return static_cast<T *>(_ptr);
     }
 protected:
     bool reference;
@@ -267,6 +310,49 @@ protected:
         ref_val = NULL;
         memset(&val, 0, sizeof(val));
     }
+};
+
+class String
+{
+public:
+    String(const char *str)
+    {
+        value = zend_string_init(str, strlen(str), 0);
+    }
+    String(const char *str, size_t len)
+    {
+        value = zend_string_init(str, len, 0);
+    }
+    String(string &str)
+    {
+        value = zend_string_init(str.c_str(), str.length(), 0);
+    }
+    size_t length()
+    {
+        return value->len;
+    }
+    char* c_str()
+    {
+        return value->val;
+    }
+    ~String()
+    {
+        zend_string_free(value);
+    }
+    void extend(size_t new_size)
+    {
+        value = zend_string_extend(value, new_size, 0);
+    }
+    void tolower()
+    {
+        zend_str_tolower(value->val, value->len);
+    }
+    zend_string* ptr()
+    {
+        return value;
+    }
+protected:
+    zend_string *value;
 };
 
 class ArrayIterator
@@ -381,12 +467,9 @@ public:
             php_error_docref(NULL, E_ERROR, "cpp moudle array construct args must be zend array");
         }
     }
-    void append(Variant &v)
-    {
-        add_next_index_zval(ptr(), v.ptr());
-    }
     void append(Variant v)
     {
+        v.addRef();
         add_next_index_zval(ptr(), v.ptr());
     }
     void append(const char *str)
@@ -416,6 +499,11 @@ public:
     void append(float v)
     {
         add_next_index_double(ptr(), (double) v);
+    }
+    void append(zval *v)
+    {
+        zval_add_ref(v);
+        add_next_index_zval(ptr(), v);
     }
     void append(void *v)
     {
@@ -486,9 +574,8 @@ public:
     }
     bool remove(const char *key)
     {
-        zend_string *_key = zend_string_init(key, strlen(key), 0);
-        bool ret = zend_hash_del(Z_ARRVAL_P(ptr()), _key) == SUCCESS;
-        zend_string_free(_key);
+        String _key(key);
+        bool ret = zend_hash_del(Z_ARRVAL_P(ptr()),  _key.ptr()) == SUCCESS;
         return ret;
     }
     void clean()
@@ -497,9 +584,8 @@ public:
     }
     bool exists(const char *key)
     {
-        zend_string *_key = zend_string_init(key, strlen(key), 0);
-        bool ret = zend_hash_exists(Z_ARRVAL_P(ptr()), _key) == SUCCESS;
-        zend_string_free(_key);
+        String _key(key);
+        bool ret = zend_hash_exists(Z_ARRVAL_P(ptr()), _key.ptr()) == SUCCESS;
         return ret;
     }
     ArrayIterator begin()
@@ -529,7 +615,7 @@ public:
     }
     void append(zval *v)
     {
-        assert(argc < MAX_ARGC);
+        assert(argc < PHPX_MAX_ARGC);
         argv[argc++] = v;
     }
     size_t count()
@@ -547,6 +633,7 @@ public:
         {
             array.append(Variant(argv[i]));
         }
+        array.addRef();
         return array;
     }
     Variant operator [](int i)
@@ -559,17 +646,17 @@ public:
     }
 private:
     int argc;
-    zval *argv[MAX_ARGC];
+    zval *argv[PHPX_MAX_ARGC];
 };
 
 static inline Variant _call(zval *object, zval *func, Array &args)
 {
     Variant retval = false;
-    if (args.count() > MAX_ARGC)
+    if (args.count() > PHPX_MAX_ARGC)
     {
         return retval;
     }
-    zval params[MAX_ARGC];
+    zval params[PHPX_MAX_ARGC];
     for (int i = 0; i < args.count(); i++)
     {
         ZVAL_COPY_VALUE(&params[i], args[i].ptr());
@@ -578,6 +665,7 @@ static inline Variant _call(zval *object, zval *func, Array &args)
     if (call_user_function(EG(function_table), object, func, &_retval, args.count(), params) == 0)
     {
         retval = Variant(&_retval);
+        retval.addRef();
     }
     return retval;
 }
@@ -604,10 +692,357 @@ Variant call(const char *func, Array &args)
     Variant _func(func);
     return _call(NULL, _func.ptr(), args);
 }
-
+/*generator*/
+Variant exec(const char *func, Variant v1)
+{
+    Variant _func(func);
+    Array args;
+    args.append(v1.ptr());
+    return _call(NULL, _func.ptr(), args);
+}
+Variant exec(const char *func, Variant v1, Variant v2)
+{
+    Variant _func(func);
+    Array args;
+    args.append(v1.ptr());
+    args.append(v2.ptr());
+    return _call(NULL, _func.ptr(), args);
+}
+Variant exec(const char *func, Variant v1, Variant v2, Variant v3)
+{
+    Variant _func(func);
+    Array args;
+    args.append(v1.ptr());
+    args.append(v2.ptr());
+    args.append(v3.ptr());
+    return _call(NULL, _func.ptr(), args);
+}
+Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4)
+{
+    Variant _func(func);
+    Array args;
+    args.append(v1.ptr());
+    args.append(v2.ptr());
+    args.append(v3.ptr());
+    args.append(v4.ptr());
+    return _call(NULL, _func.ptr(), args);
+}
+Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5)
+{
+    Variant _func(func);
+    Array args;
+    args.append(v1.ptr());
+    args.append(v2.ptr());
+    args.append(v3.ptr());
+    args.append(v4.ptr());
+    args.append(v5.ptr());
+    return _call(NULL, _func.ptr(), args);
+}
+Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6)
+{
+    Variant _func(func);
+    Array args;
+    args.append(v1.ptr());
+    args.append(v2.ptr());
+    args.append(v3.ptr());
+    args.append(v4.ptr());
+    args.append(v5.ptr());
+    args.append(v6.ptr());
+    return _call(NULL, _func.ptr(), args);
+}
+Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7)
+{
+    Variant _func(func);
+    Array args;
+    args.append(v1.ptr());
+    args.append(v2.ptr());
+    args.append(v3.ptr());
+    args.append(v4.ptr());
+    args.append(v5.ptr());
+    args.append(v6.ptr());
+    args.append(v7.ptr());
+    return _call(NULL, _func.ptr(), args);
+}
+Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8)
+{
+    Variant _func(func);
+    Array args;
+    args.append(v1.ptr());
+    args.append(v2.ptr());
+    args.append(v3.ptr());
+    args.append(v4.ptr());
+    args.append(v5.ptr());
+    args.append(v6.ptr());
+    args.append(v7.ptr());
+    args.append(v8.ptr());
+    return _call(NULL, _func.ptr(), args);
+}
+Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9)
+{
+    Variant _func(func);
+    Array args;
+    args.append(v1.ptr());
+    args.append(v2.ptr());
+    args.append(v3.ptr());
+    args.append(v4.ptr());
+    args.append(v5.ptr());
+    args.append(v6.ptr());
+    args.append(v7.ptr());
+    args.append(v8.ptr());
+    args.append(v9.ptr());
+    return _call(NULL, _func.ptr(), args);
+}
+Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10)
+{
+    Variant _func(func);
+    Array args;
+    args.append(v1.ptr());
+    args.append(v2.ptr());
+    args.append(v3.ptr());
+    args.append(v4.ptr());
+    args.append(v5.ptr());
+    args.append(v6.ptr());
+    args.append(v7.ptr());
+    args.append(v8.ptr());
+    args.append(v9.ptr());
+    args.append(v10.ptr());
+    return _call(NULL, _func.ptr(), args);
+}
+Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11)
+{
+    Variant _func(func);
+    Array args;
+    args.append(v1.ptr());
+    args.append(v2.ptr());
+    args.append(v3.ptr());
+    args.append(v4.ptr());
+    args.append(v5.ptr());
+    args.append(v6.ptr());
+    args.append(v7.ptr());
+    args.append(v8.ptr());
+    args.append(v9.ptr());
+    args.append(v10.ptr());
+    args.append(v11.ptr());
+    return _call(NULL, _func.ptr(), args);
+}
+Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12)
+{
+    Variant _func(func);
+    Array args;
+    args.append(v1.ptr());
+    args.append(v2.ptr());
+    args.append(v3.ptr());
+    args.append(v4.ptr());
+    args.append(v5.ptr());
+    args.append(v6.ptr());
+    args.append(v7.ptr());
+    args.append(v8.ptr());
+    args.append(v9.ptr());
+    args.append(v10.ptr());
+    args.append(v11.ptr());
+    args.append(v12.ptr());
+    return _call(NULL, _func.ptr(), args);
+}
+Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13)
+{
+    Variant _func(func);
+    Array args;
+    args.append(v1.ptr());
+    args.append(v2.ptr());
+    args.append(v3.ptr());
+    args.append(v4.ptr());
+    args.append(v5.ptr());
+    args.append(v6.ptr());
+    args.append(v7.ptr());
+    args.append(v8.ptr());
+    args.append(v9.ptr());
+    args.append(v10.ptr());
+    args.append(v11.ptr());
+    args.append(v12.ptr());
+    args.append(v13.ptr());
+    return _call(NULL, _func.ptr(), args);
+}
+Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14)
+{
+    Variant _func(func);
+    Array args;
+    args.append(v1.ptr());
+    args.append(v2.ptr());
+    args.append(v3.ptr());
+    args.append(v4.ptr());
+    args.append(v5.ptr());
+    args.append(v6.ptr());
+    args.append(v7.ptr());
+    args.append(v8.ptr());
+    args.append(v9.ptr());
+    args.append(v10.ptr());
+    args.append(v11.ptr());
+    args.append(v12.ptr());
+    args.append(v13.ptr());
+    args.append(v14.ptr());
+    return _call(NULL, _func.ptr(), args);
+}
+Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14, Variant v15)
+{
+    Variant _func(func);
+    Array args;
+    args.append(v1.ptr());
+    args.append(v2.ptr());
+    args.append(v3.ptr());
+    args.append(v4.ptr());
+    args.append(v5.ptr());
+    args.append(v6.ptr());
+    args.append(v7.ptr());
+    args.append(v8.ptr());
+    args.append(v9.ptr());
+    args.append(v10.ptr());
+    args.append(v11.ptr());
+    args.append(v12.ptr());
+    args.append(v13.ptr());
+    args.append(v14.ptr());
+    args.append(v15.ptr());
+    return _call(NULL, _func.ptr(), args);
+}
+Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14, Variant v15, Variant v16)
+{
+    Variant _func(func);
+    Array args;
+    args.append(v1.ptr());
+    args.append(v2.ptr());
+    args.append(v3.ptr());
+    args.append(v4.ptr());
+    args.append(v5.ptr());
+    args.append(v6.ptr());
+    args.append(v7.ptr());
+    args.append(v8.ptr());
+    args.append(v9.ptr());
+    args.append(v10.ptr());
+    args.append(v11.ptr());
+    args.append(v12.ptr());
+    args.append(v13.ptr());
+    args.append(v14.ptr());
+    args.append(v15.ptr());
+    args.append(v16.ptr());
+    return _call(NULL, _func.ptr(), args);
+}
+Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14, Variant v15, Variant v16, Variant v17)
+{
+    Variant _func(func);
+    Array args;
+    args.append(v1.ptr());
+    args.append(v2.ptr());
+    args.append(v3.ptr());
+    args.append(v4.ptr());
+    args.append(v5.ptr());
+    args.append(v6.ptr());
+    args.append(v7.ptr());
+    args.append(v8.ptr());
+    args.append(v9.ptr());
+    args.append(v10.ptr());
+    args.append(v11.ptr());
+    args.append(v12.ptr());
+    args.append(v13.ptr());
+    args.append(v14.ptr());
+    args.append(v15.ptr());
+    args.append(v16.ptr());
+    args.append(v17.ptr());
+    return _call(NULL, _func.ptr(), args);
+}
+Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14, Variant v15, Variant v16, Variant v17, Variant v18)
+{
+    Variant _func(func);
+    Array args;
+    args.append(v1.ptr());
+    args.append(v2.ptr());
+    args.append(v3.ptr());
+    args.append(v4.ptr());
+    args.append(v5.ptr());
+    args.append(v6.ptr());
+    args.append(v7.ptr());
+    args.append(v8.ptr());
+    args.append(v9.ptr());
+    args.append(v10.ptr());
+    args.append(v11.ptr());
+    args.append(v12.ptr());
+    args.append(v13.ptr());
+    args.append(v14.ptr());
+    args.append(v15.ptr());
+    args.append(v16.ptr());
+    args.append(v17.ptr());
+    args.append(v18.ptr());
+    return _call(NULL, _func.ptr(), args);
+}
+Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14, Variant v15, Variant v16, Variant v17, Variant v18, Variant v19)
+{
+    Variant _func(func);
+    Array args;
+    args.append(v1.ptr());
+    args.append(v2.ptr());
+    args.append(v3.ptr());
+    args.append(v4.ptr());
+    args.append(v5.ptr());
+    args.append(v6.ptr());
+    args.append(v7.ptr());
+    args.append(v8.ptr());
+    args.append(v9.ptr());
+    args.append(v10.ptr());
+    args.append(v11.ptr());
+    args.append(v12.ptr());
+    args.append(v13.ptr());
+    args.append(v14.ptr());
+    args.append(v15.ptr());
+    args.append(v16.ptr());
+    args.append(v17.ptr());
+    args.append(v18.ptr());
+    args.append(v19.ptr());
+    return _call(NULL, _func.ptr(), args);
+}
+Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14, Variant v15, Variant v16, Variant v17, Variant v18, Variant v19, Variant v20)
+{
+    Variant _func(func);
+    Array args;
+    args.append(v1.ptr());
+    args.append(v2.ptr());
+    args.append(v3.ptr());
+    args.append(v4.ptr());
+    args.append(v5.ptr());
+    args.append(v6.ptr());
+    args.append(v7.ptr());
+    args.append(v8.ptr());
+    args.append(v9.ptr());
+    args.append(v10.ptr());
+    args.append(v11.ptr());
+    args.append(v12.ptr());
+    args.append(v13.ptr());
+    args.append(v14.ptr());
+    args.append(v15.ptr());
+    args.append(v16.ptr());
+    args.append(v17.ptr());
+    args.append(v18.ptr());
+    args.append(v19.ptr());
+    args.append(v20.ptr());
+    return _call(NULL, _func.ptr(), args);
+}/*generator*/
 void var_dump(Variant &v)
 {
-    php_var_dump(v.ptr(), VAR_DUMP_LEVEL);
+    php_var_dump(v.ptr(), PHPX_VAR_DUMP_LEVEL);
+}
+
+static inline zend_class_entry *getClassEntry(const char *name)
+{
+    String class_name(name, strlen(name));
+    return zend_lookup_class(class_name.ptr());
+}
+
+void throwException(const char *name, const char *message, int code = 0)
+{
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' undefined.", name);
+        return;
+    }
+    zend_throw_exception(ce, message, code TSRMLS_CC);
 }
 
 Variant getGlobalVariant(const char *name)
@@ -665,6 +1100,338 @@ public:
         Variant _func(func);
         return _call(ptr(), _func.ptr());
     }
+    /*generator*/
+    Variant exec(const char *func, Variant v1)
+    {
+        Variant _func(func);
+        Array args;
+        args.append(v1.ptr());
+        return _call(ptr(), _func.ptr(), args);
+    }
+    Variant exec(const char *func, Variant v1, Variant v2)
+    {
+        Variant _func(func);
+        Array args;
+        args.append(v1.ptr());
+        args.append(v2.ptr());
+        return _call(ptr(), _func.ptr(), args);
+    }
+    Variant exec(const char *func, Variant v1, Variant v2, Variant v3)
+    {
+        Variant _func(func);
+        Array args;
+        args.append(v1.ptr());
+        args.append(v2.ptr());
+        args.append(v3.ptr());
+        return _call(ptr(), _func.ptr(), args);
+    }
+    Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4)
+    {
+        Variant _func(func);
+        Array args;
+        args.append(v1.ptr());
+        args.append(v2.ptr());
+        args.append(v3.ptr());
+        args.append(v4.ptr());
+        return _call(ptr(), _func.ptr(), args);
+    }
+    Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5)
+    {
+        Variant _func(func);
+        Array args;
+        args.append(v1.ptr());
+        args.append(v2.ptr());
+        args.append(v3.ptr());
+        args.append(v4.ptr());
+        args.append(v5.ptr());
+        return _call(ptr(), _func.ptr(), args);
+    }
+    Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6)
+    {
+        Variant _func(func);
+        Array args;
+        args.append(v1.ptr());
+        args.append(v2.ptr());
+        args.append(v3.ptr());
+        args.append(v4.ptr());
+        args.append(v5.ptr());
+        args.append(v6.ptr());
+        return _call(ptr(), _func.ptr(), args);
+    }
+    Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7)
+    {
+        Variant _func(func);
+        Array args;
+        args.append(v1.ptr());
+        args.append(v2.ptr());
+        args.append(v3.ptr());
+        args.append(v4.ptr());
+        args.append(v5.ptr());
+        args.append(v6.ptr());
+        args.append(v7.ptr());
+        return _call(ptr(), _func.ptr(), args);
+    }
+    Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8)
+    {
+        Variant _func(func);
+        Array args;
+        args.append(v1.ptr());
+        args.append(v2.ptr());
+        args.append(v3.ptr());
+        args.append(v4.ptr());
+        args.append(v5.ptr());
+        args.append(v6.ptr());
+        args.append(v7.ptr());
+        args.append(v8.ptr());
+        return _call(ptr(), _func.ptr(), args);
+    }
+    Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9)
+    {
+        Variant _func(func);
+        Array args;
+        args.append(v1.ptr());
+        args.append(v2.ptr());
+        args.append(v3.ptr());
+        args.append(v4.ptr());
+        args.append(v5.ptr());
+        args.append(v6.ptr());
+        args.append(v7.ptr());
+        args.append(v8.ptr());
+        args.append(v9.ptr());
+        return _call(ptr(), _func.ptr(), args);
+    }
+    Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10)
+    {
+        Variant _func(func);
+        Array args;
+        args.append(v1.ptr());
+        args.append(v2.ptr());
+        args.append(v3.ptr());
+        args.append(v4.ptr());
+        args.append(v5.ptr());
+        args.append(v6.ptr());
+        args.append(v7.ptr());
+        args.append(v8.ptr());
+        args.append(v9.ptr());
+        args.append(v10.ptr());
+        return _call(ptr(), _func.ptr(), args);
+    }
+    Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11)
+    {
+        Variant _func(func);
+        Array args;
+        args.append(v1.ptr());
+        args.append(v2.ptr());
+        args.append(v3.ptr());
+        args.append(v4.ptr());
+        args.append(v5.ptr());
+        args.append(v6.ptr());
+        args.append(v7.ptr());
+        args.append(v8.ptr());
+        args.append(v9.ptr());
+        args.append(v10.ptr());
+        args.append(v11.ptr());
+        return _call(ptr(), _func.ptr(), args);
+    }
+    Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12)
+    {
+        Variant _func(func);
+        Array args;
+        args.append(v1.ptr());
+        args.append(v2.ptr());
+        args.append(v3.ptr());
+        args.append(v4.ptr());
+        args.append(v5.ptr());
+        args.append(v6.ptr());
+        args.append(v7.ptr());
+        args.append(v8.ptr());
+        args.append(v9.ptr());
+        args.append(v10.ptr());
+        args.append(v11.ptr());
+        args.append(v12.ptr());
+        return _call(ptr(), _func.ptr(), args);
+    }
+    Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13)
+    {
+        Variant _func(func);
+        Array args;
+        args.append(v1.ptr());
+        args.append(v2.ptr());
+        args.append(v3.ptr());
+        args.append(v4.ptr());
+        args.append(v5.ptr());
+        args.append(v6.ptr());
+        args.append(v7.ptr());
+        args.append(v8.ptr());
+        args.append(v9.ptr());
+        args.append(v10.ptr());
+        args.append(v11.ptr());
+        args.append(v12.ptr());
+        args.append(v13.ptr());
+        return _call(ptr(), _func.ptr(), args);
+    }
+    Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14)
+    {
+        Variant _func(func);
+        Array args;
+        args.append(v1.ptr());
+        args.append(v2.ptr());
+        args.append(v3.ptr());
+        args.append(v4.ptr());
+        args.append(v5.ptr());
+        args.append(v6.ptr());
+        args.append(v7.ptr());
+        args.append(v8.ptr());
+        args.append(v9.ptr());
+        args.append(v10.ptr());
+        args.append(v11.ptr());
+        args.append(v12.ptr());
+        args.append(v13.ptr());
+        args.append(v14.ptr());
+        return _call(ptr(), _func.ptr(), args);
+    }
+    Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14, Variant v15)
+    {
+        Variant _func(func);
+        Array args;
+        args.append(v1.ptr());
+        args.append(v2.ptr());
+        args.append(v3.ptr());
+        args.append(v4.ptr());
+        args.append(v5.ptr());
+        args.append(v6.ptr());
+        args.append(v7.ptr());
+        args.append(v8.ptr());
+        args.append(v9.ptr());
+        args.append(v10.ptr());
+        args.append(v11.ptr());
+        args.append(v12.ptr());
+        args.append(v13.ptr());
+        args.append(v14.ptr());
+        args.append(v15.ptr());
+        return _call(ptr(), _func.ptr(), args);
+    }
+    Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14, Variant v15, Variant v16)
+    {
+        Variant _func(func);
+        Array args;
+        args.append(v1.ptr());
+        args.append(v2.ptr());
+        args.append(v3.ptr());
+        args.append(v4.ptr());
+        args.append(v5.ptr());
+        args.append(v6.ptr());
+        args.append(v7.ptr());
+        args.append(v8.ptr());
+        args.append(v9.ptr());
+        args.append(v10.ptr());
+        args.append(v11.ptr());
+        args.append(v12.ptr());
+        args.append(v13.ptr());
+        args.append(v14.ptr());
+        args.append(v15.ptr());
+        args.append(v16.ptr());
+        return _call(ptr(), _func.ptr(), args);
+    }
+    Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14, Variant v15, Variant v16, Variant v17)
+    {
+        Variant _func(func);
+        Array args;
+        args.append(v1.ptr());
+        args.append(v2.ptr());
+        args.append(v3.ptr());
+        args.append(v4.ptr());
+        args.append(v5.ptr());
+        args.append(v6.ptr());
+        args.append(v7.ptr());
+        args.append(v8.ptr());
+        args.append(v9.ptr());
+        args.append(v10.ptr());
+        args.append(v11.ptr());
+        args.append(v12.ptr());
+        args.append(v13.ptr());
+        args.append(v14.ptr());
+        args.append(v15.ptr());
+        args.append(v16.ptr());
+        args.append(v17.ptr());
+        return _call(ptr(), _func.ptr(), args);
+    }
+    Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14, Variant v15, Variant v16, Variant v17, Variant v18)
+    {
+        Variant _func(func);
+        Array args;
+        args.append(v1.ptr());
+        args.append(v2.ptr());
+        args.append(v3.ptr());
+        args.append(v4.ptr());
+        args.append(v5.ptr());
+        args.append(v6.ptr());
+        args.append(v7.ptr());
+        args.append(v8.ptr());
+        args.append(v9.ptr());
+        args.append(v10.ptr());
+        args.append(v11.ptr());
+        args.append(v12.ptr());
+        args.append(v13.ptr());
+        args.append(v14.ptr());
+        args.append(v15.ptr());
+        args.append(v16.ptr());
+        args.append(v17.ptr());
+        args.append(v18.ptr());
+        return _call(ptr(), _func.ptr(), args);
+    }
+    Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14, Variant v15, Variant v16, Variant v17, Variant v18, Variant v19)
+    {
+        Variant _func(func);
+        Array args;
+        args.append(v1.ptr());
+        args.append(v2.ptr());
+        args.append(v3.ptr());
+        args.append(v4.ptr());
+        args.append(v5.ptr());
+        args.append(v6.ptr());
+        args.append(v7.ptr());
+        args.append(v8.ptr());
+        args.append(v9.ptr());
+        args.append(v10.ptr());
+        args.append(v11.ptr());
+        args.append(v12.ptr());
+        args.append(v13.ptr());
+        args.append(v14.ptr());
+        args.append(v15.ptr());
+        args.append(v16.ptr());
+        args.append(v17.ptr());
+        args.append(v18.ptr());
+        args.append(v19.ptr());
+        return _call(ptr(), _func.ptr(), args);
+    }
+    Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14, Variant v15, Variant v16, Variant v17, Variant v18, Variant v19, Variant v20)
+    {
+        Variant _func(func);
+        Array args;
+        args.append(v1.ptr());
+        args.append(v2.ptr());
+        args.append(v3.ptr());
+        args.append(v4.ptr());
+        args.append(v5.ptr());
+        args.append(v6.ptr());
+        args.append(v7.ptr());
+        args.append(v8.ptr());
+        args.append(v9.ptr());
+        args.append(v10.ptr());
+        args.append(v11.ptr());
+        args.append(v12.ptr());
+        args.append(v13.ptr());
+        args.append(v14.ptr());
+        args.append(v15.ptr());
+        args.append(v16.ptr());
+        args.append(v17.ptr());
+        args.append(v18.ptr());
+        args.append(v19.ptr());
+        args.append(v20.ptr());
+        return _call(ptr(), _func.ptr(), args);
+    }
+    /*generator*/
     Variant get(const char *name)
     {
         Variant retval;
@@ -678,6 +1445,7 @@ public:
         {
             ZVAL_COPY_VALUE(retval.ptr(), member_p);
         }
+        retval.addRef();
         return retval;
     }
 
@@ -688,10 +1456,14 @@ public:
 
     void set(const char *name, Array &v)
     {
+        v.addRef();
         zend_update_property(Z_OBJCE_P(ptr()), ptr(), name, strlen(name), v.ptr());
     }
-
     void set(const char *name, string &v)
+    {
+        zend_update_property_stringl(Z_OBJCE_P(ptr()), ptr(), name, strlen(name), v.c_str(), v.length());
+    }
+    void set(const char *name, string v)
     {
         zend_update_property_stringl(Z_OBJCE_P(ptr()), ptr(), name, strlen(name), v.c_str(), v.length());
     }
@@ -719,6 +1491,10 @@ public:
     {
         return string(Z_OBJCE_P(ptr())->name->val, Z_OBJCE_P(ptr())->name->len);
     }
+    uint32_t getId()
+    {
+        return Z_OBJ_HANDLE(*ptr());
+    }
     bool methodExists(const char *name)
     {
         return zend_hash_str_exists(&Z_OBJCE_P(ptr())->function_table, name, strlen(name));
@@ -731,10 +1507,8 @@ public:
 
 Object create(const char *name, Array &args)
 {
-    zend_string *class_name = zend_string_init(name, strlen(name), 0);
+    zend_class_entry *ce = getClassEntry(name);
     Object object;
-    zend_class_entry *ce = zend_lookup_class(class_name);
-    zend_string_free(class_name);
     if (ce == NULL)
     {
         php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
@@ -752,11 +1526,8 @@ Object create(const char *name, Array &args)
 
 Object create(const char *name)
 {
-    zend_string *class_name = zend_string_init(name, strlen(name), 0);
     Object object;
-
-    zend_class_entry *ce = zend_lookup_class(class_name);
-    zend_string_free(class_name);
+    zend_class_entry *ce = getClassEntry(name);
     if (ce == NULL)
     {
         php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
@@ -771,8 +1542,12 @@ Object create(const char *name)
     return object;
 }
 
-#define function(f) #f, f
+#define PHPX_NAME(n)      #n, n
+#define PHPX_FUNCTION(c)  void c(Args &args, Variant &retval)
+#define PHPX_METHOD(c, m) void c##_##m(Object &_this, Args &args, Variant &retval)
+
 typedef void (*function_t)(Args &, Variant &retval);
+typedef void (*resource_dtor)(zend_resource *);
 typedef void (*method_t)(Object &, Args &, Variant &retval);
 static unordered_map<string, function_t> function_map;
 static unordered_map<string, unordered_map<string, method_t> > method_map;
@@ -819,16 +1594,44 @@ static void _exec_method(zend_execute_data *data, zval *return_value)
 
 typedef struct _zend_internal_arg_info ArgInfo;
 
-void registerFunction(const char *name, function_t func)
+bool registerFunction(const char *name, function_t func)
 {
-    zend_function_entry functions[] = {
+    zend_function_entry _functions[] = {
         {name, _exec_function, NULL, 0, 0},
         {NULL, NULL, NULL,}
     };
-    if (zend_register_functions(NULL, functions, NULL, MODULE_PERSISTENT) == SUCCESS)
+    if (zend_register_functions(NULL, _functions, NULL, MODULE_PERSISTENT) == SUCCESS)
     {
         function_map[name] = func;
+        return true;
     }
+    else
+    {
+        return false;
+    }
+}
+
+bool registerResource(const char *name, resource_dtor dtor)
+{
+    Resource *res = new Resource;
+    int type = zend_register_list_destructors_ex(dtor, NULL, name, 0);
+    if (type < 0)
+    {
+        return false;
+    }
+    res->type = type;
+    res->name = name;
+    resource_map[name] = res;
+    return true;
+}
+
+void unregisterFunction(string &name)
+{
+    zend_function_entry _functions[] = {
+        {name.c_str(), _exec_function, NULL, 0, 0},
+        {NULL, NULL, NULL,}
+    };
+    zend_unregister_functions(_functions, 1, NULL);
 }
 
 void registerConstant(const char *name, long v)
@@ -976,8 +1779,7 @@ public:
             return false;
         }
         parent_class_name = _parent_class;
-        zend_string *parent_class_name = zend_string_init(_parent_class, strlen(_parent_class), 0);
-        parent_ce = zend_lookup_class(parent_class_name);
+        parent_ce = getClassEntry(_parent_class);
         return parent_ce != NULL;
     }
     bool implements(const char *name)
@@ -990,9 +1792,7 @@ public:
         {
             return false;
         }
-        zend_string *_name = zend_string_init(name, strlen(name), 0);
-        zend_class_entry *interface_ce = zend_lookup_class(_name);
-        zend_string_free(_name);
+        zend_class_entry *interface_ce = getClassEntry(name);
         if (interface_ce == NULL)
         {
             return false;
@@ -1090,16 +1890,9 @@ public:
          */
         for (int i = 0; i != propertys.size(); i++)
         {
-            if (Z_TYPE(propertys[i].value) == IS_STRING)
-            {
-                zend_declare_property_stringl(ce, propertys[i].name.c_str(), propertys[i].name.length(),
-                        Z_STRVAL(propertys[i].value), Z_STRLEN(propertys[i].value), propertys[i].flags);
-            }
-            else
-            {
-                zend_declare_property(ce, propertys[i].name.c_str(), propertys[i].name.length(), &propertys[i].value,
-                        propertys[i].flags);
-            }
+            Property p = propertys[i];
+            zval_add_ref(&p.value);
+            zend_declare_property(ce, p.name.c_str(), p.name.length(), &p.value, p.flags);
         }
         /**
          * register constant
@@ -1117,6 +1910,21 @@ public:
                         &constants[i].value);
             }
         }
+        activated = true;
+        return true;
+    }
+    bool deactivate()
+    {
+        if (!activated)
+        {
+            return false;
+        }
+        zend_string *lowercase_name = zend_string_alloc(class_name.length(), 1);
+        zend_str_tolower_copy(ZSTR_VAL(lowercase_name), class_name.c_str(), class_name.length());
+        lowercase_name = zend_new_interned_string(lowercase_name);
+        zend_hash_del(CG(class_table), lowercase_name);
+        zend_string_release(lowercase_name);
+        activated = false;
         return true;
     }
     bool alias(const char *alias_name)
@@ -1132,7 +1940,47 @@ public:
         }
         return true;
     }
-private:
+    string getName()
+    {
+        return class_name;
+    }
+    Variant getStaticProperty(string p_name)
+    {
+        if (!activated)
+        {
+            return nullptr;
+        }
+        return Variant(zend_read_static_property(ce, p_name.c_str(), p_name.length(), 1));
+    }
+    bool setStaticProperty(string p_name, Variant value)
+    {
+        if (!activated)
+        {
+            return false;
+        }
+        value.addRef();
+        return zend_update_static_property(ce, p_name.c_str(), p_name.length(), value.ptr()) == SUCCESS;
+    }
+    static Variant get(const char *name, string p_name)
+    {
+        zend_class_entry *_tmp_ce = getClassEntry(name);
+        if (!_tmp_ce)
+        {
+            return nullptr;
+        }
+        return Variant(zend_read_static_property(_tmp_ce, p_name.c_str(), p_name.length(), 1));
+    }
+    static bool set(const char *name, string p_name, Variant value)
+    {
+        zend_class_entry *_tmp_ce = getClassEntry(name);
+        if (!_tmp_ce)
+        {
+            return false;
+        }
+        value.addRef();
+        return zend_update_static_property(_tmp_ce, p_name.c_str(), p_name.length(), value.ptr()) == SUCCESS;
+    }
+protected:
     bool activated;
     string class_name;
     string parent_class_name;
@@ -1144,4 +1992,847 @@ private:
     vector<Property> propertys;
     vector<Constant> constants;
 };
+
+static unordered_map<string, Class*> classes;
+
+void registerClass(Class *c)
+{
+    /**
+     * 激活类
+     */
+    c->activate();
+    classes[c->getName()] = c;
+}
+
+void destroy()
+{
+    for (auto i = classes.begin(); i != classes.end(); i++)
+    {
+        Class *c = i->second;
+        c->deactivate();
+        //delete c;
+    }
+    for (auto i = function_map.begin(); i != function_map.end(); i++)
+    {
+        string name = i->first;
+        unregisterFunction(name);
+    }
+}
+
+template<typename T>
+Variant newResource(const char *name, T *v)
+{
+    Resource *_c = resource_map[name];
+    if (!_c)
+    {
+        return nullptr;
+    }
+    zend_resource *res = zend_register_resource(static_cast<void*>(v), _c->type);
+    return Variant(res);
+}
+
+/*generator*/
+Object newObject(const char *name, Variant v1)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    object.call("__construct", args);
+    return object;
+}
+Object newObject(const char *name, Variant v1, Variant v2)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    v2.addRef();
+    args.append(v2.ptr());
+    object.call("__construct", args);
+    return object;
+}
+Object newObject(const char *name, Variant v1, Variant v2, Variant v3)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    v2.addRef();
+    args.append(v2.ptr());
+    v3.addRef();
+    args.append(v3.ptr());
+    object.call("__construct", args);
+    return object;
+}
+Object newObject(const char *name, Variant v1, Variant v2, Variant v3, Variant v4)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    v2.addRef();
+    args.append(v2.ptr());
+    v3.addRef();
+    args.append(v3.ptr());
+    v4.addRef();
+    args.append(v4.ptr());
+    object.call("__construct", args);
+    return object;
+}
+Object newObject(const char *name, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    v2.addRef();
+    args.append(v2.ptr());
+    v3.addRef();
+    args.append(v3.ptr());
+    v4.addRef();
+    args.append(v4.ptr());
+    v5.addRef();
+    args.append(v5.ptr());
+    object.call("__construct", args);
+    return object;
+}
+Object newObject(const char *name, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    v2.addRef();
+    args.append(v2.ptr());
+    v3.addRef();
+    args.append(v3.ptr());
+    v4.addRef();
+    args.append(v4.ptr());
+    v5.addRef();
+    args.append(v5.ptr());
+    v6.addRef();
+    args.append(v6.ptr());
+    object.call("__construct", args);
+    return object;
+}
+Object newObject(const char *name, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    v2.addRef();
+    args.append(v2.ptr());
+    v3.addRef();
+    args.append(v3.ptr());
+    v4.addRef();
+    args.append(v4.ptr());
+    v5.addRef();
+    args.append(v5.ptr());
+    v6.addRef();
+    args.append(v6.ptr());
+    v7.addRef();
+    args.append(v7.ptr());
+    object.call("__construct", args);
+    return object;
+}
+Object newObject(const char *name, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    v2.addRef();
+    args.append(v2.ptr());
+    v3.addRef();
+    args.append(v3.ptr());
+    v4.addRef();
+    args.append(v4.ptr());
+    v5.addRef();
+    args.append(v5.ptr());
+    v6.addRef();
+    args.append(v6.ptr());
+    v7.addRef();
+    args.append(v7.ptr());
+    v8.addRef();
+    args.append(v8.ptr());
+    object.call("__construct", args);
+    return object;
+}
+Object newObject(const char *name, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    v2.addRef();
+    args.append(v2.ptr());
+    v3.addRef();
+    args.append(v3.ptr());
+    v4.addRef();
+    args.append(v4.ptr());
+    v5.addRef();
+    args.append(v5.ptr());
+    v6.addRef();
+    args.append(v6.ptr());
+    v7.addRef();
+    args.append(v7.ptr());
+    v8.addRef();
+    args.append(v8.ptr());
+    v9.addRef();
+    args.append(v9.ptr());
+    object.call("__construct", args);
+    return object;
+}
+Object newObject(const char *name, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    v2.addRef();
+    args.append(v2.ptr());
+    v3.addRef();
+    args.append(v3.ptr());
+    v4.addRef();
+    args.append(v4.ptr());
+    v5.addRef();
+    args.append(v5.ptr());
+    v6.addRef();
+    args.append(v6.ptr());
+    v7.addRef();
+    args.append(v7.ptr());
+    v8.addRef();
+    args.append(v8.ptr());
+    v9.addRef();
+    args.append(v9.ptr());
+    v10.addRef();
+    args.append(v10.ptr());
+    object.call("__construct", args);
+    return object;
+}
+Object newObject(const char *name, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    v2.addRef();
+    args.append(v2.ptr());
+    v3.addRef();
+    args.append(v3.ptr());
+    v4.addRef();
+    args.append(v4.ptr());
+    v5.addRef();
+    args.append(v5.ptr());
+    v6.addRef();
+    args.append(v6.ptr());
+    v7.addRef();
+    args.append(v7.ptr());
+    v8.addRef();
+    args.append(v8.ptr());
+    v9.addRef();
+    args.append(v9.ptr());
+    v10.addRef();
+    args.append(v10.ptr());
+    v11.addRef();
+    args.append(v11.ptr());
+    object.call("__construct", args);
+    return object;
+}
+Object newObject(const char *name, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    v2.addRef();
+    args.append(v2.ptr());
+    v3.addRef();
+    args.append(v3.ptr());
+    v4.addRef();
+    args.append(v4.ptr());
+    v5.addRef();
+    args.append(v5.ptr());
+    v6.addRef();
+    args.append(v6.ptr());
+    v7.addRef();
+    args.append(v7.ptr());
+    v8.addRef();
+    args.append(v8.ptr());
+    v9.addRef();
+    args.append(v9.ptr());
+    v10.addRef();
+    args.append(v10.ptr());
+    v11.addRef();
+    args.append(v11.ptr());
+    v12.addRef();
+    args.append(v12.ptr());
+    object.call("__construct", args);
+    return object;
+}
+Object newObject(const char *name, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    v2.addRef();
+    args.append(v2.ptr());
+    v3.addRef();
+    args.append(v3.ptr());
+    v4.addRef();
+    args.append(v4.ptr());
+    v5.addRef();
+    args.append(v5.ptr());
+    v6.addRef();
+    args.append(v6.ptr());
+    v7.addRef();
+    args.append(v7.ptr());
+    v8.addRef();
+    args.append(v8.ptr());
+    v9.addRef();
+    args.append(v9.ptr());
+    v10.addRef();
+    args.append(v10.ptr());
+    v11.addRef();
+    args.append(v11.ptr());
+    v12.addRef();
+    args.append(v12.ptr());
+    v13.addRef();
+    args.append(v13.ptr());
+    object.call("__construct", args);
+    return object;
+}
+Object newObject(const char *name, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    v2.addRef();
+    args.append(v2.ptr());
+    v3.addRef();
+    args.append(v3.ptr());
+    v4.addRef();
+    args.append(v4.ptr());
+    v5.addRef();
+    args.append(v5.ptr());
+    v6.addRef();
+    args.append(v6.ptr());
+    v7.addRef();
+    args.append(v7.ptr());
+    v8.addRef();
+    args.append(v8.ptr());
+    v9.addRef();
+    args.append(v9.ptr());
+    v10.addRef();
+    args.append(v10.ptr());
+    v11.addRef();
+    args.append(v11.ptr());
+    v12.addRef();
+    args.append(v12.ptr());
+    v13.addRef();
+    args.append(v13.ptr());
+    v14.addRef();
+    args.append(v14.ptr());
+    object.call("__construct", args);
+    return object;
+}
+Object newObject(const char *name, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14, Variant v15)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    v2.addRef();
+    args.append(v2.ptr());
+    v3.addRef();
+    args.append(v3.ptr());
+    v4.addRef();
+    args.append(v4.ptr());
+    v5.addRef();
+    args.append(v5.ptr());
+    v6.addRef();
+    args.append(v6.ptr());
+    v7.addRef();
+    args.append(v7.ptr());
+    v8.addRef();
+    args.append(v8.ptr());
+    v9.addRef();
+    args.append(v9.ptr());
+    v10.addRef();
+    args.append(v10.ptr());
+    v11.addRef();
+    args.append(v11.ptr());
+    v12.addRef();
+    args.append(v12.ptr());
+    v13.addRef();
+    args.append(v13.ptr());
+    v14.addRef();
+    args.append(v14.ptr());
+    v15.addRef();
+    args.append(v15.ptr());
+    object.call("__construct", args);
+    return object;
+}
+Object newObject(const char *name, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14, Variant v15, Variant v16)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    v2.addRef();
+    args.append(v2.ptr());
+    v3.addRef();
+    args.append(v3.ptr());
+    v4.addRef();
+    args.append(v4.ptr());
+    v5.addRef();
+    args.append(v5.ptr());
+    v6.addRef();
+    args.append(v6.ptr());
+    v7.addRef();
+    args.append(v7.ptr());
+    v8.addRef();
+    args.append(v8.ptr());
+    v9.addRef();
+    args.append(v9.ptr());
+    v10.addRef();
+    args.append(v10.ptr());
+    v11.addRef();
+    args.append(v11.ptr());
+    v12.addRef();
+    args.append(v12.ptr());
+    v13.addRef();
+    args.append(v13.ptr());
+    v14.addRef();
+    args.append(v14.ptr());
+    v15.addRef();
+    args.append(v15.ptr());
+    v16.addRef();
+    args.append(v16.ptr());
+    object.call("__construct", args);
+    return object;
+}
+Object newObject(const char *name, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14, Variant v15, Variant v16, Variant v17)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    v2.addRef();
+    args.append(v2.ptr());
+    v3.addRef();
+    args.append(v3.ptr());
+    v4.addRef();
+    args.append(v4.ptr());
+    v5.addRef();
+    args.append(v5.ptr());
+    v6.addRef();
+    args.append(v6.ptr());
+    v7.addRef();
+    args.append(v7.ptr());
+    v8.addRef();
+    args.append(v8.ptr());
+    v9.addRef();
+    args.append(v9.ptr());
+    v10.addRef();
+    args.append(v10.ptr());
+    v11.addRef();
+    args.append(v11.ptr());
+    v12.addRef();
+    args.append(v12.ptr());
+    v13.addRef();
+    args.append(v13.ptr());
+    v14.addRef();
+    args.append(v14.ptr());
+    v15.addRef();
+    args.append(v15.ptr());
+    v16.addRef();
+    args.append(v16.ptr());
+    v17.addRef();
+    args.append(v17.ptr());
+    object.call("__construct", args);
+    return object;
+}
+Object newObject(const char *name, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14, Variant v15, Variant v16, Variant v17, Variant v18)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    v2.addRef();
+    args.append(v2.ptr());
+    v3.addRef();
+    args.append(v3.ptr());
+    v4.addRef();
+    args.append(v4.ptr());
+    v5.addRef();
+    args.append(v5.ptr());
+    v6.addRef();
+    args.append(v6.ptr());
+    v7.addRef();
+    args.append(v7.ptr());
+    v8.addRef();
+    args.append(v8.ptr());
+    v9.addRef();
+    args.append(v9.ptr());
+    v10.addRef();
+    args.append(v10.ptr());
+    v11.addRef();
+    args.append(v11.ptr());
+    v12.addRef();
+    args.append(v12.ptr());
+    v13.addRef();
+    args.append(v13.ptr());
+    v14.addRef();
+    args.append(v14.ptr());
+    v15.addRef();
+    args.append(v15.ptr());
+    v16.addRef();
+    args.append(v16.ptr());
+    v17.addRef();
+    args.append(v17.ptr());
+    v18.addRef();
+    args.append(v18.ptr());
+    object.call("__construct", args);
+    return object;
+}
+Object newObject(const char *name, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14, Variant v15, Variant v16, Variant v17, Variant v18, Variant v19)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    v2.addRef();
+    args.append(v2.ptr());
+    v3.addRef();
+    args.append(v3.ptr());
+    v4.addRef();
+    args.append(v4.ptr());
+    v5.addRef();
+    args.append(v5.ptr());
+    v6.addRef();
+    args.append(v6.ptr());
+    v7.addRef();
+    args.append(v7.ptr());
+    v8.addRef();
+    args.append(v8.ptr());
+    v9.addRef();
+    args.append(v9.ptr());
+    v10.addRef();
+    args.append(v10.ptr());
+    v11.addRef();
+    args.append(v11.ptr());
+    v12.addRef();
+    args.append(v12.ptr());
+    v13.addRef();
+    args.append(v13.ptr());
+    v14.addRef();
+    args.append(v14.ptr());
+    v15.addRef();
+    args.append(v15.ptr());
+    v16.addRef();
+    args.append(v16.ptr());
+    v17.addRef();
+    args.append(v17.ptr());
+    v18.addRef();
+    args.append(v18.ptr());
+    v19.addRef();
+    args.append(v19.ptr());
+    object.call("__construct", args);
+    return object;
+}
+Object newObject(const char *name, Variant v1, Variant v2, Variant v3, Variant v4, Variant v5, Variant v6, Variant v7, Variant v8, Variant v9, Variant v10, Variant v11, Variant v12, Variant v13, Variant v14, Variant v15, Variant v16, Variant v17, Variant v18, Variant v19, Variant v20)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    v1.addRef();
+    args.append(v1.ptr());
+    v2.addRef();
+    args.append(v2.ptr());
+    v3.addRef();
+    args.append(v3.ptr());
+    v4.addRef();
+    args.append(v4.ptr());
+    v5.addRef();
+    args.append(v5.ptr());
+    v6.addRef();
+    args.append(v6.ptr());
+    v7.addRef();
+    args.append(v7.ptr());
+    v8.addRef();
+    args.append(v8.ptr());
+    v9.addRef();
+    args.append(v9.ptr());
+    v10.addRef();
+    args.append(v10.ptr());
+    v11.addRef();
+    args.append(v11.ptr());
+    v12.addRef();
+    args.append(v12.ptr());
+    v13.addRef();
+    args.append(v13.ptr());
+    v14.addRef();
+    args.append(v14.ptr());
+    v15.addRef();
+    args.append(v15.ptr());
+    v16.addRef();
+    args.append(v16.ptr());
+    v17.addRef();
+    args.append(v17.ptr());
+    v18.addRef();
+    args.append(v18.ptr());
+    v19.addRef();
+    args.append(v19.ptr());
+    v20.addRef();
+    args.append(v20.ptr());
+    object.call("__construct", args);
+    return object;
+}
+/*generator*/
+
+//namespace end
 }

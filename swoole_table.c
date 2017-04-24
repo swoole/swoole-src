@@ -46,6 +46,7 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_get, 0, 0, 1)
     ZEND_ARG_INFO(0, key)
+    ZEND_ARG_INFO(0, field)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_del, 0, 0, 1)
@@ -107,7 +108,7 @@ static const zend_function_entry swoole_table_methods[] =
     PHP_FE_END
 };
 
-static void php_swoole_table_row2array(swTable *table, swTableRow *row, zval *return_value)
+static inline void php_swoole_table_row2array(swTable *table, swTableRow *row, zval *return_value)
 {
     array_init(return_value);
 
@@ -155,6 +156,52 @@ static void php_swoole_table_row2array(swTable *table, swTableRow *row, zval *re
                 sw_add_assoc_long_ex(return_value, col->name->str, col->name->length + 1, lval);
                 break;
             }
+        }
+    }
+}
+
+static inline void php_swoole_table_get_field_value(swTable *table, swTableRow *row, zval *return_value, char *field, uint16_t field_len)
+{
+    swTable_string_length_t vlen = 0;
+    double dval = 0;
+    int64_t lval = 0;
+
+    swTableColumn *col = swHashMap_find(table->columns, field, field_len);
+    if (!col)
+    {
+        ZVAL_BOOL(return_value, 0);
+        return;
+    }
+    if (col->type == SW_TABLE_STRING)
+    {
+        memcpy(&vlen, row->data + col->index, sizeof(swTable_string_length_t));
+        SW_ZVAL_STRINGL(return_value, row->data + col->index + sizeof(swTable_string_length_t), vlen, 1);
+    }
+    else if (col->type == SW_TABLE_FLOAT)
+    {
+        memcpy(&dval, row->data + col->index, sizeof(dval));
+        ZVAL_DOUBLE(return_value, dval);
+    }
+    else
+    {
+        switch (col->type)
+        {
+        case SW_TABLE_INT8:
+            memcpy(&lval, row->data + col->index, 1);
+            ZVAL_LONG(return_value, (int8_t) lval);
+            break;
+        case SW_TABLE_INT16:
+            memcpy(&lval, row->data + col->index, 2);
+            ZVAL_LONG(return_value, (int16_t) lval);
+            break;
+        case SW_TABLE_INT32:
+            memcpy(&lval, row->data + col->index, 4);
+            ZVAL_LONG(return_value, (int32_t) lval);
+            break;
+        default:
+            memcpy(&lval, row->data + col->index, 8);
+            ZVAL_LONG(return_value, lval);
+            break;
         }
     }
 }
@@ -485,7 +532,10 @@ static PHP_METHOD(swoole_table, get)
     char *key;
     zend_size_t keylen;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &key, &keylen) == FAILURE)
+    char *field = NULL;
+    zend_size_t field_len = 0;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|s", &key, &keylen, &field, &field_len) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -501,6 +551,10 @@ static PHP_METHOD(swoole_table, get)
     if (!row)
     {
         RETVAL_FALSE;
+    }
+    else if (field)
+    {
+        php_swoole_table_get_field_value(table, row, return_value, field, (uint16_t) field_len);
     }
     else
     {

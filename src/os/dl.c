@@ -19,6 +19,7 @@
 #include <dlfcn.h>
 
 #define SW_MODULE_INIT_FUNC    "swModule_init"
+#define SW_MODULE_DESTORY_FUNC    "swModule_destroy"
 
 static swHashMap *loaded_modules = NULL;
 
@@ -69,7 +70,7 @@ swModule* swModule_load(char *so_file)
         dlclose(handle);
         return NULL;
     }
-    module->file = strdup(so_file);
+    module->file = sw_strdup(so_file);
     //init module
     if ((*init_func)(module) < 0)
     {
@@ -80,6 +81,23 @@ swModule* swModule_load(char *so_file)
     module->handle = handle;
     swHashMap_add(loaded_modules, so_file, strlen(so_file), module);
     return module;
+}
+
+void swModule_free(swModule* module)
+{
+    //get destory function
+    void (*destory_func)(swModule*);
+    destory_func = (void (*)(swModule*)) dlsym(module->handle, SW_MODULE_DESTORY_FUNC);
+    char *error = dlerror();
+    //call destory function
+    if (error == NULL)
+    {
+        (*destory_func)(module);
+    }
+    dlclose(module->handle);
+    swHashMap_del(loaded_modules, module->file, strlen(module->file));
+    sw_free(module->file);
+    sw_free(module);
 }
 
 int swModule_register_global_function(const char *name, void* func)
