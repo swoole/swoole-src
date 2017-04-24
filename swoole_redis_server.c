@@ -452,6 +452,7 @@ static PHP_METHOD(swoole_redis_server, format)
                 item = &_copy;
             }
 #endif
+            convert_to_string(item);
             length = snprintf(message, sizeof(message), "$%d\r\n%s\r\n$%d\r\n", keylen, key, Z_STRLEN_P(item));
             swString_append_ptr(format_buffer, message, length);
             swString_append_ptr(format_buffer, Z_STRVAL_P(item), Z_STRLEN_P(item));
