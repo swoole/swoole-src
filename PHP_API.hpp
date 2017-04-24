@@ -53,8 +53,8 @@ extern "C"
 #define nullptr_t void*
 #endif
 
-#define MAX_ARGC        20
-#define VAR_DUMP_LEVEL  10
+#define PHPX_MAX_ARGC        20
+#define PHPX_VAR_DUMP_LEVEL  10
 
 using namespace std;
 
@@ -615,7 +615,7 @@ public:
     }
     void append(zval *v)
     {
-        assert(argc < MAX_ARGC);
+        assert(argc < PHPX_MAX_ARGC);
         argv[argc++] = v;
     }
     size_t count()
@@ -646,17 +646,17 @@ public:
     }
 private:
     int argc;
-    zval *argv[MAX_ARGC];
+    zval *argv[PHPX_MAX_ARGC];
 };
 
 static inline Variant _call(zval *object, zval *func, Array &args)
 {
     Variant retval = false;
-    if (args.count() > MAX_ARGC)
+    if (args.count() > PHPX_MAX_ARGC)
     {
         return retval;
     }
-    zval params[MAX_ARGC];
+    zval params[PHPX_MAX_ARGC];
     for (int i = 0; i < args.count(); i++)
     {
         ZVAL_COPY_VALUE(&params[i], args[i].ptr());
@@ -1025,7 +1025,7 @@ Variant exec(const char *func, Variant v1, Variant v2, Variant v3, Variant v4, V
 }/*generator*/
 void var_dump(Variant &v)
 {
-    php_var_dump(v.ptr(), VAR_DUMP_LEVEL);
+    php_var_dump(v.ptr(), PHPX_VAR_DUMP_LEVEL);
 }
 
 static inline zend_class_entry *getClassEntry(const char *name)
@@ -1491,6 +1491,10 @@ public:
     {
         return string(Z_OBJCE_P(ptr())->name->val, Z_OBJCE_P(ptr())->name->len);
     }
+    uint32_t getId()
+    {
+        return Z_OBJ_HANDLE(*ptr());
+    }
     bool methodExists(const char *name)
     {
         return zend_hash_str_exists(&Z_OBJCE_P(ptr())->function_table, name, strlen(name));
@@ -1538,8 +1542,10 @@ Object create(const char *name)
     return object;
 }
 
-#define function(f) #f, f
-#define defineMethod(c, m) void c##_##m(Object &_this, Args &args, Variant &retval)
+#define PHPX_NAME(n)      #n, n
+#define PHPX_FUNCTION(c)  void c(Args &args, Variant &retval)
+#define PHPX_METHOD(c, m) void c##_##m(Object &_this, Args &args, Variant &retval)
+
 typedef void (*function_t)(Args &, Variant &retval);
 typedef void (*resource_dtor)(zend_resource *);
 typedef void (*method_t)(Object &, Args &, Variant &retval);
