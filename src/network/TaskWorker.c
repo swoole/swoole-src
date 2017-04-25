@@ -152,6 +152,11 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
         swWarn("cannot use task/finish, because no set serv->task_worker_num.");
         return SW_ERR;
     }
+	if (current_task->info.type == SW_EVENT_PIPE_MESSAGE)
+	{
+		swWarn("task/finish is not supported in onPipeMessage callback.");
+		return SW_ERR;
+	}
 
     uint16_t source_worker_id = current_task->info.from_id;
     swWorker *worker = swServer_get_worker(serv, source_worker_id);
