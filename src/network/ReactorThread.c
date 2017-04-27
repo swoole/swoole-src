@@ -194,7 +194,6 @@ static int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
 
         task.target_worker_id = -1;
         uint32_t header_size = sizeof(pkt);
-		task.data.info.fd = task.data.info.fd & 0x7FFFFFF; //make sure fd is positive.
 
         //dgram header
         memcpy(task.data.data, &pkt, sizeof(pkt));
