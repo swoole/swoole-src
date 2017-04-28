@@ -21,7 +21,7 @@ PHP_ARG_ENABLE(sockets, enable sockets support,
 [  --enable-sockets        Do you have sockets extension?], no, no)
 
 PHP_ARG_ENABLE(ringbuffer, enable ringbuffer shared memory pool support,
-[  --enable-ringbuffer     Use ringbuffer memory pool?], no, no)
+[  --enable-ringbuffer     Experimental: Use ringbuffer memory pool?], no, no)
 
 PHP_ARG_ENABLE(async_redis, enable async_redis support,
 [  --enable-async-redis    Do you have hiredis?], no, no)
@@ -33,16 +33,16 @@ PHP_ARG_ENABLE(http2, enable http2.0 support,
 [  --enable-http2          Use http2.0?], no, no)
 
 PHP_ARG_ENABLE(thread, enable thread support,
-[  --enable-thread         Use thread?], no, no)
+[  --enable-thread         Experimental: Use thread?], no, no)
 
 PHP_ARG_ENABLE(jemalloc, enable jemalloc support,
-[  --enable-jemalloc       Use jemalloc?], no, no)
+[  --enable-jemalloc       Experimental: Use jemalloc?], no, no)
 
 PHP_ARG_ENABLE(tcmalloc, enable tcmalloc support,
-[  --enable-tcmalloc       Use tcmalloc?], no, no)
+[  --enable-tcmalloc       Experimental: Use tcmalloc?], no, no)
 
 PHP_ARG_ENABLE(hugepage, enable hugepage support,
-[  --enable-hugepage       Use hugepage?], no, no)
+[  --enable-hugepage       Experimental: Use hugepage?], no, no)
 
 PHP_ARG_ENABLE(swoole, swoole support,
 [  --enable-swoole         Enable swoole support], [enable_swoole="yes"])
@@ -57,7 +57,7 @@ PHP_ARG_ENABLE(mysqlnd, enable mysqlnd support,
 [  --enable-mysqlnd       Do you have mysqlnd?], no, no)
 
 PHP_ARG_ENABLE(picohttpparser, enable picohttpparser support,
-[  --enable-picohttpparser       Do you have picohttpparser?], no, no)
+[  --enable-picohttpparser     Experimental: Do you have picohttpparser?], no, no)
 
 AC_DEFUN([SWOOLE_HAVE_PHP_EXT], [
     extname=$1
