@@ -832,15 +832,15 @@ void php_swoole_client_free(zval *zobject, swClient *cli TSRMLS_DC)
     {
         if (swHashMap_del(php_sw_long_connections, cli->server_str, cli->server_strlen))
         {
-            swoole_php_fatal_error(E_WARNING, "delete from hashtable failed.");
+            swoole_php_fatal_error(E_WARNING, "delete key[%s] from hashtable failed.", cli->server_str);
         }
-        efree(cli->server_str);
+        sw_free(cli->server_str);
         swClient_free(cli);
         pefree(cli, 1);
     }
     else
     {
-        efree(cli->server_str);
+        sw_free(cli->server_str);
         swClient_free(cli);
         efree(cli);
     }
@@ -935,7 +935,7 @@ swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port
         }
 
         //don't forget free it
-        cli->server_str = estrdup(conn_key);
+        cli->server_str = sw_strndup(conn_key, conn_key_len);
         cli->server_strlen = conn_key_len;
     }
 
