@@ -1263,7 +1263,7 @@ int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
 #ifdef SW_USE_RINGBUFFER
     swServer *serv = SwooleG.serv;
     swReactorThread *thread = swServer_get_thread(serv, SwooleTG.id);
-    int target_worker_id = swServer_worker_schedule(serv, conn->fd);
+    int target_worker_id = swServer_worker_schedule(serv, conn->fd, &task.data);
 
     swPackage package;
     package.length = length;
