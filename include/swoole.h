@@ -163,16 +163,18 @@ typedef unsigned long ulong_t;
 #define SW_STRL(s)             s, sizeof(s)
 #define SW_START_SLEEP         usleep(100000)  //sleep 1s,wait fork and pthread_create
 
-#ifdef SW_MALLOC_DEBUG
-#define sw_malloc(__size)      malloc(__size);swWarn("malloc(%ld)", __size)
-#define sw_free(ptr)           if(ptr){free(ptr);ptr=NULL;swWarn("free");}
+#ifdef SW_USE_JEMALLOC
+#include <jemalloc/jemalloc.h>
+#define sw_malloc              je_malloc
+#define sw_free                je_free
+#define sw_calloc              je_calloc
+#define sw_realloc             je_realloc
 #else
 #define sw_malloc              malloc
-#define sw_free(ptr)           if(ptr){free(ptr);ptr=NULL;}
-#endif
-
+#define sw_free                free
 #define sw_calloc              calloc
 #define sw_realloc             realloc
+#endif
 
 #if defined(SW_USE_JEMALLOC) || defined(SW_USE_TCMALLOC)
 static sw_inline char* sw_strdup(const char *s)
