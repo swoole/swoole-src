@@ -35,10 +35,10 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2017-04-18</date>
+    <date>2017-05-04</date>
     <time>09:50:10</time>
     <version>
-		<release>1.9.9</release>
+		<release>1.9.10</release>
 		<api>1.9</api>
     </version>
     <stability>
@@ -47,18 +47,16 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Fixed a problem with the rectifier overflow of the DNS resolver request ID
-- Update swoole_table::get method, increase the parameters to support only the value of a field
-- Update getClientInfo return value from_id entry to reactor_id
-- Fixed the Http2 client POST data when the protocol is faulty
-- Fixed swoole_async_dns_lookup target host IP contains 0 when the return value is wrong
-- Fixed crash when tcmalloc and jemalloc are enabled
+- Fixed compile error with enable-ringbuffer
+- Fixed unix socket client cannot connect to server
+- Fxied swoole_client::close crash with SWOOLE_KEEP flag on PHP-FPM
     </notes>
 	<contents>
 		<dir name="/">
 			<file role="doc" name="CREDITS" />
 			<file role="doc" name="LICENSE" />
 			<file role="doc" name="README.md" />
+			<file role="doc" name="Version2.md" />
 			<file role="src" name="config.m4" />
 			<dir name="include">
 				<file role="src" name="swoole.h" />
