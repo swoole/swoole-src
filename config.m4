@@ -35,9 +35,6 @@ PHP_ARG_ENABLE(http2, enable http2.0 support,
 PHP_ARG_ENABLE(thread, enable thread support,
 [  --enable-thread         Experimental: Use thread?], no, no)
 
-PHP_ARG_ENABLE(tcmalloc, enable tcmalloc support,
-[  --enable-tcmalloc       Experimental: Use tcmalloc?], no, no)
-
 PHP_ARG_ENABLE(hugepage, enable hugepage support,
 [  --enable-hugepage       Experimental: Use hugepage?], no, no)
 
@@ -234,14 +231,6 @@ if test "$PHP_SWOOLE" != "no"; then
 
     if test "$PHP_HTTP2" = "yes"; then
         PHP_ADD_LIBRARY(nghttp2, 1, SWOOLE_SHARED_LIBADD)
-    fi
-
-    if test "$PHP_JEMALLOC" = "yes"; then
-        PHP_ADD_LIBRARY(jemalloc, 1, SWOOLE_SHARED_LIBADD)
-        AC_DEFINE(SW_USE_JEMALLOC, 1, [use jemalloc])
-    elif test "$PHP_TCMALLOC" = "yes"; then
-        PHP_ADD_LIBRARY(tcmalloc, 1, SWOOLE_SHARED_LIBADD)
-        AC_DEFINE(SW_USE_TCMALLOC, 1, [use tcmalloc])
     fi
 
     if test "$PHP_MYSQLND" = "yes"; then
