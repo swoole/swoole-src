@@ -138,6 +138,10 @@ extern swoole_object_array swoole_objects;
 #endif
 #endif
 
+#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION < 5
+#error "require PHP version 5.5 or later."
+#endif
+
 #include "php7_wrapper.h"
 
 #define PHP_CLIENT_CALLBACK_NUM             4
