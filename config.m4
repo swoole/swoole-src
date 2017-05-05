@@ -35,9 +35,6 @@ PHP_ARG_ENABLE(http2, enable http2.0 support,
 PHP_ARG_ENABLE(thread, enable thread support,
 [  --enable-thread         Experimental: Use thread?], no, no)
 
-PHP_ARG_ENABLE(jemalloc, enable jemalloc support,
-[  --enable-jemalloc       Experimental: Use jemalloc?], no, no)
-
 PHP_ARG_ENABLE(tcmalloc, enable tcmalloc support,
 [  --enable-tcmalloc       Experimental: Use tcmalloc?], no, no)
 
@@ -52,6 +49,9 @@ PHP_ARG_WITH(swoole, swoole support,
 
 PHP_ARG_WITH(openssl_dir, for OpenSSL support,
 [  --with-openssl-dir[=DIR]    Include OpenSSL support (requires OpenSSL >= 0.9.6)], no, no)
+
+PHP_ARG_WITH(jemalloc_dir, for jemalloc support,
+[  --with-jemalloc-dir[=DIR]    Include jemalloc support], no, no)
 
 PHP_ARG_ENABLE(mysqlnd, enable mysqlnd support,
 [  --enable-mysqlnd       Do you have mysqlnd?], no, no)
@@ -216,6 +216,13 @@ if test "$PHP_SWOOLE" != "no"; then
         AC_DEFINE(SW_USE_OPENSSL, 1, [enable openssl support])
         PHP_ADD_LIBRARY(ssl, 1, SWOOLE_SHARED_LIBADD)
         PHP_ADD_LIBRARY(crypto, 1, SWOOLE_SHARED_LIBADD)
+    fi
+
+    if test "$PHP_JEMALLOC_DIR" != "no"; then
+        AC_DEFINE(SW_USE_JEMALLOC, 1, [use jemalloc])
+        PHP_ADD_INCLUDE("${PHP_JEMALLOC_DIR}/include")
+        PHP_ADD_LIBRARY_WITH_PATH(jemalloc, "${PHP_JEMALLOC_DIR}/${PHP_LIBDIR}")
+        PHP_ADD_LIBRARY(jemalloc, 1, SWOOLE_SHARED_LIBADD)
     fi
 
     PHP_ADD_LIBRARY(pthread, 1, SWOOLE_SHARED_LIBADD)
