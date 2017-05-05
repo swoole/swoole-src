@@ -21,7 +21,7 @@ PHP_ARG_ENABLE(sockets, enable sockets support,
 [  --enable-sockets        Do you have sockets extension?], no, no)
 
 PHP_ARG_ENABLE(ringbuffer, enable ringbuffer shared memory pool support,
-[  --enable-ringbuffer     Use ringbuffer memory pool?], no, no)
+[  --enable-ringbuffer     Experimental: Use ringbuffer memory pool?], no, no)
 
 PHP_ARG_ENABLE(async_redis, enable async_redis support,
 [  --enable-async-redis    Do you have hiredis?], no, no)
@@ -33,16 +33,10 @@ PHP_ARG_ENABLE(http2, enable http2.0 support,
 [  --enable-http2          Use http2.0?], no, no)
 
 PHP_ARG_ENABLE(thread, enable thread support,
-[  --enable-thread         Use thread?], no, no)
-
-PHP_ARG_ENABLE(jemalloc, enable jemalloc support,
-[  --enable-jemalloc       Use jemalloc?], no, no)
-
-PHP_ARG_ENABLE(tcmalloc, enable tcmalloc support,
-[  --enable-tcmalloc       Use tcmalloc?], no, no)
+[  --enable-thread         Experimental: Use thread?], no, no)
 
 PHP_ARG_ENABLE(hugepage, enable hugepage support,
-[  --enable-hugepage       Use hugepage?], no, no)
+[  --enable-hugepage       Experimental: Use hugepage?], no, no)
 
 PHP_ARG_ENABLE(swoole, swoole support,
 [  --enable-swoole         Enable swoole support], [enable_swoole="yes"])
@@ -53,6 +47,9 @@ PHP_ARG_WITH(swoole, swoole support,
 PHP_ARG_WITH(openssl_dir, for OpenSSL support,
 [  --with-openssl-dir[=DIR]    Include OpenSSL support (requires OpenSSL >= 0.9.6)], no, no)
 
+PHP_ARG_WITH(jemalloc_dir, for jemalloc support,
+[  --with-jemalloc-dir[=DIR]    Include jemalloc support], no, no)
+
 PHP_ARG_ENABLE(mysqlnd, enable mysqlnd support,
 [  --enable-mysqlnd       Do you have mysqlnd?], no, no)
 
@@ -60,7 +57,7 @@ PHP_ARG_ENABLE(coroutine, whether to enable coroutine,
 [  --enable-coroutine      Enable coroutine (requires PHP >= 5.5)], yes, no)
 
 PHP_ARG_ENABLE(picohttpparser, enable picohttpparser support,
-[  --enable-picohttpparser       Do you have picohttpparser?], no, no)
+[  --enable-picohttpparser     Experimental: Do you have picohttpparser?], no, no)
 
 PHP_ARG_WITH(swoole, swoole support,
 [  --with-swoole           With swoole support])
@@ -228,6 +225,13 @@ if test "$PHP_SWOOLE" != "no"; then
         PHP_ADD_LIBRARY(crypto, 1, SWOOLE_SHARED_LIBADD)
     fi
 
+    if test "$PHP_JEMALLOC_DIR" != "no"; then
+        AC_DEFINE(SW_USE_JEMALLOC, 1, [use jemalloc])
+        PHP_ADD_INCLUDE("${PHP_JEMALLOC_DIR}/include")
+        PHP_ADD_LIBRARY_WITH_PATH(jemalloc, "${PHP_JEMALLOC_DIR}/${PHP_LIBDIR}")
+        PHP_ADD_LIBRARY(jemalloc, 1, SWOOLE_SHARED_LIBADD)
+    fi
+
     PHP_ADD_LIBRARY(pthread, 1, SWOOLE_SHARED_LIBADD)
 
     if test "$PHP_ASYNC_REDIS" = "yes"; then
@@ -237,14 +241,6 @@ if test "$PHP_SWOOLE" != "no"; then
 
     if test "$PHP_HTTP2" = "yes"; then
         PHP_ADD_LIBRARY(nghttp2, 1, SWOOLE_SHARED_LIBADD)
-    fi
-
-    if test "$PHP_JEMALLOC" = "yes"; then
-        PHP_ADD_LIBRARY(jemalloc, 1, SWOOLE_SHARED_LIBADD)
-        AC_DEFINE(SW_USE_JEMALLOC, 1, [use jemalloc])
-    elif test "$PHP_TCMALLOC" = "yes"; then
-        PHP_ADD_LIBRARY(tcmalloc, 1, SWOOLE_SHARED_LIBADD)
-        AC_DEFINE(SW_USE_TCMALLOC, 1, [use tcmalloc])
     fi
 
     if test "$PHP_MYSQLND" = "yes"; then

@@ -123,6 +123,10 @@ int swHttpRequest_get_protocol(swHttpRequest *request)
         }
         else if (cmp == 1)
         {
+            if (isspace(*p))
+            {
+                continue;
+            }
             if (p + 8 > pe)
             {
                 return SW_ERR;

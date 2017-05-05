@@ -584,9 +584,11 @@ public:
     }
     bool exists(const char *key)
     {
-        String _key(key);
-        bool ret = zend_hash_exists(Z_ARRVAL_P(ptr()), _key.ptr()) == SUCCESS;
-        return ret;
+        return zend_hash_str_exists(Z_ARRVAL_P(ptr()), key, strlen(key));
+    }
+    bool exists(string &key)
+    {
+        return zend_hash_str_exists(Z_ARRVAL_P(ptr()), key.c_str(), key.length());
     }
     ArrayIterator begin()
     {
