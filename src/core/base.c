@@ -757,14 +757,14 @@ void swoole_fcntl_set_option(int sock, int nonblock, int cloexec)
         opts = opts & ~O_NONBLOCK;
     }
 
-#ifdef O_CLOEXEC
+#ifdef FD_CLOEXEC
     if (cloexec)
     {
-        opts = opts | O_CLOEXEC;
+        opts = opts | FD_CLOEXEC;
     }
     else
     {
-        opts = opts & ~O_CLOEXEC;
+        opts = opts & ~FD_CLOEXEC;
     }
 #endif
 
