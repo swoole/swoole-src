@@ -40,8 +40,10 @@ static void swServer_signal_hanlder(int sig);
 static int swServer_start_proxy(swServer *serv);
 static void swServer_disable_accept(swReactor *reactor);
 
+#ifndef SW_USE_TIMEWHEEL
 static void swHeartbeatThread_start(swServer *serv);
 static void swHeartbeatThread_loop(swThreadParam *param);
+#endif
 
 static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, int fd, int from_fd, int reactor_id);
 
@@ -107,7 +109,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
     socklen_t client_addrlen = sizeof(client_addr);
     swListenPort *listen_host = serv->connection_list[event->fd].object;
 
-    int new_fd = 0, ret = 0, reactor_id = 0, i;
+    int new_fd = 0, reactor_id = 0, i;
 
     //SW_ACCEPT_AGAIN
     for (i = 0; i < SW_ACCEPT_MAX_COUNT; i++)
@@ -185,33 +187,8 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
         /*
          * [!!!] new_connection function must before reactor->add
          */
-        if (serv->factory_mode != SW_MODE_SINGLE)
-        {
-            int events;
-            if (serv->onConnect && !listen_host->ssl)
-            {
-                conn->connect_notify = 1;
-                events = SW_EVENT_WRITE;
-            }
-            else
-            {
-                events = SW_EVENT_READ;
-            }
-            ret = sub_reactor->add(sub_reactor, new_fd, SW_FD_TCP | events);
-        }
-        else
-        {
-            if (!serv->enable_delay_receive)
-            {
-                ret = sub_reactor->add(sub_reactor, new_fd, SW_FD_TCP | SW_EVENT_READ);
-            }
-            if (ret >= 0 && serv->onConnect && !listen_host->ssl)
-            {
-                swServer_tcp_notify(serv, conn, SW_EVENT_CONNECT);
-            }
-        }
-
-        if (ret < 0)
+        conn->connect_notify = 1;
+        if (sub_reactor->add(sub_reactor, new_fd, SW_FD_TCP | SW_EVENT_WRITE) < 0)
         {
             bzero(conn, sizeof(swConnection));
             close(new_fd);
@@ -351,6 +328,7 @@ static int swServer_start_proxy(swServer *serv)
         return SW_ERR;
     }
 
+#ifndef SW_USE_TIMEWHEEL
     /**
      * heartbeat thread
      */
@@ -359,6 +337,7 @@ static int swServer_start_proxy(swServer *serv)
         swTrace("hb timer start, time: %d live time:%d", serv->heartbeat_check_interval, serv->heartbeat_idle_time);
         swHeartbeatThread_start(serv);
     }
+#endif
 
     /**
      * master thread loop
@@ -1438,6 +1417,7 @@ static void swServer_signal_hanlder(int sig)
     }
 }
 
+#ifndef SW_USE_TIMEWHEEL
 static void swHeartbeatThread_start(swServer *serv)
 {
     swThreadParam *param;
@@ -1529,6 +1509,7 @@ static void swHeartbeatThread_loop(swThreadParam *param)
     }
     pthread_exit(0);
 }
+#endif
 
 /**
  * new connection

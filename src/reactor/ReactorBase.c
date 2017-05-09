@@ -222,14 +222,6 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
         reactor->last_mallc_trim_time = SwooleGS->now;
     }
 #endif
-
-#ifdef SW_USE_TIMEWHEEL
-    if (reactor->heartbeat_interval > 0 && reactor->last_heartbeat_time < SwooleGS->now - reactor->heartbeat_interval)
-    {
-        swTimeWheel_forward(reactor->timewheel, reactor);
-        reactor->last_heartbeat_time = SwooleGS->now;
-    }
-#endif
 }
 
 static void swReactor_onTimeout(swReactor *reactor)

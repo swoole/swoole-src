@@ -1785,6 +1785,7 @@ int swSystemTimer_event_handler(swReactor *reactor, swEvent *event);
 swTimeWheel* swTimeWheel_new(uint16_t size);
 void swTimeWheel_free(swTimeWheel *tw);
 void swTimeWheel_forward(swTimeWheel *tw, swReactor *reactor);
+void swTimeWheel_add(swTimeWheel *tw, swConnection *conn);
 void swTimeWheel_update(swTimeWheel *tw, swConnection *conn);
 void swTimeWheel_remove(swTimeWheel *tw, swConnection *conn);
 //--------------------------------------------------------------

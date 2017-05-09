@@ -69,6 +69,8 @@ void swTimeWheel_forward(swTimeWheel *tw, swReactor *reactor)
     swHashMap *set = tw->wheel[tw->current];
     tw->current = tw->current == tw->size - 1 ? 0 : tw->current + 1;
 
+    swTraceLog(SW_TRACE_REACTOR, "current=%d.", tw->current);
+
     swConnection *conn;
     uint64_t fd;
 
@@ -97,6 +99,17 @@ void swTimeWheel_forward(swTimeWheel *tw, swReactor *reactor)
     }
 }
 
+void swTimeWheel_add(swTimeWheel *tw, swConnection *conn)
+{
+    uint16_t index = tw->current == 0 ? tw->size - 1 : tw->current - 1;
+    swHashMap *new_set = tw->wheel[index];
+    swHashMap_add_int(new_set, conn->fd, conn);
+
+    conn->timewheel_index = index;
+
+    swTraceLog(SW_TRACE_REACTOR, "current=%d, fd=%d, index=%d.", tw->current, conn->fd, index);
+}
+
 void swTimeWheel_update(swTimeWheel *tw, swConnection *conn)
 {
     uint16_t new_index = tw->current == 0 ? tw->size - 1 : tw->current - 1;
@@ -106,6 +119,8 @@ void swTimeWheel_update(swTimeWheel *tw, swConnection *conn)
     swHashMap *old_set = tw->wheel[conn->timewheel_index];
     swHashMap_del_int(old_set, conn->fd);
 
+    swTraceLog(SW_TRACE_REACTOR, "current=%d, fd=%d, old_index=%d, new_index=%d.", tw->current, conn->fd, new_index, conn->timewheel_index);
+
     conn->timewheel_index = new_index;
 }
 
@@ -113,4 +128,5 @@ void swTimeWheel_remove(swTimeWheel *tw, swConnection *conn)
 {
     swHashMap *set = tw->wheel[conn->timewheel_index];
     swHashMap_del_int(set, conn->fd);
+    swTraceLog(SW_TRACE_REACTOR, "current=%d, fd=%d.", tw->current, conn->fd);
 }

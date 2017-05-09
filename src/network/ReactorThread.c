@@ -30,6 +30,10 @@ static int swReactorThread_onPackage(swReactor *reactor, swEvent *event);
 static int swReactorThread_dispatch_array_buffer(swReactorThread *thread, swConnection *conn);
 #endif
 
+#ifdef SW_USE_TIMEWHEEL
+static void swReactorThread_onReactorCompleted(swReactor *reactor);
+#endif
+
 #ifdef SW_USE_RINGBUFFER
 static sw_inline void swReactorThread_yield(swReactorThread *thread)
 {
@@ -891,11 +895,27 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
     {
         return SW_OK;
     }
-    //notify worker process
     else if (conn->connect_notify)
     {
-        swServer_tcp_notify(serv, conn, SW_EVENT_CONNECT);
         conn->connect_notify = 0;
+#ifdef SW_USE_TIMEWHEEL
+        if (reactor->timewheel)
+        {
+            swTimeWheel_add(reactor->timewheel, conn);
+        }
+#endif
+#ifdef SW_USE_OPENSSL
+        if (conn->ssl)
+        {
+            goto listen_read_event;
+        }
+#endif
+        //notify worker process
+        if (serv->onConnect)
+        {
+            swServer_tcp_notify(serv, conn, SW_EVENT_CONNECT);
+        }
+        //delay receive, wait resume command.
         if (serv->enable_delay_receive)
         {
             conn->listen_wait = 1;
@@ -903,6 +923,9 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
         }
         else
         {
+#ifdef SW_USE_OPENSSL
+            listen_read_event:
+#endif
             return reactor->set(reactor, fd, SW_EVENT_TCP | SW_EVENT_READ);
         }
     }
@@ -1273,7 +1296,9 @@ static int swReactorThread_loop(swThreadParam *param)
             swSysError("thread->timewheel create failed.");
             return SW_ERR;
         }
-        reactor->timeout_msec = serv->heartbeat_check_interval * 1000;
+        reactor->timeout_msec = reactor->heartbeat_interval * 1000;
+        reactor->onFinish = swReactorThread_onReactorCompleted;
+        reactor->onTimeout = swReactorThread_onReactorCompleted;
     }
 #endif
 
@@ -1418,3 +1443,15 @@ void swReactorThread_free(swServer *serv)
 #endif
     }
 }
+
+
+#ifdef SW_USE_TIMEWHEEL
+static void swReactorThread_onReactorCompleted(swReactor *reactor)
+{
+    if (reactor->heartbeat_interval > 0 && reactor->last_heartbeat_time < SwooleGS->now - reactor->heartbeat_interval)
+    {
+        swTimeWheel_forward(reactor->timewheel, reactor);
+        reactor->last_heartbeat_time = SwooleGS->now;
+    }
+}
+#endif
