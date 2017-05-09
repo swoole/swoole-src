@@ -555,6 +555,8 @@ typedef struct _swConnection
      */
     time_t last_time;
 
+    uint16_t timewheel_index;
+
     /**
      * bind uid
      */
@@ -719,6 +721,15 @@ typedef struct _swSendData
     uint32_t length;
     char *data;
 } swSendData;
+
+//------------------TimeWheel--------------------
+typedef struct
+{
+    uint16_t current;
+    uint16_t size;
+    swHashMap **wheel;
+
+} swTimeWheel;
 
 typedef void * (*swThreadStartFunc)(void *);
 typedef int (*swHandle)(swEventData *buf);
@@ -1360,6 +1371,16 @@ struct _swReactor
 
     uint32_t max_socket;
 
+#ifdef SW_USE_MALLOC_TRIM
+    time_t last_mallc_trim_time;
+#endif
+
+#ifdef SW_USE_TIMEWHEEL
+    swTimeWheel *timewheel;
+    uint16_t heartbeat_interval;
+    time_t last_heartbeat_time;
+#endif
+
     /**
      * for thread
      */
@@ -1750,8 +1771,11 @@ typedef struct _swTimer
     void (*onTick)(struct _swTimer *timer, swTimer_node *event);
 } swTimer;
 
+typedef void (*swTimerCallback)(swTimer *, swTimer_node *);
+
 int swTimer_init(long msec);
 swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *data);
+swTimer_node* swTimer_add_ext(swTimer *timer, int _msec, int interval, void *data, swTimerCallback callback);
 swTimer_node* swTimer_get(swTimer *timer, long id);
 void swTimer_del(swTimer *timer, swTimer_node *node);
 void swTimer_free(swTimer *timer);
@@ -1760,6 +1784,12 @@ int swTimer_select(swTimer *timer);
 int swSystemTimer_init(int msec, int use_pipe);
 void swSystemTimer_signal_handler(int sig);
 int swSystemTimer_event_handler(swReactor *reactor, swEvent *event);
+
+swTimeWheel* swTimeWheel_new(uint16_t size);
+void swTimeWheel_free(swTimeWheel *tw);
+void swTimeWheel_forward(swTimeWheel *tw, swReactor *reactor);
+void swTimeWheel_update(swTimeWheel *tw, swConnection *conn);
+void swTimeWheel_remove(swTimeWheel *tw, swConnection *conn);
 //--------------------------------------------------------------
 //Share Memory
 typedef struct

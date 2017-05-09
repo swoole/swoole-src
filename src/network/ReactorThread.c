@@ -340,6 +340,10 @@ int swReactorThread_close(swReactor *reactor, int fd)
     session->fd = 0;
 #endif
 
+#ifdef SW_USE_TIMEWHEEL
+    swTimeWheel_remove(reactor->timewheel, conn);
+#endif
+
     /**
      * reset maxfd, for connection_list
      */
@@ -852,6 +856,17 @@ static int swReactorThread_onRead(swReactor *reactor, swEvent *event)
         return swReactorThread_close(reactor, event->fd);
     }
 #endif
+
+#ifdef SW_USE_TIMEWHEEL
+    /**
+     * TimeWheel update
+     */
+    if (event->socket->timewheel_index != reactor->timewheel->current)
+    {
+        swTimeWheel_update(reactor->timewheel, event->socket);
+    }
+#endif
+
     event->socket->last_time = SwooleGS->now;
     return port->onRead(reactor, port, event);
 }
@@ -1235,6 +1250,29 @@ static int swReactorThread_loop(swThreadParam *param)
             }
         }
     }
+
+#ifdef SW_USE_TIMEWHEEL
+    if (serv->heartbeat_idle_time > 0)
+    {
+        if (serv->heartbeat_idle_time < SW_TIMEWHEEL_SIZE)
+        {
+            reactor->timewheel = swTimeWheel_new(serv->heartbeat_idle_time);
+            reactor->heartbeat_interval = 1;
+        }
+        else
+        {
+            reactor->timewheel = swTimeWheel_new(SW_TIMEWHEEL_SIZE);
+            reactor->heartbeat_interval = serv->heartbeat_idle_time / SW_TIMEWHEEL_SIZE;
+        }
+        reactor->last_heartbeat_time = 0;
+        if (reactor->timewheel == NULL)
+        {
+            swSysError("thread->timewheel create failed.");
+            return SW_ERR;
+        }
+        reactor->timeout_msec = serv->heartbeat_check_interval * 1000;
+    }
+#endif
 
     //wait other thread
 #ifdef HAVE_PTHREAD_BARRIER
