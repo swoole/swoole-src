@@ -186,8 +186,9 @@ static sw_inline char* sw_strdup(const char *s)
 }
 static sw_inline char* sw_strndup(const char *s, size_t n)
 {
-    char *p = sw_malloc(n);
+    char *p = sw_malloc(n + 1);
     strncpy(p, s, n);
+    p[n] = '\0';
     return p;
 }
 #else
