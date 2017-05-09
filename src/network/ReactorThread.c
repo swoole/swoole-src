@@ -1284,6 +1284,14 @@ static int swReactorThread_loop(swThreadParam *param)
     reactor->wait(reactor, NULL);
     //shutdown
     reactor->free(reactor);
+
+#ifdef SW_USE_TIMEWHEEL
+    if (reactor->timewheel)
+    {
+        swTimeWheel_free(reactor->timewheel);
+    }
+#endif
+
     pthread_exit(0);
     return SW_OK;
 }
