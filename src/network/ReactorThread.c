@@ -341,7 +341,10 @@ int swReactorThread_close(swReactor *reactor, int fd)
 #endif
 
 #ifdef SW_USE_TIMEWHEEL
-    swTimeWheel_remove(reactor->timewheel, conn);
+    if (reactor->timewheel)
+    {
+        swTimeWheel_remove(reactor->timewheel, conn);
+    }
 #endif
 
     /**
@@ -861,7 +864,7 @@ static int swReactorThread_onRead(swReactor *reactor, swEvent *event)
     /**
      * TimeWheel update
      */
-    if (event->socket->timewheel_index != reactor->timewheel->current)
+    if (reactor->timewheel && event->socket->timewheel_index != reactor->timewheel->current)
     {
         swTimeWheel_update(reactor->timewheel, event->socket);
     }

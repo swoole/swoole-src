@@ -1771,11 +1771,8 @@ typedef struct _swTimer
     void (*onTick)(struct _swTimer *timer, swTimer_node *event);
 } swTimer;
 
-typedef void (*swTimerCallback)(swTimer *, swTimer_node *);
-
 int swTimer_init(long msec);
 swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *data);
-swTimer_node* swTimer_add_ext(swTimer *timer, int _msec, int interval, void *data, swTimerCallback callback);
 swTimer_node* swTimer_get(swTimer *timer, long id);
 void swTimer_del(swTimer *timer, swTimer_node *node);
 void swTimer_free(swTimer *timer);
