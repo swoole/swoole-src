@@ -868,7 +868,7 @@ static int swReactorThread_onRead(swReactor *reactor, swEvent *event)
     /**
      * TimeWheel update
      */
-    if (reactor->timewheel && event->socket->timewheel_index != reactor->timewheel->current)
+    if (reactor->timewheel && swTimeWheel_new_index(reactor->timewheel) != event->socket->timewheel_index)
     {
         swTimeWheel_update(reactor->timewheel, event->socket);
     }

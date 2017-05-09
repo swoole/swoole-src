@@ -112,7 +112,7 @@ void swTimeWheel_add(swTimeWheel *tw, swConnection *conn)
 
 void swTimeWheel_update(swTimeWheel *tw, swConnection *conn)
 {
-    uint16_t new_index = tw->current == 0 ? tw->size - 1 : tw->current - 1;
+    uint16_t new_index = swTimeWheel_new_index(tw);
     swHashMap *new_set = tw->wheel[new_index];
     swHashMap_add_int(new_set, conn->fd, conn);
 

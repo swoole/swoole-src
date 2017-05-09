@@ -1788,6 +1788,7 @@ void swTimeWheel_forward(swTimeWheel *tw, swReactor *reactor);
 void swTimeWheel_add(swTimeWheel *tw, swConnection *conn);
 void swTimeWheel_update(swTimeWheel *tw, swConnection *conn);
 void swTimeWheel_remove(swTimeWheel *tw, swConnection *conn);
+#define swTimeWheel_new_index(tw)   (tw->current == 0 ? tw->size - 1 : tw->current - 1)
 //--------------------------------------------------------------
 //Share Memory
 typedef struct
