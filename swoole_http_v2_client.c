@@ -55,6 +55,10 @@ typedef struct
     uint32_t max_frame_size;
     uint32_t max_header_list_size;
 
+    char *host;
+    zend_size_t host_len;
+    int port;
+
     nghttp2_hd_inflater *inflater;
     zval *object;
 
@@ -155,9 +159,6 @@ static PHP_METHOD(swoole_http2_client, __construct)
         RETURN_FALSE;
     }
 
-    zend_update_property_stringl(swoole_http2_client_class_entry_ptr, getThis(), ZEND_STRL("host"), host, host_len TSRMLS_CC);
-    zend_update_property_long(swoole_http2_client_class_entry_ptr, getThis(), ZEND_STRL("port"), port TSRMLS_CC);
-
     http2_client_property *hcc;
     hcc = (http2_client_property*) emalloc(sizeof(http2_client_property));
     bzero(hcc, sizeof(http2_client_property));
@@ -183,6 +184,10 @@ static PHP_METHOD(swoole_http2_client, __construct)
     {
         sw_zval_ptr_dtor(&retval);
     }
+
+    hcc->host = estrndup(host, host_len);
+    hcc->host_len = host_len;
+    hcc->port = port;
 }
 
 static PHP_METHOD(swoole_http2_client, setHeaders)
@@ -279,8 +284,7 @@ static int http2_client_build_header(zval *zobject, http2_client_request *req, c
     }
     if (!find_host)
     {
-        zval *zhost = sw_zend_read_property(swoole_http2_client_class_entry_ptr, zobject, ZEND_STRL("host"), 1 TSRMLS_CC);
-        http2_add_header(&nv[3], ZEND_STRL(":authority"), Z_STRVAL_P(zhost), Z_STRLEN_P(zhost));
+        http2_add_header(&nv[3], ZEND_STRL(":authority"), hcc->host, hcc->host_len);
     }
 
     zval *zcookie = sw_zend_read_property(swoole_http2_client_class_entry_ptr, zobject, ZEND_STRL("cookies"), 1 TSRMLS_CC);
@@ -662,7 +666,7 @@ static void http2_client_set_callback(zval *zobject, const char *callback_name, 
     add_next_index_zval(zcallback, zobject);
     add_next_index_zval(zcallback, zmethod_name);
 
-    sw_zend_call_method_with_2_params(&zobject, swoole_client_class_entry_ptr, NULL, "on", &retval, zname, zcallback);
+    sw_zend_call_method_with_2_params(&zobject, swoole_http2_client_class_entry_ptr, NULL, "on", &retval, zname, zcallback);
     if (retval)
     {
         sw_zval_ptr_dtor(&retval);
@@ -780,9 +784,16 @@ static void http2_client_send_request(zval *zobject, http2_client_request *req T
 
 static void http2_client_connect(zval *zobject TSRMLS_DC)
 {
+    http2_client_property *hcc = swoole_get_property(zobject, HTTP2_CLIENT_PROPERTY_INDEX);
     zval *retval = NULL;
-    zval *zhost = sw_zend_read_property(swoole_http2_client_class_entry_ptr, zobject, ZEND_STRL("host"), 1 TSRMLS_CC);
-    zval *zport = sw_zend_read_property(swoole_http2_client_class_entry_ptr, zobject, ZEND_STRL("port"), 1 TSRMLS_CC);
+
+    zval *zhost;
+    SW_MAKE_STD_ZVAL(zhost);
+    SW_ZVAL_STRINGL(zhost, hcc->host, hcc->host_len, 1);
+
+    zval *zport;
+    SW_MAKE_STD_ZVAL(zport);
+    ZVAL_LONG(zport, hcc->port);
 
     http2_client_set_callback(zobject, "Connect", "onConnect" TSRMLS_CC);
     http2_client_set_callback(zobject, "Receive", "onReceive" TSRMLS_CC);
@@ -795,7 +806,8 @@ static void http2_client_connect(zval *zobject TSRMLS_DC)
     {
         http2_client_set_callback(zobject, "Error", "onError" TSRMLS_CC);
     }
-    sw_zend_call_method_with_2_params(&zobject, swoole_client_class_entry_ptr, NULL, "connect", &retval, zhost, zport);
+
+    sw_zend_call_method_with_2_params(&zobject, swoole_http2_client_class_entry_ptr, NULL, "connect", &retval, zhost, zport);
     if (retval)
     {
         sw_zval_ptr_dtor(&retval);
