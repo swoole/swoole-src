@@ -1042,6 +1042,11 @@ static PHP_METHOD(swoole_http2_client, __destruct)
         nghttp2_hd_inflate_del(hcc->inflater);
         hcc->inflater = NULL;
     }
+    if (hcc->host)
+    {
+        efree(hcc->host);
+        hcc->host = NULL;
+    }
 
     swHashMap_free(hcc->streams);
     efree(hcc);
