@@ -234,6 +234,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_addFile, 0, 0, 2)
     ZEND_ARG_INFO(0, type)
     ZEND_ARG_INFO(0, filename)
     ZEND_ARG_INFO(0, offset)
+    ZEND_ARG_INFO(0, length)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_execute, 0, 0, 2)
@@ -1044,7 +1045,7 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
                 {
                     goto send_fail;
                 }
-                if ((ret = http->cli->sendfile(http->cli, Z_STRVAL_P(zpath), Z_LVAL_P(zoffset))) < 0)
+                if ((ret = http->cli->sendfile(http->cli, Z_STRVAL_P(zpath), Z_LVAL_P(zoffset), Z_LVAL_P(zsize))) < 0)
                 {
                     goto send_fail;
                 }
@@ -1331,13 +1332,22 @@ static PHP_METHOD(swoole_http_client, addFile)
     char *filename = NULL;
     zend_size_t l_filename;
     long offset = 0;
+    long length = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss|ss", &path, &l_path, &name, &l_name, &type, &l_type,
-            &filename, &l_filename, &offset) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss|ssll", &path, &l_path, &name, &l_name, &type, &l_type,
+            &filename, &l_filename, &offset, &length) == FAILURE)
     {
         return;
     }
 
+    if (offset < 0)
+    {
+        offset = 0;
+    }
+    if (length < 0)
+    {
+        length = 0;
+    }
     struct stat file_stat;
     if (stat(path, &file_stat) < 0)
     {
@@ -1353,6 +1363,15 @@ static PHP_METHOD(swoole_http_client, addFile)
     {
         swoole_php_sys_error(E_WARNING, "offset[%ld] is too large.", offset);
         RETURN_FALSE;
+    }
+    if (length > file_stat.st_size - offset)
+    {
+        swoole_php_sys_error(E_WARNING, "length[%ld] is too large.", length);
+        RETURN_FALSE;
+    }
+    if (length == 0)
+    {
+        length = file_stat.st_size - offset;
     }
     if (type == NULL)
     {
@@ -1395,7 +1414,7 @@ static PHP_METHOD(swoole_http_client, addFile)
     sw_add_assoc_stringl_ex(upload_file, ZEND_STRS("name"), name, l_name, 1);
     sw_add_assoc_stringl_ex(upload_file, ZEND_STRS("filename"), filename, l_filename, 1);
     sw_add_assoc_stringl_ex(upload_file, ZEND_STRS("type"), type, l_type, 1);
-    add_assoc_long(upload_file, "size", file_stat.st_size - offset);
+    add_assoc_long(upload_file, "size", length);
     add_assoc_long(upload_file, "offset", offset);
 
     add_next_index_zval(hcc->request_upload_files, upload_file);

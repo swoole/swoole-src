@@ -722,6 +722,13 @@ typedef struct _swSendData
     char *data;
 } swSendData;
 
+typedef struct
+{
+    off_t offset;
+    size_t length;
+    char filename[0];
+} swSendFile_request;
+
 //------------------TimeWheel--------------------
 typedef struct
 {
@@ -1264,7 +1271,7 @@ int swSocket_sendto_blocking(int fd, void *__buf, size_t __n, int flag, struct s
 int swSocket_set_buffer_size(int fd, int buffer_size);
 int swSocket_udp_sendto(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len);
 int swSocket_udp_sendto6(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len);
-int swSocket_sendfile_sync(int sock, char *filename, off_t offset, double timeout);
+int swSocket_sendfile_sync(int sock, char *filename, off_t offset, size_t length, double timeout);
 int swSocket_write_blocking(int __fd, void *__data, int __len);
 
 static sw_inline int swWaitpid(pid_t __pid, int *__stat_loc, int __options)

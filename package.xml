@@ -199,6 +199,7 @@
 					<file role="src" name="Timer.c" />
 					<file role="src" name="DNS.c" />
 					<file role="src" name="Port.c" />
+					<file role="src" name="TimeWheel.c" />
 				</dir>
 				<dir name="os">
 					<file role="src" name="base.c" />

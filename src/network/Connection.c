@@ -54,7 +54,7 @@ int swConnection_onSendfile(swConnection *conn, swBuffer_trunk *chunk)
     }
 #endif
 
-    int sendn = (task->filesize - task->offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : task->filesize - task->offset;
+    int sendn = (task->length - task->offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : task->length - task->offset;
     ret = swoole_sendfile(conn->fd, task->fd, &task->offset, sendn);
     swTrace("ret=%d|task->offset=%ld|sendn=%d|filesize=%ld", ret, task->offset, sendn, task->filesize);
 
@@ -75,7 +75,7 @@ int swConnection_onSendfile(swConnection *conn, swBuffer_trunk *chunk)
     }
 
     //sendfile finish
-    if (task->offset >= task->filesize)
+    if (task->offset >= task->length)
     {
         swBuffer_pop_trunk(conn->out_buffer, chunk);
 
@@ -207,7 +207,7 @@ void swConnection_sendfile_destructor(swBuffer_trunk *chunk)
     sw_free(task);
 }
 
-int swConnection_sendfile(swConnection *conn, char *filename, off_t offset)
+int swConnection_sendfile(swConnection *conn, char *filename, off_t offset, size_t length)
 {
     if (conn->out_buffer == NULL)
     {
@@ -234,7 +234,7 @@ int swConnection_sendfile(swConnection *conn, char *filename, off_t offset)
         sw_free(task->filename);
         sw_free(task);
         swSysError("open(%s) failed.", filename);
-        return SW_ERR;
+        return SW_OK;
     }
     task->fd = file_fd;
     task->offset = offset;
@@ -247,7 +247,20 @@ int swConnection_sendfile(swConnection *conn, char *filename, off_t offset)
         swConnection_sendfile_destructor(&error_chunk);
         return SW_ERR;
     }
-    task->filesize = file_stat.st_size;
+    if (length < 0 || offset < 0 || (length + offset > file_stat.st_size))
+    {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "length or offset is invalid.");
+        swConnection_sendfile_destructor(&error_chunk);
+        return SW_OK;
+    }
+    if (length == 0)
+    {
+        task->length = file_stat.st_size;
+    }
+    else
+    {
+        task->length = length + offset;
+    }
 
     swBuffer_trunk *chunk = swBuffer_new_trunk(conn->out_buffer, SW_CHUNK_SENDFILE, 0);
     if (chunk == NULL)
