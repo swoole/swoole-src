@@ -17,6 +17,7 @@
 #include "Server.h"
 #include "http.h"
 #include "Connection.h"
+#include <sys/stat.h>
 
 #if SW_REACTOR_SCHEDULE == 3
 static sw_inline void swServer_reactor_schedule(swServer *serv)
@@ -968,7 +969,7 @@ int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename, uint32
 {
     if (session_id <= 0 || session_id > SW_MAX_SOCKET_ID)
     {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_INVALID_ID, "invalid fd[%ld].", session_id);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_INVALID_ID, "invalid fd[%d].", session_id);
         return SW_ERR;
     }
 

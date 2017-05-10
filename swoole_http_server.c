@@ -2024,7 +2024,6 @@ static PHP_METHOD(swoole_http_response, sendfile)
     {
         return;
     }
-
     if (filename_length <= 0)
     {
         swoole_php_error(E_WARNING, "file name is empty.");
@@ -2057,9 +2056,19 @@ static PHP_METHOD(swoole_http_response, sendfile)
         swoole_php_sys_error(E_WARNING, "stat(%s) failed.", filename);
         RETURN_FALSE;
     }
+    if (file_stat.st_size == 0)
+    {
+        swoole_php_sys_error(E_WARNING, "cannot send empty file[%s].", filename);
+        RETURN_FALSE;
+    }
     if (file_stat.st_size <= offset)
     {
-        swoole_php_error(E_WARNING, "file[offset=%ld] is empty.", offset);
+        swoole_php_error(E_WARNING, "parameter $offset[ld] exceeds the file size.", offset);
+        RETURN_FALSE;
+    }
+    if (length > file_stat.st_size - offset)
+    {
+        swoole_php_sys_error(E_WARNING, "parameter $length[%ld] exceeds the file size.", length);
         RETURN_FALSE;
     }
     if (length == 0)

@@ -1339,7 +1339,6 @@ static PHP_METHOD(swoole_http_client, addFile)
     {
         return;
     }
-
     if (offset < 0)
     {
         offset = 0;
@@ -1354,19 +1353,19 @@ static PHP_METHOD(swoole_http_client, addFile)
         swoole_php_sys_error(E_WARNING, "stat(%s) failed.", path);
         RETURN_FALSE;
     }
-    if (file_stat.st_size <= 0)
+    if (file_stat.st_size == 0)
     {
-        swoole_php_sys_error(E_WARNING, "file[%s] size <= 0.", path);
+        swoole_php_sys_error(E_WARNING, "cannot send empty file[%s].", filename);
         RETURN_FALSE;
     }
-    if (offset > file_stat.st_size)
+    if (file_stat.st_size <= offset)
     {
-        swoole_php_sys_error(E_WARNING, "offset[%ld] is too large.", offset);
+        swoole_php_error(E_WARNING, "parameter $offset[%ld] exceeds the file size.", offset);
         RETURN_FALSE;
     }
     if (length > file_stat.st_size - offset)
     {
-        swoole_php_sys_error(E_WARNING, "length[%ld] is too large.", length);
+        swoole_php_sys_error(E_WARNING, "parameter $length[%ld] exceeds the file size.", length);
         RETURN_FALSE;
     }
     if (length == 0)
