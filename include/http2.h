@@ -75,6 +75,12 @@ enum swHttp2SettingId
     SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE   = 0x6,
 };
 
+enum swHttp2StreamType
+{
+    SW_HTTP2_STREAM_NORMAL      = 0,
+    SW_HTTP2_STREAM_PIPELINE    = 1,
+};
+
 #define SW_HTTP2_FRAME_HEADER_SIZE            9
 #define SW_HTTP2_SETTING_OPTION_SIZE          6
 #define SW_HTTP2_FRAME_PING_PAYLOAD_SIZE      8
