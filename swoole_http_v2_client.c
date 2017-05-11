@@ -490,7 +490,7 @@ static int http2_client_onFrame(zval *zobject, zval *zdata TSRMLS_DC)
     int flags = buf[4];
     int stream_id = ntohl((*(int *) (buf + 5))) & 0x7fffffff;
     uint32_t length = swHttp2_get_length(buf);
-
+    swWarn("recv stream_id = %d\n", stream_id);
     buf += SW_HTTP2_FRAME_HEADER_SIZE;
 
     char frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE];
@@ -598,8 +598,9 @@ static int http2_client_onFrame(zval *zobject, zval *zdata TSRMLS_DC)
         swWarn("unknown frame, type=%d, stream_id=%d, length=%d.", type, stream_id, length);
         return SW_OK;
     }
-
-    if (stream->buffer || (flags & SW_HTTP2_FLAG_END_STREAM))
+    swWarn("type=[%d], stream type=[%d], flag=[%d]", type, stream->type, flags & SW_HTTP2_FLAG_END_STREAM);
+    if ( (type == SW_HTTP2_TYPE_DATA && stream->type == SW_HTTP2_STREAM_PIPELINE) || 
+    (stream->type == SW_HTTP2_STREAM_NORMAL && (flags & SW_HTTP2_FLAG_END_STREAM)))
     {
         zval *retval;
         zval *zcallback = stream->callback;
@@ -608,7 +609,6 @@ static int http2_client_onFrame(zval *zobject, zval *zdata TSRMLS_DC)
         if(stream->buffer)
         {
             zend_update_property_stringl(swoole_http2_response_class_entry_ptr, stream->response_object, ZEND_STRL("body"), stream->buffer->str, stream->buffer->length TSRMLS_CC);
-            swString_clear(stream->buffer);
         }
 
         zval **args[1];
@@ -626,9 +626,15 @@ static int http2_client_onFrame(zval *zobject, zval *zdata TSRMLS_DC)
         {
             sw_zval_ptr_dtor(&retval);
         }
+
         if(stream->type == SW_HTTP2_STREAM_NORMAL)
         {
+            swWarn("remove stream id %d\n", stream_id);
             swHashMap_del_int(hcc->streams, stream_id);
+        }
+        else
+        {
+            swString_clear(stream->buffer);
         }
     }
 
@@ -830,6 +836,7 @@ static void http2_client_send_request(zval *zobject, http2_client_request *req T
             sw_add_assoc_stringl_ex(zheader, ZEND_STRS("content-type"), ZEND_STRL("application/x-www-form-urlencoded"), 1);
         }
     }
+    swWarn("stream id = %d\n", hcc->stream_id);
     /**
      * send header
      */
@@ -865,7 +872,7 @@ static void http2_client_send_request(zval *zobject, http2_client_request *req T
     sw_zval_add_ref(&stream->callback);
     sw_copy_to_stack(stream->response_object, stream->_response_object);
 
-    zend_update_property_long(swoole_http2_response_class_entry_ptr, response_object, ZEND_STRL("streamId"), stream->stream_id TSRMLS_CC);
+    // zend_update_property_long(swoole_http2_response_class_entry_ptr, response_object, ZEND_STRL("streamId"), stream->stream_id TSRMLS_CC);
 
     swHashMap_add_int(hcc->streams, hcc->stream_id, stream);
     swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN", STREAM#%d] length=%d", swHttp2_get_type(SW_HTTP2_TYPE_HEADERS), hcc->stream_id, n);
