@@ -624,6 +624,10 @@ public:
     {
         return argc;
     }
+    bool exists(int i)
+    {
+        return i < argc;
+    }
     bool empty()
     {
         return argc == 0;

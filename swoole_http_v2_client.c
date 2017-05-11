@@ -849,7 +849,6 @@ static PHP_METHOD(swoole_http2_client, get)
         _req.uri_len = Z_STRLEN_P(uri);
         _req.type = HTTP_GET;
         _req.callback = callback;
-        sw_zval_ptr_dtor(&_req.callback);
         http2_client_send_request(getThis(), &_req TSRMLS_CC);
     }
     else
@@ -914,8 +913,6 @@ static PHP_METHOD(swoole_http2_client, post)
         _req.type = HTTP_POST;
         _req.callback = callback;
         _req.data = data;
-        sw_zval_ptr_dtor(&_req.callback);
-        sw_zval_ptr_dtor(&_req.data);
         http2_client_send_request(getThis(), &_req TSRMLS_CC);
     }
     else
