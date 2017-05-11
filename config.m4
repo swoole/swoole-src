@@ -35,12 +35,6 @@ PHP_ARG_ENABLE(http2, enable http2.0 support,
 PHP_ARG_ENABLE(thread, enable thread support,
 [  --enable-thread         Experimental: Use thread?], no, no)
 
-PHP_ARG_ENABLE(jemalloc, enable jemalloc support,
-[  --enable-jemalloc       Experimental: Use jemalloc?], no, no)
-
-PHP_ARG_ENABLE(tcmalloc, enable tcmalloc support,
-[  --enable-tcmalloc       Experimental: Use tcmalloc?], no, no)
-
 PHP_ARG_ENABLE(hugepage, enable hugepage support,
 [  --enable-hugepage       Experimental: Use hugepage?], no, no)
 
@@ -52,6 +46,9 @@ PHP_ARG_WITH(swoole, swoole support,
 
 PHP_ARG_WITH(openssl_dir, for OpenSSL support,
 [  --with-openssl-dir[=DIR]    Include OpenSSL support (requires OpenSSL >= 0.9.6)], no, no)
+
+PHP_ARG_WITH(jemalloc_dir, for jemalloc support,
+[  --with-jemalloc-dir[=DIR]    Include jemalloc support], no, no)
 
 PHP_ARG_ENABLE(mysqlnd, enable mysqlnd support,
 [  --enable-mysqlnd       Do you have mysqlnd?], no, no)
@@ -218,6 +215,13 @@ if test "$PHP_SWOOLE" != "no"; then
         PHP_ADD_LIBRARY(crypto, 1, SWOOLE_SHARED_LIBADD)
     fi
 
+    if test "$PHP_JEMALLOC_DIR" != "no"; then
+        AC_DEFINE(SW_USE_JEMALLOC, 1, [use jemalloc])
+        PHP_ADD_INCLUDE("${PHP_JEMALLOC_DIR}/include")
+        PHP_ADD_LIBRARY_WITH_PATH(jemalloc, "${PHP_JEMALLOC_DIR}/${PHP_LIBDIR}")
+        PHP_ADD_LIBRARY(jemalloc, 1, SWOOLE_SHARED_LIBADD)
+    fi
+
     PHP_ADD_LIBRARY(pthread, 1, SWOOLE_SHARED_LIBADD)
 
     if test "$PHP_ASYNC_REDIS" = "yes"; then
@@ -227,14 +231,6 @@ if test "$PHP_SWOOLE" != "no"; then
 
     if test "$PHP_HTTP2" = "yes"; then
         PHP_ADD_LIBRARY(nghttp2, 1, SWOOLE_SHARED_LIBADD)
-    fi
-
-    if test "$PHP_JEMALLOC" = "yes"; then
-        PHP_ADD_LIBRARY(jemalloc, 1, SWOOLE_SHARED_LIBADD)
-        AC_DEFINE(SW_USE_JEMALLOC, 1, [use jemalloc])
-    elif test "$PHP_TCMALLOC" = "yes"; then
-        PHP_ADD_LIBRARY(tcmalloc, 1, SWOOLE_SHARED_LIBADD)
-        AC_DEFINE(SW_USE_TCMALLOC, 1, [use tcmalloc])
     fi
 
     if test "$PHP_MYSQLND" = "yes"; then
@@ -338,6 +334,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/network/Timer.c \
         src/network/Port.c \
         src/network/DNS.c \
+        src/network/TimeWheel.c \
         src/os/base.c \
         src/os/dl.c \
         src/os/linux_aio.c \

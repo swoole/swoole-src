@@ -19,7 +19,7 @@
 #include <sys/stat.h>
 #include <sys/poll.h>
 
-int swSocket_sendfile_sync(int sock, char *filename, off_t offset, double timeout)
+int swSocket_sendfile_sync(int sock, char *filename, off_t offset, size_t length, double timeout)
 {
     int timeout_ms = timeout < 0 ? -1 : timeout * 1000;
     int file_fd = open(filename, O_RDONLY);
@@ -29,18 +29,24 @@ int swSocket_sendfile_sync(int sock, char *filename, off_t offset, double timeou
         return SW_ERR;
     }
 
-    struct stat file_stat;
-    if (fstat(file_fd, &file_stat) < 0)
+    if (length == 0)
     {
-        swWarn("fstat() failed. Error: %s[%d]", strerror(errno), errno);
-        close(file_fd);
-        return SW_ERR;
+        struct stat file_stat;
+        if (fstat(file_fd, &file_stat) < 0)
+        {
+            swWarn("fstat() failed. Error: %s[%d]", strerror(errno), errno);
+            close(file_fd);
+            return SW_ERR;
+        }
+        length = file_stat.st_size;
+    }
+    else
+    {
+        length = offset + length;
     }
 
     int n, sendn;
-    size_t file_size = file_stat.st_size;
-
-    while (offset < file_size)
+    while (offset < length)
     {
         if (swSocket_wait(sock, timeout_ms, SW_EVENT_WRITE) < 0)
         {
@@ -49,7 +55,7 @@ int swSocket_sendfile_sync(int sock, char *filename, off_t offset, double timeou
         }
         else
         {
-            sendn = (file_size - offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : file_size - offset;
+            sendn = (length - offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : length - offset;
             n = swoole_sendfile(sock, file_fd, &offset, sendn);
             if (n <= 0)
             {

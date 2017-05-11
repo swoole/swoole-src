@@ -30,10 +30,15 @@
 #define SW_MAX_LISTEN_PORT         60000
 #define SW_MAX_CONCURRENT_TASK     1024
 
-//#define SW_USE_MALLOC_TRIM
+#define SW_USE_MALLOC_TRIM
+#define SW_MALLOC_TRIM_INTERVAL    1
+#define SW_MALLOC_TRIM_PAD         0
 #define SW_USE_EVENT_TIMER
 #define SW_USE_MONOTONIC_TIME
 //#define SW_USE_RINGBUFFER
+
+#define SW_USE_TIMEWHEEL
+#define SW_TIMEWHEEL_SIZE          60
 
 //#define SW_DEBUG_REMOTE_OPEN
 #define SW_DEBUG_SERVER_HOST       "127.0.0.1"
