@@ -70,6 +70,8 @@ typedef struct
 
 typedef struct
 {
+    uint32_t stream_id;
+    uint8_t type;
     char *uri;
     uint32_t uri_len;
     zval *callback;
@@ -78,8 +80,6 @@ typedef struct
     zval _callback;
     zval _data;
 #endif
-    uint32_t stream_id;
-    uint8_t type;
 } http2_client_request;
 
 typedef struct
@@ -98,8 +98,6 @@ typedef struct
     zval _callback;
     zval _response_object;
 #endif
-
-    int (*send)(zval *zobject, char *data, uint32_t length);
 } http2_client_stream;
 
 static PHP_METHOD(swoole_http2_client, __construct);
@@ -490,7 +488,6 @@ static int http2_client_onFrame(zval *zobject, zval *zdata TSRMLS_DC)
     int flags = buf[4];
     int stream_id = ntohl((*(int *) (buf + 5))) & 0x7fffffff;
     uint32_t length = swHttp2_get_length(buf);
-    swWarn("recv stream_id = %d\n", stream_id);
     buf += SW_HTTP2_FRAME_HEADER_SIZE;
 
     char frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE];
@@ -598,7 +595,6 @@ static int http2_client_onFrame(zval *zobject, zval *zdata TSRMLS_DC)
         swWarn("unknown frame, type=%d, stream_id=%d, length=%d.", type, stream_id, length);
         return SW_OK;
     }
-    swWarn("type=[%d], stream type=[%d], flag=[%d]", type, stream->type, flags & SW_HTTP2_FLAG_END_STREAM);
     if ( (type == SW_HTTP2_TYPE_DATA && stream->type == SW_HTTP2_STREAM_PIPELINE) || 
     (stream->type == SW_HTTP2_STREAM_NORMAL && (flags & SW_HTTP2_FLAG_END_STREAM)))
     {
@@ -629,7 +625,6 @@ static int http2_client_onFrame(zval *zobject, zval *zdata TSRMLS_DC)
 
         if(stream->type == SW_HTTP2_STREAM_NORMAL)
         {
-            swWarn("remove stream id %d\n", stream_id);
             swHashMap_del_int(hcc->streams, stream_id);
         }
         else
@@ -836,7 +831,6 @@ static void http2_client_send_request(zval *zobject, http2_client_request *req T
             sw_add_assoc_stringl_ex(zheader, ZEND_STRS("content-type"), ZEND_STRL("application/x-www-form-urlencoded"), 1);
         }
     }
-    swWarn("stream id = %d\n", hcc->stream_id);
     /**
      * send header
      */
@@ -872,7 +866,7 @@ static void http2_client_send_request(zval *zobject, http2_client_request *req T
     sw_zval_add_ref(&stream->callback);
     sw_copy_to_stack(stream->response_object, stream->_response_object);
 
-    // zend_update_property_long(swoole_http2_response_class_entry_ptr, response_object, ZEND_STRL("streamId"), stream->stream_id TSRMLS_CC);
+    zend_update_property_long(swoole_http2_response_class_entry_ptr, response_object, ZEND_STRL("streamId"), stream->stream_id TSRMLS_CC);
 
     swHashMap_add_int(hcc->streams, hcc->stream_id, stream);
     swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN", STREAM#%d] length=%d", swHttp2_get_type(SW_HTTP2_TYPE_HEADERS), hcc->stream_id, n);
@@ -980,7 +974,6 @@ static PHP_METHOD(swoole_http2_client, get)
         _req.uri_len = Z_STRLEN_P(uri);
         _req.type = HTTP_GET;
         _req.callback = callback;
-        sw_zval_ptr_dtor(&_req.callback);
         http2_client_send_request(getThis(), &_req TSRMLS_CC);
     }
     else
@@ -1045,8 +1038,6 @@ static PHP_METHOD(swoole_http2_client, post)
         _req.type = HTTP_POST;
         _req.callback = callback;
         _req.data = data;
-        sw_zval_ptr_dtor(&_req.callback);
-        sw_zval_ptr_dtor(&_req.data);
         http2_client_send_request(getThis(), &_req TSRMLS_CC);
     }
     else
@@ -1112,7 +1103,6 @@ static PHP_METHOD(swoole_http2_client, openStream)
         _req.type = HTTP_POST;
         _req.callback = callback;
         _req.stream_id = 0;
-        sw_zval_ptr_dtor(&_req.callback);
         http2_client_send_stream_request(getThis(), &_req TSRMLS_CC);
     }
     else
@@ -1157,7 +1147,6 @@ static PHP_METHOD(swoole_http2_client, push)
         _req.data = data;
         _req.stream_id = stream_id;
         _req.callback = NULL;
-        sw_zval_ptr_dtor(&_req.data);
         http2_client_send_stream_request(getThis(), &_req TSRMLS_CC);
     }
     else
@@ -1263,7 +1252,7 @@ static PHP_METHOD(swoole_http2_client, onError)
 
 static PHP_METHOD(swoole_http2_client, onClose)
 {
-    swWarn("Client Close");
+
 }
 
 static PHP_METHOD(swoole_http2_client, onReceive)
