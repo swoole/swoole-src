@@ -565,6 +565,11 @@ static int http2_client_onFrame(zval *zobject, zval *zdata TSRMLS_DC)
     }
 
     http2_client_stream *stream = swHashMap_find_int(hcc->streams, stream_id);
+    // stream has closed
+    if(stream == NULL)
+    {
+        return SW_OK;
+    }
     if (type == SW_HTTP2_TYPE_HEADERS)
     {
         http2_client_parse_header(hcc, stream, flags, buf, length);
@@ -1139,7 +1144,7 @@ static PHP_METHOD(swoole_http2_client, push)
     {
         return;
     }
-     swClient *cli = swoole_get_object(getThis());
+    swClient *cli = swoole_get_object(getThis());
     http2_client_property *hcc = swoole_get_property(getThis(), HTTP2_CLIENT_PROPERTY_INDEX);
     if (cli && cli->socket && cli->socket->active == 1)
     {
@@ -1174,13 +1179,17 @@ static PHP_METHOD(swoole_http2_client, push)
 
 static PHP_METHOD(swoole_http2_client, closeStream)
 {
+    swClient *cli = swoole_get_object(getThis());
+    http2_client_property *hcc = swoole_get_property(getThis(), HTTP2_CLIENT_PROPERTY_INDEX);
+    char buffer[8192];
     int stream_id;
     if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "l", &stream_id) == FAILURE)
     {
         return;
     }
-
-
+    swHttp2_set_frame_header(buffer, SW_HTTP2_TYPE_SETTINGS, 0, SW_HTTP2_FLAG_END_STREAM,hcc->stream_id);
+    cli->send(cli, buffer, SW_HTTP2_FRAME_HEADER_SIZE, 0);
+    swHashMap_del_int(hcc->streams, stream_id);
     RETURN_TRUE;
 }
 
