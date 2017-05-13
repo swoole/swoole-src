@@ -56,7 +56,7 @@ int swConnection_onSendfile(swConnection *conn, swBuffer_trunk *chunk)
 
     int sendn = (task->length - task->offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : task->length - task->offset;
     ret = swoole_sendfile(conn->fd, task->fd, &task->offset, sendn);
-    swTrace("ret=%d|task->offset=%ld|sendn=%d|filesize=%ld", ret, task->offset, sendn, task->filesize);
+    swTrace("ret=%d|task->offset=%ld|sendn=%d|filesize=%ld", ret, task->offset, sendn, task->length);
 
     if (ret <= 0)
     {
