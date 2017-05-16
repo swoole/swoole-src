@@ -1138,7 +1138,7 @@ static PHP_METHOD(swoole_http2_client, openStream)
 
 static PHP_METHOD(swoole_http2_client, push)
 {
-    int stream_id;
+    long stream_id;
     zval *data;
     if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "lz", &stream_id, &data) == FAILURE)
     {
@@ -1185,7 +1185,7 @@ static PHP_METHOD(swoole_http2_client, closeStream)
     swClient *cli = swoole_get_object(getThis());
     http2_client_property *hcc = swoole_get_property(getThis(), HTTP2_CLIENT_PROPERTY_INDEX);
     char buffer[8192];
-    int stream_id;
+    long stream_id;
     if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "l", &stream_id) == FAILURE)
     {
         return;
