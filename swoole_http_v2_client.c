@@ -70,10 +70,10 @@ typedef struct
 
 typedef struct
 {
-    uint32_t stream_id;
-    uint8_t type;
     char *uri;
     uint32_t uri_len;
+    uint32_t stream_id;
+    uint8_t type;
     zval *callback;
     zval *data;
 #if PHP_MAJOR_VERSION >= 7
@@ -1149,6 +1149,8 @@ static PHP_METHOD(swoole_http2_client, push)
     if (cli && cli->socket && cli->socket->active == 1)
     {
         http2_client_request _req;
+        _req.uri = NULL;
+        _req.uri_len = 0;
         _req.data = data;
         _req.stream_id = stream_id;
         _req.callback = NULL;
@@ -1159,7 +1161,8 @@ static PHP_METHOD(swoole_http2_client, push)
         swLinkedList *requests = hcc->stream_requests;
 
         http2_client_request *req = emalloc(sizeof(http2_client_request));
-      
+        req->uri = NULL;
+        req->uri_len = 0;
         req->data = data;
         req->stream_id = stream_id;
         req->callback = NULL;
