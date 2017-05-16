@@ -1029,7 +1029,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
     }
     else
     {
-        zval *retval;
+        zval *retval = NULL;
         zval **args[2];
 
         zval *zrequest_object = ctx->request.zobject;
@@ -1078,7 +1078,8 @@ static int http_onReceive(swServer *serv, swEventData *req)
         //websocket handshake
         if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION && zcallback == NULL)
         {
-            return swoole_websocket_onHandshake(port, ctx);
+            swoole_websocket_onHandshake(port, ctx);
+            goto free_object;
         }
 
         args[0] = &zrequest_object;
@@ -1098,11 +1099,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
             if (zcallback == NULL)
             {
                 swoole_websocket_onRequest(ctx);
-                sw_zval_ptr_dtor(&zrequest_object);
-                sw_zval_ptr_dtor(&zresponse_object);
-                sw_zval_ptr_dtor(&zdata);
-                bzero(client, sizeof(swoole_http_client));
-                return SW_OK;
+                goto free_object;
             }
         }
 
@@ -1124,7 +1121,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
                 conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
             }
         }
-        bzero(client, sizeof(swoole_http_client));
+        free_object: bzero(client, sizeof(swoole_http_client));
         sw_zval_ptr_dtor(&zrequest_object);
         sw_zval_ptr_dtor(&zresponse_object);
         sw_zval_ptr_dtor(&zdata);
@@ -1240,6 +1237,7 @@ http_context* swoole_http_context_new(swoole_http_client* client TSRMLS_DC)
     zval *zrequest_object;
 #if PHP_MAJOR_VERSION >= 7
     zrequest_object = &ctx->request._zobject;
+    bzero(zrequest_object, sizeof(zval));
 #else
     SW_ALLOC_INIT_ZVAL(zrequest_object);
 #endif
@@ -1250,6 +1248,7 @@ http_context* swoole_http_context_new(swoole_http_client* client TSRMLS_DC)
     zval *zresponse_object;
 #if PHP_MAJOR_VERSION >= 7
     zresponse_object = &ctx->response._zobject;
+    bzero(zresponse_object, sizeof(zval));
 #else
     SW_ALLOC_INIT_ZVAL(zresponse_object);
 #endif
@@ -2063,7 +2062,7 @@ static PHP_METHOD(swoole_http_response, sendfile)
     }
     if (file_stat.st_size <= offset)
     {
-        swoole_php_error(E_WARNING, "parameter $offset[ld] exceeds the file size.", offset);
+        swoole_php_error(E_WARNING, "parameter $offset[%ld] exceeds the file size.", offset);
         RETURN_FALSE;
     }
     if (length > file_stat.st_size - offset)
