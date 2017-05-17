@@ -558,6 +558,7 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
+    size_t offset = 0;
     http_context *ctx = parser->data;
     zval *zrequest_object = ctx->request.zobject;
     size_t header_len = ctx->current_header_name_len;
@@ -597,12 +598,22 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
             }
             else if (http_strncasecmp("multipart/form-data", at, length))
             {
-                int boundary_len = length - (sizeof("multipart/form-data; boundary=") - 1);
+                offset = sizeof("multipart/form-data;") - 1;
+
+                while (at[offset] == ' ') {
+                    offset += 1;
+                }
+
+                offset += sizeof("boundary=") - 1;
+
+                int boundary_len = length - offset;
+
                 if (boundary_len <= 0)
                 {
                     swWarn("invalid multipart/form-data body.", ctx->fd);
                     return 0;
                 }
+
                 swoole_http_parse_form_data(ctx, at + length - boundary_len, boundary_len TSRMLS_CC);
             }
         }
