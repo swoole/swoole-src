@@ -698,6 +698,12 @@ Variant call(const char *func, Array &args)
     Variant _func(func);
     return _call(NULL, _func.ptr(), args);
 }
+Variant exec(const char *func)
+{
+    Variant _func(func);
+    Array args;
+    return _call(NULL, _func.ptr(), args);
+}
 /*generator*/
 Variant exec(const char *func, Variant v1)
 {
@@ -1105,6 +1111,12 @@ public:
     {
         Variant _func(func);
         return _call(ptr(), _func.ptr());
+    }
+    Variant exec(const char *func)
+    {
+        Variant _func(func);
+        Array args;
+        return _call(ptr(), _func.ptr(), args);
     }
     /*generator*/
     Variant exec(const char *func, Variant v1)
@@ -2035,6 +2047,26 @@ Variant newResource(const char *name, T *v)
     }
     zend_resource *res = zend_register_resource(static_cast<void*>(v), _c->type);
     return Variant(res);
+}
+
+Object newObject(const char *name)
+{
+    Object object;
+    zend_class_entry *ce = getClassEntry(name);
+    if (ce == NULL)
+    {
+        php_error_docref(NULL, E_WARNING, "class '%s' is undefined.", name);
+        return object;
+    }
+    zval zobject;
+    if (object_init_ex(&zobject, ce) == FAILURE)
+    {
+        return object;
+    }
+    object = Object(&zobject);
+    Array args;
+    object.call("__construct", args);
+    return object;
 }
 
 /*generator*/
