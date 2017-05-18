@@ -23,7 +23,7 @@ extern "C"
 #endif
 #if PHP_MAJOR_VERSION >= 7
 
-#define SERIA_SIZE 1024
+#define SERIA_SIZE 4096
 #define FILTER_SIZE 1024
 
 typedef struct _seriaString
