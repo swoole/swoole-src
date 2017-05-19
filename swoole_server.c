@@ -15,7 +15,6 @@
  */
 
 #include "php_swoole.h"
-#include "module.h"
 #include "Connection.h"
 
 #include "ext/standard/php_var.h"
@@ -1499,7 +1498,7 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "dispatch_func", v))
     {
         convert_to_string(v);
-        swServer_dispatch_function func = swModule_get_global_function(Z_STRVAL_P(v), Z_STRLEN_P(v));
+        swServer_dispatch_function func = swoole_get_function(Z_STRVAL_P(v), Z_STRLEN_P(v));
         if (func == NULL)
         {
             swoole_php_fatal_error(E_ERROR, "extension module function '%s' is undefined.", Z_STRVAL_P(v));

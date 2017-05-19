@@ -285,7 +285,6 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_mysql.c \
         swoole_redis.c \
         swoole_redis_server.c \
-        swoole_module.c \
         swoole_mmap.c \
         swoole_channel.c \
         src/core/base.c \
@@ -336,7 +335,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/network/DNS.c \
         src/network/TimeWheel.c \
         src/os/base.c \
-        src/os/dl.c \
         src/os/linux_aio.c \
         src/os/msg_queue.c \
         src/os/sendfile.c \

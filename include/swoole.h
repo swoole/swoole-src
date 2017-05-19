@@ -1230,6 +1230,8 @@ void swoole_update_time(void);
 double swoole_microtime(void);
 void swoole_rtrim(char *str, int len);
 void swoole_redirect_stdout(int new_fd);
+int swoole_add_function(const char *name, void* func);
+void* swoole_get_function(char *name, uint32_t length);
 
 static sw_inline uint64_t swoole_hton64(uint64_t host)
 {
