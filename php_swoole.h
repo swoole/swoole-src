@@ -331,7 +331,6 @@ PHP_FUNCTION(swoole_timer_clear);
 //---------------------------------------------------------
 //                  other
 //---------------------------------------------------------
-PHP_FUNCTION(swoole_load_module);
 PHP_FUNCTION(swoole_strerror);
 PHP_FUNCTION(swoole_errno);
 //---------------------------------------------------------
@@ -371,7 +370,6 @@ void swoole_http2_client_init(int module_number TSRMLS_DC);
 void swoole_websocket_init(int module_number TSRMLS_DC);
 void swoole_buffer_init(int module_number TSRMLS_DC);
 void swoole_mysql_init(int module_number TSRMLS_DC);
-void swoole_module_init(int module_number TSRMLS_DC);
 void swoole_mmap_init(int module_number TSRMLS_DC);
 void swoole_channel_init(int module_number TSRMLS_DC);
 #if PHP_MAJOR_VERSION == 7
@@ -478,7 +476,6 @@ ZEND_BEGIN_MODULE_GLOBALS(swoole)
     zend_bool use_namespace;
     zend_bool fast_serialize;
     long socket_buffer_size;
-    char *modules;
 ZEND_END_MODULE_GLOBALS(swoole)
 
 extern ZEND_DECLARE_MODULE_GLOBALS(swoole);

@@ -555,6 +555,8 @@ typedef struct _swConnection
      */
     time_t last_time;
 
+    uint16_t timewheel_index;
+
     /**
      * bind uid
      */
@@ -719,6 +721,22 @@ typedef struct _swSendData
     uint32_t length;
     char *data;
 } swSendData;
+
+typedef struct
+{
+    off_t offset;
+    size_t length;
+    char filename[0];
+} swSendFile_request;
+
+//------------------TimeWheel--------------------
+typedef struct
+{
+    uint16_t current;
+    uint16_t size;
+    swHashMap **wheel;
+
+} swTimeWheel;
 
 typedef void * (*swThreadStartFunc)(void *);
 typedef int (*swHandle)(swEventData *buf);
@@ -1212,6 +1230,8 @@ void swoole_update_time(void);
 double swoole_microtime(void);
 void swoole_rtrim(char *str, int len);
 void swoole_redirect_stdout(int new_fd);
+int swoole_add_function(const char *name, void* func);
+void* swoole_get_function(char *name, uint32_t length);
 
 static sw_inline uint64_t swoole_hton64(uint64_t host)
 {
@@ -1253,7 +1273,7 @@ int swSocket_sendto_blocking(int fd, void *__buf, size_t __n, int flag, struct s
 int swSocket_set_buffer_size(int fd, int buffer_size);
 int swSocket_udp_sendto(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len);
 int swSocket_udp_sendto6(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len);
-int swSocket_sendfile_sync(int sock, char *filename, off_t offset, double timeout);
+int swSocket_sendfile_sync(int sock, char *filename, off_t offset, size_t length, double timeout);
 int swSocket_write_blocking(int __fd, void *__data, int __len);
 
 static sw_inline int swWaitpid(pid_t __pid, int *__stat_loc, int __options)
@@ -1360,6 +1380,16 @@ struct _swReactor
 	uint16_t flag; //flag
 
     uint32_t max_socket;
+
+#ifdef SW_USE_MALLOC_TRIM
+    time_t last_mallc_trim_time;
+#endif
+
+#ifdef SW_USE_TIMEWHEEL
+    swTimeWheel *timewheel;
+    uint16_t heartbeat_interval;
+    time_t last_heartbeat_time;
+#endif
 
     /**
      * for thread
@@ -1762,6 +1792,14 @@ int swTimer_select(swTimer *timer);
 int swSystemTimer_init(int msec, int use_pipe);
 void swSystemTimer_signal_handler(int sig);
 int swSystemTimer_event_handler(swReactor *reactor, swEvent *event);
+
+swTimeWheel* swTimeWheel_new(uint16_t size);
+void swTimeWheel_free(swTimeWheel *tw);
+void swTimeWheel_forward(swTimeWheel *tw, swReactor *reactor);
+void swTimeWheel_add(swTimeWheel *tw, swConnection *conn);
+void swTimeWheel_update(swTimeWheel *tw, swConnection *conn);
+void swTimeWheel_remove(swTimeWheel *tw, swConnection *conn);
+#define swTimeWheel_new_index(tw)   (tw->current == 0 ? tw->size - 1 : tw->current - 1)
 //--------------------------------------------------------------
 //Share Memory
 typedef struct

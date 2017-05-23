@@ -15,7 +15,7 @@
  */
 
 #include "php_swoole.h"
-#include "module.h"
+
 #ifdef SW_COROUTINE
 #include "swoole_coroutine.h"
 #endif
@@ -255,7 +255,7 @@ static PHP_METHOD(swoole_server_port, set)
         {
             if (Z_TYPE_P(v) == IS_STRING)
             {
-                swProtocol_length_function func = swModule_get_global_function(Z_STRVAL_P(v), Z_STRLEN_P(v));
+                swProtocol_length_function func = swoole_get_function(Z_STRVAL_P(v), Z_STRLEN_P(v));
                 if (func != NULL)
                 {
                     port->protocol.get_package_length = func;

@@ -80,7 +80,6 @@
 				<file role="src" name="base64.h" />
 				<file role="src" name="mqtt.h" />
 				<file role="src" name="error.h" />
-				<file role="src" name="module.h" />
 				<file role="src" name="socks5.h" />
 				<file role="src" name="redis.h" />
 				<file role="src" name="coroutine.h" />
@@ -113,7 +112,6 @@
 			<file role="src" name="swoole_mysql.h" />
 			<file role="src" name="swoole_redis.c" />
 			<file role="src" name="swoole_redis_server.c" />
-			<file role="src" name="swoole_module.c" />
 			<file role="src" name="swoole_mmap.c" />
 			<file role="src" name="swoole_channel.c" />
             <file role="src" name="swoole_serialize.h" />
@@ -206,6 +204,7 @@
 					<file role="src" name="Timer.c" />
 					<file role="src" name="DNS.c" />
 					<file role="src" name="Port.c" />
+					<file role="src" name="TimeWheel.c" />
 				</dir>
 				<dir name="os">
 					<file role="src" name="base.c" />
@@ -214,7 +213,6 @@
 					<file role="src" name="sendfile.c" />
 					<file role="src" name="signal.c" />
 					<file role="src" name="timer.c" />
-					<file role="src" name="dl.c" />
 				</dir>
 				<dir name="protocol">
 				    <file role="src" name="Base.c" />

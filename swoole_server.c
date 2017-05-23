@@ -15,7 +15,6 @@
  */
 
 #include "php_swoole.h"
-#include "module.h"
 #include "Connection.h"
 
 #ifdef SW_COROUTINE
@@ -1614,7 +1613,7 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "dispatch_func", v))
     {
         convert_to_string(v);
-        swServer_dispatch_function func = swModule_get_global_function(Z_STRVAL_P(v), Z_STRLEN_P(v));
+        swServer_dispatch_function func = swoole_get_function(Z_STRVAL_P(v), Z_STRLEN_P(v));
         if (func == NULL)
         {
             swoole_php_fatal_error(E_ERROR, "extension module function '%s' is undefined.", Z_STRVAL_P(v));
@@ -2208,6 +2207,7 @@ PHP_METHOD(swoole_server, sendfile)
     char *filename;
     long fd;
     long offset = 0;
+    long length = 0;
 
     if (SwooleGS->start == 0)
     {
@@ -2215,33 +2215,13 @@ PHP_METHOD(swoole_server, sendfile)
         RETURN_FALSE;
     }
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ls|l", &fd, &filename, &len, &offset) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ls|ll", &fd, &filename, &len, &offset, &length) == FAILURE)
     {
         return;
     }
 
-    //check fd
-    if (fd <= 0 || fd > SW_MAX_SOCKET_ID)
-    {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_INVALID_ID, "invalid fd[%ld].", fd);
-        RETURN_FALSE;
-    }
-
-    struct stat file_stat;
-    if (stat(filename, &file_stat) < 0)
-    {
-        swoole_php_sys_error(E_WARNING, "stat(%s) failed.", filename);
-        RETURN_FALSE;
-    }
-
-    if (file_stat.st_size <= offset)
-    {
-        swoole_php_error(E_WARNING, "file[offset=%ld] is empty.", offset);
-        RETURN_FALSE;
-    }
-
     swServer *serv = swoole_get_object(zobject);
-    SW_CHECK_RETURN(swServer_tcp_sendfile(serv, (int) fd, filename, len, offset));
+    SW_CHECK_RETURN(swServer_tcp_sendfile(serv, (int) fd, filename, len, offset, length));
 }
 
 PHP_METHOD(swoole_server, close)
