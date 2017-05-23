@@ -1191,11 +1191,6 @@ static void http_onClose(swServer *serv, swDataHead *ev)
         swoole_http2_free(client);
     }
 #endif
-    zval *zcallback = php_swoole_server_get_callback(serv, ev->from_fd, SW_SERVER_CB_onClose);
-    if (!zcallback)
-    {
-        return;
-    }
     php_swoole_onClose(serv, ev);
 }
 
