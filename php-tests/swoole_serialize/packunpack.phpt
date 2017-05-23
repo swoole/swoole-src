@@ -16,8 +16,8 @@ echo count($un_data), "\n";
 
 // error array data
 $data_out = substr($data, 0, 8192);
-$un_data = swoole_serialize::unpack($data);
-echo $un_data?1:0, "\n";
+$err_data = swoole_serialize::unpack($data_out);
+echo $err_data?1:0, "\n";
 
 ?>
 Done
