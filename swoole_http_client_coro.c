@@ -670,6 +670,7 @@ static int http_client_coro_send_http_request(zval *zobject TSRMLS_DC)
             zval *zsize;
             zval *zpath;
             zval *zfilename;
+            zval *zoffset;
 
             if (hcc->request_upload_files)
             {
@@ -745,7 +746,10 @@ static int http_client_coro_send_http_request(zval *zobject TSRMLS_DC)
                     {
                         continue;
                     }
-
+                    if (sw_zend_hash_find(Z_ARRVAL_P(value), ZEND_STRS("offset"), (void **) &zoffset) == FAILURE)
+                    {
+                        continue;
+                    }
                     n = snprintf(header_buf, sizeof(header_buf), SW_HTTP_FORM_DATA_FORMAT_FILE, sizeof(boundary_str) - 1,
                             boundary_str, Z_STRLEN_P(zname), Z_STRVAL_P(zname), Z_STRLEN_P(zfilename),
                             Z_STRVAL_P(zfilename), Z_STRLEN_P(ztype), Z_STRVAL_P(ztype));
@@ -754,7 +758,7 @@ static int http_client_coro_send_http_request(zval *zobject TSRMLS_DC)
                     {
                         goto send_fail;
                     }
-                    if ((ret = http->cli->sendfile(http->cli, Z_STRVAL_P(zpath), 0)) < 0)
+                    if ((ret = http->cli->sendfile(http->cli, Z_STRVAL_P(zpath), Z_LVAL_P(zoffset), Z_LVAL_P(zsize))) < 0)
                     {
                         goto send_fail;
                     }
@@ -1042,23 +1046,46 @@ static PHP_METHOD(swoole_http_client_coro, addFile)
     zend_size_t l_type;
     char *filename = NULL;
     zend_size_t l_filename;
+    long offset = 0;
+    long length = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss|ss", &path, &l_path, &name, &l_name, &type, &l_type,
-            &filename, &l_filename) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss|ssll", &path, &l_path, &name, &l_name, &type, &l_type,
+            &filename, &l_filename, &offset, &length) == FAILURE)
     {
         RETURN_FALSE;
     }
-
+    if (offset < 0)
+    {
+        offset = 0;
+    }
+    if (length < 0)
+    {
+        length = 0;
+    }
     struct stat file_stat;
     if (stat(path, &file_stat) < 0)
     {
         swoole_php_sys_error(E_WARNING, "stat(%s) failed.", path);
         RETURN_FALSE;
     }
-    if (file_stat.st_size <= 0)
+    if (file_stat.st_size == 0)
     {
-        swoole_php_sys_error(E_WARNING, "file[%s] size <= 0.", path);
+        swoole_php_sys_error(E_WARNING, "cannot send empty file[%s].", filename);
         RETURN_FALSE;
+    }
+    if (file_stat.st_size <= offset)
+    {
+        swoole_php_error(E_WARNING, "parameter $offset[%ld] exceeds the file size.", offset);
+        RETURN_FALSE;
+    }
+    if (length > file_stat.st_size - offset)
+    {
+        swoole_php_sys_error(E_WARNING, "parameter $length[%ld] exceeds the file size.", length);
+        RETURN_FALSE;
+    }
+    if (length == 0)
+    {
+        length = file_stat.st_size - offset;
     }
     if (type == NULL)
     {
@@ -1101,7 +1128,8 @@ static PHP_METHOD(swoole_http_client_coro, addFile)
     sw_add_assoc_stringl_ex(upload_file, ZEND_STRS("name"), name, l_name, 1);
     sw_add_assoc_stringl_ex(upload_file, ZEND_STRS("filename"), filename, l_filename, 1);
     sw_add_assoc_stringl_ex(upload_file, ZEND_STRS("type"), type, l_type, 1);
-    add_assoc_long(upload_file, "size", file_stat.st_size);
+    add_assoc_long(upload_file, "size", length);
+    add_assoc_long(upload_file, "offset", offset);
 
     add_next_index_zval(hcc->request_upload_files, upload_file);
     RETURN_TRUE;
