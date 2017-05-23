@@ -262,7 +262,7 @@ static CPINLINE void swoole_string_cpy(seriaString *str, void *mem, size_t len)
     swoole_check_size(str, len + 15L);
     //example:13+15=28   28& 11111111 11111111 11111111 11110000
     //str->offset = ((str->offset + 15L) & ~15L);
-//    swoole_memcspy_fast(str->buffer + str->offset, mem, len);
+    //    swoole_memcspy_fast(str->buffer + str->offset, mem, len);
     memcpy(str->buffer + str->offset, mem, len);
     str->offset = len + str->offset;
 }
@@ -578,11 +578,6 @@ static void* swoole_unserialize_arr(void *buffer, zval *zvalue, uint32_t nNumOfE
     {
         return NULL;
     }
-    if (!buffer)
-    {
-        php_error_docref(NULL TSRMLS_CC, E_NOTICE, "illegal unserialize data");
-        return NULL;
-    }
     ZVAL_NEW_ARR(zvalue);
 
     //Initialize buckets
@@ -616,6 +611,11 @@ static void* swoole_unserialize_arr(void *buffer, zval *zvalue, uint32_t nNumOfE
     Bucket *p;
     for(idx = 0; idx < nNumOfElements; idx++)
     {
+        if (!buffer)
+        {
+            php_error_docref(NULL TSRMLS_CC, E_NOTICE, "illegal array unserialize data");
+            return NULL;
+        }
         SBucketType type = *((SBucketType*) buffer);
         buffer += sizeof (SBucketType);
         p = ht->arData + idx;
@@ -1178,6 +1178,11 @@ static void* swoole_unserialize_object(void *buffer, zval *return_value, zend_uc
     zval property;
     uint32_t arr_num = 0;
     size_t name_len = *((unsigned short*) buffer);
+    if (!name_len)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_NOTICE, "illegal unserialize data");
+        return NULL;
+    }
     buffer += 2;
     zend_string *class_name = swoole_string_init((char*) buffer, name_len);
     buffer += name_len;
@@ -1366,12 +1371,18 @@ PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, 
             unser_start = buffer - sizeof (SBucketType);
             uint32_t num = 0;
             buffer = get_array_real_len(buffer, type.data_len, &num);
-            swoole_unserialize_arr(buffer, return_value, num);
+            if (!swoole_unserialize_arr(buffer, return_value, num))
+            {
+                return SW_FALSE;
+            }
             break;
         }
         case IS_UNDEF:
             unser_start = buffer - sizeof (SBucketType);
-            swoole_unserialize_object(buffer, return_value, type.data_len, object_args);
+            if (!swoole_unserialize_object(buffer, return_value, type.data_len, object_args))
+            {
+                return SW_FALSE;
+            }
             break;
         default:
             php_error_docref(NULL TSRMLS_CC, E_NOTICE, "swoole serialize not support this type ");
