@@ -186,7 +186,6 @@ void CPINLINE swoole_mini_memcpy(void *dst, const void *src, size_t len)
         case 0:
         default: break;
     }
-    return dd;
 }
 
 void CPINLINE swoole_memcpy_fast(void *destination, const void *source, size_t size)
@@ -624,7 +623,7 @@ static void* swoole_unserialize_arr(void *buffer, zval *zvalue, uint32_t nNumOfE
         {
             size_t key_len;
             if (type.key_len == 3)
-            {//read the same mem 
+            {//read the same mem
                 void *str_pool_addr = get_pack_string_len_addr(&buffer, &key_len);
                 p->key = zend_string_init((char*) str_pool_addr, key_len, 0);
                 h = zend_inline_hash_func((char*) str_pool_addr, key_len);
@@ -812,7 +811,7 @@ static void swoole_serialize_arr(seriaString *buffer, zend_array *zvalue)
                         swoole_string_cpy(buffer, key->val, key->len);
                     }
                     else if (key->len <= 0xffff)
-                    {//if more than this  don't need optimize 
+                    {//if more than this  don't need optimize
                         type.key_len = 2;
                         SERIA_SET_ENTRY_TYPE(buffer, type);
                         swoole_mini_filter_add(key, buffer->offset, 2);
@@ -943,7 +942,7 @@ try_again:
             case IS_OBJECT:
             {
                 /*
-                 * layout 
+                 * layout
                  * type | key | namelen | name | bucket len |buckets
                  */
                 ((SBucketType*) (buffer->buffer + p))->data_type = IS_UNDEF;
@@ -961,7 +960,7 @@ try_again:
 
                 break;
             }
-            default:// 
+            default://
                 break;
 
         }
@@ -1076,7 +1075,7 @@ static void swoole_serialize_object(seriaString *buffer, zval *obj, size_t start
                                 memcmp(Z_STRVAL_P(sleep_value), prop_name, prop_key_len) == 0)
                         {
                             got_num++;
-                            //add mangle key,unmangle in unseria 
+                            //add mangle key,unmangle in unseria
                             _zend_hash_add_or_update(ht, prop_key, prop_value, HASH_UPDATE ZEND_FILE_LINE_CC);
 
                             break;
@@ -1145,7 +1144,7 @@ static CPINLINE zend_class_entry* swoole_try_get_ce(zend_string *class_name)
     {
         return ce;
     }
-    // try call unserialize callback and retry lookup 
+    // try call unserialize callback and retry lookup
     zval user_func, args[1], retval;
     zend_string *fname = swoole_string_init(PG(unserialize_callback_func), strlen(PG(unserialize_callback_func)));
     Z_STR(user_func) = fname;
