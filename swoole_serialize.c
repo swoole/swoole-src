@@ -577,8 +577,12 @@ static void* swoole_unserialize_arr(void *buffer, zval *zvalue, uint32_t nNumOfE
     {
         return NULL;
     }
+    if (!buffer)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_NOTICE, "illegal unserialize data");
+        return NULL;
+    }
     ZVAL_NEW_ARR(zvalue);
-
     //Initialize buckets
     zend_array *ht = Z_ARR_P(zvalue);
     ht->nTableSize = size;
