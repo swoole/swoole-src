@@ -58,11 +58,11 @@ typedef struct
 #endif
     zval *callback;
     zval *domain;
-//#ifdef SW_COROUTINE
+#ifdef SW_COROUTINE
     php_context *context;  //add for coro
     uint8_t useless; //1 代表没有用
     long timeout_id;
-//#endif
+#endif
 
 
 } dns_request;
@@ -73,23 +73,24 @@ typedef struct
     int64_t  update_time;
 } dns_cache;
 
-
-
 extern int swReactorTimer_now(struct timeval *time);
 
 static void php_swoole_check_aio();
 static void php_swoole_aio_onComplete(swAio_event *event);
 static void php_swoole_dns_callback(char *domain, swDNSResolver_result *result, void *data);
+#ifdef SW_COROUTINE
 static void php_swoole_dns_callback_coro(char *domain, swDNSResolver_result *result, void *data);
 static void php_swoole_dns_timeout_coro(php_context *cxt);
+#endif
 
 static void php_swoole_file_request_free(void *data);
 
 static swHashMap *php_swoole_open_files;
 static swHashMap *php_swoole_aio_request;
 
+#ifdef SW_COROUTINE
 static swHashMap *request_cache_map = NULL; //以domin为区分
-
+#endif
 
 static sw_inline int64_t swTimer_get_now_msec()
 {
@@ -226,6 +227,7 @@ static void php_swoole_dns_callback(char *domain, swDNSResolver_result *result, 
 }
 
 //用于coro 回调
+#ifdef SW_COROUTINE
 static void php_swoole_dns_callback_coro(char *domain, swDNSResolver_result *result, void *data)
 {
     SWOOLE_GET_TSRMLS;
@@ -266,7 +268,8 @@ static void php_swoole_dns_callback_coro(char *domain, swDNSResolver_result *res
 
     cache->update_time = (int64_t)swTimer_get_now_msec + (int64_t)(SwooleG.dns_cache_refresh_time*1000);
 
-    if(req->useless){
+    if (req->useless)
+    {
         efree(req);
         return;
     }
@@ -335,7 +338,7 @@ static void php_swoole_dns_timeout_coro(php_context *cxt)
     req->useless = 1;
 
 }
-
+#endif
 
 static void php_swoole_aio_onComplete(swAio_event *event)
 {
@@ -1005,7 +1008,6 @@ PHP_FUNCTION(swoole_async_dns_lookup)
         SW_CHECK_RETURN(swDNSResolver_request(Z_STRVAL_P(domain), php_swoole_dns_callback, (void *) req));
     }
 
-
     /**
      * Use thread pool
      */
@@ -1026,7 +1028,7 @@ PHP_FUNCTION(swoole_async_dns_lookup)
     SW_CHECK_RETURN(swAio_dns_lookup(req, buf, buf_size));
 }
 
-
+#ifdef SW_COROUTINE
 PHP_FUNCTION(swoole_async_dns_lookup_coro)
 {
     zval *domain;
@@ -1087,3 +1089,4 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro)
     coro_save(sw_current_context);
     coro_yield();
 }
+#endif
