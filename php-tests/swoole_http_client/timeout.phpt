@@ -26,7 +26,7 @@ function start_swoole_http_server() {
 							$cli->close();
 						}
 					});
-					
+
 					$cli->setHeaders(array('User-Agent' => "swoole"));
 					$cli->on('close', function($cli)use($response){
 						$cli->finished = true;
@@ -46,16 +46,15 @@ function start_swoole_http_server() {
 
 		$http->start();
 DOC;
-	
+
 	swoole_php_fork($code);
 }
 sleep(1);	//wait the release of port 9501
 start_swoole_http_server();
 sleep(1);
-echo file_get_contents("http://127.0.0.1:9501/");
+echo file_get_contents('http://127.0.0.1:9501/'), "\n";
 ?>
-Done
---EXPECTREGEX--
-timeout
-Done.*
+--EXPECTF--
+errorerror
+[%s %s %c%d.%d]%cNOTICE%cServer is shutdown now.
 --CLEAN--

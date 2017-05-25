@@ -12,7 +12,9 @@ $process = new swoole_process(function (swoole_process $worker)
 
 $pid = $process->start();
 $r = array($process);
-$ret = swoole_select($r, null, null, 1.0);
+$write = [];
+$error = [];
+$ret = swoole_client_select($r, $write, $error, 1.0);
 echo $process->read();
 ?>
 Done
