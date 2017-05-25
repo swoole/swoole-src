@@ -330,7 +330,7 @@ static void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
             sw_zval_ptr_dtor(&retval);
         }
         php_swoole_del_timer(tnode TSRMLS_CC);
-		swTimer_del(timer, tnode);
+		sw_free(tnode);
     }
 }
 
