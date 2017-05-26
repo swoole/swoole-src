@@ -18,6 +18,7 @@
 
 static int swReactorTimer_init(long msec);
 static int swReactorTimer_set(swTimer *timer, long exec_msec);
+static swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *data, swTimerCallback callback);
 
 static int swReactorTimer_now(struct timeval *time)
 {
@@ -68,6 +69,7 @@ int swTimer_init(long msec)
     SwooleG.timer._current_id = -1;
     SwooleG.timer._next_msec = msec;
     SwooleG.timer._next_id = 1;
+    SwooleG.timer.add = swTimer_add;
 
     SwooleG.timer.heap = swHeap_new(1024, SW_MIN_HEAP);
     if (!SwooleG.timer.heap)
@@ -110,7 +112,7 @@ static int swReactorTimer_set(swTimer *timer, long exec_msec)
     return SW_OK;
 }
 
-swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *data)
+static swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *data, swTimerCallback callback)
 {
     swTimer_node *tnode = sw_malloc(sizeof(swTimer_node));
     if (!tnode)
@@ -130,6 +132,7 @@ swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *data)
     tnode->exec_msec = now_msec + _msec;
     tnode->interval = interval ? _msec : 0;
     tnode->remove = 0;
+    tnode->callback = callback;
 
     if (timer->_next_msec < 0 || timer->_next_msec > _msec)
     {
@@ -177,10 +180,10 @@ int swTimer_select(swTimer *timer)
         {
             break;
         }
-        //tick timer
+        //persistent timer
         if (tnode->interval > 0)
         {
-            timer->onTick(timer, tnode);
+            tnode->callback(timer, tnode);
             if (!tnode->remove)
             {
                 int64_t _now_msec = swTimer_get_relative_msec();
@@ -200,10 +203,10 @@ int swTimer_select(swTimer *timer)
                 continue;
             }
         }
-        //after timer
+        //disposable time
         else
         {
-            timer->onAfter(timer, tnode);
+            tnode->callback(timer, tnode);
         }
         timer->num --;
         swHeap_pop(timer->heap);
