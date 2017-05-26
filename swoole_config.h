@@ -40,7 +40,7 @@
 #define SW_USE_MONOTONIC_TIME
 //#define SW_USE_RINGBUFFER
 
-#define SW_USE_TIMEWHEEL
+//#define SW_USE_TIMEWHEEL
 #define SW_TIMEWHEEL_SIZE          60
 
 //#define SW_DEBUG_REMOTE_OPEN

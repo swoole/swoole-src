@@ -56,6 +56,9 @@ PHP_ARG_ENABLE(mysqlnd, enable mysqlnd support,
 PHP_ARG_ENABLE(picohttpparser, enable picohttpparser support,
 [  --enable-picohttpparser     Experimental: Do you have picohttpparser?], no, no)
 
+PHP_ARG_ENABLE(timewheel, enable timewheel support,
+[  --enable-timewheel     Experimental: Enable timewheel heartbeat?], no, no)
+
 AC_DEFUN([SWOOLE_HAVE_PHP_EXT], [
     extname=$1
     haveext=$[PHP_]translit($1,a-z_-,A-Z__)
@@ -186,6 +189,10 @@ if test "$PHP_SWOOLE" != "no"; then
 
     if test "$PHP_THREAD" = "yes"; then
         AC_DEFINE(SW_USE_THREAD, 1, [enable thread support])
+    fi
+
+    if test "$PHP_TIMEWHEEL" = "yes"; then
+        AC_DEFINE(SW_USE_TIMEWHEEL, 1, [enable timewheel support])
     fi
 
     AC_SWOOLE_CPU_AFFINITY
