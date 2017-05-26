@@ -1786,7 +1786,7 @@ struct _swTimer
 
 int swTimer_init(long msec);
 swTimer_node* swTimer_get(swTimer *timer, long id);
-void swTimer_del(swTimer *timer, swTimer_node *node);
+int swTimer_del(swTimer *timer, swTimer_node *node);
 void swTimer_free(swTimer *timer);
 int swTimer_select(swTimer *timer);
 

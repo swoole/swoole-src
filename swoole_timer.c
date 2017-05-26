@@ -166,13 +166,11 @@ static void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
         argc = 1;
     }
 
-    timer->_current_id = tnode->id;
     if (sw_call_user_function_ex(EG(function_table), NULL, cb->callback, &retval, argc, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_timer: onTimeout handler error");
         return;
     }
-    timer->_current_id = -1;
 
     if (EG(exception))
     {
@@ -211,13 +209,11 @@ static void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode)
 
     args[0] = &ztimer_id;
 
-    timer->_current_id = tnode->id;
     if (sw_call_user_function_ex(EG(function_table), NULL, cb->callback, &retval, argc, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_timer: onTimerCallback handler error");
         return;
     }
-    timer->_current_id = -1;
 
     if (EG(exception))
     {
@@ -309,27 +305,17 @@ PHP_FUNCTION(swoole_timer_clear)
         RETURN_FALSE;
     }
 
-    //current timer, cannot remove here.
-    if (tnode->id == SwooleG.timer._current_id)
+    if (php_swoole_del_timer(tnode TSRMLS_CC) < 0)
     {
-        if (0 == tnode->remove)  //To avoid repeat delete
-        {
-            tnode->remove = 1;
-            RETURN_TRUE;
-        }
-        else
-        {
-            RETURN_FALSE;
-        }
+        RETURN_FALSE;
     }
 
-    if (php_swoole_del_timer(tnode TSRMLS_CC) < 0)
+    if (swTimer_del(&SwooleG.timer, tnode) == SW_FALSE)
     {
         RETURN_FALSE;
     }
     else
     {
-        swTimer_del(&SwooleG.timer, tnode);
         RETURN_TRUE;
     }
 }

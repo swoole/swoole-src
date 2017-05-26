@@ -86,6 +86,7 @@ typedef struct _swClient
 
     uint8_t server_strlen;
     double timeout;
+    swTimer_node *timer;
 
     /**
      * sendto, read only.

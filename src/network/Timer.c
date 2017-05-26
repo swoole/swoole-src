@@ -141,6 +141,11 @@ static swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *
     }
 
     tnode->id = timer->_next_id++;
+    if (unlikely(tnode->id < 0))
+    {
+        tnode->id = 1;
+        timer->_next_id = 2;
+    }
     timer->num++;
 
     tnode->heap_node = swHeap_push(timer->heap, tnode->exec_msec, tnode);
@@ -152,14 +157,31 @@ static swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *
     return tnode;
 }
 
-void swTimer_del(swTimer *timer, swTimer_node *tnode)
+int swTimer_del(swTimer *timer, swTimer_node *tnode)
 {
+    //current timer, cannot remove here.
+    if (tnode->id == SwooleG.timer._current_id)
+    {
+        //To avoid repeat delete
+        if (0 == tnode->remove)
+        {
+            tnode->remove = 1;
+            return SW_TRUE;
+        }
+        else
+        {
+            return SW_FALSE;
+        }
+    }
+    //remove from min-heap
     swHeap_remove(timer->heap, tnode->heap_node);
     if (tnode->heap_node)
     {
         sw_free(tnode->heap_node);
     }
     sw_free(tnode);
+    timer->num --;
+    return SW_TRUE;
 }
 
 int swTimer_select(swTimer *timer)
@@ -180,34 +202,31 @@ int swTimer_select(swTimer *timer)
         {
             break;
         }
+
+        timer->_current_id = tnode->id;
+        tnode->callback(timer, tnode);
+        timer->_current_id = -1;
+
         //persistent timer
-        if (tnode->interval > 0)
+        if (tnode->interval > 0 && !tnode->remove)
         {
-            tnode->callback(timer, tnode);
-            if (!tnode->remove)
+            int64_t _now_msec = swTimer_get_relative_msec();
+            if (_now_msec <= 0)
             {
-                int64_t _now_msec = swTimer_get_relative_msec();
-                if (_now_msec <= 0)
-                {
-                    tnode->exec_msec = now_msec + tnode->interval;
-                }
-                else if (tnode->exec_msec + tnode->interval < _now_msec)
-                {
-                    tnode->exec_msec = _now_msec + tnode->interval;
-                }
-                else
-                {
-                    tnode->exec_msec += tnode->interval;
-                }
-                swHeap_change_priority(timer->heap, tnode->exec_msec, tmp);
-                continue;
+                tnode->exec_msec = now_msec + tnode->interval;
             }
+            else if (tnode->exec_msec + tnode->interval < _now_msec)
+            {
+                tnode->exec_msec = _now_msec + tnode->interval;
+            }
+            else
+            {
+                tnode->exec_msec += tnode->interval;
+            }
+            swHeap_change_priority(timer->heap, tnode->exec_msec, tmp);
+            continue;
         }
-        //disposable time
-        else
-        {
-            tnode->callback(timer, tnode);
-        }
+
         timer->num --;
         swHeap_pop(timer->heap);
         sw_free(tnode);

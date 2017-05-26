@@ -39,6 +39,7 @@ static int swClient_onDgramRead(swReactor *reactor, swEvent *event);
 static int swClient_onStreamRead(swReactor *reactor, swEvent *event);
 static int swClient_onWrite(swReactor *reactor, swEvent *event);
 static int swClient_onError(swReactor *reactor, swEvent *event);
+static void swClient_onTimeout(swTimer *timer, swTimer_node *tnode);
 
 static int isset_event_handle = 0;
 
@@ -496,6 +497,10 @@ static int swClient_tcp_connect_async(swClient *cli, char *host, int port, doubl
         if (SwooleG.main_reactor->add(SwooleG.main_reactor, cli->socket->fd, cli->reactor_fdtype | SW_EVENT_WRITE) < 0)
         {
             return SW_ERR;
+        }
+        if (timeout > 0)
+        {
+            cli->timer = SwooleG.timer.add(&SwooleG.timer, (int) (timeout * 1000), 0, cli, swClient_onTimeout);
         }
         return SW_OK;
     }
@@ -1010,6 +1015,18 @@ static int swClient_onError(swReactor *reactor, swEvent *event)
     return SW_OK;
 }
 
+static void swClient_onTimeout(swTimer *timer, swTimer_node *tnode)
+{
+    swClient *cli = (swClient *) tnode->data;
+    SwooleG.error = ETIMEDOUT;
+    cli->close(cli);
+    if (cli->onError)
+    {
+        cli->onError(cli);
+    }
+    cli->timer = NULL;
+}
+
 static int swClient_onWrite(swReactor *reactor, swEvent *event)
 {
     swClient *cli = event->socket->object;
@@ -1048,6 +1065,12 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
             cli->onBufferEmpty(cli);
         }
         return SW_OK;
+    }
+
+    if (cli->timer)
+    {
+        swTimer_del(&SwooleG.timer, cli->timer);
+        cli->timer = NULL;
     }
 
     socklen_t len = sizeof(SwooleG.error);

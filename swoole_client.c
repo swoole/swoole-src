@@ -1124,6 +1124,11 @@ static PHP_METHOD(swoole_client, connect)
             RETURN_FALSE;
         }
 
+        if (timeout > 0)
+        {
+            php_swoole_check_timer((int) (timeout * 1000));
+        }
+
         if (swSocket_is_stream(cli->type))
         {
             if (!cb->onConnect)
