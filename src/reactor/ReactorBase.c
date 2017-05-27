@@ -19,7 +19,11 @@
 #include "async.h"
 
 #ifdef SW_USE_MALLOC_TRIM
+#if __APPLE__
+#include <sys/malloc.h>
+#else
 #include <malloc.h>
+#endif
 #endif
 
 static void swReactor_onTimeout_and_Finish(swReactor *reactor);

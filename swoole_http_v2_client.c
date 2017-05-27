@@ -561,6 +561,13 @@ static int http2_client_onFrame(zval *zobject, zval *zdata TSRMLS_DC)
         buf += 4;
         int error_code = htonl(*(int *) (buf));
         swWarn("["SW_ECHO_RED"] last_stream_id=%d, error_code=%d.", "GOAWAY", last_stream_id, error_code);
+        
+        zval* retval;
+        sw_zend_call_method_with_0_params(&zobject, swoole_client_class_entry_ptr, NULL, "close", &retval);
+        if (retval)
+        {
+            sw_zval_ptr_dtor(&retval);
+        }
         return SW_OK;
     }
 
@@ -950,6 +957,13 @@ static PHP_METHOD(swoole_http2_client, get)
 {
     zval *uri;
     zval *callback;
+    http2_client_property *hcc = swoole_get_property(getThis(), HTTP2_CLIENT_PROPERTY_INDEX);
+    swClient *cli = swoole_get_object(getThis());
+    
+    if(!cli && hcc->connecting == 1)
+    {
+        RETURN_FALSE;
+    }
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zz", &uri, &callback) == FAILURE)
     {
@@ -971,7 +985,6 @@ static PHP_METHOD(swoole_http2_client, get)
         RETURN_FALSE;
     }
 
-    swClient *cli = swoole_get_object(getThis());
     if (cli && cli->socket && cli->socket->active == 1)
     {
         http2_client_request _req;
@@ -983,9 +996,7 @@ static PHP_METHOD(swoole_http2_client, get)
     }
     else
     {
-        http2_client_property *hcc = swoole_get_property(getThis(), HTTP2_CLIENT_PROPERTY_INDEX);
         swLinkedList *requests = hcc->requests;
-
         http2_client_request *req = emalloc(sizeof(http2_client_request));
 
         req->uri = estrndup(Z_STRVAL_P(uri), Z_STRLEN_P(uri));
@@ -995,7 +1006,7 @@ static PHP_METHOD(swoole_http2_client, get)
         req->data = NULL;
         sw_copy_to_stack(req->callback, req->_callback);
         sw_zval_add_ref(&req->callback);
-
+        
         swLinkedList_append(requests, req);
 
         if (!hcc->connecting)
@@ -1014,6 +1025,13 @@ static PHP_METHOD(swoole_http2_client, post)
     zval *callback;
     zval *data;
 
+    http2_client_property *hcc = swoole_get_property(getThis(), HTTP2_CLIENT_PROPERTY_INDEX);
+    swClient *cli = swoole_get_object(getThis());
+    
+    if(!cli && hcc->connecting == 1)
+    {
+        RETURN_FALSE;
+    }
     if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "zzz", &uri, &data, &callback) == FAILURE)
     {
         return;
@@ -1034,7 +1052,7 @@ static PHP_METHOD(swoole_http2_client, post)
         RETURN_FALSE;
     }
 
-    swClient *cli = swoole_get_object(getThis());
+
     if (cli && cli->socket && cli->socket->active == 1)
     {
         http2_client_request _req;
@@ -1047,9 +1065,7 @@ static PHP_METHOD(swoole_http2_client, post)
     }
     else
     {
-        http2_client_property *hcc = swoole_get_property(getThis(), HTTP2_CLIENT_PROPERTY_INDEX);
         swLinkedList *requests = hcc->requests;
-
         http2_client_request *req = emalloc(sizeof(http2_client_request));
 
         req->uri = estrndup(Z_STRVAL_P(uri), Z_STRLEN_P(uri));
@@ -1078,6 +1094,14 @@ static PHP_METHOD(swoole_http2_client, openStream)
     zval *uri;
     zval *callback;
 
+    http2_client_property *hcc = swoole_get_property(getThis(), HTTP2_CLIENT_PROPERTY_INDEX);
+    swClient *cli = swoole_get_object(getThis());
+    
+    if(!cli && hcc->connecting == 1)
+    {
+        RETURN_FALSE;
+    }
+
     if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "zz", &uri, &callback) == FAILURE)
     {
         return;
@@ -1098,8 +1122,6 @@ static PHP_METHOD(swoole_http2_client, openStream)
         RETURN_FALSE;
     }
 
-    swClient *cli = swoole_get_object(getThis());
-    http2_client_property *hcc = swoole_get_property(getThis(), HTTP2_CLIENT_PROPERTY_INDEX);
     if (cli && cli->socket && cli->socket->active == 1)
     {
         http2_client_request _req;
@@ -1140,12 +1162,20 @@ static PHP_METHOD(swoole_http2_client, push)
 {
     long stream_id;
     zval *data;
+
     if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "lz", &stream_id, &data) == FAILURE)
     {
         return;
     }
-    swClient *cli = swoole_get_object(getThis());
+   
     http2_client_property *hcc = swoole_get_property(getThis(), HTTP2_CLIENT_PROPERTY_INDEX);
+    swClient *cli = swoole_get_object(getThis());
+    
+    if(!cli && hcc->connecting == 1)
+    {
+        RETURN_FALSE;
+    }
+
     if (cli && cli->socket && cli->socket->active == 1)
     {
         http2_client_request _req;
@@ -1182,8 +1212,14 @@ static PHP_METHOD(swoole_http2_client, push)
 
 static PHP_METHOD(swoole_http2_client, closeStream)
 {
-    swClient *cli = swoole_get_object(getThis());
     http2_client_property *hcc = swoole_get_property(getThis(), HTTP2_CLIENT_PROPERTY_INDEX);
+    swClient *cli = swoole_get_object(getThis());
+    
+    if(!cli && hcc->connecting == 1)
+    {
+        RETURN_FALSE;
+    }
+
     char buffer[8192];
     long stream_id;
     if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "l", &stream_id) == FAILURE)
