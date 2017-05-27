@@ -1912,6 +1912,7 @@ static PHP_METHOD(swoole_http_client, upgrade)
 
     sw_add_assoc_string(hcc->request_header, "Connection", "Upgrade", 1);
     sw_add_assoc_string(hcc->request_header, "Upgrade", "websocket", 1);
+    sw_add_assoc_string(hcc->request_header, "Sec-WebSocket-Version", SW_WEBSOCKET_VERSION, 1);
 
     int encoded_value_len = 0;
 

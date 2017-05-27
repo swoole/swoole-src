@@ -15,7 +15,6 @@
  */
 
 #include "php_swoole.h"
-#include "module.h"
 #include "Connection.h"
 
 #include "ext/standard/php_var.h"
@@ -69,7 +68,7 @@ int php_swoole_task_pack(swEventData *task, zval *data TSRMLS_DC)
     task->info.type = SW_EVENT_TASK;
     //field fd save task_id
     task->info.fd = php_swoole_task_id++;
-    if (php_swoole_task_id >= SW_MAX_INT)
+    if (unlikely(php_swoole_task_id >= SW_MAX_INT))
     {
         php_swoole_task_id = 0;
     }
@@ -1499,7 +1498,7 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "dispatch_func", v))
     {
         convert_to_string(v);
-        swServer_dispatch_function func = swModule_get_global_function(Z_STRVAL_P(v), Z_STRLEN_P(v));
+        swServer_dispatch_function func = swoole_get_function(Z_STRVAL_P(v), Z_STRLEN_P(v));
         if (func == NULL)
         {
             swoole_php_fatal_error(E_ERROR, "extension module function '%s' is undefined.", Z_STRVAL_P(v));

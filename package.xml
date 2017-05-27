@@ -35,10 +35,10 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2017-05-04</date>
+    <date>2017-05-26</date>
     <time>09:50:10</time>
     <version>
-		<release>1.9.10</release>
+		<release>1.9.11</release>
 		<api>1.9</api>
     </version>
     <stability>
@@ -47,9 +47,11 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Fixed compile error with enable-ringbuffer
-- Fixed unix socket client cannot connect to server
-- Fxied swoole_client::close crash with SWOOLE_KEEP flag on PHP-FPM
+- Fixed WebSocket server onOpen callback memory leak 
+- Added heartbeat detection support time wheel algorithm
+- Added length parameter support for sendfile API
+- Added connection timeout supports for asynchronous client
+- Optimized performance, reduce branch prediction failure rate
     </notes>
 	<contents>
 		<dir name="/">
@@ -82,14 +84,11 @@
 				<file role="src" name="base64.h" />
 				<file role="src" name="mqtt.h" />
 				<file role="src" name="error.h" />
-				<file role="src" name="module.h" />
 				<file role="src" name="socks5.h" />
 				<file role="src" name="redis.h" />
 			</dir>
 			<file role="src" name="php_swoole.h" />
 			<file role="src" name="php7_wrapper.h" />
-			<file role="src" name="PHP_API.hpp" />
-			<file role="src" name="PHP_embed.hpp" />
 			<file role="src" name="swoole_config.h" />
 			<file role="src" name="swoole.c" />
 			<file role="src" name="swoole_server.c" />
@@ -113,7 +112,6 @@
 			<file role="src" name="swoole_mysql.h" />
 			<file role="src" name="swoole_redis.c" />
 			<file role="src" name="swoole_redis_server.c" />
-			<file role="src" name="swoole_module.c" />
 			<file role="src" name="swoole_mmap.c" />
 			<file role="src" name="swoole_channel.c" />
 			<file role="src" name="swoole_serialize.h" />
@@ -208,7 +206,6 @@
 					<file role="src" name="sendfile.c" />
 					<file role="src" name="signal.c" />
 					<file role="src" name="timer.c" />
-					<file role="src" name="dl.c" />
 				</dir>
 				<dir name="protocol">
 				    <file role="src" name="Base.c" />

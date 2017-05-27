@@ -1594,7 +1594,7 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
     for (i = 0; i < serv->max_connection; i++)
     {
         session_id = SwooleGS->session_round++;
-        if (session_id == 0)
+        if (unlikely(session_id == 0))
         {
             session_id = 1;
             SwooleGS->session_round = 1;

@@ -56,6 +56,9 @@ PHP_ARG_ENABLE(mysqlnd, enable mysqlnd support,
 PHP_ARG_ENABLE(picohttpparser, enable picohttpparser support,
 [  --enable-picohttpparser     Experimental: Do you have picohttpparser?], no, no)
 
+PHP_ARG_ENABLE(timewheel, enable timewheel support,
+[  --enable-timewheel     Experimental: Enable timewheel heartbeat?], no, no)
+
 AC_DEFUN([SWOOLE_HAVE_PHP_EXT], [
     extname=$1
     haveext=$[PHP_]translit($1,a-z_-,A-Z__)
@@ -188,6 +191,10 @@ if test "$PHP_SWOOLE" != "no"; then
         AC_DEFINE(SW_USE_THREAD, 1, [enable thread support])
     fi
 
+    if test "$PHP_TIMEWHEEL" = "yes"; then
+        AC_DEFINE(SW_USE_TIMEWHEEL, 1, [enable timewheel support])
+    fi
+
     AC_SWOOLE_CPU_AFFINITY
     AC_SWOOLE_HAVE_REUSEPORT
 
@@ -250,6 +257,7 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(c, daemon, AC_DEFINE(HAVE_DAEMON, 1, [have daemon]))
     AC_CHECK_LIB(c, mkostemp, AC_DEFINE(HAVE_MKOSTEMP, 1, [have mkostemp]))
     AC_CHECK_LIB(c, inotify_init, AC_DEFINE(HAVE_INOTIFY, 1, [have inotify]))
+    AC_CHECK_LIB(c, malloc_trim, AC_DEFINE(HAVE_MALLOC_TRIM, 1, [have malloc_trim]))
     AC_CHECK_LIB(c, inotify_init1, AC_DEFINE(HAVE_INOTIFY_INIT1, 1, [have inotify_init1]))
     AC_CHECK_LIB(pthread, pthread_rwlock_init, AC_DEFINE(HAVE_RWLOCK, 1, [have pthread_rwlock_init]))
     AC_CHECK_LIB(pthread, pthread_spin_lock, AC_DEFINE(HAVE_SPINLOCK, 1, [have pthread_spin_lock]))
@@ -262,7 +270,7 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(z, gzgets, [
         AC_DEFINE(SW_HAVE_ZLIB, 1, [have zlib])
         PHP_ADD_LIBRARY(z, 1, SWOOLE_SHARED_LIBADD)
-    ])    
+    ])
 
     swoole_source_file="swoole.c \
         swoole_server.c \
@@ -285,7 +293,6 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_mysql.c \
         swoole_redis.c \
         swoole_redis_server.c \
-        swoole_module.c \
         swoole_mmap.c \
         swoole_channel.c \
         src/core/base.c \
@@ -336,7 +343,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/network/DNS.c \
         src/network/TimeWheel.c \
         src/os/base.c \
-        src/os/dl.c \
         src/os/linux_aio.c \
         src/os/msg_queue.c \
         src/os/sendfile.c \
@@ -366,7 +372,7 @@ if test "$PHP_SWOOLE" != "no"; then
     PHP_ADD_INCLUDE([$ext_srcdir])
     PHP_ADD_INCLUDE([$ext_srcdir/include])
 
-    PHP_INSTALL_HEADERS([ext/swoole], [*.h *.hpp include/*.h])
+    PHP_INSTALL_HEADERS([ext/swoole], [*.h include/*.h])
 
     if test "$PHP_PICOHTTPPARSER" = "yes"; then
         PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/picohttpparser])

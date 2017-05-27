@@ -16,7 +16,6 @@
 
 #include "php_swoole.h"
 #include "socks5.h"
-#include "module.h"
 
 #include "ext/standard/basic_functions.h"
 
@@ -534,7 +533,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
         {
             if (Z_TYPE_P(v) == IS_STRING)
             {
-                swProtocol_length_function func = swModule_get_global_function(Z_STRVAL_P(v), Z_STRLEN_P(v));
+                swProtocol_length_function func = swoole_get_function(Z_STRVAL_P(v), Z_STRLEN_P(v));
                 if (func != NULL)
                 {
                     cli->protocol.get_package_length = func;
@@ -1123,6 +1122,11 @@ static PHP_METHOD(swoole_client, connect)
         {
             swoole_php_fatal_error(E_ERROR, "no event callback function.");
             RETURN_FALSE;
+        }
+
+        if (timeout > 0)
+        {
+            php_swoole_check_timer((int) (timeout * 1000));
         }
 
         if (swSocket_is_stream(cli->type))
