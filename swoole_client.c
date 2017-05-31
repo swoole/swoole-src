@@ -708,6 +708,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
             convert_to_string(v);
             cli->socks5_proxy->username = Z_STRVAL_P(v);
             cli->socks5_proxy->l_username = Z_STRLEN_P(v);
+            cli->socks5_proxy->method = 0x02;
         }
         if (php_swoole_array_get_value(vht, "socks5_password", v))
         {
