@@ -115,7 +115,7 @@ int swSocks5_connect(swClient *cli, char *recv_data, int length)
     {
         uchar version = recv_data[0];
         uchar status = recv_data[1];
-        if (version != SW_SOCKS5_VERSION_CODE)
+        if (version != 0x01)
         {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_VERSION, "SOCKS version is not supported.");
             return SW_ERR;
