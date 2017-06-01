@@ -16,7 +16,9 @@
 
 #include "php_swoole.h"
 #include "swoole_serialize.h"
+#ifdef __SSE2__
 #include <emmintrin.h>
+#endif
 
 #if PHP_MAJOR_VERSION >= 7
 #define CPINLINE sw_inline
@@ -101,7 +103,7 @@ static CPINLINE void swoole_check_size(seriaString *str, size_t len)
         str->total = new_size;
     }
 }
-
+#ifdef __SSE2__
 void CPINLINE swoole_mini_memcpy(void *dst, const void *src, size_t len)
 {
     register unsigned char *dd = (unsigned char*) dst + len;
@@ -255,6 +257,7 @@ void CPINLINE swoole_memcpy_fast(void *destination, const void *source, size_t s
 
     // return memcpy_tiny(dst, src, size);
 }
+#endif
 
 static CPINLINE void swoole_string_cpy(seriaString *str, void *mem, size_t len)
 {
