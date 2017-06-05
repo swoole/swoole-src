@@ -46,8 +46,9 @@
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "1.9.11"
+#define PHP_SWOOLE_VERSION  "1.9.12"
 #define PHP_SWOOLE_CHECK_CALLBACK
+#define PHP_SWOOLE_ENABLE_FASTCALL
 
 /**
  * PHP5.2
@@ -195,6 +196,7 @@ typedef struct
 #if PHP_MAJOR_VERSION >= 7
     zval _callbacks[PHP_SERVER_CALLBACK_NUM];
 #endif
+    zend_fcall_info_cache *caches[PHP_SERVER_CALLBACK_NUM];
     zval *setting;
 } swoole_server_port_property;
 //---------------------------------------------------------
@@ -226,6 +228,7 @@ extern zend_class_entry *swoole_server_port_class_entry_ptr;
 extern zend_class_entry *swoole_exception_class_entry_ptr;
 
 extern zval *php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
+extern zend_fcall_info_cache *php_sw_server_caches[PHP_SERVER_CALLBACK_NUM];
 #if PHP_MAJOR_VERSION >= 7
 extern zval _php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
 #endif
@@ -442,6 +445,25 @@ static sw_inline zval* php_swoole_server_get_callback(swServer *serv, int server
     else
     {
         return callback;
+    }
+}
+
+static sw_inline zend_fcall_info_cache* php_swoole_server_get_cache(swServer *serv, int server_fd, int event_type)
+{
+    swListenPort *port = serv->connection_list[server_fd].object;
+    swoole_server_port_property *property = port->ptr;
+    if (!property)
+    {
+        return php_sw_server_caches[event_type];
+    }
+    zend_fcall_info_cache* cache = property->caches[event_type];
+    if (!cache)
+    {
+        return php_sw_server_caches[event_type];
+    }
+    else
+    {
+        return cache;
     }
 }
 

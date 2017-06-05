@@ -419,16 +419,15 @@ static PHP_METHOD(swoole_server_port, on)
         return;
     }
 
-#ifdef PHP_SWOOLE_CHECK_CALLBACK
     char *func_name = NULL;
-    if (!sw_zend_is_callable(cb, 0, &func_name TSRMLS_CC))
+    zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
+    if (!sw_zend_is_callable_ex(cb, NULL, 0, &func_name, NULL, func_cache, NULL TSRMLS_CC))
     {
         swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
         efree(func_name);
         return;
     }
     efree(func_name);
-#endif
 
     swoole_server_port_property *property = swoole_get_property(getThis(), 0);
 
@@ -500,6 +499,7 @@ static PHP_METHOD(swoole_server_port, on)
             {
                 SwooleG.serv->onBufferEmpty = php_swoole_onBufferEmpty;
             }
+            property->caches[i] = func_cache;
             break;
         }
     }
@@ -507,6 +507,7 @@ static PHP_METHOD(swoole_server_port, on)
     if (l_property_name == 0)
     {
         swoole_php_error(E_WARNING, "Unknown event types[%s]", name);
+        efree(func_cache);
         RETURN_FALSE;
     }
     RETURN_TRUE;

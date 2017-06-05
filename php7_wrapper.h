@@ -56,6 +56,24 @@ static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
 #define sw_zend_hash_add                      zend_hash_add
 #define sw_zend_hash_index_update             zend_hash_index_update
 #define sw_call_user_function_ex              call_user_function_ex
+
+static sw_inline int sw_call_user_function_fast(zval *function_name, zend_fcall_info_cache *fci_cache, zval **retval_ptr_ptr, uint32_t param_count, zval ***params TSRMLS_DC)
+{
+    zend_fcall_info fci;
+
+    fci.size = sizeof(fci);
+    fci.function_table = EG(function_table);
+    fci.object_ptr = NULL;
+    fci.function_name = function_name;
+    fci.retval_ptr_ptr = retval_ptr_ptr;
+    fci.param_count = param_count;
+    fci.params = params;
+    fci.no_separation = 0;
+    fci.symbol_table = NULL;
+
+    return zend_call_function(&fci, NULL TSRMLS_CC);
+}
+
 #define sw_copy_to_stack(a, b)
 #define SWOOLE_GET_TSRMLS                     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL)
 
@@ -251,6 +269,35 @@ static sw_inline int sw_call_user_function_ex(HashTable *function_table, zval** 
     *retval_ptr_ptr = &phpng_retval;
     zval *object_p = (object_pp == NULL) ? NULL : *object_pp;
     return call_user_function_ex(function_table, object_p, function_name, &phpng_retval, param_count, real_params, no_separation, NULL);
+}
+
+
+static sw_inline int sw_call_user_function_fast(zval *function_name, zend_fcall_info_cache *fci_cache, zval **retval_ptr_ptr, uint32_t param_count, zval ***params)
+{
+    zval real_params[SW_PHP_MAX_PARAMS_NUM];
+    int i = 0;
+    for (; i < param_count; i++)
+    {
+        real_params[i] = **params[i];
+    }
+
+    zval phpng_retval;
+    *retval_ptr_ptr = &phpng_retval;
+
+    zend_fcall_info fci;
+    fci.size = sizeof(fci);
+#if PHP_MINOR_VERSION == 0
+    fci.function_table = EG(function_table);
+    fci.symbol_table = NULL;
+#endif
+    fci.object = NULL;
+    ZVAL_COPY_VALUE(&fci.function_name, function_name);
+    fci.retval = &phpng_retval;
+    fci.param_count = param_count;
+    fci.params = real_params;
+    fci.no_separation = 0;
+
+    return zend_call_function(&fci, fci_cache);
 }
 
 #define sw_php_var_unserialize(rval, p, max, var_hash)  php_var_unserialize(*rval, p, max, var_hash)
