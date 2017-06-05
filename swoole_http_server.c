@@ -1012,7 +1012,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
     parser->data = ctx;
 
     zval *zdata;
-    SW_MAKE_STD_ZVAL(zdata);
+    SW_ALLOC_INIT_ZVAL(zdata);
     php_swoole_get_recv_data(zdata, req, NULL, 0);
 
     swTrace("httpRequest %d bytes:\n---------------------------------------\n%s\n", (int)Z_STRLEN_P(zdata), Z_STRVAL_P(zdata));
@@ -1026,7 +1026,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
 
     if (n < 0)
     {
-        sw_zval_ptr_dtor(&zdata);
+        sw_zval_free(zdata);
         bzero(client, sizeof(swoole_http_client));
         swWarn("php_http_parser_execute failed.");
         if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)
@@ -1057,14 +1057,12 @@ static int http_onReceive(swServer *serv, swEventData *req)
         swConnection *conn = swWorker_get_connection(SwooleG.serv, fd);
         if (!conn)
         {
-            sw_zval_ptr_dtor(&zdata);
+            sw_zval_free(zdata);
             swWarn("connection[%d] is closed.", fd);
             return SW_ERR;
         }
 
-        zend_update_property(swoole_http_request_class_entry_ptr, zrequest_object, ZEND_STRL("data"), zdata TSRMLS_CC);
-        ctx->request.zdata = sw_zend_read_property(swoole_http_request_class_entry_ptr, zrequest_object, ZEND_STRL("data"), 0 TSRMLS_CC);
-        sw_copy_to_stack(ctx->request.zdata, ctx->request._zdata);
+        swoole_set_property(zrequest_object, 0, zdata);
 
         add_assoc_long(ctx->request.zserver, "server_port", swConnection_get_port(&SwooleG.serv->connection_list[conn->from_fd]));
         add_assoc_long(ctx->request.zserver, "remote_port", swConnection_get_port(conn));
@@ -1131,7 +1129,6 @@ static int http_onReceive(swServer *serv, swEventData *req)
         free_object: bzero(client, sizeof(swoole_http_client));
         sw_zval_ptr_dtor(&zrequest_object);
         sw_zval_ptr_dtor(&zresponse_object);
-        sw_zval_ptr_dtor(&zdata);
         if (retval)
         {
             sw_zval_ptr_dtor(&retval);
@@ -1549,7 +1546,8 @@ static PHP_METHOD(swoole_http_request, rawcontent)
     http_request *req = &ctx->request;
     if (req->post_length > 0)
     {
-        SW_RETVAL_STRINGL(Z_STRVAL_P(req->zdata) + Z_STRLEN_P(req->zdata) - req->post_length, req->post_length, 1);
+        zval *zdata = swoole_get_property(getThis(), 0);
+        SW_RETVAL_STRINGL(Z_STRVAL_P(zdata) + Z_STRLEN_P(zdata) - req->post_length, req->post_length, 1);
     }
 #ifdef SW_USE_HTTP2
     else if (req->post_buffer)
@@ -1583,6 +1581,12 @@ static PHP_METHOD(swoole_http_request, __destruct)
             }
         }
         SW_HASHTABLE_FOREACH_END();
+    }
+    zval *zdata = swoole_get_property(getThis(), 0);
+    if (zdata)
+    {
+        sw_zval_free(zdata);
+        swoole_set_property(getThis(), 0, NULL);
     }
     swoole_set_object(getThis(), NULL);
 }
