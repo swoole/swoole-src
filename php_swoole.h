@@ -450,8 +450,8 @@ static sw_inline zval* php_swoole_server_get_callback(swServer *serv, int server
 
 static sw_inline zend_fcall_info_cache* php_swoole_server_get_cache(swServer *serv, int server_fd, int event_type)
 {
-    swListenPort *port = serv->connection_list[server_fd].object;
-    swoole_server_port_property *property = port->ptr;
+    swListenPort *port = (swListenPort *) serv->connection_list[server_fd].object;
+    swoole_server_port_property *property = (swListenPort *) port->ptr;
     if (!property)
     {
         return php_sw_server_caches[event_type];
