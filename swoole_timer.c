@@ -35,7 +35,7 @@ typedef struct _swTimer_callback
     int type;
 } swTimer_callback;
 
-static swHashMap *timer_map;
+static swHashMap *timer_map = NULL;
 
 static void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode);
 static void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode);
@@ -236,6 +236,9 @@ void php_swoole_check_timer(int msec)
     if (SwooleG.timer.fd == 0)
     {
         swTimer_init(msec);
+    }
+    if (timer_map == NULL)
+    {
         timer_map = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
     }
 }
