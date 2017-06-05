@@ -1213,9 +1213,7 @@ static PHP_METHOD(swoole_http_client, __construct)
     }
 
     zend_update_property_stringl(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("host"), host, host_len TSRMLS_CC);
-
-    zend_update_property_long(swoole_http_client_class_entry_ptr,
-    getThis(), ZEND_STRL("port"), port TSRMLS_CC);
+    zend_update_property_long(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("port"), port TSRMLS_CC);
 
     //init
     swoole_set_object(getThis(), NULL);
@@ -1946,12 +1944,6 @@ static PHP_METHOD(swoole_http_client, push)
     if (opcode > WEBSOCKET_OPCODE_PONG)
     {
         swoole_php_fatal_error(E_WARNING, "opcode max 10");
-        RETURN_FALSE;
-    }
-
-    if (length == 0)
-    {
-        swoole_php_fatal_error(E_WARNING, "data is empty.");
         RETURN_FALSE;
     }
 
