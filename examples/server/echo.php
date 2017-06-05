@@ -6,11 +6,20 @@ $port->on('packet', function($serv, $data, $addr){
     var_dump($serv, $data, $addr);
 });
 
-$serv->on('connect', function ($serv, $fd, $from_id){
-	echo "[#".posix_getpid()."]\tClient@[$fd:$from_id]: Connect.\n";
+$port2 = $serv->listen('127.0.0.1', 9503);
+$port2->on('receive', function (swoole_server $serv, $fd, $reactor_id, $data) {
+    echo "PORT-9503\t[#".$serv->worker_id."]\tClient[$fd]: $data\n";
+    if ($serv->send($fd, "hello\n") == false)
+    {
+        echo "error\n";
+    }
 });
 
-$serv->on('receive', function (swoole_server $serv, $fd, $from_id, $data) {
+$serv->on('connect', function ($serv, $fd, $reactor_id){
+	echo "[#".posix_getpid()."]\tClient@[$fd:$reactor_id]: Connect.\n";
+});
+
+$serv->on('receive', function (swoole_server $serv, $fd, $reactor_id, $data) {
 	echo "[#".$serv->worker_id."]\tClient[$fd]: $data\n";
     if ($serv->send($fd, "hello\n") == false)
     {
@@ -18,8 +27,8 @@ $serv->on('receive', function (swoole_server $serv, $fd, $from_id, $data) {
     }
 });
 
-$serv->on('close', function ($serv, $fd, $from_id) {
-	echo "[#".posix_getpid()."]\tClient@[$fd:$from_id]: Close.\n";
+$serv->on('close', function ($serv, $fd, $reactor_id) {
+	echo "[#".posix_getpid()."]\tClient@[$fd:$reactor_id]: Close.\n";
 });
 
 $serv->start();

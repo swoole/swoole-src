@@ -875,6 +875,7 @@ int swPort_listen(swListenPort *ls);
 #ifdef SW_USE_OPENSSL
 int swPort_enable_ssl_encrypt(swListenPort *ls);
 #endif
+void swPort_clear_protocol(swListenPort *ls);
 
 void swWorker_free(swWorker *worker);
 void swWorker_onStart(swServer *serv);
