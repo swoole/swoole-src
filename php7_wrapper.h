@@ -71,7 +71,7 @@ static sw_inline int sw_call_user_function_fast(zval *function_name, zend_fcall_
     fci.no_separation = 0;
     fci.symbol_table = NULL;
 
-    return zend_call_function(&fci, NULL TSRMLS_CC);
+    return zend_call_function(&fci, fci_cache TSRMLS_CC);
 }
 
 #define sw_copy_to_stack(a, b)
