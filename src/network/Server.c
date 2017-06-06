@@ -1551,6 +1551,9 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
     connection = &(serv->connection_list[fd]);
     bzero(connection, sizeof(swConnection));
 
+    memcpy((void *)&connection->protocol, (const void *)&ls->protocol, sizeof(ls->protocol));
+    connection->onRead = ls->onRead;
+
     //TCP Nodelay
     if (ls->open_tcp_nodelay)
     {

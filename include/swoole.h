@@ -433,7 +433,31 @@ typedef struct
     socklen_t len;
 } swSocketAddress;
 
-typedef struct _swConnection
+typedef struct _swConnection swConnection;
+typedef struct _swEvent swEvent;
+typedef struct _swReactor swReactor;
+typedef struct _swProtocol swProtocol;
+
+struct _swProtocol
+{
+    /* one package: eof check */
+    uint8_t split_by_eof;
+    uint8_t package_eof_len;  //数据缓存结束符长度
+    char package_eof[SW_DATA_EOF_MAXLEN + 1];  //数据缓存结束符
+
+    char package_length_type;  //length field type
+    uint8_t package_length_size;
+    uint16_t package_length_offset;  //第几个字节开始表示长度
+    uint16_t package_body_offset;  //第几个字节开始计算长度
+    uint32_t package_max_length;
+
+    void *private_data;
+
+    int (*onPackage)(swConnection *conn, char *data, uint32_t length);
+    int (*get_package_length)(struct _swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
+};
+
+struct _swConnection
 {
     /**
      * file descript
@@ -583,26 +607,10 @@ typedef struct _swConnection
     swString ssl_client_cert;
 #endif
     sw_atomic_t lock;
-} swConnection;
+    swProtocol protocol;
+    int (*onRead)(swReactor *reactor, struct _swConnection *conn, swEvent *event);
+};
 
-typedef struct _swProtocol
-{
-    /* one package: eof check */
-    uint8_t split_by_eof;
-    uint8_t package_eof_len;  //数据缓存结束符长度
-    char package_eof[SW_DATA_EOF_MAXLEN + 1];  //数据缓存结束符
-
-    char package_length_type;  //length field type
-    uint8_t package_length_size;
-    uint16_t package_length_offset;  //第几个字节开始表示长度
-    uint16_t package_body_offset;  //第几个字节开始计算长度
-    uint32_t package_max_length;
-
-    void *private_data;
-
-    int (*onPackage)(swConnection *conn, char *data, uint32_t length);
-    int (*get_package_length)(struct _swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
-} swProtocol;
 typedef int (*swProtocol_length_function)(struct _swProtocol *, swConnection *, char *, uint32_t);
 //------------------------------String--------------------------------
 #define swoole_tolower(c)      (u_char) ((c >= 'A' && c <= 'Z') ? (c | 0x20) : c)
@@ -666,13 +674,13 @@ typedef struct _swDataHead
     uint16_t from_fd;
 } swDataHead;
 
-typedef struct _swEvent
+struct _swEvent
 {
     int fd;
     int16_t from_id;
     uint8_t type;
     swConnection *socket;
-} swEvent;
+};
 
 typedef struct _swEventData
 {
@@ -741,7 +749,6 @@ typedef struct
 typedef void * (*swThreadStartFunc)(void *);
 typedef int (*swHandle)(swEventData *buf);
 typedef void (*swSignalHander)(int);
-typedef struct _swReactor swReactor;
 
 typedef int (*swReactor_handle)(swReactor *reactor, swEvent *event);
 //------------------Pipe--------------------
