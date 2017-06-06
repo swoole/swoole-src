@@ -19,7 +19,7 @@
 #include "async.h"
 
 #ifdef SW_USE_MALLOC_TRIM
-#if __APPLE__
+#ifdef __APPLE__
 #include <sys/malloc.h>
 #else
 #include <malloc.h>

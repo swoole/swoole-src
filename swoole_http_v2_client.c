@@ -960,8 +960,9 @@ static PHP_METHOD(swoole_http2_client, get)
     http2_client_property *hcc = swoole_get_property(getThis(), HTTP2_CLIENT_PROPERTY_INDEX);
     swClient *cli = swoole_get_object(getThis());
     
-    if(!cli && hcc->connecting == 1)
+    if (!cli && hcc->connecting == 1)
     {
+        swoole_php_error(E_WARNING, "The connection is closed.");
         RETURN_FALSE;
     }
 
@@ -1028,8 +1029,9 @@ static PHP_METHOD(swoole_http2_client, post)
     http2_client_property *hcc = swoole_get_property(getThis(), HTTP2_CLIENT_PROPERTY_INDEX);
     swClient *cli = swoole_get_object(getThis());
     
-    if(!cli && hcc->connecting == 1)
+    if (!cli && hcc->connecting == 1)
     {
+        swoole_php_error(E_WARNING, "The connection is closed.");
         RETURN_FALSE;
     }
     if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "zzz", &uri, &data, &callback) == FAILURE)
@@ -1051,7 +1053,6 @@ static PHP_METHOD(swoole_http2_client, post)
         swoole_php_fatal_error(E_WARNING, "uri is not string.");
         RETURN_FALSE;
     }
-
 
     if (cli && cli->socket && cli->socket->active == 1)
     {
@@ -1096,9 +1097,10 @@ static PHP_METHOD(swoole_http2_client, openStream)
 
     http2_client_property *hcc = swoole_get_property(getThis(), HTTP2_CLIENT_PROPERTY_INDEX);
     swClient *cli = swoole_get_object(getThis());
-    
-    if(!cli && hcc->connecting == 1)
+
+    if (!cli && hcc->connecting == 1)
     {
+        swoole_php_error(E_WARNING, "The connection is closed.");
         RETURN_FALSE;
     }
 
@@ -1171,8 +1173,9 @@ static PHP_METHOD(swoole_http2_client, push)
     http2_client_property *hcc = swoole_get_property(getThis(), HTTP2_CLIENT_PROPERTY_INDEX);
     swClient *cli = swoole_get_object(getThis());
     
-    if(!cli && hcc->connecting == 1)
+    if (!cli && hcc->connecting == 1)
     {
+        swoole_php_error(E_WARNING, "The connection is closed.");
         RETURN_FALSE;
     }
 
@@ -1215,8 +1218,9 @@ static PHP_METHOD(swoole_http2_client, closeStream)
     http2_client_property *hcc = swoole_get_property(getThis(), HTTP2_CLIENT_PROPERTY_INDEX);
     swClient *cli = swoole_get_object(getThis());
     
-    if(!cli && hcc->connecting == 1)
+    if (!cli && hcc->connecting == 1)
     {
+        swoole_php_error(E_WARNING, "The connection is closed.");
         RETURN_FALSE;
     }
 
