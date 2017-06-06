@@ -164,7 +164,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
     struct timeval timeout;
     int ret;
 
-    if (reactor->timeout_msec == 0)
+    if (reactor->timeout_msec < 0)
     {
         if (timeo == NULL)
         {
