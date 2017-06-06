@@ -27,6 +27,7 @@ swString *swString_new(size_t size)
     bzero(str, sizeof(swString));
     str->size = size;
     str->str = sw_malloc(size);
+    bzero(str->str, size);
     if (str->str == NULL)
     {
         swSysError("malloc[2](%ld) failed.", size);
