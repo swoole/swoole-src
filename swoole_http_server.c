@@ -1305,6 +1305,14 @@ http_context* swoole_http_context_new(swoole_http_client* client TSRMLS_DC)
     object_init_ex(zresponse_object, swoole_http_response_class_entry_ptr);
     swoole_set_object(zresponse_object, ctx);
 
+    {
+        zval *zheader;
+        swoole_http_server_array_init_no_copy(header, response);
+
+        zval *zcookie;
+        swoole_http_server_array_init_no_copy(cookie, response);
+    }
+
     //socket fd
     zend_update_property_long(swoole_http_response_class_entry_ptr, zresponse_object, ZEND_STRL("fd"), client->fd TSRMLS_CC);
     zend_update_property_long(swoole_http_request_class_entry_ptr, zrequest_object, ZEND_STRL("fd"), client->fd TSRMLS_CC);
@@ -2168,11 +2176,6 @@ static PHP_METHOD(swoole_http_response, cookie)
     }
 
     zval *zcookie = ctx->response.zcookie;
-    zval *zresponse_object = ctx->response.zobject;
-    if (!zcookie)
-    {
-        swoole_http_server_array_init(cookie, response);
-    }
 
     char *cookie, *encoded_value = NULL;
     int len = 0;
@@ -2277,11 +2280,6 @@ static PHP_METHOD(swoole_http_response, rawcookie)
     }
 
     zval *zcookie = ctx->response.zcookie;
-    zval *zresponse_object = ctx->response.zobject;
-    if (!zcookie)
-    {
-        swoole_http_server_array_init(cookie, response);
-    }
 
     char *cookie, *encoded_value = NULL;
     int len = 0;
@@ -2400,11 +2398,6 @@ static PHP_METHOD(swoole_http_response, header)
     }
 
     zval *zheader = ctx->response.zheader;
-    zval *zresponse_object = ctx->response.zobject;
-    if (!zheader)
-    {
-        swoole_http_server_array_init(header, response);
-    }
     if (klen > SW_HTTP_HEADER_KEY_SIZE - 1)
     {
         swoole_php_error(E_WARNING, "header key is too long.");
