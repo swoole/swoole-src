@@ -36,7 +36,9 @@ static struct
 } server_port_list;
 
 zval *php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
 zend_fcall_info_cache *php_sw_server_caches[PHP_SERVER_CALLBACK_NUM];
+#endif
 static swHashMap *task_callbacks;
 
 #if PHP_MAJOR_VERSION >= 7
@@ -1769,6 +1771,7 @@ PHP_METHOD(swoole_server, on)
         return;
     }
 
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
     char *func_name = NULL;
     zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
     if (!sw_zend_is_callable_ex(cb, NULL, 0, &func_name, NULL, func_cache, NULL TSRMLS_CC))
@@ -1778,6 +1781,16 @@ PHP_METHOD(swoole_server, on)
         return;
     }
     efree(func_name);
+#elif defined(PHP_SWOOLE_CHECK_CALLBACK)
+    char *func_name = NULL;
+    if (!sw_zend_is_callable(cb, 0, &func_name TSRMLS_CC))
+    {
+        swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+        efree(func_name);
+        return;
+    }
+    efree(func_name);
+#endif
 
     convert_to_string(name);
 
@@ -1822,7 +1835,9 @@ PHP_METHOD(swoole_server, on)
             property_name[l_property_name] = '\0';
             zend_update_property(swoole_server_class_entry_ptr, getThis(), property_name, l_property_name, cb TSRMLS_CC);
             php_sw_server_callbacks[i] = sw_zend_read_property(swoole_server_class_entry_ptr, getThis(), property_name, l_property_name, 0 TSRMLS_CC);
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
             php_sw_server_caches[i] = func_cache;
+#endif
             sw_copy_to_stack(php_sw_server_callbacks[i], _php_sw_server_callbacks[i]);
             break;
         }
@@ -1831,7 +1846,9 @@ PHP_METHOD(swoole_server, on)
     if (l_property_name == 0)
     {
         swoole_php_error(E_WARNING, "Unknown event types[%s]", Z_STRVAL_P(name));
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
         efree(func_cache);
+#endif
         RETURN_FALSE;
     }
 

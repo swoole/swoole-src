@@ -1204,6 +1204,7 @@ static PHP_METHOD(swoole_http_server, on)
         return;
     }
 
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
     char *func_name = NULL;
     zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
     if (!sw_zend_is_callable_ex(callback, NULL, 0, &func_name, NULL, func_cache, NULL TSRMLS_CC))
@@ -1213,24 +1214,40 @@ static PHP_METHOD(swoole_http_server, on)
         RETURN_FALSE;
     }
     efree(func_name);
+#elif defined(PHP_SWOOLE_CHECK_CALLBACK)
+    char *func_name = NULL;
+    if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
+    {
+        swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+        efree(func_name);
+        return;
+    }
+    efree(func_name);
+#endif
 
     if (strncasecmp("request", Z_STRVAL_P(event_name), Z_STRLEN_P(event_name)) == 0)
     {
         zend_update_property(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("onRequest"), callback TSRMLS_CC);
         php_sw_server_callbacks[SW_SERVER_CB_onRequest] = sw_zend_read_property(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("onRequest"), 0 TSRMLS_CC);
         sw_copy_to_stack(php_sw_server_callbacks[SW_SERVER_CB_onRequest], _php_sw_server_callbacks[SW_SERVER_CB_onRequest]);
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
         php_sw_server_caches[SW_SERVER_CB_onRequest] = func_cache;
+#endif
     }
     else if (strncasecmp("handshake", Z_STRVAL_P(event_name), Z_STRLEN_P(event_name)) == 0)
     {
         zend_update_property(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("onHandshake"), callback TSRMLS_CC);
         php_sw_server_callbacks[SW_SERVER_CB_onHandShake] = sw_zend_read_property(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("onHandshake"), 0 TSRMLS_CC);
         sw_copy_to_stack(php_sw_server_callbacks[SW_SERVER_CB_onHandShake], _php_sw_server_callbacks[SW_SERVER_CB_onHandShake]);
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
         php_sw_server_caches[SW_SERVER_CB_onHandShake] = func_cache;
+#endif
     }
     else
     {
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
         efree(func_cache);
+#endif
         zval *obj = getThis();
         sw_zend_call_method_with_2_params(&obj, swoole_server_class_entry_ptr, NULL, "on", &return_value, event_name, callback);
     }

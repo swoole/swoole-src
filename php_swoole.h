@@ -196,7 +196,9 @@ typedef struct
 #if PHP_MAJOR_VERSION >= 7
     zval _callbacks[PHP_SERVER_CALLBACK_NUM];
 #endif
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
     zend_fcall_info_cache *caches[PHP_SERVER_CALLBACK_NUM];
+#endif
     zval *setting;
 } swoole_server_port_property;
 //---------------------------------------------------------
@@ -448,6 +450,7 @@ static sw_inline zval* php_swoole_server_get_callback(swServer *serv, int server
     }
 }
 
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
 static sw_inline zend_fcall_info_cache* php_swoole_server_get_cache(swServer *serv, int server_fd, int event_type)
 {
     swListenPort *port = (swListenPort *) serv->connection_list[server_fd].object;
@@ -466,6 +469,7 @@ static sw_inline zend_fcall_info_cache* php_swoole_server_get_cache(swServer *se
         return cache;
     }
 }
+#endif
 
 #define php_swoole_array_get_value(ht, str, v)     (sw_zend_hash_find(ht, str, sizeof(str), (void **) &v) == SUCCESS && !ZVAL_IS_NULL(v))
 #define php_swoole_array_separate(arr)       zval *_new_##arr;\
