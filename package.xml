@@ -35,10 +35,10 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2017-05-26</date>
+    <date>2017-06-06</date>
     <time>09:50:10</time>
     <version>
-		<release>1.9.11</release>
+		<release>1.9.12</release>
 		<api>1.9</api>
     </version>
     <stability>
@@ -47,11 +47,10 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Fixed WebSocket server onOpen callback memory leak 
-- Added heartbeat detection support time wheel algorithm
-- Added length parameter support for sendfile API
-- Added connection timeout supports for asynchronous client
-- Optimized performance, reduce branch prediction failure rate
+- Allow the WebSocket client to send empty packets to the server
+- Added the callback function cache, reduce the callback function CPU consumption
+- Fixed WebSocket client memory leak
+- Fixed compiler error when have not SSE instruction
     </notes>
 	<contents>
 		<dir name="/">
@@ -311,6 +310,7 @@
 				<dir name="timer">
                     <file role="src" name="after.php" />
                     <file role="src" name="tick.php" />
+                    <file role="src" name="clear.php" />
                 </dir>
                 <dir name="mysql">
                     <file role="src" name="real_async.php" />
