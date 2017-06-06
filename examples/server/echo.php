@@ -1,12 +1,12 @@
 <?php
-$serv = new swoole_server("0.0.0.0", 9501);
+$serv = new swoole_server("0.0.0.0", 9501, SWOOLE_BASE);
 
 $port = $serv->listen('127.0.0.1', 9502, SWOOLE_SOCK_UDP);
 $port->on('packet', function($serv, $data, $addr){
     var_dump($serv, $data, $addr);
 });
 
-$port2 = $serv->listen('127.0.0.1', 9503);
+$port2 = $serv->listen('127.0.0.1', 9503, SWOOLE_SOCK_TCP);
 $port2->on('receive', function (swoole_server $serv, $fd, $reactor_id, $data) {
     echo "PORT-9503\t[#".$serv->worker_id."]\tClient[$fd]: $data\n";
     if ($serv->send($fd, "hello\n") == false)
@@ -32,4 +32,3 @@ $serv->on('close', function ($serv, $fd, $reactor_id) {
 });
 
 $serv->start();
-
