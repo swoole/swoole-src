@@ -115,7 +115,7 @@ static long php_swoole_add_timer(int ms, zval *callback, zval *param, int persis
     swTimer_node *tnode = SwooleG.timer.add(&SwooleG.timer, ms, persistent, cb, timer_func);
     if (tnode == NULL)
     {
-        swoole_php_fatal_error(E_WARNING, "addtimer failed.");
+        swoole_php_fatal_error(E_WARNING, "add timer failed.");
         return SW_ERR;
     }
     else
@@ -308,11 +308,25 @@ PHP_FUNCTION(swoole_timer_clear)
         RETURN_FALSE;
     }
 
+    //current timer, cannot remove here.
+    if (tnode->id == SwooleG.timer._current_id)
+    {
+        if (tnode->remove)
+        {
+            RETURN_FALSE;
+        }
+        else
+        {
+            tnode->remove = 1;
+            RETURN_TRUE;
+        }
+    }
+
+    //remove timer
     if (php_swoole_del_timer(tnode TSRMLS_CC) < 0)
     {
         RETURN_FALSE;
     }
-
     if (swTimer_del(&SwooleG.timer, tnode) == SW_FALSE)
     {
         RETURN_FALSE;
