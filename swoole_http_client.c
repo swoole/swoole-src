@@ -621,7 +621,7 @@ static int http_client_onMessage(swConnection *conn, char *data, uint32_t length
     {
         sw_zval_ptr_dtor(&retval);
     }
-    sw_zval_ptr_dtor(&zframe);
+    sw_zval_free(zframe);
 
     return SW_OK;
 }
