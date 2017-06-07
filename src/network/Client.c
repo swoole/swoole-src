@@ -348,6 +348,11 @@ static int swClient_close(swClient *cli)
         {
             SwooleG.main_reactor->del(SwooleG.main_reactor, fd);
         }
+        if (cli->timer)
+        {
+            swTimer_del(&SwooleG.timer, cli->timer);
+            cli->timer = NULL;
+        }
         //onClose callback
         if (cli->socket->active && cli->onClose)
         {
