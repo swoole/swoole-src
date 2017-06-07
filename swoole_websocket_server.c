@@ -312,20 +312,16 @@ void swoole_websocket_init(int module_number TSRMLS_DC)
     REGISTER_LONG_CONSTANT("WEBSOCKET_STATUS_ACTIVE", WEBSOCKET_STATUS_ACTIVE, CONST_CS | CONST_PERSISTENT);
 }
 
-zval* php_swoole_websocket_unpack(swString *data TSRMLS_DC)
+void php_swoole_websocket_unpack(swString *data, zval *zframe TSRMLS_DC)
 {
     swWebSocket_frame frame;
     swWebSocket_decode(&frame, data);
 
-    zval *zframe;
-    SW_ALLOC_INIT_ZVAL(zframe);
     object_init_ex(zframe, swoole_websocket_frame_class_entry_ptr);
 
     zend_update_property_bool(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("finish"), frame.header.FIN TSRMLS_CC);
     zend_update_property_long(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("opcode"), frame.header.OPCODE TSRMLS_CC);
     zend_update_property_stringl(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("data"), frame.payload,  frame.payload_length TSRMLS_CC);
-
-    return zframe;
 }
 
 static PHP_METHOD(swoole_websocket_server, on)
@@ -489,8 +485,7 @@ static PHP_METHOD(swoole_websocket_server, unpack)
         return;
     }
 
-    zval *zframe = php_swoole_websocket_unpack(&buffer TSRMLS_CC);
-    RETURN_ZVAL(zframe, 1, 1);
+    php_swoole_websocket_unpack(&buffer, return_value TSRMLS_CC);
 }
 
 static PHP_METHOD(swoole_websocket_server, exist)
