@@ -866,6 +866,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
     {
 #ifdef PHP_SWOOLE_ENABLE_FASTCALL
         zend_fcall_info_cache *fci_cache = php_sw_server_caches[SW_SERVER_CB_onFinish];
+        callback = php_sw_server_callbacks[SW_SERVER_CB_onFinish];
         if (sw_call_user_function_fast(callback, fci_cache, &retval, 3, args TSRMLS_CC) == FAILURE)
 #else
         if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
