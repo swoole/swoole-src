@@ -47,10 +47,9 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Allow the WebSocket client to send empty packets to the server
-- Added the callback function cache, reduce the callback function CPU consumption
-- Fixed WebSocket client memory leak
-- Fixed compiler error when have not SSE instruction
+- Fixed Server::onFinish crash
+- Fixed Client::close crash
+- Fixed WebSocket::unpack memory leak
     </notes>
 	<contents>
 		<dir name="/">
