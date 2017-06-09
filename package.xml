@@ -35,7 +35,7 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2017-06-08</date>
+    <date>2017-06-09</date>
     <time>09:50:10</time>
     <version>
 		<release>1.9.13</release>
@@ -47,9 +47,8 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Fixed Server::onFinish crash
-- Fixed Client::close crash
 - Fixed WebSocket::unpack memory leak
+- Fixed server accept blocking in MacOS platform
     </notes>
 	<contents>
 		<dir name="/">
