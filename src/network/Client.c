@@ -1033,7 +1033,6 @@ static void swClient_onTimeout(swTimer *timer, swTimer_node *tnode)
     {
         cli->onError(cli);
     }
-    cli->timer = NULL;
 }
 
 static int swClient_onWrite(swReactor *reactor, swEvent *event)
