@@ -307,21 +307,16 @@ PHP_FUNCTION(swoole_timer_clear)
         swoole_php_error(E_WARNING, "timer#%ld is not found.", id);
         RETURN_FALSE;
     }
-
-    //current timer, cannot remove here.
-    if (tnode->id == SwooleG.timer._current_id)
+    if (tnode->remove)
     {
-        if (tnode->remove)
-        {
-            RETURN_FALSE;
-        }
-        else
-        {
-            tnode->remove = 1;
-            RETURN_TRUE;
-        }
+        RETURN_FALSE;
     }
-
+    //current timer, cannot remove here.
+    if (SwooleG.timer._current_id > 0 && tnode->id == SwooleG.timer._current_id)
+    {
+        tnode->remove = 1;
+        RETURN_TRUE;
+    }
     //remove timer
     if (php_swoole_del_timer(tnode TSRMLS_CC) < 0)
     {
