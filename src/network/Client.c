@@ -348,6 +348,11 @@ static int swClient_close(swClient *cli)
         {
             SwooleG.main_reactor->del(SwooleG.main_reactor, fd);
         }
+        if (cli->timer)
+        {
+            swTimer_del(&SwooleG.timer, cli->timer);
+            cli->timer = NULL;
+        }
         //onClose callback
         if (cli->socket->active && cli->onClose)
         {
@@ -500,6 +505,10 @@ static int swClient_tcp_connect_async(swClient *cli, char *host, int port, doubl
         }
         if (timeout > 0)
         {
+            if (SwooleG.timer.fd == 0)
+            {
+                swTimer_init((int) (timeout * 1000));
+            }
             cli->timer = SwooleG.timer.add(&SwooleG.timer, (int) (timeout * 1000), 0, cli, swClient_onTimeout);
         }
         return SW_OK;
@@ -1024,7 +1033,6 @@ static void swClient_onTimeout(swTimer *timer, swTimer_node *tnode)
     {
         cli->onError(cli);
     }
-    cli->timer = NULL;
 }
 
 static int swClient_onWrite(swReactor *reactor, swEvent *event)

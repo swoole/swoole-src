@@ -757,17 +757,6 @@ void swoole_fcntl_set_option(int sock, int nonblock, int cloexec)
         opts = opts & ~O_NONBLOCK;
     }
 
-#ifdef FD_CLOEXEC
-    if (cloexec)
-    {
-        opts = opts | FD_CLOEXEC;
-    }
-    else
-    {
-        opts = opts & ~FD_CLOEXEC;
-    }
-#endif
-
     do
     {
         ret = fcntl(sock, F_SETFL, opts);
@@ -778,6 +767,39 @@ void swoole_fcntl_set_option(int sock, int nonblock, int cloexec)
     {
         swSysError("fcntl(%d, SETFL, opts) failed.", sock);
     }
+
+#ifdef FD_CLOEXEC
+    do
+    {
+        opts = fcntl(sock, F_GETFD);
+    }
+    while (opts < 0 && errno == EINTR);
+
+    if (opts < 0)
+    {
+        swSysError("fcntl(%d, GETFL) failed.", sock);
+    }
+
+    if (cloexec)
+    {
+        opts = opts | FD_CLOEXEC;
+    }
+    else
+    {
+        opts = opts & ~FD_CLOEXEC;
+    }
+
+    do
+    {
+        ret = fcntl(sock, F_SETFD, opts);
+    }
+    while (ret < 0 && errno == EINTR);
+
+    if (ret < 0)
+    {
+        swSysError("fcntl(%d, SETFD, opts) failed.", sock);
+    }
+#endif
 }
 
 static int *swoole_kmp_borders(char *needle, size_t nlen)

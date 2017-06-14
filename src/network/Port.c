@@ -200,6 +200,19 @@ void swPort_set_protocol(swListenPort *ls)
     }
 }
 
+void swPort_clear_protocol(swListenPort *ls)
+{
+    ls->open_eof_check = 0;
+    ls->open_length_check = 0;
+    ls->open_http_protocol = 0;
+    ls->open_websocket_protocol = 0;
+#ifdef SW_USE_HTTP2
+    ls->open_http2_protocol = 0;
+#endif
+    ls->open_mqtt_protocol = 0;
+    ls->open_redis_protocol = 0;
+}
+
 static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *event)
 {
     int ret = 0, n;

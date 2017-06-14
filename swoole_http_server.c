@@ -1012,7 +1012,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
     parser->data = ctx;
 
     zval *zdata;
-    SW_MAKE_STD_ZVAL(zdata);
+    SW_ALLOC_INIT_ZVAL(zdata);
     php_swoole_get_recv_data(zdata, req, NULL, 0);
 
     swTrace("httpRequest %d bytes:\n---------------------------------------\n%s\n", (int)Z_STRLEN_P(zdata), Z_STRVAL_P(zdata));
@@ -1026,7 +1026,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
 
     if (n < 0)
     {
-        sw_zval_ptr_dtor(&zdata);
+        sw_zval_free(zdata);
         bzero(client, sizeof(swoole_http_client));
         swWarn("php_http_parser_execute failed.");
         if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)
@@ -1057,14 +1057,12 @@ static int http_onReceive(swServer *serv, swEventData *req)
         swConnection *conn = swWorker_get_connection(SwooleG.serv, fd);
         if (!conn)
         {
-            sw_zval_ptr_dtor(&zdata);
+            sw_zval_free(zdata);
             swWarn("connection[%d] is closed.", fd);
             return SW_ERR;
         }
 
-        zend_update_property(swoole_http_request_class_entry_ptr, zrequest_object, ZEND_STRL("data"), zdata TSRMLS_CC);
-        ctx->request.zdata = sw_zend_read_property(swoole_http_request_class_entry_ptr, zrequest_object, ZEND_STRL("data"), 0 TSRMLS_CC);
-        sw_copy_to_stack(ctx->request.zdata, ctx->request._zdata);
+        swoole_set_property(zrequest_object, 0, zdata);
 
         add_assoc_long(ctx->request.zserver, "server_port", swConnection_get_port(&SwooleG.serv->connection_list[conn->from_fd]));
         add_assoc_long(ctx->request.zserver, "remote_port", swConnection_get_port(conn));
@@ -1111,7 +1109,13 @@ static int http_onReceive(swServer *serv, swEventData *req)
         }
 
         zcallback = php_swoole_server_get_callback(serv, req->info.from_fd, callback_type);
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
+        zend_fcall_info_cache *fci_cache = php_swoole_server_get_cache(serv, req->info.from_fd, callback_type);
+        if (sw_call_user_function_fast(zcallback, fci_cache, &retval, 2, args TSRMLS_CC) == FAILURE)
+#else
+
         if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+#endif
         {
             swoole_php_error(E_WARNING, "onRequest handler error");
         }
@@ -1131,7 +1135,6 @@ static int http_onReceive(swServer *serv, swEventData *req)
         free_object: bzero(client, sizeof(swoole_http_client));
         sw_zval_ptr_dtor(&zrequest_object);
         sw_zval_ptr_dtor(&zresponse_object);
-        sw_zval_ptr_dtor(&zdata);
         if (retval)
         {
             sw_zval_ptr_dtor(&retval);
@@ -1201,13 +1204,23 @@ static PHP_METHOD(swoole_http_server, on)
         return;
     }
 
-#ifdef PHP_SWOOLE_CHECK_CALLBACK
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
+    char *func_name = NULL;
+    zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
+    if (!sw_zend_is_callable_ex(callback, NULL, 0, &func_name, NULL, func_cache, NULL TSRMLS_CC))
+    {
+        swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+        efree(func_name);
+        RETURN_FALSE;
+    }
+    efree(func_name);
+#elif defined(PHP_SWOOLE_CHECK_CALLBACK)
     char *func_name = NULL;
     if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
     {
         swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
         efree(func_name);
-        RETURN_FALSE;
+        return;
     }
     efree(func_name);
 #endif
@@ -1217,15 +1230,24 @@ static PHP_METHOD(swoole_http_server, on)
         zend_update_property(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("onRequest"), callback TSRMLS_CC);
         php_sw_server_callbacks[SW_SERVER_CB_onRequest] = sw_zend_read_property(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("onRequest"), 0 TSRMLS_CC);
         sw_copy_to_stack(php_sw_server_callbacks[SW_SERVER_CB_onRequest], _php_sw_server_callbacks[SW_SERVER_CB_onRequest]);
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
+        php_sw_server_caches[SW_SERVER_CB_onRequest] = func_cache;
+#endif
     }
     else if (strncasecmp("handshake", Z_STRVAL_P(event_name), Z_STRLEN_P(event_name)) == 0)
     {
         zend_update_property(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("onHandshake"), callback TSRMLS_CC);
         php_sw_server_callbacks[SW_SERVER_CB_onHandShake] = sw_zend_read_property(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("onHandshake"), 0 TSRMLS_CC);
         sw_copy_to_stack(php_sw_server_callbacks[SW_SERVER_CB_onHandShake], _php_sw_server_callbacks[SW_SERVER_CB_onHandShake]);
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
+        php_sw_server_caches[SW_SERVER_CB_onHandShake] = func_cache;
+#endif
     }
     else
     {
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
+        efree(func_cache);
+#endif
         zval *obj = getThis();
         sw_zend_call_method_with_2_params(&obj, swoole_server_class_entry_ptr, NULL, "on", &return_value, event_name, callback);
     }
@@ -1549,7 +1571,8 @@ static PHP_METHOD(swoole_http_request, rawcontent)
     http_request *req = &ctx->request;
     if (req->post_length > 0)
     {
-        SW_RETVAL_STRINGL(Z_STRVAL_P(req->zdata) + Z_STRLEN_P(req->zdata) - req->post_length, req->post_length, 1);
+        zval *zdata = swoole_get_property(getThis(), 0);
+        SW_RETVAL_STRINGL(Z_STRVAL_P(zdata) + Z_STRLEN_P(zdata) - req->post_length, req->post_length, 1);
     }
 #ifdef SW_USE_HTTP2
     else if (req->post_buffer)
@@ -1583,6 +1606,12 @@ static PHP_METHOD(swoole_http_request, __destruct)
             }
         }
         SW_HASHTABLE_FOREACH_END();
+    }
+    zval *zdata = swoole_get_property(getThis(), 0);
+    if (zdata)
+    {
+        sw_zval_free(zdata);
+        swoole_set_property(getThis(), 0, NULL);
     }
     swoole_set_object(getThis(), NULL);
 }

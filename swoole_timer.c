@@ -35,7 +35,7 @@ typedef struct _swTimer_callback
     int type;
 } swTimer_callback;
 
-static swHashMap *timer_map;
+static swHashMap *timer_map = NULL;
 
 static void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode);
 static void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode);
@@ -115,7 +115,7 @@ static long php_swoole_add_timer(int ms, zval *callback, zval *param, int persis
     swTimer_node *tnode = SwooleG.timer.add(&SwooleG.timer, ms, persistent, cb, timer_func);
     if (tnode == NULL)
     {
-        swoole_php_fatal_error(E_WARNING, "addtimer failed.");
+        swoole_php_fatal_error(E_WARNING, "add timer failed.");
         return SW_ERR;
     }
     else
@@ -236,6 +236,9 @@ void php_swoole_check_timer(int msec)
     if (SwooleG.timer.fd == 0)
     {
         swTimer_init(msec);
+    }
+    if (timer_map == NULL)
+    {
         timer_map = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
     }
 }
@@ -304,12 +307,21 @@ PHP_FUNCTION(swoole_timer_clear)
         swoole_php_error(E_WARNING, "timer#%ld is not found.", id);
         RETURN_FALSE;
     }
-
+    if (tnode->remove)
+    {
+        RETURN_FALSE;
+    }
+    //current timer, cannot remove here.
+    if (SwooleG.timer._current_id > 0 && tnode->id == SwooleG.timer._current_id)
+    {
+        tnode->remove = 1;
+        RETURN_TRUE;
+    }
+    //remove timer
     if (php_swoole_del_timer(tnode TSRMLS_CC) < 0)
     {
         RETURN_FALSE;
     }
-
     if (swTimer_del(&SwooleG.timer, tnode) == SW_FALSE)
     {
         RETURN_FALSE;

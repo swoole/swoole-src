@@ -159,19 +159,14 @@ static swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *
 
 int swTimer_del(swTimer *timer, swTimer_node *tnode)
 {
-    //current timer, cannot remove here.
-    if (tnode->id == SwooleG.timer._current_id)
+    if (tnode->remove)
     {
-        //To avoid repeat delete
-        if (0 == tnode->remove)
-        {
-            tnode->remove = 1;
-            return SW_TRUE;
-        }
-        else
-        {
-            return SW_FALSE;
-        }
+        return SW_FALSE;
+    }
+    if (SwooleG.timer._current_id > 0 && tnode->id == SwooleG.timer._current_id)
+    {
+        tnode->remove = 1;
+        return SW_TRUE;
     }
     //remove from min-heap
     swHeap_remove(timer->heap, tnode->heap_node);

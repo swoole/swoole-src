@@ -46,8 +46,9 @@
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "1.9.11"
+#define PHP_SWOOLE_VERSION  "1.9.13"
 #define PHP_SWOOLE_CHECK_CALLBACK
+#define PHP_SWOOLE_ENABLE_FASTCALL
 
 /**
  * PHP5.2
@@ -195,6 +196,9 @@ typedef struct
 #if PHP_MAJOR_VERSION >= 7
     zval _callbacks[PHP_SERVER_CALLBACK_NUM];
 #endif
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
+    zend_fcall_info_cache *caches[PHP_SERVER_CALLBACK_NUM];
+#endif
     zval *setting;
 } swoole_server_port_property;
 //---------------------------------------------------------
@@ -226,6 +230,7 @@ extern zend_class_entry *swoole_server_port_class_entry_ptr;
 extern zend_class_entry *swoole_exception_class_entry_ptr;
 
 extern zval *php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
+extern zend_fcall_info_cache *php_sw_server_caches[PHP_SERVER_CALLBACK_NUM];
 #if PHP_MAJOR_VERSION >= 7
 extern zval _php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
 #endif
@@ -369,7 +374,7 @@ void php_swoole_register_callback(swServer *serv);
 void php_swoole_client_free(zval *object, swClient *cli TSRMLS_DC);
 swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port);
 void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC);
-zval* php_swoole_websocket_unpack(swString *data TSRMLS_DC);
+void php_swoole_websocket_unpack(swString *data, zval *zframe TSRMLS_DC);
 void php_swoole_sha1(const char *str, int _len, unsigned char *digest);
 int php_swoole_client_isset_callback(zval *zobject, int type TSRMLS_DC);
 
@@ -444,6 +449,27 @@ static sw_inline zval* php_swoole_server_get_callback(swServer *serv, int server
         return callback;
     }
 }
+
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
+static sw_inline zend_fcall_info_cache* php_swoole_server_get_cache(swServer *serv, int server_fd, int event_type)
+{
+    swListenPort *port = (swListenPort *) serv->connection_list[server_fd].object;
+    swoole_server_port_property *property = (swoole_server_port_property *) port->ptr;
+    if (!property)
+    {
+        return php_sw_server_caches[event_type];
+    }
+    zend_fcall_info_cache* cache = property->caches[event_type];
+    if (!cache)
+    {
+        return php_sw_server_caches[event_type];
+    }
+    else
+    {
+        return cache;
+    }
+}
+#endif
 
 #define php_swoole_array_get_value(ht, str, v)     (sw_zend_hash_find(ht, str, sizeof(str), (void **) &v) == SUCCESS && !ZVAL_IS_NULL(v))
 #define php_swoole_array_separate(arr)       zval *_new_##arr;\
