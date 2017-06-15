@@ -665,7 +665,10 @@ int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
         swoole_php_fatal_error(E_ERROR, "callback function error");
         return SW_ERR;
     }
-
+    if (EG(exception))
+    {
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+    }
     if (retval)
     {
         sw_zval_ptr_dtor(&retval);
