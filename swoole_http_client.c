@@ -547,12 +547,30 @@ static sw_inline void http_client_execute_callback(zval *zobject, enum php_swool
         return;
     }
 
+    args[0] = &zobject;
+    //request is not completed
+    if (hcc->onResponse && (type == SW_CLIENT_CB_onError || type == SW_CLIENT_CB_onClose))
+    {
+        zval *zcallback = hcc->onResponse;
+        zend_update_property_long(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("statusCode"), -1 TSRMLS_CC);
+        if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+        {
+            swoole_php_fatal_error(E_WARNING, "onResponse handler error");
+        }
+        if (EG(exception))
+        {
+            zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+        }
+        if (retval)
+        {
+            sw_zval_ptr_dtor(&retval);
+        }
+    }
+    //callback function is not set
     if (!callback || ZVAL_IS_NULL(callback))
     {
         return;
     }
-
-    args[0] = &zobject;
     if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_http_client->%s handler error.", callback_name);
@@ -739,6 +757,7 @@ static void http_client_onReceive(swClient *cli, char *data, uint32_t length)
     {
         return;
     }
+    hcc->onResponse = NULL;
     if (http->keep_alive == 0 && http->state != HTTP_CLIENT_STATE_WAIT_CLOSE)
     {
         sw_zend_call_method_with_0_params(&zobject, swoole_http_client_class_entry_ptr, NULL, "close", &retval);
@@ -1261,6 +1280,11 @@ static PHP_METHOD(swoole_http_client, __destruct)
         }
     }
     http_client_property *hcc = swoole_get_property(getThis(), 0);
+    if (hcc->onResponse)
+    {
+        sw_zval_free(hcc->onResponse);
+        hcc->onResponse = NULL;
+    }
     efree(hcc);
     swoole_set_property(getThis(), 0, NULL);
 }

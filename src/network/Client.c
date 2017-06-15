@@ -1109,8 +1109,8 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
             if (cli->open_ssl)
             {
                 cli->http_proxy->state = SW_HTTP_PROXY_STATE_HANDSHAKE;
-                int n = snprintf (cli->http_proxy->buf, sizeof (cli->http_proxy->buf), "CONNECT %s:%d HTTP/1.1\r\n\r\n", cli->http_proxy->target_host, cli->http_proxy->target_port);
-                return cli->send (cli, cli->http_proxy->buf, n, 0);
+                int n = snprintf(cli->http_proxy->buf, sizeof (cli->http_proxy->buf), "CONNECT %s:%d HTTP/1.1\r\n\r\n", cli->http_proxy->target_host, cli->http_proxy->target_port);
+                return cli->send(cli, cli->http_proxy->buf, n, 0);
             }
 #endif
         }
