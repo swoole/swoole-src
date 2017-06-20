@@ -16,6 +16,7 @@
 
 #include "php_swoole.h"
 #include "socks5.h"
+#include "mqtt.h"
 
 #include "ext/standard/basic_functions.h"
 
@@ -545,6 +546,14 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
         }
         bzero(cli->protocol.package_eof, SW_DATA_EOF_MAXLEN);
         memcpy(cli->protocol.package_eof, Z_STRVAL_P(v), Z_STRLEN_P(v));
+        cli->protocol.onPackage = php_swoole_client_onPackage;
+    }
+    //open mqtt protocol
+    if (php_swoole_array_get_value(vht, "open_mqtt_protocol", v))
+    {
+        convert_to_boolean(v);
+        cli->open_length_check = Z_BVAL_P(v);
+        cli->protocol.get_package_length = swMqtt_get_package_length;
         cli->protocol.onPackage = php_swoole_client_onPackage;
     }
     //open length check
@@ -1487,7 +1496,7 @@ static PHP_METHOD(swoole_client, recv)
             goto check_return;
         }
 
-        buf_len = swProtocol_get_package_length(protocol, cli->socket, stack_buf, ret);
+        buf_len = protocol->get_package_length(protocol, cli->socket, stack_buf, ret);
 
         //error package
         if (buf_len < 0)
