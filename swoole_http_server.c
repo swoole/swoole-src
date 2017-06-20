@@ -1095,6 +1095,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
         {
             callback_type = SW_SERVER_CB_onHandShake;
             conn->websocket_status = WEBSOCKET_STATUS_HANDSHAKE;
+            ctx->upgrade = 1;
         }
         else
         {
@@ -1750,7 +1751,7 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
             {
                 flag |= HTTP_RESPONSE_SERVER;
             }
-            else if (strncasecmp(key, "Connection", keylen) == 0)
+            if (strncasecmp(key, "Connection", keylen) == 0)
             {
                 flag |= HTTP_RESPONSE_CONNECTION;
             }
@@ -1771,6 +1772,13 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
         if (!(flag & HTTP_RESPONSE_SERVER))
         {
             swString_append_ptr(response, ZEND_STRL("Server: "SW_HTTP_SERVER_SOFTWARE"\r\n"));
+        }
+        //websocket protocol
+        if (ctx->upgrade == 1)
+        {
+            swString_append_ptr(response, ZEND_STRL("\r\n"));
+            ctx->send_header = 1;
+            return;
         }
         if (!(flag & HTTP_RESPONSE_CONNECTION))
         {
