@@ -1578,6 +1578,17 @@ static PHP_METHOD(swoole_http_client, on)
         return;
     }
 
+#ifdef PHP_SWOOLE_CHECK_CALLBACK
+    char *func_name = NULL;
+    if (!sw_zend_is_callable(zcallback, 0, &func_name TSRMLS_CC))
+    {
+        swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+        efree(func_name);
+        return;
+    }
+    efree(func_name);
+#endif
+
     http_client_property *hcc = swoole_get_property(getThis(), 0);
     if (strncasecmp("error", cb_name, cb_name_len) == 0)
     {
