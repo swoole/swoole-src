@@ -1751,7 +1751,7 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
             {
                 flag |= HTTP_RESPONSE_SERVER;
             }
-            if (strncasecmp(key, "Connection", keylen) == 0)
+            else if (strncasecmp(key, "Connection", keylen) == 0)
             {
                 flag |= HTTP_RESPONSE_CONNECTION;
             }
