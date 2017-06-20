@@ -1454,7 +1454,7 @@ static PHP_METHOD(swoole_client, recv)
             goto check_return;
         }
 
-        buf_len = swProtocol_get_package_length(protocol, cli->socket, stack_buf, ret);
+        buf_len = protocol->get_package_length(protocol, cli->socket, stack_buf, ret);
 
         //error package
         if (buf_len < 0)
