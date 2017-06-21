@@ -315,6 +315,13 @@ void swoole_websocket_init(int module_number TSRMLS_DC)
 void php_swoole_websocket_unpack(swString *data, zval *zframe TSRMLS_DC)
 {
     swWebSocket_frame frame;
+
+    if (data->length < sizeof(frame.header))
+    {
+        ZVAL_BOOL(zframe, 0);
+        return;
+    }
+
     swWebSocket_decode(&frame, data);
 
     object_init_ex(zframe, swoole_websocket_frame_class_entry_ptr);
