@@ -363,56 +363,56 @@ static PHP_METHOD(swoole_coroutine_util, call_user_func_array)
 #else
 static PHP_METHOD(swoole_coroutine_util, call_user_func_array)
 {
-	zval *params;
-	zend_fcall_info fci;
-	zend_fcall_info_cache fci_cache;
+    zval *params;
+    zend_fcall_info fci;
+    zend_fcall_info_cache fci_cache;
 
-	ZEND_PARSE_PARAMETERS_START(2, 2)
-		Z_PARAM_FUNC(fci, fci_cache)
-		Z_PARAM_ARRAY_EX(params, 0, 1)
-	ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_FUNC(fci, fci_cache)
+        Z_PARAM_ARRAY_EX(params, 0, 1)
+        ZEND_PARSE_PARAMETERS_END();
 
-	zend_fcall_info_args(&fci, params);
+    zend_fcall_info_args(&fci, params);
 
-        fci.retval = (execute_data->prev_execute_data->opline->result_type != IS_UNUSED) ? return_value : NULL;
-        swoole_corountine_call_function(&fci, &fci_cache, 1);
+    fci.retval = (execute_data->prev_execute_data->opline->result_type != IS_UNUSED) ? return_value : NULL;
+    swoole_corountine_call_function(&fci, &fci_cache, 1);
 
-	zend_fcall_info_args_clear(&fci, 1);
+    zend_fcall_info_args_clear(&fci, 1);
 }
 #endif
 
 static PHP_METHOD(swoole_coroutine_util, suspend)
 {
-	char *id;
-	int id_len;
+    char *id;
+    int id_len;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s",&id, &id_len) == FAILURE)
-	{
-		return;
-	}
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s",&id, &id_len) == FAILURE)
+    {
+        return;
+    }
 
     swLinkedList *coros_list = swHashMap_find(defer_coros, id, id_len);
-	if (coros_list == NULL)
-	{
-		coros_list = swLinkedList_new(2, NULL);
-		if (coros_list == NULL)
-		{
-			RETURN_FALSE;
-		}
-		if (swHashMap_add(defer_coros, id, id_len, coros_list) == SW_ERR)
-		{
-			swLinkedList_free(coros_list);
-			RETURN_FALSE;
-		}
-	}
+    if (coros_list == NULL)
+    {
+        coros_list = swLinkedList_new(2, NULL);
+        if (coros_list == NULL)
+        {
+            RETURN_FALSE;
+        }
+        if (swHashMap_add(defer_coros, id, id_len, coros_list) == SW_ERR)
+        {
+            swLinkedList_free(coros_list);
+            RETURN_FALSE;
+        }
+    }
 
     php_context *context = emalloc(sizeof(php_context));
-	coro_save(context);
-	if (swLinkedList_append(coros_list, (void *)context) == SW_ERR) {
-		efree(context);
-		RETURN_FALSE;
-	}
-	coro_yield();
+    coro_save(context);
+    if (swLinkedList_append(coros_list, (void *)context) == SW_ERR) {
+        efree(context);
+        RETURN_FALSE;
+    }
+    coro_yield();
 }
 
 static PHP_METHOD(swoole_coroutine_util, create)
@@ -522,6 +522,10 @@ static PHP_METHOD(swoole_coroutine_util, resume)
 
 static PHP_METHOD(swoole_coroutine_util, getuid)
 {
+    if(unlikely(COROG.current_coro == NULL))
+    {
+        RETURN_LONG(-1);
+    }
     RETURN_LONG(COROG.current_coro->cid);
 }
 #endif
