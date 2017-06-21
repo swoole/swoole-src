@@ -814,7 +814,7 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
 
     sw_zval_ptr_dtor(&zfd);
     sw_zval_ptr_dtor(&zfrom_id);
-    sw_zval_ptr_dtor(&zdata);
+    sw_zval_free(zdata);
 
     if (retval)
     {
