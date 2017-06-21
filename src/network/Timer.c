@@ -66,16 +66,24 @@ int swTimer_init(long msec)
         return SW_ERR;
     }
 
-    SwooleG.timer._current_id = -1;
-    SwooleG.timer._next_msec = msec;
-    SwooleG.timer._next_id = 1;
-    SwooleG.timer.add = swTimer_add;
-
     SwooleG.timer.heap = swHeap_new(1024, SW_MIN_HEAP);
     if (!SwooleG.timer.heap)
     {
         return SW_ERR;
     }
+
+    SwooleG.timer.map = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
+    if (!SwooleG.timer.map)
+    {
+        swHeap_free(SwooleG.timer.heap);
+        SwooleG.timer.heap = NULL;
+        return SW_ERR;
+    }
+
+    SwooleG.timer._current_id = -1;
+    SwooleG.timer._next_msec = msec;
+    SwooleG.timer._next_id = 1;
+    SwooleG.timer.add = swTimer_add;
 
     if (swIsTaskWorker())
     {
@@ -154,6 +162,7 @@ static swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *
         sw_free(tnode);
         return NULL;
     }
+    swHashMap_add_int(timer->map, tnode->id, tnode);
     return tnode;
 }
 
@@ -167,6 +176,10 @@ int swTimer_del(swTimer *timer, swTimer_node *tnode)
     {
         tnode->remove = 1;
         return SW_TRUE;
+    }
+    if (swHashMap_del_int(timer->map, tnode->id) < 0)
+    {
+        return SW_ERR;
     }
     //remove from min-heap
     swHeap_remove(timer->heap, tnode->heap_node);
@@ -189,6 +202,7 @@ int swTimer_select(swTimer *timer)
 
     swTimer_node *tnode = NULL;
     swHeap_node *tmp;
+    long timer_id;
 
     while ((tmp = swHeap_top(timer->heap)))
     {
@@ -198,7 +212,7 @@ int swTimer_select(swTimer *timer)
             break;
         }
 
-        timer->_current_id = tnode->id;
+        timer_id = timer->_current_id = tnode->id;
         tnode->callback(timer, tnode);
         timer->_current_id = -1;
 
@@ -222,8 +236,9 @@ int swTimer_select(swTimer *timer)
             continue;
         }
 
-        timer->num --;
+        timer->num--;
         swHeap_pop(timer->heap);
+        swHashMap_del_int(timer->map, timer_id);
         sw_free(tnode);
     }
 

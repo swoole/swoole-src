@@ -1769,6 +1769,7 @@ struct _swTimer
 {
     /*--------------timerfd & signal timer--------------*/
     swHeap *heap;
+    swHashMap *map;
     int num;
     int use_pipe;
     int lasttime;
@@ -1785,10 +1786,14 @@ struct _swTimer
 };
 
 int swTimer_init(long msec);
-swTimer_node* swTimer_get(swTimer *timer, long id);
 int swTimer_del(swTimer *timer, swTimer_node *node);
 void swTimer_free(swTimer *timer);
 int swTimer_select(swTimer *timer);
+
+static sw_inline swTimer_node* swTimer_get(swTimer *timer, long id)
+{
+    return (swTimer_node*) swHashMap_find_int(timer->map, id);
+}
 
 int swSystemTimer_init(int msec, int use_pipe);
 void swSystemTimer_signal_handler(int sig);
