@@ -216,13 +216,9 @@ typedef struct _swListenPort
     uint16_t websocket_subprotocol_length;
 
 #ifdef SW_USE_OPENSSL
-    char *ssl_cert_file;
-    char *ssl_key_file;
     SSL_CTX *ssl_context;
     swSSL_config ssl_config;
-    uint8_t ssl_method;
-    char *ssl_client_cert_file;
-    uint8_t ssl_verify_depth;
+    swSSL_option ssl_option;
 #endif
 
     swProtocol protocol;

@@ -84,7 +84,7 @@ static sw_inline int swReactorThread_verify_ssl_state(swReactor *reactor, swList
         int ret = swSSL_accept(conn);
         if (ret == SW_READY)
         {
-            if (port->ssl_client_cert_file)
+            if (port->ssl_option.client_cert_file)
             {
                 swDispatchData task;
                 ret = swSSL_get_client_certificate(conn->ssl, task.data.data, sizeof(task.data.data));

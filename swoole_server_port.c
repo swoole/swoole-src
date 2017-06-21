@@ -317,7 +317,7 @@ static PHP_METHOD(swoole_server_port, set)
                 swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", Z_STRVAL_P(v));
                 return;
             }
-            port->ssl_cert_file = sw_strdup(Z_STRVAL_P(v));
+            port->ssl_option.cert_file = sw_strdup(Z_STRVAL_P(v));
             port->open_ssl_encrypt = 1;
         }
         if (php_swoole_array_get_value(vht, "ssl_key_file", v))
@@ -328,12 +328,12 @@ static PHP_METHOD(swoole_server_port, set)
                 swoole_php_fatal_error(E_ERROR, "ssl key file[%s] not found.", Z_STRVAL_P(v));
                 return;
             }
-            port->ssl_key_file = sw_strdup(Z_STRVAL_P(v));
+            port->ssl_option.key_file = sw_strdup(Z_STRVAL_P(v));
         }
         if (php_swoole_array_get_value(vht, "ssl_method", v))
         {
             convert_to_long(v);
-            port->ssl_method = (int) Z_LVAL_P(v);
+            port->ssl_option.method = (int) Z_LVAL_P(v);
         }
         //verify client cert
         if (php_swoole_array_get_value(vht, "ssl_client_cert_file", v))
@@ -341,15 +341,15 @@ static PHP_METHOD(swoole_server_port, set)
             convert_to_string(v);
             if (access(Z_STRVAL_P(v), R_OK) < 0)
             {
-                swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", port->ssl_cert_file);
+                swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", port->ssl_option.cert_file);
                 return;
             }
-            port->ssl_client_cert_file = sw_strdup(Z_STRVAL_P(v));
+            port->ssl_option.client_cert_file = sw_strdup(Z_STRVAL_P(v));
         }
         if (php_swoole_array_get_value(vht, "ssl_verify_depth", v))
         {
             convert_to_long(v);
-            port->ssl_verify_depth = (int) Z_LVAL_P(v);
+            port->ssl_option.verify_depth = (int) Z_LVAL_P(v);
         }
         if (php_swoole_array_get_value(vht, "ssl_prefer_server_ciphers", v))
         {

@@ -448,34 +448,39 @@ static void client_check_ssl_setting(swClient *cli, zval *zset TSRMLS_DC)
     if (php_swoole_array_get_value(vht, "ssl_method", v))
     {
         convert_to_long(v);
-        cli->ssl_method = (int) Z_LVAL_P(v);
+        cli->ssl_option.method = (int) Z_LVAL_P(v);
     }
     if (php_swoole_array_get_value(vht, "ssl_compress", v))
     {
         convert_to_boolean(v);
-        cli->ssl_disable_compress = !Z_BVAL_P(v);
+        cli->ssl_option.disable_compress = !Z_BVAL_P(v);
     }
     if (php_swoole_array_get_value(vht, "ssl_cert_file", v))
     {
         convert_to_string(v);
-        cli->ssl_cert_file = sw_strdup(Z_STRVAL_P(v));
-        if (access(cli->ssl_cert_file, R_OK) < 0)
+        cli->ssl_option.cert_file = sw_strdup(Z_STRVAL_P(v));
+        if (access(cli->ssl_option.cert_file, R_OK) < 0)
         {
-            swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", cli->ssl_cert_file);
+            swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", cli->ssl_option.cert_file);
             return;
         }
     }
     if (php_swoole_array_get_value(vht, "ssl_key_file", v))
     {
         convert_to_string(v);
-        cli->ssl_key_file = sw_strdup(Z_STRVAL_P(v));
-        if (access(cli->ssl_key_file, R_OK) < 0)
+        cli->ssl_option.key_file = sw_strdup(Z_STRVAL_P(v));
+        if (access(cli->ssl_option.key_file, R_OK) < 0)
         {
-            swoole_php_fatal_error(E_ERROR, "ssl key file[%s] not found.", cli->ssl_key_file);
+            swoole_php_fatal_error(E_ERROR, "ssl key file[%s] not found.", cli->ssl_option.key_file);
             return;
         }
     }
-    if (cli->ssl_cert_file && !cli->ssl_key_file)
+    if (php_swoole_array_get_value(vht, "ssl_passphrase", v))
+    {
+        convert_to_string(v);
+        cli->ssl_option.passphrase = sw_strdup(Z_STRVAL_P(v));
+    }
+    if (cli->ssl_option.cert_file && !cli->ssl_option.key_file)
     {
         swoole_php_fatal_error(E_ERROR, "ssl require key file.");
         return;

@@ -168,14 +168,29 @@ int swSSL_server_set_cipher(SSL_CTX* ssl_context, swSSL_config *cfg)
     return SW_OK;
 }
 
-SSL_CTX* swSSL_get_context(int method, char *cert_file, char *key_file)
+static int swSSL_passwd_callback(char *buf, int num, int verify, void *data)
+{
+    swSSL_option *option = (swSSL_option *) data;
+    if (option->passphrase)
+    {
+        size_t len = strlen(option->passphrase);
+        if (len < num - 1)
+        {
+            memcpy(buf, option->passphrase, len + 1);
+            return (int) len;
+        }
+    }
+    return 0;
+}
+
+SSL_CTX* swSSL_get_context(swSSL_option *option)
 {
     if (!openssl_init)
     {
         swSSL_init();
     }
 
-    SSL_CTX *ssl_context = SSL_CTX_new(swSSL_get_method(method));
+    SSL_CTX *ssl_context = SSL_CTX_new(swSSL_get_method(option->method));
     if (ssl_context == NULL)
     {
         ERR_print_errors_fp(stderr);
@@ -191,12 +206,18 @@ SSL_CTX* swSSL_get_context(int method, char *cert_file, char *key_file)
     SSL_CTX_set_options(ssl_context, SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS);
     SSL_CTX_set_options(ssl_context, SSL_OP_SINGLE_DH_USE);
 
-    if (cert_file)
+    if (option->passphrase)
+    {
+        SSL_CTX_set_default_passwd_cb_userdata(ssl_context, option);
+        SSL_CTX_set_default_passwd_cb(ssl_context, swSSL_passwd_callback);
+    }
+
+    if (option->cert_file)
     {
         /*
          * set the local certificate from CertFile
          */
-        if (SSL_CTX_use_certificate_file(ssl_context, cert_file, SSL_FILETYPE_PEM) <= 0)
+        if (SSL_CTX_use_certificate_file(ssl_context, option->cert_file, SSL_FILETYPE_PEM) <= 0)
         {
             ERR_print_errors_fp(stderr);
             return NULL;
@@ -205,7 +226,7 @@ SSL_CTX* swSSL_get_context(int method, char *cert_file, char *key_file)
          * if the crt file have many certificate entry ,means certificate chain
          * we need call this function
          */
-        if (SSL_CTX_use_certificate_chain_file(ssl_context, cert_file) <= 0)
+        if (SSL_CTX_use_certificate_chain_file(ssl_context, option->cert_file) <= 0)
         {
             ERR_print_errors_fp(stderr);
             return NULL;
@@ -213,7 +234,7 @@ SSL_CTX* swSSL_get_context(int method, char *cert_file, char *key_file)
         /*
          * set the private key from KeyFile (may be the same as CertFile)
          */
-        if (SSL_CTX_use_PrivateKey_file(ssl_context, key_file, SSL_FILETYPE_PEM) <= 0)
+        if (SSL_CTX_use_PrivateKey_file(ssl_context, option->key_file, SSL_FILETYPE_PEM) <= 0)
         {
             ERR_print_errors_fp(stderr);
             return NULL;
