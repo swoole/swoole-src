@@ -1028,6 +1028,22 @@ static void swClient_onTimeout(swTimer *timer, swTimer_node *tnode)
 {
     swClient *cli = (swClient *) tnode->data;
     SwooleG.error = ETIMEDOUT;
+
+#ifdef SW_USE_OPENSSL
+    if (cli->open_ssl && cli->socket->ssl_state != SW_SSL_STATE_READY)
+    {
+        cli->socket->active = 0;
+    }
+#endif
+    if (cli->socks5_proxy && cli->socks5_proxy->state != SW_SOCKS5_STATE_READY)
+    {
+        cli->socket->active = 0;
+    }
+    else if (cli->http_proxy && cli->http_proxy->state != SW_HTTP_PROXY_STATE_READY)
+    {
+        cli->socket->active = 0;
+    }
+
     cli->close(cli);
     if (cli->onError)
     {
@@ -1097,6 +1113,7 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
             cli->socks5_proxy->state = SW_SOCKS5_STATE_HANDSHAKE;
             return cli->send(cli, buf, sizeof(buf), 0);
         }
+        //http proxy
         if (cli->http_proxy && cli->http_proxy->state == SW_HTTP_PROXY_STATE_WAIT)
         {
 #ifdef SW_USE_OPENSSL
@@ -1142,6 +1159,7 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
 #ifdef SW_USE_OPENSSL
         connect_fail:
 #endif
+        _socket->active = 0;
         cli->close(cli);
         if (cli->onError)
         {
