@@ -35,10 +35,10 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2017-06-09</date>
+    <date>2017-06-21</date>
     <time>09:50:10</time>
     <version>
-		<release>1.9.13</release>
+		<release>1.9.14</release>
 		<api>1.9</api>
     </version>
     <stability>
@@ -47,8 +47,13 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Fixed WebSocket::unpack memory leak
-- Fixed server accept blocking in MacOS platform
+- Update HttpClient, when the connection is overtime or when the server is reset, the callback is not completed
+- Update HttpClient, the underlying increase request timeout mechanism
+- Update the bottom of the client support mqtt agreement
+- Fixed WebSocket server custom handshake method more than the header
+- Fixed onTask memory leak
+- Fixed HttpServer special circumstances the release of the problem of the crash occurred
+- Fixed WebSocket::unpack Passing an empty string causes a problem with parsing errors
     </notes>
 	<contents>
 		<dir name="/">
