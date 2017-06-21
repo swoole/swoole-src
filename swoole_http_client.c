@@ -1177,7 +1177,7 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
         swoole_php_sys_error(E_WARNING, "send(%d) %d bytes failed.", http->cli->socket->fd, (int )http_client_buffer->length);
         zend_update_property_long(swoole_http_client_class_entry_ptr, zobject, SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
     }
-    else
+    else if (http->timeout > 0)
     {
         php_swoole_check_timer((int) (http->timeout * 1000));
         http->timer = SwooleG.timer.add(&SwooleG.timer, (int) (http->timeout * 1000), 0, http->cli, http_client_onRequestTimeout);
