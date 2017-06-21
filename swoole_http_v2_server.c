@@ -37,6 +37,9 @@ static sw_inline void http2_onRequest(http_context *ctx, int server_fd TSRMLS_DC
     zval *zrequest_object = ctx->request.zobject;
     zval *zresponse_object = ctx->response.zobject;
 
+    SW_SEPARATE_ZVAL(zrequest_object);
+    SW_SEPARATE_ZVAL(zresponse_object);
+
     args[0] = &zrequest_object;
     args[1] = &zresponse_object;
 
