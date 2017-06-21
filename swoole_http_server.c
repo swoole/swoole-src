@@ -1042,6 +1042,9 @@ static int http_onReceive(swServer *serv, swEventData *req)
         zval *zrequest_object = ctx->request.zobject;
         zval *zresponse_object = ctx->response.zobject;
 
+        SW_SEPARATE_ZVAL(zrequest_object);
+        SW_SEPARATE_ZVAL(zresponse_object);
+
         ctx->keepalive = php_http_should_keep_alive(parser);
         char *method_name = http_get_method_name(parser->method);
 
@@ -1267,7 +1270,6 @@ http_context* swoole_http_context_new(swoole_http_client* client TSRMLS_DC)
     zval *zrequest_object;
 #if PHP_MAJOR_VERSION >= 7
     zrequest_object = &ctx->request._zobject;
-    bzero(zrequest_object, sizeof(zval));
 #else
     SW_ALLOC_INIT_ZVAL(zrequest_object);
 #endif
@@ -1278,7 +1280,6 @@ http_context* swoole_http_context_new(swoole_http_client* client TSRMLS_DC)
     zval *zresponse_object;
 #if PHP_MAJOR_VERSION >= 7
     zresponse_object = &ctx->response._zobject;
-    bzero(zresponse_object, sizeof(zval));
 #else
     SW_ALLOC_INIT_ZVAL(zresponse_object);
 #endif

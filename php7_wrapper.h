@@ -47,6 +47,7 @@ static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
 #define SW_ZEND_REGISTER_RESOURCE             ZEND_REGISTER_RESOURCE
 #define SW_MAKE_STD_ZVAL(p)                   MAKE_STD_ZVAL(p)
 #define SW_ALLOC_INIT_ZVAL(p)                 ALLOC_INIT_ZVAL(p)
+#define SW_SEPARATE_ZVAL(p)
 #define SW_ZVAL_STRING                        ZVAL_STRING
 #define SW_RETVAL_STRINGL                     RETVAL_STRINGL
 #define sw_smart_str                          smart_str
@@ -303,6 +304,9 @@ static sw_inline int sw_call_user_function_fast(zval *function_name, zend_fcall_
 #define sw_php_var_unserialize(rval, p, max, var_hash)  php_var_unserialize(*rval, p, max, var_hash)
 #define SW_MAKE_STD_ZVAL(p)             zval _stack_zval_##p; p = &(_stack_zval_##p)
 #define SW_ALLOC_INIT_ZVAL(p)           do{p = (zval *)emalloc(sizeof(zval)); bzero(p, sizeof(zval));}while(0)
+#define SW_SEPARATE_ZVAL(p)             zval _##p;\
+    memcpy(&_##p, p, sizeof(_##p));\
+    p = &_##p
 #define SW_RETURN_STRINGL(s, l, dup)    do{RETVAL_STRINGL(s, l); if (dup == 0) efree(s);}while(0);return
 #define SW_RETVAL_STRINGL(s, l, dup)    do{RETVAL_STRINGL(s, l); if (dup == 0) efree(s);}while(0)
 #define SW_RETVAL_STRING(s, dup)        do{RETVAL_STRING(s); if (dup == 0) efree(s);}while(0)
