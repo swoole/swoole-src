@@ -27,6 +27,10 @@ typedef atomic_uint32_t  sw_atomic_t;
 #define sw_atomic_cpu_pause()
 #endif
 
+#if 0
 #define sw_spinlock_release(lock)         __sync_lock_release(lock)
+#else
+#define sw_spinlock_release(lock)         *(lock) = 0
+#endif
 
 #endif

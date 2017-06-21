@@ -1075,12 +1075,6 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
         return SW_OK;
     }
 
-    if (cli->timer)
-    {
-        swTimer_del(&SwooleG.timer, cli->timer);
-        cli->timer = NULL;
-    }
-
     socklen_t len = sizeof(SwooleG.error);
     if (getsockopt(event->fd, SOL_SOCKET, SO_ERROR, &SwooleG.error, &len) < 0)
     {
@@ -1133,6 +1127,11 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
         }
         connect_success:
 #endif
+        if (cli->timer)
+        {
+            swTimer_del(&SwooleG.timer, cli->timer);
+            cli->timer = NULL;
+        }
         if (cli->onConnect)
         {
             cli->onConnect(cli);
