@@ -473,7 +473,10 @@ static int http_client_onMessage(swConnection *conn, char *data, uint32_t length
     zval **args[2];
     zval *retval;
 
-    zval *zframe = php_swoole_websocket_unpack(cli->buffer TSRMLS_CC);
+    zval *zframe;
+    SW_MAKE_STD_ZVAL(zframe);
+
+    php_swoole_websocket_unpack(cli->buffer, zframe TSRMLS_CC);
 
     args[0] = &zobject;
     args[1] = &zframe;
