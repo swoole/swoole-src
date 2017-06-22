@@ -30,6 +30,7 @@ int swMutex_create(swLock *lock, int use_in_process)
     if (use_in_process == 1)
     {
         pthread_mutexattr_setpshared(&lock->object.mutex.attr, PTHREAD_PROCESS_SHARED);
+        pthread_mutexattr_setrobust_np(&lock->object.mutex.attr, PTHREAD_MUTEX_ROBUST_NP);
     }
     if ((ret = pthread_mutex_init(&lock->object.mutex._lock, &lock->object.mutex.attr)) < 0)
     {
@@ -95,5 +96,6 @@ int swMutex_lockwait(swLock *lock, int timeout_msec)
 
 static int swMutex_free(swLock *lock)
 {
+    pthread_mutexattr_destroy(&lock->object.mutex.attr);
     return pthread_mutex_destroy(&lock->object.mutex._lock);
 }
