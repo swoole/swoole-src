@@ -465,6 +465,42 @@ int swSSL_connect(swConnection *conn)
 
 void swSSL_close(swConnection *conn)
 {
+    int n, sslerr, err;
+
+    if (SSL_in_init(conn->ssl))
+    {
+        /*
+         * OpenSSL 1.0.2f complains if SSL_shutdown() is called during
+         * an SSL handshake, while previous versions always return 0.
+         * Avoid calling SSL_shutdown() if handshake wasn't completed.
+         */
+        SSL_free(conn->ssl);
+        conn->ssl = NULL;
+        return;
+    }
+
+    SSL_set_quiet_shutdown(conn->ssl, 1);
+    SSL_set_shutdown(conn->ssl, SSL_RECEIVED_SHUTDOWN | SSL_SENT_SHUTDOWN);
+
+    n = SSL_shutdown(conn->ssl);
+
+    swTrace("SSL_shutdown: %d", n);
+
+    sslerr = 0;
+
+    /* before 0.9.8m SSL_shutdown() returned 0 instead of -1 on errors */
+    if (n != 1 && ERR_peek_error())
+    {
+        sslerr = SSL_get_error(conn->ssl, n);
+        swTrace("SSL_get_error: %d", sslerr);
+    }
+
+    if (!(n == 1 || sslerr == 0 || sslerr == SSL_ERROR_ZERO_RETURN))
+    {
+        err = (sslerr == SSL_ERROR_SYSCALL) ? errno : 0;
+        swWarn("SSL_shutdown() failed. Error: %d:%d.", sslerr, err);
+    }
+
     SSL_free(conn->ssl);
     conn->ssl = NULL;
 }
