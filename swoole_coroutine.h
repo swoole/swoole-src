@@ -110,30 +110,7 @@ typedef struct _swTimer_coro_callback
     void* data;
 } swTimer_coro_callback;
 
-extern zend_fcall_info_cache *php_sw_server_caches[PHP_SERVER_CALLBACK_NUM];
-
 extern coro_global COROG;
-
-extern swHashMap *timer_map;
-
-static sw_inline zend_fcall_info_cache* php_swoole_server_get_cache(swServer *serv, int server_fd, int event_type)
-{
-    swListenPort *port = serv->connection_list[server_fd].object;
-    swoole_server_port_property *property = port->ptr;
-    if (!property)
-    {
-        return php_sw_server_caches[event_type];
-    }
-    zend_fcall_info_cache* cache = property->caches[event_type];
-    if (!cache)
-    {
-        return php_sw_server_caches[event_type];
-    }
-    else
-    {
-        return cache;
-    }
-}
 
 int sw_coro_resume_parent(php_context *sw_current_context, zval *retval, zval *coro_retval);
 

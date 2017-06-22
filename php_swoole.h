@@ -197,9 +197,7 @@ enum php_swoole_server_callback_type
 typedef struct
 {
     zval *callbacks[PHP_SERVER_CALLBACK_NUM];
-#ifdef SW_COROUTINE
     zend_fcall_info_cache *caches[PHP_SERVER_CALLBACK_NUM];
-#endif
 #if PHP_MAJOR_VERSION >= 7
     zval _callbacks[PHP_SERVER_CALLBACK_NUM];
 #endif
@@ -439,6 +437,8 @@ void php_swoole_onBufferFull(swServer *, swDataHead *);
 void php_swoole_onBufferEmpty(swServer *, swDataHead *);
 int php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 int php_swoole_client_onPackage(swConnection *conn, char *data, uint32_t length);
+void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode);
+void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode);
 
 #if PHP_MAJOR_VERSION >= 7
 PHPAPI zend_string* php_swoole_serialize(zval *zvalue);

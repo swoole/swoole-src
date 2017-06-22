@@ -38,16 +38,12 @@ typedef struct _swTimer_callback
     int type;
 } swTimer_callback;
 
-static void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode);
-static void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode);
 static long php_swoole_add_timer(int ms, zval *callback, zval *param, int persistent TSRMLS_DC);
 #ifdef SW_COROUTINE
 int php_swoole_del_timer_coro(swTimer_node *tnode TSRMLS_DC);
 #endif
-static long php_swoole_add_timer(int ms, zval *callback, zval *param, int is_tick TSRMLS_DC);
 static int php_swoole_del_timer(swTimer_node *tnode TSRMLS_DC);
 
-static long php_swoole_add_timer(int ms, zval *callback, zval *param, int persistent TSRMLS_DC)
 #ifdef SW_COROUTINE
 int php_swoole_add_timer_coro(int ms, int cli_fd, long *timeout_id, void* param, swLinkedList_node **node TSRMLS_DC) //void *
 {
@@ -96,12 +92,13 @@ int php_swoole_add_timer_coro(int ms, int cli_fd, long *timeout_id, void* param,
         swoole_php_fatal_error(E_WARNING, "Append to swTimer_coro_callback_list failed.");
         return SW_ERR;
     }
-    if (node != NULL) {
+    if (node != NULL)
+    {
         *node = SwooleWG.delayed_coro_timeout_list->tail;
     }
-
     return SW_OK;
 }
+
 int php_swoole_clear_timer_coro(long id TSRMLS_DC)
 {
     if (id < 0)
@@ -116,7 +113,7 @@ int php_swoole_clear_timer_coro(long id TSRMLS_DC)
         return SW_ERR;
     }
 
-    swTimer_node *tnode = swHashMap_find_int(timer_map, id);
+    swTimer_node *tnode = swTimer_get(&SwooleG.timer, id);
     if (tnode == NULL)
     {
         swoole_php_error(E_WARNING, "timer#%ld is not found.", id);
@@ -130,25 +127,23 @@ int php_swoole_clear_timer_coro(long id TSRMLS_DC)
         return SW_OK;
     }
 
+    if (swTimer_del(&SwooleG.timer, tnode) < 0)
+    {
+        return SW_ERR;
+    }
+
     if (php_swoole_del_timer_coro(tnode TSRMLS_CC) < 0)
     {
         return SW_ERR;
     }
     else
     {
-        swTimer_del(&SwooleG.timer, tnode);
-		SwooleG.timer.num--;
         return SW_OK;
     }
 }
 
 int php_swoole_del_timer_coro(swTimer_node *tnode TSRMLS_DC)
 {
-
-    if (swHashMap_del_int(timer_map, tnode->id) < 0)
-    {
-        return SW_ERR;
-    }
     tnode->id = -1;
 
     swTimer_coro_callback *scc = tnode->data;
@@ -162,7 +157,7 @@ int php_swoole_del_timer_coro(swTimer_node *tnode TSRMLS_DC)
 }
 #endif
 
-static long php_swoole_add_timer(int ms, zval *callback, zval *param, int is_tick TSRMLS_DC)
+static long php_swoole_add_timer(int ms, zval *callback, zval *param, int persistent TSRMLS_DC)
 {
     if (SwooleG.serv && swIsMaster())
     {
@@ -264,7 +259,7 @@ static int php_swoole_del_timer(swTimer_node *tnode TSRMLS_DC)
     return SW_OK;
 }
 
-static void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
+void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
 {
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
@@ -291,7 +286,6 @@ static void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
         }
 
         php_swoole_del_timer_coro(tnode TSRMLS_CC);
-        sw_free(tnode);
     }
     else
 #endif
@@ -307,24 +301,25 @@ static void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
             argc = 1;
         }
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, cb->callback, &retval, argc, args, 0, NULL TSRMLS_CC) == FAILURE)
-    {
-        swoole_php_fatal_error(E_WARNING, "swoole_timer: onTimeout handler error");
-        return;
-    }
+        if (sw_call_user_function_ex(EG(function_table), NULL, cb->callback, &retval, argc, args, 0, NULL TSRMLS_CC) == FAILURE)
+        {
+            swoole_php_fatal_error(E_WARNING, "swoole_timer: onTimeout handler error");
+            return;
+        }
 
-    if (EG(exception))
-    {
-        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+        if (EG(exception))
+        {
+            zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+        }
+        if (retval)
+        {
+            sw_zval_ptr_dtor(&retval);
+        }
+        php_swoole_del_timer(tnode TSRMLS_CC);
     }
-    if (retval)
-    {
-        sw_zval_ptr_dtor(&retval);
-    }
-    php_swoole_del_timer(tnode TSRMLS_CC);
 }
 
-static void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode)
+void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode)
 {
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);

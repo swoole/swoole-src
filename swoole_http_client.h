@@ -97,6 +97,8 @@ typedef struct
     char* uri;
     zend_size_t uri_len;
 
+    swTimer_node *timer;
+
     char *tmp_header_field_name;
     zend_size_t tmp_header_field_name_len;
 
