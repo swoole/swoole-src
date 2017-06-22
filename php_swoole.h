@@ -485,6 +485,10 @@ static sw_inline zend_fcall_info_cache* php_swoole_server_get_cache(swServer *se
 }
 #endif
 
+#ifdef SW_USE_OPENSSL
+void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset TSRMLS_DC);
+#endif
+
 #define php_swoole_array_get_value(ht, str, v)     (sw_zend_hash_find(ht, str, sizeof(str), (void **) &v) == SUCCESS && !ZVAL_IS_NULL(v))
 #define php_swoole_array_separate(arr)       zval *_new_##arr;\
     SW_MAKE_STD_ZVAL(_new_##arr);\
