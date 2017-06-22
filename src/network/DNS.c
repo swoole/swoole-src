@@ -149,7 +149,7 @@ static int swDNSResolver_onReceive(swReactor *reactor, swEvent *event)
     }
 
     packet[ret] = 0;
-    header = (swDNSResolver_header *) &packet;
+    header = (swDNSResolver_header *) packet;
     steps = sizeof(swDNSResolver_header);
 
     _domain_name = &packet[steps];
@@ -160,8 +160,9 @@ static int swDNSResolver_onReceive(swReactor *reactor, swEvent *event)
     (void) qflags;
     steps = steps + sizeof(Q_FLAGS);
 
+    int ancount = ntohs(header->ancount);
     /* Parsing the RRs from the reply packet */
-    for (i = 0; i < ntohs(header->ancount); ++i)
+    for (i = 0; i < ancount; ++i)
     {
         /* Parsing the NAME portion of the RR */
         temp = &packet[steps];
