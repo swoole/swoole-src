@@ -321,7 +321,7 @@ static PHP_METHOD(swoole_server_port, set)
                 swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", Z_STRVAL_P(v));
                 return;
             }
-            port->ssl_cert_file = sw_strdup(Z_STRVAL_P(v));
+            port->ssl_option.cert_file = sw_strdup(Z_STRVAL_P(v));
             port->open_ssl_encrypt = 1;
         }
         if (php_swoole_array_get_value(vht, "ssl_key_file", v))
@@ -332,12 +332,12 @@ static PHP_METHOD(swoole_server_port, set)
                 swoole_php_fatal_error(E_ERROR, "ssl key file[%s] not found.", Z_STRVAL_P(v));
                 return;
             }
-            port->ssl_key_file = sw_strdup(Z_STRVAL_P(v));
+            port->ssl_option.key_file = sw_strdup(Z_STRVAL_P(v));
         }
         if (php_swoole_array_get_value(vht, "ssl_method", v))
         {
             convert_to_long(v);
-            port->ssl_method = (int) Z_LVAL_P(v);
+            port->ssl_option.method = (int) Z_LVAL_P(v);
         }
         //verify client cert
         if (php_swoole_array_get_value(vht, "ssl_client_cert_file", v))
@@ -345,15 +345,15 @@ static PHP_METHOD(swoole_server_port, set)
             convert_to_string(v);
             if (access(Z_STRVAL_P(v), R_OK) < 0)
             {
-                swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", port->ssl_cert_file);
+                swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", port->ssl_option.cert_file);
                 return;
             }
-            port->ssl_client_cert_file = sw_strdup(Z_STRVAL_P(v));
+            port->ssl_option.client_cert_file = sw_strdup(Z_STRVAL_P(v));
         }
         if (php_swoole_array_get_value(vht, "ssl_verify_depth", v))
         {
             convert_to_long(v);
-            port->ssl_verify_depth = (int) Z_LVAL_P(v);
+            port->ssl_option.verify_depth = (int) Z_LVAL_P(v);
         }
         if (php_swoole_array_get_value(vht, "ssl_prefer_server_ciphers", v))
         {
@@ -423,22 +423,15 @@ static PHP_METHOD(swoole_server_port, on)
         return;
     }
 
-#ifdef PHP_SWOOLE_CHECK_CALLBACK
     char *func_name = NULL;
-
-#ifdef SW_COROUTINE
     zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
     if (!sw_zend_is_callable_ex(cb, NULL, 0, &func_name, NULL, func_cache, NULL TSRMLS_CC))
-#else
-    if (!sw_zend_is_callable(cb, 0, &func_name TSRMLS_CC))
-#endif
     {
         swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
         efree(func_name);
         return;
     }
     efree(func_name);
-#endif
 
     swoole_server_port_property *property = swoole_get_property(getThis(), 0);
 
@@ -510,9 +503,7 @@ static PHP_METHOD(swoole_server_port, on)
             {
                 SwooleG.serv->onBufferEmpty = php_swoole_onBufferEmpty;
             }
-#ifdef SW_COROUTINE
             property->caches[i] = func_cache;
-#endif
             break;
         }
     }
@@ -520,6 +511,7 @@ static PHP_METHOD(swoole_server_port, on)
     if (l_property_name == 0)
     {
         swoole_php_error(E_WARNING, "Unknown event types[%s]", name);
+        efree(func_cache);
         RETURN_FALSE;
     }
     RETURN_TRUE;

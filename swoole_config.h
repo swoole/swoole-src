@@ -40,7 +40,7 @@
 #define SW_USE_MONOTONIC_TIME
 //#define SW_USE_RINGBUFFER
 
-#define SW_USE_TIMEWHEEL
+//#define SW_USE_TIMEWHEEL
 #define SW_TIMEWHEEL_SIZE          60
 
 //#define SW_DEBUG_REMOTE_OPEN
@@ -215,6 +215,7 @@
 #define SW_TABLE_KEY_SIZE                64
 //#define SW_TABLE_USE_PHP_HASH
 //#define SW_TABLE_DEBUG
+#define SW_TABLE_USE_SPINLOCK            1
 
 #define SW_SSL_BUFFER_SIZE               16384
 #define SW_SSL_CIPHER_LIST               "EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH"

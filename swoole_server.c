@@ -39,9 +39,7 @@ static struct
 } server_port_list;
 
 zval *php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
-#ifdef SW_COROUTINE
 zend_fcall_info_cache *php_sw_server_caches[PHP_SERVER_CALLBACK_NUM];
-#endif
 
 static swHashMap *task_callbacks;
 
@@ -75,7 +73,7 @@ int php_swoole_task_pack(swEventData *task, zval *data TSRMLS_DC)
     task->info.type = SW_EVENT_TASK;
     //field fd save task_id
     task->info.fd = php_swoole_task_id++;
-    if (php_swoole_task_id >= SW_MAX_INT)
+    if (unlikely(php_swoole_task_id >= SW_MAX_INT))
     {
         php_swoole_task_id = 0;
     }
@@ -570,7 +568,7 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
 
     swTrace("PipeMessage: fd=%d|len=%d|from_id=%d|data=%s\n", req->info.fd, req->info.len, req->info.from_id, req->data);
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onPipeMessage], &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_fast(php_sw_server_callbacks[SW_SERVER_CB_onPipeMessage], php_sw_server_caches[SW_SERVER_CB_onPipeMessage], &retval, 3, args TSRMLS_CC) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onPipeMessage handler error.");
     }
@@ -679,7 +677,8 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
     args[2] = &zfrom_id;
     args[3] = &zdata;
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 4, args, 0, NULL TSRMLS_CC) == FAILURE)
+    zend_fcall_info_cache *fci_cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onReceive);
+    if (sw_call_user_function_fast(callback, fci_cache, &retval, 4, args TSRMLS_CC) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onReceive handler error.");
     }
@@ -845,7 +844,8 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
     args[2] = &zfrom_id;
     args[3] = &zdata;
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onTask], &retval, 4, args, 0, NULL TSRMLS_CC) == FAILURE)
+    zend_fcall_info_cache *fci_cache = php_sw_server_caches[SW_SERVER_CB_onTask];
+    if (sw_call_user_function_fast(php_sw_server_callbacks[SW_SERVER_CB_onTask], fci_cache, &retval, 4, args TSRMLS_CC) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onTask handler error.");
     }
@@ -1329,7 +1329,12 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
     args[1] = &zfd;
     args[2] = &zfrom_id;
 
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
+    zend_fcall_info_cache *fci_cache = php_swoole_server_get_cache(serv, info->from_fd, SW_SERVER_CB_onClose);
+    if (sw_call_user_function_fast(callback, fci_cache, &retval, 3, args TSRMLS_CC) == FAILURE)
+#else
     if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
+#endif
     {
         swoole_php_fatal_error(E_WARNING, "onClose handler error.");
     }
@@ -1366,7 +1371,8 @@ void php_swoole_onBufferFull(swServer *serv, swDataHead *info)
     args[0] = &zserv;
     args[1] = &zfd;
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+    zend_fcall_info_cache *fci_cache = php_swoole_server_get_cache(serv, info->from_fd, SW_SERVER_CB_onBufferFull);
+    if (sw_call_user_function_fast(callback, fci_cache, &retval, 2, args TSRMLS_CC) == FAILURE)
     {
         swoole_php_error(E_WARNING, "onBufferFull handler error.");
     }
@@ -1402,7 +1408,8 @@ void php_swoole_onBufferEmpty(swServer *serv, swDataHead *info)
     args[0] = &zserv;
     args[1] = &zfd;
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+    zend_fcall_info_cache *fci_cache = php_swoole_server_get_cache(serv, info->from_fd, SW_SERVER_CB_onBufferEmpty);
+    if (sw_call_user_function_fast(callback, fci_cache, &retval, 2, args TSRMLS_CC) == FAILURE)
     {
         swoole_php_error(E_WARNING, "onBufferEmpty handler error.");
     }
@@ -1839,21 +1846,15 @@ PHP_METHOD(swoole_server, on)
         return;
     }
 
-#ifdef PHP_SWOOLE_CHECK_CALLBACK
     char *func_name = NULL;
-#ifdef SW_COROUTINE
     zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
     if (!sw_zend_is_callable_ex(cb, NULL, 0, &func_name, NULL, func_cache, NULL TSRMLS_CC))
-#else
-    if (!sw_zend_is_callable(cb, 0, &func_name TSRMLS_CC))
-#endif
     {
         swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
         efree(func_name);
         return;
     }
     efree(func_name);
-#endif
 
     convert_to_string(name);
 
@@ -1898,11 +1899,8 @@ PHP_METHOD(swoole_server, on)
             property_name[l_property_name] = '\0';
             zend_update_property(swoole_server_class_entry_ptr, getThis(), property_name, l_property_name, cb TSRMLS_CC);
             php_sw_server_callbacks[i] = sw_zend_read_property(swoole_server_class_entry_ptr, getThis(), property_name, l_property_name, 0 TSRMLS_CC);
-            sw_copy_to_stack(php_sw_server_callbacks[i], _php_sw_server_callbacks[i]);
-
-#ifdef SW_COROUTINE
             php_sw_server_caches[i] = func_cache;
-#endif
+            sw_copy_to_stack(php_sw_server_callbacks[i], _php_sw_server_callbacks[i]);
             break;
         }
     }
@@ -1910,6 +1908,7 @@ PHP_METHOD(swoole_server, on)
     if (l_property_name == 0)
     {
         swoole_php_error(E_WARNING, "Unknown event types[%s]", Z_STRVAL_P(name));
+        efree(func_cache);
         RETURN_FALSE;
     }
 

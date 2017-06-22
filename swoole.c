@@ -1072,6 +1072,10 @@ PHP_FUNCTION(swoole_set_process_name)
     {
         return;
     }
+    if (EG(exception))
+    {
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+    }
     sw_zval_ptr_dtor(&function);
     if (retval)
     {

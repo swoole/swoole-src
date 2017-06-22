@@ -14,7 +14,6 @@
   +----------------------------------------------------------------------+
 */
 
-
 #include "php_swoole.h"
 
 #ifdef HAVE_PCRE
@@ -326,11 +325,11 @@ static PHP_METHOD(swoole_table, set)
         RETURN_FALSE;
     }
 
-    sw_atomic_t *_lock = NULL;
-    swTableRow *row = swTableRow_set(table, key, keylen, &_lock);
+    swTableRow *_rowlock = NULL;
+    swTableRow *row = swTableRow_set(table, key, keylen, &_rowlock);
     if (!row)
     {
-        sw_spinlock_release(_lock);
+        swTableRow_unlock(_rowlock);
         swoole_php_error(E_WARNING, "Unable to allocate memory.");
         RETURN_FALSE;
     }
@@ -367,7 +366,7 @@ static PHP_METHOD(swoole_table, set)
     }
     (void)ktype;
     SW_HASHTABLE_FOREACH_END();
-    sw_spinlock_release(_lock);
+    swTableRow_unlock(_rowlock);
     RETURN_TRUE;
 }
 
@@ -384,7 +383,7 @@ static PHP_METHOD(swoole_table, incr)
         RETURN_FALSE;
     }
 
-    sw_atomic_t *_lock = NULL;
+    swTableRow *_rowlock = NULL;
     swTable *table = swoole_get_object(getThis());
     if (!table->memory)
     {
@@ -392,10 +391,10 @@ static PHP_METHOD(swoole_table, incr)
         RETURN_FALSE;
     }
 
-    swTableRow *row = swTableRow_set(table, key, key_len, &_lock);
+    swTableRow *row = swTableRow_set(table, key, key_len, &_rowlock);
     if (!row)
     {
-        sw_spinlock_release(_lock);
+        swTableRow_unlock(_rowlock);
         swoole_php_fatal_error(E_WARNING, "Unable to allocate memory.");
         RETURN_FALSE;
     }
@@ -404,13 +403,13 @@ static PHP_METHOD(swoole_table, incr)
     column = swTableColumn_get(table, col, col_len);
     if (column == NULL)
     {
-        sw_spinlock_release(_lock);
+        swTableRow_unlock(_rowlock);
         swoole_php_fatal_error(E_WARNING, "column[%s] not exist.", col);
         RETURN_FALSE;
     }
     else if (column->type == SW_TABLE_STRING)
     {
-        sw_spinlock_release(_lock);
+        swTableRow_unlock(_rowlock);
         swoole_php_fatal_error(E_WARNING, "cannot use incr with string column.");
         RETURN_FALSE;
     }
@@ -446,7 +445,7 @@ static PHP_METHOD(swoole_table, incr)
         swTableRow_set_value(row, column, &set_value, 0);
         RETVAL_LONG(set_value);
     }
-    sw_spinlock_release(_lock);
+    swTableRow_unlock(_rowlock);
 }
 
 static PHP_METHOD(swoole_table, decr)
@@ -462,7 +461,7 @@ static PHP_METHOD(swoole_table, decr)
         RETURN_FALSE;
     }
 
-    sw_atomic_t *_lock = NULL;
+    swTableRow *_rowlock = NULL;
     swTable *table = swoole_get_object(getThis());
     if (!table->memory)
     {
@@ -470,10 +469,10 @@ static PHP_METHOD(swoole_table, decr)
         RETURN_FALSE;
     }
 
-    swTableRow *row = swTableRow_set(table, key, key_len, &_lock);
+    swTableRow *row = swTableRow_set(table, key, key_len, &_rowlock);
     if (!row)
     {
-        sw_spinlock_release(_lock);
+        swTableRow_unlock(_rowlock);
         swoole_php_fatal_error(E_WARNING, "Unable to allocate memory.");
         RETURN_FALSE;
     }
@@ -482,13 +481,13 @@ static PHP_METHOD(swoole_table, decr)
     column = swTableColumn_get(table, col, col_len);
     if (column == NULL)
     {
-        sw_spinlock_release(_lock);
+        swTableRow_unlock(_rowlock);
         swoole_php_fatal_error(E_WARNING, "column[%s] not exist.", col);
         RETURN_FALSE;
     }
     else if (column->type == SW_TABLE_STRING)
     {
-        sw_spinlock_release(_lock);
+        swTableRow_unlock(_rowlock);
         swoole_php_fatal_error(E_WARNING, "cannot use incr with string column.");
         RETURN_FALSE;
     }
@@ -524,7 +523,7 @@ static PHP_METHOD(swoole_table, decr)
         swTableRow_set_value(row, column, &set_value, 0);
         RETVAL_LONG(set_value);
     }
-    sw_spinlock_release(_lock);
+    swTableRow_unlock(_rowlock);
 }
 
 static PHP_METHOD(swoole_table, get)
@@ -539,7 +538,8 @@ static PHP_METHOD(swoole_table, get)
     {
         RETURN_FALSE;
     }
-    sw_atomic_t *_lock = NULL;
+
+    swTableRow *_rowlock = NULL;
     swTable *table = swoole_get_object(getThis());
     if (!table->memory)
     {
@@ -547,7 +547,7 @@ static PHP_METHOD(swoole_table, get)
         RETURN_FALSE;
     }
 
-    swTableRow *row = swTableRow_get(table, key, keylen, &_lock);
+    swTableRow *row = swTableRow_get(table, key, keylen, &_rowlock);
     if (!row)
     {
         RETVAL_FALSE;
@@ -560,7 +560,7 @@ static PHP_METHOD(swoole_table, get)
     {
         php_swoole_table_row2array(table, row, return_value);
     }
-    sw_spinlock_release(_lock);
+    swTableRow_unlock(_rowlock);
 }
 
 static PHP_METHOD(swoole_table, exist)
@@ -573,7 +573,7 @@ static PHP_METHOD(swoole_table, exist)
         RETURN_FALSE;
     }
 
-    sw_atomic_t *_lock = NULL;
+
     swTable *table = swoole_get_object(getThis());
     if (!table->memory)
     {
@@ -581,8 +581,9 @@ static PHP_METHOD(swoole_table, exist)
         RETURN_FALSE;
     }
 
-    swTableRow *row = swTableRow_get(table, key, keylen, &_lock);
-    sw_spinlock_release(_lock);
+    swTableRow *_rowlock = NULL;
+    swTableRow *row = swTableRow_get(table, key, keylen, &_rowlock);
+    swTableRow_unlock(_rowlock);
     if (!row)
     {
         RETURN_FALSE;
@@ -663,9 +664,9 @@ static PHP_METHOD(swoole_table, current)
         RETURN_FALSE;
     }
     swTableRow *row = swTable_iterator_current(table);
-    sw_spinlock(&row->lock);
+    swTableRow_lock(row);
     php_swoole_table_row2array(table, row, return_value);
-    sw_spinlock_release(&row->lock);
+    swTableRow_unlock(row);
 }
 
 static PHP_METHOD(swoole_table, key)
@@ -677,9 +678,9 @@ static PHP_METHOD(swoole_table, key)
         RETURN_FALSE;
     }
     swTableRow *row = swTable_iterator_current(table);
-    sw_spinlock(&row->lock);
+    swTableRow_lock(row);
     SW_RETVAL_STRING(row->key, 1);
-    sw_spinlock_release(&row->lock);
+    swTableRow_unlock(row);
 }
 
 static PHP_METHOD(swoole_table, next)

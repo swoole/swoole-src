@@ -1356,7 +1356,6 @@ struct _swReactor
     uint32_t max_event_num;
 
     uint32_t check_timer :1;
-
     uint32_t running :1;
 
     /**
@@ -1750,21 +1749,28 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
 int swProtocol_recv_check_eof(swProtocol *protocol, swConnection *conn, swString *buffer);
 
 //--------------------------------timer------------------------------
-typedef struct _swTimer_node
+typedef struct _swTimer swTimer;
+typedef struct _swTimer_node swTimer_node;
+
+typedef void (*swTimerCallback)(swTimer *, swTimer_node *);
+
+struct _swTimer_node
 {
     swHeap_node *heap_node;
     void *data;
+    swTimerCallback callback;
     int64_t exec_msec;
     uint32_t interval;
     long id;
     int type;                 //0 normal node 1 node for client_coro
-    uint8_t remove :1;
-} swTimer_node;
+    uint8_t remove;
+};
 
-typedef struct _swTimer
+struct _swTimer
 {
     /*--------------timerfd & signal timer--------------*/
     swHeap *heap;
+    swHashMap *map;
     int num;
     int use_pipe;
     int lasttime;
@@ -1776,18 +1782,19 @@ typedef struct _swTimer
     /*-----------------for EventTimer-------------------*/
     struct timeval basetime;
     /*--------------------------------------------------*/
-    int (*set)(struct _swTimer *timer, long exec_msec);
-    /*-----------------event callback-------------------*/
-    void (*onAfter)(struct _swTimer *timer, swTimer_node *event);
-    void (*onTick)(struct _swTimer *timer, swTimer_node *event);
-} swTimer;
+    int (*set)(swTimer *timer, long exec_msec);
+    swTimer_node* (*add)(swTimer *timer, int _msec, int persistent, void *data, swTimerCallback callback);
+};
 
 int swTimer_init(long msec);
-swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *data);
-swTimer_node* swTimer_get(swTimer *timer, long id);
-void swTimer_del(swTimer *timer, swTimer_node *node);
+int swTimer_del(swTimer *timer, swTimer_node *node);
 void swTimer_free(swTimer *timer);
 int swTimer_select(swTimer *timer);
+
+static sw_inline swTimer_node* swTimer_get(swTimer *timer, long id)
+{
+    return (swTimer_node*) swHashMap_find_int(timer->map, id);
+}
 
 int swSystemTimer_init(int msec, int use_pipe);
 void swSystemTimer_signal_handler(int sig);

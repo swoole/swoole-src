@@ -87,6 +87,7 @@ typedef struct _swClient
 
     uint8_t server_strlen;
     double timeout;
+    swTimer_node *timer;
 
     /**
      * sendto, read only.
@@ -110,12 +111,9 @@ typedef struct _swClient
 
 #ifdef SW_USE_OPENSSL
     uint8_t open_ssl :1;
-    uint8_t ssl_disable_compress :1;
     uint8_t ssl_wait_handshake :1;
-    char *ssl_cert_file;
-    char *ssl_key_file;
     SSL_CTX *ssl_context;
-    uint8_t ssl_method;
+    swSSL_option ssl_option;
 #endif
 
     void (*onConnect)(struct _swClient *cli);

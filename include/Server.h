@@ -216,13 +216,9 @@ typedef struct _swListenPort
     uint16_t websocket_subprotocol_length;
 
 #ifdef SW_USE_OPENSSL
-    char *ssl_cert_file;
-    char *ssl_key_file;
     SSL_CTX *ssl_context;
     swSSL_config ssl_config;
-    uint8_t ssl_method;
-    char *ssl_client_cert_file;
-    uint8_t ssl_verify_depth;
+    swSSL_option ssl_option;
 #endif
 
     swProtocol protocol;
@@ -875,6 +871,7 @@ int swPort_listen(swListenPort *ls);
 #ifdef SW_USE_OPENSSL
 int swPort_enable_ssl_encrypt(swListenPort *ls);
 #endif
+void swPort_clear_protocol(swListenPort *ls);
 
 void swWorker_free(swWorker *worker);
 void swWorker_onStart(swServer *serv);

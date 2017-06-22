@@ -55,6 +55,7 @@
 			<file role="doc" name="CREDITS" />
 			<file role="doc" name="LICENSE" />
 			<file role="doc" name="README.md" />
+			<file role="doc" name="Version2.md" />
 			<file role="src" name="config.m4" />
 			<dir name="include">
 				<file role="src" name="swoole.h" />
@@ -86,8 +87,6 @@
 			</dir>
 			<file role="src" name="php_swoole.h" />
 			<file role="src" name="php7_wrapper.h" />
-			<file role="src" name="PHP_API.hpp" />
-			<file role="src" name="PHP_embed.hpp" />
 			<file role="src" name="swoole_config.h" />
 			<file role="src" name="swoole.c" />
 			<file role="src" name="swoole_server.c" />
@@ -318,6 +317,7 @@
 				<dir name="timer">
                     <file role="src" name="after.php" />
                     <file role="src" name="tick.php" />
+                    <file role="src" name="clear.php" />
                 </dir>
                 <dir name="mysql">
                     <file role="src" name="real_async.php" />

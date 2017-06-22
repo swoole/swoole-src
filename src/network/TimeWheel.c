@@ -15,7 +15,6 @@
 */
 
 #include "swoole.h"
-#include "Server.h"
 
 swTimeWheel* swTimeWheel_new(uint16_t size)
 {
@@ -90,7 +89,7 @@ void swTimeWheel_forward(swTimeWheel *tw, swReactor *reactor)
         //notify to reactor thread
         if (conn->removed)
         {
-            swReactorThread_close(reactor, (int) fd);
+            reactor->close(reactor, (int) fd);
         }
         else
         {

@@ -48,6 +48,7 @@
 
 #define PHP_SWOOLE_VERSION  "2.0.8"
 #define PHP_SWOOLE_CHECK_CALLBACK
+#define PHP_SWOOLE_ENABLE_FASTCALL
 
 /**
  * PHP5.2
@@ -233,6 +234,7 @@ extern zend_class_entry *swoole_server_port_class_entry_ptr;
 extern zend_class_entry *swoole_exception_class_entry_ptr;
 
 extern zval *php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
+extern zend_fcall_info_cache *php_sw_server_caches[PHP_SERVER_CALLBACK_NUM];
 #if PHP_MAJOR_VERSION >= 7
 extern zval _php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
 #endif
@@ -461,6 +463,27 @@ static sw_inline zval* php_swoole_server_get_callback(swServer *serv, int server
         return callback;
     }
 }
+
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
+static sw_inline zend_fcall_info_cache* php_swoole_server_get_cache(swServer *serv, int server_fd, int event_type)
+{
+    swListenPort *port = (swListenPort *) serv->connection_list[server_fd].object;
+    swoole_server_port_property *property = (swoole_server_port_property *) port->ptr;
+    if (!property)
+    {
+        return php_sw_server_caches[event_type];
+    }
+    zend_fcall_info_cache* cache = property->caches[event_type];
+    if (!cache)
+    {
+        return php_sw_server_caches[event_type];
+    }
+    else
+    {
+        return cache;
+    }
+}
+#endif
 
 #define php_swoole_array_get_value(ht, str, v)     (sw_zend_hash_find(ht, str, sizeof(str), (void **) &v) == SUCCESS && !ZVAL_IS_NULL(v))
 #define php_swoole_array_separate(arr)       zval *_new_##arr;\

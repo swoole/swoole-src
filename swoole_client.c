@@ -32,6 +32,18 @@ typedef struct
     zval *onSSLReady;
 #endif
 
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
+    zend_fcall_info_cache cache_onConnect;
+    zend_fcall_info_cache cache_onReceive;
+    zend_fcall_info_cache cache_onClose;
+    zend_fcall_info_cache cache_onError;
+    zend_fcall_info_cache cache_onBufferFull;
+    zend_fcall_info_cache cache_onBufferEmpty;
+#ifdef SW_USE_OPENSSL
+    zend_fcall_info_cache cache_onSSLReady;
+#endif
+#endif
+
 #if PHP_MAJOR_VERSION >= 7
     zval _object;
     zval _onConnect;
@@ -103,32 +115,54 @@ static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_cli
     client_callback *cb = swoole_get_property(zobject, client_property_callback);
     char *callback_name;
 
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
+    zend_fcall_info_cache *fci_cache;
+#endif
+
     switch(type)
     {
     case SW_CLIENT_CB_onConnect:
         callback = cb->onConnect;
         callback_name = "onConnect";
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
+        fci_cache = &cb->cache_onConnect;
+#endif
         break;
     case SW_CLIENT_CB_onError:
         callback = cb->onError;
         callback_name = "onError";
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
+        fci_cache = &cb->cache_onError;
+#endif
         break;
     case SW_CLIENT_CB_onClose:
         callback = cb->onClose;
         callback_name = "onClose";
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
+        fci_cache = &cb->cache_onClose;
+#endif
         break;
     case SW_CLIENT_CB_onBufferFull:
         callback = cb->onBufferFull;
         callback_name = "onBufferFull";
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
+        fci_cache = &cb->cache_onBufferFull;
+#endif
         break;
     case SW_CLIENT_CB_onBufferEmpty:
         callback = cb->onBufferEmpty;
         callback_name = "onBufferEmpty";
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
+        fci_cache = &cb->cache_onBufferEmpty;
+#endif
         break;
 #ifdef SW_USE_OPENSSL
     case SW_CLIENT_CB_onSSLReady:
         callback = cb->onSSLReady;
         callback_name = "onSSLReady";
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
+        fci_cache = &cb->cache_onSSLReady;
+#endif
         break;
 #endif
     default:
@@ -142,7 +176,11 @@ static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_cli
     }
 
     args[0] = &zobject;
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
+    if (sw_call_user_function_fast(callback, fci_cache, &retval, 1, args TSRMLS_CC) == FAILURE)
+#else
     if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+#endif
     {
         swoole_php_fatal_error(E_WARNING, "%s handler error.", callback_name);
         return;
@@ -318,7 +356,11 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
         goto free_zdata;
     }
 
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
+    if (sw_call_user_function_fast(zcallback, &cb->cache_onReceive, &retval, 2, args TSRMLS_CC) == FAILURE)
+#else
     if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+#endif
     {
         swoole_php_fatal_error(E_WARNING, "onReactorCallback handler error");
         goto free_zdata;
@@ -406,34 +448,39 @@ static void client_check_ssl_setting(swClient *cli, zval *zset TSRMLS_DC)
     if (php_swoole_array_get_value(vht, "ssl_method", v))
     {
         convert_to_long(v);
-        cli->ssl_method = (int) Z_LVAL_P(v);
+        cli->ssl_option.method = (int) Z_LVAL_P(v);
     }
     if (php_swoole_array_get_value(vht, "ssl_compress", v))
     {
         convert_to_boolean(v);
-        cli->ssl_disable_compress = !Z_BVAL_P(v);
+        cli->ssl_option.disable_compress = !Z_BVAL_P(v);
     }
     if (php_swoole_array_get_value(vht, "ssl_cert_file", v))
     {
         convert_to_string(v);
-        cli->ssl_cert_file = sw_strdup(Z_STRVAL_P(v));
-        if (access(cli->ssl_cert_file, R_OK) < 0)
+        cli->ssl_option.cert_file = sw_strdup(Z_STRVAL_P(v));
+        if (access(cli->ssl_option.cert_file, R_OK) < 0)
         {
-            swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", cli->ssl_cert_file);
+            swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", cli->ssl_option.cert_file);
             return;
         }
     }
     if (php_swoole_array_get_value(vht, "ssl_key_file", v))
     {
         convert_to_string(v);
-        cli->ssl_key_file = sw_strdup(Z_STRVAL_P(v));
-        if (access(cli->ssl_key_file, R_OK) < 0)
+        cli->ssl_option.key_file = sw_strdup(Z_STRVAL_P(v));
+        if (access(cli->ssl_option.key_file, R_OK) < 0)
         {
-            swoole_php_fatal_error(E_ERROR, "ssl key file[%s] not found.", cli->ssl_key_file);
+            swoole_php_fatal_error(E_ERROR, "ssl key file[%s] not found.", cli->ssl_option.key_file);
             return;
         }
     }
-    if (cli->ssl_cert_file && !cli->ssl_key_file)
+    if (php_swoole_array_get_value(vht, "ssl_passphrase", v))
+    {
+        convert_to_string(v);
+        cli->ssl_option.passphrase = sw_strdup(Z_STRVAL_P(v));
+    }
+    if (cli->ssl_option.cert_file && !cli->ssl_option.key_file)
     {
         swoole_php_fatal_error(E_ERROR, "ssl require key file.");
         return;
@@ -1713,7 +1760,17 @@ static PHP_METHOD(swoole_client, on)
         swoole_set_property(getThis(), client_property_callback, cb);
     }
 
-#ifdef PHP_SWOOLE_CHECK_CALLBACK
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
+    char *func_name = NULL;
+    zend_fcall_info_cache func_cache;
+    if (!sw_zend_is_callable_ex(zcallback, NULL, 0, &func_name, NULL, &func_cache, NULL TSRMLS_CC))
+    {
+        swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+        efree(func_name);
+        return;
+    }
+    efree(func_name);
+#elif defined(PHP_SWOOLE_CHECK_CALLBACK)
     char *func_name = NULL;
     if (!sw_zend_is_callable(zcallback, 0, &func_name TSRMLS_CC))
     {
@@ -1729,36 +1786,54 @@ static PHP_METHOD(swoole_client, on)
         zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("onConnect"), zcallback TSRMLS_CC);
         cb->onConnect = sw_zend_read_property(swoole_client_class_entry_ptr,  getThis(), ZEND_STRL("onConnect"), 0 TSRMLS_CC);
         sw_copy_to_stack(cb->onConnect, cb->_onConnect);
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
+        cb->cache_onConnect = func_cache;
+#endif
     }
     else if (strncasecmp("receive", cb_name, cb_name_len) == 0)
     {
         zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("onReceive"), zcallback TSRMLS_CC);
         cb->onReceive = sw_zend_read_property(swoole_client_class_entry_ptr,  getThis(), ZEND_STRL("onReceive"), 0 TSRMLS_CC);
         sw_copy_to_stack(cb->onReceive, cb->_onReceive);
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
+        cb->cache_onReceive = func_cache;
+#endif
     }
     else if (strncasecmp("close", cb_name, cb_name_len) == 0)
     {
         zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("onClose"), zcallback TSRMLS_CC);
         cb->onClose = sw_zend_read_property(swoole_client_class_entry_ptr,  getThis(), ZEND_STRL("onClose"), 0 TSRMLS_CC);
         sw_copy_to_stack(cb->onClose, cb->_onClose);
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
+        cb->cache_onClose = func_cache;
+#endif
     }
     else if (strncasecmp("error", cb_name, cb_name_len) == 0)
     {
         zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("onError"), zcallback TSRMLS_CC);
         cb->onError = sw_zend_read_property(swoole_client_class_entry_ptr,  getThis(), ZEND_STRL("onError"), 0 TSRMLS_CC);
         sw_copy_to_stack(cb->onError, cb->_onError);
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
+        cb->cache_onError = func_cache;
+#endif
     }
     else if (strncasecmp("bufferFull", cb_name, cb_name_len) == 0)
     {
         zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("onBufferFull"), zcallback TSRMLS_CC);
         cb->onBufferFull = sw_zend_read_property(swoole_client_class_entry_ptr,  getThis(), ZEND_STRL("onBufferFull"), 0 TSRMLS_CC);
         sw_copy_to_stack(cb->onBufferFull, cb->_onBufferFull);
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
+        cb->cache_onBufferFull = func_cache;
+#endif
     }
     else if (strncasecmp("bufferEmpty", cb_name, cb_name_len) == 0)
     {
         zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("onBufferEmpty"), zcallback TSRMLS_CC);
         cb->onBufferEmpty = sw_zend_read_property(swoole_client_class_entry_ptr,  getThis(), ZEND_STRL("onBufferEmpty"), 0 TSRMLS_CC);
         sw_copy_to_stack(cb->onBufferEmpty, cb->_onBufferEmpty);
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
+        cb->cache_onBufferEmpty = func_cache;
+#endif
     }
     else
     {
@@ -1841,7 +1916,17 @@ static PHP_METHOD(swoole_client, enableSSL)
         {
             return;
         }
-#ifdef PHP_SWOOLE_CHECK_CALLBACK
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
+        char *func_name = NULL;
+        zend_fcall_info_cache func_cache;
+        if (!sw_zend_is_callable_ex(zcallback, NULL, 0, &func_name, NULL, &func_cache, NULL TSRMLS_CC))
+        {
+            swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+            efree(func_name);
+            return;
+        }
+        efree(func_name);
+#elif defined(PHP_SWOOLE_CHECK_CALLBACK)
         char *func_name = NULL;
         if (!sw_zend_is_callable(zcallback, 0, &func_name TSRMLS_CC))
         {
@@ -1861,6 +1946,9 @@ static PHP_METHOD(swoole_client, enableSSL)
         zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("onSSLReady"), zcallback TSRMLS_CC);
         cb->onSSLReady = sw_zend_read_property(swoole_client_class_entry_ptr,  getThis(), ZEND_STRL("onSSLReady"), 0 TSRMLS_CC);
         sw_copy_to_stack(cb->onSSLReady, cb->_onSSLReady);
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
+        cb->cache_onSSLReady = func_cache;
+#endif
         cli->ssl_wait_handshake = 1;
         cli->socket->ssl_state = SW_SSL_STATE_WAIT_STREAM;
 
