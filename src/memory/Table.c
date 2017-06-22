@@ -173,14 +173,26 @@ int swTable_create(swTable *table)
     memory += table->size * sizeof(swTableRow *);
     memory_size -= table->size * sizeof(swTableRow *);
 
+#if SW_TABLE_USE_SPINLOCK == 0
+    pthread_mutexattr_t attr;
+    pthread_mutexattr_init(&attr);
+    pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_SHARED);
+    pthread_mutexattr_setrobust_np(&attr, PTHREAD_MUTEX_ROBUST_NP);
+#endif
+
     int i;
     for (i = 0; i < table->size; i++)
     {
         table->rows[i] = memory + (row_memory_size * i);
+#if SW_TABLE_USE_SPINLOCK == 0
+        pthread_mutex_init(&table->rows[i]->lock, &attr);
+#endif
     }
+
     memory += row_memory_size * table->size;
     memory_size -= row_memory_size * table->size;
     table->pool = swFixedPool_new2(row_memory_size, memory, memory_size);
+
     return SW_OK;
 }
 
@@ -265,7 +277,7 @@ void swTable_iterator_forward(swTable *table)
     table->iterator->row = NULL;
 }
 
-swTableRow* swTableRow_get(swTable *table, char *key, int keylen, sw_atomic_t **rowlock)
+swTableRow* swTableRow_get(swTable *table, char *key, int keylen, swTableRow** rowlock)
 {
     if (keylen > SW_TABLE_KEY_SIZE)
     {
@@ -273,9 +285,8 @@ swTableRow* swTableRow_get(swTable *table, char *key, int keylen, sw_atomic_t **
     }
 
     swTableRow *row = swTable_hash(table, key, keylen);
-    sw_atomic_t *lock = &row->lock;
-    sw_spinlock(lock);
-    *rowlock = lock;
+    *rowlock = row;
+    swTableRow_lock(row);
 
     for (;;)
     {
@@ -301,7 +312,7 @@ swTableRow* swTableRow_get(swTable *table, char *key, int keylen, sw_atomic_t **
     return row;
 }
 
-swTableRow* swTableRow_set(swTable *table, char *key, int keylen, sw_atomic_t **rowlock)
+swTableRow* swTableRow_set(swTable *table, char *key, int keylen, swTableRow **rowlock)
 {
     if (keylen > SW_TABLE_KEY_SIZE)
     {
@@ -309,9 +320,8 @@ swTableRow* swTableRow_set(swTable *table, char *key, int keylen, sw_atomic_t **
     }
 
     swTableRow *row = swTable_hash(table, key, keylen);
-    sw_atomic_t *lock = &row->lock;
-    sw_spinlock(lock);
-    *rowlock = lock;
+    *rowlock = row;
+    swTableRow_lock(row);
 
 #ifdef SW_TABLE_DEBUG
     int _conflict_level = 0;
@@ -381,14 +391,13 @@ int swTableRow_del(swTable *table, char *key, int keylen)
     }
 
     swTableRow *row = swTable_hash(table, key, keylen);
-    sw_atomic_t *lock = &row->lock;
     //no exists
     if (!row->active)
     {
         return SW_ERR;
     }
 
-    sw_spinlock(lock);
+    swTableRow_lock(row);
     if (row->next == NULL)
     {
         if (strncmp(row->key, key, keylen) == 0)
@@ -419,7 +428,7 @@ int swTableRow_del(swTable *table, char *key, int keylen)
         if (tmp == NULL)
         {
             not_exists:
-            sw_spinlock_release(lock);
+            swTableRow_unlock(row);
             return SW_ERR;
         }
 
@@ -444,7 +453,7 @@ int swTableRow_del(swTable *table, char *key, int keylen)
 
     delete_element:
     sw_atomic_fetch_sub(&(table->row_num), 1);
-    sw_spinlock_release(lock);
+    swTableRow_unlock(row);
 
     return SW_OK;
 }
