@@ -126,13 +126,11 @@ int php_swoole_clear_timer_coro(long id TSRMLS_DC)
         tnode->remove = 1;
         return SW_OK;
     }
-
-    if (swTimer_del(&SwooleG.timer, tnode) < 0)
+    if (php_swoole_del_timer_coro(tnode TSRMLS_CC) < 0)
     {
         return SW_ERR;
     }
-
-    if (php_swoole_del_timer_coro(tnode TSRMLS_CC) < 0)
+    if (swTimer_del(&SwooleG.timer, tnode) < 0)
     {
         return SW_ERR;
     }
@@ -144,14 +142,11 @@ int php_swoole_clear_timer_coro(long id TSRMLS_DC)
 
 int php_swoole_del_timer_coro(swTimer_node *tnode TSRMLS_DC)
 {
-    tnode->id = -1;
-
     swTimer_coro_callback *scc = tnode->data;
     if (!scc)
     {
         return SW_ERR;
     }
-
     efree(scc);
     return SW_OK;
 }
@@ -275,14 +270,12 @@ void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
         }
 
         // del the reactor handle
-        if(swLinkedList_append(SwooleWG.coro_timeout_list, scc->data) == SW_OK)
+        if (swLinkedList_append(SwooleWG.coro_timeout_list, scc->data) == SW_OK)
         {
-
-
-			if ( (scc->cli_fd > 0) && (SwooleG.main_reactor->del(SwooleG.main_reactor, scc->cli_fd) == SW_ERR))
-			{
-				swSysError("reactor->del(%d) failed.", scc->cli_fd);
-			}
+            if ((scc->cli_fd > 0) && (SwooleG.main_reactor->del(SwooleG.main_reactor, scc->cli_fd) == SW_ERR))
+            {
+                swSysError("reactor->del(%d) failed.", scc->cli_fd);
+            }
         }
 
         php_swoole_del_timer_coro(tnode TSRMLS_CC);

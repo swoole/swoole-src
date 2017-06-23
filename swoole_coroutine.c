@@ -528,11 +528,12 @@ sw_inline void coro_handle_timeout()
     swTimer_node *tnode = NULL;
     if (timeout_list != NULL && timeout_list->num > 0)
     {
-		php_context *cxt = (php_context *)swLinkedList_pop(timeout_list);
-		while(cxt != NULL) {
-			cxt->onTimeout(cxt);
-			cxt = (php_context *)swLinkedList_pop(timeout_list);
-		}
+        php_context *cxt = (php_context *) swLinkedList_pop(timeout_list);
+        while (cxt != NULL)
+        {
+            cxt->onTimeout(cxt);
+            cxt = (php_context *) swLinkedList_pop(timeout_list);
+        }
     }
 
     timeout_list = SwooleWG.delayed_coro_timeout_list;
