@@ -64,6 +64,7 @@ typedef struct
     off_t download_offset;
     char *request_method;
     int callback_index;
+    uint8_t shutdown;
 
 } http_client_property;
 
@@ -688,6 +689,7 @@ static void http_client_onResponseException(zval *zobject TSRMLS_DC)
     {
         return;
     }
+    hcc->shutdown = 1;
     zval *zcallback = hcc->onResponse;
     args[0] = &zobject;
     if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
@@ -1900,6 +1902,12 @@ static PHP_METHOD(swoole_http_client, execute)
     {
         return;
     }
+    http_client_property *hcc = swoole_get_property(getThis(), 0);
+    if (hcc->shutdown)
+    {
+        swoole_php_error(E_WARNING, "Connection failed, the server was unavailable.");
+        return;
+    }
     ret = http_client_execute(getThis(), uri, uri_len, finish_cb TSRMLS_CC);
     SW_CHECK_RETURN(ret);
 }
@@ -1913,6 +1921,12 @@ static PHP_METHOD(swoole_http_client, get)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sz", &uri, &uri_len, &finish_cb) == FAILURE)
     {
+        return;
+    }
+    http_client_property *hcc = swoole_get_property(getThis(), 0);
+    if (hcc->shutdown)
+    {
+        swoole_php_error(E_WARNING, "Connection failed, the server was unavailable.");
         return;
     }
     ret = http_client_execute(getThis(), uri, uri_len, finish_cb TSRMLS_CC);
@@ -1934,6 +1948,11 @@ static PHP_METHOD(swoole_http_client, download)
     }
 
     http_client_property *hcc = swoole_get_property(getThis(), 0);
+    if (hcc->shutdown)
+    {
+        swoole_php_error(E_WARNING, "Connection failed, the server was unavailable.");
+        return;
+    }
     zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("downloadFile"), download_file TSRMLS_CC);
     hcc->download_file = sw_zend_read_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("downloadFile"), 1 TSRMLS_CC);
     hcc->download_offset = offset;
@@ -1962,6 +1981,11 @@ static PHP_METHOD(swoole_http_client, post)
     }
 
     http_client_property *hcc = swoole_get_property(getThis(), 0);
+    if (hcc->shutdown)
+    {
+        swoole_php_error(E_WARNING, "Connection failed, the server was unavailable.");
+        return;
+    }
     zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestBody"), post_data TSRMLS_CC);
     hcc->request_body = sw_zend_read_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestBody"), 1 TSRMLS_CC);
     sw_copy_to_stack(hcc->request_body, hcc->_request_body);
@@ -1982,6 +2006,11 @@ static PHP_METHOD(swoole_http_client, upgrade)
     }
 
     http_client_property *hcc = swoole_get_property(getThis(), 0);
+    if (hcc->shutdown)
+    {
+        swoole_php_error(E_WARNING, "Connection failed, the server was unavailable.");
+        return;
+    }
     if (!hcc->onMessage)
     {
         swoole_php_fatal_error(E_WARNING, "cannot use the upgrade method, must first register the onMessage event callback.");
