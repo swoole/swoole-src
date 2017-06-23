@@ -34,6 +34,8 @@ static PHP_METHOD(swoole_mysql, query);
 static PHP_METHOD(swoole_mysql, begin);
 static PHP_METHOD(swoole_mysql, commit);
 static PHP_METHOD(swoole_mysql, rollback);
+static PHP_METHOD(swoole_mysql, prepare);
+static PHP_METHOD(swoole_mysql, execute);
 static PHP_METHOD(swoole_mysql, close);
 static PHP_METHOD(swoole_mysql, on);
 
@@ -284,6 +286,16 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_rollback, 0, 0, 1)
     ZEND_ARG_INFO(0, callback)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_prepare, 0, 0, 2)
+    ZEND_ARG_INFO(0, query)
+    ZEND_ARG_INFO(0, callback)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_execute, 0, 0, 2)
+    ZEND_ARG_INFO(0, query)
+    ZEND_ARG_INFO(0, callback)
+ZEND_END_ARG_INFO()
+
 #ifdef SW_USE_MYSQLND
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_escape, 0, 0, 1)
     ZEND_ARG_INFO(0, string)
@@ -292,7 +304,7 @@ ZEND_END_ARG_INFO()
 #endif
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_query, 0, 0, 2)
-    ZEND_ARG_INFO(0, sql)
+    ZEND_ARG_INFO(0, query)
     ZEND_ARG_INFO(0, callback)
 ZEND_END_ARG_INFO()
 
@@ -304,6 +316,8 @@ static const zend_function_entry swoole_mysql_methods[] =
     PHP_ME(swoole_mysql, begin, arginfo_swoole_mysql_begin, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_mysql, commit, arginfo_swoole_mysql_commit, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_mysql, rollback, arginfo_swoole_mysql_rollback, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_mysql, prepare, arginfo_swoole_mysql_prepare, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_mysql, execute, arginfo_swoole_mysql_execute, ZEND_ACC_PUBLIC)
 #ifdef SW_USE_MYSQLND
     PHP_ME(swoole_mysql, escape, arginfo_swoole_mysql_escape, ZEND_ACC_PUBLIC)
 #endif
@@ -313,8 +327,11 @@ static const zend_function_entry swoole_mysql_methods[] =
     PHP_FE_END
 };
 
-static int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callback TSRMLS_DC);
-static int mysql_request(swString *sql, swString *buffer);
+static int mysql_request(zval *zobject, mysql_client *client, swString *sql, zval *callback TSRMLS_DC);
+static int mysql_query(swString *sql, swString *buffer);
+static int mysql_response(mysql_client *client);
+static int mysql_execute(zval *zobject, mysql_client *client, zval *params, zval *callback);
+static int mysql_prepare(swString *sql, swString *buffer);
 static int mysql_handshake(mysql_connector *connector, char *buf, int len);
 static int mysql_get_result(mysql_connector *connector, char *buf, int len);
 static int mysql_get_charset(char *name);
@@ -354,13 +371,24 @@ void swoole_mysql_init(int module_number TSRMLS_DC)
     SWOOLE_CLASS_ALIAS(swoole_mysql_exception, "Swoole\\MySQL\\Exception");
 }
 
-static int mysql_request(swString *sql, swString *buffer)
+static int mysql_query(swString *sql, swString *buffer)
 {
     bzero(buffer->str, 5);
     //length
     mysql_pack_length(sql->length + 1, buffer->str);
     //command
     buffer->str[4] = SW_MYSQL_COM_QUERY;
+    buffer->length = 5;
+    return swString_append(buffer, sql);
+}
+
+static int mysql_prepare(swString *sql, swString *buffer)
+{
+    bzero(buffer->str, 5);
+    //length
+    mysql_pack_length(sql->length + 1, buffer->str);
+    //command
+    buffer->str[4] = SW_MYSQL_COM_STMT_PREPARE;
     buffer->length = 5;
     return swString_append(buffer, sql);
 }
@@ -728,7 +756,7 @@ static int mysql_response(mysql_client *client)
     return SW_OK;
 }
 
-static int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callback TSRMLS_DC)
+static int mysql_execute(zval *zobject, mysql_client *client, zval *params, zval *callback)
 {
     if (!client->cli)
     {
@@ -747,9 +775,144 @@ static int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval 
 
     swString_clear(mysql_request_buffer);
 
-    if (mysql_request(sql, mysql_request_buffer) < 0)
+    bzero(mysql_request_buffer->str, 5);
+    //command
+    mysql_request_buffer->str[4] = SW_MYSQL_COM_STMT_EXECUTE;
+    mysql_request_buffer->length = 5;
+    char *p = mysql_request_buffer->str;
+    p += 5;
+
+    // stmt.id
+    mysql_int4store(p, 1);
+    p += 4;
+    // flags = CURSOR_TYPE_NO_CURSOR
+    mysql_int1store(p, 0);
+    p += 1;
+    // iteration_count
+    mysql_int4store(p, 1);
+    p += 4;
+
+    mysql_request_buffer->length += 9;
+
+    //null bitmap
+    unsigned int null_count = (Z_ARRVAL_P(params)->nNumOfElements + 7) / 8;
+    memset(p, 0, null_count);
+    p += null_count;
+    mysql_request_buffer->length += null_count;
+
+    //rebind
+    mysql_int1store(p, 1);
+    p += 1;
+    mysql_request_buffer->length += 1;
+
+    zval *value;
+    SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(params), value)
+        if (Z_TYPE_P(value) == IS_LONG)
+        {
+            mysql_int2store(p, SW_MYSQL_TYPE_LONGLONG);
+            p += 2;
+        }
+        else if (Z_TYPE_P(value) == IS_STRING)
+        {
+            mysql_int2store(p, SW_MYSQL_TYPE_VAR_STRING);
+            p += 2;
+        }
+        else
+        {
+            swoole_php_fatal_error(E_WARNING, "unknown data type.");
+            return SW_ERR;
+        }
+    SW_HASHTABLE_FOREACH_END();
+
+    mysql_request_buffer->length += Z_ARRVAL_P(params)->nNumOfElements * 2;
+
+    long lval;
+    char buf[10];
+
+    SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(params), value)
+        if (Z_TYPE_P(value) == IS_LONG)
+        {
+            lval = 0;
+            mysql_int8store(&lval, Z_LVAL_P(value));
+            if (swString_append_ptr(mysql_request_buffer, (char*) &lval, sizeof(lval)) < 0)
+            {
+                return SW_ERR;
+            }
+        }
+        else if (Z_TYPE_P(value) == IS_STRING)
+        {
+            lval = mysql_write_lcb(buf, Z_STRLEN_P(value));
+            if (swString_append_ptr(mysql_request_buffer, buf, lval) < 0)
+            {
+                return SW_ERR;
+            }
+            if (swString_append_ptr(mysql_request_buffer, Z_STRVAL_P(value), Z_STRLEN_P(value)) < 0)
+            {
+                return SW_ERR;
+            }
+        }
+        else
+        {
+            swoole_php_fatal_error(E_WARNING, "unknown data type.");
+            return SW_ERR;
+        }
+    SW_HASHTABLE_FOREACH_END();
+
+    //length
+    mysql_pack_length(mysql_request_buffer->length - 4, mysql_request_buffer->str);
+
+    //send data
+    if (SwooleG.main_reactor->write(SwooleG.main_reactor, client->fd, mysql_request_buffer->str, mysql_request_buffer->length) < 0)
     {
+        //connection is closed
+        if (swConnection_error(errno) == SW_CLOSE)
+        {
+            zend_update_property_bool(swoole_mysql_class_entry_ptr, zobject, ZEND_STRL("connected"), 0 TSRMLS_CC);
+            zend_update_property_bool(swoole_mysql_class_entry_ptr, zobject, ZEND_STRL("errno"), 2006 TSRMLS_CC);
+        }
         return SW_ERR;
+    }
+    else
+    {
+        client->state = SW_MYSQL_STATE_READ_START;
+        return SW_OK;
+    }
+
+    return SW_OK;
+}
+
+static int mysql_request(zval *zobject, mysql_client *client, swString *sql, zval *callback TSRMLS_DC)
+{
+    if (!client->cli)
+    {
+        swoole_php_fatal_error(E_WARNING, "mysql connection#%d is closed.", client->fd);
+        return SW_ERR;
+    }
+
+    if (client->state != SW_MYSQL_STATE_QUERY)
+    {
+        swoole_php_fatal_error(E_WARNING, "mysql client is waiting response, cannot send new sql query.");
+        return SW_ERR;
+    }
+
+    sw_zval_add_ref(&callback);
+    client->callback = sw_zval_dup(callback);
+
+    swString_clear(mysql_request_buffer);
+
+    if (client->prepare)
+    {
+        if (mysql_prepare(sql, mysql_request_buffer) < 0)
+        {
+            return SW_ERR;
+        }
+    }
+    else
+    {
+        if (mysql_query(sql, mysql_request_buffer) < 0)
+        {
+            return SW_ERR;
+        }
     }
     //send query
     if (SwooleG.main_reactor->write(SwooleG.main_reactor, client->fd, mysql_request_buffer->str, mysql_request_buffer->length) < 0)
@@ -1021,7 +1184,7 @@ static PHP_METHOD(swoole_mysql, query)
         RETURN_FALSE;
     }
 
-    SW_CHECK_RETURN(mysql_query(getThis(), client, &sql, callback TSRMLS_CC));
+    SW_CHECK_RETURN(mysql_request(getThis(), client, &sql, callback TSRMLS_CC));
 }
 
 static PHP_METHOD(swoole_mysql, begin)
@@ -1052,7 +1215,7 @@ static PHP_METHOD(swoole_mysql, begin)
     swString sql;
     bzero(&sql, sizeof(sql));
     swString_append_ptr(&sql, ZEND_STRL("START TRANSACTION"));
-    if (mysql_query(getThis(), client, &sql, callback TSRMLS_CC) < 0)
+    if (mysql_request(getThis(), client, &sql, callback TSRMLS_CC) < 0)
     {
         RETURN_FALSE;
     }
@@ -1091,7 +1254,7 @@ static PHP_METHOD(swoole_mysql, commit)
     swString sql;
     bzero(&sql, sizeof(sql));
     swString_append_ptr(&sql, ZEND_STRL("COMMIT"));
-    if (mysql_query(getThis(), client, &sql, callback TSRMLS_CC) < 0)
+    if (mysql_request(getThis(), client, &sql, callback TSRMLS_CC) < 0)
     {
         RETURN_FALSE;
     }
@@ -1115,7 +1278,6 @@ static PHP_METHOD(swoole_mysql, rollback)
         RETURN_FALSE;
     }
 
-
     mysql_client *client = swoole_get_object(getThis());
     if (!client)
     {
@@ -1131,13 +1293,75 @@ static PHP_METHOD(swoole_mysql, rollback)
     swString sql;
     bzero(&sql, sizeof(sql));
     swString_append_ptr(&sql, ZEND_STRL("ROLLBACK"));
-    if (mysql_query(getThis(), client, &sql, callback TSRMLS_CC) < 0)
+
+    if (mysql_request(getThis(), client, &sql, callback TSRMLS_CC) < 0)
     {
         RETURN_FALSE;
     }
     else
     {
         client->transaction = 0;
+        RETURN_TRUE;
+    }
+}
+
+static PHP_METHOD(swoole_mysql, prepare)
+{
+    swString sql;
+    bzero(&sql, sizeof(sql));
+    zval *callback;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "sz", &sql.str, &sql.length, &callback) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+    if (sql.length <= 0)
+    {
+        swoole_php_fatal_error(E_WARNING, "Query is empty.");
+        RETURN_FALSE;
+    }
+    if (!php_swoole_is_callable(callback TSRMLS_CC))
+    {
+        RETURN_FALSE;
+    }
+    mysql_client *client = swoole_get_object(getThis());
+    if (!client)
+    {
+        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_mysql.");
+        RETURN_FALSE;
+    }
+    client->prepare = 1;
+    if (mysql_request(getThis(), client, &sql, callback TSRMLS_CC) < 0)
+    {
+        RETURN_FALSE;
+    }
+    else
+    {
+        client->prepare = 0;
+        RETURN_TRUE;
+    }
+}
+
+static PHP_METHOD(swoole_mysql, execute)
+{
+    zval *params;
+    zval *callback;
+    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "az", &params, &callback) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+
+    mysql_client *client = swoole_get_object(getThis());
+    if (!client)
+    {
+        return;
+    }
+    if (mysql_execute(getThis(), client, params, callback TSRMLS_CC) < 0)
+    {
+        RETURN_FALSE;
+    }
+    else
+    {
         RETURN_TRUE;
     }
 }

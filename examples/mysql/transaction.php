@@ -13,16 +13,20 @@ $db->on('close', function() use($db) {
 
 $r = $db->connect($server, function ($db, $result)
 {
+    echo "connect to mysql server sucess\n";
     if ($result === false)
     {
         var_dump($db->connect_errno, $db->connect_error);
         die;
     }
-    echo "connect to mysql server sucess\n";
-    $db->prepare('SELECT id, name FROM userinfo WHERE id=?', function (swoole_mysql $db, $r)
-    {
-        $db->execute(array(1), function ($db, $r){
-            var_dump($r);
+    $db->begin(function( $db, $result) {
+        var_dump($result);
+        $db->query("update userinfo set level = 22 where id = 1", function($db, $result) {
+            var_dump($result, $db);
+            $db->rollback(function($db, $result){
+                echo "commit ok\n";
+                var_dump($result, $db);
+            });
         });
     });
 });
