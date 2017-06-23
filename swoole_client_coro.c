@@ -270,7 +270,7 @@ static void client_onClose(swClient *cli)
     zval *zobject = cli->object;
     if (!cli->released)
     {
-        php_swoole_client_coro_free(zobject, cli TSRMLS_CC);
+        php_swoole_client_free(zobject, cli TSRMLS_CC);
     }
     client_execute_callback(zobject, SW_CLIENT_CB_onClose);
 #if PHP_MAJOR_VERSION < 7
@@ -290,7 +290,7 @@ static void client_onError(swClient *cli)
     zend_update_property_long(swoole_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error TSRMLS_CC);
     if (!cli->released)
     {
-        php_swoole_client_coro_free(zobject, cli TSRMLS_CC);
+        php_swoole_client_free(zobject, cli TSRMLS_CC);
     }
     client_execute_callback(zobject, SW_CLIENT_CB_onError);
 }
@@ -453,20 +453,6 @@ void php_swoole_client_coro_check_setting(swClient *cli, zval *zset TSRMLS_DC)
         php_swoole_client_check_ssl_setting(cli, zset TSRMLS_CC);
     }
 #endif
-}
-
-void php_swoole_client_coro_free(zval *zobject, swClient *cli TSRMLS_DC)
-{
-    //socks5 proxy config
-    if (cli->socks5_proxy)
-    {
-        efree(cli->socks5_proxy);
-    }
-    cli->socket->active = 0;
-    swClient_free(cli);
-    efree(cli);
-    //unset object
-    swoole_set_object(zobject, NULL);
 }
 
 swClient* php_swoole_client_coro_new(zval *object, char *host, int host_len, int port)
@@ -664,7 +650,7 @@ static PHP_METHOD(swoole_client_coro, connect)
     zval *zset = sw_zend_read_property(swoole_client_coro_class_entry_ptr, getThis(), ZEND_STRL("setting"), 1 TSRMLS_CC);
     if (zset && !ZVAL_IS_NULL(zset))
     {
-        php_swoole_client_coro_check_setting(cli, zset TSRMLS_CC);
+        php_swoole_client_check_setting(cli, zset TSRMLS_CC);
     }
 
     if (swSocket_is_stream(cli->type))
@@ -1024,7 +1010,7 @@ static PHP_METHOD(swoole_client_coro, close)
     swoole_client_coro_property *ccp = swoole_get_property(getThis(), 1);
     ccp->iowait = SW_CLIENT_CORO_STATUS_CLOSED;
     cli->released = 1;
-    php_swoole_client_coro_free(getThis(), cli TSRMLS_CC);
+    php_swoole_client_free(getThis(), cli TSRMLS_CC);
 
     RETURN_TRUE;
 }
