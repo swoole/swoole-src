@@ -480,11 +480,6 @@ static PHP_METHOD(swoole_websocket_server, pack)
         RETURN_FALSE;
     }
 
-    if (length <= 0)
-    {
-        swoole_php_fatal_error(E_WARNING, "data is empty.");
-    }
-
     if (swoole_http_buffer == NULL)
     {
         swoole_http_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
