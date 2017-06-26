@@ -1023,7 +1023,7 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
 
         zval *zname;
         zval *ztype;
-        zval *zsize;
+        zval *zsize = NULL;
         zval *zpath;
         zval *zfilename;
         zval *zoffset;
