@@ -21,6 +21,10 @@
 #include "config.h"
 #endif
 
+#ifdef SW_STATIC_COMPILATION
+#include "php_config.h"
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif

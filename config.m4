@@ -41,6 +41,9 @@ PHP_ARG_ENABLE(hugepage, enable hugepage support,
 PHP_ARG_ENABLE(swoole, swoole support,
 [  --enable-swoole         Enable swoole support], [enable_swoole="yes"])
 
+PHP_ARG_ENABLE(swoole_static, swoole static compile support,
+[  --enable-swoole-static    Enable swoole static compile support], no, no)
+
 PHP_ARG_WITH(swoole, swoole support,
 [  --with-swoole           With swoole support])
 
@@ -137,23 +140,10 @@ AC_COMPILE_IFELSE([
 )
 AC_MSG_RESULT([$CLANG])
 
-AC_MSG_CHECKING([if compiling with low version gcc.])
-AC_COMPILE_IFELSE([
-    AC_LANG_PROGRAM([], [[
-        #if defined(__GNUC__) && ((__GNUC__ <= 4 && __GNUC_MINOR__ < 8))
-        #error "low version gcc."
-        #endif
-    ]])],
-    [GCC_LOW_VERSION=no], [GCC_LOW_VERSION=yes]
-)
-AC_MSG_RESULT([$GCC_LOW_VERSION])
-
-if test "$GCC_LOW_VERSION" = "yes"; then
-    CFLAGS="$CFLAGS -fno-strict-aliasing"
-fi
-
 if test "$CLANG" = "yes"; then
-    CFLAGS="$CFLAGS -std=gnu89"
+    CFLAGS="$CFLAGS -std=gnu89 -fsanitize=bounds -fsanitize-undefined-trap-on-error"
+else
+	CFLAGS="$CFLAGS -fbounds-check"
 fi
 
 if test "$PHP_SWOOLE" != "no"; then
@@ -198,7 +188,7 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_SWOOLE_CPU_AFFINITY
     AC_SWOOLE_HAVE_REUSEPORT
 
-    CFLAGS="-Wall -pthread $CFLAGS"
+    CFLAGS="-Wall -fstack-check -fstack-protector -fstack-protector-all -pthread $CFLAGS"
     LDFLAGS="$LDFLAGS -lpthread"
 
     if test `uname` = "Darwin"; then
@@ -359,8 +349,13 @@ if test "$PHP_SWOOLE" != "no"; then
         src/protocol/Redis.c \
         src/protocol/Base64.c"
 
-    swoole_source_file="$swoole_source_file thirdparty/php_http_parser.c"
-    swoole_source_file="$swoole_source_file thirdparty/multipart_parser.c"
+	if test "$PHP_SWOOLE_STATIC" = "no"; then
+		swoole_source_file="$swoole_source_file thirdparty/php_http_parser.c"
+	else
+		CFLAGS="$CFLAGS -DSW_STATIC_COMPILATION"
+	fi
+
+	swoole_source_file="$swoole_source_file thirdparty/multipart_parser.c"
 
     if test "$PHP_PICOHTTPPARSER" = "yes"; then
         AC_DEFINE(SW_USE_PICOHTTPPARSER, 1, [enable picohttpparser support])
