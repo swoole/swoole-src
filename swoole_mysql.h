@@ -257,7 +257,6 @@ typedef struct
     zval *onClose;
     int fd;
     uint32_t transaction :1;
-    uint32_t prepare :1;
 
     mysql_connector connector;
 
@@ -287,69 +286,11 @@ typedef struct
                                     (((uint32_t) ((zend_uchar) (A)[6])) << 16) +\
                                     (((uint32_t) ((zend_uchar) (A)[7])) << 24))) << 32))
 
-#define mysql_int1store(T,A)  do { *((int8_t*) (T)) = (A); } while(0)
-#define mysql_int2store(T,A)  do { uint32_t def_temp= (uint32_t) (A) ;\
-                  *((zend_uchar*) (T))  =  (zend_uchar)(def_temp); \
-                  *((zend_uchar*) (T+1)) = (zend_uchar)((def_temp >> 8)); } while (0)
-#define mysql_int3store(T,A)  do { /*lint -save -e734 */\
-                  *(((char *)(T)))   = (char) ((A));\
-                  *(((char *)(T))+1) = (char) (((A) >> 8));\
-                  *(((char *)(T))+2) = (char) (((A) >> 16)); \
-                  /*lint -restore */} while (0)
-#define mysql_int4store(T,A)  do { \
-                  *(((char *)(T)))   = (char) ((A));\
-                  *(((char *)(T))+1) = (char) (((A) >> 8));\
-                  *(((char *)(T))+2) = (char) (((A) >> 16));\
-                  *(((char *)(T))+3) = (char) (((A) >> 24)); } while (0)
-#define mysql_int5store(T,A)  do { \
-                  *(((char *)(T)))   = (char)((A));\
-                  *(((char *)(T))+1) = (char)(((A) >> 8));\
-                  *(((char *)(T))+2) = (char)(((A) >> 16));\
-                  *(((char *)(T))+3) = (char)(((A) >> 24)); \
-                  *(((char *)(T))+4) = (char)(((A) >> 32)); } while (0)
-/* Based on int5store() from Andrey Hristov */
-#define mysql_int6store(T,A)  do { \
-                  *(((char *)(T)))   = (char)((A));\
-                  *(((char *)(T))+1) = (char)(((A) >> 8));\
-                  *(((char *)(T))+2) = (char)(((A) >> 16));\
-                  *(((char *)(T))+3) = (char)(((A) >> 24)); \
-                  *(((char *)(T))+4) = (char)(((A) >> 32)); \
-                  *(((char *)(T))+5) = (char)(((A) >> 40)); } while (0)
-#define mysql_int8store(T,A)        { uint32_t def_temp= (uint32_t) (A), def_temp2= (uint32_t) ((A) >> 32); \
-        mysql_int4store((T),def_temp); \
-        mysql_int4store((T+4),def_temp2); \
-}
-
 static sw_inline void mysql_pack_length(int length, char *buf)
 {
     buf[2] = length >> 16;
     buf[1] = length >> 8;
     buf[0] = length;
-}
-
-static sw_inline int mysql_write_lcb(char *p, long val)
-{
-    if (val <= 250)
-    {
-        mysql_int1store(p, val);
-        return 1;
-    }
-    else if (val <= 0xffff)
-    {
-        mysql_int2store(p, val);
-        return 2;
-    }
-    else if (val <= 0xffffff)
-    {
-        mysql_int3store(p, val);
-        return 3;
-    }
-    else
-    {
-        mysql_int1store(p, 254);
-        mysql_int8store(p, val);
-        return 9;
-    }
 }
 
 static sw_inline int mysql_lcb_ll(char *m, ulong_t *r, char *nul, int len)

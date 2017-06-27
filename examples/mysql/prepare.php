@@ -1,28 +1,14 @@
 <?php
-$db = new swoole_mysql;
-$server = array(
-    'host' => '127.0.0.1',
-    'user' => 'root',
-    'password' => 'root',
-    'database' => 'test',
-);
+$db = new mysqli('127.0.0.1', 'root', 'root', 'test');
 
-$db->on('close', function() use($db) {
-    echo "mysql is closed.\n";
-});
+$stmt = $db->prepare("SELECT id, name FROM userinfo WHERE id=?");
+var_dump($stmt);
+$id = 1;
+$stmt->bind_param('i', $id);
+$stmt->execute();
 
-$r = $db->connect($server, function ($db, $result)
-{
-    if ($result === false)
-    {
-        var_dump($db->connect_errno, $db->connect_error);
-        die;
-    }
-    echo "connect to mysql server sucess\n";
-    $db->prepare('SELECT id, name FROM userinfo WHERE id=?', function (swoole_mysql $db, $r)
-    {
-        $db->execute(array(1), function ($db, $r){
-            var_dump($r);
-        });
-    });
-});
+$stmt->bind_result($id, $name);
+$stmt->fetch();
+
+var_dump($id, $name);
+$stmt->close();
