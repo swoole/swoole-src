@@ -163,8 +163,7 @@ static int swDNSResolver_onReceive(swReactor *reactor, swEvent *event)
     int ancount = ntohs(header->ancount);
     if (ancount > 10)
     {
-        swWarn("error dns response packet.");
-        return SW_ERR;
+        ancount = 10;
     }
     /* Parsing the RRs from the reply packet */
     for (i = 0; i < ancount; ++i)
