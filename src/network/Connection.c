@@ -250,6 +250,7 @@ int swConnection_sendfile(swConnection *conn, char *filename, off_t offset, size
     if (offset < 0 || (length + offset > file_stat.st_size))
     {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "length or offset is invalid.");
+        error_chunk.store.ptr = task;
         swConnection_sendfile_destructor(&error_chunk);
         return SW_OK;
     }
