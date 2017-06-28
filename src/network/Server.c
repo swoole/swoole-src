@@ -17,6 +17,7 @@
 #include "Server.h"
 #include "http.h"
 #include "Connection.h"
+#include <sys/stat.h>
 
 #if SW_REACTOR_SCHEDULE == 3
 static sw_inline void swServer_reactor_schedule(swServer *serv)
@@ -40,8 +41,10 @@ static void swServer_signal_hanlder(int sig);
 static int swServer_start_proxy(swServer *serv);
 static void swServer_disable_accept(swReactor *reactor);
 
+#ifndef SW_USE_TIMEWHEEL
 static void swHeartbeatThread_start(swServer *serv);
 static void swHeartbeatThread_loop(swThreadParam *param);
+#endif
 
 static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, int fd, int from_fd, int reactor_id);
 
@@ -107,7 +110,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
     socklen_t client_addrlen = sizeof(client_addr);
     swListenPort *listen_host = serv->connection_list[event->fd].object;
 
-    int new_fd = 0, ret = 0, reactor_id = 0, i;
+    int new_fd = 0, reactor_id = 0, i;
 
     //SW_ACCEPT_AGAIN
     for (i = 0; i < SW_ACCEPT_MAX_COUNT; i++)
@@ -185,33 +188,8 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
         /*
          * [!!!] new_connection function must before reactor->add
          */
-        if (serv->factory_mode != SW_MODE_SINGLE)
-        {
-            int events;
-            if (serv->onConnect && !listen_host->ssl)
-            {
-                conn->connect_notify = 1;
-                events = SW_EVENT_WRITE;
-            }
-            else
-            {
-                events = SW_EVENT_READ;
-            }
-            ret = sub_reactor->add(sub_reactor, new_fd, SW_FD_TCP | events);
-        }
-        else
-        {
-            if (!serv->enable_delay_receive)
-            {
-                ret = sub_reactor->add(sub_reactor, new_fd, SW_FD_TCP | SW_EVENT_READ);
-            }
-            if (ret >= 0 && serv->onConnect && !listen_host->ssl)
-            {
-                swServer_tcp_notify(serv, conn, SW_EVENT_CONNECT);
-            }
-        }
-
-        if (ret < 0)
+        conn->connect_notify = 1;
+        if (sub_reactor->add(sub_reactor, new_fd, SW_FD_TCP | SW_EVENT_WRITE) < 0)
         {
             bzero(conn, sizeof(swConnection));
             close(new_fd);
@@ -351,6 +329,7 @@ static int swServer_start_proxy(swServer *serv)
         return SW_ERR;
     }
 
+#ifndef SW_USE_TIMEWHEEL
     /**
      * heartbeat thread
      */
@@ -359,6 +338,7 @@ static int swServer_start_proxy(swServer *serv)
         swTrace("hb timer start, time: %d live time:%d", serv->heartbeat_check_interval, serv->heartbeat_idle_time);
         swHeartbeatThread_start(serv);
     }
+#endif
 
     /**
      * master thread loop
@@ -985,8 +965,14 @@ int swServer_tcp_notify(swServer *serv, swConnection *conn, int event)
     return serv->factory.notify(&serv->factory, &notify_event);
 }
 
-int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename, uint32_t len, off_t offset)
+int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename, uint32_t filename_length, off_t offset, size_t length)
 {
+    if (session_id <= 0 || session_id > SW_MAX_SOCKET_ID)
+    {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_INVALID_ID, "invalid fd[%d].", session_id);
+        return SW_ERR;
+    }
+
 #ifdef SW_USE_OPENSSL
     swConnection *conn = swServer_connection_verify(serv, session_id);
     if (conn && conn->ssl)
@@ -996,25 +982,40 @@ int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename, uint32
     }
 #endif
 
-    swSendData send_data;
-    char buffer[SW_BUFFER_SIZE];
-
-    //file name size
-    if (len > SW_BUFFER_SIZE - sizeof(offset) - 1)
+    struct stat file_stat;
+    if (stat(filename, &file_stat) < 0)
     {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_NAME_TOO_LONG, "sendfile name too long. [MAX_LENGTH=%d]",
-                (int) SW_BUFFER_SIZE - 1);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "stat(%s) failed.", filename);
+        return SW_ERR;
+    }
+    if (file_stat.st_size <= offset)
+    {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "file[offset=%ld] is empty.", offset);
         return SW_ERR;
     }
 
+    swSendData send_data;
+    char _buffer[SW_BUFFER_SIZE];
+    swSendFile_request *req = (swSendFile_request*) _buffer;
+
+    //file name size
+    if (filename_length > SW_BUFFER_SIZE - sizeof(swSendFile_request) - 1)
+    {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_NAME_TOO_LONG, "sendfile name too long. [MAX_LENGTH=%d]",
+                (int) (SW_BUFFER_SIZE - sizeof(swSendFile_request) - 1));
+        return SW_ERR;
+    }
+
+    req->offset = offset;
+    req->length = length;
+    strncpy(req->filename, filename, filename_length);
+    req->filename[filename_length] = 0;
+
     send_data.info.fd = session_id;
     send_data.info.type = SW_EVENT_SENDFILE;
-    memcpy(buffer, &offset, sizeof(off_t));
-    memcpy(buffer + sizeof(off_t), filename, len);
-    buffer[sizeof(off_t) + len] = 0;
-    send_data.info.len = sizeof(off_t) + len + 1;
+    send_data.info.len = sizeof(swSendFile_request) + filename_length + 1;
     send_data.length = 0;
-    send_data.data = buffer;
+    send_data.data = _buffer;
 
     return serv->factory.finish(&serv->factory, &send_data);
 }
@@ -1438,6 +1439,7 @@ static void swServer_signal_hanlder(int sig)
     }
 }
 
+#ifndef SW_USE_TIMEWHEEL
 static void swHeartbeatThread_start(swServer *serv)
 {
     swThreadParam *param;
@@ -1529,6 +1531,7 @@ static void swHeartbeatThread_loop(swThreadParam *param)
     }
     pthread_exit(0);
 }
+#endif
 
 /**
  * new connection
@@ -1591,7 +1594,7 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
     for (i = 0; i < serv->max_connection; i++)
     {
         session_id = SwooleGS->session_round++;
-        if (session_id == 0)
+        if (unlikely(session_id == 0))
         {
             session_id = 1;
             SwooleGS->session_round = 1;

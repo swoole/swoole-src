@@ -171,6 +171,10 @@ static void php_swoole_dns_callback(char *domain, swDNSResolver_result *result, 
         swoole_php_fatal_error(E_WARNING, "swoole_asyns_dns_lookup handler error.");
         return;
     }
+    if (EG(exception))
+    {
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+    }
 
     sw_zval_ptr_dtor(&req->callback);
     sw_zval_ptr_dtor(&req->domain);
@@ -304,6 +308,10 @@ static void php_swoole_aio_onComplete(swAio_event *event)
         {
             swoole_php_fatal_error(E_WARNING, "swoole_async: onAsyncComplete handler error");
             return;
+        }
+        if (EG(exception))
+        {
+            zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
         }
     }
 
@@ -784,7 +792,7 @@ PHP_FUNCTION(swoole_async_set)
     if (php_swoole_array_get_value(vht, "dns_server", v))
     {
         convert_to_string(v);
-        SwooleG.dns_server_v4 = strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
+        SwooleG.dns_server_v4 = sw_strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
     }
     if (php_swoole_array_get_value(vht, "use_async_resolver", v))
     {

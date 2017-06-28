@@ -95,5 +95,6 @@ int swMutex_lockwait(swLock *lock, int timeout_msec)
 
 static int swMutex_free(swLock *lock)
 {
+    pthread_mutexattr_destroy(&lock->object.mutex.attr);
     return pthread_mutex_destroy(&lock->object.mutex._lock);
 }

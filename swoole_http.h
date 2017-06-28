@@ -48,7 +48,6 @@ typedef struct
     swString *post_buffer;
     uint32_t post_length;
 
-    zval *zdata;
     zval *zobject;
     zval *zserver;
     zval *zheader;
@@ -59,7 +58,6 @@ typedef struct
     zval *zfiles;
     zval *ztmpfiles;
 #if PHP_MAJOR_VERSION >= 7
-    zval _zdata;
     zval _zobject;
     zval _zrequest;
     zval _zserver;
@@ -99,6 +97,7 @@ typedef struct
     uint32_t chunk :1;
     uint32_t keepalive :1;
     uint32_t http2 :1;
+    uint32_t upgrade :1;
 
     uint32_t request_read :1;
     uint32_t current_header_name_allocated :1;

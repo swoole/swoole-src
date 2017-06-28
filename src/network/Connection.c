@@ -25,8 +25,6 @@
 #define MSG_NOSIGNAL        0
 #endif
 
-static char *str_ptr = NULL;
-
 int swConnection_onSendfile(swConnection *conn, swBuffer_trunk *chunk)
 {
     int ret;
@@ -56,9 +54,9 @@ int swConnection_onSendfile(swConnection *conn, swBuffer_trunk *chunk)
     }
 #endif
 
-    int sendn = (task->filesize - task->offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : task->filesize - task->offset;
+    int sendn = (task->length - task->offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : task->length - task->offset;
     ret = swoole_sendfile(conn->fd, task->fd, &task->offset, sendn);
-    swTrace("ret=%d|task->offset=%ld|sendn=%d|filesize=%ld", ret, task->offset, sendn, task->filesize);
+    swTrace("ret=%d|task->offset=%ld|sendn=%d|filesize=%ld", ret, task->offset, sendn, task->length);
 
     if (ret <= 0)
     {
@@ -77,7 +75,7 @@ int swConnection_onSendfile(swConnection *conn, swBuffer_trunk *chunk)
     }
 
     //sendfile finish
-    if (task->offset >= task->filesize)
+    if (task->offset >= task->length)
     {
         swBuffer_pop_trunk(conn->out_buffer, chunk);
 
@@ -171,28 +169,21 @@ swString* swConnection_get_string_buffer(swConnection *conn)
     }
 }
 
+static char tmp_address[INET6_ADDRSTRLEN];
+
 char* swConnection_get_ip(swConnection *conn)
 {
     if (conn->socket_type == SW_SOCK_TCP)
     {
         return inet_ntoa(conn->info.addr.inet_v4.sin_addr);
     }
+    if (inet_ntop(AF_INET6, &conn->info.addr.inet_v6.sin6_addr, tmp_address, sizeof(tmp_address)) == NULL)
+    {
+        return NULL;
+    }
     else
     {
-        if (str_ptr)
-        {
-            free(str_ptr);
-        }
-        char tmp[INET6_ADDRSTRLEN];
-        if (inet_ntop(AF_INET6, &conn->info.addr.inet_v6.sin6_addr, tmp, sizeof(tmp)) == NULL)
-        {
-            return NULL;
-        }
-        else
-        {
-            str_ptr = strdup(tmp);
-            return str_ptr;
-        }
+        return tmp_address;
     }
 }
 
@@ -212,11 +203,11 @@ void swConnection_sendfile_destructor(swBuffer_trunk *chunk)
 {
     swTask_sendfile *task = chunk->store.ptr;
     close(task->fd);
-    sw_strdup_free(task->filename);
+    sw_free(task->filename);
     sw_free(task);
 }
 
-int swConnection_sendfile(swConnection *conn, char *filename, off_t offset)
+int swConnection_sendfile(swConnection *conn, char *filename, off_t offset, size_t length)
 {
     if (conn->out_buffer == NULL)
     {
@@ -236,14 +227,14 @@ int swConnection_sendfile(swConnection *conn, char *filename, off_t offset)
     }
     bzero(task, sizeof(swTask_sendfile));
 
-    task->filename = strdup(filename);
+    task->filename = sw_strdup(filename);
     int file_fd = open(filename, O_RDONLY);
     if (file_fd < 0)
     {
-        sw_strdup_free(task->filename);
-        free(task);
+        sw_free(task->filename);
+        sw_free(task);
         swSysError("open(%s) failed.", filename);
-        return SW_ERR;
+        return SW_OK;
     }
     task->fd = file_fd;
     task->offset = offset;
@@ -256,7 +247,20 @@ int swConnection_sendfile(swConnection *conn, char *filename, off_t offset)
         swConnection_sendfile_destructor(&error_chunk);
         return SW_ERR;
     }
-    task->filesize = file_stat.st_size;
+    if (offset < 0 || (length + offset > file_stat.st_size))
+    {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "length or offset is invalid.");
+        swConnection_sendfile_destructor(&error_chunk);
+        return SW_OK;
+    }
+    if (length == 0)
+    {
+        task->length = file_stat.st_size;
+    }
+    else
+    {
+        task->length = length + offset;
+    }
 
     swBuffer_trunk *chunk = swBuffer_new_trunk(conn->out_buffer, SW_CHUNK_SENDFILE, 0);
     if (chunk == NULL)

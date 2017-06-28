@@ -115,11 +115,11 @@ static int swDNSResolver_get_server()
 
     if (strlen(buf) == 0)
     {
-        SwooleG.dns_server_v4 = strdup(SW_DNS_DEFAULT_SERVER);
+        SwooleG.dns_server_v4 = sw_strdup(SW_DNS_DEFAULT_SERVER);
     }
     else
     {
-        SwooleG.dns_server_v4 = strdup(buf);
+        SwooleG.dns_server_v4 = sw_strdup(buf);
     }
 
     return SW_OK;
@@ -149,7 +149,7 @@ static int swDNSResolver_onReceive(swReactor *reactor, swEvent *event)
     }
 
     packet[ret] = 0;
-    header = (swDNSResolver_header *) &packet;
+    header = (swDNSResolver_header *) packet;
     steps = sizeof(swDNSResolver_header);
 
     _domain_name = &packet[steps];
@@ -160,8 +160,9 @@ static int swDNSResolver_onReceive(swReactor *reactor, swEvent *event)
     (void) qflags;
     steps = steps + sizeof(Q_FLAGS);
 
+    int ancount = ntohs(header->ancount);
     /* Parsing the RRs from the reply packet */
-    for (i = 0; i < ntohs(header->ancount); ++i)
+    for (i = 0; i < ancount; ++i)
     {
         /* Parsing the NAME portion of the RR */
         temp = &packet[steps];
@@ -227,8 +228,8 @@ static int swDNSResolver_onReceive(swReactor *reactor, swEvent *event)
 
     char key[1024];
     int request_id = ntohs(header->id);
-    int n = snprintf(key, sizeof(key), "%s-%d", _domain_name, request_id);
-    swDNS_lookup_request *request = swHashMap_find(request_map, key, n);
+    int key_len = snprintf(key, sizeof(key), "%s-%d", _domain_name, request_id);
+    swDNS_lookup_request *request = swHashMap_find(request_map, key, key_len);
     if (request == NULL)
     {
         swWarn("bad response, request_id=%d.", request_id);
@@ -254,8 +255,8 @@ static int swDNSResolver_onReceive(swReactor *reactor, swEvent *event)
     }
 
     request->callback(request->domain, &result, request->data);
-    swHashMap_del_int(request_map, request_id);
-    sw_strdup_free(request->domain);
+    swHashMap_del(request_map, key, key_len);
+    sw_free(request->domain);
     sw_free(request);
 
     return SW_OK;
@@ -321,7 +322,7 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
         swWarn("malloc(%d) failed.", (int ) sizeof(swDNS_lookup_request));
         return SW_ERR;
     }
-    request->domain = strndup(domain, len + 1);
+    request->domain = sw_strndup(domain, len + 1);
     if (request->domain == NULL)
     {
         swWarn("strdup(%d) failed.", len + 1);
@@ -334,7 +335,7 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
     if (domain_encode(request->domain, len, _domain_name) < 0)
     {
         swWarn("invalid domain[%s].", domain);
-        sw_strdup_free(request->domain);
+        sw_free(request->domain);
         sw_free(request);
         return SW_ERR;
     }
@@ -351,7 +352,7 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
         resolver_socket = sw_malloc(sizeof(swClient));
         if (resolver_socket == NULL)
         {
-            sw_strdup_free(request->domain);
+            sw_free(request->domain);
             sw_free(request);
             swWarn("malloc failed.");
             return SW_ERR;
@@ -359,7 +360,7 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
         if (swClient_create(resolver_socket, SW_SOCK_UDP, 0) < 0)
         {
             sw_free(resolver_socket);
-            sw_strdup_free(request->domain);
+            sw_free(request->domain);
             sw_free(request);
             return SW_ERR;
         }
@@ -368,7 +369,7 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
             do_close: resolver_socket->close(resolver_socket);
             swClient_free(resolver_socket);
             sw_free(resolver_socket);
-            sw_strdup_free(request->domain);
+            sw_free(request->domain);
             sw_free(request);
             return SW_ERR;
         }

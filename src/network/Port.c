@@ -55,18 +55,20 @@ void swPort_init(swListenPort *port)
 #ifdef SW_USE_OPENSSL
 int swPort_enable_ssl_encrypt(swListenPort *ls)
 {
-    if (ls->ssl_cert_file == NULL || ls->ssl_key_file == NULL)
+    if (ls->ssl_option.cert_file == NULL || ls->ssl_option.key_file == NULL)
     {
         swWarn("SSL error, require ssl_cert_file and ssl_key_file.");
         return SW_ERR;
     }
-    ls->ssl_context = swSSL_get_context(ls->ssl_method, ls->ssl_cert_file, ls->ssl_key_file);
+    ls->ssl_context = swSSL_get_context(&ls->ssl_option);
     if (ls->ssl_context == NULL)
     {
         swWarn("swSSL_get_context() error.");
         return SW_ERR;
     }
-    if (ls->ssl_client_cert_file && swSSL_set_client_certificate(ls->ssl_context, ls->ssl_client_cert_file, ls->ssl_verify_depth) == SW_ERR)
+    if (ls->ssl_option.client_cert_file
+            && swSSL_set_client_certificate(ls->ssl_context, ls->ssl_option.client_cert_file,
+                    ls->ssl_option.verify_depth) == SW_ERR)
     {
         swWarn("swSSL_set_client_certificate() error.");
         return SW_ERR;
@@ -198,6 +200,19 @@ void swPort_set_protocol(swListenPort *ls)
     {
         ls->onRead = swPort_onRead_raw;
     }
+}
+
+void swPort_clear_protocol(swListenPort *ls)
+{
+    ls->open_eof_check = 0;
+    ls->open_length_check = 0;
+    ls->open_http_protocol = 0;
+    ls->open_websocket_protocol = 0;
+#ifdef SW_USE_HTTP2
+    ls->open_http2_protocol = 0;
+#endif
+    ls->open_mqtt_protocol = 0;
+    ls->open_redis_protocol = 0;
 }
 
 static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *event)
@@ -546,11 +561,11 @@ void swPort_free(swListenPort *port)
     if (port->ssl)
     {
         swSSL_free_context(port->ssl_context);
-        sw_strdup_free(port->ssl_cert_file);
-        sw_strdup_free(port->ssl_key_file);
-        if (port->ssl_client_cert_file)
+        sw_free(port->ssl_option.cert_file);
+        sw_free(port->ssl_option.key_file);
+        if (port->ssl_option.client_cert_file)
         {
-            sw_strdup_free(port->ssl_client_cert_file);
+            sw_free(port->ssl_option.client_cert_file);
         }
     }
 #endif

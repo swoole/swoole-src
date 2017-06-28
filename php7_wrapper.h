@@ -47,6 +47,7 @@ static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
 #define SW_ZEND_REGISTER_RESOURCE             ZEND_REGISTER_RESOURCE
 #define SW_MAKE_STD_ZVAL(p)                   MAKE_STD_ZVAL(p)
 #define SW_ALLOC_INIT_ZVAL(p)                 ALLOC_INIT_ZVAL(p)
+#define SW_SEPARATE_ZVAL(p)
 #define SW_ZVAL_STRING                        ZVAL_STRING
 #define SW_RETVAL_STRINGL                     RETVAL_STRINGL
 #define sw_smart_str                          smart_str
@@ -56,6 +57,24 @@ static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
 #define sw_zend_hash_add                      zend_hash_add
 #define sw_zend_hash_index_update             zend_hash_index_update
 #define sw_call_user_function_ex              call_user_function_ex
+
+static sw_inline int sw_call_user_function_fast(zval *function_name, zend_fcall_info_cache *fci_cache, zval **retval_ptr_ptr, uint32_t param_count, zval ***params TSRMLS_DC)
+{
+    zend_fcall_info fci;
+
+    fci.size = sizeof(fci);
+    fci.function_table = EG(function_table);
+    fci.object_ptr = NULL;
+    fci.function_name = function_name;
+    fci.retval_ptr_ptr = retval_ptr_ptr;
+    fci.param_count = param_count;
+    fci.params = params;
+    fci.no_separation = 0;
+    fci.symbol_table = NULL;
+
+    return zend_call_function(&fci, fci_cache TSRMLS_CC);
+}
+
 #define sw_copy_to_stack(a, b)
 #define SWOOLE_GET_TSRMLS                     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL)
 
@@ -253,9 +272,41 @@ static sw_inline int sw_call_user_function_ex(HashTable *function_table, zval** 
     return call_user_function_ex(function_table, object_p, function_name, &phpng_retval, param_count, real_params, no_separation, NULL);
 }
 
+
+static sw_inline int sw_call_user_function_fast(zval *function_name, zend_fcall_info_cache *fci_cache, zval **retval_ptr_ptr, uint32_t param_count, zval ***params)
+{
+    zval real_params[SW_PHP_MAX_PARAMS_NUM];
+    int i = 0;
+    for (; i < param_count; i++)
+    {
+        real_params[i] = **params[i];
+    }
+
+    zval phpng_retval;
+    *retval_ptr_ptr = &phpng_retval;
+
+    zend_fcall_info fci;
+    fci.size = sizeof(fci);
+#if PHP_MINOR_VERSION == 0
+    fci.function_table = EG(function_table);
+    fci.symbol_table = NULL;
+#endif
+    fci.object = NULL;
+    ZVAL_COPY_VALUE(&fci.function_name, function_name);
+    fci.retval = &phpng_retval;
+    fci.param_count = param_count;
+    fci.params = real_params;
+    fci.no_separation = 0;
+
+    return zend_call_function(&fci, fci_cache);
+}
+
 #define sw_php_var_unserialize(rval, p, max, var_hash)  php_var_unserialize(*rval, p, max, var_hash)
 #define SW_MAKE_STD_ZVAL(p)             zval _stack_zval_##p; p = &(_stack_zval_##p)
 #define SW_ALLOC_INIT_ZVAL(p)           do{p = (zval *)emalloc(sizeof(zval)); bzero(p, sizeof(zval));}while(0)
+#define SW_SEPARATE_ZVAL(p)             zval _##p;\
+    memcpy(&_##p, p, sizeof(_##p));\
+    p = &_##p
 #define SW_RETURN_STRINGL(s, l, dup)    do{RETVAL_STRINGL(s, l); if (dup == 0) efree(s);}while(0);return
 #define SW_RETVAL_STRINGL(s, l, dup)    do{RETVAL_STRINGL(s, l); if (dup == 0) efree(s);}while(0)
 #define SW_RETVAL_STRING(s, dup)        do{RETVAL_STRING(s); if (dup == 0) efree(s);}while(0)

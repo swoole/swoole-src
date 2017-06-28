@@ -41,13 +41,18 @@
 #include "config.h"
 #endif
 
+#ifdef SW_STATIC_COMPILATION
+#include "php_config.h"
+#endif
+
 #include "swoole.h"
 #include "Server.h"
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "1.9.9-alpha"
+#define PHP_SWOOLE_VERSION  "1.9.15"
 #define PHP_SWOOLE_CHECK_CALLBACK
+#define PHP_SWOOLE_ENABLE_FASTCALL
 
 /**
  * PHP5.2
@@ -195,6 +200,9 @@ typedef struct
 #if PHP_MAJOR_VERSION >= 7
     zval _callbacks[PHP_SERVER_CALLBACK_NUM];
 #endif
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
+    zend_fcall_info_cache *caches[PHP_SERVER_CALLBACK_NUM];
+#endif
     zval *setting;
 } swoole_server_port_property;
 //---------------------------------------------------------
@@ -226,6 +234,7 @@ extern zend_class_entry *swoole_server_port_class_entry_ptr;
 extern zend_class_entry *swoole_exception_class_entry_ptr;
 
 extern zval *php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
+extern zend_fcall_info_cache *php_sw_server_caches[PHP_SERVER_CALLBACK_NUM];
 #if PHP_MAJOR_VERSION >= 7
 extern zval _php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
 #endif
@@ -323,7 +332,6 @@ PHP_FUNCTION(swoole_timer_clear);
 //---------------------------------------------------------
 //                  other
 //---------------------------------------------------------
-PHP_FUNCTION(swoole_load_module);
 PHP_FUNCTION(swoole_strerror);
 PHP_FUNCTION(swoole_errno);
 //---------------------------------------------------------
@@ -354,7 +362,6 @@ void swoole_http2_client_init(int module_number TSRMLS_DC);
 void swoole_websocket_init(int module_number TSRMLS_DC);
 void swoole_buffer_init(int module_number TSRMLS_DC);
 void swoole_mysql_init(int module_number TSRMLS_DC);
-void swoole_module_init(int module_number TSRMLS_DC);
 void swoole_mmap_init(int module_number TSRMLS_DC);
 void swoole_channel_init(int module_number TSRMLS_DC);
 #if PHP_MAJOR_VERSION == 7
@@ -371,7 +378,7 @@ void php_swoole_register_callback(swServer *serv);
 void php_swoole_client_free(zval *object, swClient *cli TSRMLS_DC);
 swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port);
 void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC);
-zval* php_swoole_websocket_unpack(swString *data TSRMLS_DC);
+void php_swoole_websocket_unpack(swString *data, zval *zframe TSRMLS_DC);
 void php_swoole_sha1(const char *str, int _len, unsigned char *digest);
 int php_swoole_client_isset_callback(zval *zobject, int type TSRMLS_DC);
 
@@ -447,6 +454,47 @@ static sw_inline zval* php_swoole_server_get_callback(swServer *serv, int server
     }
 }
 
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
+static sw_inline zend_fcall_info_cache* php_swoole_server_get_cache(swServer *serv, int server_fd, int event_type)
+{
+    swListenPort *port = (swListenPort *) serv->connection_list[server_fd].object;
+    swoole_server_port_property *property = (swoole_server_port_property *) port->ptr;
+    if (!property)
+    {
+        return php_sw_server_caches[event_type];
+    }
+    zend_fcall_info_cache* cache = property->caches[event_type];
+    if (!cache)
+    {
+        return php_sw_server_caches[event_type];
+    }
+    else
+    {
+        return cache;
+    }
+}
+#endif
+
+static sw_inline int php_swoole_is_callable(zval *callback TSRMLS_DC)
+{
+    if (!callback || ZVAL_IS_NULL(callback))
+    {
+        return SW_FALSE;
+    }
+    char *func_name = NULL;
+    if (sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC) < 0)
+    {
+        swoole_php_fatal_error(E_WARNING, "Function '%s' is not callable", func_name);
+        efree(func_name);
+        return SW_FALSE;
+    }
+    else
+    {
+        efree(func_name);
+        return SW_TRUE;
+    }
+}
+
 #define php_swoole_array_get_value(ht, str, v)     (sw_zend_hash_find(ht, str, sizeof(str), (void **) &v) == SUCCESS && !ZVAL_IS_NULL(v))
 #define php_swoole_array_separate(arr)       zval *_new_##arr;\
     SW_MAKE_STD_ZVAL(_new_##arr);\
@@ -461,7 +509,6 @@ ZEND_BEGIN_MODULE_GLOBALS(swoole)
     zend_bool use_namespace;
     zend_bool fast_serialize;
     long socket_buffer_size;
-    char *modules;
 ZEND_END_MODULE_GLOBALS(swoole)
 
 extern ZEND_DECLARE_MODULE_GLOBALS(swoole);

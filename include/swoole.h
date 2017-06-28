@@ -21,6 +21,10 @@
 #include "config.h"
 #endif
 
+#ifdef SW_STATIC_COMPILATION
+#include "php_config.h"
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -163,21 +167,37 @@ typedef unsigned long ulong_t;
 #define SW_STRL(s)             s, sizeof(s)
 #define SW_START_SLEEP         usleep(100000)  //sleep 1s,wait fork and pthread_create
 
-#ifdef SW_MALLOC_DEBUG
-#define sw_malloc(__size)      malloc(__size);swWarn("malloc(%ld)", __size)
-#define sw_free(ptr)           if(ptr){free(ptr);ptr=NULL;swWarn("free");}
+#ifdef SW_USE_JEMALLOC
+#include <jemalloc/jemalloc.h>
+#define sw_malloc              je_malloc
+#define sw_free                je_free
+#define sw_calloc              je_calloc
+#define sw_realloc             je_realloc
 #else
 #define sw_malloc              malloc
-#define sw_free(ptr)           if(ptr){free(ptr);ptr=NULL;}
-#endif
-
+#define sw_free                free
 #define sw_calloc              calloc
 #define sw_realloc             realloc
+#endif
 
 #if defined(SW_USE_JEMALLOC) || defined(SW_USE_TCMALLOC)
-#define sw_strdup_free(str)
+static sw_inline char* sw_strdup(const char *s)
+{
+    size_t l = strlen(s) + 1;
+    char *p = sw_malloc(l);
+    memcpy(p, s, l);
+    return p;
+}
+static sw_inline char* sw_strndup(const char *s, size_t n)
+{
+    char *p = sw_malloc(n + 1);
+    strncpy(p, s, n);
+    p[n] = '\0';
+    return p;
+}
 #else
-#define sw_strdup_free(str)     free(str)
+#define sw_strdup              strdup
+#define sw_strndup             strndup
 #endif
 
 #define METHOD_DEF(class,name,...)  class##_##name(class *object, ##__VA_ARGS__)
@@ -539,6 +559,8 @@ typedef struct _swConnection
      */
     time_t last_time;
 
+    uint16_t timewheel_index;
+
     /**
      * bind uid
      */
@@ -703,6 +725,22 @@ typedef struct _swSendData
     uint32_t length;
     char *data;
 } swSendData;
+
+typedef struct
+{
+    off_t offset;
+    size_t length;
+    char filename[0];
+} swSendFile_request;
+
+//------------------TimeWheel--------------------
+typedef struct
+{
+    uint16_t current;
+    uint16_t size;
+    swHashMap **wheel;
+
+} swTimeWheel;
 
 typedef void * (*swThreadStartFunc)(void *);
 typedef int (*swHandle)(swEventData *buf);
@@ -1196,6 +1234,8 @@ void swoole_update_time(void);
 double swoole_microtime(void);
 void swoole_rtrim(char *str, int len);
 void swoole_redirect_stdout(int new_fd);
+int swoole_add_function(const char *name, void* func);
+void* swoole_get_function(char *name, uint32_t length);
 
 static sw_inline uint64_t swoole_hton64(uint64_t host)
 {
@@ -1237,7 +1277,7 @@ int swSocket_sendto_blocking(int fd, void *__buf, size_t __n, int flag, struct s
 int swSocket_set_buffer_size(int fd, int buffer_size);
 int swSocket_udp_sendto(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len);
 int swSocket_udp_sendto6(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len);
-int swSocket_sendfile_sync(int sock, char *filename, off_t offset, double timeout);
+int swSocket_sendfile_sync(int sock, char *filename, off_t offset, size_t length, double timeout);
 int swSocket_write_blocking(int __fd, void *__data, int __len);
 
 static sw_inline int swWaitpid(pid_t __pid, int *__stat_loc, int __options)
@@ -1343,6 +1383,16 @@ struct _swReactor
 	uint16_t flag; //flag
 
     uint32_t max_socket;
+
+#ifdef SW_USE_MALLOC_TRIM
+    time_t last_mallc_trim_time;
+#endif
+
+#ifdef SW_USE_TIMEWHEEL
+    swTimeWheel *timewheel;
+    uint16_t heartbeat_interval;
+    time_t last_heartbeat_time;
+#endif
 
     /**
      * for thread
@@ -1703,20 +1753,27 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
 int swProtocol_recv_check_eof(swProtocol *protocol, swConnection *conn, swString *buffer);
 
 //--------------------------------timer------------------------------
-typedef struct _swTimer_node
+typedef struct _swTimer swTimer;
+typedef struct _swTimer_node swTimer_node;
+
+typedef void (*swTimerCallback)(swTimer *, swTimer_node *);
+
+struct _swTimer_node
 {
     swHeap_node *heap_node;
     void *data;
+    swTimerCallback callback;
     int64_t exec_msec;
     uint32_t interval;
     long id;
-    uint8_t remove :1;
-} swTimer_node;
+    uint8_t remove;
+};
 
-typedef struct _swTimer
+struct _swTimer
 {
     /*--------------timerfd & signal timer--------------*/
     swHeap *heap;
+    swHashMap *map;
     int num;
     int use_pipe;
     int lasttime;
@@ -1728,22 +1785,31 @@ typedef struct _swTimer
     /*-----------------for EventTimer-------------------*/
     struct timeval basetime;
     /*--------------------------------------------------*/
-    int (*set)(struct _swTimer *timer, long exec_msec);
-    /*-----------------event callback-------------------*/
-    void (*onAfter)(struct _swTimer *timer, swTimer_node *event);
-    void (*onTick)(struct _swTimer *timer, swTimer_node *event);
-} swTimer;
+    int (*set)(swTimer *timer, long exec_msec);
+    swTimer_node* (*add)(swTimer *timer, int _msec, int persistent, void *data, swTimerCallback callback);
+};
 
 int swTimer_init(long msec);
-swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *data);
-swTimer_node* swTimer_get(swTimer *timer, long id);
-void swTimer_del(swTimer *timer, swTimer_node *node);
+int swTimer_del(swTimer *timer, swTimer_node *node);
 void swTimer_free(swTimer *timer);
 int swTimer_select(swTimer *timer);
+
+static sw_inline swTimer_node* swTimer_get(swTimer *timer, long id)
+{
+    return (swTimer_node*) swHashMap_find_int(timer->map, id);
+}
 
 int swSystemTimer_init(int msec, int use_pipe);
 void swSystemTimer_signal_handler(int sig);
 int swSystemTimer_event_handler(swReactor *reactor, swEvent *event);
+
+swTimeWheel* swTimeWheel_new(uint16_t size);
+void swTimeWheel_free(swTimeWheel *tw);
+void swTimeWheel_forward(swTimeWheel *tw, swReactor *reactor);
+void swTimeWheel_add(swTimeWheel *tw, swConnection *conn);
+void swTimeWheel_update(swTimeWheel *tw, swConnection *conn);
+void swTimeWheel_remove(swTimeWheel *tw, swConnection *conn);
+#define swTimeWheel_new_index(tw)   (tw->current == 0 ? tw->size - 1 : tw->current - 1)
 //--------------------------------------------------------------
 //Share Memory
 typedef struct

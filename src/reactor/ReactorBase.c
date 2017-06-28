@@ -18,6 +18,14 @@
 #include "Connection.h"
 #include "async.h"
 
+#ifdef SW_USE_MALLOC_TRIM
+#ifdef __APPLE__
+#include <sys/malloc.h>
+#else
+#include <malloc.h>
+#endif
+#endif
+
 static void swReactor_onTimeout_and_Finish(swReactor *reactor);
 static void swReactor_onTimeout(swReactor *reactor);
 static void swReactor_onFinish(swReactor *reactor);
@@ -210,8 +218,13 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
             reactor->running = 0;
         }
     }
+
 #ifdef SW_USE_MALLOC_TRIM
-    malloc_trim();
+    if (reactor->last_mallc_trim_time < SwooleGS->now - SW_MALLOC_TRIM_INTERVAL)
+    {
+        malloc_trim(SW_MALLOC_TRIM_PAD);
+        reactor->last_mallc_trim_time = SwooleGS->now;
+    }
 #endif
 }
 

@@ -86,6 +86,7 @@ typedef struct _swClient
 
     uint8_t server_strlen;
     double timeout;
+    swTimer_node *timer;
 
     /**
      * sendto, read only.
@@ -109,12 +110,9 @@ typedef struct _swClient
 
 #ifdef SW_USE_OPENSSL
     uint8_t open_ssl :1;
-    uint8_t ssl_disable_compress :1;
     uint8_t ssl_wait_handshake :1;
-    char *ssl_cert_file;
-    char *ssl_key_file;
     SSL_CTX *ssl_context;
-    uint8_t ssl_method;
+    swSSL_option ssl_option;
 #endif
 
     void (*onConnect)(struct _swClient *cli);
@@ -126,7 +124,7 @@ typedef struct _swClient
 
     int (*connect)(struct _swClient *cli, char *host, int port, double _timeout, int sock_flag);
     int (*send)(struct _swClient *cli, char *data, int length, int flags);
-    int (*sendfile)(struct _swClient *cli, char *filename, off_t offset);
+    int (*sendfile)(struct _swClient *cli, char *filename, off_t offset, size_t length);
     int (*recv)(struct _swClient *cli, char *data, int len, int flags);
     int (*pipe)(struct _swClient *cli, int write_fd, int is_session_id);
     int (*close)(struct _swClient *cli);

@@ -5,7 +5,7 @@ define('SPACE_8', SPACE_4 . SPACE_4);
 define('DELIMITER', '/*generator*/');
 
 $src = file_get_contents($dir . '/PHP_API.hpp');
-$r = preg_match('/\#define\s+MAX_ARGC\s+(\d+)/', $src, $match);
+$r = preg_match('/\#define\s+PHPX_MAX_ARGC\s+(\d+)/', $src, $match);
 if (!$r)
 {
     exit("no MAX_ARGC\n");
