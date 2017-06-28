@@ -1122,8 +1122,13 @@ int swserver_add_systemd_socket(swServer *serv)
     {
         return 0;
     }
-
     int n = atoi(e);
+    if (n < 1)
+    {
+        swWarn("invalid LISTEN_FDS.");
+        return 0;
+    }
+
     int count = 0;
     int sock, val;
     socklen_t optlen;
