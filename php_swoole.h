@@ -475,6 +475,26 @@ static sw_inline zend_fcall_info_cache* php_swoole_server_get_cache(swServer *se
 }
 #endif
 
+static sw_inline int php_swoole_is_callable(zval *callback TSRMLS_DC)
+{
+    if (!callback || ZVAL_IS_NULL(callback))
+    {
+        return SW_FALSE;
+    }
+    char *func_name = NULL;
+    if (sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC) < 0)
+    {
+        swoole_php_fatal_error(E_WARNING, "Function '%s' is not callable", func_name);
+        efree(func_name);
+        return SW_FALSE;
+    }
+    else
+    {
+        efree(func_name);
+        return SW_TRUE;
+    }
+}
+
 #define php_swoole_array_get_value(ht, str, v)     (sw_zend_hash_find(ht, str, sizeof(str), (void **) &v) == SUCCESS && !ZVAL_IS_NULL(v))
 #define php_swoole_array_separate(arr)       zval *_new_##arr;\
     SW_MAKE_STD_ZVAL(_new_##arr);\
