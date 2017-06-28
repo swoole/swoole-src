@@ -122,6 +122,10 @@ static int swAioLinux_onFinish(swReactor *reactor, swEvent *event)
             finished_aio -= n;
             SwooleAIO.task_num -= n;
         }
+        else
+        {
+            break;
+        }
     }
     return SW_OK;
 }
