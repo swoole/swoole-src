@@ -224,9 +224,12 @@ static int http_client_coro_execute(zval *zobject, char *uri, zend_size_t uri_le
 #if PHP_MAJOR_VERSION < 7
     sw_zval_add_ref(&zobject);
 #endif
-    http_client_property *hcc = swoole_get_property(zobject, 0);
     cli->object = zobject;
+	
+#if PHP_MAJOR_VERSION >= 7
+    http_client_property *hcc = swoole_get_property(zobject, 0);
     sw_copy_to_stack(cli->object, hcc->_object);
+#endif
     cli->open_eof_check = 0;
     cli->open_length_check = 0;
     cli->reactor_fdtype = PHP_SWOOLE_FD_STREAM_CLIENT;
