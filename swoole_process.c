@@ -567,7 +567,7 @@ static PHP_METHOD(swoole_process, alarm)
  */
 static void php_swoole_onSignal(int signo)
 {
-    zval *retval;
+    zval *retval = NULL;
     zval **args[1];
     zval *callback = signal_callback[signo];
 
