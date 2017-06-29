@@ -1793,6 +1793,7 @@ int swTimer_init(long msec);
 int swTimer_del(swTimer *timer, swTimer_node *node);
 void swTimer_free(swTimer *timer);
 int swTimer_select(swTimer *timer);
+int swTimer_now(struct timeval *time);
 
 static sw_inline swTimer_node* swTimer_get(swTimer *timer, long id)
 {
