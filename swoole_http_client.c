@@ -1292,6 +1292,12 @@ static PHP_METHOD(swoole_http_client, __construct)
         RETURN_FALSE;
     }
 
+    if (port <= 0 || port > SW_CLIENT_MAX_PORT)
+    {
+        swoole_php_fatal_error(E_ERROR, "invalid port.");
+        RETURN_FALSE;
+    }
+
     zend_update_property_stringl(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("host"), host, host_len TSRMLS_CC);
     zend_update_property_long(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("port"), port TSRMLS_CC);
 
