@@ -264,7 +264,6 @@ static void php_swoole_aio_onComplete(swAio_event *event)
 #else
         zcontent = &_zcontent;
 #endif
-        memset(event->buf + ret, 0, 1);
         SW_ZVAL_STRINGL(zcontent, event->buf, ret, 1);
     }
     else if (event->type == SW_AIO_WRITE)
@@ -810,6 +809,7 @@ PHP_FUNCTION(swoole_async_set)
         }
     }
 #endif
+    sw_zval_ptr_dtor(&zset);
 }
 
 PHP_FUNCTION(swoole_async_dns_lookup)
