@@ -452,6 +452,7 @@ static PHP_METHOD(swoole_coroutine_util, create)
 
     php_context *cxt = emalloc(sizeof(php_context));
     coro_save(cxt);
+    int required = COROG.require;
     int ret = coro_create(func_cache, args, 0, &retval, NULL, NULL);
     efree(func_cache);
     efree(swReactorCheckPoint);
@@ -466,6 +467,7 @@ static PHP_METHOD(swoole_coroutine_util, create)
 
     swReactorCheckPoint = prev_checkpoint;
     coro_resume_parent(cxt, retval, retval);
+    COROG.require = required;
     efree(cxt);
     if (EG(exception))
     {
