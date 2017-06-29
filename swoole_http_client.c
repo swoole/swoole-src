@@ -80,9 +80,6 @@ typedef struct
 
     swTimer_node *timer;
 
-    char *tmp_header_field_name;
-    zend_size_t tmp_header_field_name_len;
-
 #ifdef SW_HAVE_ZLIB
     z_stream gzip_stream;
     swString *gzip_buffer;
@@ -95,6 +92,8 @@ typedef struct
 
     php_http_parser parser;
 
+    swString *header_field_buffer;
+    swString *header_value_buffer;
     swString *body;
 
     uint8_t state;       //0 wait 1 ready 2 busy
@@ -357,10 +356,24 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
             swoole_php_fatal_error(E_ERROR, "[1] swString_new(%d) failed.", SW_HTTP_RESPONSE_INIT_SIZE);
             return SW_ERR;
         }
+        http->header_field_buffer = swString_new(SW_HTTP_HEADER_BUFFER_SIZE);
+        if (http->header_field_buffer == NULL)
+        {
+            swoole_php_fatal_error(E_ERROR, "[2] swString_new(%d) failed.", SW_HTTP_HEADER_BUFFER_SIZE);
+            return SW_ERR;
+        }
+        http->header_value_buffer = swString_new(SW_HTTP_HEADER_BUFFER_SIZE);
+        if (http->header_value_buffer == NULL)
+        {
+            swoole_php_fatal_error(E_ERROR, "[3] swString_new(%d) failed.", SW_HTTP_HEADER_BUFFER_SIZE);
+            return SW_ERR;
+        }
     }
     else
     {
         swString_clear(http->body);
+        swString_clear(http->header_field_buffer);
+        swString_clear(http->header_value_buffer);
     }
 
     if (http->uri)
@@ -1202,6 +1215,16 @@ static void http_client_free(zval *object TSRMLS_DC)
     {
         swString_free(http->body);
     }
+    if (http->header_field_buffer)
+    {
+        swString_free(http->header_field_buffer);
+        http->header_field_buffer = NULL;
+    }
+    if (http->header_value_buffer)
+    {
+        swString_free(http->header_value_buffer);
+        http->header_value_buffer = NULL;
+    }
     if (http->timer)
     {
         swTimer_del(&SwooleG.timer, http->timer);
@@ -1662,16 +1685,80 @@ static PHP_METHOD(swoole_http_client, on)
     RETURN_TRUE;
 }
 
+enum php_http_parser_state
+{
+    /* important that this is > 0 */
+    s_dead = 1,
+    s_start_req_or_res,
+    s_res_or_resp_H,
+    s_start_res,
+    s_res_H,
+    s_res_HT,
+    s_res_HTT,
+    s_res_HTTP,
+    s_res_first_http_major,
+    s_res_http_major,
+    s_res_first_http_minor,
+    s_res_http_minor,
+    s_res_first_status_code,
+    s_res_status_code,
+    s_res_status,
+    s_res_line_almost_done,
+    s_start_req,
+    s_req_method,
+    s_req_spaces_before_url,
+    s_req_schema,
+    s_req_schema_slash,
+    s_req_schema_slash_slash,
+    s_req_host,
+    s_req_port,
+    s_req_path,
+    s_req_query_string_start,
+    s_req_query_string,
+    s_req_fragment_start,
+    s_req_fragment,
+    s_req_http_start,
+    s_req_http_H,
+    s_req_http_HT,
+    s_req_http_HTT,
+    s_req_http_HTTP,
+    s_req_first_http_major,
+    s_req_http_major,
+    s_req_first_http_minor,
+    s_req_http_minor,
+    s_req_line_almost_done,
+    s_header_field_start,
+    s_header_field,
+    s_header_value_start,
+    s_header_value,
+    s_header_almost_done,
+    /* Important: 's_headers_almost_done' must be the last 'header' state. All
+     * states beyond this must be 'body' states. It is used for overflow
+     * checking. See the PARSING_HEADER() macro.
+     */
+    s_headers_almost_done,
+    s_chunk_size_start,
+    s_chunk_size,
+    s_chunk_size_almost_done,
+    s_chunk_parameters,
+    s_chunk_data,
+    s_chunk_data_almost_done,
+    s_chunk_data_done,
+    s_body_identity,
+    s_body_identity_eof
+};
+
 static int http_client_parser_on_header_field(php_http_parser *parser, const char *at, size_t length)
 {
-// #if PHP_MAJOR_VERSION < 7
-//     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-// #endif
-    http_client* http = (http_client*)parser->data;
-    //zval* zobject = (zval*)http->cli->socket->object;
-
-    http->tmp_header_field_name = (char *)at;
-    http->tmp_header_field_name_len = length;
+    http_client* http = (http_client*) parser->data;
+    if (parser->state == s_header_field_start || parser->state == s_start_res)
+    {
+        swString_clear(http->header_field_buffer);
+    }
+    if (swString_append_ptr(http->header_field_buffer, (char *) at, length) < 0)
+    {
+        return SW_ERR;
+    }
     return 0;
 }
 
@@ -1682,11 +1769,20 @@ static int http_client_parser_on_header_value(php_http_parser *parser, const cha
 #endif
 
     http_client* http = (http_client*) parser->data;
+    if (parser->state == s_header_value_start || parser->state == s_start_res)
+    {
+        swString_clear(http->header_value_buffer);
+    }
+    if (swString_append_ptr(http->header_value_buffer, (char *) at, length) < 0)
+    {
+        return SW_ERR;
+    }
+
     zval* zobject = (zval*) http->cli->object;
     zval *headers = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("headers"), 0 TSRMLS_CC);
 
-    char *header_name = zend_str_tolower_dup(http->tmp_header_field_name, http->tmp_header_field_name_len);
-    sw_add_assoc_stringl_ex(headers, header_name, http->tmp_header_field_name_len + 1, (char *) at, length, 1);
+    char *header_name = zend_str_tolower_dup(http->header_field_buffer->str, http->header_field_buffer->length);
+    sw_add_assoc_stringl_ex(headers, header_name, http->header_field_buffer->length + 1, http->header_value_buffer->str, http->header_value_buffer->length, 1);
     //websocket client
     if (strcasecmp(header_name, "Upgrade") == 0 && strncasecmp(at, "websocket", length) == 0)
     {
