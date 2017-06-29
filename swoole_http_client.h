@@ -78,6 +78,8 @@ typedef struct
     char *request_method;
     int callback_index;
 
+    uint8_t shutdown;
+
 #ifdef SW_COROUTINE
     zend_bool defer;//0 normal 1 wait for receive
     zend_bool defer_result;//0
