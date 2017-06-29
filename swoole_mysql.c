@@ -322,6 +322,11 @@ static void mysql_client_free(mysql_client *client, zval* zobject);
 
 static void mysql_client_free(mysql_client *client, zval* zobject)
 {
+    if (client->cli->timer)
+    {
+        swTimer_del(&SwooleG.timer, client->cli->timer);
+        client->cli->timer = NULL;
+    }
     //close the connection
     client->cli->close(client->cli);
     //release client object memory
@@ -335,6 +340,7 @@ static void mysql_client_info(mysql_client *client);
 static void mysql_column_info(mysql_field *field);
 #endif
 
+static void swoole_mysql_onTimeout(swTimer *timer, swTimer_node *tnode);
 static int swoole_mysql_onRead(swReactor *reactor, swEvent *event);
 static int swoole_mysql_onWrite(swReactor *reactor, swEvent *event);
 static int swoole_mysql_onError(swReactor *reactor, swEvent *event);
@@ -961,6 +967,12 @@ static PHP_METHOD(swoole_mysql, connect)
     int ret = cli->connect(cli, connector->host, connector->port, connector->timeout, 1);
     if ((ret < 0 && errno == EINPROGRESS) || ret == 0)
     {
+        if (connector->timeout > 0)
+        {
+            php_swoole_check_timer((int) (connector->timeout * 1000));
+            cli->timer = SwooleG.timer.add(&SwooleG.timer, (int) (connector->timeout * 1000), 0, client, swoole_mysql_onTimeout);
+            cli->timeout = connector->timeout;
+        }
         if (SwooleG.main_reactor->add(SwooleG.main_reactor, cli->socket->fd, PHP_SWOOLE_FD_MYSQL | SW_EVENT_WRITE) < 0)
         {
             RETURN_FALSE;
@@ -1180,7 +1192,6 @@ static PHP_METHOD(swoole_mysql, close)
 
     if (!client->cli)
     {
-        swoole_php_fatal_error(E_WARNING, "mysql connection#%d is closed.", client->fd);
         RETURN_FALSE;
     }
 
@@ -1255,6 +1266,18 @@ static PHP_METHOD(swoole_mysql, on)
         RETURN_FALSE;
     }
     RETURN_TRUE;
+}
+
+static void swoole_mysql_onTimeout(swTimer *timer, swTimer_node *tnode)
+{
+#if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
+    mysql_client *client = tnode->data;
+    client->connector.error_code = ETIMEDOUT;
+    client->connector.error_msg = strerror(client->connector.error_code);
+    client->connector.error_length = strlen(client->connector.error_msg);
+    swoole_mysql_onConnect(client TSRMLS_CC);
 }
 
 static int swoole_mysql_onError(swReactor *reactor, swEvent *event)
@@ -1359,6 +1382,11 @@ static int swoole_mysql_onWrite(swReactor *reactor, swEvent *event)
     //success
     if (SwooleG.error == 0)
     {
+        if (client->cli->timer)
+        {
+            swTimer_del(&SwooleG.timer, client->cli->timer);
+            client->cli->timer = NULL;
+        }
         //listen read event
         SwooleG.main_reactor->set(SwooleG.main_reactor, event->fd, PHP_SWOOLE_FD_MYSQL | SW_EVENT_READ);
         //connected
@@ -1370,7 +1398,6 @@ static int swoole_mysql_onWrite(swReactor *reactor, swEvent *event)
         client->connector.error_code = SwooleG.error;
         client->connector.error_msg = strerror(SwooleG.error);
         client->connector.error_length = strlen(client->connector.error_msg);
-        mysql_client_free(client, client->object);
         swoole_mysql_onConnect(client TSRMLS_CC);
     }
     return SW_OK;

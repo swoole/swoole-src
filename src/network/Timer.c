@@ -19,6 +19,7 @@
 static int swReactorTimer_init(long msec);
 static int swReactorTimer_set(swTimer *timer, long exec_msec);
 static swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *data, swTimerCallback callback);
+static int swReactorTimer_now(struct timeval *time);
 
 static int swReactorTimer_now(struct timeval *time)
 {
