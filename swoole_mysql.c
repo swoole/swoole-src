@@ -1270,6 +1270,9 @@ static PHP_METHOD(swoole_mysql, on)
 
 static void swoole_mysql_onTimeout(swTimer *timer, swTimer_node *tnode)
 {
+#if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
     mysql_client *client = tnode->data;
     client->connector.error_code = ETIMEDOUT;
     client->connector.error_msg = strerror(client->connector.error_code);
