@@ -379,7 +379,7 @@ PHP_FUNCTION(swoole_async_read)
 {
     zval *callback;
     zval *filename;
-    long buf_size = 8192;
+    long buf_size = SW_AIO_DEFAULT_CHUNK_SIZE;
     long offset = 0;
     int open_flag = O_RDONLY;
 
@@ -392,6 +392,10 @@ PHP_FUNCTION(swoole_async_read)
     {
         swoole_php_fatal_error(E_WARNING, "offset must be greater than 0.");
         RETURN_FALSE;
+    }
+    if (buf_size > SW_AIO_MAX_CHUNK_SIZE)
+    {
+        buf_size = SW_AIO_MAX_CHUNK_SIZE;
     }
     convert_to_string(filename);
 
@@ -461,7 +465,6 @@ PHP_FUNCTION(swoole_async_read)
         swHashMap_add_int(php_swoole_aio_request, ret, req);
         RETURN_TRUE;
     }
-
 }
 
 PHP_FUNCTION(swoole_async_write)
@@ -777,6 +780,11 @@ PHP_FUNCTION(swoole_async_set)
         {
             SwooleG.socket_buffer_size = SW_MAX_INT;
         }
+    }
+    if (php_swoole_array_get_value(vht, "aio_chunk_size", v))
+    {
+        convert_to_string(v);
+        SwooleG.dns_server_v4 = sw_strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
     }
     if (php_swoole_array_get_value(vht, "socket_dontwait", v))
     {

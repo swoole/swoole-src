@@ -159,6 +159,11 @@ int swAioBase_init(int max_aio_events)
     {
         return SW_ERR;
     }
+    if (swMutex_create(&SwooleAIO.lock, 0) < 0)
+    {
+        swWarn("create mutex lock error.");
+        return SW_ERR;
+    }
     if (SwooleAIO.thread_num <= 0)
     {
         SwooleAIO.thread_num = SW_AIO_THREAD_NUM_DEFAULT;
@@ -276,7 +281,9 @@ static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len)
     swTrace("aio_thread ok. ret=%d", ret);
     do
     {
+        SwooleAIO.lock.lock(&SwooleAIO.lock);
         ret = write(swAioBase_pipe_write, &task, sizeof(task));
+        SwooleAIO.lock.unlock(&SwooleAIO.lock);
         if (ret < 0)
         {
             if (errno == EAGAIN)
@@ -328,6 +335,16 @@ static int swAioBase_write(int fd, void *inbuf, size_t size, off_t offset)
 
 int swAio_dns_lookup(void *hostname, void *ip_addr, size_t size)
 {
+    if (SwooleAIO.mode == SW_AIO_LINUX)
+    {
+        SwooleAIO.mode = SW_AIO_BASE;
+        if (SwooleAIO.init == 1)
+        {
+            SwooleAIO.init = 0;
+            swAio_init();
+        }
+    }
+
     swAio_event *aio_ev = (swAio_event *) sw_malloc(sizeof(swAio_event));
     if (aio_ev == NULL)
     {

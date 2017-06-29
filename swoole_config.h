@@ -115,6 +115,8 @@
 #define SW_AIO_THREAD_NUM_MAX            32
 #define SW_AIO_MAX_FILESIZE              4194304  //4M
 #define SW_AIO_EVENT_NUM                 128
+#define SW_AIO_DEFAULT_CHUNK_SIZE        65536
+#define SW_AIO_MAX_CHUNK_SIZE            1*1024*1024
 //#define SW_AIO_THREAD_USE_CHANNEL
 #define SW_AIO_MAX_EVENTS                128
 //#define SW_THREADPOOL_USE_CHANNEL
