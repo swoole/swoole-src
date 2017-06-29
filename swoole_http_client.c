@@ -789,6 +789,7 @@ static void http_client_onReceive(swClient *cli, char *data, uint32_t length)
         swTimer_del(&SwooleG.timer, http->timer);
         http->timer = NULL;
     }
+    hcc->onResponse = NULL;
     if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onReactorCallback handler error");
@@ -806,7 +807,6 @@ static void http_client_onReceive(swClient *cli, char *data, uint32_t length)
     {
         return;
     }
-    hcc->onResponse = NULL;
     if (http->keep_alive == 0 && http->state != HTTP_CLIENT_STATE_WAIT_CLOSE)
     {
         sw_zend_call_method_with_0_params(&zobject, swoole_http_client_class_entry_ptr, NULL, "close", &retval);
