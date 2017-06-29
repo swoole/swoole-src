@@ -1180,7 +1180,6 @@ static PHP_METHOD(swoole_mysql, close)
 
     if (!client->cli)
     {
-        swoole_php_fatal_error(E_WARNING, "mysql connection#%d is closed.", client->fd);
         RETURN_FALSE;
     }
 
