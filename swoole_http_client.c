@@ -1403,6 +1403,23 @@ static PHP_METHOD(swoole_http_client, setData)
     {
         return;
     }
+
+    if (Z_TYPE_P(data) != IS_ARRAY && Z_TYPE_P(data) != IS_STRING)
+    {
+        swoole_php_error(E_WARNING, "parameter $data must be an array or string.");
+        RETURN_FALSE;
+    }
+    else if (Z_TYPE_P(data) == IS_ARRAY || php_swoole_array_length(data) == 0)
+    {
+        swoole_php_error(E_WARNING, "parameter $data is empty.");
+        RETURN_FALSE;
+    }
+    else if (Z_TYPE_P(data) == IS_STRING || php_swoole_array_length(data) == 0)
+    {
+        swoole_php_error(E_WARNING, "parameter $data is empty.");
+        RETURN_FALSE;
+    }
+
     zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestBody"), data TSRMLS_CC);
     http_client_property *hcc = swoole_get_property(getThis(), 0);
     hcc->request_body = sw_zend_read_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestBody"), 1 TSRMLS_CC);
@@ -1511,15 +1528,30 @@ static PHP_METHOD(swoole_http_client, addFile)
 
 static PHP_METHOD(swoole_http_client, setMethod)
 {
-    zval *method;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &method) == FAILURE)
+    char *method;
+    zend_size_t length = 0;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &method, &length) == FAILURE)
     {
         return;
     }
-    convert_to_string(method);
-    zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestMethod"), method TSRMLS_CC);
+
+    int http_method = swHttp_get_method(method, length + 1);
+    if (length == 0 || http_method < 0)
+    {
+        swoole_php_error(E_WARNING, "invalid http method.");
+        RETURN_FALSE;
+    }
+
+    const char *http_method_str = swHttp_get_method_string(http_method);
+    if (http_method_str == NULL)
+    {
+        RETURN_FALSE;
+    }
+
     http_client_property *hcc = swoole_get_property(getThis(), 0);
-    hcc->request_method = Z_STRVAL_P(method);
+    hcc->request_method = (char *) http_method_str;
+    zend_update_property_string(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestMethod"),
+            (char *) http_method_str TSRMLS_CC);
     RETURN_TRUE;
 }
 
@@ -1782,7 +1814,7 @@ int http_response_uncompress(z_stream *stream, swString *buffer, char *body, int
         stream->avail_out = buffer->size - buffer->length;
         stream->next_out = (Bytef *) (buffer->str + buffer->length);
 
-        status = inflate(stream, Z_NO_FLUSH);
+        status = inflate(stream, Z_SYNC_FLUSH);
 
 #if 0
         printf("status=%d\tavail_in=%ld,\tavail_out=%ld,\ttotal_in=%ld,\ttotal_out=%ld,\tlength=%ld\n", status,
@@ -1973,16 +2005,26 @@ static PHP_METHOD(swoole_http_client, post)
     char *uri = NULL;
     zend_size_t uri_len = 0;
     zval *callback;
-    zval *post_data;
+    zval *data;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "szz", &uri, &uri_len, &post_data, &callback) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "szz", &uri, &uri_len, &data, &callback) == FAILURE)
     {
         return;
     }
 
-    if (Z_TYPE_P(post_data) != IS_ARRAY && Z_TYPE_P(post_data) != IS_STRING)
+    if (Z_TYPE_P(data) != IS_ARRAY && Z_TYPE_P(data) != IS_STRING)
     {
-        swoole_php_fatal_error(E_WARNING, "post data must be string or array.");
+        swoole_php_error(E_WARNING, "parameter $data must be an array or string.");
+        RETURN_FALSE;
+    }
+    else if (Z_TYPE_P(data) == IS_ARRAY || php_swoole_array_length(data) == 0)
+    {
+        swoole_php_error(E_WARNING, "parameter $data is empty.");
+        RETURN_FALSE;
+    }
+    else if (Z_TYPE_P(data) == IS_STRING || php_swoole_array_length(data) == 0)
+    {
+        swoole_php_error(E_WARNING, "parameter $data is empty.");
         RETURN_FALSE;
     }
 
@@ -1992,7 +2034,7 @@ static PHP_METHOD(swoole_http_client, post)
         swoole_php_error(E_WARNING, "Connection failed, the server was unavailable.");
         return;
     }
-    zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestBody"), post_data TSRMLS_CC);
+    zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestBody"), data TSRMLS_CC);
     hcc->request_body = sw_zend_read_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestBody"), 1 TSRMLS_CC);
     sw_copy_to_stack(hcc->request_body, hcc->_request_body);
     ret = http_client_execute(getThis(), uri, uri_len, callback TSRMLS_CC);
