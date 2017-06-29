@@ -71,9 +71,9 @@ int swReactorSelect_create(swReactor *reactor)
 
 void swReactorSelect_free(swReactor *reactor)
 {
-    swFdList_node *ev;
     swReactorSelect *object = reactor->object;
-    LL_FOREACH(object->fds, ev)
+    swFdList_node *ev, *tmp;
+    LL_FOREACH_SAFE(object->fds, ev, tmp)
     {
         LL_DELETE(object->fds, ev);
         sw_free(ev);

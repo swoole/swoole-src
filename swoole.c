@@ -622,8 +622,8 @@ void swoole_set_property(zval *object, int property_id, void *ptr)
         uint32_t old_size = swoole_objects.property_size[property_id];
         uint32_t new_size = 0;
 
-        void *old_ptr = NULL;
-        void *new_ptr = NULL;
+        void **old_ptr = NULL;
+        void **new_ptr = NULL;
 
         if (old_size == 0)
         {

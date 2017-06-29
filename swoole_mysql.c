@@ -31,6 +31,9 @@ static PHP_METHOD(swoole_mysql, connect);
 static PHP_METHOD(swoole_mysql, escape);
 #endif
 static PHP_METHOD(swoole_mysql, query);
+static PHP_METHOD(swoole_mysql, begin);
+static PHP_METHOD(swoole_mysql, commit);
+static PHP_METHOD(swoole_mysql, rollback);
 static PHP_METHOD(swoole_mysql, close);
 static PHP_METHOD(swoole_mysql, on);
 
@@ -269,6 +272,18 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_connect, 0, 0, 2)
     ZEND_ARG_INFO(0, callback)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_begin, 0, 0, 1)
+    ZEND_ARG_INFO(0, callback)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_commit, 0, 0, 1)
+    ZEND_ARG_INFO(0, callback)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_rollback, 0, 0, 1)
+    ZEND_ARG_INFO(0, callback)
+ZEND_END_ARG_INFO()
+
 #ifdef SW_USE_MYSQLND
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_escape, 0, 0, 1)
     ZEND_ARG_INFO(0, string)
@@ -286,6 +301,9 @@ static const zend_function_entry swoole_mysql_methods[] =
     PHP_ME(swoole_mysql, __construct, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
     PHP_ME(swoole_mysql, __destruct, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_ME(swoole_mysql, connect, arginfo_swoole_mysql_connect, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_mysql, begin, arginfo_swoole_mysql_begin, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_mysql, commit, arginfo_swoole_mysql_commit, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_mysql, rollback, arginfo_swoole_mysql_rollback, ZEND_ACC_PUBLIC)
 #ifdef SW_USE_MYSQLND
     PHP_ME(swoole_mysql, escape, arginfo_swoole_mysql_escape, ZEND_ACC_PUBLIC)
 #endif
@@ -295,10 +313,16 @@ static const zend_function_entry swoole_mysql_methods[] =
     PHP_FE_END
 };
 
+static int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callback TSRMLS_DC);
 static void mysql_client_free(mysql_client *client, zval* zobject);
 
 static void mysql_client_free(mysql_client *client, zval* zobject)
 {
+    if (client->cli->timer)
+    {
+        swTimer_del(&SwooleG.timer, client->cli->timer);
+        client->cli->timer = NULL;
+    }
     //close the connection
     client->cli->close(client->cli);
     //release client object memory
@@ -312,6 +336,7 @@ static void mysql_client_info(mysql_client *client);
 static void mysql_column_info(mysql_field *field);
 #endif
 
+static void swoole_mysql_onTimeout(swTimer *timer, swTimer_node *tnode);
 static int swoole_mysql_onRead(swReactor *reactor, swEvent *event);
 static int swoole_mysql_onWrite(swReactor *reactor, swEvent *event);
 static int swoole_mysql_onError(swReactor *reactor, swEvent *event);
@@ -705,6 +730,47 @@ int mysql_response(mysql_client *client)
     return SW_OK;
 }
 
+static int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callback TSRMLS_DC)
+{
+    if (!client->cli)
+    {
+        swoole_php_fatal_error(E_WARNING, "mysql connection#%d is closed.", client->fd);
+        return SW_ERR;
+    }
+
+    if (client->state != SW_MYSQL_STATE_QUERY)
+    {
+        swoole_php_fatal_error(E_WARNING, "mysql client is waiting response, cannot send new sql query.");
+        return SW_ERR;
+    }
+
+    sw_zval_add_ref(&callback);
+    client->callback = sw_zval_dup(callback);
+
+    swString_clear(mysql_request_buffer);
+
+    if (mysql_request(sql, mysql_request_buffer) < 0)
+    {
+        return SW_ERR;
+    }
+    //send query
+    if (SwooleG.main_reactor->write(SwooleG.main_reactor, client->fd, mysql_request_buffer->str, mysql_request_buffer->length) < 0)
+    {
+        //connection is closed
+        if (swConnection_error(errno) == SW_CLOSE)
+        {
+            zend_update_property_bool(swoole_mysql_class_entry_ptr, zobject, ZEND_STRL("connected"), 0 TSRMLS_CC);
+            zend_update_property_bool(swoole_mysql_class_entry_ptr, zobject, ZEND_STRL("errno"), 2006 TSRMLS_CC);
+        }
+        return SW_ERR;
+    }
+    else
+    {
+        client->state = SW_MYSQL_STATE_READ_START;
+        return SW_OK;
+    }
+}
+
 #ifdef SW_MYSQL_DEBUG
 
 void mysql_client_info(mysql_client *client)
@@ -897,6 +963,12 @@ static PHP_METHOD(swoole_mysql, connect)
     int ret = cli->connect(cli, connector->host, connector->port, connector->timeout, 1);
     if ((ret < 0 && errno == EINPROGRESS) || ret == 0)
     {
+        if (connector->timeout > 0)
+        {
+            php_swoole_check_timer((int) (connector->timeout * 1000));
+            cli->timer = SwooleG.timer.add(&SwooleG.timer, (int) (connector->timeout * 1000), 0, client, swoole_mysql_onTimeout);
+            cli->timeout = connector->timeout;
+        }
         if (SwooleG.main_reactor->add(SwooleG.main_reactor, cli->socket->fd, PHP_SWOOLE_FD_MYSQL | SW_EVENT_WRITE) < 0)
         {
             RETURN_FALSE;
@@ -939,6 +1011,11 @@ static PHP_METHOD(swoole_mysql, query)
         return;
     }
 
+    if (!php_swoole_is_callable(callback TSRMLS_CC))
+    {
+        RETURN_FALSE;
+    }
+
     if (sql.length <= 0)
     {
         swoole_php_fatal_error(E_WARNING, "Query is empty.");
@@ -952,41 +1029,123 @@ static PHP_METHOD(swoole_mysql, query)
         RETURN_FALSE;
     }
 
-    if (!client->cli)
+    SW_CHECK_RETURN(mysql_query(getThis(), client, &sql, callback TSRMLS_CC));
+}
+
+static PHP_METHOD(swoole_mysql, begin)
+{
+    zval *callback;
+    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "z", &callback) == FAILURE)
     {
-        swoole_php_fatal_error(E_WARNING, "mysql connection#%d is closed.", client->fd);
+        return;
+    }
+
+    if (!php_swoole_is_callable(callback TSRMLS_CC))
+    {
         RETURN_FALSE;
     }
 
-    if (client->state != SW_MYSQL_STATE_QUERY)
+    mysql_client *client = swoole_get_object(getThis());
+    if (!client)
     {
-        swoole_php_fatal_error(E_WARNING, "mysql client is waiting response, cannot send new sql query.");
+        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_mysql.");
+        RETURN_FALSE;
+    }
+    if (client->transaction)
+    {
+        zend_throw_exception(swoole_mysql_exception_class_entry_ptr, "There is already an active transaction.", 21 TSRMLS_CC);
         RETURN_FALSE;
     }
 
-    sw_zval_add_ref(&callback);
-    client->callback = sw_zval_dup(callback);
-
-    swString_clear(mysql_request_buffer);
-
-    if (mysql_request(&sql, mysql_request_buffer) < 0)
+    swString sql;
+    bzero(&sql, sizeof(sql));
+    swString_append_ptr(&sql, ZEND_STRL("START TRANSACTION"));
+    if (mysql_query(getThis(), client, &sql, callback TSRMLS_CC) < 0)
     {
-        RETURN_FALSE;
-    }
-    //send query
-    if (SwooleG.main_reactor->write(SwooleG.main_reactor, client->fd, mysql_request_buffer->str, mysql_request_buffer->length) < 0)
-    {
-        //connection is closed
-        if (swConnection_error(errno) == SW_CLOSE)
-        {
-            zend_update_property_bool(swoole_mysql_class_entry_ptr, getThis(), ZEND_STRL("connected"), 0 TSRMLS_CC);
-            zend_update_property_bool(swoole_mysql_class_entry_ptr, getThis(), ZEND_STRL("errno"), 2006 TSRMLS_CC);
-        }
         RETURN_FALSE;
     }
     else
     {
-        client->state = SW_MYSQL_STATE_READ_START;
+        client->transaction = 1;
+        RETURN_TRUE;
+    }
+}
+
+static PHP_METHOD(swoole_mysql, commit)
+{
+    zval *callback;
+    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "z", &callback) == FAILURE)
+    {
+        return;
+    }
+
+    if (!php_swoole_is_callable(callback TSRMLS_CC))
+    {
+        RETURN_FALSE;
+    }
+
+    mysql_client *client = swoole_get_object(getThis());
+    if (!client)
+    {
+        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_mysql.");
+        RETURN_FALSE;
+    }
+    if (!client->transaction)
+    {
+        zend_throw_exception(swoole_mysql_exception_class_entry_ptr, "There is no active transaction.", 22 TSRMLS_CC);
+        RETURN_FALSE;
+    }
+
+    swString sql;
+    bzero(&sql, sizeof(sql));
+    swString_append_ptr(&sql, ZEND_STRL("COMMIT"));
+    if (mysql_query(getThis(), client, &sql, callback TSRMLS_CC) < 0)
+    {
+        RETURN_FALSE;
+    }
+    else
+    {
+        client->transaction = 0;
+        RETURN_TRUE;
+    }
+}
+
+static PHP_METHOD(swoole_mysql, rollback)
+{
+    zval *callback;
+    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "z", &callback) == FAILURE)
+    {
+        return;
+    }
+
+    if (!php_swoole_is_callable(callback TSRMLS_CC))
+    {
+        RETURN_FALSE;
+    }
+
+
+    mysql_client *client = swoole_get_object(getThis());
+    if (!client)
+    {
+        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_mysql.");
+        RETURN_FALSE;
+    }
+    if (!client->transaction)
+    {
+        zend_throw_exception(swoole_mysql_exception_class_entry_ptr, "There is no active transaction.", 22 TSRMLS_CC);
+        RETURN_FALSE;
+    }
+
+    swString sql;
+    bzero(&sql, sizeof(sql));
+    swString_append_ptr(&sql, ZEND_STRL("ROLLBACK"));
+    if (mysql_query(getThis(), client, &sql, callback TSRMLS_CC) < 0)
+    {
+        RETURN_FALSE;
+    }
+    else
+    {
+        client->transaction = 0;
         RETURN_TRUE;
     }
 }
@@ -1029,7 +1188,6 @@ static PHP_METHOD(swoole_mysql, close)
 
     if (!client->cli)
     {
-        swoole_php_fatal_error(E_WARNING, "mysql connection#%d is closed.", client->fd);
         RETURN_FALSE;
     }
 
@@ -1104,6 +1262,18 @@ static PHP_METHOD(swoole_mysql, on)
         RETURN_FALSE;
     }
     RETURN_TRUE;
+}
+
+static void swoole_mysql_onTimeout(swTimer *timer, swTimer_node *tnode)
+{
+#if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
+    mysql_client *client = tnode->data;
+    client->connector.error_code = ETIMEDOUT;
+    client->connector.error_msg = strerror(client->connector.error_code);
+    client->connector.error_length = strlen(client->connector.error_msg);
+    swoole_mysql_onConnect(client TSRMLS_CC);
 }
 
 static int swoole_mysql_onError(swReactor *reactor, swEvent *event)
@@ -1208,6 +1378,11 @@ static int swoole_mysql_onWrite(swReactor *reactor, swEvent *event)
     //success
     if (SwooleG.error == 0)
     {
+        if (client->cli->timer)
+        {
+            swTimer_del(&SwooleG.timer, client->cli->timer);
+            client->cli->timer = NULL;
+        }
         //listen read event
         SwooleG.main_reactor->set(SwooleG.main_reactor, event->fd, PHP_SWOOLE_FD_MYSQL | SW_EVENT_READ);
         //connected
@@ -1219,7 +1394,6 @@ static int swoole_mysql_onWrite(swReactor *reactor, swEvent *event)
         client->connector.error_code = SwooleG.error;
         client->connector.error_msg = strerror(SwooleG.error);
         client->connector.error_length = strlen(client->connector.error_msg);
-        mysql_client_free(client, client->object);
         swoole_mysql_onConnect(client TSRMLS_CC);
     }
     return SW_OK;

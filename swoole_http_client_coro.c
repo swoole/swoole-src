@@ -224,9 +224,12 @@ static int http_client_coro_execute(zval *zobject, char *uri, zend_size_t uri_le
 #if PHP_MAJOR_VERSION < 7
     sw_zval_add_ref(&zobject);
 #endif
-
     cli->object = zobject;
-    //sw_copy_to_stack(cli->object, hcc->_object);
+	
+#if PHP_MAJOR_VERSION >= 7
+    http_client_property *hcc = swoole_get_property(zobject, 0);
+    sw_copy_to_stack(cli->object, hcc->_object);
+#endif
     cli->open_eof_check = 0;
     cli->open_length_check = 0;
     cli->reactor_fdtype = PHP_SWOOLE_FD_STREAM_CLIENT;
@@ -1117,7 +1120,7 @@ static PHP_METHOD(swoole_http_client_coro, addFile)
         sw_zval_ptr_dtor(&files);
 
         hcc->request_upload_files = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("uploadFiles"), 0 TSRMLS_CC);
-        //sw_copy_to_stack(hcc->request_upload_files, hcc->_request_upload_files);
+        sw_copy_to_stack(hcc->request_upload_files, hcc->_request_upload_files);
     }
 
     zval *upload_file;

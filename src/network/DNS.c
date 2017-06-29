@@ -131,7 +131,7 @@ static int swDNSResolver_onReceive(swReactor *reactor, swEvent *event)
     Q_FLAGS *qflags = NULL;
     RR_FLAGS *rrflags = NULL;
 
-    char packet[65536];
+    char packet[SW_CLIENT_BUFFER_SIZE];
     uchar rdata[10][254];
     uint32_t type[10];
 
@@ -161,9 +161,14 @@ static int swDNSResolver_onReceive(swReactor *reactor, swEvent *event)
     steps = steps + sizeof(Q_FLAGS);
 
     int ancount = ntohs(header->ancount);
+    if (ancount > 10)
+    {
+        ancount = 10;
+    }
     /* Parsing the RRs from the reply packet */
     for (i = 0; i < ancount; ++i)
     {
+        type[i] = 0;
         /* Parsing the NAME portion of the RR */
         temp = &packet[steps];
         j = 0;
@@ -239,7 +244,7 @@ static int swDNSResolver_onReceive(swReactor *reactor, swEvent *event)
     swDNSResolver_result result;
     bzero(&result, sizeof(result));
 
-    for (i = 0; i < ntohs(header->ancount); ++i)
+    for (i = 0; i < ancount; ++i)
     {
         if (type[i] != SW_DNS_A_RECORD)
         {
@@ -266,7 +271,7 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
 {
     char *_domain_name;
     Q_FLAGS *qflags = NULL;
-    char packet[8192];
+    char packet[SW_BUFFER_SIZE_STD];
     char key[1024];
     swDNSResolver_header *header = NULL;
     int steps = 0;
@@ -279,7 +284,7 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
         }
     }
 
-    header = (swDNSResolver_header *) &packet;
+    header = (swDNSResolver_header *) packet;
     header->id = htons(swoole_dns_request_id);
     header->qr = 0;
     header->opcode = 0;

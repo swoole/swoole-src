@@ -272,6 +272,7 @@ typedef struct
     zval *callback;
     zval *onClose;
     int fd;
+    uint32_t transaction :1;
 
     mysql_connector connector;
 
