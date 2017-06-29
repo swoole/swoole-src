@@ -268,6 +268,8 @@
 #define SW_MYSQL_CONNECT_TIMEOUT         1.0
 #define SW_MYSQL_DEFAULT_CHARSET         33  //0x21, utf8_general_ci
 
+#define SW_REDIS_CONNECT_TIMEOUT         1.0
+
 #define SW_PHP_FUNCTION_MAX_ARG          16
 
 #endif /* SWOOLE_CONFIG_H_ */
