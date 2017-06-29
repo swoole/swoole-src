@@ -40,6 +40,15 @@ int swHttp_get_method(const char *method_str, int method_len)
     return -1;
 }
 
+const char* swHttp_get_method_string(int method)
+{
+    if (method < 0 || method > HTTP_PRI)
+    {
+        return NULL;
+    }
+    return method_strings[method - 1];
+}
+
 /**
  * only GET/POST
  */
