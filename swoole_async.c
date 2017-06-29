@@ -73,8 +73,6 @@ typedef struct
     int64_t  update_time;
 } dns_cache;
 
-extern int swReactorTimer_now(struct timeval *time);
-
 static void php_swoole_check_aio();
 static void php_swoole_aio_onComplete(swAio_event *event);
 static void php_swoole_dns_callback(char *domain, swDNSResolver_result *result, void *data);
@@ -95,7 +93,7 @@ static swHashMap *request_cache_map = NULL; //以domin为区分
 static sw_inline int64_t swTimer_get_now_msec()
 {
     struct timeval now;
-    if (swReactorTimer_now(&now) < 0)
+    if (swTimer_now(&now) < 0)
     {
         return SW_ERR;
     }
@@ -268,9 +266,9 @@ static void php_swoole_dns_callback_coro(char *domain, swDNSResolver_result *res
         cache->zaddress=swString_new(20);
     };
 
-    swString_write_ptr(cache->zaddress,0,Z_STRVAL_P(zaddress), Z_STRLEN_P(zaddress));
+    swString_write_ptr(cache->zaddress, 0, Z_STRVAL_P(zaddress), Z_STRLEN_P(zaddress));
 
-    cache->update_time = (int64_t)swTimer_get_now_msec + (int64_t)(SwooleG.dns_cache_refresh_time*1000);
+    cache->update_time = (int64_t) swTimer_get_now_msec + (int64_t) (SwooleG.dns_cache_refresh_time * 1000);
 
     if (req->useless)
     {
@@ -310,21 +308,22 @@ static void php_swoole_dns_timeout_coro(php_context *cxt)
     zval *zaddress;
 
 #if PHP_MAJOR_VERSION < 7
-    dns_request *req =(dns_request *) cxt->coro_params ;
+    dns_request *req =(dns_request *) cxt->coro_params;
 #else
-    dns_request *req =(dns_request *) cxt->coro_params.value.ptr ;
+    dns_request *req = (dns_request *) cxt->coro_params.value.ptr;
 #endif
 
     SW_MAKE_STD_ZVAL(zaddress);
 
     dns_cache *cache = swHashMap_find(request_cache_map, Z_STRVAL_P(req->domain), Z_STRLEN_P(req->domain));
-    if (cache != NULL && cache->update_time > (int64_t)swTimer_get_now_msec )
+    if (cache != NULL && cache->update_time > (int64_t) swTimer_get_now_msec)
     {
-        SW_ZVAL_STRINGL(zaddress, (*cache->zaddress).str,(*cache->zaddress).length, 1);
-    }else{
-        //不然就是空了
+        SW_ZVAL_STRINGL(zaddress, (*cache->zaddress).str, (*cache->zaddress).length, 1);
+    }
+    else
+    {
         SW_ZVAL_STRING(zaddress, "", 1);
-    };
+    }
 
     int ret = coro_resume(req->context, zaddress, &retval);
     if (ret > 0)
