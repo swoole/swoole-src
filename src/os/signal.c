@@ -239,7 +239,11 @@ static int swSignalfd_onSignal(swReactor *reactor, swEvent *event)
         swWarn("read from signalfd failed. Error: %s[%d]", strerror(errno), errno);
         return SW_ERR;
     }
-
+    if (siginfo.ssi_signo >=  SW_SIGNO_MAX)
+    {
+        swWarn("unknown signal[%d].", siginfo.ssi_signo);
+        return SW_ERR;
+    }
     if (signals[siginfo.ssi_signo].active)
     {
         if (signals[siginfo.ssi_signo].callback)

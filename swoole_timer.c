@@ -236,7 +236,6 @@ static long php_swoole_add_timer(int ms, zval *callback, zval *param, int persis
 
 static int php_swoole_del_timer(swTimer_node *tnode TSRMLS_DC)
 {
-    tnode->id = -1;
     swTimer_callback *cb = tnode->data;
     if (!cb)
     {

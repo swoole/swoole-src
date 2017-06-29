@@ -69,7 +69,7 @@
 #define SW_LOG_NO_SRCINFO          //no source info
 #define SW_LOG_TRACE_OPEN          0
 //#define SW_BUFFER_SIZE           65495 //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
-#define SW_CLIENT_BUFFER_SIZE      65535
+#define SW_CLIENT_BUFFER_SIZE      65536
 //#define SW_CLIENT_RECV_AGAIN
 #define SW_CLIENT_DEFAULT_TIMEOUT  0.5
 #define SW_CLIENT_MAX_PORT         65535
@@ -269,6 +269,8 @@
 #define SW_MYSQL_DEFAULT_PORT            3306
 #define SW_MYSQL_CONNECT_TIMEOUT         1.0
 #define SW_MYSQL_DEFAULT_CHARSET         33  //0x21, utf8_general_ci
+
+#define SW_REDIS_CONNECT_TIMEOUT         1.0
 
 #define SW_PHP_FUNCTION_MAX_ARG          16
 
