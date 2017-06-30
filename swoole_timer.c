@@ -56,6 +56,10 @@ void php_swoole_clear_all_timer()
         {
             break;
         }
+        if (tnode->type != SW_TIMER_TYPE_PHP)
+        {
+            continue;
+        }
         php_swoole_del_timer(tnode TSRMLS_CC);
         swTimer_del(&SwooleG.timer, tnode);
     }
@@ -139,6 +143,7 @@ static long php_swoole_add_timer(int ms, zval *callback, zval *param, int persis
     }
     else
     {
+        tnode->type = SW_TIMER_TYPE_PHP;
         return tnode->id;
     }
 }

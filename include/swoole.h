@@ -1766,7 +1766,15 @@ struct _swTimer_node
     int64_t exec_msec;
     uint32_t interval;
     long id;
+    int type;
     uint8_t remove;
+};
+
+enum swTimer_type
+{
+    SW_TIMER_TYPE_KERNEL,
+    SW_TIMER_TYPE_CORO,
+    SW_TIMER_TYPE_PHP,
 };
 
 struct _swTimer

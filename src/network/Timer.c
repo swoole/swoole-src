@@ -213,7 +213,10 @@ int swTimer_select(swTimer *timer)
         }
 
         timer_id = timer->_current_id = tnode->id;
-        tnode->callback(timer, tnode);
+        if (!tnode->remove)
+        {
+            tnode->callback(timer, tnode);
+        }
         timer->_current_id = -1;
 
         //persistent timer

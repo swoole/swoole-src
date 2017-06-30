@@ -168,6 +168,26 @@ static sw_inline void http_client_create_token(int length, char *buf)
     buf[length] = '\0';
 }
 
+static sw_inline int http_client_check_data(zval *data TSRMLS_DC)
+{
+    if (Z_TYPE_P(data) != IS_ARRAY && Z_TYPE_P(data) != IS_STRING)
+    {
+        swoole_php_error(E_WARNING, "parameter $data must be an array or string.");
+        return SW_ERR;
+    }
+    else if (Z_TYPE_P(data) == IS_ARRAY && php_swoole_array_length(data) == 0)
+    {
+        swoole_php_error(E_WARNING, "parameter $data is empty.");
+        return SW_ERR;
+    }
+    else if (Z_TYPE_P(data) == IS_STRING && Z_STRLEN_P(data) == 0)
+    {
+        swoole_php_error(E_WARNING, "parameter $data is empty.");
+        return SW_ERR;
+    }
+    return SW_OK;
+}
+
 static const php_http_parser_settings http_parser_settings =
 {
     NULL,
@@ -1426,23 +1446,10 @@ static PHP_METHOD(swoole_http_client, setData)
     {
         return;
     }
-
-    if (Z_TYPE_P(data) != IS_ARRAY && Z_TYPE_P(data) != IS_STRING)
+    if (http_client_check_data(data TSRMLS_CC) < 0)
     {
-        swoole_php_error(E_WARNING, "parameter $data must be an array or string.");
         RETURN_FALSE;
     }
-    else if (Z_TYPE_P(data) == IS_ARRAY || php_swoole_array_length(data) == 0)
-    {
-        swoole_php_error(E_WARNING, "parameter $data is empty.");
-        RETURN_FALSE;
-    }
-    else if (Z_TYPE_P(data) == IS_STRING || php_swoole_array_length(data) == 0)
-    {
-        swoole_php_error(E_WARNING, "parameter $data is empty.");
-        RETURN_FALSE;
-    }
-
     zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestBody"), data TSRMLS_CC);
     http_client_property *hcc = swoole_get_property(getThis(), 0);
     hcc->request_body = sw_zend_read_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestBody"), 1 TSRMLS_CC);
@@ -2108,19 +2115,8 @@ static PHP_METHOD(swoole_http_client, post)
         return;
     }
 
-    if (Z_TYPE_P(data) != IS_ARRAY && Z_TYPE_P(data) != IS_STRING)
+    if (http_client_check_data(data TSRMLS_CC) < 0)
     {
-        swoole_php_error(E_WARNING, "parameter $data must be an array or string.");
-        RETURN_FALSE;
-    }
-    else if (Z_TYPE_P(data) == IS_ARRAY || php_swoole_array_length(data) == 0)
-    {
-        swoole_php_error(E_WARNING, "parameter $data is empty.");
-        RETURN_FALSE;
-    }
-    else if (Z_TYPE_P(data) == IS_STRING || php_swoole_array_length(data) == 0)
-    {
-        swoole_php_error(E_WARNING, "parameter $data is empty.");
         RETURN_FALSE;
     }
 
