@@ -40,6 +40,27 @@ static void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode);
 static long php_swoole_add_timer(int ms, zval *callback, zval *param, int persistent TSRMLS_DC);
 static int php_swoole_del_timer(swTimer_node *tnode TSRMLS_DC);
 
+void php_swoole_clear_all_timer()
+{
+    if (!SwooleG.timer.map)
+    {
+        return;
+    }
+    SWOOLE_GET_TSRMLS;
+    uint64_t timer_id;
+    //kill user process
+    while (1)
+    {
+        swTimer_node *tnode = swHashMap_each_int(SwooleG.timer.map, &timer_id);
+        if (tnode == NULL)
+        {
+            break;
+        }
+        php_swoole_del_timer(tnode TSRMLS_CC);
+        swTimer_del(&SwooleG.timer, tnode);
+    }
+}
+
 static long php_swoole_add_timer(int ms, zval *callback, zval *param, int persistent TSRMLS_DC)
 {
     if (SwooleG.serv && swIsMaster())

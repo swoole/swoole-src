@@ -860,6 +860,13 @@ PHP_FUNCTION(swoole_async_dns_lookup)
         SW_CHECK_RETURN(swDNSResolver_request(Z_STRVAL_P(domain), php_swoole_dns_callback, (void *) req));
     }
 
+    if (SwooleAIO.mode == SW_AIO_LINUX)
+    {
+        SwooleAIO.mode = SW_AIO_BASE;
+        SwooleAIO.init = 0;
+        php_swoole_check_aio();
+    }
+
     /**
      * Use thread pool
      */

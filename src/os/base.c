@@ -335,16 +335,6 @@ static int swAioBase_write(int fd, void *inbuf, size_t size, off_t offset)
 
 int swAio_dns_lookup(void *hostname, void *ip_addr, size_t size)
 {
-    if (SwooleAIO.mode == SW_AIO_LINUX)
-    {
-        SwooleAIO.mode = SW_AIO_BASE;
-        if (SwooleAIO.init == 1)
-        {
-            SwooleAIO.init = 0;
-            swAio_init();
-        }
-    }
-
     swAio_event *aio_ev = (swAio_event *) sw_malloc(sizeof(swAio_event));
     if (aio_ev == NULL)
     {
