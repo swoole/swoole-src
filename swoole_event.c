@@ -49,17 +49,17 @@ static void php_swoole_event_onDefer(void *_cb);
 static void free_event_callback(void* data)
 {
     php_reactor_fd* ev_set = (php_reactor_fd*) data;
-    if (ev_set && ev_set->cb_read)
+    if (ev_set->cb_read)
     {
         sw_zval_ptr_dtor(&(ev_set->cb_read));
         ev_set->cb_read = NULL;
     }
-    if (ev_set && ev_set->cb_write)
+    if (ev_set->cb_write)
     {
         sw_zval_ptr_dtor(&(ev_set->cb_write));
         ev_set->cb_write = NULL;
     }
-    if (ev_set && ev_set->socket)
+    if (ev_set->socket)
     {
         sw_zval_ptr_dtor(&(ev_set->socket));
         ev_set->socket = NULL;
@@ -378,6 +378,10 @@ PHP_FUNCTION(swoole_event_add)
         sw_zval_add_ref(&cb_read);
         sw_copy_to_stack(reactor_fd->cb_read, reactor_fd->stack.cb_read);
     }
+    else
+    {
+        reactor_fd->cb_read = NULL;
+    }
 
     if (cb_write!= NULL && !ZVAL_IS_NULL(cb_write))
     {
@@ -391,6 +395,10 @@ PHP_FUNCTION(swoole_event_add)
         reactor_fd->cb_write = cb_write;
         sw_zval_add_ref(&cb_write);
         sw_copy_to_stack(reactor_fd->cb_write, reactor_fd->stack.cb_write);
+    }
+    else
+    {
+        reactor_fd->cb_write = NULL;
     }
 
     php_swoole_check_reactor();
