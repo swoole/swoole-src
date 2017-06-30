@@ -83,18 +83,18 @@ void swoole_buffer_init(int module_number TSRMLS_DC)
     SWOOLE_CLASS_ALIAS(swoole_buffer, "Swoole\\Buffer");
 }
 
-void swoole_buffer_recycle(swString *buffer)
+static void swoole_buffer_recycle(swString *buffer)
 {
-    long length;
-
-    if (buffer->offset == 0) {
+    if (buffer->offset == 0)
+    {
         return;
     }
 
+    long length;
     length = buffer->length - buffer->offset;
-
-    if (length > 0) {
-        memcpy(buffer->str, buffer->str + buffer->offset, length);
+    if (length > 0)
+    {
+        memmove(buffer->str, buffer->str + buffer->offset, length);
     }
 
     buffer->offset = 0;
@@ -193,7 +193,7 @@ static PHP_METHOD(swoole_buffer, substr)
     }
     swString *buffer = swoole_get_object(getThis());
 
-    if (remove && !(offset == 0 && length < buffer->length))
+    if (remove && !(offset == 0 && length <= buffer->length))
     {
         remove = 0;
     }
@@ -208,17 +208,16 @@ static PHP_METHOD(swoole_buffer, substr)
     }
     if (offset + length > buffer->length)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "offset(%ld,%ld) out of bounds.", offset, length);
+        swoole_php_error(E_WARNING, "offset(%ld, %ld) out of bounds.", offset, length);
         RETURN_FALSE;
     }
     if (remove)
     {
         buffer->offset += length;
-        zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("length"),
-                buffer->length - buffer->offset TSRMLS_CC);
+        zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("length"), buffer->length - buffer->offset TSRMLS_CC);
 
-        if (buffer->offset > SW_STRING_BUFFER_GARBAGE_MIN && buffer->offset * SW_STRING_BUFFER_GARBAGE_RATIO > buffer->size) {
-            // Do recycle when the garbage is to large.
+        if (buffer->offset > SW_STRING_BUFFER_GARBAGE_MIN && buffer->offset * SW_STRING_BUFFER_GARBAGE_RATIO > buffer->size)
+        {
             swoole_buffer_recycle(buffer);
         }
     }
