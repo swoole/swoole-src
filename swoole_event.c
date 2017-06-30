@@ -48,7 +48,7 @@ static void php_swoole_event_onDefer(void *_cb);
 
 static void free_event_callback(void* data)
 {
-    php_reactor_fd* ev_set = (php_reactor_fd*) data;
+    php_reactor_fd *ev_set = (php_reactor_fd*) data;
     if (ev_set->cb_read)
     {
         sw_zval_ptr_dtor(&(ev_set->cb_read));
