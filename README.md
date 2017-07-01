@@ -357,7 +357,7 @@ bool swoole_event_set($fd, mixed $read_callback, mixed $write_callback, int $fla
 bool swoole_event_del($fd);
 ```
 
-The `$fid` parameter can be one of the following types:
+The `$fd` parameter can be one of the following types:
 
 * unix file descriptor
 * stream resource created by `stream_socket_client()/fsockopen()`
