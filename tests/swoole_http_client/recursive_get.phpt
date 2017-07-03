@@ -14,7 +14,7 @@ assert.quiet_eval=0
 <?php
 require_once __DIR__ . "/../include/swoole.inc";
 
-$simple_http_server = __DIR__ . "/../include/apitest/swoole_http_server/simple_http_server.php";
+$simple_http_server = __DIR__ . "/../include/api/swoole_http_server/simple_http_server.php";
 $closeServer = start_server($simple_http_server, HTTP_SERVER_HOST, $port = get_one_free_port());
 
 $cli = new \swoole_http_client("127.0.0.1", 80);

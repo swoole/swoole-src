@@ -1,0 +1,25 @@
+<?php
+
+require_once __DIR__ . "/swoole_mysql_init.php";
+
+
+// 1024
+$n = 1025; // 测试最大bind限制
+$fields = implode(", ", array_fill(0, $n, "?"));
+$bind = range(0, $n - 1);
+
+
+swoole_mariadb_query("select $fields", $bind, function($swoole_mysql, $result) {
+    ob_start();
+    assert($swoole_mysql->errno !== 0);
+    assert($result === false);
+    assert($swoole_mysql->errno === -5);
+    assert($swoole_mysql->error === "param num over max field num");
+    $buf = ob_get_clean();
+    if ($buf) {
+        fprintf(STDERR, $buf);
+    } else {
+        fprintf(STDERR, "SUCCESS");
+    }
+    swoole_event_exit();
+});

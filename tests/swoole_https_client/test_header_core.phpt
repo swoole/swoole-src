@@ -12,9 +12,9 @@ assert.quiet_eval=0
 <?php
 
 require_once __DIR__ . "/../include/swoole.inc";
-require_once __DIR__ . "/../include/apitest/swoole_http_client/simple_https_client.php";
+require_once __DIR__ . "/../include/api/swoole_http_client/simple_https_client.php";
 
-$simple_http_server = __DIR__ . "/../include/apitest/swoole_http_server/simple_https_server.php";
+$simple_http_server = __DIR__ . "/../include/api/swoole_http_server/simple_https_server.php";
 $closeServer = start_server($simple_http_server, HTTP_SERVER_HOST, $port = get_one_free_port());
 
 set_error_handler(function($errno) {

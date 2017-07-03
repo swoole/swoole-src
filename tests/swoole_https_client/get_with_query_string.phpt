@@ -13,12 +13,13 @@ assert.quiet_eval=0
 <?php
 
 require_once __DIR__ . "/../include/swoole.inc";
-require_once __DIR__ . "/../include/apitest/swoole_http_client/simple_https_client.php";
+require_once __DIR__ . "/../include/api/swoole_http_client/simple_https_client.php";
 
-$simple_http_server = __DIR__ . "/../include/apitest/swoole_http_server/simple_https_server.php";
-$closeServer = start_server($simple_http_server, HTTP_SERVER_HOST, $port = get_one_free_port());
+$sm = new ServerManager(__DIR__ . "/../include/api/swoole_http_server/simple_https_server.php");
+$sm->listen(HTTP_SERVER_HOST);
+$closeServer = $sm->run();
 
-testHttpsGet(HTTP_SERVER_HOST, $port, $_SERVER, function() use($closeServer) {
+testHttpsGet(HTTP_SERVER_HOST, $sm->port, $_SERVER, function() use($closeServer) {
     echo "SUCCESS";$closeServer();
 });
 

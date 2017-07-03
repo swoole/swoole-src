@@ -14,7 +14,7 @@ assert.quiet_eval=0
 require_once __DIR__ . "/../include/swoole.inc";
 
 fork_exec(function() {
-    require_once __DIR__ . "/../include/apitest/swoole_mysql/swoole_mysql_query_with_prepare_placeholder_question.php";
+    require_once __DIR__ . "/../include/api/swoole_mysql/swoole_mysql_query_with_prepare_placeholder_question.php";
 });
 ?>
 --EXPECT--

@@ -13,7 +13,7 @@ assert.quiet_eval=0
 --FILE--
 <?php
 require_once __DIR__ . "/../include/swoole.inc";
-require_once __DIR__ . "/../include/apitest/swoole_http_client/connect_host_not_found.php";
+require_once __DIR__ . "/../include/api/swoole_http_client/connect_host_not_found.php";
 // 实际期望输出error
 ?>
 

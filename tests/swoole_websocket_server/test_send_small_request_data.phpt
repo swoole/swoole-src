@@ -13,9 +13,9 @@ assert.quiet_eval=0
 <?php
 
 require_once __DIR__ . "/../include/swoole.inc";
-require_once __DIR__ . "/../include/apitest/swoole_websocket_server/send_small_request_data.php";
+require_once __DIR__ . "/../include/api/swoole_websocket_server/send_small_request_data.php";
 
-$swoole_websocket_server = __DIR__ . "/../include/apitest/swoole_websocket_server/swoole_websocket_server.php";
+$swoole_websocket_server = __DIR__ . "/../include/api/swoole_websocket_server/swoole_websocket_server.php";
 $closeServer = start_server($swoole_websocket_server, WEBSOCKET_SERVER_HOST, $port = get_one_free_port());
 
 send_small_request_data(WEBSOCKET_SERVER_HOST, $port);

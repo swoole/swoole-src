@@ -20,7 +20,7 @@ assert.quiet_eval=0
 require_once __DIR__ . "/../include/swoole.inc";
 
 /*
-$simple_tcp_server = __DIR__ . "/../include/apitest/swoole_server/opcode_server.php";
+$simple_tcp_server = __DIR__ . "/../include/api/swoole_server/opcode_server.php";
 $port = get_one_free_port();
 //
 start_server($simple_tcp_server, TCP_SERVER_HOST, $port);
@@ -43,7 +43,7 @@ makeTcpClient(TCP_SERVER_HOST, $port, swoole_function(\swoole_client_async $cli)
 //    });
 });
 */
-$simple_tcp_server = __DIR__ . "/../include/apitest/swoole_server/tcp_task_server.php";
+$simple_tcp_server = __DIR__ . "/../include/api/swoole_server/tcp_task_server.php";
 start_server($simple_tcp_server, TCP_SERVER_HOST, TCP_SERVER_PORT);
 
 suicide(5000);

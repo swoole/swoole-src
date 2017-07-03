@@ -13,7 +13,7 @@ assert.quiet_eval=0
 <?php
 require_once __DIR__ . "/../include/swoole.inc";
 
-$simple_tcp_server = __DIR__ . "/../include/apitest/swoole_server/opcode_server.php";
+$simple_tcp_server = __DIR__ . "/../include/api/swoole_server/opcode_server.php";
 
 $port1 = get_one_free_port();
 $port2 = get_one_free_port();

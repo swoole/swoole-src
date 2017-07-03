@@ -13,7 +13,7 @@ assert.quiet_eval=0
 --FILE--
 <?php
 require_once __DIR__ . "/../include/swoole.inc";
-require_once __DIR__ . "/../include/apitest/swoole_async/recursive_write.php";
+require_once __DIR__ . "/../include/api/swoole_async/recursive_write.php";
 
 recursiveWrite();
 ?>

@@ -13,7 +13,7 @@ assert.quiet_eval=0
 --FILE--
 <?php
 require_once __DIR__ . "/../include/swoole.inc";
-require_once __DIR__ . "/../include/apitest/swoole_async/read_write.php";
+require_once __DIR__ . "/../include/api/swoole_async/read_write.php";
 
 
 $chunk = 1024 * 512;
