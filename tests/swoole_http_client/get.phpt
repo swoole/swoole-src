@@ -1,10 +1,10 @@
 --TEST--
-Test of swoole_http_client->get
+swoole_http_client: get
 --SKIPIF--
-<?php include "skipif.inc"; ?>
+<?php require  __DIR__ . "/../include/skipif.inc"; ?>
 --FILE--
 <?php
-include "include.inc";
+require_once __DIR__ . "/../include/swoole.inc";
 
 function start_swoole_http_server() {
 	$func = function ()
@@ -12,6 +12,7 @@ function start_swoole_http_server() {
         $http = new swoole_http_server("127.0.0.1", 9501, SWOOLE_BASE);
         $http->set(array(
             'worker_num' => 2,
+            'log_file' => '/dev/null'
         ));
         $http->on('request', function ($request, swoole_http_response $response)
         {

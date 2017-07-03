@@ -14,11 +14,11 @@ assert.quiet_eval=0
 <?php
 require_once __DIR__ . "/../include/swoole.inc";
 
-$tcp_server = __DIR__ . "/../../memoryleak/tcp_client_memory_leak/tcp_serv.php";
+$tcp_server = __DIR__ . "/../include/memoryleak/tcp_client_memory_leak/tcp_serv.php";
 start_server($tcp_server, "127.0.0.1", 9001);
 
 $mem = memory_get_usage(true);
-require_once __DIR__ . "/../../memoryleak/tcp_client_memory_leak/tcp_client.php";
+require_once __DIR__ . "/../include/memoryleak/tcp_client_memory_leak/tcp_client.php";
 assert(memory_get_usage(true) == $mem);
 echo "SUCCESS";
 ?>

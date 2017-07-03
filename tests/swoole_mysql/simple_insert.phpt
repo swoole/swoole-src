@@ -19,3 +19,4 @@ fork_exec(function() {
 ?>
 --EXPECT--
 SUCCESS
+closed
