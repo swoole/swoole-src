@@ -1,0 +1,68 @@
+#!/usr/bin/env php
+
+<?php
+
+clean();
+
+function clean()
+{
+    $files = [
+        __DIR__ . "/swoole_async/big_zero",
+        __DIR__ . "/swoole_async/big_zero.copy",
+    ];
+    foreach (scan(__DIR__, "/.*\.phpt/") as $phpt) {
+        $prefix = substr($phpt, 0, -4);
+        foreach (["diff", "exp", "log", "out", "sh", "php"] as $ext) {
+            $t = "$prefix$ext";
+            $files[] = $t;
+        }
+    }
+    foreach ($files as $f) {
+        if (file_exists($f)) {
+            echo "DELETE: ", $f,"\n";
+            unlink($f);
+        }
+    }
+}
+
+
+/**
+ * scan dirs
+ * @param string|array $dirs path or array of path
+ * @param string $regex
+ * @param callable $filter
+ * @param bool $realPath yield path or \SplFileInfo
+ * @return \Generator
+ * @author xiaofeng
+ * @Usage
+ *  1. scan("\tmp", '/.*\.php/')
+ *  2. scan(["\tmp", "\Users"], '/.*\.php/')
+ *  3. scan("\tmp", null, swoole_function(SplFileInfo $current, $path, $iter) { return true or false })
+ *  4. scan(["\tmp", "\Users"], null, swoole_function(SplFileInfo $current, $path, $iter) { return true or false })
+ */
+function scan($dirs, $regex = null, callable $filter = null, $realPath = true)
+{
+    $dirs = (array)$dirs;
+
+    $appendIter = new \AppendIterator();
+    foreach ($dirs as $dir) {
+        $iter = new \RecursiveDirectoryIterator($dir, \RecursiveDirectoryIterator::SKIP_DOTS);
+        if ($filter) {
+            $iter = new \RecursiveCallbackFilterIterator($iter, $filter);
+        }
+        $iter = new \RecursiveIteratorIterator($iter, \RecursiveIteratorIterator::LEAVES_ONLY);
+
+        if ($regex) {
+            $iter = new \RegexIterator($iter, $regex, \RegexIterator::GET_MATCH);
+        }
+        $appendIter->append($iter);
+    }
+
+    foreach ($appendIter as $file) {
+        if ($regex) {
+            yield $realPath ? $file[0] : new \SplFileInfo($file[0]);
+        } else {
+            yield $realPath ? $file->getRealPath() : $file;
+        }
+    }
+}
