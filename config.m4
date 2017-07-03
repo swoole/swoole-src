@@ -129,6 +129,26 @@ AC_DEFUN([AC_SWOOLE_HAVE_REUSEPORT],
     ])
 ])
 
+AC_DEFUN([AC_SWOOLE_HAVE_FUTEX],
+[
+    AC_MSG_CHECKING([for futex])
+    AC_TRY_COMPILE(
+    [
+		#include <linux/futex.h>
+		#include <syscall.h>
+		#include <unistd.h>
+    ], [
+        int futex_addr;
+		int val1;
+	    syscall(SYS_futex, &futex_addr, val1, NULL, NULL, 0);
+    ], [
+        AC_DEFINE([HAVE_FUTEX], 1, [have FUTEX?])
+        AC_MSG_RESULT([yes])
+    ], [
+        AC_MSG_RESULT([no])
+    ])
+])
+
 AC_MSG_CHECKING([if compiling with clang])
 AC_COMPILE_IFELSE([
     AC_LANG_PROGRAM([], [[
@@ -185,6 +205,7 @@ if test "$PHP_SWOOLE" != "no"; then
 
     AC_SWOOLE_CPU_AFFINITY
     AC_SWOOLE_HAVE_REUSEPORT
+	AC_SWOOLE_HAVE_FUTEX
 
     CFLAGS="-Wall -fstack-check -fstack-protector -fstack-protector-all -pthread $CFLAGS"
     LDFLAGS="$LDFLAGS -lpthread"

@@ -23,6 +23,46 @@ static PHP_METHOD(swoole_atomic, get);
 static PHP_METHOD(swoole_atomic, set);
 static PHP_METHOD(swoole_atomic, cmpset);
 
+#ifdef HAVE_FUTEX
+#include <linux/futex.h>
+#include <syscall.h>
+
+static int swoole_futex_wait(sw_atomic_t *atomic, double timeout)
+{
+    if (sw_atomic_cmp_set(atomic, 1, 0))
+    {
+        return SW_OK;
+    }
+    if (timeout > 0)
+    {
+        struct timespec _timeout;
+        _timeout.tv_sec = (long) timeout;
+        _timeout.tv_nsec = (timeout - _timeout.tv_sec) * 1000 * 1000 * 1000;
+        return syscall(SYS_futex, atomic, FUTEX_WAIT, 0, &_timeout, NULL, 0);
+    }
+    else
+    {
+        return syscall(SYS_futex, atomic, FUTEX_WAIT, 0, NULL, NULL, 0);
+    }
+}
+
+static int swoole_futex_wakeup(sw_atomic_t *atomic, int n)
+{
+    if (sw_atomic_cmp_set(atomic, 0, 1))
+    {
+        return syscall(SYS_futex, atomic, FUTEX_WAKE, n, NULL, NULL, 0);
+    }
+    else
+    {
+        return SW_OK;
+    }
+}
+
+static PHP_METHOD(swoole_atomic, wait);
+static PHP_METHOD(swoole_atomic, wakeup);
+
+#endif
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_atomic_construct, 0, 0, 0)
     ZEND_ARG_INFO(0, value)
 ZEND_END_ARG_INFO()
@@ -47,6 +87,16 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_atomic_cmpset, 0, 0, 2)
     ZEND_ARG_INFO(0, new_value)
 ZEND_END_ARG_INFO()
 
+#ifdef HAVE_FUTEX
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_atomic_wait, 0, 0, 0)
+    ZEND_ARG_INFO(0, timeout)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_atomic_waitup, 0, 0, 0)
+    ZEND_ARG_INFO(0, count)
+ZEND_END_ARG_INFO()
+#endif
+
 static zend_class_entry swoole_atomic_ce;
 zend_class_entry *swoole_atomic_class_entry_ptr;
 
@@ -57,6 +107,10 @@ static const zend_function_entry swoole_atomic_methods[] =
     PHP_ME(swoole_atomic, sub, arginfo_swoole_atomic_sub, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_atomic, get, arginfo_swoole_atomic_get, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_atomic, set, arginfo_swoole_atomic_set, ZEND_ACC_PUBLIC)
+#ifdef HAVE_FUTEX
+    PHP_ME(swoole_atomic, wait, arginfo_swoole_atomic_wait, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_atomic, wakeup, arginfo_swoole_atomic_waitup, ZEND_ACC_PUBLIC)
+#endif
     PHP_ME(swoole_atomic, cmpset, arginfo_swoole_atomic_cmpset, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
@@ -143,3 +197,29 @@ PHP_METHOD(swoole_atomic, cmpset)
 
     RETURN_BOOL(sw_atomic_cmp_set(atomic, (sw_atomic_t) cmp_value, (sw_atomic_t) set_value));
 }
+
+#ifdef HAVE_FUTEX
+
+PHP_METHOD(swoole_atomic, wait)
+{
+    double timeout = 1.0;
+    sw_atomic_t *atomic = swoole_get_object(getThis());
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|d", &timeout) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+    SW_CHECK_RETURN(swoole_futex_wait(atomic, timeout));
+}
+
+PHP_METHOD(swoole_atomic, wakeup)
+{
+    long n = 1;
+    sw_atomic_t *atomic = swoole_get_object(getThis());
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &n) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+    SW_CHECK_RETURN(swoole_futex_wakeup(atomic, (int ) n));
+}
+
+#endif
