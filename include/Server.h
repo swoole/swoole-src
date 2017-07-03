@@ -536,7 +536,7 @@ static sw_inline swString *swServer_get_buffer(swServer *serv, int fd)
     swString *buffer = serv->connection_list[fd].recv_buffer;
     if (buffer == NULL)
     {
-        buffer = swString_new(SW_BUFFER_SIZE);
+        buffer = swString_new(SW_BUFFER_SIZE_STD);
         //alloc memory failed.
         if (!buffer)
         {
