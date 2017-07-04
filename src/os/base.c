@@ -219,6 +219,12 @@ static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len)
         {
             ret = pwrite(event->fd, event->buf, event->nbytes, event->offset);
         }
+#if 0
+        if (fsync(event->fd) < 0)
+        {
+            swSysError("fsync(%d) failed.", event->fd);
+        }
+#endif
         if (flock(event->fd, LOCK_UN) < 0)
         {
             swSysError("flock(%d, LOCK_UN) failed.", event->fd);
