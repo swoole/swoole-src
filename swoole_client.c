@@ -1064,7 +1064,7 @@ static PHP_METHOD(swoole_client, __destruct)
 {
     swClient *cli = swoole_get_object(getThis());
     //no keep connection
-    if (cli)
+    if (cli && cli->released == 0)
     {
         zval *zobject = getThis();
         zval *retval = NULL;
@@ -1695,7 +1695,6 @@ static PHP_METHOD(swoole_client, close)
     {
         return;
     }
-
     swClient *cli = swoole_get_object(getThis());
     if (!cli || !cli->socket)
     {
