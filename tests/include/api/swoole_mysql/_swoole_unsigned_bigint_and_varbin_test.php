@@ -1,11 +1,4 @@
 <?php
-/**
- * Created by IntelliJ IDEA.
- * User: chuxiaofeng
- * Date: 17/2/9
- * Time: 上午10:14
- */
-
 require_once __DIR__ . "/swoole_mysql_init.php";
 define("MAX_UNSIGNED_BIGINT", "18446744073709551615");
 

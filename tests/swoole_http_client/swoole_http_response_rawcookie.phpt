@@ -12,9 +12,7 @@ assert.quiet_eval=0
 --FILE--
 <?php
 /**
- * Created by IntelliJ IDEA.
- * User: chuxiaofeng
- * Date: 17/6/7
+
  * Time: 下午3:04
  */
 

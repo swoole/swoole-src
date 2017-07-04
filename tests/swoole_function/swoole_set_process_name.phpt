@@ -13,12 +13,6 @@ assert.quiet_eval=0
 
 --FILE--
 <?php
-/**
- * Created by IntelliJ IDEA.
- * User: chuxiaofeng
- * Date: 17/6/7
- * Time: 下午2:13
- */
 require_once __DIR__ . "/../include/swoole.inc";
 
 $name = "SWOOLE_PROCESS_TEST_" . rand(1, 100);

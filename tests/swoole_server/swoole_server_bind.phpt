@@ -11,12 +11,6 @@ assert.quiet_eval=0
 
 --FILE--
 <?php
-/**
- * Created by IntelliJ IDEA.
- * User: chuxiaofeng
- * Date: 17/6/7
- * Time: 下午4:34
- */
 require_once __DIR__ . "/../include/swoole.inc";
 
 $simple_tcp_server = __DIR__ . "/../include/api/swoole_server/opcode_server.php";

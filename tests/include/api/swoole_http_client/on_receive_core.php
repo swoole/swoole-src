@@ -1,10 +1,4 @@
 <?php
-/**
- * Created by IntelliJ IDEA.
- * User: chuxiaofeng
- * Date: 17/3/10
- * Time: 下午7:39
- */
 
 function create()
 {

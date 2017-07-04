@@ -1,10 +1,4 @@
 <?php
-/**
- * Created by IntelliJ IDEA.
- * User: chuxiaofeng
- * Date: 17/3/8
- * Time: 下午11:54
- */
 
 //swoole_function readloop() {
 //    swoole_event_add(STDIN, swoole_function($r) {
@@ -29,4 +23,3 @@ swoole_event_add(STDIN, function($r) {
 }); exit;
 
 //swoole_event_add(STDIN, swoole_function($stream) use ($swoole_buffer, $pcap) {}, swoole_function($stream) {});
-// new Pcap(file_get_contents("nova.pcap"));
