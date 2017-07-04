@@ -421,17 +421,9 @@ void swServer_store_listen_socket(swServer *serv)
 swString** swServer_create_worker_buffer(swServer *serv)
 {
     int i;
-    int buffer_input_size;
-    if (serv->listen_list->open_eof_check || serv->listen_list->open_length_check || serv->listen_list->open_http_protocol)
-    {
-        buffer_input_size = serv->listen_list->protocol.package_max_length;
-    }
-    else
-    {
-        buffer_input_size = SW_BUFFER_SIZE_BIG;
-    }
-
+    int buffer_input_size = serv->listen_list->protocol.package_max_length;
     int buffer_num;
+
     if (serv->factory_mode == SW_MODE_SINGLE || serv->factory_mode == SW_MODE_BASE)
     {
         buffer_num = 1;
