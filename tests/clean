@@ -11,12 +11,7 @@ foreach ($dirs as $d)
 
 function clean($dir)
 {
-    $ignore_files = [
-        __DIR__ . "/swoole_async/big_zero",
-        __DIR__ . "/swoole_async/big_zero.copy",
-        __DIR__ . "/swoole_client_async/test.jpg",
-        __DIR__ . "/swoole_process/echo.py",
-    ];
+    $ignore_files = include __DIR__ . '/include/ignore_files.php';
     $files = scandir($dir);
     foreach ($files as $f)
     {

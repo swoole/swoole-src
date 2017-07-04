@@ -207,7 +207,7 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_SWOOLE_HAVE_REUSEPORT
 	AC_SWOOLE_HAVE_FUTEX
 
-    CFLAGS="-Wall -fstack-check -fstack-protector -fstack-protector-all -pthread $CFLAGS"
+    CFLAGS="-Wall -pthread $CFLAGS"
     LDFLAGS="$LDFLAGS -lpthread"
 
     if test `uname` = "Darwin"; then

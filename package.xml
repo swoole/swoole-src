@@ -35,7 +35,7 @@
 		<email>shenzhe163@gmail.com</email>
 		<active>yes</active>
 	</developer>
-    <date>2017-06-28</date>
+    <date>2017-07-04</date>
     <time>09:50:10</time>
     <version>
 		<release>1.9.15</release>
@@ -47,13 +47,14 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Update HttpClient, when the connection is overtime or when the server is reset, the callback is not completed
-- Update HttpClient, the underlying increase request timeout mechanism
-- Update the bottom of the client support mqtt agreement
-- Fixed WebSocket server custom handshake method more than the header
-- Fixed onTask memory leak
-- Fixed HttpServer special circumstances the release of the problem of the crash occurred
-- Fixed WebSocket::unpack Passing an empty string causes a problem with parsing errors
+- Added MySQL client support for transaction processing
+- Added static compilation support
+- Added MySQL connection timeout support
+- Added Redis connection timeout support
+- Added Redis password and database options
+- Added Atomic->wait/wakeup function, you can use the atomic count to achieve notification and wait function
+- Fixed Redis\Server received more than 8K request crashes when the request
+- Added 170 unit test scripts
     </notes>
 	<contents>
 		<dir name="/">
@@ -334,6 +335,298 @@
 				<file role="src" name="sendfile_server.php" />
 				<file role="src" name="recv_file.php" />
 				<file role="doc" name="test.jpg" />
+			</dir>
+			<dir name="tests">
+				<file name="clean" role="test" />
+				<file name="include/api/swoole_async/dns_lock_bug.php" role="test" />
+				<file name="include/api/swoole_async/fork_dns_lookup.php" role="test" />
+				<file name="include/api/swoole_async/read_write.php" role="test" />
+				<file name="include/api/swoole_async/recursive_write.php" role="test" />
+				<file name="include/api/swoole_async/swoole_async_read.php" role="test" />
+				<file name="include/api/swoole_async/swoole_async_write.php" role="test" />
+				<file name="include/api/swoole_async/swoole_pipe_block.php" role="test" />
+				<file name="include/api/swoole_async_old/read_write.php" role="test" />
+				<file name="include/api/swoole_async_old/swoole_async_read.php" role="test" />
+				<file name="include/api/swoole_async_old/swoole_async_readfile.php" role="test" />
+				<file name="include/api/swoole_async_old/swoole_async_write.php" role="test" />
+				<file name="include/api/swoole_async_old/swoole_async_writefile.php" role="test" />
+				<file name="include/api/swoole_async_old/swoole_pipe_block.php" role="test" />
+				<file name="include/api/swoole_callback/swoole_cannot_destroy_active_lambda_function.php" role="test" />
+				<file name="include/api/swoole_client/connect_host_not_found.php" role="test" />
+				<file name="include/api/swoole_client/connect_port_not_listen.php" role="test" />
+				<file name="include/api/swoole_client/connect_timeout.php" role="test" />
+				<file name="include/api/swoole_client/connect_twice.php" role="test" />
+				<file name="include/api/swoole_client/opcode_client.php" role="test" />
+				<file name="include/api/swoole_client/simple_client.php" role="test" />
+				<file name="include/api/swoole_client/socket_free.php" role="test" />
+				<file name="include/api/swoole_event_and_utils/event_add_set_del.php" role="test" />
+				<file name="include/api/swoole_event_and_utils/swoole_event.php" role="test" />
+				<file name="include/api/swoole_http_client/connect_host_not_found.php" role="test" />
+				<file name="include/api/swoole_http_client/connect_port_not_listen.php" role="test" />
+				<file name="include/api/swoole_http_client/connect_timeout.php" role="test" />
+				<file name="include/api/swoole_http_client/http_request_connect_timeout.php" role="test" />
+				<file name="include/api/swoole_http_client/meomry_leak.php" role="test" />
+				<file name="include/api/swoole_http_client/on_error_close.php" role="test" />
+				<file name="include/api/swoole_http_client/on_receive_core.php" role="test" />
+				<file name="include/api/swoole_http_client/simple_http_client.php" role="test" />
+				<file name="include/api/swoole_http_client/simple_http_client_test.php" role="test" />
+				<file name="include/api/swoole_http_client/simple_https_client.php" role="test" />
+				<file name="include/api/swoole_http_client/simple_https_client_test.php" role="test" />
+				<file name="include/api/swoole_http_client/swoole_http_client_RST.php" role="test" />
+				<file name="include/api/swoole_http_client/swoole_http_client_simple.php" role="test" />
+				<file name="include/api/swoole_http_client/uaf_client.php" role="test" />
+				<file name="include/api/swoole_http_client/uaf_server.js" role="test" />
+				<file name="include/api/swoole_http_server/htf_swoole20_https_server.php" role="test" />
+				<file name="include/api/swoole_http_server/http_server.php" role="test" />
+				<file name="include/api/swoole_http_server/http_server_without_response.php" role="test" />
+				<file name="include/api/swoole_http_server/localhost-ssl/ca.crt" role="test" />
+				<file name="include/api/swoole_http_server/localhost-ssl/ca.csr" role="test" />
+				<file name="include/api/swoole_http_server/localhost-ssl/ca.key" role="test" />
+				<file name="include/api/swoole_http_server/localhost-ssl/ca.srl" role="test" />
+				<file name="include/api/swoole_http_server/localhost-ssl/client.crt" role="test" />
+				<file name="include/api/swoole_http_server/localhost-ssl/client.csr" role="test" />
+				<file name="include/api/swoole_http_server/localhost-ssl/client.key" role="test" />
+				<file name="include/api/swoole_http_server/localhost-ssl/client.pem" role="test" />
+				<file name="include/api/swoole_http_server/localhost-ssl/server.crt" role="test" />
+				<file name="include/api/swoole_http_server/localhost-ssl/server.csr" role="test" />
+				<file name="include/api/swoole_http_server/localhost-ssl/server.key" role="test" />
+				<file name="include/api/swoole_http_server/localhost-ssl/server.pem" role="test" />
+				<file name="include/api/swoole_http_server/simple_http_server.php" role="test" />
+				<file name="include/api/swoole_http_server/simple_https_server.php" role="test" />
+				<file name="include/api/swoole_mysql/_swoole_unsigned_bigint_and_varbin_test.php" role="test" />
+				<file name="include/api/swoole_mysql/coredump.php" role="test" />
+				<file name="include/api/swoole_mysql/mysqli.php" role="test" />
+				<file name="include/api/swoole_mysql/query_without_connect.php" role="test" />
+				<file name="include/api/swoole_mysql/select1.php" role="test" />
+				<file name="include/api/swoole_mysql/swoole_mysql_connect_timeout.php" role="test" />
+				<file name="include/api/swoole_mysql/swoole_mysql_connect_twice.php" role="test" />
+				<file name="include/api/swoole_mysql/swoole_mysql_connection_reuse.php" role="test" />
+				<file name="include/api/swoole_mysql/swoole_mysql_init.php" role="test" />
+				<file name="include/api/swoole_mysql/swoole_mysql_insert.php" role="test" />
+				<file name="include/api/swoole_mysql/swoole_mysql_memory_leak.php" role="test" />
+				<file name="include/api/swoole_mysql/swoole_mysql_on_check.php" role="test" />
+				<file name="include/api/swoole_mysql/swoole_mysql_query.php" role="test" />
+				<file name="include/api/swoole_mysql/swoole_mysql_query_coredump.php" role="test" />
+				<file name="include/api/swoole_mysql/swoole_mysql_query_multi_filed.php" role="test" />
+				<file name="include/api/swoole_mysql/swoole_mysql_query_same_filed.php" role="test" />
+				<file name="include/api/swoole_mysql/swoole_mysql_recursive_query.php" role="test" />
+				<file name="include/api/swoole_mysql/swoole_mysql_refcout.php" role="test" />
+				<file name="include/api/swoole_mysql/swoole_mysql_sql_syntax_error.php" role="test" />
+				<file name="include/api/swoole_redis/connect_timeout.php" role="test" />
+				<file name="include/api/swoole_redis/doublefree_client.php" role="test" />
+				<file name="include/api/swoole_redis/doublefree_server.php" role="test" />
+				<file name="include/api/swoole_redis/query_timeout.php" role="test" />
+				<file name="include/api/swoole_redis/redis_server_without_response.php" role="test" />
+				<file name="include/api/swoole_redis/redis_test.php" role="test" />
+				<file name="include/api/swoole_redis/simple_redis.php" role="test" />
+				<file name="include/api/swoole_server/manager_process_exit.log" role="test" />
+				<file name="include/api/swoole_server/multi_protocol_server.php" role="test" />
+				<file name="include/api/swoole_server/opcode_server.php" role="test" />
+				<file name="include/api/swoole_server/reconnect_fail/README.md" role="test" />
+				<file name="include/api/swoole_server/reconnect_fail/tcp_client.php" role="test" />
+				<file name="include/api/swoole_server/reconnect_fail/tcp_serv.php" role="test" />
+				<file name="include/api/swoole_server/server_manager_process_exit.php" role="test" />
+				<file name="include/api/swoole_server/server_send_fast_recv_slow.php" role="test" />
+				<file name="include/api/swoole_server/simple_server.php" role="test" />
+				<file name="include/api/swoole_server/simple_tcp_server.php" role="test" />
+				<file name="include/api/swoole_server/simple_udp_server.php" role="test" />
+				<file name="include/api/swoole_server/tcp_task_server.php" role="test" />
+				<file name="include/api/swoole_server/testsendfile.txt" role="test" />
+				<file name="include/api/swoole_timer/accurate_test.php" role="test" />
+				<file name="include/api/swoole_timer/fixRate_vs_fixDelay.php" role="test" />
+				<file name="include/api/swoole_timer/invalid_args.php" role="test" />
+				<file name="include/api/swoole_timer/multi_timer.php" role="test" />
+				<file name="include/api/swoole_timer/register_shutdown_priority.php" role="test" />
+				<file name="include/api/swoole_utils/swoole_utils.php" role="test" />
+				<file name="include/api/swoole_websocket_server/send_large_request_data.php" role="test" />
+				<file name="include/api/swoole_websocket_server/send_small_request_data.php" role="test" />
+				<file name="include/api/swoole_websocket_server/swoole_websocket_server.php" role="test" />
+				<file name="include/api/swoole_websocket_server/websocket_client.php" role="test" />
+				<file name="include/bootstrap.php" role="test" />
+				<file name="include/config.php" role="test" />
+				<file name="include/ignore_files.php" role="test" />
+				<file name="include/memoryleak/connect_host_not_found.php" role="test" />
+				<file name="include/memoryleak/tcp_client_memory_leak/tcp_serv.php" role="test" />
+				<file name="include/skipif.inc" role="test" />
+				<file name="include/skipifDarwin.inc" role="test" />
+				<file name="include/swoole.inc" role="test" />
+				<file name="include/toolkit/RandStr.php" role="test" />
+				<file name="include/toolkit/TcpStat.php" role="test" />
+				<file name="include/toolkit/functions.php" role="test" />
+				<file name="run-tests.php" role="test" />
+				<file name="start-tests.sh" role="test" />
+				<file name="swoole_async/parallel_read_copy_10m_file_with_1m_chunk.phpt" role="test" />
+				<file name="swoole_async/parallel_read_copy_10m_file_with_512k_chunk.phpt" role="test" />
+				<file name="swoole_async/recursive_write.phpt" role="test" />
+				<file name="swoole_async/serial_read_copy_10m_file.phpt" role="test" />
+				<file name="swoole_async/swoole_async_dns_lookup.phpt" role="test" />
+				<file name="swoole_async/swoole_async_read.phpt" role="test" />
+				<file name="swoole_async/swoole_async_set.phpt" role="test" />
+				<file name="swoole_atomic/atomic.phpt" role="test" />
+				<file name="swoole_buffer/buffer_append.phpt" role="test" />
+				<file name="swoole_buffer/buffer_clear.phpt" role="test" />
+				<file name="swoole_buffer/buffer_expand.phpt" role="test" />
+				<file name="swoole_buffer/buffer_read_write.phpt" role="test" />
+				<file name="swoole_buffer/buffer_recycle.phpt" role="test" />
+				<file name="swoole_buffer/buffer_substr.phpt" role="test" />
+				<file name="swoole_buffer/construct_buffer.phpt" role="test" />
+				<file name="swoole_client_async/big_package_memory_leak.phpt" role="test" />
+				<file name="swoole_client_async/connect_host_not_found.phpt" role="test" />
+				<file name="swoole_client_async/connect_port_not_listen.phpt" role="test" />
+				<file name="swoole_client_async/connect_timeout.phpt" role="test" />
+				<file name="swoole_client_async/connect_twice.phpt" role="test" />
+				<file name="swoole_client_async/getSocket_bug.phpt" role="test" />
+				<file name="swoole_client_async/getpeername.phpt" role="test" />
+				<file name="swoole_client_async/getsockname.phpt" role="test" />
+				<file name="swoole_client_async/sendfile.phpt" role="test" />
+				<file name="swoole_client_async/swoole_client.phpt" role="test" />
+				<file name="swoole_client_async/swoole_client_sleep_wake.phpt" role="test" />
+				<file name="swoole_client_sync/sendfile.phpt" role="test" />
+				<file name="swoole_client_sync/swoole_client_connect1-1.phpt" role="test" />
+				<file name="swoole_client_sync/swoole_client_connect1-2.phpt" role="test" />
+				<file name="swoole_client_sync/swoole_client_connect1-3.phpt" role="test" />
+				<file name="swoole_client_sync/swoole_client_send_recv.phpt" role="test" />
+				<file name="swoole_client_sync/swoole_client_sync_send_recv.phpt" role="test" />
+				<file name="swoole_client_sync/udp_client_sendto.phpt" role="test" />
+				<file name="swoole_event/swoole_event.phpt" role="test" />
+				<file name="swoole_event/swoole_event_core.phpt" role="test" />
+				<file name="swoole_event/swoole_event_del.phpt" role="test" />
+				<file name="swoole_event/swoole_event_set.phpt" role="test" />
+				<file name="swoole_event/swoole_event_write.phpt" role="test" />
+				<file name="swoole_function/swoole_cpu_num.phpt" role="test" />
+				<file name="swoole_function/swoole_get_local_ip.phpt" role="test" />
+				<file name="swoole_function/swoole_set_process_name.phpt" role="test" />
+				<file name="swoole_function/swoole_version.phpt" role="test" />
+				<file name="swoole_http_client/connect_host_not_found.phpt" role="test" />
+				<file name="swoole_http_client/connect_port_not_listen.phpt" role="test" />
+				<file name="swoole_http_client/content_length.phpt" role="test" />
+				<file name="swoole_http_client/cookie.phpt" role="test" />
+				<file name="swoole_http_client/execute_without_method_and_content.phpt" role="test" />
+				<file name="swoole_http_client/get.phpt" role="test" />
+				<file name="swoole_http_client/get_with_query_string.phpt" role="test" />
+				<file name="swoole_http_client/get_without_query_string.phpt" role="test" />
+				<file name="swoole_http_client/http_request_connect_timeout.phpt" role="test" />
+				<file name="swoole_http_client/keepalive.phpt" role="test" />
+				<file name="swoole_http_client/method_delete.phpt" role="test" />
+				<file name="swoole_http_client/method_delete_with_payload.phpt" role="test" />
+				<file name="swoole_http_client/method_get.phpt" role="test" />
+				<file name="swoole_http_client/method_get_with_payload.phpt" role="test" />
+				<file name="swoole_http_client/method_patch.phpt" role="test" />
+				<file name="swoole_http_client/method_patch_with_payload.phpt" role="test" />
+				<file name="swoole_http_client/method_post.phpt" role="test" />
+				<file name="swoole_http_client/method_post_with_payload.phpt" role="test" />
+				<file name="swoole_http_client/method_put.phpt" role="test" />
+				<file name="swoole_http_client/method_put_with_payload.phpt" role="test" />
+				<file name="swoole_http_client/post.phpt" role="test" />
+				<file name="swoole_http_client/post_with_body.phpt" role="test" />
+				<file name="swoole_http_client/post_with_empty_content.phpt" role="test" />
+				<file name="swoole_http_client/recursive_get.phpt" role="test" />
+				<file name="swoole_http_client/set_cookie_zval.phpt" role="test" />
+				<file name="swoole_http_client/set_headers_core1.phpt" role="test" />
+				<file name="swoole_http_client/set_headers_core2.phpt" role="test" />
+				<file name="swoole_http_client/swoole_http_request_sendfile.phpt" role="test" />
+				<file name="swoole_http_client/swoole_http_response_rawcontent.phpt" role="test" />
+				<file name="swoole_http_client/swoole_http_response_rawcookie.phpt" role="test" />
+				<file name="swoole_http_client/test_big_body.phpt" role="test" />
+				<file name="swoole_http_client/test_cookie.phpt" role="test" />
+				<file name="swoole_http_client/test_header.phpt" role="test" />
+				<file name="swoole_http_client/test_header_core.phpt" role="test" />
+				<file name="swoole_http_client/test_request.phpt" role="test" />
+				<file name="swoole_http_client/test_twice_send.phpt" role="test" />
+				<file name="swoole_http_client/test_uri.phpt" role="test" />
+				<file name="swoole_http_client/timeout.phpt" role="test" />
+				<file name="swoole_https_client/get_with_query_string.phpt" role="test" />
+				<file name="swoole_https_client/get_without_query_string.phpt" role="test" />
+				<file name="swoole_https_client/method_delete.phpt" role="test" />
+				<file name="swoole_https_client/method_delete_with_payload.phpt" role="test" />
+				<file name="swoole_https_client/method_get.phpt" role="test" />
+				<file name="swoole_https_client/method_get_with_payload.phpt" role="test" />
+				<file name="swoole_https_client/method_patch.phpt" role="test" />
+				<file name="swoole_https_client/method_patch_with_payload.phpt" role="test" />
+				<file name="swoole_https_client/method_post.phpt" role="test" />
+				<file name="swoole_https_client/method_post_with_payload.phpt" role="test" />
+				<file name="swoole_https_client/method_put.phpt" role="test" />
+				<file name="swoole_https_client/method_put_with_payload.phpt" role="test" />
+				<file name="swoole_https_client/post_with_body.phpt" role="test" />
+				<file name="swoole_https_client/test_cookie.phpt" role="test" />
+				<file name="swoole_https_client/test_header.phpt" role="test" />
+				<file name="swoole_https_client/test_header_core.phpt" role="test" />
+				<file name="swoole_https_client/test_request.phpt" role="test" />
+				<file name="swoole_https_client/test_uri.phpt" role="test" />
+				<file name="swoole_mysql/connect_timeout.phpt" role="test" />
+				<file name="swoole_mysql/connect_twice.phpt" role="test" />
+				<file name="swoole_mysql/query_coredump.phpt" role="test" />
+				<file name="swoole_mysql/query_multifield.phpt" role="test" />
+				<file name="swoole_mysql/recursive_query.phpt" role="test" />
+				<file name="swoole_mysql/refcount_test.phpt" role="test" />
+				<file name="swoole_mysql/select1.phpt" role="test" />
+				<file name="swoole_mysql/simple_insert.phpt" role="test" />
+				<file name="swoole_mysql/simple_query.phpt" role="test" />
+				<file name="swoole_mysql/sql_syntax_error.phpt" role="test" />
+				<file name="swoole_mysql/transaction.phpt" role="test" />
+				<file name="swoole_mysql/transaction_rollback.phpt" role="test" />
+				<file name="swoole_process/echo.py" role="test" />
+				<file name="swoole_process/process_exec.phpt" role="test" />
+				<file name="swoole_process/process_msgqueue.phpt" role="test" />
+				<file name="swoole_process/process_push.phpt" role="test" />
+				<file name="swoole_process/process_select.phpt" role="test" />
+				<file name="swoole_process/signal.phpt" role="test" />
+				<file name="swoole_process/swoole_process_close.phpt" role="test" />
+				<file name="swoole_process/swoole_process_ctor.phpt" role="test" />
+				<file name="swoole_process/swoole_process_deamon.phpt" role="test" />
+				<file name="swoole_process/swoole_process_exec.phpt" role="test" />
+				<file name="swoole_process/swoole_process_exit.phpt" role="test" />
+				<file name="swoole_process/swoole_process_freeQueue.phpt" role="test" />
+				<file name="swoole_process/swoole_process_kill.phpt" role="test" />
+				<file name="swoole_process/swoole_process_name.phpt" role="test" />
+				<file name="swoole_process/swoole_process_pop.phpt" role="test" />
+				<file name="swoole_process/swoole_process_push.phpt" role="test" />
+				<file name="swoole_process/swoole_process_read.phpt" role="test" />
+				<file name="swoole_process/swoole_process_redirect.phpt" role="test" />
+				<file name="swoole_process/swoole_process_setaffinity.phpt" role="test" />
+				<file name="swoole_process/swoole_process_start.phpt" role="test" />
+				<file name="swoole_process/swoole_process_useQueue.phpt" role="test" />
+				<file name="swoole_process/swoole_process_wait.phpt" role="test" />
+				<file name="swoole_process/swoole_process_write.phpt" role="test" />
+				<file name="swoole_redis/connect_refuse.phpt" role="test" />
+				<file name="swoole_redis/connect_timeout.phpt" role="test" />
+				<file name="swoole_redis/get_set.phpt" role="test" />
+				<file name="swoole_redis/subscribe.phpt" role="test" />
+				<file name="swoole_redis_server/big_packet.phpt" role="test" />
+				<file name="swoole_server/addListener.phpt" role="test" />
+				<file name="swoole_server/addProcess.phpt" role="test" />
+				<file name="swoole_server/eof_server.phpt" role="test" />
+				<file name="swoole_server/getSocket.phpt" role="test" />
+				<file name="swoole_server/sendfile.phpt" role="test" />
+				<file name="swoole_server/swoole_server_bind.phpt" role="test" />
+				<file name="swoole_server/swoole_server_exist.phpt" role="test" />
+				<file name="swoole_server/swoole_server_getClientInfo.phpt" role="test" />
+				<file name="swoole_server/swoole_server_getClientList.phpt" role="test" />
+				<file name="swoole_server/swoole_server_getLastError.phpt" role="test" />
+				<file name="swoole_server/swoole_server_heartbeat.phpt" role="test" />
+				<file name="swoole_server/swoole_server_heartbeat_true.phpt" role="test" />
+				<file name="swoole_server/swoole_server_protect.phpt" role="test" />
+				<file name="swoole_server/swoole_server_protect_false.phpt" role="test" />
+				<file name="swoole_server/swoole_server_reload.phpt" role="test" />
+				<file name="swoole_server/swoole_server_sendMessage.phpt" role="test" />
+				<file name="swoole_server/swoole_server_shutdown.phpt" role="test" />
+				<file name="swoole_server/swoole_server_stats.phpt" role="test" />
+				<file name="swoole_server/swoole_server_stop.phpt" role="test" />
+				<file name="swoole_server/task.phpt" role="test" />
+				<file name="swoole_server/unsock_dgram.phpt" role="test" />
+				<file name="swoole_server/unsock_stream.phpt" role="test" />
+				<file name="swoole_server_port/swoole_server_port.phpt" role="test" />
+				<file name="swoole_table/foreach.phpt" role="test" />
+				<file name="swoole_table/key_value.phpt" role="test" />
+				<file name="swoole_timer/greater_than_0.phpt" role="test" />
+				<file name="swoole_timer/parameters_is_too_big.phpt" role="test" />
+				<file name="swoole_timer/swoole_timer_after.phpt" role="test" />
+				<file name="swoole_websocket_server/lib/class.websocket_client.php" role="test" />
+				<file name="swoole_websocket_server/test_send_large_request_data.phpt" role="test" />
+				<file name="swoole_websocket_server/test_send_small_request_data.phpt" role="test" />
+				<file name="swoole_websocket_server/websocket_message.phpt" role="test" />
+				<file name="swoole_websocket_server/websocket_pingpong.phpt" role="test" />
+				<file name="swoole_websocket_server/websocket_push.phpt" role="test" />
 			</dir>
 		</dir>
 	</contents>
