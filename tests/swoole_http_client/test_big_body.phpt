@@ -24,4 +24,5 @@ testBigBodyMethodNotSupport(HTTP_SERVER_HOST, $port, function() use($closeServer
 suicide(1000, SIGTERM, $closeServer);
 ?>
 --EXPECT--
-SUCCESSclose
+SUCCESS
+close

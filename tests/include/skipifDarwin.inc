@@ -1,5 +1,5 @@
 <?php
-
-if (PHP_OS === "Darwin") {
+if (PHP_OS === "Darwin")
+{
     exit("skip for Darwin");
 }

@@ -1,5 +1,5 @@
 --TEST--
-global_function: swoole_version
+global_function: swoole_cpu_num
 --SKIPIF--
 <?php require __DIR__ . "/../include/skipif.inc"; ?>
 --INI--

@@ -1,8 +1,9 @@
 <?php
 
 require_once __DIR__ . "/../../../include/bootstrap.php";
-
-$server = new TcpServer(TCP_SERVER_HOST, TCP_SERVER_PORT);
+$host = isset($argv[1]) ? $argv[1] : TCP_SERVER_HOST;
+$port = isset($argv[2]) ? $argv[2] : TCP_SERVER_PORT;
+$server = new TcpServer($host, $port);
 $server->start();
 
 class TcpServer
@@ -70,9 +71,9 @@ class TcpServer
     {
         debug_log("worker #$workerId starting .....");
         if ($workerId == 0) {
-            swoole_timer_after(5000, function () {
-                $this->swooleServer->shutdown();
-            });
+            //swoole_timer_after(5000, function () {
+            //    $this->swooleServer->shutdown();
+            //});
         }
     }
 
@@ -97,15 +98,14 @@ class TcpServer
 		//echo "send data to task worker.\n";
 	}
 
-	public function onTask(swoole_server $swooleServer, $task_id, $fromId, $data)
-	{
+    public function onTask(swoole_server $swooleServer, $task_id, $fromId, $data)
+    {
         $task_data = json_decode($data, true);
-        $swooleServer->send($task_data['fd'] , $task_data['data']);
-        $swooleServer->finish($task_data['fd']);
-	}
-	
-    public function onFinish(swoole_server $swooleServer, $worker_task_id, $data)
-	{
-        echo "onFinish: worker_task_id=$worker_task_id, fd=$data\n";
-	}
+        $swooleServer->finish($task_data);
+    }
+
+    public function onFinish(swoole_server $swooleServer, $worker_task_id, $task_data)
+    {
+        $swooleServer->send($task_data['fd'], "OK");
+    }
 }

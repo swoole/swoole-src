@@ -21,21 +21,22 @@ $cli = new \swoole_http_client("127.0.0.1", 80);
 $cli->on("error", function() { /*echo "ERROR";*/ swoole_event_exit(); });
 $cli->on("close", function() { /*echo "CLOSE";*/ swoole_event_exit(); });
 $i = 0;
-function get() {
-    global $cli, $i;
+function get()
+{
+    global $cli, $i, $closeServer;
     ++$i;
-    $cli->get("/", __FUNCTION__);
+    if ($i > 10)
+    {
+        echo "SUCCESS\n";
+        $cli->close();
+        $closeServer();
+    }
+    else
+    {
+        $cli->get("/", __FUNCTION__);
+    }
 }
 get();
-swoole_timer_after(1000, function() use(&$i) {
-    if ($i > 10) {
-        echo "SUCCESS";
-    } else {
-        echo "ERROR";
-    }
-    swoole_event_exit();
-});
-swoole_event_wait();
 ?>
 
 --EXPECT--

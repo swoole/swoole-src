@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: getSocket
+swoole_server:
 --SKIPIF--
 <?php require __DIR__ . "/../include/skipif.inc"; ?>
 --INI--
@@ -11,33 +11,67 @@ assert.quiet_eval=0
 
 --FILE--
 <?php
-/**
- * Created by IntelliJ IDEA.
- * User: chuxiaofeng
- * Date: 17/6/7
- * Time: 下午4:34
- */
 require_once __DIR__ . "/../include/swoole.inc";
 
-$simple_tcp_server = __DIR__ . "/../include/api/swoole_server/opcode_server.php";
 $port = get_one_free_port();
 
-start_server($simple_tcp_server, TCP_SERVER_HOST, $port);
+$pm = new ProcessManager;
+$pm->parentFunc = function ($pid) use ($port)
+{
+    $cli = new \swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
 
-suicide(2000);
-usleep(500 * 1000);
+    $cli->on("connect", function (\swoole_client $cli) {
+        assert($cli->isConnected() === true);
+        $cli->send("test");
+    });
 
-makeTcpClient(TCP_SERVER_HOST, $port, function(\swoole_client $cli) use($port) {
-    // 并且编译swoole时需要开启--enable-sockets选项
-    $r = $cli->send(opcode_encode("getSocket", [$port]));
-    assert($r !== false);
-}, function(\swoole_client $cli, $recv) {
-    list($op, $data) = opcode_decode($recv);
-    assert($data !== false);
-    swoole_event_exit();
-    echo "SUCCESS";
-});
+    $cli->on("receive", function(\swoole_client $cli, $data){
+        assert($data == 'Socket');
+        $cli->send('shutdown');
+        $cli->close();
+    });
 
+    $cli->on("close", function(\swoole_client $cli) {
+        echo "SUCCESS\n";
+    });
+
+    $cli->on("error", function(\swoole_client $cli) {
+        echo "error\n";
+    });
+
+    $r = $cli->connect(TCP_SERVER_HOST, $port, 1);
+    assert($r);
+    Swoole\Event::wait();
+};
+
+$pm->childFunc = function () use ($pm, $port)
+{
+    $serv = new \swoole_server(TCP_SERVER_HOST, $port);
+    $socket = $serv->getSocket();
+    $serv->set([
+        "worker_num" => 1,
+        'log_file' => '/dev/null',
+    ]);
+    $serv->on("WorkerStart", function (\swoole_server $serv)  use ($pm)
+    {
+        $pm->wakeup();
+    });
+    $serv->on("Receive", function (\swoole_server $serv, $fd, $rid, $data) use ($socket)
+    {
+        if (trim($data) == 'shutdown')
+        {
+            $serv->shutdown();
+            return;
+        }
+        else {
+            $serv->send($fd, get_resource_type($socket));
+        }
+    });
+    $serv->start();
+};
+
+$pm->childFirst();
+$pm->run();
 ?>
 --EXPECT--
 SUCCESS

@@ -13,12 +13,14 @@ assert.quiet_eval=0
 <?php
 require_once __DIR__ . "/../include/swoole.inc";
 
-$port = get_one_free_port();
+$simple_tcp_server = __DIR__ . "/../include/api/swoole_server/opcode_server.php";
+
+$port1 = get_one_free_port();
 
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid) use ($port)
+$pm->parentFunc = function ($pid)
 {
-    $cli = new \swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
+    $cli = new \swoole_client(SWOOLE_SOCK_UDP, SWOOLE_SOCK_ASYNC);
 
     $cli->on("connect", function (\swoole_client $cli) {
         assert($cli->isConnected() === true);
@@ -26,7 +28,8 @@ $pm->parentFunc = function ($pid) use ($port)
     });
 
     $cli->on("receive", function(\swoole_client $cli, $data){
-        assert($data == 'test');
+        $i = $cli->getpeername();
+        assert($i !== false);
         $cli->send('shutdown');
         $cli->close();
     });
@@ -35,46 +38,28 @@ $pm->parentFunc = function ($pid) use ($port)
         echo "SUCCESS\n";
     });
 
-    $cli->on("error", function(\swoole_client $cli) {
-        echo "error\n";
-    });
-
-    $r = $cli->connect(TCP_SERVER_HOST, $port, 1);
+    $r = $cli->connect(UDP_SERVER_HOST, UDP_SERVER_PORT, 1);
     assert($r);
     Swoole\Event::wait();
 };
 
-$pm->childFunc = function () use ($pm, $port)
+$pm->childFunc = function () use ($pm)
 {
-    $serv = new \swoole_server(TCP_SERVER_HOST, $port);
-    $process = new \Swoole\Process(function ($process) use ($serv)
-    {
-        while (1)
-        {
-            $msg = json_decode($process->read(), true);
-            $serv->send($msg['fd'], $msg['data']);
-        }
-    });
-    $serv->set([
-        "worker_num" => 1,
-        'log_file' => '/dev/null',
-    ]);
+    $serv = new \swoole_server(UDP_SERVER_HOST, UDP_SERVER_PORT, SWOOLE_BASE, SWOOLE_SOCK_UDP);
+    $serv->set(["worker_num" => 1, 'log_file' => '/dev/null']);
     $serv->on("WorkerStart", function (\swoole_server $serv)  use ($pm)
     {
         $pm->wakeup();
     });
-    $serv->on("Receive", function (\swoole_server $serv, $fd, $rid, $data) use ($process)
+    $serv->on("Packet", function (\swoole_server $serv, $data, $clientInfo)
     {
         if (trim($data) == 'shutdown')
         {
             $serv->shutdown();
             return;
         }
-        else {
-            $process->write(json_encode(['fd' => $fd, 'data' => $data]));
-        }
+        $serv->sendto($clientInfo['address'], $clientInfo['port'], $data);
     });
-    $serv->addProcess($process);
     $serv->start();
 };
 

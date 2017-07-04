@@ -9,7 +9,7 @@ function query($swoole_mysql, $dep = 0)
     $swoole_mysql->query($sql, function(\swoole_mysql $swoole_mysql, $result) use($dep) {
     //    echo ".\n";
         if ($dep > 20) {
-            fprintf(STDERR, "SUCCESS");
+            fprintf(STDERR, "SUCCESS\n");
             swoole_event_exit();
         } else {
             if ($swoole_mysql->errno !== 0) {

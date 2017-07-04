@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_client: set cookie zval引用计数处理错误?
+swoole_http_client: setHeaders & setCookies
 
 --SKIPIF--
 <?php require  __DIR__ . "/../include/skipif.inc"; ?>
@@ -26,24 +26,20 @@ function get() {
     global $cli;
     static $zval = [
         "headers" => ["Connection" => "keep-alive"],
-        "cookies" => ['name' => 'rango'],
+        "cookies" => ['name' => 'rango', 'value' => 1234],
     ];
-
-    var_dump($cli);
 
     assert($cli->setCookies($zval["cookies"]));
 
-    if ($i++ > 10) {
-        echo "SUCCESS";
-        swoole_event_exit();
-    } else {
-        if ($zval["cookies"] !== []) {
-            echo "ERROR";
-            swoole_event_exit();
-            exit();
-        }
-        // var_dump($zval["cookie"]);
-        // ~UNKNOWN:0 // zval 的内存错误
+    if ($i++ > 10)
+    {
+        echo "SUCCESS\n";
+        $cli->close();
+    }
+    else
+    {
+        assert($zval["cookies"]['name'] == 'rango');
+        assert($zval["cookies"]['value'] == '1234');
         $cli->get("/lookup?topic=zan_mqworker_test", __FUNCTION__);
     }
 }

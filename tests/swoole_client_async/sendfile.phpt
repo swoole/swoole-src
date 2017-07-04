@@ -14,23 +14,23 @@ assert.quiet_eval=0
 <?php
 require_once __DIR__ . "/../include/swoole.inc";
 
+$port = get_one_free_port();
+
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid)
+$pm->parentFunc = function ($pid) use ($port)
 {
     $client = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
     $client->on("connect", function (Swoole\Client $cli)
     {
-        $filename = __DIR__ . "/test.jpg";
-        $cli->send(pack('N', filesize($filename)));
-        $ret = $cli->sendfile($filename);
+        $cli->send(pack('N', filesize(TEST_IMAGE)));
+        $ret = $cli->sendfile(TEST_IMAGE);
         assert($ret);
     });
     $client->on("receive", function (Swoole\Client $cli, $data)
     {
-        $filename = __DIR__ . "/test.jpg";
         $cli->send(pack('N', 8) . 'shutdown');
         $cli->close();
-        assert($data === md5_file($filename));
+        assert($data === md5_file(TEST_IMAGE));
     });
     $client->on("error", function($cli){
         echo "Connect failed\n";
@@ -38,13 +38,13 @@ $pm->parentFunc = function ($pid)
     $client->on("close", function($cli){
 
     });
-    $client->connect(TCP_SERVER_HOST, TCP_SERVER_PORT, 0.5);
+    $client->connect(TCP_SERVER_HOST, $port, 0.5);
     Swoole\Event::wait();
 };
 
-$pm->childFunc = function () use ($pm)
+$pm->childFunc = function () use ($pm, $port)
 {
-    $serv = new \swoole_server(TCP_SERVER_HOST, TCP_SERVER_PORT, SWOOLE_BASE, SWOOLE_SOCK_TCP);
+    $serv = new \swoole_server(TCP_SERVER_HOST, $port, SWOOLE_BASE, SWOOLE_SOCK_TCP);
     $serv->set([
         "worker_num" => 1,
         'log_file' => '/dev/null',

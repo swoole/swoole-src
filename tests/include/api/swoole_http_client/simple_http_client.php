@@ -220,8 +220,7 @@ function testBigBodyMethodNotSupport($host, $port, callable $fin = null)
     }
     $body = str_repeat("\0", 10240);
     $ok = $httpClient->post("/", $body, function(\swoole_http_client $httpClient) use($fin) {
-        echo "SUCCESS";
-        $httpClient->close();
+        echo "SUCCESS\n";
     });
     assert($ok);
 }
@@ -240,7 +239,6 @@ function testBigBodyMethodNotSupport2($host, $port, callable $fin = null)
 
     $cli->on("receive", function(swoole_client $cli, $data){
         echo "SUCCESS";
-        $cli->close();
     });
 
     $cli->on("error", function(swoole_client $cli) use($fin) {

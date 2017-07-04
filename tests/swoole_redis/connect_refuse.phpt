@@ -1,5 +1,5 @@
 --TEST--
-swoole_redis: connect timeout
+swoole_redis: connect refuse
 
 --SKIPIF--
 <?php require  __DIR__ . "/../include/skipif.inc";

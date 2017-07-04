@@ -2,7 +2,7 @@
 swoole_get_local_ip
 
 --SKIPIF--
-<?php require  __DIR__ . "/../include/skipif.inc"; ?>
+<?php require __DIR__ . "/../include/skipif.inc"; ?>
 --INI--
 assert.active=1
 assert.warning=1

@@ -83,10 +83,14 @@ class TcpServer
     public function onReceive(swoole_server $swooleServer, $fd, $fromId, $data)
     {
         static $i;
-        if ($i > 20000) {
-	     $swooleServer->shutdown();
-            @unlink(__DIR__.'/swoole.log');
-        } else {
+        if ($i > 20000)
+        {
+            $swooleServer->close($fd);
+            $swooleServer->shutdown();
+            @unlink(__DIR__ . '/swoole.log');
+        }
+        else
+        {
             $swooleServer->send($fd, $data);
         }
         $i++;

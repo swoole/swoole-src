@@ -13,27 +13,26 @@ assert.quiet_eval=0
 --FILE--
 <?php
 require_once __DIR__ . "/../include/swoole.inc";
-
+$port = get_one_free_port();
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid)
+$pm->parentFunc = function ($pid) use ($port)
 {
     $client = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
-    $r = $client->connect(TCP_SERVER_HOST, TCP_SERVER_PORT, 0.5);
+    $r = $client->connect(TCP_SERVER_HOST, $port, 0.5);
     assert($r);
-    $filename = dirname(__DIR__) . "/swoole_client_async/test.jpg";
-    $client->send(pack('N', filesize($filename)));
-    $ret = $client->sendfile($filename);
+    $client->send(pack('N', filesize(TEST_IMAGE)));
+    $ret = $client->sendfile(TEST_IMAGE);
     assert($ret);
 
     $data = $client->recv();
     $client->send(pack('N', 8) . 'shutdown');
     $client->close();
-    assert($data === md5_file($filename));
+    assert($data === md5_file(TEST_IMAGE));
 };
 
-$pm->childFunc = function () use ($pm)
+$pm->childFunc = function () use ($pm, $port)
 {
-    $serv = new \swoole_server(TCP_SERVER_HOST, TCP_SERVER_PORT, SWOOLE_BASE, SWOOLE_SOCK_TCP);
+    $serv = new \swoole_server(TCP_SERVER_HOST, $port, SWOOLE_BASE, SWOOLE_SOCK_TCP);
     $serv->set([
         "worker_num" => 1,
         'log_file' => '/dev/null',

@@ -1,5 +1,5 @@
 --TEST--
-Test of swoole_process msgqueue
+swoole_process: sysv msgqueue
 --SKIPIF--
 <?php require __DIR__ . "/../include/skipif.inc"; ?>
 --FILE--
