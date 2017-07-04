@@ -781,6 +781,11 @@ PHP_FUNCTION(swoole_async_set)
             SwooleG.socket_buffer_size = SW_MAX_INT;
         }
     }
+    if (php_swoole_array_get_value(vht, "log_level", v))
+    {
+        convert_to_long(v);
+        SwooleG.log_level = Z_LVAL_P(v);
+    }
     if (php_swoole_array_get_value(vht, "aio_chunk_size", v))
     {
         convert_to_string(v);

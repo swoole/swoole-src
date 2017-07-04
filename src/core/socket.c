@@ -314,7 +314,7 @@ int swSocket_bind(int sock, int type, char *host, int *port)
     int option = 1;
     if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int)) < 0)
     {
-        swSysError("setsockopt(%d, SO_REUSEADDR) failed.", sock);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "setsockopt(%d, SO_REUSEADDR) failed.", sock);
     }
     //reuse port
 #ifdef HAVE_REUSEPORT
@@ -373,7 +373,7 @@ int swSocket_bind(int sock, int type, char *host, int *port)
     //bind failed
     if (ret < 0)
     {
-        swWarn("bind(%s:%d) failed. Error: %s [%d]", host, *port, strerror(errno), errno);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "bind(%s:%d) failed. Error: %s [%d]", host, *port, strerror(errno), errno);
         return SW_ERR;
     }
 

@@ -1429,7 +1429,8 @@ PHP_METHOD(swoole_server, __construct)
         swListenPort *port = swServer_add_port(serv, sock_type, serv_host, serv_port);
         if (!port)
         {
-            swoole_php_fatal_error(E_ERROR, "listen server port failed.");
+            zend_throw_exception_ex(swoole_exception_class_entry_ptr, errno, "listen port[%s:%d] failed. Error: %s[%d].",
+                    serv_host, serv_port, strerror(errno), errno TSRMLS_CC);
             return;
         }
     }
