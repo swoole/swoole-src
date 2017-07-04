@@ -1,7 +1,7 @@
 --TEST--
 swoole_http_client: timeout
 --SKIPIF--
-<?php include "skipif.inc"; ?>
+<?php require __DIR__ . "/../include/skipif.inc"; ?>
 --FILE--
 <?php
 require_once __DIR__ . "/../include/swoole.inc";

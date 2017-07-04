@@ -1,5 +1,4 @@
 <?php
-
 require_once __DIR__ . "/../../../include/bootstrap.php";
 
 function makeHttpClient($host = HTTP_SERVER_HOST, $port = HTTP_SERVER_PORT, $ssl = false, $output = false, callable $done = null)
@@ -71,7 +70,7 @@ function testHttpGet($host, $port, array $query, callable $fin = null)
         assert($httpClient->errCode === 0);
         if ($queryStr === "")
         {
-            assert($httpClient->body === "{}");
+            assert($httpClient->body === "null");
         }
         else
         {

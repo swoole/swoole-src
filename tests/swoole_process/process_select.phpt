@@ -1,7 +1,7 @@
 --TEST--
-Test of swoole_process select
+swoole_process: select
 --SKIPIF--
-<?php include "skipif.inc"; ?>
+<?php require __DIR__ . "/../include/skipif.inc"; ?>
 --FILE--
 <?php
 $process = new swoole_process(function (swoole_process $worker)

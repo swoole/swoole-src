@@ -1,7 +1,7 @@
 --TEST--
 Test of swoole_process msgqueue
 --SKIPIF--
-<?php include "skipif.inc"; ?>
+<?php require __DIR__ . "/../include/skipif.inc"; ?>
 --FILE--
 <?php
 function callback_function(swoole_process $worker){}

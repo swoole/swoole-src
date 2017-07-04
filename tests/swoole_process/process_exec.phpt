@@ -1,7 +1,7 @@
 --TEST--
-Test of swoole_process exec
+swoole_process: exec
 --SKIPIF--
-<?php include "skipif.inc"; ?>
+<?php require __DIR__ . "/../include/skipif.inc"; ?>
 --FILE--
 <?php
 $process = new swoole_process('python_process', true);
