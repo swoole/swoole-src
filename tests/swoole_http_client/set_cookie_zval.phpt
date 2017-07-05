@@ -40,7 +40,7 @@ function get() {
     {
         assert($zval["cookies"]['name'] == 'rango');
         assert($zval["cookies"]['value'] == '1234');
-        $cli->get("/lookup?topic=zan_mqworker_test", __FUNCTION__);
+        $cli->get("/test", __FUNCTION__);
     }
 }
 get();

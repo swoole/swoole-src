@@ -14,13 +14,11 @@ assert.quiet_eval=0
 
 <?php
 function dnsLookup() {
-    swoole_async_dns_lookup("www.youzan.com", function($host, $ip) {
-        // echo posix_getpid(), ": $ip\n";
+    swoole_async_dns_lookup("www.qq.com", function($host, $ip) {
         swoole_event_exit();
         exit();
     });
 }
-
 
 $i = 200;
 while (--$i) {

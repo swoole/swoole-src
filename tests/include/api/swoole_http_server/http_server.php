@@ -242,7 +242,7 @@ class HttpServer
         }
 
         if ($uri === "/302") {
-            $response->header("Location", "http://www.youzan.com/");
+            $response->header("Location", "http://www.swoole.com/");
             $response->status(302);
             $response->end();
             return;
