@@ -60,6 +60,7 @@ typedef struct
     char *request_method;
     int callback_index;
     uint8_t shutdown;
+    uint8_t request_timeout;
 
 } http_client_property;
 
@@ -398,7 +399,7 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
 
     http->uri = estrdup(uri);
     http->uri_len = uri_len;
-    
+
     if (callback == NULL || ZVAL_IS_NULL(callback))
     {
         swoole_php_fatal_error(E_WARNING, "response callback is not set.");
@@ -487,7 +488,7 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
         }
         //client settings
         php_swoole_client_check_setting(http->cli, zset TSRMLS_CC);
-        
+
         if (http->cli->http_proxy)
         {
             zval *send_header = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("requestHeaders"), 1 TSRMLS_CC);
@@ -522,7 +523,7 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
     cli->onConnect = http_client_onConnect;
     cli->onClose = http_client_onClose;
     cli->onError = http_client_onError;
-    
+
     return cli->connect(cli, http->host, http->port, http->timeout, 0);
 }
 
@@ -589,7 +590,21 @@ static sw_inline void http_client_execute_callback(zval *zobject, enum php_swool
     //request is not completed
     if (hcc->onResponse && (type == SW_CLIENT_CB_onError || type == SW_CLIENT_CB_onClose))
     {
-        zend_update_property_long(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("statusCode"), -1 TSRMLS_CC);
+        int error_code;
+        if (type == SW_CLIENT_CB_onError)
+        {
+            error_code = -1;
+        }
+        else if (hcc->request_timeout == 1)
+        {
+            error_code = -2;
+        }
+        else
+        {
+            error_code = -3;
+        }
+
+        zend_update_property_long(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("statusCode"), error_code TSRMLS_CC);
         zend_update_property_string(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("body"), "" TSRMLS_CC);
         http_client_onResponseException(zobject TSRMLS_CC);
     }
@@ -698,9 +713,13 @@ static void http_client_onRequestTimeout(swTimer *timer, swTimer_node *tnode)
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
-    zend_update_property_long(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("statusCode"), -2 TSRMLS_CC);
-    zend_update_property_string(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("body"), "" TSRMLS_CC);
-    http_client_onResponseException(zobject TSRMLS_CC);
+
+    http_client_property *hcc = swoole_get_property(zobject, 0);
+    if (!hcc)
+    {
+        return;
+    }
+    hcc->request_timeout = 1;
 
     zval *retval = NULL;
     sw_zend_call_method_with_0_params(&zobject, swoole_http_client_class_entry_ptr, NULL, "close", &retval);
@@ -739,8 +758,6 @@ static void http_client_onResponseException(zval *zobject TSRMLS_DC)
     {
         sw_zval_ptr_dtor(&retval);
     }
-    sw_zval_free(hcc->onResponse);
-    hcc->onResponse = NULL;
 }
 
 static void http_client_onReceive(swClient *cli, char *data, uint32_t length)
