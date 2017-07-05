@@ -61,6 +61,3 @@ define("MYSQL_SERVER_DB3", "test");
 define("TEST_IMAGE", __DIR__ . "/../../examples/test.jpg");
 
 define("IP_BAIDU", "180.97.33.107");
-define("IP_YOUZAN", "180.150.190.136");
-define("IP_BING", "204.79.197.200");
-define("IP_SO", "180.163.251.85");
