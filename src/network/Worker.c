@@ -501,9 +501,9 @@ int swWorker_loop(swFactory *factory, int worker_id)
     {
         worker = swServer_get_worker(serv, i);
         pipe_socket = swReactor_get(SwooleG.main_reactor, worker->pipe_master);
-        pipe_socket->buffer_size = serv->pipe_buffer_size;
+        pipe_socket->buffer_size = SW_MAX_INT;
         pipe_socket = swReactor_get(SwooleG.main_reactor, worker->pipe_worker);
-        pipe_socket->buffer_size = serv->pipe_buffer_size;
+        pipe_socket->buffer_size = SW_MAX_INT;
     }
 
     swWorker_onStart(serv);

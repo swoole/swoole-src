@@ -128,7 +128,6 @@ typedef struct _swReactorThread
     int *pipe_read_list;
 #endif
     swLock lock;
-    int c_udp_fd;
 } swReactorThread;
 
 typedef struct _swListenPort
@@ -416,8 +415,6 @@ struct _swServer
     /* buffer output/input setting*/
     uint32_t buffer_output_size;
     uint32_t buffer_input_size;
-
-    uint32_t pipe_buffer_size;
 
     void *ptr2;
 

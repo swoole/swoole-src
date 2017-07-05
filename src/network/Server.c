@@ -734,8 +734,6 @@ void swServer_init(swServer *serv)
     serv->buffer_input_size = SW_BUFFER_INPUT_SIZE;
     serv->buffer_output_size = SW_BUFFER_OUTPUT_SIZE;
 
-    serv->pipe_buffer_size = SW_PIPE_BUFFER_SIZE;
-
     SwooleG.serv = serv;
 }
 

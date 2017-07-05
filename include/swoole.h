@@ -907,8 +907,8 @@ typedef struct _swCond
     int (*notify)(struct _swCond *object);
     int (*broadcast)(struct _swCond *object);
     void (*free)(struct _swCond *object);
-    void (*lock)(struct _swCond *object);
-    void (*unlock)(struct _swCond *object);
+    int (*lock)(struct _swCond *object);
+    int (*unlock)(struct _swCond *object);
 } swCond;
 
 #define SW_SHM_MMAP_FILE_LEN  64

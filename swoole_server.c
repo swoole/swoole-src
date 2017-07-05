@@ -378,10 +378,6 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject TSRMLS_DC)
     {
         add_assoc_long(zsetting, "task_worker_num", SwooleG.task_worker_num);
     }
-    if (!sw_zend_hash_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("pipe_buffer_size")))
-    {
-        add_assoc_long(zsetting, "pipe_buffer_size", serv->pipe_buffer_size);
-    }
     if (!sw_zend_hash_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("buffer_output_size")))
     {
         add_assoc_long(zsetting, "buffer_output_size", serv->buffer_output_size);
@@ -1728,14 +1724,6 @@ PHP_METHOD(swoole_server, set)
     {
         convert_to_long(v);
         serv->buffer_output_size = (int) Z_LVAL_P(v);
-    }
-    /**
-     * set pipe memory buffer size
-     */
-    if (php_swoole_array_get_value(vht, "pipe_buffer_size", v))
-    {
-        convert_to_long(v);
-        serv->pipe_buffer_size = (int) Z_LVAL_P(v);
     }
     //message queue key
     if (php_swoole_array_get_value(vht, "message_queue_key", v))

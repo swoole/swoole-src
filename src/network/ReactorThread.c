@@ -534,12 +534,6 @@ int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
         else
         {
             append_pipe_buffer:
-            if (buffer->length > serv->pipe_buffer_size)
-            {
-                swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_PIPE_BUFFER_FULL,
-                        "worker#%d pipe buffer is full, the reactor will block.", (int )target_worker_id);
-                swSocket_wait(pipe_fd, SW_SOCKET_OVERFLOW_WAIT, SW_EVENT_WRITE);
-            }
             if (swBuffer_append(buffer, data, len) < 0)
             {
                 swWarn("append to pipe_buffer failed.");
