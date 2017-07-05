@@ -20,9 +20,6 @@ PHP_ARG_ENABLE(swoole-debug, whether to enable swoole debug,
 PHP_ARG_ENABLE(sockets, enable sockets support,
 [  --enable-sockets        Do you have sockets extension?], no, no)
 
-PHP_ARG_ENABLE(ringbuffer, enable ringbuffer shared memory pool support,
-[  --enable-ringbuffer     Experimental: Use ringbuffer memory pool?], no, no)
-
 PHP_ARG_ENABLE(async_redis, enable async_redis support,
 [  --enable-async-redis    Do you have hiredis?], no, no)
 
@@ -181,10 +178,6 @@ if test "$PHP_SWOOLE" != "no"; then
 
     if test "$PHP_SOCKETS" = "yes"; then
         AC_DEFINE(SW_SOCKETS, 1, [enable sockets support])
-    fi
-
-    if test "$PHP_RINGBUFFER" = "yes"; then
-        AC_DEFINE(SW_USE_RINGBUFFER, 1, [enable ringbuffer support])
     fi
 
     if test "$PHP_HTTP2" = "yes"; then
