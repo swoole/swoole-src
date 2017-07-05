@@ -462,6 +462,16 @@ class ProcessManager
         $this->atomic->wakeup();
     }
 
+    function runParentFunc($pid = 0)
+    {
+        return call_user_func($this->parentFunc, $pid);
+    }
+
+    function runChildFunc()
+    {
+        return call_user_func($this->childFunc);
+    }
+
     function run()
     {
         $pid = pcntl_fork();
@@ -481,7 +491,7 @@ class ProcessManager
             {
                 $this->wait();
             }
-            call_user_func($this->childFunc);
+            $this->runChildFunc();
             exit;
         }
         else
@@ -491,7 +501,7 @@ class ProcessManager
             {
                 $this->wait();
             }
-            call_user_func($this->parentFunc, $pid);
+            $this->runParentFunc($pid);
             pcntl_waitpid($pid, $status);
         }
     }
