@@ -899,14 +899,16 @@ typedef struct _swLock
 //Thread Condition
 typedef struct _swCond
 {
-    swLock lock;
-    pthread_cond_t cond;
+    swLock _lock;
+    pthread_cond_t _cond;
 
     int (*wait)(struct _swCond *object);
     int (*timewait)(struct _swCond *object, long, long);
     int (*notify)(struct _swCond *object);
     int (*broadcast)(struct _swCond *object);
     void (*free)(struct _swCond *object);
+    void (*lock)(struct _swCond *object);
+    void (*unlock)(struct _swCond *object);
 } swCond;
 
 #define SW_SHM_MMAP_FILE_LEN  64
@@ -1710,8 +1712,7 @@ enum swThread_type
 
 typedef struct _swThreadPool
 {
-    pthread_mutex_t mutex;
-    pthread_cond_t cond;
+    swCond cond;
 
     swThread *threads;
     swThreadParam *params;
