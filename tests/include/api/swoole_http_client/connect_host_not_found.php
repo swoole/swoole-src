@@ -1,4 +1,5 @@
 <?php
+function main() {
 $cli = new \swoole_http_client("11.11.11.11", 9000);
 
 $cli->on('close', function($cli) {
@@ -10,3 +11,6 @@ $cli->on('error', function($cli) {
 });
 
 $cli->get('/', function(swoole_http_client $cli) {});
+}
+
+main();

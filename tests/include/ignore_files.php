@@ -1,9 +1,10 @@
 <?php
+$root = dirname(__DIR__);
 $ignore_files = [
-    __DIR__ . "/swoole_async/big_zero",
-    __DIR__ . "/swoole_async/big_zero.copy",
-    __DIR__ . "/swoole_client_async/test.jpg",
-    __DIR__ . "/swoole_process/echo.py",
+    $root . "/swoole_async/big_zero",
+    $root . "/swoole_async/big_zero.copy",
+    $root . "/swoole_client_async/test.jpg",
+    $root . "/swoole_process/echo.py",
 ];
 
 return $ignore_files;
