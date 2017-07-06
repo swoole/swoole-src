@@ -20,9 +20,10 @@ $pm->parentFunc = function ($pid)
 {
     $cli = new swoole_http_client("127.0.0.1", 9502);
     $cli->get('/', function ($c) {
-        echo "request\n";
         assert($c->statusCode == -2);
+        assert($c->body == "");
     });
+    swoole\event::wait();
 };
 
 $pm->childFunc = function () use ($pm)
@@ -33,12 +34,11 @@ $pm->childFunc = function () use ($pm)
         //'log_file' => '/dev/null',
     ));
     $serv->on('connect', function ($serv, $fd){
-        echo "Client: Connect.\n";
+        //echo "Client: Connect.\n";
     });
     $serv->on('receive', function ($serv, $fd, $rid, $data) {
-        echo "recv\n";
         sleep(1);
-        //$serv->shutdown();
+        $serv->shutdown();
     });
     $serv->on('close', function ($serv, $fd) {
         echo "Client: Close.\n";
@@ -50,11 +50,7 @@ $pm->childFunc = function () use ($pm)
 };
 
 $pm->childFirst();
-//$pm->runChildFunc();
-//$pm->runParentFunc();
 $pm->run();
 ?>
 
 --EXPECT--
-SUCCESS
-SUCCESS
