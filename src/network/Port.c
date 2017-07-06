@@ -376,12 +376,11 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
 
         if (request->method == 0 && swHttpRequest_get_protocol(request) < 0)
         {
-            if (request->buffer->length < SW_HTTP_HEADER_MAX_SIZE)
+            if (request->excepted == 0 && request->buffer->length < SW_HTTP_HEADER_MAX_SIZE)
             {
                 return SW_OK;
             }
-
-            swWarn("get protocol failed.");
+            swoole_error_log(SW_LOG_TRACE, SW_ERROR_HTTP_INVALID_PROTOCOL, "get protocol failed.");
 #ifdef SW_HTTP_BAD_REQUEST
             if (swConnection_send(conn, SW_STRL(SW_HTTP_BAD_REQUEST) - 1, 0) < 0)
             {

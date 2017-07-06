@@ -70,6 +70,7 @@ enum swErrorCode
     SW_ERROR_SOCKS5_SERVER_ERROR,
     
     SW_ERROR_HTTP_PROXY_HANDSHAKE_ERROR = 8001,
+    SW_ERROR_HTTP_INVALID_PROTOCOL,
 
     /**
      * server global error

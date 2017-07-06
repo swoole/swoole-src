@@ -46,6 +46,7 @@ void swoole_init(void)
     SwooleG.pagesize = getpagesize();
     SwooleG.pid = getpid();
     SwooleG.socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
+    SwooleG.log_level = SW_LOG_INFO;
 
     //get system uname
     uname(&SwooleG.uname);

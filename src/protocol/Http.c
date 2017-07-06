@@ -152,6 +152,7 @@ int swHttpRequest_get_protocol(swHttpRequest *request)
             }
             else
             {
+                request->excepted = 1;
                 return SW_ERR;
             }
         }
