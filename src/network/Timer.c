@@ -137,6 +137,7 @@ static swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *
     }
 
     tnode->data = data;
+    tnode->type = SW_TIMER_TYPE_KERNEL;
     tnode->exec_msec = now_msec + _msec;
     tnode->interval = interval ? _msec : 0;
     tnode->remove = 0;
