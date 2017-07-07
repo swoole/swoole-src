@@ -35,17 +35,23 @@ static int swoole_futex_wait(sw_atomic_t *atomic, double timeout)
     {
         return SW_OK;
     }
+
+    int ret;
+    struct timespec _timeout;
+
     if (timeout > 0)
     {
-        struct timespec _timeout;
+
         _timeout.tv_sec = (long) timeout;
         _timeout.tv_nsec = (timeout - _timeout.tv_sec) * 1000 * 1000 * 1000;
-        return syscall(SYS_futex, atomic, FUTEX_WAIT, 0, &_timeout, NULL, 0);
+        ret = syscall(SYS_futex, atomic, FUTEX_WAIT, 0, &_timeout, NULL, 0);
     }
     else
     {
-        return syscall(SYS_futex, atomic, FUTEX_WAIT, 0, NULL, NULL, 0);
+        ret = syscall(SYS_futex, atomic, FUTEX_WAIT, 0, NULL, NULL, 0);
     }
+    *atomic = 0;
+    return ret;
 }
 
 static int swoole_futex_wakeup(sw_atomic_t *atomic, int n)
