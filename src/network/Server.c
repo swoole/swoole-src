@@ -1056,7 +1056,7 @@ void swServer_signal_init(swServer *serv)
 {
     swSignal_add(SIGPIPE, NULL);
     swSignal_add(SIGHUP, NULL);
-    if (serv->factory_mode != SW_MODE_PROCESS)
+    if (serv->factory_mode != SW_MODE_BASE)
     {
         swSignal_add(SIGCHLD, swServer_signal_hanlder);
     }
