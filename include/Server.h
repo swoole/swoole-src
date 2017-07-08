@@ -426,7 +426,7 @@ struct _swServer
     uint16_t user_worker_num;
     swUserWorker_node *user_worker_list;
     swHashMap *user_worker_map;
-    swWorker **user_workers;
+    swWorker *user_workers;
 
     swReactorThread *reactor_threads;
     swWorker *workers;
@@ -715,7 +715,7 @@ static sw_inline swWorker* swServer_get_worker(swServer *serv, uint16_t worker_i
     uint16_t user_worker_max = task_worker_max + serv->user_worker_num;
     if (worker_id < user_worker_max)
     {
-        return serv->user_workers[worker_id - task_worker_max];
+        return &(serv->user_workers[worker_id - task_worker_max]);
     }
 
     return NULL;
