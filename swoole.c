@@ -1037,6 +1037,11 @@ PHP_FUNCTION(swoole_errno)
 
 PHP_FUNCTION(swoole_set_process_name)
 {
+    // MacOS doesn't support 'cli_set_process_title'
+#ifdef __MACH__
+    php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_set_process_name is not supported on MacOS.");
+    return;
+#endif
     zval *name;
     long size = 128;
 
