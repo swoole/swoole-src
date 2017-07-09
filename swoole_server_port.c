@@ -65,7 +65,7 @@ void swoole_server_port_init(int module_number TSRMLS_DC)
 
 static PHP_METHOD(swoole_server_port, __construct)
 {
-    swoole_php_fatal_error(E_ERROR, "Please use the swoole_server->listen method.");
+    swoole_php_fatal_error(E_ERROR, "please use the swoole_server->listen method.");
     return;
 }
 
@@ -96,7 +96,7 @@ static PHP_METHOD(swoole_server_port, set)
 
     if (port == NULL || property == NULL)
     {
-        swoole_php_fatal_error(E_ERROR, "Please use the swoole_server->listen method.");
+        swoole_php_fatal_error(E_ERROR, "please use the swoole_server->listen method.");
         return;
     }
 
@@ -266,7 +266,7 @@ static PHP_METHOD(swoole_server_port, set)
             char *func_name = NULL;
             if (!sw_zend_is_callable(v, 0, &func_name TSRMLS_CC))
             {
-                swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+                swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
                 efree(func_name);
                 return;
             }
@@ -414,7 +414,7 @@ static PHP_METHOD(swoole_server_port, on)
 
     if (SwooleGS->start > 0)
     {
-        swoole_php_fatal_error(E_WARNING, "Server is running. Unable to set event callback now.");
+        swoole_php_fatal_error(E_WARNING, "can't register event callback function after server started.");
         RETURN_FALSE;
     }
 
@@ -427,7 +427,7 @@ static PHP_METHOD(swoole_server_port, on)
     zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
     if (!sw_zend_is_callable_ex(cb, NULL, 0, &func_name, NULL, func_cache, NULL TSRMLS_CC))
     {
-        swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+        swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
         efree(func_name);
         return;
     }
@@ -510,7 +510,7 @@ static PHP_METHOD(swoole_server_port, on)
 
     if (l_property_name == 0)
     {
-        swoole_php_error(E_WARNING, "Unknown event types[%s]", name);
+        swoole_php_error(E_WARNING, "unknown event types[%s]", name);
         efree(func_cache);
         RETURN_FALSE;
     }
