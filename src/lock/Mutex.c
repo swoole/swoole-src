@@ -31,7 +31,9 @@ int swMutex_create(swLock *lock, int use_in_process)
     {
         pthread_mutexattr_setpshared(&lock->object.mutex.attr, PTHREAD_PROCESS_SHARED);
     }
-    if ((ret = pthread_mutex_init(&lock->object.mutex._lock, &lock->object.mutex.attr)) < 0)
+    ret = pthread_mutex_init(&lock->object.mutex._lock, &lock->object.mutex.attr);
+    pthread_mutexattr_destroy(&lock->object.mutex.attr);
+    if (ret < 0)
     {
         return SW_ERR;
     }
