@@ -325,6 +325,11 @@ int swReactorThread_close(swReactor *reactor, int fd)
     {
         swHttpRequest_free(conn);
     }
+    if (port->open_redis_protocol && conn->object)
+    {
+        sw_free(conn->object);
+        conn->object = NULL;
+    }
 
 #ifdef SW_USE_SOCKET_LINGER
     if (conn->close_force)
