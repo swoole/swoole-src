@@ -47,9 +47,9 @@ int swProtocol_get_package_length(swProtocol *protocol, swConnection *conn, char
 
 static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swConnection *conn, swString *buffer)
 {
-#if 0
-    static count;
-    count ++;
+#if SW_LOG_TRACE_OPEN > 0
+    static int count;
+    count++;
 #endif
 
     char stack_buf[SW_BUFFER_SIZE_BIG];

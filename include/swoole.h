@@ -349,32 +349,29 @@ write(SwooleG.debug_fd, sw_error, __debug_log_n);
 
 enum swTraceType
 {
-    SW_TRACE_SERVER  = 1,
-    SW_TRACE_CLIENT  = 2,
-    SW_TRACE_BUFFER  = 3,
-    SW_TRACE_CONN    = 4,
-    SW_TRACE_EVENT   = 5,
-    SW_TRACE_WORKER,
-    SW_TRACE_MEMORY,
-    SW_TRACE_REACTOR,
-    SW_TRACE_PHP,
-    SW_TRACE_HTTP2,
-    SW_TRACE_EOF_PROTOCOL,
-    SW_TRACE_LENGTH_PROTOCOL,
+    SW_TRACE_SERVER           = 1u << 1,
+    SW_TRACE_CLIENT           = 1u << 2,
+    SW_TRACE_BUFFER           = 1u << 3,
+    SW_TRACE_CONN             = 1u << 4,
+    SW_TRACE_EVENT            = 1u << 5,
+    SW_TRACE_WORKER           = 1u << 6,
+    SW_TRACE_MEMORY           = 1u << 7,
+    SW_TRACE_REACTOR          = 1u << 8,
+    SW_TRACE_PHP              = 1u << 9,
+    SW_TRACE_HTTP2            = 1u << 10,
+    SW_TRACE_EOF_PROTOCOL     = 1u << 11,
+    SW_TRACE_LENGTH_PROTOCOL  = 1u << 12,
+    SW_TRACE_CLOSE            = 1u << 13,
 };
 
-#if SW_LOG_TRACE_OPEN == 1
-#define swTraceLog(id,str,...)      SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
-snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: "str,__func__,##__VA_ARGS__);\
-swLog_put(SW_LOG_TRACE, sw_error);\
-SwooleGS->lock_2.unlock(&SwooleGS->lock_2)
-#elif SW_LOG_TRACE_OPEN == 0
-#define swTraceLog(id,str,...)
+#if defined(SW_LOG_TRACE_OPEN) && SW_LOG_TRACE_OPEN
+#define swTraceLog(what,str,...)      if (what & SW_LOG_TRACE_FLAGS) {\
+    SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
+    snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: "str,__func__,##__VA_ARGS__);\
+    swLog_put(SW_LOG_TRACE, sw_error);\
+    SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}
 #else
-#define swTraceLog(id,str,...)      if (id==SW_LOG_TRACE_OPEN) {SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
-snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: "str,__func__,##__VA_ARGS__);\
-swLog_put(SW_LOG_TRACE, sw_error);\
-SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}
+#define swTraceLog(id,str,...)
 #endif
 
 #define swYield()              sched_yield() //or usleep(1)
@@ -449,68 +446,64 @@ typedef struct _swConnection
     /**
      * session id
      */
-    uint32_t session_id :24;
+    uint32_t session_id;
 
     /**
      * socket type, SW_SOCK_TCP or SW_SOCK_UDP
      */
-    uint8_t socket_type;
+    uint16_t socket_type;
 
     /**
      * fd type, SW_FD_TCP or SW_FD_PIPE or SW_FD_TIMERFD
      */
-    uint8_t fdtype;
+    uint16_t fdtype;
 
     int events;
 
+    //--------------------------------------------------------------
     /**
      * is active
      * system fd must be 0. en: timerfd, signalfd, listen socket
      */
     uint32_t active :1;
-
     uint32_t connect_notify :1;
-
-    /**
-     * for SWOOLE_BASE mode.
-     */
-    uint32_t close_notify :1;
-
+    uint32_t direct_send :1;
+    uint32_t ssl_send :1;
+    uint32_t reserved_1 :4;
+    //--------------------------------------------------------------
     uint32_t listen_wait :1;
     uint32_t recv_wait :1;
     uint32_t send_wait :1;
-
-    uint32_t direct_send :1;
-    uint32_t ssl_send :1;
-
-    /**
-     * protected connection, cannot be closed by heartbeat thread.
-     */
-    uint32_t protect :1;
-
     uint32_t close_wait :1;
-    uint32_t closed :1;
-    uint32_t closing :1;
-    uint32_t close_force :1;
-    uint32_t close_reset :1;
+    uint32_t overflow :1;
+    uint32_t high_watermark :1;
+    uint32_t removed :1;
+    uint32_t tcp_nopush :1;
+    //--------------------------------------------------------------
+    uint32_t tcp_nodelay :1;
+    uint32_t ssl_want_read :1;
+    uint32_t ssl_want_write :1;
+    uint32_t http_upgrade :1;
+    uint32_t http2_stream :1;
+    uint32_t reserved_2 :3;
+    //--------------------------------------------------------------
     /**
      * server is actively close the connection
      */
     uint32_t close_actively :1;
-
-    uint32_t removed :1;
-    uint32_t overflow :1;
-    uint32_t high_watermark :1;
-
-    uint32_t tcp_nopush :1;
-    uint32_t tcp_nodelay :1;
-
-    uint32_t ssl_want_read :1;
-    uint32_t ssl_want_write :1;
-
-    uint32_t http_upgrade :1;
-    uint32_t http2_stream :1;
-
+    uint32_t closed :1;
+    uint32_t closing :1;
+    uint32_t close_reset :1;
+    /**
+     * protected connection, cannot be closed by heartbeat thread.
+     */
+    uint32_t protect :1;
+    uint32_t reserved_3 :3;
+    //--------------------------------------------------------------
+    uint32_t close_notify :1;
+    uint32_t close_force :1;
+    uint32_t reserved_4 :6;
+    //--------------------------------------------------------------
     /**
      * ReactorThread id
      */
@@ -561,7 +554,9 @@ typedef struct _swConnection
      */
     time_t last_time;
 
+#ifdef SW_USE_TIMEWHEEL
     uint16_t timewheel_index;
+#endif
 
     /**
      * bind uid
@@ -1002,6 +997,7 @@ void swFixedPool_debug(swMemoryPool *pool);
 void* sw_shm_malloc(size_t size);
 void sw_shm_free(void *ptr);
 void* sw_shm_calloc(size_t num, size_t _size);
+int sw_shm_protect(void *addr, int flags);
 void* sw_shm_realloc(void *ptr, size_t new_size);
 #ifdef HAVE_RWLOCK
 int swRWLock_create(swLock *lock, int use_in_process);
@@ -1610,14 +1606,55 @@ static sw_inline int swReactor_events(int fdtype)
 
 int swReactor_create(swReactor *reactor, int max_event);
 int swReactor_setHandle(swReactor *, int, swReactor_handle);
-int swReactor_add(swReactor *reactor, int fd, int type);
-swConnection* swReactor_get(swReactor *reactor, int fd);
-int swReactor_del(swReactor *reactor, int fd);
+
+static sw_inline swConnection* swReactor_get(swReactor *reactor, int fd)
+{
+    if (reactor->thread)
+    {
+        return &reactor->socket_list[fd];
+    }
+    swConnection *socket = swArray_alloc(reactor->socket_array, fd);
+    if (socket == NULL)
+    {
+        return NULL;
+    }
+    if (!socket->active)
+    {
+        socket->fd = fd;
+    }
+    return socket;
+}
+
+static sw_inline void swReactor_add(swReactor *reactor, int fd, int type)
+{
+    swConnection *socket = swReactor_get(reactor, fd);
+    socket->fdtype = swReactor_fdtype(type);
+    socket->events = swReactor_events(type);
+
+    swTraceLog(SW_TRACE_REACTOR, "fd=%d, type=%d, events=%d", fd, socket->socket_type, socket->events);
+}
+
+static sw_inline void swReactor_set(swReactor *reactor, int fd, int type)
+{
+    swConnection *socket = swReactor_get(reactor, fd);
+    socket->events = swReactor_events(type);
+
+    swTraceLog(SW_TRACE_REACTOR, "fd=%d, type=%d, events=%d", fd, socket->socket_type, socket->events);
+}
+
+static sw_inline void swReactor_del(swReactor *reactor, int fd)
+{
+    swConnection *socket = swReactor_get(reactor, fd);
+    socket->events = 0;
+    socket->removed = 1;
+
+    swTraceLog(SW_TRACE_REACTOR, "fd=%d, type=%d", fd, socket->socket_type);
+}
+
 int swReactor_onWrite(swReactor *reactor, swEvent *ev);
 int swReactor_close(swReactor *reactor, int fd);
 int swReactor_write(swReactor *reactor, int fd, void *buf, int n);
 int swReactor_wait_write_buffer(swReactor *reactor, int fd);
-void swReactor_set(swReactor *reactor, int fd, int fdtype);
 
 static sw_inline int swReactor_add_event(swReactor *reactor, int fd, enum swEvent_type event_type)
 {

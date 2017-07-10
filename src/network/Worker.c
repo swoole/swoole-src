@@ -405,6 +405,8 @@ void swWorker_onStart(swServer *serv)
         }
     }
 
+    sw_shm_protect(serv->session_list, PROT_READ);
+
     if (serv->onWorkerStart)
     {
         serv->onWorkerStart(serv, SwooleWG.id);

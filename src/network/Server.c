@@ -346,7 +346,7 @@ static int swServer_start_proxy(swServer *serv)
     SwooleTG.type = SW_THREAD_MASTER;
     SwooleTG.factory_target_worker = -1;
     SwooleTG.factory_lock_target = 0;
-    SwooleTG.id = 0;
+    SwooleTG.id = serv->reactor_num;
     SwooleTG.update_time = 1;
 
     SwooleG.main_reactor = main_reactor;
@@ -1035,6 +1035,8 @@ int swServer_tcp_close(swServer *serv, int fd, int reset)
     }
     //server is initiative to close the connection
     conn->close_actively = 1;
+    swTraceLog(SW_TRACE_CLOSE, "session_id=%d, fd=%d.", fd, conn->fd);
+
     int ret;
     if (!swIsWorker())
     {
@@ -1492,8 +1494,6 @@ static void swHeartbeatThread_loop(swThreadParam *param)
 
                 conn->close_force = 1;
                 conn->close_notify = 1;
-                conn->close_wait = 1;
-                conn->close_actively = 1;
 
                 if (serv->factory_mode != SW_MODE_PROCESS)
                 {

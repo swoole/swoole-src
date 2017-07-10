@@ -294,15 +294,15 @@ int swReactorThread_close(swReactor *reactor, int fd)
         return SW_ERR;
     }
 
-    if (!conn->removed && reactor->del(reactor, fd) < 0)
-    {
-        return SW_ERR;
-    }
-
     if (serv->factory_mode == SW_MODE_PROCESS)
     {
         assert(fd % serv->reactor_num == reactor->id);
         assert(fd % serv->reactor_num == SwooleTG.id);
+    }
+
+    if (conn->removed == 0 && reactor->del(reactor, fd) < 0)
+    {
+        return SW_ERR;
     }
 
     sw_atomic_fetch_add(&SwooleStats->close_count, 1);
@@ -397,6 +397,8 @@ int swReactorThread_onClose(swReactor *reactor, swEvent *event)
     notify_ev.from_id = reactor->id;
     notify_ev.fd = fd;
     notify_ev.type = SW_EVENT_CLOSE;
+
+    swTraceLog(SW_TRACE_CLOSE, "client[fd=%d] close the connection.", fd);
 
     swConnection *conn = swServer_connection_get(SwooleG.serv, fd);
     if (conn == NULL || conn->active == 0)
@@ -603,6 +605,8 @@ int swReactorThread_send(swSendData *_send)
     else
     {
         reactor = &(serv->reactor_threads[conn->from_id].reactor);
+        assert(fd % serv->reactor_num == reactor->id);
+        assert(fd % serv->reactor_num == SwooleTG.id);
     }
 
     /**
@@ -1158,7 +1162,7 @@ static int swReactorThread_loop(swThreadParam *param)
 
         if (0 != pthread_setaffinity_np(thread_id, sizeof(cpu_set), &cpu_set))
         {
-            swSysError("pthread_setaffinity_np() failed");
+            swSysError("pthread_setaffinity_np() failed.");
         }
     }
 #endif

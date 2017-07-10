@@ -16,6 +16,8 @@
 
 #include "swoole.h"
 
+#ifdef SW_USE_TIMEWHEEL
+
 swTimeWheel* swTimeWheel_new(uint16_t size)
 {
     swTimeWheel *tw = sw_malloc(sizeof(swTimeWheel));
@@ -129,3 +131,5 @@ void swTimeWheel_remove(swTimeWheel *tw, swConnection *conn)
     swHashMap_del_int(set, conn->fd);
     swTraceLog(SW_TRACE_REACTOR, "current=%d, fd=%d.", tw->current, conn->fd);
 }
+
+#endif
