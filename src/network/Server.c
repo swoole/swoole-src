@@ -920,7 +920,7 @@ int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length)
     /**
      * More than the output buffer
      */
-    if (length >= serv->buffer_output_size)
+    if (length > serv->buffer_output_size)
     {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "More than the output buffer size[%d], please use the sendfile.", serv->buffer_output_size);
         return SW_ERR;
