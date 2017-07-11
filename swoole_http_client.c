@@ -1122,6 +1122,7 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
                 swString_append_ptr(http_client_buffer, ZEND_STRL("\r\n"));
             SW_HASHTABLE_FOREACH_END();
 
+            //cleanup request body
             zend_update_property_null(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("requestBody") TSRMLS_CC);
         }
 
@@ -1213,6 +1214,8 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
                 goto send_fail;
             }
             smart_str_free(&formstr_s);
+            //cleanup request body
+            zend_update_property_null(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("requestBody") TSRMLS_CC);
         }
         else if (Z_TYPE_P(post_data) == IS_STRING && Z_STRLEN_P(post_data) > 0)
         {
@@ -1227,14 +1230,20 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
             {
                 goto send_fail;
             }
+            //cleanup request body
+            zend_update_property_null(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("requestBody") TSRMLS_CC);
         }
-        //cleanup request body
-        zend_update_property_null(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("requestBody") TSRMLS_CC);
+        else
+        {
+            //cleanup request body
+            zend_update_property_null(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("requestBody") TSRMLS_CC);
+            goto append_crlf;
+        }
     }
     //no body
     else
     {
-        swString_append_ptr(http_client_buffer, ZEND_STRL("\r\n"));
+        append_crlf: swString_append_ptr(http_client_buffer, ZEND_STRL("\r\n"));
         if ((ret = http->cli->send(http->cli, http_client_buffer->str, http_client_buffer->length, 0)) < 0)
         {
             send_fail:
