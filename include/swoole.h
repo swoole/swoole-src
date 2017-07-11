@@ -1630,6 +1630,7 @@ static sw_inline void swReactor_add(swReactor *reactor, int fd, int type)
     swConnection *socket = swReactor_get(reactor, fd);
     socket->fdtype = swReactor_fdtype(type);
     socket->events = swReactor_events(type);
+    socket->removed = 0;
 
     swTraceLog(SW_TRACE_REACTOR, "fd=%d, type=%d, events=%d", fd, socket->socket_type, socket->events);
 }
