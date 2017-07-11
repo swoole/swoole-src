@@ -342,7 +342,7 @@ static PHP_METHOD(swoole_websocket_server, on)
         RETURN_FALSE;
     }
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sz", &event_name, &callback) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zz", &event_name, &callback) == FAILURE)
     {
         return;
     }
