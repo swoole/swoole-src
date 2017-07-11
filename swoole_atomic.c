@@ -50,7 +50,10 @@ static int swoole_futex_wait(sw_atomic_t *atomic, double timeout)
     {
         ret = syscall(SYS_futex, atomic, FUTEX_WAIT, 0, NULL, NULL, 0);
     }
-    *atomic = 0;
+    if (ret == SW_OK)
+    {
+        *atomic = 0;
+    }
     return ret;
 }
 
