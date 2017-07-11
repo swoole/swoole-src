@@ -31,7 +31,7 @@ $pm->childFunc = function () use ($pm)
     $serv = new Swoole\Server("127.0.0.1", 9502, SWOOLE_BASE);
     $serv->set(array(
         'worker_num' => 1,
-        //'log_file' => '/dev/null',
+        'log_file' => '/dev/null',
     ));
     $serv->on('connect', function ($serv, $fd){
         //echo "Client: Connect.\n";
@@ -41,7 +41,7 @@ $pm->childFunc = function () use ($pm)
         $serv->shutdown();
     });
     $serv->on('close', function ($serv, $fd) {
-        echo "Client: Close.\n";
+//        echo "Client: Close.\n";
     });
     $serv->on('WorkerStart', function ($server) use ($pm) {
         $pm->wakeup();

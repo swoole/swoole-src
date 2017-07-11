@@ -6,56 +6,43 @@ swoole_http_client: post
 <?php
 require_once __DIR__ . "/../include/swoole.inc";
 
-function start_swoole_http_server()
+$pm = new ProcessManager;
+$pm->parentFunc = function ($pid)
 {
-    swoole_php_fork(function ()
+    $cli = new swoole_http_client('127.0.0.1', 9501);
+    $cli->set(array(
+        'timeout' => 0.3,
+    ));
+    $cli->setHeaders(array('User-Agent' => "swoole"));
+    $cli->on('close', function ($cli)
     {
-        $http = new swoole_http_server("127.0.0.1", 9501, SWOOLE_BASE);
-        $http->set(array(
-            'worker_num' => 2,
-            'log_file' => '/dev/null',
-        ));
-        $http->on('request', function ($request, swoole_http_response $response)
-        {
-            $route = $request->server['request_uri'];
-            if ($route == '/info')
-            {
-                $response->end($request->post['bat']);
-
-                return;
-            }
-            else
-            {
-                $cli = new swoole_http_client('127.0.0.1', 9501);
-                $cli->set(array(
-                    'timeout' => 0.3,
-                ));
-                $cli->setHeaders(array('User-Agent' => "swoole"));
-                $cli->on('close', function ($cli) use ($response)
-                {
-                });
-                $cli->on('error', function ($cli) use ($response)
-                {
-                    echo "error";
-                    $response->end("error");
-                });
-                $cli->post('/info', array('bat' => "man"), function ($cli) use ($response)
-                {
-                    $response->end($cli->body . "\n");
-                });
-            }
-        });
-
-        $http->start();
+        echo "close\n";
     });
-}
-sleep(1);	//wait the release of port 9501
-start_swoole_http_server();
-sleep(1);
-echo file_get_contents("http://127.0.0.1:9501/");
+    $cli->on('error', function ($cli)
+    {
+        echo "error\n";
+    });
+    $data = array('name' => "rango");
+    $cli->post('/post', $data, function ($cli) use ($data)
+    {
+        assert($cli->statusCode == 200);
+        $ret = json_decode($cli->body, true);
+        assert($ret);
+        assert(is_array($ret));
+        assert(arrayEqual($ret, $data, false));
+        $cli->close();
+    });
+    swoole_event::wait();
+    swoole_process::kill($pid);
+};
+
+$pm->childFunc = function () use ($pm)
+{
+    include __DIR__ . "/../include/api/http_server.php";
+};
+
+$pm->childFirst();
+$pm->run();
 ?>
-Done
---EXPECTREGEX--
-man
-Done.*
---CLEAN--
+--EXPECT--
+close

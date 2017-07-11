@@ -5,53 +5,42 @@ swoole_http_client: setCookies
 --FILE--
 <?php
 require_once __DIR__ . "/../include/swoole.inc";
-function start_swoole_http_server(){
-swoole_php_fork(function ()
+
+$pm = new ProcessManager;
+$pm->parentFunc = function ($pid)
 {
-    $http = new swoole_http_server("127.0.0.1", 9501, SWOOLE_BASE);
-    $http->set(array(
-        'worker_num' => 2,
-        'log_file' => '/dev/null'
-    ));
-    $http->on('request', function ($request, swoole_http_response $response)
+    $cli = new swoole_http_client('127.0.0.1', 9501);
+    $cookies = array('a' => 1, 'b' => '++');
+    $cli->setCookies($cookies);
+    $cli->setHeaders(array('User-Agent' => "swoole"));
+    $cli->on('close', function ($cli)
     {
-        $route = $request->server['request_uri'];
-        if ($route == '/info')
-        {
-            $response->end($request->cookie['b']);
-
-            return;
-        }
-        else
-        {
-            $cli = new swoole_http_client('127.0.0.1', 9501);
-            $cli->setCookies(array('a' => 1, 'b' => '++'));
-            $cli->setHeaders(array('User-Agent' => "swoole"));
-            $cli->on('close', function ($cli) use ($response)
-            {
-            });
-            $cli->on('error', function ($cli) use ($response)
-            {
-                echo "error";
-                $response->end("error");
-            });
-            $cli->get('/info', function ($cli) use ($response)
-            {
-                $response->end($cli->body . "\n");
-            });
-        }
+        echo "close\n";
     });
+    $cli->on('error', function ($cli)
+    {
+        echo "error\n";
+    });
+    $cli->get('/cookies', function ($cli) use ($cookies)
+    {
+        assert($cli->statusCode == 200);
+        $ret = json_decode($cli->body, true);
+        assert($ret);
+        assert(is_array($ret));
+        assert(arrayEqual($ret, $cookies, false));
+        $cli->close();
+    });
+    swoole_event::wait();
+    swoole_process::kill($pid);
+};
 
-    $http->start();
-});
-}
-sleep(1);	//wait the release of port 9501
-start_swoole_http_server();
-sleep(1);
-echo file_get_contents("http://127.0.0.1:9501/");
+$pm->childFunc = function () use ($pm)
+{
+    include __DIR__ . "/../include/api/http_server.php";
+};
+
+$pm->childFirst();
+$pm->run();
 ?>
-Done
---EXPECTREGEX--
-[+][+]
-Done.*
---CLEAN--
+--EXPECT--
+close

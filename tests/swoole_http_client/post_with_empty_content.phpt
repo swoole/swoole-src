@@ -9,23 +9,40 @@ assert.warning=1
 assert.bail=0
 assert.quiet_eval=0
 
-
 --FILE--
 <?php
-$httpClient = new \swoole_http_client("115.239.210.27", "80");
-@$httpClient->post("/", null, function ($client)
-{
-    echo "SUCCESS";
-    $client->close();
-});
+require_once __DIR__ . "/../include/swoole.inc";
 
-$httpClient = new \swoole_http_client("115.239.210.27", "80");
-@$httpClient->post("/", "", function ($client)
+$pm = new ProcessManager;
+$pm->parentFunc = function ($pid)
 {
-    echo "SUCCESS";
-    $client->close();
-});
-Swoole\Event::wait();
+    $cli = new swoole_http_client('127.0.0.1', 9501);
+    $cli->on('close', function ($cli)
+    {
+        echo "close\n";
+    });
+    $cli->on('error', function ($cli)
+    {
+        echo "error\n";
+    });
+    @$cli->post('/post', '', function ($cli)
+    {
+        assert($cli->statusCode == 200);
+        assert($cli->body == 'null');
+        $cli->close();
+    });
+    swoole_event::wait();
+    swoole_process::kill($pid);
+};
+
+$pm->childFunc = function () use ($pm)
+{
+    include __DIR__ . "/../include/api/http_server.php";
+};
+
+$pm->childFirst();
+$pm->run();
 ?>
-
 --EXPECT--
+close
+
