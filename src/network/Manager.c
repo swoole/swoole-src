@@ -91,16 +91,22 @@ int swManager_start(swFactory *factory)
     //User Worker Process
     if (serv->user_worker_num > 0)
     {
-        serv->user_workers = sw_calloc(serv->user_worker_num, sizeof(swWorker *));
+        serv->user_workers = SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->user_worker_num * sizeof(swWorker));
+        if (serv->user_workers == NULL)
+        {
+            swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "gmalloc[server->user_workers] failed.");
+            return SW_ERR;
+        }
         swUserWorker_node *user_worker;
         i = 0;
         LL_FOREACH(serv->user_worker_list, user_worker)
         {
-            if (swWorker_create(user_worker->worker) < 0)
+            memcpy(&serv->user_workers[i], user_worker->worker, sizeof(swWorker));
+            if (swWorker_create(&serv->user_workers[i]) < 0)
             {
                 return SW_ERR;
             }
-            serv->user_workers[i++] = user_worker->worker;
+            i++;
         }
     }
 

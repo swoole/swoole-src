@@ -19,9 +19,8 @@
 static int swReactorTimer_init(long msec);
 static int swReactorTimer_set(swTimer *timer, long exec_msec);
 static swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *data, swTimerCallback callback);
-static int swReactorTimer_now(struct timeval *time);
 
-static int swReactorTimer_now(struct timeval *time)
+int swTimer_now(struct timeval *time)
 {
 #if defined(SW_USE_MONOTONIC_TIME) && defined(CLOCK_MONOTONIC)
     struct timespec _now;
@@ -45,7 +44,7 @@ static int swReactorTimer_now(struct timeval *time)
 static sw_inline int64_t swTimer_get_relative_msec()
 {
     struct timeval now;
-    if (swReactorTimer_now(&now) < 0)
+    if (swTimer_now(&now) < 0)
     {
         return SW_ERR;
     }
@@ -62,7 +61,7 @@ int swTimer_init(long msec)
         return SW_ERR;
     }
 
-    if (swReactorTimer_now(&SwooleG.timer.basetime) < 0)
+    if (swTimer_now(&SwooleG.timer.basetime) < 0)
     {
         return SW_ERR;
     }
@@ -138,6 +137,7 @@ static swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *
     }
 
     tnode->data = data;
+    tnode->type = SW_TIMER_TYPE_KERNEL;
     tnode->exec_msec = now_msec + _msec;
     tnode->interval = interval ? _msec : 0;
     tnode->remove = 0;
@@ -214,22 +214,16 @@ int swTimer_select(swTimer *timer)
         }
 
         timer_id = timer->_current_id = tnode->id;
-        tnode->callback(timer, tnode);
+        if (!tnode->remove)
+        {
+            tnode->callback(timer, tnode);
+        }
         timer->_current_id = -1;
 
         //persistent timer
         if (tnode->interval > 0 && !tnode->remove)
         {
-            int64_t _now_msec = swTimer_get_relative_msec();
-            if (_now_msec <= 0)
-            {
-                tnode->exec_msec = now_msec + tnode->interval;
-            }
-            else if (tnode->exec_msec + tnode->interval < _now_msec)
-            {
-                tnode->exec_msec = _now_msec + tnode->interval;
-            }
-            else
+            while (tnode->exec_msec <= now_msec)
             {
                 tnode->exec_msec += tnode->interval;
             }

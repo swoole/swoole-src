@@ -52,13 +52,12 @@ typedef struct _swHttpRequest
     uint8_t offset;
     uint8_t version;
     uint8_t free_memory;
+    uint8_t opcode;
+    uint8_t excepted;
 
     uint32_t header_length;
     uint32_t content_length;
-
     swString *buffer;
-
-    uint8_t opcode;
 
 } swHttpRequest;
 

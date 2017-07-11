@@ -27,6 +27,7 @@ typedef struct
 {
     redisAsyncContext *context;
     uint8_t state;
+    uint8_t connected;
     uint8_t subscribe;
     uint8_t connecting;
     uint32_t reqnum;
@@ -363,26 +364,25 @@ static PHP_METHOD(swoole_redis, connect)
     conn->object = redis;
 }
 
+static void redis_close(void* data)
+{
+    swRedisClient *redis = data;
+    redisAsyncDisconnect(redis->context);
+}
+
+static void redis_free_object(void *data)
+{
+    zval *object = (zval*) data;
+    sw_zval_ptr_dtor(&object);
+}
+
 static PHP_METHOD(swoole_redis, close)
 {
     swRedisClient *redis = swoole_get_object(getThis());
-    if (redis && redis->context)
+    if (redis && redis->context && redis->state != SWOOLE_REDIS_STATE_CLOSED)
     {
-        if (redis->connecting)
-        {
-            swoole_php_fatal_error(E_WARNING, "redis client is connecting, cannot close.");
-            RETURN_FALSE;
-        }
-        else if (redis->state != SWOOLE_REDIS_STATE_CLOSED)
-        {
-            redisAsyncDisconnect(redis->context);
-        }
-        else
-        {
-            sw_zval_ptr_dtor(&redis->object);
-        }
+        SwooleG.main_reactor->defer(SwooleG.main_reactor, redis_close, redis);
     }
-
 }
 
 static PHP_METHOD(swoole_redis, __destruct)
@@ -662,12 +662,12 @@ static void swoole_redis_onTimeout(swTimer *timer, swTimer_node *tnode)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
     swRedisClient *redis = tnode->data;
-    sw_zval_ptr_dtor(&redis->object);
     zend_update_property_long(swoole_redis_class_entry_ptr, redis->object, ZEND_STRL("errCode"), ETIMEDOUT TSRMLS_CC);
     zend_update_property_string(swoole_redis_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), strerror(ETIMEDOUT) TSRMLS_CC);
     redis->state = SWOOLE_REDIS_STATE_CLOSED;
     redis_execute_connect_callback(redis, 0 TSRMLS_CC);
     redisAsyncDisconnect(redis->context);
+    sw_zval_ptr_dtor(&redis->object);
 }
 
 static void swoole_redis_onCompleted(redisAsyncContext *c, void *r, void *privdata)
@@ -810,15 +810,17 @@ void swoole_redis_onConnect(const redisAsyncContext *c, int status)
 
     if (status != REDIS_OK)
     {
-        zend_update_property_long(swoole_redis_class_entry_ptr, redis->object, ZEND_STRL("errCode"), c->err TSRMLS_CC);
+        zend_update_property_long(swoole_redis_class_entry_ptr, redis->object, ZEND_STRL("errCode"), errno TSRMLS_CC);
         zend_update_property_string(swoole_redis_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), c->errstr TSRMLS_CC);
         redis->state = SWOOLE_REDIS_STATE_CLOSED;
-        sw_zval_ptr_dtor(&redis->object);
         redis_execute_connect_callback(redis, 0 TSRMLS_CC);
+        SwooleG.main_reactor->defer(SwooleG.main_reactor, redis_free_object, redis->object);
+        return;
     }
     else
     {
         redis->state = SWOOLE_REDIS_STATE_READY;
+        redis->connected = 1;
     }
 
     if (redis->password)

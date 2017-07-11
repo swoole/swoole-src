@@ -932,7 +932,7 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
         swWorker_clean();
     }
 
-    if (SwooleGS->start > 0 && SwooleG.running > 0)
+    if (SwooleGS->start > 0 && SwooleG.serv && SwooleG.running > 0)
     {
         if (PG(last_error_message))
         {
@@ -1007,6 +1007,11 @@ PHP_FUNCTION(swoole_errno)
 
 PHP_FUNCTION(swoole_set_process_name)
 {
+    // MacOS doesn't support 'cli_set_process_title'
+#ifdef __MACH__
+    php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_set_process_name is not supported on MacOS.");
+    return;
+#endif
     zval *name;
     long size = 128;
 

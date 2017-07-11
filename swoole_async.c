@@ -264,7 +264,6 @@ static void php_swoole_aio_onComplete(swAio_event *event)
 #else
         zcontent = &_zcontent;
 #endif
-        memset(event->buf + ret, 0, 1);
         SW_ZVAL_STRINGL(zcontent, event->buf, ret, 1);
     }
     else if (event->type == SW_AIO_WRITE)
@@ -380,7 +379,7 @@ PHP_FUNCTION(swoole_async_read)
 {
     zval *callback;
     zval *filename;
-    long buf_size = 8192;
+    long buf_size = SW_AIO_DEFAULT_CHUNK_SIZE;
     long offset = 0;
     int open_flag = O_RDONLY;
 
@@ -393,6 +392,10 @@ PHP_FUNCTION(swoole_async_read)
     {
         swoole_php_fatal_error(E_WARNING, "offset must be greater than 0.");
         RETURN_FALSE;
+    }
+    if (buf_size > SW_AIO_MAX_CHUNK_SIZE)
+    {
+        buf_size = SW_AIO_MAX_CHUNK_SIZE;
     }
     convert_to_string(filename);
 
@@ -462,7 +465,6 @@ PHP_FUNCTION(swoole_async_read)
         swHashMap_add_int(php_swoole_aio_request, ret, req);
         RETURN_TRUE;
     }
-
 }
 
 PHP_FUNCTION(swoole_async_write)
@@ -779,6 +781,16 @@ PHP_FUNCTION(swoole_async_set)
             SwooleG.socket_buffer_size = SW_MAX_INT;
         }
     }
+    if (php_swoole_array_get_value(vht, "log_level", v))
+    {
+        convert_to_long(v);
+        SwooleG.log_level = Z_LVAL_P(v);
+    }
+    if (php_swoole_array_get_value(vht, "aio_chunk_size", v))
+    {
+        convert_to_string(v);
+        SwooleG.dns_server_v4 = sw_strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
+    }
     if (php_swoole_array_get_value(vht, "socket_dontwait", v))
     {
         convert_to_boolean(v);
@@ -810,6 +822,7 @@ PHP_FUNCTION(swoole_async_set)
         }
     }
 #endif
+    sw_zval_ptr_dtor(&zset);
 }
 
 PHP_FUNCTION(swoole_async_dns_lookup)
@@ -850,6 +863,13 @@ PHP_FUNCTION(swoole_async_dns_lookup)
     {
         php_swoole_check_reactor();
         SW_CHECK_RETURN(swDNSResolver_request(Z_STRVAL_P(domain), php_swoole_dns_callback, (void *) req));
+    }
+
+    if (SwooleAIO.mode == SW_AIO_LINUX)
+    {
+        SwooleAIO.mode = SW_AIO_BASE;
+        SwooleAIO.init = 0;
+        php_swoole_check_aio();
     }
 
     /**

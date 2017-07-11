@@ -54,6 +54,7 @@ typedef struct
     uint8_t thread_num;
     uint32_t task_num;
     uint16_t current_id;
+    swLock lock;
 
     void (*destroy)(void);
     void (*callback)(swAio_event *aio_event);

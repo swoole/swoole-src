@@ -66,6 +66,7 @@
 //#define SW_DEBUG                 //debug
 #define SW_LOG_NO_SRCINFO          //no source info
 #define SW_LOG_TRACE_OPEN          0
+#define SW_LOG_TRACE_FLAGS         (SW_TRACE_EVENT | SW_TRACE_REACTOR | SW_TRACE_CLOSE)
 //#define SW_BUFFER_SIZE           65495 //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
 #define SW_CLIENT_BUFFER_SIZE      65536
 //#define SW_CLIENT_RECV_AGAIN
@@ -115,6 +116,8 @@
 #define SW_AIO_THREAD_NUM_MAX            32
 #define SW_AIO_MAX_FILESIZE              4194304  //4M
 #define SW_AIO_EVENT_NUM                 128
+#define SW_AIO_DEFAULT_CHUNK_SIZE        65536
+#define SW_AIO_MAX_CHUNK_SIZE            1*1024*1024
 //#define SW_AIO_THREAD_USE_CHANNEL
 #define SW_AIO_MAX_EVENTS                128
 //#define SW_THREADPOOL_USE_CHANNEL
@@ -245,6 +248,7 @@
 #define SW_HTTP_HEADER_MAX_SIZE          8192
 #define SW_HTTP_HEADER_KEY_SIZE          128
 #define SW_HTTP_HEADER_VALUE_SIZE        4096
+#define SW_HTTP_HEADER_BUFFER_SIZE       128
 #define SW_HTTP_COMPRESS_GZIP
 #define SW_HTTP_UPLOAD_TMPDIR_SIZE       256
 #define SW_HTTP_DATE_FORMAT              "D, d M Y H:i:s T"

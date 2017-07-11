@@ -1031,7 +1031,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
         swWarn("php_http_parser_execute failed.");
         if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)
         {
-            return SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
+            return swServer_tcp_close(SwooleG.serv, fd, 1);
         }
     }
     else
@@ -2051,7 +2051,7 @@ static PHP_METHOD(swoole_http_response, end)
     }
     if (!ctx->keepalive)
     {
-        SwooleG.serv->factory.end(&SwooleG.serv->factory, ctx->fd);
+        swServer_tcp_close(SwooleG.serv, ctx->fd, 0);
     }
     swoole_http_context_free(ctx TSRMLS_CC);
     RETURN_TRUE;
@@ -2138,7 +2138,7 @@ static PHP_METHOD(swoole_http_response, sendfile)
     }
     if (!ctx->keepalive)
     {
-        SwooleG.serv->factory.end(&SwooleG.serv->factory, ctx->fd);
+        swServer_tcp_close(SwooleG.serv, ctx->fd, 0);
     }
     swoole_http_context_free(ctx TSRMLS_CC);
     RETURN_TRUE;
