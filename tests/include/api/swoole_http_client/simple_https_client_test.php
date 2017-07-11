@@ -38,7 +38,7 @@ testCookie($host, $port);
 // TODO coredump
 // testCookieCore();
 
-testHeaderCore($host, $port);
+testHttpsHeaderCore($host, $port);
 testHeader($host, $port);
 
 testSleep($host, $port);
