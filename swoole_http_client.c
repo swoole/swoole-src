@@ -1188,7 +1188,7 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
         }
     }
     //x-www-form-urlencoded or raw
-    else if (post_data)
+    else if (post_data && !ZVAL_IS_NULL(post_data))
     {
         if (Z_TYPE_P(post_data) == IS_ARRAY)
         {
@@ -1202,35 +1202,57 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
                 return SW_ERR;
             }
             http_client_append_content_length(http_client_buffer, len);
-            swString_append_ptr(http_client_buffer, formstr, len);
+            //send http header
+            if ((ret = http->cli->send(http->cli, http_client_buffer->str, http_client_buffer->length, 0)) < 0)
+            {
+                goto send_fail;
+            }
+            //send http body
+            if ((ret = http->cli->send(http->cli, formstr, len, 0)) < 0)
+            {
+                goto send_fail;
+            }
             smart_str_free(&formstr_s);
         }
         else if (Z_TYPE_P(post_data) == IS_STRING && Z_STRLEN_P(post_data) > 0)
         {
             http_client_append_content_length(http_client_buffer, Z_STRLEN_P(post_data));
-            swString_append_ptr(http_client_buffer, Z_STRVAL_P(post_data), Z_STRLEN_P(post_data));
+            //send http header
+            if ((ret = http->cli->send(http->cli, http_client_buffer->str, http_client_buffer->length, 0)) < 0)
+            {
+                goto send_fail;
+            }
+            //send http body
+            if ((ret = http->cli->send(http->cli, Z_STRVAL_P(post_data), Z_STRLEN_P(post_data), 0)) < 0)
+            {
+                goto send_fail;
+            }
         }
-
+        //cleanup request body
         zend_update_property_null(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("requestBody") TSRMLS_CC);
     }
+    //no body
     else
     {
         swString_append_ptr(http_client_buffer, ZEND_STRL("\r\n"));
+        if ((ret = http->cli->send(http->cli, http_client_buffer->str, http_client_buffer->length, 0)) < 0)
+        {
+            send_fail:
+            SwooleG.error = errno;
+            swoole_php_sys_error(E_WARNING, "send(%d) %d bytes failed.", http->cli->socket->fd, (int )http_client_buffer->length);
+            zend_update_property_long(swoole_http_client_class_entry_ptr, zobject, SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
+            return SW_ERR;
+        }
     }
 
-    swTrace("[%d]: %s\n", (int) http_client_buffer->length, http_client_buffer->str);
-    if ((ret = http->cli->send(http->cli, http_client_buffer->str, http_client_buffer->length, 0)) < 0)
-    {
-        send_fail:
-        SwooleG.error = errno;
-        swoole_php_sys_error(E_WARNING, "send(%d) %d bytes failed.", http->cli->socket->fd, (int )http_client_buffer->length);
-        zend_update_property_long(swoole_http_client_class_entry_ptr, zobject, SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
-    }
-    else if (http->timeout > 0)
+    if (http->timeout > 0)
     {
         php_swoole_check_timer((int) (http->timeout * 1000));
         http->timer = SwooleG.timer.add(&SwooleG.timer, (int) (http->timeout * 1000), 0, http->cli, http_client_onRequestTimeout);
     }
+
+    swTrace("[%d]: %s\n", (int) http_client_buffer->length, http_client_buffer->str);
+
     return ret;
 }
 
