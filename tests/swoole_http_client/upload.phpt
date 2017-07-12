@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_client: download file
+swoole_http_client: upload file
 --SKIPIF--
 <?php require  __DIR__ . "/../include/skipif.inc"; ?>
 --FILE--
@@ -18,12 +18,14 @@ $pm->parentFunc = function ($pid)
     {
         echo "error\n";
     });
-    $cli->download('/get_file', __DIR__.'/tmpfile', function ($cli)
+    $cli->addFile(TEST_IMAGE, 'test.jpg');
+    $cli->post('/upload_file', array('name' => 'rango'), function ($cli)
     {
         assert($cli->statusCode == 200);
-        assert(md5_file($cli->downloadFile) == md5_file(TEST_IMAGE));
+        $ret = json_decode($cli->body, true);
+        assert($ret and is_array($ret));
+        assert(md5_file(TEST_IMAGE) == $ret['md5']);
         $cli->close();
-        unlink(__DIR__ . '/tmpfile');
     });
     swoole_event::wait();
     swoole_process::kill($pid);

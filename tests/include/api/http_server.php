@@ -34,6 +34,15 @@ $http->on('request', function ($request, swoole_http_response $response)
         $response->sendfile(TEST_IMAGE);
         return;
     }
+    elseif ($route == '/upload_file')
+    {
+        $response->end(json_encode([
+            'files' => $request->files,
+            'md5' => md5_file($request->files['test_jpg']['tmp_name']),
+            'post' => $request->post
+        ]));
+        return;
+    }
     elseif ($route == '/gzip')
     {
         $response->gzip(5);
