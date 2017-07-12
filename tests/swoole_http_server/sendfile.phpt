@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_request: sendfile
+swoole_http_server: sendfile
 
 --SKIPIF--
 <?php require __DIR__ . "/../include/skipif.inc"; ?>
@@ -11,11 +11,6 @@ assert.quiet_eval=0
 
 --FILE--
 <?php
-/**
-
- * Time: 下午3:04
- */
-
 require_once __DIR__ . "/../include/swoole.inc";
 require_once __DIR__ . "/../include/api/swoole_http_client/simple_http_client.php";
 
