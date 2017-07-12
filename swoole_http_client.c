@@ -2213,7 +2213,7 @@ static PHP_METHOD(swoole_http_client, upgrade)
 
     zend_bool update_property = 0;
     zval *request_header = sw_zend_read_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestHeaders"), 1 TSRMLS_CC);
-    if (request_header && ZVAL_IS_NULL(request_header))
+    if (request_header == NULL || ZVAL_IS_NULL(request_header))
     {
         SW_ALLOC_INIT_ZVAL(request_header);
         array_init(request_header);
