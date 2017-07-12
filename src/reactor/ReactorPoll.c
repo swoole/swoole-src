@@ -15,7 +15,7 @@
 */
 
 #include "swoole.h"
-#include <sys/poll.h>
+#include <poll.h>
 
 static int swReactorPoll_add(swReactor *reactor, int fd, int fdtype);
 static int swReactorPoll_set(swReactor *reactor, int fd, int fdtype);
