@@ -29,6 +29,11 @@ $http->on('request', function ($request, swoole_http_response $response)
         $response->end(@json_encode($request->post));
         return;
     }
+    elseif ($route == '/get_file')
+    {
+        $response->sendfile(TEST_IMAGE);
+        return;
+    }
     else
     {
         $cli = new swoole_http_client('127.0.0.1', 9501);
