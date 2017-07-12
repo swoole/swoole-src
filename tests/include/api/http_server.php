@@ -34,6 +34,14 @@ $http->on('request', function ($request, swoole_http_response $response)
         $response->sendfile(TEST_IMAGE);
         return;
     }
+    elseif ($route == '/gzip')
+    {
+        $response->gzip(5);
+        Swoole\Async::readFile(__DIR__ . '/../../../README.md', function ($file, $content) use ($response) {
+            $response->end($content);
+        });
+        return;
+    }
     else
     {
         $cli = new swoole_http_client('127.0.0.1', 9501);
