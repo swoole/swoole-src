@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: tcp client
+swoole_coroutine: redis client
 --SKIPIF--
 <?php require  __DIR__ . "/../include/skipif.inc"; ?>
 --FILE--
@@ -8,25 +8,20 @@ require_once __DIR__ . "/../include/swoole.inc";
 require_once __DIR__ . "/../include/lib/curl.php";
 
 $pm = new ProcessManager;
-
 $pm->parentFunc = function ($pid)
 {
-    $data = curlGet("http://127.0.0.1:9501/");
-    echo $data;
+    echo curlGet("http://127.0.0.1:9501/");
+    echo curlGet("http://127.0.0.1:9501/");
+    echo curlGet("http://127.0.0.1:9501/");
     swoole_process::kill($pid);
 };
+
+$count = 0;
+$pool = new SplQueue();
 
 $pm->childFunc = function () use ($pm)
 {
     $http = new swoole_http_server("127.0.0.1", 9501, SWOOLE_BASE);
-
-    $port2 = $http->listen('127.0.0.1', 9502, SWOOLE_SOCK_TCP);
-    $port2->set([]);
-    $port2->on('Receive', function ($serv, $fd, $rid, $data)
-    {
-        $serv->send($fd, "Swoole: $data");
-    });
-
     $http->set(array(
         'log_file' => '/dev/null'
     ));
@@ -38,26 +33,39 @@ $pm->childFunc = function () use ($pm)
         global $pm;
         $pm->wakeup();
     });
+
     $http->on('request', function (swoole_http_request $request, swoole_http_response $response)
     {
-        $cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
-        if (!$cli->connect('127.0.0.1', 9502))
+        global $count, $pool;
+        if (count($pool) == 0)
         {
-            fail:
-            $response->end("ERROR\n");
-            return;
+            $redis = new Swoole\Coroutine\Redis();
+            $redis->id = $count;
+            $res = $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
+            if ($res == false)
+            {
+                fail:
+                $response->end("ERROR\n");
+                return;
+            }
+            $count++;
+            $pool->push($redis);
         }
-        if (!$cli->send("hello"))
+
+        $redis = $pool->pop();
+        $ret = $redis->set('key', 'value');
+        if ($ret)
+        {
+            $response->end("OK[$count]\n");
+        }
+        else
         {
             goto fail;
         }
-        $ret = $cli->recv();
-        if (!$ret)
-        {
-            goto fail;
-        }
-        $response->end("OK\n");
+        $pool->push($redis);
+
     });
+
     $http->start();
 };
 
@@ -65,4 +73,6 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
-OK
+OK[1]
+OK[1]
+OK[1]

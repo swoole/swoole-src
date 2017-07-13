@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: mysql client
+swoole_coroutine: udp client
 --SKIPIF--
 <?php require  __DIR__ . "/../include/skipif.inc"; ?>
 --FILE--

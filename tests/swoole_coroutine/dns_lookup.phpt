@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: tcp client
+swoole_coroutine: dns lookup
 --SKIPIF--
 <?php require  __DIR__ . "/../include/skipif.inc"; ?>
 --FILE--
@@ -8,7 +8,6 @@ require_once __DIR__ . "/../include/swoole.inc";
 require_once __DIR__ . "/../include/lib/curl.php";
 
 $pm = new ProcessManager;
-
 $pm->parentFunc = function ($pid)
 {
     $data = curlGet("http://127.0.0.1:9501/");
@@ -19,14 +18,6 @@ $pm->parentFunc = function ($pid)
 $pm->childFunc = function () use ($pm)
 {
     $http = new swoole_http_server("127.0.0.1", 9501, SWOOLE_BASE);
-
-    $port2 = $http->listen('127.0.0.1', 9502, SWOOLE_SOCK_TCP);
-    $port2->set([]);
-    $port2->on('Receive', function ($serv, $fd, $rid, $data)
-    {
-        $serv->send($fd, "Swoole: $data");
-    });
-
     $http->set(array(
         'log_file' => '/dev/null'
     ));
@@ -40,23 +31,15 @@ $pm->childFunc = function () use ($pm)
     });
     $http->on('request', function (swoole_http_request $request, swoole_http_response $response)
     {
-        $cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
-        if (!$cli->connect('127.0.0.1', 9502))
+        $host = swoole_async_dns_lookup_coro('www.baidu.com');
+        if ($host)
         {
-            fail:
+            $response->end("OK\n");
+        }
+        else
+        {
             $response->end("ERROR\n");
-            return;
         }
-        if (!$cli->send("hello"))
-        {
-            goto fail;
-        }
-        $ret = $cli->recv();
-        if (!$ret)
-        {
-            goto fail;
-        }
-        $response->end("OK\n");
     });
     $http->start();
 };
