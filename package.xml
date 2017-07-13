@@ -182,6 +182,7 @@
                     <file role="src" name="RWLock.c" />
                     <file role="src" name="SpinLock.c" />
                     <file role="src" name="FileLock.c" />
+                    <file role="src" name="Cond.c" />
                 </dir>
                 <dir name="network">
                     <file role="src" name="Client.c" />
