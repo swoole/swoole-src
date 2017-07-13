@@ -1401,6 +1401,19 @@ PHPAPI zend_string* php_swoole_serialize(zval *zvalue)
     return z_str;
 }
 
+static CPINLINE int swoole_seria_check_eof(void *buffer, size_t len)
+{
+    void *eof_str = buffer - sizeof (SBucketType) + len - 3;
+    if (memcmp(eof_str, "EOF") == 0)
+    {
+        return 0;
+    }
+    else
+    {
+        return -1;
+    }
+}
+
 /*
  * buffer is seria string buffer
  * len is string len
@@ -1434,6 +1447,11 @@ PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, 
             break;
         case IS_ARRAY:
         {
+            if (swoole_seria_check_eof(buffer, len) < 0)
+            {
+                  php_error_docref(NULL TSRMLS_CC, E_NOTICE, "detect the error eof");
+                  return SW_FALSE;
+            }
             unser_start = buffer - sizeof (SBucketType);
             uint32_t num = 0;
             buffer = get_array_real_len(buffer, type.data_len, &num);
@@ -1444,6 +1462,11 @@ PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, 
             break;
         }
         case IS_UNDEF:
+            if (swoole_seria_check_eof(buffer, len) < 0)
+            {
+                  php_error_docref(NULL TSRMLS_CC, E_NOTICE, "detect the error eof");
+                  return SW_FALSE;
+            }
             unser_start = buffer - sizeof (SBucketType);
             if (!swoole_unserialize_object(buffer, return_value, type.data_len, object_args))
             {
