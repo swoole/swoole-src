@@ -1360,6 +1360,7 @@ again:
         {
             seria_array_type(Z_ARRVAL_P(zvalue), buffer, _STR_HEADER_SIZE, _STR_HEADER_SIZE + 1);
             swoole_serialize_arr(buffer, Z_ARRVAL_P(zvalue));
+            swoole_string_cpy(buffer, "EOF", 3);
             swoole_mini_filter_clear();
             break;
         }
@@ -1372,6 +1373,7 @@ again:
             SBucketType* type = (SBucketType*) (buffer->buffer + _STR_HEADER_SIZE);
             type->data_type = IS_UNDEF;
             swoole_serialize_object(buffer, zvalue, _STR_HEADER_SIZE);
+            swoole_string_cpy(buffer, "EOF", 3);
             swoole_mini_filter_clear();
             break;
         }
