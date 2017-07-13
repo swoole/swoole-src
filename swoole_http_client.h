@@ -78,6 +78,8 @@ typedef struct
     char *request_method;
     int callback_index;
 
+    double request_timeout;
+
     uint8_t shutdown;
 
 #ifdef SW_COROUTINE
@@ -101,8 +103,8 @@ typedef struct
 
     swTimer_node *timer;
 
-    char *tmp_header_field_name;
-    zend_size_t tmp_header_field_name_len;
+    swString *header_field_buffer;
+    swString *header_value_buffer;
 
 #ifdef SW_HAVE_ZLIB
     z_stream gzip_stream;
@@ -148,6 +150,24 @@ static sw_inline void http_client_create_token(int length, char *buf)
         buf[i] = characters[rand() % sizeof(characters) - 1];
     }
     buf[length] = '\0';
+}
+
+static sw_inline int http_client_check_data(zval *data TSRMLS_DC)
+{
+    if (Z_TYPE_P(data) != IS_ARRAY && Z_TYPE_P(data) != IS_STRING)
+    {
+        swoole_php_error(E_WARNING, "parameter $data must be an array or string.");
+        return SW_ERR;
+    }
+    else if (Z_TYPE_P(data) == IS_ARRAY && php_swoole_array_length(data) == 0)
+    {
+        swoole_php_error(E_WARNING, "parameter $data is empty.");
+    }
+    else if (Z_TYPE_P(data) == IS_STRING && Z_STRLEN_P(data) == 0)
+    {
+        swoole_php_error(E_WARNING, "parameter $data is empty.");
+    }
+    return SW_OK;
 }
 
 static sw_inline void http_client_swString_append_headers(swString* swStr, char* key, zend_size_t key_len, char* data, zend_size_t data_len)
