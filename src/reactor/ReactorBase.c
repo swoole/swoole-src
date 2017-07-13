@@ -17,6 +17,7 @@
 #include "swoole.h"
 #include "Connection.h"
 #include "async.h"
+#include "Server.h"
 
 #ifdef SW_USE_MALLOC_TRIM
 #ifdef __APPLE__
@@ -127,58 +128,6 @@ static int swReactor_defer(swReactor *reactor, swCallback callback, void *data)
     cb->data = data;
     LL_APPEND(reactor->defer_callback_list, cb);
     return SW_OK;
-}
-
-swConnection* swReactor_get(swReactor *reactor, int fd)
-{
-    assert(fd < SwooleG.max_sockets);
-
-    if (reactor->thread)
-    {
-        return &reactor->socket_list[fd];
-    }
-
-    swConnection *socket = swArray_alloc(reactor->socket_array, fd);
-    if (socket == NULL)
-    {
-        return NULL;
-    }
-
-    if (!socket->active)
-    {
-        socket->fd = fd;
-    }
-
-    return socket;
-}
-
-int swReactor_add(swReactor *reactor, int fd, int fdtype)
-{
-    assert (fd <= SwooleG.max_sockets);
-
-    swConnection *socket = swReactor_get(reactor, fd);
-
-    socket->fdtype = swReactor_fdtype(fdtype);
-    socket->events = swReactor_events(fdtype);
-    socket->removed = 0;
-
-    swTraceLog(SW_TRACE_REACTOR, "fd=%d, type=%d, events=%d", fd, socket->socket_type, socket->events);
-
-    return SW_OK;
-}
-
-int swReactor_del(swReactor *reactor, int fd)
-{
-    swConnection *socket = swReactor_get(reactor, fd);
-    socket->events = 0;
-    socket->removed = 1;
-    return SW_OK;
-}
-
-void swReactor_set(swReactor *reactor, int fd, int fdtype)
-{
-    swConnection *socket = swReactor_get(reactor, fd);
-    socket->events = swReactor_events(fdtype);
 }
 
 /**
@@ -295,6 +244,7 @@ int swReactor_close(swReactor *reactor, int fd)
     }
     bzero(socket, sizeof(swConnection));
     socket->removed = 1;
+    swTraceLog(SW_TRACE_CLOSE, "fd=%d.", fd);
     return close(fd);
 }
 

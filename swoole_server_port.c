@@ -117,6 +117,30 @@ static PHP_METHOD(swoole_server_port, set)
             port->socket_buffer_size = SW_MAX_INT;
         }
     }
+    /**
+     * !!! Don't set this option, for tests only.
+     */
+    if (php_swoole_array_get_value(vht, "kernel_socket_recv_buffer_size", v))
+    {
+        convert_to_long(v);
+        port->kernel_socket_recv_buffer_size = (int) Z_LVAL_P(v);
+        if (port->kernel_socket_recv_buffer_size <= 0)
+        {
+            port->kernel_socket_recv_buffer_size = SW_MAX_INT;
+        }
+    }
+    /**
+     * !!! Don't set this option, for tests only.
+     */
+    if (php_swoole_array_get_value(vht, "kernel_socket_send_buffer_size", v))
+    {
+        convert_to_long(v);
+        port->kernel_socket_send_buffer_size = (int) Z_LVAL_P(v);
+        if (port->kernel_socket_send_buffer_size <= 0)
+        {
+            port->kernel_socket_send_buffer_size = SW_MAX_INT;
+        }
+    }
     if (php_swoole_array_get_value(vht, "buffer_high_watermark", v))
     {
         convert_to_long(v);

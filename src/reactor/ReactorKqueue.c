@@ -101,11 +101,6 @@ static void swReactorKqueue_free(swReactor *reactor)
 
 static int swReactorKqueue_add(swReactor *reactor, int fd, int fdtype)
 {
-    if (swReactor_add(reactor, fd, fdtype) < 0)
-    {
-        return SW_ERR;
-    }
-
     swReactorKqueue *this = reactor->object;
     struct kevent e;
     swFd fd_;
@@ -145,6 +140,7 @@ static int swReactorKqueue_add(swReactor *reactor, int fd, int fdtype)
 
     swTrace("[THREAD #%d]EP=%d|FD=%d, events=%d", SwooleTG.id, this->epfd, fd, fdtype);
     reactor->event_num++;
+    swReactor_add(reactor, fd, fdtype);
     return SW_OK;
 }
 
@@ -244,12 +240,9 @@ static int swReactorKqueue_del(swReactor *reactor, int fd)
         }
     }
 
-    if (swReactor_del(reactor, fd) < 0)
-    {
-        return SW_ERR;
-    }
     swTrace("[THREAD #%d]EP=%d|FD=%d", SwooleTG.id, this->epfd, fd);
     reactor->event_num = reactor->event_num <= 0 ? 0 : reactor->event_num - 1;
+    swReactor_del(reactor, fd);
     return SW_OK;
 }
 

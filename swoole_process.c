@@ -41,6 +41,7 @@ static PHP_METHOD(swoole_process, exit);
 static PHP_METHOD(swoole_process, exec);
 
 static void php_swoole_onSignal(int signo);
+static void free_signal_callback(void* data);
 
 static uint32_t php_swoole_worker_round_id = 0;
 static zval *signal_callback[SW_SIGNO_MAX];
@@ -453,8 +454,8 @@ static PHP_METHOD(swoole_process, signal)
         callback = signal_callback[signo];
         if (callback)
         {
-            sw_zval_ptr_dtor(&callback);
             swSignal_add(signo, NULL);
+            SwooleG.main_reactor->defer(SwooleG.main_reactor, free_signal_callback, callback);
             RETURN_TRUE;
         }
         else
@@ -473,16 +474,13 @@ static PHP_METHOD(swoole_process, signal)
     }
     efree(func_name);
 
-#if PHP_MAJOR_VERSION >= 7
-    zval *tmp = emalloc(sizeof(zval));
-    memcpy(tmp, callback, sizeof(zval));
-    callback = tmp;
-#endif
-
+    callback = sw_zval_dup(callback);
     sw_zval_add_ref(&callback);
+
+    //free the old callback
     if (signal_callback[signo])
     {
-        sw_zval_ptr_dtor(&callback);
+        SwooleG.main_reactor->defer(SwooleG.main_reactor, free_signal_callback, signal_callback[signo]);
     }
     signal_callback[signo] = callback;
 
@@ -560,6 +558,12 @@ static PHP_METHOD(swoole_process, alarm)
     }
 
     RETURN_TRUE;
+}
+
+static void free_signal_callback(void* data)
+{
+    zval *callback = (zval*) data;
+    sw_zval_free(callback);
 }
 
 /**

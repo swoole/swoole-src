@@ -898,6 +898,14 @@ void php_swoole_client_free(zval *zobject, swClient *cli TSRMLS_DC)
         swClient_free(cli);
         efree(cli);
     }
+#ifdef SWOOLE_SOCKETS_SUPPORT
+    zval *zsocket = swoole_get_property(zobject, client_property_socket);
+    if (zsocket)
+    {
+        sw_zval_free(zsocket);
+        swoole_set_property(zobject, client_property_socket, NULL);
+    }
+#endif
     //unset object
     swoole_set_object(zobject, NULL);
 }
@@ -1061,7 +1069,7 @@ static PHP_METHOD(swoole_client, __destruct)
 {
     swClient *cli = swoole_get_object(getThis());
     //no keep connection
-    if (cli)
+    if (cli && cli->released == 0)
     {
         zval *zobject = getThis();
         zval *retval = NULL;
@@ -1078,17 +1086,6 @@ static PHP_METHOD(swoole_client, __destruct)
         efree(cb);
         swoole_set_property(getThis(), client_property_callback, NULL);
     }
-#ifdef SWOOLE_SOCKETS_SUPPORT
-    zval *zsocket = swoole_get_property(getThis(), client_property_socket);
-    if (zsocket)
-    {
-        sw_zval_ptr_dtor(&zsocket);
-#if PHP_MAJOR_VERSION >= 7
-        efree(zsocket);
-#endif
-        swoole_set_property(getThis(), client_property_socket, NULL);
-    }
-#endif
 }
 
 static PHP_METHOD(swoole_client, set)
@@ -1692,7 +1689,6 @@ static PHP_METHOD(swoole_client, close)
     {
         return;
     }
-
     swClient *cli = swoole_get_object(getThis());
     if (!cli || !cli->socket)
     {

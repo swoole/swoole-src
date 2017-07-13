@@ -43,6 +43,16 @@ static void swClient_onTimeout(swTimer *timer, swTimer_node *tnode);
 
 static int isset_event_handle = 0;
 
+static sw_inline void execute_onConnect(swClient *cli)
+{
+    if (cli->timer)
+    {
+        swTimer_del(&SwooleG.timer, cli->timer);
+        cli->timer = NULL;
+    }
+    cli->onConnect(cli);
+}
+
 int swClient_create(swClient *cli, int type, int async)
 {
     int _domain;
@@ -725,7 +735,7 @@ static int swClient_udp_connect(swClient *cli, char *host, int port, double time
             {
                 return SW_ERR;
             }
-            cli->onConnect(cli);
+            execute_onConnect(cli);
         }
         return SW_OK;
     }
@@ -815,7 +825,10 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
                 }
                 return SwooleG.main_reactor->set (SwooleG.main_reactor, event->fd, SW_FD_STREAM_CLIENT | SW_EVENT_WRITE);
             }
-            cli->onConnect (cli);
+            if (cli->onConnect)
+            {
+                execute_onConnect(cli);
+            }
             return SW_OK;
         }
 #endif
@@ -864,7 +877,10 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
         else
 #endif
         {
-            cli->onConnect(cli);
+            if (cli->onConnect)
+            {
+                execute_onConnect(cli);
+            }
         }
         return SW_OK;
     }
@@ -883,7 +899,7 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
         //ssl handshake sucess
         else if (cli->onConnect)
         {
-            cli->onConnect(cli);
+            execute_onConnect(cli);
         }
     }
 #endif
@@ -1146,14 +1162,9 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
         }
         connect_success:
 #endif
-        if (cli->timer)
-        {
-            swTimer_del(&SwooleG.timer, cli->timer);
-            cli->timer = NULL;
-        }
         if (cli->onConnect)
         {
-            cli->onConnect(cli);
+            execute_onConnect(cli);
         }
     }
     else

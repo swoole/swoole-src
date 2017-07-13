@@ -128,7 +128,6 @@ typedef struct _swReactorThread
     int *pipe_read_list;
 #endif
     swLock lock;
-    int c_udp_fd;
 } swReactorThread;
 
 typedef struct _swListenPort
@@ -214,6 +213,11 @@ typedef struct _swListenPort
      */
     char *websocket_subprotocol;
     uint16_t websocket_subprotocol_length;
+    /**
+     * set socket option
+     */
+    int kernel_socket_recv_buffer_size;
+    int kernel_socket_send_buffer_size;
 
 #ifdef SW_USE_OPENSSL
     SSL_CTX *ssl_context;
@@ -417,8 +421,6 @@ struct _swServer
     uint32_t buffer_output_size;
     uint32_t buffer_input_size;
 
-    uint32_t pipe_buffer_size;
-
     void *ptr2;
 
     swReactor reactor;
@@ -429,7 +431,7 @@ struct _swServer
     uint16_t user_worker_num;
     swUserWorker_node *user_worker_list;
     swHashMap *user_worker_map;
-    swWorker **user_workers;
+    swWorker *user_workers;
 
     swReactorThread *reactor_threads;
     swWorker *workers;
@@ -536,7 +538,7 @@ static sw_inline swString *swServer_get_buffer(swServer *serv, int fd)
     swString *buffer = serv->connection_list[fd].recv_buffer;
     if (buffer == NULL)
     {
-        buffer = swString_new(SW_BUFFER_SIZE);
+        buffer = swString_new(SW_BUFFER_SIZE_STD);
         //alloc memory failed.
         if (!buffer)
         {
@@ -718,7 +720,7 @@ static sw_inline swWorker* swServer_get_worker(swServer *serv, uint16_t worker_i
     uint16_t user_worker_max = task_worker_max + serv->user_worker_num;
     if (worker_id < user_worker_max)
     {
-        return serv->user_workers[worker_id - task_worker_max];
+        return &(serv->user_workers[worker_id - task_worker_max]);
     }
 
     return NULL;

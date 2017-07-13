@@ -961,7 +961,7 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
         swWorker_clean();
     }
 
-    if (SwooleGS->start > 0 && SwooleG.running > 0)
+    if (SwooleGS->start > 0 && SwooleG.serv && SwooleG.running > 0)
     {
         if (PG(last_error_message))
         {

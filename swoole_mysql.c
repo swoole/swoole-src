@@ -354,6 +354,11 @@ void swoole_mysql_init(int module_number TSRMLS_DC)
     SWOOLE_INIT_CLASS_ENTRY(swoole_mysql_exception_ce, "swoole_mysql_exception", "Swoole\\MySQL\\Exception", NULL);
     swoole_mysql_exception_class_entry_ptr = sw_zend_register_internal_class_ex(&swoole_mysql_exception_ce, zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_mysql_exception, "Swoole\\MySQL\\Exception");
+
+    zend_declare_property_long(swoole_mysql_class_entry_ptr, ZEND_STRL("errno"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_mysql_class_entry_ptr, ZEND_STRL("connect_errno"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_mysql_class_entry_ptr, ZEND_STRL("insert_id"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_mysql_class_entry_ptr, ZEND_STRL("affected_rows"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
 }
 
 int mysql_request(swString *sql, swString *buffer)
@@ -836,12 +841,18 @@ static PHP_METHOD(swoole_mysql, connect)
         RETURN_FALSE;
     }
 
+    mysql_client *client = swoole_get_object(getThis());
+    if (client->cli)
+    {
+        swoole_php_error(E_WARNING, "The mysql client is already connected server.");
+        RETURN_FALSE;
+    }
+
     php_swoole_array_separate(server_info);
 
     HashTable *_ht = Z_ARRVAL_P(server_info);
     zval *value;
 
-    mysql_client *client = swoole_get_object(getThis());
     mysql_connector *connector = &client->connector;
 
     if (php_swoole_array_get_value(_ht, "host", value))
@@ -849,6 +860,7 @@ static PHP_METHOD(swoole_mysql, connect)
         convert_to_string(value);
         connector->host = Z_STRVAL_P(value);
         connector->host_len = Z_STRLEN_P(value);
+
     }
     else
     {

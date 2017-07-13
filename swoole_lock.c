@@ -19,6 +19,7 @@
 static PHP_METHOD(swoole_lock, __construct);
 static PHP_METHOD(swoole_lock, __destruct);
 static PHP_METHOD(swoole_lock, lock);
+static PHP_METHOD(swoole_lock, lockwait);
 static PHP_METHOD(swoole_lock, trylock);
 static PHP_METHOD(swoole_lock, lock_read);
 static PHP_METHOD(swoole_lock, trylock_read);
@@ -35,11 +36,16 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_lock_construct, 0, 0, 0)
     ZEND_ARG_INFO(0, filename)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_lock_lockwait, 0, 0, 0)
+    ZEND_ARG_INFO(0, timeout)
+ZEND_END_ARG_INFO()
+
 static const zend_function_entry swoole_lock_methods[] =
 {
     PHP_ME(swoole_lock, __construct, arginfo_swoole_lock_construct, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
     PHP_ME(swoole_lock, __destruct, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_ME(swoole_lock, lock, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_lock, lockwait, arginfo_swoole_lock_lockwait, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_lock, trylock, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_lock, lock_read, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_lock, trylock_read, arginfo_swoole_void, ZEND_ACC_PUBLIC)
@@ -140,6 +146,23 @@ static PHP_METHOD(swoole_lock, lock)
 {
     swLock *lock = swoole_get_object(getThis());
     SW_LOCK_CHECK_RETURN(lock->lock(lock));
+}
+
+static PHP_METHOD(swoole_lock, lockwait)
+{
+    double timeout = 1.0;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "d", &timeout) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+    swLock *lock = swoole_get_object(getThis());
+    if (lock->type != SW_MUTEX)
+    {
+        zend_throw_exception(swoole_exception_class_entry_ptr, "only mutex support lockwait.", -2 TSRMLS_CC);
+        RETURN_FALSE;
+    }
+    SW_LOCK_CHECK_RETURN(swMutex_lockwait(lock, (int)timeout * 1000));
 }
 
 static PHP_METHOD(swoole_lock, unlock)

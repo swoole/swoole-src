@@ -141,7 +141,7 @@ static swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *
     }
 
     tnode->data = data;
-    tnode->type = 0;
+    tnode->type = SW_TIMER_TYPE_KERNEL;
     tnode->exec_msec = now_msec + _msec;
     tnode->interval = interval ? _msec : 0;
     tnode->remove = 0;
@@ -218,22 +218,16 @@ int swTimer_select(swTimer *timer)
         }
 
         timer_id = timer->_current_id = tnode->id;
-        tnode->callback(timer, tnode);
+        if (!tnode->remove)
+        {
+            tnode->callback(timer, tnode);
+        }
         timer->_current_id = -1;
 
         //persistent timer
         if (tnode->interval > 0 && !tnode->remove)
         {
-            int64_t _now_msec = swTimer_get_relative_msec();
-            if (_now_msec <= 0)
-            {
-                tnode->exec_msec = now_msec + tnode->interval;
-            }
-            else if (tnode->exec_msec + tnode->interval < _now_msec)
-            {
-                tnode->exec_msec = _now_msec + tnode->interval;
-            }
-            else
+            while (tnode->exec_msec <= now_msec)
             {
                 tnode->exec_msec += tnode->interval;
             }

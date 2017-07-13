@@ -44,6 +44,31 @@ int php_swoole_del_timer_coro(swTimer_node *tnode TSRMLS_DC);
 #endif
 static int php_swoole_del_timer(swTimer_node *tnode TSRMLS_DC);
 
+void php_swoole_clear_all_timer()
+{
+    if (!SwooleG.timer.map)
+    {
+        return;
+    }
+    SWOOLE_GET_TSRMLS;
+    uint64_t timer_id;
+    //kill user process
+    while (1)
+    {
+        swTimer_node *tnode = swHashMap_each_int(SwooleG.timer.map, &timer_id);
+        if (tnode == NULL)
+        {
+            break;
+        }
+        if (tnode->type != SW_TIMER_TYPE_PHP)
+        {
+            continue;
+        }
+        php_swoole_del_timer(tnode TSRMLS_CC);
+        swTimer_del(&SwooleG.timer, tnode);
+    }
+}
+
 #ifdef SW_COROUTINE
 int php_swoole_add_timer_coro(int ms, int cli_fd, long *timeout_id, void* param, swLinkedList_node **node TSRMLS_DC) //void *
 {
@@ -230,6 +255,7 @@ static long php_swoole_add_timer(int ms, zval *callback, zval *param, int persis
     }
     else
     {
+        tnode->type = SW_TIMER_TYPE_PHP;
         return tnode->id;
     }
 }

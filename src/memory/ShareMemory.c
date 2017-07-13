@@ -57,6 +57,12 @@ void* sw_shm_calloc(size_t num, size_t _size)
     }
 }
 
+int sw_shm_protect(void *addr, int flags)
+{
+    swShareMemory *object = (swShareMemory *) (addr - sizeof(swShareMemory));
+    return mprotect(object, object->size, flags);
+}
+
 void sw_shm_free(void *ptr)
 {
     //object对象在头部，如果释放了错误的对象可能会发生段错误

@@ -1,0 +1,16 @@
+[2017-01-09 20:48:45 *7139.0]	WARNING	swServer_tcp_deny_exit: swServer_tcp_deny_exit
+[2017-01-09 20:48:45 *7140.1]	WARNING	swServer_tcp_deny_exit: swServer_tcp_deny_exit
+[2017-01-09 20:48:45 #7136.0]	WARNING	swReactorThread_onPipeReceive: [Master] set worker idle.[work_id=0]
+[2017-01-09 20:48:45 #7136.0]	WARNING	swReactorThread_onPipeReceive: [Master] set worker idle.[work_id=1]
+[2017-01-09 20:48:48 #7136.0]	WARNING	swServer_signal_hanlder: Fatal Error: manager process exit. status=1, signal=23.
+[2017-01-09 20:48:48 *7140.1]	ERROR	swFactoryProcess_finish (ERROR 1004): send 1024 byte failed, because session#1 is closed.
+[2017-01-09 20:49:14 *7149.0]	WARNING	swServer_tcp_deny_exit: swServer_tcp_deny_exit
+[2017-01-09 20:49:14 @7146.0]	WARNING	swReactorThread_onPipeReceive: [Master] set worker idle.[work_id=0]
+[2017-01-09 20:49:14 *7150.1]	WARNING	swServer_tcp_deny_exit: swServer_tcp_deny_exit
+[2017-01-09 20:49:14 #7146.0]	WARNING	swReactorThread_onPipeReceive: [Master] set worker idle.[work_id=1]
+[2017-01-09 20:49:16 #7146.0]	WARNING	swServer_signal_hanlder: Fatal Error: manager process exit. status=24, signal=38.
+[2017-01-09 20:50:23 *7158.1]	WARNING	swServer_tcp_deny_exit: swServer_tcp_deny_exit
+[2017-01-09 20:50:23 *7157.0]	WARNING	swServer_tcp_deny_exit: swServer_tcp_deny_exit
+[2017-01-09 20:50:23 #7154.0]	WARNING	swReactorThread_onPipeReceive: [Master] set worker idle.[work_id=1]
+[2017-01-09 20:50:23 #7154.0]	WARNING	swReactorThread_onPipeReceive: [Master] set worker idle.[work_id=0]
+[2017-01-09 20:50:24 #7154.0]	WARNING	swServer_signal_hanlder: Fatal Error: manager process exit. status=49, signal=82.

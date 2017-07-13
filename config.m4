@@ -20,9 +20,6 @@ PHP_ARG_ENABLE(swoole-debug, whether to enable swoole debug,
 PHP_ARG_ENABLE(sockets, enable sockets support,
 [  --enable-sockets        Do you have sockets extension?], no, no)
 
-PHP_ARG_ENABLE(ringbuffer, enable ringbuffer shared memory pool support,
-[  --enable-ringbuffer     Experimental: Use ringbuffer memory pool?], no, no)
-
 PHP_ARG_ENABLE(async_redis, enable async_redis support,
 [  --enable-async-redis    Do you have hiredis?], no, no)
 
@@ -135,6 +132,26 @@ AC_DEFUN([AC_SWOOLE_HAVE_REUSEPORT],
     ])
 ])
 
+AC_DEFUN([AC_SWOOLE_HAVE_FUTEX],
+[
+    AC_MSG_CHECKING([for futex])
+    AC_TRY_COMPILE(
+    [
+		#include <linux/futex.h>
+		#include <syscall.h>
+		#include <unistd.h>
+    ], [
+        int futex_addr;
+		int val1;
+	    syscall(SYS_futex, &futex_addr, val1, NULL, NULL, 0);
+    ], [
+        AC_DEFINE([HAVE_FUTEX], 1, [have FUTEX?])
+        AC_MSG_RESULT([yes])
+    ], [
+        AC_MSG_RESULT([no])
+    ])
+])
+
 AC_MSG_CHECKING([if compiling with clang])
 AC_COMPILE_IFELSE([
     AC_LANG_PROGRAM([], [[
@@ -173,10 +190,6 @@ if test "$PHP_SWOOLE" != "no"; then
         AC_DEFINE(SW_SOCKETS, 1, [enable sockets support])
     fi
 
-    if test "$PHP_RINGBUFFER" = "yes"; then
-        AC_DEFINE(SW_USE_RINGBUFFER, 1, [enable ringbuffer support])
-    fi
-
     if test "$PHP_HTTP2" = "yes"; then
         AC_DEFINE(SW_USE_HTTP2, 1, [enable http2.0 support])
     fi
@@ -195,8 +208,9 @@ if test "$PHP_SWOOLE" != "no"; then
 
     AC_SWOOLE_CPU_AFFINITY
     AC_SWOOLE_HAVE_REUSEPORT
+	AC_SWOOLE_HAVE_FUTEX
 
-    CFLAGS="-Wall -fstack-check -fstack-protector -fstack-protector-all -pthread $CFLAGS"
+    CFLAGS="-Wall -pthread $CFLAGS"
     LDFLAGS="$LDFLAGS -lpthread"
 
     if test `uname` = "Darwin"; then
@@ -332,6 +346,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/lock/RWLock.c \
         src/lock/SpinLock.c \
         src/lock/FileLock.c \
+        src/lock/Cond.c \
         src/network/Server.c \
         src/network/TaskWorker.c \
         src/network/Client.c \

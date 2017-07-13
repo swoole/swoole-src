@@ -163,7 +163,7 @@ void swoole_websocket_onRequest(http_context *ctx)
     int n = sprintf(buf, bad_request, strlen(content), content);
     swServer_tcp_send(SwooleG.serv, ctx->fd, buf, n);
     ctx->end = 1;
-    SwooleG.serv->factory.end(&SwooleG.serv->factory, ctx->fd);
+    swServer_tcp_close(SwooleG.serv, ctx->fd, 0);
     swoole_http_context_free(ctx TSRMLS_CC);
 }
 
@@ -311,7 +311,7 @@ int swoole_websocket_onHandshake(swListenPort *port, http_context *ctx)
     int ret = websocket_handshake(port, ctx);
     if (ret == SW_ERR)
     {
-        SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
+        swServer_tcp_close(SwooleG.serv, fd, 1);
     }
     else
     {

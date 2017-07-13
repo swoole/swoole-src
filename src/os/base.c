@@ -159,6 +159,11 @@ int swAioBase_init(int max_aio_events)
     {
         return SW_ERR;
     }
+    if (swMutex_create(&SwooleAIO.lock, 0) < 0)
+    {
+        swWarn("create mutex lock error.");
+        return SW_ERR;
+    }
     if (SwooleAIO.thread_num <= 0)
     {
         SwooleAIO.thread_num = SW_AIO_THREAD_NUM_DEFAULT;
@@ -214,6 +219,12 @@ static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len)
         {
             ret = pwrite(event->fd, event->buf, event->nbytes, event->offset);
         }
+#if 0
+        if (fsync(event->fd) < 0)
+        {
+            swSysError("fsync(%d) failed.", event->fd);
+        }
+#endif
         if (flock(event->fd, LOCK_UN) < 0)
         {
             swSysError("flock(%d, LOCK_UN) failed.", event->fd);
@@ -276,7 +287,9 @@ static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len)
     swTrace("aio_thread ok. ret=%d", ret);
     do
     {
+        SwooleAIO.lock.lock(&SwooleAIO.lock);
         ret = write(swAioBase_pipe_write, &task, sizeof(task));
+        SwooleAIO.lock.unlock(&SwooleAIO.lock);
         if (ret < 0)
         {
             if (errno == EAGAIN)

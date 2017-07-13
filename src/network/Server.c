@@ -346,7 +346,7 @@ static int swServer_start_proxy(swServer *serv)
     SwooleTG.type = SW_THREAD_MASTER;
     SwooleTG.factory_target_worker = -1;
     SwooleTG.factory_lock_target = 0;
-    SwooleTG.id = 0;
+    SwooleTG.id = serv->reactor_num;
     SwooleTG.update_time = 1;
 
     SwooleG.main_reactor = main_reactor;
@@ -421,17 +421,9 @@ void swServer_store_listen_socket(swServer *serv)
 swString** swServer_create_worker_buffer(swServer *serv)
 {
     int i;
-    int buffer_input_size;
-    if (serv->listen_list->open_eof_check || serv->listen_list->open_length_check || serv->listen_list->open_http_protocol)
-    {
-        buffer_input_size = serv->listen_list->protocol.package_max_length;
-    }
-    else
-    {
-        buffer_input_size = SW_BUFFER_SIZE_BIG;
-    }
-
+    int buffer_input_size = serv->listen_list->protocol.package_max_length;
     int buffer_num;
+
     if (serv->factory_mode == SW_MODE_SINGLE || serv->factory_mode == SW_MODE_BASE)
     {
         buffer_num = 1;
@@ -619,7 +611,7 @@ int swServer_start(swServer *serv)
     serv->workers = SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->worker_num * sizeof(swWorker));
     if (serv->workers == NULL)
     {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "gmalloc[object->workers] failed");
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "gmalloc[server->workers] failed.");
         return SW_ERR;
     }
 
@@ -741,8 +733,6 @@ void swServer_init(swServer *serv)
 
     serv->buffer_input_size = SW_BUFFER_INPUT_SIZE;
     serv->buffer_output_size = SW_BUFFER_OUTPUT_SIZE;
-
-    serv->pipe_buffer_size = SW_PIPE_BUFFER_SIZE;
 
     SwooleG.serv = serv;
 }
@@ -930,7 +920,7 @@ int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length)
     /**
      * More than the output buffer
      */
-    if (length >= serv->buffer_output_size)
+    if (length > serv->buffer_output_size)
     {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "More than the output buffer size[%d], please use the sendfile.", serv->buffer_output_size);
         return SW_ERR;
@@ -1045,6 +1035,8 @@ int swServer_tcp_close(swServer *serv, int fd, int reset)
     }
     //server is initiative to close the connection
     conn->close_actively = 1;
+    swTraceLog(SW_TRACE_CLOSE, "session_id=%d, fd=%d.", fd, conn->fd);
+
     int ret;
     if (!swIsWorker())
     {
@@ -1066,7 +1058,7 @@ void swServer_signal_init(swServer *serv)
 {
     swSignal_add(SIGPIPE, NULL);
     swSignal_add(SIGHUP, NULL);
-    if (serv->factory_mode != SW_MODE_PROCESS)
+    if (serv->factory_mode != SW_MODE_BASE)
     {
         swSignal_add(SIGCHLD, swServer_signal_hanlder);
     }
@@ -1183,13 +1175,13 @@ int swserver_add_systemd_socket(swServer *serv)
             {
                 ls->type = SW_SOCK_TCP;
                 ls->port = ntohs(address.addr.inet_v4.sin_port);
-                strncpy(ls->host, inet_ntoa(address.addr.inet_v4.sin_addr), SW_HOST_MAXSIZE);
+                strncpy(ls->host, inet_ntoa(address.addr.inet_v4.sin_addr), SW_HOST_MAXSIZE - 1);
             }
             else
             {
                 ls->type = SW_SOCK_UDP;
                 ls->port = ntohs(address.addr.inet_v4.sin_port);
-                strncpy(ls->host, inet_ntoa(address.addr.inet_v4.sin_addr), SW_HOST_MAXSIZE);
+                strncpy(ls->host, inet_ntoa(address.addr.inet_v4.sin_addr), SW_HOST_MAXSIZE - 1);
             }
             break;
         case AF_INET6:
@@ -1198,21 +1190,20 @@ int swserver_add_systemd_socket(swServer *serv)
                 ls->port = ntohs(address.addr.inet_v6.sin6_port);
                 ls->type = SW_SOCK_TCP6;
                 inet_ntop(AF_INET6, &address.addr.inet_v6.sin6_addr, tmp, sizeof(tmp));
-                strncpy(ls->host, tmp, SW_HOST_MAXSIZE);
+                strncpy(ls->host, tmp, SW_HOST_MAXSIZE - 1);
             }
             else
             {
                 ls->port = ntohs(address.addr.inet_v6.sin6_port);
                 ls->type = SW_SOCK_UDP6;
                 inet_ntop(AF_INET6, &address.addr.inet_v6.sin6_addr, tmp, sizeof(tmp));
-                strncpy(ls->host, tmp, SW_HOST_MAXSIZE);
+                strncpy(ls->host, tmp, SW_HOST_MAXSIZE - 1);
             }
             break;
         case AF_UNIX:
             ls->type = sock_type == SOCK_STREAM ? SW_SOCK_UNIX_STREAM : SW_SOCK_UNIX_DGRAM;
             ls->port = 0;
             strncpy(ls->host, address.addr.un.sun_path, SW_HOST_MAXSIZE - 1);
-            ls->host[SW_HOST_MAXSIZE - 1] = 0;
             break;
         default:
             swWarn("Unknown socket type[%d].", sock_type);
@@ -1503,8 +1494,6 @@ static void swHeartbeatThread_loop(swThreadParam *param)
 
                 conn->close_force = 1;
                 conn->close_notify = 1;
-                conn->close_wait = 1;
-                conn->close_actively = 1;
 
                 if (serv->factory_mode != SW_MODE_PROCESS)
                 {
@@ -1574,6 +1563,24 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
         connection->tcp_nopush = 1;
     }
 #endif
+
+    //socket recv buffer size
+    if (ls->kernel_socket_recv_buffer_size > 0)
+    {
+        if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &ls->kernel_socket_recv_buffer_size, sizeof(int)))
+        {
+            swSysError("setsockopt(SO_RCVBUF, %d) failed.", ls->kernel_socket_recv_buffer_size);
+        }
+    }
+
+    //socket send buffer size
+    if (ls->kernel_socket_send_buffer_size > 0)
+    {
+        if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &ls->kernel_socket_send_buffer_size, sizeof(int)) < 0)
+        {
+            swSysError("setsockopt(SO_SNDBUF, %d) failed.", ls->kernel_socket_send_buffer_size);
+        }
+    }
 
     connection->fd = fd;
     connection->from_id = serv->factory_mode == SW_MODE_SINGLE ? SwooleWG.id : reactor_id;

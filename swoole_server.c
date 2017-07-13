@@ -223,7 +223,7 @@ int php_swoole_get_send_data(zval *zdata, char **str TSRMLS_DC)
         *str = Z_STRVAL_P(zdata);
     }
 
-    if (length >= SwooleG.serv->buffer_output_size)
+    if (length > SwooleG.serv->buffer_output_size)
     {
         swoole_php_fatal_error(E_WARNING, "unable to send %d bytes data, the output buffer size is %d.", length, SwooleG.serv->buffer_output_size);
         return SW_ERR;
@@ -388,10 +388,6 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject TSRMLS_DC)
     if (!sw_zend_hash_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("task_worker_num")))
     {
         add_assoc_long(zsetting, "task_worker_num", SwooleG.task_worker_num);
-    }
-    if (!sw_zend_hash_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("pipe_buffer_size")))
-    {
-        add_assoc_long(zsetting, "pipe_buffer_size", serv->pipe_buffer_size);
     }
     if (!sw_zend_hash_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("buffer_output_size")))
     {
@@ -1492,7 +1488,8 @@ PHP_METHOD(swoole_server, __construct)
         swListenPort *port = swServer_add_port(serv, sock_type, serv_host, serv_port);
         if (!port)
         {
-            swoole_php_fatal_error(E_ERROR, "failed to listen server port.");
+            zend_throw_exception_ex(swoole_exception_class_entry_ptr, errno, "failed to listen server port[%s:%d]. Error: %s[%d].",
+                    serv_host, serv_port, strerror(errno), errno TSRMLS_CC);
             return;
         }
     }
@@ -1801,14 +1798,6 @@ PHP_METHOD(swoole_server, set)
     {
         convert_to_long(v);
         serv->buffer_output_size = (int) Z_LVAL_P(v);
-    }
-    /**
-     * set pipe memory buffer size
-     */
-    if (php_swoole_array_get_value(vht, "pipe_buffer_size", v))
-    {
-        convert_to_long(v);
-        serv->pipe_buffer_size = (int) Z_LVAL_P(v);
     }
     //message queue key
     if (php_swoole_array_get_value(vht, "message_queue_key", v))
