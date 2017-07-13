@@ -1404,7 +1404,7 @@ PHPAPI zend_string* php_swoole_serialize(zval *zvalue)
 static CPINLINE int swoole_seria_check_eof(void *buffer, size_t len)
 {
     void *eof_str = buffer - sizeof (SBucketType) + len - 3;
-    if (memcmp(eof_str, "EOF") == 0)
+    if (memcmp(eof_str, "EOF", 3) == 0)
     {
         return 0;
     }
