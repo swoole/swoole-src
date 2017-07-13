@@ -1836,6 +1836,7 @@ PHP_METHOD(swoole_server, on)
     if (l_property_name == 0)
     {
         swoole_php_error(E_WARNING, "unknown event types[%s]", Z_STRVAL_P(name));
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
         efree(func_cache);
 #endif
         RETURN_FALSE;
