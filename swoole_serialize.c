@@ -93,7 +93,6 @@ static CPINLINE void swoole_check_size(seriaString *str, size_t len)
     if (str->total < new_size)
     {//extend it
 
-        //double size
         new_size = ZEND_MM_ALIGNED_SIZE(new_size + SERIA_SIZE);
         str->buffer = erealloc2(str->buffer, new_size, str->offset);
         if (!str->buffer)
