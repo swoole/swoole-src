@@ -49,7 +49,11 @@ $pm->parentFunc = function ($pid) use ($port)
 $pm->childFunc = function () use ($pm, $port)
 {
     $serv = new swoole_server("127.0.0.1", $port);
-    $serv->set(['worker_num' => 1, 'log_file' => '/dev/null']);
+    $serv->set([
+        'worker_num' => 1,
+        'log_file' => '/dev/null',
+        'kernel_socket_send_buffer_size' => 65536,
+    ]);
     $serv->on("workerStart", function ($serv) use ($pm)
     {
         $pm->wakeup();

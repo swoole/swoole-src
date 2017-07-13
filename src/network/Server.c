@@ -1564,6 +1564,24 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
     }
 #endif
 
+    //socket recv buffer size
+    if (ls->kernel_socket_recv_buffer_size > 0)
+    {
+        if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &ls->kernel_socket_recv_buffer_size, sizeof(int)))
+        {
+            swSysError("setsockopt(SO_RCVBUF, %d) failed.", ls->kernel_socket_recv_buffer_size);
+        }
+    }
+
+    //socket send buffer size
+    if (ls->kernel_socket_send_buffer_size > 0)
+    {
+        if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &ls->kernel_socket_send_buffer_size, sizeof(int)) < 0)
+        {
+            swSysError("setsockopt(SO_SNDBUF, %d) failed.", ls->kernel_socket_send_buffer_size);
+        }
+    }
+
     connection->fd = fd;
     connection->from_id = serv->factory_mode == SW_MODE_SINGLE ? SwooleWG.id : reactor_id;
     connection->from_fd = (sw_atomic_t) from_fd;

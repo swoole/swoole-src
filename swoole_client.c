@@ -1085,10 +1085,7 @@ static PHP_METHOD(swoole_client, __destruct)
     zval *zsocket = swoole_get_property(getThis(), client_property_socket);
     if (zsocket)
     {
-        sw_zval_ptr_dtor(&zsocket);
-#if PHP_MAJOR_VERSION >= 7
-        efree(zsocket);
-#endif
+        sw_zval_free(zsocket);
         swoole_set_property(getThis(), client_property_socket, NULL);
     }
 #endif
