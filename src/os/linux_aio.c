@@ -81,7 +81,7 @@ static int swAioLinux_onFinish(swReactor *reactor, swEvent *event)
 {
     struct io_event events[SW_AIO_MAX_EVENTS];
     swAio_event aio_ev;
-    uint64_t finished_aio;
+    int64_t finished_aio;
     struct iocb *aiocb;
     struct timespec tms;
     int i, n;
