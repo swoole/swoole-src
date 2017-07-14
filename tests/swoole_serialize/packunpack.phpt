@@ -51,8 +51,6 @@ int(32)
 int(12326)
 int(4096)
 
-Notice: Swoole\Serialize::unpack(): illegal unserialize data in %s on line %d
-
-Notice: Swoole\Serialize::unpack(): illegal array unserialize data in %s on line %d
+Notice: swoole_serialize::unpack(): detect the error eof in %s on line %d
 bool(false)
 ===DONE===
