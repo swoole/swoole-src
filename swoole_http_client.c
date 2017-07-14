@@ -1878,6 +1878,7 @@ static int http_client_parser_on_header_value(php_http_parser *parser, const cha
             array_init(cookies);
             zend_update_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("cookies"), cookies TSRMLS_CC);
             sw_zval_ptr_dtor(&cookies);
+            cookies = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("cookies"), 1 TSRMLS_CC);
         }
 
         zval *set_cookie_headers = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("set_cookie_headers"), 1 TSRMLS_CC);
@@ -1887,6 +1888,7 @@ static int http_client_parser_on_header_value(php_http_parser *parser, const cha
             array_init(set_cookie_headers);
             zend_update_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("set_cookie_headers"), set_cookie_headers TSRMLS_CC);
             sw_zval_ptr_dtor(&set_cookie_headers);
+            set_cookie_headers = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("set_cookie_headers"), 1 TSRMLS_CC);
         }
 
         memcpy(keybuf, at, l_key);
