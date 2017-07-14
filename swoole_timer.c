@@ -176,12 +176,17 @@ static void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
     swTimer_callback *cb = tnode->data;
     zval *retval = NULL;
     zval **args[1];
-    int argc = 0;
+    int argc;
 
     if (cb->data)
     {
         args[0] = &cb->data;
         argc = 1;
+    }
+    else
+    {
+        args[0] = NULL;
+        argc = 0;
     }
 
     if (sw_call_user_function_ex(EG(function_table), NULL, cb->callback, &retval, argc, args, 0, NULL TSRMLS_CC) == FAILURE)

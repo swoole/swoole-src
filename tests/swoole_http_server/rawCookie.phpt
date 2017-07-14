@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_response: rawcontent
+swoole_http_response: rawcooki
 
 --SKIPIF--
 <?php require __DIR__ . "/../include/skipif.inc"; ?>
@@ -11,20 +11,15 @@ assert.quiet_eval=0
 
 --FILE--
 <?php
-/**
-
- * Time: 下午3:04
- */
-
 require_once __DIR__ . "/../include/swoole.inc";
 require_once __DIR__ . "/../include/api/swoole_http_client/simple_http_client.php";
 
 $simple_http_server = __DIR__ . "/../include/api/swoole_http_server/simple_http_server.php";
 $closeServer = start_server($simple_http_server, HTTP_SERVER_HOST, $port = get_one_free_port());
 
-$payload = RandStr::gen(1024 * 1024);
-testRawcontent(HTTP_SERVER_HOST, $port, $payload, function(\swoole_http_client $cli) use($closeServer, $payload) {
-    assert($cli->body === $payload);
+$rawcontent = "HELLO";
+testRawCookie(HTTP_SERVER_HOST, $port, $rawcontent, function(\swoole_http_client $cli) use($closeServer, $rawcontent) {
+    assert($cli->headers["set-cookie"] === "rawcontent=$rawcontent");
     echo "SUCCESS";
     $closeServer();
 });

@@ -58,37 +58,24 @@ int swThreadPool_create(swThreadPool *pool, int thread_num)
 int swThreadPool_dispatch(swThreadPool *pool, void *task, int task_len)
 {
     int i, ret;
+
     pool->cond.lock(&pool->cond);
-
-    for (i = 0; i < 1000; i++)
-    {
 #ifdef SW_THREADPOOL_USE_CHANNEL
-        ret = swChannel_in(pool->chan, task, task_len);
+    ret = swChannel_in(pool->chan, task, task_len);
 #else
-        ret = swRingQueue_push(&pool->queue, task);
+    ret = swRingQueue_push(&pool->queue, task);
 #endif
-        if (ret < 0)
-        {
-            pool->cond.unlock(&pool->cond);
-            return SW_ERR;
-        }
-        else
-        {
-            break;
-        }
-    }
-
     pool->cond.unlock(&pool->cond);
 
     if (ret < 0)
     {
+        SwooleG.error = EAGAIN;
         return SW_ERR;
     }
-    else
-    {
-        sw_atomic_t *task_num = &pool->task_num;
-        sw_atomic_fetch_add(task_num, 1);
-    }
+
+    sw_atomic_t *task_num = &pool->task_num;
+    sw_atomic_fetch_add(task_num, 1);
+
     return pool->cond.notify(&pool->cond);
 }
 

@@ -474,6 +474,18 @@ class ProcessManager
 
     function run()
     {
+        global $argv, $argc;
+        if ($argc > 1)
+        {
+            if ($argv[1] == 'child')
+            {
+                return $this->runChildFunc();
+            }
+            elseif ($argv[1] == 'parent')
+            {
+                return $this->runParentFunc();
+            }
+        }
         $pid = pcntl_fork();
         if ($this->parentFirst)
         {

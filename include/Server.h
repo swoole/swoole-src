@@ -213,6 +213,11 @@ typedef struct _swListenPort
      */
     char *websocket_subprotocol;
     uint16_t websocket_subprotocol_length;
+    /**
+     * set socket option
+     */
+    int kernel_socket_recv_buffer_size;
+    int kernel_socket_send_buffer_size;
 
 #ifdef SW_USE_OPENSSL
     SSL_CTX *ssl_context;

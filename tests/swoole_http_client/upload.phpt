@@ -1,7 +1,7 @@
 --TEST--
-swoole_http_client: post
+swoole_http_client: upload file
 --SKIPIF--
-<?php require __DIR__ . "/../include/skipif.inc"; ?>
+<?php require  __DIR__ . "/../include/skipif.inc"; ?>
 --FILE--
 <?php
 require_once __DIR__ . "/../include/swoole.inc";
@@ -10,10 +10,6 @@ $pm = new ProcessManager;
 $pm->parentFunc = function ($pid)
 {
     $cli = new swoole_http_client('127.0.0.1', 9501);
-    $cli->set(array(
-        'timeout' => 0.3,
-    ));
-    $cli->setHeaders(array('User-Agent' => "swoole"));
     $cli->on('close', function ($cli)
     {
         echo "close\n";
@@ -22,14 +18,13 @@ $pm->parentFunc = function ($pid)
     {
         echo "error\n";
     });
-    $data = array('name' => "rango");
-    $cli->post('/post', $data, function ($cli) use ($data)
+    $cli->addFile(TEST_IMAGE, 'test.jpg');
+    $cli->post('/upload_file', array('name' => 'rango'), function ($cli)
     {
         assert($cli->statusCode == 200);
         $ret = json_decode($cli->body, true);
-        assert($ret);
-        assert(is_array($ret));
-        assert(arrayEqual($ret, $data, false));
+        assert($ret and is_array($ret));
+        assert(md5_file(TEST_IMAGE) == $ret['md5']);
         $cli->close();
     });
     swoole_event::wait();

@@ -32,7 +32,7 @@ exit;
 
 
 
-testHeaderCore($host, $port);
+testHttpsHeaderCore($host, $port);
 testUri($host, $port);
 
 testUri($host, $port);
@@ -60,7 +60,7 @@ testCookie($host, $port);
 // TODO coredump
 // testCookieCore($host, $port);
 
-testHeaderCore($host, $port);
+testHttpsHeaderCore($host, $port);
 testHeader($host, $port);
 
 testSleep($host, $port);

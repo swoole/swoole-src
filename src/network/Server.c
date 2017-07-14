@@ -920,7 +920,7 @@ int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length)
     /**
      * More than the output buffer
      */
-    if (length >= serv->buffer_output_size)
+    if (length > serv->buffer_output_size)
     {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "More than the output buffer size[%d], please use the sendfile.", serv->buffer_output_size);
         return SW_ERR;
@@ -1563,6 +1563,24 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
         connection->tcp_nopush = 1;
     }
 #endif
+
+    //socket recv buffer size
+    if (ls->kernel_socket_recv_buffer_size > 0)
+    {
+        if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &ls->kernel_socket_recv_buffer_size, sizeof(int)))
+        {
+            swSysError("setsockopt(SO_RCVBUF, %d) failed.", ls->kernel_socket_recv_buffer_size);
+        }
+    }
+
+    //socket send buffer size
+    if (ls->kernel_socket_send_buffer_size > 0)
+    {
+        if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &ls->kernel_socket_send_buffer_size, sizeof(int)) < 0)
+        {
+            swSysError("setsockopt(SO_SNDBUF, %d) failed.", ls->kernel_socket_send_buffer_size);
+        }
+    }
 
     connection->fd = fd;
     connection->from_id = serv->factory_mode == SW_MODE_SINGLE ? SwooleWG.id : reactor_id;

@@ -17,12 +17,12 @@ require_once __DIR__ . "/../include/api/swoole_http_client/simple_https_client.p
 $simple_http_server = __DIR__ . "/../include/api/swoole_http_server/simple_https_server.php";
 $closeServer = start_server($simple_http_server, HTTP_SERVER_HOST, $port = get_one_free_port());
 
-set_error_handler(function($errno) {
-    assert($errno === 4096);
-    echo "ERROR";
-});
+//set_error_handler(function($errno) {
+//    assert($errno === 4096);
+//    echo "ERROR";
+//});
 
-testHeaderCore(HTTP_SERVER_HOST, $port, function() use($closeServer) {
+testHttpsHeaderCore(HTTP_SERVER_HOST, $port, function() use($closeServer) {
     echo "SUCCESS";$closeServer();
 });
 

@@ -1,15 +1,17 @@
 --TEST--
-swoole_http_client: get
+swoole_http_server: gzip
 --SKIPIF--
 <?php require  __DIR__ . "/../include/skipif.inc"; ?>
 --FILE--
 <?php
 require_once __DIR__ . "/../include/swoole.inc";
+require_once __DIR__ . "/../include/lib/curl.php";
 
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid)
 {
-    echo file_get_contents("http://127.0.0.1:9501/");
+    $data = curlGet("http://127.0.0.1:9501/gzip");
+    assert(md5_file(__DIR__ . '/../../README.md') == md5($data));
     swoole_process::kill($pid);
 };
 
@@ -21,8 +23,5 @@ $pm->childFunc = function () use ($pm)
 $pm->childFirst();
 $pm->run();
 ?>
-Done
 --EXPECTREGEX--
-swoole
-Done.*
---CLEAN--
+

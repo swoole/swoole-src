@@ -20,16 +20,12 @@ class HttpServer
         $config = [
             // 输出限制
             "buffer_output_size" => 1024 * 1024 * 1024,
-
             "max_connection" => 10240,
             "pipe_buffer_size" => 1024 * 1024 * 1024,
-
-
             // 'enable_port_reuse' => true,
             'user' => 'www-data',
             'group' => 'www-data',
-
-            // 'log_file' => __DIR__.'/swoole.log',
+            'log_file' => '/tmp/swoole.log',
             'dispatch_mode' => 3,
             'open_tcp_nodelay' => 1,
             'open_cpu_affinity' => 1,

@@ -54,6 +54,7 @@ function makeHttpClient($host = HTTP_SERVER_HOST, $port = HTTP_SERVER_PORT, $ssl
     $httpClient = new \swoole_http_client($host, $port, $ssl);
 
     $httpClient->set([
+        'timeout' => 1,
         "socket_buffer_size" => 1024 * 1024 * 2,
     ]);
     if ($ssl) {
@@ -69,12 +70,10 @@ function makeHttpClient($host = HTTP_SERVER_HOST, $port = HTTP_SERVER_PORT, $ssl
     });
 
     $httpClient->on("error", function(\swoole_http_client $httpClient) {
-        cancelTimer($httpClient);
         // debug_log("error");
     });
 
     $httpClient->on("close", function(\swoole_http_client $httpClient) {
-        cancelTimer($httpClient);
         // debug_log("close");
     });
 
@@ -223,20 +222,16 @@ function testHeader($host, $port, callable $fin = null)
 }
 
 // 已经修复
-function testHeaderCore($host, $port, callable $fin = null)
+function testHttpsHeaderCore($host, $port, callable $fin = null)
 {
     $httpClient = makeHttpClient($host, $port, true);
-    addTimer($httpClient);
-
     // $httpClient->setting += ["keep_alive" => true];
     // COREDUMP
     // 旧版传递字符串会发生coredump
     // $httpClient->setHeaders("Hello: World\r\nHello: World\r\n");
     $r = $httpClient->setHeaders(["\0" => "\0"]);
 
-
     $ok = $httpClient->get("/header", function(\swoole_http_client $httpClient) use($fin) {
-        cancelTimer($httpClient);
         assert($httpClient->statusCode === 200);
         assert($httpClient->errCode === 0);
         $headers = json_decode($httpClient->body, true);
