@@ -54,22 +54,3 @@ array(2) {
   }
 }
 OK
-cyclic
-array(1) {
-  [0]=>
-  array(1) {
-    [0]=>
-    array(1) {
-      [0]=>
-      array(1) {
-        [0]=>
-        array(1) {
-          [0]=>
-          array(0) {
-          }
-        }
-      }
-    }
-  }
-}
-OK
