@@ -48,7 +48,7 @@ int(%d)
 int(%d)
 int(30)
 int(32)
-int(12326)
+int(12329)
 int(4096)
 
 Notice: swoole_serialize::unpack(): detect the error eof in %s on line %d
