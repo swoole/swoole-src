@@ -895,9 +895,9 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
     }
 
     swConnection *conn = swServer_connection_get(serv, fd);
-    if (conn->active == 0)
+    if (conn == NULL || conn->active == 0)
     {
-        return SW_OK;
+        return SW_ERR;
     }
     else if (conn->connect_notify)
     {
