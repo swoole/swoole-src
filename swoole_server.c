@@ -39,7 +39,7 @@ zval *php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
 #ifdef PHP_SWOOLE_ENABLE_FASTCALL
 zend_fcall_info_cache *php_sw_server_caches[PHP_SERVER_CALLBACK_NUM];
 #endif
-static swHashMap *task_callbacks;
+static swHashMap *task_callbacks = NULL;
 
 #if PHP_MAJOR_VERSION >= 7
 zval _php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
@@ -1459,6 +1459,47 @@ PHP_METHOD(swoole_server, __construct)
     }
 }
 
+PHP_METHOD(swoole_server, __destruct)
+{
+    int i;
+    for (i = 0; i < PHP_SERVER_CALLBACK_NUM; i++)
+    {
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
+        if (php_sw_server_caches[i])
+        {
+            efree(php_sw_server_caches[i]);
+            php_sw_server_caches[i] = NULL;
+        }
+#endif
+    }
+
+    zval *port_object;
+    swoole_server_port_property *property;
+    for (i = 0; i < server_port_list.num; i++)
+    {
+        port_object = server_port_list.zobjects[i];
+        property = swoole_get_property(port_object, 0);
+
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
+        int j;
+        for (j = 0; j < PHP_SERVER_CALLBACK_NUM; j++)
+        {
+            if (property->caches[j])
+            {
+                efree(property->caches[j]);
+                property->caches[j] = NULL;
+            }
+        }
+#endif
+        efree(port_object);
+        server_port_list.zobjects[i] = NULL;
+    }
+
+    efree(server_port_list.zports);
+    server_port_list.zports = NULL;
+
+}
+
 PHP_METHOD(swoole_server, set)
 {
     zval *zset = NULL;
@@ -1480,26 +1521,37 @@ PHP_METHOD(swoole_server, set)
 
     swServer *serv = swoole_get_object(zobject);
 
-    zval *zsetting = php_swoole_read_init_property(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("setting") TSRMLS_CC);
-    sw_php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
-    vht = Z_ARRVAL_P(zsetting);
+    php_swoole_array_separate(zset);
+    vht = Z_ARRVAL_P(zset);
 
     //chroot
     if (php_swoole_array_get_value(vht, "chroot", v))
     {
         convert_to_string(v);
+        if (SwooleG.chroot)
+        {
+            sw_free(SwooleG.chroot);
+        }
         SwooleG.chroot = sw_strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
     }
     //user
     if (php_swoole_array_get_value(vht, "user", v))
     {
         convert_to_string(v);
+        if (SwooleG.user)
+        {
+            sw_free(SwooleG.user);
+        }
         SwooleG.user = sw_strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
     }
     //group
     if (php_swoole_array_get_value(vht, "group", v))
     {
         convert_to_string(v);
+        if (SwooleG.group)
+        {
+            sw_free(SwooleG.group);
+        }
         SwooleG.group = sw_strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
     }
     //daemonize
@@ -1512,6 +1564,10 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "pid_file", v))
     {
         convert_to_string(v);
+        if (serv->pid_file)
+        {
+            sw_free(serv->pid_file);
+        }
         serv->pid_file = sw_strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
     }
     //reactor thread num
@@ -1557,6 +1613,10 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "log_file", v))
     {
         convert_to_string(v);
+        if (SwooleG.log_file)
+        {
+            sw_free(SwooleG.log_file);
+        }
         SwooleG.log_file = sw_strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
     }
     //log_level
@@ -1590,7 +1650,10 @@ PHP_METHOD(swoole_server, set)
     {
         convert_to_long(v);
         SwooleG.task_worker_num = (int) Z_LVAL_P(v);
-        task_callbacks = swHashMap_new(1024, NULL);
+        if (task_callbacks == NULL)
+        {
+            task_callbacks = swHashMap_new(1024, NULL);
+        }
     }
     //task ipc mode, 1,2,3
     if (php_swoole_array_get_value(vht, "task_ipc_mode", v))
@@ -1609,7 +1672,10 @@ PHP_METHOD(swoole_server, set)
             swoole_php_fatal_error(E_ERROR, "task_tmpdir is too long, the max size is %d.", SW_TASK_TMPDIR_SIZE - 1);
             return;
         }
-        SwooleG.task_tmpdir = emalloc(SW_TASK_TMPDIR_SIZE);
+        if (SwooleG.task_tmpdir == NULL)
+        {
+            SwooleG.task_tmpdir = emalloc(SW_TASK_TMPDIR_SIZE);
+        }
         SwooleG.task_tmpdir_len = snprintf(SwooleG.task_tmpdir, SW_TASK_TMPDIR_SIZE, "%s/swoole.task.XXXXXX", Z_STRVAL_P(v)) + 1;
     }
     //task_max_request
@@ -1707,6 +1773,10 @@ PHP_METHOD(swoole_server, set)
             swoole_php_fatal_error(E_ERROR, "option upload_tmp_dir [%s] is too long.", Z_STRVAL_P(v));
             RETURN_FALSE;
         }
+        if (serv->upload_tmp_dir)
+        {
+            sw_free(serv->upload_tmp_dir);
+        }
         serv->upload_tmp_dir = sw_strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
     }
 
@@ -1736,11 +1806,13 @@ PHP_METHOD(swoole_server, set)
     zval *retval = NULL;
     zval *port_object = server_port_list.zobjects[0];
 
-    sw_zval_add_ref(&port_object);
-    sw_zval_add_ref(&zset);
     sw_zval_add_ref(&zobject);
 
     sw_zend_call_method_with_1_params(&port_object, swoole_server_port_class_entry_ptr, NULL, "set", &retval, zset);
+
+    zval *zsetting = php_swoole_read_init_property(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("setting") TSRMLS_CC);
+    sw_php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
+    sw_zval_ptr_dtor(&zset);
 
     RETURN_TRUE;
 }

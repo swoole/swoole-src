@@ -253,6 +253,7 @@ PHP_FUNCTION(swoole_get_local_ip);
 //                  swoole_server
 //---------------------------------------------------------
 PHP_METHOD(swoole_server, __construct);
+PHP_METHOD(swoole_server, __destruct);
 PHP_METHOD(swoole_server, set);
 PHP_METHOD(swoole_server, on);
 PHP_METHOD(swoole_server, listen);
