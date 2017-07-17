@@ -74,8 +74,8 @@ static sw_inline void swoole_aio_free(void *ptr)
 
 static sw_inline void* swoole_aio_malloc(size_t __size)
 {
+#ifdef HAVE_LINUX_AIO
     void *memory;
-
     if (SwooleAIO.mode == SW_AIO_LINUX)
     {
         size_t buf_len = __size + (sysconf(_SC_PAGESIZE) - (__size % sysconf(_SC_PAGESIZE)));
@@ -89,6 +89,7 @@ static sw_inline void* swoole_aio_malloc(size_t __size)
         }
     }
     else
+#endif
     {
         return emalloc(__size);
     }
@@ -245,9 +246,12 @@ static void php_swoole_aio_onComplete(swAio_event *event)
             bzero(event->buf, event->nbytes);
             isEOF = SW_TRUE;
         }
-        else if (file_req->once == 1 && ret < file_req->length)
+        else if (file_req->once == 1)
         {
-            swoole_php_fatal_error(E_WARNING, "swoole_async: ret_length[%d] < req->length[%d].", (int ) ret, file_req->length);
+            if (SwooleAIO.mode != SW_AIO_LINUX && ret < file_req->length)
+            {
+                swoole_php_fatal_error(E_WARNING, "swoole_async: ret_length[%d] < req->length[%d].", (int ) ret, file_req->length);
+            }
         }
         else if (event->type == SW_AIO_READ)
         {
@@ -264,7 +268,14 @@ static void php_swoole_aio_onComplete(swAio_event *event)
 #else
         zcontent = &_zcontent;
 #endif
-        SW_ZVAL_STRINGL(zcontent, event->buf, ret, 1);
+        if (ret < 0)
+        {
+            SW_ZVAL_STRING(zcontent, "", 1);
+        }
+        else
+        {
+            SW_ZVAL_STRINGL(zcontent, event->buf, ret, 1);
+        }
     }
     else if (event->type == SW_AIO_WRITE)
     {
@@ -341,16 +352,25 @@ static void php_swoole_aio_onComplete(swAio_event *event)
             {
                 goto close_file;
             }
-            //continue to read
-            int ret = SwooleAIO.read(event->fd, event->buf, event->nbytes, file_req->offset);
-            if (ret < 0)
+            //Less than expected, at the end of the file
+            else if (event->ret < event->nbytes)
             {
-                swoole_php_fatal_error(E_WARNING, "swoole_async: continue to read failed. Error: %s[%d]", strerror(event->error), event->error);
-                goto close_file;
+                event->ret = 0;
+                php_swoole_aio_onComplete(event);
             }
+            //continue to read
             else
             {
-                swHashMap_move_int(php_swoole_aio_request, event->task_id, ret);
+                int ret = SwooleAIO.read(event->fd, event->buf, event->nbytes, file_req->offset);
+                if (ret < 0)
+                {
+                    swoole_php_fatal_error(E_WARNING, "swoole_async: continue to read failed. Error: %s[%d]", strerror(event->error), event->error);
+                    goto close_file;
+                }
+                else
+                {
+                    swHashMap_move_int(php_swoole_aio_request, event->task_id, ret);
+                }
             }
         }
     }
@@ -484,6 +504,13 @@ PHP_FUNCTION(swoole_async_write)
     {
         RETURN_FALSE;
     }
+#ifdef HAVE_LINUX_AIO
+    if ((fcnt_len % AIO_MIN_UNIT_SIZE) != 0)
+    {
+        swoole_php_fatal_error(E_WARNING, "the length must be an integer multiple of %d.", AIO_MIN_UNIT_SIZE);
+        RETURN_FALSE;
+    }
+#endif
     if (callback && !ZVAL_IS_NULL(callback))
     {
         char *func_name = NULL;
@@ -502,6 +529,8 @@ PHP_FUNCTION(swoole_async_write)
     if (fd == 0)
     {
         int open_flag = O_WRONLY | O_CREAT;
+
+#ifdef HAVE_LINUX_AIO
         if (SwooleAIO.mode == SW_AIO_LINUX)
         {
             open_flag |= O_DIRECT;
@@ -511,7 +540,9 @@ PHP_FUNCTION(swoole_async_write)
                 RETURN_FALSE;
             }
         }
-        else if (offset < 0)
+        else
+#endif
+        if (offset < 0)
         {
             open_flag |= O_APPEND;
         }
@@ -613,6 +644,15 @@ PHP_FUNCTION(swoole_async_readfile)
         RETURN_FALSE;
     }
 
+    size_t length = file_stat.st_size;
+
+#ifdef HAVE_LINUX_AIO
+    if (SwooleAIO.mode == SW_AIO_LINUX && length % SwooleG.pagesize > 0)
+    {
+        length += SwooleG.pagesize - (length % SwooleG.pagesize);
+    }
+#endif
+
     file_request *req = emalloc(sizeof(file_request));
     req->fd = fd;
 
@@ -627,15 +667,15 @@ PHP_FUNCTION(swoole_async_readfile)
         sw_copy_to_stack(req->callback, req->_callback);
     }
 
-    req->content = swoole_aio_malloc(file_stat.st_size + 1);
+    req->content = swoole_aio_malloc(length);
     req->once = 1;
     req->type = SW_AIO_READ;
-    req->length = file_stat.st_size;
+    req->length = length;
     req->offset = 0;
 
     php_swoole_check_aio();
 
-    int ret = SwooleAIO.read(fd, req->content, file_stat.st_size, 0);
+    int ret = SwooleAIO.read(fd, req->content, length, 0);
     if (ret == SW_ERR)
     {
         RETURN_FALSE;
@@ -660,6 +700,8 @@ PHP_FUNCTION(swoole_async_writefile)
         return;
     }
     int open_flag = O_CREAT | O_WRONLY;
+
+#ifdef HAVE_LINUX_AIO
     if (SwooleAIO.mode == SW_AIO_LINUX)
     {
         open_flag |= O_DIRECT;
@@ -669,7 +711,10 @@ PHP_FUNCTION(swoole_async_writefile)
             RETURN_FALSE;
         }
     }
-    else if (flags & PHP_FILE_APPEND)
+    else
+#endif
+
+    if (flags & PHP_FILE_APPEND)
     {
         open_flag |= O_APPEND;
     }
@@ -703,7 +748,15 @@ PHP_FUNCTION(swoole_async_writefile)
         RETURN_FALSE;
     }
 
-    char *wt_cnt = swoole_aio_malloc(fcnt_len);
+    size_t memory_size = fcnt_len;
+#ifdef HAVE_LINUX_AIO
+    if (SwooleAIO.mode == SW_AIO_LINUX && memory_size % SwooleG.pagesize > 0)
+    {
+        memory_size += SwooleG.pagesize - (memory_size % SwooleG.pagesize);
+    }
+#endif
+
+    char *wt_cnt = swoole_aio_malloc(memory_size);
 
     file_request *req = emalloc(sizeof(file_request));
     req->filename = filename;
@@ -729,9 +782,16 @@ PHP_FUNCTION(swoole_async_writefile)
     req->offset = 0;
 
     memcpy(wt_cnt, fcnt, fcnt_len);
+#ifdef HAVE_LINUX_AIO
+    if (SwooleAIO.mode == SW_AIO_LINUX && memory_size != fcnt_len)
+    {
+        memset(wt_cnt + fcnt_len, 0, memory_size - fcnt_len);
+    }
+#endif
+
     php_swoole_check_aio();
 
-    int ret = SwooleAIO.write(fd, wt_cnt, fcnt_len, 0);
+    int ret = SwooleAIO.write(fd, wt_cnt, memory_size, 0);
     if (ret == SW_ERR)
     {
         RETURN_FALSE;

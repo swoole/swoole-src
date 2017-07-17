@@ -76,6 +76,7 @@ int swAioGcc_init(int max_aio_events);
 #endif
 
 #ifdef HAVE_LINUX_AIO
+#define AIO_MIN_UNIT_SIZE     512
 int swAioLinux_init(int max_aio_events);
 #endif
 
