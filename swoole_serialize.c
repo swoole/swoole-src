@@ -51,6 +51,8 @@ static const zend_function_entry swoole_serialize_methods[] = {
 zend_class_entry swoole_serialize_ce;
 zend_class_entry *swoole_serialize_class_entry_ptr;
 
+#define SWOOLE_SERI_EOF "EOF"
+
 void swoole_serialize_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_serialize_ce, "swoole_serialize", "Swoole\\Serialize", swoole_serialize_methods);
@@ -1360,7 +1362,7 @@ again:
         {
             seria_array_type(Z_ARRVAL_P(zvalue), buffer, _STR_HEADER_SIZE, _STR_HEADER_SIZE + 1);
             swoole_serialize_arr(buffer, Z_ARRVAL_P(zvalue));
-            swoole_string_cpy(buffer, "EOF", 3);
+            swoole_string_cpy(buffer, SWOOLE_SERI_EOF, 3);
             swoole_mini_filter_clear();
             break;
         }
@@ -1373,7 +1375,7 @@ again:
             SBucketType* type = (SBucketType*) (buffer->buffer + _STR_HEADER_SIZE);
             type->data_type = IS_UNDEF;
             swoole_serialize_object(buffer, zvalue, _STR_HEADER_SIZE);
-            swoole_string_cpy(buffer, "EOF", 3);
+            swoole_string_cpy(buffer, SWOOLE_SERI_EOF, 3);
             swoole_mini_filter_clear();
             break;
         }
@@ -1404,7 +1406,7 @@ PHPAPI zend_string* php_swoole_serialize(zval *zvalue)
 static CPINLINE int swoole_seria_check_eof(void *buffer, size_t len)
 {
     void *eof_str = buffer - sizeof (SBucketType) + len - 3;
-    if (memcmp(eof_str, "EOF", 3) == 0)
+    if (memcmp(eof_str, SWOOLE_SERI_EOF, 3) == 0)
     {
         return 0;
     }
