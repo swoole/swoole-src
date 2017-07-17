@@ -890,6 +890,12 @@ PHP_MINFO_FUNCTION(swoole)
 #ifdef HAVE_PTHREAD_BARRIER
     php_info_print_table_row(2, "pthread_barrier", "enabled");
 #endif
+#ifdef HAVE_FUTEX
+    php_info_print_table_row(2, "futex", "enabled");
+#endif
+#ifdef SW_USE_MYSQLND
+    php_info_print_table_row(2, "mysqlnd", "enabled");
+#endif
 #ifdef SW_USE_JEMALLOC
     php_info_print_table_row(2, "jemalloc", "enabled");
 #endif

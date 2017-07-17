@@ -84,9 +84,10 @@ static PHP_METHOD(swoole_server_port, set)
         return;
     }
 
-    php_swoole_array_separate(zset);
+    zval *zsetting = php_swoole_read_init_property(swoole_server_port_class_entry_ptr, getThis(), ZEND_STRL("setting") TSRMLS_CC);
+    sw_php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
+    vht = Z_ARRVAL_P(zsetting);
 
-    vht = Z_ARRVAL_P(zset);
     swListenPort *port = swoole_get_object(getThis());
     swoole_server_port_property *property = swoole_get_property(getThis(), 0);
 
@@ -422,8 +423,6 @@ static PHP_METHOD(swoole_server_port, set)
         }
     }
 #endif
-
-    zend_update_property(swoole_server_port_class_entry_ptr, getThis(), ZEND_STRL("setting"), zset TSRMLS_CC);
 }
 
 static PHP_METHOD(swoole_server_port, on)

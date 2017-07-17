@@ -1449,9 +1449,10 @@ static PHP_METHOD(swoole_http_client, set)
     {
         return;
     }
-    php_swoole_array_separate(zset);
-    zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("setting"), zset TSRMLS_CC);
-    sw_zval_ptr_dtor(&zset);
+
+    zval *zsetting = php_swoole_read_init_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("setting") TSRMLS_CC);
+    sw_php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
+
     RETURN_TRUE;
 }
 
@@ -1462,9 +1463,10 @@ static PHP_METHOD(swoole_http_client, setHeaders)
     {
         return;
     }
-    php_swoole_array_separate(headers);
-    zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestHeaders"), headers TSRMLS_CC);
-    sw_zval_ptr_dtor(&headers);
+
+    zval *headers_property = php_swoole_read_init_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestHeaders") TSRMLS_CC);
+    sw_php_array_merge(Z_ARRVAL_P(headers_property), Z_ARRVAL_P(headers));
+
     RETURN_TRUE;
 }
 
@@ -1475,9 +1477,10 @@ static PHP_METHOD(swoole_http_client, setCookies)
     {
         return;
     }
-    php_swoole_array_separate(cookies);
-    zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("cookies"), cookies TSRMLS_CC);
-    sw_zval_ptr_dtor(&cookies);
+
+    zval *cookies_property = php_swoole_read_init_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("cookies") TSRMLS_CC);
+    sw_php_array_merge(Z_ARRVAL_P(cookies_property), Z_ARRVAL_P(cookies));
+
     RETURN_TRUE;
 }
 
@@ -1494,9 +1497,8 @@ static PHP_METHOD(swoole_http_client, setData)
     }
     if (Z_TYPE_P(data) == IS_ARRAY)
     {
-        php_swoole_array_separate(data);
-        zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestBody"), data TSRMLS_CC);
-        sw_zval_ptr_dtor(&data);
+        zval *data_property = php_swoole_read_init_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestBody") TSRMLS_CC);
+        sw_php_array_merge(Z_ARRVAL_P(data_property), Z_ARRVAL_P(data));
     }
     else
     {
@@ -2177,9 +2179,8 @@ static PHP_METHOD(swoole_http_client, post)
     }
     if (Z_TYPE_P(data) == IS_ARRAY)
     {
-        php_swoole_array_separate(data);
-        zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestBody"), data TSRMLS_CC);
-        sw_zval_ptr_dtor(&data);
+        zval *data_property = php_swoole_read_init_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestBody") TSRMLS_CC);
+        sw_php_array_merge(Z_ARRVAL_P(data_property), Z_ARRVAL_P(data));
     }
     else
     {
@@ -2213,40 +2214,27 @@ static PHP_METHOD(swoole_http_client, upgrade)
         return;
     }
 
-    zend_bool update_property = 0;
-    zval *request_header = sw_zend_read_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestHeaders"), 1 TSRMLS_CC);
-    if (request_header == NULL || ZVAL_IS_NULL(request_header))
-    {
-        SW_ALLOC_INIT_ZVAL(request_header);
-        array_init(request_header);
-        update_property = 1;
-    }
+    zval *headers = php_swoole_read_init_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestHeaders") TSRMLS_CC);
 
     char buf[SW_WEBSOCKET_KEY_LENGTH + 1];
     http_client_create_token(SW_WEBSOCKET_KEY_LENGTH, buf);
 
-    sw_add_assoc_string(request_header, "Connection", "Upgrade", 1);
-    sw_add_assoc_string(request_header, "Upgrade", "websocket", 1);
-    sw_add_assoc_string(request_header, "Sec-WebSocket-Version", SW_WEBSOCKET_VERSION, 1);
+    sw_add_assoc_string(headers, "Connection", "Upgrade", 1);
+    sw_add_assoc_string(headers, "Upgrade", "websocket", 1);
+    sw_add_assoc_string(headers, "Sec-WebSocket-Version", SW_WEBSOCKET_VERSION, 1);
 
     int encoded_value_len = 0;
 
 #if PHP_MAJOR_VERSION < 7
     uchar *encoded_value = php_base64_encode((const unsigned char *) buf, SW_WEBSOCKET_KEY_LENGTH, &encoded_value_len);
-    add_assoc_stringl(request_header, "Sec-WebSocket-Key", (char* )encoded_value, encoded_value_len, 0);
+    add_assoc_stringl(headers, "Sec-WebSocket-Key", (char* )encoded_value, encoded_value_len, 0);
 #else
     zend_string *str = php_base64_encode((const unsigned char *) buf, SW_WEBSOCKET_KEY_LENGTH);
     char *encoded_value = str->val;
     encoded_value_len = str->len;
-    add_assoc_stringl(request_header, "Sec-WebSocket-Key", (char* )encoded_value, encoded_value_len);
+    add_assoc_stringl(headers, "Sec-WebSocket-Key", (char* )encoded_value, encoded_value_len);
     zend_string_free(str);
 #endif
-
-    if (update_property)
-    {
-        zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestHeaders"), request_header TSRMLS_CC);
-        sw_zval_free(request_header);
-    }
 
     ret = http_client_execute(getThis(), uri, uri_len, finish_cb TSRMLS_CC);
     SW_CHECK_RETURN(ret);

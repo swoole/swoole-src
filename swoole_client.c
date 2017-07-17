@@ -1098,9 +1098,10 @@ static PHP_METHOD(swoole_client, set)
     {
         return;
     }
-    php_swoole_array_separate(zset);
-    zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("setting"), zset TSRMLS_CC);
-    sw_zval_ptr_dtor(&zset);
+
+    zval *zsetting = php_swoole_read_init_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("setting") TSRMLS_CC);
+    sw_php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
+
     RETURN_TRUE;
 }
 

@@ -1478,11 +1478,12 @@ PHP_METHOD(swoole_server, set)
         return;
     }
 
-    php_swoole_array_separate(zset);
-
     swServer *serv = swoole_get_object(zobject);
 
-    vht = Z_ARRVAL_P(zset);
+    zval *zsetting = php_swoole_read_init_property(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("setting") TSRMLS_CC);
+    sw_php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
+    vht = Z_ARRVAL_P(zsetting);
+
     //chroot
     if (php_swoole_array_get_value(vht, "chroot", v))
     {
@@ -1740,7 +1741,6 @@ PHP_METHOD(swoole_server, set)
     sw_zval_add_ref(&zobject);
 
     sw_zend_call_method_with_1_params(&port_object, swoole_server_port_class_entry_ptr, NULL, "set", &retval, zset);
-    zend_update_property(swoole_server_class_entry_ptr, zobject, ZEND_STRL("setting"), zset TSRMLS_CC);
 
     RETURN_TRUE;
 }
