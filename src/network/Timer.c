@@ -66,9 +66,6 @@ int swTimer_init(long msec)
         return SW_ERR;
     }
 
-    SwooleG.timer._current_id = -1;
-    SwooleG.timer._next_msec = msec;
-    SwooleG.timer._next_id = 1;
 
     SwooleG.timer.heap = swHeap_new(1024, SW_MIN_HEAP);
     if (!SwooleG.timer.heap)
