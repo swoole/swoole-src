@@ -505,9 +505,9 @@ PHP_FUNCTION(swoole_async_write)
         RETURN_FALSE;
     }
 #ifdef HAVE_LINUX_AIO
-    if ((fcnt_len % AIO_MIN_UNIT_SIZE) != 0)
+    if ((fcnt_len % SW_AIO_MIN_UNIT_SIZE) != 0)
     {
-        swoole_php_fatal_error(E_WARNING, "the length must be an integer multiple of %d.", AIO_MIN_UNIT_SIZE);
+        swoole_php_fatal_error(E_WARNING, "the length must be an integer multiple of %d.", SW_AIO_MIN_UNIT_SIZE);
         RETURN_FALSE;
     }
 #endif

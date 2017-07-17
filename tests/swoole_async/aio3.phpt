@@ -1,5 +1,5 @@
 --TEST--
-swoole_async: linux native aio read
+swoole_async: linux native aio write
 
 --SKIPIF--
 <?php require  __DIR__ . "/../include/skipif.inc"; ?>
