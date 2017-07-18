@@ -68,6 +68,19 @@ static PHP_METHOD(swoole_server_port, __construct)
 static PHP_METHOD(swoole_server_port, __destruct)
 {
     swoole_server_port_property *property = swoole_get_property(getThis(), 0);
+
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
+    int j;
+    for (j = 0; j < PHP_SERVER_CALLBACK_NUM; j++)
+    {
+        if (property->caches[j])
+        {
+            efree(property->caches[j]);
+            property->caches[j] = NULL;
+        }
+    }
+#endif
+
     efree(property);
     swoole_set_property(getThis(), 0, NULL);
     swoole_set_object(getThis(), NULL);

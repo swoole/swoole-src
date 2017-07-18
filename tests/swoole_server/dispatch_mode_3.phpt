@@ -69,8 +69,8 @@ $pm->parentFunc = function ($pid) use ($port)
     }
     swoole_event::wait();
     swoole_process::kill($pid);
-    assert($stats[10] < 200);
-    assert($stats[5] < 200);
+    assert($stats[10] < 500);
+    assert($stats[5] < 500);
 };
 
 $pm->childFunc = function () use ($pm, $port)

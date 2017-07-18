@@ -1474,23 +1474,9 @@ PHP_METHOD(swoole_server, __destruct)
     }
 
     zval *port_object;
-    swoole_server_port_property *property;
     for (i = 0; i < server_port_list.num; i++)
     {
         port_object = server_port_list.zobjects[i];
-        property = swoole_get_property(port_object, 0);
-
-#ifdef PHP_SWOOLE_ENABLE_FASTCALL
-        int j;
-        for (j = 0; j < PHP_SERVER_CALLBACK_NUM; j++)
-        {
-            if (property->caches[j])
-            {
-                efree(property->caches[j]);
-                property->caches[j] = NULL;
-            }
-        }
-#endif
         efree(port_object);
         server_port_list.zobjects[i] = NULL;
     }
