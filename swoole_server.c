@@ -2483,6 +2483,8 @@ PHP_METHOD(swoole_server, taskwait)
 
     php_swoole_task_pack(&buf, data TSRMLS_CC);
 
+    int task_id = buf.info.fd;
+
     uint64_t notify;
     swEventData *task_result = &(SwooleG.task_result[SwooleWG.id]);
     bzero(task_result, sizeof(swEventData));
@@ -2497,15 +2499,23 @@ PHP_METHOD(swoole_server, taskwait)
     if (swProcessPool_dispatch_blocking(&SwooleGS->task_workers, &buf, &_dst_worker_id) >= 0)
     {
         task_notify_pipe->timeout = timeout;
-        int ret = task_notify_pipe->read(task_notify_pipe, &notify, sizeof(notify));
-        if (ret > 0)
+        while(1)
         {
-            zval *task_notify_data = php_swoole_task_unpack(task_result TSRMLS_CC);
-            RETURN_ZVAL(task_notify_data, 0, 0);
-        }
-        else
-        {
-            swoole_php_fatal_error(E_WARNING, "taskwait failed. Error: %s[%d]", strerror(errno), errno);
+            if (task_notify_pipe->read(task_notify_pipe, &notify, sizeof(notify)) > 0)
+            {
+                if (task_result->info.fd != task_id)
+                {
+                    continue;
+                }
+                zval *task_notify_data = php_swoole_task_unpack(task_result TSRMLS_CC);
+                RETURN_ZVAL(task_notify_data, 0, 0);
+                break;
+            }
+            else
+            {
+                swoole_php_error(E_WARNING, "taskwait failed. Error: %s[%d]", strerror(errno), errno);
+                break;
+            }
         }
     }
     else
