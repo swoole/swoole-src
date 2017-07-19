@@ -139,7 +139,7 @@ $pm->childFunc = function () use ($pm, $port)
             elseif ($data == 'timeout')
             {
                 usleep(300000);
-                return "hello world\n";
+                return "task timeout\n";
             }
         }
     });
