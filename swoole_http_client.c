@@ -438,13 +438,6 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
         http->file_fd = fd;
     }
 
-    //if connection exists
-    if (http->cli)
-    {
-        http_client_send_http_request(zobject TSRMLS_CC);
-        return SW_OK;
-    }
-
     swClient *cli = php_swoole_client_new(zobject, http->host, http->host_len, http->port);
     if (cli == NULL)
     {
@@ -1337,28 +1330,6 @@ static http_client* http_client_create(zval *object TSRMLS_DC)
     http->keep_alive = 1;
     http->state = HTTP_CLIENT_STATE_READY;
 
-    //HttpClient settings
-    zval *zset = sw_zend_read_property(swoole_http_client_class_entry_ptr, object, ZEND_STRL("setting"), 1 TSRMLS_CC);
-    if (zset && !ZVAL_IS_NULL(zset))
-    {
-        vht = Z_ARRVAL_P(zset);
-        /**
-         * timeout
-         */
-        if (php_swoole_array_get_value(vht, "timeout", ztmp))
-        {
-            convert_to_double(ztmp);
-            http->timeout = (double) Z_DVAL_P(ztmp);
-        }
-        /**
-         * keep_alive
-         */
-        if (php_swoole_array_get_value(vht, "keep_alive", ztmp))
-        {
-            convert_to_boolean(ztmp);
-            http->keep_alive = (int) Z_LVAL_P(ztmp);
-        }
-    }
     return http;
 }
 
