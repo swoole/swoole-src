@@ -1613,7 +1613,7 @@ static sw_inline swConnection* swReactor_get(swReactor *reactor, int fd)
     {
         return &reactor->socket_list[fd];
     }
-    swConnection *socket = swArray_alloc(reactor->socket_array, fd);
+    swConnection *socket = (swConnection*) swArray_alloc(reactor->socket_array, fd);
     if (socket == NULL)
     {
         return NULL;
