@@ -60,8 +60,9 @@ $pm->childFunc = function () use ($pm)
         }
         else
         {
+            $cli1->close();
+            $cli2->close();
             $response->end("OK\n");
-            $cli->close();
         }
     });
     $http->start();
