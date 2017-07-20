@@ -785,8 +785,8 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
 {
     int n;
     swClient *cli = event->socket->object;
-    char *buf = cli->buffer->str;
-    long buf_size = cli->buffer->size;
+    char *buf = cli->buffer->str + cli->buffer->length;
+    long buf_size = cli->buffer->size - cli->buffer->length;
 
     if (cli->http_proxy && cli->http_proxy->state != SW_HTTP_PROXY_STATE_READY)
     {

@@ -86,8 +86,8 @@ typedef struct
 
     php_http_parser parser;
 
-    swString *header_field_buffer;
-    swString *header_value_buffer;
+    char *tmp_header_field_name;
+    zend_size_t tmp_header_field_name_len;
     swString *body;
 
     uint8_t state;       //0 wait 1 ready 2 busy
@@ -98,6 +98,7 @@ typedef struct
     uint8_t completed;
     uint8_t websocket_mask;
     uint8_t download;    //save http response to file
+    uint8_t header_completed;
 
 } http_client;
 
@@ -368,24 +369,10 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
             swoole_php_fatal_error(E_ERROR, "[1] swString_new(%d) failed.", SW_HTTP_RESPONSE_INIT_SIZE);
             return SW_ERR;
         }
-        http->header_field_buffer = swString_new(SW_HTTP_HEADER_BUFFER_SIZE);
-        if (http->header_field_buffer == NULL)
-        {
-            swoole_php_fatal_error(E_ERROR, "[2] swString_new(%d) failed.", SW_HTTP_HEADER_BUFFER_SIZE);
-            return SW_ERR;
-        }
-        http->header_value_buffer = swString_new(SW_HTTP_HEADER_BUFFER_SIZE);
-        if (http->header_value_buffer == NULL)
-        {
-            swoole_php_fatal_error(E_ERROR, "[3] swString_new(%d) failed.", SW_HTTP_HEADER_BUFFER_SIZE);
-            return SW_ERR;
-        }
     }
     else
     {
         swString_clear(http->body);
-        swString_clear(http->header_field_buffer);
-        swString_clear(http->header_value_buffer);
     }
 
     if (http->uri)
@@ -763,6 +750,37 @@ static void http_client_onReceive(swClient *cli, char *data, uint32_t length)
         return;
     }
 
+    if (http->header_completed == 0)
+    {
+        swString *buffer = cli->buffer;
+        buffer->length += length;
+
+        //HTTP/1.1 200 OK
+        if (buffer->length < 16)
+        {
+            return;
+        }
+        //No header
+        if (swoole_strnpos(buffer->str + buffer->offset, buffer->length - buffer->offset, ZEND_STRL("\r\n\r\n")) < 0)
+        {
+            if (buffer->length == buffer->size)
+            {
+                swSysError("Wrong http response.");
+                cli->close(cli);
+                return;
+            }
+            buffer->offset = buffer->length - 4 <= 0 ? 0 : buffer->length - 4;
+            return;
+        }
+        else
+        {
+            http->header_completed = 1;
+            data = buffer->str;
+            length = buffer->length;
+        }
+    }
+
+
     long parsed_n = php_http_parser_execute(&http->parser, &http_parser_settings, data, length);
     if (parsed_n < 0)
     {
@@ -848,6 +866,8 @@ static void http_client_onReceive(swClient *cli, char *data, uint32_t length)
     {
         return;
     }
+    http->header_completed = 0;
+    swString_clear(cli->buffer);
     if (http->keep_alive == 0 && http->state != HTTP_CLIENT_STATE_WAIT_CLOSE)
     {
         sw_zend_call_method_with_0_params(&zobject, swoole_http_client_class_entry_ptr, NULL, "close", &retval);
@@ -941,12 +961,11 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
     {
         sw_zend_hash_find(Z_ARRVAL_P(send_header), ZEND_STRS("Host"), (void **) &value); //checked before
         char *pre = "http://";
-        int len = http->uri_len + Z_STRLEN_P(value) + strlen(pre) + 1;
-        void *addr = ecalloc(len, 1);
-        snprintf(addr, len, "%s%s%s", pre, Z_STRVAL_P(value), http->uri);
+        int len = http->uri_len + Z_STRLEN_P(value) + strlen(pre) + 10;
+        void *addr = emalloc(http->uri_len + Z_STRLEN_P(value) + strlen(pre) + 10);
+        http->uri_len = snprintf(addr, len, "%s%s:%d%s", pre, Z_STRVAL_P(value), http->port, http->uri);
         efree(http->uri);
         http->uri = addr;
-        http->uri_len = len;
     }
     swString_append_ptr (http_client_buffer, http->uri, http->uri_len);
     swString_append_ptr(http_client_buffer, ZEND_STRL(" HTTP/1.1\r\n"));
@@ -1273,16 +1292,6 @@ static void http_client_free(zval *object TSRMLS_DC)
     {
         swString_free(http->body);
     }
-    if (http->header_field_buffer)
-    {
-        swString_free(http->header_field_buffer);
-        http->header_field_buffer = NULL;
-    }
-    if (http->header_value_buffer)
-    {
-        swString_free(http->header_value_buffer);
-        http->header_value_buffer = NULL;
-    }
     if (http->timer)
     {
         swTimer_del(&SwooleG.timer, http->timer);
@@ -1308,7 +1317,6 @@ static http_client* http_client_create(zval *object TSRMLS_DC)
 {
     zval *ztmp;
     http_client *http;
-    HashTable *vht;
 
     http = (http_client*) emalloc(sizeof(http_client));
     bzero(http, sizeof(http_client));
@@ -1713,80 +1721,11 @@ static PHP_METHOD(swoole_http_client, on)
     RETURN_TRUE;
 }
 
-enum php_http_parser_state
-{
-    /* important that this is > 0 */
-    s_dead = 1,
-    s_start_req_or_res,
-    s_res_or_resp_H,
-    s_start_res,
-    s_res_H,
-    s_res_HT,
-    s_res_HTT,
-    s_res_HTTP,
-    s_res_first_http_major,
-    s_res_http_major,
-    s_res_first_http_minor,
-    s_res_http_minor,
-    s_res_first_status_code,
-    s_res_status_code,
-    s_res_status,
-    s_res_line_almost_done,
-    s_start_req,
-    s_req_method,
-    s_req_spaces_before_url,
-    s_req_schema,
-    s_req_schema_slash,
-    s_req_schema_slash_slash,
-    s_req_host,
-    s_req_port,
-    s_req_path,
-    s_req_query_string_start,
-    s_req_query_string,
-    s_req_fragment_start,
-    s_req_fragment,
-    s_req_http_start,
-    s_req_http_H,
-    s_req_http_HT,
-    s_req_http_HTT,
-    s_req_http_HTTP,
-    s_req_first_http_major,
-    s_req_http_major,
-    s_req_first_http_minor,
-    s_req_http_minor,
-    s_req_line_almost_done,
-    s_header_field_start,
-    s_header_field,
-    s_header_value_start,
-    s_header_value,
-    s_header_almost_done,
-    /* Important: 's_headers_almost_done' must be the last 'header' state. All
-     * states beyond this must be 'body' states. It is used for overflow
-     * checking. See the PARSING_HEADER() macro.
-     */
-    s_headers_almost_done,
-    s_chunk_size_start,
-    s_chunk_size,
-    s_chunk_size_almost_done,
-    s_chunk_parameters,
-    s_chunk_data,
-    s_chunk_data_almost_done,
-    s_chunk_data_done,
-    s_body_identity,
-    s_body_identity_eof
-};
-
 static int http_client_parser_on_header_field(php_http_parser *parser, const char *at, size_t length)
 {
     http_client* http = (http_client*) parser->data;
-    if (parser->state == s_header_field_start || parser->state == s_start_res)
-    {
-        swString_clear(http->header_field_buffer);
-    }
-    if (swString_append_ptr(http->header_field_buffer, (char *) at, length) < 0)
-    {
-        return SW_ERR;
-    }
+    http->tmp_header_field_name = (char *) at;
+    http->tmp_header_field_name_len = length;
     return 0;
 }
 
@@ -1797,20 +1736,19 @@ static int http_client_parser_on_header_value(php_http_parser *parser, const cha
 #endif
 
     http_client* http = (http_client*) parser->data;
-    if (parser->state == s_header_value_start || parser->state == s_start_res)
-    {
-        swString_clear(http->header_value_buffer);
-    }
-    if (swString_append_ptr(http->header_value_buffer, (char *) at, length) < 0)
-    {
-        return SW_ERR;
-    }
+
+    char buf[128];
+    memcpy(buf, at, length);
+    buf[length] = 0;
+
+    printf("--------------------------------------------------\nat=%s, length=%d, state=%d\n", buf, length, parser->state);
 
     zval* zobject = (zval*) http->cli->object;
     zval *headers = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("headers"), 0 TSRMLS_CC);
 
-    char *header_name = zend_str_tolower_dup(http->header_field_buffer->str, http->header_field_buffer->length);
-    sw_add_assoc_stringl_ex(headers, header_name, http->header_field_buffer->length + 1, http->header_value_buffer->str, http->header_value_buffer->length, 1);
+    char *header_name = zend_str_tolower_dup(http->tmp_header_field_name, http->tmp_header_field_name_len);
+    sw_add_assoc_stringl_ex(headers, header_name, http->tmp_header_field_name_len + 1, (char *) at, length, 1);
+
     //websocket client
     if (strcasecmp(header_name, "Upgrade") == 0 && strncasecmp(at, "websocket", length) == 0)
     {
