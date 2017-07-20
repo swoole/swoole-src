@@ -334,6 +334,10 @@ static int swClient_close(swClient *cli)
         {
             sw_free(cli->ssl_option.key_file);
         }
+        if (cli->ssl_option.passphrase)
+        {
+            sw_free(cli->ssl_option.passphrase);
+        }
     }
 #endif
     //clear buffer

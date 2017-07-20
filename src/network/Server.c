@@ -1094,6 +1094,9 @@ int swServer_add_worker(swServer *serv, swWorker *worker)
     return worker->id;
 }
 
+/**
+ * Return the number of ports successfully
+ */
 int swserver_add_systemd_socket(swServer *serv)
 {
     char *e = getenv("LISTEN_PID");
@@ -1118,6 +1121,11 @@ int swserver_add_systemd_socket(swServer *serv)
     if (n < 1)
     {
         swWarn("invalid LISTEN_FDS.");
+        return 0;
+    }
+    else if (n >= SW_MAX_LISTEN_PORT)
+    {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_TOO_MANY_LISTEN_PORT, "LISTEN_FDS is too big.");
         return 0;
     }
 

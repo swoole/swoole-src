@@ -513,9 +513,15 @@ int swoole_tmpfile(char *filename)
 long swoole_file_get_size(FILE *fp)
 {
     long pos = ftell(fp);
-    fseek(fp, 0L, SEEK_END);
+    if (fseek(fp, 0L, SEEK_END) < 0)
+    {
+        return SW_ERR;
+    }
     long size = ftell(fp);
-    fseek(fp, pos, SEEK_SET);
+    if (fseek(fp, pos, SEEK_SET) < 0)
+    {
+        return SW_ERR;
+    }
     return size;
 }
 

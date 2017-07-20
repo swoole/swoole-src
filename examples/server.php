@@ -91,6 +91,9 @@ $process2 = new swoole_process(function ($worker) use ($serv) {
 
 //$serv->addprocess($process2);
 $serv->set(G::$config);
+$serv->set(['reactor_num' => 4]);
+var_dump($serv);exit;
+
 /**
  * 使用类的静态属性，可以直接访问
  */

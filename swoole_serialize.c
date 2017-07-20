@@ -1060,6 +1060,7 @@ static CPINLINE void swoole_unserialize_raw(void *buffer, zval *zvalue)
     memcpy(&zvalue->value, buffer, sizeof (zend_value));
 }
 
+#if 0
 /*
  * null
  */
@@ -1068,6 +1069,7 @@ static CPINLINE void swoole_unserialize_null(void *buffer, zval *zvalue)
 
     memcpy(&zvalue->value, buffer, sizeof (zend_value));
 }
+#endif
 
 static CPINLINE void swoole_serialize_raw(seriaString *buffer, zval *zvalue)
 {
