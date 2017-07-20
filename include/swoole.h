@@ -1904,8 +1904,7 @@ typedef struct
     uint32_t reactor_ready :1;
     uint32_t in_client :1;
     uint32_t shutdown :1;
-    uint32_t reload;
-    uint32_t reload_count;
+    uint32_t wait_exit :1;
     uint32_t request_count;
 
     int max_request;

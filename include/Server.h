@@ -249,6 +249,12 @@ typedef struct
     uint16_t num;
 } swUserWorker;
 
+typedef struct
+{
+    pid_t pid;
+    uint16_t worker_id;
+} swWorkerStopMessage;
+
 //-----------------------------------Factory--------------------------------------------
 typedef struct
 {
@@ -436,6 +442,8 @@ struct _swServer
     swReactorThread *reactor_threads;
     swWorker *workers;
 
+    swChannel *message_box;
+
 #ifdef HAVE_PTHREAD_BARRIER
     pthread_barrier_t barrier;
 #endif
@@ -468,6 +476,7 @@ struct _swServer
     void (*onPipeMessage)(swServer *, swEventData *);
     void (*onWorkerStart)(swServer *serv, int worker_id);
     void (*onWorkerStop)(swServer *serv, int worker_id);
+    void (*onWorkerExit)(swServer *serv, int worker_id);
     void (*onWorkerError)(swServer *serv, int worker_id, pid_t worker_pid, int exit_code, int signo);
     void (*onUserWorkerStart)(swServer *serv, swWorker *worker);
     /**
@@ -878,6 +887,7 @@ void swPort_clear_protocol(swListenPort *ls);
 void swWorker_free(swWorker *worker);
 void swWorker_onStart(swServer *serv);
 void swWorker_onStop(swServer *serv);
+int swWorker_try_to_exit();
 int swWorker_loop(swFactory *factory, int worker_pti);
 int swWorker_send2reactor(swEventData *ev_data, size_t sendn, int fd);
 int swWorker_send2worker(swWorker *dst_worker, void *buf, int n, int flag);
