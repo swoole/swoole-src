@@ -1737,12 +1737,6 @@ static int http_client_parser_on_header_value(php_http_parser *parser, const cha
 
     http_client* http = (http_client*) parser->data;
 
-    char buf[128];
-    memcpy(buf, at, length);
-    buf[length] = 0;
-
-    printf("--------------------------------------------------\nat=%s, length=%d, state=%d\n", buf, length, parser->state);
-
     zval* zobject = (zval*) http->cli->object;
     zval *headers = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("headers"), 0 TSRMLS_CC);
 
