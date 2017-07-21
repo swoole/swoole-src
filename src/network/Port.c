@@ -589,6 +589,10 @@ void swPort_free(swListenPort *port)
     }
 }
 
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
+
 int swPort_http_static_handler(swHttpRequest *request, swConnection *conn)
 {
     swServer *serv = SwooleG.serv;
