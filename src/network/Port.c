@@ -675,7 +675,13 @@ int swPort_http_static_handler(swHttpRequest *request, swConnection *conn)
     strftime(date_, sizeof(date_), "%a, %d %b %Y %H:%M:%S %Z", tm1);
 
     char date_last_modified[64];
-    struct tm *tm2 = gmtime(&file_stat.st_mtim.tv_sec);
+#ifdef __MACH__
+    time_t file_mtime = file_stat.st_mtimespec.tv_sec;
+#else
+    time_t file_mtime = file_stat.st_mtim.tv_sec;
+#endif
+
+    struct tm *tm2 = gmtime(&file_mtime);
     strftime(date_last_modified, sizeof(date_last_modified), "%a, %d %b %Y %H:%M:%S %Z", tm2);
 
     check_modify_date: if (state == 2)
@@ -687,9 +693,13 @@ int swPort_http_static_handler(swHttpRequest *request, swConnection *conn)
 
         char *date_format = NULL;
 
-        if (strptime(date_tmp, SW_HTTP_RFC1123_DATE, &tm3) != NULL)
+        if (strptime(date_tmp, SW_HTTP_RFC1123_DATE_GMT, &tm3) != NULL)
         {
-            date_format = SW_HTTP_RFC1123_DATE;
+            date_format = SW_HTTP_RFC1123_DATE_GMT;
+        }
+        else if (strptime(date_tmp, SW_HTTP_RFC1123_DATE_UTC, &tm3) != NULL)
+        {
+            date_format = SW_HTTP_RFC1123_DATE_UTC;
         }
         else if (strptime(date_tmp, SW_HTTP_RFC850_DATE, &tm3) != NULL)
         {
@@ -699,19 +709,18 @@ int swPort_http_static_handler(swHttpRequest *request, swConnection *conn)
         {
             date_format = SW_HTTP_ASCTIME_DATE;
         }
-
-        if (date_format && mktime(&tm3) - timezone >= file_stat.st_mtim.tv_sec)
+        if (date_format && mktime(&tm3) - timezone >= file_mtime)
         {
-            response.length = response.info.len = snprintf(header_buffer, sizeof(header_buffer),
-                    "HTTP/1.1 304 Not Modified"
-                    "\r\nConnection: Keep-Alive\r\n"
-                    "Date: %s\r\n"
-                    "Last-Modified: %s\r\n"
-                    "Server: %s\r\n\r\n", date_, date_last_modified,
-                    SW_HTTP_SERVER_SOFTWARE);
-            response.data = header_buffer;
-            swReactorThread_send(&response);
-            return SW_TRUE;
+			response.length = response.info.len = snprintf(header_buffer, sizeof(header_buffer),
+					"HTTP/1.1 304 Not Modified\r\n"
+					"Connection: Keep-Alive\r\n"
+					"Date: %s\r\n"
+					"Last-Modified: %s\r\n"
+					"Server: %s\r\n\r\n", date_, date_last_modified,
+					SW_HTTP_SERVER_SOFTWARE);
+			response.data = header_buffer;
+			swReactorThread_send(&response);
+			return SW_TRUE;
         }
     }
 
@@ -721,7 +730,7 @@ int swPort_http_static_handler(swHttpRequest *request, swConnection *conn)
             "Content-Type: %s\r\n"
             "Date: %s\r\n"
             "Last-Modified: %s\r\n"
-            "Server: %s\r\n\r\n", file_stat.st_size, swoole_get_mimetype(buffer.filename),
+            "Server: %s\r\n\r\n", (long) file_stat.st_size, swoole_get_mimetype(buffer.filename),
             date_,
             date_last_modified,
             SW_HTTP_SERVER_SOFTWARE);

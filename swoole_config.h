@@ -252,7 +252,8 @@
 #define SW_HTTP_COMPRESS_GZIP
 #define SW_HTTP_UPLOAD_TMPDIR_SIZE       256
 #define SW_HTTP_DATE_FORMAT              "D, d M Y H:i:s T"
-#define SW_HTTP_RFC1123_DATE             "%a, %d %b %Y %T GMT"
+#define SW_HTTP_RFC1123_DATE_GMT         "%a, %d %b %Y %T GMT"
+#define SW_HTTP_RFC1123_DATE_UTC         "%a, %d %b %Y %T UTC"
 #define SW_HTTP_RFC850_DATE              "%A, %d-%b-%y %T GMT"
 #define SW_HTTP_ASCTIME_DATE             "%a %b %e %T %Y"
 
