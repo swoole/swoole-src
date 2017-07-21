@@ -884,7 +884,7 @@ void swPort_clear_protocol(swListenPort *ls);
 void swWorker_free(swWorker *worker);
 void swWorker_onStart(swServer *serv);
 void swWorker_onStop(swServer *serv);
-int swWorker_try_to_exit();
+void swWorker_try_to_exit();
 int swWorker_loop(swFactory *factory, int worker_pti);
 int swWorker_send2reactor(swEventData *ev_data, size_t sendn, int fd);
 int swWorker_send2worker(swWorker *dst_worker, void *buf, int n, int flag);

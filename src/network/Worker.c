@@ -22,7 +22,7 @@
 
 static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event);
 static void swWorker_onTimeout(swTimer *timer, swTimer_node *tnode);
-static void swWorker_stop_accept_request();
+static void swWorker_stop();
 
 int swWorker_create(swWorker *worker)
 {
@@ -75,7 +75,7 @@ void swWorker_signal_handler(int signo)
          */
         if (SwooleG.main_reactor)
         {
-            swWorker_stop_accept_request();
+            swWorker_stop();
         }
         /**
          * Task worker
@@ -291,7 +291,7 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
     //maximum number of requests, process will exit.
     if (!SwooleWG.run_always && SwooleWG.request_count >= SwooleWG.max_request)
     {
-        swWorker_stop_accept_request();
+        swWorker_stop();
         swWorker_try_to_exit();
     }
     return SW_OK;
@@ -393,15 +393,13 @@ void swWorker_onStart(swServer *serv)
 
 void swWorker_onStop(swServer *serv)
 {
-    swWorker *worker = swServer_get_worker(serv, SwooleWG.id);
     if (serv->onWorkerStop)
     {
         serv->onWorkerStop(serv, SwooleWG.id);
     }
-    swWorker_free(worker);
 }
 
-void swWorker_stop_accept_request()
+static void swWorker_stop()
 {
     swWorker *worker = SwooleWG.worker;
     swServer *serv = SwooleG.serv;
@@ -429,6 +427,12 @@ void swWorker_stop_accept_request()
     msg.pid = SwooleG.pid;
     msg.worker_id = SwooleWG.id;
 
+    if (serv->onWorkerStop)
+    {
+        serv->onWorkerStop(serv, SwooleWG.id);
+        serv->onWorkerStop = NULL;
+    }
+
     //send message to manager
     if (swChannel_push(SwooleG.serv->message_box, &msg, sizeof(msg)) < 0)
     {
@@ -453,7 +457,7 @@ static void swWorker_onTimeout(swTimer *timer, swTimer_node *tnode)
     swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT, "worker exit timeout, forced to terminate.");
 }
 
-int swWorker_try_to_exit()
+void swWorker_try_to_exit()
 {
     swServer *serv = SwooleG.serv;
     int expect_event_num = SwooleG.use_signalfd ? 1 : 0;
@@ -463,7 +467,8 @@ int swWorker_try_to_exit()
     {
         if (SwooleG.main_reactor->event_num == expect_event_num)
         {
-            return SW_OK;
+            SwooleG.main_reactor->running = 0;
+            SwooleG.running = 0;
         }
         else
         {
@@ -473,8 +478,8 @@ int swWorker_try_to_exit()
                 call_worker_exit_func = 1;
                 continue;
             }
-            return SW_ERR;
         }
+        break;
     }
 }
 

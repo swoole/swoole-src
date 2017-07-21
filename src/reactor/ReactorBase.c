@@ -145,9 +145,9 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
     swWorker *worker = SwooleWG.worker;
     if (worker != NULL)
     {
-        if (SwooleWG.wait_exit == 1 && swWorker_try_to_exit() == SW_OK)
+        if (SwooleWG.wait_exit == 1)
         {
-            reactor->running = 0;
+            swWorker_try_to_exit();
         }
     }
     //client
