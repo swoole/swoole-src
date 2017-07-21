@@ -711,16 +711,16 @@ int swPort_http_static_handler(swHttpRequest *request, swConnection *conn)
         }
         if (date_format && mktime(&tm3) - timezone >= file_mtime)
         {
-			response.length = response.info.len = snprintf(header_buffer, sizeof(header_buffer),
-					"HTTP/1.1 304 Not Modified\r\n"
-					"Connection: Keep-Alive\r\n"
-					"Date: %s\r\n"
-					"Last-Modified: %s\r\n"
-					"Server: %s\r\n\r\n", date_, date_last_modified,
-					SW_HTTP_SERVER_SOFTWARE);
-			response.data = header_buffer;
-			swReactorThread_send(&response);
-			return SW_TRUE;
+            response.length = response.info.len = snprintf(header_buffer, sizeof(header_buffer),
+                    "HTTP/1.1 304 Not Modified\r\n"
+                    "Connection: Keep-Alive\r\n"
+                    "Date: %s\r\n"
+                    "Last-Modified: %s\r\n"
+                    "Server: %s\r\n\r\n", date_, date_last_modified,
+                    SW_HTTP_SERVER_SOFTWARE);
+            response.data = header_buffer;
+            swReactorThread_send(&response);
+            return SW_TRUE;
         }
     }
 
