@@ -56,7 +56,18 @@ int swConnection_onSendfile(swConnection *conn, swBuffer_trunk *chunk)
 #endif
 
     int sendn = (task->length - task->offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : task->length - task->offset;
-    ret = swoole_sendfile(conn->fd, task->fd, &task->offset, sendn);
+
+#ifdef SW_USE_OPENSSL
+    if (conn->ssl)
+    {
+        ret = swSSL_sendfile(conn, task->fd, &task->offset, sendn);
+    }
+    else
+#endif
+    {
+        ret = swoole_sendfile(conn->fd, task->fd, &task->offset, sendn);
+    }
+
     swTrace("ret=%d|task->offset=%ld|sendn=%d|filesize=%ld", ret, task->offset, sendn, task->length);
 
     if (ret <= 0)

@@ -964,15 +964,6 @@ int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename, uint32
         return SW_ERR;
     }
 
-#ifdef SW_USE_OPENSSL
-    swConnection *conn = swServer_connection_verify(serv, session_id);
-    if (conn && conn->ssl)
-    {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SSL_CANNOT_USE_SENFILE, "SSL session#%d cannot use sendfile().", session_id);
-        return SW_ERR;
-    }
-#endif
-
     struct stat file_stat;
     if (stat(filename, &file_stat) < 0)
     {
