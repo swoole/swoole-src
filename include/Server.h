@@ -402,6 +402,10 @@ struct _swServer
      */
     uint32_t http_parse_post :1;
     /**
+     * handle static files
+     */
+    uint32_t http_filter_static :1;
+    /**
      * enable onConnect/onClose event when use dispatch_mode=1/3
      */
     uint32_t enable_unsafe_event :1;
@@ -452,7 +456,11 @@ struct _swServer
      * temporary directory for HTTP uploaded file.
      */
     char *upload_tmp_dir;
-
+    /**
+     * http static file directory
+     */
+    char *document_root;
+    uint16_t document_root_len;
     /**
      * master process pid
      */

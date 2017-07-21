@@ -1565,14 +1565,6 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
         connection->tcp_nodelay = 1;
     }
 
-#ifdef HAVE_TCP_NOPUSH
-    //TCP NOPUSH
-    if (ls->open_tcp_nopush)
-    {
-        connection->tcp_nopush = 1;
-    }
-#endif
-
     //socket recv buffer size
     if (ls->kernel_socket_recv_buffer_size > 0)
     {

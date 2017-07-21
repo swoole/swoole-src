@@ -1808,7 +1808,32 @@ PHP_METHOD(swoole_server, set)
         }
         serv->upload_tmp_dir = sw_strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
     }
-
+    /**
+     * http static file handler
+     */
+    if (php_swoole_array_get_value(vht, "http_filter_static", v))
+    {
+        convert_to_boolean(v);
+        serv->http_filter_static = Z_BVAL_P(v);
+    }
+    if (php_swoole_array_get_value(vht, "document_root", v))
+    {
+        convert_to_string(v);
+        if (serv->document_root)
+        {
+            sw_free(serv->document_root);
+        }
+        serv->document_root = sw_strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
+        if (serv->document_root[Z_STRLEN_P(v) - 1] == '/')
+        {
+            serv->document_root[Z_STRLEN_P(v) - 1] = 0;
+            serv->document_root_len = Z_STRLEN_P(v) - 1;
+        }
+        else
+        {
+            serv->document_root_len = Z_STRLEN_P(v);
+        }
+    }
     /**
      * buffer input size
      */
@@ -2865,7 +2890,7 @@ PHP_METHOD(swoole_server, finish)
     }
 
 #ifdef FAST_ZPP
-    ZEND_PARSE_PARAMETERS_START(3, 4)
+    ZEND_PARSE_PARAMETERS_START(1, 1)
         Z_PARAM_ZVAL(data)
     ZEND_PARSE_PARAMETERS_END();
 #else

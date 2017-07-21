@@ -26,6 +26,7 @@ static int swPort_onRead_check_length(swReactor *reactor, swListenPort *lp, swEv
 static int swPort_onRead_check_eof(swReactor *reactor, swListenPort *lp, swEvent *event);
 static int swPort_onRead_http(swReactor *reactor, swListenPort *lp, swEvent *event);
 static int swPort_onRead_redis(swReactor *reactor, swListenPort *lp, swEvent *event);
+static int swPort_http_static_handler(swHttpRequest *request, swConnection *conn);
 
 void swPort_init(swListenPort *port)
 {
@@ -293,6 +294,7 @@ static int swPort_onRead_check_length(swReactor *reactor, swListenPort *port, sw
 static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *event)
 {
     swConnection *conn = event->socket;
+    swServer *serv = reactor->ptr;
 
     if (conn->websocket_status >= WEBSOCKET_STATUS_HANDSHAKE)
     {
@@ -434,7 +436,16 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
             {
                 if (memcmp(buffer->str + buffer->length - 4, "\r\n\r\n", 4) == 0)
                 {
-                    swReactorThread_dispatch(conn, buffer->str, buffer->length);
+                    /**
+                     * send static file content directly in the reactor thread
+                     */
+                    if (!(serv->http_filter_static && swPort_http_static_handler(request, conn)))
+                    {
+                        /**
+                         * dynamic request, dispatch to worker
+                         */
+                        swReactorThread_dispatch(conn, buffer->str, buffer->length);
+                    }
                     swHttpRequest_free(conn);
                     return SW_OK;
                 }
@@ -575,5 +586,71 @@ void swPort_free(swListenPort *port)
     if (port->type == SW_SOCK_UNIX_STREAM || port->type == SW_SOCK_UNIX_DGRAM)
     {
         unlink(port->host);
+    }
+}
+
+int swPort_http_static_handler(swHttpRequest *request, swConnection *conn)
+{
+    swServer *serv = SwooleG.serv;
+    char *url = request->buffer->str + request->url_offset;
+    char *params = memchr(url, '?', request->url_length);
+
+    struct
+    {
+        off_t offset;
+        size_t length;
+        char filename[PATH_MAX];
+    } buffer;
+
+    char *p = buffer.filename;
+
+    memcpy(p, serv->document_root, serv->document_root_len);
+    p += serv->document_root_len;
+    uint32_t n = params ? params - url : request->url_length;
+    memcpy(p, url, n);
+    p += n;
+    *p = 0;
+
+    long size = swoole_file_size(buffer.filename);
+    if (size < 0)
+    {
+        return SW_FALSE;
+    }
+    else
+    {
+        char header_buffer[1024];
+        swSendData response;
+        response.info.fd = conn->session_id;
+
+        response.info.type = SW_EVENT_TCP;
+        response.length = response.info.len = snprintf(header_buffer, sizeof(header_buffer), "HTTP/1.1 200 OK"
+                "\r\nConnection: Keep-Alive\r\n"
+                "Content-Length: %ld\r\n"
+                "Content-Type: %s\r\n"
+                "Server: %s\r\n\r\n", size, swoole_get_mimetype(buffer.filename), SW_HTTP_SERVER_SOFTWARE);
+
+        response.data = header_buffer;
+
+#ifdef HAVE_TCP_NOPUSH
+        if (conn->tcp_nopush == 0)
+        {
+            if (swSocket_tcp_nopush(conn->fd, 1) == -1)
+            {
+                swWarn("swSocket_tcp_nopush() failed. Error: %s[%d]", strerror(errno), errno);
+            }
+            conn->tcp_nopush = 1;
+        }
+#endif
+        swReactorThread_send(&response);
+
+        buffer.offset = 0;
+        buffer.length = size;
+
+        response.info.type = SW_EVENT_SENDFILE;
+        response.length = response.info.len = sizeof(swSendFile_request) + buffer.length + 1;
+        response.data = (void*) &buffer;
+
+        swReactorThread_send(&response);
+        return SW_TRUE;
     }
 }
