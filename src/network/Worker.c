@@ -292,7 +292,6 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
     if (!SwooleWG.run_always && SwooleWG.request_count >= SwooleWG.max_request)
     {
         swWorker_stop();
-        swWorker_try_to_exit();
     }
     return SW_OK;
 }
@@ -448,6 +447,8 @@ static void swWorker_stop()
         swTimer_init(serv->max_wait_time * 1000);
     }
     SwooleG.timer.add(&SwooleG.timer, serv->max_wait_time * 1000, 0, NULL, swWorker_onTimeout);
+
+    swWorker_try_to_exit();
 }
 
 static void swWorker_onTimeout(swTimer *timer, swTimer_node *tnode)
