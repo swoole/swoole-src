@@ -534,6 +534,11 @@ long swoole_file_size(char *filename)
         SwooleG.error = errno;
         return -1;
     }
+    if ((file_stat.st_mode & S_IFMT) != S_IFREG)
+    {
+        SwooleG.error = EISDIR;
+        return -1;
+    }
     return file_stat.st_size;
 }
 
