@@ -724,8 +724,9 @@ int swPort_http_static_handler(swHttpRequest *request, swConnection *conn)
         }
     }
 
-    response.length = response.info.len = snprintf(header_buffer, sizeof(header_buffer), "HTTP/1.1 200 OK"
-            "\r\nConnection: Keep-Alive\r\n"
+    response.length = response.info.len = snprintf(header_buffer, sizeof(header_buffer),
+            "HTTP/1.1 200 OK\r\n"
+            "Connection: Keep-Alive\r\n"
             "Content-Length: %ld\r\n"
             "Content-Type: %s\r\n"
             "Date: %s\r\n"
