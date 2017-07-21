@@ -5,7 +5,7 @@ class G
     static $serv;
     static $config = array(
         //'reactor_num'              => 16,     // 线程数. 一般设置为CPU核数的1-4倍
-        'worker_num'               => 1,    // 工作进程数量. 设置为CPU的1-4倍最合理
+        'worker_num'               => 2,    // 工作进程数量. 设置为CPU的1-4倍最合理
         'max_request'              => 1000,     // 防止 PHP 内存溢出, 一个工作进程处理 X 次任务后自动重启 (注: 0,不自动重启)
         'max_conn'                 => 10000, // 最大连接数
         'task_worker_num'          => 1,     // 任务工作进程数量
@@ -92,7 +92,6 @@ $process2 = new swoole_process(function ($worker) use ($serv) {
 //$serv->addprocess($process2);
 $serv->set(G::$config);
 $serv->set(['reactor_num' => 4]);
-var_dump($serv);exit;
 
 /**
  * 使用类的静态属性，可以直接访问
@@ -209,6 +208,15 @@ function timer_show($id)
 {
     my_log("Timer#$id");
 }
+
+function my_onWorkerExit(swoole_server $serv, $worker_id) {
+    $redisState = $serv->redis->getState();
+    if ($redisState == Swoole\Redis::STATE_READY or $redisState == Swoole\Redis::STATE_SUBSCRIBE)
+    {
+        $serv->redis->close();
+    }
+}
+
 function my_onWorkerStart(swoole_server $serv, $worker_id)
 {
 	processRename($serv, $worker_id);
@@ -221,6 +229,17 @@ function my_onWorkerStart(swoole_server $serv, $worker_id)
         $serv->defer(function(){
            echo "defer call\n";
         });
+//        $serv->tick(2000, function() use ($serv) {
+//           echo "Worker-{$serv->worker_id} tick-2000\n";
+//        });
+
+        $redis = new Swoole\Redis();
+        $redis->connect("127.0.0.1", 6379, function ($redis, $r) {
+           $redis->get("key", function ($redis, $r) {
+               var_dump($r);
+           });
+        });
+        $serv->redis = $redis;
     }
     else
     {
@@ -561,6 +580,7 @@ $serv->on('WorkerStop', 'my_onWorkerStop');
 $serv->on('Task', 'my_onTask');
 $serv->on('Finish', 'my_onFinish');
 $serv->on('WorkerError', 'my_onWorkerError');
+$serv->on('WorkerExit', 'my_onWorkerExit');
 $serv->on('ManagerStart', function($serv) {
     global $argv;
     swoole_set_process_name("php {$argv[0]}: manager");

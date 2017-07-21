@@ -1662,12 +1662,6 @@ PHP_METHOD(swoole_server, set)
         convert_to_boolean(v);
         serv->enable_unsafe_event = Z_BVAL_P(v);
     }
-    //async reload
-    if (php_swoole_array_get_value(vht, "reload_async", v))
-    {
-        convert_to_boolean(v);
-        serv->reload_async = Z_BVAL_P(v);
-    }
     //delay receive
     if (php_swoole_array_get_value(vht, "enable_delay_receive", v))
     {
