@@ -60,6 +60,10 @@ enum swoole_redis_state
     SWOOLE_REDIS_STATE_CLOSED,
 };
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_construct, 0, 0, 0)
+    ZEND_ARG_ARRAY_INFO(0, setting, 1)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_connect, 0, 0, 3)
     ZEND_ARG_INFO(0, host)
     ZEND_ARG_INFO(0, port)
@@ -74,6 +78,9 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_on, 0, 0, 2)
     ZEND_ARG_INFO(0, event_name)
     ZEND_ARG_INFO(0, callback)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
 static PHP_METHOD(swoole_redis, __construct);
@@ -106,12 +113,12 @@ static int isset_event_callback = 0;
 
 static const zend_function_entry swoole_redis_methods[] =
 {
-    PHP_ME(swoole_redis, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
-    PHP_ME(swoole_redis, __destruct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
+    PHP_ME(swoole_redis, __construct, arginfo_swoole_redis_construct, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+    PHP_ME(swoole_redis, __destruct, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_ME(swoole_redis, on, arginfo_swoole_redis_on, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis, connect, arginfo_swoole_redis_connect, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_redis, close, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_redis, getState, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis, close, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis, getState, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis, __call, arginfo_swoole_redis_call, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };

@@ -34,6 +34,7 @@ static PHP_METHOD(swoole_mysql, query);
 static PHP_METHOD(swoole_mysql, begin);
 static PHP_METHOD(swoole_mysql, commit);
 static PHP_METHOD(swoole_mysql, rollback);
+static PHP_METHOD(swoole_mysql, getState);
 static PHP_METHOD(swoole_mysql, close);
 static PHP_METHOD(swoole_mysql, on);
 
@@ -309,6 +310,7 @@ static const zend_function_entry swoole_mysql_methods[] =
 #endif
     PHP_ME(swoole_mysql, query, arginfo_swoole_mysql_query, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_mysql, close, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_mysql, getState, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_mysql, on, arginfo_swoole_mysql_on, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
@@ -363,6 +365,13 @@ void swoole_mysql_init(int module_number TSRMLS_DC)
     zend_declare_property_long(swoole_mysql_class_entry_ptr, ZEND_STRL("connect_errno"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(swoole_mysql_class_entry_ptr, ZEND_STRL("insert_id"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(swoole_mysql_class_entry_ptr, ZEND_STRL("affected_rows"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+
+    zend_declare_class_constant_long(swoole_mysql_class_entry_ptr, SW_STRL("STATE_QUERY")-1, SW_MYSQL_STATE_QUERY TSRMLS_CC);
+    zend_declare_class_constant_long(swoole_mysql_class_entry_ptr, SW_STRL("STATE_READ_START")-1, SW_MYSQL_STATE_READ_START TSRMLS_CC);
+    zend_declare_class_constant_long(swoole_mysql_class_entry_ptr, SW_STRL("STATE_READ_FIELD ")-1, SW_MYSQL_STATE_READ_FIELD TSRMLS_CC);
+    zend_declare_class_constant_long(swoole_mysql_class_entry_ptr, SW_STRL("STATE_READ_ROW")-1, SW_MYSQL_STATE_READ_ROW TSRMLS_CC);
+    zend_declare_class_constant_long(swoole_mysql_class_entry_ptr, SW_STRL("STATE_READ_END")-1, SW_MYSQL_STATE_READ_END TSRMLS_CC);
+    zend_declare_class_constant_long(swoole_mysql_class_entry_ptr, SW_STRL("STATE_CLOSED")-1, SW_MYSQL_STATE_CLOSED TSRMLS_CC);
 }
 
 static int mysql_request(swString *sql, swString *buffer)
@@ -1278,6 +1287,17 @@ static PHP_METHOD(swoole_mysql, on)
         RETURN_FALSE;
     }
     RETURN_TRUE;
+}
+
+static PHP_METHOD(swoole_mysql, getState)
+{
+    mysql_client *client = swoole_get_object(getThis());
+    if (!client)
+    {
+        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_mysql.");
+        RETURN_FALSE;
+    }
+    RETURN_LONG(client->state);
 }
 
 static void swoole_mysql_onTimeout(swTimer *timer, swTimer_node *tnode)
