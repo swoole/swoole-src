@@ -252,6 +252,10 @@
 #define SW_HTTP_COMPRESS_GZIP
 #define SW_HTTP_UPLOAD_TMPDIR_SIZE       256
 #define SW_HTTP_DATE_FORMAT              "D, d M Y H:i:s T"
+#define SW_HTTP_RFC1123_DATE             "%a, %d %b %Y %T GMT"
+#define SW_HTTP_RFC850_DATE              "%A, %d-%b-%y %T GMT"
+#define SW_HTTP_ASCTIME_DATE             "%a %b %e %T %Y"
+
 //#define SW_HTTP_100_CONTINUE
 #define SW_HTTP2_DATA_BUFFSER_SIZE       8192
 #define SW_HTTP2_MAX_CONCURRENT_STREAMS  128

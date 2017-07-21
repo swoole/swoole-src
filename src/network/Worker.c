@@ -432,6 +432,12 @@ static void swWorker_stop()
 
     if (serv->factory_mode == SW_MODE_SINGLE)
     {
+        swListenPort *port;
+        LL_FOREACH(serv->listen_list, port)
+        {
+            SwooleG.main_reactor->del(SwooleG.main_reactor, port->sock);
+            swPort_free(port);
+        }
         goto try_to_exit;
     }
 
@@ -470,11 +476,6 @@ void swWorker_try_to_exit()
 {
     swServer *serv = SwooleG.serv;
     int expect_event_num = SwooleG.use_signalfd ? 1 : 0;
-
-    if (serv->factory_mode == SW_MODE_SINGLE)
-    {
-        expect_event_num += serv->listen_port_num;
-    }
 
     uint8_t call_worker_exit_func = 0;
 
