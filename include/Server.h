@@ -364,6 +364,7 @@ struct _swServer
     int udp_socket_ipv6;
 
     int ringbuffer_size;
+    uint32_t max_wait_time;
 
     /*----------------------------Reactor schedule--------------------------------*/
     uint16_t reactor_round_i; //轮询调度

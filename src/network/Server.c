@@ -722,6 +722,7 @@ void swServer_init(swServer *serv)
     serv->worker_num = SW_CPU_NUM;
     serv->max_connection = SwooleG.max_sockets;
     serv->max_request = 0;
+    serv->max_wait_time = SW_WORKER_MAX_WAIT_TIME;
 
     //http server
     serv->http_parse_post = 1;

@@ -1613,6 +1613,12 @@ PHP_METHOD(swoole_server, set)
             serv->worker_num = SwooleG.cpu_num;
         }
     }
+    //max wait time
+    if (php_swoole_array_get_value(vht, "max_wait_time", v))
+    {
+        convert_to_long(v);
+        serv->max_wait_time = (uint32_t) Z_LVAL_P(v);
+    }
     //dispatch_mode
     if (php_swoole_array_get_value(vht, "dispatch_mode", v))
     {

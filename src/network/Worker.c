@@ -404,6 +404,7 @@ void swWorker_onStop(swServer *serv)
 void swWorker_stop_accept_request()
 {
     swWorker *worker = SwooleWG.worker;
+    swServer *serv = SwooleG.serv;
     SwooleWG.wait_exit = 1;
 
     //remove read event
@@ -440,9 +441,9 @@ void swWorker_stop_accept_request()
 
     if (SwooleG.timer.fd == 0)
     {
-        swTimer_init(SW_WORKER_MAX_WAIT_TIME * 1000);
+        swTimer_init(serv->max_wait_time * 1000);
     }
-    SwooleG.timer.add(&SwooleG.timer, SW_WORKER_MAX_WAIT_TIME * 1000, 0, NULL, swWorker_onTimeout);
+    SwooleG.timer.add(&SwooleG.timer, serv->max_wait_time * 1000, 0, NULL, swWorker_onTimeout);
 }
 
 static void swWorker_onTimeout(swTimer *timer, swTimer_node *tnode)
