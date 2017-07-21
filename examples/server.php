@@ -211,9 +211,12 @@ function timer_show($id)
 
 function my_onWorkerExit(swoole_server $serv, $worker_id) {
     $redisState = $serv->redis->getState();
+    global $argv;
     if ($redisState == Swoole\Redis::STATE_READY or $redisState == Swoole\Redis::STATE_SUBSCRIBE)
     {
-        $serv->redis->close();
+        swoole_set_process_name("php {$argv[0]}: worker shutting down");
+        echo "exit\n";
+        //$serv->redis->close();
     }
 }
 
