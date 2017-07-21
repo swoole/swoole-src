@@ -425,6 +425,13 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
         http->file_fd = fd;
     }
 
+    //if connection exists
+    if (http->cli)
+    {
+        http_client_send_http_request(zobject TSRMLS_CC);
+        return SW_OK;
+    }
+
     swClient *cli = php_swoole_client_new(zobject, http->host, http->host_len, http->port);
     if (cli == NULL)
     {
