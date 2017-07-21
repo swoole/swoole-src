@@ -51,6 +51,7 @@ static void php_swoole_onStart(swServer *);
 static void php_swoole_onShutdown(swServer *);
 static void php_swoole_onWorkerStart(swServer *, int worker_id);
 static void php_swoole_onWorkerStop(swServer *, int worker_id);
+static void php_swoole_onWorkerExit(swServer *serv, int worker_id);
 static void php_swoole_onUserWorkerStart(swServer *serv, swWorker *worker);
 static int php_swoole_onTask(swServer *, swEventData *task);
 static int php_swoole_onFinish(swServer *, swEventData *task);
@@ -428,6 +429,10 @@ void php_swoole_register_callback(swServer *serv)
     if (php_sw_server_callbacks[SW_SERVER_CB_onWorkerStop] != NULL)
     {
         serv->onWorkerStop = php_swoole_onWorkerStop;
+    }
+    if (php_sw_server_callbacks[SW_SERVER_CB_onWorkerExit] != NULL)
+    {
+        serv->onWorkerExit = php_swoole_onWorkerExit;
     }
     /**
      * UDP Packet
@@ -1105,6 +1110,38 @@ static void php_swoole_onWorkerStop(swServer *serv, int worker_id)
     args[0] = &zobject;
     args[1] = &zworker_id;
     if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onWorkerStop], &retval, 2, args, 0,
+            NULL TSRMLS_CC) == FAILURE)
+    {
+        swoole_php_fatal_error(E_WARNING, "onWorkerStop handler error.");
+    }
+    if (EG(exception))
+    {
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+    }
+    sw_zval_ptr_dtor(&zworker_id);
+    if (retval != NULL)
+    {
+        sw_zval_ptr_dtor(&retval);
+    }
+}
+
+static void php_swoole_onWorkerExit(swServer *serv, int worker_id)
+{
+    zval *zobject = (zval *) serv->ptr2;
+    zval *zworker_id;
+    zval **args[2];
+    zval *retval = NULL;
+
+    SW_MAKE_STD_ZVAL(zworker_id);
+    ZVAL_LONG(zworker_id, worker_id);
+
+    sw_zval_add_ref(&zobject);
+
+    SWOOLE_GET_TSRMLS;
+
+    args[0] = &zobject;
+    args[1] = &zworker_id;
+    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onWorkerExit], &retval, 2, args, 0,
             NULL TSRMLS_CC) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onWorkerStop handler error.");
@@ -1860,6 +1897,7 @@ PHP_METHOD(swoole_server, on)
         "WorkerStop",
         "Task",
         "Finish",
+        "WorkerExit",
         "WorkerError",
         "ManagerStart",
         "ManagerStop",

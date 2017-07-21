@@ -251,9 +251,12 @@ static int swManager_loop(swFactory *factory)
             if (ManagerProcess.read_message)
             {
                 swWorkerStopMessage msg;
-                if (swChannel_pop(serv->message_box, &msg, sizeof(msg)) > 0)
+                while (swChannel_pop(serv->message_box, &msg, sizeof(msg)) > 0)
                 {
-                    printf("read message, id=%d, pid=%d\n", msg.worker_id, msg.pid);
+                    if (SwooleG.running == 0)
+                    {
+                        continue;
+                    }
                     pid_t new_pid = swManager_spawn_worker(factory, msg.worker_id);
                     if (new_pid > 0)
                     {
@@ -364,7 +367,7 @@ static int swManager_loop(swFactory *factory)
                 reload_worker_i = 0;
                 continue;
             }
-            if (kill(reload_workers[reload_worker_i].pid, serv->reload_async ? SIGUSR1 : SIGTERM) < 0)
+            if (kill(reload_workers[reload_worker_i].pid, SIGTERM) < 0)
             {
                 swSysError("kill(%d, SIGTERM) failed.", reload_workers[reload_worker_i].pid);
             }

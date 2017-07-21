@@ -53,7 +53,7 @@ void swWorker_signal_init(void)
     swSignal_clear();
     swSignal_add(SIGHUP, NULL);
     swSignal_add(SIGPIPE, NULL);
-    swSignal_add(SIGUSR1, swWorker_signal_handler);
+    swSignal_add(SIGUSR1, NULL);
     swSignal_add(SIGUSR2, NULL);
     //swSignal_add(SIGINT, swWorker_signal_handler);
     swSignal_add(SIGTERM, swWorker_signal_handler);
@@ -70,10 +70,16 @@ void swWorker_signal_handler(int signo)
     switch (signo)
     {
     case SIGTERM:
+        /**
+         * Event worker
+         */
         if (SwooleG.main_reactor)
         {
-            SwooleG.main_reactor->running = 0;
+            swWorker_stop_accept_request();
         }
+        /**
+         * Task worker
+         */
         else
         {
             SwooleG.running = 0;
@@ -89,23 +95,7 @@ void swWorker_signal_handler(int signo)
         swWarn("SIGVTALRM coming");
         break;
     case SIGUSR1:
-        /**
-         * Event worker
-         */
-        if (SwooleG.main_reactor)
-        {
-            swWorker_stop_accept_request();
-        }
-        /**
-         * Task worker
-         */
-        else
-        {
-            SwooleG.running = 0;
-        }
-
         break;
-
     case SIGUSR2:
         break;
     default:
@@ -415,7 +405,6 @@ void swWorker_stop_accept_request()
 {
     swWorker *worker = SwooleWG.worker;
     SwooleWG.wait_exit = 1;
-    SwooleWG.try_exit_count = 0;
 
     //remove read event
     swConnection *socket = swReactor_get(SwooleG.main_reactor, worker->pipe_worker);

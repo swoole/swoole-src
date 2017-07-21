@@ -176,6 +176,7 @@ enum php_swoole_server_callback_type
     SW_SERVER_CB_onWorkerStop,     //worker(event & task)
     SW_SERVER_CB_onTask,           //worker(task)
     SW_SERVER_CB_onFinish,         //worker(event & task)
+    SW_SERVER_CB_onWorkerExit,     //worker(event)
     SW_SERVER_CB_onWorkerError,    //manager
     SW_SERVER_CB_onManagerStart,   //manager
     SW_SERVER_CB_onManagerStop,    //manager
