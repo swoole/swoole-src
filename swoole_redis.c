@@ -80,6 +80,7 @@ static PHP_METHOD(swoole_redis, __construct);
 static PHP_METHOD(swoole_redis, __destruct);
 static PHP_METHOD(swoole_redis, on);
 static PHP_METHOD(swoole_redis, connect);
+static PHP_METHOD(swoole_redis, getState);
 static PHP_METHOD(swoole_redis, __call);
 static PHP_METHOD(swoole_redis, close);
 
@@ -110,6 +111,7 @@ static const zend_function_entry swoole_redis_methods[] =
     PHP_ME(swoole_redis, on, arginfo_swoole_redis_on, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis, connect, arginfo_swoole_redis_connect, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis, close, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis, getState, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis, __call, arginfo_swoole_redis_call, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
@@ -170,6 +172,12 @@ void swoole_redis_init(int module_number TSRMLS_DC)
     SWOOLE_INIT_CLASS_ENTRY(swoole_redis_ce, "swoole_redis", "Swoole\\Redis", swoole_redis_methods);
     swoole_redis_class_entry_ptr = zend_register_internal_class(&swoole_redis_ce TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_redis, "Swoole\\Redis");
+
+    zend_declare_class_constant_long(swoole_redis_class_entry_ptr, SW_STRL("STATE_CONNECT")-1, SWOOLE_REDIS_STATE_CONNECT TSRMLS_CC);
+    zend_declare_class_constant_long(swoole_redis_class_entry_ptr, SW_STRL("STATE_READY")-1, SWOOLE_REDIS_STATE_READY TSRMLS_CC);
+    zend_declare_class_constant_long(swoole_redis_class_entry_ptr, SW_STRL("STATE_WAIT_RESULT")-1, SWOOLE_REDIS_STATE_WAIT_RESULT TSRMLS_CC);
+    zend_declare_class_constant_long(swoole_redis_class_entry_ptr, SW_STRL("STATE_SUBSCRIBE")-1, SWOOLE_REDIS_STATE_SUBSCRIBE TSRMLS_CC);
+    zend_declare_class_constant_long(swoole_redis_class_entry_ptr, SW_STRL("STATE_CLOSED")-1, SWOOLE_REDIS_STATE_CLOSED TSRMLS_CC);
 }
 
 static PHP_METHOD(swoole_redis, __construct)
@@ -381,7 +389,14 @@ static PHP_METHOD(swoole_redis, close)
     swRedisClient *redis = swoole_get_object(getThis());
     if (redis && redis->context && redis->state != SWOOLE_REDIS_STATE_CLOSED)
     {
-        SwooleG.main_reactor->defer(SwooleG.main_reactor, redis_close, redis);
+        if (redis->connecting)
+        {
+            SwooleG.main_reactor->defer(SwooleG.main_reactor, redis_close, redis);
+        }
+        else
+        {
+            redis_close(redis);
+        }
     }
 }
 
@@ -579,6 +594,17 @@ static PHP_METHOD(swoole_redis, __call)
 
     FREE_MEM();
     RETURN_TRUE;
+}
+
+static PHP_METHOD(swoole_redis, getState)
+{
+    swRedisClient *redis = swoole_get_object(getThis());
+    if (!redis)
+    {
+        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_redis.");
+        RETURN_FALSE;
+    }
+    RETURN_LONG(redis->state);
 }
 
 static void swoole_redis_set_error(swRedisClient *redis, zval* return_value, redisReply* reply TSRMLS_DC)
