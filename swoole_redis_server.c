@@ -296,7 +296,7 @@ static PHP_METHOD(swoole_redis_server, start)
     ret = swServer_start(serv);
     if (ret < 0)
     {
-        swoole_php_fatal_error(E_ERROR, "start server failed. Error: %s", sw_error);
+        swoole_php_fatal_error(E_ERROR, "server failed to start. Error: %s", sw_error);
         RETURN_LONG(ret);
     }
     RETURN_TRUE;
@@ -334,7 +334,7 @@ static PHP_METHOD(swoole_redis_server, setHandler)
     if (!sw_zend_is_callable(zcallback, 0, &func_name TSRMLS_CC))
 #endif
     {
-        swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+        swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
         efree(func_name);
         return;
     }
@@ -446,7 +446,7 @@ static PHP_METHOD(swoole_redis_server, format)
         }
         if (Z_TYPE_P(value) != IS_ARRAY)
         {
-            swoole_php_fatal_error(E_WARNING, "parameters 2 must be array.");
+            swoole_php_fatal_error(E_WARNING, "the second parameter should be an array.");
         }
         swString_clear(format_buffer);
         length = snprintf(message, sizeof(message), "*%d\r\n", zend_hash_num_elements(Z_ARRVAL_P(value)));
@@ -485,7 +485,7 @@ static PHP_METHOD(swoole_redis_server, format)
         }
         if (Z_TYPE_P(value) != IS_ARRAY)
         {
-            swoole_php_fatal_error(E_WARNING, "parameters 2 must be array.");
+            swoole_php_fatal_error(E_WARNING, "the second parameter should be an array.");
         }
         swString_clear(format_buffer);
         length = snprintf(message, sizeof(message), "*%d\r\n", 2 * zend_hash_num_elements(Z_ARRVAL_P(value)));
