@@ -210,13 +210,13 @@ static PHP_METHOD(swoole_process, __construct)
     //only cli env
     if (!SWOOLE_G(cli))
     {
-        swoole_php_fatal_error(E_ERROR, "swoole_process must run at php_cli environment.");
+        swoole_php_fatal_error(E_ERROR, "swoole_process only can be used in PHP CLI mode.");
         RETURN_FALSE;
     }
 
     if (SwooleG.serv && SwooleGS->start == 1 && swIsMaster())
     {
-        swoole_php_fatal_error(E_ERROR, "cannot use process in master process.");
+        swoole_php_fatal_error(E_ERROR, "swoole_process can't be used in master process.");
         RETURN_FALSE;
     }
 
@@ -367,7 +367,7 @@ static PHP_METHOD(swoole_process, statQueue)
     swWorker *process = swoole_get_object(getThis());
     if (!process->queue)
     {
-        swoole_php_fatal_error(E_WARNING, "have not msgqueue, can not use push()");
+        swoole_php_fatal_error(E_WARNING, "no queue, can't get stats of the queue.");
         RETURN_FALSE;
     }
 
@@ -519,7 +519,7 @@ static PHP_METHOD(swoole_process, alarm)
 
     if (SwooleG.timer.fd != 0)
     {
-        swoole_php_fatal_error(E_WARNING, "cannot use both timer and alarm at the same time.");
+        swoole_php_fatal_error(E_WARNING, "cannot use both 'timer' and 'alarm' at the same time.");
         RETURN_FALSE;
     }
 
@@ -694,7 +694,7 @@ static PHP_METHOD(swoole_process, start)
 
     if (process->pid > 0 && kill(process->pid, 0) == 0)
     {
-        swoole_php_fatal_error(E_WARNING, "process is already started.");
+        swoole_php_fatal_error(E_WARNING, "process has already been started.");
         RETURN_FALSE;
     }
 
@@ -737,7 +737,7 @@ static PHP_METHOD(swoole_process, read)
 
     if (process->pipe == 0)
     {
-        swoole_php_fatal_error(E_WARNING, "have not pipe, can not use read()");
+        swoole_php_fatal_error(E_WARNING, "no pipe, can not read from pipe.");
         RETURN_FALSE;
     }
 
@@ -771,14 +771,14 @@ static PHP_METHOD(swoole_process, write)
 
     if (data_len < 1)
     {
-        swoole_php_fatal_error(E_WARNING, "send data empty.");
+        swoole_php_fatal_error(E_WARNING, "the data to send is empty.");
         RETURN_FALSE;
     }
 
     swWorker *process = swoole_get_object(getThis());
     if (process->pipe == 0)
     {
-        swoole_php_fatal_error(E_WARNING, "have not pipe, can not use read()");
+        swoole_php_fatal_error(E_WARNING, "no pipe, can not write into pipe.");
         RETURN_FALSE;
     }
 
@@ -820,12 +820,12 @@ static PHP_METHOD(swoole_process, push)
 
     if (length <= 0)
     {
-        swoole_php_fatal_error(E_WARNING, "data empty.");
+        swoole_php_fatal_error(E_WARNING, "the data to push is empty.");
         RETURN_FALSE;
     }
     else if (length >= sizeof(message.data))
     {
-        swoole_php_fatal_error(E_WARNING, "data too big.");
+        swoole_php_fatal_error(E_WARNING, "the data to push is too big.");
         RETURN_FALSE;
     }
 
@@ -833,7 +833,7 @@ static PHP_METHOD(swoole_process, push)
 
     if (!process->queue)
     {
-        swoole_php_fatal_error(E_WARNING, "have not msgqueue, can not use push()");
+        swoole_php_fatal_error(E_WARNING, "no msgqueue, can not use push()");
         RETURN_FALSE;
     }
 
@@ -864,7 +864,7 @@ static PHP_METHOD(swoole_process, pop)
     swWorker *process = swoole_get_object(getThis());
     if (!process->queue)
     {
-        swoole_php_fatal_error(E_WARNING, "have not msgqueue, can not use push()");
+        swoole_php_fatal_error(E_WARNING, "no msgqueue, can not use pop()");
         RETURN_FALSE;
     }
 
@@ -904,7 +904,7 @@ static PHP_METHOD(swoole_process, exec)
 
     if (execfile_len < 1)
     {
-        swoole_php_fatal_error(E_WARNING, "execfile name empty.");
+        swoole_php_fatal_error(E_WARNING, "exec file name is empty.");
         RETURN_FALSE;
     }
 
@@ -1040,7 +1040,7 @@ static PHP_METHOD(swoole_process, close)
     swWorker *process = swoole_get_object(getThis());
     if (process->pipe == 0)
     {
-        swoole_php_fatal_error(E_WARNING, "have not pipe, can not use close()");
+        swoole_php_fatal_error(E_WARNING, "no pipe, can not close the pipe.");
         RETURN_FALSE;
     }
 
