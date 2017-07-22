@@ -1199,7 +1199,7 @@ static PHP_METHOD(swoole_http_server, on)
 
     if (SwooleGS->start > 0)
     {
-        swoole_php_error(E_WARNING, "Server is running. Unable to set event callback now.");
+        swoole_php_error(E_WARNING, "server is running. unable to register event callback function.");
         RETURN_FALSE;
     }
 
@@ -1213,7 +1213,7 @@ static PHP_METHOD(swoole_http_server, on)
     zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
     if (!sw_zend_is_callable_ex(callback, NULL, 0, &func_name, NULL, func_cache, NULL TSRMLS_CC))
     {
-        swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+        swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
         efree(func_name);
         RETURN_FALSE;
     }
@@ -1222,7 +1222,7 @@ static PHP_METHOD(swoole_http_server, on)
     char *func_name = NULL;
     if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
     {
-        swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+        swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
         efree(func_name);
         return;
     }
@@ -1549,7 +1549,7 @@ static PHP_METHOD(swoole_http_server, start)
     ret = swServer_start(serv);
     if (ret < 0)
     {
-        swoole_php_fatal_error(E_ERROR, "start server failed. Error: %s", sw_error);
+        swoole_php_fatal_error(E_ERROR, "failed to start server. Error: %s", sw_error);
         RETURN_LONG(ret);
     }
     RETURN_TRUE;
@@ -1560,7 +1560,7 @@ static PHP_METHOD(swoole_http_request, rawcontent)
     zval *zfd = sw_zend_read_property(swoole_http_request_class_entry_ptr, getThis(), ZEND_STRL("fd"), 0 TSRMLS_CC);
     if (ZVAL_IS_NULL(zfd))
     {
-        swoole_php_error(E_WARNING, "http client not exists.");
+        swoole_php_error(E_WARNING, "http client is not existed.");
         RETURN_FALSE;
     }
 
@@ -1654,7 +1654,7 @@ static PHP_METHOD(swoole_http_response, write)
     }
     else if (length == 0)
     {
-       swoole_php_error(E_WARNING, "data is empty.");
+       swoole_php_error(E_WARNING, "data to send is empty.");
         RETURN_FALSE;
     }
     else
@@ -1704,12 +1704,12 @@ static http_context* http_get_context(zval *object, int check_end TSRMLS_DC)
     http_context *ctx = swoole_get_object(object);
     if (!ctx)
     {
-        swoole_php_fatal_error(E_WARNING, "Http request is end.");
+        swoole_php_fatal_error(E_WARNING, "Http request is finished.");
         return NULL;
     }
     if (check_end && ctx->end)
     {
-        swoole_php_fatal_error(E_WARNING, "Http request is end.");
+        swoole_php_fatal_error(E_WARNING, "Http request is finished.");
         return NULL;
     }
     return ctx;
@@ -2083,14 +2083,14 @@ static PHP_METHOD(swoole_http_response, sendfile)
 #ifdef SW_HAVE_ZLIB
     if (ctx->gzip_enable)
     {
-        swoole_php_error(E_ERROR, "cannot use sendfile when enable gzip compression.");
+        swoole_php_error(E_ERROR, "can't use sendfile when gzip compression is enabled.");
         RETURN_FALSE;
     }
 #endif
 
     if (ctx->chunk)
     {
-        swoole_php_error(E_ERROR, "cannot use sendfile when enable Http-Chunk.");
+        swoole_php_error(E_ERROR, "can't use sendfile when Http-Chunk is enabled.");
         RETURN_FALSE;
     }
 
@@ -2102,7 +2102,7 @@ static PHP_METHOD(swoole_http_response, sendfile)
     }
     if (file_stat.st_size == 0)
     {
-        swoole_php_sys_error(E_WARNING, "cannot send empty file[%s].", filename);
+        swoole_php_sys_error(E_WARNING, "can't send empty file[%s].", filename);
         RETURN_FALSE;
     }
     if (file_stat.st_size <= offset)
@@ -2176,7 +2176,7 @@ static PHP_METHOD(swoole_http_response, cookie)
 
     if (name && strpbrk(name, "=,; \t\r\n\013\014") != NULL)
     {
-        swoole_php_error(E_WARNING, "Cookie names cannot contain any of the following '=,; \\t\\r\\n\\013\\014'");
+        swoole_php_error(E_WARNING, "Cookie names can't contain any of the following '=,; \\t\\r\\n\\013\\014'");
         RETURN_FALSE;
     }
 
@@ -2218,7 +2218,7 @@ static PHP_METHOD(swoole_http_response, cookie)
                 efree(dt);
                 efree(cookie);
                 efree(encoded_value);
-                swoole_php_error(E_WARNING, "Expiry date cannot have a year greater than 9999");
+                swoole_php_error(E_WARNING, "Expiry date can't be a year greater than 9999");
                 RETURN_FALSE;
             }
             strlcat(cookie, dt, len + 100);
@@ -2285,7 +2285,7 @@ static PHP_METHOD(swoole_http_response, rawcookie)
 
     if (name && strpbrk(name, "=,; \t\r\n\013\014") != NULL)
     {
-        swoole_php_error(E_WARNING, "Cookie names cannot contain any of the following '=,; \\t\\r\\n\\013\\014'");
+        swoole_php_error(E_WARNING, "Cookie names can't contain any of the following '=,; \\t\\r\\n\\013\\014'");
         RETURN_FALSE;
     }
 
@@ -2326,7 +2326,7 @@ static PHP_METHOD(swoole_http_response, rawcookie)
                 efree(dt);
                 efree(cookie);
                 efree(encoded_value);
-                swoole_php_error(E_WARNING, "Expiry date cannot have a year greater than 9999");
+                swoole_php_error(E_WARNING, "Expiry date can't be a year greater than 9999");
                 RETURN_FALSE;
             }
             strlcat(cookie, dt, len + 100);
@@ -2451,7 +2451,7 @@ static PHP_METHOD(swoole_http_response, gzip)
 
     if (context->send_header)
     {
-        swoole_php_fatal_error(E_WARNING, "must use before send header.");
+        swoole_php_fatal_error(E_WARNING, "must be used before sending the http header.");
         RETURN_FALSE;
     }
 
