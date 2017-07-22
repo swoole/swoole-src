@@ -165,7 +165,7 @@ static PHP_METHOD(swoole_mmap, open)
 
     if (l_filename <= 0)
     {
-        swoole_php_fatal_error(E_WARNING, "require filename.");
+        swoole_php_fatal_error(E_WARNING, "file name is required.");
         RETURN_FALSE;
     }
 
