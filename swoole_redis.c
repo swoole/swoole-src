@@ -228,7 +228,7 @@ static PHP_METHOD(swoole_redis, __construct)
             convert_to_long(ztmp);
             if (Z_LVAL_P(ztmp) > 1 << 8)
             {
-                swoole_php_fatal_error(E_WARNING, "redis database is too big.");
+                swoole_php_fatal_error(E_WARNING, "redis database number is too big.");
             }
             else
             {
@@ -255,7 +255,7 @@ static PHP_METHOD(swoole_redis, on)
     swRedisClient *redis = swoole_get_object(getThis());
     if (redis->context != NULL)
     {
-        swoole_php_fatal_error(E_WARNING, "Must be called before connect.");
+        swoole_php_fatal_error(E_WARNING, "Must be called before connecting.");
         RETURN_FALSE;
     }
 
@@ -293,7 +293,7 @@ static PHP_METHOD(swoole_redis, connect)
 
     if (host_len <= 0)
     {
-        swoole_php_error(E_WARNING, "host is empty.");
+        swoole_php_error(E_WARNING, "redis server host is empty.");
         RETURN_FALSE;
     }
 
@@ -308,7 +308,7 @@ static PHP_METHOD(swoole_redis, connect)
     {
         if (port <= 1 || port > 65535)
         {
-            swoole_php_error(E_WARNING, "port is invalid.");
+            swoole_php_error(E_WARNING, "redis server port is invalid.");
             RETURN_FALSE;
         }
         context = redisAsyncConnect(host, (int) port);
@@ -316,7 +316,7 @@ static PHP_METHOD(swoole_redis, connect)
 
     if (context->err)
     {
-        swoole_php_error(E_WARNING, "connect to redis-server[%s:%d] failed, Erorr: %s[%d]", host, (int) port, context->errstr, context->err);
+        swoole_php_error(E_WARNING, "failed to connect to the redis-server[%s:%d], Erorr: %s[%d]", host, (int) port, context->errstr, context->err);
         RETURN_FALSE;
     }
 
@@ -420,7 +420,7 @@ static PHP_METHOD(swoole_redis, __call)
     swRedisClient *redis = swoole_get_object(getThis());
     if (!redis)
     {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_redis.");
+        swoole_php_fatal_error(E_WARNING, "the object is not an instance of swoole_redis.");
         RETURN_FALSE;
     }
 
@@ -440,7 +440,7 @@ static PHP_METHOD(swoole_redis, __call)
     case SWOOLE_REDIS_STATE_SUBSCRIBE:
         if (!swoole_redis_is_message_command(command, command_len))
         {
-            swoole_php_error(E_WARNING, "redis client is waiting for subscribe message.");
+            swoole_php_error(E_WARNING, "redis client is waiting for subscribed messages.");
             RETURN_FALSE;
         }
         break;
@@ -539,7 +539,7 @@ static PHP_METHOD(swoole_redis, __call)
         zval **cb_tmp;
         if (zend_hash_index_find(Z_ARRVAL_P(params), zend_hash_num_elements(Z_ARRVAL_P(params)) - 1, (void **) &cb_tmp) == FAILURE)
         {
-            swoole_php_error(E_WARNING, "index out of array.");
+            swoole_php_error(E_WARNING, "index out of array bounds.");
             FREE_MEM();
             RETURN_FALSE;
         }
@@ -548,7 +548,7 @@ static PHP_METHOD(swoole_redis, __call)
         zval *callback = zend_hash_index_find(Z_ARRVAL_P(params), zend_hash_num_elements(Z_ARRVAL_P(params)) - 1);
         if (callback == NULL)
         {
-            swoole_php_error(E_WARNING, "index out of array.");
+            swoole_php_error(E_WARNING, "index out of array bounds.");
             FREE_MEM();
             RETURN_FALSE;
         }

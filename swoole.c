@@ -1056,7 +1056,7 @@ PHP_FUNCTION(swoole_set_process_name)
     }
     else if (Z_STRLEN_P(name) > 127)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "process name is too long,the max len is 127");
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "process name is too long, the max length is 127");
     }
 
     if (size > SwooleG.pagesize)
