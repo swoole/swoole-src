@@ -273,6 +273,14 @@ static int swServer_start_check(swServer *serv)
         swWarn("serv->max_connection is too small.");
         serv->max_connection = SwooleG.max_sockets;
     }
+    swListenPort *ls;
+    LL_FOREACH(serv->listen_list, ls)
+    {
+        if (ls->protocol.package_max_length < SW_BUFFER_MIN_SIZE)
+        {
+            ls->protocol.package_max_length = SW_BUFFER_MIN_SIZE;
+        }
+    }
     SwooleGS->session_round = 1;
     return SW_OK;
 }
