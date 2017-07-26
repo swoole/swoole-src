@@ -2,6 +2,10 @@
 $cli = new swoole_http_client('127.0.0.1', 9501);
 //post request
 //$cli->setData(http_build_query(['a'=>123,'b'=>"哈哈"]));
+//$cli->set(['timeout' => -1]);
+//$cli->setHeaders(['Host' => 'www.baidu.com']);
+//$cli->set(['http_proxy_host' => '127.0.0.1', 'http_proxy_port' => 8888,]);
+
 $cli->setHeaders(['User-Agent' => "swoole"]);
 
 $cli->get('/index.php', function ($cli)
