@@ -4,8 +4,8 @@ function dump($var)
     return highlight_string("<?php\n\$array = ".var_export($var, true).";", true);
 }
 $key_dir = dirname(dirname(__DIR__)) . '/tests/ssl';
-//$http = new swoole_http_server("0.0.0.0", 9501, SWOOLE_BASE);
-$http = new swoole_http_server("0.0.0.0", 9501);
+$http = new swoole_http_server("0.0.0.0", 9501, SWOOLE_BASE);
+//$http = new swoole_http_server("0.0.0.0", 9501);
 //$http = new swoole_http_server("0.0.0.0", 9501, SWOOLE_BASE, SWOOLE_SOCK_TCP | SWOOLE_SSL);
 //https
 //$http = new swoole_http_server("0.0.0.0", 9501, SWOOLE_BASE, SWOOLE_SOCK_TCP | SWOOLE_SSL);
@@ -30,6 +30,8 @@ $http->set([
 //'daemonize' => true,
 //    'ssl_cert_file' => $key_dir.'/ssl.crt',
 //    'ssl_key_file' => $key_dir.'/ssl.key',
+    'enable_static_handler' => true,
+    'document_root' => '/home/htf/workspace/php/www.swoole.com/web/'
 ]);
 
 $http->listen('127.0.0.1', 9502, SWOOLE_SOCK_TCP);

@@ -1811,10 +1811,10 @@ PHP_METHOD(swoole_server, set)
     /**
      * http static file handler
      */
-    if (php_swoole_array_get_value(vht, "http_filter_static", v))
+    if (php_swoole_array_get_value(vht, "enable_static_handler", v))
     {
         convert_to_boolean(v);
-        serv->http_filter_static = Z_BVAL_P(v);
+        serv->enable_static_handler = Z_BVAL_P(v);
     }
     if (php_swoole_array_get_value(vht, "document_root", v))
     {

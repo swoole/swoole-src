@@ -404,7 +404,7 @@ struct _swServer
     /**
      * handle static files
      */
-    uint32_t http_filter_static :1;
+    uint32_t enable_static_handler :1;
     /**
      * enable onConnect/onClose event when use dispatch_mode=1/3
      */
