@@ -156,18 +156,6 @@ static int http_client_coro_execute(zval *zobject, char *uri, zend_size_t uri_le
             swoole_php_fatal_error(E_ERROR, "[1] swString_new(%d) failed.", SW_HTTP_RESPONSE_INIT_SIZE);
             return SW_ERR;
         }
-        http->header_field_buffer = swString_new(SW_HTTP_HEADER_BUFFER_SIZE);
-        if (http->header_field_buffer == NULL)
-        {
-            swoole_php_fatal_error(E_ERROR, "[2] swString_new(%d) failed.", SW_HTTP_HEADER_BUFFER_SIZE);
-            return SW_ERR;
-        }
-        http->header_value_buffer = swString_new(SW_HTTP_HEADER_BUFFER_SIZE);
-        if (http->header_value_buffer == NULL)
-        {
-            swoole_php_fatal_error(E_ERROR, "[3] swString_new(%d) failed.", SW_HTTP_HEADER_BUFFER_SIZE);
-            return SW_ERR;
-        }
     }
     else
     {

@@ -103,8 +103,8 @@ typedef struct
 
     swTimer_node *timer;
 
-    swString *header_field_buffer;
-    swString *header_value_buffer;
+    char *tmp_header_field_name;
+    int tmp_header_field_name_len;
 
 #ifdef SW_HAVE_ZLIB
     z_stream gzip_stream;
@@ -128,6 +128,7 @@ typedef struct
     uint8_t completed;
     uint8_t websocket_mask;
     uint8_t download;    //save http response to file
+    uint8_t header_completed;
 
 } http_client;
 

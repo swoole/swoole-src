@@ -20,12 +20,6 @@
 
 static swString *http_client_buffer;
 
-static int http_client_parser_on_header_field(php_http_parser *parser, const char *at, size_t length);
-static int http_client_parser_on_header_value(php_http_parser *parser, const char *at, size_t length);
-static int http_client_parser_on_body(php_http_parser *parser, const char *at, size_t length);
-static int http_client_parser_on_headers_complete(php_http_parser *parser);
-static int http_client_parser_on_message_complete(php_http_parser *parser);
-
 static void http_client_onReceive(swClient *cli, char *data, uint32_t length);
 static void http_client_onConnect(swClient *cli);
 static void http_client_onClose(swClient *cli);
@@ -35,8 +29,6 @@ static void http_client_onResponseException();
 static int http_client_onMessage(swConnection *conn, char *data, uint32_t length);
 
 static int http_client_send_http_request(zval *zobject TSRMLS_DC);
-static http_client* http_client_create(zval *object TSRMLS_DC);
-static void http_client_free(zval *object TSRMLS_DC);
 static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zval *callback TSRMLS_DC);
 
 #ifdef SW_HAVE_ZLIB
@@ -45,51 +37,6 @@ static void http_init_gzip_stream(http_client *);
 extern voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size);
 extern void php_zlib_free(voidpf opaque, voidpf address);
 #endif
-
-static sw_inline void http_client_swString_append_headers(swString* swStr, char* key, zend_size_t key_len, char* data, zend_size_t data_len)
-{
-    swString_append_ptr(swStr, key, key_len);
-    swString_append_ptr(swStr, ZEND_STRL(": "));
-    swString_append_ptr(swStr, data, data_len);
-    swString_append_ptr(swStr, ZEND_STRL("\r\n"));
-}
-
-static sw_inline void http_client_append_content_length(swString* buf, int length)
-{
-    char content_length_str[32];
-    int n = snprintf(content_length_str, sizeof(content_length_str), "Content-Length: %d\r\n\r\n", length);
-    swString_append_ptr(buf, content_length_str, n);
-}
-
-static sw_inline void http_client_create_token(int length, char *buf)
-{
-    char characters[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!\"§$%&/()=[]{}";
-    int i;
-    assert(length < 1024);
-    for (i = 0; i < length; i++)
-    {
-        buf[i] = characters[rand() % sizeof(characters) - 1];
-    }
-    buf[length] = '\0';
-}
-
-static sw_inline int http_client_check_data(zval *data TSRMLS_DC)
-{
-    if (Z_TYPE_P(data) != IS_ARRAY && Z_TYPE_P(data) != IS_STRING)
-    {
-        swoole_php_error(E_WARNING, "parameter $data must be an array or string.");
-        return SW_ERR;
-    }
-    else if (Z_TYPE_P(data) == IS_ARRAY && php_swoole_array_length(data) == 0)
-    {
-        swoole_php_error(E_WARNING, "parameter $data is empty.");
-    }
-    else if (Z_TYPE_P(data) == IS_STRING && Z_STRLEN_P(data) == 0)
-    {
-        swoole_php_error(E_WARNING, "parameter $data is empty.");
-    }
-    return SW_OK;
-}
 
 static const php_http_parser_settings http_parser_settings =
 {
