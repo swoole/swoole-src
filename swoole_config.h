@@ -57,7 +57,6 @@
 #define SW_MAX_THREAD_NCPU         4 // n * cpu_num
 #define SW_MAX_WORKER_NCPU         1000 // n * cpu_num
 #define SW_MAX_REQUEST             5000          //最大请求包数
-#define SW_MAX_RELOAD_WAIT         10           //最大reload等待次数
 
 #define SW_CORO_SCHEDUER_TIMEOUT   100           //协程强制超时回调的单位时间 100ms
 //#define SW_CONNECTION_LIST_EXPAND  (4096*2)  //动态扩容的数量
@@ -135,6 +134,7 @@
 //#define SW_WORKER_RECV_AGAIN
 
 #define SW_WORKER_USE_SIGNALFD
+#define SW_WORKER_MAX_WAIT_TIME          30           //最大等待时间
 
 //#define SW_WORKER_SEND_CHUNK
 
@@ -183,6 +183,7 @@
  */
 #define SW_BUFFER_OUTPUT_SIZE            (1024*1024*2)
 #define SW_BUFFER_INPUT_SIZE             (1024*1024*2)
+#define SW_BUFFER_MIN_SIZE               65536
 #define SW_PIPE_BUFFER_SIZE              (1024*1024*32)
 
 #define SW_MEMORY_POOL_SLAB_PAGE         10     //内存池的页数
@@ -253,6 +254,11 @@
 #define SW_HTTP_COMPRESS_GZIP
 #define SW_HTTP_UPLOAD_TMPDIR_SIZE       256
 #define SW_HTTP_DATE_FORMAT              "D, d M Y H:i:s T"
+#define SW_HTTP_RFC1123_DATE_GMT         "%a, %d %b %Y %T GMT"
+#define SW_HTTP_RFC1123_DATE_UTC         "%a, %d %b %Y %T UTC"
+#define SW_HTTP_RFC850_DATE              "%A, %d-%b-%y %T GMT"
+#define SW_HTTP_ASCTIME_DATE             "%a %b %e %T %Y"
+
 //#define SW_HTTP_100_CONTINUE
 #define SW_HTTP2_DATA_BUFFSER_SIZE       8192
 #define SW_HTTP2_MAX_CONCURRENT_STREAMS  128

@@ -120,6 +120,7 @@ int swSSL_connect(swConnection *conn);
 void swSSL_close(swConnection *conn);
 ssize_t swSSL_recv(swConnection *conn, void *__buf, size_t __n);
 ssize_t swSSL_send(swConnection *conn, void *__buf, size_t __n);
+int swSSL_sendfile(swConnection *conn, int fd, off_t *offset, size_t size);
 #endif
 
 /**

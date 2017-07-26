@@ -189,41 +189,42 @@ static int swReactorProcess_onPipeRead(swReactor *reactor, swEvent *event)
     swFactory *factory = &serv->factory;
     swString *buffer_output;
 
-    if (read(event->fd, &task, sizeof(task)) > 0)
+    if (read(event->fd, &task, sizeof(task)) <= 0)
     {
-        switch(task.info.type )
-        {
-        case SW_EVENT_PIPE_MESSAGE:
-            serv->onPipeMessage(serv, &task);
-            break;
-        case SW_EVENT_FINISH:
-            serv->onFinish(serv, &task);
-            break;
-        case SW_EVENT_SENDFILE:
-            memcpy(&_send.info, &task.info, sizeof(_send.info));
-            _send.data = task.data;
-            factory->finish(factory, &_send);
-            break;
-        case SW_EVENT_PROXY_START:
-        case SW_EVENT_PROXY_END:
-            buffer_output = SwooleWG.buffer_output[task.info.from_id];
-            swString_append_ptr(buffer_output, task.data, task.info.len);
-            if (task.info.type == SW_EVENT_PROXY_END)
-            {
-                memcpy(&_send.info, &task.info, sizeof(_send.info));
-                _send.info.type = SW_EVENT_TCP;
-                _send.data = buffer_output->str;
-                _send.length = buffer_output->length;
-                factory->finish(factory, &_send);
-                swString_clear(buffer_output);
-            }
-            break;
-        default:
-            break;
-        }
-        return SW_OK;
+        return SW_ERR;
     }
-    return SW_ERR;
+
+    switch (task.info.type)
+    {
+    case SW_EVENT_PIPE_MESSAGE:
+        serv->onPipeMessage(serv, &task);
+        break;
+    case SW_EVENT_FINISH:
+        serv->onFinish(serv, &task);
+        break;
+    case SW_EVENT_SENDFILE:
+        memcpy(&_send.info, &task.info, sizeof(_send.info));
+        _send.data = task.data;
+        factory->finish(factory, &_send);
+        break;
+    case SW_EVENT_PROXY_START:
+    case SW_EVENT_PROXY_END:
+        buffer_output = SwooleWG.buffer_output[task.info.from_id];
+        swString_append_ptr(buffer_output, task.data, task.info.len);
+        if (task.info.type == SW_EVENT_PROXY_END)
+        {
+            memcpy(&_send.info, &task.info, sizeof(_send.info));
+            _send.info.type = SW_EVENT_TCP;
+            _send.data = buffer_output->str;
+            _send.length = buffer_output->length;
+            factory->finish(factory, &_send);
+            swString_clear(buffer_output);
+        }
+        break;
+    default:
+        break;
+    }
+    return SW_OK;
 }
 
 static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
@@ -237,6 +238,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     SwooleWG.id = worker->id;
     SwooleWG.max_request = serv->max_request;
     SwooleWG.request_count = 0;
+    SwooleWG.worker = worker;
 
     SwooleTG.id = 0;
     if (worker->id == 0)

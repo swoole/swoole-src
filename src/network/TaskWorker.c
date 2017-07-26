@@ -107,7 +107,7 @@ static void swTaskWorker_signal_init(void)
 {
     swSignal_set(SIGHUP, NULL, 1, 0);
     swSignal_set(SIGPIPE, NULL, 1, 0);
-    swSignal_set(SIGUSR1, NULL, 1, 0);
+    swSignal_set(SIGUSR1, swWorker_signal_handler, 1, 0);
     swSignal_set(SIGUSR2, NULL, 1, 0);
     swSignal_set(SIGTERM, swWorker_signal_handler, 1, 0);
     swSignal_set(SIGALRM, swSystemTimer_signal_handler, 1, 0);

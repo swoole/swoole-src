@@ -31,7 +31,7 @@ int swConnection_onSendfile(swConnection *conn, swBuffer_trunk *chunk)
     swTask_sendfile *task = chunk->store.ptr;
 
 #ifdef HAVE_TCP_NOPUSH
-    if (task->offset == 0 && conn->tcp_nopush)
+    if (task->offset == 0 && conn->tcp_nopush == 0)
     {
         /**
          * disable tcp_nodelay
@@ -51,11 +51,23 @@ int swConnection_onSendfile(swConnection *conn, swBuffer_trunk *chunk)
         {
             swWarn("swSocket_tcp_nopush() failed. Error: %s[%d]", strerror(errno), errno);
         }
+        conn->tcp_nopush = 1;
     }
 #endif
 
     int sendn = (task->length - task->offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : task->length - task->offset;
-    ret = swoole_sendfile(conn->fd, task->fd, &task->offset, sendn);
+
+#ifdef SW_USE_OPENSSL
+    if (conn->ssl)
+    {
+        ret = swSSL_sendfile(conn, task->fd, &task->offset, sendn);
+    }
+    else
+#endif
+    {
+        ret = swoole_sendfile(conn->fd, task->fd, &task->offset, sendn);
+    }
+
     swTrace("ret=%d|task->offset=%ld|sendn=%d|filesize=%ld", ret, task->offset, sendn, task->length);
 
     if (ret <= 0)
@@ -80,26 +92,24 @@ int swConnection_onSendfile(swConnection *conn, swBuffer_trunk *chunk)
         swBuffer_pop_trunk(conn->out_buffer, chunk);
 
 #ifdef HAVE_TCP_NOPUSH
-        if (conn->tcp_nopush)
+        /**
+         * disable tcp_nopush
+         */
+        if (swSocket_tcp_nopush(conn->fd, 0) == -1)
         {
-            /**
-             * disable tcp_nopush
-             */
-            if (swSocket_tcp_nopush(conn->fd, 0) == -1)
-            {
-                swWarn("swSocket_tcp_nopush() failed. Error: %s[%d]", strerror(errno), errno);
-            }
+            swWarn("swSocket_tcp_nopush() failed. Error: %s[%d]", strerror(errno), errno);
+        }
+        conn->tcp_nopush = 0;
 
-            /**
-             * enable tcp_nodelay
-             */
-            if (conn->tcp_nodelay)
+        /**
+         * enable tcp_nodelay
+         */
+        if (conn->tcp_nodelay)
+        {
+            int value = 1;
+            if (setsockopt(conn->fd, IPPROTO_TCP, TCP_NODELAY, (const void *) &value, sizeof(int)) == -1)
             {
-                int value = 1;
-                if (setsockopt(conn->fd, IPPROTO_TCP, TCP_NODELAY, (const void *) &value, sizeof(int)) == -1)
-                {
-                    swWarn("setsockopt(TCP_NODELAY) failed. Error: %s[%d]", strerror(errno), errno);
-                }
+                swWarn("setsockopt(TCP_NODELAY) failed. Error: %s[%d]", strerror(errno), errno);
             }
         }
 #endif

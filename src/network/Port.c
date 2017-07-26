@@ -21,11 +21,14 @@
 #include "mqtt.h"
 #include "redis.h"
 
+#include <sys/stat.h>
+
 static int swPort_onRead_raw(swReactor *reactor, swListenPort *lp, swEvent *event);
 static int swPort_onRead_check_length(swReactor *reactor, swListenPort *lp, swEvent *event);
 static int swPort_onRead_check_eof(swReactor *reactor, swListenPort *lp, swEvent *event);
 static int swPort_onRead_http(swReactor *reactor, swListenPort *lp, swEvent *event);
 static int swPort_onRead_redis(swReactor *reactor, swListenPort *lp, swEvent *event);
+static int swPort_http_static_handler(swHttpRequest *request, swConnection *conn);
 
 void swPort_init(swListenPort *port)
 {
@@ -293,6 +296,7 @@ static int swPort_onRead_check_length(swReactor *reactor, swListenPort *port, sw
 static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *event)
 {
     swConnection *conn = event->socket;
+    swServer *serv = reactor->ptr;
 
     if (conn->websocket_status >= WEBSOCKET_STATUS_HANDSHAKE)
     {
@@ -434,7 +438,16 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
             {
                 if (memcmp(buffer->str + buffer->length - 4, "\r\n\r\n", 4) == 0)
                 {
-                    swReactorThread_dispatch(conn, buffer->str, buffer->length);
+                    /**
+                     * send static file content directly in the reactor thread
+                     */
+                    if (!(serv->enable_static_handler && swPort_http_static_handler(request, conn)))
+                    {
+                        /**
+                         * dynamic request, dispatch to worker
+                         */
+                        swReactorThread_dispatch(conn, buffer->str, buffer->length);
+                    }
                     swHttpRequest_free(conn);
                     return SW_OK;
                 }
@@ -576,4 +589,174 @@ void swPort_free(swListenPort *port)
     {
         unlink(port->host);
     }
+}
+
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
+
+int swPort_http_static_handler(swHttpRequest *request, swConnection *conn)
+{
+    swServer *serv = SwooleG.serv;
+    char *url = request->buffer->str + request->url_offset;
+    char *params = memchr(url, '?', request->url_length);
+
+    struct
+    {
+        off_t offset;
+        size_t length;
+        char filename[PATH_MAX];
+    } buffer;
+
+    char *p = buffer.filename;
+
+    memcpy(p, serv->document_root, serv->document_root_len);
+    p += serv->document_root_len;
+    uint32_t n = params ? params - url : request->url_length;
+    memcpy(p, url, n);
+    p += n;
+    *p = 0;
+
+    struct stat file_stat;
+    if (lstat(buffer.filename, &file_stat) < 0)
+    {
+        return SW_FALSE;
+    }
+    if ((file_stat.st_mode & S_IFMT) != S_IFREG)
+    {
+        return SW_FALSE;
+    }
+
+    char header_buffer[1024];
+    swSendData response;
+    response.info.fd = conn->session_id;
+
+    response.info.type = SW_EVENT_TCP;
+
+    p = request->buffer->str + request->url_offset + request->url_length + 10;
+    char *pe = request->buffer->str + request->header_length;
+
+    char *date_if_modified_since;
+    int length_if_modified_since;
+
+    int state = 0;
+    for (; p < pe; p++)
+    {
+        switch(state)
+        {
+        case 0:
+            if (strncasecmp(p, SW_STRL("If-Modified-Since")-1) == 0)
+            {
+                p += sizeof("If-Modified-Since");
+                state = 1;
+            }
+            break;
+        case 1:
+            if (!isspace(*p))
+            {
+                date_if_modified_since = p;
+                state = 2;
+            }
+            break;
+        case 2:
+            if (strncasecmp(p, SW_STRL("\r\n") - 1) == 0)
+            {
+                length_if_modified_since = p - date_if_modified_since;
+                goto check_modify_date;
+            }
+            break;
+        default:
+            break;
+        }
+    }
+
+    char date_[64];
+    struct tm *tm1 = gmtime(&SwooleGS->now);
+    strftime(date_, sizeof(date_), "%a, %d %b %Y %H:%M:%S %Z", tm1);
+
+    char date_last_modified[64];
+#ifdef __MACH__
+    time_t file_mtime = file_stat.st_mtimespec.tv_sec;
+#else
+    time_t file_mtime = file_stat.st_mtim.tv_sec;
+#endif
+
+    struct tm *tm2 = gmtime(&file_mtime);
+    strftime(date_last_modified, sizeof(date_last_modified), "%a, %d %b %Y %H:%M:%S %Z", tm2);
+
+    check_modify_date: if (state == 2)
+    {
+        struct tm tm3;
+        char date_tmp[64];
+        memcpy(date_tmp, date_if_modified_since, length_if_modified_since);
+        date_tmp[length_if_modified_since] = 0;
+
+        char *date_format = NULL;
+
+        if (strptime(date_tmp, SW_HTTP_RFC1123_DATE_GMT, &tm3) != NULL)
+        {
+            date_format = SW_HTTP_RFC1123_DATE_GMT;
+        }
+        else if (strptime(date_tmp, SW_HTTP_RFC1123_DATE_UTC, &tm3) != NULL)
+        {
+            date_format = SW_HTTP_RFC1123_DATE_UTC;
+        }
+        else if (strptime(date_tmp, SW_HTTP_RFC850_DATE, &tm3) != NULL)
+        {
+            date_format = SW_HTTP_RFC850_DATE;
+        }
+        else if (strptime(date_tmp, SW_HTTP_ASCTIME_DATE, &tm3) != NULL)
+        {
+            date_format = SW_HTTP_ASCTIME_DATE;
+        }
+        if (date_format && mktime(&tm3) - timezone >= file_mtime)
+        {
+            response.length = response.info.len = snprintf(header_buffer, sizeof(header_buffer),
+                    "HTTP/1.1 304 Not Modified\r\n"
+                    "Connection: Keep-Alive\r\n"
+                    "Date: %s\r\n"
+                    "Last-Modified: %s\r\n"
+                    "Server: %s\r\n\r\n", date_, date_last_modified,
+                    SW_HTTP_SERVER_SOFTWARE);
+            response.data = header_buffer;
+            swReactorThread_send(&response);
+            return SW_TRUE;
+        }
+    }
+
+    response.length = response.info.len = snprintf(header_buffer, sizeof(header_buffer),
+            "HTTP/1.1 200 OK\r\n"
+            "Connection: Keep-Alive\r\n"
+            "Content-Length: %ld\r\n"
+            "Content-Type: %s\r\n"
+            "Date: %s\r\n"
+            "Last-Modified: %s\r\n"
+            "Server: %s\r\n\r\n", (long) file_stat.st_size, swoole_get_mimetype(buffer.filename),
+            date_,
+            date_last_modified,
+            SW_HTTP_SERVER_SOFTWARE);
+
+    response.data = header_buffer;
+
+#ifdef HAVE_TCP_NOPUSH
+    if (conn->tcp_nopush == 0)
+    {
+        if (swSocket_tcp_nopush(conn->fd, 1) == -1)
+        {
+            swWarn("swSocket_tcp_nopush() failed. Error: %s[%d]", strerror(errno), errno);
+        }
+        conn->tcp_nopush = 1;
+    }
+#endif
+    swReactorThread_send(&response);
+
+    buffer.offset = 0;
+    buffer.length = file_stat.st_size;
+
+    response.info.type = SW_EVENT_SENDFILE;
+    response.length = response.info.len = sizeof(swSendFile_request) + buffer.length + 1;
+    response.data = (void*) &buffer;
+
+    swReactorThread_send(&response);
+    return SW_TRUE;
 }

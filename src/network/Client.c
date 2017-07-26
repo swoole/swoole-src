@@ -336,6 +336,10 @@ static int swClient_close(swClient *cli)
         {
             sw_free(cli->ssl_option.key_file);
         }
+        if (cli->ssl_option.passphrase)
+        {
+            sw_free(cli->ssl_option.passphrase);
+        }
     }
 #endif
     //clear buffer
@@ -783,8 +787,8 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
 {
     int n;
     swClient *cli = event->socket->object;
-    char *buf = cli->buffer->str;
-    long buf_size = cli->buffer->size;
+    char *buf = cli->buffer->str + cli->buffer->length;
+    long buf_size = cli->buffer->size - cli->buffer->length;
 
     if (cli->http_proxy && cli->http_proxy->state != SW_HTTP_PROXY_STATE_READY)
     {

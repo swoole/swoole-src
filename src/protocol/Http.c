@@ -123,41 +123,52 @@ int swHttpRequest_get_protocol(swHttpRequest *request)
 
     //http version
     char *p;
-    char cmp = 0;
+    char state = 0;
     for (p = buf; p < pe; p++)
     {
-        if (cmp == 0 && *p == SW_SPACE)
+        switch(state)
         {
-            cmp = 1;
-        }
-        else if (cmp == 1)
-        {
+        case 0:
             if (isspace(*p))
             {
                 continue;
             }
-            if (p + 8 > pe)
+            state = 1;
+            request->url_offset = p - request->buffer->str;
+            break;
+        case 1:
+            if (isspace(*p))
             {
-                return SW_ERR;
+                state = 2;
+                request->url_length = p - request->buffer->str - request->url_offset;
+                continue;
+            }
+            break;
+        case 2:
+            if (isspace(*p))
+            {
+                continue;
             }
             if (memcmp(p, "HTTP/1.1", 8) == 0)
             {
                 request->version = HTTP_VERSION_11;
-                break;
+                goto end;
             }
             else if (memcmp(p, "HTTP/1.0", 8) == 0)
             {
                 request->version = HTTP_VERSION_10;
-                break;
+                goto end;
             }
             else
             {
                 request->excepted = 1;
                 return SW_ERR;
             }
+        default:
+            break;
         }
     }
-    p += 8;
+    end: p += 8;
     request->buffer->offset = p - request->buffer->str;
     return SW_OK;
 }

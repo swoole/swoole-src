@@ -82,6 +82,11 @@ enum swErrorCode
     SW_ERROR_SERVER_TOO_MANY_LISTEN_PORT,
     SW_ERROR_SERVER_PIPE_BUFFER_FULL,
 
+    /**
+     * Process exit timeout, forced to end.
+     */
+    SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT,
+
 };
 
 #endif /* SW_ERRNO_H_ */

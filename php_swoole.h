@@ -180,6 +180,7 @@ enum php_swoole_server_callback_type
     SW_SERVER_CB_onWorkerStop,     //worker(event & task)
     SW_SERVER_CB_onTask,           //worker(task)
     SW_SERVER_CB_onFinish,         //worker(event & task)
+    SW_SERVER_CB_onWorkerExit,     //worker(event)
     SW_SERVER_CB_onWorkerError,    //manager
     SW_SERVER_CB_onManagerStart,   //manager
     SW_SERVER_CB_onManagerStop,    //manager
@@ -255,6 +256,7 @@ PHP_FUNCTION(swoole_get_local_ip);
 //                  swoole_server
 //---------------------------------------------------------
 PHP_METHOD(swoole_server, __construct);
+PHP_METHOD(swoole_server, __destruct);
 PHP_METHOD(swoole_server, set);
 PHP_METHOD(swoole_server, on);
 PHP_METHOD(swoole_server, listen);
@@ -520,6 +522,23 @@ static sw_inline int php_swoole_is_callable(zval *callback TSRMLS_DC)
     array_init(_new_##arr);\
     sw_php_array_merge(Z_ARRVAL_P(_new_##arr), Z_ARRVAL_P(arr));\
     arr = _new_##arr;
+
+static sw_inline zval* php_swoole_read_init_property(zend_class_entry *scope, zval *object, char *p, size_t pl TSRMLS_DC)
+{
+    zval *property = sw_zend_read_property(scope, object, p, pl, 1 TSRMLS_CC);
+    if (property == NULL || ZVAL_IS_NULL(property))
+    {
+        SW_MAKE_STD_ZVAL(property);
+        array_init(property);
+        zend_update_property(scope, object, p, pl, property TSRMLS_CC);
+        sw_zval_ptr_dtor(&property);
+        return sw_zend_read_property(scope, object, p, pl, 1 TSRMLS_CC);
+    }
+    else
+    {
+        return property;
+    }
+}
 
 ZEND_BEGIN_MODULE_GLOBALS(swoole)
     long aio_thread_num;

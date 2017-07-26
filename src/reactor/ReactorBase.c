@@ -162,14 +162,9 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
     swWorker *worker = SwooleWG.worker;
     if (worker != NULL)
     {
-        if (SwooleWG.reload == 1)
+        if (SwooleWG.wait_exit == 1)
         {
-            SwooleWG.reload_count++;
-
-            if (reactor->event_num <= 2 || SwooleWG.reload_count >= SW_MAX_RELOAD_WAIT)
-            {
-                reactor->running = 0;
-            }
+            swWorker_try_to_exit();
         }
     }
     //client

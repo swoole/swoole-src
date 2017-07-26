@@ -249,6 +249,12 @@ typedef struct
     uint16_t num;
 } swUserWorker;
 
+typedef struct
+{
+    pid_t pid;
+    uint16_t worker_id;
+} swWorkerStopMessage;
+
 //-----------------------------------Factory--------------------------------------------
 typedef struct
 {
@@ -358,6 +364,7 @@ struct _swServer
     int udp_socket_ipv6;
 
     int ringbuffer_size;
+    uint32_t max_wait_time;
 
     /*----------------------------Reactor schedule--------------------------------*/
     uint16_t reactor_round_i; //轮询调度
@@ -395,6 +402,10 @@ struct _swServer
      */
     uint32_t http_parse_post :1;
     /**
+     * handle static files
+     */
+    uint32_t enable_static_handler :1;
+    /**
      * enable onConnect/onClose event when use dispatch_mode=1/3
      */
     uint32_t enable_unsafe_event :1;
@@ -402,10 +413,6 @@ struct _swServer
      * waiting for worekr onConnect callback function to return
      */
     uint32_t enable_delay_receive :1;
-    /**
-     * run as a daemon process
-     */
-    uint32_t reload_async :1;
 
     /* heartbeat check time*/
     uint16_t heartbeat_idle_time; //心跳存活时间
@@ -436,6 +443,8 @@ struct _swServer
     swReactorThread *reactor_threads;
     swWorker *workers;
 
+    swChannel *message_box;
+
 #ifdef HAVE_PTHREAD_BARRIER
     pthread_barrier_t barrier;
 #endif
@@ -447,7 +456,11 @@ struct _swServer
      * temporary directory for HTTP uploaded file.
      */
     char *upload_tmp_dir;
-
+    /**
+     * http static file directory
+     */
+    char *document_root;
+    uint16_t document_root_len;
     /**
      * master process pid
      */
@@ -468,6 +481,7 @@ struct _swServer
     void (*onPipeMessage)(swServer *, swEventData *);
     void (*onWorkerStart)(swServer *serv, int worker_id);
     void (*onWorkerStop)(swServer *serv, int worker_id);
+    void (*onWorkerExit)(swServer *serv, int worker_id);
     void (*onWorkerError)(swServer *serv, int worker_id, pid_t worker_pid, int exit_code, int signo);
     void (*onUserWorkerStart)(swServer *serv, swWorker *worker);
     /**
@@ -878,6 +892,7 @@ void swPort_clear_protocol(swListenPort *ls);
 void swWorker_free(swWorker *worker);
 void swWorker_onStart(swServer *serv);
 void swWorker_onStop(swServer *serv);
+void swWorker_try_to_exit();
 int swWorker_loop(swFactory *factory, int worker_pti);
 int swWorker_send2reactor(swEventData *ev_data, size_t sendn, int fd);
 int swWorker_send2worker(swWorker *dst_worker, void *buf, int n, int flag);

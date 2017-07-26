@@ -273,6 +273,14 @@ static int swServer_start_check(swServer *serv)
         swWarn("serv->max_connection is too small.");
         serv->max_connection = SwooleG.max_sockets;
     }
+    swListenPort *ls;
+    LL_FOREACH(serv->listen_list, ls)
+    {
+        if (ls->protocol.package_max_length < SW_BUFFER_MIN_SIZE)
+        {
+            ls->protocol.package_max_length = SW_BUFFER_MIN_SIZE;
+        }
+    }
     SwooleGS->session_round = 1;
     return SW_OK;
 }
@@ -722,6 +730,7 @@ void swServer_init(swServer *serv)
     serv->worker_num = SW_CPU_NUM;
     serv->max_connection = SwooleG.max_sockets;
     serv->max_request = 0;
+    serv->max_wait_time = SW_WORKER_MAX_WAIT_TIME;
 
     //http server
     serv->http_parse_post = 1;
@@ -963,15 +972,6 @@ int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename, uint32
         return SW_ERR;
     }
 
-#ifdef SW_USE_OPENSSL
-    swConnection *conn = swServer_connection_verify(serv, session_id);
-    if (conn && conn->ssl)
-    {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SSL_CANNOT_USE_SENFILE, "SSL session#%d cannot use sendfile().", session_id);
-        return SW_ERR;
-    }
-#endif
-
     struct stat file_stat;
     if (stat(filename, &file_stat) < 0)
     {
@@ -1094,6 +1094,9 @@ int swServer_add_worker(swServer *serv, swWorker *worker)
     return worker->id;
 }
 
+/**
+ * Return the number of ports successfully
+ */
 int swserver_add_systemd_socket(swServer *serv)
 {
     char *e = getenv("LISTEN_PID");
@@ -1118,6 +1121,11 @@ int swserver_add_systemd_socket(swServer *serv)
     if (n < 1)
     {
         swWarn("invalid LISTEN_FDS.");
+        return 0;
+    }
+    else if (n >= SW_MAX_LISTEN_PORT)
+    {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_TOO_MANY_LISTEN_PORT, "LISTEN_FDS is too big.");
         return 0;
     }
 
@@ -1555,14 +1563,6 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
         }
         connection->tcp_nodelay = 1;
     }
-
-#ifdef HAVE_TCP_NOPUSH
-    //TCP NOPUSH
-    if (ls->open_tcp_nopush)
-    {
-        connection->tcp_nopush = 1;
-    }
-#endif
 
     //socket recv buffer size
     if (ls->kernel_socket_recv_buffer_size > 0)
