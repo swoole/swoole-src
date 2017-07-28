@@ -24,6 +24,11 @@ $http->on('request', function ($request, swoole_http_response $response)
         $response->end(@json_encode($request->cookie));
         return;
     }
+    elseif ($route == '/get')
+    {
+        $response->end(@json_encode($request->get));
+        return;
+    }
     elseif ($route == '/post')
     {
         $response->end(@json_encode($request->post));

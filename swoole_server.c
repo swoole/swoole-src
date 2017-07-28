@@ -224,12 +224,6 @@ int php_swoole_get_send_data(zval *zdata, char **str TSRMLS_DC)
         *str = Z_STRVAL_P(zdata);
     }
 
-    if (length > SwooleG.serv->buffer_output_size)
-    {
-        swoole_php_fatal_error(E_WARNING, "unable to send %d bytes data, the output buffer size is %d.", length, SwooleG.serv->buffer_output_size);
-        return SW_ERR;
-    }
-
     return length;
 }
 
