@@ -51,6 +51,7 @@ enum swErrorCode
     SW_ERROR_SSL_BAD_CLIENT,
 
     SW_ERROR_PACKAGE_LENGTH_TOO_LARGE = 1201,
+    SW_ERROR_DATA_LENGTH_TOO_LARGE,
 
     /**
      * task error
