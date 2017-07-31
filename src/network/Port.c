@@ -636,8 +636,8 @@ int swPort_http_static_handler(swHttpRequest *request, swConnection *conn)
     p = request->buffer->str + request->url_offset + request->url_length + 10;
     char *pe = request->buffer->str + request->header_length;
 
-    char *date_if_modified_since;
-    int length_if_modified_since;
+    char *date_if_modified_since = NULL;
+    int length_if_modified_since = 0;
 
     int state = 0;
     for (; p < pe; p++)
