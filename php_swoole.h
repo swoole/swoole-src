@@ -283,7 +283,6 @@ PHP_METHOD(swoole_server, finish);
 PHP_METHOD(swoole_server, reload);
 PHP_METHOD(swoole_server, shutdown);
 PHP_METHOD(swoole_server, getLastError);
-PHP_METHOD(swoole_server, stop);
 PHP_METHOD(swoole_server, heartbeat);
 
 PHP_METHOD(swoole_server, connection_list);
