@@ -78,11 +78,13 @@ typedef struct
     zval *zobject;
     zval *zheader;
     zval *zcookie;
+    zval *ztrailer;
 
 #if PHP_MAJOR_VERSION >= 7
     zval _zobject;
     zval _zheader;
     zval _zcookie;
+    zval _ztrailer;
 #endif
 } http_response;
 
@@ -160,6 +162,13 @@ array_init(z##name);\
 zend_update_property(swoole_http_##class##_class_entry_ptr, z##class##_object, ZEND_STRL(#name), z##name TSRMLS_CC);\
 ctx->class.z##name = sw_zend_read_property(swoole_http_##class##_class_entry_ptr, z##class##_object, ZEND_STRL(#name), 0 TSRMLS_CC);\
 sw_copy_to_stack(ctx->class.z##name, ctx->request._z##name);\
+sw_zval_ptr_dtor(&z##name);\
+z##name = ctx->class.z##name;
+
+#define swoole_http_server_array_init_trailer(name, class)    SW_MAKE_STD_ZVAL(z##name);\
+array_init(z##name);\
+zend_update_property(swoole_http_##class##_class_entry_ptr, z##class##_object, ZEND_STRL(#name), z##name TSRMLS_CC);\
+ctx->class.z##name = sw_zend_read_property(swoole_http_##class##_class_entry_ptr, z##class##_object, ZEND_STRL(#name), 0 TSRMLS_CC);\
 sw_zval_ptr_dtor(&z##name);\
 z##name = ctx->class.z##name;
 

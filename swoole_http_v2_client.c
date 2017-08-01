@@ -322,7 +322,7 @@ static int http2_client_build_header(zval *zobject, http2_client_request *req, c
     size_t i;
     size_t sum = 0;
 
-#if 0
+#if 1
     for (i = 0; i < index; ++i)
     {
         swTraceLog(SW_TRACE_HTTP2, "Header[%d]: "SW_ECHO_CYAN_BLUE"=%s", i, nv[i].name, nv[i].value);
