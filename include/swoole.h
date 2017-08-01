@@ -1677,6 +1677,26 @@ static sw_inline int swReactor_del_event(swReactor *reactor, int fd, enum swEven
     return SW_OK;
 }
 
+static sw_inline void swReactor_remove_read_event(swReactor *reactor, int fd)
+{
+    swConnection *conn = swReactor_get(reactor, fd);
+    if (conn->events & SW_EVENT_WRITE)
+    {
+        conn->events &= (~SW_EVENT_READ);
+        if (SwooleG.main_reactor->set(SwooleG.main_reactor, fd, conn->fdtype | conn->events) < 0)
+        {
+            swSysError("reactor->set(%d, SW_EVENT_READ) failed.", fd);
+        }
+    }
+    else
+    {
+        if (SwooleG.main_reactor->del(SwooleG.main_reactor, fd) < 0)
+        {
+            swSysError("reactor->del(%d) failed.", fd);
+        }
+    }
+}
+
 swReactor_handle swReactor_getHandle(swReactor *reactor, int event_type, int fdtype);
 int swReactorEpoll_create(swReactor *reactor, int max_event_num);
 int swReactorPoll_create(swReactor *reactor, int max_event_num);
