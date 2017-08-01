@@ -21,6 +21,17 @@ $pm->childFunc = function () use ($pm)
         'worker_num' => 1,
         'log_file' => '/dev/null'
     ));
+    $http->on("WorkerStart", function (\swoole_server $serv)
+    {
+        /**
+         * @var $pm ProcessManager
+         */
+        global $pm;
+        if ($pm)
+        {
+            $pm->wakeup();
+        }
+    });
     $http->on('request', function ($request, swoole_http_response $response) use ($http)
     {
         $route = $request->server['request_uri'];
@@ -47,6 +58,7 @@ $pm->childFunc = function () use ($pm)
             $cli->get('/info', function ($cli) use ($response)
             {
                 $response->end($cli->body . "\n");
+                $cli->close();
             });
             $http->cli = $cli;
         }

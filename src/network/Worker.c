@@ -424,6 +424,13 @@ static void swWorker_stop()
             SwooleG.main_reactor->del(SwooleG.main_reactor, port->sock);
             swPort_free(port);
         }
+
+        if (worker->pipe_worker)
+        {
+            SwooleG.main_reactor->del(SwooleG.main_reactor, worker->pipe_worker);
+            SwooleG.main_reactor->del(SwooleG.main_reactor, worker->pipe_master);
+        }
+
         goto try_to_exit;
     }
 
