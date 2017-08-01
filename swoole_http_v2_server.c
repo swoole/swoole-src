@@ -49,7 +49,6 @@ static int http_build_trailer(http_context *ctx, uchar *buffer TSRMLS_DC)
             {
                 break;
             }
-            printf("%s:%s\n", key, Z_STRVAL_P(value));
             http2_add_header(&nv[index++], key, keylen, Z_STRVAL_P(value), Z_STRLEN_P(value));
         }
         SW_HASHTABLE_FOREACH_END();
@@ -315,11 +314,12 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
     swString_append_ptr(swoole_http_buffer, frame_header, 9);
     swString_append_ptr(swoole_http_buffer, header_buffer, n);
 
-    swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_DATA, body->length, SW_HTTP2_FLAG_NONE, ctx->stream_id);
+    zval *trailer = ctx->response.ztrailer;
+
+    swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_DATA, body->length, trailer？ SW_HTTP2_FLAG_NONE:SW_HTTP2_FLAG_END_STREAM, ctx->stream_id);
     swString_append_ptr(swoole_http_buffer, frame_header, 9);
     swString_append(swoole_http_buffer, body);
     
-    zval *trailer = ctx->response.ztrailer;
     if (trailer)
     {
         memset(header_buffer, 0 , sizeof(header_buffer));

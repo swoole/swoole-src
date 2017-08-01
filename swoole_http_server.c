@@ -2500,12 +2500,10 @@ static PHP_METHOD(swoole_http_response, trailer)
         {
             http_header_key_format(key_buf, klen);
         }
-        printf("%s:%d\n", v, vlen);
         sw_add_assoc_stringl_ex(ztrailer, key_buf, klen + 1, v, vlen, 1);
     }
     else
     {
-        printf("%s\n", v);
         sw_add_assoc_stringl_ex(ztrailer, k, klen + 1, v, vlen, 1);
     }
 }
