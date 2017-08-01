@@ -1970,7 +1970,7 @@ static PHP_METHOD(swoole_http_response, initHeader)
     zval *ztrailer = ctx->response.ztrailer;
     if (!ztrailer)
     {
-        swoole_http_server_array_init_trailer(trailer, response);
+        swoole_http_server_array_init(trailer, response);
     }
 }
 
@@ -2474,7 +2474,7 @@ static PHP_METHOD(swoole_http_response, trailer)
     zval *zresponse_object = ctx->response.zobject;
     if (!ztrailer)
     {
-        swoole_http_server_array_init_trailer(trailer, response);
+        swoole_http_server_array_init(trailer, response);
     }
     if (klen > SW_HTTP_HEADER_KEY_SIZE - 1)
     {
