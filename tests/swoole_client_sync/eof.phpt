@@ -46,7 +46,11 @@ $pm->parentFunc = function ($pid) use ($port)
     for ($i = 0; $i < 1000; $i++)
     {
         $pkg = $client->recv();
-        assert($pkg and strlen($pkg) <= 65536);
+        assert($pkg != false);
+        $_pkg = unserialize($pkg);
+        assert(is_array($_pkg));
+        assert($_pkg['i'] == $i);
+        assert($_pkg['data'] <= 256 * 1024);
     }
     echo "SUCCESS\n";
     $client->close();
@@ -87,7 +91,7 @@ $pm->childFunc = function () use ($pm, $port)
         //大包
         for ($i = 0; $i < 1000; $i++)
         {
-            $serv->send($fd, str_repeat('A', rand(20000, 65530)) . "\r\n\r\n");
+            $serv->send($fd, serialize(['i' => $i, 'data' => str_repeat('A', rand(20000, 256 * 1024))]) . "\r\n\r\n");
         }
     });
     $serv->start();
