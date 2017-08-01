@@ -315,8 +315,12 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
     swString_append_ptr(swoole_http_buffer, header_buffer, n);
 
     zval *trailer = ctx->response.ztrailer;
-
-    swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_DATA, body->length, trailer？ SW_HTTP2_FLAG_NONE:SW_HTTP2_FLAG_END_STREAM, ctx->stream_id);
+    int flag = SW_HTTP2_FLAG_END_STREAM;
+    if(trailer)
+    {
+        flag = SW_HTTP2_FLAG_NONE;
+    }
+    swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_DATA, body->length, flag, ctx->stream_id);
     swString_append_ptr(swoole_http_buffer, frame_header, 9);
     swString_append(swoole_http_buffer, body);
     
