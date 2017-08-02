@@ -47,7 +47,7 @@ swMemoryPool* swMemoryGlobal_new(int pagesize, char shared)
     {
         return NULL;
     }
-    if (swMutex_create(&gm.lock, 1) < 0)
+    if (swMutex_create(&gm.lock, shared) < 0)
     {
         return NULL;
     }
@@ -105,6 +105,7 @@ static void *swMemoryGlobal_alloc(swMemoryPool *pool, uint32_t size)
         if (page == NULL)
         {
             swWarn("swMemoryGlobal_alloc alloc memory error.");
+            gm->lock.unlock(&gm->lock);
             return NULL;
         }
         ((void **) gm->cur_page)[0] = page;

@@ -1882,7 +1882,7 @@ typedef struct
     pid_t manager_pid;
 
     uint32_t session_round :24;
-    uint8_t start;  //after swServer_start will set start=1
+    sw_atomic_t start;  //after swServer_start will set start=1
 
     time_t now;
 
