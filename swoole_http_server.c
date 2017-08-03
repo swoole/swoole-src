@@ -2549,12 +2549,26 @@ static PHP_METHOD(swoole_http_response, __destruct)
     http_context *context = swoole_get_object(getThis());
     if (context)
     {
-        zval *zobject = getThis();
-        zval *retval = NULL;
-        sw_zend_call_method_with_0_params(&zobject, swoole_http_response_class_entry_ptr, NULL, "end", &retval);
-        if (retval)
+        swConnection *conn = swWorker_get_connection(SwooleG.serv, context->fd);
+        if (!conn || conn->closed || conn->removed)
         {
-            sw_zval_ptr_dtor(&retval);
+            swoole_http_context_free(context TSRMLS_CC);
+        }
+        else
+        {
+            zval *zobject = getThis();
+            zval *retval = NULL;
+            sw_zend_call_method_with_0_params(&zobject, swoole_http_response_class_entry_ptr, NULL, "end", &retval);
+            if (retval)
+            {
+                sw_zval_ptr_dtor(&retval);
+            }
+
+            context = swoole_get_object(getThis());
+            if (context)
+            {
+                swoole_http_context_free(context TSRMLS_CC);
+            }
         }
     }
 }
