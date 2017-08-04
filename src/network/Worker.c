@@ -475,6 +475,8 @@ void swWorker_try_to_exit()
         swAio_free();
     }
 
+    swDNSResolver_free();
+
     uint8_t call_worker_exit_func = 0;
 
     while (1)
