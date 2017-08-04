@@ -333,6 +333,7 @@ const zend_function_entry swoole_functions[] =
 
 static zend_function_entry swoole_server_methods[] = {
     PHP_ME(swoole_server, __construct, arginfo_swoole_server__construct, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+    PHP_ME(swoole_server, __destruct, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_ME(swoole_server, listen, arginfo_swoole_server_listen, ZEND_ACC_PUBLIC)
     PHP_MALIAS(swoole_server, addlistener, listen, arginfo_swoole_server_listen, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, on, arginfo_swoole_server_on, ZEND_ACC_PUBLIC)
@@ -890,6 +891,12 @@ PHP_MINFO_FUNCTION(swoole)
 #ifdef HAVE_PTHREAD_BARRIER
     php_info_print_table_row(2, "pthread_barrier", "enabled");
 #endif
+#ifdef HAVE_FUTEX
+    php_info_print_table_row(2, "futex", "enabled");
+#endif
+#ifdef SW_USE_MYSQLND
+    php_info_print_table_row(2, "mysqlnd", "enabled");
+#endif
 #ifdef SW_USE_JEMALLOC
     php_info_print_table_row(2, "jemalloc", "enabled");
 #endif
@@ -1026,7 +1033,7 @@ PHP_FUNCTION(swoole_set_process_name)
     }
     else if (Z_STRLEN_P(name) > 127)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "process name is too long,the max len is 127");
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "process name is too long, the max length is 127");
     }
 
     if (size > SwooleG.pagesize)

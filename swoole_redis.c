@@ -60,6 +60,10 @@ enum swoole_redis_state
     SWOOLE_REDIS_STATE_CLOSED,
 };
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_construct, 0, 0, 0)
+    ZEND_ARG_ARRAY_INFO(0, setting, 1)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_connect, 0, 0, 3)
     ZEND_ARG_INFO(0, host)
     ZEND_ARG_INFO(0, port)
@@ -76,10 +80,14 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_on, 0, 0, 2)
     ZEND_ARG_INFO(0, callback)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
 static PHP_METHOD(swoole_redis, __construct);
 static PHP_METHOD(swoole_redis, __destruct);
 static PHP_METHOD(swoole_redis, on);
 static PHP_METHOD(swoole_redis, connect);
+static PHP_METHOD(swoole_redis, getState);
 static PHP_METHOD(swoole_redis, __call);
 static PHP_METHOD(swoole_redis, close);
 
@@ -105,11 +113,12 @@ static int isset_event_callback = 0;
 
 static const zend_function_entry swoole_redis_methods[] =
 {
-    PHP_ME(swoole_redis, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
-    PHP_ME(swoole_redis, __destruct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
+    PHP_ME(swoole_redis, __construct, arginfo_swoole_redis_construct, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+    PHP_ME(swoole_redis, __destruct, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_ME(swoole_redis, on, arginfo_swoole_redis_on, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis, connect, arginfo_swoole_redis_connect, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_redis, close, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis, close, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis, getState, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis, __call, arginfo_swoole_redis_call, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
@@ -170,6 +179,12 @@ void swoole_redis_init(int module_number TSRMLS_DC)
     SWOOLE_INIT_CLASS_ENTRY(swoole_redis_ce, "swoole_redis", "Swoole\\Redis", swoole_redis_methods);
     swoole_redis_class_entry_ptr = zend_register_internal_class(&swoole_redis_ce TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_redis, "Swoole\\Redis");
+
+    zend_declare_class_constant_long(swoole_redis_class_entry_ptr, SW_STRL("STATE_CONNECT")-1, SWOOLE_REDIS_STATE_CONNECT TSRMLS_CC);
+    zend_declare_class_constant_long(swoole_redis_class_entry_ptr, SW_STRL("STATE_READY")-1, SWOOLE_REDIS_STATE_READY TSRMLS_CC);
+    zend_declare_class_constant_long(swoole_redis_class_entry_ptr, SW_STRL("STATE_WAIT_RESULT")-1, SWOOLE_REDIS_STATE_WAIT_RESULT TSRMLS_CC);
+    zend_declare_class_constant_long(swoole_redis_class_entry_ptr, SW_STRL("STATE_SUBSCRIBE")-1, SWOOLE_REDIS_STATE_SUBSCRIBE TSRMLS_CC);
+    zend_declare_class_constant_long(swoole_redis_class_entry_ptr, SW_STRL("STATE_CLOSED")-1, SWOOLE_REDIS_STATE_CLOSED TSRMLS_CC);
 }
 
 static PHP_METHOD(swoole_redis, __construct)
@@ -228,7 +243,7 @@ static PHP_METHOD(swoole_redis, __construct)
             convert_to_long(ztmp);
             if (Z_LVAL_P(ztmp) > 1 << 8)
             {
-                swoole_php_fatal_error(E_WARNING, "redis database is too big.");
+                swoole_php_fatal_error(E_WARNING, "redis database number is too big.");
             }
             else
             {
@@ -255,7 +270,7 @@ static PHP_METHOD(swoole_redis, on)
     swRedisClient *redis = swoole_get_object(getThis());
     if (redis->context != NULL)
     {
-        swoole_php_fatal_error(E_WARNING, "Must be called before connect.");
+        swoole_php_fatal_error(E_WARNING, "Must be called before connecting.");
         RETURN_FALSE;
     }
 
@@ -293,7 +308,7 @@ static PHP_METHOD(swoole_redis, connect)
 
     if (host_len <= 0)
     {
-        swoole_php_error(E_WARNING, "host is empty.");
+        swoole_php_error(E_WARNING, "redis server host is empty.");
         RETURN_FALSE;
     }
 
@@ -308,7 +323,7 @@ static PHP_METHOD(swoole_redis, connect)
     {
         if (port <= 1 || port > 65535)
         {
-            swoole_php_error(E_WARNING, "port is invalid.");
+            swoole_php_error(E_WARNING, "redis server port is invalid.");
             RETURN_FALSE;
         }
         context = redisAsyncConnect(host, (int) port);
@@ -316,7 +331,7 @@ static PHP_METHOD(swoole_redis, connect)
 
     if (context->err)
     {
-        swoole_php_error(E_WARNING, "connect to redis-server[%s:%d] failed, Erorr: %s[%d]", host, (int) port, context->errstr, context->err);
+        swoole_php_error(E_WARNING, "failed to connect to the redis-server[%s:%d], Erorr: %s[%d]", host, (int) port, context->errstr, context->err);
         RETURN_FALSE;
     }
 
@@ -381,7 +396,14 @@ static PHP_METHOD(swoole_redis, close)
     swRedisClient *redis = swoole_get_object(getThis());
     if (redis && redis->context && redis->state != SWOOLE_REDIS_STATE_CLOSED)
     {
-        SwooleG.main_reactor->defer(SwooleG.main_reactor, redis_close, redis);
+        if (redis->connecting)
+        {
+            SwooleG.main_reactor->defer(SwooleG.main_reactor, redis_close, redis);
+        }
+        else
+        {
+            redis_close(redis);
+        }
     }
 }
 
@@ -420,7 +442,7 @@ static PHP_METHOD(swoole_redis, __call)
     swRedisClient *redis = swoole_get_object(getThis());
     if (!redis)
     {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_redis.");
+        swoole_php_fatal_error(E_WARNING, "the object is not an instance of swoole_redis.");
         RETURN_FALSE;
     }
 
@@ -440,7 +462,7 @@ static PHP_METHOD(swoole_redis, __call)
     case SWOOLE_REDIS_STATE_SUBSCRIBE:
         if (!swoole_redis_is_message_command(command, command_len))
         {
-            swoole_php_error(E_WARNING, "redis client is waiting for subscribe message.");
+            swoole_php_error(E_WARNING, "redis client is waiting for subscribed messages.");
             RETURN_FALSE;
         }
         break;
@@ -539,7 +561,7 @@ static PHP_METHOD(swoole_redis, __call)
         zval **cb_tmp;
         if (zend_hash_index_find(Z_ARRVAL_P(params), zend_hash_num_elements(Z_ARRVAL_P(params)) - 1, (void **) &cb_tmp) == FAILURE)
         {
-            swoole_php_error(E_WARNING, "index out of array.");
+            swoole_php_error(E_WARNING, "index out of array bounds.");
             FREE_MEM();
             RETURN_FALSE;
         }
@@ -548,7 +570,7 @@ static PHP_METHOD(swoole_redis, __call)
         zval *callback = zend_hash_index_find(Z_ARRVAL_P(params), zend_hash_num_elements(Z_ARRVAL_P(params)) - 1);
         if (callback == NULL)
         {
-            swoole_php_error(E_WARNING, "index out of array.");
+            swoole_php_error(E_WARNING, "index out of array bounds.");
             FREE_MEM();
             RETURN_FALSE;
         }
@@ -579,6 +601,17 @@ static PHP_METHOD(swoole_redis, __call)
 
     FREE_MEM();
     RETURN_TRUE;
+}
+
+static PHP_METHOD(swoole_redis, getState)
+{
+    swRedisClient *redis = swoole_get_object(getThis());
+    if (!redis)
+    {
+        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_redis.");
+        RETURN_FALSE;
+    }
+    RETURN_LONG(redis->state);
 }
 
 static void swoole_redis_set_error(swRedisClient *redis, zval* return_value, redisReply* reply TSRMLS_DC)

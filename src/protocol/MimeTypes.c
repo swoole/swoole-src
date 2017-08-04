@@ -30,7 +30,7 @@ char* swoole_get_mimetype(char *file)
     {
         return "text/html";
     }
-    else if (strcasecmp(dot, ".xml") == 0 || strcasecmp(dot, ".htm") == 0)
+    else if (strcasecmp(dot, ".xml") == 0)
     {
         return "text/xml";
     }
@@ -38,7 +38,7 @@ char* swoole_get_mimetype(char *file)
     {
         return "text/css";
     }
-    else if (strcasecmp(dot, ".text") == 0)
+    else if (strcasecmp(dot, ".text") == 0 || strcasecmp(dot, ".txt") == 0)
     {
         return "text/plain";
     }

@@ -224,6 +224,9 @@ static PHP_METHOD(swoole_http_response, initHeader);
 #ifdef SW_HAVE_ZLIB
 static PHP_METHOD(swoole_http_response, gzip);
 #endif
+#ifdef SW_USE_HTTP2
+static PHP_METHOD(swoole_http_response, trailer);
+#endif
 static PHP_METHOD(swoole_http_response, status);
 static PHP_METHOD(swoole_http_response, __destruct);
 
@@ -311,7 +314,13 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_header, 0, 0, 2)
     ZEND_ARG_INFO(0, value)
     ZEND_ARG_INFO(0, ucwords)
 ZEND_END_ARG_INFO()
-
+#ifdef SW_USE_HTTP2
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_trailer, 0, 0, 2)
+    ZEND_ARG_INFO(0, key)
+    ZEND_ARG_INFO(0, value)
+    ZEND_ARG_INFO(0, ucwords)
+ZEND_END_ARG_INFO()
+#endif
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_cookie, 0, 0, 1)
     ZEND_ARG_INFO(0, name)
     ZEND_ARG_INFO(0, value)
@@ -385,6 +394,9 @@ const zend_function_entry swoole_http_response_methods[] =
     PHP_ME(swoole_http_response, gzip, arginfo_swoole_http_response_gzip, ZEND_ACC_PUBLIC)
 #endif
     PHP_ME(swoole_http_response, header, arginfo_swoole_http_response_header, ZEND_ACC_PUBLIC)
+#ifdef SW_USE_HTTP2
+    PHP_ME(swoole_http_response, trailer, arginfo_swoole_http_response_trailer, ZEND_ACC_PUBLIC)
+#endif
     PHP_ME(swoole_http_response, write, arginfo_swoole_http_response_write, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, end, arginfo_swoole_http_response_end, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, sendfile, arginfo_swoole_http_response_sendfile, ZEND_ACC_PUBLIC)
@@ -1199,7 +1211,7 @@ static PHP_METHOD(swoole_http_server, on)
 
     if (SwooleGS->start > 0)
     {
-        swoole_php_error(E_WARNING, "Server is running. Unable to set event callback now.");
+        swoole_php_error(E_WARNING, "server is running. unable to register event callback function.");
         RETURN_FALSE;
     }
 
@@ -1213,7 +1225,7 @@ static PHP_METHOD(swoole_http_server, on)
     zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
     if (!sw_zend_is_callable_ex(callback, NULL, 0, &func_name, NULL, func_cache, NULL TSRMLS_CC))
     {
-        swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+        swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
         efree(func_name);
         RETURN_FALSE;
     }
@@ -1222,7 +1234,7 @@ static PHP_METHOD(swoole_http_server, on)
     char *func_name = NULL;
     if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
     {
-        swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+        swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
         efree(func_name);
         return;
     }
@@ -1549,7 +1561,7 @@ static PHP_METHOD(swoole_http_server, start)
     ret = swServer_start(serv);
     if (ret < 0)
     {
-        swoole_php_fatal_error(E_ERROR, "start server failed. Error: %s", sw_error);
+        swoole_php_fatal_error(E_ERROR, "failed to start server. Error: %s", sw_error);
         RETURN_LONG(ret);
     }
     RETURN_TRUE;
@@ -1560,7 +1572,7 @@ static PHP_METHOD(swoole_http_request, rawcontent)
     zval *zfd = sw_zend_read_property(swoole_http_request_class_entry_ptr, getThis(), ZEND_STRL("fd"), 0 TSRMLS_CC);
     if (ZVAL_IS_NULL(zfd))
     {
-        swoole_php_error(E_WARNING, "http client not exists.");
+        swoole_php_error(E_WARNING, "http client is not existed.");
         RETURN_FALSE;
     }
 
@@ -1654,7 +1666,7 @@ static PHP_METHOD(swoole_http_response, write)
     }
     else if (length == 0)
     {
-       swoole_php_error(E_WARNING, "data is empty.");
+       swoole_php_error(E_WARNING, "data to send is empty.");
         RETURN_FALSE;
     }
     else
@@ -1704,12 +1716,12 @@ static http_context* http_get_context(zval *object, int check_end TSRMLS_DC)
     http_context *ctx = swoole_get_object(object);
     if (!ctx)
     {
-        swoole_php_fatal_error(E_WARNING, "Http request is end.");
+        swoole_php_fatal_error(E_WARNING, "Http request is finished.");
         return NULL;
     }
     if (check_end && ctx->end)
     {
-        swoole_php_fatal_error(E_WARNING, "Http request is end.");
+        swoole_php_fatal_error(E_WARNING, "Http request is finished.");
         return NULL;
     }
     return ctx;
@@ -1954,6 +1966,12 @@ static PHP_METHOD(swoole_http_response, initHeader)
     {
         swoole_http_server_array_init(cookie, response);
     }
+
+    zval *ztrailer = ctx->response.ztrailer;
+    if (!ztrailer)
+    {
+        swoole_http_server_array_init(trailer, response);
+    }
 }
 
 static PHP_METHOD(swoole_http_response, end)
@@ -2083,14 +2101,14 @@ static PHP_METHOD(swoole_http_response, sendfile)
 #ifdef SW_HAVE_ZLIB
     if (ctx->gzip_enable)
     {
-        swoole_php_error(E_ERROR, "cannot use sendfile when enable gzip compression.");
+        swoole_php_error(E_ERROR, "can't use sendfile when gzip compression is enabled.");
         RETURN_FALSE;
     }
 #endif
 
     if (ctx->chunk)
     {
-        swoole_php_error(E_ERROR, "cannot use sendfile when enable Http-Chunk.");
+        swoole_php_error(E_ERROR, "can't use sendfile when Http-Chunk is enabled.");
         RETURN_FALSE;
     }
 
@@ -2102,7 +2120,7 @@ static PHP_METHOD(swoole_http_response, sendfile)
     }
     if (file_stat.st_size == 0)
     {
-        swoole_php_sys_error(E_WARNING, "cannot send empty file[%s].", filename);
+        swoole_php_sys_error(E_WARNING, "can't send empty file[%s].", filename);
         RETURN_FALSE;
     }
     if (file_stat.st_size <= offset)
@@ -2176,7 +2194,7 @@ static PHP_METHOD(swoole_http_response, cookie)
 
     if (name && strpbrk(name, "=,; \t\r\n\013\014") != NULL)
     {
-        swoole_php_error(E_WARNING, "Cookie names cannot contain any of the following '=,; \\t\\r\\n\\013\\014'");
+        swoole_php_error(E_WARNING, "Cookie names can't contain any of the following '=,; \\t\\r\\n\\013\\014'");
         RETURN_FALSE;
     }
 
@@ -2218,7 +2236,7 @@ static PHP_METHOD(swoole_http_response, cookie)
                 efree(dt);
                 efree(cookie);
                 efree(encoded_value);
-                swoole_php_error(E_WARNING, "Expiry date cannot have a year greater than 9999");
+                swoole_php_error(E_WARNING, "Expiry date can't be a year greater than 9999");
                 RETURN_FALSE;
             }
             strlcat(cookie, dt, len + 100);
@@ -2285,7 +2303,7 @@ static PHP_METHOD(swoole_http_response, rawcookie)
 
     if (name && strpbrk(name, "=,; \t\r\n\013\014") != NULL)
     {
-        swoole_php_error(E_WARNING, "Cookie names cannot contain any of the following '=,; \\t\\r\\n\\013\\014'");
+        swoole_php_error(E_WARNING, "Cookie names can't contain any of the following '=,; \\t\\r\\n\\013\\014'");
         RETURN_FALSE;
     }
 
@@ -2326,7 +2344,7 @@ static PHP_METHOD(swoole_http_response, rawcookie)
                 efree(dt);
                 efree(cookie);
                 efree(encoded_value);
-                swoole_php_error(E_WARNING, "Expiry date cannot have a year greater than 9999");
+                swoole_php_error(E_WARNING, "Expiry date can't be a year greater than 9999");
                 RETURN_FALSE;
             }
             strlcat(cookie, dt, len + 100);
@@ -2434,6 +2452,63 @@ static PHP_METHOD(swoole_http_response, header)
 
 }
 
+#ifdef SW_USE_HTTP2
+static PHP_METHOD(swoole_http_response, trailer)
+{
+    char *k, *v;
+    zend_size_t klen, vlen;
+    zend_bool ucwords = 1;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss|b", &k, &klen, &v, &vlen, &ucwords) == FAILURE)
+    {
+        return;
+    }
+
+    http_context *ctx = http_get_context(getThis(), 0 TSRMLS_CC);
+    if (!ctx)
+    {
+        RETURN_FALSE;
+    }
+
+    zval *ztrailer = ctx->response.ztrailer;
+    zval *zresponse_object = ctx->response.zobject;
+    if (!ztrailer)
+    {
+        swoole_http_server_array_init(trailer, response);
+    }
+    if (klen > SW_HTTP_HEADER_KEY_SIZE - 1)
+    {
+        swoole_php_error(E_WARNING, "trailer key is too long.");
+        RETURN_FALSE;
+    }
+    if (vlen > SW_HTTP_HEADER_VALUE_SIZE)
+    {
+        swoole_php_error(E_WARNING, "trailer value is too long.");
+        RETURN_FALSE;
+    }
+
+    if (ucwords)
+    {
+        char key_buf[SW_HTTP_HEADER_KEY_SIZE];
+        memcpy(key_buf, k, klen);
+        key_buf[klen] = '\0';
+        if (ctx->http2)
+        {
+            swoole_strtolower(key_buf, klen);
+        }
+        else
+        {
+            http_header_key_format(key_buf, klen);
+        }
+        sw_add_assoc_stringl_ex(ztrailer, key_buf, klen + 1, v, vlen, 1);
+    }
+    else
+    {
+        sw_add_assoc_stringl_ex(ztrailer, k, klen + 1, v, vlen, 1);
+    }
+}
+#endif
+
 #ifdef SW_HAVE_ZLIB
 static PHP_METHOD(swoole_http_response, gzip)
 {
@@ -2451,7 +2526,7 @@ static PHP_METHOD(swoole_http_response, gzip)
 
     if (context->send_header)
     {
-        swoole_php_fatal_error(E_WARNING, "must use before send header.");
+        swoole_php_fatal_error(E_WARNING, "must be used before sending the http header.");
         RETURN_FALSE;
     }
 
@@ -2474,12 +2549,26 @@ static PHP_METHOD(swoole_http_response, __destruct)
     http_context *context = swoole_get_object(getThis());
     if (context)
     {
-        zval *zobject = getThis();
-        zval *retval = NULL;
-        sw_zend_call_method_with_0_params(&zobject, swoole_http_response_class_entry_ptr, NULL, "end", &retval);
-        if (retval)
+        swConnection *conn = swWorker_get_connection(SwooleG.serv, context->fd);
+        if (!conn || conn->closed || conn->removed)
         {
-            sw_zval_ptr_dtor(&retval);
+            swoole_http_context_free(context TSRMLS_CC);
+        }
+        else
+        {
+            zval *zobject = getThis();
+            zval *retval = NULL;
+            sw_zend_call_method_with_0_params(&zobject, swoole_http_response_class_entry_ptr, NULL, "end", &retval);
+            if (retval)
+            {
+                sw_zval_ptr_dtor(&retval);
+            }
+
+            context = swoole_get_object(getThis());
+            if (context)
+            {
+                swoole_http_context_free(context TSRMLS_CC);
+            }
         }
     }
 }

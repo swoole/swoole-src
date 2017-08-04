@@ -9,7 +9,10 @@ $http->on("WorkerStart", function (\swoole_server $serv)
      * @var $pm ProcessManager
      */
     global $pm;
-    $pm->wakeup();
+    if ($pm)
+    {
+        $pm->wakeup();
+    }
 });
 $http->on('request', function ($request, swoole_http_response $response)
 {
@@ -22,6 +25,11 @@ $http->on('request', function ($request, swoole_http_response $response)
     elseif ($route == '/cookies')
     {
         $response->end(@json_encode($request->cookie));
+        return;
+    }
+    elseif ($route == '/get')
+    {
+        $response->end(@json_encode($request->get));
         return;
     }
     elseif ($route == '/post')
@@ -69,6 +77,7 @@ $http->on('request', function ($request, swoole_http_response $response)
         $cli->get('/info', function ($cli) use ($response)
         {
             $response->end($cli->body . "\n");
+            $cli->close();
         });
     }
 });

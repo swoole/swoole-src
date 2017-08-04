@@ -1613,7 +1613,7 @@ static sw_inline swConnection* swReactor_get(swReactor *reactor, int fd)
     {
         return &reactor->socket_list[fd];
     }
-    swConnection *socket = swArray_alloc(reactor->socket_array, fd);
+    swConnection *socket = (swConnection*) swArray_alloc(reactor->socket_array, fd);
     if (socket == NULL)
     {
         return NULL;
@@ -1675,6 +1675,20 @@ static sw_inline int swReactor_del_event(swReactor *reactor, int fd, enum swEven
         return reactor->set(reactor, fd, conn->fdtype | (conn->events & (~event_type)));
     }
     return SW_OK;
+}
+
+static sw_inline int swReactor_remove_read_event(swReactor *reactor, int fd)
+{
+    swConnection *conn = swReactor_get(reactor, fd);
+    if (conn->events & SW_EVENT_WRITE)
+    {
+        conn->events &= (~SW_EVENT_READ);
+        return reactor->set(reactor, fd, conn->fdtype | conn->events);
+    }
+    else
+    {
+        return reactor->del(reactor, fd);
+    }
 }
 
 swReactor_handle swReactor_getHandle(swReactor *reactor, int event_type, int fdtype);
@@ -1868,7 +1882,7 @@ typedef struct
     pid_t manager_pid;
 
     uint32_t session_round :24;
-    uint8_t start;  //after swServer_start will set start=1
+    sw_atomic_t start;  //after swServer_start will set start=1
 
     time_t now;
 
@@ -1904,8 +1918,7 @@ typedef struct
     uint32_t reactor_ready :1;
     uint32_t in_client :1;
     uint32_t shutdown :1;
-    uint32_t reload;
-    uint32_t reload_count;
+    uint32_t wait_exit :1;
     uint32_t request_count;
 
     int max_request;

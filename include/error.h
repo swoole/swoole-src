@@ -51,6 +51,7 @@ enum swErrorCode
     SW_ERROR_SSL_BAD_CLIENT,
 
     SW_ERROR_PACKAGE_LENGTH_TOO_LARGE = 1201,
+    SW_ERROR_DATA_LENGTH_TOO_LARGE,
 
     /**
      * task error
@@ -81,6 +82,13 @@ enum swErrorCode
     SW_ERROR_SERVER_INVALID_LISTEN_PORT,
     SW_ERROR_SERVER_TOO_MANY_LISTEN_PORT,
     SW_ERROR_SERVER_PIPE_BUFFER_FULL,
+
+    SW_ERROR_SERVER_ONLY_START_ONE,
+
+    /**
+     * Process exit timeout, forced to end.
+     */
+    SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT,
 
 };
 

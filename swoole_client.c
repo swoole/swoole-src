@@ -1065,6 +1065,10 @@ static PHP_METHOD(swoole_client, __construct)
     }
     //init
     swoole_set_object(getThis(), NULL);
+    swoole_set_property(getThis(), client_property_callback, NULL);
+#ifdef SWOOLE_SOCKETS_SUPPORT
+    swoole_set_property(getThis(), client_property_socket, NULL);
+#endif
     RETURN_TRUE;
 }
 
@@ -1098,9 +1102,10 @@ static PHP_METHOD(swoole_client, set)
     {
         return;
     }
-    php_swoole_array_separate(zset);
-    zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("setting"), zset TSRMLS_CC);
-    sw_zval_ptr_dtor(&zset);
+
+    zval *zsetting = php_swoole_read_init_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("setting") TSRMLS_CC);
+    sw_php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
+
     RETURN_TRUE;
 }
 
@@ -1111,10 +1116,20 @@ static PHP_METHOD(swoole_client, connect)
     zend_size_t host_len;
     double timeout = SW_CLIENT_DEFAULT_TIMEOUT;
 
+#ifdef FAST_ZPP
+    ZEND_PARSE_PARAMETERS_START(1, 4)
+        Z_PARAM_STRING(host, host_len)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(port)
+        Z_PARAM_DOUBLE(timeout)
+        Z_PARAM_LONG(sock_flag)
+    ZEND_PARSE_PARAMETERS_END();
+#else
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|ldl", &host, &host_len, &port, &timeout, &sock_flag) == FAILURE)
     {
         return;
     }
+#endif
 
     if (host_len <= 0)
     {
@@ -1250,10 +1265,18 @@ static PHP_METHOD(swoole_client, send)
     zend_size_t data_len;
     long flags = 0;
 
+#ifdef FAST_ZPP
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_STRING(data, data_len)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(flags)
+    ZEND_PARSE_PARAMETERS_END();
+#else
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|l", &data, &data_len, &flags) == FAILURE)
     {
         return;
     }
+#endif
 
     if (data_len <= 0)
     {
@@ -1381,12 +1404,19 @@ static PHP_METHOD(swoole_client, recv)
     long flags = 0;
     int ret;
     char *buf = NULL;
-    char stack_buf[SW_BUFFER_SIZE_BIG];
 
+#ifdef FAST_ZPP
+    ZEND_PARSE_PARAMETERS_START(0, 2)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(buf_len)
+        Z_PARAM_LONG(flags)
+    ZEND_PARSE_PARAMETERS_END();
+#else
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|ll", &buf_len, &flags) == FAILURE)
     {
         return;
     }
+#endif
 
     //waitall
     if (flags == 1)
@@ -1451,8 +1481,7 @@ static PHP_METHOD(swoole_client, recv)
                 if (buffer->length > eof)
                 {
                     buffer->length -= eof;
-                    memcpy(stack_buf, buffer->str + eof, buffer->length);
-                    memcpy(buffer->str, stack_buf, buffer->length);
+                    memmove(buffer->str, buffer->str + eof, buffer->length);
                 }
                 else
                 {
@@ -1491,14 +1520,19 @@ static PHP_METHOD(swoole_client, recv)
     }
     else if (cli->open_length_check)
     {
+        if (cli->buffer == NULL)
+        {
+            cli->buffer = swString_new(SW_BUFFER_SIZE_STD);
+        }
+
         uint32_t header_len = protocol->package_length_offset + protocol->package_length_size;
-        ret = cli->recv(cli, stack_buf, header_len, MSG_WAITALL);
+        ret = cli->recv(cli, cli->buffer->str, header_len, MSG_WAITALL);
         if (ret <= 0)
         {
             goto check_return;
         }
 
-        buf_len = protocol->get_package_length(protocol, cli->socket, stack_buf, ret);
+        buf_len = protocol->get_package_length(protocol, cli->socket, cli->buffer->str, ret);
 
         //error package
         if (buf_len < 0)
@@ -1508,7 +1542,7 @@ static PHP_METHOD(swoole_client, recv)
         //empty package
         else if (buf_len == header_len)
         {
-            SW_RETURN_STRINGL(stack_buf, header_len, 1);
+            SW_RETURN_STRINGL(cli->buffer->str, header_len, 1);
         }
         else if (buf_len > protocol->package_max_length)
         {
@@ -1517,7 +1551,7 @@ static PHP_METHOD(swoole_client, recv)
         }
 
         buf = emalloc(buf_len + 1);
-        memcpy(buf, stack_buf, header_len);
+        memcpy(buf, cli->buffer->str, header_len);
         SwooleG.error = 0;
         ret = cli->recv(cli, buf + header_len, buf_len - header_len, MSG_WAITALL);
         if (ret > 0)
@@ -1688,10 +1722,18 @@ static PHP_METHOD(swoole_client, close)
     int ret = 1;
     zend_bool force = 0;
 
+#ifdef FAST_ZPP
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_BOOL(force)
+    ZEND_PARSE_PARAMETERS_END();
+#else
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|b", &force) == FAILURE)
     {
         return;
     }
+#endif
+
     swClient *cli = swoole_get_object(getThis());
     if (!cli || !cli->socket)
     {

@@ -58,13 +58,13 @@ void swoole_init(void)
     SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
     if (SwooleG.memory_pool == NULL)
     {
-        printf("[Master] Fatal Error: create global memory failed.");
+        printf("[Master] Fatal Error: global memory allocation failure.");
         exit(1);
     }
     SwooleGS = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerGS));
     if (SwooleGS == NULL)
     {
-        printf("[Master] Fatal Error: alloc memory for SwooleGS failed.");
+        printf("[Master] Fatal Error: failed to allocate memory for SwooleGS.");
         exit(2);
     }
 
@@ -121,7 +121,7 @@ void swoole_init(void)
     SwooleStats = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerStats));
     if (SwooleStats == NULL)
     {
-        swError("[Master] Fatal Error: alloc memory for SwooleStats failed.");
+        swError("[Master] Fatal Error: failed to allocate memory for SwooleStats.");
     }
     swoole_update_time();
 }
@@ -212,7 +212,7 @@ int swoole_mkdir_recursive(const char *dir)
 
     if (len + 1 > PATH_MAX) /* PATH_MAX limit includes string trailing null character */
     {
-        swWarn("mkdir(%s) failed. Path exceeds %d characters limit.", dir, PATH_MAX - 1);
+        swWarn("mkdir(%s) failed. Path exceeds the limit of %d characters.", dir, PATH_MAX - 1);
         return -1;
     }
     strncpy(tmp, dir, len + 1);
@@ -513,9 +513,15 @@ int swoole_tmpfile(char *filename)
 long swoole_file_get_size(FILE *fp)
 {
     long pos = ftell(fp);
-    fseek(fp, 0L, SEEK_END);
+    if (fseek(fp, 0L, SEEK_END) < 0)
+    {
+        return SW_ERR;
+    }
     long size = ftell(fp);
-    fseek(fp, pos, SEEK_SET);
+    if (fseek(fp, pos, SEEK_SET) < 0)
+    {
+        return SW_ERR;
+    }
     return size;
 }
 
@@ -526,6 +532,11 @@ long swoole_file_size(char *filename)
     {
         swSysError("lstat(%s) failed.", filename);
         SwooleG.error = errno;
+        return -1;
+    }
+    if ((file_stat.st_mode & S_IFMT) != S_IFREG)
+    {
+        SwooleG.error = EISDIR;
         return -1;
     }
     return file_stat.st_size;
@@ -671,7 +682,7 @@ int swoole_sync_readfile(int fd, void *buf, int len)
 }
 
 /**
- * 最大公约数
+ * Maximum common divisor
  */
 uint32_t swoole_common_divisor(uint32_t u, uint32_t v)
 {
@@ -692,7 +703,7 @@ uint32_t swoole_common_divisor(uint32_t u, uint32_t v)
 }
 
 /**
- * 最小公倍数
+ * The least common multiple
  */
 uint32_t swoole_common_multiple(uint32_t u, uint32_t v)
 {
@@ -978,7 +989,7 @@ int swoole_add_function(const char *name, void* func)
     }
     if (swHashMap_find(SwooleG.functions, (char *) name, strlen(name)) != NULL)
     {
-        swWarn("Function '%s' already exists.", name);
+        swWarn("Function '%s' has already been added.", name);
         return SW_ERR;
     }
     return swHashMap_add(SwooleG.functions, (char *) name, strlen(name), func);

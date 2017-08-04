@@ -463,6 +463,34 @@ int swSSL_connect(swConnection *conn)
     return SW_ERR;
 }
 
+int swSSL_sendfile(swConnection *conn, int fd, off_t *offset, size_t size)
+{
+    char buf[SW_BUFFER_SIZE_BIG];
+    int readn = size > sizeof(buf) ? sizeof(buf) : size;
+
+    int ret;
+    int n = pread(fd, buf, readn, *offset);
+
+    if (n > 0)
+    {
+        ret = swSSL_send(conn, buf, n);
+        if (ret < 0)
+        {
+            swSysError("write() failed.");
+        }
+        else
+        {
+            *offset += ret;
+        }
+        return ret;
+    }
+    else
+    {
+        swSysError("pread() failed.");
+        return SW_ERR;
+    }
+}
+
 void swSSL_close(swConnection *conn)
 {
     int n, sslerr, err;

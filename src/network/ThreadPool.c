@@ -57,7 +57,7 @@ int swThreadPool_create(swThreadPool *pool, int thread_num)
 
 int swThreadPool_dispatch(swThreadPool *pool, void *task, int task_len)
 {
-    int i, ret;
+    int ret;
 
     pool->cond.lock(&pool->cond);
 #ifdef SW_THREADPOOL_USE_CHANNEL
