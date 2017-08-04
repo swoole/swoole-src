@@ -358,6 +358,15 @@ void* swHashMap_each_int(swHashMap* hmap, uint64_t *key)
     }
 }
 
+uint32_t swHashMap_count(swHashMap* hmap)
+{
+    if (hmap == NULL)
+    {
+        return 0;
+    }
+    return HASH_COUNT(hmap->root);
+}
+
 void swHashMap_free(swHashMap* hmap)
 {
     swHashMap_node *find, *tmp = NULL;
