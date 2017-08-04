@@ -52,7 +52,6 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swCon
     count++;
 #endif
 
-    char stack_buf[SW_BUFFER_SIZE_BIG];
     int eof_pos;
     if (buffer->length - buffer->offset < protocol->package_eof_len)
     {
@@ -101,8 +100,7 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swCon
             {
                 wait_more_data:
                 swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[1] count=%d, remaining_length=%d, length=%d", count, remaining_length, length);
-                memcpy(stack_buf, remaining_data, remaining_length);
-                memcpy(buffer->str, stack_buf, remaining_length);
+                memmove(buffer->str, remaining_data, remaining_length);
                 buffer->length = remaining_length;
                 buffer->offset = 0;
                 return SW_OK;

@@ -1401,7 +1401,6 @@ static PHP_METHOD(swoole_client, recv)
     long flags = 0;
     int ret;
     char *buf = NULL;
-    char stack_buf[SW_BUFFER_SIZE_BIG];
 
 #ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(0, 2)
@@ -1479,8 +1478,7 @@ static PHP_METHOD(swoole_client, recv)
                 if (buffer->length > eof)
                 {
                     buffer->length -= eof;
-                    memcpy(stack_buf, buffer->str + eof, buffer->length);
-                    memcpy(buffer->str, stack_buf, buffer->length);
+                    memmove(buffer->str, buffer->str + eof, buffer->length);
                 }
                 else
                 {
@@ -1519,14 +1517,19 @@ static PHP_METHOD(swoole_client, recv)
     }
     else if (cli->open_length_check)
     {
+        if (cli->buffer == NULL)
+        {
+            cli->buffer = swString_new(SW_BUFFER_SIZE_STD);
+        }
+
         uint32_t header_len = protocol->package_length_offset + protocol->package_length_size;
-        ret = cli->recv(cli, stack_buf, header_len, MSG_WAITALL);
+        ret = cli->recv(cli, cli->buffer->str, header_len, MSG_WAITALL);
         if (ret <= 0)
         {
             goto check_return;
         }
 
-        buf_len = protocol->get_package_length(protocol, cli->socket, stack_buf, ret);
+        buf_len = protocol->get_package_length(protocol, cli->socket, cli->buffer->str, ret);
 
         //error package
         if (buf_len < 0)
@@ -1536,7 +1539,7 @@ static PHP_METHOD(swoole_client, recv)
         //empty package
         else if (buf_len == header_len)
         {
-            SW_RETURN_STRINGL(stack_buf, header_len, 1);
+            SW_RETURN_STRINGL(cli->buffer->str, header_len, 1);
         }
         else if (buf_len > protocol->package_max_length)
         {
@@ -1545,7 +1548,7 @@ static PHP_METHOD(swoole_client, recv)
         }
 
         buf = emalloc(buf_len + 1);
-        memcpy(buf, stack_buf, header_len);
+        memcpy(buf, cli->buffer->str, header_len);
         SwooleG.error = 0;
         ret = cli->recv(cli, buf + header_len, buf_len - header_len, MSG_WAITALL);
         if (ret > 0)

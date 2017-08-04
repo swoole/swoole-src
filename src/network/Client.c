@@ -783,6 +783,7 @@ static int swClient_udp_recv(swClient *cli, char *data, int length, int flags)
     return ret;
 }
 
+#ifdef SW_USE_OPENSSL
 static int swClient_https_proxy_handshake(swClient *cli)
 {
     char *buf = cli->buffer->str;
@@ -843,6 +844,7 @@ static int swClient_https_proxy_handshake(swClient *cli)
     }
     return SW_ERR;
 }
+#endif
 
 static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
 {

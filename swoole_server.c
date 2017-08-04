@@ -1555,6 +1555,7 @@ PHP_METHOD(swoole_server, __construct)
 
 PHP_METHOD(swoole_server, __destruct)
 {
+#if SW_DEBUG_SERVER_DESTRUCT
     int i;
     for (i = 0; i < PHP_SERVER_CALLBACK_NUM; i++)
     {
@@ -1577,7 +1578,7 @@ PHP_METHOD(swoole_server, __destruct)
 
     efree(server_port_list.zports);
     server_port_list.zports = NULL;
-
+#endif
 }
 
 PHP_METHOD(swoole_server, set)

@@ -9,7 +9,10 @@ $http->on("WorkerStart", function (\swoole_server $serv)
      * @var $pm ProcessManager
      */
     global $pm;
-    $pm->wakeup();
+    if ($pm)
+    {
+        $pm->wakeup();
+    }
 });
 $http->on('request', function ($request, swoole_http_response $response)
 {
@@ -74,6 +77,7 @@ $http->on('request', function ($request, swoole_http_response $response)
         $cli->get('/info', function ($cli) use ($response)
         {
             $response->end($cli->body . "\n");
+            $cli->close();
         });
     }
 });
