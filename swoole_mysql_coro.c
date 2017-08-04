@@ -384,8 +384,8 @@ static PHP_METHOD(swoole_mysql_coro, connect)
 	{
 		php_swoole_add_timer_coro((int) (connector->timeout * 1000), client->fd, &client->cli->timeout_id, (void *) context, NULL TSRMLS_CC);
 	}
-        coro_save(context);
-	coro_yield();
+    coro_save(context);
+    coro_yield();
 }
 
 static PHP_METHOD(swoole_mysql_coro, query)

@@ -143,7 +143,8 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
 
 #ifdef SW_COROUTINE
     //coro timeout
-    if (!swIsMaster()) {
+    if (!swIsMaster())
+    {
         coro_handle_timeout();
     }
 #endif
