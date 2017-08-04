@@ -311,6 +311,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_redis.c \
         swoole_redis_coro.c \
         swoole_redis_server.c \
+        swoole_ringqueue.c \
         swoole_mmap.c \
         swoole_channel.c \
         src/core/base.c \
