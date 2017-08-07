@@ -16,6 +16,7 @@
 
 #include "swoole.h"
 #include "Server.h"
+#include "Client.h"
 #include "async.h"
 
 #include <pwd.h>
