@@ -537,6 +537,11 @@ static PHP_METHOD(swoole_coroutine_util, getuid)
     RETURN_LONG(COROG.current_coro->cid);
 }
 
+static void php_coroutine_context_free(void *data)
+{
+    efree(data);
+}
+
 static void php_coroutine_sleep_timeout(swTimer *timer, swTimer_node *tnode)
 {
     zval *retval = NULL;
@@ -546,12 +551,12 @@ static void php_coroutine_sleep_timeout(swTimer *timer, swTimer_node *tnode)
 
     php_context *context = (php_context *) tnode->data;
     int ret = coro_resume(context, result, &retval);
+    SwooleG.main_reactor->defer(SwooleG.main_reactor, php_coroutine_context_free, context);
     if (ret == CORO_END && retval)
     {
         sw_zval_ptr_dtor(&retval);
     }
     sw_zval_ptr_dtor(&result);
-    efree(context);
 }
 
 static PHP_METHOD(swoole_coroutine_util, sleep)
@@ -564,17 +569,19 @@ static PHP_METHOD(swoole_coroutine_util, sleep)
         return;
     }
 
+    int ms = (int) (seconds * 1000);
+
     if (SwooleG.serv && swIsMaster())
     {
         swoole_php_fatal_error(E_WARNING, "cannot use timer in master process.");
         return;
     }
-    if (seconds > 86400)
+    if (ms > 8640000)
     {
         swoole_php_fatal_error(E_WARNING, "The given parameters is too big.");
         return;
     }
-    if (seconds <= 0)
+    if (ms <= 0)
     {
         swoole_php_fatal_error(E_WARNING, "Timer must be greater than 0");
         return;
@@ -583,7 +590,7 @@ static PHP_METHOD(swoole_coroutine_util, sleep)
     php_context *context = emalloc(sizeof(php_context));
     context->onTimeout = NULL;
     context->state = SW_CORO_CONTEXT_RUNNING;
-    int ms = (int) (seconds * 1000);
+
     php_swoole_check_timer(ms);
     if (SwooleG.timer.add(&SwooleG.timer, ms, 0, context, php_coroutine_sleep_timeout) < 0)
     {
