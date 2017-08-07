@@ -326,6 +326,7 @@ const zend_function_entry swoole_functions[] =
     PHP_FALIAS(swoole_select, swoole_client_select, arginfo_swoole_client_select)
     PHP_FE(swoole_set_process_name, arginfo_swoole_set_process_name)
     PHP_FE(swoole_get_local_ip, arginfo_swoole_void)
+    PHP_FE(swoole_get_local_mac, arginfo_swoole_void)
     PHP_FE(swoole_strerror, arginfo_swoole_strerror)
     PHP_FE(swoole_errno, arginfo_swoole_void)
     PHP_FE_END /* Must be the last line in swoole_functions[] */
@@ -1129,6 +1130,56 @@ PHP_FUNCTION(swoole_set_process_name)
 }
 
 PHP_FUNCTION(swoole_get_local_ip)
+{
+    struct sockaddr_in *s4;
+    struct ifaddrs *ipaddrs, *ifa;
+    void *in_addr;
+    char ip[64];
+
+    if (getifaddrs(&ipaddrs) != 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "getifaddrs() failed. Error: %s[%d]", strerror(errno), errno);
+        RETURN_FALSE;
+    }
+    array_init(return_value);
+    for (ifa = ipaddrs; ifa != NULL; ifa = ifa->ifa_next)
+    {
+        if (ifa->ifa_addr == NULL || !(ifa->ifa_flags & IFF_UP))
+        {
+            continue;
+        }
+
+        switch (ifa->ifa_addr->sa_family)
+        {
+            case AF_INET:
+                s4 = (struct sockaddr_in *)ifa->ifa_addr;
+                in_addr = &s4->sin_addr;
+                break;
+            case AF_INET6:
+                //struct sockaddr_in6 *s6 = (struct sockaddr_in6 *)ifa->ifa_addr;
+                //in_addr = &s6->sin6_addr;
+                continue;
+            default:
+                continue;
+        }
+        if (!inet_ntop(ifa->ifa_addr->sa_family, in_addr, ip, sizeof(ip)))
+        {
+            php_error_docref(NULL TSRMLS_CC, E_WARNING, "%s: inet_ntop failed.", ifa->ifa_name);
+        }
+        else
+        {
+            //if (ifa->ifa_addr->sa_family == AF_INET && ntohl(((struct in_addr *) in_addr)->s_addr) == INADDR_LOOPBACK)
+            if (strcmp(ip, "127.0.0.1") == 0)
+            {
+                continue;
+            }
+            sw_add_assoc_string(return_value, ifa->ifa_name, ip, 1);
+        }
+    }
+    freeifaddrs(ipaddrs);
+}
+
+PHP_FUNCTION(swoole_get_local_mac)
 {
     struct sockaddr_in *s4;
     struct ifaddrs *ipaddrs, *ifa;
