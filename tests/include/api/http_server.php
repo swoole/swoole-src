@@ -1,7 +1,9 @@
 <?php
 $http = new swoole_http_server("127.0.0.1", 9501, SWOOLE_BASE);
 $http->set(array(
-    'log_file' => '/dev/null'
+    'log_file' => '/dev/null',
+    "http_parse_post" => 1,
+    "upload_tmp_dir" => "/tmp",
 ));
 $http->on("WorkerStart", function (\swoole_server $serv)
 {
