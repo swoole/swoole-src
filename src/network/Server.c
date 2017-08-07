@@ -739,7 +739,7 @@ void swServer_init(swServer *serv)
 
     //http server
     serv->http_parse_post = 1;
-    serv->upload_tmp_dir = "/tmp";
+    serv->upload_tmp_dir = sw_strdup("/tmp");
 
     //heartbeat check
     serv->heartbeat_idle_time = SW_HEARTBEAT_IDLE;
