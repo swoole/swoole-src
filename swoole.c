@@ -537,7 +537,7 @@ int php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data,
 
     if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
-        swoole_php_fatal_error(E_WARNING, "onPipeMessage handler error.");
+        swoole_php_fatal_error(E_WARNING, "length function handler error.");
         goto error;
     }
     if (EG(exception))
@@ -553,6 +553,65 @@ int php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data,
         sw_zval_ptr_dtor(&retval);
         SwooleG.lock.unlock(&SwooleG.lock);
         return length;
+    }
+    error:
+    SwooleG.lock.unlock(&SwooleG.lock);
+    return -1;
+}
+
+int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swEventData *data)
+{
+    SwooleG.lock.lock(&SwooleG.lock);
+    SWOOLE_GET_TSRMLS;
+
+    zval *zserv = (zval *) serv->ptr2;
+
+    zval *zdata;
+    zval *zfd;
+    zval *ztype;
+    zval *retval = NULL;
+
+    SW_MAKE_STD_ZVAL(zdata);
+    SW_ZVAL_STRINGL(zdata, data->data, data->info.len, 1);
+
+    SW_MAKE_STD_ZVAL(zfd);
+    ZVAL_LONG(zfd, (long ) conn->session_id);
+
+    SW_MAKE_STD_ZVAL(ztype);
+    ZVAL_LONG(ztype, (long ) data->info.type);
+
+    zval **args[4];
+    args[0] = &zserv;
+    args[1] = &zfd;
+    args[2] = &ztype;
+    args[3] = &zdata;
+
+    zval *callback = (zval*) serv->private_data_3;
+    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 4, args, 0, NULL TSRMLS_CC) == FAILURE)
+    {
+        swoole_php_fatal_error(E_WARNING, "dispatch function handler error.");
+        goto error;
+    }
+    if (EG(exception))
+    {
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+        goto error;
+    }
+    sw_zval_ptr_dtor(&zfd);
+    sw_zval_ptr_dtor(&ztype);
+    sw_zval_ptr_dtor(&zdata);
+    if (retval != NULL)
+    {
+        convert_to_long(retval);
+        int worker_id = (int) Z_LVAL_P(retval);
+        if (worker_id >= serv->worker_num)
+        {
+            swoole_php_fatal_error(E_WARNING, "invalid target worker-id[%d].", worker_id);
+            goto error;
+        }
+        sw_zval_ptr_dtor(&retval);
+        SwooleG.lock.unlock(&SwooleG.lock);
+        return worker_id;
     }
     error:
     SwooleG.lock.unlock(&SwooleG.lock);

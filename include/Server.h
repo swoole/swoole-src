@@ -337,7 +337,6 @@ struct _swServer
      */
     uint8_t dispatch_mode;
 
-
     int worker_uid;
     int worker_groupid;
 
@@ -429,6 +428,7 @@ struct _swServer
     uint32_t buffer_input_size;
 
     void *ptr2;
+    void *private_data_3;
 
     swReactor reactor;
     swFactory factory;
