@@ -20,6 +20,7 @@
 #include <arpa/inet.h>
 #include <net/if.h>
 #include <ifaddrs.h>
+#include <sys/ioctl.h>
 
 #ifdef HAVE_PCRE
 #include <ext/spl/spl_iterators.h>
@@ -1181,52 +1182,48 @@ PHP_FUNCTION(swoole_get_local_ip)
 
 PHP_FUNCTION(swoole_get_local_mac)
 {
-    struct sockaddr_in *s4;
-    struct ifaddrs *ipaddrs, *ifa;
-    void *in_addr;
-    char ip[64];
+#ifndef __MACH__
+    struct ifreq ifreq;
+    struct ifconf ifc;
+    struct ifreq buf[16];
+    char mac[32] = {0};
 
-    if (getifaddrs(&ipaddrs) != 0)
+    int sock;
+    int i = 0,num = 0;
+
+    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "getifaddrs() failed. Error: %s[%d]", strerror(errno), errno);
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "new socket failed. Error: %s[%d]", strerror(errno), errno);
         RETURN_FALSE;
     }
     array_init(return_value);
-    for (ifa = ipaddrs; ifa != NULL; ifa = ifa->ifa_next)
+    
+    ifc.ifc_len = sizeof (buf);
+    ifc.ifc_buf = (caddr_t) buf;
+    if (!ioctl(sock, SIOCGIFCONF, (char *) &ifc))
     {
-        if (ifa->ifa_addr == NULL || !(ifa->ifa_flags & IFF_UP))
+        num = ifc.ifc_len / sizeof (struct ifreq);
+        while (i < num)
         {
-            continue;
-        }
-
-        switch (ifa->ifa_addr->sa_family)
-        {
-            case AF_INET:
-                s4 = (struct sockaddr_in *)ifa->ifa_addr;
-                in_addr = &s4->sin_addr;
-                break;
-            case AF_INET6:
-                //struct sockaddr_in6 *s6 = (struct sockaddr_in6 *)ifa->ifa_addr;
-                //in_addr = &s6->sin6_addr;
-                continue;
-            default:
-                continue;
-        }
-        if (!inet_ntop(ifa->ifa_addr->sa_family, in_addr, ip, sizeof(ip)))
-        {
-            php_error_docref(NULL TSRMLS_CC, E_WARNING, "%s: inet_ntop failed.", ifa->ifa_name);
-        }
-        else
-        {
-            //if (ifa->ifa_addr->sa_family == AF_INET && ntohl(((struct in_addr *) in_addr)->s_addr) == INADDR_LOOPBACK)
-            if (strcmp(ip, "127.0.0.1") == 0)
+            if (!(ioctl(sock, SIOCGIFHWADDR, (char *) &buf[i])))
             {
-                continue;
+                sprintf(mac, "%02X:%02X:%02X:%02X:%02X:%02X",
+                        (unsigned char) buf[i].ifr_hwaddr.sa_data[0],
+                        (unsigned char) buf[i].ifr_hwaddr.sa_data[1],
+                        (unsigned char) buf[i].ifr_hwaddr.sa_data[2],
+                        (unsigned char) buf[i].ifr_hwaddr.sa_data[3],
+                        (unsigned char) buf[i].ifr_hwaddr.sa_data[4],
+                        (unsigned char) buf[i].ifr_hwaddr.sa_data[5]);
+                sw_add_assoc_string(return_value, buf[i].ifr_name, mac, 1);
             }
-            sw_add_assoc_string(return_value, ifa->ifa_name, ip, 1);
+            i++;
         }
     }
-    freeifaddrs(ipaddrs);
+
+    close(sock);
+#else
+    
+#endif
 }
 
 /*
