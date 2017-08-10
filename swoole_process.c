@@ -443,9 +443,9 @@ static PHP_METHOD(swoole_process, signal)
 
     if (SwooleGS->start && (swIsWorker() || swIsMaster() || swIsManager() || swIsTaskWorker()))
     {
-        if (signo == SIGTERM || signo == SIGALRM)
+        if (signo == SIGTERM)
         {
-            swoole_php_fatal_error(E_WARNING, "cannot use swoole_process::signal in swoole_server.");
+            swoole_php_fatal_error(E_WARNING, "unable to register SIGTERM in swoole_server.");
             RETURN_FALSE;
         }
     }
