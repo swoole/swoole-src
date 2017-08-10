@@ -1183,7 +1183,6 @@ PHP_FUNCTION(swoole_get_local_ip)
 PHP_FUNCTION(swoole_get_local_mac)
 {
 #ifndef __MACH__
-    struct ifreq ifreq;
     struct ifconf ifc;
     struct ifreq buf[16];
     char mac[32] = {0};
