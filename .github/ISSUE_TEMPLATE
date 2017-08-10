@@ -20,8 +20,14 @@ Please answer these questions before submitting your issue. Thanks!
 你所使用的Swoole版本号是什么（使用php --ri swoole可以获取）？
 
 
+
 5. What is your machine environment used (including version of kernel & php & gcc) ? 
 你使用的机器系统环境是什么（包括内核、PHP、gcc编译器版本信息）？
 
+
+
 6. If you are using ssl, what is your openssl version?
 如果你使用了SSL，你的openssl版本是什么？
+
+
+
