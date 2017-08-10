@@ -139,10 +139,10 @@ int swTableColumn_add(swTable *table, char *name, int len, int type, int size)
 
 int swTable_create(swTable *table)
 {
-    uint32_t row_num = table->size * (1 + SW_TABLE_CONFLICT_PROPORTION);
+    size_t row_num = table->size * (1 + SW_TABLE_CONFLICT_PROPORTION);
 
     //header + data
-    uint32_t row_memory_size = sizeof(swTableRow) + table->item_size;
+    size_t row_memory_size = sizeof(swTableRow) + table->item_size;
 
     /**
      * row data & header
@@ -165,7 +165,6 @@ int swTable_create(swTable *table)
         return SW_ERR;
     }
 
-    memset(memory, 0, memory_size);
     table->memory = memory;
     table->compress_threshold = table->size * SW_TABLE_COMPRESS_PROPORTION;
 
@@ -185,6 +184,7 @@ int swTable_create(swTable *table)
     for (i = 0; i < table->size; i++)
     {
         table->rows[i] = memory + (row_memory_size * i);
+        memset(table->rows[i], 0, sizeof(swTableRow));
 #if SW_TABLE_USE_SPINLOCK == 0
         pthread_mutex_init(&table->rows[i]->lock, &attr);
 #endif
@@ -212,14 +212,14 @@ void swTable_free(swTable *table)
     }
 }
 
-static sw_inline swTableRow* swTable_hash(swTable *table, char *key, int keylen)
+static swTableRow* swTable_hash(swTable *table, char *key, int keylen)
 {
 #ifdef SW_TABLE_USE_PHP_HASH
     uint64_t hashv = swoole_hash_php(key, keylen);
 #else
     uint64_t hashv = swoole_hash_austin(key, keylen);
 #endif
-    uint32_t index = hashv & table->mask;
+    uint64_t index = hashv & table->mask;
     assert(index < table->size);
     return table->rows[index];
 }
