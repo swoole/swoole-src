@@ -20,6 +20,7 @@
 #include <arpa/inet.h>
 #include <net/if.h>
 #include <ifaddrs.h>
+#include <sys/ioctl.h>
 
 #ifdef HAVE_PCRE
 #include <ext/spl/spl_iterators.h>
@@ -326,6 +327,7 @@ const zend_function_entry swoole_functions[] =
     PHP_FALIAS(swoole_select, swoole_client_select, arginfo_swoole_client_select)
     PHP_FE(swoole_set_process_name, arginfo_swoole_set_process_name)
     PHP_FE(swoole_get_local_ip, arginfo_swoole_void)
+    PHP_FE(swoole_get_local_mac, arginfo_swoole_void)
     PHP_FE(swoole_strerror, arginfo_swoole_strerror)
     PHP_FE(swoole_errno, arginfo_swoole_void)
     PHP_FE_END /* Must be the last line in swoole_functions[] */
@@ -1176,6 +1178,51 @@ PHP_FUNCTION(swoole_get_local_ip)
         }
     }
     freeifaddrs(ipaddrs);
+}
+
+PHP_FUNCTION(swoole_get_local_mac)
+{
+#ifndef __MACH__
+    struct ifconf ifc;
+    struct ifreq buf[16];
+    char mac[32] = {0};
+
+    int sock;
+    int i = 0,num = 0;
+
+    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "new socket failed. Error: %s[%d]", strerror(errno), errno);
+        RETURN_FALSE;
+    }
+    array_init(return_value);
+    
+    ifc.ifc_len = sizeof (buf);
+    ifc.ifc_buf = (caddr_t) buf;
+    if (!ioctl(sock, SIOCGIFCONF, (char *) &ifc))
+    {
+        num = ifc.ifc_len / sizeof (struct ifreq);
+        while (i < num)
+        {
+            if (!(ioctl(sock, SIOCGIFHWADDR, (char *) &buf[i])))
+            {
+                sprintf(mac, "%02X:%02X:%02X:%02X:%02X:%02X",
+                        (unsigned char) buf[i].ifr_hwaddr.sa_data[0],
+                        (unsigned char) buf[i].ifr_hwaddr.sa_data[1],
+                        (unsigned char) buf[i].ifr_hwaddr.sa_data[2],
+                        (unsigned char) buf[i].ifr_hwaddr.sa_data[3],
+                        (unsigned char) buf[i].ifr_hwaddr.sa_data[4],
+                        (unsigned char) buf[i].ifr_hwaddr.sa_data[5]);
+                sw_add_assoc_string(return_value, buf[i].ifr_name, mac, 1);
+            }
+            i++;
+        }
+    }
+
+    close(sock);
+#else
+    
+#endif
 }
 
 /*
