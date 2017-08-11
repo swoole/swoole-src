@@ -16,6 +16,7 @@
 
 #include "swoole.h"
 #include "Server.h"
+#include "Client.h"
 #include "async.h"
 
 #include <pwd.h>
@@ -474,6 +475,8 @@ void swWorker_try_to_exit()
     {
         swAio_free();
     }
+
+    swDNSResolver_free();
 
     uint8_t call_worker_exit_func = 0;
 

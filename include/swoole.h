@@ -912,7 +912,7 @@ typedef struct _swCond
 
 typedef struct _swShareMemory_mmap
 {
-    int size;
+    size_t size;
     char mapfile[SW_SHM_MMAP_FILE_LEN];
     int tmpfd;
     int key;
@@ -920,8 +920,8 @@ typedef struct _swShareMemory_mmap
     void *mem;
 } swShareMemory;
 
-void *swShareMemory_mmap_create(swShareMemory *object, int size, char *mapfile);
-void *swShareMemory_sysv_create(swShareMemory *object, int size, int key);
+void *swShareMemory_mmap_create(swShareMemory *object, size_t size, char *mapfile);
+void *swShareMemory_sysv_create(swShareMemory *object, size_t size, int key);
 int swShareMemory_sysv_free(swShareMemory *object, int rm);
 int swShareMemory_mmap_free(swShareMemory *object);
 
@@ -1361,6 +1361,7 @@ struct _swReactor
 
     uint32_t check_timer :1;
     uint32_t running :1;
+    uint32_t start :1;
 
     /**
      * disable accept new connection

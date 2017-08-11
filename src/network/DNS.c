@@ -395,6 +395,32 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
     return SW_OK;
 }
 
+int swDNSResolver_free()
+{
+    if (resolver_socket == NULL)
+    {
+        return SW_ERR;
+    }
+    if (SwooleG.main_reactor == NULL)
+    {
+        return SW_ERR;
+    }
+    if (swHashMap_count(request_map) > 0)
+    {
+        return SW_ERR;
+    }
+
+    SwooleG.main_reactor->del(SwooleG.main_reactor, resolver_socket->socket->fd);
+    resolver_socket->close(resolver_socket);
+    swClient_free(resolver_socket);
+    sw_free(resolver_socket);
+    resolver_socket = NULL;
+    swHashMap_free(request_map);
+    request_map = NULL;
+
+    return SW_OK;
+}
+
 /**
  * The function converts the dot-based hostname into the DNS format
  * (i.e. www.apple.com into 3www5apple3com0)

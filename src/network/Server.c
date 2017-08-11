@@ -532,7 +532,11 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
         SwooleWG.max_request = serv->max_request;
         if (SwooleWG.max_request > 10)
         {
-            SwooleWG.max_request += swoole_system_random(1, 100);
+            int n = swoole_system_random(1, SwooleWG.max_request / 2);
+            if (n > 0)
+            {
+                SwooleWG.max_request += n;
+            }
         }
     }
 
@@ -739,7 +743,7 @@ void swServer_init(swServer *serv)
 
     //http server
     serv->http_parse_post = 1;
-    serv->upload_tmp_dir = "/tmp";
+    serv->upload_tmp_dir = sw_strdup("/tmp");
 
     //heartbeat check
     serv->heartbeat_idle_time = SW_HEARTBEAT_IDLE;

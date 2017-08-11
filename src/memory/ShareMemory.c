@@ -95,7 +95,7 @@ void* sw_shm_realloc(void *ptr, size_t new_size)
     }
 }
 
-void *swShareMemory_mmap_create(swShareMemory *object, int size, char *mapfile)
+void *swShareMemory_mmap_create(swShareMemory *object, size_t size, char *mapfile)
 {
     void *mem;
     int tmpfd = -1;
@@ -131,7 +131,7 @@ void *swShareMemory_mmap_create(swShareMemory *object, int size, char *mapfile)
     if (!mem)
 #endif
     {
-        swWarn("mmap() failed. Error: %s[%d]", strerror(errno), errno);
+        swWarn("mmap(%ld) failed. Error: %s[%d]", size, strerror(errno), errno);
         return NULL;
     }
     else
@@ -147,7 +147,7 @@ int swShareMemory_mmap_free(swShareMemory *object)
     return munmap(object->mem, object->size);
 }
 
-void *swShareMemory_sysv_create(swShareMemory *object, int size, int key)
+void *swShareMemory_sysv_create(swShareMemory *object, size_t size, int key)
 {
     int shmid;
     void *mem;
@@ -160,7 +160,7 @@ void *swShareMemory_sysv_create(swShareMemory *object, int size, int key)
     //SHM_R | SHM_W |
     if ((shmid = shmget(key, size, IPC_CREAT)) < 0)
     {
-        swWarn("shmget() failed. Error: %s[%d]", strerror(errno), errno);
+        swSysError("shmget(%d, %ld) failed.", key, size);
         return NULL;
     }
     if ((mem = shmat(shmid, NULL, 0)) == (void *) -1)

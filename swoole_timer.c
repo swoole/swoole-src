@@ -37,7 +37,6 @@ typedef struct _swTimer_callback
 
 static void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode);
 static void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode);
-static long php_swoole_add_timer(int ms, zval *callback, zval *param, int persistent TSRMLS_DC);
 static int php_swoole_del_timer(swTimer_node *tnode TSRMLS_DC);
 
 void php_swoole_clear_all_timer()
@@ -65,7 +64,7 @@ void php_swoole_clear_all_timer()
     }
 }
 
-static long php_swoole_add_timer(int ms, zval *callback, zval *param, int persistent TSRMLS_DC)
+long php_swoole_add_timer(int ms, zval *callback, zval *param, int persistent TSRMLS_DC)
 {
     if (SwooleG.serv && swIsMaster())
     {

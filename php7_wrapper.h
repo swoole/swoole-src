@@ -94,7 +94,7 @@ static sw_inline int sw_call_user_function_fast(zval *function_name, zend_fcall_
 #define sw_zend_hash_exists                   zend_hash_exists
 #define sw_php_format_date                    php_format_date
 #define sw_php_url_encode                     php_url_encode
-#define sw_php_array_merge(dest,src)          php_array_merge(dest,src,1 TSRMLS_CC)
+#define sw_php_array_merge(dest,src)          php_array_merge(dest,src,0 TSRMLS_CC)
 #define SW_RETURN_STRINGL                     RETURN_STRINGL
 #define SW_RETVAL_STRING                      RETVAL_STRING
 #define sw_zend_register_internal_class_ex    zend_register_internal_class_ex

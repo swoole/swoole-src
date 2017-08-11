@@ -57,9 +57,9 @@ typedef struct
     swHashMap *columns;
     uint16_t column_num;
     swLock lock;
-    uint32_t size;
-    uint32_t mask;
-    uint32_t item_size;
+    size_t size;
+    size_t mask;
+    size_t item_size;
 
     /**
      * total rows that in active state(shm)

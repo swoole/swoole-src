@@ -1442,6 +1442,11 @@ static PHP_METHOD(swoole_client, recv)
         swString *buffer = cli->buffer;
         int eof = -1;
 
+        if (buffer->length > 0)
+        {
+            goto find_eof;
+        }
+
         while (1)
         {
             buf = buffer->str + buffer->length;
@@ -1472,7 +1477,7 @@ static PHP_METHOD(swoole_client, recv)
                 continue;
             }
 
-            eof = swoole_strnpos(buffer->str, buffer->length, protocol->package_eof, protocol->package_eof_len);
+            find_eof: eof = swoole_strnpos(buffer->str, buffer->length, protocol->package_eof, protocol->package_eof_len);
             if (eof >= 0)
             {
                 eof += protocol->package_eof_len;

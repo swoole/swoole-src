@@ -20,6 +20,7 @@
 #include <arpa/inet.h>
 #include <net/if.h>
 #include <ifaddrs.h>
+#include <sys/ioctl.h>
 
 #ifdef HAVE_PCRE
 #include <ext/spl/spl_iterators.h>
@@ -326,6 +327,7 @@ const zend_function_entry swoole_functions[] =
     PHP_FALIAS(swoole_select, swoole_client_select, arginfo_swoole_client_select)
     PHP_FE(swoole_set_process_name, arginfo_swoole_set_process_name)
     PHP_FE(swoole_get_local_ip, arginfo_swoole_void)
+    PHP_FE(swoole_get_local_mac, arginfo_swoole_void)
     PHP_FE(swoole_strerror, arginfo_swoole_strerror)
     PHP_FE(swoole_errno, arginfo_swoole_void)
     PHP_FE_END /* Must be the last line in swoole_functions[] */
@@ -521,7 +523,7 @@ int php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data,
 
     if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
-        swoole_php_fatal_error(E_WARNING, "onPipeMessage handler error.");
+        swoole_php_fatal_error(E_WARNING, "length function handler error.");
         goto error;
     }
     if (EG(exception))
@@ -537,6 +539,65 @@ int php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data,
         sw_zval_ptr_dtor(&retval);
         SwooleG.lock.unlock(&SwooleG.lock);
         return length;
+    }
+    error:
+    SwooleG.lock.unlock(&SwooleG.lock);
+    return -1;
+}
+
+int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swEventData *data)
+{
+    SwooleG.lock.lock(&SwooleG.lock);
+    SWOOLE_GET_TSRMLS;
+
+    zval *zserv = (zval *) serv->ptr2;
+
+    zval *zdata;
+    zval *zfd;
+    zval *ztype;
+    zval *retval = NULL;
+
+    SW_MAKE_STD_ZVAL(zdata);
+    SW_ZVAL_STRINGL(zdata, data->data, data->info.len, 1);
+
+    SW_MAKE_STD_ZVAL(zfd);
+    ZVAL_LONG(zfd, (long ) conn->session_id);
+
+    SW_MAKE_STD_ZVAL(ztype);
+    ZVAL_LONG(ztype, (long ) data->info.type);
+
+    zval **args[4];
+    args[0] = &zserv;
+    args[1] = &zfd;
+    args[2] = &ztype;
+    args[3] = &zdata;
+
+    zval *callback = (zval*) serv->private_data_3;
+    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 4, args, 0, NULL TSRMLS_CC) == FAILURE)
+    {
+        swoole_php_fatal_error(E_WARNING, "dispatch function handler error.");
+        goto error;
+    }
+    if (EG(exception))
+    {
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+        goto error;
+    }
+    sw_zval_ptr_dtor(&zfd);
+    sw_zval_ptr_dtor(&ztype);
+    sw_zval_ptr_dtor(&zdata);
+    if (retval != NULL)
+    {
+        convert_to_long(retval);
+        int worker_id = (int) Z_LVAL_P(retval);
+        if (worker_id >= serv->worker_num)
+        {
+            swoole_php_fatal_error(E_WARNING, "invalid target worker-id[%d].", worker_id);
+            goto error;
+        }
+        sw_zval_ptr_dtor(&retval);
+        SwooleG.lock.unlock(&SwooleG.lock);
+        return worker_id;
     }
     error:
     SwooleG.lock.unlock(&SwooleG.lock);
@@ -1117,6 +1178,51 @@ PHP_FUNCTION(swoole_get_local_ip)
         }
     }
     freeifaddrs(ipaddrs);
+}
+
+PHP_FUNCTION(swoole_get_local_mac)
+{
+#ifndef __MACH__
+    struct ifconf ifc;
+    struct ifreq buf[16];
+    char mac[32] = {0};
+
+    int sock;
+    int i = 0,num = 0;
+
+    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "new socket failed. Error: %s[%d]", strerror(errno), errno);
+        RETURN_FALSE;
+    }
+    array_init(return_value);
+    
+    ifc.ifc_len = sizeof (buf);
+    ifc.ifc_buf = (caddr_t) buf;
+    if (!ioctl(sock, SIOCGIFCONF, (char *) &ifc))
+    {
+        num = ifc.ifc_len / sizeof (struct ifreq);
+        while (i < num)
+        {
+            if (!(ioctl(sock, SIOCGIFHWADDR, (char *) &buf[i])))
+            {
+                sprintf(mac, "%02X:%02X:%02X:%02X:%02X:%02X",
+                        (unsigned char) buf[i].ifr_hwaddr.sa_data[0],
+                        (unsigned char) buf[i].ifr_hwaddr.sa_data[1],
+                        (unsigned char) buf[i].ifr_hwaddr.sa_data[2],
+                        (unsigned char) buf[i].ifr_hwaddr.sa_data[3],
+                        (unsigned char) buf[i].ifr_hwaddr.sa_data[4],
+                        (unsigned char) buf[i].ifr_hwaddr.sa_data[5]);
+                sw_add_assoc_string(return_value, buf[i].ifr_name, mac, 1);
+            }
+            i++;
+        }
+    }
+
+    close(sock);
+#else
+    
+#endif
 }
 
 /*

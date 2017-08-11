@@ -123,6 +123,7 @@ int php_swoole_task_pack(swEventData *task, zval *data TSRMLS_DC)
         {
             swoole_php_fatal_error(E_WARNING, "large task pack failed.");
             task->info.fd = SW_ERR;
+            task->info.len = 0;
         }
     }
     else
@@ -544,6 +545,10 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
     ZVAL_LONG(zworker_id, (long) req->info.from_id);
 
     zval *zdata = php_swoole_task_unpack(req TSRMLS_CC);
+    if (zdata == NULL)
+    {
+        return;
+    }
 
     zval **args[3];
     args[0] = &zserv;
@@ -786,6 +791,10 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
     ZVAL_LONG(zfrom_id, (long) req->info.from_id);
 
     zval *zdata = php_swoole_task_unpack(req TSRMLS_CC);
+    if (zdata == NULL)
+    {
+        return SW_ERR;
+    }
 
     args[0] = &zserv;
     args[1] = &zfd;
@@ -838,6 +847,10 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
     ZVAL_LONG(ztask_id, (long) req->info.fd);
 
     zdata = php_swoole_task_unpack(req TSRMLS_CC);
+    if (zdata == NULL)
+    {
+        return SW_ERR;
+    }
 
     args[0] = &zserv;
     args[1] = &ztask_id;
@@ -1620,18 +1633,36 @@ PHP_METHOD(swoole_server, set)
         convert_to_long(v);
         serv->dispatch_mode = (int) Z_LVAL_P(v);
     }
-    //c/c++ function
+    //dispatch function
     if (php_swoole_array_get_value(vht, "dispatch_func", v))
     {
-        convert_to_string(v);
-        swServer_dispatch_function func = swoole_get_function(Z_STRVAL_P(v), Z_STRLEN_P(v));
-        if (func == NULL)
+        swServer_dispatch_function func = NULL;
+        while(1)
         {
-            swoole_php_fatal_error(E_ERROR, "extension module function '%s' is undefined.", Z_STRVAL_P(v));
-            return;
+            if (Z_TYPE_P(v) == IS_STRING)
+            {
+                func = swoole_get_function(Z_STRVAL_P(v), Z_STRLEN_P(v));
+                break;
+            }
+
+            char *func_name = NULL;
+            if (!sw_zend_is_callable(v, 0, &func_name TSRMLS_CC))
+            {
+                swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
+                efree(func_name);
+                return;
+            }
+            efree(func_name);
+            sw_zval_add_ref(&v);
+            serv->private_data_3 = sw_zval_dup(v);
+            func = php_swoole_dispatch_func;
+            break;
         }
-        serv->dispatch_mode = SW_DISPATCH_USERFUNC;
-        serv->dispatch_func = func;
+        if (func)
+        {
+            serv->dispatch_mode = SW_DISPATCH_USERFUNC;
+            serv->dispatch_func = func;
+        }
     }
     //log_file
     if (php_swoole_array_get_value(vht, "log_file", v))
@@ -2111,6 +2142,12 @@ PHP_METHOD(swoole_server, send)
         RETURN_FALSE;
     }
 
+    if (swIsMaster())
+    {
+        swoole_php_fatal_error(E_WARNING, "can't send data to the connections in master process.");
+        RETURN_FALSE;
+    }
+
 #ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(2, 3)
         Z_PARAM_ZVAL(zfd)
@@ -2289,6 +2326,12 @@ PHP_METHOD(swoole_server, sendfile)
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ls|ll", &fd, &filename, &len, &offset, &length) == FAILURE)
     {
         return;
+    }
+
+    if (swIsMaster())
+    {
+        swoole_php_fatal_error(E_WARNING, "can't sendfile[%s] to the connections in master process.", filename);
+        RETURN_FALSE;
     }
 
     swServer *serv = swoole_get_object(zobject);
@@ -2572,7 +2615,10 @@ PHP_METHOD(swoole_server, taskwait)
         RETURN_FALSE;
     }
 
-    php_swoole_task_pack(&buf, data TSRMLS_CC);
+    if (php_swoole_task_pack(&buf, data TSRMLS_CC) < 0)
+    {
+        RETURN_FALSE;
+    }
 
     int task_id = buf.info.fd;
 
@@ -2599,7 +2645,16 @@ PHP_METHOD(swoole_server, taskwait)
                     continue;
                 }
                 zval *task_notify_data = php_swoole_task_unpack(task_result TSRMLS_CC);
-                RETURN_ZVAL(task_notify_data, 0, 0);
+                if (task_notify_data == NULL)
+                {
+                    RETURN_FALSE;
+                }
+                else
+                {
+                    RETVAL_ZVAL(task_notify_data, 0, 0);
+                    efree(task_notify_data);
+                    return;
+                }
                 break;
             }
             else
@@ -2736,6 +2791,10 @@ PHP_METHOD(swoole_server, taskWaitMulti)
         result = (swEventData *) (content->str + content->offset);
         task_id = result->info.fd;
         zdata = php_swoole_task_unpack(result TSRMLS_CC);
+        if (zdata == NULL)
+        {
+            goto next;
+        }
         for (j = 0; j < Z_ARRVAL_P(tasks)->nNumOfElements; j++)
         {
             if (list_of_id[j] == task_id)
@@ -2744,7 +2803,7 @@ PHP_METHOD(swoole_server, taskWaitMulti)
             }
         }
         add_index_zval(return_value, j, zdata);
-        content->offset += sizeof(swDataHead) + result->info.len;
+        next: content->offset += sizeof(swDataHead) + result->info.len;
     }
     while(content->offset < content->length);
     //free memory

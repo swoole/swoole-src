@@ -249,6 +249,7 @@ PHP_FUNCTION(swoole_version);
 PHP_FUNCTION(swoole_cpu_num);
 PHP_FUNCTION(swoole_set_process_name);
 PHP_FUNCTION(swoole_get_local_ip);
+PHP_FUNCTION(swoole_get_local_mac);
 
 //---------------------------------------------------------
 //                  swoole_server
@@ -375,6 +376,7 @@ void php_swoole_check_reactor();
 void php_swoole_event_init();
 void php_swoole_event_wait();
 void php_swoole_check_timer(int interval);
+long php_swoole_add_timer(int ms, zval *callback, zval *param, int persistent TSRMLS_DC);
 void php_swoole_clear_all_timer();
 void php_swoole_register_callback(swServer *serv);
 void php_swoole_client_free(zval *object, swClient *cli TSRMLS_DC);
@@ -430,6 +432,7 @@ void php_swoole_onClose(swServer *, swDataHead *);
 void php_swoole_onBufferFull(swServer *, swDataHead *);
 void php_swoole_onBufferEmpty(swServer *, swDataHead *);
 int php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
+int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swEventData *data);
 int php_swoole_client_onPackage(swConnection *conn, char *data, uint32_t length);
 
 #if PHP_MAJOR_VERSION >= 7
