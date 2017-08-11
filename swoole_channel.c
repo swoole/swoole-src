@@ -96,8 +96,10 @@ static PHP_METHOD(swoole_channel, push)
     }
 
     swEventData buf;
-    php_swoole_task_pack(&buf, zdata TSRMLS_CC);
-
+    if (php_swoole_task_pack(&buf, zdata TSRMLS_CC) < 0)
+    {
+        RETURN_FALSE;
+    }
     SW_CHECK_RETURN(swChannel_push(chan, &buf, sizeof(buf.info) + buf.info.len));
 }
 

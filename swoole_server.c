@@ -123,6 +123,7 @@ int php_swoole_task_pack(swEventData *task, zval *data TSRMLS_DC)
         {
             swoole_php_fatal_error(E_WARNING, "large task pack failed.");
             task->info.fd = SW_ERR;
+            task->info.len = 0;
         }
     }
     else
@@ -2602,7 +2603,10 @@ PHP_METHOD(swoole_server, taskwait)
         RETURN_FALSE;
     }
 
-    php_swoole_task_pack(&buf, data TSRMLS_CC);
+    if (php_swoole_task_pack(&buf, data TSRMLS_CC) < 0)
+    {
+        RETURN_FALSE;
+    }
 
     int task_id = buf.info.fd;
 
