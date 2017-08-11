@@ -1,6 +1,13 @@
 --TEST--
-Object-Reference test
+swoole_serialize: Object-Reference test
 --SKIPIF--
+<?php
+require __DIR__ . "/../include/skipif.inc";
+if (!class_exists("swoole_serialize", false))
+{
+    echo "skip";
+}
+?>
 --FILE--
 <?php
 

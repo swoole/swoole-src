@@ -1,6 +1,13 @@
 --TEST--
-Check for reference serialization
+swoole_serialize: Check for reference serialization
 --SKIPIF--
+<?php
+require __DIR__ . "/../include/skipif.inc";
+if (!class_exists("swoole_serialize", false))
+{
+    echo "skip";
+}
+?>
 --FILE--
 <?php
 ini_set("display_errors", "Off");

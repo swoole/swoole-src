@@ -1,6 +1,13 @@
 --TEST--
-Object test, __sleep
+swoole_serialize: Object test, __sleep
 --SKIPIF--
+<?php
+require __DIR__ . "/../include/skipif.inc";
+if (!class_exists("swoole_serialize", false))
+{
+    echo "skip";
+}
+?>
 --FILE--
 <?php
 
