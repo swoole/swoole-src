@@ -35,10 +35,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2017-07-27</date>
+    <date>2017-08-11</date>
     <time>09:50:10</time>
     <version>
-        <release>1.9.17</release>
+        <release>1.9.18</release>
         <api>1.9</api>
     </version>
     <stability>
@@ -47,10 +47,13 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Refactor the worker process reload feature
-- Added document_root and enable_static_handler option
-- Update Server::send method, SSL connections can use sendfile
-- Added 27 unit test scripts
+- Fixed process::signal parent/child process repeatedly registers the same signal that causes the crash
+- Optimize EOF protocol logic to reduce 64K stack memory requirements
+- Fixed the client to set the HTTP_PROXY agent does not work properly
+- Fixed asynchronous reloading a certain probability of missing process problems
+- Allow dispatch_func to pass in PHP functions
+- Fixed defer interface can not perform in the onWorkerStart callback
+- Fixed EOF sync client has received an EAGIAN error when receiving data continuously
     </notes>
     <contents>
         <dir name="/">
@@ -448,8 +451,8 @@
                 <file name="include/toolkit/RandStr.php" role="test" />
                 <file name="include/toolkit/TcpStat.php" role="test" />
                 <file name="include/toolkit/functions.php" role="test" />
-                <file name="run-tests.php" role="test" />
-                <file name="start-tests.sh" role="test" />
+                <file name="run-tests" role="test" />
+                <file name="start.sh" role="test" />
                 <file name="swoole_async/aio1.phpt" role="test" />
                 <file name="swoole_async/aio2.phpt" role="test" />
                 <file name="swoole_async/aio3.phpt" role="test" />
@@ -461,6 +464,7 @@
                 <file name="swoole_async/swoole_async_dns_lookup.phpt" role="test" />
                 <file name="swoole_async/swoole_async_read.phpt" role="test" />
                 <file name="swoole_async/swoole_async_set.phpt" role="test" />
+                <file name="swoole_async/swoole_async_write.phpt" role="test" />
                 <file name="swoole_async/writefile.phpt" role="test" />
                 <file name="swoole_atomic/atomic.phpt" role="test" />
                 <file name="swoole_atomic/wait.phpt" role="test" />
@@ -482,6 +486,7 @@
                 <file name="swoole_client_async/sendfile.phpt" role="test" />
                 <file name="swoole_client_async/sleep_wake.phpt" role="test" />
                 <file name="swoole_client_async/swoole_client.phpt" role="test" />
+                <file name="swoole_client_sync/eof.phpt" role="test" />
                 <file name="swoole_client_sync/sendfile.phpt" role="test" />
                 <file name="swoole_client_sync/swoole_client_connect1-1.phpt" role="test" />
                 <file name="swoole_client_sync/swoole_client_connect1-2.phpt" role="test" />
@@ -489,60 +494,6 @@
                 <file name="swoole_client_sync/swoole_client_send_recv.phpt" role="test" />
                 <file name="swoole_client_sync/swoole_client_sync_send_recv.phpt" role="test" />
                 <file name="swoole_client_sync/udp_client_sendto.phpt" role="test" />
-                <file name="swoole_coroutine/client_multi.diff" role="test" />
-                <file name="swoole_coroutine/client_multi.exp" role="test" />
-                <file name="swoole_coroutine/client_multi.log" role="test" />
-                <file name="swoole_coroutine/client_multi.out" role="test" />
-                <file name="swoole_coroutine/client_multi.php" role="test" />
-                <file name="swoole_coroutine/client_multi.sh" role="test" />
-                <file name="swoole_coroutine/client_timeout.diff" role="test" />
-                <file name="swoole_coroutine/client_timeout.exp" role="test" />
-                <file name="swoole_coroutine/client_timeout.log" role="test" />
-                <file name="swoole_coroutine/client_timeout.out" role="test" />
-                <file name="swoole_coroutine/client_timeout.php" role="test" />
-                <file name="swoole_coroutine/client_timeout.sh" role="test" />
-                <file name="swoole_coroutine/dns_lookup.diff" role="test" />
-                <file name="swoole_coroutine/dns_lookup.exp" role="test" />
-                <file name="swoole_coroutine/dns_lookup.log" role="test" />
-                <file name="swoole_coroutine/dns_lookup.out" role="test" />
-                <file name="swoole_coroutine/dns_lookup.php" role="test" />
-                <file name="swoole_coroutine/dns_lookup.sh" role="test" />
-                <file name="swoole_coroutine/http_client.diff" role="test" />
-                <file name="swoole_coroutine/http_client.exp" role="test" />
-                <file name="swoole_coroutine/http_client.log" role="test" />
-                <file name="swoole_coroutine/http_client.out" role="test" />
-                <file name="swoole_coroutine/http_client.php" role="test" />
-                <file name="swoole_coroutine/http_client.sh" role="test" />
-                <file name="swoole_coroutine/mysql.diff" role="test" />
-                <file name="swoole_coroutine/mysql.exp" role="test" />
-                <file name="swoole_coroutine/mysql.log" role="test" />
-                <file name="swoole_coroutine/mysql.out" role="test" />
-                <file name="swoole_coroutine/mysql.php" role="test" />
-                <file name="swoole_coroutine/mysql.sh" role="test" />
-                <file name="swoole_coroutine/redis.diff" role="test" />
-                <file name="swoole_coroutine/redis.exp" role="test" />
-                <file name="swoole_coroutine/redis.log" role="test" />
-                <file name="swoole_coroutine/redis.out" role="test" />
-                <file name="swoole_coroutine/redis.php" role="test" />
-                <file name="swoole_coroutine/redis.sh" role="test" />
-                <file name="swoole_coroutine/redis_pool.diff" role="test" />
-                <file name="swoole_coroutine/redis_pool.exp" role="test" />
-                <file name="swoole_coroutine/redis_pool.log" role="test" />
-                <file name="swoole_coroutine/redis_pool.out" role="test" />
-                <file name="swoole_coroutine/redis_pool.php" role="test" />
-                <file name="swoole_coroutine/redis_pool.sh" role="test" />
-                <file name="swoole_coroutine/tcp_client.diff" role="test" />
-                <file name="swoole_coroutine/tcp_client.exp" role="test" />
-                <file name="swoole_coroutine/tcp_client.log" role="test" />
-                <file name="swoole_coroutine/tcp_client.out" role="test" />
-                <file name="swoole_coroutine/tcp_client.php" role="test" />
-                <file name="swoole_coroutine/tcp_client.sh" role="test" />
-                <file name="swoole_coroutine/udp_client.diff" role="test" />
-                <file name="swoole_coroutine/udp_client.exp" role="test" />
-                <file name="swoole_coroutine/udp_client.log" role="test" />
-                <file name="swoole_coroutine/udp_client.out" role="test" />
-                <file name="swoole_coroutine/udp_client.php" role="test" />
-                <file name="swoole_coroutine/udp_client.sh" role="test" />
                 <file name="swoole_event/swoole_event.phpt" role="test" />
                 <file name="swoole_event/swoole_event_core.phpt" role="test" />
                 <file name="swoole_event/swoole_event_del.phpt" role="test" />
@@ -561,6 +512,7 @@
                 <file name="swoole_http_client/get.phpt" role="test" />
                 <file name="swoole_http_client/get_with_query_string.phpt" role="test" />
                 <file name="swoole_http_client/get_without_query_string.phpt" role="test" />
+                <file name="swoole_http_client/http_proxy.phpt" role="test" />
                 <file name="swoole_http_client/http_request_connect_timeout.phpt" role="test" />
                 <file name="swoole_http_client/keepalive.phpt" role="test" />
                 <file name="swoole_http_client/method_delete.phpt" role="test" />
@@ -597,6 +549,7 @@
                 <file name="swoole_http_server/sendfile.phpt" role="test" />
                 <file name="swoole_https_client/get_with_query_string.phpt" role="test" />
                 <file name="swoole_https_client/get_without_query_string.phpt" role="test" />
+                <file name="swoole_https_client/http_proxy.phpt" role="test" />
                 <file name="swoole_https_client/method_delete.phpt" role="test" />
                 <file name="swoole_https_client/method_delete_with_payload.phpt" role="test" />
                 <file name="swoole_https_client/method_get.phpt" role="test" />
@@ -651,7 +604,6 @@
                 <file name="swoole_redis/connect_refuse.phpt" role="test" />
                 <file name="swoole_redis/connect_timeout.phpt" role="test" />
                 <file name="swoole_redis/get_set.phpt" role="test" />
-                <file name="swoole_redis/setex.phpt" role="test" />
                 <file name="swoole_redis/subscribe.phpt" role="test" />
                 <file name="swoole_redis_server/big_packet.phpt" role="test" />
                 <file name="swoole_serialize/001.phpt" role="test" />
@@ -690,6 +642,7 @@
                 <file name="swoole_server/heartbeat_true.phpt" role="test" />
                 <file name="swoole_server/length_protocol.phpt" role="test" />
                 <file name="swoole_server/listen_fail.phpt" role="test" />
+                <file name="swoole_server/max_request.phpt" role="test" />
                 <file name="swoole_server/protect.phpt" role="test" />
                 <file name="swoole_server/protect_false.phpt" role="test" />
                 <file name="swoole_server/reload.phpt" role="test" />
@@ -701,6 +654,7 @@
                 <file name="swoole_server/stop.phpt" role="test" />
                 <file name="swoole_server/task.phpt" role="test" />
                 <file name="swoole_server/taskWaitMulti.phpt" role="test" />
+                <file name="swoole_server/task_callback.phpt" role="test" />
                 <file name="swoole_server/taskwait.phpt" role="test" />
                 <file name="swoole_server/unsock_dgram.phpt" role="test" />
                 <file name="swoole_server/unsock_stream.phpt" role="test" />
