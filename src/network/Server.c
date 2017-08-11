@@ -532,7 +532,11 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
         SwooleWG.max_request = serv->max_request;
         if (SwooleWG.max_request > 10)
         {
-            SwooleWG.max_request += swoole_system_random(1, 100);
+            int n = swoole_system_random(1, SwooleWG.max_request / 2);
+            if (n > 0)
+            {
+                SwooleWG.max_request += n;
+            }
         }
     }
 
