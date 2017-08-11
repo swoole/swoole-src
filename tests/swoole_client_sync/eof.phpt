@@ -67,6 +67,7 @@ $pm->childFunc = function () use ($pm, $port)
         'open_eof_split' => true,
         'dispatch_mode' => 3,
         'package_max_length' => 1024 * 1024 * 2, //2M
+        'socket_buffer_size' => 128 * 1024 * 1024,
         "worker_num" => 1,
         'log_file' => '/dev/null',
     ));
