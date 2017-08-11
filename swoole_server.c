@@ -572,7 +572,7 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
     }
 
     sw_zval_ptr_dtor(&zworker_id);
-    sw_zval_ptr_dtor(&zdata);
+    sw_zval_free(zdata);
 
     if (retval != NULL)
     {
@@ -889,10 +889,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
     sw_zval_ptr_dtor(&ztask_id);
-    sw_zval_ptr_dtor(&zdata);
-#if PHP_MAJOR_VERSION >= 7
-    efree(zdata);
-#endif
+    sw_zval_free(zdata);
     if (retval != NULL)
     {
         sw_zval_ptr_dtor(&retval);
@@ -900,10 +897,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
     if (swTask_type(req) & SW_TASK_CALLBACK)
     {
         swHashMap_del_int(task_callbacks, req->info.fd);
-        sw_zval_ptr_dtor(&callback);
-#if PHP_MAJOR_VERSION >= 7
-        efree(callback);
-#endif
+        sw_zval_free(callback);
     }
     return SW_OK;
 }
@@ -2803,6 +2797,7 @@ PHP_METHOD(swoole_server, taskWaitMulti)
             }
         }
         add_index_zval(return_value, j, zdata);
+        efree(zdata);
         next: content->offset += sizeof(swDataHead) + result->info.len;
     }
     while(content->offset < content->length);
