@@ -269,7 +269,10 @@ static int swManager_loop(swFactory *factory)
         {
             if (ManagerProcess.reloading == 0)
             {
-                error: swSysError("wait() failed.");
+                error: if (errno != EINTR)
+                {
+                    swSysError("wait() failed.");
+                }
                 continue;
             }
             //reload task & event workers

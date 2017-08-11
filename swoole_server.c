@@ -545,6 +545,10 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
     ZVAL_LONG(zworker_id, (long) req->info.from_id);
 
     zval *zdata = php_swoole_task_unpack(req TSRMLS_CC);
+    if (zdata == NULL)
+    {
+        return;
+    }
 
     zval **args[3];
     args[0] = &zserv;
@@ -787,6 +791,10 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
     ZVAL_LONG(zfrom_id, (long) req->info.from_id);
 
     zval *zdata = php_swoole_task_unpack(req TSRMLS_CC);
+    if (zdata == NULL)
+    {
+        return SW_ERR;
+    }
 
     args[0] = &zserv;
     args[1] = &zfd;
@@ -839,6 +847,10 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
     ZVAL_LONG(ztask_id, (long) req->info.fd);
 
     zdata = php_swoole_task_unpack(req TSRMLS_CC);
+    if (zdata == NULL)
+    {
+        return SW_ERR;
+    }
 
     args[0] = &zserv;
     args[1] = &ztask_id;
@@ -2633,7 +2645,16 @@ PHP_METHOD(swoole_server, taskwait)
                     continue;
                 }
                 zval *task_notify_data = php_swoole_task_unpack(task_result TSRMLS_CC);
-                RETURN_ZVAL(task_notify_data, 0, 0);
+                if (task_notify_data == NULL)
+                {
+                    RETURN_FALSE;
+                }
+                else
+                {
+                    RETVAL_ZVAL(task_notify_data, 0, 0);
+                    efree(task_notify_data);
+                    return;
+                }
                 break;
             }
             else
@@ -2770,6 +2791,10 @@ PHP_METHOD(swoole_server, taskWaitMulti)
         result = (swEventData *) (content->str + content->offset);
         task_id = result->info.fd;
         zdata = php_swoole_task_unpack(result TSRMLS_CC);
+        if (zdata == NULL)
+        {
+            goto next;
+        }
         for (j = 0; j < Z_ARRVAL_P(tasks)->nNumOfElements; j++)
         {
             if (list_of_id[j] == task_id)
@@ -2778,7 +2803,7 @@ PHP_METHOD(swoole_server, taskWaitMulti)
             }
         }
         add_index_zval(return_value, j, zdata);
-        content->offset += sizeof(swDataHead) + result->info.len;
+        next: content->offset += sizeof(swDataHead) + result->info.len;
     }
     while(content->offset < content->length);
     //free memory

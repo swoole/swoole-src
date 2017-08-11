@@ -115,6 +115,11 @@ static PHP_METHOD(swoole_channel, pop)
     }
 
     zval *ret_data = php_swoole_task_unpack(&buf TSRMLS_CC);
+    if (ret_data == NULL)
+    {
+        RETURN_FALSE;
+    }
+
     RETVAL_ZVAL(ret_data, 0, NULL);
     efree(ret_data);
 }
