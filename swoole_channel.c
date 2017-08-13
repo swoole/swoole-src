@@ -18,12 +18,19 @@
 
 
 #include "php_swoole.h"
+#include "swoole_coroutine.h"
 
+enum ringqueue_property
+{
+    channel_property_waiting_list = 0,
+};
 
 static PHP_METHOD(swoole_channel, __construct);
 static PHP_METHOD(swoole_channel, __destruct);
 static PHP_METHOD(swoole_channel, push);
 static PHP_METHOD(swoole_channel, pop);
+static PHP_METHOD(swoole_channel, coro_push);
+static PHP_METHOD(swoole_channel, coro_pop);
 static PHP_METHOD(swoole_channel, stats);
 
 static zend_class_entry swoole_channel_ce;
@@ -46,6 +53,8 @@ static const zend_function_entry swoole_channel_methods[] =
     PHP_ME(swoole_channel, __destruct, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_ME(swoole_channel, push, arginfo_swoole_channel_push, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_channel, pop, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_channel, coro_push, arginfo_swoole_channel_push, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_channel, coro_pop, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_channel, stats, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
@@ -55,6 +64,19 @@ void swoole_channel_init(int module_number TSRMLS_DC)
     SWOOLE_INIT_CLASS_ENTRY(swoole_channel_ce, "swoole_channel", "Swoole\\Channel", swoole_channel_methods);
     swoole_channel_class_entry_ptr = zend_register_internal_class(&swoole_channel_ce TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_channel, "Swoole\\Channel");
+}
+
+static swoole_channel_onResume(php_context *ctx)
+{
+    zval *zdata = &ctx->coro_params;
+    zval *retval = NULL;
+    int ret = coro_resume(ctx, zdata, &retval);
+    if (ret == CORO_END && retval)
+    {
+        sw_zval_ptr_dtor(&retval);
+    }
+    sw_zval_ptr_dtor(&zdata);
+
 }
 
 static PHP_METHOD(swoole_channel, __construct)
@@ -78,6 +100,13 @@ static PHP_METHOD(swoole_channel, __construct)
         RETURN_FALSE;
     }
     swoole_set_object(getThis(), chan);
+
+    swLinkedList *coros_list = swLinkedList_new(2, NULL);
+    if (coros_list == NULL)
+    {
+        RETURN_FALSE;
+    }
+    swoole_set_property(getThis(), channel_property_waiting_list, coros_list);
 }
 
 static PHP_METHOD(swoole_channel, __destruct)
@@ -101,6 +130,35 @@ static PHP_METHOD(swoole_channel, push)
     SW_CHECK_RETURN(swChannel_push(chan, &buf, sizeof(buf.info) + buf.info.len));
 }
 
+static PHP_METHOD(swoole_channel, coro_push)
+{
+    swChannel *chan = swoole_get_object(getThis());
+    zval *zdata;
+    zval *retval = NULL;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zdata) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+
+    //swEventData buf;
+    //php_swoole_task_pack(&buf, zdata TSRMLS_CC);
+    if (chan->num == 0)
+    {
+        swLinkedList *coro_list = swoole_get_property(getThis(), channel_property_waiting_list);
+        if (coro_list->num != 0)
+        {
+            php_context *next = (php_context*)swLinkedList_pop(coro_list);
+            next->onTimeout = swoole_channel_onResume;
+            next->coro_params = *zdata;
+            swLinkedList_append(SwooleWG.coro_timeout_list, next);
+            RETURN_TRUE;
+        }
+    }
+
+    SW_CHECK_RETURN(swChannel_in(chan, zdata, sizeof(zval)));
+}
+
 static PHP_METHOD(swoole_channel, pop)
 {
     swChannel *chan = swoole_get_object(getThis());
@@ -110,6 +168,26 @@ static PHP_METHOD(swoole_channel, pop)
     if (n < 0)
     {
         RETURN_FALSE;
+    }
+
+    zval *ret_data = php_swoole_task_unpack(&buf TSRMLS_CC);
+    RETVAL_ZVAL(ret_data, 0, NULL);
+    efree(ret_data);
+}
+
+static PHP_METHOD(swoole_channel, coro_pop)
+{
+    swChannel *chan = swoole_get_object(getThis());
+    swEventData buf;
+
+    int n = swChannel_out(chan, &buf, sizeof(buf));
+    if (n < 0)
+    {
+        swLinkedList *coro_list = swoole_get_property(getThis(), channel_property_waiting_list);
+        php_context *sw_current_context = emalloc(sizeof(php_context));
+        coro_save(sw_current_context);
+        swLinkedList_append(coro_list, sw_current_context);
+        coro_yield();
     }
 
     zval *ret_data = php_swoole_task_unpack(&buf TSRMLS_CC);
