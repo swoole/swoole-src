@@ -37,7 +37,7 @@ void swChannel_free(swChannel *object);
 
 swChannel* swChannel_new(size_t size, int maxlen, int flags)
 {
-    assert(size >= maxlen);
+    assert(size >= maxlen + sizeof(swChannel));
     int ret;
     void *mem;
 
