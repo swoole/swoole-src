@@ -61,51 +61,52 @@ static void php_swoole_onManagerStop(swServer *serv);
 
 static zval* php_swoole_server_add_port(swListenPort *port TSRMLS_DC);
 
-int php_swoole_create_dir(const char* path)
+int php_swoole_create_dir(const char* path, int length)
 {
-    if(access(path, F_OK) != 0)
+    if (access(path, F_OK) == 0) {
+        return 0;
+    }
+    int     startpath;
+    int     endpath;
+    int     i            = 0;
+    int     pathlen      = length;
+    char    curpath[128] = {0};
+    if ('/' != path[0])
     {
-        int     startpach;
-        int     endpath;
-        int     i            = 0;
-        int     pathlen      = strlen(path);
-        char    curpath[128] = {0};
-        if ('/' != path[0])
+        getcwd(curpath, sizeof(curpath));
+        strcat(curpath, "/");
+        startpath   = strlen(curpath);
+        strcat(curpath, path);
+        if (path[pathlen] != '/')
         {
-            getcwd(curpath, sizeof(curpath));
             strcat(curpath, "/");
-            startpach = strlen(curpath);
-            strcat(curpath, path);
-            if(path[pathlen] != '/')
-            {
-                strcat(curpath, "/");
-            }
-            endpath = strlen(curpath);
         }
-        else
+        endpath = strlen(curpath);
+    }
+    else
+    {
+        strcpy(curpath, path);
+        if (path[pathlen] != '/')
         {
-            strcpy(curpath, path);
-            if(path[pathlen] != '/')
-            {
-                strcat(curpath, "/");
-            }
-            startpach    = 1;
-            endpath      = strlen(curpath);
+            strcat(curpath, "/");
         }
-        for(i = startpach; i < endpath ; i++ )
-        {  
-            if('/' == curpath[i])
+        startpath    = 1;
+        endpath      = strlen(curpath);
+    }
+    for (i = startpath; i < endpath ; i++ )
+    {  
+        if ('/' == curpath[i])
+        {
+            curpath[i] = '\0';
+            if (access(curpath, F_OK) != 0)
             {
-                curpath[i] = '\0';
-                if(access(curpath, F_OK) != 0)
-                {
-                    if(mkdir(curpath, 0755) == -1)
-                    {  
-                        return -1;
-                    }
+                if (mkdir(curpath, 0755) == -1)
+                {  
+                    swoole_php_fatal_error(E_WARNING, "file directory  [%s] create fail", path);
+                    return -1;
                 }
-                curpath[i] = '/';
             }
+            curpath[i] = '/';
         }
     }
     return 0;
@@ -1766,7 +1767,7 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "task_tmpdir", v))
     {
         convert_to_string(v);
-        php_swoole_create_dir(Z_STRVAL_P(v));
+        php_swoole_create_dir(Z_STRVAL_P(v), Z_STRLEN_P(v));
 
         if (Z_STRLEN_P(v) > SW_TASK_TMPDIR_SIZE - 30)
         {
@@ -1869,7 +1870,7 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "upload_tmp_dir", v))
     {
         convert_to_string(v);
-        php_swoole_create_dir(Z_STRVAL_P(v));
+        php_swoole_create_dir(Z_STRVAL_P(v), Z_STRLEN_P(v));
 
         if (Z_STRLEN_P(v) >= SW_HTTP_UPLOAD_TMPDIR_SIZE - 22)
         {
