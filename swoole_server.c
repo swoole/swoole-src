@@ -63,9 +63,10 @@ static void php_swoole_onManagerStop(swServer *serv);
 
 static zval* php_swoole_server_add_port(swListenPort *port TSRMLS_DC);
 
-int php_swoole_create_dir(const char* path, int length)
+int php_swoole_create_dir(const char* path, int length TSRMLS_DC)
 {
-    if (access(path, F_OK) == 0) {
+    if (access(path, F_OK) == 0)
+    {
         return 0;
     }
     int     startpath;
@@ -75,7 +76,11 @@ int php_swoole_create_dir(const char* path, int length)
     char    curpath[128] = {0};
     if ('/' != path[0])
     {
-        getcwd(curpath, sizeof(curpath));
+        if (getcwd(curpath, sizeof(curpath)) == NULL)
+        {
+            swoole_php_sys_error(E_WARNING, "getcwd() failed.");
+            return -1;
+        }
         strcat(curpath, "/");
         startpath   = strlen(curpath);
         strcat(curpath, path);
@@ -104,7 +109,7 @@ int php_swoole_create_dir(const char* path, int length)
             {
                 if (mkdir(curpath, 0755) == -1)
                 {  
-                    swoole_php_fatal_error(E_WARNING, "file directory  [%s] create fail", path);
+                    swoole_php_sys_error(E_WARNING, "mkdir(%s, 0755).", path);
                     return -1;
                 }
             }
@@ -1834,7 +1839,7 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "task_tmpdir", v))
     {
         convert_to_string(v);
-        php_swoole_create_dir(Z_STRVAL_P(v), Z_STRLEN_P(v));
+        php_swoole_create_dir(Z_STRVAL_P(v), Z_STRLEN_P(v) TSRMLS_CC);
 
         if (Z_STRLEN_P(v) > SW_TASK_TMPDIR_SIZE - 30)
         {
@@ -1937,7 +1942,7 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "upload_tmp_dir", v))
     {
         convert_to_string(v);
-        php_swoole_create_dir(Z_STRVAL_P(v), Z_STRLEN_P(v));
+        php_swoole_create_dir(Z_STRVAL_P(v), Z_STRLEN_P(v) TSRMLS_CC);
 
         if (Z_STRLEN_P(v) >= SW_HTTP_UPLOAD_TMPDIR_SIZE - 22)
         {
