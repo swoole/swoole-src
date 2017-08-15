@@ -795,6 +795,8 @@ int swServer_shutdown(swServer *serv)
 
 int swServer_free(swServer *serv)
 {
+    swTraceLog(SW_TRACE_SERVER, "release service.");
+
     /**
      * shutdown workers
      */
@@ -807,6 +809,7 @@ int swServer_free(swServer *serv)
      */
     if (SwooleG.heartbeat_pidt)
     {
+        swTraceLog(SW_TRACE_SERVER, "terminate heartbeat thread.");
         if (pthread_cancel(SwooleG.heartbeat_pidt) < 0)
         {
             swSysError("pthread_cancel(%ld) failed.", (ulong_t )SwooleG.heartbeat_pidt);
@@ -819,6 +822,7 @@ int swServer_free(swServer *serv)
     }
     if (serv->factory_mode == SW_MODE_SINGLE)
     {
+        swTraceLog(SW_TRACE_SERVER, "terminate task workers.");
         if (SwooleG.task_worker_num > 0)
         {
             swProcessPool_shutdown(&SwooleGS->task_workers);
@@ -826,6 +830,7 @@ int swServer_free(swServer *serv)
     }
     else
     {
+        swTraceLog(SW_TRACE_SERVER, "terminate reactor threads.");
         /**
          * Wait until all the end of the thread
          */
@@ -1380,6 +1385,8 @@ int swServer_get_socket(swServer *serv, int port)
 
 static void swServer_signal_hanlder(int sig)
 {
+    swTraceLog(SW_TRACE_SERVER, "signal[%d] triggered.", sig);
+
     int status;
     pid_t pid;
     switch (sig)
