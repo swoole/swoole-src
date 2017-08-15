@@ -91,6 +91,7 @@ enum swResponseType
 	SW_RESPONSE_SMALL = 0,
 	SW_RESPONSE_SHM   = 1,
 	SW_RESPONSE_TMPFILE,
+    SW_RESPONSE_EXIT,
 };
 
 enum swWorkerPipeType
@@ -128,6 +129,7 @@ typedef struct _swReactorThread
     int *pipe_read_list;
 #endif
     swLock lock;
+    int notify_pipe;
 } swReactorThread;
 
 typedef struct _swListenPort
