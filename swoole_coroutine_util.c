@@ -537,11 +537,6 @@ static PHP_METHOD(swoole_coroutine_util, getuid)
     RETURN_LONG(COROG.current_coro->cid);
 }
 
-static void php_coroutine_context_free(void *data)
-{
-    efree(data);
-}
-
 static void php_coroutine_sleep_timeout(swTimer *timer, swTimer_node *tnode)
 {
     zval *retval = NULL;
@@ -551,12 +546,12 @@ static void php_coroutine_sleep_timeout(swTimer *timer, swTimer_node *tnode)
 
     php_context *context = (php_context *) tnode->data;
     int ret = coro_resume(context, result, &retval);
-    SwooleG.main_reactor->defer(SwooleG.main_reactor, php_coroutine_context_free, context);
     if (ret == CORO_END && retval)
     {
         sw_zval_ptr_dtor(&retval);
     }
     sw_zval_ptr_dtor(&result);
+    efree(context);
 }
 
 static PHP_METHOD(swoole_coroutine_util, sleep)

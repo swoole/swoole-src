@@ -279,6 +279,7 @@ PHP_METHOD(swoole_server, resume);
 PHP_METHOD(swoole_server, task);
 PHP_METHOD(swoole_server, taskwait);
 PHP_METHOD(swoole_server, taskWaitMulti);
+PHP_METHOD(swoole_server, taskCo);
 PHP_METHOD(swoole_server, finish);
 PHP_METHOD(swoole_server, reload);
 PHP_METHOD(swoole_server, shutdown);

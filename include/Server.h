@@ -110,6 +110,7 @@ enum swTaskType
     SW_TASK_NONBLOCK   = 4,  //task
     SW_TASK_CALLBACK   = 8,  //callback
     SW_TASK_WAITALL    = 16, //for taskWaitAll
+    SW_TASK_COROUTINE  = 32, //coroutine
 };
 
 typedef struct _swUdpFd

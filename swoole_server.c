@@ -42,6 +42,16 @@ zval *php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
 zend_fcall_info_cache *php_sw_server_caches[PHP_SERVER_CALLBACK_NUM];
 
 static swHashMap *task_callbacks = NULL;
+static swHashMap *task_coroutine_map = NULL;
+
+typedef struct
+{
+    php_context context;
+    int *list;
+    int count;
+    zval *result;
+    swTimer_node *timer;
+} swTaskCo;
 
 #if PHP_MAJOR_VERSION >= 7
 zval _php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
@@ -378,6 +388,32 @@ zval* php_swoole_task_unpack(swEventData *task_result TSRMLS_DC)
         SW_ZVAL_STRINGL(result_data, result_data_str, result_data_len, 1);
     }
     return result_data;
+}
+
+static void php_swoole_task_onTimeout(swTimer *timer, swTimer_node *tnode)
+{
+    swTaskCo *task_co = (swTaskCo *) tnode->data;
+    int i;
+    zval *retval = NULL;
+    zval *result = task_co->result;
+
+    for (i = 0; i < task_co->count; i++)
+    {
+        if (!zend_hash_index_exists(Z_ARRVAL_P(result), i))
+        {
+            add_index_bool(result, i, 0);
+            swHashMap_del_int(task_coroutine_map, task_co->list[i]);
+        }
+    }
+
+    php_context *context = &task_co->context;
+    int ret = coro_resume(context, result, &retval);
+    if (ret == CORO_END && retval)
+    {
+        sw_zval_ptr_dtor(&retval);
+    }
+    sw_zval_free(result);
+    efree(task_co);
 }
 
 static zval* php_swoole_server_add_port(swListenPort *port TSRMLS_DC)
@@ -937,6 +973,56 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
     ZVAL_LONG(ztask_id, (long) req->info.fd);
 
     zdata = php_swoole_task_unpack(req TSRMLS_CC);
+
+    if (swTask_type(req) & SW_TASK_COROUTINE)
+    {
+        int task_id = req->info.fd;
+        swTaskCo *task_co = swHashMap_find_int(task_coroutine_map, task_id);
+        if (task_co == NULL)
+        {
+            swoole_php_fatal_error(E_WARNING, "task[%d] has expired.", task_id);
+            fail: sw_zval_free(zdata);
+            return SW_OK;
+        }
+        int i, task_index = -1;
+        zval *result = task_co->result;
+        for (i = 0; i < task_co->count; i++)
+        {
+            if (task_co->list[i] == task_id)
+            {
+                task_index = i;
+                break;
+            }
+        }
+        if (task_index < 0)
+        {
+            swoole_php_fatal_error(E_WARNING, "task[%d] is invalid.", task_id);
+            goto fail;
+        }
+        add_index_zval(result, task_index, zdata);
+#if PHP_MAJOR_VERSION >= 7
+        efree(zdata);
+#endif
+        swHashMap_del_int(task_coroutine_map, task_id);
+
+        if (php_swoole_array_length(result) == task_co->count)
+        {
+            if (task_co->timer)
+            {
+                swTimer_del(&SwooleG.timer, task_co->timer);
+                task_co->timer = NULL;
+            }
+            php_context *context = &task_co->context;
+            int ret = coro_resume(context, result, &retval);
+            if (ret == CORO_END && retval)
+            {
+                sw_zval_ptr_dtor(&retval);
+            }
+            sw_zval_free(result);
+            efree(task_co);
+        }
+        return SW_OK;
+    }
 
     args[0] = &zserv;
     args[1] = &ztask_id;
@@ -1825,6 +1911,10 @@ PHP_METHOD(swoole_server, set)
         if (task_callbacks == NULL)
         {
             task_callbacks = swHashMap_new(1024, NULL);
+        }
+        if (task_coroutine_map == NULL)
+        {
+            task_coroutine_map = swHashMap_new(1024, NULL);
         }
     }
     //task ipc mode, 1,2,3
@@ -2901,6 +2991,107 @@ PHP_METHOD(swoole_server, taskWaitMulti)
     swString_free(content);
     //delete tmp file
     unlink(_tmpfile);
+}
+
+PHP_METHOD(swoole_server, taskCo)
+{
+    swEventData buf;
+    zval *tasks;
+    zval *task;
+    double timeout = SW_TASKWAIT_TIMEOUT;
+
+    if (SwooleGS->start == 0)
+    {
+        swoole_php_fatal_error(E_WARNING, "server is not running.");
+        RETURN_FALSE;
+    }
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|d", &tasks, &timeout) == FAILURE)
+    {
+        return;
+    }
+
+    int dst_worker_id = -1;
+    int task_id;
+    int i = 0;
+    int n_task = Z_ARRVAL_P(tasks)->nNumOfElements;
+
+    if (n_task >= SW_MAX_CONCURRENT_TASK)
+    {
+        swoole_php_fatal_error(E_WARNING, "too many concurrent tasks.");
+        RETURN_FALSE;
+    }
+
+    if (php_swoole_check_task_param(dst_worker_id TSRMLS_CC) < 0)
+    {
+        RETURN_FALSE;
+    }
+
+    int *list = ecalloc(n_task, sizeof(int));
+    if (list == NULL)
+    {
+        RETURN_FALSE;
+    }
+
+    swTaskCo *task_co = emalloc(sizeof(swTaskCo));
+    if (task_co == NULL)
+    {
+        efree(list);
+        RETURN_FALSE;
+    }
+
+    zval *result;
+    SW_ALLOC_INIT_ZVAL(result);
+    array_init(result);
+
+    SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(tasks), task)
+        task_id = php_swoole_task_pack(&buf, task TSRMLS_CC);
+        if (task_id < 0)
+        {
+            swoole_php_fatal_error(E_WARNING, "failed to pack task.");
+            goto fail;
+        }
+        swTask_type(&buf) |= (SW_TASK_NONBLOCK | SW_TASK_COROUTINE);
+        dst_worker_id = -1;
+        sw_atomic_fetch_add(&SwooleStats->tasking_num, 1);
+        if (swProcessPool_dispatch(&SwooleGS->task_workers, &buf, &dst_worker_id) < 0)
+        {
+            sw_atomic_fetch_sub(&SwooleStats->tasking_num, 1);
+            task_id = -1;
+            fail:
+            add_index_bool(result, i, 0);
+            n_task --;
+        }
+        else
+        {
+            swHashMap_add_int(task_coroutine_map, buf.info.fd, task_co);
+        }
+        list[i] = task_id;
+        i++;
+    SW_HASHTABLE_FOREACH_END();
+
+    if (n_task == 0)
+    {
+        SwooleG.error = SW_ERROR_TASK_DISPATCH_FAIL;
+        RETURN_FALSE;
+    }
+
+    int ms = (int) (timeout * 1000);
+
+    task_co->result = result;
+    task_co->list = list;
+    task_co->count = n_task;
+    task_co->context.onTimeout = NULL;
+    task_co->context.state = SW_CORO_CONTEXT_RUNNING;
+
+    php_swoole_check_timer(ms);
+    swTimer_node *timer = SwooleG.timer.add(&SwooleG.timer, ms, 0, task_co, php_swoole_task_onTimeout);
+    if (timer)
+    {
+        task_co->timer = timer;
+    }
+    coro_save(&task_co->context);
+    coro_yield();
 }
 
 PHP_METHOD(swoole_server, task)

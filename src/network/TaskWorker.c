@@ -172,6 +172,10 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
         {
             flags |= SW_TASK_CALLBACK;
         }
+        else if (swTask_type(current_task) & SW_TASK_COROUTINE)
+        {
+            flags |= SW_TASK_COROUTINE;
+        }
         swTask_type(&buf) = flags;
 
         //write to file
