@@ -53,6 +53,11 @@ void swWorker_free(swWorker *worker)
 void swWorker_signal_init(void)
 {
     swSignal_clear();
+    /**
+     * use user settings
+     */
+    SwooleG.use_signalfd = SwooleG.enable_signalfd;
+
     swSignal_add(SIGHUP, NULL);
     swSignal_add(SIGPIPE, NULL);
     swSignal_add(SIGUSR1, NULL);
@@ -63,7 +68,7 @@ void swWorker_signal_init(void)
     //for test
     swSignal_add(SIGVTALRM, swWorker_signal_handler);
 #ifdef SIGRTMIN
-    swSignal_set(SIGRTMIN, swWorker_signal_handler, 1, 0);
+    swSignal_add(SIGRTMIN, swWorker_signal_handler);
 #endif
 }
 
