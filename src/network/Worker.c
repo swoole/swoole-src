@@ -483,6 +483,22 @@ void swWorker_try_to_exit()
 
     swDNSResolver_free();
 
+    //close all client connections
+    if (serv->factory_mode == SW_MODE_SINGLE)
+    {
+        int find_fd = swServer_get_minfd(serv);
+        int max_fd = swServer_get_maxfd(serv);
+        swConnection *conn;
+        for (; find_fd <= max_fd; find_fd++)
+        {
+            conn = &serv->connection_list[find_fd];
+            if (conn->active == 1 && swSocket_is_stream(conn->socket_type) && !(conn->events & SW_EVENT_WRITE))
+            {
+                serv->close(serv, conn->session_id, 0);
+            }
+        }
+    }
+
     uint8_t call_worker_exit_func = 0;
 
     while (1)
