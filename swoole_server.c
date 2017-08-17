@@ -3457,13 +3457,14 @@ PHP_METHOD(swoole_server, stop)
         RETURN_FALSE;
     }
 
+    zend_bool wait_reactor = 0;
     long worker_id = SwooleWG.id;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &worker_id) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|lb", &worker_id, &wait_reactor) == FAILURE)
     {
         return;
     }
 
-    if (worker_id == SwooleWG.id)
+    if (worker_id == SwooleWG.id && wait_reactor == 0)
     {
         SwooleG.main_reactor->running = 0;
         SwooleG.running = 0;
