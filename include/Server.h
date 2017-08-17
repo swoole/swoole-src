@@ -352,9 +352,6 @@ struct _swServer
      */
     uint32_t max_request;
 
-    int timeout_sec;
-    int timeout_usec;
-
     int sock_client_buffer_size; //client的socket缓存区设置
     int sock_server_buffer_size; //server的socket缓存区设置
 
@@ -364,7 +361,6 @@ struct _swServer
     int udp_socket_ipv4;
     int udp_socket_ipv6;
 
-    int ringbuffer_size;
     uint32_t max_wait_time;
 
     /*----------------------------Reactor schedule--------------------------------*/

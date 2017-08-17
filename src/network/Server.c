@@ -731,13 +731,10 @@ void swServer_init(swServer *serv)
     serv->reactor_num = SW_REACTOR_NUM > SW_REACTOR_MAX_THREAD ? SW_REACTOR_MAX_THREAD : SW_REACTOR_NUM;
 
     serv->dispatch_mode = SW_DISPATCH_FDMOD;
-    serv->ringbuffer_size = SW_QUEUE_SIZE;
-
-    serv->timeout_sec = SW_REACTOR_TIMEO_SEC;
-    serv->timeout_usec = SW_REACTOR_TIMEO_USEC;  //300ms;
 
     serv->worker_num = SW_CPU_NUM;
-    serv->max_connection = SwooleG.max_sockets;
+    serv->max_connection = SwooleG.max_sockets < SW_SESSION_LIST_SIZE ? SwooleG.max_sockets : SW_SESSION_LIST_SIZE;
+
     serv->max_request = 0;
     serv->max_wait_time = SW_WORKER_MAX_WAIT_TIME;
 
