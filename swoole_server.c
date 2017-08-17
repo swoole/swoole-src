@@ -3032,37 +3032,23 @@ PHP_METHOD(swoole_server, bind)
     }
 
     swServer *serv = swoole_get_object(zobject);
-
     swConnection *conn = swWorker_get_connection(serv, fd);
-
-    //udp client
-    if (conn == NULL)
+    if (conn == NULL || conn->active == 0)
     {
-        swTrace("%ld conn error", fd);
         RETURN_FALSE;
     }
 
-    //connection is closed
-    if (conn->active == 0)
-    {
-        swTrace("fd:%ld a:%d, uid: %d", fd, conn->active, conn->uid);
-        RETURN_FALSE;
-    }
-
+    sw_spinlock(&conn->lock);
     if (conn->uid != 0)
     {
-        RETURN_FALSE;
+        RETVAL_FALSE;
     }
-
-    int ret = 0;
-    SwooleGS->lock.lock(&SwooleGS->lock);
-    if (conn->uid == 0)
+    else
     {
         conn->uid = (uint32_t) uid;
-        ret = 1;
+        RETVAL_TRUE;
     }
-    SwooleGS->lock.unlock(&SwooleGS->lock);
-    SW_CHECK_RETURN(ret);
+    sw_spinlock_release(&conn->lock);
 }
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
@@ -3184,7 +3170,7 @@ PHP_METHOD(swoole_server, connection_info)
     {
         array_init(return_value);
 
-        if (serv->dispatch_mode == SW_DISPATCH_UIDMOD)
+        if (conn->uid > 0 || serv->dispatch_mode == SW_DISPATCH_UIDMOD)
         {
             add_assoc_long(return_value, "uid", conn->uid);
         }
