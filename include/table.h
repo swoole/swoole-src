@@ -60,6 +60,7 @@ typedef struct
     size_t size;
     size_t mask;
     size_t item_size;
+    size_t memory_size;
 
     /**
      * total rows that in active state(shm)

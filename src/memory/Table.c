@@ -165,6 +165,7 @@ int swTable_create(swTable *table)
         return SW_ERR;
     }
 
+    table->memory_size = memory_size;
     table->memory = memory;
     table->compress_threshold = table->size * SW_TABLE_COMPRESS_PROPORTION;
 

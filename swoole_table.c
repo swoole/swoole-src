@@ -291,6 +291,7 @@ static PHP_METHOD(swoole_table, create)
         swoole_php_fatal_error(E_ERROR, "Unable to allocate memory.");
         RETURN_FALSE;
     }
+    zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("memorySize"), table->memory_size TSRMLS_CC);
     RETURN_TRUE;
 }
 
