@@ -980,10 +980,10 @@ static int http_onReceive(swServer *serv, swEventData *req)
     }
 
     int fd = req->info.fd;
-    swConnection *conn = swWorker_get_connection(SwooleG.serv, fd);
+    swConnection *conn = swServer_connection_verify_no_ssl(SwooleG.serv, fd);
     if (!conn)
     {
-        swWarn("connection[%d] is closed.", fd);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "connection[%d] is closed.", fd);
         return SW_ERR;
     }
     swListenPort *port = serv->connection_list[req->info.from_fd].object;
