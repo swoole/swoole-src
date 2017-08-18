@@ -30,6 +30,7 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_construct, 0, 0, 1)
     ZEND_ARG_INFO(0, table_size)
+    ZEND_ARG_INFO(0, conflict_proportion)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_column, 0, 0, 2)
@@ -75,6 +76,7 @@ static PHP_METHOD(swoole_table, incr);
 static PHP_METHOD(swoole_table, decr);
 static PHP_METHOD(swoole_table, count);
 static PHP_METHOD(swoole_table, destroy);
+static PHP_METHOD(swoole_table, getMemorySize);
 
 #ifdef HAVE_PCRE
 static PHP_METHOD(swoole_table, rewind);
@@ -97,6 +99,7 @@ static const zend_function_entry swoole_table_methods[] =
     PHP_ME(swoole_table, exist,       arginfo_swoole_table_get, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, incr,        arginfo_swoole_table_incr, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, decr,        arginfo_swoole_table_decr, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, getMemorySize,        arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
 #ifdef HAVE_PCRE
     PHP_ME(swoole_table, rewind,      arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, next,        arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
@@ -228,8 +231,9 @@ void swoole_table_column_free(swTableColumn *col)
 PHP_METHOD(swoole_table, __construct)
 {
     long table_size;
+    double conflict_proportion = SW_TABLE_CONFLICT_PROPORTION;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &table_size) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|d", &table_size, &conflict_proportion) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -238,7 +242,7 @@ PHP_METHOD(swoole_table, __construct)
         RETURN_FALSE;
     }
 
-    swTable *table = swTable_new(table_size);
+    swTable *table = swTable_new(table_size, conflict_proportion);
     if (table == NULL)
     {
         zend_throw_exception(swoole_exception_class_entry_ptr, "alloc global memory failed.", SW_ERROR_MALLOC_FAIL TSRMLS_CC);
@@ -641,6 +645,19 @@ static PHP_METHOD(swoole_table, count)
     else
     {
         RETURN_LONG(table->row_num * table->column_num);
+    }
+}
+
+static PHP_METHOD(swoole_table, getMemorySize)
+{
+    swTable *table = swoole_get_object(getThis());
+    if (!table->memory)
+    {
+        RETURN_LONG(swTable_get_memory_size(table));
+    }
+    else
+    {
+        RETURN_LONG(table->memory_size);
     }
 }
 
