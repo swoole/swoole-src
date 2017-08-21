@@ -540,6 +540,8 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
         }
     }
 
+    worker->start_time = SwooleGS->now;
+
     return SW_OK;
 }
 

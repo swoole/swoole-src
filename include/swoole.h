@@ -1480,6 +1480,8 @@ struct _swWorker
      */
     sw_atomic_t tasking_num;
 
+    time_t start_time;
+
 	/**
 	 * worker id
 	 */
