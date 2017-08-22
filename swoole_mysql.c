@@ -1324,7 +1324,7 @@ static void swoole_mysql_onTimeout(swTimer *timer, swTimer_node *tnode)
 static int swoole_mysql_onError(swReactor *reactor, swEvent *event)
 {
     swClient *cli = event->socket->object;
-    if (cli->socket->active)
+    if (cli && cli->socket && cli->socket->active)
     {
 #if PHP_MAJOR_VERSION < 7
         TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
