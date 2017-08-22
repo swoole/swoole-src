@@ -262,7 +262,6 @@ static int swManager_loop(swFactory *factory)
                 }
             }
             ManagerProcess.read_message = 0;
-            goto kill_worker;
         }
 
         if (pid < 0)
