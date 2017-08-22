@@ -146,9 +146,17 @@ void swoole_http2_client_init(int module_number TSRMLS_DC)
     swoole_http2_client_class_entry_ptr = sw_zend_register_internal_class_ex(&swoole_http2_client_ce, swoole_client_class_entry_ptr, "swoole_client" TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_http2_client, "Swoole\\Http2\\Client");
 
+    zend_declare_property_null(swoole_http2_client_class_entry_ptr, SW_STRL("requestHeaders")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_http2_client_class_entry_ptr, SW_STRL("cookies")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+
     SWOOLE_INIT_CLASS_ENTRY(swoole_http2_response_ce, "swoole_http2_response", "Swoole\\Http2\\Response", NULL);
     swoole_http2_response_class_entry_ptr = zend_register_internal_class(&swoole_http2_response_ce TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_http2_response, "Swoole\\Http2\\Response");
+
+    zend_declare_property_null(swoole_http2_response_class_entry_ptr, SW_STRL("statusCode")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_http2_response_class_entry_ptr, SW_STRL("body")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_http2_response_class_entry_ptr, SW_STRL("streamId")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_http2_response_class_entry_ptr, SW_STRL("body")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
 }
 
 static PHP_METHOD(swoole_http2_client, __construct)
@@ -437,7 +445,7 @@ static int http2_client_parse_header(http2_client_property *hcc, http2_client_st
             {
                 if (strncasecmp((char *) nv.name + 1, "status", nv.namelen -1) == 0)
                 {
-                    zend_update_property_long(swoole_http2_client_class_entry_ptr, zresponse, ZEND_STRL("statusCode"), atoi((char *) nv.value) TSRMLS_CC);
+                    zend_update_property_long(swoole_http2_response_class_entry_ptr, zresponse, ZEND_STRL("statusCode"), atoi((char *) nv.value) TSRMLS_CC);
                     continue;
                 }
             }
@@ -467,7 +475,7 @@ static int http2_client_parse_header(http2_client_property *hcc, http2_client_st
         }
     }
 
-    zend_update_property(swoole_http2_client_class_entry_ptr, zresponse, ZEND_STRL("header"), zheader TSRMLS_CC);
+    zend_update_property(swoole_http2_response_class_entry_ptr, zresponse, ZEND_STRL("header"), zheader TSRMLS_CC);
     sw_zval_ptr_dtor(&zheader);
 
     rv = nghttp2_hd_inflate_change_table_size(inflater, 4096);
