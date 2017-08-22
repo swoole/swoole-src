@@ -407,9 +407,13 @@ struct _swServer
      */
     uint32_t enable_unsafe_event :1;
     /**
-     * waiting for worekr onConnect callback function to return
+     * waiting for worker onConnect callback function to return
      */
     uint32_t enable_delay_receive :1;
+    /**
+     * asynchronous reloading
+     */
+    uint32_t reload_async :1;
 
     /* heartbeat check time*/
     uint16_t heartbeat_idle_time; //心跳存活时间

@@ -410,6 +410,16 @@ static void swWorker_stop()
     swWorker *worker = SwooleWG.worker;
     swServer *serv = SwooleG.serv;
 
+    /**
+     * force to end
+     */
+    if (serv->reload_async == 0)
+    {
+        SwooleG.running = 0;
+        SwooleG.main_reactor->running = 0;
+        return;
+    }
+
     //remove read event
     if (worker->pipe_worker)
     {

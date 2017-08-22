@@ -1825,6 +1825,12 @@ PHP_METHOD(swoole_server, set)
         convert_to_long(v);
         serv->max_request = (int) Z_LVAL_P(v);
     }
+    //reload async
+    if (php_swoole_array_get_value(vht, "reload_async", v))
+    {
+        convert_to_boolean(v);
+        serv->reload_async = Z_BVAL_P(v);
+    }
     //cpu affinity
     if (php_swoole_array_get_value(vht, "open_cpu_affinity", v))
     {
