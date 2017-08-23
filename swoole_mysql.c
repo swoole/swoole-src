@@ -1235,7 +1235,8 @@ static PHP_METHOD(swoole_mysql, close)
     SwooleG.main_reactor->del(SwooleG.main_reactor, client->fd);
 
     swConnection *socket = swReactor_get(SwooleG.main_reactor, client->fd);
-    socket->object = NULL;
+    bzero(socket, sizeof(swConnection));
+    socket->removed = 1;
 
     zend_bool is_destroyed = client->cli->destroyed;
 
