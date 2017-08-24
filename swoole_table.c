@@ -922,6 +922,7 @@ static PHP_METHOD(swoole_table_row, offsetSet)
 
     zval *prop_value = sw_zend_read_property(swoole_table_row_class_entry_ptr, getThis(), SW_STRL("value")-1, 0 TSRMLS_CC);
     sw_zend_hash_update(Z_ARRVAL_P(prop_value), key, keylen, value, sizeof(zval *), NULL);
+    RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_table_row, offsetUnset)

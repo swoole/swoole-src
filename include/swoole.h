@@ -1628,6 +1628,11 @@ static sw_inline swConnection* swReactor_get(swReactor *reactor, int fd)
     return socket;
 }
 
+static sw_inline int swReactor_handle_isset(swReactor *reactor, int _fdtype)
+{
+    return reactor->handle[_fdtype] != NULL;
+}
+
 static sw_inline void swReactor_add(swReactor *reactor, int fd, int type)
 {
     swConnection *socket = swReactor_get(reactor, fd);
