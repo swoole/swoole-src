@@ -1230,11 +1230,11 @@ static PHP_METHOD(swoole_client, connect)
             cli->onError = client_onError;
             cli->onReceive = client_onReceive;
             cli->reactor_fdtype = PHP_SWOOLE_FD_STREAM_CLIENT;
-            if (!cb->onBufferFull)
+            if (cb->onBufferFull)
             {
                 cli->onBufferFull = client_onBufferFull;
             }
-            if (!cb->onBufferEmpty)
+            if (cb->onBufferEmpty)
             {
                 cli->onBufferEmpty = client_onBufferEmpty;
             }
