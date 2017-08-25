@@ -235,7 +235,7 @@ void swTable_free(swTable *table)
     }
 }
 
-static swTableRow* swTable_hash(swTable *table, char *key, int keylen)
+static sw_inline swTableRow* swTable_hash(swTable *table, char *key, int keylen)
 {
 #ifdef SW_TABLE_USE_PHP_HASH
     uint64_t hashv = swoole_hash_php(key, keylen);
