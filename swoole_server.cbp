@@ -1,0 +1,534 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6"/>
+	<Project>
+		<Option title="swoole_server"/>
+		<Option makefile_is_custom="1"/>
+		<Option compiler="gcc"/>
+		<Option virtualFolders="CMake Files\;"/>
+		<Build>
+			<Target title="all">
+				<Option working_dir="/home/htf/workspace/swoole"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 all"/>
+					<CompileFile command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="install">
+				<Option working_dir="/home/htf/workspace/swoole"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 install"/>
+					<CompileFile command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="list_install_components">
+				<Option working_dir="/home/htf/workspace/swoole"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 list_install_components"/>
+					<CompileFile command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="rebuild_cache">
+				<Option working_dir="/home/htf/workspace/swoole"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 rebuild_cache"/>
+					<CompileFile command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="edit_cache">
+				<Option working_dir="/home/htf/workspace/swoole"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 edit_cache"/>
+					<CompileFile command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="test_server">
+				<Option output="/home/htf/workspace/swoole/bin/test_server" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/htf/workspace/swoole/bin"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add option="-DHAVE_CONFIG_H"/>
+					<Add directory="/usr/local/php/include/main"/>
+					<Add directory="/usr/local/php/include/Zend"/>
+					<Add directory="/usr/local/php/include"/>
+					<Add directory="/home/htf/workspace/swoole/."/>
+					<Add directory="/home/htf/workspace/swoole/./include"/>
+					<Add directory="/usr/include/c++/5"/>
+					<Add directory="/usr/include/x86_64-linux-gnu/c++/5"/>
+					<Add directory="/usr/include/c++/5/backward"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/5/include"/>
+					<Add directory="/usr/local/include"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/5/include-fixed"/>
+					<Add directory="/usr/include/x86_64-linux-gnu"/>
+					<Add directory="/usr/include"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 test_server"/>
+					<CompileFile command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="test_server/fast">
+				<Option output="/home/htf/workspace/swoole/bin/test_server" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/htf/workspace/swoole/bin"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add option="-DHAVE_CONFIG_H"/>
+					<Add directory="/usr/local/php/include/main"/>
+					<Add directory="/usr/local/php/include/Zend"/>
+					<Add directory="/usr/local/php/include"/>
+					<Add directory="/home/htf/workspace/swoole/."/>
+					<Add directory="/home/htf/workspace/swoole/./include"/>
+					<Add directory="/usr/include/c++/5"/>
+					<Add directory="/usr/include/x86_64-linux-gnu/c++/5"/>
+					<Add directory="/usr/include/c++/5/backward"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/5/include"/>
+					<Add directory="/usr/local/include"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/5/include-fixed"/>
+					<Add directory="/usr/include/x86_64-linux-gnu"/>
+					<Add directory="/usr/include"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 test_server/fast"/>
+					<CompileFile command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="install/strip">
+				<Option working_dir="/home/htf/workspace/swoole"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 install/strip"/>
+					<CompileFile command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="install/local">
+				<Option working_dir="/home/htf/workspace/swoole"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 install/local"/>
+					<CompileFile command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="static">
+				<Option output="/home/htf/workspace/swoole/lib/libswoole.a" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/htf/workspace/swoole"/>
+				<Option object_output="./"/>
+				<Option type="2"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add option="-DHAVE_CONFIG_H"/>
+					<Add directory="/usr/local/php/include/main"/>
+					<Add directory="/usr/local/php/include/Zend"/>
+					<Add directory="/usr/local/php/include"/>
+					<Add directory="/home/htf/workspace/swoole/."/>
+					<Add directory="/home/htf/workspace/swoole/./include"/>
+					<Add directory="/usr/include/c++/5"/>
+					<Add directory="/usr/include/x86_64-linux-gnu/c++/5"/>
+					<Add directory="/usr/include/c++/5/backward"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/5/include"/>
+					<Add directory="/usr/local/include"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/5/include-fixed"/>
+					<Add directory="/usr/include/x86_64-linux-gnu"/>
+					<Add directory="/usr/include"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 static"/>
+					<CompileFile command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="static/fast">
+				<Option output="/home/htf/workspace/swoole/lib/libswoole.a" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/htf/workspace/swoole"/>
+				<Option object_output="./"/>
+				<Option type="2"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add option="-DHAVE_CONFIG_H"/>
+					<Add directory="/usr/local/php/include/main"/>
+					<Add directory="/usr/local/php/include/Zend"/>
+					<Add directory="/usr/local/php/include"/>
+					<Add directory="/home/htf/workspace/swoole/."/>
+					<Add directory="/home/htf/workspace/swoole/./include"/>
+					<Add directory="/usr/include/c++/5"/>
+					<Add directory="/usr/include/x86_64-linux-gnu/c++/5"/>
+					<Add directory="/usr/include/c++/5/backward"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/5/include"/>
+					<Add directory="/usr/local/include"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/5/include-fixed"/>
+					<Add directory="/usr/include/x86_64-linux-gnu"/>
+					<Add directory="/usr/include"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 static/fast"/>
+					<CompileFile command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="shared">
+				<Option output="/home/htf/workspace/swoole/lib/libswoole.so" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/htf/workspace/swoole"/>
+				<Option object_output="./"/>
+				<Option type="3"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add option="-DHAVE_CONFIG_H"/>
+					<Add directory="/usr/local/php/include/main"/>
+					<Add directory="/usr/local/php/include/Zend"/>
+					<Add directory="/usr/local/php/include"/>
+					<Add directory="/home/htf/workspace/swoole/."/>
+					<Add directory="/home/htf/workspace/swoole/./include"/>
+					<Add directory="/usr/include/c++/5"/>
+					<Add directory="/usr/include/x86_64-linux-gnu/c++/5"/>
+					<Add directory="/usr/include/c++/5/backward"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/5/include"/>
+					<Add directory="/usr/local/include"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/5/include-fixed"/>
+					<Add directory="/usr/include/x86_64-linux-gnu"/>
+					<Add directory="/usr/include"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 shared"/>
+					<CompileFile command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="shared/fast">
+				<Option output="/home/htf/workspace/swoole/lib/libswoole.so" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/htf/workspace/swoole"/>
+				<Option object_output="./"/>
+				<Option type="3"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add option="-DHAVE_CONFIG_H"/>
+					<Add directory="/usr/local/php/include/main"/>
+					<Add directory="/usr/local/php/include/Zend"/>
+					<Add directory="/usr/local/php/include"/>
+					<Add directory="/home/htf/workspace/swoole/."/>
+					<Add directory="/home/htf/workspace/swoole/./include"/>
+					<Add directory="/usr/include/c++/5"/>
+					<Add directory="/usr/include/x86_64-linux-gnu/c++/5"/>
+					<Add directory="/usr/include/c++/5/backward"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/5/include"/>
+					<Add directory="/usr/local/include"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/5/include-fixed"/>
+					<Add directory="/usr/include/x86_64-linux-gnu"/>
+					<Add directory="/usr/include"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 shared/fast"/>
+					<CompileFile command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j8 -f &quot;/home/htf/workspace/swoole/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+		</Build>
+		<Unit filename="/home/htf/workspace/swoole/examples/test_server.c">
+			<Option target="test_server"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/core/Channel.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/core/RingQueue.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/core/UnitTest.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/core/array.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/core/base.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/core/hashmap.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/core/heap.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/core/list.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/core/log.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/core/rbtree.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/core/socket.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/core/string.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/factory/Factory.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/factory/FactoryProcess.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/factory/FactoryThread.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/lock/AtomicLock.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/lock/Cond.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/lock/FileLock.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/lock/Mutex.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/lock/RWLock.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/lock/Semaphore.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/lock/SpinLock.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/memory/Buffer.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/memory/FixedPool.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/memory/Malloc.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/memory/MemoryGlobal.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/memory/RingBuffer.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/memory/ShareMemory.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/memory/Table.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/network/Client.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/network/Connection.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/network/DNS.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/network/Manager.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/network/Port.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/network/ProcessPool.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/network/ReactorProcess.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/network/ReactorThread.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/network/Server.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/network/TaskWorker.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/network/ThreadPool.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/network/TimeWheel.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/network/Timer.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/network/Worker.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/os/base.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/os/linux_aio.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/os/msg_queue.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/os/sendfile.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/os/signal.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/os/timer.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/pipe/PipeBase.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/pipe/PipeEventfd.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/pipe/PipeUnsock.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/protocol/Base.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/protocol/Base64.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/protocol/Http.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/protocol/Http2.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/protocol/MimeTypes.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/protocol/Mqtt.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/protocol/Redis.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/protocol/SSL.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/protocol/Sha1.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/protocol/Socks5.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/protocol/WebSocket.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/reactor/ReactorBase.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/reactor/ReactorEpoll.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/reactor/ReactorKqueue.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/reactor/ReactorPoll.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/src/reactor/ReactorSelect.c">
+			<Option target="static"/>
+			<Option target="shared"/>
+		</Unit>
+		<Unit filename="/home/htf/workspace/swoole/CMakeLists.txt">
+			<Option virtualFolder="CMake Files\"/>
+		</Unit>
+	</Project>
+</CodeBlocks_project_file>

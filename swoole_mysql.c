@@ -363,8 +363,8 @@ void swoole_mysql_init(int module_number TSRMLS_DC)
     zend_declare_property_null(swoole_mysql_class_entry_ptr, ZEND_STRL("serverInfo"), ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_mysql_class_entry_ptr, ZEND_STRL("sock"), ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_bool(swoole_mysql_class_entry_ptr, ZEND_STRL("connected"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_null(swoole_mysql_class_entry_ptr, ZEND_STRL("errno"), ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_null(swoole_mysql_class_entry_ptr, ZEND_STRL("connect_errno"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_mysql_class_entry_ptr, ZEND_STRL("errno"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_mysql_class_entry_ptr, ZEND_STRL("connect_errno"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_mysql_class_entry_ptr, ZEND_STRL("error"), ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_mysql_class_entry_ptr, ZEND_STRL("connect_error"), ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_mysql_class_entry_ptr, ZEND_STRL("insert_id"), ZEND_ACC_PUBLIC TSRMLS_CC);
