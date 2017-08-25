@@ -123,7 +123,7 @@ int swClient_create(swClient *cli, int type, int async)
     if (async)
     {
         swSetNonBlock(cli->socket->fd);
-        if (!swReactor_handle_isset(SwooleG.main_reactor, SW_FD_STREAM_CLIENT) == 0)
+        if (!swReactor_handle_isset(SwooleG.main_reactor, SW_FD_STREAM_CLIENT))
         {
             SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_STREAM_CLIENT | SW_EVENT_READ, swClient_onStreamRead);
             SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_DGRAM_CLIENT | SW_EVENT_READ, swClient_onDgramRead);
