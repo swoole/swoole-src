@@ -1629,28 +1629,36 @@ static sw_inline swConnection* swReactor_get(swReactor *reactor, int fd)
 static sw_inline void swReactor_add(swReactor *reactor, int fd, int type)
 {
     swConnection *socket = swReactor_get(reactor, fd);
-    socket->fdtype = swReactor_fdtype(type);
-    socket->events = swReactor_events(type);
-    socket->removed = 0;
-
-    swTraceLog(SW_TRACE_REACTOR, "fd=%d, type=%d, events=%d", fd, socket->socket_type, socket->events);
+    if(socket != NULL)
+    {
+	 socket->fdtype = swReactor_fdtype(type);
+	 socket->events = swReactor_events(type);
+	 socket->removed = 0;
+	 swTraceLog(SW_TRACE_REACTOR, "fd=%d, type=%d, events=%d", fd, socket->socket_type, socket->events);
+    }    
 }
 
 static sw_inline void swReactor_set(swReactor *reactor, int fd, int type)
 {
     swConnection *socket = swReactor_get(reactor, fd);
-    socket->events = swReactor_events(type);
+    if(socket != NULL)
+    {
+	socket->events = swReactor_events(type);
 
-    swTraceLog(SW_TRACE_REACTOR, "fd=%d, type=%d, events=%d", fd, socket->socket_type, socket->events);
+        swTraceLog(SW_TRACE_REACTOR, "fd=%d, type=%d, events=%d", fd, socket->socket_type, socket->events);
+    }
 }
 
 static sw_inline void swReactor_del(swReactor *reactor, int fd)
 {
     swConnection *socket = swReactor_get(reactor, fd);
-    socket->events = 0;
-    socket->removed = 1;
+    if(socket != NULL)
+    {
+       socket->events = 0;
+       socket->removed = 1;
 
-    swTraceLog(SW_TRACE_REACTOR, "fd=%d, type=%d", fd, socket->socket_type);
+       swTraceLog(SW_TRACE_REACTOR, "fd=%d, type=%d", fd, socket->socket_type);
+    }
 }
 
 int swReactor_onWrite(swReactor *reactor, swEvent *ev);
