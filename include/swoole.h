@@ -2007,7 +2007,7 @@ typedef struct
     struct utsname uname;
 
     /**
-     * Unix socket default buffer size
+     * tcp socket default buffer size
      */
     uint32_t socket_buffer_size;
 
