@@ -5,6 +5,9 @@
 #define SW_ATOMIC_64_LEN                     (sizeof("-9223372036854775808") - 1)
 typedef volatile int64_t atomic_int64_t;
 typedef volatile uint64_t atomic_uint64_t;
+typedef atomic_uint64_t sw_atomic_long_t;
+#else
+typedef atomic_uint64_t sw_atomic_long_t;
 #endif
 
 #define SW_ATOMIC_32_LEN                      (sizeof("-2147483648") - 1)

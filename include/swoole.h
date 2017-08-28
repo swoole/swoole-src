@@ -1921,8 +1921,8 @@ typedef struct
     uint32_t in_client :1;
     uint32_t shutdown :1;
     uint32_t wait_exit :1;
-    uint32_t request_count;
 
+    long request_count;
     int max_request;
 
     swString **buffer_input;
@@ -2035,10 +2035,10 @@ typedef struct
 {
     time_t start_time;
     sw_atomic_t connection_num;
-    sw_atomic_t accept_count;
-    sw_atomic_t close_count;
     sw_atomic_t tasking_num;
-    sw_atomic_t request_count;
+    sw_atomic_long_t accept_count;
+    sw_atomic_long_t close_count;
+    sw_atomic_long_t request_count;
 } swServerStats;
 
 extern swServerG SwooleG;              //Local Global Variable
