@@ -394,6 +394,9 @@ static int swAioBase_read(int fd, void *inbuf, size_t size, off_t offset)
 void swAioBase_destroy()
 {
     swThreadPool_free(&swAioBase_thread_pool);
-    SwooleG.main_reactor->del(SwooleG.main_reactor, swAioBase_pipe_read);
+    if (SwooleG.main_reactor)
+    {
+        SwooleG.main_reactor->del(SwooleG.main_reactor, swAioBase_pipe_read);
+    }
     swoole_aio_pipe.close(&swoole_aio_pipe);
 }
