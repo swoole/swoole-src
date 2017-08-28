@@ -208,6 +208,7 @@ void swoole_process_init(int module_number TSRMLS_DC)
 #ifdef SIGSYS
         REGISTER_LONG_CONSTANT("SIGSYS", (long) SIGSYS, CONST_CS | CONST_PERSISTENT);
 #endif
+        REGISTER_LONG_CONSTANT("SIG_IGN", (long) SIG_IGN, CONST_CS | CONST_PERSISTENT);
     }
 }
 
@@ -459,6 +460,9 @@ static PHP_METHOD(swoole_process, signal)
         }
     }
 
+    php_swoole_check_reactor();
+    swSignalHander handler;
+
     if (callback == NULL || ZVAL_IS_NULL(callback))
     {
         callback = signal_callback[signo];
@@ -475,20 +479,27 @@ static PHP_METHOD(swoole_process, signal)
             RETURN_FALSE;
         }
     }
-
-    char *func_name;
-    if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
+    else if (Z_TYPE_P(callback) == IS_LONG && Z_LVAL_P(callback) == (long) SIG_IGN)
     {
-        swoole_php_error(E_WARNING, "function '%s' is not callable", func_name);
-        efree(func_name);
-        RETURN_FALSE;
+        handler = NULL;
     }
-    efree(func_name);
+    else
+    {
+        char *func_name;
+        if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
+        {
+            swoole_php_error(E_WARNING, "function '%s' is not callable", func_name);
+            efree(func_name);
+            RETURN_FALSE;
+        }
+        efree(func_name);
 
-    callback = sw_zval_dup(callback);
-    sw_zval_add_ref(&callback);
+        callback = sw_zval_dup(callback);
+        sw_zval_add_ref(&callback);
 
-    php_swoole_check_reactor();
+        handler = php_swoole_onSignal;
+    }
+
     /**
      * for swSignalfd_setup
      */
@@ -510,7 +521,7 @@ static PHP_METHOD(swoole_process, signal)
     SwooleG.use_signalfd = 0;
 #endif
 
-    swSignal_add(signo, php_swoole_onSignal);
+    swSignal_add(signo, handler);
 
     RETURN_TRUE;
 }
