@@ -154,8 +154,17 @@ void swoole_process_init(int module_number TSRMLS_DC)
     SWOOLE_INIT_CLASS_ENTRY(swoole_process_ce, "swoole_process", "Swoole\\Process", swoole_process_methods);
     swoole_process_class_entry_ptr = zend_register_internal_class(&swoole_process_ce TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_process, "Swoole\\Process");
+
     zend_declare_class_constant_long(swoole_process_class_entry_ptr, SW_STRL("IPC_NOWAIT")-1, MSGQUEUE_NOWAIT TSRMLS_CC);
     bzero(signal_callback, sizeof(signal_callback));
+
+    zend_declare_property_null(swoole_process_class_entry_ptr, SW_STRL("pipe")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_process_class_entry_ptr, SW_STRL("callback")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_process_class_entry_ptr, SW_STRL("msgQueueId")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_process_class_entry_ptr, SW_STRL("msgQueueKey")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_process_class_entry_ptr, SW_STRL("pid")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_process_class_entry_ptr, SW_STRL("id")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+
     /**
      * 31 signal constants
      */
@@ -199,6 +208,7 @@ void swoole_process_init(int module_number TSRMLS_DC)
 #ifdef SIGSYS
         REGISTER_LONG_CONSTANT("SIGSYS", (long) SIGSYS, CONST_CS | CONST_PERSISTENT);
 #endif
+        REGISTER_LONG_CONSTANT("SIG_IGN", (long) SIG_IGN, CONST_CS | CONST_PERSISTENT);
     }
 }
 
@@ -443,12 +453,15 @@ static PHP_METHOD(swoole_process, signal)
 
     if (SwooleGS->start && (swIsWorker() || swIsMaster() || swIsManager() || swIsTaskWorker()))
     {
-        if (signo == SIGTERM || signo == SIGALRM)
+        if (signo == SIGTERM)
         {
-            swoole_php_fatal_error(E_WARNING, "cannot use swoole_process::signal in swoole_server.");
+            swoole_php_fatal_error(E_WARNING, "unable to register SIGTERM in swoole_server.");
             RETURN_FALSE;
         }
     }
+
+    php_swoole_check_reactor();
+    swSignalHander handler;
 
     if (callback == NULL || ZVAL_IS_NULL(callback))
     {
@@ -466,20 +479,27 @@ static PHP_METHOD(swoole_process, signal)
             RETURN_FALSE;
         }
     }
-
-    char *func_name;
-    if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
+    else if (Z_TYPE_P(callback) == IS_LONG && Z_LVAL_P(callback) == (long) SIG_IGN)
     {
-        swoole_php_error(E_WARNING, "function '%s' is not callable", func_name);
-        efree(func_name);
-        RETURN_FALSE;
+        handler = NULL;
     }
-    efree(func_name);
+    else
+    {
+        char *func_name;
+        if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
+        {
+            swoole_php_error(E_WARNING, "function '%s' is not callable", func_name);
+            efree(func_name);
+            RETURN_FALSE;
+        }
+        efree(func_name);
 
-    callback = sw_zval_dup(callback);
-    sw_zval_add_ref(&callback);
+        callback = sw_zval_dup(callback);
+        sw_zval_add_ref(&callback);
 
-    php_swoole_check_reactor();
+        handler = php_swoole_onSignal;
+    }
+
     /**
      * for swSignalfd_setup
      */
@@ -493,12 +513,15 @@ static PHP_METHOD(swoole_process, signal)
     signal_callback[signo] = callback;
 
 #if PHP_MAJOR_VERSION >= 7 || (PHP_MAJOR_VERSION >= 5 && PHP_MINOR_VERSION >= 4)
-    SwooleG.use_signalfd = 1;
+    /**
+     * use user settings
+     */
+    SwooleG.use_signalfd = SwooleG.enable_signalfd;
 #else
     SwooleG.use_signalfd = 0;
 #endif
 
-    swSignal_add(signo, php_swoole_onSignal);
+    swSignal_add(signo, handler);
 
     RETURN_TRUE;
 }

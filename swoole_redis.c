@@ -109,7 +109,6 @@ static void swoole_redis_event_Cleanup(void *privdata);
 
 static zend_class_entry swoole_redis_ce;
 static zend_class_entry *swoole_redis_class_entry_ptr;
-static int isset_event_callback = 0;
 
 static const zend_function_entry swoole_redis_methods[] =
 {
@@ -179,6 +178,17 @@ void swoole_redis_init(int module_number TSRMLS_DC)
     SWOOLE_INIT_CLASS_ENTRY(swoole_redis_ce, "swoole_redis", "Swoole\\Redis", swoole_redis_methods);
     swoole_redis_class_entry_ptr = zend_register_internal_class(&swoole_redis_ce TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_redis, "Swoole\\Redis");
+
+    zend_declare_property_null(swoole_redis_class_entry_ptr, ZEND_STRL("onConnect"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_redis_class_entry_ptr, ZEND_STRL("onClose"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_redis_class_entry_ptr, ZEND_STRL("onMessage"), ZEND_ACC_PUBLIC TSRMLS_CC);
+
+    zend_declare_property_null(swoole_redis_class_entry_ptr, ZEND_STRL("setting"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_redis_class_entry_ptr, ZEND_STRL("host"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_redis_class_entry_ptr, ZEND_STRL("port"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_redis_class_entry_ptr, ZEND_STRL("sock"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_redis_class_entry_ptr, ZEND_STRL("errCode"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_redis_class_entry_ptr, ZEND_STRL("errMsg"), ZEND_ACC_PUBLIC TSRMLS_CC);
 
     zend_declare_class_constant_long(swoole_redis_class_entry_ptr, SW_STRL("STATE_CONNECT")-1, SWOOLE_REDIS_STATE_CONNECT TSRMLS_CC);
     zend_declare_class_constant_long(swoole_redis_class_entry_ptr, SW_STRL("STATE_READY")-1, SWOOLE_REDIS_STATE_READY TSRMLS_CC);
@@ -336,12 +346,11 @@ static PHP_METHOD(swoole_redis, connect)
     }
 
     php_swoole_check_reactor();
-    if (!isset_event_callback)
+    if (!swReactor_handle_isset(SwooleG.main_reactor, PHP_SWOOLE_FD_REDIS))
     {
         SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_REDIS | SW_EVENT_READ, swoole_redis_onRead);
         SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_REDIS | SW_EVENT_WRITE, swoole_redis_onWrite);
         SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_REDIS | SW_EVENT_ERROR, swoole_redis_onError);
-        isset_event_callback = 1;
     }
 
     redisAsyncSetConnectCallback(context, swoole_redis_onConnect);

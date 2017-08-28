@@ -53,6 +53,11 @@ void swWorker_free(swWorker *worker)
 void swWorker_signal_init(void)
 {
     swSignal_clear();
+    /**
+     * use user settings
+     */
+    SwooleG.use_signalfd = SwooleG.enable_signalfd;
+
     swSignal_add(SIGHUP, NULL);
     swSignal_add(SIGPIPE, NULL);
     swSignal_add(SIGUSR1, NULL);
@@ -63,7 +68,7 @@ void swWorker_signal_init(void)
     //for test
     swSignal_add(SIGVTALRM, swWorker_signal_handler);
 #ifdef SIGRTMIN
-    swSignal_set(SIGRTMIN, swWorker_signal_handler, 1, 0);
+    swSignal_add(SIGRTMIN, swWorker_signal_handler);
 #endif
 }
 
@@ -405,6 +410,16 @@ static void swWorker_stop()
     swWorker *worker = SwooleWG.worker;
     swServer *serv = SwooleG.serv;
 
+    /**
+     * force to end
+     */
+    if (serv->reload_async == 0)
+    {
+        SwooleG.running = 0;
+        SwooleG.main_reactor->running = 0;
+        return;
+    }
+
     //remove read event
     if (worker->pipe_worker)
     {
@@ -477,6 +492,22 @@ void swWorker_try_to_exit()
     }
 
     swDNSResolver_free();
+
+    //close all client connections
+    if (serv->factory_mode == SW_MODE_SINGLE)
+    {
+        int find_fd = swServer_get_minfd(serv);
+        int max_fd = swServer_get_maxfd(serv);
+        swConnection *conn;
+        for (; find_fd <= max_fd; find_fd++)
+        {
+            conn = &serv->connection_list[find_fd];
+            if (conn->active == 1 && swSocket_is_stream(conn->socket_type) && !(conn->events & SW_EVENT_WRITE))
+            {
+                serv->close(serv, conn->session_id, 0);
+            }
+        }
+    }
 
     uint8_t call_worker_exit_func = 0;
 

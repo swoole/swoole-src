@@ -162,11 +162,14 @@ int swReactorProcess_start(swServer *serv)
     }
 
     /**
-     * BASE模式，管理进程就是主进程
+     * manager process is the same as the master process
      */
     SwooleG.pid = SwooleGS->manager_pid = getpid();
     SwooleG.process_type = SW_PROCESS_MASTER;
 
+    /**
+     * manager process can not use signalfd
+     */
     SwooleG.use_timerfd = 0;
     SwooleG.use_signalfd = 0;
     SwooleG.use_timer_pipe = 0;

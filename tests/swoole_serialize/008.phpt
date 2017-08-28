@@ -1,6 +1,13 @@
 --TEST--
-Check for array+string serialization
+swoole_serialize: Check for array+string serialization
 --SKIPIF--
+<?php
+require __DIR__ . "/../include/skipif.inc";
+if (!class_exists("swoole_serialize", false))
+{
+    echo "skip";
+}
+?>
 --FILE--
 <?php
 

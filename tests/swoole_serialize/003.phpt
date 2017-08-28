@@ -1,6 +1,13 @@
 --TEST--
-Check for bool serialisation
+swoole_serialize: Check for bool serialisation
 --SKIPIF--
+<?php
+require __DIR__ . "/../include/skipif.inc";
+if (!class_exists("swoole_serialize", false))
+{
+    echo "skip";
+}
+?>
 --FILE--
 <?php 
 

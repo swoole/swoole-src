@@ -843,7 +843,7 @@ static int multipart_body_on_header_complete(multipart_parser* p)
     sw_add_assoc_string(multipart_header, "tmp_name", file_path, 1);
 
     zval *ztmpfiles = sw_zend_read_property(swoole_http_request_class_entry_ptr, zrequest_object, ZEND_STRL("tmpfiles"), 1 TSRMLS_CC);
-    if (ZVAL_IS_NULL(ztmpfiles))
+    if (ztmpfiles == NULL || ZVAL_IS_NULL(ztmpfiles))
     {
         swoole_http_server_array_init(tmpfiles, request);
     }
@@ -983,10 +983,10 @@ static int http_onReceive(swServer *serv, swEventData *req)
     }
 
     int fd = req->info.fd;
-    swConnection *conn = swWorker_get_connection(SwooleG.serv, fd);
+    swConnection *conn = swServer_connection_verify_no_ssl(SwooleG.serv, fd);
     if (!conn)
     {
-        swWarn("connection[%d] is closed.", fd);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "connection[%d] is closed.", fd);
         return SW_ERR;
     }
     swListenPort *port = serv->connection_list[req->info.from_fd].object;
@@ -1220,15 +1220,32 @@ void swoole_http_server_init(int module_number TSRMLS_DC)
     swoole_http_server_class_entry_ptr = sw_zend_register_internal_class_ex(&swoole_http_server_ce, swoole_server_class_entry_ptr, "swoole_server" TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_http_server, "Swoole\\Http\\Server");
 
-    zend_declare_property_long(swoole_http_server_class_entry_ptr, ZEND_STRL("global"), 0, ZEND_ACC_PRIVATE TSRMLS_CC);
+    zend_declare_property_null(swoole_http_server_class_entry_ptr, SW_STRL("onRequest")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_http_server_class_entry_ptr, SW_STRL("onHandshake")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_http_server_class_entry_ptr, SW_STRL("setting")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
 
     SWOOLE_INIT_CLASS_ENTRY(swoole_http_response_ce, "swoole_http_response", "Swoole\\Http\\Response", swoole_http_response_methods);
     swoole_http_response_class_entry_ptr = zend_register_internal_class(&swoole_http_response_ce TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_http_response, "Swoole\\Http\\Response");
 
+    zend_declare_property_long(swoole_http_response_class_entry_ptr, SW_STRL("fd")-1, 0,  ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_http_response_class_entry_ptr, SW_STRL("header")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_http_response_class_entry_ptr, SW_STRL("cookie")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_http_response_class_entry_ptr, SW_STRL("trailer")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+
     SWOOLE_INIT_CLASS_ENTRY(swoole_http_request_ce, "swoole_http_request", "Swoole\\Http\\Request", swoole_http_request_methods);
     swoole_http_request_class_entry_ptr = zend_register_internal_class(&swoole_http_request_ce TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_http_request, "Swoole\\Http\\Request");
+
+    zend_declare_property_long(swoole_http_request_class_entry_ptr, SW_STRL("fd")-1, 0,  ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_http_request_class_entry_ptr, SW_STRL("header")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_http_request_class_entry_ptr, SW_STRL("server")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_http_request_class_entry_ptr, SW_STRL("request")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_http_request_class_entry_ptr, SW_STRL("cookie")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_http_request_class_entry_ptr, SW_STRL("get")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_http_request_class_entry_ptr, SW_STRL("files")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_http_request_class_entry_ptr, SW_STRL("post")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_http_request_class_entry_ptr, SW_STRL("tmpfiles")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
 }
 
 static PHP_METHOD(swoole_http_server, on)

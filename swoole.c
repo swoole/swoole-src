@@ -20,6 +20,7 @@
 #include <arpa/inet.h>
 #include <net/if.h>
 #include <ifaddrs.h>
+#include <sys/ioctl.h>
 
 #ifdef HAVE_PCRE
 #include <ext/spl/spl_iterators.h>
@@ -344,6 +345,7 @@ const zend_function_entry swoole_functions[] =
     PHP_FALIAS(swoole_select, swoole_client_select, arginfo_swoole_client_select)
     PHP_FE(swoole_set_process_name, arginfo_swoole_set_process_name)
     PHP_FE(swoole_get_local_ip, arginfo_swoole_void)
+    PHP_FE(swoole_get_local_mac, arginfo_swoole_void)
     PHP_FE(swoole_strerror, arginfo_swoole_strerror)
     PHP_FE(swoole_errno, arginfo_swoole_void)
     PHP_FE_END /* Must be the last line in swoole_functions[] */
@@ -814,6 +816,37 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_server_class_entry_ptr = zend_register_internal_class(&swoole_server_ce TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_server, "Swoole\\Server");
 
+    zend_declare_property_null(swoole_server_class_entry_ptr, ZEND_STRL("onConnect"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_server_class_entry_ptr, ZEND_STRL("onReceive"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_server_class_entry_ptr, ZEND_STRL("onClose"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_server_class_entry_ptr, ZEND_STRL("onPacket"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_server_class_entry_ptr, ZEND_STRL("onBufferFull"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_server_class_entry_ptr, ZEND_STRL("onBufferEmpty"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_server_class_entry_ptr, ZEND_STRL("onStart"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_server_class_entry_ptr, ZEND_STRL("onShutdown"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_server_class_entry_ptr, ZEND_STRL("onWorkerStart"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_server_class_entry_ptr, ZEND_STRL("onWorkerStop"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_server_class_entry_ptr, ZEND_STRL("onWorkerExit"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_server_class_entry_ptr, ZEND_STRL("onWorkerError"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_server_class_entry_ptr, ZEND_STRL("onTask"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_server_class_entry_ptr, ZEND_STRL("onFinish"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_server_class_entry_ptr, ZEND_STRL("onManagerStart"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_server_class_entry_ptr, ZEND_STRL("onManagerStop"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_server_class_entry_ptr, ZEND_STRL("onPipeMessage"), ZEND_ACC_PUBLIC TSRMLS_CC);
+
+    zend_declare_property_null(swoole_server_class_entry_ptr, ZEND_STRL("setting"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_server_class_entry_ptr, ZEND_STRL("connections"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_server_class_entry_ptr, ZEND_STRL("host"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_server_class_entry_ptr, ZEND_STRL("port"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_server_class_entry_ptr, ZEND_STRL("type"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_server_class_entry_ptr, ZEND_STRL("mode"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_server_class_entry_ptr, ZEND_STRL("ports"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_server_class_entry_ptr, ZEND_STRL("master_pid"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_server_class_entry_ptr, ZEND_STRL("manager_pid"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_server_class_entry_ptr, ZEND_STRL("worker_id"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_bool(swoole_server_class_entry_ptr, ZEND_STRL("taskworker"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_server_class_entry_ptr, ZEND_STRL("worker_pid"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+
     SWOOLE_INIT_CLASS_ENTRY(swoole_timer_ce, "swoole_timer", "Swoole\\Timer", swoole_timer_methods);
     swoole_timer_class_entry_ptr = zend_register_internal_class(&swoole_timer_ce TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_timer, "Swoole\\Timer");
@@ -1212,6 +1245,51 @@ PHP_FUNCTION(swoole_get_local_ip)
         }
     }
     freeifaddrs(ipaddrs);
+}
+
+PHP_FUNCTION(swoole_get_local_mac)
+{
+#ifndef __MACH__
+    struct ifconf ifc;
+    struct ifreq buf[16];
+    char mac[32] = {0};
+
+    int sock;
+    int i = 0,num = 0;
+
+    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "new socket failed. Error: %s[%d]", strerror(errno), errno);
+        RETURN_FALSE;
+    }
+    array_init(return_value);
+    
+    ifc.ifc_len = sizeof (buf);
+    ifc.ifc_buf = (caddr_t) buf;
+    if (!ioctl(sock, SIOCGIFCONF, (char *) &ifc))
+    {
+        num = ifc.ifc_len / sizeof (struct ifreq);
+        while (i < num)
+        {
+            if (!(ioctl(sock, SIOCGIFHWADDR, (char *) &buf[i])))
+            {
+                sprintf(mac, "%02X:%02X:%02X:%02X:%02X:%02X",
+                        (unsigned char) buf[i].ifr_hwaddr.sa_data[0],
+                        (unsigned char) buf[i].ifr_hwaddr.sa_data[1],
+                        (unsigned char) buf[i].ifr_hwaddr.sa_data[2],
+                        (unsigned char) buf[i].ifr_hwaddr.sa_data[3],
+                        (unsigned char) buf[i].ifr_hwaddr.sa_data[4],
+                        (unsigned char) buf[i].ifr_hwaddr.sa_data[5]);
+                sw_add_assoc_string(return_value, buf[i].ifr_name, mac, 1);
+            }
+            i++;
+        }
+    }
+
+    close(sock);
+#else
+    
+#endif
 }
 
 /*

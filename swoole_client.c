@@ -313,6 +313,21 @@ void swoole_client_init(int module_number TSRMLS_DC)
     zend_declare_property_long(swoole_client_class_entry_ptr, SW_STRL("sock")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_bool(swoole_client_class_entry_ptr, SW_STRL("reuse")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(swoole_client_class_entry_ptr, SW_STRL("reuseCount")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_client_class_entry_ptr, ZEND_STRL("type"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_client_class_entry_ptr, ZEND_STRL("id"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_client_class_entry_ptr, ZEND_STRL("setting"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    /**
+     * event callback
+     */
+    zend_declare_property_null(swoole_client_class_entry_ptr, ZEND_STRL("onConnect"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_client_class_entry_ptr, ZEND_STRL("onError"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_client_class_entry_ptr, ZEND_STRL("onReceive"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_client_class_entry_ptr, ZEND_STRL("onClose"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_client_class_entry_ptr, ZEND_STRL("onBufferFull"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_client_class_entry_ptr, ZEND_STRL("onBufferEmpty"), ZEND_ACC_PUBLIC TSRMLS_CC);
+#ifdef SW_USE_OPENSSL
+    zend_declare_property_null(swoole_client_class_entry_ptr, ZEND_STRL("onSSLReady"), ZEND_ACC_PUBLIC TSRMLS_CC);
+#endif
 
     php_sw_long_connections = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
 
@@ -1212,11 +1227,11 @@ static PHP_METHOD(swoole_client, connect)
             cli->onError = client_onError;
             cli->onReceive = client_onReceive;
             cli->reactor_fdtype = PHP_SWOOLE_FD_STREAM_CLIENT;
-            if (!cb->onBufferFull)
+            if (cb->onBufferFull)
             {
                 cli->onBufferFull = client_onBufferFull;
             }
-            if (!cb->onBufferEmpty)
+            if (cb->onBufferEmpty)
             {
                 cli->onBufferEmpty = client_onBufferEmpty;
             }
@@ -1439,6 +1454,11 @@ static PHP_METHOD(swoole_client, recv)
         swString *buffer = cli->buffer;
         int eof = -1;
 
+        if (buffer->length > 0)
+        {
+            goto find_eof;
+        }
+
         while (1)
         {
             buf = buffer->str + buffer->length;
@@ -1469,7 +1489,7 @@ static PHP_METHOD(swoole_client, recv)
                 continue;
             }
 
-            eof = swoole_strnpos(buffer->str, buffer->length, protocol->package_eof, protocol->package_eof_len);
+            find_eof: eof = swoole_strnpos(buffer->str, buffer->length, protocol->package_eof, protocol->package_eof_len);
             if (eof >= 0)
             {
                 eof += protocol->package_eof_len;

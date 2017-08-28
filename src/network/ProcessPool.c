@@ -294,6 +294,11 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
     else
     {
         task_n = pool->max_request;
+        n = swoole_system_random(1, pool->max_request / 2);
+        if (n > 0)
+        {
+            task_n += n;
+        }
     }
 
     /**

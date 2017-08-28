@@ -50,6 +50,7 @@ static int http_build_trailer(http_context *ctx, uchar *buffer TSRMLS_DC)
                 break;
             }
             http2_add_header(&nv[index++], key, keylen, Z_STRVAL_P(value), Z_STRLEN_P(value));
+            (void) type;
         }
         SW_HASHTABLE_FOREACH_END();
     }

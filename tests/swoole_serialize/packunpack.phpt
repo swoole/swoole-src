@@ -1,8 +1,13 @@
 --TEST--
 swoole_serialize: pack & unpack
 --SKIPIF--
-<?php include __DIR__ . "/skipif.inc"; ?>
-
+<?php
+require __DIR__ . "/../include/skipif.inc";
+if (!class_exists("swoole_serialize", false))
+{
+    echo "skip";
+}
+?>
 --INI--
 assert.active=1
 assert.warning=1

@@ -532,9 +532,15 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
         SwooleWG.max_request = serv->max_request;
         if (SwooleWG.max_request > 10)
         {
-            SwooleWG.max_request += swoole_system_random(1, 100);
+            int n = swoole_system_random(1, SwooleWG.max_request / 2);
+            if (n > 0)
+            {
+                SwooleWG.max_request += n;
+            }
         }
     }
+
+    worker->start_time = SwooleGS->now;
 
     return SW_OK;
 }
@@ -727,13 +733,10 @@ void swServer_init(swServer *serv)
     serv->reactor_num = SW_REACTOR_NUM > SW_REACTOR_MAX_THREAD ? SW_REACTOR_MAX_THREAD : SW_REACTOR_NUM;
 
     serv->dispatch_mode = SW_DISPATCH_FDMOD;
-    serv->ringbuffer_size = SW_QUEUE_SIZE;
-
-    serv->timeout_sec = SW_REACTOR_TIMEO_SEC;
-    serv->timeout_usec = SW_REACTOR_TIMEO_USEC;  //300ms;
 
     serv->worker_num = SW_CPU_NUM;
-    serv->max_connection = SwooleG.max_sockets;
+    serv->max_connection = SwooleG.max_sockets < SW_SESSION_LIST_SIZE ? SwooleG.max_sockets : SW_SESSION_LIST_SIZE;
+
     serv->max_request = 0;
     serv->max_wait_time = SW_WORKER_MAX_WAIT_TIME;
 
@@ -791,6 +794,8 @@ int swServer_shutdown(swServer *serv)
 
 int swServer_free(swServer *serv)
 {
+    swTraceLog(SW_TRACE_SERVER, "release service.");
+
     /**
      * shutdown workers
      */
@@ -803,6 +808,7 @@ int swServer_free(swServer *serv)
      */
     if (SwooleG.heartbeat_pidt)
     {
+        swTraceLog(SW_TRACE_SERVER, "terminate heartbeat thread.");
         if (pthread_cancel(SwooleG.heartbeat_pidt) < 0)
         {
             swSysError("pthread_cancel(%ld) failed.", (ulong_t )SwooleG.heartbeat_pidt);
@@ -815,6 +821,7 @@ int swServer_free(swServer *serv)
     }
     if (serv->factory_mode == SW_MODE_SINGLE)
     {
+        swTraceLog(SW_TRACE_SERVER, "terminate task workers.");
         if (SwooleG.task_worker_num > 0)
         {
             swProcessPool_shutdown(&SwooleGS->task_workers);
@@ -822,6 +829,7 @@ int swServer_free(swServer *serv)
     }
     else
     {
+        swTraceLog(SW_TRACE_SERVER, "terminate reactor threads.");
         /**
          * Wait until all the end of the thread
          */
@@ -1300,8 +1308,8 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port)
             ls->ssl_config.session_tickets = 0;
             ls->ssl_config.stapling = 1;
             ls->ssl_config.stapling_verify = 1;
-            ls->ssl_config.ciphers = SW_SSL_CIPHER_LIST;
-            ls->ssl_config.ecdh_curve = SW_SSL_ECDH_CURVE;
+            ls->ssl_config.ciphers = sw_strdup(SW_SSL_CIPHER_LIST);
+            ls->ssl_config.ecdh_curve = sw_strdup(SW_SSL_ECDH_CURVE);
 #endif
         }
     }
@@ -1376,6 +1384,8 @@ int swServer_get_socket(swServer *serv, int port)
 
 static void swServer_signal_hanlder(int sig)
 {
+    swTraceLog(SW_TRACE_SERVER, "signal[%d] triggered.", sig);
+
     int status;
     pid_t pid;
     switch (sig)

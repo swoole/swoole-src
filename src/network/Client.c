@@ -41,8 +41,6 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event);
 static int swClient_onError(swReactor *reactor, swEvent *event);
 static void swClient_onTimeout(swTimer *timer, swTimer_node *tnode);
 
-static int isset_event_handle = 0;
-
 static sw_inline void execute_onConnect(swClient *cli)
 {
     if (cli->timer)
@@ -125,13 +123,12 @@ int swClient_create(swClient *cli, int type, int async)
     if (async)
     {
         swSetNonBlock(cli->socket->fd);
-        if (isset_event_handle == 0)
+        if (!swReactor_handle_isset(SwooleG.main_reactor, SW_FD_STREAM_CLIENT))
         {
             SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_STREAM_CLIENT | SW_EVENT_READ, swClient_onStreamRead);
             SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_DGRAM_CLIENT | SW_EVENT_READ, swClient_onDgramRead);
             SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_STREAM_CLIENT | SW_EVENT_WRITE, swClient_onWrite);
             SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_STREAM_CLIENT | SW_EVENT_ERROR, swClient_onError);
-            isset_event_handle = 1;
         }
     }
 

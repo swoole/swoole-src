@@ -574,6 +574,15 @@ PHP_FUNCTION(swoole_async_read)
     {
         buf_size = SW_AIO_MAX_CHUNK_SIZE;
     }
+
+#ifdef HAVE_LINUX_AIO
+    if (SwooleAIO.mode == SW_AIO_LINUX && (buf_size % SW_AIO_MIN_UNIT_SIZE) != 0)
+    {
+        swoole_php_fatal_error(E_WARNING, "the chunk buffer size must be an integer multiple of %d.", SW_AIO_MIN_UNIT_SIZE);
+        RETURN_FALSE;
+    }
+#endif
+
     convert_to_string(filename);
 
     if (SwooleAIO.mode == SW_AIO_LINUX)
@@ -662,7 +671,7 @@ PHP_FUNCTION(swoole_async_write)
         RETURN_FALSE;
     }
 #ifdef HAVE_LINUX_AIO
-    if ((fcnt_len % SW_AIO_MIN_UNIT_SIZE) != 0)
+    if (SwooleAIO.mode == SW_AIO_LINUX && (fcnt_len % SW_AIO_MIN_UNIT_SIZE) != 0)
     {
         swoole_php_fatal_error(E_WARNING, "the length must be an integer multiple of %d.", SW_AIO_MIN_UNIT_SIZE);
         RETURN_FALSE;
@@ -962,6 +971,12 @@ PHP_FUNCTION(swoole_async_writefile)
 
 PHP_FUNCTION(swoole_async_set)
 {
+    if (SwooleG.main_reactor != NULL)
+    {
+        swoole_php_fatal_error(E_ERROR, "eventLoop has already been created. unable to create swoole_server.");
+        RETURN_FALSE;
+    }
+
     zval *zset = NULL;
     HashTable *vht;
     zval *v;
@@ -987,7 +1002,7 @@ PHP_FUNCTION(swoole_async_set)
     if (php_swoole_array_get_value(vht, "enable_signalfd", v))
     {
         convert_to_boolean(v);
-        SwooleG.use_signalfd = Z_BVAL_P(v);
+        SwooleG.enable_signalfd = Z_BVAL_P(v);
     }
     if (php_swoole_array_get_value(vht, "dns_cache_refresh_time", v))
     {

@@ -329,7 +329,7 @@ exit(1)
     if (level >= SwooleG.log_level){\
     snprintf(sw_error, SW_ERROR_MSG_SIZE, "%s (ERROR %d): " str,__func__,__errno,##__VA_ARGS__);\
     SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
-    swLog_put( SW_LOG_ERROR, sw_error);\
+    swLog_put(level, sw_error);\
     SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}}while(0)
 
 #ifdef SW_DEBUG_REMOTE_OPEN
@@ -912,7 +912,7 @@ typedef struct _swCond
 
 typedef struct _swShareMemory_mmap
 {
-    int size;
+    size_t size;
     char mapfile[SW_SHM_MMAP_FILE_LEN];
     int tmpfd;
     int key;
@@ -920,8 +920,8 @@ typedef struct _swShareMemory_mmap
     void *mem;
 } swShareMemory;
 
-void *swShareMemory_mmap_create(swShareMemory *object, int size, char *mapfile);
-void *swShareMemory_sysv_create(swShareMemory *object, int size, int key);
+void *swShareMemory_mmap_create(swShareMemory *object, size_t size, char *mapfile);
+void *swShareMemory_sysv_create(swShareMemory *object, size_t size, int key);
 int swShareMemory_sysv_free(swShareMemory *object, int rm);
 int swShareMemory_mmap_free(swShareMemory *object);
 
@@ -1480,6 +1480,8 @@ struct _swWorker
      */
     sw_atomic_t tasking_num;
 
+    time_t start_time;
+
 	/**
 	 * worker id
 	 */
@@ -1626,22 +1628,23 @@ static sw_inline swConnection* swReactor_get(swReactor *reactor, int fd)
     return socket;
 }
 
+static sw_inline int swReactor_handle_isset(swReactor *reactor, int _fdtype)
+{
+    return reactor->handle[_fdtype] != NULL;
+}
+
 static sw_inline void swReactor_add(swReactor *reactor, int fd, int type)
 {
     swConnection *socket = swReactor_get(reactor, fd);
     socket->fdtype = swReactor_fdtype(type);
     socket->events = swReactor_events(type);
     socket->removed = 0;
-
-    swTraceLog(SW_TRACE_REACTOR, "fd=%d, type=%d, events=%d", fd, socket->socket_type, socket->events);
 }
 
 static sw_inline void swReactor_set(swReactor *reactor, int fd, int type)
 {
     swConnection *socket = swReactor_get(reactor, fd);
     socket->events = swReactor_events(type);
-
-    swTraceLog(SW_TRACE_REACTOR, "fd=%d, type=%d, events=%d", fd, socket->socket_type, socket->events);
 }
 
 static sw_inline void swReactor_del(swReactor *reactor, int fd)
@@ -1649,8 +1652,6 @@ static sw_inline void swReactor_del(swReactor *reactor, int fd)
     swConnection *socket = swReactor_get(reactor, fd);
     socket->events = 0;
     socket->removed = 1;
-
-    swTraceLog(SW_TRACE_REACTOR, "fd=%d, type=%d", fd, socket->socket_type);
 }
 
 int swReactor_onWrite(swReactor *reactor, swEvent *ev);
@@ -1964,6 +1965,7 @@ typedef struct
     uint8_t running :1;
     uint8_t use_timerfd :1;
     uint8_t use_signalfd :1;
+    uint8_t enable_signalfd :1;
     uint8_t reuse_port :1;
     uint8_t socket_dontwait :1;
     uint8_t dns_lookup_random :1;

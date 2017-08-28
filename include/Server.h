@@ -82,15 +82,16 @@ enum swTaskIPCMode
 
 enum swCloseType
 {
-	SW_CLOSE_PASSIVE = 32,
-	SW_CLOSE_INITIATIVE,
+    SW_CLOSE_PASSIVE = 32,
+    SW_CLOSE_INITIATIVE,
 };
 
 enum swResponseType
 {
-	SW_RESPONSE_SMALL = 0,
-	SW_RESPONSE_SHM   = 1,
-	SW_RESPONSE_TMPFILE,
+    SW_RESPONSE_SMALL = 0,
+    SW_RESPONSE_SHM = 1,
+    SW_RESPONSE_TMPFILE,
+    SW_RESPONSE_EXIT,
 };
 
 enum swWorkerPipeType
@@ -129,6 +130,7 @@ typedef struct _swReactorThread
     int *pipe_read_list;
 #endif
     swLock lock;
+    int notify_pipe;
 } swReactorThread;
 
 typedef struct _swListenPort
@@ -351,9 +353,6 @@ struct _swServer
      */
     uint32_t max_request;
 
-    int timeout_sec;
-    int timeout_usec;
-
     int sock_client_buffer_size; //client的socket缓存区设置
     int sock_server_buffer_size; //server的socket缓存区设置
 
@@ -363,7 +362,6 @@ struct _swServer
     int udp_socket_ipv4;
     int udp_socket_ipv6;
 
-    int ringbuffer_size;
     uint32_t max_wait_time;
 
     /*----------------------------Reactor schedule--------------------------------*/
@@ -410,9 +408,13 @@ struct _swServer
      */
     uint32_t enable_unsafe_event :1;
     /**
-     * waiting for worekr onConnect callback function to return
+     * waiting for worker onConnect callback function to return
      */
     uint32_t enable_delay_receive :1;
+    /**
+     * asynchronous reloading
+     */
+    uint32_t reload_async :1;
 
     /* heartbeat check time*/
     uint16_t heartbeat_idle_time; //心跳存活时间

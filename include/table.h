@@ -57,9 +57,11 @@ typedef struct
     swHashMap *columns;
     uint16_t column_num;
     swLock lock;
-    uint32_t size;
-    uint32_t mask;
-    uint32_t item_size;
+    size_t size;
+    size_t mask;
+    size_t item_size;
+    size_t memory_size;
+    float conflict_proportion;
 
     /**
      * total rows that in active state(shm)
@@ -68,8 +70,6 @@ typedef struct
 
     swTableRow **rows;
     swMemoryPool *pool;
-
-    uint32_t compress_threshold;
 
     swTable_iterator *iterator;
 
@@ -108,7 +108,8 @@ enum swoole_table_find
     SW_TABLE_FIND_LIKE,
 };
 
-swTable* swTable_new(uint32_t rows_size);
+swTable* swTable_new(uint32_t rows_size, float conflict_proportion);
+size_t swTable_get_memory_size(swTable *table);
 int swTable_create(swTable *table);
 void swTable_free(swTable *table);
 int swTableColumn_add(swTable *table, char *name, int len, int type, int size);
