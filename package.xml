@@ -38,7 +38,7 @@
     <date>2017-08-11</date>
     <time>09:50:10</time>
     <version>
-        <release>1.9.18</release>
+        <release>1.9.19</release>
         <api>1.9</api>
     </version>
     <stability>
@@ -47,13 +47,13 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Fixed process::signal parent/child process repeatedly registers the same signal that causes the crash
-- Optimize EOF protocol logic to reduce 64K stack memory requirements
-- Fixed the client to set the HTTP_PROXY agent does not work properly
-- Fixed asynchronous reloading a certain probability of missing process problems
-- Allow dispatch_func to pass in PHP functions
-- Fixed defer interface can not perform in the onWorkerStart callback
-- Fixed EOF sync client has received an EAGIAN error when receiving data continuously
+- Fixed worker process crash when the Channel::push exceeded 8K and failed to create temporary file
+- Fixed MacOS event of shutdown cannot be executed
+- Automatically create the task_tmpdir and upload_tmp_dir directories
+- Fixed the SSL server to set the ciphers or ecdh_curve problems that cause the crash
+- Optimize the performance of the Server::bind method using a spin lock
+- Added the reload_async option to control the asynchronous reboot of the switch
+- Added the tcp_fastopen option to turn on TCP fast handshake
     </notes>
     <contents>
         <dir name="/">
@@ -477,6 +477,7 @@
                 <file name="swoole_buffer/construct_buffer.phpt" role="test" />
                 <file name="swoole_channel/channel.phpt" role="test" />
                 <file name="swoole_client_async/big_package_memory_leak.phpt" role="test" />
+                <file name="swoole_client_async/buffer_full.php.phpt" role="test" />
                 <file name="swoole_client_async/connect_refuse.phpt" role="test" />
                 <file name="swoole_client_async/connect_timeout.phpt" role="test" />
                 <file name="swoole_client_async/connect_twice.phpt" role="test" />
