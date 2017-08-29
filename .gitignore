@@ -70,3 +70,4 @@ examples/c_module/.project
 .settings/
 tests/.idea
 cmake-build-debug/
+/swoole_server.cbp
