@@ -13,8 +13,8 @@ typedef volatile uint64_t                 sw_atomic_uint64_t;
 typedef sw_atomic_int64_t                 sw_atomic_long_t;
 typedef sw_atomic_uint64_t                sw_atomic_ulong_t;
 #else
-typedef atomic_int32_t                    sw_atomic_long_t;
-typedef atomic_uint32_t                   sw_atomic_ulong_t;
+typedef sw_atomic_int32_t                 sw_atomic_long_t;
+typedef sw_atomic_uint32_t                sw_atomic_ulong_t;
 #endif
 
 typedef sw_atomic_uint32_t                sw_atomic_t;
