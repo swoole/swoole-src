@@ -803,9 +803,9 @@ static void http_client_onReceive(swClient *cli, char *data, uint32_t length)
             http->header_completed = 1;
             data = buffer->str;
             length = buffer->length;
+            swString_clear(buffer);
         }
     }
-
 
     long parsed_n = php_http_parser_execute(&http->parser, &http_parser_settings, data, length);
     if (parsed_n < 0)
