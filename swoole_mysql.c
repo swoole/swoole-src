@@ -335,6 +335,7 @@ static void mysql_client_free(mysql_client *client, zval* zobject)
     swClient_free(client->cli);
     efree(client->cli);
     client->cli = NULL;
+    client->connected = 0;
 }
 
 #ifdef SW_MYSQL_DEBUG
@@ -764,7 +765,11 @@ static int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval 
         swoole_php_fatal_error(E_WARNING, "mysql connection#%d is closed.", client->fd);
         return SW_ERR;
     }
-
+    if (!client->connected)
+    {
+        swoole_php_error(E_WARNING, "mysql client is not connected to server.");
+        return SW_ERR;
+    }
     if (client->state != SW_MYSQL_STATE_QUERY)
     {
         swoole_php_fatal_error(E_WARNING, "mysql client is waiting response, cannot send new sql query.");
@@ -1377,6 +1382,7 @@ static void swoole_mysql_onConnect(mysql_client *client TSRMLS_DC)
     {
         zend_update_property_bool(swoole_mysql_class_entry_ptr, zobject, ZEND_STRL("connected"), 1 TSRMLS_CC);
         ZVAL_BOOL(result, 1);
+        client->connected = 1;
     }
 
     args[0] = &zobject;
