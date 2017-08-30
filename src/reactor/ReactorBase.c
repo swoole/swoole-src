@@ -332,6 +332,7 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
         }
         else
         {
+            SwooleG.error = errno;
             return SW_ERR;
         }
     }

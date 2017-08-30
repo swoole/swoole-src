@@ -664,7 +664,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
             value = SW_MAX_INT;
         }
         swSocket_set_buffer_size(cli->socket->fd, value);
-        cli->socket->buffer_size = cli->buffer_input_size = value;
+        cli->socket->buffer_size = value;
     }
     if (php_swoole_array_get_value(vht, "buffer_high_watermark", v))
     {
@@ -1307,7 +1307,6 @@ static PHP_METHOD(swoole_client, send)
     int ret = cli->send(cli, data, data_len, flags);
     if (ret < 0)
     {
-        SwooleG.error = errno;
         swoole_php_sys_error(E_WARNING, "failed to send(%d) %d bytes.", cli->socket->fd, data_len);
         zend_update_property_long(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
         RETVAL_FALSE;

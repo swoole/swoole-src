@@ -288,6 +288,12 @@ static PHP_METHOD(swoole_server_port, set)
         convert_to_long(v);
         port->tcp_keepcount = (uint16_t) Z_LVAL_P(v);
     }
+    //tcp_fastopen
+    if (sw_zend_hash_find(vht, ZEND_STRS("tcp_fastopen"), (void **) &v) == SUCCESS)
+    {
+        convert_to_boolean(v);
+        port->tcp_fastopen = Z_BVAL_P(v);
+    }
     //open length check
     if (php_swoole_array_get_value(vht, "open_length_check", v))
     {

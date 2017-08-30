@@ -156,7 +156,6 @@ void swoole_http2_client_init(int module_number TSRMLS_DC)
     zend_declare_property_null(swoole_http2_response_class_entry_ptr, SW_STRL("statusCode")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_http2_response_class_entry_ptr, SW_STRL("body")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_http2_response_class_entry_ptr, SW_STRL("streamId")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_null(swoole_http2_response_class_entry_ptr, SW_STRL("body")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
 }
 
 static PHP_METHOD(swoole_http2_client, __construct)
@@ -1001,6 +1000,7 @@ static PHP_METHOD(swoole_http2_client, get)
         _req.uri_len = Z_STRLEN_P(uri);
         _req.type = HTTP_GET;
         _req.callback = callback;
+        _req.data = NULL;
         http2_client_send_request(getThis(), &_req TSRMLS_CC);
     }
     else

@@ -29,7 +29,7 @@ static PHP_METHOD(swoole_atomic, wakeup);
 #include <linux/futex.h>
 #include <syscall.h>
 
-static int swoole_futex_wait(sw_atomic_t *atomic, double timeout)
+static sw_inline int swoole_futex_wait(sw_atomic_t *atomic, double timeout)
 {
     if (sw_atomic_cmp_set(atomic, 1, 0))
     {
@@ -57,7 +57,7 @@ static int swoole_futex_wait(sw_atomic_t *atomic, double timeout)
     return ret;
 }
 
-static int swoole_futex_wakeup(sw_atomic_t *atomic, int n)
+static sw_inline int swoole_futex_wakeup(sw_atomic_t *atomic, int n)
 {
     if (sw_atomic_cmp_set(atomic, 0, 1))
     {

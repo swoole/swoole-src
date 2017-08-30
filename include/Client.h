@@ -17,6 +17,11 @@
 #ifndef SW_CLIENT_H_
 #define SW_CLIENT_H_
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 #include "buffer.h"
 #include "Connection.h"
 
@@ -151,5 +156,9 @@ typedef struct
 
 int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_result *, void *), void *data);
 int swDNSResolver_free();
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* SW_CLIENT_H_ */

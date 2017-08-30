@@ -1023,6 +1023,11 @@ PHP_FUNCTION(swoole_async_set)
         convert_to_long(v);
         SwooleG.log_level = Z_LVAL_P(v);
     }
+    if (php_swoole_array_get_value(vht, "display_errors", v))
+    {
+        convert_to_boolean(v);
+        SWOOLE_G(display_errors) = 0;
+    }
     if (php_swoole_array_get_value(vht, "aio_chunk_size", v))
     {
         convert_to_string(v);
