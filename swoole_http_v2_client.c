@@ -1000,6 +1000,7 @@ static PHP_METHOD(swoole_http2_client, get)
         _req.uri_len = Z_STRLEN_P(uri);
         _req.type = HTTP_GET;
         _req.callback = callback;
+        _req.data = NULL;
         http2_client_send_request(getThis(), &_req TSRMLS_CC);
     }
     else
