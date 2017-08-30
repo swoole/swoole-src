@@ -314,6 +314,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_ringqueue.c \
         swoole_mmap.c \
         swoole_channel.c \
+        swoole_channel_coro.c \
         src/core/base.c \
         src/core/log.c \
         src/core/hashmap.c \
