@@ -1213,7 +1213,7 @@ PHP_FUNCTION(swoole_get_local_ip)
 
 PHP_FUNCTION(swoole_get_local_mac)
 {
-#ifndef __MACH__
+#ifdef SIOCGIFHWADDR
     struct ifconf ifc;
     struct ifreq buf[16];
     char mac[32] = {0};
@@ -1249,10 +1249,10 @@ PHP_FUNCTION(swoole_get_local_mac)
             i++;
         }
     }
-
     close(sock);
 #else
-    
+    php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_get_local_mac is not supported.");
+    RETURN_FALSE;
 #endif
 }
 
