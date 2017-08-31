@@ -12,7 +12,7 @@
  | to obtain it through the world-wide-web, please send a note to       |
  | license@swoole.com so we can mail you a copy immediately.            |
  +----------------------------------------------------------------------+
- | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+ | Author: Xinyu Zhu  <xyzhu1120@gmail.com>                             |
  +----------------------------------------------------------------------+
  */
 
@@ -62,7 +62,7 @@ static const zend_function_entry swoole_channel_coro_methods[] =
 
 #define APPEND_YIELD(coro_list, zdata) \
         php_context *context = emalloc(sizeof(php_context)); \
-        context->coro_params = zdata; \
+        ZVAL_COPY_VALUE(&(context->coro_params), &zdata); \
         coro_save(context); \
         swLinkedList_append(coro_list, context); \
         coro_yield();
@@ -83,6 +83,7 @@ static void swoole_channel_onResume(php_context *ctx)
     {
         sw_zval_ptr_dtor(&retval);
     }
+    efree(ctx);
     sw_zval_ptr_dtor(&zdata);
 }
 
@@ -93,7 +94,7 @@ static sw_inline int swoole_channel_try_resume_consumer(zval *object, zval *zdat
     {
         php_context *next = (php_context*)swLinkedList_pop(coro_list);
         next->onTimeout = swoole_channel_onResume;
-        ZVAL_COPY(&(next->coro_params), zdata);
+        ZVAL_COPY_VALUE(&(next->coro_params), zdata);
         swLinkedList_append(SwooleWG.coro_timeout_list, next);
         return 0;
     }
@@ -164,7 +165,7 @@ static PHP_METHOD(swoole_channel_coro, __destruct)
 static PHP_METHOD(swoole_channel_coro, push)
 {
     swChannel *chan = NULL;
-    zval *zdata = NULL, *retval = NULL;
+    zval *zdata = NULL;
     int ret;
     swLinkedList *producer_list = swoole_get_property(getThis(), channel_producer_waiting_list);
 
@@ -197,6 +198,7 @@ static PHP_METHOD(swoole_channel_coro, push)
         APPEND_YIELD(producer_list, *zdata);
     }
 
+    Z_TRY_ADDREF_P(zdata);
     SW_CHECK_RETURN(swChannel_in(chan, zdata, sizeof(zval)));
 }
 
@@ -236,6 +238,7 @@ static PHP_METHOD(swoole_channel_coro, pop)
         APPEND_YIELD(coro_list, zdata);
     }
 
+    Z_TRY_DELREF(zdata);
     RETURN_ZVAL(&zdata, 0, NULL);
 }
 
