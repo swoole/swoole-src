@@ -35,10 +35,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2017-08-04</date>
+    <date>2017-08-31</date>
     <time>09:50:10</time>
     <version>
-        <release>2.0.8</release>
+        <release>2.0.9</release>
         <api>2.0</api>
     </version>
     <stability>
@@ -48,6 +48,8 @@
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
     - Merge branch 1.9
+    - Added Server::taskCo
+    - Added Coroutine::sleep
     </notes>
     <contents>
         <dir name="/">
@@ -467,6 +469,7 @@
                 <file name="swoole_async/swoole_async_dns_lookup.phpt" role="test" />
                 <file name="swoole_async/swoole_async_read.phpt" role="test" />
                 <file name="swoole_async/swoole_async_set.phpt" role="test" />
+                <file name="swoole_async/swoole_async_write.phpt" role="test" />
                 <file name="swoole_async/writefile.phpt" role="test" />
                 <file name="swoole_atomic/atomic.phpt" role="test" />
                 <file name="swoole_atomic/wait.phpt" role="test" />
@@ -479,6 +482,7 @@
                 <file name="swoole_buffer/construct_buffer.phpt" role="test" />
                 <file name="swoole_channel/channel.phpt" role="test" />
                 <file name="swoole_client_async/big_package_memory_leak.phpt" role="test" />
+                <file name="swoole_client_async/buffer_full.php.phpt" role="test" />
                 <file name="swoole_client_async/connect_refuse.phpt" role="test" />
                 <file name="swoole_client_async/connect_timeout.phpt" role="test" />
                 <file name="swoole_client_async/connect_twice.phpt" role="test" />
@@ -665,6 +669,7 @@
                 <file name="swoole_server/stop.phpt" role="test" />
                 <file name="swoole_server/task.phpt" role="test" />
                 <file name="swoole_server/taskWaitMulti.phpt" role="test" />
+                <file name="swoole_server/task_callback.phpt" role="test" />
                 <file name="swoole_server/taskwait.phpt" role="test" />
                 <file name="swoole_server/unsock_dgram.phpt" role="test" />
                 <file name="swoole_server/unsock_stream.phpt" role="test" />
