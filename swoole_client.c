@@ -1078,6 +1078,7 @@ static PHP_METHOD(swoole_client, __construct)
     }
     //init
     swoole_set_object(getThis(), NULL);
+    swoole_set_property(getThis(), client_property_callback, NULL);
 #ifdef SWOOLE_SOCKETS_SUPPORT
     swoole_set_property(getThis(), client_property_socket, NULL);
 #endif
