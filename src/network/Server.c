@@ -569,6 +569,12 @@ int swServer_start(swServer *serv)
     {
         return SW_ERR;
     }
+    //cann't start 2 servers at the same time, please use process->exec.
+    if (!sw_atomic_cmp_set(&SwooleGS->start, 0, 1))
+    {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_ONLY_START_ONE, "must only start one server.");
+        return SW_ERR;
+    }
     //init loggger
     if (SwooleG.log_file)
     {
@@ -608,7 +614,6 @@ int swServer_start(swServer *serv)
 
     //master pid
     SwooleGS->master_pid = getpid();
-    SwooleGS->start = 1;
     SwooleGS->now = SwooleStats->start_time = time(NULL);
 
     serv->send = swServer_tcp_send;
@@ -734,7 +739,7 @@ void swServer_init(swServer *serv)
 
     //http server
     serv->http_parse_post = 1;
-    serv->upload_tmp_dir = "/tmp";
+    serv->upload_tmp_dir = sw_strdup("/tmp");
 
     //heartbeat check
     serv->heartbeat_idle_time = SW_HEARTBEAT_IDLE;

@@ -262,25 +262,25 @@ static void php_swoole_dns_callback_coro(char *domain, swDNSResolver_result *res
     dns_cache *cache = swHashMap_find(request_cache_map, Z_STRVAL_P(req->domain), Z_STRLEN_P(req->domain));
     if (cache == NULL )
     {
-        cache= emalloc(sizeof(dns_cache));
-        swHashMap_add(request_cache_map,Z_STRVAL_P(req->domain), Z_STRLEN_P(req->domain) ,cache);
-        cache->zaddress=swString_new(20);
+        cache = emalloc(sizeof(dns_cache));
+        swHashMap_add(request_cache_map, Z_STRVAL_P(req->domain), Z_STRLEN_P(req->domain), cache);
+        cache->zaddress = swString_new(20);
     };
 
     swString_write_ptr(cache->zaddress, 0, Z_STRVAL_P(zaddress), Z_STRLEN_P(zaddress));
 
     cache->update_time = (int64_t) swTimer_get_now_msec + (int64_t) (SwooleG.dns_cache_refresh_time * 1000);
 
-    if (req->useless)
-    {
-        efree(req);
-        return;
-    }
     //timeout
     if (req->timeout_id > 0)
     {
         php_swoole_clear_timer_coro(req->timeout_id TSRMLS_CC);
-        req->timeout_id=0;
+        req->timeout_id = 0;
+    }
+    if (req->useless)
+    {
+        efree(req);
+        return;
     }
 
     int ret = coro_resume(req->context, zaddress, &retval);
@@ -1159,17 +1159,18 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro)
 #if PHP_MAJOR_VERSION < 7
     sw_current_context->coro_params = req;
 #else
-    sw_current_context->coro_params.value.ptr = (void * ) req;
+    sw_current_context->coro_params.value.ptr = (void *) req;
 #endif
-    req->context=sw_current_context;
+    req->context = sw_current_context;
 
     php_swoole_check_reactor();
-    int ret=swDNSResolver_request(Z_STRVAL_P(domain), php_swoole_dns_callback_coro, (void *) req);
-    if( ret== SW_ERR ){
+    int ret = swDNSResolver_request(Z_STRVAL_P(domain), php_swoole_dns_callback_coro, (void *) req);
+    if (ret == SW_ERR)
+    {
         SW_CHECK_RETURN(ret);
     }
     //add timeout
-    if (php_swoole_add_timer_coro((int)(timeout*1000), 0, &req->timeout_id, (void *)sw_current_context, NULL TSRMLS_CC))
+    if (php_swoole_add_timer_coro((int) (timeout * 1000), 0, &req->timeout_id, (void *) sw_current_context, NULL TSRMLS_CC))
     {
         sw_current_context->state = SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST;
     }

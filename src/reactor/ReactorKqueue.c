@@ -270,6 +270,8 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
         }
     }
 
+    reactor->start = 1;
+
     while (reactor->running > 0)
     {
         if (reactor->timeout_msec > 0)

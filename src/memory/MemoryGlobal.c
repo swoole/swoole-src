@@ -20,12 +20,12 @@
 
 typedef struct _swMemoryGlobal
 {
-    int size;  //总容量
-    void *mem; //剩余内存的指针
-    int offset; //内存分配游标
+    int size;
+    void *mem;
+    int offset;
     char shared;
     int pagesize;
-    swLock lock; //锁
+    swLock lock;
     void *root_page;
     void *cur_page;
 } swMemoryGlobal;
@@ -47,8 +47,7 @@ swMemoryPool* swMemoryGlobal_new(int pagesize, char shared)
     {
         return NULL;
     }
-    //分配内存需要加锁
-    if (swMutex_create(&gm.lock, 1) < 0)
+    if (swMutex_create(&gm.lock, shared) < 0)
     {
         return NULL;
     }
@@ -71,9 +70,6 @@ swMemoryPool* swMemoryGlobal_new(int pagesize, char shared)
     return allocator;
 }
 
-/**
- * 使用前8个字节保存next指针
- */
 static void* swMemoryGlobal_new_page(swMemoryGlobal *gm)
 {
     void *page = (gm->shared == 1) ? sw_shm_malloc(gm->pagesize) : sw_malloc(gm->pagesize);
@@ -82,8 +78,9 @@ static void* swMemoryGlobal_new_page(swMemoryGlobal *gm)
         return NULL;
     }
     bzero(page, gm->pagesize);
-    //将next设置为NULL
-    ((void **)page)[0] = NULL;
+    //set next page to NULL
+    //save the next pointer with the first 8 bytes
+    ((void **) page)[0] = NULL;
 
     gm->offset = 0;
     gm->size = gm->pagesize - sizeof(void*);
@@ -97,21 +94,20 @@ static void *swMemoryGlobal_alloc(swMemoryPool *pool, uint32_t size)
     gm->lock.lock(&gm->lock);
     if (size > gm->pagesize)
     {
-        swWarn("swMemoryGlobal_alloc: alloc %d bytes not allow. Max size=%d", size, gm->pagesize);
+        swWarn("failed to alloc %d bytes, exceed the maximum size[%d].", size, gm->pagesize);
+        gm->lock.unlock(&gm->lock);
         return NULL;
     }
-
     if (gm->offset + size > gm->size)
     {
-        //没有足够的内存,再次申请
-        swWarn("swMemoryGlobal_alloc new page: size=%d|offset=%d|alloc=%d", gm->size, gm->offset, size);
+        swWarn("failed to alloc new page, size=%d|offset=%d|alloc=%d", gm->size, gm->offset, size);
         void *page = swMemoryGlobal_new_page(gm);
         if (page == NULL)
         {
             swWarn("swMemoryGlobal_alloc alloc memory error.");
+            gm->lock.unlock(&gm->lock);
             return NULL;
         }
-        //将next指向新申请的内存块
         ((void **) gm->cur_page)[0] = page;
         gm->cur_page = page;
     }
@@ -123,7 +119,7 @@ static void *swMemoryGlobal_alloc(swMemoryPool *pool, uint32_t size)
 
 static void swMemoryGlobal_free(swMemoryPool *pool, void *ptr)
 {
-    swWarn("swMemoryGlobal Allocator no free.");
+    swWarn("swMemoryGlobal Allocator don't need to release.");
 }
 
 static void swMemoryGlobal_destroy(swMemoryPool *poll)

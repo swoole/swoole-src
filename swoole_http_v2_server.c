@@ -29,6 +29,62 @@ static sw_inline void http2_add_header(nghttp2_nv *headers, char *k, int kl, cha
     headers->valuelen = vl;
 }
 
+static int http_build_trailer(http_context *ctx, uchar *buffer TSRMLS_DC)
+{
+    int ret;
+    nghttp2_nv nv[128];
+    int index = 0;
+
+    zval *trailer = ctx->response.ztrailer;
+    if (trailer)
+    {
+        HashTable *ht = Z_ARRVAL_P(trailer);
+        zval *value = NULL;
+        char *key = NULL;
+        uint32_t keylen = 0;
+        int type;
+        SW_HASHTABLE_FOREACH_START2(ht, key, keylen, type, value)
+        {
+            if (!key)
+            {
+                break;
+            }
+            http2_add_header(&nv[index++], key, keylen, Z_STRVAL_P(value), Z_STRLEN_P(value));
+        }
+        SW_HASHTABLE_FOREACH_END();
+    }
+
+    ssize_t rv;
+    size_t buflen;
+    size_t i;
+    size_t sum = 0;
+
+    nghttp2_hd_deflater *deflater;
+    ret = nghttp2_hd_deflate_new(&deflater, 4096);
+    if (ret != 0)
+    {
+        swoole_php_error(E_WARNING, "nghttp2_hd_deflate_init failed with error: %s\n", nghttp2_strerror(ret));
+        return SW_ERR;
+    }
+
+    for (i = 0; i < index; ++i)
+    {
+        sum += nv[i].namelen + nv[i].valuelen;
+    }
+
+    buflen = nghttp2_hd_deflate_bound(deflater, nv, index);
+    rv = nghttp2_hd_deflate_hd(deflater, (uchar *) buffer, buflen, nv, index);
+    if (rv < 0)
+    {
+        swoole_php_error(E_WARNING, "nghttp2_hd_deflate_hd() failed with error: %s\n", nghttp2_strerror((int ) rv));
+        return SW_ERR;
+    }
+
+    nghttp2_hd_deflate_del(deflater);
+
+    return rv;
+}
+
 static sw_inline void http2_onRequest(http_context *ctx, int server_fd TSRMLS_DC)
 {
     zval *retval;
@@ -258,10 +314,25 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
     swString_append_ptr(swoole_http_buffer, frame_header, 9);
     swString_append_ptr(swoole_http_buffer, header_buffer, n);
 
-    swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_DATA, body->length, SW_HTTP2_FLAG_END_STREAM, ctx->stream_id);
+    zval *trailer = ctx->response.ztrailer;
+    int flag = SW_HTTP2_FLAG_END_STREAM;
+    if(trailer)
+    {
+        flag = SW_HTTP2_FLAG_NONE;
+    }
+    swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_DATA, body->length, flag, ctx->stream_id);
     swString_append_ptr(swoole_http_buffer, frame_header, 9);
     swString_append(swoole_http_buffer, body);
-
+    
+    if (trailer)
+    {
+        memset(header_buffer, 0 , sizeof(header_buffer));
+        n = http_build_trailer(ctx, (uchar *) header_buffer TSRMLS_CC);
+        swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, n, SW_HTTP2_FLAG_END_HEADERS|SW_HTTP2_FLAG_END_STREAM, ctx->stream_id);
+        swString_append_ptr(swoole_http_buffer, frame_header, 9);
+        swString_append_ptr(swoole_http_buffer, header_buffer, n);
+    }
+   
     int ret = swServer_tcp_send(SwooleG.serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length);
     if (ret < 0)
     {

@@ -50,7 +50,7 @@
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "2.0.8"
+#define PHP_SWOOLE_VERSION  "2.0.9"
 #define PHP_SWOOLE_CHECK_CALLBACK
 #define PHP_SWOOLE_ENABLE_FASTCALL
 
@@ -283,7 +283,6 @@ PHP_METHOD(swoole_server, finish);
 PHP_METHOD(swoole_server, reload);
 PHP_METHOD(swoole_server, shutdown);
 PHP_METHOD(swoole_server, getLastError);
-PHP_METHOD(swoole_server, stop);
 PHP_METHOD(swoole_server, heartbeat);
 
 PHP_METHOD(swoole_server, connection_list);
@@ -390,6 +389,7 @@ void php_swoole_check_reactor();
 void php_swoole_event_init();
 void php_swoole_event_wait();
 void php_swoole_check_timer(int interval);
+long php_swoole_add_timer(int ms, zval *callback, zval *param, int persistent TSRMLS_DC);
 void php_swoole_clear_all_timer();
 void php_swoole_register_callback(swServer *serv);
 void php_swoole_client_free(zval *object, swClient *cli TSRMLS_DC);
@@ -445,6 +445,7 @@ void php_swoole_onClose(swServer *, swDataHead *);
 void php_swoole_onBufferFull(swServer *, swDataHead *);
 void php_swoole_onBufferEmpty(swServer *, swDataHead *);
 int php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
+int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swEventData *data);
 int php_swoole_client_onPackage(swConnection *conn, char *data, uint32_t length);
 void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode);
 void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode);

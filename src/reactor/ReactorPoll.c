@@ -204,6 +204,8 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
         }
     }
 
+    reactor->start = 1;
+
     while (reactor->running > 0)
     {
         msec = reactor->timeout_msec;

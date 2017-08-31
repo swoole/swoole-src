@@ -612,6 +612,19 @@ PHP_FUNCTION(swoole_event_defer)
         return;
     }
 
+    //the event loop is not started
+    if (SwooleG.main_reactor->start == 0)
+    {
+        if (php_swoole_add_timer(1, callback, NULL, 0 TSRMLS_CC) < 0)
+        {
+            RETURN_FALSE;
+        }
+        else
+        {
+            RETURN_TRUE;
+        }
+    }
+
     char *func_name;
     if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
     {

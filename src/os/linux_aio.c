@@ -133,6 +133,7 @@ static int swAioLinux_onFinish(swReactor *reactor, swEvent *event)
 
 static void swAioLinux_destroy()
 {
+    SwooleG.main_reactor->del(SwooleG.main_reactor, swoole_aio_eventfd);
     swoole_aio_pipe.close(&swoole_aio_pipe);
     io_destroy(swoole_aio_context);
 }

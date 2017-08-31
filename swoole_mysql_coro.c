@@ -22,14 +22,46 @@
 #include "swoole_coroutine.h"
 #include "swoole_mysql.h"
 
+#ifdef SW_USE_MYSQLND
+#include "ext/mysqlnd/mysqlnd.h"
+#include "ext/mysqlnd/mysqlnd_charset.h"
+#endif
+
 static PHP_METHOD(swoole_mysql_coro, __construct);
 static PHP_METHOD(swoole_mysql_coro, __destruct);
 static PHP_METHOD(swoole_mysql_coro, connect);
 static PHP_METHOD(swoole_mysql_coro, query);
 static PHP_METHOD(swoole_mysql_coro, recv);
+#ifdef SW_USE_MYSQLND
+static PHP_METHOD(swoole_mysql_coro, escape);
+#endif
 static PHP_METHOD(swoole_mysql_coro, setDefer);
 static PHP_METHOD(swoole_mysql_coro, getDefer);
 static PHP_METHOD(swoole_mysql_coro, close);
+
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_connect, 0, 0, 2)
+    ZEND_ARG_ARRAY_INFO(0, server_config, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_query, 0, 0, 1)
+    ZEND_ARG_INFO(0, sql)
+    ZEND_ARG_INFO(0, timeout)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_setDefer, 0, 0, 0)
+    ZEND_ARG_INFO(0, defer)
+ZEND_END_ARG_INFO()
+
+#ifdef SW_USE_MYSQLND
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_escape, 0, 0, 1)
+    ZEND_ARG_INFO(0, string)
+    ZEND_ARG_INFO(0, flags)
+ZEND_END_ARG_INFO()
+#endif
 
 static zend_class_entry swoole_mysql_coro_ce;
 static zend_class_entry *swoole_mysql_coro_class_entry_ptr;
@@ -39,14 +71,17 @@ static zend_class_entry *swoole_mysql_coro_exception_class_entry_ptr;
 
 static const zend_function_entry swoole_mysql_coro_methods[] =
 {
-    PHP_ME(swoole_mysql_coro, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
-    PHP_ME(swoole_mysql_coro, __destruct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
-    PHP_ME(swoole_mysql_coro, connect, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_mysql_coro, query, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_mysql_coro, recv, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_mysql_coro, setDefer, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_mysql_coro, getDefer, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_mysql_coro, close, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_mysql_coro, __construct, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+    PHP_ME(swoole_mysql_coro, __destruct, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
+    PHP_ME(swoole_mysql_coro, connect, arginfo_swoole_mysql_coro_connect, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_mysql_coro, query, arginfo_swoole_mysql_coro_query, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_mysql_coro, recv, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+#ifdef SW_USE_MYSQLND
+    PHP_ME(swoole_mysql_coro, escape, arginfo_swoole_mysql_coro_escape, ZEND_ACC_PUBLIC)
+#endif
+    PHP_ME(swoole_mysql_coro, setDefer, arginfo_swoole_mysql_coro_setDefer, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_mysql_coro, getDefer, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_mysql_coro, close, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
@@ -349,8 +384,8 @@ static PHP_METHOD(swoole_mysql_coro, connect)
 	{
 		php_swoole_add_timer_coro((int) (connector->timeout * 1000), client->fd, &client->cli->timeout_id, (void *) context, NULL TSRMLS_CC);
 	}
-        coro_save(context);
-	coro_yield();
+    coro_save(context);
+    coro_yield();
 }
 
 static PHP_METHOD(swoole_mysql_coro, query)
@@ -502,6 +537,54 @@ static PHP_METHOD(swoole_mysql_coro, recv)
 	coro_yield();
 }
 
+#ifdef SW_USE_MYSQLND
+static PHP_METHOD(swoole_mysql_coro, escape)
+{
+    swString str;
+    bzero(&str, sizeof(str));
+    long flags;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|l", &str.str, &str.length, &flags) == FAILURE)
+    {
+        return;
+    }
+
+    if (str.length <= 0)
+    {
+        swoole_php_fatal_error(E_WARNING, "String is empty.");
+        RETURN_FALSE;
+    }
+
+    mysql_client *client = swoole_get_object(getThis());
+    if (!client)
+    {
+        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_mysql.");
+        RETURN_FALSE;
+    }
+    if (!client->cli)
+    {
+        swoole_php_fatal_error(E_WARNING, "mysql connection#%d is closed.", client->fd);
+        RETURN_FALSE;
+    }
+
+    char *newstr = safe_emalloc(2, str.length + 1, 1);
+    if (newstr == NULL)
+    {
+        swoole_php_fatal_error(E_ERROR, "emalloc(%ld) failed.", str.length + 1);
+        RETURN_FALSE;
+    }
+
+    const MYSQLND_CHARSET* cset = mysqlnd_find_charset_nr(client->connector.character_set);
+    int newstr_len = mysqlnd_cset_escape_slashes(cset, newstr, str.str, str.length TSRMLS_CC);
+    if (newstr_len < 0)
+    {
+        swoole_php_fatal_error(E_ERROR, "mysqlnd_cset_escape_slashes() failed.");
+        RETURN_FALSE;
+    }
+    SW_RETURN_STRINGL(newstr, newstr_len, 0);
+}
+#endif
+
 static PHP_METHOD(swoole_mysql_coro, __destruct)
 {
     mysql_client *client = swoole_get_object(getThis());
@@ -542,8 +625,6 @@ static PHP_METHOD(swoole_mysql_coro, close)
     {
         RETURN_FALSE;
     }
-
-
 #if PHP_MAJOR_VERSION < 7
     sw_zval_ptr_dtor(&getThis());
 #endif

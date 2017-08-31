@@ -3,11 +3,16 @@
 #ifdef SW_COROUTINE
 #include "swoole_coroutine.h"
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_sleep, 0, 0, 1)
+    ZEND_ARG_INFO(0, seconds)
+ZEND_END_ARG_INFO()
+
 static PHP_METHOD(swoole_coroutine_util, create);
 static PHP_METHOD(swoole_coroutine_util, suspend);
 static PHP_METHOD(swoole_coroutine_util, cli_wait);
 static PHP_METHOD(swoole_coroutine_util, resume);
 static PHP_METHOD(swoole_coroutine_util, getuid);
+static PHP_METHOD(swoole_coroutine_util, sleep);
 static PHP_METHOD(swoole_coroutine_util, call_user_func);
 static PHP_METHOD(swoole_coroutine_util, call_user_func_array);
 
@@ -24,6 +29,7 @@ static const zend_function_entry swoole_coroutine_util_methods[] =
     PHP_ME(swoole_coroutine_util, suspend, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, resume, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, getuid, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_util, sleep, arginfo_swoole_coroutine_sleep, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, call_user_func, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, call_user_func_array, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
@@ -524,10 +530,75 @@ static PHP_METHOD(swoole_coroutine_util, resume)
 
 static PHP_METHOD(swoole_coroutine_util, getuid)
 {
-    if(unlikely(COROG.current_coro == NULL))
+    if (unlikely(COROG.current_coro == NULL))
     {
         RETURN_LONG(-1);
     }
     RETURN_LONG(COROG.current_coro->cid);
 }
+
+static void php_coroutine_context_free(void *data)
+{
+    efree(data);
+}
+
+static void php_coroutine_sleep_timeout(swTimer *timer, swTimer_node *tnode)
+{
+    zval *retval = NULL;
+    zval *result = NULL;
+    SW_MAKE_STD_ZVAL(result);
+    ZVAL_BOOL(result, 1);
+
+    php_context *context = (php_context *) tnode->data;
+    int ret = coro_resume(context, result, &retval);
+    SwooleG.main_reactor->defer(SwooleG.main_reactor, php_coroutine_context_free, context);
+    if (ret == CORO_END && retval)
+    {
+        sw_zval_ptr_dtor(&retval);
+    }
+    sw_zval_ptr_dtor(&result);
+}
+
+static PHP_METHOD(swoole_coroutine_util, sleep)
+{
+    coro_check(TSRMLS_C);
+
+    double seconds;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "d", & seconds) == FAILURE)
+    {
+        return;
+    }
+
+    int ms = (int) (seconds * 1000);
+
+    if (SwooleG.serv && swIsMaster())
+    {
+        swoole_php_fatal_error(E_WARNING, "cannot use timer in master process.");
+        return;
+    }
+    if (ms > 8640000)
+    {
+        swoole_php_fatal_error(E_WARNING, "The given parameters is too big.");
+        return;
+    }
+    if (ms <= 0)
+    {
+        swoole_php_fatal_error(E_WARNING, "Timer must be greater than 0");
+        return;
+    }
+
+    php_context *context = emalloc(sizeof(php_context));
+    context->onTimeout = NULL;
+    context->state = SW_CORO_CONTEXT_RUNNING;
+
+    php_swoole_check_timer(ms);
+    if (SwooleG.timer.add(&SwooleG.timer, ms, 0, context, php_coroutine_sleep_timeout) < 0)
+    {
+        RETURN_FALSE;
+    }
+
+    coro_save(context);
+    coro_yield();
+}
+
 #endif

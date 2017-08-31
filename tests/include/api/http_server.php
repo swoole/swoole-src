@@ -1,7 +1,9 @@
 <?php
 $http = new swoole_http_server("127.0.0.1", 9501, SWOOLE_BASE);
 $http->set(array(
-    'log_file' => '/dev/null'
+    'log_file' => '/dev/null',
+    "http_parse_post" => 1,
+    "upload_tmp_dir" => "/tmp",
 ));
 $http->on("WorkerStart", function (\swoole_server $serv)
 {
@@ -9,7 +11,10 @@ $http->on("WorkerStart", function (\swoole_server $serv)
      * @var $pm ProcessManager
      */
     global $pm;
-    $pm->wakeup();
+    if ($pm)
+    {
+        $pm->wakeup();
+    }
 });
 $http->on('request', function ($request, swoole_http_response $response)
 {
@@ -74,6 +79,7 @@ $http->on('request', function ($request, swoole_http_response $response)
         $cli->get('/info', function ($cli) use ($response)
         {
             $response->end($cli->body . "\n");
+            $cli->close();
         });
     }
 });

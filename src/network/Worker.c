@@ -16,6 +16,8 @@
 
 #include "swoole.h"
 #include "Server.h"
+#include "Client.h"
+#include "async.h"
 
 #include <pwd.h>
 #include <grp.h>
@@ -406,22 +408,7 @@ static void swWorker_stop()
     //remove read event
     if (worker->pipe_worker)
     {
-        swConnection *pipe_socket = swReactor_get(SwooleG.main_reactor, worker->pipe_worker);
-        if (pipe_socket->events & SW_EVENT_WRITE)
-        {
-            pipe_socket->events &= (~SW_EVENT_READ);
-            if (SwooleG.main_reactor->set(SwooleG.main_reactor, worker->pipe_worker, pipe_socket->fdtype | pipe_socket->events) < 0)
-            {
-                swSysError("reactor->set(%d, SW_EVENT_READ) failed.", worker->pipe_worker);
-            }
-        }
-        else
-        {
-            if (SwooleG.main_reactor->del(SwooleG.main_reactor, worker->pipe_worker) < 0)
-            {
-                swSysError("reactor->del(%d) failed.", worker->pipe_worker);
-            }
-        }
+        swReactor_remove_read_event(SwooleG.main_reactor, worker->pipe_worker);
     }
 
     if (serv->onWorkerStop)
@@ -438,6 +425,13 @@ static void swWorker_stop()
             SwooleG.main_reactor->del(SwooleG.main_reactor, port->sock);
             swPort_free(port);
         }
+
+        if (worker->pipe_worker)
+        {
+            SwooleG.main_reactor->del(SwooleG.main_reactor, worker->pipe_worker);
+            SwooleG.main_reactor->del(SwooleG.main_reactor, worker->pipe_master);
+        }
+
         goto try_to_exit;
     }
 
@@ -476,6 +470,13 @@ void swWorker_try_to_exit()
 {
     swServer *serv = SwooleG.serv;
     int expect_event_num = SwooleG.use_signalfd ? 1 : 0;
+
+    if (SwooleAIO.init && SwooleAIO.task_num == 0)
+    {
+        swAio_free();
+    }
+
+    swDNSResolver_free();
 
     uint8_t call_worker_exit_func = 0;
 

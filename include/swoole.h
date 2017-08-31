@@ -1361,6 +1361,7 @@ struct _swReactor
 
     uint32_t check_timer :1;
     uint32_t running :1;
+    uint32_t start :1;
 
     /**
      * disable accept new connection
@@ -1677,6 +1678,20 @@ static sw_inline int swReactor_del_event(swReactor *reactor, int fd, enum swEven
     return SW_OK;
 }
 
+static sw_inline int swReactor_remove_read_event(swReactor *reactor, int fd)
+{
+    swConnection *conn = swReactor_get(reactor, fd);
+    if (conn->events & SW_EVENT_WRITE)
+    {
+        conn->events &= (~SW_EVENT_READ);
+        return reactor->set(reactor, fd, conn->fdtype | conn->events);
+    }
+    else
+    {
+        return reactor->del(reactor, fd);
+    }
+}
+
 swReactor_handle swReactor_getHandle(swReactor *reactor, int event_type, int fdtype);
 int swReactorEpoll_create(swReactor *reactor, int max_event_num);
 int swReactorPoll_create(swReactor *reactor, int max_event_num);
@@ -1868,7 +1883,7 @@ typedef struct
     pid_t manager_pid;
 
     uint32_t session_round :24;
-    uint8_t start;  //after swServer_start will set start=1
+    sw_atomic_t start;  //after swServer_start will set start=1
 
     time_t now;
 

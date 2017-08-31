@@ -17,10 +17,8 @@ assert.quiet_eval=0
  */
 require_once __DIR__ . "/../include/swoole.inc";
 
-killself_in_syncmode(1000, SIGTERM);
-
 $cli = new \swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
-$r = @$cli->connect("11.11.11.11", 80);
+$r = @$cli->connect("11.11.11.11", 80, 0.5);
 echo intval($r);
 ?>
 

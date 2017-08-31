@@ -1555,6 +1555,7 @@ PHP_METHOD(swoole_server, __construct)
 
 PHP_METHOD(swoole_server, __destruct)
 {
+#if SW_DEBUG_SERVER_DESTRUCT
     int i;
     for (i = 0; i < PHP_SERVER_CALLBACK_NUM; i++)
     {
@@ -1577,7 +1578,7 @@ PHP_METHOD(swoole_server, __destruct)
 
     efree(server_port_list.zports);
     server_port_list.zports = NULL;
-
+#endif
 }
 
 PHP_METHOD(swoole_server, set)
@@ -1693,18 +1694,36 @@ PHP_METHOD(swoole_server, set)
         convert_to_long(v);
         serv->dispatch_mode = (int) Z_LVAL_P(v);
     }
-    //c/c++ function
+    //dispatch function
     if (php_swoole_array_get_value(vht, "dispatch_func", v))
     {
-        convert_to_string(v);
-        swServer_dispatch_function func = swoole_get_function(Z_STRVAL_P(v), Z_STRLEN_P(v));
-        if (func == NULL)
+        swServer_dispatch_function func = NULL;
+        while(1)
         {
-            swoole_php_fatal_error(E_ERROR, "extension module function '%s' is undefined.", Z_STRVAL_P(v));
-            return;
+            if (Z_TYPE_P(v) == IS_STRING)
+            {
+                func = swoole_get_function(Z_STRVAL_P(v), Z_STRLEN_P(v));
+                break;
+            }
+
+            char *func_name = NULL;
+            if (!sw_zend_is_callable(v, 0, &func_name TSRMLS_CC))
+            {
+                swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
+                efree(func_name);
+                return;
+            }
+            efree(func_name);
+            sw_zval_add_ref(&v);
+            serv->private_data_3 = sw_zval_dup(v);
+            func = php_swoole_dispatch_func;
+            break;
         }
-        serv->dispatch_mode = SW_DISPATCH_USERFUNC;
-        serv->dispatch_func = func;
+        if (func)
+        {
+            serv->dispatch_mode = SW_DISPATCH_USERFUNC;
+            serv->dispatch_func = func;
+        }
     }
     //log_file
     if (php_swoole_array_get_value(vht, "log_file", v))
@@ -2170,6 +2189,12 @@ PHP_METHOD(swoole_server, send)
         RETURN_FALSE;
     }
 
+    if (swIsMaster())
+    {
+        swoole_php_fatal_error(E_WARNING, "can't send data to the connections in master process.");
+        RETURN_FALSE;
+    }
+
 #ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(2, 3)
         Z_PARAM_ZVAL(zfd)
@@ -2348,6 +2373,12 @@ PHP_METHOD(swoole_server, sendfile)
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ls|ll", &fd, &filename, &len, &offset, &length) == FAILURE)
     {
         return;
+    }
+
+    if (swIsMaster())
+    {
+        swoole_php_fatal_error(E_WARNING, "can't sendfile[%s] to the connections in master process.", filename);
+        RETURN_FALSE;
     }
 
     swServer *serv = swoole_get_object(zobject);

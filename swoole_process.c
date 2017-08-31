@@ -86,7 +86,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_setaffinity, 0, 0, 1)
 ZEND_END_ARG_INFO()
 #endif
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_useQueue, 0, 0, 1)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_useQueue, 0, 0, 0)
     ZEND_ARG_INFO(0, key)
     ZEND_ARG_INFO(0, mode)
 ZEND_END_ARG_INFO()
@@ -155,6 +155,7 @@ void swoole_process_init(int module_number TSRMLS_DC)
     swoole_process_class_entry_ptr = zend_register_internal_class(&swoole_process_ce TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_process, "Swoole\\Process");
     zend_declare_class_constant_long(swoole_process_class_entry_ptr, SW_STRL("IPC_NOWAIT")-1, MSGQUEUE_NOWAIT TSRMLS_CC);
+    bzero(signal_callback, sizeof(signal_callback));
     /**
      * 31 signal constants
      */
@@ -456,6 +457,7 @@ static PHP_METHOD(swoole_process, signal)
         {
             swSignal_add(signo, NULL);
             SwooleG.main_reactor->defer(SwooleG.main_reactor, free_signal_callback, callback);
+            signal_callback[signo] = NULL;
             RETURN_TRUE;
         }
         else
@@ -477,6 +479,12 @@ static PHP_METHOD(swoole_process, signal)
     callback = sw_zval_dup(callback);
     sw_zval_add_ref(&callback);
 
+    php_swoole_check_reactor();
+    /**
+     * for swSignalfd_setup
+     */
+    SwooleG.main_reactor->check_signalfd = 1;
+
     //free the old callback
     if (signal_callback[signo])
     {
@@ -490,12 +498,6 @@ static PHP_METHOD(swoole_process, signal)
     SwooleG.use_signalfd = 0;
 #endif
 
-    php_swoole_check_reactor();
-
-    /**
-     * for swSignalfd_setup
-     */
-    SwooleG.main_reactor->check_signalfd = 1;
     swSignal_add(signo, php_swoole_onSignal);
 
     RETURN_TRUE;

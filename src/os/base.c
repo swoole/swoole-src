@@ -67,11 +67,8 @@ void swAio_free(void)
     {
         return;
     }
-
-    if (SwooleAIO.mode == SW_AIO_BASE)
-    {
-        swAioBase_destroy(&swAioBase_thread_pool);
-    }
+    SwooleAIO.destroy();
+    SwooleAIO.init = 0;
 }
 
 /**
@@ -397,4 +394,6 @@ static int swAioBase_read(int fd, void *inbuf, size_t size, off_t offset)
 void swAioBase_destroy()
 {
     swThreadPool_free(&swAioBase_thread_pool);
+    SwooleG.main_reactor->del(SwooleG.main_reactor, swAioBase_pipe_read);
+    swoole_aio_pipe.close(&swoole_aio_pipe);
 }

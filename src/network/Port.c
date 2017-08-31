@@ -45,7 +45,7 @@ void swPort_init(swListenPort *port)
 
     port->protocol.package_length_type = 'N';
     port->protocol.package_length_size = 4;
-    port->protocol.package_body_offset = 0;
+    port->protocol.package_body_offset = 4;
     port->protocol.package_max_length = SW_BUFFER_INPUT_SIZE;
 
     port->socket_buffer_size = SwooleG.socket_buffer_size;
@@ -636,8 +636,8 @@ int swPort_http_static_handler(swHttpRequest *request, swConnection *conn)
     p = request->buffer->str + request->url_offset + request->url_length + 10;
     char *pe = request->buffer->str + request->header_length;
 
-    char *date_if_modified_since;
-    int length_if_modified_since;
+    char *date_if_modified_since = NULL;
+    int length_if_modified_since = 0;
 
     int state = 0;
     for (; p < pe; p++)

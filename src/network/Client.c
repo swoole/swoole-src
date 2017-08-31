@@ -783,6 +783,69 @@ static int swClient_udp_recv(swClient *cli, char *data, int length, int flags)
     return ret;
 }
 
+#ifdef SW_USE_OPENSSL
+static int swClient_https_proxy_handshake(swClient *cli)
+{
+    char *buf = cli->buffer->str;
+    size_t len = cli->buffer->length;
+    int state = 0;
+    char *p = buf;
+    for (p = buf; p < buf + len; p++)
+    {
+        if (state == 0)
+        {
+            if (strncasecmp(p, "HTTP/1.1", 8) == 0 || strncasecmp(p, "HTTP/1.0", 8) == 0)
+            {
+                state = 1;
+                p += 8;
+            }
+            else
+            {
+                break;
+            }
+        }
+        else if (state == 1)
+        {
+            if (isspace(*p))
+            {
+                continue;
+            }
+            else
+            {
+                if (strncasecmp(p, "200", 3) == 0)
+                {
+                    state = 2;
+                    p += 3;
+                }
+                else
+                {
+                    break;
+                }
+            }
+        }
+        else if (state == 2)
+        {
+            if (isspace(*p))
+            {
+                continue;
+            }
+            else
+            {
+                if (strncasecmp(p, "Connection established", sizeof("Connection established") - 1) == 0)
+                {
+                    return SW_OK;
+                }
+                else
+                {
+                    break;
+                }
+            }
+        }
+    }
+    return SW_ERR;
+}
+#endif
+
 static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
 {
     int n;
@@ -795,31 +858,33 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
 #ifdef SW_USE_OPENSSL
         if (cli->open_ssl)
         {
-            int n = swConnection_recv (event->socket, buf, buf_size, 0);
+            int n = swConnection_recv(event->socket, buf, buf_size, 0);
             if (n <= 0)
             {
                 goto __close;
             }
-            if (n < strlen (SW_HTTPS_PROXY_HANDSHAKE_RESPONSE))
+            cli->buffer->length += n;
+            if (cli->buffer->length < sizeof(SW_HTTPS_PROXY_HANDSHAKE_RESPONSE) - 1)
             {
                 return SW_OK;
             }
-            if (strncasecmp (SW_HTTPS_PROXY_HANDSHAKE_RESPONSE, buf, strlen (SW_HTTPS_PROXY_HANDSHAKE_RESPONSE)) != 0)
+            if (swClient_https_proxy_handshake(cli) < 0)
             {
-                swoole_error_log (SW_LOG_NOTICE, SW_ERROR_HTTP_PROXY_HANDSHAKE_ERROR, "handshake  with http proxy  error");
-                return SW_ERR;
+                swoole_error_log(SW_LOG_NOTICE, SW_ERROR_HTTP_PROXY_HANDSHAKE_ERROR, "failed to handshake with http proxy.");
+                goto connect_fail;
             }
             else
             {
                 cli->http_proxy->state = SW_HTTP_PROXY_STATE_READY;
+                swString_clear(cli->buffer);
             }
-            if (swClient_enable_ssl_encrypt (cli) < 0)
+            if (swClient_enable_ssl_encrypt(cli) < 0)
             {
-                 goto connect_fail;
+                goto connect_fail;
             }
             else
             {
-                if (swClient_ssl_handshake (cli) < 0)
+                if (swClient_ssl_handshake(cli) < 0)
                 {
                     goto connect_fail;
                 }
@@ -827,7 +892,7 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
                 {
                     cli->socket->ssl_state = SW_SSL_STATE_WAIT_STREAM;
                 }
-                return SwooleG.main_reactor->set (SwooleG.main_reactor, event->fd, SW_FD_STREAM_CLIENT | SW_EVENT_WRITE);
+                return SwooleG.main_reactor->set(SwooleG.main_reactor, event->fd, SW_FD_STREAM_CLIENT | SW_EVENT_WRITE);
             }
             if (cli->onConnect)
             {
@@ -836,7 +901,6 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
             return SW_OK;
         }
 #endif
-        
     }
     if (cli->socks5_proxy && cli->socks5_proxy->state != SW_SOCKS5_STATE_READY)
     {
@@ -859,6 +923,7 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
             if (swClient_enable_ssl_encrypt(cli) < 0)
             {
                 connect_fail:
+                cli->socket->active = 0;
                 cli->close(cli);
                 if (cli->onError)
                 {

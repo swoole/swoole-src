@@ -150,5 +150,6 @@ typedef struct
 } swDNSResolver_result;
 
 int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_result *, void *), void *data);
+int swDNSResolver_free();
 
 #endif /* SW_CLIENT_H_ */
