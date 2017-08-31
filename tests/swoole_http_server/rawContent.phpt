@@ -20,11 +20,10 @@ $closeServer = start_server($simple_http_server, HTTP_SERVER_HOST, $port = get_o
 $payload = RandStr::gen(1024 * 1024);
 testRawcontent(HTTP_SERVER_HOST, $port, $payload, function(\swoole_http_client $cli) use($closeServer, $payload) {
     assert($cli->body === $payload);
-    echo "SUCCESS";
+    echo "SUCCESS\n";
     $closeServer();
 });
-
-suicide(1000, SIGTERM, $closeServer);
+swoole_event::wait();
 ?>
 --EXPECT--
 SUCCESS

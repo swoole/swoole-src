@@ -61,6 +61,62 @@ static void php_swoole_onManagerStop(swServer *serv);
 
 static zval* php_swoole_server_add_port(swListenPort *port TSRMLS_DC);
 
+int php_swoole_create_dir(const char* path, int length TSRMLS_DC)
+{
+    if (access(path, F_OK) == 0)
+    {
+        return 0;
+    }
+    int     startpath;
+    int     endpath;
+    int     i            = 0;
+    int     pathlen      = length;
+    char    curpath[128] = {0};
+    if ('/' != path[0])
+    {
+        if (getcwd(curpath, sizeof(curpath)) == NULL)
+        {
+            swoole_php_sys_error(E_WARNING, "getcwd() failed.");
+            return -1;
+        }
+        strcat(curpath, "/");
+        startpath   = strlen(curpath);
+        strcat(curpath, path);
+        if (path[pathlen] != '/')
+        {
+            strcat(curpath, "/");
+        }
+        endpath = strlen(curpath);
+    }
+    else
+    {
+        strcpy(curpath, path);
+        if (path[pathlen] != '/')
+        {
+            strcat(curpath, "/");
+        }
+        startpath    = 1;
+        endpath      = strlen(curpath);
+    }
+    for (i = startpath; i < endpath ; i++ )
+    {  
+        if ('/' == curpath[i])
+        {
+            curpath[i] = '\0';
+            if (access(curpath, F_OK) != 0)
+            {
+                if (mkdir(curpath, 0755) == -1)
+                {  
+                    swoole_php_sys_error(E_WARNING, "mkdir(%s, 0755).", path);
+                    return -1;
+                }
+            }
+            curpath[i] = '/';
+        }
+    }
+    return 0;
+}
+
 int php_swoole_task_pack(swEventData *task, zval *data TSRMLS_DC)
 {
     smart_str serialized_data = { 0 };
@@ -1463,8 +1519,8 @@ PHP_METHOD(swoole_server, __construct)
         swListenPort *port = swServer_add_port(serv, sock_type, serv_host, serv_port);
         if (!port)
         {
-            zend_throw_exception_ex(swoole_exception_class_entry_ptr, errno, "failed to listen server port[%s:%d]. Error: %s[%d].",
-                    serv_host, serv_port, strerror(errno), errno TSRMLS_CC);
+            zend_throw_exception_ex(swoole_exception_class_entry_ptr, errno TSRMLS_CC, "failed to listen server port[%s:%d]. Error: %s[%d].",
+                    serv_host, serv_port, strerror(errno), errno);
             return;
         }
     }
@@ -1716,6 +1772,8 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "task_tmpdir", v))
     {
         convert_to_string(v);
+        php_swoole_create_dir(Z_STRVAL_P(v), Z_STRLEN_P(v) TSRMLS_CC);
+
         if (Z_STRLEN_P(v) > SW_TASK_TMPDIR_SIZE - 30)
         {
             swoole_php_fatal_error(E_ERROR, "task_tmpdir is too long, the max size is %d.", SW_TASK_TMPDIR_SIZE - 1);
@@ -1767,6 +1825,12 @@ PHP_METHOD(swoole_server, set)
         convert_to_long(v);
         serv->max_request = (int) Z_LVAL_P(v);
     }
+    //reload async
+    if (php_swoole_array_get_value(vht, "reload_async", v))
+    {
+        convert_to_boolean(v);
+        serv->reload_async = Z_BVAL_P(v);
+    }
     //cpu affinity
     if (php_swoole_array_get_value(vht, "open_cpu_affinity", v))
     {
@@ -1817,6 +1881,8 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "upload_tmp_dir", v))
     {
         convert_to_string(v);
+        php_swoole_create_dir(Z_STRVAL_P(v), Z_STRLEN_P(v) TSRMLS_CC);
+
         if (Z_STRLEN_P(v) >= SW_HTTP_UPLOAD_TMPDIR_SIZE - 22)
         {
             swoole_php_fatal_error(E_ERROR, "option upload_tmp_dir [%s] is too long.", Z_STRVAL_P(v));
@@ -2972,37 +3038,23 @@ PHP_METHOD(swoole_server, bind)
     }
 
     swServer *serv = swoole_get_object(zobject);
-
     swConnection *conn = swWorker_get_connection(serv, fd);
-
-    //udp client
-    if (conn == NULL)
+    if (conn == NULL || conn->active == 0)
     {
-        swTrace("%ld conn error", fd);
         RETURN_FALSE;
     }
 
-    //connection is closed
-    if (conn->active == 0)
-    {
-        swTrace("fd:%ld a:%d, uid: %d", fd, conn->active, conn->uid);
-        RETURN_FALSE;
-    }
-
+    sw_spinlock(&conn->lock);
     if (conn->uid != 0)
     {
-        RETURN_FALSE;
+        RETVAL_FALSE;
     }
-
-    int ret = 0;
-    SwooleGS->lock.lock(&SwooleGS->lock);
-    if (conn->uid == 0)
+    else
     {
         conn->uid = (uint32_t) uid;
-        ret = 1;
+        RETVAL_TRUE;
     }
-    SwooleGS->lock.unlock(&SwooleGS->lock);
-    SW_CHECK_RETURN(ret);
+    sw_spinlock_release(&conn->lock);
 }
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
@@ -3124,7 +3176,7 @@ PHP_METHOD(swoole_server, connection_info)
     {
         array_init(return_value);
 
-        if (serv->dispatch_mode == SW_DISPATCH_UIDMOD)
+        if (conn->uid > 0 || serv->dispatch_mode == SW_DISPATCH_UIDMOD)
         {
             add_assoc_long(return_value, "uid", conn->uid);
         }
@@ -3397,13 +3449,14 @@ PHP_METHOD(swoole_server, stop)
         RETURN_FALSE;
     }
 
+    zend_bool wait_reactor = 0;
     long worker_id = SwooleWG.id;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &worker_id) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|lb", &worker_id, &wait_reactor) == FAILURE)
     {
         return;
     }
 
-    if (worker_id == SwooleWG.id)
+    if (worker_id == SwooleWG.id && wait_reactor == 0)
     {
         SwooleG.main_reactor->running = 0;
         SwooleG.running = 0;

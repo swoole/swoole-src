@@ -110,6 +110,7 @@ void swoole_init(void)
 #ifdef HAVE_SIGNALFD
     swSignalfd_init();
     SwooleG.use_signalfd = 1;
+    SwooleG.enable_signalfd = 1;
 #endif
     //timerfd
 #ifdef HAVE_TIMERFD

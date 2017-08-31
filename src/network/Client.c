@@ -41,8 +41,6 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event);
 static int swClient_onError(swReactor *reactor, swEvent *event);
 static void swClient_onTimeout(swTimer *timer, swTimer_node *tnode);
 
-static int isset_event_handle = 0;
-
 static sw_inline void execute_onConnect(swClient *cli)
 {
     if (cli->timer)
@@ -125,13 +123,12 @@ int swClient_create(swClient *cli, int type, int async)
     if (async)
     {
         swSetNonBlock(cli->socket->fd);
-        if (isset_event_handle == 0)
+        if (!swReactor_handle_isset(SwooleG.main_reactor, SW_FD_STREAM_CLIENT))
         {
             SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_STREAM_CLIENT | SW_EVENT_READ, swClient_onStreamRead);
             SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_DGRAM_CLIENT | SW_EVENT_READ, swClient_onDgramRead);
             SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_STREAM_CLIENT | SW_EVENT_WRITE, swClient_onWrite);
             SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_STREAM_CLIENT | SW_EVENT_ERROR, swClient_onError);
-            isset_event_handle = 1;
         }
     }
 
@@ -144,8 +141,6 @@ int swClient_create(swClient *cli, int type, int async)
             cli->send = swClient_tcp_send_async;
             cli->sendfile = swClient_tcp_sendfile_async;
             cli->pipe = swClient_tcp_pipe;
-            cli->buffer_high_watermark = SwooleG.socket_buffer_size * 0.8;
-            cli->buffer_low_watermark = 0;
         }
         else
         {
@@ -492,6 +487,11 @@ static int swClient_tcp_connect_async(swClient *cli, char *host, int port, doubl
         return SW_ERR;
     }
 
+    if (cli->onBufferFull && cli->buffer_high_watermark == 0)
+    {
+        cli->buffer_high_watermark = cli->socket->buffer_size * 0.8;
+    }
+
     if (swClient_inet_addr(cli, host, port) < 0)
     {
         return SW_ERR;
@@ -568,20 +568,25 @@ static int swClient_tcp_pipe(swClient *cli, int write_fd, int flags)
 
 static int swClient_tcp_send_async(swClient *cli, char *data, int length, int flags)
 {
+    int n = length;
     if (SwooleG.main_reactor->write(SwooleG.main_reactor, cli->socket->fd, data, length) < 0)
     {
-        return SW_ERR;
-    }
-    else
-    {
-        if (cli->onBufferFull && cli->socket->out_buffer && cli->socket->high_watermark == 0
-                && cli->socket->out_buffer->length >= cli->buffer_high_watermark)
+        if (SwooleG.error == SW_ERROR_OUTPUT_BUFFER_OVERFLOW)
         {
-            cli->socket->high_watermark = 1;
-            cli->onBufferFull(cli);
+            n = -1;
         }
-        return length;
+        else
+        {
+            return SW_ERR;
+        }
     }
+    if (cli->onBufferFull && cli->socket->out_buffer && cli->socket->high_watermark == 0
+            && cli->socket->out_buffer->length >= cli->buffer_high_watermark)
+    {
+        cli->socket->high_watermark = 1;
+        cli->onBufferFull(cli);
+    }
+    return n;
 }
 
 static int swClient_tcp_send_sync(swClient *cli, char *data, int length, int flags)
@@ -608,6 +613,7 @@ static int swClient_tcp_send_sync(swClient *cli, char *data, int length, int fla
             }
             else
             {
+                SwooleG.error = errno;
                 return SW_ERR;
             }
         }

@@ -34,7 +34,7 @@ static void swTableColumn_free(swTableColumn *col)
     sw_free(col);
 }
 
-swTable* swTable_new(uint32_t rows_size)
+swTable* swTable_new(uint32_t rows_size, float conflict_proportion)
 {
     if (rows_size >= 0x80000000)
     {
@@ -48,6 +48,15 @@ swTable* swTable_new(uint32_t rows_size)
             i++;
         }
         rows_size = 1 << i;
+    }
+
+    if (conflict_proportion > 1.0)
+    {
+        conflict_proportion = 1.0;
+    }
+    else if (conflict_proportion < SW_TABLE_CONFLICT_PROPORTION)
+    {
+        conflict_proportion = SW_TABLE_CONFLICT_PROPORTION;
     }
 
     swTable *table = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swTable));
@@ -74,6 +83,7 @@ swTable* swTable_new(uint32_t rows_size)
 
     table->size = rows_size;
     table->mask = rows_size - 1;
+    table->conflict_proportion = conflict_proportion;
 
     bzero(table->iterator, sizeof(swTable_iterator));
     table->memory = NULL;
@@ -137,11 +147,16 @@ int swTableColumn_add(swTable *table, char *name, int len, int type, int size)
     return swHashMap_add(table->columns, name, len, col);
 }
 
-int swTable_create(swTable *table)
+size_t swTable_get_memory_size(swTable *table)
 {
-    size_t row_num = table->size * (1 + SW_TABLE_CONFLICT_PROPORTION);
+    /**
+     * table size + conflict size
+     */
+    size_t row_num = table->size * (1 + table->conflict_proportion);
 
-    //header + data
+    /*
+     * header + data
+     */
     size_t row_memory_size = sizeof(swTableRow) + table->item_size;
 
     /**
@@ -159,14 +174,22 @@ int swTable_create(swTable *table)
      */
     memory_size += table->size * sizeof(swTableRow *);
 
+    return memory_size;
+}
+
+int swTable_create(swTable *table)
+{
+    size_t memory_size = swTable_get_memory_size(table);
+    size_t row_memory_size = sizeof(swTableRow) + table->item_size;
+
     void *memory = sw_shm_malloc(memory_size);
     if (memory == NULL)
     {
         return SW_ERR;
     }
 
+    table->memory_size = memory_size;
     table->memory = memory;
-    table->compress_threshold = table->size * SW_TABLE_COMPRESS_PROPORTION;
 
     table->rows = memory;
     memory += table->size * sizeof(swTableRow *);
@@ -212,7 +235,7 @@ void swTable_free(swTable *table)
     }
 }
 
-static swTableRow* swTable_hash(swTable *table, char *key, int keylen)
+static sw_inline swTableRow* swTable_hash(swTable *table, char *key, int keylen)
 {
 #ifdef SW_TABLE_USE_PHP_HASH
     uint64_t hashv = swoole_hash_php(key, keylen);

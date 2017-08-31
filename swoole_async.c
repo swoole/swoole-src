@@ -814,6 +814,12 @@ PHP_FUNCTION(swoole_async_writefile)
 
 PHP_FUNCTION(swoole_async_set)
 {
+    if (SwooleG.main_reactor != NULL)
+    {
+        swoole_php_fatal_error(E_ERROR, "eventLoop has already been created. unable to create swoole_server.");
+        RETURN_FALSE;
+    }
+
     zval *zset = NULL;
     HashTable *vht;
     zval *v;
@@ -839,7 +845,7 @@ PHP_FUNCTION(swoole_async_set)
     if (php_swoole_array_get_value(vht, "enable_signalfd", v))
     {
         convert_to_boolean(v);
-        SwooleG.use_signalfd = Z_BVAL_P(v);
+        SwooleG.enable_signalfd = Z_BVAL_P(v);
     }
     if (php_swoole_array_get_value(vht, "socket_buffer_size", v))
     {
@@ -854,6 +860,11 @@ PHP_FUNCTION(swoole_async_set)
     {
         convert_to_long(v);
         SwooleG.log_level = Z_LVAL_P(v);
+    }
+    if (php_swoole_array_get_value(vht, "display_errors", v))
+    {
+        convert_to_boolean(v);
+        SWOOLE_G(display_errors) = 0;
     }
     if (php_swoole_array_get_value(vht, "aio_chunk_size", v))
     {

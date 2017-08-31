@@ -482,6 +482,13 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
                 _send.length = data->length;
                 swReactorThread_send(&_send);
             }
+            //reactor thread exit
+            else if (_send.info.from_fd == SW_RESPONSE_EXIT)
+            {
+                reactor->running = 0;
+                return SW_OK;
+            }
+            //will never be here
             else
             {
                 abort();
@@ -1256,6 +1263,11 @@ static int swReactorThread_loop(swThreadParam *param)
                 swSetNonBlock(pipe_fd);
                 reactor->add(reactor, pipe_fd, SW_FD_PIPE);
 
+                if (thread->notify_pipe == 0)
+                {
+                    thread->notify_pipe = serv->workers[i].pipe_worker;
+                }
+
                 /**
                  * mapping reactor_id and worker pipe
                  */
@@ -1422,32 +1434,36 @@ void swReactorThread_free(swServer *serv)
         return;
     }
 
-#ifdef __MACH__
-    exit(0);
-#endif
-
     for (i = 0; i < serv->reactor_num; i++)
     {
         thread = &(serv->reactor_threads[i]);
-        thread->reactor.running = 0;
-        SW_START_SLEEP;
-        if (thread->thread_id && pthread_cancel(thread->thread_id) != 0)
+        if (thread->notify_pipe)
         {
-            swSysError("pthread_cancel(%ld) failed.", (long ) thread->thread_id);
+            swDataHead ev;
+            memset(&ev, 0, sizeof(ev));
+            ev.from_fd = SW_RESPONSE_EXIT;
+            if (swSocket_write_blocking(thread->notify_pipe, (void *) &ev, sizeof(ev)) < 0)
+            {
+                goto cancel;
+            }
+        }
+        else
+        {
+            cancel: if (pthread_cancel(thread->thread_id) < 0)
+            {
+                swSysError("pthread_cancel(%ld) failed.", (long ) thread->thread_id);
+            }
         }
         //wait thread
-        if (thread->thread_id && pthread_join(thread->thread_id, NULL) != 0)
+        if (pthread_join(thread->thread_id, NULL) != 0)
         {
             swSysError("pthread_join(%ld) failed.", (long ) thread->thread_id);
         }
-        //release the lock
-        SwooleGS->lock.unlock(&SwooleGS->lock);
 #ifdef SW_USE_RINGBUFFER
         thread->buffer_input->destroy(thread->buffer_input);
 #endif
     }
 }
-
 
 #ifdef SW_USE_TIMEWHEEL
 static void swReactorThread_onReactorCompleted(swReactor *reactor)

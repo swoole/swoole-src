@@ -262,7 +262,6 @@ static int swManager_loop(swFactory *factory)
                 }
             }
             ManagerProcess.read_message = 0;
-            goto kill_worker;
         }
 
         if (pid < 0)
@@ -378,7 +377,7 @@ static int swManager_loop(swFactory *factory)
             }
             if (kill(reload_workers[reload_worker_i].pid, SIGTERM) < 0)
             {
-                swSysError("kill(%d, SIGTERM) failed.", reload_workers[reload_worker_i].pid);
+                swSysError("kill(%d, SIGTERM) [%d] failed.", reload_workers[reload_worker_i].pid, reload_worker_i);
             }
             reload_worker_i++;
         }
