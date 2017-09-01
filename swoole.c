@@ -1070,6 +1070,11 @@ PHP_FUNCTION(swoole_version)
     SW_RETURN_STRING(swoole_version, 1);
 }
 
+PHP_FUNCTION(swoole_unsupport_serialize)
+{
+    zend_throw_exception_ex(swoole_exception_class_entry_ptr, 0, "cannot serialize or unserialize.");
+}
+
 static PHP_FUNCTION(swoole_last_error)
 {
     RETURN_LONG(SwooleG.error);
