@@ -1072,7 +1072,7 @@ PHP_FUNCTION(swoole_version)
 
 PHP_FUNCTION(swoole_unsupport_serialize)
 {
-    zend_throw_exception_ex(swoole_exception_class_entry_ptr, 0, "cannot serialize or unserialize.");
+    zend_throw_exception_ex(swoole_exception_class_entry_ptr, 0 TSRMLS_CC, "cannot serialize or unserialize.");
 }
 
 static PHP_FUNCTION(swoole_last_error)
