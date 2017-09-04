@@ -339,10 +339,6 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
                         swSysError("kqueue event write socket#%d handler failed.", event.fd);
                     }
                 }
-                else
-                {
-                    swWarn("kqueue event unknow filter=%d", object->events[i].filter);
-                }
             }
         }
 
