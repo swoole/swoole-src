@@ -28,12 +28,14 @@ enum channel_property
 {
     channel_producer_waiting_list = 0,
     channel_consumer_waiting_list = 1,
+    channel_closed = 2,
 };
 
 static PHP_METHOD(swoole_channel_coro, __construct);
 static PHP_METHOD(swoole_channel_coro, __destruct);
 static PHP_METHOD(swoole_channel_coro, push);
 static PHP_METHOD(swoole_channel_coro, pop);
+static PHP_METHOD(swoole_channel_coro, close);
 static PHP_METHOD(swoole_channel_coro, stats);
 
 static zend_class_entry swoole_channel_coro_ce;
@@ -56,6 +58,7 @@ static const zend_function_entry swoole_channel_coro_methods[] =
     PHP_ME(swoole_channel_coro, __destruct, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_ME(swoole_channel_coro, push, arginfo_swoole_channel_coro_push, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_channel_coro, pop, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_channel_coro, close, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_channel_coro, stats, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
@@ -114,6 +117,27 @@ static sw_inline int swoole_channel_try_resume_producer(zval *object, zval *zdat
         return 0;
     }
     return -1;
+}
+
+static sw_inline int swoole_channel_try_resume_all(zval *object)
+{
+    swLinkedList *coro_list = swoole_get_property(object, channel_producer_waiting_list);
+    while (coro_list->num != 0)
+    {
+        php_context *next = (php_context*)swLinkedList_pop(coro_list);
+        next->onTimeout = swoole_channel_onResume;
+        ZVAL_FALSE(&next->coro_params);
+        swLinkedList_append(SwooleWG.coro_timeout_list, next);
+    }
+    coro_list = swoole_get_property(object, channel_consumer_waiting_list);
+    while (coro_list->num != 0)
+    {
+        php_context *next = (php_context*)swLinkedList_pop(coro_list);
+        next->onTimeout = swoole_channel_onResume;
+        ZVAL_FALSE(&next->coro_params);
+        swLinkedList_append(SwooleWG.coro_timeout_list, next);
+    }
+    return 0;
 }
 
 static PHP_METHOD(swoole_channel_coro, __construct)
@@ -240,6 +264,13 @@ static PHP_METHOD(swoole_channel_coro, pop)
 
     Z_TRY_DELREF(zdata);
     RETURN_ZVAL(&zdata, 0, NULL);
+}
+
+static PHP_METHOD(swoole_channel_coro, close)
+{
+    swoole_set_property(getThis(), channel_closed, 1);
+    swoole_channel_resume_all();
+    RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_channel_coro, stats)
