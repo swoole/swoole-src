@@ -46,6 +46,8 @@ const zend_function_entry swoole_server_port_methods[] =
     PHP_ME(swoole_server_port, __destruct,      arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_ME(swoole_server_port, set,             arginfo_swoole_server_port_set, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server_port, on,              arginfo_swoole_server_port_on, ZEND_ACC_PUBLIC)
+    PHP_FALIAS(__sleep, swoole_unsupport_serialize, NULL)
+    PHP_FALIAS(__wakeup, swoole_unsupport_serialize, NULL)
 #ifdef SWOOLE_SOCKETS_SUPPORT
     PHP_ME(swoole_server_port, getSocket,       arginfo_swoole_void, ZEND_ACC_PUBLIC)
 #endif

@@ -374,6 +374,8 @@ const zend_function_entry swoole_http_server_methods[] =
 {
     PHP_ME(swoole_http_server, on,         arginfo_swoole_http_server_on, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_server, start,      arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
+    PHP_FALIAS(__sleep, swoole_unsupport_serialize, NULL)
+    PHP_FALIAS(__wakeup, swoole_unsupport_serialize, NULL)
     PHP_FE_END
 };
 
