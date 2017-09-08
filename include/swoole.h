@@ -987,7 +987,7 @@ swMemoryPool *swRingBuffer_new(uint32_t size, uint8_t shared);
 /**
  * Global memory, the program life cycle only malloc / free one time
  */
-swMemoryPool* swMemoryGlobal_new(int pagesize, char shared);
+swMemoryPool* swMemoryGlobal_new(uint32_t pagesize, char shared);
 
 void swFixedPool_debug(swMemoryPool *pool);
 

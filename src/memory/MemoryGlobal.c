@@ -26,8 +26,8 @@ typedef struct _swMemoryGlobal_page
 
 typedef struct _swMemoryGlobal
 {
-    char shared;
-    int pagesize;
+    uint8_t shared;
+    uint32_t pagesize;
     swLock lock;
     swMemoryGlobal_page *root_page;
     swMemoryGlobal_page *current_page;
@@ -39,7 +39,7 @@ static void swMemoryGlobal_free(swMemoryPool *pool, void *ptr);
 static void swMemoryGlobal_destroy(swMemoryPool *poll);
 static swMemoryGlobal_page* swMemoryGlobal_new_page(swMemoryGlobal *gm);
 
-swMemoryPool* swMemoryGlobal_new(int pagesize, char shared)
+swMemoryPool* swMemoryGlobal_new(uint32_t pagesize, uint8_t shared)
 {
     swMemoryGlobal gm, *gm_ptr;
     assert(pagesize >= SW_MIN_PAGE_SIZE);
