@@ -784,7 +784,7 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swEventDat
     else if (serv->dispatch_mode == SW_DISPATCH_UIDMOD)
     {
         swConnection *conn = swServer_connection_get(serv, fd);
-        if (conn == NULL)
+        if (conn == NULL || conn->uid == 0)
         {
             key = fd;
         }
