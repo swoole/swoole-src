@@ -102,7 +102,7 @@ static void *swMemoryGlobal_alloc(swMemoryPool *pool, uint32_t size)
     gm->lock.lock(&gm->lock);
     if (size > gm->pagesize - sizeof(swMemoryGlobal_page))
     {
-        swWarn("failed to alloc %d bytes, exceed the maximum size[%d].", size, gm->pagesize - sizeof(swMemoryGlobal_page));
+        swWarn("failed to alloc %d bytes, exceed the maximum size[%d].", size, gm->pagesize - (int) sizeof(swMemoryGlobal_page));
         gm->lock.unlock(&gm->lock);
         return NULL;
     }
