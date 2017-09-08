@@ -158,10 +158,17 @@ PHP_METHOD(swoole_atomic, __construct)
 {
     long value = 0;
 
+#ifdef FAST_ZPP
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(value)
+    ZEND_PARSE_PARAMETERS_END();
+#else
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &value) == FAILURE)
     {
         RETURN_FALSE;
     }
+#endif
 
     sw_atomic_t *atomic = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(sw_atomic_t));
     if (atomic == NULL)
@@ -180,10 +187,17 @@ PHP_METHOD(swoole_atomic, add)
     long add_value = 1;
     sw_atomic_t *atomic = swoole_get_object(getThis());
 
+#ifdef FAST_ZPP
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(add_value)
+    ZEND_PARSE_PARAMETERS_END();
+#else
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &add_value) == FAILURE)
     {
         RETURN_FALSE;
     }
+#endif
     RETURN_LONG(sw_atomic_add_fetch(atomic, (uint32_t ) add_value));
 }
 
@@ -192,10 +206,17 @@ PHP_METHOD(swoole_atomic, sub)
     long sub_value = 1;
     sw_atomic_t *atomic = swoole_get_object(getThis());
 
+#ifdef FAST_ZPP
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(sub_value)
+    ZEND_PARSE_PARAMETERS_END();
+#else
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &sub_value) == FAILURE)
     {
         RETURN_FALSE;
     }
+#endif
     RETURN_LONG(sw_atomic_sub_fetch(atomic, (uint32_t ) sub_value));
 }
 
@@ -210,10 +231,16 @@ PHP_METHOD(swoole_atomic, set)
     sw_atomic_t *atomic = swoole_get_object(getThis());
     long set_value;
 
+#ifdef FAST_ZPP
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_LONG(set_value)
+    ZEND_PARSE_PARAMETERS_END();
+#else
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &set_value) == FAILURE)
     {
         RETURN_FALSE;
     }
+#endif
     *atomic = (uint32_t) set_value;
 }
 
@@ -222,10 +249,17 @@ PHP_METHOD(swoole_atomic, cmpset)
     long cmp_value, set_value;
     sw_atomic_t *atomic = swoole_get_object(getThis());
 
+#ifdef FAST_ZPP
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_LONG(cmp_value)
+        Z_PARAM_LONG(set_value)
+    ZEND_PARSE_PARAMETERS_END();
+#else
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ll", &cmp_value, &set_value) == FAILURE)
     {
         RETURN_FALSE;
     }
+#endif
 
     RETURN_BOOL(sw_atomic_cmp_set(atomic, (sw_atomic_t) cmp_value, (sw_atomic_t) set_value));
 }
@@ -234,10 +268,19 @@ PHP_METHOD(swoole_atomic, wait)
 {
     double timeout = 1.0;
     sw_atomic_t *atomic = swoole_get_object(getThis());
+
+#ifdef FAST_ZPP
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_DOUBLE(timeout)
+    ZEND_PARSE_PARAMETERS_END();
+#else
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|d", &timeout) == FAILURE)
     {
         RETURN_FALSE;
     }
+#endif
+
 #ifdef HAVE_FUTEX
     SW_CHECK_RETURN(swoole_futex_wait(atomic, timeout));
 #else
@@ -261,10 +304,19 @@ PHP_METHOD(swoole_atomic, wakeup)
 {
     long n = 1;
     sw_atomic_t *atomic = swoole_get_object(getThis());
+
+#ifdef FAST_ZPP
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(n)
+    ZEND_PARSE_PARAMETERS_END();
+#else
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &n) == FAILURE)
     {
         RETURN_FALSE;
     }
+#endif
+
 #ifdef HAVE_FUTEX
     SW_CHECK_RETURN(swoole_futex_wakeup(atomic, (int ) n));
 #else
@@ -276,10 +328,17 @@ PHP_METHOD(swoole_atomic_long, __construct)
 {
     long value = 0;
 
+#ifdef FAST_ZPP
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(value)
+    ZEND_PARSE_PARAMETERS_END();
+#else
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &value) == FAILURE)
     {
         RETURN_FALSE;
     }
+#endif
 
     sw_atomic_long_t *atomic = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(sw_atomic_long_t));
     if (atomic == NULL)
@@ -298,10 +357,18 @@ PHP_METHOD(swoole_atomic_long, add)
     long add_value = 1;
     sw_atomic_long_t *atomic = swoole_get_object(getThis());
 
+#ifdef FAST_ZPP
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(add_value)
+    ZEND_PARSE_PARAMETERS_END();
+#else
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &add_value) == FAILURE)
     {
         RETURN_FALSE;
     }
+#endif
+
     RETURN_LONG(sw_atomic_add_fetch(atomic, (sw_atomic_long_t ) add_value));
 }
 
@@ -310,10 +377,18 @@ PHP_METHOD(swoole_atomic_long, sub)
     long sub_value = 1;
     sw_atomic_long_t *atomic = swoole_get_object(getThis());
 
+#ifdef FAST_ZPP
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(sub_value)
+    ZEND_PARSE_PARAMETERS_END();
+#else
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &sub_value) == FAILURE)
     {
         RETURN_FALSE;
     }
+#endif
+
     RETURN_LONG(sw_atomic_sub_fetch(atomic, (sw_atomic_long_t ) sub_value));
 }
 
@@ -328,10 +403,16 @@ PHP_METHOD(swoole_atomic_long, set)
     sw_atomic_long_t *atomic = swoole_get_object(getThis());
     long set_value;
 
+#ifdef FAST_ZPP
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_LONG(set_value)
+    ZEND_PARSE_PARAMETERS_END();
+#else
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &set_value) == FAILURE)
     {
         RETURN_FALSE;
     }
+#endif
     *atomic = (sw_atomic_long_t) set_value;
 }
 
@@ -340,10 +421,17 @@ PHP_METHOD(swoole_atomic_long, cmpset)
     long cmp_value, set_value;
     sw_atomic_long_t *atomic = swoole_get_object(getThis());
 
+#ifdef FAST_ZPP
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_LONG(cmp_value)
+        Z_PARAM_LONG(set_value)
+    ZEND_PARSE_PARAMETERS_END();
+#else
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ll", &cmp_value, &set_value) == FAILURE)
     {
         RETURN_FALSE;
     }
+#endif
 
     RETURN_BOOL(sw_atomic_cmp_set(atomic, (sw_atomic_long_t) cmp_value, (sw_atomic_long_t) set_value));
 }
