@@ -377,9 +377,9 @@ void swoole_buffer_init(int module_number TSRMLS_DC);
 void swoole_mysql_init(int module_number TSRMLS_DC);
 void swoole_mmap_init(int module_number TSRMLS_DC);
 void swoole_channel_init(int module_number TSRMLS_DC);
-void swoole_channel_coro_init(int module_number TSRMLS_DC);
 void swoole_ringqueue_init(int module_number TSRMLS_DC);
 #if PHP_MAJOR_VERSION == 7
+void swoole_channel_coro_init(int module_number TSRMLS_DC);
 void swoole_serialize_init(int module_number TSRMLS_DC);
 #endif
 

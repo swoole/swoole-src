@@ -24,12 +24,14 @@
 #define swChannel_empty(q) (q->num == 0)
 #define swChannel_full(q) ((q->head == q->tail) && (q->tail_tag != q->head_tag))
 
-enum channel_property
+#define CHANNEL_CORO_PROPERTY_INDEX 0
+
+typedef struct
 {
-    channel_producer_waiting_list = 0,
-    channel_consumer_waiting_list = 1,
-    channel_closed = 2,
-};
+    swLinkedList *producer_list;
+    swLinkedList *consumer_list;
+    int closed;
+} channel_coro_property;
 
 static PHP_METHOD(swoole_channel_coro, __construct);
 static PHP_METHOD(swoole_channel_coro, __destruct);
@@ -90,9 +92,9 @@ static void swoole_channel_onResume(php_context *ctx)
     sw_zval_ptr_dtor(&zdata);
 }
 
-static sw_inline int swoole_channel_try_resume_consumer(zval *object, zval *zdata)
+static sw_inline int swoole_channel_try_resume_consumer(zval *object, channel_coro_property *property, zval *zdata)
 {
-    swLinkedList *coro_list = swoole_get_property(object, channel_consumer_waiting_list);
+    swLinkedList *coro_list = property->consumer_list;
     if (coro_list->num != 0)
     {
         php_context *next = (php_context*)swLinkedList_pop(coro_list);
@@ -104,9 +106,9 @@ static sw_inline int swoole_channel_try_resume_consumer(zval *object, zval *zdat
     return -1;
 }
 
-static sw_inline int swoole_channel_try_resume_producer(zval *object, zval *zdata_ptr)
+static sw_inline int swoole_channel_try_resume_producer(zval *object, channel_coro_property *property, zval *zdata_ptr)
 {
-    swLinkedList *coro_list = swoole_get_property(object, channel_producer_waiting_list);
+    swLinkedList *coro_list = property->producer_list ;
     if (coro_list->num != 0)
     {
         php_context *next = (php_context*)swLinkedList_pop(coro_list);
@@ -119,9 +121,9 @@ static sw_inline int swoole_channel_try_resume_producer(zval *object, zval *zdat
     return -1;
 }
 
-static sw_inline int swoole_channel_try_resume_all(zval *object)
+static sw_inline int swoole_channel_try_resume_all(zval *object, channel_coro_property *property)
 {
-    swLinkedList *coro_list = swoole_get_property(object, channel_producer_waiting_list);
+    swLinkedList *coro_list = property->producer_list;
     while (coro_list->num != 0)
     {
         php_context *next = (php_context*)swLinkedList_pop(coro_list);
@@ -129,7 +131,7 @@ static sw_inline int swoole_channel_try_resume_all(zval *object)
         ZVAL_FALSE(&next->coro_params);
         swLinkedList_append(SwooleWG.coro_timeout_list, next);
     }
-    coro_list = swoole_get_property(object, channel_consumer_waiting_list);
+    coro_list = property->consumer_list;
     while (coro_list->num != 0)
     {
         php_context *next = (php_context*)swLinkedList_pop(coro_list);
@@ -167,22 +169,19 @@ static PHP_METHOD(swoole_channel_coro, __construct)
         swoole_set_object(getThis(), NULL);
     }
 
-    swLinkedList *producer_list = swLinkedList_new(2, NULL);
-    swLinkedList *consumer_list = swLinkedList_new(2, NULL);
-    if (producer_list == NULL || consumer_list == NULL)
-    {
-        RETURN_FALSE;
-    }
-    swoole_set_property(getThis(), channel_producer_waiting_list, producer_list);
-    swoole_set_property(getThis(), channel_consumer_waiting_list, consumer_list);
+    channel_coro_property *property = (channel_coro_property *)sw_malloc(sizeof(channel_coro_property));
+    property->producer_list = swLinkedList_new(2, NULL);
+    property->consumer_list = swLinkedList_new(2, NULL);
+    property->closed = 0;
+
+    swoole_set_property(getThis(), CHANNEL_CORO_PROPERTY_INDEX, property);
 }
 
 static PHP_METHOD(swoole_channel_coro, __destruct)
 {
-    swLinkedList *list = swoole_get_property(getThis(), channel_consumer_waiting_list);
-    swLinkedList_free(list);
-    list = swoole_get_property(getThis(), channel_producer_waiting_list);
-    swLinkedList_free(list);
+    channel_coro_property *property = swoole_get_property(getThis(), CHANNEL_CORO_PROPERTY_INDEX);
+    swLinkedList_free(property->consumer_list);
+    swLinkedList_free(property->producer_list);
     swoole_set_object(getThis(), NULL);
 }
 
@@ -191,7 +190,11 @@ static PHP_METHOD(swoole_channel_coro, push)
     swChannel *chan = NULL;
     zval *zdata = NULL;
     int ret;
-    swLinkedList *producer_list = swoole_get_property(getThis(), channel_producer_waiting_list);
+    channel_coro_property *property = swoole_get_property(getThis(), CHANNEL_CORO_PROPERTY_INDEX);
+    if (property->closed) {
+        RETURN_FALSE;
+    }
+    swLinkedList *producer_list = property->producer_list;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zdata) == FAILURE)
     {
@@ -201,7 +204,7 @@ static PHP_METHOD(swoole_channel_coro, push)
     chan = swoole_get_object(getThis());
     if (chan == NULL)
     {
-        ret = swoole_channel_try_resume_consumer(getThis(), zdata);
+        ret = swoole_channel_try_resume_consumer(getThis(), property, zdata);
         if (ret == 0)
         {
             RETURN_TRUE;
@@ -210,7 +213,7 @@ static PHP_METHOD(swoole_channel_coro, push)
     }
     if (swChannel_empty(chan))
     {
-        ret = swoole_channel_try_resume_consumer(getThis(), zdata);
+        ret = swoole_channel_try_resume_consumer(getThis(), property, zdata);
         if (ret ==0)
         {
             RETURN_TRUE;
@@ -232,23 +235,23 @@ static PHP_METHOD(swoole_channel_coro, pop)
     swChannel *chan = swoole_get_object(getThis());
     zval zdata;
 
+    channel_coro_property *property = swoole_get_property(getThis(), CHANNEL_CORO_PROPERTY_INDEX);
     if (chan == NULL)
     {
-        ret = swoole_channel_try_resume_producer(getThis(), &zdata);
+        ret = swoole_channel_try_resume_producer(getThis(), property, &zdata);
         if (ret == 0)
         {
             RETURN_ZVAL(&zdata, 0, NULL);
         }
         else
         {
-            swLinkedList *coro_list = swoole_get_property(getThis(), channel_consumer_waiting_list);
-            APPEND_YIELD(coro_list, zdata);
+            APPEND_YIELD(property->consumer_list, zdata);
         }
     }
 
     if (swChannel_full(chan))
     {
-        ret = swoole_channel_try_resume_producer(getThis(), &zdata);
+        ret = swoole_channel_try_resume_producer(getThis(), property, &zdata);
         if (ret == 0)
         {
             RETURN_ZVAL(&zdata, 0, NULL);
@@ -258,8 +261,7 @@ static PHP_METHOD(swoole_channel_coro, pop)
     int n = swChannel_out(chan, &zdata, sizeof(zdata));
     if (n < 0)
     {
-        swLinkedList *coro_list = swoole_get_property(getThis(), channel_consumer_waiting_list);
-        APPEND_YIELD(coro_list, zdata);
+        APPEND_YIELD(property->consumer_list, zdata);
     }
 
     Z_TRY_DELREF(zdata);
@@ -268,8 +270,13 @@ static PHP_METHOD(swoole_channel_coro, pop)
 
 static PHP_METHOD(swoole_channel_coro, close)
 {
-    swoole_set_property(getThis(), channel_closed, 1);
-    swoole_channel_resume_all();
+    channel_coro_property *property = swoole_get_property(getThis(), CHANNEL_CORO_PROPERTY_INDEX);
+    if (property->closed)
+    {
+        RETURN TRUE;
+    }
+    property->closed = 1;
+    swoole_channel_try_resume_all(getThis(), property);
     RETURN_TRUE;
 }
 
