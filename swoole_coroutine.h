@@ -111,6 +111,7 @@ typedef struct _swTimer_coro_callback
 } swTimer_coro_callback;
 
 extern coro_global COROG;
+extern jmp_buf *swReactorCheckPoint;
 
 int sw_coro_resume_parent(php_context *sw_current_context, zval *retval, zval *coro_retval);
 

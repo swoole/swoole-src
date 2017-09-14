@@ -16,7 +16,7 @@
 
 #include "php_swoole.h"
 #include "zend_API.h"
-#include "standard/php_lcg.h"
+#include "ext/standard/php_lcg.h"
 
 #ifdef SW_COROUTINE
 #include "swoole_coroutine.h"

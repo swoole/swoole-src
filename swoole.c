@@ -1098,6 +1098,14 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
 
     SwooleWG.reactor_wait_onexit = 0;
 
+#ifdef SW_COROUTINE
+    if (swReactorCheckPoint)
+    {
+        efree(swReactorCheckPoint);
+        swReactorCheckPoint = NULL;
+    }
+#endif
+
     return SUCCESS;
 }
 

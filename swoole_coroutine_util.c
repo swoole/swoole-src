@@ -21,7 +21,6 @@ static swHashMap *defer_coros;
 static zend_class_entry swoole_coroutine_util_ce;
 static zend_class_entry *swoole_coroutine_util_class_entry_ptr;
 
-extern jmp_buf *swReactorCheckPoint;
 static const zend_function_entry swoole_coroutine_util_methods[] =
 {
     PHP_ME(swoole_coroutine_util, create, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
