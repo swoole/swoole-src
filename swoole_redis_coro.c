@@ -948,12 +948,12 @@ void swoole_redis_coro_init(int module_number TSRMLS_DC)
 static PHP_METHOD(swoole_redis_coro, __construct)
 {
     zval *zset = NULL;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|z", &zset) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "|z", &zset) == FAILURE)
     {
         return;
     }
 
-	coro_check(TSRMLS_C);
+    coro_check(TSRMLS_C);
 
     swRedisClient *redis = emalloc(sizeof(swRedisClient));
     bzero(redis, sizeof(swRedisClient));
@@ -963,9 +963,9 @@ static PHP_METHOD(swoole_redis_coro, __construct)
 
     swoole_set_object(getThis(), redis);
 
-	redis->state = SWOOLE_REDIS_CORO_STATE_CONNECT;
-	redis->iowait = SW_REDIS_CORO_STATUS_READY;
-	redis->pipeline_result = NULL;
+    redis->state = SWOOLE_REDIS_CORO_STATE_CONNECT;
+    redis->iowait = SW_REDIS_CORO_STATUS_READY;
+    redis->pipeline_result = NULL;
 
     redis->object = getThis();
     redis->timeout = SW_REDIS_CONNECT_TIMEOUT;
