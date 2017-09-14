@@ -645,7 +645,7 @@ int swPort_http_static_handler(swHttpRequest *request, swConnection *conn)
         switch(state)
         {
         case 0:
-            if (strncasecmp(p, SW_STRL("If-Modified-Since")-1) == 0)
+            if (strncasecmp(p, SW_STRL("If-Modified-Since") - 1) == 0)
             {
                 p += sizeof("If-Modified-Since");
                 state = 1;
