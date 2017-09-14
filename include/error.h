@@ -73,6 +73,8 @@ enum swErrorCode
     SW_ERROR_HTTP_PROXY_HANDSHAKE_ERROR = 8001,
     SW_ERROR_HTTP_INVALID_PROTOCOL,
 
+    SW_ERROR_WEBSOCKET_BAD_CLIENT = 8501,
+
     /**
      * server global error
      */

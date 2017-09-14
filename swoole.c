@@ -397,6 +397,8 @@ static zend_function_entry swoole_server_methods[] = {
     PHP_ME(swoole_server, getSocket, arginfo_swoole_server_getSocket, ZEND_ACC_PUBLIC)
 #endif
     PHP_ME(swoole_server, bind, arginfo_swoole_server_bind, ZEND_ACC_PUBLIC)
+    PHP_FALIAS(__sleep, swoole_unsupport_serialize, NULL)
+    PHP_FALIAS(__wakeup, swoole_unsupport_serialize, NULL)
     {NULL, NULL, NULL}
 };
 
@@ -1106,6 +1108,11 @@ PHP_FUNCTION(swoole_version)
     SW_RETURN_STRING(swoole_version, 1);
 }
 
+PHP_FUNCTION(swoole_unsupport_serialize)
+{
+    zend_throw_exception_ex(swoole_exception_class_entry_ptr, 0 TSRMLS_CC, "cannot serialize or unserialize.");
+}
+
 static PHP_FUNCTION(swoole_last_error)
 {
     RETURN_LONG(SwooleG.error);
@@ -1249,7 +1256,7 @@ PHP_FUNCTION(swoole_get_local_ip)
 
 PHP_FUNCTION(swoole_get_local_mac)
 {
-#ifndef __MACH__
+#ifdef SIOCGIFHWADDR
     struct ifconf ifc;
     struct ifreq buf[16];
     char mac[32] = {0};
@@ -1285,10 +1292,10 @@ PHP_FUNCTION(swoole_get_local_mac)
             i++;
         }
     }
-
     close(sock);
 #else
-    
+    php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_get_local_mac is not supported.");
+    RETURN_FALSE;
 #endif
 }
 
