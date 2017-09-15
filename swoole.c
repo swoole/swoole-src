@@ -466,7 +466,7 @@ zend_module_entry swoole_module_entry =
     "swoole",
     swoole_functions,
     PHP_MINIT(swoole),
-    NULL,
+    PHP_MSHUTDOWN(swoole),
     PHP_RINIT(swoole),     //RINIT
     PHP_RSHUTDOWN(swoole), //RSHUTDOWN
     PHP_MINFO(swoole),
@@ -908,9 +908,18 @@ PHP_MINIT_FUNCTION(swoole)
 
     return SUCCESS;
 }
-
-
 /* }}} */
+
+/* {{{ PHP_MINIT_FUNCTION
+ */
+PHP_MSHUTDOWN_FUNCTION(swoole)
+{
+    swoole_clean();
+
+    return SUCCESS;
+}
+/* }}} */
+
 
 /* {{{ PHP_MINFO_FUNCTION
  */

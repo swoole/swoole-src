@@ -859,7 +859,6 @@ int swServer_free(swServer *serv)
     {
         serv->onShutdown(serv);
     }
-    swoole_clean();
     return SW_OK;
 }
 
