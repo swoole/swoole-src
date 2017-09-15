@@ -1295,13 +1295,16 @@ static PHP_METHOD(swoole_http_client, __destruct)
         }
     }
     http_client_property *hcc = swoole_get_property(getThis(), 0);
-    if (hcc->onResponse)
+    if (hcc)
     {
-        sw_zval_free(hcc->onResponse);
-        hcc->onResponse = NULL;
+        if (hcc->onResponse)
+        {
+            sw_zval_free(hcc->onResponse);
+            hcc->onResponse = NULL;
+        }
+        efree(hcc);
+        swoole_set_property(getThis(), 0, NULL);
     }
-    efree(hcc);
-    swoole_set_property(getThis(), 0, NULL);
 }
 
 static PHP_METHOD(swoole_http_client, set)

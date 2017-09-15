@@ -1331,28 +1331,31 @@ static PHP_METHOD(swoole_http2_client, onReceive)
 static PHP_METHOD(swoole_http2_client, __destruct)
 {
     http2_client_property *hcc = swoole_get_property(getThis(), HTTP2_CLIENT_PROPERTY_INDEX);
-    if (hcc->requests)
+    if (hcc)
     {
-        swLinkedList_free(hcc->requests);
-    }
-    if (hcc->stream_requests)
-    {
-        swLinkedList_free(hcc->stream_requests);
-    }
-    if (hcc->inflater)
-    {
-        nghttp2_hd_inflate_del(hcc->inflater);
-        hcc->inflater = NULL;
-    }
-    if (hcc->host)
-    {
-        efree(hcc->host);
-        hcc->host = NULL;
-    }
+        if (hcc->requests)
+        {
+            swLinkedList_free(hcc->requests);
+        }
+        if (hcc->stream_requests)
+        {
+            swLinkedList_free(hcc->stream_requests);
+        }
+        if (hcc->inflater)
+        {
+            nghttp2_hd_inflate_del(hcc->inflater);
+            hcc->inflater = NULL;
+        }
+        if (hcc->host)
+        {
+            efree(hcc->host);
+            hcc->host = NULL;
+        }
 
-    swHashMap_free(hcc->streams);
-    efree(hcc);
-    swoole_set_property(getThis(), HTTP2_CLIENT_PROPERTY_INDEX, NULL);
+        swHashMap_free(hcc->streams);
+        efree(hcc);
+        swoole_set_property(getThis(), HTTP2_CLIENT_PROPERTY_INDEX, NULL);
+    }
 
     zval *zobject = getThis();
     zval *retval = NULL;

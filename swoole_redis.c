@@ -419,16 +419,19 @@ static PHP_METHOD(swoole_redis, close)
 static PHP_METHOD(swoole_redis, __destruct)
 {
     swRedisClient *redis = swoole_get_object(getThis());
-    if (redis && redis->context && redis->state != SWOOLE_REDIS_STATE_CLOSED)
+    if (redis)
     {
-        redisAsyncDisconnect(redis->context);
+        if (redis->context && redis->state != SWOOLE_REDIS_STATE_CLOSED)
+        {
+            redisAsyncDisconnect(redis->context);
+        }
+        if (redis->password)
+        {
+            efree(redis->password);
+        }
+        efree(redis);
+        swoole_set_object(getThis(), NULL);
     }
-    swoole_set_object(getThis(), NULL);
-    if (redis->password)
-    {
-        efree(redis->password);
-    }
-    efree(redis);
 }
 
 static PHP_METHOD(swoole_redis, __call)
