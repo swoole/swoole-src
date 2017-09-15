@@ -132,8 +132,6 @@ void swoole_clean(void)
     //free the global memory
     if (SwooleG.memory_pool != NULL)
     {
-        SwooleG.memory_pool->destroy(SwooleG.memory_pool);
-        SwooleG.memory_pool = NULL;
         if (SwooleG.timer.fd > 0)
         {
             swTimer_free(&SwooleG.timer);
@@ -142,6 +140,7 @@ void swoole_clean(void)
         {
             SwooleG.main_reactor->free(SwooleG.main_reactor);
         }
+        SwooleG.memory_pool->destroy(SwooleG.memory_pool);
         bzero(&SwooleG, sizeof(SwooleG));
     }
 }
