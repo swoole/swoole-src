@@ -315,7 +315,7 @@ static const zend_function_entry swoole_mysql_methods[] =
     PHP_FE_END
 };
 
-static int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callback TSRMLS_DC);
+int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callback TSRMLS_DC);
 static void mysql_client_free(mysql_client *client, zval* zobject);
 
 static void mysql_client_free(mysql_client *client, zval* zobject)
@@ -345,7 +345,7 @@ static int swoole_mysql_onWrite(swReactor *reactor, swEvent *event);
 static int swoole_mysql_onError(swReactor *reactor, swEvent *event);
 static void swoole_mysql_onConnect(mysql_client *client TSRMLS_DC);
 
-static swString *mysql_request_buffer = NULL;
+swString *mysql_request_buffer = NULL;
 
 void swoole_mysql_init(int module_number TSRMLS_DC)
 {
@@ -754,7 +754,7 @@ int mysql_response(mysql_client *client)
     return SW_OK;
 }
 
-static int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callback TSRMLS_DC)
+int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callback TSRMLS_DC)
 {
     if (!client->cli)
     {
@@ -772,8 +772,11 @@ static int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval 
         return SW_ERR;
     }
 
-    sw_zval_add_ref(&callback);
-    client->callback = sw_zval_dup(callback);
+    if (callback != NULL)
+    {
+        sw_zval_add_ref(&callback);
+        client->callback = sw_zval_dup(callback);
+    }
 
     swString_clear(mysql_request_buffer);
 
