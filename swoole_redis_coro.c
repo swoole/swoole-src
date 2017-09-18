@@ -1176,6 +1176,11 @@ static PHP_METHOD(swoole_redis_coro, close)
 	{
 		RETURN_TRUE;
 	}
+    if (redis->timer_id > 0)
+    {
+        php_swoole_clear_timer_coro(redis->timer_id TSRMLS_CC);
+        redis->timer_id = 0;
+    }
 	redis->state = SWOOLE_REDIS_CORO_STATE_CLOSING;
 	redis->iowait = SW_REDIS_CORO_STATUS_CLOSED;
     redisCallback *head = redis->context->replies.head;
@@ -3903,6 +3908,18 @@ void swoole_redis_coro_onConnect(const redisAsyncContext *c, int status)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
     swRedisClient *redis = c->ev.data;
+
+    if (redis->timer)
+    {
+        swTimer_del(&SwooleG.timer, redis->timer);
+        redis->timer = NULL;
+    }
+
+    if (redis->timer_id > 0)
+    {
+        php_swoole_clear_timer_coro(redis->timer_id TSRMLS_CC);
+        redis->timer_id = 0;
+    }
 
     zval *result;
     SW_ALLOC_INIT_ZVAL(result);
