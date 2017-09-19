@@ -15,6 +15,19 @@ function swoole_php_fork($func, $out = false) {
 	return $process;
 }
 
+function swoole_unittest_fork($func)
+{
+    $process = new swoole_process($func, false, false);
+    $process->start();
+
+    return $process;
+}
+
+function swoole_unittest_wait()
+{
+    return swoole_process::wait();
+}
+
 function makeTcpClient($host, $port, callable $onConnect = null, callable $onReceive = null)
 {
     $cli = new \swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
