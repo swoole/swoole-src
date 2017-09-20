@@ -29,7 +29,7 @@ swoole_unittest_fork(function() {
         'log_file' => '/dev/null',
     ]);
 
-    $serv->on("WorkerStart", function (\swoole_server $serv) use ($pm)
+    $serv->on("WorkerStart", function (\swoole_server $serv)
     {
         if (!$serv->taskworker) {
             for($i = 0; $i< N; $i++) {
