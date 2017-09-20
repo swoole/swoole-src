@@ -630,7 +630,7 @@ ssize_t swSSL_recv(swConnection *conn, void *__buf, size_t __n)
             return SW_ERR;
 
         case SSL_ERROR_SSL:
-            swSSL_connection_error(conn, _errno, errno);
+            swSSL_connection_error(conn);
             errno = SW_ERROR_SSL_BAD_CLIENT;
             return SW_ERR;
 
