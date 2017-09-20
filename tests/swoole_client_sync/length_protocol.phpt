@@ -1,5 +1,5 @@
 --TEST--
-swoole_client: eof protocol [sync]
+swoole_client: length protocol [sync]
 --SKIPIF--
 <?php require __DIR__ . "/../include/skipif.inc"; ?>
 --INI--
@@ -17,7 +17,13 @@ $pm = new ProcessManager;
 $pm->parentFunc = function ($pid)
 {
     $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
-    $client->set(['open_eof_check' => true, "package_eof" => "\r\n\r\n"]);
+    $client->set([
+        'open_length_check' => true,
+        'package_max_length' => 1024 * 1024,
+        'package_length_type' => 'N',
+        'package_length_offset' => 0,
+        'package_body_offset' => 4,
+    ]);
     if (!$client->connect('127.0.0.1', 9501, 0.5, 0))
     {
         echo "Over flow. errno=" . $client->errCode;
@@ -45,7 +51,7 @@ $pm->parentFunc = function ($pid)
     {
         $pkg = $client->recv();
         assert($pkg != false);
-        $_pkg = unserialize($pkg);
+        $_pkg = unserialize(substr($pkg, 4));
         assert(is_array($_pkg));
         assert($_pkg['i'] == $i);
         assert($_pkg['data'] <= 256 * 1024);
@@ -60,12 +66,6 @@ $pm->childFunc = function () use ($pm)
 {
     $serv = new swoole_server("127.0.0.1", 9501, SWOOLE_BASE);
     $serv->set(array(
-        'package_eof' => "\r\n\r\n",
-        'open_eof_check' => true,
-        'open_eof_split' => true,
-        'dispatch_mode' => 3,
-        'package_max_length' => 1024 * 1024 * 2, //2M
-        'socket_buffer_size' => 128 * 1024 * 1024,
         "worker_num" => 1,
         'log_file' => '/dev/null',
     ));
@@ -78,19 +78,23 @@ $pm->childFunc = function () use ($pm)
         //小包
         for ($i = 0; $i < 1000; $i++)
         {
-            $serv->send($fd, str_repeat('A', rand(100, 2000)) . "\r\n\r\n");
+            $data = str_repeat('A', rand(100, 2000));
+            $serv->send($fd, pack('N', strlen($data)) . $data);
         }
         //慢速发送
         for ($i = 0; $i < 100; $i++)
         {
-            $serv->send($fd, str_repeat('A', rand(1000, 2000)));
+            $data = str_repeat('A', rand(3000, 6000));
+            $n = rand(1000, 2000);
+            $serv->send($fd, pack('N', strlen($data)). substr($data, 0, $n));
             usleep(rand(10000, 50000));
-            $serv->send($fd, str_repeat('A', rand(2000, 4000)) . "\r\n\r\n");
+            $serv->send($fd, substr($data, $n));
         }
         //大包
         for ($i = 0; $i < 1000; $i++)
         {
-            $serv->send($fd, serialize(['i' => $i, 'data' => str_repeat('A', rand(20000, 256 * 1024))]) . "\r\n\r\n");
+            $data = serialize(['i' => $i, 'data' => str_repeat('A', rand(20000, 256 * 1024))]);
+            $serv->send($fd, pack('N', strlen($data)) . $data);
         }
     });
     $serv->start();

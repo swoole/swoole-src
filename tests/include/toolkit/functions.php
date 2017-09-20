@@ -435,6 +435,7 @@ class ProcessManager
 
     public $parentFunc;
     public $childFunc;
+    public $async = false;
 
     protected $parentFirst = false;
 
@@ -527,6 +528,10 @@ class ProcessManager
                 $this->wait();
             }
             $this->runParentFunc($pid);
+            if ($this->async)
+            {
+                swoole_event::wait();
+            }
             pcntl_waitpid($pid, $status);
         }
     }

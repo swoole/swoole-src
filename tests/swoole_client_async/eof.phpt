@@ -1,5 +1,5 @@
 --TEST--
-swoole_client: eof protocol [sync]
+swoole_client: eof protocol [async]
 --SKIPIF--
 <?php require __DIR__ . "/../include/skipif.inc"; ?>
 --INI--
@@ -16,44 +16,67 @@ require_once __DIR__ . "/../include/swoole.inc";
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid)
 {
-    $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
-    $client->set(['open_eof_check' => true, "package_eof" => "\r\n\r\n"]);
+    $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
+    $client->set(['open_eof_check' => true, 'open_eof_split' => true, "package_eof" => "\r\n\r\n"]);
+
+    $client->on("connect", function (swoole_client $cli)
+    {
+        $cli->send("recv\r\n\r\n");
+    });
+
+    $client->on("receive", function(swoole_client $cli, $pkg) use ($pid) {
+        static $i = 0;
+        $i++;
+
+        //小包
+        if ($i <= 1000)
+        {
+            assert($pkg and strlen($pkg) <= 2048);
+            if ($i == 1000)
+            {
+                echo "SUCCESS\n";
+            }
+            return;
+        }
+        //慢速发送
+        elseif ($i <= 1100)
+        {
+            assert($pkg and strlen($pkg) <= 8192);
+            if ($i == 1100)
+            {
+                echo "SUCCESS\n";
+            }
+            return;
+        }
+        //大包
+        else
+        {
+            assert($pkg != false);
+            $_pkg = unserialize($pkg);
+            assert(is_array($_pkg));
+            assert($_pkg['i'] == $i - 1100 - 1);
+            assert($_pkg['data'] <= 256 * 1024);
+            if ($i == 2100) {
+                echo "SUCCESS\n";
+                $cli->close();
+                swoole_process::kill($pid);
+            }
+        }
+    });
+
+    $client->on("error", function(swoole_client $cli) {
+        print("error");
+    });
+
+    $client->on("close", function(swoole_client $cli) {
+        swoole_event_exit();
+    });
+
     if (!$client->connect('127.0.0.1', 9501, 0.5, 0))
     {
         echo "Over flow. errno=" . $client->errCode;
         die("\n");
     }
-
-    $client->send("recv\r\n\r\n");
-
-    //小包
-    for ($i = 0; $i < 1000; $i++)
-    {
-        $pkg = $client->recv();
-        assert($pkg and strlen($pkg) <= 2048);
-    }
-    echo "SUCCESS\n";
-    //慢速发送
-    for ($i = 0; $i < 100; $i++)
-    {
-        $pkg = $client->recv();
-        assert($pkg and strlen($pkg) <= 8192);
-    }
-    echo "SUCCESS\n";
-    //大包
-    for ($i = 0; $i < 1000; $i++)
-    {
-        $pkg = $client->recv();
-        assert($pkg != false);
-        $_pkg = unserialize($pkg);
-        assert(is_array($_pkg));
-        assert($_pkg['i'] == $i);
-        assert($_pkg['data'] <= 256 * 1024);
-    }
-    echo "SUCCESS\n";
-    $client->close();
-
-    swoole_process::kill($pid);
 };
 
 $pm->childFunc = function () use ($pm)
@@ -95,7 +118,7 @@ $pm->childFunc = function () use ($pm)
     });
     $serv->start();
 };
-
+$pm->async = true;
 $pm->childFirst();
 $pm->run();
 ?>
