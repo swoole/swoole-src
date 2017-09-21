@@ -23,5 +23,6 @@ swoole_async_dns_lookup("www.jd.com", function ($domain, $ip)
         $client->close();
     });
 });
+swoole_event::wait();
 ?>
 --EXPECT--
