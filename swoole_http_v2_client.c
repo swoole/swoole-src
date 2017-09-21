@@ -203,6 +203,7 @@ static PHP_METHOD(swoole_http2_client, __construct)
     {
         sw_zval_ptr_dtor(&retval);
     }
+    sw_zval_ptr_dtor(&ztype);
 
     hcc->host = estrndup(host, host_len);
     hcc->host_len = host_len;
@@ -755,10 +756,11 @@ static void http2_client_send_stream_request(zval *zobject, http2_client_request
     swClient *cli = swoole_get_object(zobject);
     http2_client_property *hcc = swoole_get_property(zobject, HTTP2_CLIENT_PROPERTY_INDEX);
     char buffer[8192];
+
     /**
      * create stream
      */
-    if(req->stream_id == 0)
+    if (req->stream_id == 0)
     {
         /**
         * send header
