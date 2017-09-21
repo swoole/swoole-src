@@ -1023,7 +1023,7 @@ void swoole_print_trace(void)
 
 #ifndef HAVE_CLOCK_GETTIME
 #ifdef __MACH__
-int clock_gettime(clock_id_t which_clock, struct timespec *t)
+int clock_gettime(clockid_t which_clock, struct timespec *t)
 {
     // be more careful in a multithreaded environement
     if (!orwl_timestart)
