@@ -956,6 +956,8 @@ static void http2_client_connect(zval *zobject TSRMLS_DC)
     {
         sw_zval_ptr_dtor(&retval);
     }
+    sw_zval_ptr_dtor(&zhost);
+    sw_zval_ptr_dtor(&zport);
     swClient *cli = swoole_get_object(zobject);
     cli->http2 = 1;
 }
