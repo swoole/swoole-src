@@ -1924,7 +1924,7 @@ static PHP_METHOD(swoole_http_client, download)
     zval *download_file;
     off_t offset = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "szz", &uri, &uri_len, &download_file, &finish_cb, &offset) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "szz|l", &uri, &uri_len, &download_file, &finish_cb, &offset) == FAILURE)
     {
         return;
     }

@@ -1693,7 +1693,19 @@ static sw_inline int swReactor_remove_read_event(swReactor *reactor, int fd)
     }
 }
 
-swReactor_handle swReactor_getHandle(swReactor *reactor, int event_type, int fdtype);
+static sw_inline swReactor_handle swReactor_getHandle(swReactor *reactor, int event_type, int fdtype)
+{
+    if (event_type == SW_EVENT_WRITE)
+    {
+        return (reactor->write_handle[fdtype] != NULL) ? reactor->write_handle[fdtype] : reactor->handle[SW_FD_WRITE];
+    }
+    else if (event_type == SW_EVENT_ERROR)
+    {
+        return (reactor->error_handle[fdtype] != NULL) ? reactor->error_handle[fdtype] : reactor->handle[SW_FD_CLOSE];
+    }
+    return reactor->handle[fdtype];
+}
+
 int swReactorEpoll_create(swReactor *reactor, int max_event_num);
 int swReactorPoll_create(swReactor *reactor, int max_event_num);
 int swReactorKqueue_create(swReactor *reactor, int max_event_num);
