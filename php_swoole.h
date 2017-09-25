@@ -241,6 +241,7 @@ extern zval _php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
 #endif
 
 PHP_MINIT_FUNCTION(swoole);
+PHP_MSHUTDOWN_FUNCTION(swoole);
 PHP_RINIT_FUNCTION(swoole);
 PHP_RSHUTDOWN_FUNCTION(swoole);
 PHP_MINFO_FUNCTION(swoole);
@@ -250,6 +251,7 @@ PHP_FUNCTION(swoole_cpu_num);
 PHP_FUNCTION(swoole_set_process_name);
 PHP_FUNCTION(swoole_get_local_ip);
 PHP_FUNCTION(swoole_get_local_mac);
+PHP_FUNCTION(swoole_unsupport_serialize);
 
 //---------------------------------------------------------
 //                  swoole_server

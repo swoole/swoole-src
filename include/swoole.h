@@ -80,7 +80,7 @@ typedef cpuset_t cpu_set_t;
 static double orwl_timebase = 0.0;
 static uint64_t orwl_timestart = 0;
 #ifndef HAVE_CLOCK_GETTIME
-int clock_gettime(clock_id_t which_clock, struct timespec *t);
+int clock_gettime(clockid_t which_clock, struct timespec *t);
 #endif
 #endif
 
@@ -987,7 +987,7 @@ swMemoryPool *swRingBuffer_new(uint32_t size, uint8_t shared);
 /**
  * Global memory, the program life cycle only malloc / free one time
  */
-swMemoryPool* swMemoryGlobal_new(int pagesize, char shared);
+swMemoryPool* swMemoryGlobal_new(uint32_t pagesize, uint8_t shared);
 
 void swFixedPool_debug(swMemoryPool *pool);
 
@@ -1310,20 +1310,12 @@ static sw_inline int swKill(pid_t __pid, int __sig)
     return ret;
 }
 
-#if defined(TCP_NOPUSH) || defined(TCP_CORK)
+#ifdef TCP_CORK
 #define HAVE_TCP_NOPUSH
-#ifdef TCP_NOPUSH
-static sw_inline int swSocket_tcp_nopush(int sock, int nopush)
-{
-    return setsockopt(sock, IPPROTO_TCP, TCP_NOPUSH, (const void *) &nopush, sizeof(int));
-}
-
-#elif defined(TCP_CORK)
 static sw_inline int swSocket_tcp_nopush(int sock, int nopush)
 {
     return setsockopt(sock, IPPROTO_TCP, TCP_CORK, (const void *) &nopush, sizeof(int));
 }
-#endif
 #else
 #define swSocket_tcp_nopush(sock, nopush)
 #endif
@@ -1693,7 +1685,19 @@ static sw_inline int swReactor_remove_read_event(swReactor *reactor, int fd)
     }
 }
 
-swReactor_handle swReactor_getHandle(swReactor *reactor, int event_type, int fdtype);
+static sw_inline swReactor_handle swReactor_getHandle(swReactor *reactor, int event_type, int fdtype)
+{
+    if (event_type == SW_EVENT_WRITE)
+    {
+        return (reactor->write_handle[fdtype] != NULL) ? reactor->write_handle[fdtype] : reactor->handle[SW_FD_WRITE];
+    }
+    else if (event_type == SW_EVENT_ERROR)
+    {
+        return (reactor->error_handle[fdtype] != NULL) ? reactor->error_handle[fdtype] : reactor->handle[SW_FD_CLOSE];
+    }
+    return reactor->handle[fdtype];
+}
+
 int swReactorEpoll_create(swReactor *reactor, int max_event_num);
 int swReactorPoll_create(swReactor *reactor, int max_event_num);
 int swReactorKqueue_create(swReactor *reactor, int max_event_num);

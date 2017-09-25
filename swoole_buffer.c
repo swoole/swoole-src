@@ -70,6 +70,8 @@ static const zend_function_entry swoole_buffer_methods[] =
     PHP_ME(swoole_buffer, expand, arginfo_swoole_buffer_expand, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_buffer, recycle, arginfo_swoole_buffer_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_buffer, clear, arginfo_swoole_buffer_void, ZEND_ACC_PUBLIC)
+    PHP_FALIAS(__sleep, swoole_unsupport_serialize, NULL)
+    PHP_FALIAS(__wakeup, swoole_unsupport_serialize, NULL)
     PHP_FE_END
 };
 

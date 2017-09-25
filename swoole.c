@@ -378,6 +378,8 @@ static zend_function_entry swoole_server_methods[] = {
     PHP_ME(swoole_server, getSocket, arginfo_swoole_server_getSocket, ZEND_ACC_PUBLIC)
 #endif
     PHP_ME(swoole_server, bind, arginfo_swoole_server_bind, ZEND_ACC_PUBLIC)
+    PHP_FALIAS(__sleep, swoole_unsupport_serialize, NULL)
+    PHP_FALIAS(__wakeup, swoole_unsupport_serialize, NULL)
     {NULL, NULL, NULL}
 };
 
@@ -464,7 +466,7 @@ zend_module_entry swoole_module_entry =
     "swoole",
     swoole_functions,
     PHP_MINIT(swoole),
-    NULL,
+    PHP_MSHUTDOWN(swoole),
     PHP_RINIT(swoole),     //RINIT
     PHP_RSHUTDOWN(swoole), //RSHUTDOWN
     PHP_MINFO(swoole),
@@ -689,7 +691,7 @@ void swoole_set_property(zval *object, int property_id, void *ptr)
         }
         if (old_size > 0)
         {
-            bzero(new_ptr + old_size * sizeof(void*), (new_size - old_size) * sizeof(void*));
+            bzero((void *) new_ptr + old_size * sizeof(void*), (new_size - old_size) * sizeof(void*));
         }
         swoole_objects.property_size[property_id] = new_size;
         swoole_objects.property[property_id] = new_ptr;
@@ -906,9 +908,18 @@ PHP_MINIT_FUNCTION(swoole)
 
     return SUCCESS;
 }
-
-
 /* }}} */
+
+/* {{{ PHP_MINIT_FUNCTION
+ */
+PHP_MSHUTDOWN_FUNCTION(swoole)
+{
+    swoole_clean();
+
+    return SUCCESS;
+}
+/* }}} */
+
 
 /* {{{ PHP_MINFO_FUNCTION
  */
@@ -1070,6 +1081,11 @@ PHP_FUNCTION(swoole_version)
     SW_RETURN_STRING(swoole_version, 1);
 }
 
+PHP_FUNCTION(swoole_unsupport_serialize)
+{
+    zend_throw_exception_ex(swoole_exception_class_entry_ptr, 0 TSRMLS_CC, "cannot serialize or unserialize.");
+}
+
 static PHP_FUNCTION(swoole_last_error)
 {
     RETURN_LONG(SwooleG.error);
@@ -1213,7 +1229,7 @@ PHP_FUNCTION(swoole_get_local_ip)
 
 PHP_FUNCTION(swoole_get_local_mac)
 {
-#ifndef __MACH__
+#ifdef SIOCGIFHWADDR
     struct ifconf ifc;
     struct ifreq buf[16];
     char mac[32] = {0};
@@ -1249,10 +1265,10 @@ PHP_FUNCTION(swoole_get_local_mac)
             i++;
         }
     }
-
     close(sock);
 #else
-    
+    php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_get_local_mac is not supported.");
+    RETURN_FALSE;
 #endif
 }
 

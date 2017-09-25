@@ -374,12 +374,16 @@ const zend_function_entry swoole_http_server_methods[] =
 {
     PHP_ME(swoole_http_server, on,         arginfo_swoole_http_server_on, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_server, start,      arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
+    PHP_FALIAS(__sleep, swoole_unsupport_serialize, NULL)
+    PHP_FALIAS(__wakeup, swoole_unsupport_serialize, NULL)
     PHP_FE_END
 };
 
 const zend_function_entry swoole_http_request_methods[] =
 {
     PHP_ME(swoole_http_request, rawcontent, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
+    PHP_FALIAS(__sleep, swoole_unsupport_serialize, NULL)
+    PHP_FALIAS(__wakeup, swoole_unsupport_serialize, NULL)
     PHP_ME(swoole_http_request, __destruct, arginfo_swoole_http_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_FE_END
 };
@@ -400,6 +404,8 @@ const zend_function_entry swoole_http_response_methods[] =
     PHP_ME(swoole_http_response, write, arginfo_swoole_http_response_write, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, end, arginfo_swoole_http_response_end, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, sendfile, arginfo_swoole_http_response_sendfile, ZEND_ACC_PUBLIC)
+    PHP_FALIAS(__sleep, swoole_unsupport_serialize, NULL)
+    PHP_FALIAS(__wakeup, swoole_unsupport_serialize, NULL)
     PHP_ME(swoole_http_response, __destruct, arginfo_swoole_http_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_FE_END
 };

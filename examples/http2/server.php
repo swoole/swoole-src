@@ -1,5 +1,5 @@
 <?php
-$key_dir = dirname(dirname(__DIR__)) . '/tests/ssl';
+$key_dir = dirname(__DIR__) . '/ssl';
 //$http = new swoole_http_server("0.0.0.0", 9501, SWOOLE_BASE);
 $http = new swoole_http_server("0.0.0.0", 9501, SWOOLE_BASE, SWOOLE_SOCK_TCP | SWOOLE_SSL);
 $http->set([

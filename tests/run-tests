@@ -217,7 +217,6 @@ $ini_overwrites = array(
 		'display_startup_errors=1',
 		'log_errors=0',
 		'html_errors=0',
-		'track_errors=1',
 		'report_memleaks=1',
 		'report_zend_debug=0',
 		'docref_root=',
@@ -2413,9 +2412,9 @@ function compute_summary()
 	$sum_results['SKIPPED'] += $ignored_by_ext;
 	$percent_results = array();
 
-	while (list($v, $n) = each($sum_results)) {
-		$percent_results[$v] = (100.0 * $n) / $n_total;
-	}
+    foreach($sum_results as $v => $n) {
+        $percent_results[$v] = (100.0 * $n) / $n_total;
+    }
 }
 
 function get_summary($show_ext_summary, $show_html)
@@ -2633,6 +2632,7 @@ function show_result($result, $tested, $tested_file, $extra = '', $temp_filename
 {
 	global $html_output, $html_file, $temp_target, $temp_urlbase, $line_length, $SHOW_ONLY_GROUPS;
 
+    //color
     if ($result == 'FAIL') {
         $result = "\033[31m[$result]\033[0m";
     } elseif($result == 'SKIP') {
