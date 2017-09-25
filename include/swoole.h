@@ -1310,20 +1310,12 @@ static sw_inline int swKill(pid_t __pid, int __sig)
     return ret;
 }
 
-#if defined(TCP_NOPUSH) || defined(TCP_CORK)
+#ifdef TCP_CORK
 #define HAVE_TCP_NOPUSH
-#ifdef TCP_NOPUSH
-static sw_inline int swSocket_tcp_nopush(int sock, int nopush)
-{
-    return setsockopt(sock, IPPROTO_TCP, TCP_NOPUSH, (const void *) &nopush, sizeof(int));
-}
-
-#elif defined(TCP_CORK)
 static sw_inline int swSocket_tcp_nopush(int sock, int nopush)
 {
     return setsockopt(sock, IPPROTO_TCP, TCP_CORK, (const void *) &nopush, sizeof(int));
 }
-#endif
 #else
 #define swSocket_tcp_nopush(sock, nopush)
 #endif
