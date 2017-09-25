@@ -691,7 +691,7 @@ void swoole_set_property(zval *object, int property_id, void *ptr)
         }
         if (old_size > 0)
         {
-            bzero(new_ptr + old_size * sizeof(void*), (new_size - old_size) * sizeof(void*));
+            bzero((void *) new_ptr + old_size * sizeof(void*), (new_size - old_size) * sizeof(void*));
         }
         swoole_objects.property_size[property_id] = new_size;
         swoole_objects.property[property_id] = new_ptr;
