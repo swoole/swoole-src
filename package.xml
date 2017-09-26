@@ -35,10 +35,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2017-08-29</date>
+    <date>2017-09-26</date>
     <time>09:50:10</time>
     <version>
-        <release>1.9.20</release>
+        <release>1.9.21</release>
         <api>1.9</api>
     </version>
     <stability>
@@ -47,8 +47,13 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Fixed 32-bit system compilation failed
-- Fixed not available on PHP5
+- Added Atomic\long, support 64-bit signed long integer
+- Optimized the underlying GlobalMemory implementation, support the creation of an unlimited number of atoms, locks, tables
+- Prohibit serialization of Swoole module object
+- Fixed Http\Client download method fourth argument is invalid
+- Fixed FreeBSD platform compiler error report
+- Fixed sendfile on the MacOS platform there is a 5 second delay problem
+- Added Process::setTimeout
     </notes>
     <contents>
         <dir name="/">
@@ -476,13 +481,16 @@
                 <file name="swoole_client_async/connect_refuse.phpt" role="test" />
                 <file name="swoole_client_async/connect_timeout.phpt" role="test" />
                 <file name="swoole_client_async/connect_twice.phpt" role="test" />
+                <file name="swoole_client_async/eof.phpt" role="test" />
                 <file name="swoole_client_async/getSocket_bug.phpt" role="test" />
                 <file name="swoole_client_async/getpeername.phpt" role="test" />
                 <file name="swoole_client_async/getsockname.phpt" role="test" />
+                <file name="swoole_client_async/length_protocol.phpt" role="test" />
                 <file name="swoole_client_async/sendfile.phpt" role="test" />
                 <file name="swoole_client_async/sleep_wake.phpt" role="test" />
                 <file name="swoole_client_async/swoole_client.phpt" role="test" />
                 <file name="swoole_client_sync/eof.phpt" role="test" />
+                <file name="swoole_client_sync/length_protocol.phpt" role="test" />
                 <file name="swoole_client_sync/sendfile.phpt" role="test" />
                 <file name="swoole_client_sync/swoole_client_connect1-1.phpt" role="test" />
                 <file name="swoole_client_sync/swoole_client_connect1-2.phpt" role="test" />
@@ -499,6 +507,7 @@
                 <file name="swoole_function/swoole_get_local_ip.phpt" role="test" />
                 <file name="swoole_function/swoole_set_process_name.phpt" role="test" />
                 <file name="swoole_function/swoole_version.phpt" role="test" />
+                <file name="swoole_http2_client/get.phpt" role="test" />
                 <file name="swoole_http_client/connect_host_not_found.phpt" role="test" />
                 <file name="swoole_http_client/connect_port_not_listen.phpt" role="test" />
                 <file name="swoole_http_client/content_length.phpt" role="test" />
@@ -597,6 +606,7 @@
                 <file name="swoole_process/swoole_process_useQueue.phpt" role="test" />
                 <file name="swoole_process/swoole_process_wait.phpt" role="test" />
                 <file name="swoole_process/swoole_process_write.phpt" role="test" />
+                <file name="swoole_process/timeout.phpt" role="test" />
                 <file name="swoole_redis/connect_refuse.phpt" role="test" />
                 <file name="swoole_redis/connect_timeout.phpt" role="test" />
                 <file name="swoole_redis/get_set.phpt" role="test" />
@@ -639,6 +649,7 @@
                 <file name="swoole_server/length_protocol.phpt" role="test" />
                 <file name="swoole_server/listen_fail.phpt" role="test" />
                 <file name="swoole_server/max_request.phpt" role="test" />
+                <file name="swoole_server/pid_file.phpt" role="test" />
                 <file name="swoole_server/protect.phpt" role="test" />
                 <file name="swoole_server/protect_false.phpt" role="test" />
                 <file name="swoole_server/reload.phpt" role="test" />
@@ -651,6 +662,7 @@
                 <file name="swoole_server/task.phpt" role="test" />
                 <file name="swoole_server/taskWaitMulti.phpt" role="test" />
                 <file name="swoole_server/task_callback.phpt" role="test" />
+                <file name="swoole_server/task_max_request.phpt" role="test" />
                 <file name="swoole_server/taskwait.phpt" role="test" />
                 <file name="swoole_server/unsock_dgram.phpt" role="test" />
                 <file name="swoole_server/unsock_stream.phpt" role="test" />
