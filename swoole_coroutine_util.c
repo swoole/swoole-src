@@ -48,6 +48,30 @@ void swoole_coroutine_util_init(int module_number TSRMLS_DC)
         zend_register_class_alias("Swoole\\Coroutine", swoole_coroutine_util_class_entry_ptr);
     }
 
+#if PHP_MAJOR_VERSION >= 7
+    zend_internal_function *func;
+    func = zend_hash_str_find_ptr(CG(function_table), ZEND_STRL("call_user_func"));
+    if (func != NULL)
+    {
+        func->handler = ZEND_MN(swoole_coroutine_util_call_user_func);
+    }
+    func = zend_hash_str_find_ptr(CG(function_table), ZEND_STRL("call_user_func_array"));
+    if (func != NULL)
+    {
+        func->handler = ZEND_MN(swoole_coroutine_util_call_user_func_array);
+    }
+#else
+    zend_function *func;
+    if (zend_hash_find(CG(function_table), ZEND_STRS("call_user_func"), (void **) &func) == SUCCESS)
+    {
+        func->internal_function.handler = ZEND_MN(swoole_coroutine_util_call_user_func);
+    }
+    if (zend_hash_find(CG(function_table), ZEND_STRS("call_user_func_array"), (void **) &func) == SUCCESS)
+    {
+        func->internal_function.handler = ZEND_MN(swoole_coroutine_util_call_user_func_array);
+    }
+#endif
+
     defer_coros = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
 }
 
@@ -328,7 +352,6 @@ static PHP_METHOD(swoole_coroutine_util, call_user_func)
     {
         return;
     }
-
     swoole_corountine_call_function(&fci, &fci_cache, return_value_ptr, 0, return_value_used);
     RETURN_FALSE;
 }
@@ -344,8 +367,8 @@ static PHP_METHOD(swoole_coroutine_util, call_user_func)
 		Z_PARAM_VARIADIC('*', fci.params, fci.param_count)
 	ZEND_PARSE_PARAMETERS_END();
 
-        fci.retval = (execute_data->prev_execute_data->opline->result_type != IS_UNUSED) ? return_value : NULL;
-        swoole_corountine_call_function(&fci, &fci_cache, 0);
+    fci.retval = (execute_data->prev_execute_data->opline->result_type != IS_UNUSED) ? return_value : NULL;
+    swoole_corountine_call_function(&fci, &fci_cache, 0);
 }
 #endif
 
@@ -375,7 +398,7 @@ static PHP_METHOD(swoole_coroutine_util, call_user_func_array)
     ZEND_PARSE_PARAMETERS_START(2, 2)
         Z_PARAM_FUNC(fci, fci_cache)
         Z_PARAM_ARRAY_EX(params, 0, 1)
-        ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END();
 
     zend_fcall_info_args(&fci, params);
 
