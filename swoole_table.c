@@ -296,10 +296,6 @@ PHP_METHOD(swoole_table, __construct)
     {
         RETURN_FALSE;
     }
-    if (table_size < 1)
-    {
-        RETURN_FALSE;
-    }
 
     swTable *table = swTable_new(table_size, conflict_proportion);
     if (table == NULL)
