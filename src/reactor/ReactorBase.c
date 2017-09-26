@@ -72,19 +72,6 @@ int swReactor_create(swReactor *reactor, int max_event)
     return ret;
 }
 
-swReactor_handle swReactor_getHandle(swReactor *reactor, int event_type, int fdtype)
-{
-    if (event_type == SW_EVENT_WRITE)
-    {
-        return (reactor->write_handle[fdtype] != NULL) ? reactor->write_handle[fdtype] : reactor->handle[SW_FD_WRITE];
-    }
-    if (event_type == SW_EVENT_ERROR)
-    {
-        return (reactor->error_handle[fdtype] != NULL) ? reactor->error_handle[fdtype] : reactor->handle[SW_FD_CLOSE];
-    }
-    return reactor->handle[fdtype];
-}
-
 int swReactor_setHandle(swReactor *reactor, int _fdtype, swReactor_handle handle)
 {
     int fdtype = swReactor_fdtype(_fdtype);

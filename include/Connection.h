@@ -193,6 +193,9 @@ static sw_inline int swConnection_error(int err)
         return SW_ERROR;
     case EBADF:
     case ECONNRESET:
+#ifdef __CYGWIN__
+    case ECONNABORTED:
+#endif
     case EPIPE:
     case ENOTCONN:
     case ETIMEDOUT:
