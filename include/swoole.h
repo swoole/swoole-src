@@ -80,7 +80,12 @@ typedef cpuset_t cpu_set_t;
 static double orwl_timebase = 0.0;
 static uint64_t orwl_timestart = 0;
 #ifndef HAVE_CLOCK_GETTIME
+if defined(__APPLE__) || defined(__MACH__)
+int clock_gettime(clock_id_t which_clock, struct timespec *t);
+
+#elif defined(__linux__)
 int clock_gettime(clockid_t which_clock, struct timespec *t);
+
 #endif
 #endif
 
