@@ -416,10 +416,6 @@ static void http_client_coro_onReceive(swClient *cli, char *data, uint32_t lengt
     {
         php_swoole_clear_timer_coro(cli->timeout_id TSRMLS_CC);
         cli->timeout_id = 0;
-    }
-    else if (http->timeout_node != NULL)
-    {
-        swLinkedList_remove_node(SwooleWG.delayed_coro_timeout_list, http->timeout_node);
         http->timeout_node = NULL;
     }
 
@@ -1232,8 +1228,6 @@ static PHP_METHOD(swoole_http_client_coro, close)
     SW_CHECK_RETURN(ret);
 }
 
-
-
 static PHP_METHOD(swoole_http_client_coro, execute)
 {
     int ret;
@@ -1263,7 +1257,7 @@ static PHP_METHOD(swoole_http_client_coro, execute)
 	if (http->timeout > 0)
     {
         if (php_swoole_add_timer_coro((int) (http->timeout * 1000), http->cli->socket->fd, &http->cli->timeout_id,
-                (void *) context, &http->timeout_node TSRMLS_CC) == SW_OK && hcc->defer)
+                (void *) context, &(http->timeout_node) TSRMLS_CC) == SW_OK && hcc->defer)
         {
             context->state = SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST;
         }
@@ -1308,7 +1302,7 @@ static PHP_METHOD(swoole_http_client_coro, get)
 	if (http->timeout > 0)
 	{
         if (php_swoole_add_timer_coro((int) (http->timeout * 1000), http->cli->socket->fd, &http->cli->timeout_id,
-                (void *) context, &http->timeout_node TSRMLS_CC) == SW_OK && hcc->defer)
+                (void *) context, &(http->timeout_node) TSRMLS_CC) == SW_OK && hcc->defer)
         {
             context->state = SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST;
         }
