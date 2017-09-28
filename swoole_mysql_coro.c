@@ -108,7 +108,6 @@ static void swoole_mysql_coro_onConnect(mysql_client *client TSRMLS_DC);
 static void swoole_mysql_coro_onTimeout(php_context *cxt);
 
 extern swString *mysql_request_buffer;
-static int isset_event_callback = 0;
 
 void swoole_mysql_coro_init(int module_number TSRMLS_DC)
 {
@@ -318,7 +317,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     }
 
     php_swoole_check_reactor();
-    if (!isset_event_callback)
+    if (!swReactor_handle_isset(SwooleG.main_reactor, PHP_SWOOLE_FD_MYSQL))
     {
         SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_MYSQL | SW_EVENT_READ, swoole_mysql_coro_onRead);
         SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_MYSQL | SW_EVENT_WRITE, swoole_mysql_coro_onWrite);
@@ -451,12 +450,6 @@ static PHP_METHOD(swoole_mysql_coro, query)
 
     if (mysql_request(&sql, mysql_request_buffer) < 0)
     {
-        RETURN_FALSE;
-    }
-    //add to eventloop
-    if (SwooleG.main_reactor->add(SwooleG.main_reactor, client->fd, PHP_SWOOLE_FD_MYSQL | SW_EVENT_READ) < 0)
-    {
-        swoole_php_fatal_error(E_WARNING, "swoole_event_add failed.");
         RETURN_FALSE;
     }
     //send query
