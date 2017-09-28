@@ -122,9 +122,9 @@ int coro_init(TSRMLS_D);
 #define coro_save(sw_php_context) \
         sw_coro_save(return_value, sw_php_context);
 #define coro_resume(sw_current_context, retval, coro_retval) \
-        sw_coro_resume(sw_current_context, retval, *coro_retval);
+        sw_coro_resume(sw_current_context, retval, *coro_retval)
 #define coro_resume_parent(sw_current_context, retval, coro_retval) \
-        sw_coro_resume_parent(sw_current_context, retval, coro_retval);
+        sw_coro_resume_parent(sw_current_context, retval, coro_retval)
 
 int sw_coro_create(zend_fcall_info_cache *op_array, zval **argv, int argc, zval *retval, void *post_callback, void *param);
 php_context *sw_coro_save(zval *return_value, php_context *sw_php_context);

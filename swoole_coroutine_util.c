@@ -48,6 +48,7 @@ void swoole_coroutine_util_init(int module_number TSRMLS_DC)
         zend_register_class_alias("Swoole\\Coroutine", swoole_coroutine_util_class_entry_ptr);
     }
 
+#if 0
 #if PHP_MAJOR_VERSION >= 7
     zend_internal_function *func;
     func = zend_hash_str_find_ptr(CG(function_table), ZEND_STRL("call_user_func"));
@@ -70,6 +71,7 @@ void swoole_coroutine_util_init(int module_number TSRMLS_DC)
     {
         func->internal_function.handler = ZEND_MN(swoole_coroutine_util_call_user_func_array);
     }
+#endif
 #endif
 
     defer_coros = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
