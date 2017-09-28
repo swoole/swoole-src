@@ -214,7 +214,10 @@ void php_swoole_event_wait()
 #endif
 
 #ifdef SW_COROUTINE
-        coro_init(TSRMLS_C);
+        if (swReactorCheckPoint == NULL)
+        {
+            coro_init(TSRMLS_C);
+        }
 #endif
 
         int ret = SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
