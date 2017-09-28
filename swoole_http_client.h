@@ -36,6 +36,7 @@ enum http_client_state
     //WebSocket
     HTTP_CLIENT_STATE_UPGRADE,
     HTTP_CLIENT_STATE_WAIT_CLOSE,
+    HTTP_CLIENT_STATE_CLOSED,
 };
 
 #ifdef SW_COROUTINE

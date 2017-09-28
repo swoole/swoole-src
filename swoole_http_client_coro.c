@@ -328,9 +328,12 @@ static void http_client_coro_onClose(swClient *cli)
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
+
     zval *zobject = cli->object;
     http_client *http = swoole_get_object(zobject);
     uint8_t state = http->state;
+    http->state = HTTP_CLIENT_STATE_CLOSED;
+
     if (!cli->released)
     {
         http_client_free(zobject TSRMLS_CC);
@@ -496,6 +499,7 @@ static void http_client_coro_onReceive(swClient *cli, char *data, uint32_t lengt
         hcc->defer_status = HTTP_CLIENT_STATE_DEFER_INIT;
     //    hcc->defer_chunk_status = 0;
         http->completed = 0;
+        http->state = HTTP_CLIENT_STATE_READY;
 
         int ret = coro_resume(sw_current_context, zdata, &retval);
         if (ret > 0)
