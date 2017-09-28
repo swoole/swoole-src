@@ -103,8 +103,6 @@ typedef struct
 
     swTimer_node *timer;
 
-    swLinkedList_node *timeout_node;
-
     char *tmp_header_field_name;
     int tmp_header_field_name_len;
 
