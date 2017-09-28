@@ -72,7 +72,6 @@
 
 static zend_class_entry swoole_redis_coro_ce;
 static zend_class_entry *swoole_redis_coro_class_entry_ptr;
-static int isset_event_callback = 0;
 
 #define IS_EX_PX_ARG(a) (IS_EX_ARG(a) || IS_PX_ARG(a))
 #define IS_NX_XX_ARG(a) (IS_NX_ARG(a) || IS_XX_ARG(a))
@@ -1053,12 +1052,11 @@ static PHP_METHOD(swoole_redis_coro, connect)
     }
 
     php_swoole_check_reactor();
-    if (!isset_event_callback)
+    if (!swReactor_handle_isset(SwooleG.main_reactor, PHP_SWOOLE_FD_REDIS))
     {
         SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_REDIS | SW_EVENT_READ, swoole_redis_coro_onRead);
         SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_REDIS | SW_EVENT_WRITE, swoole_redis_coro_onWrite);
         SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_REDIS | SW_EVENT_ERROR, swoole_redis_coro_onError);
-        isset_event_callback = 1;
     }
 
     redisAsyncSetConnectCallback(context, swoole_redis_coro_onConnect);
