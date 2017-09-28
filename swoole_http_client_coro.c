@@ -258,11 +258,6 @@ static void http_client_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
     //define time out RETURN ERROR  110
     zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), 110 TSRMLS_CC);
 
-    http_client *http = swoole_get_object(zobject);
-    http->cli->released = 1;
-    http_client_free(zobject TSRMLS_CC);
-    swoole_set_object(zobject, NULL);
-
     http_client_property *hcc = swoole_get_property(zobject, 0);
     if (hcc->defer && hcc->defer_status != HTTP_CLIENT_STATE_DEFER_WAIT)
     {
@@ -270,6 +265,9 @@ static void http_client_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
         hcc->defer_result = 0;
         goto free_zdata;
     }
+
+    http_client *http = swoole_get_object(zobject);
+    http->timer = NULL;
 
     hcc->defer_status = HTTP_CLIENT_STATE_DEFER_INIT;
     int ret = coro_resume(ctx, zdata, &retval);
@@ -331,19 +329,14 @@ static void http_client_coro_onClose(swClient *cli)
 
     zval *zobject = cli->object;
     http_client *http = swoole_get_object(zobject);
-    uint8_t state = http->state;
+    if (http->state != HTTP_CLIENT_STATE_BUSY)
+    {
+        return;
+    }
+
     http->state = HTTP_CLIENT_STATE_CLOSED;
-
-    if (!cli->released)
-    {
-        http_client_free(zobject TSRMLS_CC);
-    }
-    if (state != HTTP_CLIENT_STATE_BUSY)
-    {
-        goto free_zobject;
-    }
-
     http_client_property *hcc = swoole_get_property(zobject, 0);
+
     if (hcc->defer && hcc->defer_status != HTTP_CLIENT_STATE_DEFER_WAIT)
     {
         hcc->defer_status = HTTP_CLIENT_STATE_DEFER_DONE;
@@ -353,28 +346,19 @@ static void http_client_coro_onClose(swClient *cli)
 
     hcc->defer_status = HTTP_CLIENT_STATE_DEFER_INIT;
     zval *retval = NULL;
-    zval *zdata;
+    zval *zdata = NULL;
 
     SW_MAKE_STD_ZVAL(zdata);
     //return false
     ZVAL_BOOL(zdata, 0);
     php_context *sw_current_context = swoole_get_property(zobject, 1);
-    int ret = coro_resume(sw_current_context, zdata, &retval);
-    if (ret > 0)
-    {
-        goto free_zdata;
-    }
+    coro_resume(sw_current_context, zdata, &retval);
+
     if (retval != NULL)
     {
         sw_zval_ptr_dtor(&retval);
     }
-    free_zdata: sw_zval_ptr_dtor(&zdata);
-
-    free_zobject:
-#if PHP_MAJOR_VERSION < 7
-    sw_zval_ptr_dtor(&zobject);
-#endif
-    return;
+    sw_zval_ptr_dtor(&zdata);
 }
 
 /**
@@ -708,7 +692,7 @@ static int http_client_coro_send_http_request(zval *zobject TSRMLS_DC)
 
             zval *zname;
             zval *ztype;
-            zval *zsize;
+            zval *zsize = NULL;
             zval *zpath;
             zval *zfilename;
             zval *zoffset;
@@ -954,8 +938,11 @@ static PHP_METHOD(swoole_http_client_coro, __destruct)
         }
     }
     http_client_property *hcc = swoole_get_property(getThis(), 0);
-    efree(hcc);
-    swoole_set_property(getThis(), 0, NULL);
+    if (hcc)
+    {
+        efree(hcc);
+        swoole_set_property(getThis(), 0, NULL);
+    }
 }
 
 static PHP_METHOD(swoole_http_client_coro, set)
@@ -1218,11 +1205,6 @@ static PHP_METHOD(swoole_http_client_coro, close)
         swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_http_client.");
         RETURN_FALSE;
     }
-    if (cli->timeout_id > 0)
-    {
-        php_swoole_clear_timer_coro(cli->timeout_id TSRMLS_CC);
-        cli->timeout_id=0;
-    }
     if (!cli->socket)
     {
         swoole_php_error(E_WARNING, "not connected to the server");
@@ -1233,18 +1215,13 @@ static PHP_METHOD(swoole_http_client_coro, close)
         http_client_free(getThis() TSRMLS_CC);
         RETURN_FALSE;
     }
+
     int ret = SW_OK;
-    if (!cli->keep || swConnection_error(SwooleG.error) == SW_CLOSE)
-    {
-        cli->released = 1;
-        ret = cli->close(cli);
-        http_client_free(getThis() TSRMLS_CC);
-    }
-    else
-    {
-        //unset object
-        swoole_set_object(getThis(), NULL);
-    }
+    cli->released = 1;
+    http->state = HTTP_CLIENT_STATE_CLOSED;
+    ret = cli->close(cli);
+    http_client_free(getThis() TSRMLS_CC);
+
     SW_CHECK_RETURN(ret);
 }
 
