@@ -107,6 +107,8 @@ static const zend_function_entry swoole_http_client_coro_methods[] =
     PHP_ME(swoole_http_client_coro, setDefer, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, getDefer, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, recv, NULL, ZEND_ACC_PUBLIC)
+    PHP_FALIAS(__sleep, swoole_unsupport_serialize, NULL)
+    PHP_FALIAS(__wakeup, swoole_unsupport_serialize, NULL)
 
     PHP_FE_END
 };

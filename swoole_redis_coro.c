@@ -923,6 +923,8 @@ static const zend_function_entry swoole_redis_coro_methods[] =
     PHP_ME(swoole_redis_coro, eval, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, evalSha, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, script, NULL, ZEND_ACC_PUBLIC)
+    PHP_FALIAS(__sleep, swoole_unsupport_serialize, NULL)
+    PHP_FALIAS(__wakeup, swoole_unsupport_serialize, NULL)
     PHP_FE_END
 };
 
