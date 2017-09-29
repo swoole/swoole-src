@@ -581,21 +581,21 @@ static cidmap_t cidmap = { 0x8000, {0} };
 
 static int last_cid = -1;
 
-static int test_and_set_bit(int cid, void *addr)
+static inline int test_and_set_bit(int cid, void *addr)
 {
     uint32_t mask = 1U << (cid & 0x1f);
-    uint32_t *p = ((uint32_t*)addr) + (cid >> 5);
+    uint32_t *p = ((uint32_t*) addr) + (cid >> 5);
     uint32_t old = *p;
 
-    *p = old | mask; 
+    *p = old | mask;
 
     return (old & mask) == 0;
 }
 
-static void clear_bit(int cid, void *addr)
+static inline void clear_bit(int cid, void *addr)
 {
     uint32_t mask = 1U << (cid & 0x1f);
-    uint32_t *p = ((uint32_t*)addr) + (cid >> 5);
+    uint32_t *p = ((uint32_t*) addr) + (cid >> 5);
     uint32_t old = *p;
 
     *p = old & ~mask;
