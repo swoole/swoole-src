@@ -254,6 +254,10 @@ static void http_client_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
     zval *zobject = &_zobject;
 #endif
 
+    http_client *http = swoole_get_object(zobject);
+    http->timer = NULL;
+    http->state = HTTP_CLIENT_STATE_WAIT_CLOSE;
+
     //define time out RETURN ERROR  110
     zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), ETIMEDOUT TSRMLS_CC);
 
@@ -264,9 +268,6 @@ static void http_client_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
         hcc->defer_result = 0;
         goto free_zdata;
     }
-
-    http_client *http = swoole_get_object(zobject);
-    http->timer = NULL;
 
     hcc->defer_status = HTTP_CLIENT_STATE_DEFER_INIT;
     int ret = coro_resume(ctx, zdata, &retval);
@@ -379,6 +380,9 @@ static void http_client_coro_onError(swClient *cli)
     php_context *sw_current_context = swoole_get_property(zobject, 1);
     zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error TSRMLS_CC);
 
+    http_client *http = swoole_get_object(zobject);
+    http->timer = NULL;
+
     http_client_property *hcc = swoole_get_property(zobject, 0);
     if (hcc->defer && hcc->defer_status != HTTP_CLIENT_STATE_DEFER_WAIT)
     {
@@ -424,7 +428,13 @@ static void http_client_coro_onReceive(swClient *cli, char *data, uint32_t lengt
 
     if (parsed_n < 0)
     {
-        ZVAL_BOOL(zdata, 0); //return false
+        //return false
+        ZVAL_BOOL(zdata, 0);
+        if (http->timer)
+        {
+            swTimer_del(&SwooleG.timer, http->timer);
+            http->timer = NULL;
+        }
         if (hcc->defer && hcc->defer_status != HTTP_CLIENT_STATE_DEFER_WAIT)
         {
             //not recv yet  sava data
@@ -442,9 +452,18 @@ static void http_client_coro_onReceive(swClient *cli, char *data, uint32_t lengt
         return;
     }
 
-//    if(!hcc->defer_chunk_status){ //not recv all wait for next
+//    if (!hcc->defer_chunk_status)
+//    {
+//        //not recv all wait for next
 //        return;
 //    }
+
+    //timeout
+    if (http->timer)
+    {
+        swTimer_del(&SwooleG.timer, http->timer);
+        http->timer = NULL;
+    }
 
     ZVAL_BOOL(zdata, 1); //return false
     if (hcc->defer && hcc->defer_status != HTTP_CLIENT_STATE_DEFER_WAIT)
@@ -455,20 +474,13 @@ static void http_client_coro_onReceive(swClient *cli, char *data, uint32_t lengt
         goto free_zdata;
     }
 
-    //timeout
-    if (http->timer)
-    {
-        swTimer_del(&SwooleG.timer, http->timer);
-        http->timer = NULL;
-    }
-
     begin_resume:
     {
         //if should resume
         /*if next cr*/
         php_context *sw_current_context = swoole_get_property(zobject, 1);
         hcc->defer_status = HTTP_CLIENT_STATE_DEFER_INIT;
-    //    hcc->defer_chunk_status = 0;
+        //hcc->defer_chunk_status = 0;
         http->completed = 0;
         http->state = HTTP_CLIENT_STATE_READY;
 
@@ -1015,7 +1027,6 @@ static PHP_METHOD(swoole_http_client_coro, recv)
         swoole_php_fatal_error(E_WARNING, "you should not use recv without defer ");
         RETURN_FALSE;
     }
-
 
     switch (hcc->defer_status)
     {
