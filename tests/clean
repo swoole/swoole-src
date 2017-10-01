@@ -1,0 +1,32 @@
+#!/usr/bin/env php
+<?php
+$dirs = scandir(__DIR__);
+foreach ($dirs as $d)
+{
+    if (substr($d, 0, 6) == 'swoole')
+    {
+        clean(__DIR__ . '/' . $d);
+    }
+}
+
+function clean($dir)
+{
+    $ignore_files = include __DIR__ . '/include/ignore_files.php';
+    $files = scandir($dir);
+    foreach ($files as $f)
+    {
+        if ($f == '.' or $f == '..')
+        {
+            continue;
+        }
+        if (substr($f, -5) != '.phpt')
+        {
+            $file = $dir . '/' . $f;
+            if (is_file($file) and !in_array($dir . '/' . $f, $ignore_files))
+            {
+                echo "DELETE: ", $file, "\n";
+                unlink($file);
+            }
+        }
+    }
+}

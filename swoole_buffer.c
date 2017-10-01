@@ -70,6 +70,8 @@ static const zend_function_entry swoole_buffer_methods[] =
     PHP_ME(swoole_buffer, expand, arginfo_swoole_buffer_expand, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_buffer, recycle, arginfo_swoole_buffer_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_buffer, clear, arginfo_swoole_buffer_void, ZEND_ACC_PUBLIC)
+    PHP_FALIAS(__sleep, swoole_unsupport_serialize, NULL)
+    PHP_FALIAS(__wakeup, swoole_unsupport_serialize, NULL)
     PHP_FE_END
 };
 
@@ -83,18 +85,18 @@ void swoole_buffer_init(int module_number TSRMLS_DC)
     SWOOLE_CLASS_ALIAS(swoole_buffer, "Swoole\\Buffer");
 }
 
-void swoole_buffer_recycle(swString *buffer)
+static void swoole_buffer_recycle(swString *buffer)
 {
-    long length;
-
-    if (buffer->offset == 0) {
+    if (buffer->offset == 0)
+    {
         return;
     }
 
+    long length;
     length = buffer->length - buffer->offset;
-
-    if (length > 0) {
-        memcpy(buffer->str, buffer->str + buffer->offset, length);
+    if (length > 0)
+    {
+        memmove(buffer->str, buffer->str + buffer->offset, length);
     }
 
     buffer->offset = 0;
@@ -112,12 +114,12 @@ static PHP_METHOD(swoole_buffer, __construct)
 
     if (size < 1)
     {
-        zend_throw_exception(swoole_exception_class_entry_ptr, "buffer size cannot be less than 0.", SW_ERROR_INVALID_PARAMS TSRMLS_CC);
+        zend_throw_exception(swoole_exception_class_entry_ptr, "buffer size can't be less than 0.", SW_ERROR_INVALID_PARAMS TSRMLS_CC);
         RETURN_FALSE;
     }
     else if (size > SW_STRING_BUFFER_MAXLEN)
     {
-        zend_throw_exception_ex(swoole_exception_class_entry_ptr, errno TSRMLS_CC, "buffer size must not exceed %d", SW_STRING_BUFFER_MAXLEN);
+        zend_throw_exception_ex(swoole_exception_class_entry_ptr, errno TSRMLS_CC, "buffer size can't exceed %d", SW_STRING_BUFFER_MAXLEN);
         RETURN_FALSE;
     }
 
@@ -160,7 +162,7 @@ static PHP_METHOD(swoole_buffer, append)
 
     if ((str.length + buffer->length) > buffer->size && (str.length + buffer->length) > SW_STRING_BUFFER_MAXLEN)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "buffer size must not exceed %d", SW_STRING_BUFFER_MAXLEN);
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "buffer size can't exceed %d", SW_STRING_BUFFER_MAXLEN);
         RETURN_FALSE;
     }
 
@@ -193,7 +195,7 @@ static PHP_METHOD(swoole_buffer, substr)
     }
     swString *buffer = swoole_get_object(getThis());
 
-    if (remove && !(offset == 0 && length < buffer->length))
+    if (remove && !(offset == 0 && length <= buffer->length))
     {
         remove = 0;
     }
@@ -208,17 +210,16 @@ static PHP_METHOD(swoole_buffer, substr)
     }
     if (offset + length > buffer->length)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "offset(%ld,%ld) out of bounds.", offset, length);
+        swoole_php_error(E_WARNING, "offset(%ld, %ld) is out of bounds.", offset, length);
         RETURN_FALSE;
     }
     if (remove)
     {
         buffer->offset += length;
-        zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("length"),
-                buffer->length - buffer->offset TSRMLS_CC);
+        zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("length"), buffer->length - buffer->offset TSRMLS_CC);
 
-        if (buffer->offset > SW_STRING_BUFFER_GARBAGE_MIN && buffer->offset * SW_STRING_BUFFER_GARBAGE_RATIO > buffer->size) {
-            // Do recycle when the garbage is to large.
+        if (buffer->offset > SW_STRING_BUFFER_GARBAGE_MIN && buffer->offset * SW_STRING_BUFFER_GARBAGE_RATIO > buffer->size)
+        {
             swoole_buffer_recycle(buffer);
         }
     }
@@ -245,7 +246,7 @@ static PHP_METHOD(swoole_buffer, write)
 
     if (str.length < 1)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "string empty.");
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "string to write is empty.");
         RETURN_FALSE;
     }
 
@@ -257,7 +258,7 @@ static PHP_METHOD(swoole_buffer, write)
     }
     if (offset < 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "offset(%ld) out of bounds.", offset);
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "offset(%ld) is out of bounds.", offset);
         RETURN_FALSE;
     }
 
@@ -265,7 +266,7 @@ static PHP_METHOD(swoole_buffer, write)
 
     if ((str.length + offset) > buffer->size && (str.length + offset) > SW_STRING_BUFFER_MAXLEN)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "buffer size must not exceed %d", SW_STRING_BUFFER_MAXLEN);
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "buffer size can't exceed %d", SW_STRING_BUFFER_MAXLEN);
         RETURN_FALSE;
     }
 
@@ -304,7 +305,7 @@ static PHP_METHOD(swoole_buffer, read)
     }
     if (offset < 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "offset(%ld) out of bounds.", offset);
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "offset(%ld) is out of bounds.", offset);
         RETURN_FALSE;
     }
 
@@ -331,7 +332,7 @@ static PHP_METHOD(swoole_buffer, expand)
 
     if (size <= buffer->size)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "new size must more than %ld", buffer->size);
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "new size must be more than %ld", buffer->size);
         RETURN_FALSE;
     }
 

@@ -22,104 +22,117 @@
 - async dns lookup
 - support IPv4/IPv6/UnixSocket/TCP/UDP
 - support SSL/TLS encrypted transmission
-	</description>
-	<lead>
-		<name>Tianfeng Han</name>
-		<user>tianfenghan</user>
-		<email>mikan.tenny@gmail.com</email>
-		<active>yes</active>
-	</lead>
-	<developer>
-		<name>Shen Zhe</name>
-		<user>shenzhe</user>
-		<email>shenzhe163@gmail.com</email>
-		<active>yes</active>
-	</developer>
-    <date>2017-01-24</date>
+    </description>
+    <lead>
+        <name>Tianfeng Han</name>
+        <user>tianfenghan</user>
+        <email>mikan.tenny@gmail.com</email>
+        <active>yes</active>
+    </lead>
+    <developer>
+        <name>Shen Zhe</name>
+        <user>shenzhe</user>
+        <email>shenzhe163@gmail.com</email>
+        <active>yes</active>
+    </developer>
+    <date>2017-08-31</date>
     <time>09:50:10</time>
     <version>
-		<release>1.9.5</release>
-		<api>1.9</api>
+        <release>2.0.9</release>
+        <api>2.0</api>
     </version>
     <stability>
-        <release>stable</release>
-        <api>stable</api>
+        <release>beta</release>
+        <api>beta</api>
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Fixed taskWaitMulti special case of file descriptor leak problem
-- Added pid_file option to write the master PID to file
-- Added listen random port support, OS will automatically be assigned an available port
-- Removed DNS cache, removed swoole_clear_dns_cache function
-- Added use_async_resolver option to enable real async-io DNS lookup
+    - Merge branch 1.9
+    - Added Server::taskCo
+    - Added Coroutine::sleep
     </notes>
-	<contents>
-		<dir name="/">
-			<file role="doc" name="CREDITS" />
-			<file role="doc" name="LICENSE" />
-			<file role="doc" name="README.md" />
-			<file role="src" name="config.m4" />
-			<dir name="include">
-				<file role="src" name="swoole.h" />
-				<file role="src" name="Server.h" />
-				<file role="src" name="Client.h" />
-				<file role="src" name="Connection.h" />
-				<file role="src" name="atomic.h" />
-				<file role="src" name="buffer.h" />
-				<file role="src" name="hashmap.h" />
-				<file role="src" name="list.h" />
-				<file role="src" name="RingQueue.h" />
-				<file role="src" name="uthash.h" />
-				<file role="src" name="tests.h" />
-				<file role="src" name="array.h" />
-				<file role="src" name="async.h" />
-				<file role="src" name="hash.h" />
-				<file role="src" name="heap.h" />
-				<file role="src" name="table.h" />
-				<file role="src" name="http.h" />
-				<file role="src" name="http2.h" />
-				<file role="src" name="websocket.h" />
-				<file role="src" name="sha1.h" />
-				<file role="src" name="base64.h" />
-				<file role="src" name="mqtt.h" />
-				<file role="src" name="error.h" />
-				<file role="src" name="module.h" />
-				<file role="src" name="socks5.h" />
-				<file role="src" name="redis.h" />
-			</dir>
-			<file role="src" name="php_swoole.h" />
-			<file role="src" name="php7_wrapper.h" />
-			<file role="src" name="swoole_config.h" />
-			<file role="src" name="swoole.c" />
-			<file role="src" name="swoole_server.c" />
-			<file role="src" name="swoole_server_port.c" />
-			<file role="src" name="swoole_lock.c" />
-			<file role="src" name="swoole_client.c" />
+    <contents>
+        <dir name="/">
+            <file role="doc" name="CREDITS" />
+            <file role="doc" name="LICENSE" />
+            <file role="doc" name="README.md" />
+            <file role="doc" name="Version2.md" />
+            <file role="src" name="config.m4" />
+            <dir name="include">
+                <file role="src" name="swoole.h" />
+                <file role="src" name="Server.h" />
+                <file role="src" name="Client.h" />
+                <file role="src" name="Connection.h" />
+                <file role="src" name="atomic.h" />
+                <file role="src" name="buffer.h" />
+                <file role="src" name="hashmap.h" />
+                <file role="src" name="list.h" />
+                <file role="src" name="RingQueue.h" />
+                <file role="src" name="uthash.h" />
+                <file role="src" name="tests.h" />
+                <file role="src" name="array.h" />
+                <file role="src" name="async.h" />
+                <file role="src" name="hash.h" />
+                <file role="src" name="heap.h" />
+                <file role="src" name="table.h" />
+                <file role="src" name="http.h" />
+                <file role="src" name="http2.h" />
+                <file role="src" name="websocket.h" />
+                <file role="src" name="sha1.h" />
+                <file role="src" name="base64.h" />
+                <file role="src" name="mqtt.h" />
+                <file role="src" name="error.h" />
+                <file role="src" name="socks5.h" />
+                <file role="src" name="redis.h" />
+                <file role="src" name="coroutine.h" />
+            </dir>
+            <file role="src" name="php_swoole.h" />
+            <file role="src" name="php7_wrapper.h" />
+            <file role="src" name="swoole_config.h" />
+            <file role="src" name="swoole.c" />
+            <file role="src" name="swoole_server.c" />
+            <file role="src" name="swoole_server_port.c" />
+            <file role="src" name="swoole_lock.c" />
+            <file role="src" name="swoole_client.c" />
             <file role="src" name="swoole_event.c" />
             <file role="src" name="swoole_timer.c" />
-			<file role="src" name="swoole_async.c" />
-			<file role="src" name="swoole_process.c" />
-			<file role="src" name="swoole_table.c" />
-			<file role="src" name="swoole_buffer.c" />
-			<file role="src" name="swoole_http_server.c" />
-			<file role="src" name="swoole_http_v2_server.c" />
-			<file role="src" name="swoole_http_client.c" />
-			<file role="src" name="swoole_http.h" />
-			<file role="src" name="swoole_websocket_server.c" />
-			<file role="src" name="swoole_atomic.c" />
-			<file role="src" name="swoole_mysql.c" />
-			<file role="src" name="swoole_mysql.h" />
-			<file role="src" name="swoole_redis.c" />
-			<file role="src" name="swoole_redis_server.c" />
-			<file role="src" name="swoole_module.c" />
-			<file role="src" name="swoole_mmap.c" />
-			<file role="src" name="swoole_channel.c" />
-			<dir name="thirdparty">
-				<file role="src" name="php_http_parser.c" />
-				<file role="src" name="php_http_parser.h" />
-				<file role="src" name="multipart_parser.c" />
-				<file role="src" name="multipart_parser.h" />
-			</dir>
+            <file role="src" name="swoole_async.c" />
+            <file role="src" name="swoole_process.c" />
+            <file role="src" name="swoole_table.c" />
+            <file role="src" name="swoole_buffer.c" />
+            <file role="src" name="swoole_http_server.c" />
+            <file role="src" name="swoole_http_client.h" />
+            <file role="src" name="swoole_http_client.c" />
+            <file role="src" name="swoole_http_v2_client.c" />
+            <file role="src" name="swoole_http_v2_server.c" />
+            <file role="src" name="swoole_http.h" />
+            <file role="src" name="swoole_websocket_server.c" />
+            <file role="src" name="swoole_atomic.c" />
+            <file role="src" name="swoole_mysql.c" />
+            <file role="src" name="swoole_mysql.h" />
+            <file role="src" name="swoole_redis.c" />
+            <file role="src" name="swoole_redis_server.c" />
+            <file role="src" name="swoole_mmap.c" />
+            <file role="src" name="swoole_channel.c" />
+            <file role="src" name="swoole_serialize.h" />
+            <file role="src" name="swoole_serialize.c" />
+            <file role="src" name="swoole_coroutine.h" />
+            <file role="src" name="swoole_coroutine.c" />
+            <file role="src" name="swoole_coroutine_util.c" />
+            <file role="src" name="swoole_client_coro.c" />
+            <file role="src" name="swoole_http_client_coro.c" />
+            <file role="src" name="swoole_redis_coro.c" />
+            <file role="src" name="swoole_mysql_coro.c" />
+            <dir name="thirdparty">
+                <file role="src" name="php_http_parser.c" />
+                <file role="src" name="php_http_parser.h" />
+                <file role="src" name="multipart_parser.c" />
+                <file role="src" name="multipart_parser.h" />
+                <dir name="picohttpparser">
+                    <file role="src" name="picohttpparser.c" />
+                    <file role="src" name="picohttpparser.h" />
+                </dir>
+            </dir>
             <dir name="benchmark">
                 <file role="src" name="async.php" />
                 <file role="src" name="run.php" />
@@ -131,173 +144,186 @@
                 <file role="src" name="tcp.go" />
                 <file role="src" name="http.go" />
             </dir>
-			<dir name="src">
-				<dir name="core">
-					<file role="src" name="base.c" />
-					<file role="src" name="socket.c" />
-					<file role="src" name="log.c" />
-					<file role="src" name="hashmap.c" />
-					<file role="src" name="RingQueue.c" />
-					<file role="src" name="Channel.c" />
-					<file role="src" name="string.c" />
-					<file role="src" name="array.c" />
-					<file role="src" name="list.c" />
-					<file role="src" name="heap.c" />
-				</dir>
-				<dir name="memory">
-					<file role="src" name="ShareMemory.c" />
-					<file role="src" name="MemoryGlobal.c" />
-					<file role="src" name="FixedPool.c" />
-					<file role="src" name="RingBuffer.c" />
-					<file role="src" name="Table.c" />
-					<file role="src" name="Malloc.c" />
+            <dir name="src">
+                <dir name="core">
+                    <file role="src" name="base.c" />
+                    <file role="src" name="socket.c" />
+                    <file role="src" name="log.c" />
+                    <file role="src" name="hashmap.c" />
+                    <file role="src" name="RingQueue.c" />
+                    <file role="src" name="Channel.c" />
+                    <file role="src" name="string.c" />
+                    <file role="src" name="array.c" />
+                    <file role="src" name="list.c" />
+                    <file role="src" name="heap.c" />
+                </dir>
+                <dir name="memory">
+                    <file role="src" name="ShareMemory.c" />
+                    <file role="src" name="MemoryGlobal.c" />
+                    <file role="src" name="FixedPool.c" />
+                    <file role="src" name="RingBuffer.c" />
+                    <file role="src" name="Table.c" />
+                    <file role="src" name="Malloc.c" />
                     <file role="src" name="Buffer.c" />
-				</dir>
-				<dir name="factory">
-					<file role="src" name="Factory.c" />
-					<file role="src" name="FactoryThread.c" />
-					<file role="src" name="FactoryProcess.c" />
-				</dir>
-				<dir name="reactor">
-					<file role="src" name="ReactorBase.c" />
-					<file role="src" name="ReactorSelect.c" />
-					<file role="src" name="ReactorPoll.c" />
-					<file role="src" name="ReactorEpoll.c" />
-					<file role="src" name="ReactorKqueue.c" />
-				</dir>
-				<dir name="pipe">
-					<file role="src" name="PipeBase.c" />
-					<file role="src" name="PipeEventfd.c" />
-					<file role="src" name="PipeUnsock.c" />
-				</dir>
-				<dir name="lock">
-					<file role="src" name="Semaphore.c" />
-					<file role="src" name="Mutex.c" />
-					<file role="src" name="RWLock.c" />
-					<file role="src" name="SpinLock.c" />
-					<file role="src" name="FileLock.c" />
-				</dir>
-				<dir name="network">
-					<file role="src" name="Client.c" />
-					<file role="src" name="Connection.c" />
-					<file role="src" name="ProcessPool.c" />
-					<file role="src" name="ReactorProcess.c" />
-					<file role="src" name="ReactorThread.c" />
-					<file role="src" name="Server.c" />
-					<file role="src" name="TaskWorker.c" />
-					<file role="src" name="ThreadPool.c" />
-					<file role="src" name="Worker.c" />
-					<file role="src" name="Manager.c" />
-					<file role="src" name="Timer.c" />
-					<file role="src" name="DNS.c" />
-					<file role="src" name="Port.c" />
-				</dir>
-				<dir name="os">
-					<file role="src" name="base.c" />
-					<file role="src" name="linux_aio.c" />
-					<file role="src" name="msg_queue.c" />
-					<file role="src" name="sendfile.c" />
-					<file role="src" name="signal.c" />
-					<file role="src" name="timer.c" />
-					<file role="src" name="dl.c" />
-				</dir>
-				<dir name="protocol">
-				    <file role="src" name="Base.c" />
-					<file role="src" name="SSL.c" />
-					<file role="src" name="Http.c" />
-					<file role="src" name="Http2.c" />
-					<file role="src" name="WebSocket.c" />
-					<file role="src" name="Sha1.c" />
-					<file role="src" name="Base64.c" />
-					<file role="src" name="Mqtt.c" />
-					<file role="src" name="Socks5.c" />
-					<file role="src" name="MimeTypes.c" />
+                </dir>
+                <dir name="factory">
+                    <file role="src" name="Factory.c" />
+                    <file role="src" name="FactoryThread.c" />
+                    <file role="src" name="FactoryProcess.c" />
+                </dir>
+                <dir name="reactor">
+                    <file role="src" name="ReactorBase.c" />
+                    <file role="src" name="ReactorSelect.c" />
+                    <file role="src" name="ReactorPoll.c" />
+                    <file role="src" name="ReactorEpoll.c" />
+                    <file role="src" name="ReactorKqueue.c" />
+                </dir>
+                <dir name="pipe">
+                    <file role="src" name="PipeBase.c" />
+                    <file role="src" name="PipeEventfd.c" />
+                    <file role="src" name="PipeUnsock.c" />
+                </dir>
+                <dir name="lock">
+                    <file role="src" name="Semaphore.c" />
+                    <file role="src" name="Mutex.c" />
+                    <file role="src" name="RWLock.c" />
+                    <file role="src" name="SpinLock.c" />
+                    <file role="src" name="FileLock.c" />
+                    <file role="src" name="Cond.c" />
+                </dir>
+                <dir name="network">
+                    <file role="src" name="Client.c" />
+                    <file role="src" name="Connection.c" />
+                    <file role="src" name="ProcessPool.c" />
+                    <file role="src" name="ReactorProcess.c" />
+                    <file role="src" name="ReactorThread.c" />
+                    <file role="src" name="Server.c" />
+                    <file role="src" name="TaskWorker.c" />
+                    <file role="src" name="ThreadPool.c" />
+                    <file role="src" name="Worker.c" />
+                    <file role="src" name="Manager.c" />
+                    <file role="src" name="Timer.c" />
+                    <file role="src" name="DNS.c" />
+                    <file role="src" name="Port.c" />
+                    <file role="src" name="TimeWheel.c" />
+                </dir>
+                <dir name="os">
+                    <file role="src" name="base.c" />
+                    <file role="src" name="linux_aio.c" />
+                    <file role="src" name="msg_queue.c" />
+                    <file role="src" name="sendfile.c" />
+                    <file role="src" name="signal.c" />
+                    <file role="src" name="timer.c" />
+                </dir>
+                <dir name="protocol">
+                    <file role="src" name="Base.c" />
+                    <file role="src" name="SSL.c" />
+                    <file role="src" name="Http.c" />
+                    <file role="src" name="Http2.c" />
+                    <file role="src" name="WebSocket.c" />
+                    <file role="src" name="Sha1.c" />
+                    <file role="src" name="Base64.c" />
+                    <file role="src" name="Mqtt.c" />
+                    <file role="src" name="Socks5.c" />
+                    <file role="src" name="MimeTypes.c" />
                     <file role="src" name="Redis.c" />
-				</dir>
-			</dir>
-			<dir name="examples">
-				<dir name="async">
-					<file role="src" name="read.php" />
-					<file role="src" name="readfile.php" />
-					<file role="src" name="write.php" />
-					<file role="src" name="dns_lookup.php" />
-				</dir>
-				<dir name="client">
-					<file role="src" name="async.php" />
-					<file role="src" name="long_tcp.php" />
-					<file role="src" name="sync.php" />
-					<file role="src" name="select.php" />
-					<file role="src" name="udp_async.php" />
-					<file role="src" name="udp_sync.php" />
-				</dir>
-				<dir name="server">
-					<file role="src" name="echo.php" />
-					<file role="src" name="msgqueue.php" />
-				</dir>
-				<dir name="http">
-					<file role="src" name="server.php" />
-					<file role="src" name="client.php" />
-					<file role="src" name="curl.php" />
-					<file role="src" name="async_client.php" />
-					<file role="src" name="async_websocket.php" />
-					<file role="src" name="download.php" />
-				</dir>
-				<dir name="length">
+                </dir>
+            </dir>
+            <dir name="examples">
+                <dir name="async">
+                    <file role="src" name="read.php" />
+                    <file role="src" name="readfile.php" />
+                    <file role="src" name="write.php" />
+                    <file role="src" name="dns_lookup.php" />
+                </dir>
+                <dir name="client">
+                    <file role="src" name="async.php" />
+                    <file role="src" name="long_tcp.php" />
+                    <file role="src" name="sync.php" />
+                    <file role="src" name="select.php" />
+                    <file role="src" name="udp_async.php" />
+                    <file role="src" name="udp_sync.php" />
+                </dir>
+                <dir name="server">
+                    <file role="src" name="echo.php" />
+                    <file role="src" name="ip_dispatch.php" />
+                    <file role="src" name="unix_stream.php" />
+                    <file role="src" name="listen_1k_port.php" />
+                    <file role="src" name="fixed_header_client.php" />
+                    <file role="src" name="fixed_header_server.php" />
+                    <file role="src" name="local_listener.php" />
+                    <file role="src" name="single.php" />
+                </dir>
+                <dir name="http">
+                    <file role="src" name="server.php" />
+                    <file role="src" name="client.php" />
+                    <file role="src" name="curl.php" />
+                    <file role="src" name="async_client.php" />
+                    <file role="src" name="async_websocket.php" />
+                    <file role="src" name="download.php" />
+                </dir>
+                <dir name="http2">
+                    <file role="src" name="server.php" />
+                    <file role="src" name="client.php" />
+                </dir>
+                <dir name="length">
                     <file role="src" name="server.php" />
                     <file role="src" name="client.php" />
                     <file role="src" name="async_client.php" />
                 </dir>
-				<dir name="eof">
+                <dir name="eof">
                     <file role="src" name="server.php" />
                     <file role="src" name="client.php" />
                     <file role="src" name="async_client.php" />
                 </dir>
-				<dir name="event">
-					<file role="src" name="stream.php" />
-					<file role="src" name="sockets.php" />
-				</dir>
-				<dir name="unixsock">
-					<file role="src" name="dgram_server.php" />
-					<file role="src" name="stream_client.php" />
-					<file role="src" name="dgram_client.php" />
-				</dir>
-				<dir name="process">
-					<file role="src" name="worker.php" />
-					<file role="src" name="exec.php" />
-					<file role="src" name="msgqueue.php" />
-					<file role="src" name="echo.py" />
-					<file role="src" name="python.php" />
-				</dir>
-				<dir name="task">
-					<file role="src" name="task.php" />
-					<file role="src" name="task_coro.php" />
-					<file role="src" name="shared_client.php" />
-					<file role="src" name="shared_server.php" />
-				</dir>
-				<dir name="table">
-					<file role="src" name="iterator.php" />
-					<file role="src" name="server.php" />
-					<file role="src" name="set.php" />
-					<file role="src" name="simulation.php" />
-				</dir>
-				<dir name="websocket">
-					<file role="src" name="server.php" />
-					<file role="src" name="client.php" />
-					<file role="src" name="client.html" />
-					<file role="src" name="WebSocketClient.php" />
-				</dir>
-				<dir name="ipv6">
+                <dir name="event">
+                    <file role="src" name="stream.php" />
+                    <file role="src" name="sockets.php" />
+                </dir>
+                <dir name="unixsock">
+                    <file role="src" name="dgram_server.php" />
+                    <file role="src" name="stream_client.php" />
+                    <file role="src" name="dgram_client.php" />
+                </dir>
+                <dir name="process">
+                    <file role="src" name="worker.php" />
+                    <file role="src" name="exec.php" />
+                    <file role="src" name="msgqueue.php" />
+                    <file role="src" name="echo.py" />
+                    <file role="src" name="python.php" />
+                </dir>
+                <dir name="task">
+                    <file role="src" name="task.php" />
+                    <file role="src" name="task_coro.php" />
+                    <file role="src" name="shared_client.php" />
+                    <file role="src" name="shared_server.php" />
+                </dir>
+                <dir name="table">
+                    <file role="src" name="iterator.php" />
+                    <file role="src" name="server.php" />
+                    <file role="src" name="set.php" />
+                    <file role="src" name="simulation.php" />
+                </dir>
+                <dir name="websocket">
+                    <file role="src" name="server.php" />
+                    <file role="src" name="client.php" />
+                    <file role="src" name="client.html" />
+                    <file role="src" name="WebSocketClient.php" />
+                </dir>
+                <dir name="ipv6">
                     <file role="src" name="tcp_server.php" />
                     <file role="src" name="udp_server.php" />
                     <file role="src" name="tcp_client.php" />
                     <file role="src" name="udp_client.php" />
                 </dir>
-				<dir name="timer">
+                <dir name="timer">
                     <file role="src" name="after.php" />
                     <file role="src" name="tick.php" />
+                    <file role="src" name="clear.php" />
                 </dir>
                 <dir name="mysql">
                     <file role="src" name="real_async.php" />
+                    <file role="src" name="transaction.php" />
                 </dir>
                 <dir name="redis">
                     <file role="src" name="client.php" />
@@ -307,26 +333,371 @@
                 <dir name="mmap">
                     <file role="src" name="mmap.php" />
                 </dir>
-				<file role="src" name="server.php" />
+                <file role="src" name="server.php" />
                 <file role="src" name="channel.php" />
-				<file role="src" name="mysql_proxy_server.php" />
-				<file role="src" name="proxy_sync.php" />
-				<file role="src" name="sendfile_server.php" />
-				<file role="src" name="recv_file.php" />
-				<file role="doc" name="test.jpg" />
-			</dir>
-		</dir>
-	</contents>
-	<dependencies>
-		<required>
-			<php>
-				<min>5.3.10</min>
-			</php>
-			<pearinstaller>
-				<min>1.4.0</min>
-			</pearinstaller>
-		</required>
-	</dependencies>
-	<providesextension>swoole</providesextension>
-	<extsrcrelease />
+                <file role="src" name="mysql_proxy_server.php" />
+                <file role="src" name="proxy_sync.php" />
+                <file role="src" name="sendfile_server.php" />
+                <file role="src" name="recv_file.php" />
+                <file role="doc" name="test.jpg" />
+            </dir>
+            <dir name="tests">
+                <file name="CONTRIBUTION" role="test" />
+                <file name="clean" role="test" />
+                <file name="include/api/http_server.php" role="test" />
+                <file name="include/api/swoole_async/read_write.php" role="test" />
+                <file name="include/api/swoole_async/recursive_write.php" role="test" />
+                <file name="include/api/swoole_async/swoole_async_read.php" role="test" />
+                <file name="include/api/swoole_async/swoole_async_write.php" role="test" />
+                <file name="include/api/swoole_async/swoole_pipe_block.php" role="test" />
+                <file name="include/api/swoole_async_old/read_write.php" role="test" />
+                <file name="include/api/swoole_async_old/swoole_async_read.php" role="test" />
+                <file name="include/api/swoole_async_old/swoole_async_readfile.php" role="test" />
+                <file name="include/api/swoole_async_old/swoole_async_write.php" role="test" />
+                <file name="include/api/swoole_async_old/swoole_async_writefile.php" role="test" />
+                <file name="include/api/swoole_async_old/swoole_pipe_block.php" role="test" />
+                <file name="include/api/swoole_callback/swoole_cannot_destroy_active_lambda_function.php" role="test" />
+                <file name="include/api/swoole_client/connect_timeout.php" role="test" />
+                <file name="include/api/swoole_client/connect_twice.php" role="test" />
+                <file name="include/api/swoole_client/opcode_client.php" role="test" />
+                <file name="include/api/swoole_client/simple_client.php" role="test" />
+                <file name="include/api/swoole_client/socket_free.php" role="test" />
+                <file name="include/api/swoole_http_client/connect_host_not_found.php" role="test" />
+                <file name="include/api/swoole_http_client/connect_port_not_listen.php" role="test" />
+                <file name="include/api/swoole_http_client/connect_timeout.php" role="test" />
+                <file name="include/api/swoole_http_client/http_request_connect_timeout.php" role="test" />
+                <file name="include/api/swoole_http_client/meomry_leak.php" role="test" />
+                <file name="include/api/swoole_http_client/on_error_close.php" role="test" />
+                <file name="include/api/swoole_http_client/on_receive_core.php" role="test" />
+                <file name="include/api/swoole_http_client/simple_http_client.php" role="test" />
+                <file name="include/api/swoole_http_client/simple_http_client_test.php" role="test" />
+                <file name="include/api/swoole_http_client/simple_https_client.php" role="test" />
+                <file name="include/api/swoole_http_client/simple_https_client_test.php" role="test" />
+                <file name="include/api/swoole_http_client/swoole_http_client_RST.php" role="test" />
+                <file name="include/api/swoole_http_client/swoole_http_client_simple.php" role="test" />
+                <file name="include/api/swoole_http_client/uaf_client.php" role="test" />
+                <file name="include/api/swoole_http_client/uaf_server.js" role="test" />
+                <file name="include/api/swoole_http_server/htf_swoole20_https_server.php" role="test" />
+                <file name="include/api/swoole_http_server/http_server.php" role="test" />
+                <file name="include/api/swoole_http_server/http_server_without_response.php" role="test" />
+                <file name="include/api/swoole_http_server/localhost-ssl/ca.crt" role="test" />
+                <file name="include/api/swoole_http_server/localhost-ssl/ca.csr" role="test" />
+                <file name="include/api/swoole_http_server/localhost-ssl/ca.key" role="test" />
+                <file name="include/api/swoole_http_server/localhost-ssl/ca.srl" role="test" />
+                <file name="include/api/swoole_http_server/localhost-ssl/client.crt" role="test" />
+                <file name="include/api/swoole_http_server/localhost-ssl/client.csr" role="test" />
+                <file name="include/api/swoole_http_server/localhost-ssl/client.key" role="test" />
+                <file name="include/api/swoole_http_server/localhost-ssl/client.pem" role="test" />
+                <file name="include/api/swoole_http_server/localhost-ssl/server.crt" role="test" />
+                <file name="include/api/swoole_http_server/localhost-ssl/server.csr" role="test" />
+                <file name="include/api/swoole_http_server/localhost-ssl/server.key" role="test" />
+                <file name="include/api/swoole_http_server/localhost-ssl/server.pem" role="test" />
+                <file name="include/api/swoole_http_server/simple_http_server.php" role="test" />
+                <file name="include/api/swoole_http_server/simple_https_server.php" role="test" />
+                <file name="include/api/swoole_mysql/_swoole_unsigned_bigint_and_varbin_test.php" role="test" />
+                <file name="include/api/swoole_mysql/coredump.php" role="test" />
+                <file name="include/api/swoole_mysql/mysqli.php" role="test" />
+                <file name="include/api/swoole_mysql/query_without_connect.php" role="test" />
+                <file name="include/api/swoole_mysql/select1.php" role="test" />
+                <file name="include/api/swoole_mysql/swoole_mysql_connect_timeout.php" role="test" />
+                <file name="include/api/swoole_mysql/swoole_mysql_connect_twice.php" role="test" />
+                <file name="include/api/swoole_mysql/swoole_mysql_connection_reuse.php" role="test" />
+                <file name="include/api/swoole_mysql/swoole_mysql_init.php" role="test" />
+                <file name="include/api/swoole_mysql/swoole_mysql_insert.php" role="test" />
+                <file name="include/api/swoole_mysql/swoole_mysql_memory_leak.php" role="test" />
+                <file name="include/api/swoole_mysql/swoole_mysql_on_check.php" role="test" />
+                <file name="include/api/swoole_mysql/swoole_mysql_query.php" role="test" />
+                <file name="include/api/swoole_mysql/swoole_mysql_query_coredump.php" role="test" />
+                <file name="include/api/swoole_mysql/swoole_mysql_query_multi_filed.php" role="test" />
+                <file name="include/api/swoole_mysql/swoole_mysql_query_same_filed.php" role="test" />
+                <file name="include/api/swoole_mysql/swoole_mysql_recursive_query.php" role="test" />
+                <file name="include/api/swoole_mysql/swoole_mysql_refcout.php" role="test" />
+                <file name="include/api/swoole_mysql/swoole_mysql_sql_syntax_error.php" role="test" />
+                <file name="include/api/swoole_redis/connect_timeout.php" role="test" />
+                <file name="include/api/swoole_redis/doublefree_client.php" role="test" />
+                <file name="include/api/swoole_redis/doublefree_server.php" role="test" />
+                <file name="include/api/swoole_redis/redis_server_without_response.php" role="test" />
+                <file name="include/api/swoole_redis/redis_test.php" role="test" />
+                <file name="include/api/swoole_redis/simple_redis.php" role="test" />
+                <file name="include/api/swoole_server/TestServer.php" role="test" />
+                <file name="include/api/swoole_server/manager_process_exit.log" role="test" />
+                <file name="include/api/swoole_server/multi_protocol_server.php" role="test" />
+                <file name="include/api/swoole_server/opcode_server.php" role="test" />
+                <file name="include/api/swoole_server/reconnect_fail/tcp_client.php" role="test" />
+                <file name="include/api/swoole_server/reconnect_fail/tcp_serv.php" role="test" />
+                <file name="include/api/swoole_server/server_manager_process_exit.php" role="test" />
+                <file name="include/api/swoole_server/server_send_fast_recv_slow.php" role="test" />
+                <file name="include/api/swoole_server/simple_server.php" role="test" />
+                <file name="include/api/swoole_server/simple_tcp_server.php" role="test" />
+                <file name="include/api/swoole_server/simple_udp_server.php" role="test" />
+                <file name="include/api/swoole_server/tcp_task_server.php" role="test" />
+                <file name="include/api/swoole_server/testsendfile.txt" role="test" />
+                <file name="include/api/swoole_timer/accurate_test.php" role="test" />
+                <file name="include/api/swoole_timer/fixRate_vs_fixDelay.php" role="test" />
+                <file name="include/api/swoole_timer/invalid_args.php" role="test" />
+                <file name="include/api/swoole_timer/multi_timer.php" role="test" />
+                <file name="include/api/swoole_timer/register_shutdown_priority.php" role="test" />
+                <file name="include/api/swoole_utils/swoole_utils.php" role="test" />
+                <file name="include/api/swoole_websocket_server/send_large_request_data.php" role="test" />
+                <file name="include/api/swoole_websocket_server/send_small_request_data.php" role="test" />
+                <file name="include/api/swoole_websocket_server/swoole_websocket_server.php" role="test" />
+                <file name="include/api/swoole_websocket_server/websocket_client.php" role="test" />
+                <file name="include/api/tcp_server.php" role="test" />
+                <file name="include/bootstrap.php" role="test" />
+                <file name="include/config.php" role="test" />
+                <file name="include/ignore_files.php" role="test" />
+                <file name="include/lib/class.websocket_client.php" role="test" />
+                <file name="include/lib/curl.php" role="test" />
+                <file name="include/memoryleak/connect_host_not_found.php" role="test" />
+                <file name="include/memoryleak/tcp_client_memory_leak/tcp_serv.php" role="test" />
+                <file name="include/skipif.inc" role="test" />
+                <file name="include/skipifDarwin.inc" role="test" />
+                <file name="include/swoole.inc" role="test" />
+                <file name="include/toolkit/RandStr.php" role="test" />
+                <file name="include/toolkit/TcpStat.php" role="test" />
+                <file name="include/toolkit/functions.php" role="test" />
+                <file name="run-tests" role="test" />
+                <file name="start.sh" role="test" />
+                <file name="swoole_async/aio1.phpt" role="test" />
+                <file name="swoole_async/aio2.phpt" role="test" />
+                <file name="swoole_async/aio3.phpt" role="test" />
+                <file name="swoole_async/parallel_read_copy_10m_file_with_1m_chunk.phpt" role="test" />
+                <file name="swoole_async/parallel_read_copy_10m_file_with_512k_chunk.phpt" role="test" />
+                <file name="swoole_async/readfile.phpt" role="test" />
+                <file name="swoole_async/recursive_write.phpt" role="test" />
+                <file name="swoole_async/serial_read_copy_10m_file.phpt" role="test" />
+                <file name="swoole_async/swoole_async_dns_lookup.phpt" role="test" />
+                <file name="swoole_async/swoole_async_read.phpt" role="test" />
+                <file name="swoole_async/swoole_async_set.phpt" role="test" />
+                <file name="swoole_async/swoole_async_write.phpt" role="test" />
+                <file name="swoole_async/writefile.phpt" role="test" />
+                <file name="swoole_atomic/atomic.phpt" role="test" />
+                <file name="swoole_atomic/wait.phpt" role="test" />
+                <file name="swoole_buffer/buffer_append.phpt" role="test" />
+                <file name="swoole_buffer/buffer_clear.phpt" role="test" />
+                <file name="swoole_buffer/buffer_expand.phpt" role="test" />
+                <file name="swoole_buffer/buffer_read_write.phpt" role="test" />
+                <file name="swoole_buffer/buffer_recycle.phpt" role="test" />
+                <file name="swoole_buffer/buffer_substr.phpt" role="test" />
+                <file name="swoole_buffer/construct_buffer.phpt" role="test" />
+                <file name="swoole_channel/channel.phpt" role="test" />
+                <file name="swoole_client_async/big_package_memory_leak.phpt" role="test" />
+                <file name="swoole_client_async/buffer_full.php.phpt" role="test" />
+                <file name="swoole_client_async/connect_refuse.phpt" role="test" />
+                <file name="swoole_client_async/connect_timeout.phpt" role="test" />
+                <file name="swoole_client_async/connect_twice.phpt" role="test" />
+                <file name="swoole_client_async/getSocket_bug.phpt" role="test" />
+                <file name="swoole_client_async/getpeername.phpt" role="test" />
+                <file name="swoole_client_async/getsockname.phpt" role="test" />
+                <file name="swoole_client_async/sendfile.phpt" role="test" />
+                <file name="swoole_client_async/sleep_wake.phpt" role="test" />
+                <file name="swoole_client_async/swoole_client.phpt" role="test" />
+                <file name="swoole_client_sync/eof.phpt" role="test" />
+                <file name="swoole_client_sync/sendfile.phpt" role="test" />
+                <file name="swoole_client_sync/swoole_client_connect1-1.phpt" role="test" />
+                <file name="swoole_client_sync/swoole_client_connect1-2.phpt" role="test" />
+                <file name="swoole_client_sync/swoole_client_connect1-3.phpt" role="test" />
+                <file name="swoole_client_sync/swoole_client_send_recv.phpt" role="test" />
+                <file name="swoole_client_sync/swoole_client_sync_send_recv.phpt" role="test" />
+                <file name="swoole_client_sync/udp_client_sendto.phpt" role="test" />
+                <file name="swoole_coroutine/client_multi.phpt" role="test" />
+                <file name="swoole_coroutine/client_timeout.phpt" role="test" />
+                <file name="swoole_coroutine/dns_lookup.phpt" role="test" />
+                <file name="swoole_coroutine/http_client.phpt" role="test" />
+                <file name="swoole_coroutine/mysql.phpt" role="test" />
+                <file name="swoole_coroutine/redis.phpt" role="test" />
+                <file name="swoole_coroutine/redis_pool.phpt" role="test" />
+                <file name="swoole_coroutine/tcp_client.phpt" role="test" />
+                <file name="swoole_coroutine/udp_client.phpt" role="test" />
+                <file name="swoole_event/swoole_event.phpt" role="test" />
+                <file name="swoole_event/swoole_event_core.phpt" role="test" />
+                <file name="swoole_event/swoole_event_del.phpt" role="test" />
+                <file name="swoole_event/swoole_event_set.phpt" role="test" />
+                <file name="swoole_event/swoole_event_write.phpt" role="test" />
+                <file name="swoole_function/swoole_cpu_num.phpt" role="test" />
+                <file name="swoole_function/swoole_get_local_ip.phpt" role="test" />
+                <file name="swoole_function/swoole_set_process_name.phpt" role="test" />
+                <file name="swoole_function/swoole_version.phpt" role="test" />
+                <file name="swoole_http_client/connect_host_not_found.phpt" role="test" />
+                <file name="swoole_http_client/connect_port_not_listen.phpt" role="test" />
+                <file name="swoole_http_client/content_length.phpt" role="test" />
+                <file name="swoole_http_client/cookie.phpt" role="test" />
+                <file name="swoole_http_client/download.phpt" role="test" />
+                <file name="swoole_http_client/execute_without_method_and_content.phpt" role="test" />
+                <file name="swoole_http_client/get.phpt" role="test" />
+                <file name="swoole_http_client/get_with_query_string.phpt" role="test" />
+                <file name="swoole_http_client/get_without_query_string.phpt" role="test" />
+                <file name="swoole_http_client/http_proxy.phpt" role="test" />
+                <file name="swoole_http_client/http_request_connect_timeout.phpt" role="test" />
+                <file name="swoole_http_client/keepalive.phpt" role="test" />
+                <file name="swoole_http_client/method_delete.phpt" role="test" />
+                <file name="swoole_http_client/method_delete_with_payload.phpt" role="test" />
+                <file name="swoole_http_client/method_get.phpt" role="test" />
+                <file name="swoole_http_client/method_get_with_payload.phpt" role="test" />
+                <file name="swoole_http_client/method_patch.phpt" role="test" />
+                <file name="swoole_http_client/method_patch_with_payload.phpt" role="test" />
+                <file name="swoole_http_client/method_post.phpt" role="test" />
+                <file name="swoole_http_client/method_post_with_payload.phpt" role="test" />
+                <file name="swoole_http_client/method_put.phpt" role="test" />
+                <file name="swoole_http_client/method_put_with_payload.phpt" role="test" />
+                <file name="swoole_http_client/post.phpt" role="test" />
+                <file name="swoole_http_client/post_with_body.phpt" role="test" />
+                <file name="swoole_http_client/post_with_empty_content.phpt" role="test" />
+                <file name="swoole_http_client/recursive_get.phpt" role="test" />
+                <file name="swoole_http_client/request_timeout.phpt" role="test" />
+                <file name="swoole_http_client/set_cookie_zval.phpt" role="test" />
+                <file name="swoole_http_client/set_headers_core1.phpt" role="test" />
+                <file name="swoole_http_client/set_headers_core2.phpt" role="test" />
+                <file name="swoole_http_client/test_big_body.phpt" role="test" />
+                <file name="swoole_http_client/test_cookie.phpt" role="test" />
+                <file name="swoole_http_client/test_header.phpt" role="test" />
+                <file name="swoole_http_client/test_header_core.phpt" role="test" />
+                <file name="swoole_http_client/test_request.phpt" role="test" />
+                <file name="swoole_http_client/test_twice_send.phpt" role="test" />
+                <file name="swoole_http_client/test_uri.phpt" role="test" />
+                <file name="swoole_http_client/timeout.phpt" role="test" />
+                <file name="swoole_http_client/upload.phpt" role="test" />
+                <file name="swoole_http_client/websocket.phpt" role="test" />
+                <file name="swoole_http_server/gzip.phpt" role="test" />
+                <file name="swoole_http_server/rawContent.phpt" role="test" />
+                <file name="swoole_http_server/rawCookie.phpt" role="test" />
+                <file name="swoole_http_server/sendfile.phpt" role="test" />
+                <file name="swoole_https_client/get_with_query_string.phpt" role="test" />
+                <file name="swoole_https_client/get_without_query_string.phpt" role="test" />
+                <file name="swoole_https_client/http_proxy.phpt" role="test" />
+                <file name="swoole_https_client/method_delete.phpt" role="test" />
+                <file name="swoole_https_client/method_delete_with_payload.phpt" role="test" />
+                <file name="swoole_https_client/method_get.phpt" role="test" />
+                <file name="swoole_https_client/method_get_with_payload.phpt" role="test" />
+                <file name="swoole_https_client/method_patch.phpt" role="test" />
+                <file name="swoole_https_client/method_patch_with_payload.phpt" role="test" />
+                <file name="swoole_https_client/method_post.phpt" role="test" />
+                <file name="swoole_https_client/method_post_with_payload.phpt" role="test" />
+                <file name="swoole_https_client/method_put.phpt" role="test" />
+                <file name="swoole_https_client/method_put_with_payload.phpt" role="test" />
+                <file name="swoole_https_client/post_with_body.phpt" role="test" />
+                <file name="swoole_https_client/test_cookie.phpt" role="test" />
+                <file name="swoole_https_client/test_header.phpt" role="test" />
+                <file name="swoole_https_client/test_header_core.phpt" role="test" />
+                <file name="swoole_https_client/test_request.phpt" role="test" />
+                <file name="swoole_https_client/test_uri.phpt" role="test" />
+                <file name="swoole_mysql/connect_timeout.phpt" role="test" />
+                <file name="swoole_mysql/connect_twice.phpt" role="test" />
+                <file name="swoole_mysql/query_coredump.phpt" role="test" />
+                <file name="swoole_mysql/query_multifield.phpt" role="test" />
+                <file name="swoole_mysql/recursive_query.phpt" role="test" />
+                <file name="swoole_mysql/refcount_test.phpt" role="test" />
+                <file name="swoole_mysql/select1.phpt" role="test" />
+                <file name="swoole_mysql/simple_insert.phpt" role="test" />
+                <file name="swoole_mysql/simple_query.phpt" role="test" />
+                <file name="swoole_mysql/sql_syntax_error.phpt" role="test" />
+                <file name="swoole_mysql/transaction.phpt" role="test" />
+                <file name="swoole_mysql/transaction_rollback.phpt" role="test" />
+                <file name="swoole_process/echo.py" role="test" />
+                <file name="swoole_process/process_exec.phpt" role="test" />
+                <file name="swoole_process/process_msgqueue.phpt" role="test" />
+                <file name="swoole_process/process_push.phpt" role="test" />
+                <file name="swoole_process/process_select.phpt" role="test" />
+                <file name="swoole_process/signal.phpt" role="test" />
+                <file name="swoole_process/swoole_process_close.phpt" role="test" />
+                <file name="swoole_process/swoole_process_ctor.phpt" role="test" />
+                <file name="swoole_process/swoole_process_deamon.phpt" role="test" />
+                <file name="swoole_process/swoole_process_exec.phpt" role="test" />
+                <file name="swoole_process/swoole_process_exit.phpt" role="test" />
+                <file name="swoole_process/swoole_process_freeQueue.phpt" role="test" />
+                <file name="swoole_process/swoole_process_kill.phpt" role="test" />
+                <file name="swoole_process/swoole_process_name.phpt" role="test" />
+                <file name="swoole_process/swoole_process_pop.phpt" role="test" />
+                <file name="swoole_process/swoole_process_push.phpt" role="test" />
+                <file name="swoole_process/swoole_process_read.phpt" role="test" />
+                <file name="swoole_process/swoole_process_redirect.phpt" role="test" />
+                <file name="swoole_process/swoole_process_setaffinity.phpt" role="test" />
+                <file name="swoole_process/swoole_process_start.phpt" role="test" />
+                <file name="swoole_process/swoole_process_useQueue.phpt" role="test" />
+                <file name="swoole_process/swoole_process_wait.phpt" role="test" />
+                <file name="swoole_process/swoole_process_write.phpt" role="test" />
+                <file name="swoole_redis/connect_refuse.phpt" role="test" />
+                <file name="swoole_redis/connect_timeout.phpt" role="test" />
+                <file name="swoole_redis/get_set.phpt" role="test" />
+                <file name="swoole_redis/subscribe.phpt" role="test" />
+                <file name="swoole_redis_server/big_packet.phpt" role="test" />
+                <file name="swoole_serialize/001.phpt" role="test" />
+                <file name="swoole_serialize/002.phpt" role="test" />
+                <file name="swoole_serialize/003.phpt" role="test" />
+                <file name="swoole_serialize/004.phpt" role="test" />
+                <file name="swoole_serialize/005.phpt" role="test" />
+                <file name="swoole_serialize/006.phpt" role="test" />
+                <file name="swoole_serialize/007.phpt" role="test" />
+                <file name="swoole_serialize/008.phpt" role="test" />
+                <file name="swoole_serialize/009.phpt" role="test" />
+                <file name="swoole_serialize/010.phpt" role="test" />
+                <file name="swoole_serialize/012.phpt" role="test" />
+                <file name="swoole_serialize/013.phpt" role="test" />
+                <file name="swoole_serialize/014.phpt" role="test" />
+                <file name="swoole_serialize/016.phpt" role="test" />
+                <file name="swoole_serialize/017.phpt" role="test" />
+                <file name="swoole_serialize/019.phpt" role="test" />
+                <file name="swoole_serialize/packunpack.phpt" role="test" />
+                <file name="swoole_server/addListener.phpt" role="test" />
+                <file name="swoole_server/addProcess.phpt" role="test" />
+                <file name="swoole_server/bigPipeMessage.phpt" role="test" />
+                <file name="swoole_server/big_udp_packet.phpt" role="test" />
+                <file name="swoole_server/bind.phpt" role="test" />
+                <file name="swoole_server/connections.phpt" role="test" />
+                <file name="swoole_server/dispatch_mode_1.phpt" role="test" />
+                <file name="swoole_server/dispatch_mode_3.phpt" role="test" />
+                <file name="swoole_server/eof_protocol.phpt" role="test" />
+                <file name="swoole_server/eof_server.phpt" role="test" />
+                <file name="swoole_server/exist.phpt" role="test" />
+                <file name="swoole_server/getClientInfo.phpt" role="test" />
+                <file name="swoole_server/getClientList.phpt" role="test" />
+                <file name="swoole_server/getLastError.phpt" role="test" />
+                <file name="swoole_server/getSocket.phpt" role="test" />
+                <file name="swoole_server/heartbeat.phpt" role="test" />
+                <file name="swoole_server/heartbeat_true.phpt" role="test" />
+                <file name="swoole_server/length_protocol.phpt" role="test" />
+                <file name="swoole_server/listen_fail.phpt" role="test" />
+                <file name="swoole_server/max_request.phpt" role="test" />
+                <file name="swoole_server/protect.phpt" role="test" />
+                <file name="swoole_server/protect_false.phpt" role="test" />
+                <file name="swoole_server/reload.phpt" role="test" />
+                <file name="swoole_server/sendMessage.phpt" role="test" />
+                <file name="swoole_server/sendfile.phpt" role="test" />
+                <file name="swoole_server/shutdown.phpt" role="test" />
+                <file name="swoole_server/slow_client.phpt" role="test" />
+                <file name="swoole_server/stats.phpt" role="test" />
+                <file name="swoole_server/stop.phpt" role="test" />
+                <file name="swoole_server/task.phpt" role="test" />
+                <file name="swoole_server/taskWaitMulti.phpt" role="test" />
+                <file name="swoole_server/task_callback.phpt" role="test" />
+                <file name="swoole_server/taskwait.phpt" role="test" />
+                <file name="swoole_server/unsock_dgram.phpt" role="test" />
+                <file name="swoole_server/unsock_stream.phpt" role="test" />
+                <file name="swoole_server/use_process.phpt" role="test" />
+                <file name="swoole_server_port/swoole_server_port.phpt" role="test" />
+                <file name="swoole_table/foreach.phpt" role="test" />
+                <file name="swoole_table/key_value.phpt" role="test" />
+                <file name="swoole_timer/greater_than_0.phpt" role="test" />
+                <file name="swoole_timer/parameters_is_too_big.phpt" role="test" />
+                <file name="swoole_timer/swoole_timer_after.phpt" role="test" />
+                <file name="swoole_websocket_server/test_send_large_request_data.phpt" role="test" />
+                <file name="swoole_websocket_server/test_send_small_request_data.phpt" role="test" />
+                <file name="swoole_websocket_server/websocket_message.phpt" role="test" />
+                <file name="swoole_websocket_server/websocket_pingpong.phpt" role="test" />
+                <file name="swoole_websocket_server/websocket_push.phpt" role="test" />
+            </dir>
+        </dir>
+    </contents>
+    <dependencies>
+        <required>
+            <php>
+                <min>5.5.0</min>
+            </php>
+            <pearinstaller>
+                <min>1.4.0</min>
+            </pearinstaller>
+        </required>
+    </dependencies>
+    <providesextension>swoole</providesextension>
+    <extsrcrelease />
 </package>

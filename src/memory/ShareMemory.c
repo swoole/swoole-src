@@ -21,7 +21,6 @@ void* sw_shm_malloc(size_t size)
 {
     swShareMemory object;
     void *mem;
-    //object对象需要保存在头部
     size += sizeof(swShareMemory);
     mem = swShareMemory_mmap_create(&object, size, NULL);
     if (mem == NULL)
@@ -40,7 +39,6 @@ void* sw_shm_calloc(size_t num, size_t _size)
     swShareMemory object;
     void *mem;
     void *ret_mem;
-    //object对象需要保存在头部
     int size = sizeof(swShareMemory) + (num * _size);
     mem = swShareMemory_mmap_create(&object, size, NULL);
     if (mem == NULL)
@@ -51,33 +49,29 @@ void* sw_shm_calloc(size_t num, size_t _size)
     {
         memcpy(mem, &object, sizeof(swShareMemory));
         ret_mem = mem + sizeof(swShareMemory);
-        //calloc需要初始化
         bzero(ret_mem, size - sizeof(swShareMemory));
         return ret_mem;
     }
 }
 
+int sw_shm_protect(void *addr, int flags)
+{
+    swShareMemory *object = (swShareMemory *) (addr - sizeof(swShareMemory));
+    return mprotect(object, object->size, flags);
+}
+
 void sw_shm_free(void *ptr)
 {
-    //object对象在头部，如果释放了错误的对象可能会发生段错误
     swShareMemory *object = ptr - sizeof(swShareMemory);
-#ifdef SW_DEBUG
-    char check = *(char *)(ptr + object->size); //尝试访问
-    swTrace("check: %c", check);
-#endif
     swShareMemory_mmap_free(object);
 }
 
 void* sw_shm_realloc(void *ptr, size_t new_size)
 {
     swShareMemory *object = ptr - sizeof(swShareMemory);
-#ifdef SW_DEBUG
-    char check = *(char *)(ptr + object->size); //尝试访问
-    swTrace("check: %c", check);
-#endif
     void *new_ptr;
     new_ptr = sw_shm_malloc(new_size);
-    if(new_ptr==NULL)
+    if (new_ptr == NULL)
     {
         return NULL;
     }
@@ -89,7 +83,7 @@ void* sw_shm_realloc(void *ptr, size_t new_size)
     }
 }
 
-void *swShareMemory_mmap_create(swShareMemory *object, int size, char *mapfile)
+void *swShareMemory_mmap_create(swShareMemory *object, size_t size, char *mapfile)
 {
     void *mem;
     int tmpfd = -1;
@@ -125,7 +119,7 @@ void *swShareMemory_mmap_create(swShareMemory *object, int size, char *mapfile)
     if (!mem)
 #endif
     {
-        swWarn("mmap() failed. Error: %s[%d]", strerror(errno), errno);
+        swWarn("mmap(%ld) failed. Error: %s[%d]", size, strerror(errno), errno);
         return NULL;
     }
     else
@@ -141,7 +135,7 @@ int swShareMemory_mmap_free(swShareMemory *object)
     return munmap(object->mem, object->size);
 }
 
-void *swShareMemory_sysv_create(swShareMemory *object, int size, int key)
+void *swShareMemory_sysv_create(swShareMemory *object, size_t size, int key)
 {
     int shmid;
     void *mem;
@@ -151,10 +145,10 @@ void *swShareMemory_sysv_create(swShareMemory *object, int size, int key)
     {
         key = IPC_PRIVATE;
     }
-    //SHM_R | SHM_W |
+    //SHM_R | SHM_W
     if ((shmid = shmget(key, size, IPC_CREAT)) < 0)
     {
-        swWarn("shmget() failed. Error: %s[%d]", strerror(errno), errno);
+        swSysError("shmget(%d, %ld) failed.", key, size);
         return NULL;
     }
     if ((mem = shmat(shmid, NULL, 0)) == (void *) -1)

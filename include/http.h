@@ -52,16 +52,20 @@ typedef struct _swHttpRequest
     uint8_t offset;
     uint8_t version;
     uint8_t free_memory;
+    uint8_t opcode;
+    uint8_t excepted;
+
+    uint32_t url_offset;
+    uint32_t url_length;
 
     uint32_t header_length;
     uint32_t content_length;
-
     swString *buffer;
-
-    uint8_t opcode;
 
 } swHttpRequest;
 
+int swHttp_get_method(const char *method_str, int method_len);
+const char* swHttp_get_method_string(int method);
 int swHttpRequest_get_protocol(swHttpRequest *request);
 int swHttpRequest_get_content_length(swHttpRequest *request);
 int swHttpRequest_get_header_length(swHttpRequest *request);

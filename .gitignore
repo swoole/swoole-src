@@ -65,4 +65,9 @@ modules/*
 /benchmark/.idea/
 examples/c_module/.cproject
 examples/c_module/.project
-
+/tools/.idea/
+/tmp-php.ini
+.settings/
+tests/.idea
+cmake-build-debug/
+/swoole_server.cbp

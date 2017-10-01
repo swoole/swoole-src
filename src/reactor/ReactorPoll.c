@@ -15,7 +15,7 @@
 */
 
 #include "swoole.h"
-#include <sys/poll.h>
+#include <poll.h>
 
 static int swReactorPoll_add(swReactor *reactor, int fd, int fdtype);
 static int swReactorPoll_set(swReactor *reactor, int fd, int fdtype);
@@ -90,11 +90,6 @@ static int swReactorPoll_add(swReactor *reactor, int fd, int fdtype)
         return SW_ERR;
     }
 
-    if (swReactor_add(reactor, fd, fdtype) < 0)
-    {
-        return SW_ERR;
-    }
-
     swReactorPoll *object = reactor->object;
     int cur = reactor->event_num;
     if (reactor->event_num == object->max_fd_num)
@@ -121,6 +116,7 @@ static int swReactorPoll_add(swReactor *reactor, int fd, int fdtype)
     {
         object->events[cur].events |= POLLHUP;
     }
+    swReactor_add(reactor, fd, fdtype);
     reactor->event_num++;
     return SW_OK;
 }
@@ -161,16 +157,8 @@ static int swReactorPoll_del(swReactor *reactor, int fd)
     uint32_t i;
     swReactorPoll *object = reactor->object;
 
-    swTrace("fd=%d", fd);
-
-    if (swReactor_del(reactor, fd) < 0)
-    {
-        return SW_ERR;
-    }
-
     for (i = 0; i < reactor->event_num; i++)
     {
-        //找到了
         if (object->events[i].fd == fd)
         {
             uint32_t old_num = reactor->event_num;
@@ -189,6 +177,7 @@ static int swReactorPoll_del(swReactor *reactor, int fd)
                     object->events[i] = object->events[i + 1];
                 }
             }
+            swReactor_del(reactor, fd);
             return SW_OK;
         }
     }
@@ -214,6 +203,8 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
             reactor->timeout_msec = timeo->tv_sec * 1000 + timeo->tv_usec / 1000;
         }
     }
+
+    reactor->start = 1;
 
     while (reactor->running > 0)
     {

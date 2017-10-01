@@ -25,7 +25,11 @@
 
 typedef struct _swTableRow
 {
+#if SW_TABLE_USE_SPINLOCK
     sw_atomic_t lock;
+#else
+    pthread_mutex_t lock;
+#endif
     /**
      * 1:used, 0:empty
      */
@@ -53,9 +57,11 @@ typedef struct
     swHashMap *columns;
     uint16_t column_num;
     swLock lock;
-    uint32_t size;
-    uint32_t mask;
-    uint32_t item_size;
+    size_t size;
+    size_t mask;
+    size_t item_size;
+    size_t memory_size;
+    float conflict_proportion;
 
     /**
      * total rows that in active state(shm)
@@ -64,8 +70,6 @@ typedef struct
 
     swTableRow **rows;
     swMemoryPool *pool;
-
-    uint32_t compress_threshold;
 
     swTable_iterator *iterator;
 
@@ -104,12 +108,13 @@ enum swoole_table_find
     SW_TABLE_FIND_LIKE,
 };
 
-swTable* swTable_new(uint32_t rows_size);
+swTable* swTable_new(uint32_t rows_size, float conflict_proportion);
+size_t swTable_get_memory_size(swTable *table);
 int swTable_create(swTable *table);
 void swTable_free(swTable *table);
 int swTableColumn_add(swTable *table, char *name, int len, int type, int size);
-swTableRow* swTableRow_set(swTable *table, char *key, int keylen, sw_atomic_t **rowlock);
-swTableRow* swTableRow_get(swTable *table, char *key, int keylen, sw_atomic_t **rowlock);
+swTableRow* swTableRow_set(swTable *table, char *key, int keylen, swTableRow **rowlock);
+swTableRow* swTableRow_get(swTable *table, char *key, int keylen, swTableRow **rowlock);
 
 void swTable_iterator_rewind(swTable *table);
 swTableRow* swTable_iterator_current(swTable *table);
@@ -119,6 +124,24 @@ int swTableRow_del(swTable *table, char *key, int keylen);
 static sw_inline swTableColumn* swTableColumn_get(swTable *table, char *column_key, int keylen)
 {
     return swHashMap_find(table->columns, column_key, keylen);
+}
+
+static sw_inline void swTableRow_lock(swTableRow *row)
+{
+#if SW_TABLE_USE_SPINLOCK
+    sw_spinlock(&row->lock);
+#else
+    pthread_mutex_lock(&row->lock);
+#endif
+}
+
+static sw_inline void swTableRow_unlock(swTableRow *row)
+{
+#if SW_TABLE_USE_SPINLOCK
+    sw_spinlock_release(&row->lock);
+#else
+    pthread_mutex_unlock(&row->lock);
+#endif
 }
 
 typedef uint32_t swTable_string_length_t;

@@ -17,9 +17,9 @@
 #include "swoole.h"
 
 #include <sys/stat.h>
-#include <sys/poll.h>
+#include <poll.h>
 
-int swSocket_sendfile_sync(int sock, char *filename, off_t offset, double timeout)
+int swSocket_sendfile_sync(int sock, char *filename, off_t offset, size_t length, double timeout)
 {
     int timeout_ms = timeout < 0 ? -1 : timeout * 1000;
     int file_fd = open(filename, O_RDONLY);
@@ -29,18 +29,24 @@ int swSocket_sendfile_sync(int sock, char *filename, off_t offset, double timeou
         return SW_ERR;
     }
 
-    struct stat file_stat;
-    if (fstat(file_fd, &file_stat) < 0)
+    if (length == 0)
     {
-        swWarn("fstat() failed. Error: %s[%d]", strerror(errno), errno);
-        close(file_fd);
-        return SW_ERR;
+        struct stat file_stat;
+        if (fstat(file_fd, &file_stat) < 0)
+        {
+            swWarn("fstat() failed. Error: %s[%d]", strerror(errno), errno);
+            close(file_fd);
+            return SW_ERR;
+        }
+        length = file_stat.st_size;
+    }
+    else
+    {
+        length = offset + length;
     }
 
     int n, sendn;
-    size_t file_size = file_stat.st_size;
-
-    while (offset < file_size)
+    while (offset < length)
     {
         if (swSocket_wait(sock, timeout_ms, SW_EVENT_WRITE) < 0)
         {
@@ -49,7 +55,7 @@ int swSocket_sendfile_sync(int sock, char *filename, off_t offset, double timeou
         }
         else
         {
-            sendn = (file_size - offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : file_size - offset;
+            sendn = (length - offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : length - offset;
             n = swoole_sendfile(sock, file_fd, &offset, sendn);
             if (n <= 0)
             {
@@ -308,7 +314,7 @@ int swSocket_bind(int sock, int type, char *host, int *port)
     int option = 1;
     if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int)) < 0)
     {
-        swSysError("setsockopt(%d, SO_REUSEADDR) failed.", sock);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "setsockopt(%d, SO_REUSEADDR) failed.", sock);
     }
     //reuse port
 #ifdef HAVE_REUSEPORT
@@ -338,10 +344,13 @@ int swSocket_bind(int sock, int type, char *host, int *port)
         addr_in6.sin6_port = htons(*port);
         addr_in6.sin6_family = AF_INET6;
         ret = bind(sock, (struct sockaddr *) &addr_in6, sizeof(addr_in6));
-
-        len = sizeof(addr_in6);
-        if (getsockname(sock, (struct sockaddr *)&addr_in6, &len) != -1) {
-            *port = ntohs(addr_in6.sin6_port);
+        if (ret == 0 && *port == 0)
+        {
+            len = sizeof(addr_in6);
+            if (getsockname(sock, (struct sockaddr *) &addr_in6, &len) != -1)
+            {
+                *port = ntohs(addr_in6.sin6_port);
+            }
         }
     }
     //IPv4
@@ -352,16 +361,19 @@ int swSocket_bind(int sock, int type, char *host, int *port)
         addr_in4.sin_port = htons(*port);
         addr_in4.sin_family = AF_INET;
         ret = bind(sock, (struct sockaddr *) &addr_in4, sizeof(addr_in4));
-
-        len = sizeof(addr_in4);
-        if (getsockname(sock, (struct sockaddr *)&addr_in4, &len) != -1) {
-            *port = ntohs(addr_in4.sin_port);
+        if (ret == 0 && *port == 0)
+        {
+            len = sizeof(addr_in4);
+            if (getsockname(sock, (struct sockaddr *) &addr_in4, &len) != -1)
+            {
+                *port = ntohs(addr_in4.sin_port);
+            }
         }
     }
     //bind failed
     if (ret < 0)
     {
-        swWarn("bind(%s:%d) failed. Error: %s [%d]", host, *port, strerror(errno), errno);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "bind(%s:%d) failed. Error: %s [%d]", host, *port, strerror(errno), errno);
         return SW_ERR;
     }
 

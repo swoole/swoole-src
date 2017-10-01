@@ -28,36 +28,49 @@
 #define SW_MAX_WORKER_GROUP        2
 #define SW_MAX_FILE_CONTENT        (64*1024*1024) //for swoole_file_get_contents
 #define SW_MAX_LISTEN_PORT         60000
+#define SW_MAX_CONCURRENT_TASK     1024
 
-//#define SW_USE_MALLOC_TRIM
+#ifdef HAVE_MALLOC_TRIM
+#define SW_USE_MALLOC_TRIM
+#endif
+
+#define SW_MALLOC_TRIM_INTERVAL    1
+#define SW_MALLOC_TRIM_PAD         0
 #define SW_USE_EVENT_TIMER
 #define SW_USE_MONOTONIC_TIME
 //#define SW_USE_RINGBUFFER
+
+//#define SW_USE_TIMEWHEEL
+#define SW_TIMEWHEEL_SIZE          60
 
 //#define SW_DEBUG_REMOTE_OPEN
 #define SW_DEBUG_SERVER_HOST       "127.0.0.1"
 #define SW_DEBUG_SERVER_PORT       9999
 
+#define SW_DEBUG_SERVER_DESTRUCT   0
+
 #define SW_SOCKET_OVERFLOW_WAIT    100
 #define SW_SOCKET_MAX_DEFAULT      65536
 #define SW_SOCKET_BUFFER_SIZE      (8*1024*1024)
+#define SW_SYSTEMD_FDS_START       3
 
 #define SW_GLOBAL_MEMORY_PAGESIZE  (1024*1024*2) //全局内存的分页
 
 #define SW_MAX_THREAD_NCPU         4 // n * cpu_num
 #define SW_MAX_WORKER_NCPU         1000 // n * cpu_num
 #define SW_MAX_REQUEST             5000          //最大请求包数
-#define SW_MAX_RELOAD_WAIT         10           //最大reload等待次数
 
+#define SW_CORO_SCHEDUER_TIMEOUT   100           //协程强制超时回调的单位时间 100ms
 //#define SW_CONNECTION_LIST_EXPAND  (4096*2)  //动态扩容的数量
 
-#define SW_HOST_MAXSIZE            128
+#define SW_HOST_MAXSIZE            104  // Linux has 108 UNIX_PATH_MAX, but BSD/MacOS limit is only 104
 
 //#define SW_DEBUG                 //debug
 #define SW_LOG_NO_SRCINFO          //no source info
 #define SW_LOG_TRACE_OPEN          0
+#define SW_LOG_TRACE_FLAGS         (SW_TRACE_EVENT | SW_TRACE_REACTOR | SW_TRACE_CLOSE)
 //#define SW_BUFFER_SIZE           65495 //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
-#define SW_CLIENT_BUFFER_SIZE      65535
+#define SW_CLIENT_BUFFER_SIZE      65536
 //#define SW_CLIENT_RECV_AGAIN
 #define SW_CLIENT_DEFAULT_TIMEOUT  0.5
 #define SW_CLIENT_MAX_PORT         65535
@@ -105,6 +118,8 @@
 #define SW_AIO_THREAD_NUM_MAX            32
 #define SW_AIO_MAX_FILESIZE              4194304  //4M
 #define SW_AIO_EVENT_NUM                 128
+#define SW_AIO_DEFAULT_CHUNK_SIZE        65536
+#define SW_AIO_MAX_CHUNK_SIZE            1*1024*1024
 //#define SW_AIO_THREAD_USE_CHANNEL
 #define SW_AIO_MAX_EVENTS                128
 //#define SW_THREADPOOL_USE_CHANNEL
@@ -121,6 +136,7 @@
 //#define SW_WORKER_RECV_AGAIN
 
 #define SW_WORKER_USE_SIGNALFD
+#define SW_WORKER_MAX_WAIT_TIME          30           //最大等待时间
 
 //#define SW_WORKER_SEND_CHUNK
 
@@ -169,6 +185,7 @@
  */
 #define SW_BUFFER_OUTPUT_SIZE            (1024*1024*2)
 #define SW_BUFFER_INPUT_SIZE             (1024*1024*2)
+#define SW_BUFFER_MIN_SIZE               65536
 #define SW_PIPE_BUFFER_SIZE              (1024*1024*32)
 
 #define SW_MEMORY_POOL_SLAB_PAGE         10     //内存池的页数
@@ -199,10 +216,10 @@
 #define SW_FILE_CHUNK_SIZE               65536
 
 #define SW_TABLE_CONFLICT_PROPORTION     0.2 //20%
-#define SW_TABLE_COMPRESS_PROPORTION     0.5 //50% skip, will compress the row list
 #define SW_TABLE_KEY_SIZE                64
 //#define SW_TABLE_USE_PHP_HASH
 //#define SW_TABLE_DEBUG
+#define SW_TABLE_USE_SPINLOCK            1
 
 #define SW_SSL_BUFFER_SIZE               16384
 #define SW_SSL_CIPHER_LIST               "EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH"
@@ -221,6 +238,7 @@
 
 #define SW_DNS_HOST_BUFFER_SIZE          16
 #define SW_DNS_SERVER_PORT               53
+#define SW_DNS_DEFAULT_SERVER            "8.8.8.8"
 
 //#define SW_HTTP_CLIENT_ENABLE
 
@@ -233,9 +251,15 @@
 #define SW_HTTP_HEADER_MAX_SIZE          8192
 #define SW_HTTP_HEADER_KEY_SIZE          128
 #define SW_HTTP_HEADER_VALUE_SIZE        4096
+#define SW_HTTP_HEADER_BUFFER_SIZE       128
 #define SW_HTTP_COMPRESS_GZIP
 #define SW_HTTP_UPLOAD_TMPDIR_SIZE       256
 #define SW_HTTP_DATE_FORMAT              "D, d M Y H:i:s T"
+#define SW_HTTP_RFC1123_DATE_GMT         "%a, %d %b %Y %T GMT"
+#define SW_HTTP_RFC1123_DATE_UTC         "%a, %d %b %Y %T UTC"
+#define SW_HTTP_RFC850_DATE              "%A, %d-%b-%y %T GMT"
+#define SW_HTTP_ASCTIME_DATE             "%a %b %e %T %Y"
+
 //#define SW_HTTP_100_CONTINUE
 #define SW_HTTP2_DATA_BUFFSER_SIZE       8192
 #define SW_HTTP2_MAX_CONCURRENT_STREAMS  128
@@ -255,6 +279,8 @@
 #define SW_MYSQL_DEFAULT_PORT            3306
 #define SW_MYSQL_CONNECT_TIMEOUT         1.0
 #define SW_MYSQL_DEFAULT_CHARSET         33  //0x21, utf8_general_ci
+
+#define SW_REDIS_CONNECT_TIMEOUT         1.0
 
 #define SW_PHP_FUNCTION_MAX_ARG          16
 

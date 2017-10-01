@@ -39,6 +39,7 @@ int swRedis_recv(swProtocol *protocol, swConnection *conn, swString *buffer)
     char *p, *pe;
     int ret;
     char *buf_ptr;
+    size_t buf_size;
 
     swRedis_request *request;
 
@@ -54,8 +55,9 @@ int swRedis_recv(swProtocol *protocol, swConnection *conn, swString *buffer)
     }
 
     recv_data: buf_ptr = buffer->str + buffer->length;
+    buf_size = buffer->size - buffer->length;
 
-    int n = swConnection_recv(conn, buf_ptr, SW_BUFFER_SIZE_STD, 0);
+    int n = swConnection_recv(conn, buf_ptr, buf_size, 0);
     if (n < 0)
     {
         switch (swConnection_error(errno))
@@ -76,8 +78,6 @@ int swRedis_recv(swProtocol *protocol, swConnection *conn, swString *buffer)
     }
     else
     {
-        p = buffer->str + buffer->length;
-        pe = p + n;
         buffer->length += n;
 
         if (strncmp(buffer->str + buffer->length - SW_CRLF_LEN, SW_CRLF, SW_CRLF_LEN) != 0)
@@ -97,11 +97,14 @@ int swRedis_recv(swProtocol *protocol, swConnection *conn, swString *buffer)
             else if (buffer->length == buffer->size)
             {
                 package_too_big:
-                swWarn("Package is too big. package_length=%d", (int )buffer->length);
+                swWarn("Package is too big. package_length=%ld.", buffer->length);
                 return SW_ERR;
             }
             goto recv_data;
         }
+
+        p = buffer->str;
+        pe = p + buffer->length;
 
         do
         {
@@ -123,7 +126,7 @@ int swRedis_recv(swProtocol *protocol, swConnection *conn, swString *buffer)
                     {
                         break;
                     }
-                    if (ret + buffer->length > protocol->package_max_length)
+                    if (ret + (p - buffer->str) > protocol->package_max_length)
                     {
                         goto package_too_big;
                     }
@@ -149,6 +152,7 @@ int swRedis_recv(swProtocol *protocol, swConnection *conn, swString *buffer)
                     p += request->n_bytes_total + SW_CRLF_LEN;
                     request->n_bytes_total = 0;
                     request->n_lines_received++;
+                    request->state = SW_REDIS_RECEIVE_LENGTH;
 
                     if (request->n_lines_received == request->n_lines_total)
                     {

@@ -2,6 +2,8 @@
  +----------------------------------------------------------------------+
  | Swoole                                                               |
  +----------------------------------------------------------------------+
+ | Copyright (c) 2012-2017 The Swoole Group                             |
+ +----------------------------------------------------------------------+
  | This source file is subject to version 2.0 of the Apache license,    |
  | that is bundled with this package in the file LICENSE, and is        |
  | available through the world-wide-web at the following url:           |
@@ -21,7 +23,7 @@
 int swHttp2_parse_frame(swProtocol *protocol, swConnection *conn, char *data, uint32_t length)
 {
     int wait_body = 0;
-    int package_length;
+    int package_length = 0;
 
     while (length > 0)
     {
@@ -62,30 +64,30 @@ int swHttp2_parse_frame(swProtocol *protocol, swConnection *conn, char *data, ui
 
 int swHttp2_send_setting_frame(swProtocol *protocol, swConnection *conn)
 {
-    char setting_frame[(SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_SETTING_OPTION_SIZE) * 3];
+    char setting_frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_SETTING_OPTION_SIZE * 3];
     char *p = setting_frame;
     uint16_t id;
     uint32_t value;
 
-    swHttp2_set_frame_header(p, SW_HTTP2_TYPE_SETTINGS, SW_HTTP2_SETTING_OPTION_SIZE, 0, 0);
-    id = ntohs(SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS);
-    memcpy(p + SW_HTTP2_FRAME_HEADER_SIZE, &id, sizeof(id));
-    value = ntohl(SW_HTTP2_MAX_CONCURRENT_STREAMS);
-    memcpy(p + SW_HTTP2_FRAME_HEADER_SIZE + 2, &value, sizeof(value));
-    p += SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_SETTING_OPTION_SIZE;
+    swHttp2_set_frame_header(p, SW_HTTP2_TYPE_SETTINGS, SW_HTTP2_SETTING_OPTION_SIZE * 3, 0, 0);
+    p += SW_HTTP2_FRAME_HEADER_SIZE;
 
-    swHttp2_set_frame_header(p, SW_HTTP2_TYPE_SETTINGS, SW_HTTP2_SETTING_OPTION_SIZE, 0, 0);
-    id = ntohs(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE);
-    memcpy(p + SW_HTTP2_FRAME_HEADER_SIZE, &id, sizeof(id));
-    value = ntohl(SW_HTTP2_MAX_WINDOW);
-    memcpy(p + SW_HTTP2_FRAME_HEADER_SIZE + 2, &value, sizeof(value));
-    p += SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_SETTING_OPTION_SIZE;
+    id = htons(SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS);
+    memcpy(p, &id, sizeof(id));
+    value = htonl(SW_HTTP2_MAX_CONCURRENT_STREAMS);
+    memcpy(p + 2, &value, sizeof(value));
+    p += SW_HTTP2_SETTING_OPTION_SIZE;
 
-    swHttp2_set_frame_header(p, SW_HTTP2_TYPE_SETTINGS, SW_HTTP2_SETTING_OPTION_SIZE, 0, 0);
-    id = ntohs(SW_HTTP2_SETTINGS_MAX_FRAME_SIZE);
-    memcpy(p + SW_HTTP2_FRAME_HEADER_SIZE, &id, sizeof(id));
-    value = ntohl(SW_HTTP2_MAX_FRAME_SIZE);
-    memcpy(p + SW_HTTP2_FRAME_HEADER_SIZE + 2, &value, sizeof(value));
+    id = htons(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE);
+    memcpy(p, &id, sizeof(id));
+    value = htonl(SW_HTTP2_MAX_WINDOW);
+    memcpy(p + 2, &value, sizeof(value));
+    p += SW_HTTP2_SETTING_OPTION_SIZE;
+
+    id = htons(SW_HTTP2_SETTINGS_MAX_FRAME_SIZE);
+    memcpy(p, &id, sizeof(id));
+    value = htonl(SW_HTTP2_MAX_FRAME_SIZE);
+    memcpy(p + 2, &value, sizeof(value));
 
     return swConnection_send(conn, setting_frame, sizeof(setting_frame), 0);
 }

@@ -16,51 +16,55 @@
 
 #include "swoole.h"
 
-#define SW_PAGE_SIZE  256
+#define SW_MIN_PAGE_SIZE  4096
+
+typedef struct _swMemoryGlobal_page
+{
+    struct _swMemoryGlobal_page *next;
+    char memory[0];
+} swMemoryGlobal_page;
 
 typedef struct _swMemoryGlobal
 {
-    int size;  //总容量
-    void *mem; //剩余内存的指针
-    int offset; //内存分配游标
-    char shared;
-    int pagesize;
-    swLock lock; //锁
-    void *root_page;
-    void *cur_page;
+    uint8_t shared;
+    uint32_t pagesize;
+    swLock lock;
+    swMemoryGlobal_page *root_page;
+    swMemoryGlobal_page *current_page;
+    uint32_t current_offset;
 } swMemoryGlobal;
 
 static void *swMemoryGlobal_alloc(swMemoryPool *pool, uint32_t size);
 static void swMemoryGlobal_free(swMemoryPool *pool, void *ptr);
 static void swMemoryGlobal_destroy(swMemoryPool *poll);
-static void* swMemoryGlobal_new_page(swMemoryGlobal *gm);
+static swMemoryGlobal_page* swMemoryGlobal_new_page(swMemoryGlobal *gm);
 
-swMemoryPool* swMemoryGlobal_new(int pagesize, char shared)
+swMemoryPool* swMemoryGlobal_new(uint32_t pagesize, uint8_t shared)
 {
     swMemoryGlobal gm, *gm_ptr;
-    assert(pagesize >= SW_PAGE_SIZE);
+    assert(pagesize >= SW_MIN_PAGE_SIZE);
     bzero(&gm, sizeof(swMemoryGlobal));
+
     gm.shared = shared;
     gm.pagesize = pagesize;
-    void *first_page = swMemoryGlobal_new_page(&gm);
-    if (first_page == NULL)
+
+    swMemoryGlobal_page *page = swMemoryGlobal_new_page(&gm);
+    if (page == NULL)
     {
         return NULL;
     }
-    //分配内存需要加锁
-    if (swMutex_create(&gm.lock, 1) < 0)
+    if (swMutex_create(&gm.lock, shared) < 0)
     {
         return NULL;
     }
-    //root
-    gm.root_page = first_page;
-    gm.cur_page = first_page;
 
-    gm_ptr = (swMemoryGlobal *) gm.mem;
-    gm.offset += sizeof(swMemoryGlobal);
+    gm.root_page = page;
 
-    swMemoryPool *allocator = (swMemoryPool *) (gm.mem + gm.offset);
-    gm.offset += sizeof(swMemoryPool);
+    gm_ptr = (swMemoryGlobal *) page->memory;
+    gm.current_offset += sizeof(swMemoryGlobal);
+
+    swMemoryPool *allocator = (swMemoryPool *) (page->memory + gm.current_offset);
+    gm.current_offset += sizeof(swMemoryPool);
 
     allocator->object = gm_ptr;
     allocator->alloc = swMemoryGlobal_alloc;
@@ -71,23 +75,24 @@ swMemoryPool* swMemoryGlobal_new(int pagesize, char shared)
     return allocator;
 }
 
-/**
- * 使用前8个字节保存next指针
- */
-static void* swMemoryGlobal_new_page(swMemoryGlobal *gm)
+static swMemoryGlobal_page* swMemoryGlobal_new_page(swMemoryGlobal *gm)
 {
-    void *page = (gm->shared == 1) ? sw_shm_malloc(gm->pagesize) : sw_malloc(gm->pagesize);
+    swMemoryGlobal_page *page = (gm->shared == 1) ? sw_shm_malloc(gm->pagesize) : sw_malloc(gm->pagesize);
     if (page == NULL)
     {
         return NULL;
     }
     bzero(page, gm->pagesize);
-    //将next设置为NULL
-    ((void **)page)[0] = NULL;
+    page->next = NULL;
 
-    gm->offset = 0;
-    gm->size = gm->pagesize - sizeof(void*);
-    gm->mem = page + sizeof(void*);
+    if (gm->current_page != NULL)
+    {
+        gm->current_page->next = page;
+    }
+
+    gm->current_page = page;
+    gm->current_offset = 0;
+
     return page;
 }
 
@@ -95,47 +100,44 @@ static void *swMemoryGlobal_alloc(swMemoryPool *pool, uint32_t size)
 {
     swMemoryGlobal *gm = pool->object;
     gm->lock.lock(&gm->lock);
-    if (size > gm->pagesize)
+    if (size > gm->pagesize - sizeof(swMemoryGlobal_page))
     {
-        swWarn("swMemoryGlobal_alloc: alloc %d bytes not allow. Max size=%d", size, gm->pagesize);
+        swWarn("failed to alloc %d bytes, exceed the maximum size[%d].", size, gm->pagesize - (int) sizeof(swMemoryGlobal_page));
+        gm->lock.unlock(&gm->lock);
         return NULL;
     }
-
-    if (gm->offset + size > gm->size)
+    if (gm->current_offset + size > gm->pagesize - sizeof(swMemoryGlobal_page))
     {
-        //没有足够的内存,再次申请
-        swWarn("swMemoryGlobal_alloc new page: size=%d|offset=%d|alloc=%d", gm->size, gm->offset, size);
-        void *page = swMemoryGlobal_new_page(gm);
+        swMemoryGlobal_page *page = swMemoryGlobal_new_page(gm);
         if (page == NULL)
         {
             swWarn("swMemoryGlobal_alloc alloc memory error.");
+            gm->lock.unlock(&gm->lock);
             return NULL;
         }
-        //将next指向新申请的内存块
-        ((void **) gm->cur_page)[0] = page;
-        gm->cur_page = page;
+        gm->current_page = page;
     }
-    void *mem = gm->mem + gm->offset;
-    gm->offset += size;
+    void *mem = gm->current_page->memory + gm->current_offset;
+    gm->current_offset += size;
     gm->lock.unlock(&gm->lock);
     return mem;
 }
 
 static void swMemoryGlobal_free(swMemoryPool *pool, void *ptr)
 {
-    swWarn("swMemoryGlobal Allocator no free.");
+    swWarn("swMemoryGlobal Allocator don't need to release.");
 }
 
 static void swMemoryGlobal_destroy(swMemoryPool *poll)
 {
     swMemoryGlobal *gm = poll->object;
-    void *page = gm->root_page;
-    void *next =((void **)page)[0];
-    while(next != NULL)
-    {
-        next = ((void **)next)[0];
-        sw_shm_free(page);
-        swTrace("swMemoryGlobal free=%p", next);
-    }
-}
+    swMemoryGlobal_page *page = gm->root_page;
+    swMemoryGlobal_page *next;
 
+    do
+    {
+        next = page->next;
+        sw_shm_free(page);
+        page = next;
+    } while (page);
+}

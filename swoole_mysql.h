@@ -134,6 +134,16 @@ enum mysql_field_types
     SW_MYSQL_TYPE_GEOMETRY = 255
 };
 
+#ifdef SW_COROUTINE
+typedef enum
+{
+	SW_MYSQL_CORO_STATUS_CLOSED,
+	SW_MYSQL_CORO_STATUS_READY,
+	SW_MYSQL_CORO_STATUS_WAIT,
+	SW_MYSQL_CORO_STATUS_DONE
+} mysql_io_status;
+#endif
+
 #define SW_MYSQL_CLIENT_CONNECT_WITH_DB          8
 #define SW_MYSQL_CLIENT_PROTOCOL_41              512
 #define SW_MYSQL_CLIENT_PLUGIN_AUTH              (1UL << 19)
@@ -228,8 +238,8 @@ typedef union
 typedef struct
 {
     mysql_field *columns;
-    uint16_t num_column;
-    uint16_t index_column;
+    ulong_t num_column;
+    ulong_t index_column;
     uint32_t num_row;
     uint8_t wait_recv;
     uint8_t response_type;
@@ -248,6 +258,12 @@ typedef struct
 
 typedef struct
 {
+#ifdef SW_COROUTINE
+    zend_bool defer;
+	zend_bool _defer;
+	mysql_io_status iowait;
+	zval *result;
+#endif
     uint8_t state;
     uint8_t handshake;
     swString *buffer;
@@ -256,6 +272,8 @@ typedef struct
     zval *callback;
     zval *onClose;
     int fd;
+    uint32_t transaction :1;
+    uint32_t connected :1;
 
     mysql_connector connector;
 
@@ -284,6 +302,17 @@ typedef struct
                                     (((uint32_t) ((zend_uchar) (A)[5])) << 8) +\
                                     (((uint32_t) ((zend_uchar) (A)[6])) << 16) +\
                                     (((uint32_t) ((zend_uchar) (A)[7])) << 24))) << 32))
+
+int mysql_get_result(mysql_connector *connector, char *buf, int len);
+int mysql_get_charset(char *name);
+int mysql_handshake(mysql_connector *connector, char *buf, int len);
+int mysql_request(swString *sql, swString *buffer);
+int mysql_response(mysql_client *client);
+
+#ifdef SW_MYSQL_DEBUG
+void mysql_client_info(mysql_client *client);
+void mysql_column_info(mysql_field *field);
+#endif
 
 static sw_inline void mysql_pack_length(int length, char *buf)
 {
@@ -359,7 +388,7 @@ static sw_inline int mysql_decode_field(char *buf, int len, mysql_field *col)
     /**
      * string buffer
      */
-    char *_buffer = emalloc(len);
+    char *_buffer = (char*)emalloc(len);
     if (!_buffer)
     {
         return -SW_MYSQL_ERR_BAD_LCB;
@@ -501,11 +530,11 @@ static sw_inline int mysql_decode_field(char *buf, int len, mysql_field *col)
     i += 4;
 
     /* type */
-    col->type = (uchar) buf[i];
+    col->type = (enum mysql_field_types) (uchar)buf[i];
     i += 1;
 
     /* flags */
-    col->flags = mysql_uint3korr(&buf[i]);
+    col->flags = mysql_uint2korr(&buf[i]);
     i += 2;
 
     /* decimals */

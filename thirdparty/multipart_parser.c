@@ -63,25 +63,25 @@ enum state {
   s_end
 };
 
-multipart_parser* multipart_parser_init
-    (const char *boundary, size_t boundary_length, const multipart_parser_settings* settings) {
+multipart_parser* multipart_parser_init(const char *boundary, size_t boundary_length,
+        const multipart_parser_settings* settings)
+{
+    multipart_parser* p = calloc(sizeof(multipart_parser) + boundary_length + boundary_length + 9 + 4, sizeof(char));
+    memcpy(p->multipart_boundary, "--", 2);
+    memcpy(p->multipart_boundary + 2, boundary, boundary_length);
+    p->multipart_boundary[2 + boundary_length] = 0;
 
-  multipart_parser* p = calloc(sizeof(multipart_parser) +
-                               boundary_length +
-                               boundary_length + 9 + 4, sizeof(char));
-  strncpy(p->multipart_boundary, "--", 2);
-  strncpy(p->multipart_boundary + 2, boundary, boundary_length);
-//printf("boundary:%s\r\n\r\n", p->multipart_boundary);
+#if 0
+    printf("boundary: %s\r\n\r\n", p->multipart_boundary);
+#endif
 
-  p->boundary_length = boundary_length + 2;
-  
-  p->lookbehind = (p->multipart_boundary + p->boundary_length + 1);
+    p->boundary_length = boundary_length + 2;
+    p->lookbehind = (p->multipart_boundary + p->boundary_length + 1);
+    p->index = 0;
+    p->state = s_start;
+    p->settings = settings;
 
-  p->index = 0;
-  p->state = s_start;
-  p->settings = settings;
-
-  return p;
+    return p;
 }
 
 void multipart_parser_free(multipart_parser* p) {

@@ -20,9 +20,6 @@ PHP_ARG_ENABLE(swoole-debug, whether to enable swoole debug,
 PHP_ARG_ENABLE(sockets, enable sockets support,
 [  --enable-sockets        Do you have sockets extension?], no, no)
 
-PHP_ARG_ENABLE(ringbuffer, enable ringbuffer shared memory pool support,
-[  --enable-ringbuffer     Use ringbuffer memory pool?], no, no)
-
 PHP_ARG_ENABLE(async_redis, enable async_redis support,
 [  --enable-async-redis    Do you have hiredis?], no, no)
 
@@ -33,19 +30,16 @@ PHP_ARG_ENABLE(http2, enable http2.0 support,
 [  --enable-http2          Use http2.0?], no, no)
 
 PHP_ARG_ENABLE(thread, enable thread support,
-[  --enable-thread         Use thread?], no, no)
-
-PHP_ARG_ENABLE(jemalloc, enable jemalloc support,
-[  --enable-jemalloc       Use jemalloc?], no, no)
-
-PHP_ARG_ENABLE(tcmalloc, enable tcmalloc support,
-[  --enable-tcmalloc       Use tcmalloc?], no, no)
+[  --enable-thread         Experimental: Use thread?], no, no)
 
 PHP_ARG_ENABLE(hugepage, enable hugepage support,
-[  --enable-hugepage       Use hugepage?], no, no)
+[  --enable-hugepage       Experimental: Use hugepage?], no, no)
 
 PHP_ARG_ENABLE(swoole, swoole support,
 [  --enable-swoole         Enable swoole support], [enable_swoole="yes"])
+
+PHP_ARG_ENABLE(swoole_static, swoole static compile support,
+[  --enable-swoole-static    Enable swoole static compile support], no, no)
 
 PHP_ARG_WITH(swoole, swoole support,
 [  --with-swoole           With swoole support])
@@ -53,8 +47,23 @@ PHP_ARG_WITH(swoole, swoole support,
 PHP_ARG_WITH(openssl_dir, for OpenSSL support,
 [  --with-openssl-dir[=DIR]    Include OpenSSL support (requires OpenSSL >= 0.9.6)], no, no)
 
+PHP_ARG_WITH(jemalloc_dir, for jemalloc support,
+[  --with-jemalloc-dir[=DIR]    Include jemalloc support], no, no)
+
 PHP_ARG_ENABLE(mysqlnd, enable mysqlnd support,
 [  --enable-mysqlnd       Do you have mysqlnd?], no, no)
+
+PHP_ARG_ENABLE(coroutine, whether to enable coroutine,
+[  --enable-coroutine      Enable coroutine (requires PHP >= 5.5)], yes, no)
+
+PHP_ARG_ENABLE(picohttpparser, enable picohttpparser support,
+[  --enable-picohttpparser     Experimental: Do you have picohttpparser?], no, no)
+
+PHP_ARG_WITH(swoole, swoole support,
+[  --with-swoole           With swoole support])
+
+PHP_ARG_ENABLE(timewheel, enable timewheel support,
+[  --enable-timewheel     Experimental: Enable timewheel heartbeat?], no, no)
 
 AC_DEFUN([SWOOLE_HAVE_PHP_EXT], [
     extname=$1
@@ -123,6 +132,26 @@ AC_DEFUN([AC_SWOOLE_HAVE_REUSEPORT],
     ])
 ])
 
+AC_DEFUN([AC_SWOOLE_HAVE_FUTEX],
+[
+    AC_MSG_CHECKING([for futex])
+    AC_TRY_COMPILE(
+    [
+		#include <linux/futex.h>
+		#include <syscall.h>
+		#include <unistd.h>
+    ], [
+        int futex_addr;
+		int val1;
+	    syscall(SYS_futex, &futex_addr, val1, NULL, NULL, 0);
+    ], [
+        AC_DEFINE([HAVE_FUTEX], 1, [have FUTEX?])
+        AC_MSG_RESULT([yes])
+    ], [
+        AC_MSG_RESULT([no])
+    ])
+])
+
 AC_MSG_CHECKING([if compiling with clang])
 AC_COMPILE_IFELSE([
     AC_LANG_PROGRAM([], [[
@@ -153,12 +182,12 @@ if test "$PHP_SWOOLE" != "no"; then
         AC_DEFINE(SW_DEBUG, 1, [do we enable swoole debug])
     fi
 
-    if test "$PHP_SOCKETS" = "yes"; then
-        AC_DEFINE(SW_SOCKETS, 1, [enable sockets support])
+    if test "$PHP_COROUTINE" != "no"; then
+        AC_DEFINE(SW_COROUTINE, 1, [enable ability of coroutine])
     fi
 
-    if test "$PHP_RINGBUFFER" = "yes"; then
-        AC_DEFINE(SW_USE_RINGBUFFER, 1, [enable ringbuffer support])
+    if test "$PHP_SOCKETS" = "yes"; then
+        AC_DEFINE(SW_SOCKETS, 1, [enable sockets support])
     fi
 
     if test "$PHP_HTTP2" = "yes"; then
@@ -173,8 +202,13 @@ if test "$PHP_SWOOLE" != "no"; then
         AC_DEFINE(SW_USE_THREAD, 1, [enable thread support])
     fi
 
+    if test "$PHP_TIMEWHEEL" = "yes"; then
+        AC_DEFINE(SW_USE_TIMEWHEEL, 1, [enable timewheel support])
+    fi
+
     AC_SWOOLE_CPU_AFFINITY
     AC_SWOOLE_HAVE_REUSEPORT
+	AC_SWOOLE_HAVE_FUTEX
 
     CFLAGS="-Wall -pthread $CFLAGS"
     LDFLAGS="$LDFLAGS -lpthread"
@@ -190,14 +224,21 @@ if test "$PHP_SWOOLE" != "no"; then
         if test "$PHP_OPENSSL_DIR" != "no"; then
             AC_DEFINE(HAVE_OPENSSL, 1, [have openssl])
             PHP_ADD_INCLUDE("${PHP_OPENSSL_DIR}/include")
-            PHP_ADD_LIBRARY_WITH_PATH(ssl, "${PHP_OPENSSL_DIR}/lib")
+            PHP_ADD_LIBRARY_WITH_PATH(ssl, "${PHP_OPENSSL_DIR}/${PHP_LIBDIR}")
         else
-            AC_CHECK_LIB(ssl, SSL_library_init, AC_DEFINE(HAVE_OPENSSL, 1, [have openssl]))
+            AC_CHECK_LIB(ssl, SSL_connect, AC_DEFINE(HAVE_OPENSSL, 1, [have openssl]))
         fi
 
         AC_DEFINE(SW_USE_OPENSSL, 1, [enable openssl support])
         PHP_ADD_LIBRARY(ssl, 1, SWOOLE_SHARED_LIBADD)
         PHP_ADD_LIBRARY(crypto, 1, SWOOLE_SHARED_LIBADD)
+    fi
+
+    if test "$PHP_JEMALLOC_DIR" != "no"; then
+        AC_DEFINE(SW_USE_JEMALLOC, 1, [use jemalloc])
+        PHP_ADD_INCLUDE("${PHP_JEMALLOC_DIR}/include")
+        PHP_ADD_LIBRARY_WITH_PATH(jemalloc, "${PHP_JEMALLOC_DIR}/${PHP_LIBDIR}")
+        PHP_ADD_LIBRARY(jemalloc, 1, SWOOLE_SHARED_LIBADD)
     fi
 
     PHP_ADD_LIBRARY(pthread, 1, SWOOLE_SHARED_LIBADD)
@@ -209,14 +250,6 @@ if test "$PHP_SWOOLE" != "no"; then
 
     if test "$PHP_HTTP2" = "yes"; then
         PHP_ADD_LIBRARY(nghttp2, 1, SWOOLE_SHARED_LIBADD)
-    fi
-
-    if test "$PHP_JEMALLOC" = "yes"; then
-        PHP_ADD_LIBRARY(jemalloc, 1, SWOOLE_SHARED_LIBADD)
-        AC_DEFINE(SW_USE_JEMALLOC, 1, [use jemalloc])
-    elif test "$PHP_TCMALLOC" = "yes"; then
-        PHP_ADD_LIBRARY(tcmalloc, 1, SWOOLE_SHARED_LIBADD)
-        AC_DEFINE(SW_USE_TCMALLOC, 1, [use tcmalloc])
     fi
 
     if test "$PHP_MYSQLND" = "yes"; then
@@ -236,6 +269,7 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(c, daemon, AC_DEFINE(HAVE_DAEMON, 1, [have daemon]))
     AC_CHECK_LIB(c, mkostemp, AC_DEFINE(HAVE_MKOSTEMP, 1, [have mkostemp]))
     AC_CHECK_LIB(c, inotify_init, AC_DEFINE(HAVE_INOTIFY, 1, [have inotify]))
+    AC_CHECK_LIB(c, malloc_trim, AC_DEFINE(HAVE_MALLOC_TRIM, 1, [have malloc_trim]))
     AC_CHECK_LIB(c, inotify_init1, AC_DEFINE(HAVE_INOTIFY_INIT1, 1, [have inotify_init1]))
     AC_CHECK_LIB(pthread, pthread_rwlock_init, AC_DEFINE(HAVE_RWLOCK, 1, [have pthread_rwlock_init]))
     AC_CHECK_LIB(pthread, pthread_spin_lock, AC_DEFINE(HAVE_SPINLOCK, 1, [have pthread_spin_lock]))
@@ -248,7 +282,7 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(z, gzgets, [
         AC_DEFINE(SW_HAVE_ZLIB, 1, [have zlib])
         PHP_ADD_LIBRARY(z, 1, SWOOLE_SHARED_LIBADD)
-    ])    
+    ])
 
     swoole_source_file="swoole.c \
         swoole_server.c \
@@ -256,6 +290,9 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_atomic.c \
         swoole_lock.c \
         swoole_client.c \
+        swoole_client_coro.c \
+        swoole_coroutine.c \
+        swoole_coroutine_util.c \
         swoole_event.c \
         swoole_timer.c \
         swoole_async.c \
@@ -265,12 +302,15 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_table.c \
         swoole_http_server.c \
         swoole_http_v2_server.c \
+        swoole_http_v2_client.c \
         swoole_websocket_server.c \
         swoole_http_client.c \
+        swoole_http_client_coro.c \
         swoole_mysql.c \
+        swoole_mysql_coro.c \
         swoole_redis.c \
+        swoole_redis_coro.c \
         swoole_redis_server.c \
-        swoole_module.c \
         swoole_mmap.c \
         swoole_channel.c \
         src/core/base.c \
@@ -306,6 +346,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/lock/RWLock.c \
         src/lock/SpinLock.c \
         src/lock/FileLock.c \
+        src/lock/Cond.c \
         src/network/Server.c \
         src/network/TaskWorker.c \
         src/network/Client.c \
@@ -319,8 +360,8 @@ if test "$PHP_SWOOLE" != "no"; then
         src/network/Timer.c \
         src/network/Port.c \
         src/network/DNS.c \
+        src/network/TimeWheel.c \
         src/os/base.c \
-        src/os/dl.c \
         src/os/linux_aio.c \
         src/os/msg_queue.c \
         src/os/sendfile.c \
@@ -337,20 +378,36 @@ if test "$PHP_SWOOLE" != "no"; then
         src/protocol/Redis.c \
         src/protocol/Base64.c"
 
-    swoole_source_file="$swoole_source_file thirdparty/php_http_parser.c"
-    swoole_source_file="$swoole_source_file thirdparty/multipart_parser.c"
+	if test "$PHP_SWOOLE_STATIC" = "no"; then
+		swoole_source_file="$swoole_source_file thirdparty/php_http_parser.c"
+	else
+		CFLAGS="$CFLAGS -DSW_STATIC_COMPILATION"
+	fi
+
+	swoole_source_file="$swoole_source_file thirdparty/multipart_parser.c"
+
+    if test "$PHP_PICOHTTPPARSER" = "yes"; then
+        AC_DEFINE(SW_USE_PICOHTTPPARSER, 1, [enable picohttpparser support])
+        swoole_source_file="$swoole_source_file thirdparty/picohttpparser/picohttpparser.c"
+    fi
 
     PHP_NEW_EXTENSION(swoole, $swoole_source_file, $ext_shared)
 
     PHP_ADD_INCLUDE([$ext_srcdir])
     PHP_ADD_INCLUDE([$ext_srcdir/include])
 
+    PHP_INSTALL_HEADERS([ext/swoole], [*.h include/*.h])
+
+    if test "$PHP_PICOHTTPPARSER" = "yes"; then
+        PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/picohttpparser])
+        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/picohttpparser)
+    fi
+
     PHP_ADD_BUILD_DIR($ext_builddir/src/core)
     PHP_ADD_BUILD_DIR($ext_builddir/src/memory)
     PHP_ADD_BUILD_DIR($ext_builddir/src/factory)
     PHP_ADD_BUILD_DIR($ext_builddir/src/reactor)
     PHP_ADD_BUILD_DIR($ext_builddir/src/pipe)
-    PHP_ADD_BUILD_DIR($ext_builddir/src/queue)
     PHP_ADD_BUILD_DIR($ext_builddir/src/lock)
     PHP_ADD_BUILD_DIR($ext_builddir/src/os)
     PHP_ADD_BUILD_DIR($ext_builddir/src/network)

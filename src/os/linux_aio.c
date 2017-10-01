@@ -81,7 +81,7 @@ static int swAioLinux_onFinish(swReactor *reactor, swEvent *event)
 {
     struct io_event events[SW_AIO_MAX_EVENTS];
     swAio_event aio_ev;
-    uint64_t finished_aio;
+    int64_t finished_aio;
     struct iocb *aiocb;
     struct timespec tms;
     int i, n;
@@ -113,15 +113,19 @@ static int swAioLinux_onFinish(swReactor *reactor, swEvent *event)
                 }
                 aio_ev.fd = aiocb->aio_fildes;
                 aio_ev.type = aiocb->aio_lio_opcode == IOCB_CMD_PREAD ? SW_AIO_READ : SW_AIO_WRITE;
-                aio_ev.nbytes = aio_ev.ret;
+                aio_ev.nbytes = aiocb->aio_nbytes;
                 aio_ev.offset = aiocb->aio_offset;
                 aio_ev.buf = (void *) aiocb->aio_buf;
                 aio_ev.task_id = aiocb->aio_reqprio;
                 SwooleAIO.callback(&aio_ev);
+                sw_free(aiocb);
             }
-            i += n;
             finished_aio -= n;
             SwooleAIO.task_num -= n;
+        }
+        else
+        {
+            break;
         }
     }
     return SW_OK;
@@ -129,6 +133,7 @@ static int swAioLinux_onFinish(swReactor *reactor, swEvent *event)
 
 static void swAioLinux_destroy()
 {
+    SwooleG.main_reactor->del(SwooleG.main_reactor, swoole_aio_eventfd);
     swoole_aio_pipe.close(&swoole_aio_pipe);
     io_destroy(swoole_aio_context);
 }
@@ -136,24 +141,24 @@ static void swAioLinux_destroy()
 static int swAioLinux_read(int fd, void *outbuf, size_t size, off_t offset)
 {
     struct iocb *iocbps[1];
-    struct iocb iocbp;
-    bzero(&iocbp, sizeof(struct iocb));
+    struct iocb *iocbp = sw_malloc(sizeof(struct iocb));
+    bzero(iocbp, sizeof(struct iocb));
 
-    iocbp.aio_fildes = fd;
-    iocbp.aio_lio_opcode = IOCB_CMD_PREAD;
-    iocbp.aio_buf = (__u64 ) outbuf;
-    iocbp.aio_offset = offset;
-    iocbp.aio_nbytes = size;
-    iocbp.aio_flags = IOCB_FLAG_RESFD;
-    iocbp.aio_resfd = swoole_aio_eventfd;
-    iocbp.aio_reqprio = SwooleAIO.current_id++;
-    //iocbp.aio_data = (__u64) aio_callback;
-    iocbps[0] = &iocbp;
+    iocbp->aio_fildes = fd;
+    iocbp->aio_lio_opcode = IOCB_CMD_PREAD;
+    iocbp->aio_buf = (__u64 ) outbuf;
+    iocbp->aio_offset = offset;
+    iocbp->aio_nbytes = size;
+    iocbp->aio_flags = IOCB_FLAG_RESFD;
+    iocbp->aio_resfd = swoole_aio_eventfd;
+    iocbp->aio_reqprio = SwooleAIO.current_id++;
+    //iocbp->aio_data = (__u64) aio_callback;
+    iocbps[0] = iocbp;
 
     if (io_submit(swoole_aio_context, 1, iocbps) == 1)
     {
         SwooleAIO.task_num++;
-        return iocbp.aio_reqprio;
+        return iocbp->aio_reqprio;
     }
     swWarn("io_submit failed. Error: %s[%d]", strerror(errno), errno);
     return SW_ERR;

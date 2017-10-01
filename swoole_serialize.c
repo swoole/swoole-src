@@ -16,18 +16,21 @@
 
 #include "php_swoole.h"
 #include "swoole_serialize.h"
+#ifdef __SSE2__
+#include <emmintrin.h>
+#endif
 
 #if PHP_MAJOR_VERSION >= 7
 #define CPINLINE sw_inline
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_serialize_pack, 0, 0, 1)
-    ZEND_ARG_INFO(0, data)
-    ZEND_ARG_INFO(0, flag)
+ZEND_ARG_INFO(0, data)
+ZEND_ARG_INFO(0, flag)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_serialize_unpack, 0, 0, 1)
-    ZEND_ARG_INFO(0, string)
-    ZEND_ARG_INFO(0, args)
+ZEND_ARG_INFO(0, string)
+ZEND_ARG_INFO(0, args)
 ZEND_END_ARG_INFO()
 
 static void swoole_serialize_object(seriaString *buffer, zval *zvalue, size_t start);
@@ -48,6 +51,8 @@ static const zend_function_entry swoole_serialize_methods[] = {
 zend_class_entry swoole_serialize_ce;
 zend_class_entry *swoole_serialize_class_entry_ptr;
 
+#define SWOOLE_SERI_EOF "EOF"
+
 void swoole_serialize_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_serialize_ce, "swoole_serialize", "Swoole\\Serialize", swoole_serialize_methods);
@@ -56,6 +61,9 @@ void swoole_serialize_init(int module_number TSRMLS_DC)
 
     ZVAL_STRING(&swSeriaG.sleep_fname, "__sleep");
     ZVAL_STRING(&swSeriaG.weekup_fname, "__weekup");
+
+    memset(&swSeriaG.filter, 0, sizeof (swSeriaG.filter));
+    memset(&mini_filter, 0, sizeof (mini_filter));
 
     REGISTER_LONG_CONSTANT("SWOOLE_FAST_PACK", SW_FAST_PACK, CONST_CS | CONST_PERSISTENT);
 }
@@ -73,7 +81,7 @@ static CPINLINE int swoole_string_new(size_t size, seriaString *str, zend_uchar 
         php_error_docref(NULL TSRMLS_CC, E_ERROR, "malloc Error: %s [%d]", strerror(errno), errno);
     }
 
-    SBucketType real_type;
+    SBucketType real_type = {0};
     real_type.data_type = type;
     *(SBucketType*) (str->buffer + str->offset) = real_type;
     str->offset += sizeof (SBucketType);
@@ -82,14 +90,12 @@ static CPINLINE int swoole_string_new(size_t size, seriaString *str, zend_uchar 
 
 static CPINLINE void swoole_check_size(seriaString *str, size_t len)
 {
-
     int new_size = len + str->offset;
     //    int new_size = len + str->offset + 3 + sizeof (zend_ulong); //space 1 for the type and 2 for key string len or index len and(zend_ulong) for key h
     if (str->total < new_size)
     {//extend it
 
-        //double size
-        new_size = ZEND_MM_ALIGNED_SIZE(new_size + new_size);
+        new_size = ZEND_MM_ALIGNED_SIZE(new_size + SERIA_SIZE);
         str->buffer = erealloc2(str->buffer, new_size, str->offset);
         if (!str->buffer)
         {
@@ -97,12 +103,232 @@ static CPINLINE void swoole_check_size(seriaString *str, size_t len)
         }
         str->total = new_size;
     }
-
 }
+#ifdef __SSE2__
+void CPINLINE swoole_mini_memcpy(void *dst, const void *src, size_t len)
+{
+    register unsigned char *dd = (unsigned char*) dst + len;
+    register const unsigned char *ss = (const unsigned char*) src + len;
+    switch (len)
+    {
+        case 68: *((int*) (dd - 68)) = *((int*) (ss - 68));
+        /* no break */
+        case 64: *((int*) (dd - 64)) = *((int*) (ss - 64));
+        /* no break */
+        case 60: *((int*) (dd - 60)) = *((int*) (ss - 60));
+        /* no break */
+        case 56: *((int*) (dd - 56)) = *((int*) (ss - 56));
+        /* no break */
+        case 52: *((int*) (dd - 52)) = *((int*) (ss - 52));
+        /* no break */
+        case 48: *((int*) (dd - 48)) = *((int*) (ss - 48));
+        /* no break */
+        case 44: *((int*) (dd - 44)) = *((int*) (ss - 44));
+        /* no break */
+        case 40: *((int*) (dd - 40)) = *((int*) (ss - 40));
+        /* no break */
+        case 36: *((int*) (dd - 36)) = *((int*) (ss - 36));
+        /* no break */
+        case 32: *((int*) (dd - 32)) = *((int*) (ss - 32));
+        /* no break */
+        case 28: *((int*) (dd - 28)) = *((int*) (ss - 28));
+        /* no break */
+        case 24: *((int*) (dd - 24)) = *((int*) (ss - 24));
+        /* no break */
+        case 20: *((int*) (dd - 20)) = *((int*) (ss - 20));
+        /* no break */
+        case 16: *((int*) (dd - 16)) = *((int*) (ss - 16));
+        /* no break */
+        case 12: *((int*) (dd - 12)) = *((int*) (ss - 12));
+        /* no break */
+        case 8: *((int*) (dd - 8)) = *((int*) (ss - 8));
+        /* no break */
+        case 4: *((int*) (dd - 4)) = *((int*) (ss - 4));
+            break;
+        case 67: *((int*) (dd - 67)) = *((int*) (ss - 67));
+        /* no break */
+        case 63: *((int*) (dd - 63)) = *((int*) (ss - 63));
+        /* no break */
+        case 59: *((int*) (dd - 59)) = *((int*) (ss - 59));
+        /* no break */
+        case 55: *((int*) (dd - 55)) = *((int*) (ss - 55));
+        /* no break */
+        case 51: *((int*) (dd - 51)) = *((int*) (ss - 51));
+        /* no break */
+        case 47: *((int*) (dd - 47)) = *((int*) (ss - 47));
+        /* no break */
+        case 43: *((int*) (dd - 43)) = *((int*) (ss - 43));
+        /* no break */
+        case 39: *((int*) (dd - 39)) = *((int*) (ss - 39));
+        /* no break */
+        case 35: *((int*) (dd - 35)) = *((int*) (ss - 35));
+        /* no break */
+        case 31: *((int*) (dd - 31)) = *((int*) (ss - 31));
+        /* no break */
+        case 27: *((int*) (dd - 27)) = *((int*) (ss - 27));
+        /* no break */
+        case 23: *((int*) (dd - 23)) = *((int*) (ss - 23));
+        /* no break */
+        case 19: *((int*) (dd - 19)) = *((int*) (ss - 19));
+        /* no break */
+        case 15: *((int*) (dd - 15)) = *((int*) (ss - 15));
+        /* no break */
+        case 11: *((int*) (dd - 11)) = *((int*) (ss - 11));
+        /* no break */
+        case 7: *((int*) (dd - 7)) = *((int*) (ss - 7));
+            *((int*) (dd - 4)) = *((int*) (ss - 4));
+            break;
+        case 3: *((short*) (dd - 3)) = *((short*) (ss - 3));
+            dd[-1] = ss[-1];
+            break;
+        case 66: *((int*) (dd - 66)) = *((int*) (ss - 66));
+        /* no break */
+        case 62: *((int*) (dd - 62)) = *((int*) (ss - 62));
+        /* no break */
+        case 58: *((int*) (dd - 58)) = *((int*) (ss - 58));
+        /* no break */
+        case 54: *((int*) (dd - 54)) = *((int*) (ss - 54));
+        /* no break */
+        case 50: *((int*) (dd - 50)) = *((int*) (ss - 50));
+        /* no break */
+        case 46: *((int*) (dd - 46)) = *((int*) (ss - 46));
+        /* no break */
+        case 42: *((int*) (dd - 42)) = *((int*) (ss - 42));
+        /* no break */
+        case 38: *((int*) (dd - 38)) = *((int*) (ss - 38));
+        /* no break */
+        case 34: *((int*) (dd - 34)) = *((int*) (ss - 34));
+        /* no break */
+        case 30: *((int*) (dd - 30)) = *((int*) (ss - 30));
+        /* no break */
+        case 26: *((int*) (dd - 26)) = *((int*) (ss - 26));
+        /* no break */
+        case 22: *((int*) (dd - 22)) = *((int*) (ss - 22));
+        /* no break */
+        case 18: *((int*) (dd - 18)) = *((int*) (ss - 18));
+        /* no break */
+        case 14: *((int*) (dd - 14)) = *((int*) (ss - 14));
+        /* no break */
+        case 10: *((int*) (dd - 10)) = *((int*) (ss - 10));
+        /* no break */
+        case 6: *((int*) (dd - 6)) = *((int*) (ss - 6));
+        /* no break */
+        case 2: *((short*) (dd - 2)) = *((short*) (ss - 2));
+            break;
+        case 65: *((int*) (dd - 65)) = *((int*) (ss - 65));
+        /* no break */
+        case 61: *((int*) (dd - 61)) = *((int*) (ss - 61));
+        /* no break */
+        case 57: *((int*) (dd - 57)) = *((int*) (ss - 57));
+        /* no break */
+        case 53: *((int*) (dd - 53)) = *((int*) (ss - 53));
+        /* no break */
+        case 49: *((int*) (dd - 49)) = *((int*) (ss - 49));
+        /* no break */
+        case 45: *((int*) (dd - 45)) = *((int*) (ss - 45));
+        /* no break */
+        case 41: *((int*) (dd - 41)) = *((int*) (ss - 41));
+        /* no break */
+        case 37: *((int*) (dd - 37)) = *((int*) (ss - 37));
+        /* no break */
+        case 33: *((int*) (dd - 33)) = *((int*) (ss - 33));
+        /* no break */
+        case 29: *((int*) (dd - 29)) = *((int*) (ss - 29));
+        /* no break */
+        case 25: *((int*) (dd - 25)) = *((int*) (ss - 25));
+        /* no break */
+        case 21: *((int*) (dd - 21)) = *((int*) (ss - 21));
+        /* no break */
+        case 17: *((int*) (dd - 17)) = *((int*) (ss - 17));
+        /* no break */
+        case 13: *((int*) (dd - 13)) = *((int*) (ss - 13));
+        /* no break */
+        case 9: *((int*) (dd - 9)) = *((int*) (ss - 9));
+        /* no break */
+        case 5: *((int*) (dd - 5)) = *((int*) (ss - 5));
+        /* no break */
+        case 1: dd[-1] = ss[-1];
+            break;
+        case 0:
+        default: break;
+    }
+}
+
+void CPINLINE swoole_memcpy_fast(void *destination, const void *source, size_t size)
+{
+    unsigned char *dst = (unsigned char*) destination;
+    const unsigned char *src = (const unsigned char*) source;
+
+    // small memory copy
+    if (size < 64)
+    {
+        swoole_mini_memcpy(dst, src, size);
+        return;
+    }
+
+    size_t diff = (((size_t) dst + 15L) & (~15L)) - ((size_t) dst);
+    if (diff > 0)
+    {
+        swoole_mini_memcpy(dst, src, diff);
+        dst += diff;
+        src += diff;
+        size -= diff;
+    }
+
+    // 4个寄存器
+    __m128i c1, c2, c3, c4;
+
+    if ((((size_t) src) & 15L) == 0)
+    {
+        for(; size >= 64; size -= 64)
+        {
+            //load 时候将下次要用的数据提前fetch
+            _mm_prefetch((const char*) (src + 64), _MM_HINT_NTA);
+            _mm_prefetch((const char*) (dst + 64), _MM_HINT_T0);
+            //从内存中load到寄存器
+            c1 = _mm_load_si128(((const __m128i*) src) + 0);
+            c2 = _mm_load_si128(((const __m128i*) src) + 1);
+            c3 = _mm_load_si128(((const __m128i*) src) + 2);
+            c4 = _mm_load_si128(((const __m128i*) src) + 3);
+            src += 64;
+            //写回内存
+            _mm_store_si128((((__m128i*) dst) + 0), c1);
+            _mm_store_si128((((__m128i*) dst) + 1), c2);
+            _mm_store_si128((((__m128i*) dst) + 2), c3);
+            _mm_store_si128((((__m128i*) dst) + 3), c4);
+            dst += 64;
+        }
+    }
+    else
+    {
+        for(; size >= 64; size -= 64)
+        {
+            _mm_prefetch((const char*) (src + 64), _MM_HINT_NTA);
+            _mm_prefetch((const char*) (dst + 64), _MM_HINT_T0);
+            c1 = _mm_loadu_si128(((const __m128i*) src) + 0);
+            c2 = _mm_loadu_si128(((const __m128i*) src) + 1);
+            c3 = _mm_loadu_si128(((const __m128i*) src) + 2);
+            c4 = _mm_loadu_si128(((const __m128i*) src) + 3);
+            src += 64;
+            _mm_store_si128((((__m128i*) dst) + 0), c1);
+            _mm_store_si128((((__m128i*) dst) + 1), c2);
+            _mm_store_si128((((__m128i*) dst) + 2), c3);
+            _mm_store_si128((((__m128i*) dst) + 3), c4);
+            dst += 64;
+        }
+    }
+    // _mm_sfence();
+
+    // return memcpy_tiny(dst, src, size);
+}
+#endif
 
 static CPINLINE void swoole_string_cpy(seriaString *str, void *mem, size_t len)
 {
-    swoole_check_size(str, len);
+    swoole_check_size(str, len + 15L);
+    //example:13+15=28   28& 11111111 11111111 11111111 11110000
+    //str->offset = ((str->offset + 15L) & ~15L);
+    //    swoole_memcspy_fast(str->buffer + str->offset, mem, len);
     memcpy(str->buffer + str->offset, mem, len);
     str->offset = len + str->offset;
 }
@@ -213,6 +439,26 @@ static CPINLINE void swoole_mini_filter_clear()
     if (swSeriaG.pack_string)
     {
         memset(&mini_filter, 0, sizeof (mini_filter));
+        if (bigger_filter)
+        {
+            efree(bigger_filter);
+            bigger_filter = NULL;
+
+        }
+        memset(&swSeriaG.filter, 0, sizeof (struct _swMinFilter));
+    }
+}
+
+static CPINLINE void swoole_make_bigger_filter_size()
+{
+    if (FILTER_SIZE <= swSeriaG.filter.mini_fillter_miss_cnt &&
+            swSeriaG.filter.mini_fillter_find_cnt < swSeriaG.filter.mini_fillter_miss_cnt)
+        //        if (FILTER_SIZE <= swSeriaG.filter.mini_fillter_miss_cnt &&
+        //                (swSeriaG.filter.mini_fillter_find_cnt / swSeriaG.filter.mini_fillter_miss_cnt) < 1)
+    {
+        swSeriaG.filter.bigger_fillter_size = swSeriaG.filter.mini_fillter_miss_cnt * 128;
+        bigger_filter = (swPoolstr*) ecalloc(1, sizeof (swPoolstr) * swSeriaG.filter.bigger_fillter_size);
+        memcpy(bigger_filter, &mini_filter, sizeof (mini_filter));
     }
 }
 
@@ -221,23 +467,43 @@ static CPINLINE void swoole_mini_filter_add(zend_string *zstr, size_t offset, ze
     if (swSeriaG.pack_string)
     {
         offset -= _STR_HEADER_SIZE;
-        if (offset >= 0x1fffffff)//head 3bit is overhead
+        //head 3bit is overhead
+        if (offset >= 0x1fffffff)
         {
             return;
         }
-        // do not extend it ,cause the hash full prove the data concentration is not high,in this situation pack string is low effective
-        uint16_t mod = zstr->h & (SERIA_SIZE - 1);
-
-        mini_filter[mod].offset = offset << 3;
-        if (offset <= 0x1fff)
+        if (bigger_filter)
         {
-            mini_filter[mod].offset |= byte;
+            uint32_t mod_big = zstr->h & (swSeriaG.filter.bigger_fillter_size - 1);
+
+            bigger_filter[mod_big].offset = offset << 3;
+            if (offset <= 0x1fff)
+            {
+                bigger_filter[mod_big].offset |= byte;
+            }
+            else
+            {
+                bigger_filter[mod_big].offset |= (byte | 4);
+            }
+            bigger_filter[mod_big].str = zstr;
         }
         else
         {
-            mini_filter[mod].offset |= (byte | 4);
+            uint16_t mod = zstr->h & (FILTER_SIZE - 1);
+            //repalce it is effective,cause the principle of locality
+            mini_filter[mod].offset = offset << 3;
+            if (offset <= 0x1fff)
+            {
+                mini_filter[mod].offset |= byte;
+            }
+            else
+            {
+                mini_filter[mod].offset |= (byte | 4);
+            }
+            mini_filter[mod].str = zstr;
+            swSeriaG.filter.mini_fillter_miss_cnt++;
+            swoole_make_bigger_filter_size();
         }
-        mini_filter[mod].str = zstr;
     }
 
 }
@@ -247,7 +513,16 @@ static CPINLINE swPoolstr* swoole_mini_filter_find(zend_string *zstr)
     if (swSeriaG.pack_string)
     {
         zend_ulong h = zend_string_hash_val(zstr);
-        swPoolstr* str = &mini_filter[h & (SERIA_SIZE - 1)];
+        swPoolstr* str = NULL;
+        if (bigger_filter)
+        {
+            str = &bigger_filter[h & (swSeriaG.filter.bigger_fillter_size - 1)];
+        }
+        else
+        {
+            str = &mini_filter[h & (FILTER_SIZE - 1)];
+        }
+
         if (!str->str)
         {
             return NULL;
@@ -257,6 +532,7 @@ static CPINLINE swPoolstr* swoole_mini_filter_find(zend_string *zstr)
                 zstr->len == str->str->len &&
                 memcmp(zstr->val, str->str->val, zstr->len) == 0)
         {
+            swSeriaG.filter.mini_fillter_find_cnt++;
             return str;
         }
         else
@@ -368,8 +644,12 @@ static void* swoole_unserialize_arr(void *buffer, zval *zvalue, uint32_t nNumOfE
     {
         return NULL;
     }
+    if (!buffer)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_NOTICE, "illegal unserialize data");
+        return NULL;
+    }
     ZVAL_NEW_ARR(zvalue);
-
     //Initialize buckets
     zend_array *ht = Z_ARR_P(zvalue);
     ht->nTableSize = size;
@@ -382,25 +662,30 @@ static void* swoole_unserialize_arr(void *buffer, zval *zvalue, uint32_t nNumOfE
 
     GC_REFCOUNT(ht) = 1;
     GC_TYPE_INFO(ht) = IS_ARRAY;
-    if (ht->nNumUsed)
+    // if (ht->nNumUsed)
+    //{
+    //    void *arData = ecalloc(1, len);
+    HT_SET_DATA_ADDR(ht, emalloc(HT_SIZE(ht)));
+    ht->u.flags |= HASH_FLAG_INITIALIZED;
+    int ht_hash_size = HT_HASH_SIZE((ht)->nTableMask);
+    if (ht_hash_size <= 0)
     {
-        //    void *arData = ecalloc(1, len);
-        HT_SET_DATA_ADDR(ht, emalloc(HT_SIZE(ht)));
-        ht->u.flags |= HASH_FLAG_INITIALIZED;
-        int ht_hash_size = HT_HASH_SIZE((ht)->nTableMask);
-        if (ht_hash_size <= 0)
-        {
-            php_error_docref(NULL TSRMLS_CC, E_NOTICE, "illegal unserialize data");
-            return NULL;
-        }
-        HT_HASH_RESET(ht);
+        php_error_docref(NULL TSRMLS_CC, E_NOTICE, "illegal unserialize data");
+        return NULL;
     }
+    HT_HASH_RESET(ht);
+    //}
 
 
     int idx;
     Bucket *p;
-    for (idx = 0; idx < nNumOfElements; idx++)
+    for(idx = 0; idx < nNumOfElements; idx++)
     {
+        if (!buffer)
+        {
+            php_error_docref(NULL TSRMLS_CC, E_NOTICE, "illegal array unserialize data");
+            return NULL;
+        }
         SBucketType type = *((SBucketType*) buffer);
         buffer += sizeof (SBucketType);
         p = ht->arData + idx;
@@ -409,7 +694,7 @@ static void* swoole_unserialize_arr(void *buffer, zval *zvalue, uint32_t nNumOfE
         {
             size_t key_len;
             if (type.key_len == 3)
-            {//read the same mem 
+            {//read the same mem
                 void *str_pool_addr = get_pack_string_len_addr(&buffer, &key_len);
                 p->key = zend_string_init((char*) str_pool_addr, key_len, 0);
                 h = zend_inline_hash_func((char*) str_pool_addr, key_len);
@@ -556,12 +841,12 @@ static void swoole_serialize_arr(seriaString *buffer, zend_array *zvalue)
 
     ZEND_HASH_FOREACH_KEY_VAL(zvalue, index, key, data)
     {
-        SBucketType type;
+        SBucketType type = {0};
         type.data_type = Z_TYPE_P(data);
         //start point
         size_t p = buffer->offset;
 
-        if (is_pack)
+        if (is_pack && zvalue->nNextFreeElement == zvalue->nNumOfElements)
         {
             type.key_type = KEY_TYPE_INDEX;
             type.key_len = 0;
@@ -597,7 +882,7 @@ static void swoole_serialize_arr(seriaString *buffer, zend_array *zvalue)
                         swoole_string_cpy(buffer, key->val, key->len);
                     }
                     else if (key->len <= 0xffff)
-                    {//if more than this  don't need optimize 
+                    {//if more than this  don't need optimize
                         type.key_len = 2;
                         SERIA_SET_ENTRY_TYPE(buffer, type);
                         swoole_mini_filter_add(key, buffer->offset, 2);
@@ -700,7 +985,7 @@ try_again:
 
                 if (ZEND_HASH_GET_APPLY_COUNT(ht) > 1)
                 {
-                    php_error_docref(NULL TSRMLS_CC, E_NOTICE, "you array have cycle ref");
+                    php_error_docref(NULL TSRMLS_CC, E_NOTICE, "the array has cycle ref");
                 }
                 else
                 {
@@ -728,7 +1013,7 @@ try_again:
             case IS_OBJECT:
             {
                 /*
-                 * layout 
+                 * layout
                  * type | key | namelen | name | bucket len |buckets
                  */
                 ((SBucketType*) (buffer->buffer + p))->data_type = IS_UNDEF;
@@ -746,7 +1031,7 @@ try_again:
 
                 break;
             }
-            default:// 
+            default://
                 break;
 
         }
@@ -773,22 +1058,22 @@ static CPINLINE zend_string* swoole_unserialize_string(void *buffer, size_t len)
 /*
  * raw
  */
-
 static CPINLINE void swoole_unserialize_raw(void *buffer, zval *zvalue)
 {
 
     memcpy(&zvalue->value, buffer, sizeof (zend_value));
 }
 
+#if 0
 /*
  * null
  */
-
 static CPINLINE void swoole_unserialize_null(void *buffer, zval *zvalue)
 {
 
     memcpy(&zvalue->value, buffer, sizeof (zend_value));
 }
+#endif
 
 static CPINLINE void swoole_serialize_raw(seriaString *buffer, zval *zvalue)
 {
@@ -805,12 +1090,12 @@ static void swoole_serialize_object(seriaString *buffer, zval *obj, size_t start
     zend_string *name = Z_OBJCE_P(obj)->name;
     if (ZEND_HASH_GET_APPLY_COUNT(Z_OBJPROP_P(obj)) > 1)
     {
-        zend_throw_exception_ex(NULL, 0, "the object %s have cycle ref!", name->val);
+        zend_throw_exception_ex(NULL, 0, "the object %s has cycle ref.", name->val);
         return;
     }
     if (name->len > 0xffff)
     {//so long?
-        zend_throw_exception_ex(NULL, 0, "too long obj name!");
+        zend_throw_exception_ex(NULL, 0, "the object name is too long.");
     }
     else
     {
@@ -863,7 +1148,7 @@ static void swoole_serialize_object(seriaString *buffer, zval *obj, size_t start
                                 memcmp(Z_STRVAL_P(sleep_value), prop_name, prop_key_len) == 0)
                         {
                             got_num++;
-                            //add mangle key,unmangle in unseria 
+                            //add mangle key,unmangle in unseria
                             _zend_hash_add_or_update(ht, prop_key, prop_value, HASH_UPDATE ZEND_FILE_LINE_CC);
 
                             break;
@@ -932,7 +1217,7 @@ static CPINLINE zend_class_entry* swoole_try_get_ce(zend_string *class_name)
     {
         return ce;
     }
-    // try call unserialize callback and retry lookup 
+    // try call unserialize callback and retry lookup
     zval user_func, args[1], retval;
     zend_string *fname = swoole_string_init(PG(unserialize_callback_func), strlen(PG(unserialize_callback_func)));
     Z_STR(user_func) = fname;
@@ -965,6 +1250,11 @@ static void* swoole_unserialize_object(void *buffer, zval *return_value, zend_uc
     zval property;
     uint32_t arr_num = 0;
     size_t name_len = *((unsigned short*) buffer);
+    if (!name_len)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_NOTICE, "illegal unserialize data");
+        return NULL;
+    }
     buffer += 2;
     zend_string *class_name = swoole_string_init((char*) buffer, name_len);
     buffer += name_len;
@@ -988,7 +1278,6 @@ static void* swoole_unserialize_object(void *buffer, zval *return_value, zend_uc
 
     ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL(property), index, key, data)
     {
-
         const char *prop_name, *tmp;
         size_t prop_len;
         if (key)
@@ -1001,6 +1290,7 @@ static void* swoole_unserialize_object(void *buffer, zval *return_value, zend_uc
             zend_hash_next_index_insert(Z_OBJPROP_P(return_value), data);
         }
     }
+    (void) index;
     ZEND_HASH_FOREACH_END();
     zval_dtor(&property);
 
@@ -1076,9 +1366,10 @@ again:
             break;
         case IS_ARRAY:
         {
-            swoole_mini_filter_clear();
             seria_array_type(Z_ARRVAL_P(zvalue), buffer, _STR_HEADER_SIZE, _STR_HEADER_SIZE + 1);
             swoole_serialize_arr(buffer, Z_ARRVAL_P(zvalue));
+            swoole_string_cpy(buffer, SWOOLE_SERI_EOF, 3);
+            swoole_mini_filter_clear();
             break;
         }
         case IS_REFERENCE:
@@ -1087,14 +1378,15 @@ again:
             break;
         case IS_OBJECT:
         {
-            swoole_mini_filter_clear();
             SBucketType* type = (SBucketType*) (buffer->buffer + _STR_HEADER_SIZE);
             type->data_type = IS_UNDEF;
             swoole_serialize_object(buffer, zvalue, _STR_HEADER_SIZE);
+            swoole_string_cpy(buffer, SWOOLE_SERI_EOF, 3);
+            swoole_mini_filter_clear();
             break;
         }
         default:
-            php_error_docref(NULL TSRMLS_CC, E_NOTICE, "swoole serialize not support this type ");
+            php_error_docref(NULL TSRMLS_CC, E_NOTICE, "the type is not supported by swoole serialize.");
 
             break;
     }
@@ -1117,6 +1409,19 @@ PHPAPI zend_string* php_swoole_serialize(zval *zvalue)
     return z_str;
 }
 
+static CPINLINE int swoole_seria_check_eof(void *buffer, size_t len)
+{
+    void *eof_str = buffer - sizeof (SBucketType) + len - 3;
+    if (memcmp(eof_str, SWOOLE_SERI_EOF, 3) == 0)
+    {
+        return 0;
+    }
+    else
+    {
+        return -1;
+    }
+}
+
 /*
  * buffer is seria string buffer
  * len is string len
@@ -1127,42 +1432,58 @@ PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, 
 {
     SBucketType type = *(SBucketType*) (buffer);
     zend_uchar real_type = type.data_type;
-    buffer += sizeof(SBucketType);
+    buffer += sizeof (SBucketType);
     switch (real_type)
     {
-    case IS_NULL:
-    case IS_TRUE:
-    case IS_FALSE:
-        Z_TYPE_INFO_P(return_value) = real_type;
-        break;
-    case IS_LONG:
-        swoole_unserialize_long(buffer, return_value, type);
-        Z_TYPE_INFO_P(return_value) = real_type;
-        break;
-    case IS_DOUBLE:
-        swoole_unserialize_raw(buffer, return_value);
-        Z_TYPE_INFO_P(return_value) = real_type;
-        break;
-    case IS_STRING:
-        len -= sizeof(SBucketType);
-        zend_string *str = swoole_unserialize_string(buffer, len);
-        ZVAL_STR(return_value, str);
-        break;
-    case IS_ARRAY:
-    {
-        unser_start = buffer - sizeof(SBucketType);
-        uint32_t num = 0;
-        buffer = get_array_real_len(buffer, type.data_len, &num);
-        swoole_unserialize_arr(buffer, return_value, num);
-        break;
-    }
-    case IS_UNDEF:
-        unser_start = buffer - sizeof(SBucketType);
-        swoole_unserialize_object(buffer, return_value, type.data_len, object_args);
-        break;
-    default:
-        php_error_docref(NULL TSRMLS_CC, E_NOTICE, "swoole serialize not support this type ");
-        return SW_FALSE;
+        case IS_NULL:
+        case IS_TRUE:
+        case IS_FALSE:
+            Z_TYPE_INFO_P(return_value) = real_type;
+            break;
+        case IS_LONG:
+            swoole_unserialize_long(buffer, return_value, type);
+            Z_TYPE_INFO_P(return_value) = real_type;
+            break;
+        case IS_DOUBLE:
+            swoole_unserialize_raw(buffer, return_value);
+            Z_TYPE_INFO_P(return_value) = real_type;
+            break;
+        case IS_STRING:
+            len -= sizeof (SBucketType);
+            zend_string *str = swoole_unserialize_string(buffer, len);
+            ZVAL_STR(return_value, str);
+            break;
+        case IS_ARRAY:
+        {
+            if (swoole_seria_check_eof(buffer, len) < 0)
+            {
+                  php_error_docref(NULL TSRMLS_CC, E_NOTICE, "detect the error eof");
+                  return SW_FALSE;
+            }
+            unser_start = buffer - sizeof (SBucketType);
+            uint32_t num = 0;
+            buffer = get_array_real_len(buffer, type.data_len, &num);
+            if (!swoole_unserialize_arr(buffer, return_value, num))
+            {
+                return SW_FALSE;
+            }
+            break;
+        }
+        case IS_UNDEF:
+            if (swoole_seria_check_eof(buffer, len) < 0)
+            {
+                  php_error_docref(NULL TSRMLS_CC, E_NOTICE, "detect the error eof");
+                  return SW_FALSE;
+            }
+            unser_start = buffer - sizeof (SBucketType);
+            if (!swoole_unserialize_object(buffer, return_value, type.data_len, object_args))
+            {
+                return SW_FALSE;
+            }
+            break;
+        default:
+            php_error_docref(NULL TSRMLS_CC, E_NOTICE, "the type is not supported by swoole serialize.");
+            return SW_FALSE;
     }
 
     return SW_TRUE;

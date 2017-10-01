@@ -28,9 +28,21 @@ extern "C" {
 #include <openssl/bio.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <openssl/conf.h>
 
 #define SW_SSL_BUFFER      1
 #define SW_SSL_CLIENT      2
+
+typedef struct _swSSL_option
+{
+    char *cert_file;
+    char *key_file;
+    char *passphrase;
+    char *client_cert_file;
+    uint8_t verify_depth;
+    uint8_t method;
+    uint8_t disable_compress :1;
+} swSSL_option;
 
 #endif
 
@@ -40,7 +52,7 @@ swString* swConnection_get_string_buffer(swConnection *conn);
 void swConnection_clear_string_buffer(swConnection *conn);
 swBuffer_trunk* swConnection_get_out_buffer(swConnection *conn, uint32_t type);
 swBuffer_trunk* swConnection_get_in_buffer(swConnection *conn);
-int swConnection_sendfile(swConnection *conn, char *filename, off_t offset);
+int swConnection_sendfile(swConnection *conn, char *filename, off_t offset, size_t length);
 int swConnection_onSendfile(swConnection *conn, swBuffer_trunk *chunk);
 void swConnection_sendfile_destructor(swBuffer_trunk *chunk);
 char* swConnection_get_ip(swConnection *conn);
@@ -97,7 +109,7 @@ typedef struct
 void swSSL_init(void);
 int swSSL_server_set_cipher(SSL_CTX* ssl_context, swSSL_config *cfg);
 void swSSL_server_http_advise(SSL_CTX* ssl_context, swSSL_config *cfg);
-SSL_CTX* swSSL_get_context(int method, char *cert_file, char *key_file);
+SSL_CTX* swSSL_get_context(swSSL_option *option);
 void swSSL_free_context(SSL_CTX* ssl_context);
 int swSSL_create(swConnection *conn, SSL_CTX* ssl_context, int flags);
 int swSSL_set_client_certificate(SSL_CTX *ctx, char *cert_file, int depth);
@@ -108,6 +120,7 @@ int swSSL_connect(swConnection *conn);
 void swSSL_close(swConnection *conn);
 ssize_t swSSL_recv(swConnection *conn, void *__buf, size_t __n);
 ssize_t swSSL_send(swConnection *conn, void *__buf, size_t __n);
+int swSSL_sendfile(swConnection *conn, int fd, off_t *offset, size_t size);
 #endif
 
 /**
@@ -123,7 +136,7 @@ static sw_inline ssize_t swConnection_recv(swConnection *conn, void *__buf, size
 
         while(written < __n)
         {
-            ret = swSSL_recv(conn, __buf + written, __n - written);
+            ret = swSSL_recv(conn, ((char*)__buf) + written, __n - written);
             if (__flags & MSG_WAITALL)
             {
                 if (ret <= 0)
@@ -180,6 +193,9 @@ static sw_inline int swConnection_error(int err)
         return SW_ERROR;
     case EBADF:
     case ECONNRESET:
+#ifdef __CYGWIN__
+    case ECONNABORTED:
+#endif
     case EPIPE:
     case ENOTCONN:
     case ETIMEDOUT:

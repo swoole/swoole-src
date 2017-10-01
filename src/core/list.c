@@ -176,7 +176,7 @@ void swLinkedList_free(swLinkedList *ll)
     swLinkedList_node *node = ll->head;
     swLinkedList_node *tmp;
 
-    do
+    while (node)
     {
         tmp = node->next;
         if (ll->dtor)
@@ -185,7 +185,7 @@ void swLinkedList_free(swLinkedList *ll)
         }
         sw_free(node);
         node = tmp;
-    } while (node);
+    } 
 
     sw_free(ll);
 }

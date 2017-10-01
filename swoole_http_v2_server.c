@@ -29,6 +29,63 @@ static sw_inline void http2_add_header(nghttp2_nv *headers, char *k, int kl, cha
     headers->valuelen = vl;
 }
 
+static int http_build_trailer(http_context *ctx, uchar *buffer TSRMLS_DC)
+{
+    int ret;
+    nghttp2_nv nv[128];
+    int index = 0;
+
+    zval *trailer = ctx->response.ztrailer;
+    if (trailer)
+    {
+        HashTable *ht = Z_ARRVAL_P(trailer);
+        zval *value = NULL;
+        char *key = NULL;
+        uint32_t keylen = 0;
+        int type;
+        SW_HASHTABLE_FOREACH_START2(ht, key, keylen, type, value)
+        {
+            if (!key)
+            {
+                break;
+            }
+            http2_add_header(&nv[index++], key, keylen, Z_STRVAL_P(value), Z_STRLEN_P(value));
+            (void) type;
+        }
+        SW_HASHTABLE_FOREACH_END();
+    }
+
+    ssize_t rv;
+    size_t buflen;
+    size_t i;
+    size_t sum = 0;
+
+    nghttp2_hd_deflater *deflater;
+    ret = nghttp2_hd_deflate_new(&deflater, 4096);
+    if (ret != 0)
+    {
+        swoole_php_error(E_WARNING, "nghttp2_hd_deflate_init failed with error: %s\n", nghttp2_strerror(ret));
+        return SW_ERR;
+    }
+
+    for (i = 0; i < index; ++i)
+    {
+        sum += nv[i].namelen + nv[i].valuelen;
+    }
+
+    buflen = nghttp2_hd_deflate_bound(deflater, nv, index);
+    rv = nghttp2_hd_deflate_hd(deflater, (uchar *) buffer, buflen, nv, index);
+    if (rv < 0)
+    {
+        swoole_php_error(E_WARNING, "nghttp2_hd_deflate_hd() failed with error: %s\n", nghttp2_strerror((int ) rv));
+        return SW_ERR;
+    }
+
+    nghttp2_hd_deflate_del(deflater);
+
+    return rv;
+}
+
 static sw_inline void http2_onRequest(http_context *ctx, int server_fd TSRMLS_DC)
 {
     zval *retval;
@@ -36,6 +93,9 @@ static sw_inline void http2_onRequest(http_context *ctx, int server_fd TSRMLS_DC
 
     zval *zrequest_object = ctx->request.zobject;
     zval *zresponse_object = ctx->response.zobject;
+
+    SW_SEPARATE_ZVAL(zrequest_object);
+    SW_SEPARATE_ZVAL(zresponse_object);
 
     args[0] = &zrequest_object;
     args[1] = &zresponse_object;
@@ -127,23 +187,16 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length 
         {
             http2_add_header(&nv[index++], ZEND_STRL("server"), ZEND_STRL(SW_HTTP_SERVER_SOFTWARE));
         }
-        if (ctx->request.method == PHP_HTTP_OPTIONS)
+        if (!(flag & HTTP_RESPONSE_CONTENT_LENGTH) && body_length >= 0)
         {
-            http2_add_header(&nv[index++], ZEND_STRL("allow"), ZEND_STRL("GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS"));
-        }
-        else
-        {
-            if (!(flag & HTTP_RESPONSE_CONTENT_LENGTH) && body_length >= 0)
-            {
 #ifdef SW_HAVE_ZLIB
-                if (ctx->gzip_enable)
-                {
-                    body_length = swoole_zlib_buffer->length;
-                }
-#endif
-                ret = swoole_itoa(intbuf[1], body_length);
-                http2_add_header(&nv[index++], ZEND_STRL("content-length"), intbuf[1], ret);
+            if (ctx->gzip_enable)
+            {
+                body_length = swoole_zlib_buffer->length;
             }
+#endif
+            ret = swoole_itoa(intbuf[1], body_length);
+            http2_add_header(&nv[index++], ZEND_STRL("content-length"), intbuf[1], ret);
         }
         if (!(flag & HTTP_RESPONSE_DATE))
         {
@@ -163,21 +216,14 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length 
         date_str = sw_php_format_date(ZEND_STRL(SW_HTTP_DATE_FORMAT), SwooleGS->now, 0 TSRMLS_CC);
         http2_add_header(&nv[index++], ZEND_STRL("date"), date_str, strlen(date_str));
 
-        if (ctx->request.method == PHP_HTTP_OPTIONS)
-        {
-            http2_add_header(&nv[index++], ZEND_STRL("allow"), ZEND_STRL("GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS"));
-        }
-        else if (body_length >= 0)
-        {
 #ifdef SW_HAVE_ZLIB
-            if (ctx->gzip_enable)
-            {
-                body_length = swoole_zlib_buffer->length;
-            }
-#endif
-            ret = swoole_itoa(buf, body_length);
-            http2_add_header(&nv[index++], ZEND_STRL("content-length"), buf, ret);
+        if (ctx->gzip_enable)
+        {
+            body_length = swoole_zlib_buffer->length;
         }
+#endif
+        ret = swoole_itoa(buf, body_length);
+        http2_add_header(&nv[index++], ZEND_STRL("content-length"), buf, ret);
     }
     //http cookies
     if (ctx->response.zcookie)
@@ -269,10 +315,25 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
     swString_append_ptr(swoole_http_buffer, frame_header, 9);
     swString_append_ptr(swoole_http_buffer, header_buffer, n);
 
-    swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_DATA, body->length, SW_HTTP2_FLAG_END_STREAM, ctx->stream_id);
+    zval *trailer = ctx->response.ztrailer;
+    int flag = SW_HTTP2_FLAG_END_STREAM;
+    if(trailer)
+    {
+        flag = SW_HTTP2_FLAG_NONE;
+    }
+    swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_DATA, body->length, flag, ctx->stream_id);
     swString_append_ptr(swoole_http_buffer, frame_header, 9);
     swString_append(swoole_http_buffer, body);
-
+    
+    if (trailer)
+    {
+        memset(header_buffer, 0 , sizeof(header_buffer));
+        n = http_build_trailer(ctx, (uchar *) header_buffer TSRMLS_CC);
+        swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, n, SW_HTTP2_FLAG_END_HEADERS|SW_HTTP2_FLAG_END_STREAM, ctx->stream_id);
+        swString_append_ptr(swoole_http_buffer, frame_header, 9);
+        swString_append_ptr(swoole_http_buffer, header_buffer, n);
+    }
+   
     int ret = swServer_tcp_send(SwooleG.serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length);
     if (ret < 0)
     {
@@ -337,7 +398,7 @@ static int http2_parse_header(swoole_http_client *client, http_context *ctx, int
         in += proclen;
         inlen -= proclen;
 
-        //swTraceLog(SW_TRACE_HTTP2, "Header: %s[%d]: %s[%d]", nv.name, nv.namelen, nv.value, nv.valuelen);
+        swTraceLog(SW_TRACE_HTTP2, "Header: %s[%d]: %s[%d]", nv.name, nv.namelen, nv.value, nv.valuelen);
 
         if (inflate_flags & NGHTTP2_HD_INFLATE_EMIT)
         {

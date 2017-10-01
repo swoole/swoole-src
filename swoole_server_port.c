@@ -15,7 +15,10 @@
  */
 
 #include "php_swoole.h"
-#include "module.h"
+
+#ifdef SW_COROUTINE
+#include "swoole_coroutine.h"
+#endif
 
 zend_class_entry swoole_server_port_ce;
 zend_class_entry *swoole_server_port_class_entry_ptr;
@@ -47,6 +50,8 @@ const zend_function_entry swoole_server_port_methods[] =
     PHP_ME(swoole_server_port, __destruct,      arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_ME(swoole_server_port, set,             arginfo_swoole_server_port_set, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server_port, on,              arginfo_swoole_server_port_on, ZEND_ACC_PUBLIC)
+    PHP_FALIAS(__sleep, swoole_unsupport_serialize, NULL)
+    PHP_FALIAS(__wakeup, swoole_unsupport_serialize, NULL)
 #ifdef SWOOLE_SOCKETS_SUPPORT
     PHP_ME(swoole_server_port, getSocket,       arginfo_swoole_void, ZEND_ACC_PUBLIC)
 #endif
@@ -58,17 +63,47 @@ void swoole_server_port_init(int module_number TSRMLS_DC)
     SWOOLE_INIT_CLASS_ENTRY(swoole_server_port_ce, "swoole_server_port", "Swoole\\Server\\Port", swoole_server_port_methods);
     swoole_server_port_class_entry_ptr = zend_register_internal_class(&swoole_server_port_ce TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_server_port, "Swoole\\Server\\Port");
+
+    zend_declare_property_null(swoole_server_port_class_entry_ptr, ZEND_STRL("onConnect"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_server_port_class_entry_ptr, ZEND_STRL("onReceive"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_server_port_class_entry_ptr, ZEND_STRL("onClose"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_server_port_class_entry_ptr, ZEND_STRL("onPacket"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_server_port_class_entry_ptr, ZEND_STRL("onBufferFull"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_server_port_class_entry_ptr, ZEND_STRL("onBufferEmpty"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_server_port_class_entry_ptr, ZEND_STRL("onRequest"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_server_port_class_entry_ptr, ZEND_STRL("onHandShake"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_server_port_class_entry_ptr, ZEND_STRL("onMessage"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_server_port_class_entry_ptr, ZEND_STRL("onOpen"), ZEND_ACC_PUBLIC TSRMLS_CC);
+
+    zend_declare_property_null(swoole_server_port_class_entry_ptr, ZEND_STRL("host"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_server_port_class_entry_ptr, ZEND_STRL("port"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_server_port_class_entry_ptr, ZEND_STRL("type"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_server_port_class_entry_ptr, ZEND_STRL("sock"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_server_port_class_entry_ptr, ZEND_STRL("setting"), ZEND_ACC_PUBLIC TSRMLS_CC);
 }
 
 static PHP_METHOD(swoole_server_port, __construct)
 {
-    swoole_php_fatal_error(E_ERROR, "Please use the swoole_server->listen method.");
+    swoole_php_fatal_error(E_ERROR, "please use the swoole_server->listen method.");
     return;
 }
 
 static PHP_METHOD(swoole_server_port, __destruct)
 {
     swoole_server_port_property *property = swoole_get_property(getThis(), 0);
+
+#ifdef PHP_SWOOLE_ENABLE_FASTCALL
+    int j;
+    for (j = 0; j < PHP_SERVER_CALLBACK_NUM; j++)
+    {
+        if (property->caches[j])
+        {
+            efree(property->caches[j]);
+            property->caches[j] = NULL;
+        }
+    }
+#endif
+
     efree(property);
     swoole_set_property(getThis(), 0, NULL);
     swoole_set_object(getThis(), NULL);
@@ -86,14 +121,14 @@ static PHP_METHOD(swoole_server_port, set)
     }
 
     php_swoole_array_separate(zset);
-
     vht = Z_ARRVAL_P(zset);
+
     swListenPort *port = swoole_get_object(getThis());
     swoole_server_port_property *property = swoole_get_property(getThis(), 0);
 
     if (port == NULL || property == NULL)
     {
-        swoole_php_fatal_error(E_ERROR, "Please use the swoole_server->listen method.");
+        swoole_php_fatal_error(E_ERROR, "please use the swoole_server->listen method.");
         return;
     }
 
@@ -109,9 +144,33 @@ static PHP_METHOD(swoole_server_port, set)
     {
         convert_to_long(v);
         port->socket_buffer_size = (int) Z_LVAL_P(v);
-        if (port->socket_buffer_size <= 0 || port->socket_buffer_size > SW_MAX_INT)
+        if (port->socket_buffer_size <= 0)
         {
             port->socket_buffer_size = SW_MAX_INT;
+        }
+    }
+    /**
+     * !!! Don't set this option, for tests only.
+     */
+    if (php_swoole_array_get_value(vht, "kernel_socket_recv_buffer_size", v))
+    {
+        convert_to_long(v);
+        port->kernel_socket_recv_buffer_size = (int) Z_LVAL_P(v);
+        if (port->kernel_socket_recv_buffer_size <= 0)
+        {
+            port->kernel_socket_recv_buffer_size = SW_MAX_INT;
+        }
+    }
+    /**
+     * !!! Don't set this option, for tests only.
+     */
+    if (php_swoole_array_get_value(vht, "kernel_socket_send_buffer_size", v))
+    {
+        convert_to_long(v);
+        port->kernel_socket_send_buffer_size = (int) Z_LVAL_P(v);
+        if (port->kernel_socket_send_buffer_size <= 0)
+        {
+            port->kernel_socket_send_buffer_size = SW_MAX_INT;
         }
     }
     if (php_swoole_array_get_value(vht, "buffer_high_watermark", v))
@@ -186,7 +245,11 @@ static PHP_METHOD(swoole_server_port, set)
     if (php_swoole_array_get_value(vht, "websocket_subprotocol", v))
     {
         convert_to_string(v);
-        port->websocket_subprotocol = strdup(Z_STRVAL_P(v));
+        if (port->websocket_subprotocol)
+        {
+            sw_free(port->websocket_subprotocol);
+        }
+        port->websocket_subprotocol = sw_strdup(Z_STRVAL_P(v));
         port->websocket_subprotocol_length = Z_STRLEN_P(v);
     }
 #ifdef SW_USE_HTTP2
@@ -227,6 +290,12 @@ static PHP_METHOD(swoole_server_port, set)
         convert_to_long(v);
         port->tcp_keepcount = (uint16_t) Z_LVAL_P(v);
     }
+    //tcp_fastopen
+    if (sw_zend_hash_find(vht, ZEND_STRS("tcp_fastopen"), (void **) &v) == SUCCESS)
+    {
+        convert_to_boolean(v);
+        port->tcp_fastopen = Z_BVAL_P(v);
+    }
     //open length check
     if (php_swoole_array_get_value(vht, "open_length_check", v))
     {
@@ -252,7 +321,7 @@ static PHP_METHOD(swoole_server_port, set)
         {
             if (Z_TYPE_P(v) == IS_STRING)
             {
-                swProtocol_length_function func = swModule_get_global_function(Z_STRVAL_P(v), Z_STRLEN_P(v));
+                swProtocol_length_function func = swoole_get_function(Z_STRVAL_P(v), Z_STRLEN_P(v));
                 if (func != NULL)
                 {
                     port->protocol.get_package_length = func;
@@ -263,7 +332,7 @@ static PHP_METHOD(swoole_server_port, set)
             char *func_name = NULL;
             if (!sw_zend_is_callable(v, 0, &func_name TSRMLS_CC))
             {
-                swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+                swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
                 efree(func_name);
                 return;
             }
@@ -318,7 +387,11 @@ static PHP_METHOD(swoole_server_port, set)
                 swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", Z_STRVAL_P(v));
                 return;
             }
-            port->ssl_cert_file = strdup(Z_STRVAL_P(v));
+            if (port->ssl_option.cert_file)
+            {
+                sw_free(port->ssl_option.cert_file);
+            }
+            port->ssl_option.cert_file = sw_strdup(Z_STRVAL_P(v));
             port->open_ssl_encrypt = 1;
         }
         if (php_swoole_array_get_value(vht, "ssl_key_file", v))
@@ -329,12 +402,16 @@ static PHP_METHOD(swoole_server_port, set)
                 swoole_php_fatal_error(E_ERROR, "ssl key file[%s] not found.", Z_STRVAL_P(v));
                 return;
             }
-            port->ssl_key_file = strdup(Z_STRVAL_P(v));
+            if (port->ssl_option.key_file)
+            {
+                sw_free(port->ssl_option.key_file);
+            }
+            port->ssl_option.key_file = sw_strdup(Z_STRVAL_P(v));
         }
         if (php_swoole_array_get_value(vht, "ssl_method", v))
         {
             convert_to_long(v);
-            port->ssl_method = (int) Z_LVAL_P(v);
+            port->ssl_option.method = (int) Z_LVAL_P(v);
         }
         //verify client cert
         if (php_swoole_array_get_value(vht, "ssl_client_cert_file", v))
@@ -342,15 +419,19 @@ static PHP_METHOD(swoole_server_port, set)
             convert_to_string(v);
             if (access(Z_STRVAL_P(v), R_OK) < 0)
             {
-                swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", port->ssl_cert_file);
+                swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", port->ssl_option.cert_file);
                 return;
             }
-            port->ssl_client_cert_file = strdup(Z_STRVAL_P(v));
+            if (port->ssl_option.client_cert_file)
+            {
+                sw_free(port->ssl_option.client_cert_file);
+            }
+            port->ssl_option.client_cert_file = sw_strdup(Z_STRVAL_P(v));
         }
         if (php_swoole_array_get_value(vht, "ssl_verify_depth", v))
         {
             convert_to_long(v);
-            port->ssl_verify_depth = (int) Z_LVAL_P(v);
+            port->ssl_option.verify_depth = (int) Z_LVAL_P(v);
         }
         if (php_swoole_array_get_value(vht, "ssl_prefer_server_ciphers", v))
         {
@@ -375,17 +456,29 @@ static PHP_METHOD(swoole_server_port, set)
         if (php_swoole_array_get_value(vht, "ssl_ciphers", v))
         {
             convert_to_string(v);
-            port->ssl_config.ciphers = strdup(Z_STRVAL_P(v));
+            if (port->ssl_config.ciphers)
+            {
+                sw_free(port->ssl_config.ciphers);
+            }
+            port->ssl_config.ciphers = sw_strdup(Z_STRVAL_P(v));
         }
         if (php_swoole_array_get_value(vht, "ssl_ecdh_curve", v))
         {
             convert_to_string(v);
-            port->ssl_config.ecdh_curve = strdup(Z_STRVAL_P(v));
+            if (port->ssl_config.ecdh_curve)
+            {
+                sw_free(port->ssl_config.ecdh_curve);
+            }
+            port->ssl_config.ecdh_curve = sw_strdup(Z_STRVAL_P(v));
         }
         if (php_swoole_array_get_value(vht, "ssl_dhparam", v))
         {
             convert_to_string(v);
-            port->ssl_config.dhparam = strdup(Z_STRVAL_P(v));
+            if (port->ssl_config.dhparam)
+            {
+                sw_free(port->ssl_config.dhparam);
+            }
+            port->ssl_config.dhparam = sw_strdup(Z_STRVAL_P(v));
         }
         //    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_session_cache"), (void **) &v) == SUCCESS)
         //    {
@@ -400,7 +493,9 @@ static PHP_METHOD(swoole_server_port, set)
     }
 #endif
 
-    zend_update_property(swoole_server_port_class_entry_ptr, getThis(), ZEND_STRL("setting"), zset TSRMLS_CC);
+    zval *zsetting = php_swoole_read_init_property(swoole_server_port_class_entry_ptr, getThis(), ZEND_STRL("setting") TSRMLS_CC);
+    sw_php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
+    sw_zval_ptr_dtor(&zset);
 }
 
 static PHP_METHOD(swoole_server_port, on)
@@ -411,7 +506,7 @@ static PHP_METHOD(swoole_server_port, on)
 
     if (SwooleGS->start > 0)
     {
-        swoole_php_fatal_error(E_WARNING, "Server is running. Unable to set event callback now.");
+        swoole_php_fatal_error(E_WARNING, "can't register event callback function after server started.");
         RETURN_FALSE;
     }
 
@@ -420,16 +515,15 @@ static PHP_METHOD(swoole_server_port, on)
         return;
     }
 
-#ifdef PHP_SWOOLE_CHECK_CALLBACK
     char *func_name = NULL;
-    if (!sw_zend_is_callable(cb, 0, &func_name TSRMLS_CC))
+    zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
+    if (!sw_zend_is_callable_ex(cb, NULL, 0, &func_name, NULL, func_cache, NULL TSRMLS_CC))
     {
-        swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+        swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
         efree(func_name);
         return;
     }
     efree(func_name);
-#endif
 
     swoole_server_port_property *property = swoole_get_property(getThis(), 0);
 
@@ -444,7 +538,8 @@ static PHP_METHOD(swoole_server_port, on)
         "Receive",
         "Close",
         "Packet",
-        "Start",
+        NULL,
+        NULL,
         NULL,
         NULL,
         NULL,
@@ -485,6 +580,10 @@ static PHP_METHOD(swoole_server_port, on)
             {
                 SwooleG.serv->onConnect = php_swoole_onConnect;
             }
+            else if (i == SW_SERVER_CB_onPacket && SwooleG.serv->onPacket == NULL)
+            {
+                SwooleG.serv->onPacket = php_swoole_onPacket;
+            }
             else if (i == SW_SERVER_CB_onClose && SwooleG.serv->onClose == NULL)
             {
                 SwooleG.serv->onClose = php_swoole_onClose;
@@ -497,13 +596,15 @@ static PHP_METHOD(swoole_server_port, on)
             {
                 SwooleG.serv->onBufferEmpty = php_swoole_onBufferEmpty;
             }
+            property->caches[i] = func_cache;
             break;
         }
     }
 
     if (l_property_name == 0)
     {
-        swoole_php_error(E_WARNING, "Unknown event types[%s]", name);
+        swoole_php_error(E_WARNING, "unknown event types[%s]", name);
+        efree(func_cache);
         RETURN_FALSE;
     }
     RETURN_TRUE;

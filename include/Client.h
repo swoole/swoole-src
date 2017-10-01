@@ -17,21 +17,47 @@
 #ifndef SW_CLIENT_H_
 #define SW_CLIENT_H_
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 #include "buffer.h"
 #include "Connection.h"
 
 #define SW_SOCK_ASYNC    1
 #define SW_SOCK_SYNC     0
 
+#define SW_HTTPS_PROXY_HANDSHAKE_RESPONSE  "HTTP/1.1 200 Connection established"
+
 enum swClient_pipe_flag
 {
     SW_CLIENT_PIPE_TCP_SESSION = 1,
+};
+
+enum swHttp_proxy_state
+{
+    SW_HTTP_PROXY_STATE_WAIT = 0,
+    SW_HTTP_PROXY_STATE_HANDSHAKE,
+    SW_HTTP_PROXY_STATE_READY,
+};
+
+struct _http_proxy
+{
+    uint8_t state;
+    int proxy_port;
+    char *proxy_host;
+    
+    char *target_host;
+    int target_port;
+    char buf[600];
 };
 
 typedef struct _swClient
 {
     int id;
     int type;
+    long timeout_id; //timeout node id
     int _sock_type;
     int _sock_domain;
     int _protocol;
@@ -46,6 +72,7 @@ typedef struct _swClient
     uint32_t released :1;
     uint32_t destroyed :1;
     uint32_t redirect :1;
+    uint32_t http2 :1;
 
     /**
      * one package: length check
@@ -55,6 +82,7 @@ typedef struct _swClient
 
     swProtocol protocol;
     struct _swSocks5 *socks5_proxy;
+    struct _http_proxy* http_proxy;
 
     uint32_t reuse_count;
 
@@ -64,6 +92,7 @@ typedef struct _swClient
 
     uint8_t server_strlen;
     double timeout;
+    swTimer_node *timer;
 
     /**
      * sendto, read only.
@@ -87,12 +116,9 @@ typedef struct _swClient
 
 #ifdef SW_USE_OPENSSL
     uint8_t open_ssl :1;
-    uint8_t ssl_disable_compress :1;
     uint8_t ssl_wait_handshake :1;
-    char *ssl_cert_file;
-    char *ssl_key_file;
     SSL_CTX *ssl_context;
-    uint8_t ssl_method;
+    swSSL_option ssl_option;
 #endif
 
     void (*onConnect)(struct _swClient *cli);
@@ -104,7 +130,7 @@ typedef struct _swClient
 
     int (*connect)(struct _swClient *cli, char *host, int port, double _timeout, int sock_flag);
     int (*send)(struct _swClient *cli, char *data, int length, int flags);
-    int (*sendfile)(struct _swClient *cli, char *filename, off_t offset);
+    int (*sendfile)(struct _swClient *cli, char *filename, off_t offset, size_t length);
     int (*recv)(struct _swClient *cli, char *data, int len, int flags);
     int (*pipe)(struct _swClient *cli, int write_fd, int is_session_id);
     int (*close)(struct _swClient *cli);
@@ -129,5 +155,10 @@ typedef struct
 } swDNSResolver_result;
 
 int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_result *, void *), void *data);
+int swDNSResolver_free();
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* SW_CLIENT_H_ */

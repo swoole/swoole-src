@@ -37,7 +37,7 @@ void swChannel_free(swChannel *object);
 
 swChannel* swChannel_new(size_t size, int maxlen, int flags)
 {
-    assert(size > SW_CHANNEL_MIN_MEM + maxlen);
+    assert(size >= maxlen + sizeof(swChannel));
     int ret;
     void *mem;
 
@@ -95,7 +95,7 @@ swChannel* swChannel_new(size_t size, int maxlen, int flags)
  */
 int swChannel_in(swChannel *object, void *in, int data_length)
 {
-    assert(data_length < object->maxlen);
+    assert(data_length <= object->maxlen);
     if (swChannel_full(object))
     {
         return SW_ERR;

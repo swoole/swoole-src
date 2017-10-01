@@ -115,20 +115,19 @@ static int swFactoryProcess_notify(swFactory *factory, swDataHead *ev)
  */
 static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
 {
-    uint32_t schedule_key;
     uint32_t send_len = sizeof(task->data.info) + task->data.info.len;
-    uint16_t target_worker_id;
+    int target_worker_id;
     swServer *serv = SwooleG.serv;
+    int fd = task->data.info.fd;
 
     if (task->target_worker_id < 0)
     {
-        schedule_key = task->data.info.fd;
 #ifndef SW_USE_RINGBUFFER
         if (SwooleTG.factory_lock_target)
         {
             if (SwooleTG.factory_target_worker < 0)
             {
-                target_worker_id = swServer_worker_schedule(serv, schedule_key);
+                target_worker_id = swServer_worker_schedule(serv, fd, &task->data);
                 SwooleTG.factory_target_worker = target_worker_id;
             }
             else
@@ -139,20 +138,25 @@ static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
         else
 #endif
         {
-            target_worker_id = swServer_worker_schedule(serv, schedule_key);
+            target_worker_id = swServer_worker_schedule(serv, fd, &task->data);
         }
     }
     else
     {
         target_worker_id = task->target_worker_id;
     }
+    //discard the data packet.
+    if (target_worker_id < 0)
+    {
+        return SW_OK;
+    }
 
     if (swEventData_is_stream(task->data.info.type))
     {
-        swConnection *conn = swServer_connection_get(serv, task->data.info.fd);
+        swConnection *conn = swServer_connection_get(serv, fd);
         if (conn == NULL || conn->active == 0)
         {
-            swWarn("dispatch[type=%d] failed, connection#%d is not active.", task->data.info.type, task->data.info.fd);
+            swWarn("dispatch[type=%d] failed, connection#%d is not active.", task->data.info.type, fd);
             return SW_ERR;
         }
         //server active close, discard data.
@@ -217,10 +221,9 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
      */
     if (resp->length > 0)
     {
-        if (worker->send_shm == NULL)
+        if (worker == NULL || worker->send_shm == NULL)
         {
-            swWarn("send failed, data is too big.");
-            return SW_ERR;
+            goto pack_data;
         }
 
         //worker process
@@ -232,6 +235,7 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
             //cannot use send_shm
             if (!swBuffer_empty(_pipe_socket->out_buffer))
             {
+                pack_data:
                 if (swTaskWorker_large_pack(&ev_data, resp->data, resp->length) < 0)
                 {
                     return SW_ERR;
@@ -311,8 +315,15 @@ static int swFactoryProcess_end(swFactory *factory, int fd)
         if (serv->onClose != NULL)
         {
             info.fd = fd;
-            info.from_id =  conn->from_id;
-            info.from_fd =  conn->from_fd;
+            if (conn->close_actively)
+            {
+                info.from_id = -1;
+            }
+            else
+            {
+                info.from_id = conn->from_id;
+            }
+            info.from_fd = conn->from_fd;
             serv->onClose(serv, &info);
         }
         conn->closing = 0;

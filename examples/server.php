@@ -5,7 +5,7 @@ class G
     static $serv;
     static $config = array(
         //'reactor_num'              => 16,     // 线程数. 一般设置为CPU核数的1-4倍
-        'worker_num'               => 1,    // 工作进程数量. 设置为CPU的1-4倍最合理
+        'worker_num'               => 2,    // 工作进程数量. 设置为CPU的1-4倍最合理
         'max_request'              => 1000,     // 防止 PHP 内存溢出, 一个工作进程处理 X 次任务后自动重启 (注: 0,不自动重启)
         'max_conn'                 => 10000, // 最大连接数
         'task_worker_num'          => 1,     // 任务工作进程数量
@@ -25,7 +25,7 @@ class G
         //'open_cpu_affinity'        => 1,
         'socket_buffer_size'         => 1024 * 1024 * 128,
         'buffer_output_size'         => 1024 * 1024 * 2,
-        //'enable_delay_receive'       => true,
+        'enable_delay_receive'       => true,
         //'cpu_affinity_ignore' =>array(0,1)//如果你的网卡2个队列（或者没有多队列那么默认是cpu0来处理中断）,并且绑定了core 0和core 1,那么可以通过这个设置避免swoole的线程或者进程绑定到这2个core，防止cpu0，1被耗光而造成的丢包
     );
 
@@ -91,6 +91,8 @@ $process2 = new swoole_process(function ($worker) use ($serv) {
 
 //$serv->addprocess($process2);
 $serv->set(G::$config);
+$serv->set(['reactor_num' => 4]);
+
 /**
  * 使用类的静态属性，可以直接访问
  */
@@ -196,9 +198,9 @@ function my_onConnect(swoole_server $serv, $fd, $from_id)
 //    var_dump($serv->connection_info($fd));
     //var_dump($serv, $fd, $from_id);
 //    echo "Worker#{$serv->worker_pid} Client[$fd@$from_id]: Connect.\n";
-    //$serv->after(2000, function() use ($serv, $fd) {
-    //    $serv->confirm($fd);
-    //});
+    $serv->after(2000, function() use ($serv, $fd) {
+        $serv->confirm($fd);
+    });
     my_log("Client: Connect --- {$fd}");
 }
 
@@ -206,6 +208,18 @@ function timer_show($id)
 {
     my_log("Timer#$id");
 }
+
+function my_onWorkerExit(swoole_server $serv, $worker_id) {
+    $redisState = $serv->redis->getState();
+    global $argv;
+    if ($redisState == Swoole\Redis::STATE_READY or $redisState == Swoole\Redis::STATE_SUBSCRIBE)
+    {
+        swoole_set_process_name("php {$argv[0]}: worker shutting down");
+        echo "exit\n";
+        //$serv->redis->close();
+    }
+}
+
 function my_onWorkerStart(swoole_server $serv, $worker_id)
 {
 	processRename($serv, $worker_id);
@@ -218,6 +232,17 @@ function my_onWorkerStart(swoole_server $serv, $worker_id)
         $serv->defer(function(){
            echo "defer call\n";
         });
+//        $serv->tick(2000, function() use ($serv) {
+//           echo "Worker-{$serv->worker_id} tick-2000\n";
+//        });
+
+        $redis = new Swoole\Redis();
+        $redis->connect("127.0.0.1", 6379, function ($redis, $r) {
+           $redis->get("key", function ($redis, $r) {
+               var_dump($r);
+           });
+        });
+        $serv->redis = $redis;
     }
     else
     {
@@ -398,16 +423,6 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
     {
         exit("worker php exit.\n");
     }
-    elseif ($cmd == 'pause')
-    {
-        echo "pause receive data. fd={$fd}\n";
-        $serv->pause($fd);
-    }
-    elseif(substr($cmd, 0, 6) == "resume")
-    {
-        $resume_fd = substr($cmd, 7);
-        $serv->resume($resume_fd);
-    }
     //关闭fd
     elseif(substr($cmd, 0, 5) == "close")
     {
@@ -558,6 +573,7 @@ $serv->on('WorkerStop', 'my_onWorkerStop');
 $serv->on('Task', 'my_onTask');
 $serv->on('Finish', 'my_onFinish');
 $serv->on('WorkerError', 'my_onWorkerError');
+$serv->on('WorkerExit', 'my_onWorkerExit');
 $serv->on('ManagerStart', function($serv) {
     global $argv;
     swoole_set_process_name("php {$argv[0]}: manager");

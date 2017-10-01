@@ -205,6 +205,7 @@ void swProcessPool_shutdown(swProcessPool *pool)
     swWorker *worker;
     SwooleG.running = 0;
 
+	swSignal_none();
     //concurrent kill
     for (i = 0; i < pool->run_worker_num; i++)
     {
@@ -293,6 +294,11 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
     else
     {
         task_n = pool->max_request;
+        n = swoole_system_random(1, pool->max_request / 2);
+        if (n > 0)
+        {
+            task_n += n;
+        }
     }
 
     /**

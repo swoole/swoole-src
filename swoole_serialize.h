@@ -12,46 +12,65 @@
   +----------------------------------------------------------------------+
   | Author: xinhua.guo  <woshiguo35@gmail.com>                        |
   +----------------------------------------------------------------------+
-*/
+ */
 
 #ifndef SERIALIZE_H
 #define	SERIALIZE_H
 
 #ifdef	__cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 #if PHP_MAJOR_VERSION >= 7
-    
-#define SERIA_SIZE 1024
 
-    typedef struct _seriaString {
-        size_t offset;
-        size_t total;
-        void * buffer; //zend_string
-    } seriaString;
+#define SERIA_SIZE 4096
+#define FILTER_SIZE 1024
 
-    typedef struct _SBucketType {
-        zend_uchar key_type : 1;
-        zend_uchar key_len : 2;
-        zend_uchar data_len : 2;
-        zend_uchar data_type : 3; //IS_UNDEF means object now
-    } SBucketType;
+typedef struct _seriaString
+{
+    size_t offset;
+    size_t total;
+    void * buffer; //zend_string
+} seriaString;
 
-    struct _swSeriaG {
-        zval sleep_fname;
-        zval weekup_fname;
-        zend_uchar pack_string;
-    };
+typedef struct _SBucketType
+{
+    zend_uchar key_type : 1;
+    zend_uchar key_len : 2;
+    zend_uchar data_len : 2;
+    zend_uchar data_type : 3; //IS_UNDEF means object now
+} SBucketType;
 
-    typedef struct _swPoolstr {
-        zend_string *str;
-        uint32_t offset;
-    } swPoolstr;
+struct _swMinFilter
+{
+    uint32_t mini_fillter_find_cnt;
+    uint32_t mini_fillter_miss_cnt;
+    uint32_t bigger_fillter_size;
+};
 
-    struct _swSeriaG swSeriaG;
+struct _swSeriaG
+{
+    zval sleep_fname;
+    zval weekup_fname;
+    zend_uchar pack_string;
+    struct _swMinFilter filter;
+};
 
-    static void *unser_start = 0;
-    static swPoolstr mini_filter[SERIA_SIZE];
+#pragma pack (4)
+
+typedef struct _swPoolstr
+{
+    zend_string *str;
+    uint32_t offset;
+} swPoolstr;
+
+#pragma pack ()
+
+struct _swSeriaG swSeriaG;
+
+static void *unser_start = 0;
+static swPoolstr mini_filter[FILTER_SIZE];
+static swPoolstr *bigger_filter = NULL;
 
 #define SERIA_SET_ENTRY_TYPE_WITH_MINUS(buffer,type)        swoole_check_size(buffer, 1);\
                                                         *(char*) (buffer->buffer + buffer->offset) = *((char*) & type);\
@@ -86,11 +105,11 @@ extern "C" {
 
 #define KEY_TYPE_STRING               1
 #define KEY_TYPE_INDEX                0
-    
+
 #define SW_FAST_PACK                  1
 
 #endif
-    
+
 #ifdef	__cplusplus
 }
 #endif

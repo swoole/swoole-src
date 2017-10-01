@@ -38,11 +38,6 @@ add_executable(test_server ${TEST_SRC_LIST})
 add_dependencies(test_server static)
 target_link_libraries(test_server ${SWOOLE_CLFLAGS} swoole)
 
-#unittest
-file(GLOB_RECURSE UNITTEST_SRC_LIST FOLLOW_SYMLINKS tests/*.c)
-add_executable(unittest ${SRC_LIST} ${UNITTEST_SRC_LIST})
-target_link_libraries(unittest ${SWOOLE_CLFLAGS})
-
 #install
 INSTALL(CODE "MESSAGE(\"Are you run command using root user?\")")
 INSTALL(TARGETS shared static LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)

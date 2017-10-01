@@ -47,50 +47,36 @@ int swThreadPool_create(swThreadPool *pool, int thread_num)
         return SW_ERR;
     }
 #endif
-
-    pthread_mutex_init(&(pool->mutex), NULL);
-    pthread_cond_init(&(pool->cond), NULL);
-
+    if (swCond_create(&pool->cond) < 0)
+    {
+        return SW_ERR;
+    }
     pool->thread_num = thread_num;
     return SW_OK;
 }
 
 int swThreadPool_dispatch(swThreadPool *pool, void *task, int task_len)
 {
-    int i, ret;
-    pthread_mutex_lock(&(pool->mutex));
+    int ret;
 
-    for (i = 0; i < 1000; i++)
-    {
+    pool->cond.lock(&pool->cond);
 #ifdef SW_THREADPOOL_USE_CHANNEL
-        ret = swChannel_in(pool->chan, task, task_len);
+    ret = swChannel_in(pool->chan, task, task_len);
 #else
-        ret = swRingQueue_push(&pool->queue, task);
+    ret = swRingQueue_push(&pool->queue, task);
 #endif
-
-        if (ret < 0)
-        {
-            usleep(i);
-            continue;
-        }
-        else
-        {
-            break;
-        }
-    }
-
-    pthread_mutex_unlock(&(pool->mutex));
+    pool->cond.unlock(&pool->cond);
 
     if (ret < 0)
     {
+        SwooleG.error = EAGAIN;
         return SW_ERR;
     }
-    else
-    {
-        sw_atomic_t *task_num = &pool->task_num;
-        sw_atomic_fetch_add(task_num, 1);
-    }
-    return pthread_cond_signal(&(pool->cond));
+
+    sw_atomic_t *task_num = &pool->task_num;
+    sw_atomic_fetch_add(task_num, 1);
+
+    return pool->cond.notify(&pool->cond);
 }
 
 int swThreadPool_run(swThreadPool *pool)
@@ -119,7 +105,7 @@ int swThreadPool_free(swThreadPool *pool)
     pool->shutdown = 1;
 
     //broadcast all thread
-    pthread_cond_broadcast(&(pool->cond));
+    pool->cond.broadcast(&(pool->cond));
 
     for (i = 0; i < pool->thread_num; i++)
     {
@@ -132,10 +118,9 @@ int swThreadPool_free(swThreadPool *pool)
     swRingQueue_free(&pool->queue);
 #endif
 
-    pthread_mutex_destroy(&(pool->mutex));
-    pthread_cond_destroy(&(pool->cond));
+    pool->cond.free(&pool->cond);
 
-    return 0;
+    return SW_OK;
 }
 
 static void* swThreadPool_loop(void *arg)
@@ -154,24 +139,24 @@ static void* swThreadPool_loop(void *arg)
 
     while (SwooleG.running)
     {
-        pthread_mutex_lock(&(pool->mutex));
+        pool->cond.lock(&pool->cond);
 
         if (pool->shutdown)
         {
-            pthread_mutex_unlock(&(pool->mutex));
+            pool->cond.unlock(&pool->cond);
             swTrace("thread [%d] will exit\n", id);
             pthread_exit(NULL);
         }
 
         if (pool->task_num == 0)
         {
-            pthread_cond_wait(&(pool->cond), &(pool->mutex));
+            pool->cond.wait(&pool->cond);
         }
 
         swTrace("thread [%d] is starting to work\n", id);
 
         ret = swRingQueue_pop(&pool->queue, &task);
-        pthread_mutex_unlock(&(pool->mutex));
+        pool->cond.unlock(&pool->cond);
 
         if (ret >= 0)
         {

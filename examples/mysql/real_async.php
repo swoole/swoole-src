@@ -6,6 +6,11 @@ $server = array(
     'password' => 'root',
     'database' => 'test',
 );
+
+$db->on('close', function() use($db) {
+    echo "mysql is closed.\n";
+});
+
 $r = $db->connect($server, function ($db, $result)
 {
     if ($result === false)

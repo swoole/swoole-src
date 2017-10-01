@@ -17,12 +17,23 @@
 #include "php_swoole.h"
 #include "redis.h"
 
+#ifdef SW_COROUTINE
+#include "swoole_coroutine.h"
+#endif
 #include "ext/standard/php_string.h"
 
 zend_class_entry swoole_redis_server_ce;
 zend_class_entry *swoole_redis_server_class_entry_ptr;
 
 static swString *format_buffer;
+#ifdef SW_COROUTINE
+static struct
+{
+    zend_fcall_info_cache **array;
+    uint32_t size;
+    uint32_t count;
+} func_cache_array = {NULL, 0, 0};
+#endif
 
 static PHP_METHOD(swoole_redis_server, start);
 static PHP_METHOD(swoole_redis_server, setHandler);
@@ -102,7 +113,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
     SW_MAKE_STD_ZVAL(zparams);
     array_init(zparams);
 
-    zval *retval;
+    zval *retval = NULL;
 
     int state = SW_REDIS_RECEIVE_TOTAL_LINE;
     int add_param = 0;
@@ -173,22 +184,22 @@ static int redis_onReceive(swServer *serv, swEventData *req)
     int _command_len = snprintf(_command, sizeof(_command), "_handler_%*s", command_len, command);
     php_strtolower(_command, _command_len);
 
-    zval **args[2];
     zval *zobject = serv->ptr2;
-    zval *zcallback = sw_zend_read_property(swoole_redis_server_class_entry_ptr, zobject, _command, _command_len, 1 TSRMLS_CC);
-
     char err_msg[256];
+
+    zval *zfd;
+    SW_MAKE_STD_ZVAL(zfd);
+    ZVAL_LONG(zfd, fd);
+
+#ifndef SW_COROUTINE
+    zval **args[2];
+    zval *zcallback = sw_zend_read_property(swoole_redis_server_class_entry_ptr, zobject, _command, _command_len, 1 TSRMLS_CC);
     if (!zcallback || ZVAL_IS_NULL(zcallback))
     {
         length = snprintf(err_msg, sizeof(err_msg), "-ERR unknown command '%*s'\r\n", command_len, command);
         swServer_tcp_send(serv, fd, err_msg, length);
         return SW_OK;
     }
-
-    zval *zfd;
-    SW_MAKE_STD_ZVAL(zfd);
-    ZVAL_LONG(zfd, fd);
-
     args[0] = &zfd;
     args[1] = &zparams;
 
@@ -196,6 +207,27 @@ static int redis_onReceive(swServer *serv, swEventData *req)
     {
         swoole_php_error(E_WARNING, "command handler error.");
     }
+#else
+    zval *index = sw_zend_read_property(swoole_redis_server_class_entry_ptr, zobject, _command, _command_len, 1 TSRMLS_CC);
+    if (!index || ZVAL_IS_NULL(index))
+    {
+        length = snprintf(err_msg, sizeof(err_msg), "-ERR unknown command '%*s'\r\n", command_len, command);
+        swServer_tcp_send(serv, fd, err_msg, length);
+        return SW_OK;
+    }
+    zval *args[2];
+    args[0] = zfd;
+    args[1] = zparams;
+
+    zend_fcall_info_cache *cache = func_cache_array.array[Z_LVAL_P(index)];
+    if (coro_create(cache, args, 2, &retval, NULL, NULL) != 0)
+    {
+        sw_zval_ptr_dtor(&zfd);
+        sw_zval_ptr_dtor(&zdata);
+        sw_zval_ptr_dtor(&zparams);
+        return SW_OK;
+    }
+#endif
     if (EG(exception))
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
@@ -240,7 +272,7 @@ static PHP_METHOD(swoole_redis_server, start)
     zval *zsetting = sw_zend_read_property(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("setting"), 1 TSRMLS_CC);
     if (zsetting == NULL || ZVAL_IS_NULL(zsetting))
     {
-        SW_MAKE_STD_ZVAL(zsetting);
+        SW_ALLOC_INIT_ZVAL(zsetting);
         array_init(zsetting);
         zend_update_property(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("setting"), zsetting TSRMLS_CC);
     }
@@ -264,7 +296,7 @@ static PHP_METHOD(swoole_redis_server, start)
     ret = swServer_start(serv);
     if (ret < 0)
     {
-        swoole_php_fatal_error(E_ERROR, "start server failed. Error: %s", sw_error);
+        swoole_php_fatal_error(E_ERROR, "server failed to start. Error: %s", sw_error);
         RETURN_LONG(ret);
     }
     RETURN_TRUE;
@@ -289,9 +321,20 @@ static PHP_METHOD(swoole_redis_server, setHandler)
 
 #ifdef PHP_SWOOLE_CHECK_CALLBACK
     char *func_name = NULL;
-    if (!sw_zend_is_callable(zcallback, 0, &func_name TSRMLS_CC))
+#ifdef SW_COROUTINE
+    if (func_cache_array.array == NULL)
     {
-        swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+        func_cache_array.array = ecalloc(32, sizeof(zend_fcall_info_cache *));
+        func_cache_array.size = 32;
+        func_cache_array.count = 0;
+    }
+    zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
+    if (!sw_zend_is_callable_ex(zcallback, NULL, 0, &func_name, NULL, func_cache, NULL TSRMLS_CC))
+#else
+    if (!sw_zend_is_callable(zcallback, 0, &func_name TSRMLS_CC))
+#endif
+    {
+        swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
         efree(func_name);
         return;
     }
@@ -301,7 +344,21 @@ static PHP_METHOD(swoole_redis_server, setHandler)
     char _command[SW_REDIS_MAX_COMMAND_SIZE];
     int length = snprintf(_command, sizeof(_command), "_handler_%s", command);
     php_strtolower(_command, length);
+#ifdef SW_COROUTINE
+    int func_cache_index = func_cache_array.count;
+    func_cache_array.array[func_cache_index] = func_cache;
+    func_cache_array.count++;
+    if (func_cache_array.count == func_cache_array.size)
+    {
+        func_cache_array.size *= 2;
+        func_cache_array.array = ecalloc(func_cache_array.size, sizeof(zend_fcall_info_cache *));
+    }
+    sw_zval_add_ref(&zcallback);
+    zend_update_property_long(swoole_redis_server_class_entry_ptr, getThis(), _command, length, func_cache_index TSRMLS_CC);
+#else
+    php_strtolower(_command, length);
     zend_update_property(swoole_redis_server_class_entry_ptr, getThis(), _command, length, zcallback TSRMLS_CC);
+#endif
     RETURN_TRUE;
 }
 
@@ -389,19 +446,36 @@ static PHP_METHOD(swoole_redis_server, format)
         }
         if (Z_TYPE_P(value) != IS_ARRAY)
         {
-            swoole_php_fatal_error(E_WARNING, "parameters 2 must be array.");
+            swoole_php_fatal_error(E_WARNING, "the second parameter should be an array.");
         }
         swString_clear(format_buffer);
         length = snprintf(message, sizeof(message), "*%d\r\n", zend_hash_num_elements(Z_ARRVAL_P(value)));
         swString_append_ptr(format_buffer, message, length);
 
         SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(value), item)
+#if PHP_MAJOR_VERSION >= 7
+            zval _copy;
+            if (Z_TYPE_P(item) != IS_STRING)
+            {
+                _copy = *item;
+                zval_copy_ctor(&_copy);
+                item = &_copy;
+            }
+#endif
+            convert_to_string(item);
             length = snprintf(message, sizeof(message), "$%d\r\n", Z_STRLEN_P(item));
             swString_append_ptr(format_buffer, message, length);
             swString_append_ptr(format_buffer, Z_STRVAL_P(item), Z_STRLEN_P(item));
             swString_append_ptr(format_buffer, SW_CRLF, SW_CRLF_LEN);
-            SW_RETURN_STRINGL(format_buffer->str, format_buffer->length, 1);
+#if PHP_MAJOR_VERSION >= 7
+            if (item == &_copy)
+            {
+                zval_dtor(item);
+            }
+#endif
         SW_HASHTABLE_FOREACH_END();
+
+        SW_RETURN_STRINGL(format_buffer->str, format_buffer->length, 1);
     }
     else if (type == SW_REDIS_REPLY_MAP)
     {
@@ -411,7 +485,7 @@ static PHP_METHOD(swoole_redis_server, format)
         }
         if (Z_TYPE_P(value) != IS_ARRAY)
         {
-            swoole_php_fatal_error(E_WARNING, "parameters 2 must be array.");
+            swoole_php_fatal_error(E_WARNING, "the second parameter should be an array.");
         }
         swString_clear(format_buffer);
         length = snprintf(message, sizeof(message), "*%d\r\n", 2 * zend_hash_num_elements(Z_ARRVAL_P(value)));
@@ -426,13 +500,31 @@ static PHP_METHOD(swoole_redis_server, format)
             {
                 continue;
             }
+#if PHP_MAJOR_VERSION >= 7
+            zval _copy;
+            if (Z_TYPE_P(item) != IS_STRING)
+            {
+                _copy = *item;
+                zval_copy_ctor(&_copy);
+                item = &_copy;
+            }
+#endif
+            convert_to_string(item);
             length = snprintf(message, sizeof(message), "$%d\r\n%s\r\n$%d\r\n", keylen, key, Z_STRLEN_P(item));
             swString_append_ptr(format_buffer, message, length);
             swString_append_ptr(format_buffer, Z_STRVAL_P(item), Z_STRLEN_P(item));
             swString_append_ptr(format_buffer, SW_CRLF, SW_CRLF_LEN);
-            SW_RETURN_STRINGL(format_buffer->str, format_buffer->length, 1);
+
+#if PHP_MAJOR_VERSION >= 7
+            if (item == &_copy)
+            {
+                zval_dtor(item);
+            }
+#endif
             (void) keytype;
         SW_HASHTABLE_FOREACH_END();
+
+        SW_RETURN_STRINGL(format_buffer->str, format_buffer->length, 1);
     }
     else
     {

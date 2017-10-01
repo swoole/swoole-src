@@ -30,6 +30,10 @@ static int swReactorThread_onPackage(swReactor *reactor, swEvent *event);
 static int swReactorThread_dispatch_array_buffer(swReactorThread *thread, swConnection *conn);
 #endif
 
+#ifdef SW_USE_TIMEWHEEL
+static void swReactorThread_onReactorCompleted(swReactor *reactor);
+#endif
+
 #ifdef SW_USE_RINGBUFFER
 static sw_inline void swReactorThread_yield(swReactorThread *thread)
 {
@@ -80,7 +84,7 @@ static sw_inline int swReactorThread_verify_ssl_state(swReactor *reactor, swList
         int ret = swSSL_accept(conn);
         if (ret == SW_READY)
         {
-            if (port->ssl_client_cert_file)
+            if (port->ssl_option.client_cert_file)
             {
                 swDispatchData task;
                 ret = swSSL_get_client_certificate(conn->ssl, task.data.data, sizeof(task.data.data));
@@ -290,15 +294,15 @@ int swReactorThread_close(swReactor *reactor, int fd)
         return SW_ERR;
     }
 
-    if (!conn->removed && reactor->del(reactor, fd) < 0)
-    {
-        return SW_ERR;
-    }
-
     if (serv->factory_mode == SW_MODE_PROCESS)
     {
         assert(fd % serv->reactor_num == reactor->id);
         assert(fd % serv->reactor_num == SwooleTG.id);
+    }
+
+    if (conn->removed == 0 && reactor->del(reactor, fd) < 0)
+    {
+        return SW_ERR;
     }
 
     sw_atomic_fetch_add(&SwooleStats->close_count, 1);
@@ -321,6 +325,11 @@ int swReactorThread_close(swReactor *reactor, int fd)
     {
         swHttpRequest_free(conn);
     }
+    if (port->open_redis_protocol && conn->object)
+    {
+        sw_free(conn->object);
+        conn->object = NULL;
+    }
 
 #ifdef SW_USE_SOCKET_LINGER
     if (conn->close_force)
@@ -338,6 +347,13 @@ int swReactorThread_close(swReactor *reactor, int fd)
 #ifdef SW_REACTOR_USE_SESSION
     swSession *session = swServer_get_session(serv, conn->session_id);
     session->fd = 0;
+#endif
+
+#ifdef SW_USE_TIMEWHEEL
+    if (reactor->timewheel)
+    {
+        swTimeWheel_remove(reactor->timewheel, conn);
+    }
 #endif
 
     /**
@@ -381,6 +397,8 @@ int swReactorThread_onClose(swReactor *reactor, swEvent *event)
     notify_ev.from_id = reactor->id;
     notify_ev.fd = fd;
     notify_ev.type = SW_EVENT_CLOSE;
+
+    swTraceLog(SW_TRACE_CLOSE, "client[fd=%d] close the connection.", fd);
 
     swConnection *conn = swServer_connection_get(SwooleG.serv, fd);
     if (conn == NULL || conn->active == 0)
@@ -464,6 +482,13 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
                 _send.length = data->length;
                 swReactorThread_send(&_send);
             }
+            //reactor thread exit
+            else if (_send.info.from_fd == SW_RESPONSE_EXIT)
+            {
+                reactor->running = 0;
+                return SW_OK;
+            }
+            //will never be here
             else
             {
                 abort();
@@ -523,11 +548,6 @@ int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
         else
         {
             append_pipe_buffer:
-            if (buffer->length > serv->pipe_buffer_size)
-            {
-                swYield();
-                swSocket_wait(pipe_fd, SW_SOCKET_OVERFLOW_WAIT, SW_EVENT_WRITE);
-            }
             if (swBuffer_append(buffer, data, len) < 0)
             {
                 swWarn("append to pipe_buffer failed.");
@@ -592,6 +612,8 @@ int swReactorThread_send(swSendData *_send)
     else
     {
         reactor = &(serv->reactor_threads[conn->from_id].reactor);
+        assert(fd % serv->reactor_num == reactor->id);
+        assert(fd % serv->reactor_num == SwooleTG.id);
     }
 
     /**
@@ -679,7 +701,8 @@ int swReactorThread_send(swSendData *_send)
     //sendfile to client
     else if (_send->info.type == SW_EVENT_SENDFILE)
     {
-        swConnection_sendfile(conn, _send_data + sizeof(off_t), *((off_t *) _send_data));
+        swSendFile_request *req = (swSendFile_request *) _send_data;
+        swConnection_sendfile(conn, req->filename, req->offset, req->length);
     }
     //send data
     else
@@ -711,7 +734,7 @@ int swReactorThread_send(swSendData *_send)
         }
 
         swListenPort *port = swServer_get_port(serv, fd);
-        if (serv->onBufferFull && conn->out_buffer->length >= port->buffer_high_watermark)
+        if (serv->onBufferFull && conn->high_watermark == 0 && conn->out_buffer->length >= port->buffer_high_watermark)
         {
             swServer_tcp_notify(serv, conn, SW_EVENT_BUFFER_FULL);
             conn->high_watermark = 1;
@@ -851,6 +874,17 @@ static int swReactorThread_onRead(swReactor *reactor, swEvent *event)
         return swReactorThread_close(reactor, event->fd);
     }
 #endif
+
+#ifdef SW_USE_TIMEWHEEL
+    /**
+     * TimeWheel update
+     */
+    if (reactor->timewheel && swTimeWheel_new_index(reactor->timewheel) != event->socket->timewheel_index)
+    {
+        swTimeWheel_update(reactor->timewheel, event->socket);
+    }
+#endif
+
     event->socket->last_time = SwooleGS->now;
     return port->onRead(reactor, port, event);
 }
@@ -868,15 +902,31 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
     }
 
     swConnection *conn = swServer_connection_get(serv, fd);
-    if (conn->active == 0)
+    if (conn == NULL || conn->active == 0)
     {
-        return SW_OK;
+        return SW_ERR;
     }
-    //notify worker process
     else if (conn->connect_notify)
     {
-        swServer_tcp_notify(serv, conn, SW_EVENT_CONNECT);
         conn->connect_notify = 0;
+#ifdef SW_USE_TIMEWHEEL
+        if (reactor->timewheel)
+        {
+            swTimeWheel_add(reactor->timewheel, conn);
+        }
+#endif
+#ifdef SW_USE_OPENSSL
+        if (conn->ssl)
+        {
+            goto listen_read_event;
+        }
+#endif
+        //notify worker process
+        if (serv->onConnect)
+        {
+            swServer_tcp_notify(serv, conn, SW_EVENT_CONNECT);
+        }
+        //delay receive, wait resume command.
         if (serv->enable_delay_receive)
         {
             conn->listen_wait = 1;
@@ -884,6 +934,9 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
         }
         else
         {
+#ifdef SW_USE_OPENSSL
+            listen_read_event:
+#endif
             return reactor->set(reactor, fd, SW_EVENT_TCP | SW_EVENT_READ);
         }
     }
@@ -1116,7 +1169,7 @@ static int swReactorThread_loop(swThreadParam *param)
 
         if (0 != pthread_setaffinity_np(thread_id, sizeof(cpu_set), &cpu_set))
         {
-            swSysError("pthread_setaffinity_np() failed");
+            swSysError("pthread_setaffinity_np() failed.");
         }
     }
 #endif
@@ -1210,6 +1263,11 @@ static int swReactorThread_loop(swThreadParam *param)
                 swSetNonBlock(pipe_fd);
                 reactor->add(reactor, pipe_fd, SW_FD_PIPE);
 
+                if (thread->notify_pipe == 0)
+                {
+                    thread->notify_pipe = serv->workers[i].pipe_worker;
+                }
+
                 /**
                  * mapping reactor_id and worker pipe
                  */
@@ -1235,6 +1293,31 @@ static int swReactorThread_loop(swThreadParam *param)
         }
     }
 
+#ifdef SW_USE_TIMEWHEEL
+    if (serv->heartbeat_idle_time > 0)
+    {
+        if (serv->heartbeat_idle_time < SW_TIMEWHEEL_SIZE)
+        {
+            reactor->timewheel = swTimeWheel_new(serv->heartbeat_idle_time);
+            reactor->heartbeat_interval = 1;
+        }
+        else
+        {
+            reactor->timewheel = swTimeWheel_new(SW_TIMEWHEEL_SIZE);
+            reactor->heartbeat_interval = serv->heartbeat_idle_time / SW_TIMEWHEEL_SIZE;
+        }
+        reactor->last_heartbeat_time = 0;
+        if (reactor->timewheel == NULL)
+        {
+            swSysError("thread->timewheel create failed.");
+            return SW_ERR;
+        }
+        reactor->timeout_msec = reactor->heartbeat_interval * 1000;
+        reactor->onFinish = swReactorThread_onReactorCompleted;
+        reactor->onTimeout = swReactorThread_onReactorCompleted;
+    }
+#endif
+
     //wait other thread
 #ifdef HAVE_PTHREAD_BARRIER
     pthread_barrier_wait(&serv->barrier);
@@ -1245,6 +1328,14 @@ static int swReactorThread_loop(swThreadParam *param)
     reactor->wait(reactor, NULL);
     //shutdown
     reactor->free(reactor);
+
+#ifdef SW_USE_TIMEWHEEL
+    if (reactor->timewheel)
+    {
+        swTimeWheel_free(reactor->timewheel);
+    }
+#endif
+
     pthread_exit(0);
     return SW_OK;
 }
@@ -1262,7 +1353,6 @@ int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
 #ifdef SW_USE_RINGBUFFER
     swServer *serv = SwooleG.serv;
     swReactorThread *thread = swServer_get_thread(serv, SwooleTG.id);
-    int target_worker_id = swServer_worker_schedule(serv, conn->fd);
 
     swPackage package;
     package.length = length;
@@ -1270,11 +1360,11 @@ int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
 
     task.data.info.type = SW_EVENT_PACKAGE;
     task.data.info.len = sizeof(package);
-    task.target_worker_id = target_worker_id;
 
-    //swoole_dump_bin(package.data, 's', buffer->length);
     memcpy(package.data, data, package.length);
     memcpy(task.data.data, &package, sizeof(package));
+
+    task.target_worker_id = swServer_worker_schedule(serv, conn->fd, &task.data);
 
     //dispatch failed, free the memory.
     if (factory->dispatch(factory, &task) < 0)
@@ -1334,92 +1424,6 @@ int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
     return SW_OK;
 }
 
-#if 0
-int swReactorThread_dispatch_array_buffer(swReactorThread *thread, swConnection *conn)
-{
-    swDispatchData task;
-    swFactory *factory = SwooleG.factory;
-
-    task.data.info.fd = conn->fd;
-    task.data.info.from_id = conn->from_id;
-
-    swBuffer *buffer = conn->in_buffer;
-    swBuffer_trunk *trunk = swBuffer_get_trunk(buffer);
-
-#ifdef SW_USE_RINGBUFFER
-    swServer *serv = SwooleG.serv;
-    uint16_t target_worker_id = swServer_worker_schedule(serv, conn->fd);
-    swPackage package;
-
-    package.length = 0;
-    package.data = swReactorThread_alloc(thread, buffer->length);
-
-    task.data.info.type = SW_EVENT_PACKAGE;
-
-    while (trunk != NULL)
-    {
-        task.data.info.len = trunk->length;
-        memcpy(package.data + package.length, trunk->store.ptr, trunk->length);
-        package.length += trunk->length;
-
-        swBuffer_pop_trunk(buffer, trunk);
-        trunk = swBuffer_get_trunk(buffer);
-    }
-    task.data.info.len = sizeof(package);
-    task.target_worker_id = target_worker_id;
-    memcpy(task.data.data, &package, sizeof(package));
-    //swWarn("[ReactorThread] copy_n=%d", package.length);
-    //dispatch failed, free the memory.
-    if (factory->dispatch(factory, &task) < 0)
-    {
-        thread->buffer_input->free(thread->buffer_input, package.data);
-    }
-    else
-    {
-        return SW_OK;
-    }
-#else
-    int ret;
-    task.data.info.type = SW_EVENT_PACKAGE_START;
-    task.target_worker_id = -1;
-
-    /**
-     * lock target
-     */
-    SwooleTG.factory_lock_target = 1;
-
-    while (trunk != NULL)
-    {
-        task.data.info.fd = conn->fd;
-        task.data.info.len = trunk->length;
-        memcpy(task.data.data, trunk->store.ptr, task.data.info.len);
-        //package end
-        if (trunk->next == NULL)
-        {
-            task.data.info.type = SW_EVENT_PACKAGE_END;
-        }
-        ret = factory->dispatch(factory, &task);
-        //TODO: 处理数据失败，数据将丢失
-        if (ret < 0)
-        {
-            swWarn("factory->dispatch() failed.");
-        }
-        swBuffer_pop_trunk(buffer, trunk);
-        trunk = swBuffer_get_trunk(buffer);
-
-        swTrace("send2worker[trunk_num=%d][type=%d]", buffer->trunk_num, task.data.info.type);
-    }
-    /**
-     * unlock
-     */
-    SwooleTG.factory_target_worker = -1;
-    SwooleTG.factory_lock_target = 0;
-
-#endif
-    return SW_OK;
-}
-#endif
-
 void swReactorThread_free(swServer *serv)
 {
     int i;
@@ -1430,28 +1434,44 @@ void swReactorThread_free(swServer *serv)
         return;
     }
 
-#ifdef __MACH__
-    exit(0);
-#endif
-
     for (i = 0; i < serv->reactor_num; i++)
     {
         thread = &(serv->reactor_threads[i]);
-        thread->reactor.running = 0;
-        SW_START_SLEEP;
-        if (thread->thread_id && pthread_cancel(thread->thread_id) != 0)
+        if (thread->notify_pipe)
         {
-            swSysError("pthread_cancel(%ld) failed.", (long ) thread->thread_id);
+            swDataHead ev;
+            memset(&ev, 0, sizeof(ev));
+            ev.from_fd = SW_RESPONSE_EXIT;
+            if (swSocket_write_blocking(thread->notify_pipe, (void *) &ev, sizeof(ev)) < 0)
+            {
+                goto cancel;
+            }
+        }
+        else
+        {
+            cancel: if (pthread_cancel(thread->thread_id) < 0)
+            {
+                swSysError("pthread_cancel(%ld) failed.", (long ) thread->thread_id);
+            }
         }
         //wait thread
-        if (thread->thread_id && pthread_join(thread->thread_id, NULL) != 0)
+        if (pthread_join(thread->thread_id, NULL) != 0)
         {
             swSysError("pthread_join(%ld) failed.", (long ) thread->thread_id);
         }
-        //release the lock
-        SwooleGS->lock.unlock(&SwooleGS->lock);
 #ifdef SW_USE_RINGBUFFER
         thread->buffer_input->destroy(thread->buffer_input);
 #endif
     }
 }
+
+#ifdef SW_USE_TIMEWHEEL
+static void swReactorThread_onReactorCompleted(swReactor *reactor)
+{
+    if (reactor->heartbeat_interval > 0 && reactor->last_heartbeat_time < SwooleGS->now - reactor->heartbeat_interval)
+    {
+        swTimeWheel_forward(reactor->timewheel, reactor);
+        reactor->last_heartbeat_time = SwooleGS->now;
+    }
+}
+#endif

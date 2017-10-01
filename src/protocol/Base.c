@@ -2,7 +2,7 @@
  +----------------------------------------------------------------------+
  | Swoole                                                               |
  +----------------------------------------------------------------------+
- | Copyright (c) 2012-2015 The Swoole Group                             |
+ | Copyright (c) 2012-2017 The Swoole Group                             |
  +----------------------------------------------------------------------+
  | This source file is subject to version 2.0 of the Apache license,    |
  | that is bundled with this package in the file LICENSE, and is        |
@@ -45,14 +45,13 @@ int swProtocol_get_package_length(swProtocol *protocol, swConnection *conn, char
     return protocol->package_body_offset + body_length;
 }
 
-static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, void *object, swString *buffer)
+static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swConnection *conn, swString *buffer)
 {
-#if 0
-    static count;
-    count ++;
+#if SW_LOG_TRACE_OPEN > 0
+    static int count;
+    count++;
 #endif
 
-    char stack_buf[SW_BUFFER_SIZE_BIG];
     int eof_pos;
     if (buffer->length - buffer->offset < protocol->package_eof_len)
     {
@@ -63,7 +62,7 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, void 
         eof_pos = swoole_strnpos(buffer->str + buffer->offset, buffer->length - buffer->offset, protocol->package_eof, protocol->package_eof_len);
     }
 
-    //swNotice("#[0] count=%d, length=%ld, size=%ld, offset=%ld", count, buffer->length, buffer->size, buffer->offset);
+    swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[0] count=%d, length=%ld, size=%ld, offset=%ld.", count, buffer->length, buffer->size, buffer->offset);
 
     //waiting for more data
     if (eof_pos < 0)
@@ -73,15 +72,22 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, void 
     }
 
     uint32_t length = buffer->offset + eof_pos + protocol->package_eof_len;
-    //swNotice("#[4] count=%d, length=%d", count, length);
-    protocol->onPackage(object, buffer->str, length);
+    swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[4] count=%d, length=%d", count, length);
+    if (protocol->onPackage(conn, buffer->str, length) < 0)
+    {
+        return SW_ERR;
+    }
+    if (conn->removed)
+    {
+        return SW_OK;
+    }
 
     //there are remaining data
     if (length < buffer->length)
     {
         uint32_t remaining_length = buffer->length - length;
         char *remaining_data = buffer->str + length;
-        //swNotice("#[5] count=%d, remaining_length=%d", count, remaining_length);
+        swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[5] count=%d, remaining_length=%d", count, remaining_length);
 
         while (1)
         {
@@ -93,26 +99,32 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, void 
             if (eof_pos < 0)
             {
                 wait_more_data:
-                //swNotice("#[1] count=%d, remaining_length=%d, length=%d", count, remaining_length, length);
-                memcpy(stack_buf, remaining_data, remaining_length);
-                memcpy(buffer->str, stack_buf, remaining_length);
+                swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[1] count=%d, remaining_length=%d, length=%d", count, remaining_length, length);
+                memmove(buffer->str, remaining_data, remaining_length);
                 buffer->length = remaining_length;
                 buffer->offset = 0;
-                return remaining_length;
+                return SW_OK;
             }
             else
             {
                 length = eof_pos + protocol->package_eof_len;
-                protocol->onPackage(object, remaining_data, length);
-                //swNotice("#[2] count=%d, remaining_length=%d, length=%d", count, remaining_length, length);
+                if (protocol->onPackage(conn, remaining_data, length) < 0)
+                {
+                    return SW_ERR;
+                }
+                if (conn->removed)
+                {
+                    return SW_OK;
+                }
+                swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[2] count=%d, remaining_length=%d, length=%d", count, remaining_length, length);
                 remaining_data += length;
                 remaining_length -= length;
             }
         }
     }
-    //swNotice("#[3] length=%ld, size=%ld, offset=%ld", buffer->length, buffer->size, buffer->offset);
+    swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[3] length=%ld, size=%ld, offset=%ld", buffer->length, buffer->size, buffer->offset);
     swString_clear(buffer);
-    return 0;
+    return SW_OK;
 }
 
 /**
@@ -126,6 +138,10 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
     char swap[SW_BUFFER_SIZE_STD];
 
     do_recv:
+	if (conn->active == 0)
+	{
+		return SW_OK;
+	}
     if (buffer->offset > 0)
     {
         recv_size = buffer->offset - buffer->length;
@@ -257,7 +273,6 @@ int swProtocol_recv_check_eof(swProtocol *protocol, swConnection *conn, swString
     }
 
     int n = swConnection_recv(conn, buf_ptr, buf_size, 0);
-    //swNotice("ReactorThread: recv[len=%d]", n);
     if (n < 0)
     {
         switch (swConnection_error(errno))

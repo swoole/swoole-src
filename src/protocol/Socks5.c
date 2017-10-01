@@ -2,7 +2,7 @@
  +----------------------------------------------------------------------+
  | Swoole                                                               |
  +----------------------------------------------------------------------+
- | Copyright (c) 2012-2015 The Swoole Group                             |
+ | Copyright (c) 2012-2017 The Swoole Group                             |
  +----------------------------------------------------------------------+
  | This source file is subject to version 2.0 of the Apache license,    |
  | that is bundled with this package in the file LICENSE, and is        |
@@ -115,7 +115,7 @@ int swSocks5_connect(swClient *cli, char *recv_data, int length)
     {
         uchar version = recv_data[0];
         uchar status = recv_data[1];
-        if (version != SW_SOCKS5_VERSION_CODE)
+        if (version != 0x01)
         {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_VERSION, "SOCKS version is not supported.");
             return SW_ERR;

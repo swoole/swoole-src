@@ -1,7 +1,12 @@
 <?php
 $serv = new swoole_server("0.0.0.0", 9501);
 //这里监听了一个UDP端口用来做内网管理
-$serv->addlistener('127.0.0.1', 9502, SWOOLE_SOCK_UDP);
+$port = $serv->addlistener('127.0.0.1', 9502, SWOOLE_SOCK_UDP);
+
+$port->on('packet', function($serv, $data, $client) {
+	var_dump($data, $client);
+	$serv->sendto($client['address'], $client['port'], "welcome admin\n");
+});
 $serv->on('connect', function ($serv, $fd) {
     echo "Client:Connect.\n";
 });
@@ -20,7 +25,7 @@ $serv->on('receive', function (swoole_server $serv, $fd, $from_id, $data) {
             }
             $start_fd = end($conn_list);
             var_dump($conn_list);
-            
+
             foreach($conn_list as $conn)
             {
                 if($conn === $fd) continue;

@@ -107,7 +107,7 @@ static void swTaskWorker_signal_init(void)
 {
     swSignal_set(SIGHUP, NULL, 1, 0);
     swSignal_set(SIGPIPE, NULL, 1, 0);
-    swSignal_set(SIGUSR1, NULL, 1, 0);
+    swSignal_set(SIGUSR1, swWorker_signal_handler, 1, 0);
     swSignal_set(SIGUSR2, NULL, 1, 0);
     swSignal_set(SIGTERM, swWorker_signal_handler, 1, 0);
     swSignal_set(SIGALRM, swSystemTimer_signal_handler, 1, 0);
@@ -131,7 +131,9 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
     swWorker_onStart(serv);
 
     SwooleG.main_reactor = NULL;
-    SwooleWG.worker = swProcessPool_get_worker(pool, worker_id);
+    swWorker *worker = swProcessPool_get_worker(pool, worker_id);
+    worker->start_time = SwooleGS->now;
+    SwooleWG.worker = worker;
     SwooleWG.worker->status = SW_WORKER_IDLE;
 }
 
@@ -152,6 +154,11 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
         swWarn("cannot use task/finish, because no set serv->task_worker_num.");
         return SW_ERR;
     }
+	if (current_task->info.type == SW_EVENT_PIPE_MESSAGE)
+	{
+		swWarn("task/finish is not supported in onPipeMessage callback.");
+		return SW_ERR;
+	}
 
     uint16_t source_worker_id = current_task->info.from_id;
     swWorker *worker = swServer_get_worker(serv, source_worker_id);
@@ -166,6 +173,10 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
         if (swTask_type(current_task) & SW_TASK_CALLBACK)
         {
             flags |= SW_TASK_CALLBACK;
+        }
+        else if (swTask_type(current_task) & SW_TASK_COROUTINE)
+        {
+            flags |= SW_TASK_COROUTINE;
         }
         swTask_type(&buf) = flags;
 
@@ -262,7 +273,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
         {
             ret = task_notify_pipe->write(task_notify_pipe, &flag, sizeof(flag));
 #ifdef HAVE_KQUEUE
-            if (ret < 0 && errno == EAGAIN || errno == ENOBUFS)
+            if (ret < 0 && (errno == EAGAIN || errno == ENOBUFS))
 #else
             if (ret < 0 && errno == EAGAIN)
 #endif

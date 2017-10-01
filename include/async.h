@@ -54,6 +54,7 @@ typedef struct
     uint8_t thread_num;
     uint32_t task_num;
     uint16_t current_id;
+    swLock lock;
 
     void (*destroy)(void);
     void (*callback)(swAio_event *aio_event);
@@ -75,6 +76,7 @@ int swAioGcc_init(int max_aio_events);
 #endif
 
 #ifdef HAVE_LINUX_AIO
+#define SW_AIO_MIN_UNIT_SIZE     512
 int swAioLinux_init(int max_aio_events);
 #endif
 

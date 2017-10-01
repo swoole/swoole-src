@@ -82,15 +82,16 @@ enum swTaskIPCMode
 
 enum swCloseType
 {
-	SW_CLOSE_PASSIVE = 32,
-	SW_CLOSE_INITIATIVE,
+    SW_CLOSE_PASSIVE = 32,
+    SW_CLOSE_INITIATIVE,
 };
 
 enum swResponseType
 {
-	SW_RESPONSE_SMALL = 0,
-	SW_RESPONSE_SHM   = 1,
-	SW_RESPONSE_TMPFILE,
+    SW_RESPONSE_SMALL = 0,
+    SW_RESPONSE_SHM = 1,
+    SW_RESPONSE_TMPFILE,
+    SW_RESPONSE_EXIT,
 };
 
 enum swWorkerPipeType
@@ -110,6 +111,7 @@ enum swTaskType
     SW_TASK_NONBLOCK   = 4,  //task
     SW_TASK_CALLBACK   = 8,  //callback
     SW_TASK_WAITALL    = 16, //for taskWaitAll
+    SW_TASK_COROUTINE  = 32, //coroutine
 };
 
 typedef struct _swUdpFd
@@ -128,7 +130,7 @@ typedef struct _swReactorThread
     int *pipe_read_list;
 #endif
     swLock lock;
-    int c_udp_fd;
+    int notify_pipe;
 } swReactorThread;
 
 typedef struct _swListenPort
@@ -214,15 +216,16 @@ typedef struct _swListenPort
      */
     char *websocket_subprotocol;
     uint16_t websocket_subprotocol_length;
+    /**
+     * set socket option
+     */
+    int kernel_socket_recv_buffer_size;
+    int kernel_socket_send_buffer_size;
 
 #ifdef SW_USE_OPENSSL
-    char *ssl_cert_file;
-    char *ssl_key_file;
     SSL_CTX *ssl_context;
     swSSL_config ssl_config;
-    uint8_t ssl_method;
-    char *ssl_client_cert_file;
-    uint8_t ssl_verify_depth;
+    swSSL_option ssl_option;
 #endif
 
     swProtocol protocol;
@@ -240,7 +243,7 @@ typedef struct {
 	char *filename;
 	uint16_t name_len;
 	int fd;
-	off_t filesize;
+	size_t length;
 	off_t offset;
 } swTask_sendfile;
 
@@ -248,6 +251,12 @@ typedef struct
 {
     uint16_t num;
 } swUserWorker;
+
+typedef struct
+{
+    pid_t pid;
+    uint16_t worker_id;
+} swWorkerStopMessage;
 
 //-----------------------------------Factory--------------------------------------------
 typedef struct
@@ -285,7 +294,7 @@ typedef struct _swRequest
     void *object;
 } swRequest;
 
-typedef int (*swServer_dispatch_function)(swServer *, swConnection *, char *, uint32_t);
+typedef int (*swServer_dispatch_function)(swServer *, swConnection *, swEventData *);
 
 int swFactory_create(swFactory *factory);
 int swFactory_start(swFactory *factory);
@@ -331,7 +340,6 @@ struct _swServer
      */
     uint8_t dispatch_mode;
 
-
     int worker_uid;
     int worker_groupid;
 
@@ -345,9 +353,6 @@ struct _swServer
      */
     uint32_t max_request;
 
-    int timeout_sec;
-    int timeout_usec;
-
     int sock_client_buffer_size; //client的socket缓存区设置
     int sock_server_buffer_size; //server的socket缓存区设置
 
@@ -357,7 +362,7 @@ struct _swServer
     int udp_socket_ipv4;
     int udp_socket_ipv6;
 
-    int ringbuffer_size;
+    uint32_t max_wait_time;
 
     /*----------------------------Reactor schedule--------------------------------*/
     uint16_t reactor_round_i; //轮询调度
@@ -395,15 +400,19 @@ struct _swServer
      */
     uint32_t http_parse_post :1;
     /**
+     * handle static files
+     */
+    uint32_t enable_static_handler :1;
+    /**
      * enable onConnect/onClose event when use dispatch_mode=1/3
      */
     uint32_t enable_unsafe_event :1;
     /**
-     * waiting for worekr onConnect callback function to return
+     * waiting for worker onConnect callback function to return
      */
     uint32_t enable_delay_receive :1;
     /**
-     * run as a daemon process
+     * asynchronous reloading
      */
     uint32_t reload_async :1;
 
@@ -421,9 +430,8 @@ struct _swServer
     uint32_t buffer_output_size;
     uint32_t buffer_input_size;
 
-    uint32_t pipe_buffer_size;
-
     void *ptr2;
+    void *private_data_3;
 
     swReactor reactor;
     swFactory factory;
@@ -433,10 +441,12 @@ struct _swServer
     uint16_t user_worker_num;
     swUserWorker_node *user_worker_list;
     swHashMap *user_worker_map;
-    swWorker **user_workers;
+    swWorker *user_workers;
 
     swReactorThread *reactor_threads;
     swWorker *workers;
+
+    swChannel *message_box;
 
 #ifdef HAVE_PTHREAD_BARRIER
     pthread_barrier_t barrier;
@@ -449,7 +459,11 @@ struct _swServer
      * temporary directory for HTTP uploaded file.
      */
     char *upload_tmp_dir;
-
+    /**
+     * http static file directory
+     */
+    char *document_root;
+    uint16_t document_root_len;
     /**
      * master process pid
      */
@@ -470,6 +484,7 @@ struct _swServer
     void (*onPipeMessage)(swServer *, swEventData *);
     void (*onWorkerStart)(swServer *serv, int worker_id);
     void (*onWorkerStop)(swServer *serv, int worker_id);
+    void (*onWorkerExit)(swServer *serv, int worker_id);
     void (*onWorkerError)(swServer *serv, int worker_id, pid_t worker_pid, int exit_code, int signo);
     void (*onUserWorkerStart)(swServer *serv, swWorker *worker);
     /**
@@ -488,10 +503,10 @@ struct _swServer
     int (*onFinish)(swServer *serv, swEventData *data);
 
     int (*send)(swServer *serv, int fd, void *data, uint32_t length);
-    int (*sendfile)(swServer *serv, int fd, char *filename, uint32_t length, off_t offset);
+    int (*sendfile)(swServer *serv, int fd, char *filename, uint32_t filename_length, off_t offset, size_t length);
     int (*sendwait)(swServer *serv, int fd, void *data, uint32_t length);
     int (*close)(swServer *serv, int fd, int reset);
-    int (*dispatch_func)(swServer *, swConnection *, char *, uint32_t);
+    int (*dispatch_func)(swServer *, swConnection *, swEventData *);
 };
 
 typedef struct _swSocketLocal
@@ -529,6 +544,7 @@ int swServer_start(swServer *serv);
 swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port);
 void swServer_close_port(swServer *serv, enum swBool_type only_stream_port);
 int swServer_add_worker(swServer *serv, swWorker *worker);
+int swserver_add_systemd_socket(swServer *serv);
 
 int swServer_create(swServer *serv);
 int swServer_free(swServer *serv);
@@ -539,7 +555,7 @@ static sw_inline swString *swServer_get_buffer(swServer *serv, int fd)
     swString *buffer = serv->connection_list[fd].recv_buffer;
     if (buffer == NULL)
     {
-        buffer = swString_new(SW_BUFFER_SIZE);
+        buffer = swString_new(SW_BUFFER_SIZE_STD);
         //alloc memory failed.
         if (!buffer)
         {
@@ -570,7 +586,7 @@ int swServer_udp_send(swServer *serv, swSendData *resp);
 int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length);
 int swServer_tcp_sendwait(swServer *serv, int fd, void *data, uint32_t length);
 int swServer_tcp_close(swServer *serv, int fd, int reset);
-int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename, uint32_t len, off_t offset);
+int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename, uint32_t filename_length, off_t offset, size_t length);
 int swServer_tcp_notify(swServer *serv, swConnection *conn, int event);
 int swServer_confirm(swServer *serv, int fd);
 
@@ -721,68 +737,66 @@ static sw_inline swWorker* swServer_get_worker(swServer *serv, uint16_t worker_i
     uint16_t user_worker_max = task_worker_max + serv->user_worker_num;
     if (worker_id < user_worker_max)
     {
-        return serv->user_workers[worker_id - task_worker_max];
+        return &(serv->user_workers[worker_id - task_worker_max]);
     }
 
-    //Unkown worker_id
-    swWarn("worker#%d is not exist.", worker_id);
     return NULL;
 }
 
-static sw_inline uint32_t swServer_worker_schedule(swServer *serv, uint32_t schedule_key)
+static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swEventData *data)
 {
-    uint32_t target_worker_id = 0;
+    uint32_t key;
 
     //polling mode
     if (serv->dispatch_mode == SW_DISPATCH_ROUND)
     {
-        target_worker_id = sw_atomic_fetch_add(&serv->worker_round_id, 1) % serv->worker_num;
+        key = sw_atomic_fetch_add(&serv->worker_round_id, 1);
     }
     //Using the FD touch access to hash
     else if (serv->dispatch_mode == SW_DISPATCH_FDMOD)
     {
-        target_worker_id = schedule_key % serv->worker_num;
+        key = fd;
     }
     //Using the IP touch access to hash
     else if (serv->dispatch_mode == SW_DISPATCH_IPMOD)
     {
-        swConnection *conn = swServer_connection_get(serv, schedule_key);
+        swConnection *conn = swServer_connection_get(serv, fd);
         //UDP
         if (conn == NULL)
         {
-            target_worker_id = schedule_key % serv->worker_num;
+            key = fd;
         }
         //IPv4
         else if (conn->socket_type == SW_SOCK_TCP)
         {
-            target_worker_id = conn->info.addr.inet_v4.sin_addr.s_addr % serv->worker_num;
+            key = conn->info.addr.inet_v4.sin_addr.s_addr;
         }
         //IPv6
         else
         {
 #ifdef HAVE_KQUEUE
-            uint32_t ipv6_last_int = *(((uint32_t *) &conn->info.addr.inet_v6.sin6_addr) + 3);
-            target_worker_id = ipv6_last_int % serv->worker_num;
+            key = *(((uint32_t *) &conn->info.addr.inet_v6.sin6_addr) + 3);
 #else
-            target_worker_id = conn->info.addr.inet_v6.sin6_addr.s6_addr32[3] % serv->worker_num;
+            key = conn->info.addr.inet_v6.sin6_addr.s6_addr32[3];
 #endif
         }
     }
     else if (serv->dispatch_mode == SW_DISPATCH_UIDMOD)
     {
-        swConnection *conn = swServer_connection_get(serv, schedule_key);
-        if (conn == NULL)
+        swConnection *conn = swServer_connection_get(serv, fd);
+        if (conn == NULL || conn->uid == 0)
         {
-            target_worker_id = schedule_key % serv->worker_num;
-        }
-        else if (conn->uid)
-        {
-            target_worker_id = conn->uid % serv->worker_num;
+            key = fd;
         }
         else
         {
-            target_worker_id = schedule_key % serv->worker_num;
+            key = conn->uid;
         }
+    }
+    //schedule by dispatch function
+    else if (serv->dispatch_mode == SW_DISPATCH_USERFUNC)
+    {
+        return serv->dispatch_func(serv, swServer_connection_get(serv, fd), data);
     }
     //Preemptive distribution
     else
@@ -790,15 +804,16 @@ static sw_inline uint32_t swServer_worker_schedule(swServer *serv, uint32_t sche
         int i;
         for (i = 0; i < serv->worker_num + 1; i++)
         {
-            target_worker_id = sw_atomic_fetch_add(&serv->worker_round_id, 1) % serv->worker_num;
-            if (serv->workers[target_worker_id].status == SW_WORKER_IDLE)
+            key = sw_atomic_fetch_add(&serv->worker_round_id, 1) % serv->worker_num;
+            if (serv->workers[key].status == SW_WORKER_IDLE)
             {
                 break;
             }
         }
-        //swWarn("schedule=%d|round=%d\n", target_worker_id, *round);
+        swTraceLog(SW_TRACE_SERVER, "schedule=%d, round=%d\n", key, serv->worker_round_id);
+        return key;
     }
-    return target_worker_id;
+    return key % serv->worker_num;
 }
 
 void swServer_worker_onStart(swServer *serv);
@@ -875,10 +890,12 @@ int swPort_listen(swListenPort *ls);
 #ifdef SW_USE_OPENSSL
 int swPort_enable_ssl_encrypt(swListenPort *ls);
 #endif
+void swPort_clear_protocol(swListenPort *ls);
 
 void swWorker_free(swWorker *worker);
 void swWorker_onStart(swServer *serv);
 void swWorker_onStop(swServer *serv);
+void swWorker_try_to_exit();
 int swWorker_loop(swFactory *factory, int worker_pti);
 int swWorker_send2reactor(swEventData *ev_data, size_t sendn, int fd);
 int swWorker_send2worker(swWorker *dst_worker, void *buf, int n, int flag);
