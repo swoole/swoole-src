@@ -71,3 +71,5 @@ examples/c_module/.project
 tests/.idea
 cmake-build-debug/
 /swoole_server.cbp
+/swool/nbproject/private/
+/nbproject/private/
