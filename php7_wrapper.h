@@ -184,6 +184,12 @@ static sw_inline char* sw_http_build_query(zval *data, zend_size_t *length, smar
     return formstr->c;
 }
 
+static sw_inline int sw_get_object_handle(zval *object)
+{
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+    return Z_OBJ_HANDLE_P(object);
+}
+
 #else /* PHP Version 7 */
 #define sw_php_var_serialize                php_var_serialize
 typedef size_t zend_size_t;
@@ -457,6 +463,9 @@ static sw_inline char* sw_http_build_query(zval *data, zend_size_t *length, smar
     *length = formstr->s->len;
     return formstr->s->val;
 }
+
+#define sw_get_object_handle(object)    (Z_OBJ_HANDLE(*object))
+
 #endif /* PHP Version */
 
 #endif /* EXT_SWOOLE_PHP7_WRAPPER_H_ */

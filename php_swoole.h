@@ -406,22 +406,14 @@ zval* php_swoole_task_unpack(swEventData *task_result TSRMLS_DC);
 
 static sw_inline void* swoole_get_object(zval *object)
 {
-#if PHP_MAJOR_VERSION < 7
-    zend_object_handle handle = Z_OBJ_HANDLE_P(object);
-#else
-    int handle = (int)Z_OBJ_HANDLE(*object);
-#endif
+    int handle = sw_get_object_handle(object);
     assert(handle < swoole_objects.size);
     return swoole_objects.array[handle];
 }
 
 static sw_inline void* swoole_get_property(zval *object, int property_id)
 {
-#if PHP_MAJOR_VERSION < 7
-    zend_object_handle handle = Z_OBJ_HANDLE_P(object);
-#else
-    int handle = (int) Z_OBJ_HANDLE(*object);
-#endif
+    int handle = sw_get_object_handle(object);
     if (handle >= swoole_objects.property_size[property_id])
     {
         return NULL;
