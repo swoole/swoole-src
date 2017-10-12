@@ -649,6 +649,7 @@ static sw_inline uint32_t swoole_get_new_size(uint32_t old_size, int handle TSRM
 
 void swoole_set_object(zval *object, void *ptr)
 {
+    SWOOLE_GET_TSRMLS;
     int handle = sw_get_object_handle(object);
     assert(handle < SWOOLE_OBJECT_MAX);
     if (handle >= swoole_objects.size)
@@ -674,6 +675,7 @@ void swoole_set_object(zval *object, void *ptr)
 
 void swoole_set_property(zval *object, int property_id, void *ptr)
 {
+    SWOOLE_GET_TSRMLS;
     int handle = sw_get_object_handle(object);
     assert(handle < SWOOLE_OBJECT_MAX);
 
