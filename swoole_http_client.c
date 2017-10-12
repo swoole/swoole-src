@@ -1194,6 +1194,8 @@ void http_client_free(zval *object TSRMLS_DC)
         http->cli = NULL;
     }
     efree(http);
+
+    swTraceLog(SW_TRACE_HTTP_CLIENT, "free, object handle=%d.", sw_get_object_handle(object));
 }
 
 http_client* http_client_create(zval *object TSRMLS_DC)
@@ -1220,6 +1222,8 @@ http_client* http_client_create(zval *object TSRMLS_DC)
     http->timeout = SW_CLIENT_DEFAULT_TIMEOUT;
     http->keep_alive = 1;
     http->state = HTTP_CLIENT_STATE_READY;
+
+    swTraceLog(SW_TRACE_HTTP_CLIENT, "create, object handle=%d.", sw_get_object_handle(object));
 
     return http;
 }
