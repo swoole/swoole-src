@@ -325,6 +325,11 @@ static void http_client_coro_onClose(swClient *cli)
         return;
     }
 
+    if (!cli->released)
+    {
+        http_client_free(zobject TSRMLS_CC);
+    }
+
     http->state = HTTP_CLIENT_STATE_CLOSED;
     http_client_property *hcc = swoole_get_property(zobject, 0);
 
@@ -351,7 +356,6 @@ static void http_client_coro_onClose(swClient *cli)
         sw_zval_ptr_dtor(&retval);
     }
     sw_zval_ptr_dtor(&zdata);
-    sw_zval_ptr_dtor(&zobject);
 }
 
 /**
@@ -378,7 +382,10 @@ static void http_client_coro_onError(swClient *cli)
 
     http_client *http = swoole_get_object(zobject);
     http->timer = NULL;
-    http_client_free(zobject TSRMLS_CC);
+    if (!cli->released)
+    {
+        http_client_free(zobject TSRMLS_CC);
+    }
 
     http_client_property *hcc = swoole_get_property(zobject, 0);
     if (hcc->defer && hcc->defer_status != HTTP_CLIENT_STATE_DEFER_WAIT)
@@ -1225,7 +1232,6 @@ static PHP_METHOD(swoole_http_client_coro, close)
     http->state = HTTP_CLIENT_STATE_CLOSED;
     ret = cli->close(cli);
     http_client_free(getThis() TSRMLS_CC);
-
     SW_CHECK_RETURN(ret);
 }
 
