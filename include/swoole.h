@@ -364,6 +364,7 @@ enum swTraceType
     SW_TRACE_CLOSE            = 1u << 13,
     SW_TRACE_HTTP_CLIENT      = 1u << 14,
     SW_TRACE_COROUTINE        = 1u << 15,
+    SW_TRACE_REDIS_CLIENT     = 1u << 16,
 };
 
 #if defined(SW_LOG_TRACE_OPEN) && SW_LOG_TRACE_OPEN
