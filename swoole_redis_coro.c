@@ -258,10 +258,9 @@ typedef struct
 	zend_bool _defer;
     swoole_redis_coro_state state;
     swoole_redis_coro_io_status iowait;
-	uint16_t queued_cmd_count;
-	zval *pipeline_result;
-	zval *result;
-	zend_bool serialize;
+    uint16_t queued_cmd_count;
+    zval *pipeline_result;
+    zend_bool serialize;
 
     double timeout;
     long timer_id;
@@ -271,6 +270,15 @@ typedef struct
     zval _object;
 
 } swRedisClient;
+
+typedef struct
+{
+#if PHP_MAJOR_VERSION >= 7
+    zval _value;
+#endif
+    zval *value;
+    swRedisClient *redis;
+} swRedis_result;
 
 enum {SW_REDIS_MODE_MULTI, SW_REDIS_MODE_PIPELINE};
 
@@ -1149,15 +1157,15 @@ static PHP_METHOD(swoole_redis_coro, recv)
 	if (redis->iowait == SW_REDIS_CORO_STATUS_DONE)
 	{
 		redis->iowait = SW_REDIS_CORO_STATUS_READY;
-#if PHP_MAJOR_VERSION >= 7
-        zval _result = *redis->result;
-        efree(redis->result);
-        zval *result = &_result;
-#else
-        zval *result = redis->result;
-#endif
-		redis->result = NULL;
-		RETURN_ZVAL(result, 0, 1);
+//#if PHP_MAJOR_VERSION >= 7
+//        zval _result = *redis->result;
+//        efree(redis->result);
+//        zval *result = &_result;
+//#else
+//        zval *result = redis->result;
+//#endif
+//		redis->result = NULL;
+//		RETURN_ZVAL(result, 0, 1);
 	}
 
 	if (redis->iowait != SW_REDIS_CORO_STATUS_WAIT)
@@ -1215,8 +1223,8 @@ static PHP_METHOD(swoole_redis_coro, __destruct)
     {
         return;
     }
-	if (redis->state != SWOOLE_REDIS_CORO_STATE_CONNECT && redis->state != SWOOLE_REDIS_CORO_STATE_CLOSED)
-	{
+    if (redis->state != SWOOLE_REDIS_CORO_STATE_CONNECT && redis->state != SWOOLE_REDIS_CORO_STATE_CLOSED)
+    {
         zval *retval = NULL;
         zval *zobject = getThis();
         sw_zend_call_method_with_0_params(&zobject, swoole_redis_coro_class_entry_ptr, NULL, "close", &retval);
@@ -1225,6 +1233,7 @@ static PHP_METHOD(swoole_redis_coro, __destruct)
             sw_zval_ptr_dtor(&retval);
         }
 	}
+	swoole_set_object(getThis(), NULL);
     efree(redis);
 }
 
@@ -3795,17 +3804,20 @@ static void swoole_redis_coro_parse_result(swRedisClient *redis, zval* return_va
 
 static void swoole_redis_coro_resume(void *data)
 {
-	swRedisClient *redis = (swRedisClient *)data;
-	redis->iowait = SW_REDIS_CORO_STATUS_READY;
-	php_context *sw_current_context = swoole_get_property(redis->object, 0);
-	zval *retval = NULL;
-	zval *redis_result = redis->result;
-	int ret = coro_resume(sw_current_context, redis->result, &retval);
-	if (ret == CORO_END && retval)
-	{
-		sw_zval_ptr_dtor(&retval);
-	}
-	sw_zval_free(redis_result);
+    swRedis_result *result = (swRedis_result *) data;
+    swRedisClient *redis = result->redis;
+    redis->defer_callback = NULL;
+    redis->iowait = SW_REDIS_CORO_STATUS_READY;
+    php_context *sw_current_context = swoole_get_property(redis->object, 0);
+    zval *retval = NULL;
+    zval *redis_result = result->value;
+    int ret = coro_resume(sw_current_context, redis_result, &retval);
+    if (ret == CORO_END && retval)
+    {
+        sw_zval_ptr_dtor(&retval);
+    }
+    sw_zval_ptr_dtor(&redis_result);
+    efree(result);
 }
 
 static void swoole_redis_coro_onResult(redisAsyncContext *c, void *r, void *privdata)
@@ -3814,98 +3826,102 @@ static void swoole_redis_coro_onResult(redisAsyncContext *c, void *r, void *priv
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
+    swRedis_result *result = emalloc(sizeof(swRedis_result));
     redisReply *reply = r;
-    zval *result;
+
 #if PHP_MAJOR_VERSION < 7
     zval **type;
+    MAKE_STD_ZVAL(result->value);
 #else
     zval *type;
+    result->value = &result->_value;
+    bzero(result->value, sizeof(result->_value));
 #endif
-    SW_ALLOC_INIT_ZVAL(result);
-	swRedisClient *redis = c->ev.data;
+
+    swRedisClient *redis = c->ev.data;
+    result->redis = redis;
     if (reply == NULL)
     {
 		if (redis->state == SWOOLE_REDIS_CORO_STATE_CLOSING)
 		{
-			sw_zval_free(result);
-			return;
+            error:
+            sw_zval_ptr_dtor(&result->value);
+            efree(result);
+            return;
 		}
-		ZVAL_FALSE(result);
+		ZVAL_FALSE(result->value);
         zend_update_property_long(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errCode"), c->err TSRMLS_CC);
         zend_update_property_string(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), c->errstr TSRMLS_CC);
 		if (redis->pipeline_result != NULL)
 		{
 			sw_zval_free(redis->pipeline_result);
 			redis->pipeline_result = NULL;
-		}
-	} else {
+        }
+    }
+    else
+    {
+        swoole_redis_coro_parse_result(redis, result->value, reply TSRMLS_CC);
 
-		swoole_redis_coro_parse_result(redis, result, reply TSRMLS_CC);
-
-		switch (redis->state) {
-			case SWOOLE_REDIS_CORO_STATE_PIPELINE:
-				if (redis->pipeline_result == NULL)
-				{
-					SW_ALLOC_INIT_ZVAL(redis->pipeline_result);
-					array_init(redis->pipeline_result);
-				}
-				redis->queued_cmd_count--;
-				add_next_index_zval(redis->pipeline_result, result);
-#if PHP_MAJOR_VERSION >= 7
-                efree(result);
-#endif
-				if (redis->queued_cmd_count > 0)
-				{
-					return;
-				}
-				result = redis->pipeline_result;
-				redis->pipeline_result = NULL;
-				redis->state = SWOOLE_REDIS_CORO_STATE_READY;
-				break;
-			case SWOOLE_REDIS_CORO_STATE_MULTI:
-				redis->queued_cmd_count--;
-				if (redis->queued_cmd_count > 0)
-				{
-					sw_zval_free(result);
-					return;
-				}
-				redis->state = SWOOLE_REDIS_CORO_STATE_READY;
-				break;
-			case SWOOLE_REDIS_CORO_STATE_SUBSCRIBE:
+        switch (redis->state)
+        {
+        case SWOOLE_REDIS_CORO_STATE_PIPELINE:
+            if (redis->pipeline_result == NULL)
+            {
+                SW_ALLOC_INIT_ZVAL(redis->pipeline_result);
+                array_init(redis->pipeline_result);
+            }
+            redis->queued_cmd_count--;
+            add_next_index_zval(redis->pipeline_result, result->value);
+            if (redis->queued_cmd_count > 0)
+            {
+                goto error;
+            }
+            result->value = redis->pipeline_result;
+            redis->pipeline_result = NULL;
+            redis->state = SWOOLE_REDIS_CORO_STATE_READY;
+            break;
+        case SWOOLE_REDIS_CORO_STATE_MULTI:
+            redis->queued_cmd_count--;
+            if (redis->queued_cmd_count > 0)
+            {
+                goto error;
+            }
+            redis->state = SWOOLE_REDIS_CORO_STATE_READY;
+            break;
+        case SWOOLE_REDIS_CORO_STATE_SUBSCRIBE:
 #if PHP_MAJOR_VERSION < 7
-                if (zend_hash_index_find(Z_ARRVAL_P(result), 0, (void **)&type) == FAILURE)
+            if (zend_hash_index_find(Z_ARRVAL_P(result->value), 0, (void **)&type) == FAILURE)
 #else
-                type = zend_hash_index_find(Z_ARRVAL_P(result), 0);
-                if (!type)
+            type = zend_hash_index_find(Z_ARRVAL_P(result->value), 0);
+            if (!type)
 #endif
-				{
-					sw_zval_free(result);
-					return;
-				}
+            {
+                goto error;
+            }
 #if PHP_MAJOR_VERSION < 7
-				if (strncasecmp(Z_STRVAL_PP(type), "subscribe", 9) == 0 || strncasecmp(Z_STRVAL_PP(type), "psubscribe", 10) == 0)
+            if (strncasecmp(Z_STRVAL_PP(type), "subscribe", 9) == 0 || strncasecmp(Z_STRVAL_PP(type), "psubscribe", 10) == 0)
 #else
-                if (strncasecmp(Z_STRVAL_P(type), "subscribe", 9) == 0 || strncasecmp(Z_STRVAL_P(type), "psubscribe", 10) == 0)
+            if (strncasecmp(Z_STRVAL_P(type), "subscribe", 9) == 0 || strncasecmp(Z_STRVAL_P(type), "psubscribe", 10) == 0)
 #endif
-				{
-					sw_zval_free(result);
-					return;
-				}
-				break;
-			default:
-				redis->state = SWOOLE_REDIS_CORO_STATE_READY;
-				break;
-		}
+            {
+                goto error;
+            }
+            break;
+        default:
+            redis->state = SWOOLE_REDIS_CORO_STATE_READY;
+            break;
+        }
 	}
 
-	/* et reactor defer callback */
-	redis->iowait = SW_REDIS_CORO_STATUS_DONE;
-	redis->result = result;
-	if (!redis->defer || redis->_defer)
-	{
-		redis->_defer = 0;
-		SwooleG.main_reactor->defer(SwooleG.main_reactor, swoole_redis_coro_resume, redis);
-	}
+    /* et reactor defer callback */
+    redis->iowait = SW_REDIS_CORO_STATUS_DONE;
+    swoole_redis_coro_resume(result);
+//    if (!redis->defer || redis->_defer)
+//    {
+//        redis->_defer = 0;
+//        SwooleG.main_reactor->defer(SwooleG.main_reactor, swoole_redis_coro_resume, result);
+//        redis->defer_callback = SwooleG.main_reactor->defer_callback_last;
+//    }
 }
 
 void swoole_redis_coro_onConnect(const redisAsyncContext *c, int status)
@@ -3914,6 +3930,16 @@ void swoole_redis_coro_onConnect(const redisAsyncContext *c, int status)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
     swRedisClient *redis = c->ev.data;
+    swRedis_result *result = emalloc(sizeof(swRedis_result));
+
+#if PHP_MAJOR_VERSION < 7
+    MAKE_STD_ZVAL(result->value);
+#else
+    result->value = &result->_value;
+    bzero(result->value, sizeof(result->_value));
+#endif
+
+    result->redis = redis;
 
     if (redis->timer)
     {
@@ -3927,22 +3953,19 @@ void swoole_redis_coro_onConnect(const redisAsyncContext *c, int status)
         redis->timer_id = 0;
     }
 
-    zval *result;
-    SW_ALLOC_INIT_ZVAL(result);
     if (status != REDIS_OK)
     {
-        ZVAL_BOOL(result, 0);
+        ZVAL_BOOL(result->value, 0);
         zend_update_property_long(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errCode"), c->err TSRMLS_CC);
         zend_update_property_string(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), c->errstr TSRMLS_CC);
     }
     else
     {
-        ZVAL_BOOL(result, 1);
+        ZVAL_BOOL(result->value, 1);
         redis->state = SWOOLE_REDIS_CORO_STATE_READY;
 		redis->iowait = SW_REDIS_CORO_STATUS_READY;
     }
-	redis->result = result;
-	SwooleG.main_reactor->defer(SwooleG.main_reactor, swoole_redis_coro_resume, redis);
+    swoole_redis_coro_resume(result);
 }
 
 static void swoole_redis_coro_onClose(const redisAsyncContext *c, int status)
@@ -3950,6 +3973,8 @@ static void swoole_redis_coro_onClose(const redisAsyncContext *c, int status)
     swRedisClient *redis = c->ev.data;
     redis->state = SWOOLE_REDIS_CORO_STATE_CLOSED;
     redis->context = NULL;
+
+    printf("closed\n");
 
 #if PHP_MAJOR_VERSION < 7
     sw_zval_ptr_dtor(&redis->object);
@@ -3998,6 +4023,7 @@ static void swoole_redis_coro_event_Cleanup(void *privdata)
     redis->state = SWOOLE_REDIS_CORO_STATE_CLOSED;
     if (redis->context && SwooleG.main_reactor)
     {
+        printf("delete event\n");
         SwooleG.main_reactor->del(SwooleG.main_reactor, redis->context->c.fd);
     }
 }
