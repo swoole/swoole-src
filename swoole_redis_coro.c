@@ -1237,6 +1237,7 @@ static PHP_METHOD(swoole_redis_coro, __destruct)
             sw_zval_ptr_dtor(&retval);
         }
     }
+    redis->object = NULL;
     redis->state = SWOOLE_REDIS_CORO_STATE_RELEASED;
     swoole_set_object(getThis(), NULL);
     SwooleG.main_reactor->defer(SwooleG.main_reactor, redis_coro_free, redis);
@@ -3811,6 +3812,12 @@ static void swoole_redis_coro_resume(void *data)
 {
     swRedis_result *result = (swRedis_result *) data;
     swRedisClient *redis = result->redis;
+
+    if (redis->object == NULL)
+    {
+        goto free_result;
+    }
+
     redis->iowait = SW_REDIS_CORO_STATUS_READY;
 
 #if 0
@@ -3828,6 +3835,7 @@ static void swoole_redis_coro_resume(void *data)
     {
         sw_zval_ptr_dtor(&retval);
     }
+    free_result:
     sw_zval_ptr_dtor(&redis_result);
     efree(result);
 }
@@ -3932,7 +3940,10 @@ static void swoole_redis_coro_onResult(redisAsyncContext *c, void *r, void *priv
 
     /* et reactor defer callback */
     redis->iowait = SW_REDIS_CORO_STATUS_DONE;
-    swoole_redis_coro_resume(result);
+    if (!redis->defer || redis->_defer)
+    {
+        SwooleG.main_reactor->defer(SwooleG.main_reactor, swoole_redis_coro_resume, result);
+    }
 }
 
 void swoole_redis_coro_onConnect(const redisAsyncContext *c, int status)
