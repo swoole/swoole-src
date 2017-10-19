@@ -200,6 +200,12 @@ int swClient_ssl_handshake(swClient *cli)
         {
             return SW_ERR;
         }
+#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
+        if (cli->ssl_option.tls_host_name)
+        {
+            SSL_set_tlsext_host_name(cli->socket->ssl, cli->ssl_option.tls_host_name);
+        }
+#endif
     }
     if (swSSL_connect(cli->socket) < 0)
     {
@@ -333,6 +339,12 @@ static int swClient_close(swClient *cli)
         {
             sw_free(cli->ssl_option.passphrase);
         }
+#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
+        if (cli->ssl_option.tls_host_name)
+        {
+            sw_free(cli->ssl_option.tls_host_name);
+        }
+#endif
     }
 #endif
     //clear buffer
