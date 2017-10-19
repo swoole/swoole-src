@@ -3932,11 +3932,8 @@ static void swoole_redis_coro_onResult(redisAsyncContext *c, void *r, void *priv
 
     /* et reactor defer callback */
     redis->iowait = SW_REDIS_CORO_STATUS_DONE;
-//    swoole_redis_coro_resume(result);
-    if (!redis->defer || redis->_defer)
-    {
-        SwooleG.main_reactor->defer(SwooleG.main_reactor, swoole_redis_coro_resume, result);
-    }
+    redis->result = result;
+    swoole_redis_coro_resume(result);
 }
 
 void swoole_redis_coro_onConnect(const redisAsyncContext *c, int status)
@@ -3974,11 +3971,7 @@ void swoole_redis_coro_onConnect(const redisAsyncContext *c, int status)
         redis->state = SWOOLE_REDIS_CORO_STATE_READY;
 		redis->iowait = SW_REDIS_CORO_STATUS_READY;
     }
-    if (!redis->defer || redis->_defer)
-    {
-        SwooleG.main_reactor->defer(SwooleG.main_reactor, swoole_redis_coro_resume, result);
-    }
-//    swoole_redis_coro_resume(result);
+    swoole_redis_coro_resume(result);
 }
 
 static void swoole_redis_coro_onClose(const redisAsyncContext *c, int status)
