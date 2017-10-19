@@ -493,6 +493,13 @@ void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset TSRMLS_DC)
         convert_to_string(v);
         cli->ssl_option.passphrase = sw_strdup(Z_STRVAL_P(v));
     }
+#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
+    if (php_swoole_array_get_value(vht, "tls_host_name", v))
+    {
+        convert_to_string(v);
+        cli->ssl_option.tls_host_name = sw_strdup(Z_STRVAL_P(v));
+    }
+#endif
     if (cli->ssl_option.cert_file && !cli->ssl_option.key_file)
     {
         swoole_php_fatal_error(E_ERROR, "ssl require key file.");

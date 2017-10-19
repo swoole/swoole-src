@@ -39,6 +39,9 @@ typedef struct _swSSL_option
     char *key_file;
     char *passphrase;
     char *client_cert_file;
+#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
+    char *tls_host_name;
+#endif
     uint8_t verify_depth;
     uint8_t method;
     uint8_t disable_compress :1;
