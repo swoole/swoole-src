@@ -675,7 +675,7 @@ static int swClient_tcp_sendfile_async(swClient *cli, char *filename, off_t offs
  */
 static int swClient_tcp_recv_no_buffer(swClient *cli, char *data, int len, int flag)
 {
-    int ret, timeout_ms;
+    int ret;
 
     while (1)
     {
@@ -691,7 +691,7 @@ static int swClient_tcp_recv_no_buffer(swClient *cli, char *data, int len, int f
 #ifdef SW_USE_OPENSSL
         if (errno == EAGAIN && cli->socket->ssl)
         {
-            timeout_ms = (int) (cli->timeout * 1000);
+            int timeout_ms = (int) (cli->timeout * 1000);
             if (cli->socket->ssl_want_read && swSocket_wait(cli->socket->fd, timeout_ms, SW_EVENT_READ) == SW_OK)
             {
                 continue;
@@ -704,8 +704,8 @@ static int swClient_tcp_recv_no_buffer(swClient *cli, char *data, int len, int f
             {
                 break;
             }
-#endif
         }
+#endif
     }
 
     return ret;
