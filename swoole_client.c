@@ -1000,11 +1000,6 @@ swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port
                 cli->close(cli);
                 goto create_socket;
             }
-            //clear history data
-            if (ret > 0)
-            {
-                swSocket_clean(cli->socket->fd);
-            }
             cli->reuse_count ++;
             zend_update_property_long(swoole_client_class_entry_ptr, object, ZEND_STRL("reuseCount"), cli->reuse_count TSRMLS_CC);
         }
@@ -1557,6 +1552,11 @@ static PHP_METHOD(swoole_client, recv)
         {
             goto check_return;
         }
+        else if (ret != header_len)
+        {
+            ret = 0;
+            goto check_return;
+        }
 
         buf_len = protocol->get_package_length(protocol, cli->socket, cli->buffer->str, ret);
 
@@ -1583,6 +1583,10 @@ static PHP_METHOD(swoole_client, recv)
         if (ret > 0)
         {
             ret += header_len;
+            if (ret != buf_len)
+            {
+                ret = 0;
+            }
         }
     }
     else
