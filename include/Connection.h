@@ -135,11 +135,11 @@ static sw_inline ssize_t swConnection_recv(swConnection *conn, void *__buf, size
     if (conn->ssl)
     {
         int ret = 0;
-        int written = 0;
+        int n_received = 0;
 
-        while(written < __n)
+        while (n_received < __n)
         {
-            ret = swSSL_recv(conn, ((char*)__buf) + written, __n - written);
+            ret = swSSL_recv(conn, ((char*)__buf) + n_received, __n - n_received);
             if (__flags & MSG_WAITALL)
             {
                 if (ret <= 0)
@@ -148,7 +148,7 @@ static sw_inline ssize_t swConnection_recv(swConnection *conn, void *__buf, size
                 }
                 else
                 {
-                    written += ret;
+                    n_received += ret;
                 }
             }
             else
@@ -157,7 +157,7 @@ static sw_inline ssize_t swConnection_recv(swConnection *conn, void *__buf, size
             }
         }
 
-        return written;
+        return n_received;
     }
     else
     {
