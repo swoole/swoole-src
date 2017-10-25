@@ -1193,6 +1193,9 @@ static PHP_METHOD(swoole_redis_coro, close)
 		RETURN_TRUE;
 	}
 
+    swConnection *_socket = swReactor_get(SwooleG.main_reactor, redis->context->c.fd);
+    _socket->active = 0;
+
 	redis->state = SWOOLE_REDIS_CORO_STATE_CLOSING;
 	redis->iowait = SW_REDIS_CORO_STATUS_CLOSED;
     redisCallback *head = redis->context->replies.head;
@@ -1225,10 +1228,10 @@ static PHP_METHOD(swoole_redis_coro, __destruct)
         return;
     }
 
-    swTraceLog(SW_TRACE_REDIS_CLIENT, "fd=%d", redis->context->c.fd);
-
     if (redis->state != SWOOLE_REDIS_CORO_STATE_CONNECT && redis->state != SWOOLE_REDIS_CORO_STATE_CLOSED)
     {
+        swTraceLog(SW_TRACE_REDIS_CLIENT, "fd=%d", redis->context->c.fd);
+
         zval *retval = NULL;
         zval *zobject = getThis();
         sw_zend_call_method_with_0_params(&zobject, swoole_redis_coro_class_entry_ptr, NULL, "close", &retval);
@@ -3818,14 +3821,9 @@ static void swoole_redis_coro_resume(void *data)
         goto free_result;
     }
 
-    redis->iowait = SW_REDIS_CORO_STATUS_READY;
+    swTraceLog(SW_TRACE_REDIS_CLIENT, "resume, fd=%d, object_id=%d", redis->context->c.fd, sw_get_object_handle(redis->object));
 
-#if 0
-    printf("result=%p, redis=%p, redis->object=%p\n", result, redis, redis->object);
-    printf("v1=%p, type=%d\n", &redis->object->value, Z_TYPE_P(redis->object));
-    printf("v2=%p\n", redis->object->value.obj);
-    printf("v3=%d\n", redis->object->value.obj->handle);
-#endif
+    redis->iowait = SW_REDIS_CORO_STATUS_READY;
 
     php_context *sw_current_context = swoole_get_property(redis->object, 0);
     zval *retval = NULL;
@@ -3835,7 +3833,6 @@ static void swoole_redis_coro_resume(void *data)
     {
         sw_zval_ptr_dtor(&retval);
     }
-    free_result:
     sw_zval_ptr_dtor(&redis_result);
     efree(result);
 }
@@ -3846,12 +3843,13 @@ static void swoole_redis_coro_onResult(redisAsyncContext *c, void *r, void *priv
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
-    swRedisClient *redis = c->ev.data;
-    if (redis->state == SWOOLE_REDIS_CORO_STATE_RELEASED)
+    swConnection *_socket = swReactor_get(SwooleG.main_reactor, c->c.fd);
+    if (_socket->active == 0)
     {
         return;
     }
 
+    swRedisClient *redis = c->ev.data;
     swRedis_result *result = emalloc(sizeof(swRedis_result));
     redisReply *reply = r;
 
@@ -3863,6 +3861,8 @@ static void swoole_redis_coro_onResult(redisAsyncContext *c, void *r, void *priv
     result->value = &result->_value;
     bzero(result->value, sizeof(result->_value));
 #endif
+
+    swTraceLog(SW_TRACE_REDIS_CLIENT, "response, fd=%d, object_id=%d", redis->context->c.fd, sw_get_object_handle(redis->object));
 
     result->redis = redis;
     if (reply == NULL)
@@ -3938,11 +3938,11 @@ static void swoole_redis_coro_onResult(redisAsyncContext *c, void *r, void *priv
         }
 	}
 
-    /* et reactor defer callback */
-    redis->iowait = SW_REDIS_CORO_STATUS_DONE;
-    if (!redis->defer || redis->_defer)
+    if (redis->state == SWOOLE_REDIS_CORO_STATE_READY)
     {
-        SwooleG.main_reactor->defer(SwooleG.main_reactor, swoole_redis_coro_resume, result);
+        /* et reactor defer callback */
+        redis->iowait = SW_REDIS_CORO_STATUS_DONE;
+        swoole_redis_coro_resume(result);
     }
 }
 
@@ -3980,7 +3980,11 @@ void swoole_redis_coro_onConnect(const redisAsyncContext *c, int status)
         ZVAL_BOOL(result->value, 1);
         redis->state = SWOOLE_REDIS_CORO_STATE_READY;
 		redis->iowait = SW_REDIS_CORO_STATUS_READY;
+
+	    swConnection *_socket = swReactor_get(SwooleG.main_reactor, c->c.fd);
+        _socket->active = 1;
     }
+
     swoole_redis_coro_resume(result);
 }
 
@@ -3989,6 +3993,9 @@ static void swoole_redis_coro_onClose(const redisAsyncContext *c, int status)
     swRedisClient *redis = c->ev.data;
     redis->state = SWOOLE_REDIS_CORO_STATE_CLOSED;
     redis->context = NULL;
+
+    swConnection *_socket = swReactor_get(SwooleG.main_reactor, c->c.fd);
+    _socket->active = 0;
 
 #if PHP_MAJOR_VERSION < 7
     sw_zval_ptr_dtor(&redis->object);
