@@ -3833,7 +3833,7 @@ static void swoole_redis_coro_resume(void *data)
     {
         sw_zval_ptr_dtor(&retval);
     }
-    sw_zval_ptr_dtor(&redis_result);
+    free_result: sw_zval_ptr_dtor(&redis_result);
     efree(result);
 }
 
