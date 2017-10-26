@@ -1431,7 +1431,7 @@ static PHP_METHOD(swoole_http_client, __construct)
 static PHP_METHOD(swoole_http_client, __destruct)
 {
     http_client *http = swoole_get_object(getThis());
-    if (http && http->cli->released == 0)
+    if (http && http->cli && http->cli->released == 0)
     {
         zval *zobject = getThis();
         zval *retval = NULL;
