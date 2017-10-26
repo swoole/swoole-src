@@ -2878,9 +2878,6 @@ static PHP_METHOD(swoole_redis_coro, zAdd)
 	SW_REDIS_COMMAND_ALLOC_ARGV
 	SW_REDIS_COMMAND_ARGV_FILL("ZADD", 4)
 	SW_REDIS_COMMAND_ARGV_FILL(SW_REDIS_COMMAND_ARGS_STRVAL(z_args[0]), (size_t)SW_REDIS_COMMAND_ARGS_STRLEN(z_args[0]))
-#if PHP_MAJOR_VERSION >= 7
-    if (convert) zval_ptr_dtor(&z_args[0]);
-#endif
 	k = 1;
 
 	if (SW_REDIS_COMMAND_ARGS_TYPE(z_args[k]) == IS_STRING && IS_NX_XX_ARG(SW_REDIS_COMMAND_ARGS_STRVAL(z_args[k])))
