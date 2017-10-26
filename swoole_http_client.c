@@ -410,7 +410,7 @@ void swoole_http_client_init(int module_number TSRMLS_DC)
 #endif
 }
 
-static sw_inline void http_client_execute_callback(zval *zobject, enum php_swoole_client_callback_type type)
+static void http_client_execute_callback(zval *zobject, enum php_swoole_client_callback_type type)
 {
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
@@ -500,6 +500,10 @@ static void http_client_onClose(swClient *cli)
     if (http && http->state == HTTP_CLIENT_STATE_WAIT_CLOSE)
     {
         http_client_parser_on_message_complete(&http->parser);
+        http_client_property *hcc = swoole_get_property(zobject, 0);
+        http_client_onResponseException(zobject TSRMLS_CC);
+        sw_zval_free(hcc->onResponse);
+        hcc->onResponse = NULL;
     }
     if (!cli->released)
     {
@@ -1288,7 +1292,7 @@ static PHP_METHOD(swoole_http_client, __construct)
 static PHP_METHOD(swoole_http_client, __destruct)
 {
     http_client *http = swoole_get_object(getThis());
-    if (http && http->cli->released == 0)
+    if (http && http->cli && http->cli->released == 0)
     {
         zval *zobject = getThis();
         zval *retval = NULL;
