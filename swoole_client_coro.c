@@ -247,17 +247,12 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
 {
     SWOOLE_GET_TSRMLS;
     zval *zobject = cli->object;
+
     swoole_client_coro_property *ccp = swoole_get_property(zobject, 1);
-    if (cli->timeout_id > 0)
+    if (cli->timer)
     {
-        php_swoole_clear_timer_coro(cli->timeout_id TSRMLS_CC);
-        cli->timeout_id = 0;
-    }
-    else if (cli->timeout > 0 && ccp->iowait == SW_CLIENT_CORO_STATUS_WAIT && ccp->timeout_node != NULL)
-    {
-        efree(ccp->timeout_node->data);
-        swLinkedList_remove_node(SwooleWG.delayed_coro_timeout_list, ccp->timeout_node);
-        ccp->timeout_node = NULL;
+        swTimer_del(&SwooleG.timer, cli->timer);
+        cli->timer = NULL;
     }
 
     if (ccp->iowait == SW_CLIENT_CORO_STATUS_WAIT)
@@ -317,11 +312,6 @@ static void client_onConnect(swClient *cli)
 static void client_onClose(swClient *cli)
 {
     SWOOLE_GET_TSRMLS;
-    if (cli->timeout_id > 0)
-    {
-        php_swoole_clear_timer_coro(cli->timeout_id TSRMLS_CC);
-        cli->timeout_id = 0;
-    }
     zval *zobject = cli->object;
     if (!cli->released)
     {
@@ -753,11 +743,6 @@ static PHP_METHOD(swoole_client_coro, connect)
     }
 
     php_context *sw_current_context = swoole_get_property(getThis(), 0);
-    if (cli->timeout > 0)
-    {
-        php_swoole_add_timer_coro((int) (cli->timeout * 1000), cli->socket->fd, &cli->timeout_id, (void *) sw_current_context, NULL TSRMLS_CC);
-    }
-
     coro_save(sw_current_context);
     coro_yield();
 }
@@ -922,13 +907,13 @@ static PHP_METHOD(swoole_client_coro, recv)
         ccp->result = NULL;
         RETURN_ZVAL(result, 0, 1);
     }
-    php_context *sw_current_context = swoole_get_property(getThis(), 0);
+    php_context *context = swoole_get_property(getThis(), 0);
     if (cli->timeout > 0)
     {
-        php_swoole_add_timer_coro((int) (cli->timeout * 1000), cli->socket->fd, &cli->timeout_id, (void *) sw_current_context, &(ccp->timeout_node) TSRMLS_CC);
+        cli->timer = SwooleG.timer.add(&SwooleG.timer, (int) (cli->timeout * 1000), 0, context, client_coro_onTimeout);
     }
     ccp->iowait = SW_CLIENT_CORO_STATUS_WAIT;
-    coro_save(sw_current_context);
+    coro_save(context);
     coro_yield();
 }
 
