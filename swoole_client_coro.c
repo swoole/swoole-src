@@ -910,6 +910,7 @@ static PHP_METHOD(swoole_client_coro, recv)
     php_context *context = swoole_get_property(getThis(), 0);
     if (cli->timeout > 0)
     {
+    	php_swoole_check_timer((int) (cli->timeout * 1000));
         cli->timer = SwooleG.timer.add(&SwooleG.timer, (int) (cli->timeout * 1000), 0, context, client_coro_onTimeout);
     }
     ccp->iowait = SW_CLIENT_CORO_STATUS_WAIT;
