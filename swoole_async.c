@@ -54,13 +54,13 @@ typedef struct
 
 typedef struct
 {
-	zval *callback;
+    zval *callback;
 #if PHP_MAJOR_VERSION >= 7
     zval _callback;
 #endif
     pid_t pid;
-	int fd;
-	swString *buffer;
+    int fd;
+    swString *buffer;
 } process_stream;
 
 static void php_swoole_check_aio();
