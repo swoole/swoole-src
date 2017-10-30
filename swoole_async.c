@@ -989,15 +989,15 @@ static int process_stream_onRead(swReactor *reactor, swEvent *event)
 	char *buf = ps->buffer->str + ps->buffer->length;
 	size_t len = ps->buffer->size - ps->buffer->length;
 
-	int ret = read(event->fd, buf, len);
-	if (ret > 0)
-	{
+    int ret = read(event->fd, buf, len);
+    if (ret > 0)
+    {
         ps->buffer->length += ret;
-		if (ps->buffer->length == ps->buffer->size)
-		{
-			swString_extend(ps->buffer, ps->buffer->size * 2);
-		}
-	}
+        if (ps->buffer->length == ps->buffer->size)
+        {
+            swString_extend(ps->buffer, ps->buffer->size * 2);
+        }
+    }
 	else if (ret == 0)
 	{
 	    zval *zcallback = ps->callback;
