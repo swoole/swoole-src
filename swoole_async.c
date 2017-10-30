@@ -52,6 +52,19 @@ typedef struct
     zval *domain;
 } dns_request;
 
+typedef struct
+{
+	FILE *in;
+	zval *callback;
+#if PHP_MAJOR_VERSION >= 7
+    zval _callback;
+#endif
+	char *command;
+	zend_size_t command_len;
+	int fd;
+	swString *buffer;
+} process_stream;
+
 static void php_swoole_check_aio();
 static void php_swoole_aio_onComplete(swAio_event *event);
 static void php_swoole_dns_callback(char *domain, swDNSResolver_result *result, void *data);
@@ -970,4 +983,72 @@ PHP_FUNCTION(swoole_async_dns_lookup)
     memcpy(buf, Z_STRVAL_P(domain), Z_STRLEN_P(domain));
     php_swoole_check_aio();
     SW_CHECK_RETURN(swAio_dns_lookup(req, buf, buf_size));
+}
+
+static int process_stream_onRead(swReactor *reactor, swEvent *event)
+{
+	process_stream *ps = event->socket->object;
+	char *buf = ps->buffer->str + ps->buffer->length;
+	size_t len = ps->buffer->size - ps->buffer->length;
+
+	int ret = read(event->fd, buf, len);
+	if (ret > 0)
+	{
+		if (ps->buffer->length == ps->buffer->size)
+		{
+			swString_extend(ps->buffer, ps->buffer->size * 2);
+		}
+		ps->buffer->length += ret;
+	}
+	return SW_OK;
+}
+
+PHP_FUNCTION(swoole_async_exec)
+{
+	FILE *in;
+	char *command;
+	zend_size_t command_len;
+    zval *callback;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sz", &command, &command_len, &callback) == FAILURE)
+    {
+        return;
+    }
+
+    php_swoole_check_reactor();
+    if (!swReactor_handle_isset(SwooleG.main_reactor, PHP_SWOOLE_FD_MYSQL))
+    {
+        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_PROCESS_STREAM | SW_EVENT_READ, process_stream_onRead);
+    }
+
+#ifdef PHP_WIN32
+	if ((in=VCWD_POPEN(command, "rt")) == NULL)
+#else
+	if ((in = VCWD_POPEN(command, "r")) == NULL)
+#endif
+	{
+		swoole_php_error(E_WARNING, "Unable to execute '%s'", command);
+		RETURN_FALSE;
+	}
+
+	process_stream *ps = emalloc(sizeof(process_stream));
+	ps->callback = callback;
+	sw_copy_to_stack(ps->callback, req->_callback);
+	sw_zval_add_ref(&ps->callback);
+
+	ps->command = estrndup(command, command_len);
+	ps->command_len = command_len;
+	ps->fd = fileno(in);
+    if (SwooleG.main_reactor->add(SwooleG.main_reactor, ps->fd, PHP_SWOOLE_FD_PROCESS_STREAM | SW_EVENT_READ) < 0)
+    {
+		sw_zval_ptr_dtor(&ps->callback);
+		efree(ps);
+        RETURN_FALSE;
+    }
+    else
+    {
+    	swConnection *_socket = swReactor_get(SwooleG.main_reactor, ps->fd);
+    	_socket->object = ps;
+    	RETURN_TRUE;
+    }
 }
