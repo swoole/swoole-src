@@ -218,6 +218,7 @@ enum php_swoole_fd_type
     PHP_SWOOLE_FD_MYSQL,
     PHP_SWOOLE_FD_REDIS,
     PHP_SWOOLE_FD_HTTPCLIENT,
+    PHP_SWOOLE_FD_PROCESS_STREAM,
 };
 //---------------------------------------------------------
 #define php_swoole_socktype(type)           (type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP) & (~SW_SOCK_SSL))
