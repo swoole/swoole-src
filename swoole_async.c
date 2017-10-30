@@ -985,9 +985,9 @@ PHP_FUNCTION(swoole_async_dns_lookup)
 
 static int process_stream_onRead(swReactor *reactor, swEvent *event)
 {
-	process_stream *ps = event->socket->object;
-	char *buf = ps->buffer->str + ps->buffer->length;
-	size_t len = ps->buffer->size - ps->buffer->length;
+    process_stream *ps = event->socket->object;
+    char *buf = ps->buffer->str + ps->buffer->length;
+    size_t len = ps->buffer->size - ps->buffer->length;
 
     int ret = read(event->fd, buf, len);
     if (ret > 0)
@@ -998,19 +998,19 @@ static int process_stream_onRead(swReactor *reactor, swEvent *event)
             swString_extend(ps->buffer, ps->buffer->size * 2);
         }
     }
-	else if (ret == 0)
-	{
-	    zval *zcallback = ps->callback;
-	    zval *retval = NULL;
-	    zval **args[2];
+    else if (ret == 0)
+    {
+        zval *zcallback = ps->callback;
+        zval *retval = NULL;
+        zval **args[2];
 
-	    zval *zdata;
-	    SW_MAKE_STD_ZVAL(zdata);
-	    SW_ZVAL_STRINGL(zdata, ps->buffer->str, ps->buffer->length, 1);
+        zval *zdata;
+        SW_MAKE_STD_ZVAL(zdata);
+        SW_ZVAL_STRINGL(zdata, ps->buffer->str, ps->buffer->length, 1);
 
-	    SwooleG.main_reactor->del(SwooleG.main_reactor, ps->fd);
+        SwooleG.main_reactor->del(SwooleG.main_reactor, ps->fd);
 
-	    swString_free(ps->buffer);
+        swString_free(ps->buffer);
         args[0] = &zdata;
 
         int status;
@@ -1047,12 +1047,12 @@ static int process_stream_onRead(swReactor *reactor, swEvent *event)
         sw_zval_ptr_dtor(&zcallback);
         close(ps->fd);
         efree(ps);
-	}
-	else
-	{
-	    swSysError("read() failed.");
-	}
-	return SW_OK;
+    }
+    else
+    {
+        swSysError("read() failed.");
+    }
+    return SW_OK;
 }
 
 PHP_METHOD(swoole_async, exec)
