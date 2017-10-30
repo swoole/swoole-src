@@ -486,7 +486,7 @@ void swoole_rtrim(char *str, int len)
             str[i] = 0;
             break;
         default:
-            break;
+            return;
         }
     }
 }
