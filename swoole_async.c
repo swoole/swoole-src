@@ -985,6 +985,8 @@ PHP_FUNCTION(swoole_async_dns_lookup)
 
 static int process_stream_onRead(swReactor *reactor, swEvent *event)
 {
+    SWOOLE_GET_TSRMLS;
+
     process_stream *ps = event->socket->object;
     char *buf = ps->buffer->str + ps->buffer->length;
     size_t len = ps->buffer->size - ps->buffer->length;
