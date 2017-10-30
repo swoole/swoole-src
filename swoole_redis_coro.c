@@ -1228,6 +1228,12 @@ static PHP_METHOD(swoole_redis_coro, __destruct)
         return;
     }
 
+    if (redis->timer)
+    {
+        swTimer_del(&SwooleG.timer, redis->timer);
+        redis->timer = NULL;
+    }
+
     if (redis->state != SWOOLE_REDIS_CORO_STATE_CONNECT && redis->state != SWOOLE_REDIS_CORO_STATE_CLOSED)
     {
         swTraceLog(SW_TRACE_REDIS_CLIENT, "fd=%d", redis->context->c.fd);
