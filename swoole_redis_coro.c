@@ -1184,6 +1184,12 @@ static PHP_METHOD(swoole_redis_coro, recv)
 static PHP_METHOD(swoole_redis_coro, close)
 {
     swRedisClient *redis = swoole_get_object(getThis());
+    if (redis->timer)
+    {
+        swTimer_del(&SwooleG.timer, redis->timer);
+        redis->timer = NULL;
+    }
+
 	if (redis->state == SWOOLE_REDIS_CORO_STATE_CONNECT)
 	{
         RETURN_TRUE;
@@ -1226,12 +1232,6 @@ static PHP_METHOD(swoole_redis_coro, __destruct)
     if (!redis)
     {
         return;
-    }
-
-    if (redis->timer)
-    {
-        swTimer_del(&SwooleG.timer, redis->timer);
-        redis->timer = NULL;
     }
 
     if (redis->state != SWOOLE_REDIS_CORO_STATE_CONNECT && redis->state != SWOOLE_REDIS_CORO_STATE_CLOSED)
