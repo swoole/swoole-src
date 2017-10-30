@@ -327,6 +327,7 @@ PHP_FUNCTION(swoole_async_readfile);
 PHP_FUNCTION(swoole_async_writefile);
 PHP_FUNCTION(swoole_async_dns_lookup);
 PHP_FUNCTION(swoole_async_set);
+PHP_METHOD(swoole_async, exec);
 //---------------------------------------------------------
 //                  swoole_timer
 //---------------------------------------------------------

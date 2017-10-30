@@ -54,13 +54,11 @@ typedef struct
 
 typedef struct
 {
-	FILE *in;
 	zval *callback;
 #if PHP_MAJOR_VERSION >= 7
     zval _callback;
 #endif
-	char *command;
-	zend_size_t command_len;
+    pid_t pid;
 	int fd;
 	swString *buffer;
 } process_stream;
@@ -994,18 +992,71 @@ static int process_stream_onRead(swReactor *reactor, swEvent *event)
 	int ret = read(event->fd, buf, len);
 	if (ret > 0)
 	{
+        ps->buffer->length += ret;
 		if (ps->buffer->length == ps->buffer->size)
 		{
 			swString_extend(ps->buffer, ps->buffer->size * 2);
 		}
-		ps->buffer->length += ret;
+	}
+	else if (ret == 0)
+	{
+	    zval *zcallback = ps->callback;
+	    zval *retval = NULL;
+	    zval **args[2];
+
+	    zval *zdata;
+	    SW_MAKE_STD_ZVAL(zdata);
+	    SW_ZVAL_STRINGL(zdata, ps->buffer->str, ps->buffer->length, 1);
+
+	    SwooleG.main_reactor->del(SwooleG.main_reactor, ps->fd);
+
+	    swString_free(ps->buffer);
+        args[0] = &zdata;
+
+        int status;
+        zval *zstatus;
+        SW_MAKE_STD_ZVAL(zstatus);
+
+        pid_t pid = swWaitpid(ps->pid, &status, WNOHANG);
+        if (pid > 0)
+        {
+            array_init(zstatus);
+            add_assoc_long(zstatus, "code", WEXITSTATUS(status));
+            add_assoc_long(zstatus, "signal", WTERMSIG(status));
+        }
+        else
+        {
+            ZVAL_FALSE(zstatus);
+        }
+        args[1] = &zstatus;
+
+        if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+        {
+            swoole_php_fatal_error(E_WARNING, "swoole_async: onAsyncComplete handler error");
+        }
+        if (EG(exception))
+        {
+            zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+        }
+        if (retval != NULL)
+        {
+            sw_zval_ptr_dtor(&retval);
+        }
+        sw_zval_ptr_dtor(&zdata);
+        sw_zval_ptr_dtor(&zstatus);
+        sw_zval_ptr_dtor(&zcallback);
+        close(ps->fd);
+        efree(ps);
+	}
+	else
+	{
+	    swSysError("read() failed.");
 	}
 	return SW_OK;
 }
 
-PHP_FUNCTION(swoole_async_exec)
+PHP_METHOD(swoole_async, exec)
 {
-	FILE *in;
 	char *command;
 	zend_size_t command_len;
     zval *callback;
@@ -1019,36 +1070,42 @@ PHP_FUNCTION(swoole_async_exec)
     if (!swReactor_handle_isset(SwooleG.main_reactor, PHP_SWOOLE_FD_MYSQL))
     {
         SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_PROCESS_STREAM | SW_EVENT_READ, process_stream_onRead);
+        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_PROCESS_STREAM | SW_EVENT_ERROR, process_stream_onRead);
     }
 
-#ifdef PHP_WIN32
-	if ((in=VCWD_POPEN(command, "rt")) == NULL)
-#else
-	if ((in = VCWD_POPEN(command, "r")) == NULL)
-#endif
+    pid_t pid;
+    int fd = swoole_shell_exec(command, &pid);
+    if (fd < 0)
 	{
 		swoole_php_error(E_WARNING, "Unable to execute '%s'", command);
 		RETURN_FALSE;
 	}
 
-	process_stream *ps = emalloc(sizeof(process_stream));
-	ps->callback = callback;
-	sw_copy_to_stack(ps->callback, req->_callback);
-	sw_zval_add_ref(&ps->callback);
+    swString *buffer = swString_new(1024);
+    if (buffer == NULL)
+    {
+        RETURN_FALSE;
+    }
 
-	ps->command = estrndup(command, command_len);
-	ps->command_len = command_len;
-	ps->fd = fileno(in);
+    process_stream *ps = emalloc(sizeof(process_stream));
+    ps->callback = callback;
+    sw_copy_to_stack(ps->callback, ps->_callback);
+    sw_zval_add_ref(&ps->callback);
+
+    ps->fd = fd;
+    ps->pid = pid;
+    ps->buffer = buffer;
+
     if (SwooleG.main_reactor->add(SwooleG.main_reactor, ps->fd, PHP_SWOOLE_FD_PROCESS_STREAM | SW_EVENT_READ) < 0)
     {
-		sw_zval_ptr_dtor(&ps->callback);
-		efree(ps);
+        sw_zval_ptr_dtor(&ps->callback);
+        efree(ps);
         RETURN_FALSE;
     }
     else
     {
-    	swConnection *_socket = swReactor_get(SwooleG.main_reactor, ps->fd);
-    	_socket->object = ps;
-    	RETURN_TRUE;
+        swConnection *_socket = swReactor_get(SwooleG.main_reactor, ps->fd);
+        _socket->object = ps;
+        RETURN_LONG(pid);
     }
 }

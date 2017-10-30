@@ -253,6 +253,12 @@ enum swEvent_type
     SW_EVENT_ERROR = 1u << 11,
     SW_EVENT_ONCE = 1u << 12,
 };
+
+enum swPipe_type
+{
+    SW_PIPE_READ = 0,
+    SW_PIPE_WRITE = 1,
+};
 //-------------------------------------------------------------------------------
 enum swServer_mode
 {
@@ -1234,6 +1240,7 @@ void swoole_update_time(void);
 double swoole_microtime(void);
 void swoole_rtrim(char *str, int len);
 void swoole_redirect_stdout(int new_fd);
+int swoole_shell_exec(char *command, pid_t *pid);
 int swoole_add_function(const char *name, void* func);
 void* swoole_get_function(char *name, uint32_t length);
 

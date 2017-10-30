@@ -1004,6 +1004,36 @@ void* swoole_get_function(char *name, uint32_t length)
     return swHashMap_find(SwooleG.functions, name, length);
 }
 
+int swoole_shell_exec(char *command, pid_t *pid)
+{
+    pid_t child_pid;
+    int fds[2];
+    pipe(fds);
+
+    if ((child_pid = fork()) == -1)
+    {
+        swSysError("fork() failed.");
+        return -1;
+    }
+
+    if (child_pid == 0)
+    {
+        close(fds[SW_PIPE_READ]);
+        dup2(fds[SW_PIPE_WRITE], 1);
+
+        //Needed so negative PIDs can kill children of /bin/sh
+        setpgid(child_pid, child_pid);
+        execl("/bin/sh", "/bin/sh", "-c", command, NULL);
+        exit(0);
+    }
+    else
+    {
+        *pid = child_pid;
+        close(fds[SW_PIPE_WRITE]);
+    }
+    return fds[SW_PIPE_READ];
+}
+
 #ifdef HAVE_EXECINFO
 void swoole_print_trace(void)
 {
