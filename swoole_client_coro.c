@@ -206,12 +206,12 @@ void swoole_client_coro_init(int module_number TSRMLS_DC)
     zend_declare_class_constant_long(swoole_client_coro_class_entry_ptr, ZEND_STRL("MSG_WAITALL"), MSG_WAITALL TSRMLS_CC);
 }
 
-static void client_coro_onTimeout(php_context *ctx)
+static void client_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
 {
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
-
+    php_context *ctx = (php_context *) tnode->data;
     zval *zdata = NULL;
     zval *retval = NULL;
 
