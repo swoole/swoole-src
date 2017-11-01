@@ -268,9 +268,15 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_async_dns_lookup, 0, 0, 2)
     ZEND_ARG_INFO(0, content)
 ZEND_END_ARG_INFO()
 
+#ifdef SW_COROUTINE
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_async_dns_lookup_coro, 0, 0, 1)
+    ZEND_ARG_INFO(0, domain_name)
+ZEND_END_ARG_INFO()
+#endif
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_async_exec, 0, 0, 2)
-                ZEND_ARG_INFO(0, command)
-                ZEND_ARG_INFO(0, callback)
+    ZEND_ARG_INFO(0, command)
+    ZEND_ARG_INFO(0, callback)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_select, 0, 0, 3)
