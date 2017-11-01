@@ -44,6 +44,7 @@ zend_fcall_info_cache *php_sw_server_caches[PHP_SERVER_CALLBACK_NUM];
 static swHashMap *task_callbacks = NULL;
 static swHashMap *task_coroutine_map = NULL;
 
+#ifdef SW_COROUTINE
 typedef struct
 {
     php_context context;
@@ -52,6 +53,7 @@ typedef struct
     zval *result;
     swTimer_node *timer;
 } swTaskCo;
+#endif
 
 #if PHP_MAJOR_VERSION >= 7
 zval _php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
@@ -391,6 +393,7 @@ zval* php_swoole_task_unpack(swEventData *task_result TSRMLS_DC)
     return result_data;
 }
 
+#ifdef SW_COROUTINE
 static void php_swoole_task_onTimeout(swTimer *timer, swTimer_node *tnode)
 {
     swTaskCo *task_co = (swTaskCo *) tnode->data;
@@ -416,6 +419,7 @@ static void php_swoole_task_onTimeout(swTimer *timer, swTimer_node *tnode)
     sw_zval_free(result);
     efree(task_co);
 }
+#endif
 
 static zval* php_swoole_server_add_port(swListenPort *port TSRMLS_DC)
 {
@@ -987,6 +991,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
         return SW_ERR;
     }
 
+#ifdef SW_COROUTINE
     if (swTask_type(req) & SW_TASK_COROUTINE)
     {
         int task_id = req->info.fd;
@@ -1036,6 +1041,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
         }
         return SW_OK;
     }
+#endif
 
     args[0] = &zserv;
     args[1] = &ztask_id;
@@ -3024,6 +3030,7 @@ PHP_METHOD(swoole_server, taskWaitMulti)
     unlink(_tmpfile);
 }
 
+#ifdef SW_COROUTINE
 PHP_METHOD(swoole_server, taskCo)
 {
     swEventData buf;
@@ -3124,6 +3131,7 @@ PHP_METHOD(swoole_server, taskCo)
     coro_save(&task_co->context);
     coro_yield();
 }
+#endif
 
 PHP_METHOD(swoole_server, task)
 {

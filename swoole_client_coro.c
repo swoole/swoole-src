@@ -108,6 +108,7 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length);
 static int client_onPackage(swConnection *conn, char *data, uint32_t length);
 static void client_onClose(swClient *cli);
 static void client_onError(swClient *cli);
+static void client_coro_onTimeout(swTimer *timer, swTimer_node *tnode);
 
 static const zend_function_entry swoole_client_coro_methods[] =
 {
@@ -582,7 +583,7 @@ static PHP_METHOD(swoole_client_coro, __construct)
     swoole_set_property(getThis(), client_coro_property_coroutine, client_coro_property);
 
     php_context *sw_current_context = emalloc(sizeof(php_context));
-    sw_current_context->onTimeout = client_coro_onTimeout;
+    sw_current_context->onTimeout = NULL;
 #if PHP_MAJOR_VERSION < 7
     sw_current_context->coro_params = getThis();
 #else

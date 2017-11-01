@@ -198,7 +198,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
             *retval = *EG(return_value_ptr_ptr);
         }
         coro_close(TSRMLS_C);
-        swTrace("create the %d coro with stack %zu. heap size: %zu\n", COROG.coro_num, total_size, zend_memory_usage(0));
+        swTrace("create the %d coro with stack %zu. heap size: %zu\n", COROG.coro_num, total_size, zend_memory_usage(0 TSRMLS_CC));
         coro_status = CORO_END;
     }
     else
