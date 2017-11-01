@@ -1113,7 +1113,7 @@ static PHP_METHOD(swoole_redis_coro, connect)
     if (redis->timeout > 0)
     {
         php_swoole_check_timer((int) (redis->timeout * 1000));
-        redis->timer = SwooleG.timer.add(&SwooleG.timer, (int) (redis->timeout * 1000), 0, context, swoole_redis_coro_onTimeout);
+        redis->timer = SwooleG.timer.add(&SwooleG.timer, (int) (redis->timeout * 1000), 0, sw_current_context, swoole_redis_coro_onTimeout);
     }
 	coro_save(sw_current_context);
 	coro_yield();
