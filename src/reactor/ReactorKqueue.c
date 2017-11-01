@@ -111,6 +111,8 @@ static int swReactorKqueue_add(swReactor *reactor, int fd, int fdtype)
     fd_.fd = fd;
     fd_.fdtype = swReactor_fdtype(fdtype);
 
+    swReactor_add(reactor, fd, fdtype);
+
     if (swReactor_event_read(fdtype))
     {
 #ifdef NOTE_EOF
@@ -122,6 +124,7 @@ static int swReactorKqueue_add(swReactor *reactor, int fd, int fdtype)
         if (ret < 0)
         {
             swSysError("add events[fd=%d#%d, type=%d, events=read] failed.", fd, reactor->id, fd_.fdtype);
+            swReactor_del(reactor, fd);
             return SW_ERR;
         }
     }
@@ -134,13 +137,13 @@ static int swReactorKqueue_add(swReactor *reactor, int fd, int fdtype)
         if (ret < 0)
         {
             swSysError("add events[fd=%d#%d, type=%d, events=write] failed.", fd, reactor->id, fd_.fdtype);
+            swReactor_del(reactor, fd);
             return SW_ERR;
         }
     }
 
     swTrace("[THREAD #%d]EP=%d|FD=%d, events=%d", SwooleTG.id, this->epfd, fd, fdtype);
     reactor->event_num++;
-    swReactor_add(reactor, fd, fdtype);
     return SW_OK;
 }
 
