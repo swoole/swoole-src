@@ -140,7 +140,7 @@ static const zend_function_entry swoole_client_coro_methods[] =
 zend_class_entry swoole_client_coro_ce;
 zend_class_entry *swoole_client_coro_class_entry_ptr;
 
-static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_client_callback_type type)
+static void client_execute_callback(zval *zobject, enum php_swoole_client_callback_type type)
 {
     zval *retval = NULL;
     zval *result = NULL;
@@ -709,10 +709,6 @@ static PHP_METHOD(swoole_client_coro, connect)
 #if PHP_MAJOR_VERSION >= 7
     swoole_client_coro_property *ccp = swoole_get_property(getThis(), 1);
     sw_copy_to_stack(cli->object, ccp->_object);
-#endif
-
-#if PHP_MAJOR_VERSION < 7
-    sw_zval_add_ref(&zobject);
 #endif
 
     cli->timeout = timeout;
