@@ -224,9 +224,6 @@ static void client_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
 #endif
     zend_update_property_long(swoole_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), 110 TSRMLS_CC);
 
-    swClient *cli = swoole_get_object(zobject);
-    cli->timeout_id = 0;
-
     SW_MAKE_STD_ZVAL(zdata);
     ZVAL_BOOL(zdata, 0);
     int ret = coro_resume(ctx, zdata, &retval);
@@ -236,7 +233,6 @@ static void client_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
     }
     sw_zval_ptr_dtor(&zdata);
 }
-
 
 static int client_onPackage(swConnection *conn, char *data, uint32_t length)
 {
@@ -292,11 +288,6 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
 static void client_onConnect(swClient *cli)
 {
     SWOOLE_GET_TSRMLS;
-    if (cli->timeout_id > 0)
-    {
-        php_swoole_clear_timer_coro(cli->timeout_id TSRMLS_CC);
-        cli->timeout_id = 0;
-    }
     zval *zobject = cli->object;
 #ifdef SW_USE_OPENSSL
     if (cli->ssl_wait_handshake)
@@ -327,11 +318,6 @@ static void client_onClose(swClient *cli)
 static void client_onError(swClient *cli)
 {
     SWOOLE_GET_TSRMLS;
-    if (cli->timeout_id > 0)
-    {
-        php_swoole_clear_timer_coro(cli->timeout_id TSRMLS_CC);
-        cli->timeout_id = 0;
-    }
     zval *zobject = cli->object;
     zend_update_property_long(swoole_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error TSRMLS_CC);
     if (!cli->released)
@@ -1045,11 +1031,6 @@ static PHP_METHOD(swoole_client_coro, close)
     {
         swoole_php_error(E_WARNING, "client socket is closed.");
         RETURN_FALSE;
-    }
-    if (cli->timeout_id > 0)
-    {
-        php_swoole_clear_timer_coro(cli->timeout_id TSRMLS_CC);
-        cli->timeout_id = 0;
     }
     //Connection error, or short tcp connection.
     swoole_client_coro_property *ccp = swoole_get_property(getThis(), 1);
