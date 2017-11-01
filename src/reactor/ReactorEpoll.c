@@ -124,16 +124,18 @@ static int swReactorEpoll_add(swReactor *reactor, int fd, int fdtype)
     fd_.fdtype = swReactor_fdtype(fdtype);
     e.events = swReactorEpoll_event_set(fdtype);
 
+    swReactor_add(reactor, fd, fdtype);
+
     memcpy(&(e.data.u64), &fd_, sizeof(fd_));
     if (epoll_ctl(object->epfd, EPOLL_CTL_ADD, fd, &e) < 0)
     {
         swSysError("add events[fd=%d#%d, type=%d, events=%d] failed.", fd, reactor->id, fd_.fdtype, e.events);
+        swReactor_del(reactor, fd);
         return SW_ERR;
     }
 
     swTraceLog(SW_TRACE_EVENT, "add event[reactor_id=%d, fd=%d, events=%d]", reactor->id, fd, swReactor_events(fdtype));
     reactor->event_num++;
-    swReactor_add(reactor, fd, fdtype);
 
     return SW_OK;
 }
@@ -144,7 +146,6 @@ static int swReactorEpoll_del(swReactor *reactor, int fd)
     if (epoll_ctl(object->epfd, EPOLL_CTL_DEL, fd, NULL) < 0)
     {
         swSysError("epoll remove fd[%d#%d] failed.", fd, reactor->id);
-        //abort();
         return SW_ERR;
     }
 

@@ -95,6 +95,9 @@ int swReactorSelect_add(swReactor *reactor, int fd, int fdtype)
         swWarn("malloc(%ld) failed.", sizeof(swFdList_node));
         return SW_ERR;
     }
+
+    swReactor_add(reactor, fd, fdtype);
+
     ev->fd = fd;
     ev->fdtype = fdtype;
     LL_APPEND(object->fds, ev);
@@ -103,7 +106,7 @@ int swReactorSelect_add(swReactor *reactor, int fd, int fdtype)
     {
         object->maxfd = fd;
     }
-    swReactor_add(reactor, fd, fdtype);
+
     return SW_OK;
 }
 
