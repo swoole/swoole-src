@@ -644,8 +644,12 @@ static void* swoole_unserialize_arr(void *buffer, zval *zvalue, uint32_t nNumOfE
     {
         return NULL;
     }
+    if (!buffer)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_NOTICE, "illegal unserialize data");
+        return NULL;
+    }
     ZVAL_NEW_ARR(zvalue);
-
     //Initialize buckets
     zend_array *ht = Z_ARR_P(zvalue);
     ht->nTableSize = size;
@@ -981,7 +985,7 @@ try_again:
 
                 if (ZEND_HASH_GET_APPLY_COUNT(ht) > 1)
                 {
-                    php_error_docref(NULL TSRMLS_CC, E_NOTICE, "you array have cycle ref");
+                    php_error_docref(NULL TSRMLS_CC, E_NOTICE, "the array has cycle ref");
                 }
                 else
                 {
@@ -1086,12 +1090,12 @@ static void swoole_serialize_object(seriaString *buffer, zval *obj, size_t start
     zend_string *name = Z_OBJCE_P(obj)->name;
     if (ZEND_HASH_GET_APPLY_COUNT(Z_OBJPROP_P(obj)) > 1)
     {
-        zend_throw_exception_ex(NULL, 0, "the object %s have cycle ref!", name->val);
+        zend_throw_exception_ex(NULL, 0, "the object %s has cycle ref.", name->val);
         return;
     }
     if (name->len > 0xffff)
     {//so long?
-        zend_throw_exception_ex(NULL, 0, "too long obj name!");
+        zend_throw_exception_ex(NULL, 0, "the object name is too long.");
     }
     else
     {
@@ -1382,7 +1386,7 @@ again:
             break;
         }
         default:
-            php_error_docref(NULL TSRMLS_CC, E_NOTICE, "swoole serialize not support this type ");
+            php_error_docref(NULL TSRMLS_CC, E_NOTICE, "the type is not supported by swoole serialize.");
 
             break;
     }
@@ -1478,7 +1482,7 @@ PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, 
             }
             break;
         default:
-            php_error_docref(NULL TSRMLS_CC, E_NOTICE, "swoole serialize not support this type ");
+            php_error_docref(NULL TSRMLS_CC, E_NOTICE, "the type is not supported by swoole serialize.");
             return SW_FALSE;
     }
 

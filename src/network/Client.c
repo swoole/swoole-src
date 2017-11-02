@@ -200,6 +200,12 @@ int swClient_ssl_handshake(swClient *cli)
         {
             return SW_ERR;
         }
+#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
+        if (cli->ssl_option.tls_host_name)
+        {
+            SSL_set_tlsext_host_name(cli->socket->ssl, cli->ssl_option.tls_host_name);
+        }
+#endif
     }
     if (swSSL_connect(cli->socket) < 0)
     {
@@ -269,10 +275,12 @@ static int swClient_inet_addr(swClient *cli, char *host, int port)
     {
         return SW_ERR;
     }
+#ifndef SW_COROUTINE
     if (cli->async)
     {
         swWarn("DNS lookup will block the process. Please use swoole_async_dns_lookup.");
     }
+#endif
     if (swoole_gethostbyname(cli->_sock_domain, host, s_addr) < 0)
     {
         return SW_ERR;
@@ -333,6 +341,12 @@ static int swClient_close(swClient *cli)
         {
             sw_free(cli->ssl_option.passphrase);
         }
+#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
+        if (cli->ssl_option.tls_host_name)
+        {
+            sw_free(cli->ssl_option.tls_host_name);
+        }
+#endif
     }
 #endif
     //clear buffer
@@ -656,16 +670,28 @@ static int swClient_tcp_sendfile_async(swClient *cli, char *filename, off_t offs
     return SW_OK;
 }
 
+/**
+ * Only for synchronous client
+ */
 static int swClient_tcp_recv_no_buffer(swClient *cli, char *data, int len, int flag)
 {
-#ifdef SW_USE_OPENSSL
-    int ret, timeout_ms;
+    int ret;
+
     while (1)
     {
         ret = swConnection_recv(cli->socket, data, len, flag);
-        if (ret < 0 && errno == EAGAIN)
+        if (ret >= 0)
         {
-            timeout_ms = (int) (cli->timeout * 1000);
+            break;
+        }
+        if (errno == EINTR)
+        {
+            continue;
+        }
+#ifdef SW_USE_OPENSSL
+        if (errno == EAGAIN && cli->socket->ssl)
+        {
+            int timeout_ms = (int) (cli->timeout * 1000);
             if (cli->socket->ssl_want_read && swSocket_wait(cli->socket->fd, timeout_ms, SW_EVENT_READ) == SW_OK)
             {
                 continue;
@@ -674,24 +700,14 @@ static int swClient_tcp_recv_no_buffer(swClient *cli, char *data, int len, int f
             {
                 continue;
             }
+            else
+            {
+                break;
+            }
         }
-        break;
-    }
-#else
-    int ret = swConnection_recv(cli->socket, data, len, flag);
 #endif
-
-    if (ret < 0)
-    {
-        if (errno == EINTR)
-        {
-            ret = swConnection_recv(cli->socket, data, len, flag);
-        }
-        else
-        {
-            return SW_ERR;
-        }
     }
+
     return ret;
 }
 

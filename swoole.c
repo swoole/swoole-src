@@ -26,6 +26,10 @@
 #include <ext/spl/spl_iterators.h>
 #endif
 
+#ifdef SW_COROUTINE
+#include "swoole_coroutine.h"
+#endif
+
 ZEND_DECLARE_MODULE_GLOBALS(swoole)
 
 extern sapi_module_struct sapi_module;
@@ -130,6 +134,13 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_taskwait, 0, 0, 1)
     ZEND_ARG_INFO(0, timeout)
     ZEND_ARG_INFO(0, worker_id)
 ZEND_END_ARG_INFO()
+
+#ifdef SW_COROUTINE
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_taskCo, 0, 0, 1)
+    ZEND_ARG_ARRAY_INFO(0, tasks, 0)
+    ZEND_ARG_INFO(0, timeout)
+ZEND_END_ARG_INFO()
+#endif
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_taskWaitMulti_oo, 0, 0, 1)
     ZEND_ARG_ARRAY_INFO(0, tasks, 0)
@@ -257,6 +268,17 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_async_dns_lookup, 0, 0, 2)
     ZEND_ARG_INFO(0, content)
 ZEND_END_ARG_INFO()
 
+#ifdef SW_COROUTINE
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_async_dns_lookup_coro, 0, 0, 1)
+    ZEND_ARG_INFO(0, domain_name)
+ZEND_END_ARG_INFO()
+#endif
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_async_exec, 0, 0, 2)
+    ZEND_ARG_INFO(0, command)
+    ZEND_ARG_INFO(0, callback)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_select, 0, 0, 3)
     ZEND_ARG_INFO(1, read_array)
     ZEND_ARG_INFO(1, write_array)
@@ -322,6 +344,9 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_async_readfile, arginfo_swoole_async_readfile)
     PHP_FE(swoole_async_writefile, arginfo_swoole_async_writefile)
     PHP_FE(swoole_async_dns_lookup, arginfo_swoole_async_dns_lookup)
+#ifdef SW_COROUTINE
+    PHP_FE(swoole_async_dns_lookup_coro, arginfo_swoole_async_dns_lookup_coro)
+#endif
     /*------other-----*/
     PHP_FE(swoole_client_select, arginfo_swoole_client_select)
     PHP_FALIAS(swoole_select, swoole_client_select, arginfo_swoole_client_select)
@@ -354,6 +379,9 @@ static zend_function_entry swoole_server_methods[] = {
     PHP_ME(swoole_server, task, arginfo_swoole_server_task, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, taskwait, arginfo_swoole_server_taskwait, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, taskWaitMulti, arginfo_swoole_server_taskWaitMulti_oo, ZEND_ACC_PUBLIC)
+#ifdef SW_COROUTINE
+    PHP_ME(swoole_server, taskCo, arginfo_swoole_server_taskCo, ZEND_ACC_PUBLIC)
+#endif
     PHP_ME(swoole_server, finish, arginfo_swoole_server_finish_oo, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, reload, arginfo_swoole_server_reload_oo, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, shutdown, arginfo_swoole_void, ZEND_ACC_PUBLIC)
@@ -428,7 +456,11 @@ static const zend_function_entry swoole_async_methods[] =
     ZEND_FENTRY(readFile, ZEND_FN(swoole_async_readfile), arginfo_swoole_async_readfile, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(writeFile, ZEND_FN(swoole_async_writefile), arginfo_swoole_async_writefile, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(dnsLookup, ZEND_FN(swoole_async_dns_lookup), arginfo_swoole_async_dns_lookup, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+#ifdef SW_COROUTINE
+    ZEND_FENTRY(dnsLookupCoro, ZEND_FN(swoole_async_dns_lookup_coro), arginfo_swoole_async_dns_lookup_coro, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+#endif
     ZEND_FENTRY(set, ZEND_FN(swoole_async_set), arginfo_swoole_async_set, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_async, exec, arginfo_swoole_async_exec, ZEND_ACC_PUBLIC| ZEND_ACC_STATIC)
     PHP_FE_END
 };
 
@@ -487,7 +519,7 @@ STD_PHP_INI_ENTRY("swoole.display_errors", "On", PHP_INI_ALL, OnUpdateBool, disp
 /**
  * namespace class style
  */
-STD_PHP_INI_ENTRY("swoole.use_namespace", "Off", PHP_INI_SYSTEM, OnUpdateBool, use_namespace, zend_swoole_globals, swoole_globals)
+STD_PHP_INI_ENTRY("swoole.use_namespace", "On", PHP_INI_SYSTEM, OnUpdateBool, use_namespace, zend_swoole_globals, swoole_globals)
 /**
  * enable swoole_serialize
  */
@@ -503,7 +535,7 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
     swoole_globals->aio_thread_num = SW_AIO_THREAD_NUM_DEFAULT;
     swoole_globals->socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
     swoole_globals->display_errors = 1;
-    swoole_globals->use_namespace = 0;
+    swoole_globals->use_namespace = 1;
     swoole_globals->fast_serialize = 0;
 }
 
@@ -627,12 +659,8 @@ static sw_inline uint32_t swoole_get_new_size(uint32_t old_size, int handle TSRM
 
 void swoole_set_object(zval *object, void *ptr)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-    zend_object_handle handle = Z_OBJ_HANDLE_P(object);
-#else
-    int handle = (int) Z_OBJ_HANDLE(*object);
-#endif
+    SWOOLE_GET_TSRMLS;
+    int handle = sw_get_object_handle(object);
     assert(handle < SWOOLE_OBJECT_MAX);
     if (handle >= swoole_objects.size)
     {
@@ -657,12 +685,8 @@ void swoole_set_object(zval *object, void *ptr)
 
 void swoole_set_property(zval *object, int property_id, void *ptr)
 {
-#if PHP_MAJOR_VERSION < 7
-	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-    zend_object_handle handle = Z_OBJ_HANDLE_P(object);
-#else
-    int handle = (int) Z_OBJ_HANDLE(*object);
-#endif
+    SWOOLE_GET_TSRMLS;
+    int handle = sw_get_object_handle(object);
     assert(handle < SWOOLE_OBJECT_MAX);
 
     if (handle >= swoole_objects.property_size[property_id])
@@ -855,6 +879,15 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_init();
     swoole_server_port_init(module_number TSRMLS_CC);
     swoole_client_init(module_number TSRMLS_CC);
+#ifdef SW_COROUTINE
+    swoole_client_coro_init(module_number TSRMLS_CC);
+#ifdef SW_USE_REDIS
+    swoole_redis_coro_init(module_number TSRMLS_CC);
+#endif
+    swoole_mysql_coro_init(module_number TSRMLS_CC);
+    swoole_http_client_coro_init(module_number TSRMLS_CC);
+	swoole_coroutine_util_init(module_number TSRMLS_CC);
+#endif
     swoole_http_client_init(module_number TSRMLS_CC);
     swoole_async_init(module_number TSRMLS_CC);
     swoole_process_init(module_number TSRMLS_CC);
@@ -888,6 +921,10 @@ PHP_MINIT_FUNCTION(swoole)
 #ifdef __MACH__
     SwooleG.socket_buffer_size = 256 * 1024;
 #endif
+
+    //default 60s
+    SwooleG.dns_cache_refresh_time = 60;
+
 
     if (SWOOLE_G(aio_thread_num) > 0)
     {
@@ -1071,6 +1108,15 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
     }
 
     SwooleWG.reactor_wait_onexit = 0;
+
+#ifdef SW_COROUTINE
+    if (swReactorCheckPoint)
+    {
+        efree(swReactorCheckPoint);
+        swReactorCheckPoint = NULL;
+    }
+#endif
+
     return SUCCESS;
 }
 

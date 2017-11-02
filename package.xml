@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <package packagerversion="1.9.4" version="2.0"
-    xmlns="http://pear.php.net/dtd/package-2.0" xmlns:tasks="http://pear.php.net/dtd/tasks-1.0"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="http://pear.php.net/dtd/tasks-1.0 http://pear.php.net/dtd/tasks-1.0.xsd http://pear.php.net/dtd/package-2.0 http://pear.php.net/dtd/package-2.0.xsd">
-    <name>swoole</name>
-    <channel>pecl.php.net</channel>
-    <summary>Event-driven asynchronous and concurrent networking engine with high performance for PHP.</summary>
-    <description>Event-driven asynchronous and concurrent networking engine with high performance for PHP.
+	xmlns="http://pear.php.net/dtd/package-2.0" xmlns:tasks="http://pear.php.net/dtd/tasks-1.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://pear.php.net/dtd/tasks-1.0 http://pear.php.net/dtd/tasks-1.0.xsd http://pear.php.net/dtd/package-2.0 http://pear.php.net/dtd/package-2.0.xsd">
+	<name>swoole</name>
+	<channel>pecl.php.net</channel>
+	<summary>Event-driven asynchronous and concurrent networking engine with high performance for PHP.</summary>
+	<description>Event-driven asynchronous and concurrent networking engine with high performance for PHP.
 - event-driven
 - asynchronous non-blocking
 - multi-thread reactor
@@ -35,20 +35,21 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2017-08-29</date>
+    <date>2017-08-31</date>
     <time>09:50:10</time>
     <version>
-        <release>1.9.20</release>
-        <api>1.9</api>
+        <release>2.0.9</release>
+        <api>2.0</api>
     </version>
     <stability>
-        <release>stable</release>
-        <api>stable</api>
+        <release>beta</release>
+        <api>beta</api>
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Fixed 32-bit system compilation failed
-- Fixed not available on PHP5
+    - Merge branch 1.9
+    - Added Server::taskCo
+    - Added Coroutine::sleep
     </notes>
     <contents>
         <dir name="/">
@@ -83,6 +84,7 @@
                 <file role="src" name="error.h" />
                 <file role="src" name="socks5.h" />
                 <file role="src" name="redis.h" />
+                <file role="src" name="coroutine.h" />
             </dir>
             <file role="src" name="php_swoole.h" />
             <file role="src" name="php7_wrapper.h" />
@@ -99,6 +101,7 @@
             <file role="src" name="swoole_table.c" />
             <file role="src" name="swoole_buffer.c" />
             <file role="src" name="swoole_http_server.c" />
+            <file role="src" name="swoole_http_client.h" />
             <file role="src" name="swoole_http_client.c" />
             <file role="src" name="swoole_http_v2_client.c" />
             <file role="src" name="swoole_http_v2_server.c" />
@@ -113,6 +116,13 @@
             <file role="src" name="swoole_channel.c" />
             <file role="src" name="swoole_serialize.h" />
             <file role="src" name="swoole_serialize.c" />
+            <file role="src" name="swoole_coroutine.h" />
+            <file role="src" name="swoole_coroutine.c" />
+            <file role="src" name="swoole_coroutine_util.c" />
+            <file role="src" name="swoole_client_coro.c" />
+            <file role="src" name="swoole_http_client_coro.c" />
+            <file role="src" name="swoole_redis_coro.c" />
+            <file role="src" name="swoole_mysql_coro.c" />
             <dir name="thirdparty">
                 <file role="src" name="php_http_parser.c" />
                 <file role="src" name="php_http_parser.h" />
@@ -490,6 +500,15 @@
                 <file name="swoole_client_sync/swoole_client_send_recv.phpt" role="test" />
                 <file name="swoole_client_sync/swoole_client_sync_send_recv.phpt" role="test" />
                 <file name="swoole_client_sync/udp_client_sendto.phpt" role="test" />
+                <file name="swoole_coroutine/client_multi.phpt" role="test" />
+                <file name="swoole_coroutine/client_timeout.phpt" role="test" />
+                <file name="swoole_coroutine/dns_lookup.phpt" role="test" />
+                <file name="swoole_coroutine/http_client.phpt" role="test" />
+                <file name="swoole_coroutine/mysql.phpt" role="test" />
+                <file name="swoole_coroutine/redis.phpt" role="test" />
+                <file name="swoole_coroutine/redis_pool.phpt" role="test" />
+                <file name="swoole_coroutine/tcp_client.phpt" role="test" />
+                <file name="swoole_coroutine/udp_client.phpt" role="test" />
                 <file name="swoole_event/swoole_event.phpt" role="test" />
                 <file name="swoole_event/swoole_event_core.phpt" role="test" />
                 <file name="swoole_event/swoole_event_del.phpt" role="test" />
@@ -672,7 +691,7 @@
     <dependencies>
         <required>
             <php>
-                <min>5.3.10</min>
+                <min>5.5.0</min>
             </php>
             <pearinstaller>
                 <min>1.4.0</min>

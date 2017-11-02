@@ -25,7 +25,7 @@ class G
         //'open_cpu_affinity'        => 1,
         'socket_buffer_size'         => 1024 * 1024 * 128,
         'buffer_output_size'         => 1024 * 1024 * 2,
-        //'enable_delay_receive'       => true,
+        'enable_delay_receive'       => true,
         //'cpu_affinity_ignore' =>array(0,1)//如果你的网卡2个队列（或者没有多队列那么默认是cpu0来处理中断）,并且绑定了core 0和core 1,那么可以通过这个设置避免swoole的线程或者进程绑定到这2个core，防止cpu0，1被耗光而造成的丢包
     );
 
@@ -198,9 +198,9 @@ function my_onConnect(swoole_server $serv, $fd, $from_id)
 //    var_dump($serv->connection_info($fd));
     //var_dump($serv, $fd, $from_id);
 //    echo "Worker#{$serv->worker_pid} Client[$fd@$from_id]: Connect.\n";
-    //$serv->after(2000, function() use ($serv, $fd) {
-    //    $serv->confirm($fd);
-    //});
+    $serv->after(2000, function() use ($serv, $fd) {
+        $serv->confirm($fd);
+    });
     my_log("Client: Connect --- {$fd}");
 }
 
@@ -422,16 +422,6 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
     elseif($cmd == "exit")
     {
         exit("worker php exit.\n");
-    }
-    elseif ($cmd == 'pause')
-    {
-        echo "pause receive data. fd={$fd}\n";
-        $serv->pause($fd);
-    }
-    elseif(substr($cmd, 0, 6) == "resume")
-    {
-        $resume_fd = substr($cmd, 7);
-        $serv->resume($resume_fd);
     }
     //关闭fd
     elseif(substr($cmd, 0, 5) == "close")

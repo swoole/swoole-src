@@ -80,7 +80,7 @@ typedef cpuset_t cpu_set_t;
 static double orwl_timebase = 0.0;
 static uint64_t orwl_timestart = 0;
 #ifndef HAVE_CLOCK_GETTIME
-int clock_gettime(clockid_t which_clock, struct timespec *t);
+int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #endif
 #endif
 
@@ -253,6 +253,12 @@ enum swEvent_type
     SW_EVENT_ERROR = 1u << 11,
     SW_EVENT_ONCE = 1u << 12,
 };
+
+enum swPipe_type
+{
+    SW_PIPE_READ = 0,
+    SW_PIPE_WRITE = 1,
+};
 //-------------------------------------------------------------------------------
 enum swServer_mode
 {
@@ -362,6 +368,9 @@ enum swTraceType
     SW_TRACE_EOF_PROTOCOL     = 1u << 11,
     SW_TRACE_LENGTH_PROTOCOL  = 1u << 12,
     SW_TRACE_CLOSE            = 1u << 13,
+    SW_TRACE_HTTP_CLIENT      = 1u << 14,
+    SW_TRACE_COROUTINE        = 1u << 15,
+    SW_TRACE_REDIS_CLIENT     = 1u << 16,
 };
 
 #if defined(SW_LOG_TRACE_OPEN) && SW_LOG_TRACE_OPEN
@@ -1234,6 +1243,7 @@ void swoole_update_time(void);
 double swoole_microtime(void);
 void swoole_rtrim(char *str, int len);
 void swoole_redirect_stdout(int new_fd);
+int swoole_shell_exec(char *command, pid_t *pid);
 int swoole_add_function(const char *name, void* func);
 void* swoole_get_function(char *name, uint32_t length);
 
@@ -1827,7 +1837,7 @@ struct _swTimer_node
     int64_t exec_msec;
     uint32_t interval;
     long id;
-    int type;
+    int type;                 //0 normal node 1 node for client_coro
     uint8_t remove;
 };
 
@@ -1929,6 +1939,11 @@ typedef struct
     long request_count;
     int max_request;
 
+#ifdef SW_COROUTINE
+    swLinkedList *coro_timeout_list;
+    swLinkedList *delayed_coro_timeout_list;
+#endif
+
     swString **buffer_input;
     swString **buffer_output;
     swWorker *worker;
@@ -1969,6 +1984,7 @@ typedef struct
     uint8_t socket_dontwait :1;
     uint8_t dns_lookup_random :1;
     uint8_t use_async_resolver :1;
+
 
     /**
      * Timer used pipe
@@ -2028,6 +2044,7 @@ typedef struct
 
     char *dns_server_v4;
     char *dns_server_v6;
+    double dns_cache_refresh_time;
 
     swLock lock;
     swString *module_stack;

@@ -17,6 +17,8 @@
 #ifndef EXT_SWOOLE_PHP7_WRAPPER_H_
 #define EXT_SWOOLE_PHP7_WRAPPER_H_
 
+#include "ext/standard/php_http.h"
+
 #if PHP_MAJOR_VERSION < 7
 typedef zend_rsrc_list_entry zend_resource;
 #define SW_RETURN_STRING                      RETURN_STRING
@@ -159,8 +161,7 @@ static inline int SW_Z_TYPE_P(zval *z)
 #define IS_TRUE    1
 inline int SW_Z_TYPE_P(zval *z);
 #define SW_Z_TYPE_PP(z)        SW_Z_TYPE_P(*z)
-
-static inline char* sw_http_build_query(zval *data, zend_size_t *length, smart_str *formstr TSRMLS_DC)
+static sw_inline char* sw_http_build_query(zval *data, zend_size_t *length, smart_str *formstr TSRMLS_DC)
 {
 #if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION == 3
     if (php_url_encode_hash_ex(HASH_OF(data), formstr, NULL, 0, NULL, 0, NULL, 0, NULL, NULL TSRMLS_CC) == FAILURE)
@@ -183,7 +184,9 @@ static inline char* sw_http_build_query(zval *data, zend_size_t *length, smart_s
     return formstr->c;
 }
 
-#else
+#define sw_get_object_handle(object)        Z_OBJ_HANDLE_P(object)
+
+#else /* PHP Version 7 */
 #define sw_php_var_serialize                php_var_serialize
 typedef size_t zend_size_t;
 #define ZEND_SET_SYMBOL(ht,str,arr)         zval_add_ref(arr); zend_hash_str_update(ht, str, sizeof(str)-1, arr);
@@ -438,7 +441,7 @@ static inline int sw_zend_hash_exists(HashTable *ht, char *k, int len)
     }
 }
 
-static inline char* sw_http_build_query(zval *data, zend_size_t *length, smart_str *formstr TSRMLS_DC)
+static sw_inline char* sw_http_build_query(zval *data, zend_size_t *length, smart_str *formstr TSRMLS_DC)
 {
     if (php_url_encode_hash_ex(HASH_OF(data), formstr, NULL, 0, NULL, 0, NULL, 0, NULL, NULL, (int) PHP_QUERY_RFC1738) == FAILURE)
     {
@@ -457,6 +460,8 @@ static inline char* sw_http_build_query(zval *data, zend_size_t *length, smart_s
     return formstr->s->val;
 }
 
-#endif
+#define sw_get_object_handle(object)    Z_OBJ_HANDLE(*object)
+
+#endif /* PHP Version */
 
 #endif /* EXT_SWOOLE_PHP7_WRAPPER_H_ */

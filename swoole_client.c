@@ -62,7 +62,8 @@ typedef struct
 enum client_property
 {
     client_property_callback = 0,
-    client_property_socket = 1,
+    client_property_coroutine = 1,
+    client_property_socket = 2,
 };
 
 static PHP_METHOD(swoole_client, __construct);
@@ -100,9 +101,6 @@ static void client_onClose(swClient *cli);
 static void client_onError(swClient *cli);
 static void client_onBufferFull(swClient *cli);
 static void client_onBufferEmpty(swClient *cli);
-#ifdef SW_USE_OPENSSL
-static void client_check_ssl_setting(swClient *cli, zval *zset TSRMLS_DC);
-#endif
 
 static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_client_callback_type type)
 {
@@ -455,7 +453,7 @@ static void client_onBufferEmpty(swClient *cli)
 }
 
 #ifdef SW_USE_OPENSSL
-static void client_check_ssl_setting(swClient *cli, zval *zset TSRMLS_DC)
+void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset TSRMLS_DC)
 {
     HashTable *vht = Z_ARRVAL_P(zset);
     zval *v;
@@ -495,6 +493,13 @@ static void client_check_ssl_setting(swClient *cli, zval *zset TSRMLS_DC)
         convert_to_string(v);
         cli->ssl_option.passphrase = sw_strdup(Z_STRVAL_P(v));
     }
+#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
+    if (php_swoole_array_get_value(vht, "tls_host_name", v))
+    {
+        convert_to_string(v);
+        cli->ssl_option.tls_host_name = sw_strdup(Z_STRVAL_P(v));
+    }
+#endif
     if (cli->ssl_option.cert_file && !cli->ssl_option.key_file)
     {
         swoole_php_fatal_error(E_ERROR, "ssl require key file.");
@@ -765,7 +770,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
 #ifdef SW_USE_OPENSSL
     if (cli->open_ssl)
     {
-        client_check_ssl_setting(cli, zset TSRMLS_CC);
+        php_swoole_client_check_ssl_setting(cli, zset TSRMLS_CC);
     }
 #endif
 }
@@ -992,11 +997,6 @@ swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port
             {
                 cli->close(cli);
                 goto create_socket;
-            }
-            //clear history data
-            if (ret > 0)
-            {
-                swSocket_clean(cli->socket->fd);
             }
             cli->reuse_count ++;
             zend_update_property_long(swoole_client_class_entry_ptr, object, ZEND_STRL("reuseCount"), cli->reuse_count TSRMLS_CC);
@@ -1550,6 +1550,11 @@ static PHP_METHOD(swoole_client, recv)
         {
             goto check_return;
         }
+        else if (ret != header_len)
+        {
+            ret = 0;
+            goto check_return;
+        }
 
         buf_len = protocol->get_package_length(protocol, cli->socket, cli->buffer->str, ret);
 
@@ -1576,6 +1581,10 @@ static PHP_METHOD(swoole_client, recv)
         if (ret > 0)
         {
             ret += header_len;
+            if (ret != buf_len)
+            {
+                ret = 0;
+            }
         }
     }
     else
@@ -1960,7 +1969,7 @@ static PHP_METHOD(swoole_client, enableSSL)
     zval *zset = sw_zend_read_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("setting"), 1 TSRMLS_CC);
     if (zset && !ZVAL_IS_NULL(zset))
     {
-        client_check_ssl_setting(cli, zset TSRMLS_CC);
+        php_swoole_client_check_ssl_setting(cli, zset TSRMLS_CC);
     }
     if (swClient_enable_ssl_encrypt(cli) < 0)
     {

@@ -57,6 +57,7 @@ typedef struct _swClient
 {
     int id;
     int type;
+    long timeout_id; //timeout node id
     int _sock_type;
     int _sock_domain;
     int _protocol;

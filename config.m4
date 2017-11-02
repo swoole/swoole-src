@@ -53,8 +53,14 @@ PHP_ARG_WITH(jemalloc_dir, for jemalloc support,
 PHP_ARG_ENABLE(mysqlnd, enable mysqlnd support,
 [  --enable-mysqlnd       Do you have mysqlnd?], no, no)
 
+PHP_ARG_ENABLE(coroutine, whether to enable coroutine,
+[  --enable-coroutine      Enable coroutine (requires PHP >= 5.5)], yes, no)
+
 PHP_ARG_ENABLE(picohttpparser, enable picohttpparser support,
 [  --enable-picohttpparser     Experimental: Do you have picohttpparser?], no, no)
+
+PHP_ARG_WITH(swoole, swoole support,
+[  --with-swoole           With swoole support])
 
 PHP_ARG_ENABLE(timewheel, enable timewheel support,
 [  --enable-timewheel     Experimental: Enable timewheel heartbeat?], no, no)
@@ -176,6 +182,10 @@ if test "$PHP_SWOOLE" != "no"; then
         AC_DEFINE(SW_DEBUG, 1, [do we enable swoole debug])
     fi
 
+    if test "$PHP_COROUTINE" != "no"; then
+        AC_DEFINE(SW_COROUTINE, 1, [enable ability of coroutine])
+    fi
+
     if test "$PHP_SOCKETS" = "yes"; then
         AC_DEFINE(SW_SOCKETS, 1, [enable sockets support])
     fi
@@ -280,6 +290,9 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_atomic.c \
         swoole_lock.c \
         swoole_client.c \
+        swoole_client_coro.c \
+        swoole_coroutine.c \
+        swoole_coroutine_util.c \
         swoole_event.c \
         swoole_timer.c \
         swoole_async.c \
@@ -292,8 +305,11 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_http_v2_client.c \
         swoole_websocket_server.c \
         swoole_http_client.c \
+        swoole_http_client_coro.c \
         swoole_mysql.c \
+        swoole_mysql_coro.c \
         swoole_redis.c \
+        swoole_redis_coro.c \
         swoole_redis_server.c \
         swoole_mmap.c \
         swoole_channel.c \

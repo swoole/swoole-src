@@ -315,11 +315,7 @@ static const zend_function_entry swoole_mysql_methods[] =
     PHP_FE_END
 };
 
-static int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callback TSRMLS_DC);
-static int mysql_request(swString *sql, swString *buffer);
-static int mysql_handshake(mysql_connector *connector, char *buf, int len);
-static int mysql_get_result(mysql_connector *connector, char *buf, int len);
-static int mysql_get_charset(char *name);
+int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callback TSRMLS_DC);
 static void mysql_client_free(mysql_client *client, zval* zobject);
 
 static void mysql_client_free(mysql_client *client, zval* zobject)
@@ -349,7 +345,7 @@ static int swoole_mysql_onWrite(swReactor *reactor, swEvent *event);
 static int swoole_mysql_onError(swReactor *reactor, swEvent *event);
 static void swoole_mysql_onConnect(mysql_client *client TSRMLS_DC);
 
-static swString *mysql_request_buffer = NULL;
+swString *mysql_request_buffer = NULL;
 
 void swoole_mysql_init(int module_number TSRMLS_DC)
 {
@@ -384,7 +380,7 @@ void swoole_mysql_init(int module_number TSRMLS_DC)
     zend_declare_class_constant_long(swoole_mysql_class_entry_ptr, SW_STRL("STATE_CLOSED")-1, SW_MYSQL_STATE_CLOSED TSRMLS_CC);
 }
 
-static int mysql_request(swString *sql, swString *buffer)
+int mysql_request(swString *sql, swString *buffer)
 {
     bzero(buffer->str, 5);
     //length
@@ -395,7 +391,7 @@ static int mysql_request(swString *sql, swString *buffer)
     return swString_append(buffer, sql);
 }
 
-static int mysql_get_charset(char *name)
+int mysql_get_charset(char *name)
 {
     const mysql_charset *c = swoole_mysql_charsets;
     while (c[0].nr != 0)
@@ -409,7 +405,7 @@ static int mysql_get_charset(char *name)
     return -1;
 }
 
-static int mysql_get_result(mysql_connector *connector, char *buf, int len)
+int mysql_get_result(mysql_connector *connector, char *buf, int len)
 {
     char *tmp = buf;
     int packet_length = mysql_uint3korr(tmp);
@@ -460,7 +456,7 @@ string[$len]   auth-plugin-data-part-2 ($len=MAX(13, length of auth-plugin-data 
 string[NUL]    auth-plugin name
   }
  */
-static int mysql_handshake(mysql_connector *connector, char *buf, int len)
+int mysql_handshake(mysql_connector *connector, char *buf, int len)
 {
     char *tmp = buf;
 
@@ -628,7 +624,7 @@ static int mysql_handshake(mysql_connector *connector, char *buf, int len)
     return 1;
 }
 
-static int mysql_response(mysql_client *client)
+int mysql_response(mysql_client *client)
 {
     swString *buffer = client->buffer;
 
@@ -758,7 +754,7 @@ static int mysql_response(mysql_client *client)
     return SW_OK;
 }
 
-static int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callback TSRMLS_DC)
+int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callback TSRMLS_DC)
 {
     if (!client->cli)
     {
@@ -776,8 +772,11 @@ static int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval 
         return SW_ERR;
     }
 
-    sw_zval_add_ref(&callback);
-    client->callback = sw_zval_dup(callback);
+    if (callback != NULL)
+    {
+        sw_zval_add_ref(&callback);
+        client->callback = sw_zval_dup(callback);
+    }
 
     swString_clear(mysql_request_buffer);
 
@@ -805,7 +804,7 @@ static int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval 
 
 #ifdef SW_MYSQL_DEBUG
 
-static void mysql_client_info(mysql_client *client)
+void mysql_client_info(mysql_client *client)
 {
     printf("\n"SW_START_LINE"\nmysql_client\nbuffer->offset=%ld\nbuffer->length=%ld\nstatus=%d\n"
             "packet_length=%d\npacket_number=%d\n"
@@ -825,7 +824,7 @@ static void mysql_client_info(mysql_client *client)
     }
 }
 
-static void mysql_column_info(mysql_field *field)
+void mysql_column_info(mysql_field *field)
 {
     printf("\n"SW_START_LINE"\nname=%s, table=%s, db=%s\n"
             "name_length=%d, table_length=%d, db_length=%d\n"

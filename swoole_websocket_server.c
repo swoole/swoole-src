@@ -16,6 +16,9 @@
 
 #include "php_swoole.h"
 #include "swoole_http.h"
+#ifdef SW_COROUTINE
+#include "swoole_coroutine.h"
+#endif
 
 #include <ext/standard/url.h>
 #include <ext/standard/sha1.h>
@@ -96,27 +99,41 @@ void swoole_websocket_onOpen(http_context *ctx)
     }
     conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
 
-    zval *zcallback = php_swoole_server_get_callback(SwooleG.serv, conn->from_fd, SW_SERVER_CB_onOpen);
-    if (zcallback)
+    zend_fcall_info_cache *cache = php_swoole_server_get_cache(SwooleG.serv, conn->from_fd, SW_SERVER_CB_onOpen);
+    if (cache)
     {
-        zval **args[2];
         swServer *serv = SwooleG.serv;
         zval *zserv = (zval *) serv->ptr2;
         zval *zrequest_object = ctx->request.zobject;
         zval *retval = NULL;
 
+#ifndef SW_COROUTINE
+        zval **args[2];
         args[0] = &zserv;
         args[1] = &zrequest_object;
-
-#ifdef PHP_SWOOLE_ENABLE_FASTCALL
-        zend_fcall_info_cache *fci_cache = php_swoole_server_get_cache(serv, conn->from_fd, SW_SERVER_CB_onOpen);
-        if (sw_call_user_function_fast(zcallback, fci_cache, &retval, 2, args TSRMLS_CC) == FAILURE)
 #else
-        if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0,  NULL TSRMLS_CC) == FAILURE)
+        zval *args[2];
+        args[0] = zserv;
+        args[1] = zrequest_object;
 #endif
+
+#ifndef SW_COROUTINE
+        zval *zcallback = php_swoole_server_get_callback(SwooleG.serv, conn->from_fd, SW_SERVER_CB_onOpen);
+        if (sw_call_user_function_fast(zcallback, cache, &retval, 2, args TSRMLS_CC) == FAILURE)
         {
-            php_error_docref(NULL TSRMLS_CC, E_WARNING, "onOpen handler error");
+            swoole_php_error(E_WARNING, "onOpen handler error");
         }
+#else
+        int ret = coro_create(cache, args, 2, &retval, NULL, NULL);
+        if (ret != 0)
+        {
+            if (ret == CORO_LIMIT)
+            {
+                SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
+            }
+            return;
+        }
+#endif
         if (EG(exception))
         {
             zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
@@ -238,21 +255,39 @@ int swoole_websocket_onMessage(swEventData *req)
     swServer *serv = SwooleG.serv;
     zval *zserv = (zval *) serv->ptr2;
 
+#ifndef SW_COROUTINE
     zval **args[2];
     args[0] = &zserv;
     args[1] = &zframe;
+#else
+    zval *args[2];
+    args[0] = zserv;
+    args[1] = zframe;
+#endif
 
     zval *retval = NULL;
-    zval *zcallback = php_swoole_server_get_callback(serv, req->info.from_fd, SW_SERVER_CB_onMessage);
-#ifdef PHP_SWOOLE_ENABLE_FASTCALL
+
+#ifndef SW_COROUTINE
     zend_fcall_info_cache *fci_cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onMessage);
+    zval *zcallback = php_swoole_server_get_callback(SwooleG.serv, req->info.from_fd, SW_SERVER_CB_onMessage);
     if (sw_call_user_function_fast(zcallback, fci_cache, &retval, 2, args TSRMLS_CC) == FAILURE)
-#else
-    if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
-#endif
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "onMessage handler error");
+        swoole_php_error(E_WARNING, "onMessage handler error");
     }
+#else
+    zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onMessage);
+    int ret = coro_create(cache, args, 2, &retval, NULL, NULL);
+    if (ret != 0)
+    {
+        sw_zval_ptr_dtor(&zdata);
+        sw_zval_ptr_dtor(&zframe);
+        if (ret == CORO_LIMIT)
+        {
+            SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
+        }
+        return SW_OK;
+    }
+#endif
     if (EG(exception))
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
@@ -349,7 +384,6 @@ static PHP_METHOD(swoole_websocket_server, on)
 
     swServer *serv = swoole_get_object(getThis());
 
-#ifdef PHP_SWOOLE_ENABLE_FASTCALL
     char *func_name = NULL;
     zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
     if (!sw_zend_is_callable_ex(callback, NULL, 0, &func_name, NULL, func_cache, NULL TSRMLS_CC))
@@ -359,16 +393,6 @@ static PHP_METHOD(swoole_websocket_server, on)
         RETURN_FALSE;
     }
     efree(func_name);
-#elif defined(PHP_SWOOLE_CHECK_CALLBACK)
-    char *func_name = NULL;
-    if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
-    {
-        swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
-        efree(func_name);
-        return;
-    }
-    efree(func_name);
-#endif
 
     serv->listen_list->open_websocket_protocol = 1;
 
@@ -377,24 +401,18 @@ static PHP_METHOD(swoole_websocket_server, on)
         zend_update_property(swoole_websocket_server_class_entry_ptr, getThis(), ZEND_STRL("onOpen"), callback TSRMLS_CC);
         php_sw_server_callbacks[SW_SERVER_CB_onOpen] = sw_zend_read_property(swoole_websocket_server_class_entry_ptr, getThis(), ZEND_STRL("onOpen"), 0 TSRMLS_CC);
         sw_copy_to_stack(php_sw_server_callbacks[SW_SERVER_CB_onOpen], _php_sw_server_callbacks[SW_SERVER_CB_onOpen]);
-#ifdef PHP_SWOOLE_ENABLE_FASTCALL
         php_sw_server_caches[SW_SERVER_CB_onOpen] = func_cache;
-#endif
     }
     else if (strncasecmp("message", Z_STRVAL_P(event_name), Z_STRLEN_P(event_name)) == 0)
     {
         zend_update_property(swoole_websocket_server_class_entry_ptr, getThis(), ZEND_STRL("onMessage"), callback TSRMLS_CC);
         php_sw_server_callbacks[SW_SERVER_CB_onMessage] = sw_zend_read_property(swoole_websocket_server_class_entry_ptr, getThis(), ZEND_STRL("onMessage"), 0 TSRMLS_CC);
         sw_copy_to_stack(php_sw_server_callbacks[SW_SERVER_CB_onMessage], _php_sw_server_callbacks[SW_SERVER_CB_onMessage]);
-#ifdef PHP_SWOOLE_ENABLE_FASTCALL
         php_sw_server_caches[SW_SERVER_CB_onMessage] = func_cache;
-#endif
     }
     else
     {
-#ifdef PHP_SWOOLE_ENABLE_FASTCALL
         efree(func_cache);
-#endif
         zval *obj = getThis();
         sw_zend_call_method_with_2_params(&obj, swoole_http_server_class_entry_ptr, NULL, "on", &return_value, event_name, callback);
     }

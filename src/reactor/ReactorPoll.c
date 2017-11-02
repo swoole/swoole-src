@@ -98,6 +98,8 @@ static int swReactorPoll_add(swReactor *reactor, int fd, int fdtype)
         return SW_ERR;
     }
 
+    swReactor_add(reactor, fd, fdtype);
+
     swTrace("fd=%d, fdtype=%d", fd, fdtype);
 
     object->fds[cur].fdtype = swReactor_fdtype(fdtype);
@@ -116,7 +118,7 @@ static int swReactorPoll_add(swReactor *reactor, int fd, int fdtype)
     {
         object->events[cur].events |= POLLHUP;
     }
-    swReactor_add(reactor, fd, fdtype);
+
     reactor->event_num++;
     return SW_OK;
 }

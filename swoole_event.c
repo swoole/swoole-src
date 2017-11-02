@@ -17,6 +17,9 @@
  */
 
 #include "php_swoole.h"
+#ifdef SW_COROUTINE
+#include "swoole_coroutine.h"
+#endif
 
 typedef struct
 {
@@ -209,6 +212,14 @@ void php_swoole_event_wait()
             swSignalfd_setup(SwooleG.main_reactor);
         }
 #endif
+
+#ifdef SW_COROUTINE
+        if (swReactorCheckPoint == NULL)
+        {
+            coro_init(TSRMLS_C);
+        }
+#endif
+
         int ret = SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
         if (ret < 0)
         {

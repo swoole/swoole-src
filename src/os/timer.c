@@ -220,7 +220,7 @@ int swSystemTimer_event_handler(swReactor *reactor, swEvent *event)
     uint64_t exp;
     swTimer *timer = &SwooleG.timer;
 
-    if (read(timer->fd, &exp, sizeof(uint64_t)) < 0)
+    if (read(timer->fd, &exp, sizeof(uint64_t)) != sizeof(uint64_t))
     {
         return SW_ERR;
     }
