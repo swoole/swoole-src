@@ -226,6 +226,7 @@
                     <file role="src" name="readfile.php" />
                     <file role="src" name="write.php" />
                     <file role="src" name="dns_lookup.php" />
+                    <file role="src" name="exec.php" />
                 </dir>
                 <dir name="client">
                     <file role="src" name="async.php" />
