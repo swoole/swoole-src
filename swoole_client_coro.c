@@ -750,7 +750,7 @@ static PHP_METHOD(swoole_client_coro, send)
     swClient *cli = swoole_get_object(getThis());
     if (!cli)
     {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client_coro.");
+        swoole_php_fatal_error(E_WARNING, "client is not connected to server.");
         RETURN_FALSE;
     }
 
@@ -869,7 +869,7 @@ static PHP_METHOD(swoole_client_coro, recv)
     swClient *cli = swoole_get_object(getThis());
     if (!cli)
     {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_client_coro.");
+        swoole_php_fatal_error(E_WARNING, "client is not connected to server.");
         RETURN_FALSE;
     }
 
