@@ -44,7 +44,7 @@ typedef struct
     zval _object;
 #endif
     swoole_client_coro_io_status iowait;
-    swLinkedList_node *timeout_node;
+    swTimer_node *timer;
     swString *result;
 } swoole_client_coro_property;
 
@@ -224,10 +224,10 @@ static void client_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
 #endif
     zend_update_property_long(swoole_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), 110 TSRMLS_CC);
 
-    swClient *cli = swoole_get_object(zobject);
-    if (cli)
+    swoole_client_coro_property *ccp = swoole_get_property(zobject, 1);
+    if (ccp)
     {
-        cli->timer = NULL;
+        ccp->timer = NULL;
     }
 
     SW_MAKE_STD_ZVAL(zdata);
@@ -252,10 +252,10 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
     zval *zobject = cli->object;
 
     swoole_client_coro_property *ccp = swoole_get_property(zobject, 1);
-    if (cli->timer)
+    if (ccp->timer)
     {
-        swTimer_del(&SwooleG.timer, cli->timer);
-        cli->timer = NULL;
+        swTimer_del(&SwooleG.timer, ccp->timer);
+        ccp->timer = NULL;
     }
 
     if (ccp->iowait == SW_CLIENT_CORO_STATUS_WAIT)
@@ -619,6 +619,10 @@ static PHP_METHOD(swoole_client_coro, __destruct)
         {
             swString_free(ccp->result);
         }
+        if (ccp->timer)
+        {
+            swTimer_del(&SwooleG.timer, ccp->timer);
+        }
         efree(ccp);
         swoole_set_property(getThis(), 1, NULL);
     }
@@ -900,8 +904,8 @@ static PHP_METHOD(swoole_client_coro, recv)
     php_context *context = swoole_get_property(getThis(), 0);
     if (cli->timeout > 0)
     {
-    	php_swoole_check_timer((int) (cli->timeout * 1000));
-        cli->timer = SwooleG.timer.add(&SwooleG.timer, (int) (cli->timeout * 1000), 0, context, client_coro_onTimeout);
+        php_swoole_check_timer((int) (cli->timeout * 1000));
+        ccp->timer = SwooleG.timer.add(&SwooleG.timer, (int) (cli->timeout * 1000), 0, context, client_coro_onTimeout);
     }
     ccp->iowait = SW_CLIENT_CORO_STATUS_WAIT;
     coro_save(context);
