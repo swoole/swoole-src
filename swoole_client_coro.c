@@ -305,10 +305,11 @@ static void client_onClose(swClient *cli)
 {
     SWOOLE_GET_TSRMLS;
     zval *zobject = cli->object;
-    if (!cli->released)
+    if (cli->released)
     {
-        php_swoole_client_free(zobject, cli TSRMLS_CC);
+        return;
     }
+    php_swoole_client_free(zobject, cli TSRMLS_CC);
     client_execute_callback(zobject, SW_CLIENT_CB_onClose);
 #if PHP_MAJOR_VERSION < 7
     sw_zval_ptr_dtor(&zobject);

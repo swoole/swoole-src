@@ -323,10 +323,12 @@ static void http_client_coro_onClose(swClient *cli)
         return;
     }
 
-    if (!cli->released)
+    if (cli->released)
     {
-        http_client_free(zobject TSRMLS_CC);
+        return;
     }
+
+    http_client_free(zobject TSRMLS_CC);
 
     http_client_property *hcc = swoole_get_property(zobject, 0);
 
