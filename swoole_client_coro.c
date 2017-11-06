@@ -224,6 +224,12 @@ static void client_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
 #endif
     zend_update_property_long(swoole_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), 110 TSRMLS_CC);
 
+    swClient *cli = swoole_get_object(zobject);
+    if (cli)
+    {
+        cli->timer = NULL;
+    }
+
     SW_MAKE_STD_ZVAL(zdata);
     ZVAL_BOOL(zdata, 0);
     int ret = coro_resume(ctx, zdata, &retval);
