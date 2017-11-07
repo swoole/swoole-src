@@ -257,6 +257,7 @@ typedef struct
     redisAsyncContext *context;
 	zend_bool defer;
 	zend_bool _defer;
+	zend_bool connecting;
     swoole_redis_coro_state state;
     swoole_redis_coro_io_status iowait;
     uint16_t queued_cmd_count;
@@ -964,6 +965,12 @@ static void redis_coro_free(void* data)
     efree(redis);
 }
 
+static void redis_coro_close(void* data)
+{
+    redisAsyncContext *context = data;
+    redisAsyncDisconnect(context);
+}
+
 static PHP_METHOD(swoole_redis_coro, __construct)
 {
     zval *zset = NULL;
@@ -1213,7 +1220,15 @@ static PHP_METHOD(swoole_redis_coro, close)
         cb = head;
     }
     redis->context->replies.head = NULL;
-    redisAsyncDisconnect(redis->context);
+
+    if (redis->connecting)
+    {
+        SwooleG.main_reactor->defer(SwooleG.main_reactor, redis_coro_close, redis->context);
+    }
+    else
+    {
+        redis_coro_close(redis->context);
+    }
     RETURN_TRUE;
 }
 
@@ -2831,12 +2846,12 @@ static PHP_METHOD(swoole_redis_coro, zIncrBy)
     double incrby;
     zval *z_val;
 
-    if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sdz", &key, &key_len,
-                             &incrby, &z_val) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "sdz", &key, &key_len, &incrby, &z_val) == FAILURE)
     {
-		return;
+        return;
     }
-	SW_REDIS_COMMAND_CHECK
+
+	SW_REDIS_COMMAND_CHECK;
 
 	int i = 0;
 	size_t argvlen[4];
@@ -2865,11 +2880,9 @@ static PHP_METHOD(swoole_redis_coro, zAdd)
 #if PHP_MAJOR_VERSION < 7
     if (argc > 0) convert_to_string(z_args[0]);
 #else
-    zend_bool convert = 0;
     if (argc > 0)
     {
         convert_to_string(&z_args[0]);
-        convert = 1;
     }
 #endif
     if (argc < 3 || SW_REDIS_COMMAND_ARGS_TYPE(z_args[0]) != IS_STRING) {
@@ -3988,7 +4001,9 @@ void swoole_redis_coro_onConnect(const redisAsyncContext *c, int status)
         _socket->active = 1;
     }
 
+    redis->connecting = 1;
     swoole_redis_coro_resume(result);
+    redis->connecting = 0;
 }
 
 static void swoole_redis_coro_onClose(const redisAsyncContext *c, int status)
