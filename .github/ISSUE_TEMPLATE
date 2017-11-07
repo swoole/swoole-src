@@ -1,33 +1,28 @@
 Please answer these questions before submitting your issue. Thanks!
-在提交Issue前请回答以下问题：
 
 1. What did you do? If possible, provide a recipe for reproducing the error.
-请详细描述问题的产生过程，贴出相关的代码，最好能提供可稳定重现的最小实例。
 
 
 
 2. What did you expect to see?
-期望的结果是什么？
 
 
 
 3. What did you see instead?
-实际运行的结果是什么？
 
 
 
 4. What version of Swoole are you using (`php --ri swoole`)?
-你所使用的Swoole版本号是什么（使用php --ri swoole可以获取）？
+
 
 
 
 5. What is your machine environment used (including version of kernel & php & gcc) ? 
-你使用的机器系统环境是什么（包括内核、PHP、gcc编译器版本信息）？
 
 
 
 6. If you are using ssl, what is your openssl version?
-如果你使用了SSL，你的openssl版本是什么？
+
 
 
 
