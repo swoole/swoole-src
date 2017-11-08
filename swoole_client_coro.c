@@ -826,6 +826,16 @@ static PHP_METHOD(swoole_client_coro, sendto)
     }
 
     swClient *cli = swoole_get_object(getThis());
+    if (!cli)
+    {
+        cli = php_swoole_client_new(getThis(), ip, ip_len, port);
+        if (cli == NULL)
+        {
+            RETURN_FALSE;
+        }
+        cli->socket->active = 1;
+        swoole_set_object(getThis(), cli);
+    }
 
     int ret;
     if (cli->type == SW_SOCK_UDP)
