@@ -173,26 +173,38 @@ int swClient_create(swClient *cli, int type, int async)
 
 int swClient_sleep(swClient *cli)
 {
+    int ret;
     if (cli->socket->events & SW_EVENT_WRITE)
     {
-        return SwooleG.main_reactor->set(SwooleG.main_reactor, cli->socket->fd, cli->socket->fdtype | SW_EVENT_WRITE);
+        ret = SwooleG.main_reactor->set(SwooleG.main_reactor, cli->socket->fd, cli->socket->fdtype | SW_EVENT_WRITE);
     }
     else
     {
-        return SwooleG.main_reactor->del(SwooleG.main_reactor, cli->socket->fd);
+        ret = SwooleG.main_reactor->del(SwooleG.main_reactor, cli->socket->fd);
     }
+    if (ret)
+    {
+        cli->sleep = 1;
+    }
+    return ret;
 }
 
 int swClient_wakeup(swClient *cli)
 {
+    int ret;
     if (cli->socket->events & SW_EVENT_WRITE)
     {
-        return SwooleG.main_reactor->set(SwooleG.main_reactor, cli->socket->fd, cli->socket->fdtype | SW_EVENT_READ | SW_EVENT_WRITE);
+        ret = SwooleG.main_reactor->set(SwooleG.main_reactor, cli->socket->fd, cli->socket->fdtype | SW_EVENT_READ | SW_EVENT_WRITE);
     }
     else
     {
-        return SwooleG.main_reactor->add(SwooleG.main_reactor, cli->socket->fd, cli->socket->fdtype | SW_EVENT_READ);
+        ret = SwooleG.main_reactor->add(SwooleG.main_reactor, cli->socket->fd, cli->socket->fdtype | SW_EVENT_READ);
     }
+    if (ret)
+    {
+        cli->sleep = 0;
+    }
+    return ret;
 }
 
 #ifdef SW_USE_OPENSSL

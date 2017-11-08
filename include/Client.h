@@ -72,6 +72,7 @@ typedef struct _swClient
     uint32_t destroyed :1;
     uint32_t redirect :1;
     uint32_t http2 :1;
+    uint32_t sleep :1;
 
     /**
      * one package: length check
