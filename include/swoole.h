@@ -637,6 +637,16 @@ static sw_inline void swString_free(swString *str)
     sw_free(str);
 }
 
+static sw_inline size_t swString_length(swString *str)
+{
+    return str->length;
+}
+
+static sw_inline size_t swString_size(swString *str)
+{
+    return str->size;
+}
+
 swString *swString_new(size_t size);
 swString *swString_dup(const char *src_str, int length);
 swString *swString_dup2(swString *src);
