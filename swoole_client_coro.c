@@ -46,7 +46,6 @@ typedef struct
     swoole_client_coro_io_status iowait;
     swTimer_node *timer;
     swString *result;
-    uint8_t sleep;
 } swoole_client_coro_property;
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_coro_void, 0, 0, 0)
@@ -294,7 +293,6 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
             if (swString_length(ccp->result) >= cli->buffer_input_size)
             {
                 swClient_sleep(cli);
-                ccp->sleep = 1;
             }
         }
         else
@@ -307,7 +305,6 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
             if (cli->open_eof_check || cli->open_length_check || length >= cli->buffer_input_size)
             {
                 swClient_sleep(cli);
-                ccp->sleep = 1;
             }
         }
     }
@@ -912,13 +909,12 @@ static PHP_METHOD(swoole_client_coro, recv)
         RETURN_FALSE;
     }
 
-    swoole_client_coro_property *ccp = swoole_get_property(getThis(), 1);
-    if (ccp->sleep)
+    if (cli->sleep)
     {
         swClient_wakeup(cli);
-        ccp->sleep = 0;
     }
 
+    swoole_client_coro_property *ccp = swoole_get_property(getThis(), 1);
     if (ccp->iowait == SW_CLIENT_CORO_STATUS_DONE)
     {
         ccp->iowait = SW_CLIENT_CORO_STATUS_READY;
