@@ -230,6 +230,14 @@ static void client_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
         ccp->timer = NULL;
     }
 
+    swClient *cli = swoole_get_object(zobject);
+    if (!cli)
+    {
+        swoole_php_fatal_error(E_WARNING, "client is not connected to server.");
+        return;
+    }
+    swClient_sleep(cli);
+
     SW_MAKE_STD_ZVAL(zdata);
     ZVAL_BOOL(zdata, 0);
     int ret = coro_resume(ctx, zdata, &retval);
@@ -257,6 +265,8 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
         swTimer_del(&SwooleG.timer, ccp->timer);
         ccp->timer = NULL;
     }
+
+    swClient_sleep(cli);
 
     if (ccp->iowait == SW_CLIENT_CORO_STATUS_WAIT)
     {
@@ -887,6 +897,11 @@ static PHP_METHOD(swoole_client_coro, recv)
     if (cli->socket->active == 0)
     {
         swoole_php_error(E_WARNING, "server is not connected.");
+        RETURN_FALSE;
+    }
+
+    if (swClient_wakeup(cli) < 0)
+    {
         RETURN_FALSE;
     }
 
