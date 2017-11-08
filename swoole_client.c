@@ -1916,16 +1916,7 @@ static PHP_METHOD(swoole_client, sleep)
     {
         RETURN_FALSE;
     }
-    int ret;
-    if (cli->socket->events & SW_EVENT_WRITE)
-    {
-        ret = SwooleG.main_reactor->set(SwooleG.main_reactor, cli->socket->fd, cli->socket->fdtype | SW_EVENT_WRITE);
-    }
-    else
-    {
-        ret = SwooleG.main_reactor->del(SwooleG.main_reactor, cli->socket->fd);
-    }
-    SW_CHECK_RETURN(ret);
+    SW_CHECK_RETURN(swClient_sleep(cli));
 }
 
 static PHP_METHOD(swoole_client, wakeup)
@@ -1935,16 +1926,7 @@ static PHP_METHOD(swoole_client, wakeup)
     {
         RETURN_FALSE;
     }
-    int ret;
-    if (cli->socket->events & SW_EVENT_WRITE)
-    {
-        ret = SwooleG.main_reactor->set(SwooleG.main_reactor, cli->socket->fd, cli->socket->fdtype | SW_EVENT_READ | SW_EVENT_WRITE);
-    }
-    else
-    {
-        ret = SwooleG.main_reactor->add(SwooleG.main_reactor, cli->socket->fd, cli->socket->fdtype | SW_EVENT_READ);
-    }
-    SW_CHECK_RETURN(ret);
+    SW_CHECK_RETURN(swClient_wakeup(cli));
 }
 
 #ifdef SW_USE_OPENSSL

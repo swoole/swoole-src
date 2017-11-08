@@ -171,6 +171,30 @@ int swClient_create(swClient *cli, int type, int async)
     return SW_OK;
 }
 
+int swClient_sleep(swClient *cli)
+{
+    if (cli->socket->events & SW_EVENT_WRITE)
+    {
+        return SwooleG.main_reactor->set(SwooleG.main_reactor, cli->socket->fd, cli->socket->fdtype | SW_EVENT_WRITE);
+    }
+    else
+    {
+        return SwooleG.main_reactor->del(SwooleG.main_reactor, cli->socket->fd);
+    }
+}
+
+int swClient_wakeup(swClient *cli)
+{
+    if (cli->socket->events & SW_EVENT_WRITE)
+    {
+        return SwooleG.main_reactor->set(SwooleG.main_reactor, cli->socket->fd, cli->socket->fdtype | SW_EVENT_READ | SW_EVENT_WRITE);
+    }
+    else
+    {
+        return SwooleG.main_reactor->add(SwooleG.main_reactor, cli->socket->fd, cli->socket->fdtype | SW_EVENT_READ);
+    }
+}
+
 #ifdef SW_USE_OPENSSL
 int swClient_enable_ssl_encrypt(swClient *cli)
 {
