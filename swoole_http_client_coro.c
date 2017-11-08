@@ -251,7 +251,7 @@ static void http_client_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
     }
 
     //define time out RETURN ERROR  110
-    zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), EAGAIN TSRMLS_CC);
+    zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), ETIMEDOUT TSRMLS_CC);
     zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("statusCode"), -2 TSRMLS_CC);
 
     http_client_property *hcc = swoole_get_property(zobject, 0);

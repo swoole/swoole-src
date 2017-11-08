@@ -222,7 +222,7 @@ static void client_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
     zval _zobject = ctx->coro_params;
     zval *zobject = & _zobject;
 #endif
-    zend_update_property_long(swoole_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), EAGAIN TSRMLS_CC);
+    zend_update_property_long(swoole_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), ETIMEDOUT TSRMLS_CC);
 
     swoole_client_coro_property *ccp = swoole_get_property(zobject, 1);
     if (ccp)
