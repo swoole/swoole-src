@@ -45,6 +45,8 @@ typedef struct
 #endif
     swoole_client_coro_io_status iowait;
     swTimer_node *timer;
+    swString *result;
+    uint8_t sleep;
 } swoole_client_coro_property;
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_coro_void, 0, 0, 0)
@@ -227,6 +229,7 @@ static void client_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
     if (ccp)
     {
         ccp->timer = NULL;
+        ccp->iowait = SW_CLIENT_CORO_STATUS_READY;
     }
 
     swClient *cli = swoole_get_object(zobject);
@@ -235,7 +238,6 @@ static void client_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
         swoole_php_fatal_error(E_WARNING, "client is not connected to server.");
         return;
     }
-    swClient_sleep(cli);
 
     SW_MAKE_STD_ZVAL(zdata);
     ZVAL_BOOL(zdata, 0);
@@ -265,26 +267,56 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
         ccp->timer = NULL;
     }
 
-    swClient_sleep(cli);
-
-    zval *retval = NULL;
-    zval *zdata;
-    SW_MAKE_STD_ZVAL(zdata);
-    SW_ZVAL_STRINGL(zdata, data, length, 1);
-    php_context *sw_current_context = swoole_get_property(zobject, 0);
-    int ret = coro_resume(sw_current_context, zdata, &retval);
-    if (ret == CORO_END && retval)
+    if (ccp->iowait == SW_CLIENT_CORO_STATUS_WAIT)
     {
-        sw_zval_ptr_dtor(&retval);
+        ccp->iowait = SW_CLIENT_CORO_STATUS_READY;
+
+        zval *retval = NULL;
+        zval *zdata;
+        SW_MAKE_STD_ZVAL(zdata);
+        SW_ZVAL_STRINGL(zdata, data, length, 1);
+        php_context *sw_current_context = swoole_get_property(zobject, 0);
+        int ret = coro_resume(sw_current_context, zdata, &retval);
+        if (ret == CORO_END && retval)
+        {
+            sw_zval_ptr_dtor(&retval);
+        }
+        sw_zval_ptr_dtor(&zdata);
     }
-    sw_zval_ptr_dtor(&zdata);
+    else
+    {
+        if (ccp->result)
+        {
+            if (swString_append_ptr(ccp->result, data, length) == SW_ERR)
+            {
+                swWarn("failed to append package.");
+            }
+            if (swString_length(ccp->result) >= cli->buffer_input_size)
+            {
+                swClient_sleep(cli);
+                ccp->sleep = 1;
+            }
+        }
+        else
+        {
+            ccp->result = swString_dup(data, length);
+            if (ccp->result)
+            {
+                ccp->iowait = SW_CLIENT_CORO_STATUS_DONE;
+            }
+            if (cli->open_eof_check || cli->open_length_check || length >= cli->buffer_input_size)
+            {
+                swClient_sleep(cli);
+                ccp->sleep = 1;
+            }
+        }
+    }
 }
 
 static void client_onConnect(swClient *cli)
 {
     SWOOLE_GET_TSRMLS;
     zval *zobject = cli->object;
-    swClient_sleep(cli);
 #ifdef SW_USE_OPENSSL
     if (cli->ssl_wait_handshake)
     {
@@ -409,7 +441,7 @@ void php_swoole_client_coro_check_setting(swClient *cli, zval *zset TSRMLS_DC)
         convert_to_long(v);
         value = (int) Z_LVAL_P(v);
         swSocket_set_buffer_size(cli->socket->fd, value);
-        cli->socket->buffer_size = cli->buffer_input_size = value;
+        cli->socket->buffer_size = value;
     }
     /**
      * bind address
@@ -605,6 +637,10 @@ static PHP_METHOD(swoole_client_coro, __destruct)
     swoole_client_coro_property *ccp = swoole_get_property(getThis(), 1);
     if (ccp)
     {
+        if (ccp->result)
+        {
+            swString_free(ccp->result);
+        }
         if (ccp->timer)
         {
             swTimer_del(&SwooleG.timer, ccp->timer);
@@ -876,12 +912,24 @@ static PHP_METHOD(swoole_client_coro, recv)
         RETURN_FALSE;
     }
 
-    if (swClient_wakeup(cli) < 0)
+    swoole_client_coro_property *ccp = swoole_get_property(getThis(), 1);
+    if (ccp->sleep)
     {
-        RETURN_FALSE;
+        swClient_wakeup(cli);
+        ccp->sleep = 0;
     }
 
-    swoole_client_coro_property *ccp = swoole_get_property(getThis(), 1);
+    if (ccp->iowait == SW_CLIENT_CORO_STATUS_DONE)
+    {
+        ccp->iowait = SW_CLIENT_CORO_STATUS_READY;
+        zval *result;
+        SW_MAKE_STD_ZVAL(result);
+        SW_ZVAL_STRINGL(result, ccp->result->str, ccp->result->length, 1);
+        swString_free(ccp->result);
+        ccp->result = NULL;
+        RETURN_ZVAL(result, 0, 1);
+    }
+
     php_context *context = swoole_get_property(getThis(), 0);
     if (cli->timeout > 0)
     {
