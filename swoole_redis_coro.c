@@ -2279,31 +2279,34 @@ static PHP_METHOD(swoole_redis_coro, zRevRange)
     long start, end;
     zend_bool ws = 0;
 
-    if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sll|b", &key, &key_len,
-                             &start, &end, &ws) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sll|b", &key, &key_len, &start, &end, &ws) == FAILURE)
     {
-		return;
+        return;
     }
 	SW_REDIS_COMMAND_CHECK
 
-	int i = 0, argc;
-	argc = ZEND_NUM_ARGS() + 1;
-	SW_REDIS_COMMAND_ALLOC_ARGV
-	SW_REDIS_COMMAND_ARGV_FILL("ZREVRANGE", 9)
-	SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
-	char buf[32];
-	size_t buf_len;
-	buf_len = snprintf(buf, sizeof(buf), "%ld", start);
-	SW_REDIS_COMMAND_ARGV_FILL((char*)buf, buf_len)
-	buf_len = snprintf(buf, sizeof(buf), "%ld", end);
-	SW_REDIS_COMMAND_ARGV_FILL((char*)buf, buf_len)
-	if (ws)
-	{
-		SW_REDIS_COMMAND_ARGV_FILL("WITHSCORES", 10)
-	}
-	SW_REDIS_COMMAND(argc)
-	SW_REDIS_COMMAND_FREE_ARGV
-	SW_REDIS_COMMAND_YIELD
+    int i = 0, argc;
+    argc = ZEND_NUM_ARGS() + 1;
+    SW_REDIS_COMMAND_ALLOC_ARGV
+    SW_REDIS_COMMAND_ARGV_FILL("ZREVRANGE", 9)
+    SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
+    char buf[32];
+    size_t buf_len;
+    buf_len = snprintf(buf, sizeof(buf), "%ld", start);
+    SW_REDIS_COMMAND_ARGV_FILL((char* )buf, buf_len)
+    buf_len = snprintf(buf, sizeof(buf), "%ld", end);
+    SW_REDIS_COMMAND_ARGV_FILL((char* )buf, buf_len)
+    if (ws)
+    {
+        SW_REDIS_COMMAND_ARGV_FILL("WITHSCORES", 10)
+    }
+    else
+    {
+        argc--;
+    }
+    SW_REDIS_COMMAND(argc)
+    SW_REDIS_COMMAND_FREE_ARGV
+    SW_REDIS_COMMAND_YIELD
 }
 
 static PHP_METHOD(swoole_redis_coro, zUnion)
