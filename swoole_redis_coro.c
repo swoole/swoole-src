@@ -2245,31 +2245,34 @@ static PHP_METHOD(swoole_redis_coro, zRange)
     long start, end;
     zend_bool ws = 0;
 
-    if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sll|b", &key, &key_len,
-                             &start, &end, &ws) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "sll|b", &key, &key_len, &start, &end, &ws) == FAILURE)
     {
-		return;
+        return;
     }
-	SW_REDIS_COMMAND_CHECK
+    SW_REDIS_COMMAND_CHECK
 
-	int i = 0, argc;
-	argc = ZEND_NUM_ARGS() + 1;
-	SW_REDIS_COMMAND_ALLOC_ARGV
-	SW_REDIS_COMMAND_ARGV_FILL("ZRANGE", 6)
-	SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
-	char buf[32];
-	size_t buf_len;
-	buf_len = snprintf(buf, sizeof(buf), "%ld", start);
-	SW_REDIS_COMMAND_ARGV_FILL((char*)buf, buf_len)
-	buf_len = snprintf(buf, sizeof(buf), "%ld", end);
-	SW_REDIS_COMMAND_ARGV_FILL((char*)buf, buf_len)
-	if (ws)
-	{
-		SW_REDIS_COMMAND_ARGV_FILL("WITHSCORES", 10)
-	}
-	SW_REDIS_COMMAND(argc)
-	SW_REDIS_COMMAND_FREE_ARGV
-	SW_REDIS_COMMAND_YIELD
+    int i = 0, argc;
+    argc = ZEND_NUM_ARGS() + 1;
+    SW_REDIS_COMMAND_ALLOC_ARGV
+    SW_REDIS_COMMAND_ARGV_FILL("ZRANGE", 6)
+    SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
+    char buf[32];
+    size_t buf_len;
+    buf_len = snprintf(buf, sizeof(buf), "%ld", start);
+    SW_REDIS_COMMAND_ARGV_FILL((char* )buf, buf_len)
+    buf_len = snprintf(buf, sizeof(buf), "%ld", end);
+    SW_REDIS_COMMAND_ARGV_FILL((char* )buf, buf_len)
+    if (ws)
+    {
+        SW_REDIS_COMMAND_ARGV_FILL("WITHSCORES", 10)
+    }
+    else
+    {
+        argc--;
+    }
+    SW_REDIS_COMMAND(argc)
+    SW_REDIS_COMMAND_FREE_ARGV
+    SW_REDIS_COMMAND_YIELD
 }
 
 static PHP_METHOD(swoole_redis_coro, zRevRange)
@@ -2668,17 +2671,17 @@ static PHP_METHOD(swoole_redis_coro, zRangeByScore)
 	zend_bool withscores = 0, has_limit = 0;
     HashTable *ht_opt;
 
-    if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sss|a", &key, &key_len,
-                             &start, &start_len, &end, &end_len, &z_opt)
-                             ==FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "sss|a", &key, &key_len, &start, &start_len, &end, &end_len,
+            &z_opt) == FAILURE)
     {
         return;
     }
 	SW_REDIS_COMMAND_CHECK
 
-	int argc = 4, i = 0;
+    int argc = 4, i = 0;
     // Check for an options array
-    if(z_opt && Z_TYPE_P(z_opt) == IS_ARRAY) {
+    if (z_opt && Z_TYPE_P(z_opt) == IS_ARRAY)
+    {
         ht_opt = Z_ARRVAL_P(z_opt);
 
         // Check for WITHSCORES
@@ -2711,18 +2714,16 @@ static PHP_METHOD(swoole_redis_coro, zRangeByScore)
             }
 #else
             zval *z_off, *z_cnt;
-            z_off = zend_hash_index_find(ht_limit,0);
-            z_cnt = zend_hash_index_find(ht_limit,1);
-            if (z_off && z_cnt &&
-                SW_Z_TYPE_P(z_off) == IS_LONG && SW_Z_TYPE_P(z_cnt) == IS_LONG)
+            z_off = zend_hash_index_find(ht_limit, 0);
+            z_cnt = zend_hash_index_find(ht_limit, 1);
+            if (z_off && z_cnt && SW_Z_TYPE_P(z_off) == IS_LONG && SW_Z_TYPE_P(z_cnt) == IS_LONG)
             {
-                has_limit  = 1;
-                limit_low  = Z_LVAL_P(z_off);
+                has_limit = 1;
+                limit_low = Z_LVAL_P(z_off);
                 limit_high = Z_LVAL_P(z_cnt);
                 argc += 3;
             }
 #endif
-
         }
     }
 	SW_REDIS_COMMAND_ALLOC_ARGV
@@ -2761,17 +2762,17 @@ static PHP_METHOD(swoole_redis_coro, zRevRangeByScore)
 	zend_bool withscores = 0, has_limit = 0;
     HashTable *ht_opt;
 
-    if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sss|a", &key, &key_len,
-                             &start, &start_len, &end, &end_len, &z_opt)
-                             ==FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "sss|a", &key, &key_len, &start, &start_len, &end, &end_len,
+            &z_opt) == FAILURE)
     {
         return;
     }
 	SW_REDIS_COMMAND_CHECK
 
-	int argc = 4, i = 0;
+    int argc = 4, i = 0;
     // Check for an options array
-    if(z_opt && Z_TYPE_P(z_opt) == IS_ARRAY) {
+    if (z_opt && Z_TYPE_P(z_opt) == IS_ARRAY)
+    {
         ht_opt = Z_ARRVAL_P(z_opt);
 
         // Check for WITHSCORES
@@ -2805,12 +2806,11 @@ static PHP_METHOD(swoole_redis_coro, zRevRangeByScore)
 #else
             zval *z_off, *z_cnt;
             z_off = zend_hash_index_find(ht_limit,0);
-            z_cnt = zend_hash_index_find(ht_limit,1);
-            if (z_off && z_cnt &&
-                SW_Z_TYPE_P(z_off) == IS_LONG && SW_Z_TYPE_P(z_cnt) == IS_LONG)
+            z_cnt = zend_hash_index_find(ht_limit, 1);
+            if (z_off && z_cnt && SW_Z_TYPE_P(z_off) == IS_LONG && SW_Z_TYPE_P(z_cnt) == IS_LONG)
             {
-                has_limit  = 1;
-                limit_low  = Z_LVAL_P(z_off);
+                has_limit = 1;
+                limit_low = Z_LVAL_P(z_off);
                 limit_high = Z_LVAL_P(z_cnt);
                 argc += 3;
             }
