@@ -46,6 +46,7 @@ typedef struct
     swoole_client_coro_io_status iowait;
     swTimer_node *timer;
     swString *result;
+    int cid;
 } swoole_client_coro_property;
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_coro_void, 0, 0, 0)
@@ -935,6 +936,12 @@ static PHP_METHOD(swoole_client_coro, recv)
         ccp->result = NULL;
         RETURN_ZVAL(result, 0, 1);
     }
+    else if (ccp->iowait == SW_CLIENT_CORO_STATUS_WAIT && ccp->cid != COROG.current_coro->cid)
+    {
+        swoole_php_fatal_error(E_WARNING, "client is not connected to server.");
+        RETURN_FALSE;
+    }
+
 
     php_context *context = swoole_get_property(getThis(), 0);
     if (cli->timeout > 0)
@@ -944,6 +951,7 @@ static PHP_METHOD(swoole_client_coro, recv)
     }
     ccp->iowait = SW_CLIENT_CORO_STATUS_WAIT;
     coro_save(context);
+    ccp->cid = COROG.current_coro->cid;
     coro_yield();
 }
 
