@@ -938,7 +938,7 @@ static PHP_METHOD(swoole_client_coro, recv)
     }
     else if (ccp->iowait == SW_CLIENT_CORO_STATUS_WAIT && ccp->cid != COROG.current_coro->cid)
     {
-        swoole_php_fatal_error(E_WARNING, "client is not connected to server.");
+        swoole_php_fatal_error(E_WARNING, "Client has been bound to another coro");
         RETURN_FALSE;
     }
 
