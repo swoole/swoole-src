@@ -657,6 +657,7 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
         return;
     }
 
+#ifndef SW_COROUTINE
     zval **args[3];
     args[0] = &zserv;
     args[1] = &zworker_id;
@@ -669,6 +670,25 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
         swoole_php_fatal_error(E_WARNING, "onPipeMessage handler error.");
     }
 
+#else
+    zval *args[3];
+    args[0] = zserv;
+    args[1] = zworker_id;
+    args[2] = zdata;
+
+    zend_fcall_info_cache *cache = php_sw_server_caches[SW_SERVER_CB_onPipeMessage];
+    int ret = coro_create(cache, args, 3, &retval, NULL, NULL);
+    if (ret != 0)
+    {
+        sw_zval_ptr_dtor(&zworker_id);
+        sw_zval_free(zdata);
+        if (ret == CORO_LIMIT)
+        {
+            swWarn("Failed to handle onPipeMessage. Coroutine limited");
+        }
+        return;
+    }
+#endif
     if (EG(exception))
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
