@@ -106,7 +106,6 @@ static PHP_METHOD(swoole_client_coro, close);
 
 static void client_onConnect(swClient *cli);
 static void client_onReceive(swClient *cli, char *data, uint32_t length);
-static int client_onPackage(swConnection *conn, char *data, uint32_t length);
 static void client_onClose(swClient *cli);
 static void client_onError(swClient *cli);
 static void client_coro_onTimeout(swTimer *timer, swTimer_node *tnode);
@@ -249,12 +248,6 @@ static void client_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
     sw_zval_ptr_dtor(&zdata);
 }
 
-static int client_onPackage(swConnection *conn, char *data, uint32_t length)
-{
-    client_onReceive(conn->object, data, length);
-    return SW_OK;
-}
-
 static void client_onReceive(swClient *cli, char *data, uint32_t length)
 {
     SWOOLE_GET_TSRMLS;
@@ -352,166 +345,6 @@ static void client_onError(swClient *cli)
         php_swoole_client_free(zobject, cli TSRMLS_CC);
     }
     client_execute_callback(zobject, SW_CLIENT_CB_onError);
-}
-
-void php_swoole_client_coro_check_setting(swClient *cli, zval *zset TSRMLS_DC)
-{
-    HashTable *vht;
-    zval *v;
-    int value = 1;
-
-    char *bind_address = NULL;
-    int bind_port = 0;
-
-    vht = Z_ARRVAL_P(zset);
-
-    //buffer: check eof
-    if (php_swoole_array_get_value(vht, "open_eof_split", v) || php_swoole_array_get_value(vht, "open_eof_check", v))
-    {
-        convert_to_boolean(v);
-        cli->open_eof_check = Z_BVAL_P(v);
-        cli->protocol.split_by_eof = 1;
-    }
-    //package eof
-    if (php_swoole_array_get_value(vht, "package_eof", v))
-    {
-        convert_to_string(v);
-        cli->protocol.package_eof_len = Z_STRLEN_P(v);
-        if (cli->protocol.package_eof_len > SW_DATA_EOF_MAXLEN)
-        {
-            swoole_php_fatal_error(E_ERROR, "pacakge_eof max length is %d", SW_DATA_EOF_MAXLEN);
-            return;
-        }
-        bzero(cli->protocol.package_eof, SW_DATA_EOF_MAXLEN);
-        memcpy(cli->protocol.package_eof, Z_STRVAL_P(v), Z_STRLEN_P(v));
-        cli->protocol.onPackage = client_onPackage;
-    }
-    //open length check
-    if (php_swoole_array_get_value(vht, "open_length_check", v))
-    {
-        convert_to_boolean(v);
-        cli->open_length_check = Z_BVAL_P(v);
-        cli->protocol.get_package_length = swProtocol_get_package_length;
-        cli->protocol.onPackage = client_onPackage;
-    }
-    //package length size
-    if (php_swoole_array_get_value(vht, "package_length_type", v))
-    {
-        convert_to_string(v);
-        cli->protocol.package_length_type = Z_STRVAL_P(v)[0];
-        cli->protocol.package_length_size = swoole_type_size(cli->protocol.package_length_type);
-
-        if (cli->protocol.package_length_size == 0)
-        {
-            swoole_php_fatal_error(E_ERROR, "Unknown package_length_type name '%c', see pack(). Link: http://php.net/pack", cli->protocol.package_length_type);
-            return;
-        }
-    }
-    //package length offset
-    if (php_swoole_array_get_value(vht, "package_length_offset", v))
-    {
-        convert_to_long(v);
-        cli->protocol.package_length_offset = (int) Z_LVAL_P(v);
-    }
-    //package body start
-    if (php_swoole_array_get_value(vht, "package_body_offset", v))
-    {
-        convert_to_long(v);
-        cli->protocol.package_body_offset = (int) Z_LVAL_P(v);
-    }
-    /**
-     * package max length
-     */
-    if (php_swoole_array_get_value(vht, "package_max_length", v))
-    {
-        convert_to_long(v);
-        cli->protocol.package_max_length = (int) Z_LVAL_P(v);
-    }
-    else
-    {
-        cli->protocol.package_max_length = SW_BUFFER_INPUT_SIZE;
-    }
-    /**
-     * socket send/recv buffer size
-     */
-    if (php_swoole_array_get_value(vht, "socket_buffer_size", v))
-    {
-        convert_to_long(v);
-        value = (int) Z_LVAL_P(v);
-        swSocket_set_buffer_size(cli->socket->fd, value);
-        cli->socket->buffer_size = value;
-    }
-    /**
-     * bind address
-     */
-    if (php_swoole_array_get_value(vht, "bind_address", v))
-    {
-        convert_to_string(v);
-        bind_address = Z_STRVAL_P(v);
-    }
-    /**
-     * bind port
-     */
-    if (php_swoole_array_get_value(vht, "bind_port", v))
-    {
-        convert_to_long(v);
-        bind_port = (int) Z_LVAL_P(v);
-    }
-    if (bind_address)
-    {
-        swSocket_bind(cli->socket->fd, cli->type, bind_address, &bind_port);
-    }
-    /**
-     * TCP_NODELAY
-     */
-    if (php_swoole_array_get_value(vht, "open_tcp_nodelay", v))
-    {
-        value = 1;
-        if (setsockopt(cli->socket->fd, IPPROTO_TCP, TCP_NODELAY, &value, sizeof(value)) < 0)
-        {
-            swSysError("setsockopt(%d, TCP_NODELAY) failed.", cli->socket->fd);
-        }
-    }
-    /**
-     * socks5 proxy
-     */
-    if (php_swoole_array_get_value(vht, "socks5_host", v))
-    {
-        convert_to_string(v);
-        cli->socks5_proxy = emalloc(sizeof(swSocks5));
-        bzero(cli->socks5_proxy, sizeof(swSocks5));
-        cli->socks5_proxy->host = strdup(Z_STRVAL_P(v));
-        cli->socks5_proxy->dns_tunnel = 1;
-
-        if (php_swoole_array_get_value(vht, "socks5_port", v))
-        {
-            convert_to_long(v);
-            cli->socks5_proxy->port = Z_LVAL_P(v);
-        }
-        else
-        {
-            swoole_php_fatal_error(E_ERROR, "socks5 proxy require server port option.");
-            return;
-        }
-        if (php_swoole_array_get_value(vht, "socks5_username", v))
-        {
-            convert_to_string(v);
-            cli->socks5_proxy->username = Z_STRVAL_P(v);
-            cli->socks5_proxy->l_username = Z_STRLEN_P(v);
-        }
-        if (php_swoole_array_get_value(vht, "socks5_password", v))
-        {
-            convert_to_string(v);
-            cli->socks5_proxy->password = Z_STRVAL_P(v);
-            cli->socks5_proxy->l_password = Z_STRLEN_P(v);
-        }
-    }
-#ifdef SW_USE_OPENSSL
-    if (cli->open_ssl)
-    {
-        php_swoole_client_check_ssl_setting(cli, zset TSRMLS_CC);
-    }
-#endif
 }
 
 swClient* php_swoole_client_coro_new(zval *object, char *host, int host_len, int port)

@@ -339,7 +339,8 @@ void swoole_client_init(int module_number TSRMLS_DC)
 
 int php_swoole_client_onPackage(swConnection *conn, char *data, uint32_t length)
 {
-    client_onReceive(conn->object, data, length);
+    swClient *cli = (swClient *) conn->object;
+    cli->onReceive(conn->object, data, length);
     return SW_OK;
 }
 
