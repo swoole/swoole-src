@@ -19,6 +19,7 @@ $pm->parentFunc = function ($pid)
     {
         fail:
         echo "ERROR\n";
+        swoole_process::kill($pid);
         return;
     }
     //no eof, should be timeout here
