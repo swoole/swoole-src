@@ -736,12 +736,9 @@ static int swClient_tcp_recv_no_buffer(swClient *cli, char *data, int len, int f
             {
                 continue;
             }
-            else
-            {
-                break;
-            }
         }
 #endif
+        break;
     }
 
     return ret;
