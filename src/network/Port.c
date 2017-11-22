@@ -69,6 +69,11 @@ int swPort_enable_ssl_encrypt(swListenPort *ls)
         swWarn("swSSL_get_context() error.");
         return SW_ERR;
     }
+    /**
+     * OpenSSL thread-safe
+     */
+    swSSL_init_thread_safety();
+
     if (ls->ssl_option.client_cert_file
             && swSSL_set_client_certificate(ls->ssl_context, ls->ssl_option.client_cert_file,
                     ls->ssl_option.verify_depth) == SW_ERR)

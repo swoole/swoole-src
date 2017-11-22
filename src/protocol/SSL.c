@@ -43,7 +43,6 @@ static int swSSL_npn_advertised(SSL *ssl, const uchar **out, uint32_t *outlen, v
 static int swSSL_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen, const uchar *in, uint32_t inlen, void *arg);
 #endif
 
-static void swSSL_init_locks();
 static ulong_t swSSL_thread_id(void);
 static void swSSL_lock_callback(int mode, int type, char *file, int line);
 
@@ -117,7 +116,6 @@ void swSSL_init(void)
     SSL_load_error_strings();
     OpenSSL_add_all_algorithms();
 #endif
-    swSSL_init_locks();
     openssl_init = 1;
 }
 
@@ -138,7 +136,7 @@ static ulong_t swSSL_thread_id(void)
     return (ulong_t) pthread_self();;
 }
 
-static void swSSL_init_locks()
+void swSSL_init_thread_safety()
 {
     int i;
     lock_array = (pthread_mutex_t *) OPENSSL_malloc(CRYPTO_num_locks() * sizeof(pthread_mutex_t));
