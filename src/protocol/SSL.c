@@ -19,7 +19,10 @@
 
 #ifdef SW_USE_OPENSSL
 
+#include <openssl/crypto.h>
+
 static int openssl_init = 0;
+static pthread_mutex_t *lock_array;
 
 static const SSL_METHOD *swSSL_get_method(int method);
 static int swSSL_verify_callback(int ok, X509_STORE_CTX *x509_store);
@@ -39,6 +42,10 @@ static int swSSL_npn_advertised(SSL *ssl, const uchar **out, uint32_t *outlen, v
 #ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
 static int swSSL_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen, const uchar *in, uint32_t inlen, void *arg);
 #endif
+
+static void swSSL_init_locks();
+static ulong_t swSSL_thread_id(void);
+static void swSSL_lock_callback(int mode, int type, char *file, int line);
 
 static const SSL_METHOD *swSSL_get_method(int method)
 {
@@ -98,6 +105,10 @@ static const SSL_METHOD *swSSL_get_method(int method)
 
 void swSSL_init(void)
 {
+    if (openssl_init)
+    {
+        return;
+    }
 #if OPENSSL_VERSION_NUMBER >= 0x10100003L && !defined(LIBRESSL_VERSION_NUMBER)
     OPENSSL_init_ssl(OPENSSL_INIT_LOAD_CONFIG, NULL);
 #else
@@ -106,7 +117,38 @@ void swSSL_init(void)
     SSL_load_error_strings();
     OpenSSL_add_all_algorithms();
 #endif
+    swSSL_init_locks();
     openssl_init = 1;
+}
+
+static void swSSL_lock_callback(int mode, int type, char *file, int line)
+{
+    if (mode & CRYPTO_LOCK)
+    {
+        pthread_mutex_lock(&(lock_array[type]));
+    }
+    else
+    {
+        pthread_mutex_unlock(&(lock_array[type]));
+    }
+}
+
+static ulong_t swSSL_thread_id(void)
+{
+    return (ulong_t) pthread_self();;
+}
+
+static void swSSL_init_locks()
+{
+    int i;
+    lock_array = (pthread_mutex_t *) OPENSSL_malloc(CRYPTO_num_locks() * sizeof(pthread_mutex_t));
+    for (i = 0; i < CRYPTO_num_locks(); i++)
+    {
+        pthread_mutex_init(&(lock_array[i]), NULL);
+    }
+
+    CRYPTO_set_id_callback((ulong_t (*)()) swSSL_thread_id);
+    CRYPTO_set_locking_callback((void (*)()) swSSL_lock_callback);
 }
 
 void swSSL_server_http_advise(SSL_CTX* ssl_context, swSSL_config *cfg)
