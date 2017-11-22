@@ -43,7 +43,6 @@ static int swSSL_npn_advertised(SSL *ssl, const uchar **out, uint32_t *outlen, v
 static int swSSL_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen, const uchar *in, uint32_t inlen, void *arg);
 #endif
 
-static ulong_t swSSL_thread_id(void);
 static void swSSL_lock_callback(int mode, int type, char *file, int line);
 
 static const SSL_METHOD *swSSL_get_method(int method)
@@ -119,6 +118,28 @@ void swSSL_init(void)
     openssl_init = 1;
 }
 
+void swSSL_destroy()
+{
+    if (!openssl_init)
+    {
+        return;
+    }
+
+    CRYPTO_set_locking_callback(NULL);
+    int i;
+    for (i = 0; i < CRYPTO_num_locks(); i++)
+    {
+        pthread_mutex_destroy(&(lock_array[i]));
+    }
+    openssl_init = 0;
+#if OPENSSL_VERSION_NUMBER >= OPENSSL_VERSION_1_0_0
+    CRYPTO_THREADID_set_callback(NULL);
+#else
+    CRYPTO_set_id_callback(NULL);
+#endif
+    CRYPTO_set_locking_callback(NULL);
+}
+
 static void swSSL_lock_callback(int mode, int type, char *file, int line)
 {
     if (mode & CRYPTO_LOCK)
@@ -131,10 +152,17 @@ static void swSSL_lock_callback(int mode, int type, char *file, int line)
     }
 }
 
-static ulong_t swSSL_thread_id(void)
+#if OPENSSL_VERSION_NUMBER >= OPENSSL_VERSION_1_0_0
+static void swSSL_id_callback(CRYPTO_THREADID * id)
 {
-    return (ulong_t) pthread_self();;
+    CRYPTO_THREADID_set_numeric(id, (ulong_t) pthread_self());
 }
+#else
+static ulong_t swSSL_id_callback(void)
+{
+    return (ulong_t) pthread_self();
+}
+#endif
 
 void swSSL_init_thread_safety()
 {
@@ -145,7 +173,12 @@ void swSSL_init_thread_safety()
         pthread_mutex_init(&(lock_array[i]), NULL);
     }
 
-    CRYPTO_set_id_callback((ulong_t (*)()) swSSL_thread_id);
+#if OPENSSL_VERSION_NUMBER >= OPENSSL_VERSION_1_0_0
+    CRYPTO_THREADID_set_callback(swSSL_id_callback);
+#else
+    CRYPTO_set_id_callback(swSSL_id_callback);
+#endif
+
     CRYPTO_set_locking_callback((void (*)()) swSSL_lock_callback);
 }
 
