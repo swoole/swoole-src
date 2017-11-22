@@ -35,10 +35,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2017-11-02</date>
+    <date>2017-11-22</date>
     <time>09:50:10</time>
     <version>
-        <release>1.9.22</release>
+        <release>1.9.23</release>
         <api>1.9</api>
     </version>
     <stability>
@@ -47,9 +47,7 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Fixed MacOS occasional death cycle problems
-- Added Async::exec
-- Added tsl_host_name option
+- Fixed occasional crash bugs of SSL server
     </notes>
     <contents>
         <dir name="/">
