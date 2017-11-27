@@ -1426,7 +1426,7 @@ struct _swReactor
 
     int (*setHandle)(swReactor *, int fdtype, swReactor_handle);
     swDefer_callback *defer_callback_list;
-    swDefer_callback *end_callback;
+    swDefer_callback idle_task;
 
     void (*onTimeout)(swReactor *);
     void (*onFinish)(swReactor *);

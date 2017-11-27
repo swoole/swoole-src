@@ -124,9 +124,9 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
         swTimer_select(&SwooleG.timer);
     }
     //callback at the end
-    if (reactor->end_callback)
+    if (reactor->idle_task.callback)
     {
-        reactor->end_callback->callback(reactor->end_callback->data);
+        reactor->idle_task.callback(reactor->idle_task.data);
     }
     //server master
     if (SwooleG.serv && SwooleTG.update_time)

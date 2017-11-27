@@ -691,16 +691,15 @@ PHP_FUNCTION(swoole_event_cycle)
 
     if (ZVAL_IS_NULL(callback))
     {
-        if (SwooleG.main_reactor->end_callback == NULL)
+        if (SwooleG.main_reactor->idle_task.callback == NULL)
         {
             RETURN_FALSE;
         }
         else
         {
-            swDefer_callback *end_callback = SwooleG.main_reactor->end_callback;
-            SwooleG.main_reactor->defer(SwooleG.main_reactor, free_callback, end_callback->data);
-            SwooleG.main_reactor->end_callback = NULL;
-            efree(end_callback);
+            SwooleG.main_reactor->defer(SwooleG.main_reactor, free_callback, SwooleG.main_reactor->idle_task.data);
+            SwooleG.main_reactor->idle_task.callback = NULL;
+            SwooleG.main_reactor->idle_task.data = NULL;
             RETURN_TRUE;
         }
     }
@@ -714,28 +713,23 @@ PHP_FUNCTION(swoole_event_cycle)
     }
     efree(func_name);
 
-    if (SwooleG.main_reactor->end_callback == NULL)
+    if (SwooleG.main_reactor->idle_task.data != NULL)
     {
-        SwooleG.main_reactor->end_callback = emalloc(sizeof(swDefer_callback));
-    }
-    else
-    {
-        php_defer_callback *last_cb = SwooleG.main_reactor->end_callback->data;
-        SwooleG.main_reactor->defer(SwooleG.main_reactor, free_callback, last_cb);
+        SwooleG.main_reactor->defer(SwooleG.main_reactor, free_callback, SwooleG.main_reactor->idle_task.data);
     }
 
-    php_defer_callback *defer = emalloc(sizeof(php_defer_callback));
+    php_defer_callback *cb = emalloc(sizeof(php_defer_callback));
 
 #if PHP_MAJOR_VERSION >= 7
-    defer->callback = &defer->_callback;
-    memcpy(defer->callback, callback, sizeof(zval));
+    cb->callback = &cb->_callback;
+    memcpy(cb->callback, callback, sizeof(zval));
 #else
-    defer->callback = callback;
+    cb->callback = callback;
 #endif
     sw_zval_add_ref(&callback);
 
-    SwooleG.main_reactor->end_callback->callback = php_swoole_event_onEndCallback;
-    SwooleG.main_reactor->end_callback->data = defer;
+    SwooleG.main_reactor->idle_task.callback = php_swoole_event_onEndCallback;
+    SwooleG.main_reactor->idle_task.data = cb;
 
     RETURN_TRUE;
 }
