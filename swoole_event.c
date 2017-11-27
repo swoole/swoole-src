@@ -593,7 +593,6 @@ PHP_FUNCTION(swoole_event_set)
 PHP_FUNCTION(swoole_event_del)
 {
     zval *zfd;
-    zend_bool is_stdin = 0;
     
     if (!SwooleG.main_reactor)
     {
@@ -601,7 +600,7 @@ PHP_FUNCTION(swoole_event_del)
         RETURN_FALSE;
     }
     
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|b", &zfd, &is_stdin) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zfd) == FAILURE)
     {
         return;
     }
@@ -619,12 +618,9 @@ PHP_FUNCTION(swoole_event_del)
         SwooleG.main_reactor->defer(SwooleG.main_reactor, free_event_callback, socket->object);
         socket->object = NULL;
     }
+
+    int ret = SwooleG.main_reactor->del(SwooleG.main_reactor, socket_fd);
     socket->active = 0;
-    int ret = 0;
-    if (socket->fd || is_stdin)
-    {
-        ret = SwooleG.main_reactor->del(SwooleG.main_reactor, socket_fd);
-    }
     SW_CHECK_RETURN(ret);
 }
 
