@@ -483,6 +483,7 @@ static PHP_METHOD(swoole_mysql_coro, query)
             client->iowait = SW_MYSQL_CORO_STATUS_WAIT;
             RETURN_TRUE;
         }
+        client->cid = get_current_cid();
         coro_save(context);
         coro_yield();
     }
@@ -794,6 +795,7 @@ static int swoole_mysql_coro_onError(swReactor *reactor, swEvent *event)
 		return SW_OK;
 	}
 	client->_defer = 0;
+        client->cid = 0;
 	php_context *sw_current_context = swoole_get_property(zobject, 0);
 	int ret = coro_resume(sw_current_context, result, &retval);
     sw_zval_free(result);
@@ -884,12 +886,13 @@ static void swoole_mysql_coro_onTimeout(php_context *ctx)
 	client->state = SW_MYSQL_STATE_QUERY;
     swoole_mysql_coro_close(zobject);
 
-	if (client->defer && !client->_defer)
-	{
-		client->result = result;
-		return;
-	}
-	client->_defer = 0;
+    if (client->defer && !client->_defer)
+    {
+        client->result = result;
+        return;
+    }
+    client->_defer = 0;
+    client->cid = 0;
 
     int ret = coro_resume(ctx, result, &retval);
 
@@ -1082,6 +1085,10 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
                 return SW_OK;
             }
             client->_defer = 0;
+            if (!client->cid)
+            {
+                return SW_OK;
+            }
             php_context *sw_current_context = swoole_get_property(zobject, 0);
             ret = coro_resume(sw_current_context, result, &retval);
             sw_zval_free(result);
@@ -1150,6 +1157,7 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
             }
             client->_defer = 0;
             client->iowait = SW_MYSQL_CORO_STATUS_READY;
+            client->cid = 0;
             php_context *sw_current_context = swoole_get_property(zobject, 0);
             ret = coro_resume(sw_current_context, result, &retval);
             sw_zval_free(result);
