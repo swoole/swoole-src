@@ -38,7 +38,7 @@ static zend_class_entry *swoole_http2_response_class_entry_ptr;
 
 enum
 {
-    HTTP2_CLIENT_PROPERTY_INDEX = 2,
+    HTTP2_CLIENT_PROPERTY_INDEX = 3,
 };
 
 typedef struct
@@ -153,7 +153,7 @@ void swoole_http2_client_init(int module_number TSRMLS_DC)
     swoole_http2_response_class_entry_ptr = zend_register_internal_class(&swoole_http2_response_ce TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_http2_response, "Swoole\\Http2\\Response");
 
-    zend_declare_property_null(swoole_http2_response_class_entry_ptr, SW_STRL("statusCode")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_http2_response_class_entry_ptr, SW_STRL("statusCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_http2_response_class_entry_ptr, SW_STRL("body")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_http2_response_class_entry_ptr, SW_STRL("streamId")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
 }
@@ -172,7 +172,7 @@ static PHP_METHOD(swoole_http2_client, __construct)
 
     if (host_len <= 0)
     {
-        swoole_php_fatal_error(E_ERROR, "host is empty.");
+        zend_throw_exception(swoole_exception_class_entry_ptr, "host is empty.", SW_ERROR_INVALID_PARAMS TSRMLS_CC);
         RETURN_FALSE;
     }
 

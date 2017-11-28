@@ -414,7 +414,7 @@ static PHP_METHOD(swoole_coroutine_util, call_user_func_array)
 static PHP_METHOD(swoole_coroutine_util, suspend)
 {
     char *id;
-    int id_len;
+    zend_size_t id_len;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s",&id, &id_len) == FAILURE)
     {
@@ -526,7 +526,7 @@ static PHP_METHOD(swoole_coroutine_util, cli_wait) {
 static PHP_METHOD(swoole_coroutine_util, resume)
 {
     char *id;
-    int id_len;
+    zend_size_t id_len;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &id, &id_len) == FAILURE)
     {

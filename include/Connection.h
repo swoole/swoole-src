@@ -110,6 +110,7 @@ typedef struct
 } swSSL_config;
 
 void swSSL_init(void);
+void swSSL_init_thread_safety();
 int swSSL_server_set_cipher(SSL_CTX* ssl_context, swSSL_config *cfg);
 void swSSL_server_http_advise(SSL_CTX* ssl_context, swSSL_config *cfg);
 SSL_CTX* swSSL_get_context(swSSL_option *option);
