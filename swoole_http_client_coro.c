@@ -263,6 +263,7 @@ static void http_client_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
     }
 
     hcc->defer_status = HTTP_CLIENT_STATE_DEFER_INIT;
+    hcc->cid = 0;
     int ret = coro_resume(ctx, zdata, &retval);
     if (ret > 0)
     {
@@ -355,6 +356,7 @@ static void http_client_coro_onClose(swClient *cli)
     ZVAL_BOOL(zdata, 0);
 
     php_context *sw_current_context = swoole_get_property(zobject, 1);
+    hcc->cid = 0;
     coro_resume(sw_current_context, zdata, &retval);
 
     if (retval != NULL)
@@ -402,6 +404,7 @@ static void http_client_coro_onError(swClient *cli)
     }
 
     hcc->defer_status = HTTP_CLIENT_STATE_DEFER_INIT;
+    hcc->cid = 0;
 
     int ret = coro_resume(sw_current_context, zdata, &retval);
     if (ret > 0)
@@ -491,6 +494,7 @@ static void http_client_coro_onReceive(swClient *cli, char *data, uint32_t lengt
         /*if next cr*/
         php_context *sw_current_context = swoole_get_property(zobject, 1);
         hcc->defer_status = HTTP_CLIENT_STATE_DEFER_INIT;
+        hcc->cid = 0;
         //hcc->defer_chunk_status = 0;
         http->completed = 0;
         http->state = HTTP_CLIENT_STATE_READY;
@@ -1250,6 +1254,10 @@ static PHP_METHOD(swoole_http_client_coro, execute)
         return;
     }
     http_client_property *hcc = swoole_get_property(getThis(), 0);
+    if (hcc->cid != 0 && hcc->cid != COROG.current_coro->cid)
+    {
+        swoole_php_fatal_error(E_WARNING, "client has been bound to another coro");
+    }
     if (hcc->defer)
     {
         if (hcc->defer_status != HTTP_CLIENT_STATE_DEFER_INIT)
@@ -1284,6 +1292,10 @@ static PHP_METHOD(swoole_http_client_coro, get)
     }
 
     http_client_property *hcc = swoole_get_property(getThis(), 0);
+    if (hcc->cid != 0 && hcc->cid != COROG.current_coro->cid)
+    {
+        swoole_php_fatal_error(E_WARNING, "client has been bound to another coro");
+    }
     hcc->request_method = "GET";
     if (hcc->defer)
     {
@@ -1330,6 +1342,11 @@ static PHP_METHOD(swoole_http_client_coro, post)
     hcc->request_body = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("requestBody"), 1 TSRMLS_CC);
     sw_copy_to_stack(hcc->request_body, hcc->_request_body);
     hcc->request_method = "POST";
+    if (hcc->cid != 0 && hcc->cid != COROG.current_coro->cid)
+    {
+        swoole_php_fatal_error(E_WARNING, "client has been bound to another coro");
+    }
+
     if (hcc->defer)
     {
         if (hcc->defer_status != HTTP_CLIENT_STATE_DEFER_INIT)
@@ -1349,6 +1366,7 @@ static PHP_METHOD(swoole_http_client_coro, post)
     {
         RETURN_TRUE;
     }
+    hcc->cid = COROG.current_coro->cid;
     coro_save(context);
     coro_yield();
 }

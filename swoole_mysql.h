@@ -260,9 +260,10 @@ typedef struct
 {
 #ifdef SW_COROUTINE
     zend_bool defer;
-	zend_bool _defer;
-	mysql_io_status iowait;
-	zval *result;
+    zend_bool _defer;
+    mysql_io_status iowait;
+    zval *result;
+    int cid;
 #endif
     uint8_t state;
     uint8_t handshake;
