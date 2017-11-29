@@ -1398,7 +1398,7 @@ struct _swReactor
     uint32_t max_socket;
 
 #ifdef SW_USE_MALLOC_TRIM
-    time_t last_mallc_trim_time;
+    time_t last_malloc_trim_time;
 #endif
 
 #ifdef SW_USE_TIMEWHEEL
@@ -1429,6 +1429,7 @@ struct _swReactor
 
     int (*setHandle)(swReactor *, int fdtype, swReactor_handle);
     swDefer_callback *defer_callback_list;
+    swDefer_callback idle_task;
 
     void (*onTimeout)(swReactor *);
     void (*onFinish)(swReactor *);

@@ -127,7 +127,11 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
     {
         swTimer_select(&SwooleG.timer);
     }
-
+    //callback at the end
+    if (reactor->idle_task.callback)
+    {
+        reactor->idle_task.callback(reactor->idle_task.data);
+    }
 #ifdef SW_COROUTINE
     //coro timeout
     if (!swIsMaster())
@@ -169,10 +173,10 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
     }
 
 #ifdef SW_USE_MALLOC_TRIM
-    if (reactor->last_mallc_trim_time < SwooleGS->now - SW_MALLOC_TRIM_INTERVAL)
+    if (reactor->last_malloc_trim_time < SwooleGS->now - SW_MALLOC_TRIM_INTERVAL)
     {
         malloc_trim(SW_MALLOC_TRIM_PAD);
-        reactor->last_mallc_trim_time = SwooleGS->now;
+        reactor->last_malloc_trim_time = SwooleGS->now;
     }
 #endif
 }
