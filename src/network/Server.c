@@ -752,6 +752,7 @@ void swServer_init(swServer *serv)
     serv->buffer_output_size = SW_BUFFER_OUTPUT_SIZE;
 
     SwooleG.serv = serv;
+    SwooleG.task_ipc_mode = SW_TASK_IPC_UNIXSOCK;
 }
 
 int swServer_create(swServer *serv)
