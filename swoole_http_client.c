@@ -2191,25 +2191,22 @@ static PHP_METHOD(swoole_http_client, push)
     if (opcode > WEBSOCKET_OPCODE_PONG)
     {
         swoole_php_fatal_error(E_WARNING, "opcode max 10");
+        SwooleG.error = SW_ERROR_WEBSOCKET_BAD_OPCODE;
         RETURN_FALSE;
     }
 
     http_client *http = swoole_get_object(getThis());
-    if (!http->cli)
-    {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_http_client.");
-        RETURN_FALSE;
-    }
-
-    if (!http->cli->socket)
+    if (!(http && http->cli && http->cli->socket))
     {
         swoole_php_error(E_WARNING, "not connected to the server");
+        SwooleG.error = SW_ERROR_WEBSOCKET_UNCONNECTED;
         RETURN_FALSE;
     }
 
     if (!http->upgrade)
     {
         swoole_php_fatal_error(E_WARNING, "websocket handshake failed, cannot push data.");
+        SwooleG.error = SW_ERROR_WEBSOCKET_HANDSHAKE_FAILED;
         RETURN_FALSE;
     }
 
