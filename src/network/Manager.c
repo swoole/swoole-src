@@ -331,19 +331,13 @@ static int swManager_loop(swFactory *factory)
             for (i = 0; i < serv->worker_num; i++)
             {
                 //compare PID
-                if (pid != reload_workers[i].pid)
+                if (pid != serv->workers[i].pid)
                 {
                     continue;
                 }
 
                 //Check the process return code and signal
                 swManager_check_exit_status(serv, i, pid, status);
-
-                //no need to create a new process when enable reload_async
-                if (serv->reload_async)
-                {
-                    break;
-                }
 
                 pid = 0;
                 while (1)
@@ -370,7 +364,7 @@ static int swManager_loop(swFactory *factory)
                 if (exit_worker != NULL)
                 {
                     swManager_check_exit_status(serv, exit_worker->id, pid, status);
-                    if (exit_worker->deleted == 1)  //主动回收不重启
+                    if (exit_worker->deleted == 1)
                     {
                         exit_worker->deleted = 0;
                     }
