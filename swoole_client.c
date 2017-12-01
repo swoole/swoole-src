@@ -495,7 +495,7 @@ void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset TSRMLS_DC)
         cli->ssl_option.passphrase = sw_strdup(Z_STRVAL_P(v));
     }
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-    if (php_swoole_array_get_value(vht, "tls_host_name", v))
+    if (php_swoole_array_get_value(vht, "tls_host_name", v) || php_swoole_array_get_value(vht, "ssl_host_name", v))
     {
         convert_to_string(v);
         cli->ssl_option.tls_host_name = sw_strdup(Z_STRVAL_P(v));
