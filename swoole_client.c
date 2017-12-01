@@ -2052,7 +2052,7 @@ static PHP_METHOD(swoole_client, verifyPeerCert)
     {
         return;
     }
-    SW_CHECK_RETURN(swSSL_verify(cli->socket, allow_self_signed));
+    SW_CHECK_RETURN(swClient_ssl_verify(cli, allow_self_signed));
 }
 #endif
 

@@ -432,10 +432,13 @@ class ProcessManager
      * @var swoole_atomic
      */
     protected $atomic;
+    protected $alone = false;
 
     public $parentFunc;
     public $childFunc;
     public $async = false;
+
+    protected $childPid;
 
     protected $parentFirst = false;
 
@@ -504,6 +507,17 @@ class ProcessManager
         }
     }
 
+    /**
+     * 杀死子进程
+     */
+    function kill()
+    {
+        if (!$this->alone)
+        {
+            swoole_process::kill($this->childPid);
+        }
+    }
+
     function run()
     {
         global $argv, $argc;
@@ -511,10 +525,12 @@ class ProcessManager
         {
             if ($argv[1] == 'child')
             {
+                $this->alone = true;
                 return $this->runChildFunc();
             }
             elseif ($argv[1] == 'parent')
             {
+                $this->alone = true;
                 return $this->runParentFunc();
             }
         }
@@ -528,6 +544,7 @@ class ProcessManager
             echo "ERROR";
             exit;
         }
+        //子进程
         elseif ($pid === 0)
         {
             //等待父进程
@@ -538,8 +555,10 @@ class ProcessManager
             $this->runChildFunc();
             exit;
         }
+        //父进程
         else
         {
+            $this->childPid = $pid;
             //子进程优先运行，父进程进入等待状态
             if (!$this->parentFirst)
             {

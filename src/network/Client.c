@@ -249,6 +249,20 @@ int swClient_ssl_handshake(swClient *cli)
     }
     return SW_OK;
 }
+
+int swClient_ssl_verify(swClient *cli, int allow_self_signed)
+{
+    if (swSSL_verify(cli->socket, allow_self_signed) < 0)
+    {
+        return SW_ERR;
+    }
+    if (cli->ssl_option.tls_host_name && swSSL_check_host(cli->socket, cli->ssl_option.tls_host_name) < 0)
+    {
+        return SW_ERR;
+    }
+    return SW_OK;
+}
+
 #endif
 
 static int swClient_inet_addr(swClient *cli, char *host, int port)
