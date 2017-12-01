@@ -247,6 +247,13 @@ int swClient_ssl_handshake(swClient *cli)
     {
         return SW_ERR;
     }
+    if (cli->socket->ssl_state == SW_SSL_STATE_READY && cli->ssl_option.verify_peer)
+    {
+        if (swClient_ssl_verify(cli, cli->ssl_option.allow_self_signed) < 0)
+        {
+            return SW_ERR;
+        }
+    }
     return SW_OK;
 }
 

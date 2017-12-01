@@ -502,6 +502,16 @@ static void client_check_ssl_setting(swClient *cli, zval *zset TSRMLS_DC)
         cli->ssl_option.tls_host_name = sw_strdup(Z_STRVAL_P(v));
     }
 #endif
+    if (php_swoole_array_get_value(vht, "ssl_verify_peer", v))
+    {
+        convert_to_boolean(v);
+        cli->ssl_option.verify_peer = Z_BVAL_P(v);
+    }
+    if (php_swoole_array_get_value(vht, "ssl_allow_self_signed", v))
+    {
+        convert_to_boolean(v);
+        cli->ssl_option.allow_self_signed = Z_BVAL_P(v);
+    }
     if (cli->ssl_option.cert_file && !cli->ssl_option.key_file)
     {
         swoole_php_fatal_error(E_ERROR, "ssl require key file.");
