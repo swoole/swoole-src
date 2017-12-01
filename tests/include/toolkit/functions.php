@@ -489,6 +489,24 @@ class ProcessManager
         return call_user_func($this->childFunc);
     }
 
+    function fork($func)
+    {
+        $pid = pcntl_fork();
+        if ($pid > 0)
+        {
+            return $pid;
+        }
+        elseif ($pid < 0)
+        {
+            return false;
+        }
+        else
+        {
+            call_user_func($func);
+            exit;
+        }
+    }
+
     /**
      * 杀死子进程
      */
