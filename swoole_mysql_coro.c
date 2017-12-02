@@ -403,6 +403,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
 	{
 		php_swoole_add_timer_coro((int) (connector->timeout * 1000), client->fd, &client->cli->timeout_id, (void *) context, NULL TSRMLS_CC);
 	}
+    client->cid = get_current_cid();
     coro_save(context);
     coro_yield();
 }
@@ -443,11 +444,16 @@ static PHP_METHOD(swoole_mysql_coro, query)
         RETURN_FALSE;
     }
 
-	if (client->iowait == SW_MYSQL_CORO_STATUS_DONE)
-	{
+    if (client->iowait == SW_MYSQL_CORO_STATUS_DONE)
+    {
         swoole_php_fatal_error(E_WARNING, "mysql client is waiting for calling recv, cannot send new sql query.");
         RETURN_FALSE;
-	}
+    }
+
+    if (unlikely(client->cid && client->cid != get_current_cid())) {
+        swoole_php_fatal_error(E_WARNING, "mysql client has already been bound to another coroutine.");
+        RETURN_FALSE;
+    }
 
     swString_clear(mysql_request_buffer);
 
@@ -497,6 +503,10 @@ static PHP_METHOD(swoole_mysql_coro, begin)
         swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_mysql.");
         RETURN_FALSE;
     }
+    if (unlikely(client->cid && client->cid != get_current_cid())) {
+        swoole_php_fatal_error(E_WARNING, "mysql client has already been bound to another coroutine.");
+        RETURN_FALSE;
+    }
     if (client->transaction)
     {
         zend_throw_exception(swoole_mysql_coro_exception_class_entry_ptr, "There is already an active transaction.", 21 TSRMLS_CC);
@@ -528,6 +538,7 @@ static PHP_METHOD(swoole_mysql_coro, begin)
             client->iowait = SW_MYSQL_CORO_STATUS_WAIT;
             //RETURN_TRUE;
         }
+        client->cid = get_current_cid();
         coro_save(context);
         coro_yield();
     }
@@ -541,6 +552,12 @@ static PHP_METHOD(swoole_mysql_coro, commit)
         swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_mysql.");
         RETURN_FALSE;
     }
+
+    if (unlikely(client->cid && client->cid != get_current_cid())) {
+        swoole_php_fatal_error(E_WARNING, "mysql client has already been bound to another coroutine.");
+        RETURN_FALSE;
+    }
+
     if (!client->transaction)
     {
         zend_throw_exception(swoole_mysql_coro_exception_class_entry_ptr, "There is no active transaction.", 22 TSRMLS_CC);
@@ -572,6 +589,7 @@ static PHP_METHOD(swoole_mysql_coro, commit)
             client->iowait = SW_MYSQL_CORO_STATUS_WAIT;
             //RETURN_TRUE;
         }
+        client->cid = get_current_cid();
         coro_save(context);
         coro_yield();
     }
@@ -585,6 +603,12 @@ static PHP_METHOD(swoole_mysql_coro, rollback)
         swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_mysql.");
         RETURN_FALSE;
     }
+
+    if (unlikely(client->cid && client->cid != get_current_cid())) {
+        swoole_php_fatal_error(E_WARNING, "mysql client has already been bound to another coroutine.");
+        RETURN_FALSE;
+    }
+
     if (!client->transaction)
     {
         zend_throw_exception(swoole_mysql_coro_exception_class_entry_ptr, "There is no active transaction.", 22 TSRMLS_CC);
@@ -616,6 +640,7 @@ static PHP_METHOD(swoole_mysql_coro, rollback)
             client->iowait = SW_MYSQL_CORO_STATUS_WAIT;
             //RETURN_TRUE;
         }
+        client->cid = get_current_cid();
         coro_save(context);
         coro_yield();
     }
@@ -674,6 +699,7 @@ static PHP_METHOD(swoole_mysql_coro, recv)
 	}
 
 	client->_defer = 1;
+        client->cid = get_current_cid();
 	php_context *context = swoole_get_property(getThis(), 0);
     coro_save(context);
 	coro_yield();
