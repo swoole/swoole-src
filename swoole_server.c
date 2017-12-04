@@ -1545,6 +1545,10 @@ PHP_METHOD(swoole_server, __construct)
     array_init(ports);
     server_port_list.zports = ports;
 
+#ifdef HT_ALLOW_COW_VIOLATION
+    HT_ALLOW_COW_VIOLATION(Z_ARRVAL_P(ports));
+#endif
+
     swListenPort *ls;
     LL_FOREACH(serv->listen_list, ls)
     {
