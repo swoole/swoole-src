@@ -215,6 +215,15 @@ int swClient_enable_ssl_encrypt(swClient *cli)
     {
         return SW_ERR;
     }
+
+    if (cli->ssl_option.verify_peer)
+    {
+        if (swSSL_set_capath(&cli->ssl_option, cli->ssl_context) < 0)
+        {
+            return SW_ERR;
+        }
+    }
+
     cli->socket->ssl_send = 1;
 #if defined(SW_USE_HTTP2) && defined(SW_USE_OPENSSL) && OPENSSL_VERSION_NUMBER >= 0x10002000L
     if (cli->http2)
@@ -402,6 +411,14 @@ static int swClient_close(swClient *cli)
             sw_free(cli->ssl_option.tls_host_name);
         }
 #endif
+        if (cli->ssl_option.cafile)
+        {
+            sw_free(cli->ssl_option.cafile);
+        }
+        if (cli->ssl_option.capath)
+        {
+            sw_free(cli->ssl_option.capath);
+        }
     }
 #endif
     //clear buffer

@@ -386,6 +386,32 @@ int swSSL_set_client_certificate(SSL_CTX *ctx, char *cert_file, int depth)
     return SW_OK;
 }
 
+int swSSL_set_capath(swSSL_option *cfg, SSL_CTX *ctx)
+{
+    if (cfg->cafile || cfg->capath)
+    {
+        if (!SSL_CTX_load_verify_locations(ctx, cfg->cafile, cfg->capath))
+        {
+            return SW_ERR;
+        }
+    }
+    else
+    {
+        if (!SSL_CTX_set_default_verify_paths(ctx))
+        {
+            swWarn("Unable to set default verify locations and no CA settings specified.");
+            return SW_ERR;
+        }
+    }
+
+    if (cfg->verify_depth > 0)
+    {
+        SSL_CTX_set_verify_depth(ctx, cfg->verify_depth);
+    }
+
+    return SW_OK;
+}
+
 #ifndef X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT
 static int swSSL_check_name(char *name, ASN1_STRING *pattern)
 {
