@@ -100,9 +100,6 @@ static void client_onClose(swClient *cli);
 static void client_onError(swClient *cli);
 static void client_onBufferFull(swClient *cli);
 static void client_onBufferEmpty(swClient *cli);
-#ifdef SW_USE_OPENSSL
-static void client_check_ssl_setting(swClient *cli, zval *zset TSRMLS_DC);
-#endif
 
 static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_client_callback_type type)
 {
@@ -341,7 +338,8 @@ void swoole_client_init(int module_number TSRMLS_DC)
 
 int php_swoole_client_onPackage(swConnection *conn, char *data, uint32_t length)
 {
-    client_onReceive(conn->object, data, length);
+    swClient *cli = (swClient *) conn->object;
+    cli->onReceive(conn->object, data, length);
     return SW_OK;
 }
 
@@ -455,7 +453,7 @@ static void client_onBufferEmpty(swClient *cli)
 }
 
 #ifdef SW_USE_OPENSSL
-static void client_check_ssl_setting(swClient *cli, zval *zset TSRMLS_DC)
+void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset TSRMLS_DC)
 {
     HashTable *vht = Z_ARRVAL_P(zset);
     zval *v;
@@ -797,7 +795,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
 #ifdef SW_USE_OPENSSL
     if (cli->open_ssl)
     {
-        client_check_ssl_setting(cli, zset TSRMLS_CC);
+        php_swoole_client_check_ssl_setting(cli, zset TSRMLS_CC);
     }
 #endif
 }
@@ -1978,7 +1976,7 @@ static PHP_METHOD(swoole_client, enableSSL)
     zval *zset = sw_zend_read_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("setting"), 1 TSRMLS_CC);
     if (zset && !ZVAL_IS_NULL(zset))
     {
-        client_check_ssl_setting(cli, zset TSRMLS_CC);
+        php_swoole_client_check_ssl_setting(cli, zset TSRMLS_CC);
     }
     if (swClient_enable_ssl_encrypt(cli) < 0)
     {
