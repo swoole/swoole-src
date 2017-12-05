@@ -144,6 +144,7 @@ int swClient_wakeup(swClient *cli);
 #ifdef SW_USE_OPENSSL
 int swClient_enable_ssl_encrypt(swClient *cli);
 int swClient_ssl_handshake(swClient *cli);
+int swClient_ssl_verify(swClient *cli, int allow_self_signed);
 #endif
 void swClient_free(swClient *cli);
 

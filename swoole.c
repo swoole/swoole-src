@@ -210,6 +210,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_defer, 0, 0, 1)
     ZEND_ARG_INFO(0, callback)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_cycle, 0, 0, 1)
+    ZEND_ARG_INFO(0, callback)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_del, 0, 0, 1)
     ZEND_ARG_INFO(0, fd)
 ZEND_END_ARG_INFO()
@@ -332,6 +336,7 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_event_wait, arginfo_swoole_void)
     PHP_FE(swoole_event_write, arginfo_swoole_event_write)
     PHP_FE(swoole_event_defer, arginfo_swoole_event_defer)
+    PHP_FE(swoole_event_cycle, arginfo_swoole_event_cycle)
     /*------swoole_timer-----*/
     PHP_FE(swoole_timer_after, arginfo_swoole_timer_after)
     PHP_FE(swoole_timer_tick, arginfo_swoole_timer_tick)
@@ -446,6 +451,7 @@ static const zend_function_entry swoole_event_methods[] =
     ZEND_FENTRY(write, ZEND_FN(swoole_event_write), arginfo_swoole_event_write, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(wait, ZEND_FN(swoole_event_wait), arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(defer, ZEND_FN(swoole_event_defer), arginfo_swoole_event_defer, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(cycle, ZEND_FN(swoole_event_cycle), arginfo_swoole_event_cycle, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 

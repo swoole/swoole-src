@@ -332,7 +332,7 @@ sw_inline void coro_close(TSRMLS_D)
 #else
 sw_inline void coro_close(TSRMLS_D)
 {
-    swTrace("Close coroutine id %d\n", COROG.current_coro->cid);
+    swTraceLog(SW_TRACE_COROUTINE, "Close coroutine id %d", COROG.current_coro->cid);
     if (COROG.current_coro->function)
     {
         sw_zval_free(COROG.current_coro->function);
@@ -346,7 +346,7 @@ sw_inline void coro_close(TSRMLS_D)
     EG(vm_stack_end) = COROG.origin_vm_stack_end;
     --COROG.coro_num;
     COROG.current_coro = NULL;
-    swTrace("closing coro and %d remained. usage size: %zu. malloc size: %zu", COROG.coro_num, zend_memory_usage(0), zend_memory_usage(1));
+    swTraceLog(SW_TRACE_COROUTINE, "closing coro and %d remained. usage size: %zu. malloc size: %zu", COROG.coro_num, zend_memory_usage(0), zend_memory_usage(1));
 }
 #endif
 

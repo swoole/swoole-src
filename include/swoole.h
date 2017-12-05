@@ -623,6 +623,19 @@ size_t swoole_utf8_length(u_char *p, size_t n);
 void swoole_random_string(char *buf, size_t size);
 char* swoole_get_mimetype(char *file);
 
+static sw_inline char *swoole_strlchr(char *p, char *last, char c)
+{
+    while (p < last)
+    {
+        if (*p == c)
+        {
+            return p;
+        }
+        p++;
+    }
+    return NULL;
+}
+
 static sw_inline size_t swoole_size_align(size_t size, int pagesize)
 {
     return size + (pagesize - (size % pagesize));
@@ -1398,7 +1411,7 @@ struct _swReactor
     uint32_t max_socket;
 
 #ifdef SW_USE_MALLOC_TRIM
-    time_t last_mallc_trim_time;
+    time_t last_malloc_trim_time;
 #endif
 
 #ifdef SW_USE_TIMEWHEEL
@@ -1429,6 +1442,7 @@ struct _swReactor
 
     int (*setHandle)(swReactor *, int fdtype, swReactor_handle);
     swDefer_callback *defer_callback_list;
+    swDefer_callback idle_task;
 
     void (*onTimeout)(swReactor *);
     void (*onFinish)(swReactor *);

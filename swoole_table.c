@@ -497,7 +497,7 @@ static PHP_METHOD(swoole_table, incr)
     }
     else
     {
-        uint64_t set_value = 0;
+        int64_t set_value = 0;
         memcpy(&set_value, row->data + column->index, column->size);
         if (incrby)
         {
@@ -575,7 +575,7 @@ static PHP_METHOD(swoole_table, decr)
     }
     else
     {
-        uint64_t set_value = 0;
+        int64_t set_value = 0;
         memcpy(&set_value, row->data + column->index, column->size);
         if (decrby)
         {

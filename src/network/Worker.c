@@ -420,6 +420,12 @@ static void swWorker_stop()
         return;
     }
 
+    //The worker process is shutting down now.
+    if (SwooleWG.wait_exit)
+    {
+        return;
+    }
+
     //remove read event
     if (worker->pipe_worker)
     {

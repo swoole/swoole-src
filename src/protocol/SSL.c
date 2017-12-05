@@ -20,6 +20,8 @@
 #ifdef SW_USE_OPENSSL
 
 #include <openssl/crypto.h>
+#include <openssl/x509.h>
+#include <openssl/x509v3.h>
 
 static int openssl_init = 0;
 static pthread_mutex_t *lock_array;
@@ -43,7 +45,6 @@ static int swSSL_npn_advertised(SSL *ssl, const uchar **out, uint32_t *outlen, v
 static int swSSL_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen, const uchar *in, uint32_t inlen, void *arg);
 #endif
 
-static ulong_t swSSL_thread_id(void);
 static void swSSL_lock_callback(int mode, int type, char *file, int line);
 
 static const SSL_METHOD *swSSL_get_method(int method)
@@ -119,6 +120,28 @@ void swSSL_init(void)
     openssl_init = 1;
 }
 
+void swSSL_destroy()
+{
+    if (!openssl_init)
+    {
+        return;
+    }
+
+    CRYPTO_set_locking_callback(NULL);
+    int i;
+    for (i = 0; i < CRYPTO_num_locks(); i++)
+    {
+        pthread_mutex_destroy(&(lock_array[i]));
+    }
+    openssl_init = 0;
+#if OPENSSL_VERSION_NUMBER >= OPENSSL_VERSION_1_0_0
+    CRYPTO_THREADID_set_callback(NULL);
+#else
+    CRYPTO_set_id_callback(NULL);
+#endif
+    CRYPTO_set_locking_callback(NULL);
+}
+
 static void swSSL_lock_callback(int mode, int type, char *file, int line)
 {
     if (mode & CRYPTO_LOCK)
@@ -131,10 +154,17 @@ static void swSSL_lock_callback(int mode, int type, char *file, int line)
     }
 }
 
-static ulong_t swSSL_thread_id(void)
+#if OPENSSL_VERSION_NUMBER >= OPENSSL_VERSION_1_0_0
+static void swSSL_id_callback(CRYPTO_THREADID * id)
 {
-    return (ulong_t) pthread_self();;
+    CRYPTO_THREADID_set_numeric(id, (ulong_t) pthread_self());
 }
+#else
+static ulong_t swSSL_id_callback(void)
+{
+    return (ulong_t) pthread_self();
+}
+#endif
 
 void swSSL_init_thread_safety()
 {
@@ -145,7 +175,12 @@ void swSSL_init_thread_safety()
         pthread_mutex_init(&(lock_array[i]), NULL);
     }
 
-    CRYPTO_set_id_callback((ulong_t (*)()) swSSL_thread_id);
+#if OPENSSL_VERSION_NUMBER >= OPENSSL_VERSION_1_0_0
+    CRYPTO_THREADID_set_callback(swSSL_id_callback);
+#else
+    CRYPTO_set_id_callback(swSSL_id_callback);
+#endif
+
     CRYPTO_set_locking_callback((void (*)()) swSSL_lock_callback);
 }
 
@@ -348,6 +383,176 @@ int swSSL_set_client_certificate(SSL_CTX *ctx, char *cert_file, int depth)
     ERR_clear_error();
     SSL_CTX_set_client_CA_list(ctx, list);
 
+    return SW_OK;
+}
+
+int swSSL_set_capath(swSSL_option *cfg, SSL_CTX *ctx)
+{
+    if (cfg->cafile || cfg->capath)
+    {
+        if (!SSL_CTX_load_verify_locations(ctx, cfg->cafile, cfg->capath))
+        {
+            return SW_ERR;
+        }
+    }
+    else
+    {
+        if (!SSL_CTX_set_default_verify_paths(ctx))
+        {
+            swWarn("Unable to set default verify locations and no CA settings specified.");
+            return SW_ERR;
+        }
+    }
+
+    if (cfg->verify_depth > 0)
+    {
+        SSL_CTX_set_verify_depth(ctx, cfg->verify_depth);
+    }
+
+    return SW_OK;
+}
+
+#ifndef X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT
+static int swSSL_check_name(char *name, ASN1_STRING *pattern)
+{
+    char *s, *end;
+    size_t slen, plen;
+
+    s = name;
+    slen = strlen(name);
+
+    uchar *p = ASN1_STRING_data(pattern);
+    plen = ASN1_STRING_length(pattern);
+
+    if (slen == plen && strncasecmp(s, (char*) p, plen) == 0)
+    {
+        return SW_OK;
+    }
+
+    if (plen > 2 && p[0] == '*' && p[1] == '.')
+    {
+        plen -= 1;
+        p += 1;
+
+        end = s + slen;
+        s = swoole_strlchr(s, end, '.');
+
+        if (s == NULL)
+        {
+            return SW_ERR;
+        }
+
+        slen = end - s;
+
+        if (plen == slen && strncasecmp(s, (char*) p, plen) == 0)
+        {
+            return SW_OK;
+        }
+    }
+    return SW_ERR;
+}
+#endif
+
+int swSSL_check_host(swConnection *conn, char *tls_host_name)
+{
+    X509 *cert = SSL_get_peer_certificate(conn->ssl);
+    if (cert == NULL)
+    {
+        return SW_ERR;
+    }
+
+#ifdef X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT
+    /* X509_check_host() is only available in OpenSSL 1.0.2+ */
+    if (X509_check_host(cert, tls_host_name, strlen(tls_host_name), 0, NULL) != 1)
+    {
+        swWarn("X509_check_host(): no match");
+        goto failed;
+    }
+    goto found;
+#else
+    int n, i;
+    X509_NAME *sname;
+    ASN1_STRING *str;
+    X509_NAME_ENTRY *entry;
+    GENERAL_NAME *altname;
+    STACK_OF(GENERAL_NAME) *altnames;
+
+    /*
+     * As per RFC6125 and RFC2818, we check subjectAltName extension,
+     * and if it's not present - commonName in Subject is checked.
+     */
+    altnames = X509_get_ext_d2i(cert, NID_subject_alt_name, NULL, NULL);
+
+    if (altnames)
+    {
+        n = sk_GENERAL_NAME_num(altnames);
+
+        for (i = 0; i < n; i++)
+        {
+            altname = sk_GENERAL_NAME_value(altnames, i);
+
+            if (altname->type != GEN_DNS)
+            {
+                continue;
+            }
+
+            str = altname->d.dNSName;
+            swTrace("SSL subjectAltName: \"%*s\"", ASN1_STRING_length(str), ASN1_STRING_data(str));
+
+            if (swSSL_check_name(tls_host_name, str) == SW_OK)
+            {
+                swTrace("SSL subjectAltName: match");
+                GENERAL_NAMES_free(altnames);
+                goto found;
+            }
+        }
+
+        swTrace("SSL subjectAltName: no match.");
+        GENERAL_NAMES_free(altnames);
+        goto failed;
+    }
+
+    /*
+     * If there is no subjectAltName extension, check commonName
+     * in Subject.  While RFC2818 requires to only check "most specific"
+     * CN, both Apache and OpenSSL check all CNs, and so do we.
+     */
+    sname = X509_get_subject_name(cert);
+
+    if (sname == NULL)
+    {
+        goto failed;
+    }
+
+    i = -1;
+    for (;;)
+    {
+        i = X509_NAME_get_index_by_NID(sname, NID_commonName, i);
+
+        if (i < 0)
+        {
+            break;
+        }
+
+        entry = X509_NAME_get_entry(sname, i);
+        str = X509_NAME_ENTRY_get_data(entry);
+
+        swTrace("SSL commonName: \"%*s\"", ASN1_STRING_length(str), ASN1_STRING_data(str));
+
+        if (swSSL_check_name(tls_host_name, str) == SW_OK)
+        {
+            swTrace(NGX_LOG_DEBUG_EVENT, c->log, 0,
+                    "SSL commonName: match");
+            goto found;
+        }
+    }
+    swTrace("SSL commonName: no match");
+#endif
+
+    failed: X509_free(cert);
+    return SW_ERR;
+
+    found: X509_free(cert);
     return SW_OK;
 }
 

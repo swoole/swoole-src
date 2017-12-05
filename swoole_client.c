@@ -495,12 +495,37 @@ void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset TSRMLS_DC)
         cli->ssl_option.passphrase = sw_strdup(Z_STRVAL_P(v));
     }
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-    if (php_swoole_array_get_value(vht, "tls_host_name", v))
+    if (php_swoole_array_get_value(vht, "ssl_host_name", v))
     {
         convert_to_string(v);
         cli->ssl_option.tls_host_name = sw_strdup(Z_STRVAL_P(v));
     }
 #endif
+    if (php_swoole_array_get_value(vht, "ssl_verify_peer", v))
+    {
+        convert_to_boolean(v);
+        cli->ssl_option.verify_peer = Z_BVAL_P(v);
+    }
+    if (php_swoole_array_get_value(vht, "ssl_allow_self_signed", v))
+    {
+        convert_to_boolean(v);
+        cli->ssl_option.allow_self_signed = Z_BVAL_P(v);
+    }
+    if (php_swoole_array_get_value(vht, "ssl_cafile", v))
+    {
+        convert_to_string(v);
+        cli->ssl_option.cafile = sw_strdup(Z_STRVAL_P(v));
+    }
+    if (php_swoole_array_get_value(vht, "ssl_capath", v))
+    {
+        convert_to_string(v);
+        cli->ssl_option.capath = sw_strdup(Z_STRVAL_P(v));
+    }
+    if (php_swoole_array_get_value(vht, "ssl_verify_depth", v))
+    {
+        convert_to_long(v);
+        cli->ssl_option.verify_depth = (int) Z_LVAL_P(v);
+    }
     if (cli->ssl_option.cert_file && !cli->ssl_option.key_file)
     {
         swoole_php_fatal_error(E_ERROR, "ssl require key file.");
@@ -2052,7 +2077,7 @@ static PHP_METHOD(swoole_client, verifyPeerCert)
     {
         return;
     }
-    SW_CHECK_RETURN(swSSL_verify(cli->socket, allow_self_signed));
+    SW_CHECK_RETURN(swClient_ssl_verify(cli, allow_self_signed));
 }
 #endif
 

@@ -48,6 +48,7 @@ static int php_swoole_event_onRead(swReactor *reactor, swEvent *event);
 static int php_swoole_event_onWrite(swReactor *reactor, swEvent *event);
 static int php_swoole_event_onError(swReactor *reactor, swEvent *event);
 static void php_swoole_event_onDefer(void *_cb);
+static void php_swoole_event_onEndCallback(void *_cb);
 
 static void free_event_callback(void* data)
 {
@@ -68,6 +69,13 @@ static void free_event_callback(void* data)
         ev_set->socket = NULL;
     }
     efree(ev_set);
+}
+
+static void free_callback(void* data)
+{
+    php_defer_callback *cb = (php_defer_callback *) data;
+    sw_zval_ptr_dtor(&cb->callback);
+    efree(cb);
 }
 
 static int php_swoole_event_onRead(swReactor *reactor, swEvent *event)
@@ -175,6 +183,27 @@ static void php_swoole_event_onDefer(void *_cb)
     }
     sw_zval_ptr_dtor(&defer->callback);
     efree(defer);
+}
+
+static void php_swoole_event_onEndCallback(void *_cb)
+{
+    php_defer_callback *defer = _cb;
+
+    SWOOLE_GET_TSRMLS;
+    zval *retval;
+    if (sw_call_user_function_ex(EG(function_table), NULL, defer->callback, &retval, 0, NULL, 0, NULL TSRMLS_CC) == FAILURE)
+    {
+        swoole_php_fatal_error(E_WARNING, "swoole_event: defer handler error");
+        return;
+    }
+    if (EG(exception))
+    {
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+    }
+    if (retval != NULL)
+    {
+        sw_zval_ptr_dtor(&retval);
+    }
 }
 
 void php_swoole_event_init(void)
@@ -600,12 +629,9 @@ PHP_FUNCTION(swoole_event_del)
         SwooleG.main_reactor->defer(SwooleG.main_reactor, free_event_callback, socket->object);
         socket->object = NULL;
     }
+
+    int ret = SwooleG.main_reactor->del(SwooleG.main_reactor, socket_fd);
     socket->active = 0;
-    int ret = 0;
-    if (socket->fd)
-    {
-        ret = SwooleG.main_reactor->del(SwooleG.main_reactor, socket_fd);
-    }
     SW_CHECK_RETURN(ret);
 }
 
@@ -655,6 +681,65 @@ PHP_FUNCTION(swoole_event_defer)
 #endif
     sw_zval_add_ref(&callback);
     SW_CHECK_RETURN(SwooleG.main_reactor->defer(SwooleG.main_reactor, php_swoole_event_onDefer, defer));
+}
+
+PHP_FUNCTION(swoole_event_cycle)
+{
+    if (!SwooleG.main_reactor)
+    {
+        swoole_php_fatal_error(E_WARNING, "reactor no ready, cannot swoole_event_defer.");
+        RETURN_FALSE;
+    }
+
+    zval *callback;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &callback) == FAILURE)
+    {
+        return;
+    }
+
+    if (ZVAL_IS_NULL(callback))
+    {
+        if (SwooleG.main_reactor->idle_task.callback == NULL)
+        {
+            RETURN_FALSE;
+        }
+        else
+        {
+            SwooleG.main_reactor->defer(SwooleG.main_reactor, free_callback, SwooleG.main_reactor->idle_task.data);
+            SwooleG.main_reactor->idle_task.callback = NULL;
+            SwooleG.main_reactor->idle_task.data = NULL;
+            RETURN_TRUE;
+        }
+    }
+
+    char *func_name;
+    if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
+    {
+        swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+        efree(func_name);
+        RETURN_FALSE;
+    }
+    efree(func_name);
+
+    if (SwooleG.main_reactor->idle_task.data != NULL)
+    {
+        SwooleG.main_reactor->defer(SwooleG.main_reactor, free_callback, SwooleG.main_reactor->idle_task.data);
+    }
+
+    php_defer_callback *cb = emalloc(sizeof(php_defer_callback));
+
+#if PHP_MAJOR_VERSION >= 7
+    cb->callback = &cb->_callback;
+    memcpy(cb->callback, callback, sizeof(zval));
+#else
+    cb->callback = callback;
+#endif
+    sw_zval_add_ref(&callback);
+
+    SwooleG.main_reactor->idle_task.callback = php_swoole_event_onEndCallback;
+    SwooleG.main_reactor->idle_task.data = cb;
+
+    RETURN_TRUE;
 }
 
 PHP_FUNCTION(swoole_event_exit)

@@ -61,9 +61,8 @@ typedef struct
 #ifdef SW_COROUTINE
     php_context *context;  //add for coro
     uint8_t useless; //1 代表没有用
-    long timeout_id;
+    swTimer_node *timer;
 #endif
-
 
 } dns_request;
 
@@ -89,7 +88,7 @@ static void php_swoole_aio_onComplete(swAio_event *event);
 static void php_swoole_dns_callback(char *domain, swDNSResolver_result *result, void *data);
 #ifdef SW_COROUTINE
 static void php_swoole_dns_callback_coro(char *domain, swDNSResolver_result *result, void *data);
-static void php_swoole_dns_timeout_coro(php_context *cxt);
+static void php_swoole_dns_timeout_coro(swTimer *timer, swTimer_node *tnode);
 #endif
 
 static void php_swoole_file_request_free(void *data);
@@ -276,17 +275,17 @@ static void php_swoole_dns_callback_coro(char *domain, swDNSResolver_result *res
         cache = emalloc(sizeof(dns_cache));
         swHashMap_add(request_cache_map, Z_STRVAL_P(req->domain), Z_STRLEN_P(req->domain), cache);
         cache->zaddress = swString_new(20);
-    };
+    }
 
     swString_write_ptr(cache->zaddress, 0, Z_STRVAL_P(zaddress), Z_STRLEN_P(zaddress));
 
     cache->update_time = (int64_t) swTimer_get_now_msec + (int64_t) (SwooleG.dns_cache_refresh_time * 1000);
 
     //timeout
-    if (req->timeout_id > 0)
+    if (req->timer)
     {
-        php_swoole_clear_timer_coro(req->timeout_id TSRMLS_CC);
-        req->timeout_id = 0;
+        swTimer_del(&SwooleG.timer, req->timer);
+        req->timer = NULL;
     }
     if (req->useless)
     {
@@ -313,12 +312,11 @@ static void php_swoole_dns_callback_coro(char *domain, swDNSResolver_result *res
 }
 
 //用于timeout
-static void php_swoole_dns_timeout_coro(php_context *cxt)
+static void php_swoole_dns_timeout_coro(swTimer *timer, swTimer_node *tnode)
 {
-
     zval *retval = NULL;
     zval *zaddress;
-
+    php_context *cxt = (php_context *) tnode->data;
 #if PHP_MAJOR_VERSION < 7
     dns_request *req =(dns_request *) cxt->coro_params;
 #else
@@ -1314,7 +1312,7 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro)
     req->useless = 0;
 
     php_context *sw_current_context = emalloc(sizeof(php_context));
-    sw_current_context->onTimeout = php_swoole_dns_timeout_coro;
+    sw_current_context->onTimeout = NULL;
     sw_current_context->state = SW_CORO_CONTEXT_RUNNING;
 #if PHP_MAJOR_VERSION < 7
     sw_current_context->coro_params = req;
@@ -1330,7 +1328,9 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro)
         SW_CHECK_RETURN(ret);
     }
     //add timeout
-    if (php_swoole_add_timer_coro((int) (timeout * 1000), 0, &req->timeout_id, (void *) sw_current_context, NULL TSRMLS_CC))
+    php_swoole_check_timer(timeout);
+    req->timer = SwooleG.timer.add(&SwooleG.timer, (int) (timeout * 1000), 0, sw_current_context, php_swoole_dns_timeout_coro);
+    if (req->timer)
     {
         sw_current_context->state = SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST;
     }
