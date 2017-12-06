@@ -25,5 +25,6 @@ var_dump($obj->unpack($ser, UNSERIALIZE_OBJECT_TO_STDCLASS));
 var_dump($obj->unpack($ser2, UNSERIALIZE_OBJECT_TO_STDCLASS));
 var_dump(UNSERIALIZE_OBJECT_TO_ARRAY);
 var_dump(UNSERIALIZE_OBJECT_TO_STDCLASS);
+var_dump(get_class($obj->unpack($ser, UNSERIALIZE_OBJECT_TO_STDCLASS)));
 
 ?>

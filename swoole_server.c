@@ -356,7 +356,7 @@ zval* php_swoole_task_unpack(swEventData *task_result TSRMLS_DC)
 #if PHP_MAJOR_VERSION >= 7
         if (SWOOLE_G(fast_serialize))
         {
-            if (php_swoole_unserialize(result_data_str, result_data_len, result_unserialized_data, NULL))
+            if (php_swoole_unserialize(result_data_str, result_data_len, result_unserialized_data, NULL, 0))
             {
                 result_data = result_unserialized_data;
             }
