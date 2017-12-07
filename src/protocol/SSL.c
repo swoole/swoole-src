@@ -541,8 +541,7 @@ int swSSL_check_host(swConnection *conn, char *tls_host_name)
 
         if (swSSL_check_name(tls_host_name, str) == SW_OK)
         {
-            swTrace(NGX_LOG_DEBUG_EVENT, c->log, 0,
-                    "SSL commonName: match");
+            swTrace("SSL commonName: match");
             goto found;
         }
     }
