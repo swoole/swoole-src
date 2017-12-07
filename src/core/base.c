@@ -975,11 +975,11 @@ char *swoole_kmp_strnstr(char *haystack, char *needle, uint32_t length)
         }
         if (__af == AF_INET)
         {
-            memcpy(addr_list[i].v4, hbuf.h_addr_list[i], host_entry->h_length);
+            memcpy(addr_list[i].v4, hbuf.h_addr_list[i], hbuf.h_length);
         }
         else
         {
-            memcpy(addr_list[i].v6, hbuf.h_addr_list[i], host_entry->h_length);
+            memcpy(addr_list[i].v6, hbuf.h_addr_list[i], hbuf.h_length);
         }
     }
     if (__af == AF_INET)
