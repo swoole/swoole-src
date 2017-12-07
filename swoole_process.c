@@ -620,6 +620,10 @@ static void php_swoole_onSignal(int signo)
     {
         swoole_php_fatal_error(E_WARNING, "user_signal handler error");
     }
+    if (EG(exception))
+    {
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+    }
     if (retval != NULL)
     {
         sw_zval_ptr_dtor(&retval);
