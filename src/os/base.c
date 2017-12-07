@@ -247,7 +247,7 @@ static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len)
         }
         break;
     case SW_AIO_DNS_LOOKUP:
-        ret = swoole_gethostbyname(AF_INET, event->buf, (char *) &addr);
+        ret = swoole_gethostbyname(event->flags == AF_INET6 ? AF_INET6 : AF_INET, event->buf, (char *) &addr);
         if (ret < 0)
         {
             event->error = h_errno;

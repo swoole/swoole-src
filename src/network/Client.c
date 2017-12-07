@@ -618,6 +618,7 @@ static int swClient_tcp_connect_async(swClient *cli, char *host, int port, doubl
 
         memcpy(ev.buf, cli->server_host, strlen(cli->server_host));
 
+        ev.flags = cli->_sock_domain;
         ev.type = SW_AIO_DNS_LOOKUP;
         ev.object = cli;
         ev.callback = swClient_onResolveCompleted;
