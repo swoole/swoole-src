@@ -45,6 +45,8 @@ typedef struct _swAio_event
     void *req;
     int ret;
     int error;
+    void *object;
+    void (*callback)(struct _swAio_event *event);
 } swAio_event;
 
 typedef struct
@@ -70,6 +72,7 @@ int swAio_init(void);
 void swAio_free(void);
 int swAioBase_init(int max_aio_events);
 int swAio_dns_lookup(void *hostname, void *ip_addr, size_t size);
+int swAio_dispatch(swAio_event *_event);
 
 #ifdef HAVE_GCC_AIO
 int swAioGcc_init(int max_aio_events);
