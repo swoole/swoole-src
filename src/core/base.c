@@ -937,19 +937,16 @@ char *swoole_kmp_strnstr(char *haystack, char *needle, uint32_t length)
 {
     int __af = flags & (~SW_DNS_LOOKUP_RANDOM);
     int index = 0;
-   
     int rc, err;
+    int buf_len = 256;
     struct hostent hbuf;
-    struct hostent *host_entry = &hbuf;
     struct hostent *result;
 
-    char * buf = (char*)malloc(256);
-    memset(buf,0,256);
-    int len = 256;
-
-    while ((rc = gethostbyname_r(name, &hbuf, buf, len, &result, &err)) == ERANGE) {
-        len *= 2;
-        void *tmp = realloc(buf, len);
+    char * buf = (char*)malloc(buf_len);
+    memset(buf, 0, buf_len);
+    while ((rc = gethostbyname2_r(name, __af, &hbuf, buf, buf_len, &result, &err)) == ERANGE) {
+        buf_len *= 2;
+        void *tmp = realloc(buf, buf_len);
         if (NULL == tmp) {
             free(buf);
             return SW_ERR;
@@ -972,26 +969,26 @@ char *swoole_kmp_strnstr(char *haystack, char *needle, uint32_t length)
     int i = 0;
     for (i = 0; i < SW_DNS_HOST_BUFFER_SIZE; i++)
     {
-        if (host_entry->h_addr_list[i] == NULL)
+        if (hbuf.h_addr_list[i] == NULL)
         {
             break;
         }
         if (__af == AF_INET)
         {
-            memcpy(addr_list[i].v4, host_entry->h_addr_list[i], host_entry->h_length);
+            memcpy(addr_list[i].v4, hbuf.h_addr_list[i], host_entry->h_length);
         }
         else
         {
-            memcpy(addr_list[i].v6, host_entry->h_addr_list[i], host_entry->h_length);
+            memcpy(addr_list[i].v6, hbuf.h_addr_list[i], host_entry->h_length);
         }
     }
     if (__af == AF_INET)
     {
-        memcpy(addr, addr_list[index].v4, host_entry->h_length);
+        memcpy(addr, addr_list[index].v4, hbuf.h_length);
     }
     else
     {
-        memcpy(addr, addr_list[index].v6, host_entry->h_length);
+        memcpy(addr, addr_list[index].v6, hbuf.h_length);
     }
 
     free(buf);
