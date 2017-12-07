@@ -933,14 +933,33 @@ char *swoole_kmp_strnstr(char *haystack, char *needle, uint32_t length)
 /**
  * DNS lookup
  */
-int swoole_gethostbyname(int flags, char *name, char *addr)
+ int swoole_gethostbyname(int flags, char *name, char *addr)
 {
     int __af = flags & (~SW_DNS_LOOKUP_RANDOM);
     int index = 0;
+   
+    int rc, err;
+    struct hostent hbuf;
+    struct hostent *host_entry = &hbuf;
+    struct hostent *result;
 
-    struct hostent *host_entry;
-    if (!(host_entry = gethostbyname2(name, __af)))
-    {
+    char * buf = (char*)malloc(256);
+    memset(buf,0,256);
+    int len = 256;
+
+    while ((rc = gethostbyname_r(name, &hbuf, buf, len, &result, &err)) == ERANGE) {
+        len *= 2;
+        void *tmp = realloc(buf, len);
+        if (NULL == tmp) {
+            free(buf);
+            return SW_ERR;
+        }else{
+            buf = tmp;
+        }
+    }
+
+    if (0 != rc || NULL == result) {
+        free(buf);
         return SW_ERR;
     }
 
@@ -974,6 +993,9 @@ int swoole_gethostbyname(int flags, char *name, char *addr)
     {
         memcpy(addr, addr_list[index].v6, host_entry->h_length);
     }
+
+    free(buf);
+    
     return SW_OK;
 }
 
