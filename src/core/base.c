@@ -933,14 +933,30 @@ char *swoole_kmp_strnstr(char *haystack, char *needle, uint32_t length)
 /**
  * DNS lookup
  */
-int swoole_gethostbyname(int flags, char *name, char *addr)
+ int swoole_gethostbyname(int flags, char *name, char *addr)
 {
     int __af = flags & (~SW_DNS_LOOKUP_RANDOM);
     int index = 0;
+    int rc, err;
+    int buf_len = 256;
+    struct hostent hbuf;
+    struct hostent *result;
 
-    struct hostent *host_entry;
-    if (!(host_entry = gethostbyname2(name, __af)))
-    {
+    char * buf = (char*)malloc(buf_len);
+    memset(buf, 0, buf_len);
+    while ((rc = gethostbyname2_r(name, __af, &hbuf, buf, buf_len, &result, &err)) == ERANGE) {
+        buf_len *= 2;
+        void *tmp = realloc(buf, buf_len);
+        if (NULL == tmp) {
+            free(buf);
+            return SW_ERR;
+        }else{
+            buf = tmp;
+        }
+    }
+
+    if (0 != rc || NULL == result) {
+        free(buf);
         return SW_ERR;
     }
 
@@ -953,27 +969,30 @@ int swoole_gethostbyname(int flags, char *name, char *addr)
     int i = 0;
     for (i = 0; i < SW_DNS_HOST_BUFFER_SIZE; i++)
     {
-        if (host_entry->h_addr_list[i] == NULL)
+        if (hbuf.h_addr_list[i] == NULL)
         {
             break;
         }
         if (__af == AF_INET)
         {
-            memcpy(addr_list[i].v4, host_entry->h_addr_list[i], host_entry->h_length);
+            memcpy(addr_list[i].v4, hbuf.h_addr_list[i], hbuf.h_length);
         }
         else
         {
-            memcpy(addr_list[i].v6, host_entry->h_addr_list[i], host_entry->h_length);
+            memcpy(addr_list[i].v6, hbuf.h_addr_list[i], hbuf.h_length);
         }
     }
     if (__af == AF_INET)
     {
-        memcpy(addr, addr_list[index].v4, host_entry->h_length);
+        memcpy(addr, addr_list[index].v4, hbuf.h_length);
     }
     else
     {
-        memcpy(addr, addr_list[index].v6, host_entry->h_length);
+        memcpy(addr, addr_list[index].v6, hbuf.h_length);
     }
+
+    free(buf);
+    
     return SW_OK;
 }
 
