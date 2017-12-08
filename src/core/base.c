@@ -942,21 +942,26 @@ char *swoole_kmp_strnstr(char *haystack, char *needle, uint32_t length)
     struct hostent hbuf;
     struct hostent *result;
 
-    char * buf = (char*)malloc(buf_len);
+    char * buf = (char*) sw_malloc(buf_len);
     memset(buf, 0, buf_len);
-    while ((rc = gethostbyname2_r(name, __af, &hbuf, buf, buf_len, &result, &err)) == ERANGE) {
+    while ((rc = gethostbyname2_r(name, __af, &hbuf, buf, buf_len, &result, &err)) == ERANGE)
+    {
         buf_len *= 2;
         void *tmp = realloc(buf, buf_len);
-        if (NULL == tmp) {
-            free(buf);
+        if (NULL == tmp)
+        {
+            sw_free(buf);
             return SW_ERR;
-        }else{
+        }
+        else
+        {
             buf = tmp;
         }
     }
 
-    if (0 != rc || NULL == result) {
-        free(buf);
+    if (0 != rc || NULL == result)
+    {
+        sw_free(buf);
         return SW_ERR;
     }
 
@@ -991,7 +996,7 @@ char *swoole_kmp_strnstr(char *haystack, char *needle, uint32_t length)
         memcpy(addr, addr_list[index].v6, hbuf.h_length);
     }
 
-    free(buf);
+    sw_free(buf);
     
     return SW_OK;
 }
