@@ -268,8 +268,8 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_async_write, 0, 0, 2)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_async_dns_lookup, 0, 0, 2)
-    ZEND_ARG_INFO(0, domain_name)
-    ZEND_ARG_INFO(0, content)
+    ZEND_ARG_INFO(0, hostname)
+    ZEND_ARG_INFO(0, callback)
 ZEND_END_ARG_INFO()
 
 #ifdef SW_COROUTINE

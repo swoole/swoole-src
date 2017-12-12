@@ -13,6 +13,9 @@ Swoole is an event-driven asynchronous & concurrent networking communication fra
 * __中文文档__: <http://wiki.swoole.com/>
 * __IRC__:  <https://gitter.im/swoole/swoole-src>
 
+* __Twitter__: <https://twitter.com/php_swoole>
+* __Slack Group__: <https://goo.gl/forms/wooTTDmhbu30x4qC3>
+
 Event-based
 ------
 
