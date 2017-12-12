@@ -258,6 +258,7 @@ typedef struct
 	zend_bool defer;
 	zend_bool _defer;
 	zend_bool connecting;
+    zend_bool connected;
     swoole_redis_coro_state state;
     swoole_redis_coro_io_status iowait;
     uint16_t queued_cmd_count;
@@ -1037,6 +1038,12 @@ static PHP_METHOD(swoole_redis_coro, connect)
 	redis->serialize = serialize;
     redisAsyncContext *context;
 
+    if (redis->connected)
+    {
+        swoole_php_fatal_error(E_WARNING, "connection to the server has already been established.");
+        RETURN_FALSE;
+    }
+
     if (redis->state != SWOOLE_REDIS_CORO_STATE_CONNECT || redis->state != SWOOLE_REDIS_CORO_STATE_CLOSED)
     {
 		//This is reconnect, close previous connection
@@ -1209,6 +1216,7 @@ static PHP_METHOD(swoole_redis_coro, close)
     swConnection *_socket = swReactor_get(SwooleG.main_reactor, redis->context->c.fd);
     _socket->active = 0;
 
+    redis->connected = 0;
 	redis->state = SWOOLE_REDIS_CORO_STATE_CLOSING;
 	redis->iowait = SW_REDIS_CORO_STATUS_CLOSED;
     redisCallback *head = redis->context->replies.head;
@@ -4005,6 +4013,7 @@ void swoole_redis_coro_onConnect(const redisAsyncContext *c, int status)
     }
 
     redis->connecting = 1;
+    redis->connected = 1;
     swoole_redis_coro_resume(result);
     redis->connecting = 0;
 }
@@ -4014,6 +4023,7 @@ static void swoole_redis_coro_onClose(const redisAsyncContext *c, int status)
     swRedisClient *redis = c->ev.data;
     redis->state = SWOOLE_REDIS_CORO_STATE_CLOSED;
     redis->context = NULL;
+    redis->connected = 0;
 
     swConnection *_socket = swReactor_get(SwooleG.main_reactor, c->c.fd);
     _socket->active = 0;

@@ -216,8 +216,8 @@ static PHP_METHOD(swoole_mysql_coro, connect)
 
     if (client->cli)
     {
-		//This is reconnect, close previous connection
-        swoole_mysql_coro_close(getThis());
+        swoole_php_fatal_error(E_WARNING, "connection to the server has already been established.");
+        RETURN_FALSE;
     }
 
     mysql_connector *connector = &client->connector;
