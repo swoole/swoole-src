@@ -463,8 +463,6 @@ static PHP_METHOD(swoole_coroutine_util, create)
     }
     efree(func_name);
 
-    php_swoole_check_reactor();
-
     if (swReactorCheckPoint == NULL)
     {
         coro_init(TSRMLS_C);
