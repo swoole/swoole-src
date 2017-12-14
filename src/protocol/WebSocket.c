@@ -284,7 +284,8 @@ int swWebSocket_dispatch_frame(swConnection *conn, char *data, uint32_t length)
         }
         else
         {
-            swWebSocket_encode(&send_frame, data += 2, length - 2, WEBSOCKET_OPCODE_PONG, 1, 0);
+            offset = ws.header.MASK ? 6 : 2;
+            swWebSocket_encode(&send_frame, data += offset, length - offset, WEBSOCKET_OPCODE_PONG, 1, 0);
         }
         swConnection_send(conn, send_frame.str, send_frame.length, 0);
         break;
