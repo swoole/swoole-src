@@ -50,6 +50,8 @@ class WebSocketClient
      */
     private $connected = false;
 
+    public $returnData = false;
+
     /**
      * @param string $host
      * @param int    $port
@@ -146,6 +148,9 @@ class WebSocketClient
             case 'bin':
                 $_type = WEBSOCKET_OPCODE_BINARY;
                 break;
+            case 'ping':
+                $_type = WEBSOCKET_OPCODE_PING;
+                break;
             default:
                 return false;
         }
@@ -178,7 +183,7 @@ class WebSocketClient
         $frame = swoole_websocket_server::unpack($response);
         if ($frame)
         {
-            return $frame->data;
+            return $this->returnData ? $frame->data : $frame;
         }
         else
         {
