@@ -400,6 +400,9 @@ void php_swoole_register_callback(swServer *serv);
 void php_swoole_client_free(zval *object, swClient *cli TSRMLS_DC);
 swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port);
 void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC);
+#ifdef SW_USE_OPENSSL
+void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset TSRMLS_DC);
+#endif
 void php_swoole_websocket_unpack(swString *data, zval *zframe TSRMLS_DC);
 void php_swoole_sha1(const char *str, int _len, unsigned char *digest);
 int php_swoole_client_isset_callback(zval *zobject, int type TSRMLS_DC);

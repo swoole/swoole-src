@@ -74,6 +74,7 @@ typedef struct _swClient
     uint32_t redirect :1;
     uint32_t http2 :1;
     uint32_t sleep :1;
+    uint32_t wait_dns :1;
 
     /**
      * one package: length check
@@ -88,6 +89,8 @@ typedef struct _swClient
     uint32_t reuse_count;
 
     char *server_str;
+    char *server_host;
+    int server_port;
     void *ptr;
     void *params;
 
