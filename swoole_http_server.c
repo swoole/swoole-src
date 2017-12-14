@@ -1555,6 +1555,9 @@ static PHP_METHOD(swoole_http_server, start)
     {
         SW_ALLOC_INIT_ZVAL(zsetting);
         array_init(zsetting);
+#ifdef HT_ALLOW_COW_VIOLATION
+        HT_ALLOW_COW_VIOLATION(Z_ARRVAL_P(zsetting));
+#endif
         zend_update_property(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("setting"), zsetting TSRMLS_CC);
     }
 
