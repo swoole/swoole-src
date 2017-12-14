@@ -42,13 +42,14 @@
         <api>2.0</api>
     </version>
     <stability>
-        <release>beta</release>
-        <api>beta</api>
+        <release>stable</release>
+        <api>stable</api>
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
     - Merge branch 1.9
     - Improve stability
+    - First stable version
     </notes>
     <contents>
         <dir name="/">
