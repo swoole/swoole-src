@@ -70,13 +70,13 @@ int swMutex_lockwait(swLock *lock, int timeout_msec)
 {
     int sub = 1;
     int sleep_ms = 1000;
-    
+
     if (timeout_msec > 100)
     {
         sub = 10;
         sleep_ms = 10000;
     }
-    
+
     while( timeout_msec > 0)
     {
         if (pthread_mutex_trylock(&lock->object.mutex._lock) == 0)

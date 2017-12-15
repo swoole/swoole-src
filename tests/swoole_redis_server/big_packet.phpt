@@ -42,11 +42,11 @@ $pm->childFunc = function () use ($pm)
         $key = $data[0];
         if (empty($server->data[$key]))
         {
-            return Server::format(Server::NIL);
+            $server->send($fd, Server::format(Server::NIL));
         }
         else
         {
-            return Server::format(Server::STRING, $server->data[$key]);
+            $server->send($fd, Server::format(Server::STRING, $server->data[$key]));
         }
     });
 
@@ -57,7 +57,7 @@ $pm->childFunc = function () use ($pm)
         }
         $key = $data[0];
         $server->data[$key] = $data[1];
-        return Server::format(Server::STATUS, 'OK');
+        $server->send($fd, Server::format(Server::STATUS, 'OK'));
     });
 
     $server->on('WorkerStart', function ($server) use ($pm) {

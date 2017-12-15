@@ -62,7 +62,8 @@ typedef struct
 enum client_property
 {
     client_property_callback = 0,
-    client_property_socket = 1,
+    client_property_coroutine = 1,
+    client_property_socket = 2,
 };
 
 static PHP_METHOD(swoole_client, __construct);

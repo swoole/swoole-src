@@ -35,8 +35,8 @@ ZEND_END_ARG_INFO()
 
 static void swoole_serialize_object(seriaString *buffer, zval *zvalue, size_t start);
 static void swoole_serialize_arr(seriaString *buffer, zend_array *zvalue);
-static void* swoole_unserialize_arr(void *buffer, zval *zvalue, uint32_t num);
-static void* swoole_unserialize_object(void *buffer, zval *return_value, zend_uchar bucket_len, zval *args);
+static void* swoole_unserialize_arr(void *buffer, zval *zvalue, uint32_t num, long flag);
+static void* swoole_unserialize_object(void *buffer, zval *return_value, zend_uchar bucket_len, zval *args, long flag);
 
 static PHP_METHOD(swoole_serialize, pack);
 static PHP_METHOD(swoole_serialize, unpack);
@@ -66,6 +66,8 @@ void swoole_serialize_init(int module_number TSRMLS_DC)
     memset(&mini_filter, 0, sizeof (mini_filter));
 
     REGISTER_LONG_CONSTANT("SWOOLE_FAST_PACK", SW_FAST_PACK, CONST_CS | CONST_PERSISTENT);
+    REGISTER_LONG_CONSTANT("UNSERIALIZE_OBJECT_TO_ARRAY", UNSERIALIZE_OBJECT_TO_ARRAY, CONST_CS | CONST_PERSISTENT);
+    REGISTER_LONG_CONSTANT("UNSERIALIZE_OBJECT_TO_STDCLASS", UNSERIALIZE_OBJECT_TO_STDCLASS, CONST_CS | CONST_PERSISTENT);
 }
 
 static CPINLINE int swoole_string_new(size_t size, seriaString *str, zend_uchar type)
@@ -635,7 +637,7 @@ static CPINLINE void * get_pack_string_len_addr(void ** buffer, size_t *strlen)
  * array
  */
 
-static void* swoole_unserialize_arr(void *buffer, zval *zvalue, uint32_t nNumOfElements)
+static void* swoole_unserialize_arr(void *buffer, zval *zvalue, uint32_t nNumOfElements, long flag)
 {
     //Initialize zend array
     zend_ulong h, nIndex, max_index = 0;
@@ -644,8 +646,12 @@ static void* swoole_unserialize_arr(void *buffer, zval *zvalue, uint32_t nNumOfE
     {
         return NULL;
     }
+    if (!buffer)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_NOTICE, "illegal unserialize data");
+        return NULL;
+    }
     ZVAL_NEW_ARR(zvalue);
-
     //Initialize buckets
     zend_array *ht = Z_ARR_P(zvalue);
     ht->nTableSize = size;
@@ -799,7 +805,7 @@ static void* swoole_unserialize_arr(void *buffer, zval *zvalue, uint32_t nNumOfE
         {
             uint32_t num = 0;
             buffer = get_array_real_len(buffer, type.data_len, &num);
-            buffer = swoole_unserialize_arr(buffer, &p->val, num);
+            buffer = swoole_unserialize_arr(buffer, &p->val, num, flag);
         }
         else if (type.data_type == IS_LONG)
         {
@@ -812,7 +818,7 @@ static void* swoole_unserialize_arr(void *buffer, zval *zvalue, uint32_t nNumOfE
         }
         else if (type.data_type == IS_UNDEF)
         {
-            buffer = swoole_unserialize_object(buffer, &p->val, type.data_len, NULL);
+            buffer = swoole_unserialize_object(buffer, &p->val, type.data_len, NULL, flag);
             Z_TYPE_INFO(p->val) = IS_OBJECT_EX;
         }
 
@@ -981,7 +987,7 @@ try_again:
 
                 if (ZEND_HASH_GET_APPLY_COUNT(ht) > 1)
                 {
-                    php_error_docref(NULL TSRMLS_CC, E_NOTICE, "you array have cycle ref");
+                    php_error_docref(NULL TSRMLS_CC, E_NOTICE, "the array has cycle ref");
                 }
                 else
                 {
@@ -1086,12 +1092,12 @@ static void swoole_serialize_object(seriaString *buffer, zval *obj, size_t start
     zend_string *name = Z_OBJCE_P(obj)->name;
     if (ZEND_HASH_GET_APPLY_COUNT(Z_OBJPROP_P(obj)) > 1)
     {
-        zend_throw_exception_ex(NULL, 0, "the object %s have cycle ref!", name->val);
+        zend_throw_exception_ex(NULL, 0, "the object %s has cycle ref.", name->val);
         return;
     }
     if (name->len > 0xffff)
     {//so long?
-        zend_throw_exception_ex(NULL, 0, "too long obj name!");
+        zend_throw_exception_ex(NULL, 0, "the object name is too long.");
     }
     else
     {
@@ -1241,7 +1247,7 @@ static CPINLINE zend_class_entry* swoole_try_get_ce(zend_string *class_name)
  * obj layout
  * type| key[0|1] |name len| name| buket len |buckets
  */
-static void* swoole_unserialize_object(void *buffer, zval *return_value, zend_uchar bucket_len, zval *args)
+static void* swoole_unserialize_object(void *buffer, zval *return_value, zend_uchar bucket_len, zval *args, long flag)
 {
     zval property;
     uint32_t arr_num = 0;
@@ -1252,9 +1258,16 @@ static void* swoole_unserialize_object(void *buffer, zval *return_value, zend_uc
         return NULL;
     }
     buffer += 2;
-    zend_string *class_name = swoole_string_init((char*) buffer, name_len);
+    zend_string *class_name;
+    if (flag == UNSERIALIZE_OBJECT_TO_STDCLASS) 
+    {
+        class_name = swoole_string_init("StdClass", 8);
+    } 
+    else 
+    {
+        class_name = swoole_string_init((char*) buffer, name_len);
+    }
     buffer += name_len;
-
     zend_class_entry *ce = swoole_try_get_ce(class_name);
     swoole_string_release(class_name);
 
@@ -1264,7 +1277,7 @@ static void* swoole_unserialize_object(void *buffer, zval *return_value, zend_uc
     }
 
     buffer = get_array_real_len(buffer, bucket_len, &arr_num);
-    buffer = swoole_unserialize_arr(buffer, &property, arr_num);
+    buffer = swoole_unserialize_arr(buffer, &property, arr_num, flag);
 
     object_init_ex(return_value, ce);
 
@@ -1382,7 +1395,7 @@ again:
             break;
         }
         default:
-            php_error_docref(NULL TSRMLS_CC, E_NOTICE, "swoole serialize not support this type ");
+            php_error_docref(NULL TSRMLS_CC, E_NOTICE, "the type is not supported by swoole serialize.");
 
             break;
     }
@@ -1424,7 +1437,7 @@ static CPINLINE int swoole_seria_check_eof(void *buffer, size_t len)
  * return_value is unseria bucket
  * args is for the object ctor (can be NULL)
  */
-PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, zval *object_args)
+PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, zval *object_args, long flag)
 {
     SBucketType type = *(SBucketType*) (buffer);
     zend_uchar real_type = type.data_type;
@@ -1459,7 +1472,7 @@ PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, 
             unser_start = buffer - sizeof (SBucketType);
             uint32_t num = 0;
             buffer = get_array_real_len(buffer, type.data_len, &num);
-            if (!swoole_unserialize_arr(buffer, return_value, num))
+            if (!swoole_unserialize_arr(buffer, return_value, num, flag))
             {
                 return SW_FALSE;
             }
@@ -1472,13 +1485,13 @@ PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, 
                   return SW_FALSE;
             }
             unser_start = buffer - sizeof (SBucketType);
-            if (!swoole_unserialize_object(buffer, return_value, type.data_len, object_args))
+            if (!swoole_unserialize_object(buffer, return_value, type.data_len, object_args, flag))
             {
                 return SW_FALSE;
             }
             break;
         default:
-            php_error_docref(NULL TSRMLS_CC, E_NOTICE, "swoole serialize not support this type ");
+            php_error_docref(NULL TSRMLS_CC, E_NOTICE, "the type is not supported by swoole serialize.");
             return SW_FALSE;
     }
 
@@ -1505,12 +1518,13 @@ static PHP_METHOD(swoole_serialize, unpack)
     char *buffer = NULL;
     size_t arg_len;
     zval *args = NULL; //for object
+    long flag = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|a", &buffer, &arg_len, &args) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|la", &buffer, &arg_len, &flag, &args) == FAILURE)
     {
         RETURN_FALSE;
     }
-    if (!php_swoole_unserialize(buffer, arg_len, return_value, args))
+    if (!php_swoole_unserialize(buffer, arg_len, return_value, args, flag))
     {
         RETURN_FALSE;
     }

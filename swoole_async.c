@@ -20,6 +20,14 @@
 
 #include "ext/standard/file.h"
 
+
+#ifdef SW_COROUTINE
+#include "swoole_coroutine.h"
+#include "ext/standard/basic_functions.h"
+#include <setjmp.h>
+#endif
+
+
 typedef struct
 {
 #if PHP_MAJOR_VERSION >= 7
@@ -50,7 +58,19 @@ typedef struct
 #endif
     zval *callback;
     zval *domain;
+#ifdef SW_COROUTINE
+    php_context *context;  //add for coro
+    uint8_t useless; //1 代表没有用
+    swTimer_node *timer;
+#endif
+
 } dns_request;
+
+typedef struct
+{
+    swString *zaddress;
+    int64_t  update_time;
+} dns_cache;
 
 typedef struct
 {
@@ -66,10 +86,31 @@ typedef struct
 static void php_swoole_check_aio();
 static void php_swoole_aio_onComplete(swAio_event *event);
 static void php_swoole_dns_callback(char *domain, swDNSResolver_result *result, void *data);
+#ifdef SW_COROUTINE
+static void php_swoole_dns_callback_coro(char *domain, swDNSResolver_result *result, void *data);
+static void php_swoole_dns_timeout_coro(swTimer *timer, swTimer_node *tnode);
+#endif
+
 static void php_swoole_file_request_free(void *data);
 
 static swHashMap *php_swoole_open_files;
 static swHashMap *php_swoole_aio_request;
+
+#ifdef SW_COROUTINE
+static swHashMap *request_cache_map = NULL; //以domin为区分
+#endif
+
+static sw_inline int64_t swTimer_get_now_msec()
+{
+    struct timeval now;
+    if (swTimer_now(&now) < 0)
+    {
+        return SW_ERR;
+    }
+    int64_t msec1 = (now.tv_sec) * 1000;
+    int64_t msec2 = (now.tv_usec) / 1000;
+    return msec1 + msec2;
+}
 
 static sw_inline void swoole_aio_free(void *ptr)
 {
@@ -197,6 +238,120 @@ static void php_swoole_dns_callback(char *domain, swDNSResolver_result *result, 
     }
     sw_zval_ptr_dtor(&zaddress);
 }
+
+//用于coro 回调
+#ifdef SW_COROUTINE
+static void php_swoole_dns_callback_coro(char *domain, swDNSResolver_result *result, void *data)
+{
+    SWOOLE_GET_TSRMLS;
+    dns_request *req = data;
+    zval *retval = NULL;
+
+    zval *zaddress;
+    char *address;
+    SW_MAKE_STD_ZVAL(zaddress);
+    if (result->num > 0)
+    {
+        if (SwooleG.dns_lookup_random)
+        {
+            address = result->hosts[rand() % result->num].address;
+        }
+        else
+        {
+            address = result->hosts[0].address;
+        }
+
+        SW_ZVAL_STRING(zaddress, address, 1);
+    }
+    else
+    {
+        SW_ZVAL_STRING(zaddress, "", 1);
+    }
+
+    //update cache
+    dns_cache *cache = swHashMap_find(request_cache_map, Z_STRVAL_P(req->domain), Z_STRLEN_P(req->domain));
+    if (cache == NULL )
+    {
+        cache = emalloc(sizeof(dns_cache));
+        swHashMap_add(request_cache_map, Z_STRVAL_P(req->domain), Z_STRLEN_P(req->domain), cache);
+        cache->zaddress = swString_new(20);
+    }
+
+    swString_write_ptr(cache->zaddress, 0, Z_STRVAL_P(zaddress), Z_STRLEN_P(zaddress));
+
+    cache->update_time = (int64_t) swTimer_get_now_msec + (int64_t) (SwooleG.dns_cache_refresh_time * 1000);
+
+    //timeout
+    if (req->timer)
+    {
+        swTimer_del(&SwooleG.timer, req->timer);
+        req->timer = NULL;
+    }
+    if (req->useless)
+    {
+        efree(req);
+        return;
+    }
+
+    int ret = coro_resume(req->context, zaddress, &retval);
+    if (ret > 0)
+    {
+        goto free_zdata;
+    }
+
+    if (retval != NULL)
+    {
+        sw_zval_ptr_dtor(&retval);
+    }
+    //说明已经yield走了
+    free_zdata:
+    // free 上下文
+    sw_zval_ptr_dtor(&zaddress);
+    efree(req->context);
+    efree(req);
+}
+
+//用于timeout
+static void php_swoole_dns_timeout_coro(swTimer *timer, swTimer_node *tnode)
+{
+    zval *retval = NULL;
+    zval *zaddress;
+    php_context *cxt = (php_context *) tnode->data;
+#if PHP_MAJOR_VERSION < 7
+    dns_request *req =(dns_request *) cxt->coro_params;
+#else
+    dns_request *req = (dns_request *) cxt->coro_params.value.ptr;
+#endif
+
+    SW_MAKE_STD_ZVAL(zaddress);
+
+    dns_cache *cache = swHashMap_find(request_cache_map, Z_STRVAL_P(req->domain), Z_STRLEN_P(req->domain));
+    if (cache != NULL && cache->update_time > (int64_t) swTimer_get_now_msec)
+    {
+        SW_ZVAL_STRINGL(zaddress, (*cache->zaddress).str, (*cache->zaddress).length, 1);
+    }
+    else
+    {
+        SW_ZVAL_STRING(zaddress, "", 1);
+    }
+
+    int ret = coro_resume(req->context, zaddress, &retval);
+    if (ret > 0)
+    {
+        goto free_zdata;
+    }
+
+    if (retval != NULL)
+    {
+        sw_zval_ptr_dtor(&retval);
+    }
+    free_zdata:
+    sw_zval_ptr_dtor(&zaddress);
+    efree(req->context);
+    req->useless = 1;
+
+}
+#endif
 
 static void php_swoole_aio_onComplete(swAio_event *event)
 {
@@ -858,6 +1013,11 @@ PHP_FUNCTION(swoole_async_set)
         convert_to_boolean(v);
         SwooleG.enable_signalfd = Z_BVAL_P(v);
     }
+    if (php_swoole_array_get_value(vht, "dns_cache_refresh_time", v))
+    {
+          convert_to_double(v);
+          SwooleG.dns_cache_refresh_time = Z_DVAL_P(v);
+    }
     if (php_swoole_array_get_value(vht, "socket_buffer_size", v))
     {
         convert_to_long(v);
@@ -953,6 +1113,7 @@ PHP_FUNCTION(swoole_async_dns_lookup)
     if (SwooleG.use_async_resolver)
     {
         php_swoole_check_reactor();
+
         SW_CHECK_RETURN(swDNSResolver_request(Z_STRVAL_P(domain), php_swoole_dns_callback, (void *) req));
     }
 
@@ -1008,7 +1169,7 @@ static int process_stream_onRead(swReactor *reactor, swEvent *event)
 
         zval *zdata;
         SW_MAKE_STD_ZVAL(zdata);
-        SW_ZVAL_STRINGL(zdata, ps->buffer->str, ps->buffer->length, 1);
+                SW_ZVAL_STRINGL(zdata, ps->buffer->str, ps->buffer->length, 1);
 
         SwooleG.main_reactor->del(SwooleG.main_reactor, ps->fd);
 
@@ -1059,8 +1220,8 @@ static int process_stream_onRead(swReactor *reactor, swEvent *event)
 
 PHP_METHOD(swoole_async, exec)
 {
-	char *command;
-	zend_size_t command_len;
+    char *command;
+    zend_size_t command_len;
     zval *callback;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sz", &command, &command_len, &callback) == FAILURE)
@@ -1078,10 +1239,10 @@ PHP_METHOD(swoole_async, exec)
     pid_t pid;
     int fd = swoole_shell_exec(command, &pid);
     if (fd < 0)
-	{
-		swoole_php_error(E_WARNING, "Unable to execute '%s'", command);
-		RETURN_FALSE;
-	}
+    {
+        swoole_php_error(E_WARNING, "Unable to execute '%s'", command);
+        RETURN_FALSE;
+    }
 
     swString *buffer = swString_new(1024);
     if (buffer == NULL)
@@ -1111,3 +1272,69 @@ PHP_METHOD(swoole_async, exec)
         RETURN_LONG(pid);
     }
 }
+
+#ifdef SW_COROUTINE
+PHP_FUNCTION(swoole_async_dns_lookup_coro)
+{
+    zval *domain;
+    double timeout = SW_CLIENT_DEFAULT_TIMEOUT;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|d", &domain, &timeout) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+    coro_check(TSRMLS_C);
+    if (Z_TYPE_P(domain) != IS_STRING)
+    {
+        swoole_php_fatal_error(E_WARNING, "invalid domain name.");
+        RETURN_FALSE;
+    }
+
+    if (Z_STRLEN_P(domain) == 0)
+    {
+        swoole_php_fatal_error(E_WARNING, "domain name empty.");
+        RETURN_FALSE;
+    }
+    if (!request_cache_map)
+    {
+        request_cache_map = swHashMap_new(256, NULL);
+    }
+
+    //find cache
+    dns_cache *cache = swHashMap_find(request_cache_map, Z_STRVAL_P(domain), Z_STRLEN_P(domain));
+    if (cache != NULL && cache->update_time > (int64_t)swTimer_get_now_msec )
+    {
+        SW_RETURN_STRINGL((*cache->zaddress).str,(*cache->zaddress).length,1);
+    }
+
+    dns_request *req = emalloc(sizeof(dns_request));
+    req->domain = domain;
+    sw_copy_to_stack(req->domain, req->_domain);
+    req->useless = 0;
+
+    php_context *sw_current_context = emalloc(sizeof(php_context));
+    sw_current_context->onTimeout = NULL;
+    sw_current_context->state = SW_CORO_CONTEXT_RUNNING;
+#if PHP_MAJOR_VERSION < 7
+    sw_current_context->coro_params = req;
+#else
+    sw_current_context->coro_params.value.ptr = (void *) req;
+#endif
+    req->context = sw_current_context;
+
+    php_swoole_check_reactor();
+    int ret = swDNSResolver_request(Z_STRVAL_P(domain), php_swoole_dns_callback_coro, (void *) req);
+    if (ret == SW_ERR)
+    {
+        SW_CHECK_RETURN(ret);
+    }
+    //add timeout
+    php_swoole_check_timer(timeout);
+    req->timer = SwooleG.timer.add(&SwooleG.timer, (int) (timeout * 1000), 0, sw_current_context, php_swoole_dns_timeout_coro);
+    if (req->timer)
+    {
+        sw_current_context->state = SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST;
+    }
+    coro_save(sw_current_context);
+    coro_yield();
+}
+#endif

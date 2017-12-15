@@ -1,0 +1,28 @@
+Please answer these questions before submitting your issue. Thanks!
+
+1. What did you do? If possible, provide a recipe for reproducing the error.
+
+
+
+2. What did you expect to see?
+
+
+
+3. What did you see instead?
+
+
+
+4. What version of Swoole are you using (`php --ri swoole`)?
+
+
+
+
+5. What is your machine environment used (including version of kernel & php & gcc) ? 
+
+
+
+6. If you are using ssl, what is your openssl version?
+
+
+
+

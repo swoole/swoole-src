@@ -368,6 +368,9 @@ enum swTraceType
     SW_TRACE_EOF_PROTOCOL     = 1u << 11,
     SW_TRACE_LENGTH_PROTOCOL  = 1u << 12,
     SW_TRACE_CLOSE            = 1u << 13,
+    SW_TRACE_HTTP_CLIENT      = 1u << 14,
+    SW_TRACE_COROUTINE        = 1u << 15,
+    SW_TRACE_REDIS_CLIENT     = 1u << 16,
 };
 
 #if defined(SW_LOG_TRACE_OPEN) && SW_LOG_TRACE_OPEN
@@ -1858,7 +1861,7 @@ struct _swTimer_node
     int64_t exec_msec;
     uint32_t interval;
     long id;
-    int type;
+    int type;                 //0 normal node 1 node for client_coro
     uint8_t remove;
 };
 
@@ -1960,6 +1963,11 @@ typedef struct
     long request_count;
     int max_request;
 
+#ifdef SW_COROUTINE
+    swLinkedList *coro_timeout_list;
+    swLinkedList *delayed_coro_timeout_list;
+#endif
+
     swString **buffer_input;
     swString **buffer_output;
     swWorker *worker;
@@ -2000,6 +2008,7 @@ typedef struct
     uint8_t socket_dontwait :1;
     uint8_t dns_lookup_random :1;
     uint8_t use_async_resolver :1;
+
 
     /**
      * Timer used pipe
@@ -2059,6 +2068,7 @@ typedef struct
 
     char *dns_server_v4;
     char *dns_server_v6;
+    double dns_cache_refresh_time;
 
     swLock lock;
     swString *module_stack;
