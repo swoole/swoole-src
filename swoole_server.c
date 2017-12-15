@@ -61,12 +61,15 @@ static void php_swoole_onManagerStop(swServer *serv);
 
 static zval* php_swoole_server_add_port(swListenPort *port TSRMLS_DC);
 
-int php_swoole_create_dir(const char* path, int length TSRMLS_DC)
+static int php_swoole_create_dir(const char* path, size_t length TSRMLS_DC)
 {
     if (access(path, F_OK) == 0)
     {
         return 0;
     }
+#if 1
+    return php_stream_mkdir(path, 0777, PHP_STREAM_MKDIR_RECURSIVE | REPORT_ERRORS, NULL) ? 0 : -1;
+#else
     int     startpath;
     int     endpath;
     int     i            = 0;
@@ -99,14 +102,14 @@ int php_swoole_create_dir(const char* path, int length TSRMLS_DC)
         endpath      = strlen(curpath);
     }
     for (i = startpath; i < endpath ; i++ )
-    {  
+    {
         if ('/' == curpath[i])
         {
             curpath[i] = '\0';
             if (access(curpath, F_OK) != 0)
             {
                 if (mkdir(curpath, 0755) == -1)
-                {  
+                {
                     swoole_php_sys_error(E_WARNING, "mkdir(%s, 0755).", path);
                     return -1;
                 }
@@ -115,6 +118,7 @@ int php_swoole_create_dir(const char* path, int length TSRMLS_DC)
         }
     }
     return 0;
+#endif
 }
 
 int php_swoole_task_pack(swEventData *task, zval *data TSRMLS_DC)
@@ -1777,17 +1781,16 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "task_tmpdir", v))
     {
         convert_to_string(v);
-        php_swoole_create_dir(Z_STRVAL_P(v), Z_STRLEN_P(v) TSRMLS_CC);
-
-        if (Z_STRLEN_P(v) > SW_TASK_TMPDIR_SIZE - 30)
+        if (php_swoole_create_dir(Z_STRVAL_P(v), Z_STRLEN_P(v) TSRMLS_CC) < 0)
         {
-            swoole_php_fatal_error(E_ERROR, "task_tmpdir is too long, the max size is %d.", SW_TASK_TMPDIR_SIZE - 1);
+            swoole_php_fatal_error(E_ERROR, "Unable to create task_tmpdir[%s].", Z_STRVAL_P(v));
             return;
         }
-        if (SwooleG.task_tmpdir == NULL)
+        if (SwooleG.task_tmpdir)
         {
-            SwooleG.task_tmpdir = emalloc(SW_TASK_TMPDIR_SIZE);
+            sw_free(SwooleG.task_tmpdir);
         }
+        SwooleG.task_tmpdir = sw_malloc(Z_STRLEN_P(v) + sizeof(SW_TASK_TMP_FILE) + 1);
         SwooleG.task_tmpdir_len = snprintf(SwooleG.task_tmpdir, SW_TASK_TMPDIR_SIZE, "%s/swoole.task.XXXXXX", Z_STRVAL_P(v)) + 1;
     }
     //task_max_request
@@ -1886,12 +1889,10 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "upload_tmp_dir", v))
     {
         convert_to_string(v);
-        php_swoole_create_dir(Z_STRVAL_P(v), Z_STRLEN_P(v) TSRMLS_CC);
-
-        if (Z_STRLEN_P(v) >= SW_HTTP_UPLOAD_TMPDIR_SIZE - 22)
+        if (php_swoole_create_dir(Z_STRVAL_P(v), Z_STRLEN_P(v) TSRMLS_CC) < 0)
         {
-            swoole_php_fatal_error(E_ERROR, "option upload_tmp_dir [%s] is too long.", Z_STRVAL_P(v));
-            RETURN_FALSE;
+            swoole_php_fatal_error(E_ERROR, "Unable to create upload_tmp_dir[%s].", Z_STRVAL_P(v));
+            return;
         }
         if (serv->upload_tmp_dir)
         {
