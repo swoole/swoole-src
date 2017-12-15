@@ -131,6 +131,7 @@ typedef struct
     uint8_t websocket_mask;
     uint8_t download;    //save http response to file
     uint8_t header_completed;
+    int8_t method;
 
 } http_client;
 
