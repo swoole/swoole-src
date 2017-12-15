@@ -600,13 +600,14 @@ static int swClient_tcp_connect_async(swClient *cli, char *host, int port, doubl
         swAio_event ev;
         bzero(&ev, sizeof(swAio_event));
 
+        int len = strlen(cli->server_host);
         if (strlen(cli->server_host) < SW_IP_MAX_LENGTH)
         {
             ev.nbytes = SW_IP_MAX_LENGTH;
         }
         else
         {
-            ev.nbytes = strlen(host) + 1;
+            ev.nbytes = len + 1;
         }
 
         ev.buf = sw_malloc(ev.nbytes);
@@ -616,8 +617,8 @@ static int swClient_tcp_connect_async(swClient *cli, char *host, int port, doubl
             return SW_ERR;
         }
 
-        memcpy(ev.buf, cli->server_host, strlen(cli->server_host));
-
+        memcpy(ev.buf, cli->server_host, len);
+        ((char *) ev.buf)[len] = 0;
         ev.flags = cli->_sock_domain;
         ev.type = SW_AIO_DNS_LOOKUP;
         ev.object = cli;
@@ -1275,7 +1276,7 @@ static void swClient_onResolveCompleted(swAio_event *event)
     swClient *cli = event->object;
     cli->wait_dns = 0;
 
-    if (event->ret == 0)
+    if (event->error == 0)
     {
         swClient_tcp_connect_async(cli, event->buf, cli->server_port, cli->timeout, 1);
     }
