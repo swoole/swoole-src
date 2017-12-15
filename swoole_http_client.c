@@ -831,6 +831,8 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
         }
     }
 
+    http->method = swHttp_get_method(hcc->request_method, strlen(hcc->request_method) + 1);
+
     char *key;
     uint32_t keylen;
     int keytype;
@@ -1844,6 +1846,10 @@ int http_client_parser_on_headers_complete(php_http_parser *parser)
     if (http->chunked == 0 && parser->content_length == -1)
     {
         http->state = HTTP_CLIENT_STATE_WAIT_CLOSE;
+    }
+    if (http->method == HTTP_HEAD)
+    {
+        return 1;
     }
     return 0;
 }
