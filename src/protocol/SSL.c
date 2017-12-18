@@ -673,7 +673,7 @@ int swSSL_accept(swConnection *conn)
     {
         return SW_ERROR;
     }
-    swWarn("SSL_do_handshake() failed. Error: [%ld].", err);
+    swWarn("SSL_do_handshake() failed. Error: [%ld|%d].", err, errno);
     return SW_ERROR;
 }
 
