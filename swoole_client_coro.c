@@ -372,6 +372,8 @@ swClient* php_swoole_client_coro_new(zval *object, char *host, int host_len, int
         async = 1;
     }
 
+    php_swoole_check_reactor();
+
     swClient *cli;
     cli = (swClient*) emalloc(sizeof(swClient));
 
