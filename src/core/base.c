@@ -1004,7 +1004,6 @@ int swoole_gethostbyname(int flags, char *name, char *addr)
 #else
 int swoole_gethostbyname(int flags, char *name, char *addr)
 {
-	SwooleG.lock.lock(&SwooleG.lock);
 	int __af = flags & (~SW_DNS_LOOKUP_RANDOM);
     int index = 0;
 
