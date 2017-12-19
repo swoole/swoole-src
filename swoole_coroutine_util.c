@@ -468,16 +468,29 @@ static PHP_METHOD(swoole_coroutine_util, create)
         coro_init(TSRMLS_C);
     }
 
+    callback = sw_zval_dup(callback);
+    sw_zval_add_ref(&callback);
+
     zval *retval = NULL;
     zval *args[1];
 
     jmp_buf *prev_checkpoint = swReactorCheckPoint;
     swReactorCheckPoint = emalloc(sizeof(jmp_buf));
 
-    php_context *cxt = emalloc(sizeof(php_context));
-    coro_save(cxt);
+    php_context *ctx = emalloc(sizeof(php_context));
+    coro_save(ctx);
     int required = COROG.require;
     int ret = coro_create(func_cache, args, 0, &retval, NULL, NULL);
+
+    if (COROG.current_coro)
+    {
+        COROG.current_coro->function = callback;
+    }
+    else
+    {
+        sw_zval_free(callback);
+    }
+
     efree(func_cache);
     efree(swReactorCheckPoint);
 
@@ -487,9 +500,9 @@ static PHP_METHOD(swoole_coroutine_util, create)
     }
 
     swReactorCheckPoint = prev_checkpoint;
-    coro_resume_parent(cxt, retval, retval);
+    coro_resume_parent(ctx, retval, retval);
     COROG.require = required;
-    efree(cxt);
+    efree(ctx);
     if (EG(exception))
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
