@@ -180,21 +180,25 @@ typedef unsigned long ulong_t;
 #define sw_realloc             realloc
 #endif
 
-#if defined(SW_USE_JEMALLOC) || defined(SW_USE_TCMALLOC)
-static sw_inline char* sw_strdup(const char *s)
+static sw_inline char* swoole_strdup(const char *s)
 {
     size_t l = strlen(s) + 1;
     char *p = sw_malloc(l);
     memcpy(p, s, l);
     return p;
 }
-static sw_inline char* sw_strndup(const char *s, size_t n)
+
+static sw_inline char* swoole_strndup(const char *s, size_t n)
 {
     char *p = sw_malloc(n + 1);
     strncpy(p, s, n);
     p[n] = '\0';
     return p;
 }
+
+#if defined(SW_USE_JEMALLOC) || defined(SW_USE_TCMALLOC)
+#define sw_strdup              swoole_strdup
+#define sw_strndup             swoole_strndup
 #else
 #define sw_strdup              strdup
 #define sw_strndup             strndup
@@ -371,6 +375,7 @@ enum swTraceType
     SW_TRACE_HTTP_CLIENT      = 1u << 14,
     SW_TRACE_COROUTINE        = 1u << 15,
     SW_TRACE_REDIS_CLIENT     = 1u << 16,
+    SW_TRACE_MYSQL_CLIENT     = 1u << 17,
 };
 
 #if defined(SW_LOG_TRACE_OPEN) && SW_LOG_TRACE_OPEN
