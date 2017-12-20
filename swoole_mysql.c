@@ -813,6 +813,8 @@ static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
     return read_n;
 }
 
+#define DATETIME_MAX_SIZE  20
+
 static void mysql_decode_datetime(char *buf, char *result)
 {
     uint16_t y;
@@ -828,7 +830,38 @@ static void mysql_decode_datetime(char *buf, char *result)
     m = *(uint8_t *) (buf + 6);
     s = *(uint8_t *) (buf + 7);
 
-    snprintf(result, 24, "%04d-%02d-%02d %02d:%02d:%02d", y, M, d, h, m, s);
+    snprintf(result, DATETIME_MAX_SIZE, "%04d-%02d-%02d %02d:%02d:%02d", y, M, d, h, m, s);
+}
+
+static void mysql_decode_time(char *buf, char *result)
+{
+    uint8_t h, m, s;
+
+    h = *(uint8_t *) (buf + 6);
+    m = *(uint8_t *) (buf + 7);
+    s = *(uint8_t *) (buf + 8);
+
+    snprintf(result, DATETIME_MAX_SIZE, "%02d:%02d:%02d", h, m, s);
+}
+
+static void mysql_decode_date(char *buf, char *result)
+{
+    uint8_t M, d, n;
+    uint16_t y;
+
+    n = *(uint8_t *) (buf);
+    y = *(uint16_t *) (buf + 1);
+    M = *(uint8_t *) (buf + 3);
+    d = *(uint8_t *) (buf + 4);
+
+    snprintf(result, DATETIME_MAX_SIZE, "%04d-%02d-%02d", y, M, d);
+}
+
+static void mysql_decode_year(char *buf, char *result)
+{
+    uint16_t y;
+    y = *(uint16_t *) (buf + 1);
+    snprintf(result, DATETIME_MAX_SIZE, "%04d", y);
 }
 
 static int mysql_decode_row_prepare(mysql_client *client, char *buf, int packet_len)
@@ -842,7 +875,7 @@ static int mysql_decode_row_prepare(mysql_client *client, char *buf, int packet_
     buf += null_count;
     packet_len -= null_count;
 
-    char datetime_buffer[20];
+    char datetime_buffer[DATETIME_MAX_SIZE];
     mysql_row row;
 
     zval *result_array = client->response.result_array;
@@ -860,8 +893,26 @@ static int mysql_decode_row_prepare(mysql_client *client, char *buf, int packet_
         {
         /* Date Time */
         case SW_MYSQL_TYPE_TIME:
+            mysql_decode_time(buf + read_n, datetime_buffer);
+            sw_add_assoc_stringl(row_array, client->response.columns[i].name, datetime_buffer, 8, 1);
+            len = 8;
+            swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%s", client->response.columns[i].name, datetime_buffer);
+            break;
+
         case SW_MYSQL_TYPE_YEAR:
+            mysql_decode_year(buf + read_n, datetime_buffer);
+            sw_add_assoc_stringl(row_array, client->response.columns[i].name, datetime_buffer, 4, 1);
+            len = 3;
+            swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%s", client->response.columns[i].name, datetime_buffer);
+            break;
+
         case SW_MYSQL_TYPE_DATE:
+            mysql_decode_date(buf + read_n, datetime_buffer);
+            sw_add_assoc_stringl(row_array, client->response.columns[i].name, datetime_buffer, 10, 1);
+            len = 5;
+            swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%s", client->response.columns[i].name, datetime_buffer);
+            break;
+
         case SW_MYSQL_TYPE_TIMESTAMP:
         case SW_MYSQL_TYPE_DATETIME:
             mysql_decode_datetime(buf + read_n, datetime_buffer);
@@ -869,9 +920,11 @@ static int mysql_decode_row_prepare(mysql_client *client, char *buf, int packet_
             len = 8;
             swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%s", client->response.columns[i].name, datetime_buffer);
             break;
+
         case SW_MYSQL_TYPE_NULL:
             add_assoc_null(row_array, client->response.columns[i].name);
             break;
+
         /* String */
         case SW_MYSQL_TYPE_TINY_BLOB:
         case SW_MYSQL_TYPE_MEDIUM_BLOB:
@@ -893,9 +946,22 @@ static int mysql_decode_row_prepare(mysql_client *client, char *buf, int packet_
             sw_add_assoc_stringl(row_array, client->response.columns[i].name, buf + read_n, len, 1);
             swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%s", client->response.columns[i].name, swoole_strndup(buf + read_n, len));
             break;
+
         /* Integer */
         case SW_MYSQL_TYPE_TINY:
+            row.stiny = *(int8_t *) (buf + read_n);
+            add_assoc_long(row_array, client->response.columns[i].name, row.stiny);
+            len = sizeof(row.stiny);
+            swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%d", client->response.columns[i].name, row.stiny);
+            break;
+
         case SW_MYSQL_TYPE_SHORT:
+            row.ssmall = *(int16_t *) (buf + read_n);
+            add_assoc_long(row_array, client->response.columns[i].name, row.ssmall);
+            len = sizeof(row.ssmall);
+            swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%d", client->response.columns[i].name, row.ssmall);
+            break;
+
         case SW_MYSQL_TYPE_INT24:
         case SW_MYSQL_TYPE_LONG:
             row.sint = *(int32_t *) (buf + read_n);
@@ -903,40 +969,26 @@ static int mysql_decode_row_prepare(mysql_client *client, char *buf, int packet_
             len = sizeof(row.sint);
             swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%d", client->response.columns[i].name, row.sint);
             break;
+
         case SW_MYSQL_TYPE_LONGLONG:
             row.sbigint = *(int64_t *) (buf + read_n);
             add_assoc_long(row_array, client->response.columns[i].name, row.sbigint);
             len = sizeof(row.sbigint);
             swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%ld", client->response.columns[i].name, row.sbigint);
             break;
+
         case SW_MYSQL_TYPE_FLOAT:
-#ifdef SW_MYSQL_STRICT_TYPE
-            memcpy(value_buffer, buf + read_n, len);
-            value_buffer[len] = 0;
-            row.mfloat = strtof(value_buffer, &error);
-            if (*error != '\0')
-            {
-                return -SW_MYSQL_ERR_CONVFLOAT;
-            }
+            row.mfloat = *(float *) (buf + read_n);
             add_assoc_double(row_array, client->response.columns[i].name, row.mfloat);
-#else
-            sw_add_assoc_stringl(row_array, client->response.columns[i].name, buf + read_n, len, 1);
-#endif
+            len = sizeof(row.mfloat);
+            swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%f", client->response.columns[i].name, row.mfloat);
             break;
 
         case SW_MYSQL_TYPE_DOUBLE:
-#ifdef SW_MYSQL_STRICT_TYPE
-            memcpy(value_buffer, buf + read_n, len);
-            value_buffer[len] = 0;
-            row.mdouble = strtod(value_buffer, &error);
-            if (*error != '\0')
-            {
-                return -SW_MYSQL_ERR_CONVDOUBLE;
-            }
+            row.mdouble = *(double *) (buf + read_n);
             add_assoc_double(row_array, client->response.columns[i].name, row.mdouble);
-#else
-            sw_add_assoc_stringl(row_array, client->response.columns[i].name, buf + read_n, len, 1);
-#endif
+            len = sizeof(row.mdouble);
+            swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%f", client->response.columns[i].name, row.mdouble);
             break;
         }
         read_n += len;
