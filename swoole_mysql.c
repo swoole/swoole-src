@@ -758,12 +758,12 @@ static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
 #ifdef SW_MYSQL_STRICT_TYPE
             memcpy(value_buffer, buf + read_n, len);
             value_buffer[len] = 0;
-            row.sint = strtol(value_buffer, &error, 10);
+            row.sbigint = strtoll(value_buffer, &error, 10);
             if (*error != '\0')
             {
                 return -SW_MYSQL_ERR_CONVLONG;
             }
-            add_assoc_long(row_array, client->response.columns[i].name, row.sint);
+            add_assoc_long(row_array, client->response.columns[i].name, row.sbigint);
 #else
             sw_add_assoc_stringl(row_array, client->response.columns[i].name, buf + read_n, len, 1);
 #endif
