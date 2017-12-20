@@ -286,6 +286,7 @@ typedef struct
     uint8_t state;
     uint8_t prepare_state;
     uint8_t handshake;
+    uint8_t cmd;
     swString *buffer;
     swClient *cli;
     zval *object;
@@ -457,5 +458,8 @@ static sw_inline int mysql_length_coded_binary(char *m, ulong_t *r, char *nul, i
     *r = val;
     return retcode;
 }
+
+int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callback TSRMLS_DC);
+void mysql_statement_free(mysql_client *client);
 
 #endif /* SWOOLE_MYSQL_H_ */
