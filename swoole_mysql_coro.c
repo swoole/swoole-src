@@ -266,6 +266,11 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
                 mysql_int2store(p, SW_MYSQL_TYPE_VAR_STRING);
                 p += 2;
             }
+            else if (Z_TYPE_P(value) == IS_DOUBLE)
+            {
+                mysql_int2store(p, SW_MYSQL_TYPE_DOUBLE);
+                p += 2;
+            }
             else
             {
                 swoole_php_fatal_error(E_WARNING, "unknown data type.");
