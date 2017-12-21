@@ -143,6 +143,9 @@ static void php_swoole_check_aio()
     {
         php_swoole_check_reactor();
         swAio_init();
+    }
+    if (!SwooleAIO.callback)
+    {
         SwooleAIO.callback = php_swoole_aio_onComplete;
     }
 }
