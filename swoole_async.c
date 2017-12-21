@@ -83,7 +83,6 @@ typedef struct
     swString *buffer;
 } process_stream;
 
-static void php_swoole_check_aio();
 static void php_swoole_aio_onComplete(swAio_event *event);
 static void php_swoole_dns_callback(char *domain, swDNSResolver_result *result, void *data);
 #ifdef SW_COROUTINE
@@ -178,12 +177,15 @@ void swoole_async_init(int module_number TSRMLS_DC)
     }
 }
 
-static void php_swoole_check_aio()
+void php_swoole_check_aio()
 {
     if (SwooleAIO.init == 0)
     {
         php_swoole_check_reactor();
         swAio_init();
+    }
+    if (!SwooleAIO.callback)
+    {
         SwooleAIO.callback = php_swoole_aio_onComplete;
     }
 }
@@ -1121,8 +1123,8 @@ PHP_FUNCTION(swoole_async_dns_lookup)
     {
         SwooleAIO.mode = SW_AIO_BASE;
         SwooleAIO.init = 0;
-        php_swoole_check_aio();
     }
+    php_swoole_check_aio();
 
     /**
      * Use thread pool

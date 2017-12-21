@@ -816,12 +816,12 @@ static PHP_METHOD(swoole_coroutine_util, fwrite)
     ev.fd = fd;
     ev.offset = _seek;
 
-    if (!SwooleAIO.init)
+    if (SwooleAIO.mode == SW_AIO_LINUX)
     {
         SwooleAIO.mode = SW_AIO_BASE;
-        php_swoole_check_reactor();
-        swAio_init();
+        SwooleAIO.init = 0;
     }
+    php_swoole_check_aio();
 
     swTrace("fd=%d, offset=%ld, length=%ld", fd, ev.offset, ev.nbytes);
 
