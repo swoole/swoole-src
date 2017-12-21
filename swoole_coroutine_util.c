@@ -3,6 +3,31 @@
 #ifdef SW_COROUTINE
 #include "swoole_coroutine.h"
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_void, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_create, 0, 0, 1)
+    ZEND_ARG_INFO(0, func)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_suspend, 0, 0, 1)
+    ZEND_ARG_INFO(0, uid)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_resume, 0, 0, 1)
+    ZEND_ARG_INFO(0, uid)
+ZEND_END_ARG_INFO()
+
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_call_user_func, 0, 0, 1)
+    ZEND_ARG_INFO(0, func)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_call_user_func_array, 0, 0, 2)
+    ZEND_ARG_INFO(0, func)
+    ZEND_ARG_ARRAY_INFO(0, params, 0)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_sleep, 0, 0, 1)
     ZEND_ARG_INFO(0, seconds)
 ZEND_END_ARG_INFO()
@@ -18,6 +43,12 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_fwrite, 0, 0, 2)
     ZEND_ARG_INFO(0, length)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_gethostbyname, 0, 0, 1)
+    ZEND_ARG_INFO(0, domain_name)
+    ZEND_ARG_INFO(0, timeout)
+    ZEND_ARG_INFO(0, family)
+ZEND_END_ARG_INFO()
+
 static PHP_METHOD(swoole_coroutine_util, create);
 static PHP_METHOD(swoole_coroutine_util, suspend);
 static PHP_METHOD(swoole_coroutine_util, cli_wait);
@@ -26,6 +57,7 @@ static PHP_METHOD(swoole_coroutine_util, getuid);
 static PHP_METHOD(swoole_coroutine_util, sleep);
 static PHP_METHOD(swoole_coroutine_util, fread);
 static PHP_METHOD(swoole_coroutine_util, fwrite);
+static PHP_METHOD(swoole_coroutine_util, gethostbyname);
 static PHP_METHOD(swoole_coroutine_util, call_user_func);
 static PHP_METHOD(swoole_coroutine_util, call_user_func_array);
 
@@ -36,16 +68,17 @@ static zend_class_entry *swoole_coroutine_util_class_entry_ptr;
 
 static const zend_function_entry swoole_coroutine_util_methods[] =
 {
-    PHP_ME(swoole_coroutine_util, create, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_util, cli_wait, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_util, suspend, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_util, resume, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_util, getuid, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_util, create, arginfo_swoole_coroutine_create, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_util, cli_wait, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_util, suspend, arginfo_swoole_coroutine_suspend, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_util, resume, arginfo_swoole_coroutine_resume, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_util, getuid, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, sleep, arginfo_swoole_coroutine_sleep, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, fread, arginfo_swoole_coroutine_fread, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, fwrite, arginfo_swoole_coroutine_fwrite, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_util, call_user_func, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_util, call_user_func_array, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_util, gethostbyname, arginfo_swoole_coroutine_gethostbyname, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_util, call_user_func, arginfo_swoole_coroutine_call_user_func, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_util, call_user_func_array, arginfo_swoole_coroutine_call_user_func_array, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 
@@ -431,7 +464,7 @@ static PHP_METHOD(swoole_coroutine_util, suspend)
     char *id;
     zend_size_t id_len;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s",&id, &id_len) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &id, &id_len) == FAILURE)
     {
         return;
     }
@@ -836,6 +869,103 @@ static PHP_METHOD(swoole_coroutine_util, fwrite)
     context->state = SW_CORO_CONTEXT_RUNNING;
 
     coro_save(context);
+    coro_yield();
+}
+
+static void coro_dns_onResolveCompleted(swAio_event *event)
+{
+    php_context *context = event->object;
+
+    zval *retval = NULL;
+    zval *result = NULL;
+
+    SW_MAKE_STD_ZVAL(result);
+
+    if (event->error == 0)
+    {
+        SW_ZVAL_STRING(result, event->buf, 1);
+    }
+    else
+    {
+        ZVAL_LONG(result, event->ret);
+    }
+
+    int ret = coro_resume(context, result, &retval);
+    if (ret == CORO_END && retval)
+    {
+        sw_zval_ptr_dtor(&retval);
+    }
+    sw_zval_ptr_dtor(&result);
+    efree(event->buf);
+    efree(context);
+}
+
+static PHP_METHOD(swoole_coroutine_util, gethostbyname)
+{
+    char *domain_name;
+    zend_size_t l_domain_name;
+    double timeout = SW_CLIENT_DEFAULT_TIMEOUT;
+    long family = AF_INET;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|dl", &domain_name, &l_domain_name, &timeout, &family) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+
+    if (l_domain_name <= 0)
+    {
+        swoole_php_fatal_error(E_WARNING, "domain name is empty.");
+        RETURN_FALSE;
+    }
+
+    if (family != AF_INET && family != AF_INET6)
+    {
+        swoole_php_fatal_error(E_WARNING, "unknown protocol family, must be AF_INET or AF_INET6.");
+        RETURN_FALSE;
+    }
+
+    swAio_event ev;
+    bzero(&ev, sizeof(swAio_event));
+
+    if (l_domain_name < SW_IP_MAX_LENGTH)
+    {
+        ev.nbytes = SW_IP_MAX_LENGTH;
+    }
+    else
+    {
+        ev.nbytes = l_domain_name + 1;
+    }
+
+    ev.buf = emalloc(ev.nbytes);
+    if (!ev.buf)
+    {
+        swWarn("malloc failed.");
+        RETURN_FALSE;
+    }
+
+    php_context *sw_current_context = emalloc(sizeof(php_context));
+
+    memcpy(ev.buf, domain_name, l_domain_name);
+    ((char *) ev.buf)[l_domain_name] = 0;
+    ev.flags = family;
+    ev.type = SW_AIO_DNS_LOOKUP;
+    ev.object = sw_current_context;
+    ev.callback = coro_dns_onResolveCompleted;
+
+    if (SwooleAIO.mode == SW_AIO_LINUX)
+    {
+        SwooleAIO.mode = SW_AIO_BASE;
+        SwooleAIO.init = 0;
+    }
+    php_swoole_check_aio();
+
+    if (swAio_dispatch(&ev) < 0)
+    {
+        efree(ev.buf);
+        RETURN_FALSE;
+    }
+
+    coro_save(sw_current_context);
     coro_yield();
 }
 
