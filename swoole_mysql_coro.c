@@ -258,7 +258,7 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
         SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(params), value)
             if (Z_TYPE_P(value) == IS_LONG)
             {
-                mysql_int2store(p, MYSQL_TYPE_LONG);
+                mysql_int2store(p, SW_MYSQL_TYPE_LONG);
                 p += 2;
             }
             else if (Z_TYPE_P(value) == IS_STRING)
