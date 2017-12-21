@@ -597,6 +597,16 @@ static int swClient_tcp_connect_async(swClient *cli, char *host, int port, doubl
 
     if (cli->wait_dns)
     {
+        if (SwooleAIO.mode == SW_AIO_LINUX)
+        {
+            SwooleAIO.mode = SW_AIO_BASE;
+            SwooleAIO.init = 0;
+        }
+        if (SwooleAIO.init == 0)
+        {
+            swAio_init();
+        }
+
         swAio_event ev;
         bzero(&ev, sizeof(swAio_event));
 
@@ -624,7 +634,15 @@ static int swClient_tcp_connect_async(swClient *cli, char *host, int port, doubl
         ev.object = cli;
         ev.callback = swClient_onResolveCompleted;
 
-        return swAio_dispatch(&ev);
+        if (swAio_dispatch(&ev) < 0)
+        {
+            sw_free(ev.buf);
+            return SW_ERR;
+        }
+        else
+        {
+            return SW_OK;
+        }
     }
 
     while (1)
