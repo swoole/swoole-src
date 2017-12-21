@@ -78,3 +78,4 @@ tests/.idea
 cmake-build-debug/
 /swoole_server.cbp
 /.vscode
+/configure.ac
