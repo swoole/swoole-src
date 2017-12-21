@@ -752,7 +752,7 @@ static PHP_METHOD(swoole_coroutine_util, fread)
     }
 
     off_t _seek = lseek(fd, 0, SEEK_CUR);
-    if (length <= 0)
+    if (length <= 0 || file_stat.st_size - _seek < length)
     {
         length = file_stat.st_size - _seek;
     }
@@ -760,8 +760,8 @@ static PHP_METHOD(swoole_coroutine_util, fread)
     swAio_event ev;
     bzero(&ev, sizeof(swAio_event));
 
-    ev.nbytes = length;
-    ev.buf = sw_malloc(ev.nbytes);
+    ev.nbytes = length + 1;
+    ev.buf = emalloc(ev.nbytes);
     if (!ev.buf)
     {
         RETURN_FALSE;
