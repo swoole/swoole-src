@@ -791,7 +791,7 @@ static PHP_METHOD(swoole_coroutine_util, fwrite)
     int fd = swoole_convert_to_fd(handle TSRMLS_CC);
 
     off_t _seek = lseek(fd, 0, SEEK_CUR);
-    if (length <= 0)
+    if (length <= 0 || length > l_str)
     {
         length = l_str;
     }
