@@ -634,7 +634,15 @@ static int swClient_tcp_connect_async(swClient *cli, char *host, int port, doubl
         ev.object = cli;
         ev.callback = swClient_onResolveCompleted;
 
-        return swAio_dispatch(&ev);
+        if (swAio_dispatch(&ev) < 0)
+        {
+            sw_free(ev.buf);
+            return SW_ERR;
+        }
+        else
+        {
+            return SW_OK;
+        }
     }
 
     while (1)
