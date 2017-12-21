@@ -98,6 +98,11 @@ typedef struct _swClient
     swTimer_node *timer;
 
     /**
+     * signal interruption
+     */
+    double interrupt_time;
+
+    /**
      * sendto, read only.
      */
     swSocketAddress server_addr;
