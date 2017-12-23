@@ -444,6 +444,12 @@ static PHP_METHOD(swoole_coroutine_util, call_user_func_array)
     zval *params;
     zend_fcall_info fci;
     zend_fcall_info_cache fci_cache;
+	// restore scope
+#if ZEND_MODULE_API_NO < 20160303
+	EG(scope) = execute_data->prev_execute_data->called_scope;
+#else
+	execute_data->func->common.scope = execute_data->prev_execute_data->func->common.scope; // PHP >= 7.1
+#endif
 
     ZEND_PARSE_PARAMETERS_START(2, 2)
         Z_PARAM_FUNC(fci, fci_cache)
