@@ -68,7 +68,7 @@
 //#define SW_DEBUG                 //debug
 #define SW_LOG_NO_SRCINFO          //no source info
 #define SW_LOG_TRACE_OPEN          0
-#define SW_LOG_TRACE_FLAGS         (SW_TRACE_EVENT | SW_TRACE_REACTOR | SW_TRACE_CLOSE)
+#define SW_LOG_TRACE_FLAGS         (SW_TRACE_REDIS_CLIENT)
 //#define SW_BUFFER_SIZE           65495 //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
 #define SW_CLIENT_BUFFER_SIZE      65536
 //#define SW_CLIENT_RECV_AGAIN

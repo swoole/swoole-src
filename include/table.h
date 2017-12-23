@@ -148,20 +148,30 @@ typedef uint32_t swTable_string_length_t;
 
 static sw_inline void swTableRow_set_value(swTableRow *row, swTableColumn * col, void *value, int vlen)
 {
+    int8_t _i8;
+    int16_t _i16;
+    int32_t _i32;
+#ifdef __x86_64__
+    int64_t _i64;
+#endif
     switch(col->type)
     {
     case SW_TABLE_INT8:
-        memcpy(row->data + col->index, value, 1);
+        _i8 = *(int8_t *) value;
+        memcpy(row->data + col->index, &_i8, 1);
         break;
     case SW_TABLE_INT16:
-        memcpy(row->data + col->index, value, 2);
+        _i16 =  *(int16_t *) value;
+        memcpy(row->data + col->index, &_i16, 2);
         break;
     case SW_TABLE_INT32:
-        memcpy(row->data + col->index, value, 4);
+        _i32 =  *(int32_t *) value;
+        memcpy(row->data + col->index, &_i32, 4);
         break;
 #ifdef __x86_64__
     case SW_TABLE_INT64:
-        memcpy(row->data + col->index, value, 8);
+        _i64 =  *(int64_t *) value;
+        memcpy(row->data + col->index, &_i64, 8);
         break;
 #endif
     case SW_TABLE_FLOAT:

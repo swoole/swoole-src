@@ -286,9 +286,24 @@ static int swManager_loop(swFactory *factory)
                             sizeof(swWorker) * SwooleG.task_worker_num);
                     reload_worker_num += SwooleG.task_worker_num;
                 }
-                reload_worker_i = 0;
+
                 ManagerProcess.reload_all_worker = 0;
-                goto kill_worker;
+                if (serv->reload_async)
+                {
+                    for (i = 0; i < serv->worker_num; i++)
+                    {
+                        if (kill(reload_workers[i].pid, SIGTERM) < 0)
+                        {
+                            swSysError("kill(%d, SIGTERM) [%d] failed.", reload_workers[i].pid, i);
+                        }
+                    }
+                    reload_worker_i = serv->worker_num;
+                }
+                else
+                {
+                    reload_worker_i = 0;
+                    goto kill_worker;
+                }
             }
             //only reload task workers
             else if (ManagerProcess.reload_task_worker == 1)
@@ -320,23 +335,23 @@ static int swManager_loop(swFactory *factory)
                 {
                     continue;
                 }
-                else
+
+                //Check the process return code and signal
+                swManager_check_exit_status(serv, i, pid, status);
+
+                pid = 0;
+                while (1)
                 {
-                    swManager_check_exit_status(serv, i, pid, status);
-                    pid = 0;
-                    while (1)
+                    new_pid = swManager_spawn_worker(factory, i);
+                    if (new_pid < 0)
                     {
-                        new_pid = swManager_spawn_worker(factory, i);
-                        if (new_pid < 0)
-                        {
-                            usleep(100000);
-                            continue;
-                        }
-                        else
-                        {
-                            serv->workers[i].pid = new_pid;
-                            break;
-                        }
+                        usleep(100000);
+                        continue;
+                    }
+                    else
+                    {
+                        serv->workers[i].pid = new_pid;
+                        break;
                     }
                 }
             }
@@ -349,7 +364,7 @@ static int swManager_loop(swFactory *factory)
                 if (exit_worker != NULL)
                 {
                     swManager_check_exit_status(serv, exit_worker->id, pid, status);
-                    if (exit_worker->deleted == 1)  //主动回收不重启
+                    if (exit_worker->deleted == 1)
                     {
                         exit_worker->deleted = 0;
                     }

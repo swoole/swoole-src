@@ -198,7 +198,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
             *retval = *EG(return_value_ptr_ptr);
         }
         coro_close(TSRMLS_C);
-        swTrace("create the %d coro with stack %zu. heap size: %zu\n", COROG.coro_num, total_size, zend_memory_usage(0));
+        swTrace("create the %d coro with stack %zu. heap size: %zu\n", COROG.coro_num, total_size, zend_memory_usage(0 TSRMLS_CC));
         coro_status = CORO_END;
     }
     else
@@ -332,7 +332,7 @@ sw_inline void coro_close(TSRMLS_D)
 #else
 sw_inline void coro_close(TSRMLS_D)
 {
-    swTrace("Close coroutine id %d\n", COROG.current_coro->cid);
+    swTraceLog(SW_TRACE_COROUTINE, "Close coroutine id %d", COROG.current_coro->cid);
     if (COROG.current_coro->function)
     {
         sw_zval_free(COROG.current_coro->function);
@@ -345,7 +345,8 @@ sw_inline void coro_close(TSRMLS_D)
     EG(vm_stack_top) = COROG.origin_vm_stack_top;
     EG(vm_stack_end) = COROG.origin_vm_stack_end;
     --COROG.coro_num;
-    swTrace("closing coro and %d remained. usage size: %zu. malloc size: %zu", COROG.coro_num, zend_memory_usage(0), zend_memory_usage(1));
+    COROG.current_coro = NULL;
+    swTraceLog(SW_TRACE_COROUTINE, "closing coro and %d remained. usage size: %zu. malloc size: %zu", COROG.coro_num, zend_memory_usage(0), zend_memory_usage(1));
 }
 #endif
 
@@ -466,7 +467,7 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
     EG(scope) = EG(current_execute_data)->func->op_array.scope;
 #endif
     COROG.allocated_return_value_ptr = SWCC(allocated_return_value_ptr);
-    if ( EG(current_execute_data)->opline->result_type != IS_UNUSED)
+    if (EG(current_execute_data)->opline->result_type != IS_UNUSED)
     {
         ZVAL_COPY(SWCC(current_coro_return_value_ptr), retval);
     }

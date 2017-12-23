@@ -73,6 +73,8 @@ typedef struct _swClient
     uint32_t destroyed :1;
     uint32_t redirect :1;
     uint32_t http2 :1;
+    uint32_t sleep :1;
+    uint32_t wait_dns :1;
 
     /**
      * one package: length check
@@ -87,6 +89,8 @@ typedef struct _swClient
     uint32_t reuse_count;
 
     char *server_str;
+    char *server_host;
+    int server_port;
     void *ptr;
     void *params;
 
@@ -138,9 +142,12 @@ typedef struct _swClient
 } swClient;
 
 int swClient_create(swClient *cli, int type, int async);
+int swClient_sleep(swClient *cli);
+int swClient_wakeup(swClient *cli);
 #ifdef SW_USE_OPENSSL
 int swClient_enable_ssl_encrypt(swClient *cli);
 int swClient_ssl_handshake(swClient *cli);
+int swClient_ssl_verify(swClient *cli, int allow_self_signed);
 #endif
 void swClient_free(swClient *cli);
 

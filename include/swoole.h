@@ -80,7 +80,7 @@ typedef cpuset_t cpu_set_t;
 static double orwl_timebase = 0.0;
 static uint64_t orwl_timestart = 0;
 #ifndef HAVE_CLOCK_GETTIME
-int clock_gettime(clockid_t which_clock, struct timespec *t);
+int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #endif
 #endif
 
@@ -180,21 +180,25 @@ typedef unsigned long ulong_t;
 #define sw_realloc             realloc
 #endif
 
-#if defined(SW_USE_JEMALLOC) || defined(SW_USE_TCMALLOC)
-static sw_inline char* sw_strdup(const char *s)
+static sw_inline char* swoole_strdup(const char *s)
 {
     size_t l = strlen(s) + 1;
     char *p = sw_malloc(l);
     memcpy(p, s, l);
     return p;
 }
-static sw_inline char* sw_strndup(const char *s, size_t n)
+
+static sw_inline char* swoole_strndup(const char *s, size_t n)
 {
     char *p = sw_malloc(n + 1);
     strncpy(p, s, n);
     p[n] = '\0';
     return p;
 }
+
+#if defined(SW_USE_JEMALLOC) || defined(SW_USE_TCMALLOC)
+#define sw_strdup              swoole_strdup
+#define sw_strndup             swoole_strndup
 #else
 #define sw_strdup              strdup
 #define sw_strndup             strndup
@@ -252,6 +256,12 @@ enum swEvent_type
     SW_EVENT_WRITE = 1u << 10,
     SW_EVENT_ERROR = 1u << 11,
     SW_EVENT_ONCE = 1u << 12,
+};
+
+enum swPipe_type
+{
+    SW_PIPE_READ = 0,
+    SW_PIPE_WRITE = 1,
 };
 //-------------------------------------------------------------------------------
 enum swServer_mode
@@ -362,6 +372,10 @@ enum swTraceType
     SW_TRACE_EOF_PROTOCOL     = 1u << 11,
     SW_TRACE_LENGTH_PROTOCOL  = 1u << 12,
     SW_TRACE_CLOSE            = 1u << 13,
+    SW_TRACE_HTTP_CLIENT      = 1u << 14,
+    SW_TRACE_COROUTINE        = 1u << 15,
+    SW_TRACE_REDIS_CLIENT     = 1u << 16,
+    SW_TRACE_MYSQL_CLIENT     = 1u << 17,
 };
 
 #if defined(SW_LOG_TRACE_OPEN) && SW_LOG_TRACE_OPEN
@@ -614,6 +628,19 @@ size_t swoole_utf8_length(u_char *p, size_t n);
 void swoole_random_string(char *buf, size_t size);
 char* swoole_get_mimetype(char *file);
 
+static sw_inline char *swoole_strlchr(char *p, char *last, char c)
+{
+    while (p < last)
+    {
+        if (*p == c)
+        {
+            return p;
+        }
+        p++;
+    }
+    return NULL;
+}
+
 static sw_inline size_t swoole_size_align(size_t size, int pagesize)
 {
     return size + (pagesize - (size % pagesize));
@@ -629,6 +656,16 @@ static sw_inline void swString_free(swString *str)
 {
     sw_free(str->str);
     sw_free(str);
+}
+
+static sw_inline size_t swString_length(swString *str)
+{
+    return str->length;
+}
+
+static sw_inline size_t swString_size(swString *str)
+{
+    return str->size;
 }
 
 swString *swString_new(size_t size);
@@ -1234,6 +1271,7 @@ void swoole_update_time(void);
 double swoole_microtime(void);
 void swoole_rtrim(char *str, int len);
 void swoole_redirect_stdout(int new_fd);
+int swoole_shell_exec(char *command, pid_t *pid);
 int swoole_add_function(const char *name, void* func);
 void* swoole_get_function(char *name, uint32_t length);
 
@@ -1378,7 +1416,7 @@ struct _swReactor
     uint32_t max_socket;
 
 #ifdef SW_USE_MALLOC_TRIM
-    time_t last_mallc_trim_time;
+    time_t last_malloc_trim_time;
 #endif
 
 #ifdef SW_USE_TIMEWHEEL
@@ -1409,6 +1447,7 @@ struct _swReactor
 
     int (*setHandle)(swReactor *, int fdtype, swReactor_handle);
     swDefer_callback *defer_callback_list;
+    swDefer_callback idle_task;
 
     void (*onTimeout)(swReactor *);
     void (*onFinish)(swReactor *);

@@ -163,6 +163,12 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
     uint16_t source_worker_id = current_task->info.from_id;
     swWorker *worker = swServer_get_worker(serv, source_worker_id);
 
+    if (worker == NULL)
+    {
+        swWarn("invalid worker_id[%d].", source_worker_id);
+        return SW_ERR;
+    }
+
     int ret;
     //for swoole_server_task
     if (swTask_type(current_task) & SW_TASK_NONBLOCK)

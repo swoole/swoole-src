@@ -39,10 +39,16 @@ $pm->childFunc = function () use ($pm)
             $response->end("ERROR\n");
             return;
         }
+
+        $ret = $redis->set('key', 'value');
+        if (!$ret) {
+            goto fail;
+        }
         $ret = $redis->get('key');
         if (!$ret) {
             goto fail;
         }
+        assert($ret == "value");
         if (strlen($ret) > 0) {
             $response->end("OK\n");
         }

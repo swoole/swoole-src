@@ -339,7 +339,8 @@ void swoole_client_init(int module_number TSRMLS_DC)
 
 int php_swoole_client_onPackage(swConnection *conn, char *data, uint32_t length)
 {
-    client_onReceive(conn->object, data, length);
+    swClient *cli = (swClient *) conn->object;
+    cli->onReceive(conn->object, data, length);
     return SW_OK;
 }
 
@@ -492,6 +493,38 @@ void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset TSRMLS_DC)
     {
         convert_to_string(v);
         cli->ssl_option.passphrase = sw_strdup(Z_STRVAL_P(v));
+    }
+#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
+    if (php_swoole_array_get_value(vht, "ssl_host_name", v))
+    {
+        convert_to_string(v);
+        cli->ssl_option.tls_host_name = sw_strdup(Z_STRVAL_P(v));
+    }
+#endif
+    if (php_swoole_array_get_value(vht, "ssl_verify_peer", v))
+    {
+        convert_to_boolean(v);
+        cli->ssl_option.verify_peer = Z_BVAL_P(v);
+    }
+    if (php_swoole_array_get_value(vht, "ssl_allow_self_signed", v))
+    {
+        convert_to_boolean(v);
+        cli->ssl_option.allow_self_signed = Z_BVAL_P(v);
+    }
+    if (php_swoole_array_get_value(vht, "ssl_cafile", v))
+    {
+        convert_to_string(v);
+        cli->ssl_option.cafile = sw_strdup(Z_STRVAL_P(v));
+    }
+    if (php_swoole_array_get_value(vht, "ssl_capath", v))
+    {
+        convert_to_string(v);
+        cli->ssl_option.capath = sw_strdup(Z_STRVAL_P(v));
+    }
+    if (php_swoole_array_get_value(vht, "ssl_verify_depth", v))
+    {
+        convert_to_long(v);
+        cli->ssl_option.verify_depth = (int) Z_LVAL_P(v);
     }
     if (cli->ssl_option.cert_file && !cli->ssl_option.key_file)
     {
@@ -990,11 +1023,6 @@ swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port
             {
                 cli->close(cli);
                 goto create_socket;
-            }
-            //clear history data
-            if (ret > 0)
-            {
-                swSocket_clean(cli->socket->fd);
             }
             cli->reuse_count ++;
             zend_update_property_long(swoole_client_class_entry_ptr, object, ZEND_STRL("reuseCount"), cli->reuse_count TSRMLS_CC);
@@ -1548,6 +1576,11 @@ static PHP_METHOD(swoole_client, recv)
         {
             goto check_return;
         }
+        else if (ret != header_len)
+        {
+            ret = 0;
+            goto check_return;
+        }
 
         buf_len = protocol->get_package_length(protocol, cli->socket, cli->buffer->str, ret);
 
@@ -1574,6 +1607,10 @@ static PHP_METHOD(swoole_client, recv)
         if (ret > 0)
         {
             ret += header_len;
+            if (ret != buf_len)
+            {
+                ret = 0;
+            }
         }
     }
     else
@@ -1905,16 +1942,7 @@ static PHP_METHOD(swoole_client, sleep)
     {
         RETURN_FALSE;
     }
-    int ret;
-    if (cli->socket->events & SW_EVENT_WRITE)
-    {
-        ret = SwooleG.main_reactor->set(SwooleG.main_reactor, cli->socket->fd, cli->socket->fdtype | SW_EVENT_WRITE);
-    }
-    else
-    {
-        ret = SwooleG.main_reactor->del(SwooleG.main_reactor, cli->socket->fd);
-    }
-    SW_CHECK_RETURN(ret);
+    SW_CHECK_RETURN(swClient_sleep(cli));
 }
 
 static PHP_METHOD(swoole_client, wakeup)
@@ -1924,16 +1952,7 @@ static PHP_METHOD(swoole_client, wakeup)
     {
         RETURN_FALSE;
     }
-    int ret;
-    if (cli->socket->events & SW_EVENT_WRITE)
-    {
-        ret = SwooleG.main_reactor->set(SwooleG.main_reactor, cli->socket->fd, cli->socket->fdtype | SW_EVENT_READ | SW_EVENT_WRITE);
-    }
-    else
-    {
-        ret = SwooleG.main_reactor->add(SwooleG.main_reactor, cli->socket->fd, cli->socket->fdtype | SW_EVENT_READ);
-    }
-    SW_CHECK_RETURN(ret);
+    SW_CHECK_RETURN(swClient_wakeup(cli));
 }
 
 #ifdef SW_USE_OPENSSL
@@ -2058,7 +2077,7 @@ static PHP_METHOD(swoole_client, verifyPeerCert)
     {
         return;
     }
-    SW_CHECK_RETURN(swSSL_verify(cli->socket, allow_self_signed));
+    SW_CHECK_RETURN(swClient_ssl_verify(cli, allow_self_signed));
 }
 #endif
 

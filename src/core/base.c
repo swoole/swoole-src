@@ -486,7 +486,7 @@ void swoole_rtrim(char *str, int len)
             str[i] = 0;
             break;
         default:
-            break;
+            return;
         }
     }
 }
@@ -933,9 +933,78 @@ char *swoole_kmp_strnstr(char *haystack, char *needle, uint32_t length)
 /**
  * DNS lookup
  */
+#ifdef HAVE_GETHOSTBYNAME2_R
 int swoole_gethostbyname(int flags, char *name, char *addr)
 {
     int __af = flags & (~SW_DNS_LOOKUP_RANDOM);
+    int index = 0;
+    int rc, err;
+    int buf_len = 256;
+    struct hostent hbuf;
+    struct hostent *result;
+
+    char * buf = (char*) sw_malloc(buf_len);
+    memset(buf, 0, buf_len);
+    while ((rc = gethostbyname2_r(name, __af, &hbuf, buf, buf_len, &result, &err)) == ERANGE)
+    {
+        buf_len *= 2;
+        void *tmp = realloc(buf, buf_len);
+        if (NULL == tmp)
+        {
+            sw_free(buf);
+            return SW_ERR;
+        }
+        else
+        {
+            buf = tmp;
+        }
+    }
+
+    if (0 != rc || NULL == result)
+    {
+        sw_free(buf);
+        return SW_ERR;
+    }
+
+    union
+    {
+        char v4[INET_ADDRSTRLEN];
+        char v6[INET6_ADDRSTRLEN];
+    } addr_list[SW_DNS_HOST_BUFFER_SIZE];
+
+    int i = 0;
+    for (i = 0; i < SW_DNS_HOST_BUFFER_SIZE; i++)
+    {
+        if (hbuf.h_addr_list[i] == NULL)
+        {
+            break;
+        }
+        if (__af == AF_INET)
+        {
+            memcpy(addr_list[i].v4, hbuf.h_addr_list[i], hbuf.h_length);
+        }
+        else
+        {
+            memcpy(addr_list[i].v6, hbuf.h_addr_list[i], hbuf.h_length);
+        }
+    }
+    if (__af == AF_INET)
+    {
+        memcpy(addr, addr_list[index].v4, hbuf.h_length);
+    }
+    else
+    {
+        memcpy(addr, addr_list[index].v6, hbuf.h_length);
+    }
+
+    sw_free(buf);
+    
+    return SW_OK;
+}
+#else
+int swoole_gethostbyname(int flags, char *name, char *addr)
+{
+	int __af = flags & (~SW_DNS_LOOKUP_RANDOM);
     int index = 0;
 
     struct hostent *host_entry;
@@ -976,6 +1045,7 @@ int swoole_gethostbyname(int flags, char *name, char *addr)
     }
     return SW_OK;
 }
+#endif
 
 int swoole_add_function(const char *name, void* func)
 {
@@ -1004,6 +1074,36 @@ void* swoole_get_function(char *name, uint32_t length)
     return swHashMap_find(SwooleG.functions, name, length);
 }
 
+int swoole_shell_exec(char *command, pid_t *pid)
+{
+    pid_t child_pid;
+    int fds[2];
+    pipe(fds);
+
+    if ((child_pid = fork()) == -1)
+    {
+        swSysError("fork() failed.");
+        return -1;
+    }
+
+    if (child_pid == 0)
+    {
+        close(fds[SW_PIPE_READ]);
+        dup2(fds[SW_PIPE_WRITE], 1);
+
+        //Needed so negative PIDs can kill children of /bin/sh
+        setpgid(child_pid, child_pid);
+        execl("/bin/sh", "/bin/sh", "-c", command, NULL);
+        exit(0);
+    }
+    else
+    {
+        *pid = child_pid;
+        close(fds[SW_PIPE_WRITE]);
+    }
+    return fds[SW_PIPE_READ];
+}
+
 #ifdef HAVE_EXECINFO
 void swoole_print_trace(void)
 {
@@ -1023,7 +1123,7 @@ void swoole_print_trace(void)
 
 #ifndef HAVE_CLOCK_GETTIME
 #ifdef __MACH__
-int clock_gettime(clockid_t which_clock, struct timespec *t)
+int clock_gettime(clock_id_t which_clock, struct timespec *t)
 {
     // be more careful in a multithreaded environement
     if (!orwl_timestart)

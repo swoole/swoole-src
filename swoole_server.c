@@ -44,6 +44,7 @@ zend_fcall_info_cache *php_sw_server_caches[PHP_SERVER_CALLBACK_NUM];
 static swHashMap *task_callbacks = NULL;
 static swHashMap *task_coroutine_map = NULL;
 
+#ifdef SW_COROUTINE
 typedef struct
 {
     php_context context;
@@ -52,6 +53,7 @@ typedef struct
     zval *result;
     swTimer_node *timer;
 } swTaskCo;
+#endif
 
 #if PHP_MAJOR_VERSION >= 7
 zval _php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
@@ -73,12 +75,15 @@ static void php_swoole_onManagerStop(swServer *serv);
 
 static zval* php_swoole_server_add_port(swListenPort *port TSRMLS_DC);
 
-int php_swoole_create_dir(const char* path, int length TSRMLS_DC)
+static int php_swoole_create_dir(const char* path, size_t length TSRMLS_DC)
 {
     if (access(path, F_OK) == 0)
     {
         return 0;
     }
+#if 1
+    return php_stream_mkdir(path, 0777, PHP_STREAM_MKDIR_RECURSIVE | REPORT_ERRORS, NULL) ? 0 : -1;
+#else
     int     startpath;
     int     endpath;
     int     i            = 0;
@@ -111,14 +116,14 @@ int php_swoole_create_dir(const char* path, int length TSRMLS_DC)
         endpath      = strlen(curpath);
     }
     for (i = startpath; i < endpath ; i++ )
-    {  
+    {
         if ('/' == curpath[i])
         {
             curpath[i] = '\0';
             if (access(curpath, F_OK) != 0)
             {
                 if (mkdir(curpath, 0755) == -1)
-                {  
+                {
                     swoole_php_sys_error(E_WARNING, "mkdir(%s, 0755).", path);
                     return -1;
                 }
@@ -127,6 +132,7 @@ int php_swoole_create_dir(const char* path, int length TSRMLS_DC)
         }
     }
     return 0;
+#endif
 }
 
 int php_swoole_task_pack(swEventData *task, zval *data TSRMLS_DC)
@@ -354,7 +360,7 @@ zval* php_swoole_task_unpack(swEventData *task_result TSRMLS_DC)
 #if PHP_MAJOR_VERSION >= 7
         if (SWOOLE_G(fast_serialize))
         {
-            if (php_swoole_unserialize(result_data_str, result_data_len, result_unserialized_data, NULL))
+            if (php_swoole_unserialize(result_data_str, result_data_len, result_unserialized_data, NULL, 0))
             {
                 result_data = result_unserialized_data;
             }
@@ -391,6 +397,7 @@ zval* php_swoole_task_unpack(swEventData *task_result TSRMLS_DC)
     return result_data;
 }
 
+#ifdef SW_COROUTINE
 static void php_swoole_task_onTimeout(swTimer *timer, swTimer_node *tnode)
 {
     swTaskCo *task_co = (swTaskCo *) tnode->data;
@@ -416,6 +423,7 @@ static void php_swoole_task_onTimeout(swTimer *timer, swTimer_node *tnode)
     sw_zval_free(result);
     efree(task_co);
 }
+#endif
 
 static zval* php_swoole_server_add_port(swListenPort *port TSRMLS_DC)
 {
@@ -653,6 +661,7 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
         return;
     }
 
+#ifndef SW_COROUTINE
     zval **args[3];
     args[0] = &zserv;
     args[1] = &zworker_id;
@@ -665,6 +674,25 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
         swoole_php_fatal_error(E_WARNING, "onPipeMessage handler error.");
     }
 
+#else
+    zval *args[3];
+    args[0] = zserv;
+    args[1] = zworker_id;
+    args[2] = zdata;
+
+    zend_fcall_info_cache *cache = php_sw_server_caches[SW_SERVER_CB_onPipeMessage];
+    int ret = coro_create(cache, args, 3, &retval, NULL, NULL);
+    if (ret != 0)
+    {
+        sw_zval_ptr_dtor(&zworker_id);
+        sw_zval_free(zdata);
+        if (ret == CORO_LIMIT)
+        {
+            swWarn("Failed to handle onPipeMessage. Coroutine limited");
+        }
+        return;
+    }
+#endif
     if (EG(exception))
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
@@ -987,6 +1015,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
         return SW_ERR;
     }
 
+#ifdef SW_COROUTINE
     if (swTask_type(req) & SW_TASK_COROUTINE)
     {
         int task_id = req->info.fd;
@@ -1036,6 +1065,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
         }
         return SW_OK;
     }
+#endif
 
     args[0] = &zserv;
     args[1] = &ztask_id;
@@ -1694,6 +1724,10 @@ PHP_METHOD(swoole_server, __construct)
     array_init(ports);
     server_port_list.zports = ports;
 
+#ifdef HT_ALLOW_COW_VIOLATION
+    HT_ALLOW_COW_VIOLATION(Z_ARRVAL_P(ports));
+#endif
+
     swListenPort *ls;
     LL_FOREACH(serv->listen_list, ls)
     {
@@ -1937,17 +1971,16 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "task_tmpdir", v))
     {
         convert_to_string(v);
-        php_swoole_create_dir(Z_STRVAL_P(v), Z_STRLEN_P(v) TSRMLS_CC);
-
-        if (Z_STRLEN_P(v) > SW_TASK_TMPDIR_SIZE - 30)
+        if (php_swoole_create_dir(Z_STRVAL_P(v), Z_STRLEN_P(v) TSRMLS_CC) < 0)
         {
-            swoole_php_fatal_error(E_ERROR, "task_tmpdir is too long, the max size is %d.", SW_TASK_TMPDIR_SIZE - 1);
+            swoole_php_fatal_error(E_ERROR, "Unable to create task_tmpdir[%s].", Z_STRVAL_P(v));
             return;
         }
-        if (SwooleG.task_tmpdir == NULL)
+        if (SwooleG.task_tmpdir)
         {
-            SwooleG.task_tmpdir = emalloc(SW_TASK_TMPDIR_SIZE);
+            sw_free(SwooleG.task_tmpdir);
         }
+        SwooleG.task_tmpdir = sw_malloc(Z_STRLEN_P(v) + sizeof(SW_TASK_TMP_FILE) + 1);
         SwooleG.task_tmpdir_len = snprintf(SwooleG.task_tmpdir, SW_TASK_TMPDIR_SIZE, "%s/swoole.task.XXXXXX", Z_STRVAL_P(v)) + 1;
     }
     //task_max_request
@@ -2046,12 +2079,10 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "upload_tmp_dir", v))
     {
         convert_to_string(v);
-        php_swoole_create_dir(Z_STRVAL_P(v), Z_STRLEN_P(v) TSRMLS_CC);
-
-        if (Z_STRLEN_P(v) >= SW_HTTP_UPLOAD_TMPDIR_SIZE - 22)
+        if (php_swoole_create_dir(Z_STRVAL_P(v), Z_STRLEN_P(v) TSRMLS_CC) < 0)
         {
-            swoole_php_fatal_error(E_ERROR, "option upload_tmp_dir [%s] is too long.", Z_STRVAL_P(v));
-            RETURN_FALSE;
+            swoole_php_fatal_error(E_ERROR, "Unable to create upload_tmp_dir[%s].", Z_STRVAL_P(v));
+            return;
         }
         if (serv->upload_tmp_dir)
         {
@@ -3024,6 +3055,7 @@ PHP_METHOD(swoole_server, taskWaitMulti)
     unlink(_tmpfile);
 }
 
+#ifdef SW_COROUTINE
 PHP_METHOD(swoole_server, taskCo)
 {
     swEventData buf;
@@ -3124,6 +3156,7 @@ PHP_METHOD(swoole_server, taskCo)
     coro_save(&task_co->context);
     coro_yield();
 }
+#endif
 
 PHP_METHOD(swoole_server, task)
 {
