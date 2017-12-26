@@ -1087,6 +1087,22 @@ void swServer_signal_init(swServer *serv)
     swServer_set_minfd(SwooleG.serv, SwooleG.signal_fd);
 }
 
+void swServer_master_onTimer(swServer *serv)
+{
+    swoole_update_time();
+    int32_t timeout_msec = SwooleG.main_reactor->timeout_msec;
+    if (timeout_msec < 0 || timeout_msec > 1000)
+    {
+        SwooleG.main_reactor->timeout_msec = 1000;
+    }
+    if (serv->scheduler_warning && serv->warning_time < SwooleGS->now)
+    {
+        serv->scheduler_warning = 0;
+        serv->warning_time = SwooleGS->now;
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_NO_IDLE_WORKER, "No idle worker is available.");
+    }
+}
+
 int swServer_add_worker(swServer *serv, swWorker *worker)
 {
     swUserWorker_node *user_worker = sw_malloc(sizeof(swUserWorker_node));
@@ -1559,6 +1575,7 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
 
     SwooleStats->accept_count++;
     sw_atomic_fetch_add(&SwooleStats->connection_num, 1);
+    sw_atomic_fetch_add(&ls->connection_num, 1);
 
     if (fd > swServer_get_maxfd(serv))
     {

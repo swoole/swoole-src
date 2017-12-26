@@ -820,7 +820,18 @@ static int swClient_tcp_recv_no_buffer(swClient *cli, char *data, int len, int f
         }
         if (errno == EINTR)
         {
-            continue;
+            if (cli->interrupt_time <= 0)
+            {
+                cli->interrupt_time = swoole_microtime();
+            }
+            else if (swoole_microtime() > cli->interrupt_time + cli->timeout)
+            {
+                break;
+            }
+            else
+            {
+                continue;
+            }
         }
 #ifdef SW_USE_OPENSSL
         if (errno == EAGAIN && cli->socket->ssl)

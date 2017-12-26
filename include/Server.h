@@ -228,6 +228,8 @@ typedef struct _swListenPort
     swSSL_option ssl_option;
 #endif
 
+    sw_atomic_t connection_num;
+
     swProtocol protocol;
     void *ptr;
     int (*onRead)(swReactor *reactor, struct _swListenPort *port, swEvent *event);
@@ -340,6 +342,11 @@ struct _swServer
      */
     uint8_t dispatch_mode;
 
+    /**
+     * No idle work process is available.
+     */
+    uint8_t scheduler_warning;
+
     int worker_uid;
     int worker_groupid;
 
@@ -353,9 +360,6 @@ struct _swServer
      */
     uint32_t max_request;
 
-    int sock_client_buffer_size; //client的socket缓存区设置
-    int sock_server_buffer_size; //server的socket缓存区设置
-
     int signal_fd;
     int event_fd;
 
@@ -365,8 +369,8 @@ struct _swServer
     uint32_t max_wait_time;
 
     /*----------------------------Reactor schedule--------------------------------*/
-    uint16_t reactor_round_i; //轮询调度
-    uint16_t reactor_next_i; //平均算法调度
+    uint16_t reactor_round_i;
+    uint16_t reactor_next_i;
     uint16_t reactor_schedule_count;
 
     sw_atomic_t worker_round_id;
@@ -416,15 +420,18 @@ struct _swServer
      */
     uint32_t reload_async :1;
 
-    /* heartbeat check time*/
-    uint16_t heartbeat_idle_time; //心跳存活时间
-    uint16_t heartbeat_check_interval; //心跳定时侦测时间, 必需小于heartbeat_idle_time
+    /**
+     *  heartbeat check time
+     */
+    uint16_t heartbeat_idle_time;
+    uint16_t heartbeat_check_interval;
 
     int *cpu_affinity_available;
     int cpu_affinity_available_num;
     
     uint16_t listen_port_num;
     time_t reload_time;
+    time_t warning_time;
 
     /* buffer output/input setting*/
     uint32_t buffer_output_size;
@@ -535,6 +542,8 @@ typedef struct
 } swPackage_response;
 
 int swServer_master_onAccept(swReactor *reactor, swEvent *event);
+void swServer_master_onTimer(swServer *serv);
+
 int swServer_onFinish(swFactory *factory, swSendData *resp);
 int swServer_onFinish2(swFactory *factory, swSendData *resp);
 
@@ -802,13 +811,19 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swEventDat
     else
     {
         int i;
+        int found = 0;
         for (i = 0; i < serv->worker_num + 1; i++)
         {
             key = sw_atomic_fetch_add(&serv->worker_round_id, 1) % serv->worker_num;
             if (serv->workers[key].status == SW_WORKER_IDLE)
             {
+                found = 1;
                 break;
             }
+        }
+        if (unlikely(found == 0))
+        {
+            serv->scheduler_warning = 1;
         }
         swTraceLog(SW_TRACE_SERVER, "schedule=%d, round=%d\n", key, serv->worker_round_id);
         return key;
