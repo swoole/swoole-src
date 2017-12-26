@@ -105,8 +105,6 @@
 #define SW_HEARTBEAT_PING_LEN      8
 #define SW_HEARTBEAT_PONG_LEN      8
 
-#define SW_MAINREACTOR_USE_UNSOCK  1    //主线程使用unsock
-#define SW_REACTOR_WRITER_TIMEO    3    //writer线程的reactor
 #define SW_TASKWAIT_TIMEOUT        0.5
 
 #ifdef HAVE_EVENTFD
