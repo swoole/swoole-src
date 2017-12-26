@@ -1090,11 +1090,6 @@ void swServer_signal_init(swServer *serv)
 void swServer_master_onTimer(swServer *serv)
 {
     swoole_update_time();
-    int32_t timeout_msec = SwooleG.main_reactor->timeout_msec;
-    if (timeout_msec < 0 || timeout_msec > 1000)
-    {
-        SwooleG.main_reactor->timeout_msec = 1000;
-    }
     if (serv->scheduler_warning && serv->warning_time < SwooleGS->now)
     {
         serv->scheduler_warning = 0;
