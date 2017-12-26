@@ -131,7 +131,7 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
     //server master
     if (SwooleG.serv && SwooleTG.update_time)
     {
-        swoole_update_time();
+        swServer_master_onTimer(SwooleG.serv);
     }
     //server worker
     swWorker *worker = SwooleWG.worker;
