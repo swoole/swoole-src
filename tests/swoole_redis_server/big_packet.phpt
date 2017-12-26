@@ -3,6 +3,10 @@ swoole_redis_server: test big packet
 
 --SKIPIF--
 <?php require  __DIR__ . "/../include/skipif.inc";
+if (!class_exists("redis", false))
+{
+    exit("skip");
+}
 ?>
 
 --INI--
