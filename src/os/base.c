@@ -190,7 +190,6 @@ int swAioBase_init(int max_aio_events)
         return SW_ERR;
     }
 
-    SwooleAIO.callback = swAio_callback_test;
     SwooleAIO.destroy = swAioBase_destroy;
     SwooleAIO.read = swAioBase_read;
     SwooleAIO.write = swAioBase_write;
