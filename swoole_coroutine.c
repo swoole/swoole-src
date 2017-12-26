@@ -571,10 +571,10 @@ sw_inline void coro_handle_timeout()
 }
 
 /* allocate cid for coroutine */
-typedef struct cidmap 
+typedef struct cidmap
 {
     uint32_t nr_free;
-    char page[4096];
+    char page[65536];
 } cidmap_t;
 
 /* 1 <= cid <= 32768 */
