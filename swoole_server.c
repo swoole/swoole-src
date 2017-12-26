@@ -24,6 +24,20 @@
 #include "zend_smart_str.h"
 #endif
 
+#ifdef HAVE_PCRE
+
+typedef struct
+{
+    int current_fd;
+    int max_fd;
+    uint32_t session_id;
+    swListenPort *port;
+    int end;
+    int index;
+} swConnectionIterator;
+
+#endif
+
 static int php_swoole_task_id = 0;
 static int udp_server_socket;
 static int dgram_server_socket;
@@ -399,6 +413,18 @@ static zval* php_swoole_server_add_port(swListenPort *port TSRMLS_DC)
     zend_update_property_long(swoole_server_port_class_entry_ptr, port_object, ZEND_STRL("port"), port->port TSRMLS_CC);
     zend_update_property_long(swoole_server_port_class_entry_ptr, port_object, ZEND_STRL("type"), port->type TSRMLS_CC);
     zend_update_property_long(swoole_server_port_class_entry_ptr, port_object, ZEND_STRL("sock"), port->sock TSRMLS_CC);
+
+#ifdef HAVE_PCRE
+    zval *connection_iterator;
+    SW_MAKE_STD_ZVAL(connection_iterator);
+    object_init_ex(connection_iterator, swoole_connection_iterator_class_entry_ptr);
+    zend_update_property(swoole_server_port_class_entry_ptr, port_object, ZEND_STRL("connections"), connection_iterator TSRMLS_CC);
+
+    swConnectionIterator *i = emalloc(sizeof(swConnectionIterator));
+    bzero(i, sizeof(swConnectionIterator));
+    i->port = port;
+    swoole_set_object(connection_iterator, i);
+#endif
 
     add_next_index_zval(server_port_list.zports, port_object);
 
@@ -1536,6 +1562,10 @@ PHP_METHOD(swoole_server, __construct)
     SW_MAKE_STD_ZVAL(connection_iterator_object);
     object_init_ex(connection_iterator_object, swoole_connection_iterator_class_entry_ptr);
     zend_update_property(swoole_server_class_entry_ptr, server_object, ZEND_STRL("connections"), connection_iterator_object TSRMLS_CC);
+
+    swConnectionIterator *i = emalloc(sizeof(swConnectionIterator));
+    bzero(i, sizeof(swConnectionIterator));
+    swoole_set_object(connection_iterator_object, i);
 #endif
 
     zend_update_property_stringl(swoole_server_class_entry_ptr, server_object, ZEND_STRL("host"), serv_host, host_len TSRMLS_CC);
@@ -3484,24 +3514,17 @@ PHP_METHOD(swoole_server, stop)
 }
 
 #ifdef HAVE_PCRE
-static struct
-{
-    int current_fd;
-    int max_fd;
-    uint32_t session_id;
-    int end;
-    int index;
-} server_itearator;
 
 PHP_METHOD(swoole_connection_iterator, rewind)
 {
-    bzero(&server_itearator, sizeof(server_itearator));
-    server_itearator.current_fd = swServer_get_minfd(SwooleG.serv);
+    swConnectionIterator *itearator = swoole_get_object(getThis());
+    itearator->current_fd = swServer_get_minfd(SwooleG.serv);
 }
 
 PHP_METHOD(swoole_connection_iterator, valid)
 {
-    int fd = server_itearator.current_fd;
+    swConnectionIterator *itearator = swoole_get_object(getThis());
+    int fd = itearator->current_fd;
     swConnection *conn;
 
     int max_fd = swServer_get_maxfd(SwooleG.serv);
@@ -3516,10 +3539,14 @@ PHP_METHOD(swoole_connection_iterator, valid)
             {
                 continue;
             }
+            if (itearator->port && conn->from_fd != itearator->port->sock)
+            {
+                continue;
+            }
 #endif
-            server_itearator.session_id = conn->session_id;
-            server_itearator.current_fd = fd;
-            server_itearator.index++;
+            itearator->session_id = conn->session_id;
+            itearator->current_fd = fd;
+            itearator->index++;
             RETURN_TRUE;
         }
     }
@@ -3529,22 +3556,33 @@ PHP_METHOD(swoole_connection_iterator, valid)
 
 PHP_METHOD(swoole_connection_iterator, current)
 {
-    RETURN_LONG(server_itearator.session_id);
+    swConnectionIterator *itearator = swoole_get_object(getThis());
+    RETURN_LONG(itearator->session_id);
 }
 
 PHP_METHOD(swoole_connection_iterator, next)
 {
-    server_itearator.current_fd ++;
+    swConnectionIterator *itearator = swoole_get_object(getThis());
+    itearator->current_fd++;
 }
 
 PHP_METHOD(swoole_connection_iterator, key)
 {
-    RETURN_LONG(server_itearator.index);
+    swConnectionIterator *itearator = swoole_get_object(getThis());
+    RETURN_LONG(itearator->index);
 }
 
 PHP_METHOD(swoole_connection_iterator, count)
 {
-    RETURN_LONG(SwooleStats->connection_num);
+    swConnectionIterator *i = swoole_get_object(getThis());
+    if (i->port)
+    {
+        RETURN_LONG(i->port->connection_num);
+    }
+    else
+    {
+        RETURN_LONG(SwooleStats->connection_num);
+    }
 }
 
 PHP_METHOD(swoole_connection_iterator, offsetExists)

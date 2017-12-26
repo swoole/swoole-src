@@ -227,6 +227,8 @@ typedef struct _swListenPort
     swSSL_option ssl_option;
 #endif
 
+    sw_atomic_t connection_num;
+
     swProtocol protocol;
     void *ptr;
     int (*onRead)(swReactor *reactor, struct _swListenPort *port, swEvent *event);

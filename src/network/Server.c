@@ -1575,6 +1575,7 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
 
     SwooleStats->accept_count++;
     sw_atomic_fetch_add(&SwooleStats->connection_num, 1);
+    sw_atomic_fetch_add(&ls->connection_num, 1);
 
     if (fd > swServer_get_maxfd(serv))
     {

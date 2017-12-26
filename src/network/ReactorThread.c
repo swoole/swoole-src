@@ -321,6 +321,8 @@ int swReactorThread_close(swReactor *reactor, int fd)
     swServer_free_buffer(serv, fd);
 
     swListenPort *port = swServer_get_port(serv, fd);
+    sw_atomic_fetch_sub(&port->connection_num, 1);
+
     if (port->open_http_protocol && conn->object)
     {
         swHttpRequest_free(conn);
