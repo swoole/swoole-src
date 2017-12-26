@@ -3958,6 +3958,7 @@ static void swoole_redis_coro_onResult(redisAsyncContext *c, void *r, void *priv
             {
                 goto error;
             }
+            redis->state = SWOOLE_REDIS_CORO_STATE_READY;
             break;
         default:
             redis->state = SWOOLE_REDIS_CORO_STATE_READY;
