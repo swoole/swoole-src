@@ -38,7 +38,7 @@
     <date>2017-12-14</date>
     <time>09:50:10</time>
     <version>
-        <release>2.0.10</release>
+        <release>2.0.11</release>
         <api>2.0</api>
     </version>
     <stability>
@@ -47,9 +47,10 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-    - Merge branch 1.9
-    - Improve stability
-    - First stable version
+    - Added swoole_mysql::prepare
+    - Added Coroutine::fread
+    - Added Coroutine::fwrite
+    - Added Coroutine::gethostbyname
     </notes>
     <contents>
         <dir name="/">
@@ -504,19 +505,23 @@
                 <file name="swoole_client_sync/swoole_client_send_recv.phpt" role="test" />
                 <file name="swoole_client_sync/swoole_client_sync_send_recv.phpt" role="test" />
                 <file name="swoole_client_sync/udp_client_sendto.phpt" role="test" />
+                <file name="swoole_coroutine/call_user_func_array.phpt" role="test" />
                 <file name="swoole_coroutine/client_multi.phpt" role="test" />
                 <file name="swoole_coroutine/client_timeout.phpt" role="test" />
                 <file name="swoole_coroutine/dns_lookup.phpt" role="test" />
                 <file name="swoole_coroutine/eof.phpt" role="test" />
+                <file name="swoole_coroutine/head_method.phpt" role="test" />
                 <file name="swoole_coroutine/http_client.phpt" role="test" />
                 <file name="swoole_coroutine/https_client.phpt" role="test" />
                 <file name="swoole_coroutine/mysql.phpt" role="test" />
                 <file name="swoole_coroutine/redis.phpt" role="test" />
                 <file name="swoole_coroutine/redis_connect_twice.phpt" role="test" />
                 <file name="swoole_coroutine/redis_pool.phpt" role="test" />
+                <file name="swoole_coroutine/redis_subscribe.phpt" role="test" />
                 <file name="swoole_coroutine/tcp_client.phpt" role="test" />
                 <file name="swoole_coroutine/udp_client.phpt" role="test" />
                 <file name="swoole_coroutine/user_coroutine.phpt" role="test" />
+                <file name="swoole_coroutine/user_coroutine_2.phpt" role="test" />
                 <file name="swoole_event/swoole_event.phpt" role="test" />
                 <file name="swoole_event/swoole_event_core.phpt" role="test" />
                 <file name="swoole_event/swoole_event_del.phpt" role="test" />
@@ -526,6 +531,7 @@
                 <file name="swoole_function/swoole_get_local_ip.phpt" role="test" />
                 <file name="swoole_function/swoole_set_process_name.phpt" role="test" />
                 <file name="swoole_function/swoole_version.phpt" role="test" />
+                <file name="swoole_http2_client/get.phpt" role="test" />
                 <file name="swoole_http_client/connect_host_not_found.phpt" role="test" />
                 <file name="swoole_http_client/connect_port_not_listen.phpt" role="test" />
                 <file name="swoole_http_client/content_length.phpt" role="test" />
@@ -542,6 +548,7 @@
                 <file name="swoole_http_client/method_delete_with_payload.phpt" role="test" />
                 <file name="swoole_http_client/method_get.phpt" role="test" />
                 <file name="swoole_http_client/method_get_with_payload.phpt" role="test" />
+                <file name="swoole_http_client/method_head.phpt" role="test" />
                 <file name="swoole_http_client/method_patch.phpt" role="test" />
                 <file name="swoole_http_client/method_patch_with_payload.phpt" role="test" />
                 <file name="swoole_http_client/method_post.phpt" role="test" />
@@ -698,6 +705,7 @@
                 <file name="swoole_timer/greater_than_0.phpt" role="test" />
                 <file name="swoole_timer/parameters_is_too_big.phpt" role="test" />
                 <file name="swoole_timer/swoole_timer_after.phpt" role="test" />
+                <file name="swoole_timer/task_worker.phpt" role="test" />
                 <file name="swoole_websocket_server/test_send_large_request_data.phpt" role="test" />
                 <file name="swoole_websocket_server/test_send_small_request_data.phpt" role="test" />
                 <file name="swoole_websocket_server/websocket_message.phpt" role="test" />
