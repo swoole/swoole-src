@@ -1,7 +1,11 @@
 --TEST--
 swoole_coroutine: redis subscribe
 --SKIPIF--
-<?php require  __DIR__ . "/../include/skipif.inc"; ?>
+<?php require  __DIR__ . "/../include/skipif.inc";
+if (!class_exists('redis', false)) {
+    exit("SKIP");
+}
+?>
 --FILE--
 <?php
 require_once __DIR__ . "/../include/swoole.inc";
