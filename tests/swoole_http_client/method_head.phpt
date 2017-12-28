@@ -14,14 +14,14 @@ assert.quiet_eval=0
 require_once __DIR__ . "/../include/swoole.inc";
 require_once __DIR__ . "/../include/api/swoole_http_client/simple_http_client.php";
 
-$cli = new swoole_http_client('stackoverflow.com');
+$cli = new swoole_http_client('jd.com');
 $cli->set(array(
     'timeout' => 3,
 ));
 
 $cli->on('close', function ($cli)
 {
-    echo "close\n";
+
 });
 $cli->on('error', function ($cli)
 {
@@ -32,9 +32,10 @@ $cli->setMethod('HEAD');
 
 $cli->get('/', function ($cli)
 {
-    var_dump($cli->statusCode);
+    assert($cli->statusCode == 302);
+    $cli->close();
 });
 swoole_event::wait();
 ?>
 --EXPECT--
-SUCCESS
+

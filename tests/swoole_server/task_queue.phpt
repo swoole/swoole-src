@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: task callback
+swoole_server: task queue
 --SKIPIF--
 <?php require __DIR__ . "/../include/skipif.inc"; ?>
 --INI--
@@ -43,7 +43,7 @@ $pm->childFunc = function () use ($pm, $port)
     {
         for ($i = 0; $i < 2048; $i++)
         {
-            $data = array('id' => $i, 'fd' => $fd, 'data' => openssl_random_pseudo_bytes(rand(2048, 4096)));
+            $data = array('id' => $i, 'fd' => $fd, 'data' => RandStr::getBytes(rand(2048, 4096)));
             if ($serv->task($data) === false)
             {
                 $serv->send($fd, "ERROR\n");
