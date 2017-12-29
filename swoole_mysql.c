@@ -894,7 +894,7 @@ static int mysql_decode_row_prepare(mysql_client *client, char *buf, int packet_
 {
     int read_n = 0, i;
     int tmp_len;
-    ulong_t len;
+    ulong_t len = 0;
     char nul;
 
     unsigned int null_count = ((client->response.num_column + 9) / 8) + 1;
