@@ -1272,7 +1272,6 @@ static PHP_METHOD(swoole_redis_coro, __destruct)
     redis->object = NULL;
     redis->state = SWOOLE_REDIS_CORO_STATE_RELEASED;
     swoole_set_object(getThis(), NULL);
-    SwooleG.main_reactor->defer(SwooleG.main_reactor, redis_coro_free, redis);
 }
 
 static PHP_METHOD(swoole_redis_coro, set)
@@ -3380,6 +3379,7 @@ static PHP_METHOD(swoole_redis_coro, pSubscribe)
     {
     case SWOOLE_REDIS_CORO_STATE_SUBSCRIBE:
 		coro_save(context);
+		redis->iowait = SW_REDIS_CORO_STATUS_WAIT;
 		coro_yield();
 		break;
     case SWOOLE_REDIS_CORO_STATE_CONNECT:
@@ -3430,7 +3430,7 @@ static PHP_METHOD(swoole_redis_coro, pSubscribe)
 static PHP_METHOD(swoole_redis_coro, subscribe)
 {
     zval *z_arr;
-    if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a", &z_arr) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "a", &z_arr) == FAILURE)
     {
 		return;
     }
@@ -3448,6 +3448,7 @@ static PHP_METHOD(swoole_redis_coro, subscribe)
     {
     case SWOOLE_REDIS_CORO_STATE_SUBSCRIBE:
 		coro_save(context);
+		redis->iowait = SW_REDIS_CORO_STATUS_WAIT;
 		coro_yield();
 		break;
     case SWOOLE_REDIS_CORO_STATE_CONNECT:
@@ -3909,6 +3910,7 @@ static void swoole_redis_coro_onResult(redisAsyncContext *c, void *r, void *priv
 			sw_zval_free(redis->pipeline_result);
 			redis->pipeline_result = NULL;
         }
+        swoole_redis_coro_resume(result);
     }
     else
     {
@@ -4029,9 +4031,34 @@ static void swoole_redis_coro_onClose(const redisAsyncContext *c, int status)
     swConnection *_socket = swReactor_get(SwooleG.main_reactor, c->c.fd);
     _socket->active = 0;
 
+    SwooleG.main_reactor->defer(SwooleG.main_reactor, redis_coro_free, redis);
+
 #if PHP_MAJOR_VERSION < 7
-    sw_zval_ptr_dtor(&redis->object);
+    if (redis->object)
+    {
+        sw_zval_ptr_dtor(&redis->object);
+    }
 #endif
+
+    if (redis->iowait == SW_REDIS_CORO_STATUS_WAIT && redis->object)
+    {
+        swTraceLog(SW_TRACE_REDIS_CLIENT, "resume, fd=%d, object_id=%d", redis->context->c.fd, sw_get_object_handle(redis->object));
+
+        redis->iowait = SW_REDIS_CORO_STATUS_CLOSED;
+
+        php_context *context = swoole_get_property(redis->object, 0);
+        zval *retval = NULL;
+        zval *redis_result;
+        SW_MAKE_STD_ZVAL(redis_result);
+        ZVAL_FALSE(redis_result);
+
+        int ret = coro_resume(context, redis_result, &retval);
+        if (ret == CORO_END && retval)
+        {
+            sw_zval_ptr_dtor(&retval);
+        }
+        sw_zval_ptr_dtor(&redis_result);
+    }
 }
 
 static void swoole_redis_coro_event_AddRead(void *privdata)
