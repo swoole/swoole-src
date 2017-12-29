@@ -1078,12 +1078,15 @@ int swoole_shell_exec(char *command, pid_t *pid)
 {
     pid_t child_pid;
     int fds[2];
-    pipe(fds);
+    if (pipe(fds) < 0)
+    {
+        return SW_ERR;
+    }
 
     if ((child_pid = fork()) == -1)
     {
         swSysError("fork() failed.");
-        return -1;
+        return SW_ERR;
     }
 
     if (child_pid == 0)
