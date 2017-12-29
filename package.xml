@@ -47,10 +47,7 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-    - Added swoole_mysql::prepare
-    - Added Coroutine::fread
-    - Added Coroutine::fwrite
-    - Added Coroutine::gethostbyname
+    - No longer support PHP5
     </notes>
     <contents>
         <dir name="/">

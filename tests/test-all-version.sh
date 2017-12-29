@@ -11,13 +11,4 @@ cd ../
 ./make.sh
 cd tests/
 ./start.sh
-to_php56.sh
-cd ../
-./make.sh
-cd tests/
-./start.sh
-to_php55.sh
-cd ../
-./make.sh
-cd tests/
-./start.sh
+
