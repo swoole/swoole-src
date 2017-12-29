@@ -256,26 +256,8 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
     {
         zval *value;
         SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(params), value)
-            if (Z_TYPE_P(value) == IS_LONG)
-            {
-                mysql_int2store(p, SW_MYSQL_TYPE_LONG);
-                p += 2;
-            }
-            else if (Z_TYPE_P(value) == IS_STRING)
-            {
-                mysql_int2store(p, SW_MYSQL_TYPE_VAR_STRING);
-                p += 2;
-            }
-            else if (Z_TYPE_P(value) == IS_DOUBLE)
-            {
-                mysql_int2store(p, SW_MYSQL_TYPE_DOUBLE);
-                p += 2;
-            }
-            else
-            {
-                swoole_php_fatal_error(E_WARNING, "unknown data type.");
-                return SW_ERR;
-            }
+            mysql_int2store(p, SW_MYSQL_TYPE_VAR_STRING);
+            p += 2;
         SW_HASHTABLE_FOREACH_END();
     }
 
@@ -287,30 +269,14 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
     {
         zval *value;
         SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(params), value)
-            if (Z_TYPE_P(value) == IS_LONG)
+            convert_to_string(value);
+            lval = mysql_write_lcb(buf, Z_STRLEN_P(value));
+            if (swString_append_ptr(mysql_request_buffer, buf, lval) < 0)
             {
-                lval = 0;
-                mysql_int8store(&lval, Z_LVAL_P(value));
-                if (swString_append_ptr(mysql_request_buffer, (char*) &lval, sizeof(lval)) < 0)
-                {
-                    return SW_ERR;
-                }
+                return SW_ERR;
             }
-            else if (Z_TYPE_P(value) == IS_STRING)
+            if (swString_append_ptr(mysql_request_buffer, Z_STRVAL_P(value), Z_STRLEN_P(value)) < 0)
             {
-                lval = mysql_write_lcb(buf, Z_STRLEN_P(value));
-                if (swString_append_ptr(mysql_request_buffer, buf, lval) < 0)
-                {
-                    return SW_ERR;
-                }
-                if (swString_append_ptr(mysql_request_buffer, Z_STRVAL_P(value), Z_STRLEN_P(value)) < 0)
-                {
-                    return SW_ERR;
-                }
-            }
-            else
-            {
-                swoole_php_fatal_error(E_WARNING, "unknown data type.");
                 return SW_ERR;
             }
         SW_HASHTABLE_FOREACH_END();
