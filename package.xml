@@ -490,7 +490,6 @@
                 <file name="swoole_client_async/getsockname.phpt" role="test" />
                 <file name="swoole_client_async/length_protocol.phpt" role="test" />
                 <file name="swoole_client_async/sendfile.phpt" role="test" />
-                <file name="swoole_client_async/sleep_wake.php" role="test" />
                 <file name="swoole_client_async/sleep_wake.phpt" role="test" />
                 <file name="swoole_client_async/swoole_client.phpt" role="test" />
                 <file name="swoole_client_sync/eof.phpt" role="test" />

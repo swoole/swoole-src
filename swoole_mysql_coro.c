@@ -253,12 +253,11 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
     p += 1;
     mysql_request_buffer->length += 1;
 
+    int i;
+    for (i = 0; i < client->statement->param_count; i++)
     {
-        zval *value;
-        SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(params), value)
-            mysql_int2store(p, SW_MYSQL_TYPE_VAR_STRING);
-            p += 2;
-        SW_HASHTABLE_FOREACH_END();
+        mysql_int2store(p, SW_MYSQL_TYPE_VAR_STRING);
+        p += 2;
     }
 
     mysql_request_buffer->length += php_swoole_array_length(params) * 2;
@@ -268,17 +267,23 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
 
     {
         zval *value;
+        zval _value;
         SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(params), value)
+            ZVAL_DUP(&_value, value);
+            value = &_value;
             convert_to_string(value);
             lval = mysql_write_lcb(buf, Z_STRLEN_P(value));
             if (swString_append_ptr(mysql_request_buffer, buf, lval) < 0)
             {
+                zval_dtor(value);
                 return SW_ERR;
             }
             if (swString_append_ptr(mysql_request_buffer, Z_STRVAL_P(value), Z_STRLEN_P(value)) < 0)
             {
+                zval_dtor(value);
                 return SW_ERR;
             }
+            zval_dtor(value);
         SW_HASHTABLE_FOREACH_END();
     }
 
