@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: fread
+swoole_coroutine: mysql prepare (select)
 --SKIPIF--
 <?php require __DIR__ . "/../include/skipif.inc"; ?>
 --FILE--
@@ -23,18 +23,18 @@ co::create(function () {
         return;
     }
 
-    $ret2 = $db->prepare('INSERT INTO ckl (`domain`,`path`,`name`) VALUES (?,?,?)');
+    $ret2 = $db->prepare('SELECT * FROM userinfo WHERE id=?');
     if (!$ret2) {
         echo "PREPARE ERROR\n";
         return;
     }
 
-    $ret3 = $db->execute(array('www.baidu.com', '/search', 'baidu'));
+    $ret3 = $db->execute(array(10));
     if (!$ret3) {
         echo "EXECUTE ERROR\n";
         return;
     }
-    assert($db->insert_id > 0);
+    assert(count($ret3) > 0);
 });
 
 ?>
