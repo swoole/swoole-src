@@ -118,7 +118,7 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event);
 static int swoole_mysql_coro_onWrite(swReactor *reactor, swEvent *event);
 static int swoole_mysql_coro_onError(swReactor *reactor, swEvent *event);
 static void swoole_mysql_coro_onConnect(mysql_client *client TSRMLS_DC);
-static void swoole_mysql_coro_onTimeout(php_context *cxt);
+static void swoole_mysql_coro_onTimeout(swTimer *timer, swTimer_node *tnode);
 
 extern swString *mysql_request_buffer;
 
@@ -554,7 +554,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
         swoole_set_property(getThis(), 0, context);
     }
 	context->state = SW_CORO_CONTEXT_RUNNING;
-	context->onTimeout = swoole_mysql_coro_onTimeout;
+	context->onTimeout = NULL;
 #if PHP_MAJOR_VERSION < 7
 	context->coro_params = getThis();
 #else
@@ -562,7 +562,8 @@ static PHP_METHOD(swoole_mysql_coro, connect)
 #endif
 	if (connector->timeout > 0)
 	{
-		php_swoole_add_timer_coro((int) (connector->timeout * 1000), client->fd, &client->cli->timeout_id, (void *) context, NULL TSRMLS_CC);
+        php_swoole_check_timer((int) (connector->timeout * 1000));
+        connector->timer = SwooleG.timer.add(&SwooleG.timer, (int) (connector->timeout * 1000), 0, context, swoole_mysql_coro_onTimeout);
 	}
     client->cid = get_current_cid();
     coro_save(context);
@@ -1096,11 +1097,11 @@ static void swoole_mysql_coro_onConnect(mysql_client *client TSRMLS_DC)
     zval *retval = NULL;
     zval *result;
 
-	if (client->cli->timeout_id > 0)
-	{
-		php_swoole_clear_timer_coro(client->cli->timeout_id TSRMLS_CC);
-		client->cli->timeout_id = 0;
-	}
+    if (client->connector.timer)
+    {
+        swTimer_del(&SwooleG.timer, client->connector.timer);
+        client->connector.timer = NULL;
+    }
 
     SW_MAKE_STD_ZVAL(result);
 
@@ -1133,14 +1134,15 @@ static void swoole_mysql_coro_onConnect(mysql_client *client TSRMLS_DC)
 	}
 }
 
-
-static void swoole_mysql_coro_onTimeout(php_context *ctx)
+static void swoole_mysql_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
 {
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
     zval *result;
     zval *retval = NULL;
+
+    php_context *ctx = tnode->data;
 
     SW_ALLOC_INIT_ZVAL(result);
     ZVAL_BOOL(result, 0);

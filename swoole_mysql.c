@@ -674,7 +674,7 @@ static int mysql_parse_prepare_result(mysql_client *client, char *buf, size_t n_
     stmt->warning_count = mysql_uint2korr(buf);
     client->statement = stmt;
 
-    swTrace("id=%d, field_count=%d, param_count=%d, warning_count=%d.", stmt->id, stmt->field_count, stmt->param_count,
+    swTraceLog(SW_TRACE_MYSQL_CLIENT, "id=%d, field_count=%d, param_count=%d, warning_count=%d.", stmt->id, stmt->field_count, stmt->param_count,
             stmt->warning_count);
 
     return 11;
@@ -1063,27 +1063,38 @@ static sw_inline int mysql_read_params(mysql_client *client)
     {
         char *buffer = client->buffer->str + client->buffer->offset;
         uint32_t n_buf = client->buffer->length - client->buffer->offset;
+
+        swTraceLog(SW_TRACE_MYSQL_CLIENT, "n_buf=%d, length=%d.", n_buf, client->response.packet_length);
+
         if (n_buf < 4)
         {
+            swTraceLog(SW_TRACE_MYSQL_CLIENT, "read eof 23.");
             return SW_ERR;
         }
-        //no enough data
-        if (n_buf - 4 < client->response.packet_length)
+
+        if (client->statement->unreaded_param_count > 0)
         {
-            return SW_ERR;
-        }
-        else  if (client->statement->unreaded_param_count > 0)
-        {
+            //no enough data
+            if (n_buf - 4 < client->response.packet_length)
+            {
+                swTraceLog(SW_TRACE_MYSQL_CLIENT, "read eof 234234.");
+                return SW_ERR;
+            }
             // Read and ignore parameter field. Sentence from MySQL source:
             // skip parameters data: we don't support it yet
             client->response.packet_length = mysql_uint3korr(buffer);
             client->response.packet_number = buffer[3];
             client->buffer->offset += (client->response.packet_length + 4);
             client->statement->unreaded_param_count--;
+
+            swTraceLog(SW_TRACE_MYSQL_CLIENT, "read param, count=%d.", client->statement->unreaded_param_count);
+
             continue;
         }
         else
         {
+            swTraceLog(SW_TRACE_MYSQL_CLIENT, "read eof.");
+
             if (mysql_read_eof(client, buffer, n_buf) == 0)
             {
                 client->buffer->offset += 9;
@@ -1368,6 +1379,8 @@ static int mysql_read_columns(mysql_client *client)
 
     for (; client->response.index_column < client->response.num_column; client->response.index_column++)
     {
+        swTraceLog(SW_TRACE_MYSQL_CLIENT, "index_index_column=%d, n_buf=%d.", client->response.index_column, n_buf);
+
         if (n_buf < 4)
         {
             return SW_ERR;
@@ -1435,6 +1448,8 @@ int mysql_response(mysql_client *client)
 
     while (n_buf > 0)
     {
+        swTraceLog(SW_TRACE_MYSQL_CLIENT, "client->state=%d, n_buf=%d.", client->state, n_buf);
+
         switch (client->state)
         {
         case SW_MYSQL_STATE_READ_START:
@@ -1575,10 +1590,16 @@ int mysql_response(mysql_client *client)
             {
                 return SW_ERR;
             }
-            else
+            else if (client->statement->field_count > 0)
             {
                 client->state = SW_MYSQL_STATE_READ_FIELD;
                 continue;
+            }
+            else
+            {
+                client->prepare_state = SW_MYSQL_PREPARE_READY;
+                mysql_columns_free(client);
+                return SW_OK;
             }
 
         default:

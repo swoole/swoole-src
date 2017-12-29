@@ -190,6 +190,7 @@ typedef struct
 
     long port;
     double timeout;
+    swTimer_node *timer;
 
     int capability_flags;
     int max_packet_size;
