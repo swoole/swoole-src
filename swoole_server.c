@@ -1813,6 +1813,10 @@ PHP_METHOD(swoole_server, set)
     {
         return;
     }
+    if (Z_TYPE_P(zset) != IS_ARRAY)
+    {
+        RETURN_FALSE;
+    }
 
     swServer *serv = swoole_get_object(zobject);
 
