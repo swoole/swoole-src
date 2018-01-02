@@ -119,6 +119,10 @@ static PHP_METHOD(swoole_server_port, set)
     {
         return;
     }
+    if (Z_TYPE_P(zset) != IS_ARRAY)
+    {
+        RETURN_FALSE;
+    }
 
     php_swoole_array_separate(zset);
     vht = Z_ARRVAL_P(zset);
