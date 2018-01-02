@@ -490,6 +490,10 @@ static PHP_METHOD(swoole_client_coro, set)
     {
         return;
     }
+    if (Z_TYPE_P(zset) != IS_ARRAY)
+    {
+    	RETURN_FALSE;
+    }
     zend_update_property(swoole_client_coro_class_entry_ptr, getThis(), ZEND_STRL("setting"), zset TSRMLS_CC);
     RETURN_TRUE;
 }
