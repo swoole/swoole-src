@@ -184,13 +184,13 @@ typedef unsigned long ulong_t;
 static sw_inline char* sw_strdup(const char *s)
 {
     size_t l = strlen(s) + 1;
-    char *p = sw_malloc(l);
+    char *p = (char *)sw_malloc(l);
     memcpy(p, s, l);
     return p;
 }
 static sw_inline char* sw_strndup(const char *s, size_t n)
 {
-    char *p = sw_malloc(n + 1);
+    char *p = (char *)sw_malloc(n + 1);
     strncpy(p, s, n);
     p[n] = '\0';
     return p;
@@ -293,12 +293,13 @@ enum swLog_level
 //-------------------------------------------------------------------------------
 enum swFactory_dispatch_mode
 {
-    SW_DISPATCH_ROUND = 1,
-    SW_DISPATCH_FDMOD = 2,
-    SW_DISPATCH_QUEUE = 3,
-    SW_DISPATCH_IPMOD = 4,
-    SW_DISPATCH_UIDMOD = 5,
+    SW_DISPATCH_ROUND    = 1,
+    SW_DISPATCH_FDMOD    = 2,
+    SW_DISPATCH_QUEUE    = 3,
+    SW_DISPATCH_IPMOD    = 4,
+    SW_DISPATCH_UIDMOD   = 5,
     SW_DISPATCH_USERFUNC = 6,
+    SW_DISPATCH_STREAM   = 7,
 };
 
 enum swWorker_status
@@ -1238,7 +1239,7 @@ void swoole_fcntl_set_option(int sock, int nonblock, int cloexec);
 int swoole_gethostbyname(int type, char *name, char *addr);
 //----------------------core function---------------------
 int swSocket_set_timeout(int sock, double timeout);
-
+//----------------------------------------Socket---------------------------------------
 static sw_inline int swSocket_is_dgram(uint8_t type)
 {
     return (type == SW_SOCK_UDP || type == SW_SOCK_UDP6 || type == SW_SOCK_UNIX_DGRAM);
@@ -1974,6 +1975,7 @@ typedef struct
     uint8_t factory_lock_target;
     int16_t factory_target_worker;
     swString **buffer_input;
+    swReactor *reactor;
 } swThreadG;
 
 typedef struct
