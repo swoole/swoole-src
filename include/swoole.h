@@ -1237,8 +1237,10 @@ void swoole_print_trace(void);
 void swoole_ioctl_set_block(int sock, int nonblock);
 void swoole_fcntl_set_option(int sock, int nonblock, int cloexec);
 int swoole_gethostbyname(int type, char *name, char *addr);
+char* swoole_string_format(size_t n, const char *format, ...);
 //----------------------core function---------------------
 int swSocket_set_timeout(int sock, double timeout);
+int swSocket_create_server(int type, char *address, int port, int backlog);
 //----------------------------------------Socket---------------------------------------
 static sw_inline int swSocket_is_dgram(uint8_t type)
 {
