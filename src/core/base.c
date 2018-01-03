@@ -17,6 +17,7 @@
 #include "swoole.h"
 #include "atomic.h"
 
+#include <stdarg.h>
 #include <sys/stat.h>
 #include <sys/resource.h>
 #include <sys/ioctl.h>
@@ -1105,6 +1106,26 @@ int swoole_shell_exec(char *command, pid_t *pid)
         close(fds[SW_PIPE_WRITE]);
     }
     return fds[SW_PIPE_READ];
+}
+
+char* swoole_string_format(size_t n, const char *format, ...)
+{
+    char *buf = sw_malloc(n);
+    if (buf == NULL)
+    {
+        return NULL;
+    }
+
+    va_list _va_list;
+    va_start(_va_list, format);
+
+    if (vsnprintf(buf, n, format, _va_list) < 0)
+    {
+        sw_free(buf);
+        return NULL;
+    }
+
+    return buf;
 }
 
 #ifdef HAVE_EXECINFO
