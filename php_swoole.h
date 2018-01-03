@@ -441,7 +441,6 @@ void php_swoole_onBufferFull(swServer *, swDataHead *);
 void php_swoole_onBufferEmpty(swServer *, swDataHead *);
 int php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swEventData *data);
-int php_swoole_client_onPackage(swConnection *conn, char *data, uint32_t length);
 
 #if PHP_MAJOR_VERSION >= 7
 PHPAPI zend_string* php_swoole_serialize(zval *zvalue);
