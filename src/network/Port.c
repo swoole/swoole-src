@@ -257,18 +257,7 @@ static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *ev
         task.data.info.len = n;
         task.data.info.type = SW_EVENT_TCP;
         task.target_worker_id = -1;
-
-#ifdef SW_USE_RINGBUFFER
-        if (serv->factory_mode == SW_MODE_PROCESS)
-        {
-            ret = swReactorThread_dispatch(conn, task.data.data, task.data.info.len);
-        }
-        else
-#endif
-        {
-            ret = serv->factory.dispatch(&serv->factory, &task);
-        }
-        return ret;
+        return swReactorThread_dispatch(conn, task.data.data, task.data.info.len);
     }
     return SW_OK;
 }
