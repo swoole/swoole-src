@@ -976,6 +976,10 @@ static PHP_METHOD(swoole_http_client_coro, set)
     {
         return;
     }
+    if (Z_TYPE_P(zset) != IS_ARRAY)
+    {
+        RETURN_FALSE;
+    }
     zval *zsetting = php_swoole_read_init_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("setting") TSRMLS_CC);
     sw_php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
     RETURN_TRUE;
