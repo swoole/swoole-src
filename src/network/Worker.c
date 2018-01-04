@@ -268,9 +268,10 @@ static int swWorker_onStreamPackage(swConnection *conn, char *data, uint32_t len
     }
 
     swString *package = swWorker_get_buffer(serv, task->info.from_id);
+    uint32_t data_length = length - sizeof(task->info) - 4;
     //merge data to package buffer
-    memcpy(package->str, data + sizeof(task->info) + 4, length - sizeof(task->info) - 4);
-    package->length += task->info.len;
+    memcpy(package->str, data + sizeof(task->info) + 4, data_length);
+    package->length = data_length;
 
     serv->last_stream_fd = conn->fd;
     serv->last_session_id = task->info.fd;

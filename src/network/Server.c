@@ -634,6 +634,7 @@ int swServer_start(swServer *serv)
         {
             return SW_ERR;
         }
+        swoole_fcntl_set_option(serv->stream_fd, 1, 1);
     }
 
     serv->send = swServer_tcp_send;

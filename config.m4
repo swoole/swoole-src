@@ -346,6 +346,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/network/Port.c \
         src/network/DNS.c \
         src/network/TimeWheel.c \
+        src/network/Stream.c \
         src/os/base.c \
         src/os/linux_aio.c \
         src/os/msg_queue.c \
