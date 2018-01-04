@@ -538,11 +538,6 @@ typedef struct _swConnection
     void *object;
 
     /**
-     * local memory
-     */
-    void *local_data;
-
-    /**
      * input buffer
      */
     struct _swBuffer *in_buffer;
