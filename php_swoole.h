@@ -50,7 +50,7 @@
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "2.0.12"
+#define PHP_SWOOLE_VERSION  "2.0.13"
 #define PHP_SWOOLE_CHECK_CALLBACK
 #define PHP_SWOOLE_ENABLE_FASTCALL
 
@@ -143,8 +143,8 @@ extern swoole_object_array swoole_objects;
 #endif
 #endif
 
-#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION < 5
-#error "require PHP version 5.5 or later."
+#if PHP_MAJOR_VERSION < 7
+#error "require PHP version 7.0 or later."
 #endif
 
 #include "php7_wrapper.h"

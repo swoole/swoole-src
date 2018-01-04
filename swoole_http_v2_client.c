@@ -1256,7 +1256,6 @@ static PHP_METHOD(swoole_http2_client, onConnect)
     cli->open_length_check = 1;
     cli->protocol.get_package_length = swHttp2_get_frame_length;
     cli->protocol.package_length_size = SW_HTTP2_FRAME_HEADER_SIZE;
-    cli->protocol.onPackage = php_swoole_client_onPackage;
     http2_client_property *hcc = swoole_get_property(getThis(), HTTP2_CLIENT_PROPERTY_INDEX);
     hcc->ready = 1;
     hcc->stream_id = 1;

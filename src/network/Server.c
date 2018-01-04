@@ -622,6 +622,21 @@ int swServer_start(swServer *serv)
     SwooleGS->master_pid = getpid();
     SwooleGS->now = SwooleStats->start_time = time(NULL);
 
+    if (serv->dispatch_mode == SW_DISPATCH_STREAM)
+    {
+        serv->stream_socket = swoole_string_format(64, "/tmp/swoole.%d.sock", SwooleGS->master_pid);
+        if (serv->stream_socket == NULL)
+        {
+            return SW_ERR;
+        }
+        serv->stream_fd = swSocket_create_server(SW_SOCK_UNIX_STREAM, serv->stream_socket, 0, 2048);
+        if (serv->stream_fd < 0)
+        {
+            return SW_ERR;
+        }
+        swoole_fcntl_set_option(serv->stream_fd, 1, 1);
+    }
+
     serv->send = swServer_tcp_send;
     serv->sendwait = swServer_tcp_sendwait;
     serv->sendfile = swServer_tcp_sendfile;
@@ -856,6 +871,11 @@ int swServer_free(swServer *serv)
     {
         close(SwooleG.null_fd);
     }
+    if (serv->stream_socket)
+    {
+        unlink(serv->stream_socket);
+        sw_free(serv->stream_socket);
+    }
     if (SwooleGS->start > 0 && serv->onShutdown != NULL)
     {
         serv->onShutdown(serv);
@@ -949,6 +969,20 @@ int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length)
     }
     else
     {
+        if (fd == serv->last_session_id && serv->last_stream_fd > 0)
+        {
+            int _l = htonl(length);
+            if (SwooleG.main_reactor->write(SwooleG.main_reactor, serv->last_stream_fd, (void *) &_l, sizeof(_l)) < 0)
+            {
+                return SW_ERR;
+            }
+            if (SwooleG.main_reactor->write(SwooleG.main_reactor, serv->last_stream_fd, data, length) < 0)
+            {
+                return SW_ERR;
+            }
+            return SW_OK;
+        }
+
         _send.info.fd = fd;
         _send.info.type = SW_EVENT_TCP;
         _send.data = data;

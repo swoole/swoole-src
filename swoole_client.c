@@ -337,13 +337,6 @@ void swoole_client_init(int module_number TSRMLS_DC)
     zend_declare_class_constant_long(swoole_client_class_entry_ptr, ZEND_STRL("MSG_WAITALL"), MSG_WAITALL TSRMLS_CC);
 }
 
-int php_swoole_client_onPackage(swConnection *conn, char *data, uint32_t length)
-{
-    swClient *cli = (swClient *) conn->object;
-    cli->onReceive(conn->object, data, length);
-    return SW_OK;
-}
-
 static void client_onReceive(swClient *cli, char *data, uint32_t length)
 {
 #if PHP_MAJOR_VERSION < 7
@@ -597,7 +590,6 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
         }
         bzero(cli->protocol.package_eof, SW_DATA_EOF_MAXLEN);
         memcpy(cli->protocol.package_eof, Z_STRVAL_P(v), Z_STRLEN_P(v));
-        cli->protocol.onPackage = php_swoole_client_onPackage;
     }
     //open mqtt protocol
     if (php_swoole_array_get_value(vht, "open_mqtt_protocol", v))
@@ -605,7 +597,6 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
         convert_to_boolean(v);
         cli->open_length_check = Z_BVAL_P(v);
         cli->protocol.get_package_length = swMqtt_get_package_length;
-        cli->protocol.onPackage = php_swoole_client_onPackage;
     }
     //open length check
     if (php_swoole_array_get_value(vht, "open_length_check", v))
@@ -613,7 +604,6 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
         convert_to_boolean(v);
         cli->open_length_check = Z_BVAL_P(v);
         cli->protocol.get_package_length = swProtocol_get_package_length;
-        cli->protocol.onPackage = php_swoole_client_onPackage;
     }
     //package length size
     if (php_swoole_array_get_value(vht, "package_length_type", v))
@@ -1142,6 +1132,10 @@ static PHP_METHOD(swoole_client, set)
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zset) == FAILURE)
     {
         return;
+    }
+    if (Z_TYPE_P(zset) != IS_ARRAY)
+    {
+        RETURN_FALSE;
     }
 
     zval *zsetting = php_swoole_read_init_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("setting") TSRMLS_CC);

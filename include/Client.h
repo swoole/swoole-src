@@ -114,6 +114,12 @@ typedef struct _swClient
     swSocketAddress remote_addr;
 
     swConnection *socket;
+
+    /**
+     * reactor
+     */
+    swReactor *reactor;
+
     void *object;
 
     swString *buffer;
@@ -168,6 +174,22 @@ typedef struct
 
 int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_result *, void *), void *data);
 int swDNSResolver_free();
+
+//----------------------------------------Stream---------------------------------------
+typedef struct _swStream
+{
+    swString *buffer;
+    uint32_t session_id;
+    uint8_t cancel;
+    void (*response)(struct _swStream *stream, char *data, uint32_t length);
+    swClient client;
+} swStream;
+
+swStream* swStream_new(char *dst_host, int dst_port, int type);
+int swStream_send(swStream *stream, char *data, size_t length);
+void swStream_set_protocol(swProtocol *protocol);
+void swStream_set_max_length(swStream *stream, uint32_t max_length);
+//----------------------------------------Stream End------------------------------------
 
 #ifdef __cplusplus
 }
