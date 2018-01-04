@@ -225,8 +225,7 @@ void swPort_clear_protocol(swListenPort *ls)
 
 static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *event)
 {
-    int ret = 0, n;
-    swServer *serv = reactor->ptr;
+    int n;
     swDispatchData task;
     swConnection *conn =  event->socket;
 

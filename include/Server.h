@@ -465,15 +465,27 @@ struct _swServer
      * temporary directory for HTTP uploaded file.
      */
     char *upload_tmp_dir;
+
     /**
      * http static file directory
      */
     char *document_root;
     uint16_t document_root_len;
+
     /**
      * master process pid
      */
     char *pid_file;
+
+    /**
+     * stream
+     */
+    char *stream_socket;
+    int stream_fd;
+    swProtocol stream_protocol;
+    swLinkedList *buffer_pool;
+    int last_stream_fd;
+    int last_session_id;
 
     /**
      * message queue key

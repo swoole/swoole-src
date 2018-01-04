@@ -180,6 +180,7 @@ int swClient_create(swClient *cli, int type, int async)
     cli->protocol.package_length_size = 4;
     cli->protocol.package_body_offset = 0;
     cli->protocol.package_max_length = SW_BUFFER_INPUT_SIZE;
+    cli->protocol.onPackage = swClient_onPackage;
 
     return SW_OK;
 }
@@ -654,11 +655,6 @@ static int swClient_tcp_connect_async(swClient *cli, char *host, int port, doubl
         {
             return SW_OK;
         }
-    }
-
-    if (cli->open_eof_check || cli->open_length_check)
-    {
-        cli->protocol.onPackage = swClient_onPackage;
     }
 
     while (1)

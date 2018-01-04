@@ -22,6 +22,10 @@ static void swStream_free(swStream *stream);
 static void swStream_onConnect(swClient *cli)
 {
     swStream *stream = (swStream*) cli->object;
+    if (stream->cancel)
+    {
+        cli->close(cli);
+    }
     *((uint32_t *) stream->buffer->str) = ntohl(stream->buffer->length - 4);
     if (cli->send(cli, stream->buffer->str, stream->buffer->length, 0) < 0)
     {
@@ -37,8 +41,14 @@ static void swStream_onError(swClient *cli)
 static void swStream_onReceive(swClient *cli, char *data, uint32_t length)
 {
     swStream *stream = (swStream*) cli->object;
-    stream->response(stream, data + 4, length - 4);
-    cli->close(cli);
+    if (length == 4)
+    {
+        cli->close(cli);
+    }
+    else
+    {
+        stream->response(stream, data + 4, length - 4);
+    }
 }
 
 static void swStream_onClose(swClient *cli)
@@ -73,15 +83,8 @@ swStream* swStream_new(char *dst_host, int dst_port, int type)
     cli->onClose = swStream_onClose;
     cli->object = stream;
 
-    /**
-     * Stream Protocol: Length(32bit/Network Byte Order) + Body
-     */
     cli->open_length_check = 1;
-    cli->protocol.get_package_length = swProtocol_get_package_length;
-    cli->protocol.package_length_size = 4;
-    cli->protocol.package_length_type = 'N';
-    cli->protocol.package_body_offset = 4;
-    cli->protocol.package_length_offset = 0;
+    swStream_set_protocol(&cli->protocol);
 
     if (cli->connect(cli, dst_host, dst_port, -1, 0) < 0)
     {
@@ -92,6 +95,23 @@ swStream* swStream_new(char *dst_host, int dst_port, int type)
     {
         return stream;
     }
+}
+
+/**
+ * Stream Protocol: Length(32bit/Network Byte Order) + Body
+ */
+void swStream_set_protocol(swProtocol *protocol)
+{
+    protocol->get_package_length = swProtocol_get_package_length;
+    protocol->package_length_size = 4;
+    protocol->package_length_type = 'N';
+    protocol->package_body_offset = 4;
+    protocol->package_length_offset = 0;
+}
+
+void swStream_set_max_length(swStream *stream, uint32_t max_length)
+{
+    stream->client.protocol.package_max_length = max_length;
 }
 
 int swStream_send(swStream *stream, char *data, size_t length)

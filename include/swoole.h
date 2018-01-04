@@ -228,6 +228,7 @@ enum swFd_type
     SW_FD_ERROR           = 3, //socket error
     SW_FD_UDP             = 4, //udp socket
     SW_FD_PIPE            = 5, //pipe
+    SW_FD_STREAM          = 6, //stream socket
     SW_FD_WRITE           = 7, //fd can write
     SW_FD_TIMER           = 8, //timer fd
     SW_FD_AIO             = 9, //linux native aio
@@ -535,6 +536,11 @@ typedef struct _swConnection
      * link any thing, for kernel, do not use with application.
      */
     void *object;
+
+    /**
+     * local memory
+     */
+    void *local_data;
 
     /**
      * input buffer
