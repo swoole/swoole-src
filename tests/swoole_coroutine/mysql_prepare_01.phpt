@@ -23,13 +23,13 @@ co::create(function () {
         return;
     }
 
-    $ret2 = $db->prepare('INSERT INTO ckl (`domain`,`path`,`name`) VALUES (?,?,?)');
-    if (!$ret2) {
+    $stmt = $db->prepare('INSERT INTO ckl (`domain`,`path`,`name`) VALUES (?,?,?)');
+    if (!$stmt) {
         echo "PREPARE ERROR\n";
         return;
     }
 
-    $ret3 = $db->execute(array('www.baidu.com', '/search', 'baidu'));
+    $ret3 = $stmt->execute(array('www.baidu.com', '/search', 'baidu'));
     if (!$ret3) {
         echo "EXECUTE ERROR\n";
         return;

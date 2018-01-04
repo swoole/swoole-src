@@ -673,6 +673,7 @@ static int mysql_parse_prepare_result(mysql_client *client, char *buf, size_t n_
     buf += 1;
     stmt->warning_count = mysql_uint2korr(buf);
     client->statement = stmt;
+    stmt->client = client;
 
     swTraceLog(SW_TRACE_MYSQL_CLIENT, "id=%d, field_count=%d, param_count=%d, warning_count=%d.", stmt->id, stmt->field_count, stmt->param_count,
             stmt->warning_count);
@@ -856,15 +857,21 @@ static int mysql_decode_datetime(char *buf, char *result)
     return n;
 }
 
-static void mysql_decode_time(char *buf, char *result)
+static int mysql_decode_time(char *buf, char *result)
 {
-    uint8_t h, m, s;
+    uint8_t h = 0, m = 0, s = 0;
 
-    h = *(uint8_t *) (buf + 6);
-    m = *(uint8_t *) (buf + 7);
-    s = *(uint8_t *) (buf + 8);
+    uint8_t n = *(uint8_t *) (buf);
+    if (n != 0)
+    {
+        h = *(uint8_t *) (buf + 6);
+        m = *(uint8_t *) (buf + 7);
+        s = *(uint8_t *) (buf + 8);
+    }
 
     snprintf(result, DATETIME_MAX_SIZE, "%02d:%02d:%02d", h, m, s);
+
+    return n;
 }
 
 static int mysql_decode_date(char *buf, char *result)
@@ -921,9 +928,8 @@ static int mysql_decode_row_prepare(mysql_client *client, char *buf, int packet_
         {
         /* Date Time */
         case SW_MYSQL_TYPE_TIME:
-            mysql_decode_time(buf + read_n, datetime_buffer);
+            len = mysql_decode_time(buf + read_n, datetime_buffer);
             sw_add_assoc_stringl(row_array, client->response.columns[i].name, datetime_buffer, 8, 1);
-            len = 8;
             swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%s", client->response.columns[i].name, datetime_buffer);
             break;
 

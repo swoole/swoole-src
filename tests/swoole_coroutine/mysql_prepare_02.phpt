@@ -23,13 +23,13 @@ co::create(function () {
         return;
     }
 
-    $ret2 = $db->prepare('SELECT * FROM userinfo WHERE id=?');
-    if (!$ret2) {
+    $stmt = $db->prepare('SELECT * FROM userinfo WHERE id=?');
+    if (!$stmt) {
         echo "PREPARE ERROR\n";
         return;
     }
 
-    $ret3 = $db->execute(array(10));
+    $ret3 = $stmt->execute(array(10));
     if (!$ret3) {
         echo "EXECUTE ERROR\n";
         return;

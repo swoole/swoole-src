@@ -251,7 +251,8 @@ typedef struct
     uint16_t param_count;
     uint16_t warning_count;
     uint16_t unreaded_param_count;
-
+    struct _mysql_client *client;
+    zval *object;
 } mysql_statement;
 
 typedef struct
@@ -275,7 +276,7 @@ typedef struct
     zval *result_array;
 } mysql_response_t;
 
-typedef struct
+typedef struct _mysql_client
 {
 #ifdef SW_COROUTINE
     zend_bool defer;
@@ -299,13 +300,14 @@ typedef struct
     uint32_t strict;
 
     mysql_connector connector;
+    mysql_statement *statement;
+    swLinkedList *statement_list;
 
 #if PHP_MAJOR_VERSION >= 7
     zval _object;
     zval _onClose;
 #endif
     mysql_response_t response;
-    mysql_statement *statement;
 } mysql_client;
 
 #define mysql_uint2korr(A)  (uint16_t) (((uint16_t) ((zend_uchar) (A)[0])) +\
