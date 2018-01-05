@@ -748,6 +748,7 @@ static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
         case SW_MYSQL_TYPE_TIMESTAMP:
         case SW_MYSQL_TYPE_DATETIME:
         case SW_MYSQL_TYPE_DATE:
+        case SW_MYSQL_TYPE_JSON:
             sw_add_assoc_stringl(row_array, client->response.columns[i].name, buf + read_n, len, 1);
             break;
         /* Integer */
@@ -959,6 +960,7 @@ static int mysql_decode_row_prepare(mysql_client *client, char *buf, int packet_
         case SW_MYSQL_TYPE_DECIMAL:
         case SW_MYSQL_TYPE_NEWDECIMAL:
         case SW_MYSQL_TYPE_BIT:
+        case SW_MYSQL_TYPE_JSON:
         case SW_MYSQL_TYPE_STRING:
         case SW_MYSQL_TYPE_VAR_STRING:
         case SW_MYSQL_TYPE_VARCHAR:
