@@ -334,12 +334,6 @@ static void mysql_client_free(mysql_client *client, zval* zobject)
     client->connected = 0;
 }
 
-void mysql_statement_free(mysql_client *client)
-{
-    efree(client->statement);
-    client->statement = NULL;
-}
-
 static void mysql_columns_free(mysql_client *client)
 {
     int i;

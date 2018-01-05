@@ -159,6 +159,11 @@ void swoole_mysql_coro_init(int module_number TSRMLS_DC)
 	zend_declare_property_long(swoole_mysql_coro_class_entry_ptr, SW_STRL("insert_id") - 1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
 	zend_declare_property_string(swoole_mysql_coro_class_entry_ptr, SW_STRL("error") - 1, "", ZEND_ACC_PUBLIC TSRMLS_CC);
 	zend_declare_property_long(swoole_mysql_coro_class_entry_ptr, SW_STRL("errno") - 1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+
+    zend_declare_property_long(swoole_mysql_coro_statement_class_entry_ptr, SW_STRL("affected_rows") - 1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_mysql_coro_statement_class_entry_ptr, SW_STRL("insert_id") - 1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_string(swoole_mysql_coro_statement_class_entry_ptr, SW_STRL("error") - 1, "", ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_mysql_coro_statement_class_entry_ptr, SW_STRL("errno") - 1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
 }
 
 int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callback TSRMLS_DC);
@@ -176,11 +181,6 @@ static int swoole_mysql_coro_close(zval *this)
     if (!client->cli)
     {
         return FAILURE;
-    }
-
-    if (client->statement)
-    {
-        mysql_statement_free(client);
     }
 
     zend_update_property_bool(swoole_mysql_coro_class_entry_ptr, this, ZEND_STRL("connected"), 0 TSRMLS_CC);
@@ -260,6 +260,7 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
     swString_clear(mysql_request_buffer);
 
     client->cmd = SW_MYSQL_COM_STMT_EXECUTE;
+    client->statement = statement;
 
     bzero(mysql_request_buffer->str, 5);
     //command
@@ -1439,15 +1440,26 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
             //remove from eventloop
             //reactor->del(reactor, event->fd);
 
-            zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("affected_rows"), client->response.affected_rows TSRMLS_CC);
-            zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("insert_id"), client->response.insert_id TSRMLS_CC);
+            zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("affected_rows"),
+                    client->response.affected_rows TSRMLS_CC);
+            zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("insert_id"),
+                    client->response.insert_id TSRMLS_CC);
+
+            if (client->cmd == SW_MYSQL_COM_STMT_EXECUTE)
+            {
+                zend_update_property_long(swoole_mysql_coro_statement_class_entry_ptr, client->statement->object,
+                        ZEND_STRL("affected_rows"), client->response.affected_rows TSRMLS_CC);
+                zend_update_property_long(swoole_mysql_coro_statement_class_entry_ptr, client->statement->object,
+                        ZEND_STRL("insert_id"), client->response.insert_id TSRMLS_CC);
+            }
+
             client->state = SW_MYSQL_STATE_QUERY;
 
             //OK
             if (client->response.response_type == 0)
             {
                 SW_ALLOC_INIT_ZVAL(result);
-                if (client->statement)
+                if (client->cmd == SW_MYSQL_COM_STMT_PREPARE)
                 {
                     if (client->statement_list == NULL)
                     {
@@ -1457,7 +1469,6 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
                     object_init_ex(result, swoole_mysql_coro_statement_class_entry_ptr);
                     swoole_set_object(result, client->statement);
                     client->statement->object = sw_zval_dup(result);
-                    client->statement = NULL;
                 }
                 else
                 {
@@ -1470,8 +1481,18 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
                 SW_ALLOC_INIT_ZVAL(result);
                 ZVAL_BOOL(result, 0);
 
-                zend_update_property_stringl(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("error"), client->response.server_msg, client->response.l_server_msg TSRMLS_CC);
-                zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("errno"), client->response.error_code TSRMLS_CC);
+                zend_update_property_stringl(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("error"),
+                        client->response.server_msg, client->response.l_server_msg TSRMLS_CC);
+                zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("errno"),
+                        client->response.error_code TSRMLS_CC);
+
+                if (client->cmd == SW_MYSQL_COM_STMT_EXECUTE)
+                {
+                    zend_update_property_stringl(swoole_mysql_coro_statement_class_entry_ptr, client->statement->object,
+                            ZEND_STRL("error"), client->response.server_msg, client->response.l_server_msg TSRMLS_CC);
+                    zend_update_property_long(swoole_mysql_coro_statement_class_entry_ptr, client->statement->object,
+                            ZEND_STRL("errno"), client->response.error_code TSRMLS_CC);
+                }
             }
             //ResultSet
             else

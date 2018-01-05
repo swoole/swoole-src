@@ -463,6 +463,5 @@ static sw_inline int mysql_length_coded_binary(char *m, ulong_t *r, char *nul, i
 }
 
 int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callback TSRMLS_DC);
-void mysql_statement_free(mysql_client *client);
 
 #endif /* SWOOLE_MYSQL_H_ */
