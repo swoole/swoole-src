@@ -1148,7 +1148,7 @@ static sw_inline int mysql_read_rows(mysql_client *client)
             return SW_ERR;
         }
 
-        if (client->prepare_state == SW_MYSQL_PREPARE_READY)
+        if (client->cmd == SW_MYSQL_COM_STMT_EXECUTE)
         {
             ret = mysql_decode_row_prepare(client, buffer, client->response.packet_length);
         }
