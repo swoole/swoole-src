@@ -252,8 +252,8 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
 
     if (php_swoole_array_length(params) != statement->param_count)
     {
-        swoole_php_fatal_error(E_WARNING, "expects %d parameter, %d given.", statement->param_count,
-                php_swoole_array_length(params));
+        swoole_php_fatal_error(E_WARNING, "mysql statement#%d expects %d parameter, %d given.", statement->id,
+                statement->param_count, php_swoole_array_length(params));
         return SW_ERR;
     }
 
@@ -310,6 +310,24 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
             ZVAL_DUP(&_value, value);
             value = &_value;
             convert_to_string(value);
+            if (Z_STRLEN_P(value) > 0xffff)
+            {
+                buf[0] = SW_MYSQL_TYPE_VAR_STRING;
+                if (swString_append_ptr(mysql_request_buffer, buf, 1) < 0)
+                {
+                    zval_dtor(value);
+                    return SW_ERR;
+                }
+            }
+            else if (Z_STRLEN_P(value) > 250)
+            {
+                buf[0] = SW_MYSQL_TYPE_BLOB;
+                if (swString_append_ptr(mysql_request_buffer, buf, 1) < 0)
+                {
+                    zval_dtor(value);
+                    return SW_ERR;
+                }
+            }
             lval = mysql_write_lcb(buf, Z_STRLEN_P(value));
             if (swString_append_ptr(mysql_request_buffer, buf, lval) < 0)
             {
