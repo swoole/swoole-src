@@ -237,12 +237,6 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
         return SW_ERR;
     }
 
-    if (client->prepare_state != SW_MYSQL_PREPARE_READY)
-    {
-        swoole_php_fatal_error(E_WARNING, "mysql preparation is not ready.");
-        return SW_ERR;
-    }
-
     mysql_statement *statement = swoole_get_object(zobject);
     if (!statement)
     {
@@ -900,14 +894,12 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
         RETURN_FALSE;
     }
 
-    client->prepare_state = SW_MYSQL_PREPARE_BEGIN;
     client->cmd = SW_MYSQL_COM_STMT_PREPARE;
 
     swString_clear(mysql_request_buffer);
 
     if (mysql_prepare(&sql, mysql_request_buffer) < 0)
     {
-        client->prepare_state = SW_MYSQL_PREPARE_NONE;
         RETURN_FALSE;
     }
     //send query

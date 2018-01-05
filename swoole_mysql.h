@@ -75,13 +75,6 @@ enum mysql_read_state
     SW_MYSQL_STATE_CLOSED,
 };
 
-enum mysql_prepare_state
-{
-    SW_MYSQL_PREPARE_NONE,
-    SW_MYSQL_PREPARE_BEGIN,
-    SW_MYSQL_PREPARE_READY,
-};
-
 enum mysql_error_code
 {
     SW_MYSQL_ERR_PROTOCOL_ERROR = 1,
@@ -286,7 +279,6 @@ typedef struct _mysql_client
     int cid;
 #endif
     uint8_t state;
-    uint8_t prepare_state;
     uint8_t handshake;
     uint8_t cmd;
     swString *buffer;

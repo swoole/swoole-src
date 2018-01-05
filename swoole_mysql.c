@@ -1566,7 +1566,6 @@ int mysql_response(mysql_client *client)
             {
                 if (client->cmd == SW_MYSQL_COM_STMT_PREPARE)
                 {
-                    client->prepare_state = SW_MYSQL_PREPARE_READY;
                     mysql_columns_free(client);
                     return SW_OK;
                 }
@@ -1597,7 +1596,6 @@ int mysql_response(mysql_client *client)
             }
             else
             {
-                client->prepare_state = SW_MYSQL_PREPARE_READY;
                 mysql_columns_free(client);
                 return SW_OK;
             }
