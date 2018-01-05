@@ -750,67 +750,74 @@ void swoole_ioctl_set_block(int sock, int nonblock)
 void swoole_fcntl_set_option(int sock, int nonblock, int cloexec)
 {
     int opts, ret;
-    do
-    {
-        opts = fcntl(sock, F_GETFL);
-    }
-    while (opts < 0 && errno == EINTR);
 
-    if (opts < 0)
+    if (nonblock >= 0)
     {
-        swSysError("fcntl(%d, GETFL) failed.", sock);
-    }
+        do
+        {
+            opts = fcntl(sock, F_GETFL);
+        }
+        while (opts < 0 && errno == EINTR);
 
-    if (nonblock)
-    {
-        opts = opts | O_NONBLOCK;
-    }
-    else
-    {
-        opts = opts & ~O_NONBLOCK;
-    }
+        if (opts < 0)
+        {
+            swSysError("fcntl(%d, GETFL) failed.", sock);
+        }
 
-    do
-    {
-        ret = fcntl(sock, F_SETFL, opts);
-    }
-    while (ret < 0 && errno == EINTR);
+        if (nonblock)
+        {
+            opts = opts | O_NONBLOCK;
+        }
+        else
+        {
+            opts = opts & ~O_NONBLOCK;
+        }
 
-    if (ret < 0)
-    {
-        swSysError("fcntl(%d, SETFL, opts) failed.", sock);
+        do
+        {
+            ret = fcntl(sock, F_SETFL, opts);
+        }
+        while (ret < 0 && errno == EINTR);
+
+        if (ret < 0)
+        {
+            swSysError("fcntl(%d, SETFL, opts) failed.", sock);
+        }
     }
 
 #ifdef FD_CLOEXEC
-    do
+    if (cloexec >= 0)
     {
-        opts = fcntl(sock, F_GETFD);
-    }
-    while (opts < 0 && errno == EINTR);
+        do
+        {
+            opts = fcntl(sock, F_GETFD);
+        }
+        while (opts < 0 && errno == EINTR);
 
-    if (opts < 0)
-    {
-        swSysError("fcntl(%d, GETFL) failed.", sock);
-    }
+        if (opts < 0)
+        {
+            swSysError("fcntl(%d, GETFL) failed.", sock);
+        }
 
-    if (cloexec)
-    {
-        opts = opts | FD_CLOEXEC;
-    }
-    else
-    {
-        opts = opts & ~FD_CLOEXEC;
-    }
+        if (cloexec)
+        {
+            opts = opts | FD_CLOEXEC;
+        }
+        else
+        {
+            opts = opts & ~FD_CLOEXEC;
+        }
 
-    do
-    {
-        ret = fcntl(sock, F_SETFD, opts);
-    }
-    while (ret < 0 && errno == EINTR);
+        do
+        {
+            ret = fcntl(sock, F_SETFD, opts);
+        }
+        while (ret < 0 && errno == EINTR);
 
-    if (ret < 0)
-    {
-        swSysError("fcntl(%d, SETFD, opts) failed.", sock);
+        if (ret < 0)
+        {
+            swSysError("fcntl(%d, SETFD, opts) failed.", sock);
+        }
     }
 #endif
 }
