@@ -473,44 +473,41 @@ typedef struct _swConnection
      * is active
      * system fd must be 0. en: timerfd, signalfd, listen socket
      */
-    uint32_t active :1;
-    uint32_t connect_notify :1;
-    uint32_t direct_send :1;
-    uint32_t ssl_send :1;
-    uint32_t reserved_1 :4;
+    uint8_t active;
+    uint8_t connect_notify;
+    uint8_t direct_send;
+    uint8_t ssl_send;
     //--------------------------------------------------------------
-    uint32_t listen_wait :1;
-    uint32_t recv_wait :1;
-    uint32_t send_wait :1;
-    uint32_t close_wait :1;
-    uint32_t overflow :1;
-    uint32_t high_watermark :1;
-    uint32_t removed :1;
-    uint32_t tcp_nopush :1;
+    uint8_t listen_wait;
+    uint8_t recv_wait;
+    uint8_t send_wait;
+    uint8_t close_wait;
+    uint8_t overflow;
+    uint8_t high_watermark;
+    uint8_t removed;
+    uint8_t tcp_nopush;
     //--------------------------------------------------------------
-    uint32_t tcp_nodelay :1;
-    uint32_t ssl_want_read :1;
-    uint32_t ssl_want_write :1;
-    uint32_t http_upgrade :1;
-    uint32_t http2_stream :1;
-    uint32_t reserved_2 :3;
+    uint8_t tcp_nodelay;
+    uint8_t ssl_want_read;
+    uint8_t ssl_want_write;
+    uint8_t http_upgrade;
+    uint8_t http2_stream;
     //--------------------------------------------------------------
     /**
      * server is actively close the connection
      */
-    uint32_t close_actively :1;
-    uint32_t closed :1;
-    uint32_t closing :1;
-    uint32_t close_reset :1;
+    uint8_t close_actively;
+    uint8_t closed;
+    uint8_t closing;
+    uint8_t close_reset;
     /**
      * protected connection, cannot be closed by heartbeat thread.
      */
-    uint32_t protect :1;
-    uint32_t reserved_3 :3;
+    uint8_t protect;
+    uint8_t nonblock;
     //--------------------------------------------------------------
-    uint32_t close_notify :1;
-    uint32_t close_force :1;
-    uint32_t reserved_4 :6;
+    uint8_t close_notify;
+    uint8_t close_force;
     //--------------------------------------------------------------
     /**
      * ReactorThread id
