@@ -122,6 +122,7 @@ enum mysql_field_types
     SW_MYSQL_TYPE_NEWDATE,
     SW_MYSQL_TYPE_VARCHAR,
     SW_MYSQL_TYPE_BIT,
+    SW_MYSQL_TYPE_JSON = 245,
     SW_MYSQL_TYPE_NEWDECIMAL = 246,
     SW_MYSQL_TYPE_ENUM = 247,
     SW_MYSQL_TYPE_SET = 248,
@@ -604,6 +605,7 @@ static sw_inline int mysql_decode_row(mysql_client *client, char *buf, int packe
         case SW_MYSQL_TYPE_DECIMAL:
         case SW_MYSQL_TYPE_NEWDECIMAL:
         case SW_MYSQL_TYPE_BIT:
+        case SW_MYSQL_TYPE_JSON:
         case SW_MYSQL_TYPE_STRING:
         case SW_MYSQL_TYPE_VAR_STRING:
         case SW_MYSQL_TYPE_VARCHAR:
