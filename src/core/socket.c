@@ -204,6 +204,31 @@ int swSocket_write_blocking(int __fd, void *__data, int __len)
     return written;
 }
 
+int swSocket_recv_blocking(int fd, void *__data, size_t __len, int flags)
+{
+    int ret;
+    size_t read_bytes = 0;
+
+    while (read_bytes != __len)
+    {
+        errno = 0;
+        ret = recv(fd, __data + read_bytes, __len - read_bytes, flags);
+        if (ret > 0)
+        {
+            read_bytes += ret;
+        }
+        else if (ret == 0 && errno == 0)
+        {
+            return read_bytes;
+        }
+        else if (ret <= 0 && errno != 0 && errno != EINTR)
+        {
+            return ret;
+        }
+    }
+    return read_bytes;
+}
+
 int swSocket_udp_sendto(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len)
 {
     struct sockaddr_in addr;
