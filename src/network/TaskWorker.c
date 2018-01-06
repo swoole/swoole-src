@@ -197,7 +197,19 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
             buf.info.len = data_len;
         }
 
-        ret = swWorker_send2worker(worker, &buf, sizeof(buf.info) + buf.info.len, SW_PIPE_MASTER);
+        if (worker->pool->use_socket && worker->pool->stream->last_connection > 0)
+        {
+            int32_t _len = htonl(data_len);
+            ret = swSocket_write_blocking(worker->pool->stream->last_connection, (void *) &_len, sizeof(_len));
+            if (ret > 0)
+            {
+                ret = swSocket_write_blocking(worker->pool->stream->last_connection, data, data_len);
+            }
+        }
+        else
+        {
+            ret = swWorker_send2worker(worker, &buf, sizeof(buf.info) + buf.info.len, SW_PIPE_MASTER);
+        }
     }
     else
     {

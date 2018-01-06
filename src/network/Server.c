@@ -464,27 +464,37 @@ swString** swServer_create_worker_buffer(swServer *serv)
 int swServer_create_task_worker(swServer *serv)
 {
     key_t key = 0;
-    int ipc_type;
+    int ipc_mode;
 
-    if (SwooleG.task_ipc_mode > SW_TASK_IPC_UNIXSOCK)
+    if (SwooleG.task_ipc_mode == SW_TASK_IPC_MSGQUEUE || SwooleG.task_ipc_mode == SW_TASK_IPC_PREEMPTIVE)
     {
         key = serv->message_queue_key;
-        ipc_type = SW_IPC_MSGQUEUE;
+        ipc_mode = SW_IPC_MSGQUEUE;
+    }
+    else if (SwooleG.task_ipc_mode == SW_TASK_IPC_STREAM)
+    {
+        ipc_mode = SW_IPC_SOCKET;
     }
     else
     {
-        ipc_type = SW_IPC_UNIXSOCK;
+        ipc_mode = SW_IPC_UNIXSOCK;
     }
 
-    if (swProcessPool_create(&SwooleGS->task_workers, SwooleG.task_worker_num, SwooleG.task_max_request, key, ipc_type) < 0)
+    if (swProcessPool_create(&SwooleGS->task_workers, SwooleG.task_worker_num, SwooleG.task_max_request, key, ipc_mode) < 0)
     {
         swWarn("[Master] create task_workers failed.");
         return SW_ERR;
     }
-    else
+    if (ipc_mode == SW_IPC_SOCKET)
     {
-        return SW_OK;
+        char sockfile[sizeof(struct sockaddr_un)];
+        snprintf(sockfile, sizeof(sockfile), "/tmp/swoole.task.%d.sock", SwooleGS->master_pid);
+        if (swProcessPool_create_stream_socket(&SwooleGS->task_workers, sockfile, 2048) < 0)
+        {
+            return SW_ERR;
+        }
     }
+    return SW_OK;
 }
 
 int swServer_worker_init(swServer *serv, swWorker *worker)
