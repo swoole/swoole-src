@@ -71,6 +71,7 @@ enum swIPCType
 {
     SW_IPC_UNIXSOCK = 1,
     SW_IPC_MSGQUEUE = 2,
+    SW_IPC_SOCKET   = 3,
 };
 
 enum swTaskIPCMode
@@ -78,6 +79,7 @@ enum swTaskIPCMode
     SW_TASK_IPC_UNIXSOCK    = 1,
     SW_TASK_IPC_MSGQUEUE    = 2,
     SW_TASK_IPC_PREEMPTIVE  = 3,
+    SW_TASK_IPC_STREAM      = 4,
 };
 
 enum swCloseType

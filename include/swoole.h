@@ -1310,6 +1310,7 @@ int swSocket_udp_sendto(int server_sock, char *dst_ip, int dst_port, char *data,
 int swSocket_udp_sendto6(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len);
 int swSocket_sendfile_sync(int sock, char *filename, off_t offset, size_t length, double timeout);
 int swSocket_write_blocking(int __fd, void *__data, int __len);
+int swSocket_recv_blocking(int fd, void *__data, size_t __len, int flags);
 
 static sw_inline int swWaitpid(pid_t __pid, int *__stat_loc, int __options)
 {
@@ -1525,6 +1526,13 @@ struct _swWorker
 	void *ptr2;
 };
 
+typedef struct
+{
+    int socket;
+    int last_connection;
+    char *socket_file;
+} swStreamInfo;
+
 struct _swProcessPool
 {
     /**
@@ -1533,6 +1541,7 @@ struct _swProcessPool
     uint8_t reloading;
     uint8_t reload_flag;
     uint8_t dispatch_mode;
+    uint8_t ipc_mode;
 
     /**
      * process type
@@ -1548,6 +1557,12 @@ struct _swProcessPool
      * use message queue IPC
      */
     uint8_t use_msgqueue;
+
+    /**
+     * use stream socket IPC
+     */
+    uint8_t use_socket;
+
     /**
      * message queue key
      */
@@ -1572,6 +1587,7 @@ struct _swProcessPool
     swHashMap *map;
     swReactor *reactor;
     swMsgQueue *queue;
+    swStreamInfo *stream;
 
     void *ptr;
     void *ptr2;
@@ -1736,7 +1752,8 @@ int swReactorKqueue_create(swReactor *reactor, int max_event_num);
 int swReactorSelect_create(swReactor *reactor);
 
 /*----------------------------Process Pool-------------------------------*/
-int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, key_t msgqueue_key, int ipc_type);
+int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, key_t msgqueue_key, int ipc_mode);
+int swProcessPool_create_stream_socket(swProcessPool *pool, char *socket_file, int blacklog);
 int swProcessPool_wait(swProcessPool *pool);
 int swProcessPool_start(swProcessPool *pool);
 void swProcessPool_shutdown(swProcessPool *pool);
