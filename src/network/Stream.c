@@ -31,6 +31,11 @@ static void swStream_onConnect(swClient *cli)
     {
         cli->close(cli);
     }
+    else
+    {
+        swString_free(stream->buffer);
+        stream->buffer = NULL;
+    }
 }
 
 static void swStream_onError(swClient *cli)
@@ -130,4 +135,34 @@ int swStream_send(swStream *stream, char *data, size_t length)
         return SW_ERR;
     }
     return SW_OK;
+}
+
+int swStream_recv_blocking(int fd, void *__buf, size_t __len)
+{
+    int tmp = 0;
+    int ret = swSocket_recv_blocking(fd, &tmp, sizeof(tmp), MSG_WAITALL);
+
+    if (ret <= 0)
+    {
+        return SW_CLOSE;
+    }
+    int length = ntohl(tmp);
+    if (length <= 0)
+    {
+        return SW_CLOSE;
+    }
+    else if (length > __len)
+    {
+        return SW_CLOSE;
+    }
+
+    ret = swSocket_recv_blocking(fd, __buf, length, MSG_WAITALL);
+    if (ret <= 0)
+    {
+        return SW_CLOSE;
+    }
+    else
+    {
+        return SW_READY;
+    }
 }
