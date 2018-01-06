@@ -2731,10 +2731,10 @@ PHP_METHOD(swoole_server, taskwait)
     //clear history task
     while (read(efd, &notify, sizeof(notify)) > 0);
 
-    sw_atomic_fetch_add(&SwooleStats->tasking_num, 1);
     int _dst_worker_id = (int) dst_worker_id;
     if (swProcessPool_dispatch_blocking(&SwooleGS->task_workers, &buf, &_dst_worker_id) >= 0)
     {
+        sw_atomic_fetch_add(&SwooleStats->tasking_num, 1);
         task_notify_pipe->timeout = timeout;
         while(1)
         {
@@ -2763,10 +2763,6 @@ PHP_METHOD(swoole_server, taskwait)
                 break;
             }
         }
-    }
-    else
-    {
-        sw_atomic_fetch_sub(&SwooleStats->tasking_num, 1);
     }
     RETURN_FALSE;
 }
@@ -2838,16 +2834,15 @@ PHP_METHOD(swoole_server, taskWaitMulti)
         }
         swTask_type(&buf) |= SW_TASK_WAITALL;
         dst_worker_id = -1;
-        sw_atomic_fetch_add(&SwooleStats->tasking_num, 1);
         if (swProcessPool_dispatch_blocking(&SwooleGS->task_workers, &buf, &dst_worker_id) < 0)
         {
-            sw_atomic_fetch_sub(&SwooleStats->tasking_num, 1);
             swoole_php_fatal_error(E_WARNING, "taskwait failed. Error: %s[%d]", strerror(errno), errno);
             task_id = -1;
             fail:
             add_index_bool(return_value, i, 0);
             n_task --;
         }
+        sw_atomic_fetch_add(&SwooleStats->tasking_num, 1);
         list_of_id[i] = task_id;
         i++;
     SW_HASHTABLE_FOREACH_END();
@@ -2969,16 +2964,15 @@ PHP_METHOD(swoole_server, task)
     }
 
     swTask_type(&buf) |= SW_TASK_NONBLOCK;
-    sw_atomic_fetch_add(&SwooleStats->tasking_num, 1);
 
     int _dst_worker_id = (int) dst_worker_id;
     if (swProcessPool_dispatch(&SwooleGS->task_workers, &buf, &_dst_worker_id) >= 0)
     {
+        sw_atomic_fetch_add(&SwooleStats->tasking_num, 1);
         RETURN_LONG(buf.info.fd);
     }
     else
     {
-        sw_atomic_fetch_sub(&SwooleStats->tasking_num, 1);
         RETURN_FALSE;
     }
 }
@@ -3630,6 +3624,13 @@ PHP_METHOD(swoole_connection_iterator, offsetSet)
 PHP_METHOD(swoole_connection_iterator, offsetUnset)
 {
     return;
+}
+
+PHP_METHOD(swoole_connection_iterator, __destruct)
+{
+    swConnectionIterator *i = swoole_get_object(getThis());
+    efree(i);
+    swoole_set_object(getThis(), NULL);
 }
 
 #endif

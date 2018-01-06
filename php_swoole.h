@@ -301,6 +301,7 @@ PHP_METHOD(swoole_connection_iterator, offsetExists);
 PHP_METHOD(swoole_connection_iterator, offsetGet);
 PHP_METHOD(swoole_connection_iterator, offsetSet);
 PHP_METHOD(swoole_connection_iterator, offsetUnset);
+PHP_METHOD(swoole_connection_iterator, __destruct);
 #endif
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
