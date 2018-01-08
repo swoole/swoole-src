@@ -35,15 +35,15 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2017-11-22</date>
+    <date>2018-01-08</date>
     <time>09:50:10</time>
     <version>
-        <release>1.9.23</release>
-        <api>1.9</api>
+        <release>1.10.0</release>
+        <api>1.10</api>
     </version>
     <stability>
-        <release>stable</release>
-        <api>stable</api>
+        <release>beta</release>
+        <api>beta</api>
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
