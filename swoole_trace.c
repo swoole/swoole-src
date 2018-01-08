@@ -128,6 +128,8 @@ size_t trace_print_time(struct timeval *tv, char *timebuf, size_t timebuf_len)
 
 static int trace_dump(swWorker *worker, FILE *slowlog)
 {
+    SWOOLE_GET_TSRMLS;
+
     int callers_limit = 100;
     struct timeval tv;
     static const int buf_size = 1024;
