@@ -323,6 +323,7 @@ enum swServer_callback_type
 enum swServer_hook_type
 {
     SW_SERVER_HOOK_MASTER_START,
+    SW_SERVER_HOOK_MASTER_TIMER,
     SW_SERVER_HOOK_REACTOR_START,
     SW_SERVER_HOOK_WORKER_START,
     SW_SERVER_HOOK_TASK_WORKER_START,
@@ -333,6 +334,8 @@ enum swServer_hook_type
     SW_SERVER_HOOK_WORKER_RECEIVE,
     SW_SERVER_HOOK_REACTOR_CLOSE,
     SW_SERVER_HOOK_WORKER_CLOSE,
+    SW_SERVER_HOOK_MANAGER_START,
+    SW_SERVER_HOOK_MANAGER_TIMER,
 };
 
 struct _swServer
@@ -436,6 +439,10 @@ struct _swServer
      * asynchronous reloading
      */
     uint32_t reload_async :1;
+    /**
+     * slowlog
+     */
+    uint32_t trace_event_worker :1;
 
     /**
      *  heartbeat check time
@@ -505,10 +512,18 @@ struct _swServer
     int last_stream_fd;
     int last_session_id;
 
+    int manager_alarm;
+
     /**
      * message queue key
      */
     uint64_t message_queue_key;
+
+    /**
+     * slow request log
+     */
+    uint8_t request_slowlog_timeout;
+    FILE *request_slowlog_file;
 
     swReactor *reactor_ptr; //Main Reactor
     swFactory *factory_ptr; //Factory
@@ -586,6 +601,7 @@ void swServer_close_port(swServer *serv, enum swBool_type only_stream_port);
 int swServer_add_worker(swServer *serv, swWorker *worker);
 int swserver_add_systemd_socket(swServer *serv);
 int swServer_add_hook(swServer *serv, enum swServer_hook_type type, void *func, int push_back);
+void swServer_call_hook_func(swServer *serv, enum swServer_hook_type type);
 
 int swServer_create(swServer *serv);
 int swServer_free(swServer *serv);

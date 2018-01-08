@@ -244,7 +244,6 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
         SwooleWG.run_always = 0;
     }
     SwooleWG.max_request = serv->max_request;
-    SwooleWG.request_count = 0;
     SwooleWG.worker = worker;
 
     SwooleTG.id = 0;

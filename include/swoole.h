@@ -1500,12 +1500,18 @@ struct _swWorker
     uint8_t deleted;
     uint8_t child_process;
 
+    uint8_t traced;
+    void (*tracer)(struct _swWorker *);
+
     /**
      * tasking num
      */
     sw_atomic_t tasking_num;
 
     time_t start_time;
+    time_t request_time;
+
+    long request_count;
 
 	/**
 	 * worker id
@@ -1975,7 +1981,6 @@ typedef struct
     uint32_t shutdown :1;
     uint32_t wait_exit :1;
 
-    long request_count;
     int max_request;
 
     swString **buffer_input;

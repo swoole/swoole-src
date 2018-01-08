@@ -370,17 +370,7 @@ static int swServer_start_proxy(swServer *serv)
 
     if (serv->hooks[SW_SERVER_HOOK_MASTER_START])
     {
-        swLinkedList *hooks = serv->hooks[SW_SERVER_HOOK_MASTER_START];
-
-        swLinkedList_node *node = hooks->head;
-        void (*func)(swServer *);
-
-        while (node)
-        {
-            func = node->data;
-            func(serv);
-            node = node->next;
-        }
+        swServer_call_hook_func(serv, SW_SERVER_HOOK_MASTER_START);
     }
 
     if (serv->onStart != NULL)
@@ -566,6 +556,8 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
     }
 
     worker->start_time = SwooleGS->now;
+    worker->request_time = 0;
+    worker->request_count = 0;
 
     return SW_OK;
 }
@@ -1093,6 +1085,21 @@ int swServer_tcp_sendwait(swServer *serv, int fd, void *data, uint32_t length)
     return swSocket_write_blocking(conn->fd, data, length);
 }
 
+void swServer_call_hook_func(swServer *serv, enum swServer_hook_type type)
+{
+    swLinkedList *hooks = serv->hooks[type];
+
+    swLinkedList_node *node = hooks->head;
+    void (*func)(swServer *);
+
+    while (node)
+    {
+        func = node->data;
+        func(serv);
+        node = node->next;
+    }
+}
+
 int swServer_tcp_close(swServer *serv, int fd, int reset)
 {
     swConnection *conn = swServer_connection_verify_no_ssl(serv, fd);
@@ -1154,6 +1161,11 @@ void swServer_master_onTimer(swServer *serv)
         serv->scheduler_warning = 0;
         serv->warning_time = SwooleGS->now;
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_NO_IDLE_WORKER, "No idle worker is available.");
+    }
+
+    if (serv->hooks[SW_SERVER_HOOK_MASTER_TIMER])
+    {
+        swServer_call_hook_func(serv, SW_SERVER_HOOK_MASTER_TIMER);
     }
 }
 

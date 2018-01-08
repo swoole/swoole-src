@@ -468,6 +468,16 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject TSRMLS_DC)
     {
         add_assoc_long(zsetting, "max_connection", serv->max_connection);
     }
+    //trace request
+    if (serv->request_slowlog_file && (serv->trace_event_worker || SwooleG.task_worker_num > 0))
+    {
+        serv->manager_alarm = serv->request_slowlog_timeout;
+        if (swServer_add_hook(serv, SW_SERVER_HOOK_MANAGER_TIMER, php_swoole_trace_check, 1) < 0)
+        {
+            swoole_php_fatal_error(E_ERROR, "Unable to add server hook.");
+            return;
+        }
+    }
 
     int i;
     zval *retval = NULL;
@@ -1803,6 +1813,31 @@ PHP_METHOD(swoole_server, set)
             task_callbacks = swHashMap_new(1024, NULL);
         }
     }
+    //slowlog
+    if (php_swoole_array_get_value(vht, "trace_event_worker", v))
+    {
+        convert_to_boolean(v);
+        serv->trace_event_worker = Z_BVAL_P(v);
+    }
+    if (php_swoole_array_get_value(vht, "request_slowlog_timeout", v))
+    {
+        convert_to_long(v);
+        serv->request_slowlog_timeout = (uint8_t) Z_LVAL_P(v);
+    }
+    if (php_swoole_array_get_value(vht, "request_slowlog_file", v))
+    {
+        convert_to_string(v);
+        serv->request_slowlog_file = fopen(Z_STRVAL_P(v), "a+");
+        if (serv->request_slowlog_file == NULL)
+        {
+            swoole_php_fatal_error(E_ERROR, "Unable to open request_slowlog_file[%s].", Z_STRVAL_P(v));
+            return;
+        }
+        if (serv->request_slowlog_timeout == 0)
+        {
+            serv->request_slowlog_timeout = 1;
+        }
+    }
     //task ipc mode, 1,2,3
     if (php_swoole_array_get_value(vht, "task_ipc_mode", v))
     {
@@ -2596,7 +2631,7 @@ PHP_METHOD(swoole_server, stats)
     sw_add_assoc_long_ex(return_value, ZEND_STRS("close_count"), SwooleStats->close_count);
     sw_add_assoc_long_ex(return_value, ZEND_STRS("tasking_num"), SwooleStats->tasking_num);
     sw_add_assoc_long_ex(return_value, ZEND_STRS("request_count"), SwooleStats->request_count);
-    sw_add_assoc_long_ex(return_value, ZEND_STRS("worker_request_count"), SwooleWG.request_count);
+    sw_add_assoc_long_ex(return_value, ZEND_STRS("worker_request_count"), SwooleWG.worker->request_count);
 
     if (SwooleG.task_ipc_mode > SW_TASK_IPC_UNIXSOCK && SwooleGS->task_workers.queue)
     {
