@@ -40,7 +40,7 @@ static void trace_request(swWorker *worker)
     int ret = trace_dump(worker, slowlog);
     if (ret < 0)
     {
-        swSysError("trace failed. line=%d, child %d", -ret, worker->pid);
+        swSysError("trace child %d failed.", worker->pid);
     }
     if (0 > ptrace(PTRACE_DETACH, traced_pid, (void *) 1, 0))
     {
@@ -151,6 +151,7 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
 
     execute_data = l;
 
+#if PHP_VERSION_ID > 70100
     while (execute_data)
     {
         long function;
@@ -161,7 +162,7 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
 
         if (0 > trace_get_long(execute_data + offsetof(zend_execute_data, func), &l))
         {
-            return -__LINE__;
+            return -1;
         }
 
         function = l;
@@ -170,7 +171,7 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
         {
             if (0 > trace_get_long(function + offsetof(zend_function, common.function_name), &l))
             {
-                return -__LINE__;
+                return -1;
             }
 
             function_name = l;
@@ -180,7 +181,7 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
                 uint32_t *call_info = (uint32_t *) &l;
                 if (0 > trace_get_long(execute_data + offsetof(zend_execute_data, This.u1.type_info), &l))
                 {
-                    return -__LINE__;
+                    return -1;
                 }
 
                 if (ZEND_CALL_KIND_EX((*call_info) >> ZEND_CALL_INFO_SHIFT) == ZEND_CALL_TOP_CODE)
@@ -217,7 +218,7 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
 
         if (0 > trace_get_long(execute_data + offsetof(zend_execute_data, prev_execute_data), &l))
         {
-            return -__LINE__;
+            return -1;
         }
 
         execute_data = prev = l;
@@ -228,7 +229,7 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
 
             if (0 > trace_get_long(prev + offsetof(zend_execute_data, func), &l))
             {
-                return -__LINE__;
+                return -1;
             }
 
             function = l;
@@ -241,14 +242,14 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
             type = (zend_uchar *) &l;
             if (0 > trace_get_long(function + offsetof(zend_function, type), &l))
             {
-                return -__LINE__;
+                return -1;
             }
 
             if (ZEND_USER_CODE(*type))
             {
                 if (0 > trace_get_long(function + offsetof(zend_op_array, filename), &l))
                 {
-                    return -__LINE__;
+                    return -1;
                 }
 
                 file_name = l;
@@ -260,7 +261,7 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
 
                 if (0 > trace_get_long(prev + offsetof(zend_execute_data, opline), &l))
                 {
-                    return -__LINE__;
+                    return -1;
                 }
 
                 if (valid_ptr(l))
@@ -270,7 +271,7 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
 
                     if (0 > trace_get_long(opline + offsetof(struct _zend_op, lineno), &l))
                     {
-                        return -__LINE__;
+                        return -1;
                     }
 
                     lineno = *lu;
@@ -280,7 +281,7 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
 
             if (0 > trace_get_long(prev + offsetof(zend_execute_data, prev_execute_data), &l))
             {
-                return -__LINE__;
+                return -1;
             }
 
             prev = l;
@@ -293,6 +294,229 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
             break;
         }
     }
+#elif PHP_VERSION_ID > 70000
+    while (execute_data)
+    {
+        long function;
+        long function_name;
+        long file_name;
+        long prev;
+        uint lineno = 0;
+
+        if (0 > trace_get_long(execute_data + offsetof(zend_execute_data, func), &l))
+        {
+            return -1;
+        }
+
+        function = l;
+
+        if (valid_ptr(function))
+        {
+            if (0 > trace_get_long(function + offsetof(zend_function, common.function_name), &l))
+            {
+                return -1;
+            }
+
+            function_name = l;
+
+            if (function_name == 0)
+            {
+                uint32_t *call_info = (uint32_t *)&l;
+                if (0 > trace_get_long(execute_data + offsetof(zend_execute_data, This.u1.type_info), &l))
+                {
+                    return -1;
+                }
+
+                if (ZEND_CALL_KIND_EX((*call_info) >> 24) == ZEND_CALL_TOP_CODE)
+                {
+                    return 0;
+                }
+                else if (ZEND_CALL_KIND_EX(*(call_info) >> 24) == ZEND_CALL_NESTED_CODE)
+                {
+                    memcpy(buf, "[INCLUDE_OR_EVAL]", sizeof("[INCLUDE_OR_EVAL]"));
+                }
+                else
+                {
+                    ZEND_ASSERT(0);
+                }
+            }
+            else
+            {
+                if (0 > trace_get_strz(buf, buf_size, function_name + offsetof(zend_string, val)))
+                {
+                    return -1;
+                }
+
+            }
+        }
+        else
+        {
+            memcpy(buf, "???", sizeof("???"));
+        }
+
+        fprintf(slowlog, "[0x%" PTR_FMT "lx] ", execute_data);
+
+        fprintf(slowlog, "%s()", buf);
+
+        *buf = '\0';
+
+        if (0 > trace_get_long(execute_data + offsetof(zend_execute_data, prev_execute_data), &l))
+        {
+            return -1;
+        }
+
+        execute_data = prev = l;
+
+        while (prev)
+        {
+            zend_uchar *type;
+
+            if (0 > trace_get_long(prev + offsetof(zend_execute_data, func), &l))
+            {
+                return -1;
+            }
+
+            function = l;
+
+            if (!valid_ptr(function))
+            {
+                break;
+            }
+
+            type = (zend_uchar *)&l;
+            if (0 > trace_get_long(function + offsetof(zend_function, type), &l))
+            {
+                return -1;
+            }
+
+            if (ZEND_USER_CODE(*type))
+            {
+                if (0 > trace_get_long(function + offsetof(zend_op_array, filename), &l))
+                {
+                    return -1;
+                }
+
+                file_name = l;
+
+                if (0 > trace_get_strz(buf, buf_size, file_name + offsetof(zend_string, val)))
+                {
+                    return -1;
+                }
+
+                if (0 > trace_get_long(prev + offsetof(zend_execute_data, opline), &l))
+                {
+                    return -1;
+                }
+
+                if (valid_ptr(l))
+                {
+                    long opline = l;
+                    uint32_t *lu = (uint32_t *) &l;
+
+                    if (0 > trace_get_long(opline + offsetof(struct _zend_op, lineno), &l))
+                    {
+                        return -1;
+                    }
+
+                    lineno = *lu;
+                }
+                break;
+            }
+
+            if (0 > trace_get_long(prev + offsetof(zend_execute_data, prev_execute_data), &l))
+            {
+                return -1;
+            }
+
+            prev = l;
+        }
+
+        fprintf(slowlog, " %s:%u\n", *buf ? buf : "unknown", lineno);
+
+        if (0 == --callers_limit)
+        {
+            break;
+        }
+    }
+#else
+    while (execute_data)
+    {
+        long function;
+        uint lineno = 0;
+
+        fprintf(slowlog, "[0x%" PTR_FMT "lx] ", execute_data);
+
+        if (0 > trace_get_long(execute_data + offsetof(zend_execute_data, function_state.function), &l))
+        {
+            return -1;
+        }
+
+        function = l;
+
+        if (valid_ptr(function))
+        {
+            if (0 > trace_get_strz(buf, buf_size, function + offsetof(zend_function, common.function_name)))
+            {
+                return -1;
+            }
+
+            fprintf(slowlog, "%s()", buf);
+        }
+        else
+        {
+            fprintf(slowlog, "???");
+        }
+
+        if (0 > trace_get_long(execute_data + offsetof(zend_execute_data, op_array), &l))
+        {
+            return -1;
+        }
+
+        *buf = '\0';
+
+        if (valid_ptr(l))
+        {
+            long op_array = l;
+
+            if (0 > trace_get_strz(buf, buf_size, op_array + offsetof(zend_op_array, filename)))
+            {
+                return -1;
+            }
+        }
+
+        if (0 > trace_get_long(execute_data + offsetof(zend_execute_data, opline), &l))
+        {
+            return -1;
+        }
+
+        if (valid_ptr(l))
+        {
+            long opline = l;
+            uint *lu = (uint *) &l;
+
+            if (0 > trace_get_long(opline + offsetof(struct _zend_op, lineno), &l))
+            {
+                return -1;
+            }
+
+            lineno = *lu;
+        }
+
+        fprintf(slowlog, " %s:%u\n", *buf ? buf : "unknown", lineno);
+
+        if (0 > trace_get_long(execute_data + offsetof(zend_execute_data, prev_execute_data), &l))
+        {
+            return -1;
+        }
+
+        execute_data = l;
+
+        if (0 == --callers_limit)
+        {
+            break;
+        }
+    }
+#endif
 
     return 0;
 }
