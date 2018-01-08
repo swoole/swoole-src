@@ -15,6 +15,7 @@
 */
 
 #include "php_swoole.h"
+#include <stddef.h>
 #include <sys/ptrace.h>
 
 #if SIZEOF_LONG == 4
