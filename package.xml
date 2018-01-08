@@ -47,7 +47,8 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Fixed occasional crash bugs of SSL server
+    - Added request_slowlog_timeout option
+    - Added STREAM module
     </notes>
     <contents>
         <dir name="/">
