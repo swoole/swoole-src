@@ -319,6 +319,22 @@ enum swServer_callback_type
     SW_SERVER_CALLBACK_onReceive,
     SW_SERVER_CALLBACK_onClose,
 };
+
+enum swServer_hook_type
+{
+    SW_SERVER_HOOK_MASTER_START,
+    SW_SERVER_HOOK_REACTOR_START,
+    SW_SERVER_HOOK_WORKER_START,
+    SW_SERVER_HOOK_TASK_WORKER_START,
+    SW_SERVER_HOOK_MASTER_CONNECT,
+    SW_SERVER_HOOK_REACTOR_CONNECT,
+    SW_SERVER_HOOK_WORKER_CONNECT,
+    SW_SERVER_HOOK_REACTOR_RECEIVE,
+    SW_SERVER_HOOK_WORKER_RECEIVE,
+    SW_SERVER_HOOK_REACTOR_CLOSE,
+    SW_SERVER_HOOK_WORKER_CLOSE,
+};
+
 struct _swServer
 {
     /**
@@ -497,6 +513,8 @@ struct _swServer
     swReactor *reactor_ptr; //Main Reactor
     swFactory *factory_ptr; //Factory
 
+    swLinkedList *hooks[SW_MAX_HOOK_TYPE];
+
     void (*onStart)(swServer *serv);
     void (*onManagerStart)(swServer *serv);
     void (*onManagerStop)(swServer *serv);
@@ -567,6 +585,7 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port);
 void swServer_close_port(swServer *serv, enum swBool_type only_stream_port);
 int swServer_add_worker(swServer *serv, swWorker *worker);
 int swserver_add_systemd_socket(swServer *serv);
+int swServer_add_hook(swServer *serv, enum swServer_hook_type type, void *func, int push_back);
 
 int swServer_create(swServer *serv);
 int swServer_free(swServer *serv);

@@ -368,6 +368,21 @@ static int swServer_start_proxy(swServer *serv)
     main_reactor->ptr = serv;
     main_reactor->setHandle(main_reactor, SW_FD_LISTEN, swServer_master_onAccept);
 
+    if (serv->hooks[SW_SERVER_HOOK_MASTER_START])
+    {
+        swLinkedList *hooks = serv->hooks[SW_SERVER_HOOK_MASTER_START];
+
+        swLinkedList_node *node = hooks->head;
+        void (*func)(swServer *);
+
+        while (node)
+        {
+            func = node->data;
+            func(serv);
+            node = node->next;
+        }
+    }
+
     if (serv->onStart != NULL)
     {
         serv->onStart(serv);
@@ -1160,6 +1175,26 @@ int swServer_add_worker(swServer *serv, swWorker *worker)
     }
 
     return worker->id;
+}
+
+int swServer_add_hook(swServer *serv, enum swServer_hook_type type, void *func, int push_back)
+{
+    if (serv->hooks[type] == NULL)
+    {
+        serv->hooks[type] = swLinkedList_new(0, NULL);
+        if (serv->hooks[type] == NULL)
+        {
+            return SW_ERR;
+        }
+    }
+    if (push_back)
+    {
+        return swLinkedList_append(serv->hooks[type], func);
+    }
+    else
+    {
+        return swLinkedList_prepend(serv->hooks[type], func);
+    }
 }
 
 /**
