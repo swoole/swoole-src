@@ -348,7 +348,7 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
         swEventData buf;
     } out;
 
-    int n, ret;
+    int n = 0, ret;
     int task_n, worker_task_always = 0;
 
     if (pool->max_request < 1)
@@ -409,8 +409,8 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
                 }
             }
 
-            int ret = swStream_recv_blocking(fd, (void*) &out.buf, sizeof(out.buf));
-            if (ret == SW_CLOSE)
+            n = swStream_recv_blocking(fd, (void*) &out.buf, sizeof(out.buf));
+            if (n == SW_CLOSE)
             {
                 close(fd);
                 continue;
