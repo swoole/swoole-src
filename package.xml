@@ -47,8 +47,22 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-    - Added request_slowlog_timeout option
-    - Added STREAM module
+    - Update Table::incr and Table::decr support signed integers
+    - Compatible with PHP-7.2
+    - Added Event::cycle function
+    - Fixed Event::del function can not remove the standard input handle problem
+    - Fixed Task process timer interval is less than the Client receive timeout, causing Client :: recv deadlock problem
+    - Added automatic analysis of domain names feature, asynchronous client no longer need to add additional code for domain name resolution
+    - Added ssl_host_name configuration items, used to verify the SSL / TLS host legitimacy
+    - When dispatch_mode = 3, an error log is printed when all the workers are busy
+    - Added a port iterator that traverses all connections to a listening port
+    - Fixed Table memory alignment issues on non-x86 platforms
+    - Fixed the issue of invalid max_request configuration in BASE mode
+    - Fixed WebSocket server in some client ping frame with mask data return error
+    - Fixed an issue where HttpClient uses the HEAD method to respond to content carrying Content-Length causing stuck
+    - Added STREAM module, Reactor, Worker, Task communication more flexible
+    - Added request_slowlog_timeout configuration, record slow request log
+    - Added MySQL asynchronous client support for JSON format
     </notes>
     <contents>
         <dir name="/">
@@ -113,6 +127,7 @@
             <file role="src" name="swoole_channel.c" />
             <file role="src" name="swoole_serialize.h" />
             <file role="src" name="swoole_serialize.c" />
+            <file role="src" name="swoole_trace.c" />
             <dir name="thirdparty">
                 <file role="src" name="php_http_parser.c" />
                 <file role="src" name="php_http_parser.h" />
@@ -196,6 +211,7 @@
                     <file role="src" name="DNS.c" />
                     <file role="src" name="Port.c" />
                     <file role="src" name="TimeWheel.c" />
+                    <file role="src" name="Stream.c" />
                 </dir>
                 <dir name="os">
                     <file role="src" name="base.c" />
