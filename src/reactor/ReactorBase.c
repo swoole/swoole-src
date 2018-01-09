@@ -251,6 +251,12 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
         socket->buffer_size = SwooleG.socket_buffer_size;
     }
 
+    if (socket->nonblock == 0)
+    {
+        swoole_fcntl_set_option(fd, 1, -1);
+        socket->nonblock = 1;
+    }
+
     if (n > socket->buffer_size)
     {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "data is too large, cannot exceed buffer size.");

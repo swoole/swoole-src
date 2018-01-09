@@ -25,6 +25,7 @@ typedef struct
     uint8_t reload_all_worker;
     uint8_t reload_task_worker;
     uint8_t read_message;
+    uint8_t alarm;
 
 } swManagerProcess;
 
@@ -216,6 +217,11 @@ static int swManager_loop(swFactory *factory)
     swServer *serv = factory->ptr;
     swWorker *reload_workers;
 
+    if (serv->hooks[SW_SERVER_HOOK_MANAGER_START])
+    {
+        swServer_call_hook_func(serv, SW_SERVER_HOOK_MANAGER_START);
+    }
+
     if (serv->onManagerStart)
     {
         serv->onManagerStart(serv);
@@ -240,11 +246,17 @@ static int swManager_loop(swFactory *factory)
 #endif
     //swSignal_add(SIGINT, swManager_signal_handle);
 
+    if (serv->manager_alarm > 0)
+    {
+        alarm(serv->manager_alarm);
+        swSignal_add(SIGALRM, swManager_signal_handle);
+    }
+
     SwooleG.main_reactor = NULL;
 
     while (SwooleG.running > 0)
     {
-        pid = wait(&status);
+        _wait: pid = wait(&status);
 
         if (ManagerProcess.read_message)
         {
@@ -266,6 +278,17 @@ static int swManager_loop(swFactory *factory)
 
         if (pid < 0)
         {
+            if (ManagerProcess.alarm == 1)
+            {
+                ManagerProcess.alarm = 0;
+                alarm(serv->manager_alarm);
+
+                if (serv->hooks[SW_SERVER_HOOK_MANAGER_TIMER])
+                {
+                    swServer_call_hook_func(serv, SW_SERVER_HOOK_MANAGER_TIMER);
+                }
+            }
+
             if (ManagerProcess.reloading == 0)
             {
                 error: if (errno != EINTR)
@@ -336,6 +359,13 @@ static int swManager_loop(swFactory *factory)
                     continue;
                 }
 
+                if (WIFSTOPPED(status) && serv->workers[i].tracer)
+                {
+                    serv->workers[i].tracer(&serv->workers[i]);
+                    serv->workers[i].tracer = NULL;
+                    goto _wait;
+                }
+
                 //Check the process return code and signal
                 swManager_check_exit_status(serv, i, pid, status);
 
@@ -363,6 +393,12 @@ static int swManager_loop(swFactory *factory)
                 exit_worker = swHashMap_find_int(SwooleGS->task_workers.map, pid);
                 if (exit_worker != NULL)
                 {
+                    if (WIFSTOPPED(status) && exit_worker->tracer)
+                    {
+                        exit_worker->tracer(&serv->workers[i]);
+                        exit_worker->tracer = NULL;
+                        goto _wait;
+                    }
                     swManager_check_exit_status(serv, exit_worker->id, pid, status);
                     if (exit_worker->deleted == 1)
                     {
@@ -488,6 +524,9 @@ static void swManager_signal_handle(int sig)
         break;
     case SIGIO:
         ManagerProcess.read_message = 1;
+        break;
+    case SIGALRM:
+        ManagerProcess.alarm = 1;
         break;
     default:
 #ifdef SIGRTMIN

@@ -71,6 +71,7 @@ enum swIPCType
 {
     SW_IPC_UNIXSOCK = 1,
     SW_IPC_MSGQUEUE = 2,
+    SW_IPC_SOCKET   = 3,
 };
 
 enum swTaskIPCMode
@@ -78,6 +79,7 @@ enum swTaskIPCMode
     SW_TASK_IPC_UNIXSOCK    = 1,
     SW_TASK_IPC_MSGQUEUE    = 2,
     SW_TASK_IPC_PREEMPTIVE  = 3,
+    SW_TASK_IPC_STREAM      = 4,
 };
 
 enum swCloseType
@@ -318,6 +320,25 @@ enum swServer_callback_type
     SW_SERVER_CALLBACK_onReceive,
     SW_SERVER_CALLBACK_onClose,
 };
+
+enum swServer_hook_type
+{
+    SW_SERVER_HOOK_MASTER_START,
+    SW_SERVER_HOOK_MASTER_TIMER,
+    SW_SERVER_HOOK_REACTOR_START,
+    SW_SERVER_HOOK_WORKER_START,
+    SW_SERVER_HOOK_TASK_WORKER_START,
+    SW_SERVER_HOOK_MASTER_CONNECT,
+    SW_SERVER_HOOK_REACTOR_CONNECT,
+    SW_SERVER_HOOK_WORKER_CONNECT,
+    SW_SERVER_HOOK_REACTOR_RECEIVE,
+    SW_SERVER_HOOK_WORKER_RECEIVE,
+    SW_SERVER_HOOK_REACTOR_CLOSE,
+    SW_SERVER_HOOK_WORKER_CLOSE,
+    SW_SERVER_HOOK_MANAGER_START,
+    SW_SERVER_HOOK_MANAGER_TIMER,
+};
+
 struct _swServer
 {
     /**
@@ -419,6 +440,10 @@ struct _swServer
      * asynchronous reloading
      */
     uint32_t reload_async :1;
+    /**
+     * slowlog
+     */
+    uint32_t trace_event_worker :1;
 
     /**
      *  heartbeat check time
@@ -488,13 +513,23 @@ struct _swServer
     int last_stream_fd;
     int last_session_id;
 
+    int manager_alarm;
+
     /**
      * message queue key
      */
     uint64_t message_queue_key;
 
+    /**
+     * slow request log
+     */
+    uint8_t request_slowlog_timeout;
+    FILE *request_slowlog_file;
+
     swReactor *reactor_ptr; //Main Reactor
     swFactory *factory_ptr; //Factory
+
+    swLinkedList *hooks[SW_MAX_HOOK_TYPE];
 
     void (*onStart)(swServer *serv);
     void (*onManagerStart)(swServer *serv);
@@ -566,6 +601,8 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port);
 void swServer_close_port(swServer *serv, enum swBool_type only_stream_port);
 int swServer_add_worker(swServer *serv, swWorker *worker);
 int swserver_add_systemd_socket(swServer *serv);
+int swServer_add_hook(swServer *serv, enum swServer_hook_type type, void *func, int push_back);
+void swServer_call_hook_func(swServer *serv, enum swServer_hook_type type);
 
 int swServer_create(swServer *serv);
 int swServer_free(swServer *serv);

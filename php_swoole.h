@@ -304,6 +304,7 @@ PHP_METHOD(swoole_connection_iterator, offsetExists);
 PHP_METHOD(swoole_connection_iterator, offsetGet);
 PHP_METHOD(swoole_connection_iterator, offsetSet);
 PHP_METHOD(swoole_connection_iterator, offsetUnset);
+PHP_METHOD(swoole_connection_iterator, __destruct);
 #endif
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
@@ -399,6 +400,7 @@ void php_swoole_check_timer(int interval);
 long php_swoole_add_timer(int ms, zval *callback, zval *param, int persistent TSRMLS_DC);
 void php_swoole_clear_all_timer();
 void php_swoole_register_callback(swServer *serv);
+void php_swoole_trace_check(swServer *serv);
 void php_swoole_client_free(zval *object, swClient *cli TSRMLS_DC);
 swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port);
 void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC);

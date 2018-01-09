@@ -519,6 +519,16 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject TSRMLS_DC)
     {
         add_assoc_long(zsetting, "max_connection", serv->max_connection);
     }
+    //trace request
+    if (serv->request_slowlog_file && (serv->trace_event_worker || SwooleG.task_worker_num > 0))
+    {
+        serv->manager_alarm = serv->request_slowlog_timeout;
+        if (swServer_add_hook(serv, SW_SERVER_HOOK_MANAGER_TIMER, php_swoole_trace_check, 1) < 0)
+        {
+            swoole_php_fatal_error(E_ERROR, "Unable to add server hook.");
+            return;
+        }
+    }
 
     int i;
     zval *retval = NULL;
@@ -1993,6 +2003,31 @@ PHP_METHOD(swoole_server, set)
             task_coroutine_map = swHashMap_new(1024, NULL);
         }
     }
+    //slowlog
+    if (php_swoole_array_get_value(vht, "trace_event_worker", v))
+    {
+        convert_to_boolean(v);
+        serv->trace_event_worker = Z_BVAL_P(v);
+    }
+    if (php_swoole_array_get_value(vht, "request_slowlog_timeout", v))
+    {
+        convert_to_long(v);
+        serv->request_slowlog_timeout = (uint8_t) Z_LVAL_P(v);
+    }
+    if (php_swoole_array_get_value(vht, "request_slowlog_file", v))
+    {
+        convert_to_string(v);
+        serv->request_slowlog_file = fopen(Z_STRVAL_P(v), "a+");
+        if (serv->request_slowlog_file == NULL)
+        {
+            swoole_php_fatal_error(E_ERROR, "Unable to open request_slowlog_file[%s].", Z_STRVAL_P(v));
+            return;
+        }
+        if (serv->request_slowlog_timeout == 0)
+        {
+            serv->request_slowlog_timeout = 1;
+        }
+    }
     //task ipc mode, 1,2,3
     if (php_swoole_array_get_value(vht, "task_ipc_mode", v))
     {
@@ -2772,7 +2807,7 @@ PHP_METHOD(swoole_server, stats)
     sw_add_assoc_long_ex(return_value, ZEND_STRS("close_count"), SwooleStats->close_count);
     sw_add_assoc_long_ex(return_value, ZEND_STRS("tasking_num"), SwooleStats->tasking_num);
     sw_add_assoc_long_ex(return_value, ZEND_STRS("request_count"), SwooleStats->request_count);
-    sw_add_assoc_long_ex(return_value, ZEND_STRS("worker_request_count"), SwooleWG.request_count);
+    sw_add_assoc_long_ex(return_value, ZEND_STRS("worker_request_count"), SwooleWG.worker->request_count);
 
     if (SwooleG.task_ipc_mode > SW_TASK_IPC_UNIXSOCK && SwooleGS->task_workers.queue)
     {
@@ -2907,10 +2942,10 @@ PHP_METHOD(swoole_server, taskwait)
     //clear history task
     while (read(efd, &notify, sizeof(notify)) > 0);
 
-    sw_atomic_fetch_add(&SwooleStats->tasking_num, 1);
     int _dst_worker_id = (int) dst_worker_id;
     if (swProcessPool_dispatch_blocking(&SwooleGS->task_workers, &buf, &_dst_worker_id) >= 0)
     {
+        sw_atomic_fetch_add(&SwooleStats->tasking_num, 1);
         task_notify_pipe->timeout = timeout;
         while(1)
         {
@@ -2939,10 +2974,6 @@ PHP_METHOD(swoole_server, taskwait)
                 break;
             }
         }
-    }
-    else
-    {
-        sw_atomic_fetch_sub(&SwooleStats->tasking_num, 1);
     }
     RETURN_FALSE;
 }
@@ -3014,16 +3045,15 @@ PHP_METHOD(swoole_server, taskWaitMulti)
         }
         swTask_type(&buf) |= SW_TASK_WAITALL;
         dst_worker_id = -1;
-        sw_atomic_fetch_add(&SwooleStats->tasking_num, 1);
         if (swProcessPool_dispatch_blocking(&SwooleGS->task_workers, &buf, &dst_worker_id) < 0)
         {
-            sw_atomic_fetch_sub(&SwooleStats->tasking_num, 1);
             swoole_php_fatal_error(E_WARNING, "taskwait failed. Error: %s[%d]", strerror(errno), errno);
             task_id = -1;
             fail:
             add_index_bool(return_value, i, 0);
             n_task --;
         }
+        sw_atomic_fetch_add(&SwooleStats->tasking_num, 1);
         list_of_id[i] = task_id;
         i++;
     SW_HASHTABLE_FOREACH_END();
@@ -3248,16 +3278,15 @@ PHP_METHOD(swoole_server, task)
     }
 
     swTask_type(&buf) |= SW_TASK_NONBLOCK;
-    sw_atomic_fetch_add(&SwooleStats->tasking_num, 1);
 
     int _dst_worker_id = (int) dst_worker_id;
     if (swProcessPool_dispatch(&SwooleGS->task_workers, &buf, &_dst_worker_id) >= 0)
     {
+        sw_atomic_fetch_add(&SwooleStats->tasking_num, 1);
         RETURN_LONG(buf.info.fd);
     }
     else
     {
-        sw_atomic_fetch_sub(&SwooleStats->tasking_num, 1);
         RETURN_FALSE;
     }
 }
@@ -3909,6 +3938,13 @@ PHP_METHOD(swoole_connection_iterator, offsetSet)
 PHP_METHOD(swoole_connection_iterator, offsetUnset)
 {
     return;
+}
+
+PHP_METHOD(swoole_connection_iterator, __destruct)
+{
+    swConnectionIterator *i = swoole_get_object(getThis());
+    efree(i);
+    swoole_set_object(getThis(), NULL);
 }
 
 #endif

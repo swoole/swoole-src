@@ -368,6 +368,11 @@ static int swServer_start_proxy(swServer *serv)
     main_reactor->ptr = serv;
     main_reactor->setHandle(main_reactor, SW_FD_LISTEN, swServer_master_onAccept);
 
+    if (serv->hooks[SW_SERVER_HOOK_MASTER_START])
+    {
+        swServer_call_hook_func(serv, SW_SERVER_HOOK_MASTER_START);
+    }
+
     if (serv->onStart != NULL)
     {
         serv->onStart(serv);
@@ -464,27 +469,37 @@ swString** swServer_create_worker_buffer(swServer *serv)
 int swServer_create_task_worker(swServer *serv)
 {
     key_t key = 0;
-    int ipc_type;
+    int ipc_mode;
 
-    if (SwooleG.task_ipc_mode > SW_TASK_IPC_UNIXSOCK)
+    if (SwooleG.task_ipc_mode == SW_TASK_IPC_MSGQUEUE || SwooleG.task_ipc_mode == SW_TASK_IPC_PREEMPTIVE)
     {
         key = serv->message_queue_key;
-        ipc_type = SW_IPC_MSGQUEUE;
+        ipc_mode = SW_IPC_MSGQUEUE;
+    }
+    else if (SwooleG.task_ipc_mode == SW_TASK_IPC_STREAM)
+    {
+        ipc_mode = SW_IPC_SOCKET;
     }
     else
     {
-        ipc_type = SW_IPC_UNIXSOCK;
+        ipc_mode = SW_IPC_UNIXSOCK;
     }
 
-    if (swProcessPool_create(&SwooleGS->task_workers, SwooleG.task_worker_num, SwooleG.task_max_request, key, ipc_type) < 0)
+    if (swProcessPool_create(&SwooleGS->task_workers, SwooleG.task_worker_num, SwooleG.task_max_request, key, ipc_mode) < 0)
     {
         swWarn("[Master] create task_workers failed.");
         return SW_ERR;
     }
-    else
+    if (ipc_mode == SW_IPC_SOCKET)
     {
-        return SW_OK;
+        char sockfile[sizeof(struct sockaddr_un)];
+        snprintf(sockfile, sizeof(sockfile), "/tmp/swoole.task.%d.sock", SwooleGS->master_pid);
+        if (swProcessPool_create_stream_socket(&SwooleGS->task_workers, sockfile, 2048) < 0)
+        {
+            return SW_ERR;
+        }
     }
+    return SW_OK;
 }
 
 int swServer_worker_init(swServer *serv, swWorker *worker)
@@ -541,6 +556,8 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
     }
 
     worker->start_time = SwooleGS->now;
+    worker->request_time = 0;
+    worker->request_count = 0;
 
     return SW_OK;
 }
@@ -1068,6 +1085,21 @@ int swServer_tcp_sendwait(swServer *serv, int fd, void *data, uint32_t length)
     return swSocket_write_blocking(conn->fd, data, length);
 }
 
+void swServer_call_hook_func(swServer *serv, enum swServer_hook_type type)
+{
+    swLinkedList *hooks = serv->hooks[type];
+
+    swLinkedList_node *node = hooks->head;
+    void (*func)(swServer *);
+
+    while (node)
+    {
+        func = node->data;
+        func(serv);
+        node = node->next;
+    }
+}
+
 int swServer_tcp_close(swServer *serv, int fd, int reset)
 {
     swConnection *conn = swServer_connection_verify_no_ssl(serv, fd);
@@ -1130,6 +1162,11 @@ void swServer_master_onTimer(swServer *serv)
         serv->warning_time = SwooleGS->now;
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_NO_IDLE_WORKER, "No idle worker is available.");
     }
+
+    if (serv->hooks[SW_SERVER_HOOK_MASTER_TIMER])
+    {
+        swServer_call_hook_func(serv, SW_SERVER_HOOK_MASTER_TIMER);
+    }
 }
 
 int swServer_add_worker(swServer *serv, swWorker *worker)
@@ -1150,6 +1187,26 @@ int swServer_add_worker(swServer *serv, swWorker *worker)
     }
 
     return worker->id;
+}
+
+int swServer_add_hook(swServer *serv, enum swServer_hook_type type, void *func, int push_back)
+{
+    if (serv->hooks[type] == NULL)
+    {
+        serv->hooks[type] = swLinkedList_new(0, NULL);
+        if (serv->hooks[type] == NULL)
+        {
+            return SW_ERR;
+        }
+    }
+    if (push_back)
+    {
+        return swLinkedList_append(serv->hooks[type], func);
+    }
+    else
+    {
+        return swLinkedList_prepend(serv->hooks[type], func);
+    }
 }
 
 /**
