@@ -121,6 +121,7 @@
             <file role="src" name="swoole_http_client_coro.c" />
             <file role="src" name="swoole_redis_coro.c" />
             <file role="src" name="swoole_mysql_coro.c" />
+            <file role="src" name="swoole_trace.c" />
             <dir name="thirdparty">
                 <file role="src" name="php_http_parser.c" />
                 <file role="src" name="php_http_parser.h" />
@@ -204,6 +205,7 @@
                     <file role="src" name="DNS.c" />
                     <file role="src" name="Port.c" />
                     <file role="src" name="TimeWheel.c" />
+                    <file role="src" name="Stream.c" />
                 </dir>
                 <dir name="os">
                     <file role="src" name="base.c" />
@@ -233,6 +235,7 @@
                     <file role="src" name="readfile.php" />
                     <file role="src" name="write.php" />
                     <file role="src" name="dns_lookup.php" />
+                    <file role="src" name="exec.php" />
                 </dir>
                 <dir name="client">
                     <file role="src" name="async.php" />
