@@ -335,8 +335,16 @@ int swoole_sync_writefile(int fd, void *data, int len)
             count -= n;
             written += n;
         }
+        else if (n == 0)
+        {
+            break;
+        }
         else
         {
+            if (errno == EINTR || errno == EAGAIN)
+            {
+                continue;
+            }
             swWarn("write() failed. Error: %s[%d]", strerror(errno), errno);
             break;
         }
@@ -675,6 +683,10 @@ int swoole_sync_readfile(int fd, void *buf, int len)
         }
         else
         {
+            if (errno == EINTR || errno == EAGAIN)
+            {
+                continue;
+            }
             swWarn("read() failed. Error: %s[%d]", strerror(errno), errno);
             break;
         }
