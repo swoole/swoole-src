@@ -24,6 +24,18 @@
 #define PTR_FMT "016"
 #endif
 
+#if defined(PT_ATTACH) && !defined(PTRACE_ATTACH)
+#define PTRACE_ATTACH PT_ATTACH
+#endif
+
+#if defined(PT_DETACH) && !defined(PTRACE_DETACH)
+#define PTRACE_DETACH PT_DETACH
+#endif
+
+#if defined(PT_READ_D) && !defined(PTRACE_PEEKDATA)
+#define PTRACE_PEEKDATA PT_READ_D
+#endif
+
 #define valid_ptr(p) ((p) && 0 == ((p) & (sizeof(long) - 1)))
 
 static void trace_request(swWorker *worker);
