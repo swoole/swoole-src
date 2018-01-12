@@ -57,7 +57,7 @@ static PHP_METHOD(swoole_channel_coro, push);
 static PHP_METHOD(swoole_channel_coro, pop);
 static PHP_METHOD(swoole_channel_coro, close);
 static PHP_METHOD(swoole_channel_coro, stats);
-static PHP_METHOD(swoole_channel_coro, len);
+static PHP_METHOD(swoole_channel_coro, length);
 static PHP_METHOD(swoole_channel_coro, select);
 
 static zend_class_entry swoole_channel_coro_ce;
@@ -88,7 +88,7 @@ static const zend_function_entry swoole_channel_coro_methods[] =
     PHP_ME(swoole_channel_coro, pop, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_channel_coro, close, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_channel_coro, stats, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_channel_coro, len, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_channel_coro, length, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_channel_coro, select, arginfo_swoole_channel_coro_select, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
@@ -346,7 +346,7 @@ static PHP_METHOD(swoole_channel_coro, close)
     RETURN_TRUE;
 }
 
-static PHP_METHOD(swoole_channel_coro, len)
+static PHP_METHOD(swoole_channel_coro, length)
 {
     swChannel *chan = swoole_get_object(getThis());
     RETURN_LONG(chan->num);
