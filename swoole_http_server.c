@@ -214,6 +214,7 @@ void php_zlib_free(voidpf opaque, voidpf address);
 static PHP_METHOD(swoole_http_server, on);
 static PHP_METHOD(swoole_http_server, start);
 
+static PHP_METHOD(swoole_http_request, getData);
 static PHP_METHOD(swoole_http_request, rawcontent);
 static PHP_METHOD(swoole_http_request, __destruct);
 
@@ -385,6 +386,7 @@ const zend_function_entry swoole_http_server_methods[] =
 const zend_function_entry swoole_http_request_methods[] =
 {
     PHP_ME(swoole_http_request, rawcontent, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_request, getData, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
     PHP_FALIAS(__sleep, swoole_unsupport_serialize, NULL)
     PHP_FALIAS(__wakeup, swoole_unsupport_serialize, NULL)
     PHP_ME(swoole_http_request, __destruct, arginfo_swoole_http_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
@@ -1626,13 +1628,6 @@ static PHP_METHOD(swoole_http_server, start)
 
 static PHP_METHOD(swoole_http_request, rawcontent)
 {
-    zval *zfd = sw_zend_read_property(swoole_http_request_class_entry_ptr, getThis(), ZEND_STRL("fd"), 0 TSRMLS_CC);
-    if (ZVAL_IS_NULL(zfd))
-    {
-        swoole_php_error(E_WARNING, "http client is not existed.");
-        RETURN_FALSE;
-    }
-
     http_context *ctx = http_get_context(getThis(), 0 TSRMLS_CC);
     if (!ctx)
     {
@@ -1651,6 +1646,19 @@ static PHP_METHOD(swoole_http_request, rawcontent)
         SW_RETVAL_STRINGL(req->post_buffer->str, req->post_buffer->length, 1);
     }
 #endif
+    else
+    {
+        RETURN_FALSE;
+    }
+}
+
+static PHP_METHOD(swoole_http_request, getData)
+{
+    zval *zdata = swoole_get_property(getThis(), 0);
+    if (zdata)
+    {
+        SW_RETURN_STRINGL(Z_STRVAL_P(zdata), Z_STRLEN_P(zdata), 1);
+    }
     else
     {
         RETURN_FALSE;
