@@ -668,6 +668,7 @@ static PHP_METHOD(swoole_coroutine_util, sleep)
     context->onTimeout = NULL;
     context->state = SW_CORO_CONTEXT_RUNNING;
 
+    php_swoole_check_reactor();
     php_swoole_check_timer(ms);
     if (SwooleG.timer.add(&SwooleG.timer, ms, 0, context, php_coroutine_sleep_timeout) == NULL)
     {
