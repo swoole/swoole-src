@@ -69,6 +69,11 @@ int swPort_enable_ssl_encrypt(swListenPort *ls)
         swWarn("swSSL_get_context() error.");
         return SW_ERR;
     }
+    /**
+     * OpenSSL thread-safe
+     */
+    swSSL_init_thread_safety();
+
     if (ls->ssl_option.client_cert_file
             && swSSL_set_client_certificate(ls->ssl_context, ls->ssl_option.client_cert_file,
                     ls->ssl_option.verify_depth) == SW_ERR)
@@ -220,8 +225,7 @@ void swPort_clear_protocol(swListenPort *ls)
 
 static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *event)
 {
-    int ret = 0, n;
-    swServer *serv = reactor->ptr;
+    int n;
     swDispatchData task;
     swConnection *conn =  event->socket;
 
@@ -252,18 +256,7 @@ static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *ev
         task.data.info.len = n;
         task.data.info.type = SW_EVENT_TCP;
         task.target_worker_id = -1;
-
-#ifdef SW_USE_RINGBUFFER
-        if (serv->factory_mode == SW_MODE_PROCESS)
-        {
-            ret = swReactorThread_dispatch(conn, task.data.data, task.data.info.len);
-        }
-        else
-#endif
-        {
-            ret = serv->factory.dispatch(&serv->factory, &task);
-        }
-        return ret;
+        return swReactorThread_dispatch(conn, task.data.data, task.data.info.len);
     }
     return SW_OK;
 }
@@ -645,7 +638,7 @@ int swPort_http_static_handler(swHttpRequest *request, swConnection *conn)
         switch(state)
         {
         case 0:
-            if (strncasecmp(p, SW_STRL("If-Modified-Since")-1) == 0)
+            if (strncasecmp(p, SW_STRL("If-Modified-Since") - 1) == 0)
             {
                 p += sizeof("If-Modified-Since");
                 state = 1;
@@ -709,7 +702,7 @@ int swPort_http_static_handler(swHttpRequest *request, swConnection *conn)
         {
             date_format = SW_HTTP_ASCTIME_DATE;
         }
-        if (date_format && mktime(&tm3) - timezone >= file_mtime)
+        if (date_format && mktime(&tm3) - (int) timezone >= file_mtime)
         {
             response.length = response.info.len = snprintf(header_buffer, sizeof(header_buffer),
                     "HTTP/1.1 304 Not Modified\r\n"

@@ -17,6 +17,11 @@
 #ifndef SW_CLIENT_H_
 #define SW_CLIENT_H_
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 #include "buffer.h"
 #include "Connection.h"
 
@@ -68,6 +73,8 @@ typedef struct _swClient
     uint32_t destroyed :1;
     uint32_t redirect :1;
     uint32_t http2 :1;
+    uint32_t sleep :1;
+    uint32_t wait_dns :1;
 
     /**
      * one package: length check
@@ -82,12 +89,19 @@ typedef struct _swClient
     uint32_t reuse_count;
 
     char *server_str;
+    char *server_host;
+    int server_port;
     void *ptr;
     void *params;
 
     uint8_t server_strlen;
     double timeout;
     swTimer_node *timer;
+
+    /**
+     * signal interruption
+     */
+    double interrupt_time;
 
     /**
      * sendto, read only.
@@ -100,6 +114,12 @@ typedef struct _swClient
     swSocketAddress remote_addr;
 
     swConnection *socket;
+
+    /**
+     * reactor
+     */
+    swReactor *reactor;
+
     void *object;
 
     swString *buffer;
@@ -133,9 +153,12 @@ typedef struct _swClient
 } swClient;
 
 int swClient_create(swClient *cli, int type, int async);
+int swClient_sleep(swClient *cli);
+int swClient_wakeup(swClient *cli);
 #ifdef SW_USE_OPENSSL
 int swClient_enable_ssl_encrypt(swClient *cli);
 int swClient_ssl_handshake(swClient *cli);
+int swClient_ssl_verify(swClient *cli, int allow_self_signed);
 #endif
 void swClient_free(swClient *cli);
 
@@ -151,5 +174,26 @@ typedef struct
 
 int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_result *, void *), void *data);
 int swDNSResolver_free();
+
+//----------------------------------------Stream---------------------------------------
+typedef struct _swStream
+{
+    swString *buffer;
+    uint32_t session_id;
+    uint8_t cancel;
+    void (*response)(struct _swStream *stream, char *data, uint32_t length);
+    swClient client;
+} swStream;
+
+swStream* swStream_new(char *dst_host, int dst_port, int type);
+int swStream_send(swStream *stream, char *data, size_t length);
+void swStream_set_protocol(swProtocol *protocol);
+void swStream_set_max_length(swStream *stream, uint32_t max_length);
+int swStream_recv_blocking(int fd, void *__buf, size_t __len);
+//----------------------------------------Stream End------------------------------------
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* SW_CLIENT_H_ */

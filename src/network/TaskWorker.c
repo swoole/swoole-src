@@ -131,7 +131,11 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
     swWorker_onStart(serv);
 
     SwooleG.main_reactor = NULL;
-    SwooleWG.worker = swProcessPool_get_worker(pool, worker_id);
+    swWorker *worker = swProcessPool_get_worker(pool, worker_id);
+    worker->start_time = SwooleGS->now;
+    worker->request_count = 0;
+    worker->traced = 0;
+    SwooleWG.worker = worker;
     SwooleWG.worker->status = SW_WORKER_IDLE;
 }
 
@@ -161,6 +165,12 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
     uint16_t source_worker_id = current_task->info.from_id;
     swWorker *worker = swServer_get_worker(serv, source_worker_id);
 
+    if (worker == NULL)
+    {
+        swWarn("invalid worker_id[%d].", source_worker_id);
+        return SW_ERR;
+    }
+
     int ret;
     //for swoole_server_task
     if (swTask_type(current_task) & SW_TASK_NONBLOCK)
@@ -171,6 +181,10 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
         if (swTask_type(current_task) & SW_TASK_CALLBACK)
         {
             flags |= SW_TASK_CALLBACK;
+        }
+        else if (swTask_type(current_task) & SW_TASK_COROUTINE)
+        {
+            flags |= SW_TASK_COROUTINE;
         }
         swTask_type(&buf) = flags;
 
@@ -189,7 +203,19 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
             buf.info.len = data_len;
         }
 
-        ret = swWorker_send2worker(worker, &buf, sizeof(buf.info) + buf.info.len, SW_PIPE_MASTER);
+        if (worker->pool->use_socket && worker->pool->stream->last_connection > 0)
+        {
+            int32_t _len = htonl(data_len);
+            ret = swSocket_write_blocking(worker->pool->stream->last_connection, (void *) &_len, sizeof(_len));
+            if (ret > 0)
+            {
+                ret = swSocket_write_blocking(worker->pool->stream->last_connection, data, data_len);
+            }
+        }
+        else
+        {
+            ret = swWorker_send2worker(worker, &buf, sizeof(buf.info) + buf.info.len, SW_PIPE_MASTER);
+        }
     }
     else
     {
@@ -267,7 +293,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
         {
             ret = task_notify_pipe->write(task_notify_pipe, &flag, sizeof(flag));
 #ifdef HAVE_KQUEUE
-            if (ret < 0 && errno == EAGAIN || errno == ENOBUFS)
+            if (ret < 0 && (errno == EAGAIN || errno == ENOBUFS))
 #else
             if (ret < 0 && errno == EAGAIN)
 #endif

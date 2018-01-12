@@ -143,7 +143,14 @@ static int swAioBase_onFinish(swReactor *reactor, swEvent *event)
     }
     for (i = 0; i < n / sizeof(swAio_event*); i++)
     {
-        SwooleAIO.callback(events[i]);
+        if (events[i]->callback)
+        {
+            events[i]->callback(events[i]);
+        }
+        else
+        {
+            SwooleAIO.callback(events[i]);
+        }
         SwooleAIO.task_num--;
         sw_free(events[i]);
     }
@@ -183,7 +190,6 @@ int swAioBase_init(int max_aio_events)
         return SW_ERR;
     }
 
-    SwooleAIO.callback = swAio_callback_test;
     SwooleAIO.destroy = swAioBase_destroy;
     SwooleAIO.read = swAioBase_read;
     SwooleAIO.write = swAioBase_write;
@@ -240,7 +246,13 @@ static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len)
         }
         break;
     case SW_AIO_DNS_LOOKUP:
-        ret = swoole_gethostbyname(AF_INET, event->buf, (char *) &addr);
+#ifndef HAVE_GETHOSTBYNAME2_R
+        SwooleAIO.lock.lock(&SwooleAIO.lock);
+#endif
+        ret = swoole_gethostbyname(event->flags == AF_INET6 ? AF_INET6 : AF_INET, event->buf, (char *) &addr);
+#ifndef HAVE_GETHOSTBYNAME2_R
+        SwooleAIO.lock.unlock(&SwooleAIO.lock);
+#endif
         if (ret < 0)
         {
             event->error = h_errno;
@@ -363,6 +375,34 @@ int swAio_dns_lookup(void *hostname, void *ip_addr, size_t size)
     }
 }
 
+int swAio_dispatch(swAio_event *_event)
+{
+    if (SwooleAIO.init == 0)
+    {
+        swAio_init();
+    }
+
+    _event->task_id = SwooleAIO.current_id++;
+
+    swAio_event *event = (swAio_event *) sw_malloc(sizeof(swAio_event));
+    if (event == NULL)
+    {
+        swWarn("malloc failed.");
+        return SW_ERR;
+    }
+    memcpy(event, _event, sizeof(swAio_event));
+
+    if (swThreadPool_dispatch(&swAioBase_thread_pool, event, sizeof(event)) < 0)
+    {
+        return SW_ERR;
+    }
+    else
+    {
+        SwooleAIO.task_num++;
+        return _event->task_id;
+    }
+}
+
 static int swAioBase_read(int fd, void *inbuf, size_t size, off_t offset)
 {
     swAio_event *aio_ev = (swAio_event *) sw_malloc(sizeof(swAio_event));
@@ -394,6 +434,9 @@ static int swAioBase_read(int fd, void *inbuf, size_t size, off_t offset)
 void swAioBase_destroy()
 {
     swThreadPool_free(&swAioBase_thread_pool);
-    SwooleG.main_reactor->del(SwooleG.main_reactor, swAioBase_pipe_read);
+    if (SwooleG.main_reactor)
+    {
+        SwooleG.main_reactor->del(SwooleG.main_reactor, swAioBase_pipe_read);
+    }
     swoole_aio_pipe.close(&swoole_aio_pipe);
 }

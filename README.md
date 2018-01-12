@@ -7,14 +7,14 @@ Swoole
 
 Swoole is an event-driven asynchronous & concurrent networking communication framework with high performance written only in C for PHP.
 
-__Document__: <https://rawgit.com/tchiotludo/swoole-ide-helper/english/docs/index.html>
+* __Document__: https://github.com/swoole/swoole-docs
+* __API__: <https://rawgit.com/tchiotludo/swoole-ide-helper/english/docs/index.html>
+* __IDE Helper__: <https://github.com/swoole/ide-helper>
+* __中文文档__: <http://wiki.swoole.com/>
+* __IRC__:  <https://gitter.im/swoole/swoole-src>
 
-__IDE Helper__: <https://github.com/swoole/ide-helper>
-
-__中文文档__: <http://wiki.swoole.com/>
-
-__IRC__:  <https://gitter.im/swoole/swoole-src>
-
+* __Twitter__: <https://twitter.com/php_swoole>
+* __Slack Group__: <https://goo.gl/forms/wooTTDmhbu30x4qC3>
 
 Event-based
 ------

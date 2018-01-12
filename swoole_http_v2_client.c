@@ -38,7 +38,7 @@ static zend_class_entry *swoole_http2_response_class_entry_ptr;
 
 enum
 {
-    HTTP2_CLIENT_PROPERTY_INDEX = 2,
+    HTTP2_CLIENT_PROPERTY_INDEX = 3,
 };
 
 typedef struct
@@ -146,9 +146,16 @@ void swoole_http2_client_init(int module_number TSRMLS_DC)
     swoole_http2_client_class_entry_ptr = sw_zend_register_internal_class_ex(&swoole_http2_client_ce, swoole_client_class_entry_ptr, "swoole_client" TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_http2_client, "Swoole\\Http2\\Client");
 
+    zend_declare_property_null(swoole_http2_client_class_entry_ptr, SW_STRL("requestHeaders")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_http2_client_class_entry_ptr, SW_STRL("cookies")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+
     SWOOLE_INIT_CLASS_ENTRY(swoole_http2_response_ce, "swoole_http2_response", "Swoole\\Http2\\Response", NULL);
     swoole_http2_response_class_entry_ptr = zend_register_internal_class(&swoole_http2_response_ce TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_http2_response, "Swoole\\Http2\\Response");
+
+    zend_declare_property_long(swoole_http2_response_class_entry_ptr, SW_STRL("statusCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_http2_response_class_entry_ptr, SW_STRL("body")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_http2_response_class_entry_ptr, SW_STRL("streamId")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
 }
 
 static PHP_METHOD(swoole_http2_client, __construct)
@@ -165,7 +172,7 @@ static PHP_METHOD(swoole_http2_client, __construct)
 
     if (host_len <= 0)
     {
-        swoole_php_fatal_error(E_ERROR, "host is empty.");
+        zend_throw_exception(swoole_exception_class_entry_ptr, "host is empty.", SW_ERROR_INVALID_PARAMS TSRMLS_CC);
         RETURN_FALSE;
     }
 
@@ -196,6 +203,7 @@ static PHP_METHOD(swoole_http2_client, __construct)
     {
         sw_zval_ptr_dtor(&retval);
     }
+    sw_zval_ptr_dtor(&ztype);
 
     hcc->host = estrndup(host, host_len);
     hcc->host_len = host_len;
@@ -437,7 +445,7 @@ static int http2_client_parse_header(http2_client_property *hcc, http2_client_st
             {
                 if (strncasecmp((char *) nv.name + 1, "status", nv.namelen -1) == 0)
                 {
-                    zend_update_property_long(swoole_http2_client_class_entry_ptr, zresponse, ZEND_STRL("statusCode"), atoi((char *) nv.value) TSRMLS_CC);
+                    zend_update_property_long(swoole_http2_response_class_entry_ptr, zresponse, ZEND_STRL("statusCode"), atoi((char *) nv.value) TSRMLS_CC);
                     continue;
                 }
             }
@@ -467,7 +475,7 @@ static int http2_client_parse_header(http2_client_property *hcc, http2_client_st
         }
     }
 
-    zend_update_property(swoole_http2_client_class_entry_ptr, zresponse, ZEND_STRL("header"), zheader TSRMLS_CC);
+    zend_update_property(swoole_http2_response_class_entry_ptr, zresponse, ZEND_STRL("header"), zheader TSRMLS_CC);
     sw_zval_ptr_dtor(&zheader);
 
     rv = nghttp2_hd_inflate_change_table_size(inflater, 4096);
@@ -573,7 +581,7 @@ static int http2_client_onFrame(zval *zobject, zval *zdata TSRMLS_DC)
 
     http2_client_stream *stream = swHashMap_find_int(hcc->streams, stream_id);
     // stream has closed
-    if(stream == NULL)
+    if (stream == NULL)
     {
         return SW_OK;
     }
@@ -607,14 +615,14 @@ static int http2_client_onFrame(zval *zobject, zval *zdata TSRMLS_DC)
         swWarn("unknown frame, type=%d, stream_id=%d, length=%d.", type, stream_id, length);
         return SW_OK;
     }
-    if ( (type == SW_HTTP2_TYPE_DATA && stream->type == SW_HTTP2_STREAM_PIPELINE) || 
-    (stream->type == SW_HTTP2_STREAM_NORMAL && (flags & SW_HTTP2_FLAG_END_STREAM)))
+    if ((type == SW_HTTP2_TYPE_DATA && stream->type == SW_HTTP2_STREAM_PIPELINE)
+            || (stream->type == SW_HTTP2_STREAM_NORMAL && (flags & SW_HTTP2_FLAG_END_STREAM)))
     {
-        zval *retval;
+        zval *retval = NULL;
         zval *zcallback = stream->callback;
         zval *zresponse = stream->response_object;
 
-        if(stream->buffer)
+        if (stream->buffer)
         {
             zend_update_property_stringl(swoole_http2_response_class_entry_ptr, stream->response_object, ZEND_STRL("body"), stream->buffer->str, stream->buffer->length TSRMLS_CC);
         }
@@ -634,8 +642,7 @@ static int http2_client_onFrame(zval *zobject, zval *zdata TSRMLS_DC)
         {
             sw_zval_ptr_dtor(&retval);
         }
-
-        if(stream->type == SW_HTTP2_STREAM_NORMAL)
+        if (stream->type == SW_HTTP2_STREAM_NORMAL)
         {
             swHashMap_del_int(hcc->streams, stream_id);
         }
@@ -699,7 +706,10 @@ static void http2_client_set_callback(zval *zobject, const char *callback_name, 
     SW_ZVAL_STRING(zname, callback_name, 1);
     SW_ZVAL_STRING(zmethod_name, method_name, 1);
 
-    Z_ADDREF_P(zobject);
+#if PHP_MAJOR_VERSION < 7
+    sw_zval_add_ref(&zobject);
+#endif
+
     add_next_index_zval(zcallback, zobject);
     add_next_index_zval(zcallback, zmethod_name);
 
@@ -710,7 +720,6 @@ static void http2_client_set_callback(zval *zobject, const char *callback_name, 
     }
     sw_zval_ptr_dtor(&zname);
     sw_zval_ptr_dtor(&zcallback);
-    sw_zval_ptr_dtor(&zobject);
 }
 
 static void http2_client_send_all_requests(zval *zobject TSRMLS_DC)
@@ -748,10 +757,11 @@ static void http2_client_send_stream_request(zval *zobject, http2_client_request
     swClient *cli = swoole_get_object(zobject);
     http2_client_property *hcc = swoole_get_property(zobject, HTTP2_CLIENT_PROPERTY_INDEX);
     char buffer[8192];
+
     /**
      * create stream
      */
-    if(req->stream_id == 0)
+    if (req->stream_id == 0)
     {
         /**
         * send header
@@ -949,6 +959,8 @@ static void http2_client_connect(zval *zobject TSRMLS_DC)
     {
         sw_zval_ptr_dtor(&retval);
     }
+    sw_zval_ptr_dtor(&zhost);
+    sw_zval_ptr_dtor(&zport);
     swClient *cli = swoole_get_object(zobject);
     cli->http2 = 1;
 }
@@ -993,6 +1005,7 @@ static PHP_METHOD(swoole_http2_client, get)
         _req.uri_len = Z_STRLEN_P(uri);
         _req.type = HTTP_GET;
         _req.callback = callback;
+        _req.data = NULL;
         http2_client_send_request(getThis(), &_req TSRMLS_CC);
     }
     else
@@ -1243,7 +1256,6 @@ static PHP_METHOD(swoole_http2_client, onConnect)
     cli->open_length_check = 1;
     cli->protocol.get_package_length = swHttp2_get_frame_length;
     cli->protocol.package_length_size = SW_HTTP2_FRAME_HEADER_SIZE;
-    cli->protocol.onPackage = php_swoole_client_onPackage;
     http2_client_property *hcc = swoole_get_property(getThis(), HTTP2_CLIENT_PROPERTY_INDEX);
     hcc->ready = 1;
     hcc->stream_id = 1;
@@ -1316,35 +1328,37 @@ static PHP_METHOD(swoole_http2_client, onReceive)
     {
         return;
     }
-
     http2_client_onFrame(zobject, zdata TSRMLS_CC);
 }
 
 static PHP_METHOD(swoole_http2_client, __destruct)
 {
     http2_client_property *hcc = swoole_get_property(getThis(), HTTP2_CLIENT_PROPERTY_INDEX);
-    if (hcc->requests)
+    if (hcc)
     {
-        swLinkedList_free(hcc->requests);
-    }
-    if (hcc->stream_requests)
-    {
-        swLinkedList_free(hcc->stream_requests);
-    }
-    if (hcc->inflater)
-    {
-        nghttp2_hd_inflate_del(hcc->inflater);
-        hcc->inflater = NULL;
-    }
-    if (hcc->host)
-    {
-        efree(hcc->host);
-        hcc->host = NULL;
-    }
+        if (hcc->requests)
+        {
+            swLinkedList_free(hcc->requests);
+        }
+        if (hcc->stream_requests)
+        {
+            swLinkedList_free(hcc->stream_requests);
+        }
+        if (hcc->inflater)
+        {
+            nghttp2_hd_inflate_del(hcc->inflater);
+            hcc->inflater = NULL;
+        }
+        if (hcc->host)
+        {
+            efree(hcc->host);
+            hcc->host = NULL;
+        }
 
-    swHashMap_free(hcc->streams);
-    efree(hcc);
-    swoole_set_property(getThis(), HTTP2_CLIENT_PROPERTY_INDEX, NULL);
+        swHashMap_free(hcc->streams);
+        efree(hcc);
+        swoole_set_property(getThis(), HTTP2_CLIENT_PROPERTY_INDEX, NULL);
+    }
 
     zval *zobject = getThis();
     zval *retval = NULL;

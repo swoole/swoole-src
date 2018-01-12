@@ -368,6 +368,11 @@ static int swServer_start_proxy(swServer *serv)
     main_reactor->ptr = serv;
     main_reactor->setHandle(main_reactor, SW_FD_LISTEN, swServer_master_onAccept);
 
+    if (serv->hooks[SW_SERVER_HOOK_MASTER_START])
+    {
+        swServer_call_hook_func(serv, SW_SERVER_HOOK_MASTER_START);
+    }
+
     if (serv->onStart != NULL)
     {
         serv->onStart(serv);
@@ -464,27 +469,37 @@ swString** swServer_create_worker_buffer(swServer *serv)
 int swServer_create_task_worker(swServer *serv)
 {
     key_t key = 0;
-    int ipc_type;
+    int ipc_mode;
 
-    if (SwooleG.task_ipc_mode > SW_TASK_IPC_UNIXSOCK)
+    if (SwooleG.task_ipc_mode == SW_TASK_IPC_MSGQUEUE || SwooleG.task_ipc_mode == SW_TASK_IPC_PREEMPTIVE)
     {
         key = serv->message_queue_key;
-        ipc_type = SW_IPC_MSGQUEUE;
+        ipc_mode = SW_IPC_MSGQUEUE;
+    }
+    else if (SwooleG.task_ipc_mode == SW_TASK_IPC_STREAM)
+    {
+        ipc_mode = SW_IPC_SOCKET;
     }
     else
     {
-        ipc_type = SW_IPC_UNIXSOCK;
+        ipc_mode = SW_IPC_UNIXSOCK;
     }
 
-    if (swProcessPool_create(&SwooleGS->task_workers, SwooleG.task_worker_num, SwooleG.task_max_request, key, ipc_type) < 0)
+    if (swProcessPool_create(&SwooleGS->task_workers, SwooleG.task_worker_num, SwooleG.task_max_request, key, ipc_mode) < 0)
     {
         swWarn("[Master] create task_workers failed.");
         return SW_ERR;
     }
-    else
+    if (ipc_mode == SW_IPC_SOCKET)
     {
-        return SW_OK;
+        char sockfile[sizeof(struct sockaddr_un)];
+        snprintf(sockfile, sizeof(sockfile), "/tmp/swoole.task.%d.sock", SwooleGS->master_pid);
+        if (swProcessPool_create_stream_socket(&SwooleGS->task_workers, sockfile, 2048) < 0)
+        {
+            return SW_ERR;
+        }
     }
+    return SW_OK;
 }
 
 int swServer_worker_init(swServer *serv, swWorker *worker)
@@ -532,9 +547,17 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
         SwooleWG.max_request = serv->max_request;
         if (SwooleWG.max_request > 10)
         {
-            SwooleWG.max_request += swoole_system_random(1, 100);
+            int n = swoole_system_random(1, SwooleWG.max_request / 2);
+            if (n > 0)
+            {
+                SwooleWG.max_request += n;
+            }
         }
     }
+
+    worker->start_time = SwooleGS->now;
+    worker->request_time = 0;
+    worker->request_count = 0;
 
     return SW_OK;
 }
@@ -615,6 +638,21 @@ int swServer_start(swServer *serv)
     //master pid
     SwooleGS->master_pid = getpid();
     SwooleGS->now = SwooleStats->start_time = time(NULL);
+
+    if (serv->dispatch_mode == SW_DISPATCH_STREAM)
+    {
+        serv->stream_socket = swoole_string_format(64, "/tmp/swoole.%d.sock", SwooleGS->master_pid);
+        if (serv->stream_socket == NULL)
+        {
+            return SW_ERR;
+        }
+        serv->stream_fd = swSocket_create_server(SW_SOCK_UNIX_STREAM, serv->stream_socket, 0, 2048);
+        if (serv->stream_fd < 0)
+        {
+            return SW_ERR;
+        }
+        swoole_fcntl_set_option(serv->stream_fd, 1, 1);
+    }
 
     serv->send = swServer_tcp_send;
     serv->sendwait = swServer_tcp_sendwait;
@@ -727,13 +765,10 @@ void swServer_init(swServer *serv)
     serv->reactor_num = SW_REACTOR_NUM > SW_REACTOR_MAX_THREAD ? SW_REACTOR_MAX_THREAD : SW_REACTOR_NUM;
 
     serv->dispatch_mode = SW_DISPATCH_FDMOD;
-    serv->ringbuffer_size = SW_QUEUE_SIZE;
-
-    serv->timeout_sec = SW_REACTOR_TIMEO_SEC;
-    serv->timeout_usec = SW_REACTOR_TIMEO_USEC;  //300ms;
 
     serv->worker_num = SW_CPU_NUM;
-    serv->max_connection = SwooleG.max_sockets;
+    serv->max_connection = SwooleG.max_sockets < SW_SESSION_LIST_SIZE ? SwooleG.max_sockets : SW_SESSION_LIST_SIZE;
+
     serv->max_request = 0;
     serv->max_wait_time = SW_WORKER_MAX_WAIT_TIME;
 
@@ -749,6 +784,7 @@ void swServer_init(swServer *serv)
     serv->buffer_output_size = SW_BUFFER_OUTPUT_SIZE;
 
     SwooleG.serv = serv;
+    SwooleG.task_ipc_mode = SW_TASK_IPC_UNIXSOCK;
 }
 
 int swServer_create(swServer *serv)
@@ -791,6 +827,8 @@ int swServer_shutdown(swServer *serv)
 
 int swServer_free(swServer *serv)
 {
+    swTraceLog(SW_TRACE_SERVER, "release service.");
+
     /**
      * shutdown workers
      */
@@ -803,6 +841,7 @@ int swServer_free(swServer *serv)
      */
     if (SwooleG.heartbeat_pidt)
     {
+        swTraceLog(SW_TRACE_SERVER, "terminate heartbeat thread.");
         if (pthread_cancel(SwooleG.heartbeat_pidt) < 0)
         {
             swSysError("pthread_cancel(%ld) failed.", (ulong_t )SwooleG.heartbeat_pidt);
@@ -815,6 +854,7 @@ int swServer_free(swServer *serv)
     }
     if (serv->factory_mode == SW_MODE_SINGLE)
     {
+        swTraceLog(SW_TRACE_SERVER, "terminate task workers.");
         if (SwooleG.task_worker_num > 0)
         {
             swProcessPool_shutdown(&SwooleGS->task_workers);
@@ -822,6 +862,7 @@ int swServer_free(swServer *serv)
     }
     else
     {
+        swTraceLog(SW_TRACE_SERVER, "terminate reactor threads.");
         /**
          * Wait until all the end of the thread
          */
@@ -847,11 +888,15 @@ int swServer_free(swServer *serv)
     {
         close(SwooleG.null_fd);
     }
+    if (serv->stream_socket)
+    {
+        unlink(serv->stream_socket);
+        sw_free(serv->stream_socket);
+    }
     if (SwooleGS->start > 0 && serv->onShutdown != NULL)
     {
         serv->onShutdown(serv);
     }
-    swoole_clean();
     return SW_OK;
 }
 
@@ -941,6 +986,20 @@ int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length)
     }
     else
     {
+        if (fd == serv->last_session_id && serv->last_stream_fd > 0)
+        {
+            int _l = htonl(length);
+            if (SwooleG.main_reactor->write(SwooleG.main_reactor, serv->last_stream_fd, (void *) &_l, sizeof(_l)) < 0)
+            {
+                return SW_ERR;
+            }
+            if (SwooleG.main_reactor->write(SwooleG.main_reactor, serv->last_stream_fd, data, length) < 0)
+            {
+                return SW_ERR;
+            }
+            return SW_OK;
+        }
+
         _send.info.fd = fd;
         _send.info.type = SW_EVENT_TCP;
         _send.data = data;
@@ -1026,6 +1085,21 @@ int swServer_tcp_sendwait(swServer *serv, int fd, void *data, uint32_t length)
     return swSocket_write_blocking(conn->fd, data, length);
 }
 
+void swServer_call_hook_func(swServer *serv, enum swServer_hook_type type)
+{
+    swLinkedList *hooks = serv->hooks[type];
+
+    swLinkedList_node *node = hooks->head;
+    void (*func)(swServer *);
+
+    while (node)
+    {
+        func = node->data;
+        func(serv);
+        node = node->next;
+    }
+}
+
 int swServer_tcp_close(swServer *serv, int fd, int reset)
 {
     swConnection *conn = swServer_connection_verify_no_ssl(serv, fd);
@@ -1079,6 +1153,22 @@ void swServer_signal_init(swServer *serv)
     swServer_set_minfd(SwooleG.serv, SwooleG.signal_fd);
 }
 
+void swServer_master_onTimer(swServer *serv)
+{
+    swoole_update_time();
+    if (serv->scheduler_warning && serv->warning_time < SwooleGS->now)
+    {
+        serv->scheduler_warning = 0;
+        serv->warning_time = SwooleGS->now;
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_NO_IDLE_WORKER, "No idle worker is available.");
+    }
+
+    if (serv->hooks[SW_SERVER_HOOK_MASTER_TIMER])
+    {
+        swServer_call_hook_func(serv, SW_SERVER_HOOK_MASTER_TIMER);
+    }
+}
+
 int swServer_add_worker(swServer *serv, swWorker *worker)
 {
     swUserWorker_node *user_worker = sw_malloc(sizeof(swUserWorker_node));
@@ -1097,6 +1187,26 @@ int swServer_add_worker(swServer *serv, swWorker *worker)
     }
 
     return worker->id;
+}
+
+int swServer_add_hook(swServer *serv, enum swServer_hook_type type, void *func, int push_back)
+{
+    if (serv->hooks[type] == NULL)
+    {
+        serv->hooks[type] = swLinkedList_new(0, NULL);
+        if (serv->hooks[type] == NULL)
+        {
+            return SW_ERR;
+        }
+    }
+    if (push_back)
+    {
+        return swLinkedList_append(serv->hooks[type], func);
+    }
+    else
+    {
+        return swLinkedList_prepend(serv->hooks[type], func);
+    }
 }
 
 /**
@@ -1300,8 +1410,8 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port)
             ls->ssl_config.session_tickets = 0;
             ls->ssl_config.stapling = 1;
             ls->ssl_config.stapling_verify = 1;
-            ls->ssl_config.ciphers = SW_SSL_CIPHER_LIST;
-            ls->ssl_config.ecdh_curve = SW_SSL_ECDH_CURVE;
+            ls->ssl_config.ciphers = sw_strdup(SW_SSL_CIPHER_LIST);
+            ls->ssl_config.ecdh_curve = sw_strdup(SW_SSL_ECDH_CURVE);
 #endif
         }
     }
@@ -1376,6 +1486,8 @@ int swServer_get_socket(swServer *serv, int port)
 
 static void swServer_signal_hanlder(int sig)
 {
+    swTraceLog(SW_TRACE_SERVER, "signal[%d] triggered.", sig);
+
     int status;
     pid_t pid;
     switch (sig)
@@ -1549,6 +1661,7 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
 
     SwooleStats->accept_count++;
     sw_atomic_fetch_add(&SwooleStats->connection_num, 1);
+    sw_atomic_fetch_add(&ls->connection_num, 1);
 
     if (fd > swServer_get_maxfd(serv))
     {

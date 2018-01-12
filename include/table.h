@@ -57,9 +57,11 @@ typedef struct
     swHashMap *columns;
     uint16_t column_num;
     swLock lock;
-    uint32_t size;
-    uint32_t mask;
-    uint32_t item_size;
+    size_t size;
+    size_t mask;
+    size_t item_size;
+    size_t memory_size;
+    float conflict_proportion;
 
     /**
      * total rows that in active state(shm)
@@ -68,8 +70,6 @@ typedef struct
 
     swTableRow **rows;
     swMemoryPool *pool;
-
-    uint32_t compress_threshold;
 
     swTable_iterator *iterator;
 
@@ -108,7 +108,8 @@ enum swoole_table_find
     SW_TABLE_FIND_LIKE,
 };
 
-swTable* swTable_new(uint32_t rows_size);
+swTable* swTable_new(uint32_t rows_size, float conflict_proportion);
+size_t swTable_get_memory_size(swTable *table);
 int swTable_create(swTable *table);
 void swTable_free(swTable *table);
 int swTableColumn_add(swTable *table, char *name, int len, int type, int size);
@@ -147,20 +148,30 @@ typedef uint32_t swTable_string_length_t;
 
 static sw_inline void swTableRow_set_value(swTableRow *row, swTableColumn * col, void *value, int vlen)
 {
+    int8_t _i8;
+    int16_t _i16;
+    int32_t _i32;
+#ifdef __x86_64__
+    int64_t _i64;
+#endif
     switch(col->type)
     {
     case SW_TABLE_INT8:
-        memcpy(row->data + col->index, value, 1);
+        _i8 = *(int8_t *) value;
+        memcpy(row->data + col->index, &_i8, 1);
         break;
     case SW_TABLE_INT16:
-        memcpy(row->data + col->index, value, 2);
+        _i16 =  *(int16_t *) value;
+        memcpy(row->data + col->index, &_i16, 2);
         break;
     case SW_TABLE_INT32:
-        memcpy(row->data + col->index, value, 4);
+        _i32 =  *(int32_t *) value;
+        memcpy(row->data + col->index, &_i32, 4);
         break;
 #ifdef __x86_64__
     case SW_TABLE_INT64:
-        memcpy(row->data + col->index, value, 8);
+        _i64 =  *(int64_t *) value;
+        memcpy(row->data + col->index, &_i64, 8);
         break;
 #endif
     case SW_TABLE_FLOAT:

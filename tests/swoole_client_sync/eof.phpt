@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: eof server
+swoole_client: eof protocol [sync]
 --SKIPIF--
 <?php require __DIR__ . "/../include/skipif.inc"; ?>
 --INI--
@@ -13,10 +13,8 @@ assert.quiet_eval=0
 <?php
 require_once __DIR__ . "/../include/swoole.inc";
 
-$port = get_one_free_port();
-
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid) use ($port)
+$pm->parentFunc = function ($pid)
 {
     $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
     $client->set(['open_eof_check' => true, "package_eof" => "\r\n\r\n"]);
@@ -58,7 +56,7 @@ $pm->parentFunc = function ($pid) use ($port)
     swoole_process::kill($pid);
 };
 
-$pm->childFunc = function () use ($pm, $port)
+$pm->childFunc = function () use ($pm)
 {
     $serv = new swoole_server("127.0.0.1", 9501, SWOOLE_BASE);
     $serv->set(array(
@@ -67,6 +65,7 @@ $pm->childFunc = function () use ($pm, $port)
         'open_eof_split' => true,
         'dispatch_mode' => 3,
         'package_max_length' => 1024 * 1024 * 2, //2M
+        'socket_buffer_size' => 128 * 1024 * 1024,
         "worker_num" => 1,
         'log_file' => '/dev/null',
     ));

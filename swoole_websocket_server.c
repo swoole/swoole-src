@@ -453,6 +453,7 @@ static PHP_METHOD(swoole_websocket_server, push)
     swConnection *conn = swWorker_get_connection(SwooleG.serv, fd);
     if (!conn || conn->websocket_status < WEBSOCKET_STATUS_HANDSHAKE)
     {
+        SwooleG.error = SW_ERROR_WEBSOCKET_BAD_CLIENT;
         swoole_php_fatal_error(E_WARNING, "the connected client of connection[%d] is not a websocket client.", (int ) fd);
         RETURN_FALSE;
     }

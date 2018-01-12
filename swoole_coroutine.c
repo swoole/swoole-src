@@ -16,7 +16,7 @@
 
 #include "php_swoole.h"
 #include "zend_API.h"
-#include "standard/php_lcg.h"
+#include "ext/standard/php_lcg.h"
 
 #ifdef SW_COROUTINE
 #include "swoole_coroutine.h"
@@ -199,7 +199,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
             *retval = *EG(return_value_ptr_ptr);
         }
         coro_close(TSRMLS_C);
-        swTrace("create the %d coro with stack %zu. heap size: %zu\n", COROG.coro_num, total_size, zend_memory_usage(0));
+        swTrace("create the %d coro with stack %zu. heap size: %zu\n", COROG.coro_num, total_size, zend_memory_usage(0 TSRMLS_CC));
         coro_status = CORO_END;
     }
     else
@@ -333,7 +333,7 @@ sw_inline void coro_close(TSRMLS_D)
 #else
 sw_inline void coro_close(TSRMLS_D)
 {
-    swTrace("Close coroutine id %d\n", COROG.current_coro->cid);
+    swTraceLog(SW_TRACE_COROUTINE, "Close coroutine id %d", COROG.current_coro->cid);
     if (COROG.current_coro->function)
     {
         sw_zval_free(COROG.current_coro->function);
@@ -346,7 +346,8 @@ sw_inline void coro_close(TSRMLS_D)
     EG(vm_stack_top) = COROG.origin_vm_stack_top;
     EG(vm_stack_end) = COROG.origin_vm_stack_end;
     --COROG.coro_num;
-    swTrace("closing coro and %d remained. usage size: %zu. malloc size: %zu", COROG.coro_num, zend_memory_usage(0), zend_memory_usage(1));
+    COROG.current_coro = NULL;
+    swTraceLog(SW_TRACE_COROUTINE, "closing coro and %d remained. usage size: %zu. malloc size: %zu", COROG.coro_num, zend_memory_usage(0), zend_memory_usage(1));
 }
 #endif
 
@@ -467,7 +468,7 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
     EG(scope) = EG(current_execute_data)->func->op_array.scope;
 #endif
     COROG.allocated_return_value_ptr = SWCC(allocated_return_value_ptr);
-    if ( EG(current_execute_data)->opline->result_type != IS_UNUSED)
+    if (EG(current_execute_data)->opline->result_type != IS_UNUSED)
     {
         ZVAL_COPY(SWCC(current_coro_return_value_ptr), retval);
     }
@@ -571,10 +572,10 @@ sw_inline void coro_handle_timeout()
 }
 
 /* allocate cid for coroutine */
-typedef struct cidmap 
+typedef struct cidmap
 {
     uint32_t nr_free;
-    char page[4096];
+    char page[65536];
 } cidmap_t;
 
 /* 1 <= cid <= 32768 */
@@ -582,21 +583,21 @@ static cidmap_t cidmap = { 0x8000, {0} };
 
 static int last_cid = -1;
 
-static int test_and_set_bit(int cid, void *addr)
+static inline int test_and_set_bit(int cid, void *addr)
 {
     uint32_t mask = 1U << (cid & 0x1f);
-    uint32_t *p = ((uint32_t*)addr) + (cid >> 5);
+    uint32_t *p = ((uint32_t*) addr) + (cid >> 5);
     uint32_t old = *p;
 
-    *p = old | mask; 
+    *p = old | mask;
 
     return (old & mask) == 0;
 }
 
-static void clear_bit(int cid, void *addr)
+static inline void clear_bit(int cid, void *addr)
 {
     uint32_t mask = 1U << (cid & 0x1f);
-    uint32_t *p = ((uint32_t*)addr) + (cid >> 5);
+    uint32_t *p = ((uint32_t*) addr) + (cid >> 5);
     uint32_t old = *p;
 
     *p = old & ~mask;

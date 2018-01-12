@@ -31,10 +31,10 @@ $pm->childFunc = function () use ($pm)
     });
     $http->on('request', function (swoole_http_request $request, swoole_http_response $response)
     {
-        $cli = new Swoole\Coroutine\Http\Client('www.baidu.com', 443, true);
+        $cli = new Swoole\Coroutine\Http\Client('www.qq.com', 80);
         $cli->set(['timeout' => 1]);
         $cli->setHeaders([
-            'Host' => "www.baidu.com",
+            'Host' => "www.qq.com",
             "User-Agent" => 'Chrome/49.0.2587.3',
             'Accept' => 'text/html,application/xhtml+xml,application/xml',
             'Accept-Encoding' => 'gzip',

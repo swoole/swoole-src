@@ -72,19 +72,6 @@ int swReactor_create(swReactor *reactor, int max_event)
     return ret;
 }
 
-swReactor_handle swReactor_getHandle(swReactor *reactor, int event_type, int fdtype)
-{
-    if (event_type == SW_EVENT_WRITE)
-    {
-        return (reactor->write_handle[fdtype] != NULL) ? reactor->write_handle[fdtype] : reactor->handle[SW_FD_WRITE];
-    }
-    if (event_type == SW_EVENT_ERROR)
-    {
-        return (reactor->error_handle[fdtype] != NULL) ? reactor->error_handle[fdtype] : reactor->handle[SW_FD_CLOSE];
-    }
-    return reactor->handle[fdtype];
-}
-
 int swReactor_setHandle(swReactor *reactor, int _fdtype, swReactor_handle handle)
 {
     int fdtype = swReactor_fdtype(_fdtype);
@@ -140,7 +127,11 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
     {
         swTimer_select(&SwooleG.timer);
     }
-
+    //callback at the end
+    if (reactor->idle_task.callback)
+    {
+        reactor->idle_task.callback(reactor->idle_task.data);
+    }
 #ifdef SW_COROUTINE
     //coro timeout
     if (!swIsMaster())
@@ -152,7 +143,7 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
     //server master
     if (SwooleG.serv && SwooleTG.update_time)
     {
-        swoole_update_time();
+        swServer_master_onTimer(SwooleG.serv);
         int32_t timeout_msec = SwooleG.main_reactor->timeout_msec;
         if (timeout_msec < 0 || timeout_msec > 1000)
         {
@@ -182,10 +173,10 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
     }
 
 #ifdef SW_USE_MALLOC_TRIM
-    if (reactor->last_mallc_trim_time < SwooleGS->now - SW_MALLOC_TRIM_INTERVAL)
+    if (reactor->last_malloc_trim_time < SwooleGS->now - SW_MALLOC_TRIM_INTERVAL)
     {
         malloc_trim(SW_MALLOC_TRIM_PAD);
-        reactor->last_mallc_trim_time = SwooleGS->now;
+        reactor->last_malloc_trim_time = SwooleGS->now;
     }
 #endif
 }
@@ -260,6 +251,12 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
         socket->buffer_size = SwooleG.socket_buffer_size;
     }
 
+    if (socket->nonblock == 0)
+    {
+        swoole_fcntl_set_option(fd, 1, -1);
+        socket->nonblock = 1;
+    }
+
     if (n > socket->buffer_size)
     {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "data is too large, cannot exceed buffer size.");
@@ -332,6 +329,7 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
         }
         else
         {
+            SwooleG.error = errno;
             return SW_ERR;
         }
     }

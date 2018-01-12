@@ -69,7 +69,6 @@ int swAioLinux_init(int max_aio_events)
     SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_AIO, swAioLinux_onFinish);
     SwooleG.main_reactor->add(SwooleG.main_reactor, swoole_aio_eventfd, SW_FD_AIO);
 
-    SwooleAIO.callback = swAio_callback_test;
     SwooleAIO.destroy = swAioLinux_destroy;
     SwooleAIO.read = swAioLinux_read;
     SwooleAIO.write = swAioLinux_write;

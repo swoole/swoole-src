@@ -71,6 +71,7 @@ enum swIPCType
 {
     SW_IPC_UNIXSOCK = 1,
     SW_IPC_MSGQUEUE = 2,
+    SW_IPC_SOCKET   = 3,
 };
 
 enum swTaskIPCMode
@@ -78,19 +79,21 @@ enum swTaskIPCMode
     SW_TASK_IPC_UNIXSOCK    = 1,
     SW_TASK_IPC_MSGQUEUE    = 2,
     SW_TASK_IPC_PREEMPTIVE  = 3,
+    SW_TASK_IPC_STREAM      = 4,
 };
 
 enum swCloseType
 {
-	SW_CLOSE_PASSIVE = 32,
-	SW_CLOSE_INITIATIVE,
+    SW_CLOSE_PASSIVE = 32,
+    SW_CLOSE_INITIATIVE,
 };
 
 enum swResponseType
 {
-	SW_RESPONSE_SMALL = 0,
-	SW_RESPONSE_SHM   = 1,
-	SW_RESPONSE_TMPFILE,
+    SW_RESPONSE_SMALL = 0,
+    SW_RESPONSE_SHM = 1,
+    SW_RESPONSE_TMPFILE,
+    SW_RESPONSE_EXIT,
 };
 
 enum swWorkerPipeType
@@ -110,6 +113,7 @@ enum swTaskType
     SW_TASK_NONBLOCK   = 4,  //task
     SW_TASK_CALLBACK   = 8,  //callback
     SW_TASK_WAITALL    = 16, //for taskWaitAll
+    SW_TASK_COROUTINE  = 32, //coroutine
 };
 
 typedef struct _swUdpFd
@@ -128,6 +132,7 @@ typedef struct _swReactorThread
     int *pipe_read_list;
 #endif
     swLock lock;
+    int notify_pipe;
 } swReactorThread;
 
 typedef struct _swListenPort
@@ -225,6 +230,8 @@ typedef struct _swListenPort
     swSSL_option ssl_option;
 #endif
 
+    sw_atomic_t connection_num;
+
     swProtocol protocol;
     void *ptr;
     int (*onRead)(swReactor *reactor, struct _swListenPort *port, swEvent *event);
@@ -313,6 +320,25 @@ enum swServer_callback_type
     SW_SERVER_CALLBACK_onReceive,
     SW_SERVER_CALLBACK_onClose,
 };
+
+enum swServer_hook_type
+{
+    SW_SERVER_HOOK_MASTER_START,
+    SW_SERVER_HOOK_MASTER_TIMER,
+    SW_SERVER_HOOK_REACTOR_START,
+    SW_SERVER_HOOK_WORKER_START,
+    SW_SERVER_HOOK_TASK_WORKER_START,
+    SW_SERVER_HOOK_MASTER_CONNECT,
+    SW_SERVER_HOOK_REACTOR_CONNECT,
+    SW_SERVER_HOOK_WORKER_CONNECT,
+    SW_SERVER_HOOK_REACTOR_RECEIVE,
+    SW_SERVER_HOOK_WORKER_RECEIVE,
+    SW_SERVER_HOOK_REACTOR_CLOSE,
+    SW_SERVER_HOOK_WORKER_CLOSE,
+    SW_SERVER_HOOK_MANAGER_START,
+    SW_SERVER_HOOK_MANAGER_TIMER,
+};
+
 struct _swServer
 {
     /**
@@ -337,6 +363,11 @@ struct _swServer
      */
     uint8_t dispatch_mode;
 
+    /**
+     * No idle work process is available.
+     */
+    uint8_t scheduler_warning;
+
     int worker_uid;
     int worker_groupid;
 
@@ -350,24 +381,17 @@ struct _swServer
      */
     uint32_t max_request;
 
-    int timeout_sec;
-    int timeout_usec;
-
-    int sock_client_buffer_size; //client的socket缓存区设置
-    int sock_server_buffer_size; //server的socket缓存区设置
-
     int signal_fd;
     int event_fd;
 
     int udp_socket_ipv4;
     int udp_socket_ipv6;
 
-    int ringbuffer_size;
     uint32_t max_wait_time;
 
     /*----------------------------Reactor schedule--------------------------------*/
-    uint16_t reactor_round_i; //轮询调度
-    uint16_t reactor_next_i; //平均算法调度
+    uint16_t reactor_round_i;
+    uint16_t reactor_next_i;
     uint16_t reactor_schedule_count;
 
     sw_atomic_t worker_round_id;
@@ -409,19 +433,30 @@ struct _swServer
      */
     uint32_t enable_unsafe_event :1;
     /**
-     * waiting for worekr onConnect callback function to return
+     * waiting for worker onConnect callback function to return
      */
     uint32_t enable_delay_receive :1;
+    /**
+     * asynchronous reloading
+     */
+    uint32_t reload_async :1;
+    /**
+     * slowlog
+     */
+    uint32_t trace_event_worker :1;
 
-    /* heartbeat check time*/
-    uint16_t heartbeat_idle_time; //心跳存活时间
-    uint16_t heartbeat_check_interval; //心跳定时侦测时间, 必需小于heartbeat_idle_time
+    /**
+     *  heartbeat check time
+     */
+    uint16_t heartbeat_idle_time;
+    uint16_t heartbeat_check_interval;
 
     int *cpu_affinity_available;
     int cpu_affinity_available_num;
     
     uint16_t listen_port_num;
     time_t reload_time;
+    time_t warning_time;
 
     /* buffer output/input setting*/
     uint32_t buffer_output_size;
@@ -456,23 +491,45 @@ struct _swServer
      * temporary directory for HTTP uploaded file.
      */
     char *upload_tmp_dir;
+
     /**
      * http static file directory
      */
     char *document_root;
     uint16_t document_root_len;
+
     /**
      * master process pid
      */
     char *pid_file;
 
     /**
+     * stream
+     */
+    char *stream_socket;
+    int stream_fd;
+    swProtocol stream_protocol;
+    swLinkedList *buffer_pool;
+    int last_stream_fd;
+    int last_session_id;
+
+    int manager_alarm;
+
+    /**
      * message queue key
      */
     uint64_t message_queue_key;
 
+    /**
+     * slow request log
+     */
+    uint8_t request_slowlog_timeout;
+    FILE *request_slowlog_file;
+
     swReactor *reactor_ptr; //Main Reactor
     swFactory *factory_ptr; //Factory
+
+    swLinkedList *hooks[SW_MAX_HOOK_TYPE];
 
     void (*onStart)(swServer *serv);
     void (*onManagerStart)(swServer *serv);
@@ -532,6 +589,8 @@ typedef struct
 } swPackage_response;
 
 int swServer_master_onAccept(swReactor *reactor, swEvent *event);
+void swServer_master_onTimer(swServer *serv);
+
 int swServer_onFinish(swFactory *factory, swSendData *resp);
 int swServer_onFinish2(swFactory *factory, swSendData *resp);
 
@@ -542,6 +601,8 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port);
 void swServer_close_port(swServer *serv, enum swBool_type only_stream_port);
 int swServer_add_worker(swServer *serv, swWorker *worker);
 int swserver_add_systemd_socket(swServer *serv);
+int swServer_add_hook(swServer *serv, enum swServer_hook_type type, void *func, int push_back);
+void swServer_call_hook_func(swServer *serv, enum swServer_hook_type type);
 
 int swServer_create(swServer *serv);
 int swServer_free(swServer *serv);
@@ -781,7 +842,7 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swEventDat
     else if (serv->dispatch_mode == SW_DISPATCH_UIDMOD)
     {
         swConnection *conn = swServer_connection_get(serv, fd);
-        if (conn == NULL)
+        if (conn == NULL || conn->uid == 0)
         {
             key = fd;
         }
@@ -799,13 +860,19 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swEventDat
     else
     {
         int i;
+        int found = 0;
         for (i = 0; i < serv->worker_num + 1; i++)
         {
             key = sw_atomic_fetch_add(&serv->worker_round_id, 1) % serv->worker_num;
             if (serv->workers[key].status == SW_WORKER_IDLE)
             {
+                found = 1;
                 break;
             }
+        }
+        if (unlikely(found == 0))
+        {
+            serv->scheduler_warning = 1;
         }
         swTraceLog(SW_TRACE_SERVER, "schedule=%d, round=%d\n", key, serv->worker_round_id);
         return key;

@@ -50,7 +50,7 @@
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "2.0.9"
+#define PHP_SWOOLE_VERSION  "2.0.13"
 #define PHP_SWOOLE_CHECK_CALLBACK
 #define PHP_SWOOLE_ENABLE_FASTCALL
 
@@ -143,8 +143,8 @@ extern swoole_object_array swoole_objects;
 #endif
 #endif
 
-#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION < 5
-#error "require PHP version 5.5 or later."
+#if PHP_MAJOR_VERSION < 7
+#error "require PHP version 7.0 or later."
 #endif
 
 #include "php7_wrapper.h"
@@ -220,6 +220,7 @@ enum php_swoole_fd_type
     PHP_SWOOLE_FD_MYSQL,
     PHP_SWOOLE_FD_REDIS,
     PHP_SWOOLE_FD_HTTPCLIENT,
+    PHP_SWOOLE_FD_PROCESS_STREAM,
 };
 //---------------------------------------------------------
 #define php_swoole_socktype(type)           (type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP) & (~SW_SOCK_SSL))
@@ -243,6 +244,7 @@ extern zval _php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
 #endif
 
 PHP_MINIT_FUNCTION(swoole);
+PHP_MSHUTDOWN_FUNCTION(swoole);
 PHP_RINIT_FUNCTION(swoole);
 PHP_RSHUTDOWN_FUNCTION(swoole);
 PHP_MINFO_FUNCTION(swoole);
@@ -251,6 +253,8 @@ PHP_FUNCTION(swoole_version);
 PHP_FUNCTION(swoole_cpu_num);
 PHP_FUNCTION(swoole_set_process_name);
 PHP_FUNCTION(swoole_get_local_ip);
+PHP_FUNCTION(swoole_get_local_mac);
+PHP_FUNCTION(swoole_unsupport_serialize);
 
 //---------------------------------------------------------
 //                  swoole_server
@@ -279,6 +283,7 @@ PHP_METHOD(swoole_server, resume);
 PHP_METHOD(swoole_server, task);
 PHP_METHOD(swoole_server, taskwait);
 PHP_METHOD(swoole_server, taskWaitMulti);
+PHP_METHOD(swoole_server, taskCo);
 PHP_METHOD(swoole_server, finish);
 PHP_METHOD(swoole_server, reload);
 PHP_METHOD(swoole_server, shutdown);
@@ -299,6 +304,7 @@ PHP_METHOD(swoole_connection_iterator, offsetExists);
 PHP_METHOD(swoole_connection_iterator, offsetGet);
 PHP_METHOD(swoole_connection_iterator, offsetSet);
 PHP_METHOD(swoole_connection_iterator, offsetUnset);
+PHP_METHOD(swoole_connection_iterator, __destruct);
 #endif
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
@@ -314,6 +320,7 @@ PHP_FUNCTION(swoole_event_write);
 PHP_FUNCTION(swoole_event_wait);
 PHP_FUNCTION(swoole_event_exit);
 PHP_FUNCTION(swoole_event_defer);
+PHP_FUNCTION(swoole_event_cycle);
 PHP_FUNCTION(swoole_client_select);
 //---------------------------------------------------------
 //                  swoole_async
@@ -326,6 +333,7 @@ PHP_FUNCTION(swoole_async_writefile);
 PHP_FUNCTION(swoole_async_dns_lookup);
 PHP_FUNCTION(swoole_async_dns_lookup_coro);
 PHP_FUNCTION(swoole_async_set);
+PHP_METHOD(swoole_async, exec);
 //---------------------------------------------------------
 //                  swoole_timer
 //---------------------------------------------------------
@@ -386,15 +394,21 @@ void swoole_serialize_init(int module_number TSRMLS_DC);
 int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC);
 
 void php_swoole_check_reactor();
+void php_swoole_check_aio();
+
 void php_swoole_event_init();
 void php_swoole_event_wait();
 void php_swoole_check_timer(int interval);
 long php_swoole_add_timer(int ms, zval *callback, zval *param, int persistent TSRMLS_DC);
 void php_swoole_clear_all_timer();
 void php_swoole_register_callback(swServer *serv);
+void php_swoole_trace_check(swServer *serv);
 void php_swoole_client_free(zval *object, swClient *cli TSRMLS_DC);
 swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port);
 void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC);
+#ifdef SW_USE_OPENSSL
+void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset TSRMLS_DC);
+#endif
 void php_swoole_websocket_unpack(swString *data, zval *zframe TSRMLS_DC);
 void php_swoole_sha1(const char *str, int _len, unsigned char *digest);
 int php_swoole_client_isset_callback(zval *zobject, int type TSRMLS_DC);
@@ -404,22 +418,14 @@ zval* php_swoole_task_unpack(swEventData *task_result TSRMLS_DC);
 
 static sw_inline void* swoole_get_object(zval *object)
 {
-#if PHP_MAJOR_VERSION < 7
-    zend_object_handle handle = Z_OBJ_HANDLE_P(object);
-#else
-    int handle = (int)Z_OBJ_HANDLE(*object);
-#endif
+    int handle = sw_get_object_handle(object);
     assert(handle < swoole_objects.size);
     return swoole_objects.array[handle];
 }
 
 static sw_inline void* swoole_get_property(zval *object, int property_id)
 {
-#if PHP_MAJOR_VERSION < 7
-    zend_object_handle handle = Z_OBJ_HANDLE_P(object);
-#else
-    int handle = (int) Z_OBJ_HANDLE(*object);
-#endif
+    int handle = sw_get_object_handle(object);
     if (handle >= swoole_objects.property_size[property_id])
     {
         return NULL;
@@ -452,7 +458,7 @@ void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode);
 
 #if PHP_MAJOR_VERSION >= 7
 PHPAPI zend_string* php_swoole_serialize(zval *zvalue);
-PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, zval *object_args);
+PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, zval *object_args, long flag);
 #endif
 
 static sw_inline zval* php_swoole_server_get_callback(swServer *serv, int server_fd, int event_type)

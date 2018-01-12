@@ -277,6 +277,10 @@ static PHP_METHOD(swoole_redis_server, start)
         zend_update_property(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("setting"), zsetting TSRMLS_CC);
     }
 
+#ifdef HT_ALLOW_COW_VIOLATION
+    HT_ALLOW_COW_VIOLATION(Z_ARRVAL_P(zsetting));
+#endif
+
     add_assoc_bool(zsetting, "open_http_protocol", 0);
     add_assoc_bool(zsetting, "open_mqtt_protocol", 0);
     add_assoc_bool(zsetting, "open_eof_check", 0);

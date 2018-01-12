@@ -271,6 +271,8 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(c, inotify_init, AC_DEFINE(HAVE_INOTIFY, 1, [have inotify]))
     AC_CHECK_LIB(c, malloc_trim, AC_DEFINE(HAVE_MALLOC_TRIM, 1, [have malloc_trim]))
     AC_CHECK_LIB(c, inotify_init1, AC_DEFINE(HAVE_INOTIFY_INIT1, 1, [have inotify_init1]))
+    AC_CHECK_LIB(c, gethostbyname2_r, AC_DEFINE(HAVE_GETHOSTBYNAME2_R, 1, [have gethostbyname2_r]))
+    AC_CHECK_LIB(c, ptrace, AC_DEFINE(HAVE_PTRACE, 1, [have ptrace]))
     AC_CHECK_LIB(pthread, pthread_rwlock_init, AC_DEFINE(HAVE_RWLOCK, 1, [have pthread_rwlock_init]))
     AC_CHECK_LIB(pthread, pthread_spin_lock, AC_DEFINE(HAVE_SPINLOCK, 1, [have pthread_spin_lock]))
     AC_CHECK_LIB(pthread, pthread_mutex_timedlock, AC_DEFINE(HAVE_MUTEX_TIMEDLOCK, 1, [have pthread_mutex_timedlock]))
@@ -311,10 +313,9 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_redis.c \
         swoole_redis_coro.c \
         swoole_redis_server.c \
-        swoole_ringqueue.c \
         swoole_mmap.c \
         swoole_channel.c \
-        swoole_channel_coro.c \
+        swoole_trace.c \
         src/core/base.c \
         src/core/log.c \
         src/core/hashmap.c \
@@ -363,6 +364,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/network/Port.c \
         src/network/DNS.c \
         src/network/TimeWheel.c \
+        src/network/Stream.c \
         src/os/base.c \
         src/os/linux_aio.c \
         src/os/msg_queue.c \

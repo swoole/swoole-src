@@ -183,10 +183,10 @@ int swTimer_del(swTimer *timer, swTimer_node *tnode)
     {
         return SW_ERR;
     }
-    //remove from min-heap
-    swHeap_remove(timer->heap, tnode->heap_node);
     if (tnode->heap_node)
     {
+        //remove from min-heap
+        swHeap_remove(timer->heap, tnode->heap_node);
         sw_free(tnode->heap_node);
     }
     sw_free(tnode);

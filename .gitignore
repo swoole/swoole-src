@@ -69,4 +69,13 @@ examples/c_module/.project
 /tmp-php.ini
 .settings/
 tests/.idea
+/tests/*/*.log
+/tests/*/*.sh
+/tests/*/*.diff
+/tests/*/*.out
+/tests/*/*.exp
+/tests/*/*.php
 cmake-build-debug/
+/swoole_server.cbp
+/.vscode
+/configure.ac

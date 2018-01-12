@@ -19,7 +19,12 @@
 
 #ifdef SW_USE_OPENSSL
 
+#include <openssl/crypto.h>
+#include <openssl/x509.h>
+#include <openssl/x509v3.h>
+
 static int openssl_init = 0;
+static pthread_mutex_t *lock_array;
 
 static const SSL_METHOD *swSSL_get_method(int method);
 static int swSSL_verify_callback(int ok, X509_STORE_CTX *x509_store);
@@ -39,6 +44,8 @@ static int swSSL_npn_advertised(SSL *ssl, const uchar **out, uint32_t *outlen, v
 #ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
 static int swSSL_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen, const uchar *in, uint32_t inlen, void *arg);
 #endif
+
+static void swSSL_lock_callback(int mode, int type, char *file, int line);
 
 static const SSL_METHOD *swSSL_get_method(int method)
 {
@@ -98,7 +105,11 @@ static const SSL_METHOD *swSSL_get_method(int method)
 
 void swSSL_init(void)
 {
-#if OPENSSL_VERSION_NUMBER >= 0x10100003L
+    if (openssl_init)
+    {
+        return;
+    }
+#if OPENSSL_VERSION_NUMBER >= 0x10100003L && !defined(LIBRESSL_VERSION_NUMBER)
     OPENSSL_init_ssl(OPENSSL_INIT_LOAD_CONFIG, NULL);
 #else
     OPENSSL_config(NULL);
@@ -107,6 +118,70 @@ void swSSL_init(void)
     OpenSSL_add_all_algorithms();
 #endif
     openssl_init = 1;
+}
+
+void swSSL_destroy()
+{
+    if (!openssl_init)
+    {
+        return;
+    }
+
+    CRYPTO_set_locking_callback(NULL);
+    int i;
+    for (i = 0; i < CRYPTO_num_locks(); i++)
+    {
+        pthread_mutex_destroy(&(lock_array[i]));
+    }
+    openssl_init = 0;
+#if OPENSSL_VERSION_NUMBER >= OPENSSL_VERSION_1_0_0
+    CRYPTO_THREADID_set_callback(NULL);
+#else
+    CRYPTO_set_id_callback(NULL);
+#endif
+    CRYPTO_set_locking_callback(NULL);
+}
+
+static void swSSL_lock_callback(int mode, int type, char *file, int line)
+{
+    if (mode & CRYPTO_LOCK)
+    {
+        pthread_mutex_lock(&(lock_array[type]));
+    }
+    else
+    {
+        pthread_mutex_unlock(&(lock_array[type]));
+    }
+}
+
+#if OPENSSL_VERSION_NUMBER >= OPENSSL_VERSION_1_0_0
+static void swSSL_id_callback(CRYPTO_THREADID * id)
+{
+    CRYPTO_THREADID_set_numeric(id, (ulong_t) pthread_self());
+}
+#else
+static ulong_t swSSL_id_callback(void)
+{
+    return (ulong_t) pthread_self();
+}
+#endif
+
+void swSSL_init_thread_safety()
+{
+    int i;
+    lock_array = (pthread_mutex_t *) OPENSSL_malloc(CRYPTO_num_locks() * sizeof(pthread_mutex_t));
+    for (i = 0; i < CRYPTO_num_locks(); i++)
+    {
+        pthread_mutex_init(&(lock_array[i]), NULL);
+    }
+
+#if OPENSSL_VERSION_NUMBER >= OPENSSL_VERSION_1_0_0
+    CRYPTO_THREADID_set_callback(swSSL_id_callback);
+#else
+    CRYPTO_set_id_callback(swSSL_id_callback);
+#endif
+
+    CRYPTO_set_locking_callback((void (*)()) swSSL_lock_callback);
 }
 
 void swSSL_server_http_advise(SSL_CTX* ssl_context, swSSL_config *cfg)
@@ -311,6 +386,175 @@ int swSSL_set_client_certificate(SSL_CTX *ctx, char *cert_file, int depth)
     return SW_OK;
 }
 
+int swSSL_set_capath(swSSL_option *cfg, SSL_CTX *ctx)
+{
+    if (cfg->cafile || cfg->capath)
+    {
+        if (!SSL_CTX_load_verify_locations(ctx, cfg->cafile, cfg->capath))
+        {
+            return SW_ERR;
+        }
+    }
+    else
+    {
+        if (!SSL_CTX_set_default_verify_paths(ctx))
+        {
+            swWarn("Unable to set default verify locations and no CA settings specified.");
+            return SW_ERR;
+        }
+    }
+
+    if (cfg->verify_depth > 0)
+    {
+        SSL_CTX_set_verify_depth(ctx, cfg->verify_depth);
+    }
+
+    return SW_OK;
+}
+
+#ifndef X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT
+static int swSSL_check_name(char *name, ASN1_STRING *pattern)
+{
+    char *s, *end;
+    size_t slen, plen;
+
+    s = name;
+    slen = strlen(name);
+
+    uchar *p = ASN1_STRING_data(pattern);
+    plen = ASN1_STRING_length(pattern);
+
+    if (slen == plen && strncasecmp(s, (char*) p, plen) == 0)
+    {
+        return SW_OK;
+    }
+
+    if (plen > 2 && p[0] == '*' && p[1] == '.')
+    {
+        plen -= 1;
+        p += 1;
+
+        end = s + slen;
+        s = swoole_strlchr(s, end, '.');
+
+        if (s == NULL)
+        {
+            return SW_ERR;
+        }
+
+        slen = end - s;
+
+        if (plen == slen && strncasecmp(s, (char*) p, plen) == 0)
+        {
+            return SW_OK;
+        }
+    }
+    return SW_ERR;
+}
+#endif
+
+int swSSL_check_host(swConnection *conn, char *tls_host_name)
+{
+    X509 *cert = SSL_get_peer_certificate(conn->ssl);
+    if (cert == NULL)
+    {
+        return SW_ERR;
+    }
+
+#ifdef X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT
+    /* X509_check_host() is only available in OpenSSL 1.0.2+ */
+    if (X509_check_host(cert, tls_host_name, strlen(tls_host_name), 0, NULL) != 1)
+    {
+        swWarn("X509_check_host(): no match");
+        goto failed;
+    }
+    goto found;
+#else
+    int n, i;
+    X509_NAME *sname;
+    ASN1_STRING *str;
+    X509_NAME_ENTRY *entry;
+    GENERAL_NAME *altname;
+    STACK_OF(GENERAL_NAME) *altnames;
+
+    /*
+     * As per RFC6125 and RFC2818, we check subjectAltName extension,
+     * and if it's not present - commonName in Subject is checked.
+     */
+    altnames = X509_get_ext_d2i(cert, NID_subject_alt_name, NULL, NULL);
+
+    if (altnames)
+    {
+        n = sk_GENERAL_NAME_num(altnames);
+
+        for (i = 0; i < n; i++)
+        {
+            altname = sk_GENERAL_NAME_value(altnames, i);
+
+            if (altname->type != GEN_DNS)
+            {
+                continue;
+            }
+
+            str = altname->d.dNSName;
+            swTrace("SSL subjectAltName: \"%*s\"", ASN1_STRING_length(str), ASN1_STRING_data(str));
+
+            if (swSSL_check_name(tls_host_name, str) == SW_OK)
+            {
+                swTrace("SSL subjectAltName: match");
+                GENERAL_NAMES_free(altnames);
+                goto found;
+            }
+        }
+
+        swTrace("SSL subjectAltName: no match.");
+        GENERAL_NAMES_free(altnames);
+        goto failed;
+    }
+
+    /*
+     * If there is no subjectAltName extension, check commonName
+     * in Subject.  While RFC2818 requires to only check "most specific"
+     * CN, both Apache and OpenSSL check all CNs, and so do we.
+     */
+    sname = X509_get_subject_name(cert);
+
+    if (sname == NULL)
+    {
+        goto failed;
+    }
+
+    i = -1;
+    for (;;)
+    {
+        i = X509_NAME_get_index_by_NID(sname, NID_commonName, i);
+
+        if (i < 0)
+        {
+            break;
+        }
+
+        entry = X509_NAME_get_entry(sname, i);
+        str = X509_NAME_ENTRY_get_data(entry);
+
+        swTrace("SSL commonName: \"%*s\"", ASN1_STRING_length(str), ASN1_STRING_data(str));
+
+        if (swSSL_check_name(tls_host_name, str) == SW_OK)
+        {
+            swTrace("SSL commonName: match");
+            goto found;
+        }
+    }
+    swTrace("SSL commonName: no match");
+#endif
+
+    failed: X509_free(cert);
+    return SW_ERR;
+
+    found: X509_free(cert);
+    return SW_OK;
+}
+
 int swSSL_verify(swConnection *conn, int allow_self_signed)
 {
     int err = SSL_get_verify_result(conn->ssl);
@@ -429,7 +673,7 @@ int swSSL_accept(swConnection *conn)
     {
         return SW_ERROR;
     }
-    swWarn("SSL_do_handshake() failed. Error: [%ld].", err);
+    swWarn("SSL_do_handshake() failed. Error: [%ld|%d].", err, errno);
     return SW_ERROR;
 }
 
@@ -533,6 +777,81 @@ void swSSL_close(swConnection *conn)
     conn->ssl = NULL;
 }
 
+static sw_inline void swSSL_connection_error(swConnection *conn)
+{
+    int level = SW_LOG_NOTICE;
+    int reason = ERR_GET_REASON(ERR_peek_error());
+
+#if 0
+    /* handshake failures */
+    switch (reason)
+    {
+    case SSL_R_BAD_CHANGE_CIPHER_SPEC: /*  103 */
+    case SSL_R_BLOCK_CIPHER_PAD_IS_WRONG: /*  129 */
+    case SSL_R_DIGEST_CHECK_FAILED: /*  149 */
+    case SSL_R_ERROR_IN_RECEIVED_CIPHER_LIST: /*  151 */
+    case SSL_R_EXCESSIVE_MESSAGE_SIZE: /*  152 */
+    case SSL_R_LENGTH_MISMATCH:/*  159 */
+    case SSL_R_NO_CIPHERS_PASSED:/*  182 */
+    case SSL_R_NO_CIPHERS_SPECIFIED:/*  183 */
+    case SSL_R_NO_COMPRESSION_SPECIFIED: /*  187 */
+    case SSL_R_NO_SHARED_CIPHER:/*  193 */
+    case SSL_R_RECORD_LENGTH_MISMATCH: /*  213 */
+#ifdef SSL_R_PARSE_TLSEXT
+    case SSL_R_PARSE_TLSEXT:/*  227 */
+#endif
+    case SSL_R_UNEXPECTED_MESSAGE:/*  244 */
+    case SSL_R_UNEXPECTED_RECORD:/*  245 */
+    case SSL_R_UNKNOWN_ALERT_TYPE: /*  246 */
+    case SSL_R_UNKNOWN_PROTOCOL:/*  252 */
+    case SSL_R_WRONG_VERSION_NUMBER:/*  267 */
+    case SSL_R_DECRYPTION_FAILED_OR_BAD_RECORD_MAC: /*  281 */
+#ifdef SSL_R_RENEGOTIATE_EXT_TOO_LONG
+    case SSL_R_RENEGOTIATE_EXT_TOO_LONG:/*  335 */
+    case SSL_R_RENEGOTIATION_ENCODING_ERR:/*  336 */
+    case SSL_R_RENEGOTIATION_MISMATCH:/*  337 */
+#endif
+#ifdef SSL_R_UNSAFE_LEGACY_RENEGOTIATION_DISABLED
+    case SSL_R_UNSAFE_LEGACY_RENEGOTIATION_DISABLED: /*  338 */
+#endif
+#ifdef SSL_R_SCSV_RECEIVED_WHEN_RENEGOTIATING
+    case SSL_R_SCSV_RECEIVED_WHEN_RENEGOTIATING:/*  345 */
+#endif
+#ifdef SSL_R_INAPPROPRIATE_FALLBACK
+    case SSL_R_INAPPROPRIATE_FALLBACK: /*  373 */
+#endif
+    case 1000:/* SSL_R_SSLV3_ALERT_CLOSE_NOTIFY */
+    case SSL_R_SSLV3_ALERT_UNEXPECTED_MESSAGE:/* 1010 */
+    case SSL_R_SSLV3_ALERT_BAD_RECORD_MAC:/* 1020 */
+    case SSL_R_TLSV1_ALERT_DECRYPTION_FAILED:/* 1021 */
+    case SSL_R_TLSV1_ALERT_RECORD_OVERFLOW:/* 1022 */
+    case SSL_R_SSLV3_ALERT_DECOMPRESSION_FAILURE:/* 1030 */
+    case SSL_R_SSLV3_ALERT_HANDSHAKE_FAILURE:/* 1040 */
+    case SSL_R_SSLV3_ALERT_NO_CERTIFICATE:/* 1041 */
+    case SSL_R_SSLV3_ALERT_BAD_CERTIFICATE:/* 1042 */
+    case SSL_R_SSLV3_ALERT_UNSUPPORTED_CERTIFICATE: /* 1043 */
+    case SSL_R_SSLV3_ALERT_CERTIFICATE_REVOKED:/* 1044 */
+    case SSL_R_SSLV3_ALERT_CERTIFICATE_EXPIRED:/* 1045 */
+    case SSL_R_SSLV3_ALERT_CERTIFICATE_UNKNOWN:/* 1046 */
+    case SSL_R_SSLV3_ALERT_ILLEGAL_PARAMETER:/* 1047 */
+    case SSL_R_TLSV1_ALERT_UNKNOWN_CA:/* 1048 */
+    case SSL_R_TLSV1_ALERT_ACCESS_DENIED:/* 1049 */
+    case SSL_R_TLSV1_ALERT_DECODE_ERROR:/* 1050 */
+    case SSL_R_TLSV1_ALERT_DECRYPT_ERROR:/* 1051 */
+    case SSL_R_TLSV1_ALERT_EXPORT_RESTRICTION:/* 1060 */
+    case SSL_R_TLSV1_ALERT_PROTOCOL_VERSION:/* 1070 */
+    case SSL_R_TLSV1_ALERT_INSUFFICIENT_SECURITY:/* 1071 */
+    case SSL_R_TLSV1_ALERT_INTERNAL_ERROR:/* 1080 */
+    case SSL_R_TLSV1_ALERT_USER_CANCELLED:/* 1090 */
+    case SSL_R_TLSV1_ALERT_NO_RENEGOTIATION: /* 1100 */
+        level = SW_LOG_WARNING;
+        break;
+#endif
+
+    swoole_error_log(level, SW_ERROR_SSL_BAD_PROTOCOL, "SSL connection[%s:%d] protocol error[%d].",
+            swConnection_get_ip(conn), swConnection_get_port(conn), reason);
+}
+
 ssize_t swSSL_recv(swConnection *conn, void *__buf, size_t __n)
 {
     int n = SSL_read(conn->ssl, __buf, __n);
@@ -551,6 +870,14 @@ ssize_t swSSL_recv(swConnection *conn, void *__buf, size_t __n)
             errno = EAGAIN;
             return SW_ERR;
 
+        case SSL_ERROR_SYSCALL:
+            return SW_ERR;
+
+        case SSL_ERROR_SSL:
+            swSSL_connection_error(conn);
+            errno = SW_ERROR_SSL_BAD_CLIENT;
+            return SW_ERR;
+
         default:
             break;
         }
@@ -563,7 +890,8 @@ ssize_t swSSL_send(swConnection *conn, void *__buf, size_t __n)
     int n = SSL_write(conn->ssl, __buf, __n);
     if (n < 0)
     {
-        switch (SSL_get_error(conn->ssl, n))
+        int _errno = SSL_get_error(conn->ssl, n);
+        switch (_errno)
         {
         case SSL_ERROR_WANT_READ:
             conn->ssl_want_read = 1;
@@ -573,6 +901,14 @@ ssize_t swSSL_send(swConnection *conn, void *__buf, size_t __n)
         case SSL_ERROR_WANT_WRITE:
             conn->ssl_want_write = 1;
             errno = EAGAIN;
+            return SW_ERR;
+
+        case SSL_ERROR_SYSCALL:
+            return SW_ERR;
+
+        case SSL_ERROR_SSL:
+            swSSL_connection_error(conn);
+            errno = SW_ERROR_SSL_BAD_CLIENT;
             return SW_ERR;
 
         default:

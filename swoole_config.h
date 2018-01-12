@@ -24,6 +24,7 @@
 #endif
 
 #define SW_MAX_FDTYPE              32   //32 kinds of event
+#define SW_MAX_HOOK_TYPE           32
 #define SW_ERROR_MSG_SIZE          512
 #define SW_MAX_WORKER_GROUP        2
 #define SW_MAX_FILE_CONTENT        (64*1024*1024) //for swoole_file_get_contents
@@ -68,7 +69,7 @@
 //#define SW_DEBUG                 //debug
 #define SW_LOG_NO_SRCINFO          //no source info
 #define SW_LOG_TRACE_OPEN          0
-#define SW_LOG_TRACE_FLAGS         (SW_TRACE_EVENT | SW_TRACE_REACTOR | SW_TRACE_CLOSE)
+#define SW_LOG_TRACE_FLAGS         (SW_TRACE_MYSQL_CLIENT)
 //#define SW_BUFFER_SIZE           65495 //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
 #define SW_CLIENT_BUFFER_SIZE      65536
 //#define SW_CLIENT_RECV_AGAIN
@@ -106,8 +107,6 @@
 #define SW_HEARTBEAT_PING_LEN      8
 #define SW_HEARTBEAT_PONG_LEN      8
 
-#define SW_MAINREACTOR_USE_UNSOCK  1    //主线程使用unsock
-#define SW_REACTOR_WRITER_TIMEO    3    //writer线程的reactor
 #define SW_TASKWAIT_TIMEOUT        0.5
 
 #ifdef HAVE_EVENTFD
@@ -216,7 +215,6 @@
 #define SW_FILE_CHUNK_SIZE               65536
 
 #define SW_TABLE_CONFLICT_PROPORTION     0.2 //20%
-#define SW_TABLE_COMPRESS_PROPORTION     0.5 //50% skip, will compress the row list
 #define SW_TABLE_KEY_SIZE                64
 //#define SW_TABLE_USE_PHP_HASH
 //#define SW_TABLE_DEBUG

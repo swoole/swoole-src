@@ -162,11 +162,14 @@ int swReactorProcess_start(swServer *serv)
     }
 
     /**
-     * BASE模式，管理进程就是主进程
+     * manager process is the same as the master process
      */
     SwooleG.pid = SwooleGS->manager_pid = getpid();
     SwooleG.process_type = SW_PROCESS_MASTER;
 
+    /**
+     * manager process can not use signalfd
+     */
     SwooleG.use_timerfd = 0;
     SwooleG.use_signalfd = 0;
     SwooleG.use_timer_pipe = 0;
@@ -236,8 +239,11 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     SwooleG.pid = getpid();
 
     SwooleWG.id = worker->id;
+    if (serv->max_request > 0)
+    {
+        SwooleWG.run_always = 0;
+    }
     SwooleWG.max_request = serv->max_request;
-    SwooleWG.request_count = 0;
     SwooleWG.worker = worker;
 
     SwooleTG.id = 0;
@@ -325,7 +331,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     //close
     reactor->setHandle(reactor, SW_FD_CLOSE, swReactorProcess_onClose);
     //pipe
-    reactor->setHandle(reactor, SW_FD_PIPE | SW_EVENT_WRITE, swReactor_onWrite);
+    reactor->setHandle(reactor, SW_FD_WRITE, swReactor_onWrite);
     reactor->setHandle(reactor, SW_FD_PIPE | SW_EVENT_READ, swReactorProcess_onPipeRead);
 
     swServer_store_listen_socket(serv);

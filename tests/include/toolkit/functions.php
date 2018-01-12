@@ -15,6 +15,19 @@ function swoole_php_fork($func, $out = false) {
 	return $process;
 }
 
+function swoole_unittest_fork($func)
+{
+    $process = new swoole_process($func, false, false);
+    $process->start();
+
+    return $process;
+}
+
+function swoole_unittest_wait()
+{
+    return swoole_process::wait();
+}
+
 function makeTcpClient($host, $port, callable $onConnect = null, callable $onReceive = null)
 {
     $cli = new \swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
@@ -419,9 +432,13 @@ class ProcessManager
      * @var swoole_atomic
      */
     protected $atomic;
+    protected $alone = false;
 
     public $parentFunc;
     public $childFunc;
+    public $async = false;
+
+    protected $childPid;
 
     protected $parentFirst = false;
 
@@ -490,6 +507,17 @@ class ProcessManager
         }
     }
 
+    /**
+     * 杀死子进程
+     */
+    function kill()
+    {
+        if (!$this->alone)
+        {
+            swoole_process::kill($this->childPid);
+        }
+    }
+
     function run()
     {
         global $argv, $argc;
@@ -497,10 +525,12 @@ class ProcessManager
         {
             if ($argv[1] == 'child')
             {
+                $this->alone = true;
                 return $this->runChildFunc();
             }
             elseif ($argv[1] == 'parent')
             {
+                $this->alone = true;
                 return $this->runParentFunc();
             }
         }
@@ -514,6 +544,7 @@ class ProcessManager
             echo "ERROR";
             exit;
         }
+        //子进程
         elseif ($pid === 0)
         {
             //等待父进程
@@ -524,14 +555,20 @@ class ProcessManager
             $this->runChildFunc();
             exit;
         }
+        //父进程
         else
         {
+            $this->childPid = $pid;
             //子进程优先运行，父进程进入等待状态
             if (!$this->parentFirst)
             {
                 $this->wait();
             }
             $this->runParentFunc($pid);
+            if ($this->async)
+            {
+                swoole_event::wait();
+            }
             pcntl_waitpid($pid, $status);
         }
     }
