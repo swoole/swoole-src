@@ -1809,8 +1809,8 @@ typedef struct _swChannel
 } swChannel;
 
 swChannel* swChannel_new(size_t size, int maxlen, int flag);
-#define swChannel_empty(object) (object->bytes == 0)
-#define swChannel_full(object) (object->bytes + sizeof(int) * object->num == object->capacity)
+#define swChannel_empty(ch) (ch->num == 0)
+#define swChannel_full(ch) ((ch->head == ch->tail && ch->tail_tag != ch->head_tag) || (ch->bytes + sizeof(int) * ch->num == ch->capacity))
 int swChannel_pop(swChannel *object, void *out, int buffer_length);
 int swChannel_push(swChannel *object, void *in, int data_length);
 int swChannel_out(swChannel *object, void *out, int buffer_length);
