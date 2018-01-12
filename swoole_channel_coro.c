@@ -20,10 +20,9 @@
 #include "php_swoole.h"
 #include "swoole_coroutine.h"
 
-#define swChannel_empty(q) (q->num == 0)
-#define swChannel_full(q) ((q->head == q->tail) && (q->tail_tag != q->head_tag))
-
 #define CHANNEL_CORO_PROPERTY_INDEX 0
+
+#define coro_channel_full(chan, property)   (chan->num == property->capacity)
 
 typedef struct
 {
@@ -106,9 +105,9 @@ static const zend_function_entry swoole_channel_coro_methods[] =
 
 void swoole_channel_coro_init(int module_number TSRMLS_DC)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_channel_coro_ce, "swoole_channel_coro", "Swoole\\Coro\\Channel", swoole_channel_coro_methods);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_channel_coro_ce, "swoole_channel_coro", "Swoole\\Coroutine\\Channel", swoole_channel_coro_methods);
     swoole_channel_coro_class_entry_ptr = zend_register_internal_class(&swoole_channel_coro_ce TSRMLS_CC);
-    SWOOLE_CLASS_ALIAS(swoole_channel_coro, "Swoole\\Coro\\Channel");
+    SWOOLE_CLASS_ALIAS(swoole_channel_coro, "Swoole\\Coroutine\\Channel");
 }
 
 static void swoole_channel_onResume(php_context *ctx)
@@ -144,7 +143,7 @@ static sw_inline int swoole_channel_try_resume_consumer(zval *object, channel_co
     swLinkedList *coro_list = property->consumer_list;
     if (coro_list->num != 0)
     {
-        channel_node *next= (channel_node *)swLinkedList_pop(coro_list);
+        channel_node *next = (channel_node *) swLinkedList_pop(coro_list);
         next->context.onTimeout = swoole_channel_onResume;
         next->removed = 1;
         ZVAL_COPY_VALUE(&(next->context.coro_params), zdata);
@@ -195,19 +194,17 @@ static sw_inline int swoole_channel_try_resume_all(zval *object, channel_coro_pr
 
 static PHP_METHOD(swoole_channel_coro, __construct)
 {
-    long capacity = 0, max_size, size;
+    long capacity = 0, size;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &capacity) == FAILURE)
     {
         RETURN_FALSE;
     }
 
-    if (capacity != 0)
+    if (capacity > 0)
     {
-        max_size = capacity * sizeof(zval);
-        size = sizeof(swChannel) + max_size + capacity * sizeof(int);
-
-        swChannel *chan = swChannel_new(size, max_size, 0);
+        size = swChannel_compute_size(capacity + 1, sizeof(zval));
+        swChannel *chan = swChannel_new(size, sizeof(zval), 0);
         if (chan == NULL)
         {
             zend_throw_exception(swoole_exception_class_entry_ptr, "failed to create channel.", SW_ERROR_MALLOC_FAIL TSRMLS_CC);
@@ -220,9 +217,19 @@ static PHP_METHOD(swoole_channel_coro, __construct)
         swoole_set_object(getThis(), NULL);
     }
 
-    channel_coro_property *property = (channel_coro_property *)sw_malloc(sizeof(channel_coro_property));
+    channel_coro_property *property = (channel_coro_property *) sw_malloc(sizeof(channel_coro_property));
     property->producer_list = swLinkedList_new(2, NULL);
+    if (property->producer_list == NULL)
+    {
+        zend_throw_exception(swoole_exception_class_entry_ptr, "failed to create producer_list.", SW_ERROR_MALLOC_FAIL TSRMLS_CC);
+        RETURN_FALSE;
+    }
     property->consumer_list = swLinkedList_new(2, NULL);
+    if (property->consumer_list == NULL)
+    {
+        zend_throw_exception(swoole_exception_class_entry_ptr, "failed to create consumer_list.", SW_ERROR_MALLOC_FAIL TSRMLS_CC);
+        RETURN_FALSE;
+    }
     property->closed = 0;
 
     swoole_set_property(getThis(), CHANNEL_CORO_PROPERTY_INDEX, property);
@@ -233,6 +240,12 @@ static PHP_METHOD(swoole_channel_coro, __destruct)
     channel_coro_property *property = swoole_get_property(getThis(), CHANNEL_CORO_PROPERTY_INDEX);
     swLinkedList_free(property->consumer_list);
     swLinkedList_free(property->producer_list);
+
+    swChannel *chan = swoole_get_object(getThis());
+    if (chan)
+    {
+        swChannel_free(chan);
+    }
     swoole_set_object(getThis(), NULL);
 }
 
@@ -242,7 +255,8 @@ static PHP_METHOD(swoole_channel_coro, push)
     zval *zdata = NULL;
     int ret;
     channel_coro_property *property = swoole_get_property(getThis(), CHANNEL_CORO_PROPERTY_INDEX);
-    if (property->closed) {
+    if (property->closed)
+    {
         RETURN_FALSE;
     }
     swLinkedList *producer_list = property->producer_list;
@@ -261,11 +275,13 @@ static PHP_METHOD(swoole_channel_coro, push)
             RETURN_TRUE;
         }
         APPEND_YIELD(producer_list, *zdata);
+        return;
     }
+
     if (swChannel_empty(chan))
     {
         ret = swoole_channel_try_resume_consumer(getThis(), property, zdata);
-        if (ret ==0)
+        if (ret == 0)
         {
             RETURN_TRUE;
         }

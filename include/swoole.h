@@ -1455,6 +1455,7 @@ struct _swReactor
     void (*onFinish)(swReactor *);
 
     void (*enable_accept)(swReactor *);
+    int (*can_exit)(swReactor *);
 
     int (*write)(swReactor *, int, void *, int);
     int (*close)(swReactor *, int);
@@ -1799,6 +1800,7 @@ typedef struct _swChannel
     char tail_tag;
     int num;
     size_t bytes;
+    size_t capacity;
     int flag;
     int maxlen;
     void *mem;   //内存块
@@ -1807,6 +1809,8 @@ typedef struct _swChannel
 } swChannel;
 
 swChannel* swChannel_new(size_t size, int maxlen, int flag);
+#define swChannel_empty(object) (object->bytes == 0)
+#define swChannel_full(object) (object->bytes + sizeof(int) * object->num == object->capacity)
 int swChannel_pop(swChannel *object, void *out, int buffer_length);
 int swChannel_push(swChannel *object, void *in, int data_length);
 int swChannel_out(swChannel *object, void *out, int buffer_length);
@@ -1814,6 +1818,11 @@ int swChannel_in(swChannel *object, void *in, int data_length);
 int swChannel_wait(swChannel *object);
 int swChannel_notify(swChannel *object);
 void swChannel_free(swChannel *object);
+
+static sw_inline size_t swChannel_compute_size(int capacity, int max_size)
+{
+    return sizeof(swChannel) + (capacity * (max_size + sizeof(int)));
+}
 
 swLinkedList* swLinkedList_new(uint8_t type, swDestructor dtor);
 int swLinkedList_append(swLinkedList *ll, void *data);

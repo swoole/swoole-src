@@ -636,6 +636,11 @@ static void php_coroutine_sleep_timeout(swTimer *timer, swTimer_node *tnode)
     efree(context);
 }
 
+int php_coroutine_reactor_can_exit(swReactor *reactor)
+{
+    return COROG.coro_num != 0;
+}
+
 static PHP_METHOD(swoole_coroutine_util, sleep)
 {
     coro_check(TSRMLS_C);

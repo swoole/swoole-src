@@ -461,6 +461,10 @@ PHPAPI zend_string* php_swoole_serialize(zval *zvalue);
 PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, zval *object_args, long flag);
 #endif
 
+#ifdef SW_COROUTINE
+int php_coroutine_reactor_can_exit(swReactor *reactor);
+#endif
+
 static sw_inline zval* php_swoole_server_get_callback(swServer *serv, int server_fd, int event_type)
 {
     swListenPort *port = (swListenPort *) serv->connection_list[server_fd].object;

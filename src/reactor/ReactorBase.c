@@ -170,6 +170,10 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
         {
             reactor->running = 0;
         }
+        if (reactor->can_exit)
+        {
+            reactor->running = reactor->can_exit(reactor);
+        }
     }
 
 #ifdef SW_USE_MALLOC_TRIM
