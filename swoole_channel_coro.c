@@ -22,8 +22,6 @@
 
 #define CHANNEL_CORO_PROPERTY_INDEX 0
 
-#define coro_channel_full(chan, property)   (chan->num == property->capacity)
-
 typedef struct
 {
     swLinkedList *producer_list;
@@ -134,8 +132,8 @@ static void swoole_channel_onResume(php_context *ctx)
     {
         sw_zval_ptr_dtor(&retval);
     }
-    efree(ctx);
     sw_zval_ptr_dtor(&zdata);
+    efree(ctx);
 }
 
 static sw_inline int swoole_channel_try_resume_consumer(zval *object, channel_coro_property *property, zval *zdata)
@@ -146,6 +144,7 @@ static sw_inline int swoole_channel_try_resume_consumer(zval *object, channel_co
         channel_node *next = (channel_node *) swLinkedList_pop(coro_list);
         next->context.onTimeout = swoole_channel_onResume;
         next->removed = 1;
+        Z_TRY_ADDREF_P(zdata);
         ZVAL_COPY_VALUE(&(next->context.coro_params), zdata);
         swLinkedList_append(SwooleWG.coro_timeout_list, next);
         return 0;
@@ -287,13 +286,13 @@ static PHP_METHOD(swoole_channel_coro, push)
         }
     }
 
+    Z_TRY_ADDREF_P(zdata);
+    SW_CHECK_RETURN(swChannel_in(chan, zdata, sizeof(zval)));
+
     if (swChannel_full(chan))
     {
         APPEND_YIELD(producer_list, *zdata);
     }
-
-    Z_TRY_ADDREF_P(zdata);
-    SW_CHECK_RETURN(swChannel_in(chan, zdata, sizeof(zval)));
 }
 
 static PHP_METHOD(swoole_channel_coro, pop)
