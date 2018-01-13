@@ -564,6 +564,7 @@ extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
 #define SWOOLE_G(v) (swoole_globals.v)
 #endif
 
+#define SWOOLE_DEFINE(constant)    REGISTER_LONG_CONSTANT("SWOOLE_"#constant, SW_##constant, CONST_CS | CONST_PERSISTENT)
 
 #define SWOOLE_INIT_CLASS_ENTRY(ce, name, name_ns, methods) \
     if (SWOOLE_G(use_namespace)) { \
