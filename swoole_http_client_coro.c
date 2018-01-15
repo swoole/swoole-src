@@ -682,11 +682,11 @@ static int http_client_coro_send_http_request(zval *zobject TSRMLS_DC)
             {
                 continue;
             }
-            if (Z_TYPE_P(value) != IS_STRING)
+            convert_to_string(value);
+            if (Z_STRLEN_P(value) == 0)
             {
                 continue;
             }
-            convert_to_string(value);
             swString_append_ptr(http_client_buffer, key, keylen);
             swString_append_ptr(http_client_buffer, "=", 1);
 
