@@ -677,26 +677,30 @@ static int http_client_coro_send_http_request(zval *zobject TSRMLS_DC)
         char *encoded_value;
 
         SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(hcc->cookies), key, keylen, keytype, value)
-        i ++;
-        if (HASH_KEY_IS_STRING != keytype)
-        {
-            continue;
-        }
-        convert_to_string(value);
-        swString_append_ptr(http_client_buffer, key, keylen);
-        swString_append_ptr(http_client_buffer, "=", 1);
+            i ++;
+            if (HASH_KEY_IS_STRING != keytype)
+            {
+                continue;
+            }
+            if (Z_TYPE_P(value) != IS_STRING)
+            {
+                continue;
+            }
+            convert_to_string(value);
+            swString_append_ptr(http_client_buffer, key, keylen);
+            swString_append_ptr(http_client_buffer, "=", 1);
 
-        int encoded_value_len;
-        encoded_value = sw_php_url_encode( Z_STRVAL_P(value), Z_STRLEN_P(value), &encoded_value_len);
-        if (encoded_value)
-        {
-            swString_append_ptr(http_client_buffer, encoded_value, encoded_value_len);
-            efree(encoded_value);
-        }
-        if (i < n_cookie)
-        {
-            swString_append_ptr(http_client_buffer, "; ", 2);
-        }
+            int encoded_value_len;
+            encoded_value = sw_php_url_encode(Z_STRVAL_P(value), Z_STRLEN_P(value), &encoded_value_len);
+            if (encoded_value)
+            {
+                swString_append_ptr(http_client_buffer, encoded_value, encoded_value_len);
+                efree(encoded_value);
+            }
+            if (i < n_cookie)
+            {
+                swString_append_ptr(http_client_buffer, "; ", 2);
+            }
         SW_HASHTABLE_FOREACH_END();
         swString_append_ptr(http_client_buffer, ZEND_STRL("\r\n"));
     }
