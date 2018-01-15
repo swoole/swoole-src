@@ -211,3 +211,20 @@ int swChannel_pop(swChannel *object, void *out, int buffer_length)
     return n;
 }
 
+void swChannel_print(swChannel *chan)
+{
+    printf("swChannel\n{\n"
+            "    off_t head = %d;\n"
+            "    off_t tail = %d;\n"
+            "    size_t size = %d;\n"
+            "    char head_tag = %d;\n"
+            "    char tail_tag = %d;\n"
+            "    int num = %d;\n"
+            "    size_t bytes = %d;\n"
+            "    size_t capacity = %d;\n"
+            "    int flag = %d;\n"
+            "    int maxlen = %d;\n"
+            "\n}\n", chan->head, chan->tail, chan->size, chan->tail_tag, chan->head_tag, chan->num, chan->bytes,
+            chan->capacity, chan->flag, chan->maxlen);
+}
+

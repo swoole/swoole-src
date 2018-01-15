@@ -1818,6 +1818,7 @@ int swChannel_in(swChannel *object, void *in, int data_length);
 int swChannel_wait(swChannel *object);
 int swChannel_notify(swChannel *object);
 void swChannel_free(swChannel *object);
+void swChannel_print(swChannel *);
 
 static sw_inline size_t swChannel_compute_size(int capacity, int max_size)
 {
