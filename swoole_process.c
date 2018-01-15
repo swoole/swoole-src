@@ -783,7 +783,7 @@ static PHP_METHOD(swoole_process, read)
         efree(buf);
         if (errno != EINTR)
         {
-            swoole_php_error(E_WARNING, "failed. Error: %s[%d]", strerror(errno), errno);
+            swoole_php_error(E_WARNING, "read() failed. Error: %s[%d]", strerror(errno), errno);
         }
         RETURN_FALSE;
     }
@@ -831,7 +831,7 @@ static PHP_METHOD(swoole_process, write)
 
     if (ret < 0)
     {
-        swoole_php_fatal_error(E_WARNING, "write() failed. Error: %s[%d]", strerror(errno), errno);
+        swoole_php_error(E_WARNING, "write() failed. Error: %s[%d]", strerror(errno), errno);
         RETURN_FALSE;
     }
     ZVAL_LONG(return_value, ret);
