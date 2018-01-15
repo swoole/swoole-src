@@ -1061,6 +1061,10 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
                 continue;
             }
             convert_to_string(value);
+            if (Z_STRLEN_P(value) == 0)
+            {
+                continue;
+            }
             swString_append_ptr(http_client_buffer, key, keylen);
             swString_append_ptr(http_client_buffer, "=", 1);
 
