@@ -46,6 +46,7 @@ int coro_init(TSRMLS_D)
     }
     COROG.require = 0;
     swReactorCheckPoint = emalloc(sizeof(jmp_buf));
+    SwooleWG.coro_timeout_list = swLinkedList_new(1, NULL);
     return 0;
 }
 

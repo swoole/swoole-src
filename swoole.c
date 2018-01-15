@@ -957,6 +957,10 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_mysql_init(module_number TSRMLS_CC);
     swoole_mmap_init(module_number TSRMLS_CC);
     swoole_channel_init(module_number TSRMLS_CC);
+#if PHP_MAJOR_VERSION >= 7
+    swoole_channel_coro_init(module_number TSRMLS_CC);
+#endif
+    swoole_ringqueue_init(module_number TSRMLS_CC);
 #ifdef SW_USE_HTTP2
     swoole_http2_client_init(module_number TSRMLS_CC);
 #endif

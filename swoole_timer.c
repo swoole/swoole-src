@@ -308,11 +308,6 @@ void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
     if (tnode->type == SW_TIMER_TYPE_CORO)
     {
         swTimer_coro_callback *scc = tnode->data;
-        if (SwooleWG.coro_timeout_list == NULL)
-        {
-            SwooleWG.coro_timeout_list = swLinkedList_new(1, NULL);
-        }
-
         // del the reactor handle
         if (swLinkedList_append(SwooleWG.coro_timeout_list, scc->data) == SW_OK)
         {

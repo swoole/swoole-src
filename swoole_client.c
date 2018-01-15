@@ -890,6 +890,11 @@ void php_swoole_check_reactor()
             swoole_php_fatal_error(E_ERROR, "failed to create reactor.");
             return;
         }
+
+#ifdef SW_COROUTINE
+        SwooleG.main_reactor->can_exit = php_coroutine_reactor_can_exit;
+#endif
+
         //client, swoole_event_exit will set swoole_running = 0
         SwooleWG.in_client = 1;
         SwooleWG.reactor_wait_onexit = 1;
