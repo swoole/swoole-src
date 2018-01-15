@@ -264,6 +264,7 @@ typedef struct
     uint16_t queued_cmd_count;
     zval *pipeline_result;
     zend_bool serialize;
+    int cid;
 
     double timeout;
     swTimer_node *timer;
@@ -3499,7 +3500,7 @@ static PHP_METHOD(swoole_redis_coro, subscribe)
 static PHP_METHOD(swoole_redis_coro, multi)
 {
     long mode = SW_REDIS_MODE_MULTI;
-    if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &mode) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &mode) == FAILURE)
     {
 		return;
     }
@@ -3527,7 +3528,7 @@ static PHP_METHOD(swoole_redis_coro, multi)
 	{
 		redis->state = SWOOLE_REDIS_CORO_STATE_PIPELINE;
 		redis->queued_cmd_count = 0;
-	}
+    }
 
     RETURN_ZVAL(getThis(), 1, 0);
 }
@@ -3541,6 +3542,11 @@ static PHP_METHOD(swoole_redis_coro, exec)
 		zend_update_property_string(swoole_redis_coro_class_entry_ptr, getThis(), ZEND_STRL("errMsg"), "redis state mode is neither multi nor pipeline!" TSRMLS_CC);
 		RETURN_FALSE;
 	}
+    if (unlikely(redis->cid && redis->cid != get_current_cid()))
+    {
+        swoole_php_fatal_error(E_WARNING, "redis client has already been bound to another coroutine.");
+        RETURN_FALSE;
+    }
 	if (redis->state == SWOOLE_REDIS_CORO_STATE_MULTI)
 	{
 		size_t argvlen[1];
@@ -3560,6 +3566,7 @@ static PHP_METHOD(swoole_redis_coro, exec)
 	{
 		RETURN_TRUE;
 	}
+    redis->cid = get_current_cid();
 	php_context *context = swoole_get_property(getThis(), 0);
 	coro_save(context);
 	coro_yield();
@@ -3851,6 +3858,7 @@ static void swoole_redis_coro_resume(void *data)
 
     swTraceLog(SW_TRACE_REDIS_CLIENT, "resume, fd=%d, object_id=%d", redis->context->c.fd, sw_get_object_handle(redis->object));
 
+    redis->cid = 0;
     redis->iowait = SW_REDIS_CORO_STATUS_READY;
 
     php_context *sw_current_context = swoole_get_property(redis->object, 0);
