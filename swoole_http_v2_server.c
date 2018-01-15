@@ -178,7 +178,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length 
             {
                 flag |= HTTP_RESPONSE_CONTENT_TYPE;
             }
-            http2_add_header(&nv[index++], key, keylen - 1, Z_STRVAL_P(value), Z_STRLEN_P(value));
+            http2_add_header(&nv[index++], key, keylen, Z_STRVAL_P(value), Z_STRLEN_P(value));
         }
         SW_HASHTABLE_FOREACH_END();
         (void)type;
