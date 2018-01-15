@@ -1591,7 +1591,7 @@ struct _swProcessPool
     void (*onWorkerStop)(struct _swProcessPool *pool, int worker_id);
 
     int (*main_loop)(struct _swProcessPool *pool, swWorker *worker);
-    int (*onWorkerNotFound)(struct _swProcessPool *pool, pid_t pid);
+    int (*onWorkerNotFound)(struct _swProcessPool *pool, pid_t pid, int status);
 
     sw_atomic_t round_id;
     sw_atomic_t run_worker_num;

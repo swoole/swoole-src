@@ -527,7 +527,7 @@ int swProcessPool_wait(swProcessPool *pool)
             {
                 if (pool->onWorkerNotFound)
                 {
-                    pool->onWorkerNotFound(pool, pid);
+                    pool->onWorkerNotFound(pool, pid, status);
                 }
                 else
                 {

@@ -413,7 +413,7 @@ static int swManager_loop(swFactory *factory)
             //user process
             if (serv->user_worker_map != NULL)
             {
-                swManager_wait_user_worker(&SwooleGS->event_workers, pid);
+                swManager_wait_user_worker(&SwooleGS->event_workers, pid, status);
             }
         }
         //reload worker
@@ -539,12 +539,13 @@ static void swManager_signal_handle(int sig)
     }
 }
 
-int swManager_wait_user_worker(swProcessPool *pool, pid_t pid)
+int swManager_wait_user_worker(swProcessPool *pool, pid_t pid, int status)
 {
     swServer *serv = SwooleG.serv;
     swWorker *exit_worker = swHashMap_find_int(serv->user_worker_map, pid);
     if (exit_worker != NULL)
     {
+        swManager_check_exit_status(serv, exit_worker->id, pid, status);
         return swManager_spawn_user_worker(serv, exit_worker);
     }
     else
