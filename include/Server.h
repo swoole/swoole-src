@@ -996,7 +996,7 @@ int swReactorProcess_onClose(swReactor *reactor, swEvent *event);
 
 int swManager_start(swFactory *factory);
 pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker);
-int swManager_wait_user_worker(swProcessPool *pool, pid_t pid);
+int swManager_wait_user_worker(swProcessPool *pool, pid_t pid, int status);
 void swManager_kill_user_worker(swServer *serv);
 
 #ifdef __cplusplus
