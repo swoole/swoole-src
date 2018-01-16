@@ -623,21 +623,28 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
             {
                 offset = sizeof("multipart/form-data;") - 1;
 
-                while (at[offset] == ' ') {
+                while (at[offset] == ' ')
+                {
                     offset += 1;
                 }
 
                 offset += sizeof("boundary=") - 1;
 
                 int boundary_len = length - offset;
+                char *boundary_str = (char *) at + length - boundary_len;
 
                 if (boundary_len <= 0)
                 {
                     swWarn("invalid multipart/form-data body.", ctx->fd);
                     return 0;
                 }
+                if (boundary_len >= 2 && boundary_str[0] == '"' && *(boundary_str + boundary_len - 1) == '"')
+                {
+                    boundary_str++;
+                    boundary_len -= 2;
+                }
 
-                swoole_http_parse_form_data(ctx, at + length - boundary_len, boundary_len TSRMLS_CC);
+                swoole_http_parse_form_data(ctx, boundary_str, boundary_len TSRMLS_CC);
             }
         }
     }
@@ -943,7 +950,12 @@ static int http_request_on_body(php_http_parser *parser, const char *at, size_t 
     else if (ctx->mt_parser != NULL)
     {
         multipart_parser *multipart_parser = ctx->mt_parser;
-        size_t n = multipart_parser_execute(multipart_parser, at, length);
+        char *c = (char *) at;
+        while (*c == '\r' && *(c + 1) == '\n')
+        {
+            c += 2;
+        }
+        size_t n = multipart_parser_execute(multipart_parser, c, length);
         if (n != length)
         {
             swoole_php_fatal_error(E_WARNING, "parse multipart body failed.");
