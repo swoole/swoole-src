@@ -221,6 +221,54 @@ int swClient_wakeup(swClient *cli)
     return ret;
 }
 
+int swClient_shutdown(swClient *cli, int __how)
+{
+    if (!cli->socket || cli->socket->closed)
+    {
+        return SW_ERR;
+    }
+    if (__how == SHUT_RD)
+    {
+        if (cli->shutdown_read || cli->shutdow_rw || shutdown(cli->socket->fd, SHUT_RD))
+        {
+            return SW_ERR;
+        }
+        else
+        {
+            cli->shutdown_read = 1;
+            return SW_OK;
+        }
+    }
+    else if (__how == SHUT_WR)
+    {
+        if (cli->shutdown_write || cli->shutdow_rw || shutdown(cli->socket->fd, SHUT_RD) < 0)
+        {
+            return SW_ERR;
+        }
+        else
+        {
+            cli->shutdown_write = 1;
+            return SW_OK;
+        }
+    }
+    else if (__how == SHUT_RDWR)
+    {
+        if (cli->shutdow_rw || shutdown(cli->socket->fd, SHUT_RDWR) < 0)
+        {
+            return SW_ERR;
+        }
+        else
+        {
+            cli->shutdown_read = 1;
+            return SW_OK;
+        }
+    }
+    else
+    {
+        return SW_ERR;
+    }
+}
+
 #ifdef SW_USE_OPENSSL
 int swClient_enable_ssl_encrypt(swClient *cli)
 {

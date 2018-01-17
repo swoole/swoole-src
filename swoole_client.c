@@ -85,6 +85,7 @@ static PHP_METHOD(swoole_client, isConnected);
 static PHP_METHOD(swoole_client, getsockname);
 static PHP_METHOD(swoole_client, getpeername);
 static PHP_METHOD(swoole_client, close);
+static PHP_METHOD(swoole_client, shutdown);
 static PHP_METHOD(swoole_client, on);
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
@@ -255,6 +256,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_close, 0, 0, 0)
     ZEND_ARG_INFO(0, force)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_shutdown, 0, 0, 1)
+    ZEND_ARG_INFO(0, how)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_on, 0, 0, 2)
     ZEND_ARG_INFO(0, event_name)
     ZEND_ARG_INFO(0, callback)
@@ -281,6 +286,7 @@ static const zend_function_entry swoole_client_methods[] =
     PHP_ME(swoole_client, wakeup, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
     PHP_MALIAS(swoole_client, pause, sleep, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
     PHP_MALIAS(swoole_client, resume, wakeup, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, shutdown, arginfo_swoole_client_shutdown, ZEND_ACC_PUBLIC)
 #ifdef SW_USE_OPENSSL
     PHP_ME(swoole_client, enableSSL, arginfo_swoole_client_enableSSL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, getPeerCert, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
@@ -334,6 +340,10 @@ void swoole_client_init(int module_number TSRMLS_DC)
     zend_declare_class_constant_long(swoole_client_class_entry_ptr, ZEND_STRL("MSG_PEEK"), MSG_PEEK TSRMLS_CC);
     zend_declare_class_constant_long(swoole_client_class_entry_ptr, ZEND_STRL("MSG_DONTWAIT"), MSG_DONTWAIT TSRMLS_CC);
     zend_declare_class_constant_long(swoole_client_class_entry_ptr, ZEND_STRL("MSG_WAITALL"), MSG_WAITALL TSRMLS_CC);
+
+    zend_declare_class_constant_long(swoole_client_class_entry_ptr, ZEND_STRL("SHUT_RDWR"), SHUT_RDWR TSRMLS_CC);
+    zend_declare_class_constant_long(swoole_client_class_entry_ptr, ZEND_STRL("SHUT_RD"), SHUT_RD TSRMLS_CC);
+    zend_declare_class_constant_long(swoole_client_class_entry_ptr, ZEND_STRL("SHUT_WR"), SHUT_WR TSRMLS_CC);
 }
 
 static void client_onReceive(swClient *cli, char *data, uint32_t length)
@@ -2110,6 +2120,21 @@ static PHP_METHOD(swoole_client, pipe)
         }
     }
     SW_CHECK_RETURN(cli->pipe(cli, fd, flags));
+}
+
+static PHP_METHOD(swoole_client, shutdown)
+{
+    swClient *cli = client_get_ptr(getThis() TSRMLS_CC);
+    if (!cli)
+    {
+        RETURN_FALSE;
+    }
+    long __how;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &__how) == FAILURE)
+    {
+        return;
+    }
+    SW_CHECK_RETURN(swClient_shutdown(cli, __how));
 }
 
 PHP_FUNCTION(swoole_client_select)

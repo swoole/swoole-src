@@ -74,6 +74,9 @@ typedef struct _swClient
     uint32_t http2 :1;
     uint32_t sleep :1;
     uint32_t wait_dns :1;
+    uint32_t shutdow_rw :1;
+    uint32_t shutdown_read :1;
+    uint32_t shutdown_write :1;
 
     /**
      * one package: length check
@@ -154,6 +157,7 @@ typedef struct _swClient
 int swClient_create(swClient *cli, int type, int async);
 int swClient_sleep(swClient *cli);
 int swClient_wakeup(swClient *cli);
+int swClient_shutdown(swClient *cli, int __how);
 #ifdef SW_USE_OPENSSL
 int swClient_enable_ssl_encrypt(swClient *cli);
 int swClient_ssl_handshake(swClient *cli);
