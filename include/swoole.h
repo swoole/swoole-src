@@ -790,6 +790,8 @@ enum _swPipe_close_which
 {
     SW_PIPE_CLOSE_MASTER = 1,
     SW_PIPE_CLOSE_WORKER = 2,
+    SW_PIPE_CLOSE_READ   = 3,
+    SW_PIPE_CLOSE_WRITE  = 4,
     SW_PIPE_CLOSE_BOTH   = 0,
 };
 
