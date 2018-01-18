@@ -339,10 +339,23 @@ static void http_client_coro_onClose(swClient *cli)
 
     zval *zobject = cli->object;
     http_client *http = swoole_get_object(zobject);
+    zend_bool result = 0;
 
     swTraceLog(SW_TRACE_HTTP_CLIENT, "connection close, object handle=%d, state=%d", sw_get_object_handle(zobject), http->state);
 
-    if (!http || http->state != HTTP_CLIENT_STATE_BUSY)
+    if (!http)
+    {
+        return;
+    }
+
+    if (http->state == HTTP_CLIENT_STATE_WAIT_CLOSE)
+    {
+        http_client_parser_on_message_complete(&http->parser);
+        result = 1;
+        goto _resume;
+    }
+
+    if (http->state != HTTP_CLIENT_STATE_BUSY)
     {
         return;
     }
@@ -352,7 +365,7 @@ static void http_client_coro_onClose(swClient *cli)
         return;
     }
 
-    http_client_free(zobject TSRMLS_CC);
+    _resume: http_client_free(zobject TSRMLS_CC);
 
     http_client_property *hcc = swoole_get_property(zobject, 0);
 
@@ -368,8 +381,7 @@ static void http_client_coro_onClose(swClient *cli)
     zval *zdata = NULL;
 
     SW_MAKE_STD_ZVAL(zdata);
-    //return false
-    ZVAL_BOOL(zdata, 0);
+    ZVAL_BOOL(zdata, result);
 
     php_context *sw_current_context = swoole_get_property(zobject, 1);
     hcc->cid = 0;
