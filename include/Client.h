@@ -47,7 +47,10 @@ struct _http_proxy
     uint8_t state;
     int proxy_port;
     char *proxy_host;
-    
+    char *user;
+    char *password;
+    int l_user;
+    int l_password;
     char *target_host;
     int target_port;
     char buf[600];
