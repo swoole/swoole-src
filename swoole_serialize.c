@@ -18,7 +18,6 @@
 #include "swoole_serialize.h"
 #ifdef __SSE2__
 #include <emmintrin.h>
-#include <php/Zend/zend_types.h>
 #endif
 
 #if PHP_MAJOR_VERSION >= 7
