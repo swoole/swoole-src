@@ -862,6 +862,18 @@ enum swDNSLookup_cache_type
     SW_DNS_LOOKUP_RANDOM  = (1u << 11),
 };
 
+typedef struct
+{
+    char *hostname;
+    char *service;
+    int family;
+    int socktype;
+    int protocol;
+    int error;
+    void *result;
+    int count;
+} swRequest_getaddrinfo;
+
 //文件锁
 typedef struct _swFileLock
 {
@@ -1243,6 +1255,7 @@ void swoole_print_trace(void);
 void swoole_ioctl_set_block(int sock, int nonblock);
 void swoole_fcntl_set_option(int sock, int nonblock, int cloexec);
 int swoole_gethostbyname(int type, char *name, char *addr);
+int swoole_getaddrinfo(swRequest_getaddrinfo *req);
 char* swoole_string_format(size_t n, const char *format, ...);
 //----------------------core function---------------------
 int swSocket_set_timeout(int sock, double timeout);
