@@ -53,14 +53,20 @@ zend_class_entry *swoole_serialize_class_entry_ptr;
 
 #define SWOOLE_SERI_EOF "EOF"
 
+static struct _swSeriaG swSeriaG;
+
 void swoole_serialize_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_serialize_ce, "swoole_serialize", "Swoole\\Serialize", swoole_serialize_methods);
     swoole_serialize_class_entry_ptr = zend_register_internal_class(&swoole_serialize_ce TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_serialize, "Swoole\\Serialize");
 
-    ZVAL_STRING(&swSeriaG.sleep_fname, "__sleep");
-    ZVAL_STRING(&swSeriaG.weekup_fname, "__weekup");
+    //    ZVAL_STRING(&swSeriaG.sleep_fname, "__sleep");
+    zend_string *zstr_sleep = zend_string_init("__sleep", sizeof ("__sleep") - 1, 1);
+    zend_string *zstr_weekup = zend_string_init("__weekup", sizeof ("__weekup") - 1, 1);
+    ZVAL_STR(&swSeriaG.sleep_fname, zstr_sleep);
+    ZVAL_STR(&swSeriaG.weekup_fname, zstr_weekup);
+    //    ZVAL_STRING(&swSeriaG.weekup_fname, "__weekup");
 
     memset(&swSeriaG.filter, 0, sizeof (swSeriaG.filter));
     memset(&mini_filter, 0, sizeof (mini_filter));

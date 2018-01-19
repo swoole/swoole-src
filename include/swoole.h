@@ -352,11 +352,9 @@ write(SwooleG.debug_fd, sw_error, __debug_log_n);
 #endif
 
 #ifdef SW_DEBUG
-#define swTrace(str,...)       {printf("[%s:%d@%s]" str "\n",__FILE__,__LINE__,__func__,##__VA_ARGS__);}
-//#define swWarn(str,...)        {printf("[%s:%d@%s]"str"\n",__FILE__,__LINE__,__func__,##__VA_ARGS__);}
+#define swTrace(str,...) if (SwooleG.debug) {printf("[%s:%d@%s]" str "\n",__FILE__,__LINE__,__func__,##__VA_ARGS__);}
 #else
 #define swTrace(str,...)
-//#define swWarn(str,...)        {printf(sw_error);}
 #endif
 
 enum swTraceType
@@ -798,6 +796,8 @@ enum _swPipe_close_which
 {
     SW_PIPE_CLOSE_MASTER = 1,
     SW_PIPE_CLOSE_WORKER = 2,
+    SW_PIPE_CLOSE_READ   = 3,
+    SW_PIPE_CLOSE_WRITE  = 4,
     SW_PIPE_CLOSE_BOTH   = 0,
 };
 
@@ -2047,6 +2047,7 @@ typedef struct
     uint8_t socket_dontwait :1;
     uint8_t dns_lookup_random :1;
     uint8_t use_async_resolver :1;
+    uint8_t debug :1;
 
 
     /**

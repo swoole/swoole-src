@@ -162,6 +162,10 @@ void swoole_process_init(int module_number TSRMLS_DC)
     SWOOLE_CLASS_ALIAS(swoole_process, "Swoole\\Process");
 
     zend_declare_class_constant_long(swoole_process_class_entry_ptr, SW_STRL("IPC_NOWAIT")-1, MSGQUEUE_NOWAIT TSRMLS_CC);
+    zend_declare_class_constant_long(swoole_process_class_entry_ptr, SW_STRL("PIPE_MASTER")-1, SW_PIPE_CLOSE_MASTER TSRMLS_CC);
+    zend_declare_class_constant_long(swoole_process_class_entry_ptr, SW_STRL("PIPE_WORKER")-1, SW_PIPE_CLOSE_WORKER TSRMLS_CC);
+    zend_declare_class_constant_long(swoole_process_class_entry_ptr, SW_STRL("PIPE_READ")-1, SW_PIPE_CLOSE_READ TSRMLS_CC);
+    zend_declare_class_constant_long(swoole_process_class_entry_ptr, SW_STRL("PIPE_WRITE")-1, SW_PIPE_CLOSE_WRITE TSRMLS_CC);
     bzero(signal_callback, sizeof(signal_callback));
 
     zend_declare_property_null(swoole_process_class_entry_ptr, SW_STRL("pipe")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
@@ -1081,7 +1085,19 @@ static PHP_METHOD(swoole_process, close)
         RETURN_FALSE;
     }
 
-    int ret = swPipeUnsock_close_ext(process->pipe_object, which);
+    int ret;
+    if (which == SW_PIPE_CLOSE_READ)
+    {
+        ret = shutdown(process->pipe, SHUT_RD);
+    }
+    else if (which == SW_PIPE_CLOSE_WRITE)
+    {
+        ret = shutdown(process->pipe, SHUT_WR);
+    }
+    else
+    {
+        ret = swPipeUnsock_close_ext(process->pipe_object, which);
+    }
     if (ret < 0)
     {
         swoole_php_fatal_error(E_WARNING, "close() failed. Error: %s[%d]", strerror(errno), errno);

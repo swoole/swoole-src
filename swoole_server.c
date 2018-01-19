@@ -1869,6 +1869,14 @@ PHP_METHOD(swoole_server, set)
         convert_to_boolean(v);
         serv->daemonize = Z_BVAL_P(v);
     }
+#ifdef SW_DEBUG
+    //debug
+    if (php_swoole_array_get_value(vht, "debug_mode", v))
+    {
+        convert_to_boolean(v);
+        SwooleG.debug = Z_BVAL_P(v);
+    }
+#endif
     //pid file
     if (php_swoole_array_get_value(vht, "pid_file", v))
     {
