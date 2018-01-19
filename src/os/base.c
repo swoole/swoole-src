@@ -275,6 +275,11 @@ static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len)
             ret = 0;
         }
         break;
+
+    case SW_AIO_GETADDRINFO:
+        event->error = swoole_getaddrinfo((swRequest_getaddrinfo *) event->req);
+        break;
+
     default:
         swWarn("unknow aio task.");
         break;

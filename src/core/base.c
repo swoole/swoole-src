@@ -1071,6 +1071,50 @@ int swoole_gethostbyname(int flags, char *name, char *addr)
 }
 #endif
 
+int swoole_getaddrinfo(swRequest_getaddrinfo *req)
+{
+    struct addrinfo *result = NULL;
+    struct addrinfo *ptr = NULL;
+    struct addrinfo hints;
+
+    bzero(&hints, sizeof(hints));
+    hints.ai_family = req->family;
+    hints.ai_socktype = req->socktype;
+    hints.ai_protocol = req->protocol;
+
+    int ret = getaddrinfo(req->hostname, req->service, &hints, &result);
+    if (ret != 0)
+    {
+        req->error = ret;
+        return SW_ERR;
+    }
+
+    void *buffer = req->result;
+    int i = 0;
+    for (ptr = result; ptr != NULL; ptr = ptr->ai_next)
+    {
+        switch (ptr->ai_family)
+        {
+        case AF_INET:
+            memcpy(buffer + (i * sizeof(struct sockaddr_in)), ptr->ai_addr, sizeof(struct sockaddr_in));
+            break;
+        case AF_INET6:
+            memcpy(buffer + (i * sizeof(struct sockaddr_in6)), ptr->ai_addr, sizeof(struct sockaddr_in6));
+            break;
+        default:
+            swWarn("unknown socket family[%d].", ptr->ai_family);
+            break;
+        }
+        i++;
+        if (i == SW_DNS_HOST_BUFFER_SIZE)
+        {
+            break;
+        }
+    }
+    req->count = i;
+    return SW_OK;
+}
+
 int swoole_add_function(const char *name, void* func)
 {
     if (SwooleG.functions == NULL)

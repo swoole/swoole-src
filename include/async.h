@@ -32,6 +32,7 @@ enum
     SW_AIO_READ = 0,
     SW_AIO_WRITE = 1,
     SW_AIO_DNS_LOOKUP = 2,
+    SW_AIO_GETADDRINFO = 3,
 };
 
 typedef struct _swAio_event
