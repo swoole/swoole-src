@@ -120,6 +120,10 @@ void swoole_init(void)
 
     SwooleG.use_timer_pipe = 1;
 
+#ifdef SW_DEBUG
+    SwooleG.debug = 1;
+#endif
+
     SwooleStats = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerStats));
     if (SwooleStats == NULL)
     {

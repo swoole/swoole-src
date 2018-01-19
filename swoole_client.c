@@ -86,6 +86,7 @@ static PHP_METHOD(swoole_client, isConnected);
 static PHP_METHOD(swoole_client, getsockname);
 static PHP_METHOD(swoole_client, getpeername);
 static PHP_METHOD(swoole_client, close);
+static PHP_METHOD(swoole_client, shutdown);
 static PHP_METHOD(swoole_client, on);
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
@@ -256,6 +257,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_close, 0, 0, 0)
     ZEND_ARG_INFO(0, force)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_shutdown, 0, 0, 1)
+    ZEND_ARG_INFO(0, how)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_on, 0, 0, 2)
     ZEND_ARG_INFO(0, event_name)
     ZEND_ARG_INFO(0, callback)
@@ -282,6 +287,7 @@ static const zend_function_entry swoole_client_methods[] =
     PHP_ME(swoole_client, wakeup, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
     PHP_MALIAS(swoole_client, pause, sleep, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
     PHP_MALIAS(swoole_client, resume, wakeup, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, shutdown, arginfo_swoole_client_shutdown, ZEND_ACC_PUBLIC)
 #ifdef SW_USE_OPENSSL
     PHP_ME(swoole_client, enableSSL, arginfo_swoole_client_enableSSL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, getPeerCert, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
@@ -335,6 +341,10 @@ void swoole_client_init(int module_number TSRMLS_DC)
     zend_declare_class_constant_long(swoole_client_class_entry_ptr, ZEND_STRL("MSG_PEEK"), MSG_PEEK TSRMLS_CC);
     zend_declare_class_constant_long(swoole_client_class_entry_ptr, ZEND_STRL("MSG_DONTWAIT"), MSG_DONTWAIT TSRMLS_CC);
     zend_declare_class_constant_long(swoole_client_class_entry_ptr, ZEND_STRL("MSG_WAITALL"), MSG_WAITALL TSRMLS_CC);
+
+    zend_declare_class_constant_long(swoole_client_class_entry_ptr, ZEND_STRL("SHUT_RDWR"), SHUT_RDWR TSRMLS_CC);
+    zend_declare_class_constant_long(swoole_client_class_entry_ptr, ZEND_STRL("SHUT_RD"), SHUT_RD TSRMLS_CC);
+    zend_declare_class_constant_long(swoole_client_class_entry_ptr, ZEND_STRL("SHUT_WR"), SHUT_WR TSRMLS_CC);
 }
 
 static void client_onReceive(swClient *cli, char *data, uint32_t length)
@@ -740,7 +750,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
         convert_to_string(v);
         cli->socks5_proxy = emalloc(sizeof(swSocks5));
         bzero(cli->socks5_proxy, sizeof(swSocks5));
-        cli->socks5_proxy->host = sw_strdup(Z_STRVAL_P(v));
+        cli->socks5_proxy->host = estrdup(Z_STRVAL_P(v));
         cli->socks5_proxy->dns_tunnel = 1;
 
         if (php_swoole_array_get_value(vht, "socks5_port", v))
@@ -756,14 +766,14 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
         if (php_swoole_array_get_value(vht, "socks5_username", v))
         {
             convert_to_string(v);
-            cli->socks5_proxy->username = Z_STRVAL_P(v);
+            cli->socks5_proxy->username = estrdup(Z_STRVAL_P(v));
             cli->socks5_proxy->l_username = Z_STRLEN_P(v);
             cli->socks5_proxy->method = 0x02;
         }
         if (php_swoole_array_get_value(vht, "socks5_password", v))
         {
             convert_to_string(v);
-            cli->socks5_proxy->password = Z_STRVAL_P(v);
+            cli->socks5_proxy->password = estrdup(Z_STRVAL_P(v));
             cli->socks5_proxy->l_password = Z_STRLEN_P(v);
         }
     }
@@ -774,13 +784,35 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
         if (php_swoole_array_get_value(vht, "http_proxy_port", v))
         {
             convert_to_long(v);
-            cli->http_proxy = ecalloc(1,sizeof(struct _http_proxy));
-            cli->http_proxy->proxy_host = sw_strdup(host);
+            cli->http_proxy = ecalloc(1, sizeof(struct _http_proxy));
+            cli->http_proxy->proxy_host = estrdup(host);
             cli->http_proxy->proxy_port = Z_LVAL_P(v);
         }
         else
         {
-            swSysError("http_proxy_port can not be null");
+            swoole_php_fatal_error(E_WARNING, "http_proxy_port can not be null.");
+        }
+    }
+    if (php_swoole_array_get_value(vht, "http_proxy_user", v) && cli->http_proxy)
+    {
+        convert_to_string(v);
+        char *user = Z_STRVAL_P(v);
+        zval *v2;
+        if (php_swoole_array_get_value(vht, "http_proxy_password", v2))
+        {
+            convert_to_string(v);
+            if (Z_STRLEN_P(v) + Z_STRLEN_P(v2) >= 128 - 1)
+            {
+                swoole_php_fatal_error(E_WARNING, "http_proxy user and password is too long.");
+            }
+            cli->http_proxy->l_user = Z_STRLEN_P(v);
+            cli->http_proxy->l_password = Z_STRLEN_P(v2);
+            cli->http_proxy->user = estrdup(user);
+            cli->http_proxy->password = estrdup(Z_STRVAL_P(v2));
+        }
+        else
+        {
+            swoole_php_fatal_error(E_WARNING, "http_proxy_password can not be null.");
         }
     }
 #ifdef SW_USE_OPENSSL
@@ -913,11 +945,29 @@ void php_swoole_client_free(zval *zobject, swClient *cli TSRMLS_DC)
     //socks5 proxy config
     if (cli->socks5_proxy)
     {
+        efree(cli->socks5_proxy->host);
+        if (cli->socks5_proxy->username)
+        {
+            efree(cli->socks5_proxy->username);
+        }
+        if (cli->socks5_proxy->password)
+        {
+            efree(cli->socks5_proxy->password);
+        }
         efree(cli->socks5_proxy);
     }
     //http proxy config
     if (cli->http_proxy)
     {
+        efree(cli->http_proxy->proxy_host);
+        if (cli->http_proxy->user)
+        {
+            efree(cli->http_proxy->user);
+        }
+        if (cli->http_proxy->password)
+        {
+            efree(cli->http_proxy->password);
+        }
         efree(cli->http_proxy);
     }
     if (cli->protocol.private_data)
@@ -2116,6 +2166,21 @@ static PHP_METHOD(swoole_client, pipe)
         }
     }
     SW_CHECK_RETURN(cli->pipe(cli, fd, flags));
+}
+
+static PHP_METHOD(swoole_client, shutdown)
+{
+    swClient *cli = client_get_ptr(getThis() TSRMLS_CC);
+    if (!cli)
+    {
+        RETURN_FALSE;
+    }
+    long __how;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &__how) == FAILURE)
+    {
+        return;
+    }
+    SW_CHECK_RETURN(swClient_shutdown(cli, __how));
 }
 
 PHP_FUNCTION(swoole_client_select)

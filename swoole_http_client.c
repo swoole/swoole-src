@@ -338,10 +338,29 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
                 return SW_ERR;
             }
             zval *value;
-            if (sw_zend_hash_find(Z_ARRVAL_P(send_header), ZEND_STRS("Host"), (void **) &value) == FAILURE)
+            if (sw_zend_hash_find(Z_ARRVAL_P(send_header), ZEND_STRS("Host"), (void **) &value) == FAILURE ||
+                    Z_TYPE_P(value) != IS_STRING || Z_STRLEN_P(value) < 1)
             {
-                swoole_php_fatal_error (E_WARNING, "http proxy must set Host");
+                swoole_php_fatal_error(E_WARNING, "http proxy must set Host");
                 return SW_ERR;
+            }
+            if (http->cli->http_proxy->password)
+            {
+                char _buf1[128];
+                char _buf2[256];
+                int _n1 = snprintf(_buf1, sizeof(_buf1), "%*s:%*s", http->cli->http_proxy->l_user,
+                        http->cli->http_proxy->user, http->cli->http_proxy->l_password,
+                        http->cli->http_proxy->password);
+#if PHP_MAJOR_VERSION < 7
+                uchar *encoded_value = php_base64_encode((const unsigned char *) _buf1, _n1, NULL);
+                int _n2 = snprintf(_buf2, sizeof(_buf2), "Basic %*s", _n1, encoded_value);
+                add_assoc_stringl_ex(send_header, ZEND_STRS("Proxy-Authorization"), _buf2, _n2, 1);
+#else
+                zend_string *str = php_base64_encode((const unsigned char *) _buf1, _n1);
+                int _n2 = snprintf(_buf2, sizeof(_buf2), "Basic %*s", str->len, str->val);
+                zend_string_free(str);
+                add_assoc_stringl_ex(send_header, ZEND_STRL("Proxy-Authorization"), _buf2, _n2);
+#endif
             }
         }
     }
@@ -2034,17 +2053,13 @@ static PHP_METHOD(swoole_http_client, upgrade)
     sw_add_assoc_string(headers, "Upgrade", "websocket", 1);
     sw_add_assoc_string(headers, "Sec-WebSocket-Version", SW_WEBSOCKET_VERSION, 1);
 
-    int encoded_value_len = 0;
-
 #if PHP_MAJOR_VERSION < 7
+    int encoded_value_len = 0;
     uchar *encoded_value = php_base64_encode((const unsigned char *) buf, SW_WEBSOCKET_KEY_LENGTH, &encoded_value_len);
-    add_assoc_stringl(headers, "Sec-WebSocket-Key", (char* )encoded_value, encoded_value_len, 0);
+    add_assoc_stringl_ex(headers, ZEND_STRS("Sec-WebSocket-Key"), (char* )encoded_value, encoded_value_len, 0);
 #else
     zend_string *str = php_base64_encode((const unsigned char *) buf, SW_WEBSOCKET_KEY_LENGTH);
-    char *encoded_value = str->val;
-    encoded_value_len = str->len;
-    add_assoc_stringl(headers, "Sec-WebSocket-Key", (char* )encoded_value, encoded_value_len);
-    zend_string_free(str);
+    add_assoc_str_ex(headers, ZEND_STRL("Sec-WebSocket-Key"), str);
 #endif
 
     ret = http_client_execute(getThis(), uri, uri_len, finish_cb TSRMLS_CC);
