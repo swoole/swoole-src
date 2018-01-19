@@ -66,7 +66,6 @@ typedef struct _swPoolstr
 
 #pragma pack ()
 
-struct _swSeriaG swSeriaG;
 
 static void *unser_start = 0;
 static swPoolstr mini_filter[FILTER_SIZE];
