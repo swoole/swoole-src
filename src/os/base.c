@@ -200,9 +200,9 @@ int swAioBase_init(int max_aio_events)
 static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len)
 {
     swAio_event *event = task;
-    struct in_addr addr;
+    struct in_addr addr_v4;
+    struct in6_addr addr_v6;
 
-    char *ip_addr;
     int ret = -1;
 
     start_switch:
@@ -246,10 +246,19 @@ static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len)
         }
         break;
     case SW_AIO_DNS_LOOKUP:
+
 #ifndef HAVE_GETHOSTBYNAME2_R
         SwooleAIO.lock.lock(&SwooleAIO.lock);
 #endif
-        ret = swoole_gethostbyname(event->flags == AF_INET6 ? AF_INET6 : AF_INET, event->buf, (char *) &addr);
+        if (event->flags == AF_INET6)
+        {
+            ret = swoole_gethostbyname(AF_INET6, event->buf, (char *) &addr_v6);
+        }
+        else
+        {
+            ret = swoole_gethostbyname(AF_INET, event->buf, (char *) &addr_v4);
+        }
+        bzero(event->buf, event->nbytes);
 #ifndef HAVE_GETHOSTBYNAME2_R
         SwooleAIO.lock.unlock(&SwooleAIO.lock);
 #endif
@@ -259,7 +268,6 @@ static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len)
             switch (h_errno)
             {
             case HOST_NOT_FOUND:
-                bzero(event->buf, event->nbytes);
                 ret = 0;
                 break;
             default:
@@ -269,10 +277,15 @@ static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len)
         }
         else
         {
-            ip_addr = inet_ntoa(addr);
-            bzero(event->buf, event->nbytes);
-            memcpy(event->buf, ip_addr, strnlen(ip_addr, SW_IP_MAX_LENGTH) + 1);
-            ret = 0;
+            if (inet_ntop(event->flags, event->flags == AF_INET6 ? (void *) &addr_v6 : (void *) &addr_v4, event->buf,
+                    event->nbytes) == NULL)
+            {
+                ret = -1;
+            }
+            else
+            {
+                ret = 0;
+            }
         }
         break;
     default:
