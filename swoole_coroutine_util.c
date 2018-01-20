@@ -909,7 +909,8 @@ static void coro_dns_onResolveCompleted(swAio_event *event)
     }
     else
     {
-        ZVAL_LONG(result, event->ret);
+        SwooleG.error = event->error;
+        ZVAL_BOOL(result, 0);
     }
 
     int ret = coro_resume(context, result, &retval);
@@ -936,7 +937,7 @@ static void coro_dns_onGetaddrinfoCompleted(swAio_event *event)
 
     swRequest_getaddrinfo *req = event->req;
 
-    if (event->error == 0)
+    if (req->error == 0)
     {
         array_init(result);
         int i;
@@ -964,6 +965,7 @@ static void coro_dns_onGetaddrinfoCompleted(swAio_event *event)
     else
     {
         ZVAL_BOOL(result, 0);
+        SwooleG.error = req->error;
     }
 
     int ret = coro_resume(context, result, &retval);
