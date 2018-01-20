@@ -265,15 +265,6 @@ static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len)
         if (ret < 0)
         {
             event->error = h_errno;
-            switch (h_errno)
-            {
-            case HOST_NOT_FOUND:
-                ret = 0;
-                break;
-            default:
-                ret = -1;
-                break;
-            }
         }
         else
         {
@@ -281,9 +272,11 @@ static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len)
                     event->nbytes) == NULL)
             {
                 ret = -1;
+                event->error = SW_ERROR_BAD_IPV6_ADDRESS;
             }
             else
             {
+                event->error = 0;
                 ret = 0;
             }
         }
@@ -303,15 +296,16 @@ static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len)
     {
         if (errno == EINTR || errno == EAGAIN)
         {
+            errno = 0;
             goto start_switch;
         }
-        else
+        else if (event->error == 0)
         {
             event->error = errno;
         }
     }
 
-    swTrace("aio_thread ok. ret=%d", ret);
+    swTrace("aio_thread ok. ret=%d, error=%d", ret, event->error);
     do
     {
         SwooleAIO.lock.lock(&SwooleAIO.lock);

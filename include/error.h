@@ -33,6 +33,7 @@ enum swErrorCode
     SW_ERROR_FILE_EMPTY,
     SW_ERROR_DNSLOOKUP_DUPLICATE_REQUEST,
     SW_ERROR_DNSLOOKUP_RESOLVE_FAILED,
+    SW_ERROR_BAD_IPV6_ADDRESS,
 
     /**
      * connection error
