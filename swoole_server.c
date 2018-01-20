@@ -2453,7 +2453,7 @@ PHP_METHOD(swoole_server, send)
 
     zval *zfd;
     zval *zdata;
-    long server_socket = -1;
+    zend_long server_socket = -1;
 
     if (SwooleGS->start == 0)
     {
@@ -2560,8 +2560,8 @@ PHP_METHOD(swoole_server, sendto)
     char *data;
     zend_size_t len, ip_len;
 
-    long port;
-    long server_socket = -1;
+    zend_long port;
+    zend_long server_socket = -1;
     zend_bool ipv6 = 0;
 
     if (SwooleGS->start == 0)
@@ -2661,7 +2661,7 @@ PHP_METHOD(swoole_server, close)
 {
     zval *zobject = getThis();
     zend_bool reset = SW_FALSE;
-    long fd;
+    zend_long fd;
 
     if (SwooleGS->start == 0)
     {
@@ -3239,7 +3239,7 @@ PHP_METHOD(swoole_server, task)
     zval *data;
     zval *callback = NULL;
 
-    long dst_worker_id = -1;
+    zend_long dst_worker_id = -1;
 
     if (SwooleGS->start == 0)
     {
@@ -3462,7 +3462,7 @@ PHP_METHOD(swoole_server, connection_info)
 
     swServer *serv = swoole_get_object(zobject);
 
-    long fd = 0;
+    zend_long fd = 0;
     zend_bool ipv6_udp = 0;
 
     //ipv6 udp
@@ -3709,7 +3709,7 @@ PHP_METHOD(swoole_server, exist)
 {
     zval *zobject = getThis();
 
-    long fd;
+    zend_long fd;
 
     if (SwooleGS->start == 0)
     {
