@@ -1111,6 +1111,8 @@ int swoole_getaddrinfo(swRequest_getaddrinfo *req)
             break;
         }
     }
+    freeaddrinfo(result);
+    req->error = 0;
     req->count = i;
     return SW_OK;
 }
