@@ -279,6 +279,7 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_strerror, 0, 0, 1)
     ZEND_ARG_INFO(0, errno)
+    ZEND_ARG_INFO(0, error_type)
 ZEND_END_ARG_INFO()
 
 #ifdef HAVE_PCRE
@@ -1169,12 +1170,24 @@ PHP_FUNCTION(swoole_strerror)
 {
     long swoole_errno = 0;
     char error_msg[256] = {0};
+    long error_type = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &swoole_errno) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|l", &swoole_errno, &error_type) == FAILURE)
     {
         return;
     }
-    snprintf(error_msg, sizeof(error_msg) - 1, "%s", strerror(swoole_errno));
+    if (error_type == 1)
+    {
+        snprintf(error_msg, sizeof(error_msg) - 1, "%s", gai_strerror(swoole_errno));
+    }
+    else if (error_type == 2)
+    {
+        snprintf(error_msg, sizeof(error_msg) - 1, "%s", hstrerror(swoole_errno));
+    }
+    else
+    {
+        snprintf(error_msg, sizeof(error_msg) - 1, "%s", strerror(swoole_errno));
+    }
     SW_RETURN_STRING(error_msg, 1);
 }
 
