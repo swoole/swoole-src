@@ -1026,6 +1026,11 @@ static PHP_METHOD(swoole_mysql_coro, escape)
     }
 
     const MYSQLND_CHARSET* cset = mysqlnd_find_charset_nr(client->connector.character_set);
+    if (cset == NULL)
+    {
+        swoole_php_fatal_error(E_ERROR, "unknown mysql charset[%s].", client->connector.character_set);
+        RETURN_FALSE;
+    }
     int newstr_len = mysqlnd_cset_escape_slashes(cset, newstr, str.str, str.length TSRMLS_CC);
     if (newstr_len < 0)
     {
