@@ -812,6 +812,10 @@ static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
             sw_add_assoc_stringl(row_array, client->response.columns[i].name, buf + read_n, len, 1);
 #endif
             break;
+
+        default:
+            swWarn("unknown field type[%d].", type);
+            return -1;
         }
         read_n += len;
     }
@@ -1018,6 +1022,10 @@ static int mysql_decode_row_prepare(mysql_client *client, char *buf, int packet_
             len = sizeof(row.mdouble);
             swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%f", client->response.columns[i].name, row.mdouble);
             break;
+
+        default:
+            swWarn("unknown field type[%d].", type);
+            return -1;
         }
         read_n += len;
     }
