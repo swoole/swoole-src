@@ -1,0 +1,7 @@
+
+---- EXPECTED OUTPUT
+SUCCESS
+closed
+---- ACTUAL OUTPUT
+connect error [errno=1045, error=#28000Access denied for user 'root'@'localhost' (using password: YES)]closed
+---- FAILED

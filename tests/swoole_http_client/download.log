@@ -1,0 +1,10 @@
+
+---- EXPECTED OUTPUT
+close
+---- ACTUAL OUTPUT
+Fatal error: Uncaught Error: Call to undefined function pcntl_fork() in /src/swoole-src/tests/include/toolkit/functions.php:489
+Stack trace:
+#0 /src/swoole-src/tests/swoole_http_client/download.php(33): ProcessManager->run()
+#1 {main}
+  thrown in /src/swoole-src/tests/include/toolkit/functions.php on line 489
+---- FAILED
