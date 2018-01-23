@@ -1039,11 +1039,6 @@ PHP_FUNCTION(swoole_async_set)
         convert_to_boolean(v);
         SWOOLE_G(display_errors) = 0;
     }
-    if (php_swoole_array_get_value(vht, "aio_chunk_size", v))
-    {
-        convert_to_string(v);
-        SwooleG.dns_server_v4 = sw_strndup(Z_STRVAL_P(v), Z_STRLEN_P(v));
-    }
     if (php_swoole_array_get_value(vht, "socket_dontwait", v))
     {
         convert_to_boolean(v);
