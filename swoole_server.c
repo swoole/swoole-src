@@ -1550,16 +1550,14 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
     zval *zserv = (zval *) serv->ptr2;
     zval *zfd;
     zval *zfrom_id;
+#ifdef SW_COROUTINE
+    zval *args[3];
+#else
     zval **args[3];
+#endif
     zval *retval = NULL;
 
     SWOOLE_GET_TSRMLS;
-
-    zval *callback = php_swoole_server_get_callback(serv, info->from_fd, SW_SERVER_CB_onClose);
-    if (callback == NULL || ZVAL_IS_NULL(callback))
-    {
-        return;
-    }
 
     SW_MAKE_STD_ZVAL(zfd);
     ZVAL_LONG(zfd, info->fd);
@@ -1567,23 +1565,48 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
     SW_MAKE_STD_ZVAL(zfrom_id);
     ZVAL_LONG(zfrom_id, info->from_id);
 
+#ifndef SW_COROUTINE
     args[0] = &zserv;
     args[1] = &zfd;
     args[2] = &zfrom_id;
-
-#ifdef PHP_SWOOLE_ENABLE_FASTCALL
-    zend_fcall_info_cache *fci_cache = php_swoole_server_get_cache(serv, info->from_fd, SW_SERVER_CB_onClose);
-    if (sw_call_user_function_fast(callback, fci_cache, &retval, 3, args TSRMLS_CC) == FAILURE)
 #else
-    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
+    args[0] = zserv;
+    sw_zval_add_ref(&zserv);
+    args[1] = zfd;
+    args[2] = zfrom_id;
 #endif
+
+#ifndef SW_COROUTINE
+    zval *callback = php_swoole_server_get_callback(serv, info->from_fd, SW_SERVER_CB_onClose);
+    if (callback == NULL || ZVAL_IS_NULL(callback))
     {
-        swoole_php_fatal_error(E_WARNING, "onClose handler error.");
+        return;
     }
+    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
+    {
+        swoole_php_error(E_WARNING, "onClose handler error.");
+    }
+#else
+    zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, info->from_fd, SW_SERVER_CB_onClose);
+    if (cache == NULL)
+    {
+        return;
+    }
+
+    int ret = coro_create(cache, args, 3, &retval, NULL, NULL);
+    if (ret != 0)
+    {
+        sw_zval_ptr_dtor(&zfd);
+        sw_zval_ptr_dtor(&zfrom_id);
+        return;
+    }
+#endif
+
     if (EG(exception))
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
+
     sw_zval_ptr_dtor(&zfd);
     sw_zval_ptr_dtor(&zfrom_id);
     if (retval != NULL)
