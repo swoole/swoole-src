@@ -921,6 +921,13 @@ static int mysql_decode_row_prepare(mysql_client *client, char *buf, int packet_
 
     for (i = 0; i < client->response.num_column; i++)
     {
+        /* to check Null-Bitmap @see https://dev.mysql.com/doc/internals/en/null-bitmap.html */
+        if( ( (buf - null_count + 1)[((i+2)/8)] & (0x01 << ((i+2)%8)) ) != 0 ){
+            swTraceLog(SW_TRACE_MYSQL_CLIENT, "value: %s is null ,flag2", client->response.columns[i].name);
+            add_assoc_null(row_array, client->response.columns[i].name);
+            continue;
+        }
+
         int type = client->response.columns[i].type;
         swTraceLog(SW_TRACE_MYSQL_CLIENT, "value: name=%s, type=%d", client->response.columns[i].name, type);
         switch (type)
