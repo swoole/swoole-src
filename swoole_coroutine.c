@@ -229,6 +229,8 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     int i;
     zend_vm_stack_init();
 
+    swTraceLog(SW_TRACE_COROUTINE, "Create coroutine id %d.", cid);
+
     COROG.current_coro = (coro_task *) EG(vm_stack_top);
     zend_execute_data *call = (zend_execute_data *) (EG(vm_stack_top));
     EG(vm_stack_top) = (zval *) ((char *) call + TASK_SLOT * sizeof(zval));
@@ -265,7 +267,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     {
         zend_execute_ex(call);
         coro_close(TSRMLS_C);
-        swTrace("Create the %d coro with stack. heap size: %zu\n", COROG.coro_num, zend_memory_usage(0));
+        swTraceLog(SW_TRACE_COROUTINE, "[CORO_END] Create the %d coro with stack. heap size: %zu\n", COROG.coro_num, zend_memory_usage(0));
         coro_status = CORO_END;
     }
     else
