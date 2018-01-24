@@ -176,6 +176,7 @@ typedef struct
     char *user;
     char *password;
     char *database;
+    zend_bool strict_type;
 
     zend_size_t host_len;
     zend_size_t user_len;

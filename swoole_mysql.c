@@ -682,13 +682,12 @@ static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
     ulong_t len;
     char nul;
 
-#ifdef SW_MYSQL_STRICT_TYPE
     mysql_row row;
     char value_buffer[32];
     bzero(&row, sizeof(row));
     char *error;
-    char mem;
-#endif
+    //unused
+    //char mem;
 
     zval *result_array = client->response.result_array;
     zval *row_array = NULL;
@@ -756,61 +755,70 @@ static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
         case SW_MYSQL_TYPE_SHORT:
         case SW_MYSQL_TYPE_INT24:
         case SW_MYSQL_TYPE_LONG:
-#ifdef SW_MYSQL_STRICT_TYPE
-            memcpy(value_buffer, buf + read_n, len);
-            value_buffer[len] = 0;
-            row.sint = strtol(value_buffer, &error, 10);
-            if (*error != '\0')
+            if(client->connector.strict_type)
             {
-                return -SW_MYSQL_ERR_CONVLONG;
+                memcpy(value_buffer, buf + read_n, len);
+                value_buffer[len] = 0;
+                row.sint = strtol(value_buffer, &error, 10);
+                if (*error != '\0')
+                {
+                    return -SW_MYSQL_ERR_CONVLONG;
+                }
+                add_assoc_long(row_array, client->response.columns[i].name, row.sint);
             }
-            add_assoc_long(row_array, client->response.columns[i].name, row.sint);
-#else
-            sw_add_assoc_stringl(row_array, client->response.columns[i].name, buf + read_n, len, 1);
-#endif
+            else
+            {
+                sw_add_assoc_stringl(row_array, client->response.columns[i].name, buf + read_n, len, 1);
+
+            }
             break;
         case SW_MYSQL_TYPE_LONGLONG:
-#ifdef SW_MYSQL_STRICT_TYPE
-            memcpy(value_buffer, buf + read_n, len);
-            value_buffer[len] = 0;
-            row.sbigint = strtoll(value_buffer, &error, 10);
-            if (*error != '\0')
-            {
-                return -SW_MYSQL_ERR_CONVLONG;
+            if(client->connector.strict_type) {
+                memcpy(value_buffer, buf + read_n, len);
+                value_buffer[len] = 0;
+                row.sbigint = strtoll(value_buffer, &error, 10);
+                if (*error != '\0') {
+                    return -SW_MYSQL_ERR_CONVLONG;
+                }
+                add_assoc_long(row_array, client->response.columns[i].name, row.sbigint);
             }
-            add_assoc_long(row_array, client->response.columns[i].name, row.sbigint);
-#else
-            sw_add_assoc_stringl(row_array, client->response.columns[i].name, buf + read_n, len, 1);
-#endif
+            else
+            {
+                sw_add_assoc_stringl(row_array, client->response.columns[i].name, buf + read_n, len, 1);
+
+            }
             break;
         case SW_MYSQL_TYPE_FLOAT:
-#ifdef SW_MYSQL_STRICT_TYPE
-            memcpy(value_buffer, buf + read_n, len);
-            value_buffer[len] = 0;
-            row.mfloat = strtof(value_buffer, &error);
-            if (*error != '\0')
-            {
-                return -SW_MYSQL_ERR_CONVFLOAT;
+            if(client->connector.strict_type) {
+                memcpy(value_buffer, buf + read_n, len);
+                value_buffer[len] = 0;
+                row.mfloat = strtof(value_buffer, &error);
+                if (*error != '\0') {
+                    return -SW_MYSQL_ERR_CONVFLOAT;
+                }
+                add_assoc_double(row_array, client->response.columns[i].name, row.mfloat);
             }
-            add_assoc_double(row_array, client->response.columns[i].name, row.mfloat);
-#else
-            sw_add_assoc_stringl(row_array, client->response.columns[i].name, buf + read_n, len, 1);
-#endif
+            else
+            {
+                sw_add_assoc_stringl(row_array, client->response.columns[i].name, buf + read_n, len, 1);
+            }
             break;
 
         case SW_MYSQL_TYPE_DOUBLE:
-#ifdef SW_MYSQL_STRICT_TYPE
-            memcpy(value_buffer, buf + read_n, len);
-            value_buffer[len] = 0;
-            row.mdouble = strtod(value_buffer, &error);
-            if (*error != '\0')
-            {
-                return -SW_MYSQL_ERR_CONVDOUBLE;
+            if(client->connector.strict_type) {
+                memcpy(value_buffer, buf + read_n, len);
+                value_buffer[len] = 0;
+                row.mdouble = strtod(value_buffer, &error);
+                if (*error != '\0') {
+                    return -SW_MYSQL_ERR_CONVDOUBLE;
+                }
+                add_assoc_double(row_array, client->response.columns[i].name, row.mdouble);
             }
-            add_assoc_double(row_array, client->response.columns[i].name, row.mdouble);
-#else
-            sw_add_assoc_stringl(row_array, client->response.columns[i].name, buf + read_n, len, 1);
-#endif
+            else
+            {
+                sw_add_assoc_stringl(row_array, client->response.columns[i].name, buf + read_n, len, 1);
+
+            }
             break;
 
         default:
@@ -1831,6 +1839,22 @@ static PHP_METHOD(swoole_mysql, connect)
     else
     {
         connector->character_set = 0;
+    }
+
+    if (php_swoole_array_get_value(_ht, "strict_type", value))
+    {
+#if PHP_MAJOR_VERSION < 7
+        if(Z_TYPE_P(value) == IS_BOOL && Z_BVAL_P(value) == 1)
+#else
+        if(Z_TYPE_P(value) == IS_TRUE)
+#endif
+        {
+            connector->strict_type = 1;
+        }else{
+            connector->strict_type = 0;
+        }
+    } else{
+        connector->strict_type = 0;
     }
 
     swClient *cli = emalloc(sizeof(swClient));
