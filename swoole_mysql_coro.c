@@ -1173,6 +1173,8 @@ static void swoole_mysql_coro_onConnect(mysql_client *client TSRMLS_DC)
         ZVAL_BOOL(result, 1);
     }
 
+    client->cid = 0;
+
 	php_context *sw_current_context = swoole_get_property(zobject, 0);
 	int ret = coro_resume(sw_current_context, result, &retval);
     sw_zval_ptr_dtor(&result);
