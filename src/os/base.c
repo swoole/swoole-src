@@ -268,7 +268,7 @@ static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len)
         }
         else
         {
-            if (inet_ntop(event->flags, event->flags == AF_INET6 ? (void *) &addr_v6 : (void *) &addr_v4, event->buf,
+            if (inet_ntop(event->flags == AF_INET6 ? AF_INET6 : AF_INET, event->flags == AF_INET6 ? (void *) &addr_v6 : (void *) &addr_v4, event->buf,
                     event->nbytes) == NULL)
             {
                 ret = -1;
