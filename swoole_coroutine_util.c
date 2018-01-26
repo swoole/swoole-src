@@ -99,11 +99,11 @@ void swoole_coroutine_util_init(int module_number TSRMLS_DC)
 
     if (SWOOLE_G(use_namespace))
     {
-        zend_register_class_alias("swoole_coroutine", swoole_coroutine_util_class_entry_ptr);
+        zend_register_class_alias("swoole_coroutine", swoole_coroutine_util_class_entry_ptr, 1);
     }
     else
     {
-        zend_register_class_alias("Swoole\\Coroutine", swoole_coroutine_util_class_entry_ptr);
+        zend_register_class_alias("Swoole\\Coroutine", swoole_coroutine_util_class_entry_ptr, 1);
     }
 
 #if 0

@@ -22,6 +22,7 @@
 
 #if PHP_MAJOR_VERSION >= 7
 #define CPINLINE sw_inline
+#define HASH_FLAG_APPLY_PROTECTION (1<<1)
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_serialize_pack, 0, 0, 1)
 ZEND_ARG_INFO(0, data)
@@ -668,7 +669,7 @@ static void* swoole_unserialize_arr(void *buffer, zval *zvalue, uint32_t nNumOfE
     ht->nTableMask = -(ht->nTableSize);
     ht->pDestructor = ZVAL_PTR_DTOR;
 
-    GC_REFCOUNT(ht) = 1;
+    GC_REFCOUNT(ht) == 1;
     GC_TYPE_INFO(ht) = IS_ARRAY;
     // if (ht->nNumUsed)
     //{
@@ -1418,7 +1419,7 @@ PHPAPI zend_string* php_swoole_serialize(zval *zvalue)
     z_str->val[str.offset] = '\0';
     z_str->len = str.offset - _STR_HEADER_SIZE;
     z_str->h = 0;
-    GC_REFCOUNT(z_str) = 1;
+    GC_REFCOUNT(z_str) == 1;
     GC_TYPE_INFO(z_str) = IS_STRING_EX;
 
     return z_str;
