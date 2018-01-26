@@ -299,6 +299,11 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_strerror, 0, 0, 1)
     ZEND_ARG_INFO(0, error_type)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_hashcode, 0, 0, 1)
+    ZEND_ARG_INFO(0, data)
+    ZEND_ARG_INFO(0, type)
+ZEND_END_ARG_INFO()
+
 #ifdef HAVE_PCRE
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_connection_iterator_offsetExists, 0, 0, 1)
     ZEND_ARG_INFO(0, fd)
@@ -323,6 +328,7 @@ ZEND_END_ARG_INFO()
 #include "zend_exceptions.h"
 
 static PHP_FUNCTION(swoole_last_error);
+static PHP_FUNCTION(swoole_hashcode);
 
 const zend_function_entry swoole_functions[] =
 {
@@ -361,6 +367,7 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_get_local_mac, arginfo_swoole_void)
     PHP_FE(swoole_strerror, arginfo_swoole_strerror)
     PHP_FE(swoole_errno, arginfo_swoole_void)
+    PHP_FE(swoole_hashcode, arginfo_swoole_hashcode)
     PHP_FE_END /* Must be the last line in swoole_functions[] */
 };
 
@@ -1187,6 +1194,52 @@ PHP_FUNCTION(swoole_version)
     char swoole_version[32] = {0};
     snprintf(swoole_version, sizeof(PHP_SWOOLE_VERSION), "%s", PHP_SWOOLE_VERSION);
     SW_RETURN_STRING(swoole_version, 1);
+}
+
+static uint32_t hashkit_one_at_a_time(const char *key, size_t key_length)
+{
+    const char *ptr = key;
+    uint32_t value = 0;
+
+    while (key_length--)
+    {
+        uint32_t val = (uint32_t) *ptr++;
+        value += val;
+        value += (value << 10);
+        value ^= (value >> 6);
+    }
+    value += (value << 3);
+    value ^= (value >> 11);
+    value += (value << 15);
+
+    return value;
+}
+
+static PHP_FUNCTION(swoole_hashcode)
+{
+    char *data;
+    zend_size_t l_data;
+    long type = 0;
+
+#ifdef FAST_ZPP
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_STRING(data, l_data)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(type)
+    ZEND_PARSE_PARAMETERS_END();
+#else
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|l", &data, &l_data, &type) == FAILURE)
+    {
+        return;
+    }
+#endif
+    switch(type)
+    {
+    case 1:
+        RETURN_LONG(hashkit_one_at_a_time(data, l_data));
+    default:
+        RETURN_LONG(zend_hash_func(data, l_data));
+    }
 }
 
 PHP_FUNCTION(swoole_unsupport_serialize)
