@@ -1,0 +1,15 @@
+Go in parent directory, open  a new sudo gedit using terminal, then type save / run 
+
+sudo apt-get install php7-dev
+git clone https://github.com/iPolitic/swoole-src.git
+cd swoole-src
+phpize
+./configure --with-php-config=/usr/local/php7/bin/php-config
+
+make && make install
+
+save as INSTALL_Swoole.sh
+
+then in terminal run : sudo bash ./INSTALL_Swoole.sh 
+
+At the end of the setup, you should get a messge about where the .so was created, be sure that it match the phpinfo()'s dir path. Else move it.
