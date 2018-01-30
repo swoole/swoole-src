@@ -750,7 +750,7 @@ static void aio_onWriteCompleted(swAio_event *event)
 static PHP_METHOD(swoole_coroutine_util, fread)
 {
     zval *handle;
-    long length = 0;
+    zend_long length = 0;
 
 #ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(1, 2)
@@ -827,7 +827,7 @@ static PHP_METHOD(swoole_coroutine_util, fwrite)
     zval *handle;
     char *str;
     zend_size_t l_str;
-    long length = 0;
+    zend_long length = 0;
 
 #ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(2, 3)
