@@ -1261,16 +1261,12 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
 {
     zval *zserv = (zval *) serv->ptr2;
     zval *zworker_id;
-    zval **args[2];
     zval *retval = NULL;
 
     SWOOLE_GET_TSRMLS;
 
     SW_MAKE_STD_ZVAL(zworker_id);
     ZVAL_LONG(zworker_id, worker_id);
-
-    args[0] = &zserv;
-    args[1] = &zworker_id;
 
     /**
      * Master Process ID
@@ -1285,7 +1281,7 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
     /**
      * Worker ID
      */
-    zend_update_property(swoole_server_class_entry_ptr, zserv, ZEND_STRL("worker_id"), zworker_id TSRMLS_CC);
+    zend_update_property_long(swoole_server_class_entry_ptr, zserv, ZEND_STRL("worker_id"), worker_id TSRMLS_CC);
 
     /**
      * Is a task worker?
@@ -1313,11 +1309,32 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
     {
         return;
     }
-
+#ifndef SW_COROUTINE
+    zval **args[2];
+    args[0] = &zserv;
+    args[1] = &zworker_id;
     if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onWorkerStart], &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onWorkerStart handler error.");
     }
+#else
+    zval *args[2];
+    args[0] = zserv;
+    args[1] = zworker_id;
+
+    zend_fcall_info_cache *cache = php_sw_server_caches[SW_SERVER_CB_onWorkerStart];
+    int ret = coro_create(cache, args, 3, &retval, NULL, NULL);
+    if (ret != 0)
+    {
+        sw_zval_ptr_dtor(&zworker_id);
+        if (ret == CORO_LIMIT)
+        {
+            swWarn("Failed to handle onPipeMessage. Coroutine limited");
+        }
+        return;
+    }
+#endif
+
     if (EG(exception))
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
