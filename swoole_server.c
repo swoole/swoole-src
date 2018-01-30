@@ -3583,11 +3583,11 @@ PHP_METHOD(swoole_connection_iterator, valid)
             {
                 continue;
             }
+#endif
             if (itearator->port && conn->from_fd != itearator->port->sock)
             {
                 continue;
             }
-#endif
             itearator->session_id = conn->session_id;
             itearator->current_fd = fd;
             itearator->index++;
