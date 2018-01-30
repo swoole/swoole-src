@@ -35,34 +35,24 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2018-01-08</date>
+    <date>2018-01-30</date>
     <time>09:50:10</time>
     <version>
-        <release>1.10.0</release>
+        <release>1.10.1</release>
         <api>1.10</api>
     </version>
     <stability>
-        <release>beta</release>
-        <api>beta</api>
+        <release>stable</release>
+        <api>stable</api>
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-    - Update Table::incr and Table::decr support signed integers
-    - Compatible with PHP-7.2
-    - Added Event::cycle function
-    - Fixed Event::del function can not remove the standard input handle problem
-    - Fixed Task process timer interval is less than the Client receive timeout, causing Client :: recv deadlock problem
-    - Added automatic analysis of domain names feature, asynchronous client no longer need to add additional code for domain name resolution
-    - Added ssl_host_name configuration items, used to verify the SSL / TLS host legitimacy
-    - When dispatch_mode = 3, an error log is printed when all the workers are busy
-    - Added a port iterator that traverses all connections to a listening port
-    - Fixed Table memory alignment issues on non-x86 platforms
-    - Fixed the issue of invalid max_request configuration in BASE mode
-    - Fixed WebSocket server in some client ping frame with mask data return error
-    - Fixed an issue where HttpClient uses the HEAD method to respond to content carrying Content-Length causing stuck
-    - Added STREAM module, Reactor, Worker, Task communication more flexible
-    - Added request_slowlog_timeout configuration, record slow request log
-    - Added MySQL asynchronous client support for JSON format
+- Fixed Http2\Server cannot set http header
+- Added http_proxy_user and http_proxy_password options
+- Added Client::shutdown
+- Added WebSocket\server::isEstablished
+- Added debug_mode option
+- HttpClient compatible with Unity3D
     </notes>
     <contents>
         <dir name="/">
