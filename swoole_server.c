@@ -1323,13 +1323,13 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
     args[1] = zworker_id;
 
     zend_fcall_info_cache *cache = php_sw_server_caches[SW_SERVER_CB_onWorkerStart];
-    int ret = coro_create(cache, args, 3, &retval, NULL, NULL);
+    int ret = coro_create(cache, args, 2, &retval, NULL, NULL);
     if (ret != 0)
     {
         sw_zval_ptr_dtor(&zworker_id);
         if (ret == CORO_LIMIT)
         {
-            swWarn("Failed to handle onPipeMessage. Coroutine limited");
+            swWarn("Failed to handle onWorkerStart. Coroutine limited.");
         }
         return;
     }
