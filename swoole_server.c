@@ -87,6 +87,10 @@ static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker
 static void php_swoole_onManagerStart(swServer *serv);
 static void php_swoole_onManagerStop(swServer *serv);
 
+#ifdef SW_COROUTINE
+static void php_swoole_onConnect_finish(void *param);
+#endif
+
 static zval* php_swoole_server_add_port(swListenPort *port TSRMLS_DC);
 
 static int php_swoole_create_dir(const char* path, size_t length TSRMLS_DC)
@@ -1476,7 +1480,7 @@ static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker
 }
 
 #ifdef SW_COROUTINE
-void php_swoole_onConnect_finish(void *param)
+static void php_swoole_onConnect_finish(void *param)
 {
     swServer *serv = SwooleG.serv;
     swTrace("onConnect finish and send confirm");
@@ -1610,22 +1614,36 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
         return;
     }
 
+    jmp_buf *prev_checkpoint = swReactorCheckPoint;
+    swReactorCheckPoint = emalloc(sizeof(jmp_buf));
+
+    php_context *ctx = emalloc(sizeof(php_context));
+    zval _return_value;
+    zval *return_value = &_return_value;
+
+    coro_save(ctx);
+    int required = COROG.require;
+
     int ret = coro_create(cache, args, 3, &retval, NULL, NULL);
+    efree(swReactorCheckPoint);
+
+    swReactorCheckPoint = prev_checkpoint;
+    coro_resume_parent(ctx, retval, retval);
+    COROG.require = required;
+    efree(ctx);
+
+    sw_zval_ptr_dtor(&zfd);
+    sw_zval_ptr_dtor(&zfrom_id);
+
     if (ret != 0)
     {
-        sw_zval_ptr_dtor(&zfd);
-        sw_zval_ptr_dtor(&zfrom_id);
         return;
     }
 #endif
-
     if (EG(exception))
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
-
-    sw_zval_ptr_dtor(&zfd);
-    sw_zval_ptr_dtor(&zfrom_id);
     if (retval != NULL)
     {
         sw_zval_ptr_dtor(&retval);
