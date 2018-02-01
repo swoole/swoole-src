@@ -30,6 +30,29 @@ static zend_class_entry *swoole_http2_client_coro_class_entry_ptr;
 static zend_class_entry swoole_http2_request_coro_ce;
 static zend_class_entry *swoole_http2_request_coro_class_entry_ptr;
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http2_client_coro_construct, 0, 0, 1)
+    ZEND_ARG_INFO(0, host)
+    ZEND_ARG_INFO(0, port)
+    ZEND_ARG_INFO(0, ssl)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http2_client_coro_set, 0, 0, 1)
+    ZEND_ARG_ARRAY_INFO(0, settings, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http2_client_coro_send, 0, 0, 1)
+    ZEND_ARG_INFO(0, request)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http2_client_coro_write, 0, 0, 2)
+    ZEND_ARG_INFO(0, stream_id)
+    ZEND_ARG_INFO(0, data)
+    ZEND_ARG_INFO(0, end_stream)
+ZEND_END_ARG_INFO()
+
 enum
 {
     HTTP2_CLIENT_CORO_CONTEXT  = 0,
@@ -43,7 +66,7 @@ static PHP_METHOD(swoole_http2_client_coro, send);
 static PHP_METHOD(swoole_http2_client_coro, recv);
 static PHP_METHOD(swoole_http2_client_coro, connect);
 static PHP_METHOD(swoole_http2_client_coro, close);
-static PHP_METHOD(swoole_http2_client_coro, closeStream);
+static PHP_METHOD(swoole_http2_client_coro, write);
 
 static int http2_client_send_request(zval *zobject, zval *request TSRMLS_DC);
 static void http2_client_stream_free(void *ptr);
@@ -55,14 +78,14 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length);
 
 static const zend_function_entry swoole_http2_client_methods[] =
 {
-    PHP_ME(swoole_http2_client_coro, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
-    PHP_ME(swoole_http2_client_coro, __destruct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
-    PHP_ME(swoole_http2_client_coro, set,      NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http2_client_coro, connect,      NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http2_client_coro, send,      NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http2_client_coro, recv,      NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http2_client_coro, closeStream,      NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http2_client_coro, close,      NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http2_client_coro, __construct, arginfo_swoole_http2_client_coro_construct, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+    PHP_ME(swoole_http2_client_coro, __destruct, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
+    PHP_ME(swoole_http2_client_coro, set,      arginfo_swoole_http2_client_coro_set, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http2_client_coro, connect,  arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http2_client_coro, send,      arginfo_swoole_http2_client_coro_send, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http2_client_coro, recv,      arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http2_client_coro, write,     arginfo_swoole_http2_client_coro_write, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http2_client_coro, close,     arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
@@ -79,10 +102,15 @@ void swoole_http2_client_coro_init(int module_number TSRMLS_DC)
     zend_declare_property_long(swoole_http2_client_coro_class_entry_ptr, SW_STRL("statusCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_http2_client_coro_class_entry_ptr, SW_STRL("host")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(swoole_http2_client_coro_class_entry_ptr, SW_STRL("port")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_http2_client_coro_class_entry_ptr, SW_STRL("sock")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_bool(swoole_http2_client_coro_class_entry_ptr, SW_STRL("reuse")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_http2_client_coro_class_entry_ptr, SW_STRL("reuseCount")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_http2_client_coro_class_entry_ptr, ZEND_STRL("setting"), ZEND_ACC_PUBLIC TSRMLS_CC);
 
     zend_declare_property_null(swoole_http2_request_coro_class_entry_ptr, SW_STRL("method")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_http2_request_coro_class_entry_ptr, SW_STRL("headers")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_http2_request_coro_class_entry_ptr, SW_STRL("data")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_bool(swoole_http2_request_coro_class_entry_ptr, SW_STRL("pipeline")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_http2_request_coro_class_entry_ptr, SW_STRL("files")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
 }
 
@@ -104,10 +132,10 @@ static PHP_METHOD(swoole_http2_client_coro, __construct)
         RETURN_FALSE;
     }
 
-    http2_client_property *hcp;
-    hcp = (http2_client_property*) emalloc(sizeof(http2_client_property));
-    bzero(hcp, sizeof(http2_client_property));
-    swoole_set_property(getThis(), HTTP2_CLIENT_CORO_PROPERTY, hcp);
+    http2_client_property *hcc;
+    hcc = (http2_client_property*) emalloc(sizeof(http2_client_property));
+    bzero(hcc, sizeof(http2_client_property));
+    swoole_set_property(getThis(), HTTP2_CLIENT_CORO_PROPERTY, hcc);
 
     php_context *context = emalloc(sizeof(php_context));
     swoole_set_property(getThis(), HTTP2_CLIENT_CORO_CONTEXT, context);
@@ -118,15 +146,15 @@ static PHP_METHOD(swoole_http2_client_coro, __construct)
     context->coro_params = *getThis();
 #endif
 
-    hcp->streams = swHashMap_new(8, http2_client_stream_free);
-    hcp->stream_id = 1;
+    hcc->streams = swHashMap_new(8, http2_client_stream_free);
+    hcc->stream_id = 1;
 
     long type = SW_FLAG_ASYNC | SW_SOCK_TCP;
     if (ssl)
     {
 #ifdef SW_USE_OPENSSL
         type |= SW_SOCK_SSL;
-        hcp->ssl = 1;
+        hcc->ssl = 1;
 #else
         swoole_php_fatal_error(E_ERROR, "require openssl library.");
 #endif
@@ -134,9 +162,9 @@ static PHP_METHOD(swoole_http2_client_coro, __construct)
 
     zend_update_property_long(swoole_http2_client_coro_class_entry_ptr, getThis(), ZEND_STRL("type"), type TSRMLS_CC);
 
-    hcp->host = estrndup(host, host_len);
-    hcp->host_len = host_len;
-    hcp->port = port;
+    hcc->host = estrndup(host, host_len);
+    hcc->host_len = host_len;
+    hcc->port = port;
 }
 
 static PHP_METHOD(swoole_http2_client_coro, set)
@@ -235,7 +263,7 @@ static int http2_client_build_header(zval *zobject, zval *req, char *buffer, int
     //http cookies
     if (cookies && !ZVAL_IS_NULL(cookies))
     {
-        http2_add_cookie(&nv, &index, cookies TSRMLS_CC);
+        http2_add_cookie(nv, &index, cookies TSRMLS_CC);
     }
 
     ssize_t rv;
@@ -484,6 +512,7 @@ static int http2_client_send_request(zval *zobject, zval *req TSRMLS_DC)
 
     zval *headers = sw_zend_read_property(swoole_http2_request_coro_class_entry_ptr, req, ZEND_STRL("headers"), 1 TSRMLS_CC);
     zval *post_data = sw_zend_read_property(swoole_http2_request_coro_class_entry_ptr, req, ZEND_STRL("data"), 1 TSRMLS_CC);
+    zval *pipeline = sw_zend_read_property(swoole_http2_request_coro_class_entry_ptr, req, ZEND_STRL("pipeline"), 1 TSRMLS_CC);
 
     if (!ZVAL_IS_NULL(post_data))
     {
@@ -502,14 +531,6 @@ static int http2_client_send_request(zval *zobject, zval *req TSRMLS_DC)
         swWarn("http2_client_build_header() failed.");
         return -1;
     }
-    if (ZVAL_IS_NULL(post_data))
-    {
-        swHttp2_set_frame_header(buffer, SW_HTTP2_TYPE_HEADERS, n, SW_HTTP2_FLAG_END_STREAM | SW_HTTP2_FLAG_END_HEADERS, hcc->stream_id);
-    }
-    else
-    {
-        swHttp2_set_frame_header(buffer, SW_HTTP2_TYPE_HEADERS, n, SW_HTTP2_FLAG_END_HEADERS, hcc->stream_id);
-    }
 
     http2_client_stream *stream = emalloc(sizeof(http2_client_stream));
     memset(stream, 0, sizeof(http2_client_stream));
@@ -520,7 +541,24 @@ static int http2_client_send_request(zval *zobject, zval *req TSRMLS_DC)
 
     stream->stream_id = hcc->stream_id;
     stream->response_object = response_object;
-    stream->type = SW_HTTP2_STREAM_NORMAL;
+    stream->type = Z_BVAL_P(pipeline) ? SW_HTTP2_STREAM_PIPELINE : SW_HTTP2_STREAM_NORMAL;
+
+    if (ZVAL_IS_NULL(post_data))
+    {
+        //pipeline
+        if (stream->type == SW_HTTP2_STREAM_PIPELINE)
+        {
+            swHttp2_set_frame_header(buffer, SW_HTTP2_TYPE_HEADERS, n, SW_HTTP2_FLAG_END_HEADERS, hcc->stream_id);
+        }
+        else
+        {
+            swHttp2_set_frame_header(buffer, SW_HTTP2_TYPE_HEADERS, n, SW_HTTP2_FLAG_END_STREAM | SW_HTTP2_FLAG_END_HEADERS, hcc->stream_id);
+        }
+    }
+    else
+    {
+        swHttp2_set_frame_header(buffer, SW_HTTP2_TYPE_HEADERS, n, SW_HTTP2_FLAG_END_HEADERS, hcc->stream_id);
+    }
 
     sw_copy_to_stack(stream->response_object, stream->_response_object);
 
@@ -535,6 +573,7 @@ static int http2_client_send_request(zval *zobject, zval *req TSRMLS_DC)
      */
     if (!ZVAL_IS_NULL(post_data))
     {
+        int flag = stream->type == SW_HTTP2_STREAM_PIPELINE ? 0 : SW_HTTP2_FLAG_END_STREAM;
         if (Z_TYPE_P(post_data) == IS_ARRAY)
         {
             zend_size_t len;
@@ -546,7 +585,7 @@ static int http2_client_send_request(zval *zobject, zval *req TSRMLS_DC)
                 return -1;
             }
             memset(buffer, 0, SW_HTTP2_FRAME_HEADER_SIZE);
-            swHttp2_set_frame_header(buffer, SW_HTTP2_TYPE_DATA, len, SW_HTTP2_FLAG_END_STREAM, hcc->stream_id);
+            swHttp2_set_frame_header(buffer, SW_HTTP2_TYPE_DATA, len, flag, hcc->stream_id);
             swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN", END, STREAM#%d] length=%d", swHttp2_get_type(SW_HTTP2_TYPE_DATA), hcc->stream_id, len);
             cli->send(cli, buffer, SW_HTTP2_FRAME_HEADER_SIZE, 0);
             cli->send(cli, formstr, len, 0);
@@ -554,7 +593,7 @@ static int http2_client_send_request(zval *zobject, zval *req TSRMLS_DC)
         }
         else
         {
-            swHttp2_set_frame_header(buffer, SW_HTTP2_TYPE_DATA, Z_STRLEN_P(post_data), SW_HTTP2_FLAG_END_STREAM, hcc->stream_id);
+            swHttp2_set_frame_header(buffer, SW_HTTP2_TYPE_DATA, Z_STRLEN_P(post_data), flag, hcc->stream_id);
             swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN", END, STREAM#%d] length=%d", swHttp2_get_type(SW_HTTP2_TYPE_DATA), hcc->stream_id, Z_STRLEN_P(post_data));
             cli->send(cli, buffer, SW_HTTP2_FRAME_HEADER_SIZE, 0);
             cli->send(cli, Z_STRVAL_P(post_data), Z_STRLEN_P(post_data), 0);
@@ -565,12 +604,57 @@ static int http2_client_send_request(zval *zobject, zval *req TSRMLS_DC)
     return stream->stream_id;
 }
 
+static int http2_client_send_data(http2_client_property *hcc, uint32_t stream_id, zval *data, zend_bool end TSRMLS_DC)
+{
+    swClient *cli = hcc->client;
+
+    char buffer[8192];
+    http2_client_stream *stream = swHashMap_find_int(hcc->streams, stream_id);
+    if (stream == NULL || stream->type != SW_HTTP2_STREAM_PIPELINE)
+    {
+        return -1;
+    }
+
+    int flag = end ? SW_HTTP2_FLAG_END_STREAM : 0;
+
+    if (Z_TYPE_P(data) == IS_ARRAY)
+    {
+        zend_size_t len;
+        smart_str formstr_s = { 0 };
+        char *formstr = sw_http_build_query(data, &len, &formstr_s TSRMLS_CC);
+        if (formstr == NULL)
+        {
+            swoole_php_error(E_WARNING, "http_build_query failed.");
+            return -1;
+        }
+        memset(buffer, 0, SW_HTTP2_FRAME_HEADER_SIZE);
+        swHttp2_set_frame_header(buffer, SW_HTTP2_TYPE_DATA, len, flag, stream_id);
+        swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN", END, STREAM#%d] length=%d", swHttp2_get_type(SW_HTTP2_TYPE_DATA), stream_id, len);
+        cli->send(cli, buffer, SW_HTTP2_FRAME_HEADER_SIZE, 0);
+        cli->send(cli, formstr, len, 0);
+        smart_str_free(&formstr_s);
+    }
+    else if (Z_TYPE_P(data) == IS_STRING)
+    {
+        swHttp2_set_frame_header(buffer, SW_HTTP2_TYPE_DATA, Z_STRLEN_P(data), flag, stream_id);
+        swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN", END, STREAM#%d] length=%d", swHttp2_get_type(SW_HTTP2_TYPE_DATA), stream_id, Z_STRLEN_P(data));
+        cli->send(cli, buffer, SW_HTTP2_FRAME_HEADER_SIZE, 0);
+        cli->send(cli, Z_STRVAL_P(data), Z_STRLEN_P(data), 0);
+    }
+    else
+    {
+        swoole_php_error(E_WARNING, "unknown data type[%d].", Z_TYPE_P(data) );
+        return -1;
+    }
+    return SW_OK;
+}
+
 static PHP_METHOD(swoole_http2_client_coro, send)
 {
     zval *request;
 
-    http2_client_property *hcp = swoole_get_property(getThis(), HTTP2_CLIENT_CORO_PROPERTY);
-    swClient *cli = hcp->client;
+    http2_client_property *hcc = swoole_get_property(getThis(), HTTP2_CLIENT_CORO_PROPERTY);
+    swClient *cli = hcc->client;
     
     if (!cli || !cli->socket || cli->socket->closed)
     {
@@ -600,18 +684,12 @@ static PHP_METHOD(swoole_http2_client_coro, send)
     {
         RETURN_LONG(stream_id);
     }
-    php_context *context = swoole_get_property(getThis(), HTTP2_CLIENT_CORO_CONTEXT);
-
-    hcp->cid = COROG.current_coro->cid;
-    coro_save(context);
-    hcp->iowait = 1;
-    coro_yield();
 }
 
 static PHP_METHOD(swoole_http2_client_coro, recv)
 {
-    http2_client_property *hcp = swoole_get_property(getThis(), HTTP2_CLIENT_CORO_PROPERTY);
-    swClient *cli = hcp->client;
+    http2_client_property *hcc = swoole_get_property(getThis(), HTTP2_CLIENT_CORO_PROPERTY);
+    swClient *cli = hcc->client;
 
     if (!cli || !cli->socket || cli->socket->closed)
     {
@@ -620,33 +698,10 @@ static PHP_METHOD(swoole_http2_client_coro, recv)
     }
 
     php_context *context = swoole_get_property(getThis(), HTTP2_CLIENT_CORO_CONTEXT);
-    hcp->cid = COROG.current_coro->cid;
+    hcc->cid = COROG.current_coro->cid;
     coro_save(context);
-    hcp->iowait = 1;
+    hcc->iowait = 1;
     coro_yield();
-}
-
-static PHP_METHOD(swoole_http2_client_coro, closeStream)
-{
-    http2_client_property *hcc = swoole_get_property(getThis(), HTTP2_CLIENT_CORO_PROPERTY);
-    swClient *cli = swoole_get_object(getThis());
-    
-    if (!cli && hcc->connecting == 1)
-    {
-        swoole_php_error(E_WARNING, "The connection is closed.");
-        RETURN_FALSE;
-    }
-
-    char buffer[8192];
-    long stream_id;
-    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "l", &stream_id) == FAILURE)
-    {
-        return;
-    }
-    swHttp2_set_frame_header(buffer, SW_HTTP2_TYPE_SETTINGS, 0, SW_HTTP2_FLAG_END_STREAM,hcc->stream_id);
-    cli->send(cli, buffer, SW_HTTP2_FRAME_HEADER_SIZE, 0);
-    swHashMap_del_int(hcc->streams, stream_id);
-    RETURN_TRUE;
 }
 
 static void http2_client_onConnect(swClient *cli)
@@ -776,13 +831,7 @@ static PHP_METHOD(swoole_http2_client_coro, __destruct)
 
 static PHP_METHOD(swoole_http2_client_coro, close)
 {
-    http2_client_property *hcc = swoole_get_property(getThis(), HTTP2_CLIENT_CORO_PROPERTY);
-    if (!hcc)
-    {
-        RETURN_FALSE;
-    }
-
-    swClient *cli = hcc->client;
+    swClient *cli = swoole_get_object(getThis());
     if (!cli)
     {
         swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_http_client.");
@@ -803,7 +852,6 @@ static PHP_METHOD(swoole_http2_client_coro, close)
     cli->released = 1;
     ret = cli->close(cli);
     php_swoole_client_free(getThis(), cli TSRMLS_CC);
-    hcc->client = NULL;
     SW_CHECK_RETURN(ret);
 }
 
@@ -837,6 +885,8 @@ static PHP_METHOD(swoole_http2_client_coro, connect)
         php_swoole_client_check_setting(hcc->client, zset TSRMLS_CC);
     }
 
+    swoole_set_object(getThis(), cli);
+
     cli->onConnect = http2_client_onConnect;
     cli->onClose = http2_client_onClose;
     cli->onError = http2_client_onError;
@@ -856,6 +906,27 @@ static PHP_METHOD(swoole_http2_client_coro, connect)
     cli->object = &context->coro_params;
     coro_save(context);
     coro_yield();
+}
+
+static PHP_METHOD(swoole_http2_client_coro, write)
+{
+    http2_client_property *hcc = swoole_get_property(getThis(), HTTP2_CLIENT_CORO_PROPERTY);
+    swClient *cli = hcc->client;
+
+    if (!cli || !cli->socket || cli->socket->closed)
+    {
+        swoole_php_error(E_WARNING, "The connection is closed.");
+        RETURN_FALSE;
+    }
+
+    long stream_id;
+    zval *data;
+    zend_bool end = 0;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lz|b", &stream_id, &data, &end) == FAILURE)
+    {
+        return;
+    }
+    SW_CHECK_RETURN(http2_client_send_data(hcc, stream_id, data, end TSRMLS_CC));
 }
 
 #endif

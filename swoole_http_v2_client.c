@@ -254,7 +254,7 @@ static int http2_client_build_header(zval *zobject, http2_client_request *req, c
     //http cookies
     if (zcookie && !ZVAL_IS_NULL(zcookie))
     {
-        http2_add_cookie(&nv, &index, zcookie TSRMLS_CC);
+        http2_add_cookie(nv, &index, zcookie TSRMLS_CC);
     }
 
     ssize_t rv;
