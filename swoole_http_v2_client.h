@@ -23,6 +23,8 @@
 #include "http.h"
 #include "http2.h"
 
+#define HTTP2_CLIENT_HOST_HEADER_INDEX   3
+
 #ifdef SW_HAVE_ZLIB
 #include <zlib.h>
 extern voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size);
@@ -98,8 +100,6 @@ static sw_inline void http2_client_init_gzip_stream(http2_client_stream *stream)
 
 int http2_client_parse_header(http2_client_property *hcc, http2_client_stream *stream , int flags, char *in, size_t inlen);
 
-extern zend_class_entry *swoole_client_class_entry_ptr;
-
 static sw_inline void http2_client_send_setting(swClient *cli)
 {
     uint16_t id = 0;
@@ -151,5 +151,10 @@ static sw_inline void http2_add_header(nghttp2_nv *headers, char *k, int kl, cha
 
     swTrace("k=%s, len=%d, v=%s, len=%d", k, kl, v, vl);
 }
+
+void http2_add_cookie(nghttp2_nv *nv, int *index, zval *cookies TSRMLS_DC);
+
+extern swString *cookie_buffer;
+extern zend_class_entry *swoole_client_class_entry_ptr;
 
 #endif

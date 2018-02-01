@@ -216,7 +216,7 @@ static int http2_client_build_header(zval *zobject, zval *req, char *buffer, int
             }
             if (strncasecmp("Host", key, keylen) == 0)
             {
-                http2_add_header(&nv[3], ZEND_STRL(":authority"), Z_STRVAL_P(value), Z_STRLEN_P(value));
+                http2_add_header(&nv[HTTP2_CLIENT_HOST_HEADER_INDEX], ZEND_STRL(":authority"), Z_STRVAL_P(value), Z_STRLEN_P(value));
                 find_host = 1;
             }
             else
@@ -229,24 +229,13 @@ static int http2_client_build_header(zval *zobject, zval *req, char *buffer, int
     }
     if (!find_host)
     {
-        http2_add_header(&nv[3], ZEND_STRL(":authority"), hcc->host, hcc->host_len);
+        http2_add_header(&nv[HTTP2_CLIENT_HOST_HEADER_INDEX], ZEND_STRL(":authority"), hcc->host, hcc->host_len);
     }
 
     //http cookies
     if (cookies && !ZVAL_IS_NULL(cookies))
     {
-        zend_size_t len;
-        smart_str formstr_s = { 0 };
-        char *formstr = sw_http_build_query(cookies, &len, &formstr_s TSRMLS_CC);
-        if (formstr == NULL)
-        {
-            swoole_php_error(E_WARNING, "http_build_query failed.");
-        }
-        else
-        {
-            http2_add_header(&nv[3], ZEND_STRL("cookie"), formstr, len);
-            smart_str_free(&formstr_s);
-        }
+        http2_add_cookie(&nv, &index, cookies TSRMLS_CC);
     }
 
     ssize_t rv;
@@ -301,6 +290,7 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
 {
     int type = buf[3];
     int flags = buf[4];
+    int error_code;
     int stream_id = ntohl((*(int *) (buf + 5))) & 0x7fffffff;
     uint32_t length = swHttp2_get_length(buf);
     buf += SW_HTTP2_FRAME_HEADER_SIZE;
@@ -375,7 +365,7 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
     {
         int last_stream_id = htonl(*(int *) (buf));
         buf += 4;
-        int error_code = htonl(*(int *) (buf));
+        error_code = htonl(*(int *) (buf));
         swWarn("["SW_ECHO_RED"] last_stream_id=%d, error_code=%d.", "GOAWAY", last_stream_id, error_code);
         
         zval* retval;
@@ -391,10 +381,8 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
     }
     else if (type == SW_HTTP2_TYPE_RST_STREAM)
     {
-        int last_stream_id = htonl(*(int *) (buf));
-        buf += 4;
-        int error_code = htonl(*(int *) (buf));
-        swWarn("["SW_ECHO_RED"] last_stream_id=%d, error_code=%d.", "RST_STREAM", last_stream_id, error_code);
+        error_code = htonl(*(int *) (buf));
+        swWarn("["SW_ECHO_RED"] stream_id=%d, error_code=%d.", "RST_STREAM", stream_id, error_code);
 
         if (hcc->iowait == 0)
         {
@@ -444,6 +432,7 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
         if (type == SW_HTTP2_TYPE_RST_STREAM)
         {
             zend_update_property_long(swoole_http2_response_class_entry_ptr, zresponse, ZEND_STRL("statusCode"), -3 TSRMLS_CC);
+            zend_update_property_long(swoole_http2_response_class_entry_ptr, zresponse, ZEND_STRL("errCode"), error_code TSRMLS_CC);
         }
 
         if (stream->buffer)
