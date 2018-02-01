@@ -101,8 +101,10 @@
             <file role="src" name="swoole_http_server.c" />
             <file role="src" name="swoole_http_client.h" />
             <file role="src" name="swoole_http_client.c" />
+            <file role="src" name="swoole_http_v2_client.h" />
             <file role="src" name="swoole_http_v2_client.c" />
             <file role="src" name="swoole_http_v2_server.c" />
+            <file role="src" name="swoole_http_v2_client_coro.c" />
             <file role="src" name="swoole_http.h" />
             <file role="src" name="swoole_websocket_server.c" />
             <file role="src" name="swoole_atomic.c" />
