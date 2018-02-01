@@ -971,6 +971,9 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_ringqueue_init(module_number TSRMLS_CC);
 #ifdef SW_USE_HTTP2
     swoole_http2_client_init(module_number TSRMLS_CC);
+#ifdef SW_COROUTINE
+    swoole_http2_client_coro_init(module_number TSRMLS_CC);
+#endif
 #endif
 
 #if PHP_MAJOR_VERSION >= 7
