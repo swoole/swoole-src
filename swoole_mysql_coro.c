@@ -150,6 +150,13 @@ void swoole_mysql_coro_init(int module_number TSRMLS_DC)
     swoole_mysql_coro_exception_class_entry_ptr = sw_zend_register_internal_class_ex(&swoole_mysql_coro_exception_ce,
             zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
 
+    if (SWOOLE_G(use_shortname))
+    {
+        zend_register_class_alias("Co\\MySQL", swoole_mysql_coro_class_entry_ptr);
+        zend_register_class_alias("Co\\MySQL\\Statement", swoole_mysql_coro_statement_class_entry_ptr);
+        zend_register_class_alias("Co\\MySQL\\Exception", swoole_mysql_coro_exception_class_entry_ptr);
+    }
+
     zend_declare_property_string(swoole_mysql_coro_class_entry_ptr, SW_STRL("serverInfo") - 1, "", ZEND_ACC_PRIVATE TSRMLS_CC);
 	zend_declare_property_long(swoole_mysql_coro_class_entry_ptr, SW_STRL("sock") - 1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
 	zend_declare_property_bool(swoole_mysql_coro_class_entry_ptr, SW_STRL("connected") - 1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);

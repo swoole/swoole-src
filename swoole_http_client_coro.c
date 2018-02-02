@@ -354,6 +354,11 @@ void swoole_http_client_coro_init(int module_number TSRMLS_DC)
     swoole_http_client_coro_class_entry_ptr = zend_register_internal_class(&swoole_http_client_coro_ce TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_http_client_coro, "Swoole\\Coroutine\\Http\\Client");
 
+    if (SWOOLE_G(use_shortname))
+    {
+        zend_register_class_alias("Co\\Http\\Client", swoole_http_client_coro_class_entry_ptr);
+    }
+
     zend_declare_property_long(swoole_http_client_coro_class_entry_ptr, SW_STRL("type")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(swoole_http_client_coro_class_entry_ptr, SW_STRL("errCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(swoole_http_client_coro_class_entry_ptr, SW_STRL("statusCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);

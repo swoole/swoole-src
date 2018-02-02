@@ -255,6 +255,7 @@ PHP_FUNCTION(swoole_set_process_name);
 PHP_FUNCTION(swoole_get_local_ip);
 PHP_FUNCTION(swoole_get_local_mac);
 PHP_FUNCTION(swoole_unsupport_serialize);
+PHP_FUNCTION(swoole_coroutine_create);
 
 //---------------------------------------------------------
 //                  swoole_server
@@ -561,6 +562,7 @@ ZEND_BEGIN_MODULE_GLOBALS(swoole)
     zend_bool display_errors;
     zend_bool cli;
     zend_bool use_namespace;
+    zend_bool use_shortname;
     zend_bool fast_serialize;
     long socket_buffer_size;
 ZEND_END_MODULE_GLOBALS(swoole)

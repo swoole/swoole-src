@@ -976,6 +976,11 @@ void swoole_redis_coro_init(int module_number TSRMLS_DC)
     SWOOLE_INIT_CLASS_ENTRY(swoole_redis_coro_ce, "swoole_redis_coro", "Swoole\\Coroutine\\Redis", swoole_redis_coro_methods);
     swoole_redis_coro_class_entry_ptr = zend_register_internal_class(&swoole_redis_coro_ce TSRMLS_CC);
 
+    if (SWOOLE_G(use_shortname))
+    {
+        zend_register_class_alias("Co\\Redis", swoole_redis_coro_class_entry_ptr);
+    }
+
     zend_declare_property_null(swoole_redis_coro_class_entry_ptr, ZEND_STRL("setting"), ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_redis_coro_class_entry_ptr, ZEND_STRL("host"), ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_redis_coro_class_entry_ptr, ZEND_STRL("port"), ZEND_ACC_PUBLIC TSRMLS_CC);
