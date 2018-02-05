@@ -1059,15 +1059,6 @@ PHP_FUNCTION(swoole_async_set)
         convert_to_boolean(v);
         SwooleG.use_async_resolver = Z_BVAL_P(v);
     }
-    if (php_swoole_array_get_value(vht, "max_coroutine", v))
-    {
-        convert_to_long(v);
-        COROG.max_coro_num = (int) Z_LVAL_P(v);
-        if (COROG.max_coro_num <= 0)
-        {
-            COROG.max_coro_num = DEFAULT_MAX_CORO_NUM;
-        }
-    }
 #if defined(HAVE_REUSEPORT) && defined(HAVE_EPOLL)
     //reuse port
     if (php_swoole_array_get_value(vht, "enable_reuse_port", v))
