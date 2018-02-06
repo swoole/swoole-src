@@ -104,9 +104,27 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_key_long, 0, 0, 2)
     ZEND_ARG_INFO(0, integer)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_key_opt_long, 0, 0, 1)
+    ZEND_ARG_INFO(0, key)
+    ZEND_ARG_INFO(0, integer)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_incrByFloat, 0, 0, 2)
     ZEND_ARG_INFO(0, key)
     ZEND_ARG_INFO(0, float_number)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_zIncrBy, 0, 0, 3)
+    ZEND_ARG_INFO(0, key)
+    ZEND_ARG_INFO(0, value)
+    ZEND_ARG_INFO(0, member)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_zRange, 0, 0, 3)
+    ZEND_ARG_INFO(0, key)
+    ZEND_ARG_INFO(0, start)
+    ZEND_ARG_INFO(0, end)
+    ZEND_ARG_INFO(0, withscores)
 ZEND_END_ARG_INFO()
 
 #define IS_EX_PX_ARG(a) (IS_EX_ARG(a) || IS_PX_ARG(a))
@@ -863,8 +881,8 @@ static const zend_function_entry swoole_redis_coro_methods[] =
     PHP_MALIAS(swoole_redis_coro, scard, sSize, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, sPop, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, sMembers, arginfo_swoole_redis_coro_key, ZEND_ACC_PUBLIC)
-    PHP_MALIAS(swoole_redis_coro, sGetMembers, sMembers, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_redis_coro, sRandMember, NULL, ZEND_ACC_PUBLIC)
+    PHP_MALIAS(swoole_redis_coro, sGetMembers, sMembers, arginfo_swoole_redis_coro_key, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, sRandMember, arginfo_swoole_redis_coro_key_opt_long, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, persist, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, ttl, arginfo_swoole_redis_coro_key, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, pttl, arginfo_swoole_redis_coro_key, ZEND_ACC_PUBLIC)
@@ -912,12 +930,12 @@ static const zend_function_entry swoole_redis_coro_methods[] =
 	PHP_ME(swoole_redis_coro, hMGet, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, hExists, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, publish, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_redis_coro, zIncrBy, NULL, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_redis_coro, zIncrBy, arginfo_swoole_redis_coro_zIncrBy, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, zAdd, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, zDeleteRangeByScore, NULL, ZEND_ACC_PUBLIC)
     PHP_MALIAS(swoole_redis_coro, zRemRangeByScore, zDeleteRangeByScore, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, zCount, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_redis_coro, zRange, NULL, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_redis_coro, zRange, arginfo_swoole_redis_coro_zRange, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, zRevRange, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, zRangeByScore, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, zRevRangeByScore, NULL, ZEND_ACC_PUBLIC)
@@ -964,8 +982,8 @@ static const zend_function_entry swoole_redis_coro_methods[] =
 	PHP_ME(swoole_redis_coro, sUnionStore, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, sInter, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, sInterStore, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_redis_coro, sRemove, NULL, ZEND_ACC_PUBLIC)
-    PHP_MALIAS(swoole_redis_coro, srem, sRemove, NULL, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_redis_coro, sRemove, arginfo_swoole_redis_coro_key_value, ZEND_ACC_PUBLIC)
+    PHP_MALIAS(swoole_redis_coro, srem, sRemove, arginfo_swoole_redis_coro_key_value, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, zDelete, NULL, ZEND_ACC_PUBLIC)
     PHP_MALIAS(swoole_redis_coro, zRemove, zDelete, NULL, ZEND_ACC_PUBLIC)
     PHP_MALIAS(swoole_redis_coro, zRem, zDelete, NULL, ZEND_ACC_PUBLIC)
@@ -2922,9 +2940,10 @@ static PHP_METHOD(swoole_redis_coro, zAdd)
     int argc = ZEND_NUM_ARGS();
 
     SW_REDIS_COMMAND_ALLOC_ARGS_ARR
-    if(zend_get_parameters_array(ht, argc, z_args)==FAILURE) {
+    if (zend_get_parameters_array(ht, argc, z_args) == FAILURE)
+    {
         efree(z_args);
-		RETURN_FALSE;
+        RETURN_FALSE;
     }
 
 #if PHP_MAJOR_VERSION < 7
