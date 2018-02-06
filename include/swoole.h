@@ -142,7 +142,7 @@ typedef unsigned long ulong_t;
 #define SW_ASCII_CODE_Z     106
 /*----------------------------------------------------------------------------*/
 
-#include "../swoole_config.h"
+#include "swoole_config.h"
 #include "atomic.h"
 #include "hashmap.h"
 #include "list.h"
