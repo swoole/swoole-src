@@ -107,9 +107,8 @@ static const zend_function_entry swoole_channel_coro_methods[] =
 
 void swoole_channel_coro_init(int module_number TSRMLS_DC)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_channel_coro_ce, "swoole_channel_coro", "Swoole\\Coroutine\\Channel", swoole_channel_coro_methods);
+    INIT_CLASS_ENTRY(swoole_channel_coro_ce, "Swoole\\Coroutine\\Channel", swoole_channel_coro_methods);
     swoole_channel_coro_class_entry_ptr = zend_register_internal_class(&swoole_channel_coro_ce TSRMLS_CC);
-    SWOOLE_CLASS_ALIAS(swoole_channel_coro, "Swoole\\Coroutine\\Channel");
 
     if (SWOOLE_G(use_shortname))
     {

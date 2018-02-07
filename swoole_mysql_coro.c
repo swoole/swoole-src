@@ -136,17 +136,15 @@ extern swString *mysql_request_buffer;
 
 void swoole_mysql_coro_init(int module_number TSRMLS_DC)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_mysql_coro_ce, "swoole_mysql_coro", "Swoole\\Coroutine\\MySQL",
-            swoole_mysql_coro_methods);
+    INIT_CLASS_ENTRY(swoole_mysql_coro_ce, "Swoole\\Coroutine\\MySQL", swoole_mysql_coro_methods);
     swoole_mysql_coro_class_entry_ptr = zend_register_internal_class(&swoole_mysql_coro_ce TSRMLS_CC);
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_mysql_coro_statement_ce, "swoole_mysql_coro_statement",
-            "Swoole\\Coroutine\\MySQL\\Statement", swoole_mysql_coro_statement_methods);
+    INIT_CLASS_ENTRY(swoole_mysql_coro_statement_ce, "Swoole\\Coroutine\\MySQL\\Statement",
+            swoole_mysql_coro_statement_methods);
     swoole_mysql_coro_statement_class_entry_ptr = zend_register_internal_class(
             &swoole_mysql_coro_statement_ce TSRMLS_CC);
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_mysql_coro_exception_ce, "swoole_mysql_coro_exception",
-            "Swoole\\Coroutine\\MySQL\\Exception", NULL);
+    INIT_CLASS_ENTRY(swoole_mysql_coro_exception_ce, "Swoole\\Coroutine\\MySQL\\Exception", NULL);
     swoole_mysql_coro_exception_class_entry_ptr = sw_zend_register_internal_class_ex(&swoole_mysql_coro_exception_ce,
             zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
 

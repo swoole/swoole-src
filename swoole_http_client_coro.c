@@ -365,9 +365,8 @@ static void http_client_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
 
 void swoole_http_client_coro_init(int module_number TSRMLS_DC)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_http_client_coro_ce, "swoole_http_client_coro", "Swoole\\Coroutine\\Http\\Client", swoole_http_client_coro_methods);
+    INIT_CLASS_ENTRY(swoole_http_client_coro_ce, "Swoole\\Coroutine\\Http\\Client", swoole_http_client_coro_methods);
     swoole_http_client_coro_class_entry_ptr = zend_register_internal_class(&swoole_http_client_coro_ce TSRMLS_CC);
-    SWOOLE_CLASS_ALIAS(swoole_http_client_coro, "Swoole\\Coroutine\\Http\\Client");
 
     if (SWOOLE_G(use_shortname))
     {
