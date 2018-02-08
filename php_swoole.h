@@ -224,7 +224,7 @@ enum php_swoole_fd_type
 };
 //---------------------------------------------------------
 #define php_swoole_socktype(type)           (type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP) & (~SW_SOCK_SSL))
-#define php_swoole_array_length(array)      (Z_ARRVAL_P(array)->nNumOfElements)
+#define php_swoole_array_length(array)      zend_hash_num_elements(Z_ARRVAL_P(array))
 
 #define SW_LONG_CONNECTION_KEY_LEN          64
 
