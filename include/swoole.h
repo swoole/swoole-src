@@ -1812,18 +1812,24 @@ typedef struct _swChannel
     char head_tag;
     char tail_tag;
     int num;
+    int max_num;
+    /**
+     * Data length, excluding structure
+     */
     size_t bytes;
-    size_t capacity;
     int flag;
     int maxlen;
-    void *mem;   //内存块
+    /**
+     * memory point
+     */
+    void *mem;
     swLock lock;
     swPipe notify_fd;
 } swChannel;
 
 swChannel* swChannel_new(size_t size, int maxlen, int flag);
 #define swChannel_empty(ch) (ch->num == 0)
-#define swChannel_full(ch) ((ch->head == ch->tail && ch->tail_tag != ch->head_tag) || (ch->bytes + sizeof(int) * ch->num == ch->capacity))
+#define swChannel_full(ch) ((ch->head == ch->tail && ch->tail_tag != ch->head_tag) || (ch->bytes + sizeof(int) * ch->num == ch->size))
 int swChannel_pop(swChannel *object, void *out, int buffer_length);
 int swChannel_push(swChannel *object, void *in, int data_length);
 int swChannel_out(swChannel *object, void *out, int buffer_length);
@@ -1832,11 +1838,6 @@ int swChannel_wait(swChannel *object);
 int swChannel_notify(swChannel *object);
 void swChannel_free(swChannel *object);
 void swChannel_print(swChannel *);
-
-static sw_inline size_t swChannel_compute_size(int capacity, int max_size)
-{
-    return sizeof(swChannel) + (capacity * (max_size + sizeof(int)));
-}
 
 swLinkedList* swLinkedList_new(uint8_t type, swDestructor dtor);
 int swLinkedList_append(swLinkedList *ll, void *data);

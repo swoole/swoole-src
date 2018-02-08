@@ -111,6 +111,11 @@ void* swLinkedList_pop(swLinkedList *ll)
 
 void swLinkedList_remove_node(swLinkedList *ll, swLinkedList_node *remove_node)
 {
+    if (ll->num == 0)
+    {
+        return;
+    }
+
     swLinkedList_node *prev = remove_node->prev;
     swLinkedList_node *next = remove_node->next;
 
