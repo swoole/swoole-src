@@ -74,7 +74,7 @@ static PHP_METHOD(swoole_channel_coro, isFull);
 static PHP_METHOD(swoole_channel_coro, select);
 
 static zend_class_entry swoole_channel_coro_ce;
-zend_class_entry *swoole_channel_coro_class_entry_ptr;
+static zend_class_entry *swoole_channel_coro_class_entry_ptr;
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_channel_coro_construct, 0, 0, 1)
     ZEND_ARG_INFO(0, size)
