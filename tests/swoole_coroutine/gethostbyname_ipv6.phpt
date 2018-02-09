@@ -9,10 +9,9 @@ require_once __DIR__ . "/../include/swoole.inc";
 use Swoole\Coroutine as co;
 
 co::create(function () {
-    $ip = co::gethostbyname('www.baidu.com', AF_INET6);
-    echo $ip."\n";
+    $ip = co::gethostbyname('ipv6.baidu.com', AF_INET6);
+    assert(!empty($ip));
 });
 
 ?>
 --EXPECT--
-::1

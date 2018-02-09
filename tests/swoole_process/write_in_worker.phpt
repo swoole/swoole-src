@@ -41,4 +41,6 @@ $serv->addProcess($process);
 $serv->start();
 ?>
 --EXPECT--
-SUCCESS
+worker end
+process start
+process end
