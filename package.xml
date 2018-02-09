@@ -47,7 +47,9 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-    - No longer support PHP5
+    - Added shortname
+	- Added channel
+	- Added non-namespace style API
     </notes>
     <contents>
         <dir name="/">
