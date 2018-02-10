@@ -1839,13 +1839,16 @@ int swChannel_notify(swChannel *object);
 void swChannel_free(swChannel *object);
 void swChannel_print(swChannel *);
 
+/*----------------------------LinkedList-------------------------------*/
 swLinkedList* swLinkedList_new(uint8_t type, swDestructor dtor);
 int swLinkedList_append(swLinkedList *ll, void *data);
 void swLinkedList_remove_node(swLinkedList *ll, swLinkedList_node *remove_node);
 int swLinkedList_prepend(swLinkedList *ll, void *data);
 void* swLinkedList_pop(swLinkedList *ll);
 void* swLinkedList_shift(swLinkedList *ll);
+swLinkedList_node* swLinkedList_find(swLinkedList *ll, void *data);
 void swLinkedList_free(swLinkedList *ll);
+#define swLinkedList_remove(ll, data) (swLinkedList_remove_node(ll, swLinkedList_find(ll, data)))
 /*----------------------------Thread Pool-------------------------------*/
 enum swThread_type
 {
