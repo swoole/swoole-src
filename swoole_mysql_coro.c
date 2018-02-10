@@ -1007,6 +1007,8 @@ static PHP_METHOD(swoole_mysql_coro_statement, __destruct)
     }
     efree(stmt->object);
     stmt->object = NULL;
+    swLinkedList_remove(stmt->client->statement_list, stmt);
+    efree(stmt);
 }
 
 #ifdef SW_USE_MYSQLND
@@ -1074,9 +1076,10 @@ static PHP_METHOD(swoole_mysql_coro, __destruct)
     {
         swoole_mysql_coro_close(getThis());
     }
-	if (client->buffer) {
-		swString_free(client->buffer);
-	}
+    if (client->buffer)
+    {
+        swString_free(client->buffer);
+    }
     efree(client);
     swoole_set_object(getThis(), NULL);
 
