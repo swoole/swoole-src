@@ -34,11 +34,11 @@ $pm->childFunc = function () use ($pm)
         $ch = new \Swoole\Channel(1);
         $out = new \Swoole\Channel(1);
         Swoole\Coroutine::create(function() use ($ch, $out) {
-            $tmp = $ch->coro_pop();
-            $out->coro_push("OK");
+            $tmp = $ch->pop();
+            $out->push("OK");
             });
-        $ch->coro_push("test");
-        $ret = $out->coro_pop();
+        $ch->push("test");
+        $ret = $out->pop();
         $response->end("$ret\n");
     });
     $http->start();

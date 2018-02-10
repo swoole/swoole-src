@@ -136,19 +136,24 @@ extern swString *mysql_request_buffer;
 
 void swoole_mysql_coro_init(int module_number TSRMLS_DC)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_mysql_coro_ce, "swoole_mysql_coro", "Swoole\\Coroutine\\MySQL",
-            swoole_mysql_coro_methods);
+    INIT_CLASS_ENTRY(swoole_mysql_coro_ce, "Swoole\\Coroutine\\MySQL", swoole_mysql_coro_methods);
     swoole_mysql_coro_class_entry_ptr = zend_register_internal_class(&swoole_mysql_coro_ce TSRMLS_CC);
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_mysql_coro_statement_ce, "swoole_mysql_coro_statement",
-            "Swoole\\Coroutine\\MySQL\\Statement", swoole_mysql_coro_statement_methods);
+    INIT_CLASS_ENTRY(swoole_mysql_coro_statement_ce, "Swoole\\Coroutine\\MySQL\\Statement",
+            swoole_mysql_coro_statement_methods);
     swoole_mysql_coro_statement_class_entry_ptr = zend_register_internal_class(
             &swoole_mysql_coro_statement_ce TSRMLS_CC);
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_mysql_coro_exception_ce, "swoole_mysql_coro_exception",
-            "Swoole\\Coroutine\\MySQL\\Exception", NULL);
+    INIT_CLASS_ENTRY(swoole_mysql_coro_exception_ce, "Swoole\\Coroutine\\MySQL\\Exception", NULL);
     swoole_mysql_coro_exception_class_entry_ptr = sw_zend_register_internal_class_ex(&swoole_mysql_coro_exception_ce,
             zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
+
+    if (SWOOLE_G(use_shortname))
+    {
+        zend_register_class_alias("Co\\MySQL", swoole_mysql_coro_class_entry_ptr);
+        zend_register_class_alias("Co\\MySQL\\Statement", swoole_mysql_coro_statement_class_entry_ptr);
+        zend_register_class_alias("Co\\MySQL\\Exception", swoole_mysql_coro_exception_class_entry_ptr);
+    }
 
     zend_declare_property_string(swoole_mysql_coro_class_entry_ptr, SW_STRL("serverInfo") - 1, "", ZEND_ACC_PRIVATE TSRMLS_CC);
 	zend_declare_property_long(swoole_mysql_coro_class_entry_ptr, SW_STRL("sock") - 1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
@@ -1002,6 +1007,8 @@ static PHP_METHOD(swoole_mysql_coro_statement, __destruct)
     }
     efree(stmt->object);
     stmt->object = NULL;
+    swLinkedList_remove(stmt->client->statement_list, stmt);
+    efree(stmt);
 }
 
 #ifdef SW_USE_MYSQLND
@@ -1069,9 +1076,10 @@ static PHP_METHOD(swoole_mysql_coro, __destruct)
     {
         swoole_mysql_coro_close(getThis());
     }
-	if (client->buffer) {
-		swString_free(client->buffer);
-	}
+    if (client->buffer)
+    {
+        swString_free(client->buffer);
+    }
     efree(client);
     swoole_set_object(getThis(), NULL);
 

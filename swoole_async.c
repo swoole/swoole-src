@@ -375,7 +375,7 @@ static void php_swoole_aio_onComplete(swAio_event *event)
     bzero(&_zwriten, sizeof(zval));
 #endif
 
-    if (event->type == SW_AIO_DNS_LOOKUP)
+    if (event->type == SW_AIO_GETHOSTBYNAME)
     {
         dns_req = (dns_request *) event->req;
         if (dns_req->callback == NULL)
@@ -456,7 +456,7 @@ static void php_swoole_aio_onComplete(swAio_event *event)
         args[1] = &zwriten;
         ZVAL_LONG(zwriten, ret);
     }
-    else if(event->type == SW_AIO_DNS_LOOKUP)
+    else if(event->type == SW_AIO_GETHOSTBYNAME)
     {
         args[0] = &dns_req->domain;
 #if PHP_MAJOR_VERSION < 7
@@ -1058,15 +1058,6 @@ PHP_FUNCTION(swoole_async_set)
     {
         convert_to_boolean(v);
         SwooleG.use_async_resolver = Z_BVAL_P(v);
-    }
-    if (php_swoole_array_get_value(vht, "max_coroutine", v))
-    {
-        convert_to_long(v);
-        COROG.max_coro_num = (int) Z_LVAL_P(v);
-        if (COROG.max_coro_num <= 0)
-        {
-            COROG.max_coro_num = DEFAULT_MAX_CORO_NUM;
-        }
     }
 #if defined(HAVE_REUSEPORT) && defined(HAVE_EPOLL)
     //reuse port

@@ -29,6 +29,25 @@ coro_global COROG;
 static int alloc_cidmap();
 static void free_cidmap(int cid);
 
+#if PHP_MAJOR_VERSION >= 7 && PHP_MINOR_VERSION >= 2
+static inline void sw_vm_stack_init(void)
+{
+    uint32_t size = COROG.stack_size;
+    zend_vm_stack page = (zend_vm_stack) emalloc(size);
+
+    page->top = ZEND_VM_STACK_ELEMENTS(page);
+    page->end = (zval*) ((char*) page + size);
+    page->prev = NULL;
+
+    EG(vm_stack) = page;
+    EG(vm_stack)->top++;
+    EG(vm_stack_top) = EG(vm_stack)->top;
+    EG(vm_stack_end) = EG(vm_stack)->end;
+}
+#else
+#define sw_vm_stack_init zend_vm_stack_init
+#endif
+
 int coro_init(TSRMLS_D)
 {
 #if PHP_MAJOR_VERSION < 7
@@ -43,6 +62,10 @@ int coro_init(TSRMLS_D)
     if (COROG.max_coro_num <= 0)
     {
         COROG.max_coro_num = DEFAULT_MAX_CORO_NUM;
+    }
+    if (COROG.stack_size <= 0)
+    {
+        COROG.stack_size = DEFAULT_STACK_SIZE;
     }
     COROG.require = 0;
     swReactorCheckPoint = emalloc(sizeof(jmp_buf));
@@ -227,7 +250,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     zend_op_array *op_array = (zend_op_array *) fci_cache->function_handler;
     zend_object *object;
     int i;
-    zend_vm_stack_init();
+    sw_vm_stack_init();
 
     swTraceLog(SW_TRACE_COROUTINE, "Create coroutine id %d.", cid);
 

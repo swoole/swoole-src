@@ -276,6 +276,10 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_async_dns_lookup_coro, 0, 0, 1)
     ZEND_ARG_INFO(0, domain_name)
 ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_create, 0, 0, 1)
+    ZEND_ARG_INFO(0, func)
+ZEND_END_ARG_INFO()
 #endif
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_async_exec, 0, 0, 2)
@@ -358,6 +362,8 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_async_dns_lookup, arginfo_swoole_async_dns_lookup)
 #ifdef SW_COROUTINE
     PHP_FE(swoole_async_dns_lookup_coro, arginfo_swoole_async_dns_lookup_coro)
+    PHP_FE(swoole_coroutine_create, arginfo_swoole_coroutine_create)
+    PHP_FALIAS(go, swoole_coroutine_create, arginfo_swoole_coroutine_create)
 #endif
     /*------other-----*/
     PHP_FE(swoole_client_select, arginfo_swoole_client_select)
@@ -536,6 +542,10 @@ STD_PHP_INI_ENTRY("swoole.display_errors", "On", PHP_INI_ALL, OnUpdateBool, disp
  */
 STD_PHP_INI_ENTRY("swoole.use_namespace", "On", PHP_INI_SYSTEM, OnUpdateBool, use_namespace, zend_swoole_globals, swoole_globals)
 /**
+ * use an short class name
+ */
+STD_PHP_INI_ENTRY("swoole.use_shortname", "On", PHP_INI_SYSTEM, OnUpdateBool, use_shortname, zend_swoole_globals, swoole_globals)
+/**
  * enable swoole_serialize
  */
 STD_PHP_INI_ENTRY("swoole.fast_serialize", "Off", PHP_INI_ALL, OnUpdateBool, fast_serialize, zend_swoole_globals, swoole_globals)
@@ -551,6 +561,7 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
     swoole_globals->socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
     swoole_globals->display_errors = 1;
     swoole_globals->use_namespace = 1;
+    swoole_globals->use_shortname = 1;
     swoole_globals->fast_serialize = 0;
 }
 
@@ -885,6 +896,15 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_server_class_entry_ptr = zend_register_internal_class(&swoole_server_ce TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_server, "Swoole\\Server");
 
+    if (!SWOOLE_G(use_shortname))
+    {
+        sw_zend_hash_del(CG(function_table), ZEND_STRS("go"));
+    }
+    else
+    {
+        zend_register_class_alias("Co\\Server", swoole_server_class_entry_ptr);
+    }
+
     zend_declare_property_null(swoole_server_class_entry_ptr, ZEND_STRL("onConnect"), ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_server_class_entry_ptr, ZEND_STRL("onReceive"), ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_server_class_entry_ptr, ZEND_STRL("onClose"), ZEND_ACC_PUBLIC TSRMLS_CC);
@@ -971,6 +991,9 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_ringqueue_init(module_number TSRMLS_CC);
 #ifdef SW_USE_HTTP2
     swoole_http2_client_init(module_number TSRMLS_CC);
+#ifdef SW_COROUTINE
+    swoole_http2_client_coro_init(module_number TSRMLS_CC);
+#endif
 #endif
 
 #if PHP_MAJOR_VERSION >= 7

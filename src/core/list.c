@@ -111,6 +111,11 @@ void* swLinkedList_pop(swLinkedList *ll)
 
 void swLinkedList_remove_node(swLinkedList *ll, swLinkedList_node *remove_node)
 {
+    if (ll->num == 0 || remove_node == NULL)
+    {
+        return;
+    }
+
     swLinkedList_node *prev = remove_node->prev;
     swLinkedList_node *next = remove_node->next;
 
@@ -145,6 +150,29 @@ void swLinkedList_remove_node(swLinkedList *ll, swLinkedList_node *remove_node)
     }
     ll->num--;
     sw_free(remove_node);
+}
+
+swLinkedList_node* swLinkedList_find(swLinkedList *ll, void *data)
+{
+    if (ll->num == 0)
+    {
+        return NULL;
+    }
+
+    swLinkedList_node *node = ll->head;
+    swLinkedList_node *tmp;
+
+    while (node)
+    {
+        tmp = node->next;
+        if (node->data == data)
+        {
+            return node;
+        }
+        node = tmp;
+    }
+
+    return NULL;
 }
 
 void* swLinkedList_shift(swLinkedList *ll)
