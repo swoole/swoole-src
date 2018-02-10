@@ -1069,7 +1069,7 @@ static PHP_METHOD(swoole_coroutine_util, gethostbyname)
     memcpy(ev.buf, domain_name, l_domain_name);
     ((char *) ev.buf)[l_domain_name] = 0;
     ev.flags = family;
-    ev.type = SW_AIO_DNS_LOOKUP;
+    ev.type = SW_AIO_GETHOSTBYNAME;
     ev.object = sw_current_context;
     ev.callback = coro_dns_onResolveCompleted;
 

@@ -1,18 +1,20 @@
 /*
-  +----------------------------------------------------------------------+
-  | Swoole                                                               |
-  +----------------------------------------------------------------------+
-  | This source file is subject to version 2.0 of the Apache license,    |
-  | that is bundled with this package in the file LICENSE, and is        |
-  | available through the world-wide-web at the following url:           |
-  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
-  | If you did not receive a copy of the Apache2.0 license and are unable|
-  | to obtain it through the world-wide-web, please send a note to       |
-  | license@swoole.com so we can mail you a copy immediately.            |
-  +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
-  +----------------------------------------------------------------------+
-*/
+ +----------------------------------------------------------------------+
+ | Swoole                                                               |
+ +----------------------------------------------------------------------+
+ | Copyright (c) 2012-2018 The Swoole Group                             |
+ +----------------------------------------------------------------------+
+ | This source file is subject to version 2.0 of the Apache license,    |
+ | that is bundled with this package in the file LICENSE, and is        |
+ | available through the world-wide-web at the following url:           |
+ | http://www.apache.org/licenses/LICENSE-2.0.html                      |
+ | If you did not receive a copy of the Apache2.0 license and are unable|
+ | to obtain it through the world-wide-web, please send a note to       |
+ | license@swoole.com so we can mail you a copy immediately.            |
+ +----------------------------------------------------------------------+
+ | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+ +----------------------------------------------------------------------+
+ */
 
 #include "swoole.h"
 #include "async.h"
@@ -26,6 +28,11 @@ static int swAioBase_read(int fd, void *inbuf, size_t size, off_t offset);
 static int swAioBase_write(int fd, void *inbuf, size_t size, off_t offset);
 static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len);
 static int swAioBase_onFinish(swReactor *reactor, swEvent *event);
+
+static void swAio_handler_read(swAio_event *event);
+static void swAio_handler_write(swAio_event *event);
+static void swAio_handler_gethostbyname(swAio_event *event);
+static void swAio_handler_getaddrinfo(swAio_event *event);
 
 static swThreadPool swAioBase_thread_pool;
 static int swAioBase_pipe_read;
@@ -182,6 +189,11 @@ int swAioBase_init(int max_aio_events)
     swAioBase_pipe_read = swoole_aio_pipe.getFd(&swoole_aio_pipe, 0);
     swAioBase_pipe_write = swoole_aio_pipe.getFd(&swoole_aio_pipe, 1);
 
+    SwooleAIO.handlers[SW_AIO_READ] = swAio_handler_read;
+    SwooleAIO.handlers[SW_AIO_WRITE] = swAio_handler_write;
+    SwooleAIO.handlers[SW_AIO_GETHOSTBYNAME] = swAio_handler_gethostbyname;
+    SwooleAIO.handlers[SW_AIO_GETADDRINFO] = swAio_handler_getaddrinfo;
+
     SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_AIO, swAioBase_onFinish);
     SwooleG.main_reactor->add(SwooleG.main_reactor, swAioBase_pipe_read, SW_FD_AIO);
 
@@ -197,119 +209,130 @@ int swAioBase_init(int max_aio_events)
     return SW_OK;
 }
 
-static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len)
+static void swAio_handler_read(swAio_event *event)
 {
-    swAio_event *event = task;
-    struct in_addr addr_v4;
-    struct in6_addr addr_v6;
-
     int ret = -1;
-
-    start_switch:
-    switch(event->type)
+    if (flock(event->fd, LOCK_SH) < 0)
     {
-    case SW_AIO_WRITE:
-        if (flock(event->fd, LOCK_EX) < 0)
+        swSysError("flock(%d, LOCK_SH) failed.", event->fd);
+        event->ret = -1;
+        event->error = errno;
+        return;
+    }
+    while (1)
+    {
+        ret = pread(event->fd, event->buf, event->nbytes, event->offset);
+        if (ret < 0 && (errno == EINTR || errno == EAGAIN))
         {
-            swSysError("flock(%d, LOCK_EX) failed.", event->fd);
-            break;
+            continue;
         }
-        if (event->offset == 0)
-        {
-            ret = write(event->fd, event->buf, event->nbytes);
-        }
-        else
-        {
-            ret = pwrite(event->fd, event->buf, event->nbytes, event->offset);
-        }
-#if 0
+        break;
+    }
+    if (flock(event->fd, LOCK_UN) < 0)
+    {
+        swSysError("flock(%d, LOCK_UN) failed.", event->fd);
+    }
+    event->ret = ret;
+}
+
+static void swAio_handler_write(swAio_event *event)
+{
+    int ret = -1;
+    if (flock(event->fd, LOCK_EX) < 0)
+    {
+        swSysError("flock(%d, LOCK_EX) failed.", event->fd);
+        return;
+    }
+    if (event->offset == 0)
+    {
+        ret = write(event->fd, event->buf, event->nbytes);
+    }
+    else
+    {
+        ret = pwrite(event->fd, event->buf, event->nbytes, event->offset);
+    }
+    if (event->flags & SW_AIO_WRITE_FSYNC)
+    {
         if (fsync(event->fd) < 0)
         {
             swSysError("fsync(%d) failed.", event->fd);
         }
-#endif
-        if (flock(event->fd, LOCK_UN) < 0)
-        {
-            swSysError("flock(%d, LOCK_UN) failed.", event->fd);
-        }
-        break;
-    case SW_AIO_READ:
-        if (flock(event->fd, LOCK_SH) < 0)
-        {
-            swSysError("flock(%d, LOCK_SH) failed.", event->fd);
-            break;
-        }
-        ret = pread(event->fd, event->buf, event->nbytes, event->offset);
-        if (flock(event->fd, LOCK_UN) < 0)
-        {
-            swSysError("flock(%d, LOCK_UN) failed.", event->fd);
-        }
-        break;
-    case SW_AIO_DNS_LOOKUP:
-
-#ifndef HAVE_GETHOSTBYNAME2_R
-        SwooleAIO.lock.lock(&SwooleAIO.lock);
-#endif
-        if (event->flags == AF_INET6)
-        {
-            ret = swoole_gethostbyname(AF_INET6, event->buf, (char *) &addr_v6);
-        }
-        else
-        {
-            ret = swoole_gethostbyname(AF_INET, event->buf, (char *) &addr_v4);
-        }
-        bzero(event->buf, event->nbytes);
-#ifndef HAVE_GETHOSTBYNAME2_R
-        SwooleAIO.lock.unlock(&SwooleAIO.lock);
-#endif
-        if (ret < 0)
-        {
-            event->error = h_errno;
-        }
-        else
-        {
-            if (inet_ntop(event->flags == AF_INET6 ? AF_INET6 : AF_INET, event->flags == AF_INET6 ? (void *) &addr_v6 : (void *) &addr_v4, event->buf,
-                    event->nbytes) == NULL)
-            {
-                ret = -1;
-                event->error = SW_ERROR_BAD_IPV6_ADDRESS;
-            }
-            else
-            {
-                event->error = 0;
-                ret = 0;
-            }
-        }
-        break;
-
-    case SW_AIO_GETADDRINFO:
-        event->error = swoole_getaddrinfo((swRequest_getaddrinfo *) event->req);
-        break;
-
-    default:
-        swWarn("unknow aio task.");
-        break;
     }
-
+    if (flock(event->fd, LOCK_UN) < 0)
+    {
+        swSysError("flock(%d, LOCK_UN) failed.", event->fd);
+    }
     event->ret = ret;
+}
+
+static void swAio_handler_gethostbyname(swAio_event *event)
+{
+    struct in_addr addr_v4;
+    struct in6_addr addr_v6;
+    int ret;
+
+#ifndef HAVE_GETHOSTBYNAME2_R
+    SwooleAIO.lock.lock(&SwooleAIO.lock);
+#endif
+    if (event->flags == AF_INET6)
+    {
+        ret = swoole_gethostbyname(AF_INET6, event->buf, (char *) &addr_v6);
+    }
+    else
+    {
+        ret = swoole_gethostbyname(AF_INET, event->buf, (char *) &addr_v4);
+    }
+    bzero(event->buf, event->nbytes);
+#ifndef HAVE_GETHOSTBYNAME2_R
+    SwooleAIO.lock.unlock(&SwooleAIO.lock);
+#endif
+
     if (ret < 0)
     {
-        if (errno == EINTR || errno == EAGAIN)
+        event->error = h_errno;
+    }
+    else
+    {
+        if (inet_ntop(event->flags == AF_INET6 ? AF_INET6 : AF_INET,
+                event->flags == AF_INET6 ? (void *) &addr_v6 : (void *) &addr_v4, event->buf, event->nbytes) == NULL)
         {
-            errno = 0;
-            goto start_switch;
+            ret = -1;
+            event->error = SW_ERROR_BAD_IPV6_ADDRESS;
         }
-        else if (event->error == 0)
+        else
         {
-            event->error = errno;
+            event->error = 0;
+            ret = 0;
         }
     }
+    event->ret = ret;
+}
 
-    swTrace("aio_thread ok. ret=%d, error=%d", ret, event->error);
-    do
+static void swAio_handler_getaddrinfo(swAio_event *event)
+{
+    swRequest_getaddrinfo *req = (swRequest_getaddrinfo *) event->req;
+    event->ret = swoole_getaddrinfo(req);
+    event->error = req->error;
+}
+
+static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len)
+{
+    swAio_event *event = task;
+    if (event->type >= SW_AIO_HANDLER_MAX_SIZE || SwooleAIO.handlers[event->type] == NULL)
+    {
+        event->error = SW_ERROR_AIO_BAD_REQUEST;
+        event->ret = -1;
+        goto _error;
+    }
+
+    SwooleAIO.handlers[event->type](event);
+
+    swTrace("aio_thread ok. ret=%d, error=%d", event->ret, event->error);
+
+    _error: do
     {
         SwooleAIO.lock.lock(&SwooleAIO.lock);
-        ret = write(swAioBase_pipe_write, &task, sizeof(task));
+        int ret = write(swAioBase_pipe_write, &task, sizeof(task));
         SwooleAIO.lock.unlock(&SwooleAIO.lock);
         if (ret < 0)
         {
@@ -318,17 +341,17 @@ static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len)
                 swYield();
                 continue;
             }
-            else if(errno == EINTR)
+            else if (errno == EINTR)
             {
                 continue;
             }
             else
             {
-                swWarn("sendto swoole_aio_pipe_write failed. Error: %s[%d]", strerror(errno), errno);
+                swSysError("sendto swoole_aio_pipe_write failed.");
             }
         }
         break;
-    } while(1);
+    } while (1);
 
     return SW_OK;
 }
@@ -372,7 +395,7 @@ int swAio_dns_lookup(void *hostname, void *ip_addr, size_t size)
     bzero(aio_ev, sizeof(swAio_event));
     aio_ev->buf = ip_addr;
     aio_ev->req = hostname;
-    aio_ev->type = SW_AIO_DNS_LOOKUP;
+    aio_ev->type = SW_AIO_GETHOSTBYNAME;
     aio_ev->nbytes = size;
     aio_ev->task_id = SwooleAIO.current_id++;
 

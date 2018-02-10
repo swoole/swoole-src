@@ -375,7 +375,7 @@ static void php_swoole_aio_onComplete(swAio_event *event)
     bzero(&_zwriten, sizeof(zval));
 #endif
 
-    if (event->type == SW_AIO_DNS_LOOKUP)
+    if (event->type == SW_AIO_GETHOSTBYNAME)
     {
         dns_req = (dns_request *) event->req;
         if (dns_req->callback == NULL)
@@ -456,7 +456,7 @@ static void php_swoole_aio_onComplete(swAio_event *event)
         args[1] = &zwriten;
         ZVAL_LONG(zwriten, ret);
     }
-    else if(event->type == SW_AIO_DNS_LOOKUP)
+    else if(event->type == SW_AIO_GETHOSTBYNAME)
     {
         args[0] = &dns_req->domain;
 #if PHP_MAJOR_VERSION < 7
