@@ -664,11 +664,13 @@ static void* swoole_unserialize_arr(void *buffer, zval *zvalue, uint32_t nNumOfE
     ht->nNumUsed = nNumOfElements;
     ht->nNumOfElements = nNumOfElements;
     ht->nNextFreeElement = 0;
+#ifdef HASH_FLAG_APPLY_PROTECTION
     ht->u.flags = HASH_FLAG_APPLY_PROTECTION;
+#endif
     ht->nTableMask = -(ht->nTableSize);
     ht->pDestructor = ZVAL_PTR_DTOR;
 
-    GC_REFCOUNT(ht) = 1;
+    GC_SET_REFCOUNT(ht, 1);
     GC_TYPE_INFO(ht) = IS_ARRAY;
     // if (ht->nNumUsed)
     //{
@@ -991,7 +993,7 @@ try_again:
             {
                 zend_array *ht = Z_ARRVAL_P(data);
 
-                if (ZEND_HASH_GET_APPLY_COUNT(ht) > 1)
+                if (GC_IS_RECURSIVE(ht) > 1)
                 {
                     php_error_docref(NULL TSRMLS_CC, E_NOTICE, "the array has cycle ref");
                 }
@@ -1000,9 +1002,9 @@ try_again:
                     seria_array_type(ht, buffer, p, buffer->offset);
                     if (ZEND_HASH_APPLY_PROTECTION(ht))
                     {
-                        ZEND_HASH_INC_APPLY_COUNT(ht);
+                        GC_PROTECT_RECURSION(ht);
                         swoole_serialize_arr(buffer, ht);
-                        ZEND_HASH_DEC_APPLY_COUNT(ht);
+                        GC_UNPROTECT_RECURSION(ht);
                     }
                     else
                     {
@@ -1028,9 +1030,9 @@ try_again:
 
                 if (ZEND_HASH_APPLY_PROTECTION(Z_OBJPROP_P(data)))
                 {
-                    ZEND_HASH_INC_APPLY_COUNT(Z_OBJPROP_P(data));
+                    GC_PROTECT_RECURSION(Z_OBJPROP_P(data));
                     swoole_serialize_object(buffer, data, p);
-                    ZEND_HASH_DEC_APPLY_COUNT(Z_OBJPROP_P(data));
+                    GC_UNPROTECT_RECURSION(Z_OBJPROP_P(data));
                 }
                 else
                 {
@@ -1096,7 +1098,7 @@ static CPINLINE void swoole_serialize_raw(seriaString *buffer, zval *zvalue)
 static void swoole_serialize_object(seriaString *buffer, zval *obj, size_t start)
 {
     zend_string *name = Z_OBJCE_P(obj)->name;
-    if (ZEND_HASH_GET_APPLY_COUNT(Z_OBJPROP_P(obj)) > 1)
+    if (GC_IS_RECURSIVE(Z_OBJPROP_P(obj)))
     {
         zend_throw_exception_ex(NULL, 0, "the object %s has cycle ref.", name->val);
         return;
@@ -1418,7 +1420,7 @@ PHPAPI zend_string* php_swoole_serialize(zval *zvalue)
     z_str->val[str.offset] = '\0';
     z_str->len = str.offset - _STR_HEADER_SIZE;
     z_str->h = 0;
-    GC_REFCOUNT(z_str) = 1;
+    GC_SET_REFCOUNT(z_str, 1);
     GC_TYPE_INFO(z_str) = IS_STRING_EX;
 
     return z_str;

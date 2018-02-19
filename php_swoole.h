@@ -591,4 +591,24 @@ extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
         zend_register_class_alias(name_ns, name##_class_entry_ptr);\
     }
 
+/* PHP 7.3 forward compatibility */
+#ifndef GC_SET_REFCOUNT
+# define GC_SET_REFCOUNT(p, rc) do { \
+		GC_REFCOUNT(p) = rc; \
+	} while (0)
+#endif
+
+#ifndef GC_IS_RECURSIVE
+# define GC_IS_RECURSIVE(p) \
+	(ZEND_HASH_GET_APPLY_COUNT(p) > 1)
+# define GC_PROTECT_RECURSION(p) \
+	ZEND_HASH_INC_APPLY_COUNT(p)
+# define GC_UNPROTECT_RECURSION(p) \
+	ZEND_HASH_DEC_APPLY_COUNT(p)
+#endif
+
+#ifndef ZEND_HASH_APPLY_PROTECTION
+# define ZEND_HASH_APPLY_PROTECTION(p) 1
+#endif
+
 #endif	/* PHP_SWOOLE_H */
