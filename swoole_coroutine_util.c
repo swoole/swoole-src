@@ -41,6 +41,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_fread, 0, 0, 1)
     ZEND_ARG_INFO(0, length)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_fgets, 0, 0, 1)
+    ZEND_ARG_INFO(0, handle)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_fwrite, 0, 0, 2)
     ZEND_ARG_INFO(0, handle)
     ZEND_ARG_INFO(0, string)
@@ -67,6 +71,7 @@ static PHP_METHOD(swoole_coroutine_util, resume);
 static PHP_METHOD(swoole_coroutine_util, getuid);
 static PHP_METHOD(swoole_coroutine_util, sleep);
 static PHP_METHOD(swoole_coroutine_util, fread);
+static PHP_METHOD(swoole_coroutine_util, fgets);
 static PHP_METHOD(swoole_coroutine_util, fwrite);
 static PHP_METHOD(swoole_coroutine_util, gethostbyname);
 static PHP_METHOD(swoole_coroutine_util, getaddrinfo);
@@ -88,6 +93,7 @@ static const zend_function_entry swoole_coroutine_util_methods[] =
     PHP_ME(swoole_coroutine_util, getuid, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, sleep, arginfo_swoole_coroutine_sleep, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, fread, arginfo_swoole_coroutine_fread, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_util, fgets, arginfo_swoole_coroutine_fgets, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, fwrite, arginfo_swoole_coroutine_fwrite, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, gethostbyname, arginfo_swoole_coroutine_gethostbyname, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, getaddrinfo, arginfo_swoole_coroutine_getaddrinfo, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -759,6 +765,40 @@ static void aio_onReadCompleted(swAio_event *event)
     efree(context);
 }
 
+static void aio_onStreamGetLineCompleted(swAio_event *event)
+{
+    zval *retval = NULL;
+    zval *result = NULL;
+    SW_MAKE_STD_ZVAL(result);
+
+    if (event->error == 0)
+    {
+        SW_ZVAL_STRINGL(result, event->buf, event->ret, 1);
+    }
+    else
+    {
+        ZVAL_BOOL(result, 0);
+    }
+
+    php_context *context = (php_context *) event->object;
+    php_stream *stream;
+    php_stream_from_zval_no_verify(stream, &context->coro_params);
+    stream->readpos = event->offset;
+    stream->writepos = (long) event->req;
+    if (event->flags & SW_AIO_EOF)
+    {
+        stream->eof = 1;
+    }
+
+    int ret = coro_resume(context, result, &retval);
+    if (ret == CORO_END && retval)
+    {
+        sw_zval_ptr_dtor(&retval);
+    }
+    sw_zval_ptr_dtor(&result);
+    efree(context);
+}
+
 static void aio_onWriteCompleted(swAio_event *event)
 {
     zval *retval = NULL;
@@ -853,6 +893,75 @@ static PHP_METHOD(swoole_coroutine_util, fread)
         RETURN_FALSE;
     }
 
+    context->onTimeout = NULL;
+    context->state = SW_CORO_CONTEXT_RUNNING;
+
+    coro_save(context);
+    coro_yield();
+}
+
+static PHP_METHOD(swoole_coroutine_util, fgets)
+{
+    zval *handle;
+    php_stream *stream;
+
+#ifdef FAST_ZPP
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_RESOURCE(handle)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+#else
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r", &handle) == FAILURE)
+    {
+        return;
+    }
+#endif
+
+    int fd = swoole_convert_to_fd(handle TSRMLS_CC);
+    swAio_event ev;
+    bzero(&ev, sizeof(swAio_event));
+
+    php_stream_from_res(stream, Z_RES_P(handle));
+
+    if (stream->readbuf == NULL)
+    {
+        stream->readbuflen = stream->chunk_size;
+        stream->readbuf = emalloc(stream->chunk_size);
+    }
+
+    ev.nbytes = stream->readbuflen;
+    ev.buf = stream->readbuf;
+    if (!ev.buf)
+    {
+        RETURN_FALSE;
+    }
+
+    php_context *context = emalloc(sizeof(php_context));
+
+    ev.flags = 0;
+    ev.type = SW_AIO_STREAM_GET_LINE;
+    ev.object = context;
+    ev.callback = aio_onStreamGetLineCompleted;
+    ev.fd = fd;
+    ev.offset = stream->readpos;
+    ev.req = (void *) (long) stream->writepos;
+
+    if (!SwooleAIO.init)
+    {
+        SwooleAIO.mode = SW_AIO_BASE;
+        php_swoole_check_reactor();
+        swAio_init();
+    }
+
+    swTrace("fd=%d, offset=%ld, length=%ld", fd, ev.offset, ev.nbytes);
+
+    int ret = swAio_dispatch(&ev);
+    if (ret < 0)
+    {
+        efree(context);
+        RETURN_FALSE;
+    }
+
+    context->coro_params = *handle;
     context->onTimeout = NULL;
     context->state = SW_CORO_CONTEXT_RUNNING;
 
