@@ -284,6 +284,12 @@ static void swAio_handler_stream_get_line(swAio_event *event)
                 readpos += event->ret;
                 goto _return;
             }
+            else if (readpos == 0 && writepos == event->nbytes)
+            {
+                writepos = 0;
+                event->ret = event->nbytes;
+                goto _return;
+            }
             else
             {
                 writepos = event->nbytes - readpos;
