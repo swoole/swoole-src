@@ -468,6 +468,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject TSRMLS_DC)
     {
         add_assoc_long(zsetting, "max_connection", serv->max_connection);
     }
+#ifdef HAVE_PTRACE
     //trace request
     if (serv->request_slowlog_file && (serv->trace_event_worker || SwooleG.task_worker_num > 0))
     {
@@ -478,6 +479,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject TSRMLS_DC)
             return;
         }
     }
+#endif
 
     int i;
     zval *retval = NULL;
