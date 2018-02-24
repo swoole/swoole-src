@@ -914,6 +914,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 {
     int ret;
     swServer *serv = SwooleG.serv;
+    swBuffer_trunk *chunk;
     int fd = ev->fd;
 
     if (serv->factory_mode == SW_MODE_PROCESS)
@@ -927,7 +928,11 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
     {
         return SW_ERR;
     }
-    else if (conn->connect_notify)
+
+    swTraceLog(SW_TRACE_REACTOR, "fd=%d, conn->connect_notify=%d, conn->close_notify=%d, serv->disable_notify=%d, conn->close_force=%d",
+            fd, conn->connect_notify, conn->close_notify, serv->disable_notify, conn->close_force);
+
+    if (conn->connect_notify)
     {
         conn->connect_notify = 0;
 #ifdef SW_USE_TIMEWHEEL
@@ -946,6 +951,10 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
         if (serv->onConnect)
         {
             swServer_tcp_notify(serv, conn, SW_EVENT_CONNECT);
+            if (!swBuffer_empty(conn->out_buffer))
+            {
+                goto _pop_chunk;
+            }
         }
         //delay receive, wait resume command.
         if (serv->enable_delay_receive)
@@ -978,9 +987,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
         return swReactorThread_close(reactor, fd);
     }
 
-    swBuffer_trunk *chunk;
-
-    while (!swBuffer_empty(conn->out_buffer))
+    _pop_chunk: while (!swBuffer_empty(conn->out_buffer))
     {
         chunk = swBuffer_get_trunk(conn->out_buffer);
         if (chunk->type == SW_CHUNK_CLOSE)
