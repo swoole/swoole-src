@@ -38,7 +38,9 @@ $pm->parentFunc = function ($pid) {
     $header .= "\r\n";
     $_sendStr = $header;
 
-    $client->send(substr($_sendStr, 0, 1024));
+    $client->send(substr($_sendStr, 0, 512));
+    usleep(200000);
+    $client->send(substr($_sendStr, 512, 512));
     usleep(200000);
     $client->send(substr($_sendStr, 1024));
     $data = $client->recv();
