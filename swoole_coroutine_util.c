@@ -365,6 +365,13 @@ static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_inf
     int i;
     zend_execute_data *call, *current_ex = EG(current_execute_data);
     zend_function *func = fci_cache->function_handler;
+
+    if (func->type == ZEND_INTERNAL_FUNCTION)
+    {
+        zend_call_function(fci, fci_cache);
+        return;
+    }
+
     zend_object *object = (func->common.fn_flags & ZEND_ACC_STATIC) ? NULL : fci_cache->object;
 #if ZEND_MODULE_API_NO < 20160303
     zend_class_entry* origal_scope = EG(scope);
@@ -442,7 +449,7 @@ static PHP_METHOD(swoole_coroutine_util, call_user_func)
 		Z_PARAM_VARIADIC('*', fci.params, fci.param_count)
 	ZEND_PARSE_PARAMETERS_END();
 
-    fci.retval = (execute_data->prev_execute_data->opline->result_type != IS_UNUSED) ? return_value : NULL;
+    fci.retval = return_value;
     swoole_corountine_call_function(&fci, &fci_cache, 0);
 }
 #endif
@@ -483,7 +490,7 @@ static PHP_METHOD(swoole_coroutine_util, call_user_func_array)
 
     zend_fcall_info_args(&fci, params);
 
-    fci.retval = (execute_data->prev_execute_data->opline->result_type != IS_UNUSED) ? return_value : NULL;
+    fci.retval = return_value;
     swoole_corountine_call_function(&fci, &fci_cache, 1);
 
     zend_fcall_info_args_clear(&fci, 1);
