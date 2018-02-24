@@ -376,6 +376,7 @@ enum swTraceType
     SW_TRACE_COROUTINE        = 1u << 15,
     SW_TRACE_REDIS_CLIENT     = 1u << 16,
     SW_TRACE_MYSQL_CLIENT     = 1u << 17,
+    SW_TRACE_AIO              = 1u << 18,
 };
 
 #if defined(SW_LOG_TRACE_OPEN) && SW_LOG_TRACE_OPEN

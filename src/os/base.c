@@ -271,7 +271,7 @@ static void swAio_handler_stream_get_line(swAio_event *event)
     {
         avail = writepos - readpos;
 
-        swTrace("readpos=%ld, writepos=%ld\n", readpos, writepos);
+        swTraceLog(SW_TRACE_AIO, "readpos=%ld, writepos=%ld", readpos, writepos);
 
         if (avail > 0)
         {
@@ -284,11 +284,22 @@ static void swAio_handler_stream_get_line(swAio_event *event)
                 readpos += event->ret;
                 goto _return;
             }
-            else if (readpos == 0 && writepos == event->nbytes)
+            else if (readpos == 0)
             {
-                writepos = 0;
-                event->ret = event->nbytes;
-                goto _return;
+                if (writepos == event->nbytes)
+                {
+                    writepos = 0;
+                    event->ret = event->nbytes;
+                    goto _return;
+                }
+                else
+                {
+                    event->flags = SW_AIO_EOF;
+                    ((char*) event->buf)[writepos] = '\0';
+                    event->ret = writepos;
+                    writepos = 0;
+                    goto _return;
+                }
             }
             else
             {
