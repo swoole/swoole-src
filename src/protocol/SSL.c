@@ -720,12 +720,16 @@ int swSSL_sendfile(swConnection *conn, int fd, off_t *offset, size_t size)
         ret = swSSL_send(conn, buf, n);
         if (ret < 0)
         {
-            swSysError("write() failed.");
+            if (swConnection_error(errno) == SW_ERROR)
+            {
+                swSysError("write() failed.");
+            }
         }
         else
         {
             *offset += ret;
         }
+        swTraceLog(SW_TRACE_REACTOR, "fd=%d, readn=%d, n=%d, ret=%d", fd, readn, n, ret);
         return ret;
     }
     else

@@ -149,7 +149,7 @@ static void channel_selector_onTimeout(swTimer *timer, swTimer_node *tnode)
     ZVAL_BOOL(result, 0);
 
     channel_node *node = tnode->data;
-    channel_selector *selector = tnode->data;
+    channel_selector *selector = node->selector;
 
     zval_ptr_dtor(selector->read_list);
     ZVAL_COPY_VALUE(selector->read_list, &selector->readable);
@@ -170,6 +170,7 @@ static void channel_selector_onTimeout(swTimer *timer, swTimer_node *tnode)
     }
     sw_zval_ptr_dtor(&result);
     efree(selector);
+    efree(node);
 }
 
 static void swoole_channel_onResume(php_context *ctx)

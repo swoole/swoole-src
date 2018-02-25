@@ -198,6 +198,10 @@ int php_swoole_task_pack(swEventData *task, zval *data TSRMLS_DC)
             task_data_str = serialized_data.c;
             task_data_len = serialized_data.len;
 #else
+            if(!serialized_data.s)
+            {
+                return -1;
+            }
             task_data_str = serialized_data.s->val;
             task_data_len = serialized_data.s->len;
 #endif
@@ -523,6 +527,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject TSRMLS_DC)
     {
         add_assoc_long(zsetting, "max_connection", serv->max_connection);
     }
+#ifdef HAVE_PTRACE
     //trace request
     if (serv->request_slowlog_file && (serv->trace_event_worker || SwooleG.task_worker_num > 0))
     {
@@ -533,6 +538,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject TSRMLS_DC)
             return;
         }
     }
+#endif
 
     int i;
     zval *retval = NULL;

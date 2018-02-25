@@ -35,11 +35,13 @@ enum swAioOpcode
     SW_AIO_WRITE = 1,
     SW_AIO_GETHOSTBYNAME = 2,
     SW_AIO_GETADDRINFO = 3,
+    SW_AIO_STREAM_GET_LINE = 4,
 };
 
 enum swAioFlag
 {
     SW_AIO_WRITE_FSYNC = 1u << 1,
+    SW_AIO_EOF         = 1u << 2,
 };
 
 typedef struct _swAio_event
