@@ -671,11 +671,11 @@ static void* swoole_unserialize_arr(void *buffer, zval *zvalue, uint32_t nNumOfE
     ht->nTableMask = -(ht->nTableSize);
     ht->pDestructor = ZVAL_PTR_DTOR;
 
-<<<<<<< HEAD
+/*<<<<<<< HEAD
     GC_REFCOUNT(ht) == 1;
-=======
+=======*/
     GC_SET_REFCOUNT(ht, 1);
->>>>>>> 9fec338ce9bcdeac86cd0b1d57d2d1a7ea21a9ca
+/*>>>>>>> 9fec338ce9bcdeac86cd0b1d57d2d1a7ea21a9ca*/
     GC_TYPE_INFO(ht) = IS_ARRAY;
     // if (ht->nNumUsed)
     //{
