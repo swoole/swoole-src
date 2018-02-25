@@ -1425,11 +1425,11 @@ PHPAPI zend_string* php_swoole_serialize(zval *zvalue)
     z_str->val[str.offset] = '\0';
     z_str->len = str.offset - _STR_HEADER_SIZE;
     z_str->h = 0;
-<<<<<<< HEAD
+/*<<<<<<< HEAD
     GC_REFCOUNT(z_str) == 1;
-=======
+=======*/
     GC_SET_REFCOUNT(z_str, 1);
->>>>>>> 9fec338ce9bcdeac86cd0b1d57d2d1a7ea21a9ca
+/*>>>>>>> 9fec338ce9bcdeac86cd0b1d57d2d1a7ea21a9ca*/
     GC_TYPE_INFO(z_str) = IS_STRING_EX;
 
     return z_str;
