@@ -453,6 +453,13 @@ static int swClient_close(swClient *cli)
 {
     int fd = cli->socket->fd;
     assert(fd != 0);
+
+    if (cli->close_defer)
+    {
+        cli->socket->close_wait = 1;
+        return SW_OK;
+    }
+
 #ifdef SW_USE_OPENSSL
     if (cli->open_ssl && cli->ssl_context)
     {
@@ -510,7 +517,6 @@ static int swClient_close(swClient *cli)
         if (!cli->socket->removed && cli->reactor)
         {
             cli->reactor->del(cli->reactor, fd);
-            cli->socket->removed = 1;
         }
         if (cli->timer)
         {
@@ -1072,8 +1078,10 @@ static int swClient_https_proxy_handshake(swClient *cli)
 static int swClient_onPackage(swConnection *conn, char *data, uint32_t length)
 {
     swClient *cli = (swClient *) conn->object;
+    cli->close_defer = 1;
     cli->onReceive(conn->object, data, length);
-    return SW_OK;
+    cli->close_defer = 0;
+    return cli->socket->close_wait ? SW_ERR : SW_OK;
 }
 
 static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
