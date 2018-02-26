@@ -15,8 +15,6 @@ require_once __DIR__ . "/../include/lib/curl.php";
 
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) {
-    $data = curlGet("http://127.0.0.1:9501/?a=".str_repeat('A', 4096));
-
     $client = new swoole_client(SWOOLE_SOCK_TCP);
     $client->set(array(
         'open_tcp_nodelay' => true,
