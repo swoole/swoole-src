@@ -511,6 +511,7 @@ void swWorker_onStart(swServer *serv)
         }
     }
 
+    SwooleWG.worker->status = SW_WORKER_IDLE;
     sw_shm_protect(serv->session_list, PROT_READ);
 
     if (serv->onWorkerStart)
@@ -531,6 +532,7 @@ static void swWorker_stop()
 {
     swWorker *worker = SwooleWG.worker;
     swServer *serv = SwooleG.serv;
+    worker->status = SW_WORKER_BUSY;
 
     /**
      * force to end
