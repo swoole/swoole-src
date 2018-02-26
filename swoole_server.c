@@ -1167,7 +1167,6 @@ static void php_swoole_onStart(swServer *serv)
     zend_update_property_long(swoole_server_class_entry_ptr, zserv, ZEND_STRL("manager_pid"), manager_pid TSRMLS_CC);
 
     args[0] = &zserv;
-    sw_zval_add_ref(&zserv);
 
     if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onStart], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
@@ -1198,7 +1197,6 @@ static void php_swoole_onManagerStart(swServer *serv)
     zend_update_property_long(swoole_server_class_entry_ptr, zserv, ZEND_STRL("manager_pid"), manager_pid TSRMLS_CC);
 
     args[0] = &zserv;
-    sw_zval_add_ref(&zserv);
 
     if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onManagerStart], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
@@ -1222,7 +1220,6 @@ static void php_swoole_onManagerStop(swServer *serv)
     zval *retval = NULL;
 
     args[0] = &zserv;
-    sw_zval_add_ref(&zserv);
 
     if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onManagerStop], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
@@ -1373,6 +1370,8 @@ static void php_swoole_onWorkerStop(swServer *serv, int worker_id)
 
     sw_zval_add_ref(&zobject);
 
+    printf("Z_REFCOUNT_P=%d\n", Z_REFCOUNT_P(zobject));
+
     SWOOLE_GET_TSRMLS;
 
     args[0] = &zobject;
@@ -1520,7 +1519,6 @@ void php_swoole_onConnect(swServer *serv, swDataHead *info)
     args[2] = &zfrom_id;
 #else
     args[0] = zserv;
-    sw_zval_add_ref(&zserv);
     args[1] = zfd;
     args[2] = zfrom_id;
 #endif
@@ -1598,7 +1596,6 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
     args[2] = &zfrom_id;
 #else
     args[0] = zserv;
-    sw_zval_add_ref(&zserv);
     args[1] = zfd;
     args[2] = zfrom_id;
 #endif
