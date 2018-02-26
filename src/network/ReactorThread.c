@@ -1395,6 +1395,7 @@ int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
         task.data.info.from_id = conn->from_id;
         task.data.info.from_fd = conn->from_fd;
         task.data.info.type = SW_EVENT_PACKAGE_END;
+        task.data.info.len = 0;
 
         if (swStream_send(stream, (char*) &task.data.info, sizeof(task.data.info)) < 0)
         {

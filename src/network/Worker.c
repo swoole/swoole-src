@@ -325,11 +325,13 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         {
             break;
         }
-        package = swWorker_get_buffer(serv, task->info.from_id);
-        //merge data to package buffer
-        memcpy(package->str + package->length, task->data, task->info.len);
-        package->length += task->info.len;
-
+        if (task->info.len > 0)
+        {
+            //merge data to package buffer
+            package = swWorker_get_buffer(serv, task->info.from_id);
+            memcpy(package->str + package->length, task->data, task->info.len);
+            package->length += task->info.len;
+        }
         //package end
         if (task->info.type == SW_EVENT_PACKAGE_END)
         {
