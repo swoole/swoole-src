@@ -444,6 +444,9 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject TSRMLS_DC)
 
     swTrace("Create swoole_server host=%s, port=%d, mode=%d, type=%d", serv->listen_list->host, (int) serv->listen_list->port, serv->factory_mode, (int) serv->listen_list->type);
 
+    sw_zval_add_ref(&zobject);
+    serv->ptr2 = sw_zval_dup(zobject);
+
     zval *zsetting = sw_zend_read_property(swoole_server_class_entry_ptr, zobject, ZEND_STRL("setting"), 1 TSRMLS_CC);
     if (zsetting == NULL || ZVAL_IS_NULL(zsetting))
     {
@@ -2247,8 +2250,6 @@ PHP_METHOD(swoole_server, start)
     }
     //-------------------------------------------------------------
     serv->onReceive = php_swoole_onReceive;
-    sw_zval_add_ref(&zobject);
-    serv->ptr2 = sw_zval_dup(zobject);
 
     php_swoole_server_before_start(serv, zobject TSRMLS_CC);
 
