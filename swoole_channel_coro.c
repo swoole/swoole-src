@@ -549,11 +549,19 @@ static PHP_METHOD(swoole_channel_coro, isFull)
 
 static PHP_METHOD(swoole_channel_coro, stats)
 {
+    channel_coro_property *property = swoole_get_property(getThis(), CHANNEL_CORO_PROPERTY_INDEX);
+
     swChannel *chan = swoole_get_object(getThis());
     array_init(return_value);
 
-    sw_add_assoc_long_ex(return_value, ZEND_STRS("queue_num"), chan->num);
-    sw_add_assoc_long_ex(return_value, ZEND_STRS("queue_bytes"), chan->bytes);
+    sw_add_assoc_long_ex(return_value, ZEND_STRS("consumer_num"), property->consumer_list->num);
+    sw_add_assoc_long_ex(return_value, ZEND_STRS("producer_num"), property->producer_list->num);
+
+    if (chan == NULL)
+    {
+        sw_add_assoc_long_ex(return_value, ZEND_STRS("queue_num"), chan->num);
+        sw_add_assoc_long_ex(return_value, ZEND_STRS("queue_bytes"), chan->bytes);
+    }
 }
 
 static PHP_METHOD(swoole_channel_coro, select)
