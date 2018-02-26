@@ -1015,7 +1015,6 @@ static void php_swoole_onStart(swServer *serv)
     zend_update_property_long(swoole_server_class_entry_ptr, zserv, ZEND_STRL("manager_pid"), manager_pid TSRMLS_CC);
 
     args[0] = &zserv;
-    sw_zval_add_ref(&zserv);
 
     if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onStart], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
@@ -1046,7 +1045,6 @@ static void php_swoole_onManagerStart(swServer *serv)
     zend_update_property_long(swoole_server_class_entry_ptr, zserv, ZEND_STRL("manager_pid"), manager_pid TSRMLS_CC);
 
     args[0] = &zserv;
-    sw_zval_add_ref(&zserv);
 
     if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onManagerStart], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
@@ -1070,7 +1068,6 @@ static void php_swoole_onManagerStop(swServer *serv)
     zval *retval = NULL;
 
     args[0] = &zserv;
-    sw_zval_add_ref(&zserv);
 
     if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onManagerStop], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
@@ -1202,7 +1199,7 @@ static void php_swoole_onWorkerStop(swServer *serv, int worker_id)
     SW_MAKE_STD_ZVAL(zworker_id);
     ZVAL_LONG(zworker_id, worker_id);
 
-    sw_zval_add_ref(&zobject);
+    printf("REFCOUNT=%d\n", Z_REFCOUNT_P(zobject));
 
     SWOOLE_GET_TSRMLS;
 
@@ -1233,8 +1230,6 @@ static void php_swoole_onWorkerExit(swServer *serv, int worker_id)
 
     SW_MAKE_STD_ZVAL(zworker_id);
     ZVAL_LONG(zworker_id, worker_id);
-
-    sw_zval_add_ref(&zobject);
 
     SWOOLE_GET_TSRMLS;
 
@@ -1284,8 +1279,6 @@ static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker
 
     SW_MAKE_STD_ZVAL(zsigno);
     ZVAL_LONG(zsigno, signo);
-
-    sw_zval_add_ref(&zobject);
 
     SWOOLE_GET_TSRMLS;
 
@@ -2031,7 +2024,6 @@ PHP_METHOD(swoole_server, set)
     zval *retval = NULL;
     zval *port_object = server_port_list.zobjects[0];
 
-    sw_zval_add_ref(&zobject);
     sw_zval_add_ref(&port_object);
     sw_zval_add_ref(&zset);
     sw_zend_call_method_with_1_params(&port_object, swoole_server_port_class_entry_ptr, NULL, "set", &retval, zset);
@@ -2257,9 +2249,9 @@ PHP_METHOD(swoole_server, start)
     }
     //-------------------------------------------------------------
     serv->onReceive = php_swoole_onReceive;
-    serv->ptr2 = zobject;
-
     sw_zval_add_ref(&zobject);
+    serv->ptr2 = sw_zval_dup(zobject);
+
     php_swoole_server_before_start(serv, zobject TSRMLS_CC);
 
     ret = swServer_start(serv);
