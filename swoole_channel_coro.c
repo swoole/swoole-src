@@ -125,6 +125,8 @@ void swoole_channel_coro_init(int module_number TSRMLS_DC)
     {
         zend_register_class_alias("chan", swoole_channel_coro_class_entry_ptr);
     }
+
+    zend_declare_property_long(swoole_channel_coro_class_entry_ptr, SW_STRL("capacity")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
 }
 
 static void channel_selector_clear(channel_selector *selector, swLinkedList_node *_node)
@@ -415,6 +417,8 @@ static PHP_METHOD(swoole_channel_coro, __construct)
         RETURN_FALSE;
     }
     property->closed = 0;
+
+    zend_update_property_long(swoole_channel_coro_class_entry_ptr, getThis(), ZEND_STRL("capacity"), capacity TSRMLS_CC);
 
     swoole_set_property(getThis(), CHANNEL_CORO_PROPERTY_INDEX, property);
 }
