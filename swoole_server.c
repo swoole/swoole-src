@@ -1199,8 +1199,6 @@ static void php_swoole_onWorkerStop(swServer *serv, int worker_id)
     SW_MAKE_STD_ZVAL(zworker_id);
     ZVAL_LONG(zworker_id, worker_id);
 
-    printf("REFCOUNT=%d\n", Z_REFCOUNT_P(zobject));
-
     SWOOLE_GET_TSRMLS;
 
     args[0] = &zobject;
