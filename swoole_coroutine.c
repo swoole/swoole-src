@@ -77,7 +77,7 @@ void coro_check(TSRMLS_D)
 {
 	if (!COROG.require)
 	{
-        swoole_php_fatal_error(E_ERROR, "coroutine client should use under swoole server in onRequet, onReceive, onConnect callback.");
+        swoole_php_fatal_error(E_ERROR, "must be called in the coroutine.");
 	}
 }
 

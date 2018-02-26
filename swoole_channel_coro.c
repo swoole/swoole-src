@@ -435,6 +435,8 @@ static PHP_METHOD(swoole_channel_coro, __destruct)
 
 static PHP_METHOD(swoole_channel_coro, push)
 {
+    coro_check(TSRMLS_C);
+
     swChannel *chan = NULL;
     zval *zdata = NULL;
     int ret;
@@ -484,6 +486,8 @@ static PHP_METHOD(swoole_channel_coro, push)
 
 static PHP_METHOD(swoole_channel_coro, pop)
 {
+    coro_check(TSRMLS_C);
+
     int ret;
     swChannel *chan = swoole_get_object(getThis());
     zval zdata;
@@ -554,6 +558,8 @@ static PHP_METHOD(swoole_channel_coro, stats)
 
 static PHP_METHOD(swoole_channel_coro, select)
 {
+    coro_check(TSRMLS_C);
+
     zval *read_list, *write_list = NULL, *item;
     zval readable, writable;
     double timeout = 0;
