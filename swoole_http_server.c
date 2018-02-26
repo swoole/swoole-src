@@ -472,12 +472,49 @@ int swoole_http_parse_form_data(http_context *ctx, const char *boundary_str, int
     return SW_OK;
 }
 
+static inline char* http_trim_double_quote_str(char *ptr, int *len)
+{
+    int i;
+    char *tmp = ptr;
+
+    //ltrim('"')
+    for (i = 0; i < *len; i++)
+    {
+        if (tmp[i] == '"')
+        {
+            (*len)--;
+            tmp++;
+            continue;
+        }
+        else
+        {
+            break;
+        }
+    }
+    //rtrim('"')
+    for (i = (*len) - 1; i > 0; i--)
+    {
+        if (tmp[i] == '"')
+        {
+            (*len)--;
+            continue;
+        }
+        else
+        {
+            break;
+        }
+    }
+    tmp[(*len)] = 0;
+    return tmp;
+}
+
 static void http_parse_cookie(zval *array, const char *at, size_t length)
 {
     char keybuf[SW_HTTP_COOKIE_KEYLEN];
     char valbuf[SW_HTTP_COOKIE_VALLEN];
     char *_c = (char *) at;
 
+    char *_value;
     int klen = 0;
     int vlen = 0;
     int state = -1;
@@ -509,10 +546,11 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
             }
             memcpy(valbuf, (char *) at + j, vlen);
             valbuf[vlen] = 0;
-            vlen = php_url_decode(valbuf, vlen);
+            _value = http_trim_double_quote_str(valbuf, &vlen);
+            vlen = php_url_decode(_value, vlen);
             if (klen > 1)
             {
-                sw_add_assoc_stringl_ex(array, keybuf, klen, valbuf, vlen, 1);
+                sw_add_assoc_stringl_ex(array, keybuf, klen, _value, vlen, 1);
             }
             j = i + 1;
             state = -1;
@@ -547,11 +585,12 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
             return;
         }
         memcpy(valbuf, (char *) at + j, vlen);
-        valbuf[vlen] = 0;;
-        vlen = php_url_decode(valbuf, vlen);
+        valbuf[vlen] = 0;
+        _value = http_trim_double_quote_str(valbuf, &vlen);
+        vlen = php_url_decode(_value, vlen);
         if (klen > 1)
         {
-            sw_add_assoc_stringl_ex(array, keybuf, klen, valbuf, vlen, 1);
+            sw_add_assoc_stringl_ex(array, keybuf, klen, _value, vlen, 1);
         }
     }
 }
