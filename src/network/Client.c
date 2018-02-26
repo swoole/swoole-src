@@ -510,6 +510,7 @@ static int swClient_close(swClient *cli)
         if (!cli->socket->removed && cli->reactor)
         {
             cli->reactor->del(cli->reactor, fd);
+            cli->socket->removed = 1;
         }
         if (cli->timer)
         {
