@@ -198,7 +198,7 @@ int php_swoole_task_pack(swEventData *task, zval *data TSRMLS_DC)
             task_data_str = serialized_data.c;
             task_data_len = serialized_data.len;
 #else
-            if(!serialized_data.s)
+            if (!serialized_data.s)
             {
                 return -1;
             }
@@ -493,6 +493,9 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject TSRMLS_DC)
     }
 
     swTrace("Create swoole_server host=%s, port=%d, mode=%d, type=%d", serv->listen_list->host, (int) serv->listen_list->port, serv->factory_mode, (int) serv->listen_list->type);
+
+    sw_zval_add_ref(&zobject);
+    serv->ptr2 = sw_zval_dup(zobject);
 
 #ifdef SW_COROUTINE
     coro_init(TSRMLS_C);
@@ -1368,10 +1371,6 @@ static void php_swoole_onWorkerStop(swServer *serv, int worker_id)
     SW_MAKE_STD_ZVAL(zworker_id);
     ZVAL_LONG(zworker_id, worker_id);
 
-    sw_zval_add_ref(&zobject);
-
-    printf("Z_REFCOUNT_P=%d\n", Z_REFCOUNT_P(zobject));
-
     SWOOLE_GET_TSRMLS;
 
     args[0] = &zobject;
@@ -1401,8 +1400,6 @@ static void php_swoole_onWorkerExit(swServer *serv, int worker_id)
 
     SW_MAKE_STD_ZVAL(zworker_id);
     ZVAL_LONG(zworker_id, worker_id);
-
-    sw_zval_add_ref(&zobject);
 
     SWOOLE_GET_TSRMLS;
 
@@ -1452,8 +1449,6 @@ static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker
 
     SW_MAKE_STD_ZVAL(zsigno);
     ZVAL_LONG(zsigno, signo);
-
-    sw_zval_add_ref(&zobject);
 
     SWOOLE_GET_TSRMLS;
 
@@ -2281,7 +2276,6 @@ PHP_METHOD(swoole_server, set)
     zval *port_object = server_port_list.zobjects[0];
 
     sw_zval_add_ref(&port_object);
-    sw_zval_add_ref(&zobject);
     sw_zval_add_ref(&zset);
 
     sw_zend_call_method_with_1_params(&port_object, swoole_server_port_class_entry_ptr, NULL, "set", &retval, zset);
@@ -2492,9 +2486,7 @@ PHP_METHOD(swoole_server, start)
     }
     //-------------------------------------------------------------
     serv->onReceive = php_swoole_onReceive;
-    serv->ptr2 = zobject;
 
-    sw_zval_add_ref(&zobject);
     php_swoole_server_before_start(serv, zobject TSRMLS_CC);
 
     ret = swServer_start(serv);

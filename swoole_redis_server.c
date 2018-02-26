@@ -298,8 +298,6 @@ static PHP_METHOD(swoole_redis_server, start)
     serv->listen_list->open_length_check = 0;
     serv->listen_list->open_redis_protocol = 1;
 
-    serv->ptr2 = getThis();
-
     php_swoole_server_before_start(serv, getThis() TSRMLS_CC);
 
     ret = swServer_start(serv);

@@ -1667,8 +1667,6 @@ static PHP_METHOD(swoole_http_server, start)
     serv->listen_list->open_eof_check = 0;
     serv->listen_list->open_length_check = 0;
 
-    serv->ptr2 = getThis();
-
     //for is_uploaded_file and move_uploaded_file
     ALLOC_HASHTABLE(SG(rfc1867_uploaded_files));
     zend_hash_init(SG(rfc1867_uploaded_files), 8, NULL, NULL, 0);
