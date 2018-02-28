@@ -1093,7 +1093,7 @@ static sw_inline int mysql_read_params(mysql_client *client)
 
         if (n_buf < 4)
         {
-            swTraceLog(SW_TRACE_MYSQL_CLIENT, "read eof 23.");
+            swTraceLog(SW_TRACE_MYSQL_CLIENT, "read eof [1]");
             return SW_ERR;
         }
 
@@ -1118,7 +1118,7 @@ static sw_inline int mysql_read_params(mysql_client *client)
         }
         else
         {
-            swTraceLog(SW_TRACE_MYSQL_CLIENT, "read eof.");
+            swTraceLog(SW_TRACE_MYSQL_CLIENT, "read eof [2]");
 
             if (mysql_read_eof(client, buffer, n_buf) == 0)
             {
@@ -1542,7 +1542,14 @@ int mysql_response(mysql_client *client)
                         buffer->offset += (5 + ret);
                         client->response.num_column = client->statement->field_count;
                         client->response.columns = ecalloc(client->response.num_column, sizeof(mysql_field));
-                        client->state = SW_MYSQL_STATE_READ_PARAM;
+                        if (client->statement->param_count > 0)
+                        {
+                            client->state = SW_MYSQL_STATE_READ_PARAM;
+                        }
+                        else
+                        {
+                            client->state = SW_MYSQL_STATE_READ_FIELD;
+                        }
                         break;
                     }
                 }
@@ -1844,16 +1851,20 @@ static PHP_METHOD(swoole_mysql, connect)
     if (php_swoole_array_get_value(_ht, "strict_type", value))
     {
 #if PHP_MAJOR_VERSION < 7
-        if(Z_TYPE_P(value) == IS_BOOL && Z_BVAL_P(value) == 1)
+        if (Z_TYPE_P(value) == IS_BOOL && Z_BVAL_P(value) == 1)
 #else
-        if(Z_TYPE_P(value) == IS_TRUE)
+        if (Z_TYPE_P(value) == IS_TRUE)
 #endif
         {
             connector->strict_type = 1;
-        }else{
+        }
+        else
+        {
             connector->strict_type = 0;
         }
-    } else{
+    }
+    else
+    {
         connector->strict_type = 0;
     }
 
