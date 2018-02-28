@@ -266,7 +266,7 @@ void swoole_table_init(int module_number TSRMLS_DC)
     zend_class_implements(swoole_table_class_entry_ptr TSRMLS_CC, 1, zend_ce_arrayaccess);
 
 #ifdef HAVE_PCRE
-    zend_class_implements(swoole_table_class_entry_ptr TSRMLS_CC, 2, spl_ce_Iterator, spl_ce_Countable);
+    zend_class_implements(swoole_table_class_entry_ptr TSRMLS_CC, 2, spl_ce_Iterator, zend_ce_countable);
 #endif
 
     zend_declare_class_constant_long(swoole_table_class_entry_ptr, SW_STRL("TYPE_INT")-1, SW_TABLE_INT TSRMLS_CC);
