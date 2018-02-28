@@ -1006,7 +1006,7 @@ void swoole_redis_coro_init(int module_number TSRMLS_DC)
 
     if (SWOOLE_G(use_shortname))
     {
-        zend_register_class_alias("Co\\Redis", swoole_redis_coro_class_entry_ptr);
+        sw_zend_register_class_alias("Co\\Redis", swoole_redis_coro_class_entry_ptr);
     }
 
     zend_declare_property_null(swoole_redis_coro_class_entry_ptr, ZEND_STRL("setting"), ZEND_ACC_PUBLIC TSRMLS_CC);

@@ -59,6 +59,7 @@ static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
 #define sw_zend_hash_add                      zend_hash_add
 #define sw_zend_hash_index_update             zend_hash_index_update
 #define sw_call_user_function_ex              call_user_function_ex
+#define sw_zend_register_class_alias          zend_register_class_alias
 
 static sw_inline int sw_call_user_function_fast(zval *function_name, zend_fcall_info_cache *fci_cache, zval **retval_ptr_ptr, uint32_t param_count, zval ***params TSRMLS_DC)
 {
@@ -439,6 +440,26 @@ static inline int sw_zend_hash_exists(HashTable *ht, char *k, int len)
     {
         return SUCCESS;
     }
+}
+
+static inline int sw_zend_register_class_alias(const char *name, zend_class_entry *ce)
+{
+    int name_len = strlen(name);
+    zend_string *_name;
+    if (name[0] == '\\')
+    {
+        _name = zend_string_init(name, name_len, 1);
+        zend_str_tolower_copy(ZSTR_VAL(_name), name + 1, name_len - 1);
+    }
+    else
+    {
+        _name = zend_string_init(name, strlen(name), 1);
+        zend_str_tolower_copy(ZSTR_VAL(_name), name, name_len);
+    }
+
+    zend_string *_interned_name = zend_new_interned_string(_name);
+
+    return zend_register_class_alias_ex(_interned_name->val, _interned_name->len, ce);
 }
 
 static sw_inline char* sw_http_build_query(zval *data, zend_size_t *length, smart_str *formstr TSRMLS_DC)

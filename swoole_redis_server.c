@@ -70,7 +70,7 @@ void swoole_redis_server_init(int module_number TSRMLS_DC)
 
     if (SWOOLE_G(use_shortname))
     {
-        zend_register_class_alias("Co\\Redis\\Server", swoole_redis_server_class_entry_ptr);
+        sw_zend_register_class_alias("Co\\Redis\\Server", swoole_redis_server_class_entry_ptr);
     }
 
     zend_declare_class_constant_long(swoole_redis_server_class_entry_ptr, SW_STRL("NIL")-1, SW_REDIS_REPLY_NIL TSRMLS_CC);

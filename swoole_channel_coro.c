@@ -123,7 +123,7 @@ void swoole_channel_coro_init(int module_number TSRMLS_DC)
 
     if (SWOOLE_G(use_shortname))
     {
-        zend_register_class_alias("chan", swoole_channel_coro_class_entry_ptr);
+        sw_zend_register_class_alias("chan", swoole_channel_coro_class_entry_ptr);
     }
 
     zend_declare_property_long(swoole_channel_coro_class_entry_ptr, SW_STRL("capacity")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);

@@ -150,9 +150,9 @@ void swoole_mysql_coro_init(int module_number TSRMLS_DC)
 
     if (SWOOLE_G(use_shortname))
     {
-        zend_register_class_alias("Co\\MySQL", swoole_mysql_coro_class_entry_ptr);
-        zend_register_class_alias("Co\\MySQL\\Statement", swoole_mysql_coro_statement_class_entry_ptr);
-        zend_register_class_alias("Co\\MySQL\\Exception", swoole_mysql_coro_exception_class_entry_ptr);
+        sw_zend_register_class_alias("Co\\MySQL", swoole_mysql_coro_class_entry_ptr);
+        sw_zend_register_class_alias("Co\\MySQL\\Statement", swoole_mysql_coro_statement_class_entry_ptr);
+        sw_zend_register_class_alias("Co\\MySQL\\Exception", swoole_mysql_coro_exception_class_entry_ptr);
     }
 
     zend_declare_property_string(swoole_mysql_coro_class_entry_ptr, SW_STRL("serverInfo") - 1, "", ZEND_ACC_PRIVATE TSRMLS_CC);

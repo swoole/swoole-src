@@ -345,8 +345,8 @@ void swoole_websocket_init(int module_number TSRMLS_DC)
 
     if (SWOOLE_G(use_shortname))
     {
-        zend_register_class_alias("Co\\WebSocket\\Server", swoole_websocket_server_class_entry_ptr);
-        zend_register_class_alias("Co\\WebSocket\\Frame", swoole_websocket_frame_class_entry_ptr);
+        sw_zend_register_class_alias("Co\\WebSocket\\Server", swoole_websocket_server_class_entry_ptr);
+        sw_zend_register_class_alias("Co\\WebSocket\\Frame", swoole_websocket_frame_class_entry_ptr);
     }
 
     REGISTER_LONG_CONSTANT("WEBSOCKET_OPCODE_TEXT", WEBSOCKET_OPCODE_TEXT_FRAME, CONST_CS | CONST_PERSISTENT);

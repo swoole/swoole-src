@@ -1298,9 +1298,9 @@ void swoole_http_server_init(int module_number TSRMLS_DC)
 
     if (SWOOLE_G(use_shortname))
     {
-        zend_register_class_alias("Co\\Http\\Server", swoole_http_server_class_entry_ptr);
-        zend_register_class_alias("Co\\Http\\Request", swoole_http_request_class_entry_ptr);
-        zend_register_class_alias("Co\\Http\\Response", swoole_http_response_class_entry_ptr);
+        sw_zend_register_class_alias("Co\\Http\\Server", swoole_http_server_class_entry_ptr);
+        sw_zend_register_class_alias("Co\\Http\\Request", swoole_http_request_class_entry_ptr);
+        sw_zend_register_class_alias("Co\\Http\\Response", swoole_http_response_class_entry_ptr);
     }
 
     zend_declare_property_long(swoole_http_request_class_entry_ptr, SW_STRL("fd")-1, 0,  ZEND_ACC_PUBLIC TSRMLS_CC);

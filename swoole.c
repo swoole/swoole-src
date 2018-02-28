@@ -902,7 +902,7 @@ PHP_MINIT_FUNCTION(swoole)
     }
     else
     {
-        zend_register_class_alias("Co\\Server", swoole_server_class_entry_ptr);
+        sw_zend_register_class_alias("Co\\Server", swoole_server_class_entry_ptr);
     }
 
     zend_declare_property_null(swoole_server_class_entry_ptr, ZEND_STRL("onConnect"), ZEND_ACC_PUBLIC TSRMLS_CC);
