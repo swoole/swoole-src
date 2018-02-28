@@ -826,6 +826,12 @@ static PHP_METHOD(swoole_http2_client_coro, __destruct)
     efree(context);
     swoole_set_property(getThis(), HTTP2_CLIENT_CORO_CONTEXT, NULL);
 
+    swClient *cli = swoole_get_object(getThis());
+    if (!cli)
+    {
+        return;
+    }
+
     zval *zobject = getThis();
     zval *retval = NULL;
     sw_zend_call_method_with_0_params(&zobject, swoole_http2_client_coro_class_entry_ptr, NULL, "close", &retval);

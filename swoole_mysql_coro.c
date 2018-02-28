@@ -1069,10 +1069,9 @@ static PHP_METHOD(swoole_mysql_coro, __destruct)
     mysql_client *client = swoole_get_object(getThis());
     if (!client)
     {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_mysql_coro.");
-        RETURN_FALSE;
+        return;
     }
-    else if (client->state != SW_MYSQL_STATE_CLOSED && client->cli)
+    if (client->state != SW_MYSQL_STATE_CLOSED && client->cli)
     {
         swoole_mysql_coro_close(getThis());
     }
