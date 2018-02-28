@@ -57,6 +57,11 @@ int swHttpRequest_get_protocol(swHttpRequest *request)
     char *buf = request->buffer->str;
     char *pe = buf + request->buffer->length;
 
+    if (request->buffer->length < 16)
+    {
+        return SW_ERR;
+    }
+
     //http method
     if (memcmp(buf, "GET", 3) == 0)
     {
@@ -112,12 +117,13 @@ int swHttpRequest_get_protocol(swHttpRequest *request)
         }
         else
         {
-            return SW_ERR;
+            goto _excepted;
         }
     }
 #endif
     else
     {
+        _excepted: request->excepted = 1;
         return SW_ERR;
     }
 
@@ -149,6 +155,10 @@ int swHttpRequest_get_protocol(swHttpRequest *request)
             {
                 continue;
             }
+            if (pe - p < 8)
+            {
+                return SW_ERR;
+            }
             if (memcmp(p, "HTTP/1.1", 8) == 0)
             {
                 request->version = HTTP_VERSION_11;
@@ -161,8 +171,7 @@ int swHttpRequest_get_protocol(swHttpRequest *request)
             }
             else
             {
-                request->excepted = 1;
-                return SW_ERR;
+                goto _excepted;
             }
         default:
             break;
