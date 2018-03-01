@@ -962,6 +962,12 @@ PHP_MINIT_FUNCTION(swoole)
 
     //swoole init
     swoole_init();
+
+#ifdef SW_COROUTINE
+    memset(&COROG, 0, sizeof(COROG));
+    swReactorCheckPoint = NULL;
+#endif
+
     swoole_server_port_init(module_number TSRMLS_CC);
     swoole_client_init(module_number TSRMLS_CC);
 #ifdef SW_COROUTINE

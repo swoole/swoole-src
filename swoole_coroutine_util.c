@@ -408,7 +408,8 @@ static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_inf
 #endif
         efree(swReactorCheckPoint);
         swReactorCheckPoint = prev_checkpoint;
-        if (use_array) {
+        if (use_array)
+        {
             zend_fcall_info_args_clear(fci, 1);
         }
         zend_vm_stack_free_args(current_ex);
@@ -442,7 +443,7 @@ static PHP_METHOD(swoole_coroutine_util, call_user_func)
 		Z_PARAM_VARIADIC('*', fci.params, fci.param_count)
 	ZEND_PARSE_PARAMETERS_END();
 
-    if (fci_cache.function_handler->type == ZEND_INTERNAL_FUNCTION)
+    if (fci_cache.function_handler->type == ZEND_INTERNAL_FUNCTION || COROG.current_coro == NULL)
     {
         fci.retval = return_value;
         zend_call_function(&fci, &fci_cache);
@@ -491,7 +492,7 @@ static PHP_METHOD(swoole_coroutine_util, call_user_func_array)
 
     zend_fcall_info_args(&fci, params);
 
-    if (fci_cache.function_handler->type == ZEND_INTERNAL_FUNCTION)
+    if (fci_cache.function_handler->type == ZEND_INTERNAL_FUNCTION || COROG.current_coro == NULL)
     {
         fci.retval = return_value;
         zend_call_function(&fci, &fci_cache);

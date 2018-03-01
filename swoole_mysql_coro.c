@@ -204,7 +204,7 @@ static int swoole_mysql_coro_close(zval *this)
     if (client->statement_list)
     {
         swLinkedList_node *node = client->statement_list->head;
-        while(node)
+        while (node)
         {
             mysql_statement *stmt = node->data;
             if (stmt->object)
@@ -1085,16 +1085,16 @@ static PHP_METHOD(swoole_mysql_coro, __destruct)
     php_context *context = swoole_get_property(getThis(), 0);
     if (!context)
     {
-		return;
+        return;
     }
-	if (likely(context->state == SW_CORO_CONTEXT_RUNNING))
-	{
-		efree(context);
-	}
-	else
-	{
-		context->state = SW_CORO_CONTEXT_TERM;
-	}
+    if (likely(context->state == SW_CORO_CONTEXT_RUNNING))
+    {
+        efree(context);
+    }
+    else
+    {
+        context->state = SW_CORO_CONTEXT_TERM;
+    }
     swoole_set_property(getThis(), 0, NULL);
 }
 
