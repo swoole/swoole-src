@@ -311,7 +311,7 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
             worker->request_count++;
             sw_atomic_fetch_add(&SwooleStats->request_count, 1);
         }
-        if (task->info.type == SW_EVENT_PACKAGE_END)
+        if (package && (task->info.type == SW_EVENT_PACKAGE_END))
         {
             package->length = 0;
         }
