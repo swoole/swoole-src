@@ -502,7 +502,7 @@ static PHP_METHOD(swoole_channel_coro, pop)
         ret = swoole_channel_try_resume_producer(getThis(), property, &zdata);
         if (ret == 0)
         {
-            RETURN_ZVAL(&zdata, 1, NULL);
+            RETURN_ZVAL(&zdata, 0, NULL);
         }
         else
         {
@@ -516,7 +516,7 @@ static PHP_METHOD(swoole_channel_coro, pop)
     else
     {
         try_resume_producer_defer(getThis(), property, chan);
-        RETURN_ZVAL(&zdata, 1, NULL);
+        RETURN_ZVAL(&zdata, 0, NULL);
     }
 }
 
