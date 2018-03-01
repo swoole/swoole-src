@@ -489,6 +489,7 @@ int swProcessPool_wait(swProcessPool *pool)
     int reload_worker_i = 0;
     int ret;
     int status;
+    status = 0;
 
     swWorker *reload_workers;
     reload_workers = sw_calloc(pool->worker_num, sizeof(swWorker));
