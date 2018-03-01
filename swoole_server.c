@@ -2883,6 +2883,10 @@ PHP_METHOD(swoole_server, stats)
             sw_add_assoc_long_ex(return_value, ZEND_STRS("task_queue_bytes"), queue_bytes);
         }
     }
+
+#ifdef SW_COROUTINE
+    sw_add_assoc_long_ex(return_value, ZEND_STRS("coroutine_num"), COROG->coro_num);
+#endif
 }
 
 PHP_METHOD(swoole_server, reload)
