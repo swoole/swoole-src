@@ -1443,7 +1443,6 @@ static int mysql_read_columns(mysql_client *client)
     }
 
     buffer += 9;
-    n_buf -= 9;
 
     if (client->cmd != SW_MYSQL_COM_STMT_PREPARE)
     {
