@@ -303,8 +303,8 @@ static void swAio_handler_stream_get_line(swAio_event *event)
             }
             else
             {
-                writepos = event->nbytes - readpos;
-                memmove(event->buf, event->buf + readpos, writepos);
+                memmove(event->buf, event->buf + readpos, avail);
+                writepos = avail;
                 read_buf = event->buf + writepos;
                 read_n = event->nbytes - writepos;
                 readpos = 0;
@@ -329,8 +329,16 @@ static void swAio_handler_stream_get_line(swAio_event *event)
             else if (ret == 0)
             {
                 event->flags = SW_AIO_EOF;
-                ((char*) event->buf)[0] = '\0';
-                event->ret = 0;
+                if (writepos > 0)
+                {
+                    event->ret = writepos;
+                }
+                else
+                {
+                    ((char*) event->buf)[0] = '\0';
+                    event->ret = 0;
+                }
+                readpos = writepos = 0;
                 goto _return;
             }
         }
