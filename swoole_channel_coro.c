@@ -560,7 +560,7 @@ static PHP_METHOD(swoole_channel_coro, stats)
     sw_add_assoc_long_ex(return_value, ZEND_STRS("consumer_num"), property->consumer_list->num);
     sw_add_assoc_long_ex(return_value, ZEND_STRS("producer_num"), property->producer_list->num);
 
-    if (chan == NULL)
+    if (chan)
     {
         sw_add_assoc_long_ex(return_value, ZEND_STRS("queue_num"), chan->num);
         sw_add_assoc_long_ex(return_value, ZEND_STRS("queue_bytes"), chan->bytes);
