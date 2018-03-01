@@ -132,7 +132,7 @@ static int swDNSResolver_onReceive(swReactor *reactor, swEvent *event)
     RR_FLAGS *rrflags = NULL;
 
     char packet[SW_CLIENT_BUFFER_SIZE];
-    uchar rdata[10][254];
+    uchar rdata[10][254] = {0};
     uint32_t type[10];
 
     char *temp;
