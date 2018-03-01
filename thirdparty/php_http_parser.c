@@ -1028,7 +1028,6 @@ size_t php_http_parser_execute (php_http_parser *parser,
         if (ch == LF) {
           /* they might be just sending \n instead of \r\n so this would be
            * the second \n to denote the end of headers*/
-          state = s_headers_almost_done;
           goto headers_almost_done;
         }
 
