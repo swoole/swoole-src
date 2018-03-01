@@ -1131,8 +1131,8 @@ static int swoole_mysql_coro_onError(swReactor *reactor, swEvent *event)
 		client->result = result;
 		return SW_OK;
 	}
-	client->_defer = 0;
-        client->cid = 0;
+    client->_defer = 0;
+    client->cid = 0;
 	php_context *sw_current_context = swoole_get_property(zobject, 0);
 	int ret = coro_resume(sw_current_context, result, &retval);
     sw_zval_free(result);
