@@ -203,7 +203,9 @@ static sw_inline swClient* client_get_ptr(zval *zobject TSRMLS_DC)
     }
     else
     {
-        swoole_php_fatal_error(E_WARNING, "client is not connected to server.");
+        SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
+        zend_update_property_long(swoole_client_class_entry_ptr, zobject, SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
+        swoole_php_error(E_WARNING, "client is not connected to server.");
         return NULL;
     }
 }
