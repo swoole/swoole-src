@@ -627,7 +627,7 @@ static PHP_METHOD(swoole_client_coro, send)
     {
         SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
         zend_update_property_long(swoole_client_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
-        swoole_php_fatal_error(E_WARNING, "client is not connected to server.");
+        swoole_php_error(E_WARNING, "client is not connected to server.");
         RETURN_FALSE;
     }
 
@@ -723,7 +723,7 @@ static PHP_METHOD(swoole_client_coro, sendfile)
     {
         SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
         zend_update_property_long(swoole_client_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
-        swoole_php_fatal_error(E_WARNING, "client is not connected to server.");
+        swoole_php_error(E_WARNING, "client is not connected to server.");
         RETURN_FALSE;
     }
     if (!(cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6 || cli->type == SW_SOCK_UNIX_STREAM))
@@ -754,7 +754,7 @@ static PHP_METHOD(swoole_client_coro, recv)
     {
         SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
         zend_update_property_long(swoole_client_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
-        swoole_php_fatal_error(E_WARNING, "client is not connected to server.");
+        swoole_php_error(E_WARNING, "client is not connected to server.");
         RETURN_FALSE;
     }
 
@@ -937,7 +937,7 @@ static PHP_METHOD(swoole_client_coro, enableSSL)
     {
         SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
         zend_update_property_long(swoole_client_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
-        swoole_php_fatal_error(E_WARNING, "client is not connected to server.");
+        swoole_php_error(E_WARNING, "client is not connected to server.");
         RETURN_FALSE;
     }
     if (cli->type != SW_SOCK_TCP && cli->type != SW_SOCK_TCP6)
