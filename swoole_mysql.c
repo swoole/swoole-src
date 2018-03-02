@@ -1644,11 +1644,13 @@ int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callba
 {
     if (!client->cli)
     {
+        SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
         swoole_php_fatal_error(E_WARNING, "mysql connection#%d is closed.", client->fd);
         return SW_ERR;
     }
     if (!client->connected)
     {
+        SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
         swoole_php_error(E_WARNING, "mysql client is not connected to server.");
         return SW_ERR;
     }

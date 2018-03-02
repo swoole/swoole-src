@@ -633,7 +633,8 @@ static PHP_METHOD(swoole_mysql_coro, query)
     mysql_client *client = swoole_get_object(getThis());
     if (!client)
     {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_mysql_coro.");
+        SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
+        swoole_php_error(E_WARNING, "object is not instanceof swoole_mysql_coro.");
         RETURN_FALSE;
     }
 

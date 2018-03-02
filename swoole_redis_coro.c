@@ -162,6 +162,7 @@ ZEND_END_ARG_INFO()
 		RETURN_FALSE; \
         break; \
     case SWOOLE_REDIS_CORO_STATE_CLOSED: \
+        SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;\
         zend_update_property_long(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errCode"), SW_REDIS_ERR_OTHER TSRMLS_CC); \
         zend_update_property_string(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), "redis client connection is closed." TSRMLS_CC); \
         RETURN_FALSE; \
@@ -199,6 +200,7 @@ ZEND_END_ARG_INFO()
 		RETURN_FALSE; \
         break; \
     case SWOOLE_REDIS_CORO_STATE_CLOSED: \
+        SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;\
         zend_update_property_long(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errCode"), SW_REDIS_ERR_OTHER TSRMLS_CC); \
         zend_update_property_string(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), "redis client connection is closed." TSRMLS_CC); \
 		efree(z_args); \
