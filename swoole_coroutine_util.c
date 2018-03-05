@@ -69,6 +69,9 @@ static PHP_METHOD(swoole_coroutine_util, suspend);
 static PHP_METHOD(swoole_coroutine_util, cli_wait);
 static PHP_METHOD(swoole_coroutine_util, resume);
 static PHP_METHOD(swoole_coroutine_util, getuid);
+#ifdef SW_HTTP_RECEIVE_UID
+static PHP_METHOD(swoole_coroutine_util, getruid);
+#endif
 static PHP_METHOD(swoole_coroutine_util, sleep);
 static PHP_METHOD(swoole_coroutine_util, fread);
 static PHP_METHOD(swoole_coroutine_util, fgets);
@@ -91,6 +94,9 @@ static const zend_function_entry swoole_coroutine_util_methods[] =
     PHP_ME(swoole_coroutine_util, suspend, arginfo_swoole_coroutine_suspend, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, resume, arginfo_swoole_coroutine_resume, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, getuid, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    #ifdef SW_HTTP_RECEIVE_UID
+    PHP_ME(swoole_coroutine_util, getruid, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    #endif
     PHP_ME(swoole_coroutine_util, sleep, arginfo_swoole_coroutine_sleep, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, fread, arginfo_swoole_coroutine_fread, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, fgets, arginfo_swoole_coroutine_fgets, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -690,6 +696,17 @@ static PHP_METHOD(swoole_coroutine_util, getuid)
     }
     RETURN_LONG(COROG.current_coro->cid);
 }
+
+#ifdef SW_HTTP_RECEIVE_UID
+static PHP_METHOD(swoole_coroutine_util, getruid)
+{
+    if (unlikely(COROG.current_coro == NULL))
+    {
+        RETURN_LONG(-1);
+    }
+    RETURN_LONG(COROG.current_coro->rid);
+}
+#endif
 
 static void php_coroutine_sleep_timeout(swTimer *timer, swTimer_node *tnode)
 {

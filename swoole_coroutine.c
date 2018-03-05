@@ -238,6 +238,9 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
 #define TASK_SLOT \
     ((int)((ZEND_MM_ALIGNED_SIZE(sizeof(coro_task)) + ZEND_MM_ALIGNED_SIZE(sizeof(zval)) - 1) / ZEND_MM_ALIGNED_SIZE(sizeof(zval))))
 
+/**
+   * in feature http_receive_uid, post_callback is used to tell a request coro coming.
+   */
 int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval *retval, void *post_callback, void* params)
 {
     int cid = alloc_cidmap();
@@ -254,7 +257,32 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
 
     swTraceLog(SW_TRACE_COROUTINE, "Create coroutine id %d.", cid);
 
+    #ifdef SW_HTTP_RECEIVE_UID
+        int rid;
+        if (post_callback == (void *)CORO_IS_HTTP_RECEIVE )
+        {
+            rid = cid;
+            post_callback = NULL;
+        }
+        else if (COROG.current_coro  && COROG.current_coro->rid)
+        {
+            rid = COROG.current_coro->rid;
+        }
+        else
+        {
+            rid = 0;
+        }
+    #endif
+
+
     COROG.current_coro = (coro_task *) EG(vm_stack_top);
+    #ifdef SW_HTTP_RECEIVE_UID
+        if (rid)
+        {
+            COROG.current_coro->rid = rid;
+        }
+    #endif
+
     zend_execute_data *call = (zend_execute_data *) (EG(vm_stack_top));
     EG(vm_stack_top) = (zval *) ((char *) call + TASK_SLOT * sizeof(zval));
     object = (func->common.fn_flags & ZEND_ACC_STATIC) ? NULL : fci_cache->object;

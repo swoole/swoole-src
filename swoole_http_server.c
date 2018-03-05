@@ -1209,7 +1209,13 @@ static int http_onReceive(swServer *serv, swEventData *req)
         }
 #else
         zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, req->info.from_fd, callback_type);
-        int ret = coro_create(cache, args, 2, &retval, NULL, NULL);
+
+        #ifdef SW_HTTP_RECEIVE_UID
+            int ret = coro_create(cache, args, 2, &retval, (void *)CORO_IS_HTTP_RECEIVE, NULL);
+        #else
+            int ret = coro_create(cache, args, 2, &retval, NULL, NULL);
+        #endif
+
         if (ret != 0)
         {
             sw_zval_ptr_dtor(&zrequest_object);

@@ -56,6 +56,9 @@ PHP_ARG_ENABLE(mysqlnd, enable mysqlnd support,
 PHP_ARG_ENABLE(coroutine, whether to enable coroutine,
 [  --enable-coroutine      Enable coroutine (requires PHP >= 5.5)], yes, no)
 
+PHP_ARG_ENABLE(http_receive_uid, whether to enable http receive uid,
+[  --enable-http-receive-uid      Enable http receive uid (requires PHP >= 7.0)], yes, no)
+
 PHP_ARG_ENABLE(picohttpparser, enable picohttpparser support,
 [  --enable-picohttpparser     Experimental: Do you have picohttpparser?], no, no)
 
@@ -184,6 +187,10 @@ if test "$PHP_SWOOLE" != "no"; then
 
     if test "$PHP_COROUTINE" != "no"; then
         AC_DEFINE(SW_COROUTINE, 1, [enable ability of coroutine])
+    fi
+
+    if test "$PHP_HTTP_RECEIVE_UID" != "no" && test "$PHP_COROUTINE" != "no" ; then
+        AC_DEFINE(SW_HTTP_RECEIVE_UID, 1, [enable ability of http receive uid])
     fi
 
     if test "$PHP_SOCKETS" = "yes"; then
