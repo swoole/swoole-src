@@ -195,10 +195,10 @@ static int swoole_mysql_coro_close(zval *this)
     _socket->object = NULL;
     _socket->active = 0;
 
-    if (client->cli->timeout_id > 0)
+    if (client->timer)
     {
-        php_swoole_clear_timer_coro(client->cli->timeout_id TSRMLS_CC);
-        client->cli->timeout_id = 0;
+        swTimer_del(&SwooleG.timer, client->timer);
+        client->timer = NULL;
     }
 
     if (client->statement_list)
@@ -661,8 +661,8 @@ static PHP_METHOD(swoole_mysql_coro, query)
     php_context *context = swoole_get_property(getThis(), 0);
     if (timeout > 0)
     {
-        if (php_swoole_add_timer_coro((int) (timeout * 1000), client->fd, &client->cli->timeout_id, (void *) context, NULL TSRMLS_CC) == SW_OK
-                && client->defer)
+        client->timer = SwooleG.timer.add(&SwooleG.timer, (int) (timeout * 1000), 0, context, swoole_mysql_coro_onTimeout);
+        if (client->timer && client->defer)
         {
             context->state = SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST;
         }
@@ -709,8 +709,8 @@ static PHP_METHOD(swoole_mysql_coro, begin)
         php_context *context = swoole_get_property(getThis(), 0);
         if (timeout > 0)
         {
-            if (php_swoole_add_timer_coro((int) (timeout * 1000), client->fd, &client->cli->timeout_id, (void *) context, NULL TSRMLS_CC) == SW_OK
-                    && client->defer)
+            client->timer = SwooleG.timer.add(&SwooleG.timer, (int) (timeout * 1000), 0, context, swoole_mysql_coro_onTimeout);
+            if (client->timer && client->defer)
             {
                 context->state = SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST;
             }
@@ -761,8 +761,8 @@ static PHP_METHOD(swoole_mysql_coro, commit)
         double timeout = client->connector.timeout;
         if (timeout > 0)
         {
-            if (php_swoole_add_timer_coro((int) (timeout * 1000), client->fd, &client->cli->timeout_id, (void *) context, NULL TSRMLS_CC) == SW_OK
-                    && client->defer)
+            client->timer = SwooleG.timer.add(&SwooleG.timer, (int) (timeout * 1000), 0, context, swoole_mysql_coro_onTimeout);
+            if (client->timer && client->defer)
             {
                 context->state = SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST;
             }
@@ -812,8 +812,8 @@ static PHP_METHOD(swoole_mysql_coro, rollback)
         double timeout = client->connector.timeout;
         if (timeout > 0)
         {
-            if (php_swoole_add_timer_coro((int) (timeout * 1000), client->fd, &client->cli->timeout_id, (void *) context, NULL TSRMLS_CC) == SW_OK
-                    && client->defer)
+            client->timer = SwooleG.timer.add(&SwooleG.timer, (int) (timeout * 1000), 0, context, swoole_mysql_coro_onTimeout);
+            if (client->timer && client->defer)
             {
                 context->state = SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST;
             }
@@ -942,10 +942,7 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
         double timeout = client->connector.timeout;
         if (timeout > 0)
         {
-            if (php_swoole_add_timer_coro((int) (timeout * 1000), client->fd, &client->cli->timeout_id, (void *) context, NULL TSRMLS_CC) == SW_OK)
-            {
-                context->state = SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST;
-            }
+            client->timer = SwooleG.timer.add(&SwooleG.timer, (int) (timeout * 1000), 0, context, swoole_mysql_coro_onTimeout);
         }
         client->cid = get_current_cid();
         coro_save(context);
@@ -983,8 +980,8 @@ static PHP_METHOD(swoole_mysql_coro_statement, execute)
     double timeout = client->connector.timeout;
     if (timeout > 0)
     {
-        if (php_swoole_add_timer_coro((int) (timeout * 1000), client->fd, &client->cli->timeout_id, (void *) context, NULL TSRMLS_CC) == SW_OK
-                && client->defer)
+        client->timer = SwooleG.timer.add(&SwooleG.timer, (int) (timeout * 1000), 0, context, swoole_mysql_coro_onTimeout);
+        if (client->timer && client->defer)
         {
             context->state = SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST;
         }
@@ -1214,16 +1211,17 @@ static void swoole_mysql_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
 
 	if (client->iowait == SW_MYSQL_CORO_STATUS_CLOSED)
 	{
-		zend_update_property_string(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("error"), "connect timeout." TSRMLS_CC);
+		zend_update_property_string(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("error"), "connect timeout" TSRMLS_CC);
 	}
 	else
 	{
-		zend_update_property_string(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("error"), "query timeout." TSRMLS_CC);
+		zend_update_property_string(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("error"), "query timeout" TSRMLS_CC);
 	}
+
 	zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("errno"), 110 TSRMLS_CC);
 
 	//timeout close conncttion
-	client->cli->timeout_id = 0;
+	client->timer = NULL;
 	client->state = SW_MYSQL_STATE_QUERY;
     swoole_mysql_coro_close(zobject);
 
@@ -1237,7 +1235,8 @@ static void swoole_mysql_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
 
     int ret = coro_resume(ctx, result, &retval);
 
-    if (ret == CORO_END && retval) {
+    if (ret == CORO_END && retval)
+    {
         sw_zval_ptr_dtor(&retval);
     }
 
@@ -1365,10 +1364,11 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
     {
         return swoole_mysql_coro_onHandShake(client TSRMLS_CC);
     }
-    if (client->cli->timeout_id > 0)
+
+    if (client->timer)
     {
-        php_swoole_clear_timer_coro(client->cli->timeout_id TSRMLS_CC);
-        client->cli->timeout_id = 0;
+        swTimer_del(&SwooleG.timer, client->timer);
+        client->timer = NULL;
     }
 
     int sock = event->fd;
@@ -1534,6 +1534,7 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
             client->_defer = 0;
             client->iowait = SW_MYSQL_CORO_STATUS_READY;
             client->cid = 0;
+
             php_context *sw_current_context = swoole_get_property(zobject, 0);
             ret = coro_resume(sw_current_context, result, &retval);
             if (result)

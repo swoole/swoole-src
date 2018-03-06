@@ -297,6 +297,8 @@ typedef struct _mysql_client
     mysql_statement *statement;
     swLinkedList *statement_list;
 
+    swTimer_node *timer;
+
 #if PHP_MAJOR_VERSION >= 7
     zval _object;
     zval _onClose;
