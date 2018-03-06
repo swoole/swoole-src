@@ -12,9 +12,13 @@ assert.quiet_eval=0
 --FILE--
 <?php
 require_once __DIR__ . "/../include/swoole.inc";
+require_once __DIR__."/../include/api/swoole_mysql/swoole_mysql_init.php";
 
 fork_exec(function() {
-    require_once __DIR__ . "/../include/api/swoole_mysql/select1.php";
+    swoole_mysql_query("select 1", function($mysql_result, $result) {
+        swoole_event_exit();
+        fprintf(STDERR, "SUCCESS\n");
+    });
 });
 ?>
 --EXPECT--

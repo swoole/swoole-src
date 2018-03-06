@@ -14,7 +14,8 @@ assert.quiet_eval=0
 require_once __DIR__ . "/../include/swoole.inc";
 
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid)
+$port = get_one_free_port();
+$pm->parentFunc = function ($pid) use ($port)
 {
     $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
     $client->set(['open_eof_check' => true, 'open_eof_split' => true, "package_eof" => "\r\n\r\n"]);
@@ -72,16 +73,16 @@ $pm->parentFunc = function ($pid)
         swoole_event_exit();
     });
 
-    if (!$client->connect('127.0.0.1', 9501, 0.5, 0))
+    if (!$client->connect('127.0.0.1', $port, 0.5, 0))
     {
         echo "Over flow. errno=" . $client->errCode;
         die("\n");
     }
 };
 
-$pm->childFunc = function () use ($pm)
+$pm->childFunc = function () use ($pm, $port)
 {
-    $serv = new swoole_server("127.0.0.1", 9501, SWOOLE_BASE);
+    $serv = new swoole_server("127.0.0.1", $port, SWOOLE_BASE);
     $serv->set(array(
         'package_eof' => "\r\n\r\n",
         'open_eof_check' => true,
