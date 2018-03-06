@@ -256,6 +256,7 @@ PHP_FUNCTION(swoole_get_local_ip);
 PHP_FUNCTION(swoole_get_local_mac);
 PHP_FUNCTION(swoole_unsupport_serialize);
 PHP_FUNCTION(swoole_coroutine_create);
+PHP_FUNCTION(swoole_coroutine_exec);
 
 //---------------------------------------------------------
 //                  swoole_server
