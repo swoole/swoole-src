@@ -993,7 +993,7 @@ try_again:
             {
                 zend_array *ht = Z_ARRVAL_P(data);
 
-                if (GC_IS_RECURSIVE(ht) > 1)
+                if (GC_IS_RECURSIVE(ht))
                 {
                     php_error_docref(NULL TSRMLS_CC, E_NOTICE, "the array has cycle ref");
                 }
