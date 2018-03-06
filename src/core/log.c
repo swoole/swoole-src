@@ -25,6 +25,7 @@ int swLog_init(char *logfile)
     if (SwooleG.log_fd < 0)
     {
         printf("open(%s) failed. Error: %s[%d]\n", logfile, strerror(errno), errno);
+        SwooleG.log_fd = 0;
         return SW_ERR;
     }
     return SW_OK;

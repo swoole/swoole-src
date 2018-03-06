@@ -69,7 +69,7 @@
 //#define SW_DEBUG                 //debug
 #define SW_LOG_NO_SRCINFO          //no source info
 #define SW_LOG_TRACE_OPEN          0
-#define SW_LOG_TRACE_FLAGS         (SW_TRACE_MYSQL_CLIENT)
+#define SW_LOG_TRACE_FLAGS         (SW_TRACE_COROUTINE)
 //#define SW_BUFFER_SIZE           65495 //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
 #define SW_CLIENT_BUFFER_SIZE      65536
 //#define SW_CLIENT_RECV_AGAIN
@@ -121,6 +121,7 @@
 #define SW_AIO_MAX_CHUNK_SIZE            1*1024*1024
 //#define SW_AIO_THREAD_USE_CHANNEL
 #define SW_AIO_MAX_EVENTS                128
+#define SW_AIO_HANDLER_MAX_SIZE          8
 //#define SW_THREADPOOL_USE_CHANNEL
 #define SW_THREADPOOL_QUEUE_LEN          10000
 #define SW_IP_MAX_LENGTH                 32

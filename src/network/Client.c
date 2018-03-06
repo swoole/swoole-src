@@ -453,6 +453,7 @@ static int swClient_close(swClient *cli)
 {
     int fd = cli->socket->fd;
     assert(fd != 0);
+
 #ifdef SW_USE_OPENSSL
     if (cli->open_ssl && cli->ssl_context)
     {
@@ -690,7 +691,7 @@ static int swClient_tcp_connect_async(swClient *cli, char *host, int port, doubl
         memcpy(ev.buf, cli->server_host, len);
         ((char *) ev.buf)[len] = 0;
         ev.flags = cli->_sock_domain;
-        ev.type = SW_AIO_DNS_LOOKUP;
+        ev.type = SW_AIO_GETHOSTBYNAME;
         ev.object = cli;
         ev.callback = swClient_onResolveCompleted;
 
@@ -1072,7 +1073,7 @@ static int swClient_onPackage(swConnection *conn, char *data, uint32_t length)
 {
     swClient *cli = (swClient *) conn->object;
     cli->onReceive(conn->object, data, length);
-    return SW_OK;
+    return cli->socket->close_wait ? SW_ERR : SW_OK;
 }
 
 static int swClient_onStreamRead(swReactor *reactor, swEvent *event)

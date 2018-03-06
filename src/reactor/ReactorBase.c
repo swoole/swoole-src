@@ -170,7 +170,7 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
         {
             reactor->running = 0;
         }
-        if (reactor->can_exit)
+        if (reactor->running == 0 && reactor->can_exit)
         {
             reactor->running = reactor->can_exit(reactor);
         }

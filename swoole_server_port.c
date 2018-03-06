@@ -64,6 +64,11 @@ void swoole_server_port_init(int module_number TSRMLS_DC)
     swoole_server_port_class_entry_ptr = zend_register_internal_class(&swoole_server_port_ce TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_server_port, "Swoole\\Server\\Port");
 
+    if (SWOOLE_G(use_shortname))
+    {
+        sw_zend_register_class_alias("Co\\Server\\Port", swoole_server_port_class_entry_ptr);
+    }
+
     zend_declare_property_null(swoole_server_port_class_entry_ptr, ZEND_STRL("onConnect"), ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_server_port_class_entry_ptr, ZEND_STRL("onReceive"), ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_server_port_class_entry_ptr, ZEND_STRL("onClose"), ZEND_ACC_PUBLIC TSRMLS_CC);

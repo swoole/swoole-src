@@ -22,8 +22,8 @@
 #endif
 #include "ext/standard/php_string.h"
 
-zend_class_entry swoole_redis_server_ce;
-zend_class_entry *swoole_redis_server_class_entry_ptr;
+static zend_class_entry swoole_redis_server_ce;
+static zend_class_entry *swoole_redis_server_class_entry_ptr;
 
 static swString *format_buffer;
 #ifdef SW_COROUTINE
@@ -67,6 +67,11 @@ void swoole_redis_server_init(int module_number TSRMLS_DC)
     SWOOLE_INIT_CLASS_ENTRY(swoole_redis_server_ce, "swoole_redis_server", "Swoole\\Redis\\Server", swoole_redis_server_methods);
     swoole_redis_server_class_entry_ptr = sw_zend_register_internal_class_ex(&swoole_redis_server_ce, swoole_server_class_entry_ptr, "swoole_server" TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_redis_server, "Swoole\\Redis\\Server");
+
+    if (SWOOLE_G(use_shortname))
+    {
+        sw_zend_register_class_alias("Co\\Redis\\Server", swoole_redis_server_class_entry_ptr);
+    }
 
     zend_declare_class_constant_long(swoole_redis_server_class_entry_ptr, SW_STRL("NIL")-1, SW_REDIS_REPLY_NIL TSRMLS_CC);
     zend_declare_class_constant_long(swoole_redis_server_class_entry_ptr, SW_STRL("ERROR")-1, SW_REDIS_REPLY_ERROR TSRMLS_CC);
@@ -292,8 +297,6 @@ static PHP_METHOD(swoole_redis_server, start)
     serv->listen_list->open_eof_check = 0;
     serv->listen_list->open_length_check = 0;
     serv->listen_list->open_redis_protocol = 1;
-
-    serv->ptr2 = getThis();
 
     php_swoole_server_before_start(serv, getThis() TSRMLS_CC);
 

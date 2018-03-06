@@ -43,6 +43,7 @@ static int websocket_handshake(swListenPort *, http_context *);
 static PHP_METHOD(swoole_websocket_server, on);
 static PHP_METHOD(swoole_websocket_server, push);
 static PHP_METHOD(swoole_websocket_server, exist);
+static PHP_METHOD(swoole_websocket_server, isEstablished);
 static PHP_METHOD(swoole_websocket_server, pack);
 static PHP_METHOD(swoole_websocket_server, unpack);
 
@@ -73,11 +74,16 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_websocket_server_exist, 0, 0, 1)
     ZEND_ARG_INFO(0, fd)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_websocket_server_isEstablished, 0, 0, 1)
+    ZEND_ARG_INFO(0, fd)
+ZEND_END_ARG_INFO()
+
 const zend_function_entry swoole_websocket_server_methods[] =
 {
     PHP_ME(swoole_websocket_server, on,         arginfo_swoole_websocket_server_on, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_websocket_server, push,       arginfo_swoole_websocket_server_push, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_websocket_server, exist,      arginfo_swoole_websocket_server_exist, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_websocket_server, isEstablished,      arginfo_swoole_websocket_server_isEstablished, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_websocket_server, pack,       arginfo_swoole_websocket_server_pack, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_websocket_server, unpack,     arginfo_swoole_websocket_server_unpack, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
@@ -337,6 +343,12 @@ void swoole_websocket_init(int module_number TSRMLS_DC)
     swoole_websocket_frame_class_entry_ptr = zend_register_internal_class(&swoole_websocket_frame_ce TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_websocket_frame, "Swoole\\WebSocket\\Frame");
 
+    if (SWOOLE_G(use_shortname))
+    {
+        sw_zend_register_class_alias("Co\\WebSocket\\Server", swoole_websocket_server_class_entry_ptr);
+        sw_zend_register_class_alias("Co\\WebSocket\\Frame", swoole_websocket_frame_class_entry_ptr);
+    }
+
     REGISTER_LONG_CONSTANT("WEBSOCKET_OPCODE_TEXT", WEBSOCKET_OPCODE_TEXT_FRAME, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("WEBSOCKET_OPCODE_BINARY", WEBSOCKET_OPCODE_BINARY_FRAME, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("WEBSOCKET_OPCODE_PING", WEBSOCKET_OPCODE_PING, CONST_CS | CONST_PERSISTENT);
@@ -552,4 +564,33 @@ static PHP_METHOD(swoole_websocket_server, exist)
         RETURN_FALSE;
     }
     RETURN_TRUE;
+}
+
+static PHP_METHOD(swoole_websocket_server, isEstablished)
+{
+    zval *zobject = getThis();
+    long fd;
+
+    if (SwooleGS->start == 0)
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "the server is not running.");
+        RETURN_FALSE;
+    }
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &fd) == FAILURE)
+    {
+        return;
+    }
+
+    swServer *serv = swoole_get_object(zobject);
+    swConnection *conn = swWorker_get_connection(serv, fd);
+    //not isEstablished
+    if (!conn || conn->active == 0 || conn->closed || conn->websocket_status < WEBSOCKET_STATUS_ACTIVE)
+    {
+        RETURN_FALSE;
+    }
+    else
+    {
+        RETURN_TRUE;
+    }
 }

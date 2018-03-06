@@ -15,6 +15,8 @@
 */
 
 #include "php_swoole.h"
+
+#ifdef HAVE_PTRACE
 #include <stddef.h>
 #include <sys/ptrace.h>
 
@@ -532,3 +534,4 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
 
     return 0;
 }
+#endif

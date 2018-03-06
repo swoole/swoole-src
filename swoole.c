@@ -276,6 +276,10 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_async_dns_lookup_coro, 0, 0, 1)
     ZEND_ARG_INFO(0, domain_name)
 ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_create, 0, 0, 1)
+    ZEND_ARG_INFO(0, func)
+ZEND_END_ARG_INFO()
 #endif
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_async_exec, 0, 0, 2)
@@ -297,6 +301,11 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_strerror, 0, 0, 1)
     ZEND_ARG_INFO(0, errno)
     ZEND_ARG_INFO(0, error_type)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_hashcode, 0, 0, 1)
+    ZEND_ARG_INFO(0, data)
+    ZEND_ARG_INFO(0, type)
 ZEND_END_ARG_INFO()
 
 #ifdef HAVE_PCRE
@@ -323,6 +332,7 @@ ZEND_END_ARG_INFO()
 #include "zend_exceptions.h"
 
 static PHP_FUNCTION(swoole_last_error);
+static PHP_FUNCTION(swoole_hashcode);
 
 const zend_function_entry swoole_functions[] =
 {
@@ -352,6 +362,8 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_async_dns_lookup, arginfo_swoole_async_dns_lookup)
 #ifdef SW_COROUTINE
     PHP_FE(swoole_async_dns_lookup_coro, arginfo_swoole_async_dns_lookup_coro)
+    PHP_FE(swoole_coroutine_create, arginfo_swoole_coroutine_create)
+    PHP_FALIAS(go, swoole_coroutine_create, arginfo_swoole_coroutine_create)
 #endif
     /*------other-----*/
     PHP_FE(swoole_client_select, arginfo_swoole_client_select)
@@ -361,6 +373,7 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_get_local_mac, arginfo_swoole_void)
     PHP_FE(swoole_strerror, arginfo_swoole_strerror)
     PHP_FE(swoole_errno, arginfo_swoole_void)
+    PHP_FE(swoole_hashcode, arginfo_swoole_hashcode)
     PHP_FE_END /* Must be the last line in swoole_functions[] */
 };
 
@@ -529,6 +542,10 @@ STD_PHP_INI_ENTRY("swoole.display_errors", "On", PHP_INI_ALL, OnUpdateBool, disp
  */
 STD_PHP_INI_ENTRY("swoole.use_namespace", "On", PHP_INI_SYSTEM, OnUpdateBool, use_namespace, zend_swoole_globals, swoole_globals)
 /**
+ * use an short class name
+ */
+STD_PHP_INI_ENTRY("swoole.use_shortname", "On", PHP_INI_SYSTEM, OnUpdateBool, use_shortname, zend_swoole_globals, swoole_globals)
+/**
  * enable swoole_serialize
  */
 STD_PHP_INI_ENTRY("swoole.fast_serialize", "Off", PHP_INI_ALL, OnUpdateBool, fast_serialize, zend_swoole_globals, swoole_globals)
@@ -544,6 +561,7 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
     swoole_globals->socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
     swoole_globals->display_errors = 1;
     swoole_globals->use_namespace = 1;
+    swoole_globals->use_shortname = 1;
     swoole_globals->fast_serialize = 0;
 }
 
@@ -852,6 +870,17 @@ PHP_MINIT_FUNCTION(swoole)
     SWOOLE_DEFINE(ERROR_DATA_LENGTH_TOO_LARGE);
     SWOOLE_DEFINE(ERROR_TASK_PACKAGE_TOO_BIG);
     SWOOLE_DEFINE(ERROR_TASK_DISPATCH_FAIL);
+
+    /**
+     * AIO
+     */
+    SWOOLE_DEFINE(ERROR_AIO_BAD_REQUEST);
+
+    /**
+     * Client
+     */
+    SWOOLE_DEFINE(ERROR_CLIENT_NO_CONNECTION);
+
     SWOOLE_DEFINE(ERROR_HTTP2_STREAM_ID_TOO_BIG);
     SWOOLE_DEFINE(ERROR_HTTP2_STREAM_NO_HEADER);
     SWOOLE_DEFINE(ERROR_SOCKS5_UNSUPPORT_VERSION);
@@ -877,6 +906,15 @@ PHP_MINIT_FUNCTION(swoole)
     SWOOLE_INIT_CLASS_ENTRY(swoole_server_ce, "swoole_server", "Swoole\\Server", swoole_server_methods);
     swoole_server_class_entry_ptr = zend_register_internal_class(&swoole_server_ce TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_server, "Swoole\\Server");
+
+    if (!SWOOLE_G(use_shortname))
+    {
+        sw_zend_hash_del(CG(function_table), ZEND_STRS("go"));
+    }
+    else
+    {
+        sw_zend_register_class_alias("Co\\Server", swoole_server_class_entry_ptr);
+    }
 
     zend_declare_property_null(swoole_server_class_entry_ptr, ZEND_STRL("onConnect"), ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_server_class_entry_ptr, ZEND_STRL("onReceive"), ZEND_ACC_PUBLIC TSRMLS_CC);
@@ -905,7 +943,7 @@ PHP_MINIT_FUNCTION(swoole)
     zend_declare_property_null(swoole_server_class_entry_ptr, ZEND_STRL("ports"), ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(swoole_server_class_entry_ptr, ZEND_STRL("master_pid"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(swoole_server_class_entry_ptr, ZEND_STRL("manager_pid"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_long(swoole_server_class_entry_ptr, ZEND_STRL("worker_id"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_server_class_entry_ptr, ZEND_STRL("worker_id"), -1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_bool(swoole_server_class_entry_ptr, ZEND_STRL("taskworker"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(swoole_server_class_entry_ptr, ZEND_STRL("worker_pid"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
 
@@ -935,6 +973,12 @@ PHP_MINIT_FUNCTION(swoole)
 
     //swoole init
     swoole_init();
+
+#ifdef SW_COROUTINE
+    memset(&COROG, 0, sizeof(COROG));
+    swReactorCheckPoint = NULL;
+#endif
+
     swoole_server_port_init(module_number TSRMLS_CC);
     swoole_client_init(module_number TSRMLS_CC);
 #ifdef SW_COROUTINE
@@ -964,6 +1008,9 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_ringqueue_init(module_number TSRMLS_CC);
 #ifdef SW_USE_HTTP2
     swoole_http2_client_init(module_number TSRMLS_CC);
+#ifdef SW_COROUTINE
+    swoole_http2_client_coro_init(module_number TSRMLS_CC);
+#endif
 #endif
 
 #if PHP_MAJOR_VERSION >= 7
@@ -1029,6 +1076,9 @@ PHP_MINFO_FUNCTION(swoole)
     php_info_print_table_row(2, "Version", PHP_SWOOLE_VERSION);
     php_info_print_table_row(2, "Author", "tianfeng.han[email: mikan.tenny@gmail.com]");
 
+#ifdef SW_COROUTINE
+    php_info_print_table_row(2, "coroutine", "enabled");
+#endif
 #ifdef HAVE_EPOLL
     php_info_print_table_row(2, "epoll", "enabled");
 #endif
@@ -1187,6 +1237,52 @@ PHP_FUNCTION(swoole_version)
     char swoole_version[32] = {0};
     snprintf(swoole_version, sizeof(PHP_SWOOLE_VERSION), "%s", PHP_SWOOLE_VERSION);
     SW_RETURN_STRING(swoole_version, 1);
+}
+
+static uint32_t hashkit_one_at_a_time(const char *key, size_t key_length)
+{
+    const char *ptr = key;
+    uint32_t value = 0;
+
+    while (key_length--)
+    {
+        uint32_t val = (uint32_t) *ptr++;
+        value += val;
+        value += (value << 10);
+        value ^= (value >> 6);
+    }
+    value += (value << 3);
+    value ^= (value >> 11);
+    value += (value << 15);
+
+    return value;
+}
+
+static PHP_FUNCTION(swoole_hashcode)
+{
+    char *data;
+    zend_size_t l_data;
+    long type = 0;
+
+#ifdef FAST_ZPP
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_STRING(data, l_data)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(type)
+    ZEND_PARSE_PARAMETERS_END();
+#else
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|l", &data, &l_data, &type) == FAILURE)
+    {
+        return;
+    }
+#endif
+    switch(type)
+    {
+    case 1:
+        RETURN_LONG(hashkit_one_at_a_time(data, l_data));
+    default:
+        RETURN_LONG(zend_hash_func(data, l_data));
+    }
 }
 
 PHP_FUNCTION(swoole_unsupport_serialize)

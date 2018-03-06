@@ -472,12 +472,49 @@ int swoole_http_parse_form_data(http_context *ctx, const char *boundary_str, int
     return SW_OK;
 }
 
+static inline char* http_trim_double_quote_str(char *ptr, int *len)
+{
+    int i;
+    char *tmp = ptr;
+
+    //ltrim('"')
+    for (i = 0; i < *len; i++)
+    {
+        if (tmp[i] == '"')
+        {
+            (*len)--;
+            tmp++;
+            continue;
+        }
+        else
+        {
+            break;
+        }
+    }
+    //rtrim('"')
+    for (i = (*len) - 1; i > 0; i--)
+    {
+        if (tmp[i] == '"')
+        {
+            (*len)--;
+            continue;
+        }
+        else
+        {
+            break;
+        }
+    }
+    tmp[(*len)] = 0;
+    return tmp;
+}
+
 static void http_parse_cookie(zval *array, const char *at, size_t length)
 {
     char keybuf[SW_HTTP_COOKIE_KEYLEN];
     char valbuf[SW_HTTP_COOKIE_VALLEN];
     char *_c = (char *) at;
 
+    char *_value;
     int klen = 0;
     int vlen = 0;
     int state = -1;
@@ -509,10 +546,11 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
             }
             memcpy(valbuf, (char *) at + j, vlen);
             valbuf[vlen] = 0;
-            vlen = php_url_decode(valbuf, vlen);
+            _value = http_trim_double_quote_str(valbuf, &vlen);
+            vlen = php_url_decode(_value, vlen);
             if (klen > 1)
             {
-                sw_add_assoc_stringl_ex(array, keybuf, klen, valbuf, vlen, 1);
+                sw_add_assoc_stringl_ex(array, keybuf, klen, _value, vlen, 1);
             }
             j = i + 1;
             state = -1;
@@ -547,11 +585,12 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
             return;
         }
         memcpy(valbuf, (char *) at + j, vlen);
-        valbuf[vlen] = 0;;
-        vlen = php_url_decode(valbuf, vlen);
+        valbuf[vlen] = 0;
+        _value = http_trim_double_quote_str(valbuf, &vlen);
+        vlen = php_url_decode(_value, vlen);
         if (klen > 1)
         {
-            sw_add_assoc_stringl_ex(array, keybuf, klen, valbuf, vlen, 1);
+            sw_add_assoc_stringl_ex(array, keybuf, klen, _value, vlen, 1);
         }
     }
 }
@@ -1257,6 +1296,13 @@ void swoole_http_server_init(int module_number TSRMLS_DC)
     swoole_http_request_class_entry_ptr = zend_register_internal_class(&swoole_http_request_ce TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_http_request, "Swoole\\Http\\Request");
 
+    if (SWOOLE_G(use_shortname))
+    {
+        sw_zend_register_class_alias("Co\\Http\\Server", swoole_http_server_class_entry_ptr);
+        sw_zend_register_class_alias("Co\\Http\\Request", swoole_http_request_class_entry_ptr);
+        sw_zend_register_class_alias("Co\\Http\\Response", swoole_http_response_class_entry_ptr);
+    }
+
     zend_declare_property_long(swoole_http_request_class_entry_ptr, SW_STRL("fd")-1, 0,  ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_http_request_class_entry_ptr, SW_STRL("header")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_http_request_class_entry_ptr, SW_STRL("server")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
@@ -1620,8 +1666,6 @@ static PHP_METHOD(swoole_http_server, start)
     serv->listen_list->open_mqtt_protocol = 0;
     serv->listen_list->open_eof_check = 0;
     serv->listen_list->open_length_check = 0;
-
-    serv->ptr2 = getThis();
 
     //for is_uploaded_file and move_uploaded_file
     ALLOC_HASHTABLE(SG(rfc1867_uploaded_files));
@@ -2633,6 +2677,8 @@ static PHP_METHOD(swoole_http_response, __destruct)
         }
         else
         {
+            context->response.status = 500;
+
             zval *zobject = getThis();
             zval *retval = NULL;
             sw_zend_call_method_with_0_params(&zobject, swoole_http_response_class_entry_ptr, NULL, "end", &retval);

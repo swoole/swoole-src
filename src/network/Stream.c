@@ -48,7 +48,7 @@ static void swStream_onReceive(swClient *cli, char *data, uint32_t length)
     swStream *stream = (swStream*) cli->object;
     if (length == 4)
     {
-        cli->close(cli);
+        cli->socket->close_wait = 1;
     }
     else
     {
@@ -93,6 +93,7 @@ swStream* swStream_new(char *dst_host, int dst_port, int type)
 
     if (cli->connect(cli, dst_host, dst_port, -1, 0) < 0)
     {
+        swSysError("failed to connect to [%s:%d].", dst_host, dst_port);
         swStream_free(stream);
         return NULL;
     }

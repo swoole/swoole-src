@@ -54,11 +54,15 @@
 #define SW_REDIS_ZSET      4
 #define SW_REDIS_HASH      5
 /* the same errCode define with hiredis */
-#define SW_REDIS_ERR_IO 1 /* Error in read or write */
-#define SW_REDIS_ERR_EOF 3 /* End of file */
-#define SW_REDIS_ERR_PROTOCOL 4 /* Protocol error */
-#define SW_REDIS_ERR_OOM 5 /* Out of memory */
-#define SW_REDIS_ERR_OTHER 2 /* Everything else... */
+enum swRedisError
+{
+    SW_REDIS_ERR_IO = 1, /* Error in read or write */
+    SW_REDIS_ERR_EOF = 3,/* End of file */
+    SW_REDIS_ERR_PROTOCOL = 4,/* Protocol error */
+    SW_REDIS_ERR_OOM = 5,/* Out of memory */
+    SW_REDIS_ERR_OTHER = 2,/* Everything else... */
+    SW_REDIS_ERR_CLOSED = 6, /* Everything else... */
+};
 
 /* Extended SET argument detection */
 #define IS_EX_ARG(a) \
@@ -73,10 +77,66 @@
 static zend_class_entry swoole_redis_coro_ce;
 static zend_class_entry *swoole_redis_coro_class_entry_ptr;
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_connect, 0, 0, 2)
+    ZEND_ARG_INFO(0, host)
+    ZEND_ARG_INFO(0, port)
+    ZEND_ARG_INFO(0, serialize)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_construct, 0, 0, 0)
+    ZEND_ARG_INFO(0, config)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_void, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_key, 0, 0, 1)
+    ZEND_ARG_INFO(0, key)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_key_value, 0, 0, 2)
+    ZEND_ARG_INFO(0, key)
+    ZEND_ARG_INFO(0, value)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_key_long, 0, 0, 2)
+    ZEND_ARG_INFO(0, key)
+    ZEND_ARG_INFO(0, integer)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_key_opt_long, 0, 0, 1)
+    ZEND_ARG_INFO(0, key)
+    ZEND_ARG_INFO(0, integer)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_incrByFloat, 0, 0, 2)
+    ZEND_ARG_INFO(0, key)
+    ZEND_ARG_INFO(0, float_number)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_zIncrBy, 0, 0, 3)
+    ZEND_ARG_INFO(0, key)
+    ZEND_ARG_INFO(0, value)
+    ZEND_ARG_INFO(0, member)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_zRange, 0, 0, 3)
+    ZEND_ARG_INFO(0, key)
+    ZEND_ARG_INFO(0, start)
+    ZEND_ARG_INFO(0, end)
+    ZEND_ARG_INFO(0, withscores)
+ZEND_END_ARG_INFO()
+
 #define IS_EX_PX_ARG(a) (IS_EX_ARG(a) || IS_PX_ARG(a))
 #define IS_NX_XX_ARG(a) (IS_NX_ARG(a) || IS_XX_ARG(a))
 #define SW_REDIS_COMMAND_CHECK \
     swRedisClient *redis = swoole_get_object(getThis()); \
+    if (!redis)\
+    {\
+        zend_update_property_long(swoole_redis_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), SW_REDIS_ERR_CLOSED TSRMLS_CC); \
+        zend_update_property_string(swoole_redis_coro_class_entry_ptr, getThis(), ZEND_STRL("errMsg"), "redis client is waiting for response." TSRMLS_CC); \
+        RETURN_FALSE;\
+    }\
 	if (redis->iowait == SW_REDIS_CORO_STATUS_WAIT) \
 	{ \
         zend_update_property_long(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errCode"), SW_REDIS_ERR_OTHER TSRMLS_CC); \
@@ -102,6 +162,7 @@ static zend_class_entry *swoole_redis_coro_class_entry_ptr;
 		RETURN_FALSE; \
         break; \
     case SWOOLE_REDIS_CORO_STATE_CLOSED: \
+        SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;\
         zend_update_property_long(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errCode"), SW_REDIS_ERR_OTHER TSRMLS_CC); \
         zend_update_property_string(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), "redis client connection is closed." TSRMLS_CC); \
         RETURN_FALSE; \
@@ -139,6 +200,7 @@ static zend_class_entry *swoole_redis_coro_class_entry_ptr;
 		RETURN_FALSE; \
         break; \
     case SWOOLE_REDIS_CORO_STATE_CLOSED: \
+        SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;\
         zend_update_property_long(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errCode"), SW_REDIS_ERR_OTHER TSRMLS_CC); \
         zend_update_property_string(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), "redis client connection is closed." TSRMLS_CC); \
 		efree(z_args); \
@@ -783,9 +845,9 @@ static PHP_METHOD(swoole_redis_coro, script);
 
 static const zend_function_entry swoole_redis_coro_methods[] =
 {
-    PHP_ME(swoole_redis_coro, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
-    PHP_ME(swoole_redis_coro, __destruct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
-    PHP_ME(swoole_redis_coro, connect, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, __construct, arginfo_swoole_redis_coro_construct, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+    PHP_ME(swoole_redis_coro, __destruct, arginfo_swoole_redis_coro_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
+    PHP_ME(swoole_redis_coro, connect, arginfo_swoole_redis_coro_connect, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, setDefer, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, getDefer, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, recv, NULL, ZEND_ACC_PUBLIC)
@@ -795,7 +857,7 @@ static const zend_function_entry swoole_redis_coro_methods[] =
     PHP_ME(swoole_redis_coro, setEx, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, psetEx, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, lSet, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_redis_coro, get, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, get, arginfo_swoole_redis_coro_key, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, mGet, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, del, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, hDel, NULL, ZEND_ACC_PUBLIC)
@@ -807,12 +869,12 @@ static const zend_function_entry swoole_redis_coro_methods[] =
     PHP_ME(swoole_redis_coro, mSetNx, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, getKeys, NULL, ZEND_ACC_PUBLIC)
 	PHP_MALIAS(swoole_redis_coro, keys, getKeys, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_redis_coro, exists, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_redis_coro, type, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_redis_coro, strLen, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_redis_coro, lPop, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, exists, arginfo_swoole_redis_coro_key, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, type, arginfo_swoole_redis_coro_key, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, strLen, arginfo_swoole_redis_coro_key, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, lPop, arginfo_swoole_redis_coro_key, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, blPop, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_redis_coro, rPop, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, rPop, arginfo_swoole_redis_coro_key, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, brPop, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, bRPopLPush, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, lSize, NULL, ZEND_ACC_PUBLIC)
@@ -820,62 +882,62 @@ static const zend_function_entry swoole_redis_coro_methods[] =
     PHP_ME(swoole_redis_coro, sSize, NULL, ZEND_ACC_PUBLIC)
     PHP_MALIAS(swoole_redis_coro, scard, sSize, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, sPop, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_redis_coro, sMembers, NULL, ZEND_ACC_PUBLIC)
-    PHP_MALIAS(swoole_redis_coro, sGetMembers, sMembers, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_redis_coro, sRandMember, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, sMembers, arginfo_swoole_redis_coro_key, ZEND_ACC_PUBLIC)
+    PHP_MALIAS(swoole_redis_coro, sGetMembers, sMembers, arginfo_swoole_redis_coro_key, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, sRandMember, arginfo_swoole_redis_coro_key_opt_long, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, persist, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_redis_coro, ttl, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_redis_coro, pttl, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, ttl, arginfo_swoole_redis_coro_key, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, pttl, arginfo_swoole_redis_coro_key, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, zCard, NULL, ZEND_ACC_PUBLIC)
     PHP_MALIAS(swoole_redis_coro, zSize, zCard, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, hLen, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, hKeys, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, hVals, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, hGetAll, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_redis_coro, debug, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, debug, arginfo_swoole_redis_coro_key, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, restore, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_redis_coro, dump, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, dump, arginfo_swoole_redis_coro_key, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, renameKey, NULL, ZEND_ACC_PUBLIC)
 	PHP_MALIAS(swoole_redis_coro, rename, renameKey, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, renameNx, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, rpoplpush, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_redis_coro, randomKey, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_redis_coro, ping, NULL, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_redis_coro, randomKey, arginfo_swoole_redis_coro_void, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_redis_coro, ping, arginfo_swoole_redis_coro_void, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, auth, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_redis_coro, unwatch, NULL, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_redis_coro, unwatch, arginfo_swoole_redis_coro_void, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, watch, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_redis_coro, save, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_redis_coro, bgSave, NULL, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_redis_coro, save, arginfo_swoole_redis_coro_void, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_redis_coro, bgSave, arginfo_swoole_redis_coro_void, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, lastSave, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_redis_coro, flushDB, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_redis_coro, flushAll, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_redis_coro, dbSize, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_redis_coro, bgrewriteaof, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_redis_coro, time, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_redis_coro, role, NULL, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_redis_coro, flushDB, arginfo_swoole_redis_coro_void, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_redis_coro, flushAll, arginfo_swoole_redis_coro_void, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_redis_coro, dbSize, arginfo_swoole_redis_coro_void, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_redis_coro, bgrewriteaof, arginfo_swoole_redis_coro_void, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_redis_coro, time, arginfo_swoole_redis_coro_void, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_redis_coro, role, arginfo_swoole_redis_coro_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, setRange, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_redis_coro, setNx, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_redis_coro, getSet, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_redis_coro, append, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_redis_coro, lPushx, NULL, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_redis_coro, setNx, arginfo_swoole_redis_coro_key_value, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_redis_coro, getSet, arginfo_swoole_redis_coro_key_value, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_redis_coro, append, arginfo_swoole_redis_coro_key_value, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_redis_coro, lPushx, arginfo_swoole_redis_coro_key_value, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, lPush, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, rPush, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_redis_coro, rPushx, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_redis_coro, sContains, NULL, ZEND_ACC_PUBLIC)
-    PHP_MALIAS(swoole_redis_coro, sismember, sContains, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_redis_coro, zScore, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_redis_coro, zRank, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_redis_coro, zRevRank, NULL, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_redis_coro, rPushx, arginfo_swoole_redis_coro_key_value, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_redis_coro, sContains, arginfo_swoole_redis_coro_key_value, ZEND_ACC_PUBLIC)
+    PHP_MALIAS(swoole_redis_coro, sismember, sContains, arginfo_swoole_redis_coro_key_value, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_redis_coro, zScore, arginfo_swoole_redis_coro_key_value, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_redis_coro, zRank, arginfo_swoole_redis_coro_key_value, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_redis_coro, zRevRank, arginfo_swoole_redis_coro_key_value, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, hGet, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, hMGet, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, hExists, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, publish, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_redis_coro, zIncrBy, NULL, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_redis_coro, zIncrBy, arginfo_swoole_redis_coro_zIncrBy, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, zAdd, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, zDeleteRangeByScore, NULL, ZEND_ACC_PUBLIC)
     PHP_MALIAS(swoole_redis_coro, zRemRangeByScore, zDeleteRangeByScore, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, zCount, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_redis_coro, zRange, NULL, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_redis_coro, zRange, arginfo_swoole_redis_coro_zRange, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, zRevRange, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, zRangeByScore, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, zRevRangeByScore, NULL, ZEND_ACC_PUBLIC)
@@ -885,21 +947,21 @@ static const zend_function_entry swoole_redis_coro_methods[] =
     PHP_MALIAS(swoole_redis_coro, zinterstore, zInter, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, zUnion, NULL, ZEND_ACC_PUBLIC)
     PHP_MALIAS(swoole_redis_coro, zunionstore, zUnion, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_redis_coro, incrBy, NULL, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_redis_coro, incrBy, arginfo_swoole_redis_coro_key_long, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, hIncrBy, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_redis_coro, incr, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_redis_coro, decrBy, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_redis_coro, decr, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_redis_coro, getBit, NULL, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_redis_coro, incr, arginfo_swoole_redis_coro_key, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_redis_coro, decrBy, arginfo_swoole_redis_coro_key_long, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_redis_coro, decr, arginfo_swoole_redis_coro_key, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_redis_coro, getBit, arginfo_swoole_redis_coro_key_long, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, lInsert, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_redis_coro, lGet, NULL, ZEND_ACC_PUBLIC)
-	PHP_MALIAS(swoole_redis_coro, lIndex, lGet, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_redis_coro, setTimeout, NULL, ZEND_ACC_PUBLIC)
-    PHP_MALIAS(swoole_redis_coro, expire, setTimeout, NULL, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_redis_coro, lGet, arginfo_swoole_redis_coro_key_long, ZEND_ACC_PUBLIC)
+	PHP_MALIAS(swoole_redis_coro, lIndex, lGet, arginfo_swoole_redis_coro_key_long, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_redis_coro, setTimeout, arginfo_swoole_redis_coro_key_long, ZEND_ACC_PUBLIC)
+    PHP_MALIAS(swoole_redis_coro, expire, setTimeout, arginfo_swoole_redis_coro_key_long, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, pexpire, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_redis_coro, expireAt, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_redis_coro, pexpireAt, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_redis_coro, move, NULL, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_redis_coro, expireAt, arginfo_swoole_redis_coro_key_long, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_redis_coro, pexpireAt, arginfo_swoole_redis_coro_key_long, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_redis_coro, move, arginfo_swoole_redis_coro_key_long, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, select, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, getRange, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, listTrim, NULL, ZEND_ACC_PUBLIC)
@@ -910,7 +972,7 @@ static const zend_function_entry swoole_redis_coro_methods[] =
     PHP_MALIAS(swoole_redis_coro, lRemove,lRem, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, zDeleteRangeByRank, NULL, ZEND_ACC_PUBLIC)
     PHP_MALIAS(swoole_redis_coro, zRemRangeByRank, zDeleteRangeByRank, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_redis_coro, incrByFloat, NULL, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_redis_coro, incrByFloat, arginfo_swoole_redis_coro_incrByFloat, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, hIncrByFloat, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, bitCount, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, bitOp, NULL, ZEND_ACC_PUBLIC)
@@ -922,8 +984,8 @@ static const zend_function_entry swoole_redis_coro_methods[] =
 	PHP_ME(swoole_redis_coro, sUnionStore, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, sInter, NULL, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, sInterStore, NULL, ZEND_ACC_PUBLIC)
-	PHP_ME(swoole_redis_coro, sRemove, NULL, ZEND_ACC_PUBLIC)
-    PHP_MALIAS(swoole_redis_coro, srem, sRemove, NULL, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_redis_coro, sRemove, arginfo_swoole_redis_coro_key_value, ZEND_ACC_PUBLIC)
+    PHP_MALIAS(swoole_redis_coro, srem, sRemove, arginfo_swoole_redis_coro_key_value, ZEND_ACC_PUBLIC)
 	PHP_ME(swoole_redis_coro, zDelete, NULL, ZEND_ACC_PUBLIC)
     PHP_MALIAS(swoole_redis_coro, zRemove, zDelete, NULL, ZEND_ACC_PUBLIC)
     PHP_MALIAS(swoole_redis_coro, zRem, zDelete, NULL, ZEND_ACC_PUBLIC)
@@ -941,8 +1003,13 @@ static const zend_function_entry swoole_redis_coro_methods[] =
 
 void swoole_redis_coro_init(int module_number TSRMLS_DC)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_redis_coro_ce, "swoole_redis_coro", "Swoole\\Coroutine\\Redis", swoole_redis_coro_methods);
+    INIT_CLASS_ENTRY(swoole_redis_coro_ce, "Swoole\\Coroutine\\Redis", swoole_redis_coro_methods);
     swoole_redis_coro_class_entry_ptr = zend_register_internal_class(&swoole_redis_coro_ce TSRMLS_CC);
+
+    if (SWOOLE_G(use_shortname))
+    {
+        sw_zend_register_class_alias("Co\\Redis", swoole_redis_coro_class_entry_ptr);
+    }
 
     zend_declare_property_null(swoole_redis_coro_class_entry_ptr, ZEND_STRL("setting"), ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_redis_coro_class_entry_ptr, ZEND_STRL("host"), ZEND_ACC_PUBLIC TSRMLS_CC);
@@ -959,12 +1026,6 @@ void swoole_redis_coro_init(int module_number TSRMLS_DC)
 	REGISTER_LONG_CONSTANT("SWOOLE_REDIS_TYPE_LIST", SW_REDIS_LIST, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("SWOOLE_REDIS_TYPE_ZSET", SW_REDIS_ZSET, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("SWOOLE_REDIS_TYPE_HASH", SW_REDIS_HASH, CONST_CS | CONST_PERSISTENT);
-}
-
-static void redis_coro_free(void* data)
-{
-    swRedisClient *redis = (swRedisClient *) data;
-    efree(redis);
 }
 
 static void redis_coro_close(void* data)
@@ -1257,7 +1318,6 @@ static PHP_METHOD(swoole_redis_coro, __destruct)
     {
         return;
     }
-
     if (redis->state != SWOOLE_REDIS_CORO_STATE_CONNECT && redis->state != SWOOLE_REDIS_CORO_STATE_CLOSED)
     {
         swTraceLog(SW_TRACE_REDIS_CLIENT, "fd=%d", redis->context->c.fd);
@@ -1270,9 +1330,8 @@ static PHP_METHOD(swoole_redis_coro, __destruct)
             sw_zval_ptr_dtor(&retval);
         }
     }
+    swoole_set_object(redis->object, NULL);
     redis->object = NULL;
-    redis->state = SWOOLE_REDIS_CORO_STATE_RELEASED;
-    swoole_set_object(getThis(), NULL);
 }
 
 static PHP_METHOD(swoole_redis_coro, set)
@@ -2883,9 +2942,10 @@ static PHP_METHOD(swoole_redis_coro, zAdd)
     int argc = ZEND_NUM_ARGS();
 
     SW_REDIS_COMMAND_ALLOC_ARGS_ARR
-    if(zend_get_parameters_array(ht, argc, z_args)==FAILURE) {
+    if (zend_get_parameters_array(ht, argc, z_args) == FAILURE)
+    {
         efree(z_args);
-		RETURN_FALSE;
+        RETURN_FALSE;
     }
 
 #if PHP_MAJOR_VERSION < 7
@@ -3919,6 +3979,7 @@ static void swoole_redis_coro_onResult(redisAsyncContext *c, void *r, void *priv
 			redis->pipeline_result = NULL;
         }
         swoole_redis_coro_resume(result);
+        return;
     }
     else
     {
@@ -4036,18 +4097,6 @@ static void swoole_redis_coro_onClose(const redisAsyncContext *c, int status)
     redis->context = NULL;
     redis->connected = 0;
 
-    swConnection *_socket = swReactor_get(SwooleG.main_reactor, c->c.fd);
-    _socket->active = 0;
-
-    SwooleG.main_reactor->defer(SwooleG.main_reactor, redis_coro_free, redis);
-
-#if PHP_MAJOR_VERSION < 7
-    if (redis->object)
-    {
-        sw_zval_ptr_dtor(&redis->object);
-    }
-#endif
-
     if (redis->iowait == SW_REDIS_CORO_STATUS_WAIT && redis->object)
     {
         swTraceLog(SW_TRACE_REDIS_CLIENT, "resume, fd=%d, object_id=%d", redis->context->c.fd, sw_get_object_handle(redis->object));
@@ -4067,6 +4116,11 @@ static void swoole_redis_coro_onClose(const redisAsyncContext *c, int status)
         }
         sw_zval_ptr_dtor(&redis_result);
     }
+    if (redis->object)
+    {
+        swoole_set_object(redis->object, NULL);
+    }
+    efree(redis);
 }
 
 static void swoole_redis_coro_event_AddRead(void *privdata)

@@ -81,6 +81,9 @@ int swConnection_onSendfile(swConnection *conn, swBuffer_trunk *chunk)
         case SW_CLOSE:
             conn->close_wait = 1;
             return SW_ERR;
+        case SW_WAIT:
+            conn->send_wait = 1;
+            return SW_ERR;
         default:
             break;
         }

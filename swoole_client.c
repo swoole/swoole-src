@@ -203,7 +203,9 @@ static sw_inline swClient* client_get_ptr(zval *zobject TSRMLS_DC)
     }
     else
     {
-        swoole_php_fatal_error(E_WARNING, "client is not connected to server.");
+        SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
+        zend_update_property_long(swoole_client_class_entry_ptr, zobject, SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
+        swoole_php_error(E_WARNING, "client is not connected to server.");
         return NULL;
     }
 }
@@ -1201,7 +1203,7 @@ static PHP_METHOD(swoole_client, set)
 
 static PHP_METHOD(swoole_client, connect)
 {
-    long port = 0, sock_flag = 0;
+    zend_long port = 0, sock_flag = 0;
     char *host = NULL;
     zend_size_t host_len;
     double timeout = SW_CLIENT_DEFAULT_TIMEOUT;
@@ -1353,7 +1355,7 @@ static PHP_METHOD(swoole_client, send)
 {
     char *data;
     zend_size_t data_len;
-    long flags = 0;
+    zend_long flags = 0;
 
 #ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(1, 2)
@@ -1489,8 +1491,8 @@ static PHP_METHOD(swoole_client, sendfile)
 
 static PHP_METHOD(swoole_client, recv)
 {
-    long buf_len = SW_PHP_CLIENT_BUFFER_SIZE;
-    long flags = 0;
+    zend_long buf_len = SW_PHP_CLIENT_BUFFER_SIZE;
+    zend_long flags = 0;
     int ret;
     char *buf = NULL;
 

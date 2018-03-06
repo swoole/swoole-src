@@ -262,6 +262,8 @@ static int swWorker_onStreamPackage(swConnection *conn, char *data, uint32_t len
     swServer *serv = SwooleG.serv;
     swEventData *task = (swEventData *) (data + 4);
 
+    serv->last_stream_fd = conn->fd;
+
     swString *package = swWorker_get_buffer(serv, task->info.from_id);
     uint32_t data_length = length - sizeof(task->info) - 4;
     //merge data to package buffer
@@ -287,6 +289,7 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
 #endif
 
     factory->last_from_id = task->info.from_id;
+    serv->last_session_id = task->info.fd;
     swWorker *worker = SwooleWG.worker;
     //worker busy
     worker->status = SW_WORKER_BUSY;
@@ -326,10 +329,12 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
             break;
         }
         package = swWorker_get_buffer(serv, task->info.from_id);
-        //merge data to package buffer
-        memcpy(package->str + package->length, task->data, task->info.len);
-        package->length += task->info.len;
-
+        if (task->info.len > 0)
+        {
+            //merge data to package buffer
+            memcpy(package->str + package->length, task->data, task->info.len);
+            package->length += task->info.len;
+        }
         //package end
         if (task->info.type == SW_EVENT_PACKAGE_END)
         {
@@ -511,6 +516,7 @@ void swWorker_onStart(swServer *serv)
         }
     }
 
+    SwooleWG.worker->status = SW_WORKER_IDLE;
     sw_shm_protect(serv->session_list, PROT_READ);
 
     if (serv->onWorkerStart)
@@ -531,6 +537,7 @@ static void swWorker_stop()
 {
     swWorker *worker = SwooleWG.worker;
     swServer *serv = SwooleG.serv;
+    worker->status = SW_WORKER_BUSY;
 
     /**
      * force to end
@@ -552,6 +559,13 @@ static void swWorker_stop()
     if (worker->pipe_worker)
     {
         swReactor_remove_read_event(SwooleG.main_reactor, worker->pipe_worker);
+    }
+
+    if (serv->stream_fd > 0)
+    {
+        SwooleG.main_reactor->del(SwooleG.main_reactor, serv->stream_fd);
+        close(serv->stream_fd);
+        serv->stream_fd = 0;
     }
 
     if (serv->onWorkerStop)

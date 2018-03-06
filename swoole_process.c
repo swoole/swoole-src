@@ -674,12 +674,21 @@ int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
         swTraceLog(SW_TRACE_PHP, "destroy reactor");
     }
 
+#ifdef SW_COROUTINE
+    swLinkedList *coro_timeout_list = SwooleWG.coro_timeout_list;
+#endif
+
     bzero(&SwooleWG, sizeof(SwooleWG));
     SwooleG.pid = process->pid;
-    if (SwooleG.process_type != SW_PROCESS_USERWORKER) {
+    if (SwooleG.process_type != SW_PROCESS_USERWORKER)
+    {
         SwooleG.process_type = 0;
     }
     SwooleWG.id = process->id;
+
+#ifdef SW_COROUTINE
+    SwooleWG.coro_timeout_list = coro_timeout_list;
+#endif
 
     if (SwooleG.timer.fd)
     {

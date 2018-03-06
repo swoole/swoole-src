@@ -25,6 +25,7 @@
 #include <setjmp.h>
 
 #define DEFAULT_MAX_CORO_NUM 3000
+#define DEFAULT_STACK_SIZE   8192
 
 #define CORO_END 0
 #define CORO_YIELD 1
@@ -79,6 +80,7 @@ typedef struct _coro_global
 {
     uint32_t coro_num;
     uint32_t max_coro_num;
+    uint32_t stack_size;
     zend_vm_stack origin_vm_stack;
 #if PHP_MAJOR_VERSION >= 7
     zval *origin_vm_stack_top;
