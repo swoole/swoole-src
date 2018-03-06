@@ -1,7 +1,0 @@
-001+ Fatal error: Uncaught Error: Call to undefined function pcntl_fork() in /src/swoole-src/tests/include/toolkit/functions.php:489
-002+ Stack trace:
-001- swoole
-002- Done.*
-003+ #0 /src/swoole-src/tests/swoole_http_client/get.php(17): ProcessManager->run()
-004+ #1 {main}
-005+   thrown in /src/swoole-src/tests/include/toolkit/functions.php on line 489

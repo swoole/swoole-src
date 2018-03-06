@@ -1,7 +1,0 @@
-001+ Warning: swoole_client::recv(): recv() failed. Error: Resource temporarily unavailable [11] in /src/swoole-src/tests/include/lib/class.websocket_client.php on line 51
-002+ 
-003+ 
-004+ Warning: swoole_client::recv(): recv() failed. Error: Resource temporarily unavailable [11] in /src/swoole-src/tests/include/lib/class.websocket_client.php on line 58
-005+ 
-001- hello batman
-002- hello batman again

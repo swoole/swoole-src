@@ -1,6 +1,0 @@
-001+ Fatal error: Uncaught Error: Call to undefined function pcntl_fork() in /src/swoole-src/tests/include/toolkit/functions.php:290
-001- SUCCESS
-002+ Stack trace:
-003+ #0 /src/swoole-src/tests/swoole_mysql/refcount_test.php(6): fork_exec(Object(Closure))
-004+ #1 {main}
-005+   thrown in /src/swoole-src/tests/include/toolkit/functions.php on line 290
