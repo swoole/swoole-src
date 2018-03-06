@@ -1,0 +1,8 @@
+
+---- EXPECTED OUTPUT
+
+---- ACTUAL OUTPUT
+Warning: swoole_client::recv(): recv() failed. Error: Resource temporarily unavailable [11] in /src/swoole-src/tests/include/lib/class.websocket_client.php on line 51
+
+Warning: assert(): assert($cli->sendRecv('batman') == 'hello batman') failed in /src/swoole-src/tests/swoole_websocket_server/websocket_message.php on line 36
+---- FAILED

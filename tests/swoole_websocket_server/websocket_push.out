@@ -1,0 +1,6 @@
+Warning: swoole_client::recv(): recv() failed. Error: Resource temporarily unavailable [11] in /src/swoole-src/tests/include/lib/class.websocket_client.php on line 51
+
+
+Warning: swoole_client::recv(): recv() failed. Error: Resource temporarily unavailable [11] in /src/swoole-src/tests/include/lib/class.websocket_client.php on line 58
+
+Done

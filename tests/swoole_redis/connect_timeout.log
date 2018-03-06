@@ -1,0 +1,10 @@
+
+---- EXPECTED OUTPUT
+
+---- ACTUAL OUTPUT
+Fatal error: Uncaught Error: Class 'swoole_redis' not found in /src/swoole-src/tests/include/api/swoole_redis/connect_timeout.php:2
+Stack trace:
+#0 /src/swoole-src/tests/swoole_redis/connect_timeout.php(3): require_once()
+#1 {main}
+  thrown in /src/swoole-src/tests/include/api/swoole_redis/connect_timeout.php on line 2
+---- FAILED

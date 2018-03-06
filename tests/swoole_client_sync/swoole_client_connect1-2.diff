@@ -1,0 +1,3 @@
+001+ Warning: swoole_client::connect(): connect to server[180.97.33.107:80] failed. Error: Operation now in progress[115]. in /src/swoole-src/tests/swoole_client_sync/swoole_client_connect1-2.php on line 12
+002+ 
+003+ Warning: assert(): assert($r) failed in /src/swoole-src/tests/swoole_client_sync/swoole_client_connect1-2.php on line 13

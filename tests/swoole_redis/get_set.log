@@ -1,0 +1,10 @@
+
+---- EXPECTED OUTPUT
+close
+---- ACTUAL OUTPUT
+Fatal error: Uncaught Error: Class 'swoole_redis' not found in /src/swoole-src/tests/include/api/swoole_redis/simple_redis.php:10
+Stack trace:
+#0 /src/swoole-src/tests/swoole_redis/get_set.php(3): require_once()
+#1 {main}
+  thrown in /src/swoole-src/tests/include/api/swoole_redis/simple_redis.php on line 10
+---- FAILED

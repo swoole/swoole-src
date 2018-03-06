@@ -1,0 +1,7 @@
+001+ Fatal error: Uncaught Error: Call to undefined method swoole_client::getSocket() in /src/swoole-src/tests/swoole_client_async/getSocket_bug.php:13
+001- SUCCESS
+002+ Stack trace:
+003+ #0 [internal function]: {closure}(Object(swoole_client))
+004+ #1 /src/swoole-src/tests/swoole_client_async/getSocket_bug.php(30): swoole_event::wait()
+005+ #2 {main}
+006+   thrown in /src/swoole-src/tests/swoole_client_async/getSocket_bug.php on line 13

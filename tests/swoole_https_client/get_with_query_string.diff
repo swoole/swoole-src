@@ -1,0 +1,7 @@
+001+ Fatal error: Uncaught Error: Call to undefined function socket_create() in /src/swoole-src/tests/include/toolkit/functions.php:219
+001- SUCCESS
+002+ Stack trace:
+003+ #0 /src/swoole-src/tests/include/toolkit/functions.php(557): get_one_free_port()
+004+ #1 /src/swoole-src/tests/swoole_https_client/get_with_query_string.php(7): ServerManager->listen('127.0.0.1')
+005+ #2 {main}
+006+   thrown in /src/swoole-src/tests/include/toolkit/functions.php on line 219

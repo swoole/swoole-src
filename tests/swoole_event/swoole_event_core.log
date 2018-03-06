@@ -1,0 +1,9 @@
+
+---- EXPECTED OUTPUT
+SUCCESS
+---- ACTUAL OUTPUT
+Fatal error: Uncaught Error: Call to undefined function pcntl_fork() in /src/swoole-src/tests/swoole_event/swoole_event_core.php:12
+Stack trace:
+#0 {main}
+  thrown in /src/swoole-src/tests/swoole_event/swoole_event_core.php on line 12
+---- FAILED
