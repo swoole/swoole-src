@@ -84,6 +84,7 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_statement_execute, 0, 0, 1)
     ZEND_ARG_INFO(0, params)
+    ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
 static zend_class_entry swoole_mysql_coro_ce;
@@ -617,7 +618,7 @@ static PHP_METHOD(swoole_mysql_coro, query)
 {
     swString sql;
     bzero(&sql, sizeof(sql));
-    double timeout = 0.0;
+    double timeout = -1;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|d", &sql.str, &sql.length, &timeout) == FAILURE)
     {
@@ -953,7 +954,9 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
 static PHP_METHOD(swoole_mysql_coro_statement, execute)
 {
     zval *params;
-    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "a", &params) == FAILURE)
+    double timeout = -1;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "a|d", &params, &timeout) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -977,7 +980,6 @@ static PHP_METHOD(swoole_mysql_coro_statement, execute)
     }
 
     php_context *context = swoole_get_property(client->object, 0);
-    double timeout = client->connector.timeout;
     if (timeout > 0)
     {
         client->timer = SwooleG.timer.add(&SwooleG.timer, (int) (timeout * 1000), 0, context, swoole_mysql_coro_onTimeout);
