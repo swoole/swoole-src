@@ -1,5 +1,0 @@
-001+ Fatal error: Uncaught Error: Class 'swoole_redis' not found in /src/swoole-src/tests/swoole_redis/connect_refuse.php:4
-001- 
-002+ Stack trace:
-003+ #0 {main}
-004+   thrown in /src/swoole-src/tests/swoole_redis/connect_refuse.php on line 4

@@ -1,6 +1,0 @@
-001+ Fatal error: Uncaught Error: Class 'swoole_redis' not found in /src/swoole-src/tests/include/api/swoole_redis/connect_timeout.php:2
-001- 
-002+ Stack trace:
-003+ #0 /src/swoole-src/tests/swoole_redis/connect_timeout.php(3): require_once()
-004+ #1 {main}
-005+   thrown in /src/swoole-src/tests/include/api/swoole_redis/connect_timeout.php on line 2
