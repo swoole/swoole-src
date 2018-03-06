@@ -14,8 +14,9 @@ $pm = new ProcessManager;
 $pm->parentFunc = function ($pid)  {
     $r = curl_concurrency(['http://127.0.0.1:9501', 'http://127.0.0.1:9501']);
 
-    assert($r == ['[OK] rid:2; cid:4', '[OK] rid:3; cid:5']);
-    echo 'two requests with uid 2,3; four coroutine with uid 2,3,4,5';
+    if ($r == ['[OK] rid:2; cid:4', '[OK] rid:3; cid:5']){
+        echo 'two requests with uid 2,3; four coroutine with uid 2,3,4,5';
+    }
 
     swoole_process::kill($pid);
 };
