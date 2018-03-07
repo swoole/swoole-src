@@ -3465,6 +3465,12 @@ static PHP_METHOD(swoole_redis_coro, pSubscribe)
 		RETURN_FALSE;
 	}
 
+    if (unlikely(redis->cid && redis->cid != get_current_cid()))
+    {
+        swoole_php_fatal_error(E_WARNING, "redis client has already been bound to another coroutine.");
+        RETURN_FALSE;
+    }
+
 	php_context *context = swoole_get_property(getThis(), 0);
     switch (redis->state)
     {
