@@ -35,10 +35,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2018-02-09</date>
+    <date>2018-03-07</date>
     <time>09:50:10</time>
     <version>
-        <release>2.1.0</release>
+        <release>2.1.1</release>
         <api>2.1</api>
     </version>
     <stability>
@@ -47,9 +47,11 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-    - Added shortname
-	- Added channel
-	- Added non-namespace style API
+    - Added co::fgets
+	- Added co::exec
+	- Added Client::peek
+	- Added Co\Redis::$connected property
+	- Added Co\MySQL::$connected property
     </notes>
     <contents>
         <dir name="/">

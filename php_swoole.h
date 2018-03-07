@@ -50,7 +50,7 @@
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "2.1.1-alpha"
+#define PHP_SWOOLE_VERSION  "2.1.1"
 #define PHP_SWOOLE_CHECK_CALLBACK
 #define PHP_SWOOLE_ENABLE_FASTCALL
 
