@@ -290,7 +290,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     {
         zend_execute_ex(call);
         coro_close(TSRMLS_C);
-        swTraceLog(SW_TRACE_COROUTINE, "[CORO_END] Create the %d coro with stack. heap size: %zu\n", COROG.coro_num, zend_memory_usage(0));
+        swTraceLog(SW_TRACE_COROUTINE, "[CORO_END] Create the %d coro with stack. heap size: %zu", COROG.coro_num, zend_memory_usage(0));
         coro_status = CORO_END;
     }
     else
