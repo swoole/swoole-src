@@ -573,6 +573,17 @@ static PHP_METHOD(swoole_coroutine_util, set)
         convert_to_long(v);
         COROG.stack_size = (uint32_t) Z_LVAL_P(v);
     }
+    if (php_swoole_array_get_value(vht, "log_level", v))
+    {
+        convert_to_long(v);
+        SwooleG.log_level = (int32_t) Z_LVAL_P(v);
+    }
+    if (php_swoole_array_get_value(vht, "trace_flags", v))
+    {
+        convert_to_long(v);
+        SwooleG.trace_flags = (int32_t) Z_LVAL_P(v);
+    }
+    sw_zval_ptr_dtor(&zset);
 }
 
 PHP_FUNCTION(swoole_coroutine_create)
