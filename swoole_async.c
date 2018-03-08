@@ -75,9 +75,7 @@ typedef struct
 typedef struct
 {
     zval *callback;
-#if PHP_MAJOR_VERSION >= 7
-    zval _callback;
-#endif
+    php_context *context;
     pid_t pid;
     int fd;
     swString *buffer;
@@ -1157,61 +1155,79 @@ static int process_stream_onRead(swReactor *reactor, swEvent *event)
         {
             swString_extend(ps->buffer, ps->buffer->size * 2);
         }
+        return SW_OK;
     }
-    else if (ret == 0)
+    else if (ret < 0)
     {
-        zval *zcallback = ps->callback;
-        zval *retval = NULL;
-        zval **args[2];
+        swSysError("read() failed.");
+        return SW_OK;
+    }
 
-        zval *zdata;
-        SW_MAKE_STD_ZVAL(zdata);
-                SW_ZVAL_STRINGL(zdata, ps->buffer->str, ps->buffer->length, 1);
+    zval *retval = NULL;
+    zval **args[2];
 
-        SwooleG.main_reactor->del(SwooleG.main_reactor, ps->fd);
+    zval *zdata;
+    SW_MAKE_STD_ZVAL(zdata);
+    SW_ZVAL_STRINGL(zdata, ps->buffer->str, ps->buffer->length, 1);
 
-        swString_free(ps->buffer);
-        args[0] = &zdata;
+    SwooleG.main_reactor->del(SwooleG.main_reactor, ps->fd);
 
-        int status;
-        zval *zstatus;
-        SW_MAKE_STD_ZVAL(zstatus);
+    swString_free(ps->buffer);
+    args[0] = &zdata;
 
-        pid_t pid = swWaitpid(ps->pid, &status, WNOHANG);
-        if (pid > 0)
-        {
-            array_init(zstatus);
-            add_assoc_long(zstatus, "code", WEXITSTATUS(status));
-            add_assoc_long(zstatus, "signal", WTERMSIG(status));
-        }
-        else
-        {
-            ZVAL_FALSE(zstatus);
-        }
-        args[1] = &zstatus;
+    int status;
+    zval *zstatus;
+    SW_MAKE_STD_ZVAL(zstatus);
 
+    pid_t pid = swWaitpid(ps->pid, &status, WNOHANG);
+    if (pid > 0)
+    {
+        array_init(zstatus);
+        add_assoc_long(zstatus, "code", WEXITSTATUS(status));
+        add_assoc_long(zstatus, "signal", WTERMSIG(status));
+    }
+    else
+    {
+        ZVAL_FALSE(zstatus);
+    }
+
+    args[1] = &zstatus;
+
+    zval *zcallback = ps->callback;
+    php_context *context = ps->context;
+    if (zcallback)
+    {
         if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
         {
             swoole_php_fatal_error(E_WARNING, "swoole_async: onAsyncComplete handler error");
         }
-        if (EG(exception))
-        {
-            zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
-        }
-        if (retval != NULL)
-        {
-            sw_zval_ptr_dtor(&retval);
-        }
-        sw_zval_ptr_dtor(&zdata);
-        sw_zval_ptr_dtor(&zstatus);
-        sw_zval_ptr_dtor(&zcallback);
-        close(ps->fd);
-        efree(ps);
+        sw_zval_free(zcallback);
     }
     else
     {
-        swSysError("read() failed.");
+        sw_zval_add_ref(&zdata);
+        add_assoc_zval(zstatus, "output", zdata);
+        int ret = coro_resume(context, zstatus, &retval);
+        if (ret == CORO_END && retval)
+        {
+            sw_zval_ptr_dtor(&retval);
+        }
+        efree(context);
     }
+
+    if (EG(exception))
+    {
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+    }
+    if (retval != NULL)
+    {
+        sw_zval_ptr_dtor(&retval);
+    }
+    sw_zval_ptr_dtor(&zdata);
+    sw_zval_ptr_dtor(&zstatus);
+    close(ps->fd);
+    efree(ps);
+
     return SW_OK;
 }
 
@@ -1227,7 +1243,7 @@ PHP_METHOD(swoole_async, exec)
     }
 
     php_swoole_check_reactor();
-    if (!swReactor_handle_isset(SwooleG.main_reactor, PHP_SWOOLE_FD_MYSQL))
+    if (!swReactor_handle_isset(SwooleG.main_reactor, PHP_SWOOLE_FD_PROCESS_STREAM))
     {
         SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_PROCESS_STREAM | SW_EVENT_READ, process_stream_onRead);
         SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_PROCESS_STREAM | SW_EVENT_ERROR, process_stream_onRead);
@@ -1248,8 +1264,8 @@ PHP_METHOD(swoole_async, exec)
     }
 
     process_stream *ps = emalloc(sizeof(process_stream));
-    ps->callback = callback;
-    sw_copy_to_stack(ps->callback, ps->_callback);
+    ps->callback = sw_zval_dup(callback);
+    ps->context = NULL;
     sw_zval_add_ref(&ps->callback);
 
     ps->fd = fd;
@@ -1258,7 +1274,7 @@ PHP_METHOD(swoole_async, exec)
 
     if (SwooleG.main_reactor->add(SwooleG.main_reactor, ps->fd, PHP_SWOOLE_FD_PROCESS_STREAM | SW_EVENT_READ) < 0)
     {
-        sw_zval_ptr_dtor(&ps->callback);
+        sw_zval_free(ps->callback);
         efree(ps);
         RETURN_FALSE;
     }
@@ -1271,6 +1287,61 @@ PHP_METHOD(swoole_async, exec)
 }
 
 #ifdef SW_COROUTINE
+PHP_FUNCTION(swoole_coroutine_exec)
+{
+    char *command;
+    zend_size_t command_len;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &command, &command_len) == FAILURE)
+    {
+        return;
+    }
+
+    coro_check(TSRMLS_C);
+
+    php_swoole_check_reactor();
+    if (!swReactor_handle_isset(SwooleG.main_reactor, PHP_SWOOLE_FD_PROCESS_STREAM))
+    {
+        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_PROCESS_STREAM | SW_EVENT_READ, process_stream_onRead);
+        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_PROCESS_STREAM | SW_EVENT_ERROR, process_stream_onRead);
+    }
+
+    pid_t pid;
+    int fd = swoole_shell_exec(command, &pid);
+    if (fd < 0)
+    {
+        swoole_php_error(E_WARNING, "Unable to execute '%s'", command);
+        RETURN_FALSE;
+    }
+
+    swString *buffer = swString_new(1024);
+    if (buffer == NULL)
+    {
+        RETURN_FALSE;
+    }
+
+    process_stream *ps = emalloc(sizeof(process_stream));
+    ps->callback = NULL;
+    ps->context = emalloc(sizeof(php_context));
+    ps->fd = fd;
+    ps->pid = pid;
+    ps->buffer = buffer;
+
+    if (SwooleG.main_reactor->add(SwooleG.main_reactor, ps->fd, PHP_SWOOLE_FD_PROCESS_STREAM | SW_EVENT_READ) < 0)
+    {
+        efree(ps->context);
+        efree(ps);
+        RETURN_FALSE;
+    }
+    else
+    {
+        swConnection *_socket = swReactor_get(SwooleG.main_reactor, ps->fd);
+        _socket->object = ps;
+        coro_save(ps->context);
+        coro_yield();
+    }
+}
+
 PHP_FUNCTION(swoole_async_dns_lookup_coro)
 {
     zval *domain;

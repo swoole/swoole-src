@@ -50,7 +50,7 @@
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "2.1.1-alpha"
+#define PHP_SWOOLE_VERSION  "2.1.2-alpha"
 #define PHP_SWOOLE_CHECK_CALLBACK
 #define PHP_SWOOLE_ENABLE_FASTCALL
 
@@ -256,6 +256,7 @@ PHP_FUNCTION(swoole_get_local_ip);
 PHP_FUNCTION(swoole_get_local_mac);
 PHP_FUNCTION(swoole_unsupport_serialize);
 PHP_FUNCTION(swoole_coroutine_create);
+PHP_FUNCTION(swoole_coroutine_exec);
 
 //---------------------------------------------------------
 //                  swoole_server

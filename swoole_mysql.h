@@ -275,7 +275,7 @@ typedef struct _mysql_client
 {
 #ifdef SW_COROUTINE
     zend_bool defer;
-    zend_bool _defer;
+    zend_bool defer_yield;
     mysql_io_status iowait;
     zval *result;
     int cid;
@@ -296,6 +296,8 @@ typedef struct _mysql_client
     mysql_connector connector;
     mysql_statement *statement;
     swLinkedList *statement_list;
+
+    swTimer_node *timer;
 
 #if PHP_MAJOR_VERSION >= 7
     zval _object;

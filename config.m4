@@ -18,6 +18,9 @@ dnl  +----------------------------------------------------------------------+
 PHP_ARG_ENABLE(swoole-debug, whether to enable swoole debug,
 [  --enable-swoole-debug   Enable swoole debug], no, no)
 
+PHP_ARG_ENABLE(trace-log, Whether to enable trace log,
+[  --enable-trace-log   Enable swoole trace log], no, no)
+
 PHP_ARG_ENABLE(sockets, enable sockets support,
 [  --enable-sockets        Do you have sockets extension?], no, no)
 
@@ -188,6 +191,10 @@ if test "$PHP_SWOOLE" != "no"; then
 
     if test "$PHP_COROUTINE" != "no"; then
         AC_DEFINE(SW_COROUTINE, 1, [enable ability of coroutine])
+    fi
+
+    if test "$PHP_TRACE_LOG" != "no"; then
+        AC_DEFINE(SW_LOG_TRACE_OPEN, 1, [enable trace log])
     fi
 
     if test "$PHP_SOCKETS" = "yes"; then

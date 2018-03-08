@@ -327,6 +327,11 @@ static int swServer_start_proxy(swServer *serv)
         }
     }
 
+    if (serv->stream_fd > 0)
+    {
+        close(serv->stream_fd);
+    }
+
     /**
      * create reactor thread
      */
@@ -646,12 +651,15 @@ int swServer_start(swServer *serv)
         {
             return SW_ERR;
         }
+        int _reuse_port = SwooleG.reuse_port;
+        SwooleG.reuse_port = 0;
         serv->stream_fd = swSocket_create_server(SW_SOCK_UNIX_STREAM, serv->stream_socket, 0, 2048);
         if (serv->stream_fd < 0)
         {
             return SW_ERR;
         }
         swoole_fcntl_set_option(serv->stream_fd, 1, 1);
+        SwooleG.reuse_port = _reuse_port;
     }
 
     serv->send = swServer_tcp_send;
@@ -1511,6 +1519,10 @@ static void swServer_signal_hanlder(int sig)
         {
             break;
         }
+        if (SwooleG.serv->factory_mode == SW_MODE_SINGLE)
+        {
+            break;
+        }
         pid = waitpid(-1, &status, WNOHANG);
         if (pid > 0 && pid == SwooleGS->manager_pid)
         {
@@ -1530,8 +1542,12 @@ static void swServer_signal_hanlder(int sig)
     case SIGUSR2:
         if (SwooleG.serv->factory_mode == SW_MODE_SINGLE)
         {
+            if (SwooleGS->event_workers.reloading)
+            {
+                break;
+            }
             SwooleGS->event_workers.reloading = 1;
-            SwooleGS->event_workers.reload_flag = 0;
+            SwooleGS->event_workers.reload_init = 0;
         }
         else
         {

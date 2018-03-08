@@ -7,7 +7,6 @@ assert.active=1
 assert.warning=1
 assert.bail=0
 assert.quiet_eval=0
-
 --FILE--
 <?php
 $serv = new \swoole_server('127.0.0.1', 9501);

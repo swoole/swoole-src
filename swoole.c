@@ -168,8 +168,8 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_bind, 0, 0, 2)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_sendMessage, 0, 0, 2)
+    ZEND_ARG_INFO(0, message)
     ZEND_ARG_INFO(0, dst_worker_id)
-    ZEND_ARG_INFO(0, data)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_addProcess, 0, 0, 1)
@@ -280,6 +280,10 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_create, 0, 0, 1)
     ZEND_ARG_INFO(0, func)
 ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_exec, 0, 0, 1)
+    ZEND_ARG_INFO(0, command)
+ZEND_END_ARG_INFO()
 #endif
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_async_exec, 0, 0, 2)
@@ -363,6 +367,7 @@ const zend_function_entry swoole_functions[] =
 #ifdef SW_COROUTINE
     PHP_FE(swoole_async_dns_lookup_coro, arginfo_swoole_async_dns_lookup_coro)
     PHP_FE(swoole_coroutine_create, arginfo_swoole_coroutine_create)
+    PHP_FE(swoole_coroutine_exec, arginfo_swoole_coroutine_exec)
     PHP_FALIAS(go, swoole_coroutine_create, arginfo_swoole_coroutine_create)
 #endif
     /*------other-----*/
@@ -902,6 +907,38 @@ PHP_MINIT_FUNCTION(swoole)
     SWOOLE_DEFINE(ERROR_SERVER_NO_IDLE_WORKER);
     SWOOLE_DEFINE(ERROR_SERVER_ONLY_START_ONE);
     SWOOLE_DEFINE(ERROR_SERVER_WORKER_EXIT_TIMEOUT);
+
+    /**
+     * trace log
+     */
+    SWOOLE_DEFINE(TRACE_SERVER);
+    SWOOLE_DEFINE(TRACE_CLIENT);
+    SWOOLE_DEFINE(TRACE_BUFFER);
+    SWOOLE_DEFINE(TRACE_CONN);
+    SWOOLE_DEFINE(TRACE_EVENT);
+    SWOOLE_DEFINE(TRACE_WORKER);
+    SWOOLE_DEFINE(TRACE_REACTOR);
+    SWOOLE_DEFINE(TRACE_PHP);
+    SWOOLE_DEFINE(TRACE_HTTP2);
+    SWOOLE_DEFINE(TRACE_EOF_PROTOCOL);
+    SWOOLE_DEFINE(TRACE_LENGTH_PROTOCOL);
+    SWOOLE_DEFINE(TRACE_CLOSE);
+    SWOOLE_DEFINE(TRACE_HTTP_CLIENT);
+    SWOOLE_DEFINE(TRACE_COROUTINE);
+    SWOOLE_DEFINE(TRACE_REDIS_CLIENT);
+    SWOOLE_DEFINE(TRACE_MYSQL_CLIENT);
+    SWOOLE_DEFINE(TRACE_AIO);
+    REGISTER_LONG_CONSTANT("SWOOLE_TRACE_ALL", 0xffffffff, CONST_CS | CONST_PERSISTENT);
+
+    /**
+     * log level
+     */
+    SWOOLE_DEFINE(LOG_DEBUG);
+    SWOOLE_DEFINE(LOG_TRACE);
+    SWOOLE_DEFINE(LOG_INFO);
+    SWOOLE_DEFINE(LOG_NOTICE);
+    SWOOLE_DEFINE(LOG_WARNING);
+    SWOOLE_DEFINE(LOG_ERROR);
 
     SWOOLE_INIT_CLASS_ENTRY(swoole_server_ce, "swoole_server", "Swoole\\Server", swoole_server_methods);
     swoole_server_class_entry_ptr = zend_register_internal_class(&swoole_server_ce TSRMLS_CC);

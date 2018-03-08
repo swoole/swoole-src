@@ -24,7 +24,7 @@ go(function () {
             break;
         }
         $data .= $line;
-        echo $line;
+//        echo $line;
     }
     assert(md5($data) == md5_file($file));
 });

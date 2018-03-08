@@ -38,7 +38,6 @@ $pm->parentFunc = function ($pid) use ($pm)
         usleep(10000);
         $bytes += strlen($r);
     }
-    var_dump($bytes, $N);
     assert($bytes == $N);
     $pm->kill();
 };
@@ -56,7 +55,6 @@ $pm->childFunc = function () use ($pm)
     });
     $serv->on('connect', function (swoole_server $serv, $fd)
     {
-        echo "Connect, fd=$fd\n";
         $serv->sendfile($fd, TEST_IMAGE);
     });
     $serv->on('receive', function ($serv, $fd, $from_id, $data)
