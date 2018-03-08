@@ -1556,7 +1556,7 @@ struct _swProcessPool
      * reloading
      */
     uint8_t reloading;
-    uint8_t reload_flag;
+    uint8_t reload_init;
     uint8_t dispatch_mode;
     uint8_t ipc_mode;
 
