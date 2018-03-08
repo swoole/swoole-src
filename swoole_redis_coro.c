@@ -326,7 +326,6 @@ typedef struct
 {
     redisAsyncContext *context;
 	zend_bool defer;
-    zend_bool _defer;
     zend_bool connecting;
     zend_bool connected;
     zend_bool released;
@@ -1238,7 +1237,7 @@ static PHP_METHOD(swoole_redis_coro, recv)
 
 	if (!redis->defer)
 	{
-        swoole_php_fatal_error(E_WARNING, "you should not use recv without defer ");
+        swoole_php_fatal_error(E_WARNING, "you should not use recv without defer");
 		RETURN_FALSE;
 	}
 
@@ -1261,7 +1260,6 @@ static PHP_METHOD(swoole_redis_coro, recv)
 		RETURN_FALSE;
 	}
 
-	redis->_defer = 1;
 	php_context *sw_current_context = swoole_get_property(getThis(), 0);
 	coro_save(sw_current_context);
 	coro_yield();
