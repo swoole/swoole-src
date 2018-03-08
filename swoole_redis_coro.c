@@ -4092,6 +4092,7 @@ static void swoole_redis_coro_onResult(redisAsyncContext *c, void *r, void *priv
     {
         /* et reactor defer callback */
         redis->iowait = SW_REDIS_CORO_STATUS_DONE;
+        redis->defer_yield = 0;
         swoole_redis_coro_resume(result);
     }
 }
