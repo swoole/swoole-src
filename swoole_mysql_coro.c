@@ -879,11 +879,12 @@ static PHP_METHOD(swoole_mysql_coro, recv)
 
 	if (client->iowait != SW_MYSQL_CORO_STATUS_WAIT)
 	{
+	    swoole_php_fatal_error(E_WARNING, "no request.");
 		RETURN_FALSE;
 	}
 
-	client->_defer = 1;
-        client->cid = get_current_cid();
+    client->defer_yield = 1;
+    client->cid = get_current_cid();
 	php_context *context = swoole_get_property(getThis(), 0);
     coro_save(context);
 	coro_yield();
@@ -993,6 +994,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, execute)
         client->iowait = SW_MYSQL_CORO_STATUS_WAIT;
         RETURN_TRUE;
     }
+    client->defer_yield = 1;
     client->cid = get_current_cid();
     coro_save(context);
     coro_yield();
@@ -1126,12 +1128,12 @@ static int swoole_mysql_coro_onError(swReactor *reactor, swEvent *event)
 	zend_update_property_string(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("connect_error"), "EPOLLERR/EPOLLHUP/EPOLLRDHUP happen!" TSRMLS_CC);
 	zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("connect_errno"), 104 TSRMLS_CC);
     ZVAL_BOOL(result, 0);
-	if (client->defer && !client->_defer)
+	if (client->defer && !client->defer_yield)
 	{
 		client->result = result;
 		return SW_OK;
 	}
-    client->_defer = 0;
+    client->defer_yield = 0;
     client->cid = 0;
 	php_context *sw_current_context = swoole_get_property(zobject, 0);
 	int ret = coro_resume(sw_current_context, result, &retval);
@@ -1227,12 +1229,12 @@ static void swoole_mysql_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
 	client->state = SW_MYSQL_STATE_QUERY;
     swoole_mysql_coro_close(zobject);
 
-    if (client->defer && !client->_defer)
+    if (client->defer && !client->defer_yield)
     {
         client->result = result;
         return;
     }
-    client->_defer = 0;
+    client->defer_yield = 0;
     client->cid = 0;
 
     int ret = coro_resume(ctx, result, &retval);
@@ -1421,13 +1423,13 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
 
             SW_ALLOC_INIT_ZVAL(result);
             ZVAL_BOOL(result, 0);
-            if (client->defer && !client->_defer)
+            if (client->defer && !client->defer_yield)
             {
                 client->iowait = SW_MYSQL_CORO_STATUS_DONE;
                 client->result = result;
                 return SW_OK;
             }
-            client->_defer = 0;
+            client->defer_yield = 0;
             if (!client->cid)
             {
                 return SW_OK;
@@ -1527,13 +1529,13 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
 
             swString_clear(client->buffer);
             bzero(&client->response, sizeof(client->response));
-            if (client->defer && !client->_defer)
+            if (client->defer && !client->defer_yield)
             {
                 client->iowait = SW_MYSQL_CORO_STATUS_DONE;
                 client->result = result;
                 return SW_OK;
             }
-            client->_defer = 0;
+            client->defer_yield = 0;
             client->iowait = SW_MYSQL_CORO_STATUS_READY;
             client->cid = 0;
 

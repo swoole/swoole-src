@@ -3946,6 +3946,8 @@ static void swoole_redis_coro_resume(void *data)
 {
     swRedis_result *result = (swRedis_result *) data;
     swRedisClient *redis = result->redis;
+    zval *retval = NULL;
+    zval *redis_result = NULL;
 
     if (redis->object == NULL)
     {
@@ -3958,15 +3960,18 @@ static void swoole_redis_coro_resume(void *data)
     redis->iowait = SW_REDIS_CORO_STATUS_READY;
 
     php_context *sw_current_context = swoole_get_property(redis->object, 0);
-    zval *retval = NULL;
-    zval *redis_result = result->value;
+
+    redis_result = result->value;
 
     int ret = coro_resume(sw_current_context, redis_result, &retval);
     if (ret == CORO_END && retval)
     {
         sw_zval_ptr_dtor(&retval);
     }
-    free_result: sw_zval_ptr_dtor(&redis_result);
+    free_result: if (redis_result)
+    {
+        sw_zval_ptr_dtor(&redis_result);
+    }
     efree(result);
 }
 
