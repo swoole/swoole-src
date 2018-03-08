@@ -308,7 +308,13 @@ ZEND_END_ARG_INFO()
         efree(argv[i]); \
     }
 
-typedef enum {SW_REDIS_CORO_STATUS_CLOSED, SW_REDIS_CORO_STATUS_READY, SW_REDIS_CORO_STATUS_WAIT, SW_REDIS_CORO_STATUS_DONE} swoole_redis_coro_io_status;
+typedef enum
+{
+    SW_REDIS_CORO_STATUS_CLOSED,
+    SW_REDIS_CORO_STATUS_READY,
+    SW_REDIS_CORO_STATUS_WAIT,
+    SW_REDIS_CORO_STATUS_DONE,
+} swoole_redis_coro_io_status;
 
 typedef enum
 {
@@ -326,6 +332,7 @@ typedef struct
 {
     redisAsyncContext *context;
 	zend_bool defer;
+	zend_bool defer_yield;
     zend_bool connecting;
     zend_bool connected;
     zend_bool released;
@@ -333,6 +340,7 @@ typedef struct
     swoole_redis_coro_io_status iowait;
     uint16_t queued_cmd_count;
     zval *pipeline_result;
+    zval *defer_result;
     zend_bool serialize;
     int cid;
 
@@ -1237,29 +1245,28 @@ static PHP_METHOD(swoole_redis_coro, recv)
 
 	if (!redis->defer)
 	{
-        swoole_php_fatal_error(E_WARNING, "you should not use recv without defer");
+        swoole_php_fatal_error(E_WARNING, "you should not use recv without defer.");
 		RETURN_FALSE;
 	}
 
-	if (redis->iowait == SW_REDIS_CORO_STATUS_DONE)
-	{
-		redis->iowait = SW_REDIS_CORO_STATUS_READY;
-//#if PHP_MAJOR_VERSION >= 7
-//        zval _result = *redis->result;
-//        efree(redis->result);
-//        zval *result = &_result;
-//#else
-//        zval *result = redis->result;
-//#endif
-//		redis->result = NULL;
-//		RETURN_ZVAL(result, 0, 1);
-	}
+    if (redis->iowait == SW_REDIS_CORO_STATUS_DONE)
+    {
+        redis->iowait = SW_REDIS_CORO_STATUS_READY;
+        zval *result = redis->defer_result;
+        RETVAL_ZVAL(result, 0, 0);
+        efree(result);
+        redis->defer_result = NULL;
+        return;
+    }
 
-	if (redis->iowait != SW_REDIS_CORO_STATUS_WAIT)
-	{
-		RETURN_FALSE;
-	}
+    if (redis->iowait != SW_REDIS_CORO_STATUS_WAIT)
+    {
+        swoole_php_fatal_error(E_WARNING, "no request.");
+        RETURN_FALSE;
+    }
 
+	redis->cid = get_current_cid();
+	redis->defer_yield = 1;
 	php_context *sw_current_context = swoole_get_property(getThis(), 0);
 	coro_save(sw_current_context);
 	coro_yield();
@@ -3953,6 +3960,7 @@ static void swoole_redis_coro_resume(void *data)
     php_context *sw_current_context = swoole_get_property(redis->object, 0);
     zval *retval = NULL;
     zval *redis_result = result->value;
+
     int ret = coro_resume(sw_current_context, redis_result, &retval);
     if (ret == CORO_END && retval)
     {
@@ -3987,7 +3995,7 @@ static void swoole_redis_coro_onResult(redisAsyncContext *c, void *r, void *priv
     bzero(result->value, sizeof(result->_value));
 #endif
 
-    swTraceLog(SW_TRACE_REDIS_CLIENT, "response, fd=%d, object_id=%d", redis->context->c.fd, sw_get_object_handle(redis->object));
+    swTraceLog(SW_TRACE_REDIS_CLIENT, "get response, fd=%d, object_id=%d", redis->context->c.fd, sw_get_object_handle(redis->object));
 
     result->redis = redis;
     if (reply == NULL)
@@ -4061,8 +4069,17 @@ static void swoole_redis_coro_onResult(redisAsyncContext *c, void *r, void *priv
             redis->state = SWOOLE_REDIS_CORO_STATE_READY;
             break;
         default:
-            redis->state = SWOOLE_REDIS_CORO_STATE_READY;
-            break;
+            if (redis->defer && redis->defer_yield)
+            {
+                redis->state = SWOOLE_REDIS_CORO_STATE_READY;
+                break;
+            }
+            else
+            {
+                redis->iowait = SW_REDIS_CORO_STATUS_DONE;
+                redis->defer_result = sw_zval_dup(result->value);
+                return;
+            }
         }
 	}
 
