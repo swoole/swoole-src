@@ -1128,18 +1128,6 @@ static PHP_METHOD(swoole_redis_coro, connect)
         RETURN_FALSE;
     }
 
-    if (redis->state != SWOOLE_REDIS_CORO_STATE_CONNECT || redis->state != SWOOLE_REDIS_CORO_STATE_CLOSED)
-    {
-		//This is reconnect, close previous connection
-        zval *retval = NULL;
-        zval *zobject = getThis();
-        sw_zend_call_method_with_0_params(&zobject, swoole_redis_coro_class_entry_ptr, NULL, "close", &retval);
-        if (retval)
-        {
-            sw_zval_ptr_dtor(&retval);
-        }
-    }
-
     if (strncasecmp(host, ZEND_STRL("unix:/")) == 0)
     {
         context = redisAsyncConnectUnix(host + 5);
@@ -1287,11 +1275,6 @@ static PHP_METHOD(swoole_redis_coro, close)
         swTimer_del(&SwooleG.timer, redis->timer);
         redis->timer = NULL;
     }
-
-	if (redis->state == SWOOLE_REDIS_CORO_STATE_CONNECT)
-	{
-        RETURN_TRUE;
-	}
 	if (redis->state == SWOOLE_REDIS_CORO_STATE_CLOSED)
 	{
 		RETURN_TRUE;
