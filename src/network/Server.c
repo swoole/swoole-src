@@ -1511,6 +1511,10 @@ static void swServer_signal_hanlder(int sig)
         {
             break;
         }
+        if (SwooleG.serv->factory_mode == SW_MODE_SINGLE)
+        {
+            break;
+        }
         pid = waitpid(-1, &status, WNOHANG);
         if (pid > 0 && pid == SwooleGS->manager_pid)
         {
