@@ -4074,16 +4074,16 @@ static void swoole_redis_coro_onResult(redisAsyncContext *c, void *r, void *priv
             redis->state = SWOOLE_REDIS_CORO_STATE_READY;
             break;
         default:
-            if (redis->defer && redis->defer_yield)
-            {
-                redis->state = SWOOLE_REDIS_CORO_STATE_READY;
-                break;
-            }
-            else
+            if (redis->defer && !redis->defer_yield)
             {
                 redis->iowait = SW_REDIS_CORO_STATUS_DONE;
                 redis->defer_result = sw_zval_dup(result->value);
                 return;
+            }
+            else
+            {
+                redis->state = SWOOLE_REDIS_CORO_STATE_READY;
+                break;
             }
         }
 	}
