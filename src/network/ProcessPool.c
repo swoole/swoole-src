@@ -517,9 +517,9 @@ int swProcessPool_wait(swProcessPool *pool)
 
             swNotice("reload workers.");
 
-            if (pool->reload_flag == 0)
+            if (pool->reload_init == 0)
             {
-                pool->reload_flag = 1;
+                pool->reload_init = 1;
                 memcpy(reload_workers, pool->workers, sizeof(swWorker) * pool->worker_num);
             }
 
@@ -564,7 +564,7 @@ int swProcessPool_wait(swProcessPool *pool)
             //reload finish
             if (reload_worker_i >= pool->worker_num)
             {
-                pool->reloading = pool->reload_flag = reload_worker_pid = reload_worker_i = 0;
+                pool->reloading = pool->reload_init = reload_worker_pid = reload_worker_i = 0;
                 continue;
             }
             reload_worker_pid = reload_workers[reload_worker_i].pid;

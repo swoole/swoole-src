@@ -1539,7 +1539,7 @@ static void swServer_signal_hanlder(int sig)
                 break;
             }
             SwooleGS->event_workers.reloading = 1;
-            SwooleGS->event_workers.reload_flag = 0;
+            SwooleGS->event_workers.reload_init = 0;
         }
         else
         {
