@@ -505,7 +505,7 @@ int swProcessPool_wait(swProcessPool *pool)
         {
             if (pool->reloading == 0)
             {
-                swTrace("[Manager] wait failed. Error: %s [%d]", strerror(errno), errno);
+                swWarn("[Manager] wait failed. Error: %s [%d]", strerror(errno), errno);
             }
             else if (pool->reload_flag == 0)
             {
