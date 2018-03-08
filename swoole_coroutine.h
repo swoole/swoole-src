@@ -109,7 +109,7 @@ struct _coro_task
     void *post_callback_params;
 };
 #ifdef SW_HTTP_RECEIVE_UID
-    #define CORO_IS_HTTP_RECEIVE 1
+    #define CORO_IS_HTTP_RECEIVE 2
 #endif
 
 typedef struct _swTimer_coro_callback

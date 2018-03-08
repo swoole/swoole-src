@@ -238,9 +238,6 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
 #define TASK_SLOT \
     ((int)((ZEND_MM_ALIGNED_SIZE(sizeof(coro_task)) + ZEND_MM_ALIGNED_SIZE(sizeof(zval)) - 1) / ZEND_MM_ALIGNED_SIZE(sizeof(zval))))
 
-/**
-   * in feature http_receive_uid, post_callback is used to tell a request coro coming.
-   */
 int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval *retval, void *post_callback, void* params)
 {
     int cid = alloc_cidmap();
@@ -259,10 +256,10 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
 
     #ifdef SW_HTTP_RECEIVE_UID
         int rid;
-        if (post_callback == (void *)CORO_IS_HTTP_RECEIVE )
+        if(fci_cache->initialized == CORO_IS_HTTP_RECEIVE)
         {
             rid = cid;
-            post_callback = NULL;
+            fci_cache->initialized = 1;
         }
         else if (COROG.current_coro  && COROG.current_coro->rid)
         {

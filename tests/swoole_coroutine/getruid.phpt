@@ -59,4 +59,4 @@ $pm->run();
 ?>
 
 --EXPECTREGEX--
-.*two requests with uid 2,3; four coroutine with uid 2,3,4,5.+
+.*two requests with uid 2,3; four coroutine with uid 2,3,4,5.*
