@@ -1530,6 +1530,10 @@ static void swServer_signal_hanlder(int sig)
     case SIGUSR2:
         if (SwooleG.serv->factory_mode == SW_MODE_SINGLE)
         {
+            if (SwooleGS->event_workers.reloading)
+            {
+                break;
+            }
             SwooleGS->event_workers.reloading = 1;
             SwooleGS->event_workers.reload_flag = 0;
         }
