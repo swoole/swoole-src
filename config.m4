@@ -8,6 +8,7 @@ dnl  | that is bundled with this package in the file LICENSE, and is        |
 dnl  | available through the world-wide-web at the following url:           |
 dnl  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
 dnl  | If you did not receive a copy of the Apache2.0 license and are unable|
+
 dnl  | to obtain it through the world-wide-web, please send a note to       |
 dnl  | license@swoole.com so we can mail you a copy immediately.            |
 dnl  +----------------------------------------------------------------------+
@@ -22,6 +23,9 @@ PHP_ARG_ENABLE(sockets, enable sockets support,
 
 PHP_ARG_ENABLE(async_redis, enable async_redis support,
 [  --enable-async-redis    Do you have hiredis?], no, no)
+
+PHP_ARG_ENABLE(coroutine-postgresql, enable coroutine postgresql support,
+[  --enable-coroutine-postgresql    Do you install postgresql?], no, no)
 
 PHP_ARG_ENABLE(openssl, enable openssl support,
 [  --enable-openssl        Use openssl?], no, no)
@@ -248,6 +252,11 @@ if test "$PHP_SWOOLE" != "no"; then
         PHP_ADD_LIBRARY(hiredis, 1, SWOOLE_SHARED_LIBADD)
     fi
 
+    if test "$PHP_COROUTINE_POSTGRESQL" = "yes"; then
+        AC_DEFINE(SW_USE_POSTGRESQL, 1, [enable coroutine-postgresql support])
+        PHP_ADD_LIBRARY(pq, 1, SWOOLE_SHARED_LIBADD)
+    fi
+
     if test "$PHP_HTTP2" = "yes"; then
         PHP_ADD_LIBRARY(nghttp2, 1, SWOOLE_SHARED_LIBADD)
     fi
@@ -279,6 +288,7 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(pthread, pthread_barrier_init, AC_DEFINE(HAVE_PTHREAD_BARRIER, 1, [have pthread_barrier_init]))
     AC_CHECK_LIB(pcre, pcre_compile, AC_DEFINE(HAVE_PCRE, 1, [have pcre]))
     AC_CHECK_LIB(hiredis, redisConnect, AC_DEFINE(HAVE_HIREDIS, 1, [have hiredis]))
+    AC_CHECK_LIB(pq, PQconnectdb, AC_DEFINE(HAVE_POSTGRESQL, 1, [have postgresql]))
     AC_CHECK_LIB(nghttp2, nghttp2_hd_inflate_new, AC_DEFINE(HAVE_NGHTTP2, 1, [have nghttp2]))
 
     AC_CHECK_LIB(z, gzgets, [
