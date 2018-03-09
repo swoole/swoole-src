@@ -109,6 +109,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_key_opt_long, 0, 0, 1)
     ZEND_ARG_INFO(0, integer)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_request, 0, 0, 1)
+    ZEND_ARG_ARRAY_INFO(0, params, 0)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_incrByFloat, 0, 0, 2)
     ZEND_ARG_INFO(0, key)
     ZEND_ARG_INFO(0, float_number)
@@ -129,7 +133,9 @@ ZEND_END_ARG_INFO()
 
 #define IS_EX_PX_ARG(a) (IS_EX_ARG(a) || IS_PX_ARG(a))
 #define IS_NX_XX_ARG(a) (IS_NX_ARG(a) || IS_XX_ARG(a))
+
 #define SW_REDIS_COMMAND_CHECK \
+    coro_check(TSRMLS_C);\
     swRedisClient *redis = swoole_get_object(getThis()); \
     if (!redis)\
     {\
@@ -234,6 +240,7 @@ ZEND_END_ARG_INFO()
 		coro_save(context); \
 		coro_yield(); \
 	}
+
 #define SW_REDIS_COMMAND_ARGV_FILL(str, str_len) \
 	argvlen[i] = str_len; \
 	argv[i] = estrndup(str, str_len); \
@@ -273,6 +280,7 @@ ZEND_END_ARG_INFO()
 	} \
 	i++;
 #endif
+
 #define SW_REDIS_COMMAND_ALLOC_ARGV \
     size_t stack_argvlen[SW_REDIS_COMMAND_BUFFER_SIZE]; \
     char *stack_argv[SW_REDIS_COMMAND_BUFFER_SIZE]; \
@@ -290,12 +298,14 @@ ZEND_END_ARG_INFO()
         argvlen = stack_argvlen; \
         argv = stack_argv; \
     }
+
 #define SW_REDIS_COMMAND_FREE_ARGV \
     if (free_mm) \
     { \
         efree(argvlen); \
         efree(argv); \
     }
+
 #define SW_REDIS_COMMAND(argc) \
 	if (redisAsyncCommandArgv(redis->context, swoole_redis_coro_onResult, NULL, argc, (const char **) argv, (const size_t *) argvlen) < 0) \
 	{ \
@@ -733,6 +743,9 @@ static PHP_METHOD(swoole_redis_coro, connect);
 static PHP_METHOD(swoole_redis_coro, setDefer);
 static PHP_METHOD(swoole_redis_coro, getDefer);
 static PHP_METHOD(swoole_redis_coro, recv);
+static PHP_METHOD(swoole_redis_coro, request);
+static PHP_METHOD(swoole_redis_coro, close);
+/*---------------------Redis Command------------------------*/
 static PHP_METHOD(swoole_redis_coro, set);
 static PHP_METHOD(swoole_redis_coro, setBit);
 static PHP_METHOD(swoole_redis_coro, setEx);
@@ -852,12 +865,12 @@ static PHP_METHOD(swoole_redis_coro, sRemove);
 static PHP_METHOD(swoole_redis_coro, zDelete);
 static PHP_METHOD(swoole_redis_coro, subscribe);
 static PHP_METHOD(swoole_redis_coro, pSubscribe);
-static PHP_METHOD(swoole_redis_coro, close);
 static PHP_METHOD(swoole_redis_coro, multi);
 static PHP_METHOD(swoole_redis_coro, exec);
 static PHP_METHOD(swoole_redis_coro, eval);
 static PHP_METHOD(swoole_redis_coro, evalSha);
 static PHP_METHOD(swoole_redis_coro, script);
+/*---------------------Redis Command End------------------------*/
 
 static const zend_function_entry swoole_redis_coro_methods[] =
 {
@@ -867,7 +880,9 @@ static const zend_function_entry swoole_redis_coro_methods[] =
     PHP_ME(swoole_redis_coro, setDefer, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, getDefer, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, recv, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, request, arginfo_swoole_redis_coro_request, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, close, NULL, ZEND_ACC_PUBLIC)
+    /*---------------------Redis Command------------------------*/
     PHP_ME(swoole_redis_coro, set, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, setBit, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, setEx, NULL, ZEND_ACC_PUBLIC)
@@ -1012,6 +1027,7 @@ static const zend_function_entry swoole_redis_coro_methods[] =
     PHP_ME(swoole_redis_coro, eval, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, evalSha, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, script, NULL, ZEND_ACC_PUBLIC)
+    /*---------------------Redis Command End------------------------*/
     PHP_FALIAS(__sleep, swoole_unsupport_serialize, NULL)
     PHP_FALIAS(__wakeup, swoole_unsupport_serialize, NULL)
     PHP_FE_END
@@ -1077,8 +1093,6 @@ static PHP_METHOD(swoole_redis_coro, __construct)
         return;
     }
 
-    coro_check(TSRMLS_C);
-
     swRedisClient *redis = redis_coro_create(getThis());
 
     if (zset && !ZVAL_IS_NULL(zset))
@@ -1107,6 +1121,8 @@ static PHP_METHOD(swoole_redis_coro, connect)
     zend_size_t host_len;
     long port;
 	zend_bool serialize = 0;
+
+    coro_check(TSRMLS_C);
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sl|b", &host, &host_len, &port, &serialize) == FAILURE)
     {
@@ -3631,6 +3647,7 @@ static PHP_METHOD(swoole_redis_coro, multi)
 
 static PHP_METHOD(swoole_redis_coro, exec)
 {
+    coro_check(TSRMLS_C);
     swRedisClient *redis = swoole_get_object(getThis());
 	if (redis->state != SWOOLE_REDIS_CORO_STATE_MULTI && redis->state != SWOOLE_REDIS_CORO_STATE_PIPELINE)
 	{
@@ -3666,6 +3683,62 @@ static PHP_METHOD(swoole_redis_coro, exec)
 	php_context *context = swoole_get_property(getThis(), 0);
 	coro_save(context);
 	coro_yield();
+}
+
+static PHP_METHOD(swoole_redis_coro, request)
+{
+    SW_REDIS_COMMAND_CHECK
+
+    zval *params = NULL;
+    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "z", &params) == FAILURE)
+    {
+        return;
+    }
+
+    int argc = zend_hash_num_elements(Z_ARRVAL_P(params));
+    size_t stack_argvlen[SW_REDIS_COMMAND_BUFFER_SIZE];
+    char *stack_argv[SW_REDIS_COMMAND_BUFFER_SIZE];
+
+    size_t *argvlen;
+    char **argv;
+    zend_bool free_mm = 0;
+    int i = 0;
+
+    if (argc > SW_REDIS_COMMAND_BUFFER_SIZE)
+    {
+        argvlen = emalloc(sizeof(size_t) * argc);
+        argv = emalloc(sizeof(char*) * argc);
+        free_mm = 1;
+    }
+    else
+    {
+        argvlen = stack_argvlen;
+        argv = stack_argv;
+    }
+
+    zval *value;
+
+    SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(params), value)
+        if (i == argc)
+        {
+            break;
+        }
+
+        zend_string *convert_str = zval_get_string(value);
+        argvlen[i] = convert_str->len;
+        argv[i] = estrndup(convert_str->val, convert_str->len);
+        zend_string_release(convert_str);
+        i++;
+    SW_HASHTABLE_FOREACH_END();
+
+    SW_REDIS_COMMAND(argc)
+
+    if (free_mm)
+    {
+        efree(argvlen);
+        efree(argv);
+    }
+    SW_REDIS_COMMAND_YIELD
 }
 
 static PHP_METHOD(swoole_redis_coro, eval)
