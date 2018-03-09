@@ -328,6 +328,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_http_client_coro.c \
         swoole_mysql.c \
         swoole_mysql_coro.c \
+        swoole_postgresql_coro.c \
         swoole_redis.c \
         swoole_redis_coro.c \
         swoole_redis_server.c \
