@@ -443,6 +443,11 @@ static int swManager_loop(swFactory *factory)
             reload_worker_pid = reload_workers[reload_worker_i].pid;
             if (kill(reload_worker_pid, SIGTERM) < 0)
             {
+                if (errno == ECHILD)
+                {
+                    reload_worker_i++;
+                    goto kill_worker;
+                }
                 swSysError("kill(%d, SIGTERM) [%d] failed.", reload_workers[reload_worker_i].pid, reload_worker_i);
             }
         }

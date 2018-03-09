@@ -523,7 +523,7 @@ int swProcessPool_wait(swProcessPool *pool)
                 memcpy(reload_workers, pool->workers, sizeof(swWorker) * pool->worker_num);
             }
 
-            goto reload_worker;
+            goto kill_worker;
         }
 
         if (SwooleG.running == 1)
@@ -559,7 +559,7 @@ int swProcessPool_wait(swProcessPool *pool)
             }
         }
         //reload worker
-        reload_worker: if (pool->reloading == 1)
+        kill_worker: if (pool->reloading == 1)
         {
             //reload finish
             if (reload_worker_i >= pool->worker_num)
@@ -571,6 +571,11 @@ int swProcessPool_wait(swProcessPool *pool)
             ret = kill(reload_worker_pid, SIGTERM);
             if (ret < 0)
             {
+                if (errno == ECHILD)
+                {
+                    reload_worker_i++;
+                    goto kill_worker;
+                }
                 swSysError("[Manager]kill(%d) failed.", reload_workers[reload_worker_i].pid);
                 continue;
             }
