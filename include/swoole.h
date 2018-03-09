@@ -329,7 +329,7 @@ SwooleGS->lock_2.unlock(&SwooleGS->lock_2)
 #define swTrace(str,...) if (SW_LOG_TRACE >= SwooleG.log_level){\
     SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
     snprintf(sw_error, SW_ERROR_MSG_SIZE, str, ##__VA_ARGS__);\
-    swLog_put(SW_LOG_ERROR, sw_error);\
+    swLog_put(SW_LOG_DEBUG, sw_error);\
     SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}
 #else
 #define swTrace(str,...)
