@@ -715,6 +715,8 @@ static void http2_client_onConnect(swClient *cli)
     zval *zobject = cli->object;
     http2_client_property *hcc = swoole_get_property(zobject, HTTP2_CLIENT_CORO_PROPERTY);
 
+    zend_update_property_bool(swoole_http2_client_coro_class_entry_ptr, zobject, ZEND_STRL("connected"), 1 TSRMLS_CC);
+
     cli->send(cli, ZEND_STRL("PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"), 0);
     cli->open_length_check = 1;
     cli->protocol.get_package_length = swHttp2_get_frame_length;
@@ -747,6 +749,8 @@ static void http2_client_onClose(swClient *cli)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
     zval *zobject = cli->object;
+    zend_update_property_bool(swoole_http2_client_coro_class_entry_ptr, zobject, ZEND_STRL("connected"), 0 TSRMLS_CC);
+
     if (cli->released)
     {
         return;

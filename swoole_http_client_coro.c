@@ -421,6 +421,8 @@ static void http_client_coro_onClose(swClient *cli)
     http_client *http = swoole_get_object(zobject);
     zend_bool result = 0;
 
+    zend_update_property_bool(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("connected"), 0 TSRMLS_CC);
+
     swTraceLog(SW_TRACE_HTTP_CLIENT, "connection close, object handle=%d, state=%d", sw_get_object_handle(zobject), http->state);
 
     if (!http)
@@ -708,6 +710,7 @@ static void http_client_coro_onConnect(swClient *cli)
         swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_http_client_coro.");
         return;
     }
+    zend_update_property_bool(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("connected"), 1 TSRMLS_CC);
     http_client_coro_send_http_request(zobject TSRMLS_CC);
 }
 
