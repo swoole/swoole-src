@@ -1019,7 +1019,7 @@ swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
-    ztype = sw_zend_read_property(swoole_client_class_entry_ptr, object, SW_STRL("type")-1, 0 TSRMLS_CC);
+    ztype = sw_zend_read_property(Z_OBJCE_P(object), object, SW_STRL("type")-1, 0 TSRMLS_CC);
 
     if (ztype == NULL || ZVAL_IS_NULL(ztype))
     {
@@ -1037,7 +1037,7 @@ swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port
 
     swClient *cli;
     bzero(conn_key, SW_LONG_CONNECTION_KEY_LEN);
-    zval *connection_id = sw_zend_read_property(swoole_client_class_entry_ptr, object, ZEND_STRL("id"), 1 TSRMLS_CC);
+    zval *connection_id = sw_zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("id"), 1 TSRMLS_CC);
 
     if (connection_id == NULL || ZVAL_IS_NULL(connection_id))
     {
@@ -1072,7 +1072,7 @@ swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port
                 goto create_socket;
             }
             cli->reuse_count ++;
-            zend_update_property_long(swoole_client_class_entry_ptr, object, ZEND_STRL("reuseCount"), cli->reuse_count TSRMLS_CC);
+            zend_update_property_long(Z_OBJCE_P(object), object, ZEND_STRL("reuseCount"), cli->reuse_count TSRMLS_CC);
         }
     }
     else
@@ -1083,7 +1083,7 @@ swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port
         if (swClient_create(cli, php_swoole_socktype(type), async) < 0)
         {
             swoole_php_fatal_error(E_WARNING, "swClient_create() failed. Error: %s [%d]", strerror(errno), errno);
-            zend_update_property_long(swoole_client_class_entry_ptr, object, ZEND_STRL("errCode"), errno TSRMLS_CC);
+            zend_update_property_long(Z_OBJCE_P(object), object, ZEND_STRL("errCode"), errno TSRMLS_CC);
             return NULL;
         }
 
@@ -1092,7 +1092,7 @@ swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port
         cli->server_strlen = conn_key_len;
     }
 
-    zend_update_property_long(swoole_client_class_entry_ptr, object, ZEND_STRL("sock"), cli->socket->fd TSRMLS_CC);
+    zend_update_property_long(Z_OBJCE_P(object), object, ZEND_STRL("sock"), cli->socket->fd TSRMLS_CC);
 
     if (type & SW_FLAG_KEEP)
     {
