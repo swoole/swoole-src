@@ -70,7 +70,6 @@ static PHP_METHOD(swoole_http2_client_coro, write);
 
 static int http2_client_send_request(zval *zobject, zval *request TSRMLS_DC);
 static void http2_client_stream_free(void *ptr);
-static void http2_client_send_setting(swClient *cli);
 static void http2_client_onConnect(swClient *cli);
 static void http2_client_onClose(swClient *cli);
 static void http2_client_onError(swClient *cli);

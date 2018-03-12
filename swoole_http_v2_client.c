@@ -67,7 +67,6 @@ static void http2_client_send_stream_request(zval *zobject, http2_client_request
 static void http2_client_send_all_requests(zval *zobject TSRMLS_DC);
 static void http2_client_request_free(void *ptr);
 static void http2_client_stream_free(void *ptr);
-static void http2_client_send_setting(swClient *cli);
 
 static const zend_function_entry swoole_http2_client_methods[] =
 {
