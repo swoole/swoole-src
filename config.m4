@@ -59,6 +59,9 @@ PHP_ARG_ENABLE(mysqlnd, enable mysqlnd support,
 PHP_ARG_ENABLE(coroutine, whether to enable coroutine,
 [  --enable-coroutine      Enable coroutine (requires PHP >= 5.5)], yes, no)
 
+PHP_ARG_ENABLE(asan, whether to enable asan,
+[  --enable-asan      Enable asan], no, no)
+
 PHP_ARG_ENABLE(picohttpparser, enable picohttpparser support,
 [  --enable-picohttpparser     Experimental: Do you have picohttpparser?], no, no)
 
@@ -181,10 +184,9 @@ if test "$PHP_SWOOLE" != "no"; then
         [PHP_DEBUG=0]
     )
 
-    if test "$PHP_SWOOLE_DEBUG" != "no"; then
-        AC_DEFINE(SW_DEBUG, 1, [do we enable swoole debug])
+    if test "$PHP_ASAN" != "no"; then
+        PHP_DEBUG=1
         CFLAGS="$CFLAGS -fsanitize=address -fno-omit-frame-pointer"
-        PHP_DEBUG=0
     fi
 
     if test "$PHP_COROUTINE" != "no"; then
