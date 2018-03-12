@@ -410,6 +410,7 @@ static int swClient_inet_addr(swClient *cli, char *host, int port)
     {
         if (swoole_gethostbyname(cli->_sock_domain, host, s_addr) < 0)
         {
+            SwooleG.error = SW_ERROR_DNSLOOKUP_RESOLVE_FAILED;
             return SW_ERR;
         }
     }
