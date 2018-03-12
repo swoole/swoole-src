@@ -102,15 +102,16 @@ void swoole_http2_client_coro_init(int module_number TSRMLS_DC)
         sw_zend_register_class_alias("Co\\Http2\\Request", swoole_http2_request_coro_class_entry_ptr);
     }
 
-    zend_declare_property_long(swoole_http2_client_coro_class_entry_ptr, SW_STRL("type")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(swoole_http2_client_coro_class_entry_ptr, SW_STRL("errCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_long(swoole_http2_client_coro_class_entry_ptr, SW_STRL("statusCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_null(swoole_http2_client_coro_class_entry_ptr, SW_STRL("host")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_long(swoole_http2_client_coro_class_entry_ptr, SW_STRL("port")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(swoole_http2_client_coro_class_entry_ptr, SW_STRL("sock")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_bool(swoole_http2_client_coro_class_entry_ptr, SW_STRL("reuse")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(swoole_http2_client_coro_class_entry_ptr, SW_STRL("reuseCount")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_http2_client_coro_class_entry_ptr, ZEND_STRL("type"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_http2_client_coro_class_entry_ptr, ZEND_STRL("id"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_http2_client_coro_class_entry_ptr, ZEND_STRL("setting"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_bool(swoole_http2_client_coro_class_entry_ptr, ZEND_STRL("connected"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_http2_client_coro_class_entry_ptr, SW_STRL("host")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_http2_client_coro_class_entry_ptr, SW_STRL("port")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
 
     zend_declare_property_null(swoole_http2_request_coro_class_entry_ptr, SW_STRL("method")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_http2_request_coro_class_entry_ptr, SW_STRL("headers")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
