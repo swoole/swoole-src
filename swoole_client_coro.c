@@ -66,6 +66,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_coro_connect, 0, 0, 1)
     ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_coro_recv, 0, 0, 0)
+    ZEND_ARG_INFO(0, timeout)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_coro_send, 0, 0, 1)
     ZEND_ARG_INFO(0, data)
     ZEND_ARG_INFO(0, flag)
@@ -121,7 +125,7 @@ static const zend_function_entry swoole_client_coro_methods[] =
     PHP_ME(swoole_client_coro, __destruct, arginfo_swoole_client_coro_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_ME(swoole_client_coro, set, arginfo_swoole_client_coro_set, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client_coro, connect, arginfo_swoole_client_coro_connect, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_client_coro, recv, arginfo_swoole_client_coro_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client_coro, recv, arginfo_swoole_client_coro_recv, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client_coro, peek, arginfo_swoole_client_coro_peek, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client_coro, send, arginfo_swoole_client_coro_send, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client_coro, sendfile, arginfo_swoole_client_coro_sendfile, ZEND_ACC_PUBLIC)
@@ -771,6 +775,13 @@ static PHP_METHOD(swoole_client_coro, recv)
         RETURN_FALSE;
     }
 
+    double timeout = cli->timeout;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "|d", &timeout) == FAILURE)
+    {
+        return;
+    }
+
     if (cli->sleep)
     {
         swClient_wakeup(cli);
@@ -794,10 +805,10 @@ static PHP_METHOD(swoole_client_coro, recv)
     }
 
     php_context *context = swoole_get_property(getThis(), 0);
-    if (cli->timeout > 0)
+    if (timeout > 0)
     {
-        php_swoole_check_timer((int) (cli->timeout * 1000));
-        ccp->timer = SwooleG.timer.add(&SwooleG.timer, (int) (cli->timeout * 1000), 0, context, client_coro_onTimeout);
+        php_swoole_check_timer((int) (timeout * 1000));
+        ccp->timer = SwooleG.timer.add(&SwooleG.timer, (int) (timeout * 1000), 0, context, client_coro_onTimeout);
     }
     ccp->iowait = SW_CLIENT_CORO_STATUS_WAIT;
     coro_save(context);
