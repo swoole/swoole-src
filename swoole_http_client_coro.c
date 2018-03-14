@@ -480,16 +480,35 @@ static int http_client_coro_onMessage(swConnection *conn, char *data, uint32_t l
     swClient *cli = conn->object;
     zval *zobject = cli->object;
     zval *retval = NULL;
-
     zval *zframe;
-    SW_MAKE_STD_ZVAL(zframe);
-    php_swoole_websocket_unpack(cli->buffer, zframe TSRMLS_CC);
+
+    swString msg;
+    msg.str = data;
+    msg.length = length;
 
     http_client_property *hcc = swoole_get_property(zobject, 0);
+
+    if (hcc->defer_status != HTTP_CLIENT_STATE_DEFER_WAIT)
+    {
+        SW_ALLOC_INIT_ZVAL(zframe);
+        php_swoole_websocket_unpack(&msg, zframe TSRMLS_CC);
+        swLinkedList_append(hcc->message_queue, zframe);
+        /**
+         * Too many queued messages
+         */
+        if (hcc->message_queue->num > SW_WEBSOCKET_QUEUE_SIZE)
+        {
+            swClient_sleep(cli);
+        }
+        return SW_OK;
+    }
 
     php_context *sw_current_context = swoole_get_property(zobject, 1);
     hcc->defer_status = HTTP_CLIENT_STATE_DEFER_INIT;
     hcc->cid = 0;
+
+    SW_MAKE_STD_ZVAL(zframe);
+    php_swoole_websocket_unpack(&msg, zframe TSRMLS_CC);
 
     int ret = coro_resume(sw_current_context, zframe, &retval);
     if (ret > 0)
@@ -605,6 +624,8 @@ static void http_client_coro_onReceive(swClient *cli, char *data, uint32_t lengt
 
     long parsed_n = php_http_parser_execute(&http->parser, &http_parser_settings, data, length);
 
+    swDebug("parsed_n=%ld, data_length=%d.", parsed_n, length);
+
     http_client_property *hcc = swoole_get_property(zobject, 0);
     zval *zdata;
     SW_MAKE_STD_ZVAL(zdata);
@@ -663,11 +684,31 @@ static void http_client_coro_onReceive(swClient *cli, char *data, uint32_t lengt
     if (http->upgrade)
     {
         cli->open_length_check = 1;
-        swString_clear(cli->buffer);
         cli->protocol.get_package_length = swWebSocket_get_package_length;
         cli->protocol.onPackage = http_client_coro_onMessage;
         cli->protocol.package_length_size = SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_MASK_LEN + sizeof(uint64_t);
         http->state = HTTP_CLIENT_STATE_UPGRADE;
+        hcc->defer_status = HTTP_CLIENT_STATE_DEFER_INIT;
+        /**
+         * websocket message queue
+         */
+        hcc->message_queue = swLinkedList_new(16, NULL);
+
+        if (http->upgrade)
+        {
+            //data frame
+            if (length > parsed_n)
+            {
+                cli->buffer->length = length - parsed_n - 1;
+                memmove(cli->buffer->str, data + parsed_n + 1, cli->buffer->length);
+                cli->socket->skip_recv = 1;
+                swProtocol_recv_check_length(&cli->protocol, cli->socket, cli->buffer);
+            }
+            else
+            {
+                swString_clear(cli->buffer);
+            }
+        }
     }
 
     begin_resume:
@@ -1160,6 +1201,10 @@ static PHP_METHOD(swoole_http_client_coro, __destruct)
     http_client_property *hcc = swoole_get_property(getThis(), 0);
     if (hcc)
     {
+        if (hcc->message_queue)
+        {
+            swLinkedList_free(hcc->message_queue);
+        }
         efree(hcc);
         swoole_set_property(getThis(), 0, NULL);
     }
@@ -1251,15 +1296,36 @@ static PHP_METHOD(swoole_http_client_coro, recv)
     {
         RETURN_FALSE;
     }
+    http_client_property *hcc = swoole_get_property(getThis(), 0);
+    if (hcc->cid != 0 && hcc->cid != COROG.current_coro->cid)
+    {
+        swoole_php_fatal_error(E_WARNING, "client has been bound to another coro");
+    }
+    //resume
+    if (http->cli->sleep)
+    {
+        swClient_wakeup(http->cli);
+    }
     //websocket
     if (http->upgrade)
     {
+        if (hcc->message_queue->num > 0)
+        {
+            zval *msg = swLinkedList_shift(hcc->message_queue);
+            if (msg)
+            {
+                RETVAL_ZVAL(msg, 0, 0);
+                efree(msg);
+                return;
+            }
+        }
+
+        hcc->defer_status = HTTP_CLIENT_STATE_DEFER_WAIT;
         php_context *context = swoole_get_property(getThis(), 1);
         coro_save(context);
         coro_yield();
     }
     //todo
-    http_client_property *hcc = swoole_get_property(getThis(), 0);
     if (!hcc->defer)
     {	//no defer
         swoole_php_fatal_error(E_WARNING, "you should not use recv without defer.");

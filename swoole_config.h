@@ -272,6 +272,7 @@
 #define SW_WEBSOCKET_SERVER_SOFTWARE     "swoole-websocket-server"
 #define SW_WEBSOCKET_VERSION             "13"
 #define SW_WEBSOCKET_KEY_LENGTH          16
+#define SW_WEBSOCKET_QUEUE_SIZE          16
 
 #define SW_MYSQL_QUERY_INIT_SIZE         8192
 #define SW_MYSQL_DEFAULT_PORT            3306
