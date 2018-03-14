@@ -455,12 +455,6 @@ static int swClient_close(swClient *cli)
     int fd = cli->socket->fd;
     assert(fd != 0);
 
-    if (cli->close_defer)
-    {
-        cli->socket->close_wait = 1;
-        return SW_OK;
-    }
-
 #ifdef SW_USE_OPENSSL
     if (cli->open_ssl && cli->ssl_context)
     {
