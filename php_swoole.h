@@ -50,7 +50,7 @@
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "1.10.1"
+#define PHP_SWOOLE_VERSION  "1.10.2"
 #define PHP_SWOOLE_CHECK_CALLBACK
 #define PHP_SWOOLE_ENABLE_FASTCALL
 
@@ -222,7 +222,7 @@ enum php_swoole_fd_type
 };
 //---------------------------------------------------------
 #define php_swoole_socktype(type)           (type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP) & (~SW_SOCK_SSL))
-#define php_swoole_array_length(array)      (Z_ARRVAL_P(array)->nNumOfElements)
+#define php_swoole_array_length(array)      zend_hash_num_elements(Z_ARRVAL_P(array))
 
 #define SW_LONG_CONNECTION_KEY_LEN          64
 
@@ -561,9 +561,9 @@ extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
 
 #define SWOOLE_CLASS_ALIAS(name, name_ns) \
     if (SWOOLE_G(use_namespace)) { \
-        zend_register_class_alias(#name, name##_class_entry_ptr);\
+        sw_zend_register_class_alias(#name, name##_class_entry_ptr);\
     } else { \
-        zend_register_class_alias(name_ns, name##_class_entry_ptr);\
+        sw_zend_register_class_alias(name_ns, name##_class_entry_ptr);\
     }
 
 #endif	/* PHP_SWOOLE_H */
