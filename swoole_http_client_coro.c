@@ -1262,7 +1262,7 @@ static PHP_METHOD(swoole_http_client_coro, recv)
     http_client_property *hcc = swoole_get_property(getThis(), 0);
     if (!hcc->defer)
     {	//no defer
-        swoole_php_fatal_error(E_WARNING, "you should not use recv without defer ");
+        swoole_php_fatal_error(E_WARNING, "you should not use recv without defer.");
         RETURN_FALSE;
     }
 
@@ -1281,7 +1281,7 @@ static PHP_METHOD(swoole_http_client_coro, recv)
             break;
         case HTTP_CLIENT_STATE_DEFER_INIT:
             //not ready
-            swoole_php_fatal_error(E_WARNING, "you should post or get or execute before recv  ");
+            swoole_php_fatal_error(E_WARNING, "you should post or get or execute before recv.");
             RETURN_FALSE;
             break;
         default:
