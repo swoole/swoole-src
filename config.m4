@@ -184,6 +184,11 @@ if test "$PHP_SWOOLE" != "no"; then
         [PHP_DEBUG=0]
     )
 
+    if test "$PHP_SWOOLE_DEBUG" != "no"; then
+        AC_DEFINE(SW_DEBUG, 1, [do we enable swoole debug])
+        PHP_DEBUG=1
+    fi
+
     if test "$PHP_ASAN" != "no"; then
         PHP_DEBUG=1
         CFLAGS="$CFLAGS -fsanitize=address -fno-omit-frame-pointer"
