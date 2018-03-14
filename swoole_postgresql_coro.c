@@ -1,3 +1,19 @@
+/*
+  +----------------------------------------------------------------------+
+  | Swoole                                                               |
+  +----------------------------------------------------------------------+
+  | This source file is subject to version 2.0 of the Apache license,    |
+  | that is bundled with this package in the file LICENSE, and is        |
+  | available through the world-wide-web at the following url:           |
+  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
+  | If you did not receive a copy of the Apache2.0 license and are unable|
+  | to obtain it through the world-wide-web, please send a note to       |
+  | license@swoole.com so we can mail you a copy immediately.            |
+  +----------------------------------------------------------------------+
+  | Author: Zhenyu Wu  <936321732@qq.com>                                |
+  +----------------------------------------------------------------------+
+ */
+
 #include "php_swoole.h"
 #include "swoole_postgresql_core.h"
 #include "swoole_coroutine.h"
@@ -105,8 +121,8 @@ static PHP_METHOD(swoole_postgresql_coro, connect)
     PGobject->object = getThis();
 
 
-    //int no_block = PQsetnonblocking(pgsql , 1);
-    //php_printf("isblock:%d",no_block);
+    int no_block = PQsetnonblocking(pgsql , 1);
+    php_printf("isblock:%d",no_block);
     //PQconnectPoll(pgsql);
     //get fd
 
@@ -120,14 +136,6 @@ static PHP_METHOD(swoole_postgresql_coro, connect)
     }
 
     php_printf("来了2");
-
-
-
-
-
-
-
-
     swConnection *_socket = swReactor_get(SwooleG.main_reactor, fd);
     _socket->object = PGobject;
     _socket->active = 0;
@@ -166,6 +174,7 @@ err:
 
 static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event)
 {
+    char *errMsg;
     php_printf("来了3");
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
@@ -187,30 +196,41 @@ static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event)
 
 
     // wait the connection ok
-    PostgresPollingStatusType flag = PGRES_POLLING_WRITING;
-    if(PGobject->status != CONNECTION_OK){
+    ConnStatusType status =  PQstatus(PGobject->conn);
+    if(status != CONNECTION_OK){
+        PostgresPollingStatusType flag = PGRES_POLLING_WRITING;
         php_printf("进来了吗");
         for (;;)
         {
             switch (flag)
             {
                 case PGRES_POLLING_OK:
+                    php_printf("ok1");
                     break;
                 case PGRES_POLLING_READING:
+                    php_printf("读");
                     break;
                 case PGRES_POLLING_WRITING:
                     php_printf("写");
                     break;
+                case PGRES_POLLING_FAILED:
+                    errMsg = PQerrorMessage(PGobject->conn);
+                    php_printf("error:%s",errMsg);
+                    break;
                 default:
                     break;
             }
+            php_printf("what's wrong");
 
             flag = PQconnectPoll(PGobject->conn);
-            if(flag == PGRES_POLLING_OK){
+            if(flag == PGRES_POLLING_OK ){
                 php_printf("ok");
-                PGobject->status = CONNECTION_OK;
+
                 break;
 
+            }
+            if(flag == PGRES_POLLING_FAILED ){
+                php_printf("error:%s",errMsg);
             }
         }
 
@@ -266,7 +286,15 @@ static int swoole_pgsql_coro_onRead(swReactor *reactor, swEvent *event)
 
 
     ExecStatusType status;
-    pgsql_result = PQgetResult(PGobject->conn);
+    while (pgsql_result =PQgetResult(PGobject->conn))
+    {
+
+        if (PQresultStatus(pgsql_result) != PGRES_COMMAND_OK) {
+            php_printf("unexpected result while sending file list: %s",
+                       PQresultErrorMessage(pgsql_result));
+
+            //PQclear(pgsql_result);
+        }
     //reactor->del(SwooleG.main_reactor, event->fd);
     /*
     if ((PGG(auto_reset_persistent) & 2) && PQstatus(pgsql) != CONNECTION_OK) {
@@ -292,6 +320,7 @@ static int swoole_pgsql_coro_onRead(swReactor *reactor, swEvent *event)
                 //RETURN_FALSE;
                 break;
             case PGRES_COMMAND_OK: /* successful command that did not return rows */
+                php_printf("OKOKKKKKKKKKKKKKKKK");
             default:
                 if (pgsql_result) {
                     pg_result = (pgsql_result_handle *) emalloc(sizeof(pgsql_result_handle));
@@ -306,19 +335,24 @@ static int swoole_pgsql_coro_onRead(swReactor *reactor, swEvent *event)
                     //zval *zv = &((zend_reference*)te)->val;
 
 
-                    int ret = coro_resume(sw_current_context, &return_value,  &retval);
+                    int is_non_blocking = PQisnonblocking(PGobject->conn);
+                    php_printf("is_non_blocking%d",is_non_blocking);
+                    int ret ;
+                    /* Wait to finish sending buffer */
+                    //ret = PQflush(PGobject->conn);
+
+                    int res = coro_resume(sw_current_context, &return_value,  &retval);
                     php_printf("dayuleingma : %d",ret);
 
                     if (error != 0)
                     {
-                        swoole_php_fatal_error(E_WARNING, "swoole_event->onError[1]: socket error. Error: %s [%d]", strerror(error), error);
+                        //swoole_php_fatal_error(E_WARNING, "swoole_event->onError[1]: socket error. Error: %s [%d]", strerror(error), error);
                     }
 
-                    efree(event->socket->object);
+                    //efree(event->socket->object);
 
-                    event->socket->active = 0;
+                    //event->socket->active = 0;
 
-                    return SW_OK;
                     //client->handshake = SW_MYSQL_HANDSHAKE_WAIT_REQUEST;
                     //RETURN_RES(zend_register_resource(pg_result, le_result));
                 } else {
@@ -327,6 +361,11 @@ static int swoole_pgsql_coro_onRead(swReactor *reactor, swEvent *event)
                 }
                 break;
             }
+
+    }
+    php_printf("hh");
+    //PQflush(PGobject->conn);
+    //PQclear(pgsql_result);
 
     return SW_OK;
 }
@@ -346,7 +385,20 @@ static PHP_METHOD(swoole_postgresql_coro, pgQuery)
     ZEND_PARSE_PARAMETERS_END();
 
     pgsql = (PGconn *)zend_fetch_resource(Z_RES_P(pgsql_link), "postgresql connection", le_link);
+
+
+
+    while ((pgsql_result = PQgetResult(pgsql))) {
+        PQclear(pgsql_result);
+    }
+
     int ret  = PQsendQuery(pgsql, Z_STRVAL_P(query));
+    if(ret == 0){
+        char * errMsg = PQerrorMessage(pgsql);
+        php_printf("error:%s",errMsg);
+
+    }
+    php_printf("ret:%d",ret);
 
     php_context *sw_current_context = swoole_get_property(getThis(), 0);
     if (!sw_current_context)
@@ -424,13 +476,17 @@ int php_pgsql_result2array(PGresult *pg_result, zval *ret_array, long result_typ
     int pg_numrows, pg_row;
     uint32_t i;
     assert(Z_TYPE_P(ret_array) == IS_ARRAY);
+    php_printf("1111111\n");
 
     if ((pg_numrows = PQntuples(pg_result)) <= 0) {
+        php_printf("222222\n");
         return FAILURE;
     }
     for (pg_row = 0; pg_row < pg_numrows; pg_row++) {
+        php_printf("3\n");
         array_init(&row);
         for (i = 0, num_fields = PQnfields(pg_result); i < num_fields; i++) {
+            php_printf("4\n");
             field_name = PQfname(pg_result, i);
             if (PQgetisnull(pg_result, pg_row, i)) {
                 if (result_type & PGSQL_ASSOC) {
