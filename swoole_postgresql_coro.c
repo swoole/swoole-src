@@ -77,16 +77,31 @@ static PHP_METHOD(swoole_postgresql_coro, connect)
         Z_PARAM_ZVAL(conninfo)
     ZEND_PARSE_PARAMETERS_END();
 
-    //pgsql = PQconnectStart(Z_STRVAL_P(conninfo));
-    //flag = PQconnectPoll(pgsql);
-    pgsql = PQconnectdb(Z_STRVAL_P(conninfo));
-
-    PGobject *PGobject = swoole_get_object(getThis());
+    pgsql = PQconnectStart(Z_STRVAL_P(conninfo));
+    //pgsql = PQconnectdb(Z_STRVAL_P(conninfo));
     int fd =  PQsocket(pgsql);
 
     php_printf("sock :%d \n",fd);
+    //PQconnectPoll(pgsql);
+    php_swoole_check_reactor();
+    if (!swReactor_handle_isset(SwooleG.main_reactor, PHP_SWOOLE_FD_POSTGRESQL))
+    {
+        php_printf("来reactor了");
+        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_POSTGRESQL | SW_EVENT_READ, swoole_pgsql_coro_onRead);
+        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_POSTGRESQL | SW_EVENT_WRITE, swoole_pgsql_coro_onWrite);
+        //SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_POSTGRESQL | SW_EVENT_ERROR, swoole_pgsql_coro_onError);
+    }
+
+    if (SwooleG.main_reactor->add(SwooleG.main_reactor, fd, PHP_SWOOLE_FD_POSTGRESQL | SW_EVENT_WRITE) < 0)
+    {
+        //swoole_php_fatal_error(E_WARNING, "swoole_event_add failed. Erorr: %s[%d].", redis->context->errstr, redis->context->err);
+        RETURN_FALSE;
+    }
+
+    PGobject *PGobject = swoole_get_object(getThis());
     PGobject->fd = fd;
     PGobject->conn = pgsql;
+    PGobject->status = CONNECTION_STARTED;
     PGobject->object = getThis();
 
 
@@ -105,23 +120,13 @@ static PHP_METHOD(swoole_postgresql_coro, connect)
     }
 
     php_printf("来了2");
-    php_swoole_check_reactor();
 
-    if (!swReactor_handle_isset(SwooleG.main_reactor, PHP_SWOOLE_FD_POSTGRESQL))
-    {
 
-        php_printf("来reactor了");
-        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_POSTGRESQL | SW_EVENT_READ, swoole_pgsql_coro_onRead);
 
-        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_POSTGRESQL | SW_EVENT_WRITE, swoole_pgsql_coro_onWrite);
-        //SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_POSTGRESQL | SW_EVENT_ERROR, swoole_pgsql_coro_onError);
-    }
 
-    if (SwooleG.main_reactor->add(SwooleG.main_reactor, fd, PHP_SWOOLE_FD_POSTGRESQL | SW_EVENT_WRITE) < 0)
-    {
-        //swoole_php_fatal_error(E_WARNING, "swoole_event_add failed. Erorr: %s[%d].", redis->context->errstr, redis->context->err);
-        RETURN_FALSE;
-    }
+
+
+
 
     swConnection *_socket = swReactor_get(SwooleG.main_reactor, fd);
     _socket->object = PGobject;
@@ -147,10 +152,10 @@ static PHP_METHOD(swoole_postgresql_coro, connect)
         redis->timer = SwooleG.timer.add(&SwooleG.timer, (int) (redis->timeout * 1000), 0, sw_current_context, swoole_redis_coro_onTimeout);
     }
      */
-    //coro_save(sw_current_context);
-    //coro_yield();
-    RETVAL_RES(zend_register_resource(pgsql, le_link));
-    return;
+    coro_save(sw_current_context);
+    coro_yield();
+    //RETVAL_RES(zend_register_resource(pgsql, le_link));
+    //return;
 
 /*
 err:
@@ -178,6 +183,42 @@ static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event)
         return SW_ERR;
     }
 
+    PGobject *PGobject = event->socket->object;
+
+
+    // wait the connection ok
+    PostgresPollingStatusType flag = PGRES_POLLING_WRITING;
+    if(PGobject->status != CONNECTION_OK){
+        php_printf("进来了吗");
+        for (;;)
+        {
+            switch (flag)
+            {
+                case PGRES_POLLING_OK:
+                    break;
+                case PGRES_POLLING_READING:
+                    break;
+                case PGRES_POLLING_WRITING:
+                    php_printf("写");
+                    break;
+                default:
+                    break;
+            }
+
+            flag = PQconnectPoll(PGobject->conn);
+            if(flag == PGRES_POLLING_OK){
+                php_printf("ok");
+                PGobject->status = CONNECTION_OK;
+                break;
+
+            }
+        }
+
+    }
+    /*
+
+ */
+
     //mysql_client *client = event->socket->object;
     //success
     if (SwooleG.error == 0)
@@ -191,11 +232,14 @@ static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event)
         //connected
         event->socket->active = 1;
         php_printf("来了35\n");
-        zval *zobject = event->socket->object;
-        //php_context *sw_current_context = swoole_get_property(zobject, 0);
 
+        php_context *sw_current_context = swoole_get_property(PGobject->object, 0);
 
-        //int ret = coro_resume(sw_current_context, redis_result, &retval);
+        zval *retval = NULL;
+        zval return_value;
+        ZVAL_RES(&return_value, zend_register_resource(PGobject->conn, le_link));
+
+        int ret = coro_resume(sw_current_context, &return_value, &retval);
         //client->handshake = SW_MYSQL_HANDSHAKE_WAIT_REQUEST;
     }
     else

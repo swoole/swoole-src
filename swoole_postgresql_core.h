@@ -10,6 +10,7 @@ typedef struct _php_pgsql_object {
     PGconn *conn;
     PGresult *result;
     zval *object;
+    ConnStatusType status;
     int row;
     int fd;
 } PGobject;
