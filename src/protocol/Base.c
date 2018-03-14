@@ -137,6 +137,12 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
     uint32_t recv_size;
     char swap[SW_BUFFER_SIZE_STD];
 
+    if (conn->skip_recv)
+    {
+        conn->skip_recv = 1;
+        goto do_get_length;
+    }
+
     do_recv:
     if (buffer->offset > 0)
     {
