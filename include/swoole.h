@@ -329,7 +329,7 @@ SwooleGS->lock_2.unlock(&SwooleGS->lock_2)
 #define swTrace(str,...) if (SW_LOG_TRACE >= SwooleG.log_level){\
     SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
     snprintf(sw_error, SW_ERROR_MSG_SIZE, str, ##__VA_ARGS__);\
-    swLog_put(SW_LOG_DEBUG, sw_error);\
+    swLog_put(SW_LOG_TRACE, sw_error);\
     SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}
 #else
 #define swTrace(str,...)
@@ -357,6 +357,12 @@ exit(1)
 #ifdef SW_DEBUG_REMOTE_OPEN
 #define swDebug(str,...) int __debug_log_n = snprintf(sw_error, SW_ERROR_MSG_SIZE, str, ##__VA_ARGS__);\
 write(SwooleG.debug_fd, sw_error, __debug_log_n);
+#elif defined(SW_DEBUG)
+#define swDebug(str,...) if (SW_LOG_DEBUG >= SwooleG.log_level){\
+    SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
+    snprintf(sw_error, SW_ERROR_MSG_SIZE, str, ##__VA_ARGS__);\
+    swLog_put(SW_LOG_DEBUG, sw_error);\
+    SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}
 #else
 #define swDebug(str,...)
 #endif
