@@ -509,6 +509,7 @@ typedef struct _swConnection
     uint8_t ssl_want_write;
     uint8_t http_upgrade;
     uint8_t http2_stream;
+    uint8_t skip_recv;
     //--------------------------------------------------------------
     /**
      * server is actively close the connection
