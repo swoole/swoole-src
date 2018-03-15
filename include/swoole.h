@@ -360,7 +360,7 @@ write(SwooleG.debug_fd, sw_error, __debug_log_n);
 #elif defined(SW_DEBUG)
 #define swDebug(str,...) if (SW_LOG_DEBUG >= SwooleG.log_level){\
     SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
-    snprintf(sw_error, SW_ERROR_MSG_SIZE, str, ##__VA_ARGS__);\
+    snprintf(sw_error, SW_ERROR_MSG_SIZE, "%s(:%d): " str, __func__,__LINE__, ##__VA_ARGS__);\
     swLog_put(SW_LOG_DEBUG, sw_error);\
     SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}
 #else
