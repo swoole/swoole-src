@@ -2188,6 +2188,16 @@ static PHP_METHOD(swoole_http_response, end)
             RETURN_FALSE;
         }
     }
+
+    if (ctx->upgrade)
+    {
+        swConnection *conn = swWorker_get_connection(SwooleG.serv, ctx->fd);
+        if (conn && conn->websocket_status == WEBSOCKET_STATUS_HANDSHAKE && ctx->response.status == 101)
+        {
+            conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
+        }
+    }
+
     if (!ctx->keepalive)
     {
         swServer_tcp_close(SwooleG.serv, ctx->fd, 0);
@@ -2508,13 +2518,13 @@ static PHP_METHOD(swoole_http_response, status)
         return;
     }
 
-    http_context *client = http_get_context(getThis(), 0 TSRMLS_CC);
-    if (!client)
+    http_context *ctx = http_get_context(getThis(), 0 TSRMLS_CC);
+    if (!ctx)
     {
         RETURN_FALSE;
     }
 
-    client->response.status = http_status;
+    ctx->response.status = http_status;
 }
 
 static PHP_METHOD(swoole_http_response, header)
