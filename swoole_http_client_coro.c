@@ -100,6 +100,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_get, 0, 0, 1)
     ZEND_ARG_INFO(0, path)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_recv, 0, 0, 0)
+    ZEND_ARG_INFO(0, timeout)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_upgrade, 0, 0, 1)
     ZEND_ARG_INFO(0, path)
 ZEND_END_ARG_INFO()
@@ -155,7 +159,7 @@ static const zend_function_entry swoole_http_client_coro_methods[] =
     PHP_ME(swoole_http_client_coro, close, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, setDefer, arginfo_swoole_http_client_coro_setDefer, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, getDefer, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, recv, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, recv, arginfo_swoole_http_client_coro_recv, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, push, arginfo_swoole_http_client_coro_push, ZEND_ACC_PUBLIC)
     PHP_FALIAS(__sleep, swoole_unsupport_serialize, NULL)
     PHP_FALIAS(__wakeup, swoole_unsupport_serialize, NULL)
@@ -1301,6 +1305,13 @@ static PHP_METHOD(swoole_http_client_coro, recv)
     {
         swoole_php_fatal_error(E_WARNING, "client has been bound to another coro");
     }
+
+    double timeout = http->timeout;
+    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "|d", &timeout) == FAILURE)
+    {
+        return;
+    }
+
     //resume
     if (http->cli->sleep)
     {
@@ -1319,40 +1330,42 @@ static PHP_METHOD(swoole_http_client_coro, recv)
                 return;
             }
         }
-
-        hcc->defer_status = HTTP_CLIENT_STATE_DEFER_WAIT;
-        php_context *context = swoole_get_property(getThis(), 1);
-        coro_save(context);
-        coro_yield();
+        goto _yield;
     }
-    //todo
+
+    //no defer
     if (!hcc->defer)
-    {	//no defer
+    {
         swoole_php_fatal_error(E_WARNING, "you should not use recv without defer.");
         RETURN_FALSE;
     }
 
     switch (hcc->defer_status)
     {
-        case HTTP_CLIENT_STATE_DEFER_DONE:
-            hcc->defer_status = HTTP_CLIENT_STATE_DEFER_INIT;
-            RETURN_BOOL(hcc->defer_result);
-            break;
-        case HTTP_CLIENT_STATE_DEFER_SEND:
-            hcc->defer_status = HTTP_CLIENT_STATE_DEFER_WAIT;
-            //not ready
-            php_context *context = swoole_get_property(getThis(), 1);
-            coro_save(context);
-            coro_yield();
-            break;
-        case HTTP_CLIENT_STATE_DEFER_INIT:
-            //not ready
-            swoole_php_fatal_error(E_WARNING, "you should post or get or execute before recv.");
-            RETURN_FALSE;
-            break;
-        default:
-            break;
+    case HTTP_CLIENT_STATE_DEFER_DONE:
+        hcc->defer_status = HTTP_CLIENT_STATE_DEFER_INIT;
+        RETURN_BOOL(hcc->defer_result);
+    case HTTP_CLIENT_STATE_DEFER_SEND:
+        goto _yield;
+    case HTTP_CLIENT_STATE_DEFER_INIT:
+        //not ready
+        swoole_php_fatal_error(E_WARNING, "you should post or get or execute before recv.");
+        RETURN_FALSE;
+    default:
+        return;
     }
+
+    _yield: hcc->defer_status = HTTP_CLIENT_STATE_DEFER_WAIT;
+    php_context *context = swoole_get_property(getThis(), 1);
+
+    if (timeout > 0)
+    {
+        php_swoole_check_timer((int) (timeout * 1000));
+        http->timer = SwooleG.timer.add(&SwooleG.timer, (int) (timeout * 1000), 0, context, http_client_coro_onTimeout);
+    }
+
+    coro_save(context);
+    coro_yield();
 }
 
 static PHP_METHOD(swoole_http_client_coro, setData)
