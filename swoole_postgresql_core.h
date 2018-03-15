@@ -22,14 +22,23 @@ typedef struct _php_pgsql_result_handle {
     int row;
 } pgsql_result_handle;
 
+typedef enum
+{
+    NORMAL_QUERY,
+    META_DATA
+} query_type;
+
 typedef struct _php_pgsql_object {
     PGconn *conn;
     PGresult *result;
     zval *object;
     ConnStatusType status;
+    query_type request_type;
     int row;
     int fd;
-} PGobject;
+} pg_object;
+
+
 
 #define PGSQL_ASSOC           1<<0
 #define PGSQL_NUM             1<<1
