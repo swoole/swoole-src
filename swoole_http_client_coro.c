@@ -490,8 +490,14 @@ static int http_client_coro_onMessage(swConnection *conn, char *data, uint32_t l
     msg.str = data;
     msg.length = length;
 
-    http_client_property *hcc = swoole_get_property(zobject, 0);
+    http_client *http = swoole_get_object(zobject);
+    if (http->timer)
+    {
+        swTimer_del(&SwooleG.timer, http->timer);
+        http->timer = NULL;
+    }
 
+    http_client_property *hcc = swoole_get_property(zobject, 0);
     if (hcc->defer_status != HTTP_CLIENT_STATE_DEFER_WAIT)
     {
         SW_ALLOC_INIT_ZVAL(zframe);
