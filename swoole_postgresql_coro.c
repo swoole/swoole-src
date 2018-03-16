@@ -39,8 +39,7 @@ static int swoole_pgsql_coro_onRead(swReactor *reactor, swEvent *event);
 static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event);
 static int swoole_pgsql_coro_onError(swReactor *reactor, swEvent *event);
 int php_pgsql_result2array(PGresult *pg_result, zval *ret_array, long result_type);
-static int swoole_pgsql_coro_close(zval *this, int fd);
-static int swoole_postgresql_coro_close(zval *this);
+static int swoole_postgresql_coro_close(pg_object *pg_object);
 static  int query_result_parse(pg_object *pg_object);
 static  int meta_data_result_parse(pg_object *pg_object);
 
@@ -374,6 +373,7 @@ static  int query_result_parse(pg_object *pg_object){
 
 
     int error = 0;
+    char *errMsg;
 
     while ((pgsql_result =PQgetResult(pg_object->conn)))
     {
@@ -385,10 +385,10 @@ static  int query_result_parse(pg_object *pg_object){
             case PGRES_BAD_RESPONSE:
             case PGRES_NONFATAL_ERROR:
             case PGRES_FATAL_ERROR:
-                swWarn("Query failed: [%s]",pg_object->conn);
+                errMsg = PQerrorMessage(pg_object->conn);
+                swWarn("Query failed: [%s]",errMsg);
                 PQclear(pgsql_result);
-                //RETURN_FALSE;
-                break;
+                swoole_postgresql_coro_close(pg_object);
             case PGRES_COMMAND_OK: /* successful command that did not return rows */
             default:
                 pg_object->result = pgsql_result;
@@ -411,8 +411,13 @@ static  int query_result_parse(pg_object *pg_object){
                 break;
         }
 
+        if(status == PGRES_FATAL_ERROR)
+        {
+            break;
+        }
     }
 
+    return SW_OK;
 }
 
 static PHP_METHOD(swoole_postgresql_coro, query)
@@ -967,28 +972,25 @@ static int swoole_pgsql_coro_onError(swReactor *reactor, swEvent *event)
 
 static PHP_METHOD(swoole_postgresql_coro, __destruct)
 {
-    swoole_postgresql_coro_close(getThis());
+    pg_object *pg_object = swoole_get_object(getThis());
+    swoole_postgresql_coro_close(pg_object);
 
 }
 
-static int swoole_postgresql_coro_close(zval *this)
+static int swoole_postgresql_coro_close(pg_object *pg_object)
 {
-    SWOOLE_GET_TSRMLS;
-    pg_object *pg_object = swoole_get_object(this);
     if (!pg_object)
     {
         swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_postgresql_coro.");
         return FAILURE;
     }
-
-
     SwooleG.main_reactor->del(SwooleG.main_reactor, pg_object->fd);
 
     swConnection *_socket = swReactor_get(SwooleG.main_reactor, pg_object->fd);
     _socket->object = NULL;
     _socket->active = 0;
     efree(pg_object);
-    php_context *sw_current_context = swoole_get_property(this, 0);
+    php_context *sw_current_context = swoole_get_property(pg_object->object, 0);
     efree(sw_current_context);
 
     return SUCCESS;
