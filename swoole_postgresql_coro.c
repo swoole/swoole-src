@@ -312,54 +312,53 @@ static  int meta_data_result_parse(pg_object *pg_object){
     zval elem;
     PGresult *pg_result;
     zend_bool extended=0;
-    while ((pg_result =PQgetResult(pg_object->conn))) {
+    pg_result =PQgetResult(pg_object->conn);
 
-        if (PQresultStatus(pg_result) != PGRES_TUPLES_OK || (num_rows = PQntuples(pg_result)) == 0) {
-            php_error_docref(NULL, E_WARNING, "Table doesn't exists");
-            return  0;
-        }
-
-        zval  return_value;
-        array_init(&return_value);
-        zval * retval = NULL;
-        for (i = 0; i < num_rows; i++) {
-            pg_object->result = pg_result;
-            char *name;
-            array_init(&elem);
-            /* pg_attribute.attnum */
-            add_assoc_long_ex(&elem, "num", sizeof("num") - 1, atoi(PQgetvalue(pg_result, i, 1)));
-            /* pg_type.typname */
-            add_assoc_string_ex(&elem, "type", sizeof("type") - 1, PQgetvalue(pg_result, i, 2));
-            /* pg_attribute.attlen */
-            add_assoc_long_ex(&elem, "len", sizeof("len") - 1, atoi(PQgetvalue(pg_result, i, 3)));
-            /* pg_attribute.attnonull */
-            add_assoc_bool_ex(&elem, "not null", sizeof("not null") - 1, !strcmp(PQgetvalue(pg_result, i, 4), "t"));
-            /* pg_attribute.atthasdef */
-            add_assoc_bool_ex(&elem, "has default", sizeof("has default") - 1,
-                              !strcmp(PQgetvalue(pg_result, i, 5), "t"));
-            /* pg_attribute.attndims */
-            add_assoc_long_ex(&elem, "array dims", sizeof("array dims") - 1, atoi(PQgetvalue(pg_result, i, 6)));
-            /* pg_type.typtype */
-            add_assoc_bool_ex(&elem, "is enum", sizeof("is enum") - 1, !strcmp(PQgetvalue(pg_result, i, 7), "e"));
-            if (extended) {
-                /* pg_type.typtype */
-                add_assoc_bool_ex(&elem, "is base", sizeof("is base") - 1, !strcmp(PQgetvalue(pg_result, i, 7), "b"));
-                add_assoc_bool_ex(&elem, "is composite", sizeof("is composite") - 1,
-                                  !strcmp(PQgetvalue(pg_result, i, 7), "c"));
-                add_assoc_bool_ex(&elem, "is pesudo", sizeof("is pesudo") - 1,
-                                  !strcmp(PQgetvalue(pg_result, i, 7), "p"));
-                /* pg_description.description */
-                add_assoc_string_ex(&elem, "description", sizeof("description") - 1, PQgetvalue(pg_result, i, 8));
-            }
-            /* pg_attribute.attname */
-            name = PQgetvalue(pg_result, i, 0);
-            add_assoc_zval(&return_value, name, &elem);
-
-        }
-        php_context *sw_current_context = swoole_get_property(pg_object->object, 0);
-        int res = coro_resume(sw_current_context, &return_value, &retval);
-        zval_ptr_dtor(&return_value);
+    if (PQresultStatus(pg_result) != PGRES_TUPLES_OK || (num_rows = PQntuples(pg_result)) == 0) {
+        php_error_docref(NULL, E_WARNING, "Table doesn't exists");
+        return  0;
     }
+
+    zval  return_value;
+    array_init(&return_value);
+    zval * retval = NULL;
+    for (i = 0; i < num_rows; i++) {
+        pg_object->result = pg_result;
+        char *name;
+        array_init(&elem);
+        /* pg_attribute.attnum */
+        add_assoc_long_ex(&elem, "num", sizeof("num") - 1, atoi(PQgetvalue(pg_result, i, 1)));
+        /* pg_type.typname */
+        add_assoc_string_ex(&elem, "type", sizeof("type") - 1, PQgetvalue(pg_result, i, 2));
+        /* pg_attribute.attlen */
+        add_assoc_long_ex(&elem, "len", sizeof("len") - 1, atoi(PQgetvalue(pg_result, i, 3)));
+        /* pg_attribute.attnonull */
+        add_assoc_bool_ex(&elem, "not null", sizeof("not null") - 1, !strcmp(PQgetvalue(pg_result, i, 4), "t"));
+        /* pg_attribute.atthasdef */
+        add_assoc_bool_ex(&elem, "has default", sizeof("has default") - 1,
+                          !strcmp(PQgetvalue(pg_result, i, 5), "t"));
+        /* pg_attribute.attndims */
+        add_assoc_long_ex(&elem, "array dims", sizeof("array dims") - 1, atoi(PQgetvalue(pg_result, i, 6)));
+        /* pg_type.typtype */
+        add_assoc_bool_ex(&elem, "is enum", sizeof("is enum") - 1, !strcmp(PQgetvalue(pg_result, i, 7), "e"));
+        if (extended) {
+            /* pg_type.typtype */
+            add_assoc_bool_ex(&elem, "is base", sizeof("is base") - 1, !strcmp(PQgetvalue(pg_result, i, 7), "b"));
+            add_assoc_bool_ex(&elem, "is composite", sizeof("is composite") - 1,
+                              !strcmp(PQgetvalue(pg_result, i, 7), "c"));
+            add_assoc_bool_ex(&elem, "is pesudo", sizeof("is pesudo") - 1,
+                              !strcmp(PQgetvalue(pg_result, i, 7), "p"));
+            /* pg_description.description */
+            add_assoc_string_ex(&elem, "description", sizeof("description") - 1, PQgetvalue(pg_result, i, 8));
+        }
+        /* pg_attribute.attname */
+        name = PQgetvalue(pg_result, i, 0);
+        add_assoc_zval(&return_value, name, &elem);
+
+    }
+    php_context *sw_current_context = swoole_get_property(pg_object->object, 0);
+    int res = coro_resume(sw_current_context, &return_value, &retval);
+    zval_ptr_dtor(&return_value);
     zval_ptr_dtor(&elem);
     PQclear(pg_result);
 }
@@ -379,11 +378,9 @@ static  int query_result_parse(pg_object *pg_object){
     zval *retval = NULL;
     zval return_value;
     php_context *sw_current_context = swoole_get_property(pg_object->object, 0);
-	php_printf("lsfdsfsdfsdf\n");
 
     while ((pgsql_result =PQgetResult(pg_object->conn)))
     {
-	php_printf("1111111\n");
 
         status = PQresultStatus(pgsql_result);
 
@@ -392,20 +389,21 @@ static  int query_result_parse(pg_object *pg_object){
             case PGRES_BAD_RESPONSE:
             case PGRES_NONFATAL_ERROR:
             case PGRES_FATAL_ERROR:
-		if(is_handle){
-                    return;
+		        if(is_handle)
+                {
+                    return 0;
                 }
                 errMsg = PQerrorMessage(pg_object->conn);
                 swWarn("Query failed: [%s]",errMsg);
 
                 PQclear(pgsql_result);
-		ZVAL_FALSE(&return_value);
+                ZVAL_FALSE(&return_value);
                 res = coro_resume(sw_current_context, &return_value,  &retval);
                 swoole_postgresql_coro_close(pg_object);
-		break;
+		        break;
             case PGRES_COMMAND_OK: /* successful command that did not return rows */
             default:
-		is_handle = 1;
+		        is_handle = 1;
                 pg_object->result = pgsql_result;
                 pg_object->row = 0;
                 int ret ;
