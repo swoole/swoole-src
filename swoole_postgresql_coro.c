@@ -374,9 +374,16 @@ static  int query_result_parse(pg_object *pg_object){
 
     int error = 0;
     char *errMsg;
+    int res;
+    int is_handle = 0 ;
+    zval *retval = NULL;
+    zval return_value;
+    php_context *sw_current_context = swoole_get_property(pg_object->object, 0);
+	php_printf("lsfdsfsdfsdf\n");
 
     while ((pgsql_result =PQgetResult(pg_object->conn)))
     {
+	php_printf("1111111\n");
 
         status = PQresultStatus(pgsql_result);
 
@@ -385,23 +392,29 @@ static  int query_result_parse(pg_object *pg_object){
             case PGRES_BAD_RESPONSE:
             case PGRES_NONFATAL_ERROR:
             case PGRES_FATAL_ERROR:
+		if(is_handle){
+                    return;
+                }
                 errMsg = PQerrorMessage(pg_object->conn);
                 swWarn("Query failed: [%s]",errMsg);
+
                 PQclear(pgsql_result);
+		ZVAL_FALSE(&return_value);
+                res = coro_resume(sw_current_context, &return_value,  &retval);
                 swoole_postgresql_coro_close(pg_object);
+		break;
             case PGRES_COMMAND_OK: /* successful command that did not return rows */
             default:
+		is_handle = 1;
                 pg_object->result = pgsql_result;
                 pg_object->row = 0;
                 int ret ;
                 /* Wait to finish sending buffer */
                 ret = PQflush(pg_object->conn);
 
-                zval *retval = NULL;
-                zval return_value;
                 ZVAL_RES(&return_value, zend_register_resource(pg_object, le_result));
-                php_context *sw_current_context = swoole_get_property(pg_object->object, 0);
-                int res = coro_resume(sw_current_context, &return_value,  &retval);
+                res = coro_resume(sw_current_context, &return_value,  &retval);
+                PQclear(pgsql_result);
 
                 if (error != 0)
                 {
@@ -927,7 +940,6 @@ static void _free_result(zend_resource *rsrc)
 {
     pg_object *pg_result = (pg_object *)rsrc->ptr;
 
-    PQclear(pg_result->result);
     efree(pg_result);
 }
 
