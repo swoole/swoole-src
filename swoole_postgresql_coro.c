@@ -15,7 +15,7 @@
  */
 
 #include "php_swoole.h"
-#include "swoole_postgresql_core.h"
+#include "swoole_postgresql_coro.h"
 #include "swoole_coroutine.h"
 
 static PHP_METHOD(swoole_postgresql_coro, __construct);
