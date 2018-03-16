@@ -263,25 +263,23 @@ if test "$PHP_SWOOLE" != "no"; then
     fi
 
     if test "$PHP_COROUTINE_POSTGRESQL" = "yes"; then
-        AC_MSG_RESULT(hahahahahahahhahah$PHP_LIBPQ_DIR)
         if test "$PHP_LIBPQ" != "no" || test "$PHP_LIBPQ_DIR" != "no"; then
             if test "$PHP_LIBPQ_DIR" != "no"; then
                 AC_DEFINE(HAVE_LIBPQ, 1, [have libpq])
                 AC_MSG_RESULT(libpq include success)
                 PHP_ADD_INCLUDE("${PHP_LIBPQ_DIR}/include")
             else
-                SEARCH_FOR="/include/libpq-fe.h"
-                SEARCH_PATH="/usr /usr/local /opt/local /usr/local/Cellar/postgresql/*"
-                 AC_MSG_RESULT(search libpq .h file)
-                for i in $SEARCH_PATH ; do
-                  if test -r $i/$SEARCH_FOR; then
-                    LIBPQ_DIR=$i
-                    AC_MSG_RESULT(found in $i)
-                    PHP_ADD_INCLUDE("${LIBPQ_DIR}/include")
-                  fi
+                PGSQL_SEARCH_PATHS="/usr /usr/local /usr/local/pgsql"
+                for i in $PGSQL_SEARCH_PATHS; do
+                    for j in include include/pgsql include/postgres include/postgresql ""; do
+                        if test -r "$i/$j/libpq-fe.h"; then
+                            PGSQL_INC_BASE=$i
+                            PGSQL_INCLUDE=$i/$j
+                            PHP_ADD_INCLUDE("${PGSQL_INCLUDE}")
+                        fi
+                    done
                 done
             fi
-
             AC_DEFINE(SW_USE_POSTGRESQL, 1, [enable coroutine-postgresql support])
             PHP_ADD_LIBRARY(pq, 1, SWOOLE_SHARED_LIBADD)
         fi
