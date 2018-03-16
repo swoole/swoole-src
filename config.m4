@@ -51,6 +51,9 @@ PHP_ARG_ENABLE(swoole_static, swoole static compile support,
 PHP_ARG_WITH(swoole, swoole support,
 [  --with-swoole           With swoole support])
 
+PHP_ARG_WITH(libpq_dir, for libpq support,
+[  --with-libpq-dir[=DIR]    Include libpq support (requires libpq >= 9.5)], no, no)
+
 PHP_ARG_WITH(openssl_dir, for OpenSSL support,
 [  --with-openssl-dir[=DIR]    Include OpenSSL support (requires OpenSSL >= 0.9.6)], no, no)
 
@@ -260,8 +263,28 @@ if test "$PHP_SWOOLE" != "no"; then
     fi
 
     if test "$PHP_COROUTINE_POSTGRESQL" = "yes"; then
-        AC_DEFINE(SW_USE_POSTGRESQL, 1, [enable coroutine-postgresql support])
-        PHP_ADD_LIBRARY(pq, 1, SWOOLE_SHARED_LIBADD)
+        AC_MSG_RESULT(hahahahahahahhahah$PHP_LIBPQ_DIR)
+        if test "$PHP_LIBPQ" != "no" || test "$PHP_LIBPQ_DIR" != "no"; then
+            if test "$PHP_LIBPQ_DIR" != "no"; then
+                AC_DEFINE(HAVE_LIBPQ, 1, [have libpq])
+                AC_MSG_RESULT(libpq include success)
+                PHP_ADD_INCLUDE("${PHP_LIBPQ_DIR}/include")
+            else
+                SEARCH_FOR="/include/libpq-fe.h"
+                SEARCH_PATH="/usr /usr/local /opt/local /usr/local/Cellar/postgresql/*"
+                 AC_MSG_RESULT(search libpq .h file)
+                for i in $SEARCH_PATH ; do
+                  if test -r $i/$SEARCH_FOR; then
+                    LIBPQ_DIR=$i
+                    AC_MSG_RESULT(found in $i)
+                    PHP_ADD_INCLUDE("${LIBPQ_DIR}/include")
+                  fi
+                done
+            fi
+
+            AC_DEFINE(SW_USE_POSTGRESQL, 1, [enable coroutine-postgresql support])
+            PHP_ADD_LIBRARY(pq, 1, SWOOLE_SHARED_LIBADD)
+        fi
     fi
 
     if test "$PHP_HTTP2" = "yes"; then
