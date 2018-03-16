@@ -12,6 +12,7 @@ $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {
     go(function () {
         $cli = new Co\http\Client("127.0.0.1", 9501);
+        $cli->set(['timeout' => -1]);
         $ret = $cli->upgrade("/");
 
         if (!$ret)
