@@ -183,7 +183,14 @@ ZEND_END_ARG_INFO()
     }
 
 #define SW_REDIS_COMMAND_CHECK_WITH_FREE_Z_ARGS \
+    coro_check(TSRMLS_C);\
     swRedisClient *redis = swoole_get_object(getThis()); \
+    if (!redis)\
+    {\
+        zend_update_property_long(swoole_redis_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), SW_REDIS_ERR_CLOSED TSRMLS_CC); \
+        zend_update_property_string(swoole_redis_coro_class_entry_ptr, getThis(), ZEND_STRL("errMsg"), "redis client is waiting for response." TSRMLS_CC); \
+        RETURN_FALSE;\
+    }\
 	if (redis->iowait == SW_REDIS_CORO_STATUS_WAIT) \
 	{ \
         zend_update_property_long(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errCode"), SW_REDIS_ERR_OTHER TSRMLS_CC); \
@@ -1291,6 +1298,10 @@ static PHP_METHOD(swoole_redis_coro, recv)
 static PHP_METHOD(swoole_redis_coro, close)
 {
     swRedisClient *redis = swoole_get_object(getThis());
+    if (!redis || !redis->context)
+    {
+        RETURN_FALSE;
+    }
     if (redis->timer)
     {
         swTimer_del(&SwooleG.timer, redis->timer);
