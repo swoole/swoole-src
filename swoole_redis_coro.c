@@ -1074,6 +1074,11 @@ static void redis_coro_close(void* data)
     redisAsyncDisconnect(context);
 }
 
+static void redis_coro_free(void* redis)
+{
+    efree(redis);
+}
+
 static swRedisClient* redis_coro_create(zval *object)
 {
     swRedisClient *redis = emalloc(sizeof(swRedisClient));
@@ -1344,7 +1349,7 @@ static PHP_METHOD(swoole_redis_coro, close)
         redis_coro_close(redis->context);
     }
 
-    zend_declare_property_bool(swoole_redis_coro_class_entry_ptr, SW_STRL("connected") - 1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_update_property_bool(swoole_redis_coro_class_entry_ptr, getThis(), SW_STRL("connected") - 1, 0);
     swoole_set_object(getThis(), NULL);
 
     RETURN_TRUE;
@@ -4206,10 +4211,25 @@ void swoole_redis_coro_onConnect(const redisAsyncContext *c, int status)
 
     if (status != REDIS_OK)
     {
-        ZVAL_BOOL(result->value, 0);
         zend_update_property_long(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errCode"), c->err TSRMLS_CC);
         zend_update_property_string(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), c->errstr TSRMLS_CC);
         zend_update_property_bool(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("connected"), 0 TSRMLS_CC);
+
+        zval *retval = NULL;
+        zval *redis_result = NULL;
+        SW_MAKE_STD_ZVAL(redis_result);
+        ZVAL_BOOL(redis_result, 0);
+
+        php_context *sw_current_context = swoole_get_property(redis->object, 0);
+
+        swoole_set_object(redis->object, NULL);
+        SwooleG.main_reactor->defer(SwooleG.main_reactor, redis_coro_free, redis);
+
+        int ret = coro_resume(sw_current_context, redis_result, &retval);
+        if (ret == CORO_END && retval)
+        {
+            sw_zval_ptr_dtor(&retval);
+        }
     }
     else
     {
@@ -4221,12 +4241,12 @@ void swoole_redis_coro_onConnect(const redisAsyncContext *c, int status)
         _socket->active = 1;
 
         zend_update_property_bool(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("connected"), 1 TSRMLS_CC);
-    }
 
-    redis->connecting = 1;
-    redis->connected = 1;
-    swoole_redis_coro_resume(result);
-    redis->connecting = 0;
+        redis->connecting = 1;
+        redis->connected = 1;
+        swoole_redis_coro_resume(result);
+        redis->connecting = 0;
+    }
 }
 
 static void swoole_redis_coro_onClose(const redisAsyncContext *c, int status)
