@@ -139,7 +139,7 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
 
     if (conn->skip_recv)
     {
-        conn->skip_recv = 1;
+        conn->skip_recv = 0;
         goto do_get_length;
     }
 

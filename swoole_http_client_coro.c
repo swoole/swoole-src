@@ -707,7 +707,7 @@ static void http_client_coro_onReceive(swClient *cli, char *data, uint32_t lengt
         if (http->upgrade)
         {
             //data frame
-            if (length > parsed_n)
+            if (length > parsed_n + 3)
             {
                 cli->buffer->length = length - parsed_n - 1;
                 memmove(cli->buffer->str, data + parsed_n + 1, cli->buffer->length);
