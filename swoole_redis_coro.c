@@ -314,15 +314,19 @@ ZEND_END_ARG_INFO()
     }
 
 #define SW_REDIS_COMMAND(argc) \
-	if (redisAsyncCommandArgv(redis->context, swoole_redis_coro_onResult, NULL, argc, (const char **) argv, (const size_t *) argvlen) < 0) \
+    int __cmd_retval = redisAsyncCommandArgv(redis->context, swoole_redis_coro_onResult, NULL, argc, (const char **) argv, (const size_t *) argvlen);\
+	if (__cmd_retval < 0) \
 	{ \
         zend_update_property_long(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errCode"), SW_REDIS_ERR_OTHER TSRMLS_CC); \
         zend_update_property_string(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), "redisAsyncCommandArgv() failed." TSRMLS_CC); \
-		RETURN_FALSE; \
 	} \
     for (i = 0; i < argc; i++) \
     { \
         efree(argv[i]); \
+    }\
+    if (__cmd_retval < 0) \
+    {\
+        RETURN_FALSE;\
     }
 
 typedef enum
