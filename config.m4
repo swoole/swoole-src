@@ -275,6 +275,7 @@ if test "$PHP_SWOOLE" != "no"; then
                         if test -r "$i/$j/libpq-fe.h"; then
                             PGSQL_INC_BASE=$i
                             PGSQL_INCLUDE=$i/$j
+                            AC_MSG_RESULT(libpq-fe.h found in PGSQL_INCLUDE)
                             PHP_ADD_INCLUDE("${PGSQL_INCLUDE}")
                         fi
                     done
