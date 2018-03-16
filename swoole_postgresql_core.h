@@ -16,12 +16,6 @@
 
 #include <libpq-fe.h>
 
-typedef struct _php_pgsql_result_handle {
-    PGconn *conn;
-    PGresult *result;
-    int row;
-} pgsql_result_handle;
-
 typedef enum
 {
     NORMAL_QUERY,
@@ -36,6 +30,8 @@ typedef struct _php_pgsql_object {
     query_type request_type;
     int row;
     int fd;
+    double timeout;
+    swTimer_node *timer;
 } pg_object;
 
 
