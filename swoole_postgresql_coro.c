@@ -26,8 +26,14 @@ static PHP_METHOD(swoole_postgresql_coro, fetchAll);
 static PHP_METHOD(swoole_postgresql_coro, affectedRows);
 static PHP_METHOD(swoole_postgresql_coro, numRows);
 static PHP_METHOD(swoole_postgresql_coro,metaData);
+static PHP_METHOD(swoole_postgresql_coro,fetchObject);
+static PHP_METHOD(swoole_postgresql_coro,fetchAssoc);
+static PHP_METHOD(swoole_postgresql_coro,fetchArray);
+static PHP_METHOD(swoole_postgresql_coro,fetchRow);
 
-static void _close_pgsql_link(zend_resource *rsrc);
+static void php_pgsql_fetch_hash(INTERNAL_FUNCTION_PARAMETERS, zend_long result_type, int into_object);
+
+static void _destroy_pgsql_link(zend_resource *rsrc);
 static void _free_result(zend_resource *rsrc);
 static int swoole_pgsql_coro_onRead(swReactor *reactor, swEvent *event);
 static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event);
@@ -68,6 +74,31 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_pg_meta_data, 0, 0, 2)
     ZEND_ARG_INFO(0, table_name)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_pg_fetch_row, 0, 0, 1)
+    ZEND_ARG_INFO(0, result)
+    ZEND_ARG_INFO(0, row)
+    ZEND_ARG_INFO(0, result_type)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_pg_fetch_assoc, 0, 0, 1)
+    ZEND_ARG_INFO(0, result)
+    ZEND_ARG_INFO(0, row)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_pg_fetch_array, 0, 0, 1)
+    ZEND_ARG_INFO(0, result)
+    ZEND_ARG_INFO(0, row)
+    ZEND_ARG_INFO(0, result_type)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_pg_fetch_object, 0, 0, 1)
+    ZEND_ARG_INFO(0, result)
+    ZEND_ARG_INFO(0, row)
+    ZEND_ARG_INFO(0, class_name)
+    ZEND_ARG_INFO(0, l)
+    ZEND_ARG_INFO(0, ctor_params)
+ZEND_END_ARG_INFO()
+
 static const zend_function_entry swoole_postgresql_coro_methods[] =
 {
     PHP_ME(swoole_postgresql_coro, __construct, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
@@ -77,6 +108,10 @@ static const zend_function_entry swoole_postgresql_coro_methods[] =
     PHP_ME(swoole_postgresql_coro, affectedRows, arginfo_pg_fetch_all, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_postgresql_coro, numRows, arginfo_pg_num_rows, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_postgresql_coro, metaData, arginfo_pg_meta_data, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_postgresql_coro, fetchObject, arginfo_pg_fetch_object, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_postgresql_coro, fetchAssoc, arginfo_pg_fetch_assoc, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_postgresql_coro, fetchArray, arginfo_pg_fetch_array, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_postgresql_coro, fetchRow, arginfo_pg_fetch_row, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_postgresql_coro, __destruct, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_FE_END
 };
@@ -89,7 +124,7 @@ void swoole_postgresql_coro_init(int module_number TSRMLS_DC)
 {
 
     INIT_CLASS_ENTRY(swoole_postgresql_coro_ce, "Swoole\\Coroutine\\PostgreSql", swoole_postgresql_coro_methods);
-    le_link = zend_register_list_destructors_ex(_close_pgsql_link, NULL, "pgsql link", module_number);
+    le_link = zend_register_list_destructors_ex(_destroy_pgsql_link, NULL, "pgsql link", module_number);
     le_result = zend_register_list_destructors_ex(_free_result, NULL, "pgsql result", module_number);
     swoole_postgresql_coro_class_entry_ptr = zend_register_internal_class(&swoole_postgresql_coro_ce TSRMLS_CC);
     if (SWOOLE_G(use_shortname))
@@ -401,17 +436,7 @@ static  int query_result_parse(pg_object *pg_object){
         if (PQresultStatus(pgsql_result) != PGRES_COMMAND_OK) {
             php_printf("unexpected result while sending file list: %s",
                        PQresultErrorMessage(pgsql_result));
-
-            //PQclear(pgsql_result);
         }
-        //reactor->del(SwooleG.main_reactor, event->fd);
-        /*
-        if ((PGG(auto_reset_persistent) & 2) && PQstatus(pgsql) != CONNECTION_OK) {
-            PQclear(pgsql_result);
-            PQreset(pgsql);
-            pgsql_result = PQexec(pgsql, query);
-        }
-        */
 
         if (pgsql_result) {
             status = PQresultStatus(pgsql_result);
@@ -525,53 +550,11 @@ static PHP_METHOD(swoole_postgresql_coro, query)
         }*/
     coro_save(sw_current_context);
     coro_yield();
-    /*pgsql_result = PQgetResult(pgsql);*/
-
-/*
-    if ((PGG(auto_reset_persistent) & 2) && PQstatus(pgsql) != CONNECTION_OK) {
-        PQclear(pgsql_result);
-        PQreset(pgsql);
-        pgsql_result = PQexec(pgsql, query);
-    }
-    */
-
-/*
-    if (pgsql_result) {
-        status = PQresultStatus(pgsql_result);
-    } else {
-        status = (ExecStatusType) PQstatus(pgsql);
-    }
-
-    switch (status) {
-        case PGRES_EMPTY_QUERY:
-        case PGRES_BAD_RESPONSE:
-        case PGRES_NONFATAL_ERROR:
-        case PGRES_FATAL_ERROR:
-            swWarn("Query failed: [%s]",pgsql);
-            PQclear(pgsql_result);
-            RETURN_FALSE;
-            break;
-        case PGRES_COMMAND_OK: *//* successful command that did not return rows */
-/*
-        default:
-            if (pgsql_result) {
-                pg_result = (pgsql_result_handle *) emalloc(sizeof(pgsql_result_handle));
-                pg_result->conn = pgsql;
-                pg_result->result = pgsql_result;
-                pg_result->row = 0;
-                RETURN_RES(zend_register_resource(pg_result, le_result));
-            } else {
-                PQclear(pgsql_result);
-                RETURN_FALSE;
-            }
-            break;
-    }
-*/
 }
 
 /* {{{ php_pgsql_result2array
  */
-int php_pgsql_result2array(PGresult *pg_result, zval *ret_array, long result_type)
+int swoole_pgsql_result2array(PGresult *pg_result, zval *ret_array, long result_type)
 {
     zval row;
     char *field_name;
@@ -636,7 +619,7 @@ static PHP_METHOD(swoole_postgresql_coro, fetchAll)
 
     pgsql_result = object->result;
     array_init(return_value);
-    if (php_pgsql_result2array(pgsql_result, return_value, result_type) == FAILURE)
+    if (swoole_pgsql_result2array(pgsql_result, return_value, result_type) == FAILURE)
     {
         zval_dtor(return_value);
         RETURN_FALSE;
@@ -705,29 +688,34 @@ static PHP_METHOD(swoole_postgresql_coro,metaData)
     pgsql = (PGconn *)zend_fetch_resource(Z_RES_P(pgsql_link), "postgresql connection", le_link);
 
 
-    while ((pg_result = PQgetResult(pgsql))) {
+    while ((pg_result = PQgetResult(pgsql)))
+    {
         PQclear(pg_result);
     }
 
-    if (!*table_name) {
+    if (!*table_name)
+    {
         php_error_docref(NULL, E_WARNING, "The table name must be specified");
         RETURN_FALSE;
     }
 
     src = estrdup(table_name);
     tmp_name = php_strtok_r(src, ".", &tmp_name2);
-    if (!tmp_name) {
+    if (!tmp_name)
+    {
         efree(src);
         php_error_docref(NULL, E_WARNING, "The table name must be specified");
         RETURN_FALSE;
     }
-    if (!tmp_name2 || !*tmp_name2) {
+    if (!tmp_name2 || !*tmp_name2)
+    {
         /* Default schema */
         tmp_name2 = tmp_name;
         tmp_name = "public";
     }
 
-    if (extended) {
+    if (extended)
+    {
         smart_str_appends(&querystr,
                           "SELECT a.attname, a.attnum, t.typname, a.attlen, a.attnotNULL, a.atthasdef, a.attndims, t.typtype, "
                                   "d.description "
@@ -737,7 +725,8 @@ static PHP_METHOD(swoole_postgresql_coro,metaData)
                                   " JOIN pg_namespace n ON (c.relnamespace = n.oid) "
                                   " LEFT JOIN pg_description d ON (d.objoid=a.attrelid AND d.objsubid=a.attnum AND c.oid=d.objoid) "
                                   "WHERE a.attnum > 0  AND c.relname = '");
-    } else {
+    } else
+    {
         smart_str_appends(&querystr,
                           "SELECT a.attname, a.attnum, t.typname, a.attlen, a.attnotnull, a.atthasdef, a.attndims, t.typtype "
                                   "FROM pg_class as c "
@@ -748,7 +737,8 @@ static PHP_METHOD(swoole_postgresql_coro,metaData)
     }
     escaped = (char *)safe_emalloc(strlen(tmp_name2), 2, 1);
     new_len = PQescapeStringConn(pgsql, escaped, tmp_name2, strlen(tmp_name2), NULL);
-    if (new_len) {
+    if (new_len)
+    {
         smart_str_appendl(&querystr, escaped, new_len);
     }
     efree(escaped);
@@ -756,7 +746,8 @@ static PHP_METHOD(swoole_postgresql_coro,metaData)
     smart_str_appends(&querystr, "' AND n.nspname = '");
     escaped = (char *)safe_emalloc(strlen(tmp_name), 2, 1);
     new_len = PQescapeStringConn(pgsql, escaped, tmp_name, strlen(tmp_name), NULL);
-    if (new_len) {
+    if (new_len)
+    {
         smart_str_appendl(&querystr, escaped, new_len);
     }
     efree(escaped);
@@ -771,7 +762,8 @@ static PHP_METHOD(swoole_postgresql_coro,metaData)
     pg_object *pg_object = swoole_get_object(getThis());
     pg_object->request_type = META_DATA;
     int ret  = PQsendQuery(pgsql, ZSTR_VAL(querystr.s));
-    if(ret == 0){
+    if(ret == 0)
+    {
         char * errMsg = PQerrorMessage(pgsql);
         php_printf("error:%s",errMsg);
 
@@ -805,14 +797,210 @@ static PHP_METHOD(swoole_postgresql_coro,metaData)
 
 }
 
-/* {{{ _close_pgsql_link
+/* {{{ void php_pgsql_fetch_hash */
+static void php_pgsql_fetch_hash(INTERNAL_FUNCTION_PARAMETERS, zend_long result_type, int into_object)
+{
+    zval               *result, *zrow = NULL;
+    PGresult           *pgsql_result;
+    pg_object          *pg_result;
+    int                i, num_fields, pgsql_row, use_row;
+    zend_long          row = -1;
+    char               *field_name;
+    zval               *ctor_params = NULL;
+    zend_class_entry   *ce = NULL;
+
+    if (into_object) {
+        zend_string *class_name = NULL;
+
+        if (zend_parse_parameters(ZEND_NUM_ARGS(), "r|z!Sz", &result, &zrow, &class_name, &ctor_params) == FAILURE) {
+            return;
+        }
+        if (!class_name) {
+            ce = zend_standard_class_def;
+        } else {
+            ce = zend_fetch_class(class_name, ZEND_FETCH_CLASS_AUTO);
+        }
+        if (!ce) {
+            php_error_docref(NULL, E_WARNING, "Could not find class '%s'", ZSTR_VAL(class_name));
+            return;
+        }
+        result_type = PGSQL_ASSOC;
+    } else {
+        if (zend_parse_parameters(ZEND_NUM_ARGS(), "r|z!l", &result, &zrow, &result_type) == FAILURE) {
+            return;
+        }
+    }
+    if (zrow == NULL) {
+        row = -1;
+    } else {
+        convert_to_long(zrow);
+        row = Z_LVAL_P(zrow);
+        if (row < 0) {
+            php_error_docref(NULL, E_WARNING, "The row parameter must be greater or equal to zero");
+            RETURN_FALSE;
+        }
+    }
+    use_row = ZEND_NUM_ARGS() > 1 && row != -1;
+
+    if (!(result_type & PGSQL_BOTH)) {
+        php_error_docref(NULL, E_WARNING, "Invalid result type");
+        RETURN_FALSE;
+    }
+
+    if ((pg_result = (pg_object *)zend_fetch_resource(Z_RES_P(result), "PostgreSQL result", le_result)) == NULL) {
+        RETURN_FALSE;
+    }
+
+    pgsql_result = pg_result->result;
+
+    if (use_row) {
+        if (row < 0 || row >= PQntuples(pgsql_result)) {
+            php_error_docref(NULL, E_WARNING, "Unable to jump to row " ZEND_LONG_FMT " on PostgreSQL result index " ZEND_LONG_FMT,
+                    row, Z_LVAL_P(result));
+            RETURN_FALSE;
+        }
+        pgsql_row = (int)row;
+        pg_result->row = pgsql_row;
+    } else {
+        /* If 2nd param is NULL, use internal row counter to access next row */
+        pgsql_row = pg_result->row;
+        if (pgsql_row < 0 || pgsql_row >= PQntuples(pgsql_result)) {
+            RETURN_FALSE;
+        }
+        pg_result->row++;
+    }
+
+    array_init(return_value);
+    for (i = 0, num_fields = PQnfields(pgsql_result); i < num_fields; i++) {
+        if (PQgetisnull(pgsql_result, pgsql_row, i)) {
+            if (result_type & PGSQL_NUM) {
+                add_index_null(return_value, i);
+            }
+            if (result_type & PGSQL_ASSOC) {
+                field_name = PQfname(pgsql_result, i);
+                add_assoc_null(return_value, field_name);
+            }
+        } else {
+            char *element = PQgetvalue(pgsql_result, pgsql_row, i);
+            if (element) {
+                const size_t element_len = strlen(element);
+
+                if (result_type & PGSQL_NUM) {
+                    add_index_stringl(return_value, i, element, element_len);
+                }
+
+                if (result_type & PGSQL_ASSOC) {
+                    field_name = PQfname(pgsql_result, i);
+                    add_assoc_stringl(return_value, field_name, element, element_len);
+                }
+            }
+        }
+    }
+
+    if (into_object) {
+        zval dataset;
+        zend_fcall_info fci;
+        zend_fcall_info_cache fcc;
+        zval retval;
+
+        ZVAL_COPY_VALUE(&dataset, return_value);
+        object_and_properties_init(return_value, ce, NULL);
+        if (!ce->default_properties_count && !ce->__set) {
+            Z_OBJ_P(return_value)->properties = Z_ARR(dataset);
+        } else {
+            zend_merge_properties(return_value, Z_ARRVAL(dataset));
+            zval_ptr_dtor(&dataset);
+        }
+
+        if (ce->constructor) {
+            fci.size = sizeof(fci);
+            ZVAL_UNDEF(&fci.function_name);
+            fci.object = Z_OBJ_P(return_value);
+            fci.retval = &retval;
+            fci.params = NULL;
+            fci.param_count = 0;
+            fci.no_separation = 1;
+
+            if (ctor_params && Z_TYPE_P(ctor_params) != IS_NULL) {
+                if (zend_fcall_info_args(&fci, ctor_params) == FAILURE) {
+                    /* Two problems why we throw exceptions here: PHP is typeless
+                     * and hence passing one argument that's not an array could be
+                     * by mistake and the other way round is possible, too. The
+                     * single value is an array. Also we'd have to make that one
+                     * argument passed by reference.
+                     */
+                    zend_throw_exception(zend_ce_exception, "Parameter ctor_params must be an array", 0);
+                    return;
+                }
+            }
+
+            fcc.initialized = 1;
+            fcc.function_handler = ce->constructor;
+            fcc.calling_scope = zend_get_executed_scope();
+            fcc.called_scope = Z_OBJCE_P(return_value);
+            fcc.object = Z_OBJ_P(return_value);
+
+            if (zend_call_function(&fci, &fcc) == FAILURE) {
+                zend_throw_exception_ex(zend_ce_exception, 0, "Could not execute %s::%s()", ZSTR_VAL(ce->name), ZSTR_VAL(ce->constructor->common.function_name));
+            } else {
+                zval_ptr_dtor(&retval);
+            }
+            if (fci.params) {
+                efree(fci.params);
+            }
+        } else if (ctor_params) {
+            zend_throw_exception_ex(zend_ce_exception, 0, "Class %s does not have a constructor hence you cannot use ctor_params", ZSTR_VAL(ce->name));
+        }
+    }
+}
+/* }}} */
+
+/* {{{ proto array fetchRow(resource result [, int row [, int result_type]])
+   Get a row as an enumerated array */
+static PHP_METHOD(swoole_postgresql_coro,fetchRow)
+{
+    php_pgsql_fetch_hash(INTERNAL_FUNCTION_PARAM_PASSTHRU, PGSQL_NUM, 0);
+}
+/* }}} */
+
+/* {{{ proto array fetchAssoc(resource result [, int row])
+   Fetch a row as an assoc array */
+static PHP_METHOD(swoole_postgresql_coro,fetchAssoc)
+{
+    /* pg_fetch_assoc() is added from PHP 4.3.0. It should raise error, when
+       there is 3rd parameter */
+    if (ZEND_NUM_ARGS() > 2)
+        WRONG_PARAM_COUNT;
+    php_pgsql_fetch_hash(INTERNAL_FUNCTION_PARAM_PASSTHRU, PGSQL_ASSOC, 0);
+}
+/* }}} */
+
+/* {{{ proto array fetchArray(resource result [, int row [, int result_type]])
+   Fetch a row as an array */
+static PHP_METHOD(swoole_postgresql_coro,fetchArray)
+{
+    php_pgsql_fetch_hash(INTERNAL_FUNCTION_PARAM_PASSTHRU, PGSQL_BOTH, 0);
+}
+/* }}} */
+
+/* {{{ proto object fetchObject(resource result [, int row [, string class_name [, NULL|array ctor_params]]])
+   Fetch a row as an object */
+static PHP_METHOD(swoole_postgresql_coro,fetchObject)
+{
+    /* fetchObject() allowed result_type used to be. 3rd parameter
+       must be allowed for compatibility */
+    php_pgsql_fetch_hash(INTERNAL_FUNCTION_PARAM_PASSTHRU, PGSQL_ASSOC, 1);
+}
+
+/* {{{ _destroy_pgsql_link
  */
-static void _close_pgsql_link(zend_resource *rsrc)
+static void _destroy_pgsql_link(zend_resource *rsrc)
 {
     PGconn *link = (PGconn *)rsrc->ptr;
     PGresult *res;
 
-    while ((res = PQgetResult(link))) {
+    while ((res = PQgetResult(link)))
+    {
         PQclear(res);
     }
     PQfinish(link);
