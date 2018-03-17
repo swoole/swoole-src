@@ -308,8 +308,6 @@ static int swoole_pgsql_coro_onRead(swReactor *reactor, swEvent *event)
             meta_data_result_parse(pg_object);
             break;
     }
-    //PQflush(pg_object->conn);
-    //PQclear(pgsql_result);
 
     return SW_OK;
 }
@@ -480,7 +478,7 @@ static PHP_METHOD(swoole_postgresql_coro, query)
     sw_current_context->coro_params = *getThis();
     #endif
 
-//TODO:  add the timeout
+    //TODO:  add the timeout
     /*
         if (pg_object->timeout > 0)
         {
@@ -542,7 +540,6 @@ int swoole_pgsql_result2array(PGresult *pg_result, zval *ret_array, long result_
         }
         add_index_zval(ret_array, pg_row, &row);
     }
-    //zval_ptr_dtor(&row);
     return SUCCESS;
 }
 
@@ -1004,20 +1001,8 @@ static int swoole_pgsql_coro_onError(swReactor *reactor, swEvent *event)
     swoole_postgresql_coro_close(pg_object);
 
     SW_ALLOC_INIT_ZVAL(result);
-    /*
-    zend_update_property_string(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("connect_error"), "EPOLLERR/EPOLLHUP/EPOLLRDHUP happen!" TSRMLS_CC);
-    zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("connect_errno"), 104 TSRMLS_CC);
-     */
     ZVAL_BOOL(result, 0);
-    /*
-    if (client->defer && !client->defer_yield)
-    {
-        client->result = result;
-        return SW_OK;
-    }
-    client->defer_yield = 0;
-    client->cid = 0;
-     */
+
     php_context *sw_current_context = swoole_get_property(zobject, 0);
     int ret = coro_resume(sw_current_context, result, &retval);
     sw_zval_free(result);
