@@ -754,28 +754,36 @@ static void php_pgsql_fetch_hash(INTERNAL_FUNCTION_PARAMETERS, zend_long result_
     zval               *ctor_params = NULL;
     zend_class_entry   *ce = NULL;
 
-    if (into_object) {
+    if (into_object)
+    {
         zend_string *class_name = NULL;
 
-        if (zend_parse_parameters(ZEND_NUM_ARGS(), "r|z!Sz", &result, &zrow, &class_name, &ctor_params) == FAILURE) {
+        if (zend_parse_parameters(ZEND_NUM_ARGS(), "r|z!Sz", &result, &zrow, &class_name, &ctor_params) == FAILURE)
+        {
             return;
         }
-        if (!class_name) {
+        if (!class_name)
+        {
             ce = zend_standard_class_def;
         } else {
             ce = zend_fetch_class(class_name, ZEND_FETCH_CLASS_AUTO);
         }
-        if (!ce) {
+        if (!ce)
+        {
             php_error_docref(NULL, E_WARNING, "Could not find class '%s'", ZSTR_VAL(class_name));
             return;
         }
         result_type = PGSQL_ASSOC;
-    } else {
-        if (zend_parse_parameters(ZEND_NUM_ARGS(), "r|z!l", &result, &zrow, &result_type) == FAILURE) {
+    }
+    else
+    {
+        if (zend_parse_parameters(ZEND_NUM_ARGS(), "r|z!l", &result, &zrow, &result_type) == FAILURE)
+        {
             return;
         }
     }
-    if (zrow == NULL) {
+    if (zrow == NULL)
+    {
         row = -1;
     } else {
         convert_to_long(zrow);
@@ -787,26 +795,32 @@ static void php_pgsql_fetch_hash(INTERNAL_FUNCTION_PARAMETERS, zend_long result_
     }
     use_row = ZEND_NUM_ARGS() > 1 && row != -1;
 
-    if (!(result_type & PGSQL_BOTH)) {
+    if (!(result_type & PGSQL_BOTH))
+    {
         php_error_docref(NULL, E_WARNING, "Invalid result type");
         RETURN_FALSE;
     }
 
-    if ((pg_result = (pg_object *)zend_fetch_resource(Z_RES_P(result), "PostgreSQL result", le_result)) == NULL) {
+    if ((pg_result = (pg_object *)zend_fetch_resource(Z_RES_P(result), "PostgreSQL result", le_result)) == NULL)
+    {
         RETURN_FALSE;
     }
 
     pgsql_result = pg_result->result;
 
-    if (use_row) {
-        if (row < 0 || row >= PQntuples(pgsql_result)) {
+    if (use_row)
+    {
+        if (row < 0 || row >= PQntuples(pgsql_result))
+        {
             php_error_docref(NULL, E_WARNING, "Unable to jump to row " ZEND_LONG_FMT " on PostgreSQL result index " ZEND_LONG_FMT,
                     row, Z_LVAL_P(result));
             RETURN_FALSE;
         }
         pgsql_row = (int)row;
         pg_result->row = pgsql_row;
-    } else {
+    }
+    else
+    {
         /* If 2nd param is NULL, use internal row counter to access next row */
         pgsql_row = pg_result->row;
         if (pgsql_row < 0 || pgsql_row >= PQntuples(pgsql_result)) {
@@ -816,25 +830,33 @@ static void php_pgsql_fetch_hash(INTERNAL_FUNCTION_PARAMETERS, zend_long result_
     }
 
     array_init(return_value);
-    for (i = 0, num_fields = PQnfields(pgsql_result); i < num_fields; i++) {
+    for (i = 0, num_fields = PQnfields(pgsql_result); i < num_fields; i++)
+    {
         if (PQgetisnull(pgsql_result, pgsql_row, i)) {
-            if (result_type & PGSQL_NUM) {
+            if (result_type & PGSQL_NUM)
+            {
                 add_index_null(return_value, i);
             }
-            if (result_type & PGSQL_ASSOC) {
+            if (result_type & PGSQL_ASSOC)
+            {
                 field_name = PQfname(pgsql_result, i);
                 add_assoc_null(return_value, field_name);
             }
-        } else {
+        }
+        else
+        {
             char *element = PQgetvalue(pgsql_result, pgsql_row, i);
-            if (element) {
+            if (element)
+            {
                 const size_t element_len = strlen(element);
 
-                if (result_type & PGSQL_NUM) {
+                if (result_type & PGSQL_NUM)
+                {
                     add_index_stringl(return_value, i, element, element_len);
                 }
 
-                if (result_type & PGSQL_ASSOC) {
+                if (result_type & PGSQL_ASSOC)
+                {
                     field_name = PQfname(pgsql_result, i);
                     add_assoc_stringl(return_value, field_name, element, element_len);
                 }
@@ -842,7 +864,8 @@ static void php_pgsql_fetch_hash(INTERNAL_FUNCTION_PARAMETERS, zend_long result_
         }
     }
 
-    if (into_object) {
+    if (into_object)
+    {
         zval dataset;
         zend_fcall_info fci;
         zend_fcall_info_cache fcc;
@@ -850,14 +873,18 @@ static void php_pgsql_fetch_hash(INTERNAL_FUNCTION_PARAMETERS, zend_long result_
 
         ZVAL_COPY_VALUE(&dataset, return_value);
         object_and_properties_init(return_value, ce, NULL);
-        if (!ce->default_properties_count && !ce->__set) {
+        if (!ce->default_properties_count && !ce->__set)
+        {
             Z_OBJ_P(return_value)->properties = Z_ARR(dataset);
-        } else {
+        }
+        else
+        {
             zend_merge_properties(return_value, Z_ARRVAL(dataset));
             zval_ptr_dtor(&dataset);
         }
 
-        if (ce->constructor) {
+        if (ce->constructor)
+        {
             fci.size = sizeof(fci);
             ZVAL_UNDEF(&fci.function_name);
             fci.object = Z_OBJ_P(return_value);
@@ -866,7 +893,8 @@ static void php_pgsql_fetch_hash(INTERNAL_FUNCTION_PARAMETERS, zend_long result_
             fci.param_count = 0;
             fci.no_separation = 1;
 
-            if (ctor_params && Z_TYPE_P(ctor_params) != IS_NULL) {
+            if (ctor_params && Z_TYPE_P(ctor_params) != IS_NULL)
+            {
                 if (zend_fcall_info_args(&fci, ctor_params) == FAILURE) {
                     /* Two problems why we throw exceptions here: PHP is typeless
                      * and hence passing one argument that's not an array could be
