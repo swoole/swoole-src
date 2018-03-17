@@ -134,13 +134,13 @@ void swoole_postgresql_coro_init(int module_number TSRMLS_DC)
 
 static PHP_METHOD(swoole_postgresql_coro, __construct)
 {
-    pg_object *pg_object;
-    pg_object = emalloc(sizeof(pg_object));
-    pg_object -> object = getThis();
-
-    swoole_set_object(getThis(), pg_object);
-
+    pg_object *pg;
+    pg = emalloc(sizeof(pg_object));
+    bzero(pg,sizeof(pg_object));
+    pg -> object = getThis();
+    swoole_set_object(getThis(), pg);
 }
+
 static PHP_METHOD(swoole_postgresql_coro, connect)
 {
     zval *conninfo;
