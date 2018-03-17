@@ -494,8 +494,8 @@ int swoole_pgsql_result2array(PGresult *pg_result, zval *ret_array, long result_
     if ((pg_numrows = PQntuples(pg_result)) <= 0) {
         return FAILURE;
     }
-    array_init(&row);
     for (pg_row = 0; pg_row < pg_numrows; pg_row++) {
+        array_init(&row);
         for (i = 0, num_fields = PQnfields(pg_result); i < num_fields; i++) {
             field_name = PQfname(pg_result, i);
             if (PQgetisnull(pg_result, pg_row, i)) {
@@ -520,7 +520,7 @@ int swoole_pgsql_result2array(PGresult *pg_result, zval *ret_array, long result_
         }
         add_index_zval(ret_array, pg_row, &row);
     }
-    zval_ptr_dtor(&row);
+    //zval_ptr_dtor(&row);
     return SUCCESS;
 }
 
