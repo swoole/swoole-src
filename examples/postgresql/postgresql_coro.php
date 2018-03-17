@@ -23,4 +23,14 @@ go(function () {
     var_dump($arr);
 
 });
+
+
+go(function () {
+
+    $pg = new Swoole\Coroutine\PostgreSql();
+    $conn  = $pg -> connect ("host=127.0.0.1 port=5432 dbname=test user=wuzhenyu password=");
+    $metaData = $pg->metaData($conn, 'test');
+    var_dump($metaData);
+
+});
 ?>
