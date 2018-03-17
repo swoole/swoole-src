@@ -380,7 +380,7 @@ static  int query_result_parse(pg_object *pg_object){
 
     int error = 0;
     char *errMsg;
-    int ret;
+    int ret, res;
     zval *retval = NULL;
     zval return_value;
     php_context *sw_current_context = swoole_get_property(pg_object->object, 0);
