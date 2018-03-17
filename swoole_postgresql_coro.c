@@ -913,15 +913,20 @@ static void php_pgsql_fetch_hash(INTERNAL_FUNCTION_PARAMETERS, zend_long result_
             fcc.called_scope = Z_OBJCE_P(return_value);
             fcc.object = Z_OBJ_P(return_value);
 
-            if (zend_call_function(&fci, &fcc) == FAILURE) {
+            if (zend_call_function(&fci, &fcc) == FAILURE)
+            {
                 zend_throw_exception_ex(zend_ce_exception, 0, "Could not execute %s::%s()", ZSTR_VAL(ce->name), ZSTR_VAL(ce->constructor->common.function_name));
-            } else {
+            } else
+            {
                 zval_ptr_dtor(&retval);
             }
-            if (fci.params) {
+            if (fci.params)
+            {
                 efree(fci.params);
             }
-        } else if (ctor_params) {
+        }
+        else if (ctor_params)
+        {
             zend_throw_exception_ex(zend_ce_exception, 0, "Class %s does not have a constructor hence you cannot use ctor_params", ZSTR_VAL(ce->name));
         }
     }
