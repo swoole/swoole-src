@@ -381,7 +381,6 @@ static  int query_result_parse(pg_object *pg_object){
     int error = 0;
     char *errMsg;
     int ret;
-    int is_handle = 0 ;
     zval *retval = NULL;
     zval return_value;
     php_context *sw_current_context = swoole_get_property(pg_object->object, 0);
@@ -409,10 +408,8 @@ static  int query_result_parse(pg_object *pg_object){
             break;
         case PGRES_COMMAND_OK: /* successful command that did not return rows */
         default:
-            is_handle = 1;
             pg_object->result = pgsql_result;
             pg_object->row = 0;
-            int res ;
             /* Wait to finish sending buffer */
             res = PQflush(pg_object->conn);
 
