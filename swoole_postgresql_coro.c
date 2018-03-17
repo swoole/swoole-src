@@ -175,9 +175,11 @@ static PHP_METHOD(swoole_postgresql_coro, connect)
 
     PQsetnonblocking(pgsql , 1);
 
-    if (pgsql==NULL || PQstatus(pgsql)==CONNECTION_BAD) {
+    if (pgsql==NULL || PQstatus(pgsql)==CONNECTION_BAD)
+    {
         swWarn("Unable to connect to PostgreSQL server: [%s]",pgsql);
-        if (pgsql) {
+        if (pgsql)
+        {
             PQfinish(pgsql);
         }
         RETURN_FALSE;
@@ -258,10 +260,12 @@ static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event)
             }
 
             flag = PQconnectPoll(pg_object->conn);
-            if(flag == PGRES_POLLING_OK ){
+            if(flag == PGRES_POLLING_OK )
+            {
                 break;
             }
-            if(flag == PGRES_POLLING_FAILED ){
+            if(flag == PGRES_POLLING_FAILED )
+            {
                 php_printf("error:%s please cofirm that the connection configuration is correct \n",errMsg);
                 break;
             }
@@ -295,7 +299,8 @@ static int swoole_pgsql_coro_onRead(swReactor *reactor, swEvent *event)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
-    switch (pg_object->request_type) {
+    switch (pg_object->request_type)
+    {
         case NORMAL_QUERY:
             query_result_parse(pg_object);
             break;
@@ -309,7 +314,8 @@ static int swoole_pgsql_coro_onRead(swReactor *reactor, swEvent *event)
     return SW_OK;
 }
 
-static  int meta_data_result_parse(pg_object *pg_object){
+static  int meta_data_result_parse(pg_object *pg_object)
+{
 
     int i, num_rows;
     zval elem;
@@ -317,7 +323,8 @@ static  int meta_data_result_parse(pg_object *pg_object){
     zend_bool extended=0;
     pg_result =PQgetResult(pg_object->conn);
 
-    if (PQresultStatus(pg_result) != PGRES_TUPLES_OK || (num_rows = PQntuples(pg_result)) == 0) {
+    if (PQresultStatus(pg_result) != PGRES_TUPLES_OK || (num_rows = PQntuples(pg_result)) == 0)
+    {
         php_error_docref(NULL, E_WARNING, "Table doesn't exists");
         return  0;
     }
@@ -326,7 +333,8 @@ static  int meta_data_result_parse(pg_object *pg_object){
     array_init(&return_value);
     zval * retval = NULL;
     array_init(&elem);
-    for (i = 0; i < num_rows; i++) {
+    for (i = 0; i < num_rows; i++)
+    {
         pg_object->result = pg_result;
         char *name;
         /* pg_attribute.attnum */
@@ -371,7 +379,8 @@ static  int meta_data_result_parse(pg_object *pg_object){
 }
 
 
-static  int query_result_parse(pg_object *pg_object){
+static  int query_result_parse(pg_object *pg_object)
+{
 
     PGresult *pgsql_result;
 
@@ -449,12 +458,14 @@ static PHP_METHOD(swoole_postgresql_coro, query)
     pg_object *pg_object = swoole_get_object(getThis());
     pg_object->request_type = NORMAL_QUERY;
 
-    while ((pgsql_result = PQgetResult(pgsql))) {
+    while ((pgsql_result = PQgetResult(pgsql)))
+    {
         PQclear(pgsql_result);
     }
 
     int ret  = PQsendQuery(pgsql, Z_STRVAL_P(query));
-    if(ret == 0){
+    if(ret == 0)
+    {
         char * errMsg = PQerrorMessage(pgsql);
         php_printf("error:%s",errMsg);
 
@@ -491,28 +502,39 @@ int swoole_pgsql_result2array(PGresult *pg_result, zval *ret_array, long result_
     uint32_t i;
     assert(Z_TYPE_P(ret_array) == IS_ARRAY);
 
-    if ((pg_numrows = PQntuples(pg_result)) <= 0) {
+    if ((pg_numrows = PQntuples(pg_result)) <= 0)
+    {
         return FAILURE;
     }
-    for (pg_row = 0; pg_row < pg_numrows; pg_row++) {
+    for (pg_row = 0; pg_row < pg_numrows; pg_row++)
+    {
         array_init(&row);
-        for (i = 0, num_fields = PQnfields(pg_result); i < num_fields; i++) {
+        for (i = 0, num_fields = PQnfields(pg_result); i < num_fields; i++)
+        {
             field_name = PQfname(pg_result, i);
-            if (PQgetisnull(pg_result, pg_row, i)) {
-                if (result_type & PGSQL_ASSOC) {
+            if (PQgetisnull(pg_result, pg_row, i))
+            {
+                if (result_type & PGSQL_ASSOC)
+                {
                     add_assoc_null(&row, field_name);
                 }
-                if (result_type & PGSQL_NUM) {
+                if (result_type & PGSQL_NUM)
+                {
                     add_next_index_null(&row);
                 }
-            } else {
+            }
+            else
+            {
                 char *element = PQgetvalue(pg_result, pg_row, i);
-                if (element) {
+                if (element)
+                {
                     const size_t element_len = strlen(element);
-                    if (result_type & PGSQL_ASSOC) {
+                    if (result_type & PGSQL_ASSOC)
+                    {
                         add_assoc_stringl(&row, field_name, element, element_len);
                     }
-                    if (result_type & PGSQL_NUM) {
+                    if (result_type & PGSQL_NUM)
+                    {
                         add_next_index_stringl(&row, element, element_len);
                     }
                 }
@@ -551,7 +573,8 @@ static PHP_METHOD(swoole_postgresql_coro, fetchAll)
     }
 }
 
-static PHP_METHOD(swoole_postgresql_coro,affectedRows){
+static PHP_METHOD(swoole_postgresql_coro,affectedRows)
+{
     zval *result;
     PGresult *pgsql_result;
     pg_object *object;
@@ -571,7 +594,8 @@ static PHP_METHOD(swoole_postgresql_coro,affectedRows){
 
 
 //query's num
-static PHP_METHOD(swoole_postgresql_coro,numRows){
+static PHP_METHOD(swoole_postgresql_coro,numRows)
+{
     zval *result;
     PGresult *pgsql_result;
     pg_object *object;
@@ -650,7 +674,8 @@ static PHP_METHOD(swoole_postgresql_coro,metaData)
                                   " JOIN pg_namespace n ON (c.relnamespace = n.oid) "
                                   " LEFT JOIN pg_description d ON (d.objoid=a.attrelid AND d.objsubid=a.attnum AND c.oid=d.objoid) "
                                   "WHERE a.attnum > 0  AND c.relname = '");
-    } else
+    }
+    else
     {
         smart_str_appends(&querystr,
                           "SELECT a.attname, a.attnum, t.typname, a.attlen, a.attnotnull, a.atthasdef, a.attndims, t.typtype "
