@@ -15,6 +15,9 @@
  */
 
 #include "php_swoole.h"
+#ifdef SW_COROUTINE
+#include "swoole_coroutine.h"
+#ifdef SW_USE_POSTGRESQL
 #include "swoole_postgresql_coro.h"
 #include "swoole_coroutine.h"
 
@@ -266,7 +269,8 @@ static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event)
             }
             if(flag == PGRES_POLLING_FAILED )
             {
-                php_printf("error:%s please cofirm that the connection configuration is correct \n",errMsg);
+                errMsg = PQerrorMessage(pg_object->conn);
+                swWarn("error:[%s] please cofirm that the connection configuration is correct \n",errMsg);
                 break;
             }
         }
@@ -1043,3 +1047,5 @@ static int swoole_postgresql_coro_close(pg_object *pg_object)
 
     return SUCCESS;
 }
+#endif
+#endif
