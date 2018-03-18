@@ -284,6 +284,9 @@ if test "$PHP_SWOOLE" != "no"; then
             AC_DEFINE(SW_USE_POSTGRESQL, 1, [enable coroutine-postgresql support])
             PHP_ADD_LIBRARY(pq, 1, SWOOLE_SHARED_LIBADD)
         fi
+        if test -z "$PGSQL_INCLUDE"; then
+           AC_MSG_ERROR(Cannot find libpq-fe.h. Please confirm the libpq or specify correct PostgreSQL(libpq) installation path)
+        fi
     fi
 
     if test "$PHP_HTTP2" = "yes"; then
