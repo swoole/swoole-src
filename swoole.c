@@ -352,6 +352,7 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_event_write, arginfo_swoole_event_write)
     PHP_FE(swoole_event_defer, arginfo_swoole_event_defer)
     PHP_FE(swoole_event_cycle, arginfo_swoole_event_cycle)
+    PHP_FE(swoole_event_dispatch, arginfo_swoole_void)
     /*------swoole_timer-----*/
     PHP_FE(swoole_timer_after, arginfo_swoole_timer_after)
     PHP_FE(swoole_timer_tick, arginfo_swoole_timer_tick)

@@ -763,3 +763,36 @@ PHP_FUNCTION(swoole_event_wait)
     }
     php_swoole_event_wait();
 }
+
+PHP_FUNCTION(swoole_event_dispatch)
+{
+    if (!SwooleG.main_reactor)
+    {
+        RETURN_FALSE;
+    }
+    SwooleG.main_reactor->once = 1;
+
+#ifdef HAVE_SIGNALFD
+    if (SwooleG.main_reactor->check_signalfd)
+    {
+        swSignalfd_setup(SwooleG.main_reactor);
+    }
+#endif
+
+#ifdef SW_COROUTINE
+    if (swReactorCheckPoint == NULL)
+    {
+        coro_init(TSRMLS_C);
+    }
+#endif
+
+    int ret = SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
+    if (ret < 0)
+    {
+        swoole_php_fatal_error(E_ERROR, "reactor wait failed. Error: %s [%d]", strerror(errno), errno);
+    }
+
+    SwooleG.main_reactor->once = 0;
+    RETURN_TRUE;
+}
+

@@ -361,6 +361,10 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
         {
             reactor->onFinish(reactor);
         }
+        if (reactor->once)
+        {
+            break;
+        }
     }
     return 0;
 }
