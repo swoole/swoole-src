@@ -1190,7 +1190,7 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
     {
         if (swClient_ssl_handshake(cli) < 0)
         {
-            return cli->close(cli);
+            goto connect_fail;
         }
         if (cli->socket->ssl_state != SW_SSL_STATE_READY)
         {
