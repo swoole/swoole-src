@@ -746,7 +746,7 @@ static PHP_METHOD(swoole_coroutine_util, sleep)
         swoole_php_fatal_error(E_WARNING, "cannot use timer in master process.");
         return;
     }
-    if (ms > 8640000)
+    if (ms > SW_TIMER_MAX_VALUE)
     {
         swoole_php_fatal_error(E_WARNING, "The given parameters is too big.");
         return;

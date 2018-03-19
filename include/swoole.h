@@ -387,6 +387,7 @@ enum swTraceType
     SW_TRACE_REDIS_CLIENT     = 1u << 16,
     SW_TRACE_MYSQL_CLIENT     = 1u << 17,
     SW_TRACE_AIO              = 1u << 18,
+    SW_TRACE_SSL              = 1u << 19,
 };
 
 #ifdef SW_LOG_TRACE_OPEN
