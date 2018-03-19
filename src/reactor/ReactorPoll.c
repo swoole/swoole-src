@@ -274,10 +274,14 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
                     }
                 }
             }
-            if (reactor->onFinish != NULL)
-            {
-                reactor->onFinish(reactor);
-            }
+        }
+        if (reactor->onFinish != NULL)
+        {
+            reactor->onFinish(reactor);
+        }
+        if (reactor->once)
+        {
+            break;
         }
     }
     return SW_OK;
