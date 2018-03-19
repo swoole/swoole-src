@@ -1400,6 +1400,7 @@ struct _swReactor
     uint32_t check_timer :1;
     uint32_t running :1;
     uint32_t start :1;
+    uint32_t once :1;
 
     /**
      * disable accept new connection
