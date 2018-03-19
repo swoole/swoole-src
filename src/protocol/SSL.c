@@ -685,6 +685,13 @@ int swSSL_connect(swConnection *conn)
         conn->ssl_state = SW_SSL_STATE_READY;
         conn->ssl_want_read = 0;
         conn->ssl_want_write = 0;
+
+#ifdef SW_LOG_TRACE_OPEN
+        const char *ssl_version = SSL_get_version(conn->ssl);
+        const char *ssl_cipher = SSL_get_cipher_name(conn->ssl);
+        swTraceLog(SW_TRACE_SSL, "connected (%s %s)", ssl_version, ssl_cipher);
+#endif
+
         return SW_OK;
     }
 
@@ -703,7 +710,21 @@ int swSSL_connect(swConnection *conn)
         conn->ssl_state = SW_SSL_STATE_WAIT_STREAM;
         return SW_OK;
     }
-    swWarn("SSL_connect() failed. Error: %s[%ld]", ERR_reason_error_string(err), err);
+    else if (err == SSL_ERROR_ZERO_RETURN)
+    {
+        swDebug("SSL_connect(fd=%d) closed.", conn->fd);
+        return SW_ERR;
+    }
+    else if (err == SSL_ERROR_SYSCALL)
+    {
+        if (n)
+        {
+            SwooleG.error = errno;
+            return SW_ERR;
+        }
+    }
+    swWarn("SSL_connect(fd=%d) failed. Error: %s[%ld].", conn->fd, ERR_reason_error_string(err), err);
+
     return SW_ERR;
 }
 
