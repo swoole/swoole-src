@@ -1023,6 +1023,9 @@ PHP_MINIT_FUNCTION(swoole)
 #ifdef SW_USE_REDIS
     swoole_redis_coro_init(module_number TSRMLS_CC);
 #endif
+#ifdef SW_USE_POSTGRESQL
+    swoole_postgresql_coro_init(module_number TSRMLS_CC);
+#endif
     swoole_mysql_coro_init(module_number TSRMLS_CC);
     swoole_http_client_coro_init(module_number TSRMLS_CC);
 	swoole_coroutine_util_init(module_number TSRMLS_CC);
@@ -1145,6 +1148,9 @@ PHP_MINFO_FUNCTION(swoole)
 #endif
 #ifdef SW_ASYNC_MYSQL
     php_info_print_table_row(2, "async mysql client", "enabled");
+#endif
+#ifdef SW_USE_POSTGRESQL
+    php_info_print_table_row(2, "async postgresql", "enabled");
 #endif
 #ifdef SW_USE_REDIS
     php_info_print_table_row(2, "async redis client", "enabled");

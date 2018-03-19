@@ -219,6 +219,7 @@ enum php_swoole_fd_type
     PHP_SWOOLE_FD_DGRAM_CLIENT = SW_FD_DGRAM_CLIENT,
     PHP_SWOOLE_FD_MYSQL,
     PHP_SWOOLE_FD_REDIS,
+    PHP_SWOOLE_FD_POSTGRESQL,
     PHP_SWOOLE_FD_HTTPCLIENT,
     PHP_SWOOLE_FD_PROCESS_STREAM,
 };
@@ -367,6 +368,9 @@ void swoole_client_init(int module_number TSRMLS_DC);
 void swoole_client_coro_init(int module_number TSRMLS_DC);
 #ifdef SW_USE_REDIS
 void swoole_redis_coro_init(int module_number TSRMLS_DC);
+#endif
+#ifdef SW_USE_POSTGRESQL
+void swoole_postgresql_coro_init (int module_number TSRMLS_DC);
 #endif
 void swoole_mysql_coro_init(int module_number TSRMLS_DC);
 void swoole_http_client_coro_init(int module_number TSRMLS_DC);
