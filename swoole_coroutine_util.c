@@ -171,6 +171,22 @@ static void swoole_coroutine_util_resume(void *data)
 	efree(context);
 }
 
+static void coroutine_resume_onTimeout(swTimer *timer, swTimer_node *tnode)
+{
+    php_context *context = (php_context *)tnode->data;
+    zval *retval = NULL;
+    zval *result;
+    SW_MAKE_STD_ZVAL(result);
+    ZVAL_BOOL(result, 1);
+    int ret = coro_resume(context, result, &retval);
+    if (ret == CORO_END && retval)
+    {
+        sw_zval_ptr_dtor(&retval);
+    }
+    sw_zval_ptr_dtor(&result);
+    efree(context);
+}
+
 #if PHP_MAJOR_VERSION < 7
 #if ZEND_MODULE_API_NO <= 20121212
 #define zend_create_execute_data_from_op_array sw_zend_create_execute_data_from_op_array
@@ -539,7 +555,8 @@ static PHP_METHOD(swoole_coroutine_util, suspend)
 
     php_context *context = emalloc(sizeof(php_context));
     coro_save(context);
-    if (swLinkedList_append(coros_list, (void *)context) == SW_ERR) {
+    if (swLinkedList_append(coros_list, (void *) context) == SW_ERR)
+    {
         efree(context);
         RETURN_FALSE;
     }
@@ -608,6 +625,8 @@ PHP_FUNCTION(swoole_coroutine_create)
     {
         coro_init(TSRMLS_C);
     }
+
+    php_swoole_check_reactor();
 
     callback = sw_zval_dup(callback);
     sw_zval_add_ref(&callback);
@@ -693,7 +712,15 @@ static PHP_METHOD(swoole_coroutine_util, resume)
         RETURN_FALSE;
     }
 
-    SwooleG.main_reactor->defer(SwooleG.main_reactor, swoole_coroutine_util_resume, context);
+    if (SwooleG.main_reactor->start == 0)
+    {
+        php_swoole_check_timer(1);
+        SwooleG.timer.add(&SwooleG.timer, 1, 0, context, coroutine_resume_onTimeout);
+    }
+    else
+    {
+        SwooleG.main_reactor->defer(SwooleG.main_reactor, swoole_coroutine_util_resume, context);
+    }
 
     RETURN_TRUE;
 }
