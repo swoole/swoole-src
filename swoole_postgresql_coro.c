@@ -143,6 +143,7 @@ void swoole_postgresql_coro_init(int module_number TSRMLS_DC)
 
 static PHP_METHOD(swoole_postgresql_coro, __construct)
 {
+    coro_check(TSRMLS_C);
     pg_object *pg;
     pg = emalloc(sizeof(pg_object));
     bzero(pg,sizeof(pg_object));
