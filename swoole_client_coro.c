@@ -417,7 +417,8 @@ swClient* php_swoole_client_coro_new(zval *object, char *host, int host_len, int
     if (swClient_create(cli, php_swoole_socktype(type), async) < 0)
     {
         swoole_php_fatal_error(E_WARNING, "swClient_create() failed. Error: %s [%d]", strerror(errno), errno);
-        zend_update_property_long(swoole_client_coro_class_entry_ptr, object, ZEND_STRL("errCode"), errno TSRMLS_CC);
+        zend_update_property_long(swoole_client_coro_class_entry_ptr, object, ZEND_STRL("errCode"),
+                SwooleG.error ? SwooleG.error : errno TSRMLS_CC);
         return NULL;
     }
 
@@ -622,8 +623,9 @@ static PHP_METHOD(swoole_client_coro, connect)
     //nonblock async
     if (cli->connect(cli, host, port, timeout, sock_flag) < 0)
     {
+        zend_update_property_long(swoole_client_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1,
+                SwooleG.error ? SwooleG.error : errno TSRMLS_CC);
         swoole_php_sys_error(E_WARNING, "connect to server[%s:%d] failed.", host, (int )port);
-        zend_update_property_long(swoole_client_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, errno TSRMLS_CC);
         RETURN_FALSE;
     }
 
