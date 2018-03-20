@@ -326,6 +326,7 @@ PHP_FUNCTION(swoole_event_defer);
 PHP_FUNCTION(swoole_event_cycle);
 PHP_FUNCTION(swoole_client_select);
 PHP_FUNCTION(swoole_event_dispatch);
+PHP_FUNCTION(swoole_event_isset);
 //---------------------------------------------------------
 //                  swoole_async
 //---------------------------------------------------------
