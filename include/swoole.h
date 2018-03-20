@@ -1460,6 +1460,7 @@ struct _swReactor
 
     void (*onTimeout)(swReactor *);
     void (*onFinish)(swReactor *);
+    void (*onBegin)(swReactor *);
 
     void (*enable_accept)(swReactor *);
 
