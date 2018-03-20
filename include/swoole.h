@@ -1461,6 +1461,7 @@ struct _swReactor
     int (*setHandle)(swReactor *, int fdtype, swReactor_handle);
     swDefer_callback *defer_callback_list;
     swDefer_callback idle_task;
+    swDefer_callback future_task;
 
     void (*onTimeout)(swReactor *);
     void (*onFinish)(swReactor *);
@@ -1725,6 +1726,7 @@ int swReactor_onWrite(swReactor *reactor, swEvent *ev);
 int swReactor_close(swReactor *reactor, int fd);
 int swReactor_write(swReactor *reactor, int fd, void *buf, int n);
 int swReactor_wait_write_buffer(swReactor *reactor, int fd);
+void swReactor_activate_future_task(swReactor *reactor);
 
 static sw_inline int swReactor_add_event(swReactor *reactor, int fd, enum swEvent_type event_type)
 {

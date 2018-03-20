@@ -34,6 +34,7 @@
 static void swReactor_onTimeout_and_Finish(swReactor *reactor);
 static void swReactor_onTimeout(swReactor *reactor);
 static void swReactor_onFinish(swReactor *reactor);
+static void swReactor_onBegin(swReactor *reactor);
 static int swReactor_defer(swReactor *reactor, swCallback callback, void *data);
 
 int swReactor_create(swReactor *reactor, int max_event)
@@ -216,6 +217,19 @@ static void swReactor_onFinish(swReactor *reactor)
     }
     reactor->defer_callback_list = NULL;
     swReactor_onTimeout_and_Finish(reactor);
+}
+
+void swReactor_activate_future_task(swReactor *reactor)
+{
+    reactor->onBegin = swReactor_onBegin;
+}
+
+static void swReactor_onBegin(swReactor *reactor)
+{
+    if (reactor->future_task.callback)
+    {
+        reactor->future_task.callback(reactor->future_task.data);
+    }
 }
 
 int swReactor_close(swReactor *reactor, int fd)
