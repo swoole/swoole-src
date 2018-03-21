@@ -452,13 +452,7 @@ PHP_FUNCTION(swoole_event_write)
     zval *zfd;
     char *data;
     zend_size_t len;
-    
-    if (!SwooleG.main_reactor)
-    {
-        swoole_php_fatal_error(E_WARNING, "reactor no ready, cannot swoole_event_write.");
-        RETURN_FALSE;
-    }
-    
+
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zs", &zfd, &data, &len) == FAILURE)
     {
         return;
@@ -477,6 +471,7 @@ PHP_FUNCTION(swoole_event_write)
         RETURN_FALSE;
     }
 
+    php_swoole_check_reactor();
     if (SwooleG.main_reactor->write(SwooleG.main_reactor, socket_fd, data, len) < 0)
     {
         RETURN_FALSE;
@@ -495,7 +490,6 @@ PHP_FUNCTION(swoole_event_set)
 
     char *func_name = NULL;
     long event_flag = 0;
-    
     if (!SwooleG.main_reactor)
     {
         swoole_php_fatal_error(E_WARNING, "reactor no ready, cannot swoole_event_set.");
@@ -594,13 +588,13 @@ PHP_FUNCTION(swoole_event_set)
 PHP_FUNCTION(swoole_event_del)
 {
     zval *zfd;
-    
+
     if (!SwooleG.main_reactor)
     {
         swoole_php_fatal_error(E_WARNING, "reactor no ready, cannot swoole_event_del.");
         RETURN_FALSE;
     }
-    
+
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zfd) == FAILURE)
     {
         return;
@@ -627,29 +621,10 @@ PHP_FUNCTION(swoole_event_del)
 
 PHP_FUNCTION(swoole_event_defer)
 {
-    if (!SwooleG.main_reactor)
-    {
-        swoole_php_fatal_error(E_WARNING, "reactor no ready, cannot swoole_event_defer.");
-        RETURN_FALSE;
-    }
-
     zval *callback;
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &callback) == FAILURE)
     {
         return;
-    }
-
-    //the event loop is not started
-    if (SwooleG.main_reactor->start == 0)
-    {
-        if (php_swoole_add_timer(1, callback, NULL, 0 TSRMLS_CC) < 0)
-        {
-            RETURN_FALSE;
-        }
-        else
-        {
-            RETURN_TRUE;
-        }
     }
 
     char *func_name;
@@ -660,6 +635,14 @@ PHP_FUNCTION(swoole_event_defer)
         RETURN_FALSE;
     }
     efree(func_name);
+
+    php_swoole_check_reactor();
+
+    //the event loop is not started
+    if (SwooleG.main_reactor->start == 0)
+    {
+        SW_CHECK_RETURN (php_swoole_add_timer(1, callback, NULL, 0 TSRMLS_CC));
+    }
 
     php_defer_callback *defer = emalloc(sizeof(php_defer_callback));
 
@@ -838,4 +821,3 @@ PHP_FUNCTION(swoole_event_isset)
         RETURN_FALSE;
     }
 }
-
