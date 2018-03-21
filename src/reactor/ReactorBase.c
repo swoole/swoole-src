@@ -124,6 +124,17 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
     {
         swTimer_select(&SwooleG.timer);
     }
+    //defer callback
+    swDefer_callback *cb, *tmp;
+    LL_FOREACH(reactor->defer_callback_list, cb)
+    {
+        cb->callback(cb->data);
+    }
+    LL_FOREACH_SAFE(reactor->defer_callback_list, cb, tmp)
+    {
+        sw_free(cb);
+    }
+    reactor->defer_callback_list = NULL;
     //callback at the end
     if (reactor->idle_task.callback)
     {
@@ -184,17 +195,6 @@ static void swReactor_onFinish(swReactor *reactor)
         swSignal_callback(reactor->singal_no);
         reactor->singal_no = 0;
     }
-    //defer callback
-    swDefer_callback *cb, *tmp;
-    LL_FOREACH(reactor->defer_callback_list, cb)
-    {
-        cb->callback(cb->data);
-    }
-    LL_FOREACH_SAFE(reactor->defer_callback_list, cb, tmp)
-    {
-        sw_free(cb);
-    }
-    reactor->defer_callback_list = NULL;
     swReactor_onTimeout_and_Finish(reactor);
 }
 
