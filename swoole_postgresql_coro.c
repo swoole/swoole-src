@@ -54,7 +54,6 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_pg_connect, 0, 0, -1)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_pg_query, 0, 0, 0)
-    ZEND_ARG_INFO(0, connection)
     ZEND_ARG_INFO(0, query)
 ZEND_END_ARG_INFO()
 
@@ -452,20 +451,19 @@ static  int query_result_parse(pg_object *pg_object)
 
 static PHP_METHOD(swoole_postgresql_coro, query)
 {
-    zval *pgsql_link = NULL;
     zval *query;
     PGconn *pgsql;
     PGresult *pgsql_result;
 
-    ZEND_PARSE_PARAMETERS_START(2,2)
-        Z_PARAM_RESOURCE(pgsql_link)
+    ZEND_PARSE_PARAMETERS_START(1,1)
         Z_PARAM_ZVAL(query)
     ZEND_PARSE_PARAMETERS_END();
 
-    pgsql = (PGconn *)zend_fetch_resource(Z_RES_P(pgsql_link), "postgresql connection", le_link);
+
 
     pg_object *pg_object = swoole_get_object(getThis());
     pg_object->request_type = NORMAL_QUERY;
+    pgsql = pg_object -> conn;
 
     while ((pgsql_result = PQgetResult(pgsql)))
     {
