@@ -603,8 +603,8 @@ typedef struct cidmap
     char page[65536];
 } cidmap_t;
 
-/* 1 <= cid <= 32768 */
-static cidmap_t cidmap = { 0x8000, {0} };
+/* 1 <= cid <= 524288 */
+static cidmap_t cidmap = { 0x80000, {0} };
 
 static int last_cid = -1;
 
@@ -636,7 +636,7 @@ static int find_next_zero_bit(void *addr, int cid)
     int mark = cid;
 
     cid++;
-    cid &= 0x7fff;
+    cid &= 0x7ffff;
     while (cid != mark)
     {
         mask = 1U << (cid & 0x1f);
