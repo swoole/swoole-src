@@ -34,6 +34,7 @@ static PHP_METHOD(swoole_process, daemon);
 static PHP_METHOD(swoole_process, setaffinity);
 #endif
 static PHP_METHOD(swoole_process, setTimeout);
+static PHP_METHOD(swoole_process, setBlocking);
 static PHP_METHOD(swoole_process, start);
 static PHP_METHOD(swoole_process, write);
 static PHP_METHOD(swoole_process, read);
@@ -91,6 +92,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_setTimeout, 0, 0, 1)
     ZEND_ARG_INFO(0, seconds)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_setBlocking, 0, 0, 1)
+    ZEND_ARG_INFO(0, blocking)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_useQueue, 0, 0, 0)
     ZEND_ARG_INFO(0, key)
     ZEND_ARG_INFO(0, mode)
@@ -140,6 +145,7 @@ static const zend_function_entry swoole_process_methods[] =
     PHP_ME(swoole_process, setaffinity, arginfo_swoole_process_setaffinity, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 #endif
     PHP_ME(swoole_process, setTimeout, arginfo_swoole_process_setTimeout, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_process, setBlocking, arginfo_swoole_process_setBlocking, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process, useQueue, arginfo_swoole_process_useQueue, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process, statQueue, arginfo_swoole_process_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process, freeQueue, arginfo_swoole_process_void, ZEND_ACC_PUBLIC)
@@ -826,11 +832,19 @@ static PHP_METHOD(swoole_process, write)
     //async write
     if (SwooleG.main_reactor)
     {
-        ret = SwooleG.main_reactor->write(SwooleG.main_reactor, process->pipe, data, (size_t) data_len);
+        swConnection *_socket = swReactor_get(SwooleG.main_reactor, process->pipe);
+        if (_socket && _socket->nonblock)
+        {
+            ret = SwooleG.main_reactor->write(SwooleG.main_reactor, process->pipe, data, (size_t) data_len);
+        }
+        else
+        {
+            goto _blocking_read;
+        }
     }
     else
     {
-        ret = swSocket_write_blocking(process->pipe, data, data_len);
+        _blocking_read: ret = swSocket_write_blocking(process->pipe, data, data_len);
     }
 
     if (ret < 0)
@@ -1125,4 +1139,36 @@ static PHP_METHOD(swoole_process, setTimeout)
         RETURN_FALSE;
     }
     SW_CHECK_RETURN(swSocket_set_timeout(process->pipe, seconds));
+}
+
+static PHP_METHOD(swoole_process, setBlocking)
+{
+    zend_bool blocking;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "b", &blocking) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+
+    swWorker *process = swoole_get_object(getThis());
+    if (process->pipe == 0)
+    {
+        swoole_php_fatal_error(E_WARNING, "no pipe, can not setBlocking the pipe.");
+        RETURN_FALSE;
+    }
+    if (blocking)
+    {
+        swSetBlock(process->pipe);
+    }
+    else
+    {
+        swSetNonBlock(process->pipe);
+    }
+    if (SwooleG.main_reactor)
+    {
+        swConnection *_socket = swReactor_get(SwooleG.main_reactor, process->pipe);
+        if (_socket)
+        {
+            _socket->nonblock = blocking ? 0 : 1;
+        }
+    }
 }
