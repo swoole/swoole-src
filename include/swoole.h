@@ -1272,8 +1272,8 @@ static sw_inline int swSocket_is_stream(uint8_t type)
 #define swSetNonBlock(sock)   swoole_ioctl_set_block(sock, 1)
 #define swSetBlock(sock)      swoole_ioctl_set_block(sock, 0)
 #else
-#define swSetNonBlock(sock)   swoole_fcntl_set_option(sock, 1, 0)
-#define swSetBlock(sock)      swoole_fcntl_set_option(sock, 0, 0)
+#define swSetNonBlock(sock)   swoole_fcntl_set_option(sock, 1, -1)
+#define swSetBlock(sock)      swoole_fcntl_set_option(sock, 0, -1)
 #endif
 
 void swoole_init(void);
