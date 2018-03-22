@@ -443,6 +443,7 @@ PHP_FUNCTION(swoole_event_add)
     swConnection *socket = swReactor_get(SwooleG.main_reactor, socket_fd);
     socket->object = reactor_fd;
     socket->active = 1;
+    socket->nonblock = 1;
 
     RETURN_LONG(socket_fd);
 }
