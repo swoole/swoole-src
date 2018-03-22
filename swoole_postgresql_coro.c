@@ -54,7 +54,6 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_pg_connect, 0, 0, -1)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_pg_query, 0, 0, 0)
-    ZEND_ARG_INFO(0, connection)
     ZEND_ARG_INFO(0, query)
 ZEND_END_ARG_INFO()
 
@@ -71,8 +70,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_pg_num_rows, 0, 0, 0)
     ZEND_ARG_INFO(0, result)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_pg_meta_data, 0, 0, 2)
-    ZEND_ARG_INFO(0, connection)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_pg_meta_data, 0, 0, 1)
     ZEND_ARG_INFO(0, table_name)
 ZEND_END_ARG_INFO()
 
@@ -452,20 +450,17 @@ static  int query_result_parse(pg_object *pg_object)
 
 static PHP_METHOD(swoole_postgresql_coro, query)
 {
-    zval *pgsql_link = NULL;
     zval *query;
     PGconn *pgsql;
     PGresult *pgsql_result;
 
-    ZEND_PARSE_PARAMETERS_START(2,2)
-        Z_PARAM_RESOURCE(pgsql_link)
+    ZEND_PARSE_PARAMETERS_START(1,1)
         Z_PARAM_ZVAL(query)
     ZEND_PARSE_PARAMETERS_END();
 
-    pgsql = (PGconn *)zend_fetch_resource(Z_RES_P(pgsql_link), "postgresql connection", le_link);
-
     pg_object *pg_object = swoole_get_object(getThis());
     pg_object->request_type = NORMAL_QUERY;
+    pgsql = pg_object -> conn;
 
     while ((pgsql_result = PQgetResult(pgsql)))
     {
@@ -624,7 +619,6 @@ static PHP_METHOD(swoole_postgresql_coro,numRows)
 static PHP_METHOD(swoole_postgresql_coro,metaData)
 {
 
-    zval *pgsql_link;
     char *table_name;
     size_t table_name_len;
     zend_bool extended=0;
@@ -637,12 +631,13 @@ static PHP_METHOD(swoole_postgresql_coro,metaData)
     size_t new_len;
 
 
-    ZEND_PARSE_PARAMETERS_START(2,2)
-        Z_PARAM_RESOURCE(pgsql_link)
+    ZEND_PARSE_PARAMETERS_START(1,1)
         Z_PARAM_STRING(table_name, table_name_len)
     ZEND_PARSE_PARAMETERS_END();
 
-    pgsql = (PGconn *)zend_fetch_resource(Z_RES_P(pgsql_link), "postgresql connection", le_link);
+    pg_object *pg_object = swoole_get_object(getThis());
+    pg_object->request_type = META_DATA;
+    pgsql = pg_object -> conn;
 
 
     while ((pg_result = PQgetResult(pgsql)))
@@ -717,8 +712,6 @@ static PHP_METHOD(swoole_postgresql_coro,metaData)
     //pg_result = PQexec(pgsql, ZSTR_VAL(querystr.s));
 
 
-    pg_object *pg_object = swoole_get_object(getThis());
-    pg_object->request_type = META_DATA;
     int ret  = PQsendQuery(pgsql, ZSTR_VAL(querystr.s));
     if(ret == 0)
     {
@@ -742,11 +735,8 @@ static PHP_METHOD(swoole_postgresql_coro,metaData)
                 php_swoole_check_timer((int) (redis->timeout * 1000));
                 redis->timer = SwooleG.timer.add(&SwooleG.timer, (int) (redis->timeout * 1000), 0, sw_current_context, swoole_redis_coro_onTimeout);
             }*/
-        zval_ptr_dtor(pgsql_link);
         coro_save(sw_current_context);
         coro_yield();
-
-
 
 }
 
