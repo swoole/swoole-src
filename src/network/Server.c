@@ -1033,6 +1033,7 @@ int swServer_tcp_notify(swServer *serv, swConnection *conn, int event)
     notify_event.from_id = conn->from_id;
     notify_event.fd = conn->fd;
     notify_event.from_fd = conn->from_fd;
+    notify_event.len = 0;
     return serv->factory.notify(&serv->factory, &notify_event);
 }
 
