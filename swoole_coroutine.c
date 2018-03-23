@@ -604,7 +604,7 @@ typedef struct cidmap
 } cidmap_t;
 
 /* 1 <= cid <= 524288 */
-static cidmap_t cidmap = { 0x80000, {0} };
+static cidmap_t cidmap = { MAX_CORO_NUM_LIMIT, {0} };
 
 static int last_cid = -1;
 

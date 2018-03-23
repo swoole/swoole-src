@@ -1986,6 +1986,10 @@ PHP_METHOD(swoole_server, set)
 		{
 			COROG.max_coro_num = DEFAULT_MAX_CORO_NUM;
 		}
+        else if (COROG.max_coro_num >= MAX_CORO_NUM_LIMIT)
+        {
+            COROG.max_coro_num = MAX_CORO_NUM_LIMIT;
+        }
 	}
 #endif
     //dispatch_mode

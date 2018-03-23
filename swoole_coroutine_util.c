@@ -584,6 +584,10 @@ static PHP_METHOD(swoole_coroutine_util, set)
         {
             COROG.max_coro_num = DEFAULT_MAX_CORO_NUM;
         }
+        else if (COROG.max_coro_num >= MAX_CORO_NUM_LIMIT)
+        {
+            COROG.max_coro_num = MAX_CORO_NUM_LIMIT;
+        }
     }
     if (php_swoole_array_get_value(vht, "stack_size", v))
     {
