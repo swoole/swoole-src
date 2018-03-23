@@ -1312,11 +1312,7 @@ static PHP_METHOD(swoole_http_client_coro, recv)
         swoole_php_fatal_error(E_WARNING, "client has been bound to another coro");
     }
 
-    double timeout = http->timeout;
-    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "|d", &timeout) == FAILURE)
-    {
-        return;
-    }
+    double timeout = 0;
 
     //resume
     if (http->cli->sleep)
@@ -1336,6 +1332,12 @@ static PHP_METHOD(swoole_http_client_coro, recv)
                 return;
             }
         }
+
+        if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "|d", &timeout) == FAILURE)
+        {
+            return;
+        }
+
         goto _yield;
     }
 
