@@ -332,6 +332,11 @@ static int swServer_start_proxy(swServer *serv)
         }
     }
 
+    if (serv->stream_fd > 0)
+    {
+        close(serv->stream_fd);
+    }
+
     /**
      * create reactor thread
      */
@@ -651,12 +656,15 @@ int swServer_start(swServer *serv)
         {
             return SW_ERR;
         }
+        int _reuse_port = SwooleG.reuse_port;
+        SwooleG.reuse_port = 0;
         serv->stream_fd = swSocket_create_server(SW_SOCK_UNIX_STREAM, serv->stream_socket, 0, 2048);
         if (serv->stream_fd < 0)
         {
             return SW_ERR;
         }
         swoole_fcntl_set_option(serv->stream_fd, 1, 1);
+        SwooleG.reuse_port = _reuse_port;
     }
 
     serv->send = swServer_tcp_send;
@@ -1730,18 +1738,18 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
 #endif
 
 #ifdef SW_REACTOR_USE_SESSION
-    uint32_t session_id = 1;
     swSession *session;
     sw_spinlock(&SwooleGS->spinlock);
     int i;
+    uint32_t session_id = SwooleGS->session_round;
     //get session id
     for (i = 0; i < serv->max_connection; i++)
     {
-        session_id = SwooleGS->session_round++;
-        if (unlikely(session_id == 0))
+        session_id++;
+        //SwooleGS->session_round just has 24 bits size;
+        if (unlikely(session_id == 1 << 24))
         {
             session_id = 1;
-            SwooleGS->session_round = 1;
         }
         session = swServer_get_session(serv, session_id);
         //vacancy
@@ -1753,6 +1761,7 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
             break;
         }
     }
+    SwooleGS->session_round = session_id;
     sw_spinlock_release(&SwooleGS->spinlock);
     connection->session_id = session_id;
 #endif
