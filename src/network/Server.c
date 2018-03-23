@@ -1743,11 +1743,11 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
     int i;
     uint32_t session_id = SwooleGS->session_round;
     //get session id
-    for(i = 0; i < serv->max_connection; i++)
+    for (i = 0; i < serv->max_connection; i++)
     {
         session_id++;
         //SwooleGS->session_round just has 24 bits size;
-        if (unlikely(session_id == 1<<24))
+        if (unlikely(session_id == 1 << 24))
         {
             session_id = 1;
         }
