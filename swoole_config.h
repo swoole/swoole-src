@@ -280,6 +280,6 @@
 
 #define SW_REDIS_CONNECT_TIMEOUT         1.0
 
-#define SW_PHP_FUNCTION_MAX_ARG          16
+#define SW_TIMER_MAX_VALUE               86400000
 
 #endif /* SWOOLE_CONFIG_H_ */

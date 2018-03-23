@@ -71,7 +71,7 @@ long php_swoole_add_timer(int ms, zval *callback, zval *param, int persistent TS
         swoole_php_fatal_error(E_WARNING, "cannot use timer in master process.");
         return SW_ERR;
     }
-    if (ms > 86400000)
+    if (ms > SW_TIMER_MAX_VALUE)
     {
         swoole_php_fatal_error(E_WARNING, "The given parameters is too big.");
         return SW_ERR;
