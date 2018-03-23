@@ -2255,6 +2255,170 @@ PHP_FUNCTION(swoole_client_select)
     RETURN_LONG(retval);
 }
 
+static int client_poll_get(struct pollfd *fds, int maxevents, int fd)
+{
+    int i;
+    for (i = 0; i < maxevents; i++)
+    {
+        if (fds[i].fd == fd)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
+static int client_poll_wait(zval *sock_array, struct pollfd *fds, int maxevents, int n_event, int revent)
+{
+    zval *element = NULL;
+    int sock;
+
+    ulong_t num = 0;
+    if (SW_Z_TYPE_P(sock_array) != IS_ARRAY)
+    {
+        return 0;
+    }
+
+    zval new_array;
+    array_init(&new_array);
+    zend_ulong num_key;
+    zend_string *key;
+    zval *dest_element;
+    int poll_key;
+
+    ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(sock_array), num_key, key, element)
+    {
+        sock = swoole_convert_to_fd(element TSRMLS_CC);
+        if (sock < 0)
+        {
+            continue;
+        }
+        poll_key = client_poll_get(fds, maxevents, sock);
+        if (poll_key == -1)
+        {
+            swoole_php_fatal_error(E_WARNING, "bad fd[%d]", sock);
+            continue;
+        }
+        if (!(fds[poll_key].revents & revent))
+        {
+            continue;
+        }
+        if (key)
+        {
+            dest_element = zend_hash_add(Z_ARRVAL(new_array), key, element);
+        }
+        else
+        {
+            dest_element = zend_hash_index_update(Z_ARRVAL(new_array), num_key, element);
+        }
+        if (dest_element)
+        {
+            Z_ADDREF_P(dest_element);
+        }
+        num++;
+    } ZEND_HASH_FOREACH_END();
+
+    zval_ptr_dtor(sock_array);
+    ZVAL_COPY_VALUE(sock_array, &new_array);
+    return num ? 1 : 0;
+}
+
+static int client_poll_add(zval *sock_array, int index, struct pollfd *fds, int maxevents, int event)
+{
+    zval *element = NULL;
+    if (SW_Z_TYPE_P(sock_array) != IS_ARRAY)
+    {
+        return -1;
+    }
+
+    int sock;
+    int key = -1;
+
+    SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(sock_array), element)
+        sock = swoole_convert_to_fd(element TSRMLS_CC);
+        if (sock < 0)
+        {
+            continue;
+        }
+        if (event != POLLIN)
+        {
+            key = client_poll_get(fds, maxevents, sock);
+        }
+        if (key < 0)
+        {
+            fds[index].fd = sock;
+            fds[index].events = event;
+            index++;
+        }
+        else
+        {
+            fds[key].fd = sock;
+            fds[key].events |= event;
+        }
+    SW_HASHTABLE_FOREACH_END();
+
+    return index;
+}
+
+PHP_FUNCTION(swoole_client_poll)
+{
+    zval *r_array, *w_array, *e_array;
+
+    int retval, index = 0;
+    double timeout = 0.5;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a!a!a!|d", &r_array, &w_array, &e_array, &timeout) == FAILURE)
+    {
+        return;
+    }
+
+    int maxevents = MAX(MAX(php_swoole_array_length(r_array), php_swoole_array_length(w_array)),
+            php_swoole_array_length(e_array));
+    struct pollfd *fds = ecalloc(maxevents, sizeof(struct pollfd));
+
+    if (r_array != NULL && php_swoole_array_length(r_array) > 0)
+    {
+        index = client_poll_add(r_array, index, fds, maxevents, POLLIN);
+    }
+    if (w_array != NULL && php_swoole_array_length(w_array) > 0)
+    {
+        index = client_poll_add(w_array, index, fds, maxevents, POLLOUT);
+    }
+    if (e_array != NULL && php_swoole_array_length(w_array) > 0)
+    {
+        index = client_poll_add(e_array, index, fds, maxevents, POLLHUP);
+    }
+    if (index == 0)
+    {
+        efree(fds);
+        swoole_php_fatal_error(E_WARNING, "no resource arrays were passed to select");
+        RETURN_FALSE;
+    }
+
+    retval = poll(fds, maxevents, (int) timeout * 1000);
+    if (retval == -1)
+    {
+        efree(fds);
+        swoole_php_fatal_error(E_WARNING, "unable to poll(). Error: %s [%d]", strerror(errno), errno);
+        RETURN_FALSE;
+    }
+
+    if (r_array != NULL && php_swoole_array_length(r_array) > 0)
+    {
+        client_poll_wait(r_array, fds, maxevents, retval, POLLIN);
+    }
+    if (w_array != NULL && php_swoole_array_length(w_array) > 0)
+    {
+        client_poll_wait(w_array, fds, maxevents, retval, POLLOUT);
+    }
+    if (e_array != NULL && php_swoole_array_length(e_array) > 0)
+    {
+        client_poll_wait(e_array, fds, maxevents, retval, POLLHUP);
+    }
+    efree(fds);
+    RETURN_LONG(retval);
+}
+
 static int client_select_wait(zval *sock_array, fd_set *fds TSRMLS_DC)
 {
     zval *element = NULL;
