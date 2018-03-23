@@ -444,7 +444,6 @@ void swServer_store_listen_socket(swServer *serv)
 swString** swServer_create_worker_buffer(swServer *serv)
 {
     int i;
-    int buffer_input_size = serv->listen_list->protocol.package_max_length;
     int buffer_num;
 
     if (serv->factory_mode == SW_MODE_SINGLE || serv->factory_mode == SW_MODE_BASE)
@@ -465,7 +464,7 @@ swString** swServer_create_worker_buffer(swServer *serv)
 
     for (i = 0; i < buffer_num; i++)
     {
-        buffers[i] = swString_new(buffer_input_size);
+        buffers[i] = swString_new(SW_BUFFER_SIZE_BIG);
         if (buffers[i] == NULL)
         {
             swError("worker buffer_input init failed.");
