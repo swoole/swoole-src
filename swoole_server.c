@@ -1978,19 +1978,19 @@ PHP_METHOD(swoole_server, set)
         serv->max_wait_time = (uint32_t) Z_LVAL_P(v);
     }
 #ifdef SW_COROUTINE
-	if (php_swoole_array_get_value(vht, "max_coro_num", v) || php_swoole_array_get_value(vht, "max_coroutine", v))
-	{
-		convert_to_long(v);
-		COROG.max_coro_num = (int) Z_LVAL_P(v);
-		if (COROG.max_coro_num <= 0)
-		{
-			COROG.max_coro_num = DEFAULT_MAX_CORO_NUM;
-		}
+    if (php_swoole_array_get_value(vht, "max_coro_num", v) || php_swoole_array_get_value(vht, "max_coroutine", v))
+    {
+        convert_to_long(v);
+        COROG.max_coro_num = (int) Z_LVAL_P(v);
+        if (COROG.max_coro_num <= 0)
+        {
+            COROG.max_coro_num = DEFAULT_MAX_CORO_NUM;
+        }
         else if (COROG.max_coro_num >= MAX_CORO_NUM_LIMIT)
         {
             COROG.max_coro_num = MAX_CORO_NUM_LIMIT;
         }
-	}
+    }
 #endif
     //dispatch_mode
     if (php_swoole_array_get_value(vht, "dispatch_mode", v))
