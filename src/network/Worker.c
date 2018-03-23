@@ -267,8 +267,7 @@ static int swWorker_onStreamPackage(swConnection *conn, char *data, uint32_t len
     swString *package = swWorker_get_buffer(serv, task->info.from_id);
     uint32_t data_length = length - sizeof(task->info) - 4;
     //merge data to package buffer
-    memcpy(package->str, data + sizeof(task->info) + 4, data_length);
-    package->length = data_length;
+    swString_append_ptr(package, data + sizeof(task->info) + 4, data_length);
 
     swWorker_onTask(&serv->factory, task);
 
