@@ -1695,9 +1695,17 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "debug_mode", v))
     {
         convert_to_boolean(v);
-        SwooleG.debug = Z_BVAL_P(v);
+        if (Z_BVAL_P(v))
+        {
+            SwooleG.log_level = 0;
+        }
     }
 #endif
+    if (php_swoole_array_get_value(vht, "trace_flags", v))
+    {
+        convert_to_long(v);
+        SwooleG.trace_flags = (int32_t) Z_LVAL_P(v);
+    }
     //pid file
     if (php_swoole_array_get_value(vht, "pid_file", v))
     {

@@ -47,7 +47,7 @@ int swProtocol_get_package_length(swProtocol *protocol, swConnection *conn, char
 
 static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swConnection *conn, swString *buffer)
 {
-#if SW_LOG_TRACE_OPEN > 0
+#ifdef SW_LOG_TRACE_OPEN
     static int count;
     count++;
 #endif
@@ -139,11 +139,15 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
 
     if (conn->skip_recv)
     {
-        conn->skip_recv = 1;
+        conn->skip_recv = 0;
         goto do_get_length;
     }
 
     do_recv:
+	if (conn->active == 0)
+	{
+		return SW_OK;
+	}
     if (buffer->offset > 0)
     {
         recv_size = buffer->offset - buffer->length;

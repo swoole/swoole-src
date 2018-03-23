@@ -316,10 +316,21 @@ snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: " str,__func__,##__VA_ARGS__);\
 swLog_put(SW_LOG_WARNING, sw_error);\
 SwooleGS->lock_2.unlock(&SwooleGS->lock_2)
 
-#define swNotice(str,...)        SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
-snprintf(sw_error,SW_ERROR_MSG_SIZE,str,##__VA_ARGS__);\
-swLog_put(SW_LOG_NOTICE, sw_error);\
-SwooleGS->lock_2.unlock(&SwooleGS->lock_2)
+#define swNotice(str,...)        if (SW_LOG_NOTICE >= SwooleG.log_level){\
+    SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
+    snprintf(sw_error,SW_ERROR_MSG_SIZE,str,##__VA_ARGS__);\
+    swLog_put(SW_LOG_NOTICE, sw_error);\
+    SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}
+
+#if defined(SW_DEBUG) || defined(SW_LOG_TRACE_OPEN)
+#define swTrace(str,...) if (SW_LOG_TRACE >= SwooleG.log_level){\
+    SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
+    snprintf(sw_error, SW_ERROR_MSG_SIZE, str, ##__VA_ARGS__);\
+    swLog_put(SW_LOG_TRACE, sw_error);\
+    SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}
+#else
+#define swTrace(str,...)
+#endif
 
 #define swError(str,...)       SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
 snprintf(sw_error, SW_ERROR_MSG_SIZE, str, ##__VA_ARGS__);\
@@ -343,14 +354,14 @@ exit(1)
 #ifdef SW_DEBUG_REMOTE_OPEN
 #define swDebug(str,...) int __debug_log_n = snprintf(sw_error, SW_ERROR_MSG_SIZE, str, ##__VA_ARGS__);\
 write(SwooleG.debug_fd, sw_error, __debug_log_n);
+#elif defined(SW_DEBUG)
+#define swDebug(str,...) if (SW_LOG_DEBUG >= SwooleG.log_level){\
+    SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
+    snprintf(sw_error, SW_ERROR_MSG_SIZE, "%s(:%d): " str, __func__, __LINE__, ##__VA_ARGS__);\
+    swLog_put(SW_LOG_DEBUG, sw_error);\
+    SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}
 #else
 #define swDebug(str,...)
-#endif
-
-#ifdef SW_DEBUG
-#define swTrace(str,...) if (SwooleG.debug) {printf("[%s:%d@%s]" str "\n",__FILE__,__LINE__,__func__,##__VA_ARGS__);}
-#else
-#define swTrace(str,...)
 #endif
 
 enum swTraceType
@@ -368,12 +379,18 @@ enum swTraceType
     SW_TRACE_EOF_PROTOCOL     = 1u << 11,
     SW_TRACE_LENGTH_PROTOCOL  = 1u << 12,
     SW_TRACE_CLOSE            = 1u << 13,
+    SW_TRACE_HTTP_CLIENT      = 1u << 14,
+    SW_TRACE_COROUTINE        = 1u << 15,
+    SW_TRACE_REDIS_CLIENT     = 1u << 16,
+    SW_TRACE_MYSQL_CLIENT     = 1u << 17,
+    SW_TRACE_AIO              = 1u << 18,
+    SW_TRACE_SSL              = 1u << 19,
 };
 
-#if defined(SW_LOG_TRACE_OPEN) && SW_LOG_TRACE_OPEN
-#define swTraceLog(what,str,...)      if (what & SW_LOG_TRACE_FLAGS) {\
+#ifdef SW_LOG_TRACE_OPEN
+#define swTraceLog(what,str,...)      if (SW_LOG_TRACE >= SwooleG.log_level && (what & SwooleG.trace_flags)) {\
     SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
-    snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: "str,__func__,##__VA_ARGS__);\
+    snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): "str, __func__, __LINE__, ##__VA_ARGS__);\
     swLog_put(SW_LOG_TRACE, sw_error);\
     SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}
 #else
@@ -707,22 +724,6 @@ typedef struct _swEventData
     swDataHead info;
     char data[SW_BUFFER_SIZE];
 } swEventData;
-
-typedef struct _swVal
-{
-    uint32_t type :8;
-    uint32_t length :24;
-    char value[0];
-} swVal;
-
-enum swVal_type
-{
-    SW_VAL_NULL   = 0,
-    SW_VAL_STRING = 1,
-    SW_VAL_LONG,
-    SW_VAL_DOUBLE,
-    SW_VAL_BOOL,
-};
 
 typedef struct _swDgramPacket
 {
@@ -1831,7 +1832,9 @@ void swLinkedList_remove_node(swLinkedList *ll, swLinkedList_node *remove_node);
 int swLinkedList_prepend(swLinkedList *ll, void *data);
 void* swLinkedList_pop(swLinkedList *ll);
 void* swLinkedList_shift(swLinkedList *ll);
+swLinkedList_node* swLinkedList_find(swLinkedList *ll, void *data);
 void swLinkedList_free(swLinkedList *ll);
+#define swLinkedList_remove(ll, data) (swLinkedList_remove_node(ll, swLinkedList_find(ll, data)))
 /*----------------------------Thread Pool-------------------------------*/
 enum swThread_type
 {
@@ -2042,7 +2045,6 @@ typedef struct
     uint8_t socket_dontwait :1;
     uint8_t dns_lookup_random :1;
     uint8_t use_async_resolver :1;
-    uint8_t debug :1;
 
     /**
      * Timer used pipe
@@ -2068,6 +2070,7 @@ typedef struct
 
     uint8_t log_level;
     char *log_file;
+    int trace_flags;
 
     /**
      *  task worker process num

@@ -47,7 +47,12 @@ void swoole_init(void)
     SwooleG.pagesize = getpagesize();
     SwooleG.pid = getpid();
     SwooleG.socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
+
+#ifdef SW_DEBUG
+    SwooleG.log_level = 0;
+#else
     SwooleG.log_level = SW_LOG_INFO;
+#endif
 
     //get system uname
     uname(&SwooleG.uname);
@@ -119,10 +124,6 @@ void swoole_init(void)
 #endif
 
     SwooleG.use_timer_pipe = 1;
-
-#ifdef SW_DEBUG
-    SwooleG.debug = 1;
-#endif
 
     SwooleStats = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerStats));
     if (SwooleStats == NULL)
