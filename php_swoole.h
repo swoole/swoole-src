@@ -53,6 +53,7 @@
 #define PHP_SWOOLE_VERSION  "2.1.2-alpha"
 #define PHP_SWOOLE_CHECK_CALLBACK
 #define PHP_SWOOLE_ENABLE_FASTCALL
+#define PHP_SWOOLE_CLIENT_USE_POLL
 
 /**
  * PHP5.2
@@ -327,7 +328,6 @@ PHP_FUNCTION(swoole_event_cycle);
 PHP_FUNCTION(swoole_event_dispatch);
 PHP_FUNCTION(swoole_event_isset);
 PHP_FUNCTION(swoole_client_select);
-PHP_FUNCTION(swoole_client_poll);
 //---------------------------------------------------------
 //                  swoole_async
 //---------------------------------------------------------

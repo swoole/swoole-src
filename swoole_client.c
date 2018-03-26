@@ -93,8 +93,13 @@ static PHP_METHOD(swoole_client, on);
 static PHP_METHOD(swoole_client, getSocket);
 #endif
 
+#ifdef PHP_SWOOLE_CLIENT_USE_POLL
+static int client_poll_add(zval *sock_array, int index, struct pollfd *fds, int maxevents, int event);
+static int client_poll_wait(zval *sock_array, struct pollfd *fds, int maxevents, int n_event, int revent);
+#else
 static int client_select_add(zval *sock_array, fd_set *fds, int *max_fd TSRMLS_DC);
 static int client_select_wait(zval *sock_array, fd_set *fds TSRMLS_DC);
+#endif
 
 static void client_onConnect(swClient *cli);
 static void client_onReceive(swClient *cli, char *data, uint32_t length);
@@ -2199,6 +2204,62 @@ static PHP_METHOD(swoole_client, shutdown)
 
 PHP_FUNCTION(swoole_client_select)
 {
+#ifdef PHP_SWOOLE_CLIENT_USE_POLL
+    zval *r_array, *w_array, *e_array;
+    int retval, index = 0;
+    double timeout = 0.5;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a!a!a!|d", &r_array, &w_array, &e_array, &timeout) == FAILURE)
+    {
+        return;
+    }
+
+    int maxevents = MAX(MAX(php_swoole_array_length(r_array), php_swoole_array_length(w_array)),
+            php_swoole_array_length(e_array));
+    struct pollfd *fds = ecalloc(maxevents, sizeof(struct pollfd));
+
+    if (r_array != NULL && php_swoole_array_length(r_array) > 0)
+    {
+        index = client_poll_add(r_array, index, fds, maxevents, POLLIN);
+    }
+    if (w_array != NULL && php_swoole_array_length(w_array) > 0)
+    {
+        index = client_poll_add(w_array, index, fds, maxevents, POLLOUT);
+    }
+    if (e_array != NULL && php_swoole_array_length(w_array) > 0)
+    {
+        index = client_poll_add(e_array, index, fds, maxevents, POLLHUP);
+    }
+    if (index == 0)
+    {
+        efree(fds);
+        swoole_php_fatal_error(E_WARNING, "no resource arrays were passed to select");
+        RETURN_FALSE;
+    }
+
+    retval = poll(fds, maxevents, (int) timeout * 1000);
+    if (retval == -1)
+    {
+        efree(fds);
+        swoole_php_fatal_error(E_WARNING, "unable to poll(). Error: %s [%d]", strerror(errno), errno);
+        RETURN_FALSE;
+    }
+
+    if (r_array != NULL && php_swoole_array_length(r_array) > 0)
+    {
+        client_poll_wait(r_array, fds, maxevents, retval, POLLIN);
+    }
+    if (w_array != NULL && php_swoole_array_length(w_array) > 0)
+    {
+        client_poll_wait(w_array, fds, maxevents, retval, POLLOUT);
+    }
+    if (e_array != NULL && php_swoole_array_length(e_array) > 0)
+    {
+        client_poll_wait(e_array, fds, maxevents, retval, POLLHUP);
+    }
+    efree(fds);
+    RETURN_LONG(retval);
+#else
     zval *r_array, *w_array, *e_array;
     fd_set rfds, wfds, efds;
 
@@ -2253,9 +2314,11 @@ PHP_FUNCTION(swoole_client_select)
         client_select_wait(e_array, &efds TSRMLS_CC);
     }
     RETURN_LONG(retval);
+#endif
 }
 
-static int client_poll_get(struct pollfd *fds, int maxevents, int fd)
+#ifdef PHP_SWOOLE_CLIENT_USE_POLL
+static inline int client_poll_get(struct pollfd *fds, int maxevents, int fd)
 {
     int i;
     for (i = 0; i < maxevents; i++)
@@ -2359,66 +2422,7 @@ static int client_poll_add(zval *sock_array, int index, struct pollfd *fds, int 
 
     return index;
 }
-
-PHP_FUNCTION(swoole_client_poll)
-{
-    zval *r_array, *w_array, *e_array;
-
-    int retval, index = 0;
-    double timeout = 0.5;
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a!a!a!|d", &r_array, &w_array, &e_array, &timeout) == FAILURE)
-    {
-        return;
-    }
-
-    int maxevents = MAX(MAX(php_swoole_array_length(r_array), php_swoole_array_length(w_array)),
-            php_swoole_array_length(e_array));
-    struct pollfd *fds = ecalloc(maxevents, sizeof(struct pollfd));
-
-    if (r_array != NULL && php_swoole_array_length(r_array) > 0)
-    {
-        index = client_poll_add(r_array, index, fds, maxevents, POLLIN);
-    }
-    if (w_array != NULL && php_swoole_array_length(w_array) > 0)
-    {
-        index = client_poll_add(w_array, index, fds, maxevents, POLLOUT);
-    }
-    if (e_array != NULL && php_swoole_array_length(w_array) > 0)
-    {
-        index = client_poll_add(e_array, index, fds, maxevents, POLLHUP);
-    }
-    if (index == 0)
-    {
-        efree(fds);
-        swoole_php_fatal_error(E_WARNING, "no resource arrays were passed to select");
-        RETURN_FALSE;
-    }
-
-    retval = poll(fds, maxevents, (int) timeout * 1000);
-    if (retval == -1)
-    {
-        efree(fds);
-        swoole_php_fatal_error(E_WARNING, "unable to poll(). Error: %s [%d]", strerror(errno), errno);
-        RETURN_FALSE;
-    }
-
-    if (r_array != NULL && php_swoole_array_length(r_array) > 0)
-    {
-        client_poll_wait(r_array, fds, maxevents, retval, POLLIN);
-    }
-    if (w_array != NULL && php_swoole_array_length(w_array) > 0)
-    {
-        client_poll_wait(w_array, fds, maxevents, retval, POLLOUT);
-    }
-    if (e_array != NULL && php_swoole_array_length(e_array) > 0)
-    {
-        client_poll_wait(e_array, fds, maxevents, retval, POLLHUP);
-    }
-    efree(fds);
-    RETURN_LONG(retval);
-}
-
+#else
 static int client_select_wait(zval *sock_array, fd_set *fds TSRMLS_DC)
 {
     zval *element = NULL;
@@ -2543,3 +2547,5 @@ static int client_select_add(zval *sock_array, fd_set *fds, int *max_fd TSRMLS_D
 
     return num ? 1 : 0;
 }
+#endif
+
