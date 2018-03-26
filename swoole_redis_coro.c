@@ -2395,7 +2395,7 @@ static PHP_METHOD(swoole_redis_coro, zRange)
     }
     else
     {
-        argc--;
+        argc = 4;
     }
     SW_REDIS_COMMAND(argc)
     SW_REDIS_COMMAND_FREE_ARGV
@@ -2432,7 +2432,7 @@ static PHP_METHOD(swoole_redis_coro, zRevRange)
     }
     else
     {
-        argc--;
+        argc = 4;
     }
     SW_REDIS_COMMAND(argc)
     SW_REDIS_COMMAND_FREE_ARGV
