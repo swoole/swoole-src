@@ -104,7 +104,6 @@ static http_context* http_get_context(zval *object, int check_end TSRMLS_DC);
 
 static void http_parse_cookie(zval *array, const char *at, size_t length);
 static void http_build_header(http_context *, zval *object, swString *response, int body_length TSRMLS_DC);
-static int http_trim_double_quote(zval **value, char **ptr);
 
 static inline void http_header_key_format(char *key, int length)
 {
