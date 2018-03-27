@@ -353,8 +353,12 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         if (package->offset == package->length - sizeof(swDgramPacket))
         {
             worker->request_count++;
+            worker->request_time = SwooleGS->now;
             sw_atomic_fetch_add(&SwooleStats->request_count, 1);
             serv->onPacket(serv, task);
+            worker->request_time = 0;
+            worker->traced = 0;
+            worker->request_count++;
             swString_clear(package);
         }
         break;

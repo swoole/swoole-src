@@ -406,7 +406,7 @@ static int swManager_loop(swFactory *factory)
                 {
                     if (WIFSTOPPED(status) && exit_worker->tracer)
                     {
-                        exit_worker->tracer(&serv->workers[i]);
+                        exit_worker->tracer(exit_worker);
                         exit_worker->tracer = NULL;
                         goto _wait;
                     }

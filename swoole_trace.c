@@ -42,30 +42,27 @@
 
 static void trace_request(swWorker *worker);
 static int trace_dump(swWorker *worker, FILE *slowlog);
-static int trace_get_long(long addr, long *data);
-static int trace_get_strz(char *buf, size_t sz, long addr);
-
-static pid_t traced_pid;
-static time_t last_trace_time;
+static int trace_get_long(pid_t traced_pid, long addr, long *data);
+static int trace_get_strz(pid_t traced_pid, char *buf, size_t sz, long addr);
 
 static void trace_request(swWorker *worker)
 {
     FILE *slowlog = SwooleG.serv->request_slowlog_file;
+    pid_t traced_pid = worker->pid;
     int ret = trace_dump(worker, slowlog);
     if (ret < 0)
     {
-        swSysError("trace child %d failed.", worker->pid);
+        swSysError("failed to trace worker %d, error lint =%d.", worker->pid, -ret);
     }
     if (0 > ptrace(PTRACE_DETACH, traced_pid, (void *) 1, 0))
     {
-        swSysError("failed to ptrace(DETACH) child %d", worker->pid);
+        swSysError("failed to ptrace(DETACH) worker %d", worker->pid);
     }
     fflush(slowlog);
 }
 
 void php_swoole_trace_check(swServer *serv)
 {
-    last_trace_time = SwooleGS->now;
     uint8_t timeout = serv->request_slowlog_timeout;
     int count = serv->worker_num + SwooleG.task_worker_num;
     int i = serv->trace_event_worker ? 0 : serv->worker_num;
@@ -75,12 +72,12 @@ void php_swoole_trace_check(swServer *serv)
     {
         worker = swServer_get_worker(serv, i);
         swTraceLog(SW_TRACE_SERVER, "trace request, worker#%d, pid=%d. request_time=%d.", i, worker->pid, worker->request_time);
-        if (!(worker->request_time > 0 && worker->traced == 0 && SwooleGS->now - worker->request_time > timeout))
+        if (!(worker->request_time > 0 && worker->traced == 0 && SwooleGS->now - worker->request_time >= timeout))
         {
             continue;
         }
-        traced_pid = worker->pid;
-        if (ptrace(PTRACE_ATTACH, traced_pid, 0, 0) < 0)
+        swWarn("PTRACE_ATTACH worker%d, pid=%d\n", i,  worker->pid);
+        if (ptrace(PTRACE_ATTACH, worker->pid, 0, 0) < 0)
         {
             swSysError("failed to ptrace(ATTACH, %d) worker#%d,", worker->pid, worker->id);
             continue;
@@ -90,7 +87,7 @@ void php_swoole_trace_check(swServer *serv)
     }
 }
 
-static int trace_get_long(long addr, long *data)
+static int trace_get_long(pid_t traced_pid, long addr, long *data)
 {
     errno = 0;
     *data = ptrace(PTRACE_PEEKDATA, traced_pid, (void *) addr, 0);
@@ -101,7 +98,7 @@ static int trace_get_long(long addr, long *data)
     return 0;
 }
 
-static int trace_get_strz(char *buf, size_t sz, long addr)
+static int trace_get_strz(pid_t traced_pid, char *buf, size_t sz, long addr)
 {
     int i;
     long l = addr;
@@ -111,7 +108,7 @@ static int trace_get_strz(char *buf, size_t sz, long addr)
     l -= i;
     for (addr = l;; addr += SIZEOF_LONG)
     {
-        if (0 > trace_get_long(addr, &l))
+        if (0 > trace_get_long(traced_pid, addr, &l))
         {
             return -1;
         }
@@ -145,6 +142,7 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
 {
     SWOOLE_GET_TSRMLS;
 
+    pid_t traced_pid = worker->pid;
     int callers_limit = 100;
     struct timeval tv;
     static const int buf_size = 1024;
@@ -158,7 +156,7 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
 
     fprintf(slowlog, "\n%s [worker#%d] pid %d\n", buf, worker->id, (int) traced_pid);
 
-    if (0 > trace_get_long((long) &EG(current_execute_data), &l))
+    if (0 > trace_get_long(traced_pid, (long) &EG(current_execute_data), &l))
     {
         return -__LINE__;
     }
@@ -174,16 +172,16 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
         long prev;
         uint32_t lineno = 0;
 
-        if (0 > trace_get_long(execute_data + offsetof(zend_execute_data, func), &l))
+        if (0 > trace_get_long(traced_pid, execute_data + offsetof(zend_execute_data, func), &l))
         {
-            return -1;
+            return -__LINE__;
         }
 
         function = l;
 
         if (valid_ptr(function))
         {
-            if (0 > trace_get_long(function + offsetof(zend_function, common.function_name), &l))
+            if (0 > trace_get_long(traced_pid, function + offsetof(zend_function, common.function_name), &l))
             {
                 return -1;
             }
@@ -193,9 +191,9 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
             if (function_name == 0)
             {
                 uint32_t *call_info = (uint32_t *) &l;
-                if (0 > trace_get_long(execute_data + offsetof(zend_execute_data, This.u1.type_info), &l))
+                if (0 > trace_get_long(traced_pid, execute_data + offsetof(zend_execute_data, This.u1.type_info), &l))
                 {
-                    return -1;
+                    return -__LINE__;
                 }
 
                 if (ZEND_CALL_KIND_EX((*call_info) >> ZEND_CALL_INFO_SHIFT) == ZEND_CALL_TOP_CODE)
@@ -213,9 +211,9 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
             }
             else
             {
-                if (0 > trace_get_strz(buf, buf_size, function_name + offsetof(zend_string, val)))
+                if (0 > trace_get_strz(traced_pid, buf, buf_size, function_name + offsetof(zend_string, val)))
                 {
-                    return -1;
+                    return -__LINE__;
                 }
 
             }
@@ -230,9 +228,9 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
 
         *buf = '\0';
 
-        if (0 > trace_get_long(execute_data + offsetof(zend_execute_data, prev_execute_data), &l))
+        if (0 > trace_get_long(traced_pid, execute_data + offsetof(zend_execute_data, prev_execute_data), &l))
         {
-            return -1;
+            return -__LINE__;
         }
 
         execute_data = prev = l;
@@ -241,9 +239,9 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
         {
             zend_uchar *type;
 
-            if (0 > trace_get_long(prev + offsetof(zend_execute_data, func), &l))
+            if (0 > trace_get_long(traced_pid, prev + offsetof(zend_execute_data, func), &l))
             {
-                return -1;
+                return -__LINE__;
             }
 
             function = l;
@@ -254,28 +252,28 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
             }
 
             type = (zend_uchar *) &l;
-            if (0 > trace_get_long(function + offsetof(zend_function, type), &l))
+            if (0 > trace_get_long(traced_pid, function + offsetof(zend_function, type), &l))
             {
-                return -1;
+                return -__LINE__;
             }
 
             if (ZEND_USER_CODE(*type))
             {
-                if (0 > trace_get_long(function + offsetof(zend_op_array, filename), &l))
+                if (0 > trace_get_long(traced_pid, function + offsetof(zend_op_array, filename), &l))
                 {
-                    return -1;
+                    return -__LINE__;
                 }
 
                 file_name = l;
 
-                if (0 > trace_get_strz(buf, buf_size, file_name + offsetof(zend_string, val)))
+                if (0 > trace_get_strz(traced_pid, buf, buf_size, file_name + offsetof(zend_string, val)))
                 {
-                    return -1;
+                    return -__LINE__;
                 }
 
-                if (0 > trace_get_long(prev + offsetof(zend_execute_data, opline), &l))
+                if (0 > trace_get_long(traced_pid, prev + offsetof(zend_execute_data, opline), &l))
                 {
-                    return -1;
+                    return -__LINE__;
                 }
 
                 if (valid_ptr(l))
@@ -283,9 +281,9 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
                     long opline = l;
                     uint32_t *lu = (uint32_t *) &l;
 
-                    if (0 > trace_get_long(opline + offsetof(struct _zend_op, lineno), &l))
+                    if (0 > trace_get_long(traced_pid, opline + offsetof(struct _zend_op, lineno), &l))
                     {
-                        return -1;
+                        return -__LINE__;
                     }
 
                     lineno = *lu;
@@ -293,9 +291,9 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
                 break;
             }
 
-            if (0 > trace_get_long(prev + offsetof(zend_execute_data, prev_execute_data), &l))
+            if (0 > trace_get_long(traced_pid, prev + offsetof(zend_execute_data, prev_execute_data), &l))
             {
-                return -1;
+                return -__LINE__;
             }
 
             prev = l;
@@ -317,7 +315,7 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
         long prev;
         uint lineno = 0;
 
-        if (0 > trace_get_long(execute_data + offsetof(zend_execute_data, func), &l))
+        if (0 > trace_get_long(traced_pid, execute_data + offsetof(zend_execute_data, func), &l))
         {
             return -1;
         }
@@ -326,7 +324,7 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
 
         if (valid_ptr(function))
         {
-            if (0 > trace_get_long(function + offsetof(zend_function, common.function_name), &l))
+            if (0 > trace_get_long(traced_pid, function + offsetof(zend_function, common.function_name), &l))
             {
                 return -1;
             }
@@ -336,7 +334,7 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
             if (function_name == 0)
             {
                 uint32_t *call_info = (uint32_t *)&l;
-                if (0 > trace_get_long(execute_data + offsetof(zend_execute_data, This.u1.type_info), &l))
+                if (0 > trace_get_long(traced_pid, execute_data + offsetof(zend_execute_data, This.u1.type_info), &l))
                 {
                     return -1;
                 }
@@ -356,7 +354,7 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
             }
             else
             {
-                if (0 > trace_get_strz(buf, buf_size, function_name + offsetof(zend_string, val)))
+                if (0 > trace_get_strz(traced_pid, buf, buf_size, function_name + offsetof(zend_string, val)))
                 {
                     return -1;
                 }
@@ -374,7 +372,7 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
 
         *buf = '\0';
 
-        if (0 > trace_get_long(execute_data + offsetof(zend_execute_data, prev_execute_data), &l))
+        if (0 > trace_get_long(traced_pid, execute_data + offsetof(zend_execute_data, prev_execute_data), &l))
         {
             return -1;
         }
@@ -385,7 +383,7 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
         {
             zend_uchar *type;
 
-            if (0 > trace_get_long(prev + offsetof(zend_execute_data, func), &l))
+            if (0 > trace_get_long(traced_pid, prev + offsetof(zend_execute_data, func), &l))
             {
                 return -1;
             }
@@ -398,26 +396,26 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
             }
 
             type = (zend_uchar *)&l;
-            if (0 > trace_get_long(function + offsetof(zend_function, type), &l))
+            if (0 > trace_get_long(traced_pid, function + offsetof(zend_function, type), &l))
             {
                 return -1;
             }
 
             if (ZEND_USER_CODE(*type))
             {
-                if (0 > trace_get_long(function + offsetof(zend_op_array, filename), &l))
+                if (0 > trace_get_long(traced_pid, function + offsetof(zend_op_array, filename), &l))
                 {
                     return -1;
                 }
 
                 file_name = l;
 
-                if (0 > trace_get_strz(buf, buf_size, file_name + offsetof(zend_string, val)))
+                if (0 > trace_get_strz(traced_pid, buf, buf_size, file_name + offsetof(zend_string, val)))
                 {
                     return -1;
                 }
 
-                if (0 > trace_get_long(prev + offsetof(zend_execute_data, opline), &l))
+                if (0 > trace_get_long(traced_pid, prev + offsetof(zend_execute_data, opline), &l))
                 {
                     return -1;
                 }
@@ -427,7 +425,7 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
                     long opline = l;
                     uint32_t *lu = (uint32_t *) &l;
 
-                    if (0 > trace_get_long(opline + offsetof(struct _zend_op, lineno), &l))
+                    if (0 > trace_get_long(traced_pid, opline + offsetof(struct _zend_op, lineno), &l))
                     {
                         return -1;
                     }
@@ -437,7 +435,7 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
                 break;
             }
 
-            if (0 > trace_get_long(prev + offsetof(zend_execute_data, prev_execute_data), &l))
+            if (0 > trace_get_long(traced_pid, prev + offsetof(zend_execute_data, prev_execute_data), &l))
             {
                 return -1;
             }
@@ -460,7 +458,7 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
 
         fprintf(slowlog, "[0x%" PTR_FMT "lx] ", execute_data);
 
-        if (0 > trace_get_long(execute_data + offsetof(zend_execute_data, function_state.function), &l))
+        if (0 > trace_get_long(traced_pid, execute_data + offsetof(zend_execute_data, function_state.function), &l))
         {
             return -1;
         }
@@ -469,7 +467,7 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
 
         if (valid_ptr(function))
         {
-            if (0 > trace_get_strz(buf, buf_size, function + offsetof(zend_function, common.function_name)))
+            if (0 > trace_get_strz(traced_pid, buf, buf_size, function + offsetof(zend_function, common.function_name)))
             {
                 return -1;
             }
@@ -481,7 +479,7 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
             fprintf(slowlog, "???");
         }
 
-        if (0 > trace_get_long(execute_data + offsetof(zend_execute_data, op_array), &l))
+        if (0 > trace_get_long(traced_pid, execute_data + offsetof(zend_execute_data, op_array), &l))
         {
             return -1;
         }
@@ -492,13 +490,13 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
         {
             long op_array = l;
 
-            if (0 > trace_get_strz(buf, buf_size, op_array + offsetof(zend_op_array, filename)))
+            if (0 > trace_get_strz(traced_pid, buf, buf_size, op_array + offsetof(zend_op_array, filename)))
             {
                 return -1;
             }
         }
 
-        if (0 > trace_get_long(execute_data + offsetof(zend_execute_data, opline), &l))
+        if (0 > trace_get_long(traced_pid, execute_data + offsetof(zend_execute_data, opline), &l))
         {
             return -1;
         }
@@ -508,7 +506,7 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
             long opline = l;
             uint *lu = (uint *) &l;
 
-            if (0 > trace_get_long(opline + offsetof(struct _zend_op, lineno), &l))
+            if (0 > trace_get_long(traced_pid, opline + offsetof(struct _zend_op, lineno), &l))
             {
                 return -1;
             }
@@ -518,7 +516,7 @@ static int trace_dump(swWorker *worker, FILE *slowlog)
 
         fprintf(slowlog, " %s:%u\n", *buf ? buf : "unknown", lineno);
 
-        if (0 > trace_get_long(execute_data + offsetof(zend_execute_data, prev_execute_data), &l))
+        if (0 > trace_get_long(traced_pid, execute_data + offsetof(zend_execute_data, prev_execute_data), &l))
         {
             return -1;
         }
