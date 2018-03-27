@@ -249,11 +249,13 @@ void php_swoole_event_wait()
             coro_init(TSRMLS_C);
         }
 #endif
-
-        int ret = SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
-        if (ret < 0)
+        if (!swReactor_empty(SwooleG.main_reactor))
         {
-            swoole_php_fatal_error(E_ERROR, "reactor wait failed. Error: %s [%d]", strerror(errno), errno);
+            int ret = SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
+            if (ret < 0)
+            {
+                swoole_php_fatal_error(E_ERROR, "reactor wait failed. Error: %s [%d]", strerror(errno), errno);
+            }
         }
         if (SwooleG.timer.map)
         {

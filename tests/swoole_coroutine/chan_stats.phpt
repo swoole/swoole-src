@@ -15,7 +15,6 @@ go(function () use ($chan) {
     $chan->push("hello world");
     $chan->push([1, 3, 4, 4, 6]);
     assert($chan->stats()['queue_num'] == 4);
-    swoole_event_exit();
 });
 
 swoole_event::wait();
