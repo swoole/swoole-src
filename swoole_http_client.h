@@ -155,7 +155,7 @@ static sw_inline void http_client_create_token(int length, char *buf)
     assert(length < 1024);
     for (i = 0; i < length; i++)
     {
-        buf[i] = characters[rand() % sizeof(characters) - 1];
+        buf[i] = characters[rand() % (sizeof(characters) - 1)];
     }
     buf[length] = '\0';
 }
