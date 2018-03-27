@@ -286,7 +286,6 @@ static int swServer_start_check(swServer *serv)
             ls->protocol.package_max_length = SW_BUFFER_MIN_SIZE;
         }
     }
-    SwooleGS->session_round = 1;
     return SW_OK;
 }
 
