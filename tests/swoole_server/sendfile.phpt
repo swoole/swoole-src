@@ -30,7 +30,6 @@ makeTcpClient(TCP_SERVER_HOST, $port, function(\swoole_client $cli) {
     $r = $cli->send(opcode_encode("sendfile", [2, __FILE__]));
     assert($r !== false);
 }, function(\swoole_client $cli, $recv) {
-    // TODO 这里肯定有问题。。。数据收到的太慢了
     $len = unpack("N", substr($recv, 0, 4))[1];
     assert($len - 4 === strlen(substr($recv, 4)));
     swoole_event_exit();

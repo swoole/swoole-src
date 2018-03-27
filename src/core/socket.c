@@ -204,6 +204,31 @@ int swSocket_write_blocking(int __fd, void *__data, int __len)
     return written;
 }
 
+int swSocket_recv_blocking(int fd, void *__data, size_t __len, int flags)
+{
+    int ret;
+    size_t read_bytes = 0;
+
+    while (read_bytes != __len)
+    {
+        errno = 0;
+        ret = recv(fd, __data + read_bytes, __len - read_bytes, flags);
+        if (ret > 0)
+        {
+            read_bytes += ret;
+        }
+        else if (ret == 0 && errno == 0)
+        {
+            return read_bytes;
+        }
+        else if (ret <= 0 && errno != 0 && errno != EINTR)
+        {
+            return ret;
+        }
+    }
+    return read_bytes;
+}
+
 int swSocket_udp_sendto(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len)
 {
     struct sockaddr_in addr;
@@ -414,4 +439,53 @@ int swSocket_set_timeout(int sock, double timeout)
         return SW_ERR;
     }
     return SW_OK;
+}
+
+int swSocket_create_server(int type, char *address, int port, int backlog)
+{
+#if 0
+    int type;
+    char host[32];
+    int port = 0;
+
+    if (strncasecmp(address, "unix:/", 6) == 0)
+    {
+        address += 5;
+        type = SW_SOCK_UNIX_STREAM;
+    }
+    else
+    {
+        char *port_str = strchr(address, ':');
+        if (!port_str)
+        {
+            swoole_error_log(SW_LOG_ERROR, SW_ERROR_INVALID_PARAMS, "invalid address[%s]", address);
+            return SW_ERR;
+        }
+        type = SW_SOCK_TCP6;
+        memcpy(host, address, port_str - address);
+        host[port_str - address] = 0;
+        port = atoi(port_str + 1);
+        address = host;
+    }
+#endif
+
+    int fd = swSocket_create(type);
+    if (fd < 0)
+    {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "socket() failed. Error: %s[%d]", strerror(errno), errno);
+        return SW_ERR;
+    }
+
+    if (swSocket_bind(fd, type, address, &port) < 0)
+    {
+        return SW_ERR;
+    }
+
+    if (listen(fd, backlog) < 0)
+    {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "listen(%s:%d, %d) failed. Error: %s[%d]", address, port, backlog, strerror(errno), errno);
+        return SW_ERR;
+    }
+
+    return fd;
 }

@@ -2637,6 +2637,8 @@ function show_result($result, $tested, $tested_file, $extra = '', $temp_filename
         $result = "\033[31m[$result]\033[0m";
     } elseif($result == 'SKIP') {
         $result = "\033[33m[$result]\033[0m";
+    } elseif($result == 'BORK') {
+        $result = "\033[35m[$result]\033[0m";
     } else {
         $result = "\033[32m[$result]\033[0m";
     }

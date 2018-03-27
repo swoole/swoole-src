@@ -888,9 +888,10 @@ void swoole_redis_onClose(const redisAsyncContext *c, int status)
 {
     swRedisClient *redis = c->ev.data;
     redis->state = SWOOLE_REDIS_STATE_CLOSED;
+    redis->context = NULL;
 
 #if PHP_MAJOR_VERSION < 7
-        TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
     zval *zcallback = sw_zend_read_property(swoole_redis_class_entry_ptr, redis->object, ZEND_STRL("onClose"), 1 TSRMLS_CC);
@@ -912,7 +913,7 @@ void swoole_redis_onClose(const redisAsyncContext *c, int status)
             sw_zval_ptr_dtor(&retval);
         }
     }
-    redis->context = NULL;
+
     sw_zval_ptr_dtor(&redis->object);
 }
 

@@ -31,6 +31,8 @@ swoole_async_readfile(TEST_IMAGE, function ($filename, $content)
     });
     echo "SUCCESS\n";
 });
+
+swoole_event::wait();
 ?>
 --EXPECT--
 SUCCESS

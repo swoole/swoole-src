@@ -168,8 +168,8 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_bind, 0, 0, 2)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_sendMessage, 0, 0, 2)
+    ZEND_ARG_INFO(0, message)
     ZEND_ARG_INFO(0, dst_worker_id)
-    ZEND_ARG_INFO(0, data)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_addProcess, 0, 0, 1)
@@ -210,8 +210,18 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_defer, 0, 0, 1)
     ZEND_ARG_INFO(0, callback)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_cycle, 0, 0, 1)
+    ZEND_ARG_INFO(0, callback)
+    ZEND_ARG_INFO(0, before)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_del, 0, 0, 1)
     ZEND_ARG_INFO(0, fd)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_isset, 0, 0, 1)
+    ZEND_ARG_INFO(0, fd)
+    ZEND_ARG_INFO(0, events)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_timer_tick, 0, 0, 2)
@@ -264,13 +274,21 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_async_write, 0, 0, 2)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_async_dns_lookup, 0, 0, 2)
-    ZEND_ARG_INFO(0, domain_name)
-    ZEND_ARG_INFO(0, content)
+    ZEND_ARG_INFO(0, hostname)
+    ZEND_ARG_INFO(0, callback)
 ZEND_END_ARG_INFO()
 
 #ifdef SW_COROUTINE
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_async_dns_lookup_coro, 0, 0, 1)
     ZEND_ARG_INFO(0, domain_name)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_create, 0, 0, 1)
+    ZEND_ARG_INFO(0, func)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_exec, 0, 0, 1)
+    ZEND_ARG_INFO(0, command)
 ZEND_END_ARG_INFO()
 #endif
 
@@ -292,6 +310,12 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_strerror, 0, 0, 1)
     ZEND_ARG_INFO(0, errno)
+    ZEND_ARG_INFO(0, error_type)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_hashcode, 0, 0, 1)
+    ZEND_ARG_INFO(0, data)
+    ZEND_ARG_INFO(0, type)
 ZEND_END_ARG_INFO()
 
 #ifdef HAVE_PCRE
@@ -318,6 +342,7 @@ ZEND_END_ARG_INFO()
 #include "zend_exceptions.h"
 
 static PHP_FUNCTION(swoole_last_error);
+static PHP_FUNCTION(swoole_hashcode);
 
 const zend_function_entry swoole_functions[] =
 {
@@ -332,6 +357,9 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_event_wait, arginfo_swoole_void)
     PHP_FE(swoole_event_write, arginfo_swoole_event_write)
     PHP_FE(swoole_event_defer, arginfo_swoole_event_defer)
+    PHP_FE(swoole_event_cycle, arginfo_swoole_event_cycle)
+    PHP_FE(swoole_event_dispatch, arginfo_swoole_void)
+    PHP_FE(swoole_event_isset, arginfo_swoole_event_isset)
     /*------swoole_timer-----*/
     PHP_FE(swoole_timer_after, arginfo_swoole_timer_after)
     PHP_FE(swoole_timer_tick, arginfo_swoole_timer_tick)
@@ -346,6 +374,9 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_async_dns_lookup, arginfo_swoole_async_dns_lookup)
 #ifdef SW_COROUTINE
     PHP_FE(swoole_async_dns_lookup_coro, arginfo_swoole_async_dns_lookup_coro)
+    PHP_FE(swoole_coroutine_create, arginfo_swoole_coroutine_create)
+    PHP_FE(swoole_coroutine_exec, arginfo_swoole_coroutine_exec)
+    PHP_FALIAS(go, swoole_coroutine_create, arginfo_swoole_coroutine_create)
 #endif
     /*------other-----*/
     PHP_FE(swoole_client_select, arginfo_swoole_client_select)
@@ -355,6 +386,7 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_get_local_mac, arginfo_swoole_void)
     PHP_FE(swoole_strerror, arginfo_swoole_strerror)
     PHP_FE(swoole_errno, arginfo_swoole_void)
+    PHP_FE(swoole_hashcode, arginfo_swoole_hashcode)
     PHP_FE_END /* Must be the last line in swoole_functions[] */
 };
 
@@ -420,6 +452,7 @@ static const zend_function_entry swoole_connection_iterator_methods[] =
     PHP_ME(swoole_connection_iterator, key,         arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_connection_iterator, valid,       arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_connection_iterator, count,       arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_connection_iterator, __destruct,  arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_ME(swoole_connection_iterator, offsetExists,    arginfo_swoole_connection_iterator_offsetExists, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_connection_iterator, offsetGet,       arginfo_swoole_connection_iterator_offsetGet, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_connection_iterator, offsetSet,       arginfo_swoole_connection_iterator_offsetSet, ZEND_ACC_PUBLIC)
@@ -446,6 +479,7 @@ static const zend_function_entry swoole_event_methods[] =
     ZEND_FENTRY(write, ZEND_FN(swoole_event_write), arginfo_swoole_event_write, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(wait, ZEND_FN(swoole_event_wait), arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(defer, ZEND_FN(swoole_event_defer), arginfo_swoole_event_defer, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(cycle, ZEND_FN(swoole_event_cycle), arginfo_swoole_event_cycle, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 
@@ -521,6 +555,10 @@ STD_PHP_INI_ENTRY("swoole.display_errors", "On", PHP_INI_ALL, OnUpdateBool, disp
  */
 STD_PHP_INI_ENTRY("swoole.use_namespace", "On", PHP_INI_SYSTEM, OnUpdateBool, use_namespace, zend_swoole_globals, swoole_globals)
 /**
+ * use an short class name
+ */
+STD_PHP_INI_ENTRY("swoole.use_shortname", "On", PHP_INI_SYSTEM, OnUpdateBool, use_shortname, zend_swoole_globals, swoole_globals)
+/**
  * enable swoole_serialize
  */
 STD_PHP_INI_ENTRY("swoole.fast_serialize", "Off", PHP_INI_ALL, OnUpdateBool, fast_serialize, zend_swoole_globals, swoole_globals)
@@ -536,6 +574,7 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
     swoole_globals->socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
     swoole_globals->display_errors = 1;
     swoole_globals->use_namespace = 1;
+    swoole_globals->use_shortname = 1;
     swoole_globals->fast_serialize = 0;
 }
 
@@ -816,9 +855,111 @@ PHP_MINIT_FUNCTION(swoole)
 
     REGISTER_STRINGL_CONSTANT("SWOOLE_VERSION", PHP_SWOOLE_VERSION, sizeof(PHP_SWOOLE_VERSION) - 1, CONST_CS | CONST_PERSISTENT);
 
+    SWOOLE_DEFINE(ERROR_MALLOC_FAIL);
+    SWOOLE_DEFINE(ERROR_SYSTEM_CALL_FAIL);
+    SWOOLE_DEFINE(ERROR_PHP_FATAL_ERROR);
+    SWOOLE_DEFINE(ERROR_NAME_TOO_LONG);
+    SWOOLE_DEFINE(ERROR_INVALID_PARAMS);
+    SWOOLE_DEFINE(ERROR_FILE_NOT_EXIST);
+    SWOOLE_DEFINE(ERROR_FILE_TOO_LARGE);
+    SWOOLE_DEFINE(ERROR_FILE_EMPTY);
+    SWOOLE_DEFINE(ERROR_DNSLOOKUP_DUPLICATE_REQUEST);
+    SWOOLE_DEFINE(ERROR_DNSLOOKUP_RESOLVE_FAILED);
+    SWOOLE_DEFINE(ERROR_SESSION_CLOSED_BY_SERVER);
+    SWOOLE_DEFINE(ERROR_SESSION_CLOSED_BY_CLIENT);
+    SWOOLE_DEFINE(ERROR_SESSION_CLOSING);
+    SWOOLE_DEFINE(ERROR_SESSION_CLOSED);
+    SWOOLE_DEFINE(ERROR_SESSION_NOT_EXIST);
+    SWOOLE_DEFINE(ERROR_SESSION_INVALID_ID);
+    SWOOLE_DEFINE(ERROR_SESSION_DISCARD_TIMEOUT_DATA);
+    SWOOLE_DEFINE(ERROR_OUTPUT_BUFFER_OVERFLOW);
+    SWOOLE_DEFINE(ERROR_SSL_NOT_READY);
+    SWOOLE_DEFINE(ERROR_SSL_CANNOT_USE_SENFILE);
+    SWOOLE_DEFINE(ERROR_SSL_EMPTY_PEER_CERTIFICATE);
+    SWOOLE_DEFINE(ERROR_SSL_VEFIRY_FAILED);
+    SWOOLE_DEFINE(ERROR_SSL_BAD_CLIENT);
+    SWOOLE_DEFINE(ERROR_SSL_BAD_PROTOCOL);
+    SWOOLE_DEFINE(ERROR_PACKAGE_LENGTH_TOO_LARGE);
+    SWOOLE_DEFINE(ERROR_DATA_LENGTH_TOO_LARGE);
+    SWOOLE_DEFINE(ERROR_TASK_PACKAGE_TOO_BIG);
+    SWOOLE_DEFINE(ERROR_TASK_DISPATCH_FAIL);
+
+    /**
+     * AIO
+     */
+    SWOOLE_DEFINE(ERROR_AIO_BAD_REQUEST);
+
+    /**
+     * Client
+     */
+    SWOOLE_DEFINE(ERROR_CLIENT_NO_CONNECTION);
+
+    SWOOLE_DEFINE(ERROR_HTTP2_STREAM_ID_TOO_BIG);
+    SWOOLE_DEFINE(ERROR_HTTP2_STREAM_NO_HEADER);
+    SWOOLE_DEFINE(ERROR_SOCKS5_UNSUPPORT_VERSION);
+    SWOOLE_DEFINE(ERROR_SOCKS5_UNSUPPORT_METHOD);
+    SWOOLE_DEFINE(ERROR_SOCKS5_AUTH_FAILED);
+    SWOOLE_DEFINE(ERROR_SOCKS5_SERVER_ERROR);
+    SWOOLE_DEFINE(ERROR_HTTP_PROXY_HANDSHAKE_ERROR);
+    SWOOLE_DEFINE(ERROR_HTTP_INVALID_PROTOCOL);
+    SWOOLE_DEFINE(ERROR_WEBSOCKET_BAD_CLIENT);
+    SWOOLE_DEFINE(ERROR_WEBSOCKET_BAD_OPCODE);
+    SWOOLE_DEFINE(ERROR_WEBSOCKET_UNCONNECTED);
+    SWOOLE_DEFINE(ERROR_WEBSOCKET_HANDSHAKE_FAILED);
+    SWOOLE_DEFINE(ERROR_SERVER_MUST_CREATED_BEFORE_CLIENT);
+    SWOOLE_DEFINE(ERROR_SERVER_TOO_MANY_SOCKET);
+    SWOOLE_DEFINE(ERROR_SERVER_WORKER_TERMINATED);
+    SWOOLE_DEFINE(ERROR_SERVER_INVALID_LISTEN_PORT);
+    SWOOLE_DEFINE(ERROR_SERVER_TOO_MANY_LISTEN_PORT);
+    SWOOLE_DEFINE(ERROR_SERVER_PIPE_BUFFER_FULL);
+    SWOOLE_DEFINE(ERROR_SERVER_NO_IDLE_WORKER);
+    SWOOLE_DEFINE(ERROR_SERVER_ONLY_START_ONE);
+    SWOOLE_DEFINE(ERROR_SERVER_WORKER_EXIT_TIMEOUT);
+
+    /**
+     * trace log
+     */
+    SWOOLE_DEFINE(TRACE_SERVER);
+    SWOOLE_DEFINE(TRACE_CLIENT);
+    SWOOLE_DEFINE(TRACE_BUFFER);
+    SWOOLE_DEFINE(TRACE_CONN);
+    SWOOLE_DEFINE(TRACE_EVENT);
+    SWOOLE_DEFINE(TRACE_WORKER);
+    SWOOLE_DEFINE(TRACE_REACTOR);
+    SWOOLE_DEFINE(TRACE_PHP);
+    SWOOLE_DEFINE(TRACE_HTTP2);
+    SWOOLE_DEFINE(TRACE_EOF_PROTOCOL);
+    SWOOLE_DEFINE(TRACE_LENGTH_PROTOCOL);
+    SWOOLE_DEFINE(TRACE_CLOSE);
+    SWOOLE_DEFINE(TRACE_HTTP_CLIENT);
+    SWOOLE_DEFINE(TRACE_COROUTINE);
+    SWOOLE_DEFINE(TRACE_REDIS_CLIENT);
+    SWOOLE_DEFINE(TRACE_MYSQL_CLIENT);
+    SWOOLE_DEFINE(TRACE_AIO);
+    REGISTER_LONG_CONSTANT("SWOOLE_TRACE_ALL", 0xffffffff, CONST_CS | CONST_PERSISTENT);
+
+    /**
+     * log level
+     */
+    SWOOLE_DEFINE(LOG_DEBUG);
+    SWOOLE_DEFINE(LOG_TRACE);
+    SWOOLE_DEFINE(LOG_INFO);
+    SWOOLE_DEFINE(LOG_NOTICE);
+    SWOOLE_DEFINE(LOG_WARNING);
+    SWOOLE_DEFINE(LOG_ERROR);
+
     SWOOLE_INIT_CLASS_ENTRY(swoole_server_ce, "swoole_server", "Swoole\\Server", swoole_server_methods);
     swoole_server_class_entry_ptr = zend_register_internal_class(&swoole_server_ce TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_server, "Swoole\\Server");
+
+    if (!SWOOLE_G(use_shortname))
+    {
+        sw_zend_hash_del(CG(function_table), ZEND_STRS("go"));
+    }
+    else
+    {
+        sw_zend_register_class_alias("Co\\Server", swoole_server_class_entry_ptr);
+    }
 
     zend_declare_property_null(swoole_server_class_entry_ptr, ZEND_STRL("onConnect"), ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_server_class_entry_ptr, ZEND_STRL("onReceive"), ZEND_ACC_PUBLIC TSRMLS_CC);
@@ -847,7 +988,7 @@ PHP_MINIT_FUNCTION(swoole)
     zend_declare_property_null(swoole_server_class_entry_ptr, ZEND_STRL("ports"), ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(swoole_server_class_entry_ptr, ZEND_STRL("master_pid"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(swoole_server_class_entry_ptr, ZEND_STRL("manager_pid"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_long(swoole_server_class_entry_ptr, ZEND_STRL("worker_id"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_server_class_entry_ptr, ZEND_STRL("worker_id"), -1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_bool(swoole_server_class_entry_ptr, ZEND_STRL("taskworker"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(swoole_server_class_entry_ptr, ZEND_STRL("worker_pid"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
 
@@ -877,12 +1018,21 @@ PHP_MINIT_FUNCTION(swoole)
 
     //swoole init
     swoole_init();
+
+#ifdef SW_COROUTINE
+    memset(&COROG, 0, sizeof(COROG));
+    swReactorCheckPoint = NULL;
+#endif
+
     swoole_server_port_init(module_number TSRMLS_CC);
     swoole_client_init(module_number TSRMLS_CC);
 #ifdef SW_COROUTINE
     swoole_client_coro_init(module_number TSRMLS_CC);
 #ifdef SW_USE_REDIS
     swoole_redis_coro_init(module_number TSRMLS_CC);
+#endif
+#ifdef SW_USE_POSTGRESQL
+    swoole_postgresql_coro_init(module_number TSRMLS_CC);
 #endif
     swoole_mysql_coro_init(module_number TSRMLS_CC);
     swoole_http_client_coro_init(module_number TSRMLS_CC);
@@ -900,8 +1050,15 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_mysql_init(module_number TSRMLS_CC);
     swoole_mmap_init(module_number TSRMLS_CC);
     swoole_channel_init(module_number TSRMLS_CC);
+#if PHP_MAJOR_VERSION >= 7
+    swoole_channel_coro_init(module_number TSRMLS_CC);
+#endif
+    swoole_ringqueue_init(module_number TSRMLS_CC);
 #ifdef SW_USE_HTTP2
     swoole_http2_client_init(module_number TSRMLS_CC);
+#ifdef SW_COROUTINE
+    swoole_http2_client_coro_init(module_number TSRMLS_CC);
+#endif
 #endif
 
 #if PHP_MAJOR_VERSION >= 7
@@ -967,6 +1124,9 @@ PHP_MINFO_FUNCTION(swoole)
     php_info_print_table_row(2, "Version", PHP_SWOOLE_VERSION);
     php_info_print_table_row(2, "Author", "tianfeng.han[email: mikan.tenny@gmail.com]");
 
+#ifdef SW_COROUTINE
+    php_info_print_table_row(2, "coroutine", "enabled");
+#endif
 #ifdef HAVE_EPOLL
     php_info_print_table_row(2, "epoll", "enabled");
 #endif
@@ -996,6 +1156,9 @@ PHP_MINFO_FUNCTION(swoole)
 #endif
 #ifdef SW_ASYNC_MYSQL
     php_info_print_table_row(2, "async mysql client", "enabled");
+#endif
+#ifdef SW_USE_POSTGRESQL
+    php_info_print_table_row(2, "async postgresql", "enabled");
 #endif
 #ifdef SW_USE_REDIS
     php_info_print_table_row(2, "async redis client", "enabled");
@@ -1045,6 +1208,9 @@ PHP_MINFO_FUNCTION(swoole)
 #endif
 #ifdef SW_USE_HUGEPAGE
     php_info_print_table_row(2, "hugepage", "enabled");
+#endif
+#ifdef SW_DEBUG
+    php_info_print_table_row(2, "debug", "enabled");
 #endif
     php_info_print_table_end();
 
@@ -1127,6 +1293,52 @@ PHP_FUNCTION(swoole_version)
     SW_RETURN_STRING(swoole_version, 1);
 }
 
+static uint32_t hashkit_one_at_a_time(const char *key, size_t key_length)
+{
+    const char *ptr = key;
+    uint32_t value = 0;
+
+    while (key_length--)
+    {
+        uint32_t val = (uint32_t) *ptr++;
+        value += val;
+        value += (value << 10);
+        value ^= (value >> 6);
+    }
+    value += (value << 3);
+    value ^= (value >> 11);
+    value += (value << 15);
+
+    return value;
+}
+
+static PHP_FUNCTION(swoole_hashcode)
+{
+    char *data;
+    zend_size_t l_data;
+    long type = 0;
+
+#ifdef FAST_ZPP
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_STRING(data, l_data)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(type)
+    ZEND_PARSE_PARAMETERS_END();
+#else
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|l", &data, &l_data, &type) == FAILURE)
+    {
+        return;
+    }
+#endif
+    switch(type)
+    {
+    case 1:
+        RETURN_LONG(hashkit_one_at_a_time(data, l_data));
+    default:
+        RETURN_LONG(zend_hash_func(data, l_data));
+    }
+}
+
 PHP_FUNCTION(swoole_unsupport_serialize)
 {
     zend_throw_exception_ex(swoole_exception_class_entry_ptr, 0 TSRMLS_CC, "cannot serialize or unserialize.");
@@ -1152,12 +1364,24 @@ PHP_FUNCTION(swoole_strerror)
 {
     long swoole_errno = 0;
     char error_msg[256] = {0};
+    long error_type = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &swoole_errno) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|l", &swoole_errno, &error_type) == FAILURE)
     {
         return;
     }
-    snprintf(error_msg, sizeof(error_msg) - 1, "%s", strerror(swoole_errno));
+    if (error_type == 1)
+    {
+        snprintf(error_msg, sizeof(error_msg) - 1, "%s", gai_strerror(swoole_errno));
+    }
+    else if (error_type == 2)
+    {
+        snprintf(error_msg, sizeof(error_msg) - 1, "%s", hstrerror(swoole_errno));
+    }
+    else
+    {
+        snprintf(error_msg, sizeof(error_msg) - 1, "%s", strerror(swoole_errno));
+    }
     SW_RETURN_STRING(error_msg, 1);
 }
 

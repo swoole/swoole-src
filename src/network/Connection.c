@@ -81,6 +81,9 @@ int swConnection_onSendfile(swConnection *conn, swBuffer_trunk *chunk)
         case SW_CLOSE:
             conn->close_wait = 1;
             return SW_ERR;
+        case SW_WAIT:
+            conn->send_wait = 1;
+            return SW_ERR;
         default:
             break;
         }
@@ -187,13 +190,24 @@ char* swConnection_get_ip(swConnection *conn)
     {
         return inet_ntoa(conn->info.addr.inet_v4.sin_addr);
     }
-    if (inet_ntop(AF_INET6, &conn->info.addr.inet_v6.sin6_addr, tmp_address, sizeof(tmp_address)) == NULL)
+    else if (conn->socket_type == SW_SOCK_TCP6)
     {
-        return NULL;
+        if (inet_ntop(AF_INET6, &conn->info.addr.inet_v6.sin6_addr, tmp_address, sizeof(tmp_address)) == NULL)
+        {
+            return "unknown";
+        }
+        else
+        {
+            return tmp_address;
+        }
+    }
+    else if (conn->socket_type == SW_SOCK_UNIX_STREAM)
+    {
+        return conn->info.addr.un.sun_path;
     }
     else
     {
-        return tmp_address;
+        return "unknown";
     }
 }
 

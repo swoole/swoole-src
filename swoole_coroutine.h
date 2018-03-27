@@ -25,6 +25,8 @@
 #include <setjmp.h>
 
 #define DEFAULT_MAX_CORO_NUM 3000
+#define DEFAULT_STACK_SIZE   8192
+#define MAX_CORO_NUM_LIMIT   0x80000
 
 #define CORO_END 0
 #define CORO_YIELD 1
@@ -79,6 +81,7 @@ typedef struct _coro_global
 {
     uint32_t coro_num;
     uint32_t max_coro_num;
+    uint32_t stack_size;
     zend_vm_stack origin_vm_stack;
 #if PHP_MAJOR_VERSION >= 7
     zval *origin_vm_stack_top;
@@ -111,6 +114,7 @@ typedef struct _swTimer_coro_callback
 } swTimer_coro_callback;
 
 extern coro_global COROG;
+#define get_current_cid() COROG.current_coro->cid
 extern jmp_buf *swReactorCheckPoint;
 
 int sw_coro_resume_parent(php_context *sw_current_context, zval *retval, zval *coro_retval);

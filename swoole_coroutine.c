@@ -29,6 +29,25 @@ coro_global COROG;
 static int alloc_cidmap();
 static void free_cidmap(int cid);
 
+#if PHP_MAJOR_VERSION >= 7 && PHP_MINOR_VERSION >= 2
+static inline void sw_vm_stack_init(void)
+{
+    uint32_t size = COROG.stack_size;
+    zend_vm_stack page = (zend_vm_stack) emalloc(size);
+
+    page->top = ZEND_VM_STACK_ELEMENTS(page);
+    page->end = (zval*) ((char*) page + size);
+    page->prev = NULL;
+
+    EG(vm_stack) = page;
+    EG(vm_stack)->top++;
+    EG(vm_stack_top) = EG(vm_stack)->top;
+    EG(vm_stack_end) = EG(vm_stack)->end;
+}
+#else
+#define sw_vm_stack_init zend_vm_stack_init
+#endif
+
 int coro_init(TSRMLS_D)
 {
 #if PHP_MAJOR_VERSION < 7
@@ -44,8 +63,13 @@ int coro_init(TSRMLS_D)
     {
         COROG.max_coro_num = DEFAULT_MAX_CORO_NUM;
     }
+    if (COROG.stack_size <= 0)
+    {
+        COROG.stack_size = DEFAULT_STACK_SIZE;
+    }
     COROG.require = 0;
     swReactorCheckPoint = emalloc(sizeof(jmp_buf));
+    SwooleWG.coro_timeout_list = swLinkedList_new(1, NULL);
     return 0;
 }
 
@@ -53,7 +77,7 @@ void coro_check(TSRMLS_D)
 {
 	if (!COROG.require)
 	{
-        swoole_php_fatal_error(E_ERROR, "coroutine client should use under swoole server in onRequet, onReceive, onConnect callback.");
+        swoole_php_fatal_error(E_ERROR, "must be called in the coroutine.");
 	}
 }
 
@@ -226,7 +250,9 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     zend_op_array *op_array = (zend_op_array *) fci_cache->function_handler;
     zend_object *object;
     int i;
-    zend_vm_stack_init();
+    sw_vm_stack_init();
+
+    swTraceLog(SW_TRACE_COROUTINE, "Create coroutine id %d.", cid);
 
     COROG.current_coro = (coro_task *) EG(vm_stack_top);
     zend_execute_data *call = (zend_execute_data *) (EG(vm_stack_top));
@@ -264,7 +290,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     {
         zend_execute_ex(call);
         coro_close(TSRMLS_C);
-        swTrace("Create the %d coro with stack. heap size: %zu\n", COROG.coro_num, zend_memory_usage(0));
+        swTraceLog(SW_TRACE_COROUTINE, "[CORO_END] Create the %d coro with stack. heap size: %zu", COROG.coro_num, zend_memory_usage(0));
         coro_status = CORO_END;
     }
     else
@@ -332,7 +358,7 @@ sw_inline void coro_close(TSRMLS_D)
 #else
 sw_inline void coro_close(TSRMLS_D)
 {
-    swTrace("Close coroutine id %d\n", COROG.current_coro->cid);
+    swTraceLog(SW_TRACE_COROUTINE, "Close coroutine id %d", COROG.current_coro->cid);
     if (COROG.current_coro->function)
     {
         sw_zval_free(COROG.current_coro->function);
@@ -345,7 +371,8 @@ sw_inline void coro_close(TSRMLS_D)
     EG(vm_stack_top) = COROG.origin_vm_stack_top;
     EG(vm_stack_end) = COROG.origin_vm_stack_end;
     --COROG.coro_num;
-    swTrace("closing coro and %d remained. usage size: %zu. malloc size: %zu", COROG.coro_num, zend_memory_usage(0), zend_memory_usage(1));
+    COROG.current_coro = NULL;
+    swTraceLog(SW_TRACE_COROUTINE, "closing coro and %d remained. usage size: %zu. malloc size: %zu", COROG.coro_num, zend_memory_usage(0), zend_memory_usage(1));
 }
 #endif
 
@@ -570,14 +597,14 @@ sw_inline void coro_handle_timeout()
 }
 
 /* allocate cid for coroutine */
-typedef struct cidmap 
+typedef struct cidmap
 {
     uint32_t nr_free;
-    char page[4096];
+    char page[65536];
 } cidmap_t;
 
-/* 1 <= cid <= 32768 */
-static cidmap_t cidmap = { 0x8000, {0} };
+/* 1 <= cid <= 524288 */
+static cidmap_t cidmap = { MAX_CORO_NUM_LIMIT, {0} };
 
 static int last_cid = -1;
 
@@ -609,7 +636,7 @@ static int find_next_zero_bit(void *addr, int cid)
     int mark = cid;
 
     cid++;
-    cid &= 0x7fff;
+    cid &= 0x7ffff;
     while (cid != mark)
     {
         mask = 1U << (cid & 0x1f);

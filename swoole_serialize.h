@@ -66,7 +66,6 @@ typedef struct _swPoolstr
 
 #pragma pack ()
 
-struct _swSeriaG swSeriaG;
 
 static void *unser_start = 0;
 static swPoolstr mini_filter[FILTER_SIZE];
@@ -107,6 +106,9 @@ static swPoolstr *bigger_filter = NULL;
 #define KEY_TYPE_INDEX                0
 
 #define SW_FAST_PACK                  1
+
+#define UNSERIALIZE_OBJECT_TO_ARRAY          1
+#define UNSERIALIZE_OBJECT_TO_STDCLASS       2
 
 #endif
 

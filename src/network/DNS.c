@@ -369,13 +369,23 @@ int swDNSResolver_request(char *domain, void (*callback)(char *, swDNSResolver_r
             sw_free(request);
             return SW_ERR;
         }
-        if (resolver_socket->connect(resolver_socket, SwooleG.dns_server_v4, SW_DNS_SERVER_PORT, 1, 0) < 0)
+        char *_port;
+        int dns_server_port = SW_DNS_SERVER_PORT;
+        char dns_server_host[32];
+        strcpy(dns_server_host, SwooleG.dns_server_v4);
+        if ((_port = strchr(SwooleG.dns_server_v4, ':')))
+        {
+            dns_server_port = atoi(_port + 1);
+            dns_server_host[_port - SwooleG.dns_server_v4] = '\0';
+        }
+        if (resolver_socket->connect(resolver_socket, dns_server_host, dns_server_port, 1, 0) < 0)
         {
             do_close: resolver_socket->close(resolver_socket);
             swClient_free(resolver_socket);
             sw_free(resolver_socket);
             sw_free(request->domain);
             sw_free(request);
+            resolver_socket = NULL;
             return SW_ERR;
         }
         SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_DNS_RESOLVER, swDNSResolver_onReceive);

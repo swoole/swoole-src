@@ -18,55 +18,20 @@
 #include "swoole_http.h"
 
 #ifdef SW_USE_HTTP2
-#include "http.h"
-#include "http2.h"
-
-#ifdef SW_HAVE_ZLIB
-#include <zlib.h>
-extern voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size);
-extern void php_zlib_free(voidpf opaque, voidpf address);
-extern int http_response_uncompress(z_stream *stream, swString *buffer, char *body, int length);
-#endif
-
-extern zend_class_entry *swoole_client_class_entry_ptr;
+#include "swoole_http_v2_client.h"
 
 static zend_class_entry swoole_http2_client_ce;
 static zend_class_entry *swoole_http2_client_class_entry_ptr;
 
 static zend_class_entry swoole_http2_response_ce;
-static zend_class_entry *swoole_http2_response_class_entry_ptr;
+zend_class_entry *swoole_http2_response_class_entry_ptr;
+
+swString *cookie_buffer = NULL;
 
 enum
 {
-    HTTP2_CLIENT_PROPERTY_INDEX = 2,
+    HTTP2_CLIENT_PROPERTY_INDEX = 3,
 };
-
-typedef struct
-{
-    uint8_t ssl;
-    uint8_t connecting;
-    uint8_t ready;
-    uint8_t send_setting;
-
-    uint32_t stream_id;
-
-    uint32_t window_size;
-    uint32_t max_concurrent_streams;
-    uint32_t max_frame_size;
-    uint32_t max_header_list_size;
-
-    char *host;
-    zend_size_t host_len;
-    int port;
-
-    nghttp2_hd_inflater *inflater;
-    zval *object;
-
-    swLinkedList *requests;
-    swLinkedList *stream_requests;
-    swHashMap *streams;
-
-} http2_client_property;
 
 typedef struct
 {
@@ -81,24 +46,6 @@ typedef struct
     zval _data;
 #endif
 } http2_client_request;
-
-typedef struct
-{
-    uint32_t stream_id;
-    uint8_t gzip;
-    uint8_t type;
-    zval *response_object;
-    zval *callback;
-    swString *buffer;
-#ifdef SW_HAVE_ZLIB
-    z_stream gzip_stream;
-    swString *gzip_buffer;
-#endif
-#if PHP_MAJOR_VERSION >= 7
-    zval _callback;
-    zval _response_object;
-#endif
-} http2_client_stream;
 
 static PHP_METHOD(swoole_http2_client, __construct);
 static PHP_METHOD(swoole_http2_client, __destruct);
@@ -120,7 +67,6 @@ static void http2_client_send_stream_request(zval *zobject, http2_client_request
 static void http2_client_send_all_requests(zval *zobject TSRMLS_DC);
 static void http2_client_request_free(void *ptr);
 static void http2_client_stream_free(void *ptr);
-static void http2_client_send_setting(swClient *cli);
 
 static const zend_function_entry swoole_http2_client_methods[] =
 {
@@ -153,9 +99,15 @@ void swoole_http2_client_init(int module_number TSRMLS_DC)
     swoole_http2_response_class_entry_ptr = zend_register_internal_class(&swoole_http2_response_ce TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_http2_response, "Swoole\\Http2\\Response");
 
-    zend_declare_property_null(swoole_http2_response_class_entry_ptr, SW_STRL("statusCode")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_http2_response_class_entry_ptr, SW_STRL("errCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_http2_response_class_entry_ptr, SW_STRL("statusCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_http2_response_class_entry_ptr, SW_STRL("body")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_http2_response_class_entry_ptr, SW_STRL("streamId")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+
+    if (cookie_buffer == NULL)
+    {
+        cookie_buffer = swString_new(8192);
+    }
 }
 
 static PHP_METHOD(swoole_http2_client, __construct)
@@ -172,7 +124,7 @@ static PHP_METHOD(swoole_http2_client, __construct)
 
     if (host_len <= 0)
     {
-        swoole_php_fatal_error(E_ERROR, "host is empty.");
+        zend_throw_exception(swoole_exception_class_entry_ptr, "host is empty.", SW_ERROR_INVALID_PARAMS TSRMLS_CC);
         RETURN_FALSE;
     }
 
@@ -230,16 +182,6 @@ static PHP_METHOD(swoole_http2_client, setCookies)
     zend_update_property(swoole_http2_client_class_entry_ptr, getThis(), ZEND_STRL("cookies"), cookies TSRMLS_CC);
 }
 
-static sw_inline void http2_add_header(nghttp2_nv *headers, char *k, int kl, char *v, int vl)
-{
-    headers->name = (uchar*) k;
-    headers->namelen = kl;
-    headers->value = (uchar*) v;
-    headers->valuelen = vl;
-
-    swTrace("k=%s, len=%d, v=%s, len=%d", k, kl, v, vl);
-}
-
 static int http2_client_build_header(zval *zobject, http2_client_request *req, char *buffer, int buffer_len TSRMLS_DC)
 {
     char *date_str = NULL;
@@ -291,7 +233,7 @@ static int http2_client_build_header(zval *zobject, http2_client_request *req, c
             }
             if (strncasecmp("Host", key, keylen) == 0)
             {
-                http2_add_header(&nv[3], ZEND_STRL(":authority"), Z_STRVAL_P(value), Z_STRLEN_P(value));
+                http2_add_header(&nv[HTTP2_CLIENT_HOST_HEADER_INDEX], ZEND_STRL(":authority"), Z_STRVAL_P(value), Z_STRLEN_P(value));
                 find_host = 1;
             }
             else
@@ -304,25 +246,14 @@ static int http2_client_build_header(zval *zobject, http2_client_request *req, c
     }
     if (!find_host)
     {
-        http2_add_header(&nv[3], ZEND_STRL(":authority"), hcc->host, hcc->host_len);
+        http2_add_header(&nv[HTTP2_CLIENT_HOST_HEADER_INDEX], ZEND_STRL(":authority"), hcc->host, hcc->host_len);
     }
 
     zval *zcookie = sw_zend_read_property(swoole_http2_client_class_entry_ptr, zobject, ZEND_STRL("cookies"), 1 TSRMLS_CC);
     //http cookies
     if (zcookie && !ZVAL_IS_NULL(zcookie))
     {
-        zend_size_t len;
-        smart_str formstr_s = { 0 };
-        char *formstr = sw_http_build_query(zcookie, &len, &formstr_s TSRMLS_CC);
-        if (formstr == NULL)
-        {
-            swoole_php_error(E_WARNING, "http_build_query failed.");
-        }
-        else
-        {
-            http2_add_header(&nv[3], ZEND_STRL("cookie"), formstr, len);
-            smart_str_free(&formstr_s);
-        }
+        http2_add_cookie(nv, &index, zcookie TSRMLS_CC);
     }
 
     ssize_t rv;
@@ -373,21 +304,43 @@ static int http2_client_build_header(zval *zobject, http2_client_request *req, c
     return rv;
 }
 
-#ifdef SW_HAVE_ZLIB
-/**
- * init zlib stream
- */
-static void http2_client_init_gzip_stream(http2_client_stream *stream)
+void http2_add_cookie(nghttp2_nv *nv, int *index, zval *cookies TSRMLS_DC)
 {
-    stream->gzip = 1;
-    memset(&stream->gzip_stream, 0, sizeof(stream->gzip_stream));
-    stream->gzip_buffer = swString_new(8192);
-    stream->gzip_stream.zalloc = php_zlib_alloc;
-    stream->gzip_stream.zfree = php_zlib_free;
-}
-#endif
+    char *key;
+    uint32_t keylen;
+    int keytype;
+    zval *value = NULL;
+    char *encoded_value;
+    uint32_t offest = 0;
+    swString_clear(cookie_buffer);
 
-static int http2_client_parse_header(http2_client_property *hcc, http2_client_stream *stream , int flags, char *in, size_t inlen)
+    SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(cookies), key, keylen, keytype, value)
+        if (HASH_KEY_IS_STRING != keytype)
+        {
+            continue;
+        }
+        convert_to_string(value);
+        if (Z_STRLEN_P(value) == 0)
+        {
+            continue;
+        }
+
+        swString_append_ptr(cookie_buffer, key, keylen);
+        swString_append_ptr(cookie_buffer, "=", 1);
+
+        int encoded_value_len;
+        encoded_value = sw_php_url_encode(Z_STRVAL_P(value), Z_STRLEN_P(value), &encoded_value_len);
+        if (encoded_value)
+        {
+            swString_append_ptr(cookie_buffer, encoded_value, encoded_value_len);
+            efree(encoded_value);
+            http2_add_header(&nv[(*index)++], ZEND_STRL("cookie"), cookie_buffer->str + offest, keylen + 1 + encoded_value_len);
+            offest += keylen + 1 + encoded_value_len;
+        }
+    SW_HASHTABLE_FOREACH_END();
+}
+
+int http2_client_parse_header(http2_client_property *hcc, http2_client_stream *stream , int flags, char *in, size_t inlen)
 {
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
@@ -1256,7 +1209,6 @@ static PHP_METHOD(swoole_http2_client, onConnect)
     cli->open_length_check = 1;
     cli->protocol.get_package_length = swHttp2_get_frame_length;
     cli->protocol.package_length_size = SW_HTTP2_FRAME_HEADER_SIZE;
-    cli->protocol.onPackage = php_swoole_client_onPackage;
     http2_client_property *hcc = swoole_get_property(getThis(), HTTP2_CLIENT_PROPERTY_INDEX);
     hcc->ready = 1;
     hcc->stream_id = 1;
@@ -1266,48 +1218,6 @@ static PHP_METHOD(swoole_http2_client, onConnect)
         http2_client_send_setting(cli);
     }
     http2_client_send_all_requests(getThis() TSRMLS_CC);
-}
-
-static inline void http2_client_send_setting(swClient *cli)
-{
-    uint16_t id = 0;
-    uint32_t value = 0;
-
-    char frame[SW_HTTP2_FRAME_HEADER_SIZE + 18];
-    memset(frame, 0, sizeof(frame));
-    swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_SETTINGS, 18, 0, 0);
-
-    char *p = frame + SW_HTTP2_FRAME_HEADER_SIZE;
-    /**
-     * MAX_CONCURRENT_STREAMS
-     */
-    id = htons(SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS);
-    memcpy(p, &id, sizeof(id));
-    p += 2;
-    value = htonl(SW_HTTP2_MAX_CONCURRENT_STREAMS);
-    memcpy(p, &value, sizeof(value));
-    p += 4;
-    /**
-     * MAX_FRAME_SIZE
-     */
-    id = htons(SW_HTTP2_SETTINGS_MAX_FRAME_SIZE);
-    memcpy(p, &id, sizeof(id));
-    p += 2;
-    value = htonl(SW_HTTP2_MAX_FRAME_SIZE);
-    memcpy(p, &value, sizeof(value));
-    p += 4;
-    /**
-     * INIT_WINDOW_SIZE
-     */
-    id = htons(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE);
-    memcpy(p, &id, sizeof(id));
-    p += 2;
-    value = htonl(65535);
-    memcpy(p, &value, sizeof(value));
-    p += 4;
-
-    swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN"]\t[length=%d]", swHttp2_get_type(SW_HTTP2_TYPE_SETTINGS), 18);
-    cli->send(cli, frame, SW_HTTP2_FRAME_HEADER_SIZE + 18, 0);
 }
 
 static PHP_METHOD(swoole_http2_client, onError)

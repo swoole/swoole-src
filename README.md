@@ -7,11 +7,12 @@ Swoole
 
 Swoole is an event-driven asynchronous & concurrent networking communication framework with high performance written only in C for PHP.
 
-* __Document__: https://github.com/swoole/swoole-docs
+* __Document__: <https://www.swoole.co.uk/docs/>
 * __API__: <https://rawgit.com/tchiotludo/swoole-ide-helper/english/docs/index.html>
 * __IDE Helper__: <https://github.com/swoole/ide-helper>
 * __中文文档__: <http://wiki.swoole.com/>
-* __IRC__:  <https://gitter.im/swoole/swoole-src>
+* __Twitter__: <https://twitter.com/php_swoole>
+* __Slack Group__: <https://swoole.slack.com/>
 
 Event-based
 ------
@@ -64,6 +65,96 @@ $server->on('Request', function($request, $response) {
 
 $server->start();
 ```
+
+Short API Name
+-----
+#### start a new coroutine
+```php
+go(function () {
+    co::sleep(0.5);
+    echo "hello";
+});
+go("test");
+go([$object, "method"]);
+```
+
+#### Channel
+```php
+$chan = new chan(128);
+$chan->push(1234);
+$chan->push(1234.56);
+$chan->push("hello world");
+$chan->push(["hello world"]);
+$chan->push(new stdclass);
+$chan->push(fopen("test.txt", "r+"));
+while($chan->pop());
+```
+
+#### MySQL Client
+```php
+go(function () {
+    $db = new Co\MySQL();
+    $server = array(
+        'host' => '127.0.0.1',
+        'user' => 'root',
+        'password' => 'root',
+        'database' => 'test',
+    );
+
+    $db->connect($server);
+
+    $result = $db->query('SELECT * FROM userinfo WHERE id = 3');
+    var_dump($result);
+});
+```
+
+#### Redis Client
+```php
+go(function () {
+    $redis = new Co\Redis;
+    $res = $redis->connect('127.0.0.1', 6379);
+    $ret = $redis->set('key', 'value');
+    var_dump($redis->get('key'));
+});
+```
+
+#### Http Client
+```php
+go(function () {
+    $http = new Co\Http\Client("www.google.com", 443, true);
+    $http->setHeaders(function () {
+        
+    });
+    $ret = $http->get('/');
+    var_dump($http->body);
+});
+```
+
+#### Http2 Client
+```php
+go(function () {
+    $http = new Co\Http2\Client("www.google.com", 443, true);
+    $req = new co\Http2\Request;
+    $req->path = "/index.html";
+    $req->headers = [
+        'host' => "www.google.com",
+        "user-agent" => 'Chrome/49.0.2587.3',
+        'accept' => 'text/html,application/xhtml+xml,application/xml',
+        'accept-encoding' => 'gzip',
+    ];
+    $req->cookies = ['name' => 'rango', 'email' => 'rango@swoole.com'];
+    $ret = $http->send($req);
+    var_dump($http->recv());
+});
+```
+
+#### Other
+```php
+co::sleep(100);
+co::fread($fp);
+co::gethostbyname('www.google.com');
+```
+
 
 Concurrent
 ------

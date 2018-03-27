@@ -22,7 +22,7 @@ function test($type, $test) {
     echo $test || $unserialized->b == 2 ? 'OK' : 'ERROR', PHP_EOL;
 }
 
-function __autoload($classname) {
+spl_autoload_register(function ($classname) {
     class Obj {
         var $a;
         var $b;
@@ -32,7 +32,7 @@ function __autoload($classname) {
             $this->b = $b;
         }
     }
-}
+});
 
 test('autoload', false);
 ?>

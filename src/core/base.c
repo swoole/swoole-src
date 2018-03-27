@@ -17,6 +17,7 @@
 #include "swoole.h"
 #include "atomic.h"
 
+#include <stdarg.h>
 #include <sys/stat.h>
 #include <sys/resource.h>
 #include <sys/ioctl.h>
@@ -46,7 +47,12 @@ void swoole_init(void)
     SwooleG.pagesize = getpagesize();
     SwooleG.pid = getpid();
     SwooleG.socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
+
+#ifdef SW_DEBUG
+    SwooleG.log_level = 0;
+#else
     SwooleG.log_level = SW_LOG_INFO;
+#endif
 
     //get system uname
     uname(&SwooleG.uname);
@@ -334,8 +340,16 @@ int swoole_sync_writefile(int fd, void *data, int len)
             count -= n;
             written += n;
         }
+        else if (n == 0)
+        {
+            break;
+        }
         else
         {
+            if (errno == EINTR || errno == EAGAIN)
+            {
+                continue;
+            }
             swWarn("write() failed. Error: %s[%d]", strerror(errno), errno);
             break;
         }
@@ -674,6 +688,10 @@ int swoole_sync_readfile(int fd, void *buf, int len)
         }
         else
         {
+            if (errno == EINTR || errno == EAGAIN)
+            {
+                continue;
+            }
             swWarn("read() failed. Error: %s[%d]", strerror(errno), errno);
             break;
         }
@@ -749,67 +767,74 @@ void swoole_ioctl_set_block(int sock, int nonblock)
 void swoole_fcntl_set_option(int sock, int nonblock, int cloexec)
 {
     int opts, ret;
-    do
-    {
-        opts = fcntl(sock, F_GETFL);
-    }
-    while (opts < 0 && errno == EINTR);
 
-    if (opts < 0)
+    if (nonblock >= 0)
     {
-        swSysError("fcntl(%d, GETFL) failed.", sock);
-    }
+        do
+        {
+            opts = fcntl(sock, F_GETFL);
+        }
+        while (opts < 0 && errno == EINTR);
 
-    if (nonblock)
-    {
-        opts = opts | O_NONBLOCK;
-    }
-    else
-    {
-        opts = opts & ~O_NONBLOCK;
-    }
+        if (opts < 0)
+        {
+            swSysError("fcntl(%d, GETFL) failed.", sock);
+        }
 
-    do
-    {
-        ret = fcntl(sock, F_SETFL, opts);
-    }
-    while (ret < 0 && errno == EINTR);
+        if (nonblock)
+        {
+            opts = opts | O_NONBLOCK;
+        }
+        else
+        {
+            opts = opts & ~O_NONBLOCK;
+        }
 
-    if (ret < 0)
-    {
-        swSysError("fcntl(%d, SETFL, opts) failed.", sock);
+        do
+        {
+            ret = fcntl(sock, F_SETFL, opts);
+        }
+        while (ret < 0 && errno == EINTR);
+
+        if (ret < 0)
+        {
+            swSysError("fcntl(%d, SETFL, opts) failed.", sock);
+        }
     }
 
 #ifdef FD_CLOEXEC
-    do
+    if (cloexec >= 0)
     {
-        opts = fcntl(sock, F_GETFD);
-    }
-    while (opts < 0 && errno == EINTR);
+        do
+        {
+            opts = fcntl(sock, F_GETFD);
+        }
+        while (opts < 0 && errno == EINTR);
 
-    if (opts < 0)
-    {
-        swSysError("fcntl(%d, GETFL) failed.", sock);
-    }
+        if (opts < 0)
+        {
+            swSysError("fcntl(%d, GETFL) failed.", sock);
+        }
 
-    if (cloexec)
-    {
-        opts = opts | FD_CLOEXEC;
-    }
-    else
-    {
-        opts = opts & ~FD_CLOEXEC;
-    }
+        if (cloexec)
+        {
+            opts = opts | FD_CLOEXEC;
+        }
+        else
+        {
+            opts = opts & ~FD_CLOEXEC;
+        }
 
-    do
-    {
-        ret = fcntl(sock, F_SETFD, opts);
-    }
-    while (ret < 0 && errno == EINTR);
+        do
+        {
+            ret = fcntl(sock, F_SETFD, opts);
+        }
+        while (ret < 0 && errno == EINTR);
 
-    if (ret < 0)
-    {
-        swSysError("fcntl(%d, SETFD, opts) failed.", sock);
+        if (ret < 0)
+        {
+            swSysError("fcntl(%d, SETFD, opts) failed.", sock);
+        }
     }
 #endif
 }
@@ -933,9 +958,78 @@ char *swoole_kmp_strnstr(char *haystack, char *needle, uint32_t length)
 /**
  * DNS lookup
  */
+#ifdef HAVE_GETHOSTBYNAME2_R
 int swoole_gethostbyname(int flags, char *name, char *addr)
 {
     int __af = flags & (~SW_DNS_LOOKUP_RANDOM);
+    int index = 0;
+    int rc, err;
+    int buf_len = 256;
+    struct hostent hbuf;
+    struct hostent *result;
+
+    char *buf = (char*) sw_malloc(buf_len);
+    memset(buf, 0, buf_len);
+    while ((rc = gethostbyname2_r(name, __af, &hbuf, buf, buf_len, &result, &err)) == ERANGE)
+    {
+        buf_len *= 2;
+        void *tmp = sw_realloc(buf, buf_len);
+        if (NULL == tmp)
+        {
+            sw_free(buf);
+            return SW_ERR;
+        }
+        else
+        {
+            buf = tmp;
+        }
+    }
+
+    if (0 != rc || NULL == result)
+    {
+        sw_free(buf);
+        return SW_ERR;
+    }
+
+    union
+    {
+        char v4[INET_ADDRSTRLEN];
+        char v6[INET6_ADDRSTRLEN];
+    } addr_list[SW_DNS_HOST_BUFFER_SIZE];
+
+    int i = 0;
+    for (i = 0; i < SW_DNS_HOST_BUFFER_SIZE; i++)
+    {
+        if (hbuf.h_addr_list[i] == NULL)
+        {
+            break;
+        }
+        if (__af == AF_INET)
+        {
+            memcpy(addr_list[i].v4, hbuf.h_addr_list[i], hbuf.h_length);
+        }
+        else
+        {
+            memcpy(addr_list[i].v6, hbuf.h_addr_list[i], hbuf.h_length);
+        }
+    }
+    if (__af == AF_INET)
+    {
+        memcpy(addr, addr_list[index].v4, hbuf.h_length);
+    }
+    else
+    {
+        memcpy(addr, addr_list[index].v6, hbuf.h_length);
+    }
+
+    sw_free(buf);
+    
+    return SW_OK;
+}
+#else
+int swoole_gethostbyname(int flags, char *name, char *addr)
+{
+	int __af = flags & (~SW_DNS_LOOKUP_RANDOM);
     int index = 0;
 
     struct hostent *host_entry;
@@ -976,6 +1070,53 @@ int swoole_gethostbyname(int flags, char *name, char *addr)
     }
     return SW_OK;
 }
+#endif
+
+int swoole_getaddrinfo(swRequest_getaddrinfo *req)
+{
+    struct addrinfo *result = NULL;
+    struct addrinfo *ptr = NULL;
+    struct addrinfo hints;
+
+    bzero(&hints, sizeof(hints));
+    hints.ai_family = req->family;
+    hints.ai_socktype = req->socktype;
+    hints.ai_protocol = req->protocol;
+
+    int ret = getaddrinfo(req->hostname, req->service, &hints, &result);
+    if (ret != 0)
+    {
+        req->error = ret;
+        return SW_ERR;
+    }
+
+    void *buffer = req->result;
+    int i = 0;
+    for (ptr = result; ptr != NULL; ptr = ptr->ai_next)
+    {
+        switch (ptr->ai_family)
+        {
+        case AF_INET:
+            memcpy(buffer + (i * sizeof(struct sockaddr_in)), ptr->ai_addr, sizeof(struct sockaddr_in));
+            break;
+        case AF_INET6:
+            memcpy(buffer + (i * sizeof(struct sockaddr_in6)), ptr->ai_addr, sizeof(struct sockaddr_in6));
+            break;
+        default:
+            swWarn("unknown socket family[%d].", ptr->ai_family);
+            break;
+        }
+        i++;
+        if (i == SW_DNS_HOST_BUFFER_SIZE)
+        {
+            break;
+        }
+    }
+    freeaddrinfo(result);
+    req->error = 0;
+    req->count = i;
+    return SW_OK;
+}
 
 int swoole_add_function(const char *name, void* func)
 {
@@ -1008,12 +1149,15 @@ int swoole_shell_exec(char *command, pid_t *pid)
 {
     pid_t child_pid;
     int fds[2];
-    pipe(fds);
+    if (pipe(fds) < 0)
+    {
+        return SW_ERR;
+    }
 
     if ((child_pid = fork()) == -1)
     {
         swSysError("fork() failed.");
-        return -1;
+        return SW_ERR;
     }
 
     if (child_pid == 0)
@@ -1032,6 +1176,26 @@ int swoole_shell_exec(char *command, pid_t *pid)
         close(fds[SW_PIPE_WRITE]);
     }
     return fds[SW_PIPE_READ];
+}
+
+char* swoole_string_format(size_t n, const char *format, ...)
+{
+    char *buf = sw_malloc(n);
+    if (buf == NULL)
+    {
+        return NULL;
+    }
+
+    va_list _va_list;
+    va_start(_va_list, format);
+
+    if (vsnprintf(buf, n, format, _va_list) < 0)
+    {
+        sw_free(buf);
+        return NULL;
+    }
+
+    return buf;
 }
 
 #ifdef HAVE_EXECINFO

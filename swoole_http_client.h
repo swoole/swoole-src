@@ -84,10 +84,15 @@ typedef struct
     uint8_t shutdown;
 
 #ifdef SW_COROUTINE
-    zend_bool defer;//0 normal 1 wait for receive
+    zend_bool defer; //0 normal 1 wait for receive
     zend_bool defer_result;//0
     zend_bool defer_chunk_status;// 0 1 now use rango http->complete
     http_client_defer_state defer_status;
+    int cid;
+    /**
+     * for websocket
+     */
+    swLinkedList *message_queue;
 #endif
 
 } http_client_property;
@@ -130,6 +135,7 @@ typedef struct
     uint8_t websocket_mask;
     uint8_t download;    //save http response to file
     uint8_t header_completed;
+    int8_t method;
 
 } http_client;
 
@@ -149,7 +155,7 @@ static sw_inline void http_client_create_token(int length, char *buf)
     assert(length < 1024);
     for (i = 0; i < length; i++)
     {
-        buf[i] = characters[rand() % sizeof(characters) - 1];
+        buf[i] = characters[rand() % (sizeof(characters) - 1)];
     }
     buf[length] = '\0';
 }

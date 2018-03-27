@@ -42,9 +42,13 @@ typedef struct _swSSL_option
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
     char *tls_host_name;
 #endif
+    char *cafile;
+    char *capath;
     uint8_t verify_depth;
     uint8_t method;
     uint8_t disable_compress :1;
+    uint8_t verify_peer :1;
+    uint8_t allow_self_signed :1;
 } swSSL_option;
 
 #endif
@@ -110,12 +114,15 @@ typedef struct
 } swSSL_config;
 
 void swSSL_init(void);
+void swSSL_init_thread_safety();
 int swSSL_server_set_cipher(SSL_CTX* ssl_context, swSSL_config *cfg);
 void swSSL_server_http_advise(SSL_CTX* ssl_context, swSSL_config *cfg);
 SSL_CTX* swSSL_get_context(swSSL_option *option);
 void swSSL_free_context(SSL_CTX* ssl_context);
 int swSSL_create(swConnection *conn, SSL_CTX* ssl_context, int flags);
 int swSSL_set_client_certificate(SSL_CTX *ctx, char *cert_file, int depth);
+int swSSL_set_capath(swSSL_option *cfg, SSL_CTX *ctx);
+int swSSL_check_host(swConnection *conn, char *tls_host_name);
 int swSSL_get_client_certificate(SSL *ssl, char *buffer, size_t length);
 int swSSL_verify(swConnection *conn, int allow_self_signed);
 int swSSL_accept(swConnection *conn);

@@ -1,5 +1,5 @@
 <?php
-require __DIR__.'/../websocket/WebSocketClient.php';
+require __DIR__.'/../examples/websocket/WebSocketClient.php';
 
 //关闭错误输出
 //error_reporting(0);

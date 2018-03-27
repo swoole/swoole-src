@@ -34,6 +34,7 @@ static PHP_METHOD(swoole_process, daemon);
 static PHP_METHOD(swoole_process, setaffinity);
 #endif
 static PHP_METHOD(swoole_process, setTimeout);
+static PHP_METHOD(swoole_process, setBlocking);
 static PHP_METHOD(swoole_process, start);
 static PHP_METHOD(swoole_process, write);
 static PHP_METHOD(swoole_process, read);
@@ -91,6 +92,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_setTimeout, 0, 0, 1)
     ZEND_ARG_INFO(0, seconds)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_setBlocking, 0, 0, 1)
+    ZEND_ARG_INFO(0, blocking)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_useQueue, 0, 0, 0)
     ZEND_ARG_INFO(0, key)
     ZEND_ARG_INFO(0, mode)
@@ -140,6 +145,7 @@ static const zend_function_entry swoole_process_methods[] =
     PHP_ME(swoole_process, setaffinity, arginfo_swoole_process_setaffinity, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 #endif
     PHP_ME(swoole_process, setTimeout, arginfo_swoole_process_setTimeout, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_process, setBlocking, arginfo_swoole_process_setBlocking, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process, useQueue, arginfo_swoole_process_useQueue, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process, statQueue, arginfo_swoole_process_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process, freeQueue, arginfo_swoole_process_void, ZEND_ACC_PUBLIC)
@@ -162,6 +168,10 @@ void swoole_process_init(int module_number TSRMLS_DC)
     SWOOLE_CLASS_ALIAS(swoole_process, "Swoole\\Process");
 
     zend_declare_class_constant_long(swoole_process_class_entry_ptr, SW_STRL("IPC_NOWAIT")-1, MSGQUEUE_NOWAIT TSRMLS_CC);
+    zend_declare_class_constant_long(swoole_process_class_entry_ptr, SW_STRL("PIPE_MASTER")-1, SW_PIPE_CLOSE_MASTER TSRMLS_CC);
+    zend_declare_class_constant_long(swoole_process_class_entry_ptr, SW_STRL("PIPE_WORKER")-1, SW_PIPE_CLOSE_WORKER TSRMLS_CC);
+    zend_declare_class_constant_long(swoole_process_class_entry_ptr, SW_STRL("PIPE_READ")-1, SW_PIPE_CLOSE_READ TSRMLS_CC);
+    zend_declare_class_constant_long(swoole_process_class_entry_ptr, SW_STRL("PIPE_WRITE")-1, SW_PIPE_CLOSE_WRITE TSRMLS_CC);
     bzero(signal_callback, sizeof(signal_callback));
 
     zend_declare_property_null(swoole_process_class_entry_ptr, SW_STRL("pipe")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
@@ -620,6 +630,10 @@ static void php_swoole_onSignal(int signo)
     {
         swoole_php_fatal_error(E_WARNING, "user_signal handler error");
     }
+    if (EG(exception))
+    {
+        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+    }
     if (retval != NULL)
     {
         sw_zval_ptr_dtor(&retval);
@@ -666,12 +680,21 @@ int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
         swTraceLog(SW_TRACE_PHP, "destroy reactor");
     }
 
+#ifdef SW_COROUTINE
+    swLinkedList *coro_timeout_list = SwooleWG.coro_timeout_list;
+#endif
+
     bzero(&SwooleWG, sizeof(SwooleWG));
     SwooleG.pid = process->pid;
-    if (SwooleG.process_type != SW_PROCESS_USERWORKER) {
+    if (SwooleG.process_type != SW_PROCESS_USERWORKER)
+    {
         SwooleG.process_type = 0;
     }
     SwooleWG.id = process->id;
+
+#ifdef SW_COROUTINE
+    SwooleWG.coro_timeout_list = coro_timeout_list;
+#endif
 
     if (SwooleG.timer.fd)
     {
@@ -781,7 +804,7 @@ static PHP_METHOD(swoole_process, read)
         efree(buf);
         if (errno != EINTR)
         {
-            swoole_php_error(E_WARNING, "failed. Error: %s[%d]", strerror(errno), errno);
+            swoole_php_error(E_WARNING, "read() failed. Error: %s[%d]", strerror(errno), errno);
         }
         RETURN_FALSE;
     }
@@ -820,16 +843,24 @@ static PHP_METHOD(swoole_process, write)
     //async write
     if (SwooleG.main_reactor)
     {
-        ret = SwooleG.main_reactor->write(SwooleG.main_reactor, process->pipe, data, (size_t) data_len);
+        swConnection *_socket = swReactor_get(SwooleG.main_reactor, process->pipe);
+        if (_socket && _socket->nonblock)
+        {
+            ret = SwooleG.main_reactor->write(SwooleG.main_reactor, process->pipe, data, (size_t) data_len);
+        }
+        else
+        {
+            goto _blocking_read;
+        }
     }
     else
     {
-        ret = swSocket_write_blocking(process->pipe, data, data_len);
+        _blocking_read: ret = swSocket_write_blocking(process->pipe, data, data_len);
     }
 
     if (ret < 0)
     {
-        swoole_php_fatal_error(E_WARNING, "write() failed. Error: %s[%d]", strerror(errno), errno);
+        swoole_php_error(E_WARNING, "write() failed. Error: %s[%d]", strerror(errno), errno);
         RETURN_FALSE;
     }
     ZVAL_LONG(return_value, ret);
@@ -1077,7 +1108,19 @@ static PHP_METHOD(swoole_process, close)
         RETURN_FALSE;
     }
 
-    int ret = swPipeUnsock_close_ext(process->pipe_object, which);
+    int ret;
+    if (which == SW_PIPE_CLOSE_READ)
+    {
+        ret = shutdown(process->pipe, SHUT_RD);
+    }
+    else if (which == SW_PIPE_CLOSE_WRITE)
+    {
+        ret = shutdown(process->pipe, SHUT_WR);
+    }
+    else
+    {
+        ret = swPipeUnsock_close_ext(process->pipe_object, which);
+    }
     if (ret < 0)
     {
         swoole_php_fatal_error(E_WARNING, "close() failed. Error: %s[%d]", strerror(errno), errno);
@@ -1107,4 +1150,36 @@ static PHP_METHOD(swoole_process, setTimeout)
         RETURN_FALSE;
     }
     SW_CHECK_RETURN(swSocket_set_timeout(process->pipe, seconds));
+}
+
+static PHP_METHOD(swoole_process, setBlocking)
+{
+    zend_bool blocking;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "b", &blocking) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+
+    swWorker *process = swoole_get_object(getThis());
+    if (process->pipe == 0)
+    {
+        swoole_php_fatal_error(E_WARNING, "no pipe, can not setBlocking the pipe.");
+        RETURN_FALSE;
+    }
+    if (blocking)
+    {
+        swSetBlock(process->pipe);
+    }
+    else
+    {
+        swSetNonBlock(process->pipe);
+    }
+    if (SwooleG.main_reactor)
+    {
+        swConnection *_socket = swReactor_get(SwooleG.main_reactor, process->pipe);
+        if (_socket)
+        {
+            _socket->nonblock = blocking ? 0 : 1;
+        }
+    }
 }

@@ -27,6 +27,22 @@ class RandStr
         return $ret;
     }
 
+    static function getBytes($n)
+    {
+        if (function_exists('openssl_random_pseudo_bytes'))
+        {
+            return openssl_random_pseudo_bytes($n);
+        }
+        elseif (function_exists('random_bytes'))
+        {
+            return random_bytes($n);
+        }
+        else
+        {
+            return self::gen($n);
+        }
+    }
+
     private static function getChars($mask)
     {
         if (isset(static::$strCache[$mask])) {

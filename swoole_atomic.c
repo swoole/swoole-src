@@ -156,7 +156,7 @@ void swoole_atomic_init(int module_number TSRMLS_DC)
 
 PHP_METHOD(swoole_atomic, __construct)
 {
-    long value = 0;
+    zend_long value = 0;
 
 #ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(0, 1)
@@ -184,7 +184,7 @@ PHP_METHOD(swoole_atomic, __construct)
 
 PHP_METHOD(swoole_atomic, add)
 {
-    long add_value = 1;
+    zend_long add_value = 1;
     sw_atomic_t *atomic = swoole_get_object(getThis());
 
 #ifdef FAST_ZPP
@@ -203,7 +203,7 @@ PHP_METHOD(swoole_atomic, add)
 
 PHP_METHOD(swoole_atomic, sub)
 {
-    long sub_value = 1;
+    zend_long sub_value = 1;
     sw_atomic_t *atomic = swoole_get_object(getThis());
 
 #ifdef FAST_ZPP
@@ -229,7 +229,7 @@ PHP_METHOD(swoole_atomic, get)
 PHP_METHOD(swoole_atomic, set)
 {
     sw_atomic_t *atomic = swoole_get_object(getThis());
-    long set_value;
+    zend_long set_value;
 
 #ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(1, 1)
@@ -246,7 +246,7 @@ PHP_METHOD(swoole_atomic, set)
 
 PHP_METHOD(swoole_atomic, cmpset)
 {
-    long cmp_value, set_value;
+    zend_long cmp_value, set_value;
     sw_atomic_t *atomic = swoole_get_object(getThis());
 
 #ifdef FAST_ZPP
@@ -302,7 +302,7 @@ PHP_METHOD(swoole_atomic, wait)
 
 PHP_METHOD(swoole_atomic, wakeup)
 {
-    long n = 1;
+    zend_long n = 1;
     sw_atomic_t *atomic = swoole_get_object(getThis());
 
 #ifdef FAST_ZPP
@@ -326,7 +326,7 @@ PHP_METHOD(swoole_atomic, wakeup)
 
 PHP_METHOD(swoole_atomic_long, __construct)
 {
-    long value = 0;
+    zend_long value = 0;
 
 #ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(0, 1)
@@ -354,7 +354,7 @@ PHP_METHOD(swoole_atomic_long, __construct)
 
 PHP_METHOD(swoole_atomic_long, add)
 {
-    long add_value = 1;
+    zend_long add_value = 1;
     sw_atomic_long_t *atomic = swoole_get_object(getThis());
 
 #ifdef FAST_ZPP
@@ -374,7 +374,7 @@ PHP_METHOD(swoole_atomic_long, add)
 
 PHP_METHOD(swoole_atomic_long, sub)
 {
-    long sub_value = 1;
+    zend_long sub_value = 1;
     sw_atomic_long_t *atomic = swoole_get_object(getThis());
 
 #ifdef FAST_ZPP
@@ -401,7 +401,7 @@ PHP_METHOD(swoole_atomic_long, get)
 PHP_METHOD(swoole_atomic_long, set)
 {
     sw_atomic_long_t *atomic = swoole_get_object(getThis());
-    long set_value;
+    zend_long set_value;
 
 #ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(1, 1)
@@ -418,7 +418,7 @@ PHP_METHOD(swoole_atomic_long, set)
 
 PHP_METHOD(swoole_atomic_long, cmpset)
 {
-    long cmp_value, set_value;
+    zend_long cmp_value, set_value;
     sw_atomic_long_t *atomic = swoole_get_object(getThis());
 
 #ifdef FAST_ZPP

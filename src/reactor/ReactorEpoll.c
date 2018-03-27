@@ -215,6 +215,10 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 
     while (reactor->running > 0)
     {
+        if (reactor->onBegin != NULL)
+        {
+            reactor->onBegin(reactor);
+        }
         msec = reactor->timeout_msec;
         n = epoll_wait(epoll_fd, events, max_event_num, msec);
         if (n < 0)
@@ -288,6 +292,10 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
         if (reactor->onFinish != NULL)
         {
             reactor->onFinish(reactor);
+        }
+        if (reactor->once)
+        {
+            break;
         }
     }
     return 0;

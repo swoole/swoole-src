@@ -79,7 +79,7 @@ int php_swoole_add_timer_coro(int ms, int cli_fd, long *timeout_id, void* param,
         swoole_php_fatal_error(E_WARNING, "cannot use timer in master process.");
         return SW_ERR;
     }
-    if (ms > 86400000)
+    if (ms > SW_TIMER_MAX_VALUE)
     {
         swoole_php_fatal_error(E_WARNING, "The given parameters is too big.");
         return SW_ERR;
@@ -186,7 +186,7 @@ long php_swoole_add_timer(int ms, zval *callback, zval *param, int persistent TS
         swoole_php_fatal_error(E_WARNING, "cannot use timer in master process.");
         return SW_ERR;
     }
-    if (ms > 86400000)
+    if (ms > SW_TIMER_MAX_VALUE)
     {
         swoole_php_fatal_error(E_WARNING, "The given parameters is too big.");
         return SW_ERR;
@@ -308,11 +308,6 @@ void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
     if (tnode->type == SW_TIMER_TYPE_CORO)
     {
         swTimer_coro_callback *scc = tnode->data;
-        if (SwooleWG.coro_timeout_list == NULL)
-        {
-            SwooleWG.coro_timeout_list = swLinkedList_new(1, NULL);
-        }
-
         // del the reactor handle
         if (swLinkedList_append(SwooleWG.coro_timeout_list, scc->data) == SW_OK)
         {

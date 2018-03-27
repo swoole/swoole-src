@@ -50,9 +50,10 @@
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "2.0.10"
+#define PHP_SWOOLE_VERSION  "2.1.2-alpha"
 #define PHP_SWOOLE_CHECK_CALLBACK
 #define PHP_SWOOLE_ENABLE_FASTCALL
+#define PHP_SWOOLE_CLIENT_USE_POLL
 
 /**
  * PHP5.2
@@ -143,8 +144,8 @@ extern swoole_object_array swoole_objects;
 #endif
 #endif
 
-#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION < 5
-#error "require PHP version 5.5 or later."
+#if PHP_MAJOR_VERSION < 7
+#error "require PHP version 7.0 or later."
 #endif
 
 #include "php7_wrapper.h"
@@ -219,12 +220,13 @@ enum php_swoole_fd_type
     PHP_SWOOLE_FD_DGRAM_CLIENT = SW_FD_DGRAM_CLIENT,
     PHP_SWOOLE_FD_MYSQL,
     PHP_SWOOLE_FD_REDIS,
+    PHP_SWOOLE_FD_POSTGRESQL,
     PHP_SWOOLE_FD_HTTPCLIENT,
     PHP_SWOOLE_FD_PROCESS_STREAM,
 };
 //---------------------------------------------------------
 #define php_swoole_socktype(type)           (type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP) & (~SW_SOCK_SSL))
-#define php_swoole_array_length(array)      (Z_ARRVAL_P(array)->nNumOfElements)
+#define php_swoole_array_length(array)      zend_hash_num_elements(Z_ARRVAL_P(array))
 
 #define SW_LONG_CONNECTION_KEY_LEN          64
 
@@ -255,6 +257,8 @@ PHP_FUNCTION(swoole_set_process_name);
 PHP_FUNCTION(swoole_get_local_ip);
 PHP_FUNCTION(swoole_get_local_mac);
 PHP_FUNCTION(swoole_unsupport_serialize);
+PHP_FUNCTION(swoole_coroutine_create);
+PHP_FUNCTION(swoole_coroutine_exec);
 
 //---------------------------------------------------------
 //                  swoole_server
@@ -304,6 +308,7 @@ PHP_METHOD(swoole_connection_iterator, offsetExists);
 PHP_METHOD(swoole_connection_iterator, offsetGet);
 PHP_METHOD(swoole_connection_iterator, offsetSet);
 PHP_METHOD(swoole_connection_iterator, offsetUnset);
+PHP_METHOD(swoole_connection_iterator, __destruct);
 #endif
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
@@ -319,6 +324,9 @@ PHP_FUNCTION(swoole_event_write);
 PHP_FUNCTION(swoole_event_wait);
 PHP_FUNCTION(swoole_event_exit);
 PHP_FUNCTION(swoole_event_defer);
+PHP_FUNCTION(swoole_event_cycle);
+PHP_FUNCTION(swoole_event_dispatch);
+PHP_FUNCTION(swoole_event_isset);
 PHP_FUNCTION(swoole_client_select);
 //---------------------------------------------------------
 //                  swoole_async
@@ -364,6 +372,9 @@ void swoole_client_coro_init(int module_number TSRMLS_DC);
 #ifdef SW_USE_REDIS
 void swoole_redis_coro_init(int module_number TSRMLS_DC);
 #endif
+#ifdef SW_USE_POSTGRESQL
+void swoole_postgresql_coro_init (int module_number TSRMLS_DC);
+#endif
 void swoole_mysql_coro_init(int module_number TSRMLS_DC);
 void swoole_http_client_coro_init(int module_number TSRMLS_DC);
 void swoole_coroutine_util_init(int module_number TSRMLS_DC);
@@ -377,28 +388,39 @@ void swoole_process_init(int module_number TSRMLS_DC);
 void swoole_http_server_init(int module_number TSRMLS_DC);
 #ifdef SW_USE_HTTP2
 void swoole_http2_client_init(int module_number TSRMLS_DC);
+#ifdef SW_COROUTINE
+void swoole_http2_client_coro_init(int module_number TSRMLS_DC);
+#endif
 #endif
 void swoole_websocket_init(int module_number TSRMLS_DC);
 void swoole_buffer_init(int module_number TSRMLS_DC);
 void swoole_mysql_init(int module_number TSRMLS_DC);
 void swoole_mmap_init(int module_number TSRMLS_DC);
 void swoole_channel_init(int module_number TSRMLS_DC);
+void swoole_ringqueue_init(int module_number TSRMLS_DC);
 #if PHP_MAJOR_VERSION == 7
+void swoole_channel_coro_init(int module_number TSRMLS_DC);
 void swoole_serialize_init(int module_number TSRMLS_DC);
 #endif
 
 int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC);
 
 void php_swoole_check_reactor();
+void php_swoole_check_aio();
+
 void php_swoole_event_init();
 void php_swoole_event_wait();
 void php_swoole_check_timer(int interval);
 long php_swoole_add_timer(int ms, zval *callback, zval *param, int persistent TSRMLS_DC);
 void php_swoole_clear_all_timer();
 void php_swoole_register_callback(swServer *serv);
+void php_swoole_trace_check(swServer *serv);
 void php_swoole_client_free(zval *object, swClient *cli TSRMLS_DC);
 swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port);
 void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC);
+#ifdef SW_USE_OPENSSL
+void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset TSRMLS_DC);
+#endif
 void php_swoole_websocket_unpack(swString *data, zval *zframe TSRMLS_DC);
 void php_swoole_sha1(const char *str, int _len, unsigned char *digest);
 int php_swoole_client_isset_callback(zval *zobject, int type TSRMLS_DC);
@@ -448,7 +470,11 @@ void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode);
 
 #if PHP_MAJOR_VERSION >= 7
 PHPAPI zend_string* php_swoole_serialize(zval *zvalue);
-PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, zval *object_args);
+PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, zval *object_args, long flag);
+#endif
+
+#ifdef SW_COROUTINE
+int php_coroutine_reactor_can_exit(swReactor *reactor);
 #endif
 
 static sw_inline zval* php_swoole_server_get_callback(swServer *serv, int server_fd, int event_type)
@@ -544,6 +570,7 @@ ZEND_BEGIN_MODULE_GLOBALS(swoole)
     zend_bool display_errors;
     zend_bool cli;
     zend_bool use_namespace;
+    zend_bool use_shortname;
     zend_bool fast_serialize;
     long socket_buffer_size;
 ZEND_END_MODULE_GLOBALS(swoole)
@@ -556,6 +583,7 @@ extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
 #define SWOOLE_G(v) (swoole_globals.v)
 #endif
 
+#define SWOOLE_DEFINE(constant)    REGISTER_LONG_CONSTANT("SWOOLE_"#constant, SW_##constant, CONST_CS | CONST_PERSISTENT)
 
 #define SWOOLE_INIT_CLASS_ENTRY(ce, name, name_ns, methods) \
     if (SWOOLE_G(use_namespace)) { \
@@ -566,9 +594,29 @@ extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
 
 #define SWOOLE_CLASS_ALIAS(name, name_ns) \
     if (SWOOLE_G(use_namespace)) { \
-        zend_register_class_alias(#name, name##_class_entry_ptr);\
+        sw_zend_register_class_alias(#name, name##_class_entry_ptr);\
     } else { \
-        zend_register_class_alias(name_ns, name##_class_entry_ptr);\
+        sw_zend_register_class_alias(name_ns, name##_class_entry_ptr);\
     }
+
+/* PHP 7.3 forward compatibility */
+#ifndef GC_SET_REFCOUNT
+# define GC_SET_REFCOUNT(p, rc) do { \
+		GC_REFCOUNT(p) = rc; \
+	} while (0)
+#endif
+
+#ifndef GC_IS_RECURSIVE
+# define GC_IS_RECURSIVE(p) \
+	(ZEND_HASH_GET_APPLY_COUNT(p) > 1)
+# define GC_PROTECT_RECURSION(p) \
+	ZEND_HASH_INC_APPLY_COUNT(p)
+# define GC_UNPROTECT_RECURSION(p) \
+	ZEND_HASH_DEC_APPLY_COUNT(p)
+#endif
+
+#ifndef ZEND_HASH_APPLY_PROTECTION
+# define ZEND_HASH_APPLY_PROTECTION(p) 1
+#endif
 
 #endif	/* PHP_SWOOLE_H */

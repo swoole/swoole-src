@@ -316,7 +316,7 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
         if (php_swoole_array_get_value(vht, "keep_alive", ztmp))
         {
             convert_to_boolean(ztmp);
-            http->keep_alive = (int) Z_LVAL_P(ztmp);
+            http->keep_alive = Z_BVAL_P(ztmp);
         }
         /**
          * websocket mask
@@ -338,10 +338,29 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
                 return SW_ERR;
             }
             zval *value;
-            if (sw_zend_hash_find(Z_ARRVAL_P(send_header), ZEND_STRS("Host"), (void **) &value) == FAILURE)
+            if (sw_zend_hash_find(Z_ARRVAL_P(send_header), ZEND_STRS("Host"), (void **) &value) == FAILURE ||
+                    Z_TYPE_P(value) != IS_STRING || Z_STRLEN_P(value) < 1)
             {
-                swoole_php_fatal_error (E_WARNING, "http proxy must set Host");
+                swoole_php_fatal_error(E_WARNING, "http proxy must set Host");
                 return SW_ERR;
+            }
+            if (http->cli->http_proxy->password)
+            {
+                char _buf1[128];
+                char _buf2[256];
+                int _n1 = snprintf(_buf1, sizeof(_buf1), "%*s:%*s", http->cli->http_proxy->l_user,
+                        http->cli->http_proxy->user, http->cli->http_proxy->l_password,
+                        http->cli->http_proxy->password);
+#if PHP_MAJOR_VERSION < 7
+                uchar *encoded_value = php_base64_encode((const unsigned char *) _buf1, _n1, NULL);
+                int _n2 = snprintf(_buf2, sizeof(_buf2), "Basic %*s", _n1, encoded_value);
+                add_assoc_stringl_ex(send_header, ZEND_STRS("Proxy-Authorization"), _buf2, _n2, 1);
+#else
+                zend_string *str = php_base64_encode((const unsigned char *) _buf1, _n1);
+                int _n2 = snprintf(_buf2, sizeof(_buf2), "Basic %*s", str->len, str->val);
+                zend_string_free(str);
+                add_assoc_stringl_ex(send_header, ZEND_STRL("Proxy-Authorization"), _buf2, _n2);
+#endif
             }
         }
     }
@@ -699,11 +718,21 @@ static void http_client_onReceive(swClient *cli, char *data, uint32_t length)
     if (http->upgrade)
     {
         cli->open_length_check = 1;
-        swString_clear(cli->buffer);
         cli->protocol.get_package_length = swWebSocket_get_package_length;
         cli->protocol.onPackage = http_client_onMessage;
         cli->protocol.package_length_size = SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_MASK_LEN + sizeof(uint64_t);
         http->state = HTTP_CLIENT_STATE_UPGRADE;
+
+        //data frame
+        if (length > parsed_n)
+        {
+            cli->buffer->length = length - parsed_n - 1;
+            memmove(cli->buffer->str, data + parsed_n + 1, cli->buffer->length);
+        }
+        else
+        {
+            swString_clear(cli->buffer);
+        }
     }
     else if (http->keep_alive == 1)
     {
@@ -754,6 +783,14 @@ static void http_client_onReceive(swClient *cli, char *data, uint32_t length)
         return;
     }
     http->header_completed = 0;
+
+    if (http->upgrade && cli->buffer->length > 0)
+    {
+        cli->socket->skip_recv = 1;
+        swProtocol_recv_check_length(&cli->protocol, cli->socket, cli->buffer);
+        return;
+    }
+
     swString_clear(cli->buffer);
     if (http->keep_alive == 0 && http->state != HTTP_CLIENT_STATE_WAIT_CLOSE)
     {
@@ -830,6 +867,8 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
             hcc->request_method = "GET";
         }
     }
+
+    http->method = swHttp_get_method(hcc->request_method, strlen(hcc->request_method) + 1);
 
     char *key;
     uint32_t keylen;
@@ -917,6 +956,10 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
                 continue;
             }
             convert_to_string(value);
+            if (Z_STRLEN_P(value) == 0)
+            {
+                continue;
+            }
             swString_append_ptr(http_client_buffer, key, keylen);
             swString_append_ptr(http_client_buffer, "=", 1);
 
@@ -1321,6 +1364,10 @@ static PHP_METHOD(swoole_http_client, set)
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zset) == FAILURE)
     {
         return;
+    }
+    if (Z_TYPE_P(zset) != IS_ARRAY)
+    {
+        RETURN_FALSE;
     }
 
     zval *zsetting = php_swoole_read_init_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("setting") TSRMLS_CC);
@@ -1845,6 +1892,10 @@ int http_client_parser_on_headers_complete(php_http_parser *parser)
     {
         http->state = HTTP_CLIENT_STATE_WAIT_CLOSE;
     }
+    if (http->method == HTTP_HEAD)
+    {
+        return 1;
+    }
     return 0;
 }
 
@@ -2020,17 +2071,13 @@ static PHP_METHOD(swoole_http_client, upgrade)
     sw_add_assoc_string(headers, "Upgrade", "websocket", 1);
     sw_add_assoc_string(headers, "Sec-WebSocket-Version", SW_WEBSOCKET_VERSION, 1);
 
-    int encoded_value_len = 0;
-
 #if PHP_MAJOR_VERSION < 7
+    int encoded_value_len = 0;
     uchar *encoded_value = php_base64_encode((const unsigned char *) buf, SW_WEBSOCKET_KEY_LENGTH, &encoded_value_len);
-    add_assoc_stringl(headers, "Sec-WebSocket-Key", (char* )encoded_value, encoded_value_len, 0);
+    add_assoc_stringl_ex(headers, ZEND_STRS("Sec-WebSocket-Key"), (char* )encoded_value, encoded_value_len, 0);
 #else
     zend_string *str = php_base64_encode((const unsigned char *) buf, SW_WEBSOCKET_KEY_LENGTH);
-    char *encoded_value = str->val;
-    encoded_value_len = str->len;
-    add_assoc_stringl(headers, "Sec-WebSocket-Key", (char* )encoded_value, encoded_value_len);
-    zend_string_free(str);
+    add_assoc_str_ex(headers, ZEND_STRL("Sec-WebSocket-Key"), str);
 #endif
 
     ret = http_client_execute(getThis(), uri, uri_len, finish_cb TSRMLS_CC);
@@ -2052,25 +2099,22 @@ static PHP_METHOD(swoole_http_client, push)
     if (opcode > WEBSOCKET_OPCODE_PONG)
     {
         swoole_php_fatal_error(E_WARNING, "opcode max 10");
+        SwooleG.error = SW_ERROR_WEBSOCKET_BAD_OPCODE;
         RETURN_FALSE;
     }
 
     http_client *http = swoole_get_object(getThis());
-    if (!http->cli)
-    {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_http_client.");
-        RETURN_FALSE;
-    }
-
-    if (!http->cli->socket)
+    if (!(http && http->cli && http->cli->socket))
     {
         swoole_php_error(E_WARNING, "not connected to the server");
+        SwooleG.error = SW_ERROR_WEBSOCKET_UNCONNECTED;
         RETURN_FALSE;
     }
 
     if (!http->upgrade)
     {
         swoole_php_fatal_error(E_WARNING, "websocket handshake failed, cannot push data.");
+        SwooleG.error = SW_ERROR_WEBSOCKET_HANDSHAKE_FAILED;
         RETURN_FALSE;
     }
 
