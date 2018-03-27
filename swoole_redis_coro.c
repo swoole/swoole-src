@@ -4171,6 +4171,7 @@ static void swoole_redis_coro_onResult(redisAsyncContext *c, void *r, void *priv
             {
                 redis->iowait = SW_REDIS_CORO_STATUS_DONE;
                 redis->defer_result = sw_zval_dup(result->value);
+                efree(result);
                 return;
             }
             else
