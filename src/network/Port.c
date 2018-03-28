@@ -664,7 +664,9 @@ int swPort_http_static_handler(swHttpRequest *request, swConnection *conn)
     }
 
     char date_[64];
-    struct tm *tm1 = gmtime(&SwooleGS->now);
+    struct tm *tm1;
+
+    check_modify_date: tm1 = gmtime(&SwooleGS->now);
     strftime(date_, sizeof(date_), "%a, %d %b %Y %H:%M:%S %Z", tm1);
 
     char date_last_modified[64];
@@ -677,7 +679,7 @@ int swPort_http_static_handler(swHttpRequest *request, swConnection *conn)
     struct tm *tm2 = gmtime(&file_mtime);
     strftime(date_last_modified, sizeof(date_last_modified), "%a, %d %b %Y %H:%M:%S %Z", tm2);
 
-    check_modify_date: if (state == 2)
+    if (state == 2)
     {
         struct tm tm3;
         char date_tmp[64];
