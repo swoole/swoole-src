@@ -27,7 +27,7 @@ $pm->parentFunc = function ($pid) use ($port)
     echo $client->recv();
     assert($client->send("Request\n"));
     echo $client->recv();
-    //swoole_process::kill($pid);
+    swoole_process::kill($pid);
 };
 
 $pm->childFunc = function () use ($pm, $port)
@@ -39,9 +39,7 @@ $pm->childFunc = function () use ($pm, $port)
         'request_slowlog_file' => __DIR__ . '/slow.log',
         'trace_event_worker' => true,
         'request_slowlog_timeout' => 1,
-        'trace_flags' => SWOOLE_TRACE_ALL,
-        'log_level' => SWOOLE_LOG_WARNING,
-//        'log_file' => '/dev/null',
+        'log_file' => '/dev/null',
     ]);
     $serv->on("workerStart", function ($serv, $wid) use ($pm) {
         $pm->wakeup();
@@ -71,6 +69,7 @@ $pm->childFunc = function () use ($pm, $port)
 
 $pm->childFirst();
 $pm->run();
+unlink(__DIR__ . '/slow.log');
 ?>
 --EXPECT--
 Task Finish
