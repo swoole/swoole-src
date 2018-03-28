@@ -126,15 +126,16 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
     }
     //defer callback
     swDefer_callback *cb, *tmp;
-    LL_FOREACH(reactor->defer_callback_list, cb)
+    swDefer_callback *defer_callback_list = reactor->defer_callback_list;
+    reactor->defer_callback_list = NULL;
+    LL_FOREACH(defer_callback_list, cb)
     {
         cb->callback(cb->data);
     }
-    LL_FOREACH_SAFE(reactor->defer_callback_list, cb, tmp)
+    LL_FOREACH_SAFE(defer_callback_list, cb, tmp)
     {
         sw_free(cb);
     }
-    reactor->defer_callback_list = NULL;
     //callback at the end
     if (reactor->idle_task.callback)
     {
