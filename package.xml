@@ -35,10 +35,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2018-03-14</date>
+    <date>2018-03-28</date>
     <time>09:50:10</time>
     <version>
-        <release>1.10.2</release>
+        <release>1.10.3</release>
         <api>1.10</api>
     </version>
     <stability>
@@ -47,14 +47,12 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Fixed crash when max_request=1 was set in BASE mode
-- Fixed WebSocket client unwrapping when the handshake response and the data frame are in the same transmission unit
-- Fixed SSL connection cannot use sendfile
-- Fixed lose process due to frequent reload in BASE mode
-- Fixed swoole_async_dns_lookup crash when jemalloc is enabled
-- Fixed crash when opening opcache.enable_cli=On in PHP7.2
-- Modify the error information when the client fails to resolve the domain name
-- Process is marked as idle during reload and no longer receives new requests
+- Added swoole_event_dispatch
+- Added swoole_event_isset
+- Optimized accept performance
+- Added before parameter to swoole_event_cycle
+- Added swoole_process::setBlocking
+- Added swoole_http_request::getData
     </notes>
     <contents>
         <dir name="/">
@@ -662,6 +660,7 @@
                 <file name="swoole_server/protect.phpt" role="test" />
                 <file name="swoole_server/protect_false.phpt" role="test" />
                 <file name="swoole_server/reload.phpt" role="test" />
+                <file name="swoole_server/request_slowlog.phpt" role="test" />
                 <file name="swoole_server/sendMessage.phpt" role="test" />
                 <file name="swoole_server/sendfile.phpt" role="test" />
                 <file name="swoole_server/sendfile_02.phpt" role="test" />
