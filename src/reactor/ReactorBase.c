@@ -163,11 +163,6 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
     {
         reactor->idle_task.callback(reactor->idle_task.data);
     }
-    //server master
-    if (SwooleG.serv && SwooleTG.update_time)
-    {
-        swServer_master_onTimer(SwooleG.serv);
-    }
     //server worker
     swWorker *worker = SwooleWG.worker;
     if (worker != NULL)
