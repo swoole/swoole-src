@@ -114,6 +114,28 @@ static int swReactor_defer(swReactor *reactor, swCallback callback, void *data)
     return SW_OK;
 }
 
+int swReactor_empty(swReactor *reactor)
+{
+    //timer
+    if (SwooleG.timer.num > 0)
+    {
+        return SW_FALSE;
+    }
+
+    int empty = SW_FALSE;
+    //thread pool
+    if (SwooleAIO.init && reactor->event_num == 1 && SwooleAIO.task_num == 0)
+    {
+        empty = SW_TRUE;
+    }
+    //no event
+    else if (reactor->event_num == 0)
+    {
+        empty = SW_TRUE;
+    }
+    return empty;
+}
+
 /**
  * execute when reactor timeout and reactor finish
  */
@@ -155,17 +177,10 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
             swWorker_try_to_exit();
         }
     }
-    //client
-    if (SwooleG.serv == NULL && SwooleG.timer.num <= 0)
+    //not server, the event loop is empty
+    if (SwooleG.serv == NULL  && swReactor_empty(reactor))
     {
-        if (SwooleAIO.init && reactor->event_num == 1 && SwooleAIO.task_num == 0)
-        {
-            reactor->running = 0;
-        }
-        else if (reactor->event_num == 0)
-        {
-            reactor->running = 0;
-        }
+        reactor->running = 0;
     }
 
 #ifdef SW_USE_MALLOC_TRIM
