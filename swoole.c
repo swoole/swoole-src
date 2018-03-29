@@ -948,6 +948,11 @@ PHP_MINIT_FUNCTION(swoole)
     SWOOLE_DEFINE(LOG_WARNING);
     SWOOLE_DEFINE(LOG_ERROR);
 
+    SWOOLE_DEFINE(IPC_NONE);
+    SWOOLE_DEFINE(IPC_UNIXSOCK);
+    SWOOLE_DEFINE(IPC_MSGQUEUE);
+    SWOOLE_DEFINE(IPC_SOCKET);
+
     SWOOLE_INIT_CLASS_ENTRY(swoole_server_ce, "swoole_server", "Swoole\\Server", swoole_server_methods);
     swoole_server_class_entry_ptr = zend_register_internal_class(&swoole_server_ce TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_server, "Swoole\\Server");
@@ -1041,6 +1046,7 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_http_client_init(module_number TSRMLS_CC);
     swoole_async_init(module_number TSRMLS_CC);
     swoole_process_init(module_number TSRMLS_CC);
+    swoole_process_pool_init(module_number TSRMLS_CC);
     swoole_table_init(module_number TSRMLS_CC);
     swoole_lock_init(module_number TSRMLS_CC);
     swoole_atomic_init(module_number TSRMLS_CC);

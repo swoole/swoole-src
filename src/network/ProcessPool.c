@@ -18,7 +18,15 @@
 #include "Server.h"
 #include "Client.h"
 
+/**
+ * call onTask
+ */
 static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker);
+/**
+ * call onMessage
+ */
+static int swProcessPool_worker_loop_ex(swProcessPool *pool, swWorker *worker);
+
 static void swProcessPool_free(swProcessPool *pool);
 
 /**
@@ -64,7 +72,7 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
             swWarn("malloc[2] failed.");
             return SW_ERR;
         }
-        pool->stream->last_connection = 0;
+        bzero(pool->stream, sizeof(swStreamInfo));
     }
     else if (ipc_mode == SW_IPC_UNIXSOCK)
     {
@@ -91,8 +99,7 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
     }
     else
     {
-        swWarn("unknown ipc_type [%d].", ipc_mode);
-        return SW_ERR;
+        ipc_mode = SW_IPC_NONE;
     }
 
     pool->map = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
@@ -103,7 +110,10 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
     }
 
     pool->ipc_mode = ipc_mode;
-    pool->main_loop = swProcessPool_worker_loop;
+    if (ipc_mode > SW_IPC_NONE)
+    {
+        pool->main_loop = swProcessPool_worker_loop;
+    }
 
     return SW_OK;
 }
@@ -128,12 +138,41 @@ int swProcessPool_create_stream_socket(swProcessPool *pool, char *socket_file, i
     return SW_OK;
 }
 
+int swProcessPool_create_tcp_socket(swProcessPool *pool, char *host, int port, int blacklog)
+{
+    if (pool->ipc_mode != SW_IPC_SOCKET)
+    {
+        swWarn("ipc_mode is not SW_IPC_SOCKET.");
+        return SW_ERR;
+    }
+    pool->stream->socket_file = sw_strdup(host);
+    if (pool->stream->socket_file == NULL)
+    {
+        return SW_ERR;
+    }
+    pool->stream->socket = swSocket_create_server(SW_SOCK_TCP, host, port, blacklog);
+    if (pool->stream->socket < 0)
+    {
+        return SW_ERR;
+    }
+    return SW_OK;
+}
+
 /**
  * start workers
  */
 int swProcessPool_start(swProcessPool *pool)
 {
+    if (pool->ipc_mode == SW_IPC_SOCKET && (pool->stream == NULL || pool->stream->socket == 0))
+    {
+        swWarn("must first listen to an tcp port.");
+        return SW_ERR;
+    }
+
     int i;
+    pool->started = 1;
+    pool->run_worker_num = pool->worker_num;
+
     for (i = 0; i < pool->worker_num; i++)
     {
         pool->workers[i].pool = pool;
@@ -291,11 +330,13 @@ void swProcessPool_shutdown(swProcessPool *pool)
         }
     }
     swProcessPool_free(pool);
+    pool->started = 0;
 }
 
 pid_t swProcessPool_spawn(swWorker *worker)
 {
     pid_t pid = fork();
+    int ret_code = 0;
     swProcessPool *pool = worker->pool;
 
     switch (pid)
@@ -312,7 +353,10 @@ pid_t swProcessPool_spawn(swWorker *worker)
         /**
          * Process main loop
          */
-        int ret_code = pool->main_loop(pool, worker);
+        if (pool->main_loop)
+        {
+            ret_code = pool->main_loop(pool, worker);
+        }
         /**
          * Process stop
          */
@@ -395,6 +439,7 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
             if (n < 0 && errno != EINTR)
             {
                 swSysError("[Worker#%d] msgrcv() failed.", worker->id);
+                break;
             }
         }
         else if (pool->use_socket)
@@ -472,6 +517,132 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
         if (ret >= 0 && !worker_task_always)
         {
             task_n--;
+        }
+    }
+    return SW_OK;
+}
+
+int swProcessPool_set_protocol(swProcessPool *pool, int task_protocol, uint32_t max_packet_size)
+{
+    if (task_protocol)
+    {
+        pool->main_loop = swProcessPool_worker_loop;
+    }
+    else
+    {
+        pool->packet_buffer = sw_malloc(max_packet_size);
+        if (pool->packet_buffer == NULL)
+        {
+            swSysError("malloc(%d) failed.", max_packet_size);
+            return SW_ERR;
+        }
+        pool->max_packet_size = max_packet_size;
+        pool->main_loop = swProcessPool_worker_loop_ex;
+    }
+
+    return SW_OK;
+}
+
+static int swProcessPool_worker_loop_ex(swProcessPool *pool, swWorker *worker)
+{
+    int n;
+    char *data;
+
+    struct
+    {
+        long mtype;
+        swEventData buf;
+    } out;
+
+    while (SwooleG.running > 0)
+    {
+        /**
+         * fetch task
+         */
+        if (pool->use_msgqueue)
+        {
+            n = swMsgQueue_pop(pool->queue, (swQueue_data *) &out, sizeof(out.buf));
+            if (n < 0 && errno != EINTR)
+            {
+                swSysError("[Worker#%d] msgrcv() failed.", worker->id);
+                break;
+            }
+            data = (char*) &out.buf;
+        }
+        else if (pool->use_socket)
+        {
+            int fd = accept(pool->stream->socket, NULL, NULL);
+            if (fd < 0)
+            {
+                if (errno == EAGAIN || errno == EINTR)
+                {
+                    continue;
+                }
+                else
+                {
+                    swSysError("accept(%d) failed.", pool->stream->socket);
+                    break;
+                }
+            }
+            int tmp = 0;
+            if (swSocket_recv_blocking(fd, &tmp, sizeof(tmp), MSG_WAITALL) <= 0)
+            {
+                goto _close;
+            }
+            n = ntohl(tmp);
+            if (n <= 0)
+            {
+                goto _close;
+            }
+            else if (n > pool->max_packet_size)
+            {
+                goto _close;
+            }
+            if (swSocket_recv_blocking(fd, pool->packet_buffer, n, MSG_WAITALL) <= 0)
+            {
+                _close: close(fd);
+                continue;
+            }
+            data = pool->packet_buffer;
+            pool->stream->last_connection = fd;
+        }
+        else
+        {
+            n = read(worker->pipe_worker, &out.buf, sizeof(out.buf));
+            if (n < 0 && errno != EINTR)
+            {
+                swSysError("[Worker#%d] read(%d) failed.", worker->id, worker->pipe_worker);
+            }
+            data = (char*) &out.buf;
+        }
+
+        /**
+         * timer
+         */
+        if (n < 0)
+        {
+            if (errno == EINTR && SwooleG.signal_alarm)
+            {
+                alarm_handler: SwooleG.signal_alarm = 0;
+                swTimer_select(&SwooleG.timer);
+            }
+            continue;
+        }
+
+        pool->onMessage(pool, data, n);
+
+        if (pool->use_socket && pool->stream->last_connection > 0)
+        {
+            close(pool->stream->last_connection);
+            pool->stream->last_connection = 0;
+        }
+
+        /**
+         * timer
+         */
+        if (SwooleG.signal_alarm)
+        {
+            goto alarm_handler;
         }
     }
     return SW_OK;

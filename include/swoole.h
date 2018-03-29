@@ -1570,6 +1570,7 @@ struct _swProcessPool
     uint8_t reload_init;
     uint8_t dispatch_mode;
     uint8_t ipc_mode;
+    uint8_t started;
 
     /**
      * process type
@@ -1591,10 +1592,14 @@ struct _swProcessPool
      */
     uint8_t use_socket;
 
+    char *packet_buffer;
+    uint32_t max_packet_size;
+
     /**
      * message queue key
      */
     key_t msgqueue_key;
+
 
     int worker_num;
     int max_request;
@@ -1602,6 +1607,7 @@ struct _swProcessPool
     int (*onTask)(struct _swProcessPool *pool, swEventData *task);
 
     void (*onWorkerStart)(struct _swProcessPool *pool, int worker_id);
+    void (*onMessage)(struct _swProcessPool *pool, char *data, uint32_t length);
     void (*onWorkerStop)(struct _swProcessPool *pool, int worker_id);
 
     int (*main_loop)(struct _swProcessPool *pool, swWorker *worker);
@@ -1784,6 +1790,8 @@ int swReactorSelect_create(swReactor *reactor);
 /*----------------------------Process Pool-------------------------------*/
 int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, key_t msgqueue_key, int ipc_mode);
 int swProcessPool_create_stream_socket(swProcessPool *pool, char *socket_file, int blacklog);
+int swProcessPool_create_tcp_socket(swProcessPool *pool, char *host, int port, int blacklog);
+int swProcessPool_set_protocol(swProcessPool *pool, int task_protocol, uint32_t max_packet_size);
 int swProcessPool_wait(swProcessPool *pool);
 int swProcessPool_start(swProcessPool *pool);
 void swProcessPool_shutdown(swProcessPool *pool);
