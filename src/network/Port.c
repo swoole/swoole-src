@@ -682,7 +682,6 @@ int swPort_http_static_handler(swHttpRequest *request, swConnection *conn)
     if (state == 2)
     {
         struct tm tm3;
-        memset(&tm3, 0, sizeof(tm3));
         char date_tmp[64];
         memcpy(date_tmp, date_if_modified_since, length_if_modified_since);
         date_tmp[length_if_modified_since] = 0;
