@@ -189,13 +189,13 @@ static PHP_METHOD(swoole_process_pool, __construct)
     //only cli env
     if (!SWOOLE_G(cli))
     {
-        swoole_php_fatal_error(E_ERROR, "swoole_process only can be used in PHP CLI mode.");
+        swoole_php_fatal_error(E_ERROR, "swoole_process_pool only can be used in PHP CLI mode.");
         RETURN_FALSE;
     }
 
     if (SwooleG.serv)
     {
-        swoole_php_fatal_error(E_ERROR, "swoole_process can't be used in master process.");
+        swoole_php_fatal_error(E_ERROR, "swoole_process_pool cannot use in server process.");
         RETURN_FALSE;
     }
 

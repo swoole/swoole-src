@@ -950,7 +950,6 @@ PHP_MINIT_FUNCTION(swoole)
 
     SWOOLE_DEFINE(IPC_NONE);
     SWOOLE_DEFINE(IPC_UNIXSOCK);
-    SWOOLE_DEFINE(IPC_MSGQUEUE);
     SWOOLE_DEFINE(IPC_SOCKET);
 
     SWOOLE_INIT_CLASS_ENTRY(swoole_server_ce, "swoole_server", "Swoole\\Server", swoole_server_methods);
