@@ -55,12 +55,6 @@ static sw_inline int64_t swTimer_get_relative_msec()
 
 int swTimer_init(long msec)
 {
-    if (SwooleGS->start && (swIsMaster() || swIsManager()))
-    {
-        swWarn("cannot use timer in master and manager process.");
-        return SW_ERR;
-    }
-
     if (swTimer_now(&SwooleG.timer.basetime) < 0)
     {
         return SW_ERR;
