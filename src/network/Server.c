@@ -382,15 +382,27 @@ static int swServer_start_proxy(swServer *serv)
         swServer_call_hook_func(serv, SW_SERVER_HOOK_MASTER_START);
     }
 
+    /**
+     * init timer
+     */
+    if (swTimer_init(1000) < 0)
+    {
+        return SW_ERR;
+    }
+    /**
+     * 1 second timer, update SwooleGS->now
+     */
+    if (SwooleG.timer.add(&SwooleG.timer, 1000, 1, serv, swServer_master_onTimer) == NULL)
+    {
+        return SW_ERR;
+    }
+
     if (serv->onStart != NULL)
     {
         serv->onStart(serv);
     }
 
-    struct timeval tmo;
-    tmo.tv_sec = 1; //for seconds timer
-    tmo.tv_usec = 0;
-    return main_reactor->wait(main_reactor, &tmo);
+    return main_reactor->wait(main_reactor, NULL);
 }
 
 void swServer_store_listen_socket(swServer *serv)
@@ -1165,8 +1177,9 @@ void swServer_signal_init(swServer *serv)
     swServer_set_minfd(SwooleG.serv, SwooleG.signal_fd);
 }
 
-void swServer_master_onTimer(swServer *serv)
+void swServer_master_onTimer(swTimer *timer, swTimer_node *tnode)
 {
+    swServer *serv = (swServer *) tnode->data;
     swoole_update_time();
     if (serv->scheduler_warning && serv->warning_time < SwooleGS->now)
     {

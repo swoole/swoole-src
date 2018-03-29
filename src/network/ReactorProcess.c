@@ -20,7 +20,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker);
 static int swReactorProcess_onPipeRead(swReactor *reactor, swEvent *event);
 static int swReactorProcess_send2client(swFactory *, swSendData *);
 static int swReactorProcess_send2worker(int, void *, int);
-static void swReactorProcess_onTimeout(swReactor *reactor);
+static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode);
 
 #ifdef HAVE_REUSEPORT
 static int swReactorProcess_reuse_port(swListenPort *ls);
@@ -373,18 +373,31 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     }
 
     /**
+     * init timer
+     */
+    if (swTimer_init(1000) < 0)
+    {
+        return SW_ERR;
+    }
+    /**
+     * 1 second timer, update SwooleGS->now
+     */
+    if (SwooleG.timer.add(&SwooleG.timer, 1000, 1, serv, swServer_master_onTimer) == NULL)
+    {
+        return SW_ERR;
+    }
+    /**
      * for heartbeat check
      */
     if (serv->heartbeat_check_interval > 0)
     {
-        swReactor_onTimeout_old = reactor->onTimeout;
-        reactor->onTimeout = swReactorProcess_onTimeout;
+        if (SwooleG.timer.add(&SwooleG.timer, serv->heartbeat_check_interval * 1000, 1, reactor, swReactorProcess_onTimeout) == NULL)
+        {
+            return SW_ERR;
+        }
     }
 
-    struct timeval timeo;
-    timeo.tv_sec = 1;
-    timeo.tv_usec = 0;
-    reactor->wait(reactor, &timeo);
+    reactor->wait(reactor, NULL);
 
     if (serv->onWorkerStop)
     {
@@ -493,8 +506,9 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *_send)
     }
 }
 
-static void swReactorProcess_onTimeout(swReactor *reactor)
+static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode)
 {
+    swReactor *reactor = tnode->data;
     swServer *serv = reactor->ptr;
     swEvent notify_ev;
     swConnection *conn;

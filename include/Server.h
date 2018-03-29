@@ -589,7 +589,7 @@ typedef struct
 } swPackage_response;
 
 int swServer_master_onAccept(swReactor *reactor, swEvent *event);
-void swServer_master_onTimer(swServer *serv);
+void swServer_master_onTimer(swTimer *timer, swTimer_node *tnode);
 
 int swServer_onFinish(swFactory *factory, swSendData *resp);
 int swServer_onFinish2(swFactory *factory, swSendData *resp);

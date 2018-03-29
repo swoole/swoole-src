@@ -179,17 +179,6 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
         coro_handle_timeout();
     }
 #endif
-
-    //server master
-    if (SwooleG.serv && SwooleTG.update_time)
-    {
-        swServer_master_onTimer(SwooleG.serv);
-        int32_t timeout_msec = SwooleG.main_reactor->timeout_msec;
-        if (timeout_msec < 0 || timeout_msec > 1000)
-        {
-            SwooleG.main_reactor->timeout_msec = 1000;
-        }
-    }
     //server worker
     swWorker *worker = SwooleWG.worker;
     if (worker != NULL)
