@@ -1771,7 +1771,7 @@ static PHP_METHOD(swoole_http_response, write)
         {
             zval _yield_data;
             ZVAL_STRINGL(&_yield_data, swoole_http_buffer->str, swoole_http_buffer->length);
-            php_swoole_server_coroutine_send_yield(ctx->fd, &_yield_data, return_value);
+            php_swoole_server_send_yield(serv, ctx->fd, &_yield_data, return_value);
             if (Z_TYPE_P(return_value) == IS_FALSE)
             {
                 ctx->chunk = 0;

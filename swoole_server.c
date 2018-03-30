@@ -87,12 +87,14 @@ static int php_swoole_onFinish(swServer *, swEventData *task);
 static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker_pid, int exit_code, int signo);
 static void php_swoole_onManagerStart(swServer *serv);
 static void php_swoole_onManagerStop(swServer *serv);
+static void php_swoole_onSendTimeout(swTimer *timer, swTimer_node *tnode);
 
 #ifdef SW_COROUTINE
 static void php_swoole_onConnect_finish(void *param);
 #endif
 
 static zval* php_swoole_server_add_port(swListenPort *port TSRMLS_DC);
+static void php_swoole_server_send_resume(swServer *serv, php_context *context, int fd);
 
 static int php_swoole_create_dir(const char* path, size_t length TSRMLS_DC)
 {
@@ -506,6 +508,10 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject TSRMLS_DC)
         if (send_coroutine_map == NULL)
         {
             swoole_php_fatal_error(E_ERROR, "failed to create send_coroutine_map. Error: %s", sw_error);
+        }
+        if (serv->onClose == NULL)
+        {
+            serv->onClose = php_swoole_onClose;
         }
     }
 #endif
@@ -1588,6 +1594,30 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
 
     SWOOLE_GET_TSRMLS;
 
+    if (serv->send_yield)
+    {
+        swLinkedList *coros_list = swHashMap_find_int(send_coroutine_map, info->fd);
+        if (coros_list)
+        {
+            php_context *context = swLinkedList_shift(coros_list);
+            if (context == NULL)
+            {
+                swoole_php_fatal_error(E_WARNING, "Nothing can coroResume.");
+            }
+            else
+            {
+                SwooleG.error = ECONNRESET;
+                zval_ptr_dtor(&context->coro_params);
+                ZVAL_NULL(&context->coro_params);
+                //resume coroutine
+                php_swoole_server_send_resume(serv, context, info->fd);
+                //free memory
+                swLinkedList_free(coros_list);
+                swHashMap_del_int(send_coroutine_map, info->fd);
+            }
+        }
+    }
+
     SW_MAKE_STD_ZVAL(zfd);
     ZVAL_LONG(zfd, info->fd);
 
@@ -1694,7 +1724,29 @@ void php_swoole_onBufferFull(swServer *serv, swDataHead *info)
     }
 }
 
-static void php_swoole_server_resume_send(swServer *serv, php_context *context, int fd)
+#ifdef SW_COROUTINE
+static void php_swoole_onSendTimeout(swTimer *timer, swTimer_node *tnode)
+{
+    php_context *context = (php_context *) tnode->data;
+    zval *zdata = &context->coro_params;
+    zval *result;
+    zval *retval = NULL;
+    SW_MAKE_STD_ZVAL(result);
+
+    SwooleG.error = EAGAIN;
+    ZVAL_BOOL(result, 0);
+
+    int ret = coro_resume(context, result, &retval);
+    if (ret == CORO_END && retval)
+    {
+        sw_zval_ptr_dtor(&retval);
+    }
+    sw_zval_ptr_dtor(&result);
+    sw_zval_ptr_dtor(&zdata);
+    efree(context);
+}
+
+static void php_swoole_server_send_resume(swServer *serv, php_context *context, int fd)
 {
     char *data;
     zval *zdata = &context->coro_params;
@@ -1703,6 +1755,12 @@ static void php_swoole_server_resume_send(swServer *serv, php_context *context, 
     zval *result;
     zval *retval = NULL;
     SW_MAKE_STD_ZVAL(result);
+
+    if (context->private_data)
+    {
+        swTimer_del(&SwooleG.timer, (swTimer_node *) context->private_data);
+        context->private_data = NULL;
+    }
 
     if (length <= 0)
     {
@@ -1723,7 +1781,7 @@ static void php_swoole_server_resume_send(swServer *serv, php_context *context, 
     efree(context);
 }
 
-void php_swoole_server_coroutine_send_yield(int fd, zval *zdata, zval *return_value)
+void php_swoole_server_send_yield(swServer *serv, int fd, zval *zdata, zval *return_value)
 {
     swLinkedList *coros_list = swHashMap_find_int(send_coroutine_map, fd);
     if (coros_list == NULL)
@@ -1741,15 +1799,25 @@ void php_swoole_server_coroutine_send_yield(int fd, zval *zdata, zval *return_va
     }
 
     php_context *context = emalloc(sizeof(php_context));
-    context->coro_params = *zdata;
     if (swLinkedList_append(coros_list, (void *) context) == SW_ERR)
     {
         efree(context);
         RETURN_FALSE;
     }
+    if (serv->send_timeout > 0)
+    {
+        php_swoole_check_timer((int) (serv->send_timeout * 1000));
+        context->private_data = SwooleG.timer.add(&SwooleG.timer, (int) (serv->send_timeout * 1000), 0, context, php_swoole_onSendTimeout);
+    }
+    else
+    {
+        context->private_data = NULL;
+    }
+    context->coro_params = *zdata;
     coro_save(context);
     coro_yield();
 }
+#endif
 
 void php_swoole_onBufferEmpty(swServer *serv, swDataHead *info)
 {
@@ -1761,6 +1829,7 @@ void php_swoole_onBufferEmpty(swServer *serv, swDataHead *info)
     zval *retval = NULL;
     zval *callback;
 
+#ifdef SW_COROUTINE
     if (serv->send_yield == 0)
     {
         goto _callback;
@@ -1776,15 +1845,15 @@ void php_swoole_onBufferEmpty(swServer *serv, swDataHead *info)
             goto _callback;
         }
         //resume coroutine
-        php_swoole_server_resume_send(serv, context, info->fd);
+        php_swoole_server_send_resume(serv, context, info->fd);
         //free memory
         if (coros_list->num == 0)
         {
             swLinkedList_free(coros_list);
             swHashMap_del_int(send_coroutine_map, info->fd);
         }
-        return;
     }
+#endif
 
     _callback: callback = php_swoole_server_get_callback(serv, info->from_fd, SW_SERVER_CB_onBufferEmpty);
     if (!callback)
@@ -2087,6 +2156,11 @@ PHP_METHOD(swoole_server, set)
     {
         convert_to_boolean(v);
         serv->send_yield = Z_BVAL_P(v);
+    }
+    if (php_swoole_array_get_value(vht, "send_timeout", v))
+    {
+        convert_to_double(v);
+        serv->send_timeout = Z_DVAL_P(v);
     }
 #endif
     //dispatch_mode
@@ -2715,7 +2789,7 @@ PHP_METHOD(swoole_server, send)
         if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_BUFFER_OVERFLOW && serv->send_yield)
         {
             zval_add_ref(zdata);
-            php_swoole_server_coroutine_send_yield(fd, zdata, return_value);
+            php_swoole_server_send_yield(serv, fd, zdata, return_value);
         }
         else
 #endif

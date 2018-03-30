@@ -57,6 +57,7 @@ struct _php_context
     zval coro_params;
 #endif
     void (*onTimeout)(struct _php_context *cxt);
+    void *private_data;
     zval **current_eg_return_value_ptr_ptr;
     zend_execute_data *current_execute_data;
 #if PHP_MAJOR_VERSION < 7

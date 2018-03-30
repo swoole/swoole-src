@@ -459,6 +459,8 @@ struct _swServer
     int *cpu_affinity_available;
     int cpu_affinity_available_num;
     
+    double send_timeout;
+
     uint16_t listen_port_num;
     time_t reload_time;
     time_t warning_time;
