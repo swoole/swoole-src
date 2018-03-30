@@ -548,11 +548,8 @@ static int swProcessPool_worker_loop_ex(swProcessPool *pool, swWorker *worker)
     int n;
     char *data;
 
-    struct
-    {
-        long mtype;
-        swEventData buf;
-    } out;
+    swQueue_data *outbuf = (swQueue_data *) pool->packet_buffer;
+    outbuf->mtype = 0;
 
     while (SwooleG.running > 0)
     {
@@ -561,13 +558,13 @@ static int swProcessPool_worker_loop_ex(swProcessPool *pool, swWorker *worker)
          */
         if (pool->use_msgqueue)
         {
-            n = swMsgQueue_pop(pool->queue, (swQueue_data *) &out, sizeof(out.buf));
+            n = swMsgQueue_pop(pool->queue, outbuf, sizeof(outbuf->mdata));
             if (n < 0 && errno != EINTR)
             {
                 swSysError("[Worker#%d] msgrcv() failed.", worker->id);
                 break;
             }
-            data = (char*) &out.buf;
+            data = outbuf->mdata;
         }
         else if (pool->use_socket)
         {
@@ -608,12 +605,12 @@ static int swProcessPool_worker_loop_ex(swProcessPool *pool, swWorker *worker)
         }
         else
         {
-            n = read(worker->pipe_worker, &out.buf, sizeof(out.buf));
+            n = read(worker->pipe_worker, pool->packet_buffer, pool->max_packet_size);
             if (n < 0 && errno != EINTR)
             {
                 swSysError("[Worker#%d] read(%d) failed.", worker->id, worker->pipe_worker);
             }
-            data = (char*) &out.buf;
+            data = pool->packet_buffer;
         }
 
         /**

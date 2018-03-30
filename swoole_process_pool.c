@@ -22,6 +22,7 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_pool_construct, 0, 0, 1)
     ZEND_ARG_INFO(0, worker_num)
     ZEND_ARG_INFO(0, ipc_type)
+    ZEND_ARG_INFO(0, msgqueue_key)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_pool_on, 0, 0, 2)
@@ -185,6 +186,7 @@ static PHP_METHOD(swoole_process_pool, __construct)
 {
     long worker_num;
     long ipc_type = SW_IPC_NONE;
+    long msgq_key = 0;
 
     //only cli env
     if (!SWOOLE_G(cli))
@@ -199,7 +201,7 @@ static PHP_METHOD(swoole_process_pool, __construct)
         RETURN_FALSE;
     }
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|l", &worker_num, &ipc_type) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|ll", &worker_num, &ipc_type, &msgq_key) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -211,9 +213,19 @@ static PHP_METHOD(swoole_process_pool, __construct)
     }
 
     swProcessPool *pool = emalloc(sizeof(swProcessPool));
-    if (swProcessPool_create(pool, worker_num, 0, 0, ipc_type) < 0)
+    if (swProcessPool_create(pool, worker_num, 0, (key_t) msgq_key, ipc_type) < 0)
     {
+        zend_throw_exception_ex(swoole_exception_class_entry_ptr, errno TSRMLS_CC, "failed to create process pool");
         RETURN_FALSE;
+    }
+
+    if (ipc_type > 0)
+    {
+        if (swProcessPool_set_protocol(pool, 0, SW_BUFFER_INPUT_SIZE) < 0)
+        {
+            zend_throw_exception_ex(swoole_exception_class_entry_ptr, errno TSRMLS_CC, "failed to create process pool");
+            RETURN_FALSE;
+        }
     }
 
     pool->ptr = sw_zval_dup(getThis());
@@ -301,7 +313,6 @@ static PHP_METHOD(swoole_process_pool, listen)
     zend_size_t l_host;
     long port;
     long backlog = 2048;
-    long max_packet_size = SW_BUFFER_INPUT_SIZE;
 
     swProcessPool *pool = swoole_get_object(getThis());
 
@@ -311,7 +322,7 @@ static PHP_METHOD(swoole_process_pool, listen)
         RETURN_FALSE;
     }
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sl|ll", &host, &l_host, &port, &backlog, &max_packet_size) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sl|ll", &host, &l_host, &port, &backlog) == FAILURE)
     {
         return;
     }
@@ -319,11 +330,6 @@ static PHP_METHOD(swoole_process_pool, listen)
     if (pool->ipc_mode != SW_IPC_SOCKET)
     {
         swoole_php_fatal_error(E_WARNING, "unsupported ipc type[%d].", pool->ipc_mode);
-        RETURN_FALSE;
-    }
-
-    if (swProcessPool_set_protocol(pool, 0, max_packet_size) < 0)
-    {
         RETURN_FALSE;
     }
 
