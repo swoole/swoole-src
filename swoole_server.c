@@ -1594,6 +1594,7 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
 
     SWOOLE_GET_TSRMLS;
 
+#ifdef SW_COROUTINE
     if (serv->send_yield)
     {
         swLinkedList *coros_list = swHashMap_find_int(send_coroutine_map, info->fd);
@@ -1617,6 +1618,7 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
             }
         }
     }
+#endif
 
     SW_MAKE_STD_ZVAL(zfd);
     ZVAL_LONG(zfd, info->fd);
