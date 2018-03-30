@@ -46,6 +46,7 @@ typedef struct
     swoole_client_coro_io_status iowait;
     swTimer_node *timer;
     swString *result;
+    int send_yield;
     int cid;
 } swoole_client_coro_property;
 
@@ -118,6 +119,7 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length);
 static void client_onClose(swClient *cli);
 static void client_onError(swClient *cli);
 static void client_coro_onTimeout(swTimer *timer, swTimer_node *tnode);
+static void client_onSendTimeout(swTimer *timer, swTimer_node *tnode);
 
 static const zend_function_entry swoole_client_coro_methods[] =
 {
@@ -203,6 +205,17 @@ static void client_execute_callback(zval *zobject, enum php_swoole_client_callba
 
     if (type == SW_CLIENT_CB_onError || (type == SW_CLIENT_CB_onClose && ccp->iowait > SW_CLIENT_CORO_STATUS_READY))
     {
+        if (ccp->timer)
+        {
+            swTimer_del(&SwooleG.timer, ccp->timer);
+            ccp->timer = NULL;
+        }
+        if (ccp->send_yield)
+        {
+            SwooleG.error = errno;
+            zend_update_property_long(swoole_client_coro_class_entry_ptr, zobject, SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
+            ccp->send_yield = 0;
+        }
         SW_MAKE_STD_ZVAL(result);
         ZVAL_BOOL(result, 0);
         php_context *sw_current_context = swoole_get_property(zobject, 0);
@@ -214,6 +227,25 @@ static void client_execute_callback(zval *zobject, enum php_swoole_client_callba
         sw_zval_ptr_dtor(&result);
         return;
     }
+}
+
+static void client_send_yield(swClient *cli, char *data, size_t length, zval *return_value)
+{
+    swoole_client_coro_property *ccp = swoole_get_property((zval *) cli->object, client_coro_property_coroutine);
+    ccp->iowait = SW_CLIENT_CORO_STATUS_WAIT;
+    ccp->cid = COROG.current_coro->cid;
+    ccp->send_yield = 1;
+    if (cli->timeout > 0)
+    {
+        php_swoole_check_timer((int) (cli->timeout * 1000));
+        ccp->timer = SwooleG.timer.add(&SwooleG.timer, (int) (cli->timeout * 1000), 0, cli, client_onSendTimeout);
+    }
+
+    php_context *context = swoole_get_property((zval *) cli->object, client_coro_property_context);
+    context->coro_params.value.ptr = data;
+    context->private_data = (void*) length;
+    coro_save(context);
+    coro_yield();
 }
 
 void swoole_client_coro_init(int module_number TSRMLS_DC)
@@ -280,6 +312,57 @@ static void client_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
         sw_zval_ptr_dtor(&retval);
     }
     sw_zval_ptr_dtor(&zdata);
+}
+
+static void client_onBufferEmpty(swClient *cli)
+{
+    zval *zobject = (zval *) cli->object;
+
+    swoole_client_coro_property *ccp = swoole_get_property(zobject, 1);
+    ccp->send_yield = 0;
+    if (ccp->timer)
+    {
+        swTimer_del(&SwooleG.timer, ccp->timer);
+        ccp->timer = NULL;
+    }
+
+    php_context *context = swoole_get_property(zobject, client_coro_property_context);
+    char *data = context->coro_params.value.ptr;
+    size_t length = (size_t) context->private_data;
+    zval result;
+    zval *retval = NULL;
+
+    ZVAL_BOOL(&result, cli->send(cli, data, length, 0) > 0);
+
+    int ret = coro_resume(context, &result, &retval);
+    if (ret == CORO_END && retval)
+    {
+        sw_zval_ptr_dtor(&retval);
+    }
+}
+
+static void client_onSendTimeout(swTimer *timer, swTimer_node *tnode)
+{
+    swClient *cli = tnode->data;
+    zval result;
+    zval *retval = NULL;
+    zval *zobject = (zval *) cli->object;
+
+    ZVAL_BOOL(&result, 0);
+
+    swoole_client_coro_property *ccp = swoole_get_property(zobject, 1);
+    ccp->send_yield = 0;
+    ccp->timer = NULL;
+
+    SwooleG.error = EAGAIN;
+    zend_update_property_long(swoole_client_coro_class_entry_ptr, zobject, SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
+
+    php_context *context = swoole_get_property(zobject, client_coro_property_context);
+    int ret = coro_resume(context, &result, &retval);
+    if (ret == CORO_END && retval)
+    {
+        sw_zval_ptr_dtor(&retval);
+    }
 }
 
 static void client_onReceive(swClient *cli, char *data, uint32_t length)
@@ -364,6 +447,9 @@ static void client_onClose(swClient *cli)
     {
         return;
     }
+
+    swDebug("client onClose");
+
     php_swoole_client_free(zobject, cli TSRMLS_CC);
     client_execute_callback(zobject, SW_CLIENT_CB_onClose);
 #if PHP_MAJOR_VERSION < 7
@@ -602,6 +688,7 @@ static PHP_METHOD(swoole_client_coro, connect)
         cli->onClose = client_onClose;
         cli->onError = client_onError;
         cli->onReceive = client_onReceive;
+        cli->onBufferEmpty = client_onBufferEmpty;
 
         cli->reactor_fdtype = PHP_SWOOLE_FD_STREAM_CLIENT;
     }
@@ -667,6 +754,11 @@ static PHP_METHOD(swoole_client_coro, send)
     int ret = cli->send(cli, data, data_len, flags);
     if (ret < 0)
     {
+        if (SwooleG.error == SW_ERROR_OUTPUT_BUFFER_OVERFLOW)
+        {
+            client_send_yield(cli, data, data_len, return_value);
+            return;
+        }
         SwooleG.error = errno;
         swoole_php_sys_error(E_WARNING, "send(%d) %d bytes failed.", cli->socket->fd, data_len);
         zend_update_property_long(swoole_client_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
@@ -789,7 +881,7 @@ static PHP_METHOD(swoole_client_coro, recv)
         swClient_wakeup(cli);
     }
 
-    swoole_client_coro_property *ccp = swoole_get_property(getThis(), 1);
+    swoole_client_coro_property *ccp = swoole_get_property(getThis(), client_coro_property_coroutine);
     if (ccp->iowait == SW_CLIENT_CORO_STATUS_DONE)
     {
         ccp->iowait = SW_CLIENT_CORO_STATUS_READY;
@@ -806,7 +898,7 @@ static PHP_METHOD(swoole_client_coro, recv)
         RETURN_FALSE;
     }
 
-    php_context *context = swoole_get_property(getThis(), 0);
+    php_context *context = swoole_get_property(getThis(), client_coro_property_context);
     if (timeout > 0)
     {
         php_swoole_check_timer((int) (timeout * 1000));

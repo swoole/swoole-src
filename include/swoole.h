@@ -504,6 +504,7 @@ typedef struct _swConnection
     uint8_t high_watermark;
     uint8_t removed;
     uint8_t tcp_nopush;
+    uint8_t dontwait;
     //--------------------------------------------------------------
     uint8_t tcp_nodelay;
     uint8_t ssl_want_read;

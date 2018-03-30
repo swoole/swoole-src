@@ -359,17 +359,16 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
     }
     else
     {
-        append_buffer:
-
-        if (buffer->length > socket->buffer_size)
+        append_buffer: if (buffer->length > socket->buffer_size)
         {
-            swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "socket#%d output buffer overflow.", fd);
-            if (SwooleG.socket_dontwait)
+            if (socket->dontwait)
             {
+                SwooleG.error = SW_ERROR_OUTPUT_BUFFER_OVERFLOW;
                 return SW_ERR;
             }
             else
             {
+                swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "socket#%d output buffer overflow.", fd);
                 swYield();
                 swSocket_wait(fd, SW_SOCKET_OVERFLOW_WAIT, SW_EVENT_WRITE);
             }

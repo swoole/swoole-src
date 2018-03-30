@@ -152,6 +152,7 @@ int swClient_create(swClient *cli, int type, int async)
             cli->send = swClient_tcp_send_async;
             cli->sendfile = swClient_tcp_sendfile_async;
             cli->pipe = swClient_tcp_pipe;
+            cli->socket->dontwait = 1;
         }
         else
         {
@@ -784,6 +785,7 @@ static int swClient_tcp_send_async(swClient *cli, char *data, int length, int fl
         if (SwooleG.error == SW_ERROR_OUTPUT_BUFFER_OVERFLOW)
         {
             n = -1;
+            cli->socket->high_watermark = 1;
         }
         else
         {

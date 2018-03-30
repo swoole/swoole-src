@@ -78,6 +78,7 @@ typedef struct _swClient
     uint32_t http2 :1;
     uint32_t sleep :1;
     uint32_t wait_dns :1;
+    uint32_t yield :1;
     uint32_t shutdow_rw :1;
     uint32_t shutdown_read :1;
     uint32_t shutdown_write :1;

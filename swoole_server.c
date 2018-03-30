@@ -1738,6 +1738,8 @@ static void php_swoole_onSendTimeout(swTimer *timer, swTimer_node *tnode)
     SwooleG.error = EAGAIN;
     ZVAL_BOOL(result, 0);
 
+    context->private_data = NULL;
+
     int ret = coro_resume(context, result, &retval);
     if (ret == CORO_END && retval)
     {
@@ -1752,8 +1754,6 @@ static void php_swoole_server_send_resume(swServer *serv, php_context *context, 
 {
     char *data;
     zval *zdata = &context->coro_params;
-    int length = php_swoole_get_send_data(zdata, &data TSRMLS_CC);
-
     zval *result;
     zval *retval = NULL;
     SW_MAKE_STD_ZVAL(result);
@@ -1764,12 +1764,17 @@ static void php_swoole_server_send_resume(swServer *serv, php_context *context, 
         context->private_data = NULL;
     }
 
-    if (length <= 0)
+    if (ZVAL_IS_NULL(zdata))
     {
-        ZVAL_BOOL(result, 0);
+        _fail: ZVAL_BOOL(result, 0);
     }
     else
     {
+        int length = php_swoole_get_send_data(zdata, &data TSRMLS_CC);
+        if (length <= 0)
+        {
+            goto _fail;
+        }
         ZVAL_BOOL(result, swServer_tcp_send(serv, fd, data, length) == SW_OK);
     }
 
