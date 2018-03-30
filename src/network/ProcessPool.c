@@ -774,7 +774,6 @@ static void swProcessPool_free(swProcessPool *pool)
 
     if (pool->use_msgqueue == 1 && pool->msgqueue_key == 0)
     {
-        pool->queue->remove = 1;
         swMsgQueue_free(pool->queue);
     }
 

@@ -20,7 +20,9 @@ static PHP_METHOD(swoole_msgqueue, __construct);
 static PHP_METHOD(swoole_msgqueue, __destruct);
 static PHP_METHOD(swoole_msgqueue, push);
 static PHP_METHOD(swoole_msgqueue, pop);
+static PHP_METHOD(swoole_msgqueue, setBlocking);
 static PHP_METHOD(swoole_msgqueue, stats);
+static PHP_METHOD(swoole_msgqueue, destory);
 
 static zend_class_entry swoole_msgqueue_ce;
 zend_class_entry *swoole_msgqueue_class_entry_ptr;
@@ -38,6 +40,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_msgqueue_pop, 0, 0, 0)
     ZEND_ARG_INFO(0, type)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_msgqueue_setBlocking, 0, 0, 1)
+    ZEND_ARG_INFO(0, blocking)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
@@ -47,7 +53,9 @@ static const zend_function_entry swoole_msgqueue_methods[] =
     PHP_ME(swoole_msgqueue, __destruct, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_ME(swoole_msgqueue, push, arginfo_swoole_msgqueue_push, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_msgqueue, pop, arginfo_swoole_msgqueue_pop, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_msgqueue, setBlocking, arginfo_swoole_msgqueue_setBlocking, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_msgqueue, stats, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_msgqueue, destory, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
@@ -61,19 +69,20 @@ void swoole_msgqueue_init(int module_number TSRMLS_DC)
 static PHP_METHOD(swoole_msgqueue, __construct)
 {
     long key;
+    long perms = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &key) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|l", &key, &perms) == FAILURE)
     {
         RETURN_FALSE;
     }
 
-    swMsgQueue *queue = emalloc(sizeof(swRingQueue));
+    swMsgQueue *queue = emalloc(sizeof(swMsgQueue));
     if (queue == NULL)
     {
         zend_throw_exception(swoole_exception_class_entry_ptr, "failed to create MsgQueue.", SW_ERROR_MALLOC_FAIL TSRMLS_CC);
         RETURN_FALSE;
     }
-    if (swMsgQueue_create(queue, 1, key, 0))
+    if (swMsgQueue_create(queue, 1, key, perms))
     {
         zend_throw_exception(swoole_exception_class_entry_ptr, "failed to init MsgQueue.", SW_ERROR_MALLOC_FAIL TSRMLS_CC);
         RETURN_FALSE;
@@ -83,7 +92,7 @@ static PHP_METHOD(swoole_msgqueue, __construct)
 
 static PHP_METHOD(swoole_msgqueue, __destruct)
 {
-    swRingQueue *queue = swoole_get_object(getThis());
+    swMsgQueue *queue = swoole_get_object(getThis());
     efree(queue);
     swoole_set_object(getThis(), NULL);
 }
@@ -103,7 +112,7 @@ static PHP_METHOD(swoole_msgqueue, push)
     in->mtype = type;
     memcpy(in->mdata, data, length + 1);
 
-    swRingQueue *queue = swoole_get_object(getThis());
+    swMsgQueue *queue = swoole_get_object(getThis());
     int ret = swMsgQueue_push(queue, in, length);
     efree(in);
     SW_CHECK_RETURN(ret);
@@ -119,7 +128,7 @@ static PHP_METHOD(swoole_msgqueue, pop)
         RETURN_FALSE;
     }
 
-    swRingQueue *queue = swoole_get_object(getThis());
+    swMsgQueue *queue = swoole_get_object(getThis());
     out.mtype = type;
     int length = swMsgQueue_pop(queue, &out, sizeof(out.mdata));
     if (length < 0)
@@ -129,9 +138,21 @@ static PHP_METHOD(swoole_msgqueue, pop)
     RETURN_STRINGL(out.mdata, length);
 }
 
+static PHP_METHOD(swoole_msgqueue, setBlocking)
+{
+    swMsgQueue *queue = swoole_get_object(getThis());
+    zend_bool blocking;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "b", &blocking) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+    swMsgQueue_set_blocking(queue, blocking);
+}
+
 static PHP_METHOD(swoole_msgqueue, stats)
 {
-    swRingQueue *queue = swoole_get_object(getThis());
+    swMsgQueue *queue = swoole_get_object(getThis());
     int queue_num = -1;
     int queue_bytes = -1;
     if (swMsgQueue_stat(queue, &queue_num, &queue_bytes) == 0)
@@ -144,4 +165,10 @@ static PHP_METHOD(swoole_msgqueue, stats)
     {
         RETURN_FALSE;
     }
+}
+
+static PHP_METHOD(swoole_msgqueue, destory)
+{
+    swMsgQueue *queue = swoole_get_object(getThis());
+    SW_CHECK_RETURN(swMsgQueue_free(queue));
 }

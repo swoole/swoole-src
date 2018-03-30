@@ -318,7 +318,6 @@ static PHP_METHOD(swoole_process, __destruct)
     }
     if (process->queue)
     {
-        swMsgQueue_free(process->queue);
         efree(process->queue);
     }
     efree(process);
@@ -381,7 +380,6 @@ static PHP_METHOD(swoole_process, useQueue)
         swMsgQueue_set_blocking(queue, 0);
         mode = mode & (~MSGQUEUE_NOWAIT);
     }
-    queue->remove = 0;
     process->queue = queue;
     process->ipc_mode = mode;
     zend_update_property_long(swoole_process_class_entry_ptr, getThis(), ZEND_STRL("msgQueueId"), queue->msg_id TSRMLS_CC);
@@ -415,10 +413,8 @@ static PHP_METHOD(swoole_process, statQueue)
 static PHP_METHOD(swoole_process, freeQueue)
 {
     swWorker *process = swoole_get_object(getThis());
-    if (process->queue)
+    if (process->queue && swMsgQueue_free(process->queue) == SW_OK)
     {
-        process->queue->remove = 1;
-        swMsgQueue_free(process->queue);
         efree(process->queue);
         process->queue = NULL;
         RETURN_TRUE;
