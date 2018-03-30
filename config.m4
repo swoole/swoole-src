@@ -371,6 +371,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_channel.c \
         swoole_channel_coro.c \
         swoole_ringqueue.c \
+        swoole_msgqueue.c \
         swoole_trace.c \
         src/core/base.c \
         src/core/log.c \

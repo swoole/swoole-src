@@ -1,6 +1,5 @@
 <?php
-
-$pool = new Swoole\Process\Pool(2);
+$pool = new Swoole\Process\Pool(2, SWOOLE_IPC_MSGQUEUE, 0x7000001);
 
 $pool->on("Message", function ($pool, $message) {
     echo "Message: {$message}\n";
