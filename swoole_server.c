@@ -57,6 +57,7 @@ zend_fcall_info_cache *php_sw_server_caches[PHP_SERVER_CALLBACK_NUM];
 
 static swHashMap *task_callbacks = NULL;
 static swHashMap *task_coroutine_map = NULL;
+static swHashMap *send_coroutine_map = NULL;
 
 #ifdef SW_COROUTINE
 typedef struct
@@ -499,6 +500,14 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject TSRMLS_DC)
 
 #ifdef SW_COROUTINE
     coro_init(TSRMLS_C);
+    if (serv->send_yield)
+    {
+        send_coroutine_map = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
+        if (send_coroutine_map == NULL)
+        {
+            swoole_php_fatal_error(E_ERROR, "failed to create send_coroutine_map. Error: %s", sw_error);
+        }
+    }
 #endif
 
     /**
@@ -627,7 +636,7 @@ void php_swoole_register_callback(swServer *serv)
     {
         serv->onBufferFull = php_swoole_onBufferFull;
     }
-    if (php_sw_server_callbacks[SW_SERVER_CB_onBufferEmpty] != NULL)
+    if (php_sw_server_callbacks[SW_SERVER_CB_onBufferEmpty] != NULL || serv->send_yield)
     {
         serv->onBufferEmpty = php_swoole_onBufferEmpty;
     }
@@ -1685,20 +1694,103 @@ void php_swoole_onBufferFull(swServer *serv, swDataHead *info)
     }
 }
 
+static void php_swoole_server_resume_send(swServer *serv, php_context *context, int fd)
+{
+    char *data;
+    zval *zdata = &context->coro_params;
+    int length = php_swoole_get_send_data(zdata, &data TSRMLS_CC);
+
+    zval *result;
+    zval *retval = NULL;
+    SW_MAKE_STD_ZVAL(result);
+
+    if (length <= 0)
+    {
+        ZVAL_BOOL(result, 0);
+    }
+    else
+    {
+        ZVAL_BOOL(result, swServer_tcp_send(serv, fd, data, length) == SW_OK);
+    }
+
+    int ret = coro_resume(context, result, &retval);
+    if (ret == CORO_END && retval)
+    {
+        sw_zval_ptr_dtor(&retval);
+    }
+    sw_zval_ptr_dtor(&result);
+    sw_zval_ptr_dtor(&zdata);
+    efree(context);
+}
+
+void php_swoole_server_coroutine_send_yield(int fd, zval *zdata, zval *return_value)
+{
+    swLinkedList *coros_list = swHashMap_find_int(send_coroutine_map, fd);
+    if (coros_list == NULL)
+    {
+        coros_list = swLinkedList_new(2, NULL);
+        if (coros_list == NULL)
+        {
+            RETURN_FALSE;
+        }
+        if (swHashMap_add_int(send_coroutine_map, fd, (void*) coros_list) == SW_ERR)
+        {
+            swLinkedList_free(coros_list);
+            RETURN_FALSE;
+        }
+    }
+
+    php_context *context = emalloc(sizeof(php_context));
+    context->coro_params = *zdata;
+    if (swLinkedList_append(coros_list, (void *) context) == SW_ERR)
+    {
+        efree(context);
+        RETURN_FALSE;
+    }
+    coro_save(context);
+    coro_yield();
+}
+
 void php_swoole_onBufferEmpty(swServer *serv, swDataHead *info)
 {
+    SWOOLE_GET_TSRMLS;
+
     zval *zserv = (zval *) serv->ptr2;
     zval *zfd;
     zval **args[2];
     zval *retval = NULL;
+    zval *callback;
 
-    zval *callback = php_swoole_server_get_callback(serv, info->from_fd, SW_SERVER_CB_onBufferEmpty);
+    if (serv->send_yield == 0)
+    {
+        goto _callback;
+    }
+
+    swLinkedList *coros_list = swHashMap_find_int(send_coroutine_map, info->fd);
+    if (coros_list)
+    {
+        php_context *context = swLinkedList_shift(coros_list);
+        if (context == NULL)
+        {
+            swoole_php_fatal_error(E_WARNING, "Nothing can coroResume.");
+            goto _callback;
+        }
+        //resume coroutine
+        php_swoole_server_resume_send(serv, context, info->fd);
+        //free memory
+        if (coros_list->num == 0)
+        {
+            swLinkedList_free(coros_list);
+            swHashMap_del_int(send_coroutine_map, info->fd);
+        }
+        return;
+    }
+
+    _callback: callback = php_swoole_server_get_callback(serv, info->from_fd, SW_SERVER_CB_onBufferEmpty);
     if (!callback)
     {
         return;
     }
-
-    SWOOLE_GET_TSRMLS;
 
     SW_MAKE_STD_ZVAL(zfd);
     ZVAL_LONG(zfd, info->fd);
@@ -1990,6 +2082,11 @@ PHP_METHOD(swoole_server, set)
         {
             COROG.max_coro_num = MAX_CORO_NUM_LIMIT;
         }
+    }
+    if (php_swoole_array_get_value(vht, "send_yield", v))
+    {
+        convert_to_boolean(v);
+        serv->send_yield = Z_BVAL_P(v);
     }
 #endif
     //dispatch_mode
@@ -2613,7 +2710,18 @@ PHP_METHOD(swoole_server, send)
     //TCP
     else
     {
-        SW_CHECK_RETURN(swServer_tcp_send(serv, fd, data, length));
+        ret = swServer_tcp_send(serv, fd, data, length);
+#ifdef SW_COROUTINE
+        if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_BUFFER_OVERFLOW && serv->send_yield)
+        {
+            zval_add_ref(zdata);
+            php_swoole_server_coroutine_send_yield(fd, zdata, return_value);
+        }
+        else
+#endif
+        {
+            SW_CHECK_RETURN(ret);
+        }
     }
 }
 

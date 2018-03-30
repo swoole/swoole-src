@@ -445,6 +445,10 @@ struct _swServer
      * slowlog
      */
     uint32_t trace_event_worker :1;
+    /**
+     * yield coroutine when the output buffer is full
+     */
+    uint32_t send_yield :1;
 
     /**
      *  heartbeat check time
