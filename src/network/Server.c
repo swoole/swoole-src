@@ -1076,7 +1076,7 @@ int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename, uint32
     }
     if (file_stat.st_size <= offset)
     {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "file[offset=%lld] is empty.", offset);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "file[offset=%ld] is empty.", (long)offset);
         return SW_ERR;
     }
 
