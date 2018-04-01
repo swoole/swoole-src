@@ -85,8 +85,8 @@ void swAio_free(void)
 void swAio_callback_test(swAio_event *aio_event)
 {
     printf("content=%s\n", (char *)aio_event->buf);
-    printf("fd: %d, request_type: %s, offset: %ld, length: %lu\n", aio_event->fd,
-            (aio_event == SW_AIO_READ) ? "READ" : "WRITE", aio_event->offset, (uint64_t) aio_event->nbytes);
+    printf("fd: %d, request_type: %s, offset: %lld, length: %lu\n", aio_event->fd,
+            (aio_event == SW_AIO_READ) ? "READ" : "WRITE", aio_event->offset,  aio_event->nbytes);
     SwooleG.running = 0;
 }
 

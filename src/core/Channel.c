@@ -213,8 +213,8 @@ int swChannel_pop(swChannel *object, void *out, int buffer_length)
 void swChannel_print(swChannel *chan)
 {
     printf("swChannel\n{\n"
-            "    off_t head = %ld;\n"
-            "    off_t tail = %ld;\n"
+            "    off_t head = %lld;\n"
+            "    off_t tail = %lld;\n"
             "    size_t size = %ld;\n"
             "    char head_tag = %d;\n"
             "    char tail_tag = %d;\n"
