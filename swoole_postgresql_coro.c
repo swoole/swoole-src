@@ -261,7 +261,7 @@ static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event)
                     break;
                 case PGRES_POLLING_FAILED:
                     errMsg = PQerrorMessage(pg_object->conn);
-                    php_printf("error:%s",errMsg);
+                    swWarn("error:[%s]",errMsg);
                     break;
                 default:
                     break;
@@ -471,7 +471,7 @@ static PHP_METHOD(swoole_postgresql_coro, query)
     if(ret == 0)
     {
         char * errMsg = PQerrorMessage(pgsql);
-        php_printf("error:%s",errMsg);
+        swWarn("error:[%s]",errMsg);
 
     }
 
@@ -716,7 +716,7 @@ static PHP_METHOD(swoole_postgresql_coro,metaData)
     if(ret == 0)
     {
         char * errMsg = PQerrorMessage(pgsql);
-        php_printf("error:%s",errMsg);
+        swWarn("error:[%s]",errMsg);
 
     }
     smart_str_free(&querystr);
