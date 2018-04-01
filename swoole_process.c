@@ -22,12 +22,10 @@
 #include "php_streams.h"
 #include "php_network.h"
 
-
 #if __APPLE__
 #undef daemon
 extern int daemon(int, int);
 #endif
-
 static PHP_METHOD(swoole_process, __construct);
 static PHP_METHOD(swoole_process, __destruct);
 static PHP_METHOD(swoole_process, useQueue);
