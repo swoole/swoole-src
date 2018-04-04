@@ -1322,7 +1322,7 @@ static PHP_FUNCTION(swoole_hashcode)
 {
     char *data;
     zend_size_t l_data;
-    long type = 0;
+    zend_long type = 0;
 
 #ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(1, 2)

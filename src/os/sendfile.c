@@ -20,9 +20,9 @@
 
 #include <sys/uio.h>
 
-int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size)
+int swoole_sendfile(int out_fd, int in_fd, off_t *offset, off_t size)
 {
-    off_t sent_bytes;
+    off_t sent_bytes = 0;
     int ret;
 
 #ifdef __MACH__
