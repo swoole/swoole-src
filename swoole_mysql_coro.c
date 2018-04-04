@@ -313,7 +313,7 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
             convert_to_string(value);
             if (Z_STRLEN_P(value) > 0xffff)
             {
-                buf[0] = SW_MYSQL_TYPE_VAR_STRING;
+                buf[0] = (char) SW_MYSQL_TYPE_VAR_STRING;
                 if (swString_append_ptr(mysql_request_buffer, buf, 1) < 0)
                 {
                     zval_dtor(value);
@@ -322,7 +322,7 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
             }
             else if (Z_STRLEN_P(value) > 250)
             {
-                buf[0] = SW_MYSQL_TYPE_BLOB;
+                buf[0] = (char) SW_MYSQL_TYPE_BLOB;
                 if (swString_append_ptr(mysql_request_buffer, buf, 1) < 0)
                 {
                     zval_dtor(value);
