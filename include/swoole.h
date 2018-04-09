@@ -2163,7 +2163,7 @@ extern swServerStats *SwooleStats;
 //-----------------------------------------------
 //OS Feature
 #if defined(HAVE_KQUEUE) || !defined(HAVE_SENDFILE)
-int swoole_sendfile(int out_fd, int in_fd, off_t *offset, off_t size);
+int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size);
 #else
 #include <sys/sendfile.h>
 #define swoole_sendfile(out_fd, in_fd, offset, limit)    sendfile(out_fd, in_fd, offset, limit)
