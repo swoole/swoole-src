@@ -367,11 +367,6 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     //set protocol function point
     swReactorThread_set_protocol(serv, reactor);
 
-    if (serv->onWorkerStart)
-    {
-        serv->onWorkerStart(serv, worker->id);
-    }
-
     /**
      * init timer
      */
@@ -386,6 +381,12 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     {
         return SW_ERR;
     }
+
+    if (serv->onWorkerStart)
+    {
+        serv->onWorkerStart(serv, worker->id);
+    }
+
     /**
      * for heartbeat check
      */
