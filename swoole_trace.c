@@ -80,7 +80,6 @@ void php_swoole_trace_check(swServer *serv)
         {
             continue;
         }
-        swWarn("PTRACE_ATTACH worker%d, pid=%d\n", i,  worker->pid);
         if (ptrace(PTRACE_ATTACH, worker->pid, 0, 0) < 0)
         {
             swSysError("failed to ptrace(ATTACH, %d) worker#%d,", worker->pid, worker->id);
