@@ -942,7 +942,7 @@ static int http_client_coro_send_http_request(zval *zobject TSRMLS_DC)
         int content_length = 0;
 
         //post data
-        if (Z_TYPE_P(post_data) == IS_ARRAY)
+        if (post_data && Z_TYPE_P(post_data) == IS_ARRAY)
         {
             SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(post_data), key, keylen, keytype, value)
                 if (HASH_KEY_IS_STRING != keytype)
@@ -994,7 +994,7 @@ static int http_client_coro_send_http_request(zval *zobject TSRMLS_DC)
         http_client_append_content_length(http_client_buffer, content_length + sizeof(boundary_str) - 1 + 6);
 
         //post data
-        if (Z_TYPE_P(post_data) == IS_ARRAY)
+        if (post_data && Z_TYPE_P(post_data) == IS_ARRAY)
         {
             SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(post_data), key, keylen, keytype, value)
                 if (HASH_KEY_IS_STRING != keytype)
