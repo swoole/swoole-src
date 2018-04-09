@@ -57,5 +57,6 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
-OK
+CONNECTED
+hello world
 close
