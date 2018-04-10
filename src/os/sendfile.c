@@ -20,7 +20,7 @@
 
 #include <sys/uio.h>
 
-int swoole_sendfile(int out_fd, int in_fd, off_t *offset, off_t size)
+int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size)
 {
     off_t sent_bytes = 0;
     int ret;
@@ -34,7 +34,7 @@ int swoole_sendfile(int out_fd, int in_fd, off_t *offset, off_t size)
 #endif
 
     //sent_bytes = (off_t)size;
-    swTrace("send file, out_fd:%d, in_fd:%d, offset:%d, size:%d", out_fd, in_fd, *offset, size);
+    swTrace("send file, out_fd:%d, in_fd:%d, offset:%d, size:%ld", out_fd, in_fd, *offset, (long)size);
 
     do_sendfile:
 #ifdef __MACH__
