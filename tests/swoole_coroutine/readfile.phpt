@@ -1,5 +1,5 @@
 --TEST--
-swoole_async: swoole_async_read
+swoole_coroutine: Co::readFile
 
 --SKIPIF--
 <?php require  __DIR__ . "/../include/skipif.inc"; ?>
