@@ -162,9 +162,6 @@ void swoole_async_init(int module_number TSRMLS_DC)
 
     REGISTER_LONG_CONSTANT("SWOOLE_AIO_BASE", SW_AIO_BASE, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("SWOOLE_AIO_LINUX", SW_AIO_LINUX, CONST_CS | CONST_PERSISTENT);
-#ifdef O_TRUNC
-    REGISTER_LONG_CONSTANT("FILE_TRUNCATE", O_TRUNC, CONST_CS | CONST_PERSISTENT);
-#endif
 
     php_swoole_open_files = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
     if (php_swoole_open_files == NULL)
@@ -896,12 +893,10 @@ PHP_FUNCTION(swoole_async_writefile)
     {
         open_flag |= O_APPEND;
     }
-#ifdef O_TRUNC
-    if (flags & O_TRUNC)
+    else
     {
         open_flag |= O_TRUNC;
     }
-#endif
     if (fcnt_len <= 0)
     {
         RETURN_FALSE;
