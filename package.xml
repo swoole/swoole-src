@@ -47,12 +47,9 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Added swoole_event_dispatch
-- Added swoole_event_isset
-- Optimized accept performance
-- Added before parameter to swoole_event_cycle
-- Added swoole_process::setBlocking
-- Added swoole_http_request::getData
+- Fixed failed to compile on docker
+- Allow to add timer in master process
+- Added configure options for pecl script
     </notes>
     <contents>
         <dir name="/">
