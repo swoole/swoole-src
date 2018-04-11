@@ -107,10 +107,6 @@
 
 #define SW_TASKWAIT_TIMEOUT        0.5
 
-#ifdef HAVE_EVENTFD
-#define HAVE_LINUX_AIO
-#endif
-
 #define SW_AIO_THREAD_NUM_DEFAULT        2
 #define SW_AIO_THREAD_NUM_MAX            32
 #define SW_AIO_MAX_FILESIZE              4194304  //4M
