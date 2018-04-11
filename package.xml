@@ -35,10 +35,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2018-03-28</date>
+    <date>2018-04-11</date>
     <time>09:50:10</time>
     <version>
-        <release>1.10.3</release>
+        <release>1.10.4</release>
         <api>1.10</api>
     </version>
     <stability>
@@ -705,5 +705,12 @@
         </required>
     </dependencies>
     <providesextension>swoole</providesextension>
-    <extsrcrelease />
+    <extsrcrelease>
+        <configureoption default="no" name="enable-swoole-debug" prompt="enable debug/trace log support?" />
+        <configureoption default="no" name="enable-sockets" prompt="enable sockets supports?" />
+        <configureoption default="no" name="enable-openssl" prompt="enable openssl support?" />
+        <configureoption default="no" name="enable-http2" prompt="enable http2 support?" />
+        <configureoption default="no" name="enable-async-redis" prompt="enable async-redis support?" />
+        <configureoption default="no" name="enable-mysqlnd" prompt="enable mysqlnd support?" />
+    </extsrcrelease>
 </package>
