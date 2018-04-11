@@ -1076,7 +1076,7 @@ static int swClient_onPackage(swConnection *conn, char *data, uint32_t length)
 {
     swClient *cli = (swClient *) conn->object;
     cli->onReceive(conn->object, data, length);
-    return cli->socket->close_wait ? SW_ERR : SW_OK;
+    return conn->close_wait ? SW_ERR : SW_OK;
 }
 
 static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
