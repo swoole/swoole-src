@@ -146,6 +146,28 @@ AC_DEFUN([AC_SWOOLE_HAVE_FUTEX],
     ])
 ])
 
+AC_DEFUN([AC_SWOOLE_HAVE_LINUX_AIO],
+[
+    AC_MSG_CHECKING([for linux aio])
+    AC_TRY_COMPILE(
+    [
+		#include <sys/syscall.h>
+        #include <linux/aio_abi.h>
+		#include <unistd.h>
+    ], [
+        struct iocb *iocbps[1];
+        struct iocb iocbp;
+        aio_context_t context;
+        iocbps[0] = &iocbp;
+        io_submit(context, 1, iocbps);
+    ], [
+        AC_DEFINE([HAVE_LINUX_AIO], 1, [have LINUX_AIO?])
+        AC_MSG_RESULT([yes])
+    ], [
+        AC_MSG_RESULT([no])
+    ])
+])
+
 AC_MSG_CHECKING([if compiling with clang])
 AC_COMPILE_IFELSE([
     AC_LANG_PROGRAM([], [[
@@ -199,6 +221,7 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_SWOOLE_CPU_AFFINITY
     AC_SWOOLE_HAVE_REUSEPORT
 	AC_SWOOLE_HAVE_FUTEX
+    AC_SWOOLE_HAVE_LINUX_AIO
 
     CFLAGS="-Wall -pthread $CFLAGS"
     LDFLAGS="$LDFLAGS -lpthread"
