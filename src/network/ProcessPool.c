@@ -208,6 +208,16 @@ static sw_inline int swProcessPool_schedule(swProcessPool *pool)
     return target_worker_id;
 }
 
+int swProcessPool_response(swProcessPool *pool, char *data, int length)
+{
+    if (pool->stream == NULL || pool->stream->last_connection == 0 || pool->stream->response_buffer == NULL)
+    {
+        SwooleG.error = SW_ERROR_INVALID_PARAMS;
+        return SW_ERR;
+    }
+    return swString_append_ptr(pool->stream->response_buffer, data, length);
+}
+
 /**
  * dispatch data to worker
  */
@@ -536,6 +546,12 @@ int swProcessPool_set_protocol(swProcessPool *pool, int task_protocol, uint32_t 
             swSysError("malloc(%d) failed.", max_packet_size);
             return SW_ERR;
         }
+        pool->stream->response_buffer = swString_new(SW_BUFFER_SIZE_STD);
+        if (pool->stream->response_buffer == NULL)
+        {
+            sw_free(pool->packet_buffer);
+            return SW_ERR;
+        }
         pool->max_packet_size = max_packet_size;
         pool->main_loop = swProcessPool_worker_loop_ex;
     }
@@ -630,6 +646,14 @@ static int swProcessPool_worker_loop_ex(swProcessPool *pool, swWorker *worker)
 
         if (pool->use_socket && pool->stream->last_connection > 0)
         {
+            swString *resp_buf = pool->stream->response_buffer;
+            if (resp_buf && resp_buf->length > 0)
+            {
+                int _l = htonl(resp_buf->length);
+                swSocket_write_blocking(pool->stream->last_connection, &_l, sizeof(_l));
+                swSocket_write_blocking(pool->stream->last_connection, resp_buf->str, resp_buf->length);
+                swString_clear(resp_buf);
+            }
             close(pool->stream->last_connection);
             pool->stream->last_connection = 0;
         }
@@ -788,6 +812,11 @@ static void swProcessPool_free(swProcessPool *pool)
         {
             close(pool->stream->socket);
         }
+        if (pool->stream->response_buffer)
+        {
+            swString_free(pool->stream->response_buffer);
+        }
+        sw_free(pool->stream);
     }
 
     if (pool->map)

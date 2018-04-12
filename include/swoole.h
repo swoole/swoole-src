@@ -1559,6 +1559,7 @@ typedef struct
     int socket;
     int last_connection;
     char *socket_file;
+    swString *response_buffer;
 } swStreamInfo;
 
 struct _swProcessPool
@@ -1797,6 +1798,7 @@ int swProcessPool_start(swProcessPool *pool);
 void swProcessPool_shutdown(swProcessPool *pool);
 pid_t swProcessPool_spawn(swWorker *worker);
 int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int *worker_id);
+int swProcessPool_response(swProcessPool *pool, char *data, int length);
 int swProcessPool_dispatch_blocking(swProcessPool *pool, swEventData *data, int *dst_worker_id);
 int swProcessPool_add_worker(swProcessPool *pool, swWorker *worker);
 int swProcessPool_del_worker(swProcessPool *pool, swWorker *worker);

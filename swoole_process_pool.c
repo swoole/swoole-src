@@ -36,10 +36,15 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_pool_listen, 0, 0, 1)
     ZEND_ARG_INFO(0, backlog)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_pool_write, 0, 0, 1)
+    ZEND_ARG_INFO(0, data)
+ZEND_END_ARG_INFO()
+
 static PHP_METHOD(swoole_process_pool, __construct);
 static PHP_METHOD(swoole_process_pool, __destruct);
 static PHP_METHOD(swoole_process_pool, on);
 static PHP_METHOD(swoole_process_pool, listen);
+static PHP_METHOD(swoole_process_pool, write);
 static PHP_METHOD(swoole_process_pool, start);
 
 static const zend_function_entry swoole_process_pool_methods[] =
@@ -48,6 +53,7 @@ static const zend_function_entry swoole_process_pool_methods[] =
     PHP_ME(swoole_process_pool, __destruct, arginfo_swoole_process_pool_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_ME(swoole_process_pool, on, arginfo_swoole_process_pool_on, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process_pool, listen, arginfo_swoole_process_pool_listen, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_process_pool, write, arginfo_swoole_process_pool_write, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process_pool, start, arginfo_swoole_process_pool_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
@@ -352,6 +358,29 @@ static PHP_METHOD(swoole_process_pool, listen)
         ret = swProcessPool_create_tcp_socket(pool, host, port, backlog);
     }
     SW_CHECK_RETURN(ret);
+}
+
+static PHP_METHOD(swoole_process_pool, write)
+{
+    char *data;
+    zend_size_t length;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &data, &length) == FAILURE)
+    {
+        return;
+    }
+
+    swProcessPool *pool = swoole_get_object(getThis());
+    if (pool->ipc_mode != SW_IPC_SOCKET)
+    {
+        swoole_php_fatal_error(E_WARNING, "unsupported ipc type[%d].", pool->ipc_mode);
+        RETURN_FALSE;
+    }
+    if (length == 0)
+    {
+        RETURN_FALSE;
+    }
+    SW_CHECK_RETURN(swProcessPool_response(pool, data, length));
 }
 
 static PHP_METHOD(swoole_process_pool, start)
