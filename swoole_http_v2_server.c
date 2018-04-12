@@ -334,6 +334,19 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
         swString_append_ptr(swoole_http_buffer, header_buffer, n);
     }
    
+    if (ctx->request.post_buffer && ctx->request.post_buffer->length > 0) {
+        uint32_t size = (uint32_t) ctx->request.post_buffer->length;
+        char value[SW_HTTP2_WINDOW_UPDATE_SIZE];
+        value[0] = size >> 24;
+        value[1] = size >> 16;
+        value[2] = size >> 8;
+        value[3] = size;
+        // 最后一个参数是0，控制的是连接的窗口大小。
+        swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_WINDOW_UPDATE, SW_HTTP2_WINDOW_UPDATE_SIZE, 0, 0);
+        swString_append_ptr(swoole_http_buffer, frame_header, 9);
+        swString_append_ptr(swoole_http_buffer, value, SW_HTTP2_WINDOW_UPDATE_SIZE);
+    }
+
     int ret = swServer_tcp_send(SwooleG.serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length);
     if (ret < 0)
     {
