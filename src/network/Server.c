@@ -522,7 +522,7 @@ int swServer_create_task_worker(swServer *serv)
     {
         char sockfile[sizeof(struct sockaddr_un)];
         snprintf(sockfile, sizeof(sockfile), "/tmp/swoole.task.%d.sock", SwooleGS->master_pid);
-        if (swProcessPool_create_stream_socket(&SwooleGS->task_workers, sockfile, 2048) < 0)
+        if (swProcessPool_create_unix_socket(&SwooleGS->task_workers, sockfile, 2048) < 0)
         {
             return SW_ERR;
         }

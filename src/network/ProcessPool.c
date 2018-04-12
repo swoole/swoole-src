@@ -118,7 +118,7 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
     return SW_OK;
 }
 
-int swProcessPool_create_stream_socket(swProcessPool *pool, char *socket_file, int blacklog)
+int swProcessPool_create_unix_socket(swProcessPool *pool, char *socket_file, int blacklog)
 {
     if (pool->ipc_mode != SW_IPC_SOCKET)
     {
