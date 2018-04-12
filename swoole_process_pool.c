@@ -30,9 +30,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_pool_on, 0, 0, 2)
     ZEND_ARG_INFO(0, callback)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_pool_listen, 0, 0, 2)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_pool_listen, 0, 0, 1)
     ZEND_ARG_INFO(0, host)
     ZEND_ARG_INFO(0, port)
+    ZEND_ARG_INFO(0, backlog)
 ZEND_END_ARG_INFO()
 
 static PHP_METHOD(swoole_process_pool, __construct);
@@ -328,7 +329,7 @@ static PHP_METHOD(swoole_process_pool, listen)
         RETURN_FALSE;
     }
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sl|ll", &host, &l_host, &port, &backlog) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|ll", &host, &l_host, &port, &backlog) == FAILURE)
     {
         return;
     }
@@ -340,14 +341,17 @@ static PHP_METHOD(swoole_process_pool, listen)
     }
 
     SwooleG.reuse_port = 0;
-    if (swProcessPool_create_tcp_socket(pool, host, port, backlog) < 0)
+    int ret;
+    //unix socket
+    if (strncasecmp("unix:/", host, 6) == 0)
     {
-        RETURN_FALSE;
+        ret = swProcessPool_create_unix_socket(pool, host + 5, backlog);
     }
     else
     {
-        RETURN_TRUE;
+        ret = swProcessPool_create_tcp_socket(pool, host, port, backlog);
     }
+    SW_CHECK_RETURN(ret);
 }
 
 static PHP_METHOD(swoole_process_pool, start)
