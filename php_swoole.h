@@ -105,6 +105,7 @@ extern __thread swoole_object_array swoole_objects;
 extern swoole_object_array swoole_objects;
 #endif
 
+extern swLinkedList *swoole_hooks[SW_MAX_HOOK_TYPE];
 
 //#define SW_USE_PHP        1
 #define SW_CHECK_RETURN(s)         if(s<0){RETURN_FALSE;}else{RETURN_TRUE;}return
@@ -570,6 +571,26 @@ static sw_inline zval* php_swoole_read_init_property(zend_class_entry *scope, zv
     else
     {
         return property;
+    }
+}
+
+static sw_inline int php_swoole_add_global_hook(enum swServer_hook_type type, void *func, int push_back)
+{
+    if (swoole_hooks[type] == NULL)
+    {
+        swoole_hooks[type] = swLinkedList_new(0, NULL);
+        if (swoole_hooks[type] == NULL)
+        {
+            return SW_ERR;
+        }
+    }
+    if (push_back)
+    {
+        return swLinkedList_append(swoole_hooks[type], func);
+    }
+    else
+    {
+        return swLinkedList_prepend(swoole_hooks[type], func);
     }
 }
 
