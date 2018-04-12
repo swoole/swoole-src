@@ -58,7 +58,7 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
             return SW_ERR;
         }
 
-        if (swMsgQueue_create(pool->queue, 1, pool->msgqueue_key, 1) < 0)
+        if (swMsgQueue_create(pool->queue, 1, pool->msgqueue_key, 0) < 0)
         {
             return SW_ERR;
         }

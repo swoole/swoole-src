@@ -87,7 +87,10 @@ static void php_swoole_process_pool_onWorkerStart(swProcessPool *pool, int worke
     args[1] = &zworker_id;
 
     process_pool_property *pp = swoole_get_property(zobject, 0);
-
+    if (pp->onWorkerStart == NULL)
+    {
+        return;
+    }
     if (sw_call_user_function_ex(EG(function_table), NULL, pp->onWorkerStart, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onWorkerStart handler error.");
@@ -150,7 +153,10 @@ static void php_swoole_process_pool_onWorkerStop(swProcessPool *pool, int worker
     args[1] = &zworker_id;
 
     process_pool_property *pp = swoole_get_property(zobject, 0);
-
+    if (pp->onWorkerStop == NULL)
+    {
+        return;
+    }
     if (sw_call_user_function_ex(EG(function_table), NULL, pp->onWorkerStop, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onWorkerStop handler error.");
