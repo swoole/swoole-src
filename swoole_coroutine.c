@@ -240,16 +240,14 @@ sw_inline php_context *sw_coro_save(zval *return_value, php_context *sw_current_
 
 int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_retval)
 {
-	//恢复内部函数 (yield调用方)例如 client->connect的执行栈
+    zend_execute_data *current = SWCC(current_execute_data);
     EG(vm_stack) = SWCC(current_vm_stack);
     EG(vm_stack_top) = SWCC(current_vm_stack_top);
     EG(vm_stack_end) = SWCC(current_vm_stack_end);
-
-    zend_execute_data *current = SWCC(current_execute_data);
-    if (ZEND_CALL_INFO(current) & ZEND_CALL_RELEASE_THIS)
-    {
-        zval_ptr_dtor(&(current->This));
-    }
+//    if (ZEND_CALL_INFO(current) & ZEND_CALL_RELEASE_THIS)
+//    {
+//        zval_ptr_dtor(&(current->This));
+//    }
     //调用yield方法的php内部函数栈  yield方法之前保存
     //内部函数已经执行结束 清理call
     zend_vm_stack_free_args(current);
@@ -258,12 +256,14 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
     //内部函数的调用方 coro_func 的执行data
     EG(current_execute_data) = current->prev_execute_data;
     COROG.current_coro = SWCC(current_task);
+
+//    COROG.current_coro->origin_coro = COROG.current_coro;
     COROG.require = 1;
 #if PHP_MINOR_VERSION < 1
     EG(scope) = EG(current_execute_data)->func->op_array.scope;
 #endif
     COROG.allocated_return_value_ptr = SWCC(allocated_return_value_ptr);
-    //判断函数返回是否被使用 当前opline ZEND_ASSIGN_(SPEC_CV_VAR_RETVAL_UNUSED_HANDLER)
+    //判断函数返回值是否被使用 当前opline为函数返回后的赋值ZEND_ASSIGN_|SPEC_CV_VAR_RETVAL_(UNUSED)_HANDLER
     EG(current_execute_data)->opline--;
     //回退一个 ZEND_DO_FCALL_SPEC_RETVAL_USED_HANDLER
     if (EG(current_execute_data)->opline->result_type != IS_UNUSED)
@@ -271,12 +271,13 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
         ZVAL_COPY(SWCC(current_coro_return_value_ptr), retval);
     }
     EG(current_execute_data)->opline++;
+    EG(vm_interrupt) = 0;
     zend_execute_ex(EG(current_execute_data) TSRMLS_CC);
 //    coro_close(TSRMLS_C);
     int coro_status;
 	coro_status = CORO_END;
 	COROG.pending_interrupt = 1;
-	EG(vm_interrupt) = 1;
+//	EG(vm_interrupt) = 1;
     if (unlikely(coro_status == CORO_END && EG(exception)))
     {
         sw_zval_ptr_dtor(&retval);
@@ -308,8 +309,8 @@ sw_inline void coro_yield()
 {
     SWOOLE_GET_TSRMLS;
 	coro_task *current_coro = COROG.current_coro;
-	COROG.next_coro = current_coro->origin_coro;//第一次为null
-	current_coro->origin_coro = NULL;
+	COROG.next_coro = NULL;//需要切换到main execute stack|  epoll_wait 循环
+	//current_coro->origin_coro = NULL;
 	COROG.pending_interrupt = 1;
 	EG(vm_interrupt) = 1;
 }
@@ -317,11 +318,13 @@ sw_inline void coro_yield()
 //cli 执行入口
 void coro_go(TSRMLS_D)
 {
-	coro_task *current_coro = COROG.root_coro;
-	if (current_coro) {
-		//next coro yield from origin_coro
-		current_coro->origin_coro = NULL;
-		COROG.next_coro = current_coro;
+	coro_task *root_coro = COROG.root_coro;
+	if (root_coro) {
+		//COROG.current_coro = root_coro;
+		//next coro =  current_coro yield to origin_coro
+//		root_coro->origin_coro = NULL;
+        //开始执行coro_func next_coro=null 为yield to 主流程
+		COROG.next_coro = root_coro;
 		COROG.pending_interrupt = 1;
 		EG(vm_interrupt) = 1;
 	}
@@ -333,16 +336,16 @@ void sw_interrupt_function(zend_execute_data *execute_data)/*{{{*/
 	if (COROG.pending_interrupt) {
 		COROG.pending_interrupt = 0;
 
-		coro_task *current_coro;
-		current_coro = COROG.current_coro;
-		if (current_coro) {
+		coro_task *coro;
+		coro = COROG.current_coro;
+		if (coro) {
 			/* Suspend current coro */
-			if (EXPECTED(current_coro->state == SW_CORO_RUNNING)) {
-				current_coro->execute_data = execute_data;
-				current_coro->state = SW_CORO_SUSPENDED;
-				current_coro->stack = EG(vm_stack);
-				current_coro->vm_stack_top = EG(vm_stack_top);
-				current_coro->vm_stack_end = EG(vm_stack_end);
+			if (EXPECTED(coro->state == SW_CORO_RUNNING)) {
+				coro->execute_data = execute_data;
+				coro->state = SW_CORO_SUSPENDED;
+				coro->stack = EG(vm_stack);
+				coro->vm_stack_top = EG(vm_stack_top);
+				coro->vm_stack_end = EG(vm_stack_end);
 			}
 		}
 //		else {
