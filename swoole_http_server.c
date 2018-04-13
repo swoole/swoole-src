@@ -1763,26 +1763,11 @@ static PHP_METHOD(swoole_http_response, write)
         ctx->chunk = 1;
         swString_clear(swoole_http_buffer);
         http_build_header(ctx, getThis(), swoole_http_buffer, -1 TSRMLS_CC);
-
-        swServer *serv = SwooleG.serv;
-        int ret = swServer_tcp_send(serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length);
-#ifdef SW_COROUTINE
-        if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_BUFFER_OVERFLOW && serv->send_yield)
+        if (swServer_tcp_send(SwooleG.serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length) < 0)
         {
-            zval _yield_data;
-            ZVAL_STRINGL(&_yield_data, swoole_http_buffer->str, swoole_http_buffer->length);
-            php_swoole_server_send_yield(serv, ctx->fd, &_yield_data, return_value);
-            if (Z_TYPE_P(return_value) == IS_FALSE)
-            {
-                ctx->chunk = 0;
-                ctx->send_header = 0;
-            }
-            return;
-        }
-        else
-#endif
-        {
-            SW_CHECK_RETURN(ret);
+            ctx->chunk = 0;
+            ctx->send_header = 0;
+            RETURN_FALSE;
         }
     }
 
@@ -1795,7 +1780,7 @@ static PHP_METHOD(swoole_http_response, write)
     }
     else if (length == 0)
     {
-       swoole_php_error(E_WARNING, "data to send is empty.");
+        swoole_php_error(E_WARNING, "data to send is empty.");
         RETURN_FALSE;
     }
     else
@@ -1835,8 +1820,25 @@ static PHP_METHOD(swoole_http_response, write)
         swString_append_ptr(swoole_http_buffer, SW_STRL("\r\n") - 1);
     }
 
-    int ret = swServer_tcp_send(SwooleG.serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length);
     sw_free(hex_string);
+
+    swServer *serv = SwooleG.serv;
+    int ret = swServer_tcp_send(serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length);
+#ifdef SW_COROUTINE
+    if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_BUFFER_OVERFLOW && serv->send_yield)
+    {
+        zval _yield_data;
+        ZVAL_STRINGL(&_yield_data, swoole_http_buffer->str, swoole_http_buffer->length);
+        php_swoole_server_send_yield(serv, ctx->fd, &_yield_data, return_value);
+        if (Z_TYPE_P(return_value) == IS_FALSE)
+        {
+            ctx->chunk = 0;
+            ctx->send_header = 0;
+        }
+        return;
+    }
+#endif
+
     SW_CHECK_RETURN(ret);
 }
 

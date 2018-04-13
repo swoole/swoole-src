@@ -26,7 +26,6 @@ $pm->childFunc = function () use ($pm) {
 
     $http->set([
         //'log_file' => '/dev/null',
-        'buffer_output_size' => 2*1024*1024,
     ]);
 
     $http->on("WorkerStart", function ($serv, $wid) {
