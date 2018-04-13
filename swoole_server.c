@@ -1445,6 +1445,10 @@ static void php_swoole_onUserWorkerStart(swServer *serv, swWorker *worker)
     zval *object = worker->ptr;
     zend_update_property_long(swoole_process_class_entry_ptr, object, ZEND_STRL("id"), SwooleWG.id TSRMLS_CC);
 
+    zval *zserv = (zval *) serv->ptr2;
+    zend_update_property_long(swoole_server_class_entry_ptr, zserv, ZEND_STRL("master_pid"), SwooleGS->master_pid TSRMLS_CC);
+    zend_update_property_long(swoole_server_class_entry_ptr, zserv, ZEND_STRL("manager_pid"), SwooleGS->manager_pid TSRMLS_CC);
+
     php_swoole_process_start(worker, object TSRMLS_CC);
 }
 
