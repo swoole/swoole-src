@@ -1764,7 +1764,7 @@ static PHP_METHOD(swoole_http_response, write)
         swString_clear(swoole_http_buffer);
         http_build_header(ctx, getThis(), swoole_http_buffer, -1 TSRMLS_CC);
 
-        swServer *serv = swoole_get_object(getThis());
+        swServer *serv = SwooleG.serv;
         int ret = swServer_tcp_send(serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length);
 #ifdef SW_COROUTINE
         if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_BUFFER_OVERFLOW && serv->send_yield)
