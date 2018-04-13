@@ -10,7 +10,7 @@ use Swoole\Coroutine as co;
 co::set(['trace_flags' => 1]);
 
 co::create(function() {
-    array_map("test","param");
+    array_map("test",array("param\n"));
     echo "map end\n";
 });
 
