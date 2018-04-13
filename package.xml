@@ -35,10 +35,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2018-04-10</date>
+    <date>2018-04-13</date>
     <time>09:50:10</time>
     <version>
-        <release>2.1.2</release>
+        <release>2.1.3</release>
         <api>2.1</api>
     </version>
     <stability>
@@ -47,11 +47,11 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-	- Added PostgreSQL coroutine client (depends on libpg)
-	- Added Co::readFile
-	- Added Co::writeFile
-    - Added swoole_process_pool
-    - Added swoole_msgqueue
+        - Fixed failed to compile on docker
+        - Fixed Http\Reponse::write is unavailable
+        - Fixed ProcessPool crash without onWorkerStart callback
+        - Fixed failed to compile with --disable-coroutine
+        - Fixed failed to compile with --enable-coroutinepostgresql on php-7.1
     </notes>
     <contents>
         <dir name="/">
