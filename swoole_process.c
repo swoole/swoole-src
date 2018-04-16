@@ -255,6 +255,12 @@ static PHP_METHOD(swoole_process, __construct)
         RETURN_FALSE;
     }
 
+    if (SwooleAIO.init)
+    {
+        swoole_php_fatal_error(E_ERROR, "unable to create process with async-io threads.");
+        RETURN_FALSE;
+    }
+
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|bl", &callback, &redirect_stdin_and_stdout, &pipe_type) == FAILURE)
     {
         RETURN_FALSE;
@@ -682,6 +688,11 @@ int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
         SwooleG.main_reactor->free(SwooleG.main_reactor);
         SwooleG.main_reactor = NULL;
         swTraceLog(SW_TRACE_PHP, "destroy reactor");
+    }
+
+    if (SwooleAIO.init)
+    {
+        SwooleAIO.init = 0;
     }
 
 #ifdef SW_COROUTINE
