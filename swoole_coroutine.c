@@ -142,7 +142,6 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     zend_function *func = fci_cache->function_handler;
     zend_op_array *op_array = (zend_op_array *) fci_cache->function_handler;
     zend_object *object;
-
     sw_vm_stack_init();
     /* user coro stack frame layout
      *  ------------------
@@ -201,7 +200,19 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     COROG.root_coro->post_callback_params = params;
     COROG.require = 1;
     swTraceLog(SW_TRACE_COROUTINE, "Create coro id: %d, coro total count: %d, heap size: %zu", cid, COROG.coro_num, zend_memory_usage(0));
-	return 1;
+
+    coro_task *coro = COROG.root_coro;
+	if (coro) {
+		EG(current_execute_data) = coro->execute_data;
+		EG(vm_stack) = coro->stack;
+		EG(vm_stack_top) = coro->vm_stack_top;
+		EG(vm_stack_end) = coro->vm_stack_end;
+		coro->state = SW_CORO_RUNNING;
+	}
+	COROG.require = 1;
+	COROG.current_coro = coro;
+	zend_execute_ex(EG(current_execute_data) TSRMLS_CC);
+	return 0;
 }
 
 
@@ -241,31 +252,17 @@ sw_inline php_context *sw_coro_save(zval *return_value, php_context *sw_current_
 int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_retval)
 {
     zend_execute_data *current = SWCC(current_execute_data);
-    EG(vm_stack) = SWCC(current_vm_stack);
-    EG(vm_stack_top) = SWCC(current_vm_stack_top);
-    EG(vm_stack_end) = SWCC(current_vm_stack_end);
-//    if (ZEND_CALL_INFO(current) & ZEND_CALL_RELEASE_THIS)
-//    {
-//        zval_ptr_dtor(&(current->This));
-//    }
-    //调用yield方法的php内部函数栈  yield方法之前保存
-    //内部函数已经执行结束 清理call
-    zend_vm_stack_free_args(current);
-    zend_vm_stack_free_call_frame(current);
-
-    //内部函数的调用方 coro_func 的执行data
-    EG(current_execute_data) = current->prev_execute_data;
     COROG.current_coro = SWCC(current_task);
-
-//    COROG.current_coro->origin_coro = COROG.current_coro;
+    EG(current_execute_data) = COROG.current_coro->execute_data;
+	EG(vm_stack) = COROG.current_coro->stack;
+	EG(vm_stack_top) = COROG.current_coro->vm_stack_top;
+	EG(vm_stack_end) = COROG.current_coro->vm_stack_end;
     COROG.require = 1;
 #if PHP_MINOR_VERSION < 1
     EG(scope) = EG(current_execute_data)->func->op_array.scope;
 #endif
     COROG.allocated_return_value_ptr = SWCC(allocated_return_value_ptr);
-    //判断函数返回值是否被使用 当前opline为函数返回后的赋值ZEND_ASSIGN_|SPEC_CV_VAR_RETVAL_(UNUSED)_HANDLER
     EG(current_execute_data)->opline--;
-    //回退一个 ZEND_DO_FCALL_SPEC_RETVAL_USED_HANDLER
     if (EG(current_execute_data)->opline->result_type != IS_UNUSED)
     {
         ZVAL_COPY(SWCC(current_coro_return_value_ptr), retval);
@@ -273,35 +270,20 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
     EG(current_execute_data)->opline++;
     EG(vm_interrupt) = 0;
     zend_execute_ex(EG(current_execute_data) TSRMLS_CC);
-//    coro_close(TSRMLS_C);
-    int coro_status;
-	coro_status = CORO_END;
-	COROG.pending_interrupt = 1;
-//	EG(vm_interrupt) = 1;
-    if (unlikely(coro_status == CORO_END && EG(exception)))
+    if (unlikely(EG(exception)))
     {
         sw_zval_ptr_dtor(&retval);
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
-    return coro_status;
+    return CORO_END;
 }
 
 int sw_coro_resume_parent(php_context *sw_current_context, zval *retval, zval *coro_retval)
 {
-//	coro_task *current_coro = COROG.pre_coro;
-//	EG(vm_stack) = current_coro->stack;
-//	EG(vm_stack_top) = current_coro->stack->top;
-//	EG(vm_stack_end) = current_coro->stack->end;
-//	EG(current_execute_data) = current_coro->execute_data;
-//	zend_execute_ex(EG(current_execute_data) TSRMLS_CC);
-
 	EG(vm_stack) = SWCC(current_vm_stack);
 	EG(vm_stack_top) = SWCC(current_vm_stack_top);
 	EG(vm_stack_end) = SWCC(current_vm_stack_end);
-
 	EG(current_execute_data) = SWCC(current_execute_data);
-//	COROG.current_coro = SWCC(current_task);
-//	COROG.allocated_return_value_ptr = SWCC(allocated_return_value_ptr);
     return CORO_END;
 }
 
@@ -309,21 +291,15 @@ sw_inline void coro_yield()
 {
     SWOOLE_GET_TSRMLS;
 	coro_task *current_coro = COROG.current_coro;
-	COROG.next_coro = NULL;//需要切换到main execute stack|  epoll_wait 循环
-	//current_coro->origin_coro = NULL;
+	COROG.next_coro = NULL;
 	COROG.pending_interrupt = 1;
 	EG(vm_interrupt) = 1;
 }
 
-//cli 执行入口
-void coro_go(TSRMLS_D)
+void coro_run(TSRMLS_D)
 {
 	coro_task *root_coro = COROG.root_coro;
 	if (root_coro) {
-		//COROG.current_coro = root_coro;
-		//next coro =  current_coro yield to origin_coro
-//		root_coro->origin_coro = NULL;
-        //开始执行coro_func next_coro=null 为yield to 主流程
 		COROG.next_coro = root_coro;
 		COROG.pending_interrupt = 1;
 		EG(vm_interrupt) = 1;
@@ -348,17 +324,9 @@ void sw_interrupt_function(zend_execute_data *execute_data)/*{{{*/
 				coro->vm_stack_end = EG(vm_stack_end);
 			}
 		}
-//		else {
-//			/* call yield Backup main execution context */
-//			COROG.origin_ex = execute_data;
-//			COROG.origin_vm_stack = EG(vm_stack);
-//			COROG.origin_vm_stack_top = EG(vm_stack_top);
-//			COROG.origin_vm_stack_end = EG(vm_stack_end);
-//		}
 		coro = COROG.next_coro;
 		if (coro) {
 			/* Resume next coro */
-//			ZEND_ASSERT(coro->state == SW_CORO_SUSPENDED);
 			EG(current_execute_data) = coro->execute_data;
 			EG(vm_stack) = coro->stack;
 			EG(vm_stack_top) = coro->vm_stack_top;

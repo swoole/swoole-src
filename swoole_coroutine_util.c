@@ -68,7 +68,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_getaddrinfo, 0, 0, 1)
     ZEND_ARG_INFO(0, service)
 ZEND_END_ARG_INFO()
 
-static PHP_METHOD(swoole_coroutine_util, go);
+static PHP_METHOD(swoole_coroutine_util, run);
 static PHP_METHOD(swoole_coroutine_util, set);
 static PHP_METHOD(swoole_coroutine_util, suspend);
 static PHP_METHOD(swoole_coroutine_util, cli_wait);
@@ -92,7 +92,7 @@ static const zend_function_entry swoole_coroutine_util_methods[] =
 {
     ZEND_FENTRY(create, ZEND_FN(swoole_coroutine_create), arginfo_swoole_coroutine_create, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(exec, ZEND_FN(swoole_coroutine_exec), arginfo_swoole_coroutine_exec, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-	PHP_ME(swoole_coroutine_util, go, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+	PHP_ME(swoole_coroutine_util, run, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, set, arginfo_swoole_coroutine_set, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, cli_wait, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, suspend, arginfo_swoole_coroutine_suspend, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -530,9 +530,9 @@ static PHP_METHOD(swoole_coroutine_util, call_user_func_array)
 }
 #endif
 
-static PHP_METHOD(swoole_coroutine_util, go)
+static PHP_METHOD(swoole_coroutine_util, run)
 {
-    coro_go();
+    coro_run();
     RETURN_TRUE;
 }
 
@@ -670,7 +670,6 @@ PHP_FUNCTION(swoole_coroutine_create)
     {
         RETURN_FALSE;
     }
-
     swReactorCheckPoint = prev_checkpoint;
     coro_resume_parent(ctx, retval, retval);
     COROG.require = required;
