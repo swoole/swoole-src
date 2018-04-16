@@ -247,6 +247,12 @@ static PHP_METHOD(swoole_process, __construct)
         RETURN_FALSE;
     }
 
+    if (SwooleAIO.init)
+    {
+        swoole_php_fatal_error(E_ERROR, "unable to create process with async-io threads.");
+        RETURN_FALSE;
+    }
+
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|bl", &callback, &redirect_stdin_and_stdout, &pipe_type) == FAILURE)
     {
         RETURN_FALSE;
