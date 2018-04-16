@@ -690,11 +690,6 @@ int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
         swTraceLog(SW_TRACE_PHP, "destroy reactor");
     }
 
-    if (SwooleAIO.init)
-    {
-        SwooleAIO.init = 0;
-    }
-
 #ifdef SW_COROUTINE
     swLinkedList *coro_timeout_list = SwooleWG.coro_timeout_list;
 #endif
