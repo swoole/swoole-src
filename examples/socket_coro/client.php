@@ -2,7 +2,7 @@
 $socket = new Co\Socket(AF_INET, SOCK_STREAM, 0);
 
 go(function () use ($socket) {
-    $retval = $socket->connect('127.0.0.1', 9601);
+    $retval = $socket->connect('localhost', 9601);
     while ($retval)
     {
         $n = $socket->send("hello");

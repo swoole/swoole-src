@@ -278,9 +278,9 @@ static void socket_onResolveCompleted(swAio_event *event)
 
     if (event->error == 0)
     {
-        if (swoole_socket_connect(sock, event->buf, strlen(event->buf), Z_LVAL(context->coro_params))
-                == -1&& errno == EINPROGRESS)
+        if (swoole_socket_connect(sock, event->buf, strlen(event->buf), Z_LVAL(context->coro_params)) == -1 && errno == EINPROGRESS)
         {
+            efree(event->buf);
             if (context->private_data)
             {
                 int ms = (int) (Z_DVAL_P((zval *) context->private_data) * 1000);
@@ -306,12 +306,12 @@ static void socket_onResolveCompleted(swAio_event *event)
     {
         _error:
         ZVAL_FALSE(&result);
+        efree(event->buf);
         int ret = coro_resume(context, &result, &retval);
         if (ret == CORO_END && retval)
         {
             sw_zval_ptr_dtor(&retval);
         }
-        efree(event->buf);
     }
 }
 
@@ -338,7 +338,10 @@ static void socket_onTimeout(swTimer *timer, swTimer_node *tnode)
 static void swoole_socket_coro_free_storage(zend_object *object)
 {
     socket_coro *sock = (socket_coro*) object;
-    SwooleG.main_reactor->close(SwooleG.main_reactor, sock->fd);
+    if (sock->fd >= 0)
+    {
+        SwooleG.main_reactor->close(SwooleG.main_reactor, sock->fd);
+    }
     if (sock->buf)
     {
         efree(sock->buf);
@@ -689,7 +692,13 @@ static PHP_METHOD(swoole_socket_coro, send)
 static PHP_METHOD(swoole_socket_coro, close)
 {
     socket_coro *sock = (socket_coro *) Z_OBJ_P(getThis());
-    SwooleG.main_reactor->close(SwooleG.main_reactor, sock->fd);
+    if (sock->fd < 0)
+    {
+        RETURN_FALSE;
+    }
+    int ret = SwooleG.main_reactor->close(SwooleG.main_reactor, sock->fd);
+    sock->fd = -1;
+    SW_CHECK_RETURN(ret);
 }
 
 static PHP_METHOD(swoole_socket_coro, getsockname)
@@ -827,9 +836,17 @@ static PHP_METHOD(swoole_socket_coro, connect)
         else
         {
             ZVAL_LONG(&sock->context.coro_params, port);
-            zval *ztimeout = emalloc(sizeof(zval));
-            ZVAL_DOUBLE(ztimeout, timeout);
-            sock->context.private_data = ztimeout;
+            zval *ztimeout;
+            if (timeout > 0)
+            {
+                ztimeout = emalloc(sizeof(zval));
+                ZVAL_DOUBLE(ztimeout, timeout);
+                sock->context.private_data = ztimeout;
+            }
+            else
+            {
+                sock->context.private_data = NULL;
+            }
             goto _yield;
         }
     }

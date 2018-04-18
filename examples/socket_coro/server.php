@@ -5,9 +5,13 @@ $socket->listen(128);
 
 go(function () use ($socket) {
     while(true) {
+        echo "Accept: \n";
         $client = $socket->accept();
+
+        echo "New Coroutine: \n";
         go(function () use ($client) {
             while(true) {
+                echo "Client Recv: \n";
                 $data = $client->recv();
                 if (empty($data)) {
                     $client->close();
@@ -15,6 +19,7 @@ go(function () use ($socket) {
                 }
                 var_dump($client->getsockname());
                 var_dump($client->getpeername());
+                echo "Client Send: \n";
                 $client->send("Server: $data");
             }
         });
