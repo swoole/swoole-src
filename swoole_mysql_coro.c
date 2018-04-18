@@ -906,9 +906,9 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
     }
 
     mysql_client *client = swoole_get_object(getThis());
-    if (!client)
+    if (!client || client->state == SW_MYSQL_STATE_CLOSED)
     {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_mysql.");
+        swoole_php_fatal_error(E_WARNING, "The MySQL connection is not established.");
         RETURN_FALSE;
     }
 
