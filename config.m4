@@ -370,6 +370,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_coroutine.c \
         swoole_coroutine_util.c \
         swoole_event.c \
+        swoole_socket_coro.c \
         swoole_timer.c \
         swoole_async.c \
         swoole_process.c \

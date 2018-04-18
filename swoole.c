@@ -1031,6 +1031,7 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_server_port_init(module_number TSRMLS_CC);
     swoole_client_init(module_number TSRMLS_CC);
 #ifdef SW_COROUTINE
+    swoole_socket_coro_init(module_number TSRMLS_CC);
     swoole_client_coro_init(module_number TSRMLS_CC);
 #ifdef SW_USE_REDIS
     swoole_redis_coro_init(module_number TSRMLS_CC);
