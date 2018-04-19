@@ -26,6 +26,9 @@ static zend_class_entry swoole_socket_coro_ce;
 static zend_class_entry *swoole_socket_coro_class_entry_ptr;
 static zend_object_handlers swoole_socket_coro_handlers;
 
+static zend_class_entry swoole_socket_coro_exception_ce;
+static zend_class_entry *swoole_socket_coro_exception_class_entry_ptr;
+
 enum socket_opcode
 {
     SW_SOCKET_OPCODE_ACCEPT,
@@ -40,6 +43,7 @@ typedef struct
     zval object;
     int fd;
     int domain;
+    int cid;
     enum socket_opcode opcode;
     char *buf;
     uint32_t buf_size;
@@ -193,6 +197,8 @@ static int socket_onReadable(swReactor *reactor, swEvent *event)
         break;
     }
 
+    //unbind coroutine
+    sock->cid = 0;
     int ret = coro_resume(context, &result, &retval);
     zval_ptr_dtor(&result);
     if (ret == CORO_END && retval)
@@ -259,6 +265,8 @@ static int socket_onWritable(swReactor *reactor, swEvent *event)
         break;
     }
 
+    //unbind coroutine
+    sock->cid = 0;
     int ret = coro_resume(context, &result, &retval);
     zval_ptr_dtor(&result);
     if (ret == CORO_END && retval)
@@ -307,6 +315,8 @@ static void socket_onResolveCompleted(swAio_event *event)
         _error:
         ZVAL_FALSE(&result);
         efree(event->buf);
+`        //unbind coroutine
+        sock->cid = 0;
         int ret = coro_resume(context, &result, &retval);
         if (ret == CORO_END && retval)
         {
@@ -327,6 +337,8 @@ static void socket_onTimeout(swTimer *timer, swTimer_node *tnode)
     zend_update_property_long(swoole_socket_coro_class_entry_ptr, &sock->object, ZEND_STRL("errCode"), ETIMEDOUT TSRMLS_CC);
     ZVAL_FALSE(&result);
 
+    //unbind coroutine
+    sock->cid = 0;
     int ret = coro_resume(context, &result, &retval);
     zval_ptr_dtor(&result);
     if (ret == CORO_END && retval)
@@ -415,16 +427,21 @@ void swoole_socket_coro_init(int module_number TSRMLS_DC)
     swoole_socket_coro_class_entry_ptr->serialize = zend_class_serialize_deny;
     swoole_socket_coro_class_entry_ptr->unserialize = zend_class_unserialize_deny;
 
-    if (SWOOLE_G(use_shortname))
-    {
-        sw_zend_register_class_alias("Co\\Socket", swoole_socket_coro_class_entry_ptr);
-    }
-
     memcpy(&swoole_socket_coro_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
     swoole_socket_coro_handlers.free_obj = swoole_socket_coro_free_storage;
     swoole_socket_coro_handlers.clone_obj = NULL;
 
     zend_declare_property_long(swoole_socket_coro_class_entry_ptr, SW_STRL("errCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+
+    INIT_CLASS_ENTRY(swoole_socket_coro_exception_ce, "Swoole\\Coroutine\\Socket\\Exception", NULL);
+    swoole_socket_coro_exception_class_entry_ptr = sw_zend_register_internal_class_ex(&swoole_socket_coro_exception_ce,
+            zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
+
+    if (SWOOLE_G(use_shortname))
+    {
+        sw_zend_register_class_alias("Co\\Socket", swoole_socket_coro_class_entry_ptr);
+        sw_zend_register_class_alias("Co\\Socket\\Exception", swoole_socket_coro_exception_class_entry_ptr);
+    }
 }
 
 static PHP_METHOD(swoole_socket_coro, __construct)
@@ -444,7 +461,9 @@ static PHP_METHOD(swoole_socket_coro, __construct)
 
     if (sock->fd < 0)
     {
-        php_error_docref(NULL, E_WARNING, "Unable to create socket [%d]: %s", errno, strerror(errno));
+        zend_throw_exception(swoole_socket_coro_exception_class_entry_ptr, "Unable to create socket [%d]: %s", errno,
+                strerror(errno), errno TSRMLS_CC);
+        RETURN_FALSE;
     }
 
     php_swoole_check_reactor();
@@ -525,6 +544,7 @@ static PHP_METHOD(swoole_socket_coro, bind)
 
     if (retval != 0)
     {
+        zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), errno TSRMLS_CC);
         RETURN_FALSE;
     }
 
@@ -543,6 +563,7 @@ static PHP_METHOD(swoole_socket_coro, listen)
     socket_coro *sock = (socket_coro *) Z_OBJ_P(getThis());
     if (listen(sock->fd, backlog) != 0)
     {
+        zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), errno TSRMLS_CC);
         RETURN_FALSE;
     }
     RETURN_TRUE;
@@ -560,6 +581,11 @@ static PHP_METHOD(swoole_socket_coro, accept)
     ZEND_PARSE_PARAMETERS_END();
 
     socket_coro *sock = (socket_coro *) Z_OBJ_P(getThis());
+    if (unlikely(sock->cid && sock->cid != get_current_cid()))
+    {
+        swoole_php_fatal_error(E_WARNING, "socket has already been bound to another coroutine.");
+        RETURN_FALSE;
+    }
 
     if (SwooleG.main_reactor->add(SwooleG.main_reactor, sock->fd, PHP_SWOOLE_FD_SOCKET | SW_EVENT_READ) < 0)
     {
@@ -597,6 +623,11 @@ static PHP_METHOD(swoole_socket_coro, recv)
     ZEND_PARSE_PARAMETERS_END();
 
     socket_coro *sock = (socket_coro *) Z_OBJ_P(getThis());
+    if (unlikely(sock->cid && sock->cid != get_current_cid()))
+    {
+        swoole_php_fatal_error(E_WARNING, "socket has already been bound to another coroutine.");
+        RETURN_FALSE;
+    }
     if (sock->buf == NULL)
     {
         sock->buf_size = SW_BUFFER_SIZE_BIG;
@@ -647,6 +678,11 @@ static PHP_METHOD(swoole_socket_coro, send)
     }
 
     socket_coro *sock = (socket_coro *) Z_OBJ_P(getThis());
+    if (unlikely(sock->cid && sock->cid != get_current_cid()))
+    {
+        swoole_php_fatal_error(E_WARNING, "socket has already been bound to another coroutine.");
+        RETURN_FALSE;
+    }
     int ret = send(sock->fd, Z_STRVAL_P(data), Z_STRLEN_P(data), MSG_DONTWAIT);
     if (ret < 0)
     {
@@ -691,9 +727,16 @@ static PHP_METHOD(swoole_socket_coro, send)
 
 static PHP_METHOD(swoole_socket_coro, close)
 {
+    coro_check(TSRMLS_C);
+
     socket_coro *sock = (socket_coro *) Z_OBJ_P(getThis());
     if (sock->fd < 0)
     {
+        RETURN_FALSE;
+    }
+    if (unlikely(sock->cid && sock->cid != get_current_cid()))
+    {
+        swoole_php_fatal_error(E_WARNING, "socket has already been bound to another coroutine.");
         RETURN_FALSE;
     }
     int ret = SwooleG.main_reactor->close(SwooleG.main_reactor, sock->fd);
@@ -798,6 +841,11 @@ static PHP_METHOD(swoole_socket_coro, connect)
             swoole_php_error(E_WARNING, "Invalid port argument[%d]", port);
             RETURN_FALSE;
         }
+    }
+    if (unlikely(sock->cid && sock->cid != get_current_cid()))
+    {
+        swoole_php_fatal_error(E_WARNING, "socket has already been bound to another coroutine.");
+        RETURN_FALSE;
     }
 
     int retval = swoole_socket_connect(sock, host, l_host, port);
