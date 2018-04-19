@@ -181,7 +181,22 @@ static int socket_onReadable(swReactor *reactor, swEvent *event)
         while (1)
         {
             int n = recv(sock->fd, ZSTR_VAL(buf) + bytes, ZSTR_LEN(buf) - bytes, MSG_DONTWAIT);
-            if ((n < 0 && errno != EINTR) || n == 0)
+            if (n < 0)
+            {
+                if (errno == EINTR)
+                {
+                    continue;
+                }
+                else
+                {
+                    if (bytes == 0)
+                    {
+                        bytes = -1;
+                    }
+                    break;
+                }
+            }
+            else if (n == 0)
             {
                 break;
             }
