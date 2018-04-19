@@ -344,7 +344,6 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
     if (body->length > 0)
     {
         client->window_size -= body->length;    // TODO:flow control?
-        swTrace("-----------client->window_size=%u---------", client->window_size);
     }
     if (client->streams)
     {
@@ -520,8 +519,8 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
     if (!client->init)
     {
         client->window_size = SW_HTTP2_DEFAULT_WINDOW;
-    	client->remote_window_size = SW_HTTP2_DEFAULT_WINDOW;
-    	client->init = 1;
+        client->remote_window_size = SW_HTTP2_DEFAULT_WINDOW;
+        client->init = 1;
     }
 
     int fd = req->info.fd;
@@ -653,8 +652,7 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
     }
     else if (type == SW_HTTP2_TYPE_WINDOW_UPDATE)
     {
-        uint32_t increment_size = swHttp2_get_increment_size(buf);
-        client->window_size += increment_size;
+        client->window_size += swHttp2_get_increment_size(buf);
     }
     sw_zval_ptr_dtor(&zdata);
     return SW_OK;
