@@ -45,8 +45,6 @@ typedef struct
     int domain;
     int cid;
     enum socket_opcode opcode;
-    char *buf;
-    uint32_t buf_size;
     php_context context;
     swTimer_node *timer;
 } socket_coro;
@@ -170,26 +168,48 @@ static int socket_onReadable(swReactor *reactor, swEvent *event)
         }
         else
         {
-            zend_update_property_long(swoole_socket_coro_class_entry_ptr, &sock->object, ZEND_STRL("errCode"), ETIMEDOUT TSRMLS_CC);
+            zend_update_property_long(swoole_socket_coro_class_entry_ptr, &sock->object, ZEND_STRL("errCode"), errno TSRMLS_CC);
             ZVAL_FALSE(&result);
         }
         break;
     }
     case SW_SOCKET_OPCODE_RECV:
     {
-        int n = recv(sock->fd, sock->buf, sock->buf_size, MSG_DONTWAIT);
-        if (n < 0)
+        zend_string *buf = zend_string_alloc(SW_BUFFER_SIZE_BIG, 0);
+        int bytes = 0;
+
+        while (1)
         {
-            zend_update_property_long(swoole_socket_coro_class_entry_ptr, &sock->object, ZEND_STRL("errCode"), ETIMEDOUT TSRMLS_CC);
+            int n = recv(sock->fd, ZSTR_VAL(buf) + bytes, ZSTR_LEN(buf) - bytes, MSG_DONTWAIT);
+            if ((n < 0 && errno != EINTR) || n == 0)
+            {
+                break;
+            }
+            else
+            {
+                bytes += n;
+                if (ZSTR_LEN(buf) == bytes)
+                {
+                    zend_string_realloc(buf, ZSTR_LEN(buf) + SW_BUFFER_SIZE_BIG, 0);
+                }
+                continue;
+            }
+        }
+        if (bytes < 0)
+        {
+            zend_update_property_long(swoole_socket_coro_class_entry_ptr, &sock->object, ZEND_STRL("errCode"), errno TSRMLS_CC);
+            zend_string_free(buf);
             ZVAL_FALSE(&result);
         }
-        else if (n == 0)
+        else if (bytes == 0)
         {
+            zend_string_free(buf);
             ZVAL_EMPTY_STRING(&result);
         }
         else
         {
-            ZVAL_STRINGL(&result, sock->buf, n);
+            ZVAL_NEW_STR(&result, buf);
+            ZSTR_LEN(buf) = bytes;
         }
         break;
     }
@@ -314,8 +334,7 @@ static void socket_onResolveCompleted(swAio_event *event)
     {
         _error:
         ZVAL_FALSE(&result);
-        efree(event->buf);
-`        //unbind coroutine
+        //unbind coroutine
         sock->cid = 0;
         int ret = coro_resume(context, &result, &retval);
         if (ret == CORO_END && retval)
@@ -353,11 +372,6 @@ static void swoole_socket_coro_free_storage(zend_object *object)
     if (sock->fd >= 0)
     {
         SwooleG.main_reactor->close(SwooleG.main_reactor, sock->fd);
-    }
-    if (sock->buf)
-    {
-        efree(sock->buf);
-        sock->buf = NULL;
     }
     zend_object_std_dtor(&sock->std);
 }
@@ -461,7 +475,7 @@ static PHP_METHOD(swoole_socket_coro, __construct)
 
     if (sock->fd < 0)
     {
-        zend_throw_exception(swoole_socket_coro_exception_class_entry_ptr, "Unable to create socket [%d]: %s", errno,
+        zend_throw_exception_ex(swoole_socket_coro_exception_class_entry_ptr, errno, "Unable to create socket [%d]: %s",
                 strerror(errno), errno TSRMLS_CC);
         RETURN_FALSE;
     }
@@ -628,12 +642,6 @@ static PHP_METHOD(swoole_socket_coro, recv)
         swoole_php_fatal_error(E_WARNING, "socket has already been bound to another coroutine.");
         RETURN_FALSE;
     }
-    if (sock->buf == NULL)
-    {
-        sock->buf_size = SW_BUFFER_SIZE_BIG;
-        sock->buf = emalloc(sock->buf_size);
-    }
-
     if (SwooleG.main_reactor->add(SwooleG.main_reactor, sock->fd, PHP_SWOOLE_FD_SOCKET | SW_EVENT_READ) < 0)
     {
         zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), errno TSRMLS_CC);
