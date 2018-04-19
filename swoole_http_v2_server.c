@@ -633,14 +633,14 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
         if (length > 0 && client->remote_window_size < SW_HTTP2_MAX_WINDOW / 4)
         {
             char window_update_frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_WINDOW_UPDATE_SIZE];
-            uint32_t increment_size = SW_HTTP2_MAX_WINDOW - SW_HTTP2_DEFAULT_WINDOW;
+            uint32_t increment_size = SW_HTTP2_MAX_WINDOW - client->remote_window_size;
             window_update_frame[0 + SW_HTTP2_FRAME_HEADER_SIZE] = increment_size >> 24;
             window_update_frame[1 + SW_HTTP2_FRAME_HEADER_SIZE] = increment_size >> 16;
             window_update_frame[2 + SW_HTTP2_FRAME_HEADER_SIZE] = increment_size >> 8;
             window_update_frame[3 + SW_HTTP2_FRAME_HEADER_SIZE] = increment_size;
             swHttp2_set_frame_header(window_update_frame, SW_HTTP2_TYPE_WINDOW_UPDATE, SW_HTTP2_WINDOW_UPDATE_SIZE, 0, 0);
             swServer_tcp_send(SwooleG.serv, fd, window_update_frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_WINDOW_UPDATE_SIZE);
-            client->remote_window_size = increment_size;
+            client->remote_window_size = SW_HTTP2_MAX_WINDOW;
         }
     }
     else if (type == SW_HTTP2_TYPE_PING)
