@@ -34,6 +34,7 @@ enum socket_opcode
     SW_SOCKET_OPCODE_ACCEPT,
     SW_SOCKET_OPCODE_CONNECT,
     SW_SOCKET_OPCODE_RECV,
+    SW_SOCKET_OPCODE_RECVFROM,
     SW_SOCKET_OPCODE_SEND,
 };
 
@@ -43,10 +44,14 @@ typedef struct
     zval object;
     int fd;
     int domain;
+    int type;
     int cid;
     enum socket_opcode opcode;
     php_context context;
     swTimer_node *timer;
+#ifdef SWOOLE_SOCKETS_SUPPORT
+    zval *resource;
+#endif
 } socket_coro;
 
 static PHP_METHOD(swoole_socket_coro, __construct);
@@ -56,9 +61,14 @@ static PHP_METHOD(swoole_socket_coro, accept);
 static PHP_METHOD(swoole_socket_coro, connect);
 static PHP_METHOD(swoole_socket_coro, recv);
 static PHP_METHOD(swoole_socket_coro, send);
+static PHP_METHOD(swoole_socket_coro, recvfrom);
+static PHP_METHOD(swoole_socket_coro, sendto);
 static PHP_METHOD(swoole_socket_coro, getpeername);
 static PHP_METHOD(swoole_socket_coro, getsockname);
 static PHP_METHOD(swoole_socket_coro, close);
+#ifdef SWOOLE_SOCKETS_SUPPORT
+static PHP_METHOD(swoole_socket_coro, getSocket);
+#endif
 
 static int swoole_socket_connect(socket_coro *sock, char *host, size_t l_host, int port);
 static void socket_onTimeout(swTimer *timer, swTimer_node *tnode);
@@ -91,6 +101,17 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_send, 0, 0, 1)
     ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_recvfrom, 0, 0, 1)
+    ZEND_ARG_INFO(1, peername)
+    ZEND_ARG_INFO(0, timeout)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_sendto, 0, 0, 3)
+    ZEND_ARG_INFO(0, addr)
+    ZEND_ARG_INFO(0, port)
+    ZEND_ARG_INFO(0, data)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_connect, 0, 0, 1)
     ZEND_ARG_INFO(0, host)
     ZEND_ARG_INFO(0, port)
@@ -109,8 +130,13 @@ static const zend_function_entry swoole_socket_coro_methods[] =
     PHP_ME(swoole_socket_coro, connect, arginfo_swoole_socket_coro_connect, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, recv, arginfo_swoole_socket_coro_recv, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, send, arginfo_swoole_socket_coro_send, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, recvfrom, arginfo_swoole_socket_coro_recvfrom, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, sendto, arginfo_swoole_socket_coro_sendto, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, getpeername, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, getsockname, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+#ifdef SWOOLE_SOCKETS_SUPPORT
+    PHP_ME(swoole_socket_coro, getSocket, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+#endif
     PHP_ME(swoole_socket_coro, close, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
@@ -180,7 +206,7 @@ static int socket_onReadable(swReactor *reactor, swEvent *event)
 
         while (1)
         {
-            int n = recv(sock->fd, ZSTR_VAL(buf) + bytes, ZSTR_LEN(buf) - bytes, MSG_DONTWAIT);
+            int n = recv(sock->fd, ZSTR_VAL(buf) + bytes, ZSTR_LEN(buf) - bytes - 1, MSG_DONTWAIT);
             if (n < 0)
             {
                 if (errno == EINTR)
@@ -203,7 +229,11 @@ static int socket_onReadable(swReactor *reactor, swEvent *event)
             else
             {
                 bytes += n;
-                if (ZSTR_LEN(buf) == bytes)
+                if (sock->type != SOCK_STREAM)
+                {
+                    break;
+                }
+                if (ZSTR_LEN(buf) - 1 == bytes)
                 {
                     zend_string_realloc(buf, ZSTR_LEN(buf) + SW_BUFFER_SIZE_BIG, 0);
                 }
@@ -225,6 +255,56 @@ static int socket_onReadable(swReactor *reactor, swEvent *event)
         {
             ZVAL_NEW_STR(&result, buf);
             ZSTR_LEN(buf) = bytes;
+            ZSTR_VAL(buf)[bytes] = 0;
+        }
+        break;
+    }
+    case SW_SOCKET_OPCODE_RECVFROM:
+    {
+        zend_string *buf = zend_string_alloc(SW_BUFFER_SIZE_BIG, 0);
+        swSocketAddress info;
+        zval *peername = Z_REFVAL(context->coro_params);
+        info.len = sizeof(info.addr);
+        int bytes = recvfrom(sock->fd, ZSTR_VAL(buf), ZSTR_LEN(buf) - 1, 0, (struct sockaddr *) &info.addr, &info.len);
+        if (bytes < 0)
+        {
+            zend_update_property_long(swoole_socket_coro_class_entry_ptr, &sock->object, ZEND_STRL("errCode"), errno TSRMLS_CC);
+            zend_string_free(buf);
+            ZVAL_FALSE(&result);
+        }
+        else if (bytes == 0)
+        {
+            zend_string_free(buf);
+            ZVAL_EMPTY_STRING(&result);
+        }
+        else
+        {
+            array_init(peername);
+            if (sock->domain == AF_INET)
+            {
+                add_assoc_long(peername, "port", ntohs(info.addr.inet_v4.sin_port));
+                add_assoc_string(peername, "address", inet_ntoa(info.addr.inet_v4.sin_addr));
+            }
+            else if (sock->domain == AF_INET6)
+            {
+                add_assoc_long(peername, "port", ntohs(info.addr.inet_v6.sin6_port));
+                char tmp[INET6_ADDRSTRLEN];
+                if (inet_ntop(AF_INET6, &info.addr.inet_v6.sin6_addr, tmp, sizeof(tmp)))
+                {
+                    sw_add_assoc_string(peername, "address", tmp, 1);
+                }
+                else
+                {
+                    swoole_php_fatal_error(E_WARNING, "inet_ntop() failed.");
+                }
+            }
+            else if (sock->domain == AF_UNIX)
+            {
+                add_assoc_string(peername, "address", info.addr.un.sun_path);
+            }
+            ZVAL_NEW_STR(&result, buf);
+            ZSTR_LEN(buf) = bytes;
+            ZSTR_VAL(buf)[bytes] = 0;
         }
         break;
     }
@@ -486,6 +566,7 @@ static PHP_METHOD(swoole_socket_coro, __construct)
     socket_coro *sock = (socket_coro *) Z_OBJ_P(getThis());
     sock->fd = socket(domain, type, protocol);
     sock->domain = domain;
+    sock->type = type;
     sock->object = *getThis();
 
     if (sock->fd < 0)
@@ -509,7 +590,7 @@ static PHP_METHOD(swoole_socket_coro, bind)
 {
     char *address;
     size_t l_address;
-    zend_long port;
+    zend_long port = 0;
 
     struct sockaddr_storage sa_storage = {0};
     struct sockaddr *sock_type = (struct sockaddr*) &sa_storage;
@@ -682,6 +763,51 @@ static PHP_METHOD(swoole_socket_coro, recv)
     coro_yield();
 }
 
+static PHP_METHOD(swoole_socket_coro, recvfrom)
+{
+    coro_check(TSRMLS_C);
+
+    zval *peername;
+    double timeout = -1;
+
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_ZVAL(peername);
+        Z_PARAM_OPTIONAL
+        Z_PARAM_DOUBLE(timeout);
+    ZEND_PARSE_PARAMETERS_END();
+
+    socket_coro *sock = (socket_coro *) Z_OBJ_P(getThis());
+    if (unlikely(sock->cid && sock->cid != get_current_cid()))
+    {
+        swoole_php_fatal_error(E_WARNING, "socket has already been bound to another coroutine.");
+        RETURN_FALSE;
+    }
+    if (SwooleG.main_reactor->add(SwooleG.main_reactor, sock->fd, PHP_SWOOLE_FD_SOCKET | SW_EVENT_READ) < 0)
+    {
+        zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), errno TSRMLS_CC);
+        RETURN_FALSE;
+    }
+
+    swConnection *_socket = swReactor_get(SwooleG.main_reactor, sock->fd);
+    _socket->object = sock;
+
+    php_context *context = &sock->context;
+    context->state = SW_CORO_CONTEXT_RUNNING;
+    context->onTimeout = NULL;
+    context->coro_params = *peername;
+    sock->opcode = SW_SOCKET_OPCODE_RECVFROM;
+
+    if (timeout > 0)
+    {
+        int ms = (int) (timeout * 1000);
+        php_swoole_check_timer(ms);
+        sock->timer = SwooleG.timer.add(&SwooleG.timer, ms, 0, sock, socket_onTimeout);
+    }
+
+    coro_save(context);
+    coro_yield();
+}
+
 static PHP_METHOD(swoole_socket_coro, send)
 {
     coro_check(TSRMLS_C);
@@ -748,6 +874,51 @@ static PHP_METHOD(swoole_socket_coro, send)
     coro_yield();
 }
 
+static PHP_METHOD(swoole_socket_coro, sendto)
+{
+    char *data;
+    size_t l_data;
+    char *addr;
+    size_t l_addr;
+    long port = 0;
+
+    ZEND_PARSE_PARAMETERS_START(3, 3)
+        Z_PARAM_STRING(addr, l_addr);
+        Z_PARAM_LONG(port);
+        Z_PARAM_STRING(data, l_data);
+    ZEND_PARSE_PARAMETERS_END();
+
+    socket_coro *sock = (socket_coro *) Z_OBJ_P(getThis());
+
+    int ret;
+    if (sock->domain == AF_INET)
+    {
+        ret = swSocket_udp_sendto(sock->fd, addr, port, data, l_data);
+    }
+    else if (sock->domain == AF_INET6)
+    {
+        ret = swSocket_udp_sendto6(sock->fd, addr, port, data, l_data);
+    }
+    else if (sock->domain == AF_UNIX)
+    {
+        ret = swSocket_unix_sendto(sock->fd, addr, data, l_data);
+    }
+    else
+    {
+        RETURN_FALSE;
+    }
+
+    if (ret < 0)
+    {
+        zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), errno TSRMLS_CC);
+        RETURN_FALSE;
+    }
+    else
+    {
+        RETURN_LONG(ret);
+    }
+}
+
 static PHP_METHOD(swoole_socket_coro, close)
 {
     coro_check(TSRMLS_C);
@@ -777,6 +948,7 @@ static PHP_METHOD(swoole_socket_coro, getsockname)
 
     if (getsockname(sock->fd, &info.addr.inet_v4, &info.len) != 0)
     {
+        zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), errno TSRMLS_CC);
         RETURN_FALSE;
     }
 
@@ -811,6 +983,7 @@ static PHP_METHOD(swoole_socket_coro, getpeername)
 
     if (getpeername(sock->fd, &info.addr.inet_v4, &info.len) != 0)
     {
+        zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), errno TSRMLS_CC);
         RETURN_FALSE;
     }
 
@@ -957,3 +1130,23 @@ static PHP_METHOD(swoole_socket_coro, connect)
     }
     RETURN_FALSE;
 }
+
+#ifdef SWOOLE_SOCKETS_SUPPORT
+static PHP_METHOD(swoole_socket_coro, getSocket)
+{
+    socket_coro *sock = (socket_coro *) Z_OBJ_P(getThis());
+    if (sock->fd < 0)
+    {
+        RETURN_FALSE;
+    }
+    php_socket *socket_object = swoole_convert_to_socket(sock->fd);
+    if (!socket_object)
+    {
+        RETURN_FALSE;
+    }
+    SW_ZEND_REGISTER_RESOURCE(return_value, (void * ) socket_object, php_sockets_le_socket());
+    zval *zsocket = sw_zval_dup(return_value);
+    sw_zval_add_ref(&zsocket);
+    sock->resource = zsocket;
+}
+#endif
