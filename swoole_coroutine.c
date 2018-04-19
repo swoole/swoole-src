@@ -11,6 +11,7 @@
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
   | Author: Xinyu Zhu  <xyzhu1120@gmail.com>                             |
+  |         shiguangqi <shiguangqi2008@gmail.com>                        |
   +----------------------------------------------------------------------+
  */
 
@@ -34,6 +35,8 @@
 # define GC_DELREF(ref) --GC_REFCOUNT(ref)
 #endif/*}}}*/
 
+#define TASK_SLOT \
+    ((int)((ZEND_MM_ALIGNED_SIZE(sizeof(coro_task)) + ZEND_MM_ALIGNED_SIZE(sizeof(zval)) - 1) / ZEND_MM_ALIGNED_SIZE(sizeof(zval))))
 #define SWCC(x) sw_current_context->x
 jmp_buf *swReactorCheckPoint = NULL;
 coro_global COROG;
@@ -75,8 +78,6 @@ int coro_init(TSRMLS_D)
 	zend_interrupt_function = sw_interrupt_function;
 
 	zend_uchar opcode = ZEND_VM_LAST_OPCODE + 1;
-
-	/* Create new user opcode to terminate Fiber */
 	while (1) {
 		if (opcode == 255) {
 			return FAILURE;
@@ -89,8 +90,6 @@ int coro_init(TSRMLS_D)
 	zend_set_user_opcode_handler(opcode, sw_terminate_opcode_handler);
 
 	memset(sw_terminate_op, 0, sizeof(sw_terminate_op));
-	/* Also set op1_type, op2_type and result_type to IS_UNUSED */
-
 	sw_terminate_op[0].opcode = opcode;
 	zend_vm_set_opcode_handler_ex(sw_terminate_op, 0, 0, 0);
 	sw_terminate_op[1].opcode = opcode;
@@ -103,12 +102,6 @@ int coro_init(TSRMLS_D)
 	sw_terminate_func.opcodes = sw_terminate_op;
 	sw_terminate_func.last_try_catch = 1;
 	sw_terminate_func.try_catch_array = &sw_terminate_try_catch_array;
-
-    COROG.origin_vm_stack = EG(vm_stack);
-    COROG.origin_vm_stack_top = EG(vm_stack_top);
-    COROG.origin_vm_stack_end = EG(vm_stack_end);
-    COROG.origin_ex = EG(current_execute_data);
-
     COROG.coro_num = 0;
     if (COROG.max_coro_num <= 0)
     {
@@ -128,7 +121,7 @@ static int sw_terminate_opcode_handler(zend_execute_data *execute_data)
 {
 	coro_task *current_coro = COROG.current_coro;
 	ZEND_ASSERT(current_coro != NULL);
-	COROG.next_coro = current_coro->origin_coro;
+	COROG.next_coro = NULL;
 	COROG.pending_interrupt = 1;
 	sw_interrupt_function(execute_data);
 	return ZEND_USER_OPCODE_ENTER;
@@ -141,10 +134,6 @@ void coro_check(TSRMLS_D)
         swoole_php_fatal_error(E_ERROR, "must be called in the coroutine.");
 	}
 }
-
-
-#define TASK_SLOT \
-    ((int)((ZEND_MM_ALIGNED_SIZE(sizeof(coro_task)) + ZEND_MM_ALIGNED_SIZE(sizeof(zval)) - 1) / ZEND_MM_ALIGNED_SIZE(sizeof(zval))))
 
 int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval *retval, void *post_callback, void* params)
 {
@@ -174,11 +163,21 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
 	coro_frame->call = NULL;
 	coro_frame->return_value = NULL;
 	coro_frame->prev_execute_data = NULL;
-    /* end */
-//    object = (func->common.fn_flags & ZEND_ACC_STATIC) ? NULL : fci_cache->object;
-    //all stack frame
-    call = zend_vm_stack_push_call_frame(ZEND_CALL_NESTED_FUNCTION | ZEND_CALL_DYNAMIC, func, argc, fci_cache->called_scope, fci_cache->object);
 
+	zend_execute_data *fake_frame = (zend_execute_data*)EG(vm_stack_top);
+	EG(vm_stack_top) = (zval*)fake_frame + ZEND_CALL_FRAME_SLOT;
+	zend_vm_init_call_frame(fake_frame, ZEND_CALL_TOP_FUNCTION, NULL, 0, NULL, NULL);
+	fake_frame->opline = NULL;
+	fake_frame->call = NULL;
+	fake_frame->return_value = NULL;
+	fake_frame->prev_execute_data = NULL;
+	COROG.fake_frame = fake_frame;
+
+    COROG.origin_vm_stack = EG(vm_stack);
+    COROG.origin_vm_stack_top = EG(vm_stack_top);
+    COROG.origin_vm_stack_end = EG(vm_stack_end);
+    COROG.origin_ex = COROG.fake_frame;
+    call = zend_vm_stack_push_call_frame(ZEND_CALL_NESTED_FUNCTION | ZEND_CALL_DYNAMIC, func, argc, fci_cache->called_scope, fci_cache->object);
 #if PHP_MINOR_VERSION < 1
     EG(scope) = func->common.scope;
 #endif
@@ -189,19 +188,14 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
         target = ZEND_CALL_ARG(call, i + 1);
         ZVAL_COPY(target, argv[i]);
     }
-
     call->symbol_table = NULL;
     SW_ALLOC_INIT_ZVAL(retval);
     COROG.allocated_return_value_ptr = retval;
     EG(current_execute_data) = NULL;
     if (UNEXPECTED(func->op_array.fn_flags & ZEND_ACC_CLOSURE)) {
 		uint32_t call_info;
-
 		GC_ADDREF(ZEND_CLOSURE_OBJECT(func));
 		call_info = ZEND_CALL_CLOSURE;
-//		if (func->common.fn_flags & ZEND_ACC_FAKE_CLOSURE) {
-//			call_info |= ZEND_CALL_FAKE_CLOSURE;
-//		}
 		ZEND_ADD_CALL_FLAG(call, call_info);
 	}
     zend_init_execute_data(call, &func->op_array, retval);
@@ -232,7 +226,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
 	COROG.require = 1;
 	COROG.current_coro = coro;
 	zend_execute_ex(EG(current_execute_data) TSRMLS_CC);
-    if (EG(current_execute_data)->opline && EG(current_execute_data)->opline->opcode == SW_OPCODE)
+    if (EG(current_execute_data) && EG(current_execute_data)->opline && EG(current_execute_data)->opline->opcode == SW_OPCODE)
     {
     	coro_close(TSRMLS_C);
     }
@@ -243,11 +237,6 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
 sw_inline void coro_close(TSRMLS_D)
 {
     swTraceLog(SW_TRACE_COROUTINE, "Close coroutine id %d", COROG.current_coro->cid);
-//    if (COROG.current_coro->function)
-//    {
-//        sw_zval_free(COROG.current_coro->function);
-//        COROG.current_coro->function = NULL;
-//    }
     free_cidmap(COROG.current_coro->cid);
     efree(COROG.current_coro->stack);
     efree(COROG.allocated_return_value_ptr);
@@ -302,7 +291,7 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
         sw_zval_ptr_dtor(&retval);
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
-    if (EG(current_execute_data)->opline && EG(current_execute_data)->opline->opcode == SW_OPCODE && COROG.current_coro)
+    if (EG(current_execute_data) && EG(current_execute_data)->opline && EG(current_execute_data)->opline->opcode == SW_OPCODE && COROG.current_coro)
     {
     	swTraceLog(SW_TRACE_COROUTINE, "closing coro id %d", COROG.current_coro->cid);
     	coro_close(TSRMLS_C);
@@ -371,9 +360,9 @@ void sw_interrupt_function(zend_execute_data *execute_data)/*{{{*/
 		}
 		COROG.require = 1;
 		COROG.next_coro = NULL;
-		if (UNEXPECTED(EG(exception))) {
-			zend_rethrow_exception(EG(current_execute_data));
-		}
+//		if (UNEXPECTED(EG(exception))) {
+//			zend_rethrow_exception(EG(current_execute_data));
+//		}
 	}
 	if (orig_interrupt_function) {
 		orig_interrupt_function(execute_data);

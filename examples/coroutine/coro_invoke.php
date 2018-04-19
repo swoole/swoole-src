@@ -20,7 +20,3 @@ function title() {
 }
 
 echo "111\n";
-
-
-echo "222\n";
-co::go();

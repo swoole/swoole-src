@@ -1,16 +1,24 @@
 <?php
-$server = new Swoole\WebSocket\Server('127.0.0.1', 9501, SWOOLE_BASE);
-
-$server->on('Message', function($serv, $message) {
-
-    $mysql = new Swoole\Coroutine\MySQL();
-    $res = $mysql->connect(['host' => '127.0.0.1', 'user' => 'root', 'password' => 'root', 'database' => 'test']);
-    if ($res == false) {
-        $serv->push($message->fd, "MySQL connect fail!");
-        return;
-    }
-    $ret = $mysql->query('show tables', 2);
-    $serv->push($message->fd, "swoole response is ok, result=".var_export($ret, true));
+$ws = new swoole_websocket_server("127.0.0.1", 9501, SWOOLE_BASE);
+$ws->set(array(
+    'log_file' => '/dev/null'
+));
+$ws->on("WorkerStart", function (\swoole_server $serv) {
+    
 });
 
-$server->start();
+$ws->on('open', function ($serv, swoole_http_request $request) {
+    //$ip = co::gethostbyname('www.baidu.com');
+    if (1) {
+        $serv->push($request->fd, "start\n");
+    }
+});
+
+$ws->on('message', function ($serv, $frame) {
+    var_dump($frame);
+    co::sleep(0.1);
+    $data = $frame->data;
+    $serv->push($frame->fd, "hello client {$data}\n");
+});
+
+$ws->start();

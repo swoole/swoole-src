@@ -100,7 +100,7 @@ typedef struct _coro_global
     coro_task *root_coro;
     coro_task *current_coro;
     coro_task *next_coro;
-
+    zend_execute_data *fake_frame;
     volatile zend_bool pending_interrupt;
     zend_bool require;
 } coro_global;
@@ -113,7 +113,7 @@ struct _coro_task
 	zend_vm_stack           stack;
 	zval                   *vm_stack_top;
 	zval                   *vm_stack_end;
-    coro_task              *origin_coro;
+//    coro_task              *origin_coro;
     /**
      * user coroutine
      */

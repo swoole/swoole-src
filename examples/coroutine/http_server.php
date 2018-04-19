@@ -1,4 +1,5 @@
 <?php
+use Swoole\Coroutine as co;
 class Server
 {
     public $server;
@@ -6,7 +7,7 @@ class Server
 
     public function run()
     {
-        $this->server = new Swoole\Http\Server("0.0.0.0", 9501, SWOOLE_BASE);
+        $this->server = new Swoole\Http\Server("0.0.0.0", 9502);
         $this->server->set([
             'worker_num' => 1,
         ]);
@@ -14,33 +15,38 @@ class Server
         $this->server->on('Connect', [$this, 'onConnect']);
         $this->server->on('Request', [$this, 'onRequest']);
         $this->server->on('Close', [$this, 'onClose']);
-
+        $this->server->set(['trace_flags' => 1 << 15, 'log_level' => 1]);
         $this->server->start();
     }
 
 
     public function onConnect($serv, $fd, $reactorId)
     {
-		$redis = new Swoole\Coroutine\Redis();
-		$redis->connect('127.0.0.1', 6379);
-        $this->redisPool[$fd] = $redis;
+
+        echo "connect res \n";
     }
 
 
     public function onClose($serv, $fd, $reactorId)
     {
-        $redis = $this->redisPool[$fd];
-        $redis->close();
-        unset($this->redisPool[$fd]);
+
+    echo "onClose \n";
+
     }
 
 
     public function onRequest($request, $response)
     {
-		$redis = $this->redisPool[$request->fd];
-		$ret = $redis->get('key');
-		var_dump($ret, $redis);
-        $response->end('xxxx');
+        co::create(function () use ($response) {
+            $redis = new Swoole\Coroutine\Redis();
+            $redis->connect('127.0.0.1', 6379);
+            $data = $redis->get("key");
+            var_dump($data);
+            Swoole\Coroutine::sleep(1);
+            $response->end($data);
+            
+            $redis->close();
+        });
     }
 }
 
