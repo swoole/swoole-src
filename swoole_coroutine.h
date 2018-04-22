@@ -113,7 +113,7 @@ struct _coro_task
 	zend_vm_stack           stack;
 	zval                   *vm_stack_top;
 	zval                   *vm_stack_end;
-//    coro_task              *origin_coro;
+    coro_task              *origin_coro;
     /**
      * user coroutine
      */
