@@ -401,7 +401,8 @@ static void socket_onResolveCompleted(swAio_event *event)
 
     if (event->error == 0)
     {
-        if (swoole_socket_connect(sock, event->buf, strlen(event->buf), Z_LVAL(context->coro_params)) == -1 && errno == EINPROGRESS)
+        int ret = swoole_socket_connect(sock, event->buf, strlen(event->buf), Z_LVAL(context->coro_params));
+        if (ret == -1 && errno == EINPROGRESS)
         {
             efree(event->buf);
             if (context->private_data)
@@ -421,6 +422,16 @@ static void socket_onResolveCompleted(swAio_event *event)
                 swConnection *_socket = swReactor_get(SwooleG.main_reactor, sock->fd);
                 _socket->object = sock;
                 return;
+            }
+        }
+        else if (ret == 0)
+        {
+            ZVAL_TRUE(&result);
+            sock->cid = 0;
+            int ret = coro_resume(context, &result, &retval);
+            if (ret == CORO_END && retval)
+            {
+                sw_zval_ptr_dtor(&retval);
             }
         }
         goto _error;
@@ -1127,6 +1138,10 @@ static PHP_METHOD(swoole_socket_coro, connect)
             _error: zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"),
                     errno TSRMLS_CC);
         }
+    }
+    else if (retval == 0)
+    {
+        RETURN_TRUE;
     }
     RETURN_FALSE;
 }
