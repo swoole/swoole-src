@@ -22,8 +22,7 @@ class Server
 
     public function onConnect($serv, $fd, $reactorId)
     {
-
-        echo "connect res \n";
+        echo "connect res\n";
     }
 
 
@@ -37,16 +36,15 @@ class Server
 
     public function onRequest($request, $response)
     {
-        co::create(function () use ($response) {
+//         co::create(function () use ($response) {
             $redis = new Swoole\Coroutine\Redis();
             $redis->connect('127.0.0.1', 6379);
             $data = $redis->get("key");
             var_dump($data);
             Swoole\Coroutine::sleep(1);
-            $response->end($data);
-            
+            $response->end($data);            
             $redis->close();
-        });
+//         });
     }
 }
 
