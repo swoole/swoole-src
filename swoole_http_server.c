@@ -260,6 +260,8 @@ static PHP_METHOD(swoole_http_response, cookie);
 static PHP_METHOD(swoole_http_response, rawcookie);
 static PHP_METHOD(swoole_http_response, header);
 static PHP_METHOD(swoole_http_response, initHeader);
+static PHP_METHOD(swoole_http_response, detach);
+static PHP_METHOD(swoole_http_response, create);
 #ifdef SW_HAVE_ZLIB
 static PHP_METHOD(swoole_http_response, gzip);
 #endif
@@ -353,6 +355,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_header, 0, 0, 2)
     ZEND_ARG_INFO(0, value)
     ZEND_ARG_INFO(0, ucwords)
 ZEND_END_ARG_INFO()
+
 #ifdef SW_USE_HTTP2
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_trailer, 0, 0, 2)
     ZEND_ARG_INFO(0, key)
@@ -360,6 +363,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_trailer, 0, 0, 2)
     ZEND_ARG_INFO(0, ucwords)
 ZEND_END_ARG_INFO()
 #endif
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_cookie, 0, 0, 1)
     ZEND_ARG_INFO(0, name)
     ZEND_ARG_INFO(0, value)
@@ -382,6 +386,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_sendfile, 0, 0, 1)
     ZEND_ARG_INFO(0, filename)
     ZEND_ARG_INFO(0, offset)
     ZEND_ARG_INFO(0, length)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_create, 0, 0, 1)
+    ZEND_ARG_INFO(0, fd)
 ZEND_END_ARG_INFO()
 
 static const php_http_parser_settings http_parser_settings =
@@ -444,6 +452,8 @@ const zend_function_entry swoole_http_response_methods[] =
     PHP_ME(swoole_http_response, write, arginfo_swoole_http_response_write, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, end, arginfo_swoole_http_response_end, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, sendfile, arginfo_swoole_http_response_sendfile, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, detach, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, create, arginfo_swoole_http_response_create, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FALIAS(__sleep, swoole_unsupport_serialize, NULL)
     PHP_FALIAS(__wakeup, swoole_unsupport_serialize, NULL)
     PHP_ME(swoole_http_response, __destruct, arginfo_swoole_http_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
@@ -2685,13 +2695,49 @@ static PHP_METHOD(swoole_http_response, gzip)
 }
 #endif
 
+static PHP_METHOD(swoole_http_response, detach)
+{
+    http_context *context = http_get_context(getThis(), 0 TSRMLS_CC);
+    if (!context)
+    {
+        RETURN_FALSE;
+    }
+    context->detached = 1;
+    RETURN_TRUE;
+}
+
+static PHP_METHOD(swoole_http_response, create)
+{
+    long fd;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_LONG(fd);
+    ZEND_PARSE_PARAMETERS_END();
+
+    http_context *ctx = emalloc(sizeof(http_context));
+    if (!ctx)
+    {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_MALLOC_FAIL, "emalloc(%ld) failed.", sizeof(http_context));
+        RETURN_FALSE;
+    }
+    bzero(ctx, sizeof(http_context));
+    ctx->fd = (int) fd;
+
+    object_init_ex(return_value, swoole_http_response_class_entry_ptr);
+    swoole_set_object(return_value, ctx);
+    ctx->response.zobject = return_value;
+    sw_copy_to_stack(return_value, ctx->response._zobject);
+
+    zend_update_property_long(swoole_http_response_class_entry_ptr, return_value, ZEND_STRL("fd"), ctx->fd TSRMLS_CC);
+}
+
 static PHP_METHOD(swoole_http_response, __destruct)
 {
     http_context *context = swoole_get_object(getThis());
     if (context)
     {
         swConnection *conn = swWorker_get_connection(SwooleG.serv, context->fd);
-        if (!conn || conn->closed || conn->removed)
+        if (!conn || conn->closed || conn->removed || context->detached)
         {
             swoole_http_context_free(context TSRMLS_CC);
         }
