@@ -50,7 +50,7 @@
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "2.1.2-alpha"
+#define PHP_SWOOLE_VERSION  "2.1.3"
 #define PHP_SWOOLE_CHECK_CALLBACK
 #define PHP_SWOOLE_ENABLE_FASTCALL
 #define PHP_SWOOLE_CLIENT_USE_POLL
@@ -224,6 +224,7 @@ enum php_swoole_fd_type
     PHP_SWOOLE_FD_POSTGRESQL,
     PHP_SWOOLE_FD_HTTPCLIENT,
     PHP_SWOOLE_FD_PROCESS_STREAM,
+    PHP_SWOOLE_FD_SOCKET,
 };
 //---------------------------------------------------------
 #define php_swoole_socktype(type)           (type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP) & (~SW_SOCK_SSL))
@@ -369,6 +370,7 @@ void swoole_lock_init(int module_number TSRMLS_DC);
 void swoole_atomic_init(int module_number TSRMLS_DC);
 void swoole_client_init(int module_number TSRMLS_DC);
 #ifdef SW_COROUTINE
+void swoole_socket_coro_init(int module_number TSRMLS_DC);
 void swoole_client_coro_init(int module_number TSRMLS_DC);
 #ifdef SW_USE_REDIS
 void swoole_redis_coro_init(int module_number TSRMLS_DC);

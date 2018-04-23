@@ -30,15 +30,21 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_pool_on, 0, 0, 2)
     ZEND_ARG_INFO(0, callback)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_pool_listen, 0, 0, 2)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_pool_listen, 0, 0, 1)
     ZEND_ARG_INFO(0, host)
     ZEND_ARG_INFO(0, port)
+    ZEND_ARG_INFO(0, backlog)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_pool_write, 0, 0, 1)
+    ZEND_ARG_INFO(0, data)
 ZEND_END_ARG_INFO()
 
 static PHP_METHOD(swoole_process_pool, __construct);
 static PHP_METHOD(swoole_process_pool, __destruct);
 static PHP_METHOD(swoole_process_pool, on);
 static PHP_METHOD(swoole_process_pool, listen);
+static PHP_METHOD(swoole_process_pool, write);
 static PHP_METHOD(swoole_process_pool, start);
 
 static const zend_function_entry swoole_process_pool_methods[] =
@@ -47,6 +53,7 @@ static const zend_function_entry swoole_process_pool_methods[] =
     PHP_ME(swoole_process_pool, __destruct, arginfo_swoole_process_pool_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_ME(swoole_process_pool, on, arginfo_swoole_process_pool_on, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process_pool, listen, arginfo_swoole_process_pool_listen, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_process_pool, write, arginfo_swoole_process_pool_write, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process_pool, start, arginfo_swoole_process_pool_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
@@ -87,7 +94,10 @@ static void php_swoole_process_pool_onWorkerStart(swProcessPool *pool, int worke
     args[1] = &zworker_id;
 
     process_pool_property *pp = swoole_get_property(zobject, 0);
-
+    if (pp->onWorkerStart == NULL)
+    {
+        return;
+    }
     if (sw_call_user_function_ex(EG(function_table), NULL, pp->onWorkerStart, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onWorkerStart handler error.");
@@ -150,7 +160,10 @@ static void php_swoole_process_pool_onWorkerStop(swProcessPool *pool, int worker
     args[1] = &zworker_id;
 
     process_pool_property *pp = swoole_get_property(zobject, 0);
-
+    if (pp->onWorkerStop == NULL)
+    {
+        return;
+    }
     if (sw_call_user_function_ex(EG(function_table), NULL, pp->onWorkerStop, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onWorkerStop handler error.");
@@ -322,7 +335,7 @@ static PHP_METHOD(swoole_process_pool, listen)
         RETURN_FALSE;
     }
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sl|ll", &host, &l_host, &port, &backlog) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|ll", &host, &l_host, &port, &backlog) == FAILURE)
     {
         return;
     }
@@ -334,14 +347,40 @@ static PHP_METHOD(swoole_process_pool, listen)
     }
 
     SwooleG.reuse_port = 0;
-    if (swProcessPool_create_tcp_socket(pool, host, port, backlog) < 0)
+    int ret;
+    //unix socket
+    if (strncasecmp("unix:/", host, 6) == 0)
     {
-        RETURN_FALSE;
+        ret = swProcessPool_create_unix_socket(pool, host + 5, backlog);
     }
     else
     {
-        RETURN_TRUE;
+        ret = swProcessPool_create_tcp_socket(pool, host, port, backlog);
     }
+    SW_CHECK_RETURN(ret);
+}
+
+static PHP_METHOD(swoole_process_pool, write)
+{
+    char *data;
+    zend_size_t length;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &data, &length) == FAILURE)
+    {
+        return;
+    }
+
+    swProcessPool *pool = swoole_get_object(getThis());
+    if (pool->ipc_mode != SW_IPC_SOCKET)
+    {
+        swoole_php_fatal_error(E_WARNING, "unsupported ipc type[%d].", pool->ipc_mode);
+        RETURN_FALSE;
+    }
+    if (length == 0)
+    {
+        RETURN_FALSE;
+    }
+    SW_CHECK_RETURN(swProcessPool_response(pool, data, length));
 }
 
 static PHP_METHOD(swoole_process_pool, start)

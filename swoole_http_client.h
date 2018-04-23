@@ -87,6 +87,7 @@ typedef struct
     zend_bool defer; //0 normal 1 wait for receive
     zend_bool defer_result;//0
     zend_bool defer_chunk_status;// 0 1 now use rango http->complete
+    zend_bool send_yield;
     http_client_defer_state defer_status;
     int cid;
     /**

@@ -19,6 +19,7 @@
 #include "swoole.h"
 #include "async.h"
 #include <sys/file.h>
+#include <sys/stat.h>
 
 swAsyncIO SwooleAIO;
 swPipe swoole_aio_pipe;
@@ -34,6 +35,8 @@ static void swAio_handler_write(swAio_event *event);
 static void swAio_handler_gethostbyname(swAio_event *event);
 static void swAio_handler_getaddrinfo(swAio_event *event);
 static void swAio_handler_stream_get_line(swAio_event *event);
+static void swAio_handler_read_file(swAio_event *event);
+static void swAio_handler_write_file(swAio_event *event);
 
 static swThreadPool swAioBase_thread_pool;
 static int swAioBase_pipe_read;
@@ -86,7 +89,7 @@ void swAio_callback_test(swAio_event *aio_event)
 {
     printf("content=%s\n", (char *)aio_event->buf);
     printf("fd: %d, request_type: %s, offset: %ld, length: %lu\n", aio_event->fd,
-            (aio_event == SW_AIO_READ) ? "READ" : "WRITE", aio_event->offset, (uint64_t) aio_event->nbytes);
+            (aio_event == SW_AIO_READ) ? "READ" : "WRITE", (long)aio_event->offset,  aio_event->nbytes);
     SwooleG.running = 0;
 }
 
@@ -195,6 +198,8 @@ int swAioBase_init(int max_aio_events)
     SwooleAIO.handlers[SW_AIO_GETHOSTBYNAME] = swAio_handler_gethostbyname;
     SwooleAIO.handlers[SW_AIO_GETADDRINFO] = swAio_handler_getaddrinfo;
     SwooleAIO.handlers[SW_AIO_STREAM_GET_LINE] = swAio_handler_stream_get_line;
+    SwooleAIO.handlers[SW_AIO_READ_FILE] = swAio_handler_read_file;
+    SwooleAIO.handlers[SW_AIO_WRITE_FILE] = swAio_handler_write_file;
 
     SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_AIO, swAioBase_onFinish);
     SwooleG.main_reactor->add(SwooleG.main_reactor, swAioBase_pipe_read, SW_FD_AIO);
@@ -351,6 +356,101 @@ static void swAio_handler_stream_get_line(swAio_event *event)
     }
     event->offset = readpos;
     event->req = (void *) (long) writepos;
+}
+
+static void swAio_handler_read_file(swAio_event *event)
+{
+    int ret = -1;
+    int fd = open(event->req, O_RDONLY);
+    if (fd < 0)
+    {
+        swSysError("open(%s, O_RDONLY) failed.", event->req);
+        event->ret = ret;
+        event->error = errno;
+        return;
+    }
+    struct stat file_stat;
+    if (fstat(fd, &file_stat) < 0)
+    {
+        swSysError("fstat(%s) failed.", event->req);
+        _error: close(fd);
+        event->ret = ret;
+        event->error = errno;
+        return;
+    }
+    if ((file_stat.st_mode & S_IFMT) != S_IFREG)
+    {
+        errno = EISDIR;
+        goto _error;
+    }
+
+    long filesize = file_stat.st_size;
+    if (filesize == 0)
+    {
+        errno = SW_ERROR_FILE_EMPTY;
+        goto _error;
+    }
+    else if (filesize > SW_MAX_FILE_CONTENT)
+    {
+        errno = SW_ERROR_FILE_TOO_LARGE;
+        goto _error;
+    }
+
+    if (flock(fd, LOCK_SH) < 0)
+    {
+        swSysError("flock(%d, LOCK_SH) failed.", event->fd);
+        goto _error;
+    }
+
+    event->buf = sw_malloc(filesize);
+    if (event->buf == NULL)
+    {
+        goto _error;
+    }
+    int readn = swoole_sync_readfile(fd, event->buf, (int) filesize);
+    if (flock(fd, LOCK_UN) < 0)
+    {
+        swSysError("flock(%d, LOCK_UN) failed.", event->fd);
+    }
+    close(fd);
+    event->ret = readn;
+    event->error = 0;
+}
+
+static void swAio_handler_write_file(swAio_event *event)
+{
+    int ret = -1;
+    int fd = open(event->req, event->flags, 0644);
+    if (fd < 0)
+    {
+        swSysError("open(%s, %d) failed.", event->req, event->flags);
+        event->ret = ret;
+        event->error = errno;
+        return;
+    }
+    if (flock(fd, LOCK_EX) < 0)
+    {
+        swSysError("flock(%d, LOCK_EX) failed.", event->fd);
+        event->ret = ret;
+        event->error = errno;
+        close(fd);
+        return;
+    }
+    int written = swoole_sync_writefile(fd, event->buf, event->nbytes);
+    if (event->flags & SW_AIO_WRITE_FSYNC)
+    {
+        if (fsync(event->fd) < 0)
+        {
+            swSysError("fsync(%d) failed.", event->fd);
+        }
+    }
+    if (flock(event->fd, LOCK_UN) < 0)
+    {
+        swSysError("flock(%d, LOCK_UN) failed.", event->fd);
+    }
+    close(fd);
+    event->ret = written;
+    event->error = 0;
 }
 
 static void swAio_handler_write(swAio_event *event)

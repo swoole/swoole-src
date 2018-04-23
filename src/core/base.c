@@ -350,7 +350,7 @@ int swoole_sync_writefile(int fd, void *data, int len)
             {
                 continue;
             }
-            swWarn("write() failed. Error: %s[%d]", strerror(errno), errno);
+            swSysError("write(%d, %d) failed.", fd, towrite);
             break;
         }
     }

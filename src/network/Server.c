@@ -13,11 +13,19 @@
   | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
   +----------------------------------------------------------------------+
 */
-
+#if __APPLE__
+// Fix warning: 'daemon' is deprecated: first deprecated in macOS 10.5 - Use posix_spawn APIs instead. [-Wdeprecated-declarations]
+#define daemon yes_we_know_that_daemon_is_deprecated_in_os_x_10_5_thankyou
+#endif
 #include "Server.h"
 #include "http.h"
 #include "Connection.h"
+#include <spawn.h>
 #include <sys/stat.h>
+#if __APPLE__
+#undef daemon
+extern int daemon(int, int);
+#endif
 
 #if SW_REACTOR_SCHEDULE == 3
 static sw_inline void swServer_reactor_schedule(swServer *serv)
@@ -514,7 +522,7 @@ int swServer_create_task_worker(swServer *serv)
     {
         char sockfile[sizeof(struct sockaddr_un)];
         snprintf(sockfile, sizeof(sockfile), "/tmp/swoole.task.%d.sock", SwooleGS->master_pid);
-        if (swProcessPool_create_stream_socket(&SwooleGS->task_workers, sockfile, 2048) < 0)
+        if (swProcessPool_create_unix_socket(&SwooleGS->task_workers, sockfile, 2048) < 0)
         {
             return SW_ERR;
         }
@@ -1068,7 +1076,7 @@ int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename, uint32
     }
     if (file_stat.st_size <= offset)
     {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "file[offset=%ld] is empty.", offset);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "file[offset=%ld] is empty.", (long)offset);
         return SW_ERR;
     }
 

@@ -17,7 +17,7 @@ require_once __DIR__ . "/../include/swoole.inc";
 $port = 9501;
 $pm = new ProcessManager;
 
-$pm->parentFunc = function ($pid) use ($port)
+$pm->parentFunc = function ($pid) use ($port, $pm)
 {
     $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC); //同步阻塞
     if (!$client->connect('127.0.0.1', $port, 3))
@@ -27,7 +27,7 @@ $pm->parentFunc = function ($pid) use ($port)
     echo $client->recv();
     assert($client->send("Request\n"));
     echo $client->recv();
-    //swoole_process::kill($pid);
+    $pm->kill();
 };
 
 $pm->childFunc = function () use ($pm, $port)

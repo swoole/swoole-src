@@ -3,6 +3,7 @@
 #ifdef SW_COROUTINE
 #include "async.h"
 #include "swoole_coroutine.h"
+#include "ext/standard/file.h"
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -68,7 +69,16 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_getaddrinfo, 0, 0, 1)
     ZEND_ARG_INFO(0, service)
 ZEND_END_ARG_INFO()
 
-static PHP_METHOD(swoole_coroutine_util, run);
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_readFile, 0, 0, 1)
+    ZEND_ARG_INFO(0, filename)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_writeFile, 0, 0, 2)
+    ZEND_ARG_INFO(0, filename)
+    ZEND_ARG_INFO(0, data)
+    ZEND_ARG_INFO(0, flags)
+ZEND_END_ARG_INFO()
+
 static PHP_METHOD(swoole_coroutine_util, set);
 static PHP_METHOD(swoole_coroutine_util, suspend);
 static PHP_METHOD(swoole_coroutine_util, cli_wait);
@@ -80,6 +90,8 @@ static PHP_METHOD(swoole_coroutine_util, fgets);
 static PHP_METHOD(swoole_coroutine_util, fwrite);
 static PHP_METHOD(swoole_coroutine_util, gethostbyname);
 static PHP_METHOD(swoole_coroutine_util, getaddrinfo);
+static PHP_METHOD(swoole_coroutine_util, readFile);
+static PHP_METHOD(swoole_coroutine_util, writeFile);
 static PHP_METHOD(swoole_coroutine_util, call_user_func);
 static PHP_METHOD(swoole_coroutine_util, call_user_func_array);
 
@@ -92,7 +104,6 @@ static const zend_function_entry swoole_coroutine_util_methods[] =
 {
     ZEND_FENTRY(create, ZEND_FN(swoole_coroutine_create), arginfo_swoole_coroutine_create, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(exec, ZEND_FN(swoole_coroutine_exec), arginfo_swoole_coroutine_exec, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-	PHP_ME(swoole_coroutine_util, run, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, set, arginfo_swoole_coroutine_set, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, cli_wait, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, suspend, arginfo_swoole_coroutine_suspend, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -102,6 +113,8 @@ static const zend_function_entry swoole_coroutine_util_methods[] =
     PHP_ME(swoole_coroutine_util, fread, arginfo_swoole_coroutine_fread, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, fgets, arginfo_swoole_coroutine_fgets, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, fwrite, arginfo_swoole_coroutine_fwrite, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_util, readFile, arginfo_swoole_coroutine_readFile, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_util, writeFile, arginfo_swoole_coroutine_writeFile, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, gethostbyname, arginfo_swoole_coroutine_gethostbyname, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, getaddrinfo, arginfo_swoole_coroutine_getaddrinfo, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, call_user_func, arginfo_swoole_coroutine_call_user_func, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -530,12 +543,6 @@ static PHP_METHOD(swoole_coroutine_util, call_user_func_array)
 }
 #endif
 
-static PHP_METHOD(swoole_coroutine_util, run)
-{
-    coro_run();
-    RETURN_TRUE;
-}
-
 static PHP_METHOD(swoole_coroutine_util, suspend)
 {
     char *id;
@@ -887,6 +894,59 @@ static void aio_onWriteCompleted(swAio_event *event)
     efree(context);
 }
 
+static void aio_onReadFileCompleted(swAio_event *event)
+{
+    zval *retval = NULL;
+    zval *result = NULL;
+
+    SW_MAKE_STD_ZVAL(result);
+    if (event->ret < 0)
+    {
+        ZVAL_BOOL(result, 0);
+    }
+    else
+    {
+        ZVAL_STRINGL(result, event->buf, event->ret);
+        sw_free(event->buf);
+    }
+
+    php_context *context = (php_context *) event->object;
+    int ret = coro_resume(context, result, &retval);
+    if (ret == CORO_END && retval)
+    {
+        sw_zval_ptr_dtor(&retval);
+    }
+    sw_zval_ptr_dtor(&result);
+    efree(event->req);
+    efree(context);
+}
+
+static void aio_onWriteFileCompleted(swAio_event *event)
+{
+    zval *retval = NULL;
+    zval *result = NULL;
+
+    SW_MAKE_STD_ZVAL(result);
+    if (event->ret < 0)
+    {
+        ZVAL_BOOL(result, 0);
+    }
+    else
+    {
+        ZVAL_LONG(result, event->ret);
+    }
+
+    php_context *context = (php_context *) event->object;
+    int ret = coro_resume(context, result, &retval);
+    if (ret == CORO_END && retval)
+    {
+        sw_zval_ptr_dtor(&retval);
+    }
+    sw_zval_ptr_dtor(&result);
+    efree(event->req);
+    efree(context);
+}
+
 static PHP_METHOD(swoole_coroutine_util, fread)
 {
     zval *handle;
@@ -1088,6 +1148,123 @@ static PHP_METHOD(swoole_coroutine_util, fwrite)
     php_swoole_check_aio();
 
     swTrace("fd=%d, offset=%ld, length=%ld", fd, ev.offset, ev.nbytes);
+
+    int ret = swAio_dispatch(&ev);
+    if (ret < 0)
+    {
+        efree(context);
+        RETURN_FALSE;
+    }
+
+    context->onTimeout = NULL;
+    context->state = SW_CORO_CONTEXT_RUNNING;
+
+    coro_save(context);
+    coro_yield();
+}
+
+static PHP_METHOD(swoole_coroutine_util, readFile)
+{
+    char *filename = NULL;
+    size_t l_filename = 0;
+
+#ifdef FAST_ZPP
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_STRING(filename, l_filename)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+#else
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &filename, &l_filename) == FAILURE)
+    {
+        return;
+    }
+#endif
+
+    swAio_event ev;
+    bzero(&ev, sizeof(swAio_event));
+
+    php_context *context = emalloc(sizeof(php_context));
+
+    ev.type = SW_AIO_READ_FILE;
+    ev.object = context;
+    ev.callback = aio_onReadFileCompleted;
+    ev.req = estrndup(filename, l_filename);
+
+    if (!SwooleAIO.init)
+    {
+        SwooleAIO.mode = SW_AIO_BASE;
+        php_swoole_check_reactor();
+        swAio_init();
+    }
+
+    swTrace("readFile(%s)", filename);
+
+    int ret = swAio_dispatch(&ev);
+    if (ret < 0)
+    {
+        efree(context);
+        RETURN_FALSE;
+    }
+
+    context->onTimeout = NULL;
+    context->state = SW_CORO_CONTEXT_RUNNING;
+
+    coro_save(context);
+    coro_yield();
+}
+
+static PHP_METHOD(swoole_coroutine_util, writeFile)
+{
+    char *filename = NULL;
+    size_t l_filename = 0;
+    char *data = NULL;
+    size_t l_data = 0;
+    long flags = 0;
+
+#ifdef FAST_ZPP
+    ZEND_PARSE_PARAMETERS_START(2, 3)
+        Z_PARAM_STRING(filename, l_filename)
+        Z_PARAM_STRING(data, l_data)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(flags)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+#else
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss", &filename, &l_filename, &data, &l_data) == FAILURE)
+    {
+        return;
+    }
+#endif
+
+    swAio_event ev;
+    bzero(&ev, sizeof(swAio_event));
+
+    ev.nbytes = l_data;
+    ev.buf = data;
+
+    php_context *context = emalloc(sizeof(php_context));
+
+    ev.type = SW_AIO_WRITE_FILE;
+    ev.object = context;
+    ev.callback = aio_onWriteFileCompleted;
+    ev.req = estrndup(filename, l_filename);
+    ev.flags = O_CREAT | O_WRONLY;
+
+    if (flags & PHP_FILE_APPEND)
+    {
+        ev.flags |= O_APPEND;
+    }
+    else
+    {
+        ev.flags |= O_TRUNC;
+    }
+
+    if (!SwooleAIO.init)
+    {
+        SwooleAIO.mode = SW_AIO_BASE;
+        php_swoole_check_reactor();
+        swAio_init();
+    }
+
+    swTrace("writeFile(%s, %ld)", filename, ev.nbytes);
 
     int ret = swAio_dispatch(&ev);
     if (ret < 0)

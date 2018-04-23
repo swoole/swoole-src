@@ -14,10 +14,18 @@
   +----------------------------------------------------------------------+
 */
 
+#if __APPLE__
+// Fix warning: 'daemon' is deprecated: first deprecated in macOS 10.5 - Use posix_spawn APIs instead. [-Wdeprecated-declarations]
+#define daemon yes_we_know_that_daemon_is_deprecated_in_os_x_10_5_thankyou
+#endif
 #include "php_swoole.h"
 #include "php_streams.h"
 #include "php_network.h"
 
+#if __APPLE__
+#undef daemon
+extern int daemon(int, int);
+#endif
 static PHP_METHOD(swoole_process, __construct);
 static PHP_METHOD(swoole_process, __destruct);
 static PHP_METHOD(swoole_process, useQueue);
@@ -244,6 +252,12 @@ static PHP_METHOD(swoole_process, __construct)
     if (SwooleG.serv && SwooleGS->start == 1 && swIsMaster())
     {
         swoole_php_fatal_error(E_ERROR, "swoole_process can't be used in master process.");
+        RETURN_FALSE;
+    }
+
+    if (SwooleAIO.init)
+    {
+        swoole_php_fatal_error(E_ERROR, "unable to create process with async-io threads.");
         RETURN_FALSE;
     }
 

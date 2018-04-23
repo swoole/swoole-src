@@ -27,7 +27,11 @@
 #endif
 
 #if defined(PT_ATTACH) && !defined(PTRACE_ATTACH)
+#if __APPLE__
+#define PTRACE_ATTACH PT_ATTACHEXC
+#else
 #define PTRACE_ATTACH PT_ATTACH
+#endif
 #endif
 
 #if defined(PT_DETACH) && !defined(PTRACE_DETACH)
@@ -76,7 +80,6 @@ void php_swoole_trace_check(swServer *serv)
         {
             continue;
         }
-        swWarn("PTRACE_ATTACH worker%d, pid=%d\n", i,  worker->pid);
         if (ptrace(PTRACE_ATTACH, worker->pid, 0, 0) < 0)
         {
             swSysError("failed to ptrace(ATTACH, %d) worker#%d,", worker->pid, worker->id);

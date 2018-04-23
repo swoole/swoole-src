@@ -1326,6 +1326,7 @@ int swSocket_sendto_blocking(int fd, void *__buf, size_t __n, int flag, struct s
 int swSocket_set_buffer_size(int fd, int buffer_size);
 int swSocket_udp_sendto(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len);
 int swSocket_udp_sendto6(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len);
+int swSocket_unix_sendto(int server_sock, char *dst_path, char *data, uint32_t len);
 int swSocket_sendfile_sync(int sock, char *filename, off_t offset, size_t length, double timeout);
 int swSocket_write_blocking(int __fd, void *__data, int __len);
 int swSocket_recv_blocking(int fd, void *__data, size_t __len, int flags);
@@ -1559,6 +1560,7 @@ typedef struct
     int socket;
     int last_connection;
     char *socket_file;
+    swString *response_buffer;
 } swStreamInfo;
 
 struct _swProcessPool
@@ -1789,7 +1791,7 @@ int swReactorSelect_create(swReactor *reactor);
 
 /*----------------------------Process Pool-------------------------------*/
 int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, key_t msgqueue_key, int ipc_mode);
-int swProcessPool_create_stream_socket(swProcessPool *pool, char *socket_file, int blacklog);
+int swProcessPool_create_unix_socket(swProcessPool *pool, char *socket_file, int blacklog);
 int swProcessPool_create_tcp_socket(swProcessPool *pool, char *host, int port, int blacklog);
 int swProcessPool_set_protocol(swProcessPool *pool, int task_protocol, uint32_t max_packet_size);
 int swProcessPool_wait(swProcessPool *pool);
@@ -1797,6 +1799,7 @@ int swProcessPool_start(swProcessPool *pool);
 void swProcessPool_shutdown(swProcessPool *pool);
 pid_t swProcessPool_spawn(swWorker *worker);
 int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int *worker_id);
+int swProcessPool_response(swProcessPool *pool, char *data, int length);
 int swProcessPool_dispatch_blocking(swProcessPool *pool, swEventData *data, int *dst_worker_id);
 int swProcessPool_add_worker(swProcessPool *pool, swWorker *worker);
 int swProcessPool_del_worker(swProcessPool *pool, swWorker *worker);

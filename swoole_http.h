@@ -134,10 +134,12 @@ typedef struct _swoole_http_client
     uint32_t http2 :1;
 
 #ifdef SW_USE_HTTP2
+    uint32_t init :1;
     swHashMap *streams;
     nghttp2_hd_inflater *deflater;
     nghttp2_hd_inflater *inflater;
     uint32_t window_size;
+    uint32_t remote_window_size;
 #endif
 
 } swoole_http_client;

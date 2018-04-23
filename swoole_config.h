@@ -107,10 +107,6 @@
 
 #define SW_TASKWAIT_TIMEOUT        0.5
 
-#ifdef HAVE_EVENTFD
-#define HAVE_LINUX_AIO
-#endif
-
 #define SW_AIO_THREAD_NUM_DEFAULT        2
 #define SW_AIO_THREAD_NUM_MAX            32
 #define SW_AIO_MAX_FILESIZE              4194304  //4M
@@ -263,6 +259,7 @@
 #define SW_HTTP2_MAX_CONCURRENT_STREAMS  128
 #define SW_HTTP2_MAX_FRAME_SIZE          ((1u << 24) - 1)
 #define SW_HTTP2_MAX_WINDOW              ((1u << 31) - 1)
+#define SW_HTTP2_DEFAULT_WINDOW          65535
 
 #define SW_HTTP_CLIENT_USERAGENT         "swoole-http-client"
 #define SW_HTTP_CLIENT_BOUNDARY_PREKEY   "----SwooleBoundary"

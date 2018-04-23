@@ -57,8 +57,10 @@ zend_fcall_info_cache *php_sw_server_caches[PHP_SERVER_CALLBACK_NUM];
 swLinkedList *swoole_hooks[SW_MAX_HOOK_TYPE];
 
 static swHashMap *task_callbacks = NULL;
+#ifdef SW_COROUTINE
 static swHashMap *task_coroutine_map = NULL;
 static swHashMap *send_coroutine_map = NULL;
+#endif
 
 #ifdef SW_COROUTINE
 typedef struct
@@ -88,14 +90,14 @@ static int php_swoole_onFinish(swServer *, swEventData *task);
 static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker_pid, int exit_code, int signo);
 static void php_swoole_onManagerStart(swServer *serv);
 static void php_swoole_onManagerStop(swServer *serv);
-static void php_swoole_onSendTimeout(swTimer *timer, swTimer_node *tnode);
 
 #ifdef SW_COROUTINE
 static void php_swoole_onConnect_finish(void *param);
+static void php_swoole_onSendTimeout(swTimer *timer, swTimer_node *tnode);
+static void php_swoole_server_send_resume(swServer *serv, php_context *context, int fd);
 #endif
 
 static zval* php_swoole_server_add_port(swListenPort *port TSRMLS_DC);
-static void php_swoole_server_send_resume(swServer *serv, php_context *context, int fd);
 
 static int php_swoole_create_dir(const char* path, size_t length TSRMLS_DC)
 {
@@ -1460,6 +1462,10 @@ static void php_swoole_onUserWorkerStart(swServer *serv, swWorker *worker)
     zval *object = worker->ptr;
     zend_update_property_long(swoole_process_class_entry_ptr, object, ZEND_STRL("id"), SwooleWG.id TSRMLS_CC);
 
+    zval *zserv = (zval *) serv->ptr2;
+    zend_update_property_long(swoole_server_class_entry_ptr, zserv, ZEND_STRL("master_pid"), SwooleGS->master_pid TSRMLS_CC);
+    zend_update_property_long(swoole_server_class_entry_ptr, zserv, ZEND_STRL("manager_pid"), SwooleGS->manager_pid TSRMLS_CC);
+
     php_swoole_process_start(worker, object TSRMLS_CC);
 }
 
@@ -1879,7 +1885,10 @@ void php_swoole_onBufferEmpty(swServer *serv, swDataHead *info)
     }
 #endif
 
-    _callback: callback = php_swoole_server_get_callback(serv, info->from_fd, SW_SERVER_CB_onBufferEmpty);
+#ifdef SW_COROUTINE
+    _callback:
+#endif
+    callback = php_swoole_server_get_callback(serv, info->from_fd, SW_SERVER_CB_onBufferEmpty);
     if (!callback)
     {
         return;
@@ -2269,10 +2278,12 @@ PHP_METHOD(swoole_server, set)
         {
             task_callbacks = swHashMap_new(1024, NULL);
         }
+#ifdef SW_COROUTINE
         if (task_coroutine_map == NULL)
         {
             task_coroutine_map = swHashMap_new(1024, NULL);
         }
+#endif
     }
     //slowlog
     if (php_swoole_array_get_value(vht, "trace_event_worker", v))

@@ -75,7 +75,9 @@ typedef struct
 typedef struct
 {
     zval *callback;
+#ifdef SW_COROUTINE
     php_context *context;
+#endif
     pid_t pid;
     int fd;
     swString *buffer;
@@ -97,6 +99,7 @@ static swHashMap *php_swoole_aio_request;
 static swHashMap *request_cache_map = NULL; //以domin为区分
 #endif
 
+#ifdef SW_COROUTINE
 static sw_inline int64_t swTimer_get_now_msec()
 {
     struct timeval now;
@@ -108,6 +111,7 @@ static sw_inline int64_t swTimer_get_now_msec()
     int64_t msec2 = (now.tv_usec) / 1000;
     return msec1 + msec2;
 }
+#endif
 
 static sw_inline void swoole_aio_free(void *ptr)
 {
@@ -893,6 +897,10 @@ PHP_FUNCTION(swoole_async_writefile)
     {
         open_flag |= O_APPEND;
     }
+    else
+    {
+        open_flag |= O_TRUNC;
+    }
     if (fcnt_len <= 0)
     {
         RETURN_FALSE;
@@ -1194,7 +1202,7 @@ static int process_stream_onRead(swReactor *reactor, swEvent *event)
     args[1] = &zstatus;
 
     zval *zcallback = ps->callback;
-    php_context *context = ps->context;
+
     if (zcallback)
     {
         if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
@@ -1205,6 +1213,8 @@ static int process_stream_onRead(swReactor *reactor, swEvent *event)
     }
     else
     {
+#ifdef SW_COROUTINE
+        php_context *context = ps->context;
         sw_zval_add_ref(&zdata);
         add_assoc_zval(zstatus, "output", zdata);
         int ret = coro_resume(context, zstatus, &retval);
@@ -1213,6 +1223,9 @@ static int process_stream_onRead(swReactor *reactor, swEvent *event)
             sw_zval_ptr_dtor(&retval);
         }
         efree(context);
+#else
+        return SW_OK;
+#endif
     }
 
     if (EG(exception))
@@ -1265,7 +1278,9 @@ PHP_METHOD(swoole_async, exec)
 
     process_stream *ps = emalloc(sizeof(process_stream));
     ps->callback = sw_zval_dup(callback);
+#ifdef SW_COROUTINE
     ps->context = NULL;
+#endif
     sw_zval_add_ref(&ps->callback);
 
     ps->fd = fd;

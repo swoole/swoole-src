@@ -141,7 +141,7 @@ int coro_init(TSRMLS_D)
 	dummy_frame.opline = sw_close_op;
 	dummy_frame.call = NULL;
 	dummy_frame.return_value = NULL;
-	dummy_frame.prev_execute_data = &fake_frame;;
+	dummy_frame.prev_execute_data = &fake_frame;
 
     COROG.coro_num = 0;
     if (COROG.max_coro_num <= 0)
@@ -346,16 +346,6 @@ sw_inline void coro_yield()
 	EG(vm_interrupt) = 1;
 }
 
-void coro_run(TSRMLS_D)
-{
-	coro_task *root_coro = COROG.root_coro;
-	if (root_coro) {
-		COROG.next_coro = root_coro;
-		COROG.pending_interrupt = 1;
-		EG(vm_interrupt) = 1;
-	}
-}
-
 void sw_interrupt_function(zend_execute_data *execute_data)/*{{{*/
 {
 	if (COROG.pending_interrupt) {
@@ -388,8 +378,8 @@ void sw_interrupt_function(zend_execute_data *execute_data)/*{{{*/
 			/* Restore main execution context */
 			EG(current_execute_data) = COROG.origin_ex;
 			EG(vm_stack) = COROG.origin_vm_stack;
-			EG(vm_stack_top) = COROG.origin_vm_stack->top;
-			EG(vm_stack_end) = COROG.origin_vm_stack->end;
+			EG(vm_stack_top) = COROG.origin_vm_stack_top;
+			EG(vm_stack_end) = COROG.origin_vm_stack_end;
 		}
 		COROG.require = 1;
 		COROG.next_coro = NULL;
