@@ -16,7 +16,7 @@ go(function () {
         // echo "co[2] restart\n";
         $client = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
         $res = $client->connect('127.0.0.1', 9501, 1);
-        co::sleep(1.0);
+        // co::sleep(1.0);
         echo "co[2] resume : connect ret = ".var_export($res,1)."\n";
         echo "co[2] exit\n";
     });
