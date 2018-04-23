@@ -1238,7 +1238,7 @@ static PHP_METHOD(swoole_coroutine_util, writeFile)
         Z_PARAM_LONG(flags)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 #else
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss", &filename, &l_filename, &data, &l_data) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss|l", &filename, &l_filename, &data, &l_data, &flags) == FAILURE)
     {
         return;
     }

@@ -390,11 +390,6 @@ static void swAio_handler_read_file(swAio_event *event)
         errno = SW_ERROR_FILE_EMPTY;
         goto _error;
     }
-    else if (filesize > SW_MAX_FILE_CONTENT)
-    {
-        errno = SW_ERROR_FILE_TOO_LARGE;
-        goto _error;
-    }
 
     if (flock(fd, LOCK_SH) < 0)
     {
