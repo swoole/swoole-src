@@ -16,8 +16,12 @@ co::create(function() {
 });
 
 function test() {
+    echo "start\n";
     co::sleep(0.5);
+    echo "exit\n";
 }
 ?>
 --EXPECT--
+start
 call user
+exit

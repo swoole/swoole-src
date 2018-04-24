@@ -107,6 +107,7 @@ struct _coro_task
     zval *vm_stack_top;
     zval *vm_stack_end;
     coro_task *origin_coro;
+    zend_bool has_yield_parent;
     /**
      * user coroutine
      */

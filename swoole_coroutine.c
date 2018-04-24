@@ -39,6 +39,8 @@
 #define SWCC(x) sw_current_context->x
 jmp_buf *swReactorCheckPoint = NULL;
 coro_global COROG;
+zval *allocated_return_value_ptr;
+
 static void (*orig_interrupt_function)(zend_execute_data *execute_data);
 static void sw_interrupt_function(zend_execute_data *execute_data);
 static int sw_terminate_opcode_handler(zend_execute_data *execute_data);
@@ -160,10 +162,27 @@ int coro_init(TSRMLS_D)
     {
         COROG.stack_size = DEFAULT_STACK_SIZE;
     }
+    zval *retval;
+    SW_ALLOC_INIT_ZVAL(retval);
+    allocated_return_value_ptr = retval;
     COROG.require = 0;
     swReactorCheckPoint = emalloc(sizeof(jmp_buf)); //后面删掉
     SwooleWG.coro_timeout_list = swLinkedList_new(1, NULL);
     return 0;
+}
+
+
+void coro_destroy()
+{
+    //delete later
+    if (swReactorCheckPoint)
+    {
+        efree(swReactorCheckPoint);
+        swReactorCheckPoint = NULL;
+    }
+    if (allocated_return_value_ptr) {
+        efree(allocated_return_value_ptr);
+    }
 }
 
 static int sw_terminate_opcode_handler(zend_execute_data *execute_data)
@@ -240,8 +259,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
         ZVAL_COPY(target, argv[i]);
     }
     call->symbol_table = NULL;
-    SW_ALLOC_INIT_ZVAL(retval);
-    COROG.allocated_return_value_ptr = retval;
+    allocated_return_value_ptr = retval;
     EG(current_execute_data) = NULL;
     if (UNEXPECTED(func->op_array.fn_flags & ZEND_ACC_CLOSURE))
     {
@@ -264,8 +282,16 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     COROG.root_coro->function = NULL;
     COROG.root_coro->post_callback = post_callback;
     COROG.root_coro->post_callback_params = params;
+    COROG.root_coro->has_yield_parent = 0;
     COROG.require = 1;
-    COROG.root_coro->origin_coro = COROG.current_coro;
+    if (COROG.current_coro)
+    {
+        COROG.root_coro->origin_coro = COROG.current_coro;
+    } else
+    {
+        COROG.root_coro->origin_coro = NULL;
+    }
+
     swTraceLog(SW_TRACE_COROUTINE, "Create coro id: %d, coro total count: %d, heap size: %zu", cid, COROG.coro_num, zend_memory_usage(0));
 
     coro_task *coro = COROG.root_coro;
@@ -285,13 +311,12 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
 
 sw_inline void coro_close(TSRMLS_D)
 {
-    swTraceLog(SW_TRACE_COROUTINE, "Close coroutine id %d", COROG.current_coro->cid);
+    swTraceLog(SW_TRACE_COROUTINE,"coro_close coro id %d", COROG.current_coro->cid);
     free_cidmap(COROG.current_coro->cid);
     efree(COROG.current_coro->stack);
-    efree(COROG.allocated_return_value_ptr);
     --COROG.coro_num;
     COROG.current_coro = NULL;
-    swTraceLog(SW_TRACE_COROUTINE, "closing coro and %d remained. usage size: %zu. malloc size: %zu", COROG.coro_num, zend_memory_usage(0), zend_memory_usage(1));
+    swTraceLog(SW_TRACE_COROUTINE, "close coro and %d remained. usage size: %zu. malloc size: %zu", COROG.coro_num, zend_memory_usage(0), zend_memory_usage(1));
 }
 
 sw_inline php_context *sw_coro_save(zval *return_value, php_context *sw_current_context)
@@ -302,7 +327,7 @@ sw_inline php_context *sw_coro_save(zval *return_value, php_context *sw_current_
     SWCC(current_vm_stack_top) = EG(vm_stack_top);
     SWCC(current_vm_stack_end) = EG(vm_stack_end);
     SWCC(current_task) = COROG.current_coro;
-    SWCC(allocated_return_value_ptr) = COROG.allocated_return_value_ptr;
+    SWCC(allocated_return_value_ptr) = allocated_return_value_ptr;
     return sw_current_context;
 
 }
@@ -310,6 +335,7 @@ sw_inline php_context *sw_coro_save(zval *return_value, php_context *sw_current_
 int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_retval)
 {
     COROG.current_coro = SWCC(current_task);
+    swTraceLog(SW_TRACE_COROUTINE,"sw_coro_resume coro id %d", COROG.current_coro->cid);
     COROG.current_coro->state = SW_CORO_RUNNING;
     EG(current_execute_data) = COROG.current_coro->execute_data;
 
@@ -320,7 +346,7 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
 #if PHP_MINOR_VERSION < 1
     EG(scope) = EG(current_execute_data)->func->op_array.scope;
 #endif
-    COROG.allocated_return_value_ptr = SWCC(allocated_return_value_ptr);
+    allocated_return_value_ptr = SWCC(allocated_return_value_ptr);
     EG(current_execute_data)->opline--;
     if (EG(current_execute_data)->opline->result_type != IS_UNUSED)
     {
@@ -340,15 +366,18 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
 
 int sw_coro_resume_parent(php_context *sw_current_context, zval *retval, zval *coro_retval)
 {
-//	EG(vm_stack) = SWCC(current_vm_stack);
-//	EG(vm_stack_top) = SWCC(current_vm_stack_top);
-//	EG(vm_stack_end) = SWCC(current_vm_stack_end);
-//	EG(current_execute_data) = SWCC(current_execute_data);
+	EG(vm_stack) = SWCC(current_vm_stack);
+	EG(vm_stack_top) = SWCC(current_vm_stack_top);
+	EG(vm_stack_end) = SWCC(current_vm_stack_end);
+	EG(current_execute_data) = SWCC(current_execute_data);
+    COROG.current_coro = SWCC(current_task);
+    allocated_return_value_ptr = SWCC(allocated_return_value_ptr);
     return CORO_END;
 }
 
 sw_inline void coro_yield()
 {
+    swTraceLog(SW_TRACE_COROUTINE,"coro_yield coro id %d", COROG.current_coro->cid);
     SWOOLE_GET_TSRMLS;
     COROG.next_coro = NULL;
     COROG.pending_interrupt = 1;
@@ -361,28 +390,28 @@ void sw_interrupt_function(zend_execute_data *execute_data)/*{{{*/
     {
         COROG.pending_interrupt = 0;
 
+        coro_task *current_coro;
         coro_task *coro;
-        coro = COROG.current_coro;
-        if (coro)
+        current_coro = COROG.current_coro;
+        if (current_coro)
         {
             /* Suspend current coro */
-            if (EXPECTED(coro->state == SW_CORO_RUNNING))
+            if (EXPECTED(current_coro->state == SW_CORO_RUNNING))
             {
-                coro->execute_data = execute_data;
-                coro->state = SW_CORO_SUSPENDED;
-                coro->stack = EG(vm_stack);
-                coro->vm_stack_top = EG(vm_stack_top);
-                coro->vm_stack_end = EG(vm_stack_end);
-                if (coro->origin_coro)
+                current_coro->execute_data = execute_data;
+                current_coro->state = SW_CORO_SUSPENDED;
+                current_coro->stack = EG(vm_stack);
+                current_coro->vm_stack_top = EG(vm_stack_top);
+                current_coro->vm_stack_end = EG(vm_stack_end);
+                if (current_coro && current_coro->origin_coro && current_coro->has_yield_parent == 0)
                 {
-                    COROG.current_coro = coro->origin_coro;
+                    COROG.current_coro = current_coro->origin_coro;
                 }
             }
         }
         coro = COROG.next_coro;
         if (coro)
         {
-            /* Resume next coro */
             EG(current_execute_data) = coro->execute_data;
             EG(vm_stack) = coro->stack;
             EG(vm_stack_top) = coro->vm_stack_top;
@@ -391,17 +420,27 @@ void sw_interrupt_function(zend_execute_data *execute_data)/*{{{*/
         }
         else
         {
-            /* Restore main execution context */
             EG(current_execute_data) = COROG.origin_ex;
-            EG(vm_stack) = COROG.origin_vm_stack;
-            EG(vm_stack_top) = COROG.origin_vm_stack_top;
-            EG(vm_stack_end) = COROG.origin_vm_stack_end;
+            if (current_coro && current_coro->origin_coro && current_coro->has_yield_parent == 0)
+            {
+                current_coro->has_yield_parent = 1;
+                EG(vm_stack) = current_coro->origin_coro->stack;
+                EG(vm_stack_top) = current_coro->origin_coro->vm_stack_top;
+                EG(vm_stack_end) = current_coro->origin_coro->vm_stack_end;
+            }
+            else
+            {
+                EG(vm_stack) = COROG.origin_vm_stack;
+                EG(vm_stack_top) = COROG.origin_vm_stack_top;
+                EG(vm_stack_end) = COROG.origin_vm_stack_end;
+            }
         }
         COROG.require = 1;
         COROG.next_coro = NULL;
-//		if (UNEXPECTED(EG(exception))) {
-//			zend_rethrow_exception(EG(current_execute_data));
-//		}
+        if (UNEXPECTED(EG(exception)))
+        {
+            zend_rethrow_exception(EG(current_execute_data));
+        }
     }
     if (orig_interrupt_function)
     {
