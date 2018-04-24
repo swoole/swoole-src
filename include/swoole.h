@@ -106,6 +106,12 @@ typedef unsigned long ulong_t;
 #define sw_inline inline
 #endif
 
+#if defined(__GNUC__) && __GNUC__ >= 4
+#define SW_API __attribute__ ((visibility("default")))
+#else
+#define SW_API
+#endif
+
 #if defined(MAP_ANON) && !defined(MAP_ANONYMOUS)
 #define MAP_ANONYMOUS MAP_ANON
 #endif
@@ -264,6 +270,13 @@ enum swPipe_type
     SW_PIPE_READ = 0,
     SW_PIPE_WRITE = 1,
 };
+
+enum swGlobal_hook_type
+{
+    SW_GLOBAL_HOOK_BEFORE_SERVER_START,
+    SW_GLOBAL_HOOK_BEFORE_CLIENT_START,
+};
+
 //-------------------------------------------------------------------------------
 enum swServer_mode
 {
@@ -2142,6 +2155,7 @@ typedef struct
     swLock lock;
     swString *module_stack;
     swHashMap *functions;
+    swLinkedList *hooks[SW_MAX_HOOK_TYPE];
 
 } swServerG;
 

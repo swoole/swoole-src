@@ -608,8 +608,8 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port);
 void swServer_close_port(swServer *serv, enum swBool_type only_stream_port);
 int swServer_add_worker(swServer *serv, swWorker *worker);
 int swserver_add_systemd_socket(swServer *serv);
-int swServer_add_hook(swServer *serv, enum swServer_hook_type type, void *func, int push_back);
-void swServer_call_hook_func(swServer *serv, enum swServer_hook_type type);
+int swServer_add_hook(swServer *serv, enum swServer_hook_type type, swCallback func, int push_back);
+void swServer_call_hook(swServer *serv, enum swServer_hook_type type, void *arg);
 
 int swServer_create(swServer *serv);
 int swServer_free(swServer *serv);

@@ -387,7 +387,7 @@ static int swServer_start_proxy(swServer *serv)
 
     if (serv->hooks[SW_SERVER_HOOK_MASTER_START])
     {
-        swServer_call_hook_func(serv, SW_SERVER_HOOK_MASTER_START);
+        swServer_call_hook(serv, SW_SERVER_HOOK_MASTER_START, serv);
     }
 
     /**
@@ -619,6 +619,10 @@ int swServer_start(swServer *serv)
     if (ret < 0)
     {
         return SW_ERR;
+    }
+    if (SwooleG.hooks[SW_GLOBAL_HOOK_BEFORE_SERVER_START])
+    {
+        swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_START, serv);
     }
     //cann't start 2 servers at the same time, please use process->exec.
     if (!sw_atomic_cmp_set(&SwooleGS->start, 0, 1))
@@ -1117,17 +1121,16 @@ int swServer_tcp_sendwait(swServer *serv, int fd, void *data, uint32_t length)
     return swSocket_write_blocking(conn->fd, data, length);
 }
 
-void swServer_call_hook_func(swServer *serv, enum swServer_hook_type type)
+SW_API void swServer_call_hook(swServer *serv, enum swServer_hook_type type, void *arg)
 {
     swLinkedList *hooks = serv->hooks[type];
-
     swLinkedList_node *node = hooks->head;
-    void (*func)(swServer *);
+    swCallback func = NULL;
 
     while (node)
     {
         func = node->data;
-        func(serv);
+        func(arg);
         node = node->next;
     }
 }
@@ -1198,7 +1201,7 @@ void swServer_master_onTimer(swTimer *timer, swTimer_node *tnode)
 
     if (serv->hooks[SW_SERVER_HOOK_MASTER_TIMER])
     {
-        swServer_call_hook_func(serv, SW_SERVER_HOOK_MASTER_TIMER);
+        swServer_call_hook(serv, SW_SERVER_HOOK_MASTER_TIMER, serv);
     }
 }
 
@@ -1222,7 +1225,7 @@ int swServer_add_worker(swServer *serv, swWorker *worker)
     return worker->id;
 }
 
-int swServer_add_hook(swServer *serv, enum swServer_hook_type type, void *func, int push_back)
+SW_API int swServer_add_hook(swServer *serv, enum swServer_hook_type type, swCallback func, int push_back)
 {
     if (serv->hooks[type] == NULL)
     {
