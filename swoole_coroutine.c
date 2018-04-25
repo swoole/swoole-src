@@ -110,8 +110,11 @@ int coro_init(TSRMLS_D)
     sw_terminate_func.try_catch_array = &sw_terminate_try_catch_array;
 
     zend_vm_init_call_frame(&fake_frame, ZEND_CALL_TOP_FUNCTION, NULL, 0, NULL, NULL);
-    fake_frame.opline = NULL;
+#if PHP_MAJOR_VERSION >= 7 && PHP_MINOR_VERSION >= 2
+    fake_frame.opline = zend_get_halt_op();
+#else
     fake_frame.call = NULL;
+#endif
     fake_frame.return_value = NULL;
     fake_frame.prev_execute_data = NULL;
 
