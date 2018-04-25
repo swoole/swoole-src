@@ -463,8 +463,8 @@ static const zend_function_entry swoole_connection_iterator_methods[] =
 
 static const zend_function_entry swoole_timer_methods[] =
 {
-    ZEND_FENTRY(tick, ZEND_FN(swoole_timer_tick), arginfo_swoole_timer_after, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    ZEND_FENTRY(after, ZEND_FN(swoole_timer_after), arginfo_swoole_timer_tick, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(tick, ZEND_FN(swoole_timer_tick), arginfo_swoole_timer_tick, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(after, ZEND_FN(swoole_timer_after), arginfo_swoole_timer_after, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(exists, ZEND_FN(swoole_timer_exists), arginfo_swoole_timer_exists, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(clear, ZEND_FN(swoole_timer_clear), arginfo_swoole_timer_clear, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
@@ -1520,7 +1520,7 @@ PHP_FUNCTION(swoole_get_local_mac)
         RETURN_FALSE;
     }
     array_init(return_value);
-    
+
     ifc.ifc_len = sizeof (buf);
     ifc.ifc_buf = (caddr_t) buf;
     if (!ioctl(sock, SIOCGIFCONF, (char *) &ifc))
