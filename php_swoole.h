@@ -143,8 +143,8 @@ extern swoole_object_array swoole_objects;
 #endif
 #endif
 
-#if PHP_MAJOR_VERSION < 7
-#error "require PHP version 7.0 or later."
+#if PHP_MAJOR_VERSION > 7 || PHP_MINOR_VERSION == 0
+#error "require PHP version 7.1 or later."
 #endif
 
 #include "php7_wrapper.h"
