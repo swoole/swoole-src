@@ -341,8 +341,6 @@ enum swServer_hook_type
     SW_SERVER_HOOK_PROCESS_TIMER,
 };
 
-#define SW_SERVER_HOOK_TYPE_NUM             (SW_SERVER_HOOK_PROCESS_TIMER+1)
-
 struct _swServer
 {
     /**

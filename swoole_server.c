@@ -54,7 +54,6 @@ static struct
 
 zval *php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
 zend_fcall_info_cache *php_sw_server_caches[PHP_SERVER_CALLBACK_NUM];
-swLinkedList *swoole_hooks[SW_MAX_HOOK_TYPE];
 
 static swHashMap *task_callbacks = NULL;
 #ifdef SW_COROUTINE
@@ -547,22 +546,6 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject TSRMLS_DC)
     if (!sw_zend_hash_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("max_connection")))
     {
         add_assoc_long(zsetting, "max_connection", serv->max_connection);
-    }
-
-    if (swoole_hooks != NULL)
-    {
-        int i;
-        for (i = 0; i < SW_SERVER_HOOK_TYPE_NUM; i++)
-        {
-            if (swoole_hooks[i] != NULL)
-             {
-                if (i == SW_SERVER_HOOK_MANAGER_TIMER)
-                {
-                    serv->manager_alarm = 1;
-                }
-                 serv->hooks[i] = swoole_hooks[i];
-             }
-        }
     }
 #ifdef HAVE_PTRACE
     //trace request
