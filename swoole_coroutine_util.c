@@ -657,19 +657,10 @@ PHP_FUNCTION(swoole_coroutine_create)
     swReactorCheckPoint = emalloc(sizeof(jmp_buf));
 
     php_context *ctx = emalloc(sizeof(php_context));
-    coro_save(ctx);
+    //coro_save(ctx);
     int required = COROG.require;
     int ret = coro_create(func_cache, args, 0, &retval, NULL, NULL);
-
-    if (COROG.current_coro)
-    {
-        COROG.current_coro->function = callback;
-    }
-    else
-    {
-        sw_zval_free(callback);
-    }
-
+    sw_zval_free(callback);
     efree(func_cache);
     efree(swReactorCheckPoint);
 
@@ -677,9 +668,8 @@ PHP_FUNCTION(swoole_coroutine_create)
     {
         RETURN_FALSE;
     }
-
     swReactorCheckPoint = prev_checkpoint;
-    coro_resume_parent(ctx, retval, retval);
+    //coro_resume_parent(ctx, retval, retval);
     COROG.require = required;
     efree(ctx);
     if (EG(exception))

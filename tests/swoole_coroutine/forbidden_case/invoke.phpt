@@ -17,10 +17,14 @@ co::create(function() {
 });
 
 function foo() {
+   echo "start\n";
    co::sleep(0.5);
+   echo "end \n";
 }
 
 
 ?>
 --EXPECT--
+start
 invoke end
+end

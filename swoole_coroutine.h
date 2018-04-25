@@ -33,6 +33,10 @@
 #define CORO_LIMIT 2
 #define CORO_SAVE 3
 
+typedef enum
+{
+    SW_CORO_INIT = 0, SW_CORO_SUSPENDED, SW_CORO_RUNNING, SW_CORO_END,
+} sw_coro_state;
 
 #define SW_EX_CV_NUM(ex, n) (((zval ***)(((char *)(ex)) + ZEND_MM_ALIGNED_SIZE(sizeof(zend_execute_data)))) + n)
 #define SW_EX_CV(var) (*SW_EX_CV_NUM(execute_data, var))
@@ -42,9 +46,7 @@ typedef struct _coro_task coro_task;
 
 typedef enum
 {
-	SW_CORO_CONTEXT_RUNNING,
-	SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST,
-	SW_CORO_CONTEXT_TERM
+    SW_CORO_CONTEXT_RUNNING, SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST, SW_CORO_CONTEXT_TERM
 } php_context_state;
 
 struct _php_context
@@ -78,25 +80,34 @@ struct _php_context
     php_context_state state;
 };
 
+//only support php version >=7
 typedef struct _coro_global
 {
     uint32_t coro_num;
     uint32_t max_coro_num;
     uint32_t stack_size;
     zend_vm_stack origin_vm_stack;
-#if PHP_MAJOR_VERSION >= 7
     zval *origin_vm_stack_top;
     zval *origin_vm_stack_end;
     zval *allocated_return_value_ptr;
-#endif
     zend_execute_data *origin_ex;
+    coro_task *root_coro;
     coro_task *current_coro;
+    coro_task *next_coro;
+    volatile zend_bool pending_interrupt;
     zend_bool require;
 } coro_global;
 
 struct _coro_task
 {
     int cid;
+    sw_coro_state state;
+    zend_execute_data *execute_data;
+    zend_vm_stack stack;
+    zval *vm_stack_top;
+    zval *vm_stack_end;
+    coro_task *origin_coro;
+    zend_bool has_yield_parent;
     /**
      * user coroutine
      */
@@ -120,7 +131,7 @@ extern jmp_buf *swReactorCheckPoint;
 
 int sw_coro_resume_parent(php_context *sw_current_context, zval *retval, zval *coro_retval);
 
-int coro_init(TSRMLS_D);
+int coro_init( TSRMLS_D);
 #if PHP_MAJOR_VERSION >= 7
 #define coro_create(op_array, argv, argc, retval, post_callback, param) \
         sw_coro_create(op_array, argv, argc, *retval, post_callback, param)
@@ -142,13 +153,14 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
 #define coro_resume sw_coro_resume
 #define coro_resume_parent(sw_current_context, retval, coro_retval) \
 
-int sw_coro_create(zend_fcall_info_cache *op_array, zval **argv, int argc, zval **retval, void *post_callback, void *param);
+int sw_coro_create(zend_fcall_info_cache *op_array, zval **argv, int argc, zval **retval, void *post_callback,
+        void *param);
 php_context *sw_coro_save(zval *return_value, zval **return_value_ptr, php_context *sw_php_context);
 int sw_coro_resume(php_context *sw_current_context, zval *retval, zval **coro_retval);
 #endif
 
-void coro_check(TSRMLS_D);
-void coro_close(TSRMLS_D);
+void coro_check( TSRMLS_D);
+void coro_close( TSRMLS_D);
 int php_swoole_add_timer_coro(int ms, int cli_fd, long *timeout_id, void* param, swLinkedList_node **node TSRMLS_DC);
 int php_swoole_clear_timer_coro(long id TSRMLS_DC);
 
