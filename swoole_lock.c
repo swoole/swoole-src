@@ -24,6 +24,7 @@ static PHP_METHOD(swoole_lock, trylock);
 static PHP_METHOD(swoole_lock, lock_read);
 static PHP_METHOD(swoole_lock, trylock_read);
 static PHP_METHOD(swoole_lock, unlock);
+static PHP_METHOD(swoole_lock, destroy);
 
 static zend_class_entry swoole_lock_ce;
 static zend_class_entry *swoole_lock_class_entry_ptr;
@@ -50,6 +51,7 @@ static const zend_function_entry swoole_lock_methods[] =
     PHP_ME(swoole_lock, lock_read, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_lock, trylock_read, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_lock, unlock, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_lock, destroy, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
@@ -147,7 +149,6 @@ static PHP_METHOD(swoole_lock, __destruct)
     swLock *lock = swoole_get_object(getThis());
     if (lock)
     {
-        lock->free(lock);
         swoole_set_object(getThis(), NULL);
     }
 }
@@ -212,4 +213,10 @@ static PHP_METHOD(swoole_lock, lock_read)
         RETURN_FALSE;
     }
     SW_LOCK_CHECK_RETURN(lock->lock_rd(lock));
+}
+
+static PHP_METHOD(swoole_lock, destroy)
+{
+    swLock *lock = swoole_get_object(getThis());
+    lock->free(lock);
 }
