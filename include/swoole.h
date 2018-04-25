@@ -1296,8 +1296,10 @@ double swoole_microtime(void);
 void swoole_rtrim(char *str, int len);
 void swoole_redirect_stdout(int new_fd);
 int swoole_shell_exec(char *command, pid_t *pid);
-int swoole_add_function(const char *name, void* func);
-void* swoole_get_function(char *name, uint32_t length);
+SW_API int swoole_add_function(const char *name, void* func);
+SW_API void* swoole_get_function(char *name, uint32_t length);
+SW_API int swoole_add_hook(enum swGlobal_hook_type type, swCallback func, int push_back);
+SW_API void swoole_call_hook(enum swGlobal_hook_type type, void *arg);
 
 static sw_inline uint64_t swoole_hton64(uint64_t host)
 {

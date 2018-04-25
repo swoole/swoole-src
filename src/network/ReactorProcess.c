@@ -27,7 +27,6 @@ static int swReactorProcess_reuse_port(swListenPort *ls);
 #endif
 
 static uint32_t heartbeat_check_lasttime = 0;
-static void (*swReactor_onTimeout_old)(swReactor *reactor);
 
 int swReactorProcess_create(swServer *serv)
 {
@@ -513,8 +512,6 @@ static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode)
     swServer *serv = reactor->ptr;
     swEvent notify_ev;
     swConnection *conn;
-
-    swReactor_onTimeout_old(reactor);
 
     if (SwooleGS->now < heartbeat_check_lasttime + 10)
     {
