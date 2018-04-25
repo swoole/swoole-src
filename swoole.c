@@ -1025,7 +1025,6 @@ PHP_MINIT_FUNCTION(swoole)
 
 #ifdef SW_COROUTINE
     memset(&COROG, 0, sizeof(COROG));
-    swReactorCheckPoint = NULL;
 #endif
 
     swoole_server_port_init(module_number TSRMLS_CC);
@@ -1283,11 +1282,7 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
     SwooleWG.reactor_wait_onexit = 0;
 
 #ifdef SW_COROUTINE
-    if (swReactorCheckPoint)
-    {
-        efree(swReactorCheckPoint);
-        swReactorCheckPoint = NULL;
-    }
+    coro_destroy(TSRMLS_C);
 #endif
 
     return SUCCESS;

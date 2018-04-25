@@ -37,7 +37,6 @@
 #define TASK_SLOT \
     ((int)((ZEND_MM_ALIGNED_SIZE(sizeof(coro_task)) + ZEND_MM_ALIGNED_SIZE(sizeof(zval)) - 1) / ZEND_MM_ALIGNED_SIZE(sizeof(zval))))
 #define SWCC(x) sw_current_context->x
-jmp_buf *swReactorCheckPoint = NULL;
 coro_global COROG;
 zval *allocated_return_value_ptr;
 
@@ -166,20 +165,14 @@ int coro_init(TSRMLS_D)
     SW_ALLOC_INIT_ZVAL(retval);
     allocated_return_value_ptr = retval;
     COROG.require = 0;
-    swReactorCheckPoint = emalloc(sizeof(jmp_buf)); //后面删掉
+    COROG.active = 1;
     SwooleWG.coro_timeout_list = swLinkedList_new(1, NULL);
     return 0;
 }
 
 
-void coro_destroy()
+void coro_destroy(TSRMLS_D)
 {
-    //delete later
-    if (swReactorCheckPoint)
-    {
-        efree(swReactorCheckPoint);
-        swReactorCheckPoint = NULL;
-    }
     if (allocated_return_value_ptr) {
         efree(allocated_return_value_ptr);
     }
@@ -315,7 +308,13 @@ sw_inline void coro_close(TSRMLS_D)
     free_cidmap(COROG.current_coro->cid);
     efree(COROG.current_coro->stack);
     --COROG.coro_num;
-    COROG.current_coro = NULL;
+    if (COROG.current_coro && COROG.current_coro->origin_coro)
+    {
+        COROG.current_coro = COROG.current_coro->origin_coro;
+    } else
+    {
+        COROG.current_coro = NULL;
+    }
     swTraceLog(SW_TRACE_COROUTINE, "close coro and %d remained. usage size: %zu. malloc size: %zu", COROG.coro_num, zend_memory_usage(0), zend_memory_usage(1));
 }
 
@@ -384,7 +383,7 @@ sw_inline void coro_yield()
     EG(vm_interrupt) = 1;
 }
 
-void sw_interrupt_function(zend_execute_data *execute_data)/*{{{*/
+void sw_interrupt_function(zend_execute_data *execute_data)
 {
     if (COROG.pending_interrupt)
     {
@@ -437,16 +436,16 @@ void sw_interrupt_function(zend_execute_data *execute_data)/*{{{*/
         }
         COROG.require = 1;
         COROG.next_coro = NULL;
-        if (UNEXPECTED(EG(exception)))
-        {
-            zend_rethrow_exception(EG(current_execute_data));
-        }
+//        if (UNEXPECTED(EG(exception)))
+//        {
+//            zend_rethrow_exception(EG(current_execute_data));
+//        }
     }
     if (orig_interrupt_function)
     {
         orig_interrupt_function(execute_data);
     }
-}/*}}}*/
+}
 
 sw_inline void coro_handle_timeout()
 {
