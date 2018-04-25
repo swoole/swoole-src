@@ -27,7 +27,7 @@ function test()
         $res = $client->connect('127.0.0.1', 9501, 1);
         // co::sleep(1.0);
         var_dump($res);
-        // echo "co[1] resume : connect ret = ".var_export($res,1)."\n";
+        echo "co[1] resume : connect ret = ".var_export($res,1)."\n";
         echo "co[1] exit\n";
     });
     echo "out coro \n";

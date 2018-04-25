@@ -182,10 +182,8 @@ static int sw_terminate_opcode_handler(zend_execute_data *execute_data)
 {
     coro_task *current_coro = COROG.current_coro;
     ZEND_ASSERT(current_coro != NULL);
-    current_coro->state = SW_CORO_END;
     COROG.next_coro = NULL;
-    COROG.pending_interrupt = 1;
-    sw_interrupt_function(execute_data);
+    current_coro->state = SW_CORO_END;
     EG(current_execute_data) = execute_data->prev_execute_data;
     return ZEND_USER_OPCODE_ENTER;
 }
@@ -284,18 +282,14 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     {
         COROG.root_coro->origin_coro = NULL;
     }
-
     swTraceLog(SW_TRACE_COROUTINE, "Create coro id: %d, coro total count: %d, heap size: %zu", cid, COROG.coro_num, zend_memory_usage(0));
 
     coro_task *coro = COROG.root_coro;
-    if (coro)
-    {
-        EG(current_execute_data) = coro->execute_data;
-        EG(vm_stack) = coro->stack;
-        EG(vm_stack_top) = coro->vm_stack_top;
-        EG(vm_stack_end) = coro->vm_stack_end;
-        coro->state = SW_CORO_RUNNING;
-    }
+    EG(current_execute_data) = coro->execute_data;
+    EG(vm_stack) = coro->stack;
+    EG(vm_stack_top) = coro->vm_stack_top;
+    EG(vm_stack_end) = coro->vm_stack_end;
+    coro->state = SW_CORO_RUNNING;
     COROG.require = 1;
     COROG.current_coro = coro;
     zend_execute_ex(EG(current_execute_data) TSRMLS_CC);
@@ -306,15 +300,16 @@ sw_inline void coro_close(TSRMLS_D)
 {
     swTraceLog(SW_TRACE_COROUTINE,"coro_close coro id %d", COROG.current_coro->cid);
     free_cidmap(COROG.current_coro->cid);
-    efree(COROG.current_coro->stack);
-    --COROG.coro_num;
-    if (COROG.current_coro && COROG.current_coro->origin_coro)
+    coro_task *current_coro = COROG.current_coro;
+    if (current_coro && current_coro->has_yield_parent == 0)
     {
-        COROG.current_coro = COROG.current_coro->origin_coro;
+        COROG.current_coro = current_coro->origin_coro;
     } else
     {
         COROG.current_coro = NULL;
     }
+    efree(current_coro->stack);
+    --COROG.coro_num;
     swTraceLog(SW_TRACE_COROUTINE, "close coro and %d remained. usage size: %zu. malloc size: %zu", COROG.coro_num, zend_memory_usage(0), zend_memory_usage(1));
 }
 
