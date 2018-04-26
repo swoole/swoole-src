@@ -44,7 +44,7 @@ void swoole_runtime_init(int module_number TSRMLS_DC)
 
 static auto block_io_functions =
 { "sleep", "usleep", "time_nanosleep", "time_sleep_until", "file_get_contents", "curl_init", "stream_select",
-        "socket_select" };
+        "socket_select", "gethostbyname", };
 
 static auto block_io_classes =
 { "redis", "mysqli", };
