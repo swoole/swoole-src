@@ -38,7 +38,7 @@ int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size)
 
     do_sendfile:
 #ifdef __MACH__
-    ret = sendfile(in_fd, out_fd, *offset, &size, &hdtr, 0);
+    ret = sendfile(in_fd, out_fd, *offset, (long long *) &size, &hdtr, 0);
 #else
     ret = sendfile(in_fd, out_fd, *offset, size, 0, &sent_bytes, 0);
 #endif
