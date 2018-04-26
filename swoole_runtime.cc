@@ -35,14 +35,11 @@ static const zend_function_entry swoole_runtime_methods[] =
     PHP_FE_END
 };
 
-extern "C"
-{
 void swoole_runtime_init(int module_number TSRMLS_DC)
 {
     static zend_class_entry _ce;
     INIT_CLASS_ENTRY(_ce, "Swoole\\Runtime", swoole_runtime_methods);
     ce = zend_register_internal_class(&_ce TSRMLS_CC);
-}
 }
 
 static auto block_io_functions =
