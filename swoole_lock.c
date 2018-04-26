@@ -71,6 +71,8 @@ void swoole_lock_init(int module_number TSRMLS_DC)
     zend_declare_class_constant_long(swoole_lock_class_entry_ptr, SW_STRL("SPINLOCK")-1, SW_SPINLOCK TSRMLS_CC);
 #endif
 
+    zend_declare_property_long(swoole_lock_class_entry_ptr, SW_STRL("errCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+
     REGISTER_LONG_CONSTANT("SWOOLE_FILELOCK", SW_FILELOCK, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("SWOOLE_MUTEX", SW_MUTEX, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("SWOOLE_SEM", SW_SEM, CONST_CS | CONST_PERSISTENT);
