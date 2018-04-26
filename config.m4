@@ -57,6 +57,9 @@ PHP_ARG_WITH(libpq_dir, for libpq support,
 PHP_ARG_WITH(openssl_dir, for OpenSSL support,
 [  --with-openssl-dir[=DIR]    Include OpenSSL support (requires OpenSSL >= 0.9.6)], no, no)
 
+PHP_ARG_WITH(phpx_dir, for PHP-X support,
+[  --with-phpx-dir[=DIR]    Include PHP-X support], no, no)
+
 PHP_ARG_WITH(jemalloc_dir, for jemalloc support,
 [  --with-jemalloc-dir[=DIR]    Include jemalloc support], no, no)
 
@@ -280,6 +283,13 @@ if test "$PHP_SWOOLE" != "no"; then
         PHP_ADD_LIBRARY(crypto, 1, SWOOLE_SHARED_LIBADD)
     fi
 
+    if test "$PHP_PHPX_DIR" != "no"; then
+        PHP_ADD_INCLUDE("${PHP_PHPX_DIR}/include")
+        PHP_ADD_LIBRARY_WITH_PATH(phpx, "${PHP_PHPX_DIR}/${PHP_LIBDIR}")
+        AC_DEFINE(SW_USE_PHPX, 1, [enable PHP-X support])
+        PHP_ADD_LIBRARY(phpx, 1, SWOOLE_SHARED_LIBADD)
+    fi
+
     if test "$PHP_JEMALLOC_DIR" != "no"; then
         AC_DEFINE(SW_USE_JEMALLOC, 1, [use jemalloc])
         PHP_ADD_INCLUDE("${PHP_JEMALLOC_DIR}/include")
@@ -484,6 +494,8 @@ if test "$PHP_SWOOLE" != "no"; then
     PHP_INSTALL_HEADERS([ext/swoole], [*.h include/*.h])
 
     PHP_REQUIRE_CXX()
+    PHP_ADD_LIBRARY(stdc++, 1, SWOOLE_SHARED_LIBADD)
+    CXXFLAGS="$CXXFLAGS -std=c++11"
 
     if test "$PHP_PICOHTTPPARSER" = "yes"; then
         PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/picohttpparser])
