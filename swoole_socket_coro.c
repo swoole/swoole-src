@@ -891,7 +891,7 @@ static PHP_METHOD(swoole_socket_coro, sendto)
     size_t l_data;
     char *addr;
     size_t l_addr;
-    long port = 0;
+    zend_long port = 0;
 
     ZEND_PARSE_PARAMETERS_START(3, 3)
         Z_PARAM_STRING(addr, l_addr);
@@ -957,7 +957,7 @@ static PHP_METHOD(swoole_socket_coro, getsockname)
     swSocketAddress info;
     char addr_str[INET6_ADDRSTRLEN + 1];
 
-    if (getsockname(sock->fd, &info.addr.inet_v4, &info.len) != 0)
+    if (getsockname(sock->fd, (struct sockaddr *) &info.addr.inet_v4, &info.len) != 0)
     {
         zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), errno TSRMLS_CC);
         RETURN_FALSE;
@@ -992,7 +992,7 @@ static PHP_METHOD(swoole_socket_coro, getpeername)
     swSocketAddress info;
     char addr_str[INET6_ADDRSTRLEN + 1];
 
-    if (getpeername(sock->fd, &info.addr.inet_v4, &info.len) != 0)
+    if (getpeername(sock->fd, (struct sockaddr *) &info.addr.inet_v4, &info.len) != 0)
     {
         zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), errno TSRMLS_CC);
         RETURN_FALSE;

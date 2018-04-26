@@ -848,7 +848,7 @@ static PHP_METHOD(swoole_coroutine_util, writeFile)
     size_t l_filename = 0;
     char *data = NULL;
     size_t l_data = 0;
-    long flags = 0;
+    zend_long flags = 0;
 
 #ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(2, 3)

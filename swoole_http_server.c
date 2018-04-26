@@ -2715,7 +2715,7 @@ static PHP_METHOD(swoole_http_response, detach)
 
 static PHP_METHOD(swoole_http_response, create)
 {
-    long fd;
+    zend_long fd;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
         Z_PARAM_LONG(fd);
