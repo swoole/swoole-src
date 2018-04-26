@@ -50,17 +50,12 @@
 #include "Client.h"
 #include "async.h"
 
+BEGIN_EXTERN_C()
+
 #define PHP_SWOOLE_VERSION  "2.1.3"
 #define PHP_SWOOLE_CHECK_CALLBACK
 #define PHP_SWOOLE_ENABLE_FASTCALL
 #define PHP_SWOOLE_CLIENT_USE_POLL
-
-/**
- * PHP5.2
- */
-#ifndef PHP_FE_END
-#define PHP_FE_END {NULL,NULL,NULL}
-#endif
 
 #ifndef ZEND_MOD_END
 #define ZEND_MOD_END {NULL,NULL,NULL}
@@ -364,6 +359,7 @@ void swoole_destory_table(zend_resource *rsrc TSRMLS_DC);
 void swoole_server_port_init(int module_number TSRMLS_DC);
 void swoole_async_init(int module_number TSRMLS_DC);
 void swoole_table_init(int module_number TSRMLS_DC);
+void swoole_runtime_init(int module_number TSRMLS_DC);
 void swoole_lock_init(int module_number TSRMLS_DC);
 void swoole_atomic_init(int module_number TSRMLS_DC);
 void swoole_client_init(int module_number TSRMLS_DC);
@@ -627,5 +623,7 @@ extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
 #ifndef ZEND_HASH_APPLY_PROTECTION
 # define ZEND_HASH_APPLY_PROTECTION(p) 1
 #endif
+
+END_EXTERN_C()
 
 #endif	/* PHP_SWOOLE_H */
