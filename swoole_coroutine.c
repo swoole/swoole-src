@@ -38,7 +38,7 @@
     ((int)((ZEND_MM_ALIGNED_SIZE(sizeof(coro_task)) + ZEND_MM_ALIGNED_SIZE(sizeof(zval)) - 1) / ZEND_MM_ALIGNED_SIZE(sizeof(zval))))
 #define SWCC(x) sw_current_context->x
 coro_global COROG;
-zval *allocated_return_value_ptr;
+zval *allocated_return_value_ptr = NULL;
 
 static void (*orig_interrupt_function)(zend_execute_data *execute_data);
 static void sw_interrupt_function(zend_execute_data *execute_data);
@@ -173,10 +173,10 @@ int coro_init(TSRMLS_D)
     return 0;
 }
 
-
 void coro_destroy(TSRMLS_D)
 {
-    if (allocated_return_value_ptr) {
+    if (allocated_return_value_ptr)
+    {
         efree(allocated_return_value_ptr);
     }
 }
@@ -281,10 +281,12 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     if (COROG.current_coro)
     {
         COROG.root_coro->origin_coro = COROG.current_coro;
-    } else
+    }
+    else
     {
         COROG.root_coro->origin_coro = NULL;
     }
+
     swTraceLog(SW_TRACE_COROUTINE, "Create coro id: %d, coro total count: %d, heap size: %zu", cid, COROG.coro_num, zend_memory_usage(0));
 
     coro_task *coro = COROG.root_coro;
@@ -326,7 +328,6 @@ sw_inline php_context *sw_coro_save(zval *return_value, php_context *sw_current_
     SWCC(current_task) = COROG.current_coro;
     SWCC(allocated_return_value_ptr) = allocated_return_value_ptr;
     return sw_current_context;
-
 }
 
 int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_retval)

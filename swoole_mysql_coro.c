@@ -919,6 +919,7 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
     }
 
     client->cmd = SW_MYSQL_COM_STMT_PREPARE;
+    client->state = SW_MYSQL_STATE_READ_START;
 
     swString_clear(mysql_request_buffer);
 
@@ -944,7 +945,6 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
         RETURN_TRUE;
     }
 
-    client->state = SW_MYSQL_STATE_READ_START;
     php_context *context = swoole_get_property(getThis(), 0);
     double timeout = client->connector.timeout;
     if (timeout > 0)

@@ -882,7 +882,7 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swEventDat
         {
             serv->scheduler_warning = 1;
         }
-        swTraceLog(SW_TRACE_SERVER, "schedule=%d, round=%d\n", key, serv->worker_round_id);
+        swTraceLog(SW_TRACE_SERVER, "schedule=%d, round=%d", key, serv->worker_round_id);
         return key;
     }
     return key % serv->worker_num;

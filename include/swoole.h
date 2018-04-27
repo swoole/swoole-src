@@ -406,7 +406,7 @@ enum swTraceType
 #ifdef SW_LOG_TRACE_OPEN
 #define swTraceLog(what,str,...)      if (SW_LOG_TRACE >= SwooleG.log_level && (what & SwooleG.trace_flags)) {\
     SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
-    snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): "str, __func__, __LINE__, ##__VA_ARGS__);\
+    snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): " str, __func__, __LINE__, ##__VA_ARGS__);\
     swLog_put(SW_LOG_TRACE, sw_error);\
     SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}
 #else
