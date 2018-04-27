@@ -97,6 +97,7 @@ typedef struct _coro_global
     volatile zend_bool pending_interrupt;
     zend_bool require;
     zend_bool active;
+    int call_stack_size;
 } coro_global;
 
 struct _coro_task
