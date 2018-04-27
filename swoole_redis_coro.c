@@ -1306,6 +1306,8 @@ static PHP_METHOD(swoole_redis_coro, recv)
 
 static PHP_METHOD(swoole_redis_coro, close)
 {
+    coro_check(TSRMLS_C);
+
     swRedisClient *redis = swoole_get_object(getThis());
     if (!redis || !redis->context)
     {
