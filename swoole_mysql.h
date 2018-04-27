@@ -275,7 +275,7 @@ typedef struct _mysql_client
 {
 #ifdef SW_COROUTINE
     zend_bool defer;
-    zend_bool defer_yield;
+    zend_bool suspending;
     mysql_io_status iowait;
     zval *result;
     int cid;
