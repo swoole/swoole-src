@@ -14,6 +14,10 @@ Swoole is an event-driven asynchronous & concurrent networking communication fra
 * __Twitter__: <https://twitter.com/php_swoole>
 * __Slack Group__: <https://swoole.slack.com/>
 
+Swoft Framework
+----
+Modern High performance AOP and Coroutine PHP Framework, base on Swoole 2 <https://github.com/swoft-cloud>
+
 Event-based
 ------
 
