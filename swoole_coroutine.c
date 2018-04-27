@@ -200,7 +200,7 @@ static int sw_close_opcode_handler(zend_execute_data *execute_data)
     EG(vm_stack) = COROG.origin_vm_stack;
     EG(vm_stack_top) = COROG.origin_vm_stack_top;
     EG(vm_stack_end) = COROG.origin_vm_stack_end;
-    return ZEND_USER_OPCODE_ENTER;
+    return ZEND_USER_OPCODE_RETURN;
 }
 
 void coro_check(TSRMLS_D)
