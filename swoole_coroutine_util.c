@@ -702,7 +702,7 @@ static PHP_METHOD(swoole_coroutine_util, getruid)
 {
     if (unlikely(COROG.current_coro == NULL))
     {
-        RETURN_LONG(-1);
+        RETURN_LONG(1);
     }
     RETURN_LONG(COROG.current_coro->rid);
 }
