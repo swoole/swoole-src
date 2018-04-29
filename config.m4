@@ -8,6 +8,7 @@ dnl  | that is bundled with this package in the file LICENSE, and is        |
 dnl  | available through the world-wide-web at the following url:           |
 dnl  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
 dnl  | If you did not receive a copy of the Apache2.0 license and are unable|
+
 dnl  | to obtain it through the world-wide-web, please send a note to       |
 dnl  | license@swoole.com so we can mail you a copy immediately.            |
 dnl  +----------------------------------------------------------------------+
@@ -17,11 +18,17 @@ dnl  +----------------------------------------------------------------------+
 PHP_ARG_ENABLE(swoole-debug, whether to enable swoole debug,
 [  --enable-swoole-debug   Enable swoole debug], no, no)
 
+PHP_ARG_ENABLE(trace-log, Whether to enable trace log,
+[  --enable-trace-log   Enable swoole trace log], no, no)
+
 PHP_ARG_ENABLE(sockets, enable sockets support,
 [  --enable-sockets        Do you have sockets extension?], no, no)
 
 PHP_ARG_ENABLE(async_redis, enable async_redis support,
 [  --enable-async-redis    Do you have hiredis?], no, no)
+
+PHP_ARG_ENABLE(coroutine-postgresql, enable coroutine postgresql support,
+[  --enable-coroutine-postgresql    Do you install postgresql?], no, no)
 
 PHP_ARG_ENABLE(openssl, enable openssl support,
 [  --enable-openssl        Use openssl?], no, no)
@@ -44,8 +51,14 @@ PHP_ARG_ENABLE(swoole_static, swoole static compile support,
 PHP_ARG_WITH(swoole, swoole support,
 [  --with-swoole           With swoole support])
 
+PHP_ARG_WITH(libpq_dir, for libpq support,
+[  --with-libpq-dir[=DIR]    Include libpq support (requires libpq >= 9.5)], no, no)
+
 PHP_ARG_WITH(openssl_dir, for OpenSSL support,
 [  --with-openssl-dir[=DIR]    Include OpenSSL support (requires OpenSSL >= 0.9.6)], no, no)
+
+PHP_ARG_WITH(phpx_dir, for PHP-X support,
+[  --with-phpx-dir[=DIR]    Include PHP-X support], no, no)
 
 PHP_ARG_WITH(jemalloc_dir, for jemalloc support,
 [  --with-jemalloc-dir[=DIR]    Include jemalloc support], no, no)
@@ -58,6 +71,9 @@ PHP_ARG_ENABLE(coroutine, whether to enable coroutine,
 
 PHP_ARG_ENABLE(http_receive_uid, whether to enable http receive uid,
 [  --enable-http-receive-uid      Enable http receive uid (requires PHP >= 7.0)], yes, no)
+
+PHP_ARG_ENABLE(asan, whether to enable asan,
+[  --enable-asan      Enable asan], no, no)
 
 PHP_ARG_ENABLE(picohttpparser, enable picohttpparser support,
 [  --enable-picohttpparser     Experimental: Do you have picohttpparser?], no, no)
@@ -155,6 +171,28 @@ AC_DEFUN([AC_SWOOLE_HAVE_FUTEX],
     ])
 ])
 
+AC_DEFUN([AC_SWOOLE_HAVE_LINUX_AIO],
+[
+    AC_MSG_CHECKING([for linux aio])
+    AC_TRY_COMPILE(
+    [
+		#include <sys/syscall.h>
+        #include <linux/aio_abi.h>
+		#include <unistd.h>
+    ], [
+        struct iocb *iocbps[1];
+        struct iocb iocbp;
+        aio_context_t context;
+        iocbps[0] = &iocbp;
+        io_submit(context, 1, iocbps);
+    ], [
+        AC_DEFINE([HAVE_LINUX_AIO], 1, [have LINUX_AIO?])
+        AC_MSG_RESULT([yes])
+    ], [
+        AC_MSG_RESULT([no])
+    ])
+])
+
 AC_MSG_CHECKING([if compiling with clang])
 AC_COMPILE_IFELSE([
     AC_LANG_PROGRAM([], [[
@@ -183,14 +221,25 @@ if test "$PHP_SWOOLE" != "no"; then
 
     if test "$PHP_SWOOLE_DEBUG" != "no"; then
         AC_DEFINE(SW_DEBUG, 1, [do we enable swoole debug])
+        PHP_DEBUG=1
+    fi
+
+    if test "$PHP_ASAN" != "no"; then
+        PHP_DEBUG=1
+        CFLAGS="$CFLAGS -fsanitize=address -fno-omit-frame-pointer"
     fi
 
     if test "$PHP_COROUTINE" != "no"; then
         AC_DEFINE(SW_COROUTINE, 1, [enable ability of coroutine])
     fi
 
+
     if test "$PHP_HTTP_RECEIVE_UID" != "no" && test "$PHP_COROUTINE" != "no" ; then
         AC_DEFINE(SW_HTTP_RECEIVE_UID, 1, [enable ability of http receive uid])
+    fi
+
+    if test "$PHP_TRACE_LOG" != "no"; then
+        AC_DEFINE(SW_LOG_TRACE_OPEN, 1, [enable trace log])
     fi
 
     if test "$PHP_SOCKETS" = "yes"; then
@@ -216,6 +265,7 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_SWOOLE_CPU_AFFINITY
     AC_SWOOLE_HAVE_REUSEPORT
 	AC_SWOOLE_HAVE_FUTEX
+    AC_SWOOLE_HAVE_LINUX_AIO
 
     CFLAGS="-Wall -pthread $CFLAGS"
     LDFLAGS="$LDFLAGS -lpthread"
@@ -241,6 +291,13 @@ if test "$PHP_SWOOLE" != "no"; then
         PHP_ADD_LIBRARY(crypto, 1, SWOOLE_SHARED_LIBADD)
     fi
 
+    if test "$PHP_PHPX_DIR" != "no"; then
+        PHP_ADD_INCLUDE("${PHP_PHPX_DIR}/include")
+        PHP_ADD_LIBRARY_WITH_PATH(phpx, "${PHP_PHPX_DIR}/${PHP_LIBDIR}")
+        AC_DEFINE(SW_USE_PHPX, 1, [enable PHP-X support])
+        PHP_ADD_LIBRARY(phpx, 1, SWOOLE_SHARED_LIBADD)
+    fi
+
     if test "$PHP_JEMALLOC_DIR" != "no"; then
         AC_DEFINE(SW_USE_JEMALLOC, 1, [use jemalloc])
         PHP_ADD_INCLUDE("${PHP_JEMALLOC_DIR}/include")
@@ -253,6 +310,33 @@ if test "$PHP_SWOOLE" != "no"; then
     if test "$PHP_ASYNC_REDIS" = "yes"; then
         AC_DEFINE(SW_USE_REDIS, 1, [enable async-redis support])
         PHP_ADD_LIBRARY(hiredis, 1, SWOOLE_SHARED_LIBADD)
+    fi
+
+    if test "$PHP_COROUTINE_POSTGRESQL" = "yes"; then
+        if test "$PHP_LIBPQ" != "no" || test "$PHP_LIBPQ_DIR" != "no"; then
+            if test "$PHP_LIBPQ_DIR" != "no"; then
+                AC_DEFINE(HAVE_LIBPQ, 1, [have libpq])
+                AC_MSG_RESULT(libpq include success)
+                PHP_ADD_INCLUDE("${PHP_LIBPQ_DIR}/include")
+            else
+                PGSQL_SEARCH_PATHS="/usr /usr/local /usr/local/pgsql"
+                for i in $PGSQL_SEARCH_PATHS; do
+                    for j in include include/pgsql include/postgres include/postgresql ""; do
+                        if test -r "$i/$j/libpq-fe.h"; then
+                            PGSQL_INC_BASE=$i
+                            PGSQL_INCLUDE=$i/$j
+                            AC_MSG_RESULT(libpq-fe.h found in PGSQL_INCLUDE)
+                            PHP_ADD_INCLUDE("${PGSQL_INCLUDE}")
+                        fi
+                    done
+                done
+            fi
+            AC_DEFINE(SW_USE_POSTGRESQL, 1, [enable coroutine-postgresql support])
+            PHP_ADD_LIBRARY(pq, 1, SWOOLE_SHARED_LIBADD)
+        fi
+        if test -z "$PGSQL_INCLUDE"; then
+           AC_MSG_ERROR(Cannot find libpq-fe.h. Please confirm the libpq or specify correct PostgreSQL(libpq) installation path)
+        fi
     fi
 
     if test "$PHP_HTTP2" = "yes"; then
@@ -286,6 +370,7 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(pthread, pthread_barrier_init, AC_DEFINE(HAVE_PTHREAD_BARRIER, 1, [have pthread_barrier_init]))
     AC_CHECK_LIB(pcre, pcre_compile, AC_DEFINE(HAVE_PCRE, 1, [have pcre]))
     AC_CHECK_LIB(hiredis, redisConnect, AC_DEFINE(HAVE_HIREDIS, 1, [have hiredis]))
+    AC_CHECK_LIB(pq, PQconnectdb, AC_DEFINE(HAVE_POSTGRESQL, 1, [have postgresql]))
     AC_CHECK_LIB(nghttp2, nghttp2_hd_inflate_new, AC_DEFINE(HAVE_NGHTTP2, 1, [have nghttp2]))
 
     AC_CHECK_LIB(z, gzgets, [
@@ -303,9 +388,11 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_coroutine.c \
         swoole_coroutine_util.c \
         swoole_event.c \
+        swoole_socket_coro.c \
         swoole_timer.c \
         swoole_async.c \
         swoole_process.c \
+        swoole_process_pool.c \
         swoole_serialize.c \
         swoole_buffer.c \
         swoole_table.c \
@@ -318,6 +405,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_http_client_coro.c \
         swoole_mysql.c \
         swoole_mysql_coro.c \
+        swoole_postgresql_coro.c \
         swoole_redis.c \
         swoole_redis_coro.c \
         swoole_redis_server.c \
@@ -325,7 +413,9 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_channel.c \
         swoole_channel_coro.c \
         swoole_ringqueue.c \
+        swoole_msgqueue.c \
         swoole_trace.c \
+        swoole_runtime.cc \
         src/core/base.c \
         src/core/log.c \
         src/core/hashmap.c \
@@ -411,6 +501,10 @@ if test "$PHP_SWOOLE" != "no"; then
     PHP_ADD_INCLUDE([$ext_srcdir/include])
 
     PHP_INSTALL_HEADERS([ext/swoole], [*.h include/*.h])
+
+    PHP_REQUIRE_CXX()
+    PHP_ADD_LIBRARY(stdc++, 1, SWOOLE_SHARED_LIBADD)
+    CXXFLAGS="$CXXFLAGS -std=c++11"
 
     if test "$PHP_PICOHTTPPARSER" = "yes"; then
         PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/picohttpparser])

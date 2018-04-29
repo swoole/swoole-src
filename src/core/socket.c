@@ -256,6 +256,14 @@ int swSocket_udp_sendto6(int server_sock, char *dst_ip, int dst_port, char *data
     return swSocket_sendto_blocking(server_sock, data, len, 0, (struct sockaddr *) &addr, sizeof(addr));
 }
 
+int swSocket_unix_sendto(int server_sock, char *dst_path, char *data, uint32_t len)
+{
+    struct sockaddr_un addr;
+    bzero(&addr, sizeof(addr));
+    strncpy(addr.sun_path, dst_path, sizeof(addr.sun_path));
+    return swSocket_sendto_blocking(server_sock, data, len, 0, (struct sockaddr *) &addr, sizeof(addr));
+}
+
 int swSocket_sendto_blocking(int fd, void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len)
 {
     int n = 0;

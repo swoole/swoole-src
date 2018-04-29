@@ -183,6 +183,11 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
         FD_ZERO(&(object->wfds));
         FD_ZERO(&(object->efds));
 
+        if (reactor->onBegin != NULL)
+        {
+            reactor->onBegin(reactor);
+        }
+
         LL_FOREACH(object->fds, ev)
         {
             if (swReactor_event_read(ev->fdtype))
@@ -267,10 +272,14 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
                     }
                 }
             }
-            if (reactor->onFinish != NULL)
-            {
-                reactor->onFinish(reactor);
-            }
+        }
+        if (reactor->onFinish != NULL)
+        {
+            reactor->onFinish(reactor);
+        }
+        if (reactor->once)
+        {
+            break;
         }
     }
     return SW_OK;

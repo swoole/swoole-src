@@ -277,6 +277,10 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
 
     while (reactor->running > 0)
     {
+        if (reactor->onBegin != NULL)
+        {
+            reactor->onBegin(reactor);
+        }
         if (reactor->timeout_msec > 0)
         {
             t.tv_sec = reactor->timeout_msec / 1000;
@@ -360,6 +364,10 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
         if (reactor->onFinish != NULL)
         {
             reactor->onFinish(reactor);
+        }
+        if (reactor->once)
+        {
+            break;
         }
     }
     return 0;

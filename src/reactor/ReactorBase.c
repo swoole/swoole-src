@@ -34,6 +34,7 @@
 static void swReactor_onTimeout_and_Finish(swReactor *reactor);
 static void swReactor_onTimeout(swReactor *reactor);
 static void swReactor_onFinish(swReactor *reactor);
+static void swReactor_onBegin(swReactor *reactor);
 static int swReactor_defer(swReactor *reactor, swCallback callback, void *data);
 
 int swReactor_create(swReactor *reactor, int max_event)
@@ -117,6 +118,33 @@ static int swReactor_defer(swReactor *reactor, swCallback callback, void *data)
     return SW_OK;
 }
 
+int swReactor_empty(swReactor *reactor)
+{
+    //timer
+    if (SwooleG.timer.num > 0)
+    {
+        return SW_FALSE;
+    }
+
+    int empty = SW_FALSE;
+    //thread pool
+    if (SwooleAIO.init && reactor->event_num == 1 && SwooleAIO.task_num == 0)
+    {
+        empty = SW_TRUE;
+    }
+    //no event
+    else if (reactor->event_num == 0)
+    {
+        empty = SW_TRUE;
+    }
+    //coroutine
+    if (empty && reactor->can_exit && reactor->can_exit(reactor))
+    {
+        empty = SW_TRUE;
+    }
+    return empty;
+}
+
 /**
  * execute when reactor timeout and reactor finish
  */
@@ -126,6 +154,18 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
     if (reactor->check_timer)
     {
         swTimer_select(&SwooleG.timer);
+    }
+    //defer callback
+    swDefer_callback *cb, *tmp;
+    swDefer_callback *defer_callback_list = reactor->defer_callback_list;
+    reactor->defer_callback_list = NULL;
+    LL_FOREACH(defer_callback_list, cb)
+    {
+        cb->callback(cb->data);
+    }
+    LL_FOREACH_SAFE(defer_callback_list, cb, tmp)
+    {
+        sw_free(cb);
     }
     //callback at the end
     if (reactor->idle_task.callback)
@@ -139,17 +179,6 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
         coro_handle_timeout();
     }
 #endif
-
-    //server master
-    if (SwooleG.serv && SwooleTG.update_time)
-    {
-        swServer_master_onTimer(SwooleG.serv);
-        int32_t timeout_msec = SwooleG.main_reactor->timeout_msec;
-        if (timeout_msec < 0 || timeout_msec > 1000)
-        {
-            SwooleG.main_reactor->timeout_msec = 1000;
-        }
-    }
     //server worker
     swWorker *worker = SwooleWG.worker;
     if (worker != NULL)
@@ -159,21 +188,10 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
             swWorker_try_to_exit();
         }
     }
-    //client
-    if (SwooleG.serv == NULL && SwooleG.timer.num <= 0)
+    //not server, the event loop is empty
+    if (SwooleG.serv == NULL  && swReactor_empty(reactor))
     {
-        if (SwooleAIO.init && reactor->event_num == 1 && SwooleAIO.task_num == 0)
-        {
-            reactor->running = 0;
-        }
-        else if (reactor->event_num == 0)
-        {
-            reactor->running = 0;
-        }
-        if (reactor->running == 0 && reactor->can_exit)
-        {
-            reactor->running = reactor->can_exit(reactor);
-        }
+        reactor->running = 0;
     }
 
 #ifdef SW_USE_MALLOC_TRIM
@@ -204,18 +222,20 @@ static void swReactor_onFinish(swReactor *reactor)
         swSignal_callback(reactor->singal_no);
         reactor->singal_no = 0;
     }
-    //defer callback
-    swDefer_callback *cb, *tmp;
-    LL_FOREACH(reactor->defer_callback_list, cb)
-    {
-        cb->callback(cb->data);
-    }
-    LL_FOREACH_SAFE(reactor->defer_callback_list, cb, tmp)
-    {
-        sw_free(cb);
-    }
-    reactor->defer_callback_list = NULL;
     swReactor_onTimeout_and_Finish(reactor);
+}
+
+void swReactor_activate_future_task(swReactor *reactor)
+{
+    reactor->onBegin = swReactor_onBegin;
+}
+
+static void swReactor_onBegin(swReactor *reactor)
+{
+    if (reactor->future_task.callback)
+    {
+        reactor->future_task.callback(reactor->future_task.data);
+    }
 }
 
 int swReactor_close(swReactor *reactor, int fd)
@@ -339,17 +359,16 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
     }
     else
     {
-        append_buffer:
-
-        if (buffer->length > socket->buffer_size)
+        append_buffer: if (buffer->length > socket->buffer_size)
         {
-            swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "socket#%d output buffer overflow.", fd);
-            if (SwooleG.socket_dontwait)
+            if (socket->dontwait)
             {
+                SwooleG.error = SW_ERROR_OUTPUT_BUFFER_OVERFLOW;
                 return SW_ERR;
             }
             else
             {
+                swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "socket#%d output buffer overflow.", fd);
                 swYield();
                 swSocket_wait(fd, SW_SOCKET_OVERFLOW_WAIT, SW_EVENT_WRITE);
             }

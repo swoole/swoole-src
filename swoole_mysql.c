@@ -853,13 +853,16 @@ static int mysql_decode_datetime(char *buf, char *result)
         y = *(uint16_t *) (buf + 1);
         M = *(uint8_t *) (buf + 3);
         d = *(uint8_t *) (buf + 4);
-        h = *(uint8_t *) (buf + 5);
-        m = *(uint8_t *) (buf + 6);
-        s = *(uint8_t *) (buf + 7);
+        if (n > 4)
+        {
+            h = *(uint8_t *) (buf + 5);
+            m = *(uint8_t *) (buf + 6);
+            s = *(uint8_t *) (buf + 7);
+        }
     }
     snprintf(result, DATETIME_MAX_SIZE, "%04d-%02d-%02d %02d:%02d:%02d", y, M, d, h, m, s);
 
-    swTrace("n=%d\n", n);
+    swTraceLog(SW_TRACE_MYSQL_CLIENT, "n=%d", n);
 
     return n;
 }
@@ -878,6 +881,8 @@ static int mysql_decode_time(char *buf, char *result)
 
     snprintf(result, DATETIME_MAX_SIZE, "%02d:%02d:%02d", h, m, s);
 
+    swTraceLog(SW_TRACE_MYSQL_CLIENT, "n=%d", n);
+
     return n;
 }
 
@@ -894,13 +899,15 @@ static int mysql_decode_date(char *buf, char *result)
         d = *(uint8_t *) (buf + 4);
     }
     snprintf(result, DATETIME_MAX_SIZE, "%04d-%02d-%02d", y, M, d);
+
+    swTraceLog(SW_TRACE_MYSQL_CLIENT, "n=%d", n);
+
     return n;
 }
 
 static void mysql_decode_year(char *buf, char *result)
 {
-    uint16_t y;
-    y = *(uint16_t *) (buf + 1);
+    uint16_t y = *(uint16_t *) (buf);
     snprintf(result, DATETIME_MAX_SIZE, "%04d", y);
 }
 
@@ -930,7 +937,8 @@ static int mysql_decode_row_prepare(mysql_client *client, char *buf, int packet_
     for (i = 0; i < client->response.num_column; i++)
     {
         /* to check Null-Bitmap @see https://dev.mysql.com/doc/internals/en/null-bitmap.html */
-        if( ( (buf - null_count + 1)[((i+2)/8)] & (0x01 << ((i+2)%8)) ) != 0 ){
+        if (((buf - null_count + 1)[((i + 2) / 8)] & (0x01 << ((i + 2) % 8))) != 0)
+        {
             swTraceLog(SW_TRACE_MYSQL_CLIENT, "value: %s is null ,flag2", client->response.columns[i].name);
             add_assoc_null(row_array, client->response.columns[i].name);
             continue;
@@ -942,7 +950,7 @@ static int mysql_decode_row_prepare(mysql_client *client, char *buf, int packet_
         {
         /* Date Time */
         case SW_MYSQL_TYPE_TIME:
-            len = mysql_decode_time(buf + read_n, datetime_buffer);
+            len = mysql_decode_time(buf + read_n, datetime_buffer) + 1;
             sw_add_assoc_stringl(row_array, client->response.columns[i].name, datetime_buffer, 8, 1);
             swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%s", client->response.columns[i].name, datetime_buffer);
             break;
@@ -950,7 +958,7 @@ static int mysql_decode_row_prepare(mysql_client *client, char *buf, int packet_
         case SW_MYSQL_TYPE_YEAR:
             mysql_decode_year(buf + read_n, datetime_buffer);
             sw_add_assoc_stringl(row_array, client->response.columns[i].name, datetime_buffer, 4, 1);
-            len = 3;
+            len = 2;
             swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%s", client->response.columns[i].name, datetime_buffer);
             break;
 
@@ -1644,11 +1652,13 @@ int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callba
 {
     if (!client->cli)
     {
+        SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
         swoole_php_fatal_error(E_WARNING, "mysql connection#%d is closed.", client->fd);
         return SW_ERR;
     }
     if (!client->connected)
     {
+        SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
         swoole_php_error(E_WARNING, "mysql client is not connected to server.");
         return SW_ERR;
     }

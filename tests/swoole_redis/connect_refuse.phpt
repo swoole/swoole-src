@@ -5,7 +5,7 @@ swoole_redis: connect refuse
 <?php require  __DIR__ . "/../include/skipif.inc";
 if (!class_exists("swoole_redis", false))
 {
-    exit("required redis.");
+    exit("SKIP");
 }
 ?>
 

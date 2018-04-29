@@ -70,7 +70,6 @@ static PHP_METHOD(swoole_http2_client_coro, write);
 
 static int http2_client_send_request(zval *zobject, zval *request TSRMLS_DC);
 static void http2_client_stream_free(void *ptr);
-static void http2_client_send_setting(swClient *cli);
 static void http2_client_onConnect(swClient *cli);
 static void http2_client_onClose(swClient *cli);
 static void http2_client_onError(swClient *cli);
@@ -103,15 +102,15 @@ void swoole_http2_client_coro_init(int module_number TSRMLS_DC)
         sw_zend_register_class_alias("Co\\Http2\\Request", swoole_http2_request_coro_class_entry_ptr);
     }
 
-    zend_declare_property_long(swoole_http2_client_coro_class_entry_ptr, SW_STRL("type")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(swoole_http2_client_coro_class_entry_ptr, SW_STRL("errCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_long(swoole_http2_client_coro_class_entry_ptr, SW_STRL("statusCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_null(swoole_http2_client_coro_class_entry_ptr, SW_STRL("host")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_long(swoole_http2_client_coro_class_entry_ptr, SW_STRL("port")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(swoole_http2_client_coro_class_entry_ptr, SW_STRL("sock")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_bool(swoole_http2_client_coro_class_entry_ptr, SW_STRL("reuse")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(swoole_http2_client_coro_class_entry_ptr, SW_STRL("reuseCount")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_http2_client_coro_class_entry_ptr, ZEND_STRL("type"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_http2_client_coro_class_entry_ptr, ZEND_STRL("setting"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_bool(swoole_http2_client_coro_class_entry_ptr, ZEND_STRL("connected"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_http2_client_coro_class_entry_ptr, SW_STRL("host")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_http2_client_coro_class_entry_ptr, SW_STRL("port")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
 
     zend_declare_property_null(swoole_http2_request_coro_class_entry_ptr, SW_STRL("method")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_http2_request_coro_class_entry_ptr, SW_STRL("headers")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
@@ -715,6 +714,8 @@ static void http2_client_onConnect(swClient *cli)
     zval *zobject = cli->object;
     http2_client_property *hcc = swoole_get_property(zobject, HTTP2_CLIENT_CORO_PROPERTY);
 
+    zend_update_property_bool(swoole_http2_client_coro_class_entry_ptr, zobject, ZEND_STRL("connected"), 1 TSRMLS_CC);
+
     cli->send(cli, ZEND_STRL("PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"), 0);
     cli->open_length_check = 1;
     cli->protocol.get_package_length = swHttp2_get_frame_length;
@@ -747,6 +748,8 @@ static void http2_client_onClose(swClient *cli)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
     zval *zobject = cli->object;
+    zend_update_property_bool(swoole_http2_client_coro_class_entry_ptr, zobject, ZEND_STRL("connected"), 0 TSRMLS_CC);
+
     if (cli->released)
     {
         return;

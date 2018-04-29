@@ -1,22 +1,26 @@
 <?php
 use Swoole\Coroutine as co;
+co::set(['trace_flags' => 1]);
 
 co::create(function() {
 
-    $db = new co\MySQL();
-    $server = array(
-        'host' => '127.0.0.1',
-        'user' => 'root',
-        'password' => 'root',
-        'database' => 'test',
-    );
 
-    echo "connect\n";
-    $ret1 = $db->connect($server);
-    var_dump($ret1);
+    $function = new ReflectionFunction('title');
 
-    echo "prepare\n";
-    $ret2 = $db->query('SELECT * FROM userinfo WHERE id=3');
-    var_dump($ret2);
+    $function->invoke();
+    echo "invoke444\n";
+
 });
 
+function title() {
+    echo "333invoke_________________________________\n";
+    $tcpclient = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
+    var_dump($tcpclient->connect('127.0.0.1', 9501, 1));
+    
+}
+
+echo "111\n";
+
+
+echo "222\n";
+co::go();

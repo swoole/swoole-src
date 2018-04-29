@@ -75,7 +75,7 @@ int swConnection_onSendfile(swConnection *conn, swBuffer_trunk *chunk)
         switch (swConnection_error(errno))
         {
         case SW_ERROR:
-            swSysError("sendfile(%s, %ld, %d) failed.", task->filename, task->offset, sendn);
+            swSysError("sendfile(%s, %ld, %d) failed.", task->filename, (long)task->offset, sendn);
             swBuffer_pop_trunk(conn->out_buffer, chunk);
             return SW_OK;
         case SW_CLOSE:

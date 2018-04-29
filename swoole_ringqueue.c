@@ -19,12 +19,13 @@
 
 #include "php_swoole.h"
 
-
 static PHP_METHOD(swoole_ringqueue, __construct);
 static PHP_METHOD(swoole_ringqueue, __destruct);
 static PHP_METHOD(swoole_ringqueue, push);
 static PHP_METHOD(swoole_ringqueue, pop);
-static PHP_METHOD(swoole_ringqueue, full);
+static PHP_METHOD(swoole_ringqueue, count);
+static PHP_METHOD(swoole_ringqueue, isFull);
+static PHP_METHOD(swoole_ringqueue, isEmpty);
 
 static zend_class_entry swoole_ringqueue_ce;
 zend_class_entry *swoole_ringqueue_class_entry_ptr;
@@ -46,7 +47,9 @@ static const zend_function_entry swoole_ringqueue_methods[] =
     PHP_ME(swoole_ringqueue, __destruct, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_ME(swoole_ringqueue, push, arginfo_swoole_ringqueue_push, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_ringqueue, pop, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_ringqueue, full, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_ringqueue, count, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_ringqueue, isFull, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_ringqueue, isEmpty, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
@@ -66,18 +69,18 @@ static PHP_METHOD(swoole_ringqueue, __construct)
         RETURN_FALSE;
     }
 
-    if (len < SW_RINGQUEUE_LEN)
+    if (len < 0)
     {
         len = SW_RINGQUEUE_LEN;
     }
 
-    swRingQueue *queue = malloc(sizeof(swRingQueue));
+    swRingQueue *queue = emalloc(sizeof(swRingQueue));
     if (queue == NULL)
     {
         zend_throw_exception(swoole_exception_class_entry_ptr, "failed to create ringqueue.", SW_ERROR_MALLOC_FAIL TSRMLS_CC);
         RETURN_FALSE;
     }
-    if(swRingQueue_init(queue, len))
+    if (swRingQueue_init(queue, len))
     {
         zend_throw_exception(swoole_exception_class_entry_ptr, "failed to init ringqueue.", SW_ERROR_MALLOC_FAIL TSRMLS_CC);
         RETURN_FALSE;
@@ -87,6 +90,8 @@ static PHP_METHOD(swoole_ringqueue, __construct)
 
 static PHP_METHOD(swoole_ringqueue, __destruct)
 {
+    swRingQueue *queue = swoole_get_object(getThis());
+    efree(queue);
     swoole_set_object(getThis(), NULL);
 }
 
@@ -100,7 +105,17 @@ static PHP_METHOD(swoole_ringqueue, push)
         RETURN_FALSE;
     }
 
-    SW_CHECK_RETURN(swRingQueue_push(queue, zdata));
+    zdata = sw_zval_dup(zdata);
+    if (swRingQueue_push(queue, zdata) < 0)
+    {
+        efree(zdata);
+        RETURN_FALSE;
+    }
+    else
+    {
+        Z_TRY_ADDREF_P(zdata);
+        RETURN_TRUE;
+    }
 }
 
 static PHP_METHOD(swoole_ringqueue, pop)
@@ -113,13 +128,24 @@ static PHP_METHOD(swoole_ringqueue, pop)
     {
         RETURN_FALSE;
     }
-
-    RETVAL_ZVAL(zdata, 0, NULL);
+    RETVAL_ZVAL(zdata, 0, 0);
     efree(zdata);
 }
 
-static PHP_METHOD(swoole_ringqueue, full)
+static PHP_METHOD(swoole_ringqueue, isFull)
 {
     swRingQueue *queue = swoole_get_object(getThis());
-    SW_CHECK_RETURN(swRingQueue_full(queue));
+    RETURN_BOOL(swRingQueue_full(queue));
+}
+
+static PHP_METHOD(swoole_ringqueue, isEmpty)
+{
+    swRingQueue *queue = swoole_get_object(getThis());
+    RETURN_BOOL(swRingQueue_empty(queue));
+}
+
+static PHP_METHOD(swoole_ringqueue, count)
+{
+    swRingQueue *queue = swoole_get_object(getThis());
+    RETURN_LONG(swRingQueue_count(queue));
 }

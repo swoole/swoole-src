@@ -13,11 +13,19 @@
   | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
   +----------------------------------------------------------------------+
 */
-
+#if __APPLE__
+// Fix warning: 'daemon' is deprecated: first deprecated in macOS 10.5 - Use posix_spawn APIs instead. [-Wdeprecated-declarations]
+#define daemon yes_we_know_that_daemon_is_deprecated_in_os_x_10_5_thankyou
+#endif
 #include "Server.h"
 #include "http.h"
 #include "Connection.h"
+#include <spawn.h>
 #include <sys/stat.h>
+#if __APPLE__
+#undef daemon
+extern int daemon(int, int);
+#endif
 
 #if SW_REACTOR_SCHEDULE == 3
 static sw_inline void swServer_reactor_schedule(swServer *serv)
@@ -273,6 +281,11 @@ static int swServer_start_check(swServer *serv)
         swWarn("serv->max_connection is too small.");
         serv->max_connection = SwooleG.max_sockets;
     }
+    if (serv->max_connection > SW_SESSION_LIST_SIZE)
+    {
+        swWarn("serv->max_connection is exceed the SW_SESSION_LIST_SIZE[%d].", SW_SESSION_LIST_SIZE);
+        serv->max_connection = SW_SESSION_LIST_SIZE;
+    }
     swListenPort *ls;
     LL_FOREACH(serv->listen_list, ls)
     {
@@ -281,7 +294,6 @@ static int swServer_start_check(swServer *serv)
             ls->protocol.package_max_length = SW_BUFFER_MIN_SIZE;
         }
     }
-    SwooleGS->session_round = 1;
     return SW_OK;
 }
 
@@ -327,6 +339,11 @@ static int swServer_start_proxy(swServer *serv)
         }
     }
 
+    if (serv->stream_fd > 0)
+    {
+        close(serv->stream_fd);
+    }
+
     /**
      * create reactor thread
      */
@@ -370,7 +387,22 @@ static int swServer_start_proxy(swServer *serv)
 
     if (serv->hooks[SW_SERVER_HOOK_MASTER_START])
     {
-        swServer_call_hook_func(serv, SW_SERVER_HOOK_MASTER_START);
+        swServer_call_hook(serv, SW_SERVER_HOOK_MASTER_START, serv);
+    }
+
+    /**
+     * init timer
+     */
+    if (swTimer_init(1000) < 0)
+    {
+        return SW_ERR;
+    }
+    /**
+     * 1 second timer, update SwooleGS->now
+     */
+    if (SwooleG.timer.add(&SwooleG.timer, 1000, 1, serv, swServer_master_onTimer) == NULL)
+    {
+        return SW_ERR;
     }
 
     if (serv->onStart != NULL)
@@ -378,10 +410,7 @@ static int swServer_start_proxy(swServer *serv)
         serv->onStart(serv);
     }
 
-    struct timeval tmo;
-    tmo.tv_sec = 1; //for seconds timer
-    tmo.tv_usec = 0;
-    return main_reactor->wait(main_reactor, &tmo);
+    return main_reactor->wait(main_reactor, NULL);
 }
 
 void swServer_store_listen_socket(swServer *serv)
@@ -434,7 +463,6 @@ void swServer_store_listen_socket(swServer *serv)
 swString** swServer_create_worker_buffer(swServer *serv)
 {
     int i;
-    int buffer_input_size = serv->listen_list->protocol.package_max_length;
     int buffer_num;
 
     if (serv->factory_mode == SW_MODE_SINGLE || serv->factory_mode == SW_MODE_BASE)
@@ -455,7 +483,7 @@ swString** swServer_create_worker_buffer(swServer *serv)
 
     for (i = 0; i < buffer_num; i++)
     {
-        buffers[i] = swString_new(buffer_input_size);
+        buffers[i] = swString_new(SW_BUFFER_SIZE_BIG);
         if (buffers[i] == NULL)
         {
             swError("worker buffer_input init failed.");
@@ -494,7 +522,7 @@ int swServer_create_task_worker(swServer *serv)
     {
         char sockfile[sizeof(struct sockaddr_un)];
         snprintf(sockfile, sizeof(sockfile), "/tmp/swoole.task.%d.sock", SwooleGS->master_pid);
-        if (swProcessPool_create_stream_socket(&SwooleGS->task_workers, sockfile, 2048) < 0)
+        if (swProcessPool_create_unix_socket(&SwooleGS->task_workers, sockfile, 2048) < 0)
         {
             return SW_ERR;
         }
@@ -592,6 +620,10 @@ int swServer_start(swServer *serv)
     {
         return SW_ERR;
     }
+    if (SwooleG.hooks[SW_GLOBAL_HOOK_BEFORE_SERVER_START])
+    {
+        swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_START, serv);
+    }
     //cann't start 2 servers at the same time, please use process->exec.
     if (!sw_atomic_cmp_set(&SwooleGS->start, 0, 1))
     {
@@ -646,12 +678,15 @@ int swServer_start(swServer *serv)
         {
             return SW_ERR;
         }
+        int _reuse_port = SwooleG.reuse_port;
+        SwooleG.reuse_port = 0;
         serv->stream_fd = swSocket_create_server(SW_SOCK_UNIX_STREAM, serv->stream_socket, 0, 2048);
         if (serv->stream_fd < 0)
         {
             return SW_ERR;
         }
         swoole_fcntl_set_option(serv->stream_fd, 1, 1);
+        SwooleG.reuse_port = _reuse_port;
     }
 
     serv->send = swServer_tcp_send;
@@ -1025,6 +1060,7 @@ int swServer_tcp_notify(swServer *serv, swConnection *conn, int event)
     notify_event.from_id = conn->from_id;
     notify_event.fd = conn->fd;
     notify_event.from_fd = conn->from_fd;
+    notify_event.len = 0;
     return serv->factory.notify(&serv->factory, &notify_event);
 }
 
@@ -1044,7 +1080,7 @@ int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename, uint32
     }
     if (file_stat.st_size <= offset)
     {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "file[offset=%ld] is empty.", offset);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "file[offset=%ld] is empty.", (long)offset);
         return SW_ERR;
     }
 
@@ -1085,17 +1121,16 @@ int swServer_tcp_sendwait(swServer *serv, int fd, void *data, uint32_t length)
     return swSocket_write_blocking(conn->fd, data, length);
 }
 
-void swServer_call_hook_func(swServer *serv, enum swServer_hook_type type)
+SW_API void swServer_call_hook(swServer *serv, enum swServer_hook_type type, void *arg)
 {
     swLinkedList *hooks = serv->hooks[type];
-
     swLinkedList_node *node = hooks->head;
-    void (*func)(swServer *);
+    swCallback func = NULL;
 
     while (node)
     {
         func = node->data;
-        func(serv);
+        func(arg);
         node = node->next;
     }
 }
@@ -1153,8 +1188,9 @@ void swServer_signal_init(swServer *serv)
     swServer_set_minfd(SwooleG.serv, SwooleG.signal_fd);
 }
 
-void swServer_master_onTimer(swServer *serv)
+void swServer_master_onTimer(swTimer *timer, swTimer_node *tnode)
 {
+    swServer *serv = (swServer *) tnode->data;
     swoole_update_time();
     if (serv->scheduler_warning && serv->warning_time < SwooleGS->now)
     {
@@ -1165,7 +1201,7 @@ void swServer_master_onTimer(swServer *serv)
 
     if (serv->hooks[SW_SERVER_HOOK_MASTER_TIMER])
     {
-        swServer_call_hook_func(serv, SW_SERVER_HOOK_MASTER_TIMER);
+        swServer_call_hook(serv, SW_SERVER_HOOK_MASTER_TIMER, serv);
     }
 }
 
@@ -1189,7 +1225,7 @@ int swServer_add_worker(swServer *serv, swWorker *worker)
     return worker->id;
 }
 
-int swServer_add_hook(swServer *serv, enum swServer_hook_type type, void *func, int push_back)
+SW_API int swServer_add_hook(swServer *serv, enum swServer_hook_type type, swCallback func, int push_back)
 {
     if (serv->hooks[type] == NULL)
     {
@@ -1511,6 +1547,10 @@ static void swServer_signal_hanlder(int sig)
         {
             break;
         }
+        if (SwooleG.serv->factory_mode == SW_MODE_SINGLE)
+        {
+            break;
+        }
         pid = waitpid(-1, &status, WNOHANG);
         if (pid > 0 && pid == SwooleGS->manager_pid)
         {
@@ -1530,8 +1570,12 @@ static void swServer_signal_hanlder(int sig)
     case SIGUSR2:
         if (SwooleG.serv->factory_mode == SW_MODE_SINGLE)
         {
+            if (SwooleGS->event_workers.reloading)
+            {
+                break;
+            }
             SwooleGS->event_workers.reloading = 1;
-            SwooleGS->event_workers.reload_flag = 0;
+            SwooleGS->event_workers.reload_init = 0;
         }
         else
         {
@@ -1716,18 +1760,18 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
 #endif
 
 #ifdef SW_REACTOR_USE_SESSION
-    uint32_t session_id = 1;
     swSession *session;
     sw_spinlock(&SwooleGS->spinlock);
     int i;
+    uint32_t session_id = SwooleGS->session_round;
     //get session id
     for (i = 0; i < serv->max_connection; i++)
     {
-        session_id = SwooleGS->session_round++;
-        if (unlikely(session_id == 0))
+        session_id++;
+        //SwooleGS->session_round just has 24 bits size;
+        if (unlikely(session_id == 1 << 24))
         {
             session_id = 1;
-            SwooleGS->session_round = 1;
         }
         session = swServer_get_session(serv, session_id);
         //vacancy
@@ -1739,6 +1783,7 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
             break;
         }
     }
+    SwooleGS->session_round = session_id;
     sw_spinlock_release(&SwooleGS->spinlock);
     connection->session_id = session_id;
 #endif

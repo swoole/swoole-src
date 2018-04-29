@@ -210,6 +210,10 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
 
     while (reactor->running > 0)
     {
+        if (reactor->onBegin != NULL)
+        {
+            reactor->onBegin(reactor);
+        }
         msec = reactor->timeout_msec;
         ret = poll(object->events, reactor->event_num, msec);
         if (ret < 0)
@@ -274,10 +278,14 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
                     }
                 }
             }
-            if (reactor->onFinish != NULL)
-            {
-                reactor->onFinish(reactor);
-            }
+        }
+        if (reactor->onFinish != NULL)
+        {
+            reactor->onFinish(reactor);
+        }
+        if (reactor->once)
+        {
+            break;
         }
     }
     return SW_OK;

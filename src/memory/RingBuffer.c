@@ -168,7 +168,7 @@ static void* swRingBuffer_alloc(swMemoryPool *pool, uint32_t size)
     object->alloc_offset += alloc_size;
     object->alloc_count ++;
 
-    swDebug("alloc: ptr=%d", (void *)item->data - object->memory);
+    swDebug("alloc: ptr=%p", (void * )((void * )item->data - object->memory));
 
     return item->data;
 }
@@ -184,14 +184,14 @@ static void swRingBuffer_free(swMemoryPool *pool, void *ptr)
 
     if (item->lock != 1)
     {
-        swDebug("invalid free: index=%d, ptr = %d\n", item->index,  (void * ) item->data - object->memory);
+        swDebug("invalid free: index=%d, ptr=%p", item->index,  (void * )((void * )item->data - object->memory));
     }
     else
     {
         item->lock = 0;
     }
 
-    swDebug("free: ptr=%d", (void * ) item->data - object->memory);
+    swDebug("free: ptr=%p", (void * )((void * )item->data - object->memory));
 
     sw_atomic_t *free_count = &object->free_count;
     sw_atomic_fetch_add(free_count, 1);

@@ -718,11 +718,21 @@ static void http_client_onReceive(swClient *cli, char *data, uint32_t length)
     if (http->upgrade)
     {
         cli->open_length_check = 1;
-        swString_clear(cli->buffer);
         cli->protocol.get_package_length = swWebSocket_get_package_length;
         cli->protocol.onPackage = http_client_onMessage;
         cli->protocol.package_length_size = SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_MASK_LEN + sizeof(uint64_t);
         http->state = HTTP_CLIENT_STATE_UPGRADE;
+
+        //data frame
+        if (length > parsed_n)
+        {
+            cli->buffer->length = length - parsed_n - 1;
+            memmove(cli->buffer->str, data + parsed_n + 1, cli->buffer->length);
+        }
+        else
+        {
+            swString_clear(cli->buffer);
+        }
     }
     else if (http->keep_alive == 1)
     {
@@ -773,6 +783,14 @@ static void http_client_onReceive(swClient *cli, char *data, uint32_t length)
         return;
     }
     http->header_completed = 0;
+
+    if (http->upgrade && cli->buffer->length > 0)
+    {
+        cli->socket->skip_recv = 1;
+        swProtocol_recv_check_length(&cli->protocol, cli->socket, cli->buffer);
+        return;
+    }
+
     swString_clear(cli->buffer);
     if (http->keep_alive == 0 && http->state != HTTP_CLIENT_STATE_WAIT_CLOSE)
     {

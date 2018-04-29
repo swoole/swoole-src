@@ -136,6 +136,36 @@ phpize
 ./configure 
 make -j 4
 sudo make install
+
 ```
 You should add "extension=swoole.so" to php.ini, execute the demo program.
+
+## Safety warning
+
+#### Do not use coroutines in these functions: 
+
+* `__get`
+* `__set`
+* `__call`
+* `__callStatic`
+* `__toString`
+* `__invoke`
+* `__destruct`
+* `call_user_func`
+* `call_user_func_array`
+* `ReflectionFunction::invoke`
+* `ReflectionFunction::invokeArgs`
+* `ReflectionMethod::invoke`
+* `ReflectionMethod::invokeArgs`
+* `array_walk`/`array_map`
+* `ob_*`
+
+#### Please turn off these extensions:
+
+* xdebug
+* phptrace
+* aop
+* molten
+* xhprof
+
 

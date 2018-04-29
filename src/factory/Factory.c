@@ -161,7 +161,6 @@ int swFactory_finish(swFactory *factory, swSendData *resp)
     }
     if (swReactorThread_send(resp) < 0)
     {
-        swSysError("sendto to connection#%d failed.", resp->info.fd);
         return SW_ERR;
     }
     else
@@ -169,4 +168,3 @@ int swFactory_finish(swFactory *factory, swSendData *resp)
         return SW_OK;
     }
 }
-

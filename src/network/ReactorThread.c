@@ -629,6 +629,18 @@ int swReactorThread_send(swSendData *_send)
     if (serv->factory_mode == SW_MODE_SINGLE)
     {
         reactor = &(serv->reactor_threads[0].reactor);
+        if (conn->overflow)
+        {
+            if (serv->send_yield)
+            {
+                SwooleG.error = SW_ERROR_OUTPUT_BUFFER_OVERFLOW;
+            }
+            else
+            {
+                swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "connection#%d output buffer overflow.", fd);
+            }
+            return SW_ERR;
+        }
     }
     else
     {
@@ -737,8 +749,19 @@ int swReactorThread_send(swSendData *_send)
         //connection output buffer overflow
         if (conn->out_buffer->length >= conn->buffer_size)
         {
-            swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "connection#%d output buffer overflow.", fd);
+            if (serv->send_yield)
+            {
+                SwooleG.error = SW_ERROR_OUTPUT_BUFFER_OVERFLOW;
+            }
+            else
+            {
+                swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "connection#%d output buffer overflow.", fd);
+            }
             conn->overflow = 1;
+            if (serv->onBufferEmpty && serv->onBufferFull == NULL)
+            {
+                conn->high_watermark = 1;
+            }
         }
 
         int _length = _send_length;
@@ -1027,8 +1050,8 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
         swListenPort *port = swServer_get_port(serv, fd);
         if (conn->out_buffer->length <= port->buffer_low_watermark)
         {
-            swServer_tcp_notify(serv, conn, SW_EVENT_BUFFER_EMPTY);
             conn->high_watermark = 0;
+            swServer_tcp_notify(serv, conn, SW_EVENT_BUFFER_EMPTY);
         }
     }
 

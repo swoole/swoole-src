@@ -152,6 +152,7 @@ int swClient_create(swClient *cli, int type, int async)
             cli->send = swClient_tcp_send_async;
             cli->sendfile = swClient_tcp_sendfile_async;
             cli->pipe = swClient_tcp_pipe;
+            cli->socket->dontwait = 1;
         }
         else
         {
@@ -410,6 +411,7 @@ static int swClient_inet_addr(swClient *cli, char *host, int port)
     {
         if (swoole_gethostbyname(cli->_sock_domain, host, s_addr) < 0)
         {
+            SwooleG.error = SW_ERROR_DNSLOOKUP_RESOLVE_FAILED;
             return SW_ERR;
         }
     }
@@ -453,12 +455,6 @@ static int swClient_close(swClient *cli)
 {
     int fd = cli->socket->fd;
     assert(fd != 0);
-
-    if (cli->close_defer)
-    {
-        cli->socket->close_wait = 1;
-        return SW_OK;
-    }
 
 #ifdef SW_USE_OPENSSL
     if (cli->open_ssl && cli->ssl_context)
@@ -789,6 +785,7 @@ static int swClient_tcp_send_async(swClient *cli, char *data, int length, int fl
         if (SwooleG.error == SW_ERROR_OUTPUT_BUFFER_OVERFLOW)
         {
             n = -1;
+            cli->socket->high_watermark = 1;
         }
         else
         {
@@ -1078,10 +1075,8 @@ static int swClient_https_proxy_handshake(swClient *cli)
 static int swClient_onPackage(swConnection *conn, char *data, uint32_t length)
 {
     swClient *cli = (swClient *) conn->object;
-    cli->close_defer = 1;
     cli->onReceive(conn->object, data, length);
-    cli->close_defer = 0;
-    return cli->socket->close_wait ? SW_ERR : SW_OK;
+    return conn->close_wait ? SW_ERR : SW_OK;
 }
 
 static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
@@ -1197,7 +1192,7 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
     {
         if (swClient_ssl_handshake(cli) < 0)
         {
-            return cli->close(cli);
+            goto connect_fail;
         }
         if (cli->socket->ssl_state != SW_SSL_STATE_READY)
         {

@@ -84,6 +84,9 @@ int swLinkedList_prepend(swLinkedList *ll, void *data)
     return SW_OK;
 }
 
+/**
+ * Pop the element off the end of queue
+ */
 void* swLinkedList_pop(swLinkedList *ll)
 {
     if (ll->tail == NULL)
@@ -175,6 +178,9 @@ swLinkedList_node* swLinkedList_find(swLinkedList *ll, void *data)
     return NULL;
 }
 
+/**
+ * Shift an element off the beginning of queue
+ */
 void* swLinkedList_shift(swLinkedList *ll)
 {
     if (ll->head == NULL)

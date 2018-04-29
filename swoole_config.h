@@ -68,8 +68,6 @@
 
 //#define SW_DEBUG                 //debug
 #define SW_LOG_NO_SRCINFO          //no source info
-#define SW_LOG_TRACE_OPEN          0
-#define SW_LOG_TRACE_FLAGS         (SW_TRACE_COROUTINE)
 //#define SW_BUFFER_SIZE           65495 //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
 #define SW_CLIENT_BUFFER_SIZE      65536
 //#define SW_CLIENT_RECV_AGAIN
@@ -108,10 +106,6 @@
 #define SW_HEARTBEAT_PONG_LEN      8
 
 #define SW_TASKWAIT_TIMEOUT        0.5
-
-#ifdef HAVE_EVENTFD
-#define HAVE_LINUX_AIO
-#endif
 
 #define SW_AIO_THREAD_NUM_DEFAULT        2
 #define SW_AIO_THREAD_NUM_MAX            32
@@ -265,6 +259,7 @@
 #define SW_HTTP2_MAX_CONCURRENT_STREAMS  128
 #define SW_HTTP2_MAX_FRAME_SIZE          ((1u << 24) - 1)
 #define SW_HTTP2_MAX_WINDOW              ((1u << 31) - 1)
+#define SW_HTTP2_DEFAULT_WINDOW          65535
 
 #define SW_HTTP_CLIENT_USERAGENT         "swoole-http-client"
 #define SW_HTTP_CLIENT_BOUNDARY_PREKEY   "----SwooleBoundary"
@@ -274,6 +269,7 @@
 #define SW_WEBSOCKET_SERVER_SOFTWARE     "swoole-websocket-server"
 #define SW_WEBSOCKET_VERSION             "13"
 #define SW_WEBSOCKET_KEY_LENGTH          16
+#define SW_WEBSOCKET_QUEUE_SIZE          16
 
 #define SW_MYSQL_QUERY_INIT_SIZE         8192
 #define SW_MYSQL_DEFAULT_PORT            3306
@@ -282,6 +278,6 @@
 
 #define SW_REDIS_CONNECT_TIMEOUT         1.0
 
-#define SW_PHP_FUNCTION_MAX_ARG          16
+#define SW_TIMER_MAX_VALUE               86400000
 
 #endif /* SWOOLE_CONFIG_H_ */

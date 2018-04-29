@@ -36,6 +36,8 @@ enum swAioOpcode
     SW_AIO_GETHOSTBYNAME = 2,
     SW_AIO_GETADDRINFO = 3,
     SW_AIO_STREAM_GET_LINE = 4,
+    SW_AIO_READ_FILE,
+    SW_AIO_WRITE_FILE,
 };
 
 enum swAioFlag
