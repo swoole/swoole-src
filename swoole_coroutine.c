@@ -118,6 +118,9 @@ int coro_init(TSRMLS_D)
     fake_frame.prev_execute_data = NULL;
 
     COROG.origin_ex = &fake_frame;
+    COROG.origin_vm_stack = EG(vm_stack);
+    COROG.origin_vm_stack_top = EG(vm_stack_top);
+    COROG.origin_vm_stack_end = EG(vm_stack_end);
 
     while (1)
     {
@@ -211,11 +214,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
         swWarn("exceed max number of coro %d", COROG.coro_num);
         return CORO_LIMIT;
     }
-
-    COROG.origin_vm_stack = EG(vm_stack);
-    COROG.origin_vm_stack_top = EG(vm_stack_top);
-    COROG.origin_vm_stack_end = EG(vm_stack_end);
-
+    COROG.call_stack_size++;
     zend_function *func;
     uint32_t i;
 
@@ -236,7 +235,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     coro_frame->return_value = NULL;
     coro_frame->prev_execute_data = &dummy_frame;
 
-    call = zend_vm_stack_push_call_frame(ZEND_CALL_TOP_FUNCTION  | ZEND_CALL_ALLOCATED, func, argc,
+    call = zend_vm_stack_push_call_frame(ZEND_CALL_NESTED_FUNCTION | ZEND_CALL_DYNAMIC, func, argc,
             fci_cache->called_scope, fci_cache->object);
 #if PHP_MINOR_VERSION < 1
     EG(scope) = func->common.scope;
@@ -272,7 +271,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     COROG.root_coro->function = NULL;
     COROG.root_coro->post_callback = post_callback;
     COROG.root_coro->post_callback_params = params;
-    COROG.root_coro->has_yield_parent = 0;
+    COROG.root_coro->has_yield = 0;
     COROG.require = 1;
     if (COROG.call_stack_size > 1 && COROG.current_coro)
     {
@@ -294,6 +293,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     COROG.require = 1;
     COROG.current_coro = coro;
     zend_execute_ex(EG(current_execute_data) TSRMLS_CC);
+    COROG.call_stack_size--;
     return 0;
 }
 
@@ -302,7 +302,7 @@ sw_inline void coro_close(TSRMLS_D)
     swTraceLog(SW_TRACE_COROUTINE,"coro_close coro id %d", COROG.current_coro->cid);
     free_cidmap(COROG.current_coro->cid);
     coro_task *current_coro = COROG.current_coro;
-    if (current_coro && current_coro->has_yield_parent == 0)
+    if (current_coro && COROG.call_stack_size > 1 && current_coro->has_yield == 0)
     {
         COROG.current_coro = current_coro->origin_coro;
     } else
@@ -394,7 +394,7 @@ void sw_interrupt_function(zend_execute_data *execute_data)
                 current_coro->stack = EG(vm_stack);
                 current_coro->vm_stack_top = EG(vm_stack_top);
                 current_coro->vm_stack_end = EG(vm_stack_end);
-                if (current_coro && current_coro->origin_coro && current_coro->has_yield_parent == 0)
+                if (current_coro && COROG.call_stack_size > 1 && current_coro->has_yield == 0)
                 {
                     COROG.current_coro = current_coro->origin_coro;
                 }
@@ -412,7 +412,7 @@ void sw_interrupt_function(zend_execute_data *execute_data)
         else
         {
             EG(current_execute_data) = COROG.origin_ex;
-            if (current_coro && current_coro->origin_coro && COROG.call_stack_size > 1 && current_coro->has_yield_parent == 0)
+            if (current_coro && COROG.call_stack_size > 1 && current_coro->has_yield == 0)
             {
                 EG(vm_stack) = current_coro->origin_coro->stack;
                 EG(vm_stack_top) = current_coro->origin_coro->vm_stack_top;
@@ -424,7 +424,7 @@ void sw_interrupt_function(zend_execute_data *execute_data)
                 EG(vm_stack_top) = COROG.origin_vm_stack_top;
                 EG(vm_stack_end) = COROG.origin_vm_stack_end;
             }
-            current_coro->has_yield_parent = 1;
+            current_coro->has_yield = 1;
         }
         COROG.require = 1;
         COROG.next_coro = NULL;

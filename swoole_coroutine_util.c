@@ -292,11 +292,9 @@ PHP_FUNCTION(swoole_coroutine_create)
     php_context *ctx = emalloc(sizeof(php_context));
     //coro_save(ctx);
     int required = COROG.require;
-    COROG.call_stack_size++;
     int ret = coro_create(func_cache, args, 0, &retval, NULL, NULL);
     sw_zval_free(callback);
     efree(func_cache);
-    COROG.call_stack_size--;
     if (ret < 0)
     {
         RETURN_FALSE;
