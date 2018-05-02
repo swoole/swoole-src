@@ -1742,6 +1742,7 @@ static PHP_METHOD(swoole_redis_coro, hSetNx)
 	int i = 0;
 	size_t argvlen[4];
 	char *argv[4];
+	convert_to_string(z_val);
 	SW_REDIS_COMMAND_ARGV_FILL("HSETNX", 6)
 	SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
 	SW_REDIS_COMMAND_ARGV_FILL(field, field_len)
