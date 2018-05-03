@@ -342,7 +342,6 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
     EG(current_execute_data)->opline--;
     if (EG(current_execute_data)->opline->result_type != IS_UNUSED)
     {
-        sw_zval_add_ref(&retval);
         ZVAL_COPY(SWCC(current_coro_return_value_ptr), retval);
     }
     EG(current_execute_data)->opline++;
