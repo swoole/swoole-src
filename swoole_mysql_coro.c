@@ -513,10 +513,10 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     swClient *cli = emalloc(sizeof(swClient));
     int type = SW_SOCK_TCP;
 
-    if (strncasecmp(connector->host, ZEND_STRL("unix://")) == 0)
+    if (strncasecmp(connector->host, ZEND_STRL("unix:/")) == 0)
     {
-        connector->host = connector->host + 6;
-        connector->host_len = connector->host_len - 6;
+        connector->host = connector->host + 5;
+        connector->host_len = connector->host_len - 5;
         type = SW_SOCK_UNIX_STREAM;
     }
     else if (strchr(connector->host, ':'))
@@ -540,10 +540,14 @@ static PHP_METHOD(swoole_mysql_coro, connect)
         RETURN_FALSE;
     }
 
-    int tcp_nodelay = 1;
-    if (setsockopt(cli->socket->fd, IPPROTO_TCP, TCP_NODELAY, (const void *) &tcp_nodelay, sizeof(int)) == -1)
+    //tcp nodelay
+    if (type != SW_SOCK_UNIX_STREAM)
     {
-        swoole_php_sys_error(E_WARNING, "setsockopt(%d, IPPROTO_TCP, TCP_NODELAY) failed.", cli->socket->fd);
+        int tcp_nodelay = 1;
+        if (setsockopt(cli->socket->fd, IPPROTO_TCP, TCP_NODELAY, (const void *) &tcp_nodelay, sizeof(int)) == -1)
+        {
+            swoole_php_sys_error(E_WARNING, "setsockopt(%d, IPPROTO_TCP, TCP_NODELAY) failed.", cli->socket->fd);
+        }
     }
 
     int ret = cli->connect(cli, connector->host, connector->port, connector->timeout, 1);
