@@ -492,7 +492,7 @@ if test "$PHP_SWOOLE" != "no"; then
     PHP_ADD_INCLUDE([$ext_srcdir])
     PHP_ADD_INCLUDE([$ext_srcdir/include])
 
-    PHP_INSTALL_HEADERS([ext/swoole], [*.h include/*.h])
+    PHP_INSTALL_HEADERS([ext/swoole], [*.h config.h include/*.h])
 
     PHP_REQUIRE_CXX()
     PHP_ADD_LIBRARY(stdc++, 1, SWOOLE_SHARED_LIBADD)
