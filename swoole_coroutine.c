@@ -43,6 +43,7 @@ static void (*orig_interrupt_function)(zend_execute_data *execute_data);
 static void sw_interrupt_function(zend_execute_data *execute_data);
 static int sw_terminate_opcode_handler(zend_execute_data *execute_data);
 static int sw_close_opcode_handler(zend_execute_data *execute_data);
+static int sw_return_opcode_handler(zend_execute_data *execute_data);
 
 static zend_op_array sw_terminate_func;
 static zend_try_catch_element sw_terminate_try_catch_array =
@@ -50,6 +51,8 @@ static zend_try_catch_element sw_terminate_try_catch_array =
 static zend_op sw_terminate_op[2];
 static zend_op_array sw_close_func;
 static zend_op sw_close_op[1];
+static zend_op_array sw_return_func;
+static zend_op sw_return_op[1];
 zend_execute_data fake_frame, dummy_frame;
 
 static int alloc_cidmap();
@@ -108,11 +111,38 @@ int coro_init(TSRMLS_D)
     sw_terminate_func.last_try_catch = 1;
     sw_terminate_func.try_catch_array = &sw_terminate_try_catch_array;
 
-    zend_vm_init_call_frame(&fake_frame, ZEND_CALL_TOP_FUNCTION, NULL, 0, NULL, NULL);
-#if PHP_MAJOR_VERSION >= 7 && PHP_MINOR_VERSION >= 2
+    while (1)
+    {
+        if (opcode == 255)
+        {
+            return FAILURE;
+        }
+        else if (zend_get_user_opcode_handler(opcode) == NULL)
+        {
+            break;
+        }
+        opcode++;
+    }
+    zend_set_user_opcode_handler(opcode, sw_return_opcode_handler);
+
+    memset(sw_return_op, 0, sizeof(sw_return_op));
+    sw_return_op[0].opcode = opcode;
+    zend_vm_set_opcode_handler_ex(sw_return_op, 0, 0, 0);
+
+    memset(&sw_return_func, 0, sizeof(sw_return_func));
+    sw_return_func.type = ZEND_USER_FUNCTION;
+    sw_return_func.function_name = zend_string_init("return", sizeof("return") - 1, 1);
+    sw_return_func.filename = ZSTR_EMPTY_ALLOC();
+    sw_return_func.opcodes = sw_return_op;
+    sw_return_func.last_try_catch = 1;
+    sw_return_func.try_catch_array = &sw_terminate_try_catch_array;
+
+    zend_vm_init_call_frame(&fake_frame, ZEND_CALL_TOP_FUNCTION, (zend_function*) &sw_return_func, 0, NULL, NULL);
+
+#if (ZEND_VM_KIND == ZEND_VM_KIND_HYBRID || (defined(ZEND_VM_FP_GLOBAL_REG) && defined(ZEND_VM_IP_GLOBAL_REG)))
     fake_frame.opline = zend_get_halt_op();
 #else
-    fake_frame.call = NULL;
+    fake_frame.opline = sw_return_op;
 #endif
     fake_frame.return_value = NULL;
     fake_frame.prev_execute_data = NULL;
@@ -173,6 +203,11 @@ int coro_init(TSRMLS_D)
 void coro_destroy(TSRMLS_D)
 {
 
+}
+
+static int sw_return_opcode_handler(zend_execute_data *execute_data)
+{
+    return ZEND_USER_OPCODE_RETURN;
 }
 
 static int sw_terminate_opcode_handler(zend_execute_data *execute_data)
