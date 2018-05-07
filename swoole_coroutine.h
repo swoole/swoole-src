@@ -35,7 +35,7 @@
 
 typedef enum
 {
-    SW_CORO_INIT = 0, SW_CORO_SUSPENDED, SW_CORO_RUNNING, SW_CORO_END,
+    SW_CORO_YIELD = 0, SW_CORO_SUSPENDED, SW_CORO_RUNNING, SW_CORO_END,
 } sw_coro_state;
 
 #define SW_EX_CV_NUM(ex, n) (((zval ***)(((char *)(ex)) + ZEND_MM_ALIGNED_SIZE(sizeof(zend_execute_data)))) + n)
