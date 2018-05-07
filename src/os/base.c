@@ -364,7 +364,7 @@ static void swAio_handler_read_file(swAio_event *event)
     int fd = open(event->req, O_RDONLY);
     if (fd < 0)
     {
-        swSysError("open(%s, O_RDONLY) failed.", event->req);
+        swSysError("open(%s, O_RDONLY) failed.", (char * )event->req);
         event->ret = ret;
         event->error = errno;
         return;
@@ -372,7 +372,7 @@ static void swAio_handler_read_file(swAio_event *event)
     struct stat file_stat;
     if (fstat(fd, &file_stat) < 0)
     {
-        swSysError("fstat(%s) failed.", event->req);
+        swSysError("fstat(%s) failed.", (char * )event->req);
         _error: close(fd);
         event->ret = ret;
         event->error = errno;
@@ -418,7 +418,7 @@ static void swAio_handler_write_file(swAio_event *event)
     int fd = open(event->req, event->flags, 0644);
     if (fd < 0)
     {
-        swSysError("open(%s, %d) failed.", event->req, event->flags);
+        swSysError("open(%s, %d) failed.", (char * )event->req, event->flags);
         event->ret = ret;
         event->error = errno;
         return;
