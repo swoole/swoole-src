@@ -45,6 +45,15 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_resume, 0, 0, 1)
     ZEND_ARG_INFO(0, uid)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_call_user_func, 0, 0, 1)
+    ZEND_ARG_INFO(0, func)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_call_user_func_array, 0, 0, 2)
+    ZEND_ARG_INFO(0, func)
+    ZEND_ARG_ARRAY_INFO(0, params, 0)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_sleep, 0, 0, 1)
     ZEND_ARG_INFO(0, seconds)
 ZEND_END_ARG_INFO()
@@ -100,6 +109,8 @@ static PHP_METHOD(swoole_coroutine_util, gethostbyname);
 static PHP_METHOD(swoole_coroutine_util, getaddrinfo);
 static PHP_METHOD(swoole_coroutine_util, readFile);
 static PHP_METHOD(swoole_coroutine_util, writeFile);
+static PHP_METHOD(swoole_coroutine_util, call_user_func);
+static PHP_METHOD(swoole_coroutine_util, call_user_func_array);
 
 static swHashMap *defer_coros;
 
@@ -123,6 +134,8 @@ static const zend_function_entry swoole_coroutine_util_methods[] =
     PHP_ME(swoole_coroutine_util, writeFile, arginfo_swoole_coroutine_writeFile, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, gethostbyname, arginfo_swoole_coroutine_gethostbyname, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, getaddrinfo, arginfo_swoole_coroutine_getaddrinfo, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_util, call_user_func, arginfo_swoole_coroutine_call_user_func, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_util, call_user_func_array, arginfo_swoole_coroutine_call_user_func_array, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 
@@ -144,6 +157,33 @@ void swoole_coroutine_util_init(int module_number TSRMLS_DC)
     {
         sw_zend_register_class_alias("Co", swoole_coroutine_util_class_entry_ptr);
     }
+
+#if 0
+#if PHP_MAJOR_VERSION >= 7
+    zend_internal_function *func;
+    func = zend_hash_str_find_ptr(CG(function_table), ZEND_STRL("call_user_func"));
+    if (func != NULL)
+    {
+        func->handler = ZEND_MN(swoole_coroutine_util_call_user_func);
+    }
+    func = zend_hash_str_find_ptr(CG(function_table), ZEND_STRL("call_user_func_array"));
+    if (func != NULL)
+    {
+        func->handler = ZEND_MN(swoole_coroutine_util_call_user_func_array);
+    }
+#else
+    zend_function *func;
+    if (zend_hash_find(CG(function_table), ZEND_STRS("call_user_func"), (void **) &func) == SUCCESS)
+    {
+        func->internal_function.handler = ZEND_MN(swoole_coroutine_util_call_user_func);
+    }
+    if (zend_hash_find(CG(function_table), ZEND_STRS("call_user_func_array"), (void **) &func) == SUCCESS)
+    {
+        func->internal_function.handler = ZEND_MN(swoole_coroutine_util_call_user_func_array);
+    }
+#endif
+#endif
+
     defer_coros = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
 }
 
@@ -178,6 +218,347 @@ static void coroutine_resume_onTimeout(swTimer *timer, swTimer_node *tnode)
     sw_zval_ptr_dtor(&result);
     efree(context);
 }
+
+#if PHP_MAJOR_VERSION < 7
+#if ZEND_MODULE_API_NO <= 20121212
+#define zend_create_execute_data_from_op_array sw_zend_create_execute_data_from_op_array
+zend_execute_data *sw_zend_create_execute_data_from_op_array(zend_op_array *op_array, zend_bool nested TSRMLS_DC)
+{
+	zend_execute_data *execute_data;
+
+	size_t execute_data_size = ZEND_MM_ALIGNED_SIZE(sizeof(zend_execute_data));
+	size_t CVs_size = ZEND_MM_ALIGNED_SIZE(sizeof(zval **) * op_array->last_var * (EG(active_symbol_table) ? 1 : 2));
+	size_t Ts_size = ZEND_MM_ALIGNED_SIZE(sizeof(temp_variable)) * op_array->T;
+	size_t call_slots_size = ZEND_MM_ALIGNED_SIZE(sizeof(call_slot)) * op_array->nested_calls;
+	size_t stack_size = ZEND_MM_ALIGNED_SIZE(sizeof(zval*)) * op_array->used_stack;
+	size_t total_size = execute_data_size + Ts_size + CVs_size + call_slots_size + stack_size;
+
+        execute_data = zend_vm_stack_alloc(total_size TSRMLS_CC);
+        execute_data = (zend_execute_data*)((char*)execute_data + Ts_size);
+        execute_data->prev_execute_data = EG(current_execute_data);
+
+
+        memset(EX_CV_NUM(execute_data, 0), 0, sizeof(zval **) * op_array->last_var);
+
+	execute_data->call_slots = (call_slot*)((char *)execute_data + execute_data_size + CVs_size);
+
+
+	execute_data->op_array = op_array;
+
+	EG(argument_stack)->top = zend_vm_stack_frame_base(execute_data);
+
+	execute_data->object = NULL;
+	execute_data->current_this = NULL;
+	execute_data->old_error_reporting = NULL;
+	execute_data->symbol_table = EG(active_symbol_table);
+	execute_data->call = NULL;
+	EG(current_execute_data) = execute_data;
+	execute_data->nested = nested;
+
+	if (!op_array->run_time_cache && op_array->last_cache_slot) {
+		op_array->run_time_cache = ecalloc(op_array->last_cache_slot, sizeof(void*));
+	}
+
+	if (op_array->this_var != -1 && EG(This)) {
+ 		Z_ADDREF_P(EG(This)); /* For $this pointer */
+		if (!EG(active_symbol_table)) {
+			SW_EX_CV(op_array->this_var) = (zval **) SW_EX_CV_NUM(execute_data, op_array->last_var + op_array->this_var);
+			*SW_EX_CV(op_array->this_var) = EG(This);
+		} else {
+			if (zend_hash_add(EG(active_symbol_table), "this", sizeof("this"), &EG(This), sizeof(zval *), (void **) EX_CV_NUM(execute_data, op_array->this_var))==FAILURE) {
+				Z_DELREF_P(EG(This));
+			}
+		}
+	}
+
+	execute_data->opline = UNEXPECTED((op_array->fn_flags & ZEND_ACC_INTERACTIVE) != 0) && EG(start_op) ? EG(start_op) : op_array->opcodes;
+	EG(opline_ptr) = &(execute_data->opline);
+
+	execute_data->function_state.function = (zend_function *) op_array;
+	execute_data->function_state.arguments = NULL;
+
+	return execute_data;
+}
+#endif
+
+static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_info_cache *fci_cache, zval **return_value_ptr, zend_bool use_array, int return_value_used)
+{
+    SWOOLE_GET_TSRMLS;
+    int i;
+    zval **origin_return_ptr_ptr;
+    zend_op **origin_opline_ptr;
+    zend_op_array *origin_active_op_array;
+    zend_op_array *op_array = (zend_op_array *)fci_cache->function_handler;
+    zend_execute_data *current = EG(current_execute_data);
+    void **start, **end, **allocated_params, **old_arguments;
+
+    if (use_array)
+    {
+        start = (void **)emalloc(sizeof(zval **) * (fci->param_count + 1));
+        allocated_params = start;
+        end = start + fci->param_count;
+        old_arguments = current->function_state.arguments;
+        current->function_state.arguments = end;
+        for (i = 0; i < fci->param_count; ++i)
+        {
+            *start = *fci->params[i];
+            ++start;
+        }
+        *start = (void*)(zend_uintptr_t)fci->param_count;
+    }
+    else
+    {
+        end = EG(argument_stack)->top - 1;
+        start = end - (int)(zend_uintptr_t)(*end);
+        zval_ptr_dtor((zval **)(start));
+        for (i = 0; i < fci->param_count; ++i)
+        {
+            *start = *(start + 1);
+            ++start;
+        }
+        *start = (void*)(zend_uintptr_t)fci->param_count;
+        EG(argument_stack)->top = start + 1;
+        current->function_state.arguments = start;
+    }
+
+    origin_return_ptr_ptr = EG(return_value_ptr_ptr);
+    if (current->opline->result_type & EXT_TYPE_UNUSED)
+    {
+        EG(return_value_ptr_ptr) = NULL;
+    }
+    else
+    {
+        EG(return_value_ptr_ptr) = return_value_ptr;
+    }
+    origin_active_op_array = EG(active_op_array);
+    origin_opline_ptr = EG(opline_ptr);
+    EG(active_op_array) = op_array;
+    EG(active_symbol_table) = NULL;
+    EG(scope) = fci_cache->calling_scope;
+    if (fci_cache->called_scope)
+    {
+        EG(called_scope) = fci_cache->called_scope;
+    }
+    else
+    {
+        EG(called_scope) = NULL;
+    }
+
+    if (fci_cache->object_ptr)
+    {
+        EG(This) = fci_cache->object_ptr;
+        if (!PZVAL_IS_REF(EG(This)))
+        {
+            Z_ADDREF_P(EG(This));
+        }
+        else
+        {
+            zval *this_ptr;
+            ALLOC_ZVAL(this_ptr);
+            *this_ptr = *EG(This);
+            INIT_PZVAL(this_ptr);
+            zval_copy_ctor(this_ptr);
+            EG(This) = this_ptr;
+        }
+    }
+    else
+    {
+        EG(This) = NULL;
+    }
+
+    zend_execute_data *next = zend_create_execute_data_from_op_array(op_array, 0 TSRMLS_CC);
+    jmp_buf *prev_checkpoint = swReactorCheckPoint;
+    swReactorCheckPoint = emalloc(sizeof(jmp_buf));
+    if (!setjmp(*swReactorCheckPoint))
+    {
+        zend_execute_ex(next TSRMLS_CC);
+        if (fci->params)
+        {
+            efree(fci->params);
+            if (use_array)
+            {
+                for (i = 0; i < fci->param_count; ++i)
+                {
+                    zval *tmp = (zval *) *(--start);
+                    zval_ptr_dtor(&tmp);
+                }
+                efree(allocated_params);
+            }
+        }
+        efree(swReactorCheckPoint);
+        swReactorCheckPoint = prev_checkpoint;
+        EG(active_op_array) = origin_active_op_array;
+        EG(return_value_ptr_ptr) = origin_return_ptr_ptr;
+        EG(opline_ptr) = origin_opline_ptr;
+    }
+    else
+    {
+        current->original_return_value = origin_return_ptr_ptr;
+        next->nested = 1;
+        efree(swReactorCheckPoint);
+        swReactorCheckPoint = prev_checkpoint;
+        if (!return_value_used && return_value_ptr)
+            zval_ptr_dtor(return_value_ptr);
+        if (fci->params)
+        {
+            efree(fci->params);
+            if (use_array)
+            {
+                efree(allocated_params);
+                current->function_state.arguments = old_arguments;
+            }
+        }
+        longjmp(*swReactorCheckPoint, 1);
+    }
+}
+
+#else
+static void swoole_corountine_call_function(zend_fcall_info *fci, zend_fcall_info_cache *fci_cache, zend_bool use_array)
+{
+    int i;
+    zend_execute_data *call, *current_ex = EG(current_execute_data);
+    zend_function *func = fci_cache->function_handler;
+    zend_object *object = (func->common.fn_flags & ZEND_ACC_STATIC) ? NULL : fci_cache->object;
+#if ZEND_MODULE_API_NO < 20160303
+    zend_class_entry* origal_scope = EG(scope);
+    call = zend_vm_stack_push_call_frame(ZEND_CALL_TOP_FUNCTION, func,
+            fci->param_count, fci_cache->called_scope, object);
+    EG(scope) = func->common.scope;
+#else
+    call = zend_vm_stack_push_call_frame(ZEND_CALL_TOP_FUNCTION | ZEND_CALL_DYNAMIC, func,
+            fci->param_count, fci_cache->called_scope, object);
+#endif
+
+    for (i = 0; i < fci->param_count; ++i)
+    {
+        zval *target;
+        target = ZEND_CALL_ARG(call, i + 1);
+        ZVAL_COPY(target, &fci->params[i]);
+    }
+
+    call->symbol_table = NULL;
+    zend_init_execute_data(call, &func->op_array, fci->retval);
+
+    jmp_buf *prev_checkpoint = swReactorCheckPoint;
+    swReactorCheckPoint = emalloc(sizeof(jmp_buf));
+
+    if (!setjmp(*swReactorCheckPoint))
+    {
+        zend_execute_ex(call);
+        efree(swReactorCheckPoint);
+        swReactorCheckPoint = prev_checkpoint;
+#if ZEND_MODULE_API_NO < 20160303
+        EG(scope) = origal_scope;
+#endif
+    }
+    else
+    {
+        call->prev_execute_data = current_ex->prev_execute_data;
+#if ZEND_MODULE_API_NO < 20160303
+        ZEND_SET_CALL_INFO(call, ZEND_CALL_NESTED);
+#else
+        ZEND_SET_CALL_INFO(call, object, ZEND_CALL_DYNAMIC|ZEND_CALL_NESTED);
+#endif
+        efree(swReactorCheckPoint);
+        swReactorCheckPoint = prev_checkpoint;
+        if (use_array)
+        {
+            zend_fcall_info_args_clear(fci, 1);
+        }
+        zend_vm_stack_free_args(current_ex);
+        longjmp(*swReactorCheckPoint, 1);
+    }
+}
+#endif
+
+#if PHP_MAJOR_VERSION < 7
+static PHP_METHOD(swoole_coroutine_util, call_user_func)
+{
+    zend_fcall_info fci;
+    zend_fcall_info_cache fci_cache;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "f*",&fci, &fci_cache, &fci.params, &fci.param_count) == FAILURE)
+    {
+        return;
+    }
+    swoole_corountine_call_function(&fci, &fci_cache, return_value_ptr, 0, return_value_used);
+    RETURN_FALSE;
+}
+
+#else
+static PHP_METHOD(swoole_coroutine_util, call_user_func)
+{
+	zend_fcall_info fci;
+	zend_fcall_info_cache fci_cache;
+
+	ZEND_PARSE_PARAMETERS_START(1, -1)
+		Z_PARAM_FUNC(fci, fci_cache)
+		Z_PARAM_VARIADIC('*', fci.params, fci.param_count)
+	ZEND_PARSE_PARAMETERS_END();
+
+    if (fci_cache.function_handler->type == ZEND_INTERNAL_FUNCTION || COROG.current_coro == NULL)
+    {
+        fci.retval = return_value;
+        zend_call_function(&fci, &fci_cache);
+    }
+    else
+    {
+        fci.retval = (execute_data->prev_execute_data->opline->result_type != IS_UNUSED) ? return_value : NULL;
+        swoole_corountine_call_function(&fci, &fci_cache, 0);
+    }
+}
+#endif
+
+#if PHP_MAJOR_VERSION < 7
+static PHP_METHOD(swoole_coroutine_util, call_user_func_array)
+{
+    zval *params;
+    zend_fcall_info fci;
+    zend_fcall_info_cache fci_cache;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "fa/",&fci, &fci_cache, &params) == FAILURE)
+    {
+        return;
+    }
+    zend_fcall_info_args(&fci, params TSRMLS_CC);
+    swoole_corountine_call_function(&fci, &fci_cache, return_value_ptr, 1, return_value_used);
+    RETURN_FALSE;
+}
+
+#else
+static PHP_METHOD(swoole_coroutine_util, call_user_func_array)
+{
+    zval *params;
+    zend_fcall_info fci;
+    zend_fcall_info_cache fci_cache;
+	// restore scope
+#if ZEND_MODULE_API_NO < 20160303
+	EG(scope) = execute_data->prev_execute_data->called_scope;
+#else
+	execute_data->func->common.scope = execute_data->prev_execute_data->func->common.scope; // PHP >= 7.1
+#endif
+
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_FUNC(fci, fci_cache)
+        Z_PARAM_ARRAY_EX(params, 0, 1)
+    ZEND_PARSE_PARAMETERS_END();
+
+    zend_fcall_info_args(&fci, params);
+
+    if (fci_cache.function_handler->type == ZEND_INTERNAL_FUNCTION || COROG.current_coro == NULL)
+    {
+        fci.retval = return_value;
+        zend_call_function(&fci, &fci_cache);
+    }
+    else
+    {
+        fci.retval = (execute_data->prev_execute_data->opline->result_type != IS_UNUSED) ? return_value : NULL;
+        swoole_corountine_call_function(&fci, &fci_cache, 1);
+    }
+
+    zend_fcall_info_args_clear(&fci, 1);
+}
+#endif
 
 static PHP_METHOD(swoole_coroutine_util, suspend)
 {
@@ -276,7 +657,7 @@ PHP_FUNCTION(swoole_coroutine_create)
     }
     efree(func_name);
 
-    if (COROG.active == 0)
+    if (swReactorCheckPoint == NULL)
     {
         coro_init(TSRMLS_C);
     }
@@ -289,16 +670,33 @@ PHP_FUNCTION(swoole_coroutine_create)
     zval *retval = NULL;
     zval *args[1];
 
+    jmp_buf *prev_checkpoint = swReactorCheckPoint;
+    swReactorCheckPoint = emalloc(sizeof(jmp_buf));
+
     php_context *ctx = emalloc(sizeof(php_context));
-    //coro_save(ctx);
+    coro_save(ctx);
     int required = COROG.require;
     int ret = coro_create(func_cache, args, 0, &retval, NULL, NULL);
-    sw_zval_free(callback);
+
+    if (COROG.current_coro)
+    {
+        COROG.current_coro->function = callback;
+    }
+    else
+    {
+        sw_zval_free(callback);
+    }
+
     efree(func_cache);
+    efree(swReactorCheckPoint);
+
     if (ret < 0)
     {
         RETURN_FALSE;
     }
+
+    swReactorCheckPoint = prev_checkpoint;
+    coro_resume_parent(ctx, retval, retval);
     COROG.require = required;
     efree(ctx);
     if (EG(exception))
