@@ -115,7 +115,7 @@ typedef struct _swTimer_coro_callback
 } swTimer_coro_callback;
 
 extern coro_global COROG;
-#define get_current_cid() COROG.current_coro->cid
+#define get_current_cid()      (COROG.current_coro == NULL ? -1 : COROG.current_coro->cid)
 extern jmp_buf *swReactorCheckPoint;
 
 int sw_coro_resume_parent(php_context *sw_current_context, zval *retval, zval *coro_retval);
