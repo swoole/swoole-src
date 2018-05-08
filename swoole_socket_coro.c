@@ -20,7 +20,6 @@
 
 #ifdef SW_COROUTINE
 #include "swoole_coroutine.h"
-#endif
 
 static zend_class_entry swoole_socket_coro_ce;
 static zend_class_entry *swoole_socket_coro_class_entry_ptr;
@@ -1164,4 +1163,5 @@ static PHP_METHOD(swoole_socket_coro, getSocket)
     sw_zval_add_ref(&zsocket);
     sock->resource = zsocket;
 }
+#endif
 #endif
