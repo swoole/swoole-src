@@ -244,7 +244,7 @@ void php_swoole_event_wait()
 #endif
 
 #ifdef SW_COROUTINE
-        if (COROG.active == 0)
+        if (swReactorCheckPoint == NULL)
         {
             coro_init(TSRMLS_C);
         }
@@ -783,7 +783,7 @@ PHP_FUNCTION(swoole_event_dispatch)
 #endif
 
 #ifdef SW_COROUTINE
-    if (COROG.active == 0)
+    if (swReactorCheckPoint == NULL)
     {
         coro_init(TSRMLS_C);
     }
