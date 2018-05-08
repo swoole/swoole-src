@@ -971,6 +971,7 @@ static int swClient_udp_connect(swClient *cli, char *host, int port, double time
     {
         swSysError("connect() failed.");
         cli->socket->active = 0;
+        cli->socket->removed = 1;
         return SW_ERR;
     }
 }
