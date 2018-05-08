@@ -1306,8 +1306,6 @@ static PHP_METHOD(swoole_redis_coro, recv)
 
 static PHP_METHOD(swoole_redis_coro, close)
 {
-    coro_check(TSRMLS_C);
-
     swRedisClient *redis = swoole_get_object(getThis());
     if (!redis || !redis->context)
     {
@@ -4196,20 +4194,8 @@ static void swoole_redis_coro_onResult(redisAsyncContext *c, void *r, void *priv
 
 void swoole_redis_coro_onConnect(const redisAsyncContext *c, int status)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
     swRedisClient *redis = c->ev.data;
-    swRedis_result *result = emalloc(sizeof(swRedis_result));
-
-#if PHP_MAJOR_VERSION < 7
-    MAKE_STD_ZVAL(result->value);
-#else
-    result->value = &result->_value;
-    bzero(result->value, sizeof(result->_value));
-#endif
-
-    result->redis = redis;
+    swRedis_result *result;
 
     if (redis->timer)
     {
@@ -4241,9 +4227,14 @@ void swoole_redis_coro_onConnect(const redisAsyncContext *c, int status)
     }
     else
     {
+        result = emalloc(sizeof(swRedis_result));
+        result->value = &result->_value;
+        bzero(result->value, sizeof(result->_value));
+        result->redis = redis;
+
         ZVAL_BOOL(result->value, 1);
         redis->state = SWOOLE_REDIS_CORO_STATE_READY;
-		redis->iowait = SW_REDIS_CORO_STATUS_READY;
+        redis->iowait = SW_REDIS_CORO_STATUS_READY;
 
 	    swConnection *_socket = swReactor_get(SwooleG.main_reactor, c->c.fd);
         _socket->active = 1;
