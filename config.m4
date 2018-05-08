@@ -407,7 +407,6 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_ringqueue.c \
         swoole_msgqueue.c \
         swoole_trace.c \
-        swoole_runtime.cc \
         src/core/base.c \
         src/core/log.c \
         src/core/hashmap.c \
@@ -493,10 +492,6 @@ if test "$PHP_SWOOLE" != "no"; then
     PHP_ADD_INCLUDE([$ext_srcdir/include])
 
     PHP_INSTALL_HEADERS([ext/swoole], [*.h config.h include/*.h])
-
-    PHP_REQUIRE_CXX()
-    PHP_ADD_LIBRARY(stdc++, 1, SWOOLE_SHARED_LIBADD)
-    CXXFLAGS="$CXXFLAGS -std=c++11"
 
     if test "$PHP_PICOHTTPPARSER" = "yes"; then
         PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/picohttpparser])

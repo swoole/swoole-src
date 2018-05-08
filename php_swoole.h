@@ -52,7 +52,7 @@
 
 BEGIN_EXTERN_C()
 
-#define PHP_SWOOLE_VERSION  "3.0.0-alpha"
+#define PHP_SWOOLE_VERSION  "2.2.0"
 #define PHP_SWOOLE_CHECK_CALLBACK
 #define PHP_SWOOLE_ENABLE_FASTCALL
 #define PHP_SWOOLE_CLIENT_USE_POLL
@@ -140,8 +140,8 @@ extern swoole_object_array swoole_objects;
 #endif
 #endif
 
-#if PHP_MAJOR_VERSION > 7 || PHP_MINOR_VERSION == 0
-#error "require PHP version 7.1 or later."
+#if PHP_MAJOR_VERSION < 7
+#error "require PHP version 7.0 or later."
 #endif
 
 #include "php7_wrapper.h"
@@ -361,7 +361,6 @@ void swoole_destory_table(zend_resource *rsrc TSRMLS_DC);
 void swoole_server_port_init(int module_number TSRMLS_DC);
 void swoole_async_init(int module_number TSRMLS_DC);
 void swoole_table_init(int module_number TSRMLS_DC);
-void swoole_runtime_init(int module_number TSRMLS_DC);
 void swoole_lock_init(int module_number TSRMLS_DC);
 void swoole_atomic_init(int module_number TSRMLS_DC);
 void swoole_client_init(int module_number TSRMLS_DC);
