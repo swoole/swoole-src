@@ -944,7 +944,7 @@ static int swClient_udp_connect(swClient *cli, char *host, int port, double time
             return SW_ERR;
         }
     }
-    else if (udp_connect != 1)
+    if (udp_connect != 1)
     {
         goto connect_ok;
     }
