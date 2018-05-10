@@ -100,7 +100,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_addFile, 0, 0, 2)
     ZEND_ARG_INFO(0, length)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_execute, 0, 0, 2)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_execute, 0, 0, 1)
     ZEND_ARG_INFO(0, path)
 ZEND_END_ARG_INFO()
 
@@ -884,17 +884,14 @@ static int http_client_coro_send_http_request(zval *zobject TSRMLS_DC)
     zval *value = NULL;
 
     //POST
-    if (post_data)
+    if (hcc->request_method == NULL)
     {
-        if (hcc->request_method == NULL)
+        if (post_data)
         {
             hcc->request_method = "POST";
         }
-    }
-    //GET
-    else
-    {
-        if (hcc->request_method == NULL)
+        //GET
+        else
         {
             hcc->request_method = "GET";
         }
@@ -1010,8 +1007,17 @@ static int http_client_coro_send_http_request(zval *zobject TSRMLS_DC)
         swString_append_ptr(http_client_buffer, ZEND_STRL("\r\n"));
     }
 
+    int enable_form_data = 0;
+    if (sw_zend_hash_find(Z_ARRVAL_P(send_header), ZEND_STRS("Content-Type"), (void **) &value) == SUCCESS)
+    {
+        if(strncasecmp("multipart/form-data", Z_STRVAL_P(value), 19) == 0)
+        {
+            enable_form_data = 1;
+        }
+    }
+
     //form-data
-    if (hcc->request_upload_files)
+    if (hcc->request_upload_files || enable_form_data)
     {
         char header_buf[2048];
         char boundary_str[39];
