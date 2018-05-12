@@ -82,7 +82,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_escape, 0, 0, 1)
 ZEND_END_ARG_INFO()
 #endif
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_statement_execute, 0, 0, 1)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_statement_execute, 0, 0, 0)
     ZEND_ARG_INFO(0, params)
     ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
@@ -250,10 +250,15 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
         return SW_ERR;
     }
 
-    if (php_swoole_array_length(params) != statement->param_count)
+    int params_length = 0;
+    if (params){
+        params_length = php_swoole_array_length(params);
+    }
+
+    if (params_length != statement->param_count)
     {
         swoole_php_fatal_error(E_WARNING, "mysql statement#%d expects %d parameter, %d given.", statement->id,
-                statement->param_count, php_swoole_array_length(params));
+                statement->param_count, params_length);
         return SW_ERR;
     }
 
@@ -281,8 +286,13 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
 
     mysql_request_buffer->length += 9;
 
+    if (params_length == 0)
+    {
+        goto send;
+    }
+
     //null bitmap
-    unsigned int null_count = (php_swoole_array_length(params) + 7) / 8;
+    unsigned int null_count = (params_length + 7) / 8;
     memset(p, 0, null_count);
     p += null_count;
     mysql_request_buffer->length += null_count;
@@ -299,11 +309,10 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
         p += 2;
     }
 
-    mysql_request_buffer->length += php_swoole_array_length(params) * 2;
+    mysql_request_buffer->length += params_length * 2;
 
     long lval;
     char buf[10];
-
     {
         zval *value;
         zval _value;
@@ -343,6 +352,8 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
             zval_dtor(value);
         SW_HASHTABLE_FOREACH_END();
     }
+
+    send:
 
     //length
     mysql_pack_length(mysql_request_buffer->length - 4, mysql_request_buffer->str);
@@ -963,10 +974,10 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
 
 static PHP_METHOD(swoole_mysql_coro_statement, execute)
 {
-    zval *params;
+    zval *params = NULL;
     double timeout = -1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "a|d", &params, &timeout) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "|ad", &params, &timeout) == FAILURE)
     {
         RETURN_FALSE;
     }
