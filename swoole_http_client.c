@@ -1155,22 +1155,18 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
                     return SW_ERR;
                 }
                 http_client_append_content_length(http_client_buffer, len);
+                swString_append_ptr(http_client_buffer, formstr, len);
+                smart_str_free(&formstr_s);
             }
             else
             {
                 http_client_append_content_length(http_client_buffer, 0);
             }
-            //send http header
+            //send http header and body
             if ((ret = http->cli->send(http->cli, http_client_buffer->str, http_client_buffer->length, 0)) < 0)
             {
                 goto send_fail;
             }
-            //send http body
-            if ((ret = http->cli->send(http->cli, formstr, len, 0)) < 0)
-            {
-                goto send_fail;
-            }
-            smart_str_free(&formstr_s);
             //cleanup request body
             zend_update_property_null(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("requestBody") TSRMLS_CC);
         }
