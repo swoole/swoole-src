@@ -35,10 +35,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2018-04-11</date>
+    <date>2018-05-14</date>
     <time>09:50:10</time>
     <version>
-        <release>1.10.4</release>
+        <release>1.10.5</release>
         <api>1.10</api>
     </version>
     <stability>
@@ -47,9 +47,11 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Fixed failed to compile on docker
-- Allow to add timer in master process
-- Added configure options for pecl script
+- Added Lock::destory
+- Added Lock::$errCode
+- Fixed RWLock unavailable
+- Fixed arg of udp connect no effect
+- Added setting window size support for http2 client
     </notes>
     <contents>
         <dir name="/">
