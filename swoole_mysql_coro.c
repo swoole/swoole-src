@@ -378,6 +378,36 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
     return SW_OK;
 }
 
+static int swoole_mysql_coro_statement_close(mysql_statement *stmt TSRMLS_DC)
+{
+    // call mysql-server to destruct this statement
+    swString_clear(mysql_request_buffer);
+    stmt->client->cmd = SW_MYSQL_COM_STMT_CLOSE;
+    bzero(mysql_request_buffer->str, 5);
+    //command
+    mysql_request_buffer->str[4] = SW_MYSQL_COM_STMT_CLOSE;
+    mysql_request_buffer->length = 5;
+    char *p = mysql_request_buffer->str;
+    p += 5;
+
+    // stmt.id
+    mysql_int4store(p, stmt->id);
+    p += 4;
+    mysql_request_buffer->length += 4;
+    //length
+    mysql_pack_length(mysql_request_buffer->length - 4, mysql_request_buffer->str);
+    //send data, mysql-server would not reply
+    SwooleG.main_reactor->write(SwooleG.main_reactor, stmt->client->fd, mysql_request_buffer->str, mysql_request_buffer->length);
+
+    if (stmt->object)
+    {
+        swoole_set_object(stmt->object, NULL);
+        efree(stmt->object);
+    }
+
+    return SW_OK;
+}
+
 static PHP_METHOD(swoole_mysql_coro, __construct)
 {
 	coro_check(TSRMLS_C);
@@ -1027,8 +1057,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, __destruct)
     {
         return;
     }
-    efree(stmt->object);
-    stmt->object = NULL;
+    swoole_mysql_coro_statement_close(stmt TSRMLS_CC);
     swLinkedList_remove(stmt->client->statement_list, stmt);
     efree(stmt);
 }
