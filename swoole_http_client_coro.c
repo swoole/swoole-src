@@ -1166,7 +1166,7 @@ static int http_client_coro_send_http_request(zval *zobject TSRMLS_DC)
         }
         else
         {
-            return SW_OK;
+            goto send_ok;
         }
     }
     //x-www-form-urlencoded or raw
@@ -1209,6 +1209,16 @@ static int http_client_coro_send_http_request(zval *zobject TSRMLS_DC)
 
     swTrace("[%d]: %s\n", (int)http_client_buffer->length, http_client_buffer->str);
 
+    if ((ret = http->cli->send(http->cli, http_client_buffer->str, http_client_buffer->length, 0)) < 0)
+    {
+       send_fail:
+       SwooleG.error = errno;
+       swoole_php_sys_error(E_WARNING, "send(%d) %d bytes failed.", http->cli->socket->fd, (int )http_client_buffer->length);
+       zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
+       return ret;
+    }
+
+    send_ok:
     if (http->timeout > 0)
     {
         php_context *context = swoole_get_property(zobject, http_client_coro_property_context);
@@ -1217,14 +1227,6 @@ static int http_client_coro_send_http_request(zval *zobject TSRMLS_DC)
         {
             context->state = SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST;
         }
-    }
-
-    if ((ret = http->cli->send(http->cli, http_client_buffer->str, http_client_buffer->length, 0)) < 0)
-    {
-       send_fail:
-       SwooleG.error = errno;
-       swoole_php_sys_error(E_WARNING, "send(%d) %d bytes failed.", http->cli->socket->fd, (int )http_client_buffer->length);
-       zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
     }
     return ret;
 }
