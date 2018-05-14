@@ -1089,6 +1089,10 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
                 {
                     continue;
                 }
+                if (sw_zend_hash_find(Z_ARRVAL_P(value), ZEND_STRS("size"), (void **) &zsize) == FAILURE)
+                {
+                    continue;
+                }
                 if (sw_zend_hash_find(Z_ARRVAL_P(value), ZEND_STRS("type"), (void **) &ztype) == FAILURE)
                 {
                     continue;
@@ -1124,10 +1128,6 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
         if ((ret = http->cli->send(http->cli, header_buf, n, 0)) < 0)
         {
             goto send_fail;
-        }
-        else
-        {
-            return SW_OK;
         }
     }
     //x-www-form-urlencoded or raw
