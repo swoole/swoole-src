@@ -438,6 +438,11 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
         out.mtype = worker->id + 1;
     }
 
+    if (SwooleG.serv->hooks[SW_SERVER_HOOK_PROCESS_TIMER])
+    {
+        swServer_call_hook(SwooleG.serv, SW_SERVER_HOOK_PROCESS_TIMER, SwooleG.serv);
+    }
+
     while (SwooleG.running > 0 && task_n > 0)
     {
         /**

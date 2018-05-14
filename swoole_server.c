@@ -1379,6 +1379,17 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
     zend_update_property_long(swoole_server_class_entry_ptr, zserv, ZEND_STRL("worker_pid"), getpid() TSRMLS_CC);
 
     /**
+     * call internal serv hoohs
+     */
+    if (SwooleG.serv->hooks[SW_SERVER_HOOK_WORKER_START])
+    {
+        zval *hook_args[2];
+        hook_args[0] = zserv;
+        hook_args[1] = zworker_id;
+        swServer_call_hook(serv, SW_SERVER_HOOK_WORKER_START, hook_args);
+    }
+
+    /**
      * Have not set the event callback
      */
     if (php_sw_server_callbacks[SW_SERVER_CB_onWorkerStart] == NULL)
