@@ -314,10 +314,6 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     {
         swSignalfd_setup(SwooleG.main_reactor);
     }
-    if (SwooleG.serv->hooks[SW_SERVER_HOOK_PROCESS_TIMER])
-    {
-        swServer_call_hook(serv, SW_SERVER_HOOK_PROCESS_TIMER, serv);
-    }
 #endif
 
     reactor->thread = 1;

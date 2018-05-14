@@ -777,10 +777,6 @@ int swWorker_loop(swFactory *factory, int worker_id)
     {
         swSignalfd_setup(SwooleG.main_reactor);
     }
-    if (SwooleG.serv->hooks[SW_SERVER_HOOK_PROCESS_TIMER])
-    {
-        swServer_call_hook(serv, SW_SERVER_HOOK_PROCESS_TIMER, serv);
-    }
 #endif
     //main loop
     SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
