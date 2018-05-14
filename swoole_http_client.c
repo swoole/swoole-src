@@ -928,6 +928,10 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
                 continue;
             }
             convert_to_string(value);
+            if (Z_STRLEN_P(value) == 0)
+            {
+                continue;
+            }
             http_client_swString_append_headers(http_client_buffer, key, keylen, Z_STRVAL_P(value), Z_STRLEN_P(value));
         SW_HASHTABLE_FOREACH_END();
     }
@@ -1086,6 +1090,10 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
                     continue;
                 }
                 if (sw_zend_hash_find(Z_ARRVAL_P(value), ZEND_STRS("path"), (void **) &zpath) == FAILURE)
+                {
+                    continue;
+                }
+                if (sw_zend_hash_find(Z_ARRVAL_P(value), ZEND_STRS("size"), (void **) &zsize) == FAILURE)
                 {
                     continue;
                 }
