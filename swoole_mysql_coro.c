@@ -189,6 +189,15 @@ static int swoole_mysql_coro_close(zval *this)
         return FAILURE;
     }
 
+    //send quit command
+    swString_clear(mysql_request_buffer);
+    client->cmd = SW_MYSQL_COM_QUIT;
+    bzero(mysql_request_buffer->str, 5);
+    mysql_request_buffer->str[4] = SW_MYSQL_COM_QUIT;//command
+    mysql_request_buffer->length = 5;
+    mysql_pack_length(mysql_request_buffer->length - 4, mysql_request_buffer->str);
+    SwooleG.main_reactor->write(SwooleG.main_reactor, client->fd, mysql_request_buffer->str, mysql_request_buffer->length);
+
     zend_update_property_bool(swoole_mysql_coro_class_entry_ptr, this, ZEND_STRL("connected"), 0 TSRMLS_CC);
     SwooleG.main_reactor->del(SwooleG.main_reactor, client->fd);
 
@@ -210,6 +219,8 @@ static int swoole_mysql_coro_close(zval *this)
             mysql_statement *stmt = node->data;
             if (stmt->object)
             {
+                // after connection closed, mysql stmt cache closed too
+                // so we needn't send stmt close command here like pdo.
                 swoole_set_object(stmt->object, NULL);
                 efree(stmt->object);
             }
@@ -373,6 +384,36 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
     {
         client->state = SW_MYSQL_STATE_READ_START;
         return SW_OK;
+    }
+
+    return SW_OK;
+}
+
+static int swoole_mysql_coro_statement_close(mysql_statement *stmt TSRMLS_DC)
+{
+    // call mysql-server to destruct this statement
+    swString_clear(mysql_request_buffer);
+    stmt->client->cmd = SW_MYSQL_COM_STMT_CLOSE;
+    bzero(mysql_request_buffer->str, 5);
+    //command
+    mysql_request_buffer->str[4] = SW_MYSQL_COM_STMT_CLOSE;
+    mysql_request_buffer->length = 5;
+    char *p = mysql_request_buffer->str;
+    p += 5;
+
+    // stmt.id
+    mysql_int4store(p, stmt->id);
+    p += 4;
+    mysql_request_buffer->length += 4;
+    //length
+    mysql_pack_length(mysql_request_buffer->length - 4, mysql_request_buffer->str);
+    //send data, mysql-server would not reply
+    SwooleG.main_reactor->write(SwooleG.main_reactor, stmt->client->fd, mysql_request_buffer->str, mysql_request_buffer->length);
+
+    if (stmt->object)
+    {
+        swoole_set_object(stmt->object, NULL);
+        efree(stmt->object);
     }
 
     return SW_OK;
@@ -1027,8 +1068,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, __destruct)
     {
         return;
     }
-    efree(stmt->object);
-    stmt->object = NULL;
+    swoole_mysql_coro_statement_close(stmt TSRMLS_CC);
     swLinkedList_remove(stmt->client->statement_list, stmt);
     efree(stmt);
 }
