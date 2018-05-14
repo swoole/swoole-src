@@ -1255,6 +1255,15 @@ static PHP_METHOD(swoole_mysql, close)
         RETURN_FALSE;
     }
 
+    //send quit command
+    swString_clear(mysql_request_buffer);
+    bzero(mysql_request_buffer->str, 5);
+    mysql_request_buffer->str[4] = SW_MYSQL_COM_QUIT; //command
+    mysql_request_buffer->length = 5;
+    mysql_pack_length(mysql_request_buffer->length - 4, mysql_request_buffer->str);
+    SwooleG.main_reactor->write(SwooleG.main_reactor, client->fd, mysql_request_buffer->str,
+            mysql_request_buffer->length);
+
     zend_update_property_bool(swoole_mysql_class_entry_ptr, getThis(), ZEND_STRL("connected"), 0 TSRMLS_CC);
     SwooleG.main_reactor->del(SwooleG.main_reactor, client->fd);
 
