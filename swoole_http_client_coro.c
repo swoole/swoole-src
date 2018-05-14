@@ -1176,16 +1176,23 @@ static int http_client_coro_send_http_request(zval *zobject TSRMLS_DC)
         {
             zend_size_t len;
             http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Content-Type"), ZEND_STRL("application/x-www-form-urlencoded"));
-            smart_str formstr_s = { 0 };
-            char *formstr = sw_http_build_query(post_data, &len, &formstr_s TSRMLS_CC);
-            if (formstr == NULL)
+            if (php_swoole_array_length(post_data) > 0)
             {
-                swoole_php_error(E_WARNING, "http_build_query failed.");
-                return SW_ERR;
+                smart_str formstr_s = { 0 };
+                char *formstr = sw_http_build_query(post_data, &len, &formstr_s TSRMLS_CC);
+                if (formstr == NULL)
+                {
+                    swoole_php_error(E_WARNING, "http_build_query failed.");
+                    return SW_ERR;
+                }
+                http_client_append_content_length(http_client_buffer, len);
+                swString_append_ptr(http_client_buffer, formstr, len);
+                smart_str_free(&formstr_s);
             }
-            http_client_append_content_length(http_client_buffer, len);
-            swString_append_ptr(http_client_buffer, formstr, len);
-            smart_str_free(&formstr_s);
+            else
+            {
+                http_client_append_content_length(http_client_buffer, 0);
+            }
         }
         else
         {
