@@ -956,12 +956,16 @@ static int http_client_coro_send_http_request(zval *zobject TSRMLS_DC)
 #endif
 
         SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(send_header), key, keylen, keytype, value)
-        if (HASH_KEY_IS_STRING != keytype)
-        {
-            continue;
-        }
-        convert_to_string(value);
-        http_client_swString_append_headers(http_client_buffer, key, keylen, Z_STRVAL_P(value), Z_STRLEN_P(value));
+            if (HASH_KEY_IS_STRING != keytype)
+            {
+                continue;
+            }
+            convert_to_string(value);
+            if (Z_STRLEN_P(value) == 0)
+            {
+                continue;
+            }
+            http_client_swString_append_headers(http_client_buffer, key, keylen, Z_STRVAL_P(value), Z_STRLEN_P(value));
         SW_HASHTABLE_FOREACH_END();
     }
     else
@@ -1118,6 +1122,10 @@ static int http_client_coro_send_http_request(zval *zobject TSRMLS_DC)
                     continue;
                 }
                 if (sw_zend_hash_find(Z_ARRVAL_P(value), ZEND_STRS("path"), (void **) &zpath) == FAILURE)
+                {
+                    continue;
+                }
+                if (sw_zend_hash_find(Z_ARRVAL_P(value), ZEND_STRS("size"), (void **) &zsize) == FAILURE)
                 {
                     continue;
                 }
