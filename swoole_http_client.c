@@ -1133,10 +1133,6 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
         {
             goto send_fail;
         }
-        else
-        {
-            return SW_OK;
-        }
     }
     //x-www-form-urlencoded or raw
     else if (post_data && !ZVAL_IS_NULL(post_data))
