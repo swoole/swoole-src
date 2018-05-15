@@ -140,7 +140,7 @@ ZEND_END_ARG_INFO()
     if (!redis)\
     {\
         zend_update_property_long(swoole_redis_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), SW_REDIS_ERR_CLOSED TSRMLS_CC); \
-        zend_update_property_string(swoole_redis_coro_class_entry_ptr, getThis(), ZEND_STRL("errMsg"), "redis client is waiting for response." TSRMLS_CC); \
+        zend_update_property_string(swoole_redis_coro_class_entry_ptr, getThis(), ZEND_STRL("errMsg"), "connection is not available." TSRMLS_CC); \
         RETURN_FALSE;\
     }\
     if (redis->iowait == SW_REDIS_CORO_STATUS_WAIT) \
@@ -3671,6 +3671,12 @@ static PHP_METHOD(swoole_redis_coro, exec)
 {
     coro_check(TSRMLS_C);
     swRedisClient *redis = swoole_get_object(getThis());
+    if (!redis)
+    {
+        zend_update_property_long(swoole_redis_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), SW_REDIS_ERR_CLOSED TSRMLS_CC);
+        zend_update_property_string(swoole_redis_coro_class_entry_ptr, getThis(), ZEND_STRL("errMsg"), "connection is not available." TSRMLS_CC);
+        RETURN_FALSE;
+    }
     if (redis->state != SWOOLE_REDIS_CORO_STATE_MULTI && redis->state != SWOOLE_REDIS_CORO_STATE_PIPELINE)
     {
         zend_update_property_long(swoole_redis_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), SW_REDIS_ERR_OTHER TSRMLS_CC);
@@ -4134,9 +4140,11 @@ static void swoole_redis_coro_onResult(redisAsyncContext *c, void *r, void *priv
             add_next_index_zval(redis->pipeline_result, result->value);
             if (redis->queued_cmd_count > 0)
             {
-                goto error;
+                efree(result);
+                return;
             }
-            result->value = redis->pipeline_result;
+            *result->value = *redis->pipeline_result;
+            efree(redis->pipeline_result);
             redis->pipeline_result = NULL;
             redis->state = SWOOLE_REDIS_CORO_STATE_READY;
             break;
