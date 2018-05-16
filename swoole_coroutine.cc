@@ -144,7 +144,6 @@ int coro_init(TSRMLS_D)
     return_frame.return_value = NULL;
     return_frame.prev_execute_data = NULL;
 
-    COROG.origin_ex = &return_frame;
     COROG.origin_vm_stack = EG(vm_stack);
     COROG.origin_vm_stack_top = EG(vm_stack_top);
     COROG.origin_vm_stack_end = EG(vm_stack_end);
@@ -267,10 +266,6 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     coro_task *task;
 
     func = fci_cache->function_handler;
-    zend_vm_stack origin_vm_stack = EG(vm_stack);
-    zval *origin_vm_stack_top = EG(vm_stack_top);
-    zval *origin_vm_stack_end = EG(vm_stack_end);
-
     sw_vm_stack_init();
     zend_execute_data *call = (zend_execute_data *) (EG(vm_stack_top));
 
@@ -322,7 +317,8 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     task->state = SW_CORO_RUNNING;
     task->co = GetCurrThreadCo();
     libco_set_task(task);
-
+    //compat history use in swoole
+    COROG.current_coro = task;
     swTraceLog(SW_TRACE_COROUTINE, "Create coro id: %d, coro total count: %d, heap size: %zu", cid, COROG.coro_num, zend_memory_usage(0));
 
     EG(current_execute_data) = task->execute_data;
@@ -334,9 +330,9 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
 
     zend_execute_ex(EG(current_execute_data) TSRMLS_CC);
     /*resume stack avoid php debug mode check stack*/
-    EG(vm_stack) = origin_vm_stack;
-    EG(vm_stack_top) = origin_vm_stack_top;
-    EG(vm_stack_end) = origin_vm_stack_end;
+    EG(vm_stack) = COROG.origin_vm_stack;
+    EG(vm_stack_top) = COROG.origin_vm_stack_top;
+    EG(vm_stack_end) = COROG.origin_vm_stack_end;
     return 0;
 }
 
@@ -355,6 +351,7 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
 {
     swTraceLog(SW_TRACE_COROUTINE,"sw_coro_resume coro id %d", COROG.current_coro->cid);
     coro_task *task = SWCC(current_task);
+    COROG.current_coro = task;
     task->state = SW_CORO_RUNNING;
     EG(current_execute_data) = task->execute_data;
     EG(vm_stack) = task->stack;
