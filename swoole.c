@@ -29,7 +29,7 @@
 #ifdef SW_COROUTINE
 #include "swoole_coroutine.h"
 #endif
-coro_global COROG;
+
 ZEND_DECLARE_MODULE_GLOBALS(swoole)
 
 extern sapi_module_struct sapi_module;
