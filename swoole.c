@@ -29,7 +29,7 @@
 #ifdef SW_COROUTINE
 #include "swoole_coroutine.h"
 #endif
-
+coro_global COROG;
 ZEND_DECLARE_MODULE_GLOBALS(swoole)
 
 extern sapi_module_struct sapi_module;
@@ -1022,11 +1022,6 @@ PHP_MINIT_FUNCTION(swoole)
 
     //swoole init
     swoole_init();
-
-#ifdef SW_COROUTINE
-    memset(&COROG, 0, sizeof(COROG));
-#endif
-
     swoole_server_port_init(module_number TSRMLS_CC);
     swoole_client_init(module_number TSRMLS_CC);
 #ifdef SW_COROUTINE
