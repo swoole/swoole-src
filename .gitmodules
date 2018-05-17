@@ -1,3 +1,6 @@
+[submodule "thirdparty/libco"]
+    path = thirdparty/libco
+    url = https://github.com/Tencent/libco.git
 [submodule "thirdparty/hiredis"]
 	path = thirdparty/hiredis
 	url = https://github.com/redis/hiredis.git

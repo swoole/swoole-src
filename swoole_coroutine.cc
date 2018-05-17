@@ -52,6 +52,7 @@ static zend_op_array sw_return_func;
 static zend_op sw_return_op[1];
 zend_execute_data return_frame;
 
+static void resume_php_stack();
 static int alloc_cidmap();
 static void free_cidmap(int cid);
 static int libco_resume(stCoRoutine_t *co);
@@ -78,6 +79,17 @@ static inline void sw_vm_stack_init(void)
 #else
 #define sw_vm_stack_init zend_vm_stack_init
 #endif
+
+static void resume_php_stack()
+{
+    coro_task *task = libco_get_task();
+    if (task && task->co)
+    {
+        EG(vm_stack) = task->origin_stack;
+        EG(vm_stack_top) = task->origin_vm_stack_top;
+        EG(vm_stack_end) = task->origin_vm_stack_end;
+    }
+}
 
 int coro_init(TSRMLS_D)
 {
@@ -226,6 +238,7 @@ static int libco_resume(stCoRoutine_t *co)
     co_resume(co);
     if (co->cEnd) {
         libco_release(co);
+        resume_php_stack();
     }
     return 0;
 }
@@ -267,6 +280,10 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     zend_function *func;
     uint32_t i;
     coro_task *task;
+
+    zend_vm_stack origin_vm_stack = EG(vm_stack);
+    zval *origin_vm_stack_top = EG(vm_stack_top);
+    zval *origin_vm_stack_end = EG(vm_stack_end);
 
     func = fci_cache->function_handler;
     sw_vm_stack_init();
@@ -315,6 +332,9 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     task->stack = EG(vm_stack);
     task->vm_stack_top = EG(vm_stack_top);
     task->vm_stack_end = EG(vm_stack_end);
+    task->origin_stack = origin_vm_stack;
+    task->origin_vm_stack_top = origin_vm_stack_top;
+    task->origin_vm_stack_end = origin_vm_stack_end;
     task->start_time = time(NULL);
     task->function = NULL;
     task->state = SW_CORO_RUNNING;
@@ -332,10 +352,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     COROG.require = 1;
 
     zend_execute_ex(EG(current_execute_data) TSRMLS_CC);
-    /*resume stack avoid php debug mode check stack*/
-    EG(vm_stack) = COROG.origin_vm_stack;
-    EG(vm_stack_top) = COROG.origin_vm_stack_top;
-    EG(vm_stack_end) = COROG.origin_vm_stack_end;
+    resume_php_stack();
     return 0;
 }
 
@@ -389,6 +406,9 @@ int sw_coro_yield()
     coro_task *task = libco_get_task();
     swTraceLog(SW_TRACE_COROUTINE,"coro_yield coro id %d", task->cid);
     task->state = SW_CORO_YIELD;
+    EG(vm_stack) = task->origin_stack;
+    EG(vm_stack_top) = task->origin_vm_stack_top;
+    EG(vm_stack_end) = task->origin_vm_stack_end;
     libco_yield();
     return 0;
 }
