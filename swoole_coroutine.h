@@ -89,6 +89,7 @@ struct _coro_task
     zend_vm_stack origin_stack;
     zval *origin_vm_stack_top;
     zval *origin_vm_stack_end;
+    zend_bool is_yield;
     /**
      * user coroutine
      */

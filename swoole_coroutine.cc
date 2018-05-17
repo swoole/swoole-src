@@ -52,7 +52,7 @@ static zend_op_array sw_return_func;
 static zend_op sw_return_op[1];
 zend_execute_data return_frame;
 
-static void resume_php_stack();
+static void resume_php_stack(stCoRoutine_t *co);
 static int alloc_cidmap();
 static void free_cidmap(int cid);
 static int libco_resume(stCoRoutine_t *co);
@@ -80,14 +80,31 @@ static inline void sw_vm_stack_init(void)
 #define sw_vm_stack_init zend_vm_stack_init
 #endif
 
-static void resume_php_stack()
+static void resume_php_stack(stCoRoutine_t *co)
 {
-    coro_task *task = libco_get_task();
-    if (task && task->co)
+    if (co)
     {
-        EG(vm_stack) = task->origin_stack;
-        EG(vm_stack_top) = task->origin_vm_stack_top;
-        EG(vm_stack_end) = task->origin_vm_stack_end;
+        coro_task *task;
+        if (co->cIsMain)
+        {
+            task = (coro_task *) pthread_getspecific(key);
+        }
+        else
+        {
+            task = (coro_task *)co->aSpec[ key ].value;
+        }
+        if (!task->is_yield)
+        {
+            EG(vm_stack) = task->origin_stack;
+            EG(vm_stack_top) = task->origin_vm_stack_top;
+            EG(vm_stack_end) = task->origin_vm_stack_end;
+        }
+        else
+        {
+            EG(vm_stack) = COROG.origin_vm_stack;
+            EG(vm_stack_top) = COROG.origin_vm_stack_top;
+            EG(vm_stack_end) = COROG.origin_vm_stack_end;
+        }
     }
 }
 
@@ -200,10 +217,10 @@ static int sw_terminate_opcode_handler(zend_execute_data *execute_data)
     coro_task * task = libco_get_task();
     ZEND_ASSERT(task != NULL);
     sw_coro_close(TSRMLS_C);
+    EG(vm_stack) = task->origin_stack;
+    EG(vm_stack_top) = task->origin_vm_stack_top;
+    EG(vm_stack_end) = task->origin_vm_stack_end;
     task->state = SW_CORO_END;
-    EG(vm_stack) = COROG.origin_vm_stack;
-    EG(vm_stack_top) = COROG.origin_vm_stack_top;
-    EG(vm_stack_end) = COROG.origin_vm_stack_end;
     return ZEND_USER_OPCODE_RETURN;
 }
 
@@ -237,8 +254,8 @@ static int libco_resume(stCoRoutine_t *co)
 {
     co_resume(co);
     if (co->cEnd) {
+        resume_php_stack(co);
         libco_release(co);
-        resume_php_stack();
     }
     return 0;
 }
@@ -348,11 +365,8 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     EG(vm_stack) = task->stack;
     EG(vm_stack_top) = task->vm_stack_top;
     EG(vm_stack_end) = task->vm_stack_end;
-
     COROG.require = 1;
-
     zend_execute_ex(EG(current_execute_data) TSRMLS_CC);
-    resume_php_stack();
     return 0;
 }
 
@@ -406,6 +420,7 @@ int sw_coro_yield()
     coro_task *task = libco_get_task();
     swTraceLog(SW_TRACE_COROUTINE,"coro_yield coro id %d", task->cid);
     task->state = SW_CORO_YIELD;
+    task->is_yield = 1;
     EG(vm_stack) = task->origin_stack;
     EG(vm_stack_top) = task->origin_vm_stack_top;
     EG(vm_stack_end) = task->origin_vm_stack_end;
