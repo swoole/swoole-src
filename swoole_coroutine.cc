@@ -224,6 +224,9 @@ int libco_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval *
 static int libco_resume(stCoRoutine_t *co)
 {
     co_resume(co);
+    if (co->cEnd) {
+        libco_release(co);
+    }
     return 0;
 }
 
@@ -233,9 +236,9 @@ static int libco_yield()
     return 0;
 }
 
-static int libco_release(coro_task *task)
+static int libco_release(stCoRoutine_t *co)
 {
-    co_release(task->co);
+    co_release(co);
     return 0;
 }
 
