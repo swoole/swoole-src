@@ -4,24 +4,22 @@ swoole_coroutine: coro call user func
 <?php require __DIR__ . "/../../include/skipif.inc"; ?>
 --FILE--
 <?php
-
 use Swoole\Coroutine as co;
-
-co::set(['trace_flags' => 1]);
-
 co::create(function() {
     $name = "call_user_func";
     $return = $name("test");
-    echo "call user\n";
+    echo "co end\n";
 });
 
 function test() {
-    echo "start\n";
+    echo "func start\n";
     co::sleep(0.5);
-    echo "exit\n";
+    echo "func end\n";
 }
+echo "main end\n";
 ?>
 --EXPECT--
-start
-call user
-exit
+func start
+main end
+func end
+co end
