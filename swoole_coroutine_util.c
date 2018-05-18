@@ -18,8 +18,8 @@
 #include "php_swoole.h"
 
 #ifdef SW_COROUTINE
-#include "async.h"
 #include "swoole_coroutine.h"
+#include "async.h"
 #include "ext/standard/file.h"
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_void, 0, 0, 0)
@@ -261,11 +261,10 @@ static PHP_METHOD(swoole_coroutine_util, set)
 PHP_FUNCTION(swoole_coroutine_create)
 {
     zval *callback;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &callback) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "z", &callback) == FAILURE)
     {
         return;
     }
-
     char *func_name = NULL;
     zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
     if (!sw_zend_is_callable_ex(callback, NULL, 0, &func_name, NULL, func_cache, NULL TSRMLS_CC))
@@ -275,31 +274,20 @@ PHP_FUNCTION(swoole_coroutine_create)
         return;
     }
     efree(func_name);
-
     if (COROG.active == 0)
     {
         coro_init(TSRMLS_C);
     }
-
     php_swoole_check_reactor();
-
     callback = sw_zval_dup(callback);
     sw_zval_add_ref(&callback);
 
     zval *retval = NULL;
     zval *args[1];
-
     php_context *ctx = emalloc(sizeof(php_context));
-    //coro_save(ctx);
-    int required = COROG.require;
-    int ret = coro_create(func_cache, args, 0, &retval, NULL, NULL);
+    coro_create(func_cache, args, 0, &retval, NULL, NULL);
     sw_zval_free(callback);
     efree(func_cache);
-    if (ret < 0)
-    {
-        RETURN_FALSE;
-    }
-    COROG.require = required;
     efree(ctx);
     if (EG(exception))
     {
