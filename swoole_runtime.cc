@@ -17,6 +17,8 @@
  */
 #include "php_swoole.h"
 
+#ifdef SW_USE_PHPX
+
 #include <initializer_list>
 
 extern "C"
@@ -60,3 +62,5 @@ static PHP_METHOD(swoole_runtime, enableStrictMode)
         zend_disable_class((char *) c, strlen((char *) c));
     }
 }
+
+#endif
