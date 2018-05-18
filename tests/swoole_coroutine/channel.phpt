@@ -5,7 +5,6 @@ swoole_coroutine: coro channel
 --FILE--
 <?php
 require_once __DIR__ . "/../include/swoole.inc";
-require_once __DIR__ . "/../include/lib/curl.php";
 
 use Swoole\Coroutine as co;
 

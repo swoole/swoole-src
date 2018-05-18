@@ -1142,7 +1142,10 @@ static PHP_METHOD(swoole_socket_coro, connect)
     {
         RETURN_TRUE;
     }
-    RETURN_FALSE;
+    else
+    {
+        RETURN_FALSE;
+    }
 }
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
