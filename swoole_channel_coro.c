@@ -18,6 +18,8 @@
  */
 
 #include "php_swoole.h"
+
+#ifdef SW_COROUTINE
 #include "swoole_coroutine.h"
 
 enum
@@ -707,3 +709,4 @@ static PHP_METHOD(swoole_channel_coro, select)
         RETURN_TRUE;
     }
 }
+#endif

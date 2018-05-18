@@ -275,7 +275,7 @@ typedef struct _mysql_client
 {
 #ifdef SW_COROUTINE
     zend_bool defer;
-    zend_bool defer_yield;
+    zend_bool suspending;
     mysql_io_status iowait;
     zval *result;
     int cid;
@@ -325,7 +325,7 @@ typedef struct _mysql_client
                                     (((uint32_t) ((zend_uchar) (A)[6])) << 16) +\
                                     (((uint32_t) ((zend_uchar) (A)[7])) << 24))) << 32))
 
-#define mysql_int1store(T,A)  do { *((int8_t*) (T)) = (A); } while(0)
+#define mysql_int1store(T,A)  do { *((int8_t*) (T)) = (int8_t)(A); } while(0)
 #define mysql_int2store(T,A)  do { uint32_t def_temp= (uint32_t) (A) ;\
                   *((zend_uchar*) (T))  =  (zend_uchar)(def_temp); \
                   *((zend_uchar*) (T+1)) = (zend_uchar)((def_temp >> 8)); } while (0)

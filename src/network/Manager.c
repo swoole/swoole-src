@@ -222,7 +222,7 @@ static int swManager_loop(swFactory *factory)
 
     if (serv->hooks[SW_SERVER_HOOK_MANAGER_START])
     {
-        swServer_call_hook_func(serv, SW_SERVER_HOOK_MANAGER_START);
+        swServer_call_hook(serv, SW_SERVER_HOOK_MANAGER_START, serv);
     }
 
     if (serv->onManagerStart)
@@ -288,7 +288,7 @@ static int swManager_loop(swFactory *factory)
 
                 if (serv->hooks[SW_SERVER_HOOK_MANAGER_TIMER])
                 {
-                    swServer_call_hook_func(serv, SW_SERVER_HOOK_MANAGER_TIMER);
+                    swServer_call_hook(serv, SW_SERVER_HOOK_MANAGER_TIMER, serv);
                 }
             }
 

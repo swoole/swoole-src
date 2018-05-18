@@ -152,6 +152,7 @@ int swClient_create(swClient *cli, int type, int async)
             cli->send = swClient_tcp_send_async;
             cli->sendfile = swClient_tcp_sendfile_async;
             cli->pipe = swClient_tcp_pipe;
+            cli->socket->dontwait = 1;
         }
         else
         {
@@ -784,6 +785,7 @@ static int swClient_tcp_send_async(swClient *cli, char *data, int length, int fl
         if (SwooleG.error == SW_ERROR_OUTPUT_BUFFER_OVERFLOW)
         {
             n = -1;
+            cli->socket->high_watermark = 1;
         }
         else
         {
@@ -944,7 +946,7 @@ static int swClient_udp_connect(swClient *cli, char *host, int port, double time
             return SW_ERR;
         }
     }
-    else if (udp_connect != 1)
+    if (udp_connect != 1)
     {
         goto connect_ok;
     }
@@ -971,6 +973,7 @@ static int swClient_udp_connect(swClient *cli, char *host, int port, double time
     {
         swSysError("connect() failed.");
         cli->socket->active = 0;
+        cli->socket->removed = 1;
         return SW_ERR;
     }
 }
@@ -1074,7 +1077,7 @@ static int swClient_onPackage(swConnection *conn, char *data, uint32_t length)
 {
     swClient *cli = (swClient *) conn->object;
     cli->onReceive(conn->object, data, length);
-    return cli->socket->close_wait ? SW_ERR : SW_OK;
+    return conn->close_wait ? SW_ERR : SW_OK;
 }
 
 static int swClient_onStreamRead(swReactor *reactor, swEvent *event)

@@ -261,7 +261,7 @@ static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event)
                     break;
                 case PGRES_POLLING_FAILED:
                     errMsg = PQerrorMessage(pg_object->conn);
-                    php_printf("error:%s",errMsg);
+                    swWarn("error:[%s]",errMsg);
                     break;
                 default:
                     break;
@@ -471,7 +471,7 @@ static PHP_METHOD(swoole_postgresql_coro, query)
     if(ret == 0)
     {
         char * errMsg = PQerrorMessage(pgsql);
-        php_printf("error:%s",errMsg);
+        swWarn("error:[%s]",errMsg);
 
     }
 
@@ -716,7 +716,7 @@ static PHP_METHOD(swoole_postgresql_coro,metaData)
     if(ret == 0)
     {
         char * errMsg = PQerrorMessage(pgsql);
-        php_printf("error:%s",errMsg);
+        swWarn("error:[%s]",errMsg);
 
     }
     smart_str_free(&querystr);
@@ -907,7 +907,11 @@ static void php_pgsql_fetch_hash(INTERNAL_FUNCTION_PARAMETERS, zend_long result_
 
             fcc.initialized = 1;
             fcc.function_handler = ce->constructor;
+#if PHP_MINOR_VERSION > 0
             fcc.calling_scope = zend_get_executed_scope();
+#else
+            fcc.calling_scope = EG(scope);
+#endif
             fcc.called_scope = Z_OBJCE_P(return_value);
             fcc.object = Z_OBJ_P(return_value);
 

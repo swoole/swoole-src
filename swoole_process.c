@@ -14,10 +14,18 @@
   +----------------------------------------------------------------------+
 */
 
+#if __APPLE__
+// Fix warning: 'daemon' is deprecated: first deprecated in macOS 10.5 - Use posix_spawn APIs instead. [-Wdeprecated-declarations]
+#define daemon yes_we_know_that_daemon_is_deprecated_in_os_x_10_5_thankyou
+#endif
 #include "php_swoole.h"
 #include "php_streams.h"
 #include "php_network.h"
 
+#if __APPLE__
+#undef daemon
+extern int daemon(int, int);
+#endif
 static PHP_METHOD(swoole_process, __construct);
 static PHP_METHOD(swoole_process, __destruct);
 static PHP_METHOD(swoole_process, useQueue);
@@ -247,6 +255,12 @@ static PHP_METHOD(swoole_process, __construct)
         RETURN_FALSE;
     }
 
+    if (SwooleAIO.init)
+    {
+        swoole_php_fatal_error(E_ERROR, "unable to create process with async-io threads.");
+        RETURN_FALSE;
+    }
+
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|bl", &callback, &redirect_stdin_and_stdout, &pipe_type) == FAILURE)
     {
         RETURN_FALSE;
@@ -318,7 +332,6 @@ static PHP_METHOD(swoole_process, __destruct)
     }
     if (process->queue)
     {
-        swMsgQueue_free(process->queue);
         efree(process->queue);
     }
     efree(process);
@@ -381,7 +394,6 @@ static PHP_METHOD(swoole_process, useQueue)
         swMsgQueue_set_blocking(queue, 0);
         mode = mode & (~MSGQUEUE_NOWAIT);
     }
-    queue->remove = 0;
     process->queue = queue;
     process->ipc_mode = mode;
     zend_update_property_long(swoole_process_class_entry_ptr, getThis(), ZEND_STRL("msgQueueId"), queue->msg_id TSRMLS_CC);
@@ -415,10 +427,8 @@ static PHP_METHOD(swoole_process, statQueue)
 static PHP_METHOD(swoole_process, freeQueue)
 {
     swWorker *process = swoole_get_object(getThis());
-    if (process->queue)
+    if (process->queue && swMsgQueue_free(process->queue) == SW_OK)
     {
-        process->queue->remove = 1;
-        swMsgQueue_free(process->queue);
         efree(process->queue);
         process->queue = NULL;
         RETURN_TRUE;

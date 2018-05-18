@@ -222,7 +222,7 @@ void swChannel_print(swChannel *chan)
             "    size_t bytes = %ld;\n"
             "    int flag = %d;\n"
             "    int maxlen = %d;\n"
-            "\n}\n", chan->head, chan->tail, chan->size, chan->tail_tag, chan->head_tag, chan->num, chan->bytes,
+            "\n}\n", (long)chan->head, (long)chan->tail, chan->size, chan->tail_tag, chan->head_tag, chan->num, chan->bytes,
             chan->flag, chan->maxlen);
 }
 

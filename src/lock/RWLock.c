@@ -30,6 +30,7 @@ int swRWLock_create(swLock *lock, int use_in_process)
     int ret;
     bzero(lock, sizeof(swLock));
     lock->type = SW_RWLOCK;
+    pthread_rwlockattr_init(&lock->object.rwlock.attr);
     if (use_in_process == 1)
     {
         pthread_rwlockattr_setpshared(&lock->object.rwlock.attr, PTHREAD_PROCESS_SHARED);

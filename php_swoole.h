@@ -50,17 +50,12 @@
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "2.1.2-alpha"
+BEGIN_EXTERN_C()
+
+#define PHP_SWOOLE_VERSION  "4.0.0-alpha"
 #define PHP_SWOOLE_CHECK_CALLBACK
 #define PHP_SWOOLE_ENABLE_FASTCALL
 #define PHP_SWOOLE_CLIENT_USE_POLL
-
-/**
- * PHP5.2
- */
-#ifndef PHP_FE_END
-#define PHP_FE_END {NULL,NULL,NULL}
-#endif
 
 #ifndef ZEND_MOD_END
 #define ZEND_MOD_END {NULL,NULL,NULL}
@@ -105,10 +100,11 @@ extern __thread swoole_object_array swoole_objects;
 extern swoole_object_array swoole_objects;
 #endif
 
-
 //#define SW_USE_PHP        1
 #define SW_CHECK_RETURN(s)         if(s<0){RETURN_FALSE;}else{RETURN_TRUE;}return
-#define SW_LOCK_CHECK_RETURN(s)    if(s==0){RETURN_TRUE;}else{RETURN_FALSE;}return
+#define SW_LOCK_CHECK_RETURN(s)    if(s==0){RETURN_TRUE;}else{\
+	zend_update_property_long(NULL, getThis(), SW_STRL("errCode")-1, s TSRMLS_CC);\
+	RETURN_FALSE;}return
 
 #define swoole_php_error(level, fmt_str, ...)   if (SWOOLE_G(display_errors)) php_error_docref(NULL TSRMLS_CC, level, fmt_str, ##__VA_ARGS__)
 #define swoole_php_fatal_error(level, fmt_str, ...)   php_error_docref(NULL TSRMLS_CC, level, fmt_str, ##__VA_ARGS__)
@@ -144,8 +140,8 @@ extern swoole_object_array swoole_objects;
 #endif
 #endif
 
-#if PHP_MAJOR_VERSION < 7
-#error "require PHP version 7.0 or later."
+#if PHP_MAJOR_VERSION > 7 || PHP_MINOR_VERSION == 0
+#error "require PHP version 7.1 or later."
 #endif
 
 #include "php7_wrapper.h"
@@ -223,6 +219,7 @@ enum php_swoole_fd_type
     PHP_SWOOLE_FD_POSTGRESQL,
     PHP_SWOOLE_FD_HTTPCLIENT,
     PHP_SWOOLE_FD_PROCESS_STREAM,
+    PHP_SWOOLE_FD_SOCKET,
 };
 //---------------------------------------------------------
 #define php_swoole_socktype(type)           (type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP) & (~SW_SOCK_SSL))
@@ -364,10 +361,14 @@ void swoole_destory_table(zend_resource *rsrc TSRMLS_DC);
 void swoole_server_port_init(int module_number TSRMLS_DC);
 void swoole_async_init(int module_number TSRMLS_DC);
 void swoole_table_init(int module_number TSRMLS_DC);
+#ifdef SW_USE_PHPX
+void swoole_runtime_init(int module_number TSRMLS_DC);
+#endif
 void swoole_lock_init(int module_number TSRMLS_DC);
 void swoole_atomic_init(int module_number TSRMLS_DC);
 void swoole_client_init(int module_number TSRMLS_DC);
 #ifdef SW_COROUTINE
+void swoole_socket_coro_init(int module_number TSRMLS_DC);
 void swoole_client_coro_init(int module_number TSRMLS_DC);
 #ifdef SW_USE_REDIS
 void swoole_redis_coro_init(int module_number TSRMLS_DC);
@@ -385,6 +386,7 @@ void swoole_redis_init(int module_number TSRMLS_DC);
 #endif
 void swoole_redis_server_init(int module_number TSRMLS_DC);
 void swoole_process_init(int module_number TSRMLS_DC);
+void swoole_process_pool_init(int module_number TSRMLS_DC);
 void swoole_http_server_init(int module_number TSRMLS_DC);
 #ifdef SW_USE_HTTP2
 void swoole_http2_client_init(int module_number TSRMLS_DC);
@@ -398,6 +400,7 @@ void swoole_mysql_init(int module_number TSRMLS_DC);
 void swoole_mmap_init(int module_number TSRMLS_DC);
 void swoole_channel_init(int module_number TSRMLS_DC);
 void swoole_ringqueue_init(int module_number TSRMLS_DC);
+void swoole_msgqueue_init(int module_number TSRMLS_DC);
 #if PHP_MAJOR_VERSION == 7
 void swoole_channel_coro_init(int module_number TSRMLS_DC);
 void swoole_serialize_init(int module_number TSRMLS_DC);
@@ -414,7 +417,7 @@ void php_swoole_check_timer(int interval);
 long php_swoole_add_timer(int ms, zval *callback, zval *param, int persistent TSRMLS_DC);
 void php_swoole_clear_all_timer();
 void php_swoole_register_callback(swServer *serv);
-void php_swoole_trace_check(swServer *serv);
+void php_swoole_trace_check(void *arg);
 void php_swoole_client_free(zval *object, swClient *cli TSRMLS_DC);
 swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port);
 void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC);
@@ -454,6 +457,7 @@ php_socket *swoole_convert_to_socket(int sock);
 #endif
 
 void php_swoole_server_before_start(swServer *serv, zval *zobject TSRMLS_DC);
+void php_swoole_server_send_yield(swServer *serv, int fd, zval *zdata, zval *return_value);
 void php_swoole_get_recv_data(zval *zdata, swEventData *req, char *header, uint32_t header_length);
 int php_swoole_get_send_data(zval *zdata, char **str TSRMLS_DC);
 void php_swoole_onConnect(swServer *, swDataHead *);
@@ -480,6 +484,11 @@ int php_coroutine_reactor_can_exit(swReactor *reactor);
 static sw_inline zval* php_swoole_server_get_callback(swServer *serv, int server_fd, int event_type)
 {
     swListenPort *port = (swListenPort *) serv->connection_list[server_fd].object;
+    if (port == NULL)
+    {
+        swWarn("invalid server_fd[%d].", server_fd);
+        return NULL;
+    }
     swoole_server_port_property *property = (swoole_server_port_property *) port->ptr;
     if (!property)
     {
@@ -618,5 +627,7 @@ extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
 #ifndef ZEND_HASH_APPLY_PROTECTION
 # define ZEND_HASH_APPLY_PROTECTION(p) 1
 #endif
+
+END_EXTERN_C()
 
 #endif	/* PHP_SWOOLE_H */

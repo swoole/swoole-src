@@ -13,11 +13,19 @@
   | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
   +----------------------------------------------------------------------+
 */
-
+#if __APPLE__
+// Fix warning: 'daemon' is deprecated: first deprecated in macOS 10.5 - Use posix_spawn APIs instead. [-Wdeprecated-declarations]
+#define daemon yes_we_know_that_daemon_is_deprecated_in_os_x_10_5_thankyou
+#endif
 #include "Server.h"
 #include "http.h"
 #include "Connection.h"
+#include <spawn.h>
 #include <sys/stat.h>
+#if __APPLE__
+#undef daemon
+extern int daemon(int, int);
+#endif
 
 #if SW_REACTOR_SCHEDULE == 3
 static sw_inline void swServer_reactor_schedule(swServer *serv)
@@ -379,7 +387,22 @@ static int swServer_start_proxy(swServer *serv)
 
     if (serv->hooks[SW_SERVER_HOOK_MASTER_START])
     {
-        swServer_call_hook_func(serv, SW_SERVER_HOOK_MASTER_START);
+        swServer_call_hook(serv, SW_SERVER_HOOK_MASTER_START, serv);
+    }
+
+    /**
+     * init timer
+     */
+    if (swTimer_init(1000) < 0)
+    {
+        return SW_ERR;
+    }
+    /**
+     * 1 second timer, update SwooleGS->now
+     */
+    if (SwooleG.timer.add(&SwooleG.timer, 1000, 1, serv, swServer_master_onTimer) == NULL)
+    {
+        return SW_ERR;
     }
 
     if (serv->onStart != NULL)
@@ -387,10 +410,7 @@ static int swServer_start_proxy(swServer *serv)
         serv->onStart(serv);
     }
 
-    struct timeval tmo;
-    tmo.tv_sec = 1; //for seconds timer
-    tmo.tv_usec = 0;
-    return main_reactor->wait(main_reactor, &tmo);
+    return main_reactor->wait(main_reactor, NULL);
 }
 
 void swServer_store_listen_socket(swServer *serv)
@@ -502,7 +522,7 @@ int swServer_create_task_worker(swServer *serv)
     {
         char sockfile[sizeof(struct sockaddr_un)];
         snprintf(sockfile, sizeof(sockfile), "/tmp/swoole.task.%d.sock", SwooleGS->master_pid);
-        if (swProcessPool_create_stream_socket(&SwooleGS->task_workers, sockfile, 2048) < 0)
+        if (swProcessPool_create_unix_socket(&SwooleGS->task_workers, sockfile, 2048) < 0)
         {
             return SW_ERR;
         }
@@ -599,6 +619,10 @@ int swServer_start(swServer *serv)
     if (ret < 0)
     {
         return SW_ERR;
+    }
+    if (SwooleG.hooks[SW_GLOBAL_HOOK_BEFORE_SERVER_START])
+    {
+        swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_START, serv);
     }
     //cann't start 2 servers at the same time, please use process->exec.
     if (!sw_atomic_cmp_set(&SwooleGS->start, 0, 1))
@@ -1056,7 +1080,7 @@ int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename, uint32
     }
     if (file_stat.st_size <= offset)
     {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "file[offset=%ld] is empty.", offset);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "file[offset=%ld] is empty.", (long)offset);
         return SW_ERR;
     }
 
@@ -1097,17 +1121,16 @@ int swServer_tcp_sendwait(swServer *serv, int fd, void *data, uint32_t length)
     return swSocket_write_blocking(conn->fd, data, length);
 }
 
-void swServer_call_hook_func(swServer *serv, enum swServer_hook_type type)
+SW_API void swServer_call_hook(swServer *serv, enum swServer_hook_type type, void *arg)
 {
     swLinkedList *hooks = serv->hooks[type];
-
     swLinkedList_node *node = hooks->head;
-    void (*func)(swServer *);
+    swCallback func = NULL;
 
     while (node)
     {
         func = node->data;
-        func(serv);
+        func(arg);
         node = node->next;
     }
 }
@@ -1165,8 +1188,9 @@ void swServer_signal_init(swServer *serv)
     swServer_set_minfd(SwooleG.serv, SwooleG.signal_fd);
 }
 
-void swServer_master_onTimer(swServer *serv)
+void swServer_master_onTimer(swTimer *timer, swTimer_node *tnode)
 {
+    swServer *serv = (swServer *) tnode->data;
     swoole_update_time();
     if (serv->scheduler_warning && serv->warning_time < SwooleGS->now)
     {
@@ -1177,7 +1201,7 @@ void swServer_master_onTimer(swServer *serv)
 
     if (serv->hooks[SW_SERVER_HOOK_MASTER_TIMER])
     {
-        swServer_call_hook_func(serv, SW_SERVER_HOOK_MASTER_TIMER);
+        swServer_call_hook(serv, SW_SERVER_HOOK_MASTER_TIMER, serv);
     }
 }
 
@@ -1201,7 +1225,7 @@ int swServer_add_worker(swServer *serv, swWorker *worker)
     return worker->id;
 }
 
-int swServer_add_hook(swServer *serv, enum swServer_hook_type type, void *func, int push_back)
+SW_API int swServer_add_hook(swServer *serv, enum swServer_hook_type type, swCallback func, int push_back)
 {
     if (serv->hooks[type] == NULL)
     {

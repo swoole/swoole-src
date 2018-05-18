@@ -350,7 +350,7 @@ int swoole_sync_writefile(int fd, void *data, int len)
             {
                 continue;
             }
-            swWarn("write() failed. Error: %s[%d]", strerror(errno), errno);
+            swSysError("write(%d, %d) failed.", fd, towrite);
             break;
         }
     }
@@ -1118,7 +1118,7 @@ int swoole_getaddrinfo(swRequest_getaddrinfo *req)
     return SW_OK;
 }
 
-int swoole_add_function(const char *name, void* func)
+SW_API int swoole_add_function(const char *name, void* func)
 {
     if (SwooleG.functions == NULL)
     {
@@ -1136,13 +1136,47 @@ int swoole_add_function(const char *name, void* func)
     return swHashMap_add(SwooleG.functions, (char *) name, strlen(name), func);
 }
 
-void* swoole_get_function(char *name, uint32_t length)
+SW_API void* swoole_get_function(char *name, uint32_t length)
 {
     if (!SwooleG.functions)
     {
         return NULL;
     }
     return swHashMap_find(SwooleG.functions, name, length);
+}
+
+SW_API int swoole_add_hook(enum swGlobal_hook_type type, swCallback func, int push_back)
+{
+    if (SwooleG.hooks[type] == NULL)
+    {
+        SwooleG.hooks[type] = swLinkedList_new(0, NULL);
+        if (SwooleG.hooks[type] == NULL)
+        {
+            return SW_ERR;
+        }
+    }
+    if (push_back)
+    {
+        return swLinkedList_append(SwooleG.hooks[type], func);
+    }
+    else
+    {
+        return swLinkedList_prepend(SwooleG.hooks[type], func);
+    }
+}
+
+SW_API void swoole_call_hook(enum swGlobal_hook_type type, void *arg)
+{
+    swLinkedList *hooks = SwooleG.hooks[type];
+    swLinkedList_node *node = hooks->head;
+    swCallback func = NULL;
+
+    while (node)
+    {
+        func = node->data;
+        func(arg);
+        node = node->next;
+    }
 }
 
 int swoole_shell_exec(char *command, pid_t *pid)

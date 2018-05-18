@@ -57,6 +57,9 @@ PHP_ARG_WITH(libpq_dir, for libpq support,
 PHP_ARG_WITH(openssl_dir, for OpenSSL support,
 [  --with-openssl-dir[=DIR]    Include OpenSSL support (requires OpenSSL >= 0.9.6)], no, no)
 
+PHP_ARG_WITH(phpx_dir, for PHP-X support,
+[  --with-phpx-dir[=DIR]    Include PHP-X support], no, no)
+
 PHP_ARG_WITH(jemalloc_dir, for jemalloc support,
 [  --with-jemalloc-dir[=DIR]    Include jemalloc support], no, no)
 
@@ -165,6 +168,28 @@ AC_DEFUN([AC_SWOOLE_HAVE_FUTEX],
     ])
 ])
 
+AC_DEFUN([AC_SWOOLE_HAVE_LINUX_AIO],
+[
+    AC_MSG_CHECKING([for linux aio])
+    AC_TRY_COMPILE(
+    [
+		#include <sys/syscall.h>
+        #include <linux/aio_abi.h>
+		#include <unistd.h>
+    ], [
+        struct iocb *iocbps[1];
+        struct iocb iocbp;
+        aio_context_t context;
+        iocbps[0] = &iocbp;
+        io_submit(context, 1, iocbps);
+    ], [
+        AC_DEFINE([HAVE_LINUX_AIO], 1, [have LINUX_AIO?])
+        AC_MSG_RESULT([yes])
+    ], [
+        AC_MSG_RESULT([no])
+    ])
+])
+
 AC_MSG_CHECKING([if compiling with clang])
 AC_COMPILE_IFELSE([
     AC_LANG_PROGRAM([], [[
@@ -232,6 +257,7 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_SWOOLE_CPU_AFFINITY
     AC_SWOOLE_HAVE_REUSEPORT
 	AC_SWOOLE_HAVE_FUTEX
+    AC_SWOOLE_HAVE_LINUX_AIO
 
     CFLAGS="-Wall -pthread $CFLAGS"
     LDFLAGS="$LDFLAGS -lpthread"
@@ -255,6 +281,14 @@ if test "$PHP_SWOOLE" != "no"; then
         AC_DEFINE(SW_USE_OPENSSL, 1, [enable openssl support])
         PHP_ADD_LIBRARY(ssl, 1, SWOOLE_SHARED_LIBADD)
         PHP_ADD_LIBRARY(crypto, 1, SWOOLE_SHARED_LIBADD)
+    fi
+
+    if test "$PHP_PHPX_DIR" != "no"; then
+        PHP_ADD_INCLUDE("${PHP_PHPX_DIR}/include")
+        PHP_ADD_LIBRARY_WITH_PATH(phpx, "${PHP_PHPX_DIR}/${PHP_LIBDIR}")
+        AC_DEFINE(SW_USE_PHPX, 1, [enable PHP-X support])
+        PHP_ADD_LIBRARY(phpx, 1, SWOOLE_SHARED_LIBADD)
+        CXXFLAGS="$CXXFLAGS -std=c++11"
     fi
 
     if test "$PHP_JEMALLOC_DIR" != "no"; then
@@ -344,12 +378,14 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_lock.c \
         swoole_client.c \
         swoole_client_coro.c \
-        swoole_coroutine.c \
+        swoole_coroutine.cc \
         swoole_coroutine_util.c \
         swoole_event.c \
+        swoole_socket_coro.c \
         swoole_timer.c \
         swoole_async.c \
         swoole_process.c \
+        swoole_process_pool.c \
         swoole_serialize.c \
         swoole_buffer.c \
         swoole_table.c \
@@ -370,7 +406,9 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_channel.c \
         swoole_channel_coro.c \
         swoole_ringqueue.c \
+        swoole_msgqueue.c \
         swoole_trace.c \
+        swoole_runtime.cc \
         src/core/base.c \
         src/core/log.c \
         src/core/hashmap.c \
@@ -449,18 +487,31 @@ if test "$PHP_SWOOLE" != "no"; then
         AC_DEFINE(SW_USE_PICOHTTPPARSER, 1, [enable picohttpparser support])
         swoole_source_file="$swoole_source_file thirdparty/picohttpparser/picohttpparser.c"
     fi
-
+    
+    AC_DEFINE(SW_USE_LIBCO, 1, [enable libco support])
+    swoole_source_file="$swoole_source_file thirdparty/libco/co_epoll.cpp"
+    swoole_source_file="$swoole_source_file thirdparty/libco/co_routine.cpp"
+    swoole_source_file="$swoole_source_file thirdparty/libco/co_hook_sys_call.cpp"
+    swoole_source_file="$swoole_source_file thirdparty/libco/coctx_swap.S"
+    swoole_source_file="$swoole_source_file thirdparty/libco/coctx.cpp"
+    
     PHP_NEW_EXTENSION(swoole, $swoole_source_file, $ext_shared)
 
     PHP_ADD_INCLUDE([$ext_srcdir])
     PHP_ADD_INCLUDE([$ext_srcdir/include])
 
-    PHP_INSTALL_HEADERS([ext/swoole], [*.h include/*.h])
+    PHP_INSTALL_HEADERS([ext/swoole], [*.h config.h include/*.h])
+
+    PHP_REQUIRE_CXX()
+    PHP_ADD_LIBRARY(stdc++, 1, SWOOLE_SHARED_LIBADD)
 
     if test "$PHP_PICOHTTPPARSER" = "yes"; then
         PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/picohttpparser])
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/picohttpparser)
     fi
+    
+    PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/libco])
+    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/libco)
 
     PHP_ADD_BUILD_DIR($ext_builddir/src/core)
     PHP_ADD_BUILD_DIR($ext_builddir/src/memory)

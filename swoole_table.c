@@ -618,7 +618,7 @@ static PHP_METHOD(swoole_table, get)
     {
         RETVAL_FALSE;
     }
-    else if (field)
+    else if (field && field_len > 0)
     {
         php_swoole_table_get_field_value(table, row, return_value, field, (uint16_t) field_len);
     }

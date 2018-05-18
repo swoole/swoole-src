@@ -157,15 +157,16 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
     }
     //defer callback
     swDefer_callback *cb, *tmp;
-    LL_FOREACH(reactor->defer_callback_list, cb)
+    swDefer_callback *defer_callback_list = reactor->defer_callback_list;
+    reactor->defer_callback_list = NULL;
+    LL_FOREACH(defer_callback_list, cb)
     {
         cb->callback(cb->data);
     }
-    LL_FOREACH_SAFE(reactor->defer_callback_list, cb, tmp)
+    LL_FOREACH_SAFE(defer_callback_list, cb, tmp)
     {
         sw_free(cb);
     }
-    reactor->defer_callback_list = NULL;
     //callback at the end
     if (reactor->idle_task.callback)
     {
@@ -178,17 +179,6 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
         coro_handle_timeout();
     }
 #endif
-
-    //server master
-    if (SwooleG.serv && SwooleTG.update_time)
-    {
-        swServer_master_onTimer(SwooleG.serv);
-        int32_t timeout_msec = SwooleG.main_reactor->timeout_msec;
-        if (timeout_msec < 0 || timeout_msec > 1000)
-        {
-            SwooleG.main_reactor->timeout_msec = 1000;
-        }
-    }
     //server worker
     swWorker *worker = SwooleWG.worker;
     if (worker != NULL)
@@ -369,17 +359,16 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
     }
     else
     {
-        append_buffer:
-
-        if (buffer->length > socket->buffer_size)
+        append_buffer: if (buffer->length > socket->buffer_size)
         {
-            swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "socket#%d output buffer overflow.", fd);
-            if (SwooleG.socket_dontwait)
+            if (socket->dontwait)
             {
+                SwooleG.error = SW_ERROR_OUTPUT_BUFFER_OVERFLOW;
                 return SW_ERR;
             }
             else
             {
+                swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "socket#%d output buffer overflow.", fd);
                 swYield();
                 swSocket_wait(fd, SW_SOCKET_OVERFLOW_WAIT, SW_EVENT_WRITE);
             }
