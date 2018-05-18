@@ -354,6 +354,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     task->origin_vm_stack_end = origin_vm_stack_end;
     task->start_time = time(NULL);
     task->function = NULL;
+    task->is_yield = 0;
     task->state = SW_CORO_RUNNING;
     task->co = GetCurrThreadCo();
     libco_set_task(task);
