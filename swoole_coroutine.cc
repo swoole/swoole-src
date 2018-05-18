@@ -572,7 +572,7 @@ static void free_cidmap(int cid)
     clear_bit(cid, &cidmap.page);
 }
 //==========================================
-struct task_t
+struct task_test
 {
     stCoRoutine_t *co;
     int fd;
@@ -587,7 +587,7 @@ static void *routine_suba()
 
 static void *routine_a( void *arg )
 {
-    //task_t *co = (task_t*)arg;
+    //task_test *co = (task_test*)arg;
 
     printf("routine_a 1\n");
     printf("routine_a 2\n");
@@ -599,7 +599,7 @@ static void *routine_a( void *arg )
 
 static void *routine_b( void *arg )
 {
-    //task_t *co = (task_t*)arg;
+    //task_test *co = (task_test*)arg;
 
     printf("routine_b 1\n");
     printf("routine_b 2\n");
@@ -610,8 +610,8 @@ static void *routine_b( void *arg )
 
 int sw_coro_test()
 {
-    task_t * task_a = (task_t*) calloc(1, sizeof(task_t));
-    task_t * task_b = (task_t*) calloc(1, sizeof(task_t));
+    task_test * task_a = (task_test*) calloc(1, sizeof(task_test));
+    task_test * task_b = (task_test*) calloc(1, sizeof(task_test));
     printf("main start\n");
     co_create(&(task_a->co), NULL, routine_a, task_a);
     co_create(&(task_b->co), NULL, routine_b, task_b);
