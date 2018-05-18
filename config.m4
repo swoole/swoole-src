@@ -487,14 +487,16 @@ if test "$PHP_SWOOLE" != "no"; then
         AC_DEFINE(SW_USE_PICOHTTPPARSER, 1, [enable picohttpparser support])
         swoole_source_file="$swoole_source_file thirdparty/picohttpparser/picohttpparser.c"
     fi
-    
-    AC_DEFINE(SW_USE_LIBCO, 1, [enable libco support])
-    swoole_source_file="$swoole_source_file thirdparty/libco/co_epoll.cpp"
-    swoole_source_file="$swoole_source_file thirdparty/libco/co_routine.cpp"
-    swoole_source_file="$swoole_source_file thirdparty/libco/co_hook_sys_call.cpp"
-    swoole_source_file="$swoole_source_file thirdparty/libco/coctx_swap.S"
-    swoole_source_file="$swoole_source_file thirdparty/libco/coctx.cpp"
-    
+
+    if test "$PHP_COROUTINE" != "no"; then
+        swoole_source_file="$swoole_source_file thirdparty/libco/co_epoll.cpp \
+            thirdparty/libco/co_routine.cpp \
+            thirdparty/libco/co_hook_sys_call.cpp \
+            thirdparty/libco/coctx_swap.S \
+            thirdparty/libco/coctx.cpp"
+        CXXFLAGS="$CXXFLAGS -fno-optimize-sibling-calls"
+    fi
+
     PHP_NEW_EXTENSION(swoole, $swoole_source_file, $ext_shared)
 
     PHP_ADD_INCLUDE([$ext_srcdir])
