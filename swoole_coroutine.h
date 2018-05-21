@@ -82,13 +82,17 @@ struct _coro_task
     int cid;
     stCoRoutine_t *co;
     sw_coro_state state;
+
     zend_execute_data *execute_data;
     zend_vm_stack stack;
     zval *vm_stack_top;
     zval *vm_stack_end;
+
     zend_vm_stack origin_stack;
     zval *origin_vm_stack_top;
     zval *origin_vm_stack_end;
+
+    zend_execute_data *yield_execute_data;
     zend_vm_stack yield_stack;
     zval *yield_vm_stack_top;
     zval *yield_vm_stack_end;
