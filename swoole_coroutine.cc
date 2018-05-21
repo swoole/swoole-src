@@ -16,15 +16,12 @@
  */
 
 #include "php_swoole.h"
-#include "zend_API.h"
-#include "php_swoole.h"
+
+#ifdef SW_COROUTINE
 #include "swoole_coroutine.h"
 #include "thirdparty/libco/co_routine.h"
 #include "thirdparty/libco/co_routine_inner.h"
 #include "zend_vm.h"
-#include "zend_interfaces.h"
-#include "zend_exceptions.h"
-#include "zend_closures.h"
 
 /* PHP 7.3 compatibility macro {{{*/
 #ifndef ZEND_CLOSURE_OBJECT
@@ -577,3 +574,4 @@ static void free_cidmap(int cid)
     cidmap.nr_free++;
     clear_bit(cid, &cidmap.page);
 }
+#endif

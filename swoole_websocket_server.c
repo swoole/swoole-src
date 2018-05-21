@@ -472,9 +472,9 @@ static PHP_METHOD(swoole_websocket_server, push)
     swString_clear(swoole_http_buffer);
     swWebSocket_encode(swoole_http_buffer, data, length, opcode, (int) fin, 0);
 
-    swServer *serv = swoole_get_object(getThis());
     int ret = swServer_tcp_send(SwooleG.serv, fd, swoole_http_buffer->str, swoole_http_buffer->length);
 #ifdef SW_COROUTINE
+    swServer *serv = SwooleG.serv;
     if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_BUFFER_OVERFLOW && serv->send_yield)
     {
         zval _yield_data;
