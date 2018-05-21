@@ -762,6 +762,43 @@ void swoole_set_property(zval *object, int property_id, void *ptr)
     swoole_objects.property[property_id][handle] = ptr;
 }
 
+int swoole_register_rshutdown_function(swCallback func, int push_back)
+{
+    if (SWOOLE_G(rshutdown_functions) == NULL)
+    {
+        SWOOLE_G(rshutdown_functions) = swLinkedList_new(0, NULL);
+        if (SWOOLE_G(rshutdown_functions) == NULL)
+        {
+            return SW_ERR;
+        }
+    }
+    if (push_back)
+    {
+        return swLinkedList_append(SWOOLE_G(rshutdown_functions), func);
+    }
+    else
+    {
+        return swLinkedList_prepend(SWOOLE_G(rshutdown_functions), func);
+    }
+}
+
+void swoole_call_rshutdown_function(void *arg)
+{
+    if (SWOOLE_G(rshutdown_functions))
+    {
+        swLinkedList *rshutdown_functions = SWOOLE_G(rshutdown_functions);
+        swLinkedList_node *node = rshutdown_functions->head;
+        swCallback func = NULL;
+
+        while (node)
+        {
+            func = node->data;
+            func(arg);
+            node = node->next;
+        }
+    }
+}
+
 #ifdef ZTS
 __thread swoole_object_array swoole_objects;
 void ***sw_thread_ctx;
@@ -1243,6 +1280,7 @@ PHP_RINIT_FUNCTION(swoole)
 
 PHP_RSHUTDOWN_FUNCTION(swoole)
 {
+    swoole_call_rshutdown_function(NULL);
     //clear pipe buffer
     if (swIsWorker())
     {

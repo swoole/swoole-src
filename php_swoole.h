@@ -451,6 +451,8 @@ static sw_inline void* swoole_get_property(zval *object, int property_id)
 void swoole_set_object(zval *object, void *ptr);
 void swoole_set_property(zval *object, int property_id, void *ptr);
 int swoole_convert_to_fd(zval *zsocket TSRMLS_DC);
+int swoole_register_rshutdown_function(swCallback func, int push_back);
+void swoole_call_rshutdown_function(void *arg);
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
 php_socket *swoole_convert_to_socket(int sock);
@@ -582,6 +584,7 @@ ZEND_BEGIN_MODULE_GLOBALS(swoole)
     zend_bool use_shortname;
     zend_bool fast_serialize;
     long socket_buffer_size;
+    swLinkedList *rshutdown_functions;
 ZEND_END_MODULE_GLOBALS(swoole)
 
 extern ZEND_DECLARE_MODULE_GLOBALS(swoole);

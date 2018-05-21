@@ -891,6 +891,15 @@ void php_swoole_at_shutdown(char *function)
 #endif
 }
 
+void php_swoole_client_rshutdown_function()
+{
+    if (!SwooleG.main_reactor)
+    {
+        return;
+    }
+    php_swoole_event_wait();
+}
+
 void php_swoole_check_reactor()
 {
     if (SwooleWG.reactor_init)
@@ -939,6 +948,7 @@ void php_swoole_check_reactor()
         SwooleWG.reactor_wait_onexit = 1;
         SwooleWG.reactor_ready = 0;
         //only client side
+        swoole_register_rshutdown_function(php_swoole_client_rshutdown_function,1);
         php_swoole_at_shutdown("swoole_event_wait");
     }
 
