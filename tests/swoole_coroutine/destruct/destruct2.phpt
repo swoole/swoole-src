@@ -30,8 +30,8 @@ $t = new T();
 $t->test();
 echo "end\n";
 ?>
---EXPECT--
+--EXPECTF--
 call function 
 end
-coro start
-coro exit
+
+Fatal error: go(): can not use coroutine in __destruct after php_request_shutdown %s
