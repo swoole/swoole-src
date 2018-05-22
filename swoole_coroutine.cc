@@ -385,10 +385,10 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
     coro_task *task = SWCC(current_task);
     COROG.current_coro = task;
     task->state = SW_CORO_RUNNING;
-    EG(current_execute_data) = task->yield_execute_data;
-    EG(vm_stack) = task->yield_stack;
-    EG(vm_stack_top) = task->yield_vm_stack_top;
-    EG(vm_stack_end) = task->yield_vm_stack_end;
+    EG(current_execute_data) = SWCC(current_execute_data);
+    EG(vm_stack) = SWCC(current_vm_stack);
+    EG(vm_stack_top) = SWCC(current_vm_stack_top);
+    EG(vm_stack_end) = SWCC(current_vm_stack_end);
     COROG.require = 1;
     if (EG(current_execute_data)->prev_execute_data->opline->result_type != IS_UNUSED)
     {

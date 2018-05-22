@@ -222,6 +222,15 @@ enum php_swoole_fd_type
     PHP_SWOOLE_FD_SOCKET,
 };
 //---------------------------------------------------------
+typedef enum
+{
+    PHP_SWOOLE_RINIT_BEGIN,
+    PHP_SWOOLE_RINIT_END,
+    PHP_SWOOLE_CALL_USER_SHUTDOWNFUNC_BEGIN,
+    PHP_SWOOLE_RSHUTDOWN_BEGIN,
+    PHP_SWOOLE_RSHUTDOWN_END,
+} php_swoole_req_status;
+//---------------------------------------------------------
 #define php_swoole_socktype(type)           (type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP) & (~SW_SOCK_SSL))
 #define php_swoole_array_length(array)      zend_hash_num_elements(Z_ARRVAL_P(array))
 
@@ -253,6 +262,7 @@ PHP_FUNCTION(swoole_cpu_num);
 PHP_FUNCTION(swoole_set_process_name);
 PHP_FUNCTION(swoole_get_local_ip);
 PHP_FUNCTION(swoole_get_local_mac);
+PHP_FUNCTION(swoole_call_user_shutdown_begin);
 PHP_FUNCTION(swoole_unsupport_serialize);
 PHP_FUNCTION(swoole_coroutine_create);
 PHP_FUNCTION(swoole_coroutine_exec);
@@ -584,6 +594,7 @@ ZEND_BEGIN_MODULE_GLOBALS(swoole)
     zend_bool use_shortname;
     zend_bool fast_serialize;
     long socket_buffer_size;
+    php_swoole_req_status req_status;
     swLinkedList *rshutdown_functions;
 ZEND_END_MODULE_GLOBALS(swoole)
 

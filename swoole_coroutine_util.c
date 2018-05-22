@@ -265,6 +265,18 @@ PHP_FUNCTION(swoole_coroutine_create)
     {
         return;
     }
+    if (unlikely(SWOOLE_G(req_status) == PHP_SWOOLE_CALL_USER_SHUTDOWNFUNC_BEGIN))
+    {
+        zend_function *func = (zend_function *) EG(current_execute_data)->prev_execute_data->func;
+        zend_string *destruct = zend_string_init("__destruct", strlen("__destruct"), 0);
+        if (zend_string_equals(func->common.function_name, destruct))
+        {
+            zend_string_release(destruct);
+            swoole_php_fatal_error(E_ERROR, "can not use coroutine in __destruct after php_request_shutdown");
+            return;
+        }
+        zend_string_release(destruct);
+    }
     char *func_name = NULL;
     zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
     if (!sw_zend_is_callable_ex(callback, NULL, 0, &func_name, NULL, func_cache, NULL TSRMLS_CC))
