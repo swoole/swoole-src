@@ -379,9 +379,10 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
             p += send_n;
         }
     }
-    
+
     if (trailer)
     {
+        swString_clear(swoole_http_buffer);
         memset(header_buffer, 0, sizeof(header_buffer));
         ret = http_build_trailer(ctx, (uchar *) header_buffer TSRMLS_CC);
         swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, ret,
