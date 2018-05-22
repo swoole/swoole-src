@@ -840,19 +840,19 @@ void php_swoole_at_shutdown(char *function)
     php_shutdown_function_entry shutdown_function_entry;
     shutdown_function_entry.arg_count = 1;
     shutdown_function_entry.arguments = (zval *) safe_emalloc(sizeof(zval), 1, 0);
-    ZVAL_STRING(&shutdown_function_entry.arguments[0], "swoole_event_wait");
+    ZVAL_STRING(&shutdown_function_entry.arguments[0], function);
 
-    if (!register_user_shutdown_function("swoole_event_wait", sizeof("swoole_event_wait")-1, &shutdown_function_entry TSRMLS_CC))
+    if (!register_user_shutdown_function(function, ZSTR_LEN(Z_STR(shutdown_function_entry.arguments[0])), &shutdown_function_entry TSRMLS_CC))
     {
         zval_ptr_dtor(&shutdown_function_entry.arguments[0]);
         efree(shutdown_function_entry.arguments);
-        swoole_php_fatal_error(E_WARNING, "Unable to register shutdown function [swoole_event_wait]");
+        swoole_php_fatal_error(E_WARNING, "Unable to register shutdown function [%s]",ZSTR_LEN(Z_STR(shutdown_function_entry.arguments[0])));
     }
 #else
 
     zval *callback;
     SW_MAKE_STD_ZVAL(callback);
-    SW_ZVAL_STRING(callback, "swoole_event_wait", 1);
+    SW_ZVAL_STRING(callback, function, 1);
 
 #if PHP_MAJOR_VERSION >= 5 && PHP_MINOR_VERSION >= 4
 
@@ -864,7 +864,7 @@ void php_swoole_at_shutdown(char *function)
 
     shutdown_function_entry.arguments[0] = callback;
 
-    if (!register_user_shutdown_function("swoole_event_wait", sizeof("swoole_event_wait"), &shutdown_function_entry TSRMLS_CC))
+    if (!register_user_shutdown_function(function, ZSTR_LEN(Z_STR(callback)), &shutdown_function_entry TSRMLS_CC))
     {
         efree(shutdown_function_entry.arguments);
         sw_zval_ptr_dtor(&callback);

@@ -1,10 +1,9 @@
 --TEST--
-swoole_coroutine: __destruct coroutine
+swoole_coroutine: destruct1
 --SKIPIF--
-<?php require  __DIR__ . "/../include/skipif.inc"; ?>
+<?php require  __DIR__ . "/../../include/skipif.inc"; ?>
 --FILE--
 <?php
-require_once __DIR__ . "/../include/swoole.inc";
 use Swoole\Coroutine as co;
 class T
 {
@@ -12,7 +11,6 @@ class T
     {
       
     }
-
     function test()
     {
         echo "call function \n";
@@ -31,8 +29,10 @@ class T
 $t = new T();
 $t->test();
 unset($t);
+echo "end\n";
 ?>
 --EXPECT--
 call function 
 coro start
+end
 coro exit

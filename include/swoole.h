@@ -2040,6 +2040,7 @@ typedef struct
     uint32_t reactor_wait_onexit :1;
     uint32_t reactor_init :1;
     uint32_t reactor_ready :1;
+    uint32_t reactor_exit :1;
     uint32_t in_client :1;
     uint32_t shutdown :1;
     uint32_t wait_exit :1;
