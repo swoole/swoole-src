@@ -201,7 +201,12 @@ void coro_check(TSRMLS_D)
 
 void coro_destroy(TSRMLS_D)
 {
-
+    if (COROG.chan_pipe)
+    {
+        COROG.chan_pipe->close(COROG.chan_pipe);
+        efree(COROG.chan_pipe);
+        COROG.chan_pipe = NULL;
+    }
 }
 
 static int sw_return_opcode_handler(zend_execute_data *execute_data)

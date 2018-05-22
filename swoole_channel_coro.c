@@ -199,7 +199,7 @@ static void channel_notify(channel_node *next)
     }
     int pfd = COROG.chan_pipe->getFd(COROG.chan_pipe, 0);
     swConnection *_socket = swReactor_get(SwooleG.main_reactor, pfd);
-    if (_socket == NULL || _socket->removed)
+    if (_socket && _socket->events == 0)
     {
         SwooleG.main_reactor->add(SwooleG.main_reactor, pfd, PHP_SWOOLE_FD_CHAN_PIPE | SW_EVENT_READ);
     }
