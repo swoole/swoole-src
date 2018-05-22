@@ -1720,6 +1720,12 @@ static PHP_METHOD(swoole_http_response, write)
         return;
     }
 
+    if (ctx->http2)
+    {
+        swoole_php_error(E_WARNING, "Http2 client does not support HTTP-CHUNK.");
+        RETURN_FALSE;
+    }
+
     if (!ctx->send_header)
     {
         ctx->chunk = 1;
@@ -1742,7 +1748,7 @@ static PHP_METHOD(swoole_http_response, write)
     }
     else if (length == 0)
     {
-       swoole_php_error(E_WARNING, "data to send is empty.");
+        swoole_php_error(E_WARNING, "data to send is empty.");
         RETURN_FALSE;
     }
     else
