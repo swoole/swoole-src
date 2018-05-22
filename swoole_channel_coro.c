@@ -179,8 +179,13 @@ static void channel_selector_onTimeout(swTimer *timer, swTimer_node *tnode)
 
 static int channel_onNotify(swReactor *reactor, swEvent *event)
 {
-    swSocket_clean(COROG.chan_pipe->getFd(COROG.chan_pipe, 0));
+    uint64_t notify;
+    while (read(COROG.chan_pipe->getFd(COROG.chan_pipe, 0), &notify, sizeof(notify)) > 0);
     coro_handle_timeout();
+    if (COROG.coro_num == 0)
+    {
+        SwooleG.main_reactor->del(SwooleG.main_reactor, COROG.chan_pipe->getFd(COROG.chan_pipe, 0));
+    }
     return 0;
 }
 
@@ -190,8 +195,13 @@ static void channel_notify(channel_node *next)
     if (!swReactor_handle_isset(SwooleG.main_reactor, PHP_SWOOLE_FD_CHAN_PIPE))
     {
         swReactor_setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_CHAN_PIPE, channel_onNotify);
-        SwooleG.main_reactor->add(SwooleG.main_reactor, COROG.chan_pipe->getFd(COROG.chan_pipe, 0),
-                PHP_SWOOLE_FD_CHAN_PIPE | SW_EVENT_READ);
+
+    }
+    int pfd = COROG.chan_pipe->getFd(COROG.chan_pipe, 0);
+    swConnection *_socket = swReactor_get(SwooleG.main_reactor, pfd);
+    if (_socket == NULL || _socket->removed)
+    {
+        SwooleG.main_reactor->add(SwooleG.main_reactor, pfd, PHP_SWOOLE_FD_CHAN_PIPE | SW_EVENT_READ);
     }
     uint64_t flag = 1;
     COROG.chan_pipe->write(COROG.chan_pipe, &flag, sizeof(flag));
@@ -424,7 +434,7 @@ static PHP_METHOD(swoole_channel_coro, __construct)
         swoole_set_object(getThis(), NULL);
     }
 
-    if (COROG.chan_pipe)
+    if (COROG.chan_pipe == NULL)
     {
         COROG.chan_pipe = emalloc(sizeof(swPipe));
         if (swPipeNotify_auto(COROG.chan_pipe, 1, 1) < 0)
