@@ -292,9 +292,11 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
+    swoole_http_client *client = ctx->client;
     char header_buffer[8192];
+    int ret;
 
-    int n = http2_build_header(ctx, (uchar *) header_buffer, body->length TSRMLS_CC);
+    ret = http2_build_header(ctx, (uchar *) header_buffer, body->length TSRMLS_CC);
     swString_clear(swoole_http_buffer);
 
     /**
@@ -311,37 +313,89 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
      +---------------------------------------------------------------+
      */
     char frame_header[9];
-    swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, n, SW_HTTP2_FLAG_END_HEADERS, ctx->stream_id);
-    swString_append_ptr(swoole_http_buffer, frame_header, 9);
-    swString_append_ptr(swoole_http_buffer, header_buffer, n);
-
     zval *trailer = ctx->response.ztrailer;
+
+    if (trailer == NULL && body->length == 0)
+    {
+        swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, ret,
+                SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, ctx->stream_id);
+    }
+    else
+    {
+        swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, ret, SW_HTTP2_FLAG_END_HEADERS, ctx->stream_id);
+    }
+
+    swString_append_ptr(swoole_http_buffer, frame_header, 9);
+    swString_append_ptr(swoole_http_buffer, header_buffer, ret);
+
     int flag = SW_HTTP2_FLAG_END_STREAM;
-    if(trailer)
+    if (trailer)
     {
         flag = SW_HTTP2_FLAG_NONE;
     }
-    swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_DATA, body->length, flag, ctx->stream_id);
-    swString_append_ptr(swoole_http_buffer, frame_header, 9);
-    swString_append(swoole_http_buffer, body);
-    
-    if (trailer)
-    {
-        memset(header_buffer, 0 , sizeof(header_buffer));
-        n = http_build_trailer(ctx, (uchar *) header_buffer TSRMLS_CC);
-        swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, n, SW_HTTP2_FLAG_END_HEADERS|SW_HTTP2_FLAG_END_STREAM, ctx->stream_id);
-        swString_append_ptr(swoole_http_buffer, frame_header, 9);
-        swString_append_ptr(swoole_http_buffer, header_buffer, n);
-    }
 
-    int ret = swServer_tcp_send(SwooleG.serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length);
+    ret = swServer_tcp_send(SwooleG.serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length);
     if (ret < 0)
     {
         ctx->send_header = 0;
         return SW_ERR;
     }
-    swoole_http_client *client = ctx->client;
-    if (body->length > 0)
+
+    ctx->send_header = 1;
+    if (trailer == NULL && body->length == 0)
+    {
+        goto _end;
+    }
+
+    char *p = body->str;
+    size_t l = body->length;
+    size_t send_n;
+
+    while (l > 0)
+    {
+        int _send_flag;
+        swString_clear(swoole_http_buffer);
+        if (l > SW_HTTP2_MAX_FRAME_SIZE)
+        {
+            send_n = SW_HTTP2_MAX_FRAME_SIZE;
+            _send_flag = 0;
+        }
+        else
+        {
+            send_n = l;
+            _send_flag = flag;
+        }
+        swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_DATA, send_n, _send_flag, ctx->stream_id);
+        swString_append_ptr(swoole_http_buffer, frame_header, 9);
+        swString_append_ptr(swoole_http_buffer, p, send_n);
+
+        if (swServer_tcp_send(SwooleG.serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length) < 0)
+        {
+            return SW_ERR;
+        }
+        else
+        {
+            l -= send_n;
+            p += send_n;
+        }
+    }
+    
+    if (trailer)
+    {
+        memset(header_buffer, 0, sizeof(header_buffer));
+        ret = http_build_trailer(ctx, (uchar *) header_buffer TSRMLS_CC);
+        swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, ret,
+                SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, ctx->stream_id);
+        swString_append_ptr(swoole_http_buffer, frame_header, 9);
+        swString_append_ptr(swoole_http_buffer, header_buffer, ret);
+
+        if (swServer_tcp_send(SwooleG.serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length) < 0)
+        {
+            return SW_ERR;
+        }
+    }
+
+    _end: if (body->length > 0)
     {
         client->window_size -= body->length;    // TODO:flow control?
     }
