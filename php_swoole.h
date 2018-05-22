@@ -220,6 +220,7 @@ enum php_swoole_fd_type
     PHP_SWOOLE_FD_HTTPCLIENT,
     PHP_SWOOLE_FD_PROCESS_STREAM,
     PHP_SWOOLE_FD_SOCKET,
+    PHP_SWOOLE_FD_CHAN_PIPE,
 };
 //---------------------------------------------------------
 typedef enum
@@ -420,7 +421,7 @@ int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC);
 
 void php_swoole_check_reactor();
 void php_swoole_check_aio();
-
+void php_swoole_at_shutdown(char *function);
 void php_swoole_event_init();
 void php_swoole_event_wait();
 void php_swoole_check_timer(int interval);
