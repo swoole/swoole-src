@@ -578,6 +578,8 @@ static void aio_onWriteFileCompleted(swAio_event *event)
 
 static PHP_METHOD(swoole_coroutine_util, fread)
 {
+    coro_check(TSRMLS_C);
+
     zval *handle;
     zend_long length = 0;
 
@@ -653,6 +655,8 @@ static PHP_METHOD(swoole_coroutine_util, fread)
 
 static PHP_METHOD(swoole_coroutine_util, fgets)
 {
+    coro_check(TSRMLS_C);
+
     zval *handle;
     php_stream *stream;
 
@@ -722,6 +726,8 @@ static PHP_METHOD(swoole_coroutine_util, fgets)
 
 static PHP_METHOD(swoole_coroutine_util, fwrite)
 {
+    coro_check(TSRMLS_C);
+
     zval *handle;
     char *str;
     zend_size_t l_str;
@@ -794,6 +800,8 @@ static PHP_METHOD(swoole_coroutine_util, fwrite)
 
 static PHP_METHOD(swoole_coroutine_util, readFile)
 {
+    coro_check(TSRMLS_C);
+
     char *filename = NULL;
     size_t l_filename = 0;
 
@@ -843,6 +851,8 @@ static PHP_METHOD(swoole_coroutine_util, readFile)
 
 static PHP_METHOD(swoole_coroutine_util, writeFile)
 {
+    coro_check(TSRMLS_C);
+
     char *filename = NULL;
     size_t l_filename = 0;
     char *data = NULL;
@@ -1001,6 +1011,8 @@ static void coro_dns_onGetaddrinfoCompleted(swAio_event *event)
 
 static PHP_METHOD(swoole_coroutine_util, gethostbyname)
 {
+    coro_check(TSRMLS_C);
+
     char *domain_name;
     zend_size_t l_domain_name;
     long family = AF_INET;
@@ -1069,6 +1081,8 @@ static PHP_METHOD(swoole_coroutine_util, gethostbyname)
 
 static PHP_METHOD(swoole_coroutine_util, getaddrinfo)
 {
+    coro_check(TSRMLS_C);
+
     char *hostname;
     zend_size_t l_hostname;
     long family = AF_INET;
