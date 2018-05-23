@@ -936,15 +936,14 @@ struct hostent *co_gethostbyname(const char *name)
 	struct hostent *result = NULL;
 	int *h_errnop = &(__co_hostbuf_wrap->host_errno);
 
-	int ret = -1;
-	while (ret = gethostbyname_r(name, host, __co_hostbuf_wrap->buffer, 
-				__co_hostbuf_wrap->iBufferSize, &result, h_errnop) == ERANGE && 
-				*h_errnop == NETDB_INTERNAL )
-	{
-		free(__co_hostbuf_wrap->buffer);
-		__co_hostbuf_wrap->iBufferSize = __co_hostbuf_wrap->iBufferSize * 2;
-		__co_hostbuf_wrap->buffer = (char*)malloc(__co_hostbuf_wrap->iBufferSize);
-	}
+    int ret = -1;
+    while ((ret = gethostbyname_r(name, host, __co_hostbuf_wrap->buffer, __co_hostbuf_wrap->iBufferSize, &result,
+            h_errnop) == ERANGE && *h_errnop == NETDB_INTERNAL))
+    {
+        free(__co_hostbuf_wrap->buffer);
+        __co_hostbuf_wrap->iBufferSize = __co_hostbuf_wrap->iBufferSize * 2;
+        __co_hostbuf_wrap->buffer = (char*) malloc(__co_hostbuf_wrap->iBufferSize);
+    }
 
 	if (ret == 0 && (host == result)) 
 	{
@@ -955,7 +954,7 @@ struct hostent *co_gethostbyname(const char *name)
 #endif
 
 
-void co_enable_hook_sys() //这函数必须在这里,否则本文件会被忽略！！！
+void co_enable_hook_sys()
 {
 	stCoRoutine_t *co = GetCurrThreadCo();
 	if( co )

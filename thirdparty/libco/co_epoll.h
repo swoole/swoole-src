@@ -24,7 +24,6 @@
 #include <string.h>
 #include <sys/types.h>
 #include <time.h>
-#include <time.h>
 
 #if !defined( __APPLE__ ) && !defined( __FreeBSD__ )
 
