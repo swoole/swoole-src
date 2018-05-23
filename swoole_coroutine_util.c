@@ -294,6 +294,14 @@ PHP_FUNCTION(swoole_coroutine_create)
     callback = sw_zval_dup(callback);
     sw_zval_add_ref(&callback);
 
+    int parent_cid;
+    parent_cid = get_current_cid();
+    coro_task *parent_coro;
+    if (parent_cid > 0)
+    {
+        parent_coro = COROG.current_coro;
+    }
+
     zval *retval = NULL;
     zval *args[1];
     php_context *ctx = emalloc(sizeof(php_context));
@@ -309,6 +317,19 @@ PHP_FUNCTION(swoole_coroutine_create)
     {
         sw_zval_ptr_dtor(&retval);
     }
+
+    if (parent_cid > 0)
+    {
+        COROG.current_coro = parent_coro;
+        parent_coro = NULL;
+        COROG.require = 1;
+    }
+    else
+    {
+        COROG.current_coro = NULL;
+        COROG.require = 0;
+    }
+
     RETURN_TRUE;
 }
 

@@ -444,8 +444,6 @@ void sw_coro_close()
     free_cidmap(task->cid);
     efree(task->stack);
     --COROG.coro_num;
-    COROG.current_coro = NULL;
-    COROG.require = 0;
     swTraceLog(SW_TRACE_COROUTINE, "close coro and %d remained. usage size: %zu. malloc size: %zu", COROG.coro_num, zend_memory_usage(0), zend_memory_usage(1));
 }
 
