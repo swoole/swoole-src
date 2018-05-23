@@ -535,7 +535,7 @@ int sw_coro_resume_parent(php_context *sw_current_context, zval *retval, zval *c
 }
 #endif
 
-sw_inline void coro_yield()
+void coro_yield()
 {
     SWOOLE_GET_TSRMLS;
 #if PHP_MAJOR_VERSION >= 7
@@ -549,7 +549,22 @@ sw_inline void coro_yield()
     longjmp(*swReactorCheckPoint, 1);
 }
 
-sw_inline void coro_handle_timeout()
+void coro_destroy(TSRMLS_D)
+{
+    if (COROG.chan_pipe)
+    {
+        COROG.chan_pipe->close(COROG.chan_pipe);
+        efree(COROG.chan_pipe);
+        COROG.chan_pipe = NULL;
+    }
+    if (swReactorCheckPoint)
+    {
+        efree(swReactorCheckPoint);
+        swReactorCheckPoint = NULL;
+    }
+}
+
+void coro_handle_timeout()
 {
     swLinkedList *timeout_list = SwooleWG.coro_timeout_list;
     swTimer_node *tnode = NULL;
