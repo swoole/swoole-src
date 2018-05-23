@@ -349,7 +349,7 @@ static sw_inline int sw_call_user_function_fast(zval *function_name, zend_fcall_
 #define SW_ZVAL_STRING(z,s,dup)               ZVAL_STRING(z,s)
 #define sw_smart_str                          smart_string
 #define zend_get_class_entry                  Z_OBJCE_P
-#define sw_copy_to_stack(a, b)                {zval *__tmp = a;\
+#define sw_copy_to_stack(a, b)                {zval *__tmp = (zval *) a;\
     a = &b;\
     memcpy(a, __tmp, sizeof(zval));}
 
@@ -367,7 +367,7 @@ static sw_inline void sw_zval_free(zval *val)
     efree(val);
 }
 
-static sw_inline zval* sw_zend_read_property(zend_class_entry *class_ptr, zval *obj, char *s, int len, int silent)
+static sw_inline zval* sw_zend_read_property(zend_class_entry *class_ptr, zval *obj, const char *s, int len, int silent)
 {
     zval rv;
     return zend_read_property(class_ptr, obj, s, len, silent, &rv);
@@ -415,7 +415,7 @@ static inline int sw_zend_hash_update(HashTable *ht, char *k, int len, zval *val
     return zend_hash_str_update(ht, (const char*)k, len -1, val) ? SUCCESS : FAILURE;
 }
 
-static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
+static inline int sw_zend_hash_find(HashTable *ht, const char *k, int len, void **v)
 {
     zval *value = zend_hash_str_find(ht, k, len - 1);
     if (value == NULL)
@@ -486,6 +486,79 @@ static sw_inline char* sw_http_build_query(zval *data, zend_size_t *length, smar
 }
 
 #define sw_get_object_handle(object)    Z_OBJ_HANDLE(*object)
+
+#ifdef ZEND_PARSE_PARAMETERS_START_EX
+#undef ZEND_PARSE_PARAMETERS_START_EX
+
+#if PHP_MINOR_VERSION >= 2
+#define ZEND_PARSE_PARAMETERS_START_EX(flags, min_num_args, max_num_args) do { \
+        const int _flags = (flags); \
+        int _min_num_args = (min_num_args); \
+        int _max_num_args = (max_num_args); \
+        int _num_args = EX_NUM_ARGS(); \
+        int _i; \
+        zval *_real_arg, *_arg = NULL; \
+        zend_expected_type _expected_type = (zend_expected_type)IS_UNDEF; \
+        char *_error = NULL; \
+        zend_bool _dummy; \
+        zend_bool _optional = 0; \
+        int error_code = ZPP_ERROR_OK; \
+        ((void)_i); \
+        ((void)_real_arg); \
+        ((void)_arg); \
+        ((void)_expected_type); \
+        ((void)_error); \
+        ((void)_dummy); \
+        ((void)_optional); \
+        \
+        do { \
+            if (UNEXPECTED(_num_args < _min_num_args) || \
+                (UNEXPECTED(_num_args > _max_num_args) && \
+                 EXPECTED(_max_num_args >= 0))) { \
+                if (!(_flags & ZEND_PARSE_PARAMS_QUIET)) { \
+                    zend_wrong_parameters_count_error(_flags & ZEND_PARSE_PARAMS_THROW, _num_args, _min_num_args, _max_num_args); \
+                } \
+                error_code = ZPP_ERROR_FAILURE; \
+                break; \
+            } \
+            _i = 0; \
+            _real_arg = ZEND_CALL_ARG(execute_data, 0);
+
+#else
+#define ZEND_PARSE_PARAMETERS_START_EX(flags, min_num_args, max_num_args) do { \
+                const int _flags = (flags); \
+                int _min_num_args = (min_num_args); \
+                int _max_num_args = (max_num_args); \
+                int _num_args = EX_NUM_ARGS(); \
+                int _i; \
+                zval *_real_arg, *_arg = NULL; \
+                zend_expected_type _expected_type = (zend_expected_type)IS_UNDEF; \
+                char *_error = NULL; \
+                zend_bool _dummy; \
+                zend_bool _optional = 0; \
+                int error_code = ZPP_ERROR_OK; \
+                ((void)_i); \
+                ((void)_real_arg); \
+                ((void)_arg); \
+                ((void)_expected_type); \
+                ((void)_error); \
+                ((void)_dummy); \
+                ((void)_optional); \
+                \
+                do { \
+                        if (UNEXPECTED(_num_args < _min_num_args) || \
+                            (UNEXPECTED(_num_args > _max_num_args) && \
+                             EXPECTED(_max_num_args >= 0))) { \
+                                if (!(_flags & ZEND_PARSE_PARAMS_QUIET)) { \
+                                        zend_wrong_parameters_count_error(_num_args, _min_num_args, _max_num_args); \
+                                } \
+                                error_code = ZPP_ERROR_FAILURE; \
+                                break; \
+                        } \
+                        _i = 0; \
+                        _real_arg = ZEND_CALL_ARG(execute_data, 0);
+#endif
+#endif
 
 #endif /* PHP Version */
 

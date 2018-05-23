@@ -570,7 +570,7 @@ static sw_inline int php_swoole_is_callable(zval *callback TSRMLS_DC)
     sw_php_array_merge(Z_ARRVAL_P(_new_##arr), Z_ARRVAL_P(arr));\
     arr = _new_##arr;
 
-static sw_inline zval* php_swoole_read_init_property(zend_class_entry *scope, zval *object, char *p, size_t pl TSRMLS_DC)
+static sw_inline zval* php_swoole_read_init_property(zend_class_entry *scope, zval *object, const char *p, size_t pl TSRMLS_DC)
 {
     zval *property = sw_zend_read_property(scope, object, p, pl, 1 TSRMLS_CC);
     if (property == NULL || ZVAL_IS_NULL(property))
