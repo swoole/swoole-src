@@ -44,7 +44,7 @@ char* swoole_get_mimetype(char *file)
     }
     else if (strcasecmp(dot, ".jpeg") == 0 || strcasecmp(dot, ".jpg") == 0)
     {
-        return "image/jpeg ";
+        return "image/jpeg";
     }
     else if (strcasecmp(dot, ".png") == 0)
     {

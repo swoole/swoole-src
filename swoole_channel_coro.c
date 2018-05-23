@@ -177,6 +177,36 @@ static void channel_selector_onTimeout(swTimer *timer, swTimer_node *tnode)
     efree(node);
 }
 
+static int channel_onNotify(swReactor *reactor, swEvent *event)
+{
+    uint64_t notify;
+    while (read(COROG.chan_pipe->getFd(COROG.chan_pipe, 0), &notify, sizeof(notify)) > 0);
+    coro_handle_timeout();
+    if (COROG.coro_num == 0)
+    {
+        SwooleG.main_reactor->del(SwooleG.main_reactor, COROG.chan_pipe->getFd(COROG.chan_pipe, 0));
+    }
+    return 0;
+}
+
+static void channel_notify(channel_node *next)
+{
+    swLinkedList_append(SwooleWG.coro_timeout_list, next);
+    if (!swReactor_handle_isset(SwooleG.main_reactor, PHP_SWOOLE_FD_CHAN_PIPE))
+    {
+        swReactor_setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_CHAN_PIPE, channel_onNotify);
+
+    }
+    int pfd = COROG.chan_pipe->getFd(COROG.chan_pipe, 0);
+    swConnection *_socket = swReactor_get(SwooleG.main_reactor, pfd);
+    if (_socket && _socket->events == 0)
+    {
+        SwooleG.main_reactor->add(SwooleG.main_reactor, pfd, PHP_SWOOLE_FD_CHAN_PIPE | SW_EVENT_READ);
+    }
+    uint64_t flag = 1;
+    COROG.chan_pipe->write(COROG.chan_pipe, &flag, sizeof(flag));
+}
+
 static void swoole_channel_onResume(php_context *ctx)
 {
     channel_node *node = (channel_node *) ctx;
@@ -267,7 +297,7 @@ static int swoole_channel_try_resume_consumer(zval *object, channel_coro_propert
         }
         Z_TRY_ADDREF_P(zdata);
         ZVAL_COPY_VALUE(&(next->context.coro_params), zdata);
-        swLinkedList_append(SwooleWG.coro_timeout_list, next);
+        channel_notify(next);
         return 0;
     }
     return -1;
@@ -292,7 +322,7 @@ static int swoole_channel_try_resume_producer(zval *object, channel_coro_propert
         }
         *zdata_ptr = next->context.coro_params;
         ZVAL_TRUE(&next->context.coro_params);
-        swLinkedList_append(SwooleWG.coro_timeout_list, next);
+        channel_notify(next);
         return 0;
     }
     else
@@ -335,8 +365,7 @@ static void try_resume_producer_defer(zval *object, channel_coro_property *prope
                 ZVAL_TRUE(zdata);
             }
         }
-
-        swLinkedList_append(SwooleWG.coro_timeout_list, next);
+        channel_notify(next);
     }
 }
 
@@ -358,7 +387,7 @@ static sw_inline int swoole_channel_try_resume_all(zval *object, channel_coro_pr
             channel_selector_clear(next->selector, node);
         }
         ZVAL_FALSE(&next->context.coro_params);
-        swLinkedList_append(SwooleWG.coro_timeout_list, next);
+        channel_notify(next);
     }
 
     coro_list = property->consumer_list;
@@ -374,7 +403,7 @@ static sw_inline int swoole_channel_try_resume_all(zval *object, channel_coro_pr
             channel_selector_clear(next->selector, node);
         }
         ZVAL_FALSE(&next->context.coro_params);
-        swLinkedList_append(SwooleWG.coro_timeout_list, next);
+        channel_notify(next);
     }
 
     return 0;
@@ -403,6 +432,16 @@ static PHP_METHOD(swoole_channel_coro, __construct)
     else
     {
         swoole_set_object(getThis(), NULL);
+    }
+
+    if (COROG.chan_pipe == NULL)
+    {
+        COROG.chan_pipe = emalloc(sizeof(swPipe));
+        if (swPipeNotify_auto(COROG.chan_pipe, 1, 1) < 0)
+        {
+            zend_throw_exception(swoole_exception_class_entry_ptr, "failed to create eventfd.", SW_ERROR_SYSTEM_CALL_FAIL TSRMLS_CC);
+            RETURN_FALSE;
+        }
     }
 
     channel_coro_property *property = (channel_coro_property *) sw_malloc(sizeof(channel_coro_property));

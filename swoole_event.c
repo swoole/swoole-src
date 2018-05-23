@@ -261,6 +261,7 @@ void php_swoole_event_wait()
         {
             php_swoole_clear_all_timer();
         }
+        SwooleWG.reactor_exit = 1;
     }
 }
 
