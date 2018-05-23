@@ -386,9 +386,9 @@ int sw_coro_save(zval *return_value, php_context *sw_current_context)
 
 int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_retval)
 {
-    swTraceLog(SW_TRACE_COROUTINE,"sw_coro_resume coro id %d", COROG.current_coro->cid);
     coro_task *task = SWCC(current_task);
     COROG.current_coro = task;
+    swTraceLog(SW_TRACE_COROUTINE,"sw_coro_resume coro id %d", COROG.current_coro->cid);
     task->state = SW_CORO_RUNNING;
     EG(current_execute_data) = SWCC(current_execute_data);
     EG(vm_stack) = SWCC(current_vm_stack);
@@ -444,6 +444,8 @@ void sw_coro_close()
     free_cidmap(task->cid);
     efree(task->stack);
     --COROG.coro_num;
+    COROG.current_coro = NULL;
+    COROG.require = 0;
     swTraceLog(SW_TRACE_COROUTINE, "close coro and %d remained. usage size: %zu. malloc size: %zu", COROG.coro_num, zend_memory_usage(0), zend_memory_usage(1));
 }
 
