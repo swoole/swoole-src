@@ -3017,7 +3017,8 @@ static PHP_METHOD(swoole_redis_coro, zAdd)
         convert_to_string(&z_args[0]);
     }
 #endif
-    if (argc < 3 || SW_REDIS_COMMAND_ARGS_TYPE(z_args[0]) != IS_STRING) {
+    if (argc < 3 || SW_REDIS_COMMAND_ARGS_TYPE(z_args[0]) != IS_STRING)
+    {
         efree(z_args);
         RETURN_FALSE;
     }
