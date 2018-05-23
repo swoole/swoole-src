@@ -622,6 +622,12 @@ typedef struct _swConnection
     swString ssl_client_cert;
 #endif
     sw_atomic_t lock;
+
+#ifdef SW_DEBUG
+    size_t total_recv_bytes;
+    size_t total_send_bytes;
+#endif
+
 } swConnection;
 
 typedef struct _swProtocol
