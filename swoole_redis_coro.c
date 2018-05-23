@@ -3156,7 +3156,7 @@ static PHP_METHOD(swoole_redis_coro, zDeleteRangeByScore)
 
 static PHP_METHOD(swoole_redis_coro, zCount)
 {
-    sw_redis_command_key_long_long(INTERNAL_FUNCTION_PARAM_PASSTHRU, "ZCOUNT", 6);
+    sw_redis_command_key_str_str(INTERNAL_FUNCTION_PARAM_PASSTHRU, "ZCOUNT", 6);
 }
 
 static PHP_METHOD(swoole_redis_coro, incrBy)
