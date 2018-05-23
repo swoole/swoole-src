@@ -91,6 +91,7 @@ typedef struct _coro_global
 #endif
     zend_execute_data *origin_ex;
     coro_task *current_coro;
+    swPipe *chan_pipe;
     zend_bool require;
 } coro_global;
 

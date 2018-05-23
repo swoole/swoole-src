@@ -220,6 +220,7 @@ enum php_swoole_fd_type
     PHP_SWOOLE_FD_HTTPCLIENT,
     PHP_SWOOLE_FD_PROCESS_STREAM,
     PHP_SWOOLE_FD_SOCKET,
+    PHP_SWOOLE_FD_CHAN_PIPE,
 };
 //---------------------------------------------------------
 #define php_swoole_socktype(type)           (type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP) & (~SW_SOCK_SSL))
