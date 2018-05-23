@@ -756,7 +756,7 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
         zval *tmp_array;
         SW_MAKE_STD_ZVAL(tmp_array);
         array_init(tmp_array);
-        http_parse_cookie(tmp_array, (char *) at + sizeof("form-data;"), length - sizeof("form-data;"));
+        http_parse_cookie(tmp_array, (char *) at + sizeof("form-data;") - 1, length - sizeof("form-data;"));
 
         zval *form_name;
         if (sw_zend_hash_find(Z_ARRVAL_P(tmp_array), ZEND_STRS("name"), (void **) &form_name) == FAILURE)
