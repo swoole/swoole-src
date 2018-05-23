@@ -98,6 +98,12 @@ static void php_swoole_process_pool_onWorkerStart(swProcessPool *pool, int worke
     {
         return;
     }
+    if (SwooleG.main_reactor)
+    {
+        SwooleG.main_reactor->free(SwooleG.main_reactor);
+        SwooleG.main_reactor = NULL;
+        swTraceLog(SW_TRACE_PHP, "destroy reactor");
+    }
     if (sw_call_user_function_ex(EG(function_table), NULL, pp->onWorkerStart, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onWorkerStart handler error.");
@@ -110,6 +116,11 @@ static void php_swoole_process_pool_onWorkerStart(swProcessPool *pool, int worke
     {
         sw_zval_ptr_dtor(&retval);
     }
+    if (SwooleG.main_reactor)
+    {
+        php_swoole_event_wait();
+    }
+    SwooleG.running = 0;
 }
 
 static void php_swoole_process_pool_onMessage(swProcessPool *pool, char *data, uint32_t length)

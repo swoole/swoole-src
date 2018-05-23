@@ -52,7 +52,7 @@
 
 BEGIN_EXTERN_C()
 
-#define PHP_SWOOLE_VERSION  "3.0.0-alpha"
+#define PHP_SWOOLE_VERSION  "4.0.0-alpha"
 #define PHP_SWOOLE_CHECK_CALLBACK
 #define PHP_SWOOLE_ENABLE_FASTCALL
 #define PHP_SWOOLE_CLIENT_USE_POLL
@@ -220,7 +220,17 @@ enum php_swoole_fd_type
     PHP_SWOOLE_FD_HTTPCLIENT,
     PHP_SWOOLE_FD_PROCESS_STREAM,
     PHP_SWOOLE_FD_SOCKET,
+    PHP_SWOOLE_FD_CHAN_PIPE,
 };
+//---------------------------------------------------------
+typedef enum
+{
+    PHP_SWOOLE_RINIT_BEGIN,
+    PHP_SWOOLE_RINIT_END,
+    PHP_SWOOLE_CALL_USER_SHUTDOWNFUNC_BEGIN,
+    PHP_SWOOLE_RSHUTDOWN_BEGIN,
+    PHP_SWOOLE_RSHUTDOWN_END,
+} php_swoole_req_status;
 //---------------------------------------------------------
 #define php_swoole_socktype(type)           (type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP) & (~SW_SOCK_SSL))
 #define php_swoole_array_length(array)      zend_hash_num_elements(Z_ARRVAL_P(array))
@@ -253,6 +263,7 @@ PHP_FUNCTION(swoole_cpu_num);
 PHP_FUNCTION(swoole_set_process_name);
 PHP_FUNCTION(swoole_get_local_ip);
 PHP_FUNCTION(swoole_get_local_mac);
+PHP_FUNCTION(swoole_call_user_shutdown_begin);
 PHP_FUNCTION(swoole_unsupport_serialize);
 PHP_FUNCTION(swoole_coroutine_create);
 PHP_FUNCTION(swoole_coroutine_exec);
@@ -361,7 +372,9 @@ void swoole_destory_table(zend_resource *rsrc TSRMLS_DC);
 void swoole_server_port_init(int module_number TSRMLS_DC);
 void swoole_async_init(int module_number TSRMLS_DC);
 void swoole_table_init(int module_number TSRMLS_DC);
+#ifdef SW_USE_PHPX
 void swoole_runtime_init(int module_number TSRMLS_DC);
+#endif
 void swoole_lock_init(int module_number TSRMLS_DC);
 void swoole_atomic_init(int module_number TSRMLS_DC);
 void swoole_client_init(int module_number TSRMLS_DC);
@@ -408,7 +421,7 @@ int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC);
 
 void php_swoole_check_reactor();
 void php_swoole_check_aio();
-
+void php_swoole_at_shutdown(char *function);
 void php_swoole_event_init();
 void php_swoole_event_wait();
 void php_swoole_check_timer(int interval);
@@ -449,6 +462,8 @@ static sw_inline void* swoole_get_property(zval *object, int property_id)
 void swoole_set_object(zval *object, void *ptr);
 void swoole_set_property(zval *object, int property_id, void *ptr);
 int swoole_convert_to_fd(zval *zsocket TSRMLS_DC);
+int swoole_register_rshutdown_function(swCallback func, int push_back);
+void swoole_call_rshutdown_function(void *arg);
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
 php_socket *swoole_convert_to_socket(int sock);
@@ -580,6 +595,8 @@ ZEND_BEGIN_MODULE_GLOBALS(swoole)
     zend_bool use_shortname;
     zend_bool fast_serialize;
     long socket_buffer_size;
+    php_swoole_req_status req_status;
+    swLinkedList *rshutdown_functions;
 ZEND_END_MODULE_GLOBALS(swoole)
 
 extern ZEND_DECLARE_MODULE_GLOBALS(swoole);

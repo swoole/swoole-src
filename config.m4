@@ -288,6 +288,7 @@ if test "$PHP_SWOOLE" != "no"; then
         PHP_ADD_LIBRARY_WITH_PATH(phpx, "${PHP_PHPX_DIR}/${PHP_LIBDIR}")
         AC_DEFINE(SW_USE_PHPX, 1, [enable PHP-X support])
         PHP_ADD_LIBRARY(phpx, 1, SWOOLE_SHARED_LIBADD)
+        CXXFLAGS="$CXXFLAGS -std=c++11"
     fi
 
     if test "$PHP_JEMALLOC_DIR" != "no"; then
@@ -377,7 +378,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_lock.c \
         swoole_client.c \
         swoole_client_coro.c \
-        swoole_coroutine.c \
+        swoole_coroutine.cc \
         swoole_coroutine_util.c \
         swoole_event.c \
         swoole_socket_coro.c \
@@ -487,6 +488,15 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_source_file="$swoole_source_file thirdparty/picohttpparser/picohttpparser.c"
     fi
 
+    if test "$PHP_COROUTINE" != "no"; then
+        swoole_source_file="$swoole_source_file thirdparty/libco/co_epoll.cpp \
+            thirdparty/libco/co_routine.cpp \
+            thirdparty/libco/co_hook_sys_call.cpp \
+            thirdparty/libco/coctx_swap.S \
+            thirdparty/libco/coctx.cpp"
+        CXXFLAGS="$CXXFLAGS -fno-optimize-sibling-calls"
+    fi
+
     PHP_NEW_EXTENSION(swoole, $swoole_source_file, $ext_shared)
 
     PHP_ADD_INCLUDE([$ext_srcdir])
@@ -496,12 +506,14 @@ if test "$PHP_SWOOLE" != "no"; then
 
     PHP_REQUIRE_CXX()
     PHP_ADD_LIBRARY(stdc++, 1, SWOOLE_SHARED_LIBADD)
-    CXXFLAGS="$CXXFLAGS -std=c++11"
 
     if test "$PHP_PICOHTTPPARSER" = "yes"; then
         PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/picohttpparser])
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/picohttpparser)
     fi
+    
+    PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/libco])
+    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/libco)
 
     PHP_ADD_BUILD_DIR($ext_builddir/src/core)
     PHP_ADD_BUILD_DIR($ext_builddir/src/memory)

@@ -323,7 +323,7 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
 {
     int type = buf[3];
     int flags = buf[4];
-    int error_code;
+    int error_code = 0;
     int stream_id = ntohl((*(int *) (buf + 5))) & 0x7fffffff;
     uint32_t length = swHttp2_get_length(buf);
     buf += SW_HTTP2_FRAME_HEADER_SIZE;
@@ -766,7 +766,7 @@ static void http2_client_onClose(swClient *cli)
     SW_MAKE_STD_ZVAL(result);
     ZVAL_BOOL(result, 0);
 
-    zval *retval;
+    zval *retval = NULL;
     php_context *context = swoole_get_property(zobject, HTTP2_CLIENT_CORO_CONTEXT);
     int ret = coro_resume(context, result, &retval);
     if (ret == CORO_END && retval)

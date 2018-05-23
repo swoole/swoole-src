@@ -1775,6 +1775,12 @@ static PHP_METHOD(swoole_http_response, write)
         return;
     }
 
+    if (ctx->http2)
+    {
+        swoole_php_error(E_WARNING, "Http2 client does not support HTTP-CHUNK.");
+        RETURN_FALSE;
+    }
+
     if (!ctx->send_header)
     {
         ctx->chunk = 1;

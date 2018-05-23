@@ -387,6 +387,7 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_strerror, arginfo_swoole_strerror)
     PHP_FE(swoole_errno, arginfo_swoole_void)
     PHP_FE(swoole_hashcode, arginfo_swoole_hashcode)
+    PHP_FE(swoole_call_user_shutdown_begin, arginfo_swoole_void)
     PHP_FE_END /* Must be the last line in swoole_functions[] */
 };
 
@@ -762,6 +763,43 @@ void swoole_set_property(zval *object, int property_id, void *ptr)
     swoole_objects.property[property_id][handle] = ptr;
 }
 
+int swoole_register_rshutdown_function(swCallback func, int push_back)
+{
+    if (SWOOLE_G(rshutdown_functions) == NULL)
+    {
+        SWOOLE_G(rshutdown_functions) = swLinkedList_new(0, NULL);
+        if (SWOOLE_G(rshutdown_functions) == NULL)
+        {
+            return SW_ERR;
+        }
+    }
+    if (push_back)
+    {
+        return swLinkedList_append(SWOOLE_G(rshutdown_functions), func);
+    }
+    else
+    {
+        return swLinkedList_prepend(SWOOLE_G(rshutdown_functions), func);
+    }
+}
+
+void swoole_call_rshutdown_function(void *arg)
+{
+    if (SWOOLE_G(rshutdown_functions))
+    {
+        swLinkedList *rshutdown_functions = SWOOLE_G(rshutdown_functions);
+        swLinkedList_node *node = rshutdown_functions->head;
+        swCallback func = NULL;
+
+        while (node)
+        {
+            func = node->data;
+            func(arg);
+            node = node->next;
+        }
+    }
+}
+
 #ifdef ZTS
 __thread swoole_object_array swoole_objects;
 void ***sw_thread_ctx;
@@ -1022,11 +1060,6 @@ PHP_MINIT_FUNCTION(swoole)
 
     //swoole init
     swoole_init();
-
-#ifdef SW_COROUTINE
-    memset(&COROG, 0, sizeof(COROG));
-#endif
-
     swoole_server_port_init(module_number TSRMLS_CC);
     swoole_client_init(module_number TSRMLS_CC);
 #ifdef SW_COROUTINE
@@ -1047,7 +1080,9 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_process_init(module_number TSRMLS_CC);
     swoole_process_pool_init(module_number TSRMLS_CC);
     swoole_table_init(module_number TSRMLS_CC);
+#ifdef SW_USE_PHPX
     swoole_runtime_init(module_number TSRMLS_CC);
+#endif
     swoole_lock_init(module_number TSRMLS_CC);
     swoole_atomic_init(module_number TSRMLS_CC);
     swoole_http_server_init(module_number TSRMLS_CC);
@@ -1227,6 +1262,8 @@ PHP_MINFO_FUNCTION(swoole)
 
 PHP_RINIT_FUNCTION(swoole)
 {
+    SWOOLE_G(req_status) = PHP_SWOOLE_RINIT_BEGIN;
+    php_swoole_at_shutdown("swoole_call_user_shutdown_begin");
     //running
     SwooleG.running = 1;
 
@@ -1240,12 +1277,14 @@ PHP_RINIT_FUNCTION(swoole)
 #ifdef SW_DEBUG_REMOTE_OPEN
     swoole_open_remote_debug();
 #endif
-
+    SWOOLE_G(req_status) = PHP_SWOOLE_RINIT_END;
     return SUCCESS;
 }
 
 PHP_RSHUTDOWN_FUNCTION(swoole)
 {
+    SWOOLE_G(req_status) = PHP_SWOOLE_RSHUTDOWN_BEGIN;
+    swoole_call_rshutdown_function(NULL);
     //clear pipe buffer
     if (swIsWorker())
     {
@@ -1285,7 +1324,7 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
 #ifdef SW_COROUTINE
     coro_destroy(TSRMLS_C);
 #endif
-
+    SWOOLE_G(req_status) = PHP_SWOOLE_RSHUTDOWN_END;
     return SUCCESS;
 }
 
@@ -1543,6 +1582,12 @@ PHP_FUNCTION(swoole_get_local_mac)
     php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_get_local_mac is not supported.");
     RETURN_FALSE;
 #endif
+}
+
+PHP_FUNCTION(swoole_call_user_shutdown_begin)
+{
+    SWOOLE_G(req_status) = PHP_SWOOLE_CALL_USER_SHUTDOWNFUNC_BEGIN;
+    RETURN_TRUE;
 }
 
 /*

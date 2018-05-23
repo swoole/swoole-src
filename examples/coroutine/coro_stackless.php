@@ -2,6 +2,7 @@
 require __DIR__ . "/coro_include.php";
 use Swoole\Coroutine as co;
 
+echo "start\n";
 co::create(function () {
     $client = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
     $res = $client->connect('127.0.0.1', 9501, 1);
@@ -15,6 +16,4 @@ co::create(function () {
     $data = $client->recv();
     echo "recv data" . var_export($data, 1) . "\n";
 });
-echo "111\n";
-
-echo "222\n";
+echo "end\n";

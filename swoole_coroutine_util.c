@@ -18,8 +18,8 @@
 #include "php_swoole.h"
 
 #ifdef SW_COROUTINE
-#include "async.h"
 #include "swoole_coroutine.h"
+#include "async.h"
 #include "ext/standard/file.h"
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_void, 0, 0, 0)
@@ -261,11 +261,22 @@ static PHP_METHOD(swoole_coroutine_util, set)
 PHP_FUNCTION(swoole_coroutine_create)
 {
     zval *callback;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &callback) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "z", &callback) == FAILURE)
     {
         return;
     }
-
+    if (unlikely(SWOOLE_G(req_status) == PHP_SWOOLE_CALL_USER_SHUTDOWNFUNC_BEGIN))
+    {
+        zend_function *func = (zend_function *) EG(current_execute_data)->prev_execute_data->func;
+        zend_string *destruct = zend_string_init("__destruct", strlen("__destruct"), 0);
+        if (zend_string_equals(func->common.function_name, destruct))
+        {
+            zend_string_release(destruct);
+            swoole_php_fatal_error(E_ERROR, "can not use coroutine in __destruct after php_request_shutdown");
+            return;
+        }
+        zend_string_release(destruct);
+    }
     char *func_name = NULL;
     zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
     if (!sw_zend_is_callable_ex(callback, NULL, 0, &func_name, NULL, func_cache, NULL TSRMLS_CC))
@@ -275,31 +286,20 @@ PHP_FUNCTION(swoole_coroutine_create)
         return;
     }
     efree(func_name);
-
     if (COROG.active == 0)
     {
         coro_init(TSRMLS_C);
     }
-
     php_swoole_check_reactor();
-
     callback = sw_zval_dup(callback);
     sw_zval_add_ref(&callback);
 
     zval *retval = NULL;
     zval *args[1];
-
     php_context *ctx = emalloc(sizeof(php_context));
-    //coro_save(ctx);
-    int required = COROG.require;
-    int ret = coro_create(func_cache, args, 0, &retval, NULL, NULL);
+    coro_create(func_cache, args, 0, &retval, NULL, NULL);
     sw_zval_free(callback);
     efree(func_cache);
-    if (ret < 0)
-    {
-        RETURN_FALSE;
-    }
-    COROG.require = required;
     efree(ctx);
     if (EG(exception))
     {
@@ -578,6 +578,8 @@ static void aio_onWriteFileCompleted(swAio_event *event)
 
 static PHP_METHOD(swoole_coroutine_util, fread)
 {
+    coro_check(TSRMLS_C);
+
     zval *handle;
     zend_long length = 0;
 
@@ -653,6 +655,8 @@ static PHP_METHOD(swoole_coroutine_util, fread)
 
 static PHP_METHOD(swoole_coroutine_util, fgets)
 {
+    coro_check(TSRMLS_C);
+
     zval *handle;
     php_stream *stream;
 
@@ -722,6 +726,8 @@ static PHP_METHOD(swoole_coroutine_util, fgets)
 
 static PHP_METHOD(swoole_coroutine_util, fwrite)
 {
+    coro_check(TSRMLS_C);
+
     zval *handle;
     char *str;
     zend_size_t l_str;
@@ -794,6 +800,8 @@ static PHP_METHOD(swoole_coroutine_util, fwrite)
 
 static PHP_METHOD(swoole_coroutine_util, readFile)
 {
+    coro_check(TSRMLS_C);
+
     char *filename = NULL;
     size_t l_filename = 0;
 
@@ -843,6 +851,8 @@ static PHP_METHOD(swoole_coroutine_util, readFile)
 
 static PHP_METHOD(swoole_coroutine_util, writeFile)
 {
+    coro_check(TSRMLS_C);
+
     char *filename = NULL;
     size_t l_filename = 0;
     char *data = NULL;
@@ -1001,6 +1011,8 @@ static void coro_dns_onGetaddrinfoCompleted(swAio_event *event)
 
 static PHP_METHOD(swoole_coroutine_util, gethostbyname)
 {
+    coro_check(TSRMLS_C);
+
     char *domain_name;
     zend_size_t l_domain_name;
     long family = AF_INET;
@@ -1069,6 +1081,8 @@ static PHP_METHOD(swoole_coroutine_util, gethostbyname)
 
 static PHP_METHOD(swoole_coroutine_util, getaddrinfo)
 {
+    coro_check(TSRMLS_C);
+
     char *hostname;
     zend_size_t l_hostname;
     long family = AF_INET;
