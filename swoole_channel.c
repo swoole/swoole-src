@@ -137,7 +137,7 @@ static PHP_METHOD(swoole_channel, peek)
         RETURN_FALSE;
     }
 
-    swTask_type(&buf) = SW_TASK_PEEK;
+    swTask_type(&buf) |= SW_TASK_PEEK;
     zval *ret_data = php_swoole_task_unpack(&buf TSRMLS_CC);
     if (ret_data == NULL)
     {
