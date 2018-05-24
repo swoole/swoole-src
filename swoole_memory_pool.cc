@@ -123,7 +123,15 @@ static PHP_METHOD(swoole_memory_pool, __construct)
         Z_PARAM_BOOL(shared)
     ZEND_PARSE_PARAMETERS_END();
 
-    MemoryPool *mp = (MemoryPool *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(MemorySlice));
+    MemoryPool *mp;
+    if (shared)
+    {
+        mp = (MemoryPool *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(MemorySlice));
+    }
+    else
+    {
+        mp = (MemoryPool *) emalloc(sizeof(MemorySlice));
+    }
 
     swMemoryPool* pool;
     if (type == memory_pool_type_fixed)
@@ -190,10 +198,20 @@ static PHP_METHOD(swoole_memory_pool, alloc)
 static PHP_METHOD(swoole_memory_pool, __destruct)
 {
     MemoryPool* mp = (MemoryPool*) swoole_get_object(getThis());
+    if (mp == NULL)
+    {
+        return;
+    }
+
+    swoole_set_object(getThis(), nullptr);
     mp->released = 1;
     if (mp->slice_count == 0)
     {
         mp->pool->destroy(mp->pool);
+        if (mp->shared == 0)
+        {
+            efree(mp);
+        }
     }
 }
 
@@ -275,5 +293,9 @@ static PHP_METHOD(swoole_memory_pool_slice, __destruct)
     if (mp->released && mp->slice_count == 0)
     {
         mp->pool->destroy(mp->pool);
+        if (mp->shared == 0)
+        {
+            efree(mp);
+        }
     }
 }
