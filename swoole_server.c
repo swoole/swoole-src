@@ -3846,6 +3846,7 @@ PHP_METHOD(swoole_server, connection_info)
             add_assoc_long(return_value, "server_port", swConnection_get_port(from_sock));
         }
         add_assoc_long(return_value, "server_fd", conn->from_fd);
+        add_assoc_long(return_value, "socket_fd", conn->fd);
         add_assoc_long(return_value, "socket_type", conn->socket_type);
         add_assoc_long(return_value, "remote_port", swConnection_get_port(conn));
         sw_add_assoc_string(return_value, "remote_ip", swConnection_get_ip(conn), 1);
