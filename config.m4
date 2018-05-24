@@ -376,7 +376,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_server_port.c \
         swoole_atomic.c \
         swoole_lock.c \
-        swoole_client.cc \
+        swoole_client.c \
         swoole_client_coro.c \
         swoole_coroutine.cc \
         swoole_coroutine_util.c \
