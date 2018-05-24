@@ -178,7 +178,7 @@ static PHP_METHOD(swoole_memory_pool, alloc)
     }
 
     void *memory = mp->pool->alloc(mp->pool, size);
-    if (memory == nullptr)
+    if (memory == NULL)
     {
         RETURN_FALSE;
     }
@@ -200,7 +200,7 @@ static PHP_METHOD(swoole_memory_pool, __destruct)
         return;
     }
 
-    swoole_set_object(getThis(), nullptr);
+    swoole_set_object(getThis(), NULL);
     mp->released = 1;
     if (mp->slice_count == 0)
     {
