@@ -14,16 +14,19 @@
   +----------------------------------------------------------------------+
 */
 
+extern "C"
+{
 #include "php_swoole.h"
 #include "socks5.h"
 #include "mqtt.h"
+#include "ext/standard/basic_functions.h"
+}
 
 #include <string>
 #include <unordered_map>
 
 using namespace std;
 
-#include "ext/standard/basic_functions.h"
 
 typedef struct
 {
