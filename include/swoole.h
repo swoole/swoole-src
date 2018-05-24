@@ -1868,6 +1868,7 @@ int swChannel_pop(swChannel *object, void *out, int buffer_length);
 int swChannel_push(swChannel *object, void *in, int data_length);
 int swChannel_out(swChannel *object, void *out, int buffer_length);
 int swChannel_in(swChannel *object, void *in, int data_length);
+int swChannel_peek(swChannel *object, void *out, int buffer_length);
 int swChannel_wait(swChannel *object);
 int swChannel_notify(swChannel *object);
 void swChannel_free(swChannel *object);

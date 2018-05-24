@@ -115,6 +115,7 @@ enum swTaskType
     SW_TASK_CALLBACK   = 8,  //callback
     SW_TASK_WAITALL    = 16, //for taskWaitAll
     SW_TASK_COROUTINE  = 32, //coroutine
+    SW_TASK_PEEK       = 64, //peek
 };
 
 typedef struct _swUdpFd
@@ -741,7 +742,10 @@ static sw_inline swString* swTaskWorker_large_unpack(swEventData *task_result)
         return NULL;
     }
     close(tmp_file_fd);
-    unlink(_pkg.tmpfile);
+    if (!(swTask_type(task_result) & SW_TASK_PEEK))
+    {
+        unlink(_pkg.tmpfile);
+    }
     SwooleG.module_stack->length = _pkg.length;
     return SwooleG.module_stack;
 }
