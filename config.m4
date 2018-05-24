@@ -288,9 +288,8 @@ if test "$PHP_SWOOLE" != "no"; then
         PHP_ADD_LIBRARY_WITH_PATH(phpx, "${PHP_PHPX_DIR}/${PHP_LIBDIR}")
         AC_DEFINE(SW_USE_PHPX, 1, [enable PHP-X support])
         PHP_ADD_LIBRARY(phpx, 1, SWOOLE_SHARED_LIBADD)
+        CXXFLAGS="$CXXFLAGS -std=c++11"
     fi
-
-    CXXFLAGS="$CXXFLAGS -std=c++11"
 
     if test "$PHP_JEMALLOC_DIR" != "no"; then
         AC_DEFINE(SW_USE_JEMALLOC, 1, [use jemalloc])
@@ -410,7 +409,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_msgqueue.c \
         swoole_trace.c \
         swoole_runtime.cc \
-        swoole_memory_pool.cc \
+        swoole_memory_pool.c \
         src/core/base.c \
         src/core/log.c \
         src/core/hashmap.c \

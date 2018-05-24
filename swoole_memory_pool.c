@@ -24,15 +24,12 @@ enum memory_pool_type
     memory_pool_type_global = 2,
 };
 
-extern "C"
-{
 static PHP_METHOD(swoole_memory_pool, __construct);
 static PHP_METHOD(swoole_memory_pool, __destruct);
 static PHP_METHOD(swoole_memory_pool, alloc);
 static PHP_METHOD(swoole_memory_pool_slice, read);
 static PHP_METHOD(swoole_memory_pool_slice, write);
 static PHP_METHOD(swoole_memory_pool_slice, __destruct);
-}
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -61,7 +58,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_memory_pool_slice_write, 0, 0, 1)
     ZEND_ARG_INFO(0, offset)
 ZEND_END_ARG_INFO()
 
-struct MemoryPool
+typedef struct
 {
     size_t size;
     size_t slice_size;
@@ -70,14 +67,14 @@ struct MemoryPool
     zend_bool released;
     swMemoryPool* pool;
     sw_atomic_t slice_count;
-};
+} MemoryPool;
 
-struct MemorySlice
+typedef struct
 {
     size_t size;
     MemoryPool* pool;
     void *memory;
-};
+} MemorySlice;
 
 static const zend_function_entry swoole_memory_pool_methods[] =
 {
