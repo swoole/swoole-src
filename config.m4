@@ -410,6 +410,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_msgqueue.c \
         swoole_trace.c \
         swoole_runtime.cc \
+        swoole_memory_pool.cc \
         src/core/base.c \
         src/core/log.c \
         src/core/hashmap.c \

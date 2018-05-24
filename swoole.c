@@ -1104,9 +1104,8 @@ PHP_MINIT_FUNCTION(swoole)
 #endif
 #endif
 
-#if PHP_MAJOR_VERSION >= 7
     swoole_serialize_init(module_number TSRMLS_DC);
-#endif
+    swoole_memory_pool_init(module_number TSRMLS_DC);
 
 #ifdef SW_USE_REDIS
     swoole_redis_init(module_number TSRMLS_CC);

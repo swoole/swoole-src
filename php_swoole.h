@@ -412,10 +412,9 @@ void swoole_mmap_init(int module_number TSRMLS_DC);
 void swoole_channel_init(int module_number TSRMLS_DC);
 void swoole_ringqueue_init(int module_number TSRMLS_DC);
 void swoole_msgqueue_init(int module_number TSRMLS_DC);
-#if PHP_MAJOR_VERSION == 7
 void swoole_channel_coro_init(int module_number TSRMLS_DC);
 void swoole_serialize_init(int module_number TSRMLS_DC);
-#endif
+void swoole_memory_pool_init(int module_number TSRMLS_DC);
 
 int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC);
 
