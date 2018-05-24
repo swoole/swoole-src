@@ -14,19 +14,11 @@
   +----------------------------------------------------------------------+
 */
 
-extern "C"
-{
 #include "php_swoole.h"
 #include "socks5.h"
 #include "mqtt.h"
+
 #include "ext/standard/basic_functions.h"
-}
-
-#include <string>
-#include <unordered_map>
-
-using namespace std;
-
 
 typedef struct
 {
@@ -135,35 +127,35 @@ static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_cli
     {
     case SW_CLIENT_CB_onConnect:
         callback = cb->onConnect;
-        callback_name = (char*) "onConnect";
+        callback_name = "onConnect";
 #ifdef PHP_SWOOLE_ENABLE_FASTCALL
         fci_cache = &cb->cache_onConnect;
 #endif
         break;
     case SW_CLIENT_CB_onError:
         callback = cb->onError;
-        callback_name = (char*) "onError";
+        callback_name = "onError";
 #ifdef PHP_SWOOLE_ENABLE_FASTCALL
         fci_cache = &cb->cache_onError;
 #endif
         break;
     case SW_CLIENT_CB_onClose:
         callback = cb->onClose;
-        callback_name = (char*) "onClose";
+        callback_name = "onClose";
 #ifdef PHP_SWOOLE_ENABLE_FASTCALL
         fci_cache = &cb->cache_onClose;
 #endif
         break;
     case SW_CLIENT_CB_onBufferFull:
         callback = cb->onBufferFull;
-        callback_name = (char*) "onBufferFull";
+        callback_name = "onBufferFull";
 #ifdef PHP_SWOOLE_ENABLE_FASTCALL
         fci_cache = &cb->cache_onBufferFull;
 #endif
         break;
     case SW_CLIENT_CB_onBufferEmpty:
         callback = cb->onBufferEmpty;
-        callback_name = (char*) "onBufferEmpty";
+        callback_name = "onBufferEmpty";
 #ifdef PHP_SWOOLE_ENABLE_FASTCALL
         fci_cache = &cb->cache_onBufferEmpty;
 #endif
@@ -171,7 +163,7 @@ static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_cli
 #ifdef SW_USE_OPENSSL
     case SW_CLIENT_CB_onSSLReady:
         callback = cb->onSSLReady;
-        callback_name = (char*) "onSSLReady";
+        callback_name = "onSSLReady";
 #ifdef PHP_SWOOLE_ENABLE_FASTCALL
         fci_cache = &cb->cache_onSSLReady;
 #endif
@@ -319,7 +311,7 @@ static const zend_function_entry swoole_client_methods[] =
     PHP_FE_END
 };
 
-static unordered_map<string, swClient*> php_sw_long_connections;
+static swHashMap *php_sw_long_connections;
 
 zend_class_entry swoole_client_ce;
 zend_class_entry *swoole_client_class_entry_ptr;
@@ -349,6 +341,8 @@ void swoole_client_init(int module_number TSRMLS_DC)
 #ifdef SW_USE_OPENSSL
     zend_declare_property_null(swoole_client_class_entry_ptr, ZEND_STRL("onSSLReady"), ZEND_ACC_PUBLIC TSRMLS_CC);
 #endif
+
+    php_sw_long_connections = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
 
     zend_declare_class_constant_long(swoole_client_class_entry_ptr, ZEND_STRL("MSG_OOB"), MSG_OOB TSRMLS_CC);
     zend_declare_class_constant_long(swoole_client_class_entry_ptr, ZEND_STRL("MSG_PEEK"), MSG_PEEK TSRMLS_CC);
@@ -946,7 +940,7 @@ void php_swoole_check_reactor()
         SwooleWG.reactor_wait_onexit = 1;
         SwooleWG.reactor_ready = 0;
         //only client side
-        php_swoole_at_shutdown((char*) "swoole_event_wait");
+        php_swoole_at_shutdown("swoole_event_wait");
     }
 
     php_swoole_event_init();
@@ -992,7 +986,10 @@ void php_swoole_client_free(zval *zobject, swClient *cli TSRMLS_DC)
     //long tcp connection, delete from php_sw_long_connections
     if (cli->keep)
     {
-        php_sw_long_connections.erase(string(cli->server_str, cli->server_strlen));
+        if (swHashMap_del(php_sw_long_connections, cli->server_str, cli->server_strlen))
+        {
+            swoole_php_fatal_error(E_WARNING, "failed to delete key[%s] from hashtable.", cli->server_str);
+        }
         sw_free(cli->server_str);
         swClient_free(cli);
         pefree(cli, 1);
@@ -1060,11 +1057,14 @@ swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port
     //keep the tcp connection
     if (type & SW_FLAG_KEEP)
     {
-        swClient *find = php_sw_long_connections[string(conn_key, conn_key_len)];
+        swClient *find = swHashMap_find(php_sw_long_connections, conn_key, conn_key_len);
         if (find == NULL)
         {
             cli = (swClient*) pemalloc(sizeof(swClient), 1);
-            php_sw_long_connections[string(conn_key, conn_key_len)] = cli;
+            if (swHashMap_add(php_sw_long_connections, conn_key, conn_key_len, cli) == FAILURE)
+            {
+                swoole_php_fatal_error(E_WARNING, "failed to add swoole_client_create_socket to hashtable.");
+            }
             goto create_socket;
         }
         else
