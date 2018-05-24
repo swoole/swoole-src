@@ -920,7 +920,7 @@ struct hostent *co_gethostbyname(const char *name)
 	{
 		return NULL;
 	}
-
+#ifdef NETDB_INTERNAL
 	if (__co_hostbuf_wrap->buffer && __co_hostbuf_wrap->iBufferSize > 1024)
 	{
 		free(__co_hostbuf_wrap->buffer);
@@ -949,6 +949,7 @@ struct hostent *co_gethostbyname(const char *name)
 	{
 		return host;
 	}
+#endif
 	return NULL;
 }
 #endif
