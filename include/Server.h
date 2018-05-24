@@ -645,7 +645,7 @@ int swServer_tcp_sendwait(swServer *serv, int fd, void *data, uint32_t length);
 int swServer_tcp_close(swServer *serv, int fd, int reset);
 int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename, uint32_t filename_length, off_t offset, size_t length);
 int swServer_tcp_notify(swServer *serv, swConnection *conn, int event);
-int swServer_confirm(swServer *serv, int fd);
+int swServer_tcp_feedback(swServer *serv, int fd, int event);
 
 //UDP, UDP必然超过0x1000000
 //原因：IPv4的第4字节最小为1,而这里的conn_fd是网络字节序
