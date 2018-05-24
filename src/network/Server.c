@@ -953,6 +953,9 @@ int swServer_udp_send(swServer *serv, swSendData *resp)
     return ret;
 }
 
+/**
+ * worker to master process
+ */
 int swServer_tcp_feedback(swServer *serv, int fd, int event)
 {
     swConnection *conn = swServer_connection_verify(serv, fd);
