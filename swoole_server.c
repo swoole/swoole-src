@@ -3012,6 +3012,11 @@ PHP_METHOD(swoole_server, pause)
         RETURN_FALSE;
     }
 
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &fd) == FAILURE)
+    {
+        return;
+    }
+
     swServer *serv = swoole_get_object(zobject);
     SW_CHECK_RETURN(swServer_tcp_feedback(serv, fd, SW_EVENT_PAUSE_RECV));
 }
@@ -3025,6 +3030,11 @@ PHP_METHOD(swoole_server, resume)
     {
         swoole_php_fatal_error(E_WARNING, "server is not running.");
         RETURN_FALSE;
+    }
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &fd) == FAILURE)
+    {
+        return;
     }
 
     swServer *serv = swoole_get_object(zobject);
