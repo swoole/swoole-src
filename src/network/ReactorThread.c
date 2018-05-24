@@ -662,6 +662,34 @@ int swReactorThread_send(swSendData *_send)
         conn->listen_wait = 0;
         return SW_OK;
     }
+    /**
+     * pause recv data
+     */
+    else if (_send->info.type == SW_EVENT_PAUSE_RECV)
+    {
+        if (conn->events & SW_EVENT_WRITE)
+        {
+            return reactor->set(reactor, conn->fd, conn->fdtype | SW_EVENT_WRITE);
+        }
+        else
+        {
+            return reactor->del(reactor, conn->fd);
+        }
+    }
+    /**
+     * resume recv data
+     */
+    else if (_send->info.type == SW_EVENT_RESUME_RECV)
+    {
+        if (conn->events & SW_EVENT_WRITE)
+        {
+            return reactor->set(reactor, conn->fd, conn->fdtype | SW_EVENT_READ | SW_EVENT_WRITE);
+        }
+        else
+        {
+            return reactor->add(reactor, conn->fd, conn->fdtype | SW_EVENT_READ);
+        }
+    }
 
     if (swBuffer_empty(conn->out_buffer))
     {

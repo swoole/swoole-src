@@ -953,17 +953,22 @@ int swServer_udp_send(swServer *serv, swSendData *resp)
     return ret;
 }
 
-int swServer_confirm(swServer *serv, int fd)
+int swServer_tcp_feedback(swServer *serv, int fd, int event)
 {
     swConnection *conn = swServer_connection_verify(serv, fd);
-    if (!conn || !conn->listen_wait)
+    if (!conn)
+    {
+        return SW_ERR;
+    }
+
+    if (event == SW_EVENT_CONFIRM && !conn->listen_wait)
     {
         return SW_ERR;
     }
 
     swSendData _send;
     bzero(&_send, sizeof(_send));
-    _send.info.type = SW_EVENT_CONFIRM;
+    _send.info.type = event;
     _send.info.fd = fd;
     _send.info.from_id = conn->from_id;
 
@@ -1053,6 +1058,9 @@ int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length)
     return SW_OK;
 }
 
+/**
+ * use in master process
+ */
 int swServer_tcp_notify(swServer *serv, swConnection *conn, int event)
 {
     swDataHead notify_event;

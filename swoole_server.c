@@ -1530,7 +1530,7 @@ static void php_swoole_onConnect_finish(void *param)
 {
     swServer *serv = SwooleG.serv;
     swTrace("onConnect finish and send confirm");
-    swServer_confirm(serv, (uint32_t) (long) param);
+    swServer_tcp_feedback(serv, (uint32_t) (long) param, SW_EVENT_CONFIRM);
 }
 #endif
 
@@ -2998,7 +2998,7 @@ PHP_METHOD(swoole_server, confirm)
     }
 
     swServer *serv = swoole_get_object(zobject);
-    SW_CHECK_RETURN(swServer_confirm(serv, fd));
+    SW_CHECK_RETURN(swServer_tcp_feedback(serv, fd, SW_EVENT_CONFIRM));
 }
 
 PHP_METHOD(swoole_server, pause)
@@ -3013,33 +3013,7 @@ PHP_METHOD(swoole_server, pause)
     }
 
     swServer *serv = swoole_get_object(zobject);
-    if (serv->factory_mode != SW_MODE_SINGLE || swIsTaskWorker())
-    {
-        swoole_php_fatal_error(E_WARNING, "can't use the pause method.");
-        RETURN_FALSE;
-    }
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|b", &fd) == FAILURE)
-    {
-        return;
-    }
-
-    swConnection *conn = swServer_connection_verify(serv, fd);
-    if (!conn || conn->removed)
-    {
-        RETURN_FALSE;
-    }
-
-    int ret;
-    if (conn->events & SW_EVENT_WRITE)
-    {
-        ret = SwooleG.main_reactor->set(SwooleG.main_reactor, conn->fd, conn->fdtype | SW_EVENT_WRITE);
-    }
-    else
-    {
-        ret = SwooleG.main_reactor->del(SwooleG.main_reactor, conn->fd);
-    }
-    SW_CHECK_RETURN(ret);
+    SW_CHECK_RETURN(swServer_tcp_feedback(serv, fd, SW_EVENT_PAUSE_RECV));
 }
 
 PHP_METHOD(swoole_server, resume)
@@ -3054,33 +3028,7 @@ PHP_METHOD(swoole_server, resume)
     }
 
     swServer *serv = swoole_get_object(zobject);
-    if (serv->factory_mode != SW_MODE_SINGLE || swIsTaskWorker())
-    {
-        swoole_php_fatal_error(E_WARNING, "can't use the resume method.");
-        RETURN_FALSE;
-    }
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &fd) == FAILURE)
-    {
-        return;
-    }
-
-    swConnection *conn = swServer_connection_verify(serv, fd);
-    if (!conn || !conn->removed)
-    {
-        RETURN_FALSE;
-    }
-
-    int ret;
-    if (conn->events & SW_EVENT_WRITE)
-    {
-        ret = SwooleG.main_reactor->set(SwooleG.main_reactor, conn->fd, conn->fdtype | SW_EVENT_READ | SW_EVENT_WRITE);
-    }
-    else
-    {
-        ret = SwooleG.main_reactor->add(SwooleG.main_reactor, conn->fd, conn->fdtype | SW_EVENT_READ);
-    }
-    SW_CHECK_RETURN(ret);
+    SW_CHECK_RETURN(swServer_tcp_feedback(serv, fd, SW_EVENT_RESUME_RECV));
 }
 
 PHP_METHOD(swoole_server, stats)
