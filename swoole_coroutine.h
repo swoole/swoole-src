@@ -117,7 +117,7 @@ typedef struct _swTimer_coro_callback
 } swTimer_coro_callback;
 
 extern coro_global COROG;
-#define get_current_cid()      (COROG.current_coro == NULL ? -1 : COROG.current_coro->cid)
+#define get_current_cid()      sw_get_current_uid()
 
 int coro_init(TSRMLS_D);
 void coro_destroy(TSRMLS_D);
@@ -142,6 +142,7 @@ void sw_coro_close();
 int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_retval);
 int sw_coro_resume_parent(php_context *sw_current_context, zval *retval, zval *coro_retval);
 int sw_coro_save(zval *return_value, php_context *sw_php_context);
+int sw_get_current_uid();
 
 int php_swoole_add_timer_coro(int ms, int cli_fd, long *timeout_id, void* param, swLinkedList_node **node TSRMLS_DC);
 int php_swoole_clear_timer_coro(long id TSRMLS_DC);

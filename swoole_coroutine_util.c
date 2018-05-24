@@ -365,11 +365,7 @@ static PHP_METHOD(swoole_coroutine_util, resume)
 
 static PHP_METHOD(swoole_coroutine_util, getuid)
 {
-    if (unlikely(COROG.current_coro == NULL))
-    {
-        RETURN_LONG(-1);
-    }
-    RETURN_LONG(COROG.current_coro->cid);
+    RETURN_LONG(sw_get_current_uid());
 }
 
 static void php_coroutine_sleep_timeout(swTimer *timer, swTimer_node *tnode)

@@ -449,6 +449,26 @@ void sw_coro_close()
     swTraceLog(SW_TRACE_COROUTINE, "close coro and %d remained. usage size: %zu. malloc size: %zu", COROG.coro_num, zend_memory_usage(0), zend_memory_usage(1));
 }
 
+int sw_get_current_uid()
+{
+    if (unlikely(COROG.active == 0))
+    {
+        return -1;
+    }
+    else
+    {
+        coro_task *task = libco_get_task();
+        if (!task || (task && task->co->cIsMain))
+        {
+            return -1;
+        }
+        else
+        {
+            return task->cid;
+        }
+    }
+}
+
 void coro_handle_timeout()
 {
     swLinkedList *timeout_list = SwooleWG.coro_timeout_list;
