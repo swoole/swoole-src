@@ -22,6 +22,8 @@ enum memory_pool_type
     memory_pool_type_fixed = 0,
     memory_pool_type_ring = 1,
     memory_pool_type_global = 2,
+    memory_pool_type_malloc = 3,
+    memory_pool_type_emalloc = 4,
 };
 
 static PHP_METHOD(swoole_memory_pool, __construct);
@@ -72,6 +74,7 @@ typedef struct
 typedef struct
 {
     size_t size;
+    uint8_t type;
     MemoryPool* pool;
     void *memory;
 } MemorySlice;
@@ -105,6 +108,8 @@ void swoole_memory_pool_init(int module_number TSRMLS_DC)
     zend_declare_class_constant_long(ce, SW_STRL("TYPE_RING")-1, memory_pool_type_ring TSRMLS_CC);
     zend_declare_class_constant_long(ce, SW_STRL("TYPE_GLOBAL")-1, memory_pool_type_global TSRMLS_CC);
     zend_declare_class_constant_long(ce, SW_STRL("TYPE_FIXED")-1, memory_pool_type_fixed TSRMLS_CC);
+    zend_declare_class_constant_long(ce, SW_STRL("TYPE_MALLOC")-1, memory_pool_type_malloc TSRMLS_CC);
+    zend_declare_class_constant_long(ce, SW_STRL("TYPE_EMALLOC")-1, memory_pool_type_emalloc TSRMLS_CC);
 }
 
 static PHP_METHOD(swoole_memory_pool, __construct)
@@ -120,20 +125,15 @@ static PHP_METHOD(swoole_memory_pool, __construct)
         Z_PARAM_BOOL(shared)
     ZEND_PARSE_PARAMETERS_END();
 
-    MemoryPool *mp;
-    if (shared)
-    {
-        mp = (MemoryPool *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(MemorySlice));
-    }
-    else
-    {
-        mp = (MemoryPool *) emalloc(sizeof(MemorySlice));
-    }
-
-    swMemoryPool* pool;
+    swMemoryPool* pool = NULL;
     if (type == memory_pool_type_fixed)
     {
         void *memory = (shared == 1) ? sw_shm_malloc(size) : sw_malloc(size);
+        if (memory == NULL)
+        {
+            zend_throw_exception(swoole_exception_class_entry_ptr, "malloc failed.", SW_ERROR_MALLOC_FAIL TSRMLS_CC);
+            RETURN_FALSE;
+        }
         pool = swFixedPool_new2(slice_size, memory, size);
     }
     else if (type == memory_pool_type_ring)
@@ -144,9 +144,28 @@ static PHP_METHOD(swoole_memory_pool, __construct)
     {
         pool = swMemoryGlobal_new(slice_size, shared);
     }
+    else if (type == memory_pool_type_malloc || type == memory_pool_type_malloc)
+    {
+        shared = 0;
+    }
     else
     {
         zend_throw_exception(swoole_exception_class_entry_ptr, "unknown memory pool type.", SW_ERROR_INVALID_PARAMS TSRMLS_CC);
+        RETURN_FALSE;
+    }
+
+    MemoryPool *mp;
+    if (shared)
+    {
+        mp = (MemoryPool *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(MemorySlice));
+    }
+    else
+    {
+        mp = (MemoryPool *) emalloc(sizeof(MemorySlice));
+    }
+    if (mp == NULL)
+    {
+        zend_throw_exception(swoole_exception_class_entry_ptr, "malloc failed.", SW_ERROR_MALLOC_FAIL TSRMLS_CC);
         RETURN_FALSE;
     }
 
@@ -177,7 +196,20 @@ static PHP_METHOD(swoole_memory_pool, alloc)
         RETURN_FALSE;
     }
 
-    void *memory = mp->pool->alloc(mp->pool, size);
+    void *memory;
+    if (mp->type == memory_pool_type_malloc)
+    {
+        memory = sw_malloc(size);
+    }
+    else if (mp->type == memory_pool_type_emalloc)
+    {
+        memory = emalloc(size);
+    }
+    else
+    {
+        memory = mp->pool->alloc(mp->pool, size);
+    }
+
     if (memory == NULL)
     {
         RETURN_FALSE;
@@ -188,6 +220,7 @@ static PHP_METHOD(swoole_memory_pool, alloc)
     info->pool = mp;
     info->size = size;
     info->memory = memory;
+    info->type = mp->type;
     sw_atomic_fetch_add(&mp->slice_count, 1);
     swoole_set_object(return_value, info);
 }
@@ -201,6 +234,13 @@ static PHP_METHOD(swoole_memory_pool, __destruct)
     }
 
     swoole_set_object(getThis(), NULL);
+
+    if (mp->type == memory_pool_type_malloc || mp->type == memory_pool_type_malloc)
+    {
+        efree(mp);
+        return;
+    }
+
     mp->released = 1;
     if (mp->slice_count == 0)
     {
@@ -282,17 +322,29 @@ static PHP_METHOD(swoole_memory_pool_slice, __destruct)
     }
 
     MemoryPool *mp = info->pool;
-    mp->pool->free(mp->pool, info->memory);
-    sw_atomic_fetch_sub(&mp->slice_count, 1);
-    swoole_set_object(getThis(), NULL);
-    efree(info);
-
-    if (mp->released && mp->slice_count == 0)
+    if (info->type == memory_pool_type_malloc)
     {
-        mp->pool->destroy(mp->pool);
-        if (mp->shared == 0)
+        sw_free(info->memory);
+    }
+    else if (info->type == memory_pool_type_emalloc)
+    {
+        efree(info->memory);
+    }
+    else
+    {
+        mp->pool->free(mp->pool, info->memory);
+        sw_atomic_fetch_sub(&mp->slice_count, 1);
+
+        if (mp->released && mp->slice_count == 0)
         {
-            efree(mp);
+            mp->pool->destroy(mp->pool);
+            if (mp->shared == 0)
+            {
+                efree(mp);
+            }
         }
     }
+
+    swoole_set_object(getThis(), NULL);
+    efree(info);
 }
