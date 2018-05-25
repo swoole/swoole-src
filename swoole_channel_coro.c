@@ -331,45 +331,6 @@ static int swoole_channel_try_resume_producer(zval *object, channel_coro_propert
     return -1;
 }
 
-static void try_resume_producer_defer(zval *object, channel_coro_property *property, swChannel *chan)
-{
-    swLinkedList *coro_list = property->producer_list;
-    swLinkedList_node *node;
-    channel_node *next;
-
-    if (coro_list->num != 0)
-    {
-        node = coro_list->head;
-        next = (channel_node *)node->data;
-        next->context.onTimeout = swoole_channel_onResume;
-        if (next->selector)
-        {
-            next->selector->object = *object;
-            next->selector->opcode = CHANNEL_SELECT_WRITE;
-            channel_selector_clear(next->selector, node);
-        }
-        else
-        {
-            zval *zdata = &next->context.coro_params;
-            Z_TRY_ADDREF_P(zdata);
-            ZVAL_TRUE(zdata);
-            if (swChannel_in(chan, zdata, sizeof(zval)) < 0)
-            {
-                ZVAL_FALSE(zdata);
-            }
-            else
-            {
-                Z_TRY_ADDREF_P(zdata);
-                ZVAL_TRUE(zdata);
-            }
-            Z_TRY_ADDREF_P(zdata);
-            ZVAL_TRUE(zdata);
-        }
-        swLinkedList_shift(coro_list);
-        channel_notify(next);
-    }
-}
-
 static sw_inline int swoole_channel_try_resume_all(zval *object, channel_coro_property *property)
 {
     swLinkedList *coro_list = property->producer_list;
