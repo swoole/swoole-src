@@ -120,8 +120,8 @@ static void php_swoole_process_pool_onWorkerStart(swProcessPool *pool, int worke
     if (SwooleG.main_reactor)
     {
         php_swoole_event_wait();
+        SwooleG.running = 0;
     }
-    SwooleG.running = 0;
 }
 
 static void php_swoole_process_pool_onMessage(swProcessPool *pool, char *data, uint32_t length)
