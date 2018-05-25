@@ -253,13 +253,10 @@ static PHP_METHOD(swoole_http_request, __destruct);
 static PHP_METHOD(swoole_http_response, write);
 static PHP_METHOD(swoole_http_response, end);
 static PHP_METHOD(swoole_http_response, sendfile);
-static PHP_METHOD(swoole_http_response, redirect);
 static PHP_METHOD(swoole_http_response, cookie);
 static PHP_METHOD(swoole_http_response, rawcookie);
 static PHP_METHOD(swoole_http_response, header);
 static PHP_METHOD(swoole_http_response, initHeader);
-static PHP_METHOD(swoole_http_response, detach);
-static PHP_METHOD(swoole_http_response, create);
 #ifdef SW_HAVE_ZLIB
 static PHP_METHOD(swoole_http_response, gzip);
 #endif
@@ -391,10 +388,6 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_redirect, 0, 0, 1)
     ZEND_ARG_INFO(0, http_code)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_create, 0, 0, 1)
-    ZEND_ARG_INFO(0, fd)
-ZEND_END_ARG_INFO()
-
 static const php_http_parser_settings http_parser_settings =
 {
     NULL,
@@ -455,9 +448,6 @@ const zend_function_entry swoole_http_response_methods[] =
     PHP_ME(swoole_http_response, write, arginfo_swoole_http_response_write, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, end, arginfo_swoole_http_response_end, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, sendfile, arginfo_swoole_http_response_sendfile, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_response, redirect, arginfo_swoole_http_response_redirect, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_response, detach, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_response, create, arginfo_swoole_http_response_create, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FALIAS(__sleep, swoole_unsupport_serialize, NULL)
     PHP_FALIAS(__wakeup, swoole_unsupport_serialize, NULL)
     PHP_ME(swoole_http_response, __destruct, arginfo_swoole_http_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
@@ -2660,84 +2650,6 @@ static PHP_METHOD(swoole_http_response, gzip)
     context->gzip_level = level;
 }
 #endif
-
-static PHP_METHOD(swoole_http_response, detach)
-{
-    http_context *context = http_get_context(getThis(), 0 TSRMLS_CC);
-    if (!context)
-    {
-        RETURN_FALSE;
-    }
-    context->detached = 1;
-    RETURN_TRUE;
-}
-
-static PHP_METHOD(swoole_http_response, create)
-{
-    zend_long fd;
-
-    ZEND_PARSE_PARAMETERS_START(1, 1)
-        Z_PARAM_LONG(fd);
-    ZEND_PARSE_PARAMETERS_END();
-
-    http_context *ctx = emalloc(sizeof(http_context));
-    if (!ctx)
-    {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_MALLOC_FAIL, "emalloc(%ld) failed.", sizeof(http_context));
-        RETURN_FALSE;
-    }
-    bzero(ctx, sizeof(http_context));
-    ctx->fd = (int) fd;
-
-    object_init_ex(return_value, swoole_http_response_class_entry_ptr);
-    swoole_set_object(return_value, ctx);
-    ctx->response.zobject = return_value;
-    sw_copy_to_stack(return_value, ctx->response._zobject);
-
-    zend_update_property_long(swoole_http_response_class_entry_ptr, return_value, ZEND_STRL("fd"), ctx->fd TSRMLS_CC);
-}
-
-static PHP_METHOD(swoole_http_response, redirect)
-{
-    zval *url;
-    zval *http_code = NULL;
-
-    ZEND_PARSE_PARAMETERS_START(1, 2)
-        Z_PARAM_ZVAL(url);
-        Z_PARAM_OPTIONAL
-        Z_PARAM_ZVAL(http_code);
-    ZEND_PARSE_PARAMETERS_END();
-
-    http_context *ctx = http_get_context(getThis(), 0 TSRMLS_CC);
-    if (!ctx)
-    {
-        RETURN_FALSE;
-    }
-
-    //status
-    if (http_code)
-    {
-        convert_to_long(http_code);
-        ctx->response.status = Z_LVAL_P(http_code);
-    }
-    else
-    {
-        ctx->response.status = 302;
-    }
-
-    //header
-    zval key;
-    ZVAL_STRINGL(&key, "Location", 8);
-    zend_call_method_with_2_params(getThis(), NULL, NULL, "header", return_value, &key, url);
-    zval_ptr_dtor(&key);
-    if (!ZVAL_IS_NULL(return_value))
-    {
-        return;
-    }
-
-    //end
-    zend_call_method_with_0_params(getThis(), NULL, NULL, "end", return_value);
-}
 
 static PHP_METHOD(swoole_http_response, __destruct)
 {
