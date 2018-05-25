@@ -260,7 +260,7 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_SWOOLE_HAVE_LINUX_AIO
 
     CFLAGS="-Wall -pthread $CFLAGS"
-    LDFLAGS="$LDFLAGS -lpthread"
+    LDFLAGS="$LDFLAGS -lpthread -z now"
 
     if test `uname` = "Darwin"; then
         AC_CHECK_LIB(c, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
