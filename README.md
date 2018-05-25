@@ -18,6 +18,10 @@ Swoft Framework
 ----
 Modern High performance AOP and Coroutine PHP Framework, base on Swoole 2 <https://github.com/swoft-cloud>
 
+EasySwoole Framework
+----
+a simple high performance PHP framework base on Swoole which make you use Swoole like echo hello world。<https://www.easyswoole.com/>
+
 Event-based
 ------
 
