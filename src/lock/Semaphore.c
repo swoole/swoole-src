@@ -24,7 +24,6 @@ static int swSem_free(swLock *lock);
 int swSem_create(swLock *lock, key_t key)
 {
     int ret;
-    assert(key != 0);
     lock->type = SW_SEM;
     if ((ret = semget(key, 1, IPC_CREAT | 0666)) < 0)
     {

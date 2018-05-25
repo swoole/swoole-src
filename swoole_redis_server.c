@@ -102,7 +102,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
     SW_MAKE_STD_ZVAL(zparams);
     array_init(zparams);
 
-    zval *retval;
+    zval *retval = NULL;
 
     int state = SW_REDIS_RECEIVE_TOTAL_LINE;
     int add_param = 0;
@@ -219,13 +219,13 @@ static PHP_METHOD(swoole_redis_server, start)
 {
     int ret;
 
-    if (SwooleGS->start > 0)
+    swServer *serv = swoole_get_object(getThis());
+    if (serv->gs->start > 0)
     {
         swoole_php_error(E_WARNING, "Server is running. Unable to execute swoole_server::start.");
         RETURN_FALSE;
     }
 
-    swServer *serv = swoole_get_object(getThis());
     php_swoole_register_callback(serv);
 
     serv->onReceive = redis_onReceive;

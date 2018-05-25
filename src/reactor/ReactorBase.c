@@ -173,16 +173,16 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
         }
     }
     //not server, the event loop is empty
-    if (SwooleG.serv == NULL  && swReactor_empty(reactor))
+    if (SwooleG.serv == NULL && swReactor_empty(reactor))
     {
         reactor->running = 0;
     }
 
 #ifdef SW_USE_MALLOC_TRIM
-    if (reactor->last_malloc_trim_time < SwooleGS->now - SW_MALLOC_TRIM_INTERVAL)
+    if (SwooleG.serv && reactor->last_malloc_trim_time < SwooleG.serv->gs->now - SW_MALLOC_TRIM_INTERVAL)
     {
         malloc_trim(SW_MALLOC_TRIM_PAD);
-        reactor->last_malloc_trim_time = SwooleGS->now;
+        reactor->last_malloc_trim_time = SwooleG.serv->gs->now;
     }
 #endif
 }
@@ -343,17 +343,16 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
     }
     else
     {
-        append_buffer:
-
-        if (buffer->length > socket->buffer_size)
+        append_buffer: if (buffer->length > socket->buffer_size)
         {
-            swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "socket#%d output buffer overflow.", fd);
             if (SwooleG.socket_dontwait)
             {
+                SwooleG.error = SW_ERROR_OUTPUT_BUFFER_OVERFLOW;
                 return SW_ERR;
             }
             else
             {
+                swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "socket#%d output buffer overflow.", fd);
                 swYield();
                 swSocket_wait(fd, SW_SOCKET_OVERFLOW_WAIT, SW_EVENT_WRITE);
             }

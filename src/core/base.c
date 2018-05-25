@@ -27,6 +27,8 @@
 #include <execinfo.h>
 #endif
 
+SwooleGS_t *SwooleGS;
+
 void swoole_init(void)
 {
     struct rlimit rlmt;
@@ -67,7 +69,7 @@ void swoole_init(void)
         printf("[Master] Fatal Error: global memory allocation failure.");
         exit(1);
     }
-    SwooleGS = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerGS));
+    SwooleGS = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(SwooleGS_t));
     if (SwooleGS == NULL)
     {
         printf("[Master] Fatal Error: failed to allocate memory for SwooleGS.");
@@ -124,13 +126,6 @@ void swoole_init(void)
 #endif
 
     SwooleG.use_timer_pipe = 1;
-
-    SwooleStats = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerStats));
-    if (SwooleStats == NULL)
-    {
-        swError("[Master] Fatal Error: failed to allocate memory for SwooleStats.");
-    }
-    swoole_update_time();
 }
 
 void swoole_clean(void)
@@ -350,7 +345,7 @@ int swoole_sync_writefile(int fd, void *data, int len)
             {
                 continue;
             }
-            swWarn("write() failed. Error: %s[%d]", strerror(errno), errno);
+            swSysError("write(%d, %d) failed.", fd, towrite);
             break;
         }
     }
@@ -415,19 +410,6 @@ void swoole_redirect_stdout(int new_fd)
     if (dup2(new_fd, STDERR_FILENO) < 0)
     {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "dup2(STDERR_FILENO) failed. Error: %s[%d]", strerror(errno), errno);
-    }
-}
-
-void swoole_update_time(void)
-{
-    time_t now = time(NULL);
-    if (now < 0)
-    {
-        swWarn("get time failed. Error: %s[%d]", strerror(errno), errno);
-    }
-    else
-    {
-        SwooleGS->now = now;
     }
 }
 
@@ -1118,7 +1100,7 @@ int swoole_getaddrinfo(swRequest_getaddrinfo *req)
     return SW_OK;
 }
 
-int swoole_add_function(const char *name, void* func)
+SW_API int swoole_add_function(const char *name, void* func)
 {
     if (SwooleG.functions == NULL)
     {
@@ -1136,13 +1118,47 @@ int swoole_add_function(const char *name, void* func)
     return swHashMap_add(SwooleG.functions, (char *) name, strlen(name), func);
 }
 
-void* swoole_get_function(char *name, uint32_t length)
+SW_API void* swoole_get_function(char *name, uint32_t length)
 {
     if (!SwooleG.functions)
     {
         return NULL;
     }
     return swHashMap_find(SwooleG.functions, name, length);
+}
+
+SW_API int swoole_add_hook(enum swGlobal_hook_type type, swCallback func, int push_back)
+{
+    if (SwooleG.hooks[type] == NULL)
+    {
+        SwooleG.hooks[type] = swLinkedList_new(0, NULL);
+        if (SwooleG.hooks[type] == NULL)
+        {
+            return SW_ERR;
+        }
+    }
+    if (push_back)
+    {
+        return swLinkedList_append(SwooleG.hooks[type], func);
+    }
+    else
+    {
+        return swLinkedList_prepend(SwooleG.hooks[type], func);
+    }
+}
+
+SW_API void swoole_call_hook(enum swGlobal_hook_type type, void *arg)
+{
+    swLinkedList *hooks = SwooleG.hooks[type];
+    swLinkedList_node *node = hooks->head;
+    swCallback func = NULL;
+
+    while (node)
+    {
+        func = node->data;
+        func(arg);
+        node = node->next;
+    }
 }
 
 int swoole_shell_exec(char *command, pid_t *pid)

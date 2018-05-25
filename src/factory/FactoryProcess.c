@@ -51,15 +51,16 @@ int swFactoryProcess_create(swFactory *factory, int worker_num)
 static int swFactoryProcess_shutdown(swFactory *factory)
 {
     int status;
+    swServer *serv = factory->ptr;
 
-    if (swKill(SwooleGS->manager_pid, SIGTERM) < 0)
+    if (swKill(serv->gs->manager_pid, SIGTERM) < 0)
     {
-        swSysError("kill(%d) failed.", SwooleGS->manager_pid);
+        swSysError("kill(%d) failed.", serv->gs->manager_pid);
     }
 
-    if (swWaitpid(SwooleGS->manager_pid, &status, 0) < 0)
+    if (swWaitpid(serv->gs->manager_pid, &status, 0) < 0)
     {
-        swSysError("waitpid(%d) failed.", SwooleGS->manager_pid);
+        swSysError("waitpid(%d) failed.", serv->gs->manager_pid);
     }
 
     return SW_OK;

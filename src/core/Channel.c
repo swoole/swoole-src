@@ -18,37 +18,26 @@
 
 #define SW_CHANNEL_MIN_MEM (1024*64)
 
-#define swChannel_empty(q) (q->num == 0)
-#define swChannel_full(q) ((q->head == q->tail) && (q->tail_tag != q->head_tag))
-
 typedef struct _swChannel_item
 {
     int length;
     char data[0];
 } swChannel_item;
 
-int swChannel_pop(swChannel *object, void *out, int buffer_length);
-int swChannel_push(swChannel *object, void *in, int data_length);
-int swChannel_out(swChannel *object, void *out, int buffer_length);
-int swChannel_in(swChannel *object, void *in, int data_length);
-int swChannel_wait(swChannel *object);
-int swChannel_notify(swChannel *object);
-void swChannel_free(swChannel *object);
-
 swChannel* swChannel_new(size_t size, int maxlen, int flags)
 {
-    assert(size >= maxlen + sizeof(swChannel));
+    assert(size >= maxlen);
     int ret;
     void *mem;
 
     //use shared memory
     if (flags & SW_CHAN_SHM)
     {
-        mem = sw_shm_malloc(size);
+        mem = sw_shm_malloc(size + sizeof(swChannel));
     }
     else
     {
-        mem = sw_malloc(size);
+        mem = sw_malloc(size + sizeof(swChannel));
     }
 
     if (mem == NULL)
@@ -62,7 +51,7 @@ swChannel* swChannel_new(size_t size, int maxlen, int flags)
     bzero(object, sizeof(swChannel));
 
     //overflow space
-    object->size = size - maxlen;
+    object->size = size;
     object->mem = mem;
     object->maxlen = maxlen;
     object->flag = flags;
@@ -155,6 +144,27 @@ int swChannel_out(swChannel *object, void *out, int buffer_length)
 }
 
 /**
+ * peek data
+ */
+int swChannel_peek(swChannel *object, void *out, int buffer_length)
+{
+    if (swChannel_empty(object))
+    {
+        return SW_ERR;
+    }
+
+    int length;
+    object->lock.lock(&object->lock);
+    swChannel_item *item = object->mem + object->head;
+    assert(buffer_length >= item->length);
+    memcpy(out, item->data, item->length);
+    length = item->length;
+    object->lock.unlock(&object->lock);
+
+    return length;
+}
+
+/**
  * wait notify
  */
 int swChannel_wait(swChannel *object)
@@ -219,5 +229,21 @@ int swChannel_pop(swChannel *object, void *out, int buffer_length)
     int n = swChannel_out(object, out, buffer_length);
     object->lock.unlock(&object->lock);
     return n;
+}
+
+void swChannel_print(swChannel *chan)
+{
+    printf("swChannel\n{\n"
+            "    off_t head = %ld;\n"
+            "    off_t tail = %ld;\n"
+            "    size_t size = %ld;\n"
+            "    char head_tag = %d;\n"
+            "    char tail_tag = %d;\n"
+            "    int num = %d;\n"
+            "    size_t bytes = %ld;\n"
+            "    int flag = %d;\n"
+            "    int maxlen = %d;\n"
+            "\n}\n", (long)chan->head, (long)chan->tail, chan->size, chan->tail_tag, chan->head_tag, chan->num, chan->bytes,
+            chan->flag, chan->maxlen);
 }
 

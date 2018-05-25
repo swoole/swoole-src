@@ -19,12 +19,14 @@
 #include <sys/ipc.h>
 #include <sys/msg.h>
 
-void swMsgQueue_free(swMsgQueue *q)
+int swMsgQueue_free(swMsgQueue *q)
 {
-    if (q->remove)
+    if (msgctl(q->msg_id, IPC_RMID, 0) < 0)
     {
-        msgctl(q->msg_id, IPC_RMID, 0);
+        swSysError("msgctl(%d, IPC_RMID) failed.", q->msg_id);
+        return SW_ERR;
     }
+    return SW_OK;
 }
 
 void swMsgQueue_set_blocking(swMsgQueue *q, uint8_t blocking)
@@ -39,10 +41,14 @@ void swMsgQueue_set_blocking(swMsgQueue *q, uint8_t blocking)
     }
 }
 
-int swMsgQueue_create(swMsgQueue *q, int blocking, key_t msg_key, long type)
+int swMsgQueue_create(swMsgQueue *q, int blocking, key_t msg_key, int perms)
 {
+    if (perms <= 0 || perms >= 01000)
+    {
+        perms = 0666;
+    }
     int msg_id;
-    msg_id = msgget(msg_key, IPC_CREAT | 0666);
+    msg_id = msgget(msg_key, IPC_CREAT | perms);
     if (msg_id < 0)
     {
         swSysError("msgget() failed.");
@@ -52,7 +58,7 @@ int swMsgQueue_create(swMsgQueue *q, int blocking, key_t msg_key, long type)
     {
         bzero(q, sizeof(swMsgQueue));
         q->msg_id = msg_id;
-        q->type = type;
+        q->perms = perms;
         q->blocking = blocking;
         swMsgQueue_set_blocking(q, blocking);
     }

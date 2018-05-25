@@ -324,8 +324,8 @@ int swReactorThread_close(swReactor *reactor, int fd)
         return SW_ERR;
     }
 
-    sw_atomic_fetch_add(&SwooleStats->close_count, 1);
-    sw_atomic_fetch_sub(&SwooleStats->connection_num, 1);
+    sw_atomic_fetch_add(&serv->stats->close_count, 1);
+    sw_atomic_fetch_sub(&serv->stats->connection_num, 1);
 
     swTrace("Close Event.fd=%d|from=%d", fd, reactor->id);
 
@@ -934,7 +934,7 @@ static int swReactorThread_onRead(swReactor *reactor, swEvent *event)
     }
 #endif
 
-    event->socket->last_time = SwooleGS->now;
+    event->socket->last_time = serv->gs->now;
     return port->onRead(reactor, port, event);
 }
 
@@ -1055,8 +1055,8 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
         swListenPort *port = swServer_get_port(serv, fd);
         if (conn->out_buffer->length <= port->buffer_low_watermark)
         {
-            swServer_tcp_notify(serv, conn, SW_EVENT_BUFFER_EMPTY);
             conn->high_watermark = 0;
+            swServer_tcp_notify(serv, conn, SW_EVENT_BUFFER_EMPTY);
         }
     }
 
@@ -1521,7 +1521,7 @@ void swReactorThread_free(swServer *serv)
     int i;
     swReactorThread *thread;
 
-    if (SwooleGS->start == 0)
+    if (serv->gs->start == 0)
     {
         return;
     }

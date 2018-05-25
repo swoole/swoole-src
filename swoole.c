@@ -649,12 +649,8 @@ static sw_inline uint32_t swoole_get_new_size(uint32_t old_size, int handle TSRM
 
 void swoole_set_object(zval *object, void *ptr)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-    zend_object_handle handle = Z_OBJ_HANDLE_P(object);
-#else
-    int handle = (int) Z_OBJ_HANDLE(*object);
-#endif
+    SWOOLE_GET_TSRMLS;
+    int handle = sw_get_object_handle(object);
     assert(handle < SWOOLE_OBJECT_MAX);
     if (handle >= swoole_objects.size)
     {
@@ -679,12 +675,8 @@ void swoole_set_object(zval *object, void *ptr)
 
 void swoole_set_property(zval *object, int property_id, void *ptr)
 {
-#if PHP_MAJOR_VERSION < 7
-	TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-    zend_object_handle handle = Z_OBJ_HANDLE_P(object);
-#else
-    int handle = (int) Z_OBJ_HANDLE(*object);
-#endif
+    SWOOLE_GET_TSRMLS;
+    int handle = sw_get_object_handle(object);
     assert(handle < SWOOLE_OBJECT_MAX);
 
     if (handle >= swoole_objects.property_size[property_id])
@@ -863,6 +855,42 @@ PHP_MINIT_FUNCTION(swoole)
     SWOOLE_DEFINE(ERROR_SERVER_NO_IDLE_WORKER);
     SWOOLE_DEFINE(ERROR_SERVER_ONLY_START_ONE);
     SWOOLE_DEFINE(ERROR_SERVER_WORKER_EXIT_TIMEOUT);
+
+    /**
+     * trace log
+     */
+    SWOOLE_DEFINE(TRACE_SERVER);
+    SWOOLE_DEFINE(TRACE_CLIENT);
+    SWOOLE_DEFINE(TRACE_BUFFER);
+    SWOOLE_DEFINE(TRACE_CONN);
+    SWOOLE_DEFINE(TRACE_EVENT);
+    SWOOLE_DEFINE(TRACE_WORKER);
+    SWOOLE_DEFINE(TRACE_REACTOR);
+    SWOOLE_DEFINE(TRACE_PHP);
+    SWOOLE_DEFINE(TRACE_HTTP2);
+    SWOOLE_DEFINE(TRACE_EOF_PROTOCOL);
+    SWOOLE_DEFINE(TRACE_LENGTH_PROTOCOL);
+    SWOOLE_DEFINE(TRACE_CLOSE);
+    SWOOLE_DEFINE(TRACE_HTTP_CLIENT);
+    SWOOLE_DEFINE(TRACE_COROUTINE);
+    SWOOLE_DEFINE(TRACE_REDIS_CLIENT);
+    SWOOLE_DEFINE(TRACE_MYSQL_CLIENT);
+    SWOOLE_DEFINE(TRACE_AIO);
+    REGISTER_LONG_CONSTANT("SWOOLE_TRACE_ALL", 0xffffffff, CONST_CS | CONST_PERSISTENT);
+
+    /**
+     * log level
+     */
+    SWOOLE_DEFINE(LOG_DEBUG);
+    SWOOLE_DEFINE(LOG_TRACE);
+    SWOOLE_DEFINE(LOG_INFO);
+    SWOOLE_DEFINE(LOG_NOTICE);
+    SWOOLE_DEFINE(LOG_WARNING);
+    SWOOLE_DEFINE(LOG_ERROR);
+
+    SWOOLE_DEFINE(IPC_NONE);
+    SWOOLE_DEFINE(IPC_UNIXSOCK);
+    SWOOLE_DEFINE(IPC_SOCKET);
 
     SWOOLE_INIT_CLASS_ENTRY(swoole_server_ce, "swoole_server", "Swoole\\Server", swoole_server_methods);
     swoole_server_class_entry_ptr = zend_register_internal_class(&swoole_server_ce TSRMLS_CC);
@@ -1114,7 +1142,7 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
         swWorker_clean();
     }
 
-    if (SwooleGS->start > 0 && SwooleG.serv && SwooleG.running > 0)
+    if (SwooleG.serv && SwooleG.serv->gs->start > 0 && SwooleG.running > 0)
     {
         if (PG(last_error_message))
         {

@@ -14,10 +14,18 @@
   +----------------------------------------------------------------------+
 */
 
+#if __APPLE__
+// Fix warning: 'daemon' is deprecated: first deprecated in macOS 10.5 - Use posix_spawn APIs instead. [-Wdeprecated-declarations]
+#define daemon yes_we_know_that_daemon_is_deprecated_in_os_x_10_5_thankyou
+#endif
 #include "php_swoole.h"
 #include "php_streams.h"
 #include "php_network.h"
 
+#if __APPLE__
+#undef daemon
+extern int daemon(int, int);
+#endif
 static PHP_METHOD(swoole_process, __construct);
 static PHP_METHOD(swoole_process, __destruct);
 static PHP_METHOD(swoole_process, useQueue);
@@ -241,7 +249,7 @@ static PHP_METHOD(swoole_process, __construct)
         RETURN_FALSE;
     }
 
-    if (SwooleG.serv && SwooleGS->start == 1 && swIsMaster())
+    if (SwooleG.serv && SwooleG.serv->gs->start == 1 && swIsMaster())
     {
         swoole_php_fatal_error(E_ERROR, "swoole_process can't be used in master process.");
         RETURN_FALSE;
@@ -271,9 +279,9 @@ static PHP_METHOD(swoole_process, __construct)
     bzero(process, sizeof(swWorker));
 
     int base = 1;
-    if (SwooleG.serv && SwooleGS->start)
+    if (SwooleG.serv && SwooleG.serv->gs->start)
     {
-        base = SwooleG.serv->worker_num + SwooleG.task_worker_num + SwooleG.serv->user_worker_num;
+        base = SwooleG.serv->worker_num + SwooleG.serv->task_worker_num + SwooleG.serv->user_worker_num;
     }
     if (php_swoole_worker_round_id == 0)
     {
@@ -324,7 +332,6 @@ static PHP_METHOD(swoole_process, __destruct)
     }
     if (process->queue)
     {
-        swMsgQueue_free(process->queue);
         efree(process->queue);
     }
     efree(process);
@@ -387,7 +394,6 @@ static PHP_METHOD(swoole_process, useQueue)
         swMsgQueue_set_blocking(queue, 0);
         mode = mode & (~MSGQUEUE_NOWAIT);
     }
-    queue->remove = 0;
     process->queue = queue;
     process->ipc_mode = mode;
     zend_update_property_long(swoole_process_class_entry_ptr, getThis(), ZEND_STRL("msgQueueId"), queue->msg_id TSRMLS_CC);
@@ -421,10 +427,8 @@ static PHP_METHOD(swoole_process, statQueue)
 static PHP_METHOD(swoole_process, freeQueue)
 {
     swWorker *process = swoole_get_object(getThis());
-    if (process->queue)
+    if (process->queue && swMsgQueue_free(process->queue) == SW_OK)
     {
-        process->queue->remove = 1;
-        swMsgQueue_free(process->queue);
         efree(process->queue);
         process->queue = NULL;
         RETURN_TRUE;
@@ -473,7 +477,7 @@ static PHP_METHOD(swoole_process, signal)
         RETURN_FALSE;
     }
 
-    if (SwooleGS->start && (swIsWorker() || swIsMaster() || swIsManager() || swIsTaskWorker()))
+    if (SwooleG.serv && SwooleG.serv->gs->start && (swIsWorker() || swIsMaster() || swIsManager() || swIsTaskWorker()))
     {
         if (signo == SIGTERM)
         {
@@ -688,7 +692,10 @@ int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
 
     bzero(&SwooleWG, sizeof(SwooleWG));
     SwooleG.pid = process->pid;
-    SwooleG.process_type = 0;
+    if (SwooleG.process_type != SW_PROCESS_USERWORKER)
+    {
+        SwooleG.process_type = 0;
+    }
     SwooleWG.id = process->id;
 
     if (SwooleG.timer.fd)

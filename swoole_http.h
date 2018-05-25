@@ -100,6 +100,7 @@ typedef struct
     uint32_t keepalive :1;
     uint32_t http2 :1;
     uint32_t upgrade :1;
+    uint32_t detached :1;
 
     uint32_t request_read :1;
     uint32_t current_header_name_allocated :1;

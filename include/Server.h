@@ -69,6 +69,7 @@ enum swEventType
 
 enum swIPCType
 {
+    SW_IPC_NONE     = 0,
     SW_IPC_UNIXSOCK = 1,
     SW_IPC_MSGQUEUE = 2,
     SW_IPC_SOCKET   = 3,
@@ -113,6 +114,8 @@ enum swTaskType
     SW_TASK_NONBLOCK   = 4,  //task
     SW_TASK_CALLBACK   = 8,  //callback
     SW_TASK_WAITALL    = 16, //for taskWaitAll
+    SW_TASK_COROUTINE  = 32, //coroutine
+    SW_TASK_PEEK       = 64, //peek
 };
 
 typedef struct _swUdpFd
@@ -336,7 +339,35 @@ enum swServer_hook_type
     SW_SERVER_HOOK_WORKER_CLOSE,
     SW_SERVER_HOOK_MANAGER_START,
     SW_SERVER_HOOK_MANAGER_TIMER,
+    SW_SERVER_HOOK_PROCESS_TIMER,
 };
+
+typedef struct
+{
+    time_t start_time;
+    sw_atomic_t connection_num;
+    sw_atomic_t tasking_num;
+    sw_atomic_long_t accept_count;
+    sw_atomic_long_t close_count;
+    sw_atomic_long_t request_count;
+} swServerStats;
+
+typedef struct
+{
+    pid_t master_pid;
+    pid_t manager_pid;
+
+    uint32_t session_round :24;
+    sw_atomic_t start;  //after swServer_start will set start=1
+
+    time_t now;
+
+    sw_atomic_t spinlock;
+
+    swProcessPool task_workers;
+    swProcessPool event_workers;
+
+} swServerGS;
 
 struct _swServer
 {
@@ -443,6 +474,10 @@ struct _swServer
      * slowlog
      */
     uint32_t trace_event_worker :1;
+    /**
+     * yield coroutine when the output buffer is full
+     */
+    uint32_t send_yield :1;
 
     /**
      *  heartbeat check time
@@ -453,6 +488,8 @@ struct _swServer
     int *cpu_affinity_available;
     int cpu_affinity_available_num;
     
+    double send_timeout;
+
     uint16_t listen_port_num;
     time_t reload_time;
     time_t warning_time;
@@ -466,9 +503,21 @@ struct _swServer
 
     swReactor reactor;
     swFactory factory;
-
     swListenPort *listen_list;
+    pthread_t heartbeat_pidt;
 
+    /**
+     *  task process
+     */
+    uint16_t task_worker_num;
+    uint8_t task_ipc_mode;
+    uint16_t task_max_request;
+    swPipe *task_notify;
+    swEventData *task_result;
+
+    /**
+     * use process
+     */
     uint16_t user_worker_num;
     swUserWorker_node *user_worker_list;
     swHashMap *user_worker_map;
@@ -478,6 +527,9 @@ struct _swServer
     swWorker *workers;
 
     swChannel *message_box;
+
+    swServerStats *stats;
+    swServerGS *gs;
 
 #ifdef HAVE_PTHREAD_BARRIER
     pthread_barrier_t barrier;
@@ -589,6 +641,7 @@ typedef struct
 
 int swServer_master_onAccept(swReactor *reactor, swEvent *event);
 void swServer_master_onTimer(swTimer *timer, swTimer_node *tnode);
+void swServer_update_time(swServer *serv);
 
 int swServer_onFinish(swFactory *factory, swSendData *resp);
 int swServer_onFinish2(swFactory *factory, swSendData *resp);
@@ -600,8 +653,8 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port);
 void swServer_close_port(swServer *serv, enum swBool_type only_stream_port);
 int swServer_add_worker(swServer *serv, swWorker *worker);
 int swserver_add_systemd_socket(swServer *serv);
-int swServer_add_hook(swServer *serv, enum swServer_hook_type type, void *func, int push_back);
-void swServer_call_hook_func(swServer *serv, enum swServer_hook_type type);
+int swServer_add_hook(swServer *serv, enum swServer_hook_type type, swCallback func, int push_back);
+void swServer_call_hook(swServer *serv, enum swServer_hook_type type, void *arg);
 
 int swServer_create(swServer *serv);
 int swServer_free(swServer *serv);
@@ -732,7 +785,10 @@ static sw_inline swString* swTaskWorker_large_unpack(swEventData *task_result)
         return NULL;
     }
     close(tmp_file_fd);
-    unlink(_pkg.tmpfile);
+    if (!(swTask_type(task_result) & SW_TASK_PEEK))
+    {
+        unlink(_pkg.tmpfile);
+    }
     SwooleG.module_stack->length = _pkg.length;
     return SwooleG.module_stack;
 }
@@ -780,14 +836,14 @@ static sw_inline swWorker* swServer_get_worker(swServer *serv, uint16_t worker_i
     //Event Worker
     if (worker_id < serv->worker_num)
     {
-        return &(SwooleGS->event_workers.workers[worker_id]);
+        return &(serv->gs->event_workers.workers[worker_id]);
     }
 
     //Task Worker
-    uint16_t task_worker_max = SwooleG.task_worker_num + serv->worker_num;
+    uint16_t task_worker_max = serv->task_worker_num + serv->worker_num;
     if (worker_id < task_worker_max)
     {
-        return &(SwooleGS->task_workers.workers[worker_id - serv->worker_num]);
+        return &(serv->gs->task_workers.workers[worker_id - serv->worker_num]);
     }
 
     //User Worker
@@ -873,7 +929,7 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swEventDat
         {
             serv->scheduler_warning = 1;
         }
-        swTraceLog(SW_TRACE_SERVER, "schedule=%d, round=%d\n", key, serv->worker_round_id);
+        swTraceLog(SW_TRACE_SERVER, "schedule=%d, round=%d", key, serv->worker_round_id);
         return key;
     }
     return key % serv->worker_num;
