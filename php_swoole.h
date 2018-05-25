@@ -50,7 +50,7 @@
 #include "Client.h"
 #include "async.h"
 
-#define PHP_SWOOLE_VERSION  "1.10.5"
+#define PHP_SWOOLE_VERSION  "1.10.6"
 #define PHP_SWOOLE_CHECK_CALLBACK
 #define PHP_SWOOLE_ENABLE_FASTCALL
 
@@ -104,9 +104,11 @@ extern __thread swoole_object_array swoole_objects;
 extern swoole_object_array swoole_objects;
 #endif
 
-
 //#define SW_USE_PHP        1
 #define SW_CHECK_RETURN(s)         if(s<0){RETURN_FALSE;}else{RETURN_TRUE;}return
+#define SW_LOCK_CHECK_RETURN(s)    if(s==0){RETURN_TRUE;}else{\
+	zend_update_property_long(NULL, getThis(), SW_STRL("errCode")-1, s TSRMLS_CC);\
+	RETURN_FALSE;}return
 
 #define swoole_php_error(level, fmt_str, ...)   if (SWOOLE_G(display_errors)) php_error_docref(NULL TSRMLS_CC, level, fmt_str, ##__VA_ARGS__)
 #define swoole_php_fatal_error(level, fmt_str, ...)   php_error_docref(NULL TSRMLS_CC, level, fmt_str, ##__VA_ARGS__)
@@ -402,22 +404,14 @@ zval* php_swoole_task_unpack(swEventData *task_result TSRMLS_DC);
 
 static sw_inline void* swoole_get_object(zval *object)
 {
-#if PHP_MAJOR_VERSION < 7
-    zend_object_handle handle = Z_OBJ_HANDLE_P(object);
-#else
-    int handle = (int)Z_OBJ_HANDLE(*object);
-#endif
+    int handle = sw_get_object_handle(object);
     assert(handle < swoole_objects.size);
     return swoole_objects.array[handle];
 }
 
 static sw_inline void* swoole_get_property(zval *object, int property_id)
 {
-#if PHP_MAJOR_VERSION < 7
-    zend_object_handle handle = Z_OBJ_HANDLE_P(object);
-#else
-    int handle = (int) Z_OBJ_HANDLE(*object);
-#endif
+    int handle = sw_get_object_handle(object);
     if (handle >= swoole_objects.property_size[property_id])
     {
         return NULL;
@@ -447,12 +441,21 @@ int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swEventData *da
 
 #if PHP_MAJOR_VERSION >= 7
 PHPAPI zend_string* php_swoole_serialize(zval *zvalue);
-PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, zval *object_args);
+PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, zval *object_args, long flag);
+#endif
+
+#ifdef SW_COROUTINE
+int php_coroutine_reactor_can_exit(swReactor *reactor);
 #endif
 
 static sw_inline zval* php_swoole_server_get_callback(swServer *serv, int server_fd, int event_type)
 {
     swListenPort *port = (swListenPort *) serv->connection_list[server_fd].object;
+    if (port == NULL)
+    {
+        swWarn("invalid server_fd[%d].", server_fd);
+        return NULL;
+    }
     swoole_server_port_property *property = (swoole_server_port_property *) port->ptr;
     if (!property)
     {
@@ -517,7 +520,7 @@ static sw_inline int php_swoole_is_callable(zval *callback TSRMLS_DC)
     sw_php_array_merge(Z_ARRVAL_P(_new_##arr), Z_ARRVAL_P(arr));\
     arr = _new_##arr;
 
-static sw_inline zval* php_swoole_read_init_property(zend_class_entry *scope, zval *object, char *p, size_t pl TSRMLS_DC)
+static sw_inline zval* php_swoole_read_init_property(zend_class_entry *scope, zval *object, const char *p, size_t pl TSRMLS_DC)
 {
     zval *property = sw_zend_read_property(scope, object, p, pl, 1 TSRMLS_CC);
     if (property == NULL || ZVAL_IS_NULL(property))
@@ -566,5 +569,27 @@ extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
     } else { \
         sw_zend_register_class_alias(name_ns, name##_class_entry_ptr);\
     }
+
+/* PHP 7.3 forward compatibility */
+#ifndef GC_SET_REFCOUNT
+# define GC_SET_REFCOUNT(p, rc) do { \
+		GC_REFCOUNT(p) = rc; \
+	} while (0)
+#endif
+
+#ifndef GC_IS_RECURSIVE
+# define GC_IS_RECURSIVE(p) \
+	(ZEND_HASH_GET_APPLY_COUNT(p) > 1)
+# define GC_PROTECT_RECURSION(p) \
+	ZEND_HASH_INC_APPLY_COUNT(p)
+# define GC_UNPROTECT_RECURSION(p) \
+	ZEND_HASH_DEC_APPLY_COUNT(p)
+#endif
+
+#ifndef ZEND_HASH_APPLY_PROTECTION
+# define ZEND_HASH_APPLY_PROTECTION(p) 1
+#endif
+
+END_EXTERN_C()
 
 #endif	/* PHP_SWOOLE_H */
