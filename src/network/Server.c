@@ -887,17 +887,17 @@ int swServer_free(swServer *serv)
     /**
      * Shutdown heartbeat thread
      */
-    if (SwooleG.heartbeat_pidt)
+    if (serv->heartbeat_pidt)
     {
         swTraceLog(SW_TRACE_SERVER, "terminate heartbeat thread.");
-        if (pthread_cancel(SwooleG.heartbeat_pidt) < 0)
+        if (pthread_cancel(serv->heartbeat_pidt) < 0)
         {
-            swSysError("pthread_cancel(%ld) failed.", (ulong_t )SwooleG.heartbeat_pidt);
+            swSysError("pthread_cancel(%ld) failed.", (ulong_t )serv->heartbeat_pidt);
         }
         //wait thread
-        if (pthread_join(SwooleG.heartbeat_pidt, NULL) < 0)
+        if (pthread_join(serv->heartbeat_pidt, NULL) < 0)
         {
-            swSysError("pthread_join(%ld) failed.", (ulong_t )SwooleG.heartbeat_pidt);
+            swSysError("pthread_join(%ld) failed.", (ulong_t )serv->heartbeat_pidt);
         }
     }
     if (serv->factory_mode == SW_MODE_SINGLE)
@@ -1661,7 +1661,7 @@ static void swHeartbeatThread_start(swServer *serv)
     {
         swWarn("pthread_create[hbcheck] fail");
     }
-    SwooleG.heartbeat_pidt = thread_id;
+    serv->heartbeat_pidt = thread_id;
 }
 
 static void swHeartbeatThread_loop(swThreadParam *param)

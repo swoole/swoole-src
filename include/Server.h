@@ -503,8 +503,8 @@ struct _swServer
 
     swReactor reactor;
     swFactory factory;
-
     swListenPort *listen_list;
+    pthread_t heartbeat_pidt;
 
     /**
      *  task process

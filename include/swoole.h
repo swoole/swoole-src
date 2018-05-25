@@ -2130,8 +2130,6 @@ typedef struct
     swMemoryPool *memory_pool;
     swReactor *main_reactor;
 
-    pthread_t heartbeat_pidt;
-
     char *task_tmpdir;
     uint16_t task_tmpdir_len;
 
