@@ -107,6 +107,9 @@ static swPoolstr *bigger_filter = NULL;
 
 #define SW_FAST_PACK                  1
 
+#define UNSERIALIZE_OBJECT_TO_ARRAY          1
+#define UNSERIALIZE_OBJECT_TO_STDCLASS       2
+
 #endif
 
 #ifdef	__cplusplus
