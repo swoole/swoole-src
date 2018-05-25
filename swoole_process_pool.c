@@ -70,6 +70,7 @@ typedef struct
 
 static zend_class_entry swoole_process_pool_ce;
 static zend_class_entry *swoole_process_pool_class_entry_ptr;
+static swProcessPool *current_pool;
 
 void swoole_process_pool_init(int module_number TSRMLS_DC)
 {
@@ -198,8 +199,8 @@ static void php_swoole_process_pool_signal_hanlder(int sig)
         break;
     case SIGUSR1:
     case SIGUSR2:
-        SwooleGS->event_workers.reloading = 1;
-        SwooleGS->event_workers.reload_init = 0;
+        current_pool->reloading = 1;
+        current_pool->reload_init = 0;
         break;
     default:
         break;
@@ -429,6 +430,9 @@ static PHP_METHOD(swoole_process_pool, start)
     {
         RETURN_FALSE;
     }
+
+    current_pool = pool;
+
     swProcessPool_wait(pool);
     swProcessPool_shutdown(pool);
 }

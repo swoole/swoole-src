@@ -89,7 +89,6 @@ ZEND_END_ARG_INFO()
 
 static PHP_METHOD(swoole_coroutine_util, set);
 static PHP_METHOD(swoole_coroutine_util, suspend);
-static PHP_METHOD(swoole_coroutine_util, cli_wait);
 static PHP_METHOD(swoole_coroutine_util, resume);
 static PHP_METHOD(swoole_coroutine_util, getuid);
 static PHP_METHOD(swoole_coroutine_util, sleep);
@@ -111,7 +110,6 @@ static const zend_function_entry swoole_coroutine_util_methods[] =
     ZEND_FENTRY(create, ZEND_FN(swoole_coroutine_create), arginfo_swoole_coroutine_create, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(exec, ZEND_FN(swoole_coroutine_exec), arginfo_swoole_coroutine_exec, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, set, arginfo_swoole_coroutine_set, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_util, cli_wait, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, suspend, arginfo_swoole_coroutine_suspend, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, resume, arginfo_swoole_coroutine_resume, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, getuid, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -310,20 +308,6 @@ PHP_FUNCTION(swoole_coroutine_create)
         sw_zval_ptr_dtor(&retval);
     }
     RETURN_TRUE;
-}
-
-static PHP_METHOD(swoole_coroutine_util, cli_wait)
-{
-    if (SwooleGS->start == 1)
-    {
-        RETURN_FALSE;
-    }
-    php_context *cxt = emalloc(sizeof(php_context));
-    coro_save(cxt);
-    php_swoole_event_wait();
-    coro_resume_parent(cxt, NULL, NULL);
-    efree(cxt);
-    RETURN_LONG(COROG.coro_num);
 }
 
 static PHP_METHOD(swoole_coroutine_util, resume)

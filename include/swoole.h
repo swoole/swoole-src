@@ -1297,7 +1297,6 @@ static sw_inline int swSocket_is_stream(uint8_t type)
 
 void swoole_init(void);
 void swoole_clean(void);
-void swoole_update_time(void);
 double swoole_microtime(void);
 void swoole_rtrim(char *str, int len);
 void swoole_redirect_stdout(int new_fd);
@@ -2018,13 +2017,18 @@ typedef struct
     time_t now;
 
     sw_atomic_t spinlock;
-    swLock lock;
-    swLock lock_2;
 
     swProcessPool task_workers;
     swProcessPool event_workers;
 
 } swServerGS;
+
+
+typedef struct
+{
+    swLock lock;
+    swLock lock_2;
+} SwooleGS_t;
 
 //Worker process global Variable
 typedef struct
@@ -2180,10 +2184,9 @@ typedef struct
 } swServerStats;
 
 extern swServerG SwooleG;              //Local Global Variable
-extern swServerGS *SwooleGS;           //Share Memory Global Variable
+extern SwooleGS_t *SwooleGS;           //Share Memory Global Variable
 extern swWorkerG SwooleWG;             //Worker Global Variable
 extern __thread swThreadG SwooleTG;   //Thread Global Variable
-extern swServerStats *SwooleStats;
 
 #define SW_CPU_NUM                    (SwooleG.cpu_num)
 

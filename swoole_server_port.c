@@ -517,7 +517,8 @@ static PHP_METHOD(swoole_server_port, on)
     zend_size_t len, i;
     zval *cb;
 
-    if (SwooleGS->start > 0)
+    swServer *serv = swoole_get_object(getThis());
+    if (serv->gs->start > 0)
     {
         swoole_php_fatal_error(E_WARNING, "can't register event callback function after server started.");
         RETURN_FALSE;

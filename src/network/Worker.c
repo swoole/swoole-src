@@ -306,12 +306,12 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         }
         do_task:
         {
-            worker->request_time = SwooleGS->now;
+            worker->request_time = serv->gs->now;
             serv->onReceive(serv, task);
             worker->request_time = 0;
             worker->traced = 0;
             worker->request_count++;
-            sw_atomic_fetch_add(&SwooleStats->request_count, 1);
+            sw_atomic_fetch_add(&serv->stats->request_count, 1);
         }
         if (task->info.type == SW_EVENT_PACKAGE_END)
         {
@@ -356,8 +356,8 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         if (package->offset == package->length - sizeof(swDgramPacket))
         {
             worker->request_count++;
-            worker->request_time = SwooleGS->now;
-            sw_atomic_fetch_add(&SwooleStats->request_count, 1);
+            worker->request_time = serv->gs->now;
+            sw_atomic_fetch_add(&serv->stats->request_count, 1);
             serv->onPacket(serv, task);
             worker->request_time = 0;
             worker->traced = 0;
@@ -605,7 +605,7 @@ static void swWorker_stop()
     }
     else
     {
-        kill(SwooleGS->manager_pid, SIGIO);
+        kill(serv->gs->manager_pid, SIGIO);
     }
 
     try_to_exit: SwooleWG.wait_exit = 1;

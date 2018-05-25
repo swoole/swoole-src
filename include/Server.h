@@ -489,6 +489,9 @@ struct _swServer
 
     swChannel *message_box;
 
+    swServerStats *stats;
+    swServerGS *gs;
+
 #ifdef HAVE_PTHREAD_BARRIER
     pthread_barrier_t barrier;
 #endif
@@ -599,6 +602,7 @@ typedef struct
 
 int swServer_master_onAccept(swReactor *reactor, swEvent *event);
 void swServer_master_onTimer(swTimer *timer, swTimer_node *tnode);
+void swServer_update_time(swServer *serv);
 
 int swServer_onFinish(swFactory *factory, swSendData *resp);
 int swServer_onFinish2(swFactory *factory, swSendData *resp);
@@ -793,14 +797,14 @@ static sw_inline swWorker* swServer_get_worker(swServer *serv, uint16_t worker_i
     //Event Worker
     if (worker_id < serv->worker_num)
     {
-        return &(SwooleGS->event_workers.workers[worker_id]);
+        return &(serv->gs->event_workers.workers[worker_id]);
     }
 
     //Task Worker
     uint16_t task_worker_max = SwooleG.task_worker_num + serv->worker_num;
     if (worker_id < task_worker_max)
     {
-        return &(SwooleGS->task_workers.workers[worker_id - serv->worker_num]);
+        return &(serv->gs->task_workers.workers[worker_id - serv->worker_num]);
     }
 
     //User Worker

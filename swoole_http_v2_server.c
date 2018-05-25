@@ -121,6 +121,8 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length 
 {
     assert(ctx->send_header == 0);
 
+    swServer *serv = SwooleG.serv;
+
     char buf[SW_HTTP_HEADER_MAX_SIZE];
     char *date_str = NULL;
     char intbuf[2][16];
@@ -200,7 +202,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length 
         }
         if (!(flag & HTTP_RESPONSE_DATE))
         {
-            date_str = sw_php_format_date(ZEND_STRL(SW_HTTP_DATE_FORMAT), SwooleGS->now, 0 TSRMLS_CC);
+            date_str = sw_php_format_date(ZEND_STRL(SW_HTTP_DATE_FORMAT), serv->gs->now, 0 TSRMLS_CC);
             http2_add_header(&nv[index++], ZEND_STRL("date"), date_str, strlen(date_str));
         }
         if (!(flag & HTTP_RESPONSE_CONTENT_TYPE))
@@ -213,7 +215,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length 
         http2_add_header(&nv[index++], ZEND_STRL("server"), ZEND_STRL(SW_HTTP_SERVER_SOFTWARE));
         http2_add_header(&nv[index++], ZEND_STRL("content-type"), ZEND_STRL("text/html"));
 
-        date_str = sw_php_format_date(ZEND_STRL(SW_HTTP_DATE_FORMAT), SwooleGS->now, 0 TSRMLS_CC);
+        date_str = sw_php_format_date(ZEND_STRL(SW_HTTP_DATE_FORMAT), serv->gs->now, 0 TSRMLS_CC);
         http2_add_header(&nv[index++], ZEND_STRL("date"), date_str, strlen(date_str));
 
 #ifdef SW_HAVE_ZLIB
@@ -581,6 +583,7 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
     int fd = req->info.fd;
 
     http_context *ctx;
+    swServer *serv = SwooleG.serv;
 
     zval *zdata;
     SW_MAKE_STD_ZVAL(zdata);
@@ -619,7 +622,7 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
         }
 
         zval *zserver = ctx->request.zserver;
-        sw_add_assoc_long_ex(zserver, ZEND_STRS("request_time"), SwooleGS->now);
+        sw_add_assoc_long_ex(zserver, ZEND_STRS("request_time"), serv->gs->now);
 
         // Add REQUEST_TIME_FLOAT
         double now_float = swoole_microtime();

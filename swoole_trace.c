@@ -77,7 +77,7 @@ void php_swoole_trace_check(void *arg)
     {
         worker = swServer_get_worker(serv, i);
         swTraceLog(SW_TRACE_SERVER, "trace request, worker#%d, pid=%d. request_time=%d.", i, worker->pid, worker->request_time);
-        if (!(worker->request_time > 0 && worker->traced == 0 && SwooleGS->now - worker->request_time >= timeout))
+        if (!(worker->request_time > 0 && worker->traced == 0 && serv->gs->now - worker->request_time >= timeout))
         {
             continue;
         }

@@ -383,7 +383,8 @@ static PHP_METHOD(swoole_websocket_server, on)
     zval *callback;
     zval *event_name;
 
-    if (SwooleGS->start > 0)
+    swServer *serv = swoole_get_object(getThis());
+    if (serv->gs->start > 0)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "can't register event callback function after server started.");
         RETURN_FALSE;
@@ -393,8 +394,6 @@ static PHP_METHOD(swoole_websocket_server, on)
     {
         return;
     }
-
-    swServer *serv = swoole_get_object(getThis());
 
     char *func_name = NULL;
     zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
@@ -537,10 +536,10 @@ static PHP_METHOD(swoole_websocket_server, unpack)
 
 static PHP_METHOD(swoole_websocket_server, exist)
 {
-    zval *zobject = getThis();
-    long fd;
+    zend_long fd;
 
-    if (SwooleGS->start == 0)
+    swServer *serv = swoole_get_object(getThis());
+    if (serv->gs->start == 0)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "the server is not running.");
         RETURN_FALSE;
@@ -551,7 +550,6 @@ static PHP_METHOD(swoole_websocket_server, exist)
         return;
     }
 
-    swServer *serv = swoole_get_object(zobject);
     swConnection *conn = swWorker_get_connection(serv, fd);
     if (!conn)
     {
@@ -582,10 +580,10 @@ static PHP_METHOD(swoole_websocket_server, exist)
 
 static PHP_METHOD(swoole_websocket_server, isEstablished)
 {
-    zval *zobject = getThis();
-    long fd;
+    zend_long fd;
 
-    if (SwooleGS->start == 0)
+    swServer *serv = swoole_get_object(getThis());
+    if (serv->gs->start == 0)
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "the server is not running.");
         RETURN_FALSE;
@@ -596,7 +594,6 @@ static PHP_METHOD(swoole_websocket_server, isEstablished)
         return;
     }
 
-    swServer *serv = swoole_get_object(zobject);
     swConnection *conn = swWorker_get_connection(serv, fd);
     //not isEstablished
     if (!conn || conn->active == 0 || conn->closed || conn->websocket_status < WEBSOCKET_STATUS_ACTIVE)
