@@ -2008,24 +2008,6 @@ void swTimeWheel_remove(swTimeWheel *tw, swConnection *conn);
 //Share Memory
 typedef struct
 {
-    pid_t master_pid;
-    pid_t manager_pid;
-
-    uint32_t session_round :24;
-    sw_atomic_t start;  //after swServer_start will set start=1
-
-    time_t now;
-
-    sw_atomic_t spinlock;
-
-    swProcessPool task_workers;
-    swProcessPool event_workers;
-
-} swServerGS;
-
-
-typedef struct
-{
     swLock lock;
     swLock lock_2;
 } SwooleGS_t;
@@ -2172,16 +2154,6 @@ typedef struct
     swLinkedList *hooks[SW_MAX_HOOK_TYPE];
 
 } swServerG;
-
-typedef struct
-{
-    time_t start_time;
-    sw_atomic_t connection_num;
-    sw_atomic_t tasking_num;
-    sw_atomic_long_t accept_count;
-    sw_atomic_long_t close_count;
-    sw_atomic_long_t request_count;
-} swServerStats;
 
 extern swServerG SwooleG;              //Local Global Variable
 extern SwooleGS_t *SwooleGS;           //Share Memory Global Variable
