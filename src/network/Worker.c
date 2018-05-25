@@ -501,7 +501,7 @@ void swWorker_onStart(swServer *serv)
     SwooleWG.worker = swServer_get_worker(serv, SwooleWG.id);
 
     int i;
-    for (i = 0; i < serv->worker_num + SwooleG.task_worker_num; i++)
+    for (i = 0; i < serv->worker_num + serv->task_worker_num; i++)
     {
         worker = swServer_get_worker(serv, i);
         if (SwooleWG.id == i)
@@ -681,7 +681,7 @@ void swWorker_clean(void)
     swServer *serv = SwooleG.serv;
     swWorker *worker;
 
-    for (i = 0; i < serv->worker_num + SwooleG.task_worker_num; i++)
+    for (i = 0; i < serv->worker_num + serv->task_worker_num; i++)
     {
         worker = swServer_get_worker(serv, i);
         if (SwooleG.main_reactor)
@@ -750,7 +750,7 @@ int swWorker_loop(swFactory *factory, int worker_id)
      */
     int i;
     swConnection *pipe_socket;
-    for (i = 0; i < serv->worker_num + SwooleG.task_worker_num; i++)
+    for (i = 0; i < serv->worker_num + serv->task_worker_num; i++)
     {
         worker = swServer_get_worker(serv, i);
         pipe_socket = swReactor_get(SwooleG.main_reactor, worker->pipe_master);

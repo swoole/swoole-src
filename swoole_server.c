@@ -328,15 +328,15 @@ int php_swoole_get_send_data(zval *zdata, char **str TSRMLS_DC)
     return length;
 }
 
-static sw_inline int php_swoole_check_task_param(int dst_worker_id TSRMLS_DC)
+static sw_inline int php_swoole_check_task_param(swServer *serv, int dst_worker_id TSRMLS_DC)
 {
-    if (SwooleG.task_worker_num < 1)
+    if (serv->task_worker_num < 1)
     {
         swoole_php_fatal_error(E_WARNING, "task method can't be executed, please set 'task_worker_num' > 0.");
         return SW_ERR;
     }
 
-    if (dst_worker_id >= SwooleG.task_worker_num)
+    if (dst_worker_id >= serv->task_worker_num)
     {
         swoole_php_fatal_error(E_WARNING, "worker_id must be less than serv->task_worker_num.");
         return SW_ERR;
@@ -539,7 +539,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject TSRMLS_DC)
     }
     if (!sw_zend_hash_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("task_worker_num")))
     {
-        add_assoc_long(zsetting, "task_worker_num", SwooleG.task_worker_num);
+        add_assoc_long(zsetting, "task_worker_num", serv->task_worker_num);
     }
     if (!sw_zend_hash_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("buffer_output_size")))
     {
@@ -551,7 +551,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject TSRMLS_DC)
     }
 #ifdef HAVE_PTRACE
     //trace request
-    if (serv->request_slowlog_file && (serv->trace_event_worker || SwooleG.task_worker_num > 0))
+    if (serv->request_slowlog_file && (serv->trace_event_worker || serv->task_worker_num > 0))
     {
         serv->manager_alarm = serv->request_slowlog_timeout;
         if (swServer_add_hook(serv, SW_SERVER_HOOK_MANAGER_TIMER, php_swoole_trace_check, 1) < 0)
@@ -2275,7 +2275,7 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "task_worker_num", v))
     {
         convert_to_long(v);
-        SwooleG.task_worker_num = (int) Z_LVAL_P(v);
+        serv->task_worker_num = (int) Z_LVAL_P(v);
         if (task_callbacks == NULL)
         {
             task_callbacks = swHashMap_new(1024, NULL);
@@ -2316,7 +2316,7 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "task_ipc_mode", v))
     {
         convert_to_long(v);
-        SwooleG.task_ipc_mode = (int) Z_LVAL_P(v);
+        serv->task_ipc_mode = (int) Z_LVAL_P(v);
     }
     /**
      * Temporary file directory for task_worker
@@ -2340,7 +2340,7 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "task_max_request", v))
     {
         convert_to_long(v);
-        SwooleG.task_max_request = (int) Z_LVAL_P(v);
+        serv->task_max_request = (int) Z_LVAL_P(v);
     }
     //max_connection
     if (php_swoole_array_get_value(vht, "max_connection", v) || php_swoole_array_get_value(vht, "max_conn", v))
@@ -3053,7 +3053,7 @@ PHP_METHOD(swoole_server, stats)
         sw_add_assoc_long_ex(return_value, ZEND_STRS("worker_request_count"), SwooleWG.worker->request_count);
     }
 
-    if (SwooleG.task_ipc_mode > SW_TASK_IPC_UNIXSOCK && serv->gs->task_workers.queue)
+    if (serv->task_ipc_mode > SW_TASK_IPC_UNIXSOCK && serv->gs->task_workers.queue)
     {
         int queue_num = -1;
         int queue_bytes = -1;
@@ -3168,7 +3168,7 @@ PHP_METHOD(swoole_server, taskwait)
         return;
     }
 
-    if (php_swoole_check_task_param(dst_worker_id TSRMLS_CC) < 0)
+    if (php_swoole_check_task_param(serv, dst_worker_id TSRMLS_CC) < 0)
     {
         RETURN_FALSE;
     }
@@ -3181,9 +3181,9 @@ PHP_METHOD(swoole_server, taskwait)
     int task_id = buf.info.fd;
 
     uint64_t notify;
-    swEventData *task_result = &(SwooleG.task_result[SwooleWG.id]);
+    swEventData *task_result = &(serv->task_result[SwooleWG.id]);
     bzero(task_result, sizeof(swEventData));
-    swPipe *task_notify_pipe = &SwooleG.task_notify[SwooleWG.id];
+    swPipe *task_notify_pipe = &serv->task_notify[SwooleWG.id];
     int efd = task_notify_pipe->getFd(task_notify_pipe, 0);
 
     //clear history task
@@ -3260,9 +3260,9 @@ PHP_METHOD(swoole_server, taskWaitMulti)
     int list_of_id[SW_MAX_CONCURRENT_TASK];
 
     uint64_t notify;
-    swEventData *task_result = &(SwooleG.task_result[SwooleWG.id]);
+    swEventData *task_result = &(serv->task_result[SwooleWG.id]);
     bzero(task_result, sizeof(swEventData));
-    swPipe *task_notify_pipe = &SwooleG.task_notify[SwooleWG.id];
+    swPipe *task_notify_pipe = &serv->task_notify[SwooleWG.id];
     swWorker *worker = swServer_get_worker(serv, SwooleWG.id);
 
     char _tmpfile[sizeof(SW_TASK_TMP_FILE)] = SW_TASK_TMP_FILE;
@@ -3397,7 +3397,7 @@ PHP_METHOD(swoole_server, taskCo)
         RETURN_FALSE;
     }
 
-    if (php_swoole_check_task_param(dst_worker_id TSRMLS_CC) < 0)
+    if (php_swoole_check_task_param(serv, dst_worker_id TSRMLS_CC) < 0)
     {
         RETURN_FALSE;
     }
@@ -3499,7 +3499,7 @@ PHP_METHOD(swoole_server, task)
     }
 #endif
 
-    if (php_swoole_check_task_param(dst_worker_id TSRMLS_CC) < 0)
+    if (php_swoole_check_task_param(serv, dst_worker_id TSRMLS_CC) < 0)
     {
         RETURN_FALSE;
     }
@@ -3565,7 +3565,7 @@ PHP_METHOD(swoole_server, sendMessage)
         RETURN_FALSE;
     }
 
-    if (worker_id >= serv->worker_num + SwooleG.task_worker_num)
+    if (worker_id >= serv->worker_num + serv->task_worker_num)
     {
         swoole_php_fatal_error(E_WARNING, "worker_id[%d] is invalid.", (int) worker_id);
         RETURN_FALSE;

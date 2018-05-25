@@ -506,6 +506,18 @@ struct _swServer
 
     swListenPort *listen_list;
 
+    /**
+     *  task process
+     */
+    uint16_t task_worker_num;
+    uint8_t task_ipc_mode;
+    uint16_t task_max_request;
+    swPipe *task_notify;
+    swEventData *task_result;
+
+    /**
+     * use process
+     */
     uint16_t user_worker_num;
     swUserWorker_node *user_worker_list;
     swHashMap *user_worker_map;
@@ -828,7 +840,7 @@ static sw_inline swWorker* swServer_get_worker(swServer *serv, uint16_t worker_i
     }
 
     //Task Worker
-    uint16_t task_worker_max = SwooleG.task_worker_num + serv->worker_num;
+    uint16_t task_worker_max = serv->task_worker_num + serv->worker_num;
     if (worker_id < task_worker_max)
     {
         return &(serv->gs->task_workers.workers[worker_id - serv->worker_num]);

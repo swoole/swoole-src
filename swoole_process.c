@@ -281,7 +281,7 @@ static PHP_METHOD(swoole_process, __construct)
     int base = 1;
     if (SwooleG.serv && SwooleG.serv->gs->start)
     {
-        base = SwooleG.serv->worker_num + SwooleG.task_worker_num + SwooleG.serv->user_worker_num;
+        base = SwooleG.serv->worker_num + SwooleG.serv->task_worker_num + SwooleG.serv->user_worker_num;
     }
     if (php_swoole_worker_round_id == 0)
     {

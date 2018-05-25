@@ -56,6 +56,7 @@ static void swHeartbeatThread_loop(swThreadParam *param);
 
 static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, int fd, int from_fd, int reactor_id);
 
+swServerG SwooleG;
 swWorkerG SwooleWG;
 __thread swThreadG SwooleTG;
 
@@ -241,7 +242,7 @@ static int swServer_start_check(swServer *serv)
         }
     }
     //AsyncTask
-    if (SwooleG.task_worker_num > 0)
+    if (serv->task_worker_num > 0)
     {
         if (serv->onTask == NULL)
         {
@@ -273,7 +274,7 @@ static int swServer_start_check(swServer *serv)
         swWarn("serv->max_connection is exceed the maximum value[%d].", SwooleG.max_sockets);
         serv->max_connection = SwooleG.max_sockets;
     }
-    if (serv->max_connection < (serv->worker_num + SwooleG.task_worker_num) * 2 + 32)
+    if (serv->max_connection < (serv->worker_num + serv->task_worker_num) * 2 + 32)
     {
         swWarn("serv->max_connection is too small.");
         serv->max_connection = SwooleG.max_sockets;
@@ -496,12 +497,12 @@ int swServer_create_task_worker(swServer *serv)
     key_t key = 0;
     int ipc_mode;
 
-    if (SwooleG.task_ipc_mode == SW_TASK_IPC_MSGQUEUE || SwooleG.task_ipc_mode == SW_TASK_IPC_PREEMPTIVE)
+    if (serv->task_ipc_mode == SW_TASK_IPC_MSGQUEUE || serv->task_ipc_mode == SW_TASK_IPC_PREEMPTIVE)
     {
         key = serv->message_queue_key;
         ipc_mode = SW_IPC_MSGQUEUE;
     }
-    else if (SwooleG.task_ipc_mode == SW_TASK_IPC_STREAM)
+    else if (serv->task_ipc_mode == SW_TASK_IPC_STREAM)
     {
         ipc_mode = SW_IPC_SOCKET;
     }
@@ -510,7 +511,7 @@ int swServer_create_task_worker(swServer *serv)
         ipc_mode = SW_IPC_UNIXSOCK;
     }
 
-    if (swProcessPool_create(&serv->gs->task_workers, SwooleG.task_worker_num, SwooleG.task_max_request, key, ipc_mode) < 0)
+    if (swProcessPool_create(&serv->gs->task_workers, serv->task_worker_num, serv->task_max_request, key, ipc_mode) < 0)
     {
         swWarn("[Master] create task_workers failed.");
         return SW_ERR;
@@ -725,13 +726,13 @@ int swServer_start(swServer *serv)
     /*
      * For swoole_server->taskwait, create notify pipe and result shared memory.
      */
-    if (SwooleG.task_worker_num > 0 && serv->worker_num > 0)
+    if (serv->task_worker_num > 0 && serv->worker_num > 0)
     {
-        SwooleG.task_result = sw_shm_calloc(serv->worker_num, sizeof(swEventData));
-        SwooleG.task_notify = sw_calloc(serv->worker_num, sizeof(swPipe));
+        serv->task_result = sw_shm_calloc(serv->worker_num, sizeof(swEventData));
+        serv->task_notify = sw_calloc(serv->worker_num, sizeof(swPipe));
         for (i = 0; i < serv->worker_num; i++)
         {
-            if (swPipeNotify_auto(&SwooleG.task_notify[i], 1, 0))
+            if (swPipeNotify_auto(&serv->task_notify[i], 1, 0))
             {
                 return SW_ERR;
             }
@@ -747,7 +748,7 @@ int swServer_start(swServer *serv)
         i = 0;
         LL_FOREACH(serv->user_worker_list, user_worker)
         {
-            user_worker->worker->id = serv->worker_num + SwooleG.task_worker_num + i;
+            user_worker->worker->id = serv->worker_num + serv->task_worker_num + i;
             i++;
         }
     }
@@ -816,7 +817,7 @@ void swServer_init(swServer *serv)
     serv->buffer_output_size = SW_BUFFER_OUTPUT_SIZE;
 
     SwooleG.serv = serv;
-    SwooleG.task_ipc_mode = SW_TASK_IPC_UNIXSOCK;
+    serv->task_ipc_mode = SW_TASK_IPC_UNIXSOCK;
 }
 
 int swServer_create(swServer *serv)
@@ -902,7 +903,7 @@ int swServer_free(swServer *serv)
     if (serv->factory_mode == SW_MODE_SINGLE)
     {
         swTraceLog(SW_TRACE_SERVER, "terminate task workers.");
-        if (SwooleG.task_worker_num > 0)
+        if (serv->task_worker_num > 0)
         {
             swProcessPool_shutdown(&serv->gs->task_workers);
         }
@@ -1625,7 +1626,7 @@ static void swServer_signal_hanlder(int sig)
         {
             int i;
             swWorker *worker;
-            for (i = 0; i < SwooleG.serv->worker_num + SwooleG.task_worker_num + SwooleG.serv->user_worker_num; i++)
+            for (i = 0; i < SwooleG.serv->worker_num + serv->task_worker_num + SwooleG.serv->user_worker_num; i++)
             {
                 worker = swServer_get_worker(SwooleG.serv, i);
                 kill(worker->pid, SIGRTMIN);

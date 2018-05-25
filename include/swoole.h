@@ -2113,15 +2113,6 @@ typedef struct
     char *log_file;
     int trace_flags;
 
-    /**
-     *  task worker process num
-     */
-    uint16_t task_worker_num;
-    char *task_tmpdir;
-    uint16_t task_tmpdir_len;
-    uint8_t task_ipc_mode;
-    uint16_t task_max_request;
-
     uint16_t cpu_num;
 
     uint32_t pagesize;
@@ -2139,10 +2130,10 @@ typedef struct
     swMemoryPool *memory_pool;
     swReactor *main_reactor;
 
-    swPipe *task_notify;
-    swEventData *task_result;
-
     pthread_t heartbeat_pidt;
+
+    char *task_tmpdir;
+    uint16_t task_tmpdir_len;
 
     char *dns_server_v4;
     char *dns_server_v6;

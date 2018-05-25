@@ -64,7 +64,7 @@ int swManager_start(swFactory *factory)
         swServer_store_pipe_fd(serv, serv->workers[i].pipe_object);
     }
 
-    if (SwooleG.task_worker_num > 0)
+    if (serv->task_worker_num > 0)
     {
         if (swServer_create_task_worker(serv) < 0)
         {
@@ -75,14 +75,14 @@ int swManager_start(swFactory *factory)
         swTaskWorker_init(pool);
 
         swWorker *worker;
-        for (i = 0; i < SwooleG.task_worker_num; i++)
+        for (i = 0; i < serv->task_worker_num; i++)
         {
             worker = &pool->workers[i];
             if (swWorker_create(worker) < 0)
             {
                 return SW_ERR;
             }
-            if (SwooleG.task_ipc_mode == SW_TASK_IPC_UNIXSOCK)
+            if (serv->task_ipc_mode == SW_TASK_IPC_UNIXSOCK)
             {
                 swServer_store_pipe_fd(SwooleG.serv, worker->pipe_object);
             }
@@ -133,7 +133,7 @@ int swManager_start(swFactory *factory)
         /**
          * create task worker process
          */
-        if (SwooleG.task_worker_num > 0)
+        if (serv->task_worker_num > 0)
         {
             swProcessPool_start(&serv->gs->task_workers);
         }
@@ -230,7 +230,7 @@ static int swManager_loop(swFactory *factory)
         serv->onManagerStart(serv);
     }
 
-    reload_worker_num = serv->worker_num + SwooleG.task_worker_num;
+    reload_worker_num = serv->worker_num + serv->task_worker_num;
     reload_workers = sw_calloc(reload_worker_num, sizeof(swWorker));
     if (reload_workers == NULL)
     {
@@ -310,11 +310,11 @@ static int swManager_loop(swFactory *factory)
                     memcpy(reload_workers, serv->workers, sizeof(swWorker) * serv->worker_num);
                     reload_worker_num = serv->worker_num;
 
-                    if (SwooleG.task_worker_num > 0)
+                    if (serv->task_worker_num > 0)
                     {
                         memcpy(reload_workers + serv->worker_num, serv->gs->task_workers.workers,
-                                sizeof(swWorker) * SwooleG.task_worker_num);
-                        reload_worker_num += SwooleG.task_worker_num;
+                                sizeof(swWorker) * serv->task_worker_num);
+                        reload_worker_num += serv->task_worker_num;
                     }
 
                     ManagerProcess.reload_all_worker = 0;
@@ -339,7 +339,7 @@ static int swManager_loop(swFactory *factory)
             //only reload task workers
             else if (ManagerProcess.reload_task_worker == 1)
             {
-                if (SwooleG.task_worker_num == 0)
+                if (serv->task_worker_num == 0)
                 {
                     swWarn("cannot reload task workers, task workers is not started.");
                     continue;
@@ -347,8 +347,8 @@ static int swManager_loop(swFactory *factory)
                 swNotice("Server is reloading now.");
                 if (reload_init == 0)
                 {
-                    memcpy(reload_workers, serv->gs->task_workers.workers, sizeof(swWorker) * SwooleG.task_worker_num);
-                    reload_worker_num = SwooleG.task_worker_num;
+                    memcpy(reload_workers, serv->gs->task_workers.workers, sizeof(swWorker) * serv->task_worker_num);
+                    reload_worker_num = serv->task_worker_num;
                     reload_worker_i = 0;
                     reload_init = 1;
                     ManagerProcess.reload_task_worker = 0;
@@ -462,7 +462,7 @@ static int swManager_loop(swFactory *factory)
         kill(serv->workers[i].pid, SIGTERM);
     }
     //kill and wait task process
-    if (SwooleG.task_worker_num > 0)
+    if (serv->task_worker_num > 0)
     {
         swProcessPool_shutdown(&serv->gs->task_workers);
     }
