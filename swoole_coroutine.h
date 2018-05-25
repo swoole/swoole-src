@@ -66,6 +66,8 @@ typedef struct _coro_global
     zend_bool active;
     int call_stack_size;
     swPipe *chan_pipe;
+    zend_bool chan_type;
+    zend_bool chan_active;
 } coro_global;
 
 typedef struct _php_args
