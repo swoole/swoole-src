@@ -793,7 +793,7 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
             sw_add_assoc_string(multipart_header, "name", "", 1);
             sw_add_assoc_string(multipart_header, "type", "", 1);
             sw_add_assoc_string(multipart_header, "tmp_name", "", 1);
-            add_assoc_long(multipart_header, "error", HTTP_UPLOAD_ERR_OK);
+            add_assoc_long(multipart_header, "error", HTTP_UPLOAD_ERR_PARTIAL);
             add_assoc_long(multipart_header, "size", 0);
 
             strncpy(value_buf, Z_STRVAL_P(filename), Z_STRLEN_P(filename));
@@ -955,6 +955,7 @@ static int multipart_body_on_data_end(multipart_parser* p)
     if (p->fp != NULL)
     {
         long size = swoole_file_get_size((FILE*) p->fp);
+        add_assoc_long(multipart_header, "error", HTTP_UPLOAD_ERR_OK);
         add_assoc_long(multipart_header, "size", size);
 
         fclose((FILE *) p->fp);
