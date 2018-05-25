@@ -16,10 +16,6 @@
 
 #include "php_swoole.h"
 
-#define SW_LOCK_CHECK_RETURN(s)    if(s==0){RETURN_TRUE;}else{\
-	zend_update_property_long(NULL, getThis(), SW_STRL("errCode")-1, s TSRMLS_CC);\
-	RETURN_FALSE;}return
-
 static PHP_METHOD(swoole_lock, __construct);
 static PHP_METHOD(swoole_lock, __destruct);
 static PHP_METHOD(swoole_lock, lock);

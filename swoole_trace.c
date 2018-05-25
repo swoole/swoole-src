@@ -27,7 +27,11 @@
 #endif
 
 #if defined(PT_ATTACH) && !defined(PTRACE_ATTACH)
+#if __APPLE__
+#define PTRACE_ATTACH PT_ATTACHEXC
+#else
 #define PTRACE_ATTACH PT_ATTACH
+#endif
 #endif
 
 #if defined(PT_DETACH) && !defined(PTRACE_DETACH)
