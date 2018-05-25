@@ -206,6 +206,7 @@ typedef struct
     zend_fcall_info_cache *caches[PHP_SERVER_CALLBACK_NUM];
 #endif
     zval *setting;
+    swServer *serv;
 } swoole_server_port_property;
 //---------------------------------------------------------
 #define SW_FLAG_KEEP                        (1u << 12)
