@@ -464,6 +464,7 @@ static zval* php_swoole_server_add_port(swServer *serv, swListenPort *port TSRML
     bzero(property, sizeof(swoole_server_port_property));
     swoole_set_property(port_object, 0, property);
     swoole_set_object(port_object, port);
+    property->serv = serv;
 
     zend_update_property_string(swoole_server_port_class_entry_ptr, port_object, ZEND_STRL("host"), port->host TSRMLS_CC);
     zend_update_property_long(swoole_server_port_class_entry_ptr, port_object, ZEND_STRL("port"), port->port TSRMLS_CC);
@@ -4076,7 +4077,7 @@ PHP_METHOD(swoole_connection_iterator, valid)
     int fd = itearator->current_fd;
     swConnection *conn;
 
-    int max_fd = swServer_get_maxfd(SwooleG.serv);
+    int max_fd = swServer_get_maxfd(itearator->serv);
     for (; fd <= max_fd; fd++)
     {
         conn = &SwooleG.serv->connection_list[fd];
@@ -4124,14 +4125,13 @@ PHP_METHOD(swoole_connection_iterator, key)
 PHP_METHOD(swoole_connection_iterator, count)
 {
     swConnectionIterator *i = swoole_get_object(getThis());
-    swServer *serv = SwooleG.serv;
     if (i->port)
     {
         RETURN_LONG(i->port->connection_num);
     }
     else
     {
-        RETURN_LONG(serv->stats->connection_num);
+        RETURN_LONG(i->serv->stats->connection_num);
     }
 }
 

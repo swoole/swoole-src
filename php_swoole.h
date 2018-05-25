@@ -204,6 +204,7 @@ typedef struct
     zval _callbacks[PHP_SERVER_CALLBACK_NUM];
 #endif
     zval *setting;
+    swServer *serv;
 } swoole_server_port_property;
 //---------------------------------------------------------
 #define SW_FLAG_KEEP                        (1u << 12)
