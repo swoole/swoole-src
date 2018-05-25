@@ -61,6 +61,8 @@ static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
 #define sw_call_user_function_ex              call_user_function_ex
 #define sw_zend_register_class_alias          zend_register_class_alias
 
+typedef long zend_long;
+
 static sw_inline int sw_call_user_function_fast(zval *function_name, zend_fcall_info_cache *fci_cache, zval **retval_ptr_ptr, uint32_t param_count, zval ***params TSRMLS_DC)
 {
     zend_fcall_info fci;
