@@ -267,7 +267,7 @@ if test "$PHP_SWOOLE" != "no"; then
     else
         AC_CHECK_LIB(rt, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
         PHP_ADD_LIBRARY(rt, 1, SWOOLE_SHARED_LIBADD)
-        LDFLAGS="$LDFLAGS -lpthread -z now"
+        LDFLAGS="$LDFLAGS -z now"
     fi
 
     if test "$PHP_OPENSSL" != "no" || test "$PHP_OPENSSL_DIR" != "no"; then
