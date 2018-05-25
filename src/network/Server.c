@@ -816,21 +816,11 @@ void swServer_init(swServer *serv)
     serv->buffer_input_size = SW_BUFFER_INPUT_SIZE;
     serv->buffer_output_size = SW_BUFFER_OUTPUT_SIZE;
 
-    SwooleG.serv = serv;
     serv->task_ipc_mode = SW_TASK_IPC_UNIXSOCK;
-}
 
-int swServer_create(swServer *serv)
-{
-    if (SwooleG.main_reactor)
-    {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_MUST_CREATED_BEFORE_CLIENT, "The swoole_server must create before client");
-        return SW_ERR;
-    }
-
-    SwooleG.factory = &serv->factory;
-
-    serv->factory.ptr = serv;
+    /**
+     * alloc shared memory
+     */
     serv->stats = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerStats));
     if (serv->stats == NULL)
     {
@@ -842,6 +832,19 @@ int swServer_create(swServer *serv)
         swError("[Master] Fatal Error: failed to allocate memory for swServer->gs.");
     }
 
+    SwooleG.serv = serv;
+}
+
+int swServer_create(swServer *serv)
+{
+    if (SwooleG.main_reactor)
+    {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_MUST_CREATED_BEFORE_CLIENT, "The swoole_server must create before client");
+        return SW_ERR;
+    }
+
+    SwooleG.factory = &serv->factory;
+    serv->factory.ptr = serv;
     /**
      * init current time
      */
