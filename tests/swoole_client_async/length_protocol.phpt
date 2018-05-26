@@ -62,7 +62,7 @@ $pm->parentFunc = function ($pid)
             assert(is_array($_pkg));
             assert($_pkg['i'] == $i - 1100 - 1);
             assert($_pkg['data'] <= 256 * 1024);
-            if ($i == 2100) {
+            if ($i == 1200) {
                 echo "SUCCESS\n";
                 $cli->close();
                 swoole_process::kill($pid);
@@ -91,6 +91,7 @@ $pm->childFunc = function () use ($pm)
     $serv->set(array(
         "worker_num" => 1,
         'log_file' => '/dev/null',
+        'socket_buffer_size' => 128 * 1024 * 1024
     ));
     $serv->on("WorkerStart", function (\swoole_server $serv)  use ($pm)
     {
@@ -114,7 +115,7 @@ $pm->childFunc = function () use ($pm)
             $serv->send($fd, substr($data, $n));
         }
         //大包
-        for ($i = 0; $i < 1000; $i++)
+        for ($i = 0; $i < 100; $i++)
         {
             $data = serialize(['i' => $i, 'data' => str_repeat('A', rand(20000, 256 * 1024))]);
             $serv->send($fd, pack('N', strlen($data)) . $data);
