@@ -40,10 +40,10 @@ $pm->parentFunc = function ($pid) use ($port)
             return;
         }
         //慢速发送
-        elseif ($i <= 1100)
+        elseif ($i <= 1050)
         {
             assert($pkg and strlen($pkg) <= 8192);
-            if ($i == 1100)
+            if ($i == 1050)
             {
                 echo "SUCCESS\n";
             }
@@ -55,9 +55,9 @@ $pm->parentFunc = function ($pid) use ($port)
             assert($pkg != false);
             $_pkg = unserialize($pkg);
             assert(is_array($_pkg));
-            assert($_pkg['i'] == $i - 1100 - 1);
+            assert($_pkg['i'] == $i - 1050 - 1);
             assert($_pkg['data'] <= 256 * 1024);
-            if ($i == 2100) {
+            if ($i == 1150) {
                 echo "SUCCESS\n";
                 $cli->close();
                 swoole_process::kill($pid);
@@ -105,14 +105,14 @@ $pm->childFunc = function () use ($pm, $port)
             $serv->send($fd, str_repeat('A', rand(100, 2000)) . "\r\n\r\n");
         }
         //慢速发送
-        for ($i = 0; $i < 100; $i++)
+        for ($i = 0; $i < 50; $i++)
         {
             $serv->send($fd, str_repeat('A', rand(1000, 2000)));
             usleep(rand(10000, 50000));
             $serv->send($fd, str_repeat('A', rand(2000, 4000)) . "\r\n\r\n");
         }
         //大包
-        for ($i = 0; $i < 1000; $i++)
+        for ($i = 0; $i < 100; $i++)
         {
             $serv->send($fd, serialize(['i' => $i, 'data' => str_repeat('A', rand(20000, 256 * 1024))]) . "\r\n\r\n");
         }
