@@ -85,7 +85,7 @@ $pm->childFunc = function () use ($pm, $port)
     $pm->wakeup();
     while ($conn = stream_socket_accept($socket))
     {
-        for ($i = 0; $i < 4; $i++)
+        for ($i = 0; $i < 3; $i++)
         {
             usleep(500000);
             for ($j = 0; $j < 256; $j++)
