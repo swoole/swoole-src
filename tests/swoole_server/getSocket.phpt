@@ -1,7 +1,11 @@
 --TEST--
 swoole_server:
 --SKIPIF--
-<?php require __DIR__ . "/../include/skipif.inc"; ?>
+<?php require __DIR__ . "/../include/skipif.inc";
+if (method_exists('swoole_client', 'getSocket') === false) {
+    exit("require sockets supports.");
+}
+?>
 --INI--
 assert.active=1
 assert.warning=1
