@@ -50,29 +50,32 @@ $pm->parentFunc = function ($pid) use ($port)
 
     });
 
-    $client->on("bufferEmpty", function (Swoole\Client $cli)
+    $has_empty = false;
+    $client->on("bufferEmpty", function (Swoole\Client $cli) use (&$has_empty)
     {
-        echo "bufferEmpty\n";
-        foreach ($cli->buffer as $k => $data)
+        if (!$has_empty)
         {
-            if ($cli->send($data) === false and $cli->errCode == 1008)
+            echo "bufferEmpty\n";
+            $has_empty = true;
+        }
+        while ($data = array_shift($cli->buffer)){
+            if ($cli->send($data) === false && $cli->errCode == 1008)
             {
-                break;
-            }
-            else
-            {
-                unset($cli->buffer[$k]);
+                $cli->buffer[] = $data;
+                return;
             }
         }
-        if (count($cli->buffer) == 0)
-        {
-            $cli->close();
-        }
+        $cli->close();
     });
 
-    $client->on("bufferFull", function (Swoole\Client $cli)
+    $has_full = false;
+    $client->on("bufferFull", function (Swoole\Client $cli) use (&$has_full)
     {
-        echo "bufferFull\n";
+        if (!$has_full)
+        {
+            echo "bufferFull\n";
+            $has_full = true;
+        }
     });
 
     $client->connect(TCP_SERVER_HOST, $port, 0.5);
@@ -83,19 +86,22 @@ $pm->childFunc = function () use ($pm, $port)
 {
     $socket = stream_socket_server("tcp://0.0.0.0:{$port}", $errno, $errstr) or die("$errstr ($errno)<br />\n");
     $pm->wakeup();
+    $count = 0;
     while ($conn = stream_socket_accept($socket))
     {
-        for ($i = 0; $i < 3; $i++)
+        for ($i = 0; $i < 4; $i++)
         {
-            usleep(500000);
             for ($j = 0; $j < 256; $j++)
             {
-                $data = fread($conn, 8192);
+                fread($conn, 8192);
+                $count++;
             }
+            usleep(10 * 1000); // simulate block
         }
         fclose($conn);
         break;
     }
+    assert($count === 1024); // to ensure all data has received.
     fclose($socket);
 };
 
@@ -103,11 +109,5 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
-bufferFull
-bufferEmpty
-bufferFull
-bufferEmpty
-bufferFull
-bufferEmpty
 bufferFull
 bufferEmpty
