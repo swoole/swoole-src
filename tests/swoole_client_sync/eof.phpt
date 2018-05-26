@@ -28,28 +28,28 @@ $pm->parentFunc = function ($pid) use ($port)
     $client->send("recv\r\n\r\n");
 
     //小包
-    for ($i = 0; $i < 1000; $i++)
+    for ($i = 0; $i < 500; $i++)
     {
         $pkg = $client->recv();
         assert($pkg and strlen($pkg) <= 2048);
     }
     echo "SUCCESS\n";
     //慢速发送
-    for ($i = 0; $i < 100; $i++)
+    for ($i = 0; $i < 50; $i++)
     {
         $pkg = $client->recv();
         assert($pkg and strlen($pkg) <= 8192);
     }
     echo "SUCCESS\n";
     //大包
-    for ($i = 0; $i < 1000; $i++)
+    for ($i = 0; $i < 500; $i++)
     {
         $pkg = $client->recv();
         assert($pkg != false);
         $_pkg = unserialize($pkg);
         assert(is_array($_pkg));
         assert($_pkg['i'] == $i);
-        assert($_pkg['data'] <= 256 * 1024);
+        assert(strlen($_pkg['data']) <= 256 * 1024);
     }
     echo "SUCCESS\n";
     $client->close();
@@ -77,19 +77,19 @@ $pm->childFunc = function () use ($pm, $port)
     $serv->on('receive', function (swoole_server $serv, $fd, $rid, $data)
     {
         //小包
-        for ($i = 0; $i < 1000; $i++)
+        for ($i = 0; $i < 500; $i++)
         {
             $serv->send($fd, str_repeat('A', rand(100, 2000)) . "\r\n\r\n");
         }
         //慢速发送
-        for ($i = 0; $i < 100; $i++)
+        for ($i = 0; $i < 50; $i++)
         {
             $serv->send($fd, str_repeat('A', rand(1000, 2000)));
             usleep(rand(10000, 50000));
             $serv->send($fd, str_repeat('A', rand(2000, 4000)) . "\r\n\r\n");
         }
         //大包
-        for ($i = 0; $i < 1000; $i++)
+        for ($i = 0; $i < 500; $i++)
         {
             $serv->send($fd, serialize(['i' => $i, 'data' => str_repeat('A', rand(20000, 256 * 1024))]) . "\r\n\r\n");
         }

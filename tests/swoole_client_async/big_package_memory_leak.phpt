@@ -21,6 +21,9 @@ $mem = memory_get_usage(true);
 fclose(STDOUT);
 ini_set("memory_limit", "100m");
 $cli = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
+$cli->set([
+    'socket_buffer_size' => 1024 * 1024 * 2
+]);
 $cli->on("connect", function (swoole_client $cli)
 {
     $cli->send(str_repeat("\0", 1024 * 1024 * 1.9));

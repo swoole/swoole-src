@@ -47,7 +47,7 @@ $pm->parentFunc = function ($pid) use ($port)
     }
     echo "SUCCESS\n";
     //大包
-    for ($i = 0; $i < 1000; $i++)
+    for ($i = 0; $i < 100; $i++)
     {
         $pkg = $client->recv();
         assert($pkg != false);
@@ -68,6 +68,7 @@ $pm->childFunc = function () use ($pm, $port)
     $serv->set(array(
         "worker_num" => 1,
         'log_file' => '/dev/null',
+        'socket_buffer_size' => 128 * 1024 * 1024
     ));
     $serv->on("WorkerStart", function (\swoole_server $serv)  use ($pm)
     {
@@ -91,7 +92,7 @@ $pm->childFunc = function () use ($pm, $port)
             $serv->send($fd, substr($data, $n));
         }
         //大包
-        for ($i = 0; $i < 1000; $i++)
+        for ($i = 0; $i < 100; $i++)
         {
             $data = serialize(['i' => $i, 'data' => str_repeat('A', rand(20000, 256 * 1024))]);
             $serv->send($fd, pack('N', strlen($data)) . $data);
