@@ -22,3 +22,11 @@ swoole_async_set([
     'disable_dns_cache' => true,
     'dns_lookup_random' => true,
 ]);
+
+if (method_exists('co','set'))
+{
+    Co::set([
+        'log_level' => SWOOLE_LOG_INFO,
+        'trace_flags' => 0
+    ]);
+}
