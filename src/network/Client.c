@@ -559,7 +559,15 @@ static int swClient_tcp_connect_sync(swClient *cli, char *host, int port, double
     }
     while (1)
     {
+#ifdef HAVE_KQUEUE
+    	if (timeout > 0 && swSocket_wait(cli->socket->fd, (int) (timeout * 1000), SW_EVENT_WRITE) < 0)
+    	{
+    		errno = EINPROGRESS;
+			return SW_ERR;
+    	}
+#endif
         ret = connect(cli->socket->fd, (struct sockaddr *) &cli->server_addr.addr, cli->server_addr.len);
+
         if (ret < 0)
         {
             if (errno == EINTR)
