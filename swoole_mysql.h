@@ -146,11 +146,15 @@ typedef enum
 } mysql_io_status;
 #endif
 
+// client capabilities
 #define SW_MYSQL_CLIENT_CONNECT_WITH_DB          8
 #define SW_MYSQL_CLIENT_PROTOCOL_41              512
 #define SW_MYSQL_CLIENT_PLUGIN_AUTH              (1UL << 19)
 #define SW_MYSQL_CLIENT_CONNECT_ATTRS            (1UL << 20)
 #define SW_MYSQL_CLIENT_SECURE_CONNECTION        32768
+
+// extended capabilities
+#define SW_MYSQL_CLIENT_MULTIPLE_RESULTS         131072
 
 typedef struct
 {

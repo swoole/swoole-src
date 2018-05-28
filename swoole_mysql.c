@@ -565,7 +565,7 @@ int mysql_handshake(mysql_connector *connector, char *buf, int len)
     tmp = connector->buf + 4;
 
     //capability flags, CLIENT_PROTOCOL_41 always set
-    value = SW_MYSQL_CLIENT_PROTOCOL_41 | SW_MYSQL_CLIENT_SECURE_CONNECTION | SW_MYSQL_CLIENT_CONNECT_WITH_DB | SW_MYSQL_CLIENT_PLUGIN_AUTH;
+    value = SW_MYSQL_CLIENT_PROTOCOL_41 | SW_MYSQL_CLIENT_SECURE_CONNECTION | SW_MYSQL_CLIENT_CONNECT_WITH_DB | SW_MYSQL_CLIENT_PLUGIN_AUTH | SW_MYSQL_CLIENT_MULTIPLE_RESULTS;
     memcpy(tmp, &value, sizeof(value));
     tmp += 4;
 
