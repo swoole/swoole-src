@@ -1375,7 +1375,7 @@ static PHP_METHOD(swoole_redis_coro, __destruct)
     {
         return;
     }
-    if (redis->state != SWOOLE_REDIS_CORO_STATE_CLOSED)
+    if (redis->state != SWOOLE_REDIS_CORO_STATE_CLOSED && redis->state != SWOOLE_REDIS_CORO_STATE_CONNECT)
     {
         swTraceLog(SW_TRACE_REDIS_CLIENT, "close connection, fd=%d", redis->context->c.fd);
 
