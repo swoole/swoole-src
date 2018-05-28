@@ -3958,6 +3958,11 @@ static void swoole_redis_coro_parse_result(swRedisClient *redis, zval* return_va
 
     case REDIS_REPLY_ERROR:
         ZVAL_FALSE(return_value);
+        if (redis->context->err == 0)
+        {
+            redis->context->err = -1;
+            redis->context->errstr = reply->str;
+        }
         zend_update_property_long(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errCode"), redis->context->err TSRMLS_CC);
         zend_update_property_string(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), redis->context->errstr TSRMLS_CC);
         break;
