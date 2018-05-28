@@ -3043,40 +3043,40 @@ PHP_METHOD(swoole_server, resume)
 
 PHP_METHOD(swoole_server, stats)
 {
+    array_init(return_value);
     if (SwooleGS->start == 0)
     {
-        swoole_php_fatal_error(E_WARNING, "server is not running.");
-        RETURN_FALSE;
-    }
-
-    array_init(return_value);
-    sw_add_assoc_long_ex(return_value, ZEND_STRS("start_time"), SwooleStats->start_time);
-    sw_add_assoc_long_ex(return_value, ZEND_STRS("connection_num"), SwooleStats->connection_num);
-    sw_add_assoc_long_ex(return_value, ZEND_STRS("accept_count"), SwooleStats->accept_count);
-    sw_add_assoc_long_ex(return_value, ZEND_STRS("close_count"), SwooleStats->close_count);
-    sw_add_assoc_long_ex(return_value, ZEND_STRS("tasking_num"), SwooleStats->tasking_num);
-    sw_add_assoc_long_ex(return_value, ZEND_STRS("request_count"), SwooleStats->request_count);
-    sw_add_assoc_long_ex(return_value, ZEND_STRS("worker_num"), SwooleG.serv->worker_num);
-    sw_add_assoc_long_ex(return_value, ZEND_STRS("task_worker_num"), SwooleG.task_worker_num);
-    if (SwooleWG.worker)
-    {
-        sw_add_assoc_long_ex(return_value, ZEND_STRS("worker_request_count"), SwooleWG.worker->request_count);
-    }
-
-    if (SwooleG.task_ipc_mode > SW_TASK_IPC_UNIXSOCK && SwooleGS->task_workers.queue)
-    {
-        int queue_num = -1;
-        int queue_bytes = -1;
-        if (swMsgQueue_stat(SwooleGS->task_workers.queue, &queue_num, &queue_bytes) == 0)
+        sw_add_assoc_long_ex(return_value, ZEND_STRS("worker_num"), SwooleG.serv->worker_num);
+        sw_add_assoc_long_ex(return_value, ZEND_STRS("task_worker_num"), SwooleG.task_worker_num);
+    }else{
+        sw_add_assoc_long_ex(return_value, ZEND_STRS("start_time"), SwooleStats->start_time);
+        sw_add_assoc_long_ex(return_value, ZEND_STRS("connection_num"), SwooleStats->connection_num);
+        sw_add_assoc_long_ex(return_value, ZEND_STRS("accept_count"), SwooleStats->accept_count);
+        sw_add_assoc_long_ex(return_value, ZEND_STRS("close_count"), SwooleStats->close_count);
+        sw_add_assoc_long_ex(return_value, ZEND_STRS("tasking_num"), SwooleStats->tasking_num);
+        sw_add_assoc_long_ex(return_value, ZEND_STRS("request_count"), SwooleStats->request_count);
+        sw_add_assoc_long_ex(return_value, ZEND_STRS("worker_num"), SwooleG.serv->worker_num);
+        sw_add_assoc_long_ex(return_value, ZEND_STRS("task_worker_num"), SwooleG.task_worker_num);
+        if (SwooleWG.worker)
         {
-            sw_add_assoc_long_ex(return_value, ZEND_STRS("task_queue_num"), queue_num);
-            sw_add_assoc_long_ex(return_value, ZEND_STRS("task_queue_bytes"), queue_bytes);
+            sw_add_assoc_long_ex(return_value, ZEND_STRS("worker_request_count"), SwooleWG.worker->request_count);
         }
-    }
 
-#ifdef SW_COROUTINE
-    sw_add_assoc_long_ex(return_value, ZEND_STRS("coroutine_num"), COROG.coro_num);
-#endif
+        if (SwooleG.task_ipc_mode > SW_TASK_IPC_UNIXSOCK && SwooleGS->task_workers.queue)
+        {
+            int queue_num = -1;
+            int queue_bytes = -1;
+            if (swMsgQueue_stat(SwooleGS->task_workers.queue, &queue_num, &queue_bytes) == 0)
+            {
+                sw_add_assoc_long_ex(return_value, ZEND_STRS("task_queue_num"), queue_num);
+                sw_add_assoc_long_ex(return_value, ZEND_STRS("task_queue_bytes"), queue_bytes);
+            }
+        }
+
+        #ifdef SW_COROUTINE
+            sw_add_assoc_long_ex(return_value, ZEND_STRS("coroutine_num"), COROG.coro_num);
+        #endif
+    }
 }
 
 PHP_METHOD(swoole_server, reload)
