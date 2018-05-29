@@ -1191,11 +1191,11 @@ static PHP_METHOD(swoole_redis_coro, connect)
     }
 
     php_swoole_check_reactor();
-    if (!swReactor_handle_isset(SwooleG.main_reactor, PHP_SWOOLE_FD_REDIS))
+    if (!swReactor_handle_isset(SwooleG.main_reactor, PHP_SWOOLE_FD_REDIS_CORO))
     {
-        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_REDIS | SW_EVENT_READ, swoole_redis_coro_onRead);
-        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_REDIS | SW_EVENT_WRITE, swoole_redis_coro_onWrite);
-        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_REDIS | SW_EVENT_ERROR, swoole_redis_coro_onError);
+        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_REDIS_CORO | SW_EVENT_READ, swoole_redis_coro_onRead);
+        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_REDIS_CORO | SW_EVENT_WRITE, swoole_redis_coro_onWrite);
+        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_REDIS_CORO | SW_EVENT_ERROR, swoole_redis_coro_onError);
     }
 
     redisAsyncSetConnectCallback(context, swoole_redis_coro_onConnect);
@@ -1214,7 +1214,7 @@ static PHP_METHOD(swoole_redis_coro, connect)
     zend_update_property_string(swoole_redis_coro_class_entry_ptr, getThis(), ZEND_STRL("host"), host TSRMLS_CC);
     zend_update_property_long(swoole_redis_coro_class_entry_ptr, getThis(), ZEND_STRL("port"), port TSRMLS_CC);
 
-    if (SwooleG.main_reactor->add(SwooleG.main_reactor, redis->context->c.fd, PHP_SWOOLE_FD_REDIS | SW_EVENT_WRITE) < 0)
+    if (SwooleG.main_reactor->add(SwooleG.main_reactor, redis->context->c.fd, PHP_SWOOLE_FD_REDIS_CORO | SW_EVENT_WRITE) < 0)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_event_add failed. Erorr: %s[%d].", redis->context->errstr, redis->context->err);
         RETURN_FALSE;

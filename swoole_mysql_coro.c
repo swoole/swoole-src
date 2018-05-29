@@ -577,11 +577,11 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     }
 
     php_swoole_check_reactor();
-    if (!swReactor_handle_isset(SwooleG.main_reactor, PHP_SWOOLE_FD_MYSQL))
+    if (!swReactor_handle_isset(SwooleG.main_reactor, PHP_SWOOLE_FD_MYSQL_CORO))
     {
-        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_MYSQL | SW_EVENT_READ, swoole_mysql_coro_onRead);
-        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_MYSQL | SW_EVENT_WRITE, swoole_mysql_coro_onWrite);
-        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_MYSQL | SW_EVENT_ERROR, swoole_mysql_coro_onError);
+        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_MYSQL_CORO | SW_EVENT_READ, swoole_mysql_coro_onRead);
+        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_MYSQL_CORO | SW_EVENT_WRITE, swoole_mysql_coro_onWrite);
+        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_MYSQL_CORO | SW_EVENT_ERROR, swoole_mysql_coro_onError);
     }
 
     if (swClient_create(cli, type, 0) < 0)
@@ -605,7 +605,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     int ret = cli->connect(cli, connector->host, connector->port, connector->timeout, 1);
     if ((ret < 0 && errno == EINPROGRESS) || ret == 0)
     {
-        if (SwooleG.main_reactor->add(SwooleG.main_reactor, cli->socket->fd, PHP_SWOOLE_FD_MYSQL | SW_EVENT_WRITE) < 0)
+        if (SwooleG.main_reactor->add(SwooleG.main_reactor, cli->socket->fd, PHP_SWOOLE_FD_MYSQL_CORO | SW_EVENT_WRITE) < 0)
         {
             efree(cli);
             sw_zval_ptr_dtor(&server_info);
@@ -1330,7 +1330,7 @@ static int swoole_mysql_coro_onWrite(swReactor *reactor, swEvent *event)
     if (SwooleG.error == 0)
     {
         //listen read event
-        SwooleG.main_reactor->set(SwooleG.main_reactor, event->fd, PHP_SWOOLE_FD_MYSQL | SW_EVENT_READ);
+        SwooleG.main_reactor->set(SwooleG.main_reactor, event->fd, PHP_SWOOLE_FD_MYSQL_CORO | SW_EVENT_READ);
         //connected
         event->socket->active = 1;
         client->handshake = SW_MYSQL_HANDSHAKE_WAIT_REQUEST;
