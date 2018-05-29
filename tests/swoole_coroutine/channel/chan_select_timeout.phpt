@@ -1,11 +1,10 @@
 --TEST--
 swoole_coroutine: coro channel select timeout
 --SKIPIF--
-<?php require  __DIR__ . "/../include/skipif.inc"; ?>
+<?php require __DIR__ . "/../../include/skipif.inc"; ?>
 --FILE--
 <?php
-require_once __DIR__ . "/../include/swoole.inc";
-require_once __DIR__ . "/../include/lib/curl.php";
+require_once __DIR__ . "/../../include/swoole.inc";
 
 use Swoole\Coroutine as co;
 

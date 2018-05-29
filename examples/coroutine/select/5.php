@@ -14,11 +14,12 @@ function fibonacci($c1, $c2)
                 $t = $a + $b;
                 $a = $b;
                 $b = $t;
-                $c1->push($a);
+                $write_list[0]->push($a);
             }
             if ($read_list) {
-                $ret = $c2->pop();
+                $ret = $read_list[0]->pop();
                 if ($ret === 1) {
+                    echo "quit\n";
                     return 1;
                 }
             }
@@ -34,5 +35,3 @@ go(function () use ($c1, $c2, $num) {
     $c2->push(1);
 });
 fibonacci($c1, $c2);
-    
-    

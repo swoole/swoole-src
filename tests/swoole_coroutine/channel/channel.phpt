@@ -1,15 +1,12 @@
 --TEST--
 swoole_coroutine: coro channel
 --SKIPIF--
-<?php require  __DIR__ . "/../include/skipif.inc"; ?>
+<?php require __DIR__ . "/../../include/skipif.inc"; ?>
 --FILE--
 <?php
-require_once __DIR__ . "/../include/swoole.inc";
-
+require_once __DIR__ . "/../../include/swoole.inc";
 use Swoole\Coroutine as co;
-
 $chan = new co\Channel(1);
-
 co::create(function () use ($chan) {
     for($i=1; $i<=10; $i++) {
         co::sleep(0.01);
