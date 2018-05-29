@@ -1159,7 +1159,7 @@ static sw_inline int mysql_read_rows(mysql_client *client)
             return SW_ERR;
         }
         //RecordSet end
-        else if (n_buf == 9 && mysql_read_eof(client, buffer, n_buf) == 0)
+        else if (mysql_read_eof(client, buffer, n_buf) == 0)
         {
             if (client->response.columns)
             {
