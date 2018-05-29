@@ -107,6 +107,11 @@ static void resume_php_stack(stCoRoutine_t *co)
 
 int coro_init(TSRMLS_D)
 {
+    if (zend_get_module_started("xdebug") == SUCCESS)
+    {
+        swoole_php_fatal_error(E_ERROR, "can not use xdebug in swoole coroutine, please remove xdebug in php.ini and retry.");
+        return 0;
+    }
     pthread_key_create (&key,NULL);
     zend_uchar opcode = ZEND_VM_LAST_OPCODE + 1;
     while (1)
