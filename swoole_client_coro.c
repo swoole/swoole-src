@@ -46,6 +46,7 @@ typedef struct
     swoole_client_coro_io_status iowait;
     swTimer_node *timer;
     swString *result;
+    swLinkedList *message_queue;
     int send_yield;
     int cid;
 } swoole_client_coro_property;
@@ -393,6 +394,25 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
         }
         sw_zval_ptr_dtor(&zdata);
     }
+    else if (cli->open_eof_check || cli->open_length_check)
+    {
+        if (ccp->message_queue == NULL)
+        {
+            ccp->message_queue = swLinkedList_new(16, (swDestructor) sw_zval_free);
+        }
+        zval *zdata;
+        SW_ALLOC_INIT_ZVAL(zdata);
+        ZVAL_STRINGL(zdata, data, length);
+        if (swLinkedList_append(ccp->message_queue, zdata) < 0)
+        {
+            return;
+        }
+        if (cli->sleep == 0)
+        {
+            swClient_sleep(cli);
+        }
+        ccp->iowait = SW_CLIENT_CORO_STATUS_DONE;
+    }
     else
     {
         if (ccp->result)
@@ -413,7 +433,7 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
             {
                 ccp->iowait = SW_CLIENT_CORO_STATUS_DONE;
             }
-            if (cli->open_eof_check || cli->open_length_check || length >= cli->buffer_input_size)
+            if (length >= cli->buffer_input_size && cli->sleep == 0)
             {
                 swClient_sleep(cli);
             }
@@ -597,6 +617,10 @@ static PHP_METHOD(swoole_client_coro, __destruct)
         if (ccp->result)
         {
             swString_free(ccp->result);
+        }
+        if (ccp->message_queue)
+        {
+            swLinkedList_free(ccp->message_queue);
         }
         if (ccp->timer)
         {
@@ -886,11 +910,24 @@ static PHP_METHOD(swoole_client_coro, recv)
     {
         ccp->iowait = SW_CLIENT_CORO_STATUS_READY;
         zval *result;
-        SW_MAKE_STD_ZVAL(result);
-        SW_ZVAL_STRINGL(result, ccp->result->str, ccp->result->length, 1);
-        swString_free(ccp->result);
-        ccp->result = NULL;
-        RETURN_ZVAL(result, 0, 1);
+        if (cli->open_eof_check || cli->open_length_check)
+        {
+            result = swLinkedList_shift(ccp->message_queue);
+            if (result)
+            {
+                RETVAL_ZVAL(result, 0, 0);
+                efree(result);
+                return;
+            }
+        }
+        else
+        {
+            SW_MAKE_STD_ZVAL(result);
+            SW_ZVAL_STRINGL(result, ccp->result->str, ccp->result->length, 1);
+            swString_free(ccp->result);
+            ccp->result = NULL;
+            RETURN_ZVAL(result, 0, 1);
+        }
     }
     else if (ccp->iowait == SW_CLIENT_CORO_STATUS_WAIT && ccp->cid != COROG.current_coro->cid)
     {

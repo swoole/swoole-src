@@ -217,11 +217,15 @@ enum php_swoole_fd_type
     PHP_SWOOLE_FD_DGRAM_CLIENT = SW_FD_DGRAM_CLIENT,
     PHP_SWOOLE_FD_MYSQL,
     PHP_SWOOLE_FD_REDIS,
-    PHP_SWOOLE_FD_POSTGRESQL,
     PHP_SWOOLE_FD_HTTPCLIENT,
     PHP_SWOOLE_FD_PROCESS_STREAM,
+#ifdef SW_COROUTINE
+    PHP_SWOOLE_FD_MYSQL_CORO,
+    PHP_SWOOLE_FD_REDIS_CORO,
+    PHP_SWOOLE_FD_POSTGRESQL,
     PHP_SWOOLE_FD_SOCKET,
     PHP_SWOOLE_FD_CHAN_PIPE,
+#endif
 };
 //---------------------------------------------------------
 typedef enum
