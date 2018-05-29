@@ -57,6 +57,10 @@ int swAio_init(void)
 
     int ret = 0;
 
+#if 1
+    SwooleAIO.mode = SW_AIO_BASE;
+#endif
+
     switch (SwooleAIO.mode)
     {
 #ifdef HAVE_LINUX_AIO

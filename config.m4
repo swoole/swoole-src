@@ -260,13 +260,14 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_SWOOLE_HAVE_LINUX_AIO
 
     CFLAGS="-Wall -pthread $CFLAGS"
-    LDFLAGS="$LDFLAGS -lpthread -z now"
+    LDFLAGS="$LDFLAGS -lpthread"
 
     if test `uname` = "Darwin"; then
         AC_CHECK_LIB(c, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
     else
         AC_CHECK_LIB(rt, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
         PHP_ADD_LIBRARY(rt, 1, SWOOLE_SHARED_LIBADD)
+        LDFLAGS="$LDFLAGS -z now"
     fi
 
     if test "$PHP_OPENSSL" != "no" || test "$PHP_OPENSSL_DIR" != "no"; then
@@ -512,7 +513,7 @@ if test "$PHP_SWOOLE" != "no"; then
         PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/picohttpparser])
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/picohttpparser)
     fi
-    
+
     PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/libco])
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/libco)
 

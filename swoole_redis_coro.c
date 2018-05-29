@@ -61,7 +61,8 @@ enum swRedisError
     SW_REDIS_ERR_PROTOCOL = 4,/* Protocol error */
     SW_REDIS_ERR_OOM = 5,/* Out of memory */
     SW_REDIS_ERR_OTHER = 2,/* Everything else... */
-    SW_REDIS_ERR_CLOSED = 6, /* Everything else... */
+    SW_REDIS_ERR_CLOSED = 6, /* Closed */
+    SW_REDIS_ERR_NOAUTH = 7, /* Authentication required */
 };
 
 /* Extended SET argument detection */
@@ -1375,7 +1376,7 @@ static PHP_METHOD(swoole_redis_coro, __destruct)
     {
         return;
     }
-    if (redis->state != SWOOLE_REDIS_CORO_STATE_CLOSED)
+    if (redis->state != SWOOLE_REDIS_CORO_STATE_CLOSED && redis->state != SWOOLE_REDIS_CORO_STATE_CONNECT)
     {
         swTraceLog(SW_TRACE_REDIS_CLIENT, "close connection, fd=%d", redis->context->c.fd);
 
@@ -3958,6 +3959,18 @@ static void swoole_redis_coro_parse_result(swRedisClient *redis, zval* return_va
 
     case REDIS_REPLY_ERROR:
         ZVAL_FALSE(return_value);
+        if (redis->context->err == 0)
+        {
+            if (strncmp(reply->str, "NOAUTH", 6) == 0)
+            {
+                redis->context->err = SW_REDIS_ERR_NOAUTH;
+            }
+            else
+            {
+                redis->context->err = SW_REDIS_ERR_OTHER;
+            }
+            redis->context->errstr = reply->str;
+        }
         zend_update_property_long(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errCode"), redis->context->err TSRMLS_CC);
         zend_update_property_string(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), redis->context->errstr TSRMLS_CC);
         break;
