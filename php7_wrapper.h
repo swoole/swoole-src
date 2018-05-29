@@ -429,19 +429,6 @@ static inline int sw_zend_hash_find(HashTable *ht, const char *k, int len, void 
     }
 }
 
-static inline int sw_zend_hash_exists(HashTable *ht, char *k, int len)
-{
-    zval *value = zend_hash_str_find(ht, k, len - 1);
-    if (value == NULL)
-    {
-        return FAILURE;
-    }
-    else
-    {
-        return SUCCESS;
-    }
-}
-
 static inline int sw_zend_register_class_alias(const char *name, zend_class_entry *ce)
 {
     int name_len = strlen(name);
