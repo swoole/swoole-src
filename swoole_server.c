@@ -531,6 +531,10 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject TSRMLS_DC)
     {
         SW_ALLOC_INIT_ZVAL(zsetting);
         array_init(zsetting);
+#ifdef HT_ALLOW_COW_VIOLATION
+        HT_ALLOW_COW_VIOLATION(Z_ARRVAL_P(zsetting));
+#endif
+        zend_update_property(swoole_server_class_entry_ptr, zobject, ZEND_STRL("setting"), zsetting TSRMLS_CC);
     }
 
     if (!zend_hash_str_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("worker_num")))
@@ -583,10 +587,6 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject TSRMLS_DC)
             }
         }
     }
-
-    php_var_dump(zsetting, 10);
-
-    zend_update_property(swoole_server_class_entry_ptr, zobject, ZEND_STRL("setting"), zsetting TSRMLS_CC);
 }
 
 void php_swoole_register_callback(swServer *serv)
