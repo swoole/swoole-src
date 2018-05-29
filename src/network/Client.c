@@ -197,7 +197,7 @@ int swClient_sleep(swClient *cli)
     {
         ret = cli->reactor->del(cli->reactor, cli->socket->fd);
     }
-    if (ret)
+    if (ret == SW_OK)
     {
         cli->sleep = 1;
     }
@@ -215,7 +215,7 @@ int swClient_wakeup(swClient *cli)
     {
         ret = cli->reactor->add(cli->reactor, cli->socket->fd, cli->socket->fdtype | SW_EVENT_READ);
     }
-    if (ret)
+    if (ret == SW_OK)
     {
         cli->sleep = 0;
     }
