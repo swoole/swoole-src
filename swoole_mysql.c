@@ -936,6 +936,7 @@ static int mysql_decode_row_prepare(mysql_client *client, char *buf, int packet_
 
     for (i = 0; i < client->response.num_column; i++)
     {
+        swDebug("num_column loop: %d", i);
         /* to check Null-Bitmap @see https://dev.mysql.com/doc/internals/en/null-bitmap.html */
         if (((buf - null_count + 1)[((i + 2) / 8)] & (0x01 << ((i + 2) % 8))) != 0)
         {
