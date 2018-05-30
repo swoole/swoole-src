@@ -565,7 +565,7 @@ int mysql_handshake(mysql_connector *connector, char *buf, int len)
     tmp = connector->buf + 4;
 
     //capability flags, CLIENT_PROTOCOL_41 always set
-    value = SW_MYSQL_CLIENT_PROTOCOL_41 | SW_MYSQL_CLIENT_SECURE_CONNECTION | SW_MYSQL_CLIENT_CONNECT_WITH_DB | SW_MYSQL_CLIENT_PLUGIN_AUTH;
+    value = SW_MYSQL_CLIENT_PROTOCOL_41 | SW_MYSQL_CLIENT_SECURE_CONNECTION | SW_MYSQL_CLIENT_CONNECT_WITH_DB | SW_MYSQL_CLIENT_PLUGIN_AUTH | SW_MYSQL_CLIENT_MULTI_RESULTS;
     memcpy(tmp, &value, sizeof(value));
     tmp += 4;
 
@@ -1158,8 +1158,14 @@ static sw_inline int mysql_read_rows(mysql_client *client)
             return SW_ERR;
         }
         //RecordSet end
-        else if (n_buf == 9 && mysql_read_eof(client, buffer, n_buf) == 0)
+        else if (mysql_read_eof(client, buffer, n_buf) == 0 && (n_buf == 9 || (n_buf > 9 && (client->response.status_code & SW_MYSQL_SERVER_MORE_RESULTS_EXISTS))))
         {
+            if (n_buf > 9)
+            {
+                // buffer may has multi responses
+                // we can't solve it in execute function so we return
+                swTraceLog(SW_TRACE_MYSQL_CLIENT, "remaining %d, more results exists", n_buf - 9);
+            }
             if (client->response.columns)
             {
                 mysql_columns_free(client);

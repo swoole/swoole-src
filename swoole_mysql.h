@@ -146,11 +146,59 @@ typedef enum
 } mysql_io_status;
 #endif
 
-#define SW_MYSQL_CLIENT_CONNECT_WITH_DB          8
-#define SW_MYSQL_CLIENT_PROTOCOL_41              512
-#define SW_MYSQL_CLIENT_PLUGIN_AUTH              (1UL << 19)
-#define SW_MYSQL_CLIENT_CONNECT_ATTRS            (1UL << 20)
-#define SW_MYSQL_CLIENT_SECURE_CONNECTION        32768
+// ref: https://dev.mysql.com/doc/dev/mysql-server/8.0.0/group__group__cs__capabilities__flags.html
+// use regex: "\#define[ ]+(CLIENT_[A-Z_\d]+)[ ]+(\(?[\dA-Z <]+\)?)\n[ ]+?[ ]+([\s\S ]+?\.) More\.\.\.\n?"
+// to "SW_MYSQL_$1 = $2, /* $3 */"
+enum mysql_client_capability_flags
+{
+    SW_MYSQL_CLIENT_LONG_PASSWORD = 1, /* Use the improved version of Old Password Authentication. */
+    SW_MYSQL_CLIENT_FOUND_ROWS = 2, /* Send found rows instead of affected rows in EOF_Packet. */
+    SW_MYSQL_CLIENT_LONG_FLAG = 4, /* Get all column flags. */
+    SW_MYSQL_CLIENT_CONNECT_WITH_DB = 8, /* Database (schema) name can be specified on connect in Handshake Response Packet. */
+    SW_MYSQL_CLIENT_NO_SCHEMA = 16, /* Don't allow database.table.column. */
+    SW_MYSQL_CLIENT_COMPRESS = 32, /* Compression protocol supported. */
+    SW_MYSQL_CLIENT_ODBC = 64, /* Special handling of ODBC behavior. */
+    SW_MYSQL_CLIENT_LOCAL_FILES = 128, /* Can use LOAD DATA LOCAL. */
+    SW_MYSQL_CLIENT_IGNORE_SPACE = 256, /* Ignore spaces before '('. */
+    SW_MYSQL_CLIENT_PROTOCOL_41 = 512, /* New 4.1 protocol. */
+    SW_MYSQL_CLIENT_INTERACTIVE = 1024, /* This is an interactive client. */
+    SW_MYSQL_CLIENT_SSL = 2048, /* Use SSL encryption for the session. */
+    SW_MYSQL_CLIENT_IGNORE_SIGPIPE = 4096, /* Client only flag. */
+    SW_MYSQL_CLIENT_TRANSACTIONS = 8192, /* Client knows about transactions. */
+    SW_MYSQL_CLIENT_RESERVED = 16384, /* flag for 4.1 protocol. */
+    SW_MYSQL_CLIENT_SECURE_CONNECTION = 32768, /* swoole custom name for RESERVED2.  */
+    SW_MYSQL_CLIENT_RESERVED2 = 32768, /* flag for 4.1 authentication. */
+    SW_MYSQL_CLIENT_MULTI_STATEMENTS = (1UL << 16), /* Enable/disable multi-stmt support. */
+    SW_MYSQL_CLIENT_MULTI_RESULTS = (1UL << 17), /* Enable/disable multi-results. */
+    SW_MYSQL_CLIENT_PS_MULTI_RESULTS = (1UL << 18), /* Multi-results and OUT parameters in PS-protocol. */
+    SW_MYSQL_CLIENT_PLUGIN_AUTH = (1UL << 19), /* Client supports plugin authentication. */
+    SW_MYSQL_CLIENT_CONNECT_ATTRS = (1UL << 20), /* Client supports connection attributes. */
+    SW_MYSQL_CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA = (1UL << 21), /* Enable authentication response packet to be larger than 255 bytes. */
+    SW_MYSQL_CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS = (1UL << 22), /* Don't close the connection for a user account with expired password. */
+    SW_MYSQL_CLIENT_SESSION_TRACK = (1UL << 23), /* Capable of handling server state change information. */
+    SW_MYSQL_CLIENT_DEPRECATE_EOF = (1UL << 24), /* Client no longer needs EOF_Packet and will use OK_Packet instead. */
+    SW_MYSQL_CLIENT_SSL_VERIFY_SERVER_CERT = (1UL << 30), /* Verify server certificate. */
+    SW_MYSQL_CLIENT_REMEMBER_OPTIONS = (1UL << 31) /* Don't reset the options after an unsuccessful connect. */
+};
+
+// ref: https://dev.mysql.com/doc/internals/en/status-flags.html
+enum mysql_server_status_flags
+{
+    SW_MYSQL_SERVER_STATUS_IN_TRANS = 0x0001, // a transaction is active
+    SW_MYSQL_SERVER_STATUS_AUTOCOMMIT = 0x0002, //auto-commit is enabled
+    SW_MYSQL_SERVER_MORE_RESULTS_EXISTS = 0x0008,
+    SW_MYSQL_SERVER_STATUS_NO_GOOD_INDEX_USED = 0x0010,
+    SW_MYSQL_SERVER_STATUS_NO_INDEX_USED = 0x0020,
+    SW_MYSQL_SERVER_STATUS_CURSOR_EXISTS = 0x0040, // Used by Binary Protocol Resultset to signal that COM_STMT_FETCH must be used to fetch the row-data.
+    SW_MYSQL_SERVER_STATUS_LAST_ROW_SENT = 0x0080,
+    SW_MYSQL_SERVER_STATUS_DB_DROPPED = 0x0100,
+    SW_MYSQL_SERVER_STATUS_NO_BACKSLASH_ESCAPES = 0x0200,
+    SW_MYSQL_SERVER_STATUS_METADATA_CHANGED = 0x0400,
+    SW_MYSQL_SERVER_QUERY_WAS_SLOW = 0x0800,
+    SW_MYSQL_SERVER_PS_OUT_PARAMS = 0x1000,
+    SW_MYSQL_SERVER_STATUS_IN_TRANS_READONLY = 0x2000, // in a read-only transaction
+    SW_MYSQL_SERVER_SESSION_STATE_CHANGED = 0x4000 // connection state information has changed
+};
 
 typedef struct
 {
@@ -282,8 +330,8 @@ typedef struct _mysql_client
 #endif
     uint8_t state;
     uint8_t handshake;
-    uint8_t cmd;
-    swString *buffer;
+    uint8_t cmd; /* help with judging to do what in callback */
+    swString *buffer; /* save the mysql responses data */
     swClient *cli;
     zval *object;
     zval *callback;
@@ -303,7 +351,10 @@ typedef struct _mysql_client
     zval _object;
     zval _onClose;
 #endif
-    mysql_response_t response;
+
+    mysql_response_t response; /* single response */
+    swLinkedList *response_list; /* multi responses (in fetch mode) */
+
 } mysql_client;
 
 #define mysql_uint2korr(A)  (uint16_t) (((uint16_t) ((zend_uchar) (A)[0])) +\
