@@ -1158,14 +1158,13 @@ static sw_inline int mysql_read_rows(mysql_client *client)
             return SW_ERR;
         }
         //RecordSet end
-        else if (mysql_read_eof(client, buffer, n_buf) == 0)
+        else if (mysql_read_eof(client, buffer, n_buf) == 0 && (n_buf == 9 || (n_buf > 9 && (client->response.status_code & SW_MYSQL_SERVER_MORE_RESULTS_EXISTS))))
         {
-            if (n_buf != 9 && (client->response.status_code & SW_MYSQL_SERVER_MORE_RESULTS_EXISTS))
+            if (n_buf > 9)
             {
-                swTraceLog(SW_TRACE_MYSQL_CLIENT, "remaining %d, more results exists", n_buf - 9);
                 // buffer may has multi responses
                 // we can't solve it in execute function so we return
-                client->buffer->offset += 9;
+                swTraceLog(SW_TRACE_MYSQL_CLIENT, "remaining %d, more results exists", n_buf - 9);
             }
             if (client->response.columns)
             {
