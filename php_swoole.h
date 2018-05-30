@@ -130,12 +130,8 @@ extern swoole_object_array swoole_objects;
 #endif
 
 #ifdef SW_SOCKETS
-#if PHP_VERSION_ID >= 50301 && (HAVE_SOCKETS || defined(COMPILE_DL_SOCKETS))
 #include "ext/sockets/php_sockets.h"
 #define SWOOLE_SOCKETS_SUPPORT
-#else
-#error "Enable sockets support, require sockets extension."
-#endif
 #endif
 
 #ifdef SW_USE_HTTP2
