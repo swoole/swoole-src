@@ -936,7 +936,6 @@ static int mysql_decode_row_prepare(mysql_client *client, char *buf, int packet_
 
     for (i = 0; i < client->response.num_column; i++)
     {
-        swDebug("num_column loop: %d", i);
         /* to check Null-Bitmap @see https://dev.mysql.com/doc/internals/en/null-bitmap.html */
         if (((buf - null_count + 1)[((i + 2) / 8)] & (0x01 << ((i + 2) % 8))) != 0)
         {
@@ -1161,8 +1160,9 @@ static sw_inline int mysql_read_rows(mysql_client *client)
         //RecordSet end
         else if (mysql_read_eof(client, buffer, n_buf) == 0)
         {
-            if (n_buf != 9)
+            if (n_buf != 9 && (client->response.status_code & SW_MYSQL_SERVER_MORE_RESULTS_EXISTS))
             {
+                swTraceLog(SW_TRACE_MYSQL_CLIENT, "remaining %d, more results exists", n_buf - 9);
                 // buffer may has multi responses
                 // we can't solve it in execute function so we return
                 client->buffer->offset += 9;

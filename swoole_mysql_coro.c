@@ -1423,8 +1423,6 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
-    swDebug("onRead trigger");
-
     mysql_client *client = event->socket->object;
     if (client->handshake != SW_MYSQL_HANDSHAKE_COMPLETED)
     {
@@ -1449,7 +1447,6 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
     while(1)
     {
         ret = recv(sock, buffer->str + buffer->length, buffer->size - buffer->length, 0);
-        swDebug("recv ret=%d", ret);
         if (ret < 0)
         {
             if (errno == EINTR)
@@ -1545,7 +1542,6 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
 
             client->state = SW_MYSQL_STATE_QUERY;
 
-            swDebug("response_type=%d", client->response.response_type);
             //OK
             if (client->response.response_type == 0)
             {
