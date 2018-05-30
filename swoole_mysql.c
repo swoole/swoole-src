@@ -1161,6 +1161,12 @@ static sw_inline int mysql_read_rows(mysql_client *client)
         //RecordSet end
         else if (mysql_read_eof(client, buffer, n_buf) == 0)
         {
+            if (n_buf != 9)
+            {
+                // buffer may has multi responses
+                // we can't solve it in execute function so we return
+                client->buffer->offset += 9;
+            }
             if (client->response.columns)
             {
                 mysql_columns_free(client);
