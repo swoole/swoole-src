@@ -2,7 +2,7 @@
 swoole_coroutine: mysql simple query
 
 --SKIPIF--
-<?php require  __DIR__ . "/../include/skipif.inc"; ?>
+<?php require __DIR__ . "/..../include/skipif.inc"; ?>
 --INI--
 assert.active=1
 assert.warning=1
@@ -12,7 +12,7 @@ assert.quiet_eval=0
 
 --FILE--
 <?php
-require_once __DIR__ . "/../include/swoole.inc";
+require_once __DIR__ . "/../../include/swoole.inc";
 
 go(function () {
     $mysql = new Swoole\Coroutine\MySQL();
