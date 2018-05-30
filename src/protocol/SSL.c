@@ -673,7 +673,7 @@ int swSSL_accept(swConnection *conn)
     {
         return SW_ERROR;
     }
-    swWarn("SSL_do_handshake() failed. Error: [%ld|%d].", err, errno);
+    swWarn("SSL_do_handshake() failed. Error: %s[%ld|%d].", strerror(errno), err, errno);
     return SW_ERROR;
 }
 
@@ -723,7 +723,7 @@ int swSSL_connect(swConnection *conn)
             return SW_ERR;
         }
     }
-    swWarn("SSL_connect(fd=%d) failed. Error: %s[%ld].", conn->fd, ERR_reason_error_string(err), err);
+    swWarn("SSL_connect(fd=%d) failed. Error: %s[%ld|%d].", conn->fd, ERR_reason_error_string(err), err, errno);
 
     return SW_ERR;
 }
