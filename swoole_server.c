@@ -1590,6 +1590,7 @@ PHP_METHOD(swoole_server, __construct)
 
     swConnectionIterator *i = emalloc(sizeof(swConnectionIterator));
     bzero(i, sizeof(swConnectionIterator));
+    i->serv = serv;
     swoole_set_object(connection_iterator_object, i);
 #endif
 
