@@ -34,7 +34,7 @@ co::create(function () {
         echo "EXECUTE ERROR\n";
         return;
     }
-    assert($db->insert_id > 0);
+    assert($stmt->insert_id > 0);
 });
 
 ?>
