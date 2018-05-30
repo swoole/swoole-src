@@ -683,11 +683,6 @@ static int swClient_tcp_connect_async(swClient *cli, char *host, int port, doubl
 
     if (cli->wait_dns)
     {
-        if (SwooleAIO.mode == SW_AIO_LINUX)
-        {
-            SwooleAIO.mode = SW_AIO_BASE;
-            SwooleAIO.init = 0;
-        }
         if (SwooleAIO.init == 0)
         {
             swAio_init();

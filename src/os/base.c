@@ -54,26 +54,7 @@ int swAio_init(void)
         swWarn("No eventloop, cannot initialized");
         return SW_ERR;
     }
-
-    int ret = 0;
-
-#if 1
-    SwooleAIO.mode = SW_AIO_BASE;
-#endif
-
-    switch (SwooleAIO.mode)
-    {
-#ifdef HAVE_LINUX_AIO
-    case SW_AIO_LINUX:
-        ret = swAioLinux_init(SW_AIO_EVENT_NUM);
-        break;
-#endif
-    default:
-        ret = swAioBase_init(SW_AIO_EVENT_NUM);
-        break;
-    }
-    SwooleAIO.init = 1;
-    return ret;
+    return swAioBase_init(SW_AIO_EVENT_NUM);
 }
 
 void swAio_free(void)
@@ -216,6 +197,7 @@ int swAioBase_init(int max_aio_events)
     SwooleAIO.destroy = swAioBase_destroy;
     SwooleAIO.read = swAioBase_read;
     SwooleAIO.write = swAioBase_write;
+    SwooleAIO.init = 1;
 
     return SW_OK;
 }

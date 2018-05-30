@@ -1075,11 +1075,6 @@ static PHP_METHOD(swoole_socket_coro, connect)
         ev.object = sock;
         ev.callback = socket_onResolveCompleted;
 
-        if (SwooleAIO.mode == SW_AIO_LINUX)
-        {
-            SwooleAIO.mode = SW_AIO_BASE;
-            SwooleAIO.init = 0;
-        }
         php_swoole_check_aio();
 
         if (swAio_dispatch(&ev) < 0)
