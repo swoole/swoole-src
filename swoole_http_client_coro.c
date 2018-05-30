@@ -311,7 +311,7 @@ static int http_client_coro_execute(zval *zobject, char *uri, zend_size_t uri_le
         if (php_swoole_array_get_value(vht, "keep_alive", ztmp))
         {
             convert_to_boolean(ztmp);
-            http->keep_alive = (int) Z_LVAL_P(ztmp);
+            http->keep_alive = Z_BVAL_P(ztmp);
         }
         //client settings
         php_swoole_client_check_setting(http->cli, zset TSRMLS_CC);
