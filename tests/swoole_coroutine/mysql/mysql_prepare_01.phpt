@@ -1,10 +1,10 @@
 --TEST--
-swoole_coroutine: mysql prepare (select)
+swoole_coroutine: mysql prepare (insert)
 --SKIPIF--
-<?php require __DIR__ . "/../include/skipif.inc"; ?>
+<?php require __DIR__ . "/../../include/skipif.inc"; ?>
 --FILE--
 <?php
-require_once __DIR__ . "/../include/swoole.inc";
+require_once __DIR__ . "/../../include/swoole.inc";
 
 use Swoole\Coroutine as co;
 
@@ -23,18 +23,18 @@ co::create(function () {
         return;
     }
 
-    $stmt = $db->prepare('SELECT * FROM userinfo WHERE id=?');
+    $stmt = $db->prepare('INSERT INTO ckl (`domain`,`path`,`name`) VALUES (?,?,?)');
     if (!$stmt) {
         echo "PREPARE ERROR\n";
         return;
     }
 
-    $ret3 = $stmt->execute(array(10));
+    $ret3 = $stmt->execute(array('www.baidu.com', '/search', 'baidu'));
     if (!$ret3) {
         echo "EXECUTE ERROR\n";
         return;
     }
-    assert(count($ret3) > 0);
+    assert($stmt->insert_id > 0);
 });
 
 ?>
