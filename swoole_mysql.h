@@ -286,8 +286,8 @@ typedef struct _mysql_client
 #endif
     uint8_t state;
     uint8_t handshake;
-    uint8_t cmd;
-    swString *buffer;
+    uint8_t cmd; /* help with judging to do what in callback */
+    swString *buffer; /* save the mysql responses data */
     swClient *cli;
     zval *object;
     zval *callback;
@@ -307,7 +307,10 @@ typedef struct _mysql_client
     zval _object;
     zval _onClose;
 #endif
-    mysql_response_t response;
+
+    mysql_response_t response; /* single response */
+    swLinkedList *response_list; /* multi responses (in fetch mode) */
+
 } mysql_client;
 
 #define mysql_uint2korr(A)  (uint16_t) (((uint16_t) ((zend_uchar) (A)[0])) +\
