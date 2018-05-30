@@ -152,6 +152,7 @@ int swClient_create(swClient *cli, int type, int async)
             cli->send = swClient_tcp_send_async;
             cli->sendfile = swClient_tcp_sendfile_async;
             cli->pipe = swClient_tcp_pipe;
+            cli->socket->dontwait = 1;
         }
         else
         {
@@ -554,11 +555,34 @@ static int swClient_tcp_connect_sync(swClient *cli, char *host, int port, double
         {
             swSocket_set_timeout(cli->socket->fd, timeout);
         }
+#ifndef HAVE_KQUEUE
         swSetBlock(cli->socket->fd);
+#endif
     }
     while (1)
     {
+#ifdef HAVE_KQUEUE
+    	swSetNonBlock(cli->socket->fd);
+    	ret = connect(cli->socket->fd, (struct sockaddr *) &cli->server_addr.addr, cli->server_addr.len);
+    	if (ret < 0)
+    	{
+    		if (errno != EINPROGRESS)
+    		{
+    			return SW_ERR;
+    		}
+    		if (timeout > 0 && swSocket_wait(cli->socket->fd, (int) (timeout * 1000), SW_EVENT_WRITE) < 0)
+    		{
+    			return SW_ERR;
+    		}
+    		else
+    		{
+    			swSetBlock(cli->socket->fd);
+    			ret = 0;
+    		}
+    	}
+#else
         ret = connect(cli->socket->fd, (struct sockaddr *) &cli->server_addr.addr, cli->server_addr.len);
+#endif
         if (ret < 0)
         {
             if (errno == EINTR)
@@ -659,11 +683,6 @@ static int swClient_tcp_connect_async(swClient *cli, char *host, int port, doubl
 
     if (cli->wait_dns)
     {
-        if (SwooleAIO.mode == SW_AIO_LINUX)
-        {
-            SwooleAIO.mode = SW_AIO_BASE;
-            SwooleAIO.init = 0;
-        }
         if (SwooleAIO.init == 0)
         {
             swAio_init();
@@ -692,7 +711,7 @@ static int swClient_tcp_connect_async(swClient *cli, char *host, int port, doubl
         memcpy(ev.buf, cli->server_host, len);
         ((char *) ev.buf)[len] = 0;
         ev.flags = cli->_sock_domain;
-        ev.type = SW_AIO_DNS_LOOKUP;
+        ev.type = SW_AIO_GETHOSTBYNAME;
         ev.object = cli;
         ev.callback = swClient_onResolveCompleted;
 
@@ -784,6 +803,7 @@ static int swClient_tcp_send_async(swClient *cli, char *data, int length, int fl
         if (SwooleG.error == SW_ERROR_OUTPUT_BUFFER_OVERFLOW)
         {
             n = -1;
+            cli->socket->high_watermark = 1;
         }
         else
         {

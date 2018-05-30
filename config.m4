@@ -373,7 +373,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/network/TimeWheel.c \
         src/network/Stream.c \
         src/os/base.c \
-        src/os/linux_aio.c \
         src/os/msg_queue.c \
         src/os/sendfile.c \
         src/os/signal.c \

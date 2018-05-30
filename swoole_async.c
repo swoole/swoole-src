@@ -71,41 +71,6 @@ static void php_swoole_file_request_free(void *data);
 static swHashMap *php_swoole_open_files;
 static swHashMap *php_swoole_aio_request;
 
-static sw_inline void swoole_aio_free(void *ptr)
-{
-    if (SwooleAIO.mode == SW_AIO_LINUX)
-    {
-        free(ptr);
-    }
-    else
-    {
-        efree(ptr);
-    }
-}
-
-static sw_inline void* swoole_aio_malloc(size_t __size)
-{
-#ifdef HAVE_LINUX_AIO
-    void *memory;
-    if (SwooleAIO.mode == SW_AIO_LINUX)
-    {
-        size_t buf_len = __size + (sysconf(_SC_PAGESIZE) - (__size % sysconf(_SC_PAGESIZE)));
-        if (posix_memalign((void **) &memory, sysconf(_SC_PAGESIZE), buf_len) != 0)
-        {
-            return NULL;
-        }
-        else
-        {
-            return memory;
-        }
-    }
-    else
-#endif
-    {
-        return emalloc(__size);
-    }
-}
-
 static void php_swoole_file_request_free(void *data)
 {
     file_request *file_req = data;
@@ -113,7 +78,7 @@ static void php_swoole_file_request_free(void *data)
     {
         sw_zval_ptr_dtor(&file_req->callback);
     }
-    swoole_aio_free(file_req->content);
+    efree(file_req->content);
     sw_zval_ptr_dtor(&file_req->filename);
     efree(file_req);
 }
@@ -122,8 +87,8 @@ void swoole_async_init(int module_number TSRMLS_DC)
 {
     bzero(&SwooleAIO, sizeof(SwooleAIO));
 
-    REGISTER_LONG_CONSTANT("SWOOLE_AIO_BASE", SW_AIO_BASE, CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("SWOOLE_AIO_LINUX", SW_AIO_LINUX, CONST_CS | CONST_PERSISTENT);
+    REGISTER_LONG_CONSTANT("SWOOLE_AIO_BASE", 0, CONST_CS | CONST_PERSISTENT);
+    REGISTER_LONG_CONSTANT("SWOOLE_AIO_LINUX", 0, CONST_CS | CONST_PERSISTENT);
 
     php_swoole_open_files = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
     if (php_swoole_open_files == NULL)
@@ -221,7 +186,7 @@ static void php_swoole_aio_onComplete(swAio_event *event)
     bzero(&_zwriten, sizeof(zval));
 #endif
 
-    if (event->type == SW_AIO_DNS_LOOKUP)
+    if (event->type == SW_AIO_GETHOSTBYNAME)
     {
         dns_req = (dns_request *) event->req;
         if (dns_req->callback == NULL)
@@ -260,12 +225,9 @@ static void php_swoole_aio_onComplete(swAio_event *event)
             bzero(event->buf, event->nbytes);
             isEOF = SW_TRUE;
         }
-        else if (file_req->once == 1)
+        else if (file_req->once == 1 && ret < file_req->length)
         {
-            if (SwooleAIO.mode != SW_AIO_LINUX && ret < file_req->length)
-            {
-                swoole_php_fatal_error(E_WARNING, "swoole_async: ret_length[%d] < req->length[%d].", (int ) ret, file_req->length);
-            }
+            swoole_php_fatal_error(E_WARNING, "ret_length[%d] < req->length[%d].", (int ) ret, file_req->length);
         }
         else if (event->type == SW_AIO_READ)
         {
@@ -302,7 +264,7 @@ static void php_swoole_aio_onComplete(swAio_event *event)
         args[1] = &zwriten;
         ZVAL_LONG(zwriten, ret);
     }
-    else if(event->type == SW_AIO_DNS_LOOKUP)
+    else if(event->type == SW_AIO_GETHOSTBYNAME)
     {
         args[0] = &dns_req->domain;
 #if PHP_MAJOR_VERSION < 7
@@ -432,21 +394,7 @@ PHP_FUNCTION(swoole_async_read)
         buf_size = SW_AIO_MAX_CHUNK_SIZE;
     }
 
-#ifdef HAVE_LINUX_AIO
-    if (SwooleAIO.mode == SW_AIO_LINUX && (buf_size % SW_AIO_MIN_UNIT_SIZE) != 0)
-    {
-        swoole_php_fatal_error(E_WARNING, "the chunk buffer size must be an integer multiple of %d.", SW_AIO_MIN_UNIT_SIZE);
-        RETURN_FALSE;
-    }
-#endif
-
     convert_to_string(filename);
-
-    if (SwooleAIO.mode == SW_AIO_LINUX)
-    {
-        open_flag |= O_DIRECT;
-    }
-
     int fd = open(Z_STRVAL_P(filename), open_flag, 0644);
     if (fd < 0)
     {
@@ -468,7 +416,7 @@ PHP_FUNCTION(swoole_async_read)
         RETURN_FALSE;
     }
 
-    void *fcnt = swoole_aio_malloc(buf_size);
+    void *fcnt = emalloc(buf_size);
     if (fcnt == NULL)
     {
         swoole_php_sys_error(E_WARNING, "malloc failed.");
@@ -527,13 +475,6 @@ PHP_FUNCTION(swoole_async_write)
     {
         RETURN_FALSE;
     }
-#ifdef HAVE_LINUX_AIO
-    if (SwooleAIO.mode == SW_AIO_LINUX && (fcnt_len % SW_AIO_MIN_UNIT_SIZE) != 0)
-    {
-        swoole_php_fatal_error(E_WARNING, "the length must be an integer multiple of %d.", SW_AIO_MIN_UNIT_SIZE);
-        RETURN_FALSE;
-    }
-#endif
     if (callback && !ZVAL_IS_NULL(callback))
     {
         char *func_name = NULL;
@@ -552,24 +493,10 @@ PHP_FUNCTION(swoole_async_write)
     if (fd == 0)
     {
         int open_flag = O_WRONLY | O_CREAT;
-
-#ifdef HAVE_LINUX_AIO
-        if (SwooleAIO.mode == SW_AIO_LINUX)
-        {
-            open_flag |= O_DIRECT;
-            if (offset < 0)
-            {
-                swoole_php_fatal_error(E_WARNING, "cannot use FILE_APPEND with linux native aio.");
-                RETURN_FALSE;
-            }
-        }
-        else
-#endif
         if (offset < 0)
         {
             open_flag |= O_APPEND;
         }
-
         fd = open(Z_STRVAL_P(filename), open_flag, 0644);
         if (fd < 0)
         {
@@ -585,7 +512,7 @@ PHP_FUNCTION(swoole_async_write)
     }
 
     file_request *req = emalloc(sizeof(file_request));
-    char *wt_cnt = swoole_aio_malloc(fcnt_len);
+    char *wt_cnt = emalloc(fcnt_len);
     req->fd = fd;
     req->content = wt_cnt;
     req->once = 0;
@@ -628,12 +555,6 @@ PHP_FUNCTION(swoole_async_readfile)
     zval *filename;
 
     int open_flag = O_RDONLY;
-
-    if (SwooleAIO.mode == SW_AIO_LINUX)
-    {
-        open_flag |=  O_DIRECT;
-    }
-
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zz", &filename, &callback) == FAILURE)
     {
         return;
@@ -668,14 +589,6 @@ PHP_FUNCTION(swoole_async_readfile)
     }
 
     size_t length = file_stat.st_size;
-
-#ifdef HAVE_LINUX_AIO
-    if (SwooleAIO.mode == SW_AIO_LINUX && length % SwooleG.pagesize > 0)
-    {
-        length += SwooleG.pagesize - (length % SwooleG.pagesize);
-    }
-#endif
-
     file_request *req = emalloc(sizeof(file_request));
     req->fd = fd;
 
@@ -690,7 +603,7 @@ PHP_FUNCTION(swoole_async_readfile)
         sw_copy_to_stack(req->callback, req->_callback);
     }
 
-    req->content = swoole_aio_malloc(length);
+    req->content = emalloc(length);
     req->once = 1;
     req->type = SW_AIO_READ;
     req->length = length;
@@ -723,20 +636,6 @@ PHP_FUNCTION(swoole_async_writefile)
         return;
     }
     int open_flag = O_CREAT | O_WRONLY;
-
-#ifdef HAVE_LINUX_AIO
-    if (SwooleAIO.mode == SW_AIO_LINUX)
-    {
-        open_flag |= O_DIRECT;
-        if (flags & PHP_FILE_APPEND)
-        {
-            swoole_php_fatal_error(E_WARNING, "cannot use FILE_APPEND with linux native aio.");
-            RETURN_FALSE;
-        }
-    }
-    else
-#endif
-
     if (flags & PHP_FILE_APPEND)
     {
         open_flag |= O_APPEND;
@@ -776,14 +675,7 @@ PHP_FUNCTION(swoole_async_writefile)
     }
 
     size_t memory_size = fcnt_len;
-#ifdef HAVE_LINUX_AIO
-    if (SwooleAIO.mode == SW_AIO_LINUX && memory_size % SwooleG.pagesize > 0)
-    {
-        memory_size += SwooleG.pagesize - (memory_size % SwooleG.pagesize);
-    }
-#endif
-
-    char *wt_cnt = swoole_aio_malloc(memory_size);
+    char *wt_cnt = emalloc(memory_size);
 
     file_request *req = emalloc(sizeof(file_request));
     req->filename = filename;
@@ -809,12 +701,6 @@ PHP_FUNCTION(swoole_async_writefile)
     req->offset = 0;
 
     memcpy(wt_cnt, fcnt, fcnt_len);
-#ifdef HAVE_LINUX_AIO
-    if (SwooleAIO.mode == SW_AIO_LINUX && memory_size != fcnt_len)
-    {
-        memset(wt_cnt + fcnt_len, 0, memory_size - fcnt_len);
-    }
-#endif
 
     php_swoole_check_aio();
 
@@ -850,11 +736,6 @@ PHP_FUNCTION(swoole_async_set)
     php_swoole_array_separate(zset);
 
     vht = Z_ARRVAL_P(zset);
-    if (php_swoole_array_get_value(vht, "aio_mode", v))
-    {
-        convert_to_long(v);
-        SwooleAIO.mode = (uint8_t) Z_LVAL_P(v);
-    }
     if (php_swoole_array_get_value(vht, "thread_num", v))
     {
         convert_to_long(v);
@@ -958,12 +839,7 @@ PHP_FUNCTION(swoole_async_dns_lookup)
         SW_CHECK_RETURN(swDNSResolver_request(Z_STRVAL_P(domain), php_swoole_dns_callback, (void *) req));
     }
 
-    if (SwooleAIO.mode == SW_AIO_LINUX)
-    {
-        SwooleAIO.mode = SW_AIO_BASE;
-        SwooleAIO.init = 0;
-        php_swoole_check_aio();
-    }
+    php_swoole_check_aio();
 
     /**
      * Use thread pool

@@ -2,6 +2,8 @@
  +----------------------------------------------------------------------+
  | Swoole                                                               |
  +----------------------------------------------------------------------+
+ | Copyright (c) 2012-2018 The Swoole Group                             |
+ +----------------------------------------------------------------------+
  | This source file is subject to version 2.0 of the Apache license,    |
  | that is bundled with this package in the file LICENSE, and is        |
  | available through the world-wide-web at the following url:           |
@@ -21,18 +23,21 @@
 #define O_DIRECT         040000
 #endif
 
-enum swAioMode
-{
-    SW_AIO_BASE = 0,
-    SW_AIO_LINUX,
-};
-
-enum
+enum swAioOpcode
 {
     SW_AIO_READ = 0,
     SW_AIO_WRITE = 1,
-    SW_AIO_DNS_LOOKUP = 2,
+    SW_AIO_GETHOSTBYNAME = 2,
     SW_AIO_GETADDRINFO = 3,
+    SW_AIO_STREAM_GET_LINE = 4,
+    SW_AIO_READ_FILE,
+    SW_AIO_WRITE_FILE,
+};
+
+enum swAioFlag
+{
+    SW_AIO_WRITE_FSYNC = 1u << 1,
+    SW_AIO_EOF         = 1u << 2,
 };
 
 typedef struct _swAio_event
@@ -51,15 +56,17 @@ typedef struct _swAio_event
     void (*callback)(struct _swAio_event *event);
 } swAio_event;
 
+typedef void (*swAio_handler)(swAio_event *event);
+
 typedef struct
 {
     uint8_t init;
-    uint8_t mode;
     uint8_t thread_num;
     uint32_t task_num;
     uint16_t current_id;
     swLock lock;
 
+    swAio_handler handlers[SW_AIO_HANDLER_MAX_SIZE];
     void (*destroy)(void);
     void (*callback)(swAio_event *aio_event);
     int (*read)(int fd, void *outbuf, size_t size, off_t offset);
