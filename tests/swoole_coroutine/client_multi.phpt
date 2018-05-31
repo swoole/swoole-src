@@ -32,7 +32,7 @@ $pm->childFunc = function () use ($pm)
     $http->on('request', function (swoole_http_request $request, swoole_http_response $response)
     {
         $cli1 = new Swoole\Coroutine\Http\Client('www.baidu.com', 443, true);
-        $cli1->set(['timeout' => 1]);
+        $cli1->set(['timeout' => 10]);
         $cli1->setHeaders([
             'Host' => "www.baidu.com",
             "User-Agent" => 'Chrome/49.0.2587.3',
@@ -42,7 +42,7 @@ $pm->childFunc = function () use ($pm)
         $cli1->setDefer(1);
 
         $cli2 = new Swoole\Coroutine\Http\Client('www.baidu.com', 443, true);
-        $cli2->set(['timeout' => 1]);
+        $cli2->set(['timeout' => 10]);
         $cli2->setHeaders([
             'Host' => "www.baidu.com",
             "User-Agent" => 'Chrome/49.0.2587.3',

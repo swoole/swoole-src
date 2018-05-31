@@ -10,7 +10,7 @@ require_once __DIR__ . "/../include/lib/curl.php";
 Swoole\Coroutine::create(function ()
 {
     $cli = new \Swoole\Coroutine\Http\Client('www.baidu.com', 80);
-    $cli->set(['timeout' => 1]);
+    $cli->set(['timeout' => 10]);
     $cli->setMethod("HEAD");
     $cli->get('/');
     assert($cli->statusCode == 200);
