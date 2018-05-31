@@ -570,7 +570,7 @@ static int swClient_tcp_connect_sync(swClient *cli, char *host, int port, double
     		{
     			return SW_ERR;
     		}
-    		if (timeout > 0 && swSocket_wait(cli->socket->fd, (int) (timeout * 1000), SW_EVENT_WRITE) < 0)
+    		if (swSocket_wait(cli->socket->fd, timeout > 0 ? (int) (timeout * 1000) : timeout, SW_EVENT_WRITE) < 0)
     		{
     			return SW_ERR;
     		}
