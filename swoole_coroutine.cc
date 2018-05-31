@@ -118,6 +118,7 @@ int coro_init(TSRMLS_D)
     {
         if (opcode == 255)
         {
+            swoole_php_fatal_error(E_ERROR, "all of opcode was defined, please check php.ini extensions.");
             return FAILURE;
         }
         else if (zend_get_user_opcode_handler(opcode) == NULL)
@@ -146,6 +147,7 @@ int coro_init(TSRMLS_D)
     {
         if (opcode == 255)
         {
+            swoole_php_fatal_error(E_ERROR, "all of opcode was defined, please check php.ini extensions.");
             return FAILURE;
         }
         else if (zend_get_user_opcode_handler(opcode) == NULL)
