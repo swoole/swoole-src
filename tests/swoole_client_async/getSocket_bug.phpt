@@ -2,7 +2,7 @@
 swoole_client: getSocket debug
 
 --SKIPIF--
-<?php require  __DIR__ . "/../include/skipif.inc";
+<?php require  __DIR__ . '/../include/skipif.inc';
 if (method_exists('swoole_client', 'getSocket') === false) {
     exit("require sockets supports.");
 }
@@ -16,7 +16,8 @@ assert.quiet_eval=0
 
 --FILE--
 <?php
-require_once __DIR__ . "/../include/swoole.inc";
+require_once __DIR__ . '/../include/bootstrap.php';
+require_once __DIR__ . '/../include/swoole.inc';
 
 $simple_tcp_server = __DIR__ . "/../include/api/swoole_server/simple_server.php";
 start_server($simple_tcp_server, TCP_SERVER_HOST, TCP_SERVER_PORT);

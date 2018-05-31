@@ -1,9 +1,11 @@
 --TEST--
 swoole_coroutine: coro empty
 --SKIPIF--
-<?php require  __DIR__ . "/../include/skipif.inc"; ?>
+<?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
+require_once __DIR__ . '/../include/bootstrap.php';
+
 go(function () {
     echo "co[1] start\n";
     echo "co[1] exit\n";

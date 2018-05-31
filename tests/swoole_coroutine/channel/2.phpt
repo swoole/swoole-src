@@ -1,9 +1,11 @@
 --TEST--
 swoole_coroutine: consumer first without select mode
 --SKIPIF--
-<?php require  __DIR__ . "/../../include/skipif.inc"; ?>
+<?php require  __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
+require_once __DIR__ . '/../../include/bootstrap.php';
+
 $c1 = new chan();
 //consumer first without select mode
 $num = 10;
