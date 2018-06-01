@@ -1,12 +1,12 @@
 --TEST--
 swoole_coroutine_socket: accept
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
-require_once __DIR__ . '/../include/lib/curl.php';
+require_once __DIR__ . '/../../include/bootstrap.php';
+require_once __DIR__ . '/../../include/swoole.inc';
+require_once __DIR__ . '/../../include/lib/curl.php';
 
 go(function () {
     $sock = new Swoole\Coroutine\Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
