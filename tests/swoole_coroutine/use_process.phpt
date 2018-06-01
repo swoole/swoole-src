@@ -81,5 +81,5 @@ $pm->childFunc = function () use ($pm) {
 
 $pm->childFirst();
 $pm->run();
-
+?>
 --EXPECT--
