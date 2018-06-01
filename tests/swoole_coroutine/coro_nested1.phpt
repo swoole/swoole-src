@@ -1,9 +1,11 @@
 --TEST--
 swoole_coroutine: coro channel
 --SKIPIF--
-<?php require  __DIR__ . "/../include/skipif.inc"; ?>
+<?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
+require_once __DIR__ . '/../include/bootstrap.php';
+
 go(function () {
     echo "co[1] start\n";
     co::sleep(1.0);

@@ -1,9 +1,11 @@
 --TEST--
 swoole_coroutine: coro array map
 --SKIPIF--
-<?php require __DIR__ . "/../../include/skipif.inc"; ?>
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
+require_once __DIR__ . '/../../include/bootstrap.php';
+
 use Swoole\Coroutine as co;
 co::create(function() {
     array_map("test",array("func start\n"));

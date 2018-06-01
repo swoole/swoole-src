@@ -1,9 +1,11 @@
 --TEST--
 swoole_coroutine: fibonacci
 --SKIPIF--
-<?php require  __DIR__ . "/../../include/skipif.inc"; ?>
+<?php require  __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
+require_once __DIR__ . '/../../include/bootstrap.php';
+
 $c1 = new chan();
 $c2 = new chan();
 function fibonacci($c1, $c2)

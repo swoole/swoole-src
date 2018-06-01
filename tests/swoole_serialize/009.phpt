@@ -2,7 +2,7 @@
 swoole_serialize: Check for reference serialization
 --SKIPIF--
 <?php
-require __DIR__ . "/../include/skipif.inc";
+require __DIR__ . '/../include/skipif.inc';
 if (!class_exists("swoole_serialize", false))
 {
     echo "skip";
@@ -10,6 +10,8 @@ if (!class_exists("swoole_serialize", false))
 ?>
 --FILE--
 <?php
+require_once __DIR__ . '/../include/bootstrap.php';
+
 ini_set("display_errors", "Off");
 
 function test($type, $variable, $test) {

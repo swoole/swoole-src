@@ -1,9 +1,11 @@
 --TEST--
 swoole_process: sysv msgqueue
 --SKIPIF--
-<?php require __DIR__ . "/../include/skipif.inc"; ?>
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
+require_once __DIR__ . '/../include/bootstrap.php';
+
 function callback_function(swoole_process $worker){}
 
 $process = new swoole_process('callback_function', false, false);

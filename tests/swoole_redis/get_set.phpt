@@ -1,7 +1,7 @@
 --TEST--
 swoole_redis: get & set
 --SKIPIF--
-<?php require __DIR__ . "/../include/skipif.inc";
+<?php require __DIR__ . '/../include/skipif.inc';
 if (!class_exists("swoole_redis", false))
 {
     exit("required redis.");
@@ -16,8 +16,9 @@ assert.quiet_eval=0
 
 --FILE--
 <?php
-require_once __DIR__ . "/../include/swoole.inc";
-require_once __DIR__ . "/../include/api/swoole_redis/simple_redis.php";
+require_once __DIR__ . '/../include/bootstrap.php';
+require_once __DIR__ . '/../include/swoole.inc';
+require_once __DIR__ . '/../include/api/swoole_redis/simple_redis.php';
 ?>
 --EXPECT--
 close

@@ -3,6 +3,8 @@ global_function: swoole_event_write
 
 --FILE--
 <?php
+require_once __DIR__ . '/../include/bootstrap.php';
+
 $fp = stream_socket_client("tcp://www.qq.com:80", $errno, $errstr, 30);
 
 swoole_event_add($fp, function($fp) {

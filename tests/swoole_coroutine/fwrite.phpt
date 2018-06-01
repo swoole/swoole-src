@@ -1,10 +1,11 @@
 --TEST--
 swoole_coroutine: fwrite
 --SKIPIF--
-<?php require __DIR__ . "/../include/skipif.inc"; ?>
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . "/../include/swoole.inc";
+require_once __DIR__ . '/../include/bootstrap.php';
+require_once __DIR__ . '/../include/swoole.inc';
 
 use Swoole\Coroutine as co;
 

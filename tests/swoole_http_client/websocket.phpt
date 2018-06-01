@@ -1,10 +1,11 @@
 --TEST--
 swoole_http_client: websocket client send 128 messages
 --SKIPIF--
-<?php require  __DIR__ . "/../include/skipif.inc"; ?>
+<?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . "/../include/swoole.inc";
+require_once __DIR__ . '/../include/bootstrap.php';
+require_once __DIR__ . '/../include/swoole.inc';
 const N = 128;
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid)

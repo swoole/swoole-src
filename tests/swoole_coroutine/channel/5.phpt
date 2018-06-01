@@ -1,9 +1,11 @@
 --TEST--
 swoole_coroutine: push with sleep
 --SKIPIF--
-<?php require  __DIR__ . "/../../include/skipif.inc"; ?>
+<?php require  __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
+require_once __DIR__ . '/../../include/bootstrap.php';
+
 $c1 = new chan();
 
 $num = 10;
