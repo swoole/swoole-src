@@ -7,38 +7,73 @@ define('SWOOLE_COLOR_BLUE', 4);
 define('SWOOLE_COLOR_MAGENTA', 5);
 define('SWOOLE_COLOR_CYAN', 6);
 define('SWOOLE_COLOR_WHITE', 7);
-function swoole_color(string $content, int $color)
+function swoole_color(string $content, int $color): string
 {
     return "\033[3{$color}m{$content}\033[0m";
+}
+
+function fgetsin(string $tip = '', bool $accept_empty = true): string
+{
+    do {
+        if ($tip) {
+            echo "$tip: ";
+        }
+        $in = trim(fgets(STDIN));
+    } while (!$accept_empty && $in === '');
+
+    return $in;
+}
+
+function yes(string $content = ''): bool
+{
+    echo $content;
+    return fgetsin() === 'y';
 }
 
 if (empty($argv[1])) {
     error_filename:
     exit(
-        swoole_color("Please enter the correct filename! e.g.:", SWOOLE_COLOR_RED) .
-        swoole_color("\n\"/new ./swoole_coroutine/coro_sleep.phpt\"\n", SWOOLE_COLOR_MAGENTA)
+        swoole_color("Please enter the correct file name or path! e.g.:", SWOOLE_COLOR_RED) .
+        swoole_color("\n\"./new.sh ./swoole_coroutine\"\n", SWOOLE_COLOR_MAGENTA)
     );
 }
 
 $filename = $argv[1];
-$path = pathinfo($filename);
-if (empty($path['dirname']) || empty($path['filename'])) {
-    goto error_filename;
+if (!pathinfo($filename, PATHINFO_EXTENSION)) {
+    $path = ['dirname' => $filename];
 } else {
-    $path['dirname'] = ltrim($path['dirname'], './'); // i know arg2 is list but it's no problem
-    $filename = "{$path['dirname']}/{$path['filename']}.phpt";
+    $path = pathinfo($filename);
 }
+$path['dirname'] = trim($path['dirname'], './'); // i know arg2 is a list but it's no problem
+
+$replacement = [];
+$tip = swoole_color("[Test name]: ", SWOOLE_COLOR_BLUE);
+$replacement['test_name'] = fgetsin($tip, false);
+$tip = swoole_color("[Test intro]: ", SWOOLE_COLOR_BLUE);
+$replacement['test_intro'] = fgetsin($tip);
+
+if (empty($path['filename'])) {
+    $path['filename'] = $replacement['test_name']; // use test name to be filename
+}
+$filename = "{$path['dirname']}/{$path['filename']}.phpt";
 
 //if dir not exist, create it
 if (!is_dir(__DIR__ . "/{$path['dirname']}")) {
-    mkdir($path['dirname'], 0755);
+    echo swoole_color(
+        "The dir [{$path['dirname']}] is not exist, if you want to create it? [y/n]: ",
+        SWOOLE_COLOR_YELLOW
+    );
+    if (yes()) {
+        mkdir($path['dirname'], 0755, true);
+    } else {
+        exit(swoole_color('Can\'t generate the test file in nonexistent dir!', SWOOLE_COLOR_RED));
+    }
 } elseif (file_exists($filename)) {
-    echo swoole_color("The file is exist, if you want to overwrite it? [y/n]: ", SWOOLE_COLOR_YELLOW);
-    if (trim(fgets(STDIN)) !== 'y') {
-        exit;
+    echo swoole_color("The file [{$path['filename']}] is exist, if you want to overwrite it? [y/n]: ", SWOOLE_COLOR_YELLOW);
+    if (!yes()) {
+        exit(swoole_color('You should rename your test filename.', SWOOLE_COLOR_RED));
     }
 }
-
 
 //calc dir deep
 $deep = 0;
@@ -51,12 +86,7 @@ if ($deep < 1) {
 }
 
 $template = file_get_contents(__DIR__ . '/template.phpt');
-$replacement = [];
 $replacement['dir_deep'] = str_repeat('/..', $deep);
-echo swoole_color("[Test name]: ", SWOOLE_COLOR_BLUE);
-$replacement['test_name'] = trim(fgets(STDIN));
-echo swoole_color("[Test intro]: ", SWOOLE_COLOR_BLUE);
-$replacement['test_intro'] = trim(fgets(STDIN));
 foreach ($replacement as $key => $value) {
     $template = str_replace("{{{$key}}}", $value, $template);
 }
@@ -64,6 +94,7 @@ foreach ($replacement as $key => $value) {
 if (file_put_contents($filename, $template)) {
     echo swoole_color("Generate the test file successfully!\n", SWOOLE_COLOR_GREEN) .
         "[" . __DIR__ . "/$filename]";
+    @shell_exec('/usr/bin/env git add ' . __DIR__ . "/$filename");
     if (\stripos(PHP_OS, 'Darwin') !== false) {
         //MacOS
         $pstorm = '/usr/local/bin/pstorm';
@@ -73,7 +104,7 @@ if (file_put_contents($filename, $template)) {
                 chmod($pstorm, 0744)
             )
         ) {
-            shell_exec("/usr/local/bin/phpstorm {$filename}");
+            @shell_exec("/usr/local/bin/phpstorm {$filename}");
         }
     }
 } else {
