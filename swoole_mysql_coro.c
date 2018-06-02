@@ -45,6 +45,7 @@ static PHP_METHOD(swoole_mysql_coro, close);
 
 static PHP_METHOD(swoole_mysql_coro_statement, __destruct);
 static PHP_METHOD(swoole_mysql_coro_statement, execute);
+static PHP_METHOD(swoole_mysql_coro_statement, fetchAll);
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -87,6 +88,9 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_statement_execute, 0, 0, 0)
     ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_statement_fetchAll, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
 static zend_class_entry swoole_mysql_coro_ce;
 static zend_class_entry *swoole_mysql_coro_class_entry_ptr;
 
@@ -121,6 +125,7 @@ static const zend_function_entry swoole_mysql_coro_methods[] =
 static const zend_function_entry swoole_mysql_coro_statement_methods[] =
 {
     PHP_ME(swoole_mysql_coro_statement, execute, arginfo_swoole_mysql_coro_statement_execute, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_mysql_coro_statement, fetchAll, arginfo_swoole_mysql_coro_statement_fetchAll, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_mysql_coro_statement, __destruct, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_FALIAS(__sleep, swoole_unsupport_serialize, NULL)
     PHP_FALIAS(__wakeup, swoole_unsupport_serialize, NULL)
@@ -173,72 +178,6 @@ void swoole_mysql_coro_init(int module_number TSRMLS_DC)
 }
 
 int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callback TSRMLS_DC);
-
-static int swoole_mysql_coro_close(zval *this)
-{
-    SWOOLE_GET_TSRMLS;
-    mysql_client *client = swoole_get_object(this);
-    if (!client)
-    {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_mysql_coro.");
-        return FAILURE;
-    }
-
-    if (!client->cli)
-    {
-        return FAILURE;
-    }
-
-    //send quit command
-    swString_clear(mysql_request_buffer);
-    client->cmd = SW_MYSQL_COM_QUIT;
-    bzero(mysql_request_buffer->str, 5);
-    mysql_request_buffer->str[4] = SW_MYSQL_COM_QUIT;//command
-    mysql_request_buffer->length = 5;
-    mysql_pack_length(mysql_request_buffer->length - 4, mysql_request_buffer->str);
-    SwooleG.main_reactor->write(SwooleG.main_reactor, client->fd, mysql_request_buffer->str, mysql_request_buffer->length);
-
-    zend_update_property_bool(swoole_mysql_coro_class_entry_ptr, this, ZEND_STRL("connected"), 0 TSRMLS_CC);
-    SwooleG.main_reactor->del(SwooleG.main_reactor, client->fd);
-
-    swConnection *_socket = swReactor_get(SwooleG.main_reactor, client->fd);
-    _socket->object = NULL;
-    _socket->active = 0;
-
-    if (client->timer)
-    {
-        swTimer_del(&SwooleG.timer, client->timer);
-        client->timer = NULL;
-    }
-
-    if (client->statement_list)
-    {
-        swLinkedList_node *node = client->statement_list->head;
-        while (node)
-        {
-            mysql_statement *stmt = node->data;
-            if (stmt->object)
-            {
-                // after connection closed, mysql stmt cache closed too
-                // so we needn't send stmt close command here like pdo.
-                swoole_set_object(stmt->object, NULL);
-                efree(stmt->object);
-            }
-            efree(stmt);
-            node = node->next;
-        }
-        swLinkedList_free(client->statement_list);
-    }
-
-    client->cli->close(client->cli);
-    swClient_free(client->cli);
-    efree(client->cli);
-    client->cli = NULL;
-    client->state = SW_MYSQL_STATE_CLOSED;
-    client->iowait = SW_MYSQL_CORO_STATUS_CLOSED;
-
-    return SUCCESS;
-}
 
 static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *params TSRMLS_DC)
 {
@@ -389,6 +328,22 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
     return SW_OK;
 }
 
+static int swoole_mysql_coro_statement_free(mysql_statement *stmt TSRMLS_DC)
+{
+    if (stmt->object)
+    {
+        swoole_set_object(stmt->object, NULL);
+        efree(stmt->object);
+    }
+
+    if (stmt->result)
+    {
+        sw_zval_free(stmt->result);
+    }
+
+    return SW_OK;
+}
+
 static int swoole_mysql_coro_statement_close(mysql_statement *stmt TSRMLS_DC)
 {
     // call mysql-server to destruct this statement
@@ -410,13 +365,69 @@ static int swoole_mysql_coro_statement_close(mysql_statement *stmt TSRMLS_DC)
     //send data, mysql-server would not reply
     SwooleG.main_reactor->write(SwooleG.main_reactor, stmt->client->fd, mysql_request_buffer->str, mysql_request_buffer->length);
 
-    if (stmt->object)
+    return SW_OK;
+}
+
+static int swoole_mysql_coro_close(zval *this)
+{
+    SWOOLE_GET_TSRMLS;
+    mysql_client *client = swoole_get_object(this);
+    if (!client)
     {
-        swoole_set_object(stmt->object, NULL);
-        efree(stmt->object);
+        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_mysql_coro.");
+        return FAILURE;
     }
 
-    return SW_OK;
+    if (!client->cli)
+    {
+        return FAILURE;
+    }
+
+    //send quit command
+    swString_clear(mysql_request_buffer);
+    client->cmd = SW_MYSQL_COM_QUIT;
+    bzero(mysql_request_buffer->str, 5);
+    mysql_request_buffer->str[4] = SW_MYSQL_COM_QUIT;//command
+    mysql_request_buffer->length = 5;
+    mysql_pack_length(mysql_request_buffer->length - 4, mysql_request_buffer->str);
+    SwooleG.main_reactor->write(SwooleG.main_reactor, client->fd, mysql_request_buffer->str, mysql_request_buffer->length);
+
+    zend_update_property_bool(swoole_mysql_coro_class_entry_ptr, this, ZEND_STRL("connected"), 0 TSRMLS_CC);
+    SwooleG.main_reactor->del(SwooleG.main_reactor, client->fd);
+
+    swConnection *_socket = swReactor_get(SwooleG.main_reactor, client->fd);
+    _socket->object = NULL;
+    _socket->active = 0;
+
+    if (client->timer)
+    {
+        swTimer_del(&SwooleG.timer, client->timer);
+        client->timer = NULL;
+    }
+
+    if (client->statement_list)
+    {
+        swLinkedList_node *node = client->statement_list->head;
+        while (node)
+        {
+            mysql_statement *stmt = node->data;
+            // after connection closed, mysql stmt cache closed too
+            // so we needn't send stmt close command here like pdo.
+            swoole_mysql_coro_statement_free(stmt);
+            efree(stmt);
+            node = node->next;
+        }
+        swLinkedList_free(client->statement_list);
+    }
+
+    client->cli->close(client->cli);
+    swClient_free(client->cli);
+    efree(client->cli);
+    client->cli = NULL;
+    client->state = SW_MYSQL_STATE_CLOSED;
+    client->iowait = SW_MYSQL_CORO_STATUS_CLOSED;
+
+    return SUCCESS;
 }
 
 static PHP_METHOD(swoole_mysql_coro, __construct)
@@ -1085,6 +1096,16 @@ static PHP_METHOD(swoole_mysql_coro_statement, execute)
     coro_yield();
 }
 
+static PHP_METHOD(swoole_mysql_coro_statement, fetchAll)
+{
+    mysql_statement *stmt = swoole_get_object(getThis());
+    if (!stmt)
+    {
+        RETURN_FALSE;
+    }
+    RETURN_ZVAL(stmt->result, 0, 1);
+}
+
 static PHP_METHOD(swoole_mysql_coro_statement, __destruct)
 {
     mysql_statement *stmt = swoole_get_object(getThis());
@@ -1093,6 +1114,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, __destruct)
         return;
     }
     swoole_mysql_coro_statement_close(stmt TSRMLS_CC);
+    swoole_mysql_coro_statement_free(stmt);
     swLinkedList_remove(stmt->client->statement_list, stmt);
     efree(stmt);
 }
@@ -1580,6 +1602,11 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
                     object_init_ex(result, swoole_mysql_coro_statement_class_entry_ptr);
                     swoole_set_object(result, client->statement);
                     client->statement->object = sw_zval_dup(result);
+                    // if (client->connector.fetch_mode)
+                    // {
+                        // in fetch mode, statement save the response data itself
+                        // client->statement->buffer = swString_new(SW_BUFFER_SIZE_BIG);
+                    // }
                 }
                 else
                 {
@@ -1609,6 +1636,19 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
             else
             {
                 result = client->response.result_array;
+            }
+
+            if (client->connector.fetch_mode)
+            {
+                if (client->cmd == SW_MYSQL_COM_STMT_EXECUTE && Z_TYPE_P(result) == IS_ARRAY)
+                {
+                    // save result on statement and wait for fetch
+                    client->statement->result = result;
+                    // return true (success)
+                    result = NULL;
+                    SW_ALLOC_INIT_ZVAL(result);
+                    ZVAL_BOOL(result, 1);
+                }
             }
 
             swString_clear(client->buffer);

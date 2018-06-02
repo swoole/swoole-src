@@ -296,6 +296,8 @@ typedef struct
     uint16_t unreaded_param_count;
     struct _mysql_client *client;
     zval *object;
+    swString *buffer; /* save the mysql multi responses data */
+    zval *result; /* save the zval array result */
 } mysql_statement;
 
 typedef struct
