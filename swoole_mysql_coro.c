@@ -1602,6 +1602,7 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
                     object_init_ex(result, swoole_mysql_coro_statement_class_entry_ptr);
                     swoole_set_object(result, client->statement);
                     client->statement->object = sw_zval_dup(result);
+                    client->statement->result = NULL;
                     // if (client->connector.fetch_mode)
                     // {
                         // in fetch mode, statement save the response data itself
@@ -1643,6 +1644,11 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
                 if (client->cmd == SW_MYSQL_COM_STMT_EXECUTE && Z_TYPE_P(result) == IS_ARRAY)
                 {
                     // save result on statement and wait for fetch
+                    if (client->statement->result)
+                    {
+                        // free the last one
+                        sw_zval_free(client->statement->result);
+                    }
                     client->statement->result = result;
                     // return true (success)
                     result = NULL;
