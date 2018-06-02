@@ -19,7 +19,6 @@
 #ifndef SWOOLE_MYSQL_H_
 #define SWOOLE_MYSQL_H_
 
-//#define SW_MYSQL_STRICT_TYPE
 //#define SW_MYSQL_DEBUG
 
 enum mysql_command
@@ -339,7 +338,6 @@ typedef struct _mysql_client
     int fd;
     uint32_t transaction :1;
     uint32_t connected :1;
-    uint32_t strict;
 
     mysql_connector connector;
     mysql_statement *statement;
@@ -353,7 +351,6 @@ typedef struct _mysql_client
 #endif
 
     mysql_response_t response; /* single response */
-    swLinkedList *response_list; /* multi responses (in fetch mode) */
 
 } mysql_client;
 
