@@ -1884,6 +1884,26 @@ static PHP_METHOD(swoole_mysql, connect)
         connector->strict_type = 0;
     }
 
+    if (php_swoole_array_get_value(_ht, "fetch_mode", value))
+    {
+#if PHP_MAJOR_VERSION < 7
+        if(Z_TYPE_P(value) == IS_BOOL && Z_BVAL_P(value) == 1)
+#else
+        if (Z_TYPE_P(value) == IS_TRUE)
+#endif
+        {
+            connector->fetch_mode = 1;
+        }
+        else
+        {
+            connector->fetch_mode = 0;
+        }
+    }
+    else
+    {
+        connector->fetch_mode = 0;
+    }
+
     swClient *cli = emalloc(sizeof(swClient));
     int type = SW_SOCK_TCP;
 

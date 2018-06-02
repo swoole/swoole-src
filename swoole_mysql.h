@@ -224,6 +224,7 @@ typedef struct
     char *password;
     char *database;
     zend_bool strict_type;
+    zend_bool fetch_mode;
 
     zend_size_t host_len;
     zend_size_t user_len;
