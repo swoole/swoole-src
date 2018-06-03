@@ -45,6 +45,7 @@ static PHP_METHOD(swoole_mysql_coro, close);
 
 static PHP_METHOD(swoole_mysql_coro_statement, __destruct);
 static PHP_METHOD(swoole_mysql_coro_statement, execute);
+static PHP_METHOD(swoole_mysql_coro_statement, fetch);
 static PHP_METHOD(swoole_mysql_coro_statement, fetchAll);
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
@@ -88,6 +89,9 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_statement_execute, 0, 0, 0)
     ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_statement_fetch, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_statement_fetchAll, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
@@ -125,6 +129,7 @@ static const zend_function_entry swoole_mysql_coro_methods[] =
 static const zend_function_entry swoole_mysql_coro_statement_methods[] =
 {
     PHP_ME(swoole_mysql_coro_statement, execute, arginfo_swoole_mysql_coro_statement_execute, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_mysql_coro_statement, fetch, arginfo_swoole_mysql_coro_statement_fetch, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_mysql_coro_statement, fetchAll, arginfo_swoole_mysql_coro_statement_fetchAll, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_mysql_coro_statement, __destruct, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_FALIAS(__sleep, swoole_unsupport_serialize, NULL)
@@ -1096,6 +1101,55 @@ static PHP_METHOD(swoole_mysql_coro_statement, execute)
     coro_yield();
 }
 
+static PHP_METHOD(swoole_mysql_coro_statement, fetch)
+{
+    mysql_statement *stmt = swoole_get_object(getThis());
+    if (!stmt)
+    {
+        RETURN_FALSE;
+    }
+
+    if (stmt->result)
+    {
+        zval **args[1];
+        // the function argument is a reference
+        ZVAL_NEW_REF(stmt->result, stmt->result);
+        args[0] = &stmt->result;
+
+        zval *fcn;
+        SW_MAKE_STD_ZVAL(fcn);
+        ZVAL_STRING(fcn, "array_shift");
+        int ret;
+        zval *retval = NULL;
+        ret = sw_call_user_function_ex(EG(function_table), NULL, fcn, &retval, 1, args, 0, NULL TSRMLS_CC);
+        sw_zval_ptr_dtor(&fcn);
+        ZVAL_UNREF(stmt->result);
+
+        if (ret == FAILURE || retval == NULL || ZVAL_IS_NULL(retval))
+        {
+            if (stmt->result)
+            {
+                sw_zval_free(stmt->result);
+                stmt->result = NULL;
+            }
+            RETURN_NULL();
+        }
+        else
+        {
+            if (php_swoole_array_length(stmt->result) == 0)
+            {
+                sw_zval_free(stmt->result);
+                stmt->result = NULL;
+            }
+            RETURN_ZVAL(retval, 0, 1);
+        }
+    }
+    else
+    {
+        RETURN_NULL();
+    }
+}
+
 static PHP_METHOD(swoole_mysql_coro_statement, fetchAll)
 {
     mysql_statement *stmt = swoole_get_object(getThis());
@@ -1108,7 +1162,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, fetchAll)
     {
         zval *result;
         ZVAL_ZVAL(result, stmt->result, 0, 1);
-        efree(stmt->result);
+        sw_zval_free(stmt->result);
         stmt->result = NULL;
 		RETURN_ZVAL(result, 0, 1);
     }
