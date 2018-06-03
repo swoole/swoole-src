@@ -1,5 +1,5 @@
 --TEST--
-fetch_mode: use fetch to get data
+fetch_mode_twice: call fetch twice
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -18,13 +18,12 @@ go(function () {
 
     $db->connect($server);
 
+    assert($db->query("INSERT INTO ckl (`domain`,`path`,`name`) VALUES ('www.baidu.com', '/search', 'baidu')") === true);
     // now we can make the responses independent
-    $stmt1 = $db->prepare('SELECT * FROM ckl LIMIT 1');
-    assert($stmt1->execute() === true);
-    $stmt2 = $db->prepare('SELECT * FROM ckl LIMIT 2');
-    assert($stmt2->execute() === true);
-    assert(count($stmt1->fetchAll()) === 1);
-    assert(count($stmt2->fetchAll()) === 2);
+    $stmt = $db->prepare('SELECT * FROM ckl LIMIT 1');
+    assert($stmt->execute() === true);
+    assert(($ret = $stmt->fetchAll()) && is_array($ret) && count($ret) === 1);
+    assert($stmt->fetchAll() === null);
 });
 ?>
 --EXPECT--
