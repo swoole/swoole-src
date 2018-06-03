@@ -1103,7 +1103,19 @@ static PHP_METHOD(swoole_mysql_coro_statement, fetchAll)
     {
         RETURN_FALSE;
     }
-    RETURN_ZVAL(stmt->result, 0, 1);
+
+    if (stmt->result)
+    {
+        zval *result;
+        ZVAL_ZVAL(result, stmt->result, 0, 1);
+        efree(stmt->result);
+        stmt->result = NULL;
+		RETURN_ZVAL(result, 0, 1);
+    }
+    else
+    {
+        RETURN_NULL();
+    }
 }
 
 static PHP_METHOD(swoole_mysql_coro_statement, __destruct)
