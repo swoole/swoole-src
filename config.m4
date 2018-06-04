@@ -190,6 +190,43 @@ AC_DEFUN([AC_SWOOLE_HAVE_LINUX_AIO],
     ])
 ])
 
+AC_DEFUN([AC_SWOOLE_HAVE_UCONTEXT],
+[
+    AC_MSG_CHECKING([for ucontext])
+    AC_TRY_COMPILE(
+    [
+        #include <stdio.h>
+        #include <ucontext.h>
+        #include <unistd.h>
+    ], [
+        ucontext_t context;
+        getcontext(&context);
+    ], [
+        AC_DEFINE([HAVE_UCONTEXT], 1, [have UCONTEXT?])
+        AC_MSG_RESULT([yes])
+    ], [
+        AC_MSG_RESULT([no])
+    ])
+])
+
+
+AC_DEFUN([AC_SWOOLE_HAVE_BOOST_CONTEXT],
+[
+    AC_MSG_CHECKING([for boost.context])
+    AC_LANG([C++])
+    AC_TRY_COMPILE(
+    [
+        #include <boost/context/all.hpp>
+    ], [
+        
+    ], [
+        AC_DEFINE([HAVE_BOOST_CONTEXT], 1, [have BOOST_CONTEXT?])
+        AC_MSG_RESULT([yes])
+    ], [
+        AC_MSG_RESULT([no])
+    ])
+])
+
 AC_MSG_CHECKING([if compiling with clang])
 AC_COMPILE_IFELSE([
     AC_LANG_PROGRAM([], [[
@@ -258,6 +295,8 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_SWOOLE_HAVE_REUSEPORT
 	AC_SWOOLE_HAVE_FUTEX
     AC_SWOOLE_HAVE_LINUX_AIO
+    AC_SWOOLE_HAVE_UCONTEXT
+    AC_SWOOLE_HAVE_BOOST_CONTEXT
 
     CFLAGS="-Wall -pthread $CFLAGS"
     LDFLAGS="$LDFLAGS -lpthread"
