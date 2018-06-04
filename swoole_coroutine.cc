@@ -456,7 +456,7 @@ void sw_coro_close()
     swTraceLog(SW_TRACE_COROUTINE, "close coro and %d remained. usage size: %zu. malloc size: %zu", COROG.coro_num, zend_memory_usage(0), zend_memory_usage(1));
 }
 
-int sw_get_current_uid()
+int sw_get_current_cid()
 {
     if (unlikely(COROG.active == 0))
     {
