@@ -1086,6 +1086,7 @@ static sw_inline int mysql_read_eof(mysql_client *client, char *buffer, int n_bu
 
     client->response.warnings = mysql_uint2korr(buffer + 5);
     client->response.status_code = mysql_uint2korr(buffer + 7);
+    client->buffer->offset += client->response.packet_length + 4;
 
     return SW_OK;
 }
@@ -1158,13 +1159,23 @@ static sw_inline int mysql_read_rows(mysql_client *client)
             return SW_ERR;
         }
         //RecordSet end
-        else if (mysql_read_eof(client, buffer, n_buf) == 0 && (n_buf == 9 || (n_buf > 9 && (client->response.status_code & SW_MYSQL_SERVER_MORE_RESULTS_EXISTS))))
+        else if (mysql_read_eof(client, buffer, n_buf) == SW_OK)
         {
-            if (n_buf > 9)
+            n_buf -= 9;
+            if (client->response.status_code & SW_MYSQL_SERVER_MORE_RESULTS_EXISTS)
             {
-                // buffer may has multi responses
-                // we can't solve it in execute function so we return
-                swTraceLog(SW_TRACE_MYSQL_CLIENT, "remaining %d, more results exists", n_buf - 9);
+                // buffer has multi responses
+                if (mysql_is_over(client) == SW_OK && n_buf > 0)
+                {
+                    // why mysql_is_ok: maybe more responses has received in buffer, we check it now.
+                    swTraceLog(SW_TRACE_MYSQL_CLIENT, "remaining %d, more results exists", n_buf);
+                }
+                else
+                {
+                    swTraceLog(SW_TRACE_MYSQL_CLIENT, "need more");
+                    // flag shows that more results exist but we hasn't received.
+//                    return SW_AGAIN;
+                }
             }
             if (client->response.columns)
             {
@@ -1473,6 +1484,77 @@ static int mysql_read_columns(mysql_client *client)
     client->buffer->offset += buffer - (client->buffer->str + client->buffer->offset);
 
     return SW_OK;
+}
+
+// this function is used to check if multi responses has received over.
+int mysql_is_over(mysql_client *client)
+{
+    swString *buffer = client->buffer;
+    char *p;
+    int n_buf = buffer->length - buffer->offset; // remaining buffer size
+    int check_offset = buffer->offset;
+    uint32_t temp;
+
+    while (1)
+    {
+        p = buffer->str + check_offset; // where to start checking now
+        if (buffer->length - buffer->offset < 5)
+        {
+            break;
+        }
+        temp = mysql_uint3korr(p); //package length
+        p += 4;
+        check_offset += 4;
+        n_buf -= 4;
+
+        if (n_buf < temp)
+        {
+            break;
+        }
+
+        swDebug("type=%d, plength=%d, nbuf=%d.", p[0], temp, n_buf);
+
+        if (p[0] == 0xff) // response type = error
+        {
+            goto over;
+        }
+        // response type = ok?
+        if (p[0] == 0 && temp >= 7)
+        {
+            int t_nbuf = n_buf;
+            p++;
+            t_nbuf--;
+
+            ulong_t val = 0;
+            char nul;
+            int retcode;
+
+            retcode = mysql_lcb_ll(p, &val, &nul, t_nbuf); //affecr rows
+            t_nbuf -= retcode;
+            p += retcode;
+
+            retcode = mysql_lcb_ll(p, &val, &nul, t_nbuf); //insert id
+            t_nbuf -= retcode;
+            p += retcode;
+
+            if ((mysql_uint2korr(p) & SW_MYSQL_SERVER_MORE_RESULTS_EXISTS) == 0)
+            {
+                over:
+                client->response.wait_recv = 0;
+                return SW_OK;
+            }
+        }
+
+        n_buf -= temp;
+        if (n_buf <= 0)
+        {
+            break;
+        }
+        check_offset += temp;
+    }
+
+    client->response.wait_recv = 2;
+    return SW_AGAIN;
 }
 
 

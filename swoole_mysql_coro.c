@@ -1161,8 +1161,8 @@ static PHP_METHOD(swoole_mysql_coro_statement, fetchAll)
     if (stmt->result)
     {
         zval *result;
-        ZVAL_ZVAL(result, stmt->result, 0, 1);
-        sw_zval_free(stmt->result);
+        ZVAL_ZVAL(result, stmt->result, 0, 0);
+        efree(stmt->result);
         stmt->result = NULL;
 		RETURN_ZVAL(result, 0, 1);
     }
@@ -1559,6 +1559,7 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
     while(1)
     {
         ret = recv(sock, buffer->str + buffer->length, buffer->size - buffer->length, 0);
+        swTraceLog(SW_TRACE_MYSQL_CLIENT, "recv-ret=%d, buffer-length=%d.", ret, buffer->length);
         if (ret < 0)
         {
             if (errno == EINTR)
@@ -1633,6 +1634,10 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
             parse_response:
             if (mysql_response(client) < 0)
             {
+                if (client->response.wait_recv > 0) // not over
+                {
+                    continue;
+                }
                 return SW_OK;
             }
 
@@ -1658,6 +1663,7 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
             if (client->response.response_type == 0)
             {
                 SW_ALLOC_INIT_ZVAL(result);
+                // prepare finished and create statement
                 if (client->cmd == SW_MYSQL_COM_STMT_PREPARE)
                 {
                     if (client->statement_list == NULL)
