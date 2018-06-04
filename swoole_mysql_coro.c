@@ -1289,6 +1289,111 @@ static PHP_METHOD(swoole_mysql_coro, close)
 	RETURN_TRUE;
 }
 
+static int swoole_mysql_coro_parse_response(mysql_client *client, zval **result)
+{
+    zval *zobject = client->object;
+
+    if (mysql_response(client) < 0)
+    {
+        if (client->response.wait_recv > 0) // not over
+        {
+            return SW_AGAIN;
+        }
+        else
+        {
+            return SW_ERR;
+        }
+    }
+
+    //remove from eventloop
+    //reactor->del(reactor, event->fd);
+
+    zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("affected_rows"),
+            client->response.affected_rows TSRMLS_CC);
+    zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("insert_id"),
+            client->response.insert_id TSRMLS_CC);
+
+    if (client->cmd == SW_MYSQL_COM_STMT_EXECUTE)
+    {
+        zend_update_property_long(swoole_mysql_coro_statement_class_entry_ptr, client->statement->object,
+                ZEND_STRL("affected_rows"), client->response.affected_rows TSRMLS_CC);
+        zend_update_property_long(swoole_mysql_coro_statement_class_entry_ptr, client->statement->object,
+                ZEND_STRL("insert_id"), client->response.insert_id TSRMLS_CC);
+    }
+
+    client->state = SW_MYSQL_STATE_QUERY;
+
+    //OK
+    if (client->response.response_type == 0)
+    {
+        SW_ALLOC_INIT_ZVAL(*result);
+        // prepare finished and create statement
+        if (client->cmd == SW_MYSQL_COM_STMT_PREPARE)
+        {
+            if (client->statement_list == NULL)
+            {
+                client->statement_list = swLinkedList_new(0, NULL);
+            }
+            swLinkedList_append(client->statement_list, client->statement);
+            object_init_ex(*result, swoole_mysql_coro_statement_class_entry_ptr);
+            swoole_set_object(*result, client->statement);
+            client->statement->object = sw_zval_dup(*result);
+        }
+        else
+        {
+            ZVAL_BOOL(*result, 1);
+        }
+    }
+    //ERROR
+    else if (client->response.response_type == 255)
+    {
+        SW_ALLOC_INIT_ZVAL(*result);
+        ZVAL_BOOL(*result, 0);
+
+        zend_update_property_stringl(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("error"),
+                client->response.server_msg, client->response.l_server_msg TSRMLS_CC);
+        zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("errno"),
+                client->response.error_code TSRMLS_CC);
+
+        if (client->cmd == SW_MYSQL_COM_STMT_EXECUTE)
+        {
+            zend_update_property_stringl(swoole_mysql_coro_statement_class_entry_ptr, client->statement->object,
+                    ZEND_STRL("error"), client->response.server_msg, client->response.l_server_msg TSRMLS_CC);
+            zend_update_property_long(swoole_mysql_coro_statement_class_entry_ptr, client->statement->object,
+                    ZEND_STRL("errno"), client->response.error_code TSRMLS_CC);
+        }
+    }
+    //ResultSet
+    else
+    {
+        *result = client->response.result_array;
+    }
+
+    if (client->connector.fetch_mode)
+    {
+        if (client->cmd == SW_MYSQL_COM_STMT_EXECUTE && Z_TYPE_P(*result) == IS_ARRAY)
+        {
+            // save result on statement and wait for fetch
+            if (client->statement->result)
+            {
+                // free the last one
+                sw_zval_free(client->statement->result);
+            }
+            client->statement->result = *result;
+            // return true (success)
+            *result = NULL;
+            SW_ALLOC_INIT_ZVAL(*result);
+            ZVAL_BOOL(*result, 1);
+        }
+    }
+
+    // clean up
+    swString_clear(MYSQL_RESPONSE_BUFFER);
+    bzero(&client->response, sizeof(client->response));
+
+    return SW_OK;
+}
+
 static int swoole_mysql_coro_onError(swReactor *reactor, swEvent *event)
 {
 #if PHP_MAJOR_VERSION < 7
@@ -1659,16 +1764,16 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
                 goto more;
             }
 
-            if (mysql_response(client) < 0)
+            switch (swoole_mysql_coro_parse_response(client, &result))
             {
-                if (client->response.wait_recv > 0) // not over
-                {
-                    continue;
-                }
-                else
-                {
-                    return SW_OK;
-                }
+            case SW_OK:
+                break;
+            case SW_ERR: //parse error
+                return SW_OK;
+            case SW_AGAIN:
+                continue;
+            default:
+                return SW_ERR; //unknown
             }
 
             if (client->response.status_code & SW_MYSQL_SERVER_MORE_RESULTS_EXISTS)
@@ -1685,90 +1790,7 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
                 swTraceLog(SW_TRACE_MYSQL_CLIENT, "remaining %d, more results exists", buffer->length - buffer->offset);
             }
 
-            //remove from eventloop
-            //reactor->del(reactor, event->fd);
 
-            zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("affected_rows"),
-                    client->response.affected_rows TSRMLS_CC);
-            zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("insert_id"),
-                    client->response.insert_id TSRMLS_CC);
-
-            if (client->cmd == SW_MYSQL_COM_STMT_EXECUTE)
-            {
-                zend_update_property_long(swoole_mysql_coro_statement_class_entry_ptr, client->statement->object,
-                        ZEND_STRL("affected_rows"), client->response.affected_rows TSRMLS_CC);
-                zend_update_property_long(swoole_mysql_coro_statement_class_entry_ptr, client->statement->object,
-                        ZEND_STRL("insert_id"), client->response.insert_id TSRMLS_CC);
-            }
-
-            client->state = SW_MYSQL_STATE_QUERY;
-
-            //OK
-            if (client->response.response_type == 0)
-            {
-                SW_ALLOC_INIT_ZVAL(result);
-                // prepare finished and create statement
-                if (client->cmd == SW_MYSQL_COM_STMT_PREPARE)
-                {
-                    if (client->statement_list == NULL)
-                    {
-                        client->statement_list = swLinkedList_new(0, NULL);
-                    }
-                    swLinkedList_append(client->statement_list, client->statement);
-                    object_init_ex(result, swoole_mysql_coro_statement_class_entry_ptr);
-                    swoole_set_object(result, client->statement);
-                    client->statement->object = sw_zval_dup(result);
-                }
-                else
-                {
-                    ZVAL_BOOL(result, 1);
-                }
-            }
-            //ERROR
-            else if (client->response.response_type == 255)
-            {
-                SW_ALLOC_INIT_ZVAL(result);
-                ZVAL_BOOL(result, 0);
-
-                zend_update_property_stringl(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("error"),
-                        client->response.server_msg, client->response.l_server_msg TSRMLS_CC);
-                zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("errno"),
-                        client->response.error_code TSRMLS_CC);
-
-                if (client->cmd == SW_MYSQL_COM_STMT_EXECUTE)
-                {
-                    zend_update_property_stringl(swoole_mysql_coro_statement_class_entry_ptr, client->statement->object,
-                            ZEND_STRL("error"), client->response.server_msg, client->response.l_server_msg TSRMLS_CC);
-                    zend_update_property_long(swoole_mysql_coro_statement_class_entry_ptr, client->statement->object,
-                            ZEND_STRL("errno"), client->response.error_code TSRMLS_CC);
-                }
-            }
-            //ResultSet
-            else
-            {
-                result = client->response.result_array;
-            }
-
-            if (client->connector.fetch_mode)
-            {
-                if (client->cmd == SW_MYSQL_COM_STMT_EXECUTE && Z_TYPE_P(result) == IS_ARRAY)
-                {
-                    // save result on statement and wait for fetch
-                    if (client->statement->result)
-                    {
-                        // free the last one
-                        sw_zval_free(client->statement->result);
-                    }
-                    client->statement->result = result;
-                    // return true (success)
-                    result = NULL;
-                    SW_ALLOC_INIT_ZVAL(result);
-                    ZVAL_BOOL(result, 1);
-                }
-            }
-
-            swString_clear(MYSQL_RESPONSE_BUFFER);
-            bzero(&client->response, sizeof(client->response));
             if (client->defer && !client->suspending)
             {
                 client->iowait = SW_MYSQL_CORO_STATUS_DONE;
