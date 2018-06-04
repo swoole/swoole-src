@@ -666,6 +666,8 @@ static int mysql_parse_prepare_result(mysql_client *client, char *buf, size_t n_
     //skip 1 byte
     buf += 1;
     stmt->warning_count = mysql_uint2korr(buf);
+    stmt->result = NULL;
+    stmt->buffer = NULL;
     client->statement = stmt;
     stmt->client = client;
 
@@ -1086,7 +1088,7 @@ static sw_inline int mysql_read_eof(mysql_client *client, char *buffer, int n_bu
 
     client->response.warnings = mysql_uint2korr(buffer + 5);
     client->response.status_code = mysql_uint2korr(buffer + 7);
-    client->buffer->offset += client->response.packet_length + 4;
+    MYSQL_RESPONSE_BUFFER->offset += client->response.packet_length + 4;
 
     return SW_OK;
 }
@@ -1095,8 +1097,9 @@ static sw_inline int mysql_read_params(mysql_client *client)
 {
     while (1)
     {
-        char *buffer = client->buffer->str + client->buffer->offset;
-        uint32_t n_buf = client->buffer->length - client->buffer->offset;
+        swString *buffer = MYSQL_RESPONSE_BUFFER;
+        char *t_buffer = buffer->str + buffer->offset;
+        uint32_t n_buf = buffer->length - buffer->offset;
 
         swTraceLog(SW_TRACE_MYSQL_CLIENT, "n_buf=%d, length=%d.", n_buf, client->response.packet_length);
 
@@ -1116,9 +1119,9 @@ static sw_inline int mysql_read_params(mysql_client *client)
             }
             // Read and ignore parameter field. Sentence from MySQL source:
             // skip parameters data: we don't support it yet
-            client->response.packet_length = mysql_uint3korr(buffer);
-            client->response.packet_number = buffer[3];
-            client->buffer->offset += (client->response.packet_length + 4);
+            client->response.packet_length = mysql_uint3korr(t_buffer);
+            client->response.packet_number = t_buffer[3];
+            buffer->offset += (client->response.packet_length + 4);
             client->statement->unreaded_param_count--;
 
             swTraceLog(SW_TRACE_MYSQL_CLIENT, "read param, count=%d.", client->statement->unreaded_param_count);
@@ -1129,9 +1132,9 @@ static sw_inline int mysql_read_params(mysql_client *client)
         {
             swTraceLog(SW_TRACE_MYSQL_CLIENT, "read eof [2]");
 
-            if (mysql_read_eof(client, buffer, n_buf) == 0)
+            if (mysql_read_eof(client, t_buffer, n_buf) == 0)
             {
-                client->buffer->offset += 9;
+                buffer->offset += 9;
                 return SW_OK;
             }
             else
@@ -1144,8 +1147,9 @@ static sw_inline int mysql_read_params(mysql_client *client)
 
 static sw_inline int mysql_read_rows(mysql_client *client)
 {
-    char *buffer = client->buffer->str + client->buffer->offset;
-    uint32_t n_buf = client->buffer->length - client->buffer->offset;
+    swString *buffer = MYSQL_RESPONSE_BUFFER;
+    char *t_buffer = buffer->str + buffer->offset;
+    uint32_t n_buf = buffer->length - buffer->offset;
     int ret;
 
     swTraceLog(SW_TRACE_MYSQL_CLIENT, "n_buf=%d", n_buf);
@@ -1159,7 +1163,7 @@ static sw_inline int mysql_read_rows(mysql_client *client)
             return SW_ERR;
         }
         //RecordSet end
-        else if (mysql_read_eof(client, buffer, n_buf) == SW_OK)
+        else if (mysql_read_eof(client, t_buffer, n_buf) == SW_OK)
         {
             if (client->response.columns)
             {
@@ -1168,9 +1172,9 @@ static sw_inline int mysql_read_rows(mysql_client *client)
             return SW_OK;
         }
 
-        client->response.packet_length = mysql_uint3korr(buffer);
-        client->response.packet_number = buffer[3];
-        buffer += 4;
+        client->response.packet_length = mysql_uint3korr(t_buffer);
+        client->response.packet_number = t_buffer[3];
+        t_buffer += 4;
         n_buf -= 4;
 
         swTraceLog(SW_TRACE_MYSQL_CLIENT, "record size=%d", client->response.packet_length);
@@ -1184,12 +1188,12 @@ static sw_inline int mysql_read_rows(mysql_client *client)
 
         if (client->cmd == SW_MYSQL_COM_STMT_EXECUTE)
         {
-            ret = mysql_decode_row_prepare(client, buffer, client->response.packet_length);
+            ret = mysql_decode_row_prepare(client, t_buffer, client->response.packet_length);
         }
         else
         {
             //decode
-            ret = mysql_decode_row(client, buffer, client->response.packet_length);
+            ret = mysql_decode_row(client, t_buffer, client->response.packet_length);
         }
 
         if (ret < 0)
@@ -1199,9 +1203,9 @@ static sw_inline int mysql_read_rows(mysql_client *client)
 
         //next row
         client->response.num_row++;
-        buffer += client->response.packet_length;
+        t_buffer += client->response.packet_length;
         n_buf -= client->response.packet_length;
-        client->buffer->offset += client->response.packet_length + 4;
+        buffer->offset += client->response.packet_length + 4;
     }
 
     return SW_ERR;
@@ -1407,8 +1411,9 @@ static int mysql_decode_field(char *buf, int len, mysql_field *col)
 
 static int mysql_read_columns(mysql_client *client)
 {
-    char *buffer = client->buffer->str + client->buffer->offset;
-    uint32_t n_buf = client->buffer->length - client->buffer->offset;
+    swString *buffer = MYSQL_RESPONSE_BUFFER;
+    char *t_buffer = buffer->str + buffer->offset;
+    uint32_t n_buf = buffer->length - buffer->offset;
     int ret;
 
     for (; client->response.index_column < client->response.num_column; client->response.index_column++)
@@ -1420,7 +1425,7 @@ static int mysql_read_columns(mysql_client *client)
             return SW_ERR;
         }
 
-        client->response.packet_length = mysql_uint3korr(buffer);
+        client->response.packet_length = mysql_uint3korr(t_buffer);
 
         //no enough data
         if (n_buf - 4 < client->response.packet_length)
@@ -1428,16 +1433,16 @@ static int mysql_read_columns(mysql_client *client)
             return SW_ERR;
         }
 
-        client->response.packet_number = buffer[3];
-        buffer += 4;
+        client->response.packet_number = t_buffer[3];
+        t_buffer += 4;
         n_buf -= 4;
 
-        ret = mysql_decode_field(buffer, client->response.packet_length, &client->response.columns[client->response.index_column]);
+        ret = mysql_decode_field(t_buffer, client->response.packet_length, &client->response.columns[client->response.index_column]);
         if (ret > 0)
         {
-            buffer += client->response.packet_length;
+            t_buffer += client->response.packet_length;
             n_buf -= client->response.packet_length;
-            client->buffer->offset += (client->response.packet_length + 4);
+            buffer->offset += (client->response.packet_length + 4);
         }
         else
         {
@@ -1446,12 +1451,12 @@ static int mysql_read_columns(mysql_client *client)
         }
     }
 
-    if (mysql_read_eof(client, buffer, n_buf) < 0)
+    if (mysql_read_eof(client, t_buffer, n_buf) < 0)
     {
         return SW_ERR;
     }
 
-    buffer += 9;
+    t_buffer += 9;
     n_buf -= 9;
 
     if (client->cmd != SW_MYSQL_COM_STMT_PREPARE)
@@ -1465,7 +1470,7 @@ static int mysql_read_columns(mysql_client *client)
         }
     }
 
-    client->buffer->offset += buffer - (client->buffer->str + client->buffer->offset);
+    buffer->offset += t_buffer - (buffer->str + buffer->offset);
 
     return SW_OK;
 }
@@ -1473,7 +1478,7 @@ static int mysql_read_columns(mysql_client *client)
 // this function is used to check if multi responses has received over.
 int mysql_is_over(mysql_client *client, off_t *check_offset)
 {
-    swString *buffer = client->buffer;
+    swString *buffer = MYSQL_RESPONSE_BUFFER;
     char *p;
     if (*check_offset < buffer->offset)
     {
@@ -1546,7 +1551,7 @@ int mysql_is_over(mysql_client *client, off_t *check_offset)
 
 int mysql_response(mysql_client *client)
 {
-    swString *buffer = client->buffer;
+    swString *buffer = MYSQL_RESPONSE_BUFFER;
 
     char *p = buffer->str + buffer->offset;
     int ret;
@@ -1665,7 +1670,7 @@ int mysql_response(mysql_client *client)
                 {
                     return SW_ERR;
                 }
-                client->buffer->offset += (4 + ret);
+                buffer->offset += (4 + ret);
                 client->response.columns = ecalloc(client->response.num_column, sizeof(mysql_field));
                 client->state = SW_MYSQL_STATE_READ_FIELD;
                 break;

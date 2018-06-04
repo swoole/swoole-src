@@ -409,6 +409,8 @@ typedef struct _mysql_client
                 mysql_int4store((T),def_temp); \
                 mysql_int4store((T+4),def_temp2); } while (0)
 
+#define MYSQL_RESPONSE_BUFFER  (client->cmd == SW_MYSQL_COM_STMT_EXECUTE ? client->statement->buffer : client->buffer)
+
 int mysql_get_result(mysql_connector *connector, char *buf, int len);
 int mysql_get_charset(char *name);
 int mysql_handshake(mysql_connector *connector, char *buf, int len);

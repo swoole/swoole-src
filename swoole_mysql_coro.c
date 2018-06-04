@@ -341,6 +341,11 @@ static int swoole_mysql_coro_statement_free(mysql_statement *stmt TSRMLS_DC)
         efree(stmt->object);
     }
 
+    if (stmt->buffer)
+    {
+        swString_free(stmt->buffer);
+    }
+
     if (stmt->result)
     {
         sw_zval_free(stmt->result);
@@ -1551,7 +1556,21 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
     int ret;
 
     zval *zobject = client->object;
-    swString *buffer = client->buffer;
+
+    swString *buffer;
+    if (client->cmd == SW_MYSQL_COM_STMT_EXECUTE)
+    {
+        if (client->statement->buffer == NULL)
+        {
+            // statement save the response data itself
+            client->statement->buffer = swString_new(SW_BUFFER_SIZE_BIG);
+        }
+        buffer = client->statement->buffer;
+    }
+    else
+    {
+        buffer = client->buffer;
+    }
 
     zval *retval = NULL;
     zval *result = NULL;
@@ -1656,17 +1675,14 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
             {
                 more:
                 // buffer has multi responses
-                if (mysql_is_over(client, &check_offset) == SW_OK)
+                if (mysql_is_over(client, &check_offset) != SW_OK)
                 {
                     // why mysql_is_ok: maybe more responses has already received in buffer, we check it now.
-                    swTraceLog(SW_TRACE_MYSQL_CLIENT, "remaining %d, more results exists", buffer->length - buffer->offset);
-                }
-                else
-                {
                     swTraceLog(SW_TRACE_MYSQL_CLIENT, "need more");
                     // flag shows that more results exist but we hasn't received.
                     continue;
                 }
+                swTraceLog(SW_TRACE_MYSQL_CLIENT, "remaining %d, more results exists", buffer->length - buffer->offset);
             }
 
             //remove from eventloop
@@ -1702,7 +1718,6 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
                     object_init_ex(result, swoole_mysql_coro_statement_class_entry_ptr);
                     swoole_set_object(result, client->statement);
                     client->statement->object = sw_zval_dup(result);
-                    client->statement->result = NULL;
                 }
                 else
                 {
@@ -1752,7 +1767,7 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
                 }
             }
 
-            swString_clear(client->buffer);
+            swString_clear(MYSQL_RESPONSE_BUFFER);
             bzero(&client->response, sizeof(client->response));
             if (client->defer && !client->suspending)
             {
