@@ -23,6 +23,7 @@
 #endif
 #endif
 
+#define SW_USE_LIBCO
 #define SW_MAX_FDTYPE              32   //32 kinds of event
 #define SW_MAX_HOOK_TYPE           32
 #define SW_ERROR_MSG_SIZE          512
@@ -279,5 +280,12 @@
 #define SW_REDIS_CONNECT_TIMEOUT         1.0
 
 #define SW_TIMER_MAX_VALUE               86400000
+
+/**
+ * Coroutine
+ */
+#define SW_DEFAULT_MAX_CORO_NUM          3000
+#define SW_DEFAULT_STACK_SIZE            8192
+#define SW_MAX_CORO_NUM_LIMIT            0x80000
 
 #endif /* SWOOLE_CONFIG_H_ */
