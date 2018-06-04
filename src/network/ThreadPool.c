@@ -133,6 +133,12 @@ static void* swThreadPool_loop(void *arg)
     int ret;
     void *task;
 
+    SwooleTG.buffer_stack = swString_new(8192);
+    if (SwooleTG.buffer_stack == NULL)
+    {
+        return NULL;
+    }
+
     if (pool->onStart)
     {
         pool->onStart(pool, id);
@@ -173,6 +179,7 @@ static void* swThreadPool_loop(void *arg)
         pool->onStop(pool, id);
     }
 
+    swString_free(SwooleTG.buffer_stack);
     pthread_exit(NULL);
     return NULL;
 }
