@@ -665,7 +665,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
         php_swoole_check_timer((int) (connector->timeout * 1000));
         connector->timer = SwooleG.timer.add(&SwooleG.timer, (int) (connector->timeout * 1000), 0, context, swoole_mysql_coro_onTimeout);
 	}
-    client->cid = get_current_cid();
+    client->cid = sw_get_current_cid();
     coro_save(context);
     coro_yield();
 }
@@ -701,7 +701,7 @@ static PHP_METHOD(swoole_mysql_coro, query)
         RETURN_FALSE;
     }
 
-    if (unlikely(client->cid && client->cid != get_current_cid()))
+    if (unlikely(client->cid && client->cid != sw_get_current_cid()))
     {
         swoole_php_fatal_error(E_WARNING, "mysql client has already been bound to another coroutine.");
         RETURN_FALSE;
@@ -729,7 +729,7 @@ static PHP_METHOD(swoole_mysql_coro, query)
         client->iowait = SW_MYSQL_CORO_STATUS_WAIT;
         RETURN_TRUE;
     }
-    client->cid = get_current_cid();
+    client->cid = sw_get_current_cid();
     coro_save(context);
     coro_yield();
 }
@@ -742,7 +742,7 @@ static PHP_METHOD(swoole_mysql_coro, begin)
         swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_mysql.");
         RETURN_FALSE;
     }
-    if (unlikely(client->cid && client->cid != get_current_cid())) {
+    if (unlikely(client->cid && client->cid != sw_get_current_cid())) {
         swoole_php_fatal_error(E_WARNING, "mysql client has already been bound to another coroutine.");
         RETURN_FALSE;
     }
@@ -777,7 +777,7 @@ static PHP_METHOD(swoole_mysql_coro, begin)
             client->iowait = SW_MYSQL_CORO_STATUS_WAIT;
             //RETURN_TRUE;
         }
-        client->cid = get_current_cid();
+        client->cid = sw_get_current_cid();
         coro_save(context);
         coro_yield();
     }
@@ -792,7 +792,7 @@ static PHP_METHOD(swoole_mysql_coro, commit)
         RETURN_FALSE;
     }
 
-    if (unlikely(client->cid && client->cid != get_current_cid()))
+    if (unlikely(client->cid && client->cid != sw_get_current_cid()))
     {
         swoole_php_fatal_error(E_WARNING, "mysql client has already been bound to another coroutine.");
         RETURN_FALSE;
@@ -829,7 +829,7 @@ static PHP_METHOD(swoole_mysql_coro, commit)
             client->iowait = SW_MYSQL_CORO_STATUS_WAIT;
             //RETURN_TRUE;
         }
-        client->cid = get_current_cid();
+        client->cid = sw_get_current_cid();
         coro_save(context);
         coro_yield();
     }
@@ -844,7 +844,7 @@ static PHP_METHOD(swoole_mysql_coro, rollback)
         RETURN_FALSE;
     }
 
-    if (unlikely(client->cid && client->cid != get_current_cid())) {
+    if (unlikely(client->cid && client->cid != sw_get_current_cid())) {
         swoole_php_fatal_error(E_WARNING, "mysql client has already been bound to another coroutine.");
         RETURN_FALSE;
     }
@@ -880,7 +880,7 @@ static PHP_METHOD(swoole_mysql_coro, rollback)
             client->iowait = SW_MYSQL_CORO_STATUS_WAIT;
             //RETURN_TRUE;
         }
-        client->cid = get_current_cid();
+        client->cid = sw_get_current_cid();
         coro_save(context);
         coro_yield();
     }
@@ -940,7 +940,7 @@ static PHP_METHOD(swoole_mysql_coro, recv)
 	}
 
     client->suspending = 1;
-    client->cid = get_current_cid();
+    client->cid = sw_get_current_cid();
 	php_context *context = swoole_get_property(getThis(), 0);
     coro_save(context);
 	coro_yield();
@@ -1008,7 +1008,7 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
         client->timer = SwooleG.timer.add(&SwooleG.timer, (int) (timeout * 1000), 0, context, swoole_mysql_coro_onTimeout);
     }
     client->suspending = 1;
-    client->cid = get_current_cid();
+    client->cid = sw_get_current_cid();
     coro_save(context);
     coro_yield();
 }
@@ -1056,7 +1056,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, execute)
         RETURN_TRUE;
     }
     client->suspending = 1;
-    client->cid = get_current_cid();
+    client->cid = sw_get_current_cid();
     coro_save(context);
     coro_yield();
 }

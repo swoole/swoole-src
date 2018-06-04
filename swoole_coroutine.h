@@ -119,7 +119,6 @@ typedef struct _swTimer_coro_callback
 } swTimer_coro_callback;
 
 extern coro_global COROG;
-#define get_current_cid()      sw_get_current_uid()
 
 int coro_init(TSRMLS_D);
 void coro_destroy(TSRMLS_D);

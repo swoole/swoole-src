@@ -701,7 +701,7 @@ static PHP_METHOD(swoole_socket_coro, accept)
     ZEND_PARSE_PARAMETERS_END();
 
     socket_coro *sock = (socket_coro *) Z_OBJ_P(getThis());
-    if (unlikely(sock->cid && sock->cid != get_current_cid()))
+    if (unlikely(sock->cid && sock->cid != sw_get_current_cid()))
     {
         swoole_php_fatal_error(E_WARNING, "socket has already been bound to another coroutine.");
         RETURN_FALSE;
@@ -743,7 +743,7 @@ static PHP_METHOD(swoole_socket_coro, recv)
     ZEND_PARSE_PARAMETERS_END();
 
     socket_coro *sock = (socket_coro *) Z_OBJ_P(getThis());
-    if (unlikely(sock->cid && sock->cid != get_current_cid()))
+    if (unlikely(sock->cid && sock->cid != sw_get_current_cid()))
     {
         swoole_php_fatal_error(E_WARNING, "socket has already been bound to another coroutine.");
         RETURN_FALSE;
@@ -787,7 +787,7 @@ static PHP_METHOD(swoole_socket_coro, recvfrom)
     ZEND_PARSE_PARAMETERS_END();
 
     socket_coro *sock = (socket_coro *) Z_OBJ_P(getThis());
-    if (unlikely(sock->cid && sock->cid != get_current_cid()))
+    if (unlikely(sock->cid && sock->cid != sw_get_current_cid()))
     {
         swoole_php_fatal_error(E_WARNING, "socket has already been bound to another coroutine.");
         RETURN_FALSE;
@@ -837,7 +837,7 @@ static PHP_METHOD(swoole_socket_coro, send)
     }
 
     socket_coro *sock = (socket_coro *) Z_OBJ_P(getThis());
-    if (unlikely(sock->cid && sock->cid != get_current_cid()))
+    if (unlikely(sock->cid && sock->cid != sw_get_current_cid()))
     {
         swoole_php_fatal_error(E_WARNING, "socket has already been bound to another coroutine.");
         RETURN_FALSE;
@@ -938,7 +938,7 @@ static PHP_METHOD(swoole_socket_coro, close)
     {
         RETURN_FALSE;
     }
-    if (unlikely(sock->cid && sock->cid != get_current_cid()))
+    if (unlikely(sock->cid && sock->cid != sw_get_current_cid()))
     {
         swoole_php_fatal_error(E_WARNING, "socket has already been bound to another coroutine.");
         RETURN_FALSE;
@@ -1048,7 +1048,7 @@ static PHP_METHOD(swoole_socket_coro, connect)
             RETURN_FALSE;
         }
     }
-    if (unlikely(sock->cid && sock->cid != get_current_cid()))
+    if (unlikely(sock->cid && sock->cid != sw_get_current_cid()))
     {
         swoole_php_fatal_error(E_WARNING, "socket has already been bound to another coroutine.");
         RETURN_FALSE;
