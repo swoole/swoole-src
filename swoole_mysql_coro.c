@@ -1556,6 +1556,7 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
     zval *retval = NULL;
     zval *result = NULL;
 
+    off_t check_offset = 0;
     while(1)
     {
         ret = recv(sock, buffer->str + buffer->length, buffer->size - buffer->length, 0);
@@ -1632,13 +1633,40 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
             }
 
             parse_response:
+
+            // have ever checked, don't parse more responses immediately
+            if (check_offset > 0)
+            {
+                goto more;
+            }
+
             if (mysql_response(client) < 0)
             {
                 if (client->response.wait_recv > 0) // not over
                 {
                     continue;
                 }
-                return SW_OK;
+                else
+                {
+                    return SW_OK;
+                }
+            }
+
+            if (client->response.status_code & SW_MYSQL_SERVER_MORE_RESULTS_EXISTS)
+            {
+                more:
+                // buffer has multi responses
+                if (mysql_is_over(client, &check_offset) == SW_OK)
+                {
+                    // why mysql_is_ok: maybe more responses has already received in buffer, we check it now.
+                    swTraceLog(SW_TRACE_MYSQL_CLIENT, "remaining %d, more results exists", buffer->length - buffer->offset);
+                }
+                else
+                {
+                    swTraceLog(SW_TRACE_MYSQL_CLIENT, "need more");
+                    // flag shows that more results exist but we hasn't received.
+                    continue;
+                }
             }
 
             //remove from eventloop
@@ -1675,11 +1703,6 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
                     swoole_set_object(result, client->statement);
                     client->statement->object = sw_zval_dup(result);
                     client->statement->result = NULL;
-                    // if (client->connector.fetch_mode)
-                    // {
-                        // in fetch mode, statement save the response data itself
-                        // client->statement->buffer = swString_new(SW_BUFFER_SIZE_BIG);
-                    // }
                 }
                 else
                 {

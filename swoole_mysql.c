@@ -1161,22 +1161,6 @@ static sw_inline int mysql_read_rows(mysql_client *client)
         //RecordSet end
         else if (mysql_read_eof(client, buffer, n_buf) == SW_OK)
         {
-            n_buf -= 9;
-            if (client->response.status_code & SW_MYSQL_SERVER_MORE_RESULTS_EXISTS)
-            {
-                // buffer has multi responses
-                if (mysql_is_over(client) == SW_OK && n_buf > 0)
-                {
-                    // why mysql_is_ok: maybe more responses has received in buffer, we check it now.
-                    swTraceLog(SW_TRACE_MYSQL_CLIENT, "remaining %d, more results exists", n_buf);
-                }
-                else
-                {
-                    swTraceLog(SW_TRACE_MYSQL_CLIENT, "need more");
-                    // flag shows that more results exist but we hasn't received.
-//                    return SW_AGAIN;
-                }
-            }
             if (client->response.columns)
             {
                 mysql_columns_free(client);
@@ -1487,39 +1471,42 @@ static int mysql_read_columns(mysql_client *client)
 }
 
 // this function is used to check if multi responses has received over.
-int mysql_is_over(mysql_client *client)
+int mysql_is_over(mysql_client *client, off_t *check_offset)
 {
     swString *buffer = client->buffer;
     char *p;
-    int n_buf = buffer->length - buffer->offset; // remaining buffer size
-    int check_offset = buffer->offset;
+    if (*check_offset < buffer->offset)
+    {
+        *check_offset = buffer->offset; // not check the first again.
+    }
+    size_t n_buf = buffer->length - *check_offset; // remaining buffer size
     uint32_t temp;
 
     while (1)
     {
-        p = buffer->str + check_offset; // where to start checking now
+        p = buffer->str + *check_offset; // where to start checking now
         if (buffer->length - buffer->offset < 5)
         {
             break;
         }
         temp = mysql_uint3korr(p); //package length
         p += 4;
-        check_offset += 4;
+        *check_offset += 4;
         n_buf -= 4;
 
-        if (n_buf < temp)
+        *check_offset += temp;
+
+        if (n_buf < temp) //package is incomplete
         {
             break;
         }
 
-        swDebug("type=%d, plength=%d, nbuf=%d.", p[0], temp, n_buf);
-
-        if (p[0] == 0xff) // response type = error
+        if ((uint16_t) p[0] == 0xff) // response type = error
         {
             goto over;
         }
         // response type = ok?
-        if (p[0] == 0 && temp >= 7)
+        if ((uint16_t) p[0] == 0 && temp >= 7)
         {
             int t_nbuf = n_buf;
             p++;
@@ -1550,7 +1537,6 @@ int mysql_is_over(mysql_client *client)
         {
             break;
         }
-        check_offset += temp;
     }
 
     client->response.wait_recv = 2;
@@ -1565,7 +1551,7 @@ int mysql_response(mysql_client *client)
     char *p = buffer->str + buffer->offset;
     int ret;
     char nul;
-    int n_buf = buffer->length - buffer->offset;
+    size_t n_buf = buffer->length - buffer->offset;
 
     while (n_buf > 0)
     {
