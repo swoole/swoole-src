@@ -1134,7 +1134,6 @@ static sw_inline int mysql_read_params(mysql_client *client)
 
             if (mysql_read_eof(client, t_buffer, n_buf) == 0)
             {
-                buffer->offset += 9;
                 return SW_OK;
             }
             else
