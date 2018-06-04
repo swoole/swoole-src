@@ -1481,7 +1481,12 @@ int mysql_is_over(mysql_client *client, off_t *check_offset)
     char *p;
     if (*check_offset < buffer->offset)
     {
-        *check_offset = buffer->offset; // not check the first again.
+        *check_offset = buffer->offset; // not check the first response again.
+    }
+    else if (*check_offset == buffer->length)
+    {
+        // have already check all of the data
+        goto again;
     }
     size_t n_buf = buffer->length - *check_offset; // remaining buffer size
     uint32_t temp;
@@ -1543,6 +1548,7 @@ int mysql_is_over(mysql_client *client, off_t *check_offset)
         }
     }
 
+    again:
     client->response.wait_recv = 2;
     return SW_AGAIN;
 }

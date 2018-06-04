@@ -417,6 +417,7 @@ int mysql_handshake(mysql_connector *connector, char *buf, int len);
 int mysql_request(swString *sql, swString *buffer);
 int mysql_prepare(swString *sql, swString *buffer);
 int mysql_response(mysql_client *client);
+int mysql_is_over(mysql_client *client, off_t *check_offset);
 
 #ifdef SW_MYSQL_DEBUG
 void mysql_client_info(mysql_client *client);
