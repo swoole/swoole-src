@@ -202,7 +202,7 @@ AC_DEFUN([AC_SWOOLE_HAVE_UCONTEXT],
         ucontext_t context;
         getcontext(&context);
     ], [
-        AC_DEFINE([HAVE_UCONTEXT], 1, [have UCONTEXT?])
+        AC_DEFINE([HAVE_UCONTEXT], 1, [have ucontext?])
         AC_MSG_RESULT([yes])
     ], [
         AC_MSG_RESULT([no])
@@ -220,7 +220,7 @@ AC_DEFUN([AC_SWOOLE_HAVE_BOOST_CONTEXT],
     ], [
         
     ], [
-        AC_DEFINE([HAVE_BOOST_CONTEXT], 1, [have BOOST_CONTEXT?])
+        AC_DEFINE([HAVE_BOOST_CONTEXT], 1, [have boost.context?])
         AC_MSG_RESULT([yes])
     ], [
         AC_MSG_RESULT([no])
@@ -293,7 +293,7 @@ if test "$PHP_SWOOLE" != "no"; then
 
     AC_SWOOLE_CPU_AFFINITY
     AC_SWOOLE_HAVE_REUSEPORT
-	AC_SWOOLE_HAVE_FUTEX
+    AC_SWOOLE_HAVE_FUTEX
     AC_SWOOLE_HAVE_LINUX_AIO
     AC_SWOOLE_HAVE_UCONTEXT
     AC_SWOOLE_HAVE_BOOST_CONTEXT
