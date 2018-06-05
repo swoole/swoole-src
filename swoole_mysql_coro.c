@@ -1795,6 +1795,11 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
             zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("connect_errno"), 111 TSRMLS_CC);
             swoole_mysql_coro_close(zobject);
 
+            if (!client->cid)
+            {
+                return SW_OK;
+            }
+
             SW_ALLOC_INIT_ZVAL(result);
             ZVAL_BOOL(result, 0);
             if (client->defer && !client->suspending)
@@ -1804,10 +1809,7 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
                 return SW_OK;
             }
             client->suspending = 0;
-            if (!client->cid)
-            {
-                return SW_OK;
-            }
+
             php_context *sw_current_context = swoole_get_property(zobject, 0);
             ret = coro_resume(sw_current_context, result, &retval);
             sw_zval_free(result);
