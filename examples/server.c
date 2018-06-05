@@ -64,7 +64,7 @@ int main(int argc, char **argv)
 	}
 
 	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 9500);
-	swListenPort *port = swServer_add_port(&serv, SW_SOCK_TCP, "127.0.0.1", 9501);
+	swListenPort *port = swServer_add_port(&serv, SW_SOCK_TCP, "127.0.0.1", 9501, SW_SO_REUSEADDR);
 	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 9502);
 	//swServer_addListen(&serv, SW_SOCK_UDP, "127.0.0.1", 8888);
 	port->backlog = 128;

@@ -334,6 +334,35 @@ int swSocket_create(int type)
     return socket(_domain, _type, 0);
 }
 
+int swSocket_setopt(int sock, int option)
+{
+    //SO_REUSEADDR option
+    if(option & SW_SO_REUSEADDR){
+        if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int)) < 0)
+        {
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "setsockopt(%d, SO_REUSEADDR) failed.", sock);
+        }
+    }
+    //reuse port
+#ifdef HAVE_REUSEPORT
+    if (option & SW_SO_REUSEPORT)
+    {
+        if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &option, sizeof(int)) < 0)
+        {
+            swSysError("setsockopt(SO_REUSEPORT) failed.");
+            return SW_ERR;
+        }
+    }
+#else
+    if(option & SW_SO_REUSEPORT)
+    {
+        swSysError("setsockopt(SO_REUSEPORT) doesn't support.");
+        return SW_ERR;
+    }
+#endif
+    return SW_OK;
+}
+
 int swSocket_bind(int sock, int type, char *host, int *port)
 {
     int ret;
@@ -343,23 +372,6 @@ int swSocket_bind(int sock, int type, char *host, int *port)
     struct sockaddr_un addr_un;
     socklen_t len;
 
-    //SO_REUSEADDR option
-    int option = 1;
-    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int)) < 0)
-    {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "setsockopt(%d, SO_REUSEADDR) failed.", sock);
-    }
-    //reuse port
-#ifdef HAVE_REUSEPORT
-    if (SwooleG.reuse_port)
-    {
-        if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &option, sizeof(int)) < 0)
-        {
-            swSysError("setsockopt(SO_REUSEPORT) failed.");
-            SwooleG.reuse_port = 0;
-        }
-    }
-#endif
     //unix socket
     if (type == SW_SOCK_UNIX_DGRAM || type == SW_SOCK_UNIX_STREAM)
     {

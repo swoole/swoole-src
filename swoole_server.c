@@ -1928,6 +1928,7 @@ PHP_METHOD(swoole_server, __construct)
     zend_size_t host_len = 0;
     char *serv_host;
     long sock_type = SW_SOCK_TCP;
+    long sock_option = SW_SO_REUSEADDR;
     long serv_port = 0;
     long serv_mode = SW_MODE_PROCESS;
 
@@ -1953,7 +1954,7 @@ PHP_METHOD(swoole_server, __construct)
     swServer *serv = sw_malloc(sizeof (swServer));
     swServer_init(serv);
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|lll", &serv_host, &host_len, &serv_port, &serv_mode, &sock_type) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|lllll", &serv_host, &host_len, &serv_port, &serv_mode, &sock_type, &sock_option) == FAILURE)
     {
         swoole_php_fatal_error(E_ERROR, "invalid swoole_server parameters.");
         return;
@@ -1988,7 +1989,7 @@ PHP_METHOD(swoole_server, __construct)
     }
     else
     {
-        swListenPort *port = swServer_add_port(serv, sock_type, serv_host, serv_port);
+        swListenPort *port = swServer_add_port(serv, sock_type, serv_host, serv_port, sock_option);
         if (!port)
         {
             zend_throw_exception_ex(swoole_exception_class_entry_ptr, errno TSRMLS_CC, "failed to listen server port[%s:%d]. Error: %s[%d].",
@@ -2276,6 +2277,17 @@ PHP_METHOD(swoole_server, set)
         convert_to_boolean(v);
         serv->enable_delay_receive = Z_BVAL_P(v);
     }
+    #if defined(HAVE_REUSEPORT) && defined(HAVE_EPOLL)
+    //reuse port
+    if (php_swoole_array_get_value(vht, "enable_reuse_port", v))
+    {
+        convert_to_boolean(v);
+        if (Z_BVAL_P(v) && swoole_version_compare(SwooleG.uname.release, "3.9.0") >= 0)
+        {
+            SwooleG.reuse_port = 1;
+        }
+    }
+    #endif
     //task_worker_num
     if (php_swoole_array_get_value(vht, "task_worker_num", v))
     {
@@ -2614,6 +2626,7 @@ PHP_METHOD(swoole_server, listen)
     char *host;
     zend_size_t host_len;
     long sock_type;
+    long sock_option;
     long port;
 
     swServer *serv = swoole_get_object(getThis());
@@ -2623,12 +2636,12 @@ PHP_METHOD(swoole_server, listen)
         RETURN_FALSE;
     }
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sll", &host, &host_len, &port, &sock_type) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sll|l", &host, &host_len, &port, &sock_type, &sock_option) == FAILURE)
     {
         return;
     }
 
-    swListenPort *ls = swServer_add_port(serv, (int) sock_type, host, (int) port);
+    swListenPort *ls = swServer_add_port(serv, (int) sock_type, host, (int) port, (int)sock_option);
     if (!ls)
     {
         RETURN_FALSE;
