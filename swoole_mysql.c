@@ -1562,7 +1562,7 @@ int mysql_is_over(mysql_client *client)
         }
 
         n_buf -= temp;
-        if (n_buf <= 0)
+        if (n_buf == 0)
         {
             break;
         }
