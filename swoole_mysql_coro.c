@@ -453,6 +453,7 @@ static void swoole_mysql_coro_parse_end(mysql_client *client, swString *buffer)
     }
     bzero(&client->response, sizeof(client->response));
     client->statement = NULL;
+    client->cmd = SW_MYSQL_COM_NULL;
 }
 
 static int swoole_mysql_coro_statement_free(mysql_statement *stmt TSRMLS_DC)
