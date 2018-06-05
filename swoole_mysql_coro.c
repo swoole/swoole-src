@@ -325,7 +325,8 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
         if (swConnection_error(errno) == SW_CLOSE)
         {
             zend_update_property_bool(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("connected"), 0 TSRMLS_CC);
-            zend_update_property_bool(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("errno"), 2006 TSRMLS_CC);
+            zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("errno"), 2013 TSRMLS_CC);
+            zend_update_property_string(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("error"), "Lost connection to MySQL server during query" TSRMLS_CC);
         }
         return SW_ERR;
     }
@@ -516,14 +517,17 @@ static int swoole_mysql_coro_close(zval *this)
         return FAILURE;
     }
 
-    //send quit command
-    swString_clear(mysql_request_buffer);
-    client->cmd = SW_MYSQL_COM_QUIT;
-    bzero(mysql_request_buffer->str, 5);
-    mysql_request_buffer->str[4] = SW_MYSQL_COM_QUIT;//command
-    mysql_request_buffer->length = 5;
-    mysql_pack_length(mysql_request_buffer->length - 4, mysql_request_buffer->str);
-    SwooleG.main_reactor->write(SwooleG.main_reactor, client->fd, mysql_request_buffer->str, mysql_request_buffer->length);
+    if (client->connected)
+    {
+        //send quit command
+        swString_clear(mysql_request_buffer);
+        client->cmd = SW_MYSQL_COM_QUIT;
+        bzero(mysql_request_buffer->str, 5);
+        mysql_request_buffer->str[4] = SW_MYSQL_COM_QUIT;//command
+        mysql_request_buffer->length = 5;
+        mysql_pack_length(mysql_request_buffer->length - 4, mysql_request_buffer->str);
+        SwooleG.main_reactor->write(SwooleG.main_reactor, client->fd, mysql_request_buffer->str, mysql_request_buffer->length);
+    }
 
     zend_update_property_bool(swoole_mysql_coro_class_entry_ptr, this, ZEND_STRL("connected"), 0 TSRMLS_CC);
     SwooleG.main_reactor->del(SwooleG.main_reactor, client->fd);
@@ -1157,8 +1161,10 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
         //connection is closed
         if (swConnection_error(errno) == SW_CLOSE)
         {
-            zend_update_property_bool(swoole_mysql_coro_class_entry_ptr, getThis(), ZEND_STRL("connected"), 0 TSRMLS_CC);
-            zend_update_property_long(swoole_mysql_coro_class_entry_ptr, getThis(), ZEND_STRL("errno"), 2006 TSRMLS_CC);
+            zval *zobject = getThis();
+            zend_update_property_bool(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("connected"), 0 TSRMLS_CC);
+            zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("errno"), 2013 TSRMLS_CC);
+            zend_update_property_string(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("error"), "Lost connection to MySQL server during query" TSRMLS_CC);
         }
         RETURN_FALSE;
     }
@@ -1791,8 +1797,15 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
                 goto parse_response;
             }
 
-            zend_update_property_string(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("connect_error"), "connection close by peer" TSRMLS_CC);
+
             zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("connect_errno"), 111 TSRMLS_CC);
+            zend_update_property_string(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("connect_error"), "connection close by peer" TSRMLS_CC);
+            if (client->connected)
+            {
+                client->connected = 0;
+                zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("errno"), 2006 TSRMLS_CC);
+                zend_update_property_string(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("error"), "MySQL server has gone away" TSRMLS_CC);
+            }
             swoole_mysql_coro_close(zobject);
 
             if (!client->cid)
