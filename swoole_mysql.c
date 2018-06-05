@@ -1479,11 +1479,7 @@ int mysql_is_over(mysql_client *client)
 {
     swString *buffer = MYSQL_RESPONSE_BUFFER;
     char *p;
-    if (client->check_offset < buffer->offset)
-    {
-        client->check_offset = buffer->offset; // not check the first response again.
-    }
-    else if (client->check_offset == buffer->length)
+    if (client->check_offset == buffer->length)
     {
         // have already check all of the data
         goto again;
@@ -1494,7 +1490,7 @@ int mysql_is_over(mysql_client *client)
     while (1)
     {
         p = buffer->str + client->check_offset; // where to start checking now
-        if (buffer->length - buffer->offset < 5)
+        if (unlikely(buffer->length - buffer->offset < 5))
         {
             break;
         }
@@ -1502,8 +1498,7 @@ int mysql_is_over(mysql_client *client)
         // add header
         p += 4;
         n_buf -= 4;
-
-        if (n_buf < temp) //package is incomplete
+        if (unlikely(n_buf < temp)) //package is incomplete
         {
             break;
         }
@@ -1516,21 +1511,30 @@ int mysql_is_over(mysql_client *client)
 
         if (client->check_offset >= buffer->length) // if false: more packages exist, skip the current one
         {
-
-            if ((uint16_t) p[0] == 0xff) // response type = error
+            switch ((uint8_t) p[0])
             {
-                goto over;
+            case 0xfe: // eof
+            {
+                // +type +warning
+                p += 3;
+                swDebug("meet eof and flag=%d", mysql_uint2korr(p));
+                goto check_flag;
             }
-            // response type = ok?
-            if ((uint16_t) p[0] == 0 && temp >= 7)
+            case 0x00: // ok
             {
-                int t_nbuf = n_buf;
-                p++;
-                t_nbuf--;
 
+//                if (temp < 7)
+//                {
+//                    break;
+//                }
                 ulong_t val = 0;
                 char nul;
                 int retcode;
+                int t_nbuf = n_buf;
+
+                //+type
+                p++;
+                t_nbuf--;
 
                 retcode = mysql_lcb_ll(p, &val, &nul, t_nbuf); //affecr rows
                 t_nbuf -= retcode;
@@ -1540,12 +1544,20 @@ int mysql_is_over(mysql_client *client)
                 t_nbuf -= retcode;
                 p += retcode;
 
+                check_flag:
                 if ((mysql_uint2korr(p) & SW_MYSQL_SERVER_MORE_RESULTS_EXISTS) == 0)
                 {
                     over:
                     client->response.wait_recv = 0;
+                    client->check_offset = 0;
                     return SW_OK;
                 }
+                break;
+            }
+            case 0xff: // response type = error
+            {
+                goto over;
+            }
             }
         }
 
