@@ -1475,25 +1475,25 @@ static int mysql_read_columns(mysql_client *client)
 }
 
 // this function is used to check if multi responses has received over.
-int mysql_is_over(mysql_client *client, off_t *check_offset)
+int mysql_is_over(mysql_client *client)
 {
     swString *buffer = MYSQL_RESPONSE_BUFFER;
     char *p;
-    if (*check_offset < buffer->offset)
+    if (client->check_offset < buffer->offset)
     {
-        *check_offset = buffer->offset; // not check the first response again.
+        client->check_offset = buffer->offset; // not check the first response again.
     }
-    else if (*check_offset == buffer->length)
+    else if (client->check_offset == buffer->length)
     {
         // have already check all of the data
         goto again;
     }
-    size_t n_buf = buffer->length - *check_offset; // remaining buffer size
+    size_t n_buf = buffer->length - client->check_offset; // remaining buffer size
     uint32_t temp;
 
     while (1)
     {
-        p = buffer->str + *check_offset; // where to start checking now
+        p = buffer->str + client->check_offset; // where to start checking now
         if (buffer->length - buffer->offset < 5)
         {
             break;
@@ -1501,17 +1501,21 @@ int mysql_is_over(mysql_client *client, off_t *check_offset)
         temp = mysql_uint3korr(p); //package length
         // add header
         p += 4;
-        *check_offset += 4;
         n_buf -= 4;
 
-        *check_offset += temp; // add package length
-
-        if (*check_offset >= buffer->length) // if false: more packages exist, skip the current one
+        if (n_buf < temp) //package is incomplete
         {
-            if (n_buf < temp) //package is incomplete
-            {
-                break;
-            }
+            break;
+        }
+        else
+        {
+            client->check_offset += 4;
+        }
+
+        client->check_offset += temp; // add package length
+
+        if (client->check_offset >= buffer->length) // if false: more packages exist, skip the current one
+        {
 
             if ((uint16_t) p[0] == 0xff) // response type = error
             {

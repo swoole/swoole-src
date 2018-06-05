@@ -1206,13 +1206,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, nextResult)
         zval *result = NULL;
         if (swoole_mysql_coro_parse_response(client, &result) == SW_OK)
         {
-            // clean up
-            if ((client->response.status_code & SW_MYSQL_SERVER_MORE_RESULTS_EXISTS) == 0)
-            {
-                swString_clear(stmt->buffer);
-            }
-            bzero(&client->response, sizeof(client->response));
-
+            swoole_mysql_coro_parse_end(client, stmt->buffer); // ending tidy up
             efree(result);
             RETURN_ZVAL(result, 0, 1);
         }
@@ -1345,14 +1339,7 @@ static int swoole_mysql_coro_parse_response(mysql_client *client, zval **result)
 
     if (mysql_response(client) < 0)
     {
-        if (client->response.wait_recv > 0) // not over
-        {
-            return SW_AGAIN;
-        }
-        else
-        {
-            return SW_ERR;
-        }
+        return SW_ERR;
     }
 
     //remove from eventloop
@@ -1444,6 +1431,20 @@ static int swoole_mysql_coro_parse_response(mysql_client *client, zval **result)
     }
 
     return SW_OK;
+}
+
+static void swoole_mysql_coro_parse_end(mysql_client *client, swString *buffer)
+{
+    if (client->response.status_code & SW_MYSQL_SERVER_MORE_RESULTS_EXISTS)
+    {
+        swTraceLog(SW_TRACE_MYSQL_CLIENT, "remaining %d, more results exists", buffer->length - buffer->offset);
+    }
+    else
+    {
+        // no more, clean up
+        swString_clear(buffer);
+    }
+    bzero(&client->response, sizeof(client->response));
 }
 
 static int swoole_mysql_coro_onError(swReactor *reactor, swEvent *event)
@@ -1732,7 +1733,6 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
     zval *retval = NULL;
     zval *result = NULL;
 
-    off_t check_offset = 0;
     while(1)
     {
         ret = recv(sock, buffer->str + buffer->length, buffer->size - buffer->length, 0);
@@ -1753,9 +1753,9 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
                 case SW_CLOSE:
                     goto close_fd;
                 case SW_WAIT:
-                    if (check_offset == buffer->length)
+                    if (client->check_offset == buffer->length)
                     {
-                        continue;
+                        return SW_OK;
                     }
                     else
                     {
@@ -1818,43 +1818,20 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
 
             parse_response:
 
-            // have ever checked, don't parse more responses immediately
-            if (check_offset > 0)
+            // always check that is package complete
+            // and maybe more responses has already received in buffer, we check it now.
+            if (client->cmd == SW_MYSQL_COM_STMT_EXECUTE && mysql_is_over(client) != SW_OK)
             {
-                goto more;
-            }
-
-            switch (swoole_mysql_coro_parse_response(client, &result))
-            {
-            case SW_OK:
-                break;
-            case SW_ERR: //parse error
-                return SW_OK;
-            case SW_AGAIN:
+                // the **last** sever status flag shows that more results exist but we hasn't received.
+                swTraceLog(SW_TRACE_MYSQL_CLIENT, "need more");
                 continue;
-            default:
-                return SW_ERR; //unknown
             }
 
-            if (client->response.status_code & SW_MYSQL_SERVER_MORE_RESULTS_EXISTS)
+            if (swoole_mysql_coro_parse_response(client, &result) != SW_OK)
             {
-                more:
-                // buffer has multi responses
-                if (mysql_is_over(client, &check_offset) != SW_OK)
-                {
-                    // why mysql_is_ok: maybe more responses has already received in buffer, we check it now.
-                    swTraceLog(SW_TRACE_MYSQL_CLIENT, "need more");
-                    // flag shows that more results exist but we hasn't received.
-                    continue;
-                }
-                swTraceLog(SW_TRACE_MYSQL_CLIENT, "remaining %d, more results exists", buffer->length - buffer->offset);
+                return SW_OK;//parse error
             }
-            else
-            {
-                swString_clear(buffer);
-            }
-            // clean up
-            bzero(&client->response, sizeof(client->response));
+            swoole_mysql_coro_parse_end(client, buffer); // ending tidy up
 
 
             if (client->defer && !client->suspending)
