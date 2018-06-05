@@ -338,7 +338,7 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
     return SW_OK;
 }
 
-static int swoole_mysql_coro_parse_response(mysql_client *client, zval **result)
+static int swoole_mysql_coro_parse_response(mysql_client *client, zval **result, int from_next_result)
 {
     zval *zobject = client->object;
 
@@ -383,7 +383,15 @@ static int swoole_mysql_coro_parse_response(mysql_client *client, zval **result)
         }
         else
         {
-            ZVAL_BOOL(*result, 1);
+            if (from_next_result)
+            {
+                // pass the ok response ret val
+                ZVAL_NULL(*result);
+            }
+            else
+            {
+                ZVAL_TRUE(*result);
+            }
         }
     }
     //ERROR
@@ -408,30 +416,24 @@ static int swoole_mysql_coro_parse_response(mysql_client *client, zval **result)
     //ResultSet
     else
     {
-        *result = client->response.result_array;
-    }
-
-    if (client->connector.fetch_mode && client->cmd == SW_MYSQL_COM_STMT_EXECUTE)
-    {
-        if (client->statement->result)
+        if (client->connector.fetch_mode && client->cmd == SW_MYSQL_COM_STMT_EXECUTE)
         {
-            // free the last one
-            sw_zval_free(client->statement->result);
-            client->statement->result = NULL;
-        }
-        if (Z_TYPE_P(*result) != IS_TRUE)
-        {
+            if (client->statement->result)
+            {
+                // free the last one
+                sw_zval_free(client->statement->result);
+                client->statement->result = NULL;
+            }
             // save result on statement and wait for fetch
-            client->statement->result = (zval *) (*result);
-            // return true (success)
-            *result = NULL;
+            client->statement->result = client->response.result_array;
+            client->response.result_array = NULL;
+            // return true (success)]
             SW_ALLOC_INIT_ZVAL(*result);
-            ZVAL_BOOL(*result, 1);
+            ZVAL_TRUE(*result);
         }
         else
         {
-            // pass the ok response
-            ZVAL_NULL(*result);
+            *result = client->response.result_array;
         }
     }
 
@@ -1315,10 +1317,10 @@ static PHP_METHOD(swoole_mysql_coro_statement, nextResult)
         RETURN_FALSE;
     }
 
-    if (!stmt->client->connector.fetch_mode)
-    {
-        RETURN_FALSE;
-    }
+//    if (!stmt->client->connector.fetch_mode)
+//    {
+//        RETURN_FALSE;
+//    }
 
     mysql_client *client = stmt->client;
 
@@ -1328,10 +1330,13 @@ static PHP_METHOD(swoole_mysql_coro_statement, nextResult)
         client->state = SW_MYSQL_STATE_READ_START;
         client->statement = stmt;
         zval *result = NULL;
-        if (swoole_mysql_coro_parse_response(client, &result) == SW_OK)
+        if (swoole_mysql_coro_parse_response(client, &result, 1) == SW_OK)
         {
             swoole_mysql_coro_parse_end(client, stmt->buffer); // ending tidy up
+
+            zval _result = *result;
             efree(result);
+            result = &_result;
             RETURN_ZVAL(result, 0, 1);
         }
         else
@@ -1837,7 +1842,7 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
                 continue;
             }
 
-            if (swoole_mysql_coro_parse_response(client, &result) != SW_OK)
+            if (swoole_mysql_coro_parse_response(client, &result, 0) != SW_OK)
             {
                 return SW_OK;//parse error
             }
