@@ -1321,11 +1321,6 @@ static PHP_METHOD(swoole_mysql_coro_statement, nextResult)
     }
 
     mysql_client *client = stmt->client;
-    if (!client->cli)
-    {
-        swoole_php_fatal_error(E_WARNING, "mysql connection#%d is closed.", client->fd);
-        RETURN_FALSE;
-    }
 
     if (stmt->buffer && stmt->buffer->offset < stmt->buffer->length)
     {
