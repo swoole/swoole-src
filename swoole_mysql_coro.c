@@ -1234,6 +1234,11 @@ static PHP_METHOD(swoole_mysql_coro_statement, fetch)
         RETURN_FALSE;
     }
 
+    if (!stmt->client->connector.fetch_mode)
+    {
+        RETURN_FALSE;
+    }
+
     if (stmt->result)
     {
         zval **args[1];
@@ -1283,6 +1288,11 @@ static PHP_METHOD(swoole_mysql_coro_statement, fetchAll)
         RETURN_FALSE;
     }
 
+    if (!stmt->client->connector.fetch_mode)
+    {
+        RETURN_FALSE;
+    }
+
     if (stmt->result)
     {
         zval _result = *stmt->result;
@@ -1301,6 +1311,11 @@ static PHP_METHOD(swoole_mysql_coro_statement, nextResult)
 {
     mysql_statement *stmt = swoole_get_object(getThis());
     if (!stmt)
+    {
+        RETURN_FALSE;
+    }
+
+    if (!stmt->client->connector.fetch_mode)
     {
         RETURN_FALSE;
     }
