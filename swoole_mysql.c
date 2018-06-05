@@ -1499,45 +1499,49 @@ int mysql_is_over(mysql_client *client, off_t *check_offset)
             break;
         }
         temp = mysql_uint3korr(p); //package length
+        // add header
         p += 4;
         *check_offset += 4;
         n_buf -= 4;
 
-        *check_offset += temp;
+        *check_offset += temp; // add package length
 
-        if (n_buf < temp) //package is incomplete
+        if (*check_offset >= buffer->length) // if false: more packages exist, skip the current one
         {
-            break;
-        }
-
-        if ((uint16_t) p[0] == 0xff) // response type = error
-        {
-            goto over;
-        }
-        // response type = ok?
-        if ((uint16_t) p[0] == 0 && temp >= 7)
-        {
-            int t_nbuf = n_buf;
-            p++;
-            t_nbuf--;
-
-            ulong_t val = 0;
-            char nul;
-            int retcode;
-
-            retcode = mysql_lcb_ll(p, &val, &nul, t_nbuf); //affecr rows
-            t_nbuf -= retcode;
-            p += retcode;
-
-            retcode = mysql_lcb_ll(p, &val, &nul, t_nbuf); //insert id
-            t_nbuf -= retcode;
-            p += retcode;
-
-            if ((mysql_uint2korr(p) & SW_MYSQL_SERVER_MORE_RESULTS_EXISTS) == 0)
+            if (n_buf < temp) //package is incomplete
             {
-                over:
-                client->response.wait_recv = 0;
-                return SW_OK;
+                break;
+            }
+
+            if ((uint16_t) p[0] == 0xff) // response type = error
+            {
+                goto over;
+            }
+            // response type = ok?
+            if ((uint16_t) p[0] == 0 && temp >= 7)
+            {
+                int t_nbuf = n_buf;
+                p++;
+                t_nbuf--;
+
+                ulong_t val = 0;
+                char nul;
+                int retcode;
+
+                retcode = mysql_lcb_ll(p, &val, &nul, t_nbuf); //affecr rows
+                t_nbuf -= retcode;
+                p += retcode;
+
+                retcode = mysql_lcb_ll(p, &val, &nul, t_nbuf); //insert id
+                t_nbuf -= retcode;
+                p += retcode;
+
+                if ((mysql_uint2korr(p) & SW_MYSQL_SERVER_MORE_RESULTS_EXISTS) == 0)
+                {
+                    over:
+                    client->response.wait_recv = 0;
+                    return SW_OK;
+                }
             }
         }
 

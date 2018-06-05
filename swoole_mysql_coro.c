@@ -1200,9 +1200,11 @@ static PHP_METHOD(swoole_mysql_coro_statement, nextResult)
 
     if (stmt->buffer && stmt->buffer->offset < stmt->buffer->length)
     {
+        client->cmd = SW_MYSQL_COM_STMT_EXECUTE;
         client->state = SW_MYSQL_STATE_READ_START;
+        client->statement = stmt;
         zval *result = NULL;
-        if (swoole_mysql_coro_parse_response(stmt->client, &result) == SW_OK)
+        if (swoole_mysql_coro_parse_response(client, &result) == SW_OK)
         {
             // clean up
             if ((client->response.status_code & SW_MYSQL_SERVER_MORE_RESULTS_EXISTS) == 0)
@@ -1417,21 +1419,27 @@ static int swoole_mysql_coro_parse_response(mysql_client *client, zval **result)
         *result = client->response.result_array;
     }
 
-    if (client->connector.fetch_mode)
+    if (client->connector.fetch_mode && client->cmd == SW_MYSQL_COM_STMT_EXECUTE)
     {
-        if (client->cmd == SW_MYSQL_COM_STMT_EXECUTE && Z_TYPE_P(*result) == IS_ARRAY)
+        if (client->statement->result)
+        {
+            // free the last one
+            sw_zval_free(client->statement->result);
+            client->statement->result = NULL;
+        }
+        if (Z_TYPE_P(*result) != IS_TRUE)
         {
             // save result on statement and wait for fetch
-            if (client->statement->result)
-            {
-                // free the last one
-                sw_zval_free(client->statement->result);
-            }
-            client->statement->result = (zval *)(*result);
+            client->statement->result = (zval *) (*result);
             // return true (success)
             *result = NULL;
             SW_ALLOC_INIT_ZVAL(*result);
             ZVAL_BOOL(*result, 1);
+        }
+        else
+        {
+            // pass the ok response
+            ZVAL_NULL(*result);
         }
     }
 
