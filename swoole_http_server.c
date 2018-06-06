@@ -1230,7 +1230,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
             sw_zval_ptr_dtor(&zresponse_object);
             if (ret == CORO_LIMIT)
             {
-                SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
+                serv->factory.end(&SwooleG.serv->factory, fd);
             }
             return SW_OK;
         }

@@ -153,13 +153,13 @@ AC_DEFUN([AC_SWOOLE_HAVE_FUTEX],
     AC_MSG_CHECKING([for futex])
     AC_TRY_COMPILE(
     [
-		#include <linux/futex.h>
-		#include <syscall.h>
-		#include <unistd.h>
+        #include <linux/futex.h>
+        #include <syscall.h>
+        #include <unistd.h>
     ], [
         int futex_addr;
-		int val1;
-	    syscall(SYS_futex, &futex_addr, val1, NULL, NULL, 0);
+        int val1;
+        syscall(SYS_futex, &futex_addr, val1, NULL, NULL, 0);
     ], [
         AC_DEFINE([HAVE_FUTEX], 1, [have FUTEX?])
         AC_MSG_RESULT([yes])
@@ -173,9 +173,9 @@ AC_DEFUN([AC_SWOOLE_HAVE_LINUX_AIO],
     AC_MSG_CHECKING([for linux aio])
     AC_TRY_COMPILE(
     [
-		#include <sys/syscall.h>
+        #include <sys/syscall.h>
         #include <linux/aio_abi.h>
-		#include <unistd.h>
+        #include <unistd.h>
     ], [
         struct iocb *iocbps[1];
         struct iocb iocbp;
@@ -184,6 +184,43 @@ AC_DEFUN([AC_SWOOLE_HAVE_LINUX_AIO],
         io_submit(context, 1, iocbps);
     ], [
         AC_DEFINE([HAVE_LINUX_AIO], 1, [have LINUX_AIO?])
+        AC_MSG_RESULT([yes])
+    ], [
+        AC_MSG_RESULT([no])
+    ])
+])
+
+AC_DEFUN([AC_SWOOLE_HAVE_UCONTEXT],
+[
+    AC_MSG_CHECKING([for ucontext])
+    AC_TRY_COMPILE(
+    [
+        #include <stdio.h>
+        #include <ucontext.h>
+        #include <unistd.h>
+    ], [
+        ucontext_t context;
+        getcontext(&context);
+    ], [
+        AC_DEFINE([HAVE_UCONTEXT], 1, [have ucontext?])
+        AC_MSG_RESULT([yes])
+    ], [
+        AC_MSG_RESULT([no])
+    ])
+])
+
+
+AC_DEFUN([AC_SWOOLE_HAVE_BOOST_CONTEXT],
+[
+    AC_MSG_CHECKING([for boost.context])
+    AC_LANG([C++])
+    AC_TRY_COMPILE(
+    [
+        #include <boost/context/all.hpp>
+    ], [
+        
+    ], [
+        AC_DEFINE([HAVE_BOOST_CONTEXT], 1, [have boost.context?])
         AC_MSG_RESULT([yes])
     ], [
         AC_MSG_RESULT([no])
@@ -256,8 +293,10 @@ if test "$PHP_SWOOLE" != "no"; then
 
     AC_SWOOLE_CPU_AFFINITY
     AC_SWOOLE_HAVE_REUSEPORT
-	AC_SWOOLE_HAVE_FUTEX
+    AC_SWOOLE_HAVE_FUTEX
     AC_SWOOLE_HAVE_LINUX_AIO
+    AC_SWOOLE_HAVE_UCONTEXT
+    AC_SWOOLE_HAVE_BOOST_CONTEXT
 
     CFLAGS="-Wall -pthread $CFLAGS"
     LDFLAGS="$LDFLAGS -lpthread"
@@ -477,13 +516,13 @@ if test "$PHP_SWOOLE" != "no"; then
         src/protocol/Redis.c \
         src/protocol/Base64.c"
 
-	if test "$PHP_SWOOLE_STATIC" = "no"; then
-		swoole_source_file="$swoole_source_file thirdparty/php_http_parser.c"
-	else
-		CFLAGS="$CFLAGS -DSW_STATIC_COMPILATION"
-	fi
+    if test "$PHP_SWOOLE_STATIC" = "no"; then
+        swoole_source_file="$swoole_source_file thirdparty/php_http_parser.c"
+    else
+        CFLAGS="$CFLAGS -DSW_STATIC_COMPILATION"
+    fi
 
-	swoole_source_file="$swoole_source_file thirdparty/multipart_parser.c"
+    swoole_source_file="$swoole_source_file thirdparty/multipart_parser.c"
 
     if test "$PHP_PICOHTTPPARSER" = "yes"; then
         AC_DEFINE(SW_USE_PICOHTTPPARSER, 1, [enable picohttpparser support])

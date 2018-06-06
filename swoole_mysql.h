@@ -19,7 +19,6 @@
 #ifndef SWOOLE_MYSQL_H_
 #define SWOOLE_MYSQL_H_
 
-//#define SW_MYSQL_STRICT_TYPE
 //#define SW_MYSQL_DEBUG
 
 enum mysql_command
@@ -225,6 +224,7 @@ typedef struct
     char *password;
     char *database;
     zend_bool strict_type;
+    zend_bool fetch_mode;
 
     zend_size_t host_len;
     zend_size_t user_len;
@@ -296,6 +296,8 @@ typedef struct
     uint16_t unreaded_param_count;
     struct _mysql_client *client;
     zval *object;
+    swString *buffer; /* save the mysql multi responses data */
+    zval *result; /* save the zval array result */
 } mysql_statement;
 
 typedef struct
@@ -339,7 +341,6 @@ typedef struct _mysql_client
     int fd;
     uint32_t transaction :1;
     uint32_t connected :1;
-    uint32_t strict;
 
     mysql_connector connector;
     mysql_statement *statement;
@@ -352,8 +353,8 @@ typedef struct _mysql_client
     zval _onClose;
 #endif
 
+    off_t check_offset;
     mysql_response_t response; /* single response */
-    swLinkedList *response_list; /* multi responses (in fetch mode) */
 
 } mysql_client;
 
@@ -409,12 +410,15 @@ typedef struct _mysql_client
                 mysql_int4store((T),def_temp); \
                 mysql_int4store((T+4),def_temp2); } while (0)
 
+#define MYSQL_RESPONSE_BUFFER  (client->cmd == SW_MYSQL_COM_STMT_EXECUTE ? client->statement->buffer : client->buffer)
+
 int mysql_get_result(mysql_connector *connector, char *buf, int len);
 int mysql_get_charset(char *name);
 int mysql_handshake(mysql_connector *connector, char *buf, int len);
 int mysql_request(swString *sql, swString *buffer);
 int mysql_prepare(swString *sql, swString *buffer);
 int mysql_response(mysql_client *client);
+int mysql_is_over(mysql_client *client);
 
 #ifdef SW_MYSQL_DEBUG
 void mysql_client_info(mysql_client *client);

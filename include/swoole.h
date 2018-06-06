@@ -157,9 +157,6 @@ typedef unsigned long ulong_t;
 #include "array.h"
 #include "error.h"
 
-#define SW_TIMEO_SEC           0
-#define SW_TIMEO_USEC          3000000
-
 #define SW_MAX_UINT            4294967295
 #define SW_MAX_INT             2147483647
 
@@ -2059,6 +2056,7 @@ typedef struct
     uint8_t factory_lock_target;
     int16_t factory_target_worker;
     swString **buffer_input;
+    swString *buffer_stack;
     swReactor *reactor;
 } swThreadG;
 
@@ -2138,7 +2136,6 @@ typedef struct
     double dns_cache_refresh_time;
 
     swLock lock;
-    swString *module_stack;
     swHashMap *functions;
     swLinkedList *hooks[SW_MAX_HOOK_TYPE];
 

@@ -2185,11 +2185,11 @@ PHP_METHOD(swoole_server, set)
         COROG.max_coro_num = (int) Z_LVAL_P(v);
         if (COROG.max_coro_num <= 0)
         {
-            COROG.max_coro_num = DEFAULT_MAX_CORO_NUM;
+            COROG.max_coro_num = SW_DEFAULT_MAX_CORO_NUM;
         }
-        else if (COROG.max_coro_num >= MAX_CORO_NUM_LIMIT)
+        else if (COROG.max_coro_num >= SW_MAX_CORO_NUM_LIMIT)
         {
-            COROG.max_coro_num = MAX_CORO_NUM_LIMIT;
+            COROG.max_coro_num = SW_MAX_CORO_NUM_LIMIT;
         }
     }
     if (php_swoole_array_get_value(vht, "send_yield", v))

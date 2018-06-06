@@ -774,12 +774,12 @@ static sw_inline swString* swTaskWorker_large_unpack(swEventData *task_result)
         swSysError("open(%s) failed.", _pkg.tmpfile);
         return NULL;
     }
-    if (SwooleG.module_stack->size < _pkg.length && swString_extend_align(SwooleG.module_stack, _pkg.length) < 0)
+    if (SwooleTG.buffer_stack->size < _pkg.length && swString_extend_align(SwooleTG.buffer_stack, _pkg.length) < 0)
     {
         close(tmp_file_fd);
         return NULL;
     }
-    if (swoole_sync_readfile(tmp_file_fd, SwooleG.module_stack->str, _pkg.length) < 0)
+    if (swoole_sync_readfile(tmp_file_fd, SwooleTG.buffer_stack->str, _pkg.length) < 0)
     {
         close(tmp_file_fd);
         return NULL;
@@ -789,8 +789,8 @@ static sw_inline swString* swTaskWorker_large_unpack(swEventData *task_result)
     {
         unlink(_pkg.tmpfile);
     }
-    SwooleG.module_stack->length = _pkg.length;
-    return SwooleG.module_stack;
+    SwooleTG.buffer_stack->length = _pkg.length;
+    return SwooleTG.buffer_stack;
 }
 
 #define swPackage_data(task) ((task->info.type==SW_EVENT_PACKAGE_END)?SwooleWG.buffer_input[task->info.from_id]->str:task->data)
