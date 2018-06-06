@@ -67,6 +67,7 @@ void coroutine_release(coroutine_t *co);
 void coroutine_set_task(int cid, coro_task *task);
 coroutine_t *get_coroutine_by_id(int cid);
 coro_task *get_current_task();
+int coroutine_get_cid();
 
 
 int alloc_cidmap();
