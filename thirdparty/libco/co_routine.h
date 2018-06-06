@@ -41,11 +41,11 @@ struct stCoRoutineAttr_t
 
 struct stCoEpoll_t;
 typedef int (*pfn_co_eventloop_t)(void *);
-typedef void *(*pfn_co_routine_t)( void * );
+typedef void (*pfn_co_routine_t)(void *);
 
 //2.co_routine
 
-int 	co_create( stCoRoutine_t **co,const stCoRoutineAttr_t *attr,void *(*routine)(void*),void *arg );
+int 	co_create( stCoRoutine_t **co,const stCoRoutineAttr_t *attr,void (*routine)(void*),void *arg );
 void    co_resume( stCoRoutine_t *co );
 void    co_yield( stCoRoutine_t *co );
 void    co_yield_ct(); //ct = current thread

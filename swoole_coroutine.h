@@ -5,11 +5,6 @@
 extern "C" {
 #endif
 #include "coroutine.h"
-#define CORO_END 0
-#define CORO_YIELD 1
-#define CORO_LIMIT -1
-#define CORO_SAVE 3
-
 
 #define SW_EX_CV_NUM(ex, n) (((zval ***)(((char *)(ex)) + ZEND_MM_ALIGNED_SIZE(sizeof(zend_execute_data)))) + n)
 #define SW_EX_CV(var) (*SW_EX_CV_NUM(execute_data, var))
@@ -18,6 +13,45 @@ typedef enum
 {
     SW_CORO_CONTEXT_RUNNING, SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST, SW_CORO_CONTEXT_TERM
 } php_context_state;
+
+typedef struct _php_args
+{
+    zend_fcall_info_cache *fci_cache;
+    zval **argv;
+    int argc;
+    zval *retval;
+    void *post_callback;
+    void *params;
+} php_args;
+
+typedef struct _coro_task
+{
+    int cid;
+    sw_coro_state state;
+    zend_execute_data *execute_data;
+    zend_vm_stack stack;
+    zval *vm_stack_top;
+    zval *vm_stack_end;
+
+    zend_vm_stack origin_stack;
+    zval *origin_vm_stack_top;
+    zval *origin_vm_stack_end;
+
+    zend_execute_data *yield_execute_data;
+    zend_vm_stack yield_stack;
+    zval *yield_vm_stack_top;
+    zval *yield_vm_stack_end;
+    zend_bool is_yield;
+    /**
+     * user coroutine
+     */
+    coroutine_t *co;
+    zval *function;
+    time_t start_time;
+    void (*post_callback)(void *param);
+    void *post_callback_params;
+    php_args args;
+} coro_task;
 
 typedef struct _php_context
 {
@@ -66,7 +100,18 @@ typedef struct _swTimer_coro_callback
 } swTimer_coro_callback;
 
 extern coro_global COROG;
-#define get_current_cid()      coroutine_get_cid()
+
+static inline int sw_get_current_cid()
+{
+    if (unlikely(COROG.active == 0))
+    {
+        return -1;
+    }
+    else
+    {
+        return coroutine_get_cid();
+    }
+}
 
 int coro_init(TSRMLS_D);
 void coro_destroy(TSRMLS_D);

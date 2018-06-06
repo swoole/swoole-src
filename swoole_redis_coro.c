@@ -177,7 +177,7 @@ ZEND_END_ARG_INFO()
     default: \
         break; \
     }\
-    if (unlikely(redis->cid && redis->cid != get_current_cid()))\
+    if (unlikely(redis->cid && redis->cid != sw_get_current_cid()))\
     {\
         swoole_php_fatal_error(E_WARNING, "redis client has already been bound to another coroutine.");\
         RETURN_FALSE;\
@@ -243,7 +243,7 @@ ZEND_END_ARG_INFO()
         { \
             RETURN_TRUE; \
         } \
-        redis->cid = get_current_cid();\
+        redis->cid = sw_get_current_cid();\
         php_context *context = swoole_get_property(getThis(), 0); \
         coro_save(context); \
         coro_yield(); \
@@ -1298,7 +1298,7 @@ static PHP_METHOD(swoole_redis_coro, recv)
         RETURN_FALSE;
     }
 
-    redis->cid = get_current_cid();
+    redis->cid = sw_get_current_cid();
     redis->defer_yield = 1;
     php_context *sw_current_context = swoole_get_property(getThis(), 0);
     coro_save(sw_current_context);
@@ -1321,7 +1321,7 @@ static PHP_METHOD(swoole_redis_coro, close)
     {
         RETURN_TRUE;
     }
-    if (unlikely(redis->cid && redis->cid != get_current_cid()))
+    if (unlikely(redis->cid && redis->cid != sw_get_current_cid()))
     {
         swoole_php_fatal_error(E_WARNING, "redis client has already been bound to another coroutine.");
         RETURN_FALSE;
@@ -3498,7 +3498,7 @@ static PHP_METHOD(swoole_redis_coro, pSubscribe)
         RETURN_FALSE;
     }
 
-    if (unlikely(redis->cid && redis->cid != get_current_cid()))
+    if (unlikely(redis->cid && redis->cid != sw_get_current_cid()))
     {
         swoole_php_fatal_error(E_WARNING, "redis client has already been bound to another coroutine.");
         RETURN_FALSE;
@@ -3573,7 +3573,7 @@ static PHP_METHOD(swoole_redis_coro, subscribe)
         RETURN_FALSE;
     }
 
-    if (unlikely(redis->cid && redis->cid != get_current_cid()))
+    if (unlikely(redis->cid && redis->cid != sw_get_current_cid()))
     {
         swoole_php_fatal_error(E_WARNING, "redis client has already been bound to another coroutine.");
         RETURN_FALSE;
@@ -3684,7 +3684,7 @@ static PHP_METHOD(swoole_redis_coro, exec)
         zend_update_property_string(swoole_redis_coro_class_entry_ptr, getThis(), ZEND_STRL("errMsg"), "redis state mode is neither multi nor pipeline!" TSRMLS_CC);
         RETURN_FALSE;
     }
-    if (unlikely(redis->cid && redis->cid != get_current_cid()))
+    if (unlikely(redis->cid && redis->cid != sw_get_current_cid()))
     {
         swoole_php_fatal_error(E_WARNING, "redis client has already been bound to another coroutine.");
         RETURN_FALSE;
@@ -3708,7 +3708,7 @@ static PHP_METHOD(swoole_redis_coro, exec)
     {
         RETURN_TRUE;
     }
-    redis->cid = get_current_cid();
+    redis->cid = sw_get_current_cid();
     php_context *context = swoole_get_property(getThis(), 0);
     coro_save(context);
     coro_yield();
