@@ -1793,7 +1793,8 @@ int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callba
         if (swConnection_error(errno) == SW_CLOSE)
         {
             zend_update_property_bool(swoole_mysql_class_entry_ptr, zobject, ZEND_STRL("connected"), 0 TSRMLS_CC);
-            zend_update_property_long(swoole_mysql_class_entry_ptr, zobject, ZEND_STRL("errno"), 2006 TSRMLS_CC);
+            zend_update_property_long(swoole_mysql_class_entry_ptr, zobject, ZEND_STRL("errno"), 2013 TSRMLS_CC);
+            zend_update_property_string(swoole_mysql_class_entry_ptr, zobject, ZEND_STRL("error"), "Lost connection to MySQL server during query" TSRMLS_CC);
         }
         return SW_ERR;
     }

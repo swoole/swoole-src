@@ -23,6 +23,7 @@
 
 enum mysql_command
 {
+    SW_MYSQL_COM_NULL = -1,
     SW_MYSQL_COM_SLEEP = 0,
     SW_MYSQL_COM_QUIT,
     SW_MYSQL_COM_INIT_DB,
