@@ -222,6 +222,7 @@ AC_DEFUN([AC_SWOOLE_HAVE_BOOST_CONTEXT],
     ], [
         AC_DEFINE([HAVE_BOOST_CONTEXT], 1, [have boost.context?])
         AC_MSG_RESULT([yes])
+        LDFLAGS="$LDFLAGS -lboost_context"
     ], [
         AC_MSG_RESULT([no])
     ])
@@ -480,6 +481,8 @@ if test "$PHP_SWOOLE" != "no"; then
         src/core/heap.c \
         src/core/error.cc \
         src/coroutine/base.cc \
+        src/coroutine/boost.cc \
+        src/coroutine/ucontext.cc \
         src/coroutine/co.cc \
         src/coroutine/libco.cc \
         src/memory/ShareMemory.c \

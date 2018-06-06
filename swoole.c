@@ -1169,6 +1169,15 @@ PHP_MINFO_FUNCTION(swoole)
 #ifdef SW_COROUTINE
     php_info_print_table_row(2, "coroutine", "enabled");
 #endif
+#if USE_BOOST_CONTEXT
+    php_info_print_table_row(2, "boost.context", "enabled");
+#endif
+#if USE_UCONTEXT
+    php_info_print_table_row(2, "ucontext", "enabled");
+#endif
+#if SW_USE_LIBCO
+    php_info_print_table_row(2, "libco", "enabled");
+#endif
 #ifdef HAVE_EPOLL
     php_info_print_table_row(2, "epoll", "enabled");
 #endif
