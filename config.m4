@@ -421,6 +421,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/core/socket.c \
         src/core/list.c \
         src/core/heap.c \
+        src/coroutine/coroutine.cc \
         src/memory/ShareMemory.c \
         src/memory/MemoryGlobal.c \
         src/memory/RingBuffer.c \
@@ -496,6 +497,7 @@ if test "$PHP_SWOOLE" != "no"; then
             thirdparty/libco/coctx_swap.S \
             thirdparty/libco/coctx.cpp"
         CXXFLAGS="$CXXFLAGS -fno-optimize-sibling-calls"
+        AC_DEFINE(SW_USE_LIBCO, 1, [enable libco support])
     fi
 
     PHP_NEW_EXTENSION(swoole, $swoole_source_file, $ext_shared)
