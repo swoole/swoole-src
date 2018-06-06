@@ -2,7 +2,10 @@
 
 #define USE_UCONTEXT 1
 #define USE_BOOST_CONTEXT 0
+
+#ifdef HAVE_VALGRIND
 #define USE_VALGRIND 1
+#endif
 
 #include "swoole.h"
 #include "coroutine.h"

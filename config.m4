@@ -227,6 +227,23 @@ AC_DEFUN([AC_SWOOLE_HAVE_BOOST_CONTEXT],
     ])
 ])
 
+AC_DEFUN([AC_SWOOLE_HAVE_VALGRIND],
+[
+    AC_MSG_CHECKING([for valgrind])
+    AC_LANG([C++])
+    AC_TRY_COMPILE(
+    [
+        #include <valgrind/valgrind.h>
+    ], [
+
+    ], [
+        AC_DEFINE([HAVE_VALGRIND], 1, [have valgrind?])
+        AC_MSG_RESULT([yes])
+    ], [
+        AC_MSG_RESULT([no])
+    ])
+])
+
 AC_MSG_CHECKING([if compiling with clang])
 AC_COMPILE_IFELSE([
     AC_LANG_PROGRAM([], [[
@@ -297,6 +314,7 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_SWOOLE_HAVE_LINUX_AIO
     AC_SWOOLE_HAVE_UCONTEXT
     AC_SWOOLE_HAVE_BOOST_CONTEXT
+    AC_SWOOLE_HAVE_VALGRIND
 
     CFLAGS="-Wall -pthread $CFLAGS"
     LDFLAGS="$LDFLAGS -lpthread"
