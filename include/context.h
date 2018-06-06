@@ -1,7 +1,10 @@
 #pragma once
 
+#ifdef HAVE_BOOST_CONTEXT
+#define USE_BOOST_CONTEXT 1
+#else
 #define USE_UCONTEXT 1
-#define USE_BOOST_CONTEXT 0
+#endif
 
 #ifdef HAVE_VALGRIND
 #define USE_VALGRIND 1
@@ -187,7 +190,7 @@ public:
         end = false;
 
         stack_ = (char*) sw_malloc(stack_size);
-        swWarn("alloc stack: size=%lu, ptr=%p", stack_size, stack_);
+        swDebug("alloc stack: size=%lu, ptr=%p", stack_size, stack_);
 
         ctx_.uc_stack.ss_sp = stack_;
         ctx_.uc_stack.ss_size = stack_size;
@@ -212,7 +215,7 @@ public:
     {
         if (stack_)
         {
-            swWarn("free stack: ptr=%p", stack_);
+            swDebug("free stack: ptr=%p", stack_);
             if (protect_page_)
             {
                 unprotect_stack(stack_, protect_page_);
