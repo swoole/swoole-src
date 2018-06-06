@@ -5,7 +5,7 @@
 
 using namespace swoole;
 
-static boost::context::fcontext_t tls_context = NULL;
+static boost::context::fcontext_t tls_context;
 
 Context::Context(size_t stack_size, coroutine_func_t fn, void* private_data) :
         fn_(fn), stack_size_(stack_size), private_data_(private_data)
