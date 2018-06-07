@@ -458,7 +458,14 @@ static void socket_onTimeout(swTimer *timer, swTimer_node *tnode)
 
     zval *retval = NULL;
     zval result;
-    zend_update_property_long(swoole_socket_coro_class_entry_ptr, &sock->object, ZEND_STRL("errCode"), ETIMEDOUT TSRMLS_CC);
+    if (sock->opcode == SW_SOCKET_OPCODE_RECV)
+    {
+        zend_update_property_long(swoole_socket_coro_class_entry_ptr, &sock->object, ZEND_STRL("errCode"), EAGAIN TSRMLS_CC);
+    }
+    else
+    {
+        zend_update_property_long(swoole_socket_coro_class_entry_ptr, &sock->object, ZEND_STRL("errCode"), ETIMEDOUT TSRMLS_CC);
+    }
     ZVAL_FALSE(&result);
 
     //unbind coroutine
