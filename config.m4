@@ -622,8 +622,7 @@ if test "$PHP_SWOOLE" != "no"; then
 
     if test $SW_NO_USE_ASM_CONTEXT = 'no'; then
          swoole_source_file="$swoole_source_file ${SW_ASM_DIR}make_${SW_CONTEXT_ASM_FILE} \
-            ${SW_ASM_DIR}jump_${SW_CONTEXT_ASM_FILE} \
-            ${SW_ASM_DIR}ontop_${SW_CONTEXT_ASM_FILE}"
+            ${SW_ASM_DIR}jump_${SW_CONTEXT_ASM_FILE} "
     fi
 
     PHP_NEW_EXTENSION(swoole, $swoole_source_file, $ext_shared)
