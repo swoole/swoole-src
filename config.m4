@@ -486,7 +486,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/coroutine/boost.cc \
         src/coroutine/context.cc \
         src/coroutine/ucontext.cc \
-        src/coroutine/co.cc \
         src/memory/ShareMemory.c \
         src/memory/MemoryGlobal.c \
         src/memory/RingBuffer.c \

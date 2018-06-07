@@ -36,9 +36,6 @@ coroutine_t *coroutine_get_by_id(int cid);
 int coroutine_get_cid();
 void coroutine_set_close(coroutine_close_t func);
 
-int alloc_cidmap();
-void free_cidmap(int cid);
-
 #ifdef __cplusplus
 }  /* end extern "C" */
 #endif

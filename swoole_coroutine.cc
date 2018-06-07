@@ -291,7 +291,6 @@ void sw_coro_close()
         EG(vm_stack_end) = COROG.origin_vm_stack_end;
     }
     COROG.call_stack_size--;
-    free_cidmap(task->cid);
     efree(task->stack);
     COROG.coro_num--;
     COROG.current_coro = NULL;
