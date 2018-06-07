@@ -4,21 +4,21 @@
 
 using namespace swoole;
 
-static struct
-{
-    int stack_size;
-    int current_cid;
-    int incr_id;
-    struct coroutine_s *coroutines[DEFAULT_MAX_CORO_NUM];
-} swCoroG =
-{ SW_DEFAULT_C_STACK_SIZE, -1, 0,
-{ NULL, } };
-
 struct coroutine_s
 {
     Context *ctx;
     int cid;
 };
+
+static struct
+{
+    int stack_size;
+    int current_cid;
+    struct coroutine_s *coroutines[MAX_CORO_NUM_LIMIT];
+    coroutine_close_t onClose;
+} swCoroG =
+{ SW_DEFAULT_C_STACK_SIZE, -1,
+{ NULL, }, NULL};
 
 #ifndef SW_USE_LIBCO
 
@@ -37,6 +37,14 @@ int coroutine_create(coroutine_func_t fn, void* args)
     swCoroG.coroutines[cid] = co;
     swCoroG.current_cid = cid;
     co->ctx->SwapIn();
+    if (co->ctx->end)
+    {
+        if (swCoroG.onClose)
+        {
+            swCoroG.onClose();
+        }
+        coroutine_release(co);
+    }
     return cid;
 }
 
@@ -52,6 +60,10 @@ void coroutine_resume(coroutine_t *co)
     co->ctx->SwapIn();
     if (co->ctx->end)
     {
+        if (swCoroG.onClose)
+        {
+            swCoroG.onClose();
+        }
         coroutine_release(co);
     }
 }
@@ -62,6 +74,11 @@ void coroutine_release(coroutine_t *co)
     swCoroG.coroutines[co->cid] = NULL;
     delete co->ctx;
     delete co;
+}
+
+void coroutine_set_close(coroutine_close_t func)
+{
+    swCoroG.onClose = func;
 }
 
 coroutine_t* coroutine_get_by_id(int cid)

@@ -36,19 +36,9 @@
 #define TASK_SLOT \
     ((int)((ZEND_MM_ALIGNED_SIZE(sizeof(coro_task)) + ZEND_MM_ALIGNED_SIZE(sizeof(zval)) - 1) / ZEND_MM_ALIGNED_SIZE(sizeof(zval))))
 #define SWCC(x) sw_current_context->x
+
 coro_global COROG;
-
-static int sw_terminate_opcode_handler(zend_execute_data *execute_data);
-static int sw_return_opcode_handler(zend_execute_data *execute_data);
 static coro_task* sw_get_current_task();
-
-static zend_op_array sw_terminate_func;
-static zend_try_catch_element sw_terminate_try_catch_array =
-{ 0, 1, 0, 0 };
-static zend_op sw_terminate_op[2];
-static zend_op_array sw_return_func;
-static zend_op sw_return_op[1];
-zend_execute_data return_frame;
 
 #if PHP_MAJOR_VERSION >= 7 && PHP_MINOR_VERSION >= 2
 static inline void sw_vm_stack_init(void)
@@ -71,76 +61,6 @@ static inline void sw_vm_stack_init(void)
 
 int coro_init(TSRMLS_D)
 {
-    if (zend_get_module_started("xdebug") == SUCCESS)
-    {
-        swoole_php_fatal_error(E_ERROR, "can not use xdebug in swoole coroutine, please remove xdebug in php.ini and retry.");
-        return 0;
-    }
-
-    zend_uchar opcode = ZEND_VM_LAST_OPCODE + 1;
-    while (1)
-    {
-        if (opcode == 255)
-        {
-            swoole_php_fatal_error(E_ERROR, "all of opcode was defined, please check php.ini extensions.");
-            return FAILURE;
-        }
-        else if (zend_get_user_opcode_handler(opcode) == NULL)
-        {
-            break;
-        }
-        opcode++;
-    }
-    zend_set_user_opcode_handler(opcode, sw_terminate_opcode_handler);
-
-    memset(sw_terminate_op, 0, sizeof(sw_terminate_op));
-    sw_terminate_op[0].opcode = opcode;
-    zend_vm_set_opcode_handler_ex(sw_terminate_op, 0, 0, 0);
-    sw_terminate_op[1].opcode = opcode;
-    zend_vm_set_opcode_handler_ex(sw_terminate_op + 1, 0, 0, 0);
-
-    memset(&sw_terminate_func, 0, sizeof(sw_terminate_func));
-    sw_terminate_func.type = ZEND_USER_FUNCTION;
-    sw_terminate_func.function_name = zend_string_init("close_coro", sizeof("close_coro") - 1, 1);
-    sw_terminate_func.filename = ZSTR_EMPTY_ALLOC();
-    sw_terminate_func.opcodes = sw_terminate_op;
-    sw_terminate_func.last_try_catch = 1;
-    sw_terminate_func.try_catch_array = &sw_terminate_try_catch_array;
-
-    while (1)
-    {
-        if (opcode == 255)
-        {
-            swoole_php_fatal_error(E_ERROR, "all of opcode was defined, please check php.ini extensions.");
-            return FAILURE;
-        }
-        else if (zend_get_user_opcode_handler(opcode) == NULL)
-        {
-            break;
-        }
-        opcode++;
-    }
-    zend_set_user_opcode_handler(opcode, sw_return_opcode_handler);
-    memset(sw_return_op, 0, sizeof(sw_return_op));
-    sw_return_op[0].opcode = opcode;
-    zend_vm_set_opcode_handler_ex(sw_return_op, 0, 0, 0);
-
-    memset(&sw_return_func, 0, sizeof(sw_return_func));
-    sw_return_func.type = ZEND_USER_FUNCTION;
-    sw_return_func.function_name = zend_string_init("return", sizeof("return") - 1, 1);
-    sw_return_func.filename = ZSTR_EMPTY_ALLOC();
-    sw_return_func.opcodes = sw_return_op;
-    sw_return_func.last_try_catch = 1;
-    sw_return_func.try_catch_array = &sw_terminate_try_catch_array;
-    zend_vm_init_call_frame(&return_frame, ZEND_CALL_TOP_FUNCTION, (zend_function*) &sw_return_func, 0, NULL, NULL);
-#if (ZEND_VM_KIND == ZEND_VM_KIND_HYBRID || (defined(ZEND_VM_FP_GLOBAL_REG) && defined(ZEND_VM_IP_GLOBAL_REG)))
-    return_frame.opline = zend_get_halt_op();
-#else
-    return_frame.opline = sw_return_op;
-#endif
-    return_frame.return_value = NULL;
-    return_frame.prev_execute_data = NULL;
-
     COROG.origin_vm_stack = EG(vm_stack);
     COROG.origin_vm_stack_top = EG(vm_stack_top);
     COROG.origin_vm_stack_end = EG(vm_stack_end);
@@ -158,6 +78,7 @@ int coro_init(TSRMLS_D)
     COROG.require = 0;
     COROG.active = 1;
     SwooleWG.coro_timeout_list = swLinkedList_new(1, NULL);
+    coroutine_set_close(sw_coro_close);
     return 0;
 }
 
@@ -178,19 +99,6 @@ void coro_destroy(TSRMLS_D)
         efree(COROG.chan_pipe);
         COROG.chan_pipe = NULL;
     }
-}
-
-static int sw_return_opcode_handler(zend_execute_data *execute_data)
-{
-    return ZEND_USER_OPCODE_RETURN;
-}
-
-static int sw_terminate_opcode_handler(zend_execute_data *execute_data)
-{
-    coro_task *task = (coro_task *) sw_get_current_task();
-    ZEND_ASSERT(task != NULL);
-    sw_coro_close(TSRMLS_C);
-    return ZEND_USER_OPCODE_RETURN;
 }
 
 int php_coro_create(php_args *php_arg)
@@ -218,15 +126,7 @@ int php_coro_create(php_args *php_arg)
     task = (coro_task *) EG(vm_stack_top);
     EG(vm_stack_top) = (zval *) ((char *) call + TASK_SLOT * sizeof(zval));
 
-    zend_execute_data *terminate_frame = (zend_execute_data*) EG(vm_stack_top);
-    EG(vm_stack_top) = (zval*) terminate_frame + ZEND_CALL_FRAME_SLOT;
-    zend_vm_init_call_frame(terminate_frame, ZEND_CALL_TOP_FUNCTION, (zend_function*) &sw_terminate_func, 0, NULL, NULL);
-    terminate_frame->opline = sw_terminate_op;
-    terminate_frame->call = NULL;
-    terminate_frame->return_value = NULL;
-    terminate_frame->prev_execute_data = &return_frame;
-
-    call = zend_vm_stack_push_call_frame(ZEND_CALL_NESTED_FUNCTION | ZEND_CALL_DYNAMIC, func, argc,
+    call = zend_vm_stack_push_call_frame(ZEND_CALL_TOP_FUNCTION | ZEND_CALL_ALLOCATED, func, argc,
             fci_cache->called_scope, fci_cache->object);
 
 #if PHP_MINOR_VERSION < 1
@@ -250,7 +150,6 @@ int php_coro_create(php_args *php_arg)
         ZEND_ADD_CALL_FLAG(call, call_info);
     }
     zend_init_execute_data(call, &func->op_array, retval);
-    call->prev_execute_data = terminate_frame;
 
     task->cid = cid;
     task->execute_data = call;
@@ -276,6 +175,8 @@ int php_coro_create(php_args *php_arg)
     EG(vm_stack_end) = task->vm_stack_end;
     COROG.require = 1;
     zend_execute_ex(EG(current_execute_data) TSRMLS_CC);
+
+    coro_task *curr_task = (coro_task *) sw_get_current_task();
     return 0;
 }
 
@@ -313,7 +214,6 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     }
     else
     {
-        COROG.coro_num--;
         return ret;
     }
 }
@@ -395,15 +295,32 @@ void sw_coro_close()
     COROG.call_stack_size--;
     free_cidmap(task->cid);
     efree(task->stack);
-    --COROG.coro_num;
-    //COROG.current_coro = NULL;
+    COROG.coro_num--;
+    COROG.current_coro = NULL;
     COROG.require = 0;
     swTraceLog(SW_TRACE_COROUTINE, "close coro and %d remained. usage size: %zu. malloc size: %zu", COROG.coro_num, zend_memory_usage(0), zend_memory_usage(1));
 }
 
+int sw_get_current_cid()
+{
+    if (unlikely(COROG.active == 0))
+    {
+        return -1;
+    }
+    else
+    {
+        coro_task* task =  sw_get_current_task();
+        if (task)
+        {
+            return task->cid;
+        }
+        return -1;
+    }
+}
+
 static coro_task* sw_get_current_task()
 {
-    return COROG.call_stack[COROG.call_stack_size - 1];
+    return (COROG.call_stack_size > 0) ? COROG.call_stack[COROG.call_stack_size - 1] : NULL;
 }
 
 void coro_handle_timeout()

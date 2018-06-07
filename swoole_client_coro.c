@@ -234,7 +234,7 @@ static void client_send_yield(swClient *cli, char *data, size_t length, zval *re
 {
     swoole_client_coro_property *ccp = swoole_get_property((zval *) cli->object, client_coro_property_coroutine);
     ccp->iowait = SW_CLIENT_CORO_STATUS_WAIT;
-    ccp->cid = COROG.current_coro->cid;
+    ccp->cid = sw_get_current_cid();
     ccp->send_yield = 1;
     if (cli->timeout > 0)
     {
@@ -929,7 +929,7 @@ static PHP_METHOD(swoole_client_coro, recv)
             RETURN_ZVAL(result, 0, 1);
         }
     }
-    else if (ccp->iowait == SW_CLIENT_CORO_STATUS_WAIT && ccp->cid != COROG.current_coro->cid)
+    else if (ccp->iowait == SW_CLIENT_CORO_STATUS_WAIT && ccp->cid != sw_get_current_cid())
     {
         swoole_php_fatal_error(E_WARNING, "client has been bound to another coro");
         RETURN_FALSE;
@@ -943,7 +943,7 @@ static PHP_METHOD(swoole_client_coro, recv)
     }
     ccp->iowait = SW_CLIENT_CORO_STATUS_WAIT;
     coro_save(context);
-    ccp->cid = COROG.current_coro->cid;
+    ccp->cid = sw_get_current_cid();
     coro_yield();
 }
 

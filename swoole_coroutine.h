@@ -101,18 +101,7 @@ typedef struct _swTimer_coro_callback
 
 extern coro_global COROG;
 
-static inline int sw_get_current_cid()
-{
-    if (unlikely(COROG.active == 0))
-    {
-        return -1;
-    }
-    else
-    {
-        return coroutine_get_cid();
-    }
-}
-
+int sw_get_current_cid();
 int coro_init(TSRMLS_D);
 void coro_destroy(TSRMLS_D);
 void coro_check(TSRMLS_D);

@@ -1,4 +1,5 @@
 <?php
+ini_set("memory_limit","512M");
 use Swoole\Coroutine as co;
 class Server
 {
@@ -23,10 +24,8 @@ class Server
     {
         $fd = $request->fd;
         co::create(function () {
-//             echo "sub coro \n";
             co::sleep(0.1);
         });
-//         echo "body \n";
         $response->end(111);
     }
 }

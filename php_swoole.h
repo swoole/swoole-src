@@ -413,7 +413,9 @@ void swoole_mmap_init(int module_number TSRMLS_DC);
 void swoole_channel_init(int module_number TSRMLS_DC);
 void swoole_ringqueue_init(int module_number TSRMLS_DC);
 void swoole_msgqueue_init(int module_number TSRMLS_DC);
+#ifdef SW_COROUTINE
 void swoole_channel_coro_init(int module_number TSRMLS_DC);
+#endif
 void swoole_serialize_init(int module_number TSRMLS_DC);
 void swoole_memory_pool_init(int module_number TSRMLS_DC);
 

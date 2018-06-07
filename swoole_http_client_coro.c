@@ -449,7 +449,7 @@ static void http_client_coro_send_yield(swClient *cli, char *data, size_t length
 
     http_client_property *hcc = swoole_get_property(zobject, http_client_coro_property_request);
     hcc->defer_status = HTTP_CLIENT_STATE_DEFER_WAIT;
-    hcc->cid = COROG.current_coro->cid;
+    hcc->cid = sw_get_current_cid();
     hcc->send_yield = 1;
 
     http_client *http = swoole_get_object(zobject);
@@ -1449,7 +1449,7 @@ static PHP_METHOD(swoole_http_client_coro, recv)
         RETURN_FALSE;
     }
     http_client_property *hcc = swoole_get_property(getThis(), 0);
-    if (hcc->cid != 0 && hcc->cid != COROG.current_coro->cid)
+    if (hcc->cid != 0 && hcc->cid != sw_get_current_cid())
     {
         swoole_php_fatal_error(E_WARNING, "client has been bound to another coro");
     }
@@ -1700,7 +1700,7 @@ static PHP_METHOD(swoole_http_client_coro, execute)
         return;
     }
     http_client_property *hcc = swoole_get_property(getThis(), 0);
-    if (hcc->cid != 0 && hcc->cid != COROG.current_coro->cid)
+    if (hcc->cid != 0 && hcc->cid != sw_get_current_cid())
     {
         swoole_php_fatal_error(E_WARNING, "client has been bound to another coro");
     }
@@ -1738,7 +1738,7 @@ static PHP_METHOD(swoole_http_client_coro, get)
     }
 
     http_client_property *hcc = swoole_get_property(getThis(), 0);
-    if (hcc->cid != 0 && hcc->cid != COROG.current_coro->cid)
+    if (hcc->cid != 0 && hcc->cid != sw_get_current_cid())
     {
         swoole_php_fatal_error(E_WARNING, "client has been bound to another coro");
     }
@@ -1786,7 +1786,7 @@ static PHP_METHOD(swoole_http_client_coro, post)
     zend_update_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("requestBody"), post_data TSRMLS_CC);
     hcc->request_body = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("requestBody"), 1 TSRMLS_CC);
     sw_copy_to_stack(hcc->request_body, hcc->_request_body);
-    if (hcc->cid != 0 && hcc->cid != COROG.current_coro->cid)
+    if (hcc->cid != 0 && hcc->cid != sw_get_current_cid())
     {
         swoole_php_fatal_error(E_WARNING, "client has been bound to another coro");
     }
@@ -1810,7 +1810,7 @@ static PHP_METHOD(swoole_http_client_coro, post)
     {
         RETURN_TRUE;
     }
-    hcc->cid = COROG.current_coro->cid;
+    hcc->cid = sw_get_current_cid();
     coro_save(context);
     coro_yield();
 }
@@ -1834,7 +1834,7 @@ static PHP_METHOD(swoole_http_client_coro, download)
     hcc->download_offset = offset;
     sw_copy_to_stack(hcc->download_file, hcc->_download_file);
 
-    if (hcc->cid != 0 && hcc->cid != COROG.current_coro->cid)
+    if (hcc->cid != 0 && hcc->cid != sw_get_current_cid())
     {
         swoole_php_fatal_error(E_WARNING, "client has been bound to another coro");
     }
@@ -1858,7 +1858,7 @@ static PHP_METHOD(swoole_http_client_coro, download)
     {
         RETURN_TRUE;
     }
-    hcc->cid = COROG.current_coro->cid;
+    hcc->cid = sw_get_current_cid();
     coro_save(context);
     coro_yield();
 }
@@ -1874,7 +1874,7 @@ static PHP_METHOD(swoole_http_client_coro, upgrade)
     }
 
     http_client_property *hcc = swoole_get_property(getThis(), 0);
-    if (hcc->cid != 0 && hcc->cid != COROG.current_coro->cid)
+    if (hcc->cid != 0 && hcc->cid != sw_get_current_cid())
     {
         swoole_php_fatal_error(E_WARNING, "client has been bound to another coro");
     }
@@ -1914,7 +1914,7 @@ static PHP_METHOD(swoole_http_client_coro, upgrade)
     {
         RETURN_TRUE;
     }
-    hcc->cid = COROG.current_coro->cid;
+    hcc->cid = sw_get_current_cid();
     coro_save(context);
     coro_yield();
 }
