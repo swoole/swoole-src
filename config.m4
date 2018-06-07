@@ -218,7 +218,7 @@ AC_DEFUN([AC_SWOOLE_HAVE_BOOST_CONTEXT],
     [
         #include <boost/context/all.hpp>
     ], [
-        
+
     ], [
         AC_DEFINE([HAVE_BOOST_CONTEXT], 1, [have boost.context?])
         AC_MSG_RESULT([yes])
@@ -487,7 +487,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/coroutine/context.cc \
         src/coroutine/ucontext.cc \
         src/coroutine/co.cc \
-        src/coroutine/libco.cc \
         src/memory/ShareMemory.c \
         src/memory/MemoryGlobal.c \
         src/memory/RingBuffer.c \
@@ -566,7 +565,7 @@ if test "$PHP_SWOOLE" != "no"; then
       [arm64*], [SW_CPU="arm64"],
       [
         SW_NO_USE_ASM_CONTEXT="yes"
-        AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])        
+        AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
       ]
     )
 
@@ -577,7 +576,7 @@ if test "$PHP_SWOOLE" != "no"; then
       [mingw*], [SW_OS="WIN"],
       [
         SW_NO_USE_ASM_CONTEXT="yes"
-        AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])        
+        AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
       ]
     )
 
@@ -618,7 +617,7 @@ if test "$PHP_SWOOLE" != "no"; then
            swoole_source_file="mips32_o32_elf_gas.S"
         else
             SW_NO_USE_ASM_CONTEXT="yes"
-            AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])   
+            AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
         fi
     fi
 

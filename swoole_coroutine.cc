@@ -20,8 +20,6 @@
 #ifdef SW_COROUTINE
 #include "coroutine.h"
 #include "swoole_coroutine.h"
-#include "thirdparty/libco/co_routine.h"
-#include "thirdparty/libco/co_routine_inner.h"
 #include "zend_vm.h"
 
 /* PHP 7.3 compatibility macro {{{*/

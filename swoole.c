@@ -1175,9 +1175,6 @@ PHP_MINFO_FUNCTION(swoole)
 #if USE_UCONTEXT
     php_info_print_table_row(2, "ucontext", "enabled");
 #endif
-#if SW_USE_LIBCO
-    php_info_print_table_row(2, "libco", "enabled");
-#endif
 #ifdef HAVE_EPOLL
     php_info_print_table_row(2, "epoll", "enabled");
 #endif
