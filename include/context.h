@@ -1,11 +1,15 @@
 #pragma once
 
+#ifdef SW_NO_USE_ASM_CONTEXT
 #ifdef HAVE_BOOST_CONTEXT
 #define USE_BOOST_CONTEXT 1
 #include <boost/context/all.hpp>
 #else
 #define USE_UCONTEXT 1
 #include <ucontext.h>
+#endif
+#else
+#include "asm_context.h"
 #endif
 
 #ifdef HAVE_VALGRIND
@@ -87,6 +91,9 @@ private:
 #elif USE_UCONTEXT
     ucontext_t swap_ctx_;
     ucontext_t ctx_;
+#else
+    fcontext_t ctx_;
+    fcontext_t swap_ctx_;
 #endif
     coroutine_func_t fn_;
     char* stack_;

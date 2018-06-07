@@ -260,6 +260,8 @@ if test "$CLANG" = "yes"; then
     CFLAGS="$CFLAGS -std=gnu89"
 fi
 
+AC_CANONICAL_HOST
+
 if test "$PHP_SWOOLE" != "no"; then
 
     PHP_ADD_LIBRARY(pthread)
@@ -482,6 +484,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/core/error.cc \
         src/coroutine/base.cc \
         src/coroutine/boost.cc \
+        src/coroutine/context.cc \
         src/coroutine/ucontext.cc \
         src/coroutine/co.cc \
         src/coroutine/libco.cc \
@@ -553,14 +556,76 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_source_file="$swoole_source_file thirdparty/picohttpparser/picohttpparser.c"
     fi
 
-    if test "$PHP_COROUTINE" != "no"; then
-        swoole_source_file="$swoole_source_file thirdparty/libco/co_epoll.cpp \
-            thirdparty/libco/co_routine.cpp \
-            thirdparty/libco/co_hook_sys_call.cpp \
-            thirdparty/libco/coctx_swap.S \
-            thirdparty/libco/coctx.cpp"
-        CXXFLAGS="$CXXFLAGS -fno-optimize-sibling-calls"
-        AC_DEFINE(SW_USE_LIBCO, 1, [enable libco support])
+    SW_NO_USE_ASM_CONTEXT="no"
+    SW_ASM_DIR="thirdparty/boost/asm/"
+
+    AS_CASE([$host_cpu],
+      [x86_64*], [SW_CPU="x86_64"],
+      [x86*], [SW_CPU="x86"],
+      [arm*], [SW_CPU="arm"],
+      [arm64*], [SW_CPU="arm64"],
+      [
+        SW_NO_USE_ASM_CONTEXT="yes"
+        AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])        
+      ]
+    )
+
+    AS_CASE([$host_os],
+      [linux*], [SW_OS="LINUX"],
+      [darwin*], [SW_OS="MAC"],
+      [cygwin*], [SW_OS="WIN"],
+      [mingw*], [SW_OS="WIN"],
+      [
+        SW_NO_USE_ASM_CONTEXT="yes"
+        AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])        
+      ]
+    )
+
+    if test $SW_CPU = 'x86_64'; then
+        if test $SW_OS = 'LINUX'; then
+            SW_CONTEXT_ASM_FILE="x86_64_sysv_elf_gas.S"
+        elif test $SW_OS = 'MAC'; then
+            SW_CONTEXT_ASM_FILE="x86_64_sysv_macho_gas.S"
+        elif test $SW_OS = 'WIN'; then
+            swoole_source_file="x86_64_ms_pe_gas.asm"
+        fi
+    elif test $SW_CPU = 'x86'; then
+        if test $SW_OS = 'LINUX'; then
+            swoole_source_file="i386_sysv_elf_gas.S"
+        elif test $SW_OS = 'MAC'; then
+            swoole_source_file="i386_sysv_macho_gas.S"
+        elif test $SW_OS = 'WIN'; then
+            swoole_source_file="i386_ms_pe_gas.asm"
+        fi
+    elif test $SW_CPU = 'arm'; then
+        if test $SW_OS = 'LINUX'; then
+            swoole_source_file="arm_aapcs_elf_gas.S"
+        elif test $SW_OS = 'MAC'; then
+            swoole_source_file="arm_aapcs_macho_gas.S"
+        elif test $SW_OS = 'WIN'; then
+            swoole_source_file="arm_aapcs_pe_armasm.asm"
+        fi
+    elif test $SW_CPU = 'arm64'; then
+        if test $SW_OS = 'LINUX'; then
+            swoole_source_file="arm64_aapcs_elf_gas.S"
+        elif test $SW_OS = 'MAC'; then
+            swoole_source_file="arm64_aapcs_macho_gas.S"
+        elif test $SW_OS = 'WIN'; then
+            swoole_source_file="arm64_aapcs_pe_armasm.asm"
+        fi
+    elif test $SW_CPU = 'mips32'; then
+        if test $SW_OS = 'LINUX'; then
+           swoole_source_file="mips32_o32_elf_gas.S"
+        else
+            SW_NO_USE_ASM_CONTEXT="yes"
+            AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])   
+        fi
+    fi
+
+    if test $SW_NO_USE_ASM_CONTEXT = 'no'; then
+         swoole_source_file="$swoole_source_file ${SW_ASM_DIR}make_${SW_CONTEXT_ASM_FILE} \
+            ${SW_ASM_DIR}jump_${SW_CONTEXT_ASM_FILE} \
+            ${SW_ASM_DIR}ontop_${SW_CONTEXT_ASM_FILE}"
     fi
 
     PHP_NEW_EXTENSION(swoole, $swoole_source_file, $ext_shared)
