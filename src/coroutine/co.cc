@@ -4,22 +4,21 @@
 
 using namespace swoole;
 
-static struct
-{
-    int stack_size;
-    int current_cid;
-    int incr_id;
-    struct coroutine_s *coroutines[MAX_CORO_NUM_LIMIT];
-    coroutine_close_t onClose;
-} swCoroG =
-{ SW_DEFAULT_C_STACK_SIZE, -1, 0,
-{ NULL, }, NULL};
-
 struct coroutine_s
 {
     Context *ctx;
     int cid;
 };
+
+static struct
+{
+    int stack_size;
+    int current_cid;
+    struct coroutine_s *coroutines[MAX_CORO_NUM_LIMIT];
+    coroutine_close_t onClose;
+} swCoroG =
+{ SW_DEFAULT_C_STACK_SIZE, -1,
+{ NULL, }, NULL};
 
 #ifndef SW_USE_LIBCO
 

@@ -15,15 +15,17 @@ struct coroutine_s
 {
     stCoRoutine_t* rep;
     int cid;
-    coroutine_close_t onClose;
 };
 
 static struct
 {
+    int stack_size;
     int current_cid;
     struct coroutine_s *coroutines[MAX_CORO_NUM_LIMIT];
     coroutine_close_t onClose;
-} swCoroG = { -1,{ NULL, }, NULL};
+} swCoroG =
+{ SW_DEFAULT_C_STACK_SIZE, -1,
+{ NULL, }, NULL};
 
 void coroutine_release(coroutine_t *co)
 {
@@ -55,7 +57,7 @@ int coroutine_create(coroutine_func_t func, void* args)
     }
     stCoRoutine_t* _co = NULL;
     stCoRoutineAttr_t attr;
-    attr.stack_size = SW_DEFAULT_C_STACK_SIZE;
+    attr.stack_size = swCoroG.stack_size;
     co_create(&_co, &attr, func, args);
 
     coroutine_t* coro = new coroutine_t;
