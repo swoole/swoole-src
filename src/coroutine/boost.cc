@@ -5,8 +5,6 @@
 
 using namespace swoole;
 
-static boost::context::fcontext_t tls_context;
-
 Context::Context(size_t stack_size, coroutine_func_t fn, void* private_data) :
         fn_(fn), stack_size_(stack_size), private_data_(private_data)
 {
@@ -17,6 +15,7 @@ Context::Context(size_t stack_size, coroutine_func_t fn, void* private_data) :
 
     protect_page_ = 0;
     end = false;
+    swap_ctx_ = NULL;
 
     stack_ = (char*) sw_malloc(stack_size_);
     swDebug("alloc stack: size=%u, ptr=%p.", stack_size_, stack_);
@@ -56,13 +55,13 @@ Context::~Context()
 
 bool Context::SwapIn()
 {
-    boost::context::jump_fcontext(&tls_context, ctx_, (intptr_t) this, true);
+    boost::context::jump_fcontext(&swap_ctx_, ctx_, (intptr_t) this, true);
     return true;
 }
 
 bool Context::SwapOut()
 {
-    boost::context::jump_fcontext(&ctx_, tls_context, (intptr_t) this, true);
+    boost::context::jump_fcontext(&ctx_, swap_ctx_, (intptr_t) this, true);
     return true;
 }
 

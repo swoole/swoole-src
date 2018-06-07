@@ -3,8 +3,6 @@
 
 #if USE_UCONTEXT
 
-static __thread ucontext_t tls_context;
-
 using namespace swoole;
 
 Context::Context(size_t stack_size, coroutine_func_t fn, void* private_data) :
@@ -62,12 +60,12 @@ Context::~Context()
 
 bool Context::SwapIn()
 {
-    return 0 == swapcontext(&tls_context, &ctx_);
+    return 0 == swapcontext(&swap_ctx_, &ctx_);
 }
 
 bool Context::SwapOut()
 {
-    return 0 == swapcontext(&ctx_, &tls_context);
+    return 0 == swapcontext(&ctx_, &swap_ctx_);
 }
 
 void Context::context_func(void *arg)

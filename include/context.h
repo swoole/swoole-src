@@ -83,7 +83,9 @@ public:
 private:
 #ifdef USE_BOOST_CONTEXT
     boost::context::fcontext_t ctx_;
+    boost::context::fcontext_t swap_ctx_;
 #elif USE_UCONTEXT
+    ucontext_t swap_ctx_;
     ucontext_t ctx_;
 #endif
     coroutine_func_t fn_;
