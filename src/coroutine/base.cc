@@ -21,11 +21,11 @@ static struct
 {
     int stack_size;
     int current_cid;
-    struct coroutine_s *coroutines[MAX_CORO_NUM_LIMIT];
+    struct coroutine_s *coroutines[MAX_CORO_NUM_LIMIT + 1];
     coroutine_close_t onClose;
 } swCoroG =
 { SW_DEFAULT_C_STACK_SIZE, -1,
-{ NULL, }, NULL};
+{ NULL, }, NULL };
 
 /* 1 <= cid <= 524288 */
 static cidmap_t cidmap =
