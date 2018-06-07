@@ -1264,7 +1264,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, fetch)
         sw_zval_ptr_dtor(&fcn);
         ZVAL_UNREF(stmt->result);
 
-        if (ret == FAILURE || retval == NULL || ZVAL_IS_NULL(retval))
+        if (ret == FAILURE || retval == NULL)
         {
             if (stmt->result)
             {
@@ -1275,6 +1275,9 @@ static PHP_METHOD(swoole_mysql_coro_statement, fetch)
         }
         else
         {
+            zval _retval = *retval;
+            sw_zval_ptr_dtor(&retval);
+            retval = &_retval;
             if (php_swoole_array_length(stmt->result) == 0)
             {
                 sw_zval_free(stmt->result);
