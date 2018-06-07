@@ -21,6 +21,7 @@ void coro_handle_timeout();
 
 typedef struct coroutine_s coroutine_t;
 typedef void (*coroutine_func_t)(void*);
+typedef void (*coroutine_close_t)();
 
 typedef enum
 {
@@ -33,6 +34,7 @@ void coroutine_yield(coroutine_t *co);
 void coroutine_release(coroutine_t *co);
 coroutine_t *coroutine_get_by_id(int cid);
 int coroutine_get_cid();
+void coroutine_set_close(coroutine_close_t func);
 
 int alloc_cidmap();
 void free_cidmap(int cid);
