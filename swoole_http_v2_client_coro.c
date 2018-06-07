@@ -703,7 +703,7 @@ static PHP_METHOD(swoole_http2_client_coro, recv)
     }
 
     php_context *context = swoole_get_property(getThis(), HTTP2_CLIENT_CORO_CONTEXT);
-    hcc->cid = COROG.current_coro->cid;
+    hcc->cid = sw_get_current_cid();
     coro_save(context);
     hcc->iowait = 1;
     coro_yield();
