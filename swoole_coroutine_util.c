@@ -294,11 +294,9 @@ PHP_FUNCTION(swoole_coroutine_create)
 
     zval *retval = NULL;
     zval *args[1];
-    php_context *ctx = emalloc(sizeof(php_context));
-    coro_create(func_cache, args, 0, &retval, NULL, NULL);
+    int ret = coro_create(func_cache, args, 0, &retval, NULL, NULL);
     sw_zval_free(callback);
     efree(func_cache);
-    efree(ctx);
     if (EG(exception))
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
@@ -307,7 +305,14 @@ PHP_FUNCTION(swoole_coroutine_create)
     {
         sw_zval_ptr_dtor(&retval);
     }
-    RETURN_TRUE;
+    if (ret != 0)
+    {
+        RETURN_FALSE;
+    }
+    else
+    {
+        RETURN_TRUE;
+    }
 }
 
 static PHP_METHOD(swoole_coroutine_util, resume)

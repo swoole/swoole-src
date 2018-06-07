@@ -113,8 +113,6 @@ void coro_handle_timeout();
         sw_coro_save(return_value, sw_php_context);
 #define coro_resume(sw_current_context, retval, coro_retval) \
         sw_coro_resume(sw_current_context, retval, *coro_retval)
-#define coro_resume_parent(sw_current_context, retval, coro_retval) \
-        sw_coro_resume_parent(sw_current_context, retval, coro_retval)
 #define coro_yield() sw_coro_yield()
 
 int php_coro_create(php_args *php_arg);
@@ -122,7 +120,6 @@ int sw_coro_create(zend_fcall_info_cache *op_array, zval **argv, int argc, zval 
 void sw_coro_yield();
 void sw_coro_close();
 int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_retval);
-int sw_coro_resume_parent(php_context *sw_current_context, zval *retval, zval *coro_retval);
 void sw_coro_save(zval *return_value, php_context *sw_php_context);
 
 int php_swoole_add_timer_coro(int ms, int cli_fd, long *timeout_id, void* param, swLinkedList_node **node TSRMLS_DC);

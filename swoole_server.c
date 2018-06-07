@@ -1690,17 +1690,7 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
         return;
     }
 
-    php_context *ctx = emalloc(sizeof(php_context));
-    zval _return_value;
-    zval *return_value = &_return_value;
-
-    coro_save(ctx);
-    int required = COROG.require;
     int ret = coro_create(cache, args, 3, &retval, NULL, NULL);
-    coro_resume_parent(ctx, retval, retval);
-    COROG.require = required;
-    efree(ctx);
-
     sw_zval_ptr_dtor(&zfd);
     sw_zval_ptr_dtor(&zfrom_id);
 
