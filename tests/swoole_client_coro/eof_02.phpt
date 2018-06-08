@@ -86,12 +86,12 @@ $pm->childFunc = function () use ($pm) {
 $pm->childFirst();
 $pm->run();
 ?>
---EXPECTF--
-recv:server reply {hello%d}
-recv:server reply {hello%d}
-recv:server reply {hello%d}
-recv:server reply {hello%d}
-recv:server reply {hello%d}
-recv:server reply {hello%d}
-recv:server reply {hello%d}
-recv:server reply {hello%d}
+--EXPECT--
+recv:server reply {hello0}
+recv:server reply {hello1}
+recv:server reply {hello2}
+recv:server reply {hello3}
+recv:server reply {hello0}
+recv:server reply {hello1}
+recv:server reply {hello2}
+recv:server reply {hello3}
