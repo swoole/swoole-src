@@ -1,5 +1,5 @@
 <?php
-
+require_once  __DIR__ . "/config.php";
 ini_set("assert.active", 1);
 assert_options(ASSERT_ACTIVE, 1);
 assert_options(ASSERT_WARNING, 1);
