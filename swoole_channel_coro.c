@@ -42,6 +42,8 @@ typedef struct
     swLinkedList *producer_list;
     swLinkedList *consumer_list;
     int closed;
+    zend_bool type;
+    zend_bool active;
 } channel_coro_property;
 
 typedef struct
@@ -215,12 +217,12 @@ static void channel_notify(channel_node *next)
 static int get_channel_type(channel_coro_property *property, zend_bool type)
 {
     //set one time
-    if (COROG.chan_active == 0)
+    if (property->active == 0)
     {
-        COROG.chan_active = 1;
-        COROG.chan_type = type;
+        property->active = 1;
+        property->type = type;
     }
-    return COROG.chan_type;
+    return property->type;
 }
 
 static void swoole_channel_onResume(php_context *ctx)
@@ -423,6 +425,8 @@ static PHP_METHOD(swoole_channel_coro, __construct)
         RETURN_FALSE;
     }
     property->closed = 0;
+    property->type = 0;
+    property->active = 0;
 
     zend_update_property_long(swoole_channel_coro_class_entry_ptr, getThis(), ZEND_STRL("capacity"), capacity TSRMLS_CC);
 
@@ -582,7 +586,6 @@ static PHP_METHOD(swoole_channel_coro, select)
     {
         RETURN_FALSE;
     }
-    type  = get_channel_type(property, CHANNEL_UNBUFFER_MODE);
     if (read_list)
     {
         array_init(&readable);
@@ -595,6 +598,7 @@ static PHP_METHOD(swoole_channel_coro, select)
             }
             chan = swoole_get_object(item);
             property = swoole_get_property(item, CHANNEL_CORO_PROPERTY_INDEX);
+            type  = get_channel_type(property, CHANNEL_UNBUFFER_MODE);
             if ((type == CHANNEL_BUFFER_MODE && chan->num > 0)
                     || (type == CHANNEL_UNBUFFER_MODE && property->producer_list->num > 0))
             {
@@ -617,6 +621,7 @@ static PHP_METHOD(swoole_channel_coro, select)
             }
             chan = swoole_get_object(item);
             property = swoole_get_property(item, CHANNEL_CORO_PROPERTY_INDEX);
+            type  = get_channel_type(property, CHANNEL_UNBUFFER_MODE);
             if ((type == CHANNEL_BUFFER_MODE && chan->num < chan->max_num)
                     || (type == CHANNEL_UNBUFFER_MODE && property->consumer_list->num > 0))
             {

@@ -86,8 +86,6 @@ typedef struct _coro_global
     coro_task *call_stack[128];
     int call_stack_size;
     swPipe *chan_pipe;
-    zend_bool chan_type;
-    zend_bool chan_active;
     int error;
 } coro_global;
 
