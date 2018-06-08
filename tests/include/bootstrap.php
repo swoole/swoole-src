@@ -1,5 +1,4 @@
 <?php
-
 ini_set("assert.active", 1);
 assert_options(ASSERT_ACTIVE, 1);
 assert_options(ASSERT_WARNING, 1);
@@ -13,3 +12,5 @@ if (method_exists('co','set'))
         'trace_flags' => 0
     ]);
 }
+
+require_once __DIR__ . '/swoole.inc';
