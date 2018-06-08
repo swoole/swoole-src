@@ -1289,6 +1289,11 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
         }
         else
         {
+            if (cli->remove_delay)
+            {
+                swClient_sleep(cli);
+                cli->remove_delay = 0;
+            }
             return SW_OK;
         }
     }

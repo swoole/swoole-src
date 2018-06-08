@@ -407,10 +407,8 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
         {
             return;
         }
-        if (cli->sleep == 0)
-        {
-            swClient_sleep(cli);
-        }
+        swDebug("append to message_queue, sock=%d.", cli->socket->fd);
+        cli->remove_delay = 1;
         ccp->iowait = SW_CLIENT_CORO_STATUS_DONE;
     }
     else
@@ -912,6 +910,7 @@ static PHP_METHOD(swoole_client_coro, recv)
         zval *result;
         if (cli->open_eof_check || cli->open_length_check)
         {
+            swDebug("fetch from message_queue, sock=%d.", cli->socket->fd);
             result = swLinkedList_shift(ccp->message_queue);
             if (result)
             {
@@ -941,6 +940,9 @@ static PHP_METHOD(swoole_client_coro, recv)
         php_swoole_check_timer((int) (timeout * 1000));
         ccp->timer = SwooleG.timer.add(&SwooleG.timer, (int) (timeout * 1000), 0, context, client_coro_onTimeout);
     }
+
+    swDebug("recv yield, sock=%d.", cli->socket->fd);
+
     ccp->iowait = SW_CLIENT_CORO_STATUS_WAIT;
     coro_save(context);
     ccp->cid = sw_get_current_cid();
