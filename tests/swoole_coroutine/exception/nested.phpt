@@ -18,11 +18,15 @@ go(function () {
                 echo "after go2 sleep\n";
             } catch (Exception $e) {
                 echo 'Caught exception: ',  $e->getMessage(), "\n";
+            } finally {
+                echo "finally 2\n";
             }
         });
         echo "after go1 sleep\n";
     } catch (Exception $e) {
         echo 'Caught exception: ',  $e->getMessage(), "\n";
+    } finally {
+        echo "finally 1\n";
     }
 });
     echo "end\n";
@@ -32,5 +36,7 @@ go(function () {
 start
 sub start
 Caught exception: sub coro Exception
+finally 2
 after go1 sleep
+finally 1
 end
