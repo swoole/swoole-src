@@ -499,7 +499,7 @@ struct _swServer
     uint32_t buffer_input_size;
 
     void *ptr2;
-    void *private_data_3;
+    void *dispatch_func_callback;
     void *log_func_callback;
 
     swReactor reactor;

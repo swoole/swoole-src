@@ -2219,7 +2219,7 @@ PHP_METHOD(swoole_server, set)
             }
             efree(func_name);
             sw_zval_add_ref(&v);
-            serv->private_data_3 = sw_zval_dup(v);
+            serv->dispatch_func_callback = sw_zval_dup(v);
             func = php_swoole_dispatch_func;
             break;
         }

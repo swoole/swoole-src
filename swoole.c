@@ -663,7 +663,7 @@ int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swEventData *da
     args[2] = &ztype;
     args[3] = &zdata;
 
-    zval *callback = (zval*) serv->private_data_3;
+    zval *callback = (zval*) serv->dispatch_func_callback;
     if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 4, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "dispatch function handler error.");
