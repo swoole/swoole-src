@@ -620,6 +620,22 @@ int php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data,
     return -1;
 }
 
+int php_swoole_log_func(char * log,int length)
+{
+    zval *zdata;
+    zval *retval = NULL;
+    SW_MAKE_STD_ZVAL(zdata);
+    SW_ZVAL_STRINGL(zdata, log, length, 1);
+    zval *callback =  (zval*) SwooleG.serv->log_func_callback;
+    zval **args[1];
+    args[0] = &zdata;
+    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+    {
+        swoole_php_fatal_error(E_WARNING, "log function handler error.");
+    }
+    return 1;
+}
+
 int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swEventData *data)
 {
     SwooleG.lock.lock(&SwooleG.lock);

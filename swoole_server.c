@@ -13,7 +13,6 @@
   | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
   +----------------------------------------------------------------------+
  */
-
 #include "php_swoole.h"
 #include "Connection.h"
 
@@ -2229,6 +2228,35 @@ PHP_METHOD(swoole_server, set)
             serv->dispatch_mode = SW_DISPATCH_USERFUNC;
             serv->dispatch_func = func;
         }
+    }
+    if (php_swoole_array_get_value(vht, "log_func", v))
+    {
+         swServer_log_function func = NULL;
+         while(1)
+         {
+             if (Z_TYPE_P(v) == IS_STRING)
+             {
+                 func = swoole_get_function(Z_STRVAL_P(v), Z_STRLEN_P(v));
+                 break;
+             }
+
+             char *func_name = NULL;
+             if (!sw_zend_is_callable(v, 0, &func_name TSRMLS_CC))
+             {
+                 swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
+                 efree(func_name);
+                 return;
+             }
+             efree(func_name);
+             sw_zval_add_ref(&v);
+             serv->log_func_callback = sw_zval_dup(v);
+             func = php_swoole_log_func;
+             break;
+         }
+         if (func)
+         {
+             serv->log_func = func;
+         }
     }
     //log_file
     if (php_swoole_array_get_value(vht, "log_file", v))

@@ -301,7 +301,7 @@ typedef struct _swRequest
 } swRequest;
 
 typedef int (*swServer_dispatch_function)(swServer *, swConnection *, swEventData *);
-
+typedef int (*swServer_log_function)(char * log,int log_length);
 int swFactory_create(swFactory *factory);
 int swFactory_start(swFactory *factory);
 int swFactory_shutdown(swFactory *factory);
@@ -500,6 +500,7 @@ struct _swServer
 
     void *ptr2;
     void *private_data_3;
+    void *log_func_callback;
 
     swReactor reactor;
     swFactory factory;
@@ -612,6 +613,7 @@ struct _swServer
     int (*sendwait)(swServer *serv, int fd, void *data, uint32_t length);
     int (*close)(swServer *serv, int fd, int reset);
     int (*dispatch_func)(swServer *, swConnection *, swEventData *);
+    int (*log_func)(char * log,int log_length);
 };
 
 typedef struct _swSocketLocal
