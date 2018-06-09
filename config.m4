@@ -584,36 +584,40 @@ if test "$PHP_SWOOLE" != "no"; then
             SW_CONTEXT_ASM_FILE="x86_64_sysv_elf_gas.S"
         elif test $SW_OS = 'MAC'; then
             SW_CONTEXT_ASM_FILE="x86_64_sysv_macho_gas.S"
-        elif test $SW_OS = 'WIN'; then
-            swoole_source_file="x86_64_ms_pe_gas.asm"
+        else
+            SW_NO_USE_ASM_CONTEXT="yes"
+            AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
         fi
     elif test $SW_CPU = 'x86'; then
         if test $SW_OS = 'LINUX'; then
-            swoole_source_file="i386_sysv_elf_gas.S"
+            SW_CONTEXT_ASM_FILE="i386_sysv_elf_gas.S"
         elif test $SW_OS = 'MAC'; then
-            swoole_source_file="i386_sysv_macho_gas.S"
-        elif test $SW_OS = 'WIN'; then
-            swoole_source_file="i386_ms_pe_gas.asm"
+            SW_CONTEXT_ASM_FILE="i386_sysv_macho_gas.S"
+        else
+            SW_NO_USE_ASM_CONTEXT="yes"
+            AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
         fi
     elif test $SW_CPU = 'arm'; then
         if test $SW_OS = 'LINUX'; then
-            swoole_source_file="arm_aapcs_elf_gas.S"
+            SW_CONTEXT_ASM_FILE="arm_aapcs_elf_gas.S"
         elif test $SW_OS = 'MAC'; then
-            swoole_source_file="arm_aapcs_macho_gas.S"
-        elif test $SW_OS = 'WIN'; then
-            swoole_source_file="arm_aapcs_pe_armasm.asm"
+            SW_CONTEXT_ASM_FILE="arm_aapcs_macho_gas.S"
+        else
+            SW_NO_USE_ASM_CONTEXT="yes"
+            AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
         fi
     elif test $SW_CPU = 'arm64'; then
         if test $SW_OS = 'LINUX'; then
-            swoole_source_file="arm64_aapcs_elf_gas.S"
+            SW_CONTEXT_ASM_FILE="arm64_aapcs_elf_gas.S"
         elif test $SW_OS = 'MAC'; then
-            swoole_source_file="arm64_aapcs_macho_gas.S"
-        elif test $SW_OS = 'WIN'; then
-            swoole_source_file="arm64_aapcs_pe_armasm.asm"
+            SW_CONTEXT_ASM_FILE="arm64_aapcs_macho_gas.S"
+        else
+            SW_NO_USE_ASM_CONTEXT="yes"
+            AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
         fi
     elif test $SW_CPU = 'mips32'; then
         if test $SW_OS = 'LINUX'; then
-           swoole_source_file="mips32_o32_elf_gas.S"
+           SW_CONTEXT_ASM_FILE="mips32_o32_elf_gas.S"
         else
             SW_NO_USE_ASM_CONTEXT="yes"
             AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
@@ -639,9 +643,6 @@ if test "$PHP_SWOOLE" != "no"; then
         PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/picohttpparser])
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/picohttpparser)
     fi
-
-    PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/libco])
-    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/libco)
 
     PHP_ADD_BUILD_DIR($ext_builddir/src/core)
     PHP_ADD_BUILD_DIR($ext_builddir/src/memory)
