@@ -63,3 +63,6 @@ array(2) {
   }
 }
 OK
+cyclic
+bool(false)
+OK
