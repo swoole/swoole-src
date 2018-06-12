@@ -374,7 +374,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
         return SW_ERR;
     }
     /**
-     * 1 second timer, update SwooleGS->now
+     * 1 second timer, update serv->gs->now
      */
     if (SwooleG.timer.add(&SwooleG.timer, 1000, 1, serv, swServer_master_onTimer) == NULL)
     {

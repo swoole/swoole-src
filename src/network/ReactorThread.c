@@ -1599,10 +1599,11 @@ void swReactorThread_free(swServer *serv)
 #ifdef SW_USE_TIMEWHEEL
 static void swReactorThread_onReactorCompleted(swReactor *reactor)
 {
-    if (reactor->heartbeat_interval > 0 && reactor->last_heartbeat_time < SwooleGS->now - reactor->heartbeat_interval)
+    swServer *serv = reactor->ptr;
+    if (reactor->heartbeat_interval > 0 && reactor->last_heartbeat_time < serv->gs->now - reactor->heartbeat_interval)
     {
         swTimeWheel_forward(reactor->timewheel, reactor);
-        reactor->last_heartbeat_time = SwooleGS->now;
+        reactor->last_heartbeat_time = serv->gs->now;
     }
 }
 #endif
