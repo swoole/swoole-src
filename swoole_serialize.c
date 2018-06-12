@@ -1017,7 +1017,8 @@ try_again:
                 //object propterty table is this type
             case IS_INDIRECT:
                 data = Z_INDIRECT_P(data);
-                ((SBucketType*) (buffer->buffer + p))->data_type = Z_TYPE_P(data);
+                zend_uchar type = Z_TYPE_P(data);
+                ((SBucketType*) (buffer->buffer + p))->data_type = (type == IS_UNDEF ? IS_NULL : type);
                 goto try_again;
                 break;
             case IS_OBJECT:
