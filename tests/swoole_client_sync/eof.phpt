@@ -20,7 +20,7 @@ $pm->parentFunc = function ($pid) use ($port)
 {
     $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
     $client->set(['open_eof_check' => true, "package_eof" => "\r\n\r\n"]);
-    if (!$client->connect('127.0.0.1', $port, 0.5, 0))
+    if (!$client->connect('127.0.0.1', $port, 5, 0))
     {
         echo "Over flow. errno=" . $client->errCode;
         die("\n");
@@ -67,9 +67,9 @@ $pm->childFunc = function () use ($pm, $port)
         'open_eof_split' => true,
         'dispatch_mode' => 3,
         'package_max_length' => 1024 * 1024 * 2, //2M
-        'socket_buffer_size' => 128 * 1024 * 1024,
+        'socket_buffer_size' => 256 * 1024 * 1024,
         "worker_num" => 1,
-        'log_file' => '/dev/null',
+        'log_file' => '/tmp/swoole.log',
     ));
     $serv->on("WorkerStart", function (\swoole_server $serv)  use ($pm)
     {
