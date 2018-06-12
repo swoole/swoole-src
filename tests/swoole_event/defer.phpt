@@ -3,6 +3,8 @@ global_function: swoole_event_write
 
 --FILE--
 <?php
+require_once __DIR__ . '/../include/bootstrap.php';
+
 swoole_event_defer(function () {
     echo "defer [1]\n";
 });

@@ -27,6 +27,8 @@
 #include <execinfo.h>
 #endif
 
+SwooleGS_t *SwooleGS;
+
 void swoole_init(void)
 {
     struct rlimit rlmt;
@@ -67,7 +69,7 @@ void swoole_init(void)
         printf("[Master] Fatal Error: global memory allocation failure.");
         exit(1);
     }
-    SwooleGS = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerGS));
+    SwooleGS = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(SwooleGS_t));
     if (SwooleGS == NULL)
     {
         printf("[Master] Fatal Error: failed to allocate memory for SwooleGS.");
@@ -89,8 +91,8 @@ void swoole_init(void)
         SwooleG.max_sockets = (uint32_t) rlmt.rlim_cur;
     }
 
-    SwooleG.module_stack = swString_new(8192);
-    if (SwooleG.module_stack == NULL)
+    SwooleTG.buffer_stack = swString_new(8192);
+    if (SwooleTG.buffer_stack == NULL)
     {
         exit(3);
     }
@@ -124,13 +126,6 @@ void swoole_init(void)
 #endif
 
     SwooleG.use_timer_pipe = 1;
-
-    SwooleStats = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerStats));
-    if (SwooleStats == NULL)
-    {
-        swError("[Master] Fatal Error: failed to allocate memory for SwooleStats.");
-    }
-    swoole_update_time();
 }
 
 void swoole_clean(void)
@@ -415,19 +410,6 @@ void swoole_redirect_stdout(int new_fd)
     if (dup2(new_fd, STDERR_FILENO) < 0)
     {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "dup2(STDERR_FILENO) failed. Error: %s[%d]", strerror(errno), errno);
-    }
-}
-
-void swoole_update_time(void)
-{
-    time_t now = time(NULL);
-    if (now < 0)
-    {
-        swWarn("get time failed. Error: %s[%d]", strerror(errno), errno);
-    }
-    else
-    {
-        SwooleGS->now = now;
     }
 }
 

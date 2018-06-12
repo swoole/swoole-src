@@ -23,10 +23,13 @@
 #endif
 #endif
 
+#ifndef SW_USE_LIBCO
+//#define SW_USE_LIBCO
+#endif
+
 #define SW_MAX_FDTYPE              32   //32 kinds of event
 #define SW_MAX_HOOK_TYPE           32
 #define SW_ERROR_MSG_SIZE          512
-#define SW_MAX_WORKER_GROUP        2
 #define SW_MAX_FILE_CONTENT        (64*1024*1024) //for swoole_file_get_contents
 #define SW_MAX_LISTEN_PORT         60000
 #define SW_MAX_CONCURRENT_TASK     1024
@@ -102,9 +105,6 @@
 #define SW_DATA_EOF                "\r\n\r\n"
 #define SW_DATA_EOF_MAXLEN         8
 
-#define SW_HEARTBEAT_PING_LEN      8
-#define SW_HEARTBEAT_PONG_LEN      8
-
 #define SW_TASKWAIT_TIMEOUT        0.5
 
 #define SW_AIO_THREAD_NUM_DEFAULT        2
@@ -122,10 +122,6 @@
 
 //#define SW_USE_SOCKET_LINGER
 
-#define SW_WORKER_SENDTO_COUNT     32    //写回客户端失败尝试次数
-#define SW_WORKER_SENDTO_YIELD     10   //yield after sendto
-#define SW_WORKER_READ_COUNT       10
-#define SW_WORKER_WAIT_PIPE
 #define SW_WORKER_WAIT_TIMEOUT     1000
 //#define SW_WORKER_RECV_AGAIN
 
@@ -134,8 +130,6 @@
 
 //#define SW_WORKER_SEND_CHUNK
 
-#define SW_REACTOR_TIMEO_SEC             3
-#define SW_REACTOR_TIMEO_USEC            0
 #define SW_REACTOR_SCHEDULE              2
 #define SW_REACTOR_MAXEVENTS             4096
 #define SW_REACTOR_USE_SESSION
@@ -153,26 +147,14 @@
  * 循环从管道中读取数据，有助于缓解管道缓存塞满问题，降低进程间通信的压力
  */
 #define SW_REACTOR_RECV_AGAIN
-
 #define SW_REACTOR_SYNC_SEND            //direct send
-#define SW_SCHEDULE_INTERVAL             32   //平均调度的间隔次数,减少运算量
 
-#define SW_QUEUE_SIZE                    100   //缩减版的RingQueue,用在线程模式下
-
-#define SW_WRITER_TIMEOUT                3
-
-#define SW_RINGQUEUE_USE                 0              //使用RingQueue代替系统消息队列，此特性正在测试中，启用此特性会用内存队列来替代IPC通信，会减少系统调用、内存申请和复制，提高性能
 #define SW_RINGQUEUE_LEN                 1024           //RingQueue队列长度
-#define SW_RINGQUEUE_MEMSIZE             (1024*1024*4)  //内存区大小,默认分配4M的内存
 
 //#define SW_USE_RINGQUEUE_TS            1     //使用线程安全版本的RingQueue
-#define SW_RINGBUFFER_COLLECT_N          100   //collect max_count
 #define SW_RINGBUFFER_FREE_N_MAX         4     //when free_n > MAX, execute collect
 #define SW_RINGBUFFER_WARNING            100
 //#define SW_RINGBUFFER_DEBUG
-
-#define SW_RELOAD_AFTER_SECONDS_N        10
-#define SW_RELOAD_FILE_EXTNAME           ".php"
 
 /**
  * ringbuffer memory pool size
@@ -181,10 +163,6 @@
 #define SW_BUFFER_INPUT_SIZE             (1024*1024*2)
 #define SW_BUFFER_MIN_SIZE               65536
 #define SW_PIPE_BUFFER_SIZE              (1024*1024*32)
-
-#define SW_MEMORY_POOL_SLAB_PAGE         10     //内存池的页数
-
-#define SW_USE_FIXED_BUFFER
 
 #define SW_BACKLOG                       512
 
@@ -279,5 +257,13 @@
 #define SW_REDIS_CONNECT_TIMEOUT         1.0
 
 #define SW_TIMER_MAX_VALUE               86400000
+
+/**
+ * Coroutine
+ */
+#define SW_DEFAULT_MAX_CORO_NUM          3000
+#define SW_DEFAULT_STACK_SIZE            8192
+#define SW_DEFAULT_C_STACK_SIZE          (1024 * 1024 * 2)
+#define SW_MAX_CORO_NUM_LIMIT            0x80000
 
 #endif /* SWOOLE_CONFIG_H_ */

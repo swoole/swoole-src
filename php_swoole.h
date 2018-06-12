@@ -52,7 +52,7 @@
 
 BEGIN_EXTERN_C()
 
-#define PHP_SWOOLE_VERSION  "4.0.0-alpha"
+#define PHP_SWOOLE_VERSION  "4.0.0-rc1"
 #define PHP_SWOOLE_CHECK_CALLBACK
 #define PHP_SWOOLE_ENABLE_FASTCALL
 #define PHP_SWOOLE_CLIENT_USE_POLL
@@ -126,12 +126,8 @@ extern swoole_object_array swoole_objects;
 #endif
 
 #ifdef SW_SOCKETS
-#if PHP_VERSION_ID >= 50301 && (HAVE_SOCKETS || defined(COMPILE_DL_SOCKETS))
 #include "ext/sockets/php_sockets.h"
 #define SWOOLE_SOCKETS_SUPPORT
-#else
-#error "Enable sockets support, require sockets extension."
-#endif
 #endif
 
 #ifdef SW_USE_HTTP2
@@ -140,8 +136,8 @@ extern swoole_object_array swoole_objects;
 #endif
 #endif
 
-#if PHP_MAJOR_VERSION > 7 || PHP_MINOR_VERSION == 0
-#error "require PHP version 7.1 or later."
+#if PHP_MAJOR_VERSION < 7
+#error "require PHP version 7.0 or later."
 #endif
 
 #include "php7_wrapper.h"
@@ -204,6 +200,7 @@ typedef struct
     zval _callbacks[PHP_SERVER_CALLBACK_NUM];
 #endif
     zval *setting;
+    swServer *serv;
 } swoole_server_port_property;
 //---------------------------------------------------------
 #define SW_FLAG_KEEP                        (1u << 12)
@@ -216,11 +213,25 @@ enum php_swoole_fd_type
     PHP_SWOOLE_FD_DGRAM_CLIENT = SW_FD_DGRAM_CLIENT,
     PHP_SWOOLE_FD_MYSQL,
     PHP_SWOOLE_FD_REDIS,
-    PHP_SWOOLE_FD_POSTGRESQL,
     PHP_SWOOLE_FD_HTTPCLIENT,
     PHP_SWOOLE_FD_PROCESS_STREAM,
+#ifdef SW_COROUTINE
+    PHP_SWOOLE_FD_MYSQL_CORO,
+    PHP_SWOOLE_FD_REDIS_CORO,
+    PHP_SWOOLE_FD_POSTGRESQL,
     PHP_SWOOLE_FD_SOCKET,
+    PHP_SWOOLE_FD_CHAN_PIPE,
+#endif
 };
+//---------------------------------------------------------
+typedef enum
+{
+    PHP_SWOOLE_RINIT_BEGIN,
+    PHP_SWOOLE_RINIT_END,
+    PHP_SWOOLE_CALL_USER_SHUTDOWNFUNC_BEGIN,
+    PHP_SWOOLE_RSHUTDOWN_BEGIN,
+    PHP_SWOOLE_RSHUTDOWN_END,
+} php_swoole_req_status;
 //---------------------------------------------------------
 #define php_swoole_socktype(type)           (type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP) & (~SW_SOCK_SSL))
 #define php_swoole_array_length(array)      zend_hash_num_elements(Z_ARRVAL_P(array))
@@ -253,6 +264,7 @@ PHP_FUNCTION(swoole_cpu_num);
 PHP_FUNCTION(swoole_set_process_name);
 PHP_FUNCTION(swoole_get_local_ip);
 PHP_FUNCTION(swoole_get_local_mac);
+PHP_FUNCTION(swoole_call_user_shutdown_begin);
 PHP_FUNCTION(swoole_unsupport_serialize);
 PHP_FUNCTION(swoole_coroutine_create);
 PHP_FUNCTION(swoole_coroutine_exec);
@@ -401,16 +413,17 @@ void swoole_mmap_init(int module_number TSRMLS_DC);
 void swoole_channel_init(int module_number TSRMLS_DC);
 void swoole_ringqueue_init(int module_number TSRMLS_DC);
 void swoole_msgqueue_init(int module_number TSRMLS_DC);
-#if PHP_MAJOR_VERSION == 7
+#ifdef SW_COROUTINE
 void swoole_channel_coro_init(int module_number TSRMLS_DC);
-void swoole_serialize_init(int module_number TSRMLS_DC);
 #endif
+void swoole_serialize_init(int module_number TSRMLS_DC);
+void swoole_memory_pool_init(int module_number TSRMLS_DC);
 
 int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC);
 
 void php_swoole_check_reactor();
 void php_swoole_check_aio();
-
+void php_swoole_at_shutdown(char *function);
 void php_swoole_event_init();
 void php_swoole_event_wait();
 void php_swoole_check_timer(int interval);
@@ -451,6 +464,8 @@ static sw_inline void* swoole_get_property(zval *object, int property_id)
 void swoole_set_object(zval *object, void *ptr);
 void swoole_set_property(zval *object, int property_id, void *ptr);
 int swoole_convert_to_fd(zval *zsocket TSRMLS_DC);
+int swoole_register_rshutdown_function(swCallback func, int push_back);
+void swoole_call_rshutdown_function(void *arg);
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
 php_socket *swoole_convert_to_socket(int sock);
@@ -557,7 +572,7 @@ static sw_inline int php_swoole_is_callable(zval *callback TSRMLS_DC)
     sw_php_array_merge(Z_ARRVAL_P(_new_##arr), Z_ARRVAL_P(arr));\
     arr = _new_##arr;
 
-static sw_inline zval* php_swoole_read_init_property(zend_class_entry *scope, zval *object, char *p, size_t pl TSRMLS_DC)
+static sw_inline zval* php_swoole_read_init_property(zend_class_entry *scope, zval *object, const char *p, size_t pl TSRMLS_DC)
 {
     zval *property = sw_zend_read_property(scope, object, p, pl, 1 TSRMLS_CC);
     if (property == NULL || ZVAL_IS_NULL(property))
@@ -582,6 +597,8 @@ ZEND_BEGIN_MODULE_GLOBALS(swoole)
     zend_bool use_shortname;
     zend_bool fast_serialize;
     long socket_buffer_size;
+    php_swoole_req_status req_status;
+    swLinkedList *rshutdown_functions;
 ZEND_END_MODULE_GLOBALS(swoole)
 
 extern ZEND_DECLARE_MODULE_GLOBALS(swoole);

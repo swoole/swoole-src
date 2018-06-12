@@ -1,0 +1,31 @@
+--TEST--
+swoole_coroutine: coro not inline function
+--SKIPIF--
+<?php require  __DIR__ . '/../include/skipif.inc'; ?>
+--FILE--
+<?php
+require_once __DIR__ . '/../include/bootstrap.php';
+require_once __DIR__ . '/../include/swoole.inc';
+
+use Swoole\Coroutine as co;
+
+echo "start\n";
+co::create(function () {
+    $ret = test();
+    echo $ret;
+});
+function test()
+{
+    echo "start func\n";
+    co::sleep(0.5);
+    echo "end func\n";
+    return "return func params\n";
+}
+echo "end\n";
+?>
+--EXPECT--
+start
+start func
+end
+end func
+return func params

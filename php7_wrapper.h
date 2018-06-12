@@ -349,7 +349,7 @@ static sw_inline int sw_call_user_function_fast(zval *function_name, zend_fcall_
 #define SW_ZVAL_STRING(z,s,dup)               ZVAL_STRING(z,s)
 #define sw_smart_str                          smart_string
 #define zend_get_class_entry                  Z_OBJCE_P
-#define sw_copy_to_stack(a, b)                {zval *__tmp = a;\
+#define sw_copy_to_stack(a, b)                {zval *__tmp = (zval *) a;\
     a = &b;\
     memcpy(a, __tmp, sizeof(zval));}
 
@@ -367,7 +367,7 @@ static sw_inline void sw_zval_free(zval *val)
     efree(val);
 }
 
-static sw_inline zval* sw_zend_read_property(zend_class_entry *class_ptr, zval *obj, char *s, int len, int silent)
+static sw_inline zval* sw_zend_read_property(zend_class_entry *class_ptr, zval *obj, const char *s, int len, int silent)
 {
     zval rv;
     return zend_read_property(class_ptr, obj, s, len, silent, &rv);
@@ -415,7 +415,7 @@ static inline int sw_zend_hash_update(HashTable *ht, char *k, int len, zval *val
     return zend_hash_str_update(ht, (const char*)k, len -1, val) ? SUCCESS : FAILURE;
 }
 
-static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
+static inline int sw_zend_hash_find(HashTable *ht, const char *k, int len, void **v)
 {
     zval *value = zend_hash_str_find(ht, k, len - 1);
     if (value == NULL)
@@ -425,19 +425,6 @@ static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
     else
     {
         *v = (void *) value;
-        return SUCCESS;
-    }
-}
-
-static inline int sw_zend_hash_exists(HashTable *ht, char *k, int len)
-{
-    zval *value = zend_hash_str_find(ht, k, len - 1);
-    if (value == NULL)
-    {
-        return FAILURE;
-    }
-    else
-    {
         return SUCCESS;
     }
 }

@@ -546,11 +546,14 @@ int swProcessPool_set_protocol(swProcessPool *pool, int task_protocol, uint32_t 
             swSysError("malloc(%d) failed.", max_packet_size);
             return SW_ERR;
         }
-        pool->stream->response_buffer = swString_new(SW_BUFFER_SIZE_STD);
-        if (pool->stream->response_buffer == NULL)
+        if (pool->stream)
         {
-            sw_free(pool->packet_buffer);
-            return SW_ERR;
+            pool->stream->response_buffer = swString_new(SW_BUFFER_SIZE_STD);
+            if (pool->stream->response_buffer == NULL)
+            {
+                sw_free(pool->packet_buffer);
+                return SW_ERR;
+            }
         }
         pool->max_packet_size = max_packet_size;
         pool->main_loop = swProcessPool_worker_loop_ex;

@@ -23,12 +23,6 @@
 #define O_DIRECT         040000
 #endif
 
-enum swAioMode
-{
-    SW_AIO_BASE = 0,
-    SW_AIO_LINUX,
-};
-
 enum swAioOpcode
 {
     SW_AIO_READ = 0,
@@ -67,7 +61,6 @@ typedef void (*swAio_handler)(swAio_event *event);
 typedef struct
 {
     uint8_t init;
-    uint8_t mode;
     uint8_t thread_num;
     uint32_t task_num;
     uint16_t current_id;

@@ -1,7 +1,7 @@
 --TEST--
 swoole_timer: Timer must be greater than 0
 --SKIPIF--
-<?php require __DIR__ . "/../include/skipif.inc"; ?>
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --INI--
 assert.active=1
 assert.warning=1
@@ -11,6 +11,8 @@ assert.quiet_eval=0
 
 --FILE--
 <?php
+require_once __DIR__ . '/../include/bootstrap.php';
+
 assert(@swoole_timer_after(0, function() {}) === false);
 assert(@swoole_timer_after(-1, function() {}) === false);
 assert(@swoole_timer_tick(0, function() {}) === false);

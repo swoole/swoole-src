@@ -1,9 +1,11 @@
 --TEST--
 swoole_process: exec
 --SKIPIF--
-<?php require __DIR__ . "/../include/skipif.inc"; ?>
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
+require_once __DIR__ . '/../include/bootstrap.php';
+
 $process = new swoole_process('python_process', true);
 $pid = $process->start();
 

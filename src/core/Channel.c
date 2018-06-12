@@ -144,6 +144,27 @@ int swChannel_out(swChannel *object, void *out, int buffer_length)
 }
 
 /**
+ * peek data
+ */
+int swChannel_peek(swChannel *object, void *out, int buffer_length)
+{
+    if (swChannel_empty(object))
+    {
+        return SW_ERR;
+    }
+
+    int length;
+    object->lock.lock(&object->lock);
+    swChannel_item *item = object->mem + object->head;
+    assert(buffer_length >= item->length);
+    memcpy(out, item->data, item->length);
+    length = item->length;
+    object->lock.unlock(&object->lock);
+
+    return length;
+}
+
+/**
  * wait notify
  */
 int swChannel_wait(swChannel *object)

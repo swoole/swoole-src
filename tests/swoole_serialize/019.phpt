@@ -2,7 +2,7 @@
 swoole_serialize: Object test, __autoload
 --SKIPIF--
 <?php
-require __DIR__ . "/../include/skipif.inc";
+require __DIR__ . '/../include/skipif.inc';
 if (!class_exists("swoole_serialize", false))
 {
     echo "skip";
@@ -10,8 +10,9 @@ if (!class_exists("swoole_serialize", false))
 ?>
 --FILE--
 <?php
+require_once __DIR__ . '/../include/bootstrap.php';
 
-    
+
 function test($type, $test) {
     $serialized = file_get_contents("/tmp/swoole_seria_test");
     $unserialized = swoole_serialize::unpack($serialized);

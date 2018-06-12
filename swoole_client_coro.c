@@ -46,6 +46,7 @@ typedef struct
     swoole_client_coro_io_status iowait;
     swTimer_node *timer;
     swString *result;
+    swLinkedList *message_queue;
     int send_yield;
     int cid;
 } swoole_client_coro_property;
@@ -233,7 +234,7 @@ static void client_send_yield(swClient *cli, char *data, size_t length, zval *re
 {
     swoole_client_coro_property *ccp = swoole_get_property((zval *) cli->object, client_coro_property_coroutine);
     ccp->iowait = SW_CLIENT_CORO_STATUS_WAIT;
-    ccp->cid = COROG.current_coro->cid;
+    ccp->cid = sw_get_current_cid();
     ccp->send_yield = 1;
     if (cli->timeout > 0)
     {
@@ -393,6 +394,23 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
         }
         sw_zval_ptr_dtor(&zdata);
     }
+    else if (cli->open_eof_check || cli->open_length_check)
+    {
+        if (ccp->message_queue == NULL)
+        {
+            ccp->message_queue = swLinkedList_new(16, (swDestructor) sw_zval_free);
+        }
+        zval *zdata;
+        SW_ALLOC_INIT_ZVAL(zdata);
+        ZVAL_STRINGL(zdata, data, length);
+        if (swLinkedList_append(ccp->message_queue, zdata) < 0)
+        {
+            return;
+        }
+        swDebug("append to message_queue, sock=%d.", cli->socket->fd);
+        cli->remove_delay = 1;
+        ccp->iowait = SW_CLIENT_CORO_STATUS_DONE;
+    }
     else
     {
         if (ccp->result)
@@ -413,7 +431,7 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
             {
                 ccp->iowait = SW_CLIENT_CORO_STATUS_DONE;
             }
-            if (cli->open_eof_check || cli->open_length_check || length >= cli->buffer_input_size)
+            if (length >= cli->buffer_input_size && cli->sleep == 0)
             {
                 swClient_sleep(cli);
             }
@@ -597,6 +615,10 @@ static PHP_METHOD(swoole_client_coro, __destruct)
         if (ccp->result)
         {
             swString_free(ccp->result);
+        }
+        if (ccp->message_queue)
+        {
+            swLinkedList_free(ccp->message_queue);
         }
         if (ccp->timer)
         {
@@ -886,13 +908,27 @@ static PHP_METHOD(swoole_client_coro, recv)
     {
         ccp->iowait = SW_CLIENT_CORO_STATUS_READY;
         zval *result;
-        SW_MAKE_STD_ZVAL(result);
-        SW_ZVAL_STRINGL(result, ccp->result->str, ccp->result->length, 1);
-        swString_free(ccp->result);
-        ccp->result = NULL;
-        RETURN_ZVAL(result, 0, 1);
+        if (cli->open_eof_check || cli->open_length_check)
+        {
+            swDebug("fetch from message_queue, sock=%d.", cli->socket->fd);
+            result = swLinkedList_shift(ccp->message_queue);
+            if (result)
+            {
+                RETVAL_ZVAL(result, 0, 0);
+                efree(result);
+                return;
+            }
+        }
+        else
+        {
+            SW_MAKE_STD_ZVAL(result);
+            SW_ZVAL_STRINGL(result, ccp->result->str, ccp->result->length, 1);
+            swString_free(ccp->result);
+            ccp->result = NULL;
+            RETURN_ZVAL(result, 0, 1);
+        }
     }
-    else if (ccp->iowait == SW_CLIENT_CORO_STATUS_WAIT && ccp->cid != COROG.current_coro->cid)
+    else if (ccp->iowait == SW_CLIENT_CORO_STATUS_WAIT && ccp->cid != sw_get_current_cid())
     {
         swoole_php_fatal_error(E_WARNING, "client has been bound to another coro");
         RETURN_FALSE;
@@ -904,9 +940,12 @@ static PHP_METHOD(swoole_client_coro, recv)
         php_swoole_check_timer((int) (timeout * 1000));
         ccp->timer = SwooleG.timer.add(&SwooleG.timer, (int) (timeout * 1000), 0, context, client_coro_onTimeout);
     }
+
+    swDebug("recv yield, sock=%d.", cli->socket->fd);
+
     ccp->iowait = SW_CLIENT_CORO_STATUS_WAIT;
     coro_save(context);
-    ccp->cid = COROG.current_coro->cid;
+    ccp->cid = sw_get_current_cid();
     coro_yield();
 }
 

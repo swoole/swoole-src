@@ -324,8 +324,8 @@ int swReactorThread_close(swReactor *reactor, int fd)
         return SW_ERR;
     }
 
-    sw_atomic_fetch_add(&SwooleStats->close_count, 1);
-    sw_atomic_fetch_sub(&SwooleStats->connection_num, 1);
+    sw_atomic_fetch_add(&serv->stats->close_count, 1);
+    sw_atomic_fetch_sub(&serv->stats->connection_num, 1);
 
     swTrace("Close Event.fd=%d|from=%d", fd, reactor->id);
 
@@ -662,6 +662,34 @@ int swReactorThread_send(swSendData *_send)
         conn->listen_wait = 0;
         return SW_OK;
     }
+    /**
+     * pause recv data
+     */
+    else if (_send->info.type == SW_EVENT_PAUSE_RECV)
+    {
+        if (conn->events & SW_EVENT_WRITE)
+        {
+            return reactor->set(reactor, conn->fd, conn->fdtype | SW_EVENT_WRITE);
+        }
+        else
+        {
+            return reactor->del(reactor, conn->fd);
+        }
+    }
+    /**
+     * resume recv data
+     */
+    else if (_send->info.type == SW_EVENT_RESUME_RECV)
+    {
+        if (conn->events & SW_EVENT_WRITE)
+        {
+            return reactor->set(reactor, conn->fd, conn->fdtype | SW_EVENT_READ | SW_EVENT_WRITE);
+        }
+        else
+        {
+            return reactor->add(reactor, conn->fd, conn->fdtype | SW_EVENT_READ);
+        }
+    }
 
     if (swBuffer_empty(conn->out_buffer))
     {
@@ -929,7 +957,7 @@ static int swReactorThread_onRead(swReactor *reactor, swEvent *event)
     }
 #endif
 
-    event->socket->last_time = SwooleGS->now;
+    event->socket->last_time = serv->gs->now;
     return port->onRead(reactor, port, event);
 }
 
@@ -1198,6 +1226,11 @@ static int swReactorThread_loop(swThreadParam *param)
     SwooleTG.factory_target_worker = -1;
     SwooleTG.id = reactor_id;
     SwooleTG.type = SW_THREAD_REACTOR;
+    SwooleTG.buffer_stack = swString_new(8192);
+    if (SwooleTG.buffer_stack == NULL)
+    {
+        return SW_ERR;
+    }
 
     swReactorThread *thread = swServer_get_thread(serv, reactor_id);
     swReactor *reactor = &thread->reactor;
@@ -1389,6 +1422,7 @@ static int swReactorThread_loop(swThreadParam *param)
     }
 #endif
 
+    swString_free(SwooleTG.buffer_stack);
     pthread_exit(0);
     return SW_OK;
 }
@@ -1516,7 +1550,7 @@ void swReactorThread_free(swServer *serv)
     int i;
     swReactorThread *thread;
 
-    if (SwooleGS->start == 0)
+    if (serv->gs->start == 0)
     {
         return;
     }

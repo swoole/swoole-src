@@ -24,6 +24,7 @@ static PHP_METHOD(swoole_channel, __construct);
 static PHP_METHOD(swoole_channel, __destruct);
 static PHP_METHOD(swoole_channel, push);
 static PHP_METHOD(swoole_channel, pop);
+static PHP_METHOD(swoole_channel, peek);
 static PHP_METHOD(swoole_channel, stats);
 
 static zend_class_entry swoole_channel_ce;
@@ -46,6 +47,7 @@ static const zend_function_entry swoole_channel_methods[] =
     PHP_ME(swoole_channel, __destruct, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_ME(swoole_channel, push, arginfo_swoole_channel_push, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_channel, pop, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_channel, peek, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_channel, stats, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
@@ -114,6 +116,28 @@ static PHP_METHOD(swoole_channel, pop)
         RETURN_FALSE;
     }
 
+    zval *ret_data = php_swoole_task_unpack(&buf TSRMLS_CC);
+    if (ret_data == NULL)
+    {
+        RETURN_FALSE;
+    }
+
+    RETVAL_ZVAL(ret_data, 0, NULL);
+    efree(ret_data);
+}
+
+static PHP_METHOD(swoole_channel, peek)
+{
+    swChannel *chan = swoole_get_object(getThis());
+    swEventData buf;
+
+    int n = swChannel_peek(chan, &buf, sizeof(buf));
+    if (n < 0)
+    {
+        RETURN_FALSE;
+    }
+
+    swTask_type(&buf) |= SW_TASK_PEEK;
     zval *ret_data = php_swoole_task_unpack(&buf TSRMLS_CC);
     if (ret_data == NULL)
     {

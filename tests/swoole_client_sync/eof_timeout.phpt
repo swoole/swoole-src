@@ -1,11 +1,12 @@
 --TEST--
 swoole_client_sync: eof timeout
 --SKIPIF--
-<?php require  __DIR__ . "/../include/skipif.inc"; ?>
+<?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . "/../include/swoole.inc";
-require_once __DIR__ . "/../include/lib/curl.php";
+require_once __DIR__ . '/../include/bootstrap.php';
+require_once __DIR__ . '/../include/swoole.inc';
+require_once __DIR__ . '/../include/lib/curl.php';
 
 $pm = new ProcessManager;
 

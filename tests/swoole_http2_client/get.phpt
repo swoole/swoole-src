@@ -1,10 +1,11 @@
 --TEST--
 swoole_http2_client: get
 --SKIPIF--
-<?php require  __DIR__ . "/../include/skipif.inc"; ?>
+<?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . "/../include/swoole.inc";
+require_once __DIR__ . '/../include/bootstrap.php';
+require_once __DIR__ . '/../include/swoole.inc';
 swoole_async_dns_lookup("www.jd.com", function ($domain, $ip)
 {
     $client = new Swoole\Http2\Client($ip, 443, true);

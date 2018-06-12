@@ -666,7 +666,7 @@ int swPort_http_static_handler(swHttpRequest *request, swConnection *conn)
     char date_[64];
     struct tm *tm1;
 
-    check_modify_date: tm1 = gmtime(&SwooleGS->now);
+    check_modify_date: tm1 = gmtime(&serv->gs->now);
     strftime(date_, sizeof(date_), "%a, %d %b %Y %H:%M:%S %Z", tm1);
 
     char date_last_modified[64];

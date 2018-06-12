@@ -222,7 +222,6 @@
                 </dir>
                 <dir name="os">
                     <file role="src" name="base.c" />
-                    <file role="src" name="linux_aio.c" />
                     <file role="src" name="msg_queue.c" />
                     <file role="src" name="sendfile.c" />
                     <file role="src" name="signal.c" />

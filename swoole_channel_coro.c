@@ -27,6 +27,11 @@ enum
     CHANNEL_CORO_PROPERTY_INDEX = 0, CHANNEL_CORO_PROPERTY_TMP_DATA = 1,
 };
 
+enum
+{
+    CHANNEL_BUFFER_MODE = 0, CHANNEL_UNBUFFER_MODE = 1,
+};
+
 enum ChannelSelectOpcode
 {
     CHANNEL_SELECT_WRITE = 0, CHANNEL_SELECT_READ = 1,
@@ -37,6 +42,8 @@ typedef struct
     swLinkedList *producer_list;
     swLinkedList *consumer_list;
     int closed;
+    zend_bool type;
+    zend_bool active;
 } channel_coro_property;
 
 typedef struct
@@ -177,6 +184,47 @@ static void channel_selector_onTimeout(swTimer *timer, swTimer_node *tnode)
     efree(node);
 }
 
+static int channel_onNotify(swReactor *reactor, swEvent *event)
+{
+    uint64_t notify;
+    while (read(COROG.chan_pipe->getFd(COROG.chan_pipe, 0), &notify, sizeof(notify)) > 0);
+    coro_handle_timeout();
+    if (COROG.coro_num == 0)
+    {
+        SwooleG.main_reactor->del(SwooleG.main_reactor, COROG.chan_pipe->getFd(COROG.chan_pipe, 0));
+    }
+    return 0;
+}
+
+static void channel_notify(channel_node *next)
+{
+    swLinkedList_append(SwooleWG.coro_timeout_list, next);
+    if (!swReactor_handle_isset(SwooleG.main_reactor, PHP_SWOOLE_FD_CHAN_PIPE))
+    {
+        swReactor_setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_CHAN_PIPE, channel_onNotify);
+
+    }
+    int pfd = COROG.chan_pipe->getFd(COROG.chan_pipe, 0);
+    swConnection *_socket = swReactor_get(SwooleG.main_reactor, pfd);
+    if (_socket && _socket->events == 0)
+    {
+        SwooleG.main_reactor->add(SwooleG.main_reactor, pfd, PHP_SWOOLE_FD_CHAN_PIPE | SW_EVENT_READ);
+    }
+    uint64_t flag = 1;
+    COROG.chan_pipe->write(COROG.chan_pipe, &flag, sizeof(flag));
+}
+
+static int get_channel_type(channel_coro_property *property, zend_bool type)
+{
+    //set one time
+    if (property->active == 0)
+    {
+        property->active = 1;
+        property->type = type;
+    }
+    return property->type;
+}
+
 static void swoole_channel_onResume(php_context *ctx)
 {
     channel_node *node = (channel_node *) ctx;
@@ -192,44 +240,31 @@ static void swoole_channel_onResume(php_context *ctx)
             swTimer_del(&SwooleG.timer, selector->timer);
             selector->timer = NULL;
         }
-
         if (selector->opcode == CHANNEL_SELECT_WRITE)
         {
-            swChannel *chan = swoole_get_object(&selector->object);
-            if (chan)
+            zval_ptr_dtor(selector->write_list);
+            Z_TRY_ADDREF_P(&selector->object);
+            add_next_index_zval(&selector->writable, &selector->object);
+            ZVAL_COPY_VALUE(selector->write_list, &selector->writable);
+            if (selector->read_list)
             {
-                swChannel_in(chan, zdata, sizeof(zval));
+                zval_ptr_dtor(selector->read_list);
+                ZVAL_COPY_VALUE(selector->read_list, &selector->readable);
             }
-            else
-            {
-                zval *tmp_data = emalloc(sizeof(zval));
-                *tmp_data = *zdata;
-                swoole_set_property(&selector->object, CHANNEL_CORO_PROPERTY_TMP_DATA, tmp_data);
-            }
-
+        }
+        else
+        {
+            //read
             zval_ptr_dtor(selector->read_list);
             Z_TRY_ADDREF_P(&selector->object);
             add_next_index_zval(&selector->readable, &selector->object);
-
             ZVAL_COPY_VALUE(selector->read_list, &selector->readable);
-
             if (selector->write_list)
             {
                 zval_ptr_dtor(selector->write_list);
                 ZVAL_COPY_VALUE(selector->write_list, &selector->writable);
             }
         }
-        else
-        {
-            zval_ptr_dtor(selector->read_list);
-            ZVAL_COPY_VALUE(selector->read_list, &selector->readable);
-
-            zval_ptr_dtor(selector->write_list);
-            Z_TRY_ADDREF_P(&selector->object);
-            add_next_index_zval(&selector->writable, &selector->object);
-            ZVAL_COPY_VALUE(selector->write_list, &selector->writable);
-        }
-
         SW_MAKE_STD_ZVAL(zdata);
         ZVAL_BOOL(zdata, 1);
         efree(selector);
@@ -253,7 +288,7 @@ static int swoole_channel_try_resume_consumer(zval *object, channel_coro_propert
     if (coro_list->num != 0)
     {
         node = coro_list->head;
-        next = (channel_node *) swLinkedList_shift(coro_list);
+        next = (channel_node *)node->data;
         if (next == NULL)
         {
             return -1;
@@ -262,12 +297,13 @@ static int swoole_channel_try_resume_consumer(zval *object, channel_coro_propert
         if (next->selector)
         {
             next->selector->object = *object;
-            next->selector->opcode = CHANNEL_SELECT_WRITE;
+            next->selector->opcode = CHANNEL_SELECT_READ;
             channel_selector_clear(next->selector, node);
         }
+        swLinkedList_shift(coro_list);
         Z_TRY_ADDREF_P(zdata);
         ZVAL_COPY_VALUE(&(next->context.coro_params), zdata);
-        swLinkedList_append(SwooleWG.coro_timeout_list, next);
+        channel_notify(next);
         return 0;
     }
     return -1;
@@ -282,7 +318,11 @@ static int swoole_channel_try_resume_producer(zval *object, channel_coro_propert
     if (coro_list->num != 0)
     {
         node = coro_list->head;
-        next = (channel_node *) swLinkedList_shift(coro_list);
+        next = (channel_node *)node->data;
+        if (next == NULL)
+        {
+            return -1;
+        }
         next->context.onTimeout = swoole_channel_onResume;
         if (next->selector)
         {
@@ -290,54 +330,13 @@ static int swoole_channel_try_resume_producer(zval *object, channel_coro_propert
             next->selector->opcode = CHANNEL_SELECT_WRITE;
             channel_selector_clear(next->selector, node);
         }
+        swLinkedList_shift(coro_list);
         *zdata_ptr = next->context.coro_params;
         ZVAL_TRUE(&next->context.coro_params);
-        swLinkedList_append(SwooleWG.coro_timeout_list, next);
-        return 0;
-    }
-    else
-    {
-        zval *tmp_data = swoole_get_property(object, CHANNEL_CORO_PROPERTY_TMP_DATA);
-        *zdata_ptr = *tmp_data;
-        efree(tmp_data);
+        channel_notify(next);
         return 0;
     }
     return -1;
-}
-
-static void try_resume_producer_defer(zval *object, channel_coro_property *property, swChannel *chan)
-{
-    swLinkedList *coro_list = property->producer_list;
-    swLinkedList_node *node;
-    channel_node *next;
-
-    if (coro_list->num != 0)
-    {
-        node = coro_list->head;
-        next = (channel_node *) swLinkedList_shift(coro_list);
-        next->context.onTimeout = swoole_channel_onResume;
-        if (next->selector)
-        {
-            next->selector->object = *object;
-            next->selector->opcode = CHANNEL_SELECT_WRITE;
-            channel_selector_clear(next->selector, node);
-        }
-        else
-        {
-            zval *zdata = &next->context.coro_params;
-            if (swChannel_in(chan, zdata, sizeof(zval)) < 0)
-            {
-                ZVAL_FALSE(zdata);
-            }
-            else
-            {
-                Z_TRY_ADDREF_P(zdata);
-                ZVAL_TRUE(zdata);
-            }
-        }
-
-        swLinkedList_append(SwooleWG.coro_timeout_list, next);
-    }
 }
 
 static sw_inline int swoole_channel_try_resume_all(zval *object, channel_coro_property *property)
@@ -358,7 +357,7 @@ static sw_inline int swoole_channel_try_resume_all(zval *object, channel_coro_pr
             channel_selector_clear(next->selector, node);
         }
         ZVAL_FALSE(&next->context.coro_params);
-        swLinkedList_append(SwooleWG.coro_timeout_list, next);
+        channel_notify(next);
     }
 
     coro_list = property->consumer_list;
@@ -374,7 +373,7 @@ static sw_inline int swoole_channel_try_resume_all(zval *object, channel_coro_pr
             channel_selector_clear(next->selector, node);
         }
         ZVAL_FALSE(&next->context.coro_params);
-        swLinkedList_append(SwooleWG.coro_timeout_list, next);
+        channel_notify(next);
     }
 
     return 0;
@@ -388,21 +387,28 @@ static PHP_METHOD(swoole_channel_coro, __construct)
     {
         RETURN_FALSE;
     }
-
-    if (capacity > 0)
+    if (capacity <= 0)
     {
-        swChannel *chan = swChannel_new((sizeof(zval) + sizeof(int)) * capacity, sizeof(zval), 0);
-        if (chan == NULL)
+        capacity = 1;
+    }
+
+    swChannel *chan = swChannel_new((sizeof(zval) + sizeof(int)) * capacity, sizeof(zval), 0);
+    if (chan == NULL)
+    {
+        zend_throw_exception(swoole_exception_class_entry_ptr, "failed to create channel.", SW_ERROR_MALLOC_FAIL TSRMLS_CC);
+        RETURN_FALSE;
+    }
+    swoole_set_object(getThis(), chan);
+    chan->max_num = capacity;
+
+    if (COROG.chan_pipe == NULL)
+    {
+        COROG.chan_pipe = emalloc(sizeof(swPipe));
+        if (swPipeNotify_auto(COROG.chan_pipe, 1, 1) < 0)
         {
-            zend_throw_exception(swoole_exception_class_entry_ptr, "failed to create channel.", SW_ERROR_MALLOC_FAIL TSRMLS_CC);
+            zend_throw_exception(swoole_exception_class_entry_ptr, "failed to create eventfd.", SW_ERROR_SYSTEM_CALL_FAIL TSRMLS_CC);
             RETURN_FALSE;
         }
-        swoole_set_object(getThis(), chan);
-        chan->max_num = capacity;
-    }
-    else
-    {
-        swoole_set_object(getThis(), NULL);
     }
 
     channel_coro_property *property = (channel_coro_property *) sw_malloc(sizeof(channel_coro_property));
@@ -419,6 +425,8 @@ static PHP_METHOD(swoole_channel_coro, __construct)
         RETURN_FALSE;
     }
     property->closed = 0;
+    property->type = 0;
+    property->active = 0;
 
     zend_update_property_long(swoole_channel_coro_class_entry_ptr, getThis(), ZEND_STRL("capacity"), capacity TSRMLS_CC);
 
@@ -445,7 +453,6 @@ static PHP_METHOD(swoole_channel_coro, push)
 
     swChannel *chan = NULL;
     zval *zdata = NULL;
-    int ret;
     channel_coro_property *property = swoole_get_property(getThis(), CHANNEL_CORO_PROPERTY_INDEX);
     if (property->closed)
     {
@@ -457,36 +464,25 @@ static PHP_METHOD(swoole_channel_coro, push)
     {
         RETURN_FALSE;
     }
-
     chan = swoole_get_object(getThis());
-    if (chan == NULL)
-    {
-        ret = swoole_channel_try_resume_consumer(getThis(), property, zdata);
-        if (ret == 0)
-        {
-            RETURN_TRUE;
-        }
-        APPEND_YIELD(producer_list, *zdata);
-        return;
-    }
 
-    if (swChannel_empty(chan))
+    if (get_channel_type(property, CHANNEL_BUFFER_MODE) > 0)
     {
-        ret = swoole_channel_try_resume_consumer(getThis(), property, zdata);
-        if (ret == 0)
-        {
-            RETURN_TRUE;
-        }
-    }
-
-    if (swChannel_full(chan))
-    {
+        swoole_channel_try_resume_consumer(getThis(), property, zdata);
         APPEND_YIELD(producer_list, *zdata);
     }
     else
     {
-        Z_TRY_ADDREF_P(zdata);
-        SW_CHECK_RETURN(swChannel_in(chan, zdata, sizeof(zval)));
+        if (swChannel_full(chan))
+        {
+            APPEND_YIELD(producer_list, *zdata);
+            swoole_channel_try_resume_consumer(getThis(), property, zdata);
+        }
+        else
+        {
+            Z_TRY_ADDREF_P(zdata);
+            SW_CHECK_RETURN(swChannel_in(chan, zdata, sizeof(zval)));
+        }
     }
 }
 
@@ -499,26 +495,31 @@ static PHP_METHOD(swoole_channel_coro, pop)
     zval zdata;
 
     channel_coro_property *property = swoole_get_property(getThis(), CHANNEL_CORO_PROPERTY_INDEX);
-    if (chan == NULL)
+
+    if (get_channel_type(property, CHANNEL_UNBUFFER_MODE) > 0)
     {
         ret = swoole_channel_try_resume_producer(getThis(), property, &zdata);
         if (ret == 0)
         {
-            RETURN_ZVAL(&zdata, 0, NULL);
+           RETURN_ZVAL(&zdata, 0, NULL);
         }
         else
         {
-            APPEND_YIELD(property->consumer_list, zdata);
+           APPEND_YIELD(property->consumer_list, zdata);
+           swoole_channel_try_resume_producer(getThis(), property, return_value);
         }
-    }
-    if (swChannel_out(chan, &zdata, sizeof(zdata)) < 0)
-    {
-        APPEND_YIELD(property->consumer_list, zdata);
     }
     else
     {
-        try_resume_producer_defer(getThis(), property, chan);
-        RETURN_ZVAL(&zdata, 0, NULL);
+        if (swChannel_out(chan, &zdata, sizeof(zdata)) < 0)
+        {
+            swoole_channel_try_resume_producer(getThis(), property, &zdata);
+            APPEND_YIELD(property->consumer_list, zdata);
+        }
+        else
+        {
+            RETURN_ZVAL(&zdata, 0, NULL);
+        }
     }
 }
 
@@ -579,38 +580,34 @@ static PHP_METHOD(swoole_channel_coro, select)
     zend_bool need_yield = 1;
     swChannel *chan = NULL;
     channel_coro_property *property = NULL;
+    int type;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a!a!d", &read_list, &write_list, &timeout) == FAILURE)
     {
         RETURN_FALSE;
     }
+    if (read_list)
+    {
+        array_init(&readable);
 
-    array_init(&readable);
-
-    SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(read_list), item)
-        if (Z_TYPE_P(item) != IS_OBJECT || !instanceof_function(Z_OBJCE_P(item), swoole_channel_coro_class_entry_ptr TSRMLS_CC))
-        {
-            zend_throw_exception_ex(swoole_exception_class_entry_ptr, errno TSRMLS_CC, "object is not instanceof Swoole\\Coroutine\\Channel.");
-            return;
-        }
-        chan = swoole_get_object(item);
-        if (chan != NULL && chan->num > 0)
-        {
-            Z_ADDREF_P(item);
-            add_next_index_zval(&readable, item);
-            need_yield = 0;
-        }
-        else if (chan == NULL)
-        {
+        SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(read_list), item)
+            if (Z_TYPE_P(item) != IS_OBJECT || !instanceof_function(Z_OBJCE_P(item), swoole_channel_coro_class_entry_ptr TSRMLS_CC))
+            {
+                zend_throw_exception_ex(swoole_exception_class_entry_ptr, errno TSRMLS_CC, "object is not instanceof Swoole\\Coroutine\\Channel.");
+                return;
+            }
+            chan = swoole_get_object(item);
             property = swoole_get_property(item, CHANNEL_CORO_PROPERTY_INDEX);
-            if (property->producer_list->num > 0)
+            type  = get_channel_type(property, CHANNEL_UNBUFFER_MODE);
+            if ((type == CHANNEL_BUFFER_MODE && chan->num > 0)
+                    || (type == CHANNEL_UNBUFFER_MODE && property->producer_list->num > 0))
             {
                 Z_ADDREF_P(item);
                 add_next_index_zval(&readable, item);
                 need_yield = 0;
             }
-        }
-    SW_HASHTABLE_FOREACH_END();
+        SW_HASHTABLE_FOREACH_END();
+    }
 
     if (write_list)
     {
@@ -623,52 +620,49 @@ static PHP_METHOD(swoole_channel_coro, select)
                 return;
             }
             chan = swoole_get_object(item);
-            if (chan != NULL && chan->num < chan->max_num)
+            property = swoole_get_property(item, CHANNEL_CORO_PROPERTY_INDEX);
+            type  = get_channel_type(property, CHANNEL_UNBUFFER_MODE);
+            if ((type == CHANNEL_BUFFER_MODE && chan->num < chan->max_num)
+                    || (type == CHANNEL_UNBUFFER_MODE && property->consumer_list->num > 0))
             {
                 Z_ADDREF_P(item);
                 add_next_index_zval(&writable, item);
                 need_yield = 0;
             }
-            else if (chan == NULL)
-            {
-                property = swoole_get_property(item, CHANNEL_CORO_PROPERTY_INDEX);
-                if (property->consumer_list->num > 0)
-                {
-                    Z_ADDREF_P(item);
-                    add_next_index_zval(&writable, item);
-                    need_yield = 0;
-                }
-            }
         SW_HASHTABLE_FOREACH_END();
     }
 
-    if (need_yield)
+    if (need_yield && (read_list || write_list))
     {
         channel_selector *selector = (channel_selector*) emalloc(sizeof(channel_selector));
         memset(selector, 0, sizeof(channel_selector));
 
-        selector->count = php_swoole_array_length(read_list);
+        if (read_list)
+        {
+            selector->count = php_swoole_array_length(read_list);
+        }
         if (write_list)
         {
             selector->count += php_swoole_array_length(write_list);
         }
         selector->node_list = ecalloc(selector->count, sizeof(channel_selector_node));
-
-        selector->read_list = read_list;
-        selector->readable = readable;
-
+        int i = 0;
         channel_node *node = emalloc(sizeof(channel_node));
         memset(node, 0, sizeof(channel_node));
         node->selector = selector;
+        if (read_list)
+        {
+            selector->read_list = read_list;
+            selector->readable = readable;
 
-        int i = 0;
-        SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(read_list), item)
-            property = swoole_get_property(item, CHANNEL_CORO_PROPERTY_INDEX);
-            swLinkedList_append(property->consumer_list, node);
-            selector->node_list[i].list = property->consumer_list;
-            selector->node_list[i].node = property->consumer_list->tail;
-            i++;
-        SW_HASHTABLE_FOREACH_END();
+            SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(read_list), item)
+                property = swoole_get_property(item, CHANNEL_CORO_PROPERTY_INDEX);
+                swLinkedList_append(property->consumer_list, node);
+                selector->node_list[i].list = property->consumer_list;
+                selector->node_list[i].node = property->consumer_list->tail;
+                i++;
+            SW_HASHTABLE_FOREACH_END();
+        }
 
         if (write_list)
         {
@@ -697,8 +691,12 @@ static PHP_METHOD(swoole_channel_coro, select)
     }
     else
     {
-        zval_ptr_dtor(read_list);
-        ZVAL_COPY_VALUE(read_list, &readable);
+        if (read_list)
+        {
+            zval_ptr_dtor(read_list);
+            ZVAL_COPY_VALUE(read_list, &readable);
+        }
+
 
         if (write_list)
         {

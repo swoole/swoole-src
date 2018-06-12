@@ -1,9 +1,11 @@
 --TEST--
 swoole_coroutine: coro call user func
 --SKIPIF--
-<?php require __DIR__ . "/../../include/skipif.inc"; ?>
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
+require_once __DIR__ . '/../../include/bootstrap.php';
+
 use Swoole\Coroutine as co;
 co::create(function() {
     $name = "call_user_func";

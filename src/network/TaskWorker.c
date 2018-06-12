@@ -23,15 +23,16 @@ static void swTaskWorker_signal_init(void);
 
 void swTaskWorker_init(swProcessPool *pool)
 {
-    pool->ptr = SwooleG.serv;
+    swServer *serv = SwooleG.serv;
+    pool->ptr = serv;
     pool->onTask = swTaskWorker_onTask;
     pool->onWorkerStart = swTaskWorker_onStart;
     pool->onWorkerStop = swTaskWorker_onStop;
     pool->type = SW_PROCESS_TASKWORKER;
-    pool->start_id = SwooleG.serv->worker_num;
-    pool->run_worker_num = SwooleG.task_worker_num;
+    pool->start_id = serv->worker_num;
+    pool->run_worker_num = serv->task_worker_num;
 
-    if (SwooleG.task_ipc_mode == SW_TASK_IPC_PREEMPTIVE)
+    if (serv->task_ipc_mode == SW_TASK_IPC_PREEMPTIVE)
     {
         pool->dispatch_mode = SW_DISPATCH_QUEUE;
     }
@@ -132,7 +133,7 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
 
     SwooleG.main_reactor = NULL;
     swWorker *worker = swProcessPool_get_worker(pool, worker_id);
-    worker->start_time = SwooleGS->now;
+    worker->start_time = serv->gs->now;
     worker->request_count = 0;
     worker->traced = 0;
     SwooleWG.worker = worker;
@@ -151,7 +152,7 @@ void swTaskWorker_onStop(swProcessPool *pool, int worker_id)
 int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
 {
     swEventData buf;
-    if (SwooleG.task_worker_num < 1)
+    if (serv->task_worker_num < 1)
     {
         swWarn("cannot use task/finish, because no set serv->task_worker_num.");
         return SW_ERR;
@@ -224,8 +225,8 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
         /**
          * Use worker shm store the result
          */
-        swEventData *result = &(SwooleG.task_result[source_worker_id]);
-        swPipe *task_notify_pipe = &(SwooleG.task_notify[source_worker_id]);
+        swEventData *result = &(serv->task_result[source_worker_id]);
+        swPipe *task_notify_pipe = &(serv->task_notify[source_worker_id]);
 
         //lock worker
         worker->lock.lock(&worker->lock);

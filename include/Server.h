@@ -115,6 +115,7 @@ enum swTaskType
     SW_TASK_CALLBACK   = 8,  //callback
     SW_TASK_WAITALL    = 16, //for taskWaitAll
     SW_TASK_COROUTINE  = 32, //coroutine
+    SW_TASK_PEEK       = 64, //peek
 };
 
 typedef struct _swUdpFd
@@ -341,6 +342,33 @@ enum swServer_hook_type
     SW_SERVER_HOOK_PROCESS_TIMER,
 };
 
+typedef struct
+{
+    time_t start_time;
+    sw_atomic_t connection_num;
+    sw_atomic_t tasking_num;
+    sw_atomic_long_t accept_count;
+    sw_atomic_long_t close_count;
+    sw_atomic_long_t request_count;
+} swServerStats;
+
+typedef struct
+{
+    pid_t master_pid;
+    pid_t manager_pid;
+
+    uint32_t session_round :24;
+    sw_atomic_t start;  //after swServer_start will set start=1
+
+    time_t now;
+
+    sw_atomic_t spinlock;
+
+    swProcessPool task_workers;
+    swProcessPool event_workers;
+
+} swServerGS;
+
 struct _swServer
 {
     /**
@@ -475,9 +503,21 @@ struct _swServer
 
     swReactor reactor;
     swFactory factory;
-
     swListenPort *listen_list;
+    pthread_t heartbeat_pidt;
 
+    /**
+     *  task process
+     */
+    uint16_t task_worker_num;
+    uint8_t task_ipc_mode;
+    uint16_t task_max_request;
+    swPipe *task_notify;
+    swEventData *task_result;
+
+    /**
+     * use process
+     */
     uint16_t user_worker_num;
     swUserWorker_node *user_worker_list;
     swHashMap *user_worker_map;
@@ -487,6 +527,9 @@ struct _swServer
     swWorker *workers;
 
     swChannel *message_box;
+
+    swServerStats *stats;
+    swServerGS *gs;
 
 #ifdef HAVE_PTHREAD_BARRIER
     pthread_barrier_t barrier;
@@ -598,6 +641,7 @@ typedef struct
 
 int swServer_master_onAccept(swReactor *reactor, swEvent *event);
 void swServer_master_onTimer(swTimer *timer, swTimer_node *tnode);
+void swServer_update_time(swServer *serv);
 
 int swServer_onFinish(swFactory *factory, swSendData *resp);
 int swServer_onFinish2(swFactory *factory, swSendData *resp);
@@ -654,7 +698,7 @@ int swServer_tcp_sendwait(swServer *serv, int fd, void *data, uint32_t length);
 int swServer_tcp_close(swServer *serv, int fd, int reset);
 int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename, uint32_t filename_length, off_t offset, size_t length);
 int swServer_tcp_notify(swServer *serv, swConnection *conn, int event);
-int swServer_confirm(swServer *serv, int fd);
+int swServer_tcp_feedback(swServer *serv, int fd, int event);
 
 //UDP, UDP必然超过0x1000000
 //原因：IPv4的第4字节最小为1,而这里的conn_fd是网络字节序
@@ -730,20 +774,23 @@ static sw_inline swString* swTaskWorker_large_unpack(swEventData *task_result)
         swSysError("open(%s) failed.", _pkg.tmpfile);
         return NULL;
     }
-    if (SwooleG.module_stack->size < _pkg.length && swString_extend_align(SwooleG.module_stack, _pkg.length) < 0)
+    if (SwooleTG.buffer_stack->size < _pkg.length && swString_extend_align(SwooleTG.buffer_stack, _pkg.length) < 0)
     {
         close(tmp_file_fd);
         return NULL;
     }
-    if (swoole_sync_readfile(tmp_file_fd, SwooleG.module_stack->str, _pkg.length) < 0)
+    if (swoole_sync_readfile(tmp_file_fd, SwooleTG.buffer_stack->str, _pkg.length) < 0)
     {
         close(tmp_file_fd);
         return NULL;
     }
     close(tmp_file_fd);
-    unlink(_pkg.tmpfile);
-    SwooleG.module_stack->length = _pkg.length;
-    return SwooleG.module_stack;
+    if (!(swTask_type(task_result) & SW_TASK_PEEK))
+    {
+        unlink(_pkg.tmpfile);
+    }
+    SwooleTG.buffer_stack->length = _pkg.length;
+    return SwooleTG.buffer_stack;
 }
 
 #define swPackage_data(task) ((task->info.type==SW_EVENT_PACKAGE_END)?SwooleWG.buffer_input[task->info.from_id]->str:task->data)
@@ -789,14 +836,14 @@ static sw_inline swWorker* swServer_get_worker(swServer *serv, uint16_t worker_i
     //Event Worker
     if (worker_id < serv->worker_num)
     {
-        return &(SwooleGS->event_workers.workers[worker_id]);
+        return &(serv->gs->event_workers.workers[worker_id]);
     }
 
     //Task Worker
-    uint16_t task_worker_max = SwooleG.task_worker_num + serv->worker_num;
+    uint16_t task_worker_max = serv->task_worker_num + serv->worker_num;
     if (worker_id < task_worker_max)
     {
-        return &(SwooleGS->task_workers.workers[worker_id - serv->worker_num]);
+        return &(serv->gs->task_workers.workers[worker_id - serv->worker_num]);
     }
 
     //User Worker

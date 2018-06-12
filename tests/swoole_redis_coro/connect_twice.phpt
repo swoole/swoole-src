@@ -1,7 +1,7 @@
 --TEST--
 swoole_redis_coro: connect twice
 --SKIPIF--
-<?php require __DIR__ . "/../include/skipif.inc";
+<?php require __DIR__ . '/../include/skipif.inc';
 if (!class_exists("Swoole\\Coroutine\\Redis", false))
 {
     exit("SKIP");
@@ -9,8 +9,9 @@ if (!class_exists("Swoole\\Coroutine\\Redis", false))
 ?>
 --FILE--
 <?php
-require_once __DIR__ . "/../include/swoole.inc";
-require_once __DIR__ . "/../include/lib/curl.php";
+require_once __DIR__ . '/../include/bootstrap.php';
+require_once __DIR__ . '/../include/swoole.inc';
+require_once __DIR__ . '/../include/lib/curl.php';
 
 //Co::set(['log_level' => SWOOLE_LOG_TRACE, 'trace_flags' => SWOOLE_TRACE_ALL]);
 
