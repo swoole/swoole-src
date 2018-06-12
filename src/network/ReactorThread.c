@@ -1226,6 +1226,16 @@ static int swReactorThread_loop(swThreadParam *param)
     SwooleTG.factory_target_worker = -1;
     SwooleTG.id = reactor_id;
     SwooleTG.type = SW_THREAD_REACTOR;
+
+    if (serv->dispatch_mode == SW_MODE_BASE || serv->dispatch_mode == SW_MODE_THREAD)
+    {
+        SwooleTG.buffer_input = swServer_create_worker_buffer(serv);
+        if (!SwooleTG.buffer_input)
+        {
+            return SW_ERR;
+        }
+    }
+
     SwooleTG.buffer_stack = swString_new(8192);
     if (SwooleTG.buffer_stack == NULL)
     {
