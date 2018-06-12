@@ -1250,21 +1250,21 @@ static PHP_METHOD(swoole_mysql_coro_statement, fetch)
 
     if (stmt->result)
     {
-        zval **args[1];
+        zval args[1];
         // the function argument is a reference
         ZVAL_NEW_REF(stmt->result, stmt->result);
-        args[0] = &stmt->result;
+        args[0] = *stmt->result;
 
         zval *fcn;
         SW_MAKE_STD_ZVAL(fcn);
         ZVAL_STRING(fcn, "array_shift");
         int ret;
-        zval *retval = NULL;
-        ret = sw_call_user_function_ex(EG(function_table), NULL, fcn, &retval, 1, args, 0, NULL TSRMLS_CC);
+        zval retval;
+        ret = call_user_function_ex(EG(function_table), NULL, fcn, &retval, 1, args, 0, NULL TSRMLS_CC);
         sw_zval_ptr_dtor(&fcn);
         ZVAL_UNREF(stmt->result);
 
-        if (ret == FAILURE || retval == NULL)
+        if (ret == FAILURE)
         {
             if (stmt->result)
             {
@@ -1275,15 +1275,12 @@ static PHP_METHOD(swoole_mysql_coro_statement, fetch)
         }
         else
         {
-            zval _retval = *retval;
-            sw_zval_ptr_dtor(&retval);
-            retval = &_retval;
             if (php_swoole_array_length(stmt->result) == 0)
             {
                 sw_zval_free(stmt->result);
                 stmt->result = NULL;
             }
-            RETURN_ZVAL(retval, 0, 1);
+            RETURN_ZVAL(&retval, 0, 1);
         }
     }
     else
