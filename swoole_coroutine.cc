@@ -205,15 +205,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     COROG.error = 0;
     COROG.coro_num++;
 
-    int ret = coroutine_create(php_coro_create_callback, (void*) &php_args);
-    if (ret > 0)
-    {
-        return 0;
-    }
-    else
-    {
-        return ret;
-    }
+    return coroutine_create(php_coro_create_callback, (void*) &php_args);
 }
 
 void sw_coro_save(zval *return_value, php_context *sw_current_context)

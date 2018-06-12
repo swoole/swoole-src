@@ -1224,7 +1224,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
 #else
         zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, req->info.from_fd, callback_type);
         int ret = coro_create(cache, args, 2, &retval, NULL, NULL);
-        if (ret != 0)
+        if (ret < 0)
         {
             sw_zval_ptr_dtor(&zrequest_object);
             sw_zval_ptr_dtor(&zresponse_object);

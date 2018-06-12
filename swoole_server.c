@@ -754,7 +754,7 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
 
     zend_fcall_info_cache *cache = php_sw_server_caches[SW_SERVER_CB_onPipeMessage];
     int ret = coro_create(cache, args, 3, &retval, NULL, NULL);
-    if (ret != 0)
+    if (ret < 0)
     {
         sw_zval_ptr_dtor(&zworker_id);
         sw_zval_free(zdata);
@@ -882,7 +882,7 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
 
     zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onReceive);
     int ret = coro_create(cache, args, 4, &retval, NULL, NULL);
-    if (ret != 0)
+    if (ret < 0)
     {
         sw_zval_ptr_dtor(&zfd);
         sw_zval_ptr_dtor(&zfrom_id);
@@ -988,7 +988,7 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
 
     zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onPacket);
     int ret = coro_create(cache, args, 3, &retval, NULL, NULL);
-    if (ret != 0)
+    if (ret < 0)
     {
         sw_zval_ptr_dtor(&zaddr);
         sw_zval_ptr_dtor(&zdata);
@@ -1300,7 +1300,7 @@ static void php_swoole_onWorkerStart_coroutine(zval *zserv, zval *zworker_id)
 
     zend_fcall_info_cache *cache = php_sw_server_caches[SW_SERVER_CB_onWorkerStart];
     int ret = coro_create(cache, args, 2, &retval, NULL, NULL);
-    if (ret != 0)
+    if (ret < 0)
     {
         sw_zval_ptr_dtor(&zworker_id);
         if (ret == CORO_LIMIT)
@@ -1596,7 +1596,7 @@ void php_swoole_onConnect(swServer *serv, swDataHead *info)
         ret = coro_create(cache, args, 3, &retval, NULL, NULL);
     }
 
-    if (ret != 0)
+    if (ret < 0)
     {
         sw_zval_ptr_dtor(&zfd);
         sw_zval_ptr_dtor(&zfrom_id);
@@ -1694,7 +1694,7 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
     sw_zval_ptr_dtor(&zfd);
     sw_zval_ptr_dtor(&zfrom_id);
 
-    if (ret != 0)
+    if (ret < 0)
     {
         return;
     }

@@ -131,12 +131,9 @@ void swoole_websocket_onOpen(http_context *ctx)
         }
 #else
         int ret = coro_create(cache, args, 2, &retval, NULL, NULL);
-        if (ret != 0)
+        if (ret == CORO_LIMIT)
         {
-            if (ret == CORO_LIMIT)
-            {
-                SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
-            }
+            SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
             return;
         }
 #endif
@@ -283,14 +280,11 @@ int swoole_websocket_onMessage(swEventData *req)
 #else
     zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onMessage);
     int ret = coro_create(cache, args, 2, &retval, NULL, NULL);
-    if (ret != 0)
+    if (ret == CORO_LIMIT)
     {
         sw_zval_ptr_dtor(&zdata);
         sw_zval_ptr_dtor(&zframe);
-        if (ret == CORO_LIMIT)
-        {
-            SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
-        }
+        SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
         return SW_OK;
     }
 #endif

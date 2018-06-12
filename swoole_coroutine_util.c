@@ -145,49 +145,51 @@ void swoole_coroutine_util_init(int module_number TSRMLS_DC)
     defer_coros = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
 }
 
-static void swoole_coroutine_util_resume(void *data)
-{
-	php_context *context = (php_context *)data;
-	zval *retval = NULL;
-	zval *result;
-	SW_MAKE_STD_ZVAL(result);
-	ZVAL_BOOL(result, 1);
-	int ret = coro_resume(context, result, &retval);
-	if (ret == CORO_END && retval)
-	{
-		sw_zval_ptr_dtor(&retval);
-	}
-	sw_zval_ptr_dtor(&result);
-	efree(context);
-}
+//static void swoole_coroutine_util_resume(void *data)
+//{
+//	php_context *context = (php_context *)data;
+//	zval *retval = NULL;
+//	zval *result;
+//	SW_MAKE_STD_ZVAL(result);
+//	ZVAL_BOOL(result, 1);
+//	int ret = coro_resume(context, result, &retval);
+//	if (ret == CORO_END && retval)
+//	{
+//		sw_zval_ptr_dtor(&retval);
+//	}
+//	sw_zval_ptr_dtor(&result);
+//	efree(context);
+//}
+//
+//static void coroutine_resume_onTimeout(swTimer *timer, swTimer_node *tnode)
+//{
+//    php_context *context = (php_context *)tnode->data;
+//    zval *retval = NULL;
+//    zval *result;
+//    SW_MAKE_STD_ZVAL(result);
+//    ZVAL_BOOL(result, 1);
+//    int ret = coro_resume(context, result, &retval);
+//    if (ret == CORO_END && retval)
+//    {
+//        sw_zval_ptr_dtor(&retval);
+//    }
+//    sw_zval_ptr_dtor(&result);
+//    efree(context);
+//}
 
-static void coroutine_resume_onTimeout(swTimer *timer, swTimer_node *tnode)
-{
-    php_context *context = (php_context *)tnode->data;
-    zval *retval = NULL;
-    zval *result;
-    SW_MAKE_STD_ZVAL(result);
-    ZVAL_BOOL(result, 1);
-    int ret = coro_resume(context, result, &retval);
-    if (ret == CORO_END && retval)
-    {
-        sw_zval_ptr_dtor(&retval);
-    }
-    sw_zval_ptr_dtor(&result);
-    efree(context);
-}
-
+/*
+ * suspend current coroutine
+ */
 static PHP_METHOD(swoole_coroutine_util, suspend)
 {
-    char *id;
-    zend_size_t id_len;
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &id, &id_len) == FAILURE)
+    int cid = sw_get_current_cid();
+    if (cid < 0)
     {
-        return;
+        swoole_php_fatal_error(E_ERROR, "can not suspend outside coroutine");
+        RETURN_FALSE;
     }
 
-    swLinkedList *coros_list = swHashMap_find(defer_coros, id, id_len);
+    swLinkedList *coros_list = swHashMap_find_int(defer_coros, cid);
     if (coros_list == NULL)
     {
         coros_list = swLinkedList_new(2, NULL);
@@ -195,7 +197,7 @@ static PHP_METHOD(swoole_coroutine_util, suspend)
         {
             RETURN_FALSE;
         }
-        if (swHashMap_add(defer_coros, id, id_len, coros_list) == SW_ERR)
+        if (swHashMap_add_int(defer_coros, cid, coros_list) == SW_ERR)
         {
             swLinkedList_free(coros_list);
             RETURN_FALSE;
@@ -294,7 +296,7 @@ PHP_FUNCTION(swoole_coroutine_create)
 
     zval *retval = NULL;
     zval *args[1];
-    int ret = coro_create(func_cache, args, 0, &retval, NULL, NULL);
+    int cid = coro_create(func_cache, args, 0, &retval, NULL, NULL);
     sw_zval_free(callback);
     efree(func_cache);
     if (EG(exception))
@@ -305,27 +307,25 @@ PHP_FUNCTION(swoole_coroutine_create)
     {
         sw_zval_ptr_dtor(&retval);
     }
-    if (ret != 0)
+    if (cid < 0)
     {
         RETURN_FALSE;
     }
     else
     {
-        RETURN_TRUE;
+        RETURN_LONG(cid);
     }
 }
 
 static PHP_METHOD(swoole_coroutine_util, resume)
 {
-    char *id;
-    zend_size_t id_len;
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &id, &id_len) == FAILURE)
+    long id;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &id) == FAILURE)
     {
         return;
     }
 
-    swLinkedList *coros_list = swHashMap_find(defer_coros, id, id_len);
+    swLinkedList *coros_list = swHashMap_find_int(defer_coros, id);
     if (coros_list == NULL)
     {
         swoole_php_fatal_error(E_WARNING, "Nothing can coroResume.");
@@ -339,16 +339,17 @@ static PHP_METHOD(swoole_coroutine_util, resume)
         RETURN_FALSE;
     }
 
-    if (SwooleG.main_reactor->start == 0)
+    zval *retval = NULL;
+    zval *result;
+    SW_MAKE_STD_ZVAL(result);
+    ZVAL_BOOL(result, 1);
+    int ret = coro_resume(context, result, &retval);
+    if (ret == CORO_END && retval)
     {
-        php_swoole_check_timer(1);
-        SwooleG.timer.add(&SwooleG.timer, 1, 0, context, coroutine_resume_onTimeout);
+        sw_zval_ptr_dtor(&retval);
     }
-    else
-    {
-        SwooleG.main_reactor->defer(SwooleG.main_reactor, swoole_coroutine_util_resume, context);
-    }
-
+    sw_zval_ptr_dtor(&result);
+    efree(context);
     RETURN_TRUE;
 }
 
