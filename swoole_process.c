@@ -477,11 +477,21 @@ static PHP_METHOD(swoole_process, signal)
         RETURN_FALSE;
     }
 
-    if (SwooleG.serv && SwooleG.serv->gs->start && (swIsWorker() || swIsMaster() || swIsManager() || swIsTaskWorker()))
+    if (SwooleG.serv && SwooleG.serv->gs->start)
     {
-        if (signo == SIGTERM)
+        if ((swIsWorker() || swIsTaskWorker()) && signo == SIGTERM)
         {
-            swoole_php_fatal_error(E_WARNING, "unable to register SIGTERM in swoole_server.");
+            swoole_php_fatal_error(E_WARNING, "unable to register SIGTERM in worker/task process.");
+            RETURN_FALSE;
+        }
+        else if (swIsManager() && (signo == SIGTERM || signo == SIGUSR1 || signo == SIGUSR2 || signo == SIGALRM))
+        {
+            swoole_php_fatal_error(E_WARNING, "unable to register SIGTERM/SIGUSR1/SIGUSR2/SIGALRM in manager process.");
+            RETURN_FALSE;
+        }
+        else if (swIsMaster() && (signo == SIGTERM || signo == SIGUSR1 || signo == SIGUSR2 || signo == SIGALRM || signo == SIGCHLD))
+        {
+            swoole_php_fatal_error(E_WARNING, "unable to register SIGTERM/SIGUSR1/SIGUSR2/SIGALRM/SIGCHLD in manager process.");
             RETURN_FALSE;
         }
     }
