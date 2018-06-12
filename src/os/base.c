@@ -420,12 +420,12 @@ static void swAio_handler_write_file(swAio_event *event)
     int written = swoole_sync_writefile(fd, event->buf, event->nbytes);
     if (event->flags & SW_AIO_WRITE_FSYNC)
     {
-        if (fsync(event->fd) < 0)
+        if (fsync(fd) < 0)
         {
             swSysError("fsync(%d) failed.", event->fd);
         }
     }
-    if (flock(event->fd, LOCK_UN) < 0)
+    if (flock(fd, LOCK_UN) < 0)
     {
         swSysError("flock(%d, LOCK_UN) failed.", event->fd);
     }
