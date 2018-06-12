@@ -24,6 +24,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
                 break;
             }
         }
+        co::sleep(0.5);
         echo("client exit\n");
         $socket->close();
     });
@@ -41,7 +42,7 @@ $pm->childFunc = function () use ($pm) {
         while (true) {
             $client_data = $client->recv(.01);
             if ($client->errCode > 0) {
-                assert($client->errCode === 35); //EAGAIN
+                assert($client->errCode === SOCKET_EAGAIN); //EAGAIN
                 break;
             } else {
                 $i++;
