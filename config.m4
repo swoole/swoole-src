@@ -209,7 +209,6 @@ AC_DEFUN([AC_SWOOLE_HAVE_UCONTEXT],
     ])
 ])
 
-
 AC_DEFUN([AC_SWOOLE_HAVE_BOOST_CONTEXT],
 [
     AC_MSG_CHECKING([for boost.context])
@@ -221,8 +220,8 @@ AC_DEFUN([AC_SWOOLE_HAVE_BOOST_CONTEXT],
 
     ], [
         AC_DEFINE([HAVE_BOOST_CONTEXT], 1, [have boost.context?])
+        SW_HAVE_BOOST_CONTEXT=yes
         AC_MSG_RESULT([yes])
-        LDFLAGS="$LDFLAGS -lboost_context"
     ], [
         AC_MSG_RESULT([no])
     ])
@@ -579,44 +578,44 @@ if test "$PHP_SWOOLE" != "no"; then
       ]
     )
 
-    if test $SW_CPU = 'x86_64'; then
-        if test $SW_OS = 'LINUX'; then
+    if test "$SW_CPU" = 'x86_64'; then
+        if test "$SW_OS" = 'LINUX'; then
             SW_CONTEXT_ASM_FILE="x86_64_sysv_elf_gas.S"
-        elif test $SW_OS = 'MAC'; then
+        elif test "$SW_OS" = 'MAC'; then
             SW_CONTEXT_ASM_FILE="x86_64_sysv_macho_gas.S"
         else
             SW_NO_USE_ASM_CONTEXT="yes"
             AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
         fi
-    elif test $SW_CPU = 'x86'; then
-        if test $SW_OS = 'LINUX'; then
+    elif test "$SW_CPU" = 'x86'; then
+        if test "$SW_OS" = 'LINUX'; then
             SW_CONTEXT_ASM_FILE="i386_sysv_elf_gas.S"
-        elif test $SW_OS = 'MAC'; then
+        elif test "$SW_OS" = 'MAC'; then
             SW_CONTEXT_ASM_FILE="i386_sysv_macho_gas.S"
         else
             SW_NO_USE_ASM_CONTEXT="yes"
             AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
         fi
-    elif test $SW_CPU = 'arm'; then
-        if test $SW_OS = 'LINUX'; then
+    elif test "$SW_CPU" = 'arm'; then
+        if test "$SW_OS" = 'LINUX'; then
             SW_CONTEXT_ASM_FILE="arm_aapcs_elf_gas.S"
-        elif test $SW_OS = 'MAC'; then
+        elif test "$SW_OS" = 'MAC'; then
             SW_CONTEXT_ASM_FILE="arm_aapcs_macho_gas.S"
         else
             SW_NO_USE_ASM_CONTEXT="yes"
             AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
         fi
-    elif test $SW_CPU = 'arm64'; then
-        if test $SW_OS = 'LINUX'; then
+    elif test "$SW_CPU" = 'arm64'; then
+        if test "$SW_OS" = 'LINUX'; then
             SW_CONTEXT_ASM_FILE="arm64_aapcs_elf_gas.S"
-        elif test $SW_OS = 'MAC'; then
+        elif test "$SW_OS" = 'MAC'; then
             SW_CONTEXT_ASM_FILE="arm64_aapcs_macho_gas.S"
         else
             SW_NO_USE_ASM_CONTEXT="yes"
             AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
         fi
-    elif test $SW_CPU = 'mips32'; then
-        if test $SW_OS = 'LINUX'; then
+    elif test "$SW_CPU" = 'mips32'; then
+        if test "$SW_OS" = 'LINUX'; then
            SW_CONTEXT_ASM_FILE="mips32_o32_elf_gas.S"
         else
             SW_NO_USE_ASM_CONTEXT="yes"
@@ -624,9 +623,11 @@ if test "$PHP_SWOOLE" != "no"; then
         fi
     fi
 
-    if test $SW_NO_USE_ASM_CONTEXT = 'no'; then
+    if test "$SW_NO_USE_ASM_CONTEXT" = 'no'; then
          swoole_source_file="$swoole_source_file ${SW_ASM_DIR}make_${SW_CONTEXT_ASM_FILE} \
             ${SW_ASM_DIR}jump_${SW_CONTEXT_ASM_FILE} "
+    elif test "$SW_HAVE_BOOST_CONTEXT" = 'yes'; then
+         LDFLAGS="$LDFLAGS -lboost_context"
     fi
 
     PHP_NEW_EXTENSION(swoole, $swoole_source_file, $ext_shared)
