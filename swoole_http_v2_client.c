@@ -232,6 +232,7 @@ static PHP_METHOD(swoole_http2_client, setCookies)
 
 static sw_inline void http2_add_header(nghttp2_nv *headers, char *k, int kl, char *v, int vl)
 {
+    k = zend_str_tolower_dup(k, kl); // auto to lower
     headers->name = (uchar*) k;
     headers->namelen = kl;
     headers->value = (uchar*) v;
@@ -361,6 +362,11 @@ static int http2_client_build_header(zval *zobject, http2_client_request *req, c
     {
         swoole_php_error(E_WARNING, "nghttp2_hd_deflate_hd() failed with error: %s\n", nghttp2_strerror((int ) rv));
         return SW_ERR;
+    }
+
+    for (i = 0; i < index; ++i)
+    {
+        efree(nv[i].name); // free lower header name copy
     }
 
     if (date_str)
