@@ -76,6 +76,6 @@ tests/.idea
 /tests/*/*.exp
 /tests/*/*.php
 cmake-build-debug/
-/swoole_server.cbp
+*.cbp
 /.vscode
 /configure.ac
