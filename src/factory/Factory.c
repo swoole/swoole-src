@@ -41,7 +41,7 @@ int swFactory_shutdown(swFactory *factory)
 
 int swFactory_dispatch(swFactory *factory, swDispatchData *task)
 {
-    swServer *serv = SwooleG.serv;
+    swServer *serv = factory->ptr;
     factory->last_from_id = task->data.info.from_id;
 
     if (swEventData_is_stream(task->data.info.type))
@@ -161,7 +161,6 @@ int swFactory_finish(swFactory *factory, swSendData *resp)
     }
     if (swReactorThread_send(resp) < 0)
     {
-        swSysError("sendto to connection#%d failed.", resp->info.fd);
         return SW_ERR;
     }
     else
@@ -169,4 +168,3 @@ int swFactory_finish(swFactory *factory, swSendData *resp)
         return SW_OK;
     }
 }
-

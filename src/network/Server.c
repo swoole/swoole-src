@@ -401,7 +401,7 @@ static int swServer_start_proxy(swServer *serv)
         return SW_ERR;
     }
     /**
-     * 1 second timer, update SwooleGS->now
+     * 1 second timer, update serv->gs->now
      */
     if (SwooleG.timer.add(&SwooleG.timer, 1000, 1, serv, swServer_master_onTimer) == NULL)
     {
@@ -468,7 +468,7 @@ swString** swServer_create_worker_buffer(swServer *serv)
     int i;
     int buffer_num;
 
-    if (serv->factory_mode == SW_MODE_SINGLE || serv->factory_mode == SW_MODE_BASE)
+    if (serv->factory_mode == SW_MODE_SINGLE)
     {
         buffer_num = 1;
     }

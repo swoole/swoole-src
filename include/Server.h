@@ -955,7 +955,7 @@ static sw_inline swConnection *swWorker_get_connection(swServer *serv, int sessi
 
 static sw_inline swString *swWorker_get_buffer(swServer *serv, int worker_id)
 {
-    if (serv->factory_mode == SW_MODE_SINGLE || serv->factory_mode == SW_MODE_BASE)
+    if (serv->factory_mode == SW_MODE_SINGLE)
     {
         return SwooleWG.buffer_input[0];
     }

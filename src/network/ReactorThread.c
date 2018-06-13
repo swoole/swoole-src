@@ -1203,6 +1203,16 @@ static int swReactorThread_loop(swThreadParam *param)
     SwooleTG.factory_target_worker = -1;
     SwooleTG.id = reactor_id;
     SwooleTG.type = SW_THREAD_REACTOR;
+
+    if (serv->dispatch_mode == SW_MODE_BASE || serv->dispatch_mode == SW_MODE_THREAD)
+    {
+        SwooleTG.buffer_input = swServer_create_worker_buffer(serv);
+        if (!SwooleTG.buffer_input)
+        {
+            return SW_ERR;
+        }
+    }
+
     SwooleTG.buffer_stack = swString_new(8192);
     if (SwooleTG.buffer_stack == NULL)
     {
@@ -1566,10 +1576,11 @@ void swReactorThread_free(swServer *serv)
 #ifdef SW_USE_TIMEWHEEL
 static void swReactorThread_onReactorCompleted(swReactor *reactor)
 {
-    if (reactor->heartbeat_interval > 0 && reactor->last_heartbeat_time < SwooleGS->now - reactor->heartbeat_interval)
+    swServer *serv = reactor->ptr;
+    if (reactor->heartbeat_interval > 0 && reactor->last_heartbeat_time < serv->gs->now - reactor->heartbeat_interval)
     {
         swTimeWheel_forward(reactor->timewheel, reactor);
-        reactor->last_heartbeat_time = SwooleGS->now;
+        reactor->last_heartbeat_time = serv->gs->now;
     }
 }
 #endif
