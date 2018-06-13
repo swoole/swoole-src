@@ -1290,25 +1290,39 @@ static void* swoole_unserialize_object(void *buffer, zval *return_value, zend_uc
 
     object_init_ex(return_value, ce);
 
-    zval *data;
+    zval *data,*d;
     const zend_string *key;
     zend_ulong index;
 
+    
     ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL(property), index, key, data)
     {
         const char *prop_name, *tmp;
         size_t prop_len;
         if (key)
         {
-            zend_unmangle_property_name_ex(key, &tmp, &prop_name, &prop_len);
-            zend_update_property(ce, return_value, prop_name, prop_len, data);
+
+            if ((d = zend_hash_find(Z_OBJPROP_P(return_value), key)) != NULL)
+            {
+                if (Z_TYPE_P(d) == IS_INDIRECT)
+                {
+                    d = Z_INDIRECT_P(d);
+                }
+                ZVAL_COPY(d, data);
+            }
+            else
+            {
+                zend_unmangle_property_name_ex(key, &tmp, &prop_name, &prop_len);
+                zend_update_property(ce, return_value, prop_name, prop_len, data);
+            }
+//            zend_hash_update(Z_OBJPROP_P(return_value),key,data);
+//            zend_update_property(ce, return_value, ZSTR_VAL(key), ZSTR_LEN(key), data);
         }
         else
         {
             zend_hash_next_index_insert(Z_OBJPROP_P(return_value), data);
         }
     }
-    (void) index;
     ZEND_HASH_FOREACH_END();
     zval_dtor(&property);
 
