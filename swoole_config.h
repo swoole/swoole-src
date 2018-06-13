@@ -212,8 +212,9 @@
 #define SW_DNS_SERVER_PORT               53
 #define SW_DNS_DEFAULT_SERVER            "8.8.8.8"
 
-//#define SW_HTTP_CLIENT_ENABLE
-
+/**
+ * HTTP Protocol
+ */
 #define SW_HTTP_SERVER_SOFTWARE          "swoole-http-server"
 #define SW_HTTP_BAD_REQUEST              "<h1>400 Bad Request</h1>\r\n"
 #define SW_HTTP_PARAM_MAX_NUM            128
@@ -231,8 +232,11 @@
 #define SW_HTTP_RFC1123_DATE_UTC         "%a, %d %b %Y %T UTC"
 #define SW_HTTP_RFC850_DATE              "%A, %d-%b-%y %T GMT"
 #define SW_HTTP_ASCTIME_DATE             "%a %b %e %T %Y"
-
 //#define SW_HTTP_100_CONTINUE
+
+/**
+ * HTTP2 Protocol
+ */
 #define SW_HTTP2_DATA_BUFFSER_SIZE       8192
 #define SW_HTTP2_MAX_CONCURRENT_STREAMS  128
 #define SW_HTTP2_MAX_FRAME_SIZE          ((1u << 14))
