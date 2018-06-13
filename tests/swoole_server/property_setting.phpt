@@ -31,10 +31,11 @@ $pm->parentFunc = function ($pid)
     assert(is_array($json));
     assert(isset($json['worker_num']));
     assert($json['worker_num'] == swoole_cpu_num());
+    usleep(100000);
     swoole_process::kill($pid);
 };
 
-$pm->childFunc = function () use ($pm, $port)
+$pm->childFunc = function () use ($pm)
 {
     $serv = new swoole_server("127.0.0.1", 9501);
     $serv->set(array(
