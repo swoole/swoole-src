@@ -179,7 +179,7 @@ int swProcessPool_start(swProcessPool *pool)
         pool->workers[i].id = pool->start_id + i;
         pool->workers[i].type = pool->type;
 
-        if (swProcessPool_spawn(&(pool->workers[i])) < 0)
+        if (swProcessPool_spawn(pool, &(pool->workers[i])) < 0)
         {
             return SW_ERR;
         }
@@ -343,11 +343,10 @@ void swProcessPool_shutdown(swProcessPool *pool)
     pool->started = 0;
 }
 
-pid_t swProcessPool_spawn(swWorker *worker)
+pid_t swProcessPool_spawn(swProcessPool *pool, swWorker *worker)
 {
     pid_t pid = fork();
     int ret_code = 0;
-    swProcessPool *pool = worker->pool;
 
     switch (pid)
     {
@@ -386,7 +385,6 @@ pid_t swProcessPool_spawn(swWorker *worker)
         {
             swHashMap_del_int(pool->map, worker->pid);
         }
-        worker->deleted = 0;
         worker->pid = pid;
         //insert new process
         swHashMap_add_int(pool->map, pid, worker);
@@ -744,7 +742,7 @@ int swProcessPool_wait(swProcessPool *pool)
             {
                 swWarn("worker#%d abnormal exit, status=%d, signal=%d", exit_worker->id, WEXITSTATUS(status),  WTERMSIG(status));
             }
-            new_pid = swProcessPool_spawn(exit_worker);
+            new_pid = swProcessPool_spawn(pool, exit_worker);
             if (new_pid < 0)
             {
                 swWarn("Fork worker process failed. Error: %s [%d]", strerror(errno), errno);

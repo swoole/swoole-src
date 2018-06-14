@@ -411,14 +411,7 @@ static int swManager_loop(swFactory *factory)
                         goto _wait;
                     }
                     swManager_check_exit_status(serv, exit_worker->id, pid, status);
-                    if (exit_worker->deleted == 1)
-                    {
-                        exit_worker->deleted = 0;
-                    }
-                    else
-                    {
-                        swProcessPool_spawn(exit_worker);
-                    }
+                    swProcessPool_spawn(&serv->gs->task_workers, exit_worker);
                 }
             }
             //user process

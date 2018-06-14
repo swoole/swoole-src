@@ -1536,8 +1536,6 @@ struct _swWorker
     uint8_t status;
     uint8_t type;
     uint8_t ipc_mode;
-
-    uint8_t deleted;
     uint8_t child_process;
 
     uint8_t traced;
@@ -1814,7 +1812,7 @@ int swProcessPool_set_protocol(swProcessPool *pool, int task_protocol, uint32_t 
 int swProcessPool_wait(swProcessPool *pool);
 int swProcessPool_start(swProcessPool *pool);
 void swProcessPool_shutdown(swProcessPool *pool);
-pid_t swProcessPool_spawn(swWorker *worker);
+pid_t swProcessPool_spawn(swProcessPool *pool, swWorker *worker);
 int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int *worker_id);
 int swProcessPool_response(swProcessPool *pool, char *data, int length);
 int swProcessPool_dispatch_blocking(swProcessPool *pool, swEventData *data, int *dst_worker_id);
