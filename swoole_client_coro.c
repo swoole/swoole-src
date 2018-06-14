@@ -204,7 +204,7 @@ static void client_execute_callback(zval *zobject, enum php_swoole_client_callba
         return;
     }
 
-    if (type == SW_CLIENT_CB_onError || (type == SW_CLIENT_CB_onClose && ccp->iowait > SW_CLIENT_CORO_STATUS_READY))
+    if (type == SW_CLIENT_CB_onError || (type == SW_CLIENT_CB_onClose && ccp->iowait == SW_CLIENT_CORO_STATUS_WAIT))
     {
         if (ccp->timer)
         {
@@ -217,6 +217,7 @@ static void client_execute_callback(zval *zobject, enum php_swoole_client_callba
             zend_update_property_long(swoole_client_coro_class_entry_ptr, zobject, SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
             ccp->send_yield = 0;
         }
+        ccp->iowait = SW_CLIENT_CORO_STATUS_READY;
         SW_MAKE_STD_ZVAL(result);
         ZVAL_BOOL(result, 0);
         php_context *sw_current_context = swoole_get_property(zobject, 0);
@@ -470,9 +471,6 @@ static void client_onClose(swClient *cli)
 
     php_swoole_client_free(zobject, cli TSRMLS_CC);
     client_execute_callback(zobject, SW_CLIENT_CB_onClose);
-#if PHP_MAJOR_VERSION < 7
-    sw_zval_ptr_dtor(&zobject);
-#endif
 }
 
 static void client_onError(swClient *cli)
@@ -885,32 +883,14 @@ static PHP_METHOD(swoole_client_coro, sendfile)
 
 static PHP_METHOD(swoole_client_coro, recv)
 {
-    swClient *cli = client_coro_get_ptr(getThis());
-    if (!cli)
-    {
-        RETURN_FALSE;
-    }
-
-    double timeout = cli->timeout;
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "|d", &timeout) == FAILURE)
-    {
-        return;
-    }
-
-    if (cli->sleep)
-    {
-        swClient_wakeup(cli);
-    }
-
     swoole_client_coro_property *ccp = swoole_get_property(getThis(), client_coro_property_coroutine);
     if (ccp->iowait == SW_CLIENT_CORO_STATUS_DONE)
     {
         ccp->iowait = SW_CLIENT_CORO_STATUS_READY;
         zval *result;
-        if (cli->open_eof_check || cli->open_length_check)
+        if (ccp->message_queue)
         {
-            swDebug("fetch from message_queue, sock=%d.", cli->socket->fd);
+            swDebug("fetch from message_queue.");
             result = swLinkedList_shift(ccp->message_queue);
             if (result)
             {
@@ -932,6 +912,23 @@ static PHP_METHOD(swoole_client_coro, recv)
     {
         swoole_php_fatal_error(E_WARNING, "client has been bound to another coro");
         RETURN_FALSE;
+    }
+
+    swClient *cli = client_coro_get_ptr(getThis());
+    if (!cli)
+    {
+        RETURN_FALSE;
+    }
+
+    double timeout = cli->timeout;
+    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "|d", &timeout) == FAILURE)
+    {
+        return;
+    }
+
+    if (cli->sleep)
+    {
+        swClient_wakeup(cli);
     }
 
     php_context *context = swoole_get_property(getThis(), client_coro_property_context);
