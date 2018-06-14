@@ -1,13 +1,35 @@
 #!/usr/bin/env php
 <?php
-define('TEST_DIR', dirname(__DIR__).'/tests');
-//unit test files
-$_files = [];
-search(TEST_DIR, $_files);
-
-foreach($_files as $f)
+define('BASE_DIR', dirname(__DIR__));
+if (empty($argv[1]))
 {
-    echo  '<file name="'.str_replace(TEST_DIR.'/', '', $f).'" role="test" />'."\n";
+    $DIR = BASE_DIR . '/tests';
+}
+else
+{
+    $DIR = BASE_DIR . '/' . $argv[1];
+}
+
+$role = empty($argv[2]) ? 'test' : 'src';
+$cmd = empty($argv[3]) ? 'list' : 'check';
+
+$_files = [];
+search($DIR, $_files);
+
+foreach ($_files as $f)
+{
+    $filename = str_replace($DIR . '/', '', $f);
+    if ($cmd == 'list')
+    {
+        echo '<file name="' . $filename . '" role="' . $role . '" />' . "\n";
+    }
+    elseif ($cmd == 'check')
+    {
+        if (!inPackage($filename))
+        {
+            echo "$filename\n";
+        }
+    }
 }
 
 function search($path, &$_files)
@@ -42,7 +64,7 @@ function inPackage($file)
     static $content = null;
     if (!$content)
     {
-        $content = file_get_contents(__DIR__ . '/package.xml');
+        $content = file_get_contents(BASE_DIR . '/package.xml');
     }
     if (strpos($content, $file) === false)
     {
