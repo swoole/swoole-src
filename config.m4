@@ -630,7 +630,7 @@ if test "$PHP_SWOOLE" != "no"; then
          LDFLAGS="$LDFLAGS -lboost_context"
     fi
 
-    PHP_NEW_EXTENSION(swoole, $swoole_source_file, $ext_shared)
+    PHP_NEW_EXTENSION(swoole, $swoole_source_file, $ext_shared,,, cxx)
 
     PHP_ADD_INCLUDE([$ext_srcdir])
     PHP_ADD_INCLUDE([$ext_srcdir/include])
