@@ -213,10 +213,10 @@ static void client_execute_callback(zval *zobject, enum php_swoole_client_callba
         }
         if (ccp->send_yield)
         {
-            SwooleG.error = errno;
-            zend_update_property_long(swoole_client_coro_class_entry_ptr, zobject, SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
             ccp->send_yield = 0;
         }
+        SwooleG.error = type == SW_CLIENT_CB_onClose ? ECONNRESET : errno;
+        zend_update_property_long(swoole_client_coro_class_entry_ptr, zobject, SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
         ccp->iowait = SW_CLIENT_CORO_STATUS_READY;
         SW_MAKE_STD_ZVAL(result);
         ZVAL_BOOL(result, 0);

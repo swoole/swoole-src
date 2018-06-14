@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: (length protocol) resume in onClose callback
+swoole_server: (length protocol) wrong packet
 
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
@@ -29,12 +29,9 @@ $pm->parentFunc = function ($pid) use ($pm)
         $cli->connect('127.0.0.1', 9501);
         $data = str_repeat('A', 1025);
         $cli->send(pack('N', strlen($data)).$data);
-        co::sleep(0.2);
-        $retData = $cli->recv();
-        assert(is_string($retData) and strlen($retData) > 0);
         $retData = $cli->recv();
         assert($retData == false);
-        assert($cli->errCode == SWOOLE_ERROR_CLIENT_NO_CONNECTION);
+        assert($cli->errCode == SOCKET_ECONNRESET);
     });
     swoole_event_wait();
     $pm->kill();
@@ -58,8 +55,7 @@ $pm->childFunc = function () use ($pm) {
     });
     $serv->on('receive', function (swoole_server $serv, $fd, $rid, $data)
     {
-        $data = str_repeat('B', 1025);
-        $serv->send($fd, pack('N', strlen($data)) . $data);
+        $serv->send($fd, pack('N', 1223));
         $serv->close($fd);
     });
     $serv->start();
