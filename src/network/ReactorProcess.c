@@ -138,7 +138,6 @@ int swReactorProcess_start(swServer *serv)
         {
             swProcessPool_add_worker(&serv->gs->event_workers, &serv->gs->task_workers.workers[i]);
         }
-        serv->gs->task_workers.map = NULL;
     }
 
     /**
