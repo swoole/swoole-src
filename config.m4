@@ -626,7 +626,6 @@ if test "$PHP_SWOOLE" != "no"; then
     if test "$SW_NO_USE_ASM_CONTEXT" = 'no'; then
          swoole_source_file="$swoole_source_file ${SW_ASM_DIR}make_${SW_CONTEXT_ASM_FILE} \
             ${SW_ASM_DIR}jump_${SW_CONTEXT_ASM_FILE} "
-         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/boost/asm)
     elif test "$SW_HAVE_BOOST_CONTEXT" = 'yes'; then
          LDFLAGS="$LDFLAGS -lboost_context"
     fi
@@ -657,4 +656,6 @@ if test "$PHP_SWOOLE" != "no"; then
     PHP_ADD_BUILD_DIR($ext_builddir/src/protocol)
     PHP_ADD_BUILD_DIR($ext_builddir/src/coroutine)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty)
+    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/boost)
+    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/boost/asm)
 fi
