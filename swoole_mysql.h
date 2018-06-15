@@ -426,7 +426,7 @@ typedef struct _mysql_client
 int mysql_get_result(mysql_connector *connector, char *buf, int len);
 int mysql_get_charset(char *name);
 int mysql_handshake(mysql_connector *connector, char *buf, int len);
-uint8_t mysql_parse_auth_signature(char *buf, int len);
+uint8_t mysql_parse_auth_signature(swString *buffer);
 int mysql_auth_switch(mysql_connector *connector, char *buf, int len);
 int mysql_request(swString *sql, swString *buffer);
 int mysql_prepare(swString *sql, swString *buffer);

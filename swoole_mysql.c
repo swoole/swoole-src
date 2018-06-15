@@ -718,12 +718,12 @@ int mysql_handshake(mysql_connector *connector, char *buf, int len)
     return next_state;
 }
 
-uint8_t mysql_parse_auth_signature(char *buf, int len)
+uint8_t mysql_parse_auth_signature(swString *buffer)
 {
-    char *tmp = buf;
+    char *tmp = buffer->str;
     int packet_length = mysql_uint3korr(tmp);
     //continue to wait for data
-    if (len < packet_length + 4)
+    if (buffer->length < packet_length + 4)
     {
         return SW_AGAIN;
     }
@@ -735,6 +735,10 @@ uint8_t mysql_parse_auth_signature(char *buf, int len)
     {
         return SW_MYSQL_AUTH_SIGNATURE_ERROR;
     }
+
+    // remaining length
+    buffer->offset = 4 + packet_length;
+    swTraceLog(SW_TRACE_MYSQL_CLIENT, "before signature remaining=%d", buffer->length - buffer->offset);
 
     // signature value
     return tmp[1];

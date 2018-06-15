@@ -1696,6 +1696,8 @@ static int swoole_mysql_coro_onHandShake(mysql_client *client TSRMLS_DC)
             }
             else
             {
+                // clear for the new package
+                swString_clear(buffer);
                 // mysql_handshake will return the next state flag
                 client->handshake = ret;
             }
@@ -1709,9 +1711,18 @@ static int swoole_mysql_coro_onHandShake(mysql_client *client TSRMLS_DC)
     }
     else if (client->handshake == SW_MYSQL_HANDSHAKE_WAIT_SIGNATURE)
     {
-        if (mysql_parse_auth_signature(buffer->str, buffer->length) == SW_MYSQL_AUTH_SIGNATURE_SUCCESS)
+        if (mysql_parse_auth_signature(buffer) == SW_MYSQL_AUTH_SIGNATURE_SUCCESS)
         {
             client->handshake = SW_MYSQL_HANDSHAKE_WAIT_RESULT;
+            if (buffer->offset < buffer->length)
+            {
+                // may be more packages
+                goto _result;
+            }
+            else
+            {
+                swString_clear(buffer);
+            }
         }
         else
         {
@@ -1720,7 +1731,8 @@ static int swoole_mysql_coro_onHandShake(mysql_client *client TSRMLS_DC)
     }
     else
     {
-        ret = mysql_get_result(connector, buffer->str, buffer->length);
+        _result:
+        ret = mysql_get_result(connector, buffer->str + buffer->offset, buffer->length - buffer->offset);
         if (ret < 0)
         {
             _error:
@@ -1728,12 +1740,12 @@ static int swoole_mysql_coro_onHandShake(mysql_client *client TSRMLS_DC)
         }
         else if (ret > 0)
         {
+            swString_clear(buffer);
             client->handshake = SW_MYSQL_HANDSHAKE_COMPLETED;
             swoole_mysql_coro_onConnect(client TSRMLS_CC);
         }
+        // else recv again
     }
-    // clear
-    swString_clear(buffer);
 
     return SW_OK;
 }
