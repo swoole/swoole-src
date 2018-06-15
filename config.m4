@@ -464,7 +464,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_redis_server.c \
         swoole_mmap.c \
         swoole_channel.c \
-        swoole_channel_coro.c \
+        swoole_channel_coro.cc \
         swoole_ringqueue.c \
         swoole_msgqueue.c \
         swoole_trace.c \
