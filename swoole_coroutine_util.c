@@ -86,6 +86,7 @@ ZEND_END_ARG_INFO()
 static PHP_METHOD(swoole_coroutine_util, set);
 static PHP_METHOD(swoole_coroutine_util, suspend);
 static PHP_METHOD(swoole_coroutine_util, resume);
+static PHP_METHOD(swoole_coroutine_util, stats);
 static PHP_METHOD(swoole_coroutine_util, getuid);
 static PHP_METHOD(swoole_coroutine_util, sleep);
 static PHP_METHOD(swoole_coroutine_util, fread);
@@ -108,6 +109,7 @@ static const zend_function_entry swoole_coroutine_util_methods[] =
     PHP_ME(swoole_coroutine_util, set, arginfo_swoole_coroutine_set, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, suspend, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, resume, arginfo_swoole_coroutine_resume, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_util, stats, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, getuid, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, sleep, arginfo_swoole_coroutine_sleep, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, fread, arginfo_swoole_coroutine_fread, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -140,38 +142,6 @@ void swoole_coroutine_util_init(int module_number TSRMLS_DC)
     }
     defer_coros = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
 }
-
-//static void swoole_coroutine_util_resume(void *data)
-//{
-//	php_context *context = (php_context *)data;
-//	zval *retval = NULL;
-//	zval *result;
-//	SW_MAKE_STD_ZVAL(result);
-//	ZVAL_BOOL(result, 1);
-//	int ret = coro_resume(context, result, &retval);
-//	if (ret == CORO_END && retval)
-//	{
-//		sw_zval_ptr_dtor(&retval);
-//	}
-//	sw_zval_ptr_dtor(&result);
-//	efree(context);
-//}
-//
-//static void coroutine_resume_onTimeout(swTimer *timer, swTimer_node *tnode)
-//{
-//    php_context *context = (php_context *)tnode->data;
-//    zval *retval = NULL;
-//    zval *result;
-//    SW_MAKE_STD_ZVAL(result);
-//    ZVAL_BOOL(result, 1);
-//    int ret = coro_resume(context, result, &retval);
-//    if (ret == CORO_END && retval)
-//    {
-//        sw_zval_ptr_dtor(&retval);
-//    }
-//    sw_zval_ptr_dtor(&result);
-//    efree(context);
-//}
 
 /*
  * suspend current coroutine
@@ -347,6 +317,12 @@ static PHP_METHOD(swoole_coroutine_util, resume)
     sw_zval_ptr_dtor(&result);
     efree(context);
     RETURN_TRUE;
+}
+
+static PHP_METHOD(swoole_coroutine_util, stats)
+{
+    array_init(return_value);
+    sw_add_assoc_long_ex(return_value, ZEND_STRS("coroutine_num"), COROG.coro_num);
 }
 
 static PHP_METHOD(swoole_coroutine_util, getuid)
