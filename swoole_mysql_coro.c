@@ -563,6 +563,7 @@ static int swoole_mysql_coro_close(zval *this)
     client->cli = NULL;
     client->state = SW_MYSQL_STATE_CLOSED;
     client->iowait = SW_MYSQL_CORO_STATUS_CLOSED;
+    //TODO: clear connector
 
     return SUCCESS;
 }
@@ -1673,12 +1674,15 @@ static int swoole_mysql_coro_onHandShake(mysql_client *client TSRMLS_DC)
     buffer->length += n;
 
     int ret;
+    swTraceLog(SW_TRACE_MYSQL_CLIENT, "handshake on %d", client->handshake);
     if (client->handshake == SW_MYSQL_HANDSHAKE_WAIT_REQUEST)
     {
         ret = mysql_handshake(connector, buffer->str, buffer->length);
+
+        _send:
         if (ret < 0)
         {
-            swoole_mysql_coro_onConnect(client TSRMLS_CC);
+            goto _error;
         }
         else if (ret > 0)
         {
@@ -1688,13 +1692,30 @@ static int swoole_mysql_coro_onHandShake(mysql_client *client TSRMLS_DC)
                 connector->error_msg = strerror(errno);
                 connector->error_length = strlen(connector->error_msg);
                 swoole_mysql_coro_onConnect(client TSRMLS_CC);
-                return SW_OK;
+                return SW_OK; //wait the next package
             }
             else
             {
-                swString_clear(buffer);
-                client->handshake = SW_MYSQL_HANDSHAKE_WAIT_RESULT;
+                // mysql_handshake will return the next state flag
+                client->handshake = ret;
             }
+        }
+    }
+    else if (client->handshake == SW_MYSQL_HANDSHAKE_WAIT_SWITCH)
+    {
+        // handle auth switch request
+        ret = mysql_auth_switch(connector, buffer->str, buffer->length);
+        goto _send;
+    }
+    else if (client->handshake == SW_MYSQL_HANDSHAKE_WAIT_SIGNATURE)
+    {
+        if (mysql_parse_auth_signature(buffer->str, buffer->length) == SW_MYSQL_AUTH_SIGNATURE_SUCCESS)
+        {
+            client->handshake = SW_MYSQL_HANDSHAKE_WAIT_RESULT;
+        }
+        else
+        {
+            goto _error;
         }
     }
     else
@@ -1702,15 +1723,18 @@ static int swoole_mysql_coro_onHandShake(mysql_client *client TSRMLS_DC)
         ret = mysql_get_result(connector, buffer->str, buffer->length);
         if (ret < 0)
         {
+            _error:
             swoole_mysql_coro_onConnect(client TSRMLS_CC);
         }
         else if (ret > 0)
         {
-            swString_clear(buffer);
             client->handshake = SW_MYSQL_HANDSHAKE_COMPLETED;
             swoole_mysql_coro_onConnect(client TSRMLS_CC);
         }
     }
+    // clear
+    swString_clear(buffer);
+
     return SW_OK;
 }
 

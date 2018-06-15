@@ -60,8 +60,18 @@ enum mysql_command
 enum mysql_handshake_state
 {
     SW_MYSQL_HANDSHAKE_WAIT_REQUEST,
+    SW_MYSQL_HANDSHAKE_WAIT_SWITCH,
+    SW_MYSQL_HANDSHAKE_WAIT_SIGNATURE,
     SW_MYSQL_HANDSHAKE_WAIT_RESULT,
     SW_MYSQL_HANDSHAKE_COMPLETED,
+};
+
+enum mysql_auth_signature
+{
+    SW_MYSQL_AUTH_SIGNATURE_ERROR = 0x00, // get signature failed
+    SW_MYSQL_AUTH_SIGNATURE = 0x01,
+    SW_MYSQL_AUTH_SIGNATURE_SUCCESS = 0x03,
+    SW_MYSQL_AUTH_SIGNATURE_FULL_AUTH_REQUIRED = 0x04 //use the wrong hash
 };
 
 enum mysql_read_state
@@ -416,6 +426,8 @@ typedef struct _mysql_client
 int mysql_get_result(mysql_connector *connector, char *buf, int len);
 int mysql_get_charset(char *name);
 int mysql_handshake(mysql_connector *connector, char *buf, int len);
+uint8_t mysql_parse_auth_signature(char *buf, int len);
+int mysql_auth_switch(mysql_connector *connector, char *buf, int len);
 int mysql_request(swString *sql, swString *buffer);
 int mysql_prepare(swString *sql, swString *buffer);
 int mysql_response(mysql_client *client);

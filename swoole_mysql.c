@@ -18,6 +18,8 @@
 
 #include "php_swoole.h"
 #include "swoole_mysql.h"
+#include <ext/hash/php_hash.h>
+#include <ext/hash/php_hash_sha.h>
 
 #ifdef SW_USE_MYSQLND
 #include "ext/mysqlnd/mysqlnd.h"
@@ -43,6 +45,10 @@ static zend_class_entry *swoole_mysql_class_entry_ptr;
 
 static zend_class_entry swoole_mysql_exception_ce;
 static zend_class_entry *swoole_mysql_exception_class_entry_ptr;
+
+#define MYSQL_SHA(str,len,encode) (is_sha2 ?\
+php_swoole_sha256((str), (len), (uchar *) (encode)) :\
+php_swoole_sha1((str), (len), (uchar *) (encode)))\
 
 #define UTF8_MB4 "utf8mb4"
 #define UTF8_MB3 "utf8"
@@ -458,6 +464,40 @@ int mysql_get_result(mysql_connector *connector, char *buf, int len)
     }
 }
 
+static void php_swoole_sha256(const char *str, int _len, unsigned char *digest)
+{
+    PHP_SHA256_CTX context;
+    PHP_SHA256Init(&context);
+    PHP_SHA256Update(&context, (unsigned char *) str, _len);
+    PHP_SHA256Final(digest, &context);
+}
+
+static void buffer_block_copy(char *from, off_t from_offset, char* to, off_t to_offset, size_t count)
+{
+    for (size_t i = 0; i < count; i++)
+    {
+        to[to_offset + i] = from[from_offset + i];
+    }
+}
+
+//sha256
+static void mysql_sha2_password_with_nonce(char* ret, char* nonce, char* password, zend_size_t password_len)
+{
+    char hashed[32], double_hashed[32];
+    php_swoole_sha256(password, password_len, (unsigned char *) hashed);
+    php_swoole_sha256(hashed, 32, (unsigned char *) double_hashed);
+    char combined[32 + 20]; //double-hashed + nonce
+    buffer_block_copy(double_hashed, 0, combined, 0, 32);
+    buffer_block_copy(nonce, 0, combined, 32, 20);
+    char xor_bytes[32];
+    php_swoole_sha256(combined, 32 + 20, (unsigned char *) xor_bytes);
+    for (int i = 0; i < 32; i++)
+    {
+        hashed[i] ^= xor_bytes[i];
+    }
+    buffer_block_copy(hashed, 0, ret, 0, 32);
+}
+
 /**
 1              [0a] protocol version
 string[NUL]    server version
@@ -484,6 +524,7 @@ string[NUL]    auth-plugin name
 int mysql_handshake(mysql_connector *connector, char *buf, int len)
 {
     char *tmp = buf;
+    int next_state = SW_MYSQL_HANDSHAKE_WAIT_RESULT; // ret is the next handshake state
 
     /**
      * handshake request
@@ -558,6 +599,7 @@ int mysql_handshake(mysql_connector *connector, char *buf, int len)
         {
             request.auth_plugin_name = tmp;
             request.l_auth_plugin_name = MIN(strlen(tmp), len - (tmp - buf));
+            swTraceLog(SW_TRACE_MYSQL_CLIENT, "use %s auth plugin", request.auth_plugin_name);
         }
     }
 
@@ -565,7 +607,8 @@ int mysql_handshake(mysql_connector *connector, char *buf, int len)
     tmp = connector->buf + 4;
 
     //capability flags, CLIENT_PROTOCOL_41 always set
-    value = SW_MYSQL_CLIENT_PROTOCOL_41 | SW_MYSQL_CLIENT_SECURE_CONNECTION | SW_MYSQL_CLIENT_CONNECT_WITH_DB | SW_MYSQL_CLIENT_PLUGIN_AUTH | SW_MYSQL_CLIENT_MULTI_RESULTS;
+    value = SW_MYSQL_CLIENT_LONG_PASSWORD | SW_MYSQL_CLIENT_PROTOCOL_41 | SW_MYSQL_CLIENT_SECURE_CONNECTION
+            | SW_MYSQL_CLIENT_CONNECT_WITH_DB | SW_MYSQL_CLIENT_PLUGIN_AUTH | SW_MYSQL_CLIENT_MULTI_RESULTS;
     memcpy(tmp, &value, sizeof(value));
     tmp += 4;
 
@@ -594,40 +637,66 @@ int mysql_handshake(mysql_connector *connector, char *buf, int len)
 
     if (connector->password_len > 0)
     {
-        //auth-response
-        char hash_0[20];
-        bzero(hash_0, sizeof (hash_0));
-        php_swoole_sha1(connector->password, connector->password_len, (uchar *) hash_0);
-
-        char hash_1[20];
-        bzero(hash_1, sizeof (hash_1));
-        php_swoole_sha1(hash_0, sizeof (hash_0), (uchar *) hash_1);
-
-        char str[40];
-        memcpy(str, request.auth_plugin_data, 20);
-        memcpy(str + 20, hash_1, 20);
-
-        char hash_2[20];
-        php_swoole_sha1(str, sizeof (str), (uchar *) hash_2);
-
-        char hash_3[20];
-
-        int *a = (int *) hash_2;
-        int *b = (int *) hash_0;
-        int *c = (int *) hash_3;
-
-        int i;
-        for (i = 0; i < 5; i++)
+        if (strcasecmp("mysql_native_password", request.auth_plugin_name) == 0)
         {
-            c[i] = a[i] ^ b[i];
-        }
+            // if not native, skip password and will trigger the auth switch
+            // auth-response
+            char hash_0[20];
+            bzero(hash_0, sizeof (hash_0));
+            php_swoole_sha1(connector->password, connector->password_len, (uchar *) hash_0);
 
-        *tmp = 20;
-        memcpy(tmp + 1, hash_3, 20);
-        tmp += 21;
+            char hash_1[20];
+            bzero(hash_1, sizeof (hash_1));
+            php_swoole_sha1(hash_0, sizeof (hash_0), (uchar *) hash_1);
+
+            char str[40];
+            memcpy(str, request.auth_plugin_data, 20);
+            memcpy(str + 20, hash_1, 20);
+
+            char hash_2[20];
+            php_swoole_sha1(str, sizeof (str), (uchar *) hash_2);
+
+            char hash_3[20];
+
+            int *a = (int *) hash_2;
+            int *b = (int *) hash_0;
+            int *c = (int *) hash_3;
+
+            int i;
+            for (i = 0; i < 5; i++)
+            {
+                c[i] = a[i] ^ b[i];
+            }
+
+            *tmp = 20;
+            memcpy(tmp + 1, hash_3, 20);
+            tmp += 21;
+        }
+        else if (strcasecmp("caching_sha2_password", request.auth_plugin_name) == 0)
+        {
+            char hashed[32];
+            mysql_sha2_password_with_nonce(
+                    (char *) hashed,
+                    (char *) request.auth_plugin_data,
+                    connector->password,
+                    connector->password_len
+            );
+            *tmp = 32;
+            // copy hashed data to connector buf
+            memcpy(tmp + 1, (char *) hashed, 32);
+            tmp += 33;
+            next_state = SW_MYSQL_HANDSHAKE_WAIT_SIGNATURE;
+        }
+        else
+        {
+            swWarn("Unknown auth plugin: %s", request.auth_plugin_name);
+            // unknown
+            goto _no_pass_or_no_support;
+        }
     }
     else
     {
+        _no_pass_or_no_support:
          *tmp = 0;
          tmp++;
     }
@@ -646,7 +715,104 @@ int mysql_handshake(mysql_connector *connector, char *buf, int len)
     mysql_pack_length(connector->packet_length, connector->buf);
     connector->buf[3] = 1;
 
-    return 1;
+    return next_state;
+}
+
+uint8_t mysql_parse_auth_signature(char *buf, int len)
+{
+    char *tmp = buf;
+    int packet_length = mysql_uint3korr(tmp);
+    //continue to wait for data
+    if (len < packet_length + 4)
+    {
+        return SW_AGAIN;
+    }
+    int packet_number = tmp[3];
+    tmp += 4;
+
+    // signature
+    if ((uint8_t) tmp[0] != SW_MYSQL_AUTH_SIGNATURE)
+    {
+        return SW_MYSQL_AUTH_SIGNATURE_ERROR;
+    }
+
+    // signature value
+    return tmp[1];
+}
+
+// we may need it one day but now
+// we can reply the every auth plugin requirement on the first handshake
+int mysql_auth_switch(mysql_connector *connector, char *buf, int len)
+{
+    connector->packet_length = 0;
+    memset(connector->buf, 0, 512);
+
+    char *tmp = buf;
+
+    int packet_length = mysql_uint3korr(tmp);
+    //continue to wait for data
+    if (len < packet_length + 4)
+    {
+        return 0;
+    }
+    int packet_number = tmp[3];
+    tmp += 4;
+
+    uint8_t status = tmp[0];
+    tmp += 1;
+    if (status != 0xfe)
+    {
+        // out of the order package
+        return SW_ERR;
+    }
+
+    // string[NUL]    plugin name
+    char auth_plugin_name[32];
+    int auth_plugin_name_len = 0;
+    for (int i = 0; i < packet_length; i++)
+    {
+        auth_plugin_name[auth_plugin_name_len] = tmp[auth_plugin_name_len];
+        auth_plugin_name_len++;
+        if (tmp[auth_plugin_name_len] == 0x00)
+        {
+            break;
+        }
+    }
+    auth_plugin_name[auth_plugin_name_len] = '\0';
+    swTraceLog(SW_TRACE_MYSQL_CLIENT, "auth switch plugin name=%s", auth_plugin_name);
+    swDebug("auth_plugin_name_len=%d", auth_plugin_name_len);
+    tmp += auth_plugin_name_len + 1; // name + 0x00
+
+    swoole_dump_hex(tmp, 20); //debug
+    if (connector->password_len > 0)
+    {
+        if (strcasecmp("caching_sha2_password", auth_plugin_name) == 0)
+        {
+            // string    auth plugin data
+            char nonce[20];
+            memcpy((char *)nonce, tmp, 20);
+
+            char hashed[32];
+            mysql_sha2_password_with_nonce(
+                    (char *) hashed,
+                    (char *) nonce,
+                    connector->password,
+                    connector->password_len
+            );
+            // 4 for package length and package num
+            tmp = (char *) connector->buf + 4;
+            // copy hashed data to connector buf
+            memcpy(tmp, (char *) hashed, 32);
+            connector->packet_length = 32;
+        }
+    }
+
+    // 3 for package length
+    mysql_pack_length(connector->packet_length, connector->buf);
+    // 1 package num
+    connector->buf[3] = packet_number + 1;
+
+    return SW_MYSQL_HANDSHAKE_WAIT_RESULT;
 }
 
 static int mysql_parse_prepare_result(mysql_client *client, char *buf, size_t n_buf)
