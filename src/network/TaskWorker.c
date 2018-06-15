@@ -17,7 +17,7 @@
 #include "swoole.h"
 #include "Server.h"
 
-static swEventData *current_task;
+static swEventData *current_task = NULL;
 
 static void swTaskWorker_signal_init(void);
 
@@ -152,6 +152,11 @@ void swTaskWorker_onStop(swProcessPool *pool, int worker_id)
 int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
 {
     swEventData buf;
+    if (!current_task)
+    {
+        swWarn("cannot use finish in worker");
+        return SW_ERR;
+    }
     if (serv->task_worker_num < 1)
     {
         swWarn("cannot use task/finish, because no set serv->task_worker_num.");

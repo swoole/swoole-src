@@ -412,6 +412,11 @@ static PHP_METHOD(swoole_channel_coro, __construct)
     }
 
     channel_coro_property *property = (channel_coro_property *) sw_malloc(sizeof(channel_coro_property));
+    if (property == NULL)
+    {
+        zend_throw_exception(swoole_exception_class_entry_ptr, "failed to create property.", SW_ERROR_MALLOC_FAIL TSRMLS_CC);
+        RETURN_FALSE;
+    }
     property->producer_list = swLinkedList_new(2, NULL);
     if (property->producer_list == NULL)
     {
