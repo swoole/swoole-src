@@ -244,16 +244,6 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
     return CORO_END;
 }
 
-int sw_coro_resume_parent(php_context *sw_current_context, zval *retval, zval *coro_retval)
-{
-    EG(vm_stack) = SWCC(current_vm_stack);
-    EG(vm_stack_top) = SWCC(current_vm_stack_top);
-    EG(vm_stack_end) = SWCC(current_vm_stack_end);
-    EG(current_execute_data) = SWCC(current_execute_data);
-    COROG.current_coro = SWCC(current_task);
-    return CORO_END;
-}
-
 void sw_coro_yield()
 {
     coro_task *task = (coro_task *) sw_get_current_task();
