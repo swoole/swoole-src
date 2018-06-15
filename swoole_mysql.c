@@ -2694,12 +2694,15 @@ static int swoole_mysql_onHandShake(mysql_client *client TSRMLS_DC)
     buffer->length += n;
 
     int ret;
+    swTraceLog(SW_TRACE_MYSQL_CLIENT, "handshake on %d", client->handshake);
     if (client->handshake == SW_MYSQL_HANDSHAKE_WAIT_REQUEST)
     {
         ret = mysql_handshake(connector, buffer->str, buffer->length);
+
+        _send:
         if (ret < 0)
         {
-            swoole_mysql_onConnect(client TSRMLS_CC);
+            goto _error;
         }
         else if (ret > 0)
         {
@@ -2709,20 +2712,50 @@ static int swoole_mysql_onHandShake(mysql_client *client TSRMLS_DC)
                 connector->error_msg = strerror(errno);
                 connector->error_length = strlen(connector->error_msg);
                 swoole_mysql_onConnect(client TSRMLS_CC);
-                return SW_OK;
+                return SW_OK; //wait the next package
+            }
+            else
+            {
+                // clear for the new package
+                swString_clear(buffer);
+                // mysql_handshake will return the next state flag
+                client->handshake = ret;
+            }
+        }
+    }
+    else if (client->handshake == SW_MYSQL_HANDSHAKE_WAIT_SWITCH)
+    {
+        // handle auth switch request
+        ret = mysql_auth_switch(connector, buffer->str, buffer->length);
+        goto _send;
+    }
+    else if (client->handshake == SW_MYSQL_HANDSHAKE_WAIT_SIGNATURE)
+    {
+        if (mysql_parse_auth_signature(buffer) == SW_MYSQL_AUTH_SIGNATURE_SUCCESS)
+        {
+            client->handshake = SW_MYSQL_HANDSHAKE_WAIT_RESULT;
+            if (buffer->offset < buffer->length)
+            {
+                // may be more packages
+                goto _result;
             }
             else
             {
                 swString_clear(buffer);
-                client->handshake = SW_MYSQL_HANDSHAKE_WAIT_RESULT;
             }
+        }
+        else
+        {
+            goto _error;
         }
     }
     else
     {
-        ret = mysql_get_result(connector, buffer->str, buffer->length);
+        _result:
+        ret = mysql_get_result(connector, buffer->str + buffer->offset, buffer->length - buffer->offset);
         if (ret < 0)
         {
+            _error:
             swoole_mysql_onConnect(client TSRMLS_CC);
         }
         else if (ret > 0)
@@ -2731,7 +2764,9 @@ static int swoole_mysql_onHandShake(mysql_client *client TSRMLS_DC)
             client->handshake = SW_MYSQL_HANDSHAKE_COMPLETED;
             swoole_mysql_onConnect(client TSRMLS_CC);
         }
+        // else recv again
     }
+
     return SW_OK;
 }
 
