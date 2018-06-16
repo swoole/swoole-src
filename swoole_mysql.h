@@ -76,6 +76,10 @@ enum mysql_auth_signature
     SW_MYSQL_AUTH_SIGNATURE_FULL_AUTH_REQUIRED = 0x04, //rsa required
 };
 
+// nonce: a number or bit string used only once, in security engineering
+// other names on doc: challenge/scramble/salt
+#define SW_MYSQL_NONCE_LENGTH 20
+
 enum mysql_read_state
 {
     SW_MYSQL_STATE_QUERY,
@@ -219,7 +223,7 @@ typedef struct
     uint8_t protocol_version;
     char *server_version;
     int connection_id;
-    char auth_plugin_data[21];
+    char auth_plugin_data[SW_MYSQL_NONCE_LENGTH + 1]; // nonce + '\0'
     uint8_t l_auth_plugin_data;
     char filler;
     int capability_flags;
@@ -254,7 +258,7 @@ typedef struct
     int packet_length;
     char buf[512];
 #ifdef SW_USE_OPENSSL
-    char auth_plugin_data[20]; // save challenge data for RSA auth
+    char auth_plugin_data[SW_MYSQL_NONCE_LENGTH]; // save challenge data for RSA auth
 #endif
 
     uint16_t error_code;
