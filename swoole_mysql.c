@@ -496,7 +496,8 @@ static void mysql_sha2_password_with_nonce(char* ret, char* nonce, char* passwor
     buffer_block_copy(nonce, 0, combined, 32, SW_MYSQL_NONCE_LENGTH);
     char xor_bytes[32];
     php_swoole_sha256(combined, 32 + SW_MYSQL_NONCE_LENGTH, (unsigned char *) xor_bytes);
-    for (int i = 0; i < 32; i++)
+    int i;
+    for (i = 0; i < 32; i++)
     {
         hashed[i] ^= xor_bytes[i];
     }
@@ -775,7 +776,8 @@ int mysql_auth_switch(mysql_connector *connector, char *buf, int len)
     // string[NUL]    plugin name
     char auth_plugin_name[32];
     int auth_plugin_name_len = 0;
-    for (int i = 0; i < packet_length; i++)
+    int i;
+    for (i = 0; i < packet_length; i++)
     {
         auth_plugin_name[auth_plugin_name_len] = tmp[auth_plugin_name_len];
         auth_plugin_name_len++;
@@ -888,7 +890,8 @@ int mysql_parse_rsa(mysql_connector *connector, char *buf, int len)
     // add NUL terminator to password
     password[password_len - 1] = '\0';
     // XOR the password bytes with the challenge
-    for (int i = 0; i < password_len; i++)
+    int i;
+    for (i = 0; i < password_len; i++)
     {
         password[i] ^= connector->auth_plugin_data[i % SW_MYSQL_NONCE_LENGTH];
     }
