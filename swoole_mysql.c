@@ -54,10 +54,6 @@ static zend_class_entry *swoole_mysql_class_entry_ptr;
 static zend_class_entry swoole_mysql_exception_ce;
 static zend_class_entry *swoole_mysql_exception_class_entry_ptr;
 
-#define MYSQL_SHA(str,len,encode) (is_sha2 ?\
-php_swoole_sha256((str), (len), (uchar *) (encode)) :\
-php_swoole_sha1((str), (len), (uchar *) (encode)))\
-
 #define UTF8_MB4 "utf8mb4"
 #define UTF8_MB3 "utf8"
 
