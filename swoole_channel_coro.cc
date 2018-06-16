@@ -437,9 +437,10 @@ static PHP_METHOD(swoole_channel_coro, push)
     swLinkedList *producer_list = chan->producer_list;
 
     zval *zdata;
-    ZEND_PARSE_PARAMETERS_START(1, 1)
-        Z_PARAM_ZVAL(zdata)
-    ZEND_PARSE_PARAMETERS_END();
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zdata) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
 
     if (channel_isFull(chan))
     {
