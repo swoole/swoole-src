@@ -1677,11 +1677,17 @@ static int swoole_mysql_coro_onHandShake(mysql_client *client TSRMLS_DC)
 
     _again:
     swTraceLog(SW_TRACE_MYSQL_CLIENT, "handshake on %d", client->handshake);
+    if (client->switch_check)
+    {
+        // after handshake we need check if server request us to switch auth type first
+        goto _check_switch;
+    }
 
     switch(client->handshake)
     {
     case SW_MYSQL_HANDSHAKE_WAIT_REQUEST:
     {
+        client->switch_check = 1;
         ret = mysql_handshake(connector, buffer->str, buffer->length);
 
         if (ret < 0)
@@ -1711,14 +1717,22 @@ static int swoole_mysql_coro_onHandShake(mysql_client *client TSRMLS_DC)
     }
     case SW_MYSQL_HANDSHAKE_WAIT_SWITCH:
     {
+        _check_switch:
+        client->switch_check = 0;
+        int next_state;
         // handle auth switch request
-        switch (ret = mysql_auth_switch(connector, buffer->str, buffer->length))
+        switch (next_state = mysql_auth_switch(connector, buffer->str, buffer->length))
         {
         case SW_AGAIN:
             return SW_OK;
+        case SW_ERR:
+            // not the switch package, go to the next
+            goto _again;
         default:
+            ret = next_state;
             goto _send;
         }
+        break;
     }
     case SW_MYSQL_HANDSHAKE_WAIT_SIGNATURE:
     {
@@ -1773,6 +1787,7 @@ static int swoole_mysql_coro_onHandShake(mysql_client *client TSRMLS_DC)
         swoole_mysql_coro_onConnect(client TSRMLS_CC);
         return SW_OK;
 #endif
+        break;
     }
     default:
     {

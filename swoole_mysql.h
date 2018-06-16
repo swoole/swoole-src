@@ -351,6 +351,7 @@ typedef struct _mysql_client
     int cid;
 #endif
     uint8_t state;
+    uint32_t switch_check :1; /* check if server request auth switch */
     uint8_t handshake;
     uint8_t cmd; /* help with judging to do what in callback */
     swString *buffer; /* save the mysql responses data */

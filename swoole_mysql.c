@@ -478,7 +478,8 @@ static void php_swoole_sha256(const char *str, int _len, unsigned char *digest)
 
 static void buffer_block_copy(char *from, off_t from_offset, char* to, off_t to_offset, size_t count)
 {
-    for (size_t i = 0; i < count; i++)
+    size_t i;
+    for (i = 0; i < count; i++)
     {
         to[to_offset + i] = from[from_offset + i];
     }
@@ -540,10 +541,9 @@ static int mysql_auth_encrypt_dispatch(char *buf, char *auth_plugin_name, char *
             c[i] = a[i] ^ b[i];
         }
 
-        *buf = 20;
-        memcpy(buf + 1, hash_3, 20);
+        memcpy(buf, hash_3, 20);
 
-        return 20 + 1;
+        return 20;
     }
     else if (strcasecmp("caching_sha2_password", auth_plugin_name) == 0)
     {
@@ -555,20 +555,18 @@ static int mysql_auth_encrypt_dispatch(char *buf, char *auth_plugin_name, char *
                 password_len
         );
 
-        *buf = 32;
         // copy hashed data to connector buf
-        memcpy(buf + 1, (char *) hashed, 32);
+        memcpy(buf, (char *) hashed, 32);
         *next_state = SW_MYSQL_HANDSHAKE_WAIT_SIGNATURE;
 
-        return 32 + 1;
+        return 32;
     }
     else
     {
         // unknown
         swWarn("Unknown auth plugin: %s", auth_plugin_name);
-        *buf = 0;
 
-        return 1;
+        return 0;
     }
 }
 
@@ -714,14 +712,17 @@ int mysql_handshake(mysql_connector *connector, char *buf, int len)
 
     if (connector->password_len > 0)
     {
-        tmp += mysql_auth_encrypt_dispatch(
-                tmp,
+        int length = 0;
+        length = mysql_auth_encrypt_dispatch(
+                tmp + 1,
                 request.auth_plugin_name,
                 connector->password,
                 connector->password_len,
                 request.auth_plugin_data,
                 &next_state
         );
+        *tmp = length;
+        tmp += length + 1;
     }
     else
     {
@@ -750,28 +751,30 @@ int mysql_handshake(mysql_connector *connector, char *buf, int len)
 // we can reply the every auth plugin requirement on the first handshake
 int mysql_auth_switch(mysql_connector *connector, char *buf, int len)
 {
-    connector->packet_length = 0;
-    memset(connector->buf, 0, 512);
-
     char *tmp = buf;
+    if ((uint8_t) tmp[4] != 0xfe)
+    {
+        // out of the order package
+        return SW_ERR;
+    }
+
     int next_state = SW_MYSQL_HANDSHAKE_WAIT_RESULT;
 
     int packet_length = mysql_uint3korr(tmp);
     //continue to wait for data
     if (len < packet_length + 4)
     {
-        return 0;
+        return SW_AGAIN;
     }
     int packet_number = tmp[3];
     tmp += 4;
 
-    uint8_t status = tmp[0];
+    // type
     tmp += 1;
-    if (status != 0xfe)
-    {
-        // out of the order package
-        return SW_ERR;
-    }
+
+    // clear
+    connector->packet_length = 0;
+    memset(connector->buf, 0, 512);
 
     // string[NUL]    plugin name
     char auth_plugin_name[32];
@@ -788,7 +791,6 @@ int mysql_auth_switch(mysql_connector *connector, char *buf, int len)
     }
     auth_plugin_name[auth_plugin_name_len] = '\0';
     swTraceLog(SW_TRACE_MYSQL_CLIENT, "auth switch plugin name=%s", auth_plugin_name);
-    swDebug("auth_plugin_name_len=%d", auth_plugin_name_len);
     tmp += auth_plugin_name_len + 1; // name + 0x00
 
     // if auth switch is triggered, password can't be empty
@@ -796,15 +798,15 @@ int mysql_auth_switch(mysql_connector *connector, char *buf, int len)
     char auth_plugin_data[20];
     memcpy((char *)auth_plugin_data, tmp, 20);
 
-    tmp += mysql_auth_encrypt_dispatch(
-            tmp,
+    // create auth switch response package
+    connector->packet_length += mysql_auth_encrypt_dispatch(
+            (char *) (connector->buf + 4),
             auth_plugin_name,
             connector->password,
             connector->password_len,
             auth_plugin_data,
             &next_state
     );
-
     // 3 for package length
     mysql_pack_length(connector->packet_length, connector->buf);
     // 1 package num
@@ -2825,11 +2827,17 @@ static int swoole_mysql_onHandShake(mysql_client *client TSRMLS_DC)
 
     _again:
     swTraceLog(SW_TRACE_MYSQL_CLIENT, "handshake on %d", client->handshake);
+    if (client->switch_check)
+    {
+        // after handshake we need check if server request us to switch auth type first
+        goto _check_switch;
+    }
 
     switch(client->handshake)
     {
     case SW_MYSQL_HANDSHAKE_WAIT_REQUEST:
     {
+        client->switch_check = 1;
         ret = mysql_handshake(connector, buffer->str, buffer->length);
 
         if (ret < 0)
@@ -2859,14 +2867,22 @@ static int swoole_mysql_onHandShake(mysql_client *client TSRMLS_DC)
     }
     case SW_MYSQL_HANDSHAKE_WAIT_SWITCH:
     {
+        _check_switch:
+        client->switch_check = 0;
+        int next_state;
         // handle auth switch request
-        switch (ret = mysql_auth_switch(connector, buffer->str, buffer->length))
+        switch (next_state = mysql_auth_switch(connector, buffer->str, buffer->length))
         {
         case SW_AGAIN:
             return SW_OK;
+        case SW_ERR:
+            // not the switch package, go to the next
+            goto _again;
         default:
+            ret = next_state;
             goto _send;
         }
+        break;
     }
     case SW_MYSQL_HANDSHAKE_WAIT_SIGNATURE:
     {
@@ -2921,6 +2937,7 @@ static int swoole_mysql_onHandShake(mysql_client *client TSRMLS_DC)
         swoole_mysql_onConnect(client TSRMLS_CC);
         return SW_OK;
 #endif
+        break;
     }
     default:
     {
