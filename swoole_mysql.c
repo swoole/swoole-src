@@ -798,14 +798,12 @@ int mysql_parse_rsa(mysql_connector *connector, char *buf, int len)
     rsa_public_key[rsa_public_key_length] = '\0';
     swTraceLog(SW_TRACE_MYSQL_CLIENT, "rsa-length=%d;\nrsa-key=[%.*s]", rsa_public_key_length, rsa_public_key_length, rsa_public_key);
 
-    int password_len = connector->password_len;
-    unsigned char password[password_len + 1];
+    int password_len = connector->password_len + 1;
+    unsigned char password[password_len];
     // copy to stack
     buffer_block_copy(connector->password, 0, (char *)password, 0, password_len);
-    password[password_len] = '\0';
-    swDebug("password=%s;len=%d\n", password, password_len);
-    swoole_dump_hex(password, password_len + 1);
-    swoole_dump_hex(connector->auth_plugin_data, 20);
+    // add NUL terminator to password
+    password[password_len - 1] = '\0';
     // XOR the password bytes with the challenge
     for (int i = 0; i < password_len; i++)
     {
@@ -849,7 +847,6 @@ int mysql_parse_rsa(mysql_connector *connector, char *buf, int len)
         return SW_ERR;
     }
     RSA_free(public_rsa);
-    swoole_dump_hex(encrypt_msg, rsa_len);
 
     buffer_block_copy((char *)encrypt_msg, 0, (char *)connector->buf, 4, rsa_len); // copy rsa to buf
     connector->packet_length = rsa_len;
@@ -906,7 +903,6 @@ int mysql_auth_switch(mysql_connector *connector, char *buf, int len)
     swDebug("auth_plugin_name_len=%d", auth_plugin_name_len);
     tmp += auth_plugin_name_len + 1; // name + 0x00
 
-    swoole_dump_hex(tmp, 20); //debug
     if (connector->password_len > 0)
     {
         if (strcasecmp("caching_sha2_password", auth_plugin_name) == 0)
