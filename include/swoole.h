@@ -708,6 +708,8 @@ int swString_write_ptr(swString *str, off_t offset, char *write_str, int length)
 int swString_extend(swString *str, size_t new_size);
 char* swString_alloc(swString *str, size_t __size);
 
+#define SWSTRING_CURRENT_VL(buffer) buffer->str + buffer->offset, buffer->length - buffer->offset
+
 static sw_inline int swString_extend_align(swString *str, size_t _new_size)
 {
     size_t align_size = str->size * 2;
