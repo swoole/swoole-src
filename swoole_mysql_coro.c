@@ -1755,7 +1755,7 @@ static int swoole_mysql_coro_onHandShake(mysql_client *client TSRMLS_DC)
     case SW_MYSQL_HANDSHAKE_WAIT_RSA:
     {
         // encode by RSA
-#ifdef SW_USE_OPENSSL
+#ifdef SW_MYSQL_RSA_SUPPORT
         switch (mysql_parse_rsa(connector, SWSTRING_CURRENT_VL(buffer)))
         {
         case SW_AGAIN:

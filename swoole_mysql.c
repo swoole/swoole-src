@@ -27,8 +27,12 @@
 #endif
 
 #ifdef SW_USE_OPENSSL
+#include <openssl/opensslconf.h>
+#ifndef OPENSSL_NO_RSA
+#define SW_MYSQL_RSA_SUPPORT
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
+#endif
 #endif
 
 static PHP_METHOD(swoole_mysql, __construct);
@@ -598,7 +602,7 @@ int mysql_handshake(mysql_connector *connector, char *buf, int len)
         {
             int len = MAX(13, request.l_auth_plugin_data - 8);
             memcpy(request.auth_plugin_data + 8, tmp, len);
-#ifdef SW_USE_OPENSSL
+#ifdef SW_MYSQL_RSA_SUPPORT
             memcpy(connector->auth_plugin_data, request.auth_plugin_data, SW_MYSQL_NONCE_LENGTH);
 #endif
             tmp += len;
@@ -785,7 +789,7 @@ int mysql_parse_auth_signature(swString *buffer, mysql_connector *connector)
     return tmp[1];
 }
 
-#ifdef SW_USE_OPENSSL
+#ifdef SW_MYSQL_RSA_SUPPORT
 //  Caching sha2 authentication. Public key request and send encrypted password
 // http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Protocol::AuthSwitchResponse
 int mysql_parse_rsa(mysql_connector *connector, char *buf, int len)
