@@ -26,12 +26,9 @@
 #include "ext/mysqlnd/mysqlnd_charset.h"
 #endif
 
-#ifdef SW_USE_OPENSSL
-#ifndef OPENSSL_NO_RSA
-#define SW_MYSQL_RSA_SUPPORT
+#ifdef SW_MYSQL_RSA_SUPPORT
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
-#endif
 #endif
 
 static PHP_METHOD(swoole_mysql, __construct);
@@ -476,15 +473,6 @@ static void php_swoole_sha256(const char *str, int _len, unsigned char *digest)
     PHP_SHA256Final(digest, &context);
 }
 
-static void buffer_block_copy(char *from, off_t from_offset, char* to, off_t to_offset, size_t count)
-{
-    size_t i;
-    for (i = 0; i < count; i++)
-    {
-        to[to_offset + i] = from[from_offset + i];
-    }
-}
-
 //sha256
 static void mysql_sha2_password_with_nonce(char* ret, char* nonce, char* password, zend_size_t password_len)
 {
@@ -493,8 +481,8 @@ static void mysql_sha2_password_with_nonce(char* ret, char* nonce, char* passwor
     php_swoole_sha256(password, password_len, (unsigned char *) hashed);
     php_swoole_sha256(hashed, 32, (unsigned char *) double_hashed);
     char combined[32 + SW_MYSQL_NONCE_LENGTH]; //double-hashed + nonce
-    buffer_block_copy(double_hashed, 0, combined, 0, 32);
-    buffer_block_copy(nonce, 0, combined, 32, SW_MYSQL_NONCE_LENGTH);
+    memcpy(combined, double_hashed, 32);
+    memcpy(combined + 32, nonce, SW_MYSQL_NONCE_LENGTH);
     char xor_bytes[32];
     php_swoole_sha256(combined, 32 + SW_MYSQL_NONCE_LENGTH, (unsigned char *) xor_bytes);
     int i;
@@ -502,7 +490,7 @@ static void mysql_sha2_password_with_nonce(char* ret, char* nonce, char* passwor
     {
         hashed[i] ^= xor_bytes[i];
     }
-    buffer_block_copy(hashed, 0, ret, 0, 32);
+    memcpy(ret, hashed, 32);
 }
 
 /**
@@ -881,14 +869,14 @@ int mysql_parse_rsa(mysql_connector *connector, char *buf, int len)
         rsa_public_key_length--;
     }
     char rsa_public_key[rsa_public_key_length + 1]; //rsa + '\0'
-    buffer_block_copy(tmp, 0, (char *)rsa_public_key, 0, rsa_public_key_length);
+    memcpy((char *)rsa_public_key, tmp, rsa_public_key_length);
     rsa_public_key[rsa_public_key_length] = '\0';
     swTraceLog(SW_TRACE_MYSQL_CLIENT, "rsa-length=%d;\nrsa-key=[%.*s]", rsa_public_key_length, rsa_public_key_length, rsa_public_key);
 
     int password_len = connector->password_len + 1;
     unsigned char password[password_len];
     // copy to stack
-    buffer_block_copy(connector->password, 0, (char *)password, 0, password_len);
+    memcpy((char *)password, connector->password, password_len);
     // add NUL terminator to password
     password[password_len - 1] = '\0';
     // XOR the password bytes with the challenge
@@ -936,7 +924,7 @@ int mysql_parse_rsa(mysql_connector *connector, char *buf, int len)
     }
     RSA_free(public_rsa);
 
-    buffer_block_copy((char *)encrypt_msg, 0, (char *)connector->buf, 4, rsa_len); // copy rsa to buf
+    memcpy((char *)connector->buf + 4, (char *)encrypt_msg, rsa_len); // copy rsa to buf
     connector->packet_length = rsa_len;
 
     // 3 for package length

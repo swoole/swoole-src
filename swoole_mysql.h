@@ -19,6 +19,12 @@
 #ifndef SWOOLE_MYSQL_H_
 #define SWOOLE_MYSQL_H_
 
+#ifdef SW_USE_OPENSSL
+#ifndef OPENSSL_NO_RSA
+#define SW_MYSQL_RSA_SUPPORT
+#endif
+#endif
+
 //#define SW_MYSQL_DEBUG
 
 enum mysql_command
