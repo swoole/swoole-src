@@ -1673,26 +1673,31 @@ static int swoole_mysql_coro_onHandShake(mysql_client *client TSRMLS_DC)
 
     buffer->length += n;
 
-    int ret;
+    int ret = 0;
+
+    _again:
     swTraceLog(SW_TRACE_MYSQL_CLIENT, "handshake on %d", client->handshake);
-    if (client->handshake == SW_MYSQL_HANDSHAKE_WAIT_REQUEST)
+
+    switch(client->handshake)
+    {
+    case SW_MYSQL_HANDSHAKE_WAIT_REQUEST:
     {
         ret = mysql_handshake(connector, buffer->str, buffer->length);
 
-        _send:
         if (ret < 0)
         {
             goto _error;
         }
         else if (ret > 0)
         {
+            _send:
             if (cli->send(cli, connector->buf, connector->packet_length + 4, 0) < 0)
             {
                 system_call_error: connector->error_code = errno;
                 connector->error_msg = strerror(errno);
                 connector->error_length = strlen(connector->error_msg);
                 swoole_mysql_coro_onConnect(client TSRMLS_CC);
-                return SW_OK; //wait the next package
+                return SW_OK;
             }
             else
             {
@@ -1702,37 +1707,76 @@ static int swoole_mysql_coro_onHandShake(mysql_client *client TSRMLS_DC)
                 client->handshake = ret;
             }
         }
+        break;
     }
-    else if (client->handshake == SW_MYSQL_HANDSHAKE_WAIT_SWITCH)
+    case SW_MYSQL_HANDSHAKE_WAIT_SWITCH:
     {
         // handle auth switch request
-        ret = mysql_auth_switch(connector, buffer->str, buffer->length);
-        goto _send;
+        switch (ret = mysql_auth_switch(connector, buffer->str, buffer->length))
+        {
+        case SW_AGAIN:
+            return SW_OK;
+        default:
+            goto _send;
+        }
     }
-    else if (client->handshake == SW_MYSQL_HANDSHAKE_WAIT_SIGNATURE)
+    case SW_MYSQL_HANDSHAKE_WAIT_SIGNATURE:
     {
-        if (mysql_parse_auth_signature(buffer) == SW_MYSQL_AUTH_SIGNATURE_SUCCESS)
+        switch (mysql_parse_auth_signature(buffer, connector))
+        {
+        case SW_MYSQL_AUTH_SIGNATURE_SUCCESS:
         {
             client->handshake = SW_MYSQL_HANDSHAKE_WAIT_RESULT;
-            if (buffer->offset < buffer->length)
-            {
-                // may be more packages
-                goto _result;
-            }
-            else
-            {
-                swString_clear(buffer);
-            }
+            break;
         }
-        else
+        case SW_MYSQL_AUTH_SIGNATURE_FULL_AUTH_REQUIRED:
+        {
+            // send response and wait RSA public key
+            ret = SW_MYSQL_HANDSHAKE_WAIT_RSA; // handshake = ret
+            goto _send;
+        }
+        default:
         {
             goto _error;
         }
+        }
+
+        // may be more packages
+        if (buffer->offset < buffer->length)
+        {
+            goto _again;
+        }
+        else
+        {
+            swString_clear(buffer);
+        }
+        break;
     }
-    else
+    case SW_MYSQL_HANDSHAKE_WAIT_RSA:
     {
-        _result:
-        ret = mysql_get_result(connector, buffer->str + buffer->offset, buffer->length - buffer->offset);
+        // encode by RSA
+#ifdef SW_USE_OPENSSL
+        switch (mysql_parse_rsa(connector, SWSTRING_CURRENT_VL(buffer)))
+        {
+        case SW_AGAIN:
+            return SW_OK;
+        case SW_OK:
+            ret = SW_MYSQL_HANDSHAKE_WAIT_RESULT; // handshake = ret
+            goto _send;
+        default:
+            goto _error;
+        }
+#else
+        connector->error_code = -1;
+        connector->error_msg = "MySQL8 RSA-Auth need enable OpenSSL!";
+        connector->error_length = strlen(connector->error_msg);
+        swoole_mysql_coro_onConnect(client TSRMLS_CC);
+        return SW_OK;
+#endif
+    }
+    default:
+    {
+        ret = mysql_get_result(connector, SWSTRING_CURRENT_VL(buffer));
         if (ret < 0)
         {
             _error:
@@ -1745,6 +1789,7 @@ static int swoole_mysql_coro_onHandShake(mysql_client *client TSRMLS_DC)
             swoole_mysql_coro_onConnect(client TSRMLS_CC);
         }
         // else recv again
+    }
     }
 
     return SW_OK;

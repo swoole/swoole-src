@@ -26,6 +26,11 @@
 #include "ext/mysqlnd/mysqlnd_charset.h"
 #endif
 
+#ifdef SW_USE_OPENSSL
+#include <openssl/rsa.h>
+#include <openssl/pem.h>
+#endif
+
 static PHP_METHOD(swoole_mysql, __construct);
 static PHP_METHOD(swoole_mysql, __destruct);
 static PHP_METHOD(swoole_mysql, connect);
@@ -483,6 +488,7 @@ static void buffer_block_copy(char *from, off_t from_offset, char* to, off_t to_
 //sha256
 static void mysql_sha2_password_with_nonce(char* ret, char* nonce, char* password, zend_size_t password_len)
 {
+    // XOR(SHA256(password), SHA256(SHA256(SHA256(password)), nonce))
     char hashed[32], double_hashed[32];
     php_swoole_sha256(password, password_len, (unsigned char *) hashed);
     php_swoole_sha256(hashed, 32, (unsigned char *) double_hashed);
@@ -592,6 +598,9 @@ int mysql_handshake(mysql_connector *connector, char *buf, int len)
         {
             int len = MAX(13, request.l_auth_plugin_data - 8);
             memcpy(request.auth_plugin_data + 8, tmp, len);
+#ifdef SW_USE_OPENSSL
+            memcpy(connector->auth_plugin_data, request.auth_plugin_data, 20);
+#endif
             tmp += len;
         }
 
@@ -718,7 +727,7 @@ int mysql_handshake(mysql_connector *connector, char *buf, int len)
     return next_state;
 }
 
-uint8_t mysql_parse_auth_signature(swString *buffer)
+int mysql_parse_auth_signature(swString *buffer, mysql_connector *connector)
 {
     char *tmp = buffer->str;
     int packet_length = mysql_uint3korr(tmp);
@@ -740,9 +749,119 @@ uint8_t mysql_parse_auth_signature(swString *buffer)
     buffer->offset = 4 + packet_length;
     swTraceLog(SW_TRACE_MYSQL_CLIENT, "before signature remaining=%d", buffer->length - buffer->offset);
 
+    if ((uint8_t)tmp[1] == SW_MYSQL_AUTH_SIGNATURE_FULL_AUTH_REQUIRED)
+    {
+        // create RSA prepared response
+        connector->packet_length = 1;
+        memset(connector->buf, 0, 512);
+        // 3 for package length
+        mysql_pack_length(connector->packet_length, connector->buf);
+        // 1 packet number
+        connector->buf[3] = packet_number + 1;
+        connector->buf[4] = SW_MYSQL_AUTH_SIGNATURE_RSA_PREPARED;
+    }
+
     // signature value
     return tmp[1];
 }
+
+#ifdef SW_USE_OPENSSL
+//  Caching sha2 authentication. Public key request and send encrypted password
+// http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Protocol::AuthSwitchResponse
+int mysql_parse_rsa(mysql_connector *connector, char *buf, int len)
+{
+    // clear
+    connector->packet_length = 0;
+    memset(connector->buf, 0, 512);
+
+    char *tmp = buf;
+
+    int packet_length = mysql_uint3korr(tmp);
+    //continue to wait for data
+    if (len < packet_length + 4)
+    {
+        return SW_AGAIN;
+    }
+    int packet_number = tmp[3];
+    tmp += 4;
+
+    //TODO: empty password
+
+    int rsa_public_key_length = packet_length;
+    while (tmp[0] != 0x2d)
+    {
+        tmp++; // ltrim
+        rsa_public_key_length--;
+    }
+    char rsa_public_key[rsa_public_key_length + 1]; //rsa + '\0'
+    buffer_block_copy(tmp, 0, (char *)rsa_public_key, 0, rsa_public_key_length);
+    rsa_public_key[rsa_public_key_length] = '\0';
+    swTraceLog(SW_TRACE_MYSQL_CLIENT, "rsa-length=%d;\nrsa-key=[%.*s]", rsa_public_key_length, rsa_public_key_length, rsa_public_key);
+
+    int password_len = connector->password_len;
+    unsigned char password[password_len + 1];
+    // copy to stack
+    buffer_block_copy(connector->password, 0, (char *)password, 0, password_len);
+    password[password_len] = '\0';
+    swDebug("password=%s;len=%d\n", password, password_len);
+    swoole_dump_hex(password, password_len + 1);
+    swoole_dump_hex(connector->auth_plugin_data, 20);
+    // XOR the password bytes with the challenge
+    for (int i = 0; i < password_len; i++)
+    {
+        password[i] ^= connector->auth_plugin_data[i % 20];
+    }
+
+    // prepare RSA public key
+    BIO *bio = NULL;
+    RSA *public_rsa = NULL;
+    if (unlikely((bio = BIO_new_mem_buf((void *)rsa_public_key, -1)) == NULL))
+    {
+        swError("BIO_new_mem_buf publicKey error!");
+        return SW_ERR;
+    }
+    // PEM_read_bio_RSA_PUBKEY
+    ERR_clear_error();
+    if (unlikely((public_rsa = PEM_read_bio_RSA_PUBKEY(bio, NULL, NULL, NULL)) == NULL))
+    {
+        ERR_load_crypto_strings();
+        char err_buf[512];
+        ERR_error_string_n(ERR_get_error(), err_buf, sizeof(err_buf));
+        swError("[PEM_read_bio_RSA_PUBKEY ERROR]: %s", err_buf);
+
+        return SW_ERR;
+    }
+    BIO_free_all(bio);
+    // encrypt with RSA public key
+    int rsa_len = RSA_size(public_rsa);
+    unsigned char encrypt_msg[rsa_len];
+    // RSA_public_encrypt
+    ERR_clear_error();
+    int flen = rsa_len - 42;
+    flen = password_len > flen ? flen : password_len;
+    swDebug("rsa_len=%d", rsa_len);
+    if (unlikely(RSA_public_encrypt(flen, (const unsigned char *)password, (unsigned char *)encrypt_msg, public_rsa, RSA_PKCS1_OAEP_PADDING) < 0))
+    {
+        ERR_load_crypto_strings();
+        char err_buf[512];
+        ERR_error_string_n(ERR_get_error(), err_buf, sizeof(err_buf));
+        swError("[RSA_public_encrypt ERROR]: %s", err_buf);
+        return SW_ERR;
+    }
+    RSA_free(public_rsa);
+    swoole_dump_hex(encrypt_msg, rsa_len);
+
+    buffer_block_copy((char *)encrypt_msg, 0, (char *)connector->buf, 4, rsa_len); // copy rsa to buf
+    connector->packet_length = rsa_len;
+
+    // 3 for package length
+    mysql_pack_length(connector->packet_length, connector->buf);
+    // 1 packet number
+    connector->buf[3] = packet_number + 1;
+
+    return SW_OK;
+}
+#endif
 
 // we may need it one day but now
 // we can reply the every auth plugin requirement on the first handshake
@@ -2731,7 +2850,7 @@ static int swoole_mysql_onHandShake(mysql_client *client TSRMLS_DC)
     }
     else if (client->handshake == SW_MYSQL_HANDSHAKE_WAIT_SIGNATURE)
     {
-        if (mysql_parse_auth_signature(buffer) == SW_MYSQL_AUTH_SIGNATURE_SUCCESS)
+        if (mysql_parse_auth_signature(buffer, connector) == SW_MYSQL_AUTH_SIGNATURE_SUCCESS)
         {
             client->handshake = SW_MYSQL_HANDSHAKE_WAIT_RESULT;
             if (buffer->offset < buffer->length)
