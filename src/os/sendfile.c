@@ -34,7 +34,7 @@ int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size)
 #endif
 
     //sent_bytes = (off_t)size;
-    swTrace("send file, out_fd:%d, in_fd:%d, offset:%d, size:%ld", out_fd, in_fd, *offset, (long)size);
+    swTrace("send file, out_fd:%d, in_fd:%d, offset:%ld, size:%ld", out_fd, in_fd, (long)*offset, (long)size);
 
     do_sendfile:
 #ifdef __MACH__
