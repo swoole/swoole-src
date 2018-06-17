@@ -21,10 +21,11 @@ static struct
 {
     int stack_size;
     int current_cid;
+    int previous_cid;
     struct coroutine_s *coroutines[MAX_CORO_NUM_LIMIT + 1];
     coroutine_close_t onClose;
 } swCoroG =
-{ SW_DEFAULT_C_STACK_SIZE, -1,
+{ SW_DEFAULT_C_STACK_SIZE, -1, -1,
 { NULL, }, NULL };
 
 /* 1 <= cid <= 524288 */
@@ -119,6 +120,7 @@ int coroutine_create(coroutine_func_t fn, void* args)
     co->ctx = new Context(swCoroG.stack_size, fn, args);
     co->cid = cid;
     swCoroG.coroutines[cid] = co;
+    swCoroG.previous_cid = swCoroG.current_cid;
     swCoroG.current_cid = cid;
     co->ctx->SwapIn();
     if (co->ctx->end)
@@ -134,12 +136,14 @@ int coroutine_create(coroutine_func_t fn, void* args)
 
 void coroutine_yield(coroutine_t *co)
 {
-    swCoroG.current_cid = -1;
+    swCoroG.previous_cid = swCoroG.current_cid;
+    swCoroG.current_cid = swCoroG.previous_cid;
     co->ctx->SwapOut();
 }
 
 void coroutine_resume(coroutine_t *co)
 {
+    swCoroG.previous_cid = swCoroG.current_cid;
     swCoroG.current_cid = co->cid;
     co->ctx->SwapIn();
     if (co->ctx->end)
