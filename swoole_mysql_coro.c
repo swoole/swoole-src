@@ -563,6 +563,7 @@ static int swoole_mysql_coro_close(zval *this)
     client->cli = NULL;
     client->state = SW_MYSQL_STATE_CLOSED;
     client->iowait = SW_MYSQL_CORO_STATUS_CLOSED;
+    //TODO: clear connector
 
     return SUCCESS;
 }
@@ -1672,16 +1673,30 @@ static int swoole_mysql_coro_onHandShake(mysql_client *client TSRMLS_DC)
 
     buffer->length += n;
 
-    int ret;
-    if (client->handshake == SW_MYSQL_HANDSHAKE_WAIT_REQUEST)
+    int ret = 0;
+
+    _again:
+    swTraceLog(SW_TRACE_MYSQL_CLIENT, "handshake on %d", client->handshake);
+    if (client->switch_check)
     {
+        // after handshake we need check if server request us to switch auth type first
+        goto _check_switch;
+    }
+
+    switch(client->handshake)
+    {
+    case SW_MYSQL_HANDSHAKE_WAIT_REQUEST:
+    {
+        client->switch_check = 1;
         ret = mysql_handshake(connector, buffer->str, buffer->length);
+
         if (ret < 0)
         {
-            swoole_mysql_coro_onConnect(client TSRMLS_CC);
+            goto _error;
         }
         else if (ret > 0)
         {
+            _send:
             if (cli->send(cli, connector->buf, connector->packet_length + 4, 0) < 0)
             {
                 system_call_error: connector->error_code = errno;
@@ -1692,16 +1707,94 @@ static int swoole_mysql_coro_onHandShake(mysql_client *client TSRMLS_DC)
             }
             else
             {
+                // clear for the new package
                 swString_clear(buffer);
-                client->handshake = SW_MYSQL_HANDSHAKE_WAIT_RESULT;
+                // mysql_handshake will return the next state flag
+                client->handshake = ret;
             }
         }
+        break;
     }
-    else
+    case SW_MYSQL_HANDSHAKE_WAIT_SWITCH:
     {
-        ret = mysql_get_result(connector, buffer->str, buffer->length);
+        _check_switch:
+        client->switch_check = 0;
+        int next_state;
+        // handle auth switch request
+        switch (next_state = mysql_auth_switch(connector, buffer->str, buffer->length))
+        {
+        case SW_AGAIN:
+            return SW_OK;
+        case SW_ERR:
+            // not the switch package, go to the next
+            goto _again;
+        default:
+            ret = next_state;
+            goto _send;
+        }
+        break;
+    }
+    case SW_MYSQL_HANDSHAKE_WAIT_SIGNATURE:
+    {
+        switch (mysql_parse_auth_signature(buffer, connector))
+        {
+        case SW_MYSQL_AUTH_SIGNATURE_SUCCESS:
+        {
+            client->handshake = SW_MYSQL_HANDSHAKE_WAIT_RESULT;
+            break;
+        }
+        case SW_MYSQL_AUTH_SIGNATURE_FULL_AUTH_REQUIRED:
+        {
+            // send response and wait RSA public key
+            ret = SW_MYSQL_HANDSHAKE_WAIT_RSA; // handshake = ret
+            goto _send;
+        }
+        default:
+        {
+            goto _error;
+        }
+        }
+
+        // may be more packages
+        if (buffer->offset < buffer->length)
+        {
+            goto _again;
+        }
+        else
+        {
+            swString_clear(buffer);
+        }
+        break;
+    }
+    case SW_MYSQL_HANDSHAKE_WAIT_RSA:
+    {
+        // encode by RSA
+#ifdef SW_MYSQL_RSA_SUPPORT
+        switch (mysql_parse_rsa(connector, SWSTRING_CURRENT_VL(buffer)))
+        {
+        case SW_AGAIN:
+            return SW_OK;
+        case SW_OK:
+            ret = SW_MYSQL_HANDSHAKE_WAIT_RESULT; // handshake = ret
+            goto _send;
+        default:
+            goto _error;
+        }
+#else
+        connector->error_code = -1;
+        connector->error_msg = "MySQL8 RSA-Auth need enable OpenSSL!";
+        connector->error_length = strlen(connector->error_msg);
+        swoole_mysql_coro_onConnect(client TSRMLS_CC);
+        return SW_OK;
+#endif
+        break;
+    }
+    default:
+    {
+        ret = mysql_get_result(connector, SWSTRING_CURRENT_VL(buffer));
         if (ret < 0)
         {
+            _error:
             swoole_mysql_coro_onConnect(client TSRMLS_CC);
         }
         else if (ret > 0)
@@ -1710,7 +1803,10 @@ static int swoole_mysql_coro_onHandShake(mysql_client *client TSRMLS_DC)
             client->handshake = SW_MYSQL_HANDSHAKE_COMPLETED;
             swoole_mysql_coro_onConnect(client TSRMLS_CC);
         }
+        // else recv again
     }
+    }
+
     return SW_OK;
 }
 

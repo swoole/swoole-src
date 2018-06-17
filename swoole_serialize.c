@@ -1295,7 +1295,7 @@ static void* swoole_unserialize_object(void *buffer, zval *return_value, zend_uc
     object_init_ex(return_value, ce);
 
     zval *data,*d;
-    const zend_string *key;
+    zend_string *key;
     zend_ulong index;
 
     

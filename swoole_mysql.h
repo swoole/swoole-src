@@ -19,6 +19,12 @@
 #ifndef SWOOLE_MYSQL_H_
 #define SWOOLE_MYSQL_H_
 
+#ifdef SW_USE_OPENSSL
+#ifndef OPENSSL_NO_RSA
+#define SW_MYSQL_RSA_SUPPORT
+#endif
+#endif
+
 //#define SW_MYSQL_DEBUG
 
 enum mysql_command
@@ -60,9 +66,25 @@ enum mysql_command
 enum mysql_handshake_state
 {
     SW_MYSQL_HANDSHAKE_WAIT_REQUEST,
+    SW_MYSQL_HANDSHAKE_WAIT_SWITCH,
+    SW_MYSQL_HANDSHAKE_WAIT_SIGNATURE,
+    SW_MYSQL_HANDSHAKE_WAIT_RSA,
     SW_MYSQL_HANDSHAKE_WAIT_RESULT,
     SW_MYSQL_HANDSHAKE_COMPLETED,
 };
+
+enum mysql_auth_signature
+{
+    SW_MYSQL_AUTH_SIGNATURE_ERROR = 0x00, // get signature failed
+    SW_MYSQL_AUTH_SIGNATURE = 0x01,
+    SW_MYSQL_AUTH_SIGNATURE_RSA_PREPARED = 0x02,
+    SW_MYSQL_AUTH_SIGNATURE_SUCCESS = 0x03,
+    SW_MYSQL_AUTH_SIGNATURE_FULL_AUTH_REQUIRED = 0x04, //rsa required
+};
+
+// nonce: a number or bit string used only once, in security engineering
+// other names on doc: challenge/scramble/salt
+#define SW_MYSQL_NONCE_LENGTH 20
 
 enum mysql_read_state
 {
@@ -207,7 +229,7 @@ typedef struct
     uint8_t protocol_version;
     char *server_version;
     int connection_id;
-    char auth_plugin_data[21];
+    char auth_plugin_data[SW_MYSQL_NONCE_LENGTH + 1]; // nonce + '\0'
     uint8_t l_auth_plugin_data;
     char filler;
     int capability_flags;
@@ -241,6 +263,9 @@ typedef struct
     char character_set;
     int packet_length;
     char buf[512];
+#ifdef SW_USE_OPENSSL
+    char auth_plugin_data[SW_MYSQL_NONCE_LENGTH]; // save challenge data for RSA auth
+#endif
 
     uint16_t error_code;
     char *error_msg;
@@ -332,6 +357,7 @@ typedef struct _mysql_client
     int cid;
 #endif
     uint8_t state;
+    uint32_t switch_check :1; /* check if server request auth switch */
     uint8_t handshake;
     uint8_t cmd; /* help with judging to do what in callback */
     swString *buffer; /* save the mysql responses data */
@@ -416,6 +442,9 @@ typedef struct _mysql_client
 int mysql_get_result(mysql_connector *connector, char *buf, int len);
 int mysql_get_charset(char *name);
 int mysql_handshake(mysql_connector *connector, char *buf, int len);
+int mysql_parse_auth_signature(swString *buffer, mysql_connector *connector);
+int mysql_parse_rsa(mysql_connector *connector, char *buf, int len);
+int mysql_auth_switch(mysql_connector *connector, char *buf, int len);
 int mysql_request(swString *sql, swString *buffer);
 int mysql_prepare(swString *sql, swString *buffer);
 int mysql_response(mysql_client *client);
