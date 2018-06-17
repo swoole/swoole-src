@@ -562,7 +562,7 @@ static PHP_METHOD(swoole_channel_coro, select)
                 return;
             }
             channel *chan = (channel *) swoole_get_object(item);
-            if (channel_isEmpty(chan))
+            if (!channel_isEmpty(chan))
             {
                 Z_ADDREF_P(item);
                 add_next_index_zval(&readable, item);
@@ -582,7 +582,7 @@ static PHP_METHOD(swoole_channel_coro, select)
                 return;
             }
             channel *chan = (channel *) swoole_get_object(item);
-            if (channel_isFull(chan))
+            if (!channel_isFull(chan))
             {
                 Z_ADDREF_P(item);
                 add_next_index_zval(&writable, item);
