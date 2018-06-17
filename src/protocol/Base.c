@@ -62,7 +62,7 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swCon
         eof_pos = swoole_strnpos(buffer->str + buffer->offset, buffer->length - buffer->offset, protocol->package_eof, protocol->package_eof_len);
     }
 
-    swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[0] count=%d, length=%ld, size=%ld, offset=%ld.", count, buffer->length, buffer->size, buffer->offset);
+    swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[0] count=%d, length=%ld, size=%ld, offset=%ld.", count, buffer->length, buffer->size, (long)buffer->offset);
 
     //waiting for more data
     if (eof_pos < 0)
@@ -122,7 +122,7 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swCon
             }
         }
     }
-    swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[3] length=%ld, size=%ld, offset=%ld", buffer->length, buffer->size, buffer->offset);
+    swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[3] length=%ld, size=%ld, offset=%ld", buffer->length, buffer->size, (long)buffer->offset);
     swString_clear(buffer);
     return SW_OK;
 }

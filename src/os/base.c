@@ -262,7 +262,7 @@ static void swAio_handler_stream_get_line(swAio_event *event)
     {
         avail = writepos - readpos;
 
-        swTraceLog(SW_TRACE_AIO, "readpos=%ld, writepos=%ld", readpos, writepos);
+        swTraceLog(SW_TRACE_AIO, "readpos=%ld, writepos=%ld", (long)readpos, (long)writepos);
 
         if (avail > 0)
         {
