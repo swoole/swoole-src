@@ -90,7 +90,7 @@ int coro_init(TSRMLS_D)
 
 void coro_check(TSRMLS_D)
 {
-    if (!COROG.require)
+    if (sw_get_current_cid() == -1)
     {
         swoole_php_fatal_error(E_ERROR, "must be called in the coroutine.");
     }
