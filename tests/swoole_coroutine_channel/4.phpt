@@ -38,14 +38,14 @@ pop [#1] ret:'data-1'
 main end
 push [#2] ret:true
 push [#3] ret:true
+push [#4] ret:true
 pop [#2] ret:'data-2'
 pop [#3] ret:'data-3'
-push [#4] ret:true
-push [#5] ret:true
 pop [#4] ret:'data-4'
-pop [#5] ret:'data-5'
+push [#5] ret:true
 push [#6] ret:true
 push [#7] ret:true
+pop [#5] ret:'data-5'
 pop [#6] ret:'data-6'
 pop [#7] ret:'data-7'
 push [#8] ret:true
