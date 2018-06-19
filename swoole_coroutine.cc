@@ -241,6 +241,7 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
     {
         ZVAL_COPY(SWCC(current_coro_return_value_ptr), retval);
     }
+    swDebug("cid=%d", task->cid);
     coroutine_resume(task->co);
     if (unlikely(EG(exception)))
     {
