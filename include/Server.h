@@ -475,6 +475,10 @@ struct _swServer
      */
     uint32_t trace_event_worker :1;
     /**
+     * if create coroutine automatically on request event
+     */
+    uint32_t enable_coroutine :1;
+    /**
      * yield coroutine when the output buffer is full
      */
     uint32_t send_yield :1;
