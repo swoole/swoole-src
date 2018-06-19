@@ -564,6 +564,10 @@ struct _swServer
     int last_stream_fd;
     int last_session_id;
 
+#ifdef SW_BUFFER_RECV_TIME
+    double last_receive_usec;
+#endif
+
     int manager_alarm;
 
     /**

@@ -589,6 +589,13 @@ typedef struct _swConnection
      */
     time_t last_time;
 
+#ifdef SW_BUFFER_RECV_TIME
+    /**
+     * received time(microseconds) with last data
+     */
+    double last_time_usec;
+#endif
+
 #ifdef SW_USE_TIMEWHEEL
     uint16_t timewheel_index;
 #endif
@@ -731,6 +738,9 @@ typedef struct _swDataHead
     uint8_t type;
     uint8_t flags;
     uint16_t from_fd;
+#ifdef SW_BUFFER_RECV_TIME
+    double time;
+#endif
 } swDataHead;
 
 typedef struct _swEvent

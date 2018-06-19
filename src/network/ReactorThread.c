@@ -168,6 +168,9 @@ static int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
     bzero(&task.data.info, sizeof(task.data.info));
     task.data.info.from_fd = fd;
     task.data.info.from_id = SwooleTG.id;
+#ifdef SW_BUFFER_RECV_TIME
+    task.data.info.time = swoole_microtime();
+#endif
 
     int socket_type = server_sock->socket_type;
     switch(socket_type)
@@ -958,6 +961,10 @@ static int swReactorThread_onRead(swReactor *reactor, swEvent *event)
 #endif
 
     event->socket->last_time = serv->gs->now;
+#ifdef SW_BUFFER_RECV_TIME
+    event->socket->last_time_usec = swoole_microtime();
+#endif
+
     return port->onRead(reactor, port, event);
 }
 
@@ -1446,6 +1453,12 @@ int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
     swServer *serv = factory->ptr;
     swDispatchData task;
 
+    task.data.info.from_fd = conn->from_fd;
+    task.data.info.from_id = conn->from_id;
+#ifdef SW_BUFFER_RECV_TIME
+    task.data.info.time = conn->last_time_usec;
+#endif
+
     if (serv->dispatch_mode == SW_DISPATCH_STREAM)
     {
         swStream *stream = swStream_new(serv->stream_socket, 0, SW_SOCK_UNIX_STREAM);
@@ -1459,8 +1472,6 @@ int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
         swStream_set_max_length(stream, port->protocol.package_max_length);
 
         task.data.info.fd = conn->session_id;
-        task.data.info.from_id = conn->from_id;
-        task.data.info.from_fd = conn->from_fd;
         task.data.info.type = SW_EVENT_PACKAGE_END;
         task.data.info.len = 0;
 
@@ -1477,7 +1488,6 @@ int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
     }
 
     task.data.info.fd = conn->fd;
-    task.data.info.from_id = conn->from_id;
 
     swTrace("send string package, size=%ld bytes.", (long)length);
 

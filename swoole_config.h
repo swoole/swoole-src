@@ -23,10 +23,6 @@
 #endif
 #endif
 
-#ifndef SW_USE_LIBCO
-//#define SW_USE_LIBCO
-#endif
-
 #define SW_MAX_FDTYPE              32   //32 kinds of event
 #define SW_MAX_HOOK_TYPE           32
 #define SW_ERROR_MSG_SIZE          512
@@ -95,6 +91,7 @@
 #define SW_BUFFER_SIZE_STD         8192
 #define SW_BUFFER_SIZE_BIG         65536
 #define SW_BUFFER_SIZE_UDP         65536
+//#define SW_BUFFER_RECV_TIME
 #define SW_SENDFILE_CHUNK_SIZE     65536
 
 #define SW_SENDFILE_MAXLEN         4194304

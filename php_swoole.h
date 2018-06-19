@@ -52,7 +52,7 @@
 
 BEGIN_EXTERN_C()
 
-#define PHP_SWOOLE_VERSION  "4.0.0"
+#define PHP_SWOOLE_VERSION  "4.0.1"
 #define PHP_SWOOLE_CHECK_CALLBACK
 #define PHP_SWOOLE_ENABLE_FASTCALL
 #define PHP_SWOOLE_CLIENT_USE_POLL
@@ -302,9 +302,11 @@ PHP_METHOD(swoole_server, reload);
 PHP_METHOD(swoole_server, shutdown);
 PHP_METHOD(swoole_server, getLastError);
 PHP_METHOD(swoole_server, heartbeat);
-
 PHP_METHOD(swoole_server, connection_list);
 PHP_METHOD(swoole_server, connection_info);
+#ifdef SW_BUFFER_RECV_TIME
+PHP_METHOD(swoole_server, getReceivedTime);
+#endif
 
 #ifdef HAVE_PCRE
 PHP_METHOD(swoole_connection_iterator, count);

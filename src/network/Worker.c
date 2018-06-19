@@ -307,8 +307,14 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         do_task:
         {
             worker->request_time = serv->gs->now;
+#ifdef SW_BUFFER_RECV_TIME
+            serv->last_receive_usec = task->info.time;
+#endif
             serv->onReceive(serv, task);
             worker->request_time = 0;
+#ifdef SW_BUFFER_RECV_TIME
+            serv->last_receive_usec = 0;
+#endif
             worker->traced = 0;
             worker->request_count++;
             sw_atomic_fetch_add(&serv->stats->request_count, 1);
@@ -357,9 +363,15 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         {
             worker->request_count++;
             worker->request_time = serv->gs->now;
+#ifdef SW_BUFFER_RECV_TIME
+            serv->last_receive_usec = task->info.time;
+#endif
             sw_atomic_fetch_add(&serv->stats->request_count, 1);
             serv->onPacket(serv, task);
             worker->request_time = 0;
+#ifdef SW_BUFFER_RECV_TIME
+            serv->last_receive_usec = 0;
+#endif
             worker->traced = 0;
             worker->request_count++;
             swString_clear(package);

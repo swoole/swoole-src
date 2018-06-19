@@ -438,6 +438,9 @@ static zend_function_entry swoole_server_methods[] = {
 #ifdef SWOOLE_SOCKETS_SUPPORT
     PHP_ME(swoole_server, getSocket, arginfo_swoole_server_getSocket, ZEND_ACC_PUBLIC)
 #endif
+#ifdef SW_BUFFER_RECV_TIME
+    PHP_ME(swoole_server, getReceivedTime, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+#endif
     PHP_ME(swoole_server, bind, arginfo_swoole_server_bind, ZEND_ACC_PUBLIC)
     PHP_FALIAS(__sleep, swoole_unsupport_serialize, NULL)
     PHP_FALIAS(__wakeup, swoole_unsupport_serialize, NULL)
