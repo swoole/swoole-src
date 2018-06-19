@@ -113,7 +113,6 @@ void coro_handle_timeout();
         sw_coro_resume(sw_current_context, retval, *coro_retval)
 #define coro_yield() sw_coro_yield()
 
-int php_coro_create(php_args *php_arg);
 int sw_coro_create(zend_fcall_info_cache *op_array, zval **argv, int argc, zval *retval, void *post_callback, void *param);
 void sw_coro_yield();
 void sw_coro_close();

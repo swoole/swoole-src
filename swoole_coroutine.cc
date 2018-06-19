@@ -38,6 +38,7 @@
 
 coro_global COROG;
 static coro_task* sw_get_current_task();
+static void sw_coro_func(void *);
 
 #if PHP_MAJOR_VERSION >= 7 && PHP_MINOR_VERSION >= 2
 static inline void sw_vm_stack_init(void)
@@ -106,8 +107,9 @@ void coro_destroy(TSRMLS_D)
     }
 }
 
-int php_coro_create(php_args *php_arg)
+static void sw_coro_func(void *arg)
 {
+    php_args *php_arg = (php_args *) arg;
     zend_fcall_info_cache *fci_cache = php_arg->fci_cache;
     zval **argv = php_arg->argv;
     int argc = php_arg->argc;
@@ -180,15 +182,6 @@ int php_coro_create(php_args *php_arg)
     EG(vm_stack_end) = task->vm_stack_end;
     COROG.require = 1;
     zend_execute_ex(EG(current_execute_data) TSRMLS_CC);
-
-    coro_task *curr_task = (coro_task *) sw_get_current_task();
-    return 0;
-}
-
-void php_coro_create_callback(void *arg)
-{
-    php_args *php_arg = (php_args *) arg;
-    php_coro_create(php_arg);
 }
 
 int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval *retval, void *post_callback,
@@ -212,7 +205,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     COROG.error = 0;
     COROG.coro_num++;
 
-    return coroutine_create(php_coro_create_callback, (void*) &php_args);
+    return coroutine_create(sw_coro_func, (void*) &php_args);
 }
 
 void sw_coro_save(zval *return_value, php_context *sw_current_context)
