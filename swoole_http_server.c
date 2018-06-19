@@ -1197,7 +1197,20 @@ static int http_onReceive(swServer *serv, swEventData *req)
             }
         }
 
-        if (serv->enable_coroutine)
+        if (serv->disable_coroutine)
+        {
+            zval **args[2];
+            args[0] = &zrequest_object;
+            args[1] = &zresponse_object;
+
+            zcallback = php_swoole_server_get_callback(serv, req->info.from_fd, callback_type);
+            zend_fcall_info_cache *fci_cache = php_swoole_server_get_cache(serv, req->info.from_fd, callback_type);
+            if (sw_call_user_function_fast(zcallback, fci_cache, &retval, 2, args TSRMLS_CC) == FAILURE)
+            {
+                swoole_php_error(E_WARNING, "onRequest handler error");
+            }
+        }
+        else
         {
             zval *args[2];
             args[0] = zrequest_object;
@@ -1214,19 +1227,6 @@ static int http_onReceive(swServer *serv, swEventData *req)
                     serv->factory.end(&SwooleG.serv->factory, fd);
                 }
                 return SW_OK;
-            }
-        }
-        else
-        {
-            zval **args[2];
-            args[0] = &zrequest_object;
-            args[1] = &zresponse_object;
-
-            zcallback = php_swoole_server_get_callback(serv, req->info.from_fd, callback_type);
-            zend_fcall_info_cache *fci_cache = php_swoole_server_get_cache(serv, req->info.from_fd, callback_type);
-            if (sw_call_user_function_fast(zcallback, fci_cache, &retval, 2, args TSRMLS_CC) == FAILURE)
-            {
-                swoole_php_error(E_WARNING, "onRequest handler error");
             }
         }
 

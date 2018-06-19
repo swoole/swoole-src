@@ -477,7 +477,7 @@ struct _swServer
     /**
      * if create coroutine automatically on request event
      */
-    uint32_t enable_coroutine :1;
+    uint32_t disable_coroutine :1;
     /**
      * yield coroutine when the output buffer is full
      */
