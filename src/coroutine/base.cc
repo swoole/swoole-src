@@ -13,8 +13,14 @@ using namespace swoole;
 
 struct coroutine_s
 {
-    Context *ctx;
+public:
+    Context ctx;
     int cid;
+    coroutine_s(int _cid, size_t stack_size, coroutine_func_t fn, void* private_data) :
+            ctx(stack_size, fn, private_data)
+    {
+        cid = _cid;
+    }
 };
 
 static struct
@@ -33,7 +39,7 @@ static cidmap_t cidmap =
 { MAX_CORO_NUM_LIMIT,
 { 0 } };
 
-int last_cid = -1;
+static int last_cid = -1;
 
 static inline int test_and_set_bit(int cid, void *addr)
 {
@@ -80,7 +86,7 @@ static inline int find_next_zero_bit(void *addr, int cid)
     return cid;
 }
 
-static int alloc_cidmap()
+static inline int alloc_cidmap()
 {
     int cid;
 
@@ -116,14 +122,12 @@ int coroutine_create(coroutine_func_t fn, void* args)
         return CORO_LIMIT;
     }
 
-    coroutine_t *co = new coroutine_t;
-    co->ctx = new Context(swCoroG.stack_size, fn, args);
-    co->cid = cid;
+    coroutine_t *co = new coroutine_t(cid, swCoroG.stack_size, fn, args);
     swCoroG.coroutines[cid] = co;
     swCoroG.previous_cid = swCoroG.current_cid;
     swCoroG.current_cid = cid;
-    co->ctx->SwapIn();
-    if (co->ctx->end)
+    co->ctx.SwapIn();
+    if (co->ctx.end)
     {
         if (swCoroG.onClose)
         {
@@ -136,17 +140,16 @@ int coroutine_create(coroutine_func_t fn, void* args)
 
 void coroutine_yield(coroutine_t *co)
 {
-    swCoroG.previous_cid = swCoroG.current_cid;
     swCoroG.current_cid = swCoroG.previous_cid;
-    co->ctx->SwapOut();
+    co->ctx.SwapOut();
 }
 
 void coroutine_resume(coroutine_t *co)
 {
     swCoroG.previous_cid = swCoroG.current_cid;
     swCoroG.current_cid = co->cid;
-    co->ctx->SwapIn();
-    if (co->ctx->end)
+    co->ctx.SwapIn();
+    if (co->ctx.end)
     {
         if (swCoroG.onClose)
         {
@@ -160,7 +163,6 @@ void coroutine_release(coroutine_t *co)
 {
     free_cidmap(co->cid);
     swCoroG.coroutines[co->cid] = NULL;
-    delete co->ctx;
     delete co;
 }
 
