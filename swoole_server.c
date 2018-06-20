@@ -889,7 +889,7 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
         sw_zval_ptr_dtor(&zdata);
         if (ret == CORO_LIMIT)
         {
-            SwooleG.serv->factory.end(&SwooleG.serv->factory, req->info.fd);
+            serv->factory.end(&SwooleG.serv->factory, req->info.fd);
         }
         return SW_OK;
     }
@@ -4004,6 +4004,26 @@ PHP_METHOD(swoole_server, protect)
         RETURN_TRUE;
     }
 }
+
+#ifdef SW_BUFFER_RECV_TIME
+PHP_METHOD(swoole_server, getReceivedTime)
+{
+    swServer *serv = swoole_get_object(getThis());
+    if (serv->gs->start == 0)
+    {
+        swoole_php_fatal_error(E_WARNING, "server is not running.");
+        RETURN_FALSE;
+    }
+    if (serv->last_receive_usec > 0)
+    {
+        RETURN_DOUBLE(serv->last_receive_usec);
+    }
+    else
+    {
+        RETURN_FALSE;
+    }
+}
+#endif
 
 PHP_METHOD(swoole_server, shutdown)
 {
