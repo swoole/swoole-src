@@ -1290,7 +1290,6 @@ static void php_swoole_onShutdown(swServer *serv)
     SwooleG.lock.unlock(&SwooleG.lock);
 }
 
-#ifdef SW_COROUTINE
 static void php_swoole_onWorkerStart_coroutine(zval *zserv, zval *zworker_id)
 {
     zval *retval = NULL;
@@ -1319,7 +1318,6 @@ static void php_swoole_onWorkerStart_coroutine(zval *zserv, zval *zworker_id)
         sw_zval_ptr_dtor(&retval);
     }
 }
-#endif
 
 static void php_swoole_onWorkerStart_callback(zval *zserv, zval *zworker_id)
 {
@@ -1391,13 +1389,12 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
     {
         return;
     }
-#ifdef SW_COROUTINE
-    if (worker_id < serv->worker_num)
+
+    if (SwooleG.enable_coroutine && worker_id < serv->worker_num)
     {
         php_swoole_onWorkerStart_coroutine(zserv, zworker_id);
     }
     else
-#endif
     {
         php_swoole_onWorkerStart_callback(zserv, zworker_id);
     }
