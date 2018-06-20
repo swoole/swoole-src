@@ -113,30 +113,32 @@ void swoole_websocket_onOpen(http_context *ctx)
         zval *zrequest_object = ctx->request.zobject;
         zval *retval = NULL;
 
-#ifndef SW_COROUTINE
-        zval **args[2];
-        args[0] = &zserv;
-        args[1] = &zrequest_object;
-#else
-        zval *args[2];
-        args[0] = zserv;
-        args[1] = zrequest_object;
-#endif
+        if (SwooleG.enable_coroutine)
+        {
+            zval *args[2];
+            args[0] = zserv;
+            args[1] = zrequest_object;
 
-#ifndef SW_COROUTINE
-        zval *zcallback = php_swoole_server_get_callback(SwooleG.serv, conn->from_fd, SW_SERVER_CB_onOpen);
-        if (sw_call_user_function_fast(zcallback, cache, &retval, 2, args TSRMLS_CC) == FAILURE)
-        {
-            swoole_php_error(E_WARNING, "onOpen handler error");
+            int ret = coro_create(cache, args, 2, &retval, NULL, NULL);
+            if (ret == CORO_LIMIT)
+            {
+                SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
+                return;
+            }
         }
-#else
-        int ret = coro_create(cache, args, 2, &retval, NULL, NULL);
-        if (ret == CORO_LIMIT)
+        else
         {
-            SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
-            return;
+            zval **args[2];
+            args[0] = &zserv;
+            args[1] = &zrequest_object;
+
+            zval *zcallback = php_swoole_server_get_callback(SwooleG.serv, conn->from_fd, SW_SERVER_CB_onOpen);
+            if (sw_call_user_function_fast(zcallback, cache, &retval, 2, args TSRMLS_CC) == FAILURE)
+            {
+                swoole_php_error(E_WARNING, "onOpen handler error");
+            }
         }
-#endif
+
         if (EG(exception))
         {
             zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
@@ -257,37 +259,39 @@ int swoole_websocket_onMessage(swEventData *req)
 
     swServer *serv = SwooleG.serv;
     zval *zserv = (zval *) serv->ptr2;
-
-#ifndef SW_COROUTINE
-    zval **args[2];
-    args[0] = &zserv;
-    args[1] = &zframe;
-#else
-    zval *args[2];
-    args[0] = zserv;
-    args[1] = zframe;
-#endif
-
     zval *retval = NULL;
 
-#ifndef SW_COROUTINE
-    zend_fcall_info_cache *fci_cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onMessage);
-    zval *zcallback = php_swoole_server_get_callback(SwooleG.serv, req->info.from_fd, SW_SERVER_CB_onMessage);
-    if (sw_call_user_function_fast(zcallback, fci_cache, &retval, 2, args TSRMLS_CC) == FAILURE)
+    if (SwooleG.enable_coroutine)
     {
-        swoole_php_error(E_WARNING, "onMessage handler error");
+        zval *args[2];
+        args[0] = zserv;
+        args[1] = zframe;
+
+        zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onMessage);
+        int ret = coro_create(cache, args, 2, &retval, NULL, NULL);
+        if (ret == CORO_LIMIT)
+        {
+            sw_zval_ptr_dtor(&zdata);
+            sw_zval_ptr_dtor(&zframe);
+            SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
+            return SW_OK;
+        }
     }
-#else
-    zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onMessage);
-    int ret = coro_create(cache, args, 2, &retval, NULL, NULL);
-    if (ret == CORO_LIMIT)
+    else
     {
-        sw_zval_ptr_dtor(&zdata);
-        sw_zval_ptr_dtor(&zframe);
-        SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
-        return SW_OK;
+        zval **args[2];
+        args[0] = &zserv;
+        args[1] = &zframe;
+
+        zend_fcall_info_cache *fci_cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onMessage);
+        zval *zcallback = php_swoole_server_get_callback(SwooleG.serv, req->info.from_fd, SW_SERVER_CB_onMessage);
+
+        if (sw_call_user_function_fast(zcallback, fci_cache, &retval, 2, args TSRMLS_CC) == FAILURE)
+        {
+            swoole_php_error(E_WARNING, "onMessage handler error");
+        }
     }
-#endif
+
     if (EG(exception))
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);

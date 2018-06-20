@@ -42,6 +42,7 @@ void swoole_init(void)
     bzero(sw_error, SW_ERROR_MSG_SIZE);
 
     SwooleG.running = 1;
+    SwooleG.enable_coroutine = 1;
     sw_errno = 0;
 
     SwooleG.log_fd = STDOUT_FILENO;

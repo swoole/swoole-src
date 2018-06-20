@@ -2087,6 +2087,7 @@ typedef struct
     swTimer timer;
 
     uint8_t running :1;
+    uint8_t enable_coroutine :1;
     uint8_t use_timerfd :1;
     uint8_t use_signalfd :1;
     uint8_t enable_signalfd :1;
