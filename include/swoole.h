@@ -1982,6 +1982,8 @@ struct _swTimer
     long _current_id;
     long _next_msec;
     swPipe pipe;
+    /*-- if create coroutine automatically on callback --*/
+    uint32_t disable_coroutine :1;
     /*-----------------for EventTimer-------------------*/
     struct timeval basetime;
     /*--------------------------------------------------*/

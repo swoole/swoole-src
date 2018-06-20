@@ -876,7 +876,7 @@ PHP_FUNCTION(swoole_async_set)
 {
     if (SwooleG.main_reactor != NULL)
     {
-        swoole_php_fatal_error(E_ERROR, "eventLoop has already been created. unable to create swoole_server.");
+        swoole_php_fatal_error(E_ERROR, "eventLoop has already been created. unable to change settings.");
         RETURN_FALSE;
     }
 
@@ -945,6 +945,11 @@ PHP_FUNCTION(swoole_async_set)
     {
         convert_to_boolean(v);
         SwooleG.use_async_resolver = Z_BVAL_P(v);
+    }
+    if (php_swoole_array_get_value(vht, "enable_coroutine", v))
+    {
+        convert_to_boolean(v);
+        SwooleG.timer.disable_coroutine = !Z_BVAL_P(v);
     }
 #if defined(HAVE_REUSEPORT) && defined(HAVE_EPOLL)
     //reuse port

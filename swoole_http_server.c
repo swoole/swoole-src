@@ -1125,11 +1125,6 @@ static int http_onReceive(swServer *serv, swEventData *req)
     else
     {
         zval *retval = NULL;
-#ifndef SW_COROUTINE
-        zval **args[2];
-#else
-        zval *args[2];
-#endif
 
         zval *zrequest_object = ctx->request.zobject;
         zval *zresponse_object = ctx->response.zobject;
@@ -1183,14 +1178,6 @@ static int http_onReceive(swServer *serv, swEventData *req)
             goto free_object;
         }
 
-#ifndef SW_COROUTINE
-        args[0] = &zrequest_object;
-        args[1] = &zresponse_object;
-#else
-        args[0] = zrequest_object;
-        args[1] = zresponse_object;
-#endif
-
         int callback_type = 0;
         if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)
         {
@@ -1210,31 +1197,39 @@ static int http_onReceive(swServer *serv, swEventData *req)
             }
         }
 
-#ifndef SW_COROUTINE
-        zcallback = php_swoole_server_get_callback(serv, req->info.from_fd, callback_type);
-#ifdef PHP_SWOOLE_ENABLE_FASTCALL
-        zend_fcall_info_cache *fci_cache = php_swoole_server_get_cache(serv, req->info.from_fd, callback_type);
-        if (sw_call_user_function_fast(zcallback, fci_cache, &retval, 2, args TSRMLS_CC) == FAILURE)
-#else
-        if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
-#endif
+        if (serv->disable_coroutine)
         {
-            swoole_php_error(E_WARNING, "onRequest handler error");
-        }
-#else
-        zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, req->info.from_fd, callback_type);
-        int ret = coro_create(cache, args, 2, &retval, NULL, NULL);
-        if (ret < 0)
-        {
-            sw_zval_ptr_dtor(&zrequest_object);
-            sw_zval_ptr_dtor(&zresponse_object);
-            if (ret == CORO_LIMIT)
+            zval **args[2];
+            args[0] = &zrequest_object;
+            args[1] = &zresponse_object;
+
+            zcallback = php_swoole_server_get_callback(serv, req->info.from_fd, callback_type);
+            zend_fcall_info_cache *fci_cache = php_swoole_server_get_cache(serv, req->info.from_fd, callback_type);
+            if (sw_call_user_function_fast(zcallback, fci_cache, &retval, 2, args TSRMLS_CC) == FAILURE)
             {
-                serv->factory.end(&SwooleG.serv->factory, fd);
+                swoole_php_error(E_WARNING, "onRequest handler error");
             }
-            return SW_OK;
         }
-#endif
+        else
+        {
+            zval *args[2];
+            args[0] = zrequest_object;
+            args[1] = zresponse_object;
+
+            zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, req->info.from_fd, callback_type);
+            int ret = coro_create(cache, args, 2, &retval, NULL, NULL);
+            if (ret < 0)
+            {
+                sw_zval_ptr_dtor(&zrequest_object);
+                sw_zval_ptr_dtor(&zresponse_object);
+                if (ret == CORO_LIMIT)
+                {
+                    serv->factory.end(&SwooleG.serv->factory, fd);
+                }
+                return SW_OK;
+            }
+        }
+
         if (EG(exception))
         {
             zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
@@ -1256,6 +1251,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
             sw_zval_ptr_dtor(&retval);
         }
     }
+
     return SW_OK;
 }
 
