@@ -1544,11 +1544,6 @@ void php_swoole_onConnect(swServer *serv, swDataHead *info)
     zval *zserv = (zval *) serv->ptr2;
     zval *zfd;
     zval *zfrom_id;
-#ifdef SW_COROUTINE
-    zval *args[3];
-#else
-    zval **args[3];
-#endif
     zval *retval = NULL;
 
     SWOOLE_GET_TSRMLS;
@@ -1559,49 +1554,52 @@ void php_swoole_onConnect(swServer *serv, swDataHead *info)
     SW_MAKE_STD_ZVAL(zfrom_id);
     ZVAL_LONG(zfrom_id, info->from_id);
 
-#ifndef SW_COROUTINE
-    args[0] = &zserv;
-    args[1] = &zfd;
-    args[2] = &zfrom_id;
-#else
-    args[0] = zserv;
-    args[1] = zfd;
-    args[2] = zfrom_id;
-#endif
+    if (SwooleG.enable_coroutine)
+    {
+        zval *args[3];
+        args[0] = zserv;
+        args[1] = zfd;
+        args[2] = zfrom_id;
 
-#ifndef SW_COROUTINE
-    zval *callback = php_swoole_server_get_callback(serv, info->from_fd, SW_SERVER_CB_onConnect);
-    if (callback == NULL || ZVAL_IS_NULL(callback))
-    {
-        return;
-    }
+        int ret;
+        zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, info->from_fd, SW_SERVER_CB_onConnect);
+        if (cache == NULL) {
+            return;
+        }
+        if (serv->enable_delay_receive)
+        {
+            ret = coro_create(cache, args, 3, &retval, php_swoole_onConnect_finish, (void*) (long) info->fd);
+        }
+        else
+        {
+            ret = coro_create(cache, args, 3, &retval, NULL, NULL);
+        }
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
-    {
-        swoole_php_error(E_WARNING, "onConnect handler error.");
-    }
-#else
-    int ret;
-    zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, info->from_fd, SW_SERVER_CB_onConnect);
-    if (cache == NULL) {
-        return;
-    }
-    if (serv->enable_delay_receive)
-    {
-        ret = coro_create(cache, args, 3, &retval, php_swoole_onConnect_finish, (void*) (long) info->fd);
+        if (ret < 0)
+        {
+            sw_zval_ptr_dtor(&zfd);
+            sw_zval_ptr_dtor(&zfrom_id);
+            return;
+        }
     }
     else
     {
-        ret = coro_create(cache, args, 3, &retval, NULL, NULL);
-    }
+        zval **args[3];
+        args[0] = &zserv;
+        args[1] = &zfd;
+        args[2] = &zfrom_id;
 
-    if (ret < 0)
-    {
-        sw_zval_ptr_dtor(&zfd);
-        sw_zval_ptr_dtor(&zfrom_id);
-        return;
+        zval *callback = php_swoole_server_get_callback(serv, info->from_fd, SW_SERVER_CB_onConnect);
+        if (callback == NULL || ZVAL_IS_NULL(callback))
+        {
+            return;
+        }
+
+        if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
+        {
+            swoole_php_error(E_WARNING, "onConnect handler error.");
+        }
     }
-#endif
 
     if (EG(exception))
     {
