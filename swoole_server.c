@@ -783,11 +783,6 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
 {
     swFactory *factory = &serv->factory;
     zval *zserv = (zval *) serv->ptr2;
-#ifdef SW_COROUTINE
-    zval *args[4];
-#else
-    zval **args[4];
-#endif
 
     zval *zfd;
     zval *zfrom_id;
@@ -856,44 +851,50 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
         php_swoole_get_recv_data(zdata, req, NULL, 0);
     }
 
-#ifndef SW_COROUTINE
-    zval *callback = php_swoole_server_get_callback(serv, req->info.from_fd, SW_SERVER_CB_onReceive);
-    if (callback == NULL || ZVAL_IS_NULL(callback))
+    if (SwooleG.enable_coroutine)
     {
-        swoole_php_fatal_error(E_WARNING, "onReceive callback is null.");
-        return SW_OK;
-    }
+        zval *args[4];
+        args[0] = zserv;
+        args[1] = zfd;
+        args[2] = zfrom_id;
+        args[3] = zdata;
 
-    args[0] = &zserv;
-    args[1] = &zfd;
-    args[2] = &zfrom_id;
-    args[3] = &zdata;
-
-    zend_fcall_info_cache *fci_cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onReceive);
-    if (sw_call_user_function_fast(callback, fci_cache, &retval, 4, args TSRMLS_CC) == FAILURE)
-    {
-        swoole_php_fatal_error(E_WARNING, "onReceive handler error.");
-    }
-#else
-    args[0] = zserv;
-    args[1] = zfd;
-    args[2] = zfrom_id;
-    args[3] = zdata;
-
-    zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onReceive);
-    int ret = coro_create(cache, args, 4, &retval, NULL, NULL);
-    if (ret < 0)
-    {
-        sw_zval_ptr_dtor(&zfd);
-        sw_zval_ptr_dtor(&zfrom_id);
-        sw_zval_ptr_dtor(&zdata);
-        if (ret == CORO_LIMIT)
+        zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onReceive);
+        int ret = coro_create(cache, args, 4, &retval, NULL, NULL);
+        if (ret < 0)
         {
-            serv->factory.end(&SwooleG.serv->factory, req->info.fd);
+            sw_zval_ptr_dtor(&zfd);
+            sw_zval_ptr_dtor(&zfrom_id);
+            sw_zval_ptr_dtor(&zdata);
+            if (ret == CORO_LIMIT)
+            {
+                serv->factory.end(&SwooleG.serv->factory, req->info.fd);
+            }
+            return SW_OK;
         }
-        return SW_OK;
     }
-#endif
+    else
+    {
+        zval **args[4];
+        zval *callback = php_swoole_server_get_callback(serv, req->info.from_fd, SW_SERVER_CB_onReceive);
+        if (callback == NULL || ZVAL_IS_NULL(callback))
+        {
+            swoole_php_fatal_error(E_WARNING, "onReceive callback is null.");
+            return SW_OK;
+        }
+
+        args[0] = &zserv;
+        args[1] = &zfd;
+        args[2] = &zfrom_id;
+        args[3] = &zdata;
+
+        zend_fcall_info_cache *fci_cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onReceive);
+        if (sw_call_user_function_fast(callback, fci_cache, &retval, 4, args TSRMLS_CC) == FAILURE)
+        {
+            swoole_php_fatal_error(E_WARNING, "onReceive handler error.");
+        }
+    }
+
     if (EG(exception))
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
