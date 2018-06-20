@@ -733,38 +733,41 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
         return;
     }
 
-#ifndef SW_COROUTINE
-    zval **args[3];
-    args[0] = &zserv;
-    args[1] = &zworker_id;
-    args[2] = &zdata;
-
-    swTrace("PipeMessage: fd=%d|len=%d|from_id=%d|data=%s\n", req->info.fd, req->info.len, req->info.from_id, req->data);
-
-    if (sw_call_user_function_fast(php_sw_server_callbacks[SW_SERVER_CB_onPipeMessage], php_sw_server_caches[SW_SERVER_CB_onPipeMessage], &retval, 3, args TSRMLS_CC) == FAILURE)
+    if (SwooleG.enable_coroutine)
     {
-        swoole_php_fatal_error(E_WARNING, "onPipeMessage handler error.");
-    }
+        zval *args[3];
+        args[0] = zserv;
+        args[1] = zworker_id;
+        args[2] = zdata;
 
-#else
-    zval *args[3];
-    args[0] = zserv;
-    args[1] = zworker_id;
-    args[2] = zdata;
-
-    zend_fcall_info_cache *cache = php_sw_server_caches[SW_SERVER_CB_onPipeMessage];
-    int ret = coro_create(cache, args, 3, &retval, NULL, NULL);
-    if (ret < 0)
-    {
-        sw_zval_ptr_dtor(&zworker_id);
-        sw_zval_free(zdata);
-        if (ret == CORO_LIMIT)
+        zend_fcall_info_cache *cache = php_sw_server_caches[SW_SERVER_CB_onPipeMessage];
+        int ret = coro_create(cache, args, 3, &retval, NULL, NULL);
+        if (ret < 0)
         {
-            swWarn("Failed to handle onPipeMessage. Coroutine limited");
+            sw_zval_ptr_dtor(&zworker_id);
+            sw_zval_free(zdata);
+            if (ret == CORO_LIMIT)
+            {
+                swWarn("Failed to handle onPipeMessage. Coroutine limited");
+            }
+            return;
         }
-        return;
     }
-#endif
+    else
+    {
+        zval **args[3];
+        args[0] = &zserv;
+        args[1] = &zworker_id;
+        args[2] = &zdata;
+
+        swTrace("PipeMessage: fd=%d|len=%d|from_id=%d|data=%s\n", req->info.fd, req->info.len, req->info.from_id, req->data);
+
+        if (sw_call_user_function_fast(php_sw_server_callbacks[SW_SERVER_CB_onPipeMessage], php_sw_server_caches[SW_SERVER_CB_onPipeMessage], &retval, 3, args TSRMLS_CC) == FAILURE)
+        {
+            swoole_php_fatal_error(E_WARNING, "onPipeMessage handler error.");
+        }
+    }
+
     if (EG(exception))
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
