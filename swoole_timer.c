@@ -280,7 +280,7 @@ static int php_swoole_del_timer(swTimer_node *tnode TSRMLS_DC)
     {
         sw_zval_ptr_dtor(&cb->data);
     }
-    if (cb->func_cache)
+    if (!SwooleG.timer.disable_coroutine && cb->func_cache)
     {
         efree(cb->func_cache);
     }
