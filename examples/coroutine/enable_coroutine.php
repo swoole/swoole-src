@@ -10,7 +10,7 @@ $http->set([
 ]);
 
 $http->on('workerStart', function () {
-    echo "Coroutine is " . (Co::getuid() > 0 ? 'enable' : 'disable');
+    echo "Coroutine is " . (Co::getuid() > 0 ? 'enable' : 'disable')."\n";
 });
 
 $http->on("request", function (Request $request, Response $response) {
