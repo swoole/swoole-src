@@ -912,13 +912,6 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
 int php_swoole_onPacket(swServer *serv, swEventData *req)
 {
     zval *zserv = (zval *) serv->ptr2;
-
-#ifdef SW_COROUTINE
-    zval *args[3];
-#else
-    zval **args[3];
-#endif
-
     zval *zdata;
     zval *zaddr;
     zval *retval = NULL;
@@ -966,36 +959,41 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
         dgram_server_socket = req->info.from_fd;
     }
 
-#ifndef SW_COROUTINE
-    args[0] = &zserv;
-    args[1] = &zdata;
-    args[2] = &zaddr;
-
-    zval *callback = php_swoole_server_get_callback(serv, req->info.from_fd, SW_SERVER_CB_onPacket);
-    if (callback == NULL || ZVAL_IS_NULL(callback))
+    if (SwooleG.enable_coroutine)
     {
-        swoole_php_fatal_error(E_WARNING, "onPacket callback is null.");
-        return SW_OK;
-    }
+        zval *args[3];
+        args[0] = zserv;
+        args[1] = zdata;
+        args[2] = zaddr;
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
-    {
-        swoole_php_fatal_error(E_WARNING, "onPacket handler error.");
+        zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onPacket);
+        int ret = coro_create(cache, args, 3, &retval, NULL, NULL);
+        if (ret < 0)
+        {
+            sw_zval_ptr_dtor(&zaddr);
+            sw_zval_ptr_dtor(&zdata);
+            return SW_OK;
+        }
     }
-#else
-    args[0] = zserv;
-    args[1] = zdata;
-    args[2] = zaddr;
+    else
+    {
+        zval **args[3];
+        args[0] = &zserv;
+        args[1] = &zdata;
+        args[2] = &zaddr;
 
-    zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onPacket);
-    int ret = coro_create(cache, args, 3, &retval, NULL, NULL);
-    if (ret < 0)
-    {
-        sw_zval_ptr_dtor(&zaddr);
-        sw_zval_ptr_dtor(&zdata);
-        return SW_OK;
+        zval *callback = php_swoole_server_get_callback(serv, req->info.from_fd, SW_SERVER_CB_onPacket);
+        if (callback == NULL || ZVAL_IS_NULL(callback))
+        {
+            swoole_php_fatal_error(E_WARNING, "onPacket callback is null.");
+            return SW_OK;
+        }
+
+        if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
+        {
+            swoole_php_fatal_error(E_WARNING, "onPacket handler error.");
+        }
     }
-#endif
 
     if (EG(exception))
     {
