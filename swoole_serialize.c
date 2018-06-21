@@ -1242,7 +1242,7 @@ static  zend_class_entry* swoole_try_get_ce(zend_string *class_name)
         return NULL;
     }
     
-    zend_string *fname = swoole_string_init(PG(unserialize_callback_func), strlen(PG(unserialize_callback_func)));
+    zend_string *fname = swoole_string_init(ZEND_STRL(PG(unserialize_callback_func)));
     Z_STR(user_func) = fname;
     Z_TYPE_INFO(user_func) = IS_STRING_EX;
     ZVAL_STR(&args[0], class_name);
@@ -1282,7 +1282,7 @@ static void* swoole_unserialize_object(void *buffer, zval *return_value, zend_uc
     zend_string *class_name;
     if (flag == UNSERIALIZE_OBJECT_TO_STDCLASS) 
     {
-        class_name = swoole_string_init("StdClass", 9);
+        class_name = swoole_string_init(ZEND_STRL("StdClass"));
     } 
     else 
     {
@@ -1368,10 +1368,10 @@ static void* swoole_unserialize_object(void *buffer, zval *return_value, zend_uc
 
 
     //call object __wakeup
-    if (zend_hash_str_exists(&ce->function_table, "__wakeup", sizeof ("__wakeup") - 1))
+    if (zend_hash_str_exists(&ce->function_table, ZEND_STRL("__wakeup")))
     {
         zval ret, wakeup;
-        zend_string *fname = swoole_string_init("__wakeup", sizeof ("__wakeup") - 1);
+        zend_string *fname = swoole_string_init(ZEND_STRL("__wakeup"));
         Z_STR(wakeup) = fname;
         Z_TYPE_INFO(wakeup) = IS_STRING_EX;
         call_user_function_ex(CG(function_table), return_value, &wakeup, &ret, 0, NULL, 1, NULL);
