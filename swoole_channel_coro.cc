@@ -78,7 +78,7 @@ static PHP_METHOD(swoole_channel_coro, select);
 static zend_class_entry swoole_channel_coro_ce;
 static zend_class_entry *swoole_channel_coro_class_entry_ptr;
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_channel_coro_construct, 0, 0, 1)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_channel_coro_construct, 0, 0, 0)
     ZEND_ARG_INFO(0, size)
 ZEND_END_ARG_INFO()
 
@@ -86,7 +86,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_channel_coro_push, 0, 0, 1)
     ZEND_ARG_INFO(0, data)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_channel_coro_select, 0, 0, 3)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_channel_coro_select, 0, 0, 2)
     ZEND_ARG_ARRAY_INFO(1, read_list, 1)
     ZEND_ARG_ARRAY_INFO(1, write_list, 1)
     ZEND_ARG_INFO(0, timeout)
@@ -548,7 +548,7 @@ static PHP_METHOD(swoole_channel_coro, select)
     double timeout = 0;
     zend_bool need_yield = 1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a!a!d", &read_list, &write_list, &timeout) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a!a|!d", &read_list, &write_list, &timeout) == FAILURE)
     {
         RETURN_FALSE;
     }
