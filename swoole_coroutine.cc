@@ -227,7 +227,7 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
     EG(vm_stack) = SWCC(current_vm_stack);
     EG(vm_stack_top) = SWCC(current_vm_stack_top);
     EG(vm_stack_end) = SWCC(current_vm_stack_end);
-    if (EG(current_execute_data)->prev_execute_data->opline->result_type != IS_UNUSED)
+    if (EG(current_execute_data)->prev_execute_data->opline->result_type != IS_UNUSED && retval)
     {
         ZVAL_COPY(SWCC(current_coro_return_value_ptr), retval);
     }
@@ -235,7 +235,10 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
     coroutine_resume(task->co);
     if (unlikely(EG(exception)))
     {
-        sw_zval_ptr_dtor(&retval);
+        if (retval)
+        {
+            zval_ptr_dtor(retval);
+        }
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
     return CORO_END;
@@ -305,18 +308,18 @@ void coro_handle_timeout()
     swTimer_node *tnode = NULL;
     if (timeout_list != NULL && timeout_list->num > 0)
     {
-        php_context *cxt = (php_context *) swLinkedList_pop(timeout_list);
+        php_context *cxt = (php_context *) swLinkedList_shift(timeout_list);
         while (cxt != NULL)
         {
             cxt->onTimeout(cxt);
-            cxt = (php_context *) swLinkedList_pop(timeout_list);
+            cxt = (php_context *) swLinkedList_shift(timeout_list);
         }
     }
 
     timeout_list = SwooleWG.delayed_coro_timeout_list;
     if (likely(timeout_list != NULL))
     {
-        swTimer_coro_callback *scc = (swTimer_coro_callback *) swLinkedList_pop(timeout_list);
+        swTimer_coro_callback *scc = (swTimer_coro_callback *) swLinkedList_shift(timeout_list);
         while (scc != NULL)
         {
             php_context *context = (php_context *) scc->data;
@@ -341,7 +344,7 @@ void coro_handle_timeout()
                     *scc->timeout_id = tnode->id;
                 }
             }
-            scc = (swTimer_coro_callback *) swLinkedList_pop(timeout_list);
+            scc = (swTimer_coro_callback *) swLinkedList_shift(timeout_list);
         }
     }
 }
