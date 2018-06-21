@@ -548,7 +548,7 @@ static PHP_METHOD(swoole_channel_coro, select)
     double timeout = 0;
     zend_bool need_yield = 1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a!a|!d", &read_list, &write_list, &timeout) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a!a!|d", &read_list, &write_list, &timeout) == FAILURE)
     {
         RETURN_FALSE;
     }

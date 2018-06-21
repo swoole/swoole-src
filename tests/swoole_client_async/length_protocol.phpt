@@ -91,7 +91,8 @@ $pm->childFunc = function () use ($pm)
     $serv = new swoole_server("127.0.0.1", 9501, SWOOLE_BASE);
     $serv->set(array(
         "worker_num" => 1,
-        'log_file' => '/dev/null',
+        'send_yield' => true,
+        'log_file' => '/tmp/swoole.log',
     ));
     $serv->on("WorkerStart", function (\swoole_server $serv)  use ($pm)
     {
