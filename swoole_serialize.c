@@ -1224,7 +1224,7 @@ static CPINLINE void swoole_string_release(zend_string *str)
     ZSTR_ALLOCA_FREE(str, 0);
 }
 
-static  zend_class_entry* swoole_try_get_ce(zend_string *class_name)
+static CPINLINE zend_class_entry* swoole_try_get_ce(zend_string *class_name)
 {
     //user class , do not support incomplete class now
     zend_class_entry *ce = zend_lookup_class(class_name);
