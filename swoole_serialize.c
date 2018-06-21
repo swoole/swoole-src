@@ -1329,6 +1329,7 @@ static void* swoole_unserialize_object(void *buffer, zval *return_value, zend_uc
                 {
                     d = Z_INDIRECT_P(d);
                 }
+                zval_dtor(d);
                 ZVAL_COPY(d, data);
             }
             else
