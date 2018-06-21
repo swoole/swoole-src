@@ -35,10 +35,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2018-06-14</date>
+    <date>2018-06-21</date>
     <time>09:50:10</time>
     <version>
-        <release>4.0.0</release>
+        <release>4.0.1</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -47,13 +47,9 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        - Using c stackful coroutine
-        - Allow to create server in multiple processes
-        - Fixed issue where http2 server could not send more than 16K data to Chrome browser client
-        - Added Channel->peek method for peeping data
-        - Fixed issue where Server->pause/resume could not be used under SWOOLE_PROCESS
-        - Removed Linux AIO and use thread pool for asynchronous file IO anyway
-        - Added MySQL stored procedure supports
+        - Added enable_coroutine option
+        - Added MySQL8 caching_sha2_password supports
+        - Refactor channel
     </notes>
     <contents>
         <dir name="/">
@@ -121,7 +117,7 @@
             <file role="src" name="swoole_redis.c" />
             <file role="src" name="swoole_redis_server.c" />
             <file role="src" name="swoole_mmap.c" />
-			<file role="src" name="swoole_channel_coro.c" />
+			<file role="src" name="swoole_channel_coro.cc" />
             <file role="src" name="swoole_channel.c" />
             <file role="src" name="swoole_serialize.h" />
             <file role="src" name="swoole_serialize.c" />
@@ -514,6 +510,7 @@
                 <file name="include/api/swoole_redis/redis_test.php" role="test" />
                 <file name="include/api/swoole_redis/simple_redis.php" role="test" />
                 <file name="include/api/swoole_server/TestServer.php" role="test" />
+                <file name="include/api/swoole_server/manager_process_exit.log" role="test" />
                 <file name="include/api/swoole_server/multi_protocol_server.php" role="test" />
                 <file name="include/api/swoole_server/opcode_server.php" role="test" />
                 <file name="include/api/swoole_server/reconnect_fail/tcp_client.php" role="test" />
@@ -615,6 +612,7 @@
                 <file name="swoole_client_sync/swoole_client_sync_send_recv.phpt" role="test" />
                 <file name="swoole_client_sync/udp_client_sendto.phpt" role="test" />
                 <file name="swoole_coroutine/call_user_func_array.phpt" role="test" />
+                <file name="swoole_coroutine/coro_stats.phpt" role="test" />
                 <file name="swoole_coroutine/current.phpt" role="test" />
                 <file name="swoole_coroutine/destruct/destruct1.phpt" role="test" />
                 <file name="swoole_coroutine/destruct/destruct2.phpt" role="test" />
@@ -646,6 +644,7 @@
                 <file name="swoole_coroutine_channel/basic.phpt" role="test" />
                 <file name="swoole_coroutine_channel/chan_select_timeout.phpt" role="test" />
                 <file name="swoole_coroutine_channel/chan_stats.phpt" role="test" />
+                <file name="swoole_coroutine_channel/coro_wait.phpt" role="test" />
                 <file name="swoole_coroutine_channel/fibonacci.phpt" role="test" />
                 <file name="swoole_coroutine_channel/hybird_chan.phpt" role="test" />
                 <file name="swoole_coroutine_channel/hybird_chan2.phpt" role="test" />
@@ -733,6 +732,7 @@
                 <file name="swoole_http_client/websocket_port_not_listen.phpt" role="test" />
                 <file name="swoole_http_server/chunk.phpt" role="test" />
                 <file name="swoole_http_server/cookies.phpt" role="test" />
+                <file name="swoole_http_server/enable_coroutine.phpt" role="test" />
                 <file name="swoole_http_server/gzip.phpt" role="test" />
                 <file name="swoole_http_server/large_url.phpt" role="test" />
                 <file name="swoole_http_server/rawContent.phpt" role="test" />
@@ -909,6 +909,7 @@
                 <file name="swoole_table/foreach.phpt" role="test" />
                 <file name="swoole_table/int.phpt" role="test" />
                 <file name="swoole_table/key_value.phpt" role="test" />
+                <file name="swoole_timer/enable_coroutine.phpt" role="test" />
                 <file name="swoole_timer/greater_than_0.phpt" role="test" />
                 <file name="swoole_timer/parameters_is_too_big.phpt" role="test" />
                 <file name="swoole_timer/swoole_timer_after.phpt" role="test" />
@@ -927,7 +928,7 @@
     <dependencies>
         <required>
             <php>
-                <min>7.1.0</min>
+                <min>7.0.0</min>
             </php>
             <pearinstaller>
                 <min>1.4.0</min>

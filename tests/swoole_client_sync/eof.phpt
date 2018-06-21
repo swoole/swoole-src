@@ -68,6 +68,7 @@ $pm->childFunc = function () use ($pm, $port)
         'dispatch_mode' => 3,
         'package_max_length' => 1024 * 1024 * 2, //2M
         'socket_buffer_size' => 256 * 1024 * 1024,
+        'send_yield' => true,
         "worker_num" => 1,
         'log_file' => '/tmp/swoole.log',
     ));
