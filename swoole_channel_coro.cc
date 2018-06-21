@@ -256,8 +256,6 @@ static void swoole_channel_onResume(php_context *ctx)
                 zval_ptr_dtor(selector->write_list);
                 ZVAL_COPY_VALUE(selector->write_list, &selector->writable);
             }
-            channel *chan = (channel *) swoole_get_object(&selector->object);
-            chan->data_queue->push(*zdata);
         }
         SW_MAKE_STD_ZVAL(zdata);
         ZVAL_BOOL(zdata, 1);
@@ -450,6 +448,8 @@ static PHP_METHOD(swoole_channel_coro, push)
             node->selector->object = *getThis();
             node->selector->opcode = CHANNEL_SELECT_READ;
             channel_selector_clear(node->selector, chan->consumer_list->head);
+
+            chan->data_queue->push(*zdata);
         }
         swLinkedList_shift(chan->consumer_list);
         channel_notify(node);

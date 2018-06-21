@@ -66,9 +66,6 @@ PHP_ARG_WITH(jemalloc_dir, for jemalloc support,
 PHP_ARG_ENABLE(mysqlnd, enable mysqlnd support,
 [  --enable-mysqlnd       Do you have mysqlnd?], no, no)
 
-PHP_ARG_ENABLE(coroutine, whether to enable coroutine,
-[  --enable-coroutine      Enable coroutine (requires PHP >= 5.5)], yes, no)
-
 PHP_ARG_ENABLE(asan, whether to enable asan,
 [  --enable-asan      Enable asan], no, no)
 
@@ -280,10 +277,6 @@ if test "$PHP_SWOOLE" != "no"; then
     if test "$PHP_ASAN" != "no"; then
         PHP_DEBUG=1
         CFLAGS="$CFLAGS -fsanitize=address -fno-omit-frame-pointer"
-    fi
-
-    if test "$PHP_COROUTINE" != "no"; then
-        AC_DEFINE(SW_COROUTINE, 1, [enable ability of coroutine])
     fi
 
     if test "$PHP_TRACE_LOG" != "no"; then
