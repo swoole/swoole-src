@@ -1453,8 +1453,8 @@ PHPAPI zend_string* php_swoole_serialize(zval *zvalue)
     swoole_seria_dispatch(&str, zvalue); //serialize into a string
     zend_string *z_str = (zend_string *) str.buffer;
 
-    z_str->val[str.offset] = '\0';
     z_str->len = str.offset - _STR_HEADER_SIZE;
+    z_str->val[z_str->len] = '\0';
     z_str->h = 0;
     GC_SET_REFCOUNT(z_str, 1);
     GC_TYPE_INFO(z_str) = IS_STRING_EX;
