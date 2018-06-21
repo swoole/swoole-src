@@ -42,25 +42,25 @@ echo "main end\n";
 --EXPECT--
 select yield
 push start
-push [#0] ret:true
 main end
 select resume res: true
 pop [#0] ret:'data-0'
-push [#1] ret:true
-push [#2] ret:true
+push [#0] ret:true
 pop [#1] ret:'data-1'
+push [#1] ret:true
 pop [#2] ret:'data-2'
-push [#3] ret:true
-push [#4] ret:true
+push [#2] ret:true
 pop [#3] ret:'data-3'
+push [#3] ret:true
 pop [#4] ret:'data-4'
-push [#5] ret:true
-push [#6] ret:true
+push [#4] ret:true
 pop [#5] ret:'data-5'
+push [#5] ret:true
 pop [#6] ret:'data-6'
-push [#7] ret:true
-push [#8] ret:true
+push [#6] ret:true
 pop [#7] ret:'data-7'
+push [#7] ret:true
 pop [#8] ret:'data-8'
-push [#9] ret:true
+push [#8] ret:true
 pop [#9] ret:'data-9'
+push [#9] ret:true

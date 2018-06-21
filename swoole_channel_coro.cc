@@ -110,14 +110,6 @@ static const zend_function_entry swoole_channel_coro_methods[] =
     PHP_FE_END
 };
 
-#define APPEND_YIELD(coro_list, zdata) \
-        channel_node *node = (channel_node *) emalloc(sizeof(channel_node)); \
-        memset(node, 0, sizeof(channel_node)); \
-        ZVAL_COPY_VALUE(&(node->context.coro_params), &zdata); \
-        coro_save(&node->context); \
-        swLinkedList_append(coro_list, node); \
-        coro_yield();
-
 void swoole_channel_coro_init(int module_number TSRMLS_DC)
 {
     INIT_CLASS_ENTRY(swoole_channel_coro_ce, "Swoole\\Coroutine\\Channel", swoole_channel_coro_methods);
@@ -438,25 +430,26 @@ static PHP_METHOD(swoole_channel_coro, push)
 
     swDebug("TYPE=%d, count=%d", Z_TYPE_P(zdata), chan->data_queue->size());
 
+    chan->data_queue->push(*zdata);
+
     if (chan->consumer_list->num != 0)
     {
         channel_node *node = (channel_node *) chan->consumer_list->head->data;
-        node->context.coro_params = *zdata;
         node->context.onTimeout = swoole_channel_onResume;
         if (node->selector)
         {
             node->selector->object = *getThis();
             node->selector->opcode = CHANNEL_SELECT_READ;
             channel_selector_clear(node->selector, chan->consumer_list->head);
-
-            chan->data_queue->push(*zdata);
         }
         swLinkedList_shift(chan->consumer_list);
         channel_notify(node);
-    }
-    else
-    {
-        chan->data_queue->push(*zdata);
+
+        node = (channel_node *) emalloc(sizeof(channel_node));
+        memset(node, 0, sizeof(channel_node));
+        coro_save(&node->context);
+        swLinkedList_append(producer_list, node);
+        coro_yield();
     }
 
     RETURN_TRUE;
@@ -479,7 +472,6 @@ static PHP_METHOD(swoole_channel_coro, pop)
         coro_save(&node->context);
         swLinkedList_append(chan->consumer_list, node);
         coro_yield();
-        return;
     }
 
     if (channel_isEmpty(chan) && chan->closed)

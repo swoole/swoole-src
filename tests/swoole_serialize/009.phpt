@@ -15,9 +15,11 @@ require_once __DIR__ . '/../include/bootstrap.php';
 ini_set("display_errors", "Off");
 
 function test($type, $variable, $test) {
+  //  $serialized = serialize($variable);
+//    $unserialized = unserialize($serialized);
+
     $serialized = swoole_serialize::pack($variable);
     $unserialized = swoole_serialize::unpack($serialized);
-
     echo $type, PHP_EOL;
     var_dump($unserialized);
     echo $test || $unserialized == $variable ? 'OK' : 'ERROR', PHP_EOL;
@@ -25,10 +27,11 @@ function test($type, $variable, $test) {
 
 $a = array('foo');
 
-test('array($a, $a)', array($a, $a), false);
-test('array(&$a, &$a)', array(&$a, &$a), false);
+//test('array($a, $a)', array($a, $a), false);
+//test('array(&$a, &$a)', array(&$a, &$a), false);
 
-$a = array(null);
+$a = [];
+//$a = array('t'=>$b);
 $b = array(&$a);
 $a[0] = &$b;
 

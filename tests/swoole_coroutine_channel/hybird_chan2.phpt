@@ -67,28 +67,27 @@ chan 2 push [#8] ret:true
 chan 2 push [#9] ret:true
 select resume res: true
 chan1 push start
+main end
+chan1 pop [#0] ret:'chan1-0'
 chan1 push [#0] ret:true
+chan1 pop [#1] ret:'chan1-1'
 chan1 push [#1] ret:true
 start sleep
 end sleep
-main end
-chan1 pop [#0] ret:'chan1-0'
-chan1 pop [#1] ret:'chan1-1'
-chan1 push [#2] ret:true
-chan1 push [#3] ret:true
 chan1 pop [#2] ret:'chan1-2'
+chan1 push [#2] ret:true
 chan1 pop [#3] ret:'chan1-3'
-chan1 push [#4] ret:true
-chan1 push [#5] ret:true
+chan1 push [#3] ret:true
 chan1 pop [#4] ret:'chan1-4'
+chan1 push [#4] ret:true
 chan1 pop [#5] ret:'chan1-5'
-chan1 push [#6] ret:true
-chan1 push [#7] ret:true
+chan1 push [#5] ret:true
 chan1 pop [#6] ret:'chan1-6'
+chan1 push [#6] ret:true
 chan1 pop [#7] ret:'chan1-7'
-chan1 push [#8] ret:true
-chan1 push [#9] ret:true
+chan1 push [#7] ret:true
 chan1 pop [#8] ret:'chan1-8'
+chan1 push [#8] ret:true
 chan1 pop [#9] ret:'chan1-9'
 chan2 pop [#0] ret:'chan2-0'
 chan2 pop [#1] ret:'chan2-1'
@@ -100,3 +99,4 @@ chan2 pop [#6] ret:'chan2-6'
 chan2 pop [#7] ret:'chan2-7'
 chan2 pop [#8] ret:'chan2-8'
 chan2 pop [#9] ret:'chan2-9'
+chan1 push [#9] ret:true
