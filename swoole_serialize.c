@@ -1207,11 +1207,15 @@ static void swoole_serialize_object(seriaString *buffer, zval *obj, size_t start
  */
 static CPINLINE zend_string * swoole_string_init(const char *str, size_t len)
 {
+#ifdef ZEND_DEBUG
+    return zend_string_init(str, len, 0);
+#else
     ALLOCA_FLAG(use_heap);
     zend_string *ret;
     ZSTR_ALLOCA_INIT(ret, str, len, use_heap);
 
     return ret;
+#endif
 }
 
 /*
@@ -1219,9 +1223,13 @@ static CPINLINE zend_string * swoole_string_init(const char *str, size_t len)
  */
 static CPINLINE void swoole_string_release(zend_string *str)
 {
+#ifdef ZEND_DEBUG
+    zend_string_release(str);
+#else
     //if dont support alloc 0 will ignore
     //if support alloc size is definitely < ZEND_ALLOCA_MAX_SIZE
     ZSTR_ALLOCA_FREE(str, 0);
+#endif
 }
 
 static CPINLINE zend_class_entry* swoole_try_get_ce(zend_string *class_name)
