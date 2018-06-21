@@ -184,10 +184,7 @@ static int channel_onNotify(swReactor *reactor, swEvent *event)
     uint64_t notify;
     while (read(COROG.chan_pipe->getFd(COROG.chan_pipe, 0), &notify, sizeof(notify)) > 0);
     coro_handle_timeout();
-    if (COROG.coro_num == 0)
-    {
-        SwooleG.main_reactor->del(SwooleG.main_reactor, COROG.chan_pipe->getFd(COROG.chan_pipe, 0));
-    }
+    SwooleG.main_reactor->del(SwooleG.main_reactor, COROG.chan_pipe->getFd(COROG.chan_pipe, 0));
     return 0;
 }
 
