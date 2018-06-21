@@ -81,7 +81,6 @@ typedef struct _coro_global
     zval *allocated_return_value_ptr;
     zend_execute_data *origin_ex;
     coro_task *current_coro;
-    zend_bool require;
     zend_bool active;
     coro_task *call_stack[128];
     int call_stack_size;

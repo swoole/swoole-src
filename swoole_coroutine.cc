@@ -81,7 +81,6 @@ int coro_init(TSRMLS_D)
         COROG.stack_size = DEFAULT_STACK_SIZE;
     }
 
-    COROG.require = 0;
     COROG.active = 1;
     SwooleWG.coro_timeout_list = swLinkedList_new(1, NULL);
     coroutine_set_close(sw_coro_close);
@@ -180,7 +179,6 @@ static void sw_coro_func(void *arg)
     EG(vm_stack) = task->stack;
     EG(vm_stack_top) = task->vm_stack_top;
     EG(vm_stack_end) = task->vm_stack_end;
-    COROG.require = 1;
     zend_execute_ex(EG(current_execute_data) TSRMLS_CC);
 }
 
@@ -229,7 +227,6 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
     EG(vm_stack) = SWCC(current_vm_stack);
     EG(vm_stack_top) = SWCC(current_vm_stack_top);
     EG(vm_stack_end) = SWCC(current_vm_stack_end);
-    COROG.require = 1;
     if (EG(current_execute_data)->prev_execute_data->opline->result_type != IS_UNUSED)
     {
         ZVAL_COPY(SWCC(current_coro_return_value_ptr), retval);
@@ -277,7 +274,6 @@ void sw_coro_close()
     efree(task->stack);
     COROG.coro_num--;
     COROG.current_coro = NULL;
-    COROG.require = 0;
     swTraceLog(SW_TRACE_COROUTINE, "close coro and %d remained. usage size: %zu. malloc size: %zu", COROG.coro_num, zend_memory_usage(0), zend_memory_usage(1));
 }
 
