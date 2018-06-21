@@ -1224,7 +1224,7 @@ static CPINLINE void swoole_string_release(zend_string *str)
     ZSTR_ALLOCA_FREE(str, 0);
 }
 
-static CPINLINE zend_class_entry* swoole_try_get_ce(zend_string *class_name)
+static  zend_class_entry* swoole_try_get_ce(zend_string *class_name)
 {
     //user class , do not support incomplete class now
     zend_class_entry *ce = zend_lookup_class(class_name);
@@ -1234,6 +1234,14 @@ static CPINLINE zend_class_entry* swoole_try_get_ce(zend_string *class_name)
     }
     // try call unserialize callback and retry lookup
     zval user_func, args[1], retval;
+
+    /* Check for unserialize callback */
+    if ((PG(unserialize_callback_func) == NULL) || (PG(unserialize_callback_func)[0] == '\0'))
+    {
+        zend_throw_exception_ex(NULL, 0, "can not find class %s", class_name->val TSRMLS_CC);
+        return NULL;
+    }
+    
     zend_string *fname = swoole_string_init(PG(unserialize_callback_func), strlen(PG(unserialize_callback_func)));
     Z_STR(user_func) = fname;
     Z_TYPE_INFO(user_func) = IS_STRING_EX;
@@ -1274,7 +1282,7 @@ static void* swoole_unserialize_object(void *buffer, zval *return_value, zend_uc
     zend_string *class_name;
     if (flag == UNSERIALIZE_OBJECT_TO_STDCLASS) 
     {
-        class_name = swoole_string_init("StdClass", 8);
+        class_name = swoole_string_init("StdClass", 9);
     } 
     else 
     {
