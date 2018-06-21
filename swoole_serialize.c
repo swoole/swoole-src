@@ -995,6 +995,7 @@ try_again:
 
                 if (GC_IS_RECURSIVE(ht))
                 {
+                    ((SBucketType*) (buffer->buffer + p))->data_type = IS_NULL;//reset type null
                     php_error_docref(NULL TSRMLS_CC, E_NOTICE, "the array has cycle ref");
                 }
                 else
