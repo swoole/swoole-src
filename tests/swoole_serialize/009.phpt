@@ -27,11 +27,10 @@ function test($type, $variable, $test) {
 
 $a = array('foo');
 
-//test('array($a, $a)', array($a, $a), false);
-//test('array(&$a, &$a)', array(&$a, &$a), false);
+test('array($a, $a)', array($a, $a), false);
+test('array(&$a, &$a)', array(&$a, &$a), false);
 
 $a = [];
-//$a = array('t'=>$b);
 $b = array(&$a);
 $a[0] = &$b;
 
