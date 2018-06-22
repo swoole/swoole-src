@@ -1,10 +1,10 @@
 --TEST--
 output_control: ob_* in coroutine
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require_once __DIR__ . '/../../include/bootstrap.php';
 // #co1
 go(function () {
     ob_start();
