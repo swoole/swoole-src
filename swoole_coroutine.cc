@@ -203,21 +203,25 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     COROG.error = 0;
     COROG.coro_num++;
 
+    /**===================Before Coroutine======================**/
     zend_output_globals *coro_output_globals_ptr = NULL;
     if (OG(active)) // save the current OG
     {
         coro_output_globals_ptr = (zend_output_globals *) emalloc(sizeof(zend_output_globals));
         memcpy(coro_output_globals_ptr, &output_globals, sizeof(zend_output_globals));
-        php_output_activate();
+        php_output_activate(); // new output
     }
+    /**=========================================================**/
 
     int ret = coroutine_create(sw_coro_func, (void*) &php_args);
 
+    /**===================After Coroutine=======================**/
     if (coro_output_globals_ptr) // resume the parent OG
     {
         memcpy(&output_globals, coro_output_globals_ptr, sizeof(zend_output_globals));
         efree(coro_output_globals_ptr);
     }
+    /**========================================================**/
 
     return ret;
 }
