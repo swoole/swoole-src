@@ -68,6 +68,7 @@ typedef struct _php_context
     coro_task *current_task;
     zend_vm_stack current_vm_stack;
     php_context_state state;
+    zend_output_globals *current_coro_output_ptr;
 } php_context;
 
 typedef struct _coro_global

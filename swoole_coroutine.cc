@@ -203,6 +203,15 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     COROG.error = 0;
     COROG.coro_num++;
 
+    // clear output control global
+    while (OG(active))
+    {
+        if (php_output_end() == FAILURE)
+        {
+            break;
+        }
+    }
+
     return coroutine_create(sw_coro_func, (void*) &php_args);
 }
 
@@ -213,7 +222,20 @@ void sw_coro_save(zval *return_value, php_context *sw_current_context)
     SWCC(current_vm_stack) = EG(vm_stack);
     SWCC(current_vm_stack_top) = EG(vm_stack_top);
     SWCC(current_vm_stack_end) = EG(vm_stack_end);
-    SWCC(current_task) = (coro_task *) sw_get_current_task();;
+    SWCC(current_task) = (coro_task *) sw_get_current_task();
+
+    // save output control global
+    if (OG(active))
+    {
+        zend_output_globals *coro_output_globals_ptr = (zend_output_globals *) emalloc(sizeof(zend_output_globals));
+        memcpy(coro_output_globals_ptr, &output_globals, sizeof(zend_output_globals));
+        SWCC(current_coro_output_ptr) = coro_output_globals_ptr;
+        bzero(&output_globals, sizeof(zend_output_globals));
+    }
+    else
+    {
+        SWCC(current_coro_output_ptr) = NULL;
+    }
 }
 
 int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_retval)
@@ -227,12 +249,23 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
     EG(vm_stack) = SWCC(current_vm_stack);
     EG(vm_stack_top) = SWCC(current_vm_stack_top);
     EG(vm_stack_end) = SWCC(current_vm_stack_end);
+
     if (EG(current_execute_data)->prev_execute_data->opline->result_type != IS_UNUSED && retval)
     {
         ZVAL_COPY(SWCC(current_coro_return_value_ptr), retval);
     }
+
+    // resume output control global
+    if (SWCC(current_coro_output_ptr))
+    {
+        memcpy(&output_globals, SWCC(current_coro_output_ptr), sizeof(zend_output_globals));
+        efree(SWCC(current_coro_output_ptr));
+        SWCC(current_coro_output_ptr) = NULL;
+    }
+
     swDebug("cid=%d", task->cid);
     coroutine_resume(task->co);
+
     if (unlikely(EG(exception)))
     {
         if (retval)
@@ -277,6 +310,16 @@ void sw_coro_close()
     efree(task->stack);
     COROG.coro_num--;
     COROG.current_coro = NULL;
+
+    // clear output control global
+    while (OG(active))
+    {
+        if (php_output_end() == FAILURE)
+        {
+            break;
+        }
+    }
+
     swTraceLog(SW_TRACE_COROUTINE, "close coro and %d remained. usage size: %zu. malloc size: %zu", COROG.coro_num, zend_memory_usage(0), zend_memory_usage(1));
 }
 
