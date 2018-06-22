@@ -244,7 +244,7 @@ void sw_coro_save(zval *return_value, php_context *sw_current_context)
         zend_output_globals *coro_output_globals_ptr = (zend_output_globals *) emalloc(sizeof(zend_output_globals));
         memcpy(coro_output_globals_ptr, SWOG, sizeof(zend_output_globals));
         SWCC(current_coro_output_ptr) = coro_output_globals_ptr;
-        bzero(SWOG, sizeof(zend_output_globals));
+        php_output_activate(); // reset output
     }
     else
     {
