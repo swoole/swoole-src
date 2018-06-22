@@ -32,6 +32,9 @@
 # define GC_DELREF(ref) --GC_REFCOUNT(ref)
 #endif/*}}}*/
 
+/* output globals */
+#define SWOG ((zend_output_globals *) &OG(handlers))
+
 #define TASK_SLOT \
     ((int)((ZEND_MM_ALIGNED_SIZE(sizeof(coro_task)) + ZEND_MM_ALIGNED_SIZE(sizeof(zval)) - 1) / ZEND_MM_ALIGNED_SIZE(sizeof(zval))))
 #define SWCC(x) sw_current_context->x
@@ -208,7 +211,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     if (OG(active)) // save the current OG
     {
         coro_output_globals_ptr = (zend_output_globals *) emalloc(sizeof(zend_output_globals));
-        memcpy(coro_output_globals_ptr, &output_globals, sizeof(zend_output_globals));
+        memcpy(coro_output_globals_ptr, SWOG, sizeof(zend_output_globals));
         php_output_activate(); // new output
     }
     /**=========================================================**/
@@ -218,7 +221,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     /**===================After Coroutine=======================**/
     if (coro_output_globals_ptr) // resume the parent OG
     {
-        memcpy(&output_globals, coro_output_globals_ptr, sizeof(zend_output_globals));
+        memcpy(SWOG, coro_output_globals_ptr, sizeof(zend_output_globals));
         efree(coro_output_globals_ptr);
     }
     /**========================================================**/
@@ -239,9 +242,9 @@ void sw_coro_save(zval *return_value, php_context *sw_current_context)
     if (OG(active))
     {
         zend_output_globals *coro_output_globals_ptr = (zend_output_globals *) emalloc(sizeof(zend_output_globals));
-        memcpy(coro_output_globals_ptr, &output_globals, sizeof(zend_output_globals));
+        memcpy(coro_output_globals_ptr, SWOG, sizeof(zend_output_globals));
         SWCC(current_coro_output_ptr) = coro_output_globals_ptr;
-        bzero(&output_globals, sizeof(zend_output_globals));
+        bzero(SWOG, sizeof(zend_output_globals));
     }
     else
     {
@@ -269,7 +272,7 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
     // resume output control global
     if (SWCC(current_coro_output_ptr))
     {
-        memcpy(&output_globals, SWCC(current_coro_output_ptr), sizeof(zend_output_globals));
+        memcpy(SWOG, SWCC(current_coro_output_ptr), sizeof(zend_output_globals));
         efree(SWCC(current_coro_output_ptr));
         SWCC(current_coro_output_ptr) = NULL;
     }
