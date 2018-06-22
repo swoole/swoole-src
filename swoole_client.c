@@ -847,7 +847,7 @@ void php_swoole_at_shutdown(char *function)
     {
         zval_ptr_dtor(&shutdown_function_entry.arguments[0]);
         efree(shutdown_function_entry.arguments);
-        swoole_php_fatal_error(E_WARNING, "Unable to register shutdown function [%s]",ZSTR_LEN(Z_STR(shutdown_function_entry.arguments[0])));
+        swoole_php_fatal_error(E_WARNING, "Unable to register shutdown function [%s]",function);
     }
 #else
 
@@ -1405,7 +1405,7 @@ static PHP_METHOD(swoole_client, send)
     int ret = cli->send(cli, data, data_len, flags);
     if (ret < 0)
     {
-        swoole_php_sys_error(E_WARNING, "failed to send(%d) %d bytes.", cli->socket->fd, data_len);
+        swoole_php_sys_error(E_WARNING, "failed to send(%d) %zd bytes.", cli->socket->fd, data_len);
         zend_update_property_long(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
         RETVAL_FALSE;
     }

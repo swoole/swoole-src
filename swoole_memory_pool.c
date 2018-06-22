@@ -299,7 +299,7 @@ static PHP_METHOD(swoole_memory_pool_slice, write)
     size = data->len;
     if (size > info->size)
     {
-        swoole_php_error(E_WARNING, "data is too large.", size);
+        swoole_php_error(E_WARNING, "data is too large:%zd.", size);
         RETURN_FALSE;
     }
     if (offset < 0 || offset + size > info->size)

@@ -671,7 +671,7 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
 
                 if (boundary_len <= 0)
                 {
-                    swWarn("invalid multipart/form-data body.", ctx->fd);
+                    swWarn("invalid multipart/form-data body fd:%d.", ctx->fd);
                     return 0;
                 }
                 if (boundary_len >= 2 && boundary_str[0] == '"' && *(boundary_str + boundary_len - 1) == '"')
@@ -1933,7 +1933,7 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
             {
                 flag |= HTTP_RESPONSE_CONTENT_TYPE;
             }
-            n = snprintf(buf, sizeof(buf), "%*s: %*s\r\n", keylen - 1, key, Z_STRLEN_P(value), Z_STRVAL_P(value));
+            n = snprintf(buf, sizeof(buf), "%*s: %*s\r\n", keylen - 1, key, (int)Z_STRLEN_P(value), Z_STRVAL_P(value));
             swString_append_ptr(response, buf, n);
         }
         SW_HASHTABLE_FOREACH_END();
