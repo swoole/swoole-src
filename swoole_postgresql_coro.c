@@ -905,7 +905,9 @@ static void php_pgsql_fetch_hash(INTERNAL_FUNCTION_PARAMETERS, zend_long result_
                 }
             }
 
+#if PHP_VERSION_ID < 70300
             fcc.initialized = 1;
+#endif
             fcc.function_handler = ce->constructor;
 #if PHP_MINOR_VERSION > 0
             fcc.calling_scope = zend_get_executed_scope();
