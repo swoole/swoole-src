@@ -269,6 +269,15 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
         ZVAL_COPY(SWCC(current_coro_return_value_ptr), retval);
     }
 
+    // main OG
+    if (OG(handlers).elements)
+    {
+        php_output_deactivate(); // free main
+        if (!SWCC(current_coro_output_ptr))
+        {
+            php_output_activate(); // reset output
+        }
+    }
     // resume output control global
     if (SWCC(current_coro_output_ptr))
     {
@@ -326,12 +335,14 @@ void sw_coro_close()
     COROG.current_coro = NULL;
 
     // clear output control global
-    while (OG(active))
+    if (OG(active))
     {
-        if (php_output_end() == FAILURE)
-        {
-            break;
-        }
+        php_output_end_all();
+    }
+    if (OG(handlers).elements)
+    {
+        php_output_deactivate(); // free
+        php_output_activate(); // reset output
     }
 
     swTraceLog(SW_TRACE_COROUTINE, "close coro and %d remained. usage size: %zu. malloc size: %zu", COROG.coro_num, zend_memory_usage(0), zend_memory_usage(1));
