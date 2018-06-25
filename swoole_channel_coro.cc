@@ -135,6 +135,11 @@ static void channel_selector_clear(channel_selector *selector, swLinkedList_node
         swLinkedList_remove_node(selector->node_list[i].list, selector->node_list[i].node);
     }
     efree(selector->node_list);
+    if (selector->timer)
+    {
+        swTimer_del(&SwooleG.timer, selector->timer);
+        selector->timer = NULL;
+    }
 }
 
 static void channel_selector_onTimeout(swTimer *timer, swTimer_node *tnode)
@@ -384,6 +389,7 @@ static PHP_METHOD(swoole_channel_coro, __construct)
 
 static PHP_METHOD(swoole_channel_coro, __destruct)
 {
+    SW_PREVENT_USER_DESTRUCT;
     channel *chan = (channel *) swoole_get_object(getThis());
     swLinkedList_free(chan->consumer_list);
     swLinkedList_free(chan->producer_list);
@@ -430,7 +436,7 @@ static PHP_METHOD(swoole_channel_coro, push)
     if (chan->consumer_list->num != 0)
     {
         swLinkedList_node *head = chan->consumer_list->head;
-        channel_node *node = (channel_node *) head->data;
+        channel_node *node = (channel_node *) swLinkedList_shift(chan->consumer_list);
         node->context.onTimeout = swoole_channel_onResume;
         if (node->selector)
         {
@@ -438,7 +444,6 @@ static PHP_METHOD(swoole_channel_coro, push)
             node->selector->opcode = CHANNEL_SELECT_READ;
             channel_selector_clear(node->selector, chan->consumer_list->head);
         }
-        swLinkedList_shift(chan->consumer_list);
         channel_notify(node);
 
         node = (channel_node *) emalloc(sizeof(channel_node));

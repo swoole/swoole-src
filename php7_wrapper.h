@@ -474,6 +474,8 @@ static sw_inline char* sw_http_build_query(zval *data, zend_size_t *length, smar
 
 #define sw_get_object_handle(object)    Z_OBJ_HANDLE(*object)
 
+#define SW_PREVENT_USER_DESTRUCT if(!(GC_FLAGS(Z_OBJ_P(getThis())) & IS_OBJ_DESTRUCTOR_CALLED)){RETURN_NULL()}
+
 #endif /* PHP Version */
 
 #endif /* EXT_SWOOLE_PHP7_WRAPPER_H_ */
