@@ -338,6 +338,9 @@ void sw_coro_close()
     if (OG(active))
     {
         php_output_end_all();
+    }
+    if (OG(handlers).elements)
+    {
         php_output_deactivate(); // free
         php_output_activate(); // reset output
     }
