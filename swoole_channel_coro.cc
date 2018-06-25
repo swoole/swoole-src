@@ -390,9 +390,24 @@ static PHP_METHOD(swoole_channel_coro, __construct)
 static PHP_METHOD(swoole_channel_coro, __destruct)
 {
     SW_PREVENT_USER_DESTRUCT;
+
     channel *chan = (channel *) swoole_get_object(getThis());
-    swLinkedList_free(chan->consumer_list);
-    swLinkedList_free(chan->producer_list);
+    chan->closed = true;
+    /** resume and free the coroutine **/
+    swLinkedList *coro_list = chan->producer_list;
+    channel_node *node;
+    while (coro_list->num != 0 && (node = (channel_node *) swLinkedList_shift(coro_list)))
+    {
+        swoole_channel_onResume(&node->context);
+    }
+    coro_list = chan->consumer_list;
+    while (coro_list->num != 0 && (node = (channel_node *) swLinkedList_shift(coro_list)))
+    {
+        swoole_channel_onResume(&node->context);
+    }
+
+    sw_free(chan->consumer_list);
+    sw_free(chan->producer_list);
     delete chan->data_queue;
     swoole_set_object(getThis(), NULL);
 }
