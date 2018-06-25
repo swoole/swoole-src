@@ -5,6 +5,8 @@ output_control: ob_* in coroutine
 --FILE--
 <?php
 require_once __DIR__ . '/../../include/bootstrap.php';
+ob_start();
+echo 'main';
 // #co1
 go(function () {
     ob_start();
@@ -40,6 +42,7 @@ go(function () {
     co::sleep(0.2);
     assert(ob_get_status(true) === []); //empty
 });
+assert(ob_get_clean() === 'main');
 ?>
 --EXPECT--
 foo
