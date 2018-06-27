@@ -712,7 +712,6 @@ static void http_client_onBufferEmpty(swClient *cli)
     }
 }
 
-
 static void http_client_coro_onReceive(swClient *cli, char *data, uint32_t length)
 {
 #if PHP_MAJOR_VERSION < 7
