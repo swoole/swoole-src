@@ -393,6 +393,9 @@ static PHP_METHOD(swoole_channel_coro, __destruct)
 
     channel *chan = (channel *) swoole_get_object(getThis());
     chan->closed = true;
+
+    swDebug("destruct, producer_count=%d, consumer_count=%d", chan->producer_list->num, chan->consumer_list->num);
+
     /** resume and free the coroutine **/
     swLinkedList *coro_list = chan->producer_list;
     channel_node *node;
@@ -487,6 +490,7 @@ static PHP_METHOD(swoole_channel_coro, pop)
         memset(node, 0, sizeof(channel_node));
         coro_save(&node->context);
         swLinkedList_append(chan->consumer_list, node);
+        swoole_channel_try_resume_producer(getThis(), chan);
         coro_yield();
     }
 
