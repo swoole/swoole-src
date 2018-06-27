@@ -84,6 +84,7 @@ static PHP_METHOD(swoole_channel, __construct)
 
 static PHP_METHOD(swoole_channel, __destruct)
 {
+    SW_PREVENT_USER_DESTRUCT;
     swoole_set_object(getThis(), NULL);
 }
 

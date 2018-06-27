@@ -1335,6 +1335,8 @@ static PHP_METHOD(swoole_http_client_coro, __construct)
 
 static PHP_METHOD(swoole_http_client_coro, __destruct)
 {
+    SW_PREVENT_USER_DESTRUCT;
+
     swTraceLog(SW_TRACE_HTTP_CLIENT, "dtor, object handle=%d.", sw_get_object_handle(getThis()));
 
     http_client *http = swoole_get_object(getThis());
