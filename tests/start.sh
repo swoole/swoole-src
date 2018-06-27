@@ -13,4 +13,4 @@ glob='swoole_*'
 ${TEST_PHP_EXECUTABLE} -d "memory_limit=1024m" ${BASEDIR}/run-tests ${glob}
 `pidof_php | xargs kill > /dev/null 2>&1`
 
-rm /tmp/swoole.log
+rm -f /tmp/swoole.log
