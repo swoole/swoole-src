@@ -1040,6 +1040,14 @@ int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length)
 {
     swSendData _send;
     swFactory *factory = &(serv->factory);
+
+    if (unlikely(swIsMaster()))
+    {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_SEND_IN_MASTER,
+                "can't send data to the connections in master process.");
+        return SW_ERR;
+    }
+
     /**
      * More than the output buffer
      */
@@ -1101,6 +1109,13 @@ int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename, uint32
     if (session_id <= 0 || session_id > SW_MAX_SOCKET_ID)
     {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_INVALID_ID, "invalid fd[%d].", session_id);
+        return SW_ERR;
+    }
+
+    if (unlikely(swIsMaster()))
+    {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_SEND_IN_MASTER,
+                "can't send data to the connections in master process.");
         return SW_ERR;
     }
 
@@ -1169,6 +1184,12 @@ SW_API void swServer_call_hook(swServer *serv, enum swServer_hook_type type, voi
 
 int swServer_tcp_close(swServer *serv, int fd, int reset)
 {
+    if (unlikely(swIsMaster()))
+    {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_SEND_IN_MASTER,
+                "can't close the connections in master process.");
+        return SW_ERR;
+    }
     swConnection *conn = swServer_connection_verify_no_ssl(serv, fd);
     if (!conn)
     {

@@ -2728,12 +2728,6 @@ PHP_METHOD(swoole_server, send)
         RETURN_FALSE;
     }
 
-    if (swIsMaster())
-    {
-        swoole_php_fatal_error(E_WARNING, "can't send data to the connections in master process.");
-        RETURN_FALSE;
-    }
-
 #ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(2, 3)
         Z_PARAM_ZVAL(zfd)
