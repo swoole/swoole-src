@@ -600,7 +600,7 @@ static PHP_METHOD(swoole_socket_coro, __construct)
     if (sock->fd < 0)
     {
         zend_throw_exception_ex(swoole_socket_coro_exception_class_entry_ptr, errno, "Unable to create socket [%d]: %s",
-                strerror(errno), errno TSRMLS_CC);
+                errno, strerror(errno) TSRMLS_CC);
         RETURN_FALSE;
     }
 
@@ -1062,7 +1062,7 @@ static PHP_METHOD(swoole_socket_coro, connect)
         }
         else if (port == 0 || port >= 65536)
         {
-            swoole_php_error(E_WARNING, "Invalid port argument[%d]", port);
+            swoole_php_error(E_WARNING, "Invalid port argument[%ld]", port);
             RETURN_FALSE;
         }
     }

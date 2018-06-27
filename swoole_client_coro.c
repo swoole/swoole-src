@@ -780,7 +780,7 @@ static PHP_METHOD(swoole_client_coro, send)
             return;
         }
         SwooleG.error = errno;
-        swoole_php_sys_error(E_WARNING, "send(%d) %d bytes failed.", cli->socket->fd, data_len);
+        swoole_php_sys_error(E_WARNING, "send(%d) %zd bytes failed.", cli->socket->fd, data_len);
         zend_update_property_long(swoole_client_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
         RETURN_FALSE;
     }

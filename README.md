@@ -16,19 +16,18 @@ Swoole is an event-driven asynchronous & concurrent networking communication fra
 
 Swoft
 ----
-Modern High performance AOP and Coroutine PHP Framework, base on Swoole 2 <https://github.com/swoft-cloud>
+A modern, high performance AOP and coroutine PHP framework, based on Swoole 2. <https://github.com/swoft-cloud>
 
 EasySwoole
 ----
-a simple high performance PHP framework base on Swoole which make you use Swoole like echo hello world。<https://www.easyswoole.com/>
+A simple, high performance PHP framework, based on Swoole, which makes using Swoole as easy as `echo hello world`. <https://www.easyswoole.com/>
 
 SwooleDistributed
 -----------------
-The high performance co operative server framework base on swoole all version, supports microservice and cluster deployment, providing developers with many advanced development and debugging components. <https://github.com/SwooleDistributed/SwooleDistributed>
+A high performance cooperative server framework based on all versions of Swoole, supporting microservice and cluster deployment, and providing developers with many advanced development and debugging components. <https://github.com/SwooleDistributed/SwooleDistributed>
 
 Event-based
 ------
-
 The network layer in Swoole is event-based and takes full advantage of the underlaying epoll/kqueue implementation, making it really easy to serve thousands of connections.
 
 Coroutine
@@ -135,7 +134,7 @@ go(function () {
 go(function () {
     $http = new Co\Http\Client("www.google.com", 443, true);
     $http->setHeaders(function () {
-        
+
     });
     $ret = $http->get('/');
     var_dump($http->body);
@@ -170,14 +169,12 @@ co::gethostbyname('www.google.com');
 
 Concurrent
 ------
-
 On the request processing part, Swoole uses a multi-process model. Every process works as a worker. All business logic is executed in workers, synchronously.
 
 With the synchronous logic execution, you can easily write large and robust applications and take advantage of almost all libraries available to the PHP community.
 
 In-memory
 ------
-
 Unlike traditional apache/php-fpm stuff, the memory allocated in Swoole will not be freed after a request, which can improve performance a lot.
 
 
@@ -493,7 +490,7 @@ Refer to [API Reference](http://wiki.swoole.com/wiki/page/183.html) for more det
 Swoole also provides a client component to build tcp/udp clients in both asynchronous and synchronous ways.
 Swoole uses the `swoole_client` class to expose all its functionalities.
 
-synchronous blocking:
+Synchronous blocking:
 ```php
 $client = new swoole_client(SWOOLE_SOCK_TCP);
 if (!$client->connect('127.0.0.1', 9501, 0.5)) {
