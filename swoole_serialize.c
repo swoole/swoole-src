@@ -1344,6 +1344,7 @@ static void* swoole_unserialize_object(void *buffer, zval *return_value, zend_uc
         {
             zend_hash_next_index_insert(Z_OBJPROP_P(return_value), data);
         }
+        (void)index;
     }
     ZEND_HASH_FOREACH_END();
     zval_dtor(&property);
