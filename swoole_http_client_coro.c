@@ -1340,7 +1340,7 @@ static PHP_METHOD(swoole_http_client_coro, __destruct)
     swTraceLog(SW_TRACE_HTTP_CLIENT, "dtor, object handle=%d.", sw_get_object_handle(getThis()));
 
     http_client *http = swoole_get_object(getThis());
-    if (http)
+    if (http && http->cli && http->cli->released == 0)
     {
         zval *zobject = getThis();
         zval *retval = NULL;
@@ -1671,6 +1671,10 @@ static PHP_METHOD(swoole_http_client_coro, close)
     if (!cli)
     {
         swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_http_client_coro.");
+        RETURN_FALSE;
+    }
+    if (cli->released)
+    {
         RETURN_FALSE;
     }
     if (!cli->socket)
