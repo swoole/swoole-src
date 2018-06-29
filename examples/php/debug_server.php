@@ -11,35 +11,49 @@ class DebugServer
         $tag = trim($tag);
         $vars = explode(',', trim($_vars));
         $data = array();
-        foreach($vars as $str) {
+        foreach ($vars as $str)
+        {
             list($k, $v) = explode('=', trim($str));
             $data[$k] = $v;
         }
 
-        if ($tag == 'alloc') {
+        if ($tag == 'alloc')
+        {
             file_put_contents(__DIR__ . '/alloc.log', $data['ptr'] . "\n", FILE_APPEND);
-        } elseif ($tag == 'memory') {
+            return;
+        }
+        if ($tag == 'memory')
+        {
             var_dump($tag, $data);
-        } elseif ($tag == 'free') {
+            return;
+        }
+        if ($tag == 'free')
+        {
             file_put_contents(__DIR__ . '/free.log', $data['ptr'] . "\n", FILE_APPEND);
-        } elseif ($tag == 'invalid') {
-            foreach($this->alloc_point as $k => $v) {
+            return;
+        }
+        if ($tag == 'invalid')
+        {
+            foreach ($this->alloc_point as $k => $v)
+            {
                 echo "$k => $v\n";
             }
-        } else {
-            // var_dump($tag, $data);
+            return;
         }
+        // var_dump($tag, $data);
     }
 
     function run()
     {
-        unlink(__DIR__ . '/alloc.log');
-        unlink(__DIR__ . '/free.log');
+        unlink(__DIR__.'/alloc.log');
+        unlink(__DIR__.'/free.log');
         $socket = stream_socket_server('udp://127.0.0.1:9999', $errno, $errstr, STREAM_SERVER_BIND);
-        if (!$socket) {
+        if (!$socket)
+        {
             die("$errstr ($errno)");
         }
-        while (1) {
+        while (1)
+        {
             $pkt = stream_socket_recvfrom($socket, 65535, 0, $peer);
             $this->package_decode($pkt);
             // echo "$peer: $pkt\n";
