@@ -1607,6 +1607,11 @@ struct _swProcessPool
     uint8_t type;
 
     /**
+     * socket type
+     */
+    uint8_t socket_type;
+
+    /**
      * worker->id = start_id + i
      */
     uint16_t start_id;

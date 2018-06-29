@@ -74,6 +74,8 @@ static PHP_METHOD(swoole_client, recv);
 static PHP_METHOD(swoole_client, send);
 static PHP_METHOD(swoole_client, pipe);
 static PHP_METHOD(swoole_client, sendfile);
+static PHP_METHOD(swoole_client, sendfd);
+static PHP_METHOD(swoole_client, recvfd);
 static PHP_METHOD(swoole_client, sendto);
 static PHP_METHOD(swoole_client, sleep);
 static PHP_METHOD(swoole_client, wakeup);
@@ -100,6 +102,9 @@ static int client_poll_wait(zval *sock_array, struct pollfd *fds, int maxevents,
 static int client_select_add(zval *sock_array, fd_set *fds, int *max_fd TSRMLS_DC);
 static int client_select_wait(zval *sock_array, fd_set *fds TSRMLS_DC);
 #endif
+
+static int msg_control_len = CMSG_LEN(sizeof(unsigned int));
+static int msg_iov_max_len = 512;
 
 static void client_onConnect(swClient *cli);
 static void client_onReceive(swClient *cli, char *data, uint32_t length);
@@ -254,6 +259,11 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_sendfile, 0, 0, 1)
     ZEND_ARG_INFO(0, length)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_sendfd, 0, 0, 1)
+    ZEND_ARG_INFO(0, fd)
+    ZEND_ARG_INFO(0, data)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_sendto, 0, 0, 3)
     ZEND_ARG_INFO(0, ip)
     ZEND_ARG_INFO(0, port)
@@ -289,6 +299,8 @@ static const zend_function_entry swoole_client_methods[] =
     PHP_ME(swoole_client, send, arginfo_swoole_client_send, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, pipe, arginfo_swoole_client_pipe, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, sendfile, arginfo_swoole_client_sendfile, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, sendfd, arginfo_swoole_client_sendfd, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, recvfd, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, sendto, arginfo_swoole_client_sendto, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, sleep, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, wakeup, arginfo_swoole_client_void, ZEND_ACC_PUBLIC)
@@ -1504,6 +1516,133 @@ static PHP_METHOD(swoole_client, sendfile)
     else
     {
         RETVAL_TRUE;
+    }
+}
+
+static PHP_METHOD(swoole_client, sendfd)
+{
+    long fd;
+    zend_size_t data_len = 0;
+    char *data;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|s", &fd, &data, &data_len) == FAILURE)
+    {
+        return;
+    }
+
+    if (fd < 1 || fd > UINT32_MAX)
+    {
+        swoole_php_fatal_error(E_WARNING, "sendfd() failed. Fd must be between 0 and %u [fd: %ld]", UINT32_MAX, fd);
+        RETURN_FALSE;
+    }
+    if (data_len > msg_iov_max_len) {
+        swoole_php_fatal_error(E_WARNING, "sendfd() failed. Data max length is %d", msg_iov_max_len);
+        RETURN_FALSE;
+    }
+
+    swClient *cli = client_get_ptr(getThis() TSRMLS_CC);
+    if (!cli)
+    {
+        RETURN_FALSE;
+    }
+
+    if (cli->type != SW_SOCK_UNIX_STREAM)
+    {
+        swoole_php_fatal_error(E_WARNING, "sendfd() failed. Client must be unixsocket stream");
+        RETURN_FALSE;
+    }
+    if (cli->async)
+    {
+        swoole_php_fatal_error(E_WARNING, "sendfd() failed. Client must be sync");
+        RETURN_FALSE;
+    }
+
+    struct iovec iov[1];
+    struct msghdr msg;
+    struct cmsghdr cm;
+
+    iov[0].iov_base = data;
+    iov[0].iov_len = data_len;
+    msg.msg_name = NULL;
+    msg.msg_namelen = 0;
+    msg.msg_iov = iov;
+    msg.msg_iovlen = 1;
+
+    cm.cmsg_len = msg_control_len;
+    cm.cmsg_level = SOL_SOCKET;
+    cm.cmsg_type = SCM_RIGHTS;
+    *(unsigned int*)CMSG_DATA(&cm) = fd;
+
+    msg.msg_control = &cm;
+    msg.msg_controllen = msg_control_len;
+
+    if (sendmsg(cli->socket->fd, &msg, 0) < 0)
+    {
+        SwooleG.error = errno;
+        swoole_php_fatal_error(E_WARNING, "sendfd() failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
+        zend_update_property_long(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
+        RETURN_FALSE;
+    }
+    else
+    {
+        RETURN_TRUE;
+    }
+}
+
+static PHP_METHOD(swoole_client, recvfd)
+{
+    swClient *cli = client_get_ptr(getThis() TSRMLS_CC);
+    if (!cli)
+    {
+        RETURN_FALSE;
+    }
+
+    if (cli->type != SW_SOCK_UNIX_STREAM)
+    {
+        swoole_php_fatal_error(E_WARNING, "recvfd() failed. Client must be unixsocket stream");
+        RETURN_FALSE;
+    }
+    if (cli->async)
+    {
+        swoole_php_fatal_error(E_WARNING, "recvfd() failed. Client must be sync");
+        RETURN_FALSE;
+    }
+
+    struct iovec iov[1];
+    struct msghdr msg;
+    char buf[msg_iov_max_len];
+    struct cmsghdr cm;
+
+    memset(buf, 0, msg_iov_max_len);
+
+    iov[0].iov_base = buf;
+    iov[0].iov_len = msg_iov_max_len;
+    msg.msg_name = NULL;
+    msg.msg_namelen = 0;
+    msg.msg_iov = iov;
+    msg.msg_iovlen = 1;
+
+    msg.msg_control = &cm;
+    msg.msg_controllen = msg_control_len;
+
+    if (recvmsg(cli->socket->fd, &msg, 0) < 0)
+    {
+        SwooleG.error = errno;
+        swoole_php_fatal_error(E_WARNING, "recvfd() failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
+        zend_update_property_long(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
+        RETURN_FALSE;
+    }
+    else
+    {
+        if (cm.cmsg_type != SCM_RIGHTS)
+        {
+            swoole_php_fatal_error(E_WARNING, "recvfd() failed. Cmsg type is not SCM_RIGHTS");
+            RETURN_FALSE;
+        }
+        unsigned int fd = *(unsigned int*)CMSG_DATA(&cm);
+        array_init(return_value);
+        add_assoc_long(return_value, "fd", fd);
+        sw_add_assoc_string(return_value, "data", buf, 1);
     }
 }
 
