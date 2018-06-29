@@ -30,6 +30,10 @@ extern "C"
 
 #define SW_HTTPS_PROXY_HANDSHAKE_RESPONSE  "HTTP/1.1 200 Connection established"
 
+const static unsigned int msg_control_len = CMSG_LEN(sizeof(unsigned int));
+const static unsigned int msg_iov_max_len = 512;
+const static unsigned int uint_max = (unsigned int)-1;
+
 enum swClient_pipe_flag
 {
     SW_CLIENT_PIPE_TCP_SESSION = 1,

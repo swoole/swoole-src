@@ -103,9 +103,6 @@ static int client_select_add(zval *sock_array, fd_set *fds, int *max_fd TSRMLS_D
 static int client_select_wait(zval *sock_array, fd_set *fds TSRMLS_DC);
 #endif
 
-static int msg_control_len = CMSG_LEN(sizeof(unsigned int));
-static int msg_iov_max_len = 512;
-
 static void client_onConnect(swClient *cli);
 static void client_onReceive(swClient *cli, char *data, uint32_t length);
 static void client_onClose(swClient *cli);
@@ -1530,9 +1527,9 @@ static PHP_METHOD(swoole_client, sendfd)
         return;
     }
 
-    if (fd < 1 || fd > UINT32_MAX)
+    if (fd < 1 || fd > uint_max)
     {
-        swoole_php_fatal_error(E_WARNING, "sendfd() failed. Fd must be between 0 and %u [fd: %ld]", UINT32_MAX, fd);
+        swoole_php_fatal_error(E_WARNING, "sendfd() failed. Fd must be between 0 and %u [fd: %ld]", uint_max, fd);
         RETURN_FALSE;
     }
     if (data_len > msg_iov_max_len) {

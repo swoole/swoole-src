@@ -81,9 +81,6 @@ static zend_class_entry swoole_process_pool_ce;
 static zend_class_entry *swoole_process_pool_class_entry_ptr;
 static swProcessPool *current_pool;
 
-static int msg_control_len = CMSG_LEN(sizeof(unsigned int));
-static int msg_iov_max_len = 512;
-
 void swoole_process_pool_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_process_pool_ce, "swoole_process_pool", "Swoole\\Process\\Pool", swoole_process_pool_methods);
@@ -462,9 +459,9 @@ static PHP_METHOD(swoole_process_pool, sendfd)
         return;
     }
 
-    if (fd < 1 || fd > UINT32_MAX)
+    if (fd < 1 || fd > uint_max)
     {
-        swoole_php_fatal_error(E_WARNING, "sendfd() failed. Fd must be between 0 and %u [fd: %ld]", UINT32_MAX, fd);
+        swoole_php_fatal_error(E_WARNING, "sendfd() failed. Fd must be between 0 and %u [fd: %ld]", uint_max, fd);
         RETURN_FALSE;
     }
     if (data_len > msg_iov_max_len) {
