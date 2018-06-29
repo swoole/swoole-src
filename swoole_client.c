@@ -70,6 +70,7 @@ static PHP_METHOD(swoole_client, __construct);
 static PHP_METHOD(swoole_client, __destruct);
 static PHP_METHOD(swoole_client, set);
 static PHP_METHOD(swoole_client, connect);
+static PHP_METHOD(swoole_client, setfd);
 static PHP_METHOD(swoole_client, recv);
 static PHP_METHOD(swoole_client, send);
 static PHP_METHOD(swoole_client, pipe);
@@ -236,6 +237,13 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_connect, 0, 0, 1)
     ZEND_ARG_INFO(0, sock_flag)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_setfd, 0, 0, 1)
+    ZEND_ARG_INFO(0, fd)
+    ZEND_ARG_INFO(0, host)
+    ZEND_ARG_INFO(0, port)
+    ZEND_ARG_INFO(0, timeout)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_recv, 0, 0, 0)
     ZEND_ARG_INFO(0, size)
     ZEND_ARG_INFO(0, flag)
@@ -292,6 +300,7 @@ static const zend_function_entry swoole_client_methods[] =
     PHP_ME(swoole_client, __destruct, arginfo_swoole_client_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_ME(swoole_client, set, arginfo_swoole_client_set, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, connect, arginfo_swoole_client_connect, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client, setfd, arginfo_swoole_client_setfd, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, recv, arginfo_swoole_client_recv, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, send, arginfo_swoole_client_send, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, pipe, arginfo_swoole_client_pipe, ZEND_ACC_PUBLIC)
@@ -1021,6 +1030,75 @@ void php_swoole_client_free(zval *zobject, swClient *cli TSRMLS_DC)
     swoole_set_object(zobject, NULL);
 }
 
+swClient* php_swoole_client_from_fd(zval *object, int fd, char *host, int host_len, int port)
+{
+    zval *ztype;
+    int async = 0;
+    char conn_key[SW_LONG_CONNECTION_KEY_LEN];
+    int conn_key_len = 0;
+
+#if PHP_MAJOR_VERSION < 7
+    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
+#endif
+
+    ztype = sw_zend_read_property(Z_OBJCE_P(object), object, SW_STRL("type")-1, 0 TSRMLS_CC);
+
+    if (ztype == NULL || ZVAL_IS_NULL(ztype))
+    {
+        swoole_php_fatal_error(E_ERROR, "failed to get swoole_client->type.");
+        return NULL;
+    }
+
+    long type = Z_LVAL_P(ztype);
+
+    if (type & SW_FLAG_KEEP)
+    {
+        swoole_php_fatal_error(E_ERROR, "SWOOLE_KEEP is not allowed.");
+        return NULL;
+    }
+
+    //new flag, swoole-1.6.12+
+    if (type & SW_FLAG_ASYNC)
+    {
+        async = 1;
+    }
+
+    swClient *cli = (swClient*) emalloc(sizeof(swClient));
+    bzero(conn_key, SW_LONG_CONNECTION_KEY_LEN);
+    zval *connection_id = sw_zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("id"), 1 TSRMLS_CC);
+
+    if (connection_id == NULL || ZVAL_IS_NULL(connection_id))
+    {
+        conn_key_len = snprintf(conn_key, SW_LONG_CONNECTION_KEY_LEN, "%s:%d", host, port) + 1;
+    }
+    else
+    {
+        conn_key_len = snprintf(conn_key, SW_LONG_CONNECTION_KEY_LEN, "%s", Z_STRVAL_P(connection_id)) + 1;
+    }
+
+    if (swClient_create_ex(cli, php_swoole_socktype(type), async, fd) < 0)
+    {
+        swoole_php_fatal_error(E_WARNING, "swClient_create_ex() failed. Error: %s [%d]", strerror(errno), errno);
+        zend_update_property_long(Z_OBJCE_P(object), object, ZEND_STRL("errCode"), errno TSRMLS_CC);
+        return NULL;
+    }
+
+    //don't forget free it
+    cli->server_str = sw_strndup(conn_key, conn_key_len);
+    cli->server_strlen = conn_key_len;
+
+    zend_update_property_long(Z_OBJCE_P(object), object, ZEND_STRL("sock"), cli->socket->fd TSRMLS_CC);
+
+#ifdef SW_USE_OPENSSL
+    if (type & SW_SOCK_SSL)
+    {
+        cli->open_ssl = 1;
+    }
+#endif
+
+    return cli;
+}
+
 swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port)
 {
     zval *ztype;
@@ -1378,6 +1456,140 @@ static PHP_METHOD(swoole_client, connect)
     RETURN_TRUE;
 }
 
+static PHP_METHOD(swoole_client, setfd)
+{
+    zend_long port = 1;
+    char *host = NULL;
+    zend_size_t host_len = 0;
+    double timeout = SW_CLIENT_DEFAULT_TIMEOUT;
+    long fd;
+
+#ifdef FAST_ZPP
+    ZEND_PARSE_PARAMETERS_START(1, 4)
+        Z_PARAM_LONG(fd)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_STRING(host, host_len)
+        Z_PARAM_LONG(port)
+        Z_PARAM_DOUBLE(timeout)
+    ZEND_PARSE_PARAMETERS_END();
+#else
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|sld", &fd, &host, &host_len, &port, &timeout) == FAILURE)
+    {
+        return;
+    }
+#endif
+
+    if (fd < 0 || fd > int_max)
+    {
+        swoole_php_fatal_error(E_WARNING, "setfd() failed. Fd must be between 0 and %d [fd: %ld]", int_max, fd);
+        RETURN_FALSE;
+    }
+
+    swClient *cli = (swClient *) swoole_get_object(getThis());
+    if (cli)
+    {
+        swoole_php_fatal_error(E_WARNING, "connection to the server has already been established.");
+        RETURN_FALSE;
+    }
+
+    cli = php_swoole_client_from_fd(getThis(), fd, host, host_len, port);
+    if (cli == NULL)
+    {
+        RETURN_FALSE;
+    }
+    swoole_set_object(getThis(), cli);
+
+    if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6)
+    {
+        if (port <= 0 || port > SW_CLIENT_MAX_PORT)
+        {
+            swoole_php_fatal_error(E_WARNING, "The port is invalid.");
+            RETURN_FALSE;
+        }
+    }
+
+    if (cli->socket->active == 1)
+    {
+        swoole_php_fatal_error(E_WARNING, "connection to the server has already been established.");
+        RETURN_FALSE;
+    }
+
+    zval *zset = sw_zend_read_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("setting"), 1 TSRMLS_CC);
+    if (zset && !ZVAL_IS_NULL(zset))
+    {
+        php_swoole_client_check_setting(cli, zset TSRMLS_CC);
+    }
+
+    //nonblock async
+    if (cli->async)
+    {
+        client_callback *cb = (client_callback *) swoole_get_property(getThis(), 0);
+        if (!cb)
+        {
+            swoole_php_fatal_error(E_ERROR, "no event callback function.");
+            RETURN_FALSE;
+        }
+
+        if (swSocket_is_stream(cli->type))
+        {
+            if (!cb->onConnect)
+            {
+                swoole_php_fatal_error(E_ERROR, "no 'onConnect' callback function.");
+                RETURN_FALSE;
+            }
+            if (!cb->onError)
+            {
+                swoole_php_fatal_error(E_ERROR, "no 'onError' callback function.");
+                RETURN_FALSE;
+            }
+            if (!cb->onClose)
+            {
+                swoole_php_fatal_error(E_ERROR, "no 'onClose' callback function.");
+                RETURN_FALSE;
+            }
+            cli->onConnect = client_onConnect;
+            cli->onClose = client_onClose;
+            cli->onError = client_onError;
+            cli->onReceive = client_onReceive;
+            cli->reactor_fdtype = PHP_SWOOLE_FD_STREAM_CLIENT;
+            if (cb->onBufferFull)
+            {
+                cli->onBufferFull = client_onBufferFull;
+            }
+            if (cb->onBufferEmpty)
+            {
+                cli->onBufferEmpty = client_onBufferEmpty;
+            }
+        }
+        else
+        {
+            if (!cb || !cb->onReceive)
+            {
+                swoole_php_fatal_error(E_ERROR, "no 'onReceive' callback function.");
+                RETURN_FALSE;
+            }
+            if (cb->onConnect)
+            {
+                cli->onConnect = client_onConnect;
+            }
+            if (cb->onClose)
+            {
+                cli->onClose = client_onClose;
+            }
+            cli->onReceive = client_onReceive;
+            cli->reactor_fdtype = PHP_SWOOLE_FD_DGRAM_CLIENT;
+        }
+
+        zval *zobject = getThis();
+        cli->object = zobject;
+        sw_copy_to_stack(cli->object, cb->_object);
+        sw_zval_add_ref(&zobject);
+    }
+
+    cli->socket->active = 1;
+    RETURN_TRUE;
+}
+
 static PHP_METHOD(swoole_client, send)
 {
     char *data;
@@ -1522,14 +1734,22 @@ static PHP_METHOD(swoole_client, sendfd)
     zend_size_t data_len = 0;
     char *data;
 
+#ifdef FAST_ZPP
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_LONG(fd)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_STRING(data, data_len)
+    ZEND_PARSE_PARAMETERS_END();
+#else
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|s", &fd, &data, &data_len) == FAILURE)
     {
         return;
     }
+#endif
 
-    if (fd < 1 || fd > uint_max)
+    if (fd < 0 || fd > int_max)
     {
-        swoole_php_fatal_error(E_WARNING, "sendfd() failed. Fd must be between 0 and %u [fd: %ld]", uint_max, fd);
+        swoole_php_fatal_error(E_WARNING, "sendfd() failed. Fd must be between 0 and %d [fd: %ld]", int_max, fd);
         RETURN_FALSE;
     }
     if (data_len > msg_iov_max_len) {
@@ -1568,7 +1788,7 @@ static PHP_METHOD(swoole_client, sendfd)
     cm.cmsg_len = msg_control_len;
     cm.cmsg_level = SOL_SOCKET;
     cm.cmsg_type = SCM_RIGHTS;
-    *(unsigned int*)CMSG_DATA(&cm) = fd;
+    *(int*)CMSG_DATA(&cm) = fd;
 
     msg.msg_control = &cm;
     msg.msg_controllen = msg_control_len;
@@ -1636,7 +1856,7 @@ static PHP_METHOD(swoole_client, recvfd)
             swoole_php_fatal_error(E_WARNING, "recvfd() failed. Cmsg type is not SCM_RIGHTS");
             RETURN_FALSE;
         }
-        unsigned int fd = *(unsigned int*)CMSG_DATA(&cm);
+        int fd = *(int*)CMSG_DATA(&cm);
         array_init(return_value);
         add_assoc_long(return_value, "fd", fd);
         sw_add_assoc_string(return_value, "data", buf, 1);
@@ -1969,9 +2189,45 @@ static PHP_METHOD(swoole_client, getpeername)
             swoole_php_fatal_error(E_WARNING, "inet_ntop() failed.");
         }
     }
+    else if (cli->type == SW_SOCK_TCP)
+    {
+        struct sockaddr_in addr;
+        socklen_t addr_len = sizeof(addr);
+        getpeername(cli->socket->fd, (struct sockaddr *)&addr, &addr_len);
+        char tmp[INET_ADDRSTRLEN];
+        array_init(return_value);
+
+        add_assoc_long(return_value, "port", ntohs(addr.sin_port));
+        if (inet_ntop(AF_INET, &addr.sin_addr, tmp, sizeof(tmp)))
+        {
+            sw_add_assoc_string(return_value, "host", tmp, 1);
+        }
+        else
+        {
+            swoole_php_fatal_error(E_WARNING, "inet_ntop() failed.");
+        }
+    }
+    else if (cli->type == SW_SOCK_TCP6)
+    {
+        struct sockaddr_in6 addr;
+        socklen_t addr_len = sizeof(addr);
+        getpeername(cli->socket->fd, (struct sockaddr *)&addr, &addr_len);
+        char tmp[INET6_ADDRSTRLEN];
+        array_init(return_value);
+
+        add_assoc_long(return_value, "port", ntohs(addr.sin6_port));
+        if (inet_ntop(AF_INET6, &addr.sin6_addr, tmp, sizeof(tmp)))
+        {
+            sw_add_assoc_string(return_value, "host", tmp, 1);
+        }
+        else
+        {
+            swoole_php_fatal_error(E_WARNING, "inet_ntop() failed.");
+        }
+    }
     else
     {
-        swoole_php_fatal_error(E_WARNING, "only supports SWOOLE_SOCK_UDP or SWOOLE_SOCK_UDP6.");
+        swoole_php_fatal_error(E_WARNING, "unsupported socket type.");
         RETURN_FALSE;
     }
 }

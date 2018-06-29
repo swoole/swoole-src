@@ -54,7 +54,7 @@ static sw_inline void execute_onConnect(swClient *cli)
     cli->onConnect(cli);
 }
 
-int swClient_create(swClient *cli, int type, int async)
+int swClient_create_ex(swClient *cli, int type, int async, int sockfd)
 {
     int _domain;
     int _type;
@@ -90,15 +90,17 @@ int swClient_create(swClient *cli, int type, int async)
         return SW_ERR;
     }
 
+    if (sockfd < 0) {
 #ifdef SOCK_CLOEXEC
-    int sockfd = socket(_domain, _type | SOCK_CLOEXEC, 0);
+        sockfd = socket(_domain, _type | SOCK_CLOEXEC, 0);
 #else
-    int sockfd = socket(_domain, _type, 0);
+        sockfd = socket(_domain, _type, 0);
 #endif
-    if (sockfd < 0)
-    {
-        swWarn("socket() failed. Error: %s[%d]", strerror(errno), errno);
-        return SW_ERR;
+        if (sockfd < 0)
+        {
+            swWarn("socket() failed. Error: %s[%d]", strerror(errno), errno);
+            return SW_ERR;
+        }
     }
 
     if (async)

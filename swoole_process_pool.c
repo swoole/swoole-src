@@ -454,14 +454,22 @@ static PHP_METHOD(swoole_process_pool, sendfd)
     zend_size_t data_len = 0;
     char *data;
 
+#ifdef FAST_ZPP
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_LONG(fd)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_STRING(data, data_len)
+    ZEND_PARSE_PARAMETERS_END();
+#else
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|s", &fd, &data, &data_len) == FAILURE)
     {
         return;
     }
+#endif
 
-    if (fd < 1 || fd > uint_max)
+    if (fd < 0 || fd > int_max)
     {
-        swoole_php_fatal_error(E_WARNING, "sendfd() failed. Fd must be between 0 and %u [fd: %ld]", uint_max, fd);
+        swoole_php_fatal_error(E_WARNING, "sendfd() failed. Fd must be between 0 and %d [fd: %ld]", int_max, fd);
         RETURN_FALSE;
     }
     if (data_len > msg_iov_max_len) {
@@ -491,7 +499,7 @@ static PHP_METHOD(swoole_process_pool, sendfd)
     cm.cmsg_len = msg_control_len;
     cm.cmsg_level = SOL_SOCKET;
     cm.cmsg_type = SCM_RIGHTS;
-    *(unsigned int*)CMSG_DATA(&cm) = fd;
+    *(int*)CMSG_DATA(&cm) = fd;
 
     msg.msg_control = &cm;
     msg.msg_controllen = msg_control_len;
@@ -546,7 +554,7 @@ static PHP_METHOD(swoole_process_pool, recvfd)
             swoole_php_fatal_error(E_WARNING, "recvfd() failed. Cmsg type is not SCM_RIGHTS");
             RETURN_FALSE;
         }
-        unsigned int fd = *(unsigned int*)CMSG_DATA(&cm);
+        int fd = *(int*)CMSG_DATA(&cm);
         array_init(return_value);
         add_assoc_long(return_value, "fd", fd);
         sw_add_assoc_string(return_value, "data", buf, 1);
