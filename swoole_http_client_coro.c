@@ -205,12 +205,13 @@ static int http_client_coro_execute(zval *zobject, char *uri, zend_size_t uri_le
         }
         else if (!http->cli->socket->active)
         {
-            swoole_php_fatal_error(E_WARNING, "connection#%d is closed.", http->cli->socket->fd);
-            return SW_ERR;
+            http_client_free(zobject TSRMLS_CC);
+            goto _new;
         }
     }
     else
     {
+        _new:
         php_swoole_check_reactor();
         http = http_client_create(zobject TSRMLS_CC);
     }
@@ -844,6 +845,18 @@ static void http_client_coro_onReceive(swClient *cli, char *data, uint32_t lengt
             {
                 swString_clear(cli->buffer);
             }
+        }
+    }
+
+    // clear
+    swString_clear(cli->buffer);
+    // not keep_alive, try close it actively
+    if (http->keep_alive == 0 && http->state != HTTP_CLIENT_STATE_WAIT_CLOSE)
+    {
+        sw_zend_call_method_with_0_params(&zobject, swoole_http_client_coro_class_entry_ptr, NULL, "close", &retval);
+        if (retval)
+        {
+            sw_zval_ptr_dtor(&retval);
         }
     }
 
