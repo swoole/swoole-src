@@ -1615,6 +1615,14 @@ static PHP_METHOD(swoole_client, setfd)
                 swoole_php_fatal_error(E_ERROR, "no 'onClose' callback function.");
                 RETURN_FALSE;
             }
+            if (!cli->buffer)
+            {
+                cli->buffer = swString_new(cli->buffer_input_size);
+                if (!cli->buffer)
+                {
+                    RETURN_FALSE;
+                }
+            }
             cli->onConnect = client_onConnect;
             cli->onClose = client_onClose;
             cli->onError = client_onError;

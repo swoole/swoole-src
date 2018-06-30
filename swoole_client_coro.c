@@ -957,6 +957,14 @@ static PHP_METHOD(swoole_client_coro, setfd)
 
     if (swSocket_is_stream(cli->type))
     {
+        if (!cli->buffer)
+        {
+            cli->buffer = swString_new(cli->buffer_input_size);
+            if (!cli->buffer)
+            {
+                RETURN_FALSE;
+            }
+        }
         cli->onConnect = client_onConnect;
         cli->onClose = client_onClose;
         cli->onError = client_onError;
