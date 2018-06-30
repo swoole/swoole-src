@@ -347,27 +347,28 @@ int swClient_ssl_verify(swClient *cli, int allow_self_signed)
 
 int swClient_inet_addr(swClient *cli, char *host, int port)
 {
+    //enable socks5 proxy
     if (cli->socks5_proxy)
     {
+        cli->socks5_proxy->target_host = host;
         cli->socks5_proxy->l_target_host = strlen(host);
-        memcpy(cli->target_host, host, cli->socks5_proxy->l_target_host + 1);
-        cli->socks5_proxy->target_host = cli->target_host;
         cli->socks5_proxy->target_port = port;
 
         host = cli->socks5_proxy->host;
         port = cli->socks5_proxy->port;
     }
-    else if (cli->http_proxy)
+
+    //enable http proxy
+    if (cli->http_proxy)
     {
-        memcpy(cli->target_host, host, strlen(host) + 1);
-        cli->http_proxy->target_host = cli->target_host;
+        cli->http_proxy->target_host = host;
         cli->http_proxy->target_port = port;
 
         host = cli->http_proxy->proxy_host;
         port = cli->http_proxy->proxy_port;
     }
 
-    memcpy(cli->server_host, host, strlen(host) + 1);
+    cli->server_host = host;
     cli->server_port = port;
 
     void *s_addr = NULL;

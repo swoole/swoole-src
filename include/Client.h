@@ -102,8 +102,7 @@ typedef struct _swClient
     uint32_t reuse_count;
 
     char *server_str;
-    char server_host[108];
-    char target_host[108];
+    char *server_host;
     int server_port;
     void *ptr;
     void *params;

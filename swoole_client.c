@@ -1034,9 +1034,6 @@ swClient* php_swoole_client_from_fd(zval *object, int fd, char *host, int host_l
 {
     zval *ztype;
     int async = 0;
-    char *s_host;
-    int s_port;
-    uint8_t host_need_free = 0;
 
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
@@ -1065,75 +1062,8 @@ swClient* php_swoole_client_from_fd(zval *object, int fd, char *host, int host_l
     }
 
     swClient *cli = (swClient*) emalloc(sizeof(swClient));
-    int sock_type = php_swoole_socktype(type);
 
-    if (host_len > 0)
-    {
-        s_host = host;
-        s_port = port;
-        goto finish_get_host;
-    }
-
-    if (sock_type == SW_SOCK_TCP)
-    {
-        struct sockaddr_in addr;
-        socklen_t addr_len = sizeof(addr);
-        if (getpeername(fd, (struct sockaddr *)&addr, &addr_len) < 0)
-        {
-            swoole_php_fatal_error(E_WARNING, "getpeername() failed.");
-            return NULL;
-        }
-        s_host = (char*) sw_malloc(INET_ADDRSTRLEN);
-        host_need_free = 1;
-
-        s_port = ntohs(addr.sin_port);
-        if (!inet_ntop(AF_INET, &addr.sin_addr, s_host, INET_ADDRSTRLEN))
-        {
-            swoole_php_fatal_error(E_WARNING, "inet_ntop() failed. Error: %s", strerror(errno));
-            return NULL;
-        }
-    }
-    else if (sock_type == SW_SOCK_TCP6)
-    {
-        struct sockaddr_in6 addr;
-        socklen_t addr_len = sizeof(addr);
-        if (getpeername(fd, (struct sockaddr *)&addr, &addr_len) < 0)
-        {
-            swoole_php_fatal_error(E_WARNING, "getpeername() failed.");
-            return NULL;
-        }
-        s_host = (char*) sw_malloc(INET6_ADDRSTRLEN);
-        host_need_free = 1;
-
-        s_port = ntohs(addr.sin6_port);
-        if (!inet_ntop(AF_INET6, &addr.sin6_addr, s_host, INET6_ADDRSTRLEN))
-        {
-            swoole_php_fatal_error(E_WARNING, "inet_ntop() failed. Error: %s", strerror(errno));
-            return NULL;
-        }
-    }
-    else if (sock_type == SW_SOCK_UNIX_STREAM)
-    {
-        struct sockaddr_un addr;
-        socklen_t addr_len = sizeof(addr);
-        if (getpeername(fd, (struct sockaddr *)&addr, &addr_len) < 0)
-        {
-            swoole_php_fatal_error(E_WARNING, "getpeername() failed.");
-            return NULL;
-        }
-
-        s_port = 0;
-        s_host = addr.sun_path;
-    }
-    else
-    {
-        s_host = host;
-        s_port = port;
-        swoole_php_error(E_NOTICE, "dgram socket recommends passing host and port parameters");
-    }
-
-    finish_get_host:
-    if (swClient_create_ex(cli, sock_type, async, fd) < 0)
+    if (swClient_create_ex(cli, php_swoole_socktype(type), async, fd) < 0)
     {
         swoole_php_fatal_error(E_WARNING, "swClient_create_ex() failed. Error: %s [%d]", strerror(errno), errno);
         zend_update_property_long(Z_OBJCE_P(object), object, ZEND_STRL("errCode"), errno TSRMLS_CC);
@@ -1149,19 +1079,6 @@ swClient* php_swoole_client_from_fd(zval *object, int fd, char *host, int host_l
     }
 #endif
 
-    if (s_host && swClient_inet_addr(cli, s_host, s_port) < 0)
-    {
-        if (host_need_free)
-        {
-            sw_free(s_host);
-        }
-        return NULL;
-    }
-
-    if (host_need_free)
-    {
-        sw_free(s_host);
-    }
     return cli;
 }
 
@@ -1529,6 +1446,9 @@ static PHP_METHOD(swoole_client, setfd)
     zend_size_t host_len = 0;
     double timeout = SW_CLIENT_DEFAULT_TIMEOUT;
     long fd;
+    char *s_host;
+    int s_port;
+    uint8_t host_need_free = 0;
 
 #ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(1, 4)
@@ -1564,6 +1484,72 @@ static PHP_METHOD(swoole_client, setfd)
         RETURN_FALSE;
     }
 
+    if (host_len > 0)
+    {
+        s_host = host;
+        s_port = port;
+        goto finish_get_host;
+    }
+
+    if (cli->type == SW_SOCK_TCP)
+    {
+        struct sockaddr_in addr;
+        socklen_t addr_len = sizeof(addr);
+        if (getpeername(fd, (struct sockaddr *)&addr, &addr_len) < 0)
+        {
+            swoole_php_fatal_error(E_WARNING, "getpeername() failed.");
+            RETURN_FALSE;
+        }
+        s_host = (char*) sw_malloc(INET_ADDRSTRLEN);
+        host_need_free = 1;
+
+        s_port = ntohs(addr.sin_port);
+        if (!inet_ntop(AF_INET, &addr.sin_addr, s_host, INET_ADDRSTRLEN))
+        {
+            swoole_php_fatal_error(E_WARNING, "inet_ntop() failed. Error: %s", strerror(errno));
+            RETURN_FALSE;
+        }
+    }
+    else if (cli->type == SW_SOCK_TCP6)
+    {
+        struct sockaddr_in6 addr;
+        socklen_t addr_len = sizeof(addr);
+        if (getpeername(fd, (struct sockaddr *)&addr, &addr_len) < 0)
+        {
+            swoole_php_fatal_error(E_WARNING, "getpeername() failed.");
+            RETURN_FALSE;
+        }
+        s_host = (char*) sw_malloc(INET6_ADDRSTRLEN);
+        host_need_free = 1;
+
+        s_port = ntohs(addr.sin6_port);
+        if (!inet_ntop(AF_INET6, &addr.sin6_addr, s_host, INET6_ADDRSTRLEN))
+        {
+            swoole_php_fatal_error(E_WARNING, "inet_ntop() failed. Error: %s", strerror(errno));
+            RETURN_FALSE;
+        }
+    }
+    else if (cli->type == SW_SOCK_UNIX_STREAM)
+    {
+        struct sockaddr_un addr;
+        socklen_t addr_len = sizeof(addr);
+        if (getpeername(fd, (struct sockaddr *)&addr, &addr_len) < 0)
+        {
+            swoole_php_fatal_error(E_WARNING, "getpeername() failed.");
+            RETURN_FALSE;
+        }
+
+        s_port = 0;
+        s_host = addr.sun_path;
+    }
+    else
+    {
+        s_host = host;
+        s_port = port;
+        swoole_php_error(E_NOTICE, "dgram socket recommends passing host and port parameters");
+    }
+
+    finish_get_host:
     cli->timeout = timeout;
     swoole_set_object(getThis(), cli);
 
@@ -1662,15 +1648,33 @@ static PHP_METHOD(swoole_client, setfd)
         sw_zval_add_ref(&zobject);
     }
 
+    if (s_host && swClient_inet_addr(cli, s_host, s_port) < 0)
+    {
+        if (host_need_free)
+        {
+            sw_free(s_host);
+        }
+        RETURN_FALSE;
+    }
+
     if (cli->wait_dns)
     {
-        if (swClient_aio_dns(cli, swClient_setfd_onResolveCompleted) == SW_ERR)
+        int dns_result = swClient_aio_dns(cli, swClient_setfd_onResolveCompleted);
+        if (host_need_free)
+        {
+            sw_free(s_host);
+        }
+        if (dns_result == SW_ERR)
         {
             RETURN_FALSE;
         }
     }
     else
     {
+        if (host_need_free)
+        {
+            sw_free(s_host);
+        }
         if (swClient_setfd_noAsyncDns(cli) == SW_ERR)
         {
             RETURN_FALSE;
