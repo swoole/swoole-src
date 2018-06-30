@@ -1081,6 +1081,7 @@ swClient* php_swoole_client_from_fd(zval *object, int fd, char *host, int host_l
         if (getpeername(fd, (struct sockaddr *)&addr, &addr_len) < 0)
         {
             swoole_php_fatal_error(E_WARNING, "getpeername() failed.");
+            return NULL;
         }
         s_host = (char*) sw_malloc(INET_ADDRSTRLEN);
         host_need_free = 1;
@@ -1099,6 +1100,7 @@ swClient* php_swoole_client_from_fd(zval *object, int fd, char *host, int host_l
         if (getpeername(fd, (struct sockaddr *)&addr, &addr_len) < 0)
         {
             swoole_php_fatal_error(E_WARNING, "getpeername() failed.");
+            return NULL;
         }
         s_host = (char*) sw_malloc(INET6_ADDRSTRLEN);
         host_need_free = 1;
@@ -1117,6 +1119,7 @@ swClient* php_swoole_client_from_fd(zval *object, int fd, char *host, int host_l
         if (getpeername(fd, (struct sockaddr *)&addr, &addr_len) < 0)
         {
             swoole_php_fatal_error(E_WARNING, "getpeername() failed.");
+            return NULL;
         }
 
         s_port = 0;
