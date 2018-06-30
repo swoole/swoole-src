@@ -188,7 +188,7 @@ static void client_execute_callback(zval *zobject, enum php_swoole_client_callba
 #endif
 
     swoole_client_coro_property *ccp = swoole_get_property(zobject, 1);
-    if (type == SW_CLIENT_CB_onConnect 
+    if (type == SW_CLIENT_CB_onConnect
 #ifdef SW_USE_OPENSSL
             || type == SW_CLIENT_CB_onSSLReady
 #endif
@@ -730,7 +730,7 @@ static PHP_METHOD(swoole_client_coro, __destruct)
     SW_PREVENT_USER_DESTRUCT;
     swClient *cli = swoole_get_object(getThis());
     //no keep connection
-    if (cli)
+    if (cli && cli->released == 0)
     {
         zval *zobject = getThis();
         zval *retval = NULL;
@@ -1398,6 +1398,10 @@ static PHP_METHOD(swoole_client_coro, close)
     if (cli->socket->closed)
     {
         swoole_php_error(E_WARNING, "client socket is closed.");
+        RETURN_FALSE;
+    }
+    if (cli->released)
+    {
         RETURN_FALSE;
     }
     //Connection error, or short tcp connection.
