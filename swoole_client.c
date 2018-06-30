@@ -1001,10 +1001,6 @@ void php_swoole_client_free(zval *zobject, swClient *cli TSRMLS_DC)
         zval *zcallback = (zval *) cli->protocol.private_data;
         sw_zval_free(zcallback);
     }
-    if (cli->host_need_free)
-    {
-        efree(cli->server_host);
-    }
     //long tcp connection, delete from php_sw_long_connections
     if (cli->keep)
     {
@@ -1038,10 +1034,9 @@ swClient* php_swoole_client_from_fd(zval *object, int fd, char *host, int host_l
 {
     zval *ztype;
     int async = 0;
-    char conn_key[SW_LONG_CONNECTION_KEY_LEN];
-    int conn_key_len = 0;
     char *s_host;
     int s_port;
+    uint8_t host_need_free = 0;
 
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
@@ -1070,22 +1065,25 @@ swClient* php_swoole_client_from_fd(zval *object, int fd, char *host, int host_l
     }
 
     swClient *cli = (swClient*) emalloc(sizeof(swClient));
+    int sock_type = php_swoole_socktype(type);
 
     if (host_len > 0)
     {
         s_host = host;
         s_port = port;
-        cli->host_need_free = 0;
         goto finish_get_host;
     }
 
-    if (type == SW_SOCK_TCP)
+    if (sock_type == SW_SOCK_TCP)
     {
         struct sockaddr_in addr;
         socklen_t addr_len = sizeof(addr);
-        getpeername(fd, (struct sockaddr *)&addr, &addr_len);
-        s_host = (char*) emalloc(INET_ADDRSTRLEN);
-        cli->host_need_free = 1;
+        if (getpeername(fd, (struct sockaddr *)&addr, &addr_len) < 0)
+        {
+            swoole_php_fatal_error(E_WARNING, "getpeername() failed.");
+        }
+        s_host = (char*) sw_malloc(INET_ADDRSTRLEN);
+        host_need_free = 1;
 
         s_port = ntohs(addr.sin_port);
         if (!inet_ntop(AF_INET, &addr.sin_addr, s_host, INET_ADDRSTRLEN))
@@ -1094,13 +1092,16 @@ swClient* php_swoole_client_from_fd(zval *object, int fd, char *host, int host_l
             return NULL;
         }
     }
-    else if (type == SW_SOCK_TCP6)
+    else if (sock_type == SW_SOCK_TCP6)
     {
         struct sockaddr_in6 addr;
         socklen_t addr_len = sizeof(addr);
-        getpeername(fd, (struct sockaddr *)&addr, &addr_len);
-        s_host = (char*) emalloc(INET6_ADDRSTRLEN);
-        cli->host_need_free = 1;
+        if (getpeername(fd, (struct sockaddr *)&addr, &addr_len) < 0)
+        {
+            swoole_php_fatal_error(E_WARNING, "getpeername() failed.");
+        }
+        s_host = (char*) sw_malloc(INET6_ADDRSTRLEN);
+        host_need_free = 1;
 
         s_port = ntohs(addr.sin6_port);
         if (!inet_ntop(AF_INET6, &addr.sin6_addr, s_host, INET6_ADDRSTRLEN))
@@ -1109,46 +1110,32 @@ swClient* php_swoole_client_from_fd(zval *object, int fd, char *host, int host_l
             return NULL;
         }
     }
-    else if (type == SW_SOCK_UNIX_STREAM)
+    else if (sock_type == SW_SOCK_UNIX_STREAM)
     {
         struct sockaddr_un addr;
         socklen_t addr_len = sizeof(addr);
-        getpeername(fd, (struct sockaddr *)&addr, &addr_len);
+        if (getpeername(fd, (struct sockaddr *)&addr, &addr_len) < 0)
+        {
+            swoole_php_fatal_error(E_WARNING, "getpeername() failed.");
+        }
 
         s_port = 0;
         s_host = addr.sun_path;
-        cli->host_need_free = 0;
     }
     else
     {
         s_host = host;
         s_port = port;
-        cli->host_need_free = 0;
+        swoole_php_error(E_NOTICE, "dgram socket recommends passing host and port parameters");
     }
 
     finish_get_host:
-    bzero(conn_key, SW_LONG_CONNECTION_KEY_LEN);
-    zval *connection_id = sw_zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("id"), 1 TSRMLS_CC);
-
-    if (connection_id == NULL || ZVAL_IS_NULL(connection_id))
-    {
-        conn_key_len = snprintf(conn_key, SW_LONG_CONNECTION_KEY_LEN, "%s:%d", s_host, s_port) + 1;
-    }
-    else
-    {
-        conn_key_len = snprintf(conn_key, SW_LONG_CONNECTION_KEY_LEN, "%s", Z_STRVAL_P(connection_id)) + 1;
-    }
-
-    if (swClient_create_ex(cli, php_swoole_socktype(type), async, fd) < 0)
+    if (swClient_create_ex(cli, sock_type, async, fd) < 0)
     {
         swoole_php_fatal_error(E_WARNING, "swClient_create_ex() failed. Error: %s [%d]", strerror(errno), errno);
         zend_update_property_long(Z_OBJCE_P(object), object, ZEND_STRL("errCode"), errno TSRMLS_CC);
         return NULL;
     }
-
-    //don't forget free it
-    cli->server_str = sw_strndup(conn_key, conn_key_len);
-    cli->server_strlen = conn_key_len;
 
     zend_update_property_long(Z_OBJCE_P(object), object, ZEND_STRL("sock"), cli->socket->fd TSRMLS_CC);
 
@@ -1159,11 +1146,19 @@ swClient* php_swoole_client_from_fd(zval *object, int fd, char *host, int host_l
     }
 #endif
 
-    if (swClient_inet_addr(cli, s_host, s_port) < 0)
+    if (s_host && swClient_inet_addr(cli, s_host, s_port) < 0)
     {
+        if (host_need_free)
+        {
+            sw_free(s_host);
+        }
         return NULL;
     }
 
+    if (host_need_free)
+    {
+        sw_free(s_host);
+    }
     return cli;
 }
 
@@ -1267,7 +1262,6 @@ swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port
     }
 #endif
 
-    cli->host_need_free = 0;
     return cli;
 }
 
@@ -1566,7 +1560,18 @@ static PHP_METHOD(swoole_client, setfd)
     {
         RETURN_FALSE;
     }
+
+    cli->timeout = timeout;
     swoole_set_object(getThis(), cli);
+
+    if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6)
+    {
+        if (port <= 0 || port > SW_CLIENT_MAX_PORT)
+        {
+            swoole_php_fatal_error(E_WARNING, "The port is invalid.");
+            RETURN_FALSE;
+        }
+    }
 
     if (cli->socket->active == 1)
     {
@@ -1646,7 +1651,21 @@ static PHP_METHOD(swoole_client, setfd)
         sw_zval_add_ref(&zobject);
     }
 
-    cli->socket->active = 1;
+    if (cli->wait_dns)
+    {
+        if (swClient_aio_dns(cli, swClient_setfd_onResolveCompleted) == SW_ERR)
+        {
+            RETURN_FALSE;
+        }
+    }
+    else
+    {
+        if (swClient_setfd_noAsyncDns(cli) == SW_ERR)
+        {
+            RETURN_FALSE;
+        }
+    }
+
     RETURN_TRUE;
 }
 

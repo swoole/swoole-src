@@ -347,28 +347,27 @@ int swClient_ssl_verify(swClient *cli, int allow_self_signed)
 
 int swClient_inet_addr(swClient *cli, char *host, int port)
 {
-    //enable socks5 proxy
     if (cli->socks5_proxy)
     {
-        cli->socks5_proxy->target_host = host;
         cli->socks5_proxy->l_target_host = strlen(host);
+        memcpy(cli->target_host, host, cli->socks5_proxy->l_target_host + 1);
+        cli->socks5_proxy->target_host = cli->target_host;
         cli->socks5_proxy->target_port = port;
 
         host = cli->socks5_proxy->host;
         port = cli->socks5_proxy->port;
     }
-    
-    //enable http proxy
-    if (cli->http_proxy)
+    else if (cli->http_proxy)
     {
-        cli->http_proxy->target_host = host;
+        memcpy(cli->target_host, host, strlen(host) + 1);
+        cli->http_proxy->target_host = cli->target_host;
         cli->http_proxy->target_port = port;
 
         host = cli->http_proxy->proxy_host;
         port = cli->http_proxy->proxy_port;
     }
 
-    cli->server_host = host;
+    memcpy(cli->server_host, host, strlen(host) + 1);
     cli->server_port = port;
 
     void *s_addr = NULL;
@@ -684,47 +683,7 @@ static int swClient_tcp_connect_async(swClient *cli, char *host, int port, doubl
 
     if (cli->wait_dns)
     {
-        if (SwooleAIO.init == 0)
-        {
-            swAio_init();
-        }
-
-        swAio_event ev;
-        bzero(&ev, sizeof(swAio_event));
-
-        int len = strlen(cli->server_host);
-        if (strlen(cli->server_host) < SW_IP_MAX_LENGTH)
-        {
-            ev.nbytes = SW_IP_MAX_LENGTH;
-        }
-        else
-        {
-            ev.nbytes = len + 1;
-        }
-
-        ev.buf = sw_malloc(ev.nbytes);
-        if (!ev.buf)
-        {
-            swWarn("malloc failed.");
-            return SW_ERR;
-        }
-
-        memcpy(ev.buf, cli->server_host, len);
-        ((char *) ev.buf)[len] = 0;
-        ev.flags = cli->_sock_domain;
-        ev.type = SW_AIO_GETHOSTBYNAME;
-        ev.object = cli;
-        ev.callback = swClient_onResolveCompleted;
-
-        if (swAio_dispatch(&ev) < 0)
-        {
-            sw_free(ev.buf);
-            return SW_ERR;
-        }
-        else
-        {
-            return SW_OK;
-        }
+        return swClient_aio_dns(cli, swClient_onResolveCompleted);
     }
 
     while (1)
@@ -938,13 +897,20 @@ static int swClient_tcp_recv_no_buffer(swClient *cli, char *data, int len, int f
 
 static int swClient_udp_connect(swClient *cli, char *host, int port, double timeout, int udp_connect)
 {
+    cli->udp_connect = udp_connect;
+    cli->timeout = timeout;
+
     if (swClient_inet_addr(cli, host, port) < 0)
     {
         return SW_ERR;
     }
 
+    if (cli->wait_dns)
+    {
+        return swClient_aio_dns(cli, swClient_onResolveCompleted);
+    }
+
     cli->socket->active = 1;
-    cli->timeout = timeout;
     int bufsize = SwooleG.socket_buffer_size;
 
     if (timeout > 0)
@@ -1403,7 +1369,14 @@ static void swClient_onResolveCompleted(swAio_event *event)
 
     if (event->error == 0)
     {
-        swClient_tcp_connect_async(cli, event->buf, cli->server_port, cli->timeout, 1);
+        if (swSocket_is_stream(cli->type))
+        {
+            swClient_tcp_connect_async(cli, event->buf, cli->server_port, cli->timeout, 1);
+        }
+        else
+        {
+            swClient_udp_connect(cli, event->buf, cli->server_port, cli->timeout, cli->udp_connect);
+        }
     }
     else
     {
@@ -1416,6 +1389,136 @@ static void swClient_onResolveCompleted(swAio_event *event)
         }
     }
     sw_free(event->buf);
+}
+
+int swClient_setfd_noAsyncDns(swClient *cli)
+{
+    if (swSocket_is_stream(cli->type) && cli->async)
+    {
+        if (cli->reactor->add(cli->reactor, cli->socket->fd, cli->reactor_fdtype | SW_EVENT_WRITE) < 0)
+        {
+            return SW_ERR;
+        }
+        if (cli->timeout > 0)
+        {
+            if (SwooleG.timer.fd == 0)
+            {
+                swTimer_init((int) (cli->timeout * 1000));
+            }
+            cli->timer = SwooleG.timer.add(&SwooleG.timer, (int) (cli->timeout * 1000), 0, cli, swClient_onTimeout);
+        }
+    }
+    else
+    {
+        cli->socket->active = 1;
+        if (cli->timeout > 0)
+        {
+            swSocket_set_timeout(cli->socket->fd, cli->timeout);
+        }
+        if (cli->async)
+        {
+            // dgram
+            if (cli->reactor->add(cli->reactor, cli->socket->fd, cli->reactor_fdtype | SW_EVENT_READ) < 0)
+            {
+                return SW_ERR;
+            }
+            execute_onConnect(cli);
+        }
+    }
+    return SW_OK;
+}
+
+void swClient_setfd_onResolveCompleted(swAio_event *event)
+{
+    swClient *cli = event->object;
+    cli->wait_dns = 0;
+
+    if (event->error == 0)
+    {
+        if (swClient_inet_addr(cli, event->buf, cli->server_port) < 0)
+        {
+            goto onError;
+        }
+        if (swSocket_is_stream(cli->type))
+        {
+            cli->reactor->add(cli->reactor, cli->socket->fd, cli->reactor_fdtype | SW_EVENT_WRITE);
+            if (cli->timeout > 0)
+            {
+                if (SwooleG.timer.fd == 0)
+                {
+                    swTimer_init((int) (cli->timeout * 1000));
+                }
+                cli->timer = SwooleG.timer.add(&SwooleG.timer, (int) (cli->timeout * 1000), 0, cli, swClient_onTimeout);
+            }
+        }
+        else
+        {
+            if (cli->timeout > 0)
+            {
+                swSocket_set_timeout(cli->socket->fd, cli->timeout);
+            }
+            cli->reactor->add(cli->reactor, cli->socket->fd, cli->reactor_fdtype | SW_EVENT_READ);
+            cli->socket->active = 1;
+            execute_onConnect(cli);
+        }
+    }
+    else
+    {
+        SwooleG.error = SW_ERROR_DNSLOOKUP_RESOLVE_FAILED;
+        onError:
+        cli->socket->removed = 1;
+        cli->close(cli);
+        if (cli->onError)
+        {
+            cli->onError(cli);
+        }
+    }
+    sw_free(event->buf);
+}
+
+int swClient_aio_dns(swClient *cli, void *callback)
+{
+    if (SwooleAIO.init == 0)
+    {
+        swAio_init();
+    }
+
+    swAio_event ev;
+    bzero(&ev, sizeof(swAio_event));
+
+    int len = strlen(cli->server_host);
+    if (len < SW_IP_MAX_LENGTH)
+    {
+        ev.nbytes = SW_IP_MAX_LENGTH;
+    }
+    else
+    {
+        ev.nbytes = len + 1;
+    }
+
+    ev.buf = sw_malloc(ev.nbytes);
+    if (!ev.buf)
+    {
+        swWarn("malloc failed.");
+        return SW_ERR;
+    }
+
+    memcpy(ev.buf, cli->server_host, len);
+    ((char *) ev.buf)[len] = 0;
+    ev.flags = cli->_sock_domain;
+    ev.type = SW_AIO_GETHOSTBYNAME;
+    ev.object = cli;
+    ev.callback = callback;
+
+    if (swAio_dispatch(&ev) < 0)
+    {
+        sw_free(ev.buf);
+        return SW_ERR;
+    }
+    else
+    {
+        return SW_OK;
+    }
 }
 
 static int swClient_onWrite(swReactor *reactor, swEvent *event)
