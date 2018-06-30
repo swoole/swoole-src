@@ -30,6 +30,12 @@ extern "C"
 
 #define SW_HTTPS_PROXY_HANDSHAKE_RESPONSE  "HTTP/1.1 200 Connection established"
 
+#define swClient_create(cli, type, async) swClient_create_ex(cli, type, async, -1)
+
+const static int msg_control_len = CMSG_LEN(sizeof(int));
+const static int msg_iov_max_len = 512;
+const static int int_max = ((unsigned int)-1) >> 1;
+
 enum swClient_pipe_flag
 {
     SW_CLIENT_PIPE_TCP_SESSION = 1,
@@ -96,13 +102,15 @@ typedef struct _swClient
     uint32_t reuse_count;
 
     char *server_str;
-    char *server_host;
+    char server_host[108];
+    char target_host[108];
     int server_port;
     void *ptr;
     void *params;
 
     uint8_t server_strlen;
     double timeout;
+    int udp_connect;
     swTimer_node *timer;
 
     /**
@@ -159,7 +167,10 @@ typedef struct _swClient
 
 } swClient;
 
-int swClient_create(swClient *cli, int type, int async);
+int swClient_setfd_noAsyncDns(swClient *cli);
+int swClient_aio_dns(swClient *cli, void *callback);
+int swClient_inet_addr(swClient *cli, char *host, int port);
+int swClient_create_ex(swClient *cli, int type, int async, int sockfd);
 int swClient_sleep(swClient *cli);
 int swClient_wakeup(swClient *cli);
 int swClient_shutdown(swClient *cli, int __how);

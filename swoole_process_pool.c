@@ -40,12 +40,19 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_pool_write, 0, 0, 1)
     ZEND_ARG_INFO(0, data)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_pool_sendfd, 0, 0, 1)
+    ZEND_ARG_INFO(0, fd)
+    ZEND_ARG_INFO(0, data)
+ZEND_END_ARG_INFO()
+
 static PHP_METHOD(swoole_process_pool, __construct);
 static PHP_METHOD(swoole_process_pool, __destruct);
 static PHP_METHOD(swoole_process_pool, on);
 static PHP_METHOD(swoole_process_pool, listen);
 static PHP_METHOD(swoole_process_pool, write);
 static PHP_METHOD(swoole_process_pool, start);
+static PHP_METHOD(swoole_process_pool, sendfd);
+static PHP_METHOD(swoole_process_pool, recvfd);
 
 static const zend_function_entry swoole_process_pool_methods[] =
 {
@@ -55,6 +62,8 @@ static const zend_function_entry swoole_process_pool_methods[] =
     PHP_ME(swoole_process_pool, listen, arginfo_swoole_process_pool_listen, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process_pool, write, arginfo_swoole_process_pool_write, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process_pool, start, arginfo_swoole_process_pool_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_process_pool, sendfd, arginfo_swoole_process_pool_sendfd, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_process_pool, recvfd, arginfo_swoole_process_pool_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
@@ -363,10 +372,12 @@ static PHP_METHOD(swoole_process_pool, listen)
     //unix socket
     if (strncasecmp("unix:/", host, 6) == 0)
     {
+        pool->socket_type = SW_SOCK_UNIX_STREAM;
         ret = swProcessPool_create_unix_socket(pool, host + 5, backlog);
     }
     else
     {
+        pool->socket_type = SW_SOCK_TCP;
         ret = swProcessPool_create_tcp_socket(pool, host, port, backlog);
     }
     SW_CHECK_RETURN(ret);
@@ -435,6 +446,119 @@ static PHP_METHOD(swoole_process_pool, start)
 
     swProcessPool_wait(pool);
     swProcessPool_shutdown(pool);
+}
+
+static PHP_METHOD(swoole_process_pool, sendfd)
+{
+    long fd;
+    zend_size_t data_len = 0;
+    char *data;
+
+#ifdef FAST_ZPP
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_LONG(fd)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_STRING(data, data_len)
+    ZEND_PARSE_PARAMETERS_END();
+#else
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|s", &fd, &data, &data_len) == FAILURE)
+    {
+        return;
+    }
+#endif
+
+    if (fd < 0 || fd > int_max)
+    {
+        swoole_php_fatal_error(E_WARNING, "sendfd() failed. Fd must be between 0 and %d [fd: %ld]", int_max, fd);
+        RETURN_FALSE;
+    }
+    if (data_len > msg_iov_max_len) {
+        swoole_php_fatal_error(E_WARNING, "sendfd() failed. Data max length is %d", msg_iov_max_len);
+        RETURN_FALSE;
+    }
+
+    swProcessPool *pool = swoole_get_object(getThis());
+
+    if (pool->socket_type != SW_SOCK_UNIX_STREAM)
+    {
+        swoole_php_fatal_error(E_WARNING, "sendfd() failed. Client must be unixsocket stream");
+        RETURN_FALSE;
+    }
+
+    struct iovec iov[1];
+    struct msghdr msg;
+    struct cmsghdr cm;
+
+    iov[0].iov_base = data;
+    iov[0].iov_len = data_len;
+    msg.msg_name = NULL;
+    msg.msg_namelen = 0;
+    msg.msg_iov = iov;
+    msg.msg_iovlen = 1;
+
+    cm.cmsg_len = msg_control_len;
+    cm.cmsg_level = SOL_SOCKET;
+    cm.cmsg_type = SCM_RIGHTS;
+    *(int*)CMSG_DATA(&cm) = fd;
+
+    msg.msg_control = &cm;
+    msg.msg_controllen = msg_control_len;
+
+    if (sendmsg(pool->stream->last_connection, &msg, 0) < 0)
+    {
+        swoole_php_fatal_error(E_WARNING, "sendfd() failed. Error: %s [%d]", strerror(errno), errno);
+        RETURN_FALSE;
+    }
+    else
+    {
+        RETURN_TRUE;
+    }
+}
+
+static PHP_METHOD(swoole_process_pool, recvfd)
+{
+    swProcessPool *pool = swoole_get_object(getThis());
+
+    if (pool->socket_type != SW_SOCK_UNIX_STREAM)
+    {
+        swoole_php_fatal_error(E_WARNING, "recvfd() failed. Client must be unixsocket stream");
+        RETURN_FALSE;
+    }
+
+    struct iovec iov[1];
+    struct msghdr msg;
+    char buf[msg_iov_max_len];
+    struct cmsghdr cm;
+
+    memset(buf, 0, msg_iov_max_len);
+
+    iov[0].iov_base = buf;
+    iov[0].iov_len = msg_iov_max_len;
+    msg.msg_name = NULL;
+    msg.msg_namelen = 0;
+    msg.msg_iov = iov;
+    msg.msg_iovlen = 1;
+
+    msg.msg_control = &cm;
+    msg.msg_controllen = msg_control_len;
+
+    if (recvmsg(pool->stream->last_connection, &msg, 0) < 0)
+    {
+        swoole_php_fatal_error(E_WARNING, "recvfd() failed. Error: %s [%d]", strerror(errno), errno);
+        RETURN_FALSE;
+    }
+    else
+    {
+        if (cm.cmsg_type != SCM_RIGHTS)
+        {
+            swoole_php_fatal_error(E_WARNING, "recvfd() failed. Cmsg type is not SCM_RIGHTS");
+            RETURN_FALSE;
+        }
+        int fd = *(int*)CMSG_DATA(&cm);
+        array_init(return_value);
+        add_assoc_long(return_value, "fd", fd);
+        sw_add_assoc_string(return_value, "data", buf, 1);
+    }
 }
 
 static PHP_METHOD(swoole_process_pool, __destruct)
