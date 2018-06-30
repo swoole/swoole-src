@@ -1001,6 +1001,10 @@ void php_swoole_client_free(zval *zobject, swClient *cli TSRMLS_DC)
         zval *zcallback = (zval *) cli->protocol.private_data;
         sw_zval_free(zcallback);
     }
+    if (cli->host_need_free)
+    {
+        efree(cli->server_host);
+    }
     //long tcp connection, delete from php_sw_long_connections
     if (cli->keep)
     {
@@ -1036,6 +1040,8 @@ swClient* php_swoole_client_from_fd(zval *object, int fd, char *host, int host_l
     int async = 0;
     char conn_key[SW_LONG_CONNECTION_KEY_LEN];
     int conn_key_len = 0;
+    char *s_host;
+    int s_port;
 
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
@@ -1064,12 +1070,69 @@ swClient* php_swoole_client_from_fd(zval *object, int fd, char *host, int host_l
     }
 
     swClient *cli = (swClient*) emalloc(sizeof(swClient));
+
+    if (host_len > 0)
+    {
+        s_host = host;
+        s_port = port;
+        cli->host_need_free = 0;
+        goto finish_get_host;
+    }
+
+    if (type == SW_SOCK_TCP)
+    {
+        struct sockaddr_in addr;
+        socklen_t addr_len = sizeof(addr);
+        getpeername(fd, (struct sockaddr *)&addr, &addr_len);
+        s_host = (char*) emalloc(INET_ADDRSTRLEN);
+        cli->host_need_free = 1;
+
+        s_port = ntohs(addr.sin_port);
+        if (!inet_ntop(AF_INET, &addr.sin_addr, s_host, INET_ADDRSTRLEN))
+        {
+            swoole_php_fatal_error(E_WARNING, "inet_ntop() failed. Error: %s", strerror(errno));
+            return NULL;
+        }
+    }
+    else if (type == SW_SOCK_TCP6)
+    {
+        struct sockaddr_in6 addr;
+        socklen_t addr_len = sizeof(addr);
+        getpeername(fd, (struct sockaddr *)&addr, &addr_len);
+        s_host = (char*) emalloc(INET6_ADDRSTRLEN);
+        cli->host_need_free = 1;
+
+        s_port = ntohs(addr.sin6_port);
+        if (!inet_ntop(AF_INET6, &addr.sin6_addr, s_host, INET6_ADDRSTRLEN))
+        {
+            swoole_php_fatal_error(E_WARNING, "inet_ntop() failed. Error: %s", strerror(errno));
+            return NULL;
+        }
+    }
+    else if (type == SW_SOCK_UNIX_STREAM)
+    {
+        struct sockaddr_un addr;
+        socklen_t addr_len = sizeof(addr);
+        getpeername(fd, (struct sockaddr *)&addr, &addr_len);
+
+        s_port = 0;
+        s_host = addr.sun_path;
+        cli->host_need_free = 0;
+    }
+    else
+    {
+        s_host = host;
+        s_port = port;
+        cli->host_need_free = 0;
+    }
+
+    finish_get_host:
     bzero(conn_key, SW_LONG_CONNECTION_KEY_LEN);
     zval *connection_id = sw_zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("id"), 1 TSRMLS_CC);
 
     if (connection_id == NULL || ZVAL_IS_NULL(connection_id))
     {
-        conn_key_len = snprintf(conn_key, SW_LONG_CONNECTION_KEY_LEN, "%s:%d", host, port) + 1;
+        conn_key_len = snprintf(conn_key, SW_LONG_CONNECTION_KEY_LEN, "%s:%d", s_host, s_port) + 1;
     }
     else
     {
@@ -1095,6 +1158,11 @@ swClient* php_swoole_client_from_fd(zval *object, int fd, char *host, int host_l
         cli->open_ssl = 1;
     }
 #endif
+
+    if (swClient_inet_addr(cli, s_host, s_port) < 0)
+    {
+        return NULL;
+    }
 
     return cli;
 }
@@ -1199,6 +1267,7 @@ swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port
     }
 #endif
 
+    cli->host_need_free = 0;
     return cli;
 }
 
@@ -1498,15 +1567,6 @@ static PHP_METHOD(swoole_client, setfd)
         RETURN_FALSE;
     }
     swoole_set_object(getThis(), cli);
-
-    if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6)
-    {
-        if (port <= 0 || port > SW_CLIENT_MAX_PORT)
-        {
-            swoole_php_fatal_error(E_WARNING, "The port is invalid.");
-            RETURN_FALSE;
-        }
-    }
 
     if (cli->socket->active == 1)
     {
@@ -2191,14 +2251,17 @@ static PHP_METHOD(swoole_client, getpeername)
     }
     else if (cli->type == SW_SOCK_TCP)
     {
-        struct sockaddr_in addr;
-        socklen_t addr_len = sizeof(addr);
-        getpeername(cli->socket->fd, (struct sockaddr *)&addr, &addr_len);
-        char tmp[INET_ADDRSTRLEN];
         array_init(return_value);
+        add_assoc_long(return_value, "port", ntohs(cli->server_addr.addr.inet_v4.sin_port));
+        sw_add_assoc_string(return_value, "host", inet_ntoa(cli->server_addr.addr.inet_v4.sin_addr), 1);
+    }
+    else if (cli->type == SW_SOCK_TCP6)
+    {
+        array_init(return_value);
+        add_assoc_long(return_value, "port", ntohs(cli->server_addr.addr.inet_v6.sin6_port));
+        char tmp[INET6_ADDRSTRLEN];
 
-        add_assoc_long(return_value, "port", ntohs(addr.sin_port));
-        if (inet_ntop(AF_INET, &addr.sin_addr, tmp, sizeof(tmp)))
+        if (inet_ntop(AF_INET6, &cli->server_addr.addr.inet_v6.sin6_addr, tmp, sizeof(tmp)))
         {
             sw_add_assoc_string(return_value, "host", tmp, 1);
         }
@@ -2207,23 +2270,11 @@ static PHP_METHOD(swoole_client, getpeername)
             swoole_php_fatal_error(E_WARNING, "inet_ntop() failed.");
         }
     }
-    else if (cli->type == SW_SOCK_TCP6)
+    else if (cli->type == SW_SOCK_UNIX_STREAM || cli->type == SW_SOCK_UNIX_DGRAM)
     {
-        struct sockaddr_in6 addr;
-        socklen_t addr_len = sizeof(addr);
-        getpeername(cli->socket->fd, (struct sockaddr *)&addr, &addr_len);
-        char tmp[INET6_ADDRSTRLEN];
         array_init(return_value);
-
-        add_assoc_long(return_value, "port", ntohs(addr.sin6_port));
-        if (inet_ntop(AF_INET6, &addr.sin6_addr, tmp, sizeof(tmp)))
-        {
-            sw_add_assoc_string(return_value, "host", tmp, 1);
-        }
-        else
-        {
-            swoole_php_fatal_error(E_WARNING, "inet_ntop() failed.");
-        }
+        add_assoc_long(return_value, "port", 0);
+        sw_add_assoc_string(return_value, "host", cli->server_addr.addr.un.sun_path, 1);
     }
     else
     {

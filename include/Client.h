@@ -103,6 +103,7 @@ typedef struct _swClient
 
     char *server_str;
     char *server_host;
+    uint8_t host_need_free;
     int server_port;
     void *ptr;
     void *params;
@@ -165,6 +166,7 @@ typedef struct _swClient
 
 } swClient;
 
+int swClient_inet_addr(swClient *cli, char *host, int port);
 int swClient_create_ex(swClient *cli, int type, int async, int sockfd);
 int swClient_sleep(swClient *cli);
 int swClient_wakeup(swClient *cli);

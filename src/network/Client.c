@@ -20,7 +20,6 @@
 #include "socks5.h"
 #include "async.h"
 
-static int swClient_inet_addr(swClient *cli, char *host, int port);
 static int swClient_tcp_connect_sync(swClient *cli, char *host, int port, double _timeout, int udp_connect);
 static int swClient_tcp_connect_async(swClient *cli, char *host, int port, double timeout, int nonblock);
 
@@ -346,7 +345,7 @@ int swClient_ssl_verify(swClient *cli, int allow_self_signed)
 
 #endif
 
-static int swClient_inet_addr(swClient *cli, char *host, int port)
+int swClient_inet_addr(swClient *cli, char *host, int port)
 {
     //enable socks5 proxy
     if (cli->socks5_proxy)
