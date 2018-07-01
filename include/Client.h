@@ -50,6 +50,7 @@ enum swHttp_proxy_state
 
 struct _http_proxy
 {
+    uint8_t target_host_wait_free;
     uint8_t state;
     int proxy_port;
     char *proxy_host;

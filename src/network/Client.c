@@ -361,7 +361,23 @@ int swClient_inet_addr(swClient *cli, char *host, int port)
     //enable http proxy
     if (cli->http_proxy)
     {
+#ifdef SW_USE_OPENSSL
+        if (cli->open_ssl)
+        {
+            int host_len = strlen(host);
+            cli->http_proxy->target_host = (char*) emalloc(host_len + 1);
+            memcpy(cli->http_proxy->target_host, host, host_len + 1); // 防止开启了openssl+http代理时野指针被使用
+            cli->http_proxy->target_host_wait_free = 1;
+        }
+        else
+        {
+            cli->http_proxy->target_host = host;
+            cli->http_proxy->target_host_wait_free = 0;
+        }
+#else
         cli->http_proxy->target_host = host;
+        cli->http_proxy->target_host_wait_free = 0;
+#endif
         cli->http_proxy->target_port = port;
 
         host = cli->http_proxy->proxy_host;

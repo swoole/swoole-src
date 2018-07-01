@@ -813,6 +813,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
             cli->http_proxy = (struct _http_proxy*) ecalloc(1, sizeof(struct _http_proxy));
             cli->http_proxy->proxy_host = estrdup(host);
             cli->http_proxy->proxy_port = Z_LVAL_P(v);
+            cli->http_proxy->target_host_wait_free = 0;
         }
         else
         {
@@ -986,6 +987,12 @@ void php_swoole_client_free(zval *zobject, swClient *cli TSRMLS_DC)
     if (cli->http_proxy)
     {
         efree(cli->http_proxy->proxy_host);
+#ifdef SW_USE_OPENSSL
+        if (cli->http_proxy->target_host_wait_free)
+        {
+            efree(cli->http_proxy->target_host);
+        }
+#endif
         if (cli->http_proxy->user)
         {
             efree(cli->http_proxy->user);
@@ -1873,7 +1880,7 @@ static PHP_METHOD(swoole_client, sendfd)
     struct cmsghdr cm;
 
     iov[0].iov_base = data;
-    iov[0].iov_len = data_len;
+    iov[0].iov_len = data_len + 1;
     msg.msg_name = NULL;
     msg.msg_namelen = 0;
     msg.msg_iov = iov;
@@ -1921,13 +1928,11 @@ static PHP_METHOD(swoole_client, recvfd)
 
     struct iovec iov[1];
     struct msghdr msg;
-    char buf[msg_iov_max_len + 1]; // 留一位0
+    char buf[msg_iov_max_len + 1];
     struct cmsghdr cm;
 
-    memset(buf, 0, msg_iov_max_len + 1);
-
     iov[0].iov_base = buf;
-    iov[0].iov_len = msg_iov_max_len;
+    iov[0].iov_len = msg_iov_max_len + 1;
     msg.msg_name = NULL;
     msg.msg_namelen = 0;
     msg.msg_iov = iov;
