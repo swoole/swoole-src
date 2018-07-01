@@ -1312,12 +1312,6 @@ static PHP_METHOD(swoole_http_client, __construct)
     //init
     swoole_set_object(getThis(), NULL);
 
-    zval *headers;
-    SW_MAKE_STD_ZVAL(headers);
-    array_init(headers);
-    zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("headers"), headers TSRMLS_CC);
-    sw_zval_ptr_dtor(&headers);
-
     http_client_property *hcc;
     hcc = (http_client_property*) emalloc(sizeof(http_client_property));
     bzero(hcc, sizeof(http_client_property));
@@ -1687,6 +1681,14 @@ int http_client_parser_on_header_value(php_http_parser *parser, const char *at, 
 
     zval* zobject = (zval*) http->cli->object;
     zval *headers = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("headers"), 0 TSRMLS_CC);
+    if (!headers || Z_TYPE_P(headers) != IS_ARRAY)
+    {
+        zval *headers;
+        SW_MAKE_STD_ZVAL(headers);
+        array_init(headers);
+        zend_update_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("headers"), headers TSRMLS_CC);
+        sw_zval_ptr_dtor(&headers);
+    }
 
     char *header_name = zend_str_tolower_dup(http->tmp_header_field_name, http->tmp_header_field_name_len);
     sw_add_assoc_stringl_ex(headers, header_name, http->tmp_header_field_name_len + 1, (char *) at, length, 1);
@@ -1725,7 +1727,7 @@ int http_client_parser_on_header_value(php_http_parser *parser, const char *at, 
         char keybuf[SW_HTTP_COOKIE_KEYLEN];
 
         zval *cookies = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("cookies"), 1 TSRMLS_CC);
-        if (!cookies || ZVAL_IS_NULL(cookies))
+        if (!cookies || Z_TYPE_P(cookies) != IS_ARRAY)
         {
             SW_MAKE_STD_ZVAL(cookies);
             array_init(cookies);
@@ -1735,7 +1737,7 @@ int http_client_parser_on_header_value(php_http_parser *parser, const char *at, 
         }
 
         zval *set_cookie_headers = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("set_cookie_headers"), 1 TSRMLS_CC);
-        if (!set_cookie_headers || ZVAL_IS_NULL(set_cookie_headers))
+        if (!set_cookie_headers || Z_TYPE_P(set_cookie_headers) != IS_ARRAY)
         {
             SW_MAKE_STD_ZVAL(set_cookie_headers);
             array_init(set_cookie_headers);

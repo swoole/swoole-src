@@ -191,6 +191,21 @@ static int http_client_coro_execute(zval *zobject, char *uri, zend_size_t uri_le
         return SW_ERR;
     }
 
+    // clear all when new request
+    zval *attr;
+    zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("statusCode"), 0 TSRMLS_CC);
+    attr = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("headers"), 1 TSRMLS_CC);
+    if (Z_TYPE_P(attr) == IS_ARRAY)
+    {
+        zend_hash_clean(Z_ARRVAL_P(attr));
+    }
+    attr = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("set_cookie_headers"), 1 TSRMLS_CC);
+    if (Z_TYPE_P(attr) == IS_ARRAY)
+    {
+        zend_hash_clean(Z_ARRVAL_P(attr));
+    }
+    zend_update_property_string(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("body"), "" TSRMLS_CC);
+
     http_client *http = swoole_get_object(zobject);
 
     //http is not null when keeping alive
@@ -205,12 +220,13 @@ static int http_client_coro_execute(zval *zobject, char *uri, zend_size_t uri_le
         }
         else if (!http->cli->socket->active)
         {
-            swoole_php_fatal_error(E_WARNING, "connection#%d is closed.", http->cli->socket->fd);
-            return SW_ERR;
+            http_client_free(zobject TSRMLS_CC);
+            goto _new;
         }
     }
     else
     {
+        _new:
         php_swoole_check_reactor();
         http = http_client_create(zobject TSRMLS_CC);
     }
@@ -490,7 +506,9 @@ void swoole_http_client_coro_init(int module_number TSRMLS_DC)
     zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, SW_STRL("requestHeaders")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, SW_STRL("requestBody")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, SW_STRL("uploadFiles")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, SW_STRL("downloadFile")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, SW_STRL("headers")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, SW_STRL("set_cookie_headers")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, SW_STRL("cookies")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, SW_STRL("body")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
 
@@ -844,6 +862,18 @@ static void http_client_coro_onReceive(swClient *cli, char *data, uint32_t lengt
             {
                 swString_clear(cli->buffer);
             }
+        }
+    }
+
+    // clear
+    swString_clear(cli->buffer);
+    // not keep_alive, try close it actively
+    if (http->keep_alive == 0 && http->state != HTTP_CLIENT_STATE_WAIT_CLOSE)
+    {
+        sw_zend_call_method_with_0_params(&zobject, swoole_http_client_coro_class_entry_ptr, NULL, "close", &retval);
+        if (retval)
+        {
+            sw_zval_ptr_dtor(&retval);
         }
     }
 
@@ -1293,12 +1323,6 @@ static PHP_METHOD(swoole_http_client_coro, __construct)
 
     //init
     swoole_set_object(getThis(), NULL);
-
-    zval *headers;
-    SW_MAKE_STD_ZVAL(headers);
-    array_init(headers);
-    zend_update_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("headers"), headers TSRMLS_CC);
-    sw_zval_ptr_dtor(&headers);
 
     http_client_property *hcc;
     hcc = (http_client_property*) emalloc(sizeof(http_client_property));
