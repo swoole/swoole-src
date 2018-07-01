@@ -527,10 +527,10 @@ static PHP_METHOD(swoole_process_pool, recvfd)
 
     struct iovec iov[1];
     struct msghdr msg;
-    char buf[msg_iov_max_len];
+    char buf[msg_iov_max_len + 1];
     struct cmsghdr cm;
 
-    memset(buf, 0, msg_iov_max_len);
+    memset(buf, 0, msg_iov_max_len + 1);
 
     iov[0].iov_base = buf;
     iov[0].iov_len = msg_iov_max_len;
