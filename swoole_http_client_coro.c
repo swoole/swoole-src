@@ -803,30 +803,28 @@ static void http_client_coro_onReceive(swClient *cli, char *data, uint32_t lengt
         }
         goto begin_resume;
     }
+    else
+    {
+        //return true
+        ZVAL_BOOL(zdata, 1);
+    }
 
-    //not complete
+    //not complete, wait again
     if (!http->completed)
     {
         return;
     }
 
-//    if (!hcc->defer_chunk_status)
-//    {
-//        //not recv all wait for next
-//        return;
-//    }
-
-    //timeout
+    // clear timeout timer
     if (http->timer)
     {
         swTimer_del(&SwooleG.timer, http->timer);
         http->timer = NULL;
     }
 
-    ZVAL_BOOL(zdata, 1); //return false
     if (hcc->defer && hcc->defer_status != HTTP_CLIENT_STATE_DEFER_WAIT)
     {
-        //not recv yet  sava data
+        //not recv yet, save data
         hcc->defer_status = HTTP_CLIENT_STATE_DEFER_DONE;
         hcc->defer_result = 1;
         goto free_zdata;
@@ -848,25 +846,43 @@ static void http_client_coro_onReceive(swClient *cli, char *data, uint32_t lengt
          */
         hcc->message_queue = swLinkedList_new(16, NULL);
 
-        if (http->upgrade)
+        //data frame
+        if (length > parsed_n + 3)
         {
-            //data frame
-            if (length > parsed_n + 3)
-            {
-                cli->buffer->length = length - parsed_n - 1;
-                memmove(cli->buffer->str, data + parsed_n + 1, cli->buffer->length);
-                cli->socket->skip_recv = 1;
-                swProtocol_recv_check_length(&cli->protocol, cli->socket, cli->buffer);
-            }
-            else
-            {
-                swString_clear(cli->buffer);
-            }
+            cli->buffer->length = length - parsed_n - 1;
+            memmove(cli->buffer->str, data + parsed_n + 1, cli->buffer->length);
+            cli->socket->skip_recv = 1;
+            swProtocol_recv_check_length(&cli->protocol, cli->socket, cli->buffer);
         }
+        else
+        {
+            swString_clear(cli->buffer);
+        }
+        goto begin_resume;
     }
 
-    // clear
-    swString_clear(cli->buffer);
+    // Tie up the loose ends
+    if (http->download)
+    {
+        close(http->file_fd);
+        http->download = 0;
+        http->file_fd = 0;
+#ifdef SW_HAVE_ZLIB
+        if (http->gzip_buffer)
+        {
+            swString_free(http->gzip_buffer);
+            http->gzip_buffer = NULL;
+        }
+#endif
+    }
+#ifdef SW_HAVE_ZLIB
+    if (http->gzip)
+    {
+        inflateEnd(&http->gzip_stream);
+        http->gzip = 0;
+    }
+#endif
+
     // not keep_alive, try close it actively
     if (http->keep_alive == 0 && http->state != HTTP_CLIENT_STATE_WAIT_CLOSE)
     {
@@ -884,8 +900,8 @@ static void http_client_coro_onReceive(swClient *cli, char *data, uint32_t lengt
         php_context *sw_current_context = swoole_get_property(zobject, http_client_coro_property_context);
         hcc->defer_status = HTTP_CLIENT_STATE_DEFER_INIT;
         hcc->cid = 0;
-        //hcc->defer_chunk_status = 0;
         http->completed = 0;
+        http->header_completed = 0;
         http->state = HTTP_CLIENT_STATE_READY;
 
         int ret = coro_resume(sw_current_context, zdata, &retval);
