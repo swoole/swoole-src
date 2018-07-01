@@ -59,10 +59,9 @@ for ($i = 0; $i < 100; $i++) {
 $server = new Swoole\Http\Server('127.0.0.1', 9501);
 
 $server->on('Request', function($request, $response) {
-
     $tcp_cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
-    $ret = $tcp_cli->connect('127.0.0.1', 9906);
-    $tcp_cli ->send('test for the coroutine');
+    $tcp_cli->connect('127.0.0.1', 9906);
+    $tcp_cli->send('test for the coroutine');
     $ret = $tcp_cli->recv(5);
     $tcp_cli->close();
 
@@ -194,8 +193,10 @@ By using Swoole, you can build enhanced web applications with more control, real
 
 * Version-1: PHP 5.3.10 or later
 * Version-2: PHP 5.5.0 or later
+* Version-4: PHP 7.0.0 or later
 * Linux, OS X and basic Windows support (thanks to cygwin)
 * GCC 4.4 or later
+* GCC-4.8 or later (Version >= 4)
 
 ## Installation
 
@@ -208,7 +209,7 @@ By using Swoole, you can build enhanced web applications with more control, real
 2. Install from source
 
     ```
-    sudo apt-get install php5-dev
+    sudo apt-get install php7-dev
     git clone https://github.com/swoole/swoole-src.git
     cd swoole-src
     phpize
