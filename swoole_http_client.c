@@ -1945,7 +1945,15 @@ int http_client_parser_on_message_complete(php_http_parser *parser)
     //http status code
     zend_update_property_long(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("statusCode"), http->parser.status_code TSRMLS_CC);
 
-    return 0;
+    if (parser->upgrade)
+    {
+        // return 1 will finish the parser and means yes we support it.
+        return 1;
+    }
+    else
+    {
+        return 0;
+    }
 }
 
 static PHP_METHOD(swoole_http_client, execute)
