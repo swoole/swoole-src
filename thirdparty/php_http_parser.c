@@ -1340,10 +1340,13 @@ size_t php_http_parser_execute (php_http_parser *parser,
         }
 
         /* Exit, the rest of the connect is in a different protocol. */
-//        if (parser->upgrade) {
-//          CALLBACK2(message_complete);
-//          return (p - data);
-//        }
+        if (parser->upgrade) {
+          CALLBACK2(message_complete);
+          // WARNING: Swoole changes!
+          // swoole only support websocket upgrade
+          // so we return 0 to continue but return else to finish it
+          // return (p - data);
+        }
 
         if (parser->flags & F_SKIPBODY) {
           CALLBACK2(message_complete);

@@ -1917,6 +1917,13 @@ int http_client_parser_on_message_complete(php_http_parser *parser)
     http_client* http = (http_client*) parser->data;
     zval* zobject = (zval*) http->cli->object;
 
+    if (parser->upgrade && !http->upgrade)
+    {
+        // not support, continue.
+        parser->upgrade = 0;
+        return 0;
+    }
+
 #ifdef SW_HAVE_ZLIB
     if (http->gzip && http->body->length > 0)
     {
