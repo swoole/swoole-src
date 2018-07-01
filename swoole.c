@@ -1227,9 +1227,6 @@ PHP_MINFO_FUNCTION(swoole)
 #ifdef SW_USE_RINGBUFFER
     php_info_print_table_row(2, "ringbuffer", "enabled");
 #endif
-#ifdef HAVE_LINUX_AIO
-    php_info_print_table_row(2, "Linux Native AIO", "enabled");
-#endif
 #ifdef HAVE_GCC_AIO
     php_info_print_table_row(2, "GCC AIO", "enabled");
 #endif
