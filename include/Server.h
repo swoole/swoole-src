@@ -516,7 +516,7 @@ struct _swServer
     swEventData *task_result;
 
     /**
-     * use process
+     * user process
      */
     uint16_t user_worker_num;
     swUserWorker_node *user_worker_list;
