@@ -1234,7 +1234,7 @@ static int swReactorThread_loop(swThreadParam *param)
     SwooleTG.id = reactor_id;
     SwooleTG.type = SW_THREAD_REACTOR;
 
-    if (serv->dispatch_mode == SW_MODE_BASE || serv->dispatch_mode == SW_MODE_THREAD)
+    if (serv->factory_mode == SW_MODE_BASE || serv->factory_mode == SW_MODE_THREAD)
     {
         SwooleTG.buffer_input = swServer_create_worker_buffer(serv);
         if (!SwooleTG.buffer_input)

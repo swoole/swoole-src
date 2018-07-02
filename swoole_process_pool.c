@@ -152,7 +152,7 @@ static void php_swoole_process_pool_onMessage(swProcessPool *pool, char *data, u
 
     if (sw_call_user_function_ex(EG(function_table), NULL, pp->onMessage, &retval, 2, args, 0, NULL TSRMLS_CC)  == FAILURE)
     {
-        swoole_php_fatal_error(E_WARNING, "onWorkerStart handler error.");
+        swoole_php_fatal_error(E_WARNING, "onMessage handler error.");
     }
     if (EG(exception))
     {
