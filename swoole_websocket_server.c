@@ -340,6 +340,10 @@ void swoole_websocket_init(int module_number TSRMLS_DC)
     SWOOLE_INIT_CLASS_ENTRY(swoole_websocket_frame_ce, "swoole_websocket_frame", "Swoole\\WebSocket\\Frame", NULL);
     swoole_websocket_frame_class_entry_ptr = zend_register_internal_class(&swoole_websocket_frame_ce TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_websocket_frame, "Swoole\\WebSocket\\Frame");
+    zend_declare_property_long(swoole_websocket_frame_class_entry_ptr, ZEND_STRL("fd"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_websocket_frame_class_entry_ptr, ZEND_STRL("data"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_websocket_frame_class_entry_ptr, ZEND_STRL("opcode"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_bool(swoole_websocket_frame_class_entry_ptr, ZEND_STRL("finish"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
 
     if (SWOOLE_G(use_shortname))
     {
