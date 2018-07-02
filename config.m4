@@ -108,8 +108,7 @@ AC_DEFUN([SWOOLE_HAVE_PHP_EXT], [
 AC_DEFUN([AC_SWOOLE_CPU_AFFINITY],
 [
     AC_MSG_CHECKING([for cpu affinity])
-    AC_TRY_COMPILE(
-    [
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
         #ifdef __FreeBSD__
         #include <sys/types.h>
         #include <sys/cpuset.h>
@@ -117,13 +116,13 @@ AC_DEFUN([AC_SWOOLE_CPU_AFFINITY],
         #else
         #include <sched.h>
         #endif
-    ], [
+    ]], [[
         cpu_set_t cpu_set;
         CPU_ZERO(&cpu_set);
-    ], [
+    ]])],[
         AC_DEFINE([HAVE_CPU_AFFINITY], 1, [cpu affinity?])
         AC_MSG_RESULT([yes])
-    ], [
+    ],[
         AC_MSG_RESULT([no])
     ])
 ])
@@ -131,16 +130,15 @@ AC_DEFUN([AC_SWOOLE_CPU_AFFINITY],
 AC_DEFUN([AC_SWOOLE_HAVE_REUSEPORT],
 [
     AC_MSG_CHECKING([for socket REUSEPORT])
-    AC_TRY_COMPILE(
-    [
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
         #include <sys/socket.h>
-    ], [
+    ]], [[
         int val = 1;
         setsockopt(0, SOL_SOCKET, SO_REUSEPORT, &val, sizeof(val));
-    ], [
+    ]])],[
         AC_DEFINE([HAVE_REUSEPORT], 1, [have SO_REUSEPORT?])
         AC_MSG_RESULT([yes])
-    ], [
+    ],[
         AC_MSG_RESULT([no])
     ])
 ])
@@ -148,19 +146,18 @@ AC_DEFUN([AC_SWOOLE_HAVE_REUSEPORT],
 AC_DEFUN([AC_SWOOLE_HAVE_FUTEX],
 [
     AC_MSG_CHECKING([for futex])
-    AC_TRY_COMPILE(
-    [
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
         #include <linux/futex.h>
         #include <syscall.h>
         #include <unistd.h>
-    ], [
+    ]], [[
         int futex_addr;
         int val1;
         syscall(SYS_futex, &futex_addr, val1, NULL, NULL, 0);
-    ], [
+    ]])],[
         AC_DEFINE([HAVE_FUTEX], 1, [have FUTEX?])
         AC_MSG_RESULT([yes])
-    ], [
+    ],[
         AC_MSG_RESULT([no])
     ])
 ])
@@ -168,18 +165,17 @@ AC_DEFUN([AC_SWOOLE_HAVE_FUTEX],
 AC_DEFUN([AC_SWOOLE_HAVE_UCONTEXT],
 [
     AC_MSG_CHECKING([for ucontext])
-    AC_TRY_COMPILE(
-    [
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
         #include <stdio.h>
         #include <ucontext.h>
         #include <unistd.h>
-    ], [
+    ]], [[
         ucontext_t context;
         getcontext(&context);
-    ], [
+    ]])],[
         AC_DEFINE([HAVE_UCONTEXT], 1, [have ucontext?])
         AC_MSG_RESULT([yes])
-    ], [
+    ],[
         AC_MSG_RESULT([no])
     ])
 ])
@@ -188,16 +184,15 @@ AC_DEFUN([AC_SWOOLE_HAVE_BOOST_CONTEXT],
 [
     AC_MSG_CHECKING([for boost.context])
     AC_LANG([C++])
-    AC_TRY_COMPILE(
-    [
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
         #include <boost/context/all.hpp>
-    ], [
+    ]], [[
 
-    ], [
+    ]])],[
         AC_DEFINE([HAVE_BOOST_CONTEXT], 1, [have boost.context?])
         SW_HAVE_BOOST_CONTEXT=yes
         AC_MSG_RESULT([yes])
-    ], [
+    ],[
         AC_MSG_RESULT([no])
     ])
 ])
@@ -206,15 +201,14 @@ AC_DEFUN([AC_SWOOLE_HAVE_VALGRIND],
 [
     AC_MSG_CHECKING([for valgrind])
     AC_LANG([C++])
-    AC_TRY_COMPILE(
-    [
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
         #include <valgrind/valgrind.h>
-    ], [
+    ]], [[
 
-    ], [
+    ]])],[
         AC_DEFINE([HAVE_VALGRIND], 1, [have valgrind?])
         AC_MSG_RESULT([yes])
-    ], [
+    ],[
         AC_MSG_RESULT([no])
     ])
 ])
