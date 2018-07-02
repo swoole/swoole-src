@@ -19,12 +19,18 @@ $port = get_one_free_port();
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm, $port)
 {
-    $cli = new swoole_client(SWOOLE_SOCK_TCP);
-    $cli->connect(TCP_SERVER_HOST, $port);
-    $c = new swoole_client(SWOOLE_SOCK_TCP);
-    $c->setfd($cli->sock);
-    $c->send('test');
-    echo $c->recv();
+    go(function() use ($port) {
+        $cli = new swoole_client(SWOOLE_SOCK_TCP);
+        $cli->connect(TCP_SERVER_HOST, $port);
+        $c = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
+        $c->setfd($cli->sock);
+        $c->send('test');
+        echo $c->recv();
+        exit;
+    });
+    while (true) {
+        swoole_event_dispatch();
+    }
 };
 
 $pm->childFunc = function () use ($pm, $port)
