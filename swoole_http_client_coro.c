@@ -1396,7 +1396,14 @@ static PHP_METHOD(swoole_http_client_coro, __destruct)
     {
         if (hcc->message_queue)
         {
-            swLinkedList_free(hcc->message_queue);
+            swLinkedList *queue = hcc->message_queue;
+            zval *zframe;
+            while (queue->num != 0)
+            {
+                zframe = (zval *) swLinkedList_shift(queue);
+                efree(zframe);
+            }
+            sw_free(queue);
         }
         efree(hcc);
         swoole_set_property(getThis(), 0, NULL);
