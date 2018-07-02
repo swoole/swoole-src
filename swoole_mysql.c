@@ -498,9 +498,9 @@ static void mysql_sha2_password_with_nonce(char* ret, char* nonce, char* passwor
  */
 static int mysql_auth_encrypt_dispatch(char *buf, char *auth_plugin_name, char *password, zend_size_t password_len, char* nonce, int *next_state)
 {
-    if (strcasecmp("mysql_native_password", auth_plugin_name) == 0)
+    if (!auth_plugin_name || strcasecmp("mysql_native_password", auth_plugin_name) == 0)
     {
-        // if not native, skip password and will trigger the auth switch
+        // mysql_native_password is default
         // auth-response
         char hash_0[20];
         bzero(hash_0, sizeof (hash_0));
