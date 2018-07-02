@@ -1401,7 +1401,7 @@ static PHP_METHOD(swoole_http_client_coro, __destruct)
             while (queue->num != 0)
             {
                 zframe = (zval *) swLinkedList_shift(queue);
-                efree(zframe);
+                sw_zval_free(zframe);
             }
             sw_free(queue);
         }
