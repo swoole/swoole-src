@@ -32,7 +32,6 @@ modules/*
 /config.status
 /config.sub
 /configure
-/configure.in
 /Makefile.fragments
 /Makefile.global
 /Makefile.objects
