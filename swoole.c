@@ -1167,7 +1167,7 @@ PHP_MINFO_FUNCTION(swoole)
     php_info_print_table_start();
     php_info_print_table_header(2, "swoole support", "enabled");
     php_info_print_table_row(2, "Version", PHP_SWOOLE_VERSION);
-    php_info_print_table_row(2, "Author", "tianfeng.han[email: mikan.tenny@gmail.com]");
+    php_info_print_table_row(2, "Author", "Swoole Group[email: team@swoole.com]");
 
 #ifdef SW_COROUTINE
     php_info_print_table_row(2, "coroutine", "enabled");
