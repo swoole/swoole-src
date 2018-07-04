@@ -1596,7 +1596,6 @@ static PHP_METHOD(swoole_http_client, close)
     int ret = SW_OK;
     if (!cli->keep || swConnection_error(SwooleG.error) == SW_CLOSE)
     {
-        cli->released = 1;
         ret = cli->close(cli);
         http_client_free(getThis() TSRMLS_CC);
     }

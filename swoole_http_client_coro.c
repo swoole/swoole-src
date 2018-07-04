@@ -400,7 +400,6 @@ static void http_client_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
 
     if (http->cli && http->cli->socket && !http->cli->socket->closed)
     {
-        http->cli->released = 1;
         http->cli->close(http->cli);
         http_client_free(zobject TSRMLS_CC);
     }
@@ -1736,7 +1735,6 @@ static PHP_METHOD(swoole_http_client_coro, close)
     }
 
     int ret = SW_OK;
-    cli->released = 1;
     ret = cli->close(cli);
     http_client_free(getThis() TSRMLS_CC);
     SW_CHECK_RETURN(ret);

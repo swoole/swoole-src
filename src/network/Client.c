@@ -530,6 +530,7 @@ static int swClient_close(swClient *cli)
     {
         cli->socket->active = 0;
     }
+    cli->released = 1;
     return close(fd);
 }
 

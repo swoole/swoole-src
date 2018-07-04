@@ -869,7 +869,6 @@ static PHP_METHOD(swoole_http2_client_coro, close)
     }
 
     int ret = SW_OK;
-    cli->released = 1;
     ret = cli->close(cli);
     php_swoole_client_free(getThis(), cli TSRMLS_CC);
     SW_CHECK_RETURN(ret);

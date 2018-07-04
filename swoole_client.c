@@ -1877,7 +1877,6 @@ static PHP_METHOD(swoole_client, close)
     //No keep connection
     if (force || !cli->keep || swConnection_error(SwooleG.error) == SW_CLOSE)
     {
-        cli->released = 1;
         ret = cli->close(cli);
         php_swoole_client_free(getThis(), cli TSRMLS_CC);
     }
