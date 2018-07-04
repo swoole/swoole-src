@@ -796,10 +796,7 @@ static void http2_client_onError(swClient *cli)
     zval *zobject = cli->object;
     php_context *context = swoole_get_property(zobject, HTTP2_CLIENT_CORO_CONTEXT);
 
-    if (!cli->released)
-    {
-        php_swoole_client_free(zobject, cli TSRMLS_CC);
-    }
+    php_swoole_client_free(zobject, cli TSRMLS_CC);
 
     coro_resume(context, zdata, &retval);
     if (retval != NULL)

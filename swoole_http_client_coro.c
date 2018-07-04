@@ -672,10 +672,7 @@ static void http_client_coro_onError(swClient *cli)
 
     http_client *http = swoole_get_object(zobject);
     http->timer = NULL;
-    if (!cli->released)
-    {
-        http_client_free(zobject TSRMLS_CC);
-    }
+    http_client_free(zobject TSRMLS_CC);
 
     http_client_property *hcc = swoole_get_property(zobject, http_client_coro_property_request);
     if (hcc->defer && hcc->defer_status != HTTP_CLIENT_STATE_DEFER_WAIT)
