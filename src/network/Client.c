@@ -453,6 +453,13 @@ void swClient_free(swClient *cli)
 
 static int swClient_close(swClient *cli)
 {
+    if (cli->socket == NULL || cli->socket->closed || cli->released)
+    {
+        return SW_ERR;
+    }
+    cli->socket->closed = 1;
+    cli->released = 1;
+
     int fd = cli->socket->fd;
     assert(fd != 0);
 
@@ -502,11 +509,6 @@ static int swClient_close(swClient *cli)
     {
         unlink(cli->socket->info.addr.un.sun_path);
     }
-    if (cli->socket->closed)
-    {
-        return SW_OK;
-    }
-    cli->socket->closed = 1;
     if (cli->async)
     {
         //remove from reactor
@@ -530,7 +532,6 @@ static int swClient_close(swClient *cli)
     {
         cli->socket->active = 0;
     }
-    cli->released = 1;
     return close(fd);
 }
 
