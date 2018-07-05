@@ -32,7 +32,7 @@ The network layer in Swoole is event-based and takes full advantage of the under
 
 Coroutine
 ----------------
-[Swoole 2.0](Version2.md) supports the built-in coroutine, and you can use fully synchronized code to implement asynchronous programs. PHP code without any additional keywords, the underlying automatic coroutine-scheduling.
+[Swoole 2.0](Version2.md) or later supports the built-in coroutine, and you can use fully synchronized code to implement asynchronous programs. PHP code without any additional keywords, the underlying automatic coroutine-scheduling.
 
 ```php
 <?php
@@ -192,11 +192,11 @@ By using Swoole, you can build enhanced web applications with more control, real
 ## Requirements
 
 * Version-1: PHP 5.3.10 or later
-* Version-2: PHP 5.5.0 or later
+* Version-2: PHP 7.0.0 or later
 * Version-4: PHP 7.0.0 or later
-* Linux, OS X and basic Windows support (thanks to cygwin)
+* Linux, OS X and basic Windows support (thanks to CygWin)
 * GCC 4.4 or later
-* GCC-4.8 or later (Version >= 4)
+* GCC 4.8 or later (Version >= 4)
 
 ## Installation
 
