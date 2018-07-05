@@ -16,7 +16,7 @@ Swoole is an event-driven asynchronous & concurrent networking communication fra
 
 Swoft
 ----
-A modern, high performance AOP and coroutine PHP framework, based on Swoole 2. <https://github.com/swoft-cloud>
+A modern, high performance AOP and coroutine PHP framework. <https://github.com/swoft-cloud>
 
 EasySwoole
 ----
