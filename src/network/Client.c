@@ -458,6 +458,7 @@ static int swClient_close(swClient *cli)
         return SW_ERR;
     }
     cli->socket->closed = 1;
+    cli->released = 1;
 
     int fd = cli->socket->fd;
     assert(fd != 0);
@@ -531,8 +532,6 @@ static int swClient_close(swClient *cli)
     {
         cli->socket->active = 0;
     }
-
-    cli->released = 1;
 
     return close(fd);
 }

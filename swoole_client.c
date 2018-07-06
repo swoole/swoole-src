@@ -430,10 +430,7 @@ static void client_onClose(swClient *cli)
 {
     SWOOLE_GET_TSRMLS;
     zval *zobject = (zval *) cli->object;
-    if (!cli->released)
-    {
-        php_swoole_client_free(zobject, cli TSRMLS_CC);
-    }
+    php_swoole_client_free(zobject, cli TSRMLS_CC);
     client_execute_callback(zobject, SW_CLIENT_CB_onClose);
     sw_zval_ptr_dtor(&zobject);
 }
@@ -1875,7 +1872,6 @@ static PHP_METHOD(swoole_client, close)
     if (force || !cli->keep || swConnection_error(SwooleG.error) == SW_CLOSE)
     {
         ret = cli->close(cli);
-        php_swoole_client_free(getThis(), cli TSRMLS_CC);
     }
     else
     {

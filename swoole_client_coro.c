@@ -462,15 +462,13 @@ static void client_onClose(swClient *cli)
     SWOOLE_GET_TSRMLS;
     zval *zobject = cli->object;
     zend_update_property_bool(swoole_client_coro_class_entry_ptr, zobject, ZEND_STRL("connected"), 0 TSRMLS_CC);
-    if (cli->released)
-    {
-        return;
-    }
-
-    swDebug("client onClose");
-
     php_swoole_client_free(zobject, cli TSRMLS_CC);
-    client_execute_callback(zobject, SW_CLIENT_CB_onClose);
+
+    swoole_client_coro_property *ccp = swoole_get_property(zobject, 1);
+    if (ccp->iowait == SW_CLIENT_CORO_STATUS_WAIT)
+    {
+        client_execute_callback(zobject, SW_CLIENT_CB_onClose);
+    }
 }
 
 static void client_onError(swClient *cli)

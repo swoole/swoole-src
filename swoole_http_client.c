@@ -524,10 +524,9 @@ static void http_client_onClose(swClient *cli)
         sw_zval_free(hcc->onResponse);
         hcc->onResponse = NULL;
     }
-    if (!cli->released)
-    {
-        http_client_free(zobject TSRMLS_CC);
-    }
+
+    http_client_free(zobject TSRMLS_CC);
+
     http_client_execute_callback(zobject, SW_CLIENT_CB_onClose);
     sw_zval_ptr_dtor(&zobject);
 }
@@ -1594,7 +1593,6 @@ static PHP_METHOD(swoole_http_client, close)
     if (!cli->keep || swConnection_error(SwooleG.error) == SW_CLOSE)
     {
         ret = cli->close(cli);
-        http_client_free(getThis() TSRMLS_CC);
     }
     else
     {

@@ -401,7 +401,6 @@ static void http_client_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
     if (http->cli && http->cli->socket && !http->cli->socket->closed)
     {
         http->cli->close(http->cli);
-        http_client_free(zobject TSRMLS_CC);
     }
 
     //define time out RETURN ERROR  110
@@ -557,15 +556,14 @@ static void http_client_coro_onClose(swClient *cli)
 
     if (http->state != HTTP_CLIENT_STATE_BUSY)
     {
+        // not resume, just free
+        http_client_free(zobject TSRMLS_CC);
         return;
     }
 
-    if (cli->released)
-    {
-        return;
-    }
+    _resume:
 
-    _resume: http_client_free(zobject TSRMLS_CC);
+    http_client_free(zobject TSRMLS_CC);
 
     http_client_property *hcc = swoole_get_property(zobject, http_client_coro_property_request);
 
@@ -1732,8 +1730,9 @@ static PHP_METHOD(swoole_http_client_coro, close)
     }
 
     int ret = SW_OK;
+    http->state = HTTP_CLIENT_STATE_CLOSED;
     ret = cli->close(cli);
-    http_client_free(getThis() TSRMLS_CC);
+
     SW_CHECK_RETURN(ret);
 }
 

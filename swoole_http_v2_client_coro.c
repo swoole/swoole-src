@@ -755,14 +755,10 @@ static void http2_client_onClose(swClient *cli)
     zval *zobject = cli->object;
     zend_update_property_bool(swoole_http2_client_coro_class_entry_ptr, zobject, ZEND_STRL("connected"), 0 TSRMLS_CC);
 
-    if (cli->released)
-    {
-        return;
-    }
-
     php_swoole_client_free(zobject, cli TSRMLS_CC);
+
     http2_client_property *hcc = swoole_get_property(zobject,HTTP2_CLIENT_CORO_PROPERTY);
-    if (!hcc->iowait)
+    if (!hcc || hcc->iowait == 0) // when destruct hcc is null
     {
         return;
     }
@@ -861,13 +857,12 @@ static PHP_METHOD(swoole_http2_client_coro, close)
     }
     if (cli->socket->closed)
     {
-        php_swoole_client_free(getThis(), cli TSRMLS_CC);
         RETURN_FALSE;
     }
 
     int ret = SW_OK;
     ret = cli->close(cli);
-    php_swoole_client_free(getThis(), cli TSRMLS_CC);
+
     SW_CHECK_RETURN(ret);
 }
 
