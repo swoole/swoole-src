@@ -147,6 +147,8 @@ int http_client_parser_on_headers_complete(php_http_parser *parser);
 int http_client_parser_on_message_complete(php_http_parser *parser);
 
 http_client* http_client_create(zval *object TSRMLS_DC);
+void http_client_clear(http_client *http);
+void http_client_reset(zval *zobject TSRMLS_DC);
 void http_client_free(zval *object TSRMLS_DC);
 
 static sw_inline void http_client_create_token(int length, char *buf)

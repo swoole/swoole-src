@@ -1210,6 +1210,62 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
     return ret;
 }
 
+void http_client_clear(http_client *http)
+{
+    // clear timeout timer
+    if (http->timer)
+    {
+        swTimer_del(&SwooleG.timer, http->timer);
+        http->timer = NULL;
+    }
+
+    // Tie up the loose ends
+    if (http->download)
+    {
+        close(http->file_fd);
+        http->download = 0;
+        http->file_fd = 0;
+#ifdef SW_HAVE_ZLIB
+        if (http->gzip_buffer)
+        {
+            swString_free(http->gzip_buffer);
+            http->gzip_buffer = NULL;
+        }
+#endif
+    }
+#ifdef SW_HAVE_ZLIB
+    if (http->gzip)
+    {
+        inflateEnd(&http->gzip_stream);
+        http->gzip = 0;
+    }
+#endif
+}
+
+void http_client_reset(zval *zobject TSRMLS_DC)
+{
+    http_client *http = swoole_get_object(zobject);
+
+    // not keep_alive, try close it actively, and it will destroy the http_client
+    if (http->keep_alive == 0 && http->state != HTTP_CLIENT_STATE_WAIT_CLOSE && !http->upgrade)
+    {
+        zval *retval = NULL;
+        sw_zend_call_method_with_0_params(&zobject, swoole_http_client_class_entry_ptr, NULL, "close", &retval);
+        if (retval)
+        {
+            sw_zval_ptr_dtor(&retval);
+        }
+    }
+    else
+    // we will reuse this http client, so reset it
+    {
+        // reset attributes
+        http->completed = 0;
+        http->header_completed = 0;
+        http->state = HTTP_CLIENT_STATE_READY;
+    }
+}
+
 void http_client_free(zval *object TSRMLS_DC)
 {
     http_client *http = swoole_get_object(object);
