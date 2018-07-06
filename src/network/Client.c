@@ -453,12 +453,11 @@ void swClient_free(swClient *cli)
 
 static int swClient_close(swClient *cli)
 {
-    if (cli->socket == NULL || cli->socket->closed || cli->released)
+    if (cli->socket == NULL || cli->socket->closed)
     {
         return SW_ERR;
     }
     cli->socket->closed = 1;
-    cli->released = 1;
 
     int fd = cli->socket->fd;
     assert(fd != 0);

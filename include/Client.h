@@ -72,7 +72,6 @@ typedef struct _swClient
 
     uint32_t async :1;
     uint32_t keep :1;
-    uint32_t released :1;
     uint32_t destroyed :1;
     uint32_t redirect :1;
     uint32_t http2 :1;
