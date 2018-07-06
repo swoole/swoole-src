@@ -791,7 +791,10 @@ static void http_client_coro_onReceive(swClient *cli, char *data, uint32_t lengt
             hcc->defer_status = HTTP_CLIENT_STATE_DEFER_DONE;
             hcc->defer_result = 0;
             http_client_clear(http);
-            http_client_reset(zobject TSRMLS_CC);
+            if (http_client_check_keep(http))
+            {
+                http_client_reset(http);
+            }
             return;
         }
         else
@@ -817,7 +820,10 @@ static void http_client_coro_onReceive(swClient *cli, char *data, uint32_t lengt
         hcc->defer_status = HTTP_CLIENT_STATE_DEFER_DONE;
         hcc->defer_result = 1;
         http_client_clear(http);
-        http_client_reset(zobject TSRMLS_CC);
+        if (http_client_check_keep(http))
+        {
+            http_client_reset(http);
+        }
         return;
     }
     else
@@ -859,7 +865,10 @@ static void http_client_coro_onReceive(swClient *cli, char *data, uint32_t lengt
     begin_resume:
     {
         http_client_clear(http);
-        http_client_reset(zobject TSRMLS_CC);
+        if (http_client_check_keep(http))
+        {
+            http_client_reset(http);
+        }
 
         php_context *sw_current_context = swoole_get_property(zobject, http_client_coro_property_context);
         hcc->cid = 0;
@@ -873,7 +882,6 @@ static void http_client_coro_onReceive(swClient *cli, char *data, uint32_t lengt
         }
         sw_zval_ptr_dtor(&zdata);
     }
-
 }
 
 static void http_client_coro_onConnect(swClient *cli)

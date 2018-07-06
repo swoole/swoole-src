@@ -730,7 +730,7 @@ static void http_client_onReceive(swClient *cli, char *data, uint32_t length)
     }
 
     http_client_clear(http);
-    http_client_reset(zobject TSRMLS_CC);
+    http_client_reset(http);
     hcc->onResponse = NULL;
 
     zval **args[1];
@@ -760,6 +760,8 @@ static void http_client_onReceive(swClient *cli, char *data, uint32_t length)
         swProtocol_recv_check_length(&cli->protocol, cli->socket, cli->buffer);
         return;
     }
+
+    http_client_check_keep(http);
 }
 
 static void http_client_onConnect(swClient *cli)
@@ -1206,28 +1208,32 @@ void http_client_clear(http_client *http)
 #endif
 }
 
-void http_client_reset(zval *zobject TSRMLS_DC)
+int http_client_check_keep(http_client *http)
 {
-    http_client *http = swoole_get_object(zobject);
-
     // not keep_alive, try close it actively, and it will destroy the http_client
     if (http->keep_alive == 0 && http->state != HTTP_CLIENT_STATE_WAIT_CLOSE && !http->upgrade)
     {
+        zval *zobject = http->cli->object;
         zval *retval = NULL;
-        sw_zend_call_method_with_0_params(&zobject, swoole_http_client_class_entry_ptr, NULL, "close", &retval);
+        sw_zend_call_method_with_0_params(&zobject, Z_OBJ_P(zobject)->ce, NULL, "close", &retval);
         if (retval)
         {
             sw_zval_ptr_dtor(&retval);
         }
+        return 0; // no keep
     }
     else
-    // we will reuse this http client, so reset it
     {
-        // reset attributes
-        http->completed = 0;
-        http->header_completed = 0;
-        http->state = HTTP_CLIENT_STATE_READY;
+        return 1; // keep
     }
+}
+
+void http_client_reset(http_client *http)
+{
+    // reset attributes
+    http->completed = 0;
+    http->header_completed = 0;
+    http->state = HTTP_CLIENT_STATE_READY;
 }
 
 void http_client_free(zval *object TSRMLS_DC)
