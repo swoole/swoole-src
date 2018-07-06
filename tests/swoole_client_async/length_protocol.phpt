@@ -1,7 +1,7 @@
 --TEST--
 swoole_client: length protocol [async]
 --SKIPIF--
-<?php require __DIR__ . "/../include/skipif.inc"; ?>
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --INI--
 assert.active=1
 assert.warning=1
@@ -11,7 +11,8 @@ assert.quiet_eval=0
 
 --FILE--
 <?php
-require_once __DIR__ . "/../include/swoole.inc";
+require_once __DIR__ . '/../include/bootstrap.php';
+require_once __DIR__ . '/../include/swoole.inc';
 
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid)
@@ -90,7 +91,8 @@ $pm->childFunc = function () use ($pm)
     $serv = new swoole_server("127.0.0.1", 9501, SWOOLE_BASE);
     $serv->set(array(
         "worker_num" => 1,
-        'log_file' => '/dev/null',
+        'send_yield' => true,
+        'log_file' => '/tmp/swoole.log',
     ));
     $serv->on("WorkerStart", function (\swoole_server $serv)  use ($pm)
     {

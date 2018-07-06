@@ -18,10 +18,17 @@
 
 #include "php_swoole.h"
 #include "swoole_mysql.h"
+#include <ext/hash/php_hash.h>
+#include <ext/hash/php_hash_sha.h>
 
 #ifdef SW_USE_MYSQLND
 #include "ext/mysqlnd/mysqlnd.h"
 #include "ext/mysqlnd/mysqlnd_charset.h"
+#endif
+
+#ifdef SW_MYSQL_RSA_SUPPORT
+#include <openssl/rsa.h>
+#include <openssl/pem.h>
 #endif
 
 static PHP_METHOD(swoole_mysql, __construct);
@@ -458,6 +465,99 @@ int mysql_get_result(mysql_connector *connector, char *buf, int len)
     }
 }
 
+static void php_swoole_sha256(const char *str, int _len, unsigned char *digest)
+{
+    PHP_SHA256_CTX context;
+    PHP_SHA256Init(&context);
+    PHP_SHA256Update(&context, (unsigned char *) str, _len);
+    PHP_SHA256Final(digest, &context);
+}
+
+//sha256
+static void mysql_sha2_password_with_nonce(char* ret, char* nonce, char* password, zend_size_t password_len)
+{
+    // XOR(SHA256(password), SHA256(SHA256(SHA256(password)), nonce))
+    char hashed[32], double_hashed[32];
+    php_swoole_sha256(password, password_len, (unsigned char *) hashed);
+    php_swoole_sha256(hashed, 32, (unsigned char *) double_hashed);
+    char combined[32 + SW_MYSQL_NONCE_LENGTH]; //double-hashed + nonce
+    memcpy(combined, double_hashed, 32);
+    memcpy(combined + 32, nonce, SW_MYSQL_NONCE_LENGTH);
+    char xor_bytes[32];
+    php_swoole_sha256(combined, 32 + SW_MYSQL_NONCE_LENGTH, (unsigned char *) xor_bytes);
+    int i;
+    for (i = 0; i < 32; i++)
+    {
+        hashed[i] ^= xor_bytes[i];
+    }
+    memcpy(ret, hashed, 32);
+}
+
+/**
+ * Return: password length
+ */
+static int mysql_auth_encrypt_dispatch(char *buf, char *auth_plugin_name, char *password, zend_size_t password_len, char* nonce, int *next_state)
+{
+    if (!auth_plugin_name || strcasecmp("mysql_native_password", auth_plugin_name) == 0)
+    {
+        // mysql_native_password is default
+        // auth-response
+        char hash_0[20];
+        bzero(hash_0, sizeof (hash_0));
+        php_swoole_sha1(password, password_len, (uchar *) hash_0);
+
+        char hash_1[20];
+        bzero(hash_1, sizeof (hash_1));
+        php_swoole_sha1(hash_0, sizeof (hash_0), (uchar *) hash_1);
+
+        char str[40];
+        memcpy(str, nonce, 20);
+        memcpy(str + 20, hash_1, 20);
+
+        char hash_2[20];
+        php_swoole_sha1(str, sizeof (str), (uchar *) hash_2);
+
+        char hash_3[20];
+
+        int *a = (int *) hash_2;
+        int *b = (int *) hash_0;
+        int *c = (int *) hash_3;
+
+        int i;
+        for (i = 0; i < 5; i++)
+        {
+            c[i] = a[i] ^ b[i];
+        }
+
+        memcpy(buf, hash_3, 20);
+
+        return 20;
+    }
+    else if (strcasecmp("caching_sha2_password", auth_plugin_name) == 0)
+    {
+        char hashed[32];
+        mysql_sha2_password_with_nonce(
+                (char *) hashed,
+                (char *) nonce,
+                password,
+                password_len
+        );
+
+        // copy hashed data to connector buf
+        memcpy(buf, (char *) hashed, 32);
+        *next_state = SW_MYSQL_HANDSHAKE_WAIT_SIGNATURE;
+
+        return 32;
+    }
+    else
+    {
+        // unknown
+        swWarn("Unknown auth plugin: %s", auth_plugin_name);
+
+        return 0;
+    }
+}
+
 /**
 1              [0a] protocol version
 string[NUL]    server version
@@ -484,6 +584,7 @@ string[NUL]    auth-plugin name
 int mysql_handshake(mysql_connector *connector, char *buf, int len)
 {
     char *tmp = buf;
+    int next_state = SW_MYSQL_HANDSHAKE_WAIT_RESULT; // ret is the next handshake state
 
     /**
      * handshake request
@@ -551,6 +652,9 @@ int mysql_handshake(mysql_connector *connector, char *buf, int len)
         {
             int len = MAX(13, request.l_auth_plugin_data - 8);
             memcpy(request.auth_plugin_data + 8, tmp, len);
+#ifdef SW_MYSQL_RSA_SUPPORT
+            memcpy(connector->auth_plugin_data, request.auth_plugin_data, SW_MYSQL_NONCE_LENGTH);
+#endif
             tmp += len;
         }
 
@@ -558,6 +662,7 @@ int mysql_handshake(mysql_connector *connector, char *buf, int len)
         {
             request.auth_plugin_name = tmp;
             request.l_auth_plugin_name = MIN(strlen(tmp), len - (tmp - buf));
+            swTraceLog(SW_TRACE_MYSQL_CLIENT, "use %s auth plugin", request.auth_plugin_name);
         }
     }
 
@@ -565,7 +670,8 @@ int mysql_handshake(mysql_connector *connector, char *buf, int len)
     tmp = connector->buf + 4;
 
     //capability flags, CLIENT_PROTOCOL_41 always set
-    value = SW_MYSQL_CLIENT_PROTOCOL_41 | SW_MYSQL_CLIENT_SECURE_CONNECTION | SW_MYSQL_CLIENT_CONNECT_WITH_DB | SW_MYSQL_CLIENT_PLUGIN_AUTH;
+    value = SW_MYSQL_CLIENT_LONG_PASSWORD | SW_MYSQL_CLIENT_PROTOCOL_41 | SW_MYSQL_CLIENT_SECURE_CONNECTION
+            | SW_MYSQL_CLIENT_CONNECT_WITH_DB | SW_MYSQL_CLIENT_PLUGIN_AUTH | SW_MYSQL_CLIENT_MULTI_RESULTS;
     memcpy(tmp, &value, sizeof(value));
     tmp += 4;
 
@@ -594,37 +700,17 @@ int mysql_handshake(mysql_connector *connector, char *buf, int len)
 
     if (connector->password_len > 0)
     {
-        //auth-response
-        char hash_0[20];
-        bzero(hash_0, sizeof (hash_0));
-        php_swoole_sha1(connector->password, connector->password_len, (uchar *) hash_0);
-
-        char hash_1[20];
-        bzero(hash_1, sizeof (hash_1));
-        php_swoole_sha1(hash_0, sizeof (hash_0), (uchar *) hash_1);
-
-        char str[40];
-        memcpy(str, request.auth_plugin_data, 20);
-        memcpy(str + 20, hash_1, 20);
-
-        char hash_2[20];
-        php_swoole_sha1(str, sizeof (str), (uchar *) hash_2);
-
-        char hash_3[20];
-
-        int *a = (int *) hash_2;
-        int *b = (int *) hash_0;
-        int *c = (int *) hash_3;
-
-        int i;
-        for (i = 0; i < 5; i++)
-        {
-            c[i] = a[i] ^ b[i];
-        }
-
-        *tmp = 20;
-        memcpy(tmp + 1, hash_3, 20);
-        tmp += 21;
+        int length = 0;
+        length = mysql_auth_encrypt_dispatch(
+                tmp + 1,
+                request.auth_plugin_name,
+                connector->password,
+                connector->password_len,
+                request.auth_plugin_data,
+                &next_state
+        );
+        *tmp = length;
+        tmp += length + 1;
     }
     else
     {
@@ -646,8 +732,210 @@ int mysql_handshake(mysql_connector *connector, char *buf, int len)
     mysql_pack_length(connector->packet_length, connector->buf);
     connector->buf[3] = 1;
 
-    return 1;
+    return next_state;
 }
+
+// we may need it one day but now
+// we can reply the every auth plugin requirement on the first handshake
+int mysql_auth_switch(mysql_connector *connector, char *buf, int len)
+{
+    char *tmp = buf;
+    if ((uint8_t) tmp[4] != 0xfe)
+    {
+        // out of the order package
+        return SW_ERR;
+    }
+
+    int next_state = SW_MYSQL_HANDSHAKE_WAIT_RESULT;
+
+    int packet_length = mysql_uint3korr(tmp);
+    //continue to wait for data
+    if (len < packet_length + 4)
+    {
+        return SW_AGAIN;
+    }
+    int packet_number = tmp[3];
+    tmp += 4;
+
+    // type
+    tmp += 1;
+
+    // clear
+    connector->packet_length = 0;
+    memset(connector->buf, 0, 512);
+
+    // string[NUL]    plugin name
+    char auth_plugin_name[32];
+    int auth_plugin_name_len = 0;
+    int i;
+    for (i = 0; i < packet_length; i++)
+    {
+        auth_plugin_name[auth_plugin_name_len] = tmp[auth_plugin_name_len];
+        auth_plugin_name_len++;
+        if (tmp[auth_plugin_name_len] == 0x00)
+        {
+            break;
+        }
+    }
+    auth_plugin_name[auth_plugin_name_len] = '\0';
+    swTraceLog(SW_TRACE_MYSQL_CLIENT, "auth switch plugin name=%s", auth_plugin_name);
+    tmp += auth_plugin_name_len + 1; // name + 0x00
+
+    // if auth switch is triggered, password can't be empty
+    // string    auth plugin data
+    char auth_plugin_data[20];
+    memcpy((char *)auth_plugin_data, tmp, 20);
+
+    // create auth switch response package
+    connector->packet_length += mysql_auth_encrypt_dispatch(
+            (char *) (connector->buf + 4),
+            auth_plugin_name,
+            connector->password,
+            connector->password_len,
+            auth_plugin_data,
+            &next_state
+    );
+    // 3 for package length
+    mysql_pack_length(connector->packet_length, connector->buf);
+    // 1 package num
+    connector->buf[3] = packet_number + 1;
+
+    return next_state;
+}
+
+int mysql_parse_auth_signature(swString *buffer, mysql_connector *connector)
+{
+    char *tmp = buffer->str;
+    int packet_length = mysql_uint3korr(tmp);
+    //continue to wait for data
+    if (buffer->length < packet_length + 4)
+    {
+        return SW_AGAIN;
+    }
+    int packet_number = tmp[3];
+    tmp += 4;
+
+    // signature
+    if ((uint8_t) tmp[0] != SW_MYSQL_AUTH_SIGNATURE)
+    {
+        return SW_MYSQL_AUTH_SIGNATURE_ERROR;
+    }
+
+    // remaining length
+    buffer->offset = 4 + packet_length;
+    swTraceLog(SW_TRACE_MYSQL_CLIENT, "before signature remaining=%d", buffer->length - buffer->offset);
+
+    if ((uint8_t)tmp[1] == SW_MYSQL_AUTH_SIGNATURE_FULL_AUTH_REQUIRED)
+    {
+        // create RSA prepared response
+        connector->packet_length = 1;
+        memset(connector->buf, 0, 512);
+        // 3 for package length
+        mysql_pack_length(connector->packet_length, connector->buf);
+        // 1 packet number
+        connector->buf[3] = packet_number + 1;
+        // as I am OK
+        connector->buf[4] = SW_MYSQL_AUTH_SIGNATURE_RSA_PREPARED;
+    }
+
+    // signature value
+    return tmp[1];
+}
+
+#ifdef SW_MYSQL_RSA_SUPPORT
+//  Caching sha2 authentication. Public key request and send encrypted password
+// http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Protocol::AuthSwitchResponse
+int mysql_parse_rsa(mysql_connector *connector, char *buf, int len)
+{
+    // clear
+    connector->packet_length = 0;
+    memset(connector->buf, 0, 512);
+
+    char *tmp = buf;
+
+    int packet_length = mysql_uint3korr(tmp);
+    //continue to wait for data
+    if (len < packet_length + 4)
+    {
+        return SW_AGAIN;
+    }
+    int packet_number = tmp[3];
+    tmp += 4;
+
+    int rsa_public_key_length = packet_length;
+    while (tmp[0] != 0x2d)
+    {
+        tmp++; // ltrim
+        rsa_public_key_length--;
+    }
+    char rsa_public_key[rsa_public_key_length + 1]; //rsa + '\0'
+    memcpy((char *)rsa_public_key, tmp, rsa_public_key_length);
+    rsa_public_key[rsa_public_key_length] = '\0';
+    swTraceLog(SW_TRACE_MYSQL_CLIENT, "rsa-length=%d;\nrsa-key=[%.*s]", rsa_public_key_length, rsa_public_key_length, rsa_public_key);
+
+    int password_len = connector->password_len + 1;
+    unsigned char password[password_len];
+    // copy to stack
+    memcpy((char *)password, connector->password, password_len);
+    // add NUL terminator to password
+    password[password_len - 1] = '\0';
+    // XOR the password bytes with the challenge
+    int i;
+    for (i = 0; i < password_len; i++)
+    {
+        password[i] ^= connector->auth_plugin_data[i % SW_MYSQL_NONCE_LENGTH];
+    }
+
+    // prepare RSA public key
+    BIO *bio = NULL;
+    RSA *public_rsa = NULL;
+    if (unlikely((bio = BIO_new_mem_buf((void *)rsa_public_key, -1)) == NULL))
+    {
+        swError("BIO_new_mem_buf publicKey error!");
+        return SW_ERR;
+    }
+    // PEM_read_bio_RSA_PUBKEY
+    ERR_clear_error();
+    if (unlikely((public_rsa = PEM_read_bio_RSA_PUBKEY(bio, NULL, NULL, NULL)) == NULL))
+    {
+        ERR_load_crypto_strings();
+        char err_buf[512];
+        ERR_error_string_n(ERR_get_error(), err_buf, sizeof(err_buf));
+        swError("[PEM_read_bio_RSA_PUBKEY ERROR]: %s", err_buf);
+
+        return SW_ERR;
+    }
+    BIO_free_all(bio);
+    // encrypt with RSA public key
+    int rsa_len = RSA_size(public_rsa);
+    unsigned char encrypt_msg[rsa_len];
+    // RSA_public_encrypt
+    ERR_clear_error();
+    int flen = rsa_len - 42;
+    flen = password_len > flen ? flen : password_len;
+    swDebug("rsa_len=%d", rsa_len);
+    if (unlikely(RSA_public_encrypt(flen, (const unsigned char *)password, (unsigned char *)encrypt_msg, public_rsa, RSA_PKCS1_OAEP_PADDING) < 0))
+    {
+        ERR_load_crypto_strings();
+        char err_buf[512];
+        ERR_error_string_n(ERR_get_error(), err_buf, sizeof(err_buf));
+        swError("[RSA_public_encrypt ERROR]: %s", err_buf);
+        return SW_ERR;
+    }
+    RSA_free(public_rsa);
+
+    memcpy((char *)connector->buf + 4, (char *)encrypt_msg, rsa_len); // copy rsa to buf
+    connector->packet_length = rsa_len;
+
+    // 3 for package length
+    mysql_pack_length(connector->packet_length, connector->buf);
+    // 1 packet number
+    connector->buf[3] = packet_number + 1;
+
+    return SW_OK;
+}
+#endif
+
 
 static int mysql_parse_prepare_result(mysql_client *client, char *buf, size_t n_buf)
 {
@@ -666,6 +954,8 @@ static int mysql_parse_prepare_result(mysql_client *client, char *buf, size_t n_
     //skip 1 byte
     buf += 1;
     stmt->warning_count = mysql_uint2korr(buf);
+    stmt->result = NULL;
+    stmt->buffer = NULL;
     client->statement = stmt;
     stmt->client = client;
 
@@ -1086,6 +1376,7 @@ static sw_inline int mysql_read_eof(mysql_client *client, char *buffer, int n_bu
 
     client->response.warnings = mysql_uint2korr(buffer + 5);
     client->response.status_code = mysql_uint2korr(buffer + 7);
+    MYSQL_RESPONSE_BUFFER->offset += client->response.packet_length + 4;
 
     return SW_OK;
 }
@@ -1094,8 +1385,9 @@ static sw_inline int mysql_read_params(mysql_client *client)
 {
     while (1)
     {
-        char *buffer = client->buffer->str + client->buffer->offset;
-        uint32_t n_buf = client->buffer->length - client->buffer->offset;
+        swString *buffer = MYSQL_RESPONSE_BUFFER;
+        char *t_buffer = buffer->str + buffer->offset;
+        uint32_t n_buf = buffer->length - buffer->offset;
 
         swTraceLog(SW_TRACE_MYSQL_CLIENT, "n_buf=%d, length=%d.", n_buf, client->response.packet_length);
 
@@ -1115,9 +1407,9 @@ static sw_inline int mysql_read_params(mysql_client *client)
             }
             // Read and ignore parameter field. Sentence from MySQL source:
             // skip parameters data: we don't support it yet
-            client->response.packet_length = mysql_uint3korr(buffer);
-            client->response.packet_number = buffer[3];
-            client->buffer->offset += (client->response.packet_length + 4);
+            client->response.packet_length = mysql_uint3korr(t_buffer);
+            client->response.packet_number = t_buffer[3];
+            buffer->offset += (client->response.packet_length + 4);
             client->statement->unreaded_param_count--;
 
             swTraceLog(SW_TRACE_MYSQL_CLIENT, "read param, count=%d.", client->statement->unreaded_param_count);
@@ -1128,9 +1420,8 @@ static sw_inline int mysql_read_params(mysql_client *client)
         {
             swTraceLog(SW_TRACE_MYSQL_CLIENT, "read eof [2]");
 
-            if (mysql_read_eof(client, buffer, n_buf) == 0)
+            if (mysql_read_eof(client, t_buffer, n_buf) == 0)
             {
-                client->buffer->offset += 9;
                 return SW_OK;
             }
             else
@@ -1143,8 +1434,9 @@ static sw_inline int mysql_read_params(mysql_client *client)
 
 static sw_inline int mysql_read_rows(mysql_client *client)
 {
-    char *buffer = client->buffer->str + client->buffer->offset;
-    uint32_t n_buf = client->buffer->length - client->buffer->offset;
+    swString *buffer = MYSQL_RESPONSE_BUFFER;
+    char *t_buffer = buffer->str + buffer->offset;
+    uint32_t n_buf = buffer->length - buffer->offset;
     int ret;
 
     swTraceLog(SW_TRACE_MYSQL_CLIENT, "n_buf=%d", n_buf);
@@ -1158,7 +1450,7 @@ static sw_inline int mysql_read_rows(mysql_client *client)
             return SW_ERR;
         }
         //RecordSet end
-        else if (n_buf == 9 && mysql_read_eof(client, buffer, n_buf) == 0)
+        else if (mysql_read_eof(client, t_buffer, n_buf) == SW_OK)
         {
             if (client->response.columns)
             {
@@ -1167,9 +1459,9 @@ static sw_inline int mysql_read_rows(mysql_client *client)
             return SW_OK;
         }
 
-        client->response.packet_length = mysql_uint3korr(buffer);
-        client->response.packet_number = buffer[3];
-        buffer += 4;
+        client->response.packet_length = mysql_uint3korr(t_buffer);
+        client->response.packet_number = t_buffer[3];
+        t_buffer += 4;
         n_buf -= 4;
 
         swTraceLog(SW_TRACE_MYSQL_CLIENT, "record size=%d", client->response.packet_length);
@@ -1183,12 +1475,12 @@ static sw_inline int mysql_read_rows(mysql_client *client)
 
         if (client->cmd == SW_MYSQL_COM_STMT_EXECUTE)
         {
-            ret = mysql_decode_row_prepare(client, buffer, client->response.packet_length);
+            ret = mysql_decode_row_prepare(client, t_buffer, client->response.packet_length);
         }
         else
         {
             //decode
-            ret = mysql_decode_row(client, buffer, client->response.packet_length);
+            ret = mysql_decode_row(client, t_buffer, client->response.packet_length);
         }
 
         if (ret < 0)
@@ -1198,9 +1490,9 @@ static sw_inline int mysql_read_rows(mysql_client *client)
 
         //next row
         client->response.num_row++;
-        buffer += client->response.packet_length;
+        t_buffer += client->response.packet_length;
         n_buf -= client->response.packet_length;
-        client->buffer->offset += client->response.packet_length + 4;
+        buffer->offset += client->response.packet_length + 4;
     }
 
     return SW_ERR;
@@ -1406,8 +1698,9 @@ static int mysql_decode_field(char *buf, int len, mysql_field *col)
 
 static int mysql_read_columns(mysql_client *client)
 {
-    char *buffer = client->buffer->str + client->buffer->offset;
-    uint32_t n_buf = client->buffer->length - client->buffer->offset;
+    swString *buffer = MYSQL_RESPONSE_BUFFER;
+    char *t_buffer = buffer->str + buffer->offset;
+    uint32_t n_buf = buffer->length - buffer->offset;
     int ret;
 
     for (; client->response.index_column < client->response.num_column; client->response.index_column++)
@@ -1419,7 +1712,7 @@ static int mysql_read_columns(mysql_client *client)
             return SW_ERR;
         }
 
-        client->response.packet_length = mysql_uint3korr(buffer);
+        client->response.packet_length = mysql_uint3korr(t_buffer);
 
         //no enough data
         if (n_buf - 4 < client->response.packet_length)
@@ -1427,16 +1720,16 @@ static int mysql_read_columns(mysql_client *client)
             return SW_ERR;
         }
 
-        client->response.packet_number = buffer[3];
-        buffer += 4;
+        client->response.packet_number = t_buffer[3];
+        t_buffer += 4;
         n_buf -= 4;
 
-        ret = mysql_decode_field(buffer, client->response.packet_length, &client->response.columns[client->response.index_column]);
+        ret = mysql_decode_field(t_buffer, client->response.packet_length, &client->response.columns[client->response.index_column]);
         if (ret > 0)
         {
-            buffer += client->response.packet_length;
+            t_buffer += client->response.packet_length;
             n_buf -= client->response.packet_length;
-            client->buffer->offset += (client->response.packet_length + 4);
+            buffer->offset += (client->response.packet_length + 4);
         }
         else
         {
@@ -1445,12 +1738,12 @@ static int mysql_read_columns(mysql_client *client)
         }
     }
 
-    if (mysql_read_eof(client, buffer, n_buf) < 0)
+    if (mysql_read_eof(client, t_buffer, n_buf) < 0)
     {
         return SW_ERR;
     }
 
-    buffer += 9;
+    t_buffer += 9;
     n_buf -= 9;
 
     if (client->cmd != SW_MYSQL_COM_STMT_PREPARE)
@@ -1464,20 +1757,119 @@ static int mysql_read_columns(mysql_client *client)
         }
     }
 
-    client->buffer->offset += buffer - (client->buffer->str + client->buffer->offset);
+    buffer->offset += t_buffer - (buffer->str + buffer->offset);
 
     return SW_OK;
+}
+
+// this function is used to check if multi responses has received over.
+int mysql_is_over(mysql_client *client)
+{
+    swString *buffer = MYSQL_RESPONSE_BUFFER;
+    char *p;
+    if (client->check_offset == buffer->length)
+    {
+        // have already check all of the data
+        goto again;
+    }
+    size_t n_buf = buffer->length - client->check_offset; // remaining buffer size
+    uint32_t temp;
+
+    while (1)
+    {
+        p = buffer->str + client->check_offset; // where to start checking now
+        if (unlikely(buffer->length - buffer->offset < 5))
+        {
+            break;
+        }
+        temp = mysql_uint3korr(p); //package length
+        // add header
+        p += 4;
+        n_buf -= 4;
+        if (unlikely(n_buf < temp)) //package is incomplete
+        {
+            break;
+        }
+        else
+        {
+            client->check_offset += 4;
+        }
+
+        client->check_offset += temp; // add package length
+
+        if (client->check_offset >= buffer->length) // if false: more packages exist, skip the current one
+        {
+            switch ((uint8_t) p[0])
+            {
+            case 0xfe: // eof
+            {
+                // +type +warning
+                p += 3;
+                swDebug("meet eof and flag=%d", mysql_uint2korr(p));
+                goto check_flag;
+            }
+            case 0x00: // ok
+            {
+
+//                if (temp < 7)
+//                {
+//                    break;
+//                }
+                ulong_t val = 0;
+                char nul;
+                int retcode;
+                int t_nbuf = n_buf;
+
+                //+type
+                p++;
+                t_nbuf--;
+
+                retcode = mysql_lcb_ll(p, &val, &nul, t_nbuf); //affecr rows
+                t_nbuf -= retcode;
+                p += retcode;
+
+                retcode = mysql_lcb_ll(p, &val, &nul, t_nbuf); //insert id
+                t_nbuf -= retcode;
+                p += retcode;
+
+                check_flag:
+                if ((mysql_uint2korr(p) & SW_MYSQL_SERVER_MORE_RESULTS_EXISTS) == 0)
+                {
+                    over:
+                    client->response.wait_recv = 0;
+                    client->check_offset = 0;
+                    return SW_OK;
+                }
+                break;
+            }
+            case 0xff: // response type = error
+            {
+                goto over;
+            }
+            }
+        }
+
+        n_buf -= temp;
+        if (n_buf == 0)
+        {
+            break;
+        }
+    }
+
+    again:
+    client->response.wait_recv = 2;
+    return SW_AGAIN;
 }
 
 
 int mysql_response(mysql_client *client)
 {
-    swString *buffer = client->buffer;
+    swString *buffer = MYSQL_RESPONSE_BUFFER;
 
     char *p = buffer->str + buffer->offset;
     int ret;
     char nul;
-    int n_buf = buffer->length - buffer->offset;
+    size_t n_buf = buffer->length - buffer->offset;
 
     while (n_buf > 0)
     {
@@ -1591,7 +1983,7 @@ int mysql_response(mysql_client *client)
                 {
                     return SW_ERR;
                 }
-                client->buffer->offset += (4 + ret);
+                buffer->offset += (4 + ret);
                 client->response.columns = ecalloc(client->response.num_column, sizeof(mysql_field));
                 client->state = SW_MYSQL_STATE_READ_FIELD;
                 break;
@@ -1689,7 +2081,8 @@ int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callba
         if (swConnection_error(errno) == SW_CLOSE)
         {
             zend_update_property_bool(swoole_mysql_class_entry_ptr, zobject, ZEND_STRL("connected"), 0 TSRMLS_CC);
-            zend_update_property_long(swoole_mysql_class_entry_ptr, zobject, ZEND_STRL("errno"), 2006 TSRMLS_CC);
+            zend_update_property_long(swoole_mysql_class_entry_ptr, zobject, ZEND_STRL("errno"), 2013 TSRMLS_CC);
+            zend_update_property_string(swoole_mysql_class_entry_ptr, zobject, ZEND_STRL("error"), "Lost connection to MySQL server during query" TSRMLS_CC);
         }
         return SW_ERR;
     }
@@ -1878,6 +2271,26 @@ static PHP_METHOD(swoole_mysql, connect)
         connector->strict_type = 0;
     }
 
+    if (php_swoole_array_get_value(_ht, "fetch_mode", value))
+    {
+#if PHP_MAJOR_VERSION < 7
+        if(Z_TYPE_P(value) == IS_BOOL && Z_BVAL_P(value) == 1)
+#else
+        if (Z_TYPE_P(value) == IS_TRUE)
+#endif
+        {
+            connector->fetch_mode = 1;
+        }
+        else
+        {
+            connector->fetch_mode = 0;
+        }
+    }
+    else
+    {
+        connector->fetch_mode = 0;
+    }
+
     swClient *cli = emalloc(sizeof(swClient));
     int type = SW_SOCK_TCP;
 
@@ -1931,7 +2344,7 @@ static PHP_METHOD(swoole_mysql, connect)
     }
     else
     {
-        snprintf(buf, sizeof(buf), "connect to mysql server[%s:%d] failed.", connector->host, connector->port);
+        snprintf(buf, sizeof(buf), "connect to mysql server[%s:%ld] failed.", connector->host, connector->port);
         zend_throw_exception(swoole_mysql_exception_class_entry_ptr, buf, 2 TSRMLS_CC);
         RETURN_FALSE;
     }
@@ -2398,16 +2811,30 @@ static int swoole_mysql_onHandShake(mysql_client *client TSRMLS_DC)
 
     buffer->length += n;
 
-    int ret;
-    if (client->handshake == SW_MYSQL_HANDSHAKE_WAIT_REQUEST)
+    int ret = 0;
+
+    _again:
+    swTraceLog(SW_TRACE_MYSQL_CLIENT, "handshake on %d", client->handshake);
+    if (client->switch_check)
     {
+        // after handshake we need check if server request us to switch auth type first
+        goto _check_switch;
+    }
+
+    switch(client->handshake)
+    {
+    case SW_MYSQL_HANDSHAKE_WAIT_REQUEST:
+    {
+        client->switch_check = 1;
         ret = mysql_handshake(connector, buffer->str, buffer->length);
+
         if (ret < 0)
         {
-            swoole_mysql_onConnect(client TSRMLS_CC);
+            goto _error;
         }
         else if (ret > 0)
         {
+            _send:
             if (cli->send(cli, connector->buf, connector->packet_length + 4, 0) < 0)
             {
                 system_call_error: connector->error_code = errno;
@@ -2418,16 +2845,94 @@ static int swoole_mysql_onHandShake(mysql_client *client TSRMLS_DC)
             }
             else
             {
+                // clear for the new package
                 swString_clear(buffer);
-                client->handshake = SW_MYSQL_HANDSHAKE_WAIT_RESULT;
+                // mysql_handshake will return the next state flag
+                client->handshake = ret;
             }
         }
+        break;
     }
-    else
+    case SW_MYSQL_HANDSHAKE_WAIT_SWITCH:
     {
-        ret = mysql_get_result(connector, buffer->str, buffer->length);
+        _check_switch:
+        client->switch_check = 0;
+        int next_state;
+        // handle auth switch request
+        switch (next_state = mysql_auth_switch(connector, buffer->str, buffer->length))
+        {
+        case SW_AGAIN:
+            return SW_OK;
+        case SW_ERR:
+            // not the switch package, go to the next
+            goto _again;
+        default:
+            ret = next_state;
+            goto _send;
+        }
+        break;
+    }
+    case SW_MYSQL_HANDSHAKE_WAIT_SIGNATURE:
+    {
+        switch (mysql_parse_auth_signature(buffer, connector))
+        {
+        case SW_MYSQL_AUTH_SIGNATURE_SUCCESS:
+        {
+            client->handshake = SW_MYSQL_HANDSHAKE_WAIT_RESULT;
+            break;
+        }
+        case SW_MYSQL_AUTH_SIGNATURE_FULL_AUTH_REQUIRED:
+        {
+            // send response and wait RSA public key
+            ret = SW_MYSQL_HANDSHAKE_WAIT_RSA; // handshake = ret
+            goto _send;
+        }
+        default:
+        {
+            goto _error;
+        }
+        }
+
+        // may be more packages
+        if (buffer->offset < buffer->length)
+        {
+            goto _again;
+        }
+        else
+        {
+            swString_clear(buffer);
+        }
+        break;
+    }
+    case SW_MYSQL_HANDSHAKE_WAIT_RSA:
+    {
+        // encode by RSA
+#ifdef SW_MYSQL_RSA_SUPPORT
+        switch (mysql_parse_rsa(connector, SWSTRING_CURRENT_VL(buffer)))
+        {
+        case SW_AGAIN:
+            return SW_OK;
+        case SW_OK:
+            ret = SW_MYSQL_HANDSHAKE_WAIT_RESULT; // handshake = ret
+            goto _send;
+        default:
+            goto _error;
+        }
+#else
+        connector->error_code = -1;
+        connector->error_msg = "MySQL8 RSA-Auth need enable OpenSSL!";
+        connector->error_length = strlen(connector->error_msg);
+        swoole_mysql_onConnect(client TSRMLS_CC);
+        return SW_OK;
+#endif
+        break;
+    }
+    default:
+    {
+        ret = mysql_get_result(connector, SWSTRING_CURRENT_VL(buffer));
         if (ret < 0)
         {
+            _error:
             swoole_mysql_onConnect(client TSRMLS_CC);
         }
         else if (ret > 0)
@@ -2436,7 +2941,10 @@ static int swoole_mysql_onHandShake(mysql_client *client TSRMLS_DC)
             client->handshake = SW_MYSQL_HANDSHAKE_COMPLETED;
             swoole_mysql_onConnect(client TSRMLS_CC);
         }
+        // else recv again
     }
+    }
+
     return SW_OK;
 }
 
@@ -2624,7 +3132,7 @@ static PHP_METHOD(swoole_mysql, escape)
     const MYSQLND_CHARSET* cset = mysqlnd_find_charset_nr(client->connector.character_set);
     if (cset == NULL)
     {
-        swoole_php_fatal_error(E_ERROR, "unknown mysql charset[%s].", client->connector.character_set);
+        swoole_php_fatal_error(E_ERROR, "unknown mysql charset[%d].", client->connector.character_set);
         RETURN_FALSE;
     }
     int newstr_len = mysqlnd_cset_escape_slashes(cset, newstr, str.str, str.length TSRMLS_CC);

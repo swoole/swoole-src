@@ -252,12 +252,12 @@ int swHttpRequest_has_expect_header(swHttpRequest *request)
 
     for (p = buf; p < pe; p++)
     {
-
         if (*p == '\r' && pe - p > sizeof("\r\nExpect"))
         {
-            if (strncasecmp(p + 2, SW_STRL("\r\nExpect") - 1) == 0)
+            p += 2;
+            if (strncasecmp(p, SW_STRL("Expect") - 1) == 0)
             {
-                p += sizeof("Expect: ") + 1;
+                p += sizeof("Expect: ") - 1;
                 if (strncasecmp(p, SW_STRL("100-continue") - 1) == 0)
                 {
                     return 1;

@@ -173,11 +173,6 @@ static void swSignalfd_set(int signo, swSignalHander callback)
     {
         sigdelset(&signalfd_mask, signo);
         bzero(&signals[signo], sizeof(swSignal));
-
-        if (signal_fd > 0)
-        {
-            sigprocmask(SIG_BLOCK, &signalfd_mask, NULL);
-        }
     }
     else
     {
@@ -185,6 +180,11 @@ static void swSignalfd_set(int signo, swSignalHander callback)
         signals[signo].callback = callback;
         signals[signo].signo = signo;
         signals[signo].active = 1;
+    }
+    if (signal_fd > 0)
+    {
+        sigprocmask(SIG_BLOCK, &signalfd_mask, NULL);
+        signalfd(signal_fd, &signalfd_mask, SFD_NONBLOCK | SFD_CLOEXEC);
     }
 }
 

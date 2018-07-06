@@ -81,6 +81,7 @@ typedef struct _swClient
     uint32_t shutdow_rw :1;
     uint32_t shutdown_read :1;
     uint32_t shutdown_write :1;
+    uint32_t remove_delay :1;
 
     /**
      * one package: length check

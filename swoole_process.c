@@ -249,7 +249,7 @@ static PHP_METHOD(swoole_process, __construct)
         RETURN_FALSE;
     }
 
-    if (SwooleG.serv && SwooleGS->start == 1 && swIsMaster())
+    if (SwooleG.serv && SwooleG.serv->gs->start == 1 && swIsMaster())
     {
         swoole_php_fatal_error(E_ERROR, "swoole_process can't be used in master process.");
         RETURN_FALSE;
@@ -279,9 +279,9 @@ static PHP_METHOD(swoole_process, __construct)
     bzero(process, sizeof(swWorker));
 
     int base = 1;
-    if (SwooleG.serv && SwooleGS->start)
+    if (SwooleG.serv && SwooleG.serv->gs->start)
     {
-        base = SwooleG.serv->worker_num + SwooleG.task_worker_num + SwooleG.serv->user_worker_num;
+        base = SwooleG.serv->worker_num + SwooleG.serv->task_worker_num + SwooleG.serv->user_worker_num;
     }
     if (php_swoole_worker_round_id == 0)
     {
@@ -477,11 +477,21 @@ static PHP_METHOD(swoole_process, signal)
         RETURN_FALSE;
     }
 
-    if (SwooleGS->start && (swIsWorker() || swIsMaster() || swIsManager() || swIsTaskWorker()))
+    if (SwooleG.serv && SwooleG.serv->gs->start)
     {
-        if (signo == SIGTERM)
+        if ((swIsWorker() || swIsTaskWorker()) && signo == SIGTERM)
         {
-            swoole_php_fatal_error(E_WARNING, "unable to register SIGTERM in swoole_server.");
+            swoole_php_fatal_error(E_WARNING, "unable to register SIGTERM in worker/task process.");
+            RETURN_FALSE;
+        }
+        else if (swIsManager() && (signo == SIGTERM || signo == SIGUSR1 || signo == SIGUSR2 || signo == SIGALRM))
+        {
+            swoole_php_fatal_error(E_WARNING, "unable to register SIGTERM/SIGUSR1/SIGUSR2/SIGALRM in manager process.");
+            RETURN_FALSE;
+        }
+        else if (swIsMaster() && (signo == SIGTERM || signo == SIGUSR1 || signo == SIGUSR2 || signo == SIGALRM || signo == SIGCHLD))
+        {
+            swoole_php_fatal_error(E_WARNING, "unable to register SIGTERM/SIGUSR1/SIGUSR2/SIGALRM/SIGCHLD in manager process.");
             RETURN_FALSE;
         }
     }

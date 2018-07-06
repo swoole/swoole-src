@@ -70,6 +70,7 @@ typedef struct
 
 static zend_class_entry swoole_process_pool_ce;
 static zend_class_entry *swoole_process_pool_class_entry_ptr;
+static swProcessPool *current_pool;
 
 void swoole_process_pool_init(int module_number TSRMLS_DC)
 {
@@ -98,6 +99,12 @@ static void php_swoole_process_pool_onWorkerStart(swProcessPool *pool, int worke
     {
         return;
     }
+    if (SwooleG.main_reactor)
+    {
+        SwooleG.main_reactor->free(SwooleG.main_reactor);
+        SwooleG.main_reactor = NULL;
+        swTraceLog(SW_TRACE_PHP, "destroy reactor");
+    }
     if (sw_call_user_function_ex(EG(function_table), NULL, pp->onWorkerStart, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onWorkerStart handler error.");
@@ -109,6 +116,11 @@ static void php_swoole_process_pool_onWorkerStart(swProcessPool *pool, int worke
     if (retval)
     {
         sw_zval_ptr_dtor(&retval);
+    }
+    if (SwooleG.main_reactor)
+    {
+        php_swoole_event_wait();
+        SwooleG.running = 0;
     }
 }
 
@@ -131,7 +143,7 @@ static void php_swoole_process_pool_onMessage(swProcessPool *pool, char *data, u
 
     if (sw_call_user_function_ex(EG(function_table), NULL, pp->onMessage, &retval, 2, args, 0, NULL TSRMLS_CC)  == FAILURE)
     {
-        swoole_php_fatal_error(E_WARNING, "onWorkerStart handler error.");
+        swoole_php_fatal_error(E_WARNING, "onMessage handler error.");
     }
     if (EG(exception))
     {
@@ -187,8 +199,8 @@ static void php_swoole_process_pool_signal_hanlder(int sig)
         break;
     case SIGUSR1:
     case SIGUSR2:
-        SwooleGS->event_workers.reloading = 1;
-        SwooleGS->event_workers.reload_init = 0;
+        current_pool->reloading = 1;
+        current_pool->reload_init = 0;
         break;
     default:
         break;
@@ -418,6 +430,9 @@ static PHP_METHOD(swoole_process_pool, start)
     {
         RETURN_FALSE;
     }
+
+    current_pool = pool;
+
     swProcessPool_wait(pool);
     swProcessPool_shutdown(pool);
 }

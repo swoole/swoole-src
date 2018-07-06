@@ -168,6 +168,9 @@ static int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
     bzero(&task.data.info, sizeof(task.data.info));
     task.data.info.from_fd = fd;
     task.data.info.from_id = SwooleTG.id;
+#ifdef SW_BUFFER_RECV_TIME
+    task.data.info.time = swoole_microtime();
+#endif
 
     int socket_type = server_sock->socket_type;
     switch(socket_type)
@@ -324,8 +327,8 @@ int swReactorThread_close(swReactor *reactor, int fd)
         return SW_ERR;
     }
 
-    sw_atomic_fetch_add(&SwooleStats->close_count, 1);
-    sw_atomic_fetch_sub(&SwooleStats->connection_num, 1);
+    sw_atomic_fetch_add(&serv->stats->close_count, 1);
+    sw_atomic_fetch_sub(&serv->stats->connection_num, 1);
 
     swTrace("Close Event.fd=%d|from=%d", fd, reactor->id);
 
@@ -662,6 +665,34 @@ int swReactorThread_send(swSendData *_send)
         conn->listen_wait = 0;
         return SW_OK;
     }
+    /**
+     * pause recv data
+     */
+    else if (_send->info.type == SW_EVENT_PAUSE_RECV)
+    {
+        if (conn->events & SW_EVENT_WRITE)
+        {
+            return reactor->set(reactor, conn->fd, conn->fdtype | SW_EVENT_WRITE);
+        }
+        else
+        {
+            return reactor->del(reactor, conn->fd);
+        }
+    }
+    /**
+     * resume recv data
+     */
+    else if (_send->info.type == SW_EVENT_RESUME_RECV)
+    {
+        if (conn->events & SW_EVENT_WRITE)
+        {
+            return reactor->set(reactor, conn->fd, conn->fdtype | SW_EVENT_READ | SW_EVENT_WRITE);
+        }
+        else
+        {
+            return reactor->add(reactor, conn->fd, conn->fdtype | SW_EVENT_READ);
+        }
+    }
 
     if (swBuffer_empty(conn->out_buffer))
     {
@@ -929,7 +960,11 @@ static int swReactorThread_onRead(swReactor *reactor, swEvent *event)
     }
 #endif
 
-    event->socket->last_time = SwooleGS->now;
+    event->socket->last_time = serv->gs->now;
+#ifdef SW_BUFFER_RECV_TIME
+    event->socket->last_time_usec = swoole_microtime();
+#endif
+
     return port->onRead(reactor, port, event);
 }
 
@@ -1199,6 +1234,21 @@ static int swReactorThread_loop(swThreadParam *param)
     SwooleTG.id = reactor_id;
     SwooleTG.type = SW_THREAD_REACTOR;
 
+    if (serv->factory_mode == SW_MODE_BASE || serv->factory_mode == SW_MODE_THREAD)
+    {
+        SwooleTG.buffer_input = swServer_create_worker_buffer(serv);
+        if (!SwooleTG.buffer_input)
+        {
+            return SW_ERR;
+        }
+    }
+
+    SwooleTG.buffer_stack = swString_new(8192);
+    if (SwooleTG.buffer_stack == NULL)
+    {
+        return SW_ERR;
+    }
+
     swReactorThread *thread = swServer_get_thread(serv, reactor_id);
     swReactor *reactor = &thread->reactor;
 
@@ -1389,6 +1439,7 @@ static int swReactorThread_loop(swThreadParam *param)
     }
 #endif
 
+    swString_free(SwooleTG.buffer_stack);
     pthread_exit(0);
     return SW_OK;
 }
@@ -1401,6 +1452,12 @@ int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
     swFactory *factory = SwooleG.factory;
     swServer *serv = factory->ptr;
     swDispatchData task;
+
+    task.data.info.from_fd = conn->from_fd;
+    task.data.info.from_id = conn->from_id;
+#ifdef SW_BUFFER_RECV_TIME
+    task.data.info.time = conn->last_time_usec;
+#endif
 
     if (serv->dispatch_mode == SW_DISPATCH_STREAM)
     {
@@ -1415,8 +1472,6 @@ int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
         swStream_set_max_length(stream, port->protocol.package_max_length);
 
         task.data.info.fd = conn->session_id;
-        task.data.info.from_id = conn->from_id;
-        task.data.info.from_fd = conn->from_fd;
         task.data.info.type = SW_EVENT_PACKAGE_END;
         task.data.info.len = 0;
 
@@ -1433,7 +1488,6 @@ int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
     }
 
     task.data.info.fd = conn->fd;
-    task.data.info.from_id = conn->from_id;
 
     swTrace("send string package, size=%ld bytes.", (long)length);
 
@@ -1516,7 +1570,7 @@ void swReactorThread_free(swServer *serv)
     int i;
     swReactorThread *thread;
 
-    if (SwooleGS->start == 0)
+    if (serv->gs->start == 0)
     {
         return;
     }
@@ -1555,10 +1609,11 @@ void swReactorThread_free(swServer *serv)
 #ifdef SW_USE_TIMEWHEEL
 static void swReactorThread_onReactorCompleted(swReactor *reactor)
 {
-    if (reactor->heartbeat_interval > 0 && reactor->last_heartbeat_time < SwooleGS->now - reactor->heartbeat_interval)
+    swServer *serv = reactor->ptr;
+    if (reactor->heartbeat_interval > 0 && reactor->last_heartbeat_time < serv->gs->now - reactor->heartbeat_interval)
     {
         swTimeWheel_forward(reactor->timewheel, reactor);
-        reactor->last_heartbeat_time = SwooleGS->now;
+        reactor->last_heartbeat_time = serv->gs->now;
     }
 }
 #endif

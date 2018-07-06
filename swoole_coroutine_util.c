@@ -37,10 +37,6 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_exec, 0, 0, 1)
     ZEND_ARG_INFO(0, command)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_suspend, 0, 0, 1)
-    ZEND_ARG_INFO(0, uid)
-ZEND_END_ARG_INFO()
-
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_resume, 0, 0, 1)
     ZEND_ARG_INFO(0, uid)
 ZEND_END_ARG_INFO()
@@ -89,8 +85,8 @@ ZEND_END_ARG_INFO()
 
 static PHP_METHOD(swoole_coroutine_util, set);
 static PHP_METHOD(swoole_coroutine_util, suspend);
-static PHP_METHOD(swoole_coroutine_util, cli_wait);
 static PHP_METHOD(swoole_coroutine_util, resume);
+static PHP_METHOD(swoole_coroutine_util, stats);
 static PHP_METHOD(swoole_coroutine_util, getuid);
 static PHP_METHOD(swoole_coroutine_util, sleep);
 static PHP_METHOD(swoole_coroutine_util, fread);
@@ -111,9 +107,9 @@ static const zend_function_entry swoole_coroutine_util_methods[] =
     ZEND_FENTRY(create, ZEND_FN(swoole_coroutine_create), arginfo_swoole_coroutine_create, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(exec, ZEND_FN(swoole_coroutine_exec), arginfo_swoole_coroutine_exec, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, set, arginfo_swoole_coroutine_set, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_util, cli_wait, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_util, suspend, arginfo_swoole_coroutine_suspend, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_util, suspend, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, resume, arginfo_swoole_coroutine_resume, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_util, stats, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, getuid, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, sleep, arginfo_swoole_coroutine_sleep, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, fread, arginfo_swoole_coroutine_fread, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -147,49 +143,19 @@ void swoole_coroutine_util_init(int module_number TSRMLS_DC)
     defer_coros = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
 }
 
-static void swoole_coroutine_util_resume(void *data)
-{
-	php_context *context = (php_context *)data;
-	zval *retval = NULL;
-	zval *result;
-	SW_MAKE_STD_ZVAL(result);
-	ZVAL_BOOL(result, 1);
-	int ret = coro_resume(context, result, &retval);
-	if (ret == CORO_END && retval)
-	{
-		sw_zval_ptr_dtor(&retval);
-	}
-	sw_zval_ptr_dtor(&result);
-	efree(context);
-}
-
-static void coroutine_resume_onTimeout(swTimer *timer, swTimer_node *tnode)
-{
-    php_context *context = (php_context *)tnode->data;
-    zval *retval = NULL;
-    zval *result;
-    SW_MAKE_STD_ZVAL(result);
-    ZVAL_BOOL(result, 1);
-    int ret = coro_resume(context, result, &retval);
-    if (ret == CORO_END && retval)
-    {
-        sw_zval_ptr_dtor(&retval);
-    }
-    sw_zval_ptr_dtor(&result);
-    efree(context);
-}
-
+/*
+ * suspend current coroutine
+ */
 static PHP_METHOD(swoole_coroutine_util, suspend)
 {
-    char *id;
-    zend_size_t id_len;
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &id, &id_len) == FAILURE)
+    int cid = sw_get_current_cid();
+    if (cid < 0)
     {
-        return;
+        swoole_php_fatal_error(E_ERROR, "can not suspend outside coroutine");
+        RETURN_FALSE;
     }
 
-    swLinkedList *coros_list = swHashMap_find(defer_coros, id, id_len);
+    swLinkedList *coros_list = swHashMap_find_int(defer_coros, cid);
     if (coros_list == NULL)
     {
         coros_list = swLinkedList_new(2, NULL);
@@ -197,7 +163,7 @@ static PHP_METHOD(swoole_coroutine_util, suspend)
         {
             RETURN_FALSE;
         }
-        if (swHashMap_add(defer_coros, id, id_len, coros_list) == SW_ERR)
+        if (swHashMap_add_int(defer_coros, cid, coros_list) == SW_ERR)
         {
             swLinkedList_free(coros_list);
             RETURN_FALSE;
@@ -265,6 +231,18 @@ PHP_FUNCTION(swoole_coroutine_create)
     {
         return;
     }
+    if (unlikely(SWOOLE_G(req_status) == PHP_SWOOLE_CALL_USER_SHUTDOWNFUNC_BEGIN))
+    {
+        zend_function *func = (zend_function *) EG(current_execute_data)->prev_execute_data->func;
+        zend_string *destruct = zend_string_init("__destruct", strlen("__destruct"), 0);
+        if (zend_string_equals(func->common.function_name, destruct))
+        {
+            zend_string_release(destruct);
+            swoole_php_fatal_error(E_ERROR, "can not use coroutine in __destruct after php_request_shutdown");
+            return;
+        }
+        zend_string_release(destruct);
+    }
     char *func_name = NULL;
     zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
     if (!sw_zend_is_callable_ex(callback, NULL, 0, &func_name, NULL, func_cache, NULL TSRMLS_CC))
@@ -284,11 +262,9 @@ PHP_FUNCTION(swoole_coroutine_create)
 
     zval *retval = NULL;
     zval *args[1];
-    php_context *ctx = emalloc(sizeof(php_context));
-    coro_create(func_cache, args, 0, &retval, NULL, NULL);
+    int cid = coro_create(func_cache, args, 0, &retval, NULL, NULL);
     sw_zval_free(callback);
     efree(func_cache);
-    efree(ctx);
     if (EG(exception))
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
@@ -297,34 +273,25 @@ PHP_FUNCTION(swoole_coroutine_create)
     {
         sw_zval_ptr_dtor(&retval);
     }
-    RETURN_TRUE;
-}
-
-static PHP_METHOD(swoole_coroutine_util, cli_wait)
-{
-    if (SwooleGS->start == 1)
+    if (cid < 0)
     {
         RETURN_FALSE;
     }
-    php_context *cxt = emalloc(sizeof(php_context));
-    coro_save(cxt);
-    php_swoole_event_wait();
-    coro_resume_parent(cxt, NULL, NULL);
-    efree(cxt);
-    RETURN_LONG(COROG.coro_num);
+    else
+    {
+        RETURN_LONG(cid);
+    }
 }
 
 static PHP_METHOD(swoole_coroutine_util, resume)
 {
-    char *id;
-    zend_size_t id_len;
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &id, &id_len) == FAILURE)
+    long id;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &id) == FAILURE)
     {
         return;
     }
 
-    swLinkedList *coros_list = swHashMap_find(defer_coros, id, id_len);
+    swLinkedList *coros_list = swHashMap_find_int(defer_coros, id);
     if (coros_list == NULL)
     {
         swoole_php_fatal_error(E_WARNING, "Nothing can coroResume.");
@@ -338,26 +305,29 @@ static PHP_METHOD(swoole_coroutine_util, resume)
         RETURN_FALSE;
     }
 
-    if (SwooleG.main_reactor->start == 0)
+    zval *retval = NULL;
+    zval *result;
+    SW_MAKE_STD_ZVAL(result);
+    ZVAL_BOOL(result, 1);
+    int ret = coro_resume(context, result, &retval);
+    if (ret == CORO_END && retval)
     {
-        php_swoole_check_timer(1);
-        SwooleG.timer.add(&SwooleG.timer, 1, 0, context, coroutine_resume_onTimeout);
+        sw_zval_ptr_dtor(&retval);
     }
-    else
-    {
-        SwooleG.main_reactor->defer(SwooleG.main_reactor, swoole_coroutine_util_resume, context);
-    }
-
+    sw_zval_ptr_dtor(&result);
+    efree(context);
     RETURN_TRUE;
+}
+
+static PHP_METHOD(swoole_coroutine_util, stats)
+{
+    array_init(return_value);
+    sw_add_assoc_long_ex(return_value, ZEND_STRS("coroutine_num"), COROG.coro_num);
 }
 
 static PHP_METHOD(swoole_coroutine_util, getuid)
 {
-    if (unlikely(COROG.current_coro == NULL))
-    {
-        RETURN_LONG(-1);
-    }
-    RETURN_LONG(COROG.current_coro->cid);
+    RETURN_LONG(sw_get_current_cid());
 }
 
 static void php_coroutine_sleep_timeout(swTimer *timer, swTimer_node *tnode)
@@ -566,6 +536,8 @@ static void aio_onWriteFileCompleted(swAio_event *event)
 
 static PHP_METHOD(swoole_coroutine_util, fread)
 {
+    coro_check(TSRMLS_C);
+
     zval *handle;
     zend_long length = 0;
 
@@ -618,7 +590,6 @@ static PHP_METHOD(swoole_coroutine_util, fread)
 
     if (!SwooleAIO.init)
     {
-        SwooleAIO.mode = SW_AIO_BASE;
         php_swoole_check_reactor();
         swAio_init();
     }
@@ -641,6 +612,8 @@ static PHP_METHOD(swoole_coroutine_util, fread)
 
 static PHP_METHOD(swoole_coroutine_util, fgets)
 {
+    coro_check(TSRMLS_C);
+
     zval *handle;
     php_stream *stream;
 
@@ -686,7 +659,6 @@ static PHP_METHOD(swoole_coroutine_util, fgets)
 
     if (!SwooleAIO.init)
     {
-        SwooleAIO.mode = SW_AIO_BASE;
         php_swoole_check_reactor();
         swAio_init();
     }
@@ -710,6 +682,8 @@ static PHP_METHOD(swoole_coroutine_util, fgets)
 
 static PHP_METHOD(swoole_coroutine_util, fwrite)
 {
+    coro_check(TSRMLS_C);
+
     zval *handle;
     char *str;
     zend_size_t l_str;
@@ -757,11 +731,6 @@ static PHP_METHOD(swoole_coroutine_util, fwrite)
     ev.fd = fd;
     ev.offset = _seek;
 
-    if (SwooleAIO.mode == SW_AIO_LINUX)
-    {
-        SwooleAIO.mode = SW_AIO_BASE;
-        SwooleAIO.init = 0;
-    }
     php_swoole_check_aio();
 
     swTrace("fd=%d, offset=%ld, length=%ld", fd, ev.offset, ev.nbytes);
@@ -782,6 +751,8 @@ static PHP_METHOD(swoole_coroutine_util, fwrite)
 
 static PHP_METHOD(swoole_coroutine_util, readFile)
 {
+    coro_check(TSRMLS_C);
+
     char *filename = NULL;
     size_t l_filename = 0;
 
@@ -808,7 +779,6 @@ static PHP_METHOD(swoole_coroutine_util, readFile)
 
     if (!SwooleAIO.init)
     {
-        SwooleAIO.mode = SW_AIO_BASE;
         php_swoole_check_reactor();
         swAio_init();
     }
@@ -831,6 +801,8 @@ static PHP_METHOD(swoole_coroutine_util, readFile)
 
 static PHP_METHOD(swoole_coroutine_util, writeFile)
 {
+    coro_check(TSRMLS_C);
+
     char *filename = NULL;
     size_t l_filename = 0;
     char *data = NULL;
@@ -876,7 +848,6 @@ static PHP_METHOD(swoole_coroutine_util, writeFile)
 
     if (!SwooleAIO.init)
     {
-        SwooleAIO.mode = SW_AIO_BASE;
         php_swoole_check_reactor();
         swAio_init();
     }
@@ -989,6 +960,8 @@ static void coro_dns_onGetaddrinfoCompleted(swAio_event *event)
 
 static PHP_METHOD(swoole_coroutine_util, gethostbyname)
 {
+    coro_check(TSRMLS_C);
+
     char *domain_name;
     zend_size_t l_domain_name;
     long family = AF_INET;
@@ -1038,11 +1011,6 @@ static PHP_METHOD(swoole_coroutine_util, gethostbyname)
     ev.object = sw_current_context;
     ev.callback = coro_dns_onResolveCompleted;
 
-    if (SwooleAIO.mode == SW_AIO_LINUX)
-    {
-        SwooleAIO.mode = SW_AIO_BASE;
-        SwooleAIO.init = 0;
-    }
     php_swoole_check_aio();
 
     if (swAio_dispatch(&ev) < 0)
@@ -1057,6 +1025,8 @@ static PHP_METHOD(swoole_coroutine_util, gethostbyname)
 
 static PHP_METHOD(swoole_coroutine_util, getaddrinfo)
 {
+    coro_check(TSRMLS_C);
+
     char *hostname;
     zend_size_t l_hostname;
     long family = AF_INET;
@@ -1115,11 +1085,6 @@ static PHP_METHOD(swoole_coroutine_util, getaddrinfo)
         req->result = ecalloc(SW_DNS_HOST_BUFFER_SIZE, sizeof(struct sockaddr_in6));
     }
 
-    if (SwooleAIO.mode == SW_AIO_LINUX)
-    {
-        SwooleAIO.mode = SW_AIO_BASE;
-        SwooleAIO.init = 0;
-    }
     php_swoole_check_aio();
 
     if (swAio_dispatch(&ev) < 0)

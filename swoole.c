@@ -387,6 +387,7 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_strerror, arginfo_swoole_strerror)
     PHP_FE(swoole_errno, arginfo_swoole_void)
     PHP_FE(swoole_hashcode, arginfo_swoole_hashcode)
+    PHP_FE(swoole_call_user_shutdown_begin, arginfo_swoole_void)
     PHP_FE_END /* Must be the last line in swoole_functions[] */
 };
 
@@ -436,6 +437,9 @@ static zend_function_entry swoole_server_methods[] = {
     PHP_ME(swoole_server, stats, arginfo_swoole_void, ZEND_ACC_PUBLIC)
 #ifdef SWOOLE_SOCKETS_SUPPORT
     PHP_ME(swoole_server, getSocket, arginfo_swoole_server_getSocket, ZEND_ACC_PUBLIC)
+#endif
+#ifdef SW_BUFFER_RECV_TIME
+    PHP_ME(swoole_server, getReceivedTime, arginfo_swoole_void, ZEND_ACC_PUBLIC)
 #endif
     PHP_ME(swoole_server, bind, arginfo_swoole_server_bind, ZEND_ACC_PUBLIC)
     PHP_FALIAS(__sleep, swoole_unsupport_serialize, NULL)
@@ -576,6 +580,7 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
     swoole_globals->use_namespace = 1;
     swoole_globals->use_shortname = 1;
     swoole_globals->fast_serialize = 0;
+    swoole_globals->rshutdown_functions = NULL;
 }
 
 int php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data, uint32_t length)
@@ -760,6 +765,43 @@ void swoole_set_property(zval *object, int property_id, void *ptr)
         swoole_objects.property[property_id] = new_ptr;
     }
     swoole_objects.property[property_id][handle] = ptr;
+}
+
+int swoole_register_rshutdown_function(swCallback func, int push_back)
+{
+    if (SWOOLE_G(rshutdown_functions) == NULL)
+    {
+        SWOOLE_G(rshutdown_functions) = swLinkedList_new(0, NULL);
+        if (SWOOLE_G(rshutdown_functions) == NULL)
+        {
+            return SW_ERR;
+        }
+    }
+    if (push_back)
+    {
+        return swLinkedList_append(SWOOLE_G(rshutdown_functions), func);
+    }
+    else
+    {
+        return swLinkedList_prepend(SWOOLE_G(rshutdown_functions), func);
+    }
+}
+
+void swoole_call_rshutdown_function(void *arg)
+{
+    if (SWOOLE_G(rshutdown_functions))
+    {
+        swLinkedList *rshutdown_functions = SWOOLE_G(rshutdown_functions);
+        swLinkedList_node *node = rshutdown_functions->head;
+        swCallback func = NULL;
+
+        while (node)
+        {
+            func = node->data;
+            func(arg);
+            node = node->next;
+        }
+    }
 }
 
 #ifdef ZTS
@@ -1042,7 +1084,9 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_process_init(module_number TSRMLS_CC);
     swoole_process_pool_init(module_number TSRMLS_CC);
     swoole_table_init(module_number TSRMLS_CC);
+#ifdef SW_USE_PHPX
     swoole_runtime_init(module_number TSRMLS_CC);
+#endif
     swoole_lock_init(module_number TSRMLS_CC);
     swoole_atomic_init(module_number TSRMLS_CC);
     swoole_http_server_init(module_number TSRMLS_CC);
@@ -1051,7 +1095,7 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_mysql_init(module_number TSRMLS_CC);
     swoole_mmap_init(module_number TSRMLS_CC);
     swoole_channel_init(module_number TSRMLS_CC);
-#if PHP_MAJOR_VERSION >= 7
+#ifdef SW_COROUTINE
     swoole_channel_coro_init(module_number TSRMLS_CC);
 #endif
     swoole_ringqueue_init(module_number TSRMLS_CC);
@@ -1063,9 +1107,8 @@ PHP_MINIT_FUNCTION(swoole)
 #endif
 #endif
 
-#if PHP_MAJOR_VERSION >= 7
     swoole_serialize_init(module_number TSRMLS_DC);
-#endif
+    swoole_memory_pool_init(module_number TSRMLS_DC);
 
 #ifdef SW_USE_REDIS
     swoole_redis_init(module_number TSRMLS_CC);
@@ -1124,10 +1167,16 @@ PHP_MINFO_FUNCTION(swoole)
     php_info_print_table_start();
     php_info_print_table_header(2, "swoole support", "enabled");
     php_info_print_table_row(2, "Version", PHP_SWOOLE_VERSION);
-    php_info_print_table_row(2, "Author", "tianfeng.han[email: mikan.tenny@gmail.com]");
+    php_info_print_table_row(2, "Author", "Swoole Group[email: team@swoole.com]");
 
 #ifdef SW_COROUTINE
     php_info_print_table_row(2, "coroutine", "enabled");
+#endif
+#if USE_BOOST_CONTEXT
+    php_info_print_table_row(2, "boost.context", "enabled");
+#endif
+#if USE_UCONTEXT
+    php_info_print_table_row(2, "ucontext", "enabled");
 #endif
 #ifdef HAVE_EPOLL
     php_info_print_table_row(2, "epoll", "enabled");
@@ -1178,9 +1227,6 @@ PHP_MINFO_FUNCTION(swoole)
 #ifdef SW_USE_RINGBUFFER
     php_info_print_table_row(2, "ringbuffer", "enabled");
 #endif
-#ifdef HAVE_LINUX_AIO
-    php_info_print_table_row(2, "Linux Native AIO", "enabled");
-#endif
 #ifdef HAVE_GCC_AIO
     php_info_print_table_row(2, "GCC AIO", "enabled");
 #endif
@@ -1222,6 +1268,8 @@ PHP_MINFO_FUNCTION(swoole)
 
 PHP_RINIT_FUNCTION(swoole)
 {
+    SWOOLE_G(req_status) = PHP_SWOOLE_RINIT_BEGIN;
+    php_swoole_at_shutdown("swoole_call_user_shutdown_begin");
     //running
     SwooleG.running = 1;
 
@@ -1235,19 +1283,21 @@ PHP_RINIT_FUNCTION(swoole)
 #ifdef SW_DEBUG_REMOTE_OPEN
     swoole_open_remote_debug();
 #endif
-
+    SWOOLE_G(req_status) = PHP_SWOOLE_RINIT_END;
     return SUCCESS;
 }
 
 PHP_RSHUTDOWN_FUNCTION(swoole)
 {
+    SWOOLE_G(req_status) = PHP_SWOOLE_RSHUTDOWN_BEGIN;
+    swoole_call_rshutdown_function(NULL);
     //clear pipe buffer
     if (swIsWorker())
     {
         swWorker_clean();
     }
 
-    if (SwooleGS->start > 0 && SwooleG.serv && SwooleG.running > 0)
+    if (SwooleG.serv && SwooleG.serv->gs->start > 0 && SwooleG.running > 0)
     {
         if (PG(last_error_message))
         {
@@ -1280,7 +1330,7 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
 #ifdef SW_COROUTINE
     coro_destroy(TSRMLS_C);
 #endif
-
+    SWOOLE_G(req_status) = PHP_SWOOLE_RSHUTDOWN_END;
     return SUCCESS;
 }
 
@@ -1538,6 +1588,12 @@ PHP_FUNCTION(swoole_get_local_mac)
     php_error_docref(NULL TSRMLS_CC, E_WARNING, "swoole_get_local_mac is not supported.");
     RETURN_FALSE;
 #endif
+}
+
+PHP_FUNCTION(swoole_call_user_shutdown_begin)
+{
+    SWOOLE_G(req_status) = PHP_SWOOLE_CALL_USER_SHUTDOWNFUNC_BEGIN;
+    RETURN_TRUE;
 }
 
 /*

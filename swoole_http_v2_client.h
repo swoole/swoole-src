@@ -144,6 +144,7 @@ static sw_inline void http2_client_send_setting(swClient *cli)
 
 static sw_inline void http2_add_header(nghttp2_nv *headers, char *k, int kl, char *v, int vl)
 {
+    k = zend_str_tolower_dup(k, kl); // auto to lower
     headers->name = (uchar*) k;
     headers->namelen = kl;
     headers->value = (uchar*) v;

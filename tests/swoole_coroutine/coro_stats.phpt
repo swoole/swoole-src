@@ -1,0 +1,24 @@
+--TEST--
+swoole_coroutine: current stats
+--SKIPIF--
+<?php require  __DIR__ . '/../include/skipif.inc'; ?>
+--FILE--
+<?php
+require_once __DIR__ . '/../include/bootstrap.php';
+require_once __DIR__ . '/../include/swoole.inc';
+
+assert(Co::stats()['coroutine_num'] === 0);
+
+go(function () {
+    assert(Co::stats()['coroutine_num'] === 1);
+    Co::sleep(0.5);
+   assert(Co::stats()['coroutine_num'] === 2);
+});
+go(function () {
+    assert(Co::stats()['coroutine_num'] === 2);
+    Co::sleep(0.5);
+    assert(Co::stats()['coroutine_num'] === 1);
+});
+assert(Co::stats()['coroutine_num'] === 2);
+?>
+--EXPECT--

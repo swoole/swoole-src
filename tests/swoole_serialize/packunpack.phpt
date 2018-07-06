@@ -2,7 +2,7 @@
 swoole_serialize: pack & unpack
 --SKIPIF--
 <?php
-require __DIR__ . "/../include/skipif.inc";
+require __DIR__ . '/../include/skipif.inc';
 if (!class_exists("swoole_serialize", false))
 {
     echo "skip";
@@ -16,6 +16,8 @@ assert.quiet_eval=0
 
 --FILE--
 <?php
+require_once __DIR__ . '/../include/bootstrap.php';
+
 // int
 $int_data = mt_rand(100, 999);
 $data = swoole_serialize::pack($int_data);

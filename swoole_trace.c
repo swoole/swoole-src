@@ -69,7 +69,7 @@ void php_swoole_trace_check(void *arg)
 {
     swServer *serv = (swServer *) arg;
     uint8_t timeout = serv->request_slowlog_timeout;
-    int count = serv->worker_num + SwooleG.task_worker_num;
+    int count = serv->worker_num + serv->task_worker_num;
     int i = serv->trace_event_worker ? 0 : serv->worker_num;
     swWorker *worker;
 
@@ -77,7 +77,7 @@ void php_swoole_trace_check(void *arg)
     {
         worker = swServer_get_worker(serv, i);
         swTraceLog(SW_TRACE_SERVER, "trace request, worker#%d, pid=%d. request_time=%d.", i, worker->pid, worker->request_time);
-        if (!(worker->request_time > 0 && worker->traced == 0 && SwooleGS->now - worker->request_time >= timeout))
+        if (!(worker->request_time > 0 && worker->traced == 0 && serv->gs->now - worker->request_time >= timeout))
         {
             continue;
         }

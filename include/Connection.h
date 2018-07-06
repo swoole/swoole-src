@@ -138,6 +138,7 @@ int swSSL_sendfile(swConnection *conn, int fd, off_t *offset, size_t size);
  */
 static sw_inline ssize_t swConnection_recv(swConnection *conn, void *__buf, size_t __n, int __flags)
 {
+    int retval;
 #ifdef SW_USE_OPENSSL
     if (conn->ssl)
     {
@@ -151,7 +152,8 @@ static sw_inline ssize_t swConnection_recv(swConnection *conn, void *__buf, size
             {
                 if (ret <= 0)
                 {
-                    return ret;
+                    retval = ret;
+                    goto _return;
                 }
                 else
                 {
@@ -160,19 +162,33 @@ static sw_inline ssize_t swConnection_recv(swConnection *conn, void *__buf, size
             }
             else
             {
-                return ret;
+                retval = ret;
+                goto _return;
             }
         }
 
-        return n_received;
+        retval = n_received;
     }
     else
     {
-        return recv(conn->fd, __buf, __n, __flags);
+        retval = recv(conn->fd, __buf, __n, __flags);
     }
 #else
-    return recv(conn->fd, __buf, __n, __flags);
+    retval = recv(conn->fd, __buf, __n, __flags);
 #endif
+
+#ifdef SW_USE_OPENSSL
+    _return:
+#endif
+
+#ifdef SW_DEBUG
+    if (retval > 0)
+    {
+        conn->total_recv_bytes += retval;
+    }
+#endif
+
+    return retval;
 }
 
 /**
@@ -180,18 +196,28 @@ static sw_inline ssize_t swConnection_recv(swConnection *conn, void *__buf, size
  */
 static sw_inline int swConnection_send(swConnection *conn, void *__buf, size_t __n, int __flags)
 {
+    int retval;
 #ifdef SW_USE_OPENSSL
     if (conn->ssl)
     {
-        return swSSL_send(conn, __buf, __n);
+        retval = swSSL_send(conn, __buf, __n);
     }
     else
     {
-        return send(conn->fd, __buf, __n, __flags);
+        retval = send(conn->fd, __buf, __n, __flags);
     }
 #else
-    return send(conn->fd, __buf, __n, __flags);
+    retval = send(conn->fd, __buf, __n, __flags);
 #endif
+
+#ifdef SW_DEBUG
+    if (retval > 0)
+    {
+        conn->total_send_bytes += retval;
+    }
+#endif
+
+    return retval;
 }
 
 static sw_inline int swConnection_error(int err)

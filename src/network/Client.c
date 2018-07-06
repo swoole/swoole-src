@@ -197,7 +197,7 @@ int swClient_sleep(swClient *cli)
     {
         ret = cli->reactor->del(cli->reactor, cli->socket->fd);
     }
-    if (ret)
+    if (ret == SW_OK)
     {
         cli->sleep = 1;
     }
@@ -215,7 +215,7 @@ int swClient_wakeup(swClient *cli)
     {
         ret = cli->reactor->add(cli->reactor, cli->socket->fd, cli->socket->fdtype | SW_EVENT_READ);
     }
-    if (ret)
+    if (ret == SW_OK)
     {
         cli->sleep = 0;
     }
@@ -453,6 +453,12 @@ void swClient_free(swClient *cli)
 
 static int swClient_close(swClient *cli)
 {
+    if (cli->socket == NULL || cli->socket->closed || cli->released)
+    {
+        return SW_ERR;
+    }
+    cli->socket->closed = 1;
+
     int fd = cli->socket->fd;
     assert(fd != 0);
 
@@ -502,11 +508,6 @@ static int swClient_close(swClient *cli)
     {
         unlink(cli->socket->info.addr.un.sun_path);
     }
-    if (cli->socket->closed)
-    {
-        return SW_OK;
-    }
-    cli->socket->closed = 1;
     if (cli->async)
     {
         //remove from reactor
@@ -530,6 +531,9 @@ static int swClient_close(swClient *cli)
     {
         cli->socket->active = 0;
     }
+
+    cli->released = 1;
+
     return close(fd);
 }
 
@@ -555,11 +559,34 @@ static int swClient_tcp_connect_sync(swClient *cli, char *host, int port, double
         {
             swSocket_set_timeout(cli->socket->fd, timeout);
         }
+#ifndef HAVE_KQUEUE
         swSetBlock(cli->socket->fd);
+#endif
     }
     while (1)
     {
+#ifdef HAVE_KQUEUE
+    	swSetNonBlock(cli->socket->fd);
+    	ret = connect(cli->socket->fd, (struct sockaddr *) &cli->server_addr.addr, cli->server_addr.len);
+    	if (ret < 0)
+    	{
+    		if (errno != EINPROGRESS)
+    		{
+    			return SW_ERR;
+    		}
+    		if (swSocket_wait(cli->socket->fd, timeout > 0 ? (int) (timeout * 1000) : timeout, SW_EVENT_WRITE) < 0)
+    		{
+    			return SW_ERR;
+    		}
+    		else
+    		{
+    			swSetBlock(cli->socket->fd);
+    			ret = 0;
+    		}
+    	}
+#else
         ret = connect(cli->socket->fd, (struct sockaddr *) &cli->server_addr.addr, cli->server_addr.len);
+#endif
         if (ret < 0)
         {
             if (errno == EINTR)
@@ -660,11 +687,6 @@ static int swClient_tcp_connect_async(swClient *cli, char *host, int port, doubl
 
     if (cli->wait_dns)
     {
-        if (SwooleAIO.mode == SW_AIO_LINUX)
-        {
-            SwooleAIO.mode = SW_AIO_BASE;
-            SwooleAIO.init = 0;
-        }
         if (SwooleAIO.init == 0)
         {
             swAio_init();
@@ -1271,6 +1293,11 @@ static int swClient_onStreamRead(swReactor *reactor, swEvent *event)
         }
         else
         {
+            if (conn->removed == 0 && cli->remove_delay)
+            {
+                swClient_sleep(cli);
+                cli->remove_delay = 0;
+            }
             return SW_OK;
         }
     }

@@ -14,18 +14,25 @@ Swoole is an event-driven asynchronous & concurrent networking communication fra
 * __Twitter__: <https://twitter.com/php_swoole>
 * __Slack Group__: <https://swoole.slack.com/>
 
-Swoft Framework
+Swoft
 ----
-Modern High performance AOP and Coroutine PHP Framework, base on Swoole 2 <https://github.com/swoft-cloud>
+A modern, high performance AOP and coroutine PHP framework. <https://github.com/swoft-cloud>
+
+EasySwoole
+----
+A simple, high performance PHP framework, based on Swoole, which makes using Swoole as easy as `echo hello world`. <https://www.easyswoole.com/>
+
+SwooleDistributed
+-----------------
+A high performance cooperative server framework based on all versions of Swoole, supporting microservice and cluster deployment, and providing developers with many advanced development and debugging components. <https://github.com/SwooleDistributed/SwooleDistributed>
 
 Event-based
 ------
-
 The network layer in Swoole is event-based and takes full advantage of the underlaying epoll/kqueue implementation, making it really easy to serve thousands of connections.
 
 Coroutine
 ----------------
-[Swoole 2.0](Version2.md) supports the built-in coroutine, and you can use fully synchronized code to implement asynchronous programs. PHP code without any additional keywords, the underlying automatic coroutine-scheduling.
+[Swoole 2.0](Version2.md) or later supports the built-in coroutine, and you can use fully synchronized code to implement asynchronous programs. PHP code without any additional keywords, the underlying automatic coroutine-scheduling.
 
 ```php
 <?php
@@ -52,10 +59,9 @@ for ($i = 0; $i < 100; $i++) {
 $server = new Swoole\Http\Server('127.0.0.1', 9501);
 
 $server->on('Request', function($request, $response) {
-
     $tcp_cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
-    $ret = $tcp_cli->connect('127.0.0.1', 9906);
-    $tcp_cli ->send('test for the coroutine');
+    $tcp_cli->connect('127.0.0.1', 9906);
+    $tcp_cli->send('test for the coroutine');
     $ret = $tcp_cli->recv(5);
     $tcp_cli->close();
 
@@ -127,7 +133,7 @@ go(function () {
 go(function () {
     $http = new Co\Http\Client("www.google.com", 443, true);
     $http->setHeaders(function () {
-        
+
     });
     $ret = $http->get('/');
     var_dump($http->body);
@@ -162,14 +168,12 @@ co::gethostbyname('www.google.com');
 
 Concurrent
 ------
-
 On the request processing part, Swoole uses a multi-process model. Every process works as a worker. All business logic is executed in workers, synchronously.
 
 With the synchronous logic execution, you can easily write large and robust applications and take advantage of almost all libraries available to the PHP community.
 
 In-memory
 ------
-
 Unlike traditional apache/php-fpm stuff, the memory allocated in Swoole will not be freed after a request, which can improve performance a lot.
 
 
@@ -188,9 +192,11 @@ By using Swoole, you can build enhanced web applications with more control, real
 ## Requirements
 
 * Version-1: PHP 5.3.10 or later
-* Version-2: PHP 5.5.0 or later
-* Linux, OS X and basic Windows support (thanks to cygwin)
+* Version-2: PHP 7.0.0 or later
+* Version-4: PHP 7.0.0 or later
+* Linux, OS X and basic Windows support (thanks to CygWin)
 * GCC 4.4 or later
+* GCC 4.8 or later (Version >= 4)
 
 ## Installation
 
@@ -203,7 +209,7 @@ By using Swoole, you can build enhanced web applications with more control, real
 2. Install from source
 
     ```
-    sudo apt-get install php5-dev
+    sudo apt-get install php7-dev
     git clone https://github.com/swoole/swoole-src.git
     cd swoole-src
     phpize
@@ -485,7 +491,7 @@ Refer to [API Reference](http://wiki.swoole.com/wiki/page/183.html) for more det
 Swoole also provides a client component to build tcp/udp clients in both asynchronous and synchronous ways.
 Swoole uses the `swoole_client` class to expose all its functionalities.
 
-synchronous blocking:
+Synchronous blocking:
 ```php
 $client = new swoole_client(SWOOLE_SOCK_TCP);
 if (!$client->connect('127.0.0.1', 9501, 0.5)) {

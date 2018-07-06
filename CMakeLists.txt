@@ -1,12 +1,13 @@
-PROJECT(swoole_server)
+PROJECT(libswoole)
 
-SET(SWOOLE_VERSION 1.9.5)
+ENABLE_LANGUAGE(ASM)
+SET(SWOOLE_VERSION 4.0.0)
 SET(SWOOLE_CLFLAGS pthread rt dl ssl crypt crypto nghttp2)
 CMAKE_MINIMUM_REQUIRED(VERSION 2.4)
 
 SET(CMAKE_BUILD_TYPE Debug)
 
-file(GLOB_RECURSE SRC_LIST FOLLOW_SYMLINKS src/*.c)
+file(GLOB_RECURSE SRC_LIST FOLLOW_SYMLINKS src/*.c src/*.cc thirdparty/boost/asm/jump_x86_64_sysv_elf_gas.S thirdparty/boost/asm/make_x86_64_sysv_elf_gas.S)
 file(GLOB_RECURSE HEAD_FILES FOLLOW_SYMLINKS include/*.h)
 
 SET(LIBRARY_OUTPUT_PATH ${CMAKE_CURRENT_SOURCE_DIR}/lib)

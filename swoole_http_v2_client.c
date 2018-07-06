@@ -294,6 +294,11 @@ static int http2_client_build_header(zval *zobject, http2_client_request *req, c
         return SW_ERR;
     }
 
+    for (i = 0; i < index; ++i)
+    {
+        efree(nv[i].name); // free lower header name copy
+    }
+
     if (date_str)
     {
         efree(date_str);

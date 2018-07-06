@@ -671,7 +671,7 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
 
                 if (boundary_len <= 0)
                 {
-                    swWarn("invalid multipart/form-data body.", ctx->fd);
+                    swWarn("invalid multipart/form-data body fd:%d.", ctx->fd);
                     return 0;
                 }
                 if (boundary_len >= 2 && boundary_str[0] == '"' && *(boundary_str + boundary_len - 1) == '"')
@@ -756,7 +756,7 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
         zval *tmp_array;
         SW_MAKE_STD_ZVAL(tmp_array);
         array_init(tmp_array);
-        http_parse_cookie(tmp_array, (char *) at + sizeof("form-data;"), length - sizeof("form-data;"));
+        http_parse_cookie(tmp_array, (char *) at + sizeof("form-data;") - 1, length - sizeof("form-data;") + 1);
 
         zval *form_name;
         if (sw_zend_hash_find(Z_ARRVAL_P(tmp_array), ZEND_STRS("name"), (void **) &form_name) == FAILURE)
@@ -954,8 +954,12 @@ static int multipart_body_on_data_end(multipart_parser* p)
     zval *multipart_header = ctx->current_multipart_header;
     if (p->fp != NULL)
     {
-        long size = swoole_file_get_size((FILE*) p->fp);
+        long size = swoole_file_get_size((FILE *) p->fp);
         add_assoc_long(multipart_header, "size", size);
+        if (size == 0)
+        {
+            add_assoc_long(multipart_header, "error", HTTP_UPLOAD_ERR_NO_FILE);
+        }
 
         fclose((FILE *) p->fp);
         p->fp = NULL;
@@ -1121,11 +1125,6 @@ static int http_onReceive(swServer *serv, swEventData *req)
     else
     {
         zval *retval = NULL;
-#ifndef SW_COROUTINE
-        zval **args[2];
-#else
-        zval *args[2];
-#endif
 
         zval *zrequest_object = ctx->request.zobject;
         zval *zresponse_object = ctx->response.zobject;
@@ -1139,13 +1138,13 @@ static int http_onReceive(swServer *serv, swEventData *req)
         sw_add_assoc_string(zserver, "request_method", method_name, 1);
         sw_add_assoc_stringl(zserver, "request_uri", ctx->request.path, ctx->request.path_len, 1);
         sw_add_assoc_stringl(zserver, "path_info", ctx->request.path, ctx->request.path_len, 1);
-        sw_add_assoc_long_ex(zserver, ZEND_STRS("request_time"), SwooleGS->now);
+        sw_add_assoc_long_ex(zserver, ZEND_STRS("request_time"), serv->gs->now);
 
         // Add REQUEST_TIME_FLOAT
         double now_float = swoole_microtime();
         sw_add_assoc_double_ex(zserver, ZEND_STRS("request_time_float"), now_float);
 
-        swConnection *conn = swWorker_get_connection(SwooleG.serv, fd);
+        swConnection *conn = swWorker_get_connection(serv, fd);
         if (!conn)
         {
             sw_zval_free(zdata);
@@ -1179,14 +1178,6 @@ static int http_onReceive(swServer *serv, swEventData *req)
             goto free_object;
         }
 
-#ifndef SW_COROUTINE
-        args[0] = &zrequest_object;
-        args[1] = &zresponse_object;
-#else
-        args[0] = zrequest_object;
-        args[1] = zresponse_object;
-#endif
-
         int callback_type = 0;
         if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)
         {
@@ -1206,31 +1197,39 @@ static int http_onReceive(swServer *serv, swEventData *req)
             }
         }
 
-#ifndef SW_COROUTINE
-        zcallback = php_swoole_server_get_callback(serv, req->info.from_fd, callback_type);
-#ifdef PHP_SWOOLE_ENABLE_FASTCALL
-        zend_fcall_info_cache *fci_cache = php_swoole_server_get_cache(serv, req->info.from_fd, callback_type);
-        if (sw_call_user_function_fast(zcallback, fci_cache, &retval, 2, args TSRMLS_CC) == FAILURE)
-#else
-        if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
-#endif
+        if (SwooleG.enable_coroutine)
         {
-            swoole_php_error(E_WARNING, "onRequest handler error");
-        }
-#else
-        zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, req->info.from_fd, callback_type);
-        int ret = coro_create(cache, args, 2, &retval, NULL, NULL);
-        if (ret != 0)
-        {
-            sw_zval_ptr_dtor(&zrequest_object);
-            sw_zval_ptr_dtor(&zresponse_object);
-            if (ret == CORO_LIMIT)
+            zval *args[2];
+            args[0] = zrequest_object;
+            args[1] = zresponse_object;
+
+            zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, req->info.from_fd, callback_type);
+            int ret = coro_create(cache, args, 2, &retval, NULL, NULL);
+            if (ret < 0)
             {
-                SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
+                sw_zval_ptr_dtor(&zrequest_object);
+                sw_zval_ptr_dtor(&zresponse_object);
+                if (ret == CORO_LIMIT)
+                {
+                    serv->factory.end(&SwooleG.serv->factory, fd);
+                }
+                return SW_OK;
             }
-            return SW_OK;
         }
-#endif
+        else
+        {
+            zval **args[2];
+            args[0] = &zrequest_object;
+            args[1] = &zresponse_object;
+
+            zcallback = php_swoole_server_get_callback(serv, req->info.from_fd, callback_type);
+            zend_fcall_info_cache *fci_cache = php_swoole_server_get_cache(serv, req->info.from_fd, callback_type);
+            if (sw_call_user_function_fast(zcallback, fci_cache, &retval, 2, args TSRMLS_CC) == FAILURE)
+            {
+                swoole_php_error(E_WARNING, "onRequest handler error");
+            }
+        }
+
         if (EG(exception))
         {
             zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
@@ -1252,6 +1251,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
             sw_zval_ptr_dtor(&retval);
         }
     }
+
     return SW_OK;
 }
 
@@ -1329,7 +1329,8 @@ static PHP_METHOD(swoole_http_server, on)
     zval *callback;
     zval *event_name;
 
-    if (SwooleGS->start > 0)
+    swServer *serv = swoole_get_object(getThis());
+    if (serv->gs->start > 0)
     {
         swoole_php_error(E_WARNING, "server is running. unable to register event callback function.");
         RETURN_FALSE;
@@ -1586,13 +1587,13 @@ static PHP_METHOD(swoole_http_server, start)
 {
     int ret;
 
-    if (SwooleGS->start > 0)
+    swServer *serv = swoole_get_object(getThis());
+    if (serv->gs->start > 0)
     {
         swoole_php_error(E_WARNING, "Server is running. Unable to execute swoole_server::start.");
         RETURN_FALSE;
     }
 
-    swServer *serv = swoole_get_object(getThis());
     php_swoole_register_callback(serv);
 
     if (serv->listen_list->open_websocket_protocol)
@@ -1775,6 +1776,12 @@ static PHP_METHOD(swoole_http_response, write)
         return;
     }
 
+    if (ctx->http2)
+    {
+        swoole_php_error(E_WARNING, "Http2 client does not support HTTP-CHUNK.");
+        RETURN_FALSE;
+    }
+
     if (!ctx->send_header)
     {
         ctx->chunk = 1;
@@ -1879,6 +1886,8 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
 {
     assert(ctx->send_header == 0);
 
+    swServer *serv = SwooleG.serv;
+
     char buf[SW_HTTP_HEADER_MAX_SIZE];
     int n;
     char *date_str;
@@ -1924,7 +1933,7 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
             {
                 flag |= HTTP_RESPONSE_CONTENT_TYPE;
             }
-            n = snprintf(buf, sizeof(buf), "%*s: %*s\r\n", keylen - 1, key, Z_STRLEN_P(value), Z_STRVAL_P(value));
+            n = snprintf(buf, sizeof(buf), "%*s: %*s\r\n", keylen - 1, key, (int)Z_STRLEN_P(value), Z_STRVAL_P(value));
             swString_append_ptr(response, buf, n);
         }
         SW_HASHTABLE_FOREACH_END();
@@ -1958,7 +1967,7 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
         }
         if (!(flag & HTTP_RESPONSE_DATE))
         {
-            date_str = sw_php_format_date(ZEND_STRL(SW_HTTP_DATE_FORMAT), SwooleGS->now, 0 TSRMLS_CC);
+            date_str = sw_php_format_date(ZEND_STRL(SW_HTTP_DATE_FORMAT), serv->gs->now, 0 TSRMLS_CC);
             n = snprintf(buf, sizeof(buf), "Date: %s\r\n", date_str);
             swString_append_ptr(response, buf, n);
             efree(date_str);
@@ -1977,7 +1986,7 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
             swString_append_ptr(response, ZEND_STRL("Connection: close\r\n"));
         }
         //Date
-        date_str = sw_php_format_date(ZEND_STRL(SW_HTTP_DATE_FORMAT), SwooleGS->now, 0 TSRMLS_CC);
+        date_str = sw_php_format_date(ZEND_STRL(SW_HTTP_DATE_FORMAT), serv->gs->now, 0 TSRMLS_CC);
         n = snprintf(buf, sizeof(buf), "Date: %s\r\n", date_str);
         efree(date_str);
         swString_append_ptr(response, buf, n);

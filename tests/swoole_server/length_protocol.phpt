@@ -2,7 +2,7 @@
 swoole_server: (length protocol) recv 100k packet
 
 --SKIPIF--
-<?php require  __DIR__ . "/../include/skipif.inc"; ?>
+<?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --INI--
 assert.active=1
 assert.warning=1
@@ -11,7 +11,8 @@ assert.quiet_eval=0
 
 --FILE--
 <?php
-require_once __DIR__ . "/../include/swoole.inc";
+require_once __DIR__ . '/../include/bootstrap.php';
+require_once __DIR__ . '/../include/swoole.inc';
 require_once __DIR__ . '/../include/api/swoole_server/TestServer.php';
 
 class PkgServer extends TestServer
@@ -79,25 +80,18 @@ $pm->parentFunc = function ($pid)
     swoole_process::kill($pid);
 };
 
-$pm->childFunc = function () use ($pm)
-{
-    $serv = new \swoole_server(UDP_SERVER_HOST, UDP_SERVER_PORT, SWOOLE_BASE, SWOOLE_SOCK_UDP);
-    $serv->set(["worker_num" => 1, 'log_file' => '/dev/null']);
-    $serv->on("WorkerStart", function (\swoole_server $serv)  use ($pm)
-    {
-        $pm->wakeup();
-    });
-
+$pm->childFunc = function () use ($pm) {
     $serv = new PkgServer(true);
     $serv->set([
-        'worker_num'            => 1,
+        'worker_num' => 1,
         //'dispatch_mode'         => 1,
-        'open_length_check'     => true,
+        'log_file' => '/dev/null',
+        'open_length_check' => true,
         'package_max_length' => 1024 * 1024,
-        'package_length_type'   => 'N',
+        'package_length_type' => 'N',
         'package_length_offset' => 0,
-        'package_body_offset'   => 4,
-        'task_worker_num'       => 0
+        'package_body_offset' => 4,
+        'task_worker_num' => 0
     ]);
     $serv->start();
 };

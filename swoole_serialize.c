@@ -995,6 +995,7 @@ try_again:
 
                 if (GC_IS_RECURSIVE(ht))
                 {
+                    ((SBucketType*) (buffer->buffer + p))->data_type = IS_NULL;//reset type null
                     php_error_docref(NULL TSRMLS_CC, E_NOTICE, "the array has cycle ref");
                 }
                 else
@@ -1017,7 +1018,8 @@ try_again:
                 //object propterty table is this type
             case IS_INDIRECT:
                 data = Z_INDIRECT_P(data);
-                ((SBucketType*) (buffer->buffer + p))->data_type = Z_TYPE_P(data);
+                zend_uchar type = Z_TYPE_P(data);
+                ((SBucketType*) (buffer->buffer + p))->data_type = (type == IS_UNDEF ? IS_NULL : type);
                 goto try_again;
                 break;
             case IS_OBJECT:
@@ -1135,7 +1137,11 @@ static void swoole_serialize_object(seriaString *buffer, zval *obj, size_t start
                 //for the zero malloc
                 zend_array tmp_arr;
                 zend_array *ht = (zend_array *) & tmp_arr;
+#if PHP_VERSION_ID >= 70300
+                _zend_hash_init(ht, zend_hash_num_elements(Z_ARRVAL(retval)), ZVAL_PTR_DTOR, 0);
+#else
                 _zend_hash_init(ht, zend_hash_num_elements(Z_ARRVAL(retval)), ZVAL_PTR_DTOR, 0 ZEND_FILE_LINE_CC);
+#endif
                 ht->nTableMask = -(ht)->nTableSize;
                 ALLOCA_FLAG(use_heap);
                 void *ht_addr = do_alloca(HT_SIZE(ht), use_heap);
@@ -1202,11 +1208,15 @@ static void swoole_serialize_object(seriaString *buffer, zval *obj, size_t start
  */
 static CPINLINE zend_string * swoole_string_init(const char *str, size_t len)
 {
+#ifdef ZEND_DEBUG
+    return zend_string_init(str, len, 0);
+#else
     ALLOCA_FLAG(use_heap);
     zend_string *ret;
     ZSTR_ALLOCA_INIT(ret, str, len, use_heap);
 
     return ret;
+#endif
 }
 
 /*
@@ -1214,9 +1224,13 @@ static CPINLINE zend_string * swoole_string_init(const char *str, size_t len)
  */
 static CPINLINE void swoole_string_release(zend_string *str)
 {
+#ifdef ZEND_DEBUG
+    zend_string_release(str);
+#else
     //if dont support alloc 0 will ignore
     //if support alloc size is definitely < ZEND_ALLOCA_MAX_SIZE
     ZSTR_ALLOCA_FREE(str, 0);
+#endif
 }
 
 static CPINLINE zend_class_entry* swoole_try_get_ce(zend_string *class_name)
@@ -1229,7 +1243,15 @@ static CPINLINE zend_class_entry* swoole_try_get_ce(zend_string *class_name)
     }
     // try call unserialize callback and retry lookup
     zval user_func, args[1], retval;
-    zend_string *fname = swoole_string_init(PG(unserialize_callback_func), strlen(PG(unserialize_callback_func)));
+
+    /* Check for unserialize callback */
+    if ((PG(unserialize_callback_func) == NULL) || (PG(unserialize_callback_func)[0] == '\0'))
+    {
+        zend_throw_exception_ex(NULL, 0, "can not find class %s", class_name->val TSRMLS_CC);
+        return NULL;
+    }
+    
+    zend_string *fname = swoole_string_init(ZEND_STRL(PG(unserialize_callback_func)));
     Z_STR(user_func) = fname;
     Z_TYPE_INFO(user_func) = IS_STRING_EX;
     ZVAL_STR(&args[0], class_name);
@@ -1269,7 +1291,7 @@ static void* swoole_unserialize_object(void *buffer, zval *return_value, zend_uc
     zend_string *class_name;
     if (flag == UNSERIALIZE_OBJECT_TO_STDCLASS) 
     {
-        class_name = swoole_string_init("StdClass", 8);
+        class_name = swoole_string_init(ZEND_STRL("StdClass"));
     } 
     else 
     {
@@ -1289,25 +1311,41 @@ static void* swoole_unserialize_object(void *buffer, zval *return_value, zend_uc
 
     object_init_ex(return_value, ce);
 
-    zval *data;
-    const zend_string *key;
+    zval *data,*d;
+    zend_string *key;
     zend_ulong index;
 
+    
     ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL(property), index, key, data)
     {
         const char *prop_name, *tmp;
         size_t prop_len;
         if (key)
         {
-            zend_unmangle_property_name_ex(key, &tmp, &prop_name, &prop_len);
-            zend_update_property(ce, return_value, prop_name, prop_len, data);
+
+            if ((d = zend_hash_find(Z_OBJPROP_P(return_value), key)) != NULL)
+            {
+                if (Z_TYPE_P(d) == IS_INDIRECT)
+                {
+                    d = Z_INDIRECT_P(d);
+                }
+                zval_dtor(d);
+                ZVAL_COPY(d, data);
+            }
+            else
+            {
+                zend_unmangle_property_name_ex(key, &tmp, &prop_name, &prop_len);
+                zend_update_property(ce, return_value, prop_name, prop_len, data);
+            }
+//            zend_hash_update(Z_OBJPROP_P(return_value),key,data);
+//            zend_update_property(ce, return_value, ZSTR_VAL(key), ZSTR_LEN(key), data);
         }
         else
         {
             zend_hash_next_index_insert(Z_OBJPROP_P(return_value), data);
         }
+        (void)index;
     }
-    (void) index;
     ZEND_HASH_FOREACH_END();
     zval_dtor(&property);
 
@@ -1341,10 +1379,10 @@ static void* swoole_unserialize_object(void *buffer, zval *return_value, zend_uc
 
 
     //call object __wakeup
-    if (zend_hash_str_exists(&ce->function_table, "__wakeup", sizeof ("__wakeup") - 1))
+    if (zend_hash_str_exists(&ce->function_table, ZEND_STRL("__wakeup")))
     {
         zval ret, wakeup;
-        zend_string *fname = swoole_string_init("__wakeup", sizeof ("__wakeup") - 1);
+        zend_string *fname = swoole_string_init(ZEND_STRL("__wakeup"));
         Z_STR(wakeup) = fname;
         Z_TYPE_INFO(wakeup) = IS_STRING_EX;
         call_user_function_ex(CG(function_table), return_value, &wakeup, &ret, 0, NULL, 1, NULL);
@@ -1417,8 +1455,8 @@ PHPAPI zend_string* php_swoole_serialize(zval *zvalue)
     swoole_seria_dispatch(&str, zvalue); //serialize into a string
     zend_string *z_str = (zend_string *) str.buffer;
 
-    z_str->val[str.offset] = '\0';
     z_str->len = str.offset - _STR_HEADER_SIZE;
+    z_str->val[z_str->len] = '\0';
     z_str->h = 0;
     GC_SET_REFCOUNT(z_str, 1);
     GC_TYPE_INFO(z_str) = IS_STRING_EX;

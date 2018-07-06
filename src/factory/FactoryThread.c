@@ -185,7 +185,7 @@ int swFactoryThread_dispatch(swFactory *factory, swDispatchData *task)
 
 static void swFactoryThread_onStart(swThreadPool *pool, int id)
 {
-    swServer *serv = SwooleG.serv;
+    swServer *serv = pool->ptr1;
 
     if (serv->onWorkerStart != NULL)
     {

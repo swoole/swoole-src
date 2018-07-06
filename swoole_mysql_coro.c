@@ -45,11 +45,14 @@ static PHP_METHOD(swoole_mysql_coro, close);
 
 static PHP_METHOD(swoole_mysql_coro_statement, __destruct);
 static PHP_METHOD(swoole_mysql_coro_statement, execute);
+static PHP_METHOD(swoole_mysql_coro_statement, fetch);
+static PHP_METHOD(swoole_mysql_coro_statement, fetchAll);
+static PHP_METHOD(swoole_mysql_coro_statement, nextResult);
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_connect, 0, 0, 2)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_connect, 0, 0, 1)
     ZEND_ARG_ARRAY_INFO(0, server_config, 0)
 ZEND_END_ARG_INFO()
 
@@ -67,7 +70,7 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_rollback, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_prepare, 0, 0, 2)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_prepare, 0, 0, 1)
     ZEND_ARG_INFO(0, query)
 ZEND_END_ARG_INFO()
 
@@ -82,9 +85,18 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_escape, 0, 0, 1)
 ZEND_END_ARG_INFO()
 #endif
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_statement_execute, 0, 0, 1)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_statement_execute, 0, 0, 0)
     ZEND_ARG_INFO(0, params)
     ZEND_ARG_INFO(0, timeout)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_statement_fetch, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_statement_fetchAll, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_statement_nextResult, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
 static zend_class_entry swoole_mysql_coro_ce;
@@ -121,6 +133,9 @@ static const zend_function_entry swoole_mysql_coro_methods[] =
 static const zend_function_entry swoole_mysql_coro_statement_methods[] =
 {
     PHP_ME(swoole_mysql_coro_statement, execute, arginfo_swoole_mysql_coro_statement_execute, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_mysql_coro_statement, fetch, arginfo_swoole_mysql_coro_statement_fetch, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_mysql_coro_statement, fetchAll, arginfo_swoole_mysql_coro_statement_fetchAll, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_mysql_coro_statement, nextResult, arginfo_swoole_mysql_coro_statement_nextResult, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_mysql_coro_statement, __destruct, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_FALIAS(__sleep, swoole_unsupport_serialize, NULL)
     PHP_FALIAS(__wakeup, swoole_unsupport_serialize, NULL)
@@ -157,14 +172,14 @@ void swoole_mysql_coro_init(int module_number TSRMLS_DC)
     }
 
     zend_declare_property_string(swoole_mysql_coro_class_entry_ptr, SW_STRL("serverInfo") - 1, "", ZEND_ACC_PRIVATE TSRMLS_CC);
-	zend_declare_property_long(swoole_mysql_coro_class_entry_ptr, SW_STRL("sock") - 1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
-	zend_declare_property_bool(swoole_mysql_coro_class_entry_ptr, SW_STRL("connected") - 1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
-	zend_declare_property_string(swoole_mysql_coro_class_entry_ptr, SW_STRL("connect_error") - 1, "", ZEND_ACC_PUBLIC TSRMLS_CC);
-	zend_declare_property_long(swoole_mysql_coro_class_entry_ptr, SW_STRL("connect_errno") - 1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
-	zend_declare_property_long(swoole_mysql_coro_class_entry_ptr, SW_STRL("affected_rows") - 1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
-	zend_declare_property_long(swoole_mysql_coro_class_entry_ptr, SW_STRL("insert_id") - 1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
-	zend_declare_property_string(swoole_mysql_coro_class_entry_ptr, SW_STRL("error") - 1, "", ZEND_ACC_PUBLIC TSRMLS_CC);
-	zend_declare_property_long(swoole_mysql_coro_class_entry_ptr, SW_STRL("errno") - 1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_mysql_coro_class_entry_ptr, SW_STRL("sock") - 1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_bool(swoole_mysql_coro_class_entry_ptr, SW_STRL("connected") - 1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_string(swoole_mysql_coro_class_entry_ptr, SW_STRL("connect_error") - 1, "", ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_mysql_coro_class_entry_ptr, SW_STRL("connect_errno") - 1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_mysql_coro_class_entry_ptr, SW_STRL("affected_rows") - 1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_mysql_coro_class_entry_ptr, SW_STRL("insert_id") - 1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_string(swoole_mysql_coro_class_entry_ptr, SW_STRL("error") - 1, "", ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_mysql_coro_class_entry_ptr, SW_STRL("errno") - 1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
 
     zend_declare_property_long(swoole_mysql_coro_statement_class_entry_ptr, SW_STRL("affected_rows") - 1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(swoole_mysql_coro_statement_class_entry_ptr, SW_STRL("insert_id") - 1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
@@ -173,61 +188,6 @@ void swoole_mysql_coro_init(int module_number TSRMLS_DC)
 }
 
 int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callback TSRMLS_DC);
-
-static int swoole_mysql_coro_close(zval *this)
-{
-    SWOOLE_GET_TSRMLS;
-    mysql_client *client = swoole_get_object(this);
-    if (!client)
-    {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_mysql_coro.");
-        return FAILURE;
-    }
-
-    if (!client->cli)
-    {
-        return FAILURE;
-    }
-
-    zend_update_property_bool(swoole_mysql_coro_class_entry_ptr, this, ZEND_STRL("connected"), 0 TSRMLS_CC);
-    SwooleG.main_reactor->del(SwooleG.main_reactor, client->fd);
-
-    swConnection *_socket = swReactor_get(SwooleG.main_reactor, client->fd);
-    _socket->object = NULL;
-    _socket->active = 0;
-
-    if (client->timer)
-    {
-        swTimer_del(&SwooleG.timer, client->timer);
-        client->timer = NULL;
-    }
-
-    if (client->statement_list)
-    {
-        swLinkedList_node *node = client->statement_list->head;
-        while (node)
-        {
-            mysql_statement *stmt = node->data;
-            if (stmt->object)
-            {
-                swoole_set_object(stmt->object, NULL);
-                efree(stmt->object);
-            }
-            efree(stmt);
-            node = node->next;
-        }
-        swLinkedList_free(client->statement_list);
-    }
-
-    client->cli->close(client->cli);
-    swClient_free(client->cli);
-    efree(client->cli);
-    client->cli = NULL;
-    client->state = SW_MYSQL_STATE_CLOSED;
-    client->iowait = SW_MYSQL_CORO_STATUS_CLOSED;
-
-    return SUCCESS;
-}
 
 static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *params TSRMLS_DC)
 {
@@ -250,10 +210,15 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
         return SW_ERR;
     }
 
-    if (php_swoole_array_length(params) != statement->param_count)
+    int params_length = 0;
+    if (params){
+        params_length = php_swoole_array_length(params);
+    }
+
+    if (params_length != statement->param_count)
     {
         swoole_php_fatal_error(E_WARNING, "mysql statement#%d expects %d parameter, %d given.", statement->id,
-                statement->param_count, php_swoole_array_length(params));
+                statement->param_count, params_length);
         return SW_ERR;
     }
 
@@ -281,8 +246,13 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
 
     mysql_request_buffer->length += 9;
 
+    if (params_length == 0)
+    {
+        goto send;
+    }
+
     //null bitmap
-    unsigned int null_count = (php_swoole_array_length(params) + 7) / 8;
+    unsigned int null_count = (params_length + 7) / 8;
     memset(p, 0, null_count);
     p += null_count;
     mysql_request_buffer->length += null_count;
@@ -299,11 +269,10 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
         p += 2;
     }
 
-    mysql_request_buffer->length += php_swoole_array_length(params) * 2;
+    mysql_request_buffer->length += params_length * 2;
 
     long lval;
     char buf[10];
-
     {
         zval *value;
         zval _value;
@@ -344,6 +313,8 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
         SW_HASHTABLE_FOREACH_END();
     }
 
+    send:
+
     //length
     mysql_pack_length(mysql_request_buffer->length - 4, mysql_request_buffer->str);
 
@@ -354,7 +325,8 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
         if (swConnection_error(errno) == SW_CLOSE)
         {
             zend_update_property_bool(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("connected"), 0 TSRMLS_CC);
-            zend_update_property_bool(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("errno"), 2006 TSRMLS_CC);
+            zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("errno"), 2013 TSRMLS_CC);
+            zend_update_property_string(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("error"), "Lost connection to MySQL server during query" TSRMLS_CC);
         }
         return SW_ERR;
     }
@@ -367,9 +339,238 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
     return SW_OK;
 }
 
+static int swoole_mysql_coro_parse_response(mysql_client *client, zval **result, int from_next_result)
+{
+    zval *zobject = client->object;
+
+    if (mysql_response(client) < 0)
+    {
+        return SW_ERR;
+    }
+
+    //remove from eventloop
+    //reactor->del(reactor, event->fd);
+
+    zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("affected_rows"),
+            client->response.affected_rows TSRMLS_CC);
+    zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("insert_id"),
+            client->response.insert_id TSRMLS_CC);
+
+    if (client->cmd == SW_MYSQL_COM_STMT_EXECUTE)
+    {
+        zend_update_property_long(swoole_mysql_coro_statement_class_entry_ptr, client->statement->object,
+                ZEND_STRL("affected_rows"), client->response.affected_rows TSRMLS_CC);
+        zend_update_property_long(swoole_mysql_coro_statement_class_entry_ptr, client->statement->object,
+                ZEND_STRL("insert_id"), client->response.insert_id TSRMLS_CC);
+    }
+
+    client->state = SW_MYSQL_STATE_QUERY;
+
+    //OK
+    if (client->response.response_type == 0)
+    {
+        SW_ALLOC_INIT_ZVAL(*result);
+        // prepare finished and create statement
+        if (client->cmd == SW_MYSQL_COM_STMT_PREPARE)
+        {
+            if (client->statement_list == NULL)
+            {
+                client->statement_list = swLinkedList_new(0, NULL);
+            }
+            swLinkedList_append(client->statement_list, client->statement);
+            object_init_ex(*result, swoole_mysql_coro_statement_class_entry_ptr);
+            swoole_set_object(*result, client->statement);
+            client->statement->object = sw_zval_dup(*result);
+        }
+        else
+        {
+            if (from_next_result)
+            {
+                // pass the ok response ret val
+                ZVAL_NULL(*result);
+            }
+            else
+            {
+                ZVAL_TRUE(*result);
+            }
+        }
+    }
+    //ERROR
+    else if (client->response.response_type == 255)
+    {
+        SW_ALLOC_INIT_ZVAL(*result);
+        ZVAL_BOOL(*result, 0);
+
+        zend_update_property_stringl(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("error"),
+                client->response.server_msg, client->response.l_server_msg TSRMLS_CC);
+        zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("errno"),
+                client->response.error_code TSRMLS_CC);
+
+        if (client->cmd == SW_MYSQL_COM_STMT_EXECUTE)
+        {
+            zend_update_property_stringl(swoole_mysql_coro_statement_class_entry_ptr, client->statement->object,
+                    ZEND_STRL("error"), client->response.server_msg, client->response.l_server_msg TSRMLS_CC);
+            zend_update_property_long(swoole_mysql_coro_statement_class_entry_ptr, client->statement->object,
+                    ZEND_STRL("errno"), client->response.error_code TSRMLS_CC);
+        }
+    }
+    //ResultSet
+    else
+    {
+        if (client->connector.fetch_mode && client->cmd == SW_MYSQL_COM_STMT_EXECUTE)
+        {
+            if (client->statement->result)
+            {
+                // free the last one
+                sw_zval_free(client->statement->result);
+                client->statement->result = NULL;
+            }
+            // save result on statement and wait for fetch
+            client->statement->result = client->response.result_array;
+            client->response.result_array = NULL;
+            // return true (success)]
+            SW_ALLOC_INIT_ZVAL(*result);
+            ZVAL_TRUE(*result);
+        }
+        else
+        {
+            *result = client->response.result_array;
+        }
+    }
+
+    return SW_OK;
+}
+
+static void swoole_mysql_coro_parse_end(mysql_client *client, swString *buffer)
+{
+    if (client->response.status_code & SW_MYSQL_SERVER_MORE_RESULTS_EXISTS)
+    {
+        swTraceLog(SW_TRACE_MYSQL_CLIENT, "remaining %d, more results exists", buffer->length - buffer->offset);
+    }
+    else
+    {
+        // no more, clean up
+        swString_clear(buffer);
+    }
+    bzero(&client->response, sizeof(client->response));
+    client->statement = NULL;
+    client->cmd = SW_MYSQL_COM_NULL;
+}
+
+static int swoole_mysql_coro_statement_free(mysql_statement *stmt TSRMLS_DC)
+{
+    if (stmt->object)
+    {
+        swoole_set_object(stmt->object, NULL);
+        efree(stmt->object);
+    }
+
+    if (stmt->buffer)
+    {
+        swString_free(stmt->buffer);
+    }
+
+    if (stmt->result)
+    {
+        sw_zval_free(stmt->result);
+    }
+
+    return SW_OK;
+}
+
+static int swoole_mysql_coro_statement_close(mysql_statement *stmt TSRMLS_DC)
+{
+    // call mysql-server to destruct this statement
+    swString_clear(mysql_request_buffer);
+    stmt->client->cmd = SW_MYSQL_COM_STMT_CLOSE;
+    bzero(mysql_request_buffer->str, 5);
+    //command
+    mysql_request_buffer->str[4] = SW_MYSQL_COM_STMT_CLOSE;
+    mysql_request_buffer->length = 5;
+    char *p = mysql_request_buffer->str;
+    p += 5;
+
+    // stmt.id
+    mysql_int4store(p, stmt->id);
+    p += 4;
+    mysql_request_buffer->length += 4;
+    //length
+    mysql_pack_length(mysql_request_buffer->length - 4, mysql_request_buffer->str);
+    //send data, mysql-server would not reply
+    SwooleG.main_reactor->write(SwooleG.main_reactor, stmt->client->fd, mysql_request_buffer->str, mysql_request_buffer->length);
+
+    return SW_OK;
+}
+
+static int swoole_mysql_coro_close(zval *this)
+{
+    SWOOLE_GET_TSRMLS;
+    mysql_client *client = swoole_get_object(this);
+    if (!client)
+    {
+        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_mysql_coro.");
+        return FAILURE;
+    }
+
+    if (!client->cli)
+    {
+        return FAILURE;
+    }
+
+    if (client->connected)
+    {
+        //send quit command
+        swString_clear(mysql_request_buffer);
+        client->cmd = SW_MYSQL_COM_QUIT;
+        bzero(mysql_request_buffer->str, 5);
+        mysql_request_buffer->str[4] = SW_MYSQL_COM_QUIT;//command
+        mysql_request_buffer->length = 5;
+        mysql_pack_length(mysql_request_buffer->length - 4, mysql_request_buffer->str);
+        SwooleG.main_reactor->write(SwooleG.main_reactor, client->fd, mysql_request_buffer->str, mysql_request_buffer->length);
+    }
+
+    zend_update_property_bool(swoole_mysql_coro_class_entry_ptr, this, ZEND_STRL("connected"), 0 TSRMLS_CC);
+    SwooleG.main_reactor->del(SwooleG.main_reactor, client->fd);
+
+    swConnection *_socket = swReactor_get(SwooleG.main_reactor, client->fd);
+    _socket->object = NULL;
+    _socket->active = 0;
+
+    if (client->timer)
+    {
+        swTimer_del(&SwooleG.timer, client->timer);
+        client->timer = NULL;
+    }
+
+    if (client->statement_list)
+    {
+        swLinkedList_node *node = client->statement_list->head;
+        while (node)
+        {
+            mysql_statement *stmt = node->data;
+            // after connection closed, mysql stmt cache closed too
+            // so we needn't send stmt close command here like pdo.
+            swoole_mysql_coro_statement_free(stmt);
+            efree(stmt);
+            node = node->next;
+        }
+        swLinkedList_free(client->statement_list);
+    }
+
+    client->cli->close(client->cli);
+    swClient_free(client->cli);
+    efree(client->cli);
+    client->cli = NULL;
+    client->state = SW_MYSQL_STATE_CLOSED;
+    client->iowait = SW_MYSQL_CORO_STATUS_CLOSED;
+    //TODO: clear connector
+
+    return SUCCESS;
+}
+
 static PHP_METHOD(swoole_mysql_coro, __construct)
 {
-	coro_check(TSRMLS_C);
+    coro_check(TSRMLS_C);
 
     if (!mysql_request_buffer)
     {
@@ -499,15 +700,39 @@ static PHP_METHOD(swoole_mysql_coro, connect)
 #if PHP_MAJOR_VERSION < 7
         if(Z_TYPE_P(value) == IS_BOOL && Z_BVAL_P(value) == 1)
 #else
-        if(Z_TYPE_P(value) == IS_TRUE)
+        if (Z_TYPE_P(value) == IS_TRUE)
 #endif
         {
             connector->strict_type = 1;
-        }else{
+        }
+        else
+        {
             connector->strict_type = 0;
         }
-    } else{
+    }
+    else
+    {
         connector->strict_type = 0;
+    }
+
+    if (php_swoole_array_get_value(_ht, "fetch_mode", value))
+    {
+#if PHP_MAJOR_VERSION < 7
+        if(Z_TYPE_P(value) == IS_BOOL && Z_BVAL_P(value) == 1)
+#else
+        if (Z_TYPE_P(value) == IS_TRUE)
+#endif
+        {
+            connector->fetch_mode = 1;
+        }
+        else
+        {
+            connector->fetch_mode = 0;
+        }
+    }
+    else
+    {
+        connector->fetch_mode = 0;
     }
 
     swClient *cli = emalloc(sizeof(swClient));
@@ -525,11 +750,11 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     }
 
     php_swoole_check_reactor();
-    if (!swReactor_handle_isset(SwooleG.main_reactor, PHP_SWOOLE_FD_MYSQL))
+    if (!swReactor_handle_isset(SwooleG.main_reactor, PHP_SWOOLE_FD_MYSQL_CORO))
     {
-        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_MYSQL | SW_EVENT_READ, swoole_mysql_coro_onRead);
-        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_MYSQL | SW_EVENT_WRITE, swoole_mysql_coro_onWrite);
-        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_MYSQL | SW_EVENT_ERROR, swoole_mysql_coro_onError);
+        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_MYSQL_CORO | SW_EVENT_READ, swoole_mysql_coro_onRead);
+        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_MYSQL_CORO | SW_EVENT_WRITE, swoole_mysql_coro_onWrite);
+        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_MYSQL_CORO | SW_EVENT_ERROR, swoole_mysql_coro_onError);
     }
 
     if (swClient_create(cli, type, 0) < 0)
@@ -553,7 +778,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     int ret = cli->connect(cli, connector->host, connector->port, connector->timeout, 1);
     if ((ret < 0 && errno == EINPROGRESS) || ret == 0)
     {
-        if (SwooleG.main_reactor->add(SwooleG.main_reactor, cli->socket->fd, PHP_SWOOLE_FD_MYSQL | SW_EVENT_WRITE) < 0)
+        if (SwooleG.main_reactor->add(SwooleG.main_reactor, cli->socket->fd, PHP_SWOOLE_FD_MYSQL_CORO | SW_EVENT_WRITE) < 0)
         {
             efree(cli);
             sw_zval_ptr_dtor(&server_info);
@@ -563,7 +788,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     else
     {
         efree(cli);
-        snprintf(buf, sizeof(buf), "connect to mysql server[%s:%d] failed.", connector->host, connector->port);
+        snprintf(buf, sizeof(buf), "connect to mysql server[%s:%ld] failed.", connector->host, connector->port);
         sw_zval_ptr_dtor(&server_info);
         zend_throw_exception(swoole_mysql_coro_exception_class_entry_ptr, buf, 2 TSRMLS_CC);
         RETURN_FALSE;
@@ -571,17 +796,17 @@ static PHP_METHOD(swoole_mysql_coro, connect)
 
     zend_update_property(swoole_mysql_coro_class_entry_ptr, getThis(), ZEND_STRL("serverInfo"), server_info TSRMLS_CC);
     sw_zval_ptr_dtor(&server_info);
-	zend_update_property_long(swoole_mysql_coro_class_entry_ptr, getThis(), ZEND_STRL("sock"), cli->socket->fd TSRMLS_CC);
+    zend_update_property_long(swoole_mysql_coro_class_entry_ptr, getThis(), ZEND_STRL("sock"), cli->socket->fd TSRMLS_CC);
 
-	if (!client->buffer)
-	{
-		client->buffer = swString_new(SW_BUFFER_SIZE_BIG);
-	}
-	else
-	{
-		swString_clear(client->buffer);
-		bzero(&client->response, sizeof(client->response));
-	}
+    if (!client->buffer)
+    {
+        client->buffer = swString_new(SW_BUFFER_SIZE_BIG);
+    }
+    else
+    {
+        swString_clear(client->buffer);
+        bzero(&client->response, sizeof(client->response));
+    }
     client->fd = cli->socket->fd;
     client->object = getThis();
     client->cli = cli;
@@ -601,19 +826,19 @@ static PHP_METHOD(swoole_mysql_coro, connect)
         context = emalloc(sizeof(php_context));
         swoole_set_property(getThis(), 0, context);
     }
-	context->state = SW_CORO_CONTEXT_RUNNING;
-	context->onTimeout = NULL;
+    context->state = SW_CORO_CONTEXT_RUNNING;
+    context->onTimeout = NULL;
 #if PHP_MAJOR_VERSION < 7
-	context->coro_params = getThis();
+    context->coro_params = getThis();
 #else
-	context->coro_params = *getThis();
+    context->coro_params = *getThis();
 #endif
-	if (connector->timeout > 0)
-	{
+    if (connector->timeout > 0)
+    {
         php_swoole_check_timer((int) (connector->timeout * 1000));
         connector->timer = SwooleG.timer.add(&SwooleG.timer, (int) (connector->timeout * 1000), 0, context, swoole_mysql_coro_onTimeout);
-	}
-    client->cid = get_current_cid();
+    }
+    client->cid = sw_get_current_cid();
     coro_save(context);
     coro_yield();
 }
@@ -649,7 +874,7 @@ static PHP_METHOD(swoole_mysql_coro, query)
         RETURN_FALSE;
     }
 
-    if (unlikely(client->cid && client->cid != get_current_cid()))
+    if (unlikely(client->cid && client->cid != sw_get_current_cid()))
     {
         swoole_php_fatal_error(E_WARNING, "mysql client has already been bound to another coroutine.");
         RETURN_FALSE;
@@ -677,7 +902,7 @@ static PHP_METHOD(swoole_mysql_coro, query)
         client->iowait = SW_MYSQL_CORO_STATUS_WAIT;
         RETURN_TRUE;
     }
-    client->cid = get_current_cid();
+    client->cid = sw_get_current_cid();
     coro_save(context);
     coro_yield();
 }
@@ -690,7 +915,7 @@ static PHP_METHOD(swoole_mysql_coro, begin)
         swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_mysql.");
         RETURN_FALSE;
     }
-    if (unlikely(client->cid && client->cid != get_current_cid())) {
+    if (unlikely(client->cid && client->cid != sw_get_current_cid())) {
         swoole_php_fatal_error(E_WARNING, "mysql client has already been bound to another coroutine.");
         RETURN_FALSE;
     }
@@ -725,7 +950,7 @@ static PHP_METHOD(swoole_mysql_coro, begin)
             client->iowait = SW_MYSQL_CORO_STATUS_WAIT;
             //RETURN_TRUE;
         }
-        client->cid = get_current_cid();
+        client->cid = sw_get_current_cid();
         coro_save(context);
         coro_yield();
     }
@@ -740,7 +965,7 @@ static PHP_METHOD(swoole_mysql_coro, commit)
         RETURN_FALSE;
     }
 
-    if (unlikely(client->cid && client->cid != get_current_cid()))
+    if (unlikely(client->cid && client->cid != sw_get_current_cid()))
     {
         swoole_php_fatal_error(E_WARNING, "mysql client has already been bound to another coroutine.");
         RETURN_FALSE;
@@ -777,7 +1002,7 @@ static PHP_METHOD(swoole_mysql_coro, commit)
             client->iowait = SW_MYSQL_CORO_STATUS_WAIT;
             //RETURN_TRUE;
         }
-        client->cid = get_current_cid();
+        client->cid = sw_get_current_cid();
         coro_save(context);
         coro_yield();
     }
@@ -792,7 +1017,7 @@ static PHP_METHOD(swoole_mysql_coro, rollback)
         RETURN_FALSE;
     }
 
-    if (unlikely(client->cid && client->cid != get_current_cid())) {
+    if (unlikely(client->cid && client->cid != sw_get_current_cid())) {
         swoole_php_fatal_error(E_WARNING, "mysql client has already been bound to another coroutine.");
         RETURN_FALSE;
     }
@@ -828,7 +1053,7 @@ static PHP_METHOD(swoole_mysql_coro, rollback)
             client->iowait = SW_MYSQL_CORO_STATUS_WAIT;
             //RETURN_TRUE;
         }
-        client->cid = get_current_cid();
+        client->cid = sw_get_current_cid();
         coro_save(context);
         coro_yield();
     }
@@ -861,15 +1086,15 @@ static PHP_METHOD(swoole_mysql_coro, recv)
 {
     mysql_client *client = swoole_get_object(getThis());
 
-	if (!client->defer)
-	{
+    if (!client->defer)
+    {
         swoole_php_fatal_error(E_WARNING, "you should not use recv without defer ");
-		RETURN_FALSE;
-	}
+        RETURN_FALSE;
+    }
 
-	if (client->iowait == SW_MYSQL_CORO_STATUS_DONE)
-	{
-		client->iowait = SW_MYSQL_CORO_STATUS_READY;
+    if (client->iowait == SW_MYSQL_CORO_STATUS_DONE)
+    {
+        client->iowait = SW_MYSQL_CORO_STATUS_READY;
 #if PHP_MAJOR_VERSION >= 7
         zval _result = *client->result;
         efree(client->result);
@@ -878,20 +1103,20 @@ static PHP_METHOD(swoole_mysql_coro, recv)
         zval *result = client->result;
 #endif
         client->result = NULL;
-		RETURN_ZVAL(result, 0, 1);
-	}
+        RETURN_ZVAL(result, 0, 1);
+    }
 
-	if (client->iowait != SW_MYSQL_CORO_STATUS_WAIT)
-	{
-	    swoole_php_fatal_error(E_WARNING, "no request.");
-		RETURN_FALSE;
-	}
+    if (client->iowait != SW_MYSQL_CORO_STATUS_WAIT)
+    {
+        swoole_php_fatal_error(E_WARNING, "no request.");
+        RETURN_FALSE;
+    }
 
     client->suspending = 1;
-    client->cid = get_current_cid();
-	php_context *context = swoole_get_property(getThis(), 0);
+    client->cid = sw_get_current_cid();
+    php_context *context = swoole_get_property(getThis(), 0);
     coro_save(context);
-	coro_yield();
+    coro_yield();
 }
 
 static PHP_METHOD(swoole_mysql_coro, prepare)
@@ -937,8 +1162,10 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
         //connection is closed
         if (swConnection_error(errno) == SW_CLOSE)
         {
-            zend_update_property_bool(swoole_mysql_coro_class_entry_ptr, getThis(), ZEND_STRL("connected"), 0 TSRMLS_CC);
-            zend_update_property_long(swoole_mysql_coro_class_entry_ptr, getThis(), ZEND_STRL("errno"), 2006 TSRMLS_CC);
+            zval *zobject = getThis();
+            zend_update_property_bool(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("connected"), 0 TSRMLS_CC);
+            zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("errno"), 2013 TSRMLS_CC);
+            zend_update_property_string(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("error"), "Lost connection to MySQL server during query" TSRMLS_CC);
         }
         RETURN_FALSE;
     }
@@ -956,17 +1183,17 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
         client->timer = SwooleG.timer.add(&SwooleG.timer, (int) (timeout * 1000), 0, context, swoole_mysql_coro_onTimeout);
     }
     client->suspending = 1;
-    client->cid = get_current_cid();
+    client->cid = sw_get_current_cid();
     coro_save(context);
     coro_yield();
 }
 
 static PHP_METHOD(swoole_mysql_coro_statement, execute)
 {
-    zval *params;
+    zval *params = NULL;
     double timeout = -1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "a|d", &params, &timeout) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "|ad", &params, &timeout) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -1004,9 +1231,131 @@ static PHP_METHOD(swoole_mysql_coro_statement, execute)
         RETURN_TRUE;
     }
     client->suspending = 1;
-    client->cid = get_current_cid();
+    client->cid = sw_get_current_cid();
     coro_save(context);
     coro_yield();
+}
+
+static PHP_METHOD(swoole_mysql_coro_statement, fetch)
+{
+    mysql_statement *stmt = swoole_get_object(getThis());
+    if (!stmt)
+    {
+        RETURN_FALSE;
+    }
+
+    if (!stmt->client->connector.fetch_mode)
+    {
+        RETURN_FALSE;
+    }
+
+    if (stmt->result)
+    {
+        zval args[1];
+        // the function argument is a reference
+        ZVAL_NEW_REF(stmt->result, stmt->result);
+        args[0] = *stmt->result;
+
+        zval *fcn;
+        SW_MAKE_STD_ZVAL(fcn);
+        ZVAL_STRING(fcn, "array_shift");
+        int ret;
+        zval retval;
+        ret = call_user_function_ex(EG(function_table), NULL, fcn, &retval, 1, args, 0, NULL TSRMLS_CC);
+        sw_zval_ptr_dtor(&fcn);
+        ZVAL_UNREF(stmt->result);
+
+        if (ret == FAILURE)
+        {
+            if (stmt->result)
+            {
+                sw_zval_free(stmt->result);
+                stmt->result = NULL;
+            }
+            RETURN_NULL();
+        }
+        else
+        {
+            if (php_swoole_array_length(stmt->result) == 0)
+            {
+                sw_zval_free(stmt->result);
+                stmt->result = NULL;
+            }
+            RETURN_ZVAL(&retval, 0, 1);
+        }
+    }
+    else
+    {
+        RETURN_NULL();
+    }
+}
+
+static PHP_METHOD(swoole_mysql_coro_statement, fetchAll)
+{
+    mysql_statement *stmt = swoole_get_object(getThis());
+    if (!stmt)
+    {
+        RETURN_FALSE;
+    }
+
+    if (!stmt->client->connector.fetch_mode)
+    {
+        RETURN_FALSE;
+    }
+
+    if (stmt->result)
+    {
+        zval _result = *stmt->result;
+        efree(stmt->result);
+        zval *result = &_result;
+        stmt->result = NULL;
+        RETURN_ZVAL(result, 0, 1);
+    }
+    else
+    {
+        RETURN_NULL();
+    }
+}
+
+static PHP_METHOD(swoole_mysql_coro_statement, nextResult)
+{
+    mysql_statement *stmt = swoole_get_object(getThis());
+    if (!stmt)
+    {
+        RETURN_FALSE;
+    }
+
+//    if (!stmt->client->connector.fetch_mode)
+//    {
+//        RETURN_FALSE;
+//    }
+
+    mysql_client *client = stmt->client;
+
+    if (stmt->buffer && stmt->buffer->offset < stmt->buffer->length)
+    {
+        client->cmd = SW_MYSQL_COM_STMT_EXECUTE;
+        client->state = SW_MYSQL_STATE_READ_START;
+        client->statement = stmt;
+        zval *result = NULL;
+        if (swoole_mysql_coro_parse_response(client, &result, 1) == SW_OK)
+        {
+            swoole_mysql_coro_parse_end(client, stmt->buffer); // ending tidy up
+
+            zval _result = *result;
+            efree(result);
+            result = &_result;
+            RETURN_ZVAL(result, 0, 1);
+        }
+        else
+        {
+            RETURN_FALSE;
+        }
+    }
+    else
+    {
+        RETURN_NULL()
+    }
 }
 
 static PHP_METHOD(swoole_mysql_coro_statement, __destruct)
@@ -1016,8 +1365,8 @@ static PHP_METHOD(swoole_mysql_coro_statement, __destruct)
     {
         return;
     }
-    efree(stmt->object);
-    stmt->object = NULL;
+    swoole_mysql_coro_statement_close(stmt TSRMLS_CC);
+    swoole_mysql_coro_statement_free(stmt);
     swLinkedList_remove(stmt->client->statement_list, stmt);
     efree(stmt);
 }
@@ -1062,7 +1411,7 @@ static PHP_METHOD(swoole_mysql_coro, escape)
     const MYSQLND_CHARSET* cset = mysqlnd_find_charset_nr(client->connector.character_set);
     if (cset == NULL)
     {
-        swoole_php_fatal_error(E_ERROR, "unknown mysql charset[%s].", client->connector.character_set);
+        swoole_php_fatal_error(E_ERROR, "unknown mysql charset[%d].", client->connector.character_set);
         RETURN_FALSE;
     }
     int newstr_len = mysqlnd_cset_escape_slashes(cset, newstr, str.str, str.length TSRMLS_CC);
@@ -1118,7 +1467,7 @@ static PHP_METHOD(swoole_mysql_coro, close)
 #if PHP_MAJOR_VERSION < 7
     sw_zval_ptr_dtor(&getThis());
 #endif
-	RETURN_TRUE;
+    RETURN_TRUE;
 }
 
 static int swoole_mysql_coro_onError(swReactor *reactor, swEvent *event)
@@ -1133,25 +1482,25 @@ static int swoole_mysql_coro_onError(swReactor *reactor, swEvent *event)
 
     swoole_mysql_coro_close(zobject);
 
-	SW_ALLOC_INIT_ZVAL(result);
-	zend_update_property_string(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("connect_error"), "EPOLLERR/EPOLLHUP/EPOLLRDHUP happen!" TSRMLS_CC);
-	zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("connect_errno"), 104 TSRMLS_CC);
+    SW_ALLOC_INIT_ZVAL(result);
+    zend_update_property_string(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("connect_error"), "EPOLLERR/EPOLLHUP/EPOLLRDHUP happen!" TSRMLS_CC);
+    zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("connect_errno"), 104 TSRMLS_CC);
     ZVAL_BOOL(result, 0);
-	if (client->defer && !client->suspending)
-	{
-		client->result = result;
-		return SW_OK;
-	}
+    if (client->defer && !client->suspending)
+    {
+        client->result = result;
+        return SW_OK;
+    }
     client->suspending = 0;
     client->cid = 0;
-	php_context *sw_current_context = swoole_get_property(zobject, 0);
-	int ret = coro_resume(sw_current_context, result, &retval);
+    php_context *sw_current_context = swoole_get_property(zobject, 0);
+    int ret = coro_resume(sw_current_context, result, &retval);
     sw_zval_free(result);
 
-	if (ret == CORO_END && retval)
-	{
-		sw_zval_ptr_dtor(&retval);
-	}
+    if (ret == CORO_END && retval)
+    {
+        sw_zval_ptr_dtor(&retval);
+    }
 
     return SW_OK;
 }
@@ -1222,20 +1571,20 @@ static void swoole_mysql_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
 #endif
     mysql_client *client = swoole_get_object(zobject);
 
-	if (client->iowait == SW_MYSQL_CORO_STATUS_CLOSED)
-	{
-		zend_update_property_string(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("error"), "connect timeout" TSRMLS_CC);
-	}
-	else
-	{
-		zend_update_property_string(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("error"), "query timeout" TSRMLS_CC);
-	}
+    if (client->iowait == SW_MYSQL_CORO_STATUS_CLOSED)
+    {
+        zend_update_property_string(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("error"), "connect timeout" TSRMLS_CC);
+    }
+    else
+    {
+        zend_update_property_string(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("error"), "query timeout" TSRMLS_CC);
+    }
 
-	zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("errno"), 110 TSRMLS_CC);
+    zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("errno"), 110 TSRMLS_CC);
 
-	//timeout close conncttion
-	client->timer = NULL;
-	client->state = SW_MYSQL_STATE_QUERY;
+    //timeout close conncttion
+    client->timer = NULL;
+    client->state = SW_MYSQL_STATE_QUERY;
     swoole_mysql_coro_close(zobject);
 
     if (client->defer && !client->suspending)
@@ -1279,15 +1628,15 @@ static int swoole_mysql_coro_onWrite(swReactor *reactor, swEvent *event)
     if (SwooleG.error == 0)
     {
         //listen read event
-        SwooleG.main_reactor->set(SwooleG.main_reactor, event->fd, PHP_SWOOLE_FD_MYSQL | SW_EVENT_READ);
+        SwooleG.main_reactor->set(SwooleG.main_reactor, event->fd, PHP_SWOOLE_FD_MYSQL_CORO | SW_EVENT_READ);
         //connected
         event->socket->active = 1;
         client->handshake = SW_MYSQL_HANDSHAKE_WAIT_REQUEST;
     }
     else
     {
-		client->connector.error_code = SwooleG.error;
-		client->connector.error_msg = strerror(SwooleG.error);
+        client->connector.error_code = SwooleG.error;
+        client->connector.error_msg = strerror(SwooleG.error);
         client->connector.error_length = strlen(client->connector.error_msg);
         swoole_mysql_coro_onConnect(client TSRMLS_CC);
     }
@@ -1324,16 +1673,30 @@ static int swoole_mysql_coro_onHandShake(mysql_client *client TSRMLS_DC)
 
     buffer->length += n;
 
-    int ret;
-    if (client->handshake == SW_MYSQL_HANDSHAKE_WAIT_REQUEST)
+    int ret = 0;
+
+    _again:
+    swTraceLog(SW_TRACE_MYSQL_CLIENT, "handshake on %d", client->handshake);
+    if (client->switch_check)
     {
+        // after handshake we need check if server request us to switch auth type first
+        goto _check_switch;
+    }
+
+    switch(client->handshake)
+    {
+    case SW_MYSQL_HANDSHAKE_WAIT_REQUEST:
+    {
+        client->switch_check = 1;
         ret = mysql_handshake(connector, buffer->str, buffer->length);
+
         if (ret < 0)
         {
-            swoole_mysql_coro_onConnect(client TSRMLS_CC);
+            goto _error;
         }
         else if (ret > 0)
         {
+            _send:
             if (cli->send(cli, connector->buf, connector->packet_length + 4, 0) < 0)
             {
                 system_call_error: connector->error_code = errno;
@@ -1344,16 +1707,94 @@ static int swoole_mysql_coro_onHandShake(mysql_client *client TSRMLS_DC)
             }
             else
             {
+                // clear for the new package
                 swString_clear(buffer);
-                client->handshake = SW_MYSQL_HANDSHAKE_WAIT_RESULT;
+                // mysql_handshake will return the next state flag
+                client->handshake = ret;
             }
         }
+        break;
     }
-    else
+    case SW_MYSQL_HANDSHAKE_WAIT_SWITCH:
     {
-        ret = mysql_get_result(connector, buffer->str, buffer->length);
+        _check_switch:
+        client->switch_check = 0;
+        int next_state;
+        // handle auth switch request
+        switch (next_state = mysql_auth_switch(connector, buffer->str, buffer->length))
+        {
+        case SW_AGAIN:
+            return SW_OK;
+        case SW_ERR:
+            // not the switch package, go to the next
+            goto _again;
+        default:
+            ret = next_state;
+            goto _send;
+        }
+        break;
+    }
+    case SW_MYSQL_HANDSHAKE_WAIT_SIGNATURE:
+    {
+        switch (mysql_parse_auth_signature(buffer, connector))
+        {
+        case SW_MYSQL_AUTH_SIGNATURE_SUCCESS:
+        {
+            client->handshake = SW_MYSQL_HANDSHAKE_WAIT_RESULT;
+            break;
+        }
+        case SW_MYSQL_AUTH_SIGNATURE_FULL_AUTH_REQUIRED:
+        {
+            // send response and wait RSA public key
+            ret = SW_MYSQL_HANDSHAKE_WAIT_RSA; // handshake = ret
+            goto _send;
+        }
+        default:
+        {
+            goto _error;
+        }
+        }
+
+        // may be more packages
+        if (buffer->offset < buffer->length)
+        {
+            goto _again;
+        }
+        else
+        {
+            swString_clear(buffer);
+        }
+        break;
+    }
+    case SW_MYSQL_HANDSHAKE_WAIT_RSA:
+    {
+        // encode by RSA
+#ifdef SW_MYSQL_RSA_SUPPORT
+        switch (mysql_parse_rsa(connector, SWSTRING_CURRENT_VL(buffer)))
+        {
+        case SW_AGAIN:
+            return SW_OK;
+        case SW_OK:
+            ret = SW_MYSQL_HANDSHAKE_WAIT_RESULT; // handshake = ret
+            goto _send;
+        default:
+            goto _error;
+        }
+#else
+        connector->error_code = -1;
+        connector->error_msg = "MySQL8 RSA-Auth need enable OpenSSL!";
+        connector->error_length = strlen(connector->error_msg);
+        swoole_mysql_coro_onConnect(client TSRMLS_CC);
+        return SW_OK;
+#endif
+        break;
+    }
+    default:
+    {
+        ret = mysql_get_result(connector, SWSTRING_CURRENT_VL(buffer));
         if (ret < 0)
         {
+            _error:
             swoole_mysql_coro_onConnect(client TSRMLS_CC);
         }
         else if (ret > 0)
@@ -1362,7 +1803,10 @@ static int swoole_mysql_coro_onHandShake(mysql_client *client TSRMLS_DC)
             client->handshake = SW_MYSQL_HANDSHAKE_COMPLETED;
             swoole_mysql_coro_onConnect(client TSRMLS_CC);
         }
+        // else recv again
     }
+    }
+
     return SW_OK;
 }
 
@@ -1388,7 +1832,21 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
     int ret;
 
     zval *zobject = client->object;
-    swString *buffer = client->buffer;
+
+    swString *buffer;
+    if (client->cmd == SW_MYSQL_COM_STMT_EXECUTE)
+    {
+        if (client->statement->buffer == NULL)
+        {
+            // statement save the response data itself
+            client->statement->buffer = swString_new(SW_BUFFER_SIZE_BIG);
+        }
+        buffer = client->statement->buffer;
+    }
+    else
+    {
+        buffer = client->buffer;
+    }
 
     zval *retval = NULL;
     zval *result = NULL;
@@ -1396,6 +1854,7 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
     while(1)
     {
         ret = recv(sock, buffer->str + buffer->length, buffer->size - buffer->length, 0);
+        swTraceLog(SW_TRACE_MYSQL_CLIENT, "recv-ret=%d, buffer-length=%d.", ret, buffer->length);
         if (ret < 0)
         {
             if (errno == EINTR)
@@ -1412,7 +1871,15 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
                 case SW_CLOSE:
                     goto close_fd;
                 case SW_WAIT:
-                    goto parse_response;
+                    if (client->check_offset == buffer->length)
+                    {
+                        return SW_OK;
+                    }
+                    else
+                    {
+                        // have already check all of the data
+                        goto parse_response;
+                    }
                 default:
                     return SW_ERR;
                 }
@@ -1426,9 +1893,21 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
                 goto parse_response;
             }
 
-            zend_update_property_string(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("connect_error"), "connection close by peer" TSRMLS_CC);
+
             zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("connect_errno"), 111 TSRMLS_CC);
+            zend_update_property_string(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("connect_error"), "connection close by peer" TSRMLS_CC);
+            if (client->connected)
+            {
+                client->connected = 0;
+                zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("errno"), 2006 TSRMLS_CC);
+                zend_update_property_string(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("error"), "MySQL server has gone away" TSRMLS_CC);
+            }
             swoole_mysql_coro_close(zobject);
+
+            if (!client->cid)
+            {
+                return SW_OK;
+            }
 
             SW_ALLOC_INIT_ZVAL(result);
             ZVAL_BOOL(result, 0);
@@ -1439,10 +1918,7 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
                 return SW_OK;
             }
             client->suspending = 0;
-            if (!client->cid)
-            {
-                return SW_OK;
-            }
+
             php_context *sw_current_context = swoole_get_property(zobject, 0);
             ret = coro_resume(sw_current_context, result, &retval);
             sw_zval_free(result);
@@ -1468,76 +1944,23 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
             }
 
             parse_response:
-            if (mysql_response(client) < 0)
+
+            // always check that is package complete
+            // and maybe more responses has already received in buffer, we check it now.
+            if (client->cmd == SW_MYSQL_COM_STMT_EXECUTE && mysql_is_over(client) != SW_OK)
             {
-                return SW_OK;
+                // the **last** sever status flag shows that more results exist but we hasn't received.
+                swTraceLog(SW_TRACE_MYSQL_CLIENT, "need more");
+                continue;
             }
 
-            //remove from eventloop
-            //reactor->del(reactor, event->fd);
-
-            zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("affected_rows"),
-                    client->response.affected_rows TSRMLS_CC);
-            zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("insert_id"),
-                    client->response.insert_id TSRMLS_CC);
-
-            if (client->cmd == SW_MYSQL_COM_STMT_EXECUTE)
+            if (swoole_mysql_coro_parse_response(client, &result, 0) != SW_OK)
             {
-                zend_update_property_long(swoole_mysql_coro_statement_class_entry_ptr, client->statement->object,
-                        ZEND_STRL("affected_rows"), client->response.affected_rows TSRMLS_CC);
-                zend_update_property_long(swoole_mysql_coro_statement_class_entry_ptr, client->statement->object,
-                        ZEND_STRL("insert_id"), client->response.insert_id TSRMLS_CC);
+                return SW_OK;//parse error
             }
+            swoole_mysql_coro_parse_end(client, buffer); // ending tidy up
 
-            client->state = SW_MYSQL_STATE_QUERY;
 
-            //OK
-            if (client->response.response_type == 0)
-            {
-                SW_ALLOC_INIT_ZVAL(result);
-                if (client->cmd == SW_MYSQL_COM_STMT_PREPARE)
-                {
-                    if (client->statement_list == NULL)
-                    {
-                        client->statement_list = swLinkedList_new(0, NULL);
-                    }
-                    swLinkedList_append(client->statement_list, client->statement);
-                    object_init_ex(result, swoole_mysql_coro_statement_class_entry_ptr);
-                    swoole_set_object(result, client->statement);
-                    client->statement->object = sw_zval_dup(result);
-                }
-                else
-                {
-                    ZVAL_BOOL(result, 1);
-                }
-            }
-            //ERROR
-            else if (client->response.response_type == 255)
-            {
-                SW_ALLOC_INIT_ZVAL(result);
-                ZVAL_BOOL(result, 0);
-
-                zend_update_property_stringl(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("error"),
-                        client->response.server_msg, client->response.l_server_msg TSRMLS_CC);
-                zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("errno"),
-                        client->response.error_code TSRMLS_CC);
-
-                if (client->cmd == SW_MYSQL_COM_STMT_EXECUTE)
-                {
-                    zend_update_property_stringl(swoole_mysql_coro_statement_class_entry_ptr, client->statement->object,
-                            ZEND_STRL("error"), client->response.server_msg, client->response.l_server_msg TSRMLS_CC);
-                    zend_update_property_long(swoole_mysql_coro_statement_class_entry_ptr, client->statement->object,
-                            ZEND_STRL("errno"), client->response.error_code TSRMLS_CC);
-                }
-            }
-            //ResultSet
-            else
-            {
-                result = client->response.result_array;
-            }
-
-            swString_clear(client->buffer);
-            bzero(&client->response, sizeof(client->response));
             if (client->defer && !client->suspending)
             {
                 client->iowait = SW_MYSQL_CORO_STATUS_DONE;

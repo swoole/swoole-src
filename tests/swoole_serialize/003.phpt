@@ -2,14 +2,16 @@
 swoole_serialize: Check for bool serialisation
 --SKIPIF--
 <?php
-require __DIR__ . "/../include/skipif.inc";
+require __DIR__ . '/../include/skipif.inc';
 if (!class_exists("swoole_serialize", false))
 {
     echo "skip";
 }
 ?>
 --FILE--
-<?php 
+<?php
+require_once __DIR__ . '/../include/bootstrap.php';
+
 
 function test($type, $variable) {
     $serialized = swoole_serialize::pack($variable);

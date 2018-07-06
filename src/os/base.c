@@ -54,22 +54,7 @@ int swAio_init(void)
         swWarn("No eventloop, cannot initialized");
         return SW_ERR;
     }
-
-    int ret = 0;
-
-    switch (SwooleAIO.mode)
-    {
-#ifdef HAVE_LINUX_AIO
-    case SW_AIO_LINUX:
-        ret = swAioLinux_init(SW_AIO_EVENT_NUM);
-        break;
-#endif
-    default:
-        ret = swAioBase_init(SW_AIO_EVENT_NUM);
-        break;
-    }
-    SwooleAIO.init = 1;
-    return ret;
+    return swAioBase_init(SW_AIO_EVENT_NUM);
 }
 
 void swAio_free(void)
@@ -212,6 +197,7 @@ int swAioBase_init(int max_aio_events)
     SwooleAIO.destroy = swAioBase_destroy;
     SwooleAIO.read = swAioBase_read;
     SwooleAIO.write = swAioBase_write;
+    SwooleAIO.init = 1;
 
     return SW_OK;
 }
@@ -276,7 +262,7 @@ static void swAio_handler_stream_get_line(swAio_event *event)
     {
         avail = writepos - readpos;
 
-        swTraceLog(SW_TRACE_AIO, "readpos=%ld, writepos=%ld", readpos, writepos);
+        swTraceLog(SW_TRACE_AIO, "readpos=%ld, writepos=%ld", (long)readpos, (long)writepos);
 
         if (avail > 0)
         {
@@ -434,12 +420,12 @@ static void swAio_handler_write_file(swAio_event *event)
     int written = swoole_sync_writefile(fd, event->buf, event->nbytes);
     if (event->flags & SW_AIO_WRITE_FSYNC)
     {
-        if (fsync(event->fd) < 0)
+        if (fsync(fd) < 0)
         {
             swSysError("fsync(%d) failed.", event->fd);
         }
     }
-    if (flock(event->fd, LOCK_UN) < 0)
+    if (flock(fd, LOCK_UN) < 0)
     {
         swSysError("flock(%d, LOCK_UN) failed.", event->fd);
     }

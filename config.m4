@@ -66,9 +66,6 @@ PHP_ARG_WITH(jemalloc_dir, for jemalloc support,
 PHP_ARG_ENABLE(mysqlnd, enable mysqlnd support,
 [  --enable-mysqlnd       Do you have mysqlnd?], no, no)
 
-PHP_ARG_ENABLE(coroutine, whether to enable coroutine,
-[  --enable-coroutine      Enable coroutine (requires PHP >= 5.5)], yes, no)
-
 PHP_ARG_ENABLE(asan, whether to enable asan,
 [  --enable-asan      Enable asan], no, no)
 
@@ -111,8 +108,7 @@ AC_DEFUN([SWOOLE_HAVE_PHP_EXT], [
 AC_DEFUN([AC_SWOOLE_CPU_AFFINITY],
 [
     AC_MSG_CHECKING([for cpu affinity])
-    AC_TRY_COMPILE(
-    [
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
         #ifdef __FreeBSD__
         #include <sys/types.h>
         #include <sys/cpuset.h>
@@ -120,13 +116,13 @@ AC_DEFUN([AC_SWOOLE_CPU_AFFINITY],
         #else
         #include <sched.h>
         #endif
-    ], [
+    ]], [[
         cpu_set_t cpu_set;
         CPU_ZERO(&cpu_set);
-    ], [
+    ]])],[
         AC_DEFINE([HAVE_CPU_AFFINITY], 1, [cpu affinity?])
         AC_MSG_RESULT([yes])
-    ], [
+    ],[
         AC_MSG_RESULT([no])
     ])
 ])
@@ -134,16 +130,15 @@ AC_DEFUN([AC_SWOOLE_CPU_AFFINITY],
 AC_DEFUN([AC_SWOOLE_HAVE_REUSEPORT],
 [
     AC_MSG_CHECKING([for socket REUSEPORT])
-    AC_TRY_COMPILE(
-    [
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
         #include <sys/socket.h>
-    ], [
+    ]], [[
         int val = 1;
         setsockopt(0, SOL_SOCKET, SO_REUSEPORT, &val, sizeof(val));
-    ], [
+    ]])],[
         AC_DEFINE([HAVE_REUSEPORT], 1, [have SO_REUSEPORT?])
         AC_MSG_RESULT([yes])
-    ], [
+    ],[
         AC_MSG_RESULT([no])
     ])
 ])
@@ -151,41 +146,69 @@ AC_DEFUN([AC_SWOOLE_HAVE_REUSEPORT],
 AC_DEFUN([AC_SWOOLE_HAVE_FUTEX],
 [
     AC_MSG_CHECKING([for futex])
-    AC_TRY_COMPILE(
-    [
-		#include <linux/futex.h>
-		#include <syscall.h>
-		#include <unistd.h>
-    ], [
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+        #include <linux/futex.h>
+        #include <syscall.h>
+        #include <unistd.h>
+    ]], [[
         int futex_addr;
-		int val1;
-	    syscall(SYS_futex, &futex_addr, val1, NULL, NULL, 0);
-    ], [
+        int val1;
+        syscall(SYS_futex, &futex_addr, val1, NULL, NULL, 0);
+    ]])],[
         AC_DEFINE([HAVE_FUTEX], 1, [have FUTEX?])
         AC_MSG_RESULT([yes])
-    ], [
+    ],[
         AC_MSG_RESULT([no])
     ])
 ])
 
-AC_DEFUN([AC_SWOOLE_HAVE_LINUX_AIO],
+AC_DEFUN([AC_SWOOLE_HAVE_UCONTEXT],
 [
-    AC_MSG_CHECKING([for linux aio])
-    AC_TRY_COMPILE(
-    [
-		#include <sys/syscall.h>
-        #include <linux/aio_abi.h>
-		#include <unistd.h>
-    ], [
-        struct iocb *iocbps[1];
-        struct iocb iocbp;
-        aio_context_t context;
-        iocbps[0] = &iocbp;
-        io_submit(context, 1, iocbps);
-    ], [
-        AC_DEFINE([HAVE_LINUX_AIO], 1, [have LINUX_AIO?])
+    AC_MSG_CHECKING([for ucontext])
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+        #include <stdio.h>
+        #include <ucontext.h>
+        #include <unistd.h>
+    ]], [[
+        ucontext_t context;
+        getcontext(&context);
+    ]])],[
+        AC_DEFINE([HAVE_UCONTEXT], 1, [have ucontext?])
         AC_MSG_RESULT([yes])
-    ], [
+    ],[
+        AC_MSG_RESULT([no])
+    ])
+])
+
+AC_DEFUN([AC_SWOOLE_HAVE_BOOST_CONTEXT],
+[
+    AC_MSG_CHECKING([for boost.context])
+    AC_LANG([C++])
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+        #include <boost/context/all.hpp>
+    ]], [[
+
+    ]])],[
+        AC_DEFINE([HAVE_BOOST_CONTEXT], 1, [have boost.context?])
+        SW_HAVE_BOOST_CONTEXT=yes
+        AC_MSG_RESULT([yes])
+    ],[
+        AC_MSG_RESULT([no])
+    ])
+])
+
+AC_DEFUN([AC_SWOOLE_HAVE_VALGRIND],
+[
+    AC_MSG_CHECKING([for valgrind])
+    AC_LANG([C++])
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+        #include <valgrind/valgrind.h>
+    ]], [[
+
+    ]])],[
+        AC_DEFINE([HAVE_VALGRIND], 1, [have valgrind?])
+        AC_MSG_RESULT([yes])
+    ],[
         AC_MSG_RESULT([no])
     ])
 ])
@@ -204,6 +227,8 @@ AC_MSG_RESULT([$CLANG])
 if test "$CLANG" = "yes"; then
     CFLAGS="$CFLAGS -std=gnu89"
 fi
+
+AC_CANONICAL_HOST
 
 if test "$PHP_SWOOLE" != "no"; then
 
@@ -224,10 +249,6 @@ if test "$PHP_SWOOLE" != "no"; then
     if test "$PHP_ASAN" != "no"; then
         PHP_DEBUG=1
         CFLAGS="$CFLAGS -fsanitize=address -fno-omit-frame-pointer"
-    fi
-
-    if test "$PHP_COROUTINE" != "no"; then
-        AC_DEFINE(SW_COROUTINE, 1, [enable ability of coroutine])
     fi
 
     if test "$PHP_TRACE_LOG" != "no"; then
@@ -256,8 +277,10 @@ if test "$PHP_SWOOLE" != "no"; then
 
     AC_SWOOLE_CPU_AFFINITY
     AC_SWOOLE_HAVE_REUSEPORT
-	AC_SWOOLE_HAVE_FUTEX
-    AC_SWOOLE_HAVE_LINUX_AIO
+    AC_SWOOLE_HAVE_FUTEX
+    AC_SWOOLE_HAVE_UCONTEXT
+    AC_SWOOLE_HAVE_BOOST_CONTEXT
+    AC_SWOOLE_HAVE_VALGRIND
 
     CFLAGS="-Wall -pthread $CFLAGS"
     LDFLAGS="$LDFLAGS -lpthread"
@@ -267,6 +290,7 @@ if test "$PHP_SWOOLE" != "no"; then
     else
         AC_CHECK_LIB(rt, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
         PHP_ADD_LIBRARY(rt, 1, SWOOLE_SHARED_LIBADD)
+        LDFLAGS="$LDFLAGS -z now"
     fi
 
     if test "$PHP_OPENSSL" != "no" || test "$PHP_OPENSSL_DIR" != "no"; then
@@ -288,6 +312,7 @@ if test "$PHP_SWOOLE" != "no"; then
         PHP_ADD_LIBRARY_WITH_PATH(phpx, "${PHP_PHPX_DIR}/${PHP_LIBDIR}")
         AC_DEFINE(SW_USE_PHPX, 1, [enable PHP-X support])
         PHP_ADD_LIBRARY(phpx, 1, SWOOLE_SHARED_LIBADD)
+        CXXFLAGS="$CXXFLAGS -std=c++11"
     fi
 
     if test "$PHP_JEMALLOC_DIR" != "no"; then
@@ -403,11 +428,12 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_redis_server.c \
         swoole_mmap.c \
         swoole_channel.c \
-        swoole_channel_coro.c \
+        swoole_channel_coro.cc \
         swoole_ringqueue.c \
         swoole_msgqueue.c \
         swoole_trace.c \
         swoole_runtime.cc \
+        swoole_memory_pool.c \
         src/core/base.c \
         src/core/log.c \
         src/core/hashmap.c \
@@ -418,6 +444,11 @@ if test "$PHP_SWOOLE" != "no"; then
         src/core/socket.c \
         src/core/list.c \
         src/core/heap.c \
+        src/core/error.cc \
+        src/coroutine/base.cc \
+        src/coroutine/boost.cc \
+        src/coroutine/context.cc \
+        src/coroutine/ucontext.cc \
         src/memory/ShareMemory.c \
         src/memory/MemoryGlobal.c \
         src/memory/RingBuffer.c \
@@ -458,7 +489,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/network/TimeWheel.c \
         src/network/Stream.c \
         src/os/base.c \
-        src/os/linux_aio.c \
         src/os/msg_queue.c \
         src/os/sendfile.c \
         src/os/signal.c \
@@ -474,27 +504,97 @@ if test "$PHP_SWOOLE" != "no"; then
         src/protocol/Redis.c \
         src/protocol/Base64.c"
 
-	if test "$PHP_SWOOLE_STATIC" = "no"; then
-		swoole_source_file="$swoole_source_file thirdparty/php_http_parser.c"
-	else
-		CFLAGS="$CFLAGS -DSW_STATIC_COMPILATION"
-	fi
+    if test "$PHP_SWOOLE_STATIC" = "no"; then
+        swoole_source_file="$swoole_source_file thirdparty/php_http_parser.c"
+    else
+        CFLAGS="$CFLAGS -DSW_STATIC_COMPILATION"
+    fi
 
-	swoole_source_file="$swoole_source_file thirdparty/multipart_parser.c"
+    swoole_source_file="$swoole_source_file thirdparty/multipart_parser.c"
 
     if test "$PHP_PICOHTTPPARSER" = "yes"; then
         AC_DEFINE(SW_USE_PICOHTTPPARSER, 1, [enable picohttpparser support])
         swoole_source_file="$swoole_source_file thirdparty/picohttpparser/picohttpparser.c"
     fi
-    
-    AC_DEFINE(SW_USE_LIBCO, 1, [enable libco support])
-    swoole_source_file="$swoole_source_file thirdparty/libco/co_epoll.cpp"
-    swoole_source_file="$swoole_source_file thirdparty/libco/co_routine.cpp"
-    swoole_source_file="$swoole_source_file thirdparty/libco/co_hook_sys_call.cpp"
-    swoole_source_file="$swoole_source_file thirdparty/libco/coctx_swap.S"
-    swoole_source_file="$swoole_source_file thirdparty/libco/coctx.cpp"
-    
-    PHP_NEW_EXTENSION(swoole, $swoole_source_file, $ext_shared)
+
+    SW_NO_USE_ASM_CONTEXT="no"
+    SW_ASM_DIR="thirdparty/boost/asm/"
+
+    AS_CASE([$host_cpu],
+      [x86_64*], [SW_CPU="x86_64"],
+      [x86*], [SW_CPU="x86"],
+      [arm*], [SW_CPU="arm"],
+      [arm64*], [SW_CPU="arm64"],
+      [
+        SW_NO_USE_ASM_CONTEXT="yes"
+        AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
+      ]
+    )
+
+    AS_CASE([$host_os],
+      [linux*], [SW_OS="LINUX"],
+      [darwin*], [SW_OS="MAC"],
+      [cygwin*], [SW_OS="WIN"],
+      [mingw*], [SW_OS="WIN"],
+      [
+        SW_NO_USE_ASM_CONTEXT="yes"
+        AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
+      ]
+    )
+
+    if test "$SW_CPU" = 'x86_64'; then
+        if test "$SW_OS" = 'LINUX'; then
+            SW_CONTEXT_ASM_FILE="x86_64_sysv_elf_gas.S"
+        elif test "$SW_OS" = 'MAC'; then
+            SW_CONTEXT_ASM_FILE="x86_64_sysv_macho_gas.S"
+        else
+            SW_NO_USE_ASM_CONTEXT="yes"
+            AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
+        fi
+    elif test "$SW_CPU" = 'x86'; then
+        if test "$SW_OS" = 'LINUX'; then
+            SW_CONTEXT_ASM_FILE="i386_sysv_elf_gas.S"
+        elif test "$SW_OS" = 'MAC'; then
+            SW_CONTEXT_ASM_FILE="i386_sysv_macho_gas.S"
+        else
+            SW_NO_USE_ASM_CONTEXT="yes"
+            AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
+        fi
+    elif test "$SW_CPU" = 'arm'; then
+        if test "$SW_OS" = 'LINUX'; then
+            SW_CONTEXT_ASM_FILE="arm_aapcs_elf_gas.S"
+        elif test "$SW_OS" = 'MAC'; then
+            SW_CONTEXT_ASM_FILE="arm_aapcs_macho_gas.S"
+        else
+            SW_NO_USE_ASM_CONTEXT="yes"
+            AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
+        fi
+    elif test "$SW_CPU" = 'arm64'; then
+        if test "$SW_OS" = 'LINUX'; then
+            SW_CONTEXT_ASM_FILE="arm64_aapcs_elf_gas.S"
+        elif test "$SW_OS" = 'MAC'; then
+            SW_CONTEXT_ASM_FILE="arm64_aapcs_macho_gas.S"
+        else
+            SW_NO_USE_ASM_CONTEXT="yes"
+            AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
+        fi
+    elif test "$SW_CPU" = 'mips32'; then
+        if test "$SW_OS" = 'LINUX'; then
+           SW_CONTEXT_ASM_FILE="mips32_o32_elf_gas.S"
+        else
+            SW_NO_USE_ASM_CONTEXT="yes"
+            AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
+        fi
+    fi
+
+    if test "$SW_NO_USE_ASM_CONTEXT" = 'no'; then
+         swoole_source_file="$swoole_source_file ${SW_ASM_DIR}make_${SW_CONTEXT_ASM_FILE} \
+            ${SW_ASM_DIR}jump_${SW_CONTEXT_ASM_FILE} "
+    elif test "$SW_HAVE_BOOST_CONTEXT" = 'yes'; then
+         LDFLAGS="$LDFLAGS -lboost_context"
+    fi
+
+    PHP_NEW_EXTENSION(swoole, $swoole_source_file, $ext_shared,,, cxx)
 
     PHP_ADD_INCLUDE([$ext_srcdir])
     PHP_ADD_INCLUDE([$ext_srcdir/include])
@@ -503,15 +603,11 @@ if test "$PHP_SWOOLE" != "no"; then
 
     PHP_REQUIRE_CXX()
     PHP_ADD_LIBRARY(stdc++, 1, SWOOLE_SHARED_LIBADD)
-    CXXFLAGS="$CXXFLAGS -std=c++11"
 
     if test "$PHP_PICOHTTPPARSER" = "yes"; then
         PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/picohttpparser])
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/picohttpparser)
     fi
-    
-    PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/libco])
-    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/libco)
 
     PHP_ADD_BUILD_DIR($ext_builddir/src/core)
     PHP_ADD_BUILD_DIR($ext_builddir/src/memory)
@@ -522,5 +618,8 @@ if test "$PHP_SWOOLE" != "no"; then
     PHP_ADD_BUILD_DIR($ext_builddir/src/os)
     PHP_ADD_BUILD_DIR($ext_builddir/src/network)
     PHP_ADD_BUILD_DIR($ext_builddir/src/protocol)
+    PHP_ADD_BUILD_DIR($ext_builddir/src/coroutine)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty)
+    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/boost)
+    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/boost/asm)
 fi

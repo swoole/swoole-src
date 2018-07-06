@@ -41,7 +41,7 @@ int swFactory_shutdown(swFactory *factory)
 
 int swFactory_dispatch(swFactory *factory, swDispatchData *task)
 {
-    swServer *serv = SwooleG.serv;
+    swServer *serv = factory->ptr;
     factory->last_from_id = task->data.info.from_id;
 
     if (swEventData_is_stream(task->data.info.type))

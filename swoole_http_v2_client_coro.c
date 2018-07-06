@@ -309,6 +309,11 @@ static int http2_client_build_header(zval *zobject, zval *req, char *buffer, int
         return SW_ERR;
     }
 
+    for (i = 0; i < index; ++i)
+    {
+        efree(nv[i].name); // free lower header name copy
+    }
+
     if (date_str)
     {
         efree(date_str);
@@ -323,7 +328,7 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
 {
     int type = buf[3];
     int flags = buf[4];
-    int error_code;
+    int error_code = 0;
     int stream_id = ntohl((*(int *) (buf + 5))) & 0x7fffffff;
     uint32_t length = swHttp2_get_length(buf);
     buf += SW_HTTP2_FRAME_HEADER_SIZE;
@@ -703,7 +708,7 @@ static PHP_METHOD(swoole_http2_client_coro, recv)
     }
 
     php_context *context = swoole_get_property(getThis(), HTTP2_CLIENT_CORO_CONTEXT);
-    hcc->cid = COROG.current_coro->cid;
+    hcc->cid = sw_get_current_cid();
     coro_save(context);
     hcc->iowait = 1;
     coro_yield();
@@ -766,7 +771,7 @@ static void http2_client_onClose(swClient *cli)
     SW_MAKE_STD_ZVAL(result);
     ZVAL_BOOL(result, 0);
 
-    zval *retval;
+    zval *retval = NULL;
     php_context *context = swoole_get_property(zobject, HTTP2_CLIENT_CORO_CONTEXT);
     int ret = coro_resume(context, result, &retval);
     if (ret == CORO_END && retval)
@@ -791,10 +796,7 @@ static void http2_client_onError(swClient *cli)
     zval *zobject = cli->object;
     php_context *context = swoole_get_property(zobject, HTTP2_CLIENT_CORO_CONTEXT);
 
-    if (!cli->released)
-    {
-        php_swoole_client_free(zobject, cli TSRMLS_CC);
-    }
+    php_swoole_client_free(zobject, cli TSRMLS_CC);
 
     coro_resume(context, zdata, &retval);
     if (retval != NULL)
@@ -864,7 +866,6 @@ static PHP_METHOD(swoole_http2_client_coro, close)
     }
 
     int ret = SW_OK;
-    cli->released = 1;
     ret = cli->close(cli);
     php_swoole_client_free(getThis(), cli TSRMLS_CC);
     SW_CHECK_RETURN(ret);
