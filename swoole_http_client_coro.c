@@ -775,13 +775,11 @@ static void http_client_coro_onReceive(swClient *cli, char *data, uint32_t lengt
     swDebug("parsed_n=%ld, data_length=%d.", parsed_n, length);
 
     http_client_property *hcc = swoole_get_property(zobject, http_client_coro_property_request);
-    zval *zdata;
-    SW_MAKE_STD_ZVAL(zdata);
-
+    uint8_t result = 0;
     if (parsed_n < 0)
     {
         //return false
-        ZVAL_BOOL(zdata, 0);
+        result = 0;
         if (http->timer)
         {
             swTimer_del(&SwooleG.timer, http->timer);
@@ -789,18 +787,22 @@ static void http_client_coro_onReceive(swClient *cli, char *data, uint32_t lengt
         }
         if (hcc->defer && hcc->defer_status != HTTP_CLIENT_STATE_DEFER_WAIT)
         {
-            //not recv yet  sava data
+            //not recv yet, save data, wait for recv
             hcc->defer_status = HTTP_CLIENT_STATE_DEFER_DONE;
             hcc->defer_result = 0;
-            goto free_zdata;
-            //wait for recv
+            http_client_clear(http);
+            http_client_reset(zobject TSRMLS_CC);
+            return;
         }
-        goto begin_resume;
+        else
+        {
+            goto begin_resume;
+        }
     }
     else
     {
         //return true
-        ZVAL_BOOL(zdata, 1);
+        result = 1;
     }
 
     //not complete, wait again
@@ -809,19 +811,19 @@ static void http_client_coro_onReceive(swClient *cli, char *data, uint32_t lengt
         return;
     }
 
-    // clear timeout timer
-    if (http->timer)
-    {
-        swTimer_del(&SwooleG.timer, http->timer);
-        http->timer = NULL;
-    }
-
     if (hcc->defer && hcc->defer_status != HTTP_CLIENT_STATE_DEFER_WAIT)
     {
-        //not recv yet, save data
+        // multi requests, not recv yet, save data, wait all the responses recv
         hcc->defer_status = HTTP_CLIENT_STATE_DEFER_DONE;
         hcc->defer_result = 1;
-        goto free_zdata;
+        http_client_clear(http);
+        http_client_reset(zobject TSRMLS_CC);
+        return;
+    }
+    else
+    {
+        // all of the requests done, reset it
+        hcc->defer_status = HTTP_CLIENT_STATE_DEFER_INIT;
     }
 
     /**
@@ -852,65 +854,26 @@ static void http_client_coro_onReceive(swClient *cli, char *data, uint32_t lengt
         {
             swString_clear(cli->buffer);
         }
-        goto begin_resume;
-    }
-
-    // Tie up the loose ends
-    if (http->download)
-    {
-        close(http->file_fd);
-        http->download = 0;
-        http->file_fd = 0;
-#ifdef SW_HAVE_ZLIB
-        if (http->gzip_buffer)
-        {
-            swString_free(http->gzip_buffer);
-            http->gzip_buffer = NULL;
-        }
-#endif
-    }
-#ifdef SW_HAVE_ZLIB
-    if (http->gzip)
-    {
-        inflateEnd(&http->gzip_stream);
-        http->gzip = 0;
-    }
-#endif
-
-    // not keep_alive, try close it actively
-    if (http->keep_alive == 0 && http->state != HTTP_CLIENT_STATE_WAIT_CLOSE)
-    {
-        sw_zend_call_method_with_0_params(&zobject, swoole_http_client_coro_class_entry_ptr, NULL, "close", &retval);
-        if (retval)
-        {
-            sw_zval_ptr_dtor(&retval);
-        }
     }
 
     begin_resume:
     {
-        //if should resume
-        /*if next cr*/
-        php_context *sw_current_context = swoole_get_property(zobject, http_client_coro_property_context);
-        hcc->defer_status = HTTP_CLIENT_STATE_DEFER_INIT;
-        hcc->cid = 0;
-        http->completed = 0;
-        http->header_completed = 0;
-        http->state = HTTP_CLIENT_STATE_READY;
+        http_client_clear(http);
+        http_client_reset(zobject TSRMLS_CC);
 
+        php_context *sw_current_context = swoole_get_property(zobject, http_client_coro_property_context);
+        hcc->cid = 0;
+        zval *zdata;
+        SW_MAKE_STD_ZVAL(zdata);
+        ZVAL_BOOL(zdata, result);
         int ret = coro_resume(sw_current_context, zdata, &retval);
-        if (ret > 0)
-        {
-            goto free_zdata;
-        }
-        if (retval != NULL)
+        if (ret <= 0 && retval != NULL)
         {
             sw_zval_ptr_dtor(&retval);
         }
+        sw_zval_ptr_dtor(&zdata);
     }
 
-    free_zdata:
-    sw_zval_ptr_dtor(&zdata);
 }
 
 static void http_client_coro_onConnect(swClient *cli)
