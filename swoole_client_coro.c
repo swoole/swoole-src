@@ -585,7 +585,7 @@ static PHP_METHOD(swoole_client_coro, __destruct)
     SW_PREVENT_USER_DESTRUCT;
     swClient *cli = swoole_get_object(getThis());
     //no keep connection
-    if (cli && cli->released == 0)
+    if (cli)
     {
         zval *zobject = getThis();
         zval *retval = NULL;
@@ -1109,10 +1109,6 @@ static PHP_METHOD(swoole_client_coro, close)
     if (cli->socket->closed)
     {
         swoole_php_error(E_WARNING, "client socket is closed.");
-        RETURN_FALSE;
-    }
-    if (cli->released)
-    {
         RETURN_FALSE;
     }
     //Connection error, or short tcp connection.
