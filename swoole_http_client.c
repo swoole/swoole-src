@@ -688,26 +688,25 @@ static void http_client_onReceive(swClient *cli, char *data, uint32_t length)
     {
         swSysError("Parsing http over socket[%d] failed.", cli->socket->fd);
         cli->close(cli);
+        return;
     }
+
     //not complete
     if (!http->completed)
     {
         return;
     }
 
-    swConnection *conn = cli->socket;
+    swConnection *conn = cli->socket; // get connection pointer first because it's on Reactor so that it always be safe
     zval *retval = NULL;
     http_client_property *hcc = swoole_get_property(zobject, 0);
     zval *zcallback = hcc->onResponse;
-
-    zval **args[1];
-    args[0] = &zobject;
-
     if (zcallback == NULL || ZVAL_IS_NULL(zcallback))
     {
         swoole_php_fatal_error(E_WARNING, "swoole_http_client object have not receive callback.");
         return;
     }
+
     /**
      * TODO: Sec-WebSocket-Accept check
      */
@@ -720,7 +719,7 @@ static void http_client_onReceive(swClient *cli, char *data, uint32_t length)
         http->state = HTTP_CLIENT_STATE_UPGRADE;
 
         //data frame
-        if (length > parsed_n)
+        if (length > parsed_n + 3)
         {
             cli->buffer->length = length - parsed_n - 1;
             memmove(cli->buffer->str, data + parsed_n + 1, cli->buffer->length);
@@ -730,37 +729,13 @@ static void http_client_onReceive(swClient *cli, char *data, uint32_t length)
             swString_clear(cli->buffer);
         }
     }
-    else if (http->keep_alive == 1)
-    {
-        http->state = HTTP_CLIENT_STATE_READY;
-        http->completed = 0;
-    }
-    if (http->download)
-    {
-        close(http->file_fd);
-        http->download = 0;
-        http->file_fd = 0;
-#ifdef SW_HAVE_ZLIB
-        if (http->gzip_buffer)
-        {
-            swString_free(http->gzip_buffer);
-            http->gzip_buffer = NULL;
-        }
-#endif
-    }
-#ifdef SW_HAVE_ZLIB
-    if (http->gzip)
-    {
-        inflateEnd(&http->gzip_stream);
-        http->gzip = 0;
-    }
-#endif
-    if (http->timer)
-    {
-        swTimer_del(&SwooleG.timer, http->timer);
-        http->timer = NULL;
-    }
+
+    http_client_clear(http);
+    http_client_reset(http);
     hcc->onResponse = NULL;
+
+    zval **args[1];
+    args[0] = &zobject;
     if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onReactorCallback handler error");
@@ -774,11 +749,12 @@ static void http_client_onReceive(swClient *cli, char *data, uint32_t length)
         sw_zval_ptr_dtor(&retval);
     }
     sw_zval_free(zcallback);
+
+    // maybe close in callback, check it
     if (conn->active == 0)
     {
         return;
     }
-    http->header_completed = 0;
 
     if (http->upgrade && cli->buffer->length > 0)
     {
@@ -787,15 +763,7 @@ static void http_client_onReceive(swClient *cli, char *data, uint32_t length)
         return;
     }
 
-    swString_clear(cli->buffer);
-    if (http->keep_alive == 0 && http->state != HTTP_CLIENT_STATE_WAIT_CLOSE)
-    {
-        sw_zend_call_method_with_0_params(&zobject, swoole_http_client_class_entry_ptr, NULL, "close", &retval);
-        if (retval)
-        {
-            sw_zval_ptr_dtor(&retval);
-        }
-    }
+    http_client_check_keep(http);
 }
 
 static void http_client_onConnect(swClient *cli)
@@ -1210,6 +1178,66 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
     return ret;
 }
 
+void http_client_clear(http_client *http)
+{
+    // clear timeout timer
+    if (http->timer)
+    {
+        swTimer_del(&SwooleG.timer, http->timer);
+        http->timer = NULL;
+    }
+
+    // Tie up the loose ends
+    if (http->download)
+    {
+        close(http->file_fd);
+        http->download = 0;
+        http->file_fd = 0;
+#ifdef SW_HAVE_ZLIB
+        if (http->gzip_buffer)
+        {
+            swString_free(http->gzip_buffer);
+            http->gzip_buffer = NULL;
+        }
+#endif
+    }
+#ifdef SW_HAVE_ZLIB
+    if (http->gzip)
+    {
+        inflateEnd(&http->gzip_stream);
+        http->gzip = 0;
+    }
+#endif
+}
+
+int http_client_check_keep(http_client *http)
+{
+    // not keep_alive, try close it actively, and it will destroy the http_client
+    if (http->keep_alive == 0 && http->state != HTTP_CLIENT_STATE_WAIT_CLOSE && !http->upgrade)
+    {
+        zval *zobject = http->cli->object;
+        zval *retval = NULL;
+        sw_zend_call_method_with_0_params(&zobject, Z_OBJ_P(zobject)->ce, NULL, "close", &retval);
+        if (retval)
+        {
+            sw_zval_ptr_dtor(&retval);
+        }
+        return 0; // no keep
+    }
+    else
+    {
+        return 1; // keep
+    }
+}
+
+void http_client_reset(http_client *http)
+{
+    // reset attributes
+    http->completed = 0;
+    http->header_completed = 0;
+    http->state = HTTP_CLIENT_STATE_READY;
+}
+
 void http_client_free(zval *object TSRMLS_DC)
 {
     http_client *http = swoole_get_object(object);
@@ -1225,18 +1253,9 @@ void http_client_free(zval *object TSRMLS_DC)
     {
         swString_free(http->body);
     }
-    if (http->timer)
-    {
-        swTimer_del(&SwooleG.timer, http->timer);
-        http->timer = NULL;
-    }
-#ifdef SW_HAVE_ZLIB
-    if (http->gzip)
-    {
-        inflateEnd(&http->gzip_stream);
-        http->gzip = 0;
-    }
-#endif
+
+    http_client_clear(http);
+
     swClient *cli = http->cli;
     if (cli)
     {
