@@ -1310,7 +1310,7 @@ static PHP_METHOD(swoole_http_client_coro, __construct)
     bzero(hcc, sizeof(http_client_property));
     hcc->defer_status = HTTP_CLIENT_STATE_DEFER_INIT;
    // hcc->defer_chunk_status = 0;
-    swoole_set_property(getThis(), 0, hcc);
+    swoole_set_property(getThis(), http_client_coro_property_request, hcc);
 
     int flags = SW_SOCK_TCP | SW_FLAG_ASYNC;
     if (ssl)
@@ -1325,7 +1325,7 @@ static PHP_METHOD(swoole_http_client_coro, __construct)
     zend_update_property_long(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("type"), flags TSRMLS_CC);
 
     php_context *context = emalloc(sizeof(php_context));
-    swoole_set_property(getThis(), 1, context);
+    swoole_set_property(getThis(), http_client_coro_property_context, context);
 
     context->onTimeout = NULL;
 #if PHP_MAJOR_VERSION < 7
@@ -1356,7 +1356,7 @@ static PHP_METHOD(swoole_http_client_coro, __destruct)
         }
     }
 
-    http_client_property *hcc = swoole_get_property(getThis(), 0);
+    http_client_property *hcc = swoole_get_property(getThis(), http_client_coro_property_request);
     if (hcc)
     {
         if (hcc->message_queue)
@@ -1371,14 +1371,14 @@ static PHP_METHOD(swoole_http_client_coro, __destruct)
             sw_free(queue);
         }
         efree(hcc);
-        swoole_set_property(getThis(), 0, NULL);
+        swoole_set_property(getThis(), http_client_coro_property_request, NULL);
     }
 
-    php_context *context = swoole_get_property(getThis(), 1);
+    php_context *context = swoole_get_property(getThis(), http_client_coro_property_context);
     if (context)
     {
         efree(context);
-        swoole_set_property(getThis(), 1, NULL);
+        swoole_set_property(getThis(), http_client_coro_property_context, NULL);
     }
 }
 
@@ -1406,7 +1406,7 @@ static PHP_METHOD(swoole_http_client_coro, setHeaders)
         return;
     }
     zend_update_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("requestHeaders"), headers TSRMLS_CC);
-    http_client_property *hcc = swoole_get_property(getThis(), 0);
+    http_client_property *hcc = swoole_get_property(getThis(), http_client_coro_property_request);
     hcc->request_header = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("requestHeaders"), 1 TSRMLS_CC);
     sw_copy_to_stack(hcc->request_header, hcc->_request_header);
     RETURN_TRUE;
@@ -1420,7 +1420,7 @@ static PHP_METHOD(swoole_http_client_coro, setCookies)
         return;
     }
     zend_update_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("cookies"), cookies TSRMLS_CC);
-    http_client_property *hcc = swoole_get_property(getThis(), 0);
+    http_client_property *hcc = swoole_get_property(getThis(), http_client_coro_property_request);
     hcc->cookies = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("cookies"), 1 TSRMLS_CC);
     sw_copy_to_stack(hcc->cookies, hcc->_cookies);
 
@@ -1429,7 +1429,7 @@ static PHP_METHOD(swoole_http_client_coro, setCookies)
 
 static PHP_METHOD(swoole_http_client_coro, getDefer)
 {
-    http_client_property *hcc = swoole_get_property(getThis(), 0);
+    http_client_property *hcc = swoole_get_property(getThis(), http_client_coro_property_request);
 
     RETURN_BOOL(hcc->defer);
 }
@@ -1437,7 +1437,7 @@ static PHP_METHOD(swoole_http_client_coro, getDefer)
 static PHP_METHOD(swoole_http_client_coro, setDefer)
 {
     zend_bool defer = 1;
-    http_client_property *hcc = swoole_get_property(getThis(), 0);
+    http_client_property *hcc = swoole_get_property(getThis(), http_client_coro_property_request);
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|b", &defer) == FAILURE)
     {
@@ -1461,7 +1461,7 @@ static PHP_METHOD(swoole_http_client_coro, recv)
     {
         RETURN_FALSE;
     }
-    http_client_property *hcc = swoole_get_property(getThis(), 0);
+    http_client_property *hcc = swoole_get_property(getThis(), http_client_coro_property_request);
     if (hcc->cid != 0 && hcc->cid != sw_get_current_cid())
     {
         swoole_php_fatal_error(E_WARNING, "client has been bound to another coro");
@@ -1519,7 +1519,7 @@ static PHP_METHOD(swoole_http_client_coro, recv)
     }
 
     _yield: hcc->defer_status = HTTP_CLIENT_STATE_DEFER_WAIT;
-    php_context *context = swoole_get_property(getThis(), 1);
+    php_context *context = swoole_get_property(getThis(), http_client_coro_property_context);
 
     if (timeout > 0)
     {
@@ -1539,7 +1539,7 @@ static PHP_METHOD(swoole_http_client_coro, setData)
         return;
     }
     zend_update_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("requestBody"), data TSRMLS_CC);
-    http_client_property *hcc = swoole_get_property(getThis(), 0);
+    http_client_property *hcc = swoole_get_property(getThis(), http_client_coro_property_request);
     hcc->request_body = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("requestBody"), 1 TSRMLS_CC);
     RETURN_TRUE;
 }
@@ -1615,7 +1615,7 @@ static PHP_METHOD(swoole_http_client_coro, addFile)
         }
     }
 
-    http_client_property *hcc = swoole_get_property(getThis(), 0);
+    http_client_property *hcc = swoole_get_property(getThis(), http_client_coro_property_request);
     zval *files;
     if (!hcc->request_upload_files)
     {
@@ -1652,7 +1652,7 @@ static PHP_METHOD(swoole_http_client_coro, setMethod)
     }
     convert_to_string(method);
     zend_update_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("requestMethod"), method TSRMLS_CC);
-    http_client_property *hcc = swoole_get_property(getThis(), 0);
+    http_client_property *hcc = swoole_get_property(getThis(), http_client_coro_property_request);
     hcc->request_method = Z_STRVAL_P(method);
     RETURN_TRUE;
 }
@@ -1707,7 +1707,7 @@ static PHP_METHOD(swoole_http_client_coro, execute)
     {
         return;
     }
-    http_client_property *hcc = swoole_get_property(getThis(), 0);
+    http_client_property *hcc = swoole_get_property(getThis(), http_client_coro_property_request);
     if (hcc->cid != 0 && hcc->cid != sw_get_current_cid())
     {
         swoole_php_fatal_error(E_WARNING, "client has been bound to another coro");
@@ -1726,7 +1726,7 @@ static PHP_METHOD(swoole_http_client_coro, execute)
         SW_CHECK_RETURN(ret);
     }
 
-    php_context *context = swoole_get_property(getThis(), 1);
+    php_context *context = swoole_get_property(getThis(), http_client_coro_property_context);
     if (hcc->defer)
     {
         RETURN_TRUE;
@@ -1745,7 +1745,7 @@ static PHP_METHOD(swoole_http_client_coro, get)
         return;
     }
 
-    http_client_property *hcc = swoole_get_property(getThis(), 0);
+    http_client_property *hcc = swoole_get_property(getThis(), http_client_coro_property_request);
     if (hcc->cid != 0 && hcc->cid != sw_get_current_cid())
     {
         swoole_php_fatal_error(E_WARNING, "client has been bound to another coro");
@@ -1764,7 +1764,7 @@ static PHP_METHOD(swoole_http_client_coro, get)
         SW_CHECK_RETURN(ret);
     }
 
-    php_context *context = swoole_get_property(getThis(), 1);
+    php_context *context = swoole_get_property(getThis(), http_client_coro_property_context);
     if (hcc->defer)
     {
         RETURN_TRUE;
@@ -1790,7 +1790,7 @@ static PHP_METHOD(swoole_http_client_coro, post)
         RETURN_FALSE;
     }
 
-    http_client_property *hcc = swoole_get_property(getThis(), 0);
+    http_client_property *hcc = swoole_get_property(getThis(), http_client_coro_property_request);
     zend_update_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("requestBody"), post_data TSRMLS_CC);
     hcc->request_body = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("requestBody"), 1 TSRMLS_CC);
     sw_copy_to_stack(hcc->request_body, hcc->_request_body);
@@ -1813,7 +1813,7 @@ static PHP_METHOD(swoole_http_client_coro, post)
         SW_CHECK_RETURN(ret);
     }
 
-    php_context *context = swoole_get_property(getThis(), 1);
+    php_context *context = swoole_get_property(getThis(), http_client_coro_property_context);
     if (hcc->defer)
     {
         RETURN_TRUE;
@@ -1836,7 +1836,7 @@ static PHP_METHOD(swoole_http_client_coro, download)
         return;
     }
 
-    http_client_property *hcc = swoole_get_property(getThis(), 0);
+    http_client_property *hcc = swoole_get_property(getThis(), http_client_coro_property_request);
     zend_update_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("downloadFile"), download_file TSRMLS_CC);
     hcc->download_file = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("downloadFile"), 1 TSRMLS_CC);
     hcc->download_offset = offset;
@@ -1861,7 +1861,7 @@ static PHP_METHOD(swoole_http_client_coro, download)
         SW_CHECK_RETURN(ret);
     }
 
-    php_context *context = swoole_get_property(getThis(), 1);
+    php_context *context = swoole_get_property(getThis(), http_client_coro_property_context);
     if (hcc->defer)
     {
         RETURN_TRUE;
@@ -1881,7 +1881,7 @@ static PHP_METHOD(swoole_http_client_coro, upgrade)
         return;
     }
 
-    http_client_property *hcc = swoole_get_property(getThis(), 0);
+    http_client_property *hcc = swoole_get_property(getThis(), http_client_coro_property_request);
     if (hcc->cid != 0 && hcc->cid != sw_get_current_cid())
     {
         swoole_php_fatal_error(E_WARNING, "client has been bound to another coro");
@@ -1917,7 +1917,7 @@ static PHP_METHOD(swoole_http_client_coro, upgrade)
         SW_CHECK_RETURN(ret);
     }
 
-    php_context *context = swoole_get_property(getThis(), 1);
+    php_context *context = swoole_get_property(getThis(), http_client_coro_property_context);
     if (hcc->defer)
     {
         RETURN_TRUE;
