@@ -697,6 +697,7 @@ static void http_client_onReceive(swClient *cli, char *data, uint32_t length)
         return;
     }
 
+    swConnection *conn = cli->socket; // get connection pointer first because it's on Reactor so that it always be safe
     zval *retval = NULL;
     http_client_property *hcc = swoole_get_property(zobject, 0);
     zval *zcallback = hcc->onResponse;
@@ -749,7 +750,8 @@ static void http_client_onReceive(swClient *cli, char *data, uint32_t length)
     }
     sw_zval_free(zcallback);
 
-    if (cli->socket->active == 0)
+    // maybe close in callback, check it
+    if (conn->active == 0)
     {
         return;
     }
