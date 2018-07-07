@@ -439,11 +439,11 @@ struct _swServer
      */
     uint32_t have_tcp_sock :1;
     /**
-     * oepn cpu affinity setting
+     * open cpu affinity setting
      */
     uint32_t open_cpu_affinity :1;
     /**
-     * Udisable notice when use SW_DISPATCH_ROUND and SW_DISPATCH_QUEUE
+     * disable notice when use SW_DISPATCH_ROUND and SW_DISPATCH_QUEUE
      */
     uint32_t disable_notify :1;
     /**
