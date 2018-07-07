@@ -445,7 +445,7 @@ static void swoole_mysql_coro_parse_end(mysql_client *client, swString *buffer)
 {
     if (client->response.status_code & SW_MYSQL_SERVER_MORE_RESULTS_EXISTS)
     {
-        swTraceLog(SW_TRACE_MYSQL_CLIENT, "remaining %d, more results exists", buffer->length - buffer->offset);
+        swTraceLog(SW_TRACE_MYSQL_CLIENT, "remaining %zu, more results exists", buffer->length - buffer->offset);
     }
     else
     {
@@ -1854,7 +1854,7 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
     while(1)
     {
         ret = recv(sock, buffer->str + buffer->length, buffer->size - buffer->length, 0);
-        swTraceLog(SW_TRACE_MYSQL_CLIENT, "recv-ret=%d, buffer-length=%d.", ret, buffer->length);
+        swTraceLog(SW_TRACE_MYSQL_CLIENT, "recv-ret=%d, buffer-length=%zu.", ret, buffer->length);
         if (ret < 0)
         {
             if (errno == EINTR)

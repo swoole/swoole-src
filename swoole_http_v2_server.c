@@ -459,7 +459,7 @@ static int http2_parse_header(swoole_http_client *client, http_context *ctx, int
         in += proclen;
         inlen -= proclen;
 
-        swTraceLog(SW_TRACE_HTTP2, "Header: %s[%d]: %s[%d]", nv.name, nv.namelen, nv.value, nv.valuelen);
+        swTraceLog(SW_TRACE_HTTP2, "Header: %s[%zu]: %s[%zu]", nv.name, nv.namelen, nv.value, nv.valuelen);
 
         if (inflate_flags & NGHTTP2_HD_INFLATE_EMIT)
         {
@@ -515,7 +515,7 @@ static int http2_parse_header(swoole_http_client *client, http_context *ctx, int
                         int boundary_len = nv.valuelen - strlen("multipart/form-data; boundary=");
                         if (boundary_len <= 0)
                         {
-                            swWarn("invalid multipart/form-data body.", ctx->fd);
+                            swWarn("invalid multipart/form-data body fd:%d.", ctx->fd);
                             return 0;
                         }
                         swoole_http_parse_form_data(ctx, (char*) nv.value + nv.valuelen - boundary_len, boundary_len TSRMLS_CC);

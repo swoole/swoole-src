@@ -263,7 +263,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
                 //write to tmpfile
                 if (swoole_sync_writefile(fd, &buf, sizeof(buf.info) + buf.info.len) < 0)
                 {
-                    swSysError("write(%s, %ld) failed.", result->data, sizeof(buf.info) + buf.info.len);
+                    swSysError("write(%s, %ld) failed.", _tmpfile, sizeof(buf.info) + buf.info.len);
                 }
                 sw_atomic_fetch_add(finish_count, 1);
                 close(fd);

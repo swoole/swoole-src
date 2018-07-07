@@ -449,7 +449,7 @@ static PHP_METHOD(swoole_channel_coro, push)
     Z_TRY_ADDREF_P(zdata);
     chan->data_queue->push(*zdata);
 
-    swDebug("TYPE=%d, count=%d", Z_TYPE_P(zdata), chan->data_queue->size());
+    swDebug("TYPE=%d, count=%zu", Z_TYPE_P(zdata), chan->data_queue->size());
 
     if (chan->consumer_list->num != 0)
     {
@@ -504,7 +504,7 @@ static PHP_METHOD(swoole_channel_coro, pop)
     zval zdata = chan->data_queue->front();
     chan->data_queue->pop();
 
-    swDebug("TYPE=%d, count=%d", Z_TYPE(zdata), chan->data_queue->size());
+    swDebug("TYPE=%d, count=%zu", Z_TYPE(zdata), chan->data_queue->size());
 
     swoole_channel_try_resume_producer(getThis(), chan);
     RETURN_ZVAL(&zdata, 0, NULL);

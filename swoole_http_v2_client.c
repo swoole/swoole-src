@@ -780,7 +780,7 @@ static void http2_client_send_stream_request(zval *zobject, http2_client_request
                 }
                 memset(buffer, 0, SW_HTTP2_FRAME_HEADER_SIZE);
                 swHttp2_set_frame_header(buffer, SW_HTTP2_TYPE_DATA, len, 0, stream_id);
-                swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN", END, STREAM#%d] length=%d", swHttp2_get_type(SW_HTTP2_TYPE_DATA), stream_id, len);
+                swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN", END, STREAM#%d] length=%zu", swHttp2_get_type(SW_HTTP2_TYPE_DATA), stream_id, len);
                 cli->send(cli, buffer, SW_HTTP2_FRAME_HEADER_SIZE, 0);
                 cli->send(cli, formstr, len, 0);
                 smart_str_free(&formstr_s);
@@ -788,7 +788,7 @@ static void http2_client_send_stream_request(zval *zobject, http2_client_request
             else
             {
                 swHttp2_set_frame_header(buffer, SW_HTTP2_TYPE_DATA, Z_STRLEN_P(post_data), 0, stream_id);
-                swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN", END, STREAM#%d] length=%d", swHttp2_get_type(SW_HTTP2_TYPE_DATA), stream_id, Z_STRLEN_P(post_data));
+                swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN", END, STREAM#%d] length=%zu", swHttp2_get_type(SW_HTTP2_TYPE_DATA), stream_id, Z_STRLEN_P(post_data));
                 cli->send(cli, buffer, SW_HTTP2_FRAME_HEADER_SIZE, 0);
                 cli->send(cli, Z_STRVAL_P(post_data), Z_STRLEN_P(post_data), 0);
             }
@@ -869,7 +869,7 @@ static void http2_client_send_request(zval *zobject, http2_client_request *req T
             }
             memset(buffer, 0, SW_HTTP2_FRAME_HEADER_SIZE);
             swHttp2_set_frame_header(buffer, SW_HTTP2_TYPE_DATA, len, SW_HTTP2_FLAG_END_STREAM, hcc->stream_id);
-            swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN", END, STREAM#%d] length=%d", swHttp2_get_type(SW_HTTP2_TYPE_DATA), hcc->stream_id, len);
+            swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN", END, STREAM#%d] length=%zu", swHttp2_get_type(SW_HTTP2_TYPE_DATA), hcc->stream_id, len);
             cli->send(cli, buffer, SW_HTTP2_FRAME_HEADER_SIZE, 0);
             cli->send(cli, formstr, len, 0);
             smart_str_free(&formstr_s);
@@ -877,7 +877,7 @@ static void http2_client_send_request(zval *zobject, http2_client_request *req T
         else
         {
             swHttp2_set_frame_header(buffer, SW_HTTP2_TYPE_DATA, Z_STRLEN_P(req->data), SW_HTTP2_FLAG_END_STREAM, hcc->stream_id);
-            swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN", END, STREAM#%d] length=%d", swHttp2_get_type(SW_HTTP2_TYPE_DATA), hcc->stream_id, Z_STRLEN_P(req->data));
+            swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN", END, STREAM#%d] length=%zu", swHttp2_get_type(SW_HTTP2_TYPE_DATA), hcc->stream_id, Z_STRLEN_P(req->data));
             cli->send(cli, buffer, SW_HTTP2_FRAME_HEADER_SIZE, 0);
             cli->send(cli, Z_STRVAL_P(post_data), Z_STRLEN_P(post_data), 0);
         }

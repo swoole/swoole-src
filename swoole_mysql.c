@@ -823,7 +823,7 @@ int mysql_parse_auth_signature(swString *buffer, mysql_connector *connector)
 
     // remaining length
     buffer->offset = 4 + packet_length;
-    swTraceLog(SW_TRACE_MYSQL_CLIENT, "before signature remaining=%d", buffer->length - buffer->offset);
+    swTraceLog(SW_TRACE_MYSQL_CLIENT, "before signature remaining=%zu", buffer->length - buffer->offset);
 
     if ((uint8_t)tmp[1] == SW_MYSQL_AUTH_SIGNATURE_FULL_AUTH_REQUIRED)
     {
@@ -984,7 +984,7 @@ static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
     SW_ALLOC_INIT_ZVAL(row_array);
     array_init(row_array);
 
-    swTraceLog(SW_TRACE_MYSQL_CLIENT, "mysql_decode_row begin, num_column=%d, packet_len=%d.", client->response.num_column, packet_len);
+    swTraceLog(SW_TRACE_MYSQL_CLIENT, "mysql_decode_row begin, num_column=%ld, packet_len=%d.", client->response.num_column, packet_len);
 
     for (i = 0; i < client->response.num_column; i++)
     {
@@ -1222,7 +1222,7 @@ static int mysql_decode_row_prepare(mysql_client *client, char *buf, int packet_
     SW_ALLOC_INIT_ZVAL(row_array);
     array_init(row_array);
 
-    swTraceLog(SW_TRACE_MYSQL_CLIENT, "mysql_decode_row begin, num_column=%d, packet_len=%d.", client->response.num_column, packet_len);
+    swTraceLog(SW_TRACE_MYSQL_CLIENT, "mysql_decode_row begin, num_column=%ld, packet_len=%d.", client->response.num_column, packet_len);
 
     for (i = 0; i < client->response.num_column; i++)
     {
@@ -1319,7 +1319,7 @@ static int mysql_decode_row_prepare(mysql_client *client, char *buf, int packet_
             row.sbigint = *(int64_t *) (buf + read_n);
             add_assoc_long(row_array, client->response.columns[i].name, row.sbigint);
             len = sizeof(row.sbigint);
-            swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%ld", client->response.columns[i].name, row.sbigint);
+            swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%lld", client->response.columns[i].name, row.sbigint);
             break;
 
         case SW_MYSQL_TYPE_FLOAT:
@@ -1705,7 +1705,7 @@ static int mysql_read_columns(mysql_client *client)
 
     for (; client->response.index_column < client->response.num_column; client->response.index_column++)
     {
-        swTraceLog(SW_TRACE_MYSQL_CLIENT, "index_index_column=%d, n_buf=%d.", client->response.index_column, n_buf);
+        swTraceLog(SW_TRACE_MYSQL_CLIENT, "index_index_column=%ld, n_buf=%d.", client->response.index_column, n_buf);
 
         if (n_buf < 4)
         {
@@ -1873,7 +1873,7 @@ int mysql_response(mysql_client *client)
 
     while (n_buf > 0)
     {
-        swTraceLog(SW_TRACE_MYSQL_CLIENT, "client->state=%d, n_buf=%d.", client->state, n_buf);
+        swTraceLog(SW_TRACE_MYSQL_CLIENT, "client->state=%d, n_buf=%zu.", client->state, n_buf);
 
         switch (client->state)
         {
