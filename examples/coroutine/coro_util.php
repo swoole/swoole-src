@@ -1,7 +1,8 @@
 <?php
+
 use Swoole\Coroutine as co;
 
-$id = go(function(){
+$id = go(function () {
     $id = co::getUid();
     echo "start coro $id\n";
     co::suspend($id);

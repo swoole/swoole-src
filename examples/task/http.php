@@ -1,5 +1,6 @@
 <?php
-$serv = new swoole_http_server("127.0.0.1", 9501);
+
+$serv = new swoole_http_server('127.0.0.1', 9501);
 $serv->set(array(
     'worker_num' => 1,
     'task_worker_num' => 1,
@@ -8,16 +9,13 @@ $serv->set(array(
     //'task_tmpdir' => '/data/task/',
 ));
 
-$serv->on('Request', function ($req, $resp)
-{
+$serv->on('Request', function ($req, $resp) {
     $data = str_repeat('A', 8192 * 10);
     global $serv;
 
-    $serv->task(array($data, 1000), -1, function ($serv, $task_id, $data) use ($resp)
-    {
-        $resp->end("Task#$task_id finished." . PHP_EOL);
+    $serv->task(array($data, 1000), -1, function ($serv, $task_id, $data) use ($resp) {
+        $resp->end("Task#$task_id finished.".PHP_EOL);
     });
-
 });
 $serv->on('Task', function (swoole_server $serv, $task_id, $from_id, $data) {
     //echo "#{$serv->worker_id}\tonTask: [PID={$serv->worker_pid}]: task_id=$task_id, data_len=".strlen($data).".".PHP_EOL;
@@ -29,14 +27,11 @@ $serv->on('Finish', function (swoole_server $serv, $task_id, $data) {
     echo "Task#$task_id finished, data_len=".strlen($data).PHP_EOL;
 });
 
-$serv->on('workerStart', function($serv, $worker_id) {
-	global $argv;
-    if ($serv->taskworker)
-    {
+$serv->on('workerStart', function ($serv, $worker_id) {
+    global $argv;
+    if ($serv->taskworker) {
         swoole_set_process_name("php {$argv[0]}: task_worker");
-    }
-    else
-    {
+    } else {
         swoole_set_process_name("php {$argv[0]}: worker");
     }
 });

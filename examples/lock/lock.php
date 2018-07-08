@@ -6,17 +6,13 @@
  * SWOOLE_SEM 信号量
  * SWOOLE_RWLOCK 读写锁
  */
-
 $lock = new swoole_lock(SWOOLE_MUTEX);
 echo "[Master]create lock\n";
 $lock->lock();
-if (pcntl_fork() > 0)
-{
+if (pcntl_fork() > 0) {
     sleep(1);
     $lock->unlock();
-}
-else
-{
+} else {
     echo "[Child] Wait Lock\n";
     $lock->lock();
     echo "[Child] Get Lock\n";
@@ -27,4 +23,3 @@ echo "[Master]release lock\n";
 unset($lock);
 sleep(1);
 echo "[Master]exit\n";
-

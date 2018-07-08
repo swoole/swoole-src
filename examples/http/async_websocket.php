@@ -1,4 +1,5 @@
 <?php
+
 $cli = new swoole_http_client('127.0.0.1', 9501);
 
 $cli->on('message', function ($_cli, $frame) {
@@ -7,5 +8,5 @@ $cli->on('message', function ($_cli, $frame) {
 
 $cli->upgrade('/', function ($cli) {
     echo $cli->body;
-    $cli->push("hello world");
+    $cli->push('hello world');
 });

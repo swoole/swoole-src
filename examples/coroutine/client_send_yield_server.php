@@ -1,5 +1,6 @@
 <?php
-$socket = stream_socket_server("tcp://0.0.0.0:9501", $errno, $errstr);
+
+$socket = stream_socket_server('tcp://0.0.0.0:9501', $errno, $errstr);
 if (!$socket) {
     echo "$errstr ($errno)<br />\n";
 } else {
@@ -10,14 +11,13 @@ if (!$socket) {
         }
         $i = 0;
         $length = 0;
-        while(true) {
+        while (true) {
             $data = fread($conn, 8192);
-            if ($data == false)
-            {
+            if (false == $data) {
                 break;
             }
             $length += strlen($data);
-            echo "recv " . $length . " bytes\n";
+            echo 'recv '.$length." bytes\n";
             usleep(100000);
         }
         fclose($conn);

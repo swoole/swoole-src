@@ -1,4 +1,5 @@
 <?php
+
 function test()
 {
     test_sleep();
@@ -19,10 +20,11 @@ $server->set([
     'request_slowlog_file' => '/tmp/trace.log',
 ]);
 
-$server->on('Receive', function($serv, $fd, $reactor_id, $data) {
-    if (trim($data) == 'task') {
+$server->on('Receive', function ($serv, $fd, $reactor_id, $data) {
+    if ('task' == trim($data)) {
         echo "task\n";
         $serv->task($fd);
+
         return;
     }
     test();
@@ -30,7 +32,7 @@ $server->on('Receive', function($serv, $fd, $reactor_id, $data) {
 });
 
 $server->on('Task', function (swoole_server $serv, $task_id, $from_id, $data) {
-    echo "#{$serv->worker_id}\tonTask: [PID={$serv->worker_pid}]: task_id=$task_id, data_len=".strlen($data).".".PHP_EOL;
+    echo "#{$serv->worker_id}\tonTask: [PID={$serv->worker_pid}]: task_id=$task_id, data_len=".strlen($data).'.'.PHP_EOL;
     test();
     $serv->send($data, "Swoole: task\n");
 });

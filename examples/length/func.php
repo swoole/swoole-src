@@ -1,5 +1,6 @@
 <?php
-$serv = new swoole_server("127.0.0.1", 9501);
+
+$serv = new swoole_server('127.0.0.1', 9501);
 
 $serv->set(array(
     'open_length_check' => true,
@@ -12,15 +13,15 @@ $serv->set(array(
         if ($length <= 0) {
             return -1;
         }
+
         return $length + 8;
     },
     'package_max_length' => 2000000,  //协议最大长度
 ));
 
-$serv->on('receive', function (swoole_server $serv, $fd, $from_id, $data)
-{
+$serv->on('receive', function (swoole_server $serv, $fd, $from_id, $data) {
     var_dump($data);
-    echo "#{$serv->worker_id}>> received length=" . strlen($data) . "\n";
+    echo "#{$serv->worker_id}>> received length=".strlen($data)."\n";
 });
 
 $serv->start();

@@ -1,12 +1,13 @@
 <?php
+
 function timeout($tm)
 {
-    echo time() . ": Timeout #$tm\n";
+    echo time().": Timeout #$tm\n";
 }
 $timer1 = swoole_timer_tick(1000, 'timeout', 1);
 $timer2 = swoole_timer_tick(2000, 'timeout', 2);
 
-swoole_timer_tick(3000, function($id) {
+swoole_timer_tick(3000, function ($id) {
     timeout($id);
     //swoole_timer_clear($id);
     static $remove = true;

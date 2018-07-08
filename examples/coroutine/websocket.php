@@ -1,10 +1,10 @@
 <?php
-$ws = new swoole_websocket_server("127.0.0.1", 9501, SWOOLE_BASE);
+
+$ws = new swoole_websocket_server('127.0.0.1', 9501, SWOOLE_BASE);
 $ws->set(array(
-    'log_file' => '/dev/null'
+    'log_file' => '/dev/null',
 ));
-$ws->on("WorkerStart", function (\swoole_server $serv) {
-    
+$ws->on('WorkerStart', function (\swoole_server $serv) {
 });
 
 $ws->on('open', function ($serv, swoole_http_request $request) {

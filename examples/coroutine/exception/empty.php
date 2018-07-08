@@ -1,5 +1,6 @@
 <?php
-go(function () {    
+
+go(function () {
     try {
         echo "before\n";
         co::sleep(0.5);
@@ -12,5 +13,3 @@ go(function () {
     }
 });
 echo "exec file end\n";
-    
-    

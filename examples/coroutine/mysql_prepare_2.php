@@ -1,8 +1,7 @@
 <?php
 
 
-go(function() {
-
+go(function () {
     $db = new Co\MySQL();
     $server = array(
         'host' => '127.0.0.1',
@@ -20,6 +19,4 @@ go(function() {
     echo "execute\n";
     $ret1 = $stmt1->execute([]);
     var_dump($ret1);
-
 });
-

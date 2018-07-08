@@ -1,5 +1,6 @@
 <?php
-$serv = new swoole_http_server("127.0.0.1", 9500);
+
+$serv = new swoole_http_server('127.0.0.1', 9500);
 
 $serv->set(array(
     'worker_num' => 100,
@@ -12,14 +13,12 @@ $serv->set(array(
 function my_onRequest_sync($req, $resp)
 {
     global $serv;
-    $result = $serv->taskwait("show tables");
-    if ($result !== false)
-    {
+    $result = $serv->taskwait('show tables');
+    if (false !== $result) {
         $resp->end(var_export($result['data'], true));
+
         return;
-    }
-    else
-    {
+    } else {
         $resp->status(500);
         $resp->end("Server Error, Timeout\n");
     }
@@ -28,27 +27,26 @@ function my_onRequest_sync($req, $resp)
 function my_onTask($serv, $task_id, $from_id, $sql)
 {
     static $link = null;
-    if ($link == null)
-    {
-        $link = new PDO($serv->setting['db_uri'], $serv->setting['db_user'], $serv->setting['db_passwd']);;
-        if (!$link)
-        {
+    if (null == $link) {
+        $link = new PDO($serv->setting['db_uri'], $serv->setting['db_user'], $serv->setting['db_passwd']);
+        if (!$link) {
             $link = null;
-            return array("data" => '', 'error' => "connect database failed.");
+
+            return array('data' => '', 'error' => 'connect database failed.');
         }
     }
     $result = $link->query($sql);
-    if (!$result)
-    {
-        return array("data" => '', 'error' => "query error");
+    if (!$result) {
+        return array('data' => '', 'error' => 'query error');
     }
     $data = $result->fetchAll();
-    return array("data" => $data);
+
+    return array('data' => $data);
 }
 
 function my_onFinish($serv, $data)
 {
-    echo "AsyncTask Finish:Connect.PID=" . posix_getpid() . PHP_EOL;
+    echo 'AsyncTask Finish:Connect.PID='.posix_getpid().PHP_EOL;
 }
 
 $serv->on('Request', 'my_onRequest_sync');

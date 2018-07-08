@@ -1,4 +1,5 @@
 <?php
+
 use Swoole\Async;
 
 //Async::set(array('aio_mode' => SWOOLE_AIO_LINUX));

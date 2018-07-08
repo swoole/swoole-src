@@ -1,6 +1,8 @@
 <?php
-ini_set("memory_limit","512M");
+
+ini_set('memory_limit', '512M');
 use Swoole\Coroutine as co;
+
 class Server
 {
     public $server;
@@ -8,7 +10,7 @@ class Server
 
     public function run()
     {
-        $this->server = new Swoole\Http\Server("0.0.0.0", 9502, SWOOLE_BASE);
+        $this->server = new Swoole\Http\Server('0.0.0.0', 9502, SWOOLE_BASE);
         $this->server->set([
             'worker_num' => 1,
         ]);

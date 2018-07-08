@@ -1,4 +1,5 @@
 <?php
+
 $an = new Swoole\Atomic(100);
 
 $an->add(12);

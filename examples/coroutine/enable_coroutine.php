@@ -10,17 +10,17 @@ $http->set([
 ]);
 
 $http->on('workerStart', function () {
-    echo "Coroutine is " . (Co::getuid() > 0 ? 'enable' : 'disable')."\n";
+    echo 'Coroutine is '.(Co::getuid() > 0 ? 'enable' : 'disable')."\n";
 });
 
-$http->on("request", function (Request $request, Response $response) {
-    $response->header("Content-Type", "text/plain");
-    if ($request->server['request_uri'] == '/co') {
+$http->on('request', function (Request $request, Response $response) {
+    $response->header('Content-Type', 'text/plain');
+    if ('/co' == $request->server['request_uri']) {
         go(function () use ($response) {
-            $response->end("Hello Coroutine #" . Co::getuid());
+            $response->end('Hello Coroutine #'.Co::getuid());
         });
     } else {
-        $response->end("Hello Swoole #" . Co::getuid());
+        $response->end('Hello Swoole #'.Co::getuid());
     }
 });
 

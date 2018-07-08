@@ -1,4 +1,5 @@
 <?php
+
 class Server
 {
     public $server;
@@ -7,7 +8,7 @@ class Server
 
     public function run()
     {
-        $this->server = new Swoole\Http\Server("0.0.0.0", 9501, SWOOLE_BASE);
+        $this->server = new Swoole\Http\Server('0.0.0.0', 9501, SWOOLE_BASE);
         $this->server->set([
             'worker_num' => 1,
         ]);
@@ -19,7 +20,7 @@ class Server
         $this->server->start();
     }
 
-    function log($msg)
+    public function log($msg)
     {
         echo $msg."\n";
     }
@@ -44,20 +45,16 @@ class Server
     {
 //        $this->log("onRequest: fd=$request->fd");
 
-        if (empty($this->redisPool[$request->fd]))
-        {
+        if (empty($this->redisPool[$request->fd])) {
             $redis = new Swoole\Coroutine\Redis();
             $redis->connect('127.0.0.1', 6379);
             $this->redisPool[$request->fd] = $redis;
-        }
-        else
-        {
+        } else {
             $redis = $this->redisPool[$request->fd];
         }
         $ret = $redis->get('key');
 
-        if (empty($this->mysqlPool[$request->fd]))
-        {
+        if (empty($this->mysqlPool[$request->fd])) {
             $mysql = new Swoole\Coroutine\MySQL();
             $mysql->connect([
                 'host' => '127.0.0.1',
@@ -66,19 +63,14 @@ class Server
                 'password' => 'root',
                 'database' => 'test',
             ]);
-        }
-        else
-        {
+        } else {
             $mysql = $this->mysqlPool[$request->fd];
         }
 
         $ret2 = $mysql->query('show tables');
-        $response->end('redis value=' . $ret.', mysql talbes='.var_export($ret2, true));
+        $response->end('redis value='.$ret.', mysql talbes='.var_export($ret2, true));
     }
 }
 
 $server = new Server();
 $server->run();
-
-
-

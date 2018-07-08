@@ -1,4 +1,5 @@
 <?php
+
 class DBServer
 {
     protected $pool_size = 20;
@@ -12,9 +13,9 @@ class DBServer
      */
     protected $serv;
 
-    function run()
+    public function run()
     {
-        $serv = new swoole_server("127.0.0.1", 9509);
+        $serv = new swoole_server('127.0.0.1', 9509);
         $serv->set(array(
             'worker_num' => 1,
             'max_request' => 0,
@@ -27,11 +28,11 @@ class DBServer
         $serv->start();
     }
 
-    function onStart($serv)
+    public function onStart($serv)
     {
         $this->serv = $serv;
-        for ($i = 0; $i < $this->pool_size; $i++) {
-            $db = new mysqli;
+        for ($i = 0; $i < $this->pool_size; ++$i) {
+            $db = new mysqli();
             $db->connect('127.0.0.1', 'root', 'root', 'www4swoole');
             $db_sock = swoole_get_mysqli_sock($db);
             swoole_event_add($db_sock, array($this, 'onSQLReady'));
@@ -41,19 +42,19 @@ class DBServer
                 'fd' => 0,
             );
         }
-        echo "Server: start.Swoole version is [" . SWOOLE_VERSION . "]\n";
+        echo 'Server: start.Swoole version is ['.SWOOLE_VERSION."]\n";
     }
 
-    function onSQLReady($db_sock)
+    public function onSQLReady($db_sock)
     {
         $db_res = $this->busy_pool[$db_sock];
         $mysqli = $db_res['mysqli'];
         $fd = $db_res['fd'];
 
-        echo __METHOD__ . ": client_sock=$fd|db_sock=$db_sock\n";
+        echo __METHOD__.": client_sock=$fd|db_sock=$db_sock\n";
 
         if ($result = $mysqli->reap_async_query()) {
-            $ret = var_export($result->fetch_all(MYSQLI_ASSOC), true) . "\n";
+            $ret = var_export($result->fetch_all(MYSQLI_ASSOC), true)."\n";
             $this->serv->send($fd, $ret);
             if (is_object($result)) {
                 mysqli_free_result($result);
@@ -68,19 +69,19 @@ class DBServer
         //这里可以取出一个等待请求
         if (count($this->wait_queue) > 0) {
             $idle_n = count($this->idle_pool);
-            for ($i = 0; $i < $idle_n; $i++) {
+            for ($i = 0; $i < $idle_n; ++$i) {
                 $req = array_shift($this->wait_queue);
                 $this->doQuery($req['fd'], $req['sql']);
             }
         }
     }
 
-    function onReceive($serv, $fd, $from_id, $data)
+    public function onReceive($serv, $fd, $from_id, $data)
     {
-	echo "Received: $data\n";
+        echo "Received: $data\n";
         //没有空闲的数据库连接
-        
-	if (count($this->idle_pool) == 0) {
+
+        if (0 == count($this->idle_pool)) {
             //等待队列未满
             if (count($this->wait_queue) < $this->wait_queue_max) {
                 $this->wait_queue[] = array(
@@ -88,14 +89,14 @@ class DBServer
                     'sql' => $data,
                 );
             } else {
-                $this->serv->send($fd, "request too many, Please try again later.");
+                $this->serv->send($fd, 'request too many, Please try again later.');
             }
         } else {
             $this->doQuery($fd, $data);
         }
     }
 
-    function doQuery($fd, $sql)
+    public function doQuery($fd, $sql)
     {
         //从空闲池中移除
         $db = array_pop($this->idle_pool);
@@ -104,13 +105,15 @@ class DBServer
          */
         $mysqli = $db['mysqli'];
 
-        for ($i = 0; $i < 2; $i++) {
+        for ($i = 0; $i < 2; ++$i) {
             $result = $mysqli->query($sql, MYSQLI_ASYNC);
-            if ($result === false) {
-                if ($mysqli->errno == 2013 or $mysqli->errno == 2006) {
+            if (false === $result) {
+                if (2013 == $mysqli->errno or 2006 == $mysqli->errno) {
                     $mysqli->close();
                     $r = $mysqli->connect();
-                    if ($r === true) continue;
+                    if (true === $r) {
+                        continue;
+                    }
                 }
             }
             break;

@@ -1,4 +1,5 @@
 <?php
+
 $c1 = new chan();
 $c2 = new chan();
 function fibonacci($c1, $c2)
@@ -6,7 +7,7 @@ function fibonacci($c1, $c2)
     go(function () use ($c1, $c2) {
         $a = 0;
         $b = 1;
-        while(1) {
+        while (1) {
             $read_list = [$c2];
             $write_list = [$c1];
             $result = chan::select($read_list, $write_list, 2);
@@ -18,8 +19,9 @@ function fibonacci($c1, $c2)
             }
             if ($read_list) {
                 $ret = $read_list[0]->pop();
-                if ($ret === 1) {
+                if (1 === $ret) {
                     echo "quit\n";
+
                     return 1;
                 }
             }
@@ -28,7 +30,7 @@ function fibonacci($c1, $c2)
 }
 $num = 10;
 go(function () use ($c1, $c2, $num) {
-    for ($i = 0; $i < $num; $i ++) {
+    for ($i = 0; $i < $num; ++$i) {
         $ret = $c1->pop();
         echo "fibonacci @$i $ret\n";
     }

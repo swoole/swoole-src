@@ -1,4 +1,5 @@
 <?php
+
 sleep(1);
 echo "sleep 1\n";
 Swoole\Runtime::enableStrictMode();

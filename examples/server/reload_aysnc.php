@@ -1,5 +1,6 @@
 <?php
-$serv = new swoole_server("0.0.0.0", 9501);
+
+$serv = new swoole_server('0.0.0.0', 9501);
 
 $serv->set([
     'worker_num' => 4,
@@ -22,7 +23,7 @@ $serv->on('WorkerStart', function ($serv, $wid) {
 });
 
 $serv->on('receive', function (swoole_server $serv, $fd, $reactor_id, $data) {
-	echo "[#".$serv->worker_id."]\tClient[$fd]: $data\n";
+    echo '[#'.$serv->worker_id."]\tClient[$fd]: $data\n";
 });
 
 $serv->on('Task', function (swoole_server $serv, $task_id, $from_id, $data) {
@@ -40,7 +41,7 @@ $serv->on('WorkerStop', function ($serv, $wid) {
 });
 
 $serv->on('WorkerExit', function ($serv, $wid) {
-    echo "WorkerExit, PID=".posix_getpid()."\t$wid\n";
+    echo 'WorkerExit, PID='.posix_getpid()."\t$wid\n";
     swoole_event::del(STDIN);
 });
 

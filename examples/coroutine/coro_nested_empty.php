@@ -1,5 +1,6 @@
 <?php
-require __DIR__ . "/coro_include.php";
+
+require __DIR__.'/coro_include.php';
 function test()
 {
     echo "before coro\n";

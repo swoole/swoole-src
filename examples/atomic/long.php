@@ -1,5 +1,6 @@
 <?php
-$l = new Swoole\Atomic\Long( -2 ** 36);
+
+$l = new Swoole\Atomic\Long(-2 ** 36);
 echo $l->get()."\n";
 echo $l->add(20)."\n";
 echo $l->sub(20)."\n";

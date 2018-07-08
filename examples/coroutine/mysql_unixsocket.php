@@ -1,12 +1,12 @@
 <?php
 
-go(function(){
-    $db = new Swoole\Coroutine\Mysql;
+go(function () {
+    $db = new Swoole\Coroutine\Mysql();
     $server = [
-        'host'     => 'unix:/tmp/mysql.sock',
-        'user'     => 'root',
+        'host' => 'unix:/tmp/mysql.sock',
+        'user' => 'root',
         'password' => 'root',
-        'database' => 'test'
+        'database' => 'test',
     ];
     $db->connect($server);
     $stmt = $db->prepare('SELECT * FROM `user` WHERE id=?');

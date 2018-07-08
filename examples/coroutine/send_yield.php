@@ -1,5 +1,6 @@
 <?php
-$serv = new Swoole\Server("0.0.0.0", 9501, SWOOLE_BASE);
+
+$serv = new Swoole\Server('0.0.0.0', 9501, SWOOLE_BASE);
 $serv->set(array(
     'worker_num' => 1,
     'send_yield' => true,
@@ -12,10 +13,9 @@ $serv->on('connect', function ($serv, $fd) {
 $serv->on('receive', function ($serv, $fd, $from_id, $data) {
     $length = 0;
     $size = 1024 * 128;
-    while (true)
-    {
+    while (true) {
         $ret = $serv->send($fd, str_repeat('A', $size));
-        if ($ret == false) {
+        if (false == $ret) {
             break;
         }
         $length += $size;

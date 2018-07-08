@@ -1,4 +1,5 @@
 <?php
+
 use Swoole\Timer;
 use Swoole\Process;
 use Swoole\Channel;
@@ -8,15 +9,11 @@ $chan = new Channel(1024 * 256);
 $worker_num = 4;
 $workers = array();
 
-for ($i = 0; $i < $worker_num; $i++)
-{
-    $process = new Process(function ($worker) use ($chan, $i)
-    {
-        while (true)
-        {
+for ($i = 0; $i < $worker_num; ++$i) {
+    $process = new Process(function ($worker) use ($chan, $i) {
+        while (true) {
             $data = $chan->pop();
-            if (empty($data))
-            {
+            if (empty($data)) {
                 usleep(200000);
                 continue;
             }
@@ -28,8 +25,7 @@ for ($i = 0; $i < $worker_num; $i++)
     $workers[$pid] = $process;
 }
 
-Timer::tick(2000, function () use ($chan)
-{
+Timer::tick(2000, function () use ($chan) {
     static $index = 0;
-    $chan->push("hello-" . $index++);
+    $chan->push('hello-'.$index++);
 });

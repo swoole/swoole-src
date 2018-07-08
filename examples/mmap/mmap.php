@@ -1,4 +1,5 @@
 <?php
+
 $file = '/tmp/data';
 $size = 8192;
 

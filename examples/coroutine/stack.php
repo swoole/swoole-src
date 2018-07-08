@@ -1,5 +1,6 @@
 <?php
-co::set(['stack_size' => 8192*4]);
+
+co::set(['stack_size' => 8192 * 4]);
 
 function test($n)
 {
@@ -10,7 +11,7 @@ function test($n)
     static $i;
 
     usleep(100000);
-    echo "index=".($i++)."\n";
+    echo 'index='.($i++)."\n";
 
     return test($n + $a + $b + $c + $d);
 }

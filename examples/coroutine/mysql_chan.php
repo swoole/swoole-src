@@ -5,7 +5,6 @@ use Swoole\Coroutine as co;
 $chan = new chan(4);
 
 go(function () use ($chan) {
-
     $db = new co\MySQL();
     $server = array(
         'host' => '127.0.0.1',
