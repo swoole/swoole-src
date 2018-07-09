@@ -1,4 +1,23 @@
 <?php
+
+function var_dump_return(...$data): string
+{
+    ob_start();
+    foreach ($data as $d){
+        var_dump($d);
+    }
+    return ob_get_clean();
+}
+
+function get_safe_random(int $length = 32, $original = false): string
+{
+    $raw = base64_encode(openssl_random_pseudo_bytes($original ? $length : $length * 2));
+    if (!$original) {
+        $raw = substr(str_replace(['/', '+', '='], '', $raw), 0, $length);
+    }
+    return $raw;
+}
+
 function swoole_php_fork($func, $out = false) {
 	$process = new swoole_process($func, $out);
 	$pid = $process->start();
@@ -11,7 +30,7 @@ function swoole_php_fork($func, $out = false) {
         },
         $pid, $process
     );
-	
+
 	return $process;
 }
 
@@ -62,7 +81,6 @@ function makeTcpClient($host, $port, callable $onConnect = null, callable $onRec
     });
     $cli->connect($host, $port);
 }
-
 
 function opcode_encode($op, $data)
 {
