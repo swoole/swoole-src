@@ -64,3 +64,5 @@ define("IP_BAIDU", "180.97.33.107");
 
 define('HTTP_PROXY_HOST', '127.0.0.1');
 define('HTTP_PROXY_PORT', 8888);
+
+define('TEST_LOG_FILE', '/tmp/swoole.log');
