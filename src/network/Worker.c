@@ -451,6 +451,17 @@ void swWorker_onStart(swServer *serv)
      */
     swWorker *worker;
 
+    /**
+     * call internal serv hooks
+     */
+    if (SwooleG.serv->hooks[SW_SERVER_HOOK_WORKER_START])
+    {
+        void *hook_args[2];
+        hook_args[0] = serv;
+        hook_args[1] = (void *)(uintptr_t)SwooleWG.id;
+        swServer_call_hook(serv, SW_SERVER_HOOK_WORKER_START, hook_args);
+    }
+
     if (SwooleWG.id >= serv->worker_num)
     {
         SwooleG.process_type = SW_PROCESS_TASKWORKER;
