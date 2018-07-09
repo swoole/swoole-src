@@ -2,7 +2,7 @@
 
 clear_php()
 {
-  ps -A | grep php | grep -v phpstorm | grep -v php-fpm | awk '{print $1}' | xargs kill -9 > /dev/null 2>&1
+  ps -A | grep \.php$ | grep -v phpstorm | grep -v php-fpm | awk '{print $1}' | xargs kill -9 > /dev/null 2>&1
 }
 
 clear_php
