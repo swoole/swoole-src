@@ -77,4 +77,5 @@ tests/.idea
 cmake-build-debug/
 *.cbp
 /.vscode
+/configure.in
 /configure.ac
