@@ -143,7 +143,7 @@ static inline char* http_trim_double_quote(char *ptr, int *len)
     //ltrim('"')
     for (i = 0; i < *len; i++)
     {
-        if (tmp[i] == '"')
+        if (tmp[0] == '"')
         {
             (*len)--;
             tmp++;
