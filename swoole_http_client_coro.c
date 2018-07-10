@@ -392,14 +392,6 @@ static void http_client_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
     swTraceLog(SW_TRACE_HTTP_CLIENT, "recv timeout, object handle=%d.", sw_get_object_handle(zobject));
 
     http_client *http = swoole_get_object(zobject);
-
-    if (http->state == HTTP_CLIENT_STATE_BUSY)
-    {
-        if (http->timer)
-        {
-            swTimer_del(&SwooleG.timer, http->timer);
-        }
-    }
     http->timer = NULL;
 
     //define time out RETURN ERROR  110
