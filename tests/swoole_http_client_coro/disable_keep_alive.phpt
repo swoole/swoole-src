@@ -21,7 +21,7 @@ go(function () {
 
     // failed clear
     $cli->set([
-        'timeout' => 0.01
+        'timeout' => 0.001
     ]);
     assert($cli->get('/contract.shtml') === false);
     assert(empty($cli->headers));
