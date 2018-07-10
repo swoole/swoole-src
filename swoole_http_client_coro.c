@@ -382,10 +382,6 @@ static void http_client_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
 
     php_context *ctx = tnode->data;
 
-    SW_MAKE_STD_ZVAL(zdata);
-    //return false
-    ZVAL_BOOL(zdata, 0);
-
 #if PHP_MAJOR_VERSION < 7
     zval *zobject = (zval *)ctx->coro_params;
 #else
@@ -396,17 +392,29 @@ static void http_client_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
     swTraceLog(SW_TRACE_HTTP_CLIENT, "recv timeout, object handle=%d.", sw_get_object_handle(zobject));
 
     http_client *http = swoole_get_object(zobject);
-    http->timer = NULL;
 
-    if (http->cli && http->cli->socket && !http->cli->socket->closed)
+    if (http->state == HTTP_CLIENT_STATE_BUSY)
     {
-        http->cli->close(http->cli);
+        if (http->timer)
+        {
+            swTimer_del(&SwooleG.timer, http->timer);
+        }
     }
+    http->timer = NULL;
 
     //define time out RETURN ERROR  110
     zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), ETIMEDOUT TSRMLS_CC);
     zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("statusCode"), -2 TSRMLS_CC);
 
+    if (http->cli && http->cli->socket && !http->cli->socket->closed)
+    {
+        http->cli->close(http->cli);
+        return;
+    }
+
+    SW_MAKE_STD_ZVAL(zdata);
+    //return false
+    ZVAL_BOOL(zdata, 0);
     http_client_property *hcc = swoole_get_property(zobject, http_client_coro_property_request);
     if (hcc->defer && hcc->defer_status != HTTP_CLIENT_STATE_DEFER_WAIT)
     {
