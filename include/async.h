@@ -76,6 +76,7 @@ typedef struct
 extern swAsyncIO SwooleAIO;
 extern swPipe swoole_aio_pipe;
 
+void swClient_setfd_onResolveCompleted(swAio_event *event);
 void swAio_callback_test(swAio_event *aio_event);
 int swAio_init(void);
 void swAio_free(void);
