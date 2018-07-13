@@ -302,7 +302,7 @@ static PHP_METHOD(swoole_process, __construct)
 
     if (pipe_type > 0)
     {
-        swPipe *_pipe = emalloc(sizeof(swWorker));
+        swPipe *_pipe = emalloc(sizeof(swPipe));
         int socket_type = pipe_type == 1 ? SOCK_STREAM : SOCK_DGRAM;
         if (swPipeUnsock_create(_pipe, 1, socket_type) < 0)
         {
