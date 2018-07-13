@@ -21,7 +21,6 @@
 
 #include "swoole_coroutine.h"
 #include "ext/standard/basic_functions.h"
-#include <setjmp.h>
 
 enum client_property
 {

@@ -20,13 +20,10 @@
 
 #include "ext/standard/file.h"
 
-
 #ifdef SW_COROUTINE
 #include "swoole_coroutine.h"
 #include "ext/standard/basic_functions.h"
-#include <setjmp.h>
 #endif
-
 
 typedef struct
 {

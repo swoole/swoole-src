@@ -21,7 +21,6 @@
 #ifdef SW_COROUTINE
 #include "swoole_http_client.h"
 #include "swoole_coroutine.h"
-#include <setjmp.h>
 
 enum http_client_property
 {
