@@ -1,5 +1,5 @@
 --TEST--
-recv_timeout: timeout in recv
+swoole_http_client_coro: timeout in recv
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

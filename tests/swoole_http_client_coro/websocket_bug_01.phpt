@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: websocket handshake + frame
+swoole_http_client_coro: websocket handshake + frame
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
