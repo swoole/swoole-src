@@ -393,19 +393,11 @@ static PHP_METHOD(swoole_channel_coro, __destruct)
 
     channel *chan = (channel *) swoole_get_object(getThis());
     chan->closed = true;
-
     swDebug("destruct, producer_count=%d, consumer_count=%d", chan->producer_list->num, chan->consumer_list->num);
-
-    delete chan->data_queue;
-    swoole_set_object(getThis(), NULL);
-    if (chan->producer_list->num > 0)
-    {
-        swoole_php_fatal_error(E_ERROR,
-                "there are producers hanging up,dead lock happens.");
-    }
     sw_free(chan->consumer_list);
     sw_free(chan->producer_list);
-
+    delete chan->data_queue;
+    swoole_set_object(getThis(), NULL);
 }
 
 static PHP_METHOD(swoole_channel_coro, push)
