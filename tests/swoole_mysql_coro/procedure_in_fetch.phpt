@@ -1,5 +1,5 @@
 --TEST--
-procedure: procedure in fetch mode
+swoole_coroutine: procedure in fetch mode
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

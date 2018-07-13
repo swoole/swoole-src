@@ -1,5 +1,5 @@
 --TEST--
-ob_main: main output global
+swoole_coroutine: main output global
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--

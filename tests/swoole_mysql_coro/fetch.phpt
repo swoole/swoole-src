@@ -1,5 +1,5 @@
 --TEST--
-fetch: use fetch to get data
+swoole_coroutine: use fetch to get data
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
