@@ -376,8 +376,6 @@ static void http_client_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
-    zval *zdata;
-    zval *retval = NULL;
 
     php_context *ctx = tnode->data;
 
@@ -397,36 +395,9 @@ static void http_client_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
     zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), ETIMEDOUT TSRMLS_CC);
     zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("statusCode"), -2 TSRMLS_CC);
 
-    if (http->cli && http->cli->socket && !http->cli->socket->closed)
-    {
-        http->cli->close(http->cli);
-        return;
-    }
-
-    SW_MAKE_STD_ZVAL(zdata);
-    //return false
-    ZVAL_BOOL(zdata, 0);
-    http_client_property *hcc = swoole_get_property(zobject, http_client_coro_property_request);
-    if (hcc->defer && hcc->defer_status != HTTP_CLIENT_STATE_DEFER_WAIT)
-    {
-        hcc->defer_status = HTTP_CLIENT_STATE_DEFER_DONE;
-        hcc->defer_result = 0;
-        goto free_zdata;
-    }
-
-    hcc->defer_status = HTTP_CLIENT_STATE_DEFER_INIT;
-    hcc->cid = 0;
-    int ret = coro_resume(ctx, zdata, &retval);
-    if (ret > 0)
-    {
-        goto free_zdata;
-    }
-    if (retval != NULL)
-    {
-        sw_zval_ptr_dtor(&retval);
-    }
-    free_zdata:
-    sw_zval_ptr_dtor(&zdata);
+    http->cli->socket->active = 1; // always trigger onClose
+    http->state = HTTP_CLIENT_STATE_BUSY; // to resume in onClose
+    http->cli->close(http->cli);
 }
 
 static void http_client_coro_onSendTimeout(swTimer *timer, swTimer_node *tnode)
