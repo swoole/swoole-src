@@ -1,4 +1,5 @@
 <?php
+
 error_reporting(E_ALL);
 ini_set('display_errors', '1');
 ini_set('memory_limit', '-1');
@@ -10,7 +11,6 @@ class HttpServ
 
     public function __construct()
     {
-
     }
 
     public function set($setting)
@@ -20,62 +20,55 @@ class HttpServ
 
     public function init()
     {
-
         $this->http = new swoole_http_server($this->setting['host'], $this->setting['port'], SWOOLE_BASE);
         $this->http->set($this->setting);
         //register_shutdown_function('handleFatal');
-        $this->http->on('request', function ($request, $response)
-        {
-            if ($request->server['request_uri'] == '/favicon.ico')
-            {
+        $this->http->on('request', function ($request, $response) {
+            if ('/favicon.ico' == $request->server['request_uri']) {
                 $response->status(404);
                 $response->end('Not Found');
+
                 return;
             }
             $this->getResult($response);
         });
     }
 
-    function getResult2($response)
+    public function getResult2($response)
     {
         $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
-        $client->on('connect', function ($cli)
-        {
+        $client->on('connect', function ($cli) {
             echo "cli1 connect\n";
             $cli->send("hello world\n");
         });
 
-        $client->on('Receive', function ($cli, $data) use ($response)
-        {
+        $client->on('Receive', function ($cli, $data) use ($response) {
             echo "cli1 receive\n";
             $response->end($data);
             $cli->close();
         });
 
-        $client->on("error", function ($cli)  use ($response)
-        {
+        $client->on('error', function ($cli) use ($response) {
             echo "cli1 error\n";
             $response->end("empty\n");
         });
 
-        $client->on("close", function ($cli)
-        {
+        $client->on('close', function ($cli) {
             echo "cli1 close\n";
         });
         $client->connect('127.0.0.1', 9501);
     }
 
-    function getResult5($response)
+    public function getResult5($response)
     {
-        swoole_async_dns_lookup("weather.gtimg.cn", function ($host, $ip) use ($response)
-        {
+        swoole_async_dns_lookup('weather.gtimg.cn', function ($host, $ip) use ($response) {
             $response->header('Content-Type', 'application/json');
             $response->write(json_encode(array($host => $ip)));
             $response->end();
         });
     }
 
-    function getResult3($response)
+    public function getResult3($response)
     {
         $cityId = '01010101';
 //        swoole_async_dns_lookup("weather.gtimg.cn", function ($host, $ip) use ($cityId, $response)
@@ -86,67 +79,58 @@ class HttpServ
 //            }
 //            else
 //            {
-                $ip = '14.18.245.236';
-                $httpcli = new swoole_http_client($ip, 80);
-                //$httpcli->on("close", function($httpcli){});
-                $url = "/qqindex/" . $cityId . ".js?_ref=14";
+        $ip = '14.18.245.236';
+        $httpcli = new swoole_http_client($ip, 80);
+        //$httpcli->on("close", function($httpcli){});
+        $url = '/qqindex/'.$cityId.'.js?_ref=14';
 
-                $httpcli->get($url, function ($hcli) use ($response)
-                {
-                    //echo "get content is" . $hcli->body;
-                    $retWeather = iconv("GBK", 'UTF-8', $hcli->body);
-                    //echo "ret:" . $retWeather;
-                    $hcli->close();
+        $httpcli->get($url, function ($hcli) use ($response) {
+            //echo "get content is" . $hcli->body;
+            $retWeather = iconv('GBK', 'UTF-8', $hcli->body);
+            //echo "ret:" . $retWeather;
+            $hcli->close();
 
-                    $response->header('Content-Type', 'application/json');
-                    $response->write(json_encode($retWeather));
-                    $response->end();
-                });
+            $response->header('Content-Type', 'application/json');
+            $response->write(json_encode($retWeather));
+            $response->end();
+        });
 //            }
 //        });
     }
 
-    function getResult($response)
+    public function getResult($response)
     {
         $client = new swoole_redis();
-        $ip = "127.0.0.1";
+        $ip = '127.0.0.1';
         $port = 6379;
 
-        $client->connect($ip, $port, function (swoole_redis $client, $result) use ($response)
-        {
-            if ($result === false)
-            {
+        $client->connect($ip, $port, function (swoole_redis $client, $result) use ($response) {
+            if (false === $result) {
                 echo "connect to redis server failed\n";
+
                 return false;
             }
-            $client->GET('test', function (swoole_redis $client, $result) use ($response)
-            {
+            $client->GET('test', function (swoole_redis $client, $result) use ($response) {
                 //echo "get  result is :" . $result;
                 $client->close();
                 $cityId = '01010101';
-                swoole_async_dns_lookup("weather.gtimg.cn", function ($host, $ip) use ($cityId, $response)
-                {
-                    if (empty($ip))
-                    {
+                swoole_async_dns_lookup('weather.gtimg.cn', function ($host, $ip) use ($cityId, $response) {
+                    if (empty($ip)) {
                         return false;
-                    }
-                    else
-                    {
+                    } else {
                         $httpcli = new swoole_http_client($ip, 80);
                         //$httpcli->on("close", function($httpcli){});
-                        $url = "/qqindex/" . $cityId . ".js?_ref=14";
+                        $url = '/qqindex/'.$cityId.'.js?_ref=14';
 
-                        $httpcli->get($url, function ($hcli) use ($response)
-                        {
+                        $httpcli->get($url, function ($hcli) use ($response) {
                             //echo "get content is" . $hcli->body;
-                            $retWeather = iconv("GBK", 'UTF-8', $hcli->body);
+                            $retWeather = iconv('GBK', 'UTF-8', $hcli->body);
                             //echo "ret:" . $retWeather;
                             $hcli->close();
 
                             $response->header('Content-Type', 'application/json');
                             $response->write(json_encode($retWeather));
                             $response->end();
-
                         });
                     }
                 });
@@ -154,21 +138,19 @@ class HttpServ
         });
     }
 
-    function getResult4($response)
+    public function getResult4($response)
     {
         $client = new swoole_redis();
-        $ip = "127.0.0.1";
+        $ip = '127.0.0.1';
         $port = 6379;
 
-        $client->connect($ip, $port, function (swoole_redis $client, $result) use ($response)
-        {
-            if ($result === false)
-            {
+        $client->connect($ip, $port, function (swoole_redis $client, $result) use ($response) {
+            if (false === $result) {
                 echo "connect to redis server failed\n";
+
                 return false;
             }
-            $client->GET('key', function (swoole_redis $client, $result) use ($response)
-            {
+            $client->GET('key', function (swoole_redis $client, $result) use ($response) {
                 //echo "get  result is :" . $result;
                 $response->header('Content-Type', 'application/json');
                 $response->end($result);
@@ -183,9 +165,7 @@ class HttpServ
     }
 }
 
-
 $setting = array(
-
     'host' => '127.0.0.1',
     'port' => 9100,
     'worker_num' => 1,
@@ -194,7 +174,6 @@ $setting = array(
     'daemonize' => 0,
     //'log_file' => './logs/test_udp_server.log',
 );
-
 
 $server = new HttpServ();
 $server->set($setting);

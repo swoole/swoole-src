@@ -1,4 +1,5 @@
 <?php
+
 $atomic = new swoole_atomic(123);
 echo $atomic->add(12)."\n";
 echo $atomic->sub(11)."\n";

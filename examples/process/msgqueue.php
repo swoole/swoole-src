@@ -1,9 +1,9 @@
 <?php
+
 $workers = [];
 $worker_num = 2;
 
-for($i = 0; $i < $worker_num; $i++)
-{
+for ($i = 0; $i < $worker_num; ++$i) {
     $process = new swoole_process('callback_function', false, false);
     $process->useQueue();
     $pid = $process->start();
@@ -15,8 +15,7 @@ function callback_function(swoole_process $worker)
 {
     //echo "Worker: start. PID=".$worker->pid."\n";
     //recv data from master
-    while(true)
-    {
+    while (true) {
         $recv = $worker->pop();
         echo "From Master: $recv\n";
     }
@@ -25,10 +24,9 @@ function callback_function(swoole_process $worker)
     $worker->exit(0);
 }
 
-while(true)
-{
+while (true) {
     /**
-     * @var $process swoole_process
+     * @var swoole_process
      */
     $pid = array_rand($workers);
     $process = $workers[$pid];
@@ -36,10 +34,9 @@ while(true)
     sleep(1);
 }
 
-for($i = 0; $i < $worker_num; $i++)
-{
+for ($i = 0; $i < $worker_num; ++$i) {
     $ret = swoole_process::wait();
     $pid = $ret['pid'];
     unset($workers[$pid]);
-    echo "Worker Exit, PID=".$pid.PHP_EOL;
+    echo 'Worker Exit, PID='.$pid.PHP_EOL;
 }

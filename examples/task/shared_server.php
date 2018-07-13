@@ -1,5 +1,6 @@
 <?php
-$serv = new swoole_server("127.0.0.1", 9501);
+
+$serv = new swoole_server('127.0.0.1', 9501);
 
 $serv->set(array(
     'worker_num' => 1,
@@ -14,7 +15,7 @@ $serv->set(array(
 function my_onStart($serv)
 {
     echo "MasterPid={$serv->master_pid}|Manager_pid={$serv->manager_pid}\n";
-    echo "Server: start.Swoole version is [".SWOOLE_VERSION."]\n";
+    echo 'Server: start.Swoole version is ['.SWOOLE_VERSION."]\n";
     //$serv->addtimer(1000);
 }
 
@@ -59,27 +60,25 @@ function my_onWorkerStop($serv, $worker_id)
 function my_onReceive(swoole_server $serv, $fd, $from_id, $rdata)
 {
     $data = unserialize($rdata);
-    if (isset($data['cmd']))
-    {
-        switch ($data['cmd'])
-        {
+    if (isset($data['cmd'])) {
+        switch ($data['cmd']) {
             case 'get':
                 $s = microtime(true);
                 $res = $serv->taskwait($data, 0.5, 0);
-                echo "use " . ((microtime(true) - $s) * 1000) . "ms\n";
-                $serv->send($fd, PHP_EOL . "get " . $res['key'] . ": " . $res['val']);
+                echo 'use '.((microtime(true) - $s) * 1000)."ms\n";
+                $serv->send($fd, PHP_EOL.'get '.$res['key'].': '.$res['val']);
                 break;
-            case "set":
+            case 'set':
                 $serv->task($data, 0);
                 $serv->send($fd, "OK\n");
                 break;
-            case "del":
+            case 'del':
                 $serv->task($data, 0);
                 break;
-            case "reload":
+            case 'reload':
                 break;
             default:
-                echo "server:" . $data . PHP_EOL;
+                echo 'server:'.$data.PHP_EOL;
         }
     }
 }
@@ -87,39 +86,39 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $rdata)
 function my_onTask(swoole_server $serv, $task_id, $from_id, $data)
 {
     static $datas = array();
-    if (isset($data['cmd']))
-    {
+    if (isset($data['cmd'])) {
         switch ($data['cmd']) {
             case 'get':
                 $key = $data['key'];
-                $val = isset($datas[$key]) ? $datas[$key] : "";
-                $serv->finish(array('key'=>$key, 'val' => $val));
+                $val = isset($datas[$key]) ? $datas[$key] : '';
+                $serv->finish(array('key' => $key, 'val' => $val));
                 break;
-            case "set":
+            case 'set':
                 $key = $data['key'];
-                $val = $data['val']."_".$from_id;
+                $val = $data['val'].'_'.$from_id;
                 $datas[$key] = $val;
+
                 return;
                 break;
-            case "del":
+            case 'del':
                 $key = $data['key'];
-                if(isset($datas[$key])) {
+                if (isset($datas[$key])) {
                     unset($datas[$key]);
                 }
                 break;
-            case "task":
+            case 'task':
                 $key = $data['key'];
-                echo "Do task " . $key . PHP_EOL;
+                echo 'Do task '.$key.PHP_EOL;
                 break;
         }
     }
-    echo "AsyncTask[PID=".posix_getpid()."]: task_id=$task_id.".PHP_EOL;
+    echo 'AsyncTask[PID='.posix_getpid()."]: task_id=$task_id.".PHP_EOL;
     // $serv->finish("OK");
 }
 
 function my_onFinish(swoole_server $serv, $task_id, $from_worker_id, $data)
 {
-    echo "AsyncTask Finish: Connect.PID=" . posix_getpid() . PHP_EOL;
+    echo 'AsyncTask Finish: Connect.PID='.posix_getpid().PHP_EOL;
 }
 
 function my_onWorkerError(swoole_server $serv, $worker_id, $worker_pid, $exit_code)
@@ -139,4 +138,3 @@ $serv->on('Task', 'my_onTask');
 $serv->on('Finish', 'my_onFinish');
 $serv->on('WorkerError', 'my_onWorkerError');
 $serv->start();
-

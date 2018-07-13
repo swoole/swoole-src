@@ -1,5 +1,7 @@
 <?php
+
 use Swoole\Coroutine as co;
+
 co::create(function () {
     $cli = new co\http\client('127.0.0.1', 9501);
     $cli->setHeaders(['Host' => 'localhost']);

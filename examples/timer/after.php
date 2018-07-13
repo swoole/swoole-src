@@ -1,9 +1,9 @@
 <?php
+
 function timeout($tm)
 {
-    echo time() . ": Timeout #$tm\n";
-    if ($tm == 5)
-    {
+    echo time().": Timeout #$tm\n";
+    if (5 == $tm) {
         swoole_timer_after(3000, 'timeout', 7);
     }
 }
@@ -22,6 +22,6 @@ $timer5 = swoole_timer_after(10000, 'timeout', 5);
 $timer6 = swoole_timer_after(5000, 'timeout', 6);
 var_dump($timer1, $timer2, $timer3, $timer4, $timer5, $timer6);
 
-swoole_process::signal(SIGTERM, function() {
-	swoole_event_exit();
+swoole_process::signal(SIGTERM, function () {
+    swoole_event_exit();
 });

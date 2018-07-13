@@ -1,4 +1,5 @@
 <?php
+
 $serv = new SocketServer();
 $serv->run('0.0.0.0', 9504);
 
@@ -8,7 +9,7 @@ class SocketServer
 
     const MAX_PACKAGE_LEN = 8000000; //max data accept
 
-    function run($host, $port)
+    public function run($host, $port)
     {
         register_shutdown_function(array($this, 'errorHandler'));
         $this->serv = new swoole_server($host, $port);
@@ -32,7 +33,6 @@ class SocketServer
             'package_length_type' => 'N', //see php pack()
             'package_length_offset' => 0,
             'package_body_offset' => 4,
-
         ));
 
         $this->serv->on('receive', array($this, 'onReceive'));
@@ -42,41 +42,38 @@ class SocketServer
         $this->serv->start();
     }
 
-
-    function onReceive($serv, $fd, $from_id, $data)
+    public function onReceive($serv, $fd, $from_id, $data)
     {
-                $packet = json_decode(substr($data,4), true);
+        $packet = json_decode(substr($data, 4), true);
 
-                //todo::包可能解析失败
-                $packet["socketfd"] = $fd;
-                $task_id = $serv->task(json_encode($packet));
-		//todo::任务可能下发失败
+        //todo::包可能解析失败
+        $packet['socketfd'] = $fd;
+        $task_id = $serv->task(json_encode($packet));
+        //todo::任务可能下发失败
     }
 
-    function onTask($serv, $task_id, $from_id, $data)
+    public function onTask($serv, $task_id, $from_id, $data)
     {
         $data = json_decode($data, true);
-        $fd = $data["socketfd"];
+        $fd = $data['socketfd'];
 
         $result = array(
-            "code" => "0",
-            "msg" => "ok",
-            "data" => $data,
+            'code' => '0',
+            'msg' => 'ok',
+            'data' => $data,
         );
         $serv->send($fd, json_encode($result));
     }
 
-    function onFinish($serv, $task_id, $data)
+    public function onFinish($serv, $task_id, $data)
     {
-
     }
 
-    function onClose($serv, $fd)
+    public function onClose($serv, $fd)
     {
-
     }
 
-    function errorHandler()
+    public function errorHandler()
     {
         //if (!empty($this->current_fd)) {
         //    $rsp = Proxy::shutdown_handler();

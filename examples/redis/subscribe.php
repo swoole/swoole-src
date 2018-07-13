@@ -1,11 +1,11 @@
 <?php
-$client = new swoole_redis;
+
+$client = new swoole_redis();
 
 $client->on('message', function (swoole_redis $client, $result) {
     var_dump($result);
     static $more = false;
-    if (!$more and $result[0] == 'message')
-    {
+    if (!$more and 'message' == $result[0]) {
         echo "subscribe new channel\n";
         $client->subscribe('msg_1', 'msg_2');
         $client->unsubscribe('msg_0');

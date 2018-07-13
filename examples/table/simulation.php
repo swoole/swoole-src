@@ -10,11 +10,11 @@ $table->create();
 
 while (true) {
     $i = rand(1, 1000);
-    $if = rand(0,1);
+    $if = rand(0, 1);
     if ($if) {
         $table->set($i, ['id' => $i, 'name' => $i, 'num' => $i]);
     } else {
         $table->del($i);
     }
-    var_dump('count ' . $table->count());
+    var_dump('count '.$table->count());
 }

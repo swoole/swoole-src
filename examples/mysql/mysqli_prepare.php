@@ -1,9 +1,10 @@
 <?php
+
 $db = new mysqli('127.0.0.1', 'root', 'root', 'test');
 
 echo "connect success\n";
 
-$stmt = $db->prepare("SELECT id, name FROM userinfo WHERE id=?");
+$stmt = $db->prepare('SELECT id, name FROM userinfo WHERE id=?');
 //$stmt = $db->prepare("SELECT id, name FROM userinfo WHERE id=? and name=? and level=?");
 //var_dump($stmt);
 $id = 1;
@@ -24,7 +25,7 @@ $stmt->close();
 exit;
 echo "prepare 2\n";
 
-$stmt2 = $db->prepare("SELECT id, name FROM userinfo WHERE id=? and name=? and level=?");
+$stmt2 = $db->prepare('SELECT id, name FROM userinfo WHERE id=? and name=? and level=?');
 var_dump($stmt2);
 $id = 1;
 $name = 'jack';
@@ -38,4 +39,3 @@ $stmt2->fetch();
 
 var_dump($id, $name);
 //$stmt2->close();
-

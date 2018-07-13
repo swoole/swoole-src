@@ -1,4 +1,5 @@
 <?php
+
 //创建一个inotify句柄
 $fd = inotify_init();
 
@@ -9,7 +10,7 @@ swoole_event_add($fd, function ($fd) {
     $events = inotify_read($fd);
     if ($events) {
         foreach ($events as $event) {
-            echo "inotify Event :" . var_export($event, 1) . "\n";
+            echo 'inotify Event :'.var_export($event, 1)."\n";
         }
     }
 });

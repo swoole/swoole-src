@@ -20,6 +20,7 @@ env:
     - secure: "Mqg9ifSV0BLv2TIBw/x64aEuB8Y5aPXwXg7xAOq08oPlHBYSBgSYxroJL5PXs0fe7PszZF20bUBinwmEXYQzqgP/40Y1kmq/kfTsDXwTOc9qbAbA1pWvH+Sk1kDP5MLJRPWBCkqctyFd0I0u0SdzT1fgSqirqEz2bMnbAUVpSvo="
 
 before_install:
+  - composer install
   - echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
 
 addons:
@@ -37,6 +38,9 @@ before_script:
     - ./travis/compile.sh
 
 script:
+    - vendor/bin/php-cs-fixer fix -v --dry-run --stop-on-violation --using-cache=no examples/ --rules=@Symfony
+    - vendor/bin/php-cs-fixer fix -v --dry-run --stop-on-violation --using-cache=no benchmark/ --rules=@Symfony
+#    - vendor/bin/phpstan analyse src/ --level=1
     - exit 0
 
 

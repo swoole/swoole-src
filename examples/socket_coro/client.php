@@ -1,11 +1,11 @@
 <?php
+
 $socket = new Co\Socket(AF_INET, SOCK_STREAM, 0);
 
 go(function () use ($socket) {
     $retval = $socket->connect('localhost', 9601);
-    while ($retval)
-    {
-        $n = $socket->send("hello");
+    while ($retval) {
+        $n = $socket->send('hello');
         var_dump($n);
 
         $data = $socket->recv();

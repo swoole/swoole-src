@@ -5,7 +5,6 @@
     I/O     timeout：errorCode  110
     http 9510
     tcp  9511
-
  */
 class Server
 {
@@ -13,7 +12,7 @@ class Server
 
     public function run()
     {
-        $this->server = new Swoole\Http\Server("0.0.0.0", 9510);
+        $this->server = new Swoole\Http\Server('0.0.0.0', 9510);
         $this->server->set([
             'worker_num' => 1,
             'daemonize' => true,
@@ -22,22 +21,18 @@ class Server
         $this->server->on('Request', ['Server', 'onRequest']);
         $this->server->start();
     }
+
     public static function onRequest($request, $response)
     {
-
         $response->end('xxxx');
     }
 
-
     public static function staticFunc()
     {
-        echo "in static function";
+        echo 'in static function';
     }
 }
 
 $server = new Server();
 
 $server->run();
-
-
-

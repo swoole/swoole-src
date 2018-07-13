@@ -1,9 +1,10 @@
 <?php
+
 swoole_async_set([
-    'enable_coroutine' => false
+    'enable_coroutine' => false,
 ]);
 swoole_timer_tick(1000, function () {
     $uid = Co::getuid();
-    assert($uid === -1);
+    assert(-1 === $uid);
     echo "#{$uid}\n";
 });

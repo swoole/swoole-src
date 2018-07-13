@@ -1,12 +1,12 @@
 <?php
 
 go(function () {
-    $db = new Swoole\Coroutine\Mysql;
+    $db = new Swoole\Coroutine\Mysql();
     $server = [
         'host' => '127.0.0.1',
         'user' => 'root',
         'password' => 'root',
-        'database' => 'test'
+        'database' => 'test',
     ];
 
     $clear = <<<SQL

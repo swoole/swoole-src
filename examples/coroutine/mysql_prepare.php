@@ -1,8 +1,8 @@
 <?php
+
 use Swoole\Coroutine as co;
 
-co::create(function() {
-
+co::create(function () {
     $db = new co\MySQL();
     $server = array(
         'host' => '127.0.0.1',
@@ -18,8 +18,7 @@ co::create(function() {
     echo "prepare [1]\n";
     $stmt1 = $db->prepare('SELECT * FROM userinfo WHERE id=?');
     var_dump($stmt1);
-    if ($stmt1 == false)
-    {
+    if (false == $stmt1) {
         var_dump($db->errno, $db->error);
     }
 
@@ -30,8 +29,7 @@ co::create(function() {
     echo "prepare [2]\n";
     $stmt2 = $db->prepare('SELECT * FROM userinfo WHERE id > ? and level > ?');
     var_dump($stmt2);
-    if ($stmt2 == false)
-    {
+    if (false == $stmt2) {
         var_dump($db->errno, $db->error);
     }
 
@@ -39,4 +37,3 @@ co::create(function() {
     $ret4 = $stmt2->execute(array(10, 99));
     var_dump($ret4);
 });
-

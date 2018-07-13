@@ -1,7 +1,7 @@
 <?php
-$process = new swoole_process(function (swoole_process $worker)
-{
-    echo "Worker: start. PID=" . $worker->pid . "\n";
+
+$process = new swoole_process(function (swoole_process $worker) {
+    echo 'Worker: start. PID='.$worker->pid."\n";
     sleep(2);
     $worker->close(swoole_process::PIPE_READ);
     $worker->write("hello master\n");
