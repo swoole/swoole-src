@@ -668,8 +668,6 @@ static void http_client_coro_onError(swClient *cli)
 
     swTraceLog(SW_TRACE_HTTP_CLIENT, "connect error, object handle=%d", sw_get_object_handle(zobject));
 
-    http_client *http = swoole_get_object(zobject);
-    http->timer = NULL;
     http_client_free(zobject TSRMLS_CC);
 
     http_client_property *hcc = swoole_get_property(zobject, http_client_coro_property_request);
