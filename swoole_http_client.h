@@ -153,6 +153,7 @@ typedef struct
 
 } http_client;
 
+void http_client_clear_response_properties(zval *zobject TSRMLS_DC);
 int http_client_parser_on_header_field(php_http_parser *parser, const char *at, size_t length);
 int http_client_parser_on_header_value(php_http_parser *parser, const char *at, size_t length);
 int http_client_parser_on_body(php_http_parser *parser, const char *at, size_t length);

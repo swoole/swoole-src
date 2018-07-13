@@ -190,20 +190,8 @@ static int http_client_coro_execute(zval *zobject, char *uri, zend_size_t uri_le
         return SW_ERR;
     }
 
-    // clear all when new request
-    zval *attr;
-    zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("statusCode"), 0 TSRMLS_CC);
-    attr = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("headers"), 1 TSRMLS_CC);
-    if (Z_TYPE_P(attr) == IS_ARRAY)
-    {
-        zend_hash_clean(Z_ARRVAL_P(attr));
-    }
-    attr = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("set_cookie_headers"), 1 TSRMLS_CC);
-    if (Z_TYPE_P(attr) == IS_ARRAY)
-    {
-        zend_hash_clean(Z_ARRVAL_P(attr));
-    }
-    zend_update_property_string(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("body"), "" TSRMLS_CC);
+    // when new request, clear all properties about the last response
+    http_client_clear_response_properties(zobject TSRMLS_CC);
 
     http_client *http = swoole_get_object(zobject);
 
