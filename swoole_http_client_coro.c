@@ -1266,14 +1266,10 @@ static int http_client_coro_send_http_request(zval *zobject TSRMLS_DC)
     }
 
     send_ok:
-    if (http->timeout > 0)
+    if (http->timeout > 0 && !hcc->defer)
     {
         php_context *context = swoole_get_property(zobject, http_client_coro_property_context);
         http->timer = SwooleG.timer.add(&SwooleG.timer, (int) (http->timeout * 1000), 0, context, http_client_coro_onTimeout);
-        if (http->timer && hcc->defer)
-        {
-            context->state = SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST;
-        }
     }
 
     return ret;
@@ -1467,7 +1463,11 @@ static PHP_METHOD(swoole_http_client_coro, recv)
         swoole_php_fatal_error(E_WARNING, "client has been bound to another coro");
     }
 
-    double timeout = 0;
+    double timeout = http->timeout;
+    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "|d", &timeout) == FAILURE)
+    {
+        return;
+    }
 
     //resume
     if (http->cli->sleep)
@@ -1487,12 +1487,6 @@ static PHP_METHOD(swoole_http_client_coro, recv)
                 return;
             }
         }
-
-        if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "|d", &timeout) == FAILURE)
-        {
-            return;
-        }
-
         goto _yield;
     }
 
