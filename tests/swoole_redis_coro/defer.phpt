@@ -1,5 +1,5 @@
 --TEST--
-swoole_redis_coro: defer
+swoole_coroutine: defer
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc';
 if (!class_exists("Swoole\\Coroutine\\Redis", false))

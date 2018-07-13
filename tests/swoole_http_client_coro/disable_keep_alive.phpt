@@ -1,5 +1,5 @@
 --TEST--
-disable_keep_alive: disable keep alive
+swoole_coroutine: disable keep alive
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

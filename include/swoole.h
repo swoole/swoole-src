@@ -272,6 +272,8 @@ enum swGlobal_hook_type
 {
     SW_GLOBAL_HOOK_BEFORE_SERVER_START,
     SW_GLOBAL_HOOK_BEFORE_CLIENT_START,
+    SW_GLOBAL_HOOK_ON_CORO_START,
+    SW_GLOBAL_HOOK_ON_CORO_STOP,
 };
 
 //-------------------------------------------------------------------------------

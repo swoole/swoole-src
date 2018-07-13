@@ -1,5 +1,5 @@
 --TEST--
-fetch_mode_twice: call fetch twice
+swoole_coroutine: call fetch twice
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

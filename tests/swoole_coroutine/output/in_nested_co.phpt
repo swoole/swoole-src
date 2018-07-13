@@ -1,5 +1,5 @@
 --TEST--
-ob_nest: use ob_* in nest co
+swoole_coroutine: use ob_* in nest co
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--

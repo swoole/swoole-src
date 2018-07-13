@@ -138,9 +138,9 @@ int swReactor_empty(swReactor *reactor)
         empty = SW_TRUE;
     }
     //coroutine
-    if (empty && reactor->can_exit && reactor->can_exit(reactor))
+    if (reactor->can_exit && !reactor->can_exit(reactor))
     {
-        empty = SW_TRUE;
+        empty = SW_FALSE;
     }
     return empty;
 }

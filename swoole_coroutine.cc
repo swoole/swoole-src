@@ -174,6 +174,11 @@ static void sw_coro_func(void *arg)
     task->state = SW_CORO_RUNNING;
     task->co = coroutine_get_by_id(cid);
 
+    if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_CORO_START])
+    {
+        swoole_call_hook(SW_GLOBAL_HOOK_ON_CORO_START, task);
+    }
+
     COROG.call_stack[COROG.call_stack_size++] = task;
     COROG.current_coro = task;
     swTraceLog(SW_TRACE_COROUTINE, "Create coro id: %d, coro total count: %d, heap size: %zu", cid, COROG.coro_num, zend_memory_usage(0));
@@ -317,6 +322,12 @@ void sw_coro_close()
 {
     coro_task *task = (coro_task *) sw_get_current_task();
     swTraceLog(SW_TRACE_COROUTINE,"coro_close coro id %d", task->cid);
+
+    if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_CORO_STOP])
+    {
+        swoole_call_hook(SW_GLOBAL_HOOK_ON_CORO_STOP, task);
+    }
+
     if (!task->is_yield)
     {
         EG(vm_stack) = task->origin_stack;

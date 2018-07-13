@@ -1,5 +1,5 @@
 --TEST--
-websocket_bug_02: websocket bug use client in server
+swoole_coroutine: websocket bug use client in server
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: user process
+swoole_coroutine: user process
 
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
