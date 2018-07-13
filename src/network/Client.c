@@ -715,6 +715,7 @@ static int swClient_tcp_connect_async(swClient *cli, char *host, int port, doubl
         ev.flags = cli->_sock_domain;
         ev.type = SW_AIO_GETHOSTBYNAME;
         ev.object = cli;
+        ev.fd = cli->socket->fd;
         ev.callback = swClient_onResolveCompleted;
 
         if (swAio_dispatch(&ev) < 0)
@@ -1399,6 +1400,13 @@ static void swClient_onTimeout(swTimer *timer, swTimer_node *tnode)
 
 static void swClient_onResolveCompleted(swAio_event *event)
 {
+    swConnection *socket = swReactor_get(SwooleG.main_reactor, event->fd);
+    if (socket->removed)
+    {
+        sw_free(event->buf);
+        return;
+    }
+
     swClient *cli = event->object;
     cli->wait_dns = 0;
 

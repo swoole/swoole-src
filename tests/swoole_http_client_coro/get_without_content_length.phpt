@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: http GET without Content-Length header
+swoole_http_client_coro: http GET without Content-Length header
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: http client with HEAD method
+swoole_http_client_coro: http client with HEAD method
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

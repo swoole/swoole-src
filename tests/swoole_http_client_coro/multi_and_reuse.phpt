@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: reuse defer client
+swoole_http_client_coro: reuse defer client
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

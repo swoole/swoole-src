@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: httpclient with http_proxy
+swoole_http_client_coro: http client with http_proxy
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

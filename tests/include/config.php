@@ -66,3 +66,5 @@ define('HTTP_PROXY_HOST', '127.0.0.1');
 define('HTTP_PROXY_PORT', 8888);
 
 define('TEST_LOG_FILE', '/tmp/swoole.log');
+
+define('IS_MAC_OS', stripos(PHP_OS, 'Darwin') !== false);

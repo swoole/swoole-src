@@ -190,20 +190,8 @@ static int http_client_coro_execute(zval *zobject, char *uri, zend_size_t uri_le
         return SW_ERR;
     }
 
-    // clear all when new request
-    zval *attr;
-    zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("statusCode"), 0 TSRMLS_CC);
-    attr = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("headers"), 1 TSRMLS_CC);
-    if (Z_TYPE_P(attr) == IS_ARRAY)
-    {
-        zend_hash_clean(Z_ARRVAL_P(attr));
-    }
-    attr = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("set_cookie_headers"), 1 TSRMLS_CC);
-    if (Z_TYPE_P(attr) == IS_ARRAY)
-    {
-        zend_hash_clean(Z_ARRVAL_P(attr));
-    }
-    zend_update_property_string(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("body"), "" TSRMLS_CC);
+    // when new request, clear all properties about the last response
+    http_client_clear_response_properties(zobject TSRMLS_CC);
 
     http_client *http = swoole_get_object(zobject);
 
@@ -376,8 +364,6 @@ static void http_client_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
-    zval *zdata;
-    zval *retval = NULL;
 
     php_context *ctx = tnode->data;
 
@@ -393,40 +379,12 @@ static void http_client_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
     http_client *http = swoole_get_object(zobject);
     http->timer = NULL;
 
-    //define time out RETURN ERROR  110
     zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), ETIMEDOUT TSRMLS_CC);
-    zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("statusCode"), -2 TSRMLS_CC);
+    zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT TSRMLS_CC);
 
-    if (http->cli && http->cli->socket && !http->cli->socket->closed)
-    {
-        http->cli->close(http->cli);
-        return;
-    }
-
-    SW_MAKE_STD_ZVAL(zdata);
-    //return false
-    ZVAL_BOOL(zdata, 0);
-    http_client_property *hcc = swoole_get_property(zobject, http_client_coro_property_request);
-    if (hcc->defer && hcc->defer_status != HTTP_CLIENT_STATE_DEFER_WAIT)
-    {
-        hcc->defer_status = HTTP_CLIENT_STATE_DEFER_DONE;
-        hcc->defer_result = 0;
-        goto free_zdata;
-    }
-
-    hcc->defer_status = HTTP_CLIENT_STATE_DEFER_INIT;
-    hcc->cid = 0;
-    int ret = coro_resume(ctx, zdata, &retval);
-    if (ret > 0)
-    {
-        goto free_zdata;
-    }
-    if (retval != NULL)
-    {
-        sw_zval_ptr_dtor(&retval);
-    }
-    free_zdata:
-    sw_zval_ptr_dtor(&zdata);
+    http->cli->socket->active = 1; // always trigger onClose
+    http->state = HTTP_CLIENT_STATE_BUSY; // to resume in onClose
+    http->cli->close(http->cli);
 }
 
 static void http_client_coro_onSendTimeout(swTimer *timer, swTimer_node *tnode)
@@ -663,7 +621,7 @@ static void http_client_coro_onError(swClient *cli)
     zval *zobject = cli->object;
     php_context *sw_current_context = swoole_get_property(zobject, http_client_coro_property_context);
     zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error TSRMLS_CC);
-    zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("statusCode"), -1 TSRMLS_CC);
+    zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_CONNECT_TIMEOUT TSRMLS_CC);
 
     swTraceLog(SW_TRACE_HTTP_CLIENT, "connect error, object handle=%d", sw_get_object_handle(zobject));
 

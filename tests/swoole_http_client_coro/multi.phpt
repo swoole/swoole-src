@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: multi http client
+swoole_http_client_coro: multi http client
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

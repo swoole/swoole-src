@@ -39,6 +39,19 @@ enum http_client_state
     HTTP_CLIENT_STATE_CLOSED,
 };
 
+enum http_client_error_status_code
+{
+    HTTP_CLIENT_ESTATUS_CONNECT_TIMEOUT = -1,
+    HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT = -2,
+    HTTP_CLIENT_ESTATUS_SERVER_RESET = -3,
+};
+
+enum http_client_error_flags
+{
+    HTTP_CLIENT_EFLAG_TIMEOUT = 1,
+    HTTP_CLIENT_EFLAG_UPGRADE = 1 << 1,
+};
+
 #ifdef SW_COROUTINE
 typedef enum
 {
@@ -79,7 +92,7 @@ typedef struct
     char *request_method;
     int callback_index;
 
-    double request_timeout;
+    uint8_t error_flag;
 
     uint8_t shutdown;
 
@@ -129,7 +142,7 @@ typedef struct
 
     uint8_t state;       //0 wait 1 ready 2 busy
     uint8_t keep_alive;  //0 no 1 keep
-    uint8_t upgrade;
+    uint8_t upgrade;     //if upgrade successfully
     uint8_t gzip;
     uint8_t chunked;     //Transfer-Encoding: chunked
     uint8_t completed;
@@ -140,6 +153,7 @@ typedef struct
 
 } http_client;
 
+void http_client_clear_response_properties(zval *zobject TSRMLS_DC);
 int http_client_parser_on_header_field(php_http_parser *parser, const char *at, size_t length);
 int http_client_parser_on_header_value(php_http_parser *parser, const char *at, size_t length);
 int http_client_parser_on_body(php_http_parser *parser, const char *at, size_t length);

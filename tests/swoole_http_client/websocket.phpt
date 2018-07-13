@@ -11,6 +11,11 @@ $pm = new ProcessManager;
 $pm->parentFunc = function ($pid)
 {
     $cli = new swoole_http_client('127.0.0.1', 9501);
+    if (IS_MAC_OS) {
+        $cli->set([
+            'socket_buffer_size' => 2 * 1024 * 1024
+        ]);
+    }
     $cli->count = 0;
     $cli->on('close', function ($cli)
     {

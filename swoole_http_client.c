@@ -172,6 +172,27 @@ static const zend_function_entry swoole_http_client_methods[] =
     PHP_FE_END
 };
 
+void http_client_clear_response_properties(zval *zobject TSRMLS_DC)
+{
+    http_client_property *hcc = swoole_get_property(zobject, 0);
+    hcc->error_flag = 0;
+
+    zval *attr;
+    zend_update_property_long(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("errCode"), 0 TSRMLS_CC);
+    zend_update_property_long(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("statusCode"), 0 TSRMLS_CC);
+    attr = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("headers"), 1 TSRMLS_CC);
+    if (Z_TYPE_P(attr) == IS_ARRAY)
+    {
+        zend_hash_clean(Z_ARRVAL_P(attr));
+    }
+    attr = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("set_cookie_headers"), 1 TSRMLS_CC);
+    if (Z_TYPE_P(attr) == IS_ARRAY)
+    {
+        zend_hash_clean(Z_ARRVAL_P(attr));
+    }
+    zend_update_property_string(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("body"), "" TSRMLS_CC);
+}
+
 static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zval *callback TSRMLS_DC)
 {
     if (uri_len <= 0)
@@ -188,6 +209,9 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
         return SW_ERR;
     }
     efree(func_name);
+
+    // when new request, clear all properties about the last response
+    http_client_clear_response_properties(zobject TSRMLS_CC);
 
     http_client *http = swoole_get_object(zobject);
 
@@ -471,15 +495,15 @@ static void http_client_execute_callback(zval *zobject, enum php_swoole_client_c
         int error_code;
         if (type == SW_CLIENT_CB_onError)
         {
-            error_code = -1;
+            error_code = HTTP_CLIENT_ESTATUS_CONNECT_TIMEOUT;
         }
-        else if (hcc->request_timeout == 1)
+        else if (hcc->error_flag & HTTP_CLIENT_EFLAG_TIMEOUT)
         {
-            error_code = -2;
+            error_code = HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT;
         }
         else
         {
-            error_code = -3;
+            error_code = HTTP_CLIENT_ESTATUS_SERVER_RESET;
         }
 
         zend_update_property_long(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("statusCode"), error_code TSRMLS_CC);
@@ -592,12 +616,29 @@ static void http_client_onRequestTimeout(swTimer *timer, swTimer_node *tnode)
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
+    zend_update_property_long(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("errCode"), ETIMEDOUT TSRMLS_CC);
+    zend_update_property_long(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT TSRMLS_CC);
+
     http_client_property *hcc = swoole_get_property(zobject, 0);
     if (!hcc)
     {
         return;
     }
-    hcc->request_timeout = 1;
+    hcc->error_flag |= HTTP_CLIENT_EFLAG_TIMEOUT;
+
+    if (cli->buffer && cli->buffer->length > 0) // received something bug not complete
+    {
+        zval *headers = php_swoole_read_init_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("requestHeaders") TSRMLS_CC);
+        zval *value;
+        if (php_swoole_array_get_value(Z_ARRVAL_P(headers), "Connection", value))
+        {
+            convert_to_string(value);
+            if (strcmp(Z_STRVAL_P(value), "Upgrade") == 0) // is upgrade
+            {
+                hcc->error_flag |= HTTP_CLIENT_EFLAG_UPGRADE;
+            }
+        }
+    }
 
     zval *retval = NULL;
     sw_zend_call_method_with_0_params(&zobject, swoole_http_client_class_entry_ptr, NULL, "close", &retval);
@@ -2143,16 +2184,19 @@ static PHP_METHOD(swoole_http_client, push)
     http_client *http = swoole_get_object(getThis());
     if (!(http && http->cli && http->cli->socket))
     {
-        swoole_php_error(E_WARNING, "not connected to the server");
-        SwooleG.error = SW_ERROR_WEBSOCKET_UNCONNECTED;
-        RETURN_FALSE;
-    }
-
-    if (!http->upgrade)
-    {
-        swoole_php_fatal_error(E_WARNING, "websocket handshake failed, cannot push data.");
-        SwooleG.error = SW_ERROR_WEBSOCKET_HANDSHAKE_FAILED;
-        RETURN_FALSE;
+        http_client_property *hcc = swoole_get_property(getThis(), 0);
+        if (hcc->error_flag & HTTP_CLIENT_EFLAG_UPGRADE)
+        {
+            swoole_php_fatal_error(E_WARNING, "websocket handshake failed, cannot push data.");
+            SwooleG.error = SW_ERROR_WEBSOCKET_HANDSHAKE_FAILED;
+            RETURN_FALSE;
+        }
+        else
+        {
+            swoole_php_error(E_WARNING, "not connected to the server");
+            SwooleG.error = SW_ERROR_WEBSOCKET_UNCONNECTED;
+            RETURN_FALSE;
+        }
     }
 
     swString_clear(http_client_buffer);
