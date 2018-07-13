@@ -118,7 +118,7 @@
             <file role="src" name="swoole_redis.c" />
             <file role="src" name="swoole_redis_server.c" />
             <file role="src" name="swoole_mmap.c" />
-			<file role="src" name="swoole_channel_coro.cc" />
+            <file role="src" name="swoole_channel_coro.cc" />
             <file role="src" name="swoole_channel.c" />
             <file role="src" name="swoole_serialize.h" />
             <file role="src" name="swoole_serialize.c" />
@@ -132,7 +132,7 @@
             <file role="src" name="swoole_postgresql_coro.c" />
             <file role="src" name="swoole_postgresql_coro.h" />
             <file role="src" name="swoole_trace.c" />
-    		<file role="src" name="swoole_ringqueue.c" />
+            <file role="src" name="swoole_ringqueue.c" />
             <file role="src" name="swoole_msgqueue.c" />
             <file role="src" name="swoole_process_pool.c" />
             <file role="src" name="swoole_runtime.cc" />
@@ -143,10 +143,6 @@
                 <file role="src" name="php_http_parser.h" />
                 <file role="src" name="multipart_parser.c" />
                 <file role="src" name="multipart_parser.h" />
-                <dir name="picohttpparser">
-                    <file role="src" name="picohttpparser.c" />
-                    <file role="src" name="picohttpparser.h" />
-                </dir>
                 <dir name="boost/asm">
                     <file name="jump_arm64_aapcs_elf_gas.S" role="src" />
                     <file name="jump_arm64_aapcs_macho_gas.S" role="src" />
@@ -329,27 +325,27 @@
                     <file role="src" name="local_listener.php" />
                     <file role="src" name="single.php" />
                 </dir>
-				<dir name="coroutine">
-					<file role="src" name="fread.php" />
-					<file role="src" name="fwrite.php" />
-					<file role="src" name="gethostbyname.php" />
-					<file role="src" name="http_client.php" />
-					<file role="src" name="http2_client.php" />
-					<file role="src" name="httpmulti.php" />
-					<file role="src" name="mysql_prepare.php" />
-					<file role="src" name="mysql_query.php" />
-					<file role="src" name="redis_pool.php" />
-					<file role="src" name="redis_subscribe.php" />
-					<file role="src" name="sleep.php" />
-					<file role="src" name="stack.php" />
-					<file role="src" name="tcp_backend_serv.php" />
-					<file role="src" name="TestHttpServ.php" />
-					<file role="src" name="timer_test.php" />
-					<file role="src" name="udp_client.php" />
-					<file role="src" name="udp_tcp_timeout.php" />
-					<file role="src" name="websocket_client.php" />
-					<file role="src" name="websocket.php" />
-				</dir>
+                <dir name="coroutine">
+                    <file role="src" name="fread.php" />
+                    <file role="src" name="fwrite.php" />
+                    <file role="src" name="gethostbyname.php" />
+                    <file role="src" name="http_client.php" />
+                    <file role="src" name="http2_client.php" />
+                    <file role="src" name="httpmulti.php" />
+                    <file role="src" name="mysql_prepare.php" />
+                    <file role="src" name="mysql_query.php" />
+                    <file role="src" name="redis_pool.php" />
+                    <file role="src" name="redis_subscribe.php" />
+                    <file role="src" name="sleep.php" />
+                    <file role="src" name="stack.php" />
+                    <file role="src" name="tcp_backend_serv.php" />
+                    <file role="src" name="TestHttpServ.php" />
+                    <file role="src" name="timer_test.php" />
+                    <file role="src" name="udp_client.php" />
+                    <file role="src" name="udp_tcp_timeout.php" />
+                    <file role="src" name="websocket_client.php" />
+                    <file role="src" name="websocket.php" />
+                </dir>
                 <dir name="http">
                     <file role="src" name="server.php" />
                     <file role="src" name="client.php" />
@@ -631,6 +627,9 @@
                 <file name="swoole_coroutine/nested_empty.phpt" role="test" />
                 <file name="swoole_coroutine/nested_uid.phpt" role="test" />
                 <file name="swoole_coroutine/no_inline_func.phpt" role="test" />
+                <file name="swoole_coroutine/output/in_nested_co.phpt" role="test" />
+                <file name="swoole_coroutine/output/ob_main.phpt" role="test" />
+                <file name="swoole_coroutine/output/output_control.phpt" role="test" />
                 <file name="swoole_coroutine/parallel1.phpt" role="test" />
                 <file name="swoole_coroutine/parallel2.phpt" role="test" />
                 <file name="swoole_coroutine/parallel3.phpt" role="test" />
@@ -642,13 +641,16 @@
                 <file name="swoole_coroutine_channel/3.phpt" role="test" />
                 <file name="swoole_coroutine_channel/4.phpt" role="test" />
                 <file name="swoole_coroutine_channel/5.phpt" role="test" />
+                <file name="swoole_coroutine_channel/6.phpt" role="test" />
                 <file name="swoole_coroutine_channel/basic.phpt" role="test" />
+                <file name="swoole_coroutine_channel/bug_clear_timer.phpt" role="test" />
                 <file name="swoole_coroutine_channel/chan_select_timeout.phpt" role="test" />
                 <file name="swoole_coroutine_channel/chan_stats.phpt" role="test" />
                 <file name="swoole_coroutine_channel/coro_wait.phpt" role="test" />
                 <file name="swoole_coroutine_channel/fibonacci.phpt" role="test" />
                 <file name="swoole_coroutine_channel/hybird_chan.phpt" role="test" />
                 <file name="swoole_coroutine_channel/hybird_chan2.phpt" role="test" />
+                <file name="swoole_coroutine_channel/hybird_chan3.phpt" role="test" />
                 <file name="swoole_coroutine_util/dns_lookup.phpt" role="test" />
                 <file name="swoole_coroutine_util/exec.phpt" role="test" />
                 <file name="swoole_coroutine_util/fgets.phpt" role="test" />
@@ -678,14 +680,6 @@
                 <file name="swoole_http2_client/get.phpt" role="test" />
                 <file name="swoole_http2_client/headers.phpt" role="test" />
                 <file name="swoole_http2_client_coro/headers.phpt" role="test" />
-                <file name="swoole_http_cilent_coro/get.phpt" role="test" />
-                <file name="swoole_http_cilent_coro/get_without_content_length.phpt" role="test" />
-                <file name="swoole_http_cilent_coro/head_method.phpt" role="test" />
-                <file name="swoole_http_cilent_coro/http_proxy.phpt" role="test" />
-                <file name="swoole_http_cilent_coro/https.phpt" role="test" />
-                <file name="swoole_http_cilent_coro/multi.phpt" role="test" />
-                <file name="swoole_http_cilent_coro/websocket.phpt" role="test" />
-                <file name="swoole_http_cilent_coro/websocket_bug_01.phpt" role="test" />
                 <file name="swoole_http_client/connect_host_not_found.phpt" role="test" />
                 <file name="swoole_http_client/connect_port_not_listen.phpt" role="test" />
                 <file name="swoole_http_client/content_length.phpt" role="test" />
@@ -731,8 +725,23 @@
                 <file name="swoole_http_client/websocket_bad_protocol.phpt" role="test" />
                 <file name="swoole_http_client/websocket_bug_18031401.phpt" role="test" />
                 <file name="swoole_http_client/websocket_port_not_listen.phpt" role="test" />
+                <file name="swoole_http_client_coro/disable_keep_alive.phpt" role="test" />
+                <file name="swoole_http_client_coro/get.phpt" role="test" />
+                <file name="swoole_http_client_coro/get_without_content_length.phpt" role="test" />
+                <file name="swoole_http_client_coro/h2c_upgrade.phpt" role="test" />
+                <file name="swoole_http_client_coro/head_method.phpt" role="test" />
+                <file name="swoole_http_client_coro/http_proxy.phpt" role="test" />
+                <file name="swoole_http_client_coro/https.phpt" role="test" />
+                <file name="swoole_http_client_coro/multi.phpt" role="test" />
+                <file name="swoole_http_client_coro/multi_and_reuse.phpt" role="test" />
+                <file name="swoole_http_client_coro/timeout_before_connect.phpt" role="test" />
+                <file name="swoole_http_client_coro/timeout_when_recv.phpt" role="test" />
+                <file name="swoole_http_client_coro/websocket.phpt" role="test" />
+                <file name="swoole_http_client_coro/websocket_bug_01.phpt" role="test" />
+                <file name="swoole_http_client_coro/websocket_bug_02.phpt" role="test" />
                 <file name="swoole_http_server/chunk.phpt" role="test" />
                 <file name="swoole_http_server/cookies.phpt" role="test" />
+                <file name="swoole_http_server/data_parse.phpt" role="test" />
                 <file name="swoole_http_server/enable_coroutine.phpt" role="test" />
                 <file name="swoole_http_server/gzip.phpt" role="test" />
                 <file name="swoole_http_server/large_url.phpt" role="test" />
@@ -816,6 +825,7 @@
                 <file name="swoole_process/swoole_process_write.phpt" role="test" />
                 <file name="swoole_process/timeout.phpt" role="test" />
                 <file name="swoole_process/write_in_worker.phpt" role="test" />
+                <file name="swoole_process_pool/message.phpt" role="test" />
                 <file name="swoole_redis/connect_refuse.phpt" role="test" />
                 <file name="swoole_redis/connect_timeout.phpt" role="test" />
                 <file name="swoole_redis/get_set.phpt" role="test" />
@@ -921,7 +931,6 @@
                 <file name="swoole_websocket_server/websocket_pingpong.phpt" role="test" />
                 <file name="swoole_websocket_server/websocket_push.phpt" role="test" />
                 <file name="template.phpt" role="test" />
-                <file name="test-all-version.sh" role="test" />
                 <file name="test.sql" role="test" />
             </dir>
         </dir>
