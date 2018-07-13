@@ -473,7 +473,7 @@ static void http_client_execute_callback(zval *zobject, enum php_swoole_client_c
         {
             error_code = HTTP_CLIENT_ESTATUS_CONNECT_TIMEOUT;
         }
-        else if (hcc->request_timeout == 1)
+        else if (hcc->error_flag & HTTP_CLIENT_EFLAG_TIMEOUT)
         {
             error_code = HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT;
         }
@@ -600,7 +600,7 @@ static void http_client_onRequestTimeout(swTimer *timer, swTimer_node *tnode)
     {
         return;
     }
-    hcc->request_timeout = 1;
+    hcc->error_flag |= HTTP_CLIENT_EFLAG_TIMEOUT;
 
     zval *retval = NULL;
     sw_zend_call_method_with_0_params(&zobject, swoole_http_client_class_entry_ptr, NULL, "close", &retval);
