@@ -35,10 +35,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2018-06-21</date>
-    <time>09:50:10</time>
+    <date>2018-07-13</date>
+    <time>19:30:00</time>
     <version>
-        <release>4.0.1</release>
+        <release>4.0.2</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -47,9 +47,10 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        - Added enable_coroutine option
-        - Added MySQL8 caching_sha2_password supports
-        - Refactor channel
+        - Support ob functions in coroutine
+        - Better Channel
+        - Fixed all known bugs about Client
+        - Fixed all compiler warnings in PHP73
     </notes>
     <contents>
         <dir name="/">
