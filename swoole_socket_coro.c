@@ -555,7 +555,7 @@ static int swoole_socket_connect(socket_coro *sock, char *host, size_t l_host, i
 
         if (!inet_pton(AF_INET6, host, &addr.sin6_addr))
         {
-            return -1;
+            return -2;
         }
         else
         {
