@@ -382,6 +382,10 @@ static void http_client_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
     zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), ETIMEDOUT TSRMLS_CC);
     zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT TSRMLS_CC);
 
+    if (http->cli->socket->active == 0)
+    {
+        http->cli->socket->removed = 1;
+    }
     http->cli->socket->active = 1; // always trigger onClose
     http->state = HTTP_CLIENT_STATE_BUSY; // to resume in onClose
     http->cli->close(http->cli);
