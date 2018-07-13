@@ -471,15 +471,15 @@ static void http_client_execute_callback(zval *zobject, enum php_swoole_client_c
         int error_code;
         if (type == SW_CLIENT_CB_onError)
         {
-            error_code = -1;
+            error_code = HTTP_CLIENT_ESTATUS_CONNECT_TIMEOUT;
         }
         else if (hcc->request_timeout == 1)
         {
-            error_code = -2;
+            error_code = HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT;
         }
         else
         {
-            error_code = -3;
+            error_code = HTTP_CLIENT_ESTATUS_SERVER_RESET;
         }
 
         zend_update_property_long(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("statusCode"), error_code TSRMLS_CC);
@@ -591,6 +591,9 @@ static void http_client_onRequestTimeout(swTimer *timer, swTimer_node *tnode)
 #if PHP_MAJOR_VERSION < 7
     TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
+
+    zend_update_property_long(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("errCode"), ETIMEDOUT TSRMLS_CC);
+    zend_update_property_long(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT TSRMLS_CC);
 
     http_client_property *hcc = swoole_get_property(zobject, 0);
     if (!hcc)
