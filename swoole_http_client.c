@@ -1772,25 +1772,8 @@ int http_client_parser_on_header_value(php_http_parser *parser, const char *at, 
 
         char keybuf[SW_HTTP_COOKIE_KEYLEN];
 
-        zval *cookies = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("cookies"), 1 TSRMLS_CC);
-        if (!cookies || Z_TYPE_P(cookies) != IS_ARRAY)
-        {
-            SW_MAKE_STD_ZVAL(cookies);
-            array_init(cookies);
-            zend_update_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("cookies"), cookies TSRMLS_CC);
-            sw_zval_ptr_dtor(&cookies);
-            cookies = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("cookies"), 1 TSRMLS_CC);
-        }
-
-        zval *set_cookie_headers = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("set_cookie_headers"), 1 TSRMLS_CC);
-        if (!set_cookie_headers || Z_TYPE_P(set_cookie_headers) != IS_ARRAY)
-        {
-            SW_MAKE_STD_ZVAL(set_cookie_headers);
-            array_init(set_cookie_headers);
-            zend_update_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("set_cookie_headers"), set_cookie_headers TSRMLS_CC);
-            sw_zval_ptr_dtor(&set_cookie_headers);
-            set_cookie_headers = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("set_cookie_headers"), 1 TSRMLS_CC);
-        }
+        zval *cookies = sw_zend_read_property_array(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("cookies"), 1 TSRMLS_CC);
+        zval *set_cookie_headers = sw_zend_read_property_array(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("set_cookie_headers"), 1 TSRMLS_CC);
 
         memcpy(keybuf, at, l_key);
         keybuf[l_key] = '\0';
