@@ -769,6 +769,7 @@ static void http2_client_onClose(swClient *cli)
     {
         return;
     }
+    hcc->cid = 0;
 
     zval *result;
     SW_MAKE_STD_ZVAL(result);
@@ -781,7 +782,6 @@ static void http2_client_onClose(swClient *cli)
     {
         sw_zval_ptr_dtor(&retval);
     }
-    hcc->cid = 0;
 }
 
 static void http2_client_onError(swClient *cli)
