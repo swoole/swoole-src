@@ -1,5 +1,5 @@
 --TEST--
-swoole_http2_client_coro: http2 headers auto to lower
+swoole_http2_client_coro: http2 with wrong headers
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -14,18 +14,15 @@ go(function () {
     ]);
     $cli->connect();
 
-    $req = new Swoole\Coroutine\Http2\Request;
-    $req->path = "/";
-    // auto to-lower
-    $req->headers = [
-        'Host' => $domain,
-        "User-Agent" => 'Chrome/49.0.2587.3',
-        'Accept' => 'text/html,application/xhtml+xml,application/xml',
-        'Accept-encoding' => 'gzip',
-    ];
+    $req = new swoole_http2_request;
+    $req->path = '/';
+    $req->headers = 1;
     assert($cli->send($req));
+    assert(is_array($req->headers)); // check array
+    /**@var $response swoole_http2_response */
     $response = $cli->recv();
     echo $response->statusCode;
+    assert(stripos($response->body, 'swoole') !== false);
 });
 ?>
 --EXPECT--
