@@ -805,7 +805,7 @@ static void http2_client_send_request(zval *zobject, http2_client_request *req T
     zval *post_data = req->data;
     if (post_data)
     {
-        zval *zheader = sw_zend_read_property(swoole_http2_client_class_entry_ptr, zobject, ZEND_STRL("requestHeaders"), 1 TSRMLS_CC);
+        zval *zheader = sw_zend_read_property_array(swoole_http2_client_class_entry_ptr, zobject, ZEND_STRL("requestHeaders"), 1 TSRMLS_CC);
         if (Z_TYPE_P(post_data) == IS_ARRAY)
         {
             sw_add_assoc_stringl_ex(zheader, ZEND_STRS("content-type"), ZEND_STRL("application/x-www-form-urlencoded"), 1);
