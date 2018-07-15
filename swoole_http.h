@@ -194,4 +194,38 @@ extern swString *swoole_http_buffer;
 extern swString *swoole_zlib_buffer;
 #endif
 
+static sw_inline int http_parse_set_cookies(const char *at, size_t length, zval *cookies, zval *set_cookie_headers)
+{
+    int l_cookie = 0;
+    char *p = (char*) memchr(at, ';', length);
+    if (p)
+    {
+        l_cookie = p - at;
+    }
+    else
+    {
+        l_cookie = length;
+    }
+
+    p = (char*) memchr(at, '=', length);
+    int l_key = 0;
+    if (p)
+    {
+        l_key = p - at;
+    }
+    if (l_key == 0 || l_key >= SW_HTTP_COOKIE_KEYLEN || l_key >= length - 1)
+    {
+        swWarn("cookie key format is wrong.");
+        return SW_ERR;
+    }
+
+    char keybuf[SW_HTTP_COOKIE_KEYLEN];
+    memcpy(keybuf, at, l_key);
+    keybuf[l_key] = '\0';
+    sw_add_assoc_stringl_ex(cookies, keybuf, l_key + 1, (char*) at + l_key + 1, l_cookie - l_key - 1, 1);
+    sw_add_assoc_stringl_ex(set_cookie_headers, keybuf, l_key + 1, (char*) at, length, 1);
+
+    return SW_OK;
+}
+
 #endif /* SWOOLE_HTTP_H_ */

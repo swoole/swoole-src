@@ -21,6 +21,7 @@
 #include "ext/standard/php_http.h"
 #include "ext/standard/base64.h"
 
+#include "swoole_http.h"
 #include "websocket.h"
 #include "thirdparty/php_http_parser.h"
 

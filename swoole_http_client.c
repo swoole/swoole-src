@@ -1746,39 +1746,13 @@ int http_client_parser_on_header_value(php_http_parser *parser, const char *at, 
     }
     else if (strcasecmp(header_name, "Set-Cookie") == 0)
     {
-        int l_cookie = 0;
-        char *p = (char*) memchr(at, ';', length);
-        if (p)
+        zval *cookies = sw_zend_read_property_array(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("cookies"), 1 TSRMLS_CC);
+        zval *set_cookie_headers = sw_zend_read_property_array(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("set_cookie_headers"), 1 TSRMLS_CC);
+        if (SW_OK != http_parse_set_cookies(at, length, cookies, set_cookie_headers))
         {
-            l_cookie = p - at;
-        }
-        else
-        {
-            l_cookie = length;
-        }
-
-        p = (char*) memchr(at, '=', length);
-        int l_key = 0;
-        if (p)
-        {
-            l_key = p - at;
-        }
-        if (l_key == 0 || l_key >= SW_HTTP_COOKIE_KEYLEN || l_key >= length - 1)
-        {
-            swWarn("cookie key format is wrong.");
             efree(header_name);
             return SW_ERR;
         }
-
-        char keybuf[SW_HTTP_COOKIE_KEYLEN];
-
-        zval *cookies = sw_zend_read_property_array(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("cookies"), 1 TSRMLS_CC);
-        zval *set_cookie_headers = sw_zend_read_property_array(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("set_cookie_headers"), 1 TSRMLS_CC);
-
-        memcpy(keybuf, at, l_key);
-        keybuf[l_key] = '\0';
-        sw_add_assoc_stringl_ex(cookies, keybuf, l_key + 1, (char*) at + l_key + 1, l_cookie - l_key - 1, 1);
-        sw_add_assoc_stringl_ex(set_cookie_headers, keybuf, l_key + 1, (char*) at, length, 1);
     }
 #ifdef SW_HAVE_ZLIB
     else if (strcasecmp(header_name, "Content-Encoding") == 0 && strncasecmp(at, "gzip", length) == 0)
