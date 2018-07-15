@@ -373,6 +373,21 @@ static sw_inline zval* sw_zend_read_property(zend_class_entry *class_ptr, zval *
     return zend_read_property(class_ptr, obj, s, len, silent, &rv);
 }
 
+static sw_inline zval* sw_zend_read_property_array(zend_class_entry *class_ptr, zval *obj, const char *s, int len, int silent)
+{
+    zval rv, *property = zend_read_property(class_ptr, obj, s, len, silent, &rv);
+    if (!property || Z_TYPE_P(property) != IS_ARRAY)
+    {
+        zval *property;
+        SW_MAKE_STD_ZVAL(property);
+        array_init(property);
+        zend_update_property(class_ptr, obj, s, len, property TSRMLS_CC);
+        sw_zval_ptr_dtor(&property);
+    }
+
+    return property;
+}
+
 static sw_inline int sw_zend_is_callable(zval *cb, int a, char **name)
 {
     zend_string *key = NULL;
