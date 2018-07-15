@@ -1734,15 +1734,7 @@ int http_client_parser_on_header_value(php_http_parser *parser, const char *at, 
     http_client* http = (http_client*) parser->data;
 
     zval* zobject = (zval*) http->cli->object;
-    zval *headers = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("headers"), 0 TSRMLS_CC);
-    if (!headers || Z_TYPE_P(headers) != IS_ARRAY)
-    {
-        zval *headers;
-        SW_MAKE_STD_ZVAL(headers);
-        array_init(headers);
-        zend_update_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("headers"), headers TSRMLS_CC);
-        sw_zval_ptr_dtor(&headers);
-    }
+    zval *headers = sw_zend_read_property_array(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("headers"), 0 TSRMLS_CC);
 
     char *header_name = zend_str_tolower_dup(http->tmp_header_field_name, http->tmp_header_field_name_len);
     sw_add_assoc_stringl_ex(headers, header_name, http->tmp_header_field_name_len + 1, (char *) at, length, 1);
