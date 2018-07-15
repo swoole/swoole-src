@@ -82,8 +82,8 @@ static const zend_function_entry swoole_http2_client_methods[] =
     PHP_ME(swoole_http2_client_coro, set,      arginfo_swoole_http2_client_coro_set, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http2_client_coro, connect,  arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http2_client_coro, send,      arginfo_swoole_http2_client_coro_send, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http2_client_coro, recv,      arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http2_client_coro, write,     arginfo_swoole_http2_client_coro_write, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http2_client_coro, recv,      arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http2_client_coro, close,     arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
@@ -93,9 +93,13 @@ void swoole_http2_client_coro_init(int module_number TSRMLS_DC)
     INIT_CLASS_ENTRY(swoole_http2_client_coro_ce, "Swoole\\Coroutine\\Http2\\Client", swoole_http2_client_methods);
     swoole_http2_client_coro_class_entry_ptr = zend_register_internal_class(&swoole_http2_client_coro_ce);
 
-    INIT_CLASS_ENTRY(swoole_http2_request_coro_ce, "Swoole\\Coroutine\\Http2\\Request", NULL);
+    INIT_CLASS_ENTRY(swoole_http2_request_coro_ce, "Swoole\\Http2\\Request", NULL);
     swoole_http2_request_coro_class_entry_ptr = zend_register_internal_class(&swoole_http2_request_coro_ce);
-
+    sw_zend_register_class_alias("Swoole\\Coroutine\\Http2\\Request", swoole_http2_request_coro_class_entry_ptr);
+    if (SWOOLE_G(use_namespace))
+    {
+        sw_zend_register_class_alias("swoole_http2_request", swoole_http2_request_coro_class_entry_ptr);
+    }
     if (SWOOLE_G(use_shortname))
     {
         sw_zend_register_class_alias("Co\\Http2\\Client", swoole_http2_client_coro_class_entry_ptr);
@@ -112,8 +116,10 @@ void swoole_http2_client_coro_init(int module_number TSRMLS_DC)
     zend_declare_property_null(swoole_http2_client_coro_class_entry_ptr, SW_STRL("host")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(swoole_http2_client_coro_class_entry_ptr, SW_STRL("port")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
 
+    zend_declare_property_null(swoole_http2_request_coro_class_entry_ptr, SW_STRL("path")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_http2_request_coro_class_entry_ptr, SW_STRL("method")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_http2_request_coro_class_entry_ptr, SW_STRL("headers")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_http2_request_coro_class_entry_ptr, SW_STRL("cookies")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_http2_request_coro_class_entry_ptr, SW_STRL("data")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_bool(swoole_http2_request_coro_class_entry_ptr, SW_STRL("pipeline")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_http2_request_coro_class_entry_ptr, SW_STRL("files")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
@@ -229,7 +235,7 @@ static int http2_client_build_header(zval *zobject, zval *req, char *buffer, int
     //Host
     index++;
 
-    if (headers && !ZVAL_IS_NULL(headers))
+    if (headers && Z_TYPE_P(headers) == IS_ARRAY)
     {
         HashTable *ht = Z_ARRVAL_P(headers);
         zval *value = NULL;
@@ -266,7 +272,7 @@ static int http2_client_build_header(zval *zobject, zval *req, char *buffer, int
     }
 
     //http cookies
-    if (cookies && !ZVAL_IS_NULL(cookies))
+    if (cookies && Z_TYPE_P(cookies) == IS_ARRAY)
     {
         http2_add_cookie(nv, &index, cookies TSRMLS_CC);
     }
@@ -520,7 +526,7 @@ static int http2_client_send_request(zval *zobject, zval *req TSRMLS_DC)
     http2_client_property *hcc = swoole_get_property(zobject, HTTP2_CLIENT_CORO_PROPERTY);
     swClient *cli = hcc->client;
 
-    zval *headers = sw_zend_read_property(swoole_http2_request_coro_class_entry_ptr, req, ZEND_STRL("headers"), 1 TSRMLS_CC);
+    zval *headers = sw_zend_read_property_array(swoole_http2_request_coro_class_entry_ptr, req, ZEND_STRL("headers"), 1 TSRMLS_CC);
     zval *post_data = sw_zend_read_property(swoole_http2_request_coro_class_entry_ptr, req, ZEND_STRL("data"), 1 TSRMLS_CC);
     zval *pipeline = sw_zend_read_property(swoole_http2_request_coro_class_entry_ptr, req, ZEND_STRL("pipeline"), 1 TSRMLS_CC);
 
