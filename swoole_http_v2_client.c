@@ -101,8 +101,11 @@ void swoole_http2_client_init(int module_number TSRMLS_DC)
 
     zend_declare_property_long(swoole_http2_response_class_entry_ptr, SW_STRL("errCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(swoole_http2_response_class_entry_ptr, SW_STRL("statusCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_http2_response_class_entry_ptr, SW_STRL("headers")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_http2_response_class_entry_ptr, SW_STRL("set_cookie_headers")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_http2_response_class_entry_ptr, SW_STRL("cookies")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_http2_response_class_entry_ptr, SW_STRL("body")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_null(swoole_http2_response_class_entry_ptr, SW_STRL("streamId")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_http2_response_class_entry_ptr, SW_STRL("streamId")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
 
     if (cookie_buffer == NULL)
     {
@@ -433,7 +436,7 @@ int http2_client_parse_header(http2_client_property *hcc, http2_client_stream *s
         }
     }
 
-    zend_update_property(swoole_http2_response_class_entry_ptr, zresponse, ZEND_STRL("header"), zheader TSRMLS_CC);
+    zend_update_property(swoole_http2_response_class_entry_ptr, zresponse, ZEND_STRL("headers"), zheader TSRMLS_CC);
     sw_zval_ptr_dtor(&zheader);
 
     rv = nghttp2_hd_inflate_change_table_size(inflater, 4096);
