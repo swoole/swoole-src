@@ -609,6 +609,7 @@ static int http2_client_send_request(zval *zobject, zval *req TSRMLS_DC)
         }
         else
         {
+            convert_to_string(post_data);
             swHttp2_set_frame_header(buffer, SW_HTTP2_TYPE_DATA, Z_STRLEN_P(post_data), flag, hcc->stream_id);
             swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN", END, STREAM#%d] length=%zu", swHttp2_get_type(SW_HTTP2_TYPE_DATA), hcc->stream_id, Z_STRLEN_P(post_data));
             cli->send(cli, buffer, SW_HTTP2_FRAME_HEADER_SIZE, 0);
