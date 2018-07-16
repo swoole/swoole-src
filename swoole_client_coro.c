@@ -1113,9 +1113,8 @@ static PHP_METHOD(swoole_client_coro, close)
     //Connection error, or short tcp connection.
     swoole_client_coro_property *ccp = swoole_get_property(getThis(), client_coro_property_coroutine);
     ccp->iowait = SW_CLIENT_CORO_STATUS_CLOSED;
-    php_swoole_client_free(getThis(), cli TSRMLS_CC);
 
-    RETURN_TRUE;
+    SW_CHECK_RETURN(cli->close(cli));
 }
 
 #ifdef SW_USE_OPENSSL
