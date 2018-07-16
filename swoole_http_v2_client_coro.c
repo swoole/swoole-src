@@ -487,6 +487,7 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
         hcc->iowait = 0;
         if (stream->type == SW_HTTP2_STREAM_NORMAL)
         {
+            Z_ADDREF_P(zresponse); // dtor in del
             swHashMap_del_int(hcc->streams, stream_id);
         }
         else if (stream->buffer)
@@ -518,6 +519,10 @@ static void http2_client_stream_free(void *ptr)
         swString_free(stream->gzip_buffer);
     }
 #endif
+    if (stream->response_object)
+    {
+        sw_zval_ptr_dtor(&stream->response_object);
+    }
     efree(stream);
 }
 
