@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: (length protocol) resume in onClose callback
+swoole_client_coro: (length protocol) resume in onClose callback
 
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>

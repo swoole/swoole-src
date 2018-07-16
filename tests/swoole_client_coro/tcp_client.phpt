@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: tcp client
+swoole_client_coro: tcp client
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

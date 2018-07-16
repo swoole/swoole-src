@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: timeout of udp client
+swoole_client_coro: timeout of udp client
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
