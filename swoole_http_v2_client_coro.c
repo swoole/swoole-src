@@ -73,6 +73,7 @@ static void http2_client_stream_free(void *ptr);
 static void http2_client_onConnect(swClient *cli);
 static void http2_client_onClose(swClient *cli);
 static void http2_client_onError(swClient *cli);
+static void http2_client_onTimeout(swTimer *timer, swTimer_node *tnode);
 static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length);
 
 static const zend_function_entry swoole_http2_client_methods[] =
@@ -495,6 +496,12 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
             swString_clear(stream->buffer);
         }
 
+        if (cli->timer)
+        {
+            swTimer_del(&SwooleG.timer, cli->timer);
+            cli->timer = NULL;
+        }
+
         php_context *context = swoole_get_property(zobject, HTTP2_CLIENT_CORO_CONTEXT);
         int ret = coro_resume(context, zresponse, &retval);
         if (ret == CORO_END && retval)
@@ -712,14 +719,25 @@ static PHP_METHOD(swoole_http2_client_coro, recv)
 {
     http2_client_property *hcc = swoole_get_property(getThis(), HTTP2_CLIENT_CORO_PROPERTY);
     swClient *cli = hcc->client;
-
     if (!cli || !cli->socket || cli->socket->closed)
     {
         swoole_php_error(E_WARNING, "The connection is closed.");
         RETURN_FALSE;
     }
 
+    double timeout = hcc->timeout;
+    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "|d", &timeout) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+
+
     php_context *context = swoole_get_property(getThis(), HTTP2_CLIENT_CORO_CONTEXT);
+    if (timeout > 0)
+    {
+        php_swoole_check_timer((int) (timeout * 1000));
+        cli->timer = SwooleG.timer.add(&SwooleG.timer, (int) (timeout * 1000), 0, context, http2_client_onTimeout);
+    }
     hcc->cid = sw_get_current_cid();
     coro_save(context);
     hcc->iowait = 1;
@@ -812,6 +830,25 @@ static void http2_client_onError(swClient *cli)
         sw_zval_ptr_dtor(&retval);
     }
     sw_zval_ptr_dtor(&zdata);
+}
+
+static void http2_client_onTimeout(swTimer *timer, swTimer_node *tnode)
+{
+    php_context *ctx = tnode->data;
+    zval _zobject = ctx->coro_params;
+    zval *zobject = &_zobject;
+    swClient *cli = swoole_get_object(zobject);
+    cli->timer = NULL;
+
+    zval *result;
+    SW_MAKE_STD_ZVAL(result);
+    ZVAL_BOOL(result, 0);
+    zval *retval = NULL;
+    int ret = coro_resume(ctx, result, &retval);
+    if (ret == CORO_END && retval)
+    {
+        sw_zval_ptr_dtor(&retval);
+    }
 }
 
 static PHP_METHOD(swoole_http2_client_coro, __destruct)
