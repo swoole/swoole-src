@@ -39,29 +39,9 @@ typedef struct
     queue<zval> *data_queue;
 } channel;
 
-typedef struct
-{
-    swLinkedList *list;
-    swLinkedList_node *node;
-} channel_selector_node;
-
-typedef struct
-{
-    swTimer_node *timer;
-    zval *read_list;
-    zval *write_list;
-    channel_selector_node *node_list;
-    zval readable;
-    zval writable;
-    uint16_t count;
-    zval object;
-    enum ChannelSelectOpcode opcode;
-} channel_selector;
-
 typedef struct _channel_node
 {
     php_context context;
-    channel_selector *selector;
 } channel_node;
 
 static PHP_METHOD(swoole_channel_coro, __construct);
@@ -73,7 +53,6 @@ static PHP_METHOD(swoole_channel_coro, stats);
 static PHP_METHOD(swoole_channel_coro, length);
 static PHP_METHOD(swoole_channel_coro, isEmpty);
 static PHP_METHOD(swoole_channel_coro, isFull);
-//static PHP_METHOD(swoole_channel_coro, select);
 
 static zend_class_entry swoole_channel_coro_ce;
 static zend_class_entry *swoole_channel_coro_class_entry_ptr;
@@ -85,12 +64,6 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_channel_coro_push, 0, 0, 1)
     ZEND_ARG_INFO(0, data)
 ZEND_END_ARG_INFO()
-
-//ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_channel_coro_select, 0, 0, 2)
-//    ZEND_ARG_ARRAY_INFO(1, read_list, 1)
-//    ZEND_ARG_ARRAY_INFO(1, write_list, 1)
-//    ZEND_ARG_INFO(0, timeout)
-//ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -106,7 +79,6 @@ static const zend_function_entry swoole_channel_coro_methods[] =
     PHP_ME(swoole_channel_coro, close, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_channel_coro, stats, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_channel_coro, length, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-//    PHP_ME(swoole_channel_coro, select, arginfo_swoole_channel_coro_select, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 
@@ -121,57 +93,6 @@ void swoole_channel_coro_init(int module_number TSRMLS_DC)
     }
 
     zend_declare_property_long(swoole_channel_coro_class_entry_ptr, SW_STRL("capacity")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
-}
-
-static void channel_selector_clear(channel_selector *selector, swLinkedList_node *_node)
-{
-    int i;
-    for (i = 0; i < selector->count; i++)
-    {
-        if (_node == selector->node_list[i].node)
-        {
-            continue;
-        }
-        swLinkedList_remove_node(selector->node_list[i].list, selector->node_list[i].node);
-    }
-    efree(selector->node_list);
-    if (selector->timer)
-    {
-        swTimer_del(&SwooleG.timer, selector->timer);
-        selector->timer = NULL;
-    }
-}
-
-static void channel_selector_onTimeout(swTimer *timer, swTimer_node *tnode)
-{
-    zval *retval = NULL;
-    zval *result = NULL;
-    SW_MAKE_STD_ZVAL(result);
-    ZVAL_BOOL(result, 0);
-
-    channel_node *node = (channel_node *) tnode->data;
-    channel_selector *selector = (channel_selector *) node->selector;
-
-    zval_ptr_dtor(selector->read_list);
-    ZVAL_COPY_VALUE(selector->read_list, &selector->readable);
-
-    if (selector->write_list)
-    {
-        zval_ptr_dtor(selector->write_list);
-        ZVAL_COPY_VALUE(selector->write_list, &selector->writable);
-    }
-
-    php_context *context = (php_context *) node;
-    channel_selector_clear(selector, NULL);
-
-    int ret = coro_resume(context, result, &retval);
-    if (ret == CORO_END && retval)
-    {
-        sw_zval_ptr_dtor(&retval);
-    }
-    sw_zval_ptr_dtor(&result);
-    efree(selector);
-    efree(node);
 }
 
 static inline bool channel_isEmpty(channel *chan)
@@ -247,12 +168,6 @@ static int swoole_channel_try_resume_producer(zval *object, channel *property)
         }
         swDebug("resume producer.");
         node->context.onTimeout = swoole_channel_onResume;
-        if (node->selector)
-        {
-            node->selector->object = *object;
-            node->selector->opcode = CHANNEL_SELECT_WRITE;
-            channel_selector_clear(node->selector, coro_list->head);
-        }
         swLinkedList_shift(coro_list);
         channel_notify(node);
         return 0;
@@ -272,12 +187,6 @@ static sw_inline int swoole_channel_try_resume_all(zval *object, channel *proper
         node = (channel_node *) swLinkedList_shift(coro_list);
         node->context.onTimeout = swoole_channel_onResume;
         ZVAL_FALSE(&node->context.coro_params);
-        if (node->selector)
-        {
-            node->selector->object = *object;
-            node->selector->opcode = CHANNEL_SELECT_READ;
-            channel_selector_clear(node->selector, next);
-        }
         channel_notify(node);
     }
 
@@ -288,12 +197,6 @@ static sw_inline int swoole_channel_try_resume_all(zval *object, channel *proper
         node = (channel_node*) swLinkedList_shift(coro_list);
         node->context.onTimeout = swoole_channel_onResume;
         ZVAL_FALSE(&node->context.coro_params);
-        if (node->selector)
-        {
-            node->selector->object = *object;
-            node->selector->opcode = CHANNEL_SELECT_WRITE;
-            channel_selector_clear(node->selector, next);
-        }
         channel_notify(node);
     }
 
