@@ -138,7 +138,7 @@ static void channel_pop_onTimeout(swTimer *timer, swTimer_node *tnode)
     zval _zobject = context->coro_params;
     zval *zobject = & _zobject;
 #endif
-    if (Z_TYPE_P(zobject) == IS_OBJECT)
+    if (Z_TYPE_P(zobject) == IS_OBJECT && instanceof_function(Z_OBJCE_P(zobject), swoole_channel_coro_class_entry_ptr TSRMLS_CC))
     {
         channel *chan = (channel *) swoole_get_object(zobject);
         if (chan->timer)
@@ -164,6 +164,7 @@ static void channel_pop_onTimeout(swTimer *timer, swTimer_node *tnode)
         sw_zval_ptr_dtor(&result);
         efree(node);
     }
+
 }
 
 static void channel_notify(channel_node *node)
