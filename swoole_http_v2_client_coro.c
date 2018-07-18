@@ -696,7 +696,8 @@ static PHP_METHOD(swoole_http2_client_coro, send)
     }
     if (SW_Z_TYPE_P(request) != IS_OBJECT)
     {
-        error: swoole_php_fatal_error(E_ERROR, "object is not instanceof swoole_process.");
+        error:
+        swoole_php_fatal_error(E_ERROR, "object is not instanceof swoole_http2_request.");
         RETURN_FALSE;
     }
     if (!instanceof_function(Z_OBJCE_P(request), swoole_http2_request_coro_class_entry_ptr TSRMLS_CC))
