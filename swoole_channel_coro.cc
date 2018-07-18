@@ -127,11 +127,6 @@ static void channel_pop_onTimeout(swTimer *timer, swTimer_node *tnode)
 
     zval *zobject = &context->coro_params;
     swLinkedList_node *list_node = (swLinkedList_node *)context->private_data;
-    if (node->timer)
-    {
-        swTimer_del(&SwooleG.timer, node->timer);
-        node->timer = NULL;
-    }
 
     zval *retval = NULL;
     zval *result = NULL;
@@ -297,14 +292,7 @@ static PHP_METHOD(swoole_channel_coro, __destruct)
     channel *chan = (channel *) swoole_get_object(getThis());
     chan->closed = true;
     swDebug("destruct, producer_count=%d, consumer_count=%d", chan->producer_list->num, chan->consumer_list->num);
-    while(chan->consumer_list->num > 0)
-    {
-        swLinkedList_shift(chan->consumer_list);
-    }
-    while(chan->producer_list->num > 0)
-    {
-        swLinkedList_shift(chan->producer_list);
-    }
+
     sw_free(chan->consumer_list);
     sw_free(chan->producer_list);
     delete chan->data_queue;
