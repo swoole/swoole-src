@@ -133,33 +133,31 @@ static void channel_pop_onTimeout(swTimer *timer, swTimer_node *tnode)
     php_context *context = (php_context *) node;
 
     zval *zobject = &context->coro_params;
-    if (Z_TYPE_P(zobject) == IS_OBJECT && instanceof_function(Z_OBJCE_P(zobject), swoole_channel_coro_class_entry_ptr TSRMLS_CC))
+    if (Z_TYPE_P(zobject) != IS_OBJECT || !instanceof_function(Z_OBJCE_P(zobject), swoole_channel_coro_class_entry_ptr TSRMLS_CC))
     {
-        channel *chan = (channel *) swoole_get_object(zobject);
-        if (node)
-        {
-            swTimer_del(&SwooleG.timer, node->timer);
-            node->timer = NULL;
-        }
-
-        node->status = SW_CHANNEL_CORO_STATUS_TIMEOUT;
-
-        zval *retval = NULL;
-        zval *result = NULL;
-        SW_MAKE_STD_ZVAL(result);
-        ZVAL_BOOL(result, 0);
-
-        zend_update_property_long(swoole_client_class_entry_ptr, zobject, SW_STRL("errCode")-1, -1 TSRMLS_CC);
-
-        int ret = coro_resume(context, result, &retval);
-        if (ret == CORO_END && retval)
-        {
-            sw_zval_ptr_dtor(&retval);
-        }
-        sw_zval_ptr_dtor(&result);
-        efree(node);
+        return;
     }
+    if (node->timer)
+    {
+        swTimer_del(&SwooleG.timer, node->timer);
+        node->timer = NULL;
+    }
+    node->status = SW_CHANNEL_CORO_STATUS_TIMEOUT;
 
+    zval *retval = NULL;
+    zval *result = NULL;
+    SW_MAKE_STD_ZVAL(result);
+    ZVAL_BOOL(result, 0);
+
+    zend_update_property_long(swoole_client_class_entry_ptr, zobject, SW_STRL("errCode")-1, -1 TSRMLS_CC);
+
+    int ret = coro_resume(context, result, &retval);
+    if (ret == CORO_END && retval)
+    {
+        sw_zval_ptr_dtor(&retval);
+    }
+    sw_zval_ptr_dtor(&result);
+    efree(node);
 }
 
 static void channel_notify(channel_node *node)
