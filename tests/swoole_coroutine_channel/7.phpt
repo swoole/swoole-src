@@ -1,23 +1,14 @@
 --TEST--
-swoole_coroutine: product first without select mode
+swoole_coroutine: consumer first without select mode
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
 
-$c1 = new chan();
-//product first without select mode
+$c1 = new chan(1);
+//consumer first without select mode
 $num = 10;
-go(function () use ($c1,$num) {
-    echo "push start\n";
-    for ($i=0;$i<$num;$i++)
-    {
-        $ret = $c1->push("data-$i");
-        echo "push [#$i] ret:".var_export($ret,1)."\n";
-    }
-});
-
 go(function () use ($c1, $num) {
     echo "pop start\n";
     for ($i=0;$i<$num;$i++)
@@ -26,15 +17,25 @@ go(function () use ($c1, $num) {
         echo "pop [#$i] ret:".var_export($ret,1)."\n";
     }
 });
-echo "main end\n";        
+    
+go(function () use ($c1,$num) {
+    echo "push start\n";
+    for ($i=0;$i<$num;$i++)
+    {
+        $ret = $c1->push("data-$i");
+        echo "push [#$i] ret:".var_export($ret,1)."\n";
+    }
+    
+});
+echo "main end\n";
 ?>
 --EXPECT--
-push start
-push [#0] ret:true
 pop start
-pop [#0] ret:'data-0'
-pop [#1] ret:'data-1'
+push start
 main end
+pop [#0] ret:'data-0'
+push [#0] ret:true
+pop [#1] ret:'data-1'
 push [#1] ret:true
 pop [#2] ret:'data-2'
 push [#2] ret:true

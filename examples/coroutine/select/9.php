@@ -13,7 +13,8 @@ go(function () use ($c1) {
 go(function () use ($c1) {
     $ret = $c1->pop();
     echo "chan pop ret:".var_export($ret,1)."\n";
-    co::sleep(1);
+    //co::sleep(1);
     $ret = $c1->pop();
     echo "chan pop ret:".var_export($ret,1)."\n";
 });
+swoole_event::wait();

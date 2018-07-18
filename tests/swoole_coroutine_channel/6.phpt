@@ -36,7 +36,6 @@ swoole_event_wait();
 --EXPECT--
 coro1 start
 coro2 start
-coro2 end
 coro3 start
 coro3 end
 master end
@@ -50,3 +49,4 @@ array(3) {
 }
 string(10) "hello word"
 pop over!
+coro2 end
