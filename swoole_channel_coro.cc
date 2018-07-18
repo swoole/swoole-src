@@ -73,7 +73,7 @@ static PHP_METHOD(swoole_channel_coro, stats);
 static PHP_METHOD(swoole_channel_coro, length);
 static PHP_METHOD(swoole_channel_coro, isEmpty);
 static PHP_METHOD(swoole_channel_coro, isFull);
-static PHP_METHOD(swoole_channel_coro, select);
+//static PHP_METHOD(swoole_channel_coro, select);
 
 static zend_class_entry swoole_channel_coro_ce;
 static zend_class_entry *swoole_channel_coro_class_entry_ptr;
@@ -86,11 +86,11 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_channel_coro_push, 0, 0, 1)
     ZEND_ARG_INFO(0, data)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_channel_coro_select, 0, 0, 2)
-    ZEND_ARG_ARRAY_INFO(1, read_list, 1)
-    ZEND_ARG_ARRAY_INFO(1, write_list, 1)
-    ZEND_ARG_INFO(0, timeout)
-ZEND_END_ARG_INFO()
+//ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_channel_coro_select, 0, 0, 2)
+//    ZEND_ARG_ARRAY_INFO(1, read_list, 1)
+//    ZEND_ARG_ARRAY_INFO(1, write_list, 1)
+//    ZEND_ARG_INFO(0, timeout)
+//ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -106,7 +106,7 @@ static const zend_function_entry swoole_channel_coro_methods[] =
     PHP_ME(swoole_channel_coro, close, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_channel_coro, stats, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_channel_coro, length, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_channel_coro, select, arginfo_swoole_channel_coro_select, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+//    PHP_ME(swoole_channel_coro, select, arginfo_swoole_channel_coro_select, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 
@@ -485,136 +485,6 @@ static PHP_METHOD(swoole_channel_coro, stats)
     if (chan)
     {
         sw_add_assoc_long_ex(return_value, ZEND_STRS("queue_num"), chan->data_queue->size());
-    }
-}
-
-static PHP_METHOD(swoole_channel_coro, select)
-{
-    coro_check(TSRMLS_C);
-
-    zval *read_list, *write_list = NULL, *item;
-    zval readable, writable;
-    double timeout = 0;
-    zend_bool need_yield = 1;
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a!a!|d", &read_list, &write_list, &timeout) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
-
-    if (read_list)
-    {
-        array_init(&readable);
-
-        SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(read_list), item)
-            if (Z_TYPE_P(item) != IS_OBJECT || !instanceof_function(Z_OBJCE_P(item), swoole_channel_coro_class_entry_ptr TSRMLS_CC))
-            {
-                zend_throw_exception_ex(swoole_exception_class_entry_ptr, errno TSRMLS_CC, "object is not instanceof Swoole\\Coroutine\\Channel.");
-                return;
-            }
-            channel *chan = (channel *) swoole_get_object(item);
-            if (!channel_isEmpty(chan))
-            {
-                Z_ADDREF_P(item);
-                add_next_index_zval(&readable, item);
-                need_yield = 0;
-            }
-        SW_HASHTABLE_FOREACH_END();
-    }
-
-    if (write_list)
-    {
-        array_init(&writable);
-
-        SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(write_list), item)
-            if (Z_TYPE_P(item) != IS_OBJECT || !instanceof_function(Z_OBJCE_P(item), swoole_channel_coro_class_entry_ptr TSRMLS_CC))
-            {
-                zend_throw_exception_ex(swoole_exception_class_entry_ptr, errno TSRMLS_CC, "object is not instanceof Swoole\\Coroutine\\Channel.");
-                return;
-            }
-            channel *chan = (channel *) swoole_get_object(item);
-            if (!channel_isFull(chan))
-            {
-                Z_ADDREF_P(item);
-                add_next_index_zval(&writable, item);
-                need_yield = 0;
-            }
-        SW_HASHTABLE_FOREACH_END();
-    }
-
-    if (need_yield && (read_list || write_list))
-    {
-        channel_selector *selector = (channel_selector*) emalloc(sizeof(channel_selector));
-        memset(selector, 0, sizeof(channel_selector));
-
-        if (read_list)
-        {
-            selector->count = php_swoole_array_length(read_list);
-        }
-        if (write_list)
-        {
-            selector->count += php_swoole_array_length(write_list);
-        }
-        selector->node_list = (channel_selector_node *) ecalloc(selector->count, sizeof(channel_selector_node));
-        int i = 0;
-        channel_node *node = (channel_node *) emalloc(sizeof(channel_node));
-        memset(node, 0, sizeof(channel_node));
-        node->selector = selector;
-        if (read_list)
-        {
-            selector->read_list = read_list;
-            selector->readable = readable;
-
-            SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(read_list), item)
-                channel *chan = (channel *) swoole_get_object(item);
-                swLinkedList_append(chan->consumer_list, node);
-                selector->node_list[i].list = chan->consumer_list;
-                selector->node_list[i].node = chan->consumer_list->tail;
-                i++;
-            SW_HASHTABLE_FOREACH_END();
-        }
-
-        if (write_list)
-        {
-            selector->write_list = write_list;
-            selector->writable = writable;
-
-            SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(write_list), item)
-                channel *chan = (channel *) swoole_get_object(item);
-                swLinkedList_append(chan->producer_list, node);
-                selector->node_list[i].list = chan->producer_list;
-                selector->node_list[i].node = chan->producer_list->tail;
-                i++;
-            SW_HASHTABLE_FOREACH_END();
-        }
-
-        if (timeout > 0)
-        {
-            int ms = (int) (timeout * 1000);
-            php_swoole_check_reactor();
-            php_swoole_check_timer(ms);
-            selector->timer = SwooleG.timer.add(&SwooleG.timer, ms, 0, node, channel_selector_onTimeout);
-        }
-
-        coro_save(&node->context);
-        coro_yield();
-    }
-    else
-    {
-        if (read_list)
-        {
-            zval_ptr_dtor(read_list);
-            ZVAL_COPY_VALUE(read_list, &readable);
-        }
-
-
-        if (write_list)
-        {
-            zval_ptr_dtor(write_list);
-            ZVAL_COPY_VALUE(write_list, &writable);
-        }
-
-        RETURN_TRUE;
     }
 }
 #endif
