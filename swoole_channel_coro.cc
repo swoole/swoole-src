@@ -43,13 +43,13 @@ typedef struct
     bool closed;
     int capacity;
     queue<zval> *data_queue;
-    swTimer_node *timer;
-    ChannelStatus status;
 } channel;
 
 typedef struct _channel_node
 {
     php_context context;
+    swTimer_node *timer;
+    ChannelStatus status;
 } channel_node;
 
 static PHP_METHOD(swoole_channel_coro, __construct);
@@ -132,22 +132,17 @@ static void channel_pop_onTimeout(swTimer *timer, swTimer_node *tnode)
     channel_node *node = (channel_node *) tnode->data;
     php_context *context = (php_context *) node;
 
-#if PHP_MAJOR_VERSION < 7
-    zval *zobject = (zval *)context->coro_params;
-#else
-    zval _zobject = context->coro_params;
-    zval *zobject = & _zobject;
-#endif
+    zval *zobject = &context->coro_params;
     if (Z_TYPE_P(zobject) == IS_OBJECT && instanceof_function(Z_OBJCE_P(zobject), swoole_channel_coro_class_entry_ptr TSRMLS_CC))
     {
         channel *chan = (channel *) swoole_get_object(zobject);
-        if (chan->timer)
+        if (node)
         {
-            swTimer_del(&SwooleG.timer, chan->timer);
-            chan->timer = NULL;
+            swTimer_del(&SwooleG.timer, node->timer);
+            node->timer = NULL;
         }
 
-        chan->status = SW_CHANNEL_CORO_STATUS_TIMEOUT;
+        node->status = SW_CHANNEL_CORO_STATUS_TIMEOUT;
 
         zval *retval = NULL;
         zval *result = NULL;
@@ -301,8 +296,6 @@ static PHP_METHOD(swoole_channel_coro, __construct)
     }
     chan->closed = false;
     chan->capacity = capacity;
-    chan->status = SW_CHANNEL_CORO_STATUS_INIT;
-
     zend_update_property_long(swoole_channel_coro_class_entry_ptr, getThis(), ZEND_STRL("capacity"), capacity TSRMLS_CC);
 
     swoole_set_object(getThis(), chan);
@@ -326,10 +319,6 @@ static PHP_METHOD(swoole_channel_coro, push)
     coro_check(TSRMLS_C);
 
     channel *chan = (channel *) swoole_get_object(getThis());
-    if (chan->status == SW_CHANNEL_CORO_STATUS_TIMEOUT)
-    {
-        RETURN_FALSE
-    }
 
     if (chan->closed)
     {
@@ -364,12 +353,16 @@ static PHP_METHOD(swoole_channel_coro, push)
     if (chan->consumer_list->num != 0)
     {
         channel_node *node = (channel_node *) swLinkedList_shift(chan->consumer_list);
+        if (node->status == SW_CHANNEL_CORO_STATUS_TIMEOUT)
+        {
+            RETURN_FALSE
+        }
         node->context.coro_params = *zdata;
         node->context.onTimeout = swoole_channel_onResume;
-        if (chan->timer)
+        if (node->timer)
         {
-            swTimer_del(&SwooleG.timer, chan->timer);
-            chan->timer = NULL;
+            swTimer_del(&SwooleG.timer, node->timer);
+            node->timer = NULL;
         }
         channel_notify(node);
     }
@@ -391,7 +384,7 @@ static PHP_METHOD(swoole_channel_coro, pop)
         RETURN_FALSE;
     }
 
-    double timeout = SW_CLIENT_DEFAULT_TIMEOUT;
+    double timeout = 0;//never timeout in default
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|d", &timeout) == FAILURE)
     {
@@ -403,21 +396,17 @@ static PHP_METHOD(swoole_channel_coro, pop)
         channel_node *node = (channel_node *) emalloc(sizeof(channel_node));
         memset(node, 0, sizeof(channel_node));
         coro_save(&node->context);
-        swLinkedList_append(chan->consumer_list, node);
-
         if (timeout > 0)
         {
            int ms = (int) (timeout * 1000);
            php_swoole_check_reactor();
            php_swoole_check_timer(ms);
 
-        #if PHP_MAJOR_VERSION < 7
-           node->context.coro_params = getThis();
-        #else
            node->context.coro_params = *getThis();
-        #endif
-           chan->timer = SwooleG.timer.add(&SwooleG.timer, ms, 0, node, channel_pop_onTimeout);
+           node->status = SW_CHANNEL_CORO_STATUS_INIT;
+           node->timer = SwooleG.timer.add(&SwooleG.timer, ms, 0, node, channel_pop_onTimeout);
         }
+        swLinkedList_append(chan->consumer_list, node);
         coro_yield();
     }
     else
