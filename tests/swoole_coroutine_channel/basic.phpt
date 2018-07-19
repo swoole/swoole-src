@@ -11,7 +11,7 @@ $chan = new co\Channel(1);
 co::create(function () use ($chan) {
     for($i=1; $i<=10; $i++) {
         co::sleep(0.01);
-        $chan->push(['rand' => rand(1000, 9999), 'index' => $i]);
+        $chan->push($i);
         echo "$i\n";
     }
 });
