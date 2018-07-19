@@ -308,7 +308,7 @@ int swWebSocket_dispatch_frame(swConnection *conn, char *data, uint32_t length)
             send_frame.str[1] = payload_length;
 
             // Get payload and return it as it is
-            strncpy(send_frame.str + SW_WEBSOCKET_HEADER_LEN,
+            memcpy(send_frame.str + SW_WEBSOCKET_HEADER_LEN,
                 frame.str + length - payload_length, payload_length);
             send_frame.length = payload_length + SW_WEBSOCKET_HEADER_LEN;
             swConnection_send(conn, send_frame.str, send_frame.length, 0);
