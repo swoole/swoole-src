@@ -485,7 +485,6 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
             zend_update_property_stringl(swoole_http2_response_class_entry_ptr, stream->response_object, ZEND_STRL("body"), stream->buffer->str, stream->buffer->length TSRMLS_CC);
         }
 
-        hcc->iowait = 0;
         if (stream->type == SW_HTTP2_STREAM_NORMAL)
         {
             Z_ADDREF_P(zresponse); // dtor in del
@@ -502,6 +501,12 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
             cli->timer = NULL;
         }
 
+        if (hcc->iowait == 0)
+        {
+            sw_zval_free(zresponse);
+            return;
+        }
+        hcc->iowait = 0;
         php_context *context = swoole_get_property(zobject, HTTP2_CLIENT_CORO_CONTEXT);
         int ret = coro_resume(context, zresponse, &retval);
         if (ret == CORO_END && retval)
@@ -528,7 +533,10 @@ static void http2_client_stream_free(void *ptr)
 #endif
     if (stream->response_object)
     {
+        swDebug("response-ref-before=%d", Z_REFCOUNT_P(stream->response_object));
         sw_zval_ptr_dtor(&stream->response_object);
+        swDebug("response-ref-after=%d", Z_REFCOUNT_P(stream->response_object));
+        stream->response_object = NULL;
     }
     efree(stream);
 }
