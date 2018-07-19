@@ -379,11 +379,10 @@ static sw_inline zval* sw_zend_read_property_array(zend_class_entry *class_ptr, 
     zend_uchar ztype = Z_TYPE_P(property);
     if (ztype != IS_ARRAY)
     {
-        zval *temp_array;
-        SW_MAKE_STD_ZVAL(temp_array);
-        array_init(temp_array);
-        zend_update_property(class_ptr, obj, s, len, temp_array TSRMLS_CC);
-        sw_zval_ptr_dtor(&temp_array);
+        zval temp_array;
+        array_init(&temp_array);
+        zend_update_property(class_ptr, obj, s, len, &temp_array TSRMLS_CC);
+        zval_ptr_dtor(&temp_array);
         // NOTICE: if user unset the property, this pointer will be changed
         // some objects such as `swoole_http2_request` always be writable
         if (ztype == IS_UNDEF)
