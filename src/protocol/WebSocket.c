@@ -298,10 +298,27 @@ int swWebSocket_dispatch_frame(swConnection *conn, char *data, uint32_t length)
         {
             return SW_ERR;
         }
-        send_frame.str[0] = 0x88;
-        send_frame.str[1] = 0x00;
-        send_frame.length = 2;
-        swConnection_send(conn, send_frame.str, 2, 0);
+
+        if (conn->websocket_status != WEBSOCKET_STATUS_CLOSING)
+        {
+            // Client attempt to close
+            char payload_length = 0x7F & frame.str[1];
+
+            send_frame.str[0] = 0x88;
+            send_frame.str[1] = payload_length;
+
+            // Get payload and return it as it is
+            strncpy(send_frame.str + SW_WEBSOCKET_HEADER_LEN,
+                frame.str + length - payload_length, payload_length);
+            send_frame.length = payload_length + SW_WEBSOCKET_HEADER_LEN;
+            swConnection_send(conn, send_frame.str, send_frame.length, 0);
+        }
+        else
+        {
+            // Server attempt to close, frame sent by swoole_websocket_server->disconnect()
+            conn->websocket_status = 0;
+        }
+
         return SW_ERR;
 
     default:
