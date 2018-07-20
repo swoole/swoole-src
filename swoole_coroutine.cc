@@ -42,6 +42,7 @@
 coro_global COROG;
 static coro_task* sw_get_current_task();
 static void sw_coro_func(void *);
+static zend_bool is_xdebug_started = 0;
 
 #if PHP_MAJOR_VERSION >= 7 && PHP_MINOR_VERSION >= 2
 static inline void sw_vm_stack_init(void)
@@ -66,9 +67,7 @@ int coro_init(TSRMLS_D)
 {
     if (zend_get_module_started("xdebug") == SUCCESS)
     {
-        swoole_php_fatal_error(E_ERROR,
-                "can not use xdebug in swoole coroutine, please remove xdebug in php.ini and retry.");
-        return 0;
+        is_xdebug_started = 1;
     }
     COROG.origin_vm_stack = EG(vm_stack);
     COROG.origin_vm_stack_top = EG(vm_stack_top);
@@ -193,6 +192,11 @@ static void sw_coro_func(void *arg)
 int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval *retval, void *post_callback,
         void *params)
 {
+    if (is_xdebug_started == 1)
+    {
+        swWarn("xdebug do not support coroutine, please notice that it lead to coredump.");
+    }
+
     if (unlikely(COROG.coro_num >= COROG.max_coro_num) )
     {
         COROG.error = 1;

@@ -638,7 +638,10 @@ static void http2_client_request_free(void *ptr)
     {
         sw_zval_ptr_dtor(&req->data);
     }
-    efree(req->uri);
+    if (req->uri)
+    {
+        efree(req->uri);
+    }
     efree(req);
 }
 
@@ -972,7 +975,7 @@ static PHP_METHOD(swoole_http2_client, get)
     if (cli && cli->socket && cli->socket->active == 1)
     {
         http2_client_request _req;
-        _req.uri = estrndup(Z_STRVAL_P(uri), Z_STRLEN_P(uri));
+        _req.uri = Z_STRVAL_P(uri);
         _req.uri_len = Z_STRLEN_P(uri);
         _req.type = HTTP_GET;
         _req.callback = callback;
@@ -1041,7 +1044,7 @@ static PHP_METHOD(swoole_http2_client, post)
     if (cli && cli->socket && cli->socket->active == 1)
     {
         http2_client_request _req;
-        _req.uri = estrndup(Z_STRVAL_P(uri), Z_STRLEN_P(uri));
+        _req.uri = Z_STRVAL_P(uri);
         _req.uri_len = Z_STRLEN_P(uri);
         _req.type = HTTP_POST;
         _req.callback = callback;
@@ -1111,7 +1114,7 @@ static PHP_METHOD(swoole_http2_client, openStream)
     if (cli && cli->socket && cli->socket->active == 1)
     {
         http2_client_request _req;
-        _req.uri = estrndup(Z_STRVAL_P(uri), Z_STRLEN_P(uri));
+        _req.uri = Z_STRVAL_P(uri);
         _req.uri_len = Z_STRLEN_P(uri);
         _req.type = HTTP_POST;
         _req.callback = callback;
