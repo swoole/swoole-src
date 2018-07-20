@@ -504,7 +504,7 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
 
         if (hcc->iowait == 0)
         {
-            sw_zval_free(zresponse);
+            zval_ptr_dtor(zresponse);
             return;
         }
         hcc->iowait = 0;
