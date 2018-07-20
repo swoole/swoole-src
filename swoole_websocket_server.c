@@ -442,10 +442,13 @@ static PHP_METHOD(swoole_websocket_server, on)
 static PHP_METHOD(swoole_websocket_server, disconnect)
 {
     zval *zdata;
-    long fd = 0;
-    long code = WEBSOCKET_CLOSE_NORMAL;
+    zend_long fd = 0;
+    zend_long code = WEBSOCKET_CLOSE_NORMAL;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "llz|llb", &fd, &code, &zdata) == FAILURE)
+    char *data;
+    int length;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|lz", &fd, &code, &zdata) == FAILURE)
     {
         return;
     }
@@ -456,14 +459,13 @@ static PHP_METHOD(swoole_websocket_server, disconnect)
         RETURN_FALSE;
     }
 
-    if ((code < 4000 || code >= 5000) && code != 1000)
+    if ((code < 4000 && code != 1000) || code >= 5000)
     {
-        swoole_php_fatal_error(E_WARNING, "Status code [%d] is invalid.", (int)code);
+        swoole_php_fatal_error(E_WARNING, "Status code [%ld] is invalid.", code);
         RETURN_FALSE;
     }
 
-    char *data;
-    int length = php_swoole_get_send_data(zdata, &data TSRMLS_CC);
+    length = php_swoole_get_send_data(zdata, &data TSRMLS_CC);
 
     if (length < 0 || length > SW_WEBSOCKET_CLOSE_REASON_MAX_LEN)
     {
@@ -482,12 +484,12 @@ static PHP_METHOD(swoole_websocket_server, disconnect)
     char payload_length = length + SW_WEBSOCKET_CLOSE_CODE_LEN;
 
     swoole_http_buffer->str[0] = 0x88;
-    swoole_http_buffer->str[1] = payload_length;
+    swoole_http_buffer->str[1] = 0x7F & payload_length;     // Avoid bit 1 setted by accident
 
     memcpy(swoole_http_buffer->str + SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_CLOSE_CODE_LEN, data, length);
 
     // Encode close code
-    swoole_http_buffer->str[2] = (char)((code >> 8 & 0xFF));
+    swoole_http_buffer->str[2] = (char)((code >> 8 & 0x00FF));
     swoole_http_buffer->str[3] = (char)((code & 0x00FF));
 
     swoole_http_buffer->length = payload_length + SW_WEBSOCKET_HEADER_LEN;

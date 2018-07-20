@@ -50,13 +50,17 @@ $response = $cli->sendRecv("shutdown");
 
 $byteArray = unpack('C*', $response);
 
-assert($byteArray[0] == 0x0F);	// Test Status Code
-assert($byteArray[1] == 0xA0);
+assert($byteArray[1] == 0x0F);	// Test Status Code bit 1 = 15
+assert($byteArray[2] == 0xA0);  // Test Status Code bit 2 = 160
 
+echo $byteArray[1]."\n";
+echo $byteArray[2]."\n"
 echo substr($response, 2);
 
 ?>
 
 --EXPECT--
+15
+160
 shutdown received
 --CLEAN--
