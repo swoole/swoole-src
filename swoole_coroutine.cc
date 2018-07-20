@@ -64,12 +64,6 @@ static inline void sw_vm_stack_init(void)
 
 int coro_init(TSRMLS_D)
 {
-    if (zend_get_module_started("xdebug") == SUCCESS)
-    {
-        swoole_php_fatal_error(E_ERROR,
-                "can not use xdebug in swoole coroutine, please remove xdebug in php.ini and retry.");
-        return 0;
-    }
     COROG.origin_vm_stack = EG(vm_stack);
     COROG.origin_vm_stack_top = EG(vm_stack_top);
     COROG.origin_vm_stack_end = EG(vm_stack_end);
