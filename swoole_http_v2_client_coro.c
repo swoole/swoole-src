@@ -449,7 +449,7 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
     {
         if (!stream->buffer)
         {
-            stream->buffer = swString_new(8192);
+            stream->buffer = swString_new(SW_HTTP2_DATA_BUFFER_SIZE);
         }
 #ifdef SW_HAVE_ZLIB
         if (stream->gzip)

@@ -134,7 +134,7 @@ static sw_inline void http2_client_send_setting(swClient *cli)
     id = htons(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE);
     memcpy(p, &id, sizeof(id));
     p += 2;
-    value = htonl(65535);
+    value = htonl(SW_HTTP2_DEFAULT_WINDOW_SIZE);
     memcpy(p, &value, sizeof(value));
     p += 4;
 
