@@ -1918,6 +1918,7 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
                 return SW_OK;
             }
             client->suspending = 0;
+            client->cid = 0;
 
             php_context *sw_current_context = swoole_get_property(zobject, 0);
             ret = coro_resume(sw_current_context, result, &retval);
