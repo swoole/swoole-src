@@ -134,12 +134,21 @@ static sw_inline void http2_client_send_setting(swClient *cli)
     id = htons(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE);
     memcpy(p, &id, sizeof(id));
     p += 2;
-    value = htonl(65535);
+    value = htonl(SW_HTTP2_DEFAULT_WINDOW_SIZE);
     memcpy(p, &value, sizeof(value));
     p += 4;
 
     swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN"]\t[length=%d]", swHttp2_get_type(SW_HTTP2_TYPE_SETTINGS), 18);
     cli->send(cli, frame, SW_HTTP2_FRAME_HEADER_SIZE + 18, 0);
+}
+
+static sw_inline void http2_client_send_window_update(swClient *cli, int stream_id, uint32_t size)
+{
+    char frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_WINDOW_UPDATE_SIZE];
+    swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_YELLOW"] stream_id=%d, size=%d", "WINDOW_UPDATE", stream_id, size);
+    *(int*) ((char *)frame + SW_HTTP2_FRAME_HEADER_SIZE) = htonl(size);
+    swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_WINDOW_UPDATE, SW_HTTP2_WINDOW_UPDATE_SIZE, 0, stream_id);
+    cli->send(cli, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_WINDOW_UPDATE_SIZE, 0);
 }
 
 static sw_inline void http2_add_header(nghttp2_nv *headers, char *k, int kl, char *v, int vl)

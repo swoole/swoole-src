@@ -394,7 +394,7 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
     }
     else if (type == SW_HTTP2_TYPE_WINDOW_UPDATE)
     {
-        hcc->window_size = ntohl(*(int *) buf);
+        // hcc->window_size = ntohl(*(int *) buf); TODO
         swTraceLog(SW_TRACE_HTTP2, "update: window_size=%d.", hcc->window_size);
         return;
     }
@@ -449,7 +449,7 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
     {
         if (!stream->buffer)
         {
-            stream->buffer = swString_new(8192);
+            stream->buffer = swString_new(SW_HTTP2_DATA_BUFFER_SIZE);
         }
 #ifdef SW_HAVE_ZLIB
         if (stream->gzip)
@@ -464,6 +464,15 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
 #endif
         {
             swString_append_ptr(stream->buffer, buf, length);
+        }
+
+        // now we control the connection flow only (not stream)
+        hcc->window_size -= length;
+        if (hcc->window_size < SW_HTTP2_DATA_BUFFER_SIZE)
+        {
+            http2_client_send_window_update(cli, 0, SW_HTTP2_DEFAULT_WINDOW_SIZE);
+            http2_client_send_window_update(cli, stream_id, SW_HTTP2_DEFAULT_WINDOW_SIZE);
+            hcc->window_size = SW_HTTP2_DEFAULT_WINDOW_SIZE;
         }
     }
 
@@ -534,9 +543,7 @@ static void http2_client_stream_free(void *ptr)
 #endif
     if (stream->response_object)
     {
-        swDebug("response-ref-before=%d", Z_REFCOUNT_P(stream->response_object));
         sw_zval_ptr_dtor(&stream->response_object);
-        swDebug("response-ref-after=%d", Z_REFCOUNT_P(stream->response_object));
         stream->response_object = NULL;
     }
     efree(stream);
