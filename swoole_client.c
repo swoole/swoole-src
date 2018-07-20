@@ -944,6 +944,11 @@ void php_swoole_check_reactor()
 
 void php_swoole_client_free(zval *zobject, swClient *cli TSRMLS_DC)
 {
+    if (cli->timer)
+    {
+        swTimer_del(&SwooleG.timer, cli->timer);
+        cli->timer = NULL;
+    }
     //socks5 proxy config
     if (cli->socks5_proxy)
     {
