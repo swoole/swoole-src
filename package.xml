@@ -47,10 +47,18 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        - Support ob functions in coroutine
-        - Better Channel
-        - Fixed all known bugs about Client
-        - Fixed all compiler warnings in PHP73
+        - Fixed `Channel`core dump when high concurrency
+        - Add `Channel->pop(float $timeout)`, unlimited default
+        - Remove`Channel->select`
+        - Fixed call `Co\Client->close`memory error
+        - `WebSocket\Server` support disconnect with code and reason
+        - Improve `Coroutine\Http2\Client`:
+        - Rename `swoole_http2_response` properties to plural form.
+        - Add Http2 `WINDOW_SIZE_UPDATE` to solve dead lock, unlimited default
+        - Add `Client->recv(float $timeout)`, unlimited default
+        - Add `cookies` and `set_cookie_headers` properties
+        - Fixed all memory errors and invalid properties error
+        - Fixed core dump when send without recv
     </notes>
     <contents>
         <dir name="/">
