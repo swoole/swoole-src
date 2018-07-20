@@ -187,6 +187,13 @@ static void sw_coro_func(void *arg)
 int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval *retval, void *post_callback,
         void *params)
 {
+    if (zend_get_module_started("xdebug") == SUCCESS)
+    {
+        swoole_php_fatal_error(E_ERROR,
+                "can not use xdebug in swoole coroutine, please remove xdebug in php.ini and retry.");
+        return 0;
+    }
+
     if (unlikely(COROG.coro_num >= COROG.max_coro_num) )
     {
         COROG.error = 1;
