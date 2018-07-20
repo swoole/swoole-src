@@ -142,7 +142,7 @@ static int swReactorKqueue_add(swReactor *reactor, int fd, int fdtype)
         }
     }
 
-    swTrace("[THREAD #%d]EP=%d|FD=%d, events=%d", SwooleTG.id, this->epfd, fd, fdtype);
+    swTraceLog(SW_TRACE_EVENT, "[THREAD #%d]EP=%d|FD=%d, events=%d", SwooleTG.id, this->epfd, fd, fdtype);
     reactor->event_num++;
     return SW_OK;
 }
@@ -207,7 +207,7 @@ static int swReactorKqueue_set(swReactor *reactor, int fd, int fdtype)
             return SW_ERR;
         }
     }
-    swTrace("[THREAD #%d]EP=%d|FD=%d, events=%d", SwooleTG.id, this->epfd, fd, fdtype);
+    swTraceLog(SW_TRACE_EVENT, "[THREAD #%d]EP=%d|FD=%d, events=%d", SwooleTG.id, this->epfd, fd, fdtype);
     //execute parent method
     swReactor_set(reactor, fd, fdtype);
     return SW_OK;
@@ -317,7 +317,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
 
         for (i = 0; i < n; i++)
         {
-            swTrace("n %d events.", n);
+            swTraceLog(SW_TRACE_EVENT, "n %d events.", n);
             if (object->events[i].udata)
             {
                 memcpy(&fd_, &(object->events[i].udata), sizeof(fd_));
