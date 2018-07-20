@@ -53,6 +53,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http2_client_coro_write, 0, 0, 2)
     ZEND_ARG_INFO(0, end_stream)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http2_client_coro_recv, 0, 0, 0)
+    ZEND_ARG_INFO(0, timeout)
+ZEND_END_ARG_INFO()
+
 enum
 {
     HTTP2_CLIENT_CORO_CONTEXT  = 0,
@@ -84,7 +88,7 @@ static const zend_function_entry swoole_http2_client_methods[] =
     PHP_ME(swoole_http2_client_coro, connect,  arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http2_client_coro, send,      arginfo_swoole_http2_client_coro_send, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http2_client_coro, write,     arginfo_swoole_http2_client_coro_write, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http2_client_coro, recv,      arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http2_client_coro, recv,      arginfo_swoole_http2_client_coro_recv, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http2_client_coro, close,     arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
