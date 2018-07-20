@@ -46,7 +46,6 @@ enum swWebsocketStatus
     WEBSOCKET_STATUS_HANDSHAKE = 2,
     WEBSOCKET_STATUS_ACTIVE = 3,
     WEBSOCKET_STATUS_CLOSING    = 4,
-    WEBSOCKET_STATUS_CLOSED     = 5,
 };
 
 typedef struct
