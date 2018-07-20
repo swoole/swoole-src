@@ -864,7 +864,8 @@ static void http2_client_onTimeout(swTimer *timer, swTimer_node *tnode)
 
 static PHP_METHOD(swoole_http2_client_coro, __destruct)
 {
-    http2_client_property *hcc = swoole_get_property(getThis(), HTTP2_CLIENT_CORO_PROPERTY);
+    zval *zobject = getThis();
+    http2_client_property *hcc = swoole_get_property(zobject, HTTP2_CLIENT_CORO_PROPERTY);
     if (hcc)
     {
         if (hcc->inflater)
@@ -880,26 +881,24 @@ static PHP_METHOD(swoole_http2_client_coro, __destruct)
 
         swHashMap_free(hcc->streams);
         efree(hcc);
-        swoole_set_property(getThis(), HTTP2_CLIENT_CORO_PROPERTY, NULL);
+        swoole_set_property(zobject, HTTP2_CLIENT_CORO_PROPERTY, NULL);
     }
 
-    php_context *context = swoole_get_property(getThis(), HTTP2_CLIENT_CORO_CONTEXT);
+    php_context *context = swoole_get_property(zobject, HTTP2_CLIENT_CORO_CONTEXT);
+    swoole_set_property(zobject, HTTP2_CLIENT_CORO_CONTEXT, NULL);
+
+    swClient *cli = swoole_get_object(zobject);
+    if (cli)
+    {
+        zval *retval = NULL;
+        sw_zend_call_method_with_0_params(&zobject, swoole_http2_client_coro_class_entry_ptr, NULL, "close", &retval);
+        if (retval)
+        {
+            sw_zval_ptr_dtor(&retval);
+        }
+    }
+
     efree(context);
-    swoole_set_property(getThis(), HTTP2_CLIENT_CORO_CONTEXT, NULL);
-
-    swClient *cli = swoole_get_object(getThis());
-    if (!cli)
-    {
-        return;
-    }
-
-    zval *zobject = getThis();
-    zval *retval = NULL;
-    sw_zend_call_method_with_0_params(&zobject, swoole_http2_client_coro_class_entry_ptr, NULL, "close", &retval);
-    if (retval)
-    {
-        sw_zval_ptr_dtor(&retval);
-    }
 }
 
 static PHP_METHOD(swoole_http2_client_coro, close)
