@@ -622,6 +622,16 @@ typedef struct _swConnection
      */
     swString *websocket_buffer;
 
+    /**
+     * websocket close code
+     */
+    uint16_t websocket_close_code;
+
+    /**
+     * websocket close reason
+     */
+    char websocket_close_reason[126];
+
 #ifdef SW_USE_OPENSSL
     SSL *ssl;
     uint32_t ssl_state;
