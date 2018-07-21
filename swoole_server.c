@@ -1655,7 +1655,9 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
 
     if (SwooleG.enable_coroutine)
     {
-        zval *args[3];
+        int ret;
+
+        zval *args[5];
         args[0] = zserv;
         args[1] = zfd;
         args[2] = zfrom_id;
@@ -1666,7 +1668,24 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
             return;
         }
 
-        int ret = coro_create(cache, args, 3, &retval, NULL, NULL);
+        swConnection* connection = swWorker_get_connection(SwooleG.serv, Z_LVAL_P(zfd));
+        if (connection && connection->websocket_status > WEBSOCKET_STATUS_CONNECTION) {
+            if (connection->websocket_close_code != 0)
+            {
+                ZVAL_LONG(args[3], (long)connection->websocket_close_code);
+            } 
+            else 
+            {
+                ZVAL_LONG(args[3], 1006); // Abnormal exit
+            }
+
+            ret = coro_create(cache, args, 4, &retval, NULL, NULL);
+        }
+        else
+        {
+            ret = coro_create(cache, args, 3, &retval, NULL, NULL);
+        }
+
         sw_zval_ptr_dtor(&zfd);
         sw_zval_ptr_dtor(&zfrom_id);
 
@@ -1677,7 +1696,9 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
     }
     else
     {
-        zval **args[3];
+        int ret;
+
+        zval **args[5];
         args[0] = &zserv;
         args[1] = &zfd;
         args[2] = &zfrom_id;
@@ -1687,7 +1708,26 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
         {
             return;
         }
-        if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
+
+        swConnection* connection = swWorker_get_connection(SwooleG.serv, Z_LVAL_P(zfd));
+        if (connection && connection->websocket_status > WEBSOCKET_STATUS_CONNECTION) {
+            zend_long status_code = 1006;
+            
+            if (connection->websocket_close_code != 0)
+            {
+                status_code = (zend_long)connection->websocket_close_code;
+            }
+
+            args[4] = &status_code;
+
+            ret = sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 4, args, 0, NULL TSRMLS_CC);
+        }
+        else
+        {
+            ret = sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL TSRMLS_CC);
+        }
+
+        if (ret == FAILURE)
         {
             swoole_php_error(E_WARNING, "onClose handler error.");
         }
