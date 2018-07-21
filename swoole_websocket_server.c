@@ -509,6 +509,9 @@ static PHP_METHOD(swoole_websocket_server, disconnect)
     {
         // Server close connection immedialty
         conn->websocket_status = WEBSOCKET_STATUS_CLOSING;
+        conn->websocket_close_code = code;
+        memcpy(conn->websocket_close_reason, data, length);
+        conn->websocket_close_reason[length] = '\0';
         SW_CHECK_RETURN(SwooleG.serv->close(serv, (int)fd, (int)SW_FALSE));
     }
 }

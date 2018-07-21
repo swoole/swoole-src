@@ -17,6 +17,8 @@
 #include "php_swoole.h"
 #include "Connection.h"
 
+#include "websocket.h"
+
 #ifdef SW_COROUTINE
 #include "swoole_coroutine.h"
 #endif
@@ -1655,7 +1657,9 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
 
     if (SwooleG.enable_coroutine)
     {
-        zval *args[3];
+        int ret;
+
+        zval *args[5];
         args[0] = zserv;
         args[1] = zfd;
         args[2] = zfrom_id;
@@ -1666,7 +1670,40 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
             return;
         }
 
-        int ret = coro_create(cache, args, 3, &retval, NULL, NULL);
+        swConnection* connection = swWorker_get_connection(SwooleG.serv, Z_LVAL_P(zfd));
+        if (connection && connection->websocket_status > WEBSOCKET_STATUS_CONNECTION) {
+            // Websocket connection
+            zval *status_code = NULL;
+            zval *reason = NULL;
+            SW_MAKE_STD_ZVAL(status_code);
+            SW_MAKE_STD_ZVAL(reason);
+            ZVAL_LONG(status_code, 1006);
+
+            if (connection->websocket_close_code != 0)
+            {
+                ZVAL_LONG(status_code, (long)connection->websocket_close_code);
+            }
+
+            if (strlen(connection->websocket_close_reason))
+            {
+                SW_ZVAL_STRINGL(reason, connection->websocket_close_reason, strlen(connection->websocket_close_reason), 1);
+            }
+            else
+            {
+                Z_TYPE_P(reason) = IS_NULL;
+            }
+
+            args[3] = status_code;
+            args[4] = reason;
+
+            ret = coro_create(cache, args, 5, &retval, NULL, NULL);
+        }
+        else
+        {
+            // Not a websocket connection
+            ret = coro_create(cache, args, 3, &retval, NULL, NULL);
+        }
+
         sw_zval_ptr_dtor(&zfd);
         sw_zval_ptr_dtor(&zfrom_id);
 
@@ -1677,7 +1714,9 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
     }
     else
     {
-        zval **args[3];
+        int ret;
+
+        zval **args[5];
         args[0] = &zserv;
         args[1] = &zfd;
         args[2] = &zfrom_id;
@@ -1687,7 +1726,40 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
         {
             return;
         }
-        if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
+
+        swConnection* connection = swWorker_get_connection(SwooleG.serv, Z_LVAL_P(zfd));
+        if (connection && connection->websocket_status > WEBSOCKET_STATUS_CONNECTION) {
+            zval *status_code = NULL;
+            zval *reason = NULL;
+            SW_MAKE_STD_ZVAL(status_code);
+            SW_MAKE_STD_ZVAL(reason);
+            ZVAL_LONG(status_code, 1006);
+            
+            if (connection->websocket_close_code != 0)
+            {
+                ZVAL_LONG(status_code, (long)connection->websocket_close_code);
+            }
+
+            if (strlen(connection->websocket_close_reason))
+            {
+                SW_ZVAL_STRINGL(reason, connection->websocket_close_reason, strlen(connection->websocket_close_reason), 1);
+            }
+            else
+            {
+                Z_TYPE_P(reason) = IS_NULL;
+            }
+
+            args[3] = &status_code;
+            args[4] = &reason;
+
+            ret = sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 5, args, 0, NULL TSRMLS_CC);
+        }
+        else
+        {
+            ret = sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL TSRMLS_CC);
+        }
+
+        if (ret == FAILURE)
         {
             swoole_php_error(E_WARNING, "onClose handler error.");
         }
