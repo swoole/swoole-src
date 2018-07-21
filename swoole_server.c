@@ -1674,7 +1674,9 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
         if (connection && connection->websocket_status > WEBSOCKET_STATUS_CONNECTION) {
             // Websocket connection
             zval *status_code = NULL;
+            zval *reason = NULL;
             SW_MAKE_STD_ZVAL(status_code);
+            SW_MAKE_STD_ZVAL(reason);
             ZVAL_LONG(status_code, 1006);
 
             if (connection->websocket_close_code != 0)
@@ -1682,9 +1684,16 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
                 ZVAL_LONG(status_code, (long)connection->websocket_close_code);
             }
 
-            args[3] = status_code;
+            if (strlen(connection->websocket_close_reason))
+            {
+                php_printf("%s\n", connection->websocket_close_reason);
+                SW_ZVAL_STRINGL(reason, connection->websocket_close_reason, strlen(connection->websocket_close_reason), 1);
+            }
 
-            ret = coro_create(cache, args, 4, &retval, NULL, NULL);
+            args[3] = status_code;
+            args[4] = reason;
+
+            ret = coro_create(cache, args, 5, &retval, NULL, NULL);
         }
         else
         {

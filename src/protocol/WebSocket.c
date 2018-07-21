@@ -310,6 +310,11 @@ int swWebSocket_dispatch_frame(swConnection *conn, char *data, uint32_t length)
             conn->websocket_close_code = 
                 frame.str[length - payload_length] << 8 | (frame.str[length - payload_length + 1] & 0x00FF);
             
+            memcpy(conn->websocket_close_reason, frame.str + length - payload_length + SW_WEBSOCKET_CLOSE_CODE_LEN, 
+                payload_length - SW_WEBSOCKET_CLOSE_CODE_LEN);
+            
+            conn->websocket_close_reason[payload_length - SW_WEBSOCKET_CLOSE_CODE_LEN + 1] = '\0';
+
             // Get payload and return it as it is
             memcpy(send_frame.str + SW_WEBSOCKET_HEADER_LEN,
                 frame.str + length - payload_length, payload_length);
