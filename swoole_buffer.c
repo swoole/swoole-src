@@ -137,6 +137,8 @@ static PHP_METHOD(swoole_buffer, __construct)
 
 static PHP_METHOD(swoole_buffer, __destruct)
 {
+    SW_PREVENT_USER_DESTRUCT;
+
     swString *buffer = swoole_get_object(getThis());
     if (buffer)
     {

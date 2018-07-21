@@ -871,6 +871,8 @@ static void http2_client_onTimeout(swTimer *timer, swTimer_node *tnode)
 
 static PHP_METHOD(swoole_http2_client_coro, __destruct)
 {
+    SW_PREVENT_USER_DESTRUCT;
+
     zval *zobject = getThis();
     http2_client_property *hcc = swoole_get_property(zobject, HTTP2_CLIENT_CORO_PROPERTY);
     if (hcc)

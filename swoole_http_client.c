@@ -1391,6 +1391,8 @@ static PHP_METHOD(swoole_http_client, __construct)
 
 static PHP_METHOD(swoole_http_client, __destruct)
 {
+    SW_PREVENT_USER_DESTRUCT;
+
     http_client *http = swoole_get_object(getThis());
     if (http && http->cli)
     {

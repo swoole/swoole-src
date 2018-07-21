@@ -418,6 +418,8 @@ static PHP_METHOD(swoole_redis, close)
 
 static PHP_METHOD(swoole_redis, __destruct)
 {
+    SW_PREVENT_USER_DESTRUCT;
+
     swRedisClient *redis = swoole_get_object(getThis());
     if (redis)
     {

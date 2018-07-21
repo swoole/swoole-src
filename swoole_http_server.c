@@ -1734,6 +1734,8 @@ static PHP_METHOD(swoole_http_request, getData)
 
 static PHP_METHOD(swoole_http_request, __destruct)
 {
+    SW_PREVENT_USER_DESTRUCT;
+
     zval *ztmpfiles = sw_zend_read_property(swoole_http_request_class_entry_ptr, getThis(), ZEND_STRL("tmpfiles"), 1 TSRMLS_CC);
     //upload files
     if (ztmpfiles && Z_TYPE_P(ztmpfiles) == IS_ARRAY)
@@ -2791,6 +2793,8 @@ static PHP_METHOD(swoole_http_response, redirect)
 
 static PHP_METHOD(swoole_http_response, __destruct)
 {
+    SW_PREVENT_USER_DESTRUCT;
+
     http_context *context = swoole_get_object(getThis());
     if (context)
     {

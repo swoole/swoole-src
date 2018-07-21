@@ -439,6 +439,8 @@ static PHP_METHOD(swoole_process_pool, start)
 
 static PHP_METHOD(swoole_process_pool, __destruct)
 {
+    SW_PREVENT_USER_DESTRUCT;
+
     swProcessPool *pool = swoole_get_object(getThis());
     sw_zval_free(pool->ptr);
     efree(pool);

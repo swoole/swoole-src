@@ -1167,6 +1167,8 @@ static PHP_METHOD(swoole_client, __construct)
 
 static PHP_METHOD(swoole_client, __destruct)
 {
+    SW_PREVENT_USER_DESTRUCT;
+
     swClient *cli = (swClient *) swoole_get_object(getThis());
     //no keep connection
     if (cli)
