@@ -17,6 +17,8 @@
 #include "php_swoole.h"
 #include "Connection.h"
 
+#include "websocket.h"
+
 #ifdef SW_COROUTINE
 #include "swoole_coroutine.h"
 #endif
@@ -1711,11 +1713,12 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
 
         swConnection* connection = swWorker_get_connection(SwooleG.serv, Z_LVAL_P(zfd));
         if (connection && connection->websocket_status > WEBSOCKET_STATUS_CONNECTION) {
-            zend_long status_code = 1006;
+            zval *status_code = NULL;
+            ZVAL_LONG(status_code, 1006);
             
             if (connection->websocket_close_code != 0)
             {
-                status_code = (zend_long)connection->websocket_close_code;
+                ZVAL_LONG(status_code, (long)connection->websocket_close_code);
             }
 
             args[4] = &status_code;
