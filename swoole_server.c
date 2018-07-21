@@ -1727,7 +1727,9 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
         swConnection* connection = swWorker_get_connection(SwooleG.serv, Z_LVAL_P(zfd));
         if (connection && connection->websocket_status > WEBSOCKET_STATUS_CONNECTION) {
             zval *status_code = NULL;
+            zval *reason = NULL;
             SW_MAKE_STD_ZVAL(status_code);
+            SW_MAKE_STD_ZVAL(reason);
             ZVAL_LONG(status_code, 1006);
             
             if (connection->websocket_close_code != 0)
@@ -1735,9 +1737,16 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
                 ZVAL_LONG(status_code, (long)connection->websocket_close_code);
             }
 
-            args[4] = &status_code;
+            if (strlen(connection->websocket_close_reason))
+            {
+                php_printf("%s\n", connection->websocket_close_reason);
+                SW_ZVAL_STRINGL(reason, connection->websocket_close_reason, strlen(connection->websocket_close_reason), 1);
+            }
 
-            ret = sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 4, args, 0, NULL TSRMLS_CC);
+            args[3] = &status_code;
+            args[4] = &reason;
+
+            ret = sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 5, args, 0, NULL TSRMLS_CC);
         }
         else
         {
