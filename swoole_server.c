@@ -1672,19 +1672,23 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
 
         swConnection* connection = swWorker_get_connection(SwooleG.serv, Z_LVAL_P(zfd));
         if (connection && connection->websocket_status > WEBSOCKET_STATUS_CONNECTION) {
+            // Websocket connection
+            zval *status_code = NULL;
+            SW_MAKE_STD_ZVAL(status_code);
+            ZVAL_LONG(status_code, 1006);
+
             if (connection->websocket_close_code != 0)
             {
-                ZVAL_LONG(args[3], (long)connection->websocket_close_code);
-            } 
-            else 
-            {
-                ZVAL_LONG(args[3], 1006); // Abnormal exit
+                ZVAL_LONG(status_code, (long)connection->websocket_close_code);
             }
+
+            args[3] = status_code;
 
             ret = coro_create(cache, args, 4, &retval, NULL, NULL);
         }
         else
         {
+            // Not a websocket connection
             ret = coro_create(cache, args, 3, &retval, NULL, NULL);
         }
 
@@ -1714,6 +1718,7 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
         swConnection* connection = swWorker_get_connection(SwooleG.serv, Z_LVAL_P(zfd));
         if (connection && connection->websocket_status > WEBSOCKET_STATUS_CONNECTION) {
             zval *status_code = NULL;
+            SW_MAKE_STD_ZVAL(status_code);
             ZVAL_LONG(status_code, 1006);
             
             if (connection->websocket_close_code != 0)
