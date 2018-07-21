@@ -1686,8 +1686,11 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
 
             if (strlen(connection->websocket_close_reason))
             {
-                php_printf("%s\n", connection->websocket_close_reason);
                 SW_ZVAL_STRINGL(reason, connection->websocket_close_reason, strlen(connection->websocket_close_reason), 1);
+            }
+            else
+            {
+                Z_TYPE_P(reason) = IS_NULL;
             }
 
             args[3] = status_code;
@@ -1739,8 +1742,11 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
 
             if (strlen(connection->websocket_close_reason))
             {
-                php_printf("%s\n", connection->websocket_close_reason);
                 SW_ZVAL_STRINGL(reason, connection->websocket_close_reason, strlen(connection->websocket_close_reason), 1);
+            }
+            else
+            {
+                Z_TYPE_P(reason) = IS_NULL;
             }
 
             args[3] = &status_code;
