@@ -1024,6 +1024,8 @@ static int swoole_pgsql_coro_onError(swReactor *reactor, swEvent *event)
 
 static PHP_METHOD(swoole_postgresql_coro, __destruct)
 {
+    SW_PREVENT_USER_DESTRUCT;
+
     pg_object *pg_object = swoole_get_object(getThis());
     swoole_postgresql_coro_close(pg_object);
 

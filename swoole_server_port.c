@@ -99,6 +99,8 @@ static PHP_METHOD(swoole_server_port, __construct)
 
 static PHP_METHOD(swoole_server_port, __destruct)
 {
+    SW_PREVENT_USER_DESTRUCT;
+
     swoole_server_port_property *property = swoole_get_property(getThis(), 0);
 
 #ifdef PHP_SWOOLE_ENABLE_FASTCALL

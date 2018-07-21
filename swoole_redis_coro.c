@@ -1362,6 +1362,8 @@ static PHP_METHOD(swoole_redis_coro, close)
 
 static PHP_METHOD(swoole_redis_coro, __destruct)
 {
+    SW_PREVENT_USER_DESTRUCT;
+
     swTraceLog(SW_TRACE_REDIS_CLIENT, "object_id=%d", sw_get_object_handle(getThis()));
 
     php_context *sw_current_context = swoole_get_property(getThis(), 0);

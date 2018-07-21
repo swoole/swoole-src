@@ -1360,6 +1360,8 @@ static PHP_METHOD(swoole_mysql_coro_statement, nextResult)
 
 static PHP_METHOD(swoole_mysql_coro_statement, __destruct)
 {
+    SW_PREVENT_USER_DESTRUCT;
+
     mysql_statement *stmt = swoole_get_object(getThis());
     if (!stmt)
     {
@@ -1426,6 +1428,8 @@ static PHP_METHOD(swoole_mysql_coro, escape)
 
 static PHP_METHOD(swoole_mysql_coro, __destruct)
 {
+    SW_PREVENT_USER_DESTRUCT;
+
     mysql_client *client = swoole_get_object(getThis());
     if (!client)
     {

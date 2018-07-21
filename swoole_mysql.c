@@ -2520,6 +2520,8 @@ static PHP_METHOD(swoole_mysql, rollback)
 
 static PHP_METHOD(swoole_mysql, __destruct)
 {
+    SW_PREVENT_USER_DESTRUCT;
+
     mysql_client *client = swoole_get_object(getThis());
     if (!client)
     {

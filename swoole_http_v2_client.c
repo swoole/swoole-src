@@ -1265,6 +1265,8 @@ static PHP_METHOD(swoole_http2_client, onReceive)
 
 static PHP_METHOD(swoole_http2_client, __destruct)
 {
+    SW_PREVENT_USER_DESTRUCT;
+
     http2_client_property *hcc = swoole_get_property(getThis(), HTTP2_CLIENT_PROPERTY_INDEX);
     if (hcc)
     {

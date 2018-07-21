@@ -931,5 +931,7 @@ static PHP_METHOD(swoole_table_row, offsetUnset)
 
 static PHP_METHOD(swoole_table_row, __destruct)
 {
+    SW_PREVENT_USER_DESTRUCT;
+
     swoole_set_object(getThis(), NULL);
 }
