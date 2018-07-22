@@ -256,7 +256,15 @@ if test "$PHP_SWOOLE" != "no"; then
     fi
 
     if test "$PHP_SOCKETS" = "yes"; then
-        AC_DEFINE(SW_SOCKETS, 1, [enable sockets support])
+        AC_CHECK_HEADERS([$phpincludedir/ext/sockets/php_sockets.h], [
+            AC_DEFINE(SW_SOCKETS, 1, [enable sockets support])
+
+            dnl Some systems build and package PHP socket extension separately
+            dnl and php_config.h doesn't have HAVE_SOCKETS defined.
+            AC_DEFINE(HAVE_SOCKETS, 1, [Whether sockets extension is enabled])
+        ],
+            [AC_MSG_ERROR([cannot find $phpincludedir/ext/sockets/php_sockets.h. Please check if sockets extension installed])]
+        )
     fi
 
     if test "$PHP_HTTP2" = "yes"; then
