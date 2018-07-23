@@ -59,6 +59,7 @@ void swoole_serialize_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_serialize_ce, "swoole_serialize", "Swoole\\Serialize", swoole_serialize_methods);
     swoole_serialize_class_entry_ptr = zend_register_internal_class(&swoole_serialize_ce TSRMLS_CC);
+    swoole_serialize_class_entry_ptr->ce_flags |= ZEND_ACC_FINAL;
     SWOOLE_CLASS_ALIAS(swoole_serialize, "Swoole\\Serialize");
 
     //    ZVAL_STRING(&swSeriaG.sleep_fname, "__sleep");

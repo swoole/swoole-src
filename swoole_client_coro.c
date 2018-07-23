@@ -253,6 +253,7 @@ void swoole_client_coro_init(int module_number TSRMLS_DC)
 {
     INIT_CLASS_ENTRY(swoole_client_coro_ce, "Swoole\\Coroutine\\Client", swoole_client_coro_methods);
     swoole_client_coro_class_entry_ptr = zend_register_internal_class(&swoole_client_coro_ce TSRMLS_CC);
+    swoole_client_coro_class_entry_ptr->ce_flags |= ZEND_ACC_FINAL;
 
     if (SWOOLE_G(use_shortname))
     {

@@ -185,8 +185,7 @@ void swoole_socket_coro_init(int module_number TSRMLS_DC)
     swoole_socket_coro_handlers.offset = XtOffsetOf(socket_coro, std);
 
     INIT_CLASS_ENTRY(swoole_socket_coro_exception_ce, "Swoole\\Coroutine\\Socket\\Exception", NULL);
-    swoole_socket_coro_exception_class_entry_ptr = sw_zend_register_internal_class_ex(&swoole_socket_coro_exception_ce,
-            zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
+    swoole_socket_coro_exception_class_entry_ptr = sw_zend_register_internal_class_ex(&swoole_socket_coro_exception_ce, zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
 
     if (SWOOLE_G(use_shortname))
     {

@@ -56,6 +56,7 @@ void swoole_channel_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_channel_ce, "swoole_channel", "Swoole\\Channel", swoole_channel_methods);
     swoole_channel_class_entry_ptr = zend_register_internal_class(&swoole_channel_ce TSRMLS_CC);
+    swoole_channel_class_entry_ptr->ce_flags |= ZEND_ACC_FINAL;
     SWOOLE_CLASS_ALIAS(swoole_channel, "Swoole\\Channel");
 }
 

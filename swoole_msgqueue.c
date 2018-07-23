@@ -63,6 +63,7 @@ void swoole_msgqueue_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_msgqueue_ce, "swoole_msgqueue", "Swoole\\MsgQueue", swoole_msgqueue_methods);
     swoole_msgqueue_class_entry_ptr = zend_register_internal_class(&swoole_msgqueue_ce TSRMLS_CC);
+    swoole_msgqueue_class_entry_ptr->ce_flags |= ZEND_ACC_FINAL;
     SWOOLE_CLASS_ALIAS(swoole_msgqueue, "Swoole\\MsgQueue");
 }
 

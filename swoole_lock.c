@@ -59,6 +59,7 @@ void swoole_lock_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_lock_ce, "swoole_lock", "Swoole\\Lock", swoole_lock_methods);
     swoole_lock_class_entry_ptr = zend_register_internal_class(&swoole_lock_ce TSRMLS_CC);
+    swoole_lock_class_entry_ptr->ce_flags |= ZEND_ACC_FINAL;
     SWOOLE_CLASS_ALIAS(swoole_lock, "Swoole\\Lock");
 
     zend_declare_class_constant_long(swoole_lock_class_entry_ptr, SW_STRL("FILELOCK")-1, SW_FILELOCK TSRMLS_CC);

@@ -76,6 +76,7 @@ void swoole_process_pool_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_process_pool_ce, "swoole_process_pool", "Swoole\\Process\\Pool", swoole_process_pool_methods);
     swoole_process_pool_class_entry_ptr = zend_register_internal_class(&swoole_process_pool_ce TSRMLS_CC);
+    swoole_process_pool_class_entry_ptr->ce_flags |= ZEND_ACC_FINAL;
     SWOOLE_CLASS_ALIAS(swoole_process_pool, "Swoole\\Process\\Pool");
 }
 

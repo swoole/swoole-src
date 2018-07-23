@@ -97,9 +97,11 @@ void swoole_http2_client_coro_init(int module_number TSRMLS_DC)
 {
     INIT_CLASS_ENTRY(swoole_http2_client_coro_ce, "Swoole\\Coroutine\\Http2\\Client", swoole_http2_client_methods);
     swoole_http2_client_coro_class_entry_ptr = zend_register_internal_class(&swoole_http2_client_coro_ce);
+    swoole_http2_client_coro_class_entry_ptr->ce_flags |= ZEND_ACC_FINAL;
 
     INIT_CLASS_ENTRY(swoole_http2_request_coro_ce, "Swoole\\Http2\\Request", NULL);
     swoole_http2_request_coro_class_entry_ptr = zend_register_internal_class(&swoole_http2_request_coro_ce);
+    swoole_http2_request_coro_class_entry_ptr->ce_flags |= ZEND_ACC_FINAL;
     sw_zend_register_class_alias("Swoole\\Coroutine\\Http2\\Request", swoole_http2_request_coro_class_entry_ptr);
     if (SWOOLE_G(use_namespace))
     {
