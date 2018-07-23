@@ -444,6 +444,7 @@ void swoole_http_client_coro_init(int module_number TSRMLS_DC)
 {
     INIT_CLASS_ENTRY(swoole_http_client_coro_ce, "Swoole\\Coroutine\\Http\\Client", swoole_http_client_coro_methods);
     swoole_http_client_coro_class_entry_ptr = zend_register_internal_class(&swoole_http_client_coro_ce TSRMLS_CC);
+    swoole_http_client_coro_class_entry_ptr->ce_flags |= ZEND_ACC_FINAL;
 
     if (SWOOLE_G(use_shortname))
     {

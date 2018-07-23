@@ -148,6 +148,7 @@ void swoole_mmap_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_mmap_ce, "swoole_mmap", "Swoole\\Mmap", swoole_mmap_methods);
     swoole_mmap_class_entry_ptr = zend_register_internal_class(&swoole_mmap_ce TSRMLS_CC);
+    swoole_mmap_class_entry_ptr->ce_flags |= ZEND_ACC_FINAL;
     SWOOLE_CLASS_ALIAS(swoole_mmap, "Swoole\\Mmap");
 }
 

@@ -372,6 +372,7 @@ void swoole_mysql_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_mysql_ce, "swoole_mysql", "Swoole\\MySQL", swoole_mysql_methods);
     swoole_mysql_class_entry_ptr = zend_register_internal_class(&swoole_mysql_ce TSRMLS_CC);
+    swoole_mysql_class_entry_ptr->ce_flags |= ZEND_ACC_FINAL;
     SWOOLE_CLASS_ALIAS(swoole_mysql, "Swoole\\MySQL");
 
     SWOOLE_INIT_CLASS_ENTRY(swoole_mysql_exception_ce, "swoole_mysql_exception", "Swoole\\MySQL\\Exception", NULL);

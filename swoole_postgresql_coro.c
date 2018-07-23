@@ -127,6 +127,7 @@ void swoole_postgresql_coro_init(int module_number TSRMLS_DC)
     le_link = zend_register_list_destructors_ex(_destroy_pgsql_link, NULL, "pgsql link", module_number);
     le_result = zend_register_list_destructors_ex(_free_result, NULL, "pgsql result", module_number);
     swoole_postgresql_coro_class_entry_ptr = zend_register_internal_class(&swoole_postgresql_coro_ce TSRMLS_CC);
+    swoole_postgresql_coro_class_entry_ptr->ce_flags |= ZEND_ACC_FINAL;
 
     if (SWOOLE_G(use_shortname))
     {

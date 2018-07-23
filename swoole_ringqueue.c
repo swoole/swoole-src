@@ -57,6 +57,7 @@ void swoole_ringqueue_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_ringqueue_ce, "swoole_ringqueue", "Swoole\\RingQueue", swoole_ringqueue_methods);
     swoole_ringqueue_class_entry_ptr = zend_register_internal_class(&swoole_ringqueue_ce TSRMLS_CC);
+    swoole_ringqueue_class_entry_ptr->ce_flags |= ZEND_ACC_FINAL;
     SWOOLE_CLASS_ALIAS(swoole_ringqueue, "Swoole\\RingQueue");
 }
 

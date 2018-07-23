@@ -90,6 +90,7 @@ void swoole_http2_client_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_http2_client_ce, "swoole_http2_client", "Swoole\\Http2\\Client", swoole_http2_client_methods);
     swoole_http2_client_class_entry_ptr = sw_zend_register_internal_class_ex(&swoole_http2_client_ce, swoole_client_class_entry_ptr, "swoole_client" TSRMLS_CC);
+    swoole_http2_client_class_entry_ptr->ce_flags |= ZEND_ACC_FINAL;
     SWOOLE_CLASS_ALIAS(swoole_http2_client, "Swoole\\Http2\\Client");
 
     zend_declare_property_null(swoole_http2_client_class_entry_ptr, SW_STRL("requestHeaders")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
@@ -97,6 +98,7 @@ void swoole_http2_client_init(int module_number TSRMLS_DC)
 
     SWOOLE_INIT_CLASS_ENTRY(swoole_http2_response_ce, "swoole_http2_response", "Swoole\\Http2\\Response", NULL);
     swoole_http2_response_class_entry_ptr = zend_register_internal_class(&swoole_http2_response_ce TSRMLS_CC);
+    swoole_http2_response_class_entry_ptr->ce_flags |= ZEND_ACC_FINAL;
     SWOOLE_CLASS_ALIAS(swoole_http2_response, "Swoole\\Http2\\Response");
 
     zend_declare_property_long(swoole_http2_response_class_entry_ptr, SW_STRL("errCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);

@@ -262,6 +262,7 @@ void swoole_table_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_table_ce, "swoole_table", "Swoole\\Table", swoole_table_methods);
     swoole_table_class_entry_ptr = zend_register_internal_class(&swoole_table_ce TSRMLS_CC);
+    swoole_table_class_entry_ptr->ce_flags |= ZEND_ACC_FINAL;
     SWOOLE_CLASS_ALIAS(swoole_table, "Swoole\\Table");
     zend_class_implements(swoole_table_class_entry_ptr TSRMLS_CC, 1, zend_ce_arrayaccess);
 
@@ -275,6 +276,7 @@ void swoole_table_init(int module_number TSRMLS_DC)
 
     SWOOLE_INIT_CLASS_ENTRY(swoole_table_row_ce, "swoole_table_row", "Swoole\\Table\\Row", swoole_table_row_methods);
     swoole_table_row_class_entry_ptr = zend_register_internal_class(&swoole_table_row_ce TSRMLS_CC);
+    swoole_table_row_class_entry_ptr->ce_flags |= ZEND_ACC_FINAL;
     SWOOLE_CLASS_ALIAS(swoole_table_row, "Swoole\\Table\\Row");
     zend_class_implements(swoole_table_row_class_entry_ptr TSRMLS_CC, 1, zend_ce_arrayaccess);
 

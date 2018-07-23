@@ -66,6 +66,7 @@ void swoole_redis_server_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_redis_server_ce, "swoole_redis_server", "Swoole\\Redis\\Server", swoole_redis_server_methods);
     swoole_redis_server_class_entry_ptr = sw_zend_register_internal_class_ex(&swoole_redis_server_ce, swoole_server_class_entry_ptr, "swoole_server" TSRMLS_CC);
+    swoole_redis_server_class_entry_ptr->ce_flags |= ZEND_ACC_FINAL;
     SWOOLE_CLASS_ALIAS(swoole_redis_server, "Swoole\\Redis\\Server");
 
     if (SWOOLE_G(use_shortname))

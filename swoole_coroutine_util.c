@@ -126,6 +126,7 @@ void swoole_coroutine_util_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_coroutine_util_ce, "swoole_coroutine", "Swoole\\Coroutine", swoole_coroutine_util_methods);
     swoole_coroutine_util_class_entry_ptr = zend_register_internal_class(&swoole_coroutine_util_ce TSRMLS_CC);
+    swoole_coroutine_util_class_entry_ptr->ce_flags |= ZEND_ACC_FINAL;
 
     if (SWOOLE_G(use_namespace))
     {
