@@ -307,6 +307,7 @@ static PHP_METHOD(swoole_channel_coro, push)
 
     if (chan->closed)
     {
+        zend_update_property_long(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, -2 TSRMLS_CC);
         RETURN_FALSE;
     }
     swLinkedList *producer_list = chan->producer_list;
@@ -314,6 +315,7 @@ static PHP_METHOD(swoole_channel_coro, push)
     zval *zdata;
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zdata) == FAILURE)
     {
+        zend_update_property_long(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, -3 TSRMLS_CC);
         RETURN_FALSE;
     }
 
@@ -328,6 +330,7 @@ static PHP_METHOD(swoole_channel_coro, push)
 
     if (channel_isFull(chan) && chan->closed)
     {
+        zend_update_property_long(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, -2 TSRMLS_CC);
         RETURN_FALSE;
     }
 
@@ -339,6 +342,7 @@ static PHP_METHOD(swoole_channel_coro, push)
     {
         channel_node *node = (channel_node *) swLinkedList_shift(chan->consumer_list);
         node->context.coro_params = *zdata;
+        node->context.private_data = (void *)getThis();
         node->context.onTimeout = swoole_channel_onResume;
         if (node->timer)
         {
@@ -362,6 +366,7 @@ static PHP_METHOD(swoole_channel_coro, pop)
     channel *chan = (channel *) swoole_get_object(getThis());
     if (chan->closed)
     {
+        zend_update_property_long(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, -2 TSRMLS_CC);
         RETURN_FALSE;
     }
 
@@ -369,6 +374,7 @@ static PHP_METHOD(swoole_channel_coro, pop)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|d", &timeout) == FAILURE)
     {
+        zend_update_property_long(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, -3 TSRMLS_CC);
         RETURN_FALSE;
     }
 
@@ -398,6 +404,7 @@ static PHP_METHOD(swoole_channel_coro, pop)
         swDebug("TYPE=%d, count=%zu", Z_TYPE(zdata), chan->data_queue->size());
 
         swoole_channel_try_resume_producer(getThis(), chan);
+        zend_update_property_long(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, 0 TSRMLS_CC);
         RETURN_ZVAL(&zdata, 0, NULL);
     }
 }
