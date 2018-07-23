@@ -1336,9 +1336,7 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
 
 PHP_FUNCTION(swoole_version)
 {
-    char swoole_version[32] = {0};
-    snprintf(swoole_version, sizeof(PHP_SWOOLE_VERSION), "%s", PHP_SWOOLE_VERSION);
-    SW_RETURN_STRING(swoole_version, 1);
+    SW_RETURN_STRING(PHP_SWOOLE_VERSION, 1);
 }
 
 static uint32_t hashkit_one_at_a_time(const char *key, size_t key_length)
