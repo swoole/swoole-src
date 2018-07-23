@@ -342,7 +342,6 @@ static PHP_METHOD(swoole_channel_coro, push)
     {
         channel_node *node = (channel_node *) swLinkedList_shift(chan->consumer_list);
         node->context.coro_params = *zdata;
-        node->context.private_data = (void *)getThis();
         node->context.onTimeout = swoole_channel_onResume;
         if (node->timer)
         {
