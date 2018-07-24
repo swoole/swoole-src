@@ -21,7 +21,6 @@ sudo: required
 env:
   global:
     - secure: "Mqg9ifSV0BLv2TIBw/x64aEuB8Y5aPXwXg7xAOq08oPlHBYSBgSYxroJL5PXs0fe7PszZF20bUBinwmEXYQzqgP/40Y1kmq/kfTsDXwTOc9qbAbA1pWvH+Sk1kDP5MLJRPWBCkqctyFd0I0u0SdzT1fgSqirqEz2bMnbAUVpSvo="
-  DOCKER_COMPOSE_VERSION: 1.21.0
 
 services:
   - docker
@@ -49,4 +48,4 @@ before_script:
   - php --ri swoole
 
 script:
-  - sudo ./travis/route.sh
+  - ./travis/route.sh

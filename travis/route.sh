@@ -1,5 +1,6 @@
 #!/bin/sh
 #------------Only run once-------------
+DOCKER_COMPOSE_VERSION="1.21.0"
 if [ "`php -v | grep "PHP 7\\.2"`" ]; then
     echo "run phpt in docker...\n"
     set -e
