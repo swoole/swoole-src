@@ -41,11 +41,12 @@ addons:
 
 # compile
 before_script:
-  # for docker
+  - php -v
   - ls -al
   - pwd
   # raw
   - ./travis/compile.sh
+  - php --ri swoole
 
 script:
-  - ./route.sh
+  - ./travis/route.sh
