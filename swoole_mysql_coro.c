@@ -148,7 +148,7 @@ static int swoole_mysql_coro_onError(swReactor *reactor, swEvent *event);
 static void swoole_mysql_coro_onConnect(mysql_client *client TSRMLS_DC);
 static void swoole_mysql_coro_onTimeout(swTimer *timer, swTimer_node *tnode);
 
-extern swString *mysql_request_buffer;
+
 
 void swoole_mysql_coro_init(int module_number TSRMLS_DC)
 {
@@ -571,16 +571,6 @@ static int swoole_mysql_coro_close(zval *this)
 static PHP_METHOD(swoole_mysql_coro, __construct)
 {
     coro_check(TSRMLS_C);
-
-    if (!mysql_request_buffer)
-    {
-        mysql_request_buffer = swString_new(SW_MYSQL_QUERY_INIT_SIZE);
-        if (!mysql_request_buffer)
-        {
-            swoole_php_fatal_error(E_ERROR, "[1] swString_new(%d) failed.", SW_HTTP_RESPONSE_INIT_SIZE);
-            RETURN_FALSE;
-        }
-    }
 
     mysql_client *client = emalloc(sizeof(mysql_client));
     bzero(client, sizeof(mysql_client));

@@ -366,8 +366,6 @@ static int swoole_mysql_onWrite(swReactor *reactor, swEvent *event);
 static int swoole_mysql_onError(swReactor *reactor, swEvent *event);
 static void swoole_mysql_onConnect(mysql_client *client TSRMLS_DC);
 
-swString *mysql_request_buffer = NULL;
-
 void swoole_mysql_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_mysql_ce, "swoole_mysql", "Swoole\\MySQL", swoole_mysql_methods);
@@ -2132,16 +2130,6 @@ void mysql_column_info(mysql_field *field)
 
 static PHP_METHOD(swoole_mysql, __construct)
 {
-    if (!mysql_request_buffer)
-    {
-        mysql_request_buffer = swString_new(SW_MYSQL_QUERY_INIT_SIZE);
-        if (!mysql_request_buffer)
-        {
-            swoole_php_fatal_error(E_ERROR, "[1] swString_new(%d) failed.", SW_HTTP_RESPONSE_INIT_SIZE);
-            RETURN_FALSE;
-        }
-    }
-
     mysql_client *client = emalloc(sizeof(mysql_client));
     bzero(client, sizeof(mysql_client));
     swoole_set_object(getThis(), client);
