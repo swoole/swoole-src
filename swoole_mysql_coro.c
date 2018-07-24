@@ -101,6 +101,7 @@ ZEND_END_ARG_INFO()
 
 static zend_class_entry swoole_mysql_coro_ce;
 static zend_class_entry *swoole_mysql_coro_class_entry_ptr;
+static zend_object_handlers swoole_mysql_coro_handlers;
 
 static zend_class_entry swoole_mysql_coro_exception_ce;
 static zend_class_entry *swoole_mysql_coro_exception_class_entry_ptr;
@@ -148,29 +149,52 @@ static int swoole_mysql_coro_onError(swReactor *reactor, swEvent *event);
 static void swoole_mysql_coro_onConnect(mysql_client *client TSRMLS_DC);
 static void swoole_mysql_coro_onTimeout(swTimer *timer, swTimer_node *tnode);
 
+static void swoole_mysql_coro_free_storage(zend_object *object);
+static zend_object *swoole_socket_coro_create(zend_class_entry *ce TSRMLS_DC)
+{
+    zend_object *object = ecalloc(1, sizeof(object) + zend_object_properties_size(ce));
+    zend_object_std_init(object, ce TSRMLS_CC);
+    object_properties_init(object, ce);
+    object->handlers = &swoole_mysql_coro_handlers;
 
+    coro_check(TSRMLS_C);
+
+    mysql_client *client = emalloc(sizeof(mysql_client));
+    bzero(client, sizeof(mysql_client));
+
+    zval _zobject;
+    zval* zobject = &_zobject;
+    ZVAL_OBJ(zobject, object);
+    swoole_set_object(zobject, client);
+
+    return object;
+}
 
 void swoole_mysql_coro_init(int module_number TSRMLS_DC)
 {
     INIT_CLASS_ENTRY(swoole_mysql_coro_ce, "Swoole\\Coroutine\\MySQL", swoole_mysql_coro_methods);
     swoole_mysql_coro_class_entry_ptr = zend_register_internal_class(&swoole_mysql_coro_ce TSRMLS_CC);
+    swoole_mysql_coro_class_entry_ptr->create_object = swoole_socket_coro_create;
+    swoole_mysql_coro_class_entry_ptr->serialize = zend_class_serialize_deny;
+    swoole_mysql_coro_class_entry_ptr->unserialize = zend_class_unserialize_deny;
+    memcpy(&swoole_mysql_coro_handlers, zend_get_std_object_handlers(), sizeof(swoole_mysql_coro_handlers));
+    swoole_mysql_coro_handlers.free_obj = swoole_mysql_coro_free_storage;
 
-    INIT_CLASS_ENTRY(swoole_mysql_coro_statement_ce, "Swoole\\Coroutine\\MySQL\\Statement",
-            swoole_mysql_coro_statement_methods);
-    swoole_mysql_coro_statement_class_entry_ptr = zend_register_internal_class(
-            &swoole_mysql_coro_statement_ce TSRMLS_CC);
+
+    INIT_CLASS_ENTRY(swoole_mysql_coro_statement_ce, "Swoole\\Coroutine\\MySQL\\Statement", swoole_mysql_coro_statement_methods);
+    swoole_mysql_coro_statement_class_entry_ptr = zend_register_internal_class(&swoole_mysql_coro_statement_ce TSRMLS_CC);
 
     INIT_CLASS_ENTRY(swoole_mysql_coro_exception_ce, "Swoole\\Coroutine\\MySQL\\Exception", NULL);
-    swoole_mysql_coro_exception_class_entry_ptr = sw_zend_register_internal_class_ex(&swoole_mysql_coro_exception_ce,
-            zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
+    swoole_mysql_coro_exception_class_entry_ptr = sw_zend_register_internal_class_ex(&swoole_mysql_coro_exception_ce, zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
 
+    /** ============================================= ALIAS ================================================**/
     if (SWOOLE_G(use_shortname))
     {
         sw_zend_register_class_alias("Co\\MySQL", swoole_mysql_coro_class_entry_ptr);
         sw_zend_register_class_alias("Co\\MySQL\\Statement", swoole_mysql_coro_statement_class_entry_ptr);
         sw_zend_register_class_alias("Co\\MySQL\\Exception", swoole_mysql_coro_exception_class_entry_ptr);
     }
-
+    /** ============================================= DECLARES =============================================**/
     zend_declare_property_string(swoole_mysql_coro_class_entry_ptr, SW_STRL("serverInfo") - 1, "", ZEND_ACC_PRIVATE TSRMLS_CC);
     zend_declare_property_long(swoole_mysql_coro_class_entry_ptr, SW_STRL("sock") - 1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_bool(swoole_mysql_coro_class_entry_ptr, SW_STRL("connected") - 1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
@@ -570,11 +594,10 @@ static int swoole_mysql_coro_close(zval *this)
 
 static PHP_METHOD(swoole_mysql_coro, __construct)
 {
-    coro_check(TSRMLS_C);
+}
 
-    mysql_client *client = emalloc(sizeof(mysql_client));
-    bzero(client, sizeof(mysql_client));
-    swoole_set_object(getThis(), client);
+static PHP_METHOD(swoole_mysql_coro, __destruct)
+{
 }
 
 static PHP_METHOD(swoole_mysql_coro, connect)
@@ -1416,27 +1439,42 @@ static PHP_METHOD(swoole_mysql_coro, escape)
 }
 #endif
 
-static PHP_METHOD(swoole_mysql_coro, __destruct)
+static PHP_METHOD(swoole_mysql_coro, close)
 {
-    SW_PREVENT_USER_DESTRUCT;
+    if (swoole_mysql_coro_close(getThis()) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+#if PHP_MAJOR_VERSION < 7
+    sw_zval_ptr_dtor(&getThis());
+#endif
+    RETURN_TRUE;
+}
 
-    mysql_client *client = swoole_get_object(getThis());
+static void swoole_mysql_coro_free_storage(zend_object *object)
+{
+    // as __destruct
+    zval _zobject;
+    zval* zobject = &_zobject;
+    ZVAL_OBJ(zobject, object);
+
+    mysql_client *client = swoole_get_object(zobject);
     if (!client)
     {
         return;
     }
     if (client->state != SW_MYSQL_STATE_CLOSED && client->cli)
     {
-        swoole_mysql_coro_close(getThis());
+        swoole_mysql_coro_close(zobject);
     }
     if (client->buffer)
     {
         swString_free(client->buffer);
     }
     efree(client);
-    swoole_set_object(getThis(), NULL);
+    swoole_set_object(zobject, NULL);
 
-    php_context *context = swoole_get_property(getThis(), 0);
+    php_context *context = swoole_get_property(zobject, 0);
     if (!context)
     {
         return;
@@ -1449,19 +1487,10 @@ static PHP_METHOD(swoole_mysql_coro, __destruct)
     {
         context->state = SW_CORO_CONTEXT_TERM;
     }
-    swoole_set_property(getThis(), 0, NULL);
-}
+    swoole_set_property(zobject, 0, NULL);
 
-static PHP_METHOD(swoole_mysql_coro, close)
-{
-    if (swoole_mysql_coro_close(getThis()) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
-#if PHP_MAJOR_VERSION < 7
-    sw_zval_ptr_dtor(&getThis());
-#endif
-    RETURN_TRUE;
+    // dtor object
+    zend_object_std_dtor(object);
 }
 
 static int swoole_mysql_coro_onError(swReactor *reactor, swEvent *event)
