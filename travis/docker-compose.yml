@@ -1,0 +1,34 @@
+version: '3.4'
+services:
+  php:
+    image: "twosee/php:7.2-cli"
+    ports:
+      - "127.0.0.1:9501:9501"
+    volumes:
+      - ./:/swoole-src:rw
+    ulimits:
+      core: -1
+    privileged: true
+    depends_on:
+      - mysql
+      - redis
+    command: tail -f /etc/group
+  mysql:
+    image: "twosee/swoole-coroutine:mysql"
+    ports:
+      - "127.0.0.1:3306:3306"
+    volumes:
+      - ./data/mysql:/var/lib/mysql:rw
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: test
+      MYSQL_USER: swoole
+      MYSQL_PASSWORD: swoole
+  redis:
+    image: "twosee/swoole-coroutine:redis"
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - ./data/redis:/var/lib/redis:rw
+    sysctls:
+        net.core.somaxconn: 65535
