@@ -3,5 +3,5 @@ phpize && \
 ./configure && \
 make clean && \
 make && install_info="`make install`" && \
-echo ${install_info} && php_ext_dir="`echo ${install_info} | grep -o " /.*extensions\/no-debug.*\/"`" && \
-echo "[swoole]\nextension=${php_ext_dir}swoole.so" > ~/.phpenv/versions/$(phpenv version-name)/etc/php.ini
+echo ${install_info} && php_ext_dir="`echo ${install_info} | grep -o " /.*extensions\/no-debug.*\d\{8\}\/\$"`" && \
+echo "\n[swoole]\nextension=${php_ext_dir}swoole.so" >> ~/.phpenv/versions/$(phpenv version-name)/etc/php.ini

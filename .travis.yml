@@ -44,7 +44,6 @@ before_script:
   - php -v
   - ls -al
   - pwd
-  # raw
   - ./travis/compile.sh
   - cat ~/.phpenv/versions/$(phpenv version-name)/etc/php.ini
   - php --ri swoole
