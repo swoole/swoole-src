@@ -180,6 +180,9 @@ ZEND_END_ARG_INFO()
     if (unlikely(redis->cid && redis->cid != sw_get_current_cid()))\
     {\
         swoole_php_fatal_error(E_WARNING, "redis client has already been bound to another coroutine.");\
+        SwooleG.error = SW_ERROR_CO_MULTIPLE_BINDING;\
+        zend_update_property_long(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errCode"), SwooleG.error TSRMLS_CC); \
+        zend_update_property_string(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), "redis client has already been bound to another coroutine." TSRMLS_CC); \
         RETURN_FALSE;\
     }
 

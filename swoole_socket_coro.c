@@ -721,6 +721,8 @@ static PHP_METHOD(swoole_socket_coro, accept)
     socket_coro *sock = (socket_coro *) Z_SOCKET_CORO_OBJ_P(getThis());
     if (unlikely(sock->cid && sock->cid != sw_get_current_cid()))
     {
+        SwooleG.error = SW_ERROR_CO_MULTIPLE_BINDING;
+        zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), SwooleG.error TSRMLS_CC);
         swoole_php_fatal_error(E_WARNING, "socket has already been bound to another coroutine.");
         RETURN_FALSE;
     }
@@ -763,6 +765,8 @@ static PHP_METHOD(swoole_socket_coro, recv)
     socket_coro *sock = (socket_coro *) Z_SOCKET_CORO_OBJ_P(getThis());
     if (unlikely(sock->cid && sock->cid != sw_get_current_cid()))
     {
+        SwooleG.error = SW_ERROR_CO_MULTIPLE_BINDING;
+        zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), SwooleG.error TSRMLS_CC);
         swoole_php_fatal_error(E_WARNING, "socket has already been bound to another coroutine.");
         RETURN_FALSE;
     }
@@ -807,6 +811,8 @@ static PHP_METHOD(swoole_socket_coro, recvfrom)
     socket_coro *sock = (socket_coro *) Z_SOCKET_CORO_OBJ_P(getThis());
     if (unlikely(sock->cid && sock->cid != sw_get_current_cid()))
     {
+        SwooleG.error = SW_ERROR_CO_MULTIPLE_BINDING;
+        zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), SwooleG.error TSRMLS_CC);
         swoole_php_fatal_error(E_WARNING, "socket has already been bound to another coroutine.");
         RETURN_FALSE;
     }
@@ -857,6 +863,8 @@ static PHP_METHOD(swoole_socket_coro, send)
     socket_coro *sock = (socket_coro *) Z_SOCKET_CORO_OBJ_P(getThis());
     if (unlikely(sock->cid && sock->cid != sw_get_current_cid()))
     {
+        SwooleG.error = SW_ERROR_CO_MULTIPLE_BINDING;
+        zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), SwooleG.error TSRMLS_CC);
         swoole_php_fatal_error(E_WARNING, "socket has already been bound to another coroutine.");
         RETURN_FALSE;
     }
@@ -959,6 +967,8 @@ static PHP_METHOD(swoole_socket_coro, close)
     if (unlikely(sock->cid && sock->cid != sw_get_current_cid()))
     {
         swoole_php_fatal_error(E_WARNING, "socket has already been bound to another coroutine.");
+        SwooleG.error = SW_ERROR_CO_MULTIPLE_BINDING;
+        zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), SwooleG.error TSRMLS_CC);
         RETURN_FALSE;
     }
     int ret = SwooleG.main_reactor->close(SwooleG.main_reactor, sock->fd);
@@ -1069,6 +1079,8 @@ static PHP_METHOD(swoole_socket_coro, connect)
     if (unlikely(sock->cid && sock->cid != sw_get_current_cid()))
     {
         swoole_php_fatal_error(E_WARNING, "socket has already been bound to another coroutine.");
+        SwooleG.error = SW_ERROR_CO_MULTIPLE_BINDING;
+        zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), SwooleG.error TSRMLS_CC);
         RETURN_FALSE;
     }
 
