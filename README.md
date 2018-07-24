@@ -552,10 +552,6 @@ Refer to [API Reference](http://wiki.swoole.com/wiki/page/3.html) for more detai
 * [中文](http://wiki.swoole.com/)
 * [English](https://rawgit.com/tchiotludo/swoole-ide-helper/english/docs/index.html)
 
-## Related Projects
-
-* [SwooleFramework](https://github.com/swoole/framework) Web framework powered by Swoole
-
 ## Contribution
 
 Your contribution to Swoole development is very welcome!
