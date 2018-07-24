@@ -361,34 +361,45 @@ static int http_client_coro_execute(zval *zobject, char *uri, zend_size_t uri_le
 
 static void http_client_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     php_context *ctx = tnode->data;
-
-#if PHP_MAJOR_VERSION < 7
-    zval *zobject = (zval *)ctx->coro_params;
-#else
-    zval _zobject = ctx->coro_params;
-    zval *zobject = &_zobject;
-#endif
+    zval *zobject = &ctx->coro_params;
 
     swTraceLog(SW_TRACE_HTTP_CLIENT, "recv timeout, object handle=%d.", sw_get_object_handle(zobject));
 
     http_client *http = swoole_get_object(zobject);
     http->timer = NULL;
 
-    zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), ETIMEDOUT TSRMLS_CC);
-    zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT TSRMLS_CC);
-
-    if (http->cli->socket->active == 0)
+    //websocket
+    if (http->upgrade)
     {
-        http->cli->socket->removed = 1;
+        zval *retval = NULL;
+        zval result;
+        ZVAL_FALSE(&result);
+
+        zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), EAGAIN TSRMLS_CC);
+        int ret = coro_resume(ctx, &result, &retval);
+        if (ret == CORO_END && retval)
+        {
+            sw_zval_ptr_dtor(&retval);
+        }
     }
-    http->cli->socket->active = 1; // always trigger onClose
-    http->state = HTTP_CLIENT_STATE_BUSY; // to resume in onClose
-    http->cli->close(http->cli);
+    //http request
+    else
+    {
+        zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), ETIMEDOUT TSRMLS_CC);
+        zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT TSRMLS_CC);
+
+        if (http->cli->socket->active == 0)
+        {
+            http->cli->socket->removed = 1;
+        }
+        //always trigger onClose
+        http->cli->socket->active = 1;
+
+        //to resume in onClose
+        http->state = HTTP_CLIENT_STATE_BUSY;
+        http->cli->close(http->cli);
+    }
 }
 
 static void http_client_coro_onSendTimeout(swTimer *timer, swTimer_node *tnode)
