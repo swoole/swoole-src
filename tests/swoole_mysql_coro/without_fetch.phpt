@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: just execute (test memory leak)
+swoole_mysql_coro: just execute (test memory leak)
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

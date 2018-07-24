@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: mysql prepare (select)
+swoole_mysql_coro: mysql prepare (select)
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

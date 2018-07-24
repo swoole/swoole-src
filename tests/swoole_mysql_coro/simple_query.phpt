@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: mysql simple query
+swoole_mysql_coro: mysql simple query
 
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
