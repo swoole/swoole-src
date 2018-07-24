@@ -49,4 +49,4 @@ before_script:
   - php --ri swoole
 
 script:
-  - ./travis/route.sh
+  - sudo ./travis/route.sh

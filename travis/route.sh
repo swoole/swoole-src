@@ -1,7 +1,7 @@
 #!/bin/sh
 #------------Only run once-------------
 if [ "`php -v | grep "PHP 7\\.2"`" ]; then
-    echo -e "start phpt in docker...\n"
+    echo "run phpt in docker...\n"
     set -e
     curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose && \
     chmod +x docker-compose && \
@@ -15,5 +15,5 @@ if [ "`php -v | grep "PHP 7\\.2"`" ]; then
     docker-compose -f ./travis/docker-compose.yml up -d && \
     docker exec swoole_src_php /bin/sh /swoole-src/travis/docker-all.sh
 else
-    echo -e "skip\n";
+    echo "skip\n"
 fi
