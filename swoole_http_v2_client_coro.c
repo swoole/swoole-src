@@ -740,13 +740,19 @@ static PHP_METHOD(swoole_http2_client_coro, recv)
         swoole_php_error(E_WARNING, "The connection is closed.");
         RETURN_FALSE;
     }
+    if (hcc->cid != 0 && hcc->cid != sw_get_current_cid())
+    {
+        swoole_php_fatal_error(E_WARNING, "client has been bound to another coroutine.");
+        SwooleG.error = SW_ERROR_CO_MULTIPLE_BINDING;
+        zend_update_property_long(swoole_http2_client_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
+        RETURN_FALSE;
+    }
 
     double timeout = hcc->timeout;
     if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "|d", &timeout) == FAILURE)
     {
         RETURN_FALSE;
     }
-
 
     php_context *context = swoole_get_property(getThis(), HTTP2_CLIENT_CORO_CONTEXT);
     if (timeout > 0)

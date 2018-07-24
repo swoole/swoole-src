@@ -235,7 +235,8 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
     }
 
     int params_length = 0;
-    if (params){
+    if (params)
+    {
         params_length = php_swoole_array_length(params);
     }
 
@@ -874,10 +875,11 @@ static PHP_METHOD(swoole_mysql_coro, query)
     }
 
     mysql_client *client = swoole_get_object(getThis());
-    if (!client)
+    if (!client || client->state == SW_MYSQL_STATE_CLOSED)
     {
         SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
-        swoole_php_error(E_WARNING, "object is not instanceof swoole_mysql_coro.");
+        zend_update_property_long(swoole_mysql_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
+        swoole_php_fatal_error(E_WARNING, "The MySQL connection is not established.");
         RETURN_FALSE;
     }
 
@@ -890,6 +892,8 @@ static PHP_METHOD(swoole_mysql_coro, query)
     if (unlikely(client->cid && client->cid != sw_get_current_cid()))
     {
         swoole_php_fatal_error(E_WARNING, "mysql client has already been bound to another coroutine.");
+        SwooleG.error = SW_ERROR_CO_MULTIPLE_BINDING;
+        zend_update_property_long(swoole_mysql_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
         RETURN_FALSE;
     }
 
@@ -928,8 +932,11 @@ static PHP_METHOD(swoole_mysql_coro, begin)
         swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_mysql.");
         RETURN_FALSE;
     }
-    if (unlikely(client->cid && client->cid != sw_get_current_cid())) {
+    if (unlikely(client->cid && client->cid != sw_get_current_cid()))
+    {
         swoole_php_fatal_error(E_WARNING, "mysql client has already been bound to another coroutine.");
+        SwooleG.error = SW_ERROR_CO_MULTIPLE_BINDING;
+        zend_update_property_long(swoole_mysql_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
         RETURN_FALSE;
     }
     if (client->transaction)
@@ -981,6 +988,8 @@ static PHP_METHOD(swoole_mysql_coro, commit)
     if (unlikely(client->cid && client->cid != sw_get_current_cid()))
     {
         swoole_php_fatal_error(E_WARNING, "mysql client has already been bound to another coroutine.");
+        SwooleG.error = SW_ERROR_CO_MULTIPLE_BINDING;
+        zend_update_property_long(swoole_mysql_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
         RETURN_FALSE;
     }
 
@@ -1030,8 +1039,11 @@ static PHP_METHOD(swoole_mysql_coro, rollback)
         RETURN_FALSE;
     }
 
-    if (unlikely(client->cid && client->cid != sw_get_current_cid())) {
+    if (unlikely(client->cid && client->cid != sw_get_current_cid()))
+    {
         swoole_php_fatal_error(E_WARNING, "mysql client has already been bound to another coroutine.");
+        SwooleG.error = SW_ERROR_CO_MULTIPLE_BINDING;
+        zend_update_property_long(swoole_mysql_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
         RETURN_FALSE;
     }
 
@@ -1105,6 +1117,14 @@ static PHP_METHOD(swoole_mysql_coro, recv)
         RETURN_FALSE;
     }
 
+    if (unlikely(client->cid && client->cid != sw_get_current_cid()))
+    {
+        swoole_php_fatal_error(E_WARNING, "mysql client has already been bound to another coroutine.");
+        SwooleG.error = SW_ERROR_CO_MULTIPLE_BINDING;
+        zend_update_property_long(swoole_mysql_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
+        RETURN_FALSE;
+    }
+
     if (client->iowait == SW_MYSQL_CORO_STATUS_DONE)
     {
         client->iowait = SW_MYSQL_CORO_STATUS_READY;
@@ -1150,6 +1170,8 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
     mysql_client *client = swoole_get_object(getThis());
     if (!client || client->state == SW_MYSQL_STATE_CLOSED)
     {
+        SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
+        zend_update_property_long(swoole_mysql_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
         swoole_php_fatal_error(E_WARNING, "The MySQL connection is not established.");
         RETURN_FALSE;
     }
@@ -1157,6 +1179,14 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
     if (client->state != SW_MYSQL_STATE_QUERY)
     {
         swoole_php_fatal_error(E_WARNING, "mysql client is waiting response, cannot send new sql query.");
+        RETURN_FALSE;
+    }
+
+    if (unlikely(client->cid && client->cid != sw_get_current_cid()))
+    {
+        swoole_php_fatal_error(E_WARNING, "mysql client has already been bound to another coroutine.");
+        SwooleG.error = SW_ERROR_CO_MULTIPLE_BINDING;
+        zend_update_property_long(swoole_mysql_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
         RETURN_FALSE;
     }
 
@@ -1221,6 +1251,13 @@ static PHP_METHOD(swoole_mysql_coro_statement, execute)
     if (!client->cli)
     {
         swoole_php_fatal_error(E_WARNING, "mysql connection#%d is closed.", client->fd);
+        RETURN_FALSE;
+    }
+    if (unlikely(client->cid && client->cid != sw_get_current_cid()))
+    {
+        swoole_php_fatal_error(E_WARNING, "mysql client has already been bound to another coroutine.");
+        SwooleG.error = SW_ERROR_CO_MULTIPLE_BINDING;
+        zend_update_property_long(swoole_mysql_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
         RETURN_FALSE;
     }
 
