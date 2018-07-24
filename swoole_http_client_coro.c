@@ -1429,9 +1429,7 @@ static PHP_METHOD(swoole_http_client_coro, recv)
     http_client_property *hcc = swoole_get_property(getThis(), http_client_coro_property_request);
     if (hcc->cid != 0 && hcc->cid != sw_get_current_cid())
     {
-        swoole_php_fatal_error(E_WARNING, "client has been bound to another coroutine.");
-        SwooleG.error = SW_ERROR_CO_MULTIPLE_BINDING;
-        zend_update_property_long(swoole_http_client_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
+        swoole_php_fatal_error(E_ERROR, "client has been bound to another coroutine.");
         RETURN_FALSE;
     }
 
@@ -1714,9 +1712,7 @@ static PHP_METHOD(swoole_http_client_coro, get)
     http_client_property *hcc = swoole_get_property(getThis(), http_client_coro_property_request);
     if (hcc->cid != 0 && hcc->cid != sw_get_current_cid())
     {
-        swoole_php_fatal_error(E_WARNING, "client has been bound to another coroutine.");
-        SwooleG.error = SW_ERROR_CO_MULTIPLE_BINDING;
-        zend_update_property_long(swoole_http_client_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
+        swoole_php_fatal_error(E_ERROR, "client has been bound to another coroutine.");
         RETURN_FALSE;
     }
     if (hcc->defer)
@@ -1765,9 +1761,7 @@ static PHP_METHOD(swoole_http_client_coro, post)
     sw_copy_to_stack(hcc->request_body, hcc->_request_body);
     if (hcc->cid != 0 && hcc->cid != sw_get_current_cid())
     {
-        swoole_php_fatal_error(E_WARNING, "client has been bound to another coroutine.");
-        SwooleG.error = SW_ERROR_CO_MULTIPLE_BINDING;
-        zend_update_property_long(swoole_http_client_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
+        swoole_php_fatal_error(E_ERROR, "client has been bound to another coroutine.");
         RETURN_FALSE;
     }
 
@@ -1816,9 +1810,7 @@ static PHP_METHOD(swoole_http_client_coro, download)
 
     if (hcc->cid != 0 && hcc->cid != sw_get_current_cid())
     {
-        swoole_php_fatal_error(E_WARNING, "client has been bound to another coroutine.");
-        SwooleG.error = SW_ERROR_CO_MULTIPLE_BINDING;
-        zend_update_property_long(swoole_http_client_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
+        swoole_php_fatal_error(E_ERROR, "client has been bound to another coroutine.");
         RETURN_FALSE;
     }
 
@@ -1859,9 +1851,7 @@ static PHP_METHOD(swoole_http_client_coro, upgrade)
     http_client_property *hcc = swoole_get_property(getThis(), http_client_coro_property_request);
     if (hcc->cid != 0 && hcc->cid != sw_get_current_cid())
     {
-        swoole_php_fatal_error(E_WARNING, "client has been bound to another coroutine.");
-        SwooleG.error = SW_ERROR_CO_MULTIPLE_BINDING;
-        zend_update_property_long(swoole_http_client_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
+        swoole_php_fatal_error(E_ERROR, "client has been bound to another coroutine.");
         RETURN_FALSE;
     }
 

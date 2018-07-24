@@ -905,9 +905,7 @@ static PHP_METHOD(swoole_client_coro, recv)
     }
     else if (ccp->iowait == SW_CLIENT_CORO_STATUS_WAIT && ccp->cid != sw_get_current_cid())
     {
-        swoole_php_fatal_error(E_WARNING, "client has been bound to another coroutine");
-        SwooleG.error = SW_ERROR_CO_MULTIPLE_BINDING;
-        zend_update_property_long(swoole_client_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
+        swoole_php_fatal_error(E_ERROR, "client has been bound to another coroutine.");
         RETURN_FALSE;
     }
 

@@ -127,11 +127,6 @@ enum swErrorCode
     SW_ERROR_CO_STD_THREAD_LINK_ERROR,
     SW_ERROR_CO_DISABLED_MULTI_THREAD,
 
-    /**
-     * client has been bound to another coroutine
-     */
-    SW_ERROR_CO_MULTIPLE_BINDING,
-
 };
 
 void swoole_throw_error(enum swErrorCode code);
