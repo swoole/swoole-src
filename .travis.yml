@@ -46,7 +46,8 @@ before_script:
   - pwd
   # raw
   - ./travis/compile.sh
-  - php --ri swoole
+  - php -ini | grep php\.ini$
+  # - php --ri swoole
 
 script:
   - ./travis/route.sh
