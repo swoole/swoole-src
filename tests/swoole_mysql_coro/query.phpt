@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: mysql client
+swoole_mysql_coro: mysql client
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

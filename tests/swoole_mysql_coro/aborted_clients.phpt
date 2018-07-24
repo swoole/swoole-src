@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: mysql-close/reconnect/aborted-client-num
+swoole_mysql_coro: mysql-close/reconnect/aborted-client-num
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

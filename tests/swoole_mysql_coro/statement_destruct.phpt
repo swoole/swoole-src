@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: mysql prepare (destruct)
+swoole_mysql_coro: mysql prepare (destruct)
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

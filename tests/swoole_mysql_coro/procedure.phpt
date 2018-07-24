@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: procedure without fetch mode
+swoole_mysql_coro: procedure without fetch mode
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

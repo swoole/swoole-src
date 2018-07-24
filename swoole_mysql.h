@@ -385,6 +385,8 @@ typedef struct _mysql_client
 
 } mysql_client;
 
+#define mysql_request_buffer (SwooleTG.buffer_stack)
+
 #define mysql_uint2korr(A)  (uint16_t) (((uint16_t) ((zend_uchar) (A)[0])) +\
                                ((uint16_t) ((zend_uchar) (A)[1]) << 8))
 #define mysql_uint3korr(A)  (uint32_t) (((uint32_t) ((zend_uchar) (A)[0])) +\
