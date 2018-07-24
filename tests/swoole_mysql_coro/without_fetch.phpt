@@ -5,7 +5,6 @@ swoole_mysql_coro: just execute (test memory leak)
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/config.php';
 go(function () {
     $db = new Swoole\Coroutine\Mysql;
     $server = [
