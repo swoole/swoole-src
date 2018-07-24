@@ -241,7 +241,6 @@ static inline long http_fast_parse(php_http_parser *parser, char *data, size_t l
 #endif
 
 #ifdef SW_HAVE_ZLIB
-static int http_response_compress(swString *body, int level);
 voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size);
 void php_zlib_free(voidpf opaque, voidpf address);
 #endif
@@ -1822,7 +1821,7 @@ static PHP_METHOD(swoole_http_response, write)
 #ifdef SW_HAVE_ZLIB
     if (ctx->gzip_enable)
     {
-        http_response_compress(&http_body, ctx->gzip_level);
+        swoole_http_response_compress(&http_body, ctx->gzip_level);
 
         hex_string = swoole_dec2hex(swoole_zlib_buffer->length, 16);
         hex_len = strlen(hex_string);
@@ -2054,7 +2053,7 @@ void php_zlib_free(voidpf opaque, voidpf address)
     efree((void*)address);
 }
 
-static int http_response_compress(swString *body, int level)
+int swoole_http_response_compress(swString *body, int level)
 {
     assert(level > 0 || level < 10);
 
@@ -2196,7 +2195,7 @@ static PHP_METHOD(swoole_http_response, end)
         {
             if (http_body.length > 0)
             {
-                http_response_compress(&http_body, ctx->gzip_level);
+                swoole_http_response_compress(&http_body, ctx->gzip_level);
             }
             else
             {

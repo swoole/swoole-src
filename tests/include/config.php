@@ -68,3 +68,5 @@ define('HTTP_PROXY_PORT', 8888);
 define('TEST_LOG_FILE', '/tmp/swoole.log');
 
 define('IS_MAC_OS', stripos(PHP_OS, 'Darwin') !== false);
+
+define('SSL_FILE_DIR', __DIR__.'/api/swoole_http_server/localhost-ssl');

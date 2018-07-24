@@ -123,7 +123,6 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length 
 
     swServer *serv = SwooleG.serv;
 
-    char buf[SW_HTTP_HEADER_MAX_SIZE];
     char *date_str = NULL;
     char intbuf[2][16];
 
@@ -224,8 +223,8 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length 
             body_length = swoole_zlib_buffer->length;
         }
 #endif
-        ret = swoole_itoa(buf, body_length);
-        http2_add_header(&nv[index++], ZEND_STRL("content-length"), buf, ret);
+        ret = swoole_itoa(intbuf[1], body_length);
+        http2_add_header(&nv[index++], ZEND_STRL("content-length"), intbuf[1], ret);
     }
     //http cookies
     if (ctx->response.zcookie)
@@ -298,6 +297,20 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
     char header_buffer[8192];
     int ret;
 
+#ifdef SW_HAVE_ZLIB
+    if (ctx->gzip_enable)
+    {
+        if (body->length > 0)
+        {
+            swoole_http_response_compress(body, ctx->gzip_level);
+        }
+        else
+        {
+            ctx->gzip_enable = 0;
+        }
+    }
+#endif
+
     ret = http2_build_header(ctx, (uchar *) header_buffer, body->length TSRMLS_CC);
     swString_clear(swoole_http_buffer);
 
@@ -349,9 +362,22 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
         goto _end;
     }
 
-    char *p = body->str;
-    size_t l = body->length;
+    char *p;
+    size_t l;
     size_t send_n;
+
+#ifdef SW_HAVE_ZLIB
+    if (ctx->gzip_enable)
+    {
+        p = swoole_zlib_buffer->str;
+        l = swoole_zlib_buffer->length;
+    }
+    else
+#endif
+    {
+        p = body->str;
+        l = body->length;
+    }
 
     while (l > 0)
     {
