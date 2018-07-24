@@ -1040,8 +1040,6 @@ static const zend_function_entry swoole_redis_coro_methods[] =
     PHP_ME(swoole_redis_coro, evalSha, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, script, NULL, ZEND_ACC_PUBLIC)
     /*---------------------Redis Command End------------------------*/
-    PHP_FALIAS(__sleep, swoole_unsupport_serialize, NULL)
-    PHP_FALIAS(__wakeup, swoole_unsupport_serialize, NULL)
     PHP_FE_END
 };
 
@@ -1049,6 +1047,8 @@ void swoole_redis_coro_init(int module_number TSRMLS_DC)
 {
     INIT_CLASS_ENTRY(swoole_redis_coro_ce, "Swoole\\Coroutine\\Redis", swoole_redis_coro_methods);
     swoole_redis_coro_class_entry_ptr = zend_register_internal_class(&swoole_redis_coro_ce TSRMLS_CC);
+    swoole_redis_coro_class_entry_ptr->serialize = zend_class_serialize_deny;
+    swoole_redis_coro_class_entry_ptr->unserialize = zend_class_unserialize_deny;
 
     if (SWOOLE_G(use_shortname))
     {

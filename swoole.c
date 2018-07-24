@@ -442,8 +442,6 @@ static zend_function_entry swoole_server_methods[] = {
     PHP_ME(swoole_server, getReceivedTime, arginfo_swoole_void, ZEND_ACC_PUBLIC)
 #endif
     PHP_ME(swoole_server, bind, arginfo_swoole_server_bind, ZEND_ACC_PUBLIC)
-    PHP_FALIAS(__sleep, swoole_unsupport_serialize, NULL)
-    PHP_FALIAS(__wakeup, swoole_unsupport_serialize, NULL)
     {NULL, NULL, NULL}
 };
 
@@ -996,6 +994,8 @@ PHP_MINIT_FUNCTION(swoole)
 
     SWOOLE_INIT_CLASS_ENTRY(swoole_server_ce, "swoole_server", "Swoole\\Server", swoole_server_methods);
     swoole_server_class_entry_ptr = zend_register_internal_class(&swoole_server_ce TSRMLS_CC);
+    swoole_server_class_entry_ptr->serialize = zend_class_serialize_deny;
+    swoole_server_class_entry_ptr->unserialize = zend_class_unserialize_deny;
     SWOOLE_CLASS_ALIAS(swoole_server, "Swoole\\Server");
 
     if (!SWOOLE_G(use_shortname))

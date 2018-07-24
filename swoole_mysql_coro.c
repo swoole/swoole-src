@@ -126,8 +126,6 @@ static const zend_function_entry swoole_mysql_coro_methods[] =
     PHP_ME(swoole_mysql_coro, setDefer, arginfo_swoole_mysql_coro_setDefer, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_mysql_coro, getDefer, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_mysql_coro, close, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_FALIAS(__sleep, swoole_unsupport_serialize, NULL)
-    PHP_FALIAS(__wakeup, swoole_unsupport_serialize, NULL)
     PHP_FE_END
 };
 
@@ -138,8 +136,6 @@ static const zend_function_entry swoole_mysql_coro_statement_methods[] =
     PHP_ME(swoole_mysql_coro_statement, fetchAll, arginfo_swoole_mysql_coro_statement_fetchAll, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_mysql_coro_statement, nextResult, arginfo_swoole_mysql_coro_statement_nextResult, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_mysql_coro_statement, __destruct, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
-    PHP_FALIAS(__sleep, swoole_unsupport_serialize, NULL)
-    PHP_FALIAS(__wakeup, swoole_unsupport_serialize, NULL)
     PHP_FE_END
 };
 
@@ -180,9 +176,10 @@ void swoole_mysql_coro_init(int module_number TSRMLS_DC)
     memcpy(&swoole_mysql_coro_handlers, zend_get_std_object_handlers(), sizeof(swoole_mysql_coro_handlers));
     swoole_mysql_coro_handlers.free_obj = swoole_mysql_coro_free_storage;
 
-
     INIT_CLASS_ENTRY(swoole_mysql_coro_statement_ce, "Swoole\\Coroutine\\MySQL\\Statement", swoole_mysql_coro_statement_methods);
     swoole_mysql_coro_statement_class_entry_ptr = zend_register_internal_class(&swoole_mysql_coro_statement_ce TSRMLS_CC);
+    swoole_mysql_coro_statement_class_entry_ptr->serialize = zend_class_serialize_deny;
+    swoole_mysql_coro_statement_class_entry_ptr->unserialize = zend_class_unserialize_deny;
 
     INIT_CLASS_ENTRY(swoole_mysql_coro_exception_ce, "Swoole\\Coroutine\\MySQL\\Exception", NULL);
     swoole_mysql_coro_exception_class_entry_ptr = sw_zend_register_internal_class_ex(&swoole_mysql_coro_exception_ce, zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);

@@ -176,9 +176,6 @@ static const zend_function_entry swoole_http_client_coro_methods[] =
     PHP_ME(swoole_http_client_coro, getDefer, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, recv, arginfo_swoole_http_client_coro_recv, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, push, arginfo_swoole_http_client_coro_push, ZEND_ACC_PUBLIC)
-    PHP_FALIAS(__sleep, swoole_unsupport_serialize, NULL)
-    PHP_FALIAS(__wakeup, swoole_unsupport_serialize, NULL)
-
     PHP_FE_END
 };
 
@@ -444,6 +441,8 @@ void swoole_http_client_coro_init(int module_number TSRMLS_DC)
 {
     INIT_CLASS_ENTRY(swoole_http_client_coro_ce, "Swoole\\Coroutine\\Http\\Client", swoole_http_client_coro_methods);
     swoole_http_client_coro_class_entry_ptr = zend_register_internal_class(&swoole_http_client_coro_ce TSRMLS_CC);
+    swoole_http_client_coro_class_entry_ptr->serialize = zend_class_serialize_deny;
+    swoole_http_client_coro_class_entry_ptr->unserialize = zend_class_unserialize_deny;
 
     if (SWOOLE_G(use_shortname))
     {
