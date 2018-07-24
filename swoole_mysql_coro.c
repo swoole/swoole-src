@@ -710,11 +710,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
 
     if (php_swoole_array_get_value(_ht, "strict_type", value))
     {
-#if PHP_MAJOR_VERSION < 7
-        if(Z_TYPE_P(value) == IS_BOOL && Z_BVAL_P(value) == 1)
-#else
         if (Z_TYPE_P(value) == IS_TRUE)
-#endif
         {
             connector->strict_type = 1;
         }
@@ -730,11 +726,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
 
     if (php_swoole_array_get_value(_ht, "fetch_mode", value))
     {
-#if PHP_MAJOR_VERSION < 7
-        if(Z_TYPE_P(value) == IS_BOOL && Z_BVAL_P(value) == 1)
-#else
         if (Z_TYPE_P(value) == IS_TRUE)
-#endif
         {
             connector->fetch_mode = 1;
         }
@@ -825,10 +817,6 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     client->cli = cli;
     sw_copy_to_stack(client->object, client->_object);
 
-#if PHP_MAJOR_VERSION < 7
-    sw_zval_add_ref(&client->object);
-#endif
-
     swConnection *_socket = swReactor_get(SwooleG.main_reactor, cli->socket->fd);
     _socket->object = client;
     _socket->active = 0;
@@ -841,11 +829,8 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     }
     context->state = SW_CORO_CONTEXT_RUNNING;
     context->onTimeout = NULL;
-#if PHP_MAJOR_VERSION < 7
-    context->coro_params = getThis();
-#else
     context->coro_params = *getThis();
-#endif
+
     if (connector->timeout > 0)
     {
         php_swoole_check_timer((int) (connector->timeout * 1000));
@@ -1108,13 +1093,9 @@ static PHP_METHOD(swoole_mysql_coro, recv)
     if (client->iowait == SW_MYSQL_CORO_STATUS_DONE)
     {
         client->iowait = SW_MYSQL_CORO_STATUS_READY;
-#if PHP_MAJOR_VERSION >= 7
         zval _result = *client->result;
         efree(client->result);
         zval *result = &_result;
-#else
-        zval *result = client->result;
-#endif
         client->result = NULL;
         RETURN_ZVAL(result, 0, 1);
     }
@@ -1338,11 +1319,6 @@ static PHP_METHOD(swoole_mysql_coro_statement, nextResult)
         RETURN_FALSE;
     }
 
-//    if (!stmt->client->connector.fetch_mode)
-//    {
-//        RETURN_FALSE;
-//    }
-
     mysql_client *client = stmt->client;
 
     if (stmt->buffer && stmt->buffer->offset < stmt->buffer->length)
@@ -1445,9 +1421,7 @@ static PHP_METHOD(swoole_mysql_coro, close)
     {
         RETURN_FALSE;
     }
-#if PHP_MAJOR_VERSION < 7
-    sw_zval_ptr_dtor(&getThis());
-#endif
+
     RETURN_TRUE;
 }
 
@@ -1495,10 +1469,6 @@ static void swoole_mysql_coro_free_storage(zend_object *object)
 
 static int swoole_mysql_coro_onError(swReactor *reactor, swEvent *event)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     zval *retval = NULL, *result;
     mysql_client *client = event->socket->object;
     zval *zobject = client->object;
@@ -1576,9 +1546,6 @@ static void swoole_mysql_coro_onConnect(mysql_client *client TSRMLS_DC)
 
 static void swoole_mysql_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
     zval *result;
     zval *retval = NULL;
 
@@ -1586,12 +1553,9 @@ static void swoole_mysql_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
 
     SW_ALLOC_INIT_ZVAL(result);
     ZVAL_BOOL(result, 0);
-#if PHP_MAJOR_VERSION < 7
-    zval *zobject = (zval *)ctx->coro_params;
-#else
     zval _zobject = ctx->coro_params;
     zval *zobject = & _zobject;
-#endif
+
     mysql_client *client = swoole_get_object(zobject);
 
     if (client->iowait == SW_MYSQL_CORO_STATUS_CLOSED)
@@ -1630,10 +1594,6 @@ static void swoole_mysql_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
 
 static int swoole_mysql_coro_onWrite(swReactor *reactor, swEvent *event)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     if (event->socket->active)
     {
         return swReactor_onWrite(SwooleG.main_reactor, event);
@@ -1835,10 +1795,6 @@ static int swoole_mysql_coro_onHandShake(mysql_client *client TSRMLS_DC)
 
 static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     mysql_client *client = event->socket->object;
     if (client->handshake != SW_MYSQL_HANDSHAKE_COMPLETED)
     {
