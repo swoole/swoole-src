@@ -13,9 +13,9 @@ co::create(function () {
     $db = new co\MySQL();
     $server = [
         'host' => MYSQL_SERVER_HOST,
-        'user' => MYSQL_SERVER_USER1,
+        'user' => MYSQL_SERVER_USER,
         'password' => MYSQL_SERVER_PWD,
-        'database' => MYSQL_SERVER_DB1,
+        'database' => MYSQL_SERVER_DB,
     ];
 
     $ret1 = $db->connect($server);
