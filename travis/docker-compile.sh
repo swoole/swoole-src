@@ -4,6 +4,7 @@ __DIR__=$(cd "$(dirname "$0")";pwd)
 
 #-----------compile------------
 cd ${__DIR__} && cd ../ && \
+chmod -R 777 /usr/local/lib/php/ && \
 phpize && \
 ./configure \
 --enable-openssl  \
@@ -13,7 +14,6 @@ phpize && \
 --enable-mysqlnd && \
 make && install_info="`make install`" && \
 echo "${install_info}" && php_ext_dir="`echo "${install_info}" | grep -o " /.*extensions\/no-debug.*\/"`" && \
-chmod -R 777 /usr/local/lib/php/ && \
 ls -al ${php_ext_dir} && \
-docker-php-ext-enable swoole && \
+echo "\n[swoole]\nextension=${php_ext_dir}swoole.so" >> /usr/local/etc/php/conf.d/docker-php-ext-swoole.ini && \
 echo "swoole.fast_serialize=On" >> /usr/local/etc/php/conf.d/docker-php-ext-swoole-serialize.ini
