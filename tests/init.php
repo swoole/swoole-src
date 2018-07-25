@@ -9,7 +9,7 @@ try {
         MYSQL_SERVER_USER, MYSQL_SERVER_PWD
     );
     $mysql->exec(file_get_contents(__DIR__ . '/test.sql'));
-    if ($mysql->errorCode() > 0) {
+    if ($mysql->errorCode() != 0) {
         echo "[DB-init] Failed! Error#{$mysql->errorCode()}: \n" . var_dump_return($mysql->errorInfo()) . "\n";
         exit(1);
     } else {
