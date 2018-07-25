@@ -1,6 +1,9 @@
 #!/bin/sh
-#------------Only run once-------------
+__CURRENT__=`pwd`
+__DIR__=$(cd "$(dirname "$0")";pwd)
 DOCKER_COMPOSE_VERSION="1.21.0"
+
+#------------Only run once-------------
 if [ "`php -v | grep "PHP 7\\.2"`" ]; then
     echo "run phpt in docker...\n"
     set -e
@@ -9,11 +12,12 @@ if [ "`php -v | grep "PHP 7\\.2"`" ]; then
     sudo mv docker-compose /usr/local/bin && \
     docker-compose -v && \
     docker -v && \
+    cd ${__DIR__} && \
     mkdir data && \
     mkdir data/mysql && \
     mkdir data/redis && \
     chmod -R 777 data && \
-    docker-compose -f ./travis/docker-compose.yml up -d && \
+    docker-compose up -d && \
     docker ps && \
     docker exec travis_php_1 /swoole-src/travis/docker-all.sh
 else
