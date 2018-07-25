@@ -11,17 +11,18 @@ require_once __DIR__ . '/../include/lib/curl.php';
 use Swoole\Coroutine\Http\Client as HttpClient;
 
 $pm = new ProcessManager;
+$port = get_one_free_port();
 
-$pm->parentFunc = function ($pid)
+$pm->parentFunc = function ($pid) use ($port)
 {
-    $data = curlGet("http://127.0.0.1:9501/");
+    $data = curlGet("http://127.0.0.1:{$port}/");
     assert(strlen($data) > 1024);
     swoole_process::kill($pid);
 };
 
-$pm->childFunc = function () use ($pm)
+$pm->childFunc = function () use ($pm, $port)
 {
-    $http = new swoole_http_server("127.0.0.1", 9501, SWOOLE_BASE);
+    $http = new swoole_http_server("127.0.0.1", $port, SWOOLE_BASE);
     $http->set(array(
         'log_file' => '/dev/null'
     ));
