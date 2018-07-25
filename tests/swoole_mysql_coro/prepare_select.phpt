@@ -32,6 +32,7 @@ co::create(function () {
 
     $ret3 = $stmt->execute(array(10));
     if (!$ret3) {
+        var_dump($ret3);
         echo "EXECUTE ERROR#{$stmt->errno}: {$stmt->error}\n";
         return;
     }
