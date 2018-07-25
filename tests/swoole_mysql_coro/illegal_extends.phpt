@@ -38,9 +38,9 @@ go(function () {
     $db = new swoole_invalid_mysql_coro;
     $server = [
         'host' => MYSQL_SERVER_HOST,
-        'user' => MYSQL_SERVER_USER1,
+        'user' => MYSQL_SERVER_USER,
         'password' => MYSQL_SERVER_PWD,
-        'database' => MYSQL_SERVER_DB1,
+        'database' => MYSQL_SERVER_DB,
         'strict_type' => true
     ];
 
