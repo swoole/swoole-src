@@ -7,4 +7,5 @@ cd ${__DIR__} && cd ../tests/
 # initialization
 php ./init.php
 # run
-./start.sh ./swoole_coroutine ./swoole_redis_coro ./swoole_mysql_coro --set-timeout 15
+./start.sh ./swoole_coroutine ./swoole_redis_coro ./swoole_mysql_coro \
+--set-timeout 15 --show-diff
