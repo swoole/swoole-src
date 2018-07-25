@@ -146,12 +146,12 @@ static void swoole_mysql_coro_onConnect(mysql_client *client TSRMLS_DC);
 static void swoole_mysql_coro_onTimeout(swTimer *timer, swTimer_node *tnode);
 
 static void swoole_mysql_coro_free_storage(zend_object *object);
-static zend_object *swoole_socket_coro_create(zend_class_entry *ce TSRMLS_DC)
+static zend_object *swoole_mysql_coro_create(zend_class_entry *ce TSRMLS_DC)
 {
-    zend_object *object = ecalloc(1, sizeof(object) + zend_object_properties_size(ce));
-    zend_object_std_init(object, ce TSRMLS_CC);
-    object_properties_init(object, ce);
+    zend_object *object;
+    object = zend_objects_new(ce);
     object->handlers = &swoole_mysql_coro_handlers;
+    object_properties_init(object, ce);
 
     coro_check(TSRMLS_C);
 
@@ -170,7 +170,7 @@ void swoole_mysql_coro_init(int module_number TSRMLS_DC)
 {
     INIT_CLASS_ENTRY(swoole_mysql_coro_ce, "Swoole\\Coroutine\\MySQL", swoole_mysql_coro_methods);
     swoole_mysql_coro_class_entry_ptr = zend_register_internal_class(&swoole_mysql_coro_ce TSRMLS_CC);
-    swoole_mysql_coro_class_entry_ptr->create_object = swoole_socket_coro_create;
+    swoole_mysql_coro_class_entry_ptr->create_object = swoole_mysql_coro_create;
     swoole_mysql_coro_class_entry_ptr->serialize = zend_class_serialize_deny;
     swoole_mysql_coro_class_entry_ptr->unserialize = zend_class_unserialize_deny;
     memcpy(&swoole_mysql_coro_handlers, zend_get_std_object_handlers(), sizeof(swoole_mysql_coro_handlers));
