@@ -1,7 +1,7 @@
 --TEST--
 swoole_http_client: get
 --SKIPIF--
-<?php require  __DIR__ . '/../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../include/skip/skip_if_no_proxy.php'; ?>
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';

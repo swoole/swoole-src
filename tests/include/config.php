@@ -1,8 +1,9 @@
 <?php
-if (function_exists('get_one_free_port')) {
-    define('FREE_PORT', get_one_free_port());
-    $GLOBALS['FREE_PORT'] = FREE_PORT;
-}
+require_once __DIR__ . '/functions.php';
+
+define('FREE_PORT', get_one_free_port());
+$GLOBALS['FREE_PORT'] = FREE_PORT;
+
 /** ============== Env =============== */
 define('IS_MAC_OS', stripos(PHP_OS, 'Darwin') !== false);
 define('IS_IN_DOCKER', file_exists('/.dockerenv'));
@@ -33,10 +34,17 @@ define('REDIS_SERVER_PATH', "");
 define('REDIS_SERVER_HOST', IS_IN_DOCKER ? 'redis' : '127.0.0.1');
 define('REDIS_SERVER_PORT', 6379);
 
-/** =========== IP & Proxy============ */
+/** =============== IP ================ */
 define('IP_BAIDU', '180.97.33.107');
+
+/** ============= Proxy ============== */
 define('HTTP_PROXY_HOST', '127.0.0.1');
-define('HTTP_PROXY_PORT', 8888);
+if (IS_MAC_OS) {
+    define('HTTP_PROXY_PORT', 1087);
+} else {
+    define('HTTP_PROXY_PORT', 8888);
+}
+define('HTTP_PROXY_AVAILABLE', check_tcp_port(HTTP_PROXY_HOST, HTTP_PROXY_PORT) === 1);
 
 /** ============== Files ============== */
 define('TEST_IMAGE', __DIR__ . '/../../examples/test.jpg');

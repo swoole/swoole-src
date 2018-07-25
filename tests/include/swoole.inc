@@ -1,5 +1,4 @@
 <?php
-require_once __DIR__ . "/toolkit/functions.php";
 require_once  __DIR__ . "/config.php";
 require_once __DIR__ . "/toolkit/RandStr.php";
 require_once __DIR__ . '/../include/lib/curl.php';
