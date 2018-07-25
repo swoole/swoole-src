@@ -7,5 +7,6 @@ pwd && \
 ls -al && \
 php -v && \
 touch /.docker && \
+php ${__DIR__}/dns.php && \
 ./docker-compile.sh && \
 ./docker-test.sh
