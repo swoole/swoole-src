@@ -5,7 +5,6 @@ __DIR__=$(cd "$(dirname "$0")";pwd)
 #-----------compile------------
 #-------print error only-------
 cd ${__DIR__} && cd ../ && \
-make clean > /dev/null && \
 phpize > /dev/null && \
 ./configure \
 --enable-openssl  \
@@ -14,6 +13,7 @@ phpize > /dev/null && \
 --enable-sockets \
 --enable-mysqlnd \
 > /dev/null && \
+make clean > /dev/null && \
 make > /dev/null && make install && \
 docker-php-ext-enable swoole && \
 echo "swoole.fast_serialize=On" >> /usr/local/etc/php/conf.d/docker-php-ext-swoole-serialize.ini

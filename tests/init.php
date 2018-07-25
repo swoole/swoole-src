@@ -1,6 +1,6 @@
 #!/usr/bin/env php
 <?php
-require __DIR__ . '/include/bootstrap.php';
+require __DIR__ . '/include/config.php';
 
 echo "[DB-init] initialization MySQL database...\n";
 try {
