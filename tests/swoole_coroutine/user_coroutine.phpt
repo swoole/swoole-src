@@ -5,24 +5,22 @@ swoole_coroutine: user coroutine
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
 require_once __DIR__ . '/../include/lib/curl.php';
 
 use Swoole\Coroutine\Http\Client as HttpClient;
 
 $pm = new ProcessManager;
-$port = get_one_free_port();
 
-$pm->parentFunc = function ($pid) use ($port)
+$pm->parentFunc = function ($pid)
 {
-    $data = curlGet("http://127.0.0.1:{$port}/");
+    $data = curlGet("http://127.0.0.1:{$GLOBALS['FREE_PORT']}/");
     assert(strlen($data) > 1024);
     swoole_process::kill($pid);
 };
 
-$pm->childFunc = function () use ($pm, $port)
+$pm->childFunc = function () use ($pm)
 {
-    $http = new swoole_http_server("127.0.0.1", $port, SWOOLE_BASE);
+    $http = new swoole_http_server("127.0.0.1", $GLOBALS['FREE_PORT'], SWOOLE_BASE);
     $http->set(array(
         'log_file' => '/dev/null'
     ));
