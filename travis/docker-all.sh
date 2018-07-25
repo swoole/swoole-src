@@ -6,5 +6,6 @@ cd ${__DIR__} && \
 pwd && \
 ls -al && \
 php -v && \
+touch /.docker && \
 ./docker-compile.sh && \
 ./docker-test.sh
