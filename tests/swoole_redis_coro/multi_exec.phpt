@@ -10,7 +10,7 @@ require_once __DIR__ . '/../include/lib/curl.php';
 
 go(function () {
     $redis = new \Swoole\Coroutine\Redis();
-    $result = $redis->connect('127.0.0.1', 6379, false);
+    $result = $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT, false);
     assert($result);
 
     assert($redis->hmset('u:i:1', ['a' => 'hello', 'b' => 'world']));

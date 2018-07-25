@@ -18,13 +18,13 @@ require_once __DIR__ . '/../include/lib/curl.php';
 go(function () {
     $redis = new Swoole\Coroutine\Redis();
     echo "connect [1]\n";
-    $redis->connect('127.0.0.1', 6379);
+    $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
     assert($redis->connected === true);
     echo "close [1]\n";
     $redis->close();
     assert($redis->connected === false);
     echo "connect [2]\n";
-    $redis->connect('127.0.0.1', 6379);
+    $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
     assert($redis->connected === true);
     echo "close [2]\n";
     $redis->close();
