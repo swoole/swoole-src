@@ -15,9 +15,6 @@ if [ "`php -v | grep "PHP 7\\.2"`" ]; then
     chmod -R 777 data && \
     docker-compose -f ./travis/docker-compose.yml up -d && \
     docker ps && \
-    docker exec travis_php_1 pwd && \
-    docker exec travis_php_1 ls -al && \
-    docker exec travis_php_1 php -v && \
     docker exec travis_php_1 /swoole-src/travis/docker-all.sh
 else
     echo "skip\n"
