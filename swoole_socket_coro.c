@@ -162,6 +162,9 @@ static zend_object *swoole_socket_coro_create(zend_class_entry *ce TSRMLS_DC)
 {
     socket_coro *sock = ecalloc(1, sizeof(socket_coro) + zend_object_properties_size(ce));
     zend_object_std_init(&sock->std, ce TSRMLS_CC);
+    /* Even if you don't use properties yourself you should still call object_properties_init(),
+     * because extending classes may use properties. (Generally a lot of the stuff you will do is
+     * for the sake of not breaking extending classes). */
     object_properties_init(&sock->std, ce);
     sock->std.handlers = &swoole_socket_coro_handlers;
 
