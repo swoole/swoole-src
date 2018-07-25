@@ -1,4 +1,5 @@
 <?php
+define('FREE_PORT', get_one_free_port());
 
 /** ============== Env =============== */
 define('IS_MAC_OS', stripos(PHP_OS, 'Darwin') !== false);
