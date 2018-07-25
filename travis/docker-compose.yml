@@ -3,7 +3,7 @@ services:
   php:
     image: "twosee/php:7.2-cli"
     volumes:
-      - ./:/swoole-src:rw
+      - ./../:/swoole-src:rw
     ulimits:
       core: -1
     privileged: true

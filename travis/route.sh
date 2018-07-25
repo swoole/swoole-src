@@ -14,7 +14,8 @@ if [ "`php -v | grep "PHP 7\\.2"`" ]; then
     mkdir data/redis && \
     chmod -R 777 data && \
     docker-compose -f ./travis/docker-compose.yml up -d && \
-    docker exec swoole_src_php /bin/sh /swoole-src/travis/docker-all.sh
+    docker ps && \
+    docker exec travis_php_1 /bin/sh /swoole-src/travis/docker-all.sh
 else
     echo "skip\n"
 fi
