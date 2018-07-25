@@ -4,6 +4,7 @@ services:
     image: "twosee/php:7.2-cli"
     volumes:
       - "${TRAVIS_BUILD_DIR}:/swoole-src:rw"
+    working_dir: /swoole-src
     ulimits:
       core: -1
     privileged: true

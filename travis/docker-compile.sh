@@ -1,5 +1,7 @@
 #!/bin/sh -e
-source ./core.sh
+__CURRENT__=`pwd`
+__DIR__=$(cd "$(dirname "$0")";pwd)
+
 #-----------compile------------
 cd ${__DIR__} && cd ../ && \
 phpize && \
