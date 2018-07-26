@@ -7,13 +7,13 @@ swoole_coroutine: complete test server&&client&&timeout(millisecond)
 require_once __DIR__ . '/../include/bootstrap.php';
 require_once __DIR__ . '/../include/swoole.inc';
 $pm = new ProcessManager;
-
-$pm->parentFunc = function ($pid) use ($pm) {
+$port = get_one_free_port();
+$pm->parentFunc = function ($pid) use ($pm, $port) {
     $socket = new Swoole\Coroutine\Socket(AF_INET, SOCK_STREAM, 0);
     assert($socket instanceof Swoole\Coroutine\Socket);
     assert($socket->errCode === 0);
-    go(function () use ($socket) {
-        assert($socket->connect('localhost', 9501));
+    go(function () use ($socket, $port) {
+        assert($socket->connect('localhost', $port));
         $i = 0.000;
         while (true) {
             $socket->send("hello");
@@ -31,9 +31,9 @@ $pm->parentFunc = function ($pid) use ($pm) {
     swoole_event_wait();
 };
 
-$pm->childFunc = function () use ($pm) {
+$pm->childFunc = function () use ($pm, $port) {
     $socket = new Swoole\Coroutine\Socket(AF_INET, SOCK_STREAM, 0);
-    assert($socket->bind('127.0.0.1', 9501));
+    assert($socket->bind('127.0.0.1', $port));
     assert($socket->listen(128));
     go(function () use ($socket, $pm) {
         $client = $socket->accept();
