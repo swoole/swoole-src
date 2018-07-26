@@ -1,9 +1,6 @@
 <?php
 require_once __DIR__ . '/functions.php';
 
-define('FREE_PORT', get_one_free_port());
-$GLOBALS['FREE_PORT'] = FREE_PORT;
-
 /** ============== Env =============== */
 define('IS_MAC_OS', stripos(PHP_OS, 'Darwin') !== false);
 define('IS_IN_DOCKER', file_exists('/.dockerenv'));
