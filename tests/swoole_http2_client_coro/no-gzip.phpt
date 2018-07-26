@@ -1,7 +1,10 @@
 --TEST--
 swoole_http2_client_coro: http2 without gzip and recv big data (window-update)
 --SKIPIF--
-<?php require __DIR__ . '/../include/skip/skip_if_in_docker.php'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_in_docker('travis network');
+?>
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
