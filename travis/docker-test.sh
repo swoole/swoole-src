@@ -14,11 +14,10 @@ php ./init.php
 ./swoole_*
 
 if [ "`cat failed.list | grep "phpt"`" ]; then
-    # read failed list
-    failed_list="`cat failed.list`"
-    failed_list=${failed_list/\\n/ }
+    # replace \n to space
+    failed_list="`tr '\n' ' ' < a`"
 
-    # replace \n to space and retry
+    # and retry
     ./start.sh \
     --set-timeout 45 \
     --show-diff \
