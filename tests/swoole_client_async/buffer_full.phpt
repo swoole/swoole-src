@@ -103,12 +103,10 @@ $pm->childFunc = function () use ($pm, $port)
 $pm->childFirst();
 $pm->run();
 ?>
---EXPECT--
+--EXPECTREGEX--
 bufferFull
 bufferEmpty
 bufferFull
 bufferEmpty
 bufferFull
-bufferEmpty
-bufferFull
-bufferEmpty
+bufferEmpty.*
