@@ -22,6 +22,15 @@
 #include "async.h"
 #include "ext/standard/file.h"
 
+typedef struct
+{
+    php_context context;
+    int fd;
+    zend_string *buf;
+    uint32_t nbytes;
+    swTimer_node *timer;
+} util_socket;
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
@@ -539,6 +548,155 @@ static void aio_onWriteFileCompleted(swAio_event *event)
     efree(context);
 }
 
+static int co_socket_onReadable(swReactor *reactor, swEvent *event)
+{
+    util_socket *sock = (util_socket *) event->socket->object;
+    php_context *context = &sock->context;
+
+    zval *retval = NULL;
+    zval result;
+
+    reactor->del(reactor, sock->fd);
+
+    if (sock->timer)
+    {
+        swTimer_del(&SwooleG.timer, sock->timer);
+        sock->timer = NULL;
+    }
+
+    int n = read(sock->fd, sock->buf->val, sock->nbytes);
+    if (n < 0)
+    {
+        ZVAL_FALSE(&result);
+        zend_string_free(sock->buf);
+    }
+    else if (n == 0)
+    {
+        ZVAL_EMPTY_STRING(&result);
+        zend_string_free(sock->buf);
+    }
+    else
+    {
+        sock->buf->val[n] = 0;
+        sock->buf->len = n;
+        ZVAL_STR(&result, sock->buf);
+    }
+    int ret = coro_resume(context, &result, &retval);
+    zval_ptr_dtor(&result);
+    if (ret == CORO_END && retval)
+    {
+        zval_ptr_dtor(retval);
+    }
+    efree(sock);
+    return SW_OK;
+}
+
+static int co_socket_onWritable(swReactor *reactor, swEvent *event)
+{
+    util_socket *sock = (util_socket *) event->socket->object;
+    php_context *context = &sock->context;
+
+    zval *retval = NULL;
+    zval result;
+
+    reactor->del(reactor, sock->fd);
+
+    if (sock->timer)
+    {
+        swTimer_del(&SwooleG.timer, sock->timer);
+        sock->timer = NULL;
+    }
+
+    int n = write(sock->fd, context->private_data, sock->nbytes);
+    if (n < 0)
+    {
+        SwooleG.error = errno;
+        ZVAL_FALSE(&result);
+    }
+    else
+    {
+        ZVAL_LONG(&result, n);
+    }
+    int ret = coro_resume(context, &result, &retval);
+    zval_ptr_dtor(&result);
+    if (ret == CORO_END && retval)
+    {
+        zval_ptr_dtor(retval);
+    }
+    efree(sock);
+    return SW_OK;
+}
+
+static void co_socket_read(int fd, zend_long length, INTERNAL_FUNCTION_PARAMETERS)
+{
+    php_swoole_check_reactor();
+    if (!swReactor_handle_isset(SwooleG.main_reactor, PHP_SWOOLE_FD_SOCKET))
+    {
+        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_CO_UTIL | SW_EVENT_READ, co_socket_onReadable);
+        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_CO_UTIL | SW_EVENT_WRITE, co_socket_onWritable);
+    }
+
+    if (SwooleG.main_reactor->add(SwooleG.main_reactor, fd, PHP_SWOOLE_FD_CO_UTIL | SW_EVENT_READ) < 0)
+    {
+        SwooleG.error = errno;
+        RETURN_FALSE;
+    }
+
+    swConnection *_socket = swReactor_get(SwooleG.main_reactor, fd);
+    util_socket *sock = emalloc(sizeof(util_socket));
+    bzero(sock, sizeof(util_socket));
+    _socket->object = sock;
+
+    sock->fd = fd;
+    sock->buf = zend_string_alloc(length + 1, 0);
+    sock->nbytes = length <= 0 ? SW_BUFFER_SIZE_STD : length;
+
+    sock->context.onTimeout = NULL;
+    sock->context.state = SW_CORO_CONTEXT_RUNNING;
+
+    coro_save(&sock->context);
+    coro_yield();
+}
+
+static void co_socket_write(int fd, char* str, size_t l_str, INTERNAL_FUNCTION_PARAMETERS)
+{
+    int ret = write(fd, str, l_str);
+    if (ret < 0)
+    {
+        if (errno == EAGAIN)
+        {
+            goto _yield;
+        }
+        SwooleG.error = errno;
+        RETURN_FALSE;
+    }
+    else
+    {
+        RETURN_LONG(ret);
+    }
+
+    _yield: if (SwooleG.main_reactor->add(SwooleG.main_reactor, fd, PHP_SWOOLE_FD_SOCKET | SW_EVENT_WRITE) < 0)
+    {
+        SwooleG.error = errno;
+        RETURN_FALSE;
+    }
+
+    swConnection *_socket = swReactor_get(SwooleG.main_reactor, fd);
+    util_socket *sock = emalloc(sizeof(util_socket));
+    bzero(sock, sizeof(util_socket));
+    _socket->object = sock;
+
+    php_context *context = &sock->context;
+    context->state = SW_CORO_CONTEXT_RUNNING;
+    context->onTimeout = NULL;
+    context->private_data = str;
+
+    sock->nbytes = l_str;
+
+    coro_save(context);
+    coro_yield();
+}
+
 static PHP_METHOD(swoole_coroutine_util, fread)
 {
     coro_check(TSRMLS_C);
@@ -559,10 +717,17 @@ static PHP_METHOD(swoole_coroutine_util, fread)
     }
 #endif
 
-    int fd = swoole_convert_to_file_fd(handle TSRMLS_CC);
+    int async;
+    int fd = swoole_convert_to_fd_ex(handle, &async TSRMLS_CC);
     if (fd < 0)
     {
         RETURN_FALSE;
+    }
+
+    if (async)
+    {
+        co_socket_read(fd, length, INTERNAL_FUNCTION_PARAM_PASSTHRU);
+        return;
     }
 
     struct stat file_stat;
@@ -643,9 +808,16 @@ static PHP_METHOD(swoole_coroutine_util, fgets)
     }
 #endif
 
-    int fd = swoole_convert_to_file_fd(handle TSRMLS_CC);
+    int async;
+    int fd = swoole_convert_to_fd_ex(handle, &async);
     if (fd < 0)
     {
+        RETURN_FALSE;
+    }
+
+    if (async == 1)
+    {
+        swoole_php_fatal_error(E_WARNING, "only support file resources.");
         RETURN_FALSE;
     }
 
@@ -723,10 +895,17 @@ static PHP_METHOD(swoole_coroutine_util, fwrite)
     }
 #endif
 
-    int fd = swoole_convert_to_file_fd(handle TSRMLS_CC);
+    int async;
+    int fd = swoole_convert_to_fd_ex(handle, &async TSRMLS_CC);
     if (fd < 0)
     {
         RETURN_FALSE;
+    }
+
+    if (async)
+    {
+        co_socket_write(fd, str, (length < 0 && length < l_str) ? length : l_str, INTERNAL_FUNCTION_PARAM_PASSTHRU);
+        return;
     }
 
     off_t _seek = lseek(fd, 0, SEEK_CUR);
