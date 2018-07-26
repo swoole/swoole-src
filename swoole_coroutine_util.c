@@ -407,6 +407,7 @@ static void aio_onReadCompleted(swAio_event *event)
     }
     else
     {
+        SwooleG.error = event->error;
         ZVAL_BOOL(result, 0);
     }
 
@@ -433,6 +434,7 @@ static void aio_onStreamGetLineCompleted(swAio_event *event)
     }
     else
     {
+        SwooleG.error = event->error;
         ZVAL_BOOL(result, 0);
     }
 
@@ -463,6 +465,7 @@ static void aio_onWriteCompleted(swAio_event *event)
     SW_MAKE_STD_ZVAL(result);
     if (event->ret < 0)
     {
+        SwooleG.error = event->error;
         ZVAL_BOOL(result, 0);
     }
     else
@@ -489,6 +492,7 @@ static void aio_onReadFileCompleted(swAio_event *event)
     SW_MAKE_STD_ZVAL(result);
     if (event->ret < 0)
     {
+        SwooleG.error = event->error;
         ZVAL_BOOL(result, 0);
     }
     else
@@ -516,6 +520,7 @@ static void aio_onWriteFileCompleted(swAio_event *event)
     SW_MAKE_STD_ZVAL(result);
     if (event->ret < 0)
     {
+        SwooleG.error = event->error;
         ZVAL_BOOL(result, 0);
     }
     else
@@ -555,14 +560,24 @@ static PHP_METHOD(swoole_coroutine_util, fread)
 #endif
 
     int fd = swoole_convert_to_fd(handle TSRMLS_CC);
-
-    struct stat file_stat;
-    if (fstat(fd, &file_stat) < 0)
+    if (fd < 0)
     {
         RETURN_FALSE;
     }
 
+    struct stat file_stat;
+    if (fstat(fd, &file_stat) < 0)
+    {
+        SwooleG.error = errno;
+        RETURN_FALSE;
+    }
+
     off_t _seek = lseek(fd, 0, SEEK_CUR);
+    if (_seek < 0)
+    {
+        SwooleG.error = errno;
+        RETURN_FALSE;
+    }
     if (length <= 0 || file_stat.st_size - _seek < length)
     {
         length = file_stat.st_size - _seek;
@@ -629,6 +644,11 @@ static PHP_METHOD(swoole_coroutine_util, fgets)
 #endif
 
     int fd = swoole_convert_to_fd(handle TSRMLS_CC);
+    if (fd < 0)
+    {
+        RETURN_FALSE;
+    }
+
     swAio_event ev;
     bzero(&ev, sizeof(swAio_event));
 
@@ -704,8 +724,17 @@ static PHP_METHOD(swoole_coroutine_util, fwrite)
 #endif
 
     int fd = swoole_convert_to_fd(handle TSRMLS_CC);
+    if (fd < 0)
+    {
+        RETURN_FALSE;
+    }
 
     off_t _seek = lseek(fd, 0, SEEK_CUR);
+    if (_seek < 0)
+    {
+        SwooleG.error = errno;
+        RETURN_FALSE;
+    }
     if (length <= 0 || length > l_str)
     {
         length = l_str;
