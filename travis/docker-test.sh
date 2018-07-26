@@ -10,5 +10,5 @@ php ./init.php
 ./start.sh --set-timeout 15 --show-diff -w failed.list ./swoole_*
 
 if [ "`cat failed.list | grep "phpt"`" ]; then
-    exit 1
+    exit 255
 fi

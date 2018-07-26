@@ -1,7 +1,10 @@
 --TEST--
 swoole_coroutine: user coroutine
 --SKIPIF--
-<?php require  __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip('foreign network dns error', IS_IN_DOCKER);
+?>
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';

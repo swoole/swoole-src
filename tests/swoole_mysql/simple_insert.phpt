@@ -1,7 +1,10 @@
 --TEST--
 swoole_mysql: simple insert
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip('onClose event lost', IS_IN_DOCKER);
+?>
 --INI--
 assert.active=1
 assert.warning=1
