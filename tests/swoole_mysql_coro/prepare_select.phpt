@@ -32,7 +32,7 @@ co::create(function () {
 
     $ret3 = $stmt->execute(array(10));
     if (!$ret3) {
-        echo "EXECUTE ERROR\n";
+        echo "EXECUTE ERROR#{$stmt->errno}: {$stmt->error}\n";
         return;
     }
     assert(count($ret3) > 0);

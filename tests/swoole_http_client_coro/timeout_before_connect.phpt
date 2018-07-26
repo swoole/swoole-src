@@ -1,7 +1,10 @@
 --TEST--
 swoole_http_client_coro: use timeout and timeout before connect
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_in_docker('foreign network dns error');
+?>
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
@@ -28,7 +31,9 @@ go(function () {
     assert($cli1->recv() === false);
     assert($cli2->recv() === true);
     assert($cli1->statusCode === -2);
-    assert($cli2->statusCode === 200);
+    if (!assert($cli2->statusCode === 200)) {
+        var_dump($cli2);
+    }
 });
 ?>
 --EXPECT--

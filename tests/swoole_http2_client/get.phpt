@@ -1,7 +1,10 @@
 --TEST--
 swoole_http2_client: get
 --SKIPIF--
-<?php require  __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_in_docker('travis network');
+?>
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';

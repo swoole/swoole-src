@@ -2,7 +2,10 @@
 swoole_client: big_package_memory_leak
 
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_in_docker('dead wait in docker');
+?>
 --INI--
 assert.active=1
 assert.warning=1

@@ -263,6 +263,22 @@ function get_one_free_port()
     socket_close($socket);
     return $port;
 }
+
+function check_tcp_port($ip, $port)
+{
+    $sock = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
+    socket_set_nonblock($sock);
+    socket_connect($sock, $ip, $port);
+    socket_set_block($sock);
+    $r = [$sock];
+    $w = [$sock];
+    $f = [$sock];
+    $status = socket_select($r, $w, $f, 5);
+    socket_close($sock);
+
+    return $status;
+}
+
 function start_server($file, $host, $port, $redirect_file = "/dev/null", $ext1 = null, $ext2 = null, $debug = false)
 {
     $php_executable = getenv('TEST_PHP_EXECUTABLE') ?: PHP_BINARY;
