@@ -1,7 +1,7 @@
 --TEST--
 swoole_http2_client_coro: http2 without gzip and recv big data (window-update)
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../include/skip/skip_if_in_docker.php'; ?>
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
@@ -32,6 +32,7 @@ go(function () {
         /**@var $response swoole_http2_response */
         $response = $cli->recv();
         assert($response->statusCode === 200);
+        assert(strpos($response->body, 'zhihu') !== false);
         $map[] = $response->streamId;
     }
     assert(!array_diff($map, [1, 3, 5, 7, 9]));

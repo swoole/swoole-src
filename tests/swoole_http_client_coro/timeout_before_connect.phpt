@@ -28,7 +28,9 @@ go(function () {
     assert($cli1->recv() === false);
     assert($cli2->recv() === true);
     assert($cli1->statusCode === -2);
-    assert($cli2->statusCode === 200);
+    if (!assert($cli2->statusCode === 200)) {
+        var_dump($cli2);
+    }
 });
 ?>
 --EXPECT--
