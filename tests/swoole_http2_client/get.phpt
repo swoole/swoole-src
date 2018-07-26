@@ -8,7 +8,6 @@ skip_if_in_docker('travis network');
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
 swoole_async_dns_lookup("www.jd.com", function ($domain, $ip)
 {
     $client = new Swoole\Http2\Client($ip, 443, true);

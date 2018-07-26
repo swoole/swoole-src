@@ -5,7 +5,6 @@ swoole_coroutine: sleep
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
 
 use Swoole\Coroutine as co;
 

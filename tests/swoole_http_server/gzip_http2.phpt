@@ -5,7 +5,6 @@ swoole_http_server: gzip with http2
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
 
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm)

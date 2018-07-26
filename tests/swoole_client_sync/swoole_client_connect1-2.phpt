@@ -18,7 +18,6 @@ require_once __DIR__ . '/../include/bootstrap.php';
 
  * Time: 上午10:06
  */
-require_once __DIR__ . '/../include/swoole.inc';
 
 killself_in_syncmode(1000, SIGTERM);
 

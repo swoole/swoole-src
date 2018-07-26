@@ -8,7 +8,6 @@ skip_if_no_proxy();
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
 
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid)

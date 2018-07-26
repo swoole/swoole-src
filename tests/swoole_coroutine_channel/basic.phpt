@@ -5,7 +5,6 @@ swoole_coroutine: coro channel
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
 use Swoole\Coroutine as co;
 $chan = new co\Channel(1);
 co::create(function () use ($chan) {
