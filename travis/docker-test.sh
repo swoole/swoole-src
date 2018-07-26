@@ -8,7 +8,7 @@ cd ${__DIR__} && cd ../tests/
 php ./init.php
 # run
 ./start.sh \
---set-timeout 10 \
+--set-timeout 25 \
 --show-diff \
 -w failed.list \
 ./swoole_*
@@ -16,13 +16,14 @@ php ./init.php
 if [ "`cat failed.list | grep "phpt"`" ]; then
     # read failed list
     failed_list="`cat failed.list`"
+    failed_list=${failed_list/\\n/ }
 
     # replace \n to space and retry
     ./start.sh \
-    --set-timeout 20 \
+    --set-timeout 45 \
     --show-diff \
     -w failed.list \
-    ${failed_list/\n/ }
+    "${failed_list}"
 
     if [ "`cat failed.list | grep "phpt"`" ]; then
         exit 255
