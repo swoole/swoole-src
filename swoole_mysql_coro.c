@@ -1455,7 +1455,7 @@ static void swoole_mysql_coro_free_storage(zend_object *object)
     mysql_client *client = swoole_get_object(zobject);
     if (!client)
     {
-        return;
+        goto _dtor;
     }
     if (client->state != SW_MYSQL_STATE_CLOSED && client->cli)
     {
@@ -1471,7 +1471,7 @@ static void swoole_mysql_coro_free_storage(zend_object *object)
     php_context *context = swoole_get_property(zobject, 0);
     if (!context)
     {
-        return;
+        goto _dtor;
     }
     if (likely(context->state == SW_CORO_CONTEXT_RUNNING))
     {
@@ -1483,6 +1483,7 @@ static void swoole_mysql_coro_free_storage(zend_object *object)
     }
     swoole_set_property(zobject, 0, NULL);
 
+    _dtor:
     // dtor object
     zend_object_std_dtor(object);
 }
