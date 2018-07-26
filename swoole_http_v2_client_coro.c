@@ -363,6 +363,9 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
             value = ntohl(*(uint32_t *) (buf + sizeof(uint16_t)));
             switch (id)
             {
+            case SW_HTTP2_SETTING_HEADER_TABLE_SIZE:
+                swTraceLog(SW_TRACE_HTTP2, "setting: header_compression_table_max=%d.", value);
+                break;
             case SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS:
                 hcc->max_concurrent_streams = value;
                 swTraceLog(SW_TRACE_HTTP2, "setting: max_concurrent_streams=%d.", value);
