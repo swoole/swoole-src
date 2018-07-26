@@ -11,6 +11,7 @@ if (!extension_loaded("swoole"))
 function skip(string $reason, bool $is_skip = true)
 {
     if ($is_skip) {
-        exit("skip {$reason}");
+        // with yellow color
+        exit("skip \033[33m{$reason}\033[0m");
     }
 }

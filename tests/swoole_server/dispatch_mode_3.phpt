@@ -1,7 +1,10 @@
 --TEST--
 swoole_server: dispatch_mode = 3
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip('unknown reason in docker', IS_IN_DOCKER);
+?>
 --INI--
 assert.active=1
 assert.warning=1
