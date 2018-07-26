@@ -15,7 +15,7 @@ php ./init.php
 
 if [ "`cat failed.list | grep "phpt"`" ]; then
     # replace \n to space
-    failed_list="`tr '\n' ' ' < a`"
+    failed_list="`tr '\n' ' ' < failed.list`"
 
     # and retry
     ./start.sh \

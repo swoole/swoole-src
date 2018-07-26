@@ -2,10 +2,7 @@
 swoole_server: kill worker [SWOOLE_PROCESS]
 
 --SKIPIF--
-<?php
-require __DIR__ . '/../include/skipif.inc';
-skip_if_in_docker();
-?>
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --INI--
 assert.active=1
 assert.warning=1
