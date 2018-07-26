@@ -777,6 +777,11 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
         //upload file
         else
         {
+            if (Z_STRLEN_P(filename) >= SW_HTTP_COOKIE_KEYLEN)
+            {
+                swWarn("filename[%s] is too large.", Z_STRVAL_P(filename));
+                return SW_OK;
+            }
             ctx->current_input_name = estrndup(tmp, value_len);
 
             zval *multipart_header = NULL;
