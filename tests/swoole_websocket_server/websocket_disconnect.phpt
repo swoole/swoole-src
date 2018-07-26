@@ -54,7 +54,7 @@ assert($byteArray[1] == 0x0F);	// Test Status Code bit 1 = 15
 assert($byteArray[2] == 0xA0);  // Test Status Code bit 2 = 160
 
 echo $byteArray[1]."\n";
-echo $byteArray[2]."\n"
+echo $byteArray[2]."\n";
 echo substr($response, 2);
 
 ?>
