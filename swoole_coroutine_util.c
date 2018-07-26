@@ -559,7 +559,7 @@ static PHP_METHOD(swoole_coroutine_util, fread)
     }
 #endif
 
-    int fd = swoole_convert_to_fd(handle TSRMLS_CC);
+    int fd = swoole_convert_to_file_fd(handle TSRMLS_CC);
     if (fd < 0)
     {
         RETURN_FALSE;
@@ -643,7 +643,7 @@ static PHP_METHOD(swoole_coroutine_util, fgets)
     }
 #endif
 
-    int fd = swoole_convert_to_fd(handle TSRMLS_CC);
+    int fd = swoole_convert_to_file_fd(handle TSRMLS_CC);
     if (fd < 0)
     {
         RETURN_FALSE;
@@ -723,7 +723,7 @@ static PHP_METHOD(swoole_coroutine_util, fwrite)
     }
 #endif
 
-    int fd = swoole_convert_to_fd(handle TSRMLS_CC);
+    int fd = swoole_convert_to_file_fd(handle TSRMLS_CC);
     if (fd < 0)
     {
         RETURN_FALSE;

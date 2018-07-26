@@ -462,7 +462,8 @@ static sw_inline void* swoole_get_property(zval *object, int property_id)
 
 void swoole_set_object(zval *object, void *ptr);
 void swoole_set_property(zval *object, int property_id, void *ptr);
-int swoole_convert_to_fd(zval *zsocket TSRMLS_DC);
+int swoole_convert_to_fd(zval *zfd TSRMLS_DC);
+int swoole_convert_to_file_fd(zval *zfd TSRMLS_DC);
 int swoole_register_rshutdown_function(swCallback func, int push_back);
 void swoole_call_rshutdown_function(void *arg);
 

@@ -335,6 +335,31 @@ int swoole_convert_to_fd(zval *zfd TSRMLS_DC)
     return socket_fd;
 }
 
+int swoole_convert_to_file_fd(zval *zfd TSRMLS_DC)
+{
+    php_stream *stream;
+    int fd;
+
+    if (SW_Z_TYPE_P(zfd) == IS_RESOURCE)
+    {
+        if (SW_ZEND_FETCH_RESOURCE_NO_RETURN(stream, php_stream *, &zfd, -1, NULL, php_file_le_stream()))
+        {
+            if (stream->wrapper->wops != php_plain_files_wrapper.wops)
+            {
+                goto _error;
+            }
+            if (php_stream_cast(stream, PHP_STREAM_AS_FD_FOR_SELECT | PHP_STREAM_CAST_INTERNAL, (void* )&fd, 1) != SUCCESS || fd < 0)
+            {
+                goto _error;
+            }
+            return fd;
+        }
+    }
+
+    _error: swoole_php_fatal_error(E_WARNING, "only support file resources.");
+    return SW_ERR;
+}
+
 #ifdef SWOOLE_SOCKETS_SUPPORT
 php_socket* swoole_convert_to_socket(int sock)
 {
