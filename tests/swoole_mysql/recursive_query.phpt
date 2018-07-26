@@ -3,7 +3,7 @@ swoole_mysql: recursive query
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
-skip('onClose event lost', IS_IN_DOCKER);
+skip_if_in_docker('onClose event lost');
 ?>
 --INI--
 assert.active=1

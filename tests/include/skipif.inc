@@ -38,7 +38,7 @@ function skip_if_in_docker(string $reason = 'not support in docker')
 
 function skip_if_no_proxy()
 {
-    require_once __DIR__ . '/../config.php';
+    require_once __DIR__ . '/config.php';
     if (IS_IN_DOCKER || check_tcp_port(HTTP_PROXY_HOST, HTTP_PROXY_PORT) !== 1) {
         skip('no http proxy available');
     }
