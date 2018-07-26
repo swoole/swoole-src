@@ -13,7 +13,8 @@ php ./init.php
 -w failed.list \
 ./swoole_*
 
-if [ "`cat failed.list | grep "phpt"`" ]; then
+retry_failures()
+{
     # replace \n to space
     failed_list="`tr '\n' ' ' < failed.list`"
 
@@ -23,8 +24,16 @@ if [ "`cat failed.list | grep "phpt"`" ]; then
     --show-diff \
     -w failed.list \
     "${failed_list}"
+}
 
+for i in 1 2 3
+do
     if [ "`cat failed.list | grep "phpt"`" ]; then
-        exit 255
+        echo "retry#${i}..."
+        retry_failures
+    else
+        exit 0
     fi
-fi
+done
+
+exit 255
