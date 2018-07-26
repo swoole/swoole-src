@@ -2,7 +2,10 @@
 swoole_memory_pool: fixed pool free [01]
 
 --SKIPIF--
-<?php require  __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require  __DIR__ . '/../include/skipif.inc';
+skip_deprecated();
+?>
 --INI--
 assert.active=1
 assert.warning=1
