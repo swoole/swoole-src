@@ -44,10 +44,6 @@ if (IS_MAC_OS) {
 } else {
     define('HTTP_PROXY_PORT', 8888);
 }
-define(
-    'HTTP_PROXY_AVAILABLE',
-    !IS_IN_DOCKER && check_tcp_port(HTTP_PROXY_HOST, HTTP_PROXY_PORT) === 1
-);
 
 /** ============== Files ============== */
 define('TEST_IMAGE', __DIR__ . '/../../examples/test.jpg');
