@@ -220,6 +220,10 @@ enum php_swoole_fd_type
     PHP_SWOOLE_FD_SOCKET,
     PHP_SWOOLE_FD_CHAN_PIPE,
 #endif
+    /**
+     * for Co::fread/Co::fwrite
+     */
+    PHP_SWOOLE_FD_CO_UTIL,
 };
 //---------------------------------------------------------
 typedef enum
@@ -462,7 +466,8 @@ static sw_inline void* swoole_get_property(zval *object, int property_id)
 
 void swoole_set_object(zval *object, void *ptr);
 void swoole_set_property(zval *object, int property_id, void *ptr);
-int swoole_convert_to_fd(zval *zsocket TSRMLS_DC);
+int swoole_convert_to_fd(zval *zfd TSRMLS_DC);
+int swoole_convert_to_fd_ex(zval *zfd, int *async TSRMLS_DC);
 int swoole_register_rshutdown_function(swCallback func, int push_back);
 void swoole_call_rshutdown_function(void *arg);
 
