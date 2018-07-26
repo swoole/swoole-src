@@ -15,7 +15,6 @@ assert.quiet_eval=0
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
 
 fork_exec(function() {
     require_once __DIR__ . '/../include/api/swoole_mysql/swoole_mysql_recursive_query.php';

@@ -17,7 +17,6 @@ require_once __DIR__ . '/../include/bootstrap.php';
 /**
  * Time: 上午10:06
  */
-require_once __DIR__ . '/../include/swoole.inc';
 
 $cli = new \swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
 $r = @$cli->connect("11.11.11.11", 80, 0.5);

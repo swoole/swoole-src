@@ -14,7 +14,6 @@ assert.quiet_eval=0
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
 const REQ_N = 10000;
 const CLIENT_N = 16;
 const WORKER_N = 16;

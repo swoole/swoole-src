@@ -6,7 +6,6 @@ swoole_mysql_coro: illegal child class
 <?php
 
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
 
 class swoole_invalid_mysql_coro extends \Swoole\Coroutine\MySQL
 {

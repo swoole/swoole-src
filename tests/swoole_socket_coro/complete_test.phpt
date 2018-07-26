@@ -5,7 +5,6 @@ swoole_coroutine: complete test server&&client&&timeout(millisecond)
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
 $pm = new ProcessManager;
 $port = get_one_free_port();
 $pm->parentFunc = function ($pid) use ($pm, $port) {

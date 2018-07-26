@@ -5,7 +5,6 @@ swoole_coroutine: fgets
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
 
 go(function () {
     $file = __DIR__ . '/fgets.phpt';

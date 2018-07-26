@@ -5,7 +5,6 @@ swoole_mysql_coro: mysql prepare (insert)
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
 
 use Swoole\Coroutine as co;
 
