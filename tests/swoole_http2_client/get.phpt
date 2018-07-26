@@ -1,7 +1,7 @@
 --TEST--
 swoole_http2_client: get
 --SKIPIF--
-<?php require  __DIR__ . '/../include/skip/skip_if_deprecated.php'; ?>
+<?php require __DIR__ . '/../include/skip/skip_deprecated.php'; ?>
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
