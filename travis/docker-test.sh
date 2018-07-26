@@ -7,7 +7,7 @@ cd ${__DIR__} && cd ../tests/
 # initialization
 php ./init.php
 # run
-./start.sh --set-timeout 15 --show-diff -w failed.list ./
+./start.sh --set-timeout 15 --show-diff -w failed.list ./swoole_*
 
 if [ "`cat failed.list | grep "phpt"`" ]; then
     exit 1
