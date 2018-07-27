@@ -55,7 +55,6 @@ typedef struct
     uint8_t ssl;
     uint8_t connecting;
     uint8_t ready;
-    uint8_t send_setting;
 
 #ifdef SW_COROUTINE
     uint8_t iowait;

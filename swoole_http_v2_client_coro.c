@@ -781,11 +781,8 @@ static void http2_client_onConnect(swClient *cli)
 
     hcc->ready = 1;
     hcc->stream_id = 1;
-    hcc->send_setting = 1;
-    if (hcc->send_setting)
-    {
-        http2_client_send_setting(cli);
-    }
+    http2_client_send_setting(cli);
+
     zval *result;
     SW_MAKE_STD_ZVAL(result);
     ZVAL_BOOL(result, 1);

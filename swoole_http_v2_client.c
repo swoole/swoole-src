@@ -1233,11 +1233,7 @@ static PHP_METHOD(swoole_http2_client, onConnect)
     http2_client_property *hcc = swoole_get_property(getThis(), HTTP2_CLIENT_PROPERTY_INDEX);
     hcc->ready = 1;
     hcc->stream_id = 1;
-    hcc->send_setting = 1;
-    if (hcc->send_setting)
-    {
-        http2_client_send_setting(cli);
-    }
+    http2_client_send_setting(cli);
     http2_client_send_all_requests(getThis() TSRMLS_CC);
 }
 
