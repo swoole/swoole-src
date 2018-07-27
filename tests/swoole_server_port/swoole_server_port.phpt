@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: swoole server port
+swoole_server_port: swoole server port
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --INI--

@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: complete test server&&client&&timeout(millisecond)
+swoole_socket_coro: complete test server&&client&&timeout(millisecond)
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: sleep
+swoole_coroutine_util: sleep
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

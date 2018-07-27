@@ -1,5 +1,5 @@
 --TEST--
-swoole_client: length protocol [async]
+swoole_client_async: length protocol [async]
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --INI--

@@ -1,5 +1,5 @@
 --TEST--
-swoole_client sync: connect 1 - 1
+swoole_client_sync: connect 1 - 1
 
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>

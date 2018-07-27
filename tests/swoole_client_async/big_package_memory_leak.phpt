@@ -1,5 +1,5 @@
 --TEST--
-swoole_client: big_package_memory_leak
+swoole_client_async: big_package_memory_leak
 
 --SKIPIF--
 <?php

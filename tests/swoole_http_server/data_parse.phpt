@@ -1,5 +1,5 @@
 --TEST--
-data_parse: http server data parse test
+swoole_http_server: http server data parse test
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

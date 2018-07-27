@@ -1,5 +1,5 @@
 --TEST--
-swoole_client: connect twice
+swoole_client_async: connect twice
 
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>

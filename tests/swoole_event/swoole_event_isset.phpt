@@ -1,5 +1,5 @@
 --TEST--
-global_function: swoole_event_isset
+swoole_event: swoole_event_isset
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --INI--

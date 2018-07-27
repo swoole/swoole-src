@@ -1,5 +1,5 @@
 --TEST--
-swoole_client: connect & dns
+swoole_client_async: connect & dns
 
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>

@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: fibonacci
+swoole_coroutine_channel: fibonacci
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc';
 exit("skip for select");

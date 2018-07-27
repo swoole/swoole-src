@@ -1,5 +1,5 @@
 --TEST--
-swoole_client: onBufferFull & onBufferEmpty
+swoole_client_async: onBufferFull & onBufferEmpty
 
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>

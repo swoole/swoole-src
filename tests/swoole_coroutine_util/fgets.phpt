@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: fgets
+swoole_coroutine_util: fgets
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

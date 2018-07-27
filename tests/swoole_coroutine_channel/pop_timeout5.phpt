@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: pop timeout hanging up
+swoole_coroutine_channel: pop timeout hanging up
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc';
 exit("skip for hanging up");

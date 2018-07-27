@@ -1,5 +1,5 @@
 --TEST--
-swoole_client: swoole_client sleep & sleep
+swoole_client_async: swoole_client sleep & sleep
 
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>

@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: gethostbyname
+swoole_coroutine_util: gethostbyname
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
