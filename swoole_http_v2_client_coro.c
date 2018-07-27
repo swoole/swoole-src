@@ -1019,6 +1019,7 @@ static PHP_METHOD(swoole_http2_client_coro, connect)
     php_context *context = swoole_get_property(getThis(), HTTP2_CLIENT_CORO_CONTEXT);
     cli->object = &context->coro_params;
     coro_save(context);
+    hcc->iowait = 1;
     coro_yield();
 }
 
