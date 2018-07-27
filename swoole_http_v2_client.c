@@ -496,7 +496,7 @@ static int http2_client_onFrame(zval *zobject, zval *zdata TSRMLS_DC)
                 swTraceLog(SW_TRACE_HTTP2, "setting: max_concurrent_streams=%d.", value);
                 break;
             case SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE:
-                hcc->window_size = value;
+                hcc->send_window = value;
                 swTraceLog(SW_TRACE_HTTP2, "setting: init_window_size=%d.", value);
                 break;
             case SW_HTTP2_SETTINGS_MAX_FRAME_SIZE:
@@ -522,8 +522,8 @@ static int http2_client_onFrame(zval *zobject, zval *zdata TSRMLS_DC)
     }
     else if (type == SW_HTTP2_TYPE_WINDOW_UPDATE)
     {
-        hcc->window_size = ntohl(*(int *) buf);
-        swTraceLog(SW_TRACE_HTTP2, "update: window_size=%d.", hcc->window_size);
+        hcc->send_window = ntohl(*(int *) buf);
+        swTraceLog(SW_TRACE_HTTP2, "update: window_size=%d.", hcc->send_window);
         return SW_OK;
     }
     else if (type == SW_HTTP2_TYPE_PING)

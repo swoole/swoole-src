@@ -48,6 +48,11 @@ typedef struct
     zval _callback;
     zval _response_object;
 #endif
+
+    // flow control
+    uint32_t send_window;
+    uint32_t recv_window;
+
 } http2_client_stream;
 
 typedef struct
@@ -64,7 +69,10 @@ typedef struct
 
     uint32_t stream_id;
 
-    uint32_t window_size;
+    // flow control
+    uint32_t send_window;
+    uint32_t recv_window;
+
     uint32_t max_concurrent_streams;
     uint32_t max_frame_size;
     uint32_t max_header_list_size;
