@@ -371,8 +371,8 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
                 swTraceLog(SW_TRACE_HTTP2, "setting: max_concurrent_streams=%d.", value);
                 break;
             case SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE:
-                hcc->window_size = value;
-                swTraceLog(SW_TRACE_HTTP2, "setting: init_window_size=%d.", value);
+                hcc->send_window = value;
+                swTraceLog(SW_TRACE_HTTP2, "setting: init_send_window=%d.", value);
                 break;
             case SW_HTTP2_SETTINGS_MAX_FRAME_SIZE:
                 hcc->max_frame_size = value;
@@ -397,8 +397,8 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
     }
     else if (type == SW_HTTP2_TYPE_WINDOW_UPDATE)
     {
-        // hcc->window_size = ntohl(*(int *) buf); TODO
-        swTraceLog(SW_TRACE_HTTP2, "update: window_size=%d.", hcc->window_size);
+        hcc->send_window = ntohl(*(int *) buf);
+        swTraceLog(SW_TRACE_HTTP2, "update: send_window=%d.", hcc->recv_window);
         return;
     }
     else if (type == SW_HTTP2_TYPE_PING)
@@ -450,38 +450,48 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
     }
     else if (type == SW_HTTP2_TYPE_DATA)
     {
-        if (!stream->buffer)
+        if (length > 0)
         {
-            stream->buffer = swString_new(SW_HTTP2_DATA_BUFFER_SIZE);
-        }
-#ifdef SW_HAVE_ZLIB
-        if (stream->gzip)
-        {
-            if (http_response_uncompress(&stream->gzip_stream, stream->gzip_buffer, buf, length) == SW_ERR)
+            if (!stream->buffer)
             {
-                return;
+                stream->buffer = swString_new(SW_HTTP2_DATA_BUFFER_SIZE);
             }
-            swString_append_ptr(stream->buffer, stream->gzip_buffer->str, stream->gzip_buffer->length);
-        }
-        else
+#ifdef SW_HAVE_ZLIB
+            if (stream->gzip)
+            {
+                if (http_response_uncompress(&stream->gzip_stream, stream->gzip_buffer, buf, length) == SW_ERR)
+                {
+                    return;
+                }
+                swString_append_ptr(stream->buffer, stream->gzip_buffer->str, stream->gzip_buffer->length);
+            }
+            else
 #endif
-        {
-            swString_append_ptr(stream->buffer, buf, length);
-        }
+            {
+                swString_append_ptr(stream->buffer, buf, length);
+            }
 
-        // now we control the connection flow only (not stream)
-        hcc->window_size -= length;
-        if (hcc->window_size < SW_HTTP2_DATA_BUFFER_SIZE)
-        {
-            http2_client_send_window_update(cli, 0, SW_HTTP2_DEFAULT_WINDOW_SIZE);
-            http2_client_send_window_update(cli, stream_id, SW_HTTP2_DEFAULT_WINDOW_SIZE);
-            hcc->window_size = SW_HTTP2_DEFAULT_WINDOW_SIZE;
+            // now we control the connection flow only (not stream)
+            hcc->recv_window -= length;
+            stream->recv_window -= length;
+            if (hcc->recv_window < (SW_HTTP2_MAX_WINDOW_SIZE / 4))
+            {
+                http2_client_send_window_update(cli, 0, SW_HTTP2_MAX_WINDOW_SIZE - hcc->recv_window);
+                hcc->recv_window = SW_HTTP2_MAX_WINDOW_SIZE;
+            }
+            if (stream->recv_window < (SW_HTTP2_MAX_WINDOW_SIZE / 4))
+            {
+                http2_client_send_window_update(cli, stream_id, SW_HTTP2_MAX_WINDOW_SIZE - stream->recv_window);
+                stream->recv_window = SW_HTTP2_MAX_WINDOW_SIZE;
+            }
         }
     }
 
-    if ((type == SW_HTTP2_TYPE_DATA && stream->type == SW_HTTP2_STREAM_PIPELINE)
+    if (
+            (type == SW_HTTP2_TYPE_DATA && stream->type == SW_HTTP2_STREAM_PIPELINE)
             || (stream->type == SW_HTTP2_STREAM_NORMAL && (flags & SW_HTTP2_FLAG_END_STREAM))
-            || type == SW_HTTP2_TYPE_RST_STREAM || type == SW_HTTP2_TYPE_GOAWAY)
+            || type == SW_HTTP2_TYPE_RST_STREAM || type == SW_HTTP2_TYPE_GOAWAY
+        )
     {
         zval _zresponse = stream->_response_object;
         zval *zresponse = &_zresponse;
@@ -588,6 +598,8 @@ static int http2_client_send_request(zval *zobject, zval *req TSRMLS_DC)
     object_init_ex(stream->response_object, swoole_http2_response_class_entry_ptr);
     stream->stream_id = hcc->stream_id;
     stream->type = Z_BVAL_P(pipeline) ? SW_HTTP2_STREAM_PIPELINE : SW_HTTP2_STREAM_NORMAL;
+    stream->send_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
+    stream->recv_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
 
     if (ZVAL_IS_NULL(post_data))
     {
@@ -781,11 +793,15 @@ static void http2_client_onConnect(swClient *cli)
 
     hcc->ready = 1;
     hcc->stream_id = 1;
-    hcc->send_setting = 1;
-    if (hcc->send_setting)
-    {
-        http2_client_send_setting(cli);
-    }
+    http2_client_send_setting(cli);
+
+    // [init]: we must set default value, server is not always send all the settings
+    hcc->max_concurrent_streams = SW_HTTP2_MAX_CONCURRENT_STREAMS;
+    hcc->send_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
+    hcc->recv_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
+    hcc->max_frame_size = SW_HTTP2_MAX_FRAME_SIZE;
+    // hcc->max_header_list_size = 1; unknown
+
     zval *result;
     SW_MAKE_STD_ZVAL(result);
     ZVAL_BOOL(result, 1);
