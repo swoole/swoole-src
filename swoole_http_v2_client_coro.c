@@ -818,9 +818,6 @@ static void http2_client_onConnect(swClient *cli)
 
 static void http2_client_onClose(swClient *cli)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
     zval *zobject = cli->object;
     zend_update_property_bool(swoole_http2_client_coro_class_entry_ptr, zobject, ZEND_STRL("connected"), 0 TSRMLS_CC);
 

@@ -470,9 +470,6 @@ static int http_request_on_path(php_http_parser *parser, const char *at, size_t 
 
 static int http_request_on_query_string(php_http_parser *parser, const char *at, size_t length)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
     http_context *ctx = parser->data;
 
     //no need free, will free by treat_data
@@ -606,10 +603,6 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
 
 static int http_request_on_header_value(php_http_parser *parser, const char *at, size_t length)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     size_t offset = 0;
     http_context *ctx = parser->data;
     zval *zrequest_object = ctx->request.zobject;
@@ -713,10 +706,6 @@ static int multipart_body_on_header_field(multipart_parser* p, const char *at, s
 
 static int multipart_body_on_header_value(multipart_parser* p, const char *at, size_t length)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     char value_buf[SW_HTTP_COOKIE_KEYLEN];
     int value_len;
 
@@ -863,10 +852,6 @@ static void get_random_file_name(char *des, const char *src)
 
 static int multipart_body_on_header_complete(multipart_parser* p)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     http_context *ctx = p->data;
     if (!ctx->current_input_name)
     {
@@ -920,10 +905,6 @@ static int multipart_body_on_header_complete(multipart_parser* p)
 
 static int multipart_body_on_data_end(multipart_parser* p)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     http_context *ctx = p->data;
     zval *zrequest_object = ctx->request.zobject;
     if (ctx->current_form_data_name)
@@ -981,10 +962,6 @@ static int multipart_body_on_data_end(multipart_parser* p)
 
 static int http_request_on_body(php_http_parser *parser, const char *at, size_t length)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     http_context *ctx = parser->data;
     zval *zrequest_object = ctx->request.zobject;
     char *body;
@@ -1085,10 +1062,6 @@ static int http_onReceive(swServer *serv, swEventData *req)
         client->http2 = 1;
         return swoole_http2_onFrame(client, req);
     }
-#endif
-
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
 #endif
 
     http_context *ctx = swoole_http_context_new(client TSRMLS_CC);

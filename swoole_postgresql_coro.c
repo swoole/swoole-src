@@ -226,10 +226,6 @@ static PHP_METHOD(swoole_postgresql_coro, connect)
 static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event)
 {
     char *errMsg;
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     if (event->socket->active)
     {
         return swReactor_onWrite(SwooleG.main_reactor, event);
@@ -303,10 +299,6 @@ static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event)
 static int swoole_pgsql_coro_onRead(swReactor *reactor, swEvent *event)
 {
     pg_object *pg_object = (event->socket->object);
-
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
 
     switch (pg_object->request_type)
     {
@@ -997,10 +989,6 @@ static void _free_result(zend_resource *rsrc)
 
 static int swoole_pgsql_coro_onError(swReactor *reactor, swEvent *event)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     pg_object *pg_object = (event->socket->object);
     zval *retval = NULL, *result;
     zval *zobject  = pg_object->object;

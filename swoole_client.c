@@ -358,10 +358,6 @@ void swoole_client_init(int module_number TSRMLS_DC)
 
 static void client_onReceive(swClient *cli, char *data, uint32_t length)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     zval *zobject = (zval *) cli->object;
     zval *zcallback = NULL;
     zval **args[2];
@@ -829,10 +825,6 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
 
 void php_swoole_at_shutdown(char *function)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
 #if PHP_MAJOR_VERSION >=7
     php_shutdown_function_entry shutdown_function_entry;
     shutdown_function_entry.arg_count = 1;
@@ -894,10 +886,6 @@ void php_swoole_check_reactor()
     {
         return;
     }
-
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
 
     if (!SWOOLE_G(cli))
     {
@@ -1021,10 +1009,6 @@ swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port
     int conn_key_len = 0;
     uint64_t tmp_buf;
     int ret;
-
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
 
     ztype = sw_zend_read_property(Z_OBJCE_P(object), object, SW_STRL("type")-1, 0 TSRMLS_CC);
 

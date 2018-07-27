@@ -171,10 +171,6 @@ static void client_execute_callback(zval *zobject, enum php_swoole_client_callba
     zval *retval = NULL;
     zval *result = NULL;
 
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     swoole_client_coro_property *ccp = swoole_get_property(zobject, client_coro_property_coroutine);
     if (type == SW_CLIENT_CB_onConnect
 #ifdef SW_USE_OPENSSL
@@ -276,9 +272,6 @@ void swoole_client_coro_init(int module_number TSRMLS_DC)
 
 static void client_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
     php_context *ctx = (php_context *) tnode->data;
     zval *zdata = NULL;
     zval *retval = NULL;
@@ -483,10 +476,6 @@ swClient* php_swoole_client_coro_new(zval *object, char *host, int host_len, int
 {
     zval *ztype;
     int async = 0;
-
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
 
     ztype = sw_zend_read_property(swoole_client_coro_class_entry_ptr, object, SW_STRL("type")-1, 0 TSRMLS_CC);
 
