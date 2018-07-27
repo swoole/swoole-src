@@ -369,7 +369,7 @@ static PHP_METHOD(swoole_channel_coro, pop)
         RETURN_FALSE;
     }
 
-    double timeout = 0;//never timeout in default
+    double timeout = -1; //never timeout in default
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|d", &timeout) == FAILURE)
     {
