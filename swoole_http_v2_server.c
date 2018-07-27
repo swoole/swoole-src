@@ -289,10 +289,6 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length 
 
 int swoole_http2_do_response(http_context *ctx, swString *body)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     swoole_http_client *client = ctx->client;
     char header_buffer[8192];
     int ret;
@@ -438,10 +434,6 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
 
 static int http2_parse_header(swoole_http_client *client, http_context *ctx, int flags, char *in, size_t inlen)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     nghttp2_hd_inflater *inflater = client->inflater;
 
     if (!inflater)
@@ -595,10 +587,6 @@ static int http2_parse_header(swoole_http_client *client, http_context *ctx, int
  */
 int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     if (!client->init)
     {
         client->window_size = SW_HTTP2_DEFAULT_WINDOW_SIZE;

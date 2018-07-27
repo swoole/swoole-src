@@ -4093,10 +4093,6 @@ static void swoole_redis_coro_resume(void *data)
 
 static void swoole_redis_coro_onResult(redisAsyncContext *c, void *r, void *privdata)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     swConnection *_socket = swReactor_get(SwooleG.main_reactor, c->c.fd);
     if (_socket->active == 0)
     {
@@ -4357,9 +4353,6 @@ static void swoole_redis_coro_event_Cleanup(void *privdata)
 
 static int swoole_redis_coro_onError(swReactor *reactor, swEvent *event)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
     swRedisClient *redis = event->socket->object;
     redisAsyncContext *c = redis->context;
     zend_update_property_long(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errCode"), c->err TSRMLS_CC);
@@ -4377,9 +4370,6 @@ static int swoole_redis_coro_onError(swReactor *reactor, swEvent *event)
 
 static void swoole_redis_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
     zval *result;
     zval *retval = NULL;
     php_context *ctx = tnode->data;

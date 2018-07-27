@@ -618,9 +618,6 @@ static int http_client_coro_onMessage(swConnection *conn, char *data, uint32_t l
  */
 static void http_client_coro_onError(swClient *cli)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
     zval *zdata;
     zval *retval = NULL;
 
@@ -691,10 +688,6 @@ static void http_client_onBufferEmpty(swClient *cli)
 
 static void http_client_coro_onReceive(swClient *cli, char *data, uint32_t length)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     zval *zobject = cli->object;
     zval *retval = NULL;
     http_client *http = swoole_get_object(zobject);
@@ -851,10 +844,6 @@ static void http_client_coro_onReceive(swClient *cli, char *data, uint32_t lengt
 
 static void http_client_coro_onConnect(swClient *cli)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     zval *zobject = cli->object;
     http_client *http = swoole_get_object(zobject);
     if (!http->cli)

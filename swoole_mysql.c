@@ -2636,9 +2636,6 @@ static PHP_METHOD(swoole_mysql, getState)
 
 static void swoole_mysql_onTimeout(swTimer *timer, swTimer_node *tnode)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
     mysql_client *client = tnode->data;
     client->connector.error_code = ETIMEDOUT;
     client->connector.error_msg = strerror(client->connector.error_code);
@@ -2651,9 +2648,6 @@ static int swoole_mysql_onError(swReactor *reactor, swEvent *event)
     swClient *cli = event->socket->object;
     if (cli && cli->socket && cli->socket->active)
     {
-#if PHP_MAJOR_VERSION < 7
-        TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
         mysql_client *client = event->socket->object;
         if (!client)
         {
@@ -2735,10 +2729,6 @@ static void swoole_mysql_onConnect(mysql_client *client TSRMLS_DC)
 
 static int swoole_mysql_onWrite(swReactor *reactor, swEvent *event)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     if (event->socket->active)
     {
         return swReactor_onWrite(SwooleG.main_reactor, event);
@@ -2940,10 +2930,6 @@ static int swoole_mysql_onHandShake(mysql_client *client TSRMLS_DC)
 
 static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     mysql_client *client = event->socket->object;
     if (client->handshake != SW_MYSQL_HANDSHAKE_COMPLETED)
     {

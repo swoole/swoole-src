@@ -350,10 +350,6 @@ void http2_add_cookie(nghttp2_nv *nv, int *index, zval *cookies TSRMLS_DC)
 
 int http2_client_parse_header(http2_client_property *hcc, http2_client_stream *stream , int flags, char *in, size_t inlen)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     nghttp2_hd_inflater *inflater = hcc->inflater;
     zval *zresponse = stream->response_object;
     if (!inflater)

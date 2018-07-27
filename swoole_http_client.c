@@ -455,10 +455,6 @@ void swoole_http_client_init(int module_number TSRMLS_DC)
 
 static void http_client_execute_callback(zval *zobject, enum php_swoole_client_callback_type type)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     zval *callback = NULL;
     zval *retval = NULL;
     zval **args[1];
@@ -535,9 +531,6 @@ static void http_client_execute_callback(zval *zobject, enum php_swoole_client_c
  */
 static void http_client_onClose(swClient *cli)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
     zval *zobject = cli->object;
     http_client *http = swoole_get_object(zobject);
     if (http && http->state == HTTP_CLIENT_STATE_WAIT_CLOSE)
@@ -557,10 +550,6 @@ static void http_client_onClose(swClient *cli)
 
 static int http_client_onMessage(swConnection *conn, char *data, uint32_t length)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     swClient *cli = conn->object;
     zval *zobject = cli->object;
     zval **args[2];
@@ -598,9 +587,6 @@ static int http_client_onMessage(swConnection *conn, char *data, uint32_t length
  */
 static void http_client_onError(swClient *cli)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
     zval *zobject = cli->object;
     zend_update_property_long(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error TSRMLS_CC);
     http_client_free(zobject TSRMLS_CC);
@@ -612,10 +598,6 @@ static void http_client_onRequestTimeout(swTimer *timer, swTimer_node *tnode)
 {
     swClient *cli = (swClient *) tnode->data;
     zval *zobject = (zval *) cli->object;
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     zend_update_property_long(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("errCode"), ETIMEDOUT TSRMLS_CC);
     zend_update_property_long(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT TSRMLS_CC);
 
@@ -681,10 +663,6 @@ static void http_client_onResponseException(zval *zobject TSRMLS_DC)
 
 static void http_client_onReceive(swClient *cli, char *data, uint32_t length)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     zval *zobject = cli->object;
     http_client *http = swoole_get_object(zobject);
     if (!http->cli)
@@ -809,10 +787,6 @@ static void http_client_onReceive(swClient *cli, char *data, uint32_t length)
 
 static void http_client_onConnect(swClient *cli)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     zval *zobject = cli->object;
     http_client *http = swoole_get_object(zobject);
     if (!http->cli)
@@ -1729,10 +1703,6 @@ int http_client_parser_on_header_field(php_http_parser *parser, const char *at, 
 
 int http_client_parser_on_header_value(php_http_parser *parser, const char *at, size_t length)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     http_client* http = (http_client*) parser->data;
 
     zval* zobject = (zval*) http->cli->object;
@@ -1915,10 +1885,6 @@ int http_client_parser_on_headers_complete(php_http_parser *parser)
 
 int http_client_parser_on_message_complete(php_http_parser *parser)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     http_client* http = (http_client*) parser->data;
     zval* zobject = (zval*) http->cli->object;
 
