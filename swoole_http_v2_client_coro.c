@@ -349,7 +349,9 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
     uint32_t value;
     swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_YELLOW"]\tflags=%d, stream_id=%d, length=%d", swHttp2_get_type(type), flags, stream_id, length);
 
-    if (type == SW_HTTP2_TYPE_SETTINGS)
+    switch (type)
+    {
+    case SW_HTTP2_TYPE_SETTINGS:
     {
         if (flags & SW_HTTP2_FLAG_ACK)
         {
@@ -395,13 +397,13 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
         cli->send(cli, frame, SW_HTTP2_FRAME_HEADER_SIZE, 0);
         return;
     }
-    else if (type == SW_HTTP2_TYPE_WINDOW_UPDATE)
+    case SW_HTTP2_TYPE_WINDOW_UPDATE:
     {
         hcc->send_window = ntohl(*(int *) buf);
         swTraceLog(SW_TRACE_HTTP2, "update: send_window=%d.", hcc->recv_window);
         return;
     }
-    else if (type == SW_HTTP2_TYPE_PING)
+    case SW_HTTP2_TYPE_PING:
     {
         swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_PING, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, SW_HTTP2_FLAG_ACK, stream_id);
         memcpy(frame + SW_HTTP2_FRAME_HEADER_SIZE, buf + SW_HTTP2_FRAME_HEADER_SIZE, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE);
@@ -409,13 +411,13 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
         cli->send(cli, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, 0);
         return;
     }
-    else if (type == SW_HTTP2_TYPE_GOAWAY)
+    case SW_HTTP2_TYPE_GOAWAY:
     {
         int last_stream_id = htonl(*(int *) (buf));
         buf += 4;
         error_code = htonl(*(int *) (buf));
         swWarn("["SW_ECHO_RED"] last_stream_id=%d, error_code=%d.", "GOAWAY", last_stream_id, error_code);
-        
+
         zval* retval;
         sw_zend_call_method_with_0_params(&zobject, swoole_http2_client_coro_class_entry_ptr, NULL, "close", &retval);
         if (retval)
@@ -426,8 +428,9 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
         {
             return;
         }
+        break;
     }
-    else if (type == SW_HTTP2_TYPE_RST_STREAM)
+    case SW_HTTP2_TYPE_RST_STREAM:
     {
         error_code = htonl(*(int *) (buf));
         swWarn("["SW_ECHO_RED"] stream_id=%d, error_code=%d.", "RST_STREAM", stream_id, error_code);
@@ -436,6 +439,8 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
         {
             return;
         }
+        break;
+    }
     }
 
     http2_client_stream *stream = swHashMap_find_int(hcc->streams, stream_id);
