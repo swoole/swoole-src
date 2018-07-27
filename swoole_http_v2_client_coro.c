@@ -424,11 +424,21 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
         {
             sw_zval_ptr_dtor(&retval);
         }
-        if (hcc->iowait == 0)
+        if (hcc->iowait != 0)
         {
-            return;
+            // resume and return false
+            hcc->iowait = 0;
+            zval _result;
+            zval *result = &_result;
+            ZVAL_FALSE(result);
+            php_context *context = swoole_get_property(zobject, HTTP2_CLIENT_CORO_CONTEXT);
+            int ret = coro_resume(context, result, &retval);
+            if (ret == CORO_END && retval)
+            {
+                sw_zval_ptr_dtor(&retval);
+            }
         }
-        break;
+        return;
     }
     case SW_HTTP2_TYPE_RST_STREAM:
     {
