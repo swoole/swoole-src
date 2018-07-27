@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_client: websocket message
+swoole_websocket_server: websocket message
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 

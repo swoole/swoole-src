@@ -1,5 +1,5 @@
 --TEST--
-swoole_set_process_name
+swoole_function: set process name
 
 --SKIPIF--
 <?php

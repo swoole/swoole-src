@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: redis multi and exec
+swoole_redis_coro: redis multi and exec
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

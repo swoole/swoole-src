@@ -1,5 +1,5 @@
 --TEST--
-enable_coroutine: enable_coroutine setting in server
+swoole_http_server: enable_coroutine setting in server
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

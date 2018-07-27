@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_response: rawcontent
+swoole_http_server: rawcontent
 
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>

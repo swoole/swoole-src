@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_response: raw-cookie
+swoole_http_server: raw-cookie
 
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>

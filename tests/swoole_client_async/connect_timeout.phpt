@@ -1,5 +1,5 @@
 --TEST--
-swoole_client: connect_host_not_found
+swoole_client_async: connect_host_not_found
 
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>

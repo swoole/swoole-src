@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: coro channel
+swoole_coroutine_channel: coro channel
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

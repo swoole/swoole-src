@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: redis client
+swoole_redis_coro: redis client
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

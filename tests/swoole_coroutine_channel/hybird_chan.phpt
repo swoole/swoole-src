@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: hybird channel
+swoole_coroutine_channel: hybird channel
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; 
 exit("skip for select");

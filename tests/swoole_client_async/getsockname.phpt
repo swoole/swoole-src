@@ -1,5 +1,5 @@
 --TEST--
-swoole_client: swoole_client getsockname
+swoole_client_async: swoole_client getsockname
 
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>

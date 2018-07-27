@@ -1,5 +1,5 @@
 --TEST--
-swoole_client: udp sync client send & recv
+swoole_client_sync: udp sync client send & recv
 
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>

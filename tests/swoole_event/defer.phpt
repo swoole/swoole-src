@@ -1,5 +1,5 @@
 --TEST--
-global_function: swoole_event_write
+swoole_event: swoole_event_write
 
 --FILE--
 <?php

@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: accept
+swoole_socket_coro: accept
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

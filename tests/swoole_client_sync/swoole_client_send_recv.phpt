@@ -1,5 +1,5 @@
 --TEST--
-swoole_client sync: send & recv
+swoole_client_sync: send & recv
 
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>

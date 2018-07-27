@@ -1,5 +1,5 @@
 --TEST--
-swoole_client sync: connect 1 - 3 nonblocking connect & select
+swoole_client_sync: connect 1 - 3 nonblocking connect & select
 
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>

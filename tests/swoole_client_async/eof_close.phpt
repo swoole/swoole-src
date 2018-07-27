@@ -1,5 +1,5 @@
 --TEST--
-swoole_client: eof protocol [async] [close]
+swoole_client_async: eof protocol [async] [close]
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --INI--

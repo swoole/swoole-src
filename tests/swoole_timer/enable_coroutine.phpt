@@ -1,5 +1,5 @@
 --TEST--
-enable_coroutine: enable_coroutine setting
+swoole_timer: enable_coroutine setting
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

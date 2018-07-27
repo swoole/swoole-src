@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: dns lookup
+swoole_coroutine_util: dns lookup
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

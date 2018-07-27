@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: pop timeout 7
+swoole_coroutine_channel: pop timeout 7
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

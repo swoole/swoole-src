@@ -1,5 +1,5 @@
 --TEST--
-swoole_client: getsockpeername
+swoole_client_async: getsockpeername
 
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>

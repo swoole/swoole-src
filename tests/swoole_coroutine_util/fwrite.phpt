@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: fwrite
+swoole_coroutine_util: fwrite
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

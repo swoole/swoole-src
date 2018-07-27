@@ -1,5 +1,5 @@
 --TEST--
-swoole_client: connect refuse
+swoole_client_async: connect refuse
 
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>

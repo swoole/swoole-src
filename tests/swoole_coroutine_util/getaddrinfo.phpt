@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: getaddrinfo
+swoole_coroutine_util: getaddrinfo
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

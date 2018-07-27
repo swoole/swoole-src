@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: redis reconnect
+swoole_redis_coro: redis reconnect
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
