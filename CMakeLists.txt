@@ -1,9 +1,10 @@
 PROJECT(libswoole)
 
 ENABLE_LANGUAGE(ASM)
-SET(SWOOLE_VERSION 4.0.0)
+SET(SWOOLE_VERSION 4.0.4)
 SET(SWOOLE_CLFLAGS pthread rt dl ssl crypt crypto nghttp2)
-CMAKE_MINIMUM_REQUIRED(VERSION 2.4)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 
 SET(CMAKE_BUILD_TYPE Debug)
 
@@ -18,7 +19,7 @@ SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 
 add_definitions(-DHAVE_CONFIG_H)
 
-INCLUDE_DIRECTORIES(BEFORE ./include ./ /usr/local/php/include /usr/local/php/include/Zend /usr/local/php/include/main)
+INCLUDE_DIRECTORIES(BEFORE ./include ./include/wrapper ./ /usr/local/php/include /usr/local/php/include/Zend /usr/local/php/include/main)
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 
 #libary
