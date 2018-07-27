@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: taskwait
+swoole_server: taskwait [coroutine]
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --INI--
@@ -37,11 +37,13 @@ $pm->parentFunc = function ($pid) use ($port)
 $pm->childFunc = function () use ($pm, $port)
 {
     ini_set('swoole.display_errors', 'Off');
+    ini_set('display_errors', 'Off');
     $serv = new swoole_server("127.0.0.1", $port);
     $serv->set(array(
         "worker_num" => 1,
         'task_worker_num' => 1,
         'log_file' => '/dev/null',
+        'enable_coroutine' => true,
     ));
     $serv->on("WorkerStart", function (\swoole_server $serv)  use ($pm)
     {
