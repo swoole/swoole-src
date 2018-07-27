@@ -2198,7 +2198,7 @@ PHP_FUNCTION(swoole_client_select)
 #ifdef PHP_SWOOLE_CLIENT_USE_POLL
     zval *r_array, *w_array, *e_array;
     int retval, index = 0;
-    double timeout = 0.5;
+    double timeout = SW_CLIENT_DEFAULT_TIMEOUT;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a!a!a!|d", &r_array, &w_array, &e_array, &timeout) == FAILURE)
     {
@@ -2256,7 +2256,7 @@ PHP_FUNCTION(swoole_client_select)
 
     int max_fd = 0;
     int    retval, sets = 0;
-    double timeout = 0.5;
+    double timeout = SW_CLIENT_DEFAULT_TIMEOUT;
     struct timeval timeo;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a!a!a!|d", &r_array, &w_array, &e_array, &timeout) == FAILURE)

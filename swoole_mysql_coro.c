@@ -72,6 +72,7 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_prepare, 0, 0, 1)
     ZEND_ARG_INFO(0, query)
+    ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_setDefer, 0, 0, 0)
@@ -843,18 +844,6 @@ static PHP_METHOD(swoole_mysql_coro, query)
 {
     swString sql;
     bzero(&sql, sizeof(sql));
-    double timeout = -1;
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|d", &sql.str, &sql.length, &timeout) == FAILURE)
-    {
-        return;
-    }
-
-    if (sql.length <= 0)
-    {
-        swoole_php_fatal_error(E_WARNING, "Query is empty.");
-        RETURN_FALSE;
-    }
 
     mysql_client *client = swoole_get_object(getThis());
     if (!client || client->state == SW_MYSQL_STATE_CLOSED)
@@ -874,6 +863,19 @@ static PHP_METHOD(swoole_mysql_coro, query)
     if (unlikely(client->cid && client->cid != sw_get_current_cid()))
     {
         swoole_php_fatal_error(E_ERROR, "mysql client has already been bound to another coroutine.");
+        RETURN_FALSE;
+    }
+
+    double timeout = client->connector.timeout;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|d", &sql.str, &sql.length, &timeout) == FAILURE)
+    {
+        return;
+    }
+
+    if (sql.length <= 0)
+    {
+        swoole_php_fatal_error(E_WARNING, "Query is empty.");
         RETURN_FALSE;
     }
 
@@ -1125,16 +1127,6 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
     swString sql;
     bzero(&sql, sizeof(sql));
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "s", &sql.str, &sql.length) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
-    if (sql.length <= 0)
-    {
-        swoole_php_fatal_error(E_WARNING, "Query is empty.");
-        RETURN_FALSE;
-    }
-
     mysql_client *client = swoole_get_object(getThis());
     if (!client || client->state == SW_MYSQL_STATE_CLOSED)
     {
@@ -1153,6 +1145,18 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
     if (unlikely(client->cid && client->cid != sw_get_current_cid()))
     {
         swoole_php_fatal_error(E_ERROR, "mysql client has already been bound to another coroutine.");
+        RETURN_FALSE;
+    }
+
+    double timeout = client->connector.timeout;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "s|d", &sql.str, &sql.length, &timeout) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+    if (sql.length <= 0)
+    {
+        swoole_php_fatal_error(E_WARNING, "Query is empty.");
         RETURN_FALSE;
     }
 
@@ -1186,7 +1190,6 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
     }
 
     php_context *context = swoole_get_property(getThis(), 0);
-    double timeout = client->connector.timeout;
     if (timeout > 0)
     {
         client->timer = SwooleG.timer.add(&SwooleG.timer, (int) (timeout * 1000), 0, context, swoole_mysql_coro_onTimeout);
@@ -1200,12 +1203,6 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
 static PHP_METHOD(swoole_mysql_coro_statement, execute)
 {
     zval *params = NULL;
-    double timeout = -1;
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "|ad", &params, &timeout) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
 
     mysql_statement *stmt = swoole_get_object(getThis());
     if (!stmt)
@@ -1222,6 +1219,13 @@ static PHP_METHOD(swoole_mysql_coro_statement, execute)
     if (unlikely(client->cid && client->cid != sw_get_current_cid()))
     {
         swoole_php_fatal_error(E_ERROR, "mysql client has already been bound to another coroutine.");
+        RETURN_FALSE;
+    }
+
+    double timeout = client->connector.timeout;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "|ad", &params, &timeout) == FAILURE)
+    {
         RETURN_FALSE;
     }
 
