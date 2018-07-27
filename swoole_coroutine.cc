@@ -371,7 +371,7 @@ int sw_get_current_cid()
     }
     else
     {
-        coro_task* task =  sw_get_current_task();
+        coro_task* task = sw_get_current_task();
         if (task)
         {
             return task->cid;
