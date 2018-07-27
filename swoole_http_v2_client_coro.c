@@ -382,7 +382,8 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
                 swTraceLog(SW_TRACE_HTTP2, "setting: max_header_list_size=%d.", value);
                 break;
             default:
-                swWarn("unknown option[%d].", id);
+                // disable warning and ignore it because some websites are not following http2 protocol totally
+                // swWarn("unknown option[%d]: %d.", id, value);
                 break;
             }
             buf += sizeof(id) + sizeof(value);
