@@ -817,12 +817,11 @@ static void http2_client_onConnect(swClient *cli)
     hcc->max_frame_size = SW_HTTP2_MAX_FRAME_SIZE;
     // hcc->max_header_list_size = 1; unknown
 
+    hcc->iowait = 0;
     zval *result;
     SW_MAKE_STD_ZVAL(result);
     ZVAL_BOOL(result, 1);
-
     zval *retval = NULL;
-
     php_context *context = swoole_get_property(zobject, HTTP2_CLIENT_CORO_CONTEXT);
     int ret = coro_resume(context, result, &retval);
     if (ret == CORO_END && retval)
