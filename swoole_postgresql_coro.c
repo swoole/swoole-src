@@ -205,11 +205,7 @@ static PHP_METHOD(swoole_postgresql_coro, connect)
     }
     sw_current_context->state = SW_CORO_CONTEXT_RUNNING;
     sw_current_context->onTimeout = NULL;
-    #if PHP_MAJOR_VERSION < 7
-    sw_current_context->coro_params = getThis();
-    #else
-    sw_current_context->coro_params = *getThis();
-    #endif
+        sw_current_context->coro_params = *getThis();
 
     //TODO:  add the timeout
     /*
@@ -470,11 +466,7 @@ static PHP_METHOD(swoole_postgresql_coro, query)
     php_context *sw_current_context = swoole_get_property(getThis(), 0);
     sw_current_context->state = SW_CORO_CONTEXT_RUNNING;
     sw_current_context->onTimeout = NULL;
-    #if PHP_MAJOR_VERSION < 7
-    sw_current_context->coro_params = getThis();
-    #else
-    sw_current_context->coro_params = *getThis();
-    #endif
+        sw_current_context->coro_params = *getThis();
 
     //TODO:  add the timeout
     /*
@@ -716,11 +708,7 @@ static PHP_METHOD(swoole_postgresql_coro,metaData)
     php_context *sw_current_context = swoole_get_property(getThis(), 0);
     sw_current_context->state = SW_CORO_CONTEXT_RUNNING;
     sw_current_context->onTimeout = NULL;
-#if PHP_MAJOR_VERSION < 7
-        sw_current_context->coro_params = getThis();
-#else
         sw_current_context->coro_params = *getThis();
-#endif
         /*
             if (redis->timeout > 0)
             {

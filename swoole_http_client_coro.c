@@ -1277,11 +1277,7 @@ static PHP_METHOD(swoole_http_client_coro, __construct)
     swoole_set_property(getThis(), http_client_coro_property_context, context);
 
     context->onTimeout = NULL;
-#if PHP_MAJOR_VERSION < 7
-	context->coro_params = getThis();
-#else
 	context->coro_params = *getThis();
-#endif
 	context->state = SW_CORO_CONTEXT_RUNNING;
 
     swTraceLog(SW_TRACE_HTTP_CLIENT, "ctor, object handle=%d.", sw_get_object_handle(getThis()));
@@ -1857,14 +1853,8 @@ static PHP_METHOD(swoole_http_client_coro, upgrade)
     sw_add_assoc_string(headers, "Upgrade", "websocket", 1);
     sw_add_assoc_string(headers, "Sec-WebSocket-Version", SW_WEBSOCKET_VERSION, 1);
 
-#if PHP_MAJOR_VERSION < 7
-    int encoded_value_len = 0;
-    uchar *encoded_value = php_base64_encode((const unsigned char *) buf, SW_WEBSOCKET_KEY_LENGTH, &encoded_value_len);
-    add_assoc_stringl_ex(headers, ZEND_STRS("Sec-WebSocket-Key"), (char* )encoded_value, encoded_value_len, 0);
-#else
     zend_string *str = php_base64_encode((const unsigned char *) buf, SW_WEBSOCKET_KEY_LENGTH);
     add_assoc_str_ex(headers, ZEND_STRL("Sec-WebSocket-Key"), str);
-#endif
 
     ret = http_client_coro_execute(getThis(), uri, uri_len TSRMLS_CC);
     if (ret == SW_ERR)
