@@ -84,7 +84,6 @@ int coro_init(TSRMLS_D)
     }
 
     COROG.active = 1;
-    SwooleWG.coro_timeout_list = swLinkedList_new(1, NULL);
     coroutine_set_close(sw_coro_close);
     return 0;
 }
@@ -385,50 +384,4 @@ static coro_task* sw_get_current_task()
     return (COROG.call_stack_size > 0) ? COROG.call_stack[COROG.call_stack_size - 1] : NULL;
 }
 
-void coro_handle_timeout()
-{
-    swLinkedList *timeout_list = SwooleWG.coro_timeout_list;
-    swTimer_node *tnode = NULL;
-    if (timeout_list != NULL && timeout_list->num > 0)
-    {
-        php_context *cxt = (php_context *) swLinkedList_shift(timeout_list);
-        while (cxt != NULL)
-        {
-            cxt->onTimeout(cxt);
-            cxt = (php_context *) swLinkedList_shift(timeout_list);
-        }
-    }
-
-    timeout_list = SwooleWG.delayed_coro_timeout_list;
-    if (likely(timeout_list != NULL))
-    {
-        swTimer_coro_callback *scc = (swTimer_coro_callback *) swLinkedList_shift(timeout_list);
-        while (scc != NULL)
-        {
-            php_context *context = (php_context *) scc->data;
-            if (unlikely(context->state == SW_CORO_CONTEXT_TERM))
-            {
-                efree(context);
-                efree(scc);
-            }
-            else
-            {
-                context->state = SW_CORO_CONTEXT_RUNNING;
-                tnode = SwooleG.timer.add(&SwooleG.timer, scc->ms, 0, scc, php_swoole_onTimeout);
-
-                if (tnode == NULL)
-                {
-                    efree(scc);
-                    swWarn("Addtimer coro failed.");
-                }
-                else
-                {
-                    tnode->type = SW_TIMER_TYPE_CORO;
-                    *scc->timeout_id = tnode->id;
-                }
-            }
-            scc = (swTimer_coro_callback *) swLinkedList_shift(timeout_list);
-        }
-    }
-}
 #endif

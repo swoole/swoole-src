@@ -239,6 +239,7 @@ enum swFd_type
     SW_FD_WRITE           = 7, //fd can write
     SW_FD_TIMER           = 8, //timer fd
     SW_FD_AIO             = 9, //linux native aio
+    SW_FD_CORO_SOCKET     = 10, //CoroSocket
     SW_FD_SIGNAL          = 11, //signalfd
     SW_FD_DNS_RESOLVER    = 12, //dns resolver
     SW_FD_INOTIFY         = 13, //server socket
@@ -2048,11 +2049,6 @@ typedef struct
     uint32_t wait_exit :1;
 
     int max_request;
-
-#ifdef SW_COROUTINE
-    swLinkedList *coro_timeout_list;
-    swLinkedList *delayed_coro_timeout_list;
-#endif
 
     swString **buffer_input;
     swString **buffer_output;
