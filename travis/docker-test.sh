@@ -36,4 +36,6 @@ do
     fi
 done
 
-exit 255
+if [ "`cat failed.list | grep "phpt"`" ]; then
+    exit 255
+fi
