@@ -52,10 +52,10 @@ TEST(Coroutine, SocketAccept)
     swoole_test::coroutine_socket_accept();
 }
 
-TEST(Server, Create)
-{
-    EXPECT_EQ(0, swoole_test::server_test());
-}
+// TEST(Server, Create)
+// {
+//     EXPECT_EQ(0, swoole_test::server_test());
+// }
 
 int main(int argc, char **argv)
 {

@@ -322,6 +322,12 @@ int Socket::recv(void *__buf, size_t __n, int __flags)
         _error: errCode = errno;
         return -1;
     }
+    errCode = 0;
+    if (_timeout > 0)
+    {
+        int ms = (int) (_timeout * 1000);
+        timer = SwooleG.timer.add(&SwooleG.timer, ms, 0, this, socket_onTimeout);
+    }
     yield();
     int retval = ::recv(fd, __buf, __n, __flags);
     if (retval < 0)
@@ -349,6 +355,12 @@ int Socket::send(const void *__buf, size_t __n, int __flags)
     {
         _error: errCode = errno;
         return -1;
+    }
+    errCode = 0;
+    if (_timeout > 0)
+    {
+        int ms = (int) (_timeout * 1000);
+        timer = SwooleG.timer.add(&SwooleG.timer, ms, 0, this, socket_onTimeout);
     }
     yield();
     int retval = ::send(fd, __buf, __n, __flags);

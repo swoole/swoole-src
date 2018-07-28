@@ -7,24 +7,27 @@ using namespace swoole;
 
 namespace swoole_test
 {
-
+static bool reactor_init = false;
 static void init()
 {
+    if (reactor_init)
+    {
+        return;
+    }
     /**
      * init eventloop
      */
     SwooleG.main_reactor = (swReactor *) sw_malloc(sizeof(swReactor));
     swReactor_create(SwooleG.main_reactor, SW_REACTOR_MAXEVENTS);
     swTimer_init(1);
+    reactor_init = true;
 }
 
 static void coro1(void *arg)
 {
     int cid = coroutine_get_cid();
     coroutine_t *co = coroutine_get_by_id(cid);
-    printf("co yield\n");
     coroutine_yield(co);
-    printf("co end\n");
 }
 
 int coroutine_create_test1()
@@ -34,7 +37,6 @@ int coroutine_create_test1()
     {
         return -1;
     }
-    printf("co resume, cid=%d\n", cid);
     coroutine_resume(coroutine_get_by_id(cid));
     return cid;
 }
@@ -62,7 +64,8 @@ void coroutine_socket_connect_refused()
 static void coro3(void *arg)
 {
     Socket sock(SW_SOCK_TCP);
-    bool retval = sock.connect("192.0.0.1", 9801, 0.5);
+    sock.setTimeout(0.5);
+    bool retval = sock.connect("192.0.0.1", 9801);
     ASSERT_EQ(retval, false);
     ASSERT_EQ(sock.errCode, ETIMEDOUT);
 }
