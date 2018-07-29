@@ -1710,6 +1710,10 @@ static sw_inline int swReactor_events(int fdtype)
     {
         events |= SW_EVENT_ERROR;
     }
+    if (fdtype & SW_EVENT_ONCE)
+    {
+        events |= SW_EVENT_ONCE;
+    }
     return events;
 }
 
