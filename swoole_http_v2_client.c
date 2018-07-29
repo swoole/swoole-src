@@ -676,9 +676,6 @@ static void http2_client_set_callback(zval *zobject, const char *callback_name, 
     SW_ZVAL_STRING(zname, callback_name, 1);
     SW_ZVAL_STRING(zmethod_name, method_name, 1);
 
-#if PHP_MAJOR_VERSION < 7
-    sw_zval_add_ref(&zobject);
-#endif
 
     add_next_index_zval(zcallback, zobject);
     add_next_index_zval(zcallback, zmethod_name);

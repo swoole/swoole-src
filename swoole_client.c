@@ -2425,46 +2425,6 @@ static int client_select_wait(zval *sock_array, fd_set *fds TSRMLS_DC)
         return 0;
     }
 
-#if PHP_MAJOR_VERSION < 7
-    HashTable *new_hash;
-    char *key = NULL;
-    zval **dest_element = NULL;
-    uint32_t key_len;
-
-    ALLOC_HASHTABLE(new_hash);
-    zend_hash_init(new_hash, zend_hash_num_elements(Z_ARRVAL_P(sock_array)), NULL, ZVAL_PTR_DTOR, 0);
-
-    SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(sock_array), element)
-        sock = swoole_convert_to_fd(element TSRMLS_CC);
-        if (sock < 0)
-        {
-            continue;
-        }
-        if ((sock < FD_SETSIZE) && FD_ISSET(sock, fds))
-        {
-            switch (sw_zend_hash_get_current_key(Z_ARRVAL_P(sock_array), &key, &key_len, &num))
-            {
-            case HASH_KEY_IS_STRING:
-                sw_zend_hash_add(new_hash, key, key_len, (void * ) &element, sizeof(zval *), (void ** )&dest_element);
-                break;
-            case HASH_KEY_IS_LONG:
-                sw_zend_hash_index_update(new_hash, num, (void * ) &element, sizeof(zval *), (void ** )&dest_element);
-                break;
-            }
-            if (dest_element)
-            {
-                sw_zval_add_ref(dest_element);
-            }
-        }
-        num ++;
-    SW_HASHTABLE_FOREACH_END();
-
-    zend_hash_destroy(Z_ARRVAL_P(sock_array));
-    efree(Z_ARRVAL_P(sock_array));
-
-    zend_hash_internal_pointer_reset(new_hash);
-    Z_ARRVAL_P(sock_array) = new_hash;
-#else
     zval new_array;
     array_init(&new_array);
     zend_ulong num_key;
@@ -2499,7 +2459,6 @@ static int client_select_wait(zval *sock_array, fd_set *fds TSRMLS_DC)
 
     zval_ptr_dtor(sock_array);
     ZVAL_COPY_VALUE(sock_array, &new_array);
-#endif
     return num ? 1 : 0;
 }
 

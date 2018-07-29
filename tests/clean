@@ -19,7 +19,7 @@ function clean($dir)
         {
             continue;
         }
-        if (is_dir($dir))
+        if (is_dir($f))
         {
             clean($dir);
         }
