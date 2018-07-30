@@ -944,6 +944,11 @@ static PHP_METHOD(swoole_client_coro, peek)
     {
         RETURN_FALSE;
     }
+    if (cli->socket->ssl)
+    {
+        swoole_php_fatal_error(E_WARNING, "no support.");
+        RETURN_FALSE;
+    }
 
     buf = emalloc(buf_len + 1);
     SwooleG.error = 0;
