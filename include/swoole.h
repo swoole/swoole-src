@@ -33,16 +33,19 @@ extern "C" {
 #define _GNU_SOURCE
 #endif
 
+/*--- C standard library ---*/
+#include <assert.h>
+#include <ctype.h>
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <signal.h>
+#include <time.h>
+#include <limits.h>
+
 #include <fcntl.h>
 #include <unistd.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <errno.h>
-#include <string.h>
-#include <ctype.h>
-#include <signal.h>
-#include <assert.h>
-#include <time.h>
 #include <pthread.h>
 #if defined(HAVE_CPU_AFFINITY)
 #ifdef __FreeBSD__
