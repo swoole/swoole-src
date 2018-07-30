@@ -157,8 +157,8 @@ typedef unsigned long ulong_t;
 #include "array.h"
 #include "error.h"
 
-#define SW_MAX_UINT            4294967295
-#define SW_MAX_INT             2147483647
+#define SW_MAX_UINT            UINT_MAX
+#define SW_MAX_INT             INT_MAX
 
 #ifndef MAX
 #define MAX(a, b)              (a)>(b)?a:b;
