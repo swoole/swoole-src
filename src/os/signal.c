@@ -26,6 +26,11 @@ static sigset_t signalfd_mask;
 static int signal_fd = 0;
 #endif
 
+#ifdef HAVE_KQUEUE
+#include <sys/event.h>
+static void swKqueueSignal_set(int signo, swSignalHander callback);
+#endif
+
 typedef struct
 {
     swSignalHander callback;
@@ -95,12 +100,18 @@ void swSignal_add(int signo, swSignalHander func)
     }
     else
 #endif
+#ifdef HAVE_KQUEUE
+    {
+        swKqueueSignal_set(signo, func);
+    }
+#else
     {
         signals[signo].callback = func;
         signals[signo].active = 1;
         signals[signo].signo = signo;
         swSignal_set(signo, swSignal_async_handler, 1, 0);
     }
+#endif
 }
 
 static void swSignal_async_handler(int signo)
@@ -153,7 +164,11 @@ void swSignal_clear(void)
         {
             if (signals[i].active)
             {
+#ifdef HAVE_KQUEUE
+                swKqueueSignal_set(signals[i].signo, NULL);
+#else
                 swSignal_set(signals[i].signo, (swSignalHander) -1, 1, 0);
+#endif
             }
         }
     }
@@ -257,6 +272,59 @@ static int swSignalfd_onSignal(swReactor *reactor, swEvent *event)
     }
 
     return SW_OK;
+}
+
+#endif
+
+#ifdef HAVE_KQUEUE
+static void swKqueueSignal_set(int signo, swSignalHander callback)
+{
+    struct kevent ev;
+    swReactor *reactor = SwooleG.main_reactor;
+    struct
+    {
+        int fd;
+    } *reactor_obj = reactor->object;
+    int new_event_num;
+    // clear signal
+    if (callback == NULL)
+    {
+        signal(signo, SIG_DFL);
+        bzero(&signals[signo], sizeof(swSignal));
+        EV_SET(&ev, signo, EVFILT_SIGNAL, EV_DELETE, 0, 0, NULL);
+        new_event_num = reactor->event_num <= 0 ? 0 : reactor->event_num - 1;
+    }
+    // add/update signal
+    else
+    {
+        signal(signo, SIG_IGN);
+        signals[signo].callback = callback;
+        signals[signo].signo = signo;
+        if (signals[signo].active)
+        {
+            // the event already exists, do not change event_num
+            new_event_num = reactor->event_num;
+        }
+        else
+        {
+            signals[signo].active = 1;
+            // otherwise increment event_num
+            new_event_num = reactor->event_num + 1;
+        }
+        // save swSignal* as udata
+        EV_SET(&ev, signo, EVFILT_SIGNAL, EV_ADD, 0, 0, &signals[signo]);
+    }
+    int n = kevent(reactor_obj->fd, &ev, 1, NULL, 0, NULL);
+    if (n < 0)
+    {
+        if (callback)
+        {
+            swWarn("kevent set signal[%d] error", signo);
+        }
+        return;
+    }
+    // change event_num only when kevent() succeeded
+    reactor->event_num = new_event_num;
 }
 
 #endif
