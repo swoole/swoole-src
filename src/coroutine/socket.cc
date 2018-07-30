@@ -197,7 +197,19 @@ bool Socket::connect(string host, int port, int flags)
         else
         {
             socklen_t len = sizeof(addr);
-            retval = ::connect(_socket->fd, (struct sockaddr *) &addr, len);
+            while (1)
+            {
+                retval = ::connect(_socket->fd, (struct sockaddr *) &addr, len);
+                if (retval < 0)
+                {
+                    if (errno == EINTR)
+                    {
+                        continue;
+                    }
+                    errCode = errno;
+                }
+                break;
+            }
             break;
         }
     }
@@ -214,7 +226,19 @@ bool Socket::connect(string host, int port, int flags)
         else
         {
             socklen_t len = sizeof(addr);
-            retval = ::connect(_socket->fd, (struct sockaddr *) &addr, len);
+            while (1)
+            {
+                retval = ::connect(_socket->fd, (struct sockaddr *) &addr, len);
+                if (retval < 0)
+                {
+                    if (errno == EINTR)
+                    {
+                        continue;
+                    }
+                    errCode = errno;
+                }
+                break;
+            }
             break;
         }
     }
@@ -228,7 +252,19 @@ bool Socket::connect(string host, int port, int flags)
 
         s_un.sun_family = AF_UNIX;
         memcpy(&s_un.sun_path, _host.c_str(), _host.size());
-        retval = ::connect(_socket->fd, (struct sockaddr *) &s_un, (socklen_t) (offsetof(struct sockaddr_un, sun_path) + _host.size()));
+        while (1)
+        {
+            retval = ::connect(_socket->fd, (struct sockaddr *) &s_un, (socklen_t) (offsetof(struct sockaddr_un, sun_path) + _host.size()));
+            if (retval < 0)
+            {
+                if (errno == EINTR)
+                {
+                    continue;
+                }
+                errCode = errno;
+            }
+            break;
+        }
         break;
     }
 
@@ -315,7 +351,7 @@ static int socket_onWrite(swReactor *reactor, swEvent *event)
     return SW_OK;
 }
 
-int Socket::recv(void *__buf, size_t __n, int __flags)
+ssize_t Socket::recv(void *__buf, size_t __n, int __flags)
 {
     if (_reactor->add(_reactor, _socket->fd, SW_FD_CORO_SOCKET | SW_EVENT_READ) < 0)
     {
@@ -329,7 +365,7 @@ int Socket::recv(void *__buf, size_t __n, int __flags)
         timer = SwooleG.timer.add(&SwooleG.timer, ms, 0, this, socket_onTimeout);
     }
     yield();
-    int retval = ::recv(fd, __buf, __n, __flags);
+    ssize_t retval = ::recv(fd, __buf, __n, __flags);
     if (retval < 0)
     {
         goto _error;
@@ -340,9 +376,9 @@ int Socket::recv(void *__buf, size_t __n, int __flags)
     }
 }
 
-int Socket::send(const void *__buf, size_t __n, int __flags)
+ssize_t Socket::send(const void *__buf, size_t __n, int __flags)
 {
-    int n = ::send(fd, __buf, __n, __flags);
+    ssize_t n = ::send(fd, __buf, __n, __flags);
     if (n >= 0)
     {
         return n;
@@ -363,7 +399,7 @@ int Socket::send(const void *__buf, size_t __n, int __flags)
         timer = SwooleG.timer.add(&SwooleG.timer, ms, 0, this, socket_onTimeout);
     }
     yield();
-    int retval = ::send(fd, __buf, __n, __flags);
+    ssize_t retval = ::send(fd, __buf, __n, __flags);
     if (retval < 0)
     {
         goto _error;
