@@ -550,11 +550,17 @@ if test "$PHP_SWOOLE" != "no"; then
       ]
     )
 
-    if test "$SW_CPU" = 'x86_64'; then
+    if test "$SW_OS" = 'MAC'; then
+        if test "$SW_CPU" = 'arm'; then
+            SW_CONTEXT_ASM_FILE="arm_aapcs_macho_gas.S"
+        elif test "$SW_CPU" = 'arm64'; then
+            SW_CONTEXT_ASM_FILE="arm64_aapcs_macho_gas.S"
+        else
+            SW_CONTEXT_ASM_FILE="combined_sysv_macho_gas.S"
+        fi
+    elif test "$SW_CPU" = 'x86_64'; then
         if test "$SW_OS" = 'LINUX'; then
             SW_CONTEXT_ASM_FILE="x86_64_sysv_elf_gas.S"
-        elif test "$SW_OS" = 'MAC'; then
-            SW_CONTEXT_ASM_FILE="x86_64_sysv_macho_gas.S"
         else
             SW_NO_USE_ASM_CONTEXT="yes"
             AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
@@ -562,8 +568,6 @@ if test "$PHP_SWOOLE" != "no"; then
     elif test "$SW_CPU" = 'x86'; then
         if test "$SW_OS" = 'LINUX'; then
             SW_CONTEXT_ASM_FILE="i386_sysv_elf_gas.S"
-        elif test "$SW_OS" = 'MAC'; then
-            SW_CONTEXT_ASM_FILE="i386_sysv_macho_gas.S"
         else
             SW_NO_USE_ASM_CONTEXT="yes"
             AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
@@ -571,8 +575,6 @@ if test "$PHP_SWOOLE" != "no"; then
     elif test "$SW_CPU" = 'arm'; then
         if test "$SW_OS" = 'LINUX'; then
             SW_CONTEXT_ASM_FILE="arm_aapcs_elf_gas.S"
-        elif test "$SW_OS" = 'MAC'; then
-            SW_CONTEXT_ASM_FILE="arm_aapcs_macho_gas.S"
         else
             SW_NO_USE_ASM_CONTEXT="yes"
             AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
@@ -580,8 +582,6 @@ if test "$PHP_SWOOLE" != "no"; then
     elif test "$SW_CPU" = 'arm64'; then
         if test "$SW_OS" = 'LINUX'; then
             SW_CONTEXT_ASM_FILE="arm64_aapcs_elf_gas.S"
-        elif test "$SW_OS" = 'MAC'; then
-            SW_CONTEXT_ASM_FILE="arm64_aapcs_macho_gas.S"
         else
             SW_NO_USE_ASM_CONTEXT="yes"
             AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
