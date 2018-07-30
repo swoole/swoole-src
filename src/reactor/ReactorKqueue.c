@@ -354,6 +354,27 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
                         swSysError("kqueue event write socket#%d handler failed.", event.fd);
                     }
                 }
+                // signal
+                else if (object->events[i].filter == EVFILT_SIGNAL)
+                {
+                    struct
+                    {
+                        swSignalHander callback;
+                        uint16_t signo;
+                        uint16_t active;
+                    } *sw_signal = object->events[i].udata;
+                    if (sw_signal->active)
+                    {
+                        if (sw_signal->callback)
+                        {
+                            sw_signal->callback(sw_signal->signo);
+                        }
+                        else
+                        {
+                            swDebug("signal[%d] callback is null.", sw_signal->signo);
+                        }
+                    }
+                }
                 else
                 {
                     swWarn("unknown event filter[%d].", object->events[i].filter);

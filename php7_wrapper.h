@@ -23,16 +23,9 @@
 typedef size_t zend_size_t;
 #define ZEND_SET_SYMBOL(ht,str,arr)         zval_add_ref(arr); zend_hash_str_update(ht, str, sizeof(str)-1, arr);
 
-static sw_inline int Z_BVAL_P(zval *v)
+static sw_inline zend_bool Z_BVAL_P(zval *v)
 {
-    if (Z_TYPE_P(v) == IS_TRUE)
-    {
-        return 1;
-    }
-    else
-    {
-        return 0;
-    }
+    return Z_TYPE_P(v) == IS_TRUE;
 }
 
 //----------------------------------Array API------------------------------------
