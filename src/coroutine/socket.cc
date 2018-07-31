@@ -87,6 +87,7 @@ Socket::Socket(enum swSocket_type type)
     _timeout = 0;
     _port = 0;
     errCode = 0;
+    errMsg = nullptr;
     fd = sockfd;
     timer = nullptr;
     bind_port = 0;
@@ -190,6 +191,7 @@ bool Socket::connect(string host, int port, int flags)
                 yield();
                 if (errCode == SW_ERROR_DNSLOOKUP_RESOLVE_FAILED)
                 {
+                    errMsg = hstrerror(ev.error);
                     return false;
                 }
                 goto _connect;
@@ -293,11 +295,13 @@ bool Socket::connect(string host, int port, int flags)
         //Connection has timed out
         if (errCode == ETIMEDOUT)
         {
+            errMsg = strerror(errCode);
             return false;
         }
         socklen_t len = sizeof(errCode);
         if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &errCode, &len) < 0 || errCode != 0)
         {
+            errMsg = strerror(errCode);
             return false;
         }
         else
@@ -579,6 +583,5 @@ Socket::~Socket()
     }
     bzero(socket, sizeof(swConnection));
     socket->removed = 1;
-    sw_free(socket);
 }
 

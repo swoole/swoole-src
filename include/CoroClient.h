@@ -25,9 +25,7 @@ namespace swoole {
 
 struct Client : public Socket
 {
-    int id;
     int type;
-    long timeout_id; //timeout node id
     int _protocol;
     int reactor_fdtype;
 
@@ -35,8 +33,6 @@ struct Client : public Socket
     int _redirect_to_socket;
     int _redirect_to_session;
 
-    uint32_t async :1;
-    uint32_t keep :1;
     uint32_t destroyed :1;
     uint32_t redirect :1;
     uint32_t http2 :1;
@@ -55,8 +51,6 @@ struct Client : public Socket
     swProtocol protocol;
     struct _swSocks5 *socks5_proxy;
     struct _http_proxy* http_proxy;
-
-    uint32_t reuse_count;
 
     char *server_str;
     char *server_host;
@@ -79,9 +73,6 @@ struct Client : public Socket
      * recvfrom
      */
     swSocketAddress remote_addr;
-
-
-    void *object;
 
     swString *buffer;
     uint32_t buffer_input_size;

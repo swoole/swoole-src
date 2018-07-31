@@ -39,6 +39,7 @@ public:
     double _timeout;
     int _backlog;
     int errCode;
+    const char *errMsg;
 };
 
 };

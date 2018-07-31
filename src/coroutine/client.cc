@@ -27,17 +27,13 @@ Client::Client(enum swSocket_type _type) :
         Socket(_type)
 {
     int _domain;
-    id = 0;
     type = _type;
-    timeout_id = 0;
     _protocol = 0;
     reactor_fdtype = swSocket_is_stream(type) ? SW_FD_STREAM_CLIENT : SW_FD_DGRAM_CLIENT;
     _redirect_to_file = 0;
     _redirect_to_socket = 0;
     _redirect_to_session = 0;
 
-    async = 1;
-    keep = 0;
     destroyed = 0;
     redirect = 0;
     http2 = 0;
@@ -53,9 +49,6 @@ Client::Client(enum swSocket_type _type) :
     socks5_proxy = NULL;
     http_proxy = NULL;
 
-    reuse_count = 0;
-
-
     server_str = NULL;
     server_host = NULL;
     server_port = 0;
@@ -65,7 +58,6 @@ Client::Client(enum swSocket_type _type) :
     server_strlen = 0;
 
     interrupt_time = 0;
-    object = this;
 
     buffer_input_size = SW_CLIENT_BUFFER_SIZE;
     buffer = NULL;
@@ -83,7 +75,6 @@ Client::Client(enum swSocket_type _type) :
 
 Client::~Client()
 {
-    delete (socket);
     //client close
     if (!socket->closed)
     {
@@ -93,9 +84,9 @@ Client::~Client()
 
 int Client::pipe(int write_fd, int flags)
 {
-    if (!async || _sock_type != SOCK_STREAM)
+    if (_sock_type != SOCK_STREAM)
     {
-        swWarn("only async tcp-client can use pipe method.");
+        swWarn("only tcp-client can use pipe method.");
         return SW_ERR;
     }
 
