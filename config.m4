@@ -320,7 +320,6 @@ if test "$PHP_SWOOLE" != "no"; then
         PHP_ADD_LIBRARY_WITH_PATH(phpx, "${PHP_PHPX_DIR}/${PHP_LIBDIR}")
         AC_DEFINE(SW_USE_PHPX, 1, [enable PHP-X support])
         PHP_ADD_LIBRARY(phpx, 1, SWOOLE_SHARED_LIBADD)
-        CXXFLAGS="$CXXFLAGS -std=c++11"
     fi
 
     if test "$PHP_JEMALLOC_DIR" != "no"; then
@@ -454,10 +453,11 @@ if test "$PHP_SWOOLE" != "no"; then
         src/core/heap.c \
         src/core/error.cc \
         src/coroutine/base.cc \
-        src/coroutine/php_coro.cc \
         src/coroutine/boost.cc \
         src/coroutine/context.cc \
         src/coroutine/ucontext.cc \
+        src/coroutine/socket.cc \
+        src/coroutine/client.cc \
         src/memory/ShareMemory.c \
         src/memory/MemoryGlobal.c \
         src/memory/RingBuffer.c \
@@ -612,6 +612,7 @@ if test "$PHP_SWOOLE" != "no"; then
 
     PHP_REQUIRE_CXX()
     PHP_ADD_LIBRARY(stdc++, 1, SWOOLE_SHARED_LIBADD)
+    CXXFLAGS="$CXXFLAGS -std=c++11"
 
     if test "$PHP_PICOHTTPPARSER" = "yes"; then
         PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/picohttpparser])

@@ -1,6 +1,7 @@
 #include "Socket.h"
 #include "context.h"
 #include "async.h"
+#include "buffer.h"
 
 #include <string>
 #include <iostream>
@@ -48,9 +49,9 @@ Socket::Socket(enum swSocket_type type)
     }
 
 #ifdef SOCK_CLOEXEC
-    int sockfd = socket(_domain, _type | SOCK_CLOEXEC, 0);
+    int sockfd = ::socket(_domain, _type | SOCK_CLOEXEC, 0);
 #else
-    int sockfd = socket(_domain, _type, 0);
+    int sockfd = ::socket(_domain, _type, 0);
 #endif
     if (sockfd < 0)
     {

@@ -18,9 +18,12 @@
 #define SW_CORO_CLIENT_H_
 
 #include "Socket.h"
+#include "Connection.h"
+#include "socks5.h"
+
 namespace swoole {
 
-struct Client : Socket
+struct Client : public Socket
 {
     int id;
     int type;
@@ -93,7 +96,7 @@ struct Client : Socket
     swSSL_option ssl_option;
 #endif
 
-    Client(long type);
+    Client(enum swSocket_type type);
     ~Client();
     bool tcp_connect(char *host, int port, int flags);
     bool udp_connect(char *host, int port, int flags);
@@ -109,17 +112,16 @@ struct Client : Socket
     int sleep();
     int wakeup();
     int shutdown(int how);
+#ifdef SW_USE_OPENSSL
+    int enable_ssl_encrypt();
+    int ssl_handshake();
+    int ssl_verify(bool allow_self_signed);
+#endif
 };
 
-int Client_create(Client *cli, int type, int async);
 int Client_sleep(Client *cli);
 int Client_wakeup(Client *cli);
 int Client_shutdown(Client *cli, int __how);
-#ifdef SW_USE_OPENSSL
-int Client_enable_ssl_encrypt(Client *cli);
-int Client_ssl_handshake(Client *cli);
-int Client_ssl_verify(Client *cli, int allow_self_signed);
-#endif
 void Client_free(Client *cli);
 int Client_close(Client *cli);
 

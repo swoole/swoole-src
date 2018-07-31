@@ -23,9 +23,9 @@
 
 using namespace swoole;
 
-Client::Client(long _type)
+Client::Client(enum swSocket_type _type) :
+        Socket(_type)
 {
-    Socket(_type);
     int _domain;
     id = 0;
     type = _type;
@@ -211,27 +211,27 @@ int Client::shutdown(int __how)
 }
 
 #ifdef SW_USE_OPENSSL
-int Client_enable_ssl_encrypt(Client *cli)
+int Client::enable_ssl_encrypt()
 {
-    cli->ssl_context = swSSL_get_context(&cli->ssl_option);
-    if (cli->ssl_context == NULL)
+    ssl_context = swSSL_get_context(&ssl_option);
+    if (ssl_context == NULL)
     {
         return SW_ERR;
     }
 
-    if (cli->ssl_option.verify_peer)
+    if (ssl_option.verify_peer)
     {
-        if (swSSL_set_capath(&cli->ssl_option, cli->ssl_context) < 0)
+        if (swSSL_set_capath(&ssl_option, ssl_context) < 0)
         {
             return SW_ERR;
         }
     }
 
-    cli->socket->ssl_send = 1;
+    socket->ssl_send = 1;
 #if defined(SW_USE_HTTP2) && defined(SW_USE_OPENSSL) && OPENSSL_VERSION_NUMBER >= 0x10002000L
-    if (cli->http2)
+    if (http2)
     {
-        if (SSL_CTX_set_alpn_protos(cli->ssl_context, (const unsigned char *) "\x02h2", 3) < 0)
+        if (SSL_CTX_set_alpn_protos(ssl_context, (const unsigned char *) "\x02h2", 3) < 0)
         {
             return SW_ERR;
         }
@@ -240,28 +240,28 @@ int Client_enable_ssl_encrypt(Client *cli)
     return SW_OK;
 }
 
-int Client_ssl_handshake(Client *cli)
+int Client::ssl_handshake()
 {
-    if (!cli->socket->ssl)
+    if (!socket->ssl)
     {
-        if (swSSL_create(cli->socket, cli->ssl_context, SW_SSL_CLIENT) < 0)
+        if (swSSL_create(socket, ssl_context, SW_SSL_CLIENT) < 0)
         {
             return SW_ERR;
         }
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-        if (cli->ssl_option.tls_host_name)
+        if (ssl_option.tls_host_name)
         {
-            SSL_set_tlsext_host_name(cli->socket->ssl, cli->ssl_option.tls_host_name);
+            SSL_set_tlsext_host_name(socket->ssl, ssl_option.tls_host_name);
         }
 #endif
     }
-    if (swSSL_connect(cli->socket) < 0)
+    if (swSSL_connect(socket) < 0)
     {
         return SW_ERR;
     }
-    if (cli->socket->ssl_state == SW_SSL_STATE_READY && cli->ssl_option.verify_peer)
+    if (socket->ssl_state == SW_SSL_STATE_READY && ssl_option.verify_peer)
     {
-        if (Client_ssl_verify(cli, cli->ssl_option.allow_self_signed) < 0)
+        if (ssl_verify(ssl_option.allow_self_signed) < 0)
         {
             return SW_ERR;
         }
@@ -269,13 +269,13 @@ int Client_ssl_handshake(Client *cli)
     return SW_OK;
 }
 
-int Client_ssl_verify(Client *cli, int allow_self_signed)
+int Client::ssl_verify(bool allow_self_signed)
 {
-    if (swSSL_verify(cli->socket, allow_self_signed) < 0)
+    if (swSSL_verify(socket, allow_self_signed) < 0)
     {
         return SW_ERR;
     }
-    if (cli->ssl_option.tls_host_name && swSSL_check_host(cli->socket, cli->ssl_option.tls_host_name) < 0)
+    if (ssl_option.tls_host_name && swSSL_check_host(socket, ssl_option.tls_host_name) < 0)
     {
         return SW_ERR;
     }
@@ -429,11 +429,11 @@ bool Client::tcp_connect(char *host, int port, int flags)
 #ifdef SW_USE_OPENSSL
         if (open_ssl)
         {
-            if (Client_enable_ssl_encrypt(cli) < 0)
+            if (enable_ssl_encrypt() < 0)
             {
                 return SW_ERR;
             }
-            if (Client_ssl_handshake(cli) < 0)
+            if (ssl_handshake() < 0)
             {
                 return SW_ERR;
             }
@@ -448,11 +448,12 @@ int Client::socks5_connect(char *recv_data, int length)
 {
     swSocks5 *ctx = socks5_proxy;
     char *buf = ctx->buf;
+    uchar version, status, result, method;
 
     if (ctx->state == SW_SOCKS5_STATE_HANDSHAKE)
     {
-        uchar version = recv_data[0];
-        uchar method = recv_data[1];
+        version = recv_data[0];
+        method = recv_data[1];
         if (version != SW_SOCKS5_VERSION_CODE)
         {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_VERSION, "SOCKS version is not supported.");
@@ -512,8 +513,8 @@ int Client::socks5_connect(char *recv_data, int length)
     }
     else if (ctx->state == SW_SOCKS5_STATE_AUTH)
     {
-        uchar version = recv_data[0];
-        uchar status = recv_data[1];
+        version = recv_data[0];
+        status = recv_data[1];
         if (version != 0x01)
         {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_VERSION, "SOCKS version is not supported.");
@@ -529,13 +530,13 @@ int Client::socks5_connect(char *recv_data, int length)
     }
     else if (ctx->state == SW_SOCKS5_STATE_CONNECT)
     {
-        uchar version = recv_data[0];
+        version = recv_data[0];
         if (version != SW_SOCKS5_VERSION_CODE)
         {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_VERSION, "SOCKS version is not supported.");
             return SW_ERR;
         }
-        uchar result = recv_data[1];
+        result = recv_data[1];
 //        uchar reg = recv_data[2];
 //        uchar type = recv_data[3];
 //        uint32_t ip = *(uint32_t *) (recv_data + 4);
@@ -726,8 +727,8 @@ int Client::udp_recv(char *data, int length, int flags)
 #ifdef SW_USE_OPENSSL
 static int Client_https_proxy_handshake(Client *cli)
 {
-    char *buf = buffer->str;
-    size_t len = buffer->length;
+    char *buf = cli->buffer->str;
+    size_t len = cli->buffer->length;
     int state = 0;
     char *p = buf;
     for (p = buf; p < buf + len; p++)
@@ -786,18 +787,3 @@ static int Client_https_proxy_handshake(Client *cli)
 }
 #endif
 
-void swoole_open_remote_debug(void)
-{
-    Client debug_client;
-    Client_create(&debug_client, SW_SOCK_UDP, 0);
-    debug_client._timeout = 1;
-    if (debug_client.udp_connect(SW_DEBUG_SERVER_HOST, SW_DEBUG_SERVER_PORT, 0) < 0)
-    {
-        swWarn("connect to remote_debug_server[%s:%d] failed.", SW_DEBUG_SERVER_HOST, SW_DEBUG_SERVER_PORT);
-        SwooleG.debug_fd = 1;
-    }
-    else
-    {
-        SwooleG.debug_fd = debug_client.socket->fd;
-    }
-}
