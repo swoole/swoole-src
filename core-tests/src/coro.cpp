@@ -1,7 +1,4 @@
-#include "swoole.h"
-#include "coroutine.h"
-#include "Socket.h"
-#include <gtest/gtest.h>
+#include "tests.h"
 
 using namespace swoole;
 

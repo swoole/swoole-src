@@ -1,6 +1,4 @@
-#include "swoole.h"
-#include "Client.h"
-#include <gtest/gtest.h>
+#include "tests.h"
 
 TEST(client, tcp)
 {

@@ -1,10 +1,10 @@
-#include <gtest/gtest.h>
-#include "swoole.h"
+#include "tests.h"
+
 #include <thread>
 
 #define READ_THREAD_N       4
-#define WRITE_N             1000000
-#define PRINT_SERNUM_N      10000
+#define WRITE_N             100000
+#define PRINT_SERNUM_N      1000
 
 static swMemoryPool *pool = NULL;
 
@@ -92,7 +92,7 @@ static void thread_write(void)
         //保存长度值
         memcpy(ptr, &size, sizeof(size));
         //在指针末尾保存一个串号
-        memcpy(ptr + size - 4, &(send_pkg.serial_num), sizeof(send_pkg.serial_num));
+        memcpy((char*) ptr + size - 4, &(send_pkg.serial_num), sizeof(send_pkg.serial_num));
 
 #ifdef PRINT_SERNUM_OPEN
         if (i % PRINT_SERNUM_N == 0)
@@ -138,7 +138,7 @@ static void thread_read(int i)
             continue;
         }
 
-        memcpy(&tmp, recv_pkg.ptr + recv_pkg.size - 4, sizeof(tmp));
+        memcpy(&tmp, (char*) recv_pkg.ptr + recv_pkg.size - 4, sizeof(tmp));
         if (tmp != recv_pkg.serial_num)
         {
             printf("Thread#%d: serial_num error, recv_count=%d, num1=%d, num2=%d\n", i, recv_count, recv_pkg.serial_num,

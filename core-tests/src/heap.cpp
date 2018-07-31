@@ -40,5 +40,4 @@ TEST(heap, random)
     }
 
     swHeap_free(pq);
-    free(ns);
 }

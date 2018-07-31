@@ -1,5 +1,4 @@
-#include "swoole.h"
-#include <gtest/gtest.h>
+#include "tests.h"
 
 TEST(pipe, unixsock)
 {

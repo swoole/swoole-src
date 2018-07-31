@@ -1,6 +1,4 @@
-#include <gtest/gtest.h>
-#include "swoole.h"
-#include "coro_test.h"
+#include "tests.h"
 
 // TEST(Server, Create)
 // {
