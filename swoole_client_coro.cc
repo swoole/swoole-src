@@ -192,7 +192,7 @@ Client* php_swoole_coro_client_new(zval *object, char *host, int host_len, int p
     }
 
     long type = Z_LVAL_P(ztype);
-    Client *cli = new Client(type);
+    Client *cli = new Client((enum swSocket_type) type);
     if (!cli)
     {
         swoole_php_fatal_error(E_WARNING, "new Client() failed. Error: %s [%d]", strerror(errno), errno);
@@ -1413,11 +1413,11 @@ static PHP_METHOD(swoole_client_coro, enableSSL)
     {
         client_coro_check_ssl_setting(cli, zset TSRMLS_CC);
     }
-    if (Client_enable_ssl_encrypt(cli) < 0)
+    if (cli->enable_ssl_encrypt() < 0)
     {
         RETURN_FALSE;
     }
-    if (Client_ssl_handshake(cli) < 0)
+    if (cli->ssl_handshake() < 0)
     {
         RETURN_FALSE;
     }
@@ -1462,7 +1462,7 @@ static PHP_METHOD(swoole_client_coro, verifyPeerCert)
     {
         return;
     }
-    SW_CHECK_RETURN(Client_ssl_verify(cli, allow_self_signed));
+    SW_CHECK_RETURN(cli->ssl_verify(allow_self_signed));
 }
 #endif
 
