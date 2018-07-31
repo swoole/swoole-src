@@ -16,20 +16,24 @@ struct coroutine_s
 public:
     Context ctx;
     int cid;
-    coroutine_s(int _cid, size_t stack_size, coroutine_func_t fn, void* private_data) :
+    void *ptr;
+    coroutine_s(int _cid, size_t stack_size, coroutine_func_t fn, void *private_data) :
             ctx(stack_size, fn, private_data)
     {
         cid = _cid;
+        ptr = NULL;
     }
 };
 
 static struct
 {
-    int stack_size;
-    int current_cid;
-    int previous_cid;
+    int                 stack_size;
+    int                 current_cid;
+    int                 previous_cid;
     struct coroutine_s *coroutines[MAX_CORO_NUM_LIMIT + 1];
-    coroutine_close_t onClose;
+    coro_php_yield_t    onYield;  /* before php yield coro */
+    coro_php_resume_t   onResume; /* before php resume coro */
+    coro_php_close_t    onClose;  /* before php close coro */
 } swCoroG =
 { SW_DEFAULT_C_STACK_SIZE, -1, -1,
 { NULL, }, NULL };
@@ -122,17 +126,13 @@ int coroutine_create(coroutine_func_t fn, void* args)
         return CORO_LIMIT;
     }
 
-    coroutine_t *co = new coroutine_t(cid, swCoroG.stack_size, fn, args);
+    coroutine_t *co = new coroutine_s(cid, swCoroG.stack_size, fn, args);
     swCoroG.coroutines[cid] = co;
     swCoroG.previous_cid = swCoroG.current_cid;
     swCoroG.current_cid = cid;
     co->ctx.SwapIn();
     if (co->ctx.end)
     {
-        if (swCoroG.onClose)
-        {
-            swCoroG.onClose();
-        }
         coroutine_release(co);
     }
     return cid;
@@ -140,35 +140,43 @@ int coroutine_create(coroutine_func_t fn, void* args)
 
 void coroutine_yield(coroutine_t *co)
 {
+    if (swCoroG.onYield)
+    {
+        swCoroG.onYield(co->ptr);
+    }
     swCoroG.current_cid = swCoroG.previous_cid;
     co->ctx.SwapOut();
 }
 
 void coroutine_resume(coroutine_t *co)
 {
+    if (swCoroG.onResume)
+    {
+        swCoroG.onResume(co->ptr);
+    }
     swCoroG.previous_cid = swCoroG.current_cid;
     swCoroG.current_cid = co->cid;
     co->ctx.SwapIn();
     if (co->ctx.end)
     {
-        if (swCoroG.onClose)
-        {
-            swCoroG.onClose();
-        }
         coroutine_release(co);
     }
 }
 
 void coroutine_release(coroutine_t *co)
 {
+    if (swCoroG.onClose)
+    {
+        swCoroG.onClose();
+    }
     free_cidmap(co->cid);
     swCoroG.coroutines[co->cid] = NULL;
     delete co;
 }
 
-void coroutine_set_close(coroutine_close_t func)
+void coroutine_set_ptr(coroutine_t *co, void *ptr)
 {
-    swCoroG.onClose = func;
+    co->ptr = ptr;
 }
 
 coroutine_t* coroutine_get_by_id(int cid)
@@ -180,3 +188,20 @@ int coroutine_get_cid()
 {
     return swCoroG.current_cid;
 }
+
+void coroutine_set_onYield(coro_php_yield_t func)
+{
+    swCoroG.onYield = func;
+}
+
+void coroutine_set_onResume(coro_php_resume_t func)
+{
+    swCoroG.onResume = func;
+}
+
+void coroutine_set_onClose(coro_php_close_t func)
+{
+    swCoroG.onClose = func;
+}
+
+

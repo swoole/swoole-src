@@ -60,24 +60,24 @@ Socket::Socket(enum swSocket_type type)
 
     if (swIsMaster() && SwooleTG.type == SW_THREAD_REACTOR)
     {
-        _reactor = SwooleTG.reactor;
+        reactor = SwooleTG.reactor;
     }
     else
     {
-        _reactor = SwooleG.main_reactor;
+        reactor = SwooleG.main_reactor;
     }
-    _socket = swReactor_get(_reactor, sockfd);
+    socket = swReactor_get(reactor, sockfd);
 
-    bzero(_socket, sizeof(swConnection));
-    _socket->fd = sockfd;
-    _socket->object = this;
+    bzero(socket, sizeof(swConnection));
+    socket->fd = sockfd;
+    socket->object = this;
 
-    swSetNonBlock(_socket->fd);
-    if (!swReactor_handle_isset(_reactor, SW_FD_CORO_SOCKET))
+    swSetNonBlock(socket->fd);
+    if (!swReactor_handle_isset(reactor, SW_FD_CORO_SOCKET))
     {
-        _reactor->setHandle(_reactor, SW_FD_CORO_SOCKET | SW_EVENT_READ, socket_onRead);
-        _reactor->setHandle(_reactor, SW_FD_CORO_SOCKET | SW_EVENT_WRITE, socket_onWrite);
-        _reactor->setHandle(_reactor, SW_FD_CORO_SOCKET | SW_EVENT_ERROR, socket_onRead);
+        reactor->setHandle(reactor, SW_FD_CORO_SOCKET | SW_EVENT_READ, socket_onRead);
+        reactor->setHandle(reactor, SW_FD_CORO_SOCKET | SW_EVENT_WRITE, socket_onWrite);
+        reactor->setHandle(reactor, SW_FD_CORO_SOCKET | SW_EVENT_ERROR, socket_onRead);
     }
 
     _sock_domain = _domain;
@@ -95,12 +95,12 @@ Socket::Socket(enum swSocket_type type)
 Socket::Socket(int _fd, Socket *sock)
 {
     fd = _fd;
-    _reactor = sock->_reactor;
+    reactor = sock->reactor;
 
-    _socket = swReactor_get(_reactor, fd);
-    bzero(_socket, sizeof(swConnection));
-    _socket->fd = fd;
-    _socket->object = this;
+    socket = swReactor_get(reactor, fd);
+    bzero(socket, sizeof(swConnection));
+    socket->fd = fd;
+    socket->object = this;
 
     _sock_domain = sock->_sock_domain;
     _sock_type = sock->_sock_type;
@@ -199,7 +199,7 @@ bool Socket::connect(string host, int port, int flags)
             socklen_t len = sizeof(addr);
             while (1)
             {
-                retval = ::connect(_socket->fd, (struct sockaddr *) &addr, len);
+                retval = ::connect(socket->fd, (struct sockaddr *) &addr, len);
                 if (retval < 0)
                 {
                     if (errno == EINTR)
@@ -228,7 +228,7 @@ bool Socket::connect(string host, int port, int flags)
             socklen_t len = sizeof(addr);
             while (1)
             {
-                retval = ::connect(_socket->fd, (struct sockaddr *) &addr, len);
+                retval = ::connect(socket->fd, (struct sockaddr *) &addr, len);
                 if (retval < 0)
                 {
                     if (errno == EINTR)
@@ -254,7 +254,7 @@ bool Socket::connect(string host, int port, int flags)
         memcpy(&s_un.sun_path, _host.c_str(), _host.size());
         while (1)
         {
-            retval = ::connect(_socket->fd, (struct sockaddr *) &s_un, (socklen_t) (offsetof(struct sockaddr_un, sun_path) + _host.size()));
+            retval = ::connect(socket->fd, (struct sockaddr *) &s_un, (socklen_t) (offsetof(struct sockaddr_un, sun_path) + _host.size()));
             if (retval < 0)
             {
                 if (errno == EINTR)
@@ -274,7 +274,7 @@ bool Socket::connect(string host, int port, int flags)
 
     if (retval == -1 && errno == EINPROGRESS)
     {
-        if (_reactor->add(_reactor, _socket->fd, SW_FD_CORO_SOCKET | SW_EVENT_WRITE) < 0)
+        if (reactor->add(reactor, socket->fd, SW_FD_CORO_SOCKET | SW_EVENT_WRITE) < 0)
         {
             return false;
         }
@@ -331,7 +331,7 @@ static void socket_onTimeout(swTimer *timer, swTimer_node *tnode)
     Socket *sock = (Socket *) tnode->data;
     sock->timer = NULL;
     sock->errCode = ETIMEDOUT;
-    sock->_reactor->del(sock->_reactor, sock->fd);
+    sock->reactor->del(sock->reactor, sock->fd);
     sock->resume();
 }
 
@@ -353,7 +353,7 @@ static int socket_onWrite(swReactor *reactor, swEvent *event)
 
 ssize_t Socket::recv(void *__buf, size_t __n, int __flags)
 {
-    if (_reactor->add(_reactor, _socket->fd, SW_FD_CORO_SOCKET | SW_EVENT_READ) < 0)
+    if (reactor->add(reactor, socket->fd, SW_FD_CORO_SOCKET | SW_EVENT_READ) < 0)
     {
         _error: errCode = errno;
         return -1;
@@ -387,7 +387,7 @@ ssize_t Socket::send(const void *__buf, size_t __n, int __flags)
     {
         return n;
     }
-    if (_reactor->add(_reactor, _socket->fd, SW_FD_CORO_SOCKET | SW_EVENT_WRITE) < 0)
+    if (reactor->add(reactor, socket->fd, SW_FD_CORO_SOCKET | SW_EVENT_WRITE) < 0)
     {
         _error: errCode = errno;
         return -1;
@@ -500,7 +500,7 @@ bool Socket::listen(int backlog)
 
 Socket* Socket::accept()
 {
-    if (_reactor->add(_reactor, _socket->fd, SW_FD_CORO_SOCKET | SW_EVENT_READ) < 0)
+    if (reactor->add(reactor, socket->fd, SW_FD_CORO_SOCKET | SW_EVENT_READ) < 0)
     {
         _error: errCode = errno;
         return nullptr;
@@ -530,8 +530,54 @@ Socket* Socket::accept()
     }
 }
 
+bool Socket::close()
+{
+    if (socket == NULL || socket->closed)
+    {
+        return false;
+    }
+    socket->closed = 1;
+
+    int fd = socket->fd;
+    assert(fd != 0);
+
+    if (_sock_type == SW_SOCK_UNIX_DGRAM)
+    {
+        unlink(socket->info.addr.un.sun_path);
+    }
+    //remove from reactor
+    if (!socket->removed && reactor)
+    {
+        reactor->del(reactor, fd);
+    }
+    if (timer)
+    {
+        swTimer_del(&SwooleG.timer, timer);
+        timer = NULL;
+    }
+    socket->active = 0;
+    ::close(fd);
+    return true;
+}
 Socket::~Socket()
 {
-    ::close(fd);
+    assert(socket->fd != 0);
+    if (!socket->closed)
+    {
+        close();
+    }
+    if (socket->out_buffer)
+    {
+        swBuffer_free(socket->out_buffer);
+        socket->out_buffer = NULL;
+    }
+    if (socket->in_buffer)
+    {
+        swBuffer_free(socket->in_buffer);
+        socket->in_buffer = NULL;
+    }
+    bzero(socket, sizeof(swConnection));
+    socket->removed = 1;
+    sw_free(socket);
 }
 

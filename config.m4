@@ -409,7 +409,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_atomic.c \
         swoole_lock.c \
         swoole_client.c \
-        swoole_client_coro.c \
+        swoole_client_coro.cc \
         swoole_coroutine.cc \
         swoole_coroutine_util.c \
         swoole_event.c \
@@ -454,6 +454,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/core/heap.c \
         src/core/error.cc \
         src/coroutine/base.cc \
+        src/coroutine/php_coro.cc \
         src/coroutine/boost.cc \
         src/coroutine/context.cc \
         src/coroutine/ucontext.cc \

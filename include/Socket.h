@@ -26,14 +26,14 @@ public:
     }
 
     swTimer_node *timer;
-    swReactor *_reactor;
+    swReactor *reactor;
     std::string _host;
     std::string bind_address;
     int bind_port;
     int _port;
     int fd;
     int _cid;
-    swConnection *_socket;
+    swConnection *socket;
     int _sock_type;
     int _sock_domain;
     double _timeout;

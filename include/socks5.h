@@ -65,6 +65,7 @@ static sw_inline void swSocks5_pack(char *buf, int method)
     buf[2] = method;
 }
 
+char* swSocks5_strerror(int code);
 int swSocks5_connect(swClient *cli, char *recv_data, int length);
 
 #endif /* SW_SOCKS5_H_ */

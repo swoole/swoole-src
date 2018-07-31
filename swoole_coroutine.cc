@@ -32,15 +32,11 @@
 # define GC_DELREF(ref) --GC_REFCOUNT(ref)
 #endif/*}}}*/
 
-/* output globals */
-#define SWOG ((zend_output_globals *) &OG(handlers))
-
 #define TASK_SLOT \
     ((int)((ZEND_MM_ALIGNED_SIZE(sizeof(coro_task)) + ZEND_MM_ALIGNED_SIZE(sizeof(zval)) - 1) / ZEND_MM_ALIGNED_SIZE(sizeof(zval))))
 #define SWCC(x) sw_current_context->x
 
 coro_global COROG;
-static coro_task* sw_get_current_task();
 static void sw_coro_func(void *);
 static zend_bool is_xdebug_started = 0;
 
@@ -69,6 +65,7 @@ int coro_init(TSRMLS_D)
     {
         is_xdebug_started = 1;
     }
+    //save init vm
     COROG.origin_vm_stack = EG(vm_stack);
     COROG.origin_vm_stack_top = EG(vm_stack_top);
     COROG.origin_vm_stack_end = EG(vm_stack_end);
@@ -84,7 +81,10 @@ int coro_init(TSRMLS_D)
     }
 
     COROG.active = 1;
-    coroutine_set_close(sw_coro_close);
+    //set functions
+    coroutine_set_onYield(php_coro_yield);
+    coroutine_set_onResume(php_coro_resume);
+    coroutine_set_onClose(sw_coro_close);
     return 0;
 }
 
@@ -171,6 +171,7 @@ static void sw_coro_func(void *arg)
     task->is_yield = 0;
     task->state = SW_CORO_RUNNING;
     task->co = coroutine_get_by_id(cid);
+    coroutine_set_ptr(task->co, (void *)task);
 
     if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_CORO_START])
     {
@@ -267,10 +268,10 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
     COROG.current_coro = task;
     swTraceLog(SW_TRACE_COROUTINE,"sw_coro_resume coro id %d", COROG.current_coro->cid);
     task->state = SW_CORO_RUNNING;
-    EG(current_execute_data) = SWCC(current_execute_data);
-    EG(vm_stack) = SWCC(current_vm_stack);
-    EG(vm_stack_top) = SWCC(current_vm_stack_top);
-    EG(vm_stack_end) = SWCC(current_vm_stack_end);
+    EG(current_execute_data) = task->yield_execute_data;
+    EG(vm_stack) = task->yield_stack;
+    EG(vm_stack_top) = task->yield_vm_stack_top;
+    EG(vm_stack_end) = task->yield_vm_stack_end;
 
     if (EG(current_execute_data)->prev_execute_data->opline->result_type != IS_UNUSED && retval)
     {
@@ -315,6 +316,13 @@ void sw_coro_yield()
     swTraceLog(SW_TRACE_COROUTINE,"coro_yield coro id %d", task->cid);
     task->state = SW_CORO_YIELD;
     task->is_yield = 1;
+
+    //save vm stack
+    task->yield_execute_data = EG(current_execute_data);
+    task->yield_stack = EG(vm_stack);
+    task->yield_vm_stack_top = EG(vm_stack_top);
+    task->yield_vm_stack_end = EG(vm_stack_end);
+    //restore vm stack
     EG(vm_stack) = task->origin_stack;
     EG(vm_stack_top) = task->origin_vm_stack_top;
     EG(vm_stack_end) = task->origin_vm_stack_end;
@@ -379,7 +387,7 @@ int sw_get_current_cid()
     }
 }
 
-static coro_task* sw_get_current_task()
+coro_task* sw_get_current_task()
 {
     return (COROG.call_stack_size > 0) ? COROG.call_stack[COROG.call_stack_size - 1] : NULL;
 }
