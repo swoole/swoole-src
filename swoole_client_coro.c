@@ -275,12 +275,8 @@ static void client_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
     zval *zdata = NULL;
     zval *retval = NULL;
 
-#if PHP_MAJOR_VERSION < 7
-    zval *zobject = (zval *)ctx->coro_params;
-#else
     zval _zobject = ctx->coro_params;
     zval *zobject = & _zobject;
-#endif
     zend_update_property_long(swoole_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), ETIMEDOUT TSRMLS_CC);
 
     swoole_client_coro_property *ccp = swoole_get_property(zobject, client_coro_property_coroutine);
@@ -553,11 +549,7 @@ static PHP_METHOD(swoole_client_coro, __construct)
 
     php_context *sw_current_context = emalloc(sizeof(php_context));
     sw_current_context->onTimeout = NULL;
-#if PHP_MAJOR_VERSION < 7
-    sw_current_context->coro_params = getThis();
-#else
     sw_current_context->coro_params = *getThis();
-#endif
     sw_current_context->state = SW_CORO_CONTEXT_RUNNING;
     swoole_set_property(getThis(), client_coro_property_context, sw_current_context);
 #ifdef SWOOLE_SOCKETS_SUPPORT
@@ -952,6 +944,13 @@ static PHP_METHOD(swoole_client_coro, peek)
     {
         RETURN_FALSE;
     }
+#ifdef SW_USE_OPENSSL
+    if (cli->socket->ssl)
+    {
+        swoole_php_fatal_error(E_WARNING, "no support.");
+        RETURN_FALSE;
+    }
+#endif
 
     buf = emalloc(buf_len + 1);
     SwooleG.error = 0;

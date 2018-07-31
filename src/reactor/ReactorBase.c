@@ -172,13 +172,6 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
     {
         reactor->idle_task.callback(reactor->idle_task.data);
     }
-#ifdef SW_COROUTINE
-    //coro timeout
-    if (!swIsMaster())
-    {
-        coro_handle_timeout();
-    }
-#endif
     //server worker
     swWorker *worker = SwooleWG.worker;
     if (worker != NULL)

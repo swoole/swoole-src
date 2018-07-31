@@ -570,17 +570,6 @@ static PHP_METHOD(swoole_redis, __call)
         redis->state = SWOOLE_REDIS_STATE_WAIT_RESULT;
         redis->reqnum++;
 
-#if PHP_MAJOR_VERSION < 7
-        zval *callback;
-        zval **cb_tmp;
-        if (zend_hash_index_find(Z_ARRVAL_P(params), zend_hash_num_elements(Z_ARRVAL_P(params)) - 1, (void **) &cb_tmp) == FAILURE)
-        {
-            swoole_php_error(E_WARNING, "index out of array bounds.");
-            FREE_MEM();
-            RETURN_FALSE;
-        }
-        callback = *cb_tmp;
-#else
         zval *callback = zend_hash_index_find(Z_ARRVAL_P(params), zend_hash_num_elements(Z_ARRVAL_P(params)) - 1);
         if (callback == NULL)
         {
@@ -588,7 +577,6 @@ static PHP_METHOD(swoole_redis, __call)
             FREE_MEM();
             RETURN_FALSE;
         }
-#endif
 
         sw_zval_add_ref(&callback);
         callback = sw_zval_dup(callback);
@@ -688,9 +676,6 @@ static void swoole_redis_parse_result(swRedisClient *redis, zval* return_value, 
         array_init(return_value);
         for (j = 0; j < reply->elements; j++)
         {
-#if PHP_MAJOR_VERSION < 7
-            SW_ALLOC_INIT_ZVAL(val);
-#endif
             swoole_redis_parse_result(redis, val, reply->element[j] TSRMLS_CC);
             add_next_index_zval(return_value, val);
         }

@@ -19,12 +19,11 @@
 #ifdef HAVE_EPOLL
 #include <sys/epoll.h>
 #ifndef EPOLLRDHUP
-#define EPOLLRDHUP   0x2000
-#define NO_EPOLLRDHUP
+#error "require linux kernel version 2.6.32 or later."
 #endif
 
 #ifndef EPOLLONESHOT
-#define EPOLLONESHOT (1u << 30)
+#error "require linux kernel version 2.6.32 or later."
 #endif
 
 typedef struct swReactorEpoll_s swReactorEpoll;
@@ -51,6 +50,10 @@ static sw_inline int swReactorEpoll_event_set(int fdtype)
     if (swReactor_event_write(fdtype))
     {
         flag |= EPOLLOUT;
+    }
+    if (fdtype & SW_EVENT_ONCE)
+    {
+        flag |= EPOLLONESHOT;
     }
     if (swReactor_event_error(fdtype))
     {
@@ -249,7 +252,7 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
             event.socket = swReactor_get(reactor, event.fd);
 
             //read
-            if ((events[i].events & EPOLLIN) && !event.socket->removed)
+            if ((events[i].events & (EPOLLIN | EPOLLRDHUP | EPOLLERR | EPOLLHUP)) && !event.socket->removed)
             {
                 handle = swReactor_getHandle(reactor, SW_EVENT_READ, event.type);
                 ret = handle(reactor, &event);
@@ -268,24 +271,10 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
                     swSysError("EPOLLOUT handle failed. fd=%d.", event.fd);
                 }
             }
-            //error
-#ifndef NO_EPOLLRDHUP
-            if ((events[i].events & (EPOLLRDHUP | EPOLLERR | EPOLLHUP)) && !event.socket->removed)
-#else
-            if ((events[i].events & (EPOLLERR | EPOLLHUP)) && !event.socket->removed)
-#endif
+            if (!event.socket->removed && (event.socket->events & SW_EVENT_ONCE))
             {
-                //ignore ERR and HUP, because event is already processed at IN and OUT handler.
-                if ((events[i].events & EPOLLIN) || (events[i].events & EPOLLOUT))
-                {
-                    continue;
-                }
-                handle = swReactor_getHandle(reactor, SW_EVENT_ERROR, event.type);
-                ret = handle(reactor, &event);
-                if (ret < 0)
-                {
-                    swSysError("EPOLLERR handle failed. fd=%d.", event.fd);
-                }
+                reactor->event_num = reactor->event_num <= 0 ? 0 : reactor->event_num - 1;
+                swReactor_del(reactor, event.fd);
             }
         }
 

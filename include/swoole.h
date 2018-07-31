@@ -33,16 +33,19 @@ extern "C" {
 #define _GNU_SOURCE
 #endif
 
+/*--- C standard library ---*/
+#include <assert.h>
+#include <ctype.h>
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <signal.h>
+#include <time.h>
+#include <limits.h>
+
 #include <fcntl.h>
 #include <unistd.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <errno.h>
-#include <string.h>
-#include <ctype.h>
-#include <signal.h>
-#include <assert.h>
-#include <time.h>
 #include <pthread.h>
 #if defined(HAVE_CPU_AFFINITY)
 #ifdef __FreeBSD__
@@ -157,8 +160,8 @@ typedef unsigned long ulong_t;
 #include "array.h"
 #include "error.h"
 
-#define SW_MAX_UINT            4294967295
-#define SW_MAX_INT             2147483647
+#define SW_MAX_UINT            UINT_MAX
+#define SW_MAX_INT             INT_MAX
 
 #ifndef MAX
 #define MAX(a, b)              (a)>(b)?a:b;
@@ -239,6 +242,7 @@ enum swFd_type
     SW_FD_WRITE           = 7, //fd can write
     SW_FD_TIMER           = 8, //timer fd
     SW_FD_AIO             = 9, //linux native aio
+    SW_FD_CORO_SOCKET     = 10, //CoroSocket
     SW_FD_SIGNAL          = 11, //signalfd
     SW_FD_DNS_RESOLVER    = 12, //dns resolver
     SW_FD_INOTIFY         = 13, //server socket
@@ -1709,6 +1713,10 @@ static sw_inline int swReactor_events(int fdtype)
     {
         events |= SW_EVENT_ERROR;
     }
+    if (fdtype & SW_EVENT_ONCE)
+    {
+        events |= SW_EVENT_ONCE;
+    }
     return events;
 }
 
@@ -2048,11 +2056,6 @@ typedef struct
     uint32_t wait_exit :1;
 
     int max_request;
-
-#ifdef SW_COROUTINE
-    swLinkedList *coro_timeout_list;
-    swLinkedList *delayed_coro_timeout_list;
-#endif
 
     swString **buffer_input;
     swString **buffer_output;

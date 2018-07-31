@@ -111,11 +111,16 @@ static inline bool channel_isFull(channel *chan)
     return chan->data_queue->size() == chan->capacity;
 }
 
+static void channel_defer_callback(void *data)
+{
+    channel_node *node = (channel_node *) data;
+    node->context.onTimeout(&node->context);
+}
+
 static int channel_onNotify(swReactor *reactor, swEvent *event)
 {
     uint64_t notify;
     while (read(COROG.chan_pipe->getFd(COROG.chan_pipe, 0), &notify, sizeof(notify)) > 0);
-    coro_handle_timeout();
     SwooleG.main_reactor->del(SwooleG.main_reactor, COROG.chan_pipe->getFd(COROG.chan_pipe, 0));
     return 0;
 }
@@ -148,7 +153,7 @@ static void channel_pop_onTimeout(swTimer *timer, swTimer_node *tnode)
 
 static void channel_notify(channel_node *node)
 {
-    swLinkedList_append(SwooleWG.coro_timeout_list, node);
+    SwooleG.main_reactor->defer(SwooleG.main_reactor, channel_defer_callback, node);
     if (!swReactor_handle_isset(SwooleG.main_reactor, PHP_SWOOLE_FD_CHAN_PIPE))
     {
         swReactor_setHandle(SwooleG.main_reactor, PHP_SWOOLE_FD_CHAN_PIPE, channel_onNotify);

@@ -103,7 +103,6 @@ int sw_get_current_cid();
 int coro_init(TSRMLS_D);
 void coro_destroy(TSRMLS_D);
 void coro_check(TSRMLS_D);
-void coro_handle_timeout();
 
 #define coro_create(op_array, argv, argc, retval, post_callback, param) \
         sw_coro_create(op_array, argv, argc, *retval, post_callback, param)

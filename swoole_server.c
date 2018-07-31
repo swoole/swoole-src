@@ -21,11 +21,7 @@
 #include "swoole_coroutine.h"
 #endif
 #include "ext/standard/php_var.h"
-#if PHP_MAJOR_VERSION < 7
-#include "ext/standard/php_smart_str.h"
-#else
 #include "zend_smart_str.h"
-#endif
 
 #ifdef HAVE_PCRE
 
@@ -201,17 +197,12 @@ int php_swoole_task_pack(swEventData *task, zval *data TSRMLS_DC)
             sw_php_var_serialize(&serialized_data, data, &var_hash TSRMLS_CC);
             PHP_VAR_SERIALIZE_DESTROY(var_hash);
 
-#if PHP_MAJOR_VERSION < 7
-            task_data_str = serialized_data.c;
-            task_data_len = serialized_data.len;
-#else
             if (!serialized_data.s)
             {
                 return -1;
             }
             task_data_str = serialized_data.s->val;
             task_data_len = serialized_data.s->len;
-#endif
         }
     }
     else
