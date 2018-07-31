@@ -206,8 +206,8 @@ Client* php_swoole_coro_client_new(zval *object, char *host, int host_len, int p
         Client *find = (Client *)swHashMap_find(php_sw_long_connections, conn_key, conn_key_len);
         if (find == NULL)
         {
-            Client cli(type);
-            if (swHashMap_add(php_sw_long_connections, conn_key, conn_key_len, &cli) == FAILURE)
+            cli = new Client(type);
+            if (swHashMap_add(php_sw_long_connections, conn_key, conn_key_len, cli) == FAILURE)
             {
                 swoole_php_fatal_error(E_WARNING, "failed to add swoole_client_create_socket to hashtable.");
             }
