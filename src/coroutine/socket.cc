@@ -110,6 +110,7 @@ Socket::Socket(int _fd, Socket *sock)
     _timeout = 0;
     _port = 0;
     errCode = 0;
+    errMsg = nullptr;
     timer = nullptr;
     bind_port = 0;
     _backlog = 0;
