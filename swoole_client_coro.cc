@@ -793,7 +793,7 @@ static PHP_METHOD(swoole_client_coro, connect)
     }
 
     //nonblock async
-    if (cli->connect(host, port, sock_flag) < 0)
+    if (!cli->connect(host, port, sock_flag))
     {
         if (errno == 0 )
         {
