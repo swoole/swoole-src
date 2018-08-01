@@ -297,7 +297,8 @@ bool Socket::connect(string host, int port, int flags)
     }
     else
     {
-        return false;
+        socket->active = 1;
+        return true;
     }
 
 }
