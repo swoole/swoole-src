@@ -344,6 +344,12 @@ static int socket_onWrite(swReactor *reactor, swEvent *event)
 
 ssize_t Socket::recv(void *__buf, size_t __n, int __flags)
 {
+    ssize_t retval = swConnection_recv(socket, __buf, __n, __flags);
+    if (retval >= 0 || errno != EAGAIN)
+    {
+        return retval;
+    }
+
     int events = SW_EVENT_READ;
 #ifdef SW_USE_OPENSSL
     if (socket->ssl && socket->ssl_want_write)
@@ -363,7 +369,7 @@ ssize_t Socket::recv(void *__buf, size_t __n, int __flags)
         timer = SwooleG.timer.add(&SwooleG.timer, ms, 0, this, socket_onTimeout);
     }
     yield();
-    ssize_t retval = swConnection_recv(socket, __buf, __n, __flags);
+    retval = swConnection_recv(socket, __buf, __n, __flags);
     if (retval < 0)
     {
         goto _error;
