@@ -1277,10 +1277,6 @@ static PHP_METHOD(swoole_client_coro, enableSSL)
     {
         client_coro_check_ssl_setting(cli, zset TSRMLS_CC);
     }
-    if (cli->enable_ssl_encrypt() < 0)
-    {
-        RETURN_FALSE;
-    }
     if (cli->ssl_handshake() < 0)
     {
         RETURN_FALSE;
