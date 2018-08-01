@@ -122,12 +122,10 @@ void php_coro_resume(void *arg)
 void php_coro_yield(void *arg)
 {
     coro_task *task = (coro_task *)arg;
-    zval *return_value = task->return_value;
     COROG.call_stack_size--;
     swTraceLog(SW_TRACE_COROUTINE,"coro_yield coro id %d", task->cid);
     task->state = SW_CORO_YIELD;
     task->is_yield = 1;
-    task->return_value = return_value;
     //save vm stack
     task->yield_execute_data = EG(current_execute_data);
     task->yield_stack = EG(vm_stack);

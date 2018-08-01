@@ -43,7 +43,6 @@ typedef struct _coro_task
     zval *yield_vm_stack_end;
     zend_bool is_yield;
 
-    zval *return_value;
     zend_output_globals *current_coro_output_ptr;
     /**
      * user coroutine
