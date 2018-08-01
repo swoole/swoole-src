@@ -332,11 +332,11 @@ bool Client::tcp_connect(char *host, int port, int flags)
 #ifdef SW_USE_OPENSSL
         if (open_ssl)
         {
-            if (enable_ssl_encrypt() < 0)
+            if (!enable_ssl_encrypt())
             {
                 return SW_ERR;
             }
-            if (ssl_handshake() < 0)
+            if (!ssl_handshake())
             {
                 return SW_ERR;
             }

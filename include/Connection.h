@@ -29,6 +29,7 @@ extern "C" {
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/conf.h>
+#include <openssl/ossl_typ.h>
 
 #define SW_SSL_BUFFER      1
 #define SW_SSL_CLIENT      2

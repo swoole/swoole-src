@@ -28,6 +28,7 @@ public:
 
 #ifdef SW_USE_OPENSSL
     bool ssl_handshake();
+    bool enable_ssl_encrypt();
     int ssl_verify(bool allow_self_signed);
 #endif
 
