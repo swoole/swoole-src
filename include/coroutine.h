@@ -24,7 +24,7 @@ typedef void (*coroutine_func_t)(void*);
 
 typedef void (*coro_php_create_t)();
 typedef void (*coro_php_yield_t)(void*);
-typedef int (*coro_php_resume_t)(void*);
+typedef void (*coro_php_resume_t)(void*);
 typedef void (*coro_php_close_t)();
 
 typedef enum
@@ -46,7 +46,7 @@ void coroutine_set_onClose(coro_php_close_t func);
 
 #define php_yield() php_coro_yield(return_value);
 void php_coro_yield(void *return_value);
-int php_coro_resume(void *data);
+void php_coro_resume(void *data);
 
 #ifdef __cplusplus
 }  /* end extern "C" */

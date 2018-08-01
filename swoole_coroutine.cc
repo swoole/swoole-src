@@ -89,7 +89,7 @@ int coro_init(TSRMLS_D)
 }
 
 
-int php_coro_resume(void *arg)
+void php_coro_resume(void *arg)
 {
     coro_task *task = (coro_task *)arg;
     COROG.call_stack[COROG.call_stack_size++] = task;
@@ -100,12 +100,6 @@ int php_coro_resume(void *arg)
     EG(vm_stack) = task->yield_stack;
     EG(vm_stack_top) = task->yield_vm_stack_top;
     EG(vm_stack_end) = task->yield_vm_stack_end;
-
-    if (EG(current_execute_data)->prev_execute_data->opline->result_type != IS_UNUSED && task->return_value)
-    {
-        Z_TRY_ADDREF_P(task->return_value);
-        //ZVAL_COPY(SWCC(current_coro_return_value_ptr), retval);
-    }
     // main OG
     if (OG(handlers).elements)
     {
@@ -122,9 +116,7 @@ int php_coro_resume(void *arg)
         efree(task->current_coro_output_ptr);
         task->current_coro_output_ptr = NULL;
     }
-
     swDebug("cid=%d", task->cid);
-    return CORO_END;
 }
 
 void php_coro_yield(void *arg)

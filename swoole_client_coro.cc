@@ -159,7 +159,7 @@ void swoole_client_coro_init(int module_number TSRMLS_DC)
 static sw_inline Client* client_get_ptr(zval *zobject TSRMLS_DC)
 {
     Client *cli = (Client *) swoole_get_object(zobject);
-    if (cli)
+    if (cli && cli->socket && cli->socket->active == 1)
     {
         return cli;
     }
