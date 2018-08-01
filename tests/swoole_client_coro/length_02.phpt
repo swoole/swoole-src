@@ -15,9 +15,10 @@ require_once __DIR__ . '/../include/bootstrap.php';
 require_once __DIR__ . '/../include/api/swoole_server/TestServer.php';
 
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid) use ($pm)
+$port = get_one_free_port();
+$pm->parentFunc = function ($pid) use ($pm, $port)
 {
-    go(function () {
+    go(function () use ($port) {
         $cli = new Co\Client(SWOOLE_SOCK_TCP);
         $cli->set([
             'open_length_check' => true,
@@ -26,7 +27,7 @@ $pm->parentFunc = function ($pid) use ($pm)
             'package_length_offset' => 0,
             'package_body_offset' => 4,
         ]);
-        $cli->connect('127.0.0.1', 9501);
+        $cli->connect('127.0.0.1', $port);
         $data = str_repeat('A', 1025);
         $cli->send(pack('N', strlen($data)).$data);
         $retData = $cli->recv();
@@ -36,8 +37,8 @@ $pm->parentFunc = function ($pid) use ($pm)
     $pm->kill();
 };
 
-$pm->childFunc = function () use ($pm) {
-    $serv = new swoole_server("127.0.0.1", 9501, SWOOLE_BASE);
+$pm->childFunc = function () use ($pm, $port) {
+    $serv = new swoole_server("127.0.0.1", $port, SWOOLE_BASE);
     $serv->set([
         'worker_num' => 1,
         //'dispatch_mode'         => 1,

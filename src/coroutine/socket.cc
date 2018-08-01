@@ -256,6 +256,10 @@ bool Socket::connect(string host, int port, int flags)
         if (_timeout > 0)
         {
             int ms = (int) (_timeout * 1000);
+            if (SwooleG.timer.fd == 0)
+            {
+                swTimer_init(ms);
+            }
             timer = SwooleG.timer.add(&SwooleG.timer, ms, 0, this, socket_onTimeout);
         }
         yield();
@@ -346,6 +350,10 @@ ssize_t Socket::recv(void *__buf, size_t __n, int __flags)
     if (_timeout > 0)
     {
         int ms = (int) (_timeout * 1000);
+        if (SwooleG.timer.fd == 0)
+        {
+           swTimer_init(ms);
+        }
         timer = SwooleG.timer.add(&SwooleG.timer, ms, 0, this, socket_onTimeout);
     }
     yield();
@@ -387,6 +395,10 @@ ssize_t Socket::send(const void *__buf, size_t __n, int __flags)
     if (_timeout > 0)
     {
         int ms = (int) (_timeout * 1000);
+        if (SwooleG.timer.fd == 0)
+        {
+           swTimer_init(ms);
+        }
         timer = SwooleG.timer.add(&SwooleG.timer, ms, 0, this, socket_onTimeout);
     }
     yield();
@@ -701,6 +713,10 @@ bool Socket::sendfile(char *filename, off_t offset, size_t length)
         if (_timeout > 0)
         {
             int ms = (int) (_timeout * 1000);
+            if (SwooleG.timer.fd == 0)
+            {
+               swTimer_init(ms);
+            }
             timer = SwooleG.timer.add(&SwooleG.timer, ms, 0, this, socket_onTimeout);
         }
         yield();

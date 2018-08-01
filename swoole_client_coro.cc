@@ -702,6 +702,7 @@ static PHP_METHOD(swoole_client_coro, connect)
     {
         RETURN_FALSE;
     }
+    cli->_timeout = timeout;
     swoole_set_object(getThis(), cli);
 
     zval *zset = sw_zend_read_property(swoole_client_coro_class_entry_ptr, getThis(), ZEND_STRL("setting"), 1 TSRMLS_CC);
