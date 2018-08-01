@@ -36,7 +36,6 @@ Client::Client(enum swSocket_type _type) :
 
     destroyed = 0;
     redirect = 0;
-    _sleep = 0;
     shutdow_rw = 0;
     shutdown_read = 0;
     shutdown_write = 0;
@@ -101,42 +100,6 @@ int Client::pipe(int write_fd, int flags)
     }
     redirect = 1;
     return SW_OK;
-}
-
-int Client::sleep()
-{
-    int ret;
-    if (socket->events & SW_EVENT_WRITE)
-    {
-        ret = reactor->set(reactor, socket->fd, socket->fdtype | SW_EVENT_WRITE);
-    }
-    else
-    {
-        ret = reactor->del(reactor, socket->fd);
-    }
-    if (ret == SW_OK)
-    {
-        _sleep = 1;
-    }
-    return ret;
-}
-
-int Client::wakeup()
-{
-    int ret;
-    if (socket->events & SW_EVENT_WRITE)
-    {
-        ret = reactor->set(reactor, socket->fd, socket->fdtype | SW_EVENT_READ | SW_EVENT_WRITE);
-    }
-    else
-    {
-        ret = reactor->add(reactor, socket->fd, socket->fdtype | SW_EVENT_READ);
-    }
-    if (ret == SW_OK)
-    {
-        _sleep = 0;
-    }
-    return ret;
 }
 
 int Client::shutdown(int __how)
@@ -217,69 +180,13 @@ int Client::close()
     {
         return SW_ERR;
     }
-    socket->closed = 1;
-
-    int fd = socket->fd;
-    assert(fd != 0);
-
-#ifdef SW_USE_OPENSSL
-    if (open_ssl && ssl_context)
-    {
-        if (socket->ssl)
-        {
-            swSSL_close(socket);
-        }
-        swSSL_free_context(ssl_context);
-        if (ssl_option.cert_file)
-        {
-            sw_free(ssl_option.cert_file);
-        }
-        if (ssl_option.key_file)
-        {
-            sw_free(ssl_option.key_file);
-        }
-        if (ssl_option.passphrase)
-        {
-            sw_free(ssl_option.passphrase);
-        }
-#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-        if (ssl_option.tls_host_name)
-        {
-            sw_free(ssl_option.tls_host_name);
-        }
-#endif
-        if (ssl_option.cafile)
-        {
-            sw_free(ssl_option.cafile);
-        }
-        if (ssl_option.capath)
-        {
-            sw_free(ssl_option.capath);
-        }
-    }
-#endif
     //clear buffer
     if (buffer)
     {
         swString_free(buffer);
         buffer = NULL;
     }
-    if (type == SW_SOCK_UNIX_DGRAM)
-    {
-        unlink(socket->info.addr.un.sun_path);
-    }
-    //remove from reactor
-    if (!socket->removed && reactor)
-    {
-        reactor->del(reactor, fd);
-    }
-    if (timer)
-    {
-        swTimer_del(&SwooleG.timer, timer);
-        timer = NULL;
-    }
-    socket->active = 0;
-    return ::close(fd);
+    return Socket::close();
 }
 
 bool Client::tcp_connect(char *host, int port, int flags)
