@@ -36,7 +36,6 @@ struct Client : public Socket
     uint32_t destroyed :1;
     uint32_t redirect :1;
 
-    uint32_t _sleep :1;
     uint32_t shutdow_rw :1;
     uint32_t shutdown_read :1;
     uint32_t shutdown_write :1;
@@ -86,8 +85,6 @@ struct Client : public Socket
     void proxy_check(char *host, int port);
     int pipe(int write_fd, int is_session_id);
     int close();
-    int sleep();
-    int wakeup();
     int shutdown(int how);
 };
 
