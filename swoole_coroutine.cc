@@ -357,7 +357,7 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
     }
 
     swDebug("cid=%d", task->cid);
-    coroutine_resume(task->co);
+    coroutine_resume_naked(task->co);
 
     if (unlikely(EG(exception)))
     {
@@ -387,7 +387,7 @@ void sw_coro_yield()
     EG(vm_stack) = task->origin_stack;
     EG(vm_stack_top) = task->origin_vm_stack_top;
     EG(vm_stack_end) = task->origin_vm_stack_end;
-    coroutine_yield(task->co);
+    coroutine_yield_naked(task->co);
 }
 
 void sw_coro_close()
