@@ -371,7 +371,7 @@ ssize_t Socket::recv(void *__buf, size_t __n, int __flags)
         timer = SwooleG.timer.add(&SwooleG.timer, ms, 0, this, socket_onTimeout);
     }
     yield();
-    ssize_t retval = ::recv(fd, __buf, __n, __flags);
+    ssize_t retval = swConnection_recv(socket, __buf, __n, __flags);
     if (retval < 0)
     {
         goto _error;
@@ -405,7 +405,7 @@ ssize_t Socket::send(const void *__buf, size_t __n, int __flags)
         timer = SwooleG.timer.add(&SwooleG.timer, ms, 0, this, socket_onTimeout);
     }
     yield();
-    ssize_t retval = ::send(fd, __buf, __n, __flags);
+    ssize_t retval = swConnection_send(socket, (void *) __buf, __n, __flags);
     if (retval < 0)
     {
         goto _error;

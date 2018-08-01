@@ -194,9 +194,9 @@ static sw_inline ssize_t swConnection_recv(swConnection *conn, void *__buf, size
 /**
  * Send data to connection
  */
-static sw_inline int swConnection_send(swConnection *conn, void *__buf, size_t __n, int __flags)
+static sw_inline ssize_t swConnection_send(swConnection *conn, void *__buf, size_t __n, int __flags)
 {
-    int retval;
+    ssize_t retval;
 #ifdef SW_USE_OPENSSL
     if (conn->ssl)
     {

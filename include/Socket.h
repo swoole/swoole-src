@@ -1,6 +1,7 @@
 #pragma once
 
 #include "swoole.h"
+#include "Connection.h"
 #include <string>
 
 namespace swoole {
