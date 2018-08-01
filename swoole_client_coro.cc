@@ -717,10 +717,12 @@ static PHP_METHOD(swoole_client_coro, connect)
                 cli->errCode);
         RETURN_FALSE;
     }
+#ifdef SW_USE_OPENSSL
     if (cli->open_ssl && !cli->ssl_handshake())
     {
         goto _error;
     }
+#endif
     RETURN_TRUE;
 }
 
