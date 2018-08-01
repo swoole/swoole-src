@@ -32,6 +32,13 @@
 
 #ifdef HAVE_KQUEUE
 
+#define FETCH_EVENT() \
+    memcpy(&fd_, &(object->events[i].udata), sizeof(fd_)); \
+    event.fd = fd_.fd; \
+    event.from_id = reactor->id; \
+    event.type = fd_.fdtype; \
+    event.socket = swReactor_get(reactor, event.fd)
+
 typedef struct swReactorKqueue_s swReactorKqueue;
 typedef struct _swFd
 {
@@ -320,15 +327,10 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
             swTraceLog(SW_TRACE_EVENT, "n %d events.", n);
             if (object->events[i].udata)
             {
-                memcpy(&fd_, &(object->events[i].udata), sizeof(fd_));
-                event.fd = fd_.fd;
-                event.from_id = reactor->id;
-                event.type = fd_.fdtype;
-                event.socket = swReactor_get(reactor, event.fd);
-
                 //read
                 if (object->events[i].filter == EVFILT_READ)
                 {
+                    FETCH_EVENT();
                     if (event.socket->removed)
                     {
                         continue;
@@ -343,6 +345,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
                 //write
                 else if (object->events[i].filter == EVFILT_WRITE)
                 {
+                    FETCH_EVENT();
                     if (event.socket->removed)
                     {
                         continue;
@@ -371,7 +374,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
                         }
                         else
                         {
-                            swDebug("signal[%d] callback is null.", sw_signal->signo);
+                            swWarn("signal[%d] callback is null.", sw_signal->signo);
                         }
                     }
                 }
