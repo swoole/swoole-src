@@ -293,7 +293,7 @@ static void swKqueueSignal_set(int signo, swSignalHander callback)
     swReactor *reactor = SwooleG.main_reactor;
     if (reactor == NULL)
     {
-        if (callback)
+        if (unlikely(callback))
         {
             swWarn("kevent set signal[%d] error, main reactor is destroyed", signo);
         }
@@ -335,7 +335,7 @@ static void swKqueueSignal_set(int signo, swSignalHander callback)
     int n = kevent(reactor_obj->fd, &ev, 1, NULL, 0, NULL);
     if (n < 0)
     {
-        if (callback)
+        if (unlikely(callback))
         {
             swWarn("kevent set signal[%d] error", signo);
         }
