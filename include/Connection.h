@@ -140,6 +140,7 @@ int swSSL_sendfile(swConnection *conn, int fd, off_t *offset, size_t size);
 static sw_inline ssize_t swConnection_recv(swConnection *conn, void *__buf, size_t __n, int __flags)
 {
     int retval;
+    _recv:
 #ifdef SW_USE_OPENSSL
     if (conn->ssl)
     {
@@ -178,10 +179,16 @@ static sw_inline ssize_t swConnection_recv(swConnection *conn, void *__buf, size
     retval = recv(conn->fd, __buf, __n, __flags);
 #endif
 
-#ifdef SW_USE_OPENSSL
-    _return:
-#endif
+    if (retval < 0 && errno == EINTR)
+    {
+        goto _recv;
+    }
+    else
+    {
+        goto _return;
+    }
 
+    _return:
 #ifdef SW_DEBUG
     if (retval > 0)
     {
@@ -198,6 +205,7 @@ static sw_inline ssize_t swConnection_recv(swConnection *conn, void *__buf, size
 static sw_inline ssize_t swConnection_send(swConnection *conn, void *__buf, size_t __n, int __flags)
 {
     ssize_t retval;
+    _send:
 #ifdef SW_USE_OPENSSL
     if (conn->ssl)
     {
@@ -211,6 +219,16 @@ static sw_inline ssize_t swConnection_send(swConnection *conn, void *__buf, size
     retval = send(conn->fd, __buf, __n, __flags);
 #endif
 
+    if (retval < 0 && errno == EINTR)
+    {
+        goto _send;
+    }
+    else
+    {
+        goto _return;
+    }
+
+    _return:
 #ifdef SW_DEBUG
     if (retval > 0)
     {

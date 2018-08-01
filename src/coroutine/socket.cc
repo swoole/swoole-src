@@ -349,6 +349,10 @@ ssize_t Socket::recv(void *__buf, size_t __n, int __flags)
         timer = SwooleG.timer.add(&SwooleG.timer, ms, 0, this, socket_onTimeout);
     }
     yield();
+    if (errCode == ETIMEDOUT)
+    {
+        return false;
+    }
     retval = swConnection_recv(socket, __buf, __n, __flags);
     if (retval < 0)
     {
@@ -390,6 +394,10 @@ ssize_t Socket::send(const void *__buf, size_t __n, int __flags)
         timer = SwooleG.timer.add(&SwooleG.timer, ms, 0, this, socket_onTimeout);
     }
     yield();
+    if (errCode == ETIMEDOUT)
+    {
+        return false;
+    }
     ssize_t retval = swConnection_send(socket, (void *) __buf, __n, __flags);
     if (retval < 0)
     {
@@ -717,7 +725,16 @@ bool Socket::sendfile(char *filename, off_t offset, size_t length)
     while (offset < length)
     {
         sendn = (length - offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : length - offset;
-        n = ::swoole_sendfile(socket->fd, file_fd, &offset, sendn);
+#ifdef SW_USE_OPENSSL
+        if (socket->ssl)
+        {
+            n = swSSL_sendfile(socket, file_fd, &offset, sendn);
+        }
+        else
+#endif
+        {
+            n = ::swoole_sendfile(socket->fd, file_fd, &offset, sendn);
+        }
         if (n > 0)
         {
             continue;
