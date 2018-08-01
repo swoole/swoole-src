@@ -155,7 +155,6 @@ void swoole_client_coro_init(int module_number TSRMLS_DC)
     zend_declare_class_constant_long(swoole_client_coro_class_entry_ptr, ZEND_STRL("MSG_WAITALL"), MSG_WAITALL TSRMLS_CC);
 }
 
-
 static sw_inline Client* client_get_ptr(zval *zobject TSRMLS_DC)
 {
     Client *cli = (Client *) swoole_get_object(zobject);
@@ -175,9 +174,6 @@ static sw_inline Client* client_get_ptr(zval *zobject TSRMLS_DC)
 static Client* client_coro_new(zval *object, char *host, int host_len, int port)
 {
     zval *ztype;
-    int async = 1;
-    char conn_key[SW_LONG_CONNECTION_KEY_LEN];
-    int conn_key_len = 0;
     uint64_t tmp_buf;
     int ret;
 
@@ -203,8 +199,6 @@ static Client* client_coro_new(zval *object, char *host, int host_len, int port)
         zend_update_property_long(Z_OBJCE_P(object), object, ZEND_STRL("errCode"), errno TSRMLS_CC);
         return NULL;
     }
-    cli->server_str = sw_strndup(conn_key, conn_key_len);
-    cli->server_strlen = conn_key_len;
 
     zend_update_property_long(Z_OBJCE_P(object), object, ZEND_STRL("sock"), cli->socket->fd TSRMLS_CC);
 
@@ -258,7 +252,6 @@ void php_swoole_coro_client_free(zval *zobject, Client *cli TSRMLS_DC)
         zval *zcallback = (zval *) cli->protocol.private_data;
         sw_zval_free(zcallback);
     }
-    sw_free(cli->server_str);
     delete cli;
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
@@ -411,18 +404,6 @@ static void client_coro_check_setting(Client *cli, zval *zset TSRMLS_DC)
         }
         swSocket_set_buffer_size(cli->socket->fd, value);
         cli->socket->buffer_size = value;
-    }
-    if (php_swoole_array_get_value(vht, "buffer_high_watermark", v))
-    {
-        convert_to_long(v);
-        value = (int) Z_LVAL_P(v);
-        cli->buffer_high_watermark = value;
-    }
-    if (php_swoole_array_get_value(vht, "buffer_low_watermark", v))
-    {
-        convert_to_long(v);
-        value = (int) Z_LVAL_P(v);
-        cli->buffer_low_watermark = value;
     }
     /**
      * bind address
@@ -729,10 +710,14 @@ static PHP_METHOD(swoole_client_coro, connect)
 
     if (!cli->connect(host, port, sock_flag))
     {
-        zend_update_property_long(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, cli->errCode TSRMLS_CC);
+        _error : zend_update_property_long(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, cli->errCode TSRMLS_CC);
         swoole_php_error(E_WARNING, "connect to server[%s:%d] failed. Error: %s[%d]", host, (int )port, cli->errMsg,
                 cli->errCode);
         RETURN_FALSE;
+    }
+    if (cli->open_ssl && !cli->ssl_handshake())
+    {
+        goto _error;
     }
     RETURN_TRUE;
 }

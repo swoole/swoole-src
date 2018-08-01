@@ -36,7 +36,6 @@ Client::Client(enum swSocket_type _type) :
 
     destroyed = 0;
     redirect = 0;
-    http2 = 0;
     _sleep = 0;
     shutdow_rw = 0;
     shutdown_read = 0;
@@ -49,9 +48,6 @@ Client::Client(enum swSocket_type _type) :
     socks5_proxy = NULL;
     http_proxy = NULL;
 
-    server_str = NULL;
-    server_host = NULL;
-    server_port = 0;
     ptr = NULL;
     params = NULL;
 
@@ -61,16 +57,6 @@ Client::Client(enum swSocket_type _type) :
 
     buffer_input_size = SW_CLIENT_BUFFER_SIZE;
     buffer = NULL;
-
-    buffer_high_watermark = 0;
-    buffer_low_watermark = 0;
-
-#ifdef SW_USE_OPENSSL
-    open_ssl = 0;
-    ssl_wait_handshake = 0;
-    ssl_context = NULL;
-    ssl_option = {0};
-#endif
 }
 
 Client::~Client()
@@ -200,80 +186,6 @@ int Client::shutdown(int __how)
         return SW_ERR;
     }
 }
-
-#ifdef SW_USE_OPENSSL
-int Client::enable_ssl_encrypt()
-{
-    ssl_context = swSSL_get_context(&ssl_option);
-    if (ssl_context == NULL)
-    {
-        return SW_ERR;
-    }
-
-    if (ssl_option.verify_peer)
-    {
-        if (swSSL_set_capath(&ssl_option, ssl_context) < 0)
-        {
-            return SW_ERR;
-        }
-    }
-
-    socket->ssl_send = 1;
-#if defined(SW_USE_HTTP2) && defined(SW_USE_OPENSSL) && OPENSSL_VERSION_NUMBER >= 0x10002000L
-    if (http2)
-    {
-        if (SSL_CTX_set_alpn_protos(ssl_context, (const unsigned char *) "\x02h2", 3) < 0)
-        {
-            return SW_ERR;
-        }
-    }
-#endif
-    return SW_OK;
-}
-
-int Client::ssl_handshake()
-{
-    if (!socket->ssl)
-    {
-        if (swSSL_create(socket, ssl_context, SW_SSL_CLIENT) < 0)
-        {
-            return SW_ERR;
-        }
-#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-        if (ssl_option.tls_host_name)
-        {
-            SSL_set_tlsext_host_name(socket->ssl, ssl_option.tls_host_name);
-        }
-#endif
-    }
-    if (swSSL_connect(socket) < 0)
-    {
-        return SW_ERR;
-    }
-    if (socket->ssl_state == SW_SSL_STATE_READY && ssl_option.verify_peer)
-    {
-        if (ssl_verify(ssl_option.allow_self_signed) < 0)
-        {
-            return SW_ERR;
-        }
-    }
-    return SW_OK;
-}
-
-int Client::ssl_verify(bool allow_self_signed)
-{
-    if (swSSL_verify(socket, allow_self_signed) < 0)
-    {
-        return SW_ERR;
-    }
-    if (ssl_option.tls_host_name && swSSL_check_host(socket, ssl_option.tls_host_name) < 0)
-    {
-        return SW_ERR;
-    }
-    return SW_OK;
-}
-
-#endif
 
 void Client::proxy_check(char *host, int port)
 {

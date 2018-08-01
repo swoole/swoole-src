@@ -35,7 +35,7 @@ struct Client : public Socket
 
     uint32_t destroyed :1;
     uint32_t redirect :1;
-    uint32_t http2 :1;
+
     uint32_t _sleep :1;
     uint32_t shutdow_rw :1;
     uint32_t shutdown_read :1;
@@ -52,9 +52,6 @@ struct Client : public Socket
     struct _swSocks5 *socks5_proxy;
     struct _http_proxy* http_proxy;
 
-    char *server_str;
-    char *server_host;
-    int server_port;
     void *ptr;
     void *params;
 
@@ -77,16 +74,6 @@ struct Client : public Socket
     swString *buffer;
     uint32_t buffer_input_size;
 
-    uint32_t buffer_high_watermark;
-    uint32_t buffer_low_watermark;
-
-#ifdef SW_USE_OPENSSL
-    uint8_t open_ssl :1;
-    uint8_t ssl_wait_handshake :1;
-    SSL_CTX *ssl_context;
-    swSSL_option ssl_option;
-#endif
-
     Client(enum swSocket_type type);
     ~Client();
     bool tcp_connect(char *host, int port, int flags);
@@ -103,11 +90,6 @@ struct Client : public Socket
     int sleep();
     int wakeup();
     int shutdown(int how);
-#ifdef SW_USE_OPENSSL
-    int enable_ssl_encrypt();
-    int ssl_handshake();
-    int ssl_verify(bool allow_self_signed);
-#endif
 };
 
 int Client_sleep(Client *cli);

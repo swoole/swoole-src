@@ -83,37 +83,21 @@ Socket::Socket(enum swSocket_type type)
 
     _sock_domain = _domain;
     _sock_type = _type;
-    _cid = 0;
-    _timeout = 0;
-    _port = 0;
-    errCode = 0;
-    errMsg = nullptr;
-    fd = sockfd;
-    timer = nullptr;
-    bind_port = 0;
-    _backlog = 0;
+    init();
 }
 
 Socket::Socket(int _fd, Socket *sock)
 {
-    fd = _fd;
     reactor = sock->reactor;
 
-    socket = swReactor_get(reactor, fd);
+    socket = swReactor_get(reactor, _fd);
     bzero(socket, sizeof(swConnection));
-    socket->fd = fd;
+    socket->fd = _fd;
     socket->object = this;
 
     _sock_domain = sock->_sock_domain;
     _sock_type = sock->_sock_type;
-    _cid = 0;
-    _timeout = 0;
-    _port = 0;
-    errCode = 0;
-    errMsg = nullptr;
-    timer = nullptr;
-    bind_port = 0;
-    _backlog = 0;
+    init();
 }
 
 bool Socket::connect(string host, int port, int flags)
@@ -300,13 +284,14 @@ bool Socket::connect(string host, int port, int flags)
             return false;
         }
         socklen_t len = sizeof(errCode);
-        if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &errCode, &len) < 0 || errCode != 0)
+        if (getsockopt(socket->fd, SOL_SOCKET, SO_ERROR, &errCode, &len) < 0 || errCode != 0)
         {
             errMsg = strerror(errCode);
             return false;
         }
         else
         {
+            socket->active = 1;
             return true;
         }
     }
@@ -337,14 +322,14 @@ static void socket_onTimeout(swTimer *timer, swTimer_node *tnode)
     Socket *sock = (Socket *) tnode->data;
     sock->timer = NULL;
     sock->errCode = ETIMEDOUT;
-    sock->reactor->del(sock->reactor, sock->fd);
+    sock->reactor->del(sock->reactor, sock->socket->fd);
     sock->resume();
 }
 
 static int socket_onRead(swReactor *reactor, swEvent *event)
 {
     Socket *sock = (Socket *) event->socket->object;
-    reactor->del(reactor, sock->fd);
+    reactor->del(reactor, event->fd);
     sock->resume();
     return SW_OK;
 }
@@ -352,14 +337,21 @@ static int socket_onRead(swReactor *reactor, swEvent *event)
 static int socket_onWrite(swReactor *reactor, swEvent *event)
 {
     Socket *sock = (Socket *) event->socket->object;
-    reactor->del(reactor, sock->fd);
+    reactor->del(reactor, event->fd);
     sock->resume();
     return SW_OK;
 }
 
 ssize_t Socket::recv(void *__buf, size_t __n, int __flags)
 {
-    if (reactor->add(reactor, socket->fd, SW_FD_CORO_SOCKET | SW_EVENT_READ) < 0)
+    int events = SW_EVENT_READ;
+#ifdef SW_USE_OPENSSL
+    if (socket->ssl && socket->ssl_want_write)
+    {
+        events = SW_EVENT_WRITE;
+    }
+#endif
+    if (reactor->add(reactor, socket->fd, SW_FD_CORO_SOCKET | events) < 0)
     {
         _error: errCode = errno;
         return -1;
@@ -384,7 +376,7 @@ ssize_t Socket::recv(void *__buf, size_t __n, int __flags)
 
 ssize_t Socket::send(const void *__buf, size_t __n, int __flags)
 {
-    ssize_t n = ::send(fd, __buf, __n, __flags);
+    ssize_t n = swConnection_send(socket, (void *) __buf, __n, __flags);
     if (n >= 0)
     {
         return n;
@@ -393,7 +385,14 @@ ssize_t Socket::send(const void *__buf, size_t __n, int __flags)
     {
         return n;
     }
-    if (reactor->add(reactor, socket->fd, SW_FD_CORO_SOCKET | SW_EVENT_WRITE) < 0)
+    int events = SW_EVENT_WRITE;
+#ifdef SW_USE_OPENSSL
+    if (socket->ssl && socket->ssl_want_read)
+    {
+        events = SW_EVENT_READ;
+    }
+#endif
+    if (reactor->add(reactor, socket->fd, SW_FD_CORO_SOCKET | events) < 0)
     {
         _error: errCode = errno;
         return -1;
@@ -449,7 +448,7 @@ bool Socket::bind(std::string address, int port)
         }
         memcpy(&sa->sun_path, bind_address.c_str(), bind_address.size());
 
-        retval = ::bind(fd, (struct sockaddr *) sa,
+        retval = ::bind(socket->fd, (struct sockaddr *) sa,
         offsetof(struct sockaddr_un, sun_path) + bind_address.size());
         break;
     }
@@ -463,7 +462,7 @@ bool Socket::bind(std::string address, int port)
         {
             return false;
         }
-        retval = ::bind(fd, (struct sockaddr *) sa, sizeof(struct sockaddr_in));
+        retval = ::bind(socket->fd, (struct sockaddr *) sa, sizeof(struct sockaddr_in));
         break;
     }
 
@@ -477,7 +476,7 @@ bool Socket::bind(std::string address, int port)
         {
             return false;
         }
-        retval = ::bind(fd, (struct sockaddr *) sa, sizeof(struct sockaddr_in6));
+        retval = ::bind(socket->fd, (struct sockaddr *) sa, sizeof(struct sockaddr_in6));
         break;
     }
     default:
@@ -496,7 +495,7 @@ bool Socket::bind(std::string address, int port)
 bool Socket::listen(int backlog)
 {
     _backlog = backlog;
-    if (::listen(fd, backlog) != 0)
+    if (::listen(socket->fd, backlog) != 0)
     {
         errCode = errno;
         return false;
@@ -517,9 +516,9 @@ Socket* Socket::accept()
     socklen_t client_addrlen = sizeof(client_addr);
 
 #ifdef HAVE_ACCEPT4
-    conn = ::accept4(fd, (struct sockaddr *) &client_addr, &client_addrlen, SOCK_NONBLOCK | SOCK_CLOEXEC);
+    conn = ::accept4(socket->fd, (struct sockaddr *) &client_addr, &client_addrlen, SOCK_NONBLOCK | SOCK_CLOEXEC);
 #else
-    conn = ::accept(fd, (struct sockaddr *) &client_addr, &client_addrlen);
+    conn = ::accept(socket->fd, (struct sockaddr *) &client_addr, &client_addrlen);
     if (conn >= 0)
     {
         swoole_fcntl_set_option(conn, 1, 1);
@@ -565,6 +564,99 @@ bool Socket::close()
     ::close(fd);
     return true;
 }
+
+#ifdef SW_USE_OPENSSL
+bool Socket::ssl_handshake()
+{
+    if (socket->ssl)
+    {
+        return false;
+    }
+
+    ssl_context = swSSL_get_context(&ssl_option);
+    if (ssl_context == NULL)
+    {
+        return SW_ERR;
+    }
+
+    if (ssl_option.verify_peer)
+    {
+        if (swSSL_set_capath(&ssl_option, ssl_context) < 0)
+        {
+            return SW_ERR;
+        }
+    }
+
+    socket->ssl_send = 1;
+#if defined(SW_USE_HTTP2) && defined(SW_USE_OPENSSL) && OPENSSL_VERSION_NUMBER >= 0x10002000L
+    if (http2)
+    {
+        if (SSL_CTX_set_alpn_protos(ssl_context, (const unsigned char *) "\x02h2", 3) < 0)
+        {
+            return SW_ERR;
+        }
+    }
+#endif
+
+    if (swSSL_create(socket, ssl_context, SW_SSL_CLIENT) < 0)
+    {
+        return false;
+    }
+#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
+    if (ssl_option.tls_host_name)
+    {
+        SSL_set_tlsext_host_name(socket->ssl, ssl_option.tls_host_name);
+    }
+#endif
+
+    while (true)
+    {
+        int retval = swSSL_connect(socket);
+        if (retval < 0)
+        {
+            errCode = SwooleG.error;
+            return false;
+        }
+        if (socket->ssl_state == SW_SSL_STATE_WAIT_STREAM)
+        {
+            int events = socket->ssl_want_write ? SW_EVENT_WRITE : SW_EVENT_READ;
+            if (reactor->add(reactor, socket->fd, SW_FD_CORO_SOCKET | events) < 0)
+            {
+                _error: errCode = errno;
+                return false;
+            }
+            yield();
+        }
+        else if (socket->ssl_state == SW_SSL_STATE_READY)
+        {
+            return true;
+        }
+    }
+
+    if (socket->ssl_state == SW_SSL_STATE_READY && ssl_option.verify_peer)
+    {
+        if (ssl_verify(ssl_option.allow_self_signed) < 0)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+int Socket::ssl_verify(bool allow_self_signed)
+{
+    if (swSSL_verify(socket, allow_self_signed) < 0)
+    {
+        return SW_ERR;
+    }
+    if (ssl_option.tls_host_name && swSSL_check_host(socket, ssl_option.tls_host_name) < 0)
+    {
+        return SW_ERR;
+    }
+    return SW_OK;
+}
+#endif
+
 Socket::~Socket()
 {
     assert(socket->fd != 0);

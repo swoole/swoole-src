@@ -26,13 +26,37 @@ public:
         _timeout = timeout;
     }
 
+#ifdef SW_USE_OPENSSL
+    bool ssl_handshake();
+    int ssl_verify(bool allow_self_signed);
+#endif
+
+protected:
+    void init()
+    {
+        _cid = 0;
+        _timeout = 0;
+        _port = 0;
+        errCode = 0;
+        errMsg = nullptr;
+        timer = nullptr;
+        bind_port = 0;
+        _backlog = 0;
+#ifdef SW_USE_OPENSSL
+        open_ssl = 0;
+        ssl_wait_handshake = 0;
+        ssl_context = NULL;
+        ssl_option = {0};
+#endif
+    }
+
+public:
     swTimer_node *timer;
     swReactor *reactor;
     std::string _host;
     std::string bind_address;
     int bind_port;
     int _port;
-    int fd;
     int _cid;
     swConnection *socket;
     int _sock_type;
@@ -41,6 +65,14 @@ public:
     int _backlog;
     int errCode;
     const char *errMsg;
+    uint32_t http2 :1;
+
+#ifdef SW_USE_OPENSSL
+    uint8_t open_ssl :1;
+    uint8_t ssl_wait_handshake :1;
+    SSL_CTX *ssl_context;
+    swSSL_option ssl_option;
+#endif
 };
 
 };
