@@ -28,12 +28,6 @@
 #include "zend_interfaces.h"
 #include "zend_exceptions.h"
 #include "zend_variables.h"
-#include <ext/date/php_date.h>
-#include <ext/standard/url.h>
-#include <ext/standard/info.h>
-#include <ext/standard/php_array.h>
-#include <ext/standard/basic_functions.h>
-#include <ext/standard/php_http.h>
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -49,6 +43,12 @@
 #include "async.h"
 
 BEGIN_EXTERN_C()
+#include <ext/date/php_date.h>
+#include <ext/standard/url.h>
+#include <ext/standard/info.h>
+#include <ext/standard/php_array.h>
+#include <ext/standard/basic_functions.h>
+#include <ext/standard/php_http.h>
 
 #define PHP_SWOOLE_VERSION  "4.0.3"
 #define PHP_SWOOLE_CHECK_CALLBACK
@@ -61,6 +61,7 @@ BEGIN_EXTERN_C()
 
 #define SW_HOST_SIZE  128
 
+extern PHPAPI int php_array_merge(HashTable *dest, HashTable *src);
 typedef struct
 {
     uint16_t port;

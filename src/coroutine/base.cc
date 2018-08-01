@@ -163,6 +163,23 @@ void coroutine_resume(coroutine_t *co)
     }
 }
 
+void coroutine_yield_naked(coroutine_t *co)
+{
+    swCoroG.current_cid = swCoroG.previous_cid;
+    co->ctx.SwapOut();
+}
+
+void coroutine_resume_naked(coroutine_t *co)
+{
+    swCoroG.previous_cid = swCoroG.current_cid;
+    swCoroG.current_cid = co->cid;
+    co->ctx.SwapIn();
+    if (co->ctx.end)
+    {
+        coroutine_release(co);
+    }
+}
+
 void coroutine_release(coroutine_t *co)
 {
     if (swCoroG.onClose)
