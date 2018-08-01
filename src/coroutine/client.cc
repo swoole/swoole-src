@@ -330,16 +330,9 @@ bool Client::tcp_connect(char *host, int port, int flags)
         }
 
 #ifdef SW_USE_OPENSSL
-        if (open_ssl)
+        if (open_ssl && ssl_handshake() < 0)
         {
-            if (enable_ssl_encrypt() < 0)
-            {
-                return SW_ERR;
-            }
-            if (ssl_handshake() < 0)
-            {
-                return SW_ERR;
-            }
+            return SW_ERR;
         }
 #endif
     }
@@ -534,16 +527,6 @@ int Client::tcp_send(char *data, int length, int flags)
         data += n;
     }
     return written;
-}
-
-int Client::sendfile(char *filename, off_t offset, size_t length)
-{
-    if (swSocket_sendfile_sync(socket->fd, filename, offset, length, _timeout) < 0)
-    {
-        SwooleG.error = errno;
-        return SW_ERR;
-    }
-    return SW_OK;
 }
 
 /**

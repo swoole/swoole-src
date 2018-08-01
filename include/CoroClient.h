@@ -83,7 +83,6 @@ struct Client : public Socket
     int udp_send(char *data, int length, int flags);
     int tcp_recv(char *data, int length, int flags);
     int udp_recv(char *data, int length, int flags);
-    int sendfile(char *filename, off_t offset, size_t length);
     void proxy_check(char *host, int port);
     int pipe(int write_fd, int is_session_id);
     int close();

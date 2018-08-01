@@ -372,6 +372,11 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
 
 void sw_coro_yield()
 {
+    if (sw_get_current_cid() == -1)
+    {
+        swoole_php_fatal_error(E_ERROR, "must be called in the coroutine.");
+    }
+
     coro_task *task = (coro_task *) sw_get_current_task();
     COROG.call_stack_size--;
     swTraceLog(SW_TRACE_COROUTINE,"coro_yield coro id %d", task->cid);

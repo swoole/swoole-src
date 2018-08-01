@@ -467,6 +467,7 @@ class ProcessManager
      */
     protected $atomic;
     protected $alone = false;
+    protected $freePort;
 
     public $parentFunc;
     public $childFunc;
@@ -518,6 +519,11 @@ class ProcessManager
         return call_user_func($this->parentFunc, $pid);
     }
 
+    function getFreePort()
+    {
+        return $this->freePort;
+    }
+
     function runChildFunc()
     {
         return call_user_func($this->childFunc);
@@ -559,15 +565,18 @@ class ProcessManager
         {
             if ($argv[1] == 'child')
             {
+                $this->freePort = 9501;
                 $this->alone = true;
                 return $this->runChildFunc();
             }
             elseif ($argv[1] == 'parent')
             {
+                $this->freePort = 9501;
                 $this->alone = true;
                 return $this->runParentFunc();
             }
         }
+        $this->freePort = get_one_free_port();
         $pid = pcntl_fork();
         if ($this->parentFirst)
         {

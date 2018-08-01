@@ -20,6 +20,7 @@ public:
     void yield();
     bool bind(std::string address, int port = 0);
     bool listen(int backlog = 0);
+    bool sendfile(char *filename, off_t offset, size_t length);
 
     void setTimeout(double timeout)
     {

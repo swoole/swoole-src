@@ -5,6 +5,7 @@
 
 #include <string>
 #include <iostream>
+#include <sys/stat.h>
 
 using namespace swoole;
 using namespace std;
@@ -13,6 +14,24 @@ static int socket_onRead(swReactor *reactor, swEvent *event);
 static int socket_onWrite(swReactor *reactor, swEvent *event);
 static void socket_onTimeout(swTimer *timer, swTimer_node *tnode);
 static void socket_onResolveCompleted(swAio_event *event);
+
+static inline int socket_connect(int fd, struct sockaddr *addr, socklen_t len)
+{
+    int retval;
+    while (1)
+    {
+        retval = ::connect(fd, addr, len);
+        if (retval < 0)
+        {
+            if (errno == EINTR)
+            {
+                continue;
+            }
+        }
+        break;
+    }
+    return retval;
+}
 
 Socket::Socket(enum swSocket_type type)
 {
@@ -185,19 +204,7 @@ bool Socket::connect(string host, int port, int flags)
         else
         {
             socklen_t len = sizeof(addr);
-            while (1)
-            {
-                retval = ::connect(socket->fd, (struct sockaddr *) &addr, len);
-                if (retval < 0)
-                {
-                    if (errno == EINTR)
-                    {
-                        continue;
-                    }
-                    errCode = errno;
-                }
-                break;
-            }
+            retval = socket_connect(socket->fd, (struct sockaddr *) &addr, len);
             break;
         }
     }
@@ -214,19 +221,7 @@ bool Socket::connect(string host, int port, int flags)
         else
         {
             socklen_t len = sizeof(addr);
-            while (1)
-            {
-                retval = ::connect(socket->fd, (struct sockaddr *) &addr, len);
-                if (retval < 0)
-                {
-                    if (errno == EINTR)
-                    {
-                        continue;
-                    }
-                    errCode = errno;
-                }
-                break;
-            }
+            retval = socket_connect(socket->fd, (struct sockaddr *) &addr, len);
             break;
         }
     }
@@ -237,22 +232,9 @@ bool Socket::connect(string host, int port, int flags)
         {
             return false;
         }
-
         s_un.sun_family = AF_UNIX;
         memcpy(&s_un.sun_path, _host.c_str(), _host.size());
-        while (1)
-        {
-            retval = ::connect(socket->fd, (struct sockaddr *) &s_un, (socklen_t) (offsetof(struct sockaddr_un, sun_path) + _host.size()));
-            if (retval < 0)
-            {
-                if (errno == EINTR)
-                {
-                    continue;
-                }
-                errCode = errno;
-            }
-            break;
-        }
+        retval = socket_connect(socket->fd, (struct sockaddr *) &s_un, (socklen_t) (offsetof(struct sockaddr_un, sun_path) + _host.size()));
         break;
     }
 
@@ -260,11 +242,16 @@ bool Socket::connect(string host, int port, int flags)
         return false;
     }
 
-    if (retval == -1 && errno == EINPROGRESS)
+    if (retval == -1)
     {
+        if (errno != EINPROGRESS)
+        {
+            _error: errCode = errno;
+            return false;
+        }
         if (reactor->add(reactor, socket->fd, SW_FD_CORO_SOCKET | SW_EVENT_WRITE) < 0)
         {
-            return false;
+            goto _error;
         }
         if (_timeout > 0)
         {
@@ -289,17 +276,10 @@ bool Socket::connect(string host, int port, int flags)
             errMsg = strerror(errCode);
             return false;
         }
-        else
-        {
-            socket->active = 1;
-            return true;
-        }
-    }
-    else
-    {
-        return false;
     }
 
+    socket->active = 1;
+    return true;
 }
 
 static void socket_onResolveCompleted(swAio_event *event)
@@ -424,6 +404,10 @@ ssize_t Socket::send(const void *__buf, size_t __n, int __flags)
 void Socket::yield()
 {
     _cid = coroutine_get_cid();
+    if (_cid == -1)
+    {
+        swError("Socket::yield() must be called in the coroutine.");
+    }
     coroutine_yield(coroutine_get_by_id(_cid));
 }
 
@@ -662,6 +646,68 @@ int Socket::ssl_verify(bool allow_self_signed)
     return SW_OK;
 }
 #endif
+
+bool Socket::sendfile(char *filename, off_t offset, size_t length)
+{
+    int file_fd = open(filename, O_RDONLY);
+    if (file_fd < 0)
+    {
+        swSysError("open(%s) failed.", filename);
+        return false;
+    }
+
+    if (length == 0)
+    {
+        struct stat file_stat;
+        if (::fstat(file_fd, &file_stat) < 0)
+        {
+            swSysError("fstat(%s) failed.", filename);
+            ::close(file_fd);
+            return false;
+        }
+        length = file_stat.st_size;
+    }
+    else
+    {
+        length = offset + length;
+    }
+
+    int n, sendn;
+    while (offset < length)
+    {
+        sendn = (length - offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : length - offset;
+        n = ::swoole_sendfile(socket->fd, file_fd, &offset, sendn);
+        if (n > 0)
+        {
+            continue;
+        }
+        else if (n == 0)
+        {
+            swWarn("sendfile return zero.");
+            return false;
+        }
+        else if (errno != EAGAIN)
+        {
+            swSysError("sendfile(%d, %s) failed.", socket->fd, filename);
+            goto _error;
+        }
+        if (reactor->add(reactor, socket->fd, SW_FD_CORO_SOCKET | SW_EVENT_WRITE) < 0)
+        {
+            _error: errCode = errno;
+            ::close(file_fd);
+            return false;
+        }
+        errCode = 0;
+        if (_timeout > 0)
+        {
+            int ms = (int) (_timeout * 1000);
+            timer = SwooleG.timer.add(&SwooleG.timer, ms, 0, this, socket_onTimeout);
+        }
+        yield();
+    }
+    ::close(file_fd);
+    return false;
+}
 
 Socket::~Socket()
 {

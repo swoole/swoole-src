@@ -614,6 +614,8 @@ static PHP_METHOD(swoole_client_coro, __construct)
         swoole_php_fatal_error(E_ERROR, "Unknown client type '%d'.", client_type);
     }
 
+    php_swoole_check_reactor();
+
     zend_update_property_long(swoole_client_coro_class_entry_ptr, getThis(), ZEND_STRL("type"), type TSRMLS_CC);
     //init
     swoole_set_object(getThis(), NULL);
