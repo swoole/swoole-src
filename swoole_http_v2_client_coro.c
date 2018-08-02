@@ -836,15 +836,22 @@ static void http2_client_onConnect(swClient *cli)
 static void http2_client_onClose(swClient *cli)
 {
     zval *zobject = cli->object;
+    http2_client_property *hcc = swoole_get_property(zobject, HTTP2_CLIENT_CORO_PROPERTY);
+
     zend_update_property_bool(swoole_http2_client_coro_class_entry_ptr, zobject, ZEND_STRL("connected"), 0 TSRMLS_CC);
 
     php_swoole_client_free(zobject, cli TSRMLS_CC);
 
-    http2_client_property *hcc = swoole_get_property(zobject,HTTP2_CLIENT_CORO_PROPERTY);
-    if (!hcc || hcc->iowait == 0) // when destruct hcc is null
+    if (!hcc)
     {
         return;
     }
+    hcc->client = NULL;
+    if (hcc->iowait == 0)
+    {
+        return;
+    }
+
     hcc->cid = 0;
     hcc->iowait = 0;
     zval *result;
@@ -867,12 +874,17 @@ static void http2_client_onError(swClient *cli)
     http2_client_property *hcc = swoole_get_property(zobject, HTTP2_CLIENT_CORO_PROPERTY);
 
     php_swoole_client_free(zobject, cli TSRMLS_CC);
-    hcc->client = NULL;
 
-    if (!hcc || hcc->iowait == 0)
+    if (!hcc)
     {
         return;
     }
+    hcc->client = NULL;
+    if (hcc->iowait == 0)
+    {
+        return;
+    }
+
     hcc->cid = 0;
     hcc->iowait = 0;
     php_context *context = swoole_get_property(zobject, HTTP2_CLIENT_CORO_CONTEXT);
