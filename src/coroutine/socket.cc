@@ -601,11 +601,6 @@ bool Socket::close()
     {
         unlink(socket->info.addr.un.sun_path);
     }
-    //remove from reactor
-    if (!socket->removed && reactor)
-    {
-        reactor->del(reactor, fd);
-    }
     if (timer)
     {
         swTimer_del(&SwooleG.timer, timer);
