@@ -501,10 +501,11 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
         }
     }
 
+    uint8_t stream_type = stream->type;
     if (
-            (type == SW_HTTP2_TYPE_DATA && stream->type == SW_HTTP2_STREAM_PIPELINE)
-            || (stream->type == SW_HTTP2_STREAM_NORMAL && (flags & SW_HTTP2_FLAG_END_STREAM))
-            || type == SW_HTTP2_TYPE_RST_STREAM || type == SW_HTTP2_TYPE_GOAWAY
+            (type == SW_HTTP2_TYPE_DATA && stream_type == SW_HTTP2_STREAM_PIPELINE) // pipeline data frame
+            || (stream_type == SW_HTTP2_STREAM_NORMAL && (flags & SW_HTTP2_FLAG_END_STREAM)) // normal end frame
+            || type == SW_HTTP2_TYPE_RST_STREAM || type == SW_HTTP2_TYPE_GOAWAY // rst and goaway frame
         )
     {
         zval _zresponse = stream->_response_object;
@@ -522,7 +523,7 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
             zend_update_property_stringl(swoole_http2_response_class_entry_ptr, stream->response_object, ZEND_STRL("body"), stream->buffer->str, stream->buffer->length TSRMLS_CC);
         }
 
-        if (stream->type == SW_HTTP2_STREAM_NORMAL)
+        if (stream_type == SW_HTTP2_STREAM_NORMAL)
         {
             Z_ADDREF_P(zresponse); // dtor in del
             swHashMap_del_int(hcc->streams, stream_id);
@@ -538,19 +539,22 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
             cli->timer = NULL;
         }
 
-        if (hcc->iowait == 0)
+        if (hcc->iowait != 0)
+        {
+            hcc->iowait = 0;
+            php_context *context = swoole_get_property(zobject, HTTP2_CLIENT_CORO_CONTEXT);
+            int ret = coro_resume(context, zresponse, &retval);
+            if (ret == CORO_END && retval)
+            {
+                sw_zval_ptr_dtor(&retval);
+            }
+        }
+
+        // if not pipeline or pipeline end, response refcount--
+        if (stream_type != SW_HTTP2_STREAM_PIPELINE || (flags & SW_HTTP2_FLAG_END_STREAM))
         {
             zval_ptr_dtor(zresponse);
-            return;
         }
-        hcc->iowait = 0;
-        php_context *context = swoole_get_property(zobject, HTTP2_CLIENT_CORO_CONTEXT);
-        int ret = coro_resume(context, zresponse, &retval);
-        if (ret == CORO_END && retval)
-        {
-            sw_zval_ptr_dtor(&retval);
-        }
-        zval_ptr_dtor(zresponse);
     }
 }
 
