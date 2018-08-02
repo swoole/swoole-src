@@ -141,9 +141,7 @@ bool Socket::connect(string host, int port, int flags)
         return false;
     }
 
-    swAio_event ev;
     int retval;
-
     _host = host;
     _port = port;
 
@@ -181,9 +179,9 @@ bool Socket::connect(string host, int port, int flags)
             {
                 _host = resolve(_host);
                 if (_host.size() == 0)
-                 {
-                     return false;
-                 }
+                {
+                    return false;
+                }
                 continue;
             }
             else
@@ -510,11 +508,11 @@ Socket* Socket::accept()
     }
 }
 
-string Socket::resolve(string host)
+string Socket::resolve(string domain_name)
 {
     swAio_event ev;
     bzero(&ev, sizeof(swAio_event));
-    ev.nbytes = host.size() < SW_IP_MAX_LENGTH ? SW_IP_MAX_LENGTH : host.size() + 1;
+    ev.nbytes = SW_IP_MAX_LENGTH;
     ev.buf = sw_malloc(ev.nbytes);
     if (!ev.buf)
     {
@@ -522,8 +520,8 @@ string Socket::resolve(string host)
         return "";
     }
 
-    memcpy(ev.buf, _host.c_str(), _host.size());
-    ((char *) ev.buf)[_host.size()] = 0;
+    memcpy(ev.buf, domain_name.c_str(), domain_name.size());
+    ((char *) ev.buf)[domain_name.size()] = 0;
     ev.flags = _sock_domain;
     ev.type = SW_AIO_GETHOSTBYNAME;
     ev.object = this;
