@@ -104,7 +104,8 @@ void swSignal_add(int signo, swSignalHander func)
 #ifdef HAVE_KQUEUE
         // SIGCHLD can not be monitored by kqueue, if blocked by SIG_IGN
         // see https://www.freebsd.org/cgi/man.cgi?kqueue
-        if (signo != SIGCHLD)
+        // if there's no main reactor, signals cannot be monitored either
+        if (signo != SIGCHLD && SwooleG.main_reactor)
         {
             swKqueueSignal_set(signo, func);
         }
@@ -170,7 +171,7 @@ void swSignal_clear(void)
             if (signals[i].active)
             {
 #ifdef HAVE_KQUEUE
-                if (signals[i].signo != SIGCHLD)
+                if (signals[i].signo != SIGCHLD && SwooleG.main_reactor)
                 {
                     swKqueueSignal_set(signals[i].signo, NULL);
                 }
@@ -291,14 +292,6 @@ static void swKqueueSignal_set(int signo, swSignalHander callback)
 {
     struct kevent ev;
     swReactor *reactor = SwooleG.main_reactor;
-    if (reactor == NULL)
-    {
-        if (callback)
-        {
-            swWarn("kevent set signal[%d] error, main reactor is destroyed", signo);
-        }
-        return;
-    }
     struct
     {
         int fd;
@@ -335,7 +328,7 @@ static void swKqueueSignal_set(int signo, swSignalHander callback)
     int n = kevent(reactor_obj->fd, &ev, 1, NULL, 0, NULL);
     if (n < 0)
     {
-        if (callback)
+        if (unlikely(callback))
         {
             swWarn("kevent set signal[%d] error", signo);
         }
