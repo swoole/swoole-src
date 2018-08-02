@@ -708,13 +708,13 @@ static PHP_METHOD(swoole_mysql_coro, connect)
 
     if (php_swoole_array_get_value(_ht, "strict_type", value))
     {
-        convert_to_bool(value);
+        convert_to_boolean(value);
         connector->strict_type = Z_BVAL_P(value);
     }
 
     if (php_swoole_array_get_value(_ht, "fetch_mode", value))
     {
-        convert_to_bool(value);
+        convert_to_boolean(value);
         connector->fetch_mode = Z_BVAL_P(value);
     }
 
