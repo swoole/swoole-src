@@ -406,7 +406,7 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
     {
         swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_PING, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, SW_HTTP2_FLAG_ACK, stream_id);
         memcpy(frame + SW_HTTP2_FRAME_HEADER_SIZE, buf + SW_HTTP2_FRAME_HEADER_SIZE, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE);
-        swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN", STREAM#%d]", swHttp2_get_type(SW_HTTP2_FRAME_PING_PAYLOAD_SIZE), stream_id);
+        swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN", STREAM#%d]", swHttp2_get_type(SW_HTTP2_TYPE_PING), stream_id);
         cli->send(cli, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, 0);
         return;
     }
