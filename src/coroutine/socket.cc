@@ -289,9 +289,9 @@ static int socket_onWrite(swReactor *reactor, swEvent *event)
     return SW_OK;
 }
 
-ssize_t Socket::recv(void *__buf, size_t __n, int __flags)
+ssize_t Socket::recv(void *__buf, size_t __n)
 {
-    ssize_t retval = swConnection_recv(socket, __buf, __n, __flags);
+    ssize_t retval = swConnection_recv(socket, __buf, __n, 0);
     if (retval >= 0 || errno != EAGAIN)
     {
         return retval;
@@ -324,7 +324,12 @@ ssize_t Socket::recv(void *__buf, size_t __n, int __flags)
     {
         return false;
     }
-    retval = swConnection_recv(socket, __buf, __n, __flags);
+    if (timer)
+    {
+        swTimer_del(&SwooleG.timer, timer);
+        timer = nullptr;
+    }
+    retval = swConnection_recv(socket, __buf, __n, 0);
     if (retval < 0)
     {
         goto _error;
@@ -335,9 +340,30 @@ ssize_t Socket::recv(void *__buf, size_t __n, int __flags)
     }
 }
 
-ssize_t Socket::send(const void *__buf, size_t __n, int __flags)
+ssize_t Socket::recv_waitall(void *__buf, size_t __n)
 {
-    ssize_t n = swConnection_send(socket, (void *) __buf, __n, __flags);
+    ssize_t retval, total_bytes = 0;
+    while (true)
+    {
+        retval = recv((char*) __buf + total_bytes, __n - total_bytes);
+        if (retval <= 0)
+        {
+            return retval;
+        }
+        else
+        {
+            total_bytes += retval;
+            if (total_bytes == __n)
+            {
+                return total_bytes;
+            }
+        }
+    }
+}
+
+ssize_t Socket::send(const void *__buf, size_t __n)
+{
+    ssize_t n = swConnection_send(socket, (void *) __buf, __n, 0);
     if (n >= 0)
     {
         return n;
@@ -373,7 +399,12 @@ ssize_t Socket::send(const void *__buf, size_t __n, int __flags)
     {
         return false;
     }
-    ssize_t retval = swConnection_send(socket, (void *) __buf, __n, __flags);
+    if (timer)
+    {
+        swTimer_del(&SwooleG.timer, timer);
+        timer = nullptr;
+    }
+    ssize_t retval = swConnection_send(socket, (void *) __buf, __n, 0);
     if (retval < 0)
     {
         goto _error;
@@ -382,6 +413,11 @@ ssize_t Socket::send(const void *__buf, size_t __n, int __flags)
     {
         return retval;
     }
+}
+
+ssize_t Socket::peek(void *__buf, size_t __n)
+{
+    return swConnection_send(socket, __buf, __n, MSG_PEEK | MSG_DONTWAIT);
 }
 
 void Socket::yield()

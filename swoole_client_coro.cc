@@ -731,16 +731,13 @@ static PHP_METHOD(swoole_client_coro, send)
 {
     char *data;
     zend_size_t data_len;
-    zend_long flags = 0;
 
 #ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(1, 2)
         Z_PARAM_STRING(data, data_len)
-        Z_PARAM_OPTIONAL
-        Z_PARAM_LONG(flags)
     ZEND_PARSE_PARAMETERS_END();
 #else
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|l", &data, &data_len, &flags) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|l", &data, &data_len) == FAILURE)
     {
         return;
     }
@@ -760,7 +757,7 @@ static PHP_METHOD(swoole_client_coro, send)
 
     //clear errno
     SwooleG.error = 0;
-    int ret = cli->send(data, data_len, flags);
+    int ret = cli->send(data, data_len);
     if (ret < 0)
     {
         swoole_php_sys_error(E_WARNING, "failed to send(%d) %zd bytes.", cli->socket->fd, data_len);
@@ -924,7 +921,7 @@ static PHP_METHOD(swoole_client_coro, recv)
                 buf_len = SW_BUFFER_SIZE_BIG;
             }
 
-            ret = cli->recv(buf, buf_len, 0);
+            ret = cli->recv(buf, buf_len);
             if (ret < 0)
             {
                 swoole_php_error(E_WARNING, "recv() failed. Error: %s [%d]", strerror(errno), errno);
@@ -998,7 +995,7 @@ static PHP_METHOD(swoole_client_coro, recv)
         }
 
         uint32_t header_len = protocol->package_length_offset + protocol->package_length_size;
-        ret = cli->recv(cli->buffer->str, header_len, MSG_WAITALL);
+        ret = cli->recv_waitall(cli->buffer->str, header_len);
         if (ret <= 0)
         {
             goto check_return;
@@ -1030,7 +1027,7 @@ static PHP_METHOD(swoole_client_coro, recv)
         buf = (char *) emalloc(buf_len + 1);
         memcpy(buf, cli->buffer->str, header_len);
         SwooleG.error = 0;
-        ret = cli->recv(buf + header_len, buf_len - header_len, MSG_WAITALL);
+        ret = cli->recv_waitall(buf + header_len, buf_len - header_len);
         if (ret > 0)
         {
             ret += header_len;
@@ -1048,7 +1045,14 @@ static PHP_METHOD(swoole_client_coro, recv)
         }
         buf = (char *) emalloc(buf_len + 1);
         SwooleG.error = 0;
-        ret = cli->recv(buf, buf_len, flags);
+        if (flags & MSG_WAITALL)
+        {
+            ret = cli->recv_waitall(buf, buf_len);
+        }
+        else
+        {
+            ret = cli->recv(buf, buf_len);
+        }
     }
 
     check_return:
@@ -1107,9 +1111,9 @@ static PHP_METHOD(swoole_client_coro, peek)
     }
 #endif
 
-    buf = (char *)emalloc(buf_len + 1);
+    buf = (char *) emalloc(buf_len + 1);
     SwooleG.error = 0;
-    ret = cli->recv(buf, buf_len, MSG_PEEK | MSG_DONTWAIT);
+    ret = cli->peek(buf, buf_len);
 
     if (ret < 0)
     {

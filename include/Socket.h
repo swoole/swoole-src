@@ -13,8 +13,10 @@ public:
     ~Socket();
     bool connect(std::string host, int port, int flags = 0);
     bool close();
-    ssize_t send(const void *__buf, size_t __n, int __flags = 0);
-    ssize_t recv(void *__buf, size_t __n, int __flags = 0);
+    ssize_t send(const void *__buf, size_t __n);
+    ssize_t peek(void *__buf, size_t __n);
+    ssize_t recv(void *__buf, size_t __n);
+    ssize_t recv_waitall(void *__buf, size_t __n);
     Socket* accept();
     void resume();
     void yield();

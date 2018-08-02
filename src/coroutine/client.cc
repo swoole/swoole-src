@@ -206,14 +206,14 @@ bool Client::tcp_connect(char *host, int port, int flags)
         if (socks5_proxy)
         {
             swSocks5_pack(buf, socks5_proxy->username == NULL ? 0x00 : 0x02);
-            if (send(buf, 3, 0) < 0)
+            if (send(buf, 3) < 0)
             {
                 return SW_ERR;
             }
             socks5_proxy->state = SW_SOCKS5_STATE_HANDSHAKE;
             while (1)
             {
-                n = recv(buf, sizeof(buf), 0);
+                n = recv(buf, sizeof(buf));
                 if (n > 0)
                 {
                     if (socks5_connect(buf, n) < 0)
@@ -282,7 +282,7 @@ int Client::socks5_connect(char *recv_data, int length)
 
             ctx->state = SW_SOCKS5_STATE_AUTH;
 
-            return send(ctx->buf, ctx->l_username + ctx->l_password + 3, 0);
+            return send(ctx->buf, ctx->l_username + ctx->l_password + 3);
         }
         //send connect request
         else
@@ -301,7 +301,7 @@ int Client::socks5_connect(char *recv_data, int length)
                 memcpy(buf, ctx->target_host, ctx->l_target_host);
                 buf += ctx->l_target_host;
                 *(uint16_t *) buf = htons(ctx->target_port);
-                return send(ctx->buf, ctx->l_target_host + 7, 0);
+                return send(ctx->buf, ctx->l_target_host + 7);
             }
             else
             {
@@ -310,7 +310,7 @@ int Client::socks5_connect(char *recv_data, int length)
                 *(uint32_t *) buf = htons(ctx->l_target_host);
                 buf += 4;
                 *(uint16_t *) buf = htons(ctx->target_port);
-                return send(ctx->buf, ctx->l_target_host + 7, 0);
+                return send(ctx->buf, ctx->l_target_host + 7);
             }
         }
     }
