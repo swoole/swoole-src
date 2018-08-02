@@ -19,6 +19,7 @@ public:
     void resume();
     void yield();
     bool bind(std::string address, int port = 0);
+    std::string resolve(std::string host);
     bool listen(int backlog = 0);
     bool sendfile(char *filename, off_t offset, size_t length);
 

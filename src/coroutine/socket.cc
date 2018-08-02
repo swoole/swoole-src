@@ -143,103 +143,73 @@ bool Socket::connect(string host, int port, int flags)
 
     swAio_event ev;
     int retval;
-    bool _try_gethost = false;
 
     _host = host;
     _port = port;
 
-    _connect: switch (_sock_domain)
+    for (int i = 0; i < 2; i++)
     {
-    case AF_INET:
-    {
-        struct sockaddr_in addr;
-        addr.sin_family = AF_INET;
-        addr.sin_port = htons(port);
-
-        if (!inet_pton(AF_INET, _host.c_str(), &addr.sin_addr))
+        if (_sock_domain == AF_INET)
         {
-            _gethost: if (_try_gethost)
-            {
-                retval = -1;
-                break;
-            }
+            struct sockaddr_in addr;
+            addr.sin_family = AF_INET;
+            addr.sin_port = htons(port);
 
-            bzero(&ev, sizeof(swAio_event));
-            _try_gethost = true;
-            ev.nbytes = _host.size() < SW_IP_MAX_LENGTH ? SW_IP_MAX_LENGTH : _host.size() + 1;
-            ev.buf = sw_malloc(ev.nbytes);
-            if (!ev.buf)
+            if (!inet_pton(AF_INET, _host.c_str(), &addr.sin_addr))
             {
-                return false;
-            }
-
-            memcpy(ev.buf, _host.c_str(), _host.size());
-            ((char *) ev.buf)[_host.size()] = 0;
-            ev.flags = _sock_domain;
-            ev.type = SW_AIO_GETHOSTBYNAME;
-            ev.object = this;
-            ev.callback = socket_onResolveCompleted;
-
-            if (SwooleAIO.init == 0)
-            {
-                swAio_init();
-            }
-
-            if (swAio_dispatch(&ev) < 0)
-            {
-                sw_free(ev.buf);
-                return false;
+                _host = resolve(_host);
+                if (_host.size() == 0)
+                {
+                    return false;
+                }
+                continue;
             }
             else
             {
-                yield();
-                if (errCode == SW_ERROR_DNSLOOKUP_RESOLVE_FAILED)
-                {
-                    errMsg = hstrerror(ev.error);
-                    return false;
-                }
-                goto _connect;
+                socklen_t len = sizeof(addr);
+                retval = socket_connect(socket->fd, (struct sockaddr *) &addr, len);
+                break;
             }
         }
-        else
+        else if (_sock_domain == AF_INET6)
         {
-            socklen_t len = sizeof(addr);
-            retval = socket_connect(socket->fd, (struct sockaddr *) &addr, len);
-            break;
-        }
-    }
-    case AF_INET6:
-    {
-        struct sockaddr_in6 addr;
-        addr.sin6_family = AF_INET6;
-        addr.sin6_port = htons(port);
+            struct sockaddr_in6 addr;
+            addr.sin6_family = AF_INET6;
+            addr.sin6_port = htons(port);
 
-        if (!inet_pton(AF_INET6, _host.c_str(), &addr.sin6_addr))
-        {
-            goto _gethost;
+            if (!inet_pton(AF_INET6, _host.c_str(), &addr.sin6_addr))
+            {
+                _host = resolve(_host);
+                if (_host.size() == 0)
+                 {
+                     return false;
+                 }
+                continue;
+            }
+            else
+            {
+                socklen_t len = sizeof(addr);
+                retval = socket_connect(socket->fd, (struct sockaddr *) &addr, len);
+                break;
+            }
         }
-        else
+        else if (_sock_domain == AF_UNIX)
         {
-            socklen_t len = sizeof(addr);
-            retval = socket_connect(socket->fd, (struct sockaddr *) &addr, len);
+            struct sockaddr_un s_un = { 0 };
+            if (_host.size() >= sizeof(s_un.sun_path))
+            {
+                return false;
+            }
+            s_un.sun_family = AF_UNIX;
+            memcpy(&s_un.sun_path, _host.c_str(), _host.size());
+            retval = socket_connect(socket->fd, (struct sockaddr *) &s_un,
+                    (socklen_t) (offsetof(struct sockaddr_un, sun_path) + _host.size()));
             break;
         }
-    }
-    case AF_UNIX:
-    {
-        struct sockaddr_un s_un = { 0 };
-        if (_host.size() >= sizeof(s_un.sun_path))
+        else
         {
             return false;
         }
-        s_un.sun_family = AF_UNIX;
-        memcpy(&s_un.sun_path, _host.c_str(), _host.size());
-        retval = socket_connect(socket->fd, (struct sockaddr *) &s_un, (socklen_t) (offsetof(struct sockaddr_un, sun_path) + _host.size()));
-        break;
-    }
-
-    default:
-        return false;
     }
 
     if (retval == -1)
@@ -289,12 +259,7 @@ bool Socket::connect(string host, int port, int flags)
 static void socket_onResolveCompleted(swAio_event *event)
 {
     Socket *sock = (Socket *) event->object;
-    if (event->error == 0)
-    {
-        sock->_host = string((const char *) event->buf);
-        sw_free(event->buf);
-    }
-    else
+    if (event->error != 0)
     {
         sock->errCode = SW_ERROR_DNSLOOKUP_RESOLVE_FAILED;
     }
@@ -542,6 +507,51 @@ Socket* Socket::accept()
     {
         errCode = errno;
         return nullptr;
+    }
+}
+
+string Socket::resolve(string host)
+{
+    swAio_event ev;
+    bzero(&ev, sizeof(swAio_event));
+    ev.nbytes = host.size() < SW_IP_MAX_LENGTH ? SW_IP_MAX_LENGTH : host.size() + 1;
+    ev.buf = sw_malloc(ev.nbytes);
+    if (!ev.buf)
+    {
+        errCode = errno;
+        return "";
+    }
+
+    memcpy(ev.buf, _host.c_str(), _host.size());
+    ((char *) ev.buf)[_host.size()] = 0;
+    ev.flags = _sock_domain;
+    ev.type = SW_AIO_GETHOSTBYNAME;
+    ev.object = this;
+    ev.callback = socket_onResolveCompleted;
+
+    if (SwooleAIO.init == 0)
+    {
+        swAio_init();
+    }
+
+    if (swAio_dispatch(&ev) < 0)
+    {
+        errCode = SwooleG.error;
+        sw_free(ev.buf);
+        return "";
+    }
+    errCode = 0;
+    yield();
+    if (errCode == SW_ERROR_DNSLOOKUP_RESOLVE_FAILED)
+    {
+        errMsg = hstrerror(ev.error);
+        return "";
+    }
+    else
+    {
+        string addr((char *) ev.buf);
+        sw_free(ev.buf);
+        return move(addr);
     }
 }
 
