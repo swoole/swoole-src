@@ -615,7 +615,6 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     zval *value;
 
     mysql_client *client = swoole_get_object(getThis());
-
     if (client->cli)
     {
         swoole_php_fatal_error(E_WARNING, "connection to the server has already been established.");
@@ -709,34 +708,14 @@ static PHP_METHOD(swoole_mysql_coro, connect)
 
     if (php_swoole_array_get_value(_ht, "strict_type", value))
     {
-        if (Z_TYPE_P(value) == IS_TRUE)
-        {
-            connector->strict_type = 1;
-        }
-        else
-        {
-            connector->strict_type = 0;
-        }
-    }
-    else
-    {
-        connector->strict_type = 0;
+        convert_to_bool(value);
+        connector->strict_type = Z_BVAL_P(value);
     }
 
     if (php_swoole_array_get_value(_ht, "fetch_mode", value))
     {
-        if (Z_TYPE_P(value) == IS_TRUE)
-        {
-            connector->fetch_mode = 1;
-        }
-        else
-        {
-            connector->fetch_mode = 0;
-        }
-    }
-    else
-    {
-        connector->fetch_mode = 0;
+        convert_to_bool(value);
+        connector->fetch_mode = Z_BVAL_P(value);
     }
 
     swClient *cli = emalloc(sizeof(swClient));
