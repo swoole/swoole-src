@@ -53,6 +53,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http2_client_coro_write, 0, 0, 2)
     ZEND_ARG_INFO(0, end_stream)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http2_client_coro_rawSend, 0, 0, 1)
+    ZEND_ARG_INFO(0, data)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http2_client_coro_recv, 0, 0, 0)
     ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
@@ -66,11 +70,12 @@ enum
 static PHP_METHOD(swoole_http2_client_coro, __construct);
 static PHP_METHOD(swoole_http2_client_coro, __destruct);
 static PHP_METHOD(swoole_http2_client_coro, set);
-static PHP_METHOD(swoole_http2_client_coro, send);
-static PHP_METHOD(swoole_http2_client_coro, recv);
 static PHP_METHOD(swoole_http2_client_coro, connect);
-static PHP_METHOD(swoole_http2_client_coro, close);
+static PHP_METHOD(swoole_http2_client_coro, send);
 static PHP_METHOD(swoole_http2_client_coro, write);
+static PHP_METHOD(swoole_http2_client_coro, rawSend);
+static PHP_METHOD(swoole_http2_client_coro, recv);
+static PHP_METHOD(swoole_http2_client_coro, close);
 
 static int http2_client_send_request(zval *zobject, zval *request TSRMLS_DC);
 static void http2_client_stream_free(void *ptr);
@@ -83,13 +88,14 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length);
 static const zend_function_entry swoole_http2_client_methods[] =
 {
     PHP_ME(swoole_http2_client_coro, __construct, arginfo_swoole_http2_client_coro_construct, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
-    PHP_ME(swoole_http2_client_coro, __destruct, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
-    PHP_ME(swoole_http2_client_coro, set,      arginfo_swoole_http2_client_coro_set, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http2_client_coro, connect,  arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http2_client_coro, send,      arginfo_swoole_http2_client_coro_send, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http2_client_coro, write,     arginfo_swoole_http2_client_coro_write, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http2_client_coro, recv,      arginfo_swoole_http2_client_coro_recv, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http2_client_coro, close,     arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http2_client_coro, __destruct,  arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
+    PHP_ME(swoole_http2_client_coro, set,         arginfo_swoole_http2_client_coro_set, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http2_client_coro, connect,     arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http2_client_coro, send,        arginfo_swoole_http2_client_coro_send, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http2_client_coro, write,       arginfo_swoole_http2_client_coro_write, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http2_client_coro, rawSend,     arginfo_swoole_http2_client_coro_rawSend, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http2_client_coro, recv,        arginfo_swoole_http2_client_coro_recv, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http2_client_coro, close,       arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
@@ -1056,6 +1062,27 @@ static PHP_METHOD(swoole_http2_client_coro, write)
         return;
     }
     SW_CHECK_RETURN(http2_client_send_data(hcc, stream_id, data, end TSRMLS_CC));
+}
+
+static PHP_METHOD(swoole_http2_client_coro, rawSend)
+{
+    http2_client_property *hcc = swoole_get_property(getThis(), HTTP2_CLIENT_CORO_PROPERTY);
+    swClient *cli = hcc->client;
+    swString data;
+
+    if (!cli || !cli->socket || cli->socket->closed)
+    {
+        swoole_php_error(E_WARNING, "The connection is closed.");
+        RETURN_FALSE;
+    }
+
+    bzero(&data, sizeof(data));
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &data.str, &data.length) == FAILURE)
+    {
+        return;
+    }
+
+    SW_CHECK_RETURN(cli->send(cli, data.str, data.length, 0));
 }
 
 #endif
