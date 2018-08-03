@@ -12,8 +12,8 @@ public:
     ~Socket();
     bool connect(std::string host, int port, int flags = 0);
     bool close();
-    int send(const void *__buf, size_t __n, int __flags = 0);
-    int recv(void *__buf, size_t __n, int __flags = 0);
+    ssize_t send(const void *__buf, size_t __n, int __flags = 0);
+    ssize_t recv(void *__buf, size_t __n, int __flags = 0);
     Socket* accept();
     void resume();
     void yield();

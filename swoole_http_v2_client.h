@@ -68,6 +68,7 @@ typedef struct
 #endif
 
     uint32_t stream_id;
+    uint32_t last_stream_id;
 
     // flow control
     uint32_t send_window;
