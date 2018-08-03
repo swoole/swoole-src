@@ -61,6 +61,11 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http2_client_coro_recv, 0, 0, 0)
     ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http2_client_coro_goaway, 0, 0, 0)
+    ZEND_ARG_INFO(0, error_code)
+    ZEND_ARG_INFO(0, debug_data)
+ZEND_END_ARG_INFO()
+
 enum
 {
     HTTP2_CLIENT_CORO_CONTEXT  = 0,
@@ -75,6 +80,7 @@ static PHP_METHOD(swoole_http2_client_coro, send);
 static PHP_METHOD(swoole_http2_client_coro, write);
 static PHP_METHOD(swoole_http2_client_coro, rawSend);
 static PHP_METHOD(swoole_http2_client_coro, recv);
+static PHP_METHOD(swoole_http2_client_coro, goaway);
 static PHP_METHOD(swoole_http2_client_coro, close);
 
 static int http2_client_send_request(zval *zobject, zval *request TSRMLS_DC);
@@ -95,6 +101,7 @@ static const zend_function_entry swoole_http2_client_methods[] =
     PHP_ME(swoole_http2_client_coro, write,       arginfo_swoole_http2_client_coro_write, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http2_client_coro, rawSend,     arginfo_swoole_http2_client_coro_rawSend, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http2_client_coro, recv,        arginfo_swoole_http2_client_coro_recv, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http2_client_coro, goaway,      arginfo_swoole_http2_client_coro_goaway, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http2_client_coro, close,       arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
@@ -118,6 +125,7 @@ void swoole_http2_client_coro_init(int module_number TSRMLS_DC)
     }
 
     zend_declare_property_long(swoole_http2_client_coro_class_entry_ptr, SW_STRL("errCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_http2_client_coro_class_entry_ptr, SW_STRL("errMsg")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(swoole_http2_client_coro_class_entry_ptr, SW_STRL("sock")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(swoole_http2_client_coro_class_entry_ptr, ZEND_STRL("type"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_http2_client_coro_class_entry_ptr, ZEND_STRL("setting"), ZEND_ACC_PUBLIC TSRMLS_CC);
@@ -132,6 +140,20 @@ void swoole_http2_client_coro_init(int module_number TSRMLS_DC)
     zend_declare_property_null(swoole_http2_request_coro_class_entry_ptr, SW_STRL("data")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_bool(swoole_http2_request_coro_class_entry_ptr, SW_STRL("pipeline")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_http2_request_coro_class_entry_ptr, SW_STRL("files")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+
+    SWOOLE_DEFINE(HTTP2_ERROR_NO_ERROR);
+    SWOOLE_DEFINE(HTTP2_ERROR_PROTOCOL_ERROR);
+    SWOOLE_DEFINE(HTTP2_ERROR_INTERNAL_ERROR);
+    SWOOLE_DEFINE(HTTP2_ERROR_FLOW_CONTROL_ERROR);
+    SWOOLE_DEFINE(HTTP2_ERROR_SETTINGS_TIMEOUT);
+    SWOOLE_DEFINE(HTTP2_ERROR_STREAM_CLOSED);
+    SWOOLE_DEFINE(HTTP2_ERROR_FRAME_SIZE_ERROR);
+    SWOOLE_DEFINE(HTTP2_ERROR_REFUSED_STREAM);
+    SWOOLE_DEFINE(HTTP2_ERROR_CANCEL);
+    SWOOLE_DEFINE(HTTP2_ERROR_COMPRESSION_ERROR);
+    SWOOLE_DEFINE(HTTP2_ERROR_CONNECT_ERROR);
+    SWOOLE_DEFINE(HTTP2_ERROR_ENHANCE_YOUR_CALM);
+    SWOOLE_DEFINE(HTTP2_ERROR_INADEQUATE_SECURITY);
 }
 
 static PHP_METHOD(swoole_http2_client_coro, __construct)
@@ -349,6 +371,7 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
     char frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE];
 
     http2_client_property *hcc = swoole_get_property(zobject, HTTP2_CLIENT_CORO_PROPERTY);
+    hcc->last_stream_id = stream_id;
 
     uint16_t id;
     uint32_t value;
@@ -421,7 +444,12 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
         int last_stream_id = htonl(*(int *) (buf));
         buf += 4;
         error_code = htonl(*(int *) (buf));
-        swWarn("["SW_ECHO_RED"] last_stream_id=%d, error_code=%d.", "GOAWAY", last_stream_id, error_code);
+        buf += 4;
+
+        // update goaway error code and error msg
+        swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_RED"] last_stream_id=%d, error_code=%d, opaque_data=[%s]", "GOAWAY", last_stream_id, error_code, buf);
+        zend_update_property_long(swoole_http2_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), error_code TSRMLS_CC);
+        zend_update_property_string(swoole_http2_client_coro_class_entry_ptr, zobject, ZEND_STRL("errMsg"), buf TSRMLS_CC);
 
         zval* retval;
         sw_zend_call_method_with_0_params(&zobject, swoole_http2_client_coro_class_entry_ptr, NULL, "close", &retval);
@@ -450,6 +478,7 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
         error_code = htonl(*(int *) (buf));
         swWarn("["SW_ECHO_RED"] stream_id=%d, error_code=%d.", "RST_STREAM", stream_id, error_code);
 
+        //TODO: return stream id let we know which stream met error
         if (hcc->iowait == 0)
         {
             return;
@@ -1083,6 +1112,50 @@ static PHP_METHOD(swoole_http2_client_coro, rawSend)
     }
 
     SW_CHECK_RETURN(cli->send(cli, data.str, data.length, 0));
+}
+
+/**
+ * +-+-------------------------------------------------------------+
+ * |R|                  Last-Stream-ID (31)                        |
+ * +-+-------------------------------------------------------------+
+ * |                      Error Code (32)                          |
+ * +---------------------------------------------------------------+
+ * |                  Additional Debug Data (*)                    |
+ * +---------------------------------------------------------------+
+ */
+static PHP_METHOD(swoole_http2_client_coro, goaway)
+{
+    http2_client_property *hcc = swoole_get_property(getThis(), HTTP2_CLIENT_CORO_PROPERTY);
+    swClient *cli = hcc->client;
+    int ret;
+    char* frame;
+    uint8_t error_code = SW_HTTP2_ERROR_NO_ERROR;
+    swString debug_data;
+
+    if (!cli || !cli->socket || cli->socket->closed)
+    {
+        swoole_php_error(E_WARNING, "The connection is closed.");
+        RETURN_FALSE;
+    }
+
+    bzero(&debug_data, sizeof(debug_data));
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|ls", &error_code, &debug_data.str, &debug_data.length) == FAILURE)
+    {
+        return;
+    }
+
+    size_t length = SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_GOAWAY_SIZE + debug_data.length;
+    frame = emalloc(length);
+    bzero(frame, length);
+    swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_GOAWAY, SW_HTTP2_GOAWAY_SIZE + debug_data.length, error_code, 0);
+    *(uint32_t*) (frame + SW_HTTP2_FRAME_HEADER_SIZE) = htonl(hcc->last_stream_id);
+    *(uint32_t*) (frame + SW_HTTP2_FRAME_HEADER_SIZE + 4) = htonl(error_code);
+    memcpy(frame + SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_GOAWAY_SIZE, debug_data.str, debug_data.length);
+    swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN"] Send: last-sid=%d, error-code=%d", swHttp2_get_type(SW_HTTP2_TYPE_GOAWAY), hcc->last_stream_id, error_code);
+
+    ret = cli->send(cli, frame, length, 0);
+    efree(frame);
+    SW_CHECK_RETURN(ret);
 }
 
 #endif
