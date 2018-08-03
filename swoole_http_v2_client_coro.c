@@ -476,9 +476,8 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
     case SW_HTTP2_TYPE_RST_STREAM:
     {
         error_code = htonl(*(int *) (buf));
-        swWarn("["SW_ECHO_RED"] stream_id=%d, error_code=%d.", "RST_STREAM", stream_id, error_code);
+        swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_RED"] stream_id=%d, error_code=%d.", "RST_STREAM", stream_id, error_code);
 
-        //TODO: return stream id let we know which stream met error
         if (hcc->iowait == 0)
         {
             return;
