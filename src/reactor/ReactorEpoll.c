@@ -252,7 +252,7 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
             event.socket = swReactor_get(reactor, event.fd);
 
             //read
-            if ((events[i].events & (EPOLLIN | EPOLLRDHUP | EPOLLERR | EPOLLHUP)) && !event.socket->removed)
+            if ((events[i].events & EPOLLIN) && !event.socket->removed)
             {
                 handle = swReactor_getHandle(reactor, SW_EVENT_READ, event.type);
                 ret = handle(reactor, &event);
@@ -269,6 +269,21 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
                 if (ret < 0)
                 {
                     swSysError("EPOLLOUT handle failed. fd=%d.", event.fd);
+                }
+            }
+            //error
+            if ((events[i].events & (EPOLLRDHUP | EPOLLERR | EPOLLHUP)) && !event.socket->removed)
+            {
+                //ignore ERR and HUP, because event is already processed at IN and OUT handler.
+                if ((events[i].events & EPOLLIN) || (events[i].events & EPOLLOUT))
+                {
+                    continue;
+                }
+                handle = swReactor_getHandle(reactor, SW_EVENT_ERROR, event.type);
+                ret = handle(reactor, &event);
+                if (ret < 0)
+                {
+                    swSysError("EPOLLERR handle failed. fd=%d.", event.fd);
                 }
             }
             if (!event.socket->removed && (event.socket->events & SW_EVENT_ONCE))
