@@ -526,10 +526,6 @@ static int swClient_close(swClient *cli)
             cli->socket->active = 0;
             cli->onClose(cli);
         }
-        else if (cli->onError)
-        {
-            cli->onError(cli);
-        }
     }
     else
     {
