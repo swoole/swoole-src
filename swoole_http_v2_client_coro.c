@@ -447,9 +447,9 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
         buf += 4;
 
         // update goaway error code and error msg
-        swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_RED"] last_stream_id=%d, error_code=%d, opaque_data=[%s]", "GOAWAY", last_stream_id, error_code, buf);
+        swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_RED"] last_stream_id=%d, error_code=%d, opaque_data=[%.*s]", "GOAWAY", last_stream_id, error_code, length - SW_HTTP2_GOAWAY_SIZE, buf);
         zend_update_property_long(swoole_http2_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), error_code TSRMLS_CC);
-        zend_update_property_string(swoole_http2_client_coro_class_entry_ptr, zobject, ZEND_STRL("errMsg"), buf TSRMLS_CC);
+        zend_update_property_stringl(swoole_http2_client_coro_class_entry_ptr, zobject, ZEND_STRL("errMsg"), buf, length - SW_HTTP2_GOAWAY_SIZE TSRMLS_CC);
 
         zval* retval;
         sw_zend_call_method_with_0_params(&zobject, swoole_http2_client_coro_class_entry_ptr, NULL, "close", &retval);
