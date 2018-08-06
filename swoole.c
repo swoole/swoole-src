@@ -1187,9 +1187,6 @@ PHP_MINFO_FUNCTION(swoole)
 #ifdef HAVE_KQUEUE
     php_info_print_table_row(2, "kqueue", "enabled");
 #endif
-#ifdef HAVE_TIMERFD
-    php_info_print_table_row(2, "timerfd", "enabled");
-#endif
 #ifdef HAVE_SIGNALFD
     php_info_print_table_row(2, "signalfd", "enabled");
 #endif

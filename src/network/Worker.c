@@ -733,10 +733,6 @@ int swWorker_loop(swFactory *factory, int worker_id)
 #elif defined(HAVE_SIGNALFD)
     SwooleG.use_signalfd = 1;
 #endif
-    //timerfd
-#ifdef HAVE_TIMERFD
-    SwooleG.use_timerfd = 1;
-#endif
 
     //worker_id
     SwooleWG.id = worker_id;
