@@ -496,7 +496,7 @@ typedef struct _swConnection
     uint16_t socket_type;
 
     /**
-     * fd type, SW_FD_TCP or SW_FD_PIPE or SW_FD_TIMERFD
+     * fd type, SW_FD_TCP or SW_FD_PIPE
      */
     uint16_t fdtype;
 
@@ -505,7 +505,7 @@ typedef struct _swConnection
     //--------------------------------------------------------------
     /**
      * is active
-     * system fd must be 0. en: timerfd, signalfd, listen socket
+     * system fd must be 0. en: signalfd, listen socket
      */
     uint8_t active;
     uint8_t connect_notify;
@@ -1981,7 +1981,7 @@ enum swTimer_type
 
 struct _swTimer
 {
-    /*--------------timerfd & signal timer--------------*/
+    /*--------------signal timer--------------*/
     swHeap *heap;
     swHashMap *map;
     int num;
@@ -2093,7 +2093,6 @@ typedef struct
 
     uint8_t running :1;
     uint8_t enable_coroutine :1;
-    uint8_t use_timerfd :1;
     uint8_t use_signalfd :1;
     uint8_t enable_signalfd :1;
     uint8_t reuse_port :1;
