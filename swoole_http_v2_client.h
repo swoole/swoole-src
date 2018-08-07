@@ -68,6 +68,7 @@ typedef struct
 #endif
 
     uint32_t stream_id;
+    uint32_t last_stream_id;
 
     // flow control
     uint32_t send_window;
@@ -153,7 +154,7 @@ static sw_inline void http2_client_send_window_update(swClient *cli, int stream_
 {
     char frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_WINDOW_UPDATE_SIZE];
     swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_YELLOW"] stream_id=%d, size=%d", "WINDOW_UPDATE", stream_id, size);
-    *(int*) ((char *)frame + SW_HTTP2_FRAME_HEADER_SIZE) = htonl(size);
+    *(uint32_t*) ((char *)frame + SW_HTTP2_FRAME_HEADER_SIZE) = htonl(size);
     swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_WINDOW_UPDATE, SW_HTTP2_WINDOW_UPDATE_SIZE, 0, stream_id);
     cli->send(cli, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_WINDOW_UPDATE_SIZE, 0);
 }
