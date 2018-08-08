@@ -545,6 +545,10 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
             zend_update_property_long(swoole_http2_response_class_entry_ptr, zresponse, ZEND_STRL("statusCode"), -3 TSRMLS_CC);
             zend_update_property_long(swoole_http2_response_class_entry_ptr, zresponse, ZEND_STRL("errCode"), error_code TSRMLS_CC);
         }
+        else if (stream_type == SW_HTTP2_STREAM_PIPELINE && !(flags & SW_HTTP2_FLAG_END_STREAM))
+        {
+            zend_update_property_bool(swoole_http2_response_class_entry_ptr, zresponse, ZEND_STRL("pipeline"), 1 TSRMLS_CC);
+        }
 
         if (stream->buffer)
         {
