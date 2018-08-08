@@ -120,10 +120,6 @@ void swoole_init(void)
     SwooleG.use_signalfd = 1;
     SwooleG.enable_signalfd = 1;
 #endif
-    //timerfd
-#ifdef HAVE_TIMERFD
-    SwooleG.use_timerfd = 1;
-#endif
 
     SwooleG.use_timer_pipe = 1;
 }
