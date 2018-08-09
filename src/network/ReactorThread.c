@@ -755,12 +755,12 @@ int swReactorThread_send(swSendData *_send)
         }
     }
 
-    swBuffer_trunk *trunk;
+    swBuffer_chunk *chunk;
     //close connection
     if (_send->info.type == SW_EVENT_CLOSE)
     {
-        trunk = swBuffer_new_trunk(conn->out_buffer, SW_CHUNK_CLOSE, 0);
-        trunk->store.data.val1 = _send->info.type;
+        chunk = swBuffer_new_chunk(conn->out_buffer, SW_CHUNK_CLOSE, 0);
+        chunk->store.data.val1 = _send->info.type;
     }
     //sendfile to client
     else if (_send->info.type == SW_EVENT_SENDFILE)
@@ -833,7 +833,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
 {
     int ret;
 
-    swBuffer_trunk *trunk = NULL;
+    swBuffer_chunk *chunk = NULL;
     swEventData *send_data;
     swConnection *conn;
     swServer *serv = reactor->ptr;
@@ -845,8 +845,8 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
 
     while (!swBuffer_empty(buffer))
     {
-        trunk = swBuffer_get_trunk(buffer);
-        send_data = trunk->store.ptr;
+        chunk = swBuffer_get_chunk(buffer);
+        send_data = chunk->store.ptr;
 
         //server active close, discard data.
         if (swEventData_is_stream(send_data->info.type))
@@ -865,12 +865,12 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
                 {
                     swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED_BY_SERVER, "Session#%d is closed by server.", send_data->info.fd);
                 }
-                swBuffer_pop_trunk(buffer, trunk);
+                swBuffer_pop_chunk(buffer, chunk);
                 continue;
             }
         }
 
-        ret = write(ev->fd, trunk->store.ptr, trunk->length);
+        ret = write(ev->fd, chunk->store.ptr, chunk->length);
         if (ret < 0)
         {
             //release lock
@@ -883,7 +883,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
         }
         else
         {
-            swBuffer_pop_trunk(buffer, trunk);
+            swBuffer_pop_chunk(buffer, chunk);
         }
     }
 
@@ -972,7 +972,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 {
     int ret;
     swServer *serv = SwooleG.serv;
-    swBuffer_trunk *chunk;
+    swBuffer_chunk *chunk;
     int fd = ev->fd;
 
     if (serv->factory_mode == SW_MODE_PROCESS)
@@ -1047,7 +1047,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 
     _pop_chunk: while (!swBuffer_empty(conn->out_buffer))
     {
-        chunk = swBuffer_get_trunk(conn->out_buffer);
+        chunk = swBuffer_get_chunk(conn->out_buffer);
         if (chunk->type == SW_CHUNK_CLOSE)
         {
             close_fd: reactor->close(reactor, fd);

@@ -29,7 +29,7 @@ enum swBufferChunk
     SW_CHUNK_CLOSE,
 };
 
-typedef struct _swBuffer_trunk
+typedef struct _swBuffer_chunk
 {
     uint32_t type;
     uint32_t length;
@@ -44,26 +44,26 @@ typedef struct _swBuffer_trunk
         } data;
     } store;
     uint32_t size;
-    void (*destroy)(struct _swBuffer_trunk *chunk);
-    struct _swBuffer_trunk *next;
-} swBuffer_trunk;
+    void (*destroy)(struct _swBuffer_chunk *chunk);
+    struct _swBuffer_chunk *next;
+} swBuffer_chunk;
 
 typedef struct _swBuffer
 {
     int fd;
-    uint8_t trunk_num; //trunk数量
-    uint16_t trunk_size;
+    uint8_t chunk_num; //chunk数量
+    uint16_t chunk_size;
     uint32_t length;
-    swBuffer_trunk *head;
-    swBuffer_trunk *tail;
+    swBuffer_chunk *head;
+    swBuffer_chunk *tail;
 } swBuffer;
 
-#define swBuffer_get_trunk(buffer)   (buffer->head)
+#define swBuffer_get_chunk(buffer)   (buffer->head)
 #define swBuffer_empty(buffer)       (buffer == NULL || buffer->head == NULL)
 
-swBuffer* swBuffer_new(int trunk_size);
-swBuffer_trunk *swBuffer_new_trunk(swBuffer *buffer, uint32_t type, uint32_t size);
-void swBuffer_pop_trunk(swBuffer *buffer, swBuffer_trunk *trunk);
+swBuffer* swBuffer_new(int chunk_size);
+swBuffer_chunk *swBuffer_new_chunk(swBuffer *buffer, uint32_t type, uint32_t size);
+void swBuffer_pop_chunk(swBuffer *buffer, swBuffer_chunk *chunk);
 int swBuffer_append(swBuffer *buffer, void *data, uint32_t size);
 
 void swBuffer_debug(swBuffer *buffer, int print_data);
