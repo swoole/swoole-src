@@ -67,8 +67,8 @@ typedef struct
     swClient *client;
 #endif
 
-    uint32_t stream_id;
-    uint32_t last_stream_id;
+    uint32_t stream_id; // the next send stream id
+    uint32_t last_stream_id; // the last received stream id
 
     // flow control
     uint32_t send_window;
