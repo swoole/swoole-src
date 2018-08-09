@@ -341,16 +341,6 @@ SwooleGS->lock_2.unlock(&SwooleGS->lock_2)
     swLog_put(SW_LOG_NOTICE, sw_error);\
     SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}
 
-#if defined(SW_DEBUG) || defined(SW_LOG_TRACE_OPEN)
-#define swTrace(str,...) if (SW_LOG_TRACE >= SwooleG.log_level && SwooleG.trace_flags != 0){\
-    SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
-    snprintf(sw_error, SW_ERROR_MSG_SIZE, str, ##__VA_ARGS__);\
-    swLog_put(SW_LOG_TRACE, sw_error);\
-    SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}
-#else
-#define swTrace(str,...)
-#endif
-
 #define swError(str,...)       SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
 snprintf(sw_error, SW_ERROR_MSG_SIZE, str, ##__VA_ARGS__);\
 swLog_put(SW_LOG_ERROR, sw_error);\
@@ -404,6 +394,7 @@ enum swTraceType
     SW_TRACE_MYSQL_CLIENT     = 1u << 17,
     SW_TRACE_AIO              = 1u << 18,
     SW_TRACE_SSL              = 1u << 19,
+    SW_TRACE_NORMAL           = 1u << 20,
 };
 
 #ifdef SW_LOG_TRACE_OPEN
@@ -415,6 +406,8 @@ enum swTraceType
 #else
 #define swTraceLog(id,str,...)
 #endif
+
+#define swTrace(str,...)       swTraceLog(SW_TRACE_NORMAL, str, ##__VA_ARGS__)
 
 #define swYield()              sched_yield() //or usleep(1)
 //#define swYield()              usleep(500000)
