@@ -205,13 +205,15 @@ void swHttpRequest_free(swConnection *conn)
 int swHttpRequest_get_header_info(swHttpRequest *request)
 {
     swString *buffer = request->buffer;
+    // header field start
     char *buf = buffer->str + buffer->offset;
 
-    //point-end: start + strlen(header) without strlen("\r\n\r\n")
-    char *pe = buf + request->header_length - 4;
+    //point-end: start + strlen(all-header) without strlen("\r\n\r\n")
+    char *pe = buffer->str + request->header_length - 4;
     char *p;
     uint8_t got_len = 0;
 
+    *(pe) = '\0';
     for (p = buf + 1; p < pe; p++)
     {
         if (*p == '\n' && *(p-1) == '\r')
@@ -245,6 +247,7 @@ int swHttpRequest_get_header_info(swHttpRequest *request)
             }
         }
     }
+    *(pe) = '\r';
 
     return got_len ? SW_OK: SW_ERR;
 }

@@ -53,7 +53,7 @@ typedef struct _swHttpRequest
     uint8_t version;
     uint8_t opcode;
     uint8_t excepted;
-    uint8_t keep_alive :1;
+    uint8_t keep_alive;
 
     uint32_t url_offset;
     uint32_t url_length;
