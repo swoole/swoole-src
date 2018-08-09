@@ -135,7 +135,6 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
 {
     int package_length;
     uint32_t recv_size;
-    char swap[SW_BUFFER_SIZE_STD];
 
     if (conn->skip_recv)
     {
@@ -198,9 +197,7 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
                 int remaining_length = buffer->length - buffer->offset;
                 if (remaining_length > 0)
                 {
-                    assert(remaining_length < sizeof(swap));
-                    memcpy(swap, buffer->str + buffer->offset, remaining_length);
-                    memcpy(buffer->str, swap, remaining_length);
+                    memmove(buffer->str, buffer->str + buffer->offset, remaining_length);
                     buffer->offset = 0;
                     buffer->length = remaining_length;
                     goto do_get_length;
