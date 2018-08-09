@@ -199,43 +199,54 @@ void swHttpRequest_free(swConnection *conn)
 }
 
 /**
- * POST content-length
+ * simple get headers info
+ * @return content-length exist
  */
-int swHttpRequest_get_content_length(swHttpRequest *request)
+int swHttpRequest_get_header_info(swHttpRequest *request)
 {
     swString *buffer = request->buffer;
     char *buf = buffer->str + buffer->offset;
-    int len = buffer->length - buffer->offset;
 
-    char *pe = buf + len;
+    //point-end: start + strlen(header) without strlen("\r\n\r\n")
+    char *pe = buf + request->header_length - 4;
     char *p;
-    char *eol;
+    uint8_t got_len = 0;
 
-    for (p = buf; p < pe; p++)
+    for (p = buf + 1; p < pe; p++)
     {
-        if (*p == '\r' && pe - p > sizeof("Content-Length"))
+        if (*p == '\n' && *(p-1) == '\r')
         {
-            if (strncasecmp(p, SW_STRL("\r\nContent-Length") - 1) == 0)
+            p++;
+            if (strncasecmp(p, SW_STRL("Content-Length:") - 1) == 0)
             {
-                //strlen("\r\n") + strlen("Content-Length")
-                p += (2 + (sizeof("Content-Length:") - 1));
+                // strlen("Content-Length:")
+                p += (sizeof("Content-Length:") - 1);
+                // skip one space
+                if (*p == ' ')
+                {
+                    p++;
+                }
+                request->content_length = atoi(p);
+                got_len = 1;
+            }
+            else if (strncasecmp(p, SW_STRL("Connection:") - 1) == 0)
+            {
+                // strlen("Connection:")
+                p += (sizeof("Connection:") - 1);
                 //skip space
                 if (*p == ' ')
                 {
                     p++;
                 }
-                eol = strstr(p, "\r\n");
-                if (eol == NULL)
+                if (strncasecmp(p, SW_STRL("keep-alive") - 1) == 0)
                 {
-                    return SW_ERR;
+                    request->keep_alive = 1;
                 }
-                request->content_length = atoi(p);
-                return SW_OK;
             }
         }
     }
 
-    return SW_ERR;
+    return got_len ? SW_OK: SW_ERR;
 }
 
 #ifdef SW_HTTP_100_CONTINUE
