@@ -320,6 +320,14 @@ define('QA_SUBMISSION_PAGE', 'http://qa.php.net/buildtest-process.php');
 define('QA_REPORTS_PAGE', 'http://qa.php.net/reports');
 define('TRAVIS_CI' , (bool) getenv('TRAVIS'));
 
+define('SWOOLE_COLOR_RED', 1);
+define('SWOOLE_COLOR_GREEN', 2);
+define('SWOOLE_COLOR_YELLOW', 3);
+define('SWOOLE_COLOR_BLUE', 4);
+define('SWOOLE_COLOR_MAGENTA', 5);
+define('SWOOLE_COLOR_CYAN', 6);
+define('SWOOLE_COLOR_WHITE', 7);
+
 function save_or_mail_results()
 {
 	global $sum_results, $just_save_results, $failed_test_summary,
@@ -2634,16 +2642,17 @@ function show_result($result, $tested, $tested_file, $extra = '', $temp_filename
 
     //color
     if ($result == 'FAIL') {
-        $result = "\033[31m[$result]\033[0m";
-    } elseif($result == 'SKIP') {
-        $result = "\033[33m[$result]\033[0m";
-    } elseif($result == 'BORK') {
-        $result = "\033[35m[$result]\033[0m";
+        $color = SWOOLE_COLOR_RED;
+    } elseif ($result == 'LEAK' || $result == 'BORK') {
+        $color = SWOOLE_COLOR_MAGENTA;
+    } elseif ($result == 'SKIP') {
+        $color = SWOOLE_COLOR_WHITE;
     } else {
-        $result = "\033[32m[$result]\033[0m";
+        $color = SWOOLE_COLOR_GREEN;
     }
+    $result = "\033[3{$color}m[$result]\033[0m";
 
-	if (!$SHOW_ONLY_GROUPS || in_array($result, $SHOW_ONLY_GROUPS)) {
+    if (!$SHOW_ONLY_GROUPS || in_array($result, $SHOW_ONLY_GROUPS)) {
 		echo "$result $tested [$tested_file] $extra\n";
 	} else if (!$SHOW_ONLY_GROUPS) {
 		// Write over the last line to avoid random trailing chars on next echo
