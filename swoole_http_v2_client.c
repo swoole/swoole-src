@@ -106,7 +106,7 @@ void swoole_http2_client_init(int module_number TSRMLS_DC)
     zend_declare_property_null(swoole_http2_response_class_entry_ptr, SW_STRL("headers")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_http2_response_class_entry_ptr, SW_STRL("set_cookie_headers")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_http2_response_class_entry_ptr, SW_STRL("cookies")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_null(swoole_http2_response_class_entry_ptr, SW_STRL("body")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_http2_response_class_entry_ptr, SW_STRL("data")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
 
     if (cookie_buffer == NULL)
     {
@@ -593,7 +593,7 @@ static int http2_client_onFrame(zval *zobject, zval *zdata TSRMLS_DC)
 
         if (stream->buffer)
         {
-            zend_update_property_stringl(swoole_http2_response_class_entry_ptr, stream->response_object, ZEND_STRL("body"), stream->buffer->str, stream->buffer->length TSRMLS_CC);
+            zend_update_property_stringl(swoole_http2_response_class_entry_ptr, stream->response_object, ZEND_STRL("data"), stream->buffer->str, stream->buffer->length TSRMLS_CC);
         }
 
         zval **args[1];

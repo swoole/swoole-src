@@ -22,7 +22,7 @@ go(function () {
     /**@var $response swoole_http2_response */
     $response = $cli->recv();
     echo $response->statusCode;
-    assert(stripos($response->body, 'swoole') !== false);
+    assert(stripos($response->data, 'swoole') !== false);
 });
 ?>
 --EXPECT--

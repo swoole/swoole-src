@@ -571,7 +571,7 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
 
         if (stream->buffer)
         {
-            zend_update_property_stringl(swoole_http2_response_class_entry_ptr, stream->response_object, ZEND_STRL("body"), stream->buffer->str, stream->buffer->length TSRMLS_CC);
+            zend_update_property_stringl(swoole_http2_response_class_entry_ptr, stream->response_object, ZEND_STRL("data"), stream->buffer->str, stream->buffer->length TSRMLS_CC);
         }
 
         if (stream_type == SW_HTTP2_STREAM_NORMAL)
