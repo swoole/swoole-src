@@ -853,7 +853,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
         {
             //send_data->info.fd is session_id
             conn = swServer_connection_verify(serv, send_data->info.fd);
-            if (conn == NULL || conn->closed)
+            if (conn)
             {
 #ifdef SW_USE_RINGBUFFER
                 swReactorThread *thread = swServer_get_thread(SwooleG.serv, SwooleTG.id);
@@ -861,12 +861,18 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
                 memcpy(&package, send_data->data, sizeof(package));
                 thread->buffer_input->free(thread->buffer_input, package.data);
 #endif
-                if (conn && conn->closed)
+                if (conn->closed)
                 {
                     swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED_BY_SERVER, "Session#%d is closed by server.", send_data->info.fd);
+                    _discard: swBuffer_pop_chunk(buffer, chunk);
+                    continue;
                 }
-                swBuffer_pop_chunk(buffer, chunk);
-                continue;
+            }
+            else if (serv->discard_timeout_request)
+            {
+                swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_DISCARD_TIMEOUT_DATA,
+                        "[1]received the wrong data[%d bytes] from socket#%d", send_data->info.len, send_data->info.fd);
+                goto _discard;
             }
         }
 

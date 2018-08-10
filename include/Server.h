@@ -957,7 +957,7 @@ static sw_inline swConnection *swWorker_get_connection(swServer *serv, int sessi
     return conn;
 }
 
-static sw_inline swString *swWorker_get_buffer(swServer *serv, int worker_id)
+static sw_inline swString *swWorker_get_buffer(swServer *serv, int reactor_id)
 {
     if (serv->factory_mode == SW_MODE_SINGLE)
     {
@@ -965,11 +965,11 @@ static sw_inline swString *swWorker_get_buffer(swServer *serv, int worker_id)
     }
     else if (serv->factory_mode == SW_MODE_THREAD)
     {
-        return SwooleTG.buffer_input[worker_id];
+        return SwooleTG.buffer_input[reactor_id];
     }
     else
     {
-        return SwooleWG.buffer_input[worker_id];
+        return SwooleWG.buffer_input[reactor_id];
     }
 }
 
