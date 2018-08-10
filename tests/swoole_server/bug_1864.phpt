@@ -45,7 +45,7 @@ $pm->parentFunc = function ($pid) use ($pm)
     $pm->kill();
 };
 
-$pm->childFunc = function () use ($pm, $port)
+$pm->childFunc = function () use ($pm)
 {
     $ss = [
         'daemonize' => 0,
