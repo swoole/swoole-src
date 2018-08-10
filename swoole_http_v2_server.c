@@ -705,7 +705,7 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
         if (length > 0 && client->remote_window_size < SW_HTTP2_MAX_WINDOW_SIZE / 4)
         {
             char window_update_frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_WINDOW_UPDATE_SIZE];
-            *(uint32_t*) window_update_frame = htonl(SW_HTTP2_MAX_WINDOW_SIZE - client->remote_window_size);
+            *(uint32_t*) ((char *) window_update_frame) = htonl(SW_HTTP2_MAX_WINDOW_SIZE - client->remote_window_size);
             swHttp2_set_frame_header(window_update_frame, SW_HTTP2_TYPE_WINDOW_UPDATE, SW_HTTP2_WINDOW_UPDATE_SIZE, 0, 0);
             swServer_tcp_send(SwooleG.serv, fd, window_update_frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_WINDOW_UPDATE_SIZE);
             client->remote_window_size = SW_HTTP2_MAX_WINDOW_SIZE;
