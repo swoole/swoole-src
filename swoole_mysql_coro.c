@@ -772,6 +772,8 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     {
         efree(cli);
         sw_zval_ptr_dtor(&server_info);
+        zend_update_property_stringl(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("connect_error"), cli->connector.error_msg, cli->connector.error_length TSRMLS_CC);
+        zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("connect_errno"), cli->connector.error_code TSRMLS_CC);
         RETURN_FALSE;
     }
 
