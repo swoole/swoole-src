@@ -3496,7 +3496,10 @@ PHP_METHOD(swoole_server, stop)
 
     if (worker_id == SwooleWG.id && wait_reactor == 0)
     {
-        SwooleG.main_reactor->running = 0;
+        if (SwooleG.main_reactor != NULL)
+        {
+            SwooleG.main_reactor->running = 0;
+        }
         SwooleG.running = 0;
     }
     else
