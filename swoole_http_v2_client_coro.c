@@ -221,7 +221,7 @@ static PHP_METHOD(swoole_http2_client_coro, set)
     RETURN_TRUE;
 }
 
-static int http2_client_build_header(zval *zobject, zval *req, char *buffer, int buffer_len TSRMLS_DC)
+static ssize_t http2_client_build_header(zval *zobject, zval *req, char *buffer, int buffer_len TSRMLS_DC)
 {
     char *date_str = NULL;
     int ret;
@@ -316,12 +316,16 @@ static int http2_client_build_header(zval *zobject, zval *req, char *buffer, int
     }
 #endif
 
-    nghttp2_hd_deflater *deflater;
-    ret = nghttp2_hd_deflate_new(&deflater, 4096);
-    if (ret != 0)
+    nghttp2_hd_deflater *deflater = hcc->deflater;
+    if (!deflater)
     {
-        swoole_php_error(E_WARNING, "nghttp2_hd_deflate_init failed with error: %s\n", nghttp2_strerror(ret));
-        return SW_ERR;
+        ret = nghttp2_hd_deflate_new(&deflater, 4096);
+        if (ret != 0)
+        {
+            swoole_php_error(E_WARNING, "nghttp2_hd_deflate_init failed with error: %s\n", nghttp2_strerror(ret));
+            return SW_ERR;
+        }
+        hcc->deflater = deflater;
     }
 
     for (i = 0; i < index; ++i)
@@ -352,7 +356,12 @@ static int http2_client_build_header(zval *zobject, zval *req, char *buffer, int
         efree(date_str);
     }
 
-    nghttp2_hd_deflate_del(deflater);
+    ret = nghttp2_hd_deflate_change_table_size(deflater, 4096);
+    if (ret != 0)
+    {
+        swoole_php_error(E_WARNING, "nghttp2_hd_deflate_change_table_size failed with error: %s\n", nghttp2_strerror(ret));
+        return SW_ERR;
+    }
 
     return rv;
 }
@@ -642,7 +651,7 @@ static int http2_client_send_request(zval *zobject, zval *req TSRMLS_DC)
      * send header
      */
     char buffer[8192];
-    int n = http2_client_build_header(zobject, req, buffer + SW_HTTP2_FRAME_HEADER_SIZE, sizeof(buffer) - SW_HTTP2_FRAME_HEADER_SIZE TSRMLS_CC);
+    ssize_t n = http2_client_build_header(zobject, req, buffer + SW_HTTP2_FRAME_HEADER_SIZE, sizeof(buffer) - SW_HTTP2_FRAME_HEADER_SIZE TSRMLS_CC);
     if (n <= 0)
     {
         swWarn("http2_client_build_header() failed.");
@@ -683,7 +692,7 @@ static int http2_client_send_request(zval *zobject, zval *req TSRMLS_DC)
     // add to map
     swHashMap_add_int(hcc->streams, stream->stream_id, stream);
 
-    swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN", STREAM#%d] length=%d", swHttp2_get_type(SW_HTTP2_TYPE_HEADERS), stream->stream_id, n);
+    swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN", STREAM#%d] length=%zd", swHttp2_get_type(SW_HTTP2_TYPE_HEADERS), stream->stream_id, n);
     cli->send(cli, buffer, n + SW_HTTP2_FRAME_HEADER_SIZE, 0);
 
     /**
@@ -972,6 +981,11 @@ static PHP_METHOD(swoole_http2_client_coro, __destruct)
         {
             nghttp2_hd_inflate_del(hcc->inflater);
             hcc->inflater = NULL;
+        }
+        if (hcc->deflater)
+        {
+            nghttp2_hd_deflate_del(hcc->deflater);
+            hcc->deflater = NULL;
         }
         if (hcc->host)
         {
