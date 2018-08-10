@@ -345,7 +345,7 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
     {
         append_buffer: if (buffer->length > socket->buffer_size)
         {
-            if (SwooleG.socket_dontwait)
+            if (socket->dontwait)
             {
                 SwooleG.error = SW_ERROR_OUTPUT_BUFFER_OVERFLOW;
                 return SW_ERR;
@@ -372,13 +372,13 @@ int swReactor_onWrite(swReactor *reactor, swEvent *ev)
     int fd = ev->fd;
 
     swConnection *socket = swReactor_get(reactor, fd);
-    swBuffer_trunk *chunk = NULL;
+    swBuffer_chunk *chunk = NULL;
     swBuffer *buffer = socket->out_buffer;
 
     //send to socket
     while (!swBuffer_empty(buffer))
     {
-        chunk = swBuffer_get_trunk(buffer);
+        chunk = swBuffer_get_chunk(buffer);
         if (chunk->type == SW_CHUNK_CLOSE)
         {
             close_fd:

@@ -169,7 +169,6 @@ int swReactorProcess_start(swServer *serv)
     /**
      * manager process can not use signalfd
      */
-    SwooleG.use_timerfd = 0;
     SwooleG.use_signalfd = 0;
     SwooleG.use_timer_pipe = 0;
     swServer_signal_init(serv);
@@ -381,6 +380,17 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
         return SW_ERR;
     }
 
+    /**
+     * call internal serv hooks
+     */
+    if (SwooleG.serv->hooks[SW_SERVER_HOOK_WORKER_START])
+    {
+        void *hook_args[2];
+        hook_args[0] = serv;
+        hook_args[1] = (void *)(uintptr_t)SwooleWG.id;
+        swServer_call_hook(serv, SW_SERVER_HOOK_WORKER_START, hook_args);
+    }
+
     if (serv->onWorkerStart)
     {
         serv->onWorkerStart(serv, worker->id);
@@ -398,6 +408,17 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     }
 
     reactor->wait(reactor, NULL);
+
+    /**
+     * call internal serv hooks
+     */
+    if (SwooleG.serv->hooks[SW_SERVER_HOOK_WORKER_CLOSE])
+    {
+        void *hook_args[2];
+        hook_args[0] = serv;
+        hook_args[1] = (void *)(uintptr_t)SwooleWG.id;
+        swServer_call_hook(serv, SW_SERVER_HOOK_WORKER_CLOSE, hook_args);
+    }
 
     if (serv->onWorkerStop)
     {

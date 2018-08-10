@@ -62,7 +62,7 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swCon
         eof_pos = swoole_strnpos(buffer->str + buffer->offset, buffer->length - buffer->offset, protocol->package_eof, protocol->package_eof_len);
     }
 
-    swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[0] count=%d, length=%ld, size=%ld, offset=%ld.", count, buffer->length, buffer->size, buffer->offset);
+    swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[0] count=%d, length=%ld, size=%ld, offset=%ld.", count, buffer->length, buffer->size, (long)buffer->offset);
 
     //waiting for more data
     if (eof_pos < 0)
@@ -122,7 +122,7 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swCon
             }
         }
     }
-    swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[3] length=%ld, size=%ld, offset=%ld", buffer->length, buffer->size, buffer->offset);
+    swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[3] length=%ld, size=%ld, offset=%ld", buffer->length, buffer->size, (long)buffer->offset);
     swString_clear(buffer);
     return SW_OK;
 }
@@ -135,7 +135,6 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
 {
     int package_length;
     uint32_t recv_size;
-    char swap[SW_BUFFER_SIZE_STD];
 
     if (conn->skip_recv)
     {
@@ -198,23 +197,14 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
                 int remaining_length = buffer->length - buffer->offset;
                 if (remaining_length > 0)
                 {
-                    assert(remaining_length < sizeof(swap));
-                    memcpy(swap, buffer->str + buffer->offset, remaining_length);
-                    memcpy(buffer->str, swap, remaining_length);
+                    memmove(buffer->str, buffer->str + buffer->offset, remaining_length);
                     buffer->offset = 0;
                     buffer->length = remaining_length;
                     goto do_get_length;
                 }
-                else
-                {
-                    swString_clear(buffer);
-                    goto do_recv;
-                }
+                swString_clear(buffer);
             }
-            else
-            {
-                return SW_OK;
-            }
+            return SW_OK;
         }
         else
         {

@@ -33,16 +33,19 @@ extern "C" {
 #define _GNU_SOURCE
 #endif
 
+/*--- C standard library ---*/
+#include <assert.h>
+#include <ctype.h>
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <signal.h>
+#include <time.h>
+#include <limits.h>
+
 #include <fcntl.h>
 #include <unistd.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <errno.h>
-#include <string.h>
-#include <ctype.h>
-#include <signal.h>
-#include <assert.h>
-#include <time.h>
 #include <pthread.h>
 #if defined(HAVE_CPU_AFFINITY)
 #ifdef __FreeBSD__
@@ -335,16 +338,6 @@ SwooleGS->lock_2.unlock(&SwooleGS->lock_2)
     swLog_put(SW_LOG_NOTICE, sw_error);\
     SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}
 
-#if defined(SW_DEBUG) || defined(SW_LOG_TRACE_OPEN)
-#define swTrace(str,...) if (SW_LOG_TRACE >= SwooleG.log_level){\
-    SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
-    snprintf(sw_error, SW_ERROR_MSG_SIZE, str, ##__VA_ARGS__);\
-    swLog_put(SW_LOG_TRACE, sw_error);\
-    SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}
-#else
-#define swTrace(str,...)
-#endif
-
 #define swError(str,...)       SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
 snprintf(sw_error, SW_ERROR_MSG_SIZE, str, ##__VA_ARGS__);\
 swLog_put(SW_LOG_ERROR, sw_error);\
@@ -398,6 +391,7 @@ enum swTraceType
     SW_TRACE_MYSQL_CLIENT     = 1u << 17,
     SW_TRACE_AIO              = 1u << 18,
     SW_TRACE_SSL              = 1u << 19,
+    SW_TRACE_NORMAL           = 1u << 20,
 };
 
 #ifdef SW_LOG_TRACE_OPEN
@@ -409,6 +403,8 @@ enum swTraceType
 #else
 #define swTraceLog(id,str,...)
 #endif
+
+#define swTrace(str,...)       swTraceLog(SW_TRACE_NORMAL, str, ##__VA_ARGS__)
 
 #define swYield()              sched_yield() //or usleep(1)
 //#define swYield()              usleep(500000)
@@ -490,7 +486,7 @@ typedef struct _swConnection
     uint16_t socket_type;
 
     /**
-     * fd type, SW_FD_TCP or SW_FD_PIPE or SW_FD_TIMERFD
+     * fd type, SW_FD_TCP or SW_FD_PIPE
      */
     uint16_t fdtype;
 
@@ -499,7 +495,7 @@ typedef struct _swConnection
     //--------------------------------------------------------------
     /**
      * is active
-     * system fd must be 0. en: timerfd, signalfd, listen socket
+     * system fd must be 0. en: signalfd, listen socket
      */
     uint8_t active;
     uint8_t connect_notify;
@@ -588,6 +584,13 @@ typedef struct _swConnection
      * received time with last data
      */
     time_t last_time;
+
+#ifdef SW_BUFFER_RECV_TIME
+    /**
+     * received time(microseconds) with last data
+     */
+    double last_time_usec;
+#endif
 
 #ifdef SW_USE_TIMEWHEEL
     uint16_t timewheel_index;
@@ -708,6 +711,8 @@ int swString_write_ptr(swString *str, off_t offset, char *write_str, int length)
 int swString_extend(swString *str, size_t new_size);
 char* swString_alloc(swString *str, size_t __size);
 
+#define SWSTRING_CURRENT_VL(buffer) buffer->str + buffer->offset, buffer->length - buffer->offset
+
 static sw_inline int swString_extend_align(swString *str, size_t _new_size)
 {
     size_t align_size = str->size * 2;
@@ -729,6 +734,9 @@ typedef struct _swDataHead
     uint8_t type;
     uint8_t flags;
     uint16_t from_fd;
+#ifdef SW_BUFFER_RECV_TIME
+    double time;
+#endif
 } swDataHead;
 
 typedef struct _swEvent
@@ -1616,6 +1624,7 @@ struct _swProcessPool
      */
     key_t msgqueue_key;
 
+
     int worker_num;
     int max_request;
 
@@ -1692,6 +1701,10 @@ static sw_inline int swReactor_events(int fdtype)
     if (swReactor_event_error(fdtype))
     {
         events |= SW_EVENT_ERROR;
+    }
+    if (fdtype & SW_EVENT_ONCE)
+    {
+        events |= SW_EVENT_ONCE;
     }
     return events;
 }
@@ -1957,7 +1970,7 @@ enum swTimer_type
 
 struct _swTimer
 {
-    /*--------------timerfd & signal timer--------------*/
+    /*--------------signal timer--------------*/
     swHeap *heap;
     swHashMap *map;
     int num;
@@ -2068,7 +2081,6 @@ typedef struct
     swTimer timer;
 
     uint8_t running :1;
-    uint8_t use_timerfd :1;
     uint8_t use_signalfd :1;
     uint8_t enable_signalfd :1;
     uint8_t reuse_port :1;

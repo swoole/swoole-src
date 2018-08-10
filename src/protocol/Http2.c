@@ -80,7 +80,7 @@ int swHttp2_send_setting_frame(swProtocol *protocol, swConnection *conn)
 
     id = htons(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE);
     memcpy(p, &id, sizeof(id));
-    value = htonl(SW_HTTP2_MAX_WINDOW);
+    value = htonl(SW_HTTP2_MAX_WINDOW_SIZE);
     memcpy(p + 2, &value, sizeof(value));
     p += SW_HTTP2_SETTING_OPTION_SIZE;
 

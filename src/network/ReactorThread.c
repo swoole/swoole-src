@@ -168,6 +168,9 @@ static int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
     bzero(&task.data.info, sizeof(task.data.info));
     task.data.info.from_fd = fd;
     task.data.info.from_id = SwooleTG.id;
+#ifdef SW_BUFFER_RECV_TIME
+    task.data.info.time = swoole_microtime();
+#endif
 
     int socket_type = server_sock->socket_type;
     switch(socket_type)
@@ -740,12 +743,12 @@ int swReactorThread_send(swSendData *_send)
         }
     }
 
-    swBuffer_trunk *trunk;
+    swBuffer_chunk *chunk;
     //close connection
     if (_send->info.type == SW_EVENT_CLOSE)
     {
-        trunk = swBuffer_new_trunk(conn->out_buffer, SW_CHUNK_CLOSE, 0);
-        trunk->store.data.val1 = _send->info.type;
+        chunk = swBuffer_new_chunk(conn->out_buffer, SW_CHUNK_CLOSE, 0);
+        chunk->store.data.val1 = _send->info.type;
     }
     //sendfile to client
     else if (_send->info.type == SW_EVENT_SENDFILE)
@@ -807,7 +810,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
 {
     int ret;
 
-    swBuffer_trunk *trunk = NULL;
+    swBuffer_chunk *chunk = NULL;
     swEventData *send_data;
     swConnection *conn;
     swServer *serv = reactor->ptr;
@@ -819,15 +822,15 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
 
     while (!swBuffer_empty(buffer))
     {
-        trunk = swBuffer_get_trunk(buffer);
-        send_data = trunk->store.ptr;
+        chunk = swBuffer_get_chunk(buffer);
+        send_data = chunk->store.ptr;
 
         //server active close, discard data.
         if (swEventData_is_stream(send_data->info.type))
         {
             //send_data->info.fd is session_id
             conn = swServer_connection_verify(serv, send_data->info.fd);
-            if (conn == NULL || conn->closed)
+            if (conn)
             {
 #ifdef SW_USE_RINGBUFFER
                 swReactorThread *thread = swServer_get_thread(SwooleG.serv, SwooleTG.id);
@@ -835,16 +838,22 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
                 memcpy(&package, send_data->data, sizeof(package));
                 thread->buffer_input->free(thread->buffer_input, package.data);
 #endif
-                if (conn && conn->closed)
+                if (conn->closed)
                 {
                     swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED_BY_SERVER, "Session#%d is closed by server.", send_data->info.fd);
+                    _discard: swBuffer_pop_chunk(buffer, chunk);
+                    continue;
                 }
-                swBuffer_pop_trunk(buffer, trunk);
-                continue;
+            }
+            else if (serv->discard_timeout_request)
+            {
+                swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_DISCARD_TIMEOUT_DATA,
+                        "[1]received the wrong data[%d bytes] from socket#%d", send_data->info.len, send_data->info.fd);
+                goto _discard;
             }
         }
 
-        ret = write(ev->fd, trunk->store.ptr, trunk->length);
+        ret = write(ev->fd, chunk->store.ptr, chunk->length);
         if (ret < 0)
         {
             //release lock
@@ -857,7 +866,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
         }
         else
         {
-            swBuffer_pop_trunk(buffer, trunk);
+            swBuffer_pop_chunk(buffer, chunk);
         }
     }
 
@@ -935,6 +944,10 @@ static int swReactorThread_onRead(swReactor *reactor, swEvent *event)
 #endif
 
     event->socket->last_time = serv->gs->now;
+#ifdef SW_BUFFER_RECV_TIME
+    event->socket->last_time_usec = swoole_microtime();
+#endif
+
     return port->onRead(reactor, port, event);
 }
 
@@ -942,7 +955,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 {
     int ret;
     swServer *serv = SwooleG.serv;
-    swBuffer_trunk *chunk;
+    swBuffer_chunk *chunk;
     int fd = ev->fd;
 
     if (serv->factory_mode == SW_MODE_PROCESS)
@@ -1017,7 +1030,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 
     _pop_chunk: while (!swBuffer_empty(conn->out_buffer))
     {
-        chunk = swBuffer_get_trunk(conn->out_buffer);
+        chunk = swBuffer_get_chunk(conn->out_buffer);
         if (chunk->type == SW_CHUNK_CLOSE)
         {
             close_fd: reactor->close(reactor, fd);
@@ -1204,7 +1217,7 @@ static int swReactorThread_loop(swThreadParam *param)
     SwooleTG.id = reactor_id;
     SwooleTG.type = SW_THREAD_REACTOR;
 
-    if (serv->dispatch_mode == SW_MODE_BASE || serv->dispatch_mode == SW_MODE_THREAD)
+    if (serv->factory_mode == SW_MODE_BASE || serv->factory_mode == SW_MODE_THREAD)
     {
         SwooleTG.buffer_input = swServer_create_worker_buffer(serv);
         if (!SwooleTG.buffer_input)
@@ -1423,6 +1436,12 @@ int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
     swServer *serv = factory->ptr;
     swDispatchData task;
 
+    task.data.info.from_fd = conn->from_fd;
+    task.data.info.from_id = conn->from_id;
+#ifdef SW_BUFFER_RECV_TIME
+    task.data.info.time = conn->last_time_usec;
+#endif
+
     if (serv->dispatch_mode == SW_DISPATCH_STREAM)
     {
         swStream *stream = swStream_new(serv->stream_socket, 0, SW_SOCK_UNIX_STREAM);
@@ -1436,8 +1455,6 @@ int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
         swStream_set_max_length(stream, port->protocol.package_max_length);
 
         task.data.info.fd = conn->session_id;
-        task.data.info.from_id = conn->from_id;
-        task.data.info.from_fd = conn->from_fd;
         task.data.info.type = SW_EVENT_PACKAGE_END;
         task.data.info.len = 0;
 
@@ -1454,7 +1471,6 @@ int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
     }
 
     task.data.info.fd = conn->fd;
-    task.data.info.from_id = conn->from_id;
 
     swTrace("send string package, size=%ld bytes.", (long)length);
 

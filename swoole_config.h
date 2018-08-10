@@ -26,7 +26,6 @@
 #define SW_MAX_FDTYPE              32   //32 kinds of event
 #define SW_MAX_HOOK_TYPE           32
 #define SW_ERROR_MSG_SIZE          512
-#define SW_MAX_WORKER_GROUP        2
 #define SW_MAX_FILE_CONTENT        (64*1024*1024) //for swoole_file_get_contents
 #define SW_MAX_LISTEN_PORT         60000
 #define SW_MAX_CONCURRENT_TASK     1024
@@ -67,8 +66,6 @@
 
 //#define SW_DEBUG                 //debug
 #define SW_LOG_NO_SRCINFO          //no source info
-#define SW_LOG_TRACE_OPEN          0
-#define SW_LOG_TRACE_FLAGS         (SW_TRACE_EVENT | SW_TRACE_REACTOR | SW_TRACE_CLOSE)
 //#define SW_BUFFER_SIZE           65495 //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
 #define SW_CLIENT_BUFFER_SIZE      65536
 //#define SW_CLIENT_RECV_AGAIN
@@ -93,6 +90,7 @@
 #define SW_BUFFER_SIZE_STD         8192
 #define SW_BUFFER_SIZE_BIG         65536
 #define SW_BUFFER_SIZE_UDP         65536
+//#define SW_BUFFER_RECV_TIME
 #define SW_SENDFILE_CHUNK_SIZE     65536
 
 #define SW_SENDFILE_MAXLEN         4194304
@@ -102,9 +100,6 @@
 
 #define SW_DATA_EOF                "\r\n\r\n"
 #define SW_DATA_EOF_MAXLEN         8
-
-#define SW_HEARTBEAT_PING_LEN      8
-#define SW_HEARTBEAT_PONG_LEN      8
 
 #define SW_TASKWAIT_TIMEOUT        0.5
 
@@ -123,10 +118,6 @@
 
 //#define SW_USE_SOCKET_LINGER
 
-#define SW_WORKER_SENDTO_COUNT     32    //写回客户端失败尝试次数
-#define SW_WORKER_SENDTO_YIELD     10   //yield after sendto
-#define SW_WORKER_READ_COUNT       10
-#define SW_WORKER_WAIT_PIPE
 #define SW_WORKER_WAIT_TIMEOUT     1000
 //#define SW_WORKER_RECV_AGAIN
 
@@ -135,8 +126,6 @@
 
 //#define SW_WORKER_SEND_CHUNK
 
-#define SW_REACTOR_TIMEO_SEC             3
-#define SW_REACTOR_TIMEO_USEC            0
 #define SW_REACTOR_SCHEDULE              2
 #define SW_REACTOR_MAXEVENTS             4096
 #define SW_REACTOR_USE_SESSION
@@ -154,26 +143,14 @@
  * 循环从管道中读取数据，有助于缓解管道缓存塞满问题，降低进程间通信的压力
  */
 #define SW_REACTOR_RECV_AGAIN
-
 #define SW_REACTOR_SYNC_SEND            //direct send
-#define SW_SCHEDULE_INTERVAL             32   //平均调度的间隔次数,减少运算量
 
-#define SW_QUEUE_SIZE                    100   //缩减版的RingQueue,用在线程模式下
-
-#define SW_WRITER_TIMEOUT                3
-
-#define SW_RINGQUEUE_USE                 0              //使用RingQueue代替系统消息队列，此特性正在测试中，启用此特性会用内存队列来替代IPC通信，会减少系统调用、内存申请和复制，提高性能
 #define SW_RINGQUEUE_LEN                 1024           //RingQueue队列长度
-#define SW_RINGQUEUE_MEMSIZE             (1024*1024*4)  //内存区大小,默认分配4M的内存
 
 //#define SW_USE_RINGQUEUE_TS            1     //使用线程安全版本的RingQueue
-#define SW_RINGBUFFER_COLLECT_N          100   //collect max_count
 #define SW_RINGBUFFER_FREE_N_MAX         4     //when free_n > MAX, execute collect
 #define SW_RINGBUFFER_WARNING            100
 //#define SW_RINGBUFFER_DEBUG
-
-#define SW_RELOAD_AFTER_SECONDS_N        10
-#define SW_RELOAD_FILE_EXTNAME           ".php"
 
 /**
  * ringbuffer memory pool size
@@ -182,10 +159,6 @@
 #define SW_BUFFER_INPUT_SIZE             (1024*1024*2)
 #define SW_BUFFER_MIN_SIZE               65536
 #define SW_PIPE_BUFFER_SIZE              (1024*1024*32)
-
-#define SW_MEMORY_POOL_SLAB_PAGE         10     //内存池的页数
-
-#define SW_USE_FIXED_BUFFER
 
 #define SW_BACKLOG                       512
 
@@ -235,8 +208,9 @@
 #define SW_DNS_SERVER_PORT               53
 #define SW_DNS_DEFAULT_SERVER            "8.8.8.8"
 
-//#define SW_HTTP_CLIENT_ENABLE
-
+/**
+ * HTTP Protocol
+ */
 #define SW_HTTP_SERVER_SOFTWARE          "swoole-http-server"
 #define SW_HTTP_BAD_REQUEST              "<h1>400 Bad Request</h1>\r\n"
 #define SW_HTTP_PARAM_MAX_NUM            128
@@ -254,13 +228,16 @@
 #define SW_HTTP_RFC1123_DATE_UTC         "%a, %d %b %Y %T UTC"
 #define SW_HTTP_RFC850_DATE              "%A, %d-%b-%y %T GMT"
 #define SW_HTTP_ASCTIME_DATE             "%a %b %e %T %Y"
-
 //#define SW_HTTP_100_CONTINUE
-#define SW_HTTP2_DATA_BUFFSER_SIZE       8192
+
+/**
+ * HTTP2 Protocol
+ */
+#define SW_HTTP2_DATA_BUFFER_SIZE        8192
 #define SW_HTTP2_MAX_CONCURRENT_STREAMS  128
 #define SW_HTTP2_MAX_FRAME_SIZE          ((1u << 14))
-#define SW_HTTP2_MAX_WINDOW              ((1u << 31) - 1)
-#define SW_HTTP2_DEFAULT_WINDOW          65535
+#define SW_HTTP2_MAX_WINDOW_SIZE         ((1u << 31) - 1)
+#define SW_HTTP2_DEFAULT_WINDOW_SIZE     65535
 
 #define SW_HTTP_CLIENT_USERAGENT         "swoole-http-client"
 #define SW_HTTP_CLIENT_BOUNDARY_PREKEY   "----SwooleBoundary"
@@ -270,6 +247,7 @@
 #define SW_WEBSOCKET_SERVER_SOFTWARE     "swoole-websocket-server"
 #define SW_WEBSOCKET_VERSION             "13"
 #define SW_WEBSOCKET_KEY_LENGTH          16
+#define SW_WEBSOCKET_QUEUE_SIZE          16
 
 #define SW_MYSQL_QUERY_INIT_SIZE         8192
 #define SW_MYSQL_DEFAULT_PORT            3306
@@ -279,5 +257,6 @@
 #define SW_REDIS_CONNECT_TIMEOUT         1.0
 
 #define SW_TIMER_MAX_VALUE               86400000
+
 
 #endif /* SWOOLE_CONFIG_H_ */

@@ -24,6 +24,7 @@ typedef zend_rsrc_list_entry zend_resource;
 #define SW_RETURN_STRING                      RETURN_STRING
 #define SW_Z_ARRVAL_P                         Z_ARRVAL_P
 #define IS_TRUE                               1
+#define SW_PREVENT_USER_DESTRUCT              NULL
 
 static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
 {
@@ -60,6 +61,8 @@ static inline int sw_zend_hash_find(HashTable *ht, char *k, int len, void **v)
 #define sw_zend_hash_index_update             zend_hash_index_update
 #define sw_call_user_function_ex              call_user_function_ex
 #define sw_zend_register_class_alias          zend_register_class_alias
+
+
 
 typedef long zend_long;
 
@@ -157,6 +160,16 @@ static inline int SW_Z_TYPE_P(zval *z)
     {
         return Z_TYPE_P(z);
     }
+}
+
+static sw_inline zval* sw_zend_read_property_array(zend_class_entry *class_ptr, zval *obj, const char *s, int len, int silent)
+{
+    zval *property = sw_zend_read_property(class_ptr, obj, s, len, silent);
+    if (Z_TYPE_P(property) != IS_ARRAY)
+    {
+        array_init(&property);
+    }
+    return property;
 }
 
 #define sw_php_var_serialize(a,b,c)         php_var_serialize(a,&b,c)
@@ -375,6 +388,27 @@ static sw_inline zval* sw_zend_read_property(zend_class_entry *class_ptr, zval *
     return zend_read_property(class_ptr, obj, s, len, silent, &rv);
 }
 
+static sw_inline zval* sw_zend_read_property_array(zend_class_entry *class_ptr, zval *obj, const char *s, int len, int silent)
+{
+    zval rv, *property = zend_read_property(class_ptr, obj, s, len, silent, &rv);
+    zend_uchar ztype = Z_TYPE_P(property);
+    if (ztype != IS_ARRAY)
+    {
+        zval temp_array;
+        array_init(&temp_array);
+        zend_update_property(class_ptr, obj, s, len, &temp_array TSRMLS_CC);
+        zval_ptr_dtor(&temp_array);
+        // NOTICE: if user unset the property, this pointer will be changed
+        // some objects such as `swoole_http2_request` always be writable
+        if (ztype == IS_UNDEF)
+        {
+            property = zend_read_property(class_ptr, obj, s, len, silent, &rv);
+        }
+    }
+
+    return property;
+}
+
 static sw_inline int sw_zend_is_callable(zval *cb, int a, char **name)
 {
     zend_string *key = NULL;
@@ -488,7 +522,7 @@ static sw_inline char* sw_http_build_query(zval *data, zend_size_t *length, smar
 }
 
 #define sw_get_object_handle(object)    Z_OBJ_HANDLE(*object)
-
+#define SW_PREVENT_USER_DESTRUCT if(unlikely(!(GC_FLAGS(Z_OBJ_P(getThis())) & IS_OBJ_DESTRUCTOR_CALLED))){RETURN_NULL()}
 #endif /* PHP Version */
 
 #endif /* EXT_SWOOLE_PHP7_WRAPPER_H_ */

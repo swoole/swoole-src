@@ -122,9 +122,9 @@ void swWorker_signal_handler(int signo)
 
 static sw_inline int swWorker_discard_data(swServer *serv, swEventData *task)
 {
-    int fd = task->info.fd;
+    int session_id = task->info.fd;
     //check connection
-    swConnection *conn = swServer_connection_verify(serv, task->info.fd);
+    swConnection *conn = swServer_connection_verify(serv, session_id);
     if (conn == NULL)
     {
         if (serv->disable_notify && !serv->discard_timeout_request)
@@ -152,12 +152,12 @@ static sw_inline int swWorker_discard_data(swServer *serv, swEventData *task)
         memcpy(&package, task->data, sizeof(package));
         swReactorThread *thread = swServer_get_thread(SwooleG.serv, task->info.from_id);
         thread->buffer_input->free(thread->buffer_input, package.data);
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_DISCARD_TIMEOUT_DATA, "[1]received the wrong data[%d bytes] from socket#%d", package.length, fd);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_DISCARD_TIMEOUT_DATA, "[1]received the wrong data[%d bytes] from socket#%d", package.length, session_id);
     }
     else
 #endif
     {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_DISCARD_TIMEOUT_DATA, "[1]received the wrong data[%d bytes] from socket#%d", task->info.len, fd);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_DISCARD_TIMEOUT_DATA, "[1]received the wrong data[%d bytes] from socket#%d", task->info.len, session_id);
     }
     return SW_TRUE;
 }
@@ -307,8 +307,14 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         do_task:
         {
             worker->request_time = serv->gs->now;
+#ifdef SW_BUFFER_RECV_TIME
+            serv->last_receive_usec = task->info.time;
+#endif
             serv->onReceive(serv, task);
             worker->request_time = 0;
+#ifdef SW_BUFFER_RECV_TIME
+            serv->last_receive_usec = 0;
+#endif
             worker->traced = 0;
             worker->request_count++;
             sw_atomic_fetch_add(&serv->stats->request_count, 1);
@@ -357,9 +363,15 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         {
             worker->request_count++;
             worker->request_time = serv->gs->now;
+#ifdef SW_BUFFER_RECV_TIME
+            serv->last_receive_usec = task->info.time;
+#endif
             sw_atomic_fetch_add(&serv->stats->request_count, 1);
             serv->onPacket(serv, task);
             worker->request_time = 0;
+#ifdef SW_BUFFER_RECV_TIME
+            serv->last_receive_usec = 0;
+#endif
             worker->traced = 0;
             worker->request_count++;
             swString_clear(package);
@@ -438,6 +450,17 @@ void swWorker_onStart(swServer *serv)
      * Release other worker process
      */
     swWorker *worker;
+
+    /**
+     * call internal serv hooks
+     */
+    if (SwooleG.serv->hooks[SW_SERVER_HOOK_WORKER_START])
+    {
+        void *hook_args[2];
+        hook_args[0] = serv;
+        hook_args[1] = (void *)(uintptr_t)SwooleWG.id;
+        swServer_call_hook(serv, SW_SERVER_HOOK_WORKER_START, hook_args);
+    }
 
     if (SwooleWG.id >= serv->worker_num)
     {
@@ -709,10 +732,6 @@ int swWorker_loop(swFactory *factory, int worker_id)
     SwooleG.use_signalfd = 0;
 #elif defined(HAVE_SIGNALFD)
     SwooleG.use_signalfd = 1;
-#endif
-    //timerfd
-#ifdef HAVE_TIMERFD
-    SwooleG.use_timerfd = 1;
 #endif
 
     //worker_id

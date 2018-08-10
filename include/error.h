@@ -104,6 +104,7 @@ enum swErrorCode
     SW_ERROR_SERVER_NO_IDLE_WORKER,
 
     SW_ERROR_SERVER_ONLY_START_ONE,
+    SW_ERROR_SERVER_SEND_IN_MASTER,
 
     /**
      * Process exit timeout, forced to end.

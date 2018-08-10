@@ -21,7 +21,6 @@
 #include <sys/stat.h>
 #include <sys/resource.h>
 #include <sys/ioctl.h>
-#include <limits.h>
 
 #ifdef HAVE_EXECINFO
 #include <execinfo.h>
@@ -119,10 +118,6 @@ void swoole_init(void)
     swSignalfd_init();
     SwooleG.use_signalfd = 1;
     SwooleG.enable_signalfd = 1;
-#endif
-    //timerfd
-#ifdef HAVE_TIMERFD
-    SwooleG.use_timerfd = 1;
 #endif
 
     SwooleG.use_timer_pipe = 1;

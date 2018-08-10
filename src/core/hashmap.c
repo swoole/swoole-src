@@ -155,19 +155,20 @@ int swHashMap_add(swHashMap* hmap, char *key, uint16_t key_len, void *data)
     return swHashMap_node_add(root, node);
 }
 
-void swHashMap_add_int(swHashMap *hmap, uint64_t key, void *data)
+int swHashMap_add_int(swHashMap *hmap, uint64_t key, void *data)
 {
     swHashMap_node *node = (swHashMap_node*) sw_malloc(sizeof(swHashMap_node));
     swHashMap_node *root = hmap->root;
     if (node == NULL)
     {
         swWarn("malloc failed");
-        return;
+        return SW_ERR;
     }
     node->key_int = key;
     node->data = data;
     node->key_str = NULL;
     HASH_ADD_INT(root, key_int, node);
+    return SW_OK;
 }
 
 static sw_inline swHashMap_node *swHashMap_node_find(swHashMap_node *root, char *key_str, uint16_t key_len)
