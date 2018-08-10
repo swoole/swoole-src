@@ -43,7 +43,9 @@ go(function () {
         }
     }
     assert(empty(array_diff([1, 3, 5, 7], $stream_map)));
-    assert(count(array_unique($responses_headers_count_map)) === 1);
+    $responses_headers_count_map = array_unique($responses_headers_count_map);
+    assert(count($responses_headers_count_map) === 1);
+    assert($responses_headers_count_map > 10);
 });
 ?>
 --EXPECT--
