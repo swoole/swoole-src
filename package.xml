@@ -36,7 +36,7 @@
         <active>yes</active>
     </developer>
     <date>2018-08-10</date>
-    <time>20:30:00</time>
+    <time>21:30:00</time>
     <version>
         <release>4.0.4</release>
         <api>4.0</api>
@@ -77,7 +77,6 @@
                 <file role="src" name="list.h" />
                 <file role="src" name="RingQueue.h" />
                 <file role="src" name="uthash.h" />
-                <file role="src" name="tests.h" />
                 <file role="src" name="array.h" />
                 <file role="src" name="async.h" />
                 <file role="src" name="hash.h" />
@@ -668,7 +667,13 @@
                 <file name="swoole_coroutine_channel/pop_timeout6.phpt" role="test" />
                 <file name="swoole_coroutine_channel/pop_timeout7.phpt" role="test" />
                 <file name="swoole_coroutine_util/dns_lookup.phpt" role="test" />
+                <file name="swoole_coroutine_util/exec.diff" role="test" />
+                <file name="swoole_coroutine_util/exec.exp" role="test" />
+                <file name="swoole_coroutine_util/exec.log" role="test" />
+                <file name="swoole_coroutine_util/exec.out" role="test" />
+                <file name="swoole_coroutine_util/exec.php" role="test" />
                 <file name="swoole_coroutine_util/exec.phpt" role="test" />
+                <file name="swoole_coroutine_util/exec.sh" role="test" />
                 <file name="swoole_coroutine_util/fgets.phpt" role="test" />
                 <file name="swoole_coroutine_util/fread.phpt" role="test" />
                 <file name="swoole_coroutine_util/fwrite.phpt" role="test" />
@@ -698,12 +703,9 @@
                 <file name="swoole_global/serialize_deny.phpt" role="test" />
                 <file name="swoole_http2_client/get.phpt" role="test" />
                 <file name="swoole_http2_client/headers_nest.phpt" role="test" />
-                <file name="swoole_http2_client_coro/goaway.mem" role="test" />
                 <file name="swoole_http2_client_coro/goaway.phpt" role="test" />
-                <file name="swoole_http2_client_coro/headers.mem" role="test" />
                 <file name="swoole_http2_client_coro/headers.php" role="test" />
                 <file name="swoole_http2_client_coro/headers.phpt" role="test" />
-                <file name="swoole_http2_client_coro/multi.mem" role="test" />
                 <file name="swoole_http2_client_coro/multi.php" role="test" />
                 <file name="swoole_http2_client_coro/multi.phpt" role="test" />
                 <file name="swoole_http2_client_coro/no-gzip.phpt" role="test" />
