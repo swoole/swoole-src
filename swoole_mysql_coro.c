@@ -771,9 +771,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     else
     {
         efree(cli);
-        snprintf(buf, sizeof(buf), "connect to mysql server[%s:%ld] failed.", connector->host, connector->port);
         sw_zval_ptr_dtor(&server_info);
-        zend_throw_exception(swoole_mysql_coro_exception_class_entry_ptr, buf, 2 TSRMLS_CC);
         RETURN_FALSE;
     }
 
