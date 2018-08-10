@@ -17,9 +17,9 @@ go(function () {
         echo "resume\n";
         co::resume($main);
     });
-    echo "before yield \n";
+    echo "before yield\n";
     co::yield();
-    echo "after yield \n";
+    echo "after yield\n";
 });
 echo "main \n";
 
