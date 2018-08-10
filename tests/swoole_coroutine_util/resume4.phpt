@@ -1,11 +1,10 @@
 --TEST--
-swoole_coroutine: user suspend and resume4
+swoole_coroutine_util: user suspend and resume4
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
 
 use Swoole\Coroutine as co;
 co::suspend();

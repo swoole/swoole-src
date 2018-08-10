@@ -6,18 +6,29 @@ compiler:
 
 os:
   - linux
-#  - osx
 
 php:
+  - 7.0
   - 7.1
   - 7.2
+  - nightly
+
+matrix:
+  fast_finish: true
+  allow_failures:
+    - php: nightly
 
 notifications:
   email: team@swoole.com
-   
+
+sudo: required
+
 env:
   global:
     - secure: "Mqg9ifSV0BLv2TIBw/x64aEuB8Y5aPXwXg7xAOq08oPlHBYSBgSYxroJL5PXs0fe7PszZF20bUBinwmEXYQzqgP/40Y1kmq/kfTsDXwTOc9qbAbA1pWvH+Sk1kDP5MLJRPWBCkqctyFd0I0u0SdzT1fgSqirqEz2bMnbAUVpSvo="
+
+services:
+  - docker
 
 before_install:
   - echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
@@ -27,16 +38,20 @@ addons:
     project:
       name: "swoole/swoole-src"
       description: "Build submitted via Travis CI"
-    notification_email: mikan.tenny@gmail.com
+    notification_email: team@swoole.com
     build_command_prepend: "./configure; make clean"
-    build_command:   "make -j 4"
+    build_command: "make -j 4"
     branch_pattern: coverity_scan
 
-#Compile
+# compile
 before_script:
-    - ./travis/compile.sh
+  - env
+  - php -v
+  - ls -al
+  - pwd
+  - ./travis/compile.sh
+  - cat ~/.phpenv/versions/$(phpenv version-name)/etc/php.ini
+  - php --ri swoole
 
 script:
-    - exit 0
-
-
+  - ./travis/route.sh

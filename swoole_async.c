@@ -20,13 +20,10 @@
 
 #include "ext/standard/file.h"
 
-
 #ifdef SW_COROUTINE
 #include "swoole_coroutine.h"
 #include "ext/standard/basic_functions.h"
-#include <setjmp.h>
 #endif
-
 
 typedef struct
 {
@@ -286,11 +283,7 @@ static void php_swoole_dns_timeout_coro(swTimer *timer, swTimer_node *tnode)
     zval *retval = NULL;
     zval *zaddress;
     php_context *cxt = (php_context *) tnode->data;
-#if PHP_MAJOR_VERSION < 7
-    dns_request *req =(dns_request *) cxt->coro_params;
-#else
     dns_request *req = (dns_request *) cxt->coro_params.value.ptr;
-#endif
 
     SW_MAKE_STD_ZVAL(zaddress);
 
@@ -333,14 +326,10 @@ static void php_swoole_aio_onComplete(swAio_event *event)
     file_request *file_req = NULL;
     dns_request *dns_req = NULL;
 
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#else
     zval _zcontent;
     zval _zwriten;
     bzero(&_zcontent, sizeof(zval));
     bzero(&_zwriten, sizeof(zval));
-#endif
 
     if (event->type == SW_AIO_GETHOSTBYNAME)
     {
@@ -395,11 +384,7 @@ static void php_swoole_aio_onComplete(swAio_event *event)
     {
         args[0] = &file_req->filename;
         args[1] = &zcontent;
-#if PHP_MAJOR_VERSION < 7
-        SW_MAKE_STD_ZVAL(zcontent);
-#else
         zcontent = &_zcontent;
-#endif
         if (ret < 0)
         {
             SW_ZVAL_STRING(zcontent, "", 1);
@@ -411,11 +396,7 @@ static void php_swoole_aio_onComplete(swAio_event *event)
     }
     else if (event->type == SW_AIO_WRITE)
     {
-#if PHP_MAJOR_VERSION < 7
-        SW_MAKE_STD_ZVAL(zwriten);
-#else
         zwriten = &_zwriten;
-#endif
         args[0] = &file_req->filename;
         args[1] = &zwriten;
         ZVAL_LONG(zwriten, ret);
@@ -423,11 +404,7 @@ static void php_swoole_aio_onComplete(swAio_event *event)
     else if(event->type == SW_AIO_GETHOSTBYNAME)
     {
         args[0] = &dns_req->domain;
-#if PHP_MAJOR_VERSION < 7
-        SW_MAKE_STD_ZVAL(zcontent);
-#else
         zcontent = &_zcontent;
-#endif
         if (ret < 0)
         {
             SW_ZVAL_STRING(zcontent, "", 1);
@@ -1277,11 +1254,7 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro)
     php_context *sw_current_context = emalloc(sizeof(php_context));
     sw_current_context->onTimeout = NULL;
     sw_current_context->state = SW_CORO_CONTEXT_RUNNING;
-#if PHP_MAJOR_VERSION < 7
-    sw_current_context->coro_params = req;
-#else
     sw_current_context->coro_params.value.ptr = (void *) req;
-#endif
     req->context = sw_current_context;
 
     php_swoole_check_reactor();

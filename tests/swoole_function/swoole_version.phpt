@@ -1,5 +1,5 @@
 --TEST--
-global_function: swoole_version
+swoole_function: swoole_version
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --INI--

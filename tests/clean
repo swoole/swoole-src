@@ -19,6 +19,10 @@ function clean($dir)
         {
             continue;
         }
+        if (is_dir($f))
+        {
+            clean($dir);
+        }
         if (substr($f, -5) != '.phpt')
         {
             $file = $dir . '/' . $f;

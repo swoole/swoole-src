@@ -366,8 +366,6 @@ static int swoole_mysql_onWrite(swReactor *reactor, swEvent *event);
 static int swoole_mysql_onError(swReactor *reactor, swEvent *event);
 static void swoole_mysql_onConnect(mysql_client *client TSRMLS_DC);
 
-swString *mysql_request_buffer = NULL;
-
 void swoole_mysql_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_mysql_ce, "swoole_mysql", "Swoole\\MySQL", swoole_mysql_methods);
@@ -2132,16 +2130,6 @@ void mysql_column_info(mysql_field *field)
 
 static PHP_METHOD(swoole_mysql, __construct)
 {
-    if (!mysql_request_buffer)
-    {
-        mysql_request_buffer = swString_new(SW_MYSQL_QUERY_INIT_SIZE);
-        if (!mysql_request_buffer)
-        {
-            swoole_php_fatal_error(E_ERROR, "[1] swString_new(%d) failed.", SW_HTTP_RESPONSE_INIT_SIZE);
-            RETURN_FALSE;
-        }
-    }
-
     mysql_client *client = emalloc(sizeof(mysql_client));
     bzero(client, sizeof(mysql_client));
     swoole_set_object(getThis(), client);
@@ -2253,11 +2241,7 @@ static PHP_METHOD(swoole_mysql, connect)
 
     if (php_swoole_array_get_value(_ht, "strict_type", value))
     {
-#if PHP_MAJOR_VERSION < 7
-        if (Z_TYPE_P(value) == IS_BOOL && Z_BVAL_P(value) == 1)
-#else
         if (Z_TYPE_P(value) == IS_TRUE)
-#endif
         {
             connector->strict_type = 1;
         }
@@ -2273,11 +2257,7 @@ static PHP_METHOD(swoole_mysql, connect)
 
     if (php_swoole_array_get_value(_ht, "fetch_mode", value))
     {
-#if PHP_MAJOR_VERSION < 7
-        if(Z_TYPE_P(value) == IS_BOOL && Z_BVAL_P(value) == 1)
-#else
         if (Z_TYPE_P(value) == IS_TRUE)
-#endif
         {
             connector->fetch_mode = 1;
         }
@@ -2520,6 +2500,8 @@ static PHP_METHOD(swoole_mysql, rollback)
 
 static PHP_METHOD(swoole_mysql, __destruct)
 {
+    SW_PREVENT_USER_DESTRUCT;
+
     mysql_client *client = swoole_get_object(getThis());
     if (!client)
     {
@@ -2646,9 +2628,6 @@ static PHP_METHOD(swoole_mysql, getState)
 
 static void swoole_mysql_onTimeout(swTimer *timer, swTimer_node *tnode)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
     mysql_client *client = tnode->data;
     client->connector.error_code = ETIMEDOUT;
     client->connector.error_msg = strerror(client->connector.error_code);
@@ -2661,9 +2640,6 @@ static int swoole_mysql_onError(swReactor *reactor, swEvent *event)
     swClient *cli = event->socket->object;
     if (cli && cli->socket && cli->socket->active)
     {
-#if PHP_MAJOR_VERSION < 7
-        TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
         mysql_client *client = event->socket->object;
         if (!client)
         {
@@ -2745,10 +2721,6 @@ static void swoole_mysql_onConnect(mysql_client *client TSRMLS_DC)
 
 static int swoole_mysql_onWrite(swReactor *reactor, swEvent *event)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     if (event->socket->active)
     {
         return swReactor_onWrite(SwooleG.main_reactor, event);
@@ -2950,10 +2922,6 @@ static int swoole_mysql_onHandShake(mysql_client *client TSRMLS_DC)
 
 static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     mysql_client *client = event->socket->object;
     if (client->handshake != SW_MYSQL_HANDSHAKE_COMPLETED)
     {

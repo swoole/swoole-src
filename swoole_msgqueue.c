@@ -92,6 +92,8 @@ static PHP_METHOD(swoole_msgqueue, __construct)
 
 static PHP_METHOD(swoole_msgqueue, __destruct)
 {
+    SW_PREVENT_USER_DESTRUCT;
+
     swMsgQueue *queue = swoole_get_object(getThis());
     efree(queue);
     swoole_set_object(getThis(), NULL);

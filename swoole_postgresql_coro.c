@@ -205,11 +205,7 @@ static PHP_METHOD(swoole_postgresql_coro, connect)
     }
     sw_current_context->state = SW_CORO_CONTEXT_RUNNING;
     sw_current_context->onTimeout = NULL;
-    #if PHP_MAJOR_VERSION < 7
-    sw_current_context->coro_params = getThis();
-    #else
-    sw_current_context->coro_params = *getThis();
-    #endif
+        sw_current_context->coro_params = *getThis();
 
     //TODO:  add the timeout
     /*
@@ -226,10 +222,6 @@ static PHP_METHOD(swoole_postgresql_coro, connect)
 static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event)
 {
     char *errMsg;
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     if (event->socket->active)
     {
         return swReactor_onWrite(SwooleG.main_reactor, event);
@@ -303,10 +295,6 @@ static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event)
 static int swoole_pgsql_coro_onRead(swReactor *reactor, swEvent *event)
 {
     pg_object *pg_object = (event->socket->object);
-
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
 
     switch (pg_object->request_type)
     {
@@ -478,11 +466,7 @@ static PHP_METHOD(swoole_postgresql_coro, query)
     php_context *sw_current_context = swoole_get_property(getThis(), 0);
     sw_current_context->state = SW_CORO_CONTEXT_RUNNING;
     sw_current_context->onTimeout = NULL;
-    #if PHP_MAJOR_VERSION < 7
-    sw_current_context->coro_params = getThis();
-    #else
-    sw_current_context->coro_params = *getThis();
-    #endif
+        sw_current_context->coro_params = *getThis();
 
     //TODO:  add the timeout
     /*
@@ -724,11 +708,7 @@ static PHP_METHOD(swoole_postgresql_coro,metaData)
     php_context *sw_current_context = swoole_get_property(getThis(), 0);
     sw_current_context->state = SW_CORO_CONTEXT_RUNNING;
     sw_current_context->onTimeout = NULL;
-#if PHP_MAJOR_VERSION < 7
-        sw_current_context->coro_params = getThis();
-#else
         sw_current_context->coro_params = *getThis();
-#endif
         /*
             if (redis->timeout > 0)
             {
@@ -997,10 +977,6 @@ static void _free_result(zend_resource *rsrc)
 
 static int swoole_pgsql_coro_onError(swReactor *reactor, swEvent *event)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     pg_object *pg_object = (event->socket->object);
     zval *retval = NULL, *result;
     zval *zobject  = pg_object->object;
@@ -1024,6 +1000,8 @@ static int swoole_pgsql_coro_onError(swReactor *reactor, swEvent *event)
 
 static PHP_METHOD(swoole_postgresql_coro, __destruct)
 {
+    SW_PREVENT_USER_DESTRUCT;
+
     pg_object *pg_object = swoole_get_object(getThis());
     swoole_postgresql_coro_close(pg_object);
 

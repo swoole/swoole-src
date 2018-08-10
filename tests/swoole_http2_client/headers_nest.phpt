@@ -1,7 +1,10 @@
 --TEST--
-headers: http2 auto to lower
+swoole_http2_client: http2 auto to lower and nested get
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_deprecated();
+?>
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
@@ -19,10 +22,18 @@ $client->setHeaders([
     'Accept-Encoding' => 'gzip'
 ]);
 $client->get('/', function (Swoole\Http2\Response $response) use ($client) {
-    echo $response->statusCode;
-    $client->close();
+    echo "{$response->statusCode}\n";
+    $client->get('/', function (Swoole\Http2\Response $response) use ($client) {
+        echo "{$response->statusCode}\n";
+        $client->get('/', function (Swoole\Http2\Response $response) use ($client) {
+            echo "{$response->statusCode}\n";
+            $client->close();
+        });
+    });
 });
 swoole_event_wait();
 ?>
 --EXPECT--
+200
+200
 200

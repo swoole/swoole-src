@@ -1,11 +1,10 @@
 --TEST--
-swoole_coroutine: http client
+swoole_http_client_coro: http client
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
 require_once __DIR__ . '/../include/lib/curl.php';
 
 $pm = new ProcessManager;

@@ -33,16 +33,19 @@ extern "C" {
 #define _GNU_SOURCE
 #endif
 
+/*--- C standard library ---*/
+#include <assert.h>
+#include <ctype.h>
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <signal.h>
+#include <time.h>
+#include <limits.h>
+
 #include <fcntl.h>
 #include <unistd.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <errno.h>
-#include <string.h>
-#include <ctype.h>
-#include <signal.h>
-#include <assert.h>
-#include <time.h>
 #include <pthread.h>
 #if defined(HAVE_CPU_AFFINITY)
 #ifdef __FreeBSD__
@@ -157,8 +160,8 @@ typedef unsigned long ulong_t;
 #include "array.h"
 #include "error.h"
 
-#define SW_MAX_UINT            4294967295
-#define SW_MAX_INT             2147483647
+#define SW_MAX_UINT            UINT_MAX
+#define SW_MAX_INT             INT_MAX
 
 #ifndef MAX
 #define MAX(a, b)              (a)>(b)?a:b;
@@ -239,6 +242,7 @@ enum swFd_type
     SW_FD_WRITE           = 7, //fd can write
     SW_FD_TIMER           = 8, //timer fd
     SW_FD_AIO             = 9, //linux native aio
+    SW_FD_CORO_SOCKET     = 10, //CoroSocket
     SW_FD_SIGNAL          = 11, //signalfd
     SW_FD_DNS_RESOLVER    = 12, //dns resolver
     SW_FD_INOTIFY         = 13, //server socket
@@ -272,6 +276,8 @@ enum swGlobal_hook_type
 {
     SW_GLOBAL_HOOK_BEFORE_SERVER_START,
     SW_GLOBAL_HOOK_BEFORE_CLIENT_START,
+    SW_GLOBAL_HOOK_ON_CORO_START,
+    SW_GLOBAL_HOOK_ON_CORO_STOP,
 };
 
 //-------------------------------------------------------------------------------
@@ -335,16 +341,6 @@ SwooleGS->lock_2.unlock(&SwooleGS->lock_2)
     swLog_put(SW_LOG_NOTICE, sw_error);\
     SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}
 
-#if defined(SW_DEBUG) || defined(SW_LOG_TRACE_OPEN)
-#define swTrace(str,...) if (SW_LOG_TRACE >= SwooleG.log_level){\
-    SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
-    snprintf(sw_error, SW_ERROR_MSG_SIZE, str, ##__VA_ARGS__);\
-    swLog_put(SW_LOG_TRACE, sw_error);\
-    SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}
-#else
-#define swTrace(str,...)
-#endif
-
 #define swError(str,...)       SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
 snprintf(sw_error, SW_ERROR_MSG_SIZE, str, ##__VA_ARGS__);\
 swLog_put(SW_LOG_ERROR, sw_error);\
@@ -398,6 +394,7 @@ enum swTraceType
     SW_TRACE_MYSQL_CLIENT     = 1u << 17,
     SW_TRACE_AIO              = 1u << 18,
     SW_TRACE_SSL              = 1u << 19,
+    SW_TRACE_NORMAL           = 1u << 20,
 };
 
 #ifdef SW_LOG_TRACE_OPEN
@@ -409,6 +406,8 @@ enum swTraceType
 #else
 #define swTraceLog(id,str,...)
 #endif
+
+#define swTrace(str,...)       swTraceLog(SW_TRACE_NORMAL, str, ##__VA_ARGS__)
 
 #define swYield()              sched_yield() //or usleep(1)
 //#define swYield()              usleep(500000)
@@ -490,7 +489,7 @@ typedef struct _swConnection
     uint16_t socket_type;
 
     /**
-     * fd type, SW_FD_TCP or SW_FD_PIPE or SW_FD_TIMERFD
+     * fd type, SW_FD_TCP or SW_FD_PIPE
      */
     uint16_t fdtype;
 
@@ -499,7 +498,7 @@ typedef struct _swConnection
     //--------------------------------------------------------------
     /**
      * is active
-     * system fd must be 0. en: timerfd, signalfd, listen socket
+     * system fd must be 0. en: signalfd, listen socket
      */
     uint8_t active;
     uint8_t connect_notify;
@@ -1707,6 +1706,10 @@ static sw_inline int swReactor_events(int fdtype)
     {
         events |= SW_EVENT_ERROR;
     }
+    if (fdtype & SW_EVENT_ONCE)
+    {
+        events |= SW_EVENT_ONCE;
+    }
     return events;
 }
 
@@ -1971,7 +1974,7 @@ enum swTimer_type
 
 struct _swTimer
 {
-    /*--------------timerfd & signal timer--------------*/
+    /*--------------signal timer--------------*/
     swHeap *heap;
     swHashMap *map;
     int num;
@@ -2047,11 +2050,6 @@ typedef struct
 
     int max_request;
 
-#ifdef SW_COROUTINE
-    swLinkedList *coro_timeout_list;
-    swLinkedList *delayed_coro_timeout_list;
-#endif
-
     swString **buffer_input;
     swString **buffer_output;
     swWorker *worker;
@@ -2088,7 +2086,6 @@ typedef struct
 
     uint8_t running :1;
     uint8_t enable_coroutine :1;
-    uint8_t use_timerfd :1;
     uint8_t use_signalfd :1;
     uint8_t enable_signalfd :1;
     uint8_t reuse_port :1;

@@ -79,3 +79,8 @@ cmake-build-debug/
 /.vscode
 /configure.in
 /configure.ac
+/core-tests/CMakeCache.txt
+/core-tests/CMakeFiles/
+/core-tests/Makefile
+/core-tests/bin/
+/core-tests/cmake_install.cmake

@@ -18,7 +18,6 @@ assert.quiet_eval=0
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
 use Swoole\Redis\Server;
 
 define('VALUE_LEN',  8192 * 128);

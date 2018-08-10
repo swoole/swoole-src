@@ -1,5 +1,5 @@
 --TEST--
-process pool message: simple send test
+swoole_process_pool: simple send test
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

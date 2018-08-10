@@ -1,11 +1,10 @@
 --TEST--
-swoole_coroutine: fgets
+swoole_coroutine_util: fgets
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
 
 go(function () {
     $file = __DIR__ . '/fgets.phpt';

@@ -1,5 +1,5 @@
 --TEST--
-swoole_client sync: connect 1 - 2
+swoole_client_sync: connect 1 - 2
 
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
@@ -18,7 +18,6 @@ require_once __DIR__ . '/../include/bootstrap.php';
 
  * Time: 上午10:06
  */
-require_once __DIR__ . '/../include/swoole.inc';
 
 killself_in_syncmode(1000, SIGTERM);
 

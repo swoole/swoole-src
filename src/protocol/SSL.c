@@ -174,6 +174,10 @@ static ulong_t swSSL_id_callback(void)
 
 void swSSL_init_thread_safety()
 {
+    if (!openssl_init)
+    {
+        return;
+    }
     int i;
     lock_array = (pthread_mutex_t *) OPENSSL_malloc(CRYPTO_num_locks() * sizeof(pthread_mutex_t));
     for (i = 0; i < CRYPTO_num_locks(); i++)

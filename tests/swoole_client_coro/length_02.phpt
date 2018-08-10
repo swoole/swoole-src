@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: (length protocol) wrong packet
+swoole_client_coro: (length protocol) wrong packet
 
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>

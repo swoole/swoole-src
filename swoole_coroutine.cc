@@ -42,6 +42,7 @@
 coro_global COROG;
 static coro_task* sw_get_current_task();
 static void sw_coro_func(void *);
+static zend_bool is_xdebug_started = 0;
 
 #if PHP_MAJOR_VERSION >= 7 && PHP_MINOR_VERSION >= 2
 static inline void sw_vm_stack_init(void)
@@ -66,9 +67,7 @@ int coro_init(TSRMLS_D)
 {
     if (zend_get_module_started("xdebug") == SUCCESS)
     {
-        swoole_php_fatal_error(E_ERROR,
-                "can not use xdebug in swoole coroutine, please remove xdebug in php.ini and retry.");
-        return 0;
+        is_xdebug_started = 1;
     }
     COROG.origin_vm_stack = EG(vm_stack);
     COROG.origin_vm_stack_top = EG(vm_stack_top);
@@ -85,7 +84,6 @@ int coro_init(TSRMLS_D)
     }
 
     COROG.active = 1;
-    SwooleWG.coro_timeout_list = swLinkedList_new(1, NULL);
     coroutine_set_close(sw_coro_close);
     return 0;
 }
@@ -174,6 +172,11 @@ static void sw_coro_func(void *arg)
     task->state = SW_CORO_RUNNING;
     task->co = coroutine_get_by_id(cid);
 
+    if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_CORO_START])
+    {
+        swoole_call_hook(SW_GLOBAL_HOOK_ON_CORO_START, task);
+    }
+
     COROG.call_stack[COROG.call_stack_size++] = task;
     COROG.current_coro = task;
     swTraceLog(SW_TRACE_COROUTINE, "Create coro id: %d, coro total count: %d, heap size: %zu", cid, COROG.coro_num, zend_memory_usage(0));
@@ -188,6 +191,11 @@ static void sw_coro_func(void *arg)
 int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval *retval, void *post_callback,
         void *params)
 {
+    if (is_xdebug_started == 1)
+    {
+        swWarn("xdebug do not support coroutine, please notice that it lead to coredump.");
+    }
+
     if (unlikely(COROG.coro_num >= COROG.max_coro_num) )
     {
         COROG.error = 1;
@@ -317,6 +325,12 @@ void sw_coro_close()
 {
     coro_task *task = (coro_task *) sw_get_current_task();
     swTraceLog(SW_TRACE_COROUTINE,"coro_close coro id %d", task->cid);
+
+    if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_CORO_STOP])
+    {
+        swoole_call_hook(SW_GLOBAL_HOOK_ON_CORO_STOP, task);
+    }
+
     if (!task->is_yield)
     {
         EG(vm_stack) = task->origin_stack;
@@ -356,7 +370,7 @@ int sw_get_current_cid()
     }
     else
     {
-        coro_task* task =  sw_get_current_task();
+        coro_task* task = sw_get_current_task();
         if (task)
         {
             return task->cid;
@@ -370,50 +384,4 @@ static coro_task* sw_get_current_task()
     return (COROG.call_stack_size > 0) ? COROG.call_stack[COROG.call_stack_size - 1] : NULL;
 }
 
-void coro_handle_timeout()
-{
-    swLinkedList *timeout_list = SwooleWG.coro_timeout_list;
-    swTimer_node *tnode = NULL;
-    if (timeout_list != NULL && timeout_list->num > 0)
-    {
-        php_context *cxt = (php_context *) swLinkedList_shift(timeout_list);
-        while (cxt != NULL)
-        {
-            cxt->onTimeout(cxt);
-            cxt = (php_context *) swLinkedList_shift(timeout_list);
-        }
-    }
-
-    timeout_list = SwooleWG.delayed_coro_timeout_list;
-    if (likely(timeout_list != NULL))
-    {
-        swTimer_coro_callback *scc = (swTimer_coro_callback *) swLinkedList_shift(timeout_list);
-        while (scc != NULL)
-        {
-            php_context *context = (php_context *) scc->data;
-            if (unlikely(context->state == SW_CORO_CONTEXT_TERM))
-            {
-                efree(context);
-                efree(scc);
-            }
-            else
-            {
-                context->state = SW_CORO_CONTEXT_RUNNING;
-                tnode = SwooleG.timer.add(&SwooleG.timer, scc->ms, 0, scc, php_swoole_onTimeout);
-
-                if (tnode == NULL)
-                {
-                    efree(scc);
-                    swWarn("Addtimer coro failed.");
-                }
-                else
-                {
-                    tnode->type = SW_TIMER_TYPE_CORO;
-                    *scc->timeout_id = tnode->id;
-                }
-            }
-            scc = (swTimer_coro_callback *) swLinkedList_shift(timeout_list);
-        }
-    }
-}
 #endif

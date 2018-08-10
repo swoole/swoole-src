@@ -1,11 +1,10 @@
 --TEST--
-swoole_coroutine: http GET without Content-Length header
+swoole_http_client_coro: http GET without Content-Length header
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
 require_once __DIR__ . '/../include/lib/curl.php';
 
 use Swoole\Coroutine as co;

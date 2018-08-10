@@ -213,7 +213,6 @@ static int swManager_loop(swFactory *factory)
     int status;
 
     SwooleG.use_signalfd = 0;
-    SwooleG.use_timerfd = 0;
 
     memset(&ManagerProcess, 0, sizeof(ManagerProcess));
 

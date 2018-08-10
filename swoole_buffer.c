@@ -70,8 +70,6 @@ static const zend_function_entry swoole_buffer_methods[] =
     PHP_ME(swoole_buffer, expand, arginfo_swoole_buffer_expand, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_buffer, recycle, arginfo_swoole_buffer_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_buffer, clear, arginfo_swoole_buffer_void, ZEND_ACC_PUBLIC)
-    PHP_FALIAS(__sleep, swoole_unsupport_serialize, NULL)
-    PHP_FALIAS(__wakeup, swoole_unsupport_serialize, NULL)
     PHP_FE_END
 };
 
@@ -82,6 +80,8 @@ void swoole_buffer_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_buffer_ce, "swoole_buffer", "Swoole\\Buffer", swoole_buffer_methods);
     swoole_buffer_class_entry_ptr = zend_register_internal_class(&swoole_buffer_ce TSRMLS_CC);
+    swoole_buffer_class_entry_ptr->serialize = zend_class_serialize_deny;
+    swoole_buffer_class_entry_ptr->unserialize = zend_class_unserialize_deny;
     SWOOLE_CLASS_ALIAS(swoole_buffer, "Swoole\\Buffer");
 }
 
@@ -137,6 +137,8 @@ static PHP_METHOD(swoole_buffer, __construct)
 
 static PHP_METHOD(swoole_buffer, __destruct)
 {
+    SW_PREVENT_USER_DESTRUCT;
+
     swString *buffer = swoole_get_object(getThis());
     if (buffer)
     {

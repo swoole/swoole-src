@@ -216,6 +216,16 @@ By using Swoole, you can build enhanced web applications with more control, real
     ./configure
     make && make install
     ```
+3. Example for static compile:
+    ```
+    git clone -b PHP-7.2 --depth 1 https://github.com/php/php-src.git
+    cd php-src/
+    git clone -b master --depth 1 https://github.com/swoole/swoole-src.git ext/swoole
+    ./buildconf --force
+    ./configure --prefix=/usr/local/php7 --disable-all --enable-cli --disable-cgi --disable-fpm --disable-phpdbg --enable-bcmath --enable-hash --enable-json --enable-mbstring --enable-mbregex --enable-mbregex-backtrack --enable-sockets --enable-pdo --with-sodium --with-password-argon2 --with-sqlite3 --with-pdo-sqlite --with-pcre-regex --with-zlib --with-openssl-dir --enable-swoole-static --enable-openssl --with-swoole
+    time make -j `cat /proc/cpuinfo | grep processor | wc -l`
+    sudo make install
+    ```
 
 ## Introduction
 
@@ -551,10 +561,6 @@ Refer to [API Reference](http://wiki.swoole.com/wiki/page/3.html) for more detai
 
 * [中文](http://wiki.swoole.com/)
 * [English](https://rawgit.com/tchiotludo/swoole-ide-helper/english/docs/index.html)
-
-## Related Projects
-
-* [SwooleFramework](https://github.com/swoole/framework) Web framework powered by Swoole
 
 ## Contribution
 

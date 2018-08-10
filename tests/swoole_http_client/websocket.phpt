@@ -5,12 +5,16 @@ swoole_http_client: websocket client send 128 messages
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
 const N = 128;
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid)
 {
     $cli = new swoole_http_client('127.0.0.1', 9501);
+    if (IS_MAC_OS) {
+        $cli->set([
+            'socket_buffer_size' => 2 * 1024 * 1024
+        ]);
+    }
     $cli->count = 0;
     $cli->on('close', function ($cli)
     {

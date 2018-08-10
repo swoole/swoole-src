@@ -320,6 +320,8 @@ void swoole_client_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_client_ce, "swoole_client", "Swoole\\Client", swoole_client_methods);
     swoole_client_class_entry_ptr = zend_register_internal_class(&swoole_client_ce TSRMLS_CC);
+    swoole_client_class_entry_ptr->serialize = zend_class_serialize_deny;
+    swoole_client_class_entry_ptr->unserialize = zend_class_unserialize_deny;
     SWOOLE_CLASS_ALIAS(swoole_client, "Swoole\\Client");
 
     zend_declare_property_long(swoole_client_class_entry_ptr, SW_STRL("errCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
@@ -356,10 +358,6 @@ void swoole_client_init(int module_number TSRMLS_DC)
 
 static void client_onReceive(swClient *cli, char *data, uint32_t length)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     zval *zobject = (zval *) cli->object;
     zval *zcallback = NULL;
     zval **args[2];
@@ -827,10 +825,6 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
 
 void php_swoole_at_shutdown(char *function)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
 #if PHP_MAJOR_VERSION >=7
     php_shutdown_function_entry shutdown_function_entry;
     shutdown_function_entry.arg_count = 1;
@@ -893,10 +887,6 @@ void php_swoole_check_reactor()
         return;
     }
 
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     if (!SWOOLE_G(cli))
     {
         swoole_php_fatal_error(E_ERROR, "async-io must be used in PHP CLI mode.");
@@ -944,6 +934,11 @@ void php_swoole_check_reactor()
 
 void php_swoole_client_free(zval *zobject, swClient *cli TSRMLS_DC)
 {
+    if (cli->timer)
+    {
+        swTimer_del(&SwooleG.timer, cli->timer);
+        cli->timer = NULL;
+    }
     //socks5 proxy config
     if (cli->socks5_proxy)
     {
@@ -1014,10 +1009,6 @@ swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port
     int conn_key_len = 0;
     uint64_t tmp_buf;
     int ret;
-
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
 
     ztype = sw_zend_read_property(Z_OBJCE_P(object), object, SW_STRL("type")-1, 0 TSRMLS_CC);
 
@@ -1162,6 +1153,8 @@ static PHP_METHOD(swoole_client, __construct)
 
 static PHP_METHOD(swoole_client, __destruct)
 {
+    SW_PREVENT_USER_DESTRUCT;
+
     swClient *cli = (swClient *) swoole_get_object(getThis());
     //no keep connection
     if (cli)
@@ -2205,7 +2198,7 @@ PHP_FUNCTION(swoole_client_select)
 #ifdef PHP_SWOOLE_CLIENT_USE_POLL
     zval *r_array, *w_array, *e_array;
     int retval, index = 0;
-    double timeout = 0.5;
+    double timeout = SW_CLIENT_DEFAULT_TIMEOUT;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a!a!a!|d", &r_array, &w_array, &e_array, &timeout) == FAILURE)
     {
@@ -2263,7 +2256,7 @@ PHP_FUNCTION(swoole_client_select)
 
     int max_fd = 0;
     int    retval, sets = 0;
-    double timeout = 0.5;
+    double timeout = SW_CLIENT_DEFAULT_TIMEOUT;
     struct timeval timeo;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a!a!a!|d", &r_array, &w_array, &e_array, &timeout) == FAILURE)
@@ -2432,46 +2425,6 @@ static int client_select_wait(zval *sock_array, fd_set *fds TSRMLS_DC)
         return 0;
     }
 
-#if PHP_MAJOR_VERSION < 7
-    HashTable *new_hash;
-    char *key = NULL;
-    zval **dest_element = NULL;
-    uint32_t key_len;
-
-    ALLOC_HASHTABLE(new_hash);
-    zend_hash_init(new_hash, zend_hash_num_elements(Z_ARRVAL_P(sock_array)), NULL, ZVAL_PTR_DTOR, 0);
-
-    SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(sock_array), element)
-        sock = swoole_convert_to_fd(element TSRMLS_CC);
-        if (sock < 0)
-        {
-            continue;
-        }
-        if ((sock < FD_SETSIZE) && FD_ISSET(sock, fds))
-        {
-            switch (sw_zend_hash_get_current_key(Z_ARRVAL_P(sock_array), &key, &key_len, &num))
-            {
-            case HASH_KEY_IS_STRING:
-                sw_zend_hash_add(new_hash, key, key_len, (void * ) &element, sizeof(zval *), (void ** )&dest_element);
-                break;
-            case HASH_KEY_IS_LONG:
-                sw_zend_hash_index_update(new_hash, num, (void * ) &element, sizeof(zval *), (void ** )&dest_element);
-                break;
-            }
-            if (dest_element)
-            {
-                sw_zval_add_ref(dest_element);
-            }
-        }
-        num ++;
-    SW_HASHTABLE_FOREACH_END();
-
-    zend_hash_destroy(Z_ARRVAL_P(sock_array));
-    efree(Z_ARRVAL_P(sock_array));
-
-    zend_hash_internal_pointer_reset(new_hash);
-    Z_ARRVAL_P(sock_array) = new_hash;
-#else
     zval new_array;
     array_init(&new_array);
     zend_ulong num_key;
@@ -2506,7 +2459,6 @@ static int client_select_wait(zval *sock_array, fd_set *fds TSRMLS_DC)
 
     zval_ptr_dtor(sock_array);
     ZVAL_COPY_VALUE(sock_array, &new_array);
-#endif
     return num ? 1 : 0;
 }
 

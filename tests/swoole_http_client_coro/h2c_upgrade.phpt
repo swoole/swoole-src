@@ -1,5 +1,5 @@
 --TEST--
-h2c_upgrade: upgrade bug
+swoole_http_client_coro: upgrade bug
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

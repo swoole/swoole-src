@@ -48,13 +48,12 @@ $path['dirname'] = trim($path['dirname'], './'); // i know arg2 is a list but it
 
 $replacement = [];
 $tip = swoole_color("[Test name]: ", SWOOLE_COLOR_BLUE);
-$replacement['test_name'] = fgetsin($tip, false);
+$path['filename'] = fgetsin($tip, false);// use test name to be filename
 $tip = swoole_color("[Test intro]: ", SWOOLE_COLOR_BLUE);
-$replacement['test_intro'] = fgetsin($tip);
+$replacement['test_intro'] = fgetsin($tip, false);
+$this_dir_name = explode('/', $path['dirname']);
+$replacement['test_name'] = end($this_dir_name); // use dir name to be test name
 
-if (empty($path['filename'])) {
-    $path['filename'] = $replacement['test_name']; // use test name to be filename
-}
 $filename = "{$path['dirname']}/{$path['filename']}.phpt";
 
 //if dir not exist, create it
@@ -69,7 +68,10 @@ if (!is_dir(__DIR__ . "/{$path['dirname']}")) {
         exit(swoole_color('Can\'t generate the test file in nonexistent dir!', SWOOLE_COLOR_RED));
     }
 } elseif (file_exists($filename)) {
-    echo swoole_color("The file [{$path['filename']}] is exist, if you want to overwrite it? [y/n]: ", SWOOLE_COLOR_YELLOW);
+    echo swoole_color(
+        "The file [{$path['filename']}] is exist, if you want to overwrite it? [y/n]: ",
+        SWOOLE_COLOR_YELLOW
+    );
     if (!yes()) {
         exit(swoole_color('You should rename your test filename.', SWOOLE_COLOR_RED));
     }
