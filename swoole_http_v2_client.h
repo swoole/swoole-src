@@ -83,6 +83,7 @@ typedef struct
     int port;
 
     nghttp2_hd_inflater *inflater;
+    nghttp2_hd_deflater *deflater;
     zval *object;
     double timeout;
 
