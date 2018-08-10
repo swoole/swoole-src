@@ -47,7 +47,7 @@ int swProtocol_get_package_length(swProtocol *protocol, swConnection *conn, char
 
 static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swConnection *conn, swString *buffer)
 {
-#if SW_LOG_TRACE_OPEN > 0
+#ifdef SW_LOG_TRACE_OPEN
     static int count;
     count++;
 #endif
@@ -202,7 +202,16 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
                     buffer->length = remaining_length;
                     goto do_get_length;
                 }
-                swString_clear(buffer);
+                else
+                {
+                    swString_clear(buffer);
+#ifdef SW_USE_OPENSSL
+                    if (conn->ssl)
+                    {
+                        goto do_recv;
+                    }
+#endif
+                }
             }
             return SW_OK;
         }
