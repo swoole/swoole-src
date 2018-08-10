@@ -817,7 +817,6 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     client->cid = sw_get_current_cid();
     coro_save(context);
     coro_yield();
-    RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_mysql_coro, query)
