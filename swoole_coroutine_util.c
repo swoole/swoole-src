@@ -314,6 +314,10 @@ static PHP_METHOD(swoole_coroutine_util, resume)
         RETURN_FALSE;
     }
 
+    zend_vm_stack origin_vm_stack = EG(vm_stack);
+    zval *origin_vm_stack_top = EG(vm_stack_top);
+    zval *origin_vm_stack_end = EG(vm_stack_end);
+
     zval *retval = NULL;
     zval *result;
     SW_MAKE_STD_ZVAL(result);
@@ -325,6 +329,9 @@ static PHP_METHOD(swoole_coroutine_util, resume)
     }
     sw_zval_ptr_dtor(&result);
     efree(context);
+    EG(vm_stack) = origin_vm_stack;
+    EG(vm_stack_top) = origin_vm_stack_top;
+    EG(vm_stack_end) = origin_vm_stack_end;
     RETURN_TRUE;
 }
 

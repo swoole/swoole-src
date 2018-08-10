@@ -341,16 +341,6 @@ SwooleGS->lock_2.unlock(&SwooleGS->lock_2)
     swLog_put(SW_LOG_NOTICE, sw_error);\
     SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}
 
-#if defined(SW_DEBUG) || defined(SW_LOG_TRACE_OPEN)
-#define swTrace(str,...) if (SW_LOG_TRACE >= SwooleG.log_level){\
-    SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
-    snprintf(sw_error, SW_ERROR_MSG_SIZE, str, ##__VA_ARGS__);\
-    swLog_put(SW_LOG_TRACE, sw_error);\
-    SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}
-#else
-#define swTrace(str,...)
-#endif
-
 #define swError(str,...)       SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
 snprintf(sw_error, SW_ERROR_MSG_SIZE, str, ##__VA_ARGS__);\
 swLog_put(SW_LOG_ERROR, sw_error);\
@@ -404,6 +394,7 @@ enum swTraceType
     SW_TRACE_MYSQL_CLIENT     = 1u << 17,
     SW_TRACE_AIO              = 1u << 18,
     SW_TRACE_SSL              = 1u << 19,
+    SW_TRACE_NORMAL           = 1u << 20,
 };
 
 #ifdef SW_LOG_TRACE_OPEN
@@ -415,6 +406,8 @@ enum swTraceType
 #else
 #define swTraceLog(id,str,...)
 #endif
+
+#define swTrace(str,...)       swTraceLog(SW_TRACE_NORMAL, str, ##__VA_ARGS__)
 
 #define swYield()              sched_yield() //or usleep(1)
 //#define swYield()              usleep(500000)
@@ -496,7 +489,7 @@ typedef struct _swConnection
     uint16_t socket_type;
 
     /**
-     * fd type, SW_FD_TCP or SW_FD_PIPE or SW_FD_TIMERFD
+     * fd type, SW_FD_TCP or SW_FD_PIPE
      */
     uint16_t fdtype;
 
@@ -505,7 +498,7 @@ typedef struct _swConnection
     //--------------------------------------------------------------
     /**
      * is active
-     * system fd must be 0. en: timerfd, signalfd, listen socket
+     * system fd must be 0. en: signalfd, listen socket
      */
     uint8_t active;
     uint8_t connect_notify;
@@ -1981,7 +1974,7 @@ enum swTimer_type
 
 struct _swTimer
 {
-    /*--------------timerfd & signal timer--------------*/
+    /*--------------signal timer--------------*/
     swHeap *heap;
     swHashMap *map;
     int num;
@@ -2093,7 +2086,6 @@ typedef struct
 
     uint8_t running :1;
     uint8_t enable_coroutine :1;
-    uint8_t use_timerfd :1;
     uint8_t use_signalfd :1;
     uint8_t enable_signalfd :1;
     uint8_t reuse_port :1;

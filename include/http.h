@@ -51,9 +51,9 @@ typedef struct _swHttpRequest
     uint8_t method;
     uint8_t offset;
     uint8_t version;
-    uint8_t free_memory;
     uint8_t opcode;
     uint8_t excepted;
+    uint8_t keep_alive;
 
     uint32_t url_offset;
     uint32_t url_length;
@@ -67,7 +67,7 @@ typedef struct _swHttpRequest
 int swHttp_get_method(const char *method_str, int method_len);
 const char* swHttp_get_method_string(int method);
 int swHttpRequest_get_protocol(swHttpRequest *request);
-int swHttpRequest_get_content_length(swHttpRequest *request);
+int swHttpRequest_get_header_info(swHttpRequest *request);
 int swHttpRequest_get_header_length(swHttpRequest *request);
 void swHttpRequest_free(swConnection *conn);
 #ifdef SW_HTTP_100_CONTINUE

@@ -25,7 +25,7 @@
 #define MSG_NOSIGNAL        0
 #endif
 
-int swConnection_onSendfile(swConnection *conn, swBuffer_trunk *chunk)
+int swConnection_onSendfile(swConnection *conn, swBuffer_chunk *chunk)
 {
     int ret;
     swTask_sendfile *task = chunk->store.ptr;
@@ -76,7 +76,7 @@ int swConnection_onSendfile(swConnection *conn, swBuffer_trunk *chunk)
         {
         case SW_ERROR:
             swSysError("sendfile(%s, %ld, %d) failed.", task->filename, (long)task->offset, sendn);
-            swBuffer_pop_trunk(conn->out_buffer, chunk);
+            swBuffer_pop_chunk(conn->out_buffer, chunk);
             return SW_OK;
         case SW_CLOSE:
             conn->close_wait = 1;
@@ -92,7 +92,7 @@ int swConnection_onSendfile(swConnection *conn, swBuffer_trunk *chunk)
     //sendfile finish
     if (task->offset >= task->length)
     {
-        swBuffer_pop_trunk(conn->out_buffer, chunk);
+        swBuffer_pop_chunk(conn->out_buffer, chunk);
 
 #ifdef HAVE_TCP_NOPUSH
         /**
@@ -128,16 +128,16 @@ int swConnection_buffer_send(swConnection *conn)
     int ret, sendn;
 
     swBuffer *buffer = conn->out_buffer;
-    swBuffer_trunk *trunk = swBuffer_get_trunk(buffer);
-    sendn = trunk->length - trunk->offset;
+    swBuffer_chunk *chunk = swBuffer_get_chunk(buffer);
+    sendn = chunk->length - chunk->offset;
 
     if (sendn == 0)
     {
-        swBuffer_pop_trunk(buffer, trunk);
+        swBuffer_pop_chunk(buffer, chunk);
         return SW_OK;
     }
 
-    ret = swConnection_send(conn, trunk->store.ptr + trunk->offset, sendn, 0);
+    ret = swConnection_send(conn, chunk->store.ptr + chunk->offset, sendn, 0);
     if (ret < 0)
     {
         switch (swConnection_error(errno))
@@ -157,14 +157,14 @@ int swConnection_buffer_send(swConnection *conn)
         }
         return SW_OK;
     }
-    //trunk full send
+    //chunk full send
     else if (ret == sendn || sendn == 0)
     {
-        swBuffer_pop_trunk(buffer, trunk);
+        swBuffer_pop_chunk(buffer, chunk);
     }
     else
     {
-        trunk->offset += ret;
+        chunk->offset += ret;
     }
     return SW_OK;
 }
@@ -223,7 +223,7 @@ int swConnection_get_port(swConnection *conn)
     }
 }
 
-void swConnection_sendfile_destructor(swBuffer_trunk *chunk)
+void swConnection_sendfile_destructor(swBuffer_chunk *chunk)
 {
     swTask_sendfile *task = chunk->store.ptr;
     close(task->fd);
@@ -242,7 +242,7 @@ int swConnection_sendfile(swConnection *conn, char *filename, off_t offset, size
         }
     }
 
-    swBuffer_trunk error_chunk;
+    swBuffer_chunk error_chunk;
     swTask_sendfile *task = sw_malloc(sizeof(swTask_sendfile));
     if (task == NULL)
     {
@@ -287,10 +287,10 @@ int swConnection_sendfile(swConnection *conn, char *filename, off_t offset, size
         task->length = length + offset;
     }
 
-    swBuffer_trunk *chunk = swBuffer_new_trunk(conn->out_buffer, SW_CHUNK_SENDFILE, 0);
+    swBuffer_chunk *chunk = swBuffer_new_chunk(conn->out_buffer, SW_CHUNK_SENDFILE, 0);
     if (chunk == NULL)
     {
-        swWarn("get out_buffer trunk failed.");
+        swWarn("get out_buffer chunk failed.");
         error_chunk.store.ptr = task;
         swConnection_sendfile_destructor(&error_chunk);
         return SW_ERR;
@@ -313,9 +313,9 @@ void swConnection_clear_string_buffer(swConnection *conn)
     }
 }
 
-swBuffer_trunk* swConnection_get_in_buffer(swConnection *conn)
+swBuffer_chunk* swConnection_get_in_buffer(swConnection *conn)
 {
-    swBuffer_trunk *trunk = NULL;
+    swBuffer_chunk *chunk = NULL;
     swBuffer *buffer;
 
     if (conn->in_buffer == NULL)
@@ -326,9 +326,9 @@ swBuffer_trunk* swConnection_get_in_buffer(swConnection *conn)
         {
             return NULL;
         }
-        //new trunk
-        trunk = swBuffer_new_trunk(buffer, SW_CHUNK_DATA, buffer->trunk_size);
-        if (trunk == NULL)
+        //new chunk
+        chunk = swBuffer_new_chunk(buffer, SW_CHUNK_DATA, buffer->chunk_size);
+        if (chunk == NULL)
         {
             sw_free(buffer);
             return NULL;
@@ -338,18 +338,18 @@ swBuffer_trunk* swConnection_get_in_buffer(swConnection *conn)
     else
     {
         buffer = conn->in_buffer;
-        trunk = buffer->tail;
-        if (trunk == NULL || trunk->length == buffer->trunk_size)
+        chunk = buffer->tail;
+        if (chunk == NULL || chunk->length == buffer->chunk_size)
         {
-            trunk = swBuffer_new_trunk(buffer, SW_CHUNK_DATA, buffer->trunk_size);
+            chunk = swBuffer_new_chunk(buffer, SW_CHUNK_DATA, buffer->chunk_size);
         }
     }
-    return trunk;
+    return chunk;
 }
 
-swBuffer_trunk* swConnection_get_out_buffer(swConnection *conn, uint32_t type)
+swBuffer_chunk* swConnection_get_out_buffer(swConnection *conn, uint32_t type)
 {
-    swBuffer_trunk *trunk;
+    swBuffer_chunk *chunk;
     if (conn->out_buffer == NULL)
     {
         conn->out_buffer = swBuffer_new(SW_BUFFER_SIZE);
@@ -360,15 +360,15 @@ swBuffer_trunk* swConnection_get_out_buffer(swConnection *conn, uint32_t type)
     }
     if (type == SW_CHUNK_SENDFILE)
     {
-        trunk = swBuffer_new_trunk(conn->out_buffer, SW_CHUNK_SENDFILE, 0);
+        chunk = swBuffer_new_chunk(conn->out_buffer, SW_CHUNK_SENDFILE, 0);
     }
     else
     {
-        trunk = swBuffer_get_trunk(conn->out_buffer);
-        if (trunk == NULL)
+        chunk = swBuffer_get_chunk(conn->out_buffer);
+        if (chunk == NULL)
         {
-            trunk = swBuffer_new_trunk(conn->out_buffer, SW_CHUNK_DATA, conn->out_buffer->trunk_size);
+            chunk = swBuffer_new_chunk(conn->out_buffer, SW_CHUNK_DATA, conn->out_buffer->chunk_size);
         }
     }
-    return trunk;
+    return chunk;
 }

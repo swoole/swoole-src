@@ -2224,7 +2224,7 @@ PHP_METHOD(swoole_server, set)
 #ifdef SW_COROUTINE
     if (php_swoole_array_get_value(vht, "enable_coroutine", v))
     {
-        convert_to_bool(v);
+        convert_to_boolean(v);
         SwooleG.enable_coroutine = Z_BVAL_P(v);
     }
     if (php_swoole_array_get_value(vht, "max_coro_num", v) || php_swoole_array_get_value(vht, "max_coroutine", v))

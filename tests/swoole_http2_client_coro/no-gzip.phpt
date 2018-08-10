@@ -18,7 +18,7 @@ go(function () {
     $cli->connect();
 
     $req = new swoole_http2_request;
-    $req->path = '/';
+    $req->path = '/signup?next=/';
     $req->headers = [
         'Host' => $domain,
         "User-Agent" => 'Chrome/49.0.2587.3',

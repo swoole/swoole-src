@@ -59,7 +59,7 @@ static sw_inline int swoole_futex_wait(sw_atomic_t *atomic, double timeout)
     }
     if (ret == SW_OK)
     {
-        *atomic = 0;
+        sw_atomic_cmp_set(atomic, 1, 0);
     }
     return ret;
 }

@@ -474,7 +474,7 @@ class ProcessManager
     public $async = false;
 
     protected $childPid;
-
+    protected $childStatus;
     protected $parentFirst = false;
 
     function __construct()
@@ -613,7 +613,12 @@ class ProcessManager
                 swoole_event::wait();
             }
             pcntl_waitpid($pid, $status);
+            $this->childStatus = $status;
         }
+    }
+    function expectExitCode($code = 0)
+    {
+        assert(pcntl_wexitstatus($this->childStatus) == $code);
     }
 }
 

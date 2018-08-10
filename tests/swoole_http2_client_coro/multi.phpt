@@ -28,11 +28,13 @@ go(function () {
         assert($cli->send($req));
     }
     $stream_map = [];
+    $responses_headers_count_map = [];
     $i = 0;
     while (true) {
         $response = $cli->recv(0.1); // it's for the test, you should make timeout bigger
         if ($response) {
             echo "$response->statusCode\n";
+            $responses_headers_count_map[] = count($response->headers);
             assert(strpos($response->body, 'Cookie') !== false);
             $stream_map[] = $response->streamId;
             if (++$i === 4) {
@@ -41,6 +43,9 @@ go(function () {
         }
     }
     assert(empty(array_diff([1, 3, 5, 7], $stream_map)));
+    $responses_headers_count_map = array_unique($responses_headers_count_map);
+    assert(count($responses_headers_count_map) === 1);
+    assert($responses_headers_count_map > 10);
 });
 ?>
 --EXPECT--
