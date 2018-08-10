@@ -2,6 +2,10 @@
 <?php
 define('BASE_DIR', dirname(__DIR__));
 
+$this_dir = __DIR__;
+$tests_dir = __DIR__ . '/../tests/';
+`cd {$tests_dir} && ./clean && cd {$this_dir}`;
+
 function search($path, &$_files)
 {
     $dirs = _scandir($path);

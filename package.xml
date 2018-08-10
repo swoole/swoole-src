@@ -667,13 +667,7 @@
                 <file name="swoole_coroutine_channel/pop_timeout6.phpt" role="test" />
                 <file name="swoole_coroutine_channel/pop_timeout7.phpt" role="test" />
                 <file name="swoole_coroutine_util/dns_lookup.phpt" role="test" />
-                <file name="swoole_coroutine_util/exec.diff" role="test" />
-                <file name="swoole_coroutine_util/exec.exp" role="test" />
-                <file name="swoole_coroutine_util/exec.log" role="test" />
-                <file name="swoole_coroutine_util/exec.out" role="test" />
-                <file name="swoole_coroutine_util/exec.php" role="test" />
                 <file name="swoole_coroutine_util/exec.phpt" role="test" />
-                <file name="swoole_coroutine_util/exec.sh" role="test" />
                 <file name="swoole_coroutine_util/fgets.phpt" role="test" />
                 <file name="swoole_coroutine_util/fread.phpt" role="test" />
                 <file name="swoole_coroutine_util/fwrite.phpt" role="test" />
@@ -704,9 +698,7 @@
                 <file name="swoole_http2_client/get.phpt" role="test" />
                 <file name="swoole_http2_client/headers_nest.phpt" role="test" />
                 <file name="swoole_http2_client_coro/goaway.phpt" role="test" />
-                <file name="swoole_http2_client_coro/headers.php" role="test" />
                 <file name="swoole_http2_client_coro/headers.phpt" role="test" />
-                <file name="swoole_http2_client_coro/multi.php" role="test" />
                 <file name="swoole_http2_client_coro/multi.phpt" role="test" />
                 <file name="swoole_http2_client_coro/no-gzip.phpt" role="test" />
                 <file name="swoole_http2_client_coro/post.phpt" role="test" />
@@ -771,7 +763,6 @@
                 <file name="swoole_http_client_coro/timeout_when_recv.phpt" role="test" />
                 <file name="swoole_http_client_coro/websocket.phpt" role="test" />
                 <file name="swoole_http_client_coro/websocket_bug_01.phpt" role="test" />
-                <file name="swoole_http_client_coro/websocket_bug_02.php" role="test" />
                 <file name="swoole_http_client_coro/websocket_bug_02.phpt" role="test" />
                 <file name="swoole_http_client_coro/websocket_timeout.phpt" role="test" />
                 <file name="swoole_http_server/chunk.phpt" role="test" />
@@ -842,13 +833,7 @@
                 <file name="swoole_process/process_msgqueue.phpt" role="test" />
                 <file name="swoole_process/process_push.phpt" role="test" />
                 <file name="swoole_process/process_select.phpt" role="test" />
-                <file name="swoole_process/signal.diff" role="test" />
-                <file name="swoole_process/signal.exp" role="test" />
-                <file name="swoole_process/signal.log" role="test" />
-                <file name="swoole_process/signal.out" role="test" />
-                <file name="swoole_process/signal.php" role="test" />
                 <file name="swoole_process/signal.phpt" role="test" />
-                <file name="swoole_process/signal.sh" role="test" />
                 <file name="swoole_process/swoole_process_close.phpt" role="test" />
                 <file name="swoole_process/swoole_process_ctor.phpt" role="test" />
                 <file name="swoole_process/swoole_process_deamon.phpt" role="test" />
@@ -861,15 +846,12 @@
                 <file name="swoole_process/swoole_process_push.phpt" role="test" />
                 <file name="swoole_process/swoole_process_read.phpt" role="test" />
                 <file name="swoole_process/swoole_process_redirect.phpt" role="test" />
-                <file name="swoole_process/swoole_process_setaffinity.php" role="test" />
                 <file name="swoole_process/swoole_process_setaffinity.phpt" role="test" />
                 <file name="swoole_process/swoole_process_start.phpt" role="test" />
                 <file name="swoole_process/swoole_process_useQueue.phpt" role="test" />
                 <file name="swoole_process/swoole_process_wait.phpt" role="test" />
                 <file name="swoole_process/swoole_process_write.phpt" role="test" />
-                <file name="swoole_process/timeout.php" role="test" />
                 <file name="swoole_process/timeout.phpt" role="test" />
-                <file name="swoole_process/write_in_worker.php" role="test" />
                 <file name="swoole_process/write_in_worker.phpt" role="test" />
                 <file name="swoole_process_pool/message.phpt" role="test" />
                 <file name="swoole_redis/connect_refuse.phpt" role="test" />
