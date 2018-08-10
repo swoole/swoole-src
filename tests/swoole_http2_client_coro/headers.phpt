@@ -15,11 +15,11 @@ go(function () {
     $cli->connect();
 
     $req = new Swoole\Coroutine\Http2\Request;
-    $req->path = "/";
+    $req->path = '/';
     // auto to-lower
     $req->headers = [
         'Host' => $domain,
-        "User-Agent" => 'Chrome/49.0.2587.3',
+        'User-Agent' => 'Chrome/49.0.2587.3',
         'Accept' => 'text/html,application/xhtml+xml,application/xml',
         'Accept-encoding' => 'gzip',
     ];

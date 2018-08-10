@@ -121,6 +121,12 @@ static PHP_METHOD(swoole_http2_client, __construct)
     long port = 80;
     zend_bool ssl = SW_FALSE;
 
+    swoole_php_fatal_error(
+        E_DEPRECATED,
+        "Http2 async client will be removed in the next version, "
+        "please use \\Swoole\\Coroutine\\Http2\\Client instead."
+    );
+
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|lb", &host, &host_len, &port, &ssl) == FAILURE)
     {
         return;
