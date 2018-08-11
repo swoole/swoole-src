@@ -10,8 +10,8 @@ import time
 # see com.intellij.idea.SocketLock for the server side of this interface
 
 RUN_PATH = u'/Applications/PhpStorm.app'
-CONFIG_PATH = u'/Users/twosee/Library/Preferences/PhpStorm2017.3'
-SYSTEM_PATH = u'/Users/twosee/Library/Caches/PhpStorm2017.3'
+CONFIG_PATH = u'~/Library/Preferences/PhpStorm2017.3'
+SYSTEM_PATH = u'~/Library/Caches/PhpStorm2017.3'
 
 
 def print_usage(cmd):

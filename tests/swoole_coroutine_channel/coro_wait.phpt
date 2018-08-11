@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: coroutine wait
+swoole_coroutine_channel: coroutine wait
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

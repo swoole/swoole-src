@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: Co::readFile
+swoole_coroutine_util: Co::readFile
 
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
@@ -13,7 +13,6 @@ assert.quiet_eval=0
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
 
 go(function () {
     $content = Co::readFile(TEST_IMAGE);

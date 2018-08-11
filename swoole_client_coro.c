@@ -141,8 +141,6 @@ static const zend_function_entry swoole_client_coro_methods[] =
     PHP_ME(swoole_client_coro, getsockname, arginfo_swoole_client_coro_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client_coro, getpeername, arginfo_swoole_client_coro_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client_coro, close, arginfo_swoole_client_coro_void, ZEND_ACC_PUBLIC)
-    PHP_FALIAS(__sleep, swoole_unsupport_serialize, NULL)
-    PHP_FALIAS(__wakeup, swoole_unsupport_serialize, NULL)
 #ifdef SWOOLE_SOCKETS_SUPPORT
     PHP_ME(swoole_client_coro, getSocket, arginfo_swoole_client_coro_void, ZEND_ACC_PUBLIC)
 #endif
@@ -172,10 +170,6 @@ static void client_execute_callback(zval *zobject, enum php_swoole_client_callba
 {
     zval *retval = NULL;
     zval *result = NULL;
-
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
 
     swoole_client_coro_property *ccp = swoole_get_property(zobject, client_coro_property_coroutine);
     if (type == SW_CLIENT_CB_onConnect
@@ -253,6 +247,8 @@ void swoole_client_coro_init(int module_number TSRMLS_DC)
 {
     INIT_CLASS_ENTRY(swoole_client_coro_ce, "Swoole\\Coroutine\\Client", swoole_client_coro_methods);
     swoole_client_coro_class_entry_ptr = zend_register_internal_class(&swoole_client_coro_ce TSRMLS_CC);
+    swoole_client_coro_class_entry_ptr->serialize = zend_class_serialize_deny;
+    swoole_client_coro_class_entry_ptr->unserialize = zend_class_unserialize_deny;
 
     if (SWOOLE_G(use_shortname))
     {
@@ -261,8 +257,6 @@ void swoole_client_coro_init(int module_number TSRMLS_DC)
 
     zend_declare_property_long(swoole_client_coro_class_entry_ptr, SW_STRL("errCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(swoole_client_coro_class_entry_ptr, SW_STRL("sock")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_bool(swoole_client_coro_class_entry_ptr, SW_STRL("reuse")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_long(swoole_client_coro_class_entry_ptr, SW_STRL("reuseCount")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(swoole_client_coro_class_entry_ptr, ZEND_STRL("type"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_client_coro_class_entry_ptr, ZEND_STRL("id"), ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_client_coro_class_entry_ptr, ZEND_STRL("setting"), ZEND_ACC_PUBLIC TSRMLS_CC);
@@ -276,19 +270,12 @@ void swoole_client_coro_init(int module_number TSRMLS_DC)
 
 static void client_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
     php_context *ctx = (php_context *) tnode->data;
     zval *zdata = NULL;
     zval *retval = NULL;
 
-#if PHP_MAJOR_VERSION < 7
-    zval *zobject = (zval *)ctx->coro_params;
-#else
     zval _zobject = ctx->coro_params;
     zval *zobject = & _zobject;
-#endif
     zend_update_property_long(swoole_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), ETIMEDOUT TSRMLS_CC);
 
     swoole_client_coro_property *ccp = swoole_get_property(zobject, client_coro_property_coroutine);
@@ -484,10 +471,6 @@ swClient* php_swoole_client_coro_new(zval *object, char *host, int host_len, int
     zval *ztype;
     int async = 0;
 
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     ztype = sw_zend_read_property(swoole_client_coro_class_entry_ptr, object, SW_STRL("type")-1, 0 TSRMLS_CC);
 
     if (ztype == NULL || ZVAL_IS_NULL(ztype))
@@ -565,11 +548,7 @@ static PHP_METHOD(swoole_client_coro, __construct)
 
     php_context *sw_current_context = emalloc(sizeof(php_context));
     sw_current_context->onTimeout = NULL;
-#if PHP_MAJOR_VERSION < 7
-    sw_current_context->coro_params = getThis();
-#else
     sw_current_context->coro_params = *getThis();
-#endif
     sw_current_context->state = SW_CORO_CONTEXT_RUNNING;
     swoole_set_property(getThis(), client_coro_property_context, sw_current_context);
 #ifdef SWOOLE_SOCKETS_SUPPORT
@@ -582,6 +561,7 @@ static PHP_METHOD(swoole_client_coro, __construct)
 static PHP_METHOD(swoole_client_coro, __destruct)
 {
     SW_PREVENT_USER_DESTRUCT;
+
     swClient *cli = swoole_get_object(getThis());
     //no keep connection
     if (cli)
@@ -904,7 +884,7 @@ static PHP_METHOD(swoole_client_coro, recv)
     }
     else if (ccp->iowait == SW_CLIENT_CORO_STATUS_WAIT && ccp->cid != sw_get_current_cid())
     {
-        swoole_php_fatal_error(E_WARNING, "client has been bound to another coro");
+        swoole_php_fatal_error(E_ERROR, "client has been bound to another coroutine.");
         RETURN_FALSE;
     }
 
@@ -963,6 +943,13 @@ static PHP_METHOD(swoole_client_coro, peek)
     {
         RETURN_FALSE;
     }
+#ifdef SW_USE_OPENSSL
+    if (cli->socket->ssl)
+    {
+        swoole_php_fatal_error(E_WARNING, "no support.");
+        RETURN_FALSE;
+    }
+#endif
 
     buf = emalloc(buf_len + 1);
     SwooleG.error = 0;

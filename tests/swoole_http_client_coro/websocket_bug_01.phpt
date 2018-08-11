@@ -5,7 +5,6 @@ swoole_http_client_coro: websocket handshake + frame
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
 require_once __DIR__ . '/../include/lib/curl.php';
 
 $pm = new ProcessManager;

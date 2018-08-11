@@ -69,11 +69,6 @@ int swPort_enable_ssl_encrypt(swListenPort *ls)
         swWarn("swSSL_get_context() error.");
         return SW_ERR;
     }
-    /**
-     * OpenSSL thread-safe
-     */
-    swSSL_init_thread_safety();
-
     if (ls->ssl_option.client_cert_file
             && swSSL_set_client_certificate(ls->ssl_context, ls->ssl_option.client_cert_file,
                     ls->ssl_option.verify_depth) == SW_ERR)
@@ -427,9 +422,12 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
         //http body
         if (request->content_length == 0)
         {
-            if (swHttpRequest_get_content_length(request) < 0)
+            swTraceLog(SW_TRACE_SERVER, "content-length=%u, keep-alive=%d", request->content_length, request->keep_alive);
+            // content length field not found
+            if (swHttpRequest_get_header_info(request) < 0)
             {
-                if (memcmp(buffer->str + buffer->length - 4, "\r\n\r\n", 4) == 0)
+                /* the request is really no body */
+                if (buffer->length == request->header_length)
                 {
                     /**
                      * send static file content directly in the reactor thread
@@ -449,7 +447,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
                     swWarn("[0]http header is too long.");
                     goto close_fd;
                 }
-                //wait more data
+                /* wait more data */
                 else
                 {
                     goto recv_data;
@@ -708,25 +706,32 @@ int swPort_http_static_handler(swHttpRequest *request, swConnection *conn)
         {
             response.length = response.info.len = snprintf(header_buffer, sizeof(header_buffer),
                     "HTTP/1.1 304 Not Modified\r\n"
-                    "Connection: Keep-Alive\r\n"
+                    "%s"
                     "Date: %s\r\n"
                     "Last-Modified: %s\r\n"
-                    "Server: %s\r\n\r\n", date_, date_last_modified,
-                    SW_HTTP_SERVER_SOFTWARE);
+                    "Server: %s\r\n\r\n",
+                    request->keep_alive ? "Connection: keep-alive\r\n" : "",
+                    date_,
+                    date_last_modified,
+                    SW_HTTP_SERVER_SOFTWARE
+            );
             response.data = header_buffer;
             swReactorThread_send(&response);
-            return SW_TRUE;
+            goto _finish;
         }
     }
 
     response.length = response.info.len = snprintf(header_buffer, sizeof(header_buffer),
             "HTTP/1.1 200 OK\r\n"
-            "Connection: Keep-Alive\r\n"
+            "%s"
             "Content-Length: %ld\r\n"
             "Content-Type: %s\r\n"
             "Date: %s\r\n"
             "Last-Modified: %s\r\n"
-            "Server: %s\r\n\r\n", (long) file_stat.st_size, swoole_get_mimetype(buffer.filename),
+            "Server: %s\r\n\r\n",
+            request->keep_alive ? "Connection: keep-alive\r\n" : "",
+            (long) file_stat.st_size,
+            swoole_get_mimetype(buffer.filename),
             date_,
             date_last_modified,
             SW_HTTP_SERVER_SOFTWARE);
@@ -753,5 +758,15 @@ int swPort_http_static_handler(swHttpRequest *request, swConnection *conn)
     response.data = (void*) &buffer;
 
     swReactorThread_send(&response);
+
+    _finish:
+    if (!request->keep_alive)
+    {
+        response.info.type = SW_EVENT_CLOSE;
+        response.length = 0;
+        response.data = NULL;
+        swReactorThread_send(&response);
+    }
+
     return SW_TRUE;
 }

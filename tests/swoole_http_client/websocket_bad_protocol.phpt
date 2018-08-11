@@ -5,7 +5,6 @@ swoole_http_client: websocket client with bad protocol
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
 const N = 128;
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid)

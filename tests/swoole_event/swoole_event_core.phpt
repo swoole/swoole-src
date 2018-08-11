@@ -2,7 +2,10 @@
 swoole_event: swoole_event_exit coredump
 
 --SKIPIF--
-<?php require  __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_in_docker('foreign network dns error');
+?>
 --INI--
 assert.active=1
 assert.warning=1

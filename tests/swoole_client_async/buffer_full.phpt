@@ -1,5 +1,5 @@
 --TEST--
-swoole_client: onBufferFull & onBufferEmpty
+swoole_client_async: onBufferFull & onBufferEmpty
 
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
@@ -13,7 +13,6 @@ assert.quiet_eval=0
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
 
 $port = get_one_free_port();
 
@@ -103,12 +102,10 @@ $pm->childFunc = function () use ($pm, $port)
 $pm->childFirst();
 $pm->run();
 ?>
---EXPECT--
+--EXPECTREGEX--
 bufferFull
 bufferEmpty
 bufferFull
 bufferEmpty
 bufferFull
-bufferEmpty
-bufferFull
-bufferEmpty
+bufferEmpty.*

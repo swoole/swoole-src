@@ -1,5 +1,5 @@
 --TEST--
-swoole_client: swoole_client sleep & sleep
+swoole_client_async: swoole_client sleep & sleep
 
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
@@ -13,7 +13,6 @@ assert.quiet_eval=0
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
 
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid)

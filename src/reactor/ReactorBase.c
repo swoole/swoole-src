@@ -172,13 +172,6 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
     {
         reactor->idle_task.callback(reactor->idle_task.data);
     }
-#ifdef SW_COROUTINE
-    //coro timeout
-    if (!swIsMaster())
-    {
-        coro_handle_timeout();
-    }
-#endif
     //server worker
     swWorker *worker = SwooleWG.worker;
     if (worker != NULL)
@@ -388,13 +381,13 @@ int swReactor_onWrite(swReactor *reactor, swEvent *ev)
     int fd = ev->fd;
 
     swConnection *socket = swReactor_get(reactor, fd);
-    swBuffer_trunk *chunk = NULL;
+    swBuffer_chunk *chunk = NULL;
     swBuffer *buffer = socket->out_buffer;
 
     //send to socket
     while (!swBuffer_empty(buffer))
     {
-        chunk = swBuffer_get_trunk(buffer);
+        chunk = swBuffer_get_chunk(buffer);
         if (chunk->type == SW_CHUNK_CLOSE)
         {
             close_fd:

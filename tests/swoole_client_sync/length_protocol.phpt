@@ -1,5 +1,5 @@
 --TEST--
-swoole_client: length protocol [sync]
+swoole_client_sync: length protocol [sync]
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --INI--
@@ -12,7 +12,6 @@ assert.quiet_eval=0
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
 $port = get_one_free_port();
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($port)

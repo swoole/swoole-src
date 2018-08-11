@@ -1,5 +1,5 @@
 --TEST--
-swoole_client: async sendfile
+swoole_client_async: async sendfile
 
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
@@ -13,7 +13,6 @@ assert.quiet_eval=0
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
 
 $port = get_one_free_port();
 
