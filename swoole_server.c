@@ -1690,7 +1690,7 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
             }
             else
             {
-                Z_TYPE_P(reason) = IS_NULL;
+                ZVAL_NULL(reason);
             }
 
             args[3] = status_code;
@@ -1746,7 +1746,7 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
             }
             else
             {
-                Z_TYPE_P(reason) = IS_NULL;
+                ZVAL_NULL(reason);
             }
 
             args[3] = &status_code;
