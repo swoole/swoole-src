@@ -307,14 +307,6 @@ int swWebSocket_dispatch_frame(swConnection *conn, char *data, uint32_t length)
             send_frame.str[0] = 0x88;
             send_frame.str[1] = payload_length;
 
-            conn->websocket_close_code = 
-                frame.str[length - payload_length] << 8 | (frame.str[length - payload_length + 1] & 0x00FF);
-            
-            memcpy(conn->websocket_close_reason, frame.str + length - payload_length + SW_WEBSOCKET_CLOSE_CODE_LEN, 
-                payload_length - SW_WEBSOCKET_CLOSE_CODE_LEN);
-            
-            conn->websocket_close_reason[payload_length - SW_WEBSOCKET_CLOSE_CODE_LEN + 1] = '\0';
-
             // Get payload and return it as it is
             memcpy(send_frame.str + SW_WEBSOCKET_HEADER_LEN,
                 frame.str + length - payload_length, payload_length);
@@ -326,6 +318,7 @@ int swWebSocket_dispatch_frame(swConnection *conn, char *data, uint32_t length)
             // Server attempt to close, frame sent by swoole_websocket_server->disconnect()
             conn->websocket_status = 0;
         }
+        swReactorThread_dispatch(conn, frame.str, length);
 
         return SW_ERR;
 
