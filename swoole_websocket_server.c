@@ -598,7 +598,16 @@ static PHP_METHOD(swoole_websocket_server, disconnect)
 
     int ret = swServer_tcp_send(SwooleG.serv, fd, swoole_http_buffer->str, swoole_http_buffer->length);
 
-    swReactorThread_dispatch(conn, swoole_http_buffer->str, swoole_http_buffer->length);
+    // Format swEventData
+    swEventData req;
+    req.info.fd         = fd;
+    req.info.len        = swoole_http_buffer->length;
+    req.info.from_id    = conn->from_id;
+    req.info.from_fd    = conn->from_fd;
+    memcpy(&req.data, swoole_http_buffer->str, swoole_http_buffer->length);
+
+    // Call onClose
+    swoole_websocket_onClose(&req);
 
 #ifdef SW_COROUTINE
     swServer *serv = SwooleG.serv;
