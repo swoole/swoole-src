@@ -1741,8 +1741,6 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
     }
     else
     {
-        int ret;
-
         zval **args[3];
         args[0] = &zserv;
         args[1] = &zfd;
@@ -1753,10 +1751,7 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
         {
             return;
         }
-
-        ret = sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL TSRMLS_CC);
-
-        if (ret == FAILURE)
+        if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
         {
             swoole_php_error(E_WARNING, "onClose handler error.");
         }
