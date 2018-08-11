@@ -12,7 +12,6 @@ assert.quiet_eval=0
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
 require_once __DIR__ . '/../include/api/swoole_http_client/simple_https_client.php';
 
 $simple_http_server = __DIR__ . "/../include/api/swoole_http_server/simple_https_server.php";

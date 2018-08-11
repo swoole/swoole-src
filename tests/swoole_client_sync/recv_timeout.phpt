@@ -1,5 +1,5 @@
 --TEST--
-swoole_client: recv timeout
+swoole_client_sync: recv timeout
 
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
@@ -13,7 +13,6 @@ assert.quiet_eval=0
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
 $pm = new ProcessManager;
 
 $pm->parentFunc = function ($pid) use ($pm)

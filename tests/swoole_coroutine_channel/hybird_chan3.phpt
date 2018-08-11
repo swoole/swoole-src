@@ -1,11 +1,10 @@
 --TEST--
-swoole_coroutine: hybird channel select
+swoole_coroutine_channel: hybird channel select
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
 
 $size = 2;
 $chan = new chan($size);

@@ -1,7 +1,10 @@
 --TEST--
 swoole_http2_client_coro: http2 without gzip and recv big data (window-update)
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_in_docker('travis network');
+?>
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
@@ -15,7 +18,7 @@ go(function () {
     $cli->connect();
 
     $req = new swoole_http2_request;
-    $req->path = '/';
+    $req->path = '/signup?next=/';
     $req->headers = [
         'Host' => $domain,
         "User-Agent" => 'Chrome/49.0.2587.3',
@@ -32,6 +35,7 @@ go(function () {
         /**@var $response swoole_http2_response */
         $response = $cli->recv();
         assert($response->statusCode === 200);
+        assert(strpos($response->data, 'zhihu') !== false);
         $map[] = $response->streamId;
     }
     assert(!array_diff($map, [1, 3, 5, 7, 9]));

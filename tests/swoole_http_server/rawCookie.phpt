@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_response: raw-cookie
+swoole_http_server: raw-cookie
 
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
@@ -12,7 +12,6 @@ assert.quiet_eval=0
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
 require_once __DIR__ . '/../include/api/swoole_http_client/simple_http_client.php';
 
 $simple_http_server = __DIR__ . "/../include/api/swoole_http_server/simple_http_server.php";

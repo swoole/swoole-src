@@ -1,13 +1,15 @@
 --TEST--
-enable_coroutine: enable_coroutine setting in server
+swoole_http_server: enable_coroutine setting in server
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
 require_once __DIR__ . '/../include/lib/curl.php';
+
 use Swoole\Http\Request;
 use Swoole\Http\Response;
+
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) {
     echo curlGet('http://127.0.0.1:9501/') . "\n";
@@ -20,6 +22,7 @@ $pm->childFunc = function () use ($pm) {
     $http = new swoole_http_server('127.0.0.1', 9501);
     $http->set([
         'enable_coroutine' => false, // close build-in coroutine
+        'worker_num' => 1,
         'log_level' => -1
     ]);
     $http->on("request", function (Request $request, Response $response) {

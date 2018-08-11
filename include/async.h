@@ -19,6 +19,10 @@
 #ifndef _SW_ASYNC_H_
 #define _SW_ASYNC_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef O_DIRECT
 #define O_DIRECT         040000
 #endif
@@ -90,6 +94,10 @@ int swAioGcc_init(int max_aio_events);
 #ifdef HAVE_LINUX_AIO
 #define SW_AIO_MIN_UNIT_SIZE     512
 int swAioLinux_init(int max_aio_events);
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif /* _SW_ASYNC_H_ */

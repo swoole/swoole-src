@@ -48,6 +48,11 @@ typedef struct
     zval _callback;
     zval _response_object;
 #endif
+
+    // flow control
+    uint32_t send_window;
+    uint32_t recv_window;
+
 } http2_client_stream;
 
 typedef struct
@@ -55,7 +60,6 @@ typedef struct
     uint8_t ssl;
     uint8_t connecting;
     uint8_t ready;
-    uint8_t send_setting;
 
 #ifdef SW_COROUTINE
     uint8_t iowait;
@@ -63,9 +67,13 @@ typedef struct
     swClient *client;
 #endif
 
-    uint32_t stream_id;
+    uint32_t stream_id; // the next send stream id
+    uint32_t last_stream_id; // the last received stream id
 
-    uint32_t window_size;
+    // flow control
+    uint32_t send_window;
+    uint32_t recv_window;
+
     uint32_t max_concurrent_streams;
     uint32_t max_frame_size;
     uint32_t max_header_list_size;
@@ -75,6 +83,7 @@ typedef struct
     int port;
 
     nghttp2_hd_inflater *inflater;
+    nghttp2_hd_deflater *deflater;
     zval *object;
     double timeout;
 
@@ -146,7 +155,7 @@ static sw_inline void http2_client_send_window_update(swClient *cli, int stream_
 {
     char frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_WINDOW_UPDATE_SIZE];
     swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_YELLOW"] stream_id=%d, size=%d", "WINDOW_UPDATE", stream_id, size);
-    *(int*) ((char *)frame + SW_HTTP2_FRAME_HEADER_SIZE) = htonl(size);
+    *(uint32_t*) ((char *)frame + SW_HTTP2_FRAME_HEADER_SIZE) = htonl(size);
     swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_WINDOW_UPDATE, SW_HTTP2_WINDOW_UPDATE_SIZE, 0, stream_id);
     cli->send(cli, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_WINDOW_UPDATE_SIZE, 0);
 }

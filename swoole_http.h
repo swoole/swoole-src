@@ -192,6 +192,7 @@ extern zend_class_entry *swoole_http_request_class_entry_ptr;
 extern swString *swoole_http_buffer;
 #ifdef SW_HAVE_ZLIB
 extern swString *swoole_zlib_buffer;
+int swoole_http_response_compress(swString *body, int level);
 #endif
 
 static sw_inline int http_parse_set_cookies(const char *at, size_t length, zval *cookies, zval *set_cookie_headers)

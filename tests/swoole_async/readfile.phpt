@@ -13,7 +13,6 @@ assert.quiet_eval=0
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
 
 swoole_async_readfile(TEST_IMAGE, function ($filename, $content) {
     assert(md5_file($filename) == md5($content));

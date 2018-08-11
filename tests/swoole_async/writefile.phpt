@@ -13,7 +13,6 @@ assert.quiet_eval=0
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
 
 $content = file_get_contents(TEST_IMAGE);
 $filename = __DIR__ . '/tmp_file.jpg';

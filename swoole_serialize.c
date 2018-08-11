@@ -1137,11 +1137,7 @@ static void swoole_serialize_object(seriaString *buffer, zval *obj, size_t start
                 //for the zero malloc
                 zend_array tmp_arr;
                 zend_array *ht = (zend_array *) & tmp_arr;
-#if PHP_VERSION_ID >= 70300
-                _zend_hash_init(ht, zend_hash_num_elements(Z_ARRVAL(retval)), ZVAL_PTR_DTOR, 0);
-#else
-                _zend_hash_init(ht, zend_hash_num_elements(Z_ARRVAL(retval)), ZVAL_PTR_DTOR, 0 ZEND_FILE_LINE_CC);
-#endif
+                zend_hash_init(ht, zend_hash_num_elements(Z_ARRVAL(retval)), NULL, ZVAL_PTR_DTOR, 0);
                 ht->nTableMask = -(ht)->nTableSize;
                 ALLOCA_FLAG(use_heap);
                 void *ht_addr = do_alloca(HT_SIZE(ht), use_heap);
@@ -1165,7 +1161,7 @@ static void swoole_serialize_object(seriaString *buffer, zval *obj, size_t start
                         {
                             got_num++;
                             //add mangle key,unmangle in unseria
-                            _zend_hash_add_or_update(ht, prop_key, prop_value, HASH_UPDATE ZEND_FILE_LINE_CC);
+                            zend_hash_update(ht, prop_key, prop_value);
 
                             break;
                         }
