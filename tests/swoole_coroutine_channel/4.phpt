@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: product first without select mode
+swoole_coroutine_channel: product first without select mode
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

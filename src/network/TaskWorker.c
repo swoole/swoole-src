@@ -124,7 +124,6 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
     SwooleG.pid = getpid();
 
     SwooleG.use_timer_pipe = 0;
-    SwooleG.use_timerfd = 0;
 
     swServer_close_port(serv, SW_TRUE);
 

@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: the bug about timeout timer
+swoole_coroutine_channel: the bug about timeout timer
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; 
 exit("skip for select");

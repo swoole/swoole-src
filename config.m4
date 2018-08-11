@@ -256,7 +256,20 @@ if test "$PHP_SWOOLE" != "no"; then
     fi
 
     if test "$PHP_SOCKETS" = "yes"; then
+        AC_MSG_CHECKING([for php_sockets.h])
+
+        AS_IF([test -f $abs_srcdir/ext/sockets/php_sockets.h], [AC_MSG_RESULT([ok, found in $abs_srcdir])],
+            [test -f $phpincludedir/ext/sockets/php_sockets.h], [AC_MSG_RESULT([ok, found in $phpincludedir])],
+            [AC_MSG_ERROR([cannot find php_sockets.h. Please check if sockets extension is installed.])
+        ])
+
         AC_DEFINE(SW_SOCKETS, 1, [enable sockets support])
+
+        dnl Some systems build and package PHP socket extension separately
+        dnl and php_config.h doesn't have HAVE_SOCKETS defined.
+        AC_DEFINE(HAVE_SOCKETS, 1, [whether sockets extension is enabled])
+
+        PHP_ADD_EXTENSION_DEP(swoole, sockets, true)
     fi
 
     if test "$PHP_HTTP2" = "yes"; then
@@ -367,7 +380,6 @@ if test "$PHP_SWOOLE" != "no"; then
 
     AC_CHECK_LIB(c, accept4, AC_DEFINE(HAVE_ACCEPT4, 1, [have accept4]))
     AC_CHECK_LIB(c, signalfd, AC_DEFINE(HAVE_SIGNALFD, 1, [have signalfd]))
-    AC_CHECK_LIB(c, timerfd_create, AC_DEFINE(HAVE_TIMERFD, 1, [have timerfd]))
     AC_CHECK_LIB(c, eventfd, AC_DEFINE(HAVE_EVENTFD, 1, [have eventfd]))
     AC_CHECK_LIB(c, epoll_create, AC_DEFINE(HAVE_EPOLL, 1, [have epoll]))
     AC_CHECK_LIB(c, poll, AC_DEFINE(HAVE_POLL, 1, [have poll]))
@@ -542,11 +554,17 @@ if test "$PHP_SWOOLE" != "no"; then
       ]
     )
 
-    if test "$SW_CPU" = 'x86_64'; then
+    if test "$SW_OS" = 'MAC'; then
+        if test "$SW_CPU" = 'arm'; then
+            SW_CONTEXT_ASM_FILE="arm_aapcs_macho_gas.S"
+        elif test "$SW_CPU" = 'arm64'; then
+            SW_CONTEXT_ASM_FILE="arm64_aapcs_macho_gas.S"
+        else
+            SW_CONTEXT_ASM_FILE="combined_sysv_macho_gas.S"
+        fi
+    elif test "$SW_CPU" = 'x86_64'; then
         if test "$SW_OS" = 'LINUX'; then
             SW_CONTEXT_ASM_FILE="x86_64_sysv_elf_gas.S"
-        elif test "$SW_OS" = 'MAC'; then
-            SW_CONTEXT_ASM_FILE="x86_64_sysv_macho_gas.S"
         else
             SW_NO_USE_ASM_CONTEXT="yes"
             AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
@@ -554,8 +572,6 @@ if test "$PHP_SWOOLE" != "no"; then
     elif test "$SW_CPU" = 'x86'; then
         if test "$SW_OS" = 'LINUX'; then
             SW_CONTEXT_ASM_FILE="i386_sysv_elf_gas.S"
-        elif test "$SW_OS" = 'MAC'; then
-            SW_CONTEXT_ASM_FILE="i386_sysv_macho_gas.S"
         else
             SW_NO_USE_ASM_CONTEXT="yes"
             AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
@@ -563,8 +579,6 @@ if test "$PHP_SWOOLE" != "no"; then
     elif test "$SW_CPU" = 'arm'; then
         if test "$SW_OS" = 'LINUX'; then
             SW_CONTEXT_ASM_FILE="arm_aapcs_elf_gas.S"
-        elif test "$SW_OS" = 'MAC'; then
-            SW_CONTEXT_ASM_FILE="arm_aapcs_macho_gas.S"
         else
             SW_NO_USE_ASM_CONTEXT="yes"
             AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
@@ -572,8 +586,6 @@ if test "$PHP_SWOOLE" != "no"; then
     elif test "$SW_CPU" = 'arm64'; then
         if test "$SW_OS" = 'LINUX'; then
             SW_CONTEXT_ASM_FILE="arm64_aapcs_elf_gas.S"
-        elif test "$SW_OS" = 'MAC'; then
-            SW_CONTEXT_ASM_FILE="arm64_aapcs_macho_gas.S"
         else
             SW_NO_USE_ASM_CONTEXT="yes"
             AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])

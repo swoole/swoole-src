@@ -18,7 +18,7 @@ Context::Context(size_t stack_size, coroutine_func_t fn, void* private_data) :
     end = false;
 
     stack_ = (char*) sw_malloc(stack_size);
-    swDebug("alloc stack: size=%lu, ptr=%p", stack_size, stack_);
+    swTraceLog(SW_TRACE_COROUTINE, "alloc stack: size=%lu, ptr=%p", stack_size, stack_);
 
     ctx_.uc_stack.ss_sp = stack_;
     ctx_.uc_stack.ss_size = stack_size;
@@ -44,7 +44,7 @@ Context::~Context()
 {
     if (stack_)
     {
-        swDebug("free stack: ptr=%p", stack_);
+        swTraceLog(SW_TRACE_COROUTINE, "free stack: ptr=%p", stack_);
         if (protect_page_)
         {
             unprotect_stack(stack_, protect_page_);

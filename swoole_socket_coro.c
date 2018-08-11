@@ -162,6 +162,9 @@ static zend_object *swoole_socket_coro_create(zend_class_entry *ce TSRMLS_DC)
 {
     socket_coro *sock = ecalloc(1, sizeof(socket_coro) + zend_object_properties_size(ce));
     zend_object_std_init(&sock->std, ce TSRMLS_CC);
+    /* Even if you don't use properties yourself you should still call object_properties_init(),
+     * because extending classes may use properties. (Generally a lot of the stuff you will do is
+     * for the sake of not breaking extending classes). */
     object_properties_init(&sock->std, ce);
     sock->std.handlers = &swoole_socket_coro_handlers;
 
@@ -721,7 +724,7 @@ static PHP_METHOD(swoole_socket_coro, accept)
     socket_coro *sock = (socket_coro *) Z_SOCKET_CORO_OBJ_P(getThis());
     if (unlikely(sock->cid && sock->cid != sw_get_current_cid()))
     {
-        swoole_php_fatal_error(E_WARNING, "socket has already been bound to another coroutine.");
+        swoole_php_fatal_error(E_ERROR, "socket has already been bound to another coroutine.");
         RETURN_FALSE;
     }
 
@@ -763,7 +766,7 @@ static PHP_METHOD(swoole_socket_coro, recv)
     socket_coro *sock = (socket_coro *) Z_SOCKET_CORO_OBJ_P(getThis());
     if (unlikely(sock->cid && sock->cid != sw_get_current_cid()))
     {
-        swoole_php_fatal_error(E_WARNING, "socket has already been bound to another coroutine.");
+        swoole_php_fatal_error(E_ERROR, "socket has already been bound to another coroutine.");
         RETURN_FALSE;
     }
     if (SwooleG.main_reactor->add(SwooleG.main_reactor, sock->fd, PHP_SWOOLE_FD_SOCKET | SW_EVENT_READ) < 0)
@@ -807,7 +810,7 @@ static PHP_METHOD(swoole_socket_coro, recvfrom)
     socket_coro *sock = (socket_coro *) Z_SOCKET_CORO_OBJ_P(getThis());
     if (unlikely(sock->cid && sock->cid != sw_get_current_cid()))
     {
-        swoole_php_fatal_error(E_WARNING, "socket has already been bound to another coroutine.");
+        swoole_php_fatal_error(E_ERROR, "socket has already been bound to another coroutine.");
         RETURN_FALSE;
     }
     if (SwooleG.main_reactor->add(SwooleG.main_reactor, sock->fd, PHP_SWOOLE_FD_SOCKET | SW_EVENT_READ) < 0)
@@ -857,7 +860,7 @@ static PHP_METHOD(swoole_socket_coro, send)
     socket_coro *sock = (socket_coro *) Z_SOCKET_CORO_OBJ_P(getThis());
     if (unlikely(sock->cid && sock->cid != sw_get_current_cid()))
     {
-        swoole_php_fatal_error(E_WARNING, "socket has already been bound to another coroutine.");
+        swoole_php_fatal_error(E_ERROR, "socket has already been bound to another coroutine.");
         RETURN_FALSE;
     }
     int ret = send(sock->fd, Z_STRVAL_P(data), Z_STRLEN_P(data), MSG_DONTWAIT);
@@ -958,7 +961,7 @@ static PHP_METHOD(swoole_socket_coro, close)
     }
     if (unlikely(sock->cid && sock->cid != sw_get_current_cid()))
     {
-        swoole_php_fatal_error(E_WARNING, "socket has already been bound to another coroutine.");
+        swoole_php_fatal_error(E_ERROR, "socket has already been bound to another coroutine.");
         RETURN_FALSE;
     }
     int ret = SwooleG.main_reactor->close(SwooleG.main_reactor, sock->fd);
@@ -1068,7 +1071,7 @@ static PHP_METHOD(swoole_socket_coro, connect)
     }
     if (unlikely(sock->cid && sock->cid != sw_get_current_cid()))
     {
-        swoole_php_fatal_error(E_WARNING, "socket has already been bound to another coroutine.");
+        swoole_php_fatal_error(E_ERROR, "socket has already been bound to another coroutine.");
         RETURN_FALSE;
     }
 

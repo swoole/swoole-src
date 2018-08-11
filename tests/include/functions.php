@@ -263,6 +263,22 @@ function get_one_free_port()
     socket_close($socket);
     return $port;
 }
+
+function check_tcp_port($ip, $port)
+{
+    $sock = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
+    socket_set_nonblock($sock);
+    socket_connect($sock, $ip, $port);
+    socket_set_block($sock);
+    $r = [$sock];
+    $w = [$sock];
+    $f = [$sock];
+    $status = socket_select($r, $w, $f, 5);
+    socket_close($sock);
+
+    return $status;
+}
+
 function start_server($file, $host, $port, $redirect_file = "/dev/null", $ext1 = null, $ext2 = null, $debug = false)
 {
     $php_executable = getenv('TEST_PHP_EXECUTABLE') ?: PHP_BINARY;
@@ -451,13 +467,14 @@ class ProcessManager
      */
     protected $atomic;
     protected $alone = false;
+    protected $freePort;
 
     public $parentFunc;
     public $childFunc;
     public $async = false;
 
     protected $childPid;
-
+    protected $childStatus;
     protected $parentFirst = false;
 
     function __construct()
@@ -502,6 +519,11 @@ class ProcessManager
         return call_user_func($this->parentFunc, $pid);
     }
 
+    function getFreePort()
+    {
+        return $this->freePort;
+    }
+
     function runChildFunc()
     {
         return call_user_func($this->childFunc);
@@ -543,15 +565,18 @@ class ProcessManager
         {
             if ($argv[1] == 'child')
             {
+                $this->freePort = 9501;
                 $this->alone = true;
                 return $this->runChildFunc();
             }
             elseif ($argv[1] == 'parent')
             {
+                $this->freePort = 9501;
                 $this->alone = true;
                 return $this->runParentFunc();
             }
         }
+        $this->freePort = get_one_free_port();
         $pid = pcntl_fork();
         if ($this->parentFirst)
         {
@@ -588,7 +613,12 @@ class ProcessManager
                 swoole_event::wait();
             }
             pcntl_waitpid($pid, $status);
+            $this->childStatus = $status;
         }
+    }
+    function expectExitCode($code = 0)
+    {
+        assert(pcntl_wexitstatus($this->childStatus) == $code);
     }
 }
 

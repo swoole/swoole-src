@@ -6,7 +6,7 @@ swoole_http2_client_coro: http2 response cookies
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
 go(function () {
-    $domain = 'www.zhihu.com';
+    $domain = 'www.bing.com';
     $cli = new Swoole\Coroutine\Http2\Client($domain, 443, true);
     $cli->set([
         'timeout' => 10,
@@ -26,6 +26,7 @@ go(function () {
     /**@var $response swoole_http2_response */
     $response = $cli->recv();
     assert(is_array($response->headers));
+    assert(count($response->set_cookie_headers) >= 3);
     // check cookies
     foreach ($response->set_cookie_headers as $set_cookie_header) {
         $cookie = explode(';', $set_cookie_header, 2)[0];

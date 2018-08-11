@@ -138,8 +138,6 @@ static const zend_function_entry swoole_table_methods[] =
     PHP_ME(swoole_table, offsetGet,        arginfo_swoole_table_offsetGet, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, offsetSet,        arginfo_swoole_table_offsetSet, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, offsetUnset,      arginfo_swoole_table_offsetUnset, ZEND_ACC_PUBLIC)
-    PHP_FALIAS(__sleep, swoole_unsupport_serialize, NULL)
-    PHP_FALIAS(__wakeup, swoole_unsupport_serialize, NULL)
 #ifdef HAVE_PCRE
     PHP_ME(swoole_table, rewind,      arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, next,        arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
@@ -262,6 +260,8 @@ void swoole_table_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_table_ce, "swoole_table", "Swoole\\Table", swoole_table_methods);
     swoole_table_class_entry_ptr = zend_register_internal_class(&swoole_table_ce TSRMLS_CC);
+    swoole_table_class_entry_ptr->serialize = zend_class_serialize_deny;
+    swoole_table_class_entry_ptr->unserialize = zend_class_unserialize_deny;
     SWOOLE_CLASS_ALIAS(swoole_table, "Swoole\\Table");
     zend_class_implements(swoole_table_class_entry_ptr TSRMLS_CC, 1, zend_ce_arrayaccess);
 
@@ -931,5 +931,7 @@ static PHP_METHOD(swoole_table_row, offsetUnset)
 
 static PHP_METHOD(swoole_table_row, __destruct)
 {
+    SW_PREVENT_USER_DESTRUCT;
+
     swoole_set_object(getThis(), NULL);
 }

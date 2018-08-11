@@ -225,6 +225,10 @@ static void swAio_handler_read(swAio_event *event)
     {
         swSysError("flock(%d, LOCK_UN) failed.", event->fd);
     }
+    if (ret < 0)
+    {
+        event->error = errno;
+    }
     event->ret = ret;
 }
 
@@ -460,6 +464,10 @@ static void swAio_handler_write(swAio_event *event)
     if (flock(event->fd, LOCK_UN) < 0)
     {
         swSysError("flock(%d, LOCK_UN) failed.", event->fd);
+    }
+    if (ret < 0)
+    {
+        event->error = errno;
     }
     event->ret = ret;
 }

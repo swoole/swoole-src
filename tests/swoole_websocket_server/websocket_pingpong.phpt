@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_client: websocket push 2
+swoole_websocket_server: websocket push 2
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --INI--

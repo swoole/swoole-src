@@ -1,5 +1,5 @@
 --TEST--
-swoole_http2_client_coro: http2 error and dead wait
+swoole_http2_client_coro: send only without recv and use sleep
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

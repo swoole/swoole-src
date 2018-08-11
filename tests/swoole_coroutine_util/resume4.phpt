@@ -1,18 +1,17 @@
 --TEST--
-swoole_coroutine: user suspend and resume4
+swoole_coroutine_util: user yield and resume4
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
 
 use Swoole\Coroutine as co;
-co::suspend();
+co::yield();
 $id = go(function(){
     $id = co::getUid();
     echo "start coro $id\n";    
-    co::suspend();
+    co::yield();
     echo "resume coro $id\n";
 });
 echo "start to resume $id\n";
@@ -21,4 +20,4 @@ echo "main\n";
 
 ?>
 --EXPECTF--
-Fatal error: Swoole\Coroutine::suspend(): can not suspend outside coroutine %s
+Fatal error: Swoole\Coroutine::yield(): can not yield outside coroutine %s

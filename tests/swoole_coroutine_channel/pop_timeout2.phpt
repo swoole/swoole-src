@@ -1,11 +1,10 @@
 --TEST--
-swoole_coroutine: pop timeout 2
+swoole_coroutine_channel: pop timeout 2
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
 
 $c1 = new chan();
 

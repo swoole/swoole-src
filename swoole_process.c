@@ -323,6 +323,8 @@ static PHP_METHOD(swoole_process, __construct)
 
 static PHP_METHOD(swoole_process, __destruct)
 {
+    SW_PREVENT_USER_DESTRUCT;
+
     swWorker *process = swoole_get_object(getThis());
     swPipe *_pipe = process->pipe_object;
     if (_pipe)
@@ -636,10 +638,6 @@ static void php_swoole_onSignal(int signo)
     zval **args[1];
     zval *callback = signal_callback[signo];
 
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     zval *zsigno;
     SW_MAKE_STD_ZVAL(zsigno);
     ZVAL_LONG(zsigno, signo);
@@ -700,10 +698,6 @@ int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
         swTraceLog(SW_TRACE_PHP, "destroy reactor");
     }
 
-#ifdef SW_COROUTINE
-    swLinkedList *coro_timeout_list = SwooleWG.coro_timeout_list;
-#endif
-
     bzero(&SwooleWG, sizeof(SwooleWG));
     SwooleG.pid = process->pid;
     if (SwooleG.process_type != SW_PROCESS_USERWORKER)
@@ -711,10 +705,6 @@ int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
         SwooleG.process_type = 0;
     }
     SwooleWG.id = process->id;
-
-#ifdef SW_COROUTINE
-    SwooleWG.coro_timeout_list = coro_timeout_list;
-#endif
 
     if (SwooleG.timer.fd)
     {

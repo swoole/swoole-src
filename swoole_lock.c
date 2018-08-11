@@ -148,6 +148,8 @@ static PHP_METHOD(swoole_lock, __construct)
 
 static PHP_METHOD(swoole_lock, __destruct)
 {
+    SW_PREVENT_USER_DESTRUCT;
+
     swLock *lock = swoole_get_object(getThis());
     if (lock)
     {

@@ -5,7 +5,6 @@ swoole_client_coro: tcp client with eof [02]
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
 require_once __DIR__ . '/../include/lib/curl.php';
 
 $pm = new ProcessManager;

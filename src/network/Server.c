@@ -297,6 +297,17 @@ static int swServer_start_check(swServer *serv)
             ls->protocol.package_max_length = SW_BUFFER_MIN_SIZE;
         }
     }
+
+#ifdef SW_USE_OPENSSL
+    /**
+     * OpenSSL thread-safe
+     */
+    if (serv->factory_mode != SW_MODE_SINGLE)
+    {
+        swSSL_init_thread_safety();
+    }
+#endif
+
     return SW_OK;
 }
 
