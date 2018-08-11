@@ -561,7 +561,7 @@ static PHP_METHOD(swoole_websocket_server, disconnect)
         RETURN_FALSE;
     }
 
-    if ((code < 4000 && code != 1000) || code >= 5000)
+    if ((code < 3000 && code != 1000) || code >= 5000)
     {
         swoole_php_fatal_error(E_WARNING, "Status code [%ld] is invalid.", code);
         RETURN_FALSE;
