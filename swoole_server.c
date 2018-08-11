@@ -2555,7 +2555,7 @@ PHP_METHOD(swoole_server, on)
         "WorkerError",
         "ManagerStart",
         "ManagerStop",
-        "PipeMessage", 
+        "PipeMessage",
         NULL,
         NULL,
         NULL,
