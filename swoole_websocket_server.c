@@ -255,7 +255,7 @@ int swoole_websocket_onClose(swEventData *req)
     long payload_length = frame[1] & 0x7F;
 
     SW_MAKE_STD_ZVAL(code);
-    ZVAL_LONG(code, WEBSOCKET_CLOSE_STATUS_ERROR);
+    ZVAL_LONG(code, WEBSOCKET_CLOSE_ABNORMAL);
 
     SW_MAKE_STD_ZVAL(reason);
     ZVAL_NULL(reason);
