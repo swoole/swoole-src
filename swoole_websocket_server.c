@@ -467,7 +467,7 @@ static PHP_METHOD(swoole_websocket_server, disconnect)
     char payload_length = length + SW_WEBSOCKET_CLOSE_CODE_LEN;
 
     swoole_http_buffer->str[0] = 0x88;
-    swoole_http_buffer->str[1] = 0x7F & payload_length;     // Avoid bit 1 setted by accident
+    swoole_http_buffer->str[1] = 0x7F & payload_length;     // Avoid bit 1 being set by accident
 
     memcpy(swoole_http_buffer->str + SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_CLOSE_CODE_LEN, data, length);
 
@@ -490,7 +490,7 @@ static PHP_METHOD(swoole_websocket_server, disconnect)
     else
 #endif
     {
-        // Server close connection immedialty
+        // Server close connection immediately
         conn->websocket_status = WEBSOCKET_STATUS_CLOSING;
         SW_CHECK_RETURN(SwooleG.serv->close(serv, (int)fd, (int)SW_FALSE));
     }
