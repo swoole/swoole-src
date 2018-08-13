@@ -49,7 +49,6 @@ void php_swoole_clear_all_timer()
     {
         return;
     }
-    SWOOLE_GET_TSRMLS;
     uint64_t timer_id;
     //kill user process
     while (1)

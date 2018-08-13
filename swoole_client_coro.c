@@ -355,7 +355,6 @@ static void client_onSendTimeout(swTimer *timer, swTimer_node *tnode)
 
 static void client_onReceive(swClient *cli, char *data, uint32_t length)
 {
-    SWOOLE_GET_TSRMLS;
     zval *zobject = cli->object;
 
     swoole_client_coro_property *ccp = swoole_get_property(zobject, client_coro_property_coroutine);
@@ -428,7 +427,6 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
 
 static void client_onConnect(swClient *cli)
 {
-    SWOOLE_GET_TSRMLS;
     zval *zobject = cli->object;
     zend_update_property_bool(swoole_client_coro_class_entry_ptr, zobject, ZEND_STRL("connected"), 1 TSRMLS_CC);
 #ifdef SW_USE_OPENSSL
@@ -445,7 +443,6 @@ static void client_onConnect(swClient *cli)
 
 static void client_onClose(swClient *cli)
 {
-    SWOOLE_GET_TSRMLS;
     zval *zobject = cli->object;
     zend_update_property_bool(swoole_client_coro_class_entry_ptr, zobject, ZEND_STRL("connected"), 0 TSRMLS_CC);
     php_swoole_client_free(zobject, cli TSRMLS_CC);
@@ -459,7 +456,6 @@ static void client_onClose(swClient *cli)
 
 static void client_onError(swClient *cli)
 {
-    SWOOLE_GET_TSRMLS;
     zval *zobject = cli->object;
     zend_update_property_long(swoole_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error TSRMLS_CC);
     php_swoole_client_free(zobject, cli TSRMLS_CC);
