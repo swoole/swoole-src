@@ -16,7 +16,8 @@ public:
     ssize_t send(const void *__buf, size_t __n);
     ssize_t peek(void *__buf, size_t __n);
     ssize_t recv(void *__buf, size_t __n);
-    ssize_t recv_waitall(void *__buf, size_t __n);
+    ssize_t recv_all(void *__buf, size_t __n);
+    ssize_t send_all(const void *__buf, size_t __n);
     Socket* accept();
     void resume();
     void yield();

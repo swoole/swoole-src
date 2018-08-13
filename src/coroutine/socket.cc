@@ -340,7 +340,7 @@ ssize_t Socket::recv(void *__buf, size_t __n)
     }
 }
 
-ssize_t Socket::recv_waitall(void *__buf, size_t __n)
+ssize_t Socket::recv_all(void *__buf, size_t __n)
 {
     ssize_t retval, total_bytes = 0;
     while (true)
@@ -348,17 +348,34 @@ ssize_t Socket::recv_waitall(void *__buf, size_t __n)
         retval = recv((char*) __buf + total_bytes, __n - total_bytes);
         if (retval <= 0)
         {
-            return retval;
+            break;
         }
-        else
+        total_bytes += retval;
+        if (total_bytes == __n)
         {
-            total_bytes += retval;
-            if (total_bytes == __n)
-            {
-                return total_bytes;
-            }
+            break;
         }
     }
+    return total_bytes;
+}
+
+ssize_t Socket::send_all(const void *__buf, size_t __n)
+{
+    ssize_t retval, total_bytes = 0;
+    while (true)
+    {
+        retval = send((char*) __buf + total_bytes, __n - total_bytes);
+        if (retval <= 0)
+        {
+            break;
+        }
+        total_bytes += retval;
+        if (total_bytes == __n)
+        {
+            break;
+        }
+    }
+    return total_bytes;
 }
 
 ssize_t Socket::send(const void *__buf, size_t __n)

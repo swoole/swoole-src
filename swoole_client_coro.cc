@@ -757,7 +757,7 @@ static PHP_METHOD(swoole_client_coro, send)
 
     //clear errno
     SwooleG.error = 0;
-    int ret = cli->send(data, data_len);
+    int ret = cli->send_all(data, data_len);
     if (ret < 0)
     {
         swoole_php_sys_error(E_WARNING, "failed to send(%d) %zd bytes.", cli->socket->fd, data_len);
@@ -995,7 +995,7 @@ static PHP_METHOD(swoole_client_coro, recv)
         }
 
         uint32_t header_len = protocol->package_length_offset + protocol->package_length_size;
-        ret = cli->recv_waitall(cli->buffer->str, header_len);
+        ret = cli->recv_all(cli->buffer->str, header_len);
         if (ret <= 0)
         {
             goto check_return;
@@ -1027,7 +1027,7 @@ static PHP_METHOD(swoole_client_coro, recv)
         buf = (char *) emalloc(buf_len + 1);
         memcpy(buf, cli->buffer->str, header_len);
         SwooleG.error = 0;
-        ret = cli->recv_waitall(buf + header_len, buf_len - header_len);
+        ret = cli->recv_all(buf + header_len, buf_len - header_len);
         if (ret > 0)
         {
             ret += header_len;
@@ -1047,7 +1047,7 @@ static PHP_METHOD(swoole_client_coro, recv)
         SwooleG.error = 0;
         if (flags & MSG_WAITALL)
         {
-            ret = cli->recv_waitall(buf, buf_len);
+            ret = cli->recv_all(buf, buf_len);
         }
         else
         {
