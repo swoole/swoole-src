@@ -126,7 +126,6 @@ int swRbtree_delete(swRbtree *tree, uint32_t key)
     swRbtree_node *node = swRbtree_find_node(tree, key);
     if (node == NULL)
     {
-        printf("key=%d\n", key);
         return -1;
     }
     else
