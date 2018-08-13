@@ -527,7 +527,6 @@ static int swoole_mysql_coro_statement_close(mysql_statement *stmt TSRMLS_DC)
 
 static int swoole_mysql_coro_close(zval *this)
 {
-    SWOOLE_GET_TSRMLS;
     mysql_client *client = swoole_get_object(this);
     if (!client)
     {

@@ -760,7 +760,6 @@ static int php_swoole_task_finish(swServer *serv, zval *data TSRMLS_DC)
 
 static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
 {
-    SWOOLE_GET_TSRMLS;
 
     zval *zserv = (zval *) serv->ptr2;
     zval *zworker_id;
@@ -834,7 +833,6 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
     zval *zdata;
     zval *retval = NULL;
 
-    SWOOLE_GET_TSRMLS;
 
     php_swoole_udp_t udp_info;
     swDgramPacket *packet;
@@ -962,7 +960,6 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
     zval *retval = NULL;
     swDgramPacket *packet;
 
-    SWOOLE_GET_TSRMLS;
 
     SW_MAKE_STD_ZVAL(zdata);
     SW_MAKE_STD_ZVAL(zaddr);
@@ -1065,7 +1062,6 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
 
     zval *retval = NULL;
 
-    SWOOLE_GET_TSRMLS;
 
     SW_MAKE_STD_ZVAL(zfd);
     ZVAL_LONG(zfd, (long) req->info.fd);
@@ -1120,7 +1116,6 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
     zval *zdata;
     zval *retval = NULL;
 
-    SWOOLE_GET_TSRMLS;
 
     SW_MAKE_STD_ZVAL(ztask_id);
     ZVAL_LONG(ztask_id, (long) req->info.fd);
@@ -1242,7 +1237,6 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
 static void php_swoole_onStart(swServer *serv)
 {
     SwooleG.lock.lock(&SwooleG.lock);
-    SWOOLE_GET_TSRMLS;
 
     zval *zserv = (zval *) serv->ptr2;
     zval **args[1];
@@ -1272,7 +1266,6 @@ static void php_swoole_onStart(swServer *serv)
 
 static void php_swoole_onManagerStart(swServer *serv)
 {
-    SWOOLE_GET_TSRMLS;
 
     zval *zserv = (zval *) serv->ptr2;
     zval **args[1];
@@ -1301,7 +1294,6 @@ static void php_swoole_onManagerStart(swServer *serv)
 
 static void php_swoole_onManagerStop(swServer *serv)
 {
-    SWOOLE_GET_TSRMLS;
     zval *zserv = (zval *) serv->ptr2;
     zval **args[1];
     zval *retval = NULL;
@@ -1331,7 +1323,6 @@ static void php_swoole_onShutdown(swServer *serv)
 
     args[0] = &zserv;
 
-    SWOOLE_GET_TSRMLS;
 
     if (php_sw_server_callbacks[SW_SERVER_CB_onShutdown] != NULL)
     {
@@ -1477,7 +1468,6 @@ static void php_swoole_onWorkerStop(swServer *serv, int worker_id)
     SW_MAKE_STD_ZVAL(zworker_id);
     ZVAL_LONG(zworker_id, worker_id);
 
-    SWOOLE_GET_TSRMLS;
 
     args[0] = &zobject;
     args[1] = &zworker_id;
@@ -1507,7 +1497,6 @@ static void php_swoole_onWorkerExit(swServer *serv, int worker_id)
     SW_MAKE_STD_ZVAL(zworker_id);
     ZVAL_LONG(zworker_id, worker_id);
 
-    SWOOLE_GET_TSRMLS;
 
     args[0] = &zobject;
     args[1] = &zworker_id;
@@ -1529,7 +1518,6 @@ static void php_swoole_onWorkerExit(swServer *serv, int worker_id)
 
 static void php_swoole_onUserWorkerStart(swServer *serv, swWorker *worker)
 {
-    SWOOLE_GET_TSRMLS;
 
     zval *object = worker->ptr;
     zend_update_property_long(swoole_process_class_entry_ptr, object, ZEND_STRL("id"), SwooleWG.id TSRMLS_CC);
@@ -1560,7 +1548,6 @@ static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker
     SW_MAKE_STD_ZVAL(zsigno);
     ZVAL_LONG(zsigno, signo);
 
-    SWOOLE_GET_TSRMLS;
 
     args[0] = &zobject;
     args[1] = &zworker_id;
@@ -1605,7 +1592,6 @@ void php_swoole_onConnect(swServer *serv, swDataHead *info)
     zval *zfrom_id;
     zval *retval = NULL;
 
-    SWOOLE_GET_TSRMLS;
 
     SW_MAKE_STD_ZVAL(zfd);
     ZVAL_LONG(zfd, info->fd);
@@ -1680,7 +1666,6 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
     zval *zfrom_id;
     zval *retval = NULL;
 
-    SWOOLE_GET_TSRMLS;
 
     if (SwooleG.enable_coroutine && serv->send_yield)
     {
@@ -1775,7 +1760,6 @@ void php_swoole_onBufferFull(swServer *serv, swDataHead *info)
         return;
     }
 
-    SWOOLE_GET_TSRMLS;
 
     SW_MAKE_STD_ZVAL(zfd);
     ZVAL_LONG(zfd, info->fd);
@@ -1901,7 +1885,6 @@ void php_swoole_server_send_yield(swServer *serv, int fd, zval *zdata, zval *ret
 
 void php_swoole_onBufferEmpty(swServer *serv, swDataHead *info)
 {
-    SWOOLE_GET_TSRMLS;
 
     zval *zserv = (zval *) serv->ptr2;
     zval *zfd;

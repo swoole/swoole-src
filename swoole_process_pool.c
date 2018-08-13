@@ -81,7 +81,6 @@ void swoole_process_pool_init(int module_number TSRMLS_DC)
 
 static void php_swoole_process_pool_onWorkerStart(swProcessPool *pool, int worker_id)
 {
-    SWOOLE_GET_TSRMLS;
 
     zval *zobject = (zval *) pool->ptr;
     zval *zworker_id;
@@ -126,7 +125,6 @@ static void php_swoole_process_pool_onWorkerStart(swProcessPool *pool, int worke
 
 static void php_swoole_process_pool_onMessage(swProcessPool *pool, char *data, uint32_t length)
 {
-    SWOOLE_GET_TSRMLS;
 
     zval *zobject = (zval *) pool->ptr;
     zval *zdata;
@@ -158,7 +156,6 @@ static void php_swoole_process_pool_onMessage(swProcessPool *pool, char *data, u
 
 static void php_swoole_process_pool_onWorkerStop(swProcessPool *pool, int worker_id)
 {
-    SWOOLE_GET_TSRMLS;
 
     zval *zobject = (zval *) pool->ptr;
     zval *zworker_id;

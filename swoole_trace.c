@@ -144,7 +144,6 @@ size_t trace_print_time(struct timeval *tv, char *timebuf, size_t timebuf_len)
 
 static int trace_dump(swWorker *worker, FILE *slowlog)
 {
-    SWOOLE_GET_TSRMLS;
 
     pid_t traced_pid = worker->pid;
     int callers_limit = 100;
