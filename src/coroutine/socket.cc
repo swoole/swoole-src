@@ -615,7 +615,6 @@ bool Socket::close()
     socket->closed = 1;
 
     int fd = socket->fd;
-    assert(fd != 0);
 
     if (_sock_type == SW_SOCK_UNIX_DGRAM)
     {
@@ -668,7 +667,10 @@ bool Socket::close()
         timer = NULL;
     }
     socket->active = 0;
-    ::close(fd);
+    if (fd >= 0)
+    {
+        ::close(fd);
+    }
     return true;
 }
 
@@ -841,7 +843,6 @@ bool Socket::sendfile(char *filename, off_t offset, size_t length)
 
 Socket::~Socket()
 {
-    assert(socket->fd != 0);
     if (!socket->closed)
     {
         close();

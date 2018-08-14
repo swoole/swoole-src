@@ -33,8 +33,9 @@ static PHP_METHOD(swoole_runtime, enableCoroutine);
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
-zend_class_entry *ce;
+static zend_class_entry *ce;
 static unordered_map<int, Socket*> _sockets;
+static php_stream_ops origin_socket_ops;
 
 static const zend_function_entry swoole_runtime_methods[] =
 {
@@ -116,12 +117,6 @@ static inline char *parse_ip_address_ex(const char *str, size_t str_len, int *po
     }
 
     return host;
-}
-
-static inline char *parse_ip_address(php_stream_xport_param *xparam, int *portno)
-{
-    return parse_ip_address_ex(xparam->inputs.name, xparam->inputs.namelen, portno, xparam->want_errortext,
-            &xparam->outputs.error_text);
 }
 
 static size_t socket_write(php_stream *stream, const char *buf, size_t count)
@@ -221,24 +216,12 @@ static size_t socket_read(php_stream *stream, char *buf, size_t count)
 
 static int socket_close(php_stream *stream, int close_handle)
 {
-    printf("xxx\n");
-    return 0;
-}
-
-static int socket_flush(php_stream *stream)
-{
-    return 0;
-}
-
-static int socket_cast(php_stream *stream, int castas, void **ret)
-{
-    printf("xxx\n");
-    return 0;
-}
-
-static int socket_stat(php_stream *stream, php_stream_statbuf *ssb)
-{
-    printf("xxx\n");
+    php_netstream_data_t *sock = (php_netstream_data_t*) stream->abstract;
+    int fd = sock->socket;
+    origin_socket_ops.close(stream, close_handle);
+    Socket *_sock = _sockets[fd];
+    _sock->socket->fd = -1;
+    delete _sock;
     return 0;
 }
 
@@ -265,7 +248,8 @@ static inline int socket_connect(php_stream *stream, php_netstream_data_t *sock,
     zval *tmpzval = NULL;
     long sockopts = STREAM_SOCKOP_NONE;
 
-    host = parse_ip_address(xparam, &portno);
+    host = parse_ip_address_ex(xparam->inputs.name, xparam->inputs.namelen, &portno, xparam->want_errortext,
+            &xparam->outputs.error_text);
     if (host == NULL)
     {
         return -1;
@@ -304,11 +288,15 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
 
     if (unlikely(stream->ops->set_option != socket_set_option))
     {
+        origin_socket_ops.set_option = stream->ops->set_option;
+        origin_socket_ops.read = stream->ops->read;
+        origin_socket_ops.write = stream->ops->write;
+        origin_socket_ops.close = stream->ops->close;
+
         stream->ops->set_option = socket_set_option;
         stream->ops->read = socket_read;
         stream->ops->write = socket_write;
         stream->ops->close = socket_close;
-        stream->ops->flush = socket_flush;
     }
 
     switch (option)
@@ -330,9 +318,13 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
 
 static PHP_METHOD(swoole_runtime, enableCoroutine)
 {
+    origin_socket_ops.set_option = php_stream_socket_ops.set_option;
+    origin_socket_ops.read = php_stream_socket_ops.read;
+    origin_socket_ops.write = php_stream_socket_ops.write;
+    origin_socket_ops.close = php_stream_socket_ops.close;
+
     php_stream_socket_ops.set_option = socket_set_option;
     php_stream_socket_ops.read = socket_read;
     php_stream_socket_ops.write = socket_write;
     php_stream_socket_ops.close = socket_close;
-    php_stream_socket_ops.flush = socket_flush;
 }

@@ -1,12 +1,14 @@
 <?php
 go(function () {
-    swoole\runtime::enableCoroutine();
+    Swoole\Runtime::enableCoroutine();
 
     $redis = new redis;
     $retval = $redis->connect("127.0.0.1", 6379);
     var_dump($retval, $redis->getLastError());
-
     var_dump($redis->get("key"));
+    var_dump($redis->set("key", "value2"));
+    var_dump($redis->get("key"));
+    $redis->close();
 
 
     $db = new mysqli;
@@ -20,5 +22,4 @@ go(function () {
     $rs = $query->execute(array(1));
     var_dump($rs);
     echo count($query->fetchAll());
-
 });
