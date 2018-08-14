@@ -128,10 +128,10 @@ static int channel_onNotify(swReactor *reactor, swEvent *event)
 static void channel_pop_onTimeout(swTimer *timer, swTimer_node *tnode)
 {
     channel_node *node = (channel_node *) tnode->data;
-    php_context *context = (php_context *) node;
+    php_context *context = &node->context;
 
     zval *zobject = &context->coro_params;
-    swLinkedList_node *list_node = (swLinkedList_node *)context->private_data;
+    swLinkedList_node *list_node = (swLinkedList_node *) context->private_data;
 
     zval *retval = NULL;
     zval *result = NULL;
