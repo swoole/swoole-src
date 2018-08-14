@@ -14,7 +14,7 @@ go(function () {
     ]);
     $cli->connect();
 
-    $req = new Swoole\Coroutine\Http2\Request;
+    $req = new swoole_http2_request;
     $req->path = '/';
     // auto to-lower
     $req->headers = [

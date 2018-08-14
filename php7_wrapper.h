@@ -168,7 +168,6 @@ static sw_inline int sw_call_user_function_fast(zval *function_name, zend_fcall_
     if (ZVAL_IS_NULL(&__retval)) *(retval) = NULL;\
     else *(retval) = &__retval;
 
-#define SWOOLE_GET_TSRMLS
 #define SW_ZVAL_STRINGL(z, s, l, dup)         ZVAL_STRINGL(z, s, l)
 #define SW_ZVAL_STRING(z,s,dup)               ZVAL_STRING(z,s)
 #define sw_smart_str                          smart_string

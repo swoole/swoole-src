@@ -35,7 +35,7 @@ go(function () {
         if ($response) {
             echo "$response->statusCode\n";
             $responses_headers_count_map[] = count($response->headers);
-            assert(strpos($response->body, 'Cookie') !== false);
+            assert(strpos($response->data, 'Cookie') !== false);
             $stream_map[] = $response->streamId;
             if (++$i === 4) {
                 break;

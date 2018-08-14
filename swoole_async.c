@@ -156,7 +156,6 @@ void php_swoole_check_aio()
 
 static void php_swoole_dns_callback(char *domain, swDNSResolver_result *result, void *data)
 {
-    SWOOLE_GET_TSRMLS;
     dns_request *req = data;
     zval *retval = NULL;
     zval *zaddress;
@@ -209,7 +208,6 @@ static void php_swoole_dns_callback(char *domain, swDNSResolver_result *result, 
 #ifdef SW_COROUTINE
 static void php_swoole_dns_callback_coro(char *domain, swDNSResolver_result *result, void *data)
 {
-    SWOOLE_GET_TSRMLS;
     dns_request *req = data;
     zval *retval = NULL;
 
@@ -1006,7 +1004,6 @@ PHP_FUNCTION(swoole_async_dns_lookup)
 
 static int process_stream_onRead(swReactor *reactor, swEvent *event)
 {
-    SWOOLE_GET_TSRMLS;
 
     process_stream *ps = event->socket->object;
     char *buf = ps->buffer->str + ps->buffer->length;

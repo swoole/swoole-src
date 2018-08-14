@@ -46,5 +46,5 @@ function skip_if_no_proxy()
 
 function skip_deprecated()
 {
-    skip('it\'s the deprecated.', true, SWOOLE_COLOR_WHITE);
+    skip('it\'s the deprecated.', file_exists('/.dockerenv'), SWOOLE_COLOR_WHITE);
 }

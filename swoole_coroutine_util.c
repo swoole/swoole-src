@@ -93,7 +93,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_writeFile, 0, 0, 2)
 ZEND_END_ARG_INFO()
 
 static PHP_METHOD(swoole_coroutine_util, set);
-static PHP_METHOD(swoole_coroutine_util, suspend);
+static PHP_METHOD(swoole_coroutine_util, yield);
 static PHP_METHOD(swoole_coroutine_util, resume);
 static PHP_METHOD(swoole_coroutine_util, stats);
 static PHP_METHOD(swoole_coroutine_util, getuid);
@@ -116,7 +116,8 @@ static const zend_function_entry swoole_coroutine_util_methods[] =
     ZEND_FENTRY(create, ZEND_FN(swoole_coroutine_create), arginfo_swoole_coroutine_create, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(exec, ZEND_FN(swoole_coroutine_exec), arginfo_swoole_coroutine_exec, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, set, arginfo_swoole_coroutine_set, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_util, suspend, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_util, yield, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_MALIAS(swoole_coroutine_util, suspend, yield, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, resume, arginfo_swoole_coroutine_resume, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, stats, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, getuid, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -155,12 +156,12 @@ void swoole_coroutine_util_init(int module_number TSRMLS_DC)
 /*
  * suspend current coroutine
  */
-static PHP_METHOD(swoole_coroutine_util, suspend)
+static PHP_METHOD(swoole_coroutine_util, yield)
 {
     int cid = sw_get_current_cid();
     if (cid < 0)
     {
-        swoole_php_fatal_error(E_ERROR, "can not suspend outside coroutine");
+        swoole_php_fatal_error(E_ERROR, "can not yield outside coroutine");
         RETURN_FALSE;
     }
 

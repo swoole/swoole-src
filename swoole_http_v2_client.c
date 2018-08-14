@@ -23,8 +23,7 @@
 static zend_class_entry swoole_http2_client_ce;
 static zend_class_entry *swoole_http2_client_class_entry_ptr;
 
-static zend_class_entry swoole_http2_response_ce;
-zend_class_entry *swoole_http2_response_class_entry_ptr;
+extern zend_class_entry *swoole_http2_response_class_entry_ptr;
 
 swString *cookie_buffer = NULL;
 
@@ -94,19 +93,6 @@ void swoole_http2_client_init(int module_number TSRMLS_DC)
 
     zend_declare_property_null(swoole_http2_client_class_entry_ptr, SW_STRL("requestHeaders")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_http2_client_class_entry_ptr, SW_STRL("cookies")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
-
-    SWOOLE_INIT_CLASS_ENTRY(swoole_http2_response_ce, "swoole_http2_response", "Swoole\\Http2\\Response", NULL);
-    swoole_http2_response_class_entry_ptr = zend_register_internal_class(&swoole_http2_response_ce TSRMLS_CC);
-    SWOOLE_CLASS_ALIAS(swoole_http2_response, "Swoole\\Http2\\Response");
-
-    zend_declare_property_long(swoole_http2_response_class_entry_ptr, SW_STRL("streamId")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_long(swoole_http2_response_class_entry_ptr, SW_STRL("errCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_long(swoole_http2_response_class_entry_ptr, SW_STRL("statusCode")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_bool(swoole_http2_response_class_entry_ptr, SW_STRL("pipeline")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_null(swoole_http2_response_class_entry_ptr, SW_STRL("headers")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_null(swoole_http2_response_class_entry_ptr, SW_STRL("set_cookie_headers")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_null(swoole_http2_response_class_entry_ptr, SW_STRL("cookies")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_null(swoole_http2_response_class_entry_ptr, SW_STRL("body")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
 
     if (cookie_buffer == NULL)
     {
@@ -593,7 +579,7 @@ static int http2_client_onFrame(zval *zobject, zval *zdata TSRMLS_DC)
 
         if (stream->buffer)
         {
-            zend_update_property_stringl(swoole_http2_response_class_entry_ptr, stream->response_object, ZEND_STRL("body"), stream->buffer->str, stream->buffer->length TSRMLS_CC);
+            zend_update_property_stringl(swoole_http2_response_class_entry_ptr, stream->response_object, ZEND_STRL("data"), stream->buffer->str, stream->buffer->length TSRMLS_CC);
         }
 
         zval **args[1];

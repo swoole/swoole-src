@@ -159,7 +159,6 @@ void swoole_websocket_onOpen(http_context *ctx)
  */
 void swoole_websocket_onRequest(http_context *ctx)
 {
-    SWOOLE_GET_TSRMLS;
     char *content = "<html><body><h2>HTTP ERROR 400</h2><hr><i>Powered by "SW_HTTP_SERVER_SOFTWARE" ("PHP_SWOOLE_VERSION")</i></body></html>";
     char *bad_request = "HTTP/1.1 400 Bad Request\r\n"\
             "Content-Type: text/html; charset=UTF-8\r\n"\
@@ -468,7 +467,7 @@ static PHP_METHOD(swoole_websocket_server, disconnect)
     char payload_length = length + SW_WEBSOCKET_CLOSE_CODE_LEN;
 
     swoole_http_buffer->str[0] = 0x88;
-    swoole_http_buffer->str[1] = 0x7F & payload_length;     // Avoid bit 1 setted by accident
+    swoole_http_buffer->str[1] = 0x7F & payload_length;     // Avoid bit 1 being set by accident
 
     memcpy(swoole_http_buffer->str + SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_CLOSE_CODE_LEN, data, length);
 
@@ -491,7 +490,7 @@ static PHP_METHOD(swoole_websocket_server, disconnect)
     else
 #endif
     {
-        // Server close connection immedialty
+        // Server close connection immediately
         conn->websocket_status = WEBSOCKET_STATUS_CLOSING;
         SW_CHECK_RETURN(SwooleG.serv->close(serv, (int)fd, (int)SW_FALSE));
     }
