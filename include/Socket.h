@@ -65,6 +65,7 @@ public:
     int _port;
     int _cid;
     swConnection *socket;
+    enum swSocket_type _type;
     int _sock_type;
     int _sock_domain;
     double _timeout;

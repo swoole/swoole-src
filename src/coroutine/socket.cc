@@ -35,42 +35,39 @@ static inline int socket_connect(int fd, struct sockaddr *addr, socklen_t len)
 
 Socket::Socket(enum swSocket_type type)
 {
-    int _domain;
-    int _type;
-
     switch (type)
     {
     case SW_SOCK_TCP6:
-        _domain = AF_INET6;
-        _type = SOCK_STREAM;
+        _sock_domain = AF_INET6;
+        _sock_type = SOCK_STREAM;
         break;
     case SW_SOCK_UNIX_STREAM:
-        _domain = AF_UNIX;
-        _type = SOCK_STREAM;
+        _sock_domain = AF_UNIX;
+        _sock_type = SOCK_STREAM;
         break;
     case SW_SOCK_UDP:
-        _domain = AF_INET;
-        _type = SOCK_DGRAM;
+        _sock_domain = AF_INET;
+        _sock_type = SOCK_DGRAM;
         break;
     case SW_SOCK_UDP6:
-        _domain = AF_INET6;
-        _type = SOCK_DGRAM;
+        _sock_domain = AF_INET6;
+        _sock_type = SOCK_DGRAM;
         break;
     case SW_SOCK_UNIX_DGRAM:
-        _domain = AF_UNIX;
-        _type = SOCK_DGRAM;
+        _sock_domain = AF_UNIX;
+        _sock_type = SOCK_DGRAM;
         break;
     case SW_SOCK_TCP:
     default:
-        _domain = AF_INET;
-        _type = SOCK_STREAM;
+        _sock_domain = AF_INET;
+        _sock_type = SOCK_STREAM;
         break;
     }
 
 #ifdef SOCK_CLOEXEC
-    int sockfd = ::socket(_domain, _type | SOCK_CLOEXEC, 0);
+    int sockfd = ::socket(_sock_domain, _sock_type | SOCK_CLOEXEC, 0);
 #else
-    int sockfd = ::socket(_domain, _type, 0);
+    int sockfd = ::socket(_sock_domain, _sock_type, 0);
 #endif
     if (sockfd < 0)
     {
@@ -99,9 +96,7 @@ Socket::Socket(enum swSocket_type type)
         reactor->setHandle(reactor, SW_FD_CORO_SOCKET | SW_EVENT_WRITE, socket_onWrite);
         reactor->setHandle(reactor, SW_FD_CORO_SOCKET | SW_EVENT_ERROR, socket_onRead);
     }
-
-    _sock_domain = _domain;
-    _sock_type = _type;
+    _type = type;
     init();
 }
 
@@ -667,10 +662,7 @@ bool Socket::close()
         timer = NULL;
     }
     socket->active = 0;
-    if (fd >= 0)
-    {
-        ::close(fd);
-    }
+    ::close(fd);
     return true;
 }
 
