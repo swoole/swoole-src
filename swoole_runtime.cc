@@ -16,24 +16,30 @@
   +----------------------------------------------------------------------+
  */
 #include "php_swoole.h"
+#include "Socket.h"
 
-#ifdef SW_USE_PHPX
-
+#include <unordered_map>
 #include <initializer_list>
+
+using namespace swoole;
+using namespace std;
 
 extern "C"
 {
 static PHP_METHOD(swoole_runtime, enableStrictMode);
+static PHP_METHOD(swoole_runtime, enableCoroutine);
 }
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
 zend_class_entry *ce;
+static unordered_map<int, Socket*> _sockets;
 
 static const zend_function_entry swoole_runtime_methods[] =
 {
     PHP_ME(swoole_runtime, enableStrictMode, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_runtime, enableCoroutine, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 
@@ -63,4 +69,270 @@ static PHP_METHOD(swoole_runtime, enableStrictMode)
     }
 }
 
+static inline char *parse_ip_address_ex(const char *str, size_t str_len, int *portno, int get_err, zend_string **err)
+{
+    char *colon;
+    char *host = NULL;
+
+#ifdef HAVE_IPV6
+    char *p;
+
+    if (*(str) == '[' && str_len > 1)
+    {
+        /* IPV6 notation to specify raw address with port (i.e. [fe80::1]:80) */
+        p = (char*) memchr(str + 1, ']', str_len - 2);
+        if (!p || *(p + 1) != ':')
+        {
+            if (get_err)
+            {
+                *err = strpprintf(0, "Failed to parse IPv6 address \"%s\"", str);
+            }
+            return NULL;
+        }
+        *portno = atoi(p + 2);
+        return estrndup(str + 1, p - str - 1);
+    }
 #endif
+    if (str_len)
+    {
+        colon = (char*) memchr(str, ':', str_len - 1);
+    }
+    else
+    {
+        colon = NULL;
+    }
+    if (colon)
+    {
+        *portno = atoi(colon + 1);
+        host = estrndup(str, colon - str);
+    }
+    else
+    {
+        if (get_err)
+        {
+            *err = strpprintf(0, "Failed to parse address \"%s\"", str);
+        }
+        return NULL;
+    }
+
+    return host;
+}
+
+static inline char *parse_ip_address(php_stream_xport_param *xparam, int *portno)
+{
+    return parse_ip_address_ex(xparam->inputs.name, xparam->inputs.namelen, portno, xparam->want_errortext,
+            &xparam->outputs.error_text);
+}
+
+static size_t socket_write(php_stream *stream, const char *buf, size_t count)
+{
+    php_netstream_data_t *sock = (php_netstream_data_t*) stream->abstract;
+    int didwrite;
+    struct timeval *ptimeout;
+
+    if (!sock || sock->socket == -1)
+    {
+        return 0;
+    }
+
+    if (sock->timeout.tv_sec == -1)
+    {
+        ptimeout = NULL;
+    }
+    else
+    {
+        ptimeout = &sock->timeout;
+    }
+
+    Socket *_sock = _sockets[sock->socket];
+    if (ptimeout)
+    {
+        _sock->setTimeout((double) ptimeout->tv_sec + ptimeout->tv_usec / 1000000);
+    }
+
+    didwrite = _sock->send_all(buf, count);
+    if (didwrite <= 0)
+    {
+        int err = _sock->errCode;
+        char *estr;
+
+        estr = php_socket_strerror(err, NULL, 0);
+        php_error_docref(NULL, E_NOTICE, "send of " ZEND_LONG_FMT " bytes failed with errno=%d %s", (zend_long) count,
+                err, estr);
+        efree(estr);
+    }
+
+    if (didwrite > 0)
+    {
+        php_stream_notify_progress_increment(PHP_STREAM_CONTEXT(stream), didwrite, 0);
+    }
+
+    if (didwrite < 0)
+    {
+        didwrite = 0;
+    }
+
+    return didwrite;
+}
+
+static size_t socket_read(php_stream *stream, char *buf, size_t count)
+{
+    php_netstream_data_t *sock = (php_netstream_data_t*) stream->abstract;
+    ssize_t nr_bytes = 0;
+    int err;
+    struct timeval *ptimeout;
+
+    if (!sock || sock->socket == -1)
+    {
+        return 0;
+    }
+
+    if (sock->timeout.tv_sec == -1)
+    {
+        ptimeout = NULL;
+    }
+    else
+    {
+        ptimeout = &sock->timeout;
+    }
+
+    Socket *_sock = _sockets[sock->socket];
+    if (ptimeout)
+    {
+        _sock->setTimeout((double) ptimeout->tv_sec + ptimeout->tv_usec / 1000000);
+    }
+
+    nr_bytes = _sock->recv(buf, count);
+    err = _sock->errCode;
+    stream->eof = (nr_bytes == 0 || nr_bytes == -1);
+
+    if (nr_bytes > 0)
+    {
+        php_stream_notify_progress_increment(PHP_STREAM_CONTEXT(stream), nr_bytes, 0);
+    }
+
+    if (nr_bytes < 0)
+    {
+        nr_bytes = 0;
+    }
+
+    return nr_bytes;
+}
+
+static int socket_close(php_stream *stream, int close_handle)
+{
+    printf("xxx\n");
+    return 0;
+}
+
+static int socket_flush(php_stream *stream)
+{
+    return 0;
+}
+
+static int socket_cast(php_stream *stream, int castas, void **ret)
+{
+    printf("xxx\n");
+    return 0;
+}
+
+static int socket_stat(php_stream *stream, php_stream_statbuf *ssb)
+{
+    printf("xxx\n");
+    return 0;
+}
+
+enum
+{
+    STREAM_XPORT_OP_BIND,
+    STREAM_XPORT_OP_CONNECT,
+    STREAM_XPORT_OP_LISTEN,
+    STREAM_XPORT_OP_ACCEPT,
+    STREAM_XPORT_OP_CONNECT_ASYNC,
+    STREAM_XPORT_OP_GET_NAME,
+    STREAM_XPORT_OP_GET_PEER_NAME,
+    STREAM_XPORT_OP_RECV,
+    STREAM_XPORT_OP_SEND,
+    STREAM_XPORT_OP_SHUTDOWN
+} op;
+
+static inline int socket_connect(php_stream *stream, php_netstream_data_t *sock, php_stream_xport_param *xparam)
+{
+    char *host = NULL, *bindto = NULL;
+    int portno, bindport = 0;
+    int err = 0;
+    int ret;
+    zval *tmpzval = NULL;
+    long sockopts = STREAM_SOCKOP_NONE;
+
+    host = parse_ip_address(xparam, &portno);
+    if (host == NULL)
+    {
+        return -1;
+    }
+
+    Socket *_sock = new Socket(SW_SOCK_TCP);
+    if (_sock->connect(host, portno) == false)
+    {
+        ret = -1;
+        delete _sock;
+        goto _return;
+    }
+
+    _sockets[_sock->socket->fd] = _sock;
+    sock->socket = _sock->socket->fd;
+
+    ret = sock->socket == -1 ? -1 : 0;
+    xparam->outputs.error_code = err;
+
+    _return:
+    if (host)
+    {
+        efree(host);
+    }
+    if (bindto)
+    {
+        efree(bindto);
+    }
+    return ret;
+}
+
+static int socket_set_option(php_stream *stream, int option, int value, void *ptrparam)
+{
+    php_netstream_data_t *sock = (php_netstream_data_t*) stream->abstract;
+    php_stream_xport_param *xparam;
+
+    if (unlikely(stream->ops->set_option != socket_set_option))
+    {
+        stream->ops->set_option = socket_set_option;
+        stream->ops->read = socket_read;
+        stream->ops->write = socket_write;
+        stream->ops->close = socket_close;
+        stream->ops->flush = socket_flush;
+    }
+
+    switch (option)
+    {
+    case PHP_STREAM_OPTION_XPORT_API:
+        xparam = (php_stream_xport_param *) ptrparam;
+        switch (xparam->op)
+        {
+        case STREAM_XPORT_OP_CONNECT:
+        case STREAM_XPORT_OP_CONNECT_ASYNC:
+            xparam->outputs.returncode = socket_connect(stream, sock, xparam);
+            return PHP_STREAM_OPTION_RETURN_OK;
+        default:
+            break;
+        }
+    }
+    return 0;
+}
+
+static PHP_METHOD(swoole_runtime, enableCoroutine)
+{
+    php_stream_socket_ops.set_option = socket_set_option;
+    php_stream_socket_ops.read = socket_read;
+    php_stream_socket_ops.write = socket_write;
+    php_stream_socket_ops.close = socket_close;
+    php_stream_socket_ops.flush = socket_flush;
+}
