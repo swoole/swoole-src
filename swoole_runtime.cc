@@ -16,6 +16,7 @@
   +----------------------------------------------------------------------+
  */
 #include "php_swoole.h"
+#include "swoole_coroutine.h"
 #include "Socket.h"
 
 #include <unordered_map>
@@ -36,6 +37,7 @@ ZEND_END_ARG_INFO()
 static zend_class_entry *ce;
 static unordered_map<int, Socket*> _sockets;
 static php_stream_ops origin_socket_ops;
+static bool hook_init = false;
 
 static const zend_function_entry swoole_runtime_methods[] =
 {
@@ -318,6 +320,17 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
 
 static PHP_METHOD(swoole_runtime, enableCoroutine)
 {
+    if (hook_init)
+    {
+        return;
+    }
+    hook_init = true;
+    if (COROG.active == 0)
+    {
+        coro_init(TSRMLS_C);
+    }
+    php_swoole_check_reactor();
+
     origin_socket_ops.set_option = php_stream_socket_ops.set_option;
     origin_socket_ops.read = php_stream_socket_ops.read;
     origin_socket_ops.write = php_stream_socket_ops.write;
