@@ -390,13 +390,13 @@ static PHP_METHOD(swoole_channel_coro, pop)
         swLinkedList_append(chan->consumer_list, node);
         if (timeout > 0)
         {
-           int ms = (int) (timeout * 1000);
-           php_swoole_check_reactor();
-           php_swoole_check_timer(ms);
+            int ms = (int) (timeout * 1000);
+            php_swoole_check_reactor();
+            php_swoole_check_timer(ms);
 
-           node->context.coro_params = *getThis();
-           node->context.private_data = (void *)chan->consumer_list->tail;
-           node->timer = SwooleG.timer.add(&SwooleG.timer, ms, 0, node, channel_pop_onTimeout);
+            node->context.coro_params = *getThis();
+            node->context.private_data = (void *) chan->consumer_list->tail;
+            node->timer = SwooleG.timer.add(&SwooleG.timer, ms, 0, node, channel_pop_onTimeout);
         }
         coro_yield();
     }

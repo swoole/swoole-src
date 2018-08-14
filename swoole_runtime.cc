@@ -10,9 +10,7 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Xinyu Zhu  <xyzhu1120@gmail.com>                             |
-  |         shiguangqi <shiguangqi2008@gmail.com>                        |
-  |         Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author:   Tianfeng Han  <mikan.tenny@gmail.com>                      |
   +----------------------------------------------------------------------+
  */
 #include "php_swoole.h"
@@ -326,7 +324,7 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
         case STREAM_XPORT_OP_CONNECT:
         case STREAM_XPORT_OP_CONNECT_ASYNC:
             xparam->outputs.returncode = socket_connect(stream, sock, xparam);
-            return PHP_STREAM_OPTION_RETURN_OK;
+           break;
         default:
             break;
         }
