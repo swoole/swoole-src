@@ -577,6 +577,7 @@ static int swoole_mysql_coro_close(zval *this)
             node = node->next;
         }
         swLinkedList_free(client->statement_list);
+        client->statement_list = NULL;
     }
 
     client->cli->close(client->cli);
