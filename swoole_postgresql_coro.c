@@ -235,6 +235,7 @@ static void swoole_pgsql_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
     zval *zobject = &_zobject;
 
     pg_object *pg_object = swoole_get_object(zobject);
+    pg_object->timer = NULL;
     pgsql = pg_object -> conn;
 
     switch(PQstatus(pgsql))
