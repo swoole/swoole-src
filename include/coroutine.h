@@ -21,7 +21,11 @@ void coro_handle_timeout();
 
 typedef struct coroutine_s coroutine_t;
 typedef void (*coroutine_func_t)(void*);
-typedef void (*coroutine_close_t)();
+
+typedef void (*coro_php_create_t)();
+typedef void (*coro_php_yield_t)(void*);
+typedef void (*coro_php_resume_t)(void*);
+typedef void (*coro_php_close_t)();
 
 typedef enum
 {
@@ -31,10 +35,20 @@ typedef enum
 int coroutine_create(coroutine_func_t func, void* args);
 void coroutine_resume(coroutine_t *co);
 void coroutine_yield(coroutine_t *co);
+void coroutine_resume_naked(coroutine_t *co); //without function call
+void coroutine_yield_naked(coroutine_t *co);  //without function call
 void coroutine_release(coroutine_t *co);
+void coroutine_set_ptr(coroutine_t *co, void *ptr);
 coroutine_t *coroutine_get_by_id(int cid);
 int coroutine_get_cid();
-void coroutine_set_close(coroutine_close_t func);
+
+void coroutine_set_onYield(coro_php_yield_t func);
+void coroutine_set_onResume(coro_php_resume_t func);
+void coroutine_set_onClose(coro_php_close_t func);
+
+#define php_yield() php_coro_yield(return_value);
+void php_coro_yield(void *return_value);
+void php_coro_resume(void *data);
 
 #ifdef __cplusplus
 }  /* end extern "C" */

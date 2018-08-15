@@ -170,3 +170,16 @@ TEST(coroutine, socket_accept)
     SwooleG.main_reactor->wait(SwooleG.main_reactor, nullptr);
 }
 
+static void coro9(void *arg)
+{
+    Socket sock(SW_SOCK_TCP);
+    auto retval = sock.resolve("www.qq.com");
+    ASSERT_EQ(retval, "180.163.26.39");
+}
+
+TEST(coroutine, socket_resolve)
+{
+    coroutine_create(coro9, NULL);
+    SwooleG.main_reactor->wait(SwooleG.main_reactor, nullptr);
+}
+
