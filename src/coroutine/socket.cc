@@ -315,6 +315,7 @@ Socket::Socket(enum swSocket_type _type)
     bzero(socket, sizeof(swConnection));
     socket->fd = sockfd;
     socket->object = this;
+    socket->socket_type = type;
 
     swSetNonBlock(socket->fd);
     if (!swReactor_handle_isset(reactor, SW_FD_CORO_SOCKET))
@@ -334,6 +335,7 @@ Socket::Socket(int _fd, Socket *sock)
     bzero(socket, sizeof(swConnection));
     socket->fd = _fd;
     socket->object = this;
+    socket->socket_type = sock->type;
 
     _sock_domain = sock->_sock_domain;
     _sock_type = sock->_sock_type;
@@ -391,11 +393,10 @@ bool Socket::connect(string host, int port, int flags)
     {
         if (_sock_domain == AF_INET)
         {
-            struct sockaddr_in addr;
-            addr.sin_family = AF_INET;
-            addr.sin_port = htons(port);
+            socket->info.addr.inet_v4.sin_family = AF_INET;
+            socket->info.addr.inet_v4.sin_port = htons(port);
 
-            if (!inet_pton(AF_INET, _host.c_str(), &addr.sin_addr))
+            if (!inet_pton(AF_INET, _host.c_str(), & socket->info.addr.inet_v4.sin_addr))
             {
                 _host = resolve(_host);
                 if (_host.size() == 0)
@@ -406,18 +407,17 @@ bool Socket::connect(string host, int port, int flags)
             }
             else
             {
-                socklen_t len = sizeof(addr);
-                retval = socket_connect(socket->fd, (struct sockaddr *) &addr, len);
+                socket->info.len = sizeof( socket->info.addr.inet_v4);
+                retval = socket_connect(socket->fd, (struct sockaddr *) &socket->info.addr.inet_v4, socket->info.len);
                 break;
             }
         }
         else if (_sock_domain == AF_INET6)
         {
-            struct sockaddr_in6 addr;
-            addr.sin6_family = AF_INET6;
-            addr.sin6_port = htons(port);
+            socket->info.addr.inet_v6.sin6_family = AF_INET6;
+            socket->info.addr.inet_v6.sin6_port = htons(port);
 
-            if (!inet_pton(AF_INET6, _host.c_str(), &addr.sin6_addr))
+            if (!inet_pton(AF_INET6, _host.c_str(), &socket->info.addr.inet_v6.sin6_addr))
             {
                 _host = resolve(_host);
                 if (_host.size() == 0)
@@ -428,21 +428,20 @@ bool Socket::connect(string host, int port, int flags)
             }
             else
             {
-                socklen_t len = sizeof(addr);
-                retval = socket_connect(socket->fd, (struct sockaddr *) &addr, len);
+                socket->info.len = sizeof(socket->info.addr.inet_v6);
+                retval = socket_connect(socket->fd, (struct sockaddr *) &socket->info.addr.inet_v6, socket->info.len);
                 break;
             }
         }
         else if (_sock_domain == AF_UNIX)
         {
-            struct sockaddr_un s_un = { 0 };
-            if (_host.size() >= sizeof(s_un.sun_path))
+            if (_host.size() >= sizeof(socket->info.addr.un.sun_path))
             {
                 return false;
             }
-            s_un.sun_family = AF_UNIX;
-            memcpy(&s_un.sun_path, _host.c_str(), _host.size());
-            retval = socket_connect(socket->fd, (struct sockaddr *) &s_un,
+            socket->info.addr.un.sun_family = AF_UNIX;
+            memcpy(&socket->info.addr.un.sun_path, _host.c_str(), _host.size());
+            retval = socket_connect(socket->fd, (struct sockaddr *) &socket->info.addr.un,
                     (socklen_t) (offsetof(struct sockaddr_un, sun_path) + _host.size()));
             break;
         }
@@ -553,7 +552,7 @@ ssize_t Socket::recv(void *__buf, size_t __n)
     yield();
     if (errCode == ETIMEDOUT)
     {
-        return false;
+        return -1;
     }
     retval = swConnection_recv(socket, __buf, __n, 0);
     if (retval < 0)
@@ -626,7 +625,7 @@ ssize_t Socket::send(const void *__buf, size_t __n)
     yield();
     if (errCode == ETIMEDOUT)
     {
-        return false;
+        return -1;
     }
     ssize_t retval = swConnection_send(socket, (void *) __buf, __n, 0);
     if (retval < 0)

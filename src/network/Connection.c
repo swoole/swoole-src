@@ -186,29 +186,22 @@ static char tmp_address[INET6_ADDRSTRLEN];
 
 char* swConnection_get_ip(swConnection *conn)
 {
-    if (conn->socket_type == SW_SOCK_TCP)
+    if (conn->socket_type == SW_SOCK_TCP || conn->socket_type == SW_SOCK_UDP)
     {
         return inet_ntoa(conn->info.addr.inet_v4.sin_addr);
     }
-    else if (conn->socket_type == SW_SOCK_TCP6)
+    else if (conn->socket_type == SW_SOCK_TCP6 || conn->socket_type == SW_SOCK_UDP6)
     {
-        if (inet_ntop(AF_INET6, &conn->info.addr.inet_v6.sin6_addr, tmp_address, sizeof(tmp_address)) == NULL)
-        {
-            return "unknown";
-        }
-        else
+        if (inet_ntop(AF_INET6, &conn->info.addr.inet_v6.sin6_addr, tmp_address, sizeof(tmp_address)))
         {
             return tmp_address;
         }
     }
-    else if (conn->socket_type == SW_SOCK_UNIX_STREAM)
+    else if (conn->socket_type == SW_SOCK_UNIX_STREAM || conn->socket_type == SW_SOCK_UNIX_DGRAM)
     {
         return conn->info.addr.un.sun_path;
     }
-    else
-    {
-        return "unknown";
-    }
+    return "unknown";
 }
 
 int swConnection_get_port(swConnection *conn)
