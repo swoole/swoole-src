@@ -2,11 +2,13 @@
 
 #include "swoole.h"
 #include "Connection.h"
+#include "socks5.h"
 #include <string>
 
-namespace swoole {
-
-class Socket {
+namespace swoole
+{
+class Socket
+{
 public:
     Socket(enum swSocket_type type);
     Socket(int _fd, Socket *sock);
@@ -57,6 +59,9 @@ protected:
         shutdown_read = 0;
         shutdown_write = 0;
 
+        socks5_proxy = nullptr;
+        http_proxy = nullptr;
+
 #ifdef SW_USE_OPENSSL
         open_ssl = 0;
         ssl_wait_handshake = 0;
@@ -78,6 +83,8 @@ protected:
         }
     }
 
+    bool socks5_handshake();
+
 public:
     swTimer_node *timer;
     swReactor *reactor;
@@ -88,7 +95,7 @@ public:
     int _cid;
     bool suspending;
     swConnection *socket;
-    enum swSocket_type _type;
+    enum swSocket_type type;
     int _sock_type;
     int _sock_domain;
     double _timeout;
@@ -99,6 +106,17 @@ public:
     uint32_t shutdow_rw :1;
     uint32_t shutdown_read :1;
     uint32_t shutdown_write :1;
+    /**
+     * one package: length check
+     */
+    uint32_t open_length_check :1;
+    uint32_t open_eof_check :1;
+
+    swProtocol protocol;
+    swString *buffer;
+
+    struct _swSocks5 *socks5_proxy;
+    struct _http_proxy* http_proxy;
 
 #ifdef SW_USE_OPENSSL
     uint8_t open_ssl :1;

@@ -15,7 +15,7 @@
 */
 
 #include "php_swoole.h"
-#include "CoroClient.h"
+#include "Socket.h"
 #include "socks5.h"
 #include "mqtt.h"
 
@@ -105,9 +105,9 @@ static PHP_METHOD(swoole_client_coro, getsockname);
 static PHP_METHOD(swoole_client_coro, getpeername);
 static PHP_METHOD(swoole_client_coro, close);
 
-static void client_coro_check_setting(Client *cli, zval *zset);
-static void client_coro_check_ssl_setting(Client *cli, zval *zset);
-static Client* client_coro_new(zval *object, char *host, int host_len, int port);
+static void client_coro_check_setting(Socket *cli, zval *zset);
+static void client_coro_check_ssl_setting(Socket *cli, zval *zset);
+static Socket* client_coro_new(zval *object, char *host, int host_len, int port);
 
 static const zend_function_entry swoole_client_coro_methods[] =
 {
@@ -162,9 +162,9 @@ void swoole_client_coro_init(int module_number TSRMLS_DC)
     zend_declare_class_constant_long(swoole_client_coro_class_entry_ptr, ZEND_STRL("MSG_WAITALL"), MSG_WAITALL TSRMLS_CC);
 }
 
-static sw_inline Client* client_get_ptr(zval *zobject TSRMLS_DC)
+static sw_inline Socket* client_get_ptr(zval *zobject TSRMLS_DC)
 {
-    Client *cli = (Client *) swoole_get_object(zobject);
+    Socket *cli = (Socket *) swoole_get_object(zobject);
     if (cli && cli->socket && cli->socket->active == 1)
     {
         return cli;
@@ -178,7 +178,7 @@ static sw_inline Client* client_get_ptr(zval *zobject TSRMLS_DC)
     }
 }
 
-static Client* client_coro_new(zval *object, char *host, int host_len, int port)
+static Socket* client_coro_new(zval *object, char *host, int host_len, int port)
 {
     zval *ztype;
     uint64_t tmp_buf;
@@ -199,7 +199,7 @@ static Client* client_coro_new(zval *object, char *host, int host_len, int port)
         return NULL;
     }
 
-    Client *cli = new Client((enum swSocket_type) type);
+    Socket *cli = new Socket((enum swSocket_type) type);
     if (!cli)
     {
         swoole_php_fatal_error(E_WARNING, "new Client() failed. Error: %s [%d]", strerror(errno), errno);
@@ -219,7 +219,7 @@ static Client* client_coro_new(zval *object, char *host, int host_len, int port)
     return cli;
 }
 
-void php_swoole_coro_client_free(zval *zobject, Client *cli TSRMLS_DC)
+void php_swoole_coro_client_free(zval *zobject, Socket *cli TSRMLS_DC)
 {
     if (cli->timer)
     {
@@ -254,11 +254,6 @@ void php_swoole_coro_client_free(zval *zobject, Client *cli TSRMLS_DC)
         }
         efree(cli->http_proxy);
     }
-    if (cli->protocol.private_data)
-    {
-        zval *zcallback = (zval *) cli->protocol.private_data;
-        sw_zval_free(zcallback);
-    }
     delete cli;
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
@@ -273,7 +268,7 @@ void php_swoole_coro_client_free(zval *zobject, Client *cli TSRMLS_DC)
     swoole_set_object(zobject, NULL);
 }
 
-static void client_coro_check_setting(Client *cli, zval *zset TSRMLS_DC)
+static void client_coro_check_setting(Socket *cli, zval *zset TSRMLS_DC)
 {
     HashTable *vht;
     zval *v;
@@ -525,7 +520,7 @@ static void client_coro_check_setting(Client *cli, zval *zset TSRMLS_DC)
 }
 
 #ifdef SW_USE_OPENSSL
-static void client_coro_check_ssl_setting(Client *cli, zval *zset)
+static void client_coro_check_ssl_setting(Socket *cli, zval *zset)
 {
     HashTable *vht = Z_ARRVAL_P(zset);
     zval *v;
@@ -637,7 +632,7 @@ static PHP_METHOD(swoole_client_coro, __destruct)
 {
     SW_PREVENT_USER_DESTRUCT;
 
-    Client *cli = (Client *) swoole_get_object(getThis());
+    Socket *cli = (Socket *) swoole_get_object(getThis());
     //no keep connection
     if (cli)
     {
@@ -697,7 +692,7 @@ static PHP_METHOD(swoole_client_coro, connect)
         RETURN_FALSE;
     }
 
-    Client *cli = (Client *) swoole_get_object(getThis());
+    Socket *cli = (Socket *) swoole_get_object(getThis());
     if (cli)
     {
         swoole_php_fatal_error(E_WARNING, "connection to the server has already been established.");
@@ -756,7 +751,7 @@ static PHP_METHOD(swoole_client_coro, send)
         RETURN_FALSE;
     }
 
-    Client *cli = client_get_ptr(getThis() TSRMLS_CC);
+    Socket *cli = client_get_ptr(getThis() TSRMLS_CC);
     if (!cli)
     {
         RETURN_FALSE;
@@ -796,7 +791,7 @@ static PHP_METHOD(swoole_client_coro, sendto)
         RETURN_FALSE;
     }
 
-    Client *cli = (Client *) swoole_get_object(getThis());
+    Socket *cli = (Socket *) swoole_get_object(getThis());
     if (!cli)
     {
         cli = client_coro_new(getThis(), ip, ip_len, (int)port);
@@ -827,7 +822,7 @@ static PHP_METHOD(swoole_client_coro, recvfrom)
         RETURN_FALSE;
     }
 
-    Client *cli = (Client *) swoole_get_object(getThis());
+    Socket *cli = (Socket *) swoole_get_object(getThis());
     if (!cli)
     {
         cli = client_coro_new(getThis(), NULL, 0, 0);
@@ -872,7 +867,7 @@ static PHP_METHOD(swoole_client_coro, sendfile)
         RETURN_FALSE;
     }
 
-    Client *cli = client_get_ptr(getThis() TSRMLS_CC);
+    Socket *cli = client_get_ptr(getThis() TSRMLS_CC);
     if (!cli)
     {
         RETURN_FALSE;
@@ -925,7 +920,7 @@ static PHP_METHOD(swoole_client_coro, recv)
         flags = MSG_WAITALL;
     }
 
-    Client *cli = client_get_ptr(getThis() TSRMLS_CC);
+    Socket *cli = client_get_ptr(getThis() TSRMLS_CC);
     if (!cli)
     {
         RETURN_FALSE;
@@ -1135,7 +1130,7 @@ static PHP_METHOD(swoole_client_coro, peek)
     }
 #endif
 
-    Client *cli = client_get_ptr(getThis() TSRMLS_CC);
+    Socket *cli = client_get_ptr(getThis() TSRMLS_CC);
     if (!cli)
     {
         RETURN_FALSE;
@@ -1163,7 +1158,7 @@ static PHP_METHOD(swoole_client_coro, peek)
 
 static PHP_METHOD(swoole_client_coro, isConnected)
 {
-    Client *cli = client_get_ptr(getThis() TSRMLS_CC);
+    Socket *cli = client_get_ptr(getThis() TSRMLS_CC);
     if (!cli)
     {
         RETURN_FALSE;
@@ -1176,7 +1171,7 @@ static PHP_METHOD(swoole_client_coro, isConnected)
 
 static PHP_METHOD(swoole_client_coro, getsockname)
 {
-    Client *cli = client_get_ptr(getThis() TSRMLS_CC);
+    Socket *cli = client_get_ptr(getThis() TSRMLS_CC);
     if (!cli)
     {
         RETURN_FALSE;
@@ -1224,7 +1219,7 @@ static PHP_METHOD(swoole_client_coro, getSocket)
     {
         RETURN_ZVAL(zsocket, 1, NULL);
     }
-    Client *cli = client_get_ptr(getThis() TSRMLS_CC);
+    Socket *cli = client_get_ptr(getThis() TSRMLS_CC);
     if (!cli)
     {
         RETURN_FALSE;
@@ -1243,7 +1238,7 @@ static PHP_METHOD(swoole_client_coro, getSocket)
 
 static PHP_METHOD(swoole_client_coro, getpeername)
 {
-    Client *cli = client_get_ptr(getThis() TSRMLS_CC);
+    Socket *cli = client_get_ptr(getThis() TSRMLS_CC);
     if (!cli)
     {
         RETURN_FALSE;
@@ -1252,16 +1247,16 @@ static PHP_METHOD(swoole_client_coro, getpeername)
     if (cli->type == SW_SOCK_UDP)
     {
         array_init(return_value);
-        add_assoc_long(return_value, "port", ntohs(cli->remote_addr.addr.inet_v4.sin_port));
-        sw_add_assoc_string(return_value, "host", inet_ntoa(cli->remote_addr.addr.inet_v4.sin_addr), 1);
+        add_assoc_long(return_value, "port", ntohs(cli->socket->info.addr.inet_v4.sin_port));
+        sw_add_assoc_string(return_value, "host", inet_ntoa(cli->socket->info.addr.inet_v4.sin_addr), 1);
     }
     else if (cli->type == SW_SOCK_UDP6)
     {
         array_init(return_value);
-        add_assoc_long(return_value, "port", ntohs(cli->remote_addr.addr.inet_v6.sin6_port));
+        add_assoc_long(return_value, "port", ntohs(cli->socket->info.addr.inet_v6.sin6_port));
         char tmp[INET6_ADDRSTRLEN];
 
-        if (inet_ntop(AF_INET6, &cli->remote_addr.addr.inet_v6.sin6_addr, tmp, sizeof(tmp)))
+        if (inet_ntop(AF_INET6, &cli->socket->info.addr.inet_v6.sin6_addr, tmp, sizeof(tmp)))
         {
             sw_add_assoc_string(return_value, "host", tmp, 1);
         }
@@ -1280,7 +1275,7 @@ static PHP_METHOD(swoole_client_coro, getpeername)
 static PHP_METHOD(swoole_client_coro, close)
 {
     int ret = 1;
-    Client *cli = (Client *) swoole_get_object(getThis());
+    Socket *cli = (Socket *) swoole_get_object(getThis());
     if (!cli)
     {
         swoole_php_fatal_error(E_WARNING, "client is not connected to the server.");
@@ -1294,7 +1289,7 @@ static PHP_METHOD(swoole_client_coro, close)
 #ifdef SW_USE_OPENSSL
 static PHP_METHOD(swoole_client_coro, enableSSL)
 {
-    Client *cli = client_get_ptr(getThis() TSRMLS_CC);
+    Socket *cli = client_get_ptr(getThis() TSRMLS_CC);
     if (!cli)
     {
         RETURN_FALSE;
@@ -1324,7 +1319,7 @@ static PHP_METHOD(swoole_client_coro, enableSSL)
 
 static PHP_METHOD(swoole_client_coro, getPeerCert)
 {
-    Client *cli = client_get_ptr(getThis() TSRMLS_CC);
+    Socket *cli = client_get_ptr(getThis() TSRMLS_CC);
     if (!cli)
     {
         RETURN_FALSE;
@@ -1345,7 +1340,7 @@ static PHP_METHOD(swoole_client_coro, getPeerCert)
 
 static PHP_METHOD(swoole_client_coro, verifyPeerCert)
 {
-    Client *cli = client_get_ptr(getThis() TSRMLS_CC);
+    Socket *cli = client_get_ptr(getThis() TSRMLS_CC);
     if (!cli)
     {
         RETURN_FALSE;

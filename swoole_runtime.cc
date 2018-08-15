@@ -280,7 +280,7 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
     int ret;
     char *ip_address = NULL;
 
-    if (sock->_type == SW_SOCK_TCP || sock->_type == SW_SOCK_TCP6)
+    if (sock->type == SW_SOCK_TCP || sock->type == SW_SOCK_TCP6)
     {
         ip_address = parse_ip_address_ex(xparam->inputs.name, xparam->inputs.namelen, &portno, xparam->want_errortext,
                 &xparam->outputs.error_text);
