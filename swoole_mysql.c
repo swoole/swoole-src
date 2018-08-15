@@ -353,6 +353,7 @@ static void mysql_columns_free(mysql_client *client)
         }
     }
     efree(client->response.columns);
+    client->response.columns = NULL;
 }
 
 #ifdef SW_MYSQL_DEBUG
@@ -1939,7 +1940,10 @@ int mysql_response(mysql_client *client)
                         n_buf -= ret;
                         buffer->offset += (5 + ret);
                         client->response.num_column = client->statement->field_count;
-                        client->response.columns = ecalloc(client->response.num_column, sizeof(mysql_field));
+                        if (client->response.num_column > 0)
+                        {
+                            client->response.columns = ecalloc(client->response.num_column, sizeof(mysql_field));
+                        }
                         if (client->statement->param_count > 0)
                         {
                             client->state = SW_MYSQL_STATE_READ_PARAM;
