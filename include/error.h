@@ -104,6 +104,7 @@ enum swErrorCode
     SW_ERROR_SERVER_NO_IDLE_WORKER,
 
     SW_ERROR_SERVER_ONLY_START_ONE,
+    SW_ERROR_SERVER_SEND_IN_MASTER,
 
     /**
      * Process exit timeout, forced to end.
@@ -125,6 +126,8 @@ enum swErrorCode
     SW_ERROR_CO_PROTECT_STACK_FAILED,
     SW_ERROR_CO_STD_THREAD_LINK_ERROR,
     SW_ERROR_CO_DISABLED_MULTI_THREAD,
+
+    SW_ERROR_CO_OUT_OF_COROUTINE,
 
 };
 

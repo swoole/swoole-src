@@ -3,7 +3,7 @@ swoole_process: name
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
-require __DIR__ . '/../inc/skipifDarwin.inc';
+skip_if_darwin();
 ?>
 --INI--
 assert.active=1

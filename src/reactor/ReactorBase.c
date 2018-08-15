@@ -138,9 +138,9 @@ int swReactor_empty(swReactor *reactor)
         empty = SW_TRUE;
     }
     //coroutine
-    if (empty && reactor->can_exit && reactor->can_exit(reactor))
+    if (reactor->can_exit && !reactor->can_exit(reactor))
     {
-        empty = SW_TRUE;
+        empty = SW_FALSE;
     }
     return empty;
 }
@@ -172,13 +172,6 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
     {
         reactor->idle_task.callback(reactor->idle_task.data);
     }
-#ifdef SW_COROUTINE
-    //coro timeout
-    if (!swIsMaster())
-    {
-        coro_handle_timeout();
-    }
-#endif
     //server worker
     swWorker *worker = SwooleWG.worker;
     if (worker != NULL)
@@ -310,11 +303,7 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
                 goto do_buffer;
             }
         }
-#ifdef HAVE_KQUEUE
-        else if (errno == EAGAIN || errno == ENOBUFS)
-#else
-        else if (errno == EAGAIN)
-#endif
+        else if (swConnection_error(errno) == SW_WAIT)
         {
             do_buffer:
             if (!socket->out_buffer)
@@ -388,13 +377,13 @@ int swReactor_onWrite(swReactor *reactor, swEvent *ev)
     int fd = ev->fd;
 
     swConnection *socket = swReactor_get(reactor, fd);
-    swBuffer_trunk *chunk = NULL;
+    swBuffer_chunk *chunk = NULL;
     swBuffer *buffer = socket->out_buffer;
 
     //send to socket
     while (!swBuffer_empty(buffer))
     {
-        chunk = swBuffer_get_trunk(buffer);
+        chunk = swBuffer_get_chunk(buffer);
         if (chunk->type == SW_CHUNK_CLOSE)
         {
             close_fd:

@@ -84,7 +84,6 @@ static int php_swoole_event_onRead(swReactor *reactor, swEvent *event)
     zval **args[1];
     php_reactor_fd *fd = event->socket->object;
 
-    SWOOLE_GET_TSRMLS;
 
     args[0] = &fd->socket;
 
@@ -111,7 +110,6 @@ static int php_swoole_event_onWrite(swReactor *reactor, swEvent *event)
     zval **args[1];
     php_reactor_fd *fd = event->socket->object;
 
-    SWOOLE_GET_TSRMLS;
 
     if (!fd->cb_write)
     {
@@ -139,7 +137,6 @@ static int php_swoole_event_onWrite(swReactor *reactor, swEvent *event)
 
 static int php_swoole_event_onError(swReactor *reactor, swEvent *event)
 {
-    SWOOLE_GET_TSRMLS;
 
     int error;
     socklen_t len = sizeof(error);
@@ -166,7 +163,6 @@ static void php_swoole_event_onDefer(void *_cb)
 {
     php_defer_callback *defer = _cb;
 
-    SWOOLE_GET_TSRMLS;
     zval *retval;
     if (sw_call_user_function_ex(EG(function_table), NULL, defer->callback, &retval, 0, NULL, 0, NULL TSRMLS_CC) == FAILURE)
     {
@@ -189,7 +185,6 @@ static void php_swoole_event_onEndCallback(void *_cb)
 {
     php_defer_callback *defer = _cb;
 
-    SWOOLE_GET_TSRMLS;
     zval *retval;
     if (sw_call_user_function_ex(EG(function_table), NULL, defer->callback, &retval, 0, NULL, 0, NULL TSRMLS_CC) == FAILURE)
     {
@@ -216,7 +211,6 @@ void php_swoole_event_init(void)
 
 void php_swoole_event_wait()
 {
-    SWOOLE_GET_TSRMLS;
     if (SwooleWG.in_client == 1 && SwooleWG.reactor_ready == 0 && SwooleG.running)
     {
 #if PHP_MAJOR_VERSION >= 7
@@ -335,10 +329,42 @@ int swoole_convert_to_fd(zval *zfd TSRMLS_DC)
     return socket_fd;
 }
 
+int swoole_convert_to_fd_ex(zval *zfd, int *async TSRMLS_DC)
+{
+    php_stream *stream;
+    int fd;
+
+#ifdef SWOOLE_SOCKETS_SUPPORT
+    php_socket *php_sock;
+#endif
+
+    if (SW_Z_TYPE_P(zfd) != IS_RESOURCE)
+    {
+        swoole_php_fatal_error(E_WARNING, "fd argument must be either valid PHP stream or valid PHP socket resource");
+        return SW_ERR;
+    }
+    if (SW_ZEND_FETCH_RESOURCE_NO_RETURN(stream, php_stream *, &zfd, -1, NULL, php_file_le_stream()))
+    {
+        if (php_stream_cast(stream, PHP_STREAM_AS_FD_FOR_SELECT | PHP_STREAM_CAST_INTERNAL, (void* )&fd, 1) == SUCCESS && fd >= 0)
+        {
+            *async = stream->wrapper->wops == php_plain_files_wrapper.wops ? 0 : 1;
+            return fd;
+        }
+    }
+#ifdef SWOOLE_SOCKETS_SUPPORT
+    else if (SW_ZEND_FETCH_RESOURCE_NO_RETURN(php_sock, php_socket *, &zfd, -1, NULL, php_sockets_le_socket()))
+    {
+        fd = php_sock->bsd_socket;
+        *async = 1;
+    }
+#endif
+    swoole_php_fatal_error(E_WARNING, "invalid file descriptor passed");
+    return SW_ERR;
+}
+
 #ifdef SWOOLE_SOCKETS_SUPPORT
 php_socket* swoole_convert_to_socket(int sock)
 {
-    SWOOLE_GET_TSRMLS;
     php_socket *socket_object = emalloc(sizeof *socket_object);
     bzero(socket_object, sizeof(php_socket));
     socket_object->bsd_socket = sock;

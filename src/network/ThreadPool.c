@@ -151,7 +151,7 @@ static void* swThreadPool_loop(void *arg)
         if (pool->shutdown)
         {
             pool->cond.unlock(&pool->cond);
-            swTrace("thread [%d] will exit\n", id);
+            swTrace("thread [%d] will exit", id);
             pthread_exit(NULL);
         }
 
@@ -160,7 +160,7 @@ static void* swThreadPool_loop(void *arg)
             pool->cond.wait(&pool->cond);
         }
 
-        swTrace("thread [%d] is starting to work\n", id);
+        swTrace("thread [%d] is starting to work", id);
 
         ret = swRingQueue_pop(&pool->queue, &task);
         pool->cond.unlock(&pool->cond);

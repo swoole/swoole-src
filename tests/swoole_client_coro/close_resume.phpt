@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: (length protocol) resume in onClose callback
+swoole_client_coro: (length protocol) resume in onClose callback
 
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
@@ -33,8 +33,7 @@ $pm->parentFunc = function ($pid) use ($pm)
         $retData = $cli->recv();
         assert(is_string($retData) and strlen($retData) > 0);
         $retData = $cli->recv();
-        assert($retData == false);
-        assert($cli->errCode == SWOOLE_ERROR_CLIENT_NO_CONNECTION);
+        assert($retData === '');
     });
     swoole_event_wait();
     $pm->kill();
@@ -68,4 +67,4 @@ $pm->childFunc = function () use ($pm) {
 $pm->childFirst();
 $pm->run();
 ?>
---EXPECTF--
+--EXPECT--

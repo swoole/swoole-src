@@ -1,11 +1,10 @@
 --TEST--
-swoole_coroutine: gethostbyname for IPv6
+swoole_coroutine_util: gethostbyname for IPv6
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
 
 use Swoole\Coroutine as co;
 

@@ -453,6 +453,12 @@ void swClient_free(swClient *cli)
 
 static int swClient_close(swClient *cli)
 {
+    if (cli->socket == NULL || cli->socket->closed)
+    {
+        return SW_ERR;
+    }
+    cli->socket->closed = 1;
+
     int fd = cli->socket->fd;
     assert(fd != 0);
 
@@ -502,11 +508,6 @@ static int swClient_close(swClient *cli)
     {
         unlink(cli->socket->info.addr.un.sun_path);
     }
-    if (cli->socket->closed)
-    {
-        return SW_OK;
-    }
-    cli->socket->closed = 1;
     if (cli->async)
     {
         //remove from reactor
@@ -530,6 +531,7 @@ static int swClient_close(swClient *cli)
     {
         cli->socket->active = 0;
     }
+
     return close(fd);
 }
 
@@ -713,6 +715,7 @@ static int swClient_tcp_connect_async(swClient *cli, char *host, int port, doubl
         ev.flags = cli->_sock_domain;
         ev.type = SW_AIO_GETHOSTBYNAME;
         ev.object = cli;
+        ev.fd = cli->socket->fd;
         ev.callback = swClient_onResolveCompleted;
 
         if (swAio_dispatch(&ev) < 0)
@@ -1397,6 +1400,13 @@ static void swClient_onTimeout(swTimer *timer, swTimer_node *tnode)
 
 static void swClient_onResolveCompleted(swAio_event *event)
 {
+    swConnection *socket = swReactor_get(SwooleG.main_reactor, event->fd);
+    if (socket->removed)
+    {
+        sw_free(event->buf);
+        return;
+    }
+
     swClient *cli = event->object;
     cli->wait_dns = 0;
 

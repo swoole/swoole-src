@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: swoole server port
+swoole_server_port: swoole server port
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --INI--
@@ -17,7 +17,6 @@ require_once __DIR__ . '/../include/bootstrap.php';
 
  * Time: 下午4:34
  */
-require_once __DIR__ . '/../include/swoole.inc';
 
 $simple_tcp_server = __DIR__ . "/../include/api/swoole_server/multi_protocol_server.php";
 

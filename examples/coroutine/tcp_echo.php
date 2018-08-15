@@ -10,7 +10,7 @@ $serv->set(array(
 
 $serv->on('receive', function (swoole_server $serv, $fd, $reactor_id, $data) {
 	echo "[#".$serv->worker_id."]\tClient[$fd] receive data: $data\n";
-	if ($serv->send($fd, "hello {$data}\n") == false)
+	if ($serv->send($fd, "{$data}\n") == false)
 	{
 		echo "error\n";
 	}

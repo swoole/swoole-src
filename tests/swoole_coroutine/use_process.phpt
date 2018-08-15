@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: user process
+swoole_coroutine: user process
 
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
@@ -12,7 +12,6 @@ assert.quiet_eval=0
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
 
 $pm = new ProcessManager();
 

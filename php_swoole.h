@@ -14,8 +14,6 @@
   +----------------------------------------------------------------------+
 */
 
-/* $Id$ */
-
 #ifndef PHP_SWOOLE_H
 #define PHP_SWOOLE_H
 
@@ -30,12 +28,6 @@
 #include "zend_interfaces.h"
 #include "zend_exceptions.h"
 #include "zend_variables.h"
-#include <ext/date/php_date.h>
-#include <ext/standard/url.h>
-#include <ext/standard/info.h>
-#include <ext/standard/php_array.h>
-#include <ext/standard/basic_functions.h>
-#include <ext/standard/php_http.h>
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -51,8 +43,14 @@
 #include "async.h"
 
 BEGIN_EXTERN_C()
+#include <ext/date/php_date.h>
+#include <ext/standard/url.h>
+#include <ext/standard/info.h>
+#include <ext/standard/php_array.h>
+#include <ext/standard/basic_functions.h>
+#include <ext/standard/php_http.h>
 
-#define PHP_SWOOLE_VERSION  "4.0.1"
+#define PHP_SWOOLE_VERSION  "4.0.4"
 #define PHP_SWOOLE_CHECK_CALLBACK
 #define PHP_SWOOLE_ENABLE_FASTCALL
 #define PHP_SWOOLE_CLIENT_USE_POLL
@@ -63,6 +61,7 @@ BEGIN_EXTERN_C()
 
 #define SW_HOST_SIZE  128
 
+extern PHPAPI int php_array_merge(HashTable *dest, HashTable *src);
 typedef struct
 {
     uint16_t port;
@@ -222,6 +221,10 @@ enum php_swoole_fd_type
     PHP_SWOOLE_FD_SOCKET,
     PHP_SWOOLE_FD_CHAN_PIPE,
 #endif
+    /**
+     * for Co::fread/Co::fwrite
+     */
+    PHP_SWOOLE_FD_CO_UTIL,
 };
 //---------------------------------------------------------
 typedef enum
@@ -265,7 +268,6 @@ PHP_FUNCTION(swoole_set_process_name);
 PHP_FUNCTION(swoole_get_local_ip);
 PHP_FUNCTION(swoole_get_local_mac);
 PHP_FUNCTION(swoole_call_user_shutdown_begin);
-PHP_FUNCTION(swoole_unsupport_serialize);
 PHP_FUNCTION(swoole_coroutine_create);
 PHP_FUNCTION(swoole_coroutine_exec);
 
@@ -375,9 +377,7 @@ void swoole_destory_table(zend_resource *rsrc TSRMLS_DC);
 void swoole_server_port_init(int module_number TSRMLS_DC);
 void swoole_async_init(int module_number TSRMLS_DC);
 void swoole_table_init(int module_number TSRMLS_DC);
-#ifdef SW_USE_PHPX
 void swoole_runtime_init(int module_number TSRMLS_DC);
-#endif
 void swoole_lock_init(int module_number TSRMLS_DC);
 void swoole_atomic_init(int module_number TSRMLS_DC);
 void swoole_client_init(int module_number TSRMLS_DC);
@@ -465,7 +465,8 @@ static sw_inline void* swoole_get_property(zval *object, int property_id)
 
 void swoole_set_object(zval *object, void *ptr);
 void swoole_set_property(zval *object, int property_id, void *ptr);
-int swoole_convert_to_fd(zval *zsocket TSRMLS_DC);
+int swoole_convert_to_fd(zval *zfd TSRMLS_DC);
+int swoole_convert_to_fd_ex(zval *zfd, int *async TSRMLS_DC);
 int swoole_register_rshutdown_function(swCallback func, int push_back);
 void swoole_call_rshutdown_function(void *arg);
 

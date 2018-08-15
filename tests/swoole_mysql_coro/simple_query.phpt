@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: mysql simple query
+swoole_mysql_coro: mysql simple query
 
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
@@ -13,7 +13,6 @@ assert.quiet_eval=0
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
 
 go(function () {
     $mysql = new Swoole\Coroutine\MySQL();

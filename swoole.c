@@ -442,8 +442,6 @@ static zend_function_entry swoole_server_methods[] = {
     PHP_ME(swoole_server, getReceivedTime, arginfo_swoole_void, ZEND_ACC_PUBLIC)
 #endif
     PHP_ME(swoole_server, bind, arginfo_swoole_server_bind, ZEND_ACC_PUBLIC)
-    PHP_FALIAS(__sleep, swoole_unsupport_serialize, NULL)
-    PHP_FALIAS(__wakeup, swoole_unsupport_serialize, NULL)
     {NULL, NULL, NULL}
 };
 
@@ -586,7 +584,6 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
 int php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data, uint32_t length)
 {
     SwooleG.lock.lock(&SwooleG.lock);
-    SWOOLE_GET_TSRMLS;
 
     zval *zdata;
     zval *retval = NULL;
@@ -626,7 +623,6 @@ int php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data,
 int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swEventData *data)
 {
     SwooleG.lock.lock(&SwooleG.lock);
-    SWOOLE_GET_TSRMLS;
 
     zval *zserv = (zval *) serv->ptr2;
 
@@ -703,7 +699,6 @@ static sw_inline uint32_t swoole_get_new_size(uint32_t old_size, int handle TSRM
 
 void swoole_set_object(zval *object, void *ptr)
 {
-    SWOOLE_GET_TSRMLS;
     int handle = sw_get_object_handle(object);
     assert(handle < SWOOLE_OBJECT_MAX);
     if (handle >= swoole_objects.size)
@@ -729,7 +724,6 @@ void swoole_set_object(zval *object, void *ptr)
 
 void swoole_set_property(zval *object, int property_id, void *ptr)
 {
-    SWOOLE_GET_TSRMLS;
     int handle = sw_get_object_handle(object);
     assert(handle < SWOOLE_OBJECT_MAX);
 
@@ -996,6 +990,8 @@ PHP_MINIT_FUNCTION(swoole)
 
     SWOOLE_INIT_CLASS_ENTRY(swoole_server_ce, "swoole_server", "Swoole\\Server", swoole_server_methods);
     swoole_server_class_entry_ptr = zend_register_internal_class(&swoole_server_ce TSRMLS_CC);
+    swoole_server_class_entry_ptr->serialize = zend_class_serialize_deny;
+    swoole_server_class_entry_ptr->unserialize = zend_class_unserialize_deny;
     SWOOLE_CLASS_ALIAS(swoole_server, "Swoole\\Server");
 
     if (!SWOOLE_G(use_shortname))
@@ -1084,9 +1080,7 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_process_init(module_number TSRMLS_CC);
     swoole_process_pool_init(module_number TSRMLS_CC);
     swoole_table_init(module_number TSRMLS_CC);
-#ifdef SW_USE_PHPX
     swoole_runtime_init(module_number TSRMLS_CC);
-#endif
     swoole_lock_init(module_number TSRMLS_CC);
     swoole_atomic_init(module_number TSRMLS_CC);
     swoole_http_server_init(module_number TSRMLS_CC);
@@ -1167,7 +1161,7 @@ PHP_MINFO_FUNCTION(swoole)
     php_info_print_table_start();
     php_info_print_table_header(2, "swoole support", "enabled");
     php_info_print_table_row(2, "Version", PHP_SWOOLE_VERSION);
-    php_info_print_table_row(2, "Author", "tianfeng.han[email: mikan.tenny@gmail.com]");
+    php_info_print_table_row(2, "Author", "Swoole Group[email: team@swoole.com]");
 
 #ifdef SW_COROUTINE
     php_info_print_table_row(2, "coroutine", "enabled");
@@ -1186,9 +1180,6 @@ PHP_MINFO_FUNCTION(swoole)
 #endif
 #ifdef HAVE_KQUEUE
     php_info_print_table_row(2, "kqueue", "enabled");
-#endif
-#ifdef HAVE_TIMERFD
-    php_info_print_table_row(2, "timerfd", "enabled");
 #endif
 #ifdef HAVE_SIGNALFD
     php_info_print_table_row(2, "signalfd", "enabled");
@@ -1226,9 +1217,6 @@ PHP_MINFO_FUNCTION(swoole)
 #endif
 #ifdef SW_USE_RINGBUFFER
     php_info_print_table_row(2, "ringbuffer", "enabled");
-#endif
-#ifdef HAVE_LINUX_AIO
-    php_info_print_table_row(2, "Linux Native AIO", "enabled");
 #endif
 #ifdef HAVE_GCC_AIO
     php_info_print_table_row(2, "GCC AIO", "enabled");
@@ -1339,9 +1327,7 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
 
 PHP_FUNCTION(swoole_version)
 {
-    char swoole_version[32] = {0};
-    snprintf(swoole_version, sizeof(PHP_SWOOLE_VERSION), "%s", PHP_SWOOLE_VERSION);
-    SW_RETURN_STRING(swoole_version, 1);
+    SW_RETURN_STRING(PHP_SWOOLE_VERSION, 1);
 }
 
 static uint32_t hashkit_one_at_a_time(const char *key, size_t key_length)
@@ -1388,11 +1374,6 @@ static PHP_FUNCTION(swoole_hashcode)
     default:
         RETURN_LONG(zend_hash_func(data, l_data));
     }
-}
-
-PHP_FUNCTION(swoole_unsupport_serialize)
-{
-    zend_throw_exception_ex(swoole_exception_class_entry_ptr, 0 TSRMLS_CC, "cannot serialize or unserialize.");
 }
 
 static PHP_FUNCTION(swoole_last_error)

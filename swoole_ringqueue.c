@@ -90,6 +90,8 @@ static PHP_METHOD(swoole_ringqueue, __construct)
 
 static PHP_METHOD(swoole_ringqueue, __destruct)
 {
+    SW_PREVENT_USER_DESTRUCT;
+
     swRingQueue *queue = swoole_get_object(getThis());
     efree(queue);
     swoole_set_object(getThis(), NULL);

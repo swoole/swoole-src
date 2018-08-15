@@ -439,11 +439,11 @@ struct _swServer
      */
     uint32_t have_tcp_sock :1;
     /**
-     * oepn cpu affinity setting
+     * open cpu affinity setting
      */
     uint32_t open_cpu_affinity :1;
     /**
-     * Udisable notice when use SW_DISPATCH_ROUND and SW_DISPATCH_QUEUE
+     * disable notice when use SW_DISPATCH_ROUND and SW_DISPATCH_QUEUE
      */
     uint32_t disable_notify :1;
     /**
@@ -516,7 +516,7 @@ struct _swServer
     swEventData *task_result;
 
     /**
-     * use process
+     * user process
      */
     uint16_t user_worker_num;
     swUserWorker_node *user_worker_list;
@@ -957,7 +957,7 @@ static sw_inline swConnection *swWorker_get_connection(swServer *serv, int sessi
     return conn;
 }
 
-static sw_inline swString *swWorker_get_buffer(swServer *serv, int worker_id)
+static sw_inline swString *swWorker_get_buffer(swServer *serv, int reactor_id)
 {
     if (serv->factory_mode == SW_MODE_SINGLE)
     {
@@ -965,11 +965,11 @@ static sw_inline swString *swWorker_get_buffer(swServer *serv, int worker_id)
     }
     else if (serv->factory_mode == SW_MODE_THREAD)
     {
-        return SwooleTG.buffer_input[worker_id];
+        return SwooleTG.buffer_input[reactor_id];
     }
     else
     {
-        return SwooleWG.buffer_input[worker_id];
+        return SwooleWG.buffer_input[reactor_id];
     }
 }
 

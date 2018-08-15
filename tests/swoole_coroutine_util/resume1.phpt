@@ -1,20 +1,19 @@
 --TEST--
-swoole_coroutine: user suspend and resume1
+swoole_coroutine_util: user yield and resume1
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
 
 use Swoole\Coroutine as co;
 
 $id = go(function(){
     $id = co::getUid();
     echo "start coro $id\n";
-    co::suspend();
+    co::yield();
     echo "resume coro $id @1\n";
-    co::suspend();
+    co::yield();
     echo "resume coro $id @2\n";
 });
 echo "start to resume $id @1\n";

@@ -42,6 +42,8 @@ typedef struct _coro_task
     zval *yield_vm_stack_top;
     zval *yield_vm_stack_end;
     zend_bool is_yield;
+
+    zend_output_globals *current_coro_output_ptr;
     /**
      * user coroutine
      */
@@ -68,6 +70,7 @@ typedef struct _php_context
     coro_task *current_task;
     zend_vm_stack current_vm_stack;
     php_context_state state;
+    zend_output_globals *current_coro_output_ptr;
 } php_context;
 
 typedef struct _coro_global
@@ -102,7 +105,6 @@ int sw_get_current_cid();
 int coro_init(TSRMLS_D);
 void coro_destroy(TSRMLS_D);
 void coro_check(TSRMLS_D);
-void coro_handle_timeout();
 
 #define coro_create(op_array, argv, argc, retval, post_callback, param) \
         sw_coro_create(op_array, argv, argc, *retval, post_callback, param)
@@ -112,11 +114,15 @@ void coro_handle_timeout();
         sw_coro_resume(sw_current_context, retval, *coro_retval)
 #define coro_yield() sw_coro_yield()
 
+/* output globals */
+#define SWOG ((zend_output_globals *) &OG(handlers))
+
 int sw_coro_create(zend_fcall_info_cache *op_array, zval **argv, int argc, zval *retval, void *post_callback, void *param);
 void sw_coro_yield();
 void sw_coro_close();
 int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_retval);
 void sw_coro_save(zval *return_value, php_context *sw_php_context);
+coro_task* sw_get_current_task();
 
 int php_swoole_add_timer_coro(int ms, int cli_fd, long *timeout_id, void* param, swLinkedList_node **node TSRMLS_DC);
 int php_swoole_clear_timer_coro(long id TSRMLS_DC);

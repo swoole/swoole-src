@@ -47,7 +47,7 @@ int swProtocol_get_package_length(swProtocol *protocol, swConnection *conn, char
 
 static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swConnection *conn, swString *buffer)
 {
-#if SW_LOG_TRACE_OPEN > 0
+#ifdef SW_LOG_TRACE_OPEN
     static int count;
     count++;
 #endif
@@ -68,14 +68,14 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swCon
     if (eof_pos < 0)
     {
         buffer->offset = buffer->length - protocol->package_eof_len;
-        return buffer->length;
+        return SW_CONTINUE;
     }
 
     uint32_t length = buffer->offset + eof_pos + protocol->package_eof_len;
     swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[4] count=%d, length=%d", count, length);
     if (protocol->onPackage(conn, buffer->str, length) < 0)
     {
-        return SW_ERR;
+        return SW_CLOSE;
     }
     if (conn->removed)
     {
@@ -103,14 +103,23 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swCon
                 memmove(buffer->str, remaining_data, remaining_length);
                 buffer->length = remaining_length;
                 buffer->offset = 0;
-                return SW_OK;
+#ifdef SW_USE_OPENSSL
+                if (conn->ssl && SSL_pending(conn->ssl) > 0)
+                {
+                    return SW_CONTINUE;
+                }
+                else
+#endif
+                {
+                    return SW_OK;
+                }
             }
             else
             {
                 length = eof_pos + protocol->package_eof_len;
                 if (protocol->onPackage(conn, remaining_data, length) < 0)
                 {
-                    return SW_ERR;
+                    return SW_CLOSE;
                 }
                 if (conn->removed)
                 {
@@ -124,6 +133,12 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swCon
     }
     swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[3] length=%ld, size=%ld, offset=%ld", buffer->length, buffer->size, (long)buffer->offset);
     swString_clear(buffer);
+#ifdef SW_USE_OPENSSL
+    if (conn->ssl && SSL_pending(conn->ssl) > 0)
+    {
+        return SW_CONTINUE;
+    }
+#endif
     return SW_OK;
 }
 
@@ -135,7 +150,6 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
 {
     int package_length;
     uint32_t recv_size;
-    char swap[SW_BUFFER_SIZE_STD];
 
     if (conn->skip_recv)
     {
@@ -198,9 +212,7 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
                 int remaining_length = buffer->length - buffer->offset;
                 if (remaining_length > 0)
                 {
-                    assert(remaining_length < sizeof(swap));
-                    memcpy(swap, buffer->str + buffer->offset, remaining_length);
-                    memcpy(buffer->str, swap, remaining_length);
+                    memmove(buffer->str, buffer->str + buffer->offset, remaining_length);
                     buffer->offset = 0;
                     buffer->length = remaining_length;
                     goto do_get_length;
@@ -208,13 +220,15 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
                 else
                 {
                     swString_clear(buffer);
-                    goto do_recv;
+#ifdef SW_USE_OPENSSL
+                    if (conn->ssl && SSL_pending(conn->ssl) > 0)
+                    {
+                        goto do_recv;
+                    }
+#endif
                 }
             }
-            else
-            {
-                return SW_OK;
-            }
+            return SW_OK;
         }
         else
         {
@@ -308,13 +322,18 @@ int swProtocol_recv_check_eof(swProtocol *protocol, swConnection *conn, swString
 
         if (protocol->split_by_eof)
         {
-            if (swProtocol_split_package_by_eof(protocol, conn, buffer) == 0)
+            int retval = swProtocol_split_package_by_eof(protocol, conn, buffer);
+            if (retval == SW_CONTINUE)
             {
-                return SW_OK;
+                recv_again = SW_TRUE;
+            }
+            else if (retval == SW_CLOSE)
+            {
+                return SW_ERR;
             }
             else
             {
-                recv_again = SW_TRUE;
+                return SW_OK;
             }
         }
         else if (memcmp(buffer->str + buffer->length - protocol->package_eof_len, protocol->package_eof, protocol->package_eof_len) == 0)
@@ -328,6 +347,12 @@ int swProtocol_recv_check_eof(swProtocol *protocol, swConnection *conn, swString
                 return SW_OK;
             }
             swString_clear(buffer);
+#ifdef SW_USE_OPENSSL
+            if (conn->ssl && SSL_pending(conn->ssl) > 0)
+            {
+                goto recv_data;
+            }
+#endif
             return SW_OK;
         }
 

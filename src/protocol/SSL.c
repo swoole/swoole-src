@@ -45,7 +45,13 @@ static int swSSL_npn_advertised(SSL *ssl, const uchar **out, uint32_t *outlen, v
 static int swSSL_alpn_advertised(SSL *ssl, const uchar **out, uchar *outlen, const uchar *in, uint32_t inlen, void *arg);
 #endif
 
-static void swSSL_lock_callback(int mode, int type, char *file, int line);
+#ifdef __GNUC__
+    #define MAYBE_UNUSED __attribute__((used))
+#else
+    #define MAYBE_UNUSED
+#endif
+
+static void MAYBE_UNUSED swSSL_lock_callback(int mode, int type, char *file, int line);
 
 static const SSL_METHOD *swSSL_get_method(int method)
 {
@@ -155,7 +161,7 @@ static void swSSL_lock_callback(int mode, int type, char *file, int line)
 }
 
 #if OPENSSL_VERSION_NUMBER >= OPENSSL_VERSION_1_0_0
-static void swSSL_id_callback(CRYPTO_THREADID * id)
+static void MAYBE_UNUSED swSSL_id_callback(CRYPTO_THREADID * id)
 {
     CRYPTO_THREADID_set_numeric(id, (ulong_t) pthread_self());
 }
@@ -168,6 +174,10 @@ static ulong_t swSSL_id_callback(void)
 
 void swSSL_init_thread_safety()
 {
+    if (!openssl_init)
+    {
+        return;
+    }
     int i;
     lock_array = (pthread_mutex_t *) OPENSSL_malloc(CRYPTO_num_locks() * sizeof(pthread_mutex_t));
     for (i = 0; i < CRYPTO_num_locks(); i++)

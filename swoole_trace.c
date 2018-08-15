@@ -76,7 +76,7 @@ void php_swoole_trace_check(void *arg)
     for (; i < count; i++)
     {
         worker = swServer_get_worker(serv, i);
-        swTraceLog(SW_TRACE_SERVER, "trace request, worker#%d, pid=%d. request_time=%d.", i, worker->pid, worker->request_time);
+        swTraceLog(SW_TRACE_SERVER, "trace request, worker#%d, pid=%d. request_time=%ld.", i, worker->pid, worker->request_time);
         if (!(worker->request_time > 0 && worker->traced == 0 && serv->gs->now - worker->request_time >= timeout))
         {
             continue;
@@ -144,7 +144,6 @@ size_t trace_print_time(struct timeval *tv, char *timebuf, size_t timebuf_len)
 
 static int trace_dump(swWorker *worker, FILE *slowlog)
 {
-    SWOOLE_GET_TSRMLS;
 
     pid_t traced_pid = worker->pid;
     int callers_limit = 100;

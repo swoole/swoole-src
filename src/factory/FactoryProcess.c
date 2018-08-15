@@ -270,7 +270,7 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     send_to_reactor_thread: ev_data.info.from_id = conn->from_id;
     sendn = ev_data.info.len + sizeof(resp->info);
 
-    swTrace("[Worker] send: sendn=%d|type=%d|content=%s", sendn, resp->info.type, resp->data);
+    swTrace("[Worker] send: sendn=%d|type=%d|content=<<EOF\n%.*s\nEOF", sendn, resp->info.type, resp->length > 0 ? resp->length : resp->info.len, resp->data);
     ret = swWorker_send2reactor(&ev_data, sendn, session_id);
     if (ret < 0)
     {

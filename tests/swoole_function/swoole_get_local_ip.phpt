@@ -1,5 +1,5 @@
 --TEST--
-swoole_get_local_ip
+swoole_function: get local ip
 
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>

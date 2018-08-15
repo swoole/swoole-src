@@ -124,7 +124,6 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
     SwooleG.pid = getpid();
 
     SwooleG.use_timer_pipe = 0;
-    SwooleG.use_timerfd = 0;
 
     swServer_close_port(serv, SW_TRUE);
 
@@ -263,7 +262,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
                 //write to tmpfile
                 if (swoole_sync_writefile(fd, &buf, sizeof(buf.info) + buf.info.len) < 0)
                 {
-                    swSysError("write(%s, %ld) failed.", result->data, sizeof(buf.info) + buf.info.len);
+                    swSysError("write(%s, %ld) failed.", _tmpfile, sizeof(buf.info) + buf.info.len);
                 }
                 sw_atomic_fetch_add(finish_count, 1);
                 close(fd);
@@ -298,11 +297,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
         while (1)
         {
             ret = task_notify_pipe->write(task_notify_pipe, &flag, sizeof(flag));
-#ifdef HAVE_KQUEUE
-            if (ret < 0 && (errno == EAGAIN || errno == ENOBUFS))
-#else
-            if (ret < 0 && errno == EAGAIN)
-#endif
+            if (ret < 0 && swConnection_error(errno) == SW_WAIT)
             {
                 if (swSocket_wait(task_notify_pipe->getFd(task_notify_pipe, 1), -1, SW_EVENT_WRITE) == 0)
                 {
