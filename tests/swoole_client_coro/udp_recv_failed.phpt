@@ -16,8 +16,11 @@ go(function () {
 
     $ret = $cli->recv();
     echo "recv ret:".var_export($ret,1)."\n";
+    assert($cli->errCode == SOCKET_ECONNREFUSED);
     $cli->close();
 });
 ?>
 --EXPECT--
-OK
+connect ret:true
+send ret:5
+recv ret:false
