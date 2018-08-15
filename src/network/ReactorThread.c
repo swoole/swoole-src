@@ -556,11 +556,7 @@ int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
         if (swBuffer_empty(buffer))
         {
             ret = write(pipe_fd, (void *) data, len);
-#ifdef HAVE_KQUEUE
-            if (ret < 0 && (errno == EAGAIN || errno == ENOBUFS))
-#else
-            if (ret < 0 && errno == EAGAIN)
-#endif
+            if (ret < 0 && swConnection_error(errno) == SW_WAIT)
             {
                 if (thread->reactor.set(&thread->reactor, pipe_fd, SW_FD_PIPE | SW_EVENT_READ | SW_EVENT_WRITE) < 0)
                 {
@@ -881,11 +877,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
         {
             //release lock
             lock->unlock(lock);
-#ifdef HAVE_KQUEUE
-            return (errno == EAGAIN || errno == ENOBUFS) ? SW_OK : SW_ERR;
-#else
-            return errno == EAGAIN ? SW_OK : SW_ERR;
-#endif
+            return (swConnection_error(errno) == SW_WAIT) ? SW_OK : SW_ERR;
         }
         else
         {
