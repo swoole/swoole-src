@@ -225,7 +225,7 @@ static void swoole_pgsql_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
     zval *retval = NULL;
     PGconn *pgsql;
     php_context *ctx = tnode->data;
-	char *feedback;
+    char *feedback;
     char *err_msg;
 
     SW_ALLOC_INIT_ZVAL(result);
@@ -258,7 +258,7 @@ static void swoole_pgsql_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
         swWarn(" [%s, %s] ", feedback, err_msg);
     } else if (PQstatus(pgsql) == CONNECTION_MADE)
     {
-		PQfinish(pgsql);
+        PQfinish(pgsql);
     }
 
     int ret = coro_resume(ctx, result, &retval);
