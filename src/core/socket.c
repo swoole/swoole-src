@@ -15,6 +15,7 @@
  */
 
 #include "swoole.h"
+#include "Connection.h"
 
 #include <sys/stat.h>
 #include <poll.h>
@@ -183,11 +184,7 @@ int swSocket_write_blocking(int __fd, void *__data, int __len)
             {
                 continue;
             }
-#ifdef HAVE_KQUEUE
-            else if (errno == EAGAIN || errno == ENOBUFS)
-#else
-            else if (errno == EAGAIN)
-#endif
+            else if (swConnection_error(errno) == SW_WAIT)
             {
                 swSocket_wait(__fd, SW_WORKER_WAIT_TIMEOUT, SW_EVENT_WRITE);
                 continue;
@@ -281,7 +278,7 @@ int swSocket_sendto_blocking(int fd, void *__buf, size_t __n, int flag, struct s
             {
                 continue;
             }
-            else if (errno == EAGAIN)
+            else if (swConnection_error(errno) == SW_WAIT)
             {
                 swSocket_wait(fd, 1000, SW_EVENT_WRITE);
                 continue;

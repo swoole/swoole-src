@@ -136,10 +136,12 @@ int swSocks5_connect(swClient *cli, char *recv_data, int length)
             return SW_ERR;
         }
         uchar result = recv_data[1];
-//        uchar reg = recv_data[2];
-//        uchar type = recv_data[3];
-//        uint32_t ip = *(uint32_t *) (recv_data + 4);
-//        uint16_t port = *(uint16_t *) (recv_data + 8);
+#if 0
+        uchar reg = recv_data[2];
+        uchar type = recv_data[3];
+        uint32_t ip = *(uint32_t *) (recv_data + 4);
+        uint16_t port = *(uint16_t *) (recv_data + 8);
+#endif
         if (result == 0)
         {
             ctx->state = SW_SOCKS5_STATE_READY;

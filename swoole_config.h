@@ -117,7 +117,7 @@
 #define SW_AIO_HANDLER_MAX_SIZE          8
 //#define SW_THREADPOOL_USE_CHANNEL
 #define SW_THREADPOOL_QUEUE_LEN          10000
-#define SW_IP_MAX_LENGTH                 32
+#define SW_IP_MAX_LENGTH                 46
 
 //#define SW_USE_SOCKET_LINGER
 
