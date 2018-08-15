@@ -241,7 +241,7 @@ static sw_inline ssize_t swConnection_send(swConnection *conn, void *__buf, size
 
 
 /**
- * peek data from connection
+ * Receive data from connection
  */
 static sw_inline ssize_t swConnection_peek(swConnection *conn, void *__buf, size_t __n, int __flags)
 {

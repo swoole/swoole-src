@@ -15,10 +15,9 @@ require_once __DIR__ . '/../include/bootstrap.php';
 require_once __DIR__ . '/../include/api/swoole_server/TestServer.php';
 
 $pm = new ProcessManager;
-$port = get_one_free_port();
-$pm->parentFunc = function ($pid) use ($pm, $port)
+$pm->parentFunc = function ($pid) use ($pm)
 {
-    go(function () use ($port) {
+    go(function () {
         $cli = new Co\Client(SWOOLE_SOCK_TCP);
         $cli->set([
             'open_length_check' => true,
@@ -27,18 +26,20 @@ $pm->parentFunc = function ($pid) use ($pm, $port)
             'package_length_offset' => 0,
             'package_body_offset' => 4,
         ]);
-        $cli->connect('127.0.0.1', $port);
+        $cli->connect('127.0.0.1', 9501);
         $data = str_repeat('A', 1025);
-        $cli->send(pack('N', strlen($data)).$data);
+        $cli->send(pack('N', strlen($data)) . $data);
         $retData = $cli->recv();
-        assert($retData === '');
+        assert($retData != false);
+        $len = unpack('Nlen', $retData)['len'];
+        assert(strlen($retData) === $len + 4);
     });
     swoole_event_wait();
     $pm->kill();
 };
 
-$pm->childFunc = function () use ($pm, $port) {
-    $serv = new swoole_server("127.0.0.1", $port, SWOOLE_BASE);
+$pm->childFunc = function () use ($pm) {
+    $serv = new swoole_server("127.0.0.1", 9501, SWOOLE_BASE);
     $serv->set([
         'worker_num' => 1,
         //'dispatch_mode'         => 1,
@@ -55,8 +56,13 @@ $pm->childFunc = function () use ($pm, $port) {
     });
     $serv->on('receive', function (swoole_server $serv, $fd, $rid, $data)
     {
-        $serv->send($fd, pack('N', 1223));
-        $serv->close($fd);
+        $len = rand(512*1024, 1024*1024 - 4);
+        $data = pack('N',$len ).str_repeat('C', $len);
+        $chunks = str_split($data, 8192 * 16);
+        foreach ($chunks as $c) {
+            $serv->send($fd, $c);
+            usleep(rand(10000, 99999));
+        }
     });
     $serv->start();
 };
