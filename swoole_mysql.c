@@ -1986,7 +1986,12 @@ int mysql_response(mysql_client *client)
                     return SW_ERR;
                 }
                 buffer->offset += (4 + ret);
-                client->response.columns = ecalloc(client->response.num_column, sizeof(mysql_field));
+
+                // easy to the safe side: but under what circumstances would num_column will be 0 in result set?
+                if (client->response.num_column > 0)
+                {
+                    client->response.columns = ecalloc(client->response.num_column, sizeof(mysql_field));
+                }
                 client->state = SW_MYSQL_STATE_READ_FIELD;
                 break;
             }
