@@ -78,8 +78,8 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_coro_recvfrom, 0, 0, 2)
     ZEND_ARG_INFO(0, length)
-    ZEND_ARG_INFO(0, address)
-    ZEND_ARG_INFO(0, port)
+    ZEND_ARG_INFO(1, address)
+    ZEND_ARG_INFO(1, port)
 ZEND_END_ARG_INFO()
 
 static PHP_METHOD(swoole_client_coro, __construct);
@@ -816,10 +816,9 @@ static PHP_METHOD(swoole_client_coro, sendto)
 static PHP_METHOD(swoole_client_coro, recvfrom)
 {
     zend_long length;
-    zend_string *address;
-    zend_long port;
+    zval *port, *address;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lS!|l!", &length, &address, &port) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lz/|z/", &length, &address, &port) == FAILURE)
     {
         return;
     }
@@ -842,7 +841,7 @@ static PHP_METHOD(swoole_client_coro, recvfrom)
         swoole_set_object(getThis(), cli);
     }
 
-    zend_string *retval = zend_string_alloc(length, 0);
+    zend_string *retval = zend_string_alloc(length + 1, 0);
     char tmp_address[SW_IP_MAX_LENGTH];
     int tmp_port;
     ssize_t n_bytes = cli->recvfrom(retval->val, length, tmp_address, &tmp_port);
@@ -853,7 +852,10 @@ static PHP_METHOD(swoole_client_coro, recvfrom)
     }
     else
     {
-        retval->len = n_bytes;
+        ZSTR_LEN(retval) = n_bytes;
+        ZSTR_VAL(retval)[ZSTR_LEN(retval)] = '\0';
+        ZVAL_STRING(address, tmp_address);
+        ZVAL_LONG(port, tmp_port);
         RETURN_STR(retval);
     }
 }
@@ -1318,7 +1320,7 @@ static PHP_METHOD(swoole_client_coro, enableSSL)
     {
         client_coro_check_ssl_setting(cli, zset TSRMLS_CC);
     }
-    if (cli->ssl_handshake() < 0)
+    if (cli->ssl_handshake() == false)
     {
         RETURN_FALSE;
     }

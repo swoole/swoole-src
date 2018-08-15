@@ -24,7 +24,7 @@ go(function (){
     $ret = $mysql->query('select sleep(1)', 0.2);
     if (!$ret)
     {
-        echo $mysql->errno ."\n";
+        assert($mysql->errno, SOCKET_ETIMEDOUT);
         echo $mysql->error."\n";
     }
     else
@@ -35,5 +35,4 @@ go(function (){
 swoole_event::wait();
 ?>
 --EXPECT--
-110
 query timeout

@@ -38,7 +38,6 @@ public:
 
 #ifdef SW_USE_OPENSSL
     bool ssl_handshake();
-    bool enable_ssl_encrypt();
     int ssl_verify(bool allow_self_signed);
 #endif
 
@@ -55,12 +54,18 @@ protected:
         bind_port = 0;
         _backlog = 0;
 
+        http2 = 0;
         shutdow_rw = 0;
         shutdown_read = 0;
         shutdown_write = 0;
+        open_length_check = 0;
+        open_eof_check = 0;
 
         socks5_proxy = nullptr;
         http_proxy = nullptr;
+
+        buffer = nullptr;
+        protocol = {0};
 
 #ifdef SW_USE_OPENSSL
         open_ssl = 0;
