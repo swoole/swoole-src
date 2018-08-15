@@ -12,6 +12,7 @@ public:
     Socket(int _fd, Socket *sock);
     ~Socket();
     bool connect(std::string host, int port, int flags = 0);
+    bool shutdown(int how);
     bool close();
     ssize_t send(const void *__buf, size_t __n);
     ssize_t peek(void *__buf, size_t __n);
@@ -25,6 +26,8 @@ public:
     std::string resolve(std::string host);
     bool listen(int backlog = 0);
     bool sendfile(char *filename, off_t offset, size_t length);
+    int sendto(char *address, int port, char *data, int len);
+    int recvfrom(void *__buf, size_t __n, char *address, int *port = nullptr);
 
     void setTimeout(double timeout)
     {
@@ -38,7 +41,7 @@ public:
 #endif
 
 protected:
-    void init()
+    inline void init()
     {
         _cid = 0;
         _timeout = 0;
@@ -48,12 +51,30 @@ protected:
         timer = nullptr;
         bind_port = 0;
         _backlog = 0;
+
+        shutdow_rw = 0;
+        shutdown_read = 0;
+        shutdown_write = 0;
+
 #ifdef SW_USE_OPENSSL
         open_ssl = 0;
         ssl_wait_handshake = 0;
         ssl_context = NULL;
         ssl_option = {0};
 #endif
+    }
+
+    inline bool wait_events(int events)
+    {
+        if (reactor->add(reactor, socket->fd, SW_FD_CORO_SOCKET | events) < 0)
+        {
+            _error: errCode = errno;
+            return false;
+        }
+        else
+        {
+            return true;
+        }
     }
 
 public:
@@ -73,6 +94,9 @@ public:
     int errCode;
     const char *errMsg;
     uint32_t http2 :1;
+    uint32_t shutdow_rw :1;
+    uint32_t shutdown_read :1;
+    uint32_t shutdown_write :1;
 
 #ifdef SW_USE_OPENSSL
     uint8_t open_ssl :1;

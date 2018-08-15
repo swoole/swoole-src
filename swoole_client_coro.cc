@@ -71,9 +71,15 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_coro_sendfile, 0, 0, 1)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_coro_sendto, 0, 0, 3)
-    ZEND_ARG_INFO(0, ip)
+    ZEND_ARG_INFO(0, address)
     ZEND_ARG_INFO(0, port)
     ZEND_ARG_INFO(0, data)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_coro_recvfrom, 0, 0, 2)
+    ZEND_ARG_INFO(0, length)
+    ZEND_ARG_INFO(0, address)
+    ZEND_ARG_INFO(0, port)
 ZEND_END_ARG_INFO()
 
 static PHP_METHOD(swoole_client_coro, __construct);
@@ -85,6 +91,7 @@ static PHP_METHOD(swoole_client_coro, peek);
 static PHP_METHOD(swoole_client_coro, send);
 static PHP_METHOD(swoole_client_coro, sendfile);
 static PHP_METHOD(swoole_client_coro, sendto);
+static PHP_METHOD(swoole_client_coro, recvfrom);
 #ifdef SW_USE_OPENSSL
 static PHP_METHOD(swoole_client_coro, enableSSL);
 static PHP_METHOD(swoole_client_coro, getPeerCert);
@@ -800,22 +807,52 @@ static PHP_METHOD(swoole_client_coro, sendto)
         cli->socket->active = 1;
         swoole_set_object(getThis(), cli);
     }
+    SW_CHECK_RETURN(cli->sendto(ip, port, data, len));
+}
 
-    int ret;
-    if (cli->type == SW_SOCK_UDP)
+static PHP_METHOD(swoole_client_coro, recvfrom)
+{
+    zend_long length;
+    zend_string *address;
+    zend_long port;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lS!|l!", &length, &address, &port) == FAILURE)
     {
-        ret = swSocket_udp_sendto(cli->socket->fd, ip, port, data, len);
+        return;
     }
-    else if (cli->type == SW_SOCK_UDP6)
+
+    if (length <= 0)
     {
-        ret = swSocket_udp_sendto6(cli->socket->fd, ip, port, data, len);
+        swoole_php_error(E_WARNING, "invalid length.");
+        RETURN_FALSE;
+    }
+
+    Client *cli = (Client *) swoole_get_object(getThis());
+    if (!cli)
+    {
+        cli = client_coro_new(getThis(), NULL, 0, 0);
+        if (cli == NULL)
+        {
+            RETURN_FALSE;
+        }
+        cli->socket->active = 1;
+        swoole_set_object(getThis(), cli);
+    }
+
+    zend_string *retval = zend_string_alloc(length, 0);
+    char tmp_address[SW_IP_MAX_LENGTH];
+    int tmp_port;
+    ssize_t n_bytes = cli->recvfrom(retval->val, length, tmp_address, &tmp_port);
+    if (n_bytes < 0)
+    {
+        zend_string_free(retval);
+        RETURN_FALSE;
     }
     else
     {
-        swoole_php_fatal_error(E_WARNING, "only supports SWOOLE_SOCK_UDP or SWOOLE_SOCK_UDP6.");
-        RETURN_FALSE;
+        retval->len = n_bytes;
+        RETURN_STR(retval);
     }
-    SW_CHECK_RETURN(ret);
 }
 
 static PHP_METHOD(swoole_client_coro, sendfile)
@@ -1103,13 +1140,6 @@ static PHP_METHOD(swoole_client_coro, peek)
     {
         RETURN_FALSE;
     }
-#ifdef SW_USE_OPENSSL
-    if (cli->socket->ssl)
-    {
-        swoole_php_fatal_error(E_WARNING, "no support.");
-        RETURN_FALSE;
-    }
-#endif
 
     buf = (char *) emalloc(buf_len + 1);
     SwooleG.error = 0;

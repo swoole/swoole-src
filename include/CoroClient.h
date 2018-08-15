@@ -36,9 +36,7 @@ struct Client : public Socket
     uint32_t destroyed :1;
     uint32_t redirect :1;
 
-    uint32_t shutdow_rw :1;
-    uint32_t shutdown_read :1;
-    uint32_t shutdown_write :1;
+
     uint32_t remove_delay :1;
 
     /**

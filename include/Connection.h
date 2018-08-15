@@ -239,6 +239,34 @@ static sw_inline ssize_t swConnection_send(swConnection *conn, void *__buf, size
     return retval;
 }
 
+
+/**
+ * Receive data from connection
+ */
+static sw_inline ssize_t swConnection_peek(swConnection *conn, void *__buf, size_t __n, int __flags)
+{
+    int retval;
+    _peek:
+#ifdef SW_USE_OPENSSL
+    if (conn->ssl)
+    {
+        retval = SSL_peek(conn->ssl, __buf, __n);
+    }
+    else
+    {
+        retval = recv(conn->fd, __buf, __n, __flags);
+    }
+#else
+    retval = recv(conn->fd, __buf, __n, __flags);
+#endif
+
+    if (retval < 0 && errno == EINTR)
+    {
+        goto _peek;
+    }
+    return retval;
+}
+
 static sw_inline int swConnection_error(int err)
 {
     switch (err)

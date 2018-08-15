@@ -212,25 +212,11 @@ bool Socket::connect(string host, int port, int flags)
             _error: errCode = errno;
             return false;
         }
-        if (reactor->add(reactor, socket->fd, SW_FD_CORO_SOCKET | SW_EVENT_WRITE) < 0)
+        if (!wait_events(SW_EVENT_WRITE))
         {
             goto _error;
         }
-        if (_timeout > 0)
-        {
-            int ms = (int) (_timeout * 1000);
-            if (SwooleG.timer.fd == 0)
-            {
-                swTimer_init(ms);
-            }
-            timer = SwooleG.timer.add(&SwooleG.timer, ms, 0, this, socket_onTimeout);
-        }
         yield();
-        if (timer)
-        {
-            swTimer_del(&SwooleG.timer, timer);
-            timer = nullptr;
-        }
         //Connection has timed out
         if (errCode == ETIMEDOUT)
         {
@@ -284,6 +270,11 @@ static int socket_onWrite(swReactor *reactor, swEvent *event)
     return SW_OK;
 }
 
+ssize_t Socket::peek(void *__buf, size_t __n)
+{
+    return swConnection_peek(socket, __buf, __n, 0);
+}
+
 ssize_t Socket::recv(void *__buf, size_t __n)
 {
     ssize_t retval = swConnection_recv(socket, __buf, __n, 0);
@@ -299,40 +290,21 @@ ssize_t Socket::recv(void *__buf, size_t __n)
         events = SW_EVENT_WRITE;
     }
 #endif
-    if (reactor->add(reactor, socket->fd, SW_FD_CORO_SOCKET | events) < 0)
+    if (!wait_events(events))
     {
-        _error: errCode = errno;
         return -1;
-    }
-    errCode = 0;
-    if (_timeout > 0)
-    {
-        int ms = (int) (_timeout * 1000);
-        if (SwooleG.timer.fd == 0)
-        {
-           swTimer_init(ms);
-        }
-        timer = SwooleG.timer.add(&SwooleG.timer, ms, 0, this, socket_onTimeout);
     }
     yield();
     if (errCode == ETIMEDOUT)
     {
         return false;
     }
-    if (timer)
-    {
-        swTimer_del(&SwooleG.timer, timer);
-        timer = nullptr;
-    }
     retval = swConnection_recv(socket, __buf, __n, 0);
     if (retval < 0)
     {
-        goto _error;
+        errCode = errno;
     }
-    else
-    {
-        return retval;
-    }
+    return retval;
 }
 
 ssize_t Socket::recv_all(void *__buf, size_t __n)
@@ -391,11 +363,25 @@ ssize_t Socket::send(const void *__buf, size_t __n)
         events = SW_EVENT_READ;
     }
 #endif
-    if (reactor->add(reactor, socket->fd, SW_FD_CORO_SOCKET | events) < 0)
+    if (!wait_events(events))
     {
-        _error: errCode = errno;
         return -1;
     }
+    yield();
+    if (errCode == ETIMEDOUT)
+    {
+        return false;
+    }
+    ssize_t retval = swConnection_send(socket, (void *) __buf, __n, 0);
+    if (retval < 0)
+    {
+        errCode = errno;
+    }
+    return retval;
+}
+
+void Socket::yield()
+{
     errCode = 0;
     if (_timeout > 0)
     {
@@ -406,40 +392,19 @@ ssize_t Socket::send(const void *__buf, size_t __n)
         }
         timer = SwooleG.timer.add(&SwooleG.timer, ms, 0, this, socket_onTimeout);
     }
-    yield();
-    if (errCode == ETIMEDOUT)
-    {
-        return false;
-    }
-    if (timer)
-    {
-        swTimer_del(&SwooleG.timer, timer);
-        timer = nullptr;
-    }
-    ssize_t retval = swConnection_send(socket, (void *) __buf, __n, 0);
-    if (retval < 0)
-    {
-        goto _error;
-    }
-    else
-    {
-        return retval;
-    }
-}
-
-ssize_t Socket::peek(void *__buf, size_t __n)
-{
-    return swConnection_send(socket, __buf, __n, MSG_PEEK | MSG_DONTWAIT);
-}
-
-void Socket::yield()
-{
     _cid = coroutine_get_cid();
     if (_cid == -1)
     {
         swError("Socket::yield() must be called in the coroutine.");
     }
+    //suspend
     coroutine_yield(coroutine_get_by_id(_cid));
+    //clear timer
+    if (timer)
+    {
+        swTimer_del(&SwooleG.timer, timer);
+        timer = nullptr;
+    }
 }
 
 void Socket::resume()
@@ -526,12 +491,15 @@ bool Socket::listen(int backlog)
 
 Socket* Socket::accept()
 {
-    if (reactor->add(reactor, socket->fd, SW_FD_CORO_SOCKET | SW_EVENT_READ) < 0)
+    if (!wait_events(SW_EVENT_READ))
     {
-        _error: errCode = errno;
         return nullptr;
     }
     yield();
+    if (errCode == ETIMEDOUT)
+    {
+        return nullptr;
+    }
     int conn;
     swSocketAddress client_addr;
     socklen_t client_addrlen = sizeof(client_addr);
@@ -586,8 +554,14 @@ string Socket::resolve(string domain_name)
         sw_free(ev.buf);
         return "";
     }
-    errCode = 0;
+    /**
+     * cannot timeout
+     */
+    double tmp_timeout = _timeout;
+    _timeout = -1;
     yield();
+    _timeout = tmp_timeout;
+
     if (errCode == SW_ERROR_DNSLOOKUP_RESOLVE_FAILED)
     {
         errMsg = hstrerror(ev.error);
@@ -598,6 +572,54 @@ string Socket::resolve(string domain_name)
         string addr((char *) ev.buf);
         sw_free(ev.buf);
         return move(addr);
+    }
+}
+
+bool Socket::shutdown(int __how)
+{
+    if (!socket || socket->closed)
+    {
+        return false;
+    }
+    if (__how == SHUT_RD)
+    {
+        if (shutdown_read || shutdow_rw || ::shutdown(socket->fd, SHUT_RD))
+        {
+            return false;
+        }
+        else
+        {
+            shutdown_read = 1;
+            return true;
+        }
+    }
+    else if (__how == SHUT_WR)
+    {
+        if (shutdown_write || shutdow_rw || ::shutdown(socket->fd, SHUT_RD) < 0)
+        {
+            return false;
+        }
+        else
+        {
+            shutdown_write = 1;
+            return true;
+        }
+    }
+    else if (__how == SHUT_RDWR)
+    {
+        if (shutdow_rw || ::shutdown(socket->fd, SHUT_RDWR) < 0)
+        {
+            return false;
+        }
+        else
+        {
+            shutdown_read = 1;
+            return true;
+        }
+    }
+    else
+    {
+        return false;
     }
 }
 
@@ -721,12 +743,15 @@ bool Socket::ssl_handshake()
         if (socket->ssl_state == SW_SSL_STATE_WAIT_STREAM)
         {
             int events = socket->ssl_want_write ? SW_EVENT_WRITE : SW_EVENT_READ;
-            if (reactor->add(reactor, socket->fd, SW_FD_CORO_SOCKET | events) < 0)
+            if (!wait_events(events))
             {
-                _error: errCode = errno;
                 return false;
             }
             yield();
+            if (errCode == ETIMEDOUT)
+            {
+                return false;
+            }
         }
         else if (socket->ssl_state == SW_SSL_STATE_READY)
         {
@@ -809,28 +834,81 @@ bool Socket::sendfile(char *filename, off_t offset, size_t length)
         else if (errno != EAGAIN)
         {
             swSysError("sendfile(%d, %s) failed.", socket->fd, filename);
-            goto _error;
-        }
-        if (reactor->add(reactor, socket->fd, SW_FD_CORO_SOCKET | SW_EVENT_WRITE) < 0)
-        {
             _error: errCode = errno;
             ::close(file_fd);
             return false;
         }
-        errCode = 0;
-        if (_timeout > 0)
+        if (!wait_events(SW_EVENT_WRITE))
         {
-            int ms = (int) (_timeout * 1000);
-            if (SwooleG.timer.fd == 0)
-            {
-               swTimer_init(ms);
-            }
-            timer = SwooleG.timer.add(&SwooleG.timer, ms, 0, this, socket_onTimeout);
+            goto _error;
         }
         yield();
+        if (errCode == ETIMEDOUT)
+        {
+            goto _error;
+        }
     }
     ::close(file_fd);
     return false;
+}
+
+int Socket::sendto(char *address, int port, char *data, int len)
+{
+    if (_type == SW_SOCK_UDP)
+    {
+        return swSocket_udp_sendto(socket->fd, address, port, data, len);
+    }
+    else if (_type == SW_SOCK_UDP6)
+    {
+        return swSocket_udp_sendto6(socket->fd, address, port, data, len);
+    }
+    else
+    {
+        swWarn("only supports SWOOLE_SOCK_UDP or SWOOLE_SOCK_UDP6.");
+        return -1;
+    }
+}
+
+int Socket::recvfrom(void *__buf, size_t __n, char *address, int *port)
+{
+    socket->info.len = sizeof(socket->info.addr);
+    int retval;
+
+    _recv: retval = ::recvfrom(socket->fd, __buf, __n, 0, (struct sockaddr *) &socket->info.addr, &socket->info.len);
+    if (retval < 0)
+    {
+        if (errno == EINTR)
+        {
+            goto _recv;
+        }
+        else if (swConnection_error(errno) == SW_WAIT)
+        {
+            if (!wait_events(SW_EVENT_READ))
+            {
+                return -1;
+            }
+            yield();
+            if (errCode == ETIMEDOUT)
+            {
+                return -1;
+            }
+            retval = ::recvfrom(socket->fd, __buf, __n, 0, (struct sockaddr *) &socket->info.addr, &socket->info.len);
+            if (retval < 0)
+            {
+                errCode = errno;
+            }
+            else
+            {
+                strcpy(address, swConnection_get_ip(socket));
+                *port = swConnection_get_port(socket);
+            }
+        }
+        else
+        {
+            errCode = errno;
+        }
+    }
+    return retval;
 }
 
 Socket::~Socket()
@@ -852,4 +930,3 @@ Socket::~Socket()
     bzero(socket, sizeof(swConnection));
     socket->removed = 1;
 }
-
