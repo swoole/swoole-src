@@ -107,7 +107,8 @@ static PHP_METHOD(swoole_client_coro, close);
 
 static void client_coro_check_setting(Socket *cli, zval *zset);
 static void client_coro_check_ssl_setting(Socket *cli, zval *zset);
-static Socket* client_coro_new(zval *object, char *host, int host_len, int port);
+static Socket* client_coro_new(zval *object, int port = 0);
+static void client_coro_free(zval *zobject, Socket *cli TSRMLS_DC);
 
 static const zend_function_entry swoole_client_coro_methods[] =
 {
@@ -120,6 +121,7 @@ static const zend_function_entry swoole_client_coro_methods[] =
     PHP_ME(swoole_client_coro, send, arginfo_swoole_client_coro_send, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client_coro, sendfile, arginfo_swoole_client_coro_sendfile, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client_coro, sendto, arginfo_swoole_client_coro_sendto, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_client_coro, recvfrom, arginfo_swoole_client_coro_recvfrom, ZEND_ACC_PUBLIC)
 #ifdef SW_USE_OPENSSL
     PHP_ME(swoole_client_coro, enableSSL, arginfo_swoole_client_coro_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client_coro, getPeerCert, arginfo_swoole_client_coro_void, ZEND_ACC_PUBLIC)
@@ -178,7 +180,7 @@ static sw_inline Socket* client_get_ptr(zval *zobject TSRMLS_DC)
     }
 }
 
-static Socket* client_coro_new(zval *object, char *host, int host_len, int port)
+static Socket* client_coro_new(zval *object, int port)
 {
     zval *ztype;
     uint64_t tmp_buf;
@@ -219,7 +221,7 @@ static Socket* client_coro_new(zval *object, char *host, int host_len, int port)
     return cli;
 }
 
-void php_swoole_coro_client_free(zval *zobject, Socket *cli TSRMLS_DC)
+static void client_coro_free(zval *zobject, Socket *cli TSRMLS_DC)
 {
     if (cli->timer)
     {
@@ -511,6 +513,12 @@ static void client_coro_check_setting(Socket *cli, zval *zset TSRMLS_DC)
             swoole_php_fatal_error(E_WARNING, "http_proxy_password can not be null.");
         }
     }
+    //https proxy
+    if (php_swoole_array_get_value(vht, "http_proxy_ssl", v) && cli->http_proxy)
+    {
+        convert_to_boolean(v);
+        cli->http_proxy->ssl = Z_BVAL_P(v);
+    }
 #ifdef SW_USE_OPENSSL
     if (cli->open_ssl)
     {
@@ -699,7 +707,7 @@ static PHP_METHOD(swoole_client_coro, connect)
         RETURN_FALSE;
     }
 
-    cli = client_coro_new(getThis(), host, host_len, (int) port);
+    cli = client_coro_new(getThis(), (int) port);
     if (cli == NULL)
     {
         RETURN_FALSE;
@@ -794,7 +802,7 @@ static PHP_METHOD(swoole_client_coro, sendto)
     Socket *cli = (Socket *) swoole_get_object(getThis());
     if (!cli)
     {
-        cli = client_coro_new(getThis(), ip, ip_len, (int)port);
+        cli = client_coro_new(getThis(), (int) port);
         if (cli == NULL)
         {
             RETURN_FALSE;
@@ -825,7 +833,7 @@ static PHP_METHOD(swoole_client_coro, recvfrom)
     Socket *cli = (Socket *) swoole_get_object(getThis());
     if (!cli)
     {
-        cli = client_coro_new(getThis(), NULL, 0, 0);
+        cli = client_coro_new(getThis());
         if (cli == NULL)
         {
             RETURN_FALSE;
@@ -1282,7 +1290,7 @@ static PHP_METHOD(swoole_client_coro, close)
         RETURN_FALSE;
     }
     ret = cli->close();
-    php_swoole_coro_client_free(getThis(), cli TSRMLS_CC);
+    client_coro_free(getThis(), cli TSRMLS_CC);
     SW_CHECK_RETURN(ret);
 }
 

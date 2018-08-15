@@ -124,6 +124,9 @@ bool Socket::socks5_handshake()
             }
         }
 
+        /**
+         * response
+         */
         n = recv(buf, sizeof(ctx->buf));
         if (n <= 0)
         {
@@ -154,6 +157,86 @@ bool Socket::socks5_handshake()
         }
         return result;
     }
+}
+
+bool Socket::http_proxy_handshake()
+{
+    //https proxy
+    if (http_proxy->ssl && ssl_handshake() == false)
+    {
+        return false;
+    }
+
+    //CONNECT
+    int n = snprintf(http_proxy->buf, sizeof(http_proxy->buf), "CONNECT %s:%d HTTP/1.1\r\n\r\n",
+            http_proxy->target_host, http_proxy->target_port);
+    if (send(http_proxy->buf, n) <= 0)
+    {
+        return false;
+    }
+
+    n = recv(http_proxy->buf, sizeof(http_proxy->buf));
+    if (n <= 0)
+    {
+        return false;
+    }
+    char *buf = http_proxy->buf;
+    int len = n;
+    int state = 0;
+    char *p = buf;
+    for (p = buf; p < buf + len; p++)
+    {
+        if (state == 0)
+        {
+            if (strncasecmp(p, "HTTP/1.1", 8) == 0 || strncasecmp(p, "HTTP/1.0", 8) == 0)
+            {
+                state = 1;
+                p += 8;
+            }
+            else
+            {
+                break;
+            }
+        }
+        else if (state == 1)
+        {
+            if (isspace(*p))
+            {
+                continue;
+            }
+            else
+            {
+                if (strncasecmp(p, "200", 3) == 0)
+                {
+                    state = 2;
+                    p += 3;
+                }
+                else
+                {
+                    break;
+                }
+            }
+        }
+        else if (state == 2)
+        {
+            if (isspace(*p))
+            {
+                continue;
+            }
+            else
+            {
+                if (strncasecmp(p, "Connection established", sizeof("Connection established") - 1) == 0)
+                {
+                    return true;
+                }
+                else
+                {
+                    break;
+                }
+            }
+        }
+    }
+    return false;
 }
 
 static inline int socket_connect(int fd, struct sockaddr *addr, socklen_t len)
@@ -257,6 +340,27 @@ Socket::Socket(int _fd, Socket *sock)
 
 bool Socket::connect(string host, int port, int flags)
 {
+    //enable socks5 proxy
+    if (socks5_proxy)
+    {
+        socks5_proxy->target_host = (char *) host.c_str();
+        socks5_proxy->l_target_host = host.size();
+        socks5_proxy->target_port = port;
+
+        host = socks5_proxy->host;
+        port = socks5_proxy->port;
+    }
+
+    //enable http proxy
+    if (http_proxy)
+    {
+        http_proxy->target_host = (char *) host.c_str();
+        http_proxy->target_port = host.size();
+
+        host = http_proxy->proxy_host;
+        port = http_proxy->proxy_port;
+    }
+
     if (_sock_domain == AF_INET6 || _sock_domain == AF_INET)
     {
         if (port == -1)
@@ -373,14 +477,15 @@ bool Socket::connect(string host, int port, int flags)
     }
     socket->active = 1;
     //socks5 proxy
-    if (socks5_proxy && socks5_proxy->state == SW_SOCKS5_STATE_WAIT)
+    if (socks5_proxy && socks5_handshake() == false)
     {
-        if (!socks5_handshake())
-        {
-            return false;
-        }
+        return false;
     }
-
+    //http proxy
+    if (http_proxy && http_proxy_handshake() == false)
+    {
+        return false;
+    }
     return true;
 }
 
@@ -854,14 +959,14 @@ bool Socket::ssl_handshake()
     ssl_context = swSSL_get_context(&ssl_option);
     if (ssl_context == NULL)
     {
-        return SW_ERR;
+        return false;
     }
 
     if (ssl_option.verify_peer)
     {
         if (swSSL_set_capath(&ssl_option, ssl_context) < 0)
         {
-            return SW_ERR;
+            return false;
         }
     }
 
@@ -871,7 +976,7 @@ bool Socket::ssl_handshake()
     {
         if (SSL_CTX_set_alpn_protos(ssl_context, (const unsigned char *) "\x02h2", 3) < 0)
         {
-            return SW_ERR;
+            return false;
         }
     }
 #endif

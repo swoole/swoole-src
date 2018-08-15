@@ -84,6 +84,7 @@ protected:
     }
 
     bool socks5_handshake();
+    bool http_proxy_handshake();
 
 public:
     swTimer_node *timer;
