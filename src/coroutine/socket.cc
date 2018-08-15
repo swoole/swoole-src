@@ -382,6 +382,10 @@ ssize_t Socket::send(const void *__buf, size_t __n)
 
 void Socket::yield()
 {
+    if (suspending)
+    {
+        swError("socket has already been bound to another coroutine.");
+    }
     errCode = 0;
     if (_timeout > 0)
     {
@@ -398,7 +402,9 @@ void Socket::yield()
         swError("Socket::yield() must be called in the coroutine.");
     }
     //suspend
+    suspending = true;
     coroutine_yield(coroutine_get_by_id(_cid));
+    suspending = false;
     //clear timer
     if (timer)
     {

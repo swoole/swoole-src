@@ -44,6 +44,7 @@ protected:
     inline void init()
     {
         _cid = 0;
+        suspending = false;
         _timeout = 0;
         _port = 0;
         errCode = 0;
@@ -85,6 +86,7 @@ public:
     int bind_port;
     int _port;
     int _cid;
+    bool suspending;
     swConnection *socket;
     enum swSocket_type _type;
     int _sock_type;
