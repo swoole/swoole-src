@@ -584,7 +584,6 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
 int php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data, uint32_t length)
 {
     SwooleG.lock.lock(&SwooleG.lock);
-    SWOOLE_GET_TSRMLS;
 
     zval *zdata;
     zval *retval = NULL;
@@ -624,7 +623,6 @@ int php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data,
 int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swEventData *data)
 {
     SwooleG.lock.lock(&SwooleG.lock);
-    SWOOLE_GET_TSRMLS;
 
     zval *zserv = (zval *) serv->ptr2;
 
@@ -701,7 +699,6 @@ static sw_inline uint32_t swoole_get_new_size(uint32_t old_size, int handle TSRM
 
 void swoole_set_object(zval *object, void *ptr)
 {
-    SWOOLE_GET_TSRMLS;
     int handle = sw_get_object_handle(object);
     assert(handle < SWOOLE_OBJECT_MAX);
     if (handle >= swoole_objects.size)
@@ -727,7 +724,6 @@ void swoole_set_object(zval *object, void *ptr)
 
 void swoole_set_property(zval *object, int property_id, void *ptr)
 {
-    SWOOLE_GET_TSRMLS;
     int handle = sw_get_object_handle(object);
     assert(handle < SWOOLE_OBJECT_MAX);
 
@@ -1084,9 +1080,7 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_process_init(module_number TSRMLS_CC);
     swoole_process_pool_init(module_number TSRMLS_CC);
     swoole_table_init(module_number TSRMLS_CC);
-#ifdef SW_USE_PHPX
     swoole_runtime_init(module_number TSRMLS_CC);
-#endif
     swoole_lock_init(module_number TSRMLS_CC);
     swoole_atomic_init(module_number TSRMLS_CC);
     swoole_http_server_init(module_number TSRMLS_CC);

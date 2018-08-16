@@ -110,7 +110,6 @@ static void client_onBufferEmpty(swClient *cli);
 
 static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_client_callback_type type)
 {
-    SWOOLE_GET_TSRMLS;
 
     zval *callback = NULL;
     zval *retval = NULL;
@@ -415,7 +414,6 @@ static void client_onConnect(swClient *cli)
     }
     else
     {
-        SWOOLE_GET_TSRMLS;
         client_callback *cb = (client_callback *) swoole_get_property(zobject, 0);
         if (!cb || !cb->onReceive)
         {
@@ -426,7 +424,6 @@ static void client_onConnect(swClient *cli)
 
 static void client_onClose(swClient *cli)
 {
-    SWOOLE_GET_TSRMLS;
     zval *zobject = (zval *) cli->object;
     php_swoole_client_free(zobject, cli TSRMLS_CC);
     client_execute_callback(zobject, SW_CLIENT_CB_onClose);
@@ -435,7 +432,6 @@ static void client_onClose(swClient *cli)
 
 static void client_onError(swClient *cli)
 {
-    SWOOLE_GET_TSRMLS;
     zval *zobject = (zval *) cli->object;
     zend_update_property_long(swoole_client_class_entry_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error TSRMLS_CC);
     php_swoole_client_free(zobject, cli TSRMLS_CC);

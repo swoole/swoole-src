@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine_util: user suspend and resume4
+swoole_coroutine_util: user yield and resume4
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -17,9 +17,9 @@ go(function () {
         echo "resume\n";
         co::resume($main);
     });
-    echo "before suspend \n";
-    co::suspend();
-    echo "after suspend \n";
+    echo "before yield\n";
+    co::yield();
+    echo "after yield\n";
 });
 echo "main \n";
 
@@ -27,7 +27,7 @@ echo "main \n";
 --EXPECTF--
 start to create coro
 coro 2
-before suspend 
+before yield
 main 
 resume
-after suspend
+after yield

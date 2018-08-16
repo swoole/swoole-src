@@ -527,7 +527,6 @@ static int swoole_mysql_coro_statement_close(mysql_statement *stmt TSRMLS_DC)
 
 static int swoole_mysql_coro_close(zval *this)
 {
-    SWOOLE_GET_TSRMLS;
     mysql_client *client = swoole_get_object(this);
     if (!client)
     {
@@ -578,6 +577,7 @@ static int swoole_mysql_coro_close(zval *this)
             node = node->next;
         }
         swLinkedList_free(client->statement_list);
+        client->statement_list = NULL;
     }
 
     client->cli->close(client->cli);
@@ -742,7 +742,10 @@ static PHP_METHOD(swoole_mysql_coro, connect)
 
     if (swClient_create(cli, type, 0) < 0)
     {
-        zend_throw_exception(swoole_mysql_coro_exception_class_entry_ptr, "swClient_create failed.", 1 TSRMLS_CC);
+        swoole_php_fatal_error(E_WARNING, "swClient_create() failed. Error: %s [%d]", strerror(errno), errno);
+        _failed:
+        zend_update_property_string(swoole_mysql_coro_class_entry_ptr, getThis(), ZEND_STRL("connect_error"), strerror(errno) TSRMLS_CC);
+        zend_update_property_long(swoole_mysql_coro_class_entry_ptr, getThis(), ZEND_STRL("connect_errno"), errno TSRMLS_CC);
         efree(cli);
         sw_zval_ptr_dtor(&server_info);
         RETURN_FALSE;
@@ -763,18 +766,12 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     {
         if (SwooleG.main_reactor->add(SwooleG.main_reactor, cli->socket->fd, PHP_SWOOLE_FD_MYSQL_CORO | SW_EVENT_WRITE) < 0)
         {
-            efree(cli);
-            sw_zval_ptr_dtor(&server_info);
-            RETURN_FALSE;
+            goto _failed;
         }
     }
     else
     {
-        efree(cli);
-        snprintf(buf, sizeof(buf), "connect to mysql server[%s:%ld] failed.", connector->host, connector->port);
-        sw_zval_ptr_dtor(&server_info);
-        zend_throw_exception(swoole_mysql_coro_exception_class_entry_ptr, buf, 2 TSRMLS_CC);
-        RETURN_FALSE;
+        goto _failed;
     }
 
     zend_update_property(swoole_mysql_coro_class_entry_ptr, getThis(), ZEND_STRL("serverInfo"), server_info TSRMLS_CC);
@@ -1571,7 +1568,7 @@ static void swoole_mysql_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
         zend_update_property_string(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("error"), "query timeout" TSRMLS_CC);
     }
 
-    zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("errno"), 110 TSRMLS_CC);
+    zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("errno"), ETIMEDOUT TSRMLS_CC);
 
     //timeout close conncttion
     client->timer = NULL;

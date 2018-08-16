@@ -438,13 +438,6 @@ void swoole_http_client_init(int module_number TSRMLS_DC)
         swoole_php_fatal_error(E_ERROR, "[1] swString_new(%d) failed.", SW_HTTP_RESPONSE_INIT_SIZE);
     }
 
-#ifdef SW_HAVE_ZLIB
-    swoole_zlib_buffer = swString_new(2048);
-    if (!swoole_zlib_buffer)
-    {
-        swoole_php_fatal_error(E_ERROR, "[2] swString_new(%d) failed.", SW_HTTP_RESPONSE_INIT_SIZE);
-    }
-#endif
 }
 
 static void http_client_execute_callback(zval *zobject, enum php_swoole_client_callback_type type)

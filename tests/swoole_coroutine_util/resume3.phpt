@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine_util: user suspend and resume3
+swoole_coroutine_util: user yield and resume3
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -15,11 +15,11 @@ $id = go(function() use (&$map){
     $id2 = go(function(){
         $id2 = co::getUid();
         echo "start coro $id2\n";
-        co::suspend();
+        co::yield();
         echo "resume coro $id2\n";
     });
     $map[2] = $id2;
-    co::suspend();
+    co::yield();
     echo "resume coro $id\n";
 });
 $map[1] = $id;

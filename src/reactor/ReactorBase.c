@@ -303,11 +303,7 @@ int swReactor_write(swReactor *reactor, int fd, void *buf, int n)
                 goto do_buffer;
             }
         }
-#ifdef HAVE_KQUEUE
-        else if (errno == EAGAIN || errno == ENOBUFS)
-#else
-        else if (errno == EAGAIN)
-#endif
+        else if (swConnection_error(errno) == SW_WAIT)
         {
             do_buffer:
             if (!socket->out_buffer)

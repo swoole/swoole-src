@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine_util: user suspend and resume4
+swoole_coroutine_util: user yield and resume4
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -10,7 +10,7 @@ use Swoole\Coroutine as co;
 
 go(function () {
     echo "coro 1 start\n";
-    co::suspend();
+    co::yield();
     echo "coro 1 end\n";
 });
 echo "main 1\n";

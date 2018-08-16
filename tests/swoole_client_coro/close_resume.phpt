@@ -33,8 +33,7 @@ $pm->parentFunc = function ($pid) use ($pm)
         $retData = $cli->recv();
         assert(is_string($retData) and strlen($retData) > 0);
         $retData = $cli->recv();
-        assert($retData == false);
-        assert($cli->errCode === SWOOLE_ERROR_CLIENT_NO_CONNECTION || $cli->errCode === SOCKET_ECONNRESET);
+        assert($retData === '');
     });
     swoole_event_wait();
     $pm->kill();

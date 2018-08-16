@@ -22,7 +22,7 @@ swoole_async_dns_lookup("www.jd.com", function ($domain, $ip)
     $client->get("/", function ($o) use ($client)
     {
         assert($o->statusCode == 200);
-        assert(strlen($o->body) > 1024);
+        assert(strlen($o->data) > 1024);
         $client->close();
     });
 });
