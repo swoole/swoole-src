@@ -17,6 +17,8 @@
 #include "php_swoole.h"
 #include "Connection.h"
 
+#include "websocket.h"
+
 #ifdef SW_COROUTINE
 #include "swoole_coroutine.h"
 #endif
@@ -1699,6 +1701,8 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
 
     if (SwooleG.enable_coroutine)
     {
+        int ret;
+
         zval *args[3];
         args[0] = zserv;
         args[1] = zfd;
@@ -1710,7 +1714,8 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
             return;
         }
 
-        int ret = coro_create(cache, args, 3, &retval, NULL, NULL);
+        ret = coro_create(cache, args, 3, &retval, NULL, NULL);
+
         sw_zval_ptr_dtor(&zfd);
         sw_zval_ptr_dtor(&zfrom_id);
 
@@ -2588,6 +2593,7 @@ PHP_METHOD(swoole_server, on)
         "ManagerStart",
         "ManagerStop",
         "PipeMessage",
+        NULL,
         NULL,
         NULL,
         NULL,
