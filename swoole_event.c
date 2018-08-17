@@ -201,12 +201,59 @@ static void php_swoole_event_onEndCallback(void *_cb)
     }
 }
 
-void php_swoole_event_init(void)
+void php_swoole_check_reactor()
 {
+    if (likely(SwooleWG.reactor_init))
+    {
+        return;
+    }
+
+    if (!SWOOLE_G(cli))
+    {
+        swoole_php_fatal_error(E_ERROR, "async-io must be used in PHP CLI mode.");
+        return;
+    }
+
+    if (swIsTaskWorker())
+    {
+        swoole_php_fatal_error(E_ERROR, "can't use async-io in task process.");
+        return;
+    }
+
+    if (SwooleG.main_reactor == NULL)
+    {
+        swTraceLog(SW_TRACE_PHP, "init reactor");
+
+        SwooleG.main_reactor = (swReactor *) sw_malloc(sizeof(swReactor));
+        if (SwooleG.main_reactor == NULL)
+        {
+            swoole_php_fatal_error(E_ERROR, "malloc failed.");
+            return;
+        }
+        if (swReactor_create(SwooleG.main_reactor, SW_REACTOR_MAXEVENTS) < 0)
+        {
+            swoole_php_fatal_error(E_ERROR, "failed to create reactor.");
+            return;
+        }
+
+#ifdef SW_COROUTINE
+        SwooleG.main_reactor->can_exit = php_coroutine_reactor_can_exit;
+#endif
+
+        //client, swoole_event_exit will set swoole_running = 0
+        SwooleWG.in_client = 1;
+        SwooleWG.reactor_wait_onexit = 1;
+        SwooleWG.reactor_ready = 0;
+        //only client side
+        php_swoole_at_shutdown("swoole_event_wait");
+    }
+
     SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_USER | SW_EVENT_READ, php_swoole_event_onRead);
     SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_USER | SW_EVENT_WRITE, php_swoole_event_onWrite);
     SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_USER | SW_EVENT_ERROR, php_swoole_event_onError);
     SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_WRITE, swReactor_onWrite);
+
+    SwooleWG.reactor_init = 1;
 }
 
 void php_swoole_event_wait()

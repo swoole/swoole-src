@@ -26,6 +26,10 @@
 #include <execinfo.h>
 #endif
 
+#ifdef __sun
+#include <sys/filio.h>
+#endif
+
 SwooleGS_t *SwooleGS;
 
 void swoole_init(void)
