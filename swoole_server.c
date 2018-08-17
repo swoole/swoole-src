@@ -3082,7 +3082,15 @@ PHP_METHOD(swoole_server, stats)
     sw_add_assoc_long_ex(return_value, ZEND_STRS("connection_num"), serv->stats->connection_num);
     sw_add_assoc_long_ex(return_value, ZEND_STRS("accept_count"), serv->stats->accept_count);
     sw_add_assoc_long_ex(return_value, ZEND_STRS("close_count"), serv->stats->close_count);
-    sw_add_assoc_long_ex(return_value, ZEND_STRS("tasking_num"), serv->stats->tasking_num);
+    /**
+     * reset
+     */
+    int tasking_num = serv->stats->tasking_num;
+    if (tasking_num < 0)
+    {
+        tasking_num = serv->stats->tasking_num = 0;
+    }
+    sw_add_assoc_long_ex(return_value, ZEND_STRS("tasking_num"), tasking_num);
     sw_add_assoc_long_ex(return_value, ZEND_STRS("request_count"), serv->stats->request_count);
     if (SwooleWG.worker)
     {
