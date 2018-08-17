@@ -298,13 +298,14 @@ namespace swoole
         }
 
         swTask_type(&buf) |= SW_TASK_NONBLOCK;
+        sw_atomic_fetch_add(&serv.stats->tasking_num, 1);
         if (swProcessPool_dispatch(&serv.gs->task_workers, &buf, &dst_worker_id) >= 0)
         {
-            sw_atomic_fetch_add(&serv.stats->tasking_num, 1);
             return buf.info.fd;
         }
         else
         {
+            sw_atomic_fetch_sub(&serv.stats->tasking_num, 1);
             return -1;
         }
     }
@@ -658,9 +659,10 @@ namespace swoole
         //clear history task
         while (read(efd, &notify, sizeof(notify)) > 0);
 
+        sw_atomic_fetch_add(&serv.stats->tasking_num, 1);
+
         if (swProcessPool_dispatch_blocking(&serv.gs->task_workers, &buf, &dst_worker_id) >= 0)
         {
-            sw_atomic_fetch_add(&serv.stats->tasking_num, 1);
             task_notify_pipe->timeout = timeout;
             int ret = task_notify_pipe->read(task_notify_pipe, &notify, sizeof(notify));
             if (ret > 0)
@@ -671,6 +673,10 @@ namespace swoole
             {
                 swWarn("taskwait failed. Error: %s[%d]", strerror(errno), errno);
             }
+        }
+        else
+        {
+            sw_atomic_fetch_sub(&serv.stats->tasking_num, 1);
         }
         return retval;
     }
@@ -729,17 +735,18 @@ namespace swoole
             }
             swTask_type(&buf) |= SW_TASK_WAITALL;
             dst_worker_id = -1;
+            sw_atomic_fetch_add(&serv.stats->tasking_num, 1);
+
             if (swProcessPool_dispatch_blocking(&serv.gs->task_workers, &buf, &dst_worker_id) >= 0)
             {
-                sw_atomic_fetch_add(&serv.stats->tasking_num, 1);
                 list_of_id[i] = task_id;
             }
             else
             {
                 swWarn("taskwait failed. Error: %s[%d]", strerror(errno), errno);
-                fail:
-                    retval[i] = DataBuffer();
-                n_task --;
+                fail: retval[i] = DataBuffer();
+                n_task--;
+                sw_atomic_fetch_sub(&serv.stats->tasking_num, 1);
             }
             i++;
         }
