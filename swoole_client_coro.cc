@@ -183,8 +183,6 @@ static sw_inline Socket* client_get_ptr(zval *zobject TSRMLS_DC)
 static Socket* client_coro_new(zval *object, int port)
 {
     zval *ztype;
-    uint64_t tmp_buf;
-    int ret;
 
     ztype = sw_zend_read_property(Z_OBJCE_P(object), object, SW_STRL("type")-1, 0 TSRMLS_CC);
 

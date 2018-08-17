@@ -169,7 +169,6 @@ static void channel_notify(channel_node *node)
 
 static void swoole_channel_onResume(php_context *ctx)
 {
-    channel_node *node = (channel_node *) ctx;
     zval *zdata = NULL;
     zval *retval = NULL;
 
