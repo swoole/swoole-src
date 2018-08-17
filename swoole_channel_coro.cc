@@ -23,8 +23,6 @@
 #include "swoole_coroutine.h"
 #include <queue>
 
-using namespace std;
-
 enum ChannelSelectOpcode
 {
     CHANNEL_SELECT_WRITE = 0, CHANNEL_SELECT_READ = 1,
@@ -36,7 +34,7 @@ typedef struct
     swLinkedList *consumer_list;
     bool closed;
     int capacity;
-    queue<zval> *data_queue;
+    std::queue<zval> *data_queue;
 } channel;
 
 typedef struct _channel_node
@@ -271,7 +269,7 @@ static PHP_METHOD(swoole_channel_coro, __construct)
         RETURN_FALSE;
     }
 
-    chan->data_queue = new queue<zval>;
+    chan->data_queue = new std::queue<zval>;
     chan->producer_list = swLinkedList_new(2, NULL);
     if (chan->producer_list == NULL)
     {

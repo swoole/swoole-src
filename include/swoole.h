@@ -40,6 +40,9 @@ extern "C" {
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef __sun
+#include <strings.h>
+#endif
 #include <signal.h>
 #include <time.h>
 #include <limits.h>
