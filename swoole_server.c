@@ -3344,7 +3344,10 @@ PHP_METHOD(swoole_server, taskWaitMulti)
             add_index_bool(return_value, i, 0);
             n_task --;
         }
-        sw_atomic_fetch_add(&serv->stats->tasking_num, 1);
+        else
+        {
+            sw_atomic_fetch_add(&serv->stats->tasking_num, 1);
+        }
         list_of_id[i] = task_id;
         i++;
     SW_HASHTABLE_FOREACH_END();
@@ -3472,10 +3475,8 @@ PHP_METHOD(swoole_server, taskCo)
         }
         swTask_type(&buf) |= (SW_TASK_NONBLOCK | SW_TASK_COROUTINE);
         dst_worker_id = -1;
-        sw_atomic_fetch_add(&serv->stats->tasking_num, 1);
         if (swProcessPool_dispatch(&serv->gs->task_workers, &buf, &dst_worker_id) < 0)
         {
-            sw_atomic_fetch_sub(&serv->stats->tasking_num, 1);
             task_id = -1;
             fail:
             add_index_bool(result, i, 0);
@@ -3483,6 +3484,7 @@ PHP_METHOD(swoole_server, taskCo)
         }
         else
         {
+            sw_atomic_fetch_add(&serv->stats->tasking_num, 1);
             swHashMap_add_int(task_coroutine_map, buf.info.fd, task_co);
         }
         list[i] = task_id;
