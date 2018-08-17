@@ -318,6 +318,7 @@ int swWebSocket_dispatch_frame(swConnection *conn, char *data, uint32_t length)
             // Server attempt to close, frame sent by swoole_websocket_server->disconnect()
             conn->websocket_status = 0;
         }
+        swReactorThread_dispatch(conn, frame.str, length);
 
         return SW_ERR;
 
