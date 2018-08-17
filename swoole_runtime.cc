@@ -332,12 +332,19 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
     return 0;
 }
 
-static php_stream *socket_factory(const char *proto, size_t protolen, const char *resourcename, size_t resourcenamelen,
+static php_stream *socket_create(const char *proto, size_t protolen, const char *resourcename, size_t resourcenamelen,
         const char *persistent_id, int options, int flags, struct timeval *timeout, php_stream_context *context
         STREAMS_DC)
 {
     php_stream *stream = NULL;
     Socket *sock;
+
+    if (unlikely(COROG.active == 0))
+    {
+        coro_init(TSRMLS_C);
+    }
+    php_swoole_check_reactor();
+
     if (strncmp(proto, "unix", protolen) == 0)
     {
         sock = new Socket(SW_SOCK_UNIX_STREAM);
@@ -367,18 +374,13 @@ static PHP_METHOD(swoole_runtime, enableCoroutine)
 
     if (enable)
     {
-        if (hook_init)
+        if (likely(hook_init))
         {
             RETURN_FALSE;
         }
         hook_init = true;
-        if (COROG.active == 0)
-        {
-            coro_init(TSRMLS_C);
-        }
-        php_swoole_check_reactor();
-        php_stream_xport_register("tcp", socket_factory);
-        php_stream_xport_register("unix", socket_factory);
+        php_stream_xport_register("tcp", socket_create);
+        php_stream_xport_register("unix", socket_create);
     }
     else
     {
