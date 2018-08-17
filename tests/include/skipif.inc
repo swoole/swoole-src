@@ -28,7 +28,16 @@ function skip(string $reason, bool $is_skip = true, int $color = SWOOLE_COLOR_YE
 
 function skip_if_darwin()
 {
-    exit("skip for Darwin");
+    if (PHP_OS == 'Darwin') {
+        exit("skip for Darwin");
+    }
+}
+
+function skip_if_no_process_affinity()
+{
+    if (!method_exists(swoole_process::class, 'setaffinity')) {
+        exit('skip no process affinity');
+    }
 }
 
 function skip_if_in_docker(string $reason = 'not support in docker')
