@@ -52,7 +52,7 @@ zend_class_entry swoole_serialize_ce;
 zend_class_entry *swoole_serialize_class_entry_ptr;
 
 #define SWOOLE_SERI_EOF "EOF"
-#define CHECK_STEP if((char*)buffer>unseri_buffer_end){ php_error_docref(NULL TSRMLS_CC, E_ERROR, "illegal unserialize data"); return NULL;}
+#define CHECK_STEP if(buffer>unseri_buffer_end){ php_error_docref(NULL TSRMLS_CC, E_ERROR, "illegal unserialize data"); return NULL;}
 
 static struct _swSeriaG swSeriaG;
 void *unseri_buffer_end = NULL;
