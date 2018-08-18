@@ -619,7 +619,7 @@ static PHP_METHOD(swoole_websocket_server, disconnect)
     swEventData req;
     req.info.fd         = fd;
     req.info.len        = swoole_http_buffer->length;
-    req.info.from_id    = conn->from_id;
+    req.info.from_id    = -1;
     req.info.from_fd    = conn->from_fd;
     memcpy(&req.data, swoole_http_buffer->str, swoole_http_buffer->length);
 
