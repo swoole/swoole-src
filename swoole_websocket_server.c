@@ -285,7 +285,7 @@ int swoole_websocket_onClose(swEventData *req)
 
         if (!cache)
         {
-	    sw_zval_ptr_dtor(&zfd);
+            sw_zval_ptr_dtor(&zfd);
             sw_zval_ptr_dtor(&zfrom_id);
             sw_zval_ptr_dtor(&code);
             sw_zval_ptr_dtor(&reason);
@@ -305,8 +305,8 @@ int swoole_websocket_onClose(swEventData *req)
     {
         zval **args[5];
         args[0] = &zserv;
-	args[1] = &zfd;
-	args[2] = &zfrom_id;
+        args[1] = &zfd;
+        args[2] = &zfrom_id;
         args[3] = &code;
         args[4] = &reason;
 
@@ -316,8 +316,8 @@ int swoole_websocket_onClose(swEventData *req)
         if (!fci_cache) 
         {
             // Ignore no callback set situation
-	    sw_zval_ptr_dtor(&zfd);
-	    sw_zval_ptr_dtor(&zfrom_id);
+            sw_zval_ptr_dtor(&zfd);
+            sw_zval_ptr_dtor(&zfrom_id);
             sw_zval_ptr_dtor(&code);
             sw_zval_ptr_dtor(&reason);
             return SW_OK;
