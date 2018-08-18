@@ -99,10 +99,6 @@ const zend_function_entry swoole_websocket_server_methods[] =
 
 void swoole_websocket_onOpen(http_context *ctx)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     int fd = ctx->fd;
 
     swConnection *conn = swWorker_get_connection(SwooleG.serv, fd);
@@ -189,10 +185,6 @@ void php_swoole_sha1(const char *str, int _len, unsigned char *digest)
 
 static int websocket_handshake(swListenPort *port, http_context *ctx)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     zval *header = ctx->request.zheader;
     HashTable *ht = Z_ARRVAL_P(header);
     zval *pData;
@@ -338,10 +330,6 @@ int swoole_websocket_onClose(swEventData *req)
 
 int swoole_websocket_onMessage(swEventData *req)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     int fd = req->info.fd;
     long finish = 0;
     long opcode = 0;
@@ -424,10 +412,6 @@ int swoole_websocket_onMessage(swEventData *req)
 
 int swoole_websocket_onHandshake(swListenPort *port, http_context *ctx)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
     int fd = ctx->fd;
     int ret = websocket_handshake(port, ctx);
     if (ret == SW_ERR)
