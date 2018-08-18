@@ -465,7 +465,7 @@ static sw_inline void sw_redis_command_var_key(INTERNAL_FUNCTION_PARAMETERS, cha
             zend_string_release(convert_str);
         }
         if(has_timeout) {
-            buf_len = snprintf(buf, sizeof(buf), "%ld", SW_REDIS_COMMAND_ARGS_LVAL(z_args[tail]));
+            buf_len = snprintf(buf, sizeof(buf), ZEND_LONG_FMT, SW_REDIS_COMMAND_ARGS_LVAL(z_args[tail]));
             SW_REDIS_COMMAND_ARGV_FILL((char*)buf, buf_len);
         }
     }
@@ -2460,7 +2460,7 @@ static PHP_METHOD(swoole_redis_coro, zUnion)
             }
             switch (SW_Z_TYPE_P(value)) {
                 case IS_LONG:
-                    buf_len = sprintf(buf, "%ld", Z_LVAL_P(value));
+                    buf_len = sprintf(buf, ZEND_LONG_FMT, Z_LVAL_P(value));
                     SW_REDIS_COMMAND_ARGV_FILL(buf, buf_len)
                     break;
                 case IS_DOUBLE:
@@ -2573,7 +2573,7 @@ static PHP_METHOD(swoole_redis_coro, zInter)
             }
             switch (SW_Z_TYPE_P(value)) {
                 case IS_LONG:
-                    buf_len = sprintf(buf, "%ld", Z_LVAL_P(value));
+                    buf_len = sprintf(buf, ZEND_LONG_FMT, Z_LVAL_P(value));
                     SW_REDIS_COMMAND_ARGV_FILL(buf, buf_len)
                     break;
                 case IS_DOUBLE:

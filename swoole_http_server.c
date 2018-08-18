@@ -715,7 +715,7 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
      */
     if (ctx->input_var_num > PG(max_input_vars))
     {
-        swoole_php_error(E_WARNING, "Input variables exceeded %ld. "
+        swoole_php_error(E_WARNING, "Input variables exceeded " ZEND_LONG_FMT ". "
                 "To increase the limit change max_input_vars in php.ini.", PG(max_input_vars));
         return SW_OK;
     }
