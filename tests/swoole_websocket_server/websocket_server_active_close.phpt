@@ -36,7 +36,7 @@ $pm->childFunc = function () use ($pm) {
         }
     });
     $serv->on('WebsocketClose', function (swoole_websocket_server $serv, $fd, $from_id, $code, $reason) use ($pm) {
-        echo "{$from_id}\n"
+        echo "{$from_id}\n";
         echo "{$code}\n";
         echo "{$reason}\n";
     });
