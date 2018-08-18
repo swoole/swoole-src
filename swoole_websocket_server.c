@@ -236,6 +236,8 @@ int swoole_websocket_onClose(swEventData *req)
     swServer *serv  = SwooleG.serv;
     zval *zserv     = (zval *) serv->ptr2;
     zval *retval    = NULL;
+    zval *zfd       = NULL;
+    zval *zfrom_id  = NULL;
     zval *code      = NULL;
     zval *reason    = NULL;
 
@@ -244,6 +246,12 @@ int swoole_websocket_onClose(swEventData *req)
 
     int fd = req->info.fd;
     long payload_length = frame[1] & 0x7F;
+
+    SW_MAKE_STD_ZVAL(zfd);
+    ZVAL_LONG(zfd, fd);
+
+    SW_MAKE_STD_ZVAL(zfrom_id);
+    ZVAL_LONG(zfrom_id, req->info.from_id);
 
     SW_MAKE_STD_ZVAL(code);
     ZVAL_LONG(code, WEBSOCKET_CLOSE_ABNORMAL);
@@ -266,21 +274,25 @@ int swoole_websocket_onClose(swEventData *req)
 
     if (SwooleG.enable_coroutine)
     {
-        zval *args[3];
+        zval *args[5];
         args[0] = zserv;
-        args[1] = code;
-        args[2] = reason;
+        args[1] = zfd;
+        args[2] = zfrom_id;
+        args[3] = code;
+        args[4] = reason;
 
         zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onWebSocketClose);
 
         if (!cache)
         {
+	    sw_zval_ptr_dtor(&zfd);
+            sw_zval_ptr_dtor(&zfrom_id);
             sw_zval_ptr_dtor(&code);
             sw_zval_ptr_dtor(&reason);
             return SW_OK;
         }
 
-        int ret = coro_create(cache, args, 3, &retval, NULL, NULL);
+        int ret = coro_create(cache, args, 5, &retval, NULL, NULL);
         if (ret == CORO_LIMIT)
         {
             sw_zval_ptr_dtor(&code);
@@ -291,22 +303,27 @@ int swoole_websocket_onClose(swEventData *req)
     }
     else
     {
-        zval **args[3];
+        zval **args[5];
         args[0] = &zserv;
-        args[1] = &code;
-        args[2] = &reason;
+	args[1] = &zfd;
+	args[2] = &zfrom_id;
+        args[3] = &code;
+        args[4] = &reason;
 
         zend_fcall_info_cache *fci_cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onWebSocketClose);
         zval *zcallback = php_swoole_server_get_callback(SwooleG.serv, req->info.from_fd, SW_SERVER_CB_onWebSocketClose);
         
         if (!fci_cache) 
         {
+            // Ignore no callback set situation
+	    sw_zval_ptr_dtor(&zfd);
+	    sw_zval_ptr_dtor(&zfrom_id);
             sw_zval_ptr_dtor(&code);
             sw_zval_ptr_dtor(&reason);
             return SW_OK;
         }
 
-        if (sw_call_user_function_fast(zcallback, fci_cache, &retval, 3, args TSRMLS_CC) == FAILURE)
+        if (sw_call_user_function_fast(zcallback, fci_cache, &retval, 5, args TSRMLS_CC) == FAILURE)
         {
             swoole_php_error(E_WARNING, "onWebSocketClose handler error");
         }
@@ -321,6 +338,8 @@ int swoole_websocket_onClose(swEventData *req)
         sw_zval_ptr_dtor(&retval);
     }
 
+    sw_zval_ptr_dtor(&zfd);
+    sw_zval_ptr_dtor(&zfrom_id);
     sw_zval_ptr_dtor(&code);
     sw_zval_ptr_dtor(&reason);
 
