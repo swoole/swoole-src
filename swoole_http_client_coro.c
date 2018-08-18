@@ -728,7 +728,7 @@ static void http_client_coro_onReceive(swClient *cli, char *data, uint32_t lengt
 
     long parsed_n = php_http_parser_execute(&http->parser, &http_parser_settings, data, length);
 
-    swDebug("parsed_n=%ld, data_length=%d.", parsed_n, length);
+    swTraceLog(SW_TRACE_HTTP_CLIENT, "parsed_n=%ld, data_length=%d.", parsed_n, length);
 
     http_client_property *hcc = swoole_get_property(zobject, http_client_coro_property_request);
     uint8_t result = 0;

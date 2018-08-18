@@ -45,6 +45,7 @@ enum swHttp_proxy_state
 struct _http_proxy
 {
     uint8_t state;
+    uint8_t ssl;
     int proxy_port;
     char *proxy_host;
     char *user;

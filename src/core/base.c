@@ -26,6 +26,10 @@
 #include <execinfo.h>
 #endif
 
+#ifdef __sun
+#include <sys/filio.h>
+#endif
+
 SwooleGS_t *SwooleGS;
 
 void swoole_init(void)
@@ -132,6 +136,10 @@ void swoole_clean(void)
         if (SwooleG.timer.fd > 0)
         {
             swTimer_free(&SwooleG.timer);
+        }
+        if (SwooleG.task_tmpdir)
+        {
+            sw_free(SwooleG.task_tmpdir);
         }
         if (SwooleG.main_reactor)
         {

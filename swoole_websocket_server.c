@@ -240,7 +240,7 @@ static int websocket_handshake(swListenPort *port, http_context *ctx)
 
 int swoole_websocket_onClose(swEventData *req)
 {
-    // Should only be called by onMessage
+    // Should only be called by onMessage and disconnect
     swServer *serv  = SwooleG.serv;
     zval *zserv     = (zval *) serv->ptr2;
     zval *retval    = NULL;

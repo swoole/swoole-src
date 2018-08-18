@@ -117,7 +117,7 @@
 #define SW_AIO_HANDLER_MAX_SIZE          8
 //#define SW_THREADPOOL_USE_CHANNEL
 #define SW_THREADPOOL_QUEUE_LEN          10000
-#define SW_IP_MAX_LENGTH                 32
+#define SW_IP_MAX_LENGTH                 46
 
 //#define SW_USE_SOCKET_LINGER
 
@@ -258,6 +258,7 @@
 #define SW_MYSQL_DEFAULT_CHARSET         33  //0x21, utf8_general_ci
 
 #define SW_REDIS_CONNECT_TIMEOUT         1.0
+#define SW_PGSQL_CONNECT_TIMEOUT         3.0
 
 #define SW_TIMER_MAX_VALUE               86400000
 

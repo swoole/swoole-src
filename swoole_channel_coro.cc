@@ -23,8 +23,6 @@
 #include "swoole_coroutine.h"
 #include <queue>
 
-using namespace std;
-
 enum ChannelSelectOpcode
 {
     CHANNEL_SELECT_WRITE = 0, CHANNEL_SELECT_READ = 1,
@@ -36,7 +34,7 @@ typedef struct
     swLinkedList *consumer_list;
     bool closed;
     int capacity;
-    queue<zval> *data_queue;
+    std::queue<zval> *data_queue;
 } channel;
 
 typedef struct _channel_node
@@ -128,15 +126,19 @@ static int channel_onNotify(swReactor *reactor, swEvent *event)
 static void channel_pop_onTimeout(swTimer *timer, swTimer_node *tnode)
 {
     channel_node *node = (channel_node *) tnode->data;
-    php_context *context = (php_context *) node;
+    php_context *context = &node->context;
 
     zval *zobject = &context->coro_params;
-    swLinkedList_node *list_node = (swLinkedList_node *)context->private_data;
+    swLinkedList_node *list_node = (swLinkedList_node *) context->private_data;
 
     zval *retval = NULL;
     zval *result = NULL;
     SW_MAKE_STD_ZVAL(result);
     ZVAL_BOOL(result, 0);
+
+    channel *chan = (channel *) swoole_get_object(zobject);
+    swLinkedList_remove_node(chan->consumer_list, list_node);
+    efree(node);
 
     zend_update_property_long(swoole_client_class_entry_ptr, zobject, SW_STRL("errCode")-1, -1 TSRMLS_CC);
 
@@ -146,9 +148,6 @@ static void channel_pop_onTimeout(swTimer *timer, swTimer_node *tnode)
         sw_zval_ptr_dtor(&retval);
     }
     sw_zval_ptr_dtor(&result);
-    channel *chan = (channel *) swoole_get_object(zobject);
-    swLinkedList_remove_node(chan->consumer_list, list_node);
-    efree(node);
 }
 
 static void channel_notify(channel_node *node)
@@ -170,7 +169,6 @@ static void channel_notify(channel_node *node)
 
 static void swoole_channel_onResume(php_context *ctx)
 {
-    channel_node *node = (channel_node *) ctx;
     zval *zdata = NULL;
     zval *retval = NULL;
 
@@ -270,7 +268,7 @@ static PHP_METHOD(swoole_channel_coro, __construct)
         RETURN_FALSE;
     }
 
-    chan->data_queue = new queue<zval>;
+    chan->data_queue = new std::queue<zval>;
     chan->producer_list = swLinkedList_new(2, NULL);
     if (chan->producer_list == NULL)
     {
@@ -390,13 +388,13 @@ static PHP_METHOD(swoole_channel_coro, pop)
         swLinkedList_append(chan->consumer_list, node);
         if (timeout > 0)
         {
-           int ms = (int) (timeout * 1000);
-           php_swoole_check_reactor();
-           php_swoole_check_timer(ms);
+            int ms = (int) (timeout * 1000);
+            php_swoole_check_reactor();
+            php_swoole_check_timer(ms);
 
-           node->context.coro_params = *getThis();
-           node->context.private_data = (void *)chan->consumer_list->tail;
-           node->timer = SwooleG.timer.add(&SwooleG.timer, ms, 0, node, channel_pop_onTimeout);
+            node->context.coro_params = *getThis();
+            node->context.private_data = (void *) chan->consumer_list->tail;
+            node->timer = SwooleG.timer.add(&SwooleG.timer, ms, 0, node, channel_pop_onTimeout);
         }
         coro_yield();
     }

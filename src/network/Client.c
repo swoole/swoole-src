@@ -370,15 +370,15 @@ static int swClient_inet_addr(swClient *cli, char *host, int port)
     cli->server_host = host;
     cli->server_port = port;
 
-    void *s_addr = NULL;
+    void *addr = NULL;
     if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_UDP)
     {
         cli->server_addr.addr.inet_v4.sin_family = AF_INET;
         cli->server_addr.addr.inet_v4.sin_port = htons(port);
         cli->server_addr.len = sizeof(cli->server_addr.addr.inet_v4);
-        s_addr = &cli->server_addr.addr.inet_v4.sin_addr.s_addr;
+        addr = &cli->server_addr.addr.inet_v4.sin_addr.s_addr;
 
-        if (inet_pton(AF_INET, host, s_addr))
+        if (inet_pton(AF_INET, host, addr))
         {
             return SW_OK;
         }
@@ -388,9 +388,9 @@ static int swClient_inet_addr(swClient *cli, char *host, int port)
         cli->server_addr.addr.inet_v6.sin6_family = AF_INET6;
         cli->server_addr.addr.inet_v6.sin6_port = htons(port);
         cli->server_addr.len = sizeof(cli->server_addr.addr.inet_v6);
-        s_addr = cli->server_addr.addr.inet_v6.sin6_addr.s6_addr;
+        addr = cli->server_addr.addr.inet_v6.sin6_addr.s6_addr;
 
-        if (inet_pton(AF_INET6, host, s_addr))
+        if (inet_pton(AF_INET6, host, addr))
         {
             return SW_OK;
         }
@@ -409,7 +409,7 @@ static int swClient_inet_addr(swClient *cli, char *host, int port)
     }
     if (!cli->async)
     {
-        if (swoole_gethostbyname(cli->_sock_domain, host, s_addr) < 0)
+        if (swoole_gethostbyname(cli->_sock_domain, host, addr) < 0)
         {
             SwooleG.error = SW_ERROR_DNSLOOKUP_RESOLVE_FAILED;
             return SW_ERR;

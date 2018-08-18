@@ -28,12 +28,6 @@
 #include "zend_interfaces.h"
 #include "zend_exceptions.h"
 #include "zend_variables.h"
-#include <ext/date/php_date.h>
-#include <ext/standard/url.h>
-#include <ext/standard/info.h>
-#include <ext/standard/php_array.h>
-#include <ext/standard/basic_functions.h>
-#include <ext/standard/php_http.h>
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -49,6 +43,12 @@
 #include "async.h"
 
 BEGIN_EXTERN_C()
+#include <ext/date/php_date.h>
+#include <ext/standard/url.h>
+#include <ext/standard/info.h>
+#include <ext/standard/php_array.h>
+#include <ext/standard/basic_functions.h>
+#include <ext/standard/php_http.h>
 
 #define PHP_SWOOLE_VERSION  "4.0.4"
 #define PHP_SWOOLE_CHECK_CALLBACK
@@ -61,6 +61,7 @@ BEGIN_EXTERN_C()
 
 #define SW_HOST_SIZE  128
 
+extern PHPAPI int php_array_merge(HashTable *dest, HashTable *src);
 typedef struct
 {
     uint16_t port;
@@ -96,6 +97,11 @@ extern void ***sw_thread_ctx;
 extern __thread swoole_object_array swoole_objects;
 #else
 extern swoole_object_array swoole_objects;
+#endif
+
+// Solaris doesn't have PTRACE_ATTACH
+#if defined(HAVE_PTRACE) && defined(__sun)
+#undef HAVE_PTRACE
 #endif
 
 //#define SW_USE_PHP        1
@@ -377,9 +383,7 @@ void swoole_destory_table(zend_resource *rsrc TSRMLS_DC);
 void swoole_server_port_init(int module_number TSRMLS_DC);
 void swoole_async_init(int module_number TSRMLS_DC);
 void swoole_table_init(int module_number TSRMLS_DC);
-#ifdef SW_USE_PHPX
 void swoole_runtime_init(int module_number TSRMLS_DC);
-#endif
 void swoole_lock_init(int module_number TSRMLS_DC);
 void swoole_atomic_init(int module_number TSRMLS_DC);
 void swoole_client_init(int module_number TSRMLS_DC);
