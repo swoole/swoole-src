@@ -424,7 +424,7 @@ static PHP_METHOD(swoole_redis_server, format)
         }
 
         convert_to_long(value);
-        length = snprintf(message, sizeof(message), ":%zd\r\n", Z_LVAL_P(value));
+        length = snprintf(message, sizeof(message), ":" ZEND_LONG_FMT "\r\n", Z_LVAL_P(value));
         SW_RETURN_STRINGL(message, length, 1);
     }
     else if (type == SW_REDIS_REPLY_STRING)

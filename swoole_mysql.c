@@ -822,7 +822,7 @@ int mysql_parse_auth_signature(swString *buffer, mysql_connector *connector)
 
     // remaining length
     buffer->offset = 4 + packet_length;
-    swTraceLog(SW_TRACE_MYSQL_CLIENT, "before signature remaining=%zu", buffer->length - buffer->offset);
+    swTraceLog(SW_TRACE_MYSQL_CLIENT, "before signature remaining=%ju", (uintmax_t) (buffer->length - buffer->offset));
 
     if ((uint8_t)tmp[1] == SW_MYSQL_AUTH_SIGNATURE_FULL_AUTH_REQUIRED)
     {

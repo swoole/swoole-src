@@ -297,7 +297,7 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
         {
             if (lseek(fd, hcc->download_offset, SEEK_SET) < 0)
             {
-                swSysError("fseek(%s, %ld) failed.", Z_STRVAL_P(hcc->download_file), hcc->download_offset);
+                swSysError("fseek(%s, %jd) failed.", Z_STRVAL_P(hcc->download_file), (intmax_t) hcc->download_offset);
                 close(fd);
                 return SW_ERR;
             }

@@ -468,7 +468,7 @@ static void swoole_mysql_coro_parse_end(mysql_client *client, swString *buffer)
 {
     if (client->response.status_code & SW_MYSQL_SERVER_MORE_RESULTS_EXISTS)
     {
-        swTraceLog(SW_TRACE_MYSQL_CLIENT, "remaining %zu, more results exists", buffer->length - buffer->offset);
+        swTraceLog(SW_TRACE_MYSQL_CLIENT, "remaining %ju, more results exists", (uintmax_t) (buffer->length - buffer->offset));
     }
     else
     {
