@@ -1481,7 +1481,7 @@ int swserver_add_systemd_socket(swServer *serv)
     return count;
 }
 
-swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port)
+swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port, int option)
 {
     if (serv->listen_port_num >= SW_MAX_LISTEN_PORT)
     {
@@ -1536,6 +1536,13 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port)
         swSysError("create socket failed.");
         return NULL;
     }
+
+    if(swSocket_setopt(sock, option) < 0)
+    {
+        close(sock);
+        return NULL;
+    }
+
     //bind address and port
     if (swSocket_bind(sock, ls->type, ls->host, &ls->port) < 0)
     {

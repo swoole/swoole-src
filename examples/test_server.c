@@ -61,15 +61,15 @@ int main(int argc, char **argv)
         exit(0);
     }
 
-    swListenPort *port = swServer_add_port(&serv, SW_SOCK_TCP, "127.0.0.1", 9501);
+    swListenPort *port = swServer_add_port(&serv, SW_SOCK_TCP, "127.0.0.1", 9501, SW_SO_REUSEADDR);
     port->open_eof_check = 0;
     //config
     port->backlog = 128;
     memcpy(port->protocol.package_eof, SW_STRL("\r\n\r\n") - 1);  //开启eof检测，启用buffer区
 
-    swServer_add_port(&serv, SW_SOCK_UDP, "0.0.0.0", 9502);
-    swServer_add_port(&serv, SW_SOCK_TCP6, "::", 9503);
-    swServer_add_port(&serv, SW_SOCK_UDP6, "::", 9504);
+    swServer_add_port(&serv, SW_SOCK_UDP, "0.0.0.0", 9502, SW_SO_REUSEADDR);
+    swServer_add_port(&serv, SW_SOCK_TCP6, "::", 9503, SW_SO_REUSEADDR);
+    swServer_add_port(&serv, SW_SOCK_UDP6, "::", 9504, SW_SO_REUSEADDR);
 
     ret = swServer_start(&serv);
     if (ret < 0)

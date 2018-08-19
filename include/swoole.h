@@ -301,8 +301,13 @@ enum swSocket_type
     SW_SOCK_UNIX_DGRAM   =  5,  //unix sock dgram
     SW_SOCK_UNIX_STREAM  =  6,  //unix sock stream
 };
-
 #define SW_SOCK_SSL            (1u << 9)
+//-------------------------------------------------------------------------------
+enum swSocket_option
+{
+    SW_SO_REUSEADDR  =  SO_REUSEADDR,
+    SW_SO_REUSEPORT  =  SO_REUSEPORT,
+};
 //-------------------------------------------------------------------------------
 enum swLog_level
 {
