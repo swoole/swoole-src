@@ -138,8 +138,6 @@ static void channel_pop_onTimeout(swTimer *timer, swTimer_node *tnode)
 
     channel *chan = (channel *) swoole_get_object(zobject);
     swLinkedList_remove_node(chan->consumer_list, list_node);
-    efree(node);
-
     zend_update_property_long(swoole_client_class_entry_ptr, zobject, SW_STRL("errCode")-1, -1 TSRMLS_CC);
 
     int ret = coro_resume(context, result, &retval);
@@ -148,6 +146,7 @@ static void channel_pop_onTimeout(swTimer *timer, swTimer_node *tnode)
         sw_zval_ptr_dtor(&retval);
     }
     sw_zval_ptr_dtor(&result);
+    efree(node);
 }
 
 static void channel_notify(channel_node *node)
