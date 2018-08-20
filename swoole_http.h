@@ -35,6 +35,12 @@ enum http_response_flag
     HTTP_RESPONSE_CONTENT_TYPE     = 1u << 5,
 };
 
+enum http_compress_method
+{
+    HTTP_COMPRESS_GZIP = 1,
+    HTTP_COMPRESS_DEFLATE,
+};
+
 typedef struct
 {
     enum php_http_method method;
@@ -91,11 +97,13 @@ typedef struct
 typedef struct
 {
     int fd;
-
     uint32_t end :1;
     uint32_t send_header :1;
-    uint32_t gzip_enable :1;
-    uint32_t gzip_level :4;
+#ifdef SW_HAVE_ZLIB
+    uint32_t enable_compression :1;
+    uint32_t compression_level :4;
+    uint32_t compression_method :4;
+#endif
     uint32_t chunk :1;
     uint32_t keepalive :1;
     uint32_t http2 :1;
@@ -192,7 +200,7 @@ extern zend_class_entry *swoole_http_request_class_entry_ptr;
 extern swString *swoole_http_buffer;
 #ifdef SW_HAVE_ZLIB
 extern swString *swoole_zlib_buffer;
-int swoole_http_response_compress(swString *body, int level);
+int swoole_http_response_compress(swString *body, int method, int level);
 #endif
 
 static sw_inline int http_parse_set_cookies(const char *at, size_t length, zval *cookies, zval *set_cookie_headers)

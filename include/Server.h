@@ -459,6 +459,10 @@ struct _swServer
      */
     uint32_t http_parse_post :1;
     /**
+     * http content compression
+     */
+    uint32_t http_compression :1;
+    /**
      * handle static files
      */
     uint32_t enable_static_handler :1;
@@ -551,6 +555,7 @@ struct _swServer
      * http static file directory
      */
     char *document_root;
+    uint8_t http_gzip_level;
     uint16_t document_root_len;
 
     /**
