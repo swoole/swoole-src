@@ -1,21 +1,61 @@
 #!/usr/bin/env php
 <?php
+
+function read_sql_file(string $file)
+{
+    $comment_regex = '/(?<!:)\/\/.*|\/\\*(\s|.)*?\*\/|--[^\n]+/';
+    $lines = explode("\n", preg_replace($comment_regex, '', file_get_contents($file)));
+    $init_sql = [];
+    $multi = false;
+    foreach ($lines as $index => $line) {
+        if (strlen($line) === 0) {
+            continue;
+        }
+        if (substr($line, -1, 1) !== ';') {
+            if (!$multi) {
+                $multi = true;
+                goto _new_line;
+            } else {
+                _append:
+                $end_line = &$init_sql[count($init_sql) - 1];
+                $end_line = $end_line . $line . "\n";
+            }
+        } else {
+            if ($multi) {
+                $multi = false;
+                goto _append;
+            } else {
+                $multi = false;
+                _new_line:
+                $init_sql[] = "{$line}";
+            }
+        }
+    }
+
+    return $init_sql;
+}
+
 require __DIR__ . '/include/config.php';
 
-echo "[DB-init] initialization MySQL database...\n";
-try {
-    $mysql = new PDO(
-        "mysql:host=" . MYSQL_SERVER_HOST . ";dbname=" . MYSQL_SERVER_DB . ";charset=utf8",
-        MYSQL_SERVER_USER, MYSQL_SERVER_PWD
-    );
-    $mysql->exec(file_get_contents(__DIR__ . '/test.sql'));
-    if ($mysql->errorCode() != 0) {
-        echo "[DB-init] Failed! Error#{$mysql->errorCode()}: \n" . var_dump_return($mysql->errorInfo()) . "\n";
+go(function () {
+    echo "[DB-init] initialization MySQL database...\n";
+    $mysql = new Swoole\Coroutine\MySQL();
+    $connected = $mysql->connect([
+        'host' => MYSQL_SERVER_HOST,
+        'user' => MYSQL_SERVER_USER,
+        'password' => MYSQL_SERVER_PWD,
+        'database' => MYSQL_SERVER_DB
+    ]);
+    if (!$connected) {
+        echo "[DB-init] Connect failed! Error#{$mysql->connect_errno}: {$mysql->connect_error}\n";
         exit(1);
-    } else {
-        echo "[DB-init] Done!\n";
     }
-} catch (\Exception $e) {
-    echo "[DB-init] Connect failed! Error#{$e->getCode()}: {$e->getMessage()}\n";
-    exit(1);
-}
+    $sql_file = read_sql_file(__DIR__ . '/test.sql');
+    foreach ($sql_file as $line) {
+        if (!$mysql->query($line)) {
+            echo "[DB-init] Failed! Error#{$mysql->errno}: {$mysql->error}\n";
+            exit(1);
+        }
+    }
+    echo "[DB-init] Done!\n";
+});
