@@ -180,7 +180,7 @@ static size_t socket_read(php_stream *stream, char *buf, size_t count)
 {
     Socket *sock = (Socket*) stream->abstract;
     ssize_t nr_bytes = 0;
-    int err;
+    // int err;
     // struct timeval *ptimeout;
 
     if (!sock)
@@ -189,7 +189,7 @@ static size_t socket_read(php_stream *stream, char *buf, size_t count)
     }
 
     nr_bytes = sock->recv(buf, count);
-    err = sock->errCode;
+    // err = sock->errCode;
     stream->eof = (nr_bytes == 0 || nr_bytes == -1);
 
     if (nr_bytes > 0)

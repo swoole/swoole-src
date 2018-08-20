@@ -33,7 +33,7 @@ typedef struct
     swLinkedList *producer_list;
     swLinkedList *consumer_list;
     bool closed;
-    int capacity;
+    uint32_t capacity;
     std::queue<zval> *data_queue;
 } channel;
 
@@ -213,12 +213,10 @@ static int swoole_channel_try_resume_producer(zval *object, channel *property)
 static sw_inline int swoole_channel_try_resume_all(zval *object, channel *property)
 {
     swLinkedList *coro_list = property->producer_list;
-    swLinkedList_node *next;
     channel_node *node;
 
     while (coro_list->num != 0)
     {
-        next = coro_list->head;
         node = (channel_node *) swLinkedList_shift(coro_list);
         node->context.onTimeout = swoole_channel_onResume;
         ZVAL_FALSE(&node->context.coro_params);
@@ -228,7 +226,6 @@ static sw_inline int swoole_channel_try_resume_all(zval *object, channel *proper
     coro_list = property->consumer_list;
     while (coro_list->num != 0)
     {
-        next = coro_list->head;
         node = (channel_node*) swLinkedList_shift(coro_list);
         node->context.onTimeout = swoole_channel_onResume;
         ZVAL_FALSE(&node->context.coro_params);
@@ -240,7 +237,7 @@ static sw_inline int swoole_channel_try_resume_all(zval *object, channel *proper
 
 static PHP_METHOD(swoole_channel_coro, __construct)
 {
-    long capacity = 0;
+    zend_long capacity = 0;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &capacity) == FAILURE)
     {

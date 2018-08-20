@@ -906,7 +906,7 @@ static PHP_METHOD(swoole_client_coro, recv)
 {
     zend_long buf_len = SW_PHP_CLIENT_BUFFER_SIZE;
     zend_long flags = 0;
-    int ret;
+    ssize_t ret;
     char *buf = NULL;
 
 #ifdef FAST_ZPP
@@ -987,7 +987,7 @@ static PHP_METHOD(swoole_client_coro, recv)
                 eof += protocol->package_eof_len;
                 SW_RETVAL_STRINGL(buffer->str, eof, 1);
 
-                if (buffer->length > eof)
+                if (buffer->length > (uint32_t) eof)
                 {
                     buffer->length -= eof;
                     memmove(buffer->str, buffer->str + eof, buffer->length);
@@ -1010,7 +1010,7 @@ static PHP_METHOD(swoole_client_coro, recv)
                 {
                     if (buffer->size < protocol->package_max_length)
                     {
-                        int new_size = buffer->size * 2;
+                        size_t new_size = buffer->size * 2;
                         if (new_size > protocol->package_max_length)
                         {
                             new_size = protocol->package_max_length;
@@ -1040,7 +1040,7 @@ static PHP_METHOD(swoole_client_coro, recv)
         {
             goto check_return;
         }
-        else if (ret != header_len)
+        else if (ret < 0 || ret != header_len)
         {
             ret = 0;
             goto check_return;

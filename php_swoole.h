@@ -454,14 +454,14 @@ zval* php_swoole_task_unpack(swEventData *task_result TSRMLS_DC);
 
 static sw_inline void* swoole_get_object(zval *object)
 {
-    int handle = sw_get_object_handle(object);
+    uint32_t handle = sw_get_object_handle(object);
     assert(handle < swoole_objects.size);
     return swoole_objects.array[handle];
 }
 
 static sw_inline void* swoole_get_property(zval *object, int property_id)
 {
-    int handle = sw_get_object_handle(object);
+    uint32_t handle = sw_get_object_handle(object);
     if (handle >= swoole_objects.property_size[property_id])
     {
         return NULL;

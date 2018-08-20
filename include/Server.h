@@ -637,7 +637,7 @@ typedef struct _swPackage
 
 typedef struct
 {
-    int length;
+    size_t length;
     char tmpfile[SW_TASK_TMPDIR_SIZE + sizeof(SW_TASK_TMP_FILE)];
 } swPackage_task;
 
@@ -819,7 +819,7 @@ static sw_inline swString* swTaskWorker_large_unpack(swEventData *task_result)
 
 static sw_inline swConnection* swServer_connection_get(swServer *serv, int fd)
 {
-    if (fd > serv->max_connection || fd <= 2)
+    if (fd <= 2 || (uint32_t) fd > serv->max_connection)
     {
         return NULL;
     }
@@ -977,7 +977,7 @@ static sw_inline swString *swWorker_get_buffer(swServer *serv, int reactor_id)
     }
 }
 
-static sw_inline swConnection *swServer_connection_verify_no_ssl(swServer *serv, int session_id)
+static sw_inline swConnection *swServer_connection_verify_no_ssl(swServer *serv, uint32_t session_id)
 {
     swSession *session = swServer_get_session(serv, session_id);
     int fd = session->fd;

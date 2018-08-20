@@ -177,8 +177,8 @@ static void sw_coro_func(void *arg)
     zval *retval = php_arg->retval;
     int cid = coroutine_get_cid();
 
+    int i;
     zend_function *func;
-    uint32_t i;
     coro_task *task;
 
     zend_vm_stack origin_vm_stack = EG(vm_stack);

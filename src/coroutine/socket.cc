@@ -573,7 +573,7 @@ ssize_t Socket::recv_all(void *__buf, size_t __n)
             break;
         }
         total_bytes += retval;
-        if (total_bytes == __n)
+        if ((size_t) total_bytes == __n)
         {
             break;
         }
@@ -592,7 +592,7 @@ ssize_t Socket::send_all(const void *__buf, size_t __n)
             break;
         }
         total_bytes += retval;
-        if (total_bytes == __n)
+        if ((size_t) total_bytes == __n)
         {
             break;
         }
@@ -1066,11 +1066,12 @@ bool Socket::sendfile(char *filename, off_t offset, size_t length)
     }
     else
     {
+        // total length of the file
         length = offset + length;
     }
 
     int n, sendn;
-    while (offset < length)
+    while ((size_t) offset < length)
     {
         sendn = (length - offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : length - offset;
 #ifdef SW_USE_OPENSSL
