@@ -15,7 +15,8 @@ prepare(){
 
 #------------Only run once-------------
 if [ "${TRAVIS_BUILD_DIR}" ]; then
-    if [ "`php -v | grep "PHP 7\\.2"`" ]; then
+    php_version=`php -r "echo PHP_VERSION_ID;"`
+    if [ ${php_version} -lt 70400 ]; then
         echo "travis ci with docker...\n"
         set -e
         DOCKER_COMPOSE_VERSION="1.21.0"
