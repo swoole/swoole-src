@@ -25,6 +25,10 @@
 #include "ext/standard/php_var.h"
 #include "zend_smart_str.h"
 
+#ifdef SW_HAVE_ZLIB
+#include <zlib.h>
+#endif
+
 typedef struct
 {
     int current_fd;
@@ -2461,6 +2465,31 @@ PHP_METHOD(swoole_server, set)
         convert_to_boolean(v);
         serv->http_parse_post = Z_BVAL_P(v);
     }
+#ifdef SW_HAVE_ZLIB
+    //http content compression
+    if (php_swoole_array_get_value(vht, "http_compression", v))
+    {
+        convert_to_boolean(v);
+        serv->http_compression = Z_BVAL_P(v);
+    }
+    if (php_swoole_array_get_value(vht, "http_gzip_level", v))
+    {
+        convert_to_long(v);
+        serv->http_gzip_level = Z_LVAL_P(v);
+        if (serv->http_gzip_level > 9)
+        {
+            serv->http_gzip_level = 9;
+        }
+        if (serv->http_gzip_level < 0)
+        {
+            serv->http_gzip_level = 0;
+        }
+    }
+    else
+    {
+        serv->http_gzip_level = Z_DEFAULT_COMPRESSION;
+    }
+#endif
     //temporary directory for HTTP uploaded file.
     if (php_swoole_array_get_value(vht, "upload_tmp_dir", v))
     {

@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_server: gzip with http2
+swoole_http_server: conpression with http2
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -41,6 +41,8 @@ $pm->childFunc = function () use ($pm)
     $http->set([
         //'log_file' => '/dev/null',
         'open_http2_protocol' => true,
+        'http_gzip_level' => 9,
+        'http_compression' => true,
         'ssl_cert_file' => SSL_FILE_DIR . '/server.crt',
         'ssl_key_file' => SSL_FILE_DIR . '/server.key',
     ]);

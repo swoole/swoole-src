@@ -340,11 +340,9 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_server_on, 0, 0, 2)
     ZEND_ARG_INFO(0, callback)
 ZEND_END_ARG_INFO()
 
-#ifdef SW_HAVE_ZLIB
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_gzip, 0, 0, 0)
     ZEND_ARG_INFO(0, compress_level)
 ZEND_END_ARG_INFO()
-#endif
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_status, 0, 0, 1)
     ZEND_ARG_INFO(0, http_code)
@@ -443,9 +441,7 @@ const zend_function_entry swoole_http_response_methods[] =
     PHP_ME(swoole_http_response, cookie, arginfo_swoole_http_response_cookie, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, rawcookie, arginfo_swoole_http_response_cookie, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, status, arginfo_swoole_http_response_status, ZEND_ACC_PUBLIC)
-#ifdef SW_HAVE_ZLIB
     PHP_ME(swoole_http_response, gzip, arginfo_swoole_http_response_gzip, ZEND_ACC_PUBLIC)
-#endif
     PHP_ME(swoole_http_response, header, arginfo_swoole_http_response_header, ZEND_ACC_PUBLIC)
 #ifdef SW_USE_HTTP2
     PHP_ME(swoole_http_response, trailer, arginfo_swoole_http_response_trailer, ZEND_ACC_PUBLIC)
@@ -668,6 +664,21 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
 
                 swoole_http_parse_form_data(ctx, boundary_str, boundary_len TSRMLS_CC);
             }
+        }
+    }
+    else if (SwooleG.serv->http_compression && strncmp(header_name, "accept-encoding", header_len) == 0)
+    {
+        if (swoole_strnpos((char *) at, length, ZEND_STRL("gzip")) >= 0)
+        {
+            ctx->enable_compression = 1;
+            ctx->compression_level = SwooleG.serv->http_gzip_level;
+            ctx->compression_method = HTTP_COMPRESS_GZIP;
+        }
+        else if (swoole_strnpos((char *) at, length, ZEND_STRL("deflate")) >= 0)
+        {
+            ctx->enable_compression = 1;
+            ctx->compression_level = SwooleG.serv->http_gzip_level;
+            ctx->compression_method = HTTP_COMPRESS_DEFLATE;
         }
     }
 
@@ -1797,9 +1808,9 @@ static PHP_METHOD(swoole_http_response, write)
     int hex_len;
 
 #ifdef SW_HAVE_ZLIB
-    if (ctx->gzip_enable)
+    if (ctx->enable_compression)
     {
-        swoole_http_response_compress(&http_body, ctx->gzip_level);
+        swoole_http_response_compress(&http_body, ctx->compression_method, ctx->compression_level);
 
         hex_string = swoole_dec2hex(swoole_zlib_buffer->length, 16);
         hex_len = strlen(hex_string);
@@ -1983,7 +1994,7 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
     else
     {
 #ifdef SW_HAVE_ZLIB
-        if (ctx->gzip_enable)
+        if (ctx->enable_compression)
         {
             body_length = swoole_zlib_buffer->length;
         }
@@ -2008,13 +2019,16 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
         SW_HASHTABLE_FOREACH_END();
     }
     //http compress
-    if (ctx->gzip_enable)
+    if (ctx->enable_compression)
     {
-#ifdef SW_HTTP_COMPRESS_GZIP
-        swString_append_ptr(response, SW_STRL("Content-Encoding: gzip\r\n") - 1);
-#else
-        swString_append_ptr(response, SW_STRL("Content-Encoding: deflate\r\n") - 1);
-#endif
+        if (ctx->compression_method == HTTP_COMPRESS_GZIP)
+        {
+            swString_append_ptr(response, SW_STRL("Content-Encoding: gzip\r\n") - 1);
+        }
+        else if (ctx->compression_method == HTTP_COMPRESS_DEFLATE)
+        {
+            swString_append_ptr(response, SW_STRL("Content-Encoding: deflate\r\n") - 1);
+        }
     }
     swString_append_ptr(response, ZEND_STRL("\r\n"));
     ctx->send_header = 1;
@@ -2031,7 +2045,7 @@ void php_zlib_free(voidpf opaque, voidpf address)
     efree((void*)address);
 }
 
-int swoole_http_response_compress(swString *body, int level)
+int swoole_http_response_compress(swString *body, int method, int level)
 {
     assert(level > 0 || level < 10);
 
@@ -2048,12 +2062,21 @@ int swoole_http_response_compress(swString *body, int level)
     z_stream zstream;
     memset(&zstream, 0, sizeof(zstream));
 
+    int encoding;
     //deflate: -0xf, gzip: 0x1f
-#ifdef SW_HTTP_COMPRESS_GZIP
-    int encoding = 0x1f;
-#else
-    int encoding =  -0xf;
-#endif
+    if (method == HTTP_COMPRESS_GZIP)
+    {
+        encoding = 0x1f;
+    }
+    else if (method == HTTP_COMPRESS_GZIP)
+    {
+        encoding = -0xf;
+    }
+    else
+    {
+        swWarn("Unknown compression method");
+        return SW_ERR;
+    }
 
     int status;
     zstream.zalloc = php_zlib_alloc;
@@ -2169,15 +2192,15 @@ static PHP_METHOD(swoole_http_response, end)
     {
         swString_clear(swoole_http_buffer);
 #ifdef SW_HAVE_ZLIB
-        if (ctx->gzip_enable)
+        if (ctx->enable_compression)
         {
             if (http_body.length > 0)
             {
-                swoole_http_response_compress(&http_body, ctx->gzip_level);
+                swoole_http_response_compress(&http_body, ctx->compression_method, ctx->compression_level);
             }
             else
             {
-                ctx->gzip_enable = 0;
+                ctx->enable_compression = 0;
             }
         }
 #endif
@@ -2185,7 +2208,7 @@ static PHP_METHOD(swoole_http_response, end)
         if (http_body.length > 0)
         {
 #ifdef SW_HAVE_ZLIB
-            if (ctx->gzip_enable)
+            if (ctx->enable_compression)
             {
                 swString_append(swoole_http_buffer, swoole_zlib_buffer);
             }
@@ -2245,11 +2268,7 @@ static PHP_METHOD(swoole_http_response, sendfile)
     }
 
 #ifdef SW_HAVE_ZLIB
-    if (ctx->gzip_enable)
-    {
-        swoole_php_error(E_ERROR, "can't use sendfile when gzip compression is enabled.");
-        RETURN_FALSE;
-    }
+    ctx->enable_compression = 0;
 #endif
 
     if (ctx->chunk)
@@ -2655,40 +2674,11 @@ static PHP_METHOD(swoole_http_response, trailer)
 }
 #endif
 
-#ifdef SW_HAVE_ZLIB
 static PHP_METHOD(swoole_http_response, gzip)
 {
-    long level = Z_DEFAULT_COMPRESSION;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &level) == FAILURE)
-    {
-        return;
-    }
-
-    http_context *context = http_get_context(getThis(), 0 TSRMLS_CC);
-    if (!context)
-    {
-        RETURN_FALSE;
-    }
-
-    if (context->send_header)
-    {
-        swoole_php_fatal_error(E_WARNING, "must be used before sending the http header.");
-        RETURN_FALSE;
-    }
-
-    if (level > 9)
-    {
-        level = 9;
-    }
-    if (level < 0)
-    {
-        level = 0;
-    }
-
-    context->gzip_enable = 1;
-    context->gzip_level = level;
+    swoole_php_error(E_DEPRECATED, "gzip() is deprecated, use option[http_compression] instead.");
+    RETURN_FALSE;
 }
-#endif
 
 static PHP_METHOD(swoole_http_response, detach)
 {

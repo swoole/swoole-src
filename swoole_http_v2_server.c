@@ -191,7 +191,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length 
         if (!(flag & HTTP_RESPONSE_CONTENT_LENGTH) && body_length >= 0)
         {
 #ifdef SW_HAVE_ZLIB
-            if (ctx->gzip_enable)
+            if (ctx->enable_compression)
             {
                 body_length = swoole_zlib_buffer->length;
             }
@@ -218,7 +218,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length 
         http2_add_header(&nv[index++], ZEND_STRL("date"), date_str, strlen(date_str));
 
 #ifdef SW_HAVE_ZLIB
-        if (ctx->gzip_enable)
+        if (ctx->enable_compression)
         {
             body_length = swoole_zlib_buffer->length;
         }
@@ -241,13 +241,16 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length 
         SW_HASHTABLE_FOREACH_END();
     }
     //http compress
-    if (ctx->gzip_enable)
+    if (ctx->enable_compression)
     {
-#ifdef SW_HTTP_COMPRESS_GZIP
-        http2_add_header(&nv[index++], ZEND_STRL("content-encoding"), ZEND_STRL("gzip"));
-#else
-        http2_add_header(&nv[index++], ZEND_STRL("content-encoding"), ZEND_STRL("deflate"));
-#endif
+        if (ctx->compression_method == HTTP_COMPRESS_GZIP)
+        {
+            http2_add_header(&nv[index++], ZEND_STRL("content-encoding"), ZEND_STRL("gzip"));
+        }
+        else if (ctx->compression_method == HTTP_COMPRESS_DEFLATE)
+        {
+            http2_add_header(&nv[index++], ZEND_STRL("content-encoding"), ZEND_STRL("deflate"));
+        }
     }
     ctx->send_header = 1;
 
@@ -294,15 +297,15 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
     int ret;
 
 #ifdef SW_HAVE_ZLIB
-    if (ctx->gzip_enable)
+    if (ctx->enable_compression)
     {
         if (body->length > 0)
         {
-            swoole_http_response_compress(body, ctx->gzip_level);
+            swoole_http_response_compress(body, ctx->compression_method, ctx->compression_level);
         }
         else
         {
-            ctx->gzip_enable = 0;
+            ctx->enable_compression = 0;
         }
     }
 #endif
@@ -363,7 +366,7 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
     size_t send_n;
 
 #ifdef SW_HAVE_ZLIB
-    if (ctx->gzip_enable)
+    if (ctx->enable_compression)
     {
         p = swoole_zlib_buffer->str;
         l = swoole_zlib_buffer->length;
@@ -557,6 +560,21 @@ static int http2_parse_header(swoole_http_client *client, http_context *ctx, int
                     keybuf[k_len] = 0;
                     sw_add_assoc_stringl_ex(zcookie, keybuf, k_len + 1, v_str, v_len, 1);
                     continue;
+                }
+                else if (SwooleG.serv->http_compression && strncasecmp((char*) nv.name, "accept-encoding", nv.namelen) == 0)
+                {
+                    if (swoole_strnpos((char *) nv.value, nv.valuelen, ZEND_STRL("gzip")) >= 0)
+                    {
+                        ctx->enable_compression = 1;
+                        ctx->compression_level = SwooleG.serv->http_gzip_level;
+                        ctx->compression_method = HTTP_COMPRESS_GZIP;
+                    }
+                    else if (swoole_strnpos((char *) nv.value, nv.valuelen, ZEND_STRL("deflate")) >= 0)
+                    {
+                        ctx->enable_compression = 1;
+                        ctx->compression_level = SwooleG.serv->http_gzip_level;
+                        ctx->compression_method = HTTP_COMPRESS_DEFLATE;
+                    }
                 }
                 sw_add_assoc_stringl_ex(zheader, (char *) nv.name, nv.namelen + 1, (char *) nv.value, nv.valuelen, 1);
             }
