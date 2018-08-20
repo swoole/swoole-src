@@ -175,7 +175,7 @@ static void swoole_channel_onResume(php_context *ctx)
     SW_MAKE_STD_ZVAL(zdata);
     *zdata = ctx->coro_params;
 
-    swDebug("channel onResume, cid=%d", coroutine_get_cid());
+    swTraceLog(SW_TRACE_COROUTINE, "channel onResume, cid=%d", coroutine_get_cid());
 
     int ret = coro_resume(ctx, zdata, &retval);
     if (ret == CORO_END && retval)

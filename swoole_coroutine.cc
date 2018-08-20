@@ -116,7 +116,7 @@ void php_coro_resume(void *arg)
         efree(task->current_coro_output_ptr);
         task->current_coro_output_ptr = NULL;
     }
-    swDebug("cid=%d", task->cid);
+    swTraceLog(SW_TRACE_COROUTINE, "cid=%d", task->cid);
 }
 
 void php_coro_yield(void *arg)
@@ -354,7 +354,7 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
         SWCC(current_coro_output_ptr) = NULL;
     }
 
-    swDebug("cid=%d", task->cid);
+    swTraceLog(SW_TRACE_COROUTINE, "cid=%d", task->cid);
     coroutine_resume_naked(task->co);
 
     if (unlikely(EG(exception)))
