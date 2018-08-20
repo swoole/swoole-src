@@ -23,7 +23,7 @@
 #include <sys/ioctl.h>
 
 #ifdef HAVE_PCRE
-#include <ext/spl/spl_iterators.h>
+#include "ext/spl/spl_iterators.h"
 #endif
 
 #ifdef SW_COROUTINE
