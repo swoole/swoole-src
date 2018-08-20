@@ -666,6 +666,7 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
             }
         }
     }
+#ifdef SW_HAVE_ZLIB
     else if (SwooleG.serv->http_compression && strncmp(header_name, "accept-encoding", header_len) == 0)
     {
         if (swoole_strnpos((char *) at, length, ZEND_STRL("gzip")) >= 0)
@@ -681,6 +682,7 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
             ctx->compression_method = HTTP_COMPRESS_DEFLATE;
         }
     }
+#endif
 
     zval *header = ctx->request.zheader;
     sw_add_assoc_stringl_ex(header, header_name, ctx->current_header_name_len + 1, (char *) at, length, 1);
@@ -2018,6 +2020,7 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
         }
         SW_HASHTABLE_FOREACH_END();
     }
+#ifdef SW_HAVE_ZLIB
     //http compress
     if (ctx->enable_compression)
     {
@@ -2030,6 +2033,7 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
             swString_append_ptr(response, SW_STRL("Content-Encoding: deflate\r\n") - 1);
         }
     }
+#endif
     swString_append_ptr(response, ZEND_STRL("\r\n"));
     ctx->send_header = 1;
 }
