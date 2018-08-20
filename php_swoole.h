@@ -29,6 +29,17 @@
 #include "zend_exceptions.h"
 #include "zend_variables.h"
 
+// zend iterator interface
+#if PHP_VERSION_ID < 70200
+#ifdef HAVE_PCRE
+#include "ext/spl/spl_iterators.h"
+#define zend_ce_countable spl_ce_Countable
+#define SW_HAVE_COUNTABLE 1
+#endif
+#else
+#define SW_HAVE_COUNTABLE 1
+#endif
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -316,7 +327,6 @@ PHP_METHOD(swoole_server, connection_info);
 PHP_METHOD(swoole_server, getReceivedTime);
 #endif
 
-#ifdef HAVE_PCRE
 PHP_METHOD(swoole_connection_iterator, count);
 PHP_METHOD(swoole_connection_iterator, rewind);
 PHP_METHOD(swoole_connection_iterator, next);
@@ -328,7 +338,6 @@ PHP_METHOD(swoole_connection_iterator, offsetGet);
 PHP_METHOD(swoole_connection_iterator, offsetSet);
 PHP_METHOD(swoole_connection_iterator, offsetUnset);
 PHP_METHOD(swoole_connection_iterator, __destruct);
-#endif
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
 PHP_METHOD(swoole_server, getSocket);

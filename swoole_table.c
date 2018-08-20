@@ -16,10 +16,6 @@
 
 #include "php_swoole.h"
 
-#ifdef HAVE_PCRE
-#include <ext/spl/spl_iterators.h>
-#endif
-
 #include "include/table.h"
 
 static zend_class_entry swoole_table_ce;
@@ -106,13 +102,11 @@ static PHP_METHOD(swoole_table, offsetGet);
 static PHP_METHOD(swoole_table, offsetSet);
 static PHP_METHOD(swoole_table, offsetUnset);
 
-#ifdef HAVE_PCRE
 static PHP_METHOD(swoole_table, rewind);
 static PHP_METHOD(swoole_table, next);
 static PHP_METHOD(swoole_table, current);
 static PHP_METHOD(swoole_table, key);
 static PHP_METHOD(swoole_table, valid);
-#endif
 
 static PHP_METHOD(swoole_table_row, offsetExists);
 static PHP_METHOD(swoole_table_row, offsetGet);
@@ -138,13 +132,12 @@ static const zend_function_entry swoole_table_methods[] =
     PHP_ME(swoole_table, offsetGet,        arginfo_swoole_table_offsetGet, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, offsetSet,        arginfo_swoole_table_offsetSet, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, offsetUnset,      arginfo_swoole_table_offsetUnset, ZEND_ACC_PUBLIC)
-#ifdef HAVE_PCRE
+
     PHP_ME(swoole_table, rewind,      arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, next,        arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, current,     arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, key,         arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, valid,       arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
-#endif
     PHP_FE_END
 };
 
@@ -263,10 +256,9 @@ void swoole_table_init(int module_number TSRMLS_DC)
     swoole_table_class_entry_ptr->serialize = zend_class_serialize_deny;
     swoole_table_class_entry_ptr->unserialize = zend_class_unserialize_deny;
     SWOOLE_CLASS_ALIAS(swoole_table, "Swoole\\Table");
-    zend_class_implements(swoole_table_class_entry_ptr TSRMLS_CC, 1, zend_ce_arrayaccess);
-
-#ifdef HAVE_PCRE
-    zend_class_implements(swoole_table_class_entry_ptr TSRMLS_CC, 2, spl_ce_Iterator, spl_ce_Countable);
+    zend_class_implements(swoole_table_class_entry_ptr TSRMLS_CC, 1, zend_ce_iterator, zend_ce_arrayaccess);
+#ifdef SW_HAVE_COUNTABLE
+    zend_class_implements(swoole_table_class_entry_ptr TSRMLS_CC, 1, zend_ce_countable);
 #endif
 
     zend_declare_class_constant_long(swoole_table_class_entry_ptr, SW_STRL("TYPE_INT")-1, SW_TABLE_INT TSRMLS_CC);
@@ -772,7 +764,6 @@ static PHP_METHOD(swoole_table, getMemorySize)
     }
 }
 
-#ifdef HAVE_PCRE
 static PHP_METHOD(swoole_table, rewind)
 {
     swTable *table = swoole_get_object(getThis());
@@ -835,7 +826,6 @@ static PHP_METHOD(swoole_table, valid)
     swTableRow *row = swTable_iterator_current(table);
     RETURN_BOOL(row != NULL);
 }
-#endif
 
 static PHP_METHOD(swoole_table_row, offsetExists)
 {
