@@ -22,10 +22,6 @@
 #include "zend_builtin_functions.h"
 #include "ext/standard/file.h"
 
-#ifdef HAVE_PCRE
-#include "ext/spl/spl_iterators.h"
-#endif
-
 typedef struct
 {
     php_context context;
@@ -35,14 +31,12 @@ typedef struct
     swTimer_node *timer;
 } util_socket;
 
-#ifdef HAVE_PCRE
 typedef struct
 {
     int current_cid;
     int index;
     int count;
 } coroutine_iterator;
-#endif
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -127,7 +121,6 @@ static PHP_METHOD(swoole_coroutine_util, readFile);
 static PHP_METHOD(swoole_coroutine_util, writeFile);
 static PHP_METHOD(swoole_coroutine_util, getBackTrace);
 
-#ifdef HAVE_PCRE
 static PHP_METHOD(swoole_coroutine_iterator, count);
 static PHP_METHOD(swoole_coroutine_iterator, rewind);
 static PHP_METHOD(swoole_coroutine_iterator, next);
@@ -135,7 +128,6 @@ static PHP_METHOD(swoole_coroutine_iterator, current);
 static PHP_METHOD(swoole_coroutine_iterator, key);
 static PHP_METHOD(swoole_coroutine_iterator, valid);
 static PHP_METHOD(swoole_coroutine_iterator, __destruct);
-#endif
 
 static swHashMap *defer_coros;
 
@@ -186,10 +178,11 @@ void swoole_coroutine_util_init(int module_number TSRMLS_DC)
     SWOOLE_INIT_CLASS_ENTRY(swoole_coroutine_util_ce, "swoole_coroutine", "Swoole\\Coroutine", swoole_coroutine_util_methods);
     swoole_coroutine_util_class_entry_ptr = zend_register_internal_class(&swoole_coroutine_util_ce TSRMLS_CC);
 
-#ifdef HAVE_PCRE
     INIT_CLASS_ENTRY(swoole_coroutine_iterator_ce, "Swoole\\Coroutine\\Iterator", iterator_methods);
     swoole_coroutine_iterator_class_entry_ptr = zend_register_internal_class(&swoole_coroutine_iterator_ce TSRMLS_CC);
-    zend_class_implements(swoole_coroutine_iterator_class_entry_ptr TSRMLS_CC, 2, spl_ce_Iterator, spl_ce_Countable);
+    zend_class_implements(swoole_coroutine_iterator_class_entry_ptr TSRMLS_CC, 1, zend_ce_iterator);
+#ifdef SW_HAVE_COUNTABLE
+    zend_class_implements(swoole_coroutine_iterator_class_entry_ptr TSRMLS_CC, 1, zend_ce_countable);
 #endif
 
     if (SWOOLE_G(use_namespace))
@@ -1396,7 +1389,6 @@ static PHP_METHOD(swoole_coroutine_util, getBackTrace)
     }
 }
 
-#ifdef HAVE_PCRE
 static PHP_METHOD(swoole_coroutine_iterator, rewind)
 {
     coroutine_iterator *itearator = swoole_get_object(getThis());
@@ -1459,4 +1451,3 @@ static PHP_METHOD(swoole_coroutine_util, listCoroutines)
     bzero(i, sizeof(coroutine_iterator));
     swoole_set_object(return_value, i);
 }
-#endif

@@ -25,8 +25,6 @@
 #include "ext/standard/php_var.h"
 #include "zend_smart_str.h"
 
-#ifdef HAVE_PCRE
-
 typedef struct
 {
     int current_fd;
@@ -37,8 +35,6 @@ typedef struct
     int end;
     int index;
 } swConnectionIterator;
-
-#endif
 
 static int php_swoole_task_id = 0;
 static int udp_server_socket;
@@ -516,7 +512,6 @@ static zval* php_swoole_server_add_port(swServer *serv, swListenPort *port TSRML
     zend_update_property_long(swoole_server_port_class_entry_ptr, port_object, ZEND_STRL("type"), port->type TSRMLS_CC);
     zend_update_property_long(swoole_server_port_class_entry_ptr, port_object, ZEND_STRL("sock"), port->sock TSRMLS_CC);
 
-#ifdef HAVE_PCRE
     zval *connection_iterator;
     SW_MAKE_STD_ZVAL(connection_iterator);
     object_init_ex(connection_iterator, swoole_connection_iterator_class_entry_ptr);
@@ -527,7 +522,6 @@ static zval* php_swoole_server_add_port(swServer *serv, swListenPort *port TSRML
     i->port = port;
     i->serv = serv;
     swoole_set_object(connection_iterator, i);
-#endif
 
     add_next_index_zval(server_port_list.zports, port_object);
 
@@ -2030,7 +2024,6 @@ PHP_METHOD(swoole_server, __construct)
 
     zval *server_object = getThis();
 
-#ifdef HAVE_PCRE
     zval *connection_iterator_object;
     SW_MAKE_STD_ZVAL(connection_iterator_object);
     object_init_ex(connection_iterator_object, swoole_connection_iterator_class_entry_ptr);
@@ -2040,7 +2033,6 @@ PHP_METHOD(swoole_server, __construct)
     bzero(i, sizeof(swConnectionIterator));
     i->serv = serv;
     swoole_set_object(connection_iterator_object, i);
-#endif
 
     zend_update_property_stringl(swoole_server_class_entry_ptr, server_object, ZEND_STRL("host"), serv_host, host_len TSRMLS_CC);
     zend_update_property_long(swoole_server_class_entry_ptr, server_object, ZEND_STRL("port"), (long) serv->listen_list->port TSRMLS_CC);
@@ -4148,7 +4140,7 @@ PHP_METHOD(swoole_server, stop)
     RETURN_TRUE;
 }
 
-#ifdef HAVE_PCRE
+// swoole_connection_iterator
 
 PHP_METHOD(swoole_connection_iterator, rewind)
 {
@@ -4269,8 +4261,6 @@ PHP_METHOD(swoole_connection_iterator, __destruct)
     efree(i);
     swoole_set_object(getThis(), NULL);
 }
-
-#endif
 
 /*
  * Local variables:
