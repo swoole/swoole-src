@@ -161,12 +161,13 @@ bool Socket::socks5_handshake()
 
 bool Socket::http_proxy_handshake()
 {
+#ifdef SW_USE_OPENSSL
     //https proxy
     if (http_proxy->ssl && ssl_handshake() == false)
     {
         return false;
     }
-
+#endif
     //CONNECT
     int n = snprintf(http_proxy->buf, sizeof(http_proxy->buf), "CONNECT %s:%d HTTP/1.1\r\n\r\n",
             http_proxy->target_host, http_proxy->target_port);
