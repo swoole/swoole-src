@@ -18,8 +18,8 @@
 
 #ifndef __clang__
 //gcc version check
-#if defined(__GNUC__) && (__GNUC__ < 3 || (__GNUC__ == 4 && __GNUC_MINOR__ < 4))
-#error "GCC 4.4 or later required."
+#if defined(__GNUC__) && (__GNUC__ < 3 || (__GNUC__ == 4 && __GNUC_MINOR__ < 8))
+#error "GCC 4.8 or later required."
 #endif
 #endif
 
