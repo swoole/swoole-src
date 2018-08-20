@@ -196,6 +196,19 @@ void coroutine_set_ptr(coroutine_t *co, void *ptr)
     co->ptr = ptr;
 }
 
+void* coroutine_get_ptr_by_cid(int cid)
+{
+    coroutine_t *co = swCoroG.coroutines[cid];
+    if (co == nullptr)
+    {
+        return nullptr;
+    }
+    else
+    {
+        return co->ptr;
+    }
+}
+
 coroutine_t* coroutine_get_by_id(int cid)
 {
     return swCoroG.coroutines[cid];

@@ -20,6 +20,7 @@
 #ifdef SW_COROUTINE
 #include "swoole_coroutine.h"
 #include "async.h"
+#include "zend_builtin_functions.h"
 #include "ext/standard/file.h"
 
 typedef struct
@@ -92,6 +93,12 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_writeFile, 0, 0, 2)
     ZEND_ARG_INFO(0, flags)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_getBackTrace, 0, 0, 1)
+    ZEND_ARG_INFO(0, cid)
+    ZEND_ARG_INFO(0, options)
+    ZEND_ARG_INFO(0, limit)
+ZEND_END_ARG_INFO()
+
 static PHP_METHOD(swoole_coroutine_util, set);
 static PHP_METHOD(swoole_coroutine_util, yield);
 static PHP_METHOD(swoole_coroutine_util, resume);
@@ -105,6 +112,7 @@ static PHP_METHOD(swoole_coroutine_util, gethostbyname);
 static PHP_METHOD(swoole_coroutine_util, getaddrinfo);
 static PHP_METHOD(swoole_coroutine_util, readFile);
 static PHP_METHOD(swoole_coroutine_util, writeFile);
+static PHP_METHOD(swoole_coroutine_util, getBackTrace);
 
 static swHashMap *defer_coros;
 
@@ -129,6 +137,7 @@ static const zend_function_entry swoole_coroutine_util_methods[] =
     PHP_ME(swoole_coroutine_util, writeFile, arginfo_swoole_coroutine_writeFile, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, gethostbyname, arginfo_swoole_coroutine_gethostbyname, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, getaddrinfo, arginfo_swoole_coroutine_getaddrinfo, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_util, getBackTrace, arginfo_swoole_coroutine_getBackTrace, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 
@@ -1311,6 +1320,28 @@ static PHP_METHOD(swoole_coroutine_util, getaddrinfo)
 
     coro_save(sw_current_context);
     coro_yield();
+}
+
+static PHP_METHOD(swoole_coroutine_util, getBackTrace)
+{
+    zend_long cid;
+    zend_long options = DEBUG_BACKTRACE_PROVIDE_OBJECT;
+    zend_long limit = 0;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|ll", &cid) == FAILURE)
+    {
+        return;
+    }
+
+    zend_execute_data *ex_backup = EG(current_execute_data);
+    coro_task *task = (coro_task *) coroutine_get_ptr_by_cid(cid);
+    if (task == NULL)
+    {
+        RETURN_FALSE;
+    }
+
+    EG(current_execute_data) = task->yield_execute_data;
+    zend_fetch_debug_backtrace(return_value, 0, options, limit);
+    EG(current_execute_data) = ex_backup;
 }
 
 #endif
