@@ -94,7 +94,6 @@ typedef struct
     int callback_index;
 
     uint8_t error_flag;
-
     uint8_t shutdown;
 
 #ifdef SW_COROUTINE
