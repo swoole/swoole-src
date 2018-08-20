@@ -139,6 +139,8 @@ static void* swThreadPool_loop(void *arg)
         return NULL;
     }
 
+    swSignal_none();
+
     if (pool->onStart)
     {
         pool->onStart(pool, id);
