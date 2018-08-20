@@ -385,7 +385,7 @@ bool Socket::connect(string host, int port, int flags)
         return false;
     }
 
-    int retval;
+    int retval = 0;
     _host = host;
     _port = port;
 
@@ -832,7 +832,7 @@ string Socket::resolve(string domain_name)
     {
         string addr((char *) ev.buf);
         sw_free(ev.buf);
-        return move(addr);
+        return addr;
     }
 }
 

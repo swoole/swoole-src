@@ -137,6 +137,10 @@ void swoole_clean(void)
         {
             swTimer_free(&SwooleG.timer);
         }
+        if (SwooleG.task_tmpdir)
+        {
+            sw_free(SwooleG.task_tmpdir);
+        }
         if (SwooleG.main_reactor)
         {
             SwooleG.main_reactor->free(SwooleG.main_reactor);

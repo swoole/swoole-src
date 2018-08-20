@@ -181,7 +181,7 @@ static size_t socket_read(php_stream *stream, char *buf, size_t count)
     Socket *sock = (Socket*) stream->abstract;
     ssize_t nr_bytes = 0;
     int err;
-    struct timeval *ptimeout;
+    // struct timeval *ptimeout;
 
     if (!sock)
     {
@@ -229,7 +229,7 @@ enum
     STREAM_XPORT_OP_RECV,
     STREAM_XPORT_OP_SEND,
     STREAM_XPORT_OP_SHUTDOWN
-} op;
+};
 
 static int socket_cast(php_stream *stream, int castas, void **ret)
 {

@@ -615,7 +615,7 @@ if test "$PHP_SWOOLE" != "no"; then
 
     PHP_REQUIRE_CXX()
     PHP_ADD_LIBRARY(stdc++, 1, SWOOLE_SHARED_LIBADD)
-    CXXFLAGS="$CXXFLAGS -std=c++11"
+    CXXFLAGS="$CXXFLAGS -Wall -Wno-unused-function -Wno-deprecated -std=c++11"
 
     if test "$PHP_PICOHTTPPARSER" = "yes"; then
         PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/picohttpparser])

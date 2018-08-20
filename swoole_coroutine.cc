@@ -175,8 +175,6 @@ static void sw_coro_func(void *arg)
     zval **argv = php_arg->argv;
     int argc = php_arg->argc;
     zval *retval = php_arg->retval;
-    void *post_callback = php_arg->post_callback;
-    void* params = php_arg->params;
     int cid = coroutine_get_cid();
 
     zend_function *func;

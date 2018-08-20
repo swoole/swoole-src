@@ -187,7 +187,7 @@ static PHP_METHOD(swoole_postgresql_coro, connect)
 
     if (pgsql==NULL || PQstatus(pgsql)==CONNECTION_BAD)
     {
-        swWarn("Unable to connect to PostgreSQL server: [%s]",pgsql);
+        swWarn("Unable to connect to PostgreSQL server: [%s]", PQhost(pgsql));
         if (pgsql)
         {
             PQfinish(pgsql);
@@ -221,14 +221,14 @@ static PHP_METHOD(swoole_postgresql_coro, connect)
 
 static void swoole_pgsql_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
 {
-    zval *result;
+    zval _result;
+    zval *result = &_result;
     zval *retval = NULL;
     PGconn *pgsql;
     php_context *ctx = tnode->data;
     char *feedback;
     char *err_msg;
 
-    SW_ALLOC_INIT_ZVAL(result);
     ZVAL_BOOL(result, 0);
 
     zval _zobject = ctx->coro_params;
@@ -267,7 +267,7 @@ static void swoole_pgsql_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
     {
         sw_zval_ptr_dtor(&retval);
     }
-    sw_zval_free(result);
+    zval_ptr_dtor(result);
 }
 
 static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event)
@@ -1039,18 +1039,19 @@ static void _free_result(zend_resource *rsrc)
 
 static int swoole_pgsql_coro_onError(swReactor *reactor, swEvent *event)
 {
+    zval _result;
+    zval *result = &_result;
     pg_object *pg_object = (event->socket->object);
-    zval *retval = NULL, *result;
+    zval *retval = NULL;
     zval *zobject  = pg_object->object;
 
     swoole_postgresql_coro_close(pg_object);
 
-    SW_ALLOC_INIT_ZVAL(result);
     ZVAL_BOOL(result, 0);
 
     php_context *sw_current_context = swoole_get_property(zobject, 0);
     int ret = coro_resume(sw_current_context, result, &retval);
-    sw_zval_free(result);
+    zval_ptr_dtor(result);
 
     if (ret == CORO_END && retval)
     {

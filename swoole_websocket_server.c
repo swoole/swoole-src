@@ -240,7 +240,7 @@ static int websocket_handshake(swListenPort *port, http_context *ctx)
 
 int swoole_websocket_onClose(swEventData *req)
 {
-    // Should only be called by onMessage
+    // Should only be called by onMessage and disconnect
     swServer *serv  = SwooleG.serv;
     zval *zserv     = (zval *) serv->ptr2;
     zval *retval    = NULL;
@@ -577,7 +577,7 @@ static PHP_METHOD(swoole_websocket_server, disconnect)
 
     if ((code < 3000 && code != 1000) || code >= 5000)
     {
-        swoole_php_fatal_error(E_WARNING, "Status code [%ld] is invalid.", code);
+        swoole_php_fatal_error(E_WARNING, "Status code [" ZEND_LONG_FMT "] is invalid.", code);
         RETURN_FALSE;
     }
 

@@ -79,7 +79,7 @@ protected:
     {
         if (reactor->add(reactor, socket->fd, SW_FD_CORO_SOCKET | events) < 0)
         {
-            _error: errCode = errno;
+            errCode = errno;
             return false;
         }
         else

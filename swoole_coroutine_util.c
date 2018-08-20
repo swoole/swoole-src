@@ -791,7 +791,7 @@ static PHP_METHOD(swoole_coroutine_util, fread)
         swAio_init();
     }
 
-    swTrace("fd=%d, offset=%ld, length=%ld", fd, ev.offset, ev.nbytes);
+    swTrace("fd=%d, offset=%jd, length=%ld", fd, (intmax_t) ev.offset, ev.nbytes);
 
     int ret = swAio_dispatch(&ev);
     if (ret < 0)
@@ -872,7 +872,7 @@ static PHP_METHOD(swoole_coroutine_util, fgets)
         swAio_init();
     }
 
-    swTrace("fd=%d, offset=%ld, length=%ld", fd, ev.offset, ev.nbytes);
+    swTrace("fd=%d, offset=%jd, length=%ld", fd, (intmax_t) ev.offset, ev.nbytes);
 
     int ret = swAio_dispatch(&ev);
     if (ret < 0)
@@ -958,7 +958,7 @@ static PHP_METHOD(swoole_coroutine_util, fwrite)
 
     php_swoole_check_aio();
 
-    swTrace("fd=%d, offset=%ld, length=%ld", fd, ev.offset, ev.nbytes);
+    swTrace("fd=%d, offset=%jd, length=%ld", fd, (intmax_t) ev.offset, ev.nbytes);
 
     int ret = swAio_dispatch(&ev);
     if (ret < 0)
