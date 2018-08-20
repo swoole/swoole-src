@@ -139,13 +139,13 @@ int swSSL_sendfile(swConnection *conn, int fd, off_t *offset, size_t size);
  */
 static sw_inline ssize_t swConnection_recv(swConnection *conn, void *__buf, size_t __n, int __flags)
 {
-    int retval;
+    ssize_t retval;
     _recv:
 #ifdef SW_USE_OPENSSL
     if (conn->ssl)
     {
-        int ret = 0;
-        int n_received = 0;
+        ssize_t ret = 0;
+        size_t n_received = 0;
 
         while (n_received < __n)
         {
