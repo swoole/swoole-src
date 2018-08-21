@@ -262,9 +262,7 @@ static PHP_METHOD(swoole_http_response, header);
 static PHP_METHOD(swoole_http_response, initHeader);
 static PHP_METHOD(swoole_http_response, detach);
 static PHP_METHOD(swoole_http_response, create);
-#ifdef SW_HAVE_ZLIB
 static PHP_METHOD(swoole_http_response, gzip);
-#endif
 #ifdef SW_USE_HTTP2
 static PHP_METHOD(swoole_http_response, trailer);
 #endif
