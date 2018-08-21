@@ -95,7 +95,7 @@ void swoole_init(void)
         SwooleG.max_sockets = (uint32_t) rlmt.rlim_cur;
     }
 
-    SwooleTG.buffer_stack = swString_new(SwooleTG.buffer_stack);
+    SwooleTG.buffer_stack = swString_new(SW_STACK_BUFFER_SIZE);
     if (SwooleTG.buffer_stack == NULL)
     {
         exit(3);
