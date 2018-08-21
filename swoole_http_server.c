@@ -1880,7 +1880,7 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
 
     swServer *serv = SwooleG.serv;
 
-    char buf[SW_HTTP_HEADER_MAX_SIZE];
+    char *buf = SwooleTG.buffer_stack->str;
     int n;
     char *date_str;
 

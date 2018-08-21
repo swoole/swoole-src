@@ -31,6 +31,7 @@
 #define SW_MAX_FILE_CONTENT        (64*1024*1024) //for swoole_file_get_contents
 #define SW_MAX_LISTEN_PORT         60000
 #define SW_MAX_CONCURRENT_TASK     1024
+#define SW_STACK_BUFFER_SIZE       65536
 
 #ifdef HAVE_MALLOC_TRIM
 #define SW_USE_MALLOC_TRIM
@@ -220,7 +221,7 @@
 #define SW_HTTP_COOKIE_KEYLEN            128
 #define SW_HTTP_COOKIE_VALLEN            4096
 #define SW_HTTP_RESPONSE_INIT_SIZE       65536
-#define SW_HTTP_HEADER_MAX_SIZE          8192
+#define SW_HTTP_HEADER_MAX_SIZE          65536
 #define SW_HTTP_HEADER_KEY_SIZE          128
 #define SW_HTTP_HEADER_VALUE_SIZE        4096
 #define SW_HTTP_HEADER_BUFFER_SIZE       128

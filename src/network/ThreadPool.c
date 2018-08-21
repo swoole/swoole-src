@@ -133,7 +133,7 @@ static void* swThreadPool_loop(void *arg)
     int ret;
     void *task;
 
-    SwooleTG.buffer_stack = swString_new(8192);
+    SwooleTG.buffer_stack = swString_new(SW_STACK_BUFFER_SIZE);
     if (SwooleTG.buffer_stack == NULL)
     {
         return NULL;
