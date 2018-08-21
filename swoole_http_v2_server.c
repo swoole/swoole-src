@@ -494,7 +494,7 @@ static int http2_parse_header(swoole_http_client *client, http_context *ctx, int
                 }
                 else if (strncasecmp((char *) nv.name + 1, "path", nv.namelen -1) == 0)
                 {
-                    char pathbuf[SW_HTTP_HEADER_MAX_SIZE];
+                    char *pathbuf = SwooleTG.buffer_stack->str;
                     char *v_str = strchr((char *) nv.value, '?');
                     if (v_str)
                     {

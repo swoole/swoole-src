@@ -1241,7 +1241,7 @@ static int swReactorThread_loop(swThreadParam *param)
         }
     }
 
-    SwooleTG.buffer_stack = swString_new(8192);
+    SwooleTG.buffer_stack = swString_new(SW_STACK_BUFFER_SIZE);
     if (SwooleTG.buffer_stack == NULL)
     {
         return SW_ERR;
