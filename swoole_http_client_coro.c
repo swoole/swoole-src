@@ -1150,6 +1150,7 @@ static int http_client_coro_send_http_request(zval *zobject TSRMLS_DC)
                 else
                 {
                     zpath = NULL;
+                    zoffset = NULL;
                 }
                 if (sw_zend_hash_find(Z_ARRVAL_P(value), ZEND_STRS("size"), (void **) &zsize) == FAILURE)
                 {
