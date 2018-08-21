@@ -101,8 +101,6 @@ typedef struct
     uint32_t send_header :1;
 #ifdef SW_HAVE_ZLIB
     uint32_t enable_compression :1;
-    uint32_t compression_level :4;
-    uint32_t compression_method :4;
 #endif
     uint32_t chunk :1;
     uint32_t keepalive :1;
@@ -117,6 +115,11 @@ typedef struct
 #ifdef SW_USE_HTTP2
     uint8_t priority;
     uint32_t stream_id;
+#endif
+
+#ifdef SW_HAVE_ZLIB
+    int8_t compression_level;
+    int8_t compression_method;
 #endif
 
     http_request request;
