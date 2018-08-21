@@ -5,7 +5,7 @@ __DIR__=$(cd "$(dirname "$0")";pwd)
 #-------------PHPT-------------
 cd ${__DIR__} && cd ../tests/
 # initialization
-php ./database.php
+php ./init
 # debug
 for debug_file in ./debug/*.php
 do
