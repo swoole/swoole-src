@@ -242,11 +242,11 @@
                     <file role="src" name="FactoryProcess.c" />
                 </dir>
                 <dir name="reactor">
-                    <file role="src" name="ReactorBase.c" />
-                    <file role="src" name="ReactorSelect.c" />
-                    <file role="src" name="ReactorPoll.c" />
-                    <file role="src" name="ReactorEpoll.c" />
-                    <file role="src" name="ReactorKqueue.c" />
+                    <file role="src" name="base.c" />
+                    <file role="src" name="select.c" />
+                    <file role="src" name="poll.c" />
+                    <file role="src" name="epoll.c" />
+                    <file role="src" name="kqueue.c" />
                 </dir>
                 <dir name="pipe">
                     <file role="src" name="PipeBase.c" />

@@ -8,7 +8,6 @@ dnl  | that is bundled with this package in the file LICENSE, and is        |
 dnl  | available through the world-wide-web at the following url:           |
 dnl  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
 dnl  | If you did not receive a copy of the Apache2.0 license and are unable|
-
 dnl  | to obtain it through the world-wide-web, please send a note to       |
 dnl  | license@swoole.com so we can mail you a copy immediately.            |
 dnl  +----------------------------------------------------------------------+
@@ -471,11 +470,11 @@ if test "$PHP_SWOOLE" != "no"; then
         src/factory/Factory.c \
         src/factory/FactoryThread.c \
         src/factory/FactoryProcess.c \
-        src/reactor/ReactorBase.c \
-        src/reactor/ReactorSelect.c \
-        src/reactor/ReactorPoll.c \
-        src/reactor/ReactorEpoll.c \
-        src/reactor/ReactorKqueue.c \
+        src/reactor/base.c \
+        src/reactor/select.c \
+        src/reactor/poll.c \
+        src/reactor/epoll.c \
+        src/reactor/kqueue.c \
         src/pipe/PipeBase.c \
         src/pipe/PipeEventfd.c \
         src/pipe/PipeUnsock.c \
