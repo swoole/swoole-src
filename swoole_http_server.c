@@ -2067,12 +2067,13 @@ int swoole_http_response_compress(swString *body, int method, int level)
     memset(&zstream, 0, sizeof(zstream));
 
     int encoding;
-    //deflate: -0xf, gzip: 0x1f
+    //gzip: 0x1f
     if (method == HTTP_COMPRESS_GZIP)
     {
         encoding = 0x1f;
     }
-    else if (method == HTTP_COMPRESS_GZIP)
+    //deflate: -0xf
+    else if (method == HTTP_COMPRESS_DEFLATE)
     {
         encoding = -0xf;
     }
@@ -2086,7 +2087,9 @@ int swoole_http_response_compress(swString *body, int method, int level)
     zstream.zalloc = php_zlib_alloc;
     zstream.zfree = php_zlib_free;
 
-    if (Z_OK == deflateInit2(&zstream, level, Z_DEFLATED, encoding, MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY))
+    int retval = deflateInit2(&zstream, level, Z_DEFLATED, encoding, MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY);
+
+    if (Z_OK == retval)
     {
         zstream.next_in = (Bytef *) body->str;
         zstream.next_out = (Bytef *) swoole_zlib_buffer->str;
@@ -2104,7 +2107,7 @@ int swoole_http_response_compress(swString *body, int method, int level)
     }
     else
     {
-        swWarn("deflateInit2() failed.");
+        swWarn("deflateInit2() failed, Error: [%d].", retval);
     }
     return SW_ERR;
 }
