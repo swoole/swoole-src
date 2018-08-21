@@ -1154,14 +1154,14 @@ static PHP_METHOD(swoole_client_coro, peek)
 
 static PHP_METHOD(swoole_client_coro, isConnected)
 {
-    Socket *cli = client_get_ptr(getThis() TSRMLS_CC);
-    if (!cli)
+    Socket *cli = (Socket *) swoole_get_object(getThis());
+    if (cli && cli->socket && cli->socket->active == 1)
     {
-        RETURN_FALSE;
+        RETURN_TRUE;
     }
     else
     {
-        RETURN_TRUE;
+        RETURN_FALSE;
     }
 }
 
