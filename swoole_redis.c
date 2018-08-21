@@ -44,10 +44,8 @@ typedef struct
     uint8_t failure;
     uint8_t wait_count;
 
-#if PHP_MAJOR_VERSION >= 7
     zval _message_callback;
     zval _object;
-#endif
 
 } swRedisClient;
 
@@ -633,11 +631,9 @@ static void swoole_redis_parse_result(swRedisClient *redis, zval* return_value, 
     zval *val;
     int j;
 
-#if PHP_MAJOR_VERSION >= 7
     zval _val;
     val = &_val;
     bzero(val, sizeof(zval));
-#endif
 
     switch (reply->type)
     {

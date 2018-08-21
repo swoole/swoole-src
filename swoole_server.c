@@ -71,9 +71,7 @@ typedef struct
 } swTaskCo;
 #endif
 
-#if PHP_MAJOR_VERSION >= 7
 zval _php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
-#endif
 
 static int php_swoole_task_finish(swServer *serv, zval *data TSRMLS_DC);
 static void php_swoole_onPipeMessage(swServer *serv, swEventData *req);
@@ -162,9 +160,7 @@ int php_swoole_task_pack(swEventData *task, zval *data TSRMLS_DC)
 {
     smart_str serialized_data = { 0 };
     php_serialize_data_t var_hash;
-#if PHP_MAJOR_VERSION >= 7
     zend_string *serialized_string = NULL;
-#endif
 
     task->info.type = SW_EVENT_TASK;
     //field fd save task_id
@@ -185,7 +181,6 @@ int php_swoole_task_pack(swEventData *task, zval *data TSRMLS_DC)
         //serialize
         swTask_type(task) |= SW_TASK_SERIALIZE;
 
-#if PHP_MAJOR_VERSION >= 7
         if (SWOOLE_G(fast_serialize))
         {
             serialized_string = php_swoole_serialize(data);
@@ -193,7 +188,6 @@ int php_swoole_task_pack(swEventData *task, zval *data TSRMLS_DC)
             task_data_len = serialized_string->len;
         }
         else
-#endif
         {
             PHP_VAR_SERIALIZE_INIT(var_hash);
             sw_php_var_serialize(&serialized_data, data, &var_hash TSRMLS_CC);
@@ -228,13 +222,11 @@ int php_swoole_task_pack(swEventData *task, zval *data TSRMLS_DC)
         task->info.len = task_data_len;
     }
 
-#if PHP_MAJOR_VERSION >= 7
     if (SWOOLE_G(fast_serialize) && serialized_string)
     {
         zend_string_release(serialized_string);
     }
     else
-#endif
     {
         smart_str_free(&serialized_data);
     }
@@ -379,7 +371,6 @@ zval* php_swoole_task_unpack(swEventData *task_result TSRMLS_DC)
     {
         SW_ALLOC_INIT_ZVAL(result_unserialized_data);
 
-#if PHP_MAJOR_VERSION >= 7
         if (SWOOLE_G(fast_serialize))
         {
             if (php_swoole_unserialize(result_data_str, result_data_len, result_unserialized_data, NULL, 0))
@@ -393,7 +384,6 @@ zval* php_swoole_task_unpack(swEventData *task_result TSRMLS_DC)
             }
         }
         else
-#endif
         {
             PHP_VAR_UNSERIALIZE_INIT(var_hash);
             //unserialize success
@@ -708,16 +698,13 @@ static int php_swoole_task_finish(swServer *serv, zval *data TSRMLS_DC)
     int data_len = 0;
     int ret;
 
-#if PHP_MAJOR_VERSION >= 7
     zend_string *serialized_string = NULL;
-#endif
 
     //need serialize
     if (SW_Z_TYPE_P(data) != IS_STRING)
     {
         //serialize
         flags |= SW_TASK_SERIALIZE;
-#if PHP_MAJOR_VERSION >= 7
         if (SWOOLE_G(fast_serialize))
         {
             serialized_string = php_swoole_serialize(data);
@@ -725,18 +712,12 @@ static int php_swoole_task_finish(swServer *serv, zval *data TSRMLS_DC)
             data_len = serialized_string->len;
         }
         else
-#endif
         {
             PHP_VAR_SERIALIZE_INIT(var_hash);
             sw_php_var_serialize(&serialized_data, data, &var_hash TSRMLS_CC);
             PHP_VAR_SERIALIZE_DESTROY(var_hash);
-#if PHP_MAJOR_VERSION<7
-            data_str = serialized_data.c;
-            data_len = serialized_data.len;
-#else
             data_str = serialized_data.s->val;
             data_len = serialized_data.s->len;
-#endif
         }
     }
     else
@@ -746,13 +727,11 @@ static int php_swoole_task_finish(swServer *serv, zval *data TSRMLS_DC)
     }
 
     ret = swTaskWorker_finish(serv, data_str, data_len, flags);
-#if PHP_MAJOR_VERSION >= 7
     if (SWOOLE_G(fast_serialize) && serialized_string)
     {
         zend_string_release(serialized_string);
     }
     else
-#endif
     {
         smart_str_free(&serialized_data);
     }
@@ -2728,11 +2707,9 @@ PHP_METHOD(swoole_server, addProcess)
         serv->onUserWorkerStart = php_swoole_onUserWorkerStart;
     }
 
-#if PHP_MAJOR_VERSION >= 7
     zval *tmp_process = emalloc(sizeof(zval));
     memcpy(tmp_process, process, sizeof(zval));
     process = tmp_process;
-#endif
 
     sw_zval_add_ref(&process);
 

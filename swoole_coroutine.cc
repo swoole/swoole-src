@@ -40,7 +40,7 @@ coro_global COROG;
 static void sw_coro_func(void *);
 static zend_bool is_xdebug_started = 0;
 
-#if PHP_MAJOR_VERSION >= 7 && PHP_MINOR_VERSION >= 2
+#if PHP_VERSION_ID >= 70200
 static inline void sw_vm_stack_init(void)
 {
     uint32_t size = COROG.stack_size;
@@ -195,7 +195,7 @@ static void sw_coro_func(void *arg)
     call = zend_vm_stack_push_call_frame(ZEND_CALL_TOP_FUNCTION | ZEND_CALL_ALLOCATED, func, argc,
             fci_cache->called_scope, fci_cache->object);
 
-#if PHP_MINOR_VERSION < 1
+#if PHP_VERSION_ID < 70100
     EG(scope) = func->common.scope;
 #endif
 

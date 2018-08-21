@@ -64,7 +64,6 @@ typedef struct
     zval *zrequest;
     zval *zfiles;
     zval *ztmpfiles;
-#if PHP_MAJOR_VERSION >= 7
     zval _zobject;
     zval _zrequest;
     zval _zserver;
@@ -74,7 +73,6 @@ typedef struct
     zval _zfiles;
     zval _zcookie;
     zval _ztmpfiles;
-#endif
 } http_request;
 
 typedef struct
@@ -87,12 +85,10 @@ typedef struct
     zval *zcookie;
     zval *ztrailer;
 
-#if PHP_MAJOR_VERSION >= 7
     zval _zobject;
     zval _zheader;
     zval _zcookie;
     zval _ztrailer;
-#endif
 } http_response;
 
 typedef struct

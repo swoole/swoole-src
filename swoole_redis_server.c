@@ -463,7 +463,6 @@ static PHP_METHOD(swoole_redis_server, format)
         swString_append_ptr(format_buffer, message, length);
 
         SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(value), item)
-#if PHP_MAJOR_VERSION >= 7
             zval _copy;
             if (Z_TYPE_P(item) != IS_STRING)
             {
@@ -471,18 +470,15 @@ static PHP_METHOD(swoole_redis_server, format)
                 zval_copy_ctor(&_copy);
                 item = &_copy;
             }
-#endif
             convert_to_string(item);
             length = snprintf(message, sizeof(message), "$%zd\r\n", Z_STRLEN_P(item));
             swString_append_ptr(format_buffer, message, length);
             swString_append_ptr(format_buffer, Z_STRVAL_P(item), Z_STRLEN_P(item));
             swString_append_ptr(format_buffer, SW_CRLF, SW_CRLF_LEN);
-#if PHP_MAJOR_VERSION >= 7
             if (item == &_copy)
             {
                 zval_dtor(item);
             }
-#endif
         SW_HASHTABLE_FOREACH_END();
 
         SW_RETURN_STRINGL(format_buffer->str, format_buffer->length, 1);
@@ -510,7 +506,6 @@ static PHP_METHOD(swoole_redis_server, format)
             {
                 continue;
             }
-#if PHP_MAJOR_VERSION >= 7
             zval _copy;
             if (Z_TYPE_P(item) != IS_STRING)
             {
@@ -518,19 +513,16 @@ static PHP_METHOD(swoole_redis_server, format)
                 zval_copy_ctor(&_copy);
                 item = &_copy;
             }
-#endif
             convert_to_string(item);
             length = snprintf(message, sizeof(message), "$%d\r\n%s\r\n$%zd\r\n", keylen, key, Z_STRLEN_P(item));
             swString_append_ptr(format_buffer, message, length);
             swString_append_ptr(format_buffer, Z_STRVAL_P(item), Z_STRLEN_P(item));
             swString_append_ptr(format_buffer, SW_CRLF, SW_CRLF_LEN);
 
-#if PHP_MAJOR_VERSION >= 7
             if (item == &_copy)
             {
                 zval_dtor(item);
             }
-#endif
             (void) keytype;
         SW_HASHTABLE_FOREACH_END();
 
