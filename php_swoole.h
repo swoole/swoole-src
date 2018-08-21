@@ -29,6 +29,10 @@
 #include "zend_exceptions.h"
 #include "zend_variables.h"
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 // zend iterator interface
 #if PHP_VERSION_ID < 70200
 #ifdef HAVE_PCRE
@@ -38,10 +42,6 @@
 #endif
 #else
 #define SW_HAVE_COUNTABLE 1
-#endif
-
-#ifdef HAVE_CONFIG_H
-#include "config.h"
 #endif
 
 #ifdef SW_STATIC_COMPILATION
