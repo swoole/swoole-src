@@ -1881,13 +1881,14 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
     swServer *serv = SwooleG.serv;
 
     char *buf = SwooleTG.buffer_stack->str;
+    size_t l_buf = SwooleTG.buffer_stack->size;
     int n;
     char *date_str;
 
     /**
      * http status line
      */
-    n = snprintf(buf, sizeof(buf), "HTTP/1.1 %s\r\n", http_status_message(ctx->response.status));
+    n = snprintf(buf, l_buf, "HTTP/1.1 %s\r\n", http_status_message(ctx->response.status));
     swString_append_ptr(response, buf, n);
 
     /**
@@ -1925,7 +1926,7 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
             {
                 flag |= HTTP_RESPONSE_CONTENT_TYPE;
             }
-            n = snprintf(buf, sizeof(buf), "%*s: %*s\r\n", keylen - 1, key, (int)Z_STRLEN_P(value), Z_STRVAL_P(value));
+            n = snprintf(buf, l_buf, "%*s: %*s\r\n", keylen - 1, key, (int)Z_STRLEN_P(value), Z_STRVAL_P(value));
             swString_append_ptr(response, buf, n);
         }
         SW_HASHTABLE_FOREACH_END();
@@ -1960,7 +1961,7 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
         if (!(flag & HTTP_RESPONSE_DATE))
         {
             date_str = sw_php_format_date(ZEND_STRL(SW_HTTP_DATE_FORMAT), serv->gs->now, 0 TSRMLS_CC);
-            n = snprintf(buf, sizeof(buf), "Date: %s\r\n", date_str);
+            n = snprintf(buf, l_buf, "Date: %s\r\n", date_str);
             swString_append_ptr(response, buf, n);
             efree(date_str);
         }
@@ -1979,7 +1980,7 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
         }
         //Date
         date_str = sw_php_format_date(ZEND_STRL(SW_HTTP_DATE_FORMAT), serv->gs->now, 0 TSRMLS_CC);
-        n = snprintf(buf, sizeof(buf), "Date: %s\r\n", date_str);
+        n = snprintf(buf, l_buf, "Date: %s\r\n", date_str);
         efree(date_str);
         swString_append_ptr(response, buf, n);
     }
@@ -2001,7 +2002,7 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
             body_length = swoole_zlib_buffer->length;
         }
 #endif
-        n = snprintf(buf, sizeof(buf), "Content-Length: %d\r\n", body_length);
+        n = snprintf(buf, l_buf, "Content-Length: %d\r\n", body_length);
         swString_append_ptr(response, buf, n);
     }
     //http cookies
