@@ -911,7 +911,7 @@ static PHP_METHOD(swoole_client_coro, recv)
     double timeout = 0;
     ssize_t ret;
     char *buf = NULL;
-    size_t buf_len = SW_PHP_CLIENT_BUFFER_SIZE;
+    ssize_t buf_len = SW_PHP_CLIENT_BUFFER_SIZE;
 
 #ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(0, 2)
