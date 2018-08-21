@@ -4,7 +4,7 @@
 function read_sql_file(string $file)
 {
     $comment_regex = '/(?<!:)\/\/.*|\/\\*(\s|.)*?\*\/|--[^\n]+/';
-    $lines = explode("\n", preg_replace($comment_regex, '', file_get_contents($file)));
+    $lines = explode("\n", preg_replace($comment_regex, '', co::readFile($file)));
     $init_sql = [];
     $multi = false;
     foreach ($lines as $index => $line) {
