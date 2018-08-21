@@ -375,10 +375,8 @@ typedef struct _mysql_client
 
     swTimer_node *timer;
 
-#if PHP_MAJOR_VERSION >= 7
     zval _object;
     zval _onClose;
-#endif
 
     off_t check_offset;
     mysql_response_t response; /* single response */

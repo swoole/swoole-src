@@ -27,10 +27,8 @@
 
 typedef struct
 {
-#if PHP_MAJOR_VERSION >= 7
     zval _callback;
     zval _filename;
-#endif
     zval *callback;
     zval *filename;
     int fd;
@@ -49,10 +47,8 @@ typedef struct
 
 typedef struct
 {
-#if PHP_MAJOR_VERSION >= 7
     zval _callback;
     zval _domain;
-#endif
     zval *callback;
     zval *domain;
 #ifdef SW_COROUTINE
