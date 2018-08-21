@@ -908,7 +908,7 @@ static PHP_METHOD(swoole_client_coro, sendfile)
 
 static PHP_METHOD(swoole_client_coro, recv)
 {
-    double timeout = -1;
+    double timeout = 0;
     ssize_t ret;
     char *buf = NULL;
     size_t buf_len = SW_PHP_CLIENT_BUFFER_SIZE;
@@ -931,8 +931,10 @@ static PHP_METHOD(swoole_client_coro, recv)
     {
         RETURN_FALSE;
     }
-
-    cli->setTimeout(timeout);
+    if (timeout != 0)
+    {
+        cli->setTimeout(timeout);
+    }
     swProtocol *protocol = &cli->protocol;
 
     if (cli->open_eof_check)

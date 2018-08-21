@@ -533,9 +533,14 @@ ssize_t Socket::peek(void *__buf, size_t __n)
 ssize_t Socket::recv(void *__buf, size_t __n)
 {
     ssize_t retval = swConnection_recv(socket, __buf, __n, 0);
-    if (retval >= 0 || errno != EAGAIN)
+    if (retval >= 0)
     {
         return retval;
+    }
+    if (swConnection_error(errno) != SW_WAIT)
+    {
+        errCode = errno;
+        return -1;
     }
 
     int events = SW_EVENT_READ;
@@ -607,9 +612,10 @@ ssize_t Socket::send(const void *__buf, size_t __n)
     {
         return n;
     }
-    if (errno != EAGAIN)
+    if (swConnection_error(errno) != SW_WAIT)
     {
-        return n;
+        errCode = errno;
+        return -1;
     }
     int events = SW_EVENT_WRITE;
 #ifdef SW_USE_OPENSSL
