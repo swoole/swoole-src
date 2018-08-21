@@ -256,7 +256,7 @@ void swoole_table_init(int module_number TSRMLS_DC)
     swoole_table_class_entry_ptr->serialize = zend_class_serialize_deny;
     swoole_table_class_entry_ptr->unserialize = zend_class_unserialize_deny;
     SWOOLE_CLASS_ALIAS(swoole_table, "Swoole\\Table");
-    zend_class_implements(swoole_table_class_entry_ptr TSRMLS_CC, 1, zend_ce_iterator, zend_ce_arrayaccess);
+    zend_class_implements(swoole_table_class_entry_ptr TSRMLS_CC, 2, zend_ce_iterator, zend_ce_arrayaccess);
 #ifdef SW_HAVE_COUNTABLE
     zend_class_implements(swoole_table_class_entry_ptr TSRMLS_CC, 1, zend_ce_countable);
 #endif
