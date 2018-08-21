@@ -241,23 +241,6 @@ ZEND_END_ARG_INFO()
     argvlen[i] = str_len; \
     argv[i] = estrndup(str, str_len); \
     i++;
-#if (PHP_MAJOR_VERSION < 7)
-#define SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(_val) \
-    if (redis->serialize) { \
-        smart_str sstr = {0}; \
-        php_serialize_data_t s_ht; \
-        PHP_VAR_SERIALIZE_INIT(s_ht); \
-        php_var_serialize(&sstr, &_val, &s_ht TSRMLS_CC); \
-        argvlen[i] = (size_t)sstr.len; \
-        argv[i] = sstr.c; \
-        PHP_VAR_SERIALIZE_DESTROY(s_ht); \
-    } else { \
-        convert_to_string(_val); \
-        argvlen[i] = Z_STRLEN_P(_val); \
-        argv[i] = estrndup(Z_STRVAL_P(_val), argvlen[i]); \
-    } \
-    i++;
-#else
 #define SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(_val) \
     if (redis->serialize) { \
         smart_str sstr = {0}; \
@@ -275,7 +258,6 @@ ZEND_END_ARG_INFO()
         zend_string_release(convert_str); \
     } \
     i++;
-#endif
 
 #define SW_REDIS_COMMAND_ALLOC_ARGV \
     size_t stack_argvlen[SW_REDIS_COMMAND_BUFFER_SIZE]; \
@@ -1617,20 +1599,6 @@ static PHP_METHOD(swoole_redis_coro, hMSet)
     SW_REDIS_COMMAND_ALLOC_ARGV
     SW_REDIS_COMMAND_ARGV_FILL("HMSET", 5)
     SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
-#if  (PHP_MAJOR_VERSION < 7)
-    int keytype;
-    SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(z_arr), key, key_len, keytype, value)
-    {
-        if (HASH_KEY_IS_STRING != keytype)
-        {
-            key_len = snprintf(buf, sizeof(buf), "%ld", (long)idx);
-            key = (char*)buf;
-        }
-        SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
-        SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(value)
-    }
-    SW_HASHTABLE_FOREACH_END();
-#else
     zend_ulong idx;
     zend_string *_key;
     ZEND_HASH_FOREACH_KEY_VAL_IND(Z_ARRVAL_P(z_arr), idx, _key, value) {
@@ -1644,7 +1612,6 @@ static PHP_METHOD(swoole_redis_coro, hMSet)
         SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
         SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(value)
     } ZEND_HASH_FOREACH_END();
-#endif
 
     SW_REDIS_COMMAND(argc)
     SW_REDIS_COMMAND_FREE_ARGV
@@ -1765,20 +1732,6 @@ static PHP_METHOD(swoole_redis_coro, mSet)
     char buf[32];
     char *key;
     uint32_t key_len;
-#if  (PHP_MAJOR_VERSION < 7)
-    int keytype;
-    SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(z_args), key, key_len, keytype, value)
-    {
-        if (HASH_KEY_IS_STRING != keytype)
-        {
-            key_len = snprintf(buf, sizeof(buf), "%ld", (long)idx);
-            key = (char*)buf;
-        }
-        SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
-        SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(value)
-    }
-    SW_HASHTABLE_FOREACH_END();
-#else
     zend_ulong idx;
     zend_string *_key;
     ZEND_HASH_FOREACH_KEY_VAL_IND(Z_ARRVAL_P(z_args), idx, _key, value) {
@@ -1792,7 +1745,6 @@ static PHP_METHOD(swoole_redis_coro, mSet)
         SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
         SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(value)
     } ZEND_HASH_FOREACH_END();
-#endif
 
     SW_REDIS_COMMAND(argc)
     SW_REDIS_COMMAND_FREE_ARGV
@@ -1822,20 +1774,6 @@ static PHP_METHOD(swoole_redis_coro, mSetNx)
     char buf[32];
     char *key;
     uint32_t key_len;
-#if  (PHP_MAJOR_VERSION < 7)
-    int keytype;
-    SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(z_args), key, key_len, keytype, value)
-    {
-        if (HASH_KEY_IS_STRING != keytype)
-        {
-            key_len = snprintf(buf, sizeof(buf), "%ld", (long)idx);
-            key = (char*)buf;
-        }
-        SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
-        SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(value)
-    }
-    SW_HASHTABLE_FOREACH_END();
-#else
     zend_ulong idx;
     zend_string *_key;
     ZEND_HASH_FOREACH_KEY_VAL_IND(Z_ARRVAL_P(z_args), idx, _key, value) {
@@ -1849,7 +1787,6 @@ static PHP_METHOD(swoole_redis_coro, mSetNx)
         SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
         SW_REDIS_COMMAND_ARGV_FILL_WITH_SERIALIZE(value)
     } ZEND_HASH_FOREACH_END();
-#endif
 
     SW_REDIS_COMMAND(argc)
     SW_REDIS_COMMAND_FREE_ARGV

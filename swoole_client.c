@@ -819,7 +819,6 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
 
 void php_swoole_at_shutdown(char *function)
 {
-#if PHP_MAJOR_VERSION >=7
     php_shutdown_function_entry shutdown_function_entry;
     shutdown_function_entry.arg_count = 1;
     shutdown_function_entry.arguments = (zval *) safe_emalloc(sizeof(zval), 1, 0);
@@ -831,47 +830,6 @@ void php_swoole_at_shutdown(char *function)
         efree(shutdown_function_entry.arguments);
         swoole_php_fatal_error(E_WARNING, "Unable to register shutdown function [%s]",function);
     }
-#else
-
-    zval *callback;
-    SW_MAKE_STD_ZVAL(callback);
-    SW_ZVAL_STRING(callback, function, 1);
-
-#if PHP_MAJOR_VERSION >= 5 && PHP_MINOR_VERSION >= 4
-
-     php_shutdown_function_entry shutdown_function_entry;
-
-    shutdown_function_entry.arg_count = 1;
-    shutdown_function_entry.arguments = (zval **) safe_emalloc(sizeof(zval *), 1, 0);
-
-
-    shutdown_function_entry.arguments[0] = callback;
-
-    if (!register_user_shutdown_function(function, ZSTR_LEN(Z_STR(callback)), &shutdown_function_entry TSRMLS_CC))
-    {
-        efree(shutdown_function_entry.arguments);
-        sw_zval_ptr_dtor(&callback);
-        swoole_php_fatal_error(E_WARNING, "Unable to register shutdown function [swoole_event_wait]");
-    }
-#else
-    zval *register_shutdown_function;
-    zval *retval = NULL;
-    SW_MAKE_STD_ZVAL(register_shutdown_function);
-    SW_ZVAL_STRING(register_shutdown_function, "register_shutdown_function", 1);
-    zval **args[1] = {&callback};
-
-    if (sw_call_user_function_ex(EG(function_table), NULL, register_shutdown_function, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
-    {
-        swoole_php_fatal_error(E_WARNING, "Unable to register shutdown function [swoole_event_wait]");
-        return;
-    }
-    if (EG(exception))
-    {
-        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
-    }
-#endif
-
-#endif
 }
 
 void php_swoole_client_free(zval *zobject, swClient *cli TSRMLS_DC)
