@@ -57,7 +57,6 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_coro_send, 0, 0, 1)
     ZEND_ARG_INFO(0, data)
-    ZEND_ARG_INFO(0, flag)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_coro_peek, 0, 0, 0)
@@ -266,6 +265,7 @@ static void client_coro_free(zval *zobject, Socket *cli TSRMLS_DC)
 #endif
     //unset object
     swoole_set_object(zobject, NULL);
+    zend_update_property_bool(swoole_client_coro_class_entry_ptr, zobject, SW_STRL("connected")-1, 0);
 }
 
 static void client_coro_check_setting(Socket *cli, zval *zset TSRMLS_DC)
@@ -735,6 +735,7 @@ static PHP_METHOD(swoole_client_coro, connect)
         goto _error;
     }
 #endif
+    zend_update_property_bool(swoole_client_coro_class_entry_ptr, getThis(), SW_STRL("connected")-1, 1);
     RETURN_TRUE;
 }
 
@@ -748,7 +749,7 @@ static PHP_METHOD(swoole_client_coro, send)
         Z_PARAM_STRING(data, data_len)
     ZEND_PARSE_PARAMETERS_END();
 #else
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|l", &data, &data_len) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &data, &data_len) == FAILURE)
     {
         return;
     }
@@ -907,10 +908,10 @@ static PHP_METHOD(swoole_client_coro, sendfile)
 
 static PHP_METHOD(swoole_client_coro, recv)
 {
-    zend_long buf_len = SW_PHP_CLIENT_BUFFER_SIZE;
-    zend_long flags = 0;
+    double timeout = -1;
     ssize_t ret;
     char *buf = NULL;
+    size_t buf_len = SW_PHP_CLIENT_BUFFER_SIZE;
 
 #ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(0, 2)
@@ -919,17 +920,11 @@ static PHP_METHOD(swoole_client_coro, recv)
         Z_PARAM_LONG(flags)
     ZEND_PARSE_PARAMETERS_END();
 #else
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|ll", &buf_len, &flags) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|d", &timeout) == FAILURE)
     {
         return;
     }
 #endif
-
-    //waitall
-    if (flags == 1)
-    {
-        flags = MSG_WAITALL;
-    }
 
     Socket *cli = client_get_ptr(getThis() TSRMLS_CC);
     if (!cli)
@@ -937,6 +932,7 @@ static PHP_METHOD(swoole_client_coro, recv)
         RETURN_FALSE;
     }
 
+    cli->setTimeout(timeout);
     swProtocol *protocol = &cli->protocol;
 
     if (cli->open_eof_check)
@@ -1074,7 +1070,7 @@ static PHP_METHOD(swoole_client_coro, recv)
         if (ret > 0)
         {
             ret += header_len;
-            if (ret != buf_len)
+            if ((size_t) ret != buf_len)
             {
                 ret = 0;
             }
@@ -1082,27 +1078,14 @@ static PHP_METHOD(swoole_client_coro, recv)
     }
     else
     {
-        if (!(flags & MSG_WAITALL) && buf_len > SW_PHP_CLIENT_BUFFER_SIZE)
-        {
-            buf_len = SW_PHP_CLIENT_BUFFER_SIZE;
-        }
         buf = (char *) emalloc(buf_len + 1);
-        SwooleG.error = 0;
-        if (flags & MSG_WAITALL)
-        {
-            ret = cli->recv_all(buf, buf_len);
-        }
-        else
-        {
-            ret = cli->recv(buf, buf_len);
-        }
+        ret = cli->recv(buf, buf_len);
     }
 
     check_return:
-
     if (ret < 0)
     {
-        SwooleG.error = errno;
+        SwooleG.error = cli->errCode;
         swoole_php_error(E_WARNING, "recv() failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
         zend_update_property_long(swoole_client_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
         swoole_efree(buf);

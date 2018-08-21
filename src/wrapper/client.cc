@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "Server.hpp"
+#include "server.hpp"
 
 namespace swoole
 {

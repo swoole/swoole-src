@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "Timer.hpp"
+#include "timer.hpp"
 
 using namespace std;
 
