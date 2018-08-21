@@ -39,6 +39,7 @@ enum http_compress_method
 {
     HTTP_COMPRESS_GZIP = 1,
     HTTP_COMPRESS_DEFLATE,
+    HTTP_COMPRESS_BR,
 };
 
 typedef struct

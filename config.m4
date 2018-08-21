@@ -399,6 +399,11 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(hiredis, redisConnect, AC_DEFINE(HAVE_HIREDIS, 1, [have hiredis]))
     AC_CHECK_LIB(pq, PQconnectdb, AC_DEFINE(HAVE_POSTGRESQL, 1, [have postgresql]))
     AC_CHECK_LIB(nghttp2, nghttp2_hd_inflate_new, AC_DEFINE(HAVE_NGHTTP2, 1, [have nghttp2]))
+    
+    AC_CHECK_LIB(brotlienc, BrotliEncoderCreateInstance, [
+        AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli])
+        PHP_ADD_LIBRARY(brotlienc, 1, SWOOLE_SHARED_LIBADD)
+    ])
 
     AC_CHECK_LIB(z, gzgets, [
         AC_DEFINE(SW_HAVE_ZLIB, 1, [have zlib])

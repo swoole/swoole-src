@@ -252,6 +252,12 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length 
         {
             http2_add_header(&nv[index++], ZEND_STRL("content-encoding"), ZEND_STRL("deflate"));
         }
+#ifdef SW_HAVE_BROTLI
+        else if (ctx->compression_method == HTTP_COMPRESS_BR)
+        {
+            http2_add_header(&nv[index++], ZEND_STRL("content-encoding"), ZEND_STRL("br"));
+        }
+#endif
     }
 #endif
     ctx->send_header = 1;
@@ -566,6 +572,15 @@ static int http2_parse_header(swoole_http_client *client, http_context *ctx, int
 #ifdef SW_HAVE_ZLIB
                 else if (SwooleG.serv->http_compression && strncasecmp((char*) nv.name, "accept-encoding", nv.namelen) == 0)
                 {
+#ifdef SW_HAVE_BROTLI
+                    if (swoole_strnpos((char *) nv.value, nv.valuelen, ZEND_STRL("br")) >= 0)
+                    {
+                        ctx->enable_compression = 1;
+                        ctx->compression_level = SwooleG.serv->http_gzip_level;
+                        ctx->compression_method = HTTP_COMPRESS_BR;
+                    }
+                    else
+#endif
                     if (swoole_strnpos((char *) nv.value, nv.valuelen, ZEND_STRL("gzip")) >= 0)
                     {
                         ctx->enable_compression = 1;

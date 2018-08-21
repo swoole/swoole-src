@@ -40,6 +40,10 @@
 #include <zlib.h>
 #endif
 
+#ifdef SW_HAVE_BROTLI
+#include <brotli/encode.h>
+#endif
+
 #ifdef SW_USE_HTTP2
 #include "http2.h"
 #endif
@@ -667,6 +671,15 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
 #ifdef SW_HAVE_ZLIB
     else if (SwooleG.serv->http_compression && strncmp(header_name, "accept-encoding", header_len) == 0)
     {
+#ifdef SW_HAVE_BROTLI
+        if (swoole_strnpos((char *) at, length, ZEND_STRL("br")) >= 0)
+        {
+            ctx->enable_compression = 1;
+            ctx->compression_level = SwooleG.serv->http_gzip_level;
+            ctx->compression_method = HTTP_COMPRESS_BR;
+        }
+        else
+#endif
         if (swoole_strnpos((char *) at, length, ZEND_STRL("gzip")) >= 0)
         {
             ctx->enable_compression = 1;
@@ -2031,6 +2044,12 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
         {
             swString_append_ptr(response, SW_STRL("Content-Encoding: deflate\r\n") - 1);
         }
+#ifdef SW_HAVE_BROTLI
+        else if (ctx->compression_method == HTTP_COMPRESS_BR)
+        {
+            swString_append_ptr(response, SW_STRL("Content-Encoding: br\r\n") - 1);
+        }
+#endif
     }
 #endif
     swString_append_ptr(response, ZEND_STRL("\r\n"));
@@ -2052,19 +2071,6 @@ int swoole_http_response_compress(swString *body, int method, int level)
 {
     assert(level > 0 || level < 10);
 
-    size_t memory_size = ((size_t) ((double) body->length * (double) 1.015)) + 10 + 8 + 4 + 1;
-
-    if (memory_size > swoole_zlib_buffer->size)
-    {
-        if (swString_extend(swoole_zlib_buffer, memory_size) < 0)
-        {
-            return SW_ERR;
-        }
-    }
-
-    z_stream zstream;
-    memset(&zstream, 0, sizeof(zstream));
-
     int encoding;
     //gzip: 0x1f
     if (method == HTTP_COMPRESS_GZIP)
@@ -2076,11 +2082,56 @@ int swoole_http_response_compress(swString *body, int method, int level)
     {
         encoding = -0xf;
     }
+#ifdef SW_HAVE_BROTLI
+    else if (method == HTTP_COMPRESS_BR)
+    {
+        if (level <= 0)
+        {
+            level = 6;
+        }
+
+        size_t memory_size = BrotliEncoderMaxCompressedSize(body->length);
+        if (memory_size > swoole_zlib_buffer->size)
+        {
+            if (swString_extend(swoole_zlib_buffer, memory_size) < 0)
+            {
+                return SW_ERR;
+            }
+        }
+
+        size_t total_out;
+        const uint8_t *next_in = (uint8_t *) body->str;
+        uint8_t *next_out = (uint8_t *) swoole_zlib_buffer->str;
+
+        if (!BrotliEncoderCompress(level, BROTLI_DEFAULT_WINDOW, BROTLI_DEFAULT_MODE, body->length, next_in, &total_out,
+                next_out))
+        {
+            return SW_ERR;
+        }
+        else
+        {
+            swoole_zlib_buffer->length = total_out;
+            return SW_OK;
+        }
+    }
+#endif
     else
     {
         swWarn("Unknown compression method");
         return SW_ERR;
     }
+
+    size_t memory_size = ((size_t) ((double) body->length * (double) 1.015)) + 10 + 8 + 4 + 1;
+    if (memory_size > swoole_zlib_buffer->size)
+    {
+        if (swString_extend(swoole_zlib_buffer, memory_size) < 0)
+        {
+            return SW_ERR;
+        }
+    }
+
+    z_stream zstream;
+    memset(&zstream, 0, sizeof(zstream));
 
     int status;
     zstream.zalloc = php_zlib_alloc;
