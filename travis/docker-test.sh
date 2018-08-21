@@ -5,7 +5,7 @@ __DIR__=$(cd "$(dirname "$0")";pwd)
 #-------------PHPT-------------
 cd ${__DIR__} && cd ../tests/
 # initialization
-php ${__DIR__}/database.php
+php ./database.php
 # run
 ./start.sh \
 --set-timeout 25 \
