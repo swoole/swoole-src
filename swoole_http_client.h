@@ -71,7 +71,6 @@ typedef struct
     zval *onMessage;
     zval *onResponse;
 
-#if PHP_MAJOR_VERSION >= 7
     zval _object;
     zval _request_body;
     zval _request_header;
@@ -82,7 +81,6 @@ typedef struct
     zval _onError;
     zval _onClose;
     zval _onMessage;
-#endif
 
     zval *cookies;
     zval *request_header;

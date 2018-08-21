@@ -44,7 +44,6 @@ typedef struct
 #endif
 #endif
 
-#if PHP_MAJOR_VERSION >= 7
     zval _object;
     zval _onConnect;
     zval _onReceive;
@@ -54,7 +53,6 @@ typedef struct
     zval _onBufferEmpty;
 #ifdef SW_USE_OPENSSL
     zval _onSSLReady;
-#endif
 #endif
 
 } client_callback;

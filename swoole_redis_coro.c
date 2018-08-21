@@ -364,9 +364,7 @@ typedef struct
 
 typedef struct
 {
-#if PHP_MAJOR_VERSION >= 7
     zval _value;
-#endif
     zval *value;
     swRedisClient *redis;
 } swRedis_result;
@@ -1389,7 +1387,6 @@ static PHP_METHOD(swoole_redis_coro, set)
     if (z_opts && Z_TYPE_P(z_opts) == IS_ARRAY) {
         HashTable *kt = Z_ARRVAL_P(z_opts);
 
-#if PHP_MAJOR_VERSION >= 7
         zend_string *zkey;
         zend_ulong idx;
         zval *v;
@@ -1417,44 +1414,6 @@ static PHP_METHOD(swoole_redis_coro, set)
             }
             (void) idx;
         } ZEND_HASH_FOREACH_END();
-#else
-        int type;
-        unsigned int ht_key_len;
-        unsigned long idx;
-        char *k;
-        zval **v;
-
-        /* Iterate our option array */
-        for(zend_hash_internal_pointer_reset(kt);
-            zend_hash_has_more_elements(kt) == SUCCESS;
-            zend_hash_move_forward(kt))
-        {
-            // Grab key and value
-            type = zend_hash_get_current_key_ex(kt, &k, &ht_key_len, &idx, 0, NULL);
-            zend_hash_get_current_data(kt, (void**)&v);
-
-            /* Detect PX or EX argument and validate timeout */
-            if (type == HASH_KEY_IS_STRING && IS_EX_PX_ARG(k)) {
-                /* Set expire type */
-                exp_type = k;
-
-                /* Try to extract timeout */
-                if (Z_TYPE_PP(v) == IS_LONG) {
-                    expire = Z_LVAL_PP(v);
-                } else if (Z_TYPE_PP(v) == IS_STRING) {
-                    expire = atol(Z_STRVAL_PP(v));
-                }
-
-                /* Expiry can't be set < 1 */
-                if (expire < 1) RETURN_FALSE;
-                argc += 2;
-            } else if (Z_TYPE_PP(v) == IS_STRING && IS_NX_XX_ARG(Z_STRVAL_PP(v))) {
-                argc += 1;
-                set_type = Z_STRVAL_PP(v);
-            }
-            (void) idx;
-        }
-#endif
     } else if(z_opts && Z_TYPE_P(z_opts) == IS_LONG) {
         /* Grab expiry and fail if it's < 1 */
         expire = Z_LVAL_P(z_opts);
@@ -3793,11 +3752,9 @@ static void swoole_redis_coro_parse_result(swRedisClient *redis, zval* return_va
     zval *val;
     int j;
 
-#if PHP_MAJOR_VERSION >= 7
     zval _val;
     val = &_val;
     bzero(val, sizeof(zval));
-#endif
 
     switch (reply->type)
     {

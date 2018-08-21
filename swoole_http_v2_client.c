@@ -40,10 +40,8 @@ typedef struct
     uint8_t type;
     zval *callback;
     zval *data;
-#if PHP_MAJOR_VERSION >= 7
     zval _callback;
     zval _data;
-#endif
 } http2_client_request;
 
 static PHP_METHOD(swoole_http2_client, __construct);

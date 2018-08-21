@@ -1395,21 +1395,13 @@ http_context* swoole_http_context_new(swoole_http_client* client TSRMLS_DC)
     bzero(ctx, sizeof(http_context));
 
     zval *zrequest_object;
-#if PHP_MAJOR_VERSION >= 7
     zrequest_object = &ctx->request._zobject;
-#else
-    SW_ALLOC_INIT_ZVAL(zrequest_object);
-#endif
     ctx->request.zobject = zrequest_object;
     object_init_ex(zrequest_object, swoole_http_request_class_entry_ptr);
     swoole_set_object(zrequest_object, ctx);
 
     zval *zresponse_object;
-#if PHP_MAJOR_VERSION >= 7
     zresponse_object = &ctx->response._zobject;
-#else
-    SW_ALLOC_INIT_ZVAL(zresponse_object);
-#endif
     ctx->response.zobject = zresponse_object;
     object_init_ex(zresponse_object, swoole_http_response_class_entry_ptr);
     swoole_set_object(zresponse_object, ctx);
@@ -2439,9 +2431,7 @@ static PHP_METHOD(swoole_http_response, cookie)
         strlcat(cookie, "; httponly", len + 100);
     }
     sw_add_next_index_stringl(zcookie, cookie, strlen(cookie), 0);
-#if PHP_MAJOR_VERSION >= 7
     efree(cookie);
-#endif
 }
 
 static PHP_METHOD(swoole_http_response, rawcookie)
@@ -2547,9 +2537,7 @@ static PHP_METHOD(swoole_http_response, rawcookie)
         strlcat(cookie, "; httponly", len + 100);
     }
     sw_add_next_index_stringl(zcookie, cookie, strlen(cookie), 0);
-#if PHP_MAJOR_VERSION >= 7
     efree(cookie);
-#endif
 }
 
 static PHP_METHOD(swoole_http_response, status)
