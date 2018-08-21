@@ -41,7 +41,7 @@ do
     for i in {1..5}
     do
         if [ "`cat failed.list | grep "phpt"`" ]; then
-            sleep i
+            sleep ${i}
             echo "retry#${i}..."
             retry_failures
         else
