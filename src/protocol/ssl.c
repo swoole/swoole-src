@@ -15,7 +15,7 @@
  */
 
 #include "swoole.h"
-#include "Connection.h"
+#include "connection.h"
 
 #ifdef SW_USE_OPENSSL
 

@@ -15,7 +15,7 @@
  */
 
 #include "php_swoole.h"
-#include "Connection.h"
+#include "connection.h"
 
 #include "websocket.h"
 

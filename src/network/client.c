@@ -15,8 +15,8 @@
  */
 
 #include "swoole.h"
-#include "Server.h"
-#include "Client.h"
+#include "server.h"
+#include "client.h"
 #include "socks5.h"
 #include "async.h"
 

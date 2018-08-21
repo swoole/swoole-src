@@ -15,7 +15,7 @@
 */
 #include <stdio.h>
 #include "swoole.h"
-#include "RingQueue.h"
+#include "ring_queue.h"
 
 #ifdef SW_USE_RINGQUEUE_TS
 

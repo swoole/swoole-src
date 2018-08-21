@@ -17,7 +17,7 @@
  */
 
 #include "swoole.h"
-#include "Server.h"
+#include "server.h"
 
 #include <sys/stat.h>
 

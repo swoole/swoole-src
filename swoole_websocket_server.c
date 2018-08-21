@@ -28,7 +28,7 @@
 #include <main/php_variables.h>
 
 #include "websocket.h"
-#include "Connection.h"
+#include "connection.h"
 #include "base64.h"
 #include "thirdparty/php_http_parser.h"
 

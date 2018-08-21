@@ -17,7 +17,7 @@
  */
 
 #include "swoole.h"
-#include "Connection.h"
+#include "connection.h"
 #include "http2.h"
 
 int swHttp2_parse_frame(swProtocol *protocol, swConnection *conn, char *data, uint32_t length)

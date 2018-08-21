@@ -15,7 +15,7 @@
  */
 
 #include "swoole.h"
-#include "Client.h"
+#include "client.h"
 
 #define SW_DNS_SERVER_CONF         "/etc/resolv.conf"
 #define SW_DNS_SERVER_NUM          2

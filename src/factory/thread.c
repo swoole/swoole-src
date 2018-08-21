@@ -15,7 +15,7 @@
  */
 
 #include "swoole.h"
-#include "Server.h"
+#include "server.h"
 
 static int swFactoryThread_dispatch(swFactory *factory, swDispatchData *buf);
 static int swFactoryThread_finish(swFactory *factory, swSendData *data);

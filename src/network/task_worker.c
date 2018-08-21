@@ -15,7 +15,7 @@
 */
 
 #include "swoole.h"
-#include "Server.h"
+#include "server.h"
 
 static swEventData *current_task = NULL;
 

@@ -17,9 +17,9 @@
 // Fix warning: 'daemon' is deprecated: first deprecated in macOS 10.5 - Use posix_spawn APIs instead. [-Wdeprecated-declarations]
 #define daemon yes_we_know_that_daemon_is_deprecated_in_os_x_10_5_thankyou
 #endif
-#include "Server.h"
+#include "server.h"
 #include "http.h"
-#include "Connection.h"
+#include "connection.h"
 #include <spawn.h>
 #include <sys/stat.h>
 #if __APPLE__

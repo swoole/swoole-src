@@ -15,8 +15,8 @@
  */
 
 #include "swoole.h"
-#include "Server.h"
-#include "Client.h"
+#include "server.h"
+#include "client.h"
 #include "websocket.h"
 
 static int swReactorThread_loop(swThreadParam *param);

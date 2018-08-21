@@ -15,7 +15,7 @@
 */
 
 #include "php_swoole.h"
-#include "Socket.h"
+#include "socket.h"
 #include "socks5.h"
 #include "mqtt.h"
 

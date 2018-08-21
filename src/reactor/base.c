@@ -15,9 +15,9 @@
 */
 
 #include "swoole.h"
-#include "Connection.h"
+#include "connection.h"
 #include "async.h"
-#include "Server.h"
+#include "server.h"
 
 #ifdef SW_USE_MALLOC_TRIM
 #ifdef __APPLE__

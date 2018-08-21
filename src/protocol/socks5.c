@@ -17,7 +17,7 @@
  */
 
 #include "swoole.h"
-#include "Client.h"
+#include "client.h"
 #include "socks5.h"
 
 char* swSocks5_strerror(int code)

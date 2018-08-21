@@ -15,9 +15,9 @@
  */
 
 #include "swoole.h"
-#include "Server.h"
+#include "server.h"
 #include "websocket.h"
-#include "Connection.h"
+#include "connection.h"
 
 #include <sys/time.h>
 

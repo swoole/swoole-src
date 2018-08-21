@@ -15,7 +15,7 @@
  */
 
 #include "swoole.h"
-#include "Server.h"
+#include "server.h"
 
 #include <signal.h>
 #include <sys/time.h>

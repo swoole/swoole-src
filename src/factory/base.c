@@ -15,7 +15,7 @@
  */
 
 #include "swoole.h"
-#include "Server.h"
+#include "server.h"
 
 int swFactory_create(swFactory *factory)
 {

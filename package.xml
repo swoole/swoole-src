@@ -68,14 +68,14 @@
             <file role="src" name="config.m4" />
             <dir name="include">
                 <file role="src" name="swoole.h" />
-                <file role="src" name="Server.h" />
-                <file role="src" name="Client.h" />
-                <file role="src" name="Connection.h" />
+                <file role="src" name="server.h" />
+                <file role="src" name="client.h" />
+                <file role="src" name="connection.h" />
                 <file role="src" name="atomic.h" />
                 <file role="src" name="buffer.h" />
                 <file role="src" name="hashmap.h" />
                 <file role="src" name="list.h" />
-                <file role="src" name="RingQueue.h" />
+                <file role="src" name="ring_queue.h" />
                 <file role="src" name="uthash.h" />
                 <file role="src" name="array.h" />
                 <file role="src" name="async.h" />

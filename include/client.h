@@ -23,7 +23,7 @@ extern "C"
 #endif
 
 #include "buffer.h"
-#include "Connection.h"
+#include "connection.h"
 
 #define SW_SOCK_ASYNC    1
 #define SW_SOCK_SYNC     0

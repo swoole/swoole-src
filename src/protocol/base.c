@@ -17,7 +17,7 @@
  */
 
 #include "swoole.h"
-#include "Connection.h"
+#include "connection.h"
 
 /**
  * return the package total length

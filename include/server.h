@@ -19,7 +19,7 @@
 
 #include "swoole.h"
 #include "buffer.h"
-#include "Connection.h"
+#include "connection.h"
 
 #if defined(__sun) && !defined(s6_addr32)
 #define s6_addr32                  _S6_un._S6_u32

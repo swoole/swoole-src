@@ -159,7 +159,7 @@ typedef unsigned long ulong_t;
 #include "hashmap.h"
 #include "list.h"
 #include "heap.h"
-#include "RingQueue.h"
+#include "ring_queue.h"
 #include "array.h"
 #include "error.h"
 

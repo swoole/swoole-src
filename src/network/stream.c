@@ -15,7 +15,7 @@
  */
 
 #include "swoole.h"
-#include "Client.h"
+#include "client.h"
 
 static void swStream_free(swStream *stream);
 

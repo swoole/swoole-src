@@ -1,7 +1,7 @@
 #pragma once
 
 #include "swoole.h"
-#include "Connection.h"
+#include "connection.h"
 #include "socks5.h"
 #include <string>
 

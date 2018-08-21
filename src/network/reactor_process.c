@@ -14,7 +14,7 @@
  +----------------------------------------------------------------------+
  */
 
-#include "Server.h"
+#include "server.h"
 
 static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker);
 static int swReactorProcess_onPipeRead(swReactor *reactor, swEvent *event);

@@ -18,7 +18,7 @@
 
 #include "swoole.h"
 #include "redis.h"
-#include "Connection.h"
+#include "connection.h"
 
 typedef struct
 {
