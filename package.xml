@@ -131,7 +131,7 @@
             <file role="src" name="swoole_coroutine.h" />
             <file role="src" name="swoole_coroutine.cc" />
             <file role="src" name="swoole_coroutine_util.c" />
-            <file role="src" name="swoole_client_coro.c" />
+            <file role="src" name="swoole_client_coro.cc" />
             <file role="src" name="swoole_http_client_coro.c" />
             <file role="src" name="swoole_redis_coro.c" />
             <file role="src" name="swoole_mysql_coro.c" />
@@ -219,8 +219,8 @@
                     <file role="src" name="socket.c" />
                     <file role="src" name="log.c" />
                     <file role="src" name="hashmap.c" />
-                    <file role="src" name="RingQueue.c" />
-                    <file role="src" name="Channel.c" />
+                    <file role="src" name="ring_queue.c" />
+                    <file role="src" name="channel.c" />
                     <file role="src" name="string.c" />
                     <file role="src" name="array.c" />
                     <file role="src" name="list.c" />
@@ -228,18 +228,18 @@
                     <file role="src" name="error.cc" />
                 </dir>
                 <dir name="memory">
-                    <file role="src" name="ShareMemory.c" />
-                    <file role="src" name="MemoryGlobal.c" />
-                    <file role="src" name="FixedPool.c" />
-                    <file role="src" name="RingBuffer.c" />
-                    <file role="src" name="Table.c" />
-                    <file role="src" name="Malloc.c" />
-                    <file role="src" name="Buffer.c" />
+                    <file role="src" name="shared_memory.c" />
+                    <file role="src" name="global_memory.c" />
+                    <file role="src" name="fixed_pool.c" />
+                    <file role="src" name="ring_buffer.c" />
+                    <file role="src" name="table.c" />
+                    <file role="src" name="malloc.c" />
+                    <file role="src" name="buffer.c" />
                 </dir>
                 <dir name="factory">
-                    <file role="src" name="Factory.c" />
-                    <file role="src" name="FactoryThread.c" />
-                    <file role="src" name="FactoryProcess.c" />
+                    <file role="src" name="base.c" />
+                    <file role="src" name="thread.c" />
+                    <file role="src" name="process.c" />
                 </dir>
                 <dir name="reactor">
                     <file role="src" name="base.c" />
@@ -249,34 +249,34 @@
                     <file role="src" name="kqueue.c" />
                 </dir>
                 <dir name="pipe">
-                    <file role="src" name="PipeBase.c" />
-                    <file role="src" name="PipeEventfd.c" />
-                    <file role="src" name="PipeUnsock.c" />
+                    <file role="src" name="base.c" />
+                    <file role="src" name="eventfd.c" />
+                    <file role="src" name="unix_socket.c" />
                 </dir>
                 <dir name="lock">
-                    <file role="src" name="Semaphore.c" />
-                    <file role="src" name="Mutex.c" />
-                    <file role="src" name="RWLock.c" />
-                    <file role="src" name="SpinLock.c" />
-                    <file role="src" name="FileLock.c" />
-                    <file role="src" name="Cond.c" />
+                    <file role="src" name="semaphore.c" />
+                    <file role="src" name="mutex.c" />
+                    <file role="src" name="rw_lock.c" />
+                    <file role="src" name="spin_lock.c" />
+                    <file role="src" name="file_lock.c" />
+                    <file role="src" name="cond.c" />
                 </dir>
                 <dir name="network">
-                    <file role="src" name="Client.c" />
-                    <file role="src" name="Connection.c" />
-                    <file role="src" name="ProcessPool.c" />
-                    <file role="src" name="ReactorProcess.c" />
-                    <file role="src" name="ReactorThread.c" />
-                    <file role="src" name="Server.c" />
-                    <file role="src" name="TaskWorker.c" />
-                    <file role="src" name="ThreadPool.c" />
-                    <file role="src" name="Worker.c" />
-                    <file role="src" name="Manager.c" />
-                    <file role="src" name="Timer.c" />
-                    <file role="src" name="DNS.c" />
-                    <file role="src" name="Port.c" />
-                    <file role="src" name="TimeWheel.c" />
-                    <file role="src" name="Stream.c" />
+                    <file role="src" name="client.c" />
+                    <file role="src" name="connection.c" />
+                    <file role="src" name="process_pool.c" />
+                    <file role="src" name="reactor_process.c" />
+                    <file role="src" name="reactor_thread.c" />
+                    <file role="src" name="server.c" />
+                    <file role="src" name="task_worker.c" />
+                    <file role="src" name="thread_pool.c" />
+                    <file role="src" name="worker.c" />
+                    <file role="src" name="manager.c" />
+                    <file role="src" name="timer.c" />
+                    <file role="src" name="dns.c" />
+                    <file role="src" name="port.c" />
+                    <file role="src" name="time_wheel.c" />
+                    <file role="src" name="stream.c" />
                 </dir>
                 <dir name="os">
                     <file role="src" name="base.c" />
@@ -286,17 +286,17 @@
                     <file role="src" name="timer.c" />
                 </dir>
                 <dir name="protocol">
-                    <file role="src" name="Base.c" />
-                    <file role="src" name="SSL.c" />
-                    <file role="src" name="Http.c" />
-                    <file role="src" name="Http2.c" />
-                    <file role="src" name="WebSocket.c" />
-                    <file role="src" name="Sha1.c" />
-                    <file role="src" name="Base64.c" />
-                    <file role="src" name="Mqtt.c" />
-                    <file role="src" name="Socks5.c" />
-                    <file role="src" name="MimeTypes.c" />
-                    <file role="src" name="Redis.c" />
+                    <file role="src" name="base.c" />
+                    <file role="src" name="ssl.c" />
+                    <file role="src" name="http.c" />
+                    <file role="src" name="http2.c" />
+                    <file role="src" name="websocket.c" />
+                    <file role="src" name="sha1.c" />
+                    <file role="src" name="base64.c" />
+                    <file role="src" name="mqtt.c" />
+                    <file role="src" name="socks5.c" />
+                    <file role="src" name="mime_types.c" />
+                    <file role="src" name="redis.c" />
                 </dir>
                 <dir name="coroutine">
                     <file role="src" name="base.cc" />
@@ -769,8 +769,6 @@
                 <file name="swoole_http_server/cookies.phpt" role="test" />
                 <file name="swoole_http_server/data_parse.phpt" role="test" />
                 <file name="swoole_http_server/enable_coroutine.phpt" role="test" />
-                <file name="swoole_http_server/gzip.phpt" role="test" />
-                <file name="swoole_http_server/gzip_http2.phpt" role="test" />
                 <file name="swoole_http_server/large_url.phpt" role="test" />
                 <file name="swoole_http_server/rawContent.phpt" role="test" />
                 <file name="swoole_http_server/rawCookie.phpt" role="test" />
