@@ -313,7 +313,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length 
 
 int swoole_http2_do_response(http_context *ctx, swString *body)
 {
-    swoole_http_client *client = ctx->client;
+    swoole_http2_client *client = (swoole_http2_client *) ctx->client;
     char header_buffer[8192];
     int ret;
 
@@ -456,7 +456,7 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
     return SW_OK;
 }
 
-static int http2_parse_header(swoole_http_client *client, http_context *ctx, int flags, char *in, size_t inlen)
+static int http2_parse_header(swoole_http2_client *client, http_context *ctx, int flags, char *in, size_t inlen)
 {
     nghttp2_hd_inflater *inflater = client->inflater;
 
@@ -615,7 +615,7 @@ static int http2_parse_header(swoole_http_client *client, http_context *ctx, int
 /**
  * Http2
  */
-int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
+int swoole_http2_onFrame(swoole_http2_client *client, swEventData *req)
 {
     if (!client->init)
     {
@@ -645,7 +645,7 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
     {
     case SW_HTTP2_TYPE_HEADERS:
     {
-        ctx = swoole_http_context_new(client TSRMLS_CC);
+        ctx = swoole_http_context_new((swoole_http_client *) client TSRMLS_CC);
         if (!ctx)
         {
             sw_zval_ptr_dtor(&zdata);
@@ -762,7 +762,7 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
     return SW_OK;
 }
 
-void swoole_http2_free(swoole_http_client *client)
+void swoole_http2_free(swoole_http2_client *client)
 {
     if (client->inflater)
     {

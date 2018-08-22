@@ -1069,7 +1069,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
     if (conn->http2_stream)
     {
         client->http2 = 1;
-        return swoole_http2_onFrame(client, req);
+        return swoole_http2_onFrame((swoole_http2_client *) client, req);
     }
 #endif
 
@@ -1253,7 +1253,7 @@ static void http_onClose(swServer *serv, swDataHead *ev)
 #ifdef SW_USE_HTTP2
     if (client->http2)
     {
-        swoole_http2_free(client);
+        swoole_http2_free((swoole_http2_client *) client);
     }
 #endif
     zval *zcallback = php_swoole_server_get_callback(serv, ev->from_fd, SW_SERVER_CB_onClose);
@@ -1599,10 +1599,11 @@ static PHP_METHOD(swoole_http_server, start)
         RETURN_FALSE;
     }
 
-    http_client_array = swArray_new(1024, sizeof(swoole_http_client));
+    uint32_t client_size = serv->listen_list->open_http2_protocol ? sizeof (swoole_http2_client) : sizeof(swoole_http_client);
+    http_client_array = swArray_new(1024, client_size);
     if (!http_client_array)
     {
-        swoole_php_fatal_error(E_ERROR, "swArray_new(1024, %ld) failed.", sizeof(swoole_http_client));
+        swoole_php_fatal_error(E_ERROR, "swArray_new(1024, %ld) failed.", client_size);
         RETURN_FALSE;
     }
 

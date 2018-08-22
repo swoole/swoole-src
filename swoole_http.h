@@ -143,17 +143,22 @@ typedef struct _swoole_http_client
 {
     int fd;
     uint32_t http2 :1;
+} swoole_http_client;
 
 #ifdef SW_USE_HTTP2
+typedef struct _swoole_http2_client
+{
+    int fd;
+    uint32_t http2 :1;
     uint32_t init :1;
     swHashMap *streams;
     nghttp2_hd_inflater *deflater;
     nghttp2_hd_inflater *inflater;
     uint32_t window_size;
     uint32_t remote_window_size;
+} swoole_http2_client;
 #endif
 
-} swoole_http_client;
 
 /**
  * WebSocket
@@ -185,9 +190,9 @@ z##name = ctx->class.z##name;
 /**
  * Http v2
  */
-int swoole_http2_onFrame(swoole_http_client *client, swEventData *req);
+int swoole_http2_onFrame(swoole_http2_client *client, swEventData *req);
 int swoole_http2_do_response(http_context *ctx, swString *body);
-void swoole_http2_free(swoole_http_client *client);
+void swoole_http2_free(swoole_http2_client *client);
 #endif
 
 extern zend_class_entry swoole_http_server_ce;
