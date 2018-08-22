@@ -270,7 +270,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length 
     if (ctx->enable_compression)
     {
         const char *content_encoding = swoole_http_get_content_encoding(ctx);
-        http2_add_header(&nv[index++], ZEND_STRL("content-encoding"), content_encoding, strlen(content_encoding));
+        http2_add_header(&nv[index++], ZEND_STRL("content-encoding"), (char *) content_encoding, strlen(content_encoding));
     }
 #endif
     ctx->send_header = 1;
@@ -585,7 +585,7 @@ static int http2_parse_header(swoole_http_client *client, http_context *ctx, int
 #ifdef SW_HAVE_ZLIB
                 else if (SwooleG.serv->http_compression && strncasecmp((char*) nv.name, "accept-encoding", nv.namelen) == 0)
                 {
-                    swoole_http_get_compression_method(ctx, nv.value, nv.valuelen);
+                    swoole_http_get_compression_method(ctx, (const char *) nv.value, nv.valuelen);
                 }
 #endif
                 sw_add_assoc_stringl_ex(zheader, (char *) nv.name, nv.namelen + 1, (char *) nv.value, nv.valuelen, 1);
@@ -641,7 +641,9 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
 
     swTraceLog(SW_TRACE_HTTP2, "[%s]\tflags=%d, stream_id=%d, length=%d", swHttp2_get_type(type), flags, stream_id, length);
 
-    if (type == SW_HTTP2_TYPE_HEADERS)
+    switch (type)
+    {
+    case SW_HTTP2_TYPE_HEADERS:
     {
         ctx = swoole_http_context_new(client TSRMLS_CC);
         if (!ctx)
@@ -665,15 +667,15 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
         }
 
         zval *zserver = ctx->request.zserver;
-        add_assoc_long_ex(zserver, ZEND_STRL("request_time"), serv->gs->now);
+        add_assoc_long(zserver, "request_time", serv->gs->now);
         // Add REQUEST_TIME_FLOAT
         double now_float = swoole_microtime();
-        add_assoc_double_ex(zserver, ZEND_STRL("request_time_float"), now_float);
+        add_assoc_double(zserver, "request_time_float", now_float);
         add_assoc_long(zserver, "server_port", swConnection_get_port(&SwooleG.serv->connection_list[conn->from_fd]));
         add_assoc_long(zserver, "remote_port", swConnection_get_port(conn));
-        add_assoc_string(zserver, ZEND_STRL("remote_addr"), swConnection_get_ip(conn));
-        add_assoc_string(zserver, ZEND_STRL("server_protocol"), "HTTP/2");
-        add_assoc_string(zserver, ZEND_STRL("server_software"), SW_HTTP_SERVER_SOFTWARE);
+        add_assoc_string(zserver, "remote_addr", swConnection_get_ip(conn));
+        add_assoc_string(zserver, "server_protocol", "HTTP/2");
+        add_assoc_string(zserver, "server_software", SW_HTTP_SERVER_SOFTWARE);
 
         if (flags & SW_HTTP2_FLAG_END_STREAM)
         {
@@ -687,8 +689,9 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
             }
             swHashMap_add_int(client->streams, stream_id, ctx);
         }
+        break;
     }
-    else if (type == SW_HTTP2_TYPE_DATA)
+    case SW_HTTP2_TYPE_DATA:
     {
         ctx = swHashMap_find_int(client->streams, stream_id);
         if (!ctx)
@@ -737,17 +740,21 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
             swServer_tcp_send(SwooleG.serv, fd, window_update_frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_WINDOW_UPDATE_SIZE);
             client->remote_window_size = SW_HTTP2_MAX_WINDOW_SIZE;
         }
+        break;
     }
-    else if (type == SW_HTTP2_TYPE_PING)
+    case SW_HTTP2_TYPE_PING:
     {
         char ping_frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE];
         swHttp2_set_frame_header(ping_frame, SW_HTTP2_TYPE_PING, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, SW_HTTP2_FLAG_ACK, stream_id);
         memcpy(ping_frame + SW_HTTP2_FRAME_HEADER_SIZE, buf + SW_HTTP2_FRAME_HEADER_SIZE, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE);
         swServer_tcp_send(SwooleG.serv, fd, ping_frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE);
+        break;
     }
-    else if (type == SW_HTTP2_TYPE_WINDOW_UPDATE)
+    case SW_HTTP2_TYPE_WINDOW_UPDATE:
     {
         client->window_size += swHttp2_get_increment_size(buf);
+        break;
+    }
     }
 
     sw_zval_ptr_dtor(&zdata);
