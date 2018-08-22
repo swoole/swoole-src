@@ -163,7 +163,7 @@ void coro_destroy(TSRMLS_D)
     if (SwooleG.chan_pipe)
     {
         SwooleG.chan_pipe->close(SwooleG.chan_pipe);
-        efree(SwooleG.chan_pipe);
+        sw_free(SwooleG.chan_pipe);
         SwooleG.chan_pipe = NULL;
     }
 }
