@@ -636,7 +636,7 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
     char *buf = Z_STRVAL_P(zdata);
     int type = buf[3];
     int flags = buf[4];
-    int stream_id = ntohl((*(int *) (buf + 5))) & 0x7fffffff;
+    uint32_t stream_id = ntohl((*(int *) (buf + 5))) & 0x7fffffff;
     uint32_t length = swHttp2_get_length(buf);
 
     swTraceLog(SW_TRACE_HTTP2, "[%s]\tflags=%d, stream_id=%d, length=%d", swHttp2_get_type(type), flags, stream_id, length);
@@ -647,7 +647,7 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
         if (!ctx)
         {
             sw_zval_ptr_dtor(&zdata);
-            swoole_error_log(SW_LOG_WARNING, SW_ERROR_HTTP2_STREAM_NO_HEADER, "http2 error stream.");
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_HTTP2_STREAM_NO_HEADER, "http2 create stream#%d context error.", stream_id);
             return SW_ERR;
         }
 
@@ -665,17 +665,15 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
         }
 
         zval *zserver = ctx->request.zserver;
-        sw_add_assoc_long_ex(zserver, ZEND_STRS("request_time"), serv->gs->now);
-
+        add_assoc_long_ex(zserver, ZEND_STRL("request_time"), serv->gs->now);
         // Add REQUEST_TIME_FLOAT
         double now_float = swoole_microtime();
-        sw_add_assoc_double_ex(zserver, ZEND_STRS("request_time_float"), now_float);
-
+        add_assoc_double_ex(zserver, ZEND_STRL("request_time_float"), now_float);
         add_assoc_long(zserver, "server_port", swConnection_get_port(&SwooleG.serv->connection_list[conn->from_fd]));
         add_assoc_long(zserver, "remote_port", swConnection_get_port(conn));
-        sw_add_assoc_string(zserver, "remote_addr", swConnection_get_ip(conn), 1);
-        sw_add_assoc_string(zserver, "server_protocol", "HTTP/2", 1);
-        sw_add_assoc_string(zserver, "server_software", SW_HTTP_SERVER_SOFTWARE, 1);
+        add_assoc_string(zserver, ZEND_STRL("remote_addr"), swConnection_get_ip(conn));
+        add_assoc_string(zserver, ZEND_STRL("server_protocol"), "HTTP/2");
+        add_assoc_string(zserver, ZEND_STRL("server_software"), SW_HTTP_SERVER_SOFTWARE);
 
         if (flags & SW_HTTP2_FLAG_END_STREAM)
         {
@@ -696,7 +694,7 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
         if (!ctx)
         {
             sw_zval_ptr_dtor(&zdata);
-            swoole_error_log(SW_LOG_WARNING, SW_ERROR_HTTP2_STREAM_NO_HEADER, "http2 error stream.");
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_HTTP2_STREAM_NOT_FOUND, "http2 stream#%d not found.", stream_id);
             return SW_ERR;
         }
 
