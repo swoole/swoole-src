@@ -1203,7 +1203,8 @@ static PHP_METHOD(swoole_http2_client_coro, goaway)
     int ret;
     char* frame;
     uint8_t error_code = SW_HTTP2_ERROR_NO_ERROR;
-    swString debug_data;
+    char* debug_data = NULL;
+    long  debug_data_len = 0;
 
     if (!cli || !cli->socket || cli->socket->closed)
     {
@@ -1211,19 +1212,18 @@ static PHP_METHOD(swoole_http2_client_coro, goaway)
         RETURN_FALSE;
     }
 
-    bzero(&debug_data, sizeof(debug_data));
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|ls", &error_code, &debug_data.str, &debug_data.length) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|ls", &error_code, &debug_data, &debug_data_len) == FAILURE)
     {
         return;
     }
 
-    size_t length = SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_GOAWAY_SIZE + debug_data.length;
+    size_t length = SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_GOAWAY_SIZE + debug_data_len;
     frame = emalloc(length);
     bzero(frame, length);
-    swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_GOAWAY, SW_HTTP2_GOAWAY_SIZE + debug_data.length, error_code, 0);
+    swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_GOAWAY, SW_HTTP2_GOAWAY_SIZE + debug_data_len, error_code, 0);
     *(uint32_t*) (frame + SW_HTTP2_FRAME_HEADER_SIZE) = htonl(hcc->last_stream_id);
     *(uint32_t*) (frame + SW_HTTP2_FRAME_HEADER_SIZE + 4) = htonl(error_code);
-    memcpy(frame + SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_GOAWAY_SIZE, debug_data.str, debug_data.length);
+    memcpy(frame + SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_GOAWAY_SIZE, debug_data, debug_data_len);
     swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN"] Send: last-sid=%d, error-code=%d", swHttp2_get_type(SW_HTTP2_TYPE_GOAWAY), hcc->last_stream_id, error_code);
 
     ret = cli->send(cli, frame, length, 0);
