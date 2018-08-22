@@ -1072,7 +1072,7 @@ static PHP_METHOD(swoole_client_coro, recv)
         if (ret > 0)
         {
             ret += header_len;
-            if ((size_t) ret != buf_len)
+            if (ret != buf_len)
             {
                 ret = 0;
             }
