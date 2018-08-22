@@ -28,11 +28,12 @@
 
 enum http_response_flag
 {
-    HTTP_RESPONSE_SERVER           = 1u << 1,
-    HTTP_RESPONSE_CONNECTION       = 1u << 2,
-    HTTP_RESPONSE_CONTENT_LENGTH   = 1u << 3,
-    HTTP_RESPONSE_DATE             = 1u << 4,
-    HTTP_RESPONSE_CONTENT_TYPE     = 1u << 5,
+    HTTP_RESPONSE_SERVER            = 1u << 1,
+    HTTP_RESPONSE_CONNECTION        = 1u << 2,
+    HTTP_RESPONSE_CONTENT_LENGTH    = 1u << 3,
+    HTTP_RESPONSE_DATE              = 1u << 4,
+    HTTP_RESPONSE_CONTENT_TYPE      = 1u << 5,
+    HTTP_RESPONSE_TRANSFER_ENCODING = 1u << 6,
 };
 
 enum http_compress_method

@@ -1883,9 +1883,9 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
      * http header
      */
     zval *header = ctx->response.zheader;
+    int flag = 0x0;
     if (header)
     {
-        int flag = 0x0;
         HashTable *ht = Z_ARRVAL_P(header);
         zval *value = NULL;
         char *key = NULL;
@@ -1914,50 +1914,30 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
             {
                 flag |= HTTP_RESPONSE_CONTENT_TYPE;
             }
+            else if (strncasecmp(key, "Transfer-Encoding", keylen) == 0)
+            {
+                flag |= HTTP_RESPONSE_TRANSFER_ENCODING;
+            }
             n = snprintf(buf, l_buf, "%*s: %*s\r\n", keylen - 1, key, (int)Z_STRLEN_P(value), Z_STRVAL_P(value));
             swString_append_ptr(response, buf, n);
         }
         SW_HASHTABLE_FOREACH_END();
         (void)type;
-
-        if (!(flag & HTTP_RESPONSE_SERVER))
-        {
-            swString_append_ptr(response, ZEND_STRL("Server: "SW_HTTP_SERVER_SOFTWARE"\r\n"));
-        }
-        //websocket protocol
-        if (ctx->upgrade == 1)
-        {
-            swString_append_ptr(response, ZEND_STRL("\r\n"));
-            ctx->send_header = 1;
-            return;
-        }
-        if (!(flag & HTTP_RESPONSE_CONNECTION))
-        {
-            if (ctx->keepalive)
-            {
-                swString_append_ptr(response, ZEND_STRL("Connection: keep-alive\r\n"));
-            }
-            else
-            {
-                swString_append_ptr(response, ZEND_STRL("Connection: close\r\n"));
-            }
-        }
-        if (!(flag & HTTP_RESPONSE_CONTENT_TYPE))
-        {
-            swString_append_ptr(response, ZEND_STRL("Content-Type: text/html\r\n"));
-        }
-        if (!(flag & HTTP_RESPONSE_DATE))
-        {
-            date_str = sw_php_format_date(ZEND_STRL(SW_HTTP_DATE_FORMAT), serv->gs->now, 0 TSRMLS_CC);
-            n = snprintf(buf, l_buf, "Date: %s\r\n", date_str);
-            swString_append_ptr(response, buf, n);
-            efree(date_str);
-        }
     }
-    else
+
+    if (!(flag & HTTP_RESPONSE_SERVER))
     {
-        //Server
-        swString_append_ptr(response, ZEND_STRL("Server: "SW_HTTP_SERVER_SOFTWARE"\r\nContent-Type: text/html\r\n"));
+        swString_append_ptr(response, ZEND_STRL("Server: "SW_HTTP_SERVER_SOFTWARE"\r\n"));
+    }
+    //websocket protocol
+    if (ctx->upgrade == 1)
+    {
+        swString_append_ptr(response, ZEND_STRL("\r\n"));
+        ctx->send_header = 1;
+        return;
+    }
+    if (!(flag & HTTP_RESPONSE_CONNECTION))
+    {
         if (ctx->keepalive)
         {
             swString_append_ptr(response, ZEND_STRL("Connection: keep-alive\r\n"));
@@ -1966,23 +1946,28 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
         {
             swString_append_ptr(response, ZEND_STRL("Connection: close\r\n"));
         }
-        //Date
+    }
+    if (!(flag & HTTP_RESPONSE_CONTENT_TYPE))
+    {
+        swString_append_ptr(response, ZEND_STRL("Content-Type: text/html\r\n"));
+    }
+    if (!(flag & HTTP_RESPONSE_DATE))
+    {
         date_str = sw_php_format_date(ZEND_STRL(SW_HTTP_DATE_FORMAT), serv->gs->now, 0 TSRMLS_CC);
         n = snprintf(buf, l_buf, "Date: %s\r\n", date_str);
-        efree(date_str);
         swString_append_ptr(response, buf, n);
+        efree(date_str);
     }
-    /**
-     * Http chunk
-     */
+
     if (ctx->chunk)
     {
-        swString_append_ptr(response, SW_STRL("Transfer-Encoding: chunked\r\n") - 1);
+        if (!(flag & HTTP_RESPONSE_TRANSFER_ENCODING))
+        {
+            swString_append_ptr(response, SW_STRL("Transfer-Encoding: chunked\r\n") - 1);
+        }
     }
-    /**
-     * Content-Length
-     */
     else
+    // Content-Length
     {
 #ifdef SW_HAVE_ZLIB
         if (ctx->enable_compression)
@@ -1993,6 +1978,7 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
         n = snprintf(buf, l_buf, "Content-Length: %d\r\n", body_length);
         swString_append_ptr(response, buf, n);
     }
+
     //http cookies
     if (ctx->response.zcookie)
     {
