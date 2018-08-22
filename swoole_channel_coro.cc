@@ -152,7 +152,7 @@ static PHP_METHOD(swoole_channel_coro, pop)
         zend_update_property_long(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, -3 TSRMLS_CC);
         RETURN_FALSE;
     }
-    RETURN_ZVAL((zval*)chan->pop(timeout), 0, 0);
+    RETURN_ZVAL((zval* )chan->pop(timeout), 1, 0);
 }
 
 static PHP_METHOD(swoole_channel_coro, close)
