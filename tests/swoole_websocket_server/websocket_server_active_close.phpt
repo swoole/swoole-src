@@ -31,14 +31,14 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
     });
     $serv->on('Message', function ($serv, $frame) {
-        if ($frame->data == 'shutdown') {
-            $serv->disconnect($frame->fd, 4000, 'shutdown received');
+        if ($frame->opcode == 0x08) {
+            echo "{$frame->close_code}\n";
+            echo "{$frame->data}\n";
+        } else {
+            if ($frame->data == 'shutdown') {
+                $serv->disconnect($frame->fd, 4000, 'shutdown received');
+            }
         }
-    });
-    $serv->on('WebsocketClose', function (swoole_websocket_server $serv, $fd, $from_id, $code, $reason) use ($pm) {
-        echo "{$from_id}\n";
-        echo "{$code}\n";
-        echo "{$reason}\n";
     });
     $serv->start();
 };
@@ -46,6 +46,5 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
--1
 4000
 shutdown received
