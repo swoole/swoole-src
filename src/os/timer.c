@@ -15,7 +15,7 @@
 */
 
 #include "swoole.h"
-#include "Server.h"
+#include "server.h"
 
 static int swSystemTimer_signal_set(swTimer *timer, long interval);
 static int swSystemTimer_set(swTimer *timer, long new_interval);

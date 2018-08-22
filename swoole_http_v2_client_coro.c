@@ -211,11 +211,13 @@ static PHP_METHOD(swoole_http2_client_coro, __construct)
 #endif
     }
 
-    zend_update_property_long(swoole_http2_client_coro_class_entry_ptr, getThis(), ZEND_STRL("type"), type TSRMLS_CC);
-
     hcc->host = estrndup(host, host_len);
     hcc->host_len = host_len;
     hcc->port = port;
+
+    zend_update_property_long(swoole_http2_client_coro_class_entry_ptr, getThis(), ZEND_STRL("type"), type TSRMLS_CC);
+    zend_update_property_stringl(swoole_http2_client_coro_class_entry_ptr, getThis(), ZEND_STRL("host"), host, host_len TSRMLS_CC);
+    zend_update_property_long(swoole_http2_client_coro_class_entry_ptr, getThis(), ZEND_STRL("port"), port TSRMLS_CC);
 }
 
 static PHP_METHOD(swoole_http2_client_coro, set)

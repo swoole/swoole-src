@@ -159,7 +159,7 @@ typedef unsigned long ulong_t;
 #include "hashmap.h"
 #include "list.h"
 #include "heap.h"
-#include "RingQueue.h"
+#include "ring_queue.h"
 #include "array.h"
 #include "error.h"
 
@@ -1212,13 +1212,16 @@ static inline int swoole_strnpos(char *haystack, uint32_t haystack_length, char 
     assert(needle_length > 0);
     uint32_t i;
 
-    for (i = 0; i < (int) (haystack_length - needle_length + 1); i++)
+    if (likely(needle_length <= haystack_length))
     {
-        if ((haystack[0] == needle[0]) && (0 == memcmp(haystack, needle, needle_length)))
+        for (i = 0; i < haystack_length - needle_length + 1; i++)
         {
-            return i;
+            if ((haystack[0] == needle[0]) && (0 == memcmp(haystack, needle, needle_length)))
+            {
+                return i;
+            }
+            haystack++;
         }
-        haystack++;
     }
 
     return -1;

@@ -20,7 +20,6 @@
 #include <emmintrin.h>
 #endif
 
-#if PHP_MAJOR_VERSION >= 7
 #define CPINLINE sw_inline
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_serialize_pack, 0, 0, 1)
@@ -1581,5 +1580,3 @@ static PHP_METHOD(swoole_serialize, unpack)
         RETURN_FALSE;
     }
 }
-
-#endif

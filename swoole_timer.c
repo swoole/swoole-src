@@ -30,10 +30,8 @@ typedef struct _swTimer_callback
 {
     zval* callback;
     zval* data;
-#if PHP_MAJOR_VERSION >= 7
     zval _callback;
     zval _data;
-#endif
 #ifdef SW_COROUTINE
     zend_fcall_info_cache *func_cache;
 #endif

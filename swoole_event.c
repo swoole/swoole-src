@@ -23,14 +23,12 @@
 
 typedef struct
 {
-#if PHP_MAJOR_VERSION >= 7
     struct
     {
         zval cb_read;
         zval cb_write;
         zval socket;
     } stack;
-#endif
     zval *cb_read;
     zval *cb_write;
     zval *socket;
@@ -38,9 +36,7 @@ typedef struct
 
 typedef struct
 {
-#if PHP_MAJOR_VERSION >= 7
     zval _callback;
-#endif
     zval *callback;
 } php_defer_callback;
 
@@ -260,7 +256,6 @@ void php_swoole_event_wait()
 {
     if (SwooleWG.in_client == 1 && SwooleWG.reactor_ready == 0 && SwooleG.running)
     {
-#if PHP_MAJOR_VERSION >= 7
         if (PG(last_error_message))
         {
             switch (PG(last_error_type))
@@ -274,7 +269,6 @@ void php_swoole_event_wait()
                 break;
             }
         }
-#endif
         SwooleWG.reactor_ready = 1;
 
 #ifdef HAVE_SIGNALFD
@@ -734,12 +728,8 @@ PHP_FUNCTION(swoole_event_defer)
 
     php_defer_callback *defer = emalloc(sizeof(php_defer_callback));
 
-#if PHP_MAJOR_VERSION >= 7
     defer->callback = &defer->_callback;
     memcpy(defer->callback, callback, sizeof(zval));
-#else
-    defer->callback = callback;
-#endif
     sw_zval_add_ref(&callback);
     SW_CHECK_RETURN(SwooleG.main_reactor->defer(SwooleG.main_reactor, php_swoole_event_onDefer, defer));
 }
@@ -786,12 +776,8 @@ PHP_FUNCTION(swoole_event_cycle)
 
     php_defer_callback *cb = emalloc(sizeof(php_defer_callback));
 
-#if PHP_MAJOR_VERSION >= 7
     cb->callback = &cb->_callback;
     memcpy(cb->callback, callback, sizeof(zval));
-#else
-    cb->callback = callback;
-#endif
     sw_zval_add_ref(&callback);
 
     if (before == 0)

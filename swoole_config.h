@@ -18,8 +18,8 @@
 
 #ifndef __clang__
 //gcc version check
-#if defined(__GNUC__) && (__GNUC__ < 3 || (__GNUC__ == 4 && __GNUC_MINOR__ < 4))
-#error "GCC 4.4 or later required."
+#if defined(__GNUC__) && (__GNUC__ < 3 || (__GNUC__ == 4 && __GNUC_MINOR__ < 8))
+#error "GCC 4.8 or later required."
 #endif
 #endif
 
@@ -31,6 +31,7 @@
 #define SW_MAX_FILE_CONTENT        (64*1024*1024) //for swoole_file_get_contents
 #define SW_MAX_LISTEN_PORT         60000
 #define SW_MAX_CONCURRENT_TASK     1024
+#define SW_STACK_BUFFER_SIZE       65536
 
 #ifdef HAVE_MALLOC_TRIM
 #define SW_USE_MALLOC_TRIM
@@ -220,11 +221,10 @@
 #define SW_HTTP_COOKIE_KEYLEN            128
 #define SW_HTTP_COOKIE_VALLEN            4096
 #define SW_HTTP_RESPONSE_INIT_SIZE       65536
-#define SW_HTTP_HEADER_MAX_SIZE          8192
+#define SW_HTTP_HEADER_MAX_SIZE          65536
 #define SW_HTTP_HEADER_KEY_SIZE          128
 #define SW_HTTP_HEADER_VALUE_SIZE        4096
 #define SW_HTTP_HEADER_BUFFER_SIZE       128
-#define SW_HTTP_COMPRESS_GZIP
 #define SW_HTTP_UPLOAD_TMPDIR_SIZE       256
 #define SW_HTTP_DATE_FORMAT              "D, d M Y H:i:s T"
 #define SW_HTTP_RFC1123_DATE_GMT         "%a, %d %b %Y %T GMT"

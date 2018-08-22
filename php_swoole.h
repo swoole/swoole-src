@@ -33,13 +33,24 @@
 #include "config.h"
 #endif
 
+// zend iterator interface
+#if PHP_VERSION_ID < 70200
+#ifdef HAVE_PCRE
+#include "ext/spl/spl_iterators.h"
+#define zend_ce_countable spl_ce_Countable
+#define SW_HAVE_COUNTABLE 1
+#endif
+#else
+#define SW_HAVE_COUNTABLE 1
+#endif
+
 #ifdef SW_STATIC_COMPILATION
 #include "php_config.h"
 #endif
 
 #include "swoole.h"
-#include "Server.h"
-#include "Client.h"
+#include "server.h"
+#include "client.h"
 #include "async.h"
 
 BEGIN_EXTERN_C()
@@ -50,7 +61,7 @@ BEGIN_EXTERN_C()
 #include <ext/standard/basic_functions.h>
 #include <ext/standard/php_http.h>
 
-#define PHP_SWOOLE_VERSION  "4.0.4"
+#define PHP_SWOOLE_VERSION  "4.1.0-alpha"
 #define PHP_SWOOLE_CHECK_CALLBACK
 #define PHP_SWOOLE_ENABLE_FASTCALL
 #define PHP_SWOOLE_CLIENT_USE_POLL
@@ -201,9 +212,7 @@ typedef struct
 {
     zval *callbacks[PHP_SERVER_CALLBACK_NUM];
     zend_fcall_info_cache *caches[PHP_SERVER_CALLBACK_NUM];
-#if PHP_MAJOR_VERSION >= 7
     zval _callbacks[PHP_SERVER_CALLBACK_NUM];
-#endif
     zval *setting;
     swServer *serv;
 } swoole_server_port_property;
@@ -258,9 +267,7 @@ extern zend_class_entry *swoole_exception_class_entry_ptr;
 
 extern zval *php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
 extern zend_fcall_info_cache *php_sw_server_caches[PHP_SERVER_CALLBACK_NUM];
-#if PHP_MAJOR_VERSION >= 7
 extern zval _php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
-#endif
 
 PHP_MINIT_FUNCTION(swoole);
 PHP_MSHUTDOWN_FUNCTION(swoole);
@@ -316,7 +323,6 @@ PHP_METHOD(swoole_server, connection_info);
 PHP_METHOD(swoole_server, getReceivedTime);
 #endif
 
-#ifdef HAVE_PCRE
 PHP_METHOD(swoole_connection_iterator, count);
 PHP_METHOD(swoole_connection_iterator, rewind);
 PHP_METHOD(swoole_connection_iterator, next);
@@ -328,7 +334,6 @@ PHP_METHOD(swoole_connection_iterator, offsetGet);
 PHP_METHOD(swoole_connection_iterator, offsetSet);
 PHP_METHOD(swoole_connection_iterator, offsetUnset);
 PHP_METHOD(swoole_connection_iterator, __destruct);
-#endif
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
 PHP_METHOD(swoole_server, getSocket);
@@ -454,14 +459,14 @@ zval* php_swoole_task_unpack(swEventData *task_result TSRMLS_DC);
 
 static sw_inline void* swoole_get_object(zval *object)
 {
-    int handle = sw_get_object_handle(object);
+    uint32_t handle = sw_get_object_handle(object);
     assert(handle < swoole_objects.size);
     return swoole_objects.array[handle];
 }
 
 static sw_inline void* swoole_get_property(zval *object, int property_id)
 {
-    int handle = sw_get_object_handle(object);
+    uint32_t handle = sw_get_object_handle(object);
     if (handle >= swoole_objects.property_size[property_id])
     {
         return NULL;
@@ -496,10 +501,8 @@ int php_swoole_client_onPackage(swConnection *conn, char *data, uint32_t length)
 void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode);
 void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode);
 
-#if PHP_MAJOR_VERSION >= 7
 PHPAPI zend_string* php_swoole_serialize(zval *zvalue);
 PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, zval *object_args, long flag);
-#endif
 
 #ifdef SW_COROUTINE
 int php_coroutine_reactor_can_exit(swReactor *reactor);
