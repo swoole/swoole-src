@@ -2153,6 +2153,8 @@ typedef struct
     swHashMap *functions;
     swLinkedList *hooks[SW_MAX_HOOK_TYPE];
 
+    swPipe *chan_pipe;
+
 } swServerG;
 
 extern swServerG SwooleG;              //Local Global Variable
