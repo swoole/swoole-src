@@ -273,12 +273,12 @@ static PHP_METHOD(swoole_memory_pool_slice, read)
     else if (size > info->size)
     {
         size = info->size;
-        swoole_php_error(E_WARNING, "size(%ld) is too big.", size);
+        swoole_php_error(E_WARNING, "size(" ZEND_LONG_FMT ") is too big.", size);
     }
 
     if (offset < 0 || offset + size > info->size)
     {
-        swoole_php_error(E_WARNING, "offset(%ld) is out of bounds.", offset);
+        swoole_php_error(E_WARNING, "offset(" ZEND_LONG_FMT ") is out of bounds.", offset);
         RETURN_FALSE;
     }
 
@@ -301,12 +301,12 @@ static PHP_METHOD(swoole_memory_pool_slice, write)
     size = data->len;
     if (size > info->size)
     {
-        swoole_php_error(E_WARNING, "data is too large:%zd.", size);
+        swoole_php_error(E_WARNING, "data is too large:" ZEND_LONG_FMT ".", size);
         RETURN_FALSE;
     }
     if (offset < 0 || offset + size > info->size)
     {
-        swoole_php_error(E_WARNING, "offset(%ld) is out of bounds.", offset);
+        swoole_php_error(E_WARNING, "offset(" ZEND_LONG_FMT ") is out of bounds.", offset);
         RETURN_FALSE;
     }
 

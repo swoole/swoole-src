@@ -84,7 +84,7 @@ static inline int find_next_zero_bit(void *addr, int cid)
             break;
         }
         ++cid;
-        cid &= 0x7fff;
+        cid &= 0x7ffff;
     }
 
     return cid;
@@ -196,6 +196,19 @@ void coroutine_set_ptr(coroutine_t *co, void *ptr)
     co->ptr = ptr;
 }
 
+void* coroutine_get_ptr_by_cid(int cid)
+{
+    coroutine_t *co = swCoroG.coroutines[cid];
+    if (co == nullptr)
+    {
+        return nullptr;
+    }
+    else
+    {
+        return co->ptr;
+    }
+}
+
 coroutine_t* coroutine_get_by_id(int cid)
 {
     return swCoroG.coroutines[cid];
@@ -204,6 +217,22 @@ coroutine_t* coroutine_get_by_id(int cid)
 int coroutine_get_cid()
 {
     return swCoroG.current_cid;
+}
+
+int coroutine_test_alloc_cid()
+{
+    int cid = alloc_cidmap();
+    if (unlikely(cid == -1))
+    {
+        swWarn("alloc_cidmap failed");
+        return CORO_LIMIT;
+    }
+    return cid;
+}
+
+void coroutine_test_free_cid(int cid)
+{
+    free_cidmap(cid);
 }
 
 void coroutine_set_onYield(coro_php_yield_t func)
@@ -220,5 +249,3 @@ void coroutine_set_onClose(coro_php_close_t func)
 {
     swCoroG.onClose = func;
 }
-
-

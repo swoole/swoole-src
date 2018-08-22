@@ -1,7 +1,7 @@
 version: '3.4'
 services:
   php:
-    image: "twosee/php:7.2-cli"
+    image: "twosee/php:${PHP_VERSION}"
     volumes:
       - "${TRAVIS_BUILD_DIR}:/swoole-src:rw"
     working_dir: /swoole-src

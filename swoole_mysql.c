@@ -822,7 +822,7 @@ int mysql_parse_auth_signature(swString *buffer, mysql_connector *connector)
 
     // remaining length
     buffer->offset = 4 + packet_length;
-    swTraceLog(SW_TRACE_MYSQL_CLIENT, "before signature remaining=%zu", buffer->length - buffer->offset);
+    swTraceLog(SW_TRACE_MYSQL_CLIENT, "before signature remaining=%ju", (uintmax_t) (buffer->length - buffer->offset));
 
     if ((uint8_t)tmp[1] == SW_MYSQL_AUTH_SIGNATURE_FULL_AUTH_REQUIRED)
     {
@@ -1119,12 +1119,10 @@ static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
 
     add_next_index_zval(result_array, row_array);
 
-#if PHP_MAJOR_VERSION > 5
     if (row_array)
     {
         efree(row_array);
     }
-#endif
 
     return read_n;
 }
@@ -1344,12 +1342,10 @@ static int mysql_decode_row_prepare(mysql_client *client, char *buf, int packet_
 
     add_next_index_zval(result_array, row_array);
 
-#if PHP_MAJOR_VERSION > 5
     if (row_array)
     {
         efree(row_array);
     }
-#endif
 
     return read_n + null_count;
 }

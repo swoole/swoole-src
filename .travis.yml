@@ -49,6 +49,8 @@ before_script:
   - php -v
   - ls -al
   - pwd
+  - echo "`git log -10 --pretty --oneline`"
+  - echo "`git log -5 --stat --pretty --oneline`"
   - ./travis/compile.sh
   - cat ~/.phpenv/versions/$(phpenv version-name)/etc/php.ini
   - php --ri swoole

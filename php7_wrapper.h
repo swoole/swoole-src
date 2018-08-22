@@ -89,7 +89,7 @@ static sw_inline char* sw_php_url_encode(char *value, size_t value_len, int* ext
 static sw_inline int sw_call_user_function_ex(HashTable *function_table, zval** object_pp, zval *function_name, zval **retval_ptr_ptr, uint32_t param_count, zval ***params, int no_separation, HashTable* ymbol_table)
 {
     zval real_params[SW_PHP_MAX_PARAMS_NUM];
-    int i = 0;
+    uint32_t i = 0;
     for (; i < param_count; i++)
     {
         real_params[i] = **params[i];
@@ -104,7 +104,7 @@ static sw_inline int sw_call_user_function_ex(HashTable *function_table, zval** 
 static sw_inline int sw_call_user_function_fast(zval *function_name, zend_fcall_info_cache *fci_cache, zval **retval_ptr_ptr, uint32_t param_count, zval ***params)
 {
     zval real_params[SW_PHP_MAX_PARAMS_NUM];
-    int i = 0;
+    uint32_t i = 0;
     for (; i < param_count; i++)
     {
         real_params[i] = **params[i];
@@ -115,7 +115,7 @@ static sw_inline int sw_call_user_function_fast(zval *function_name, zend_fcall_
 
     zend_fcall_info fci;
     fci.size = sizeof(fci);
-#if PHP_MINOR_VERSION == 0
+#if PHP_MAJOR_VERSION == 7 && PHP_MINOR_VERSION == 0
     fci.function_table = EG(function_table);
     fci.symbol_table = NULL;
 #endif
@@ -290,7 +290,7 @@ static inline int sw_zend_register_class_alias(const char *name, zend_class_entr
 
     zend_string *_interned_name = zend_new_interned_string(_name);
 
-#if PHP_MINOR_VERSION > 2
+#if PHP_VERSION_ID >= 70300
     return zend_register_class_alias_ex(_interned_name->val, _interned_name->len, ce, 1);
 #else
     return zend_register_class_alias_ex(_interned_name->val, _interned_name->len, ce);

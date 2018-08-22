@@ -1065,7 +1065,7 @@ static PHP_METHOD(swoole_socket_coro, connect)
         }
         else if (port == 0 || port >= 65536)
         {
-            swoole_php_error(E_WARNING, "Invalid port argument[%ld]", port);
+            swoole_php_error(E_WARNING, "Invalid port argument[" ZEND_LONG_FMT "]", port);
             RETURN_FALSE;
         }
     }

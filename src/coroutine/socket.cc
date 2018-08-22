@@ -1,4 +1,4 @@
-#include "Socket.h"
+#include "socket.h"
 #include "context.h"
 #include "async.h"
 #include "buffer.h"
@@ -533,9 +533,14 @@ ssize_t Socket::peek(void *__buf, size_t __n)
 ssize_t Socket::recv(void *__buf, size_t __n)
 {
     ssize_t retval = swConnection_recv(socket, __buf, __n, 0);
-    if (retval >= 0 || errno != EAGAIN)
+    if (retval >= 0)
     {
         return retval;
+    }
+    if (swConnection_error(errno) != SW_WAIT)
+    {
+        errCode = errno;
+        return -1;
     }
 
     int events = SW_EVENT_READ;
@@ -573,7 +578,7 @@ ssize_t Socket::recv_all(void *__buf, size_t __n)
             break;
         }
         total_bytes += retval;
-        if (total_bytes == __n)
+        if ((size_t) total_bytes == __n)
         {
             break;
         }
@@ -592,7 +597,7 @@ ssize_t Socket::send_all(const void *__buf, size_t __n)
             break;
         }
         total_bytes += retval;
-        if (total_bytes == __n)
+        if ((size_t) total_bytes == __n)
         {
             break;
         }
@@ -607,9 +612,10 @@ ssize_t Socket::send(const void *__buf, size_t __n)
     {
         return n;
     }
-    if (errno != EAGAIN)
+    if (swConnection_error(errno) != SW_WAIT)
     {
-        return n;
+        errCode = errno;
+        return -1;
     }
     int events = SW_EVENT_WRITE;
 #ifdef SW_USE_OPENSSL
@@ -1066,11 +1072,12 @@ bool Socket::sendfile(char *filename, off_t offset, size_t length)
     }
     else
     {
+        // total length of the file
         length = offset + length;
     }
 
     int n, sendn;
-    while (offset < length)
+    while ((size_t) offset < length)
     {
         sendn = (length - offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : length - offset;
 #ifdef SW_USE_OPENSSL
