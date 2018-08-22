@@ -348,6 +348,7 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_status, 0, 0, 1)
     ZEND_ARG_INFO(0, http_code)
+    ZEND_ARG_INFO(0, reason)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_header, 0, 0, 2)
@@ -1426,6 +1427,7 @@ void swoole_http_context_free(http_context *ctx TSRMLS_DC)
 {
     swoole_set_object(ctx->response.zobject, NULL);
     http_request *req = &ctx->request;
+    http_response *res = &ctx->response;
     if (req->path)
     {
         efree(req->path);
@@ -1436,6 +1438,10 @@ void swoole_http_context_free(http_context *ctx TSRMLS_DC)
         swString_free(req->post_buffer);
     }
 #endif
+    if (res->reason)
+    {
+        efree(res->reason);
+    }
     efree(ctx);
 }
 
@@ -1876,7 +1882,14 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
     /**
      * http status line
      */
-    n = snprintf(buf, l_buf, "HTTP/1.1 %s\r\n", http_status_message(ctx->response.status));
+    if (!ctx->response.reason)
+    {
+        n = snprintf(buf, l_buf, "HTTP/1.1 %s\r\n", http_status_message(ctx->response.status));
+    }
+    else
+    {
+        n = snprintf(buf, l_buf, "HTTP/1.1 %d %s\r\n", ctx->response.status, ctx->response.reason);
+    }
     swString_append_ptr(response, buf, n);
 
     /**
@@ -2604,7 +2617,9 @@ static PHP_METHOD(swoole_http_response, rawcookie)
 static PHP_METHOD(swoole_http_response, status)
 {
     long http_status;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &http_status) == FAILURE)
+    char* reason = NULL;
+    long reason_len = 0;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|s", &http_status, &reason, &reason_len) == FAILURE)
     {
         return;
     }
@@ -2616,6 +2631,11 @@ static PHP_METHOD(swoole_http_response, status)
     }
 
     ctx->response.status = http_status;
+    if (reason_len > 0)
+    {
+        ctx->response.reason = emalloc(32);
+        strncpy(ctx->response.reason, reason, 32 - 1);
+    }
 }
 
 static PHP_METHOD(swoole_http_response, header)
