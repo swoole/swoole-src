@@ -641,17 +641,16 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
         client->init = 1;
     }
 
-    int fd = req->info.fd;
-
-    http_context *ctx;
     swServer *serv = SwooleG.serv;
+    int fd = req->info.fd;
+    int from_fd = req->info.from_fd;
+    http_context *ctx;
 
     zval *zdata;
     SW_MAKE_STD_ZVAL(zdata);
     php_swoole_get_recv_data(zdata, req, NULL, 0);
 
     char *buf = Z_STRVAL_P(zdata);
-
     int type = buf[3];
     int flags = buf[4];
     int stream_id = ntohl((*(int *) (buf + 5))) & 0x7fffffff;
@@ -697,7 +696,7 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
 
         if (flags & SW_HTTP2_FLAG_END_STREAM)
         {
-            http2_onRequest(ctx, req->info.from_fd TSRMLS_CC);
+            http2_onRequest(ctx, from_fd TSRMLS_CC);
         }
         else
         {
@@ -745,7 +744,7 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
                     swoole_php_fatal_error(E_WARNING, "parse multipart body failed.");
                 }
             }
-            http2_onRequest(ctx, req->info.from_fd TSRMLS_CC);
+            http2_onRequest(ctx, from_fd TSRMLS_CC);
         }
 
         client->remote_window_size -= length;
@@ -769,7 +768,9 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
     {
         client->window_size += swHttp2_get_increment_size(buf);
     }
+
     sw_zval_ptr_dtor(&zdata);
+
     return SW_OK;
 }
 
