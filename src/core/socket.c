@@ -15,7 +15,7 @@
  */
 
 #include "swoole.h"
-#include "Connection.h"
+#include "connection.h"
 
 #include <sys/stat.h>
 #include <poll.h>

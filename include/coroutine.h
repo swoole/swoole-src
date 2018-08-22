@@ -39,8 +39,11 @@ void coroutine_resume_naked(coroutine_t *co); //without function call
 void coroutine_yield_naked(coroutine_t *co);  //without function call
 void coroutine_release(coroutine_t *co);
 void coroutine_set_ptr(coroutine_t *co, void *ptr);
+void* coroutine_get_ptr_by_cid(int cid);
 coroutine_t *coroutine_get_by_id(int cid);
 int coroutine_get_cid();
+int coroutine_test_alloc_cid();
+void coroutine_test_free_cid(int cid);
 
 void coroutine_set_onYield(coro_php_yield_t func);
 void coroutine_set_onResume(coro_php_resume_t func);

@@ -183,3 +183,49 @@ TEST(coroutine, socket_resolve)
     SwooleG.main_reactor->wait(SwooleG.main_reactor, nullptr);
 }
 
+#define CID_ALLOC_PRINT  0
+
+TEST(coroutine, cid_alloc)
+{
+    //alloc [1] full
+    for (int i = 0; i < 65536 * 8; i++)
+    {
+        int cid = coroutine_test_alloc_cid();
+        ASSERT_GT(cid, 0);
+#if CID_ALLOC_PRINT
+        if (i % 1000 == 0)
+        {
+            printf("cid=%d\n", cid);
+        }
+#endif
+    }
+    //limit
+    {
+        int cid = coroutine_test_alloc_cid();
+        ASSERT_EQ(cid, CORO_LIMIT);
+    }
+    //free
+    for (int i = 1; i < 65536; i++)
+    {
+        int cid = i * 7;
+        coroutine_test_free_cid(cid);
+#if CID_ALLOC_PRINT
+        if (i % 1000 == 0)
+        {
+            printf("free cid=%d\n", cid);
+        }
+#endif
+    }
+    //alloc [2]
+    for (int i = 0; i < 65536 / 2; i++)
+    {
+        int cid = coroutine_test_alloc_cid();
+        ASSERT_GT(cid, 0);
+#if CID_ALLOC_PRINT
+        if (i % 1000 == 0)
+        {
+            printf("cid=%d\n", cid);
+        }
+#endif
+    }
+}

@@ -44,10 +44,8 @@ typedef struct
     z_stream gzip_stream;
     swString *gzip_buffer;
 #endif
-#if PHP_MAJOR_VERSION >= 7
     zval _callback;
     zval _response_object;
-#endif
 
     // flow control
     uint32_t send_window;

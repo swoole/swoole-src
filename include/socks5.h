@@ -22,7 +22,7 @@ extern "C"
 {
 #endif
 
-#include "Client.h"
+#include "client.h"
 
 #define SW_SOCKS5_VERSION_CODE    0x05
 

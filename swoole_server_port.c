@@ -86,9 +86,7 @@ void swoole_server_port_init(int module_number TSRMLS_DC)
     zend_declare_property_long(swoole_server_port_class_entry_ptr, ZEND_STRL("sock"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_server_port_class_entry_ptr, ZEND_STRL("setting"), ZEND_ACC_PUBLIC TSRMLS_CC);
 
-#ifdef HAVE_PCRE
     zend_declare_property_null(swoole_server_port_class_entry_ptr, ZEND_STRL("connections"), ZEND_ACC_PUBLIC TSRMLS_CC);
-#endif
 }
 
 static PHP_METHOD(swoole_server_port, __construct)

@@ -33,7 +33,7 @@ typedef struct
     swLinkedList *producer_list;
     swLinkedList *consumer_list;
     bool closed;
-    int capacity;
+    uint32_t capacity;
     std::queue<zval> *data_queue;
 } channel;
 
@@ -138,8 +138,6 @@ static void channel_pop_onTimeout(swTimer *timer, swTimer_node *tnode)
 
     channel *chan = (channel *) swoole_get_object(zobject);
     swLinkedList_remove_node(chan->consumer_list, list_node);
-    efree(node);
-
     zend_update_property_long(swoole_client_class_entry_ptr, zobject, SW_STRL("errCode")-1, -1 TSRMLS_CC);
 
     int ret = coro_resume(context, result, &retval);
@@ -148,6 +146,7 @@ static void channel_pop_onTimeout(swTimer *timer, swTimer_node *tnode)
         sw_zval_ptr_dtor(&retval);
     }
     sw_zval_ptr_dtor(&result);
+    efree(node);
 }
 
 static void channel_notify(channel_node *node)
@@ -175,7 +174,7 @@ static void swoole_channel_onResume(php_context *ctx)
     SW_MAKE_STD_ZVAL(zdata);
     *zdata = ctx->coro_params;
 
-    swDebug("channel onResume, cid=%d", coroutine_get_cid());
+    swTraceLog(SW_TRACE_COROUTINE, "channel onResume, cid=%d", coroutine_get_cid());
 
     int ret = coro_resume(ctx, zdata, &retval);
     if (ret == CORO_END && retval)
@@ -213,12 +212,10 @@ static int swoole_channel_try_resume_producer(zval *object, channel *property)
 static sw_inline int swoole_channel_try_resume_all(zval *object, channel *property)
 {
     swLinkedList *coro_list = property->producer_list;
-    swLinkedList_node *next;
     channel_node *node;
 
     while (coro_list->num != 0)
     {
-        next = coro_list->head;
         node = (channel_node *) swLinkedList_shift(coro_list);
         node->context.onTimeout = swoole_channel_onResume;
         ZVAL_FALSE(&node->context.coro_params);
@@ -228,7 +225,6 @@ static sw_inline int swoole_channel_try_resume_all(zval *object, channel *proper
     coro_list = property->consumer_list;
     while (coro_list->num != 0)
     {
-        next = coro_list->head;
         node = (channel_node*) swLinkedList_shift(coro_list);
         node->context.onTimeout = swoole_channel_onResume;
         ZVAL_FALSE(&node->context.coro_params);
@@ -240,7 +236,7 @@ static sw_inline int swoole_channel_try_resume_all(zval *object, channel *proper
 
 static PHP_METHOD(swoole_channel_coro, __construct)
 {
-    long capacity = 0;
+    zend_long capacity = 0;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &capacity) == FAILURE)
     {
