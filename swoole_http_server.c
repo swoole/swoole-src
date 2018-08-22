@@ -1599,7 +1599,11 @@ static PHP_METHOD(swoole_http_server, start)
         RETURN_FALSE;
     }
 
+#ifdef SW_USE_HTTP2
     uint32_t client_size = serv->listen_list->open_http2_protocol ? sizeof (swoole_http2_client) : sizeof(swoole_http_client);
+#else
+    uint32_t client_size = sizeof(swoole_http_client);
+#endif
     http_client_array = swArray_new(1024, client_size);
     if (!http_client_array)
     {
