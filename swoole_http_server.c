@@ -671,27 +671,7 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
 #ifdef SW_HAVE_ZLIB
     else if (SwooleG.serv->http_compression && strncmp(header_name, "accept-encoding", header_len) == 0)
     {
-#ifdef SW_HAVE_BROTLI
-        if (swoole_strnpos((char *) at, length, ZEND_STRL("br")) >= 0)
-        {
-            ctx->enable_compression = 1;
-            ctx->compression_level = SwooleG.serv->http_gzip_level;
-            ctx->compression_method = HTTP_COMPRESS_BR;
-        }
-        else
-#endif
-        if (swoole_strnpos((char *) at, length, ZEND_STRL("gzip")) >= 0)
-        {
-            ctx->enable_compression = 1;
-            ctx->compression_level = SwooleG.serv->http_gzip_level;
-            ctx->compression_method = HTTP_COMPRESS_GZIP;
-        }
-        else if (swoole_strnpos((char *) at, length, ZEND_STRL("deflate")) >= 0)
-        {
-            ctx->enable_compression = 1;
-            ctx->compression_level = SwooleG.serv->http_gzip_level;
-            ctx->compression_method = HTTP_COMPRESS_DEFLATE;
-        }
+        swoole_http_get_compression_method(ctx, at, length);
     }
 #endif
 
@@ -2028,20 +2008,10 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
     //http compress
     if (ctx->enable_compression)
     {
-        if (ctx->compression_method == HTTP_COMPRESS_GZIP)
-        {
-            swString_append_ptr(response, SW_STRL("Content-Encoding: gzip\r\n") - 1);
-        }
-        else if (ctx->compression_method == HTTP_COMPRESS_DEFLATE)
-        {
-            swString_append_ptr(response, SW_STRL("Content-Encoding: deflate\r\n") - 1);
-        }
-#ifdef SW_HAVE_BROTLI
-        else if (ctx->compression_method == HTTP_COMPRESS_BR)
-        {
-            swString_append_ptr(response, SW_STRL("Content-Encoding: br\r\n") - 1);
-        }
-#endif
+        const char *content_encoding = swoole_http_get_content_encoding(ctx);
+        swString_append_ptr(response, ZEND_STRL("Content-Encoding: "));
+        swString_append_ptr(response, (char*) content_encoding, strlen(content_encoding));
+        swString_append_ptr(response, ZEND_STRL("\r\n"));
     }
 #endif
     swString_append_ptr(response, ZEND_STRL("\r\n"));
@@ -2051,12 +2021,63 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
 #ifdef SW_HAVE_ZLIB
 voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size)
 {
-    return (voidpf)safe_emalloc(items, size, 0);
+    return (voidpf) safe_emalloc(items, size, 0);
 }
 
 void php_zlib_free(voidpf opaque, voidpf address)
 {
-    efree((void*)address);
+    efree((void* )address);
+}
+
+void swoole_http_get_compression_method(http_context *ctx, const char *accept_encoding, size_t length)
+{
+#ifdef SW_HAVE_BROTLI
+    if (swoole_strnpos((char *) accept_encoding, length, ZEND_STRL("br")) >= 0)
+    {
+        ctx->enable_compression = 1;
+        ctx->compression_level = SwooleG.serv->http_gzip_level;
+        ctx->compression_method = HTTP_COMPRESS_BR;
+    }
+    else
+#endif
+    if (swoole_strnpos((char *) accept_encoding, length, ZEND_STRL("gzip")) >= 0)
+    {
+        ctx->enable_compression = 1;
+        ctx->compression_level = SwooleG.serv->http_gzip_level;
+        ctx->compression_method = HTTP_COMPRESS_GZIP;
+    }
+    else if (swoole_strnpos((char *) accept_encoding, length, ZEND_STRL("deflate")) >= 0)
+    {
+        ctx->enable_compression = 1;
+        ctx->compression_level = SwooleG.serv->http_gzip_level;
+        ctx->compression_method = HTTP_COMPRESS_DEFLATE;
+    }
+    else
+    {
+        ctx->enable_compression = 0;
+    }
+}
+
+const char* swoole_http_get_content_encoding(http_context *ctx)
+{
+    if (ctx->compression_method == HTTP_COMPRESS_GZIP)
+    {
+       return "gzip";
+    }
+    else if (ctx->compression_method == HTTP_COMPRESS_DEFLATE)
+    {
+        return "deflate";
+    }
+#ifdef SW_HAVE_BROTLI
+    else if (ctx->compression_method == HTTP_COMPRESS_BR)
+    {
+        return "br";
+    }
+#endif
+    else
+    {
+        return NULL;
+    }
 }
 
 int swoole_http_response_compress(swString *body, int method, int level)
