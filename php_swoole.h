@@ -188,7 +188,6 @@ enum php_swoole_server_callback_type
     SW_SERVER_CB_onHandShake,      //worker(event)
     SW_SERVER_CB_onOpen,           //worker(event)
     SW_SERVER_CB_onMessage,        //worker(event)
-    SW_SERVER_CB_onWebSocketClose, //worker(event)
     //--------------------------Buffer Event----------------------------
     SW_SERVER_CB_onBufferFull,     //worker(event)
     SW_SERVER_CB_onBufferEmpty,    //worker(event)
