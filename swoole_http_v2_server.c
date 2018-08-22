@@ -16,6 +16,7 @@
 
 #include "php_swoole.h"
 #include "swoole_http.h"
+#include "swoole_coroutine.h"
 
 #ifdef SW_USE_HTTP2
 #include "http2.h"
@@ -86,35 +87,59 @@ static int http_build_trailer(http_context *ctx, uchar *buffer TSRMLS_DC)
     return rv;
 }
 
-static sw_inline void http2_onRequest(http_context *ctx, int server_fd TSRMLS_DC)
+static sw_inline void http2_onRequest(http_context *ctx, int from_fd TSRMLS_DC)
 {
-    zval *retval;
-    zval **args[2];
-
+    zval *retval = NULL;
+    swServer *serv = SwooleG.serv;
+    int fd = ctx->client->fd;
     zval *zrequest_object = ctx->request.zobject;
     zval *zresponse_object = ctx->response.zobject;
-
     SW_SEPARATE_ZVAL(zrequest_object);
     SW_SEPARATE_ZVAL(zresponse_object);
 
-    args[0] = &zrequest_object;
-    args[1] = &zresponse_object;
-
-    zval *zcallback = php_swoole_server_get_callback(SwooleG.serv, server_fd, SW_SERVER_CB_onRequest);
-    if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (SwooleG.enable_coroutine)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "onRequest handler error");
+        zval *args[2];
+        args[0] = zrequest_object;
+        args[1] = zresponse_object;
+
+        zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, from_fd, SW_SERVER_CB_onRequest);
+        int ret = coro_create(cache, args, 2, &retval, NULL, NULL);
+        if (ret < 0)
+        {
+            if (ret == CORO_LIMIT)
+            {
+                serv->factory.end(&SwooleG.serv->factory, fd);
+            }
+            goto _free_object;
+        }
     }
+    else
+    {
+        zval **args[2];
+        args[0] = &zrequest_object;
+        args[1] = &zresponse_object;
+
+        zval *zcallback = php_swoole_server_get_callback(serv, from_fd, SW_SERVER_CB_onRequest);
+        zend_fcall_info_cache *fci_cache = php_swoole_server_get_cache(serv, from_fd, SW_SERVER_CB_onRequest);
+        if (sw_call_user_function_fast(zcallback, fci_cache, &retval, 2, args TSRMLS_CC) == FAILURE)
+        {
+            swoole_php_error(E_WARNING, "onRequest handler error");
+        }
+    }
+
     if (EG(exception))
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
+
+    _free_object:
+    zval_ptr_dtor(zrequest_object);
+    zval_ptr_dtor(zresponse_object);
     if (retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
-    sw_zval_ptr_dtor(&zrequest_object);
-    sw_zval_ptr_dtor(&zresponse_object);
 }
 
 static int http2_build_header(http_context *ctx, uchar *buffer, int body_length TSRMLS_DC)
