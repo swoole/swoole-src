@@ -648,6 +648,9 @@ static PHP_METHOD(swoole_websocket_server, disconnect)
 
     int ret = swServer_tcp_send(SwooleG.serv, fd, swoole_http_buffer->str, swoole_http_buffer->length);
 
+    // Change status immediately to avoid double close
+    conn->websocket_status = WEBSOCKET_STATUS_CLOSING;
+
     // Format swEventData
     swEventData req;
     req.info.fd         = fd;
@@ -657,7 +660,7 @@ static PHP_METHOD(swoole_websocket_server, disconnect)
     memcpy(&req.data, swoole_http_buffer->str, swoole_http_buffer->length);
 
     // Call onClose
-    swoole_websocket_onClose(&req);
+    swoole_websocket_onMessage(&req);
 
 #ifdef SW_COROUTINE
     swServer *serv = SwooleG.serv;
@@ -671,7 +674,6 @@ static PHP_METHOD(swoole_websocket_server, disconnect)
 #endif
     {
         // Server close connection immediately
-        conn->websocket_status = WEBSOCKET_STATUS_CLOSING;
         SW_CHECK_RETURN(SwooleG.serv->close(serv, (int)fd, (int)SW_FALSE));
     }
 }
