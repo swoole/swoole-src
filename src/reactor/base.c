@@ -173,12 +173,11 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
     {
         swTimer_select(&SwooleG.timer);
     }
-    //defer callback
-    swDefer_callback *cb, *tmp;
-
+    //defer tasks
     do
     {
         swDefer_callback *defer_tasks = reactor->defer_tasks;
+        swDefer_callback *cb, *tmp;
         reactor->defer_tasks = NULL;
         LL_FOREACH(defer_tasks, cb)
         {
