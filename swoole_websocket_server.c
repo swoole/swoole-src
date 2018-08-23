@@ -245,6 +245,7 @@ int swoole_websocket_onMessage(swEventData *req)
 
     zval *zreason;
     SW_MAKE_STD_ZVAL(zreason);
+    SW_ZVAL_STRING(zreason, "", 1);
 
     finish = frame_header[0] & 0x80 ? 1 : 0;
     opcode = frame_header[0] & 0x0F;   // Opcode: low 4 bits of first byte
@@ -273,19 +274,7 @@ int swoole_websocket_onMessage(swEventData *req)
                 SW_ZVAL_STRINGL(zreason, data + length - payload_length + SW_WEBSOCKET_CLOSE_CODE_LEN, 
                     payload_length - SW_WEBSOCKET_CLOSE_CODE_LEN, 1);
             }
-            else
-            {
-                SW_ZVAL_STRING(zreason, "", 1);
-            }
         }
-        else
-        {
-            SW_ZVAL_STRING(zreason, "", 1);
-        }
-    }
-    else
-    {
-        SW_ZVAL_STRING(zreason, "", 1);
     }
 
     zval *zframe;
