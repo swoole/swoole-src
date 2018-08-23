@@ -53,7 +53,9 @@ typedef struct
     uint32_t ext_len;
     uint8_t post_form_urlencoded;
 
+#ifdef SW_USE_HTTP2
     swString *post_buffer;
+#endif
     uint32_t post_length;
 
     zval *zobject;
@@ -86,7 +88,6 @@ typedef struct
     zval *zheader;
     zval *zcookie;
     zval *ztrailer;
-
     zval _zobject;
     zval _zheader;
     zval _zcookie;
