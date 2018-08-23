@@ -566,7 +566,6 @@ static PHP_METHOD(swoole_server_port, on)
         "HandShake",
         "Open",
         "Message",
-        "WebSocketClose",
         "BufferFull",
         "BufferEmpty",
     };
