@@ -413,6 +413,8 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
 
     uint16_t id;
     uint32_t value;
+
+    // TODO: improve trace log about send and recv
     swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_YELLOW"]\tflags=%d, stream_id=%d, length=%d", swHttp2_get_type(type), flags, stream_id, length);
 
     switch (type)
@@ -465,8 +467,20 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
     }
     case SW_HTTP2_TYPE_WINDOW_UPDATE:
     {
-        hcc->send_window += ntohl(*(int *) buf);
-        swTraceLog(SW_TRACE_HTTP2, "update: send_window=%d.", hcc->recv_window);
+        value = ntohl(*(uint32_t *) buf);
+        if (stream_id == 0)
+        {
+            hcc->send_window += value;
+        }
+        else
+        {
+            http2_client_stream *stream = swHashMap_find_int(hcc->streams, stream_id);
+            if (stream)
+            {
+                stream->send_window += value;
+            }
+        }
+        swTraceLog(SW_TRACE_HTTP2, "recv (stream_id=%d): send_window_update=%d.", stream_id, value);
         return;
     }
     case SW_HTTP2_TYPE_PING:
