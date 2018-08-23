@@ -82,16 +82,14 @@ int coro_init(TSRMLS_D)
 
     COROG.active = 1;
     //set functions
-    coroutine_set_onYield(php_coro_yield);
-    coroutine_set_onResume(php_coro_resume);
+    coroutine_set_onYield(internal_coro_yield);
+    coroutine_set_onResume(internal_coro_resume);
     coroutine_set_onClose(sw_coro_close);
     return 0;
 }
 
-
-void php_coro_resume(void *arg)
+static void resume_php_stack(coro_task *task)
 {
-    coro_task *task = (coro_task *)arg;
     COROG.call_stack[COROG.call_stack_size++] = task;
     COROG.current_coro = task;
     swTraceLog(SW_TRACE_COROUTINE,"sw_coro_resume coro id %d", COROG.current_coro->cid);
@@ -100,6 +98,28 @@ void php_coro_resume(void *arg)
     EG(vm_stack) = task->yield_stack;
     EG(vm_stack_top) = task->yield_vm_stack_top;
     EG(vm_stack_end) = task->yield_vm_stack_end;
+}
+
+static void save_php_stack(coro_task *task)
+{
+    COROG.call_stack_size--;
+    swTraceLog(SW_TRACE_COROUTINE,"coro_yield coro id %d", task->cid);
+    task->state = SW_CORO_YIELD;
+    task->is_yield = 1;
+    //save vm stack
+    task->yield_execute_data = EG(current_execute_data);
+    task->yield_stack = EG(vm_stack);
+    task->yield_vm_stack_top = EG(vm_stack_top);
+    task->yield_vm_stack_end = EG(vm_stack_end);
+    //restore vm stack
+    EG(vm_stack) = task->origin_stack;
+    EG(vm_stack_top) = task->origin_vm_stack_top;
+    EG(vm_stack_end) = task->origin_vm_stack_end;
+}
+void internal_coro_resume(void *arg)
+{
+    coro_task *task = (coro_task *)arg;
+    resume_php_stack(task);
     // main OG
     if (OG(handlers).elements)
     {
@@ -119,23 +139,10 @@ void php_coro_resume(void *arg)
     swTraceLog(SW_TRACE_COROUTINE, "cid=%d", task->cid);
 }
 
-void php_coro_yield(void *arg)
+void internal_coro_yield(void *arg)
 {
     coro_task *task = (coro_task *)arg;
-    COROG.call_stack_size--;
-    swTraceLog(SW_TRACE_COROUTINE,"coro_yield coro id %d", task->cid);
-    task->state = SW_CORO_YIELD;
-    task->is_yield = 1;
-    //save vm stack
-    task->yield_execute_data = EG(current_execute_data);
-    task->yield_stack = EG(vm_stack);
-    task->yield_vm_stack_top = EG(vm_stack_top);
-    task->yield_vm_stack_end = EG(vm_stack_end);
-    //restore vm stack
-    EG(vm_stack) = task->origin_stack;
-    EG(vm_stack_top) = task->origin_vm_stack_top;
-    EG(vm_stack_end) = task->origin_vm_stack_end;
-
+    save_php_stack(task);
     // save output control global
     if (OG(active))
     {
@@ -323,15 +330,7 @@ void sw_coro_save(zval *return_value, php_context *sw_current_context)
 int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_retval)
 {
     coro_task *task = SWCC(current_task);
-    COROG.call_stack[COROG.call_stack_size++] = task;
-    COROG.current_coro = task;
-    swTraceLog(SW_TRACE_COROUTINE,"sw_coro_resume coro id %d", COROG.current_coro->cid);
-    task->state = SW_CORO_RUNNING;
-    EG(current_execute_data) = task->yield_execute_data;
-    EG(vm_stack) = task->yield_stack;
-    EG(vm_stack_top) = task->yield_vm_stack_top;
-    EG(vm_stack_end) = task->yield_vm_stack_end;
-
+    resume_php_stack(task);
     if (EG(current_execute_data)->prev_execute_data->opline->result_type != IS_UNUSED && retval)
     {
         ZVAL_COPY(SWCC(current_coro_return_value_ptr), retval);
@@ -374,22 +373,8 @@ void sw_coro_yield()
     {
         swoole_php_fatal_error(E_ERROR, "must be called in the coroutine.");
     }
-
     coro_task *task = (coro_task *) sw_get_current_task();
-    COROG.call_stack_size--;
-    swTraceLog(SW_TRACE_COROUTINE,"coro_yield coro id %d", task->cid);
-    task->state = SW_CORO_YIELD;
-    task->is_yield = 1;
-
-    //save vm stack
-    task->yield_execute_data = EG(current_execute_data);
-    task->yield_stack = EG(vm_stack);
-    task->yield_vm_stack_top = EG(vm_stack_top);
-    task->yield_vm_stack_end = EG(vm_stack_end);
-    //restore vm stack
-    EG(vm_stack) = task->origin_stack;
-    EG(vm_stack_top) = task->origin_vm_stack_top;
-    EG(vm_stack_end) = task->origin_vm_stack_end;
+    save_php_stack(task);
     coroutine_yield_naked(task->co);
 }
 

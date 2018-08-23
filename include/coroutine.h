@@ -50,9 +50,8 @@ void coroutine_set_onYield(coro_php_yield_t func);
 void coroutine_set_onResume(coro_php_resume_t func);
 void coroutine_set_onClose(coro_php_close_t func);
 
-#define php_yield() php_coro_yield(return_value);
-void php_coro_yield(void *return_value);
-void php_coro_resume(void *data);
+void internal_coro_yield(void *return_value);
+void internal_coro_resume(void *data);
 
 #ifdef __cplusplus
 }  /* end extern "C" */
