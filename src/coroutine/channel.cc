@@ -74,25 +74,12 @@ void Channel::notify(enum channel_op type)
 
     if (type == PRODUCER)
     {
-        if (notify_producer_count == producer_queue.size())
-        {
-            return;
-        }
-        else
-        {
-            notify_producer_count++;
-        }
+        notify_producer_count++;
+
     }
     else
     {
-        if (notify_consumer_count == consumer_queue.size())
-        {
-            return;
-        }
-        else
-        {
-            notify_consumer_count++;
-        }
+        notify_consumer_count++;
     }
 
     SwooleG.main_reactor->defer(SwooleG.main_reactor, channel_defer_callback, msg);
@@ -138,9 +125,15 @@ void* Channel::pop(double timeout)
     {
         swTimer_del(&SwooleG.timer, msg.timer);
     }
+    /**
+     * pop data
+     */
     void *data = data_queue.front();
     data_queue.pop();
-    if (producer_queue.size() > 0)
+    /**
+     * notify producer
+     */
+    if (producer_queue.size() > 0 && notify_producer_count < producer_queue.size())
     {
         notify(PRODUCER);
     }
@@ -153,9 +146,15 @@ bool Channel::push(void *data)
     {
         yield(PRODUCER);
     }
+    /**
+     * push data
+     */
     data_queue.push(data);
     swDebug("push data, count=%d", length());
-    if (consumer_queue.size() > 0)
+    /**
+     * notify consumer
+     */
+    if (consumer_queue.size() > 0 && notify_consumer_count < consumer_queue.size())
     {
         notify(CONSUMER);
     }
