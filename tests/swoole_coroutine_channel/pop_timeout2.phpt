@@ -18,10 +18,10 @@ go(function () use ($c1) {
     co::sleep(2);
     echo "sleep 2\n";
     $ret = $c1->push("chan-1");
-    echo "chan push ret:".var_export($ret,1)." error:".$c1->errCode."\n";
+    echo "chan push ret:".var_export($ret,1)."\n";
 });
 ?>
 --EXPECTF--
 pop ret:false error:-1
 sleep 2
-chan push ret:true error:0
+chan push ret:true

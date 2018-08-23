@@ -234,7 +234,6 @@ enum php_swoole_fd_type
     PHP_SWOOLE_FD_REDIS_CORO,
     PHP_SWOOLE_FD_POSTGRESQL,
     PHP_SWOOLE_FD_SOCKET,
-    PHP_SWOOLE_FD_CHAN_PIPE,
 #endif
     /**
      * for Co::fread/Co::fwrite
