@@ -379,7 +379,7 @@ bool Socket::connect(string host, int port, int flags)
         }
     }
 
-    if (unlikely(_cid && _cid != coroutine_get_cid()))
+    if (unlikely(_cid && _cid != coroutine_get_current_cid()))
     {
         swWarn( "socket has already been bound to another coroutine.");
         return false;
@@ -657,7 +657,7 @@ void Socket::yield()
         }
         timer = SwooleG.timer.add(&SwooleG.timer, ms, 0, this, socket_onTimeout);
     }
-    _cid = coroutine_get_cid();
+    _cid = coroutine_get_current_cid();
     if (_cid == -1)
     {
         swError("Socket::yield() must be called in the coroutine.");

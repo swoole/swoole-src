@@ -270,7 +270,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length 
     if (ctx->enable_compression)
     {
         const char *content_encoding = swoole_http_get_content_encoding(ctx);
-        http2_add_header(&nv[index++], ZEND_STRL("content-encoding"), content_encoding, strlen(content_encoding));
+        http2_add_header(&nv[index++], ZEND_STRL("content-encoding"), (char*) content_encoding, strlen(content_encoding));
     }
 #endif
     ctx->send_header = 1;
@@ -585,7 +585,7 @@ static int http2_parse_header(swoole_http_client *client, http_context *ctx, int
 #ifdef SW_HAVE_ZLIB
                 else if (SwooleG.serv->http_compression && strncasecmp((char*) nv.name, "accept-encoding", nv.namelen) == 0)
                 {
-                    swoole_http_get_compression_method(ctx, nv.value, nv.valuelen);
+                    swoole_http_get_compression_method(ctx, (char*) nv.value, nv.valuelen);
                 }
 #endif
                 sw_add_assoc_stringl_ex(zheader, (char *) nv.name, nv.namelen + 1, (char *) nv.value, nv.valuelen, 1);
