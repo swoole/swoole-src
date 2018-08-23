@@ -2597,7 +2597,6 @@ PHP_METHOD(swoole_server, on)
         NULL,
         NULL,
         NULL,
-        NULL,
         "BufferFull",
         "BufferEmpty",
     };
