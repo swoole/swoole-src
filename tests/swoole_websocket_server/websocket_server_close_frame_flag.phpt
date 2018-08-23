@@ -1,5 +1,5 @@
 --TEST--
-swoole_websocket_server: websocket server active close with code, reason
+swoole_websocket_server: websocket server active close with close frame flag false
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 
@@ -38,6 +38,7 @@ $pm->childFunc = function () use ($pm) {
             assert(false); // Should never reach here
         } else {
             if ($frame->data == 'shutdown') {
+                echo "{$frame->data}";
                 $serv->disconnect($frame->fd, 4000, 'shutdown received');
             }
         }
@@ -48,3 +49,4 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
+shutdown

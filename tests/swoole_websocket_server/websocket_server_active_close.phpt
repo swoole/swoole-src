@@ -37,6 +37,7 @@ $pm->childFunc = function () use ($pm) {
             echo "{$frame->reason}\n";
         } else {
             if ($frame->data == 'shutdown') {
+                echo "{$frame->data}\n";
                 $serv->disconnect($frame->fd, 4000, 'shutdown received');
             }
         }
@@ -47,5 +48,6 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
+shutdown
 4000
 shutdown received
