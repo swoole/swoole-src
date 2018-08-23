@@ -25,15 +25,16 @@ $pm->childFunc = function () use ($pm) {
     $serv = new swoole_websocket_server('127.0.0.1', $pm->getFreePort());
     $serv->set([
         'worker_num' => 1,
-        'log_file' => '/dev/null'
+        'log_file' => '/dev/null',
+        'open_websocket_close_frame' => true
     ]);
     $serv->on('WorkerStart', function () use ($pm) {
         $pm->wakeup();
     });
     $serv->on('Message', function ($serv, $frame) {
         if ($frame->opcode == 0x08) {
-            echo "{$frame->close_code}\n";
-            echo "{$frame->data}\n";
+            echo "{$frame->code}\n";
+            echo "{$frame->reason}\n";
         } else {
             if ($frame->data == 'shutdown') {
                 $serv->disconnect($frame->fd, 4000, 'shutdown received');
