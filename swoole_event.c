@@ -720,14 +720,7 @@ PHP_FUNCTION(swoole_event_defer)
 
     php_swoole_check_reactor();
 
-    //the event loop is not started
-    if (SwooleG.main_reactor->start == 0)
-    {
-        SW_CHECK_RETURN (php_swoole_add_timer(1, callback, NULL, 0 TSRMLS_CC));
-    }
-
     php_defer_callback *defer = emalloc(sizeof(php_defer_callback));
-
     defer->callback = &defer->_callback;
     memcpy(defer->callback, callback, sizeof(zval));
     sw_zval_add_ref(&callback);

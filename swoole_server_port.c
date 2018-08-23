@@ -551,6 +551,7 @@ static PHP_METHOD(swoole_server_port, on)
         "Receive",
         "Close",
         "Packet",
+        NULL, //onStart
         NULL,
         NULL,
         NULL,
@@ -559,9 +560,8 @@ static PHP_METHOD(swoole_server_port, on)
         NULL,
         NULL,
         NULL,
-        NULL,
-        NULL,
-        NULL,
+        NULL, //onManagerStop
+        NULL, //onPipeMessage
         "Request",
         "HandShake",
         "Open",

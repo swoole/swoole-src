@@ -104,6 +104,13 @@ int swReactor_setHandle(swReactor *reactor, int _fdtype, swReactor_handle handle
     return SW_OK;
 }
 
+static void swReactor_defer_timer_callback(swTimer *timer, swTimer_node *tnode)
+{
+    swDefer_callback *cb = (swDefer_callback *) tnode->data;
+    cb->callback(cb->data);
+    sw_free(cb);
+}
+
 static int swReactor_defer(swReactor *reactor, swCallback callback, void *data)
 {
     swDefer_callback *cb = sw_malloc(sizeof(swDefer_callback));
@@ -114,7 +121,18 @@ static int swReactor_defer(swReactor *reactor, swCallback callback, void *data)
     }
     cb->callback = callback;
     cb->data = data;
-    LL_APPEND(reactor->defer_callback_list, cb);
+    if (unlikely(reactor->start == 0))
+    {
+        if (unlikely(SwooleG.timer.fd == 0))
+        {
+            swTimer_init(1);
+        }
+        SwooleG.timer.add(&SwooleG.timer, 1, 0, cb, swReactor_defer_timer_callback);
+    }
+    else
+    {
+        LL_APPEND(reactor->defer_tasks, cb);
+    }
     return SW_OK;
 }
 
@@ -157,16 +175,21 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
     }
     //defer callback
     swDefer_callback *cb, *tmp;
-    swDefer_callback *defer_callback_list = reactor->defer_callback_list;
-    reactor->defer_callback_list = NULL;
-    LL_FOREACH(defer_callback_list, cb)
+
+    do
     {
-        cb->callback(cb->data);
-    }
-    LL_FOREACH_SAFE(defer_callback_list, cb, tmp)
-    {
-        sw_free(cb);
-    }
+        swDefer_callback *defer_tasks = reactor->defer_tasks;
+        reactor->defer_tasks = NULL;
+        LL_FOREACH(defer_tasks, cb)
+        {
+            cb->callback(cb->data);
+        }
+        LL_FOREACH_SAFE(defer_tasks, cb, tmp)
+        {
+            sw_free(cb);
+        }
+    } while (reactor->defer_tasks);
+
     //callback at the end
     if (reactor->idle_task.callback)
     {

@@ -2593,11 +2593,10 @@ PHP_METHOD(swoole_server, on)
         "ManagerStart",
         "ManagerStop",
         "PipeMessage",
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
+        NULL, //onRequest
+        NULL, //onHandShake
+        NULL, //onOpen
+        NULL, //onMessage
         "BufferFull",
         "BufferEmpty",
     };

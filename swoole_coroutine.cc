@@ -160,12 +160,7 @@ void coro_check(TSRMLS_D)
 
 void coro_destroy(TSRMLS_D)
 {
-    if (SwooleG.chan_pipe)
-    {
-        SwooleG.chan_pipe->close(SwooleG.chan_pipe);
-        sw_free(SwooleG.chan_pipe);
-        SwooleG.chan_pipe = NULL;
-    }
+
 }
 
 static void sw_coro_func(void *arg)

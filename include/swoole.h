@@ -1495,7 +1495,7 @@ struct _swReactor
     void (*free)(swReactor *);
 
     int (*setHandle)(swReactor *, int fdtype, swReactor_handle);
-    swDefer_callback *defer_callback_list;
+    swDefer_callback *defer_tasks;
     swDefer_callback idle_task;
     swDefer_callback future_task;
 
@@ -2153,8 +2153,6 @@ typedef struct
     swLock lock;
     swHashMap *functions;
     swLinkedList *hooks[SW_MAX_HOOK_TYPE];
-
-    swPipe *chan_pipe;
 
 } swServerG;
 
