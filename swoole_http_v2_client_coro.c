@@ -154,6 +154,17 @@ void swoole_http2_client_coro_init(int module_number TSRMLS_DC)
     zend_declare_property_null(swoole_http2_response_class_entry_ptr, SW_STRL("cookies")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_http2_response_class_entry_ptr, SW_STRL("data")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
 
+    SWOOLE_DEFINE(HTTP2_TYPE_DATA);
+    SWOOLE_DEFINE(HTTP2_TYPE_HEADERS);
+    SWOOLE_DEFINE(HTTP2_TYPE_PRIORITY);
+    SWOOLE_DEFINE(HTTP2_TYPE_RST_STREAM);
+    SWOOLE_DEFINE(HTTP2_TYPE_SETTINGS);
+    SWOOLE_DEFINE(HTTP2_TYPE_PUSH_PROMISE);
+    SWOOLE_DEFINE(HTTP2_TYPE_PING);
+    SWOOLE_DEFINE(HTTP2_TYPE_GOAWAY);
+    SWOOLE_DEFINE(HTTP2_TYPE_WINDOW_UPDATE);
+    SWOOLE_DEFINE(HTTP2_TYPE_CONTINUATION);
+
     SWOOLE_DEFINE(HTTP2_ERROR_NO_ERROR);
     SWOOLE_DEFINE(HTTP2_ERROR_PROTOCOL_ERROR);
     SWOOLE_DEFINE(HTTP2_ERROR_INTERNAL_ERROR);
@@ -454,7 +465,7 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
     }
     case SW_HTTP2_TYPE_WINDOW_UPDATE:
     {
-        hcc->send_window = ntohl(*(int *) buf);
+        hcc->send_window += ntohl(*(int *) buf);
         swTraceLog(SW_TRACE_HTTP2, "update: send_window=%d.", hcc->recv_window);
         return;
     }
@@ -548,6 +559,7 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
             }
 
             // now we control the connection flow only (not stream)
+            // our window size is unlimited, so we don't worry about subtraction overflow
             hcc->recv_window -= length;
             stream->recv_window -= length;
             if (hcc->recv_window < (SW_HTTP2_MAX_WINDOW_SIZE / 4))

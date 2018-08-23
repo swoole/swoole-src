@@ -314,7 +314,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length 
 int swoole_http2_do_response(http_context *ctx, swString *body)
 {
     swoole_http2_client *client = (swoole_http2_client *) ctx->client;
-    char header_buffer[8192];
+    char header_buffer[SW_BUFFER_SIZE_STD];
     int ret;
 
 #ifdef SW_HAVE_ZLIB
@@ -444,9 +444,10 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
         }
     }
 
-    _end: if (body->length > 0)
+    _end:
+    if (body->length > 0)
     {
-        client->window_size -= body->length;    // TODO:flow control?
+        client->send_window -= body->length;    // TODO:flow control?
     }
     if (client->streams)
     {
@@ -619,8 +620,8 @@ int swoole_http2_onFrame(swoole_http2_client *client, swEventData *req)
 {
     if (!client->init)
     {
-        client->window_size = SW_HTTP2_DEFAULT_WINDOW_SIZE;
-        client->remote_window_size = SW_HTTP2_DEFAULT_WINDOW_SIZE;
+        client->send_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
+        client->recv_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
         client->init = 1;
     }
 
@@ -731,14 +732,14 @@ int swoole_http2_onFrame(swoole_http2_client *client, swEventData *req)
             http2_onRequest(ctx, from_fd TSRMLS_CC);
         }
 
-        client->remote_window_size -= length;
-        if (length > 0 && client->remote_window_size < SW_HTTP2_MAX_WINDOW_SIZE / 4)
+        client->recv_window -= length;
+        if (length > 0 && client->recv_window < SW_HTTP2_MAX_WINDOW_SIZE / 4)
         {
             char window_update_frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_WINDOW_UPDATE_SIZE];
-            *(uint32_t*) ((char*) window_update_frame + SW_HTTP2_FRAME_HEADER_SIZE) = htonl(SW_HTTP2_MAX_WINDOW_SIZE - client->remote_window_size);
+            *(uint32_t*) ((char*) window_update_frame + SW_HTTP2_FRAME_HEADER_SIZE) = htonl(SW_HTTP2_MAX_WINDOW_SIZE - client->recv_window);
             swHttp2_set_frame_header(window_update_frame, SW_HTTP2_TYPE_WINDOW_UPDATE, SW_HTTP2_WINDOW_UPDATE_SIZE, 0, 0);
             swServer_tcp_send(SwooleG.serv, fd, window_update_frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_WINDOW_UPDATE_SIZE);
-            client->remote_window_size = SW_HTTP2_MAX_WINDOW_SIZE;
+            client->recv_window = SW_HTTP2_MAX_WINDOW_SIZE;
         }
         break;
     }
@@ -752,7 +753,7 @@ int swoole_http2_onFrame(swoole_http2_client *client, swEventData *req)
     }
     case SW_HTTP2_TYPE_WINDOW_UPDATE:
     {
-        client->window_size += swHttp2_get_increment_size(buf);
+        client->send_window += swHttp2_get_increment_size(buf);
         break;
     }
     }
@@ -771,7 +772,7 @@ void swoole_http2_free(swoole_http2_client *client)
     }
 
     client->init = 0;
-    client->remote_window_size = SW_HTTP2_DEFAULT_WINDOW_SIZE;
-    client->window_size = SW_HTTP2_DEFAULT_WINDOW_SIZE;
+    client->recv_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
+    client->send_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
 }
 #endif
