@@ -169,11 +169,11 @@ bool Channel::close()
     }
     swDebug("closed");
     closed = true;
-    while (producer_queue.size() > 0)
+    while (producer_queue.size() > 0 && notify_producer_count < producer_queue.size())
     {
         notify(PRODUCER);
     }
-    while (consumer_queue.size() > 0)
+    while (consumer_queue.size() > 0 && notify_consumer_count < producer_queue.size())
     {
         notify(CONSUMER);
     }
