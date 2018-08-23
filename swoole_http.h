@@ -112,8 +112,11 @@ typedef struct
     uint32_t content_sender_initialized :1;
 
 #ifdef SW_USE_HTTP2
-    uint8_t priority;
+    // uint8_t priority; // useless now
     uint32_t stream_id;
+    // flow control
+    uint32_t send_window;
+    uint32_t recv_window;
 #endif
 
 #ifdef SW_HAVE_ZLIB
@@ -153,6 +156,7 @@ typedef struct _swoole_http2_client
     uint32_t init :1;
     swHashMap *streams;
 
+    // flow control
     uint32_t send_window;
     uint32_t recv_window;
 
