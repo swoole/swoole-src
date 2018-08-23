@@ -89,9 +89,9 @@ void Channel::notify(enum channel_op type)
     if (_socket && _socket->events == 0)
     {
         SwooleG.main_reactor->add(SwooleG.main_reactor, pfd, SW_FD_CHAN_PIPE | SW_EVENT_READ);
+        uint64_t flag = 1;
+        SwooleG.chan_pipe->write(SwooleG.chan_pipe, &flag, sizeof(flag));
     }
-    uint64_t flag = 1;
-    SwooleG.chan_pipe->write(SwooleG.chan_pipe, &flag, sizeof(flag));
 }
 
 void* Channel::pop(double timeout)
@@ -150,7 +150,7 @@ bool Channel::push(void *data)
      * push data
      */
     data_queue.push(data);
-    swDebug("push data, count=%d", length());
+    swDebug("push data, count=%ld", length());
     /**
      * notify consumer
      */
