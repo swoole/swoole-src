@@ -192,6 +192,10 @@ typedef struct _swListenPort
      */
     uint32_t open_websocket_protocol :1;
     /**
+     * open websocket close frame
+     */
+    uint32_t open_websocket_close_frame :1;
+    /**
      *  one package: length check
      */
     uint32_t open_length_check :1;
