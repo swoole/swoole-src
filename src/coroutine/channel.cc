@@ -12,10 +12,9 @@ static int channel_onNotify(swReactor *reactor, swEvent *event)
 
 static void channel_defer_callback(void *data)
 {
-    notify_msg_t *msg = (notify_msg_t *) data;
-    msg->chan->binding_cid = 0;
-    swDebug("resume[%d]", coroutine_get_cid(msg->co));
-    coroutine_resume(msg->co);
+    notify_msg_t *msg = (notify_msg_t*) data;
+    coroutine_t *co = msg->chan->pop_coroutine(msg->type);
+    coroutine_resume(co);
     delete msg;
 }
 
@@ -32,7 +31,8 @@ Channel::Channel(size_t _capacity)
 {
     capacity = _capacity;
     closed = false;
-    binding_cid = 0;
+    notify_producer_count = 0;
+    notify_consumer_count = 0;
 
     if (SwooleG.chan_pipe == NULL)
     {
@@ -45,7 +45,7 @@ Channel::Channel(size_t _capacity)
     }
 }
 
-void Channel::yield(enum channel_coroutine_type type)
+void Channel::yield(enum channel_op type)
 {
     int _cid = coroutine_get_current_cid();
     if (_cid == -1)
@@ -66,27 +66,37 @@ void Channel::yield(enum channel_coroutine_type type)
     coroutine_yield(co);
 }
 
-void Channel::notify(enum channel_coroutine_type type)
+void Channel::notify(enum channel_op type)
 {
-    coroutine_t *co;
+    notify_msg_t *msg = new notify_msg_t;
+    msg->chan = this;
+    msg->type = type;
+
     if (type == PRODUCER)
     {
-        co = producer_queue.front();
-        producer_queue.pop_front();
-        swDebug("producer[%d]", coroutine_get_cid(co));
+        if (notify_producer_count == producer_queue.size())
+        {
+            return;
+        }
+        else
+        {
+            notify_producer_count++;
+        }
     }
     else
     {
-        co = consumer_queue.front();
-        consumer_queue.pop_front();
-        swDebug("consumer[%d]", coroutine_get_cid(co));
+        if (notify_consumer_count == consumer_queue.size())
+        {
+            return;
+        }
+        else
+        {
+            notify_consumer_count++;
+        }
     }
 
-    binding_cid = coroutine_get_cid(co);
-    notify_msg_t *msg = new notify_msg_t;
-    msg->chan = this;
-    msg->co = co;
     SwooleG.main_reactor->defer(SwooleG.main_reactor, channel_defer_callback, msg);
+
     int pfd = SwooleG.chan_pipe->getFd(SwooleG.chan_pipe, 0);
     swConnection *_socket = swReactor_get(SwooleG.main_reactor, pfd);
     if (_socket && _socket->events == 0)
@@ -116,7 +126,7 @@ void* Channel::pop(double timeout)
     {
         msg.timer = NULL;
     }
-    if (is_empty() || (binding_cid && (binding_cid != coroutine_get_current_cid())))
+    if (is_empty() || consumer_queue.size() > 0)
     {
         yield(CONSUMER);
     }
@@ -130,7 +140,7 @@ void* Channel::pop(double timeout)
     }
     void *data = data_queue.front();
     data_queue.pop();
-    if (binding_cid == 0 && producer_queue.size() > 0)
+    if (producer_queue.size() > 0)
     {
         notify(PRODUCER);
     }
@@ -139,12 +149,13 @@ void* Channel::pop(double timeout)
 
 bool Channel::push(void *data)
 {
-    if (is_full() && (binding_cid && binding_cid != coroutine_get_current_cid()))
+    if (is_full() || producer_queue.size() > 0)
     {
         yield(PRODUCER);
     }
     data_queue.push(data);
-    if (binding_cid == 0 && consumer_queue.size() > 0)
+    swDebug("push data, count=%d", length());
+    if (consumer_queue.size() > 0)
     {
         notify(CONSUMER);
     }
@@ -157,6 +168,7 @@ bool Channel::close()
     {
         return false;
     }
+    swDebug("closed");
     closed = true;
     while (producer_queue.size() > 0)
     {

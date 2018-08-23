@@ -11,7 +11,7 @@
 
 namespace swoole {
 
-enum channel_coroutine_type
+enum channel_op
 {
     PRODUCER = 1,
     CONSUMER = 2,
@@ -22,7 +22,7 @@ class Channel;
 struct notify_msg_t
 {
     Channel *chan;
-    coroutine_t *co;
+    enum channel_op type;
 };
 
 struct timeout_msg_t
@@ -40,9 +40,10 @@ private:
     std::list<coroutine_t *> consumer_queue;
     std::queue<void *> data_queue;
     size_t capacity;
+    uint32_t notify_producer_count;
+    uint32_t notify_consumer_count;
 
 public:
-    int binding_cid;
     bool closed;
     inline bool is_empty()
     {
@@ -74,9 +75,29 @@ public:
         consumer_queue.remove(co);
     }
 
+    inline coroutine_t* pop_coroutine(enum channel_op type)
+    {
+        coroutine_t* co;
+        if (type == PRODUCER)
+        {
+            co = producer_queue.front();
+            producer_queue.pop_front();
+            notify_producer_count--;
+            swDebug("resume producer[%d]", coroutine_get_cid(co));
+        }
+        else
+        {
+            co = consumer_queue.front();
+            consumer_queue.pop_front();
+            notify_consumer_count--;
+            swDebug("resume consumer[%d]", coroutine_get_cid(co));
+        }
+        return co;
+    }
+
     Channel(size_t _capacity);
-    void yield(enum channel_coroutine_type type);
-    void notify(enum channel_coroutine_type type);
+    void yield(enum channel_op type);
+    void notify(enum channel_op type);
     void* pop(double timeout = 0);
     bool push(void *data);
     bool close();
