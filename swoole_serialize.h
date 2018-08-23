@@ -21,7 +21,6 @@
 extern "C"
 {
 #endif
-#if PHP_MAJOR_VERSION >= 7
 
 #define SERIA_SIZE 4096
 #define FILTER_SIZE 1024
@@ -110,7 +109,6 @@ static swPoolstr *bigger_filter = NULL;
 #define UNSERIALIZE_OBJECT_TO_ARRAY          1
 #define UNSERIALIZE_OBJECT_TO_STDCLASS       2
 
-#endif
 
 #ifdef	__cplusplus
 }

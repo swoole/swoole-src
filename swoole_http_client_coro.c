@@ -99,6 +99,13 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_addFile, 0, 0, 2)
     ZEND_ARG_INFO(0, length)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_addData, 0, 0, 2)
+    ZEND_ARG_INFO(0, path)
+    ZEND_ARG_INFO(0, name)
+    ZEND_ARG_INFO(0, type)
+    ZEND_ARG_INFO(0, filename)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_execute, 0, 0, 1)
     ZEND_ARG_INFO(0, path)
 ZEND_END_ARG_INFO()
@@ -143,6 +150,7 @@ static PHP_METHOD(swoole_http_client_coro, setHeaders);
 static PHP_METHOD(swoole_http_client_coro, setCookies);
 static PHP_METHOD(swoole_http_client_coro, setData);
 static PHP_METHOD(swoole_http_client_coro, addFile);
+static PHP_METHOD(swoole_http_client_coro, addData);
 static PHP_METHOD(swoole_http_client_coro, execute);
 static PHP_METHOD(swoole_http_client_coro, isConnected);
 static PHP_METHOD(swoole_http_client_coro, close);
@@ -170,6 +178,7 @@ static const zend_function_entry swoole_http_client_coro_methods[] =
     PHP_ME(swoole_http_client_coro, download, arginfo_swoole_http_client_coro_download, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, upgrade, arginfo_swoole_http_client_coro_upgrade, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, addFile, arginfo_swoole_http_client_coro_addFile, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, addData, arginfo_swoole_http_client_coro_addData, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, isConnected, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, close, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, setDefer, arginfo_swoole_http_client_coro_setDefer, ZEND_ACC_PUBLIC)
@@ -268,7 +277,7 @@ static int http_client_coro_execute(zval *zobject, char *uri, zend_size_t uri_le
         {
             if (lseek(fd, hcc->download_offset, SEEK_SET) < 0)
             {
-                swSysError("fseek(%s, %ld) failed.", Z_STRVAL_P(hcc->download_file), hcc->download_offset);
+                swSysError("fseek(%s, %jd) failed.", Z_STRVAL_P(hcc->download_file), (intmax_t) hcc->download_offset);
                 close(fd);
                 return SW_ERR;
             }
@@ -728,7 +737,7 @@ static void http_client_coro_onReceive(swClient *cli, char *data, uint32_t lengt
 
     long parsed_n = php_http_parser_execute(&http->parser, &http_parser_settings, data, length);
 
-    swDebug("parsed_n=%ld, data_length=%d.", parsed_n, length);
+    swTraceLog(SW_TRACE_HTTP_CLIENT, "parsed_n=%ld, data_length=%d.", parsed_n, length);
 
     http_client_property *hcc = swoole_get_property(zobject, http_client_coro_property_request);
     uint8_t result = 0;
@@ -1013,7 +1022,7 @@ static int http_client_coro_send_http_request(zval *zobject TSRMLS_DC)
         swString_append_ptr(http_client_buffer, ZEND_STRL("\r\n"));
     }
 
-    //form-data
+    //multipart/form-data
     if (hcc->request_upload_files)
     {
         char header_buf[2048];
@@ -1050,7 +1059,8 @@ static int http_client_coro_send_http_request(zval *zobject TSRMLS_DC)
         zval *zname;
         zval *ztype;
         zval *zsize = NULL;
-        zval *zpath;
+        zval *zpath = NULL;
+        zval *zcontent = NULL;
         zval *zfilename;
         zval *zoffset;
 
@@ -1120,9 +1130,27 @@ static int http_client_coro_send_http_request(zval *zobject TSRMLS_DC)
                 {
                     continue;
                 }
-                if (sw_zend_hash_find(Z_ARRVAL_P(value), ZEND_STRS("path"), (void **) &zpath) == FAILURE)
+                /**
+                 * from disk file
+                 */
+                if (sw_zend_hash_find(Z_ARRVAL_P(value), ZEND_STRS("content"), (void **) &zcontent) == FAILURE)
                 {
-                    continue;
+                    //file path
+                    if (sw_zend_hash_find(Z_ARRVAL_P(value), ZEND_STRS("path"), (void **) &zpath) == FAILURE)
+                    {
+                        continue;
+                    }
+                    //file offset
+                    if (sw_zend_hash_find(Z_ARRVAL_P(value), ZEND_STRS("offset"), (void **) &zoffset) == FAILURE)
+                    {
+                        continue;
+                    }
+                    zcontent = NULL;
+                }
+                else
+                {
+                    zpath = NULL;
+                    zoffset = NULL;
                 }
                 if (sw_zend_hash_find(Z_ARRVAL_P(value), ZEND_STRS("size"), (void **) &zsize) == FAILURE)
                 {
@@ -1132,25 +1160,43 @@ static int http_client_coro_send_http_request(zval *zobject TSRMLS_DC)
                 {
                     continue;
                 }
-                if (sw_zend_hash_find(Z_ARRVAL_P(value), ZEND_STRS("offset"), (void **) &zoffset) == FAILURE)
-                {
-                    continue;
-                }
+                /**
+                 * part header
+                 */
                 n = snprintf(header_buf, sizeof(header_buf), SW_HTTP_FORM_DATA_FORMAT_FILE, (int)(sizeof(boundary_str) - 1),
                         boundary_str, (int)Z_STRLEN_P(zname), Z_STRVAL_P(zname), (int)Z_STRLEN_P(zfilename),
                         Z_STRVAL_P(zfilename), (int)Z_STRLEN_P(ztype), Z_STRVAL_P(ztype));
-
-                if ((ret = http->cli->send(http->cli, header_buf, n, 0)) < 0)
+                /**
+                 * from memory
+                 */
+                if (zcontent)
                 {
-                    goto send_fail;
+                    swString_clear(http_client_buffer);
+                    swString_append_ptr(http_client_buffer, header_buf, n);
+                    swString_append_ptr(http_client_buffer, Z_STRVAL_P(zcontent), Z_STRLEN_P(zcontent));
+                    swString_append_ptr(http_client_buffer, "\r\n", 2);
+                    if (http->cli->send(http->cli, http_client_buffer->str, http_client_buffer->length, 0) < 0)
+                    {
+                        goto send_fail;
+                    }
                 }
-                if ((ret = http->cli->sendfile(http->cli, Z_STRVAL_P(zpath), Z_LVAL_P(zoffset), Z_LVAL_P(zsize))) < 0)
+                /**
+                 * from disk file
+                 */
+                else
                 {
-                    goto send_fail;
-                }
-                if ((ret = http->cli->send(http->cli, "\r\n", 2, 0)) < 0)
-                {
-                    goto send_fail;
+                    if ((ret = http->cli->send(http->cli, header_buf, n, 0)) < 0)
+                    {
+                        goto send_fail;
+                    }
+                    if ((ret = http->cli->sendfile(http->cli, Z_STRVAL_P(zpath), Z_LVAL_P(zoffset), Z_LVAL_P(zsize))) < 0)
+                    {
+                        goto send_fail;
+                    }
+                    if ((ret = http->cli->send(http->cli, "\r\n", 2, 0)) < 0)
+                    {
+                        goto send_fail;
+                    }
                 }
             SW_HASHTABLE_FOREACH_END();
 
@@ -1584,6 +1630,60 @@ static PHP_METHOD(swoole_http_client_coro, addFile)
     sw_add_assoc_stringl_ex(upload_file, ZEND_STRS("type"), type, l_type, 1);
     add_assoc_long(upload_file, "size", length);
     add_assoc_long(upload_file, "offset", offset);
+
+    add_next_index_zval(hcc->request_upload_files, upload_file);
+    RETURN_TRUE;
+}
+
+static PHP_METHOD(swoole_http_client_coro, addData)
+{
+    char *data;
+    zend_size_t l_data;
+    char *name;
+    zend_size_t l_name;
+    char *type = NULL;
+    zend_size_t l_type;
+    char *filename = NULL;
+    zend_size_t l_filename;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss|ss", &data, &l_data, &name, &l_name, &type, &l_type,
+            &filename, &l_filename) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+    if (type == NULL)
+    {
+        type = "application/octet-stream";
+        l_type = strlen(type);
+    }
+    if (filename == NULL)
+    {
+        filename = name;
+        l_filename = l_name;
+    }
+
+    http_client_property *hcc = swoole_get_property(getThis(), http_client_coro_property_request);
+    zval *files;
+    if (!hcc->request_upload_files)
+    {
+        SW_MAKE_STD_ZVAL(files);
+        array_init(files);
+        zend_update_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("uploadFiles"), files TSRMLS_CC);
+        sw_zval_ptr_dtor(&files);
+
+        hcc->request_upload_files = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("uploadFiles"), 0 TSRMLS_CC);
+        sw_copy_to_stack(hcc->request_upload_files, hcc->_request_upload_files);
+    }
+
+    zval *upload_file;
+    SW_MAKE_STD_ZVAL(upload_file);
+    array_init(upload_file);
+
+    sw_add_assoc_stringl_ex(upload_file, ZEND_STRS("content"), data, l_data, 1);
+    sw_add_assoc_stringl_ex(upload_file, ZEND_STRS("name"), name, l_name, 1);
+    sw_add_assoc_stringl_ex(upload_file, ZEND_STRS("filename"), filename, l_filename, 1);
+    sw_add_assoc_stringl_ex(upload_file, ZEND_STRS("type"), type, l_type, 1);
+    add_assoc_long(upload_file, "size", l_data);
 
     add_next_index_zval(hcc->request_upload_files, upload_file);
     RETURN_TRUE;

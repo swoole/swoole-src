@@ -27,10 +27,8 @@
 
 typedef struct
 {
-#if PHP_MAJOR_VERSION >= 7
     zval _callback;
     zval _filename;
-#endif
     zval *callback;
     zval *filename;
     int fd;
@@ -49,10 +47,8 @@ typedef struct
 
 typedef struct
 {
-#if PHP_MAJOR_VERSION >= 7
     zval _callback;
     zval _domain;
-#endif
     zval *callback;
     zval *domain;
 #ifdef SW_COROUTINE
@@ -542,7 +538,7 @@ PHP_FUNCTION(swoole_async_read)
     }
     if (offset >= file_stat.st_size)
     {
-        swoole_php_fatal_error(E_WARNING, "offset must be less than file_size[=%ld].", file_stat.st_size);
+        swoole_php_fatal_error(E_WARNING, "offset must be less than file_size[=%jd].", (intmax_t) file_stat.st_size);
         close(fd);
         RETURN_FALSE;
     }

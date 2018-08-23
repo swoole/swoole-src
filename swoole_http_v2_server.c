@@ -191,7 +191,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length 
         if (!(flag & HTTP_RESPONSE_CONTENT_LENGTH) && body_length >= 0)
         {
 #ifdef SW_HAVE_ZLIB
-            if (ctx->gzip_enable)
+            if (ctx->enable_compression)
             {
                 body_length = swoole_zlib_buffer->length;
             }
@@ -218,7 +218,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length 
         http2_add_header(&nv[index++], ZEND_STRL("date"), date_str, strlen(date_str));
 
 #ifdef SW_HAVE_ZLIB
-        if (ctx->gzip_enable)
+        if (ctx->enable_compression)
         {
             body_length = swoole_zlib_buffer->length;
         }
@@ -240,15 +240,14 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length 
         }
         SW_HASHTABLE_FOREACH_END();
     }
+#ifdef SW_HAVE_ZLIB
     //http compress
-    if (ctx->gzip_enable)
+    if (ctx->enable_compression)
     {
-#ifdef SW_HTTP_COMPRESS_GZIP
-        http2_add_header(&nv[index++], ZEND_STRL("content-encoding"), ZEND_STRL("gzip"));
-#else
-        http2_add_header(&nv[index++], ZEND_STRL("content-encoding"), ZEND_STRL("deflate"));
-#endif
+        const char *content_encoding = swoole_http_get_content_encoding(ctx);
+        http2_add_header(&nv[index++], ZEND_STRL("content-encoding"), content_encoding, strlen(content_encoding));
     }
+#endif
     ctx->send_header = 1;
 
     ssize_t rv;
@@ -294,15 +293,15 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
     int ret;
 
 #ifdef SW_HAVE_ZLIB
-    if (ctx->gzip_enable)
+    if (ctx->enable_compression)
     {
         if (body->length > 0)
         {
-            swoole_http_response_compress(body, ctx->gzip_level);
+            swoole_http_response_compress(body, ctx->compression_method, ctx->compression_level);
         }
         else
         {
-            ctx->gzip_enable = 0;
+            ctx->enable_compression = 0;
         }
     }
 #endif
@@ -363,7 +362,7 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
     size_t send_n;
 
 #ifdef SW_HAVE_ZLIB
-    if (ctx->gzip_enable)
+    if (ctx->enable_compression)
     {
         p = swoole_zlib_buffer->str;
         l = swoole_zlib_buffer->length;
@@ -489,7 +488,7 @@ static int http2_parse_header(swoole_http_client *client, http_context *ctx, int
                 }
                 else if (strncasecmp((char *) nv.name + 1, "path", nv.namelen -1) == 0)
                 {
-                    char pathbuf[SW_HTTP_HEADER_MAX_SIZE];
+                    char *pathbuf = SwooleTG.buffer_stack->str;
                     char *v_str = strchr((char *) nv.value, '?');
                     if (v_str)
                     {
@@ -558,6 +557,12 @@ static int http2_parse_header(swoole_http_client *client, http_context *ctx, int
                     sw_add_assoc_stringl_ex(zcookie, keybuf, k_len + 1, v_str, v_len, 1);
                     continue;
                 }
+#ifdef SW_HAVE_ZLIB
+                else if (SwooleG.serv->http_compression && strncasecmp((char*) nv.name, "accept-encoding", nv.namelen) == 0)
+                {
+                    swoole_http_get_compression_method(ctx, nv.value, nv.valuelen);
+                }
+#endif
                 sw_add_assoc_stringl_ex(zheader, (char *) nv.name, nv.namelen + 1, (char *) nv.value, nv.valuelen, 1);
             }
         }
@@ -705,7 +710,7 @@ int swoole_http2_onFrame(swoole_http_client *client, swEventData *req)
         if (length > 0 && client->remote_window_size < SW_HTTP2_MAX_WINDOW_SIZE / 4)
         {
             char window_update_frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_WINDOW_UPDATE_SIZE];
-            *(uint32_t*) ((char *) window_update_frame) = htonl(SW_HTTP2_MAX_WINDOW_SIZE - client->remote_window_size);
+            *(uint32_t*) ((char*) window_update_frame + SW_HTTP2_FRAME_HEADER_SIZE) = htonl(SW_HTTP2_MAX_WINDOW_SIZE - client->remote_window_size);
             swHttp2_set_frame_header(window_update_frame, SW_HTTP2_TYPE_WINDOW_UPDATE, SW_HTTP2_WINDOW_UPDATE_SIZE, 0, 0);
             swServer_tcp_send(SwooleG.serv, fd, window_update_frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_WINDOW_UPDATE_SIZE);
             client->remote_window_size = SW_HTTP2_MAX_WINDOW_SIZE;

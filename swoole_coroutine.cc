@@ -40,7 +40,7 @@ coro_global COROG;
 static void sw_coro_func(void *);
 static zend_bool is_xdebug_started = 0;
 
-#if PHP_MAJOR_VERSION >= 7 && PHP_MINOR_VERSION >= 2
+#if PHP_VERSION_ID >= 70200
 static inline void sw_vm_stack_init(void)
 {
     uint32_t size = COROG.stack_size;
@@ -116,7 +116,7 @@ void php_coro_resume(void *arg)
         efree(task->current_coro_output_ptr);
         task->current_coro_output_ptr = NULL;
     }
-    swDebug("cid=%d", task->cid);
+    swTraceLog(SW_TRACE_COROUTINE, "cid=%d", task->cid);
 }
 
 void php_coro_yield(void *arg)
@@ -160,11 +160,11 @@ void coro_check(TSRMLS_D)
 
 void coro_destroy(TSRMLS_D)
 {
-    if (COROG.chan_pipe)
+    if (SwooleG.chan_pipe)
     {
-        COROG.chan_pipe->close(COROG.chan_pipe);
-        efree(COROG.chan_pipe);
-        COROG.chan_pipe = NULL;
+        SwooleG.chan_pipe->close(SwooleG.chan_pipe);
+        sw_free(SwooleG.chan_pipe);
+        SwooleG.chan_pipe = NULL;
     }
 }
 
@@ -175,12 +175,10 @@ static void sw_coro_func(void *arg)
     zval **argv = php_arg->argv;
     int argc = php_arg->argc;
     zval *retval = php_arg->retval;
-    void *post_callback = php_arg->post_callback;
-    void* params = php_arg->params;
-    int cid = coroutine_get_cid();
+    int cid = coroutine_get_current_cid();
 
+    int i;
     zend_function *func;
-    uint32_t i;
     coro_task *task;
 
     zend_vm_stack origin_vm_stack = EG(vm_stack);
@@ -197,7 +195,7 @@ static void sw_coro_func(void *arg)
     call = zend_vm_stack_push_call_frame(ZEND_CALL_TOP_FUNCTION | ZEND_CALL_ALLOCATED, func, argc,
             fci_cache->called_scope, fci_cache->object);
 
-#if PHP_MINOR_VERSION < 1
+#if PHP_VERSION_ID < 70100
     EG(scope) = func->common.scope;
 #endif
 
@@ -356,7 +354,7 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
         SWCC(current_coro_output_ptr) = NULL;
     }
 
-    swDebug("cid=%d", task->cid);
+    swTraceLog(SW_TRACE_COROUTINE, "cid=%d", task->cid);
     coroutine_resume_naked(task->co);
 
     if (unlikely(EG(exception)))

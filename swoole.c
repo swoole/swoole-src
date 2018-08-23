@@ -22,10 +22,6 @@
 #include <ifaddrs.h>
 #include <sys/ioctl.h>
 
-#ifdef HAVE_PCRE
-#include <ext/spl/spl_iterators.h>
-#endif
-
 #ifdef SW_COROUTINE
 #include "swoole_coroutine.h"
 #endif
@@ -318,7 +314,6 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_hashcode, 0, 0, 1)
     ZEND_ARG_INFO(0, type)
 ZEND_END_ARG_INFO()
 
-#ifdef HAVE_PCRE
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_connection_iterator_offsetExists, 0, 0, 1)
     ZEND_ARG_INFO(0, fd)
 ZEND_END_ARG_INFO()
@@ -335,7 +330,6 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_connection_iterator_offsetSet, 0, 0, 2)
     ZEND_ARG_INFO(0, fd)
     ZEND_ARG_INFO(0, value)
 ZEND_END_ARG_INFO()
-#endif
 
 //arginfo end
 
@@ -445,7 +439,6 @@ static zend_function_entry swoole_server_methods[] = {
     {NULL, NULL, NULL}
 };
 
-#ifdef HAVE_PCRE
 static const zend_function_entry swoole_connection_iterator_methods[] =
 {
     PHP_ME(swoole_connection_iterator, rewind,      arginfo_swoole_void, ZEND_ACC_PUBLIC)
@@ -461,7 +454,6 @@ static const zend_function_entry swoole_connection_iterator_methods[] =
     PHP_ME(swoole_connection_iterator, offsetUnset,     arginfo_swoole_connection_iterator_offsetUnset, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
-#endif
 
 static const zend_function_entry swoole_timer_methods[] =
 {
@@ -1046,12 +1038,12 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_async_class_entry_ptr = zend_register_internal_class(&swoole_async_ce TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_async, "Swoole\\Async");
 
-
-#ifdef HAVE_PCRE
     SWOOLE_INIT_CLASS_ENTRY(swoole_connection_iterator_ce, "swoole_connection_iterator", "Swoole\\Connection\\Iterator",  swoole_connection_iterator_methods);
     swoole_connection_iterator_class_entry_ptr = zend_register_internal_class(&swoole_connection_iterator_ce TSRMLS_CC);
     SWOOLE_CLASS_ALIAS(swoole_connection_iterator, "Swoole\\Connection\\Iterator");
-    zend_class_implements(swoole_connection_iterator_class_entry_ptr TSRMLS_CC, 3, spl_ce_Iterator, spl_ce_Countable, spl_ce_ArrayAccess);
+    zend_class_implements(swoole_connection_iterator_class_entry_ptr TSRMLS_CC, 2, zend_ce_iterator, zend_ce_arrayaccess);
+#ifdef SW_HAVE_COUNTABLE
+    zend_class_implements(swoole_connection_iterator_class_entry_ptr TSRMLS_CC, 1, zend_ce_countable);
 #endif
 
     SWOOLE_INIT_CLASS_ENTRY(swoole_exception_ce, "swoole_exception", "Swoole\\Exception", NULL);
@@ -1451,7 +1443,6 @@ PHP_FUNCTION(swoole_set_process_name)
         size = SwooleG.pagesize;
     }
 
-#if PHP_MAJOR_VERSION >= 7 || (PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION > 4)
     zval *retval;
     zval **args[1];
     args[0] = &name;
@@ -1473,10 +1464,6 @@ PHP_FUNCTION(swoole_set_process_name)
     {
         sw_zval_ptr_dtor(&retval);
     }
-#else
-    bzero(sapi_module.executable_location, size);
-    memcpy(sapi_module.executable_location, Z_STRVAL_P(name), Z_STRLEN_P(name));
-#endif
 }
 
 PHP_FUNCTION(swoole_get_local_ip)

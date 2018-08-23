@@ -44,7 +44,6 @@ typedef struct
 #endif
 #endif
 
-#if PHP_MAJOR_VERSION >= 7
     zval _object;
     zval _onConnect;
     zval _onReceive;
@@ -54,7 +53,6 @@ typedef struct
     zval _onBufferEmpty;
 #ifdef SW_USE_OPENSSL
     zval _onSSLReady;
-#endif
 #endif
 
 } client_callback;
@@ -821,7 +819,6 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC)
 
 void php_swoole_at_shutdown(char *function)
 {
-#if PHP_MAJOR_VERSION >=7
     php_shutdown_function_entry shutdown_function_entry;
     shutdown_function_entry.arg_count = 1;
     shutdown_function_entry.arguments = (zval *) safe_emalloc(sizeof(zval), 1, 0);
@@ -833,99 +830,6 @@ void php_swoole_at_shutdown(char *function)
         efree(shutdown_function_entry.arguments);
         swoole_php_fatal_error(E_WARNING, "Unable to register shutdown function [%s]",function);
     }
-#else
-
-    zval *callback;
-    SW_MAKE_STD_ZVAL(callback);
-    SW_ZVAL_STRING(callback, function, 1);
-
-#if PHP_MAJOR_VERSION >= 5 && PHP_MINOR_VERSION >= 4
-
-     php_shutdown_function_entry shutdown_function_entry;
-
-    shutdown_function_entry.arg_count = 1;
-    shutdown_function_entry.arguments = (zval **) safe_emalloc(sizeof(zval *), 1, 0);
-
-
-    shutdown_function_entry.arguments[0] = callback;
-
-    if (!register_user_shutdown_function(function, ZSTR_LEN(Z_STR(callback)), &shutdown_function_entry TSRMLS_CC))
-    {
-        efree(shutdown_function_entry.arguments);
-        sw_zval_ptr_dtor(&callback);
-        swoole_php_fatal_error(E_WARNING, "Unable to register shutdown function [swoole_event_wait]");
-    }
-#else
-    zval *register_shutdown_function;
-    zval *retval = NULL;
-    SW_MAKE_STD_ZVAL(register_shutdown_function);
-    SW_ZVAL_STRING(register_shutdown_function, "register_shutdown_function", 1);
-    zval **args[1] = {&callback};
-
-    if (sw_call_user_function_ex(EG(function_table), NULL, register_shutdown_function, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
-    {
-        swoole_php_fatal_error(E_WARNING, "Unable to register shutdown function [swoole_event_wait]");
-        return;
-    }
-    if (EG(exception))
-    {
-        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
-    }
-#endif
-
-#endif
-}
-
-void php_swoole_check_reactor()
-{
-    if (SwooleWG.reactor_init)
-    {
-        return;
-    }
-
-    if (!SWOOLE_G(cli))
-    {
-        swoole_php_fatal_error(E_ERROR, "async-io must be used in PHP CLI mode.");
-        return;
-    }
-
-    if (swIsTaskWorker())
-    {
-        swoole_php_fatal_error(E_ERROR, "can't use async-io in task process.");
-        return;
-    }
-
-    if (SwooleG.main_reactor == NULL)
-    {
-        swTraceLog(SW_TRACE_PHP, "init reactor");
-
-        SwooleG.main_reactor = (swReactor *) sw_malloc(sizeof(swReactor));
-        if (SwooleG.main_reactor == NULL)
-        {
-            swoole_php_fatal_error(E_ERROR, "malloc failed.");
-            return;
-        }
-        if (swReactor_create(SwooleG.main_reactor, SW_REACTOR_MAXEVENTS) < 0)
-        {
-            swoole_php_fatal_error(E_ERROR, "failed to create reactor.");
-            return;
-        }
-
-#ifdef SW_COROUTINE
-        SwooleG.main_reactor->can_exit = php_coroutine_reactor_can_exit;
-#endif
-
-        //client, swoole_event_exit will set swoole_running = 0
-        SwooleWG.in_client = 1;
-        SwooleWG.reactor_wait_onexit = 1;
-        SwooleWG.reactor_ready = 0;
-        //only client side
-        php_swoole_at_shutdown("swoole_event_wait");
-    }
-
-    php_swoole_event_init();
-
-    SwooleWG.reactor_init = 1;
 }
 
 void php_swoole_client_free(zval *zobject, swClient *cli TSRMLS_DC)

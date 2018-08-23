@@ -3,7 +3,7 @@
  * make test_server
  * ./bin/test_server
  */
-#include "Server.h"
+#include "server.h"
 
 int my_onPacket(swServer *serv, swEventData *req);
 int my_onReceive(swServer *serv, swEventData *req);

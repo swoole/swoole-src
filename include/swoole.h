@@ -40,6 +40,9 @@ extern "C" {
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef __sun
+#include <strings.h>
+#endif
 #include <signal.h>
 #include <time.h>
 #include <limits.h>
@@ -156,7 +159,7 @@ typedef unsigned long ulong_t;
 #include "hashmap.h"
 #include "list.h"
 #include "heap.h"
-#include "RingQueue.h"
+#include "ring_queue.h"
 #include "array.h"
 #include "error.h"
 
@@ -246,6 +249,7 @@ enum swFd_type
     SW_FD_SIGNAL          = 11, //signalfd
     SW_FD_DNS_RESOLVER    = 12, //dns resolver
     SW_FD_INOTIFY         = 13, //server socket
+    SW_FD_CHAN_PIPE       = 14, //channel pipe
     SW_FD_USER            = 15, //SW_FD_USER or SW_FD_USER+n: for custom event
     SW_FD_STREAM_CLIENT   = 16, //swClient stream
     SW_FD_DGRAM_CLIENT    = 17, //swClient dgram
@@ -1209,13 +1213,16 @@ static inline int swoole_strnpos(char *haystack, uint32_t haystack_length, char 
     assert(needle_length > 0);
     uint32_t i;
 
-    for (i = 0; i < (int) (haystack_length - needle_length + 1); i++)
+    if (likely(needle_length <= haystack_length))
     {
-        if ((haystack[0] == needle[0]) && (0 == memcmp(haystack, needle, needle_length)))
+        for (i = 0; i < haystack_length - needle_length + 1; i++)
         {
-            return i;
+            if ((haystack[0] == needle[0]) && (0 == memcmp(haystack, needle, needle_length)))
+            {
+                return i;
+            }
+            haystack++;
         }
-        haystack++;
     }
 
     return -1;
@@ -2146,6 +2153,8 @@ typedef struct
     swLock lock;
     swHashMap *functions;
     swLinkedList *hooks[SW_MAX_HOOK_TYPE];
+
+    swPipe *chan_pipe;
 
 } swServerG;
 

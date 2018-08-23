@@ -15,7 +15,7 @@
  */
 
 #include "swoole.h"
-#include "Connection.h"
+#include "connection.h"
 
 #include <sys/stat.h>
 #include <poll.h>
@@ -278,7 +278,7 @@ int swSocket_sendto_blocking(int fd, void *__buf, size_t __n, int flag, struct s
             {
                 continue;
             }
-            else if (errno == EAGAIN)
+            else if (swConnection_error(errno) == SW_WAIT)
             {
                 swSocket_wait(fd, 1000, SW_EVENT_WRITE);
                 continue;

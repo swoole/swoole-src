@@ -8,7 +8,6 @@ dnl  | that is bundled with this package in the file LICENSE, and is        |
 dnl  | available through the world-wide-web at the following url:           |
 dnl  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
 dnl  | If you did not receive a copy of the Apache2.0 license and are unable|
-
 dnl  | to obtain it through the world-wide-web, please send a note to       |
 dnl  | license@swoole.com so we can mail you a copy immediately.            |
 dnl  +----------------------------------------------------------------------+
@@ -400,6 +399,11 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(hiredis, redisConnect, AC_DEFINE(HAVE_HIREDIS, 1, [have hiredis]))
     AC_CHECK_LIB(pq, PQconnectdb, AC_DEFINE(HAVE_POSTGRESQL, 1, [have postgresql]))
     AC_CHECK_LIB(nghttp2, nghttp2_hd_inflate_new, AC_DEFINE(HAVE_NGHTTP2, 1, [have nghttp2]))
+    
+    AC_CHECK_LIB(brotlienc, BrotliEncoderCreateInstance, [
+        AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli])
+        PHP_ADD_LIBRARY(brotlienc, 1, SWOOLE_SHARED_LIBADD)
+    ])
 
     AC_CHECK_LIB(z, gzgets, [
         AC_DEFINE(SW_HAVE_ZLIB, 1, [have zlib])
@@ -448,8 +452,8 @@ if test "$PHP_SWOOLE" != "no"; then
         src/core/base.c \
         src/core/log.c \
         src/core/hashmap.c \
-        src/core/RingQueue.c \
-        src/core/Channel.c \
+        src/core/ring_queue.c \
+        src/core/channel.c \
         src/core/string.c \
         src/core/array.c \
         src/core/socket.c \
@@ -461,60 +465,61 @@ if test "$PHP_SWOOLE" != "no"; then
         src/coroutine/context.cc \
         src/coroutine/ucontext.cc \
         src/coroutine/socket.cc \
-        src/memory/ShareMemory.c \
-        src/memory/MemoryGlobal.c \
-        src/memory/RingBuffer.c \
-        src/memory/FixedPool.c \
-        src/memory/Malloc.c \
-        src/memory/Table.c \
-        src/memory/Buffer.c \
-        src/factory/Factory.c \
-        src/factory/FactoryThread.c \
-        src/factory/FactoryProcess.c \
-        src/reactor/ReactorBase.c \
-        src/reactor/ReactorSelect.c \
-        src/reactor/ReactorPoll.c \
-        src/reactor/ReactorEpoll.c \
-        src/reactor/ReactorKqueue.c \
-        src/pipe/PipeBase.c \
-        src/pipe/PipeEventfd.c \
-        src/pipe/PipeUnsock.c \
-        src/lock/Semaphore.c \
-        src/lock/Mutex.c \
-        src/lock/RWLock.c \
-        src/lock/SpinLock.c \
-        src/lock/FileLock.c \
-        src/lock/Cond.c \
-        src/network/Server.c \
-        src/network/TaskWorker.c \
-        src/network/Client.c \
-        src/network/Connection.c \
-        src/network/ProcessPool.c \
-        src/network/ThreadPool.c \
-        src/network/ReactorThread.c \
-        src/network/ReactorProcess.c \
-        src/network/Manager.c \
-        src/network/Worker.c \
-        src/network/Timer.c \
-        src/network/Port.c \
-        src/network/DNS.c \
-        src/network/TimeWheel.c \
-        src/network/Stream.c \
+        src/coroutine/channel.cc \
+        src/memory/shared_memory.c \
+        src/memory/global_memory.c \
+        src/memory/ring_buffer.c \
+        src/memory/fixed_pool.c \
+        src/memory/malloc.c \
+        src/memory/table.c \
+        src/memory/buffer.c \
+        src/factory/base.c \
+        src/factory/thread.c \
+        src/factory/process.c \
+        src/reactor/base.c \
+        src/reactor/select.c \
+        src/reactor/poll.c \
+        src/reactor/epoll.c \
+        src/reactor/kqueue.c \
+        src/pipe/base.c \
+        src/pipe/eventfd.c \
+        src/pipe/unix_socket.c \
+        src/lock/semaphore.c \
+        src/lock/mutex.c \
+        src/lock/rw_lock.c \
+        src/lock/spin_lock.c \
+        src/lock/file_lock.c \
+        src/lock/cond.c \
+        src/network/server.c \
+        src/network/task_worker.c \
+        src/network/client.c \
+        src/network/connection.c \
+        src/network/process_pool.c \
+        src/network/thread_pool.c \
+        src/network/reactor_thread.c \
+        src/network/reactor_process.c \
+        src/network/manager.c \
+        src/network/worker.c \
+        src/network/timer.c \
+        src/network/port.c \
+        src/network/dns.c \
+        src/network/time_wheel.c \
+        src/network/stream.c \
         src/os/base.c \
         src/os/msg_queue.c \
         src/os/sendfile.c \
         src/os/signal.c \
         src/os/timer.c \
-        src/protocol/Base.c \
-        src/protocol/SSL.c \
-        src/protocol/Http.c \
-        src/protocol/Http2.c \
-        src/protocol/WebSocket.c \
-        src/protocol/Mqtt.c \
-        src/protocol/Socks5.c \
-        src/protocol/MimeTypes.c \
-        src/protocol/Redis.c \
-        src/protocol/Base64.c"
+        src/protocol/base.c \
+        src/protocol/ssl.c \
+        src/protocol/http.c \
+        src/protocol/http2.c \
+        src/protocol/websocket.c \
+        src/protocol/mqtt.c \
+        src/protocol/socks5.c \
+        src/protocol/mime_types.c \
+        src/protocol/redis.c \
+        src/protocol/base64.c"
 
     if test "$PHP_SWOOLE_STATIC" = "no"; then
         swoole_source_file="$swoole_source_file thirdparty/php_http_parser.c"
@@ -615,7 +620,7 @@ if test "$PHP_SWOOLE" != "no"; then
 
     PHP_REQUIRE_CXX()
     PHP_ADD_LIBRARY(stdc++, 1, SWOOLE_SHARED_LIBADD)
-    CXXFLAGS="$CXXFLAGS -std=c++11"
+    CXXFLAGS="$CXXFLAGS -Wall -Wno-unused-function -Wno-deprecated -std=c++11"
 
     if test "$PHP_PICOHTTPPARSER" = "yes"; then
         PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/picohttpparser])

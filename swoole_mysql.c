@@ -353,6 +353,7 @@ static void mysql_columns_free(mysql_client *client)
         }
     }
     efree(client->response.columns);
+    client->response.columns = NULL;
 }
 
 #ifdef SW_MYSQL_DEBUG
@@ -821,7 +822,7 @@ int mysql_parse_auth_signature(swString *buffer, mysql_connector *connector)
 
     // remaining length
     buffer->offset = 4 + packet_length;
-    swTraceLog(SW_TRACE_MYSQL_CLIENT, "before signature remaining=%zu", buffer->length - buffer->offset);
+    swTraceLog(SW_TRACE_MYSQL_CLIENT, "before signature remaining=%ju", (uintmax_t) (buffer->length - buffer->offset));
 
     if ((uint8_t)tmp[1] == SW_MYSQL_AUTH_SIGNATURE_FULL_AUTH_REQUIRED)
     {
@@ -1118,12 +1119,10 @@ static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
 
     add_next_index_zval(result_array, row_array);
 
-#if PHP_MAJOR_VERSION > 5
     if (row_array)
     {
         efree(row_array);
     }
-#endif
 
     return read_n;
 }
@@ -1343,12 +1342,10 @@ static int mysql_decode_row_prepare(mysql_client *client, char *buf, int packet_
 
     add_next_index_zval(result_array, row_array);
 
-#if PHP_MAJOR_VERSION > 5
     if (row_array)
     {
         efree(row_array);
     }
-#endif
 
     return read_n + null_count;
 }
@@ -1939,7 +1936,10 @@ int mysql_response(mysql_client *client)
                         n_buf -= ret;
                         buffer->offset += (5 + ret);
                         client->response.num_column = client->statement->field_count;
-                        client->response.columns = ecalloc(client->response.num_column, sizeof(mysql_field));
+                        if (client->response.num_column > 0)
+                        {
+                            client->response.columns = ecalloc(client->response.num_column, sizeof(mysql_field));
+                        }
                         if (client->statement->param_count > 0)
                         {
                             client->state = SW_MYSQL_STATE_READ_PARAM;
@@ -1982,7 +1982,12 @@ int mysql_response(mysql_client *client)
                     return SW_ERR;
                 }
                 buffer->offset += (4 + ret);
-                client->response.columns = ecalloc(client->response.num_column, sizeof(mysql_field));
+
+                // easy to the safe side: but under what circumstances would num_column will be 0 in result set?
+                if (client->response.num_column > 0)
+                {
+                    client->response.columns = ecalloc(client->response.num_column, sizeof(mysql_field));
+                }
                 client->state = SW_MYSQL_STATE_READ_FIELD;
                 break;
             }
