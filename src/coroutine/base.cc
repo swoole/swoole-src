@@ -214,9 +214,14 @@ coroutine_t* coroutine_get_by_id(int cid)
     return swCoroG.coroutines[cid];
 }
 
-int coroutine_get_cid()
+int coroutine_get_current_cid()
 {
     return swCoroG.current_cid;
+}
+
+int coroutine_get_cid(coroutine_t *co)
+{
+    return co->cid;
 }
 
 int coroutine_test_alloc_cid()
