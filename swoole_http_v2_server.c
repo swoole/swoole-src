@@ -60,13 +60,17 @@ static int http_build_trailer(http_context *ctx, uchar *buffer TSRMLS_DC)
     size_t buflen;
     size_t i;
     size_t sum = 0;
-
-    nghttp2_hd_deflater *deflater;
-    ret = nghttp2_hd_deflate_new(&deflater, 4096);
-    if (ret != 0)
+    swoole_http2_client *client = (swoole_http2_client *) (ctx->client);
+    nghttp2_hd_deflater *deflater = client->deflater;
+    if (!deflater)
     {
-        swoole_php_error(E_WARNING, "nghttp2_hd_deflate_init failed with error: %s\n", nghttp2_strerror(ret));
-        return SW_ERR;
+        ret = nghttp2_hd_deflate_new(&deflater, 4096);
+        if (ret != 0)
+        {
+            swoole_php_error(E_WARNING, "nghttp2_hd_deflate_init failed with error: %s\n", nghttp2_strerror(ret));
+            return SW_ERR;
+        }
+        client->deflater = deflater;
     }
 
     for (i = 0; i < index; ++i)
@@ -82,7 +86,12 @@ static int http_build_trailer(http_context *ctx, uchar *buffer TSRMLS_DC)
         return SW_ERR;
     }
 
-    nghttp2_hd_deflate_del(deflater);
+    ret = nghttp2_hd_deflate_change_table_size(deflater, 4096);
+    if (ret != 0)
+    {
+        swoole_php_error(E_WARNING, "nghttp2_hd_deflate_change_table_size failed with error: %s\n", nghttp2_strerror(ret));
+        return SW_ERR;
+    }
 
     return rv;
 }
@@ -622,6 +631,8 @@ int swoole_http2_onFrame(swoole_http2_client *client, swEventData *req)
     {
         client->send_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
         client->recv_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
+        client->max_concurrent_streams = SW_HTTP2_MAX_CONCURRENT_STREAMS;
+        client->max_frame_size = SW_HTTP2_MAX_FRAME_SIZE;
         client->init = 1;
     }
 
@@ -629,7 +640,7 @@ int swoole_http2_onFrame(swoole_http2_client *client, swEventData *req)
     int fd = req->info.fd;
     int from_fd = req->info.from_fd;
     http_context *ctx;
-
+    zval *zrequest_object = NULL;
     zval *zdata;
     SW_MAKE_STD_ZVAL(zdata);
     php_swoole_get_recv_data(zdata, req, NULL, 0);
@@ -653,6 +664,8 @@ int swoole_http2_onFrame(swoole_http2_client *client, swEventData *req)
             swoole_error_log(SW_LOG_WARNING, SW_ERROR_HTTP2_STREAM_NO_HEADER, "http2 create stream#%d context error.", stream_id);
             return SW_ERR;
         }
+        zrequest_object = ctx->request.zobject;
+        zend_update_property_long(Z_OBJCE_P(zrequest_object), zrequest_object, ZEND_STRL("streamId"), stream_id TSRMLS_CC);
 
         ctx->http2 = 1;
         ctx->stream_id = stream_id;
@@ -701,6 +714,8 @@ int swoole_http2_onFrame(swoole_http2_client *client, swEventData *req)
             swoole_error_log(SW_LOG_WARNING, SW_ERROR_HTTP2_STREAM_NOT_FOUND, "http2 stream#%d not found.", stream_id);
             return SW_ERR;
         }
+        zrequest_object = ctx->request.zobject;
+        zend_update_property_long(Z_OBJCE_P(zrequest_object), zrequest_object, ZEND_STRL("streamId"), stream_id TSRMLS_CC);
 
         swString *buffer = ctx->request.post_buffer;
         if (!buffer)
@@ -715,7 +730,6 @@ int swoole_http2_onFrame(swoole_http2_client *client, swEventData *req)
             if (SwooleG.serv->http_parse_post && ctx->request.post_form_urlencoded)
             {
                 zval *zpost;
-                zval *zrequest_object = ctx->request.zobject;
                 swoole_http_server_array_init(post, request);
                 char *post_content = estrndup(buffer->str, buffer->length);
                 sapi_module.treat_data(PARSE_STRING, post_content, zpost TSRMLS_CC);
@@ -770,9 +784,12 @@ void swoole_http2_free(swoole_http2_client *client)
         nghttp2_hd_inflate_del(client->inflater);
         client->inflater = NULL;
     }
+    if (client->deflater)
+    {
+        nghttp2_hd_deflate_del(client->deflater);
+        client->deflater = NULL;
+    }
 
     client->init = 0;
-    client->recv_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
-    client->send_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
 }
 #endif

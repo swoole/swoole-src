@@ -152,10 +152,17 @@ typedef struct _swoole_http2_client
     uint32_t http2 :1;
     uint32_t init :1;
     swHashMap *streams;
-    nghttp2_hd_inflater *inflater;
-    nghttp2_hd_inflater *deflater;
+
     uint32_t send_window;
     uint32_t recv_window;
+
+    uint32_t max_concurrent_streams;
+    uint32_t max_frame_size;
+    // uint32_t max_header_list_size; // useless now
+
+    nghttp2_hd_inflater *inflater;
+    nghttp2_hd_deflater *deflater;
+
 } swoole_http2_client;
 #endif
 
