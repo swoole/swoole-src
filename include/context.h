@@ -13,7 +13,7 @@
 #endif
 
 #ifdef HAVE_VALGRIND
-#define USE_VALGRIND 0
+#define USE_VALGRIND 1
 #endif
 
 #include "swoole.h"

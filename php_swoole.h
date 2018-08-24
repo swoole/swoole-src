@@ -199,7 +199,6 @@ enum php_swoole_server_callback_type
     SW_SERVER_CB_onHandShake,      //worker(event)
     SW_SERVER_CB_onOpen,           //worker(event)
     SW_SERVER_CB_onMessage,        //worker(event)
-    SW_SERVER_CB_onWebSocketClose, //worker(event)
     //--------------------------Buffer Event----------------------------
     SW_SERVER_CB_onBufferFull,     //worker(event)
     SW_SERVER_CB_onBufferEmpty,    //worker(event)
@@ -234,7 +233,6 @@ enum php_swoole_fd_type
     PHP_SWOOLE_FD_REDIS_CORO,
     PHP_SWOOLE_FD_POSTGRESQL,
     PHP_SWOOLE_FD_SOCKET,
-    PHP_SWOOLE_FD_CHAN_PIPE,
 #endif
     /**
      * for Co::fread/Co::fwrite

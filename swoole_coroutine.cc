@@ -160,12 +160,7 @@ void coro_check(TSRMLS_D)
 
 void coro_destroy(TSRMLS_D)
 {
-    if (COROG.chan_pipe)
-    {
-        COROG.chan_pipe->close(COROG.chan_pipe);
-        efree(COROG.chan_pipe);
-        COROG.chan_pipe = NULL;
-    }
+
 }
 
 static void sw_coro_func(void *arg)
@@ -175,7 +170,7 @@ static void sw_coro_func(void *arg)
     zval **argv = php_arg->argv;
     int argc = php_arg->argc;
     zval *retval = php_arg->retval;
-    int cid = coroutine_get_cid();
+    int cid = coroutine_get_current_cid();
 
     int i;
     zend_function *func;

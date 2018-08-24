@@ -1709,7 +1709,7 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
         args[2] = &zfrom_id;
 
         zval *callback = php_swoole_server_get_callback(serv, info->from_fd, SW_SERVER_CB_onClose);
-        if (callback == NULL || ZVAL_IS_NULL(callback))
+        if (callback == NULL)
         {
             return;
         }
@@ -1741,7 +1741,6 @@ void php_swoole_onBufferFull(swServer *serv, swDataHead *info)
     {
         return;
     }
-
 
     SW_MAKE_STD_ZVAL(zfd);
     ZVAL_LONG(zfd, info->fd);
@@ -2593,11 +2592,10 @@ PHP_METHOD(swoole_server, on)
         "ManagerStart",
         "ManagerStop",
         "PipeMessage",
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
+        NULL, //onRequest
+        NULL, //onHandShake
+        NULL, //onOpen
+        NULL, //onMessage
         "BufferFull",
         "BufferEmpty",
     };

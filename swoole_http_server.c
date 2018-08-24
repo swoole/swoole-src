@@ -52,8 +52,6 @@
 #include "thirdparty/picohttpparser/picohttpparser.h"
 #endif
 
-static swArray *http_client_array;
-
 swString *swoole_http_buffer;
 #ifdef SW_HAVE_ZLIB
 swString *swoole_zlib_buffer;
@@ -1058,22 +1056,14 @@ static int http_onReceive(swServer *serv, swEventData *req)
         return swoole_websocket_onMessage(req);
     }
 
-    swoole_http_client *client = swArray_alloc(http_client_array, conn->fd);
-    if (!client)
-    {
-        return SW_OK;
-    }
-    client->fd = fd;
-
 #ifdef SW_USE_HTTP2
     if (conn->http2_stream)
     {
-        client->http2 = 1;
-        return swoole_http2_onFrame((swoole_http2_client *) client, req);
+        return swoole_http2_onFrame(conn, req);
     }
 #endif
 
-    http_context *ctx = swoole_http_context_new(client TSRMLS_CC);
+    http_context *ctx = swoole_http_context_new(fd TSRMLS_CC);
     php_http_parser *parser = &ctx->parser;
     zval *zserver = ctx->request.zserver;
 
@@ -1095,7 +1085,6 @@ static int http_onReceive(swServer *serv, swEventData *req)
     if (n < 0)
     {
         sw_zval_free(zdata);
-        bzero(client, sizeof(swoole_http_client));
         swWarn("php_http_parser_execute failed.");
         if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)
         {
@@ -1224,7 +1213,6 @@ static int http_onReceive(swServer *serv, swEventData *req)
         }
 
         _free_object:
-        bzero(client, sizeof(swoole_http_client));
         sw_zval_ptr_dtor(&zrequest_object);
         sw_zval_ptr_dtor(&zresponse_object);
         if (retval)
@@ -1239,28 +1227,17 @@ static int http_onReceive(swServer *serv, swEventData *req)
 static void http_onClose(swServer *serv, swDataHead *ev)
 {
     int fd = ev->fd;
-
     swConnection *conn = swWorker_get_connection(SwooleG.serv, fd);
     if (!conn)
     {
         return;
     }
-    swoole_http_client *client = swArray_fetch(http_client_array, conn->fd);
-    if (!client)
-    {
-        return;
-    }
 #ifdef SW_USE_HTTP2
-    if (client->http2)
+    if (conn->http2_stream)
     {
-        swoole_http2_free((swoole_http2_client *) client);
+        swoole_http2_free(conn);
     }
 #endif
-    zval *zcallback = php_swoole_server_get_callback(serv, ev->from_fd, SW_SERVER_CB_onClose);
-    if (!zcallback)
-    {
-        return;
-    }
     php_swoole_onClose(serv, ev);
 }
 
@@ -1384,7 +1361,7 @@ static PHP_METHOD(swoole_http_server, on)
     }
 }
 
-http_context* swoole_http_context_new(swoole_http_client* client TSRMLS_DC)
+http_context* swoole_http_context_new(int fd)
 {
     http_context *ctx = emalloc(sizeof(http_context));
     if (!ctx)
@@ -1407,8 +1384,8 @@ http_context* swoole_http_context_new(swoole_http_client* client TSRMLS_DC)
     swoole_set_object(zresponse_object, ctx);
 
     //socket fd
-    zend_update_property_long(swoole_http_response_class_entry_ptr, zresponse_object, ZEND_STRL("fd"), client->fd TSRMLS_CC);
-    zend_update_property_long(swoole_http_request_class_entry_ptr, zrequest_object, ZEND_STRL("fd"), client->fd TSRMLS_CC);
+    zend_update_property_long(swoole_http_response_class_entry_ptr, zresponse_object, ZEND_STRL("fd"), fd TSRMLS_CC);
+    zend_update_property_long(swoole_http_request_class_entry_ptr, zrequest_object, ZEND_STRL("fd"), fd TSRMLS_CC);
 
 #if PHP_MEMORY_DEBUG
     php_vmstat.new_http_request ++;
@@ -1420,8 +1397,7 @@ http_context* swoole_http_context_new(swoole_http_client* client TSRMLS_DC)
     zval *zserver;
     swoole_http_server_array_init(server, request);
 
-    ctx->fd = client->fd;
-    ctx->client = client;
+    ctx->fd = fd;
 
     return ctx;
 }
@@ -1599,18 +1575,6 @@ static PHP_METHOD(swoole_http_server, start)
     else if (php_sw_server_callbacks[SW_SERVER_CB_onRequest] == NULL)
     {
         swoole_php_fatal_error(E_ERROR, "require onRequest callback");
-        RETURN_FALSE;
-    }
-
-#ifdef SW_USE_HTTP2
-    uint32_t client_size = serv->listen_list->open_http2_protocol ? sizeof (swoole_http2_client) : sizeof(swoole_http_client);
-#else
-    uint32_t client_size = sizeof(swoole_http_client);
-#endif
-    http_client_array = swArray_new(1024, client_size);
-    if (!http_client_array)
-    {
-        swoole_php_fatal_error(E_ERROR, "swArray_new(1024, %d) failed.", client_size);
         RETURN_FALSE;
     }
 
