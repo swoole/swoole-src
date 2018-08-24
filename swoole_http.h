@@ -19,6 +19,11 @@
 #ifndef SWOOLE_HTTP_H_
 #define SWOOLE_HTTP_H_
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 #include "thirdparty/php_http_parser.h"
 #include "thirdparty/multipart_parser.h"
 
@@ -143,28 +148,6 @@ typedef struct
 
 } http_context;
 
-#ifdef SW_USE_HTTP2
-typedef struct _swoole_http2_client
-{
-    int fd;
-    uint32_t http2 :1;
-    uint32_t init :1;
-    swHashMap *streams;
-
-    // flow control
-    uint32_t send_window;
-    uint32_t recv_window;
-
-    uint32_t max_concurrent_streams;
-    uint32_t max_frame_size;
-    // uint32_t max_header_list_size; // useless now
-
-    nghttp2_hd_inflater *inflater;
-    nghttp2_hd_deflater *deflater;
-
-} swoole_http2_client;
-#endif
-
 
 /**
  * WebSocket
@@ -251,5 +234,9 @@ static sw_inline int http_parse_set_cookies(const char *at, size_t length, zval 
 
     return SW_OK;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* SWOOLE_HTTP_H_ */

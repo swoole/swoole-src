@@ -15,10 +15,11 @@
 */
 
 #include "php_swoole.h"
+
+#ifdef SW_USE_HTTP2
 #include "swoole_http.h"
 #include "swoole_coroutine.h"
 
-#ifdef SW_USE_HTTP2
 #include "http2.h"
 #include <main/php_variables.h>
 #include <map>
@@ -28,15 +29,22 @@ class http2_session
 public:
     int fd;
     std::map<int, http_context*> streams;
-    nghttp2_hd_inflater *deflater;
+
     nghttp2_hd_inflater *inflater;
-    uint32_t window_size;
-    uint32_t remote_window_size;
+    nghttp2_hd_deflater *deflater;
+
+    // flow control
+    uint32_t send_window;
+    uint32_t recv_window;
+    uint32_t max_concurrent_streams;
+    uint32_t max_frame_size;
 
     http2_session(int _fd)
     {
-        window_size = SW_HTTP2_DEFAULT_WINDOW_SIZE;
-        remote_window_size = SW_HTTP2_DEFAULT_WINDOW_SIZE;
+        send_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
+        recv_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
+        max_concurrent_streams = SW_HTTP2_MAX_CONCURRENT_STREAMS;
+        max_frame_size = SW_HTTP2_MAX_FRAME_SIZE;
         fd = _fd;
         deflater = nullptr;
         inflater = nullptr;
@@ -47,6 +55,10 @@ public:
         if (inflater)
         {
             nghttp2_hd_inflate_del(inflater);
+        }
+        if (deflater)
+        {
+            nghttp2_hd_deflate_del(deflater);
         }
     }
 };
@@ -91,8 +103,9 @@ static int http_build_trailer(http_context *ctx, uchar *buffer TSRMLS_DC)
     size_t buflen;
     size_t i;
     size_t sum = 0;
-    swoole_http2_client *client = (swoole_http2_client *) (ctx->client);
+    http2_session *client = http2_sessions[ctx->fd];
     nghttp2_hd_deflater *deflater = client->deflater;
+
     if (!deflater)
     {
         ret = nghttp2_hd_deflate_new(&deflater, 4096);
@@ -279,7 +292,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length 
         http2_add_header(&nv[index++], ZEND_STRL("server"), ZEND_STRL(SW_HTTP_SERVER_SOFTWARE));
         http2_add_header(&nv[index++], ZEND_STRL("content-type"), ZEND_STRL("text/html"));
 
-        date_str = sw_php_format_date(ZEND_STRL(SW_HTTP_DATE_FORMAT), serv->gs->now, 0 TSRMLS_CC);
+        date_str = sw_php_format_date((char *)ZEND_STRL(SW_HTTP_DATE_FORMAT), serv->gs->now, 0 TSRMLS_CC);
         http2_add_header(&nv[index++], ZEND_STRL("date"), date_str, strlen(date_str));
 
 #ifdef SW_HAVE_ZLIB
@@ -488,12 +501,9 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
     {
         client->send_window -= body->length;    // TODO:flow control?
     }
-    //FIXME
+
     client->streams.erase(ctx->stream_id);
-    if (client->streams)
-    {
-        swHashMap_del_int(client->streams, ctx->stream_id);
-    }
+
     swoole_http_context_free(ctx TSRMLS_CC);
     return SW_OK;
 }
@@ -657,7 +667,7 @@ static int http2_parse_header(http2_session *client, http_context *ctx, int flag
 static sw_inline void http2_server_send_window_update(int fd, int stream_id, uint32_t size)
 {
     char frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_WINDOW_UPDATE_SIZE];
-    swTraceLog(SW_TRACE_HTTP2, "send ["SW_ECHO_YELLOW"] stream_id=%d, size=%d", "WINDOW_UPDATE", stream_id, size);
+    swTraceLog(SW_TRACE_HTTP2, "send [" SW_ECHO_YELLOW "] stream_id=%d, size=%d", "WINDOW_UPDATE", stream_id, size);
     *(uint32_t*) ((char *)frame + SW_HTTP2_FRAME_HEADER_SIZE) = htonl(size);
     swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_WINDOW_UPDATE, SW_HTTP2_WINDOW_UPDATE_SIZE, 0, stream_id);
     swServer_tcp_send(SwooleG.serv, fd, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_WINDOW_UPDATE_SIZE);
@@ -678,17 +688,8 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
         client = new http2_session(fd);
         http2_sessions[conn->session_id] = client;
     }
-    //FIXME
-    if (!client->init)
-    {
-        client->send_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
-        client->recv_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
-        client->max_concurrent_streams = SW_HTTP2_MAX_CONCURRENT_STREAMS;
-        client->max_frame_size = SW_HTTP2_MAX_FRAME_SIZE;
-        client->init = 1;
-    }
 
-    http_context *ctx;
+    http_context *ctx = NULL;
     zval *zrequest_object = NULL;
     zval *zdata;
     SW_MAKE_STD_ZVAL(zdata);
@@ -817,7 +818,7 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
         }
         else
         {
-            ctx = swHashMap_find_int(client->streams, stream_id);
+            ctx = client->streams[stream_id];
             if (ctx)
             {
                 ctx->send_window += swHttp2_get_increment_size(buf);
@@ -845,19 +846,5 @@ void swoole_http2_free(swConnection *conn)
     }
     http2_sessions.erase(conn->session_id);
     delete client;
-
-    //FIXME
-    if (client->inflater)
-    {
-        nghttp2_hd_inflate_del(client->inflater);
-        client->inflater = NULL;
-    }
-    if (client->deflater)
-    {
-        nghttp2_hd_deflate_del(client->deflater);
-        client->deflater = NULL;
-    }
-
-    client->init = 0;
 }
 #endif
