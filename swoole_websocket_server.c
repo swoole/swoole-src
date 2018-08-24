@@ -283,15 +283,6 @@ int swoole_websocket_onMessage(swEventData *req)
                 Z_STRVAL_P(zdata) + Z_STRLEN_P(zdata) - payload_length + SW_WEBSOCKET_CLOSE_CODE_LEN, 
                 payload_length - SW_WEBSOCKET_CLOSE_CODE_LEN TSRMLS_CC);
         }
-        else
-        {
-            zend_update_property_null(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("reason") TSRMLS_CC);
-        }
-    }
-    else
-    {
-        zend_update_property_null(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("code") TSRMLS_CC);
-        zend_update_property_null(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("reason") TSRMLS_CC);
     }
 
     swServer *serv = SwooleG.serv;
@@ -377,6 +368,9 @@ void swoole_websocket_init(int module_number TSRMLS_DC)
     zend_declare_property_null(swoole_websocket_frame_class_entry_ptr, ZEND_STRL("data"), ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(swoole_websocket_frame_class_entry_ptr, ZEND_STRL("opcode"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_bool(swoole_websocket_frame_class_entry_ptr, ZEND_STRL("finish"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    // for close frame
+    zend_declare_property_null(swoole_websocket_frame_class_entry_ptr, ZEND_STRL("code"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_websocket_frame_class_entry_ptr, ZEND_STRL("reason"), ZEND_ACC_PUBLIC TSRMLS_CC);
 
     if (SWOOLE_G(use_shortname))
     {
