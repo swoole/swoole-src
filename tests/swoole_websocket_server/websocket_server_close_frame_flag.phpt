@@ -1,5 +1,5 @@
 --TEST--
-swoole_websocket_server: websocket server active close with code, reason
+swoole_websocket_server: websocket server active close with close frame flag false
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 
@@ -26,7 +26,7 @@ $pm->childFunc = function () use ($pm) {
     $serv->set([
         'worker_num' => 1,
         'log_file' => '/dev/null',
-        'open_websocket_close_frame' => true
+        'open_websocket_close_frame' => false
     ]);
     $serv->on('WorkerStart', function () use ($pm) {
         $pm->wakeup();
@@ -35,9 +35,10 @@ $pm->childFunc = function () use ($pm) {
         if ($frame->opcode == 0x08) {
             echo "{$frame->code}\n";
             echo "{$frame->reason}\n";
+            assert(false); // Should never reach here
         } else {
             if ($frame->data == 'shutdown') {
-                echo "{$frame->data}\n";
+                echo "{$frame->data}";
                 $serv->disconnect($frame->fd, 4000, 'shutdown received');
             }
         }
@@ -49,5 +50,3 @@ $pm->run();
 ?>
 --EXPECT--
 shutdown
-4000
-shutdown received
