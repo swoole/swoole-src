@@ -429,7 +429,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_buffer.c \
         swoole_table.c \
         swoole_http_server.c \
-        swoole_http_v2_server.c \
+        swoole_http_v2_server.cc \
         swoole_http_v2_client.c \
         swoole_http_v2_client_coro.c \
         swoole_websocket_server.c \

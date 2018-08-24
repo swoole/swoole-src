@@ -124,7 +124,6 @@ typedef struct
 
     php_http_parser parser;
     multipart_parser *mt_parser;
-    struct _swoole_http_client *client;
 
     uint16_t input_var_num;
     char *current_header_name;
@@ -137,22 +136,6 @@ typedef struct
 
 } http_context;
 
-typedef struct _swoole_http_client
-{
-    int fd;
-    uint32_t http2 :1;
-
-#ifdef SW_USE_HTTP2
-    uint32_t init :1;
-    swHashMap *streams;
-    nghttp2_hd_inflater *deflater;
-    nghttp2_hd_inflater *inflater;
-    uint32_t window_size;
-    uint32_t remote_window_size;
-#endif
-
-} swoole_http_client;
-
 /**
  * WebSocket
  */
@@ -164,7 +147,7 @@ void swoole_websocket_onRequest(http_context *);
 /**
  * Http Context
  */
-http_context* swoole_http_context_new(swoole_http_client* client TSRMLS_DC);
+http_context* swoole_http_context_new(int fd);
 void swoole_http_context_free(http_context *ctx TSRMLS_DC);
 int swoole_http_parse_form_data(http_context *ctx, const char *boundary_str, int boundary_len TSRMLS_DC);
 
@@ -183,9 +166,9 @@ z##name = ctx->class.z##name;
 /**
  * Http v2
  */
-int swoole_http2_onFrame(swoole_http_client *client, swEventData *req);
+int swoole_http2_onFrame(swConnection *conn, swEventData *req);
 int swoole_http2_do_response(http_context *ctx, swString *body);
-void swoole_http2_free(swoole_http_client *client);
+void swoole_http2_free(swConnection *conn);
 #endif
 
 extern zend_class_entry swoole_http_server_ce;
@@ -207,7 +190,7 @@ const char* swoole_http_get_content_encoding(http_context *ctx);
 
 static sw_inline int http_parse_set_cookies(const char *at, size_t length, zval *cookies, zval *set_cookie_headers)
 {
-    int l_cookie = 0;
+    size_t l_cookie = 0;
     char *p = (char*) memchr(at, ';', length);
     if (p)
     {
@@ -219,7 +202,7 @@ static sw_inline int http_parse_set_cookies(const char *at, size_t length, zval 
     }
 
     p = (char*) memchr(at, '=', length);
-    int l_key = 0;
+    size_t l_key = 0;
     if (p)
     {
         l_key = p - at;
