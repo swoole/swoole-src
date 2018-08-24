@@ -1734,11 +1734,13 @@ static PHP_METHOD(swoole_http_response, write)
         return;
     }
 
-    if (ctx->http2)
+#ifdef SW_USE_HTTP2
+    if (ctx->stream)
     {
         swoole_php_error(E_WARNING, "Http2 client does not support HTTP-CHUNK.");
         RETURN_FALSE;
     }
+#endif
 
     if (!ctx->send_header)
     {
@@ -2217,7 +2219,7 @@ static PHP_METHOD(swoole_http_response, end)
     }
 
 #ifdef SW_USE_HTTP2
-    if (ctx->http2)
+    if (ctx->stream)
     {
         swoole_http2_do_response(ctx, &http_body);
         RETURN_TRUE;
@@ -2649,11 +2651,13 @@ static PHP_METHOD(swoole_http_response, header)
         char key_buf[SW_HTTP_HEADER_KEY_SIZE];
         memcpy(key_buf, k, klen);
         key_buf[klen] = '\0';
-        if (ctx->http2)
+#ifdef SW_USE_HTTP2
+        if (ctx->stream)
         {
             swoole_strtolower(key_buf, klen);
         }
         else
+#endif
         {
             http_header_key_format(key_buf, klen);
         }
@@ -2706,11 +2710,13 @@ static PHP_METHOD(swoole_http_response, trailer)
         char key_buf[SW_HTTP_HEADER_KEY_SIZE];
         memcpy(key_buf, k, klen);
         key_buf[klen] = '\0';
-        if (ctx->http2)
+#ifdef SW_USE_HTTP2
+        if (ctx->stream)
         {
             swoole_strtolower(key_buf, klen);
         }
         else
+#endif
         {
             http_header_key_format(key_buf, klen);
         }

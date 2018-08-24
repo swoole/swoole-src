@@ -110,7 +110,6 @@ typedef struct
 #endif
     uint32_t chunk :1;
     uint32_t keepalive :1;
-    uint32_t http2 :1;
     uint32_t upgrade :1;
     uint32_t detached :1;
 
@@ -118,19 +117,14 @@ typedef struct
     uint32_t current_header_name_allocated :1;
     uint32_t content_sender_initialized :1;
 
-#ifdef SW_USE_HTTP2
-    // uint8_t priority; // useless now
-    uint32_t stream_id;
-    // flow control
-    uint32_t send_window;
-    uint32_t recv_window;
-#endif
-
 #ifdef SW_HAVE_ZLIB
     int8_t compression_level;
     int8_t compression_method;
 #endif
 
+#ifdef SW_USE_HTTP2
+    void* stream;
+#endif
     http_request request;
     http_response response;
 
