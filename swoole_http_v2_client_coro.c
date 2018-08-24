@@ -207,9 +207,6 @@ static PHP_METHOD(swoole_http2_client_coro, __construct)
     context->onTimeout = NULL;
     context->coro_params = *getThis();
 
-    hcc->streams = swHashMap_new(8, http2_client_stream_free);
-    hcc->stream_id = 1;
-
     long type = SW_FLAG_ASYNC | SW_SOCK_TCP;
     if (ssl)
     {
@@ -710,6 +707,9 @@ static int http2_client_send_request(zval *zobject, zval *req TSRMLS_DC)
     stream->send_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
     stream->recv_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
 
+    // add to map
+    swHashMap_add_int(hcc->streams, stream->stream_id, stream);
+
     if (ZVAL_IS_NULL(post_data))
     {
         //pipeline
@@ -728,9 +728,6 @@ static int http2_client_send_request(zval *zobject, zval *req TSRMLS_DC)
     }
 
     zend_update_property_long(swoole_http2_response_class_entry_ptr, stream->response_object, ZEND_STRL("streamId"), stream->stream_id TSRMLS_CC);
-
-    // add to map
-    swHashMap_add_int(hcc->streams, stream->stream_id, stream);
 
     swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN", STREAM#%d] length=%zd", swHttp2_get_type(SW_HTTP2_TYPE_HEADERS), stream->stream_id, n);
     cli->send(cli, buffer, n + SW_HTTP2_FRAME_HEADER_SIZE, 0);
@@ -902,6 +899,7 @@ static void http2_client_onConnect(swClient *cli)
 
     hcc->ready = 1;
     hcc->stream_id = 1;
+    hcc->streams = swHashMap_new(8, http2_client_stream_free);
     http2_client_send_setting(cli);
 
     // [init]: we must set default value, server is not always send all the settings
@@ -992,20 +990,19 @@ static PHP_METHOD(swoole_http2_client_coro, __destruct)
         if (hcc->inflater)
         {
             nghttp2_hd_inflate_del(hcc->inflater);
-            hcc->inflater = NULL;
         }
         if (hcc->deflater)
         {
             nghttp2_hd_deflate_del(hcc->deflater);
-            hcc->deflater = NULL;
         }
         if (hcc->host)
         {
             efree(hcc->host);
-            hcc->host = NULL;
         }
-
-        swHashMap_free(hcc->streams);
+        if (hcc->streams)
+        {
+            swHashMap_free(hcc->streams);
+        }
         efree(hcc);
         swoole_set_property(zobject, HTTP2_CLIENT_CORO_PROPERTY, NULL);
     }
@@ -1146,7 +1143,7 @@ static PHP_METHOD(swoole_http2_client_coro, stats)
         }
         else if (strcmp(key.str, "active_stream_num") == 0)
         {
-           RETURN_LONG(swHashMap_count(hcc->streams));
+           RETURN_LONG(hcc->streams ? swHashMap_count(hcc->streams) : 0);
         }
     }
     else
@@ -1159,7 +1156,7 @@ static PHP_METHOD(swoole_http2_client_coro, stats)
         sw_add_assoc_long_ex(return_value, ZEND_STRS("max_concurrent_streams"), hcc->max_concurrent_streams);
         sw_add_assoc_long_ex(return_value, ZEND_STRS("max_frame_size"), hcc->max_frame_size);
         sw_add_assoc_long_ex(return_value, ZEND_STRS("max_header_list_size"), hcc->max_header_list_size);
-        sw_add_assoc_long_ex(return_value, ZEND_STRS("active_stream_num"), swHashMap_count(hcc->streams));
+        sw_add_assoc_long_ex(return_value, ZEND_STRS("active_stream_num"), hcc->streams ? swHashMap_count(hcc->streams) : 0);
     }
 }
 
