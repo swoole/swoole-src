@@ -44,8 +44,12 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http2_client_coro_set, 0, 0, 1)
     ZEND_ARG_ARRAY_INFO(0, settings, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http2_client_coro_stats, 0, 0, 1)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http2_client_coro_stats, 0, 0, 0)
     ZEND_ARG_INFO(0, key)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http2_client_coro_isStreamExist, 0, 0, 1)
+    ZEND_ARG_INFO(0, stream_id)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http2_client_coro_send, 0, 0, 1)
@@ -78,6 +82,7 @@ static PHP_METHOD(swoole_http2_client_coro, __destruct);
 static PHP_METHOD(swoole_http2_client_coro, set);
 static PHP_METHOD(swoole_http2_client_coro, connect);
 static PHP_METHOD(swoole_http2_client_coro, stats);
+static PHP_METHOD(swoole_http2_client_coro, isStreamExist);
 static PHP_METHOD(swoole_http2_client_coro, send);
 static PHP_METHOD(swoole_http2_client_coro, write);
 static PHP_METHOD(swoole_http2_client_coro, recv);
@@ -93,16 +98,17 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length);
 
 static const zend_function_entry swoole_http2_client_methods[] =
 {
-    PHP_ME(swoole_http2_client_coro, __construct, arginfo_swoole_http2_client_coro_construct, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
-    PHP_ME(swoole_http2_client_coro, __destruct,  arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
-    PHP_ME(swoole_http2_client_coro, set,         arginfo_swoole_http2_client_coro_set, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http2_client_coro, connect,     arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http2_client_coro, stats,       arginfo_swoole_http2_client_coro_stats, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http2_client_coro, send,        arginfo_swoole_http2_client_coro_send, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http2_client_coro, write,       arginfo_swoole_http2_client_coro_write, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http2_client_coro, recv,        arginfo_swoole_http2_client_coro_recv, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http2_client_coro, goaway,      arginfo_swoole_http2_client_coro_goaway, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http2_client_coro, close,       arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http2_client_coro, __construct,   arginfo_swoole_http2_client_coro_construct, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+    PHP_ME(swoole_http2_client_coro, __destruct,    arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
+    PHP_ME(swoole_http2_client_coro, set,           arginfo_swoole_http2_client_coro_set, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http2_client_coro, connect,       arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http2_client_coro, stats,         arginfo_swoole_http2_client_coro_stats, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http2_client_coro, isStreamExist, arginfo_swoole_http2_client_coro_isStreamExist, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http2_client_coro, send,          arginfo_swoole_http2_client_coro_send, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http2_client_coro, write,         arginfo_swoole_http2_client_coro_write, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http2_client_coro, recv,          arginfo_swoole_http2_client_coro_recv, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http2_client_coro, goaway,        arginfo_swoole_http2_client_coro_goaway, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http2_client_coro, close,         arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
@@ -1158,6 +1164,37 @@ static PHP_METHOD(swoole_http2_client_coro, stats)
         sw_add_assoc_long_ex(return_value, ZEND_STRS("max_header_list_size"), hcc->max_header_list_size);
         sw_add_assoc_long_ex(return_value, ZEND_STRS("active_stream_num"), hcc->streams ? swHashMap_count(hcc->streams) : 0);
     }
+}
+
+static PHP_METHOD(swoole_http2_client_coro, isStreamExist)
+{
+    zend_long stream_id = 0;
+    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "l", &stream_id) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+    if (stream_id < 0)
+    {
+        RETURN_FALSE;
+    }
+    http2_client_property *hcc = swoole_get_property(getThis(), HTTP2_CLIENT_CORO_PROPERTY);
+    if (!hcc->client)
+    {
+        RETURN_FALSE;
+    }
+    else
+    {
+        if (stream_id == 0)
+        {
+            RETURN_TRUE;
+        }
+        if (!hcc->streams)
+        {
+            RETURN_FALSE;
+        }
+    }
+    http2_client_stream *stream = swHashMap_find_int(hcc->streams, stream_id);
+    RETURN_BOOL(stream ? 1 : 0);
 }
 
 static PHP_METHOD(swoole_http2_client_coro, write)
