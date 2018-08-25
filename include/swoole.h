@@ -37,8 +37,6 @@ extern "C" {
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
-#define __STDC_FORMAT_MACROS
-#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

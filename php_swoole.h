@@ -17,6 +17,11 @@
 #ifndef PHP_SWOOLE_H
 #define PHP_SWOOLE_H
 
+// C++ build format macros must defined earlier
+#ifdef __cplusplus
+#define __STDC_FORMAT_MACROS
+#endif
+
 #include "php.h"
 #include "php_ini.h"
 #include "php_globals.h"
