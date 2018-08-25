@@ -17,6 +17,11 @@
 #ifndef PHP_SWOOLE_H
 #define PHP_SWOOLE_H
 
+// C++ build format macros must defined earlier
+#ifdef __cplusplus
+#define __STDC_FORMAT_MACROS
+#endif
+
 #include "php.h"
 #include "php_ini.h"
 #include "php_globals.h"
@@ -61,7 +66,7 @@ BEGIN_EXTERN_C()
 #include <ext/standard/basic_functions.h>
 #include <ext/standard/php_http.h>
 
-#define PHP_SWOOLE_VERSION  "4.1.0-alpha"
+#define PHP_SWOOLE_VERSION  "4.1.0-beta.2"
 #define PHP_SWOOLE_CHECK_CALLBACK
 #define PHP_SWOOLE_ENABLE_FASTCALL
 #define PHP_SWOOLE_CLIENT_USE_POLL
@@ -509,7 +514,7 @@ int php_coroutine_reactor_can_exit(swReactor *reactor);
 static sw_inline zval* php_swoole_server_get_callback(swServer *serv, int server_fd, int event_type)
 {
     swListenPort *port = (swListenPort *) serv->connection_list[server_fd].object;
-    if (port == NULL)
+    if (!port)
     {
         swWarn("invalid server_fd[%d].", server_fd);
         return NULL;
@@ -534,6 +539,11 @@ static sw_inline zval* php_swoole_server_get_callback(swServer *serv, int server
 static sw_inline zend_fcall_info_cache* php_swoole_server_get_cache(swServer *serv, int server_fd, int event_type)
 {
     swListenPort *port = (swListenPort *) serv->connection_list[server_fd].object;
+    if (!port)
+    {
+        swWarn("invalid server_fd[%d].", server_fd);
+        return NULL;
+    }
     swoole_server_port_property *property = (swoole_server_port_property *) port->ptr;
     if (!property)
     {
