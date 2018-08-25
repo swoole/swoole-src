@@ -509,7 +509,7 @@ int php_coroutine_reactor_can_exit(swReactor *reactor);
 static sw_inline zval* php_swoole_server_get_callback(swServer *serv, int server_fd, int event_type)
 {
     swListenPort *port = (swListenPort *) serv->connection_list[server_fd].object;
-    if (port == NULL)
+    if (!port)
     {
         swWarn("invalid server_fd[%d].", server_fd);
         return NULL;
@@ -534,6 +534,11 @@ static sw_inline zval* php_swoole_server_get_callback(swServer *serv, int server
 static sw_inline zend_fcall_info_cache* php_swoole_server_get_cache(swServer *serv, int server_fd, int event_type)
 {
     swListenPort *port = (swListenPort *) serv->connection_list[server_fd].object;
+    if (!port)
+    {
+        swWarn("invalid server_fd[%d].", server_fd);
+        return NULL;
+    }
     swoole_server_port_property *property = (swoole_server_port_property *) port->ptr;
     if (!property)
     {
