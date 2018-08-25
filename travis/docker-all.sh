@@ -7,4 +7,5 @@ pwd && \
 ls -al / && \
 php -v && \
 ./docker-compile.sh && \
+php --ri swoole && \
 ./docker-test.sh

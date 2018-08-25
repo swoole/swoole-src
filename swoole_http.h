@@ -19,6 +19,11 @@
 #ifndef SWOOLE_HTTP_H_
 #define SWOOLE_HTTP_H_
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 #include "thirdparty/php_http_parser.h"
 #include "thirdparty/multipart_parser.h"
 
@@ -28,11 +33,12 @@
 
 enum http_response_flag
 {
-    HTTP_RESPONSE_SERVER           = 1u << 1,
-    HTTP_RESPONSE_CONNECTION       = 1u << 2,
-    HTTP_RESPONSE_CONTENT_LENGTH   = 1u << 3,
-    HTTP_RESPONSE_DATE             = 1u << 4,
-    HTTP_RESPONSE_CONTENT_TYPE     = 1u << 5,
+    HTTP_RESPONSE_SERVER            = 1u << 1,
+    HTTP_RESPONSE_CONNECTION        = 1u << 2,
+    HTTP_RESPONSE_CONTENT_LENGTH    = 1u << 3,
+    HTTP_RESPONSE_DATE              = 1u << 4,
+    HTTP_RESPONSE_CONTENT_TYPE      = 1u << 5,
+    HTTP_RESPONSE_TRANSFER_ENCODING = 1u << 6,
 };
 
 enum http_compress_method
@@ -52,7 +58,9 @@ typedef struct
     uint32_t ext_len;
     uint8_t post_form_urlencoded;
 
+#ifdef SW_USE_HTTP2
     swString *post_buffer;
+#endif
     uint32_t post_length;
 
     zval *zobject;
@@ -80,6 +88,7 @@ typedef struct
     enum php_http_method method;
     int version;
     int status;
+    char* reason;
     zval *zobject;
     zval *zheader;
     zval *zcookie;
@@ -101,7 +110,6 @@ typedef struct
 #endif
     uint32_t chunk :1;
     uint32_t keepalive :1;
-    uint32_t http2 :1;
     uint32_t upgrade :1;
     uint32_t detached :1;
 
@@ -109,16 +117,14 @@ typedef struct
     uint32_t current_header_name_allocated :1;
     uint32_t content_sender_initialized :1;
 
-#ifdef SW_USE_HTTP2
-    uint8_t priority;
-    uint32_t stream_id;
-#endif
-
 #ifdef SW_HAVE_ZLIB
     int8_t compression_level;
     int8_t compression_method;
 #endif
 
+#ifdef SW_USE_HTTP2
+    void* stream;
+#endif
     http_request request;
     http_response response;
 
@@ -135,6 +141,7 @@ typedef struct
     zval *current_multipart_header;
 
 } http_context;
+
 
 /**
  * WebSocket
@@ -221,5 +228,9 @@ static sw_inline int http_parse_set_cookies(const char *at, size_t length, zval 
 
     return SW_OK;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* SWOOLE_HTTP_H_ */
