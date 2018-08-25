@@ -12,7 +12,7 @@
 #include "asm_context.h"
 #endif
 
-#ifdef HAVE_VALGRIND
+#if defined(HAVE_VALGRIND) && !defined(HAVE_KQUEUE)
 #define USE_VALGRIND 1
 #endif
 
