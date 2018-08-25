@@ -54,7 +54,7 @@ static sw_inline int sw_add_assoc_double_ex(zval *arg, const char *key, size_t k
     else {k = _foreach_key->val, klen=_foreach_key->len; ktype = 1;} {
 
 #define SW_HASHTABLE_FOREACH_END()                 } ZEND_HASH_FOREACH_END();
-
+#define Z_ARRVAL_PP(s)                             Z_ARRVAL_P(*s)
 static inline char* sw_php_format_date(char *format, size_t format_len, time_t ts, int localtime)
 {
     zend_string *time = php_format_date(format, format_len, ts, localtime);
