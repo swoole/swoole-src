@@ -47,8 +47,6 @@ static sw_inline int sw_add_assoc_double_ex(zval *arg, const char *key, size_t k
     return add_assoc_double_ex(arg, key, key_len - 1, value);
 }
 
-#define SW_Z_ARRVAL_P(z)                          Z_ARRVAL_P(z)->ht
-
 #define SW_HASHTABLE_FOREACH_START(ht, _val) ZEND_HASH_FOREACH_VAL(ht, _val);  {
 #define SW_HASHTABLE_FOREACH_START2(ht, k, klen, ktype, _val) zend_string *_foreach_key;\
     ZEND_HASH_FOREACH_STR_KEY_VAL(ht, _foreach_key, _val);\
@@ -56,13 +54,6 @@ static sw_inline int sw_add_assoc_double_ex(zval *arg, const char *key, size_t k
     else {k = _foreach_key->val, klen=_foreach_key->len; ktype = 1;} {
 
 #define SW_HASHTABLE_FOREACH_END()                 } ZEND_HASH_FOREACH_END();
-
-#define Z_ARRVAL_PP(s)                             Z_ARRVAL_P(*s)
-#define SW_Z_TYPE_P                                Z_TYPE_P
-#define SW_Z_TYPE_PP(s)                            SW_Z_TYPE_P(*s)
-#define Z_STRVAL_PP(s)                             Z_STRVAL_P(*s)
-#define Z_STRLEN_PP(s)                             Z_STRLEN_P(*s)
-#define Z_LVAL_PP(v)                               Z_LVAL_P(*v)
 
 static inline char* sw_php_format_date(char *format, size_t format_len, time_t ts, int localtime)
 {
