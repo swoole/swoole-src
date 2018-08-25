@@ -346,6 +346,7 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_status, 0, 0, 1)
     ZEND_ARG_INFO(0, http_code)
+    ZEND_ARG_INFO(0, reason)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_header, 0, 0, 2)
@@ -1122,8 +1123,8 @@ static int http_onReceive(swServer *serv, swEventData *req)
 
         swoole_set_property(zrequest_object, 0, zdata);
 
-        add_assoc_long(ctx->request.zserver, "server_port", swConnection_get_port(&SwooleG.serv->connection_list[conn->from_fd]));
-        add_assoc_long(ctx->request.zserver, "remote_port", swConnection_get_port(conn));
+        add_assoc_long(zserver, "server_port", swConnection_get_port(&SwooleG.serv->connection_list[conn->from_fd]));
+        add_assoc_long(zserver, "remote_port", swConnection_get_port(conn));
         sw_add_assoc_string(zserver, "remote_addr", swConnection_get_ip(conn), 1);
         add_assoc_long(zserver, "master_time", conn->last_time);
         if (ctx->request.version == 101)
@@ -1276,7 +1277,10 @@ void swoole_http_server_init(int module_number TSRMLS_DC)
         sw_zend_register_class_alias("Co\\Http\\Response", swoole_http_response_class_entry_ptr);
     }
 
-    zend_declare_property_long(swoole_http_request_class_entry_ptr, SW_STRL("fd")-1, 0,  ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_http_request_class_entry_ptr, SW_STRL("fd")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+#ifdef SW_USE_HTTP2
+    zend_declare_property_long(swoole_http_request_class_entry_ptr, SW_STRL("streamId")-1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+#endif
     zend_declare_property_null(swoole_http_request_class_entry_ptr, SW_STRL("header")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_http_request_class_entry_ptr, SW_STRL("server")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_http_request_class_entry_ptr, SW_STRL("request")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
@@ -1402,6 +1406,7 @@ void swoole_http_context_free(http_context *ctx TSRMLS_DC)
 {
     swoole_set_object(ctx->response.zobject, NULL);
     http_request *req = &ctx->request;
+    http_response *res = &ctx->response;
     if (req->path)
     {
         efree(req->path);
@@ -1412,6 +1417,10 @@ void swoole_http_context_free(http_context *ctx TSRMLS_DC)
         swString_free(req->post_buffer);
     }
 #endif
+    if (res->reason)
+    {
+        efree(res->reason);
+    }
     efree(ctx);
 }
 
@@ -1725,11 +1734,13 @@ static PHP_METHOD(swoole_http_response, write)
         return;
     }
 
-    if (ctx->http2)
+#ifdef SW_USE_HTTP2
+    if (ctx->stream)
     {
         swoole_php_error(E_WARNING, "Http2 client does not support HTTP-CHUNK.");
         RETURN_FALSE;
     }
+#endif
 
     if (!ctx->send_header)
     {
@@ -1845,16 +1856,23 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
     /**
      * http status line
      */
-    n = snprintf(buf, l_buf, "HTTP/1.1 %s\r\n", http_status_message(ctx->response.status));
+    if (!ctx->response.reason)
+    {
+        n = snprintf(buf, l_buf, "HTTP/1.1 %s\r\n", http_status_message(ctx->response.status));
+    }
+    else
+    {
+        n = snprintf(buf, l_buf, "HTTP/1.1 %d %s\r\n", ctx->response.status, ctx->response.reason);
+    }
     swString_append_ptr(response, buf, n);
 
     /**
      * http header
      */
     zval *header = ctx->response.zheader;
+    int flag = 0x0;
     if (header)
     {
-        int flag = 0x0;
         HashTable *ht = Z_ARRVAL_P(header);
         zval *value = NULL;
         char *key = NULL;
@@ -1883,50 +1901,30 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
             {
                 flag |= HTTP_RESPONSE_CONTENT_TYPE;
             }
+            else if (strncasecmp(key, "Transfer-Encoding", keylen) == 0)
+            {
+                flag |= HTTP_RESPONSE_TRANSFER_ENCODING;
+            }
             n = snprintf(buf, l_buf, "%*s: %*s\r\n", keylen - 1, key, (int)Z_STRLEN_P(value), Z_STRVAL_P(value));
             swString_append_ptr(response, buf, n);
         }
         SW_HASHTABLE_FOREACH_END();
         (void)type;
-
-        if (!(flag & HTTP_RESPONSE_SERVER))
-        {
-            swString_append_ptr(response, ZEND_STRL("Server: "SW_HTTP_SERVER_SOFTWARE"\r\n"));
-        }
-        //websocket protocol
-        if (ctx->upgrade == 1)
-        {
-            swString_append_ptr(response, ZEND_STRL("\r\n"));
-            ctx->send_header = 1;
-            return;
-        }
-        if (!(flag & HTTP_RESPONSE_CONNECTION))
-        {
-            if (ctx->keepalive)
-            {
-                swString_append_ptr(response, ZEND_STRL("Connection: keep-alive\r\n"));
-            }
-            else
-            {
-                swString_append_ptr(response, ZEND_STRL("Connection: close\r\n"));
-            }
-        }
-        if (!(flag & HTTP_RESPONSE_CONTENT_TYPE))
-        {
-            swString_append_ptr(response, ZEND_STRL("Content-Type: text/html\r\n"));
-        }
-        if (!(flag & HTTP_RESPONSE_DATE))
-        {
-            date_str = sw_php_format_date(ZEND_STRL(SW_HTTP_DATE_FORMAT), serv->gs->now, 0 TSRMLS_CC);
-            n = snprintf(buf, l_buf, "Date: %s\r\n", date_str);
-            swString_append_ptr(response, buf, n);
-            efree(date_str);
-        }
     }
-    else
+
+    if (!(flag & HTTP_RESPONSE_SERVER))
     {
-        //Server
-        swString_append_ptr(response, ZEND_STRL("Server: "SW_HTTP_SERVER_SOFTWARE"\r\nContent-Type: text/html\r\n"));
+        swString_append_ptr(response, ZEND_STRL("Server: "SW_HTTP_SERVER_SOFTWARE"\r\n"));
+    }
+    //websocket protocol
+    if (ctx->upgrade == 1)
+    {
+        swString_append_ptr(response, ZEND_STRL("\r\n"));
+        ctx->send_header = 1;
+        return;
+    }
+    if (!(flag & HTTP_RESPONSE_CONNECTION))
+    {
         if (ctx->keepalive)
         {
             swString_append_ptr(response, ZEND_STRL("Connection: keep-alive\r\n"));
@@ -1935,23 +1933,28 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
         {
             swString_append_ptr(response, ZEND_STRL("Connection: close\r\n"));
         }
-        //Date
+    }
+    if (!(flag & HTTP_RESPONSE_CONTENT_TYPE))
+    {
+        swString_append_ptr(response, ZEND_STRL("Content-Type: text/html\r\n"));
+    }
+    if (!(flag & HTTP_RESPONSE_DATE))
+    {
         date_str = sw_php_format_date(ZEND_STRL(SW_HTTP_DATE_FORMAT), serv->gs->now, 0 TSRMLS_CC);
         n = snprintf(buf, l_buf, "Date: %s\r\n", date_str);
-        efree(date_str);
         swString_append_ptr(response, buf, n);
+        efree(date_str);
     }
-    /**
-     * Http chunk
-     */
+
     if (ctx->chunk)
     {
-        swString_append_ptr(response, SW_STRL("Transfer-Encoding: chunked\r\n") - 1);
+        if (!(flag & HTTP_RESPONSE_TRANSFER_ENCODING))
+        {
+            swString_append_ptr(response, SW_STRL("Transfer-Encoding: chunked\r\n") - 1);
+        }
     }
-    /**
-     * Content-Length
-     */
     else
+    // Content-Length
     {
 #ifdef SW_HAVE_ZLIB
         if (ctx->enable_compression)
@@ -1962,6 +1965,7 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
         n = snprintf(buf, l_buf, "Content-Length: %d\r\n", body_length);
         swString_append_ptr(response, buf, n);
     }
+
     //http cookies
     if (ctx->response.zcookie)
     {
@@ -2215,7 +2219,7 @@ static PHP_METHOD(swoole_http_response, end)
     }
 
 #ifdef SW_USE_HTTP2
-    if (ctx->http2)
+    if (ctx->stream)
     {
         swoole_http2_do_response(ctx, &http_body);
         RETURN_TRUE;
@@ -2587,7 +2591,9 @@ static PHP_METHOD(swoole_http_response, rawcookie)
 static PHP_METHOD(swoole_http_response, status)
 {
     long http_status;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &http_status) == FAILURE)
+    char* reason = NULL;
+    long reason_len = 0;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|s", &http_status, &reason, &reason_len) == FAILURE)
     {
         return;
     }
@@ -2599,6 +2605,11 @@ static PHP_METHOD(swoole_http_response, status)
     }
 
     ctx->response.status = http_status;
+    if (reason_len > 0)
+    {
+        ctx->response.reason = emalloc(32);
+        strncpy(ctx->response.reason, reason, 32 - 1);
+    }
 }
 
 static PHP_METHOD(swoole_http_response, header)
@@ -2640,11 +2651,13 @@ static PHP_METHOD(swoole_http_response, header)
         char key_buf[SW_HTTP_HEADER_KEY_SIZE];
         memcpy(key_buf, k, klen);
         key_buf[klen] = '\0';
-        if (ctx->http2)
+#ifdef SW_USE_HTTP2
+        if (ctx->stream)
         {
             swoole_strtolower(key_buf, klen);
         }
         else
+#endif
         {
             http_header_key_format(key_buf, klen);
         }
@@ -2697,11 +2710,13 @@ static PHP_METHOD(swoole_http_response, trailer)
         char key_buf[SW_HTTP_HEADER_KEY_SIZE];
         memcpy(key_buf, k, klen);
         key_buf[klen] = '\0';
-        if (ctx->http2)
+#ifdef SW_USE_HTTP2
+        if (ctx->stream)
         {
             swoole_strtolower(key_buf, klen);
         }
         else
+#endif
         {
             http_header_key_format(key_buf, klen);
         }
