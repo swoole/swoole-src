@@ -495,9 +495,9 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
     }
     case SW_HTTP2_TYPE_GOAWAY:
     {
-        uint32_t server_last_stream_id = htonl(*(int *) (buf));
+        uint32_t server_last_stream_id = ntohl(*(uint32_t *) (buf));
         buf += 4;
-        error_code = htonl(*(int *) (buf));
+        error_code = ntohl(*(uint32_t *) (buf));
         buf += 4;
 
         // update goaway error code and error msg
@@ -530,7 +530,7 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
     }
     case SW_HTTP2_TYPE_RST_STREAM:
     {
-        error_code = htonl(*(int *) (buf));
+        error_code = ntohl(*(uint32_t *) (buf));
         swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_RED"] stream_id=%d, error_code=%d.", "RST_STREAM", stream_id, error_code);
 
         if (hcc->iowait == 0)

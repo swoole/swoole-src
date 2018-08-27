@@ -725,9 +725,9 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
         http2_sessions[conn->session_id] = client;
     }
 
-    http2_stream *stream = NULL;
-    http_context *ctx = NULL;
-    zval *zrequest_object = NULL;
+    http2_stream *stream = nullptr;
+    http_context *ctx = nullptr;
+    zval *zrequest_object = nullptr;
     zval *zdata;
     SW_MAKE_STD_ZVAL(zdata);
     php_swoole_get_recv_data(zdata, req, NULL, 0);
@@ -849,21 +849,22 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
     }
     case SW_HTTP2_TYPE_WINDOW_UPDATE:
     {
+        uint32_t window_increment = ntohl(*(uint32_t *) buf);
         if (stream_id == 0)
         {
-            client->send_window += swHttp2_get_increment_size(buf);
+            client->send_window += window_increment;
         }
         else if (client->streams.find(stream_id) != client->streams.end())
         {
             stream = client->streams[stream_id];
-            stream->send_window += swHttp2_get_increment_size(buf);
+            stream->send_window += window_increment;
         }
         break;
     }
     case SW_HTTP2_TYPE_RST_STREAM:
     {
-        uint32_t error_code = htonl(*(int *) (buf));
-        swTraceLog(SW_TRACE_HTTP2, "recv ["SW_ECHO_RED"] stream_id=%d, error_code=%d.", "RST_STREAM", stream_id, error_code);
+        uint32_t error_code = ntohl(*(int *) (buf));
+        swTraceLog(SW_TRACE_HTTP2, "recv [" SW_ECHO_RED "] stream_id=%d, error_code=%d.", "RST_STREAM", stream_id, error_code);
         break;
     }
     case SW_HTTP2_TYPE_GOAWAY:
