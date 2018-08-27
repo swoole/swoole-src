@@ -225,7 +225,7 @@ int swWebSocket_dispatch_frame(swConnection *conn, char *data, uint32_t length)
     size_t offset;
     switch (ws.header.OPCODE)
     {
-    case WEBSOCKET_OPCODE_CONTINUATION_FRAME:
+    case WEBSOCKET_OPCODE_CONTINUATION:
         frame_buffer = conn->websocket_buffer;
         if (frame_buffer == NULL)
         {
@@ -252,8 +252,8 @@ int swWebSocket_dispatch_frame(swConnection *conn, char *data, uint32_t length)
         }
         break;
 
-    case WEBSOCKET_OPCODE_TEXT_FRAME:
-    case WEBSOCKET_OPCODE_BINARY_FRAME:
+    case WEBSOCKET_OPCODE_TEXT:
+    case WEBSOCKET_OPCODE_BINARY:
         offset = length - ws.payload_length - SW_WEBSOCKET_HEADER_LEN;
         data[offset] = 1;
         data[offset + 1] = ws.header.OPCODE;
@@ -293,7 +293,7 @@ int swWebSocket_dispatch_frame(swConnection *conn, char *data, uint32_t length)
     case WEBSOCKET_OPCODE_PONG:
         break;
 
-    case WEBSOCKET_OPCODE_CONNECTION_CLOSE:
+    case WEBSOCKET_OPCODE_CLOSE:
         if (0x7d < (length - 2))
         {
             return SW_ERR;

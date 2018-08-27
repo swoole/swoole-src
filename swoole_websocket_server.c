@@ -247,7 +247,7 @@ int swoole_websocket_onMessage(swEventData *req)
     finish = frame_header[0] & 0x80 ? 1 : 0;
     opcode = frame_header[0] & 0x0F;   // Opcode: low 4 bits of first byte
 
-    if (opcode == WEBSOCKET_OPCODE_CONNECTION_CLOSE)
+    if (opcode == WEBSOCKET_OPCODE_CLOSE)
     {
         if (!SwooleG.serv->listen_list->open_websocket_close_frame)
         {
@@ -273,7 +273,7 @@ int swoole_websocket_onMessage(swEventData *req)
     zend_update_property_long(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("opcode"), opcode TSRMLS_CC);
     zend_update_property(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("data"), zdata TSRMLS_CC);
     
-    if (opcode == WEBSOCKET_OPCODE_CONNECTION_CLOSE)
+    if (opcode == WEBSOCKET_OPCODE_CLOSE)
     {
         // websocket close frame info
         zend_update_property_long(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("code"), close_code TSRMLS_CC);
@@ -378,14 +378,32 @@ void swoole_websocket_init(int module_number TSRMLS_DC)
         sw_zend_register_class_alias("Co\\WebSocket\\Frame", swoole_websocket_frame_class_entry_ptr);
     }
 
-    REGISTER_LONG_CONSTANT("WEBSOCKET_OPCODE_TEXT", WEBSOCKET_OPCODE_TEXT_FRAME, CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("WEBSOCKET_OPCODE_BINARY", WEBSOCKET_OPCODE_BINARY_FRAME, CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("WEBSOCKET_OPCODE_PING", WEBSOCKET_OPCODE_PING, CONST_CS | CONST_PERSISTENT);
-
-    REGISTER_LONG_CONSTANT("WEBSOCKET_STATUS_CONNECTION", WEBSOCKET_STATUS_CONNECTION, CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("WEBSOCKET_STATUS_HANDSHAKE", WEBSOCKET_STATUS_HANDSHAKE, CONST_CS | CONST_PERSISTENT);
+    // status
+    SWOOLE_RAW_DEFINE(WEBSOCKET_STATUS_CONNECTION);
+    SWOOLE_RAW_DEFINE(WEBSOCKET_STATUS_HANDSHAKE);
     REGISTER_LONG_CONSTANT("WEBSOCKET_STATUS_FRAME", WEBSOCKET_STATUS_ACTIVE, CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("WEBSOCKET_STATUS_ACTIVE", WEBSOCKET_STATUS_ACTIVE, CONST_CS | CONST_PERSISTENT);
+    SWOOLE_RAW_DEFINE(WEBSOCKET_STATUS_ACTIVE);
+    SWOOLE_RAW_DEFINE(WEBSOCKET_STATUS_CLOSING);
+    // all opcodes
+    SWOOLE_RAW_DEFINE(WEBSOCKET_OPCODE_CONTINUATION);
+    SWOOLE_RAW_DEFINE(WEBSOCKET_OPCODE_TEXT);
+    SWOOLE_RAW_DEFINE(WEBSOCKET_OPCODE_BINARY);
+    SWOOLE_RAW_DEFINE(WEBSOCKET_OPCODE_CLOSE);
+    SWOOLE_RAW_DEFINE(WEBSOCKET_OPCODE_PING);
+    SWOOLE_RAW_DEFINE(WEBSOCKET_OPCODE_PONG);
+    // close error
+    SWOOLE_RAW_DEFINE(WEBSOCKET_CLOSE_NORMAL);
+    SWOOLE_RAW_DEFINE(WEBSOCKET_CLOSE_GOING_AWAY);
+    SWOOLE_RAW_DEFINE(WEBSOCKET_CLOSE_PROTOCOL_ERROR);
+    SWOOLE_RAW_DEFINE(WEBSOCKET_CLOSE_DATA_ERROR);
+    SWOOLE_RAW_DEFINE(WEBSOCKET_CLOSE_STATUS_ERROR);
+    SWOOLE_RAW_DEFINE(WEBSOCKET_CLOSE_ABNORMAL);
+    SWOOLE_RAW_DEFINE(WEBSOCKET_CLOSE_MESSAGE_ERROR);
+    SWOOLE_RAW_DEFINE(WEBSOCKET_CLOSE_POLICY_ERROR);
+    SWOOLE_RAW_DEFINE(WEBSOCKET_CLOSE_MESSAGE_TOO_BIG);
+    SWOOLE_RAW_DEFINE(WEBSOCKET_CLOSE_EXTENSION_MISSING);
+    SWOOLE_RAW_DEFINE(WEBSOCKET_CLOSE_SERVER_ERROR);
+    SWOOLE_RAW_DEFINE(WEBSOCKET_CLOSE_TLS);
 }
 
 void php_swoole_websocket_unpack(swString *data, zval *zframe TSRMLS_DC)
@@ -549,7 +567,7 @@ static PHP_METHOD(swoole_websocket_server, push)
 {
     zval *zdata;
     long fd = 0;
-    long opcode = WEBSOCKET_OPCODE_TEXT_FRAME;
+    long opcode = WEBSOCKET_OPCODE_TEXT;
     zend_bool fin = 1;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lz|lb", &fd, &zdata, &opcode, &fin) == FAILURE)
@@ -607,7 +625,7 @@ static PHP_METHOD(swoole_websocket_server, pack)
 {
     char *data;
     zend_size_t length;
-    long opcode = WEBSOCKET_OPCODE_TEXT_FRAME;
+    long opcode = WEBSOCKET_OPCODE_TEXT;
     zend_bool finish = 1;
     zend_bool mask = 0;
 

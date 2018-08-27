@@ -1975,7 +1975,7 @@ static PHP_METHOD(swoole_http_client_coro, push)
 {
     char *data;
     zend_size_t length;
-    long opcode = WEBSOCKET_OPCODE_TEXT_FRAME;
+    long opcode = WEBSOCKET_OPCODE_TEXT;
     zend_bool fin = 1;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|lb", &data, &length, &opcode, &fin) == FAILURE)
