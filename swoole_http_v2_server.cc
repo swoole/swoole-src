@@ -737,6 +737,7 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
     int flags = buf[4];
     uint32_t stream_id = ntohl((*(int *) (buf + 5))) & 0x7fffffff;
     uint32_t length = swHttp2_get_length(buf);
+    buf += SW_HTTP2_FRAME_HEADER_SIZE;
 
     swTraceLog(SW_TRACE_HTTP2, "[%s]\tflags=%d, stream_id=%d, length=%d", swHttp2_get_type(type), flags, stream_id, length);
 
@@ -756,7 +757,7 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
         zrequest_object = ctx->request.zobject;
         zend_update_property_long(Z_OBJCE_P(zrequest_object), zrequest_object, ZEND_STRL("streamId"), stream_id TSRMLS_CC);
 
-        http2_parse_header(client, ctx, flags, buf + SW_HTTP2_FRAME_HEADER_SIZE, length);
+        http2_parse_header(client, ctx, flags, buf, length);
 
         zval *zserver = ctx->request.zserver;
         add_assoc_long(zserver, "request_time", serv->gs->now);
@@ -797,7 +798,7 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
             buffer = swString_new(SW_HTTP2_DATA_BUFFER_SIZE);
             ctx->request.post_buffer = buffer;
         }
-        swString_append_ptr(buffer, buf + SW_HTTP2_FRAME_HEADER_SIZE, length);
+        swString_append_ptr(buffer, buf, length);
 
         if (flags & SW_HTTP2_FLAG_END_STREAM)
         {
@@ -842,7 +843,7 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
     {
         char ping_frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE];
         swHttp2_set_frame_header(ping_frame, SW_HTTP2_TYPE_PING, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, SW_HTTP2_FLAG_ACK, stream_id);
-        memcpy(ping_frame + SW_HTTP2_FRAME_HEADER_SIZE, buf + SW_HTTP2_FRAME_HEADER_SIZE, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE);
+        memcpy(ping_frame + SW_HTTP2_FRAME_HEADER_SIZE, buf, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE);
         swServer_tcp_send(SwooleG.serv, fd, ping_frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE);
         break;
     }
@@ -857,6 +858,12 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
             stream = client->streams[stream_id];
             stream->send_window += swHttp2_get_increment_size(buf);
         }
+        break;
+    }
+    case SW_HTTP2_TYPE_RST_STREAM:
+    {
+        uint32_t error_code = htonl(*(int *) (buf));
+        swTraceLog(SW_TRACE_HTTP2, "recv ["SW_ECHO_RED"] stream_id=%d, error_code=%d.", "RST_STREAM", stream_id, error_code);
         break;
     }
     case SW_HTTP2_TYPE_GOAWAY:
