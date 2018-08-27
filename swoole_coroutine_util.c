@@ -388,6 +388,7 @@ static PHP_METHOD(swoole_coroutine_util, stats)
 {
     array_init(return_value);
     sw_add_assoc_long_ex(return_value, ZEND_STRS("coroutine_num"), COROG.coro_num);
+    sw_add_assoc_long_ex(return_value, ZEND_STRS("coroutine_peak_num"), COROG.peak_coro_num);
 }
 
 static PHP_METHOD(swoole_coroutine_util, getuid)
