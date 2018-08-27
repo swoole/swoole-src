@@ -71,6 +71,7 @@ int coro_init(TSRMLS_D)
     COROG.origin_vm_stack_end = EG(vm_stack_end);
 
     COROG.coro_num = 0;
+    COROG.peak_coro_num = 0;
     if (COROG.max_coro_num <= 0)
     {
         COROG.max_coro_num = DEFAULT_MAX_CORO_NUM;
@@ -268,6 +269,10 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
 
     COROG.error = 0;
     COROG.coro_num++;
+
+    if (COROG.coro_num >= COROG.peak_coro_num) {
+        COROG.peak_coro_num = COROG.coro_num;
+    }
 
     /**===================Before Coroutine======================**/
     zend_output_globals *coro_output_globals_ptr = NULL;
