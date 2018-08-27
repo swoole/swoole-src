@@ -140,3 +140,25 @@ char* swHttp2_get_type(int type)
         return "UNKOWN";
     }
 }
+
+int swHttp2_get_type_color(int type)
+{
+    switch(type)
+    {
+    case SW_HTTP2_TYPE_DATA:
+    case SW_HTTP2_TYPE_WINDOW_UPDATE:
+        return SW_COLOR_MAGENTA;
+    case SW_HTTP2_TYPE_HEADERS:
+    case SW_HTTP2_TYPE_SETTINGS:
+    case SW_HTTP2_TYPE_PUSH_PROMISE:
+    case SW_HTTP2_TYPE_CONTINUATION:
+        return SW_COLOR_GREEN;
+    case SW_HTTP2_TYPE_PING:
+    case SW_HTTP2_TYPE_PRIORITY:
+        return SW_COLOR_WHITE;
+    case SW_HTTP2_TYPE_RST_STREAM:
+    case SW_HTTP2_TYPE_GOAWAY:
+    default:
+        return SW_COLOR_RED;
+    }
+}

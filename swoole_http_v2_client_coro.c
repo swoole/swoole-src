@@ -417,7 +417,6 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
     uint32_t value;
 
     // TODO: improve trace log about send and recv
-    swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_YELLOW"]\tflags=%d, stream_id=%d, length=%d", swHttp2_get_type(type), flags, stream_id, length);
 
     switch (type)
     {
@@ -432,6 +431,7 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
         {
             id = ntohs(*(uint16_t *) (buf));
             value = ntohl(*(uint32_t *) (buf + sizeof(uint16_t)));
+            swHttp2FrameTraceLog(recv, "id=%d, value=%d", id, value);
             switch (id)
             {
             case SW_HTTP2_SETTING_HEADER_TABLE_SIZE:
@@ -463,13 +463,13 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
         }
 
         swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_SETTINGS, 0, SW_HTTP2_FLAG_ACK, stream_id);
-        swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN", ACK, STREAM#%d]\t[length=%d]", swHttp2_get_type(SW_HTTP2_TYPE_SETTINGS), stream_id, length);
         cli->send(cli, frame, SW_HTTP2_FRAME_HEADER_SIZE, 0);
         return;
     }
     case SW_HTTP2_TYPE_WINDOW_UPDATE:
     {
         value = ntohl(*(uint32_t *) buf);
+        swHttp2FrameTraceLog(recv, "id=%d, window_size_increment=%d", value);
         if (stream_id == 0)
         {
             hcc->send_window += value;
@@ -482,14 +482,13 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
                 stream->send_window += value;
             }
         }
-        swTraceLog(SW_TRACE_HTTP2, "recv (stream_id=%d): send_window_update=%d.", stream_id, value);
         return;
     }
     case SW_HTTP2_TYPE_PING:
     {
+        swHttp2FrameTraceLog(recv, "");
         swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_PING, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, SW_HTTP2_FLAG_ACK, stream_id);
         memcpy(frame + SW_HTTP2_FRAME_HEADER_SIZE, buf + SW_HTTP2_FRAME_HEADER_SIZE, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE);
-        swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN", STREAM#%d]", swHttp2_get_type(SW_HTTP2_TYPE_PING), stream_id);
         cli->send(cli, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, 0);
         return;
     }
@@ -499,9 +498,9 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
         buf += 4;
         error_code = ntohl(*(uint32_t *) (buf));
         buf += 4;
+        swHttp2FrameTraceLog(recv, "last_stream_id=%d, error_code=%d, opaque_data=[%.*s]", server_last_stream_id, error_code, length - SW_HTTP2_GOAWAY_SIZE, buf);
 
         // update goaway error code and error msg
-        swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_RED"] last_stream_id=%d, error_code=%d, opaque_data=[%.*s]", "GOAWAY", server_last_stream_id, error_code, length - SW_HTTP2_GOAWAY_SIZE, buf);
         zend_update_property_long(swoole_http2_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), error_code TSRMLS_CC);
         zend_update_property_stringl(swoole_http2_client_coro_class_entry_ptr, zobject, ZEND_STRL("errMsg"), buf, length - SW_HTTP2_GOAWAY_SIZE TSRMLS_CC);
         zend_update_property_long(swoole_http2_client_coro_class_entry_ptr, zobject, ZEND_STRL("serverLastStreamId"), server_last_stream_id TSRMLS_CC);
@@ -531,7 +530,7 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
     case SW_HTTP2_TYPE_RST_STREAM:
     {
         error_code = ntohl(*(uint32_t *) (buf));
-        swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_RED"] stream_id=%d, error_code=%d.", "RST_STREAM", stream_id, error_code);
+        swHttp2FrameTraceLog(recv, "error_code=%d", error_code);
 
         if (hcc->iowait == 0)
         {
@@ -549,10 +548,12 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
     }
     if (type == SW_HTTP2_TYPE_HEADERS)
     {
+        swHttp2FrameTraceLog(recv, "");
         http2_client_parse_header(hcc, stream, flags, buf, length);
     }
     else if (type == SW_HTTP2_TYPE_DATA)
     {
+        swHttp2FrameTraceLog(recv, "use_gzip=%d", stream->gzip);
         if (length > 0)
         {
             if (!stream->buffer)

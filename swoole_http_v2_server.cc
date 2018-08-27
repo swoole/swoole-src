@@ -859,12 +859,14 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
             stream = client->streams[stream_id];
             stream->send_window += window_increment;
         }
+        swTraceLog(SW_TRACE_HTTP2, "recv (stream_id=%d): window_update=%d.", stream_id, window_increment);
         break;
     }
     case SW_HTTP2_TYPE_RST_STREAM:
     {
         uint32_t error_code = ntohl(*(int *) (buf));
         swTraceLog(SW_TRACE_HTTP2, "recv [" SW_ECHO_RED "] stream_id=%d, error_code=%d.", "RST_STREAM", stream_id, error_code);
+        // TODO
         break;
     }
     case SW_HTTP2_TYPE_GOAWAY:

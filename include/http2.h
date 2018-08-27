@@ -93,6 +93,21 @@ enum swHttp2StreamType
 #define SW_HTTP2_STREAM_ID_SIZE               4
 #define SW_HTTP2_SETTINGS_PARAM_SIZE          6
 
+#define swHttp2FrameTraceLogFlags \
+    ((flags & SW_HTTP2_FLAG_ACK) ? "\nEND_ACK | " : ""), \
+    ((flags & SW_HTTP2_FLAG_END_STREAM) ? "\nEND_STREAM | " : ""), \
+    ((flags & SW_HTTP2_FLAG_END_HEADERS) ? "\nEND_HEADERS | " : ""), \
+    ((flags & SW_HTTP2_FLAG_PADDED) ? "\nEND_PADDED | " : ""), \
+    ((flags & SW_HTTP2_FLAG_PRIORITY) ? "\nEND_PRIORITY | " : "")
+#define swHttp2FrameTraceLog(recv, str, ...) \
+    swTraceLog( \
+        SW_TRACE_HTTP2, \
+        "\nrecv [" "\e[3" "%d" "m" "%s" "\e[0m" "] frame <length=%d, flags=%d, stream_id=%d> " str "%s%s%s%s%s", \
+        swHttp2_get_type_color(type), swHttp2_get_type(type), length, flags, stream_id, \
+        ##__VA_ARGS__, \
+        swHttp2FrameTraceLogFlags \
+    );
+
 /**
  +-----------------------------------------------+
  |                 Length (24)                   |
@@ -123,6 +138,7 @@ int swHttp2_get_frame_length(swProtocol *protocol, swConnection *conn, char *buf
 int swHttp2_send_setting_frame(swProtocol *protocol, swConnection *conn);
 int swHttp2_parse_frame(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 char* swHttp2_get_type(int type);
+int swHttp2_get_type_color(int type);
 
 /**
  +-----------------------------------------------+
