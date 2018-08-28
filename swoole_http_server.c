@@ -1742,6 +1742,10 @@ static PHP_METHOD(swoole_http_response, write)
     }
 #endif
 
+#ifdef SW_HAVE_ZLIB
+    ctx->enable_compression = 0;
+#endif
+
     if (!ctx->send_header)
     {
         ctx->chunk = 1;
@@ -1772,38 +1776,20 @@ static PHP_METHOD(swoole_http_response, write)
         http_body.length = length;
     }
 
+    // Why not enable compression?
+    // If both compression and chunked encoding are enabled,
+    // then the content stream is first compressed, then chunked;
+    // so the chunk encoding itself is not compressed,
+    // **and the data in each chunk is not compressed individually.**
+    // The remote endpoint then decodes the stream by concatenating the chunks and uncompressing the result.
     swString_clear(swoole_http_buffer);
-
-    char *hex_string;
-    int hex_len;
-
-#ifdef SW_HAVE_ZLIB
-    if (ctx->enable_compression)
-    {
-        swoole_http_response_compress(&http_body, ctx->compression_method, ctx->compression_level);
-
-        hex_string = swoole_dec2hex(swoole_zlib_buffer->length, 16);
-        hex_len = strlen(hex_string);
-
-        //"%*s\r\n%*s\r\n", hex_len, hex_string, body.length, body.str
-        swString_append_ptr(swoole_http_buffer, hex_string, hex_len);
-        swString_append_ptr(swoole_http_buffer, SW_STRL("\r\n") - 1);
-        swString_append(swoole_http_buffer, swoole_zlib_buffer);
-        swString_append_ptr(swoole_http_buffer, SW_STRL("\r\n") - 1);
-    }
-    else
-#endif
-    {
-        hex_string = swoole_dec2hex(http_body.length, 16);
-        hex_len = strlen(hex_string);
-
-        //"%*s\r\n%*s\r\n", hex_len, hex_string, body.length, body.str
-        swString_append_ptr(swoole_http_buffer, hex_string, hex_len);
-        swString_append_ptr(swoole_http_buffer, SW_STRL("\r\n") - 1);
-        swString_append_ptr(swoole_http_buffer, http_body.str, http_body.length);
-        swString_append_ptr(swoole_http_buffer, SW_STRL("\r\n") - 1);
-    }
-
+    char *hex_string = swoole_dec2hex(http_body.length, 16);
+    int hex_len = strlen(hex_string);
+    //"%*s\r\n%*s\r\n", hex_len, hex_string, body.length, body.str
+    swString_append_ptr(swoole_http_buffer, hex_string, hex_len);
+    swString_append_ptr(swoole_http_buffer, SW_STRL("\r\n") - 1);
+    swString_append_ptr(swoole_http_buffer, http_body.str, http_body.length);
+    swString_append_ptr(swoole_http_buffer, SW_STRL("\r\n") - 1);
     sw_free(hex_string);
 
     swServer *serv = SwooleG.serv;
