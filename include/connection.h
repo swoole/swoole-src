@@ -196,6 +196,8 @@ static sw_inline ssize_t swConnection_recv(swConnection *conn, void *__buf, size
     }
 #endif
 
+    swDebug("recv %ld/%ld bytes, errno=%d", retval, __n, errno);
+
     return retval;
 }
 

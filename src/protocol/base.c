@@ -41,6 +41,7 @@ int swProtocol_get_package_length(swProtocol *protocol, swConnection *conn, char
         swWarn("invalid package, remote_addr=%s:%d, length=%d, size=%d.", swConnection_get_ip(conn), swConnection_get_port(conn), body_length, size);
         return SW_ERR;
     }
+    swDebug("length=%d", protocol->package_body_offset + body_length);
     //total package length
     return protocol->package_body_offset + body_length;
 }
