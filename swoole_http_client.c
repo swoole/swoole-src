@@ -898,6 +898,11 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
             {
                 continue;
             }
+            //ignore Content-Length
+            if (strncasecmp(key, ZEND_STRL("Content-Length")) == 0)
+            {
+                continue;
+            }
             http_client_swString_append_headers(http_client_buffer, key, keylen, Z_STRVAL_P(value), Z_STRLEN_P(value));
         SW_HASHTABLE_FOREACH_END();
     }
