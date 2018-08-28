@@ -749,7 +749,7 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
         if (flags & SW_HTTP2_FLAG_ACK)
         {
             swHttp2FrameTraceLog(recv, "ACK");
-            return SW_OK;
+            break;
         }
 
         while(length > 0)
