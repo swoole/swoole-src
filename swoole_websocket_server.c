@@ -159,17 +159,16 @@ void swoole_websocket_onOpen(http_context *ctx)
  */
 void swoole_websocket_onRequest(http_context *ctx)
 {
-    char *content = "<html><body><h2>HTTP ERROR 400</h2><hr><i>Powered by "SW_HTTP_SERVER_SOFTWARE" ("PHP_SWOOLE_VERSION")</i></body></html>";
-    char *bad_request = "HTTP/1.1 400 Bad Request\r\n"\
+    char *bad_request =
+            "HTTP/1.1 400 Bad Request\r\n"\
+            "Connection: close\r\n"\
             "Content-Type: text/html; charset=UTF-8\r\n"\
             "Cache-Control: must-revalidate,no-cache,no-store\r\n"\
-            "Content-Length: %d\r\n"\
-            "Server: "SW_HTTP_SERVER_SOFTWARE"\r\n\r\n%s";
+            "Content-Length: 83\r\n"\
+            "Server: "SW_HTTP_SERVER_SOFTWARE"\r\n\r\n"\
+            "<html><body><h2>HTTP 400 Bad Request</h2><hr><i>Powered by Swoole</i></body></html>";
 
-    char buf[512];
-
-    int n = sprintf(buf, bad_request, strlen(content), content);
-    swServer_tcp_send(SwooleG.serv, ctx->fd, buf, n);
+    swServer_tcp_send(SwooleG.serv, ctx->fd, bad_request, strlen(bad_request));
     ctx->end = 1;
     swServer_tcp_close(SwooleG.serv, ctx->fd, 0);
     swoole_http_context_free(ctx TSRMLS_CC);
