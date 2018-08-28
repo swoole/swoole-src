@@ -589,10 +589,10 @@ static int http2_parse_header(http2_session *client, http_context *ctx, int flag
         in += proclen;
         inlen -= proclen;
 
-        swTraceLog(SW_TRACE_HTTP2, "Header: " SW_ECHO_BLUE "[%zu]: %s[%zu]", nv.name, nv.namelen, nv.value, nv.valuelen);
-
         if (inflate_flags & NGHTTP2_HD_INFLATE_EMIT)
         {
+            swTraceLog(SW_TRACE_HTTP2, "Header: " SW_ECHO_BLUE "[%zu]: %s[%zu]", nv.name, nv.namelen, nv.value, nv.valuelen);
+
             if (nv.name[0] == ':')
             {
                 if (strncasecmp((char *) nv.name + 1, "method", nv.namelen -1) == 0)
@@ -847,6 +847,23 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
         }
         swString_append_ptr(buffer, buf, length);
 
+        // flow control
+        client->recv_window -= length;
+        stream->recv_window -= length;
+        if (length > 0)
+        {
+            if (client->recv_window < (SW_HTTP2_MAX_WINDOW_SIZE / 4))
+            {
+                http2_server_send_window_update(fd, 0, SW_HTTP2_MAX_WINDOW_SIZE - client->recv_window);
+                client->recv_window = SW_HTTP2_MAX_WINDOW_SIZE;
+            }
+            if (stream->recv_window < (SW_HTTP2_MAX_WINDOW_SIZE / 4))
+            {
+                http2_server_send_window_update(fd, stream_id, SW_HTTP2_MAX_WINDOW_SIZE - stream->recv_window);
+                stream->recv_window = SW_HTTP2_MAX_WINDOW_SIZE;
+            }
+        }
+
         if (flags & SW_HTTP2_FLAG_END_STREAM)
         {
             if (SwooleG.serv->http_parse_post && ctx->request.post_form_urlencoded)
@@ -866,23 +883,6 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
                 }
             }
             http2_onRequest(ctx, from_fd TSRMLS_CC);
-        }
-
-        // flow control
-        client->recv_window -= length;
-        stream->recv_window -= length;
-        if (length > 0)
-        {
-            if (client->recv_window < (SW_HTTP2_MAX_WINDOW_SIZE / 4))
-            {
-                http2_server_send_window_update(fd, stream_id, SW_HTTP2_MAX_WINDOW_SIZE - client->recv_window);
-                client->recv_window = SW_HTTP2_MAX_WINDOW_SIZE;
-            }
-            if (stream->recv_window < (SW_HTTP2_MAX_WINDOW_SIZE / 4))
-            {
-                http2_server_send_window_update(fd, stream_id, SW_HTTP2_MAX_WINDOW_SIZE - stream->recv_window);
-                stream->recv_window = SW_HTTP2_MAX_WINDOW_SIZE;
-            }
         }
         break;
     }
