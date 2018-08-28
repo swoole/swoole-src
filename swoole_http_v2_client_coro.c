@@ -398,7 +398,6 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
 {
     int type = buf[3];
     int flags = buf[4];
-    uint32_t error_code = 0;
     uint32_t stream_id = ntohl((*(int *) (buf + 5))) & 0x7fffffff;
     uint32_t length = swHttp2_get_length(buf);
     buf += SW_HTTP2_FRAME_HEADER_SIZE;
@@ -416,14 +415,13 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
     uint16_t id;
     uint32_t value;
 
-    // TODO: improve trace log about send and recv
-
     switch (type)
     {
     case SW_HTTP2_TYPE_SETTINGS:
     {
         if (flags & SW_HTTP2_FLAG_ACK)
         {
+            swHttp2FrameTraceLog(recv, "ACK");
             return;
         }
 
@@ -469,7 +467,7 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
     case SW_HTTP2_TYPE_WINDOW_UPDATE:
     {
         value = ntohl(*(uint32_t *) buf);
-        swHttp2FrameTraceLog(recv, "id=%d, window_size_increment=%d", value);
+        swHttp2FrameTraceLog(recv, "window_size_increment=%d", value);
         if (stream_id == 0)
         {
             hcc->send_window += value;
@@ -486,7 +484,7 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
     }
     case SW_HTTP2_TYPE_PING:
     {
-        swHttp2FrameTraceLog(recv, "");
+        swHttp2FrameTraceLog(recv, "ping");
         swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_PING, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, SW_HTTP2_FLAG_ACK, stream_id);
         memcpy(frame + SW_HTTP2_FRAME_HEADER_SIZE, buf + SW_HTTP2_FRAME_HEADER_SIZE, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE);
         cli->send(cli, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, 0);
@@ -496,12 +494,12 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
     {
         uint32_t server_last_stream_id = ntohl(*(uint32_t *) (buf));
         buf += 4;
-        error_code = ntohl(*(uint32_t *) (buf));
+        value = ntohl(*(uint32_t *) (buf));
         buf += 4;
-        swHttp2FrameTraceLog(recv, "last_stream_id=%d, error_code=%d, opaque_data=[%.*s]", server_last_stream_id, error_code, length - SW_HTTP2_GOAWAY_SIZE, buf);
+        swHttp2FrameTraceLog(recv, "last_stream_id=%d, error_code=%d, opaque_data=[%.*s]", server_last_stream_id, value, length - SW_HTTP2_GOAWAY_SIZE, buf);
 
         // update goaway error code and error msg
-        zend_update_property_long(swoole_http2_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), error_code TSRMLS_CC);
+        zend_update_property_long(swoole_http2_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), value TSRMLS_CC);
         zend_update_property_stringl(swoole_http2_client_coro_class_entry_ptr, zobject, ZEND_STRL("errMsg"), buf, length - SW_HTTP2_GOAWAY_SIZE TSRMLS_CC);
         zend_update_property_long(swoole_http2_client_coro_class_entry_ptr, zobject, ZEND_STRL("serverLastStreamId"), server_last_stream_id TSRMLS_CC);
 
@@ -529,14 +527,19 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
     }
     case SW_HTTP2_TYPE_RST_STREAM:
     {
-        error_code = ntohl(*(uint32_t *) (buf));
-        swHttp2FrameTraceLog(recv, "error_code=%d", error_code);
+        value = ntohl(*(uint32_t *) (buf));
+        swHttp2FrameTraceLog(recv, "error_code=%d", value);
 
+        // FIXME stream leak?
         if (hcc->iowait == 0)
         {
             return;
         }
         break;
+    }
+    default:
+    {
+        swHttp2FrameTraceLog(recv, "");
     }
     }
 
@@ -548,12 +551,10 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
     }
     if (type == SW_HTTP2_TYPE_HEADERS)
     {
-        swHttp2FrameTraceLog(recv, "");
         http2_client_parse_header(hcc, stream, flags, buf, length);
     }
     else if (type == SW_HTTP2_TYPE_DATA)
     {
-        swHttp2FrameTraceLog(recv, "use_gzip=%d", stream->gzip);
         if (length > 0)
         {
             if (!stream->buffer)
@@ -606,7 +607,7 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
         if (type == SW_HTTP2_TYPE_RST_STREAM)
         {
             zend_update_property_long(swoole_http2_response_class_entry_ptr, zresponse, ZEND_STRL("statusCode"), -3 TSRMLS_CC);
-            zend_update_property_long(swoole_http2_response_class_entry_ptr, zresponse, ZEND_STRL("errCode"), error_code TSRMLS_CC);
+            zend_update_property_long(swoole_http2_response_class_entry_ptr, zresponse, ZEND_STRL("errCode"), value TSRMLS_CC);
         }
         else if (stream_type == SW_HTTP2_STREAM_PIPELINE && !(flags & SW_HTTP2_FLAG_END_STREAM))
         {

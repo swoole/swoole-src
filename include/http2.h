@@ -94,11 +94,11 @@ enum swHttp2StreamType
 #define SW_HTTP2_SETTINGS_PARAM_SIZE          6
 
 #define swHttp2FrameTraceLogFlags \
-    ((flags & SW_HTTP2_FLAG_ACK) ? "\nEND_ACK | " : ""), \
-    ((flags & SW_HTTP2_FLAG_END_STREAM) ? "\nEND_STREAM | " : ""), \
-    ((flags & SW_HTTP2_FLAG_END_HEADERS) ? "\nEND_HEADERS | " : ""), \
-    ((flags & SW_HTTP2_FLAG_PADDED) ? "\nEND_PADDED | " : ""), \
-    ((flags & SW_HTTP2_FLAG_PRIORITY) ? "\nEND_PRIORITY | " : "")
+    ((flags & SW_HTTP2_FLAG_ACK) ? "\nEND_ACK |" : ""), \
+    ((flags & SW_HTTP2_FLAG_END_STREAM) ? "\nEND_STREAM |" : ""), \
+    ((flags & SW_HTTP2_FLAG_END_HEADERS) ? "\nEND_HEADERS |" : ""), \
+    ((flags & SW_HTTP2_FLAG_PADDED) ? "\nEND_PADDED |" : ""), \
+    ((flags & SW_HTTP2_FLAG_PRIORITY) ? "\nEND_PRIORITY |" : "")
 #define swHttp2FrameTraceLog(recv, str, ...) \
     swTraceLog( \
         SW_TRACE_HTTP2, \

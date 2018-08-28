@@ -589,7 +589,7 @@ static int http2_parse_header(http2_session *client, http_context *ctx, int flag
         in += proclen;
         inlen -= proclen;
 
-        swTraceLog(SW_TRACE_HTTP2, "Header: %s[%zu]: %s[%zu]", nv.name, nv.namelen, nv.value, nv.valuelen);
+        swTraceLog(SW_TRACE_HTTP2, "Header: " SW_ECHO_BLUE "[%zu]: %s[%zu]", nv.name, nv.namelen, nv.value, nv.valuelen);
 
         if (inflate_flags & NGHTTP2_HD_INFLATE_EMIT)
         {
@@ -739,12 +739,58 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
     uint32_t length = swHttp2_get_length(buf);
     buf += SW_HTTP2_FRAME_HEADER_SIZE;
 
-    swTraceLog(SW_TRACE_HTTP2, "[%s]\tflags=%d, stream_id=%d, length=%d", swHttp2_get_type(type), flags, stream_id, length);
+    uint16_t id;
+    uint32_t value;
 
     switch (type)
     {
+    case SW_HTTP2_TYPE_SETTINGS:
+    {
+        if (flags & SW_HTTP2_FLAG_ACK)
+        {
+            swHttp2FrameTraceLog(recv, "ACK");
+            return SW_OK;
+        }
+
+        while(length > 0)
+        {
+            id = ntohs(*(uint16_t *) (buf));
+            value = ntohl(*(uint32_t *) (buf + sizeof(uint16_t)));
+            swHttp2FrameTraceLog(recv, "id=%d, value=%d", id, value);
+            switch (id)
+            {
+            case SW_HTTP2_SETTING_HEADER_TABLE_SIZE:
+                swTraceLog(SW_TRACE_HTTP2, "setting: header_compression_table_max=%u.", value);
+                break;
+            case SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS:
+                client->max_concurrent_streams = value;
+                swTraceLog(SW_TRACE_HTTP2, "setting: max_concurrent_streams=%u.", value);
+                break;
+            case SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE:
+                client->send_window = value;
+                swTraceLog(SW_TRACE_HTTP2, "setting: init_send_window=%u.", value);
+                break;
+            case SW_HTTP2_SETTINGS_MAX_FRAME_SIZE:
+                client->max_frame_size = value;
+                swTraceLog(SW_TRACE_HTTP2, "setting: max_frame_size=%u.", value);
+                break;
+            case SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE:
+                // client->max_header_list_size = value; // useless now
+                swTraceLog(SW_TRACE_HTTP2, "setting: max_header_list_size=%u.", value);
+                break;
+            default:
+                // disable warning and ignore it because some websites are not following http2 protocol totally
+                // swWarn("unknown option[%d]: %d.", id, value);
+                break;
+            }
+            buf += sizeof(id) + sizeof(value);
+            length -= sizeof(id) + sizeof(value);
+        }
+        break;
+    }
     case SW_HTTP2_TYPE_HEADERS:
     {
+        swHttp2FrameTraceLog(recv, "new stream");
         stream = new http2_stream(fd, stream_id);
         ctx = stream->ctx;
         if (!ctx)
@@ -780,6 +826,7 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
     }
     case SW_HTTP2_TYPE_DATA:
     {
+        swHttp2FrameTraceLog(recv, "data");
         if (client->streams.find(stream_id) == client->streams.end())
         {
             sw_zval_ptr_dtor(&zdata);
@@ -841,6 +888,7 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
     }
     case SW_HTTP2_TYPE_PING:
     {
+        swHttp2FrameTraceLog(recv, "ping");
         char ping_frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE];
         swHttp2_set_frame_header(ping_frame, SW_HTTP2_TYPE_PING, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, SW_HTTP2_FLAG_ACK, stream_id);
         memcpy(ping_frame + SW_HTTP2_FRAME_HEADER_SIZE, buf, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE);
@@ -849,29 +897,39 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
     }
     case SW_HTTP2_TYPE_WINDOW_UPDATE:
     {
-        uint32_t window_increment = ntohl(*(uint32_t *) buf);
+        value = ntohl(*(uint32_t *) buf);
         if (stream_id == 0)
         {
-            client->send_window += window_increment;
+            client->send_window += value;
         }
         else if (client->streams.find(stream_id) != client->streams.end())
         {
             stream = client->streams[stream_id];
-            stream->send_window += window_increment;
+            stream->send_window += value;
         }
-        swTraceLog(SW_TRACE_HTTP2, "recv (stream_id=%d): window_update=%d.", stream_id, window_increment);
+        swTraceLog(SW_TRACE_HTTP2, "recv (stream_id=%d): window_update=%d.", stream_id, value);
         break;
     }
     case SW_HTTP2_TYPE_RST_STREAM:
     {
-        uint32_t error_code = ntohl(*(int *) (buf));
-        swTraceLog(SW_TRACE_HTTP2, "recv [" SW_ECHO_RED "] stream_id=%d, error_code=%d.", "RST_STREAM", stream_id, error_code);
+        value = ntohl(*(int *) (buf));
+        swHttp2FrameTraceLog(recv, "error_code=%d", value);
         // TODO
         break;
     }
     case SW_HTTP2_TYPE_GOAWAY:
     {
+        uint32_t server_last_stream_id = ntohl(*(uint32_t *) (buf));
+        buf += 4;
+        value = ntohl(*(uint32_t *) (buf));
+        buf += 4;
+        swHttp2FrameTraceLog(recv, "last_stream_id=%d, error_code=%d, opaque_data=[%.*s]", server_last_stream_id, value, length - SW_HTTP2_GOAWAY_SIZE, buf);
+
         break;
+    }
+    default:
+    {
+        swHttp2FrameTraceLog(recv, "");
     }
     }
 
