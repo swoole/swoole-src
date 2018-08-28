@@ -173,6 +173,17 @@ static const zend_function_entry iterator_methods[] =
     PHP_FE_END
 };
 
+static user_opcode_handler_t ori_exit_handler = NULL;
+
+static int coro_exit_handler(zend_execute_data *execute_data)
+{
+    if (sw_get_current_cid() != -1)
+    {
+        swoole_php_fatal_error(E_ERROR, "cannot exit in coroutine.");
+    }
+    return ZEND_USER_OPCODE_DISPATCH;
+}
+
 void swoole_coroutine_util_init(int module_number TSRMLS_DC)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_coroutine_util_ce, "swoole_coroutine", "Swoole\\Coroutine", swoole_coroutine_util_methods);
@@ -199,6 +210,10 @@ void swoole_coroutine_util_init(int module_number TSRMLS_DC)
         sw_zend_register_class_alias("Co", swoole_coroutine_util_class_entry_ptr);
     }
     defer_coros = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
+
+    //prohibit exit in coroutine
+    ori_exit_handler = zend_get_user_opcode_handler(ZEND_EXIT);
+    zend_set_user_opcode_handler(ZEND_EXIT, coro_exit_handler);
 }
 
 /*
