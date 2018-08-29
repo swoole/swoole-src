@@ -807,7 +807,6 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
             zrequest_object = ctx->request.zobject;
             zend_update_property_long(Z_OBJCE_P(zrequest_object), zrequest_object, ZEND_STRL("streamId"), stream_id TSRMLS_CC);
 
-
             zval *zserver = ctx->request.zserver;
             add_assoc_long(zserver, "request_time", serv->gs->now);
             // Add REQUEST_TIME_FLOAT
@@ -919,7 +918,7 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
             stream = client->streams[stream_id];
             stream->send_window += value;
         }
-        swTraceLog(SW_TRACE_HTTP2, "recv (stream_id=%d): window_update=%d.", stream_id, value);
+        swHttp2FrameTraceLog(recv, "window_size_increment=%d", value);
         break;
     }
     case SW_HTTP2_TYPE_RST_STREAM:
@@ -928,7 +927,7 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
         swHttp2FrameTraceLog(recv, "error_code=%d", value);
         if (client->streams.find(stream_id) != client->streams.end())
         {
-            // TODO: onRequest?
+            // TODO: i onRequest and use request->recv
             // stream exist
             stream = client->streams[stream_id];
             client->streams.erase(stream_id);
@@ -943,6 +942,7 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
         value = ntohl(*(uint32_t *) (buf));
         buf += 4;
         swHttp2FrameTraceLog(recv, "last_stream_id=%d, error_code=%d, opaque_data=[%.*s]", server_last_stream_id, value, length - SW_HTTP2_GOAWAY_SIZE, buf);
+        //TODO: onRequest
 
         break;
     }
@@ -959,11 +959,11 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
 
 void swoole_http2_free(swConnection *conn)
 {
-    http2_session *client = http2_sessions[conn->session_id];
-    if (client == nullptr)
+    if (http2_sessions.find(conn->session_id) == http2_sessions.end())
     {
         return;
     }
+    http2_session *client = http2_sessions[conn->session_id];
     http2_sessions.erase(conn->session_id);
     delete client;
 }
