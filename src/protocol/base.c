@@ -221,15 +221,15 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
                 else
                 {
                     swString_clear(buffer);
-#ifdef SW_USE_OPENSSL
-                    if (conn->ssl && SSL_pending(conn->ssl) > 0)
-                    {
-                        swDebug("ssl pending=%d", SSL_pending(conn->ssl));
-                        goto do_recv;
-                    }
-#endif
                 }
             }
+#ifdef SW_USE_OPENSSL
+            if (conn->ssl && SSL_pending(conn->ssl) > 0)
+            {
+                swDebug("ssl pending=%d", SSL_pending(conn->ssl));
+                goto do_recv;
+            }
+#endif
             return SW_OK;
         }
         else
