@@ -150,14 +150,14 @@ int swHttp2_get_type_color(int type);
  |                   Frame Payload (0...)                      ...
  +---------------------------------------------------------------+
  */
-static void sw_inline swHttp2_set_frame_header(char *buffer, int type, int length, int flags, int stream_id)
+static void sw_inline swHttp2_set_frame_header(char *buffer, uint8_t type, uint32_t length, uint8_t flags, uint32_t stream_id)
 {
     buffer[0] = length >> 16;
     buffer[1] = length >> 8;
     buffer[2] = length;
     buffer[3] = type;
     buffer[4] = flags;
-    *(int*) (buffer + 5) = htonl(stream_id);
+    *(uint32_t *) (buffer + 5) = htonl(stream_id);
 }
 
 #ifdef __cplusplus

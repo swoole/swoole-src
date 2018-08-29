@@ -435,20 +435,19 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
      |                           Padding (*)                       ...
      +---------------------------------------------------------------+
      */
-    char frame_header[9];
+    char frame_header[SW_HTTP2_FRAME_HEADER_SIZE];
     zval *trailer = ctx->response.ztrailer;
 
     if (trailer == NULL && body->length == 0)
     {
-        swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, ret,
-                SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, stream->stream_id);
+        swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, ret, SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, stream->stream_id);
     }
     else
     {
         swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, ret, SW_HTTP2_FLAG_END_HEADERS, stream->stream_id);
     }
 
-    swString_append_ptr(swoole_http_buffer, frame_header, 9);
+    swString_append_ptr(swoole_http_buffer, frame_header, SW_HTTP2_FRAME_HEADER_SIZE);
     swString_append_ptr(swoole_http_buffer, header_buffer, ret);
 
     int flag = SW_HTTP2_FLAG_END_STREAM;
@@ -491,9 +490,9 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
     {
         int _send_flag;
         swString_clear(swoole_http_buffer);
-        if (l > SW_HTTP2_MAX_FRAME_SIZE)
+        if (l > client->max_frame_size)
         {
-            send_n = SW_HTTP2_MAX_FRAME_SIZE;
+            send_n = client->max_frame_size;
             _send_flag = 0;
         }
         else
@@ -502,7 +501,7 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
             _send_flag = flag;
         }
         swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_DATA, send_n, _send_flag, stream->stream_id);
-        swString_append_ptr(swoole_http_buffer, frame_header, 9);
+        swString_append_ptr(swoole_http_buffer, frame_header, SW_HTTP2_FRAME_HEADER_SIZE);
         swString_append_ptr(swoole_http_buffer, p, send_n);
 
         if (swServer_tcp_send(SwooleG.serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length) < 0)
@@ -521,9 +520,8 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
         swString_clear(swoole_http_buffer);
         memset(header_buffer, 0, sizeof(header_buffer));
         ret = http_build_trailer(ctx, (uchar *) header_buffer TSRMLS_CC);
-        swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, ret,
-                SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, stream->stream_id);
-        swString_append_ptr(swoole_http_buffer, frame_header, 9);
+        swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, ret, SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, stream->stream_id);
+        swString_append_ptr(swoole_http_buffer, frame_header, SW_HTTP2_FRAME_HEADER_SIZE);
         swString_append_ptr(swoole_http_buffer, header_buffer, ret);
 
         if (swServer_tcp_send(SwooleG.serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length) < 0)
