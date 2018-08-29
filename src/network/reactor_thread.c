@@ -1545,7 +1545,7 @@ int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
         send_n -= task.data.info.len;
         offset += task.data.info.len;
 
-        swTrace("dispatch, type=%d|len=%d\n", task.data.info.type, task.data.info.len);
+        swTrace("dispatch, type=%d|len=%d", task.data.info.type, task.data.info.len);
 
         if (factory->dispatch(factory, &task) < 0)
         {
