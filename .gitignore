@@ -85,3 +85,5 @@ cmake-build-debug/
 /core-tests/Makefile
 /core-tests/bin/
 /core-tests/cmake_install.cmake
+/tools/vendor
+/tools/composer.lock
