@@ -223,14 +223,18 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
                     swString_clear(buffer);
                 }
             }
+            _pending_check:
 #ifdef SW_USE_OPENSSL
             if (conn->ssl && SSL_pending(conn->ssl) > 0)
             {
                 swDebug("ssl pending=%d", SSL_pending(conn->ssl));
                 goto do_recv;
             }
+            else
 #endif
-            return SW_OK;
+            {
+                return SW_OK;
+            }
         }
         else
         {
@@ -243,7 +247,7 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
             //no length
             else if (package_length == 0)
             {
-                return SW_OK;
+                goto _pending_check;
             }
             else if (package_length > protocol->package_max_length)
             {
