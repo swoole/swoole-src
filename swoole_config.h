@@ -270,4 +270,10 @@
 #define SW_DEFAULT_C_STACK_SIZE          (1024 * 1024 * 2)
 #define SW_MAX_CORO_NUM_LIMIT            0x80000
 
+#ifdef SW_DEBUG
+#ifndef SW_LOG_TRACE_OPEN
+#define SW_LOG_TRACE_OPEN
+#endif
+#endif
+
 #endif /* SWOOLE_CONFIG_H_ */
