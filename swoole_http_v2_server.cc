@@ -790,37 +790,49 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
     }
     case SW_HTTP2_TYPE_HEADERS:
     {
-        swHttp2FrameTraceLog(recv, "new stream");
-        stream = new http2_stream(fd, stream_id);
-        ctx = stream->ctx;
-        if (!ctx)
+        stream = client->streams[stream_id];
+        swHttp2FrameTraceLog(recv, "%s", (stream ? "exist stream" : "new stream"));
+        if (!stream)
         {
-            sw_zval_ptr_dtor(&zdata);
-            swoole_error_log(SW_LOG_WARNING, SW_ERROR_HTTP2_STREAM_NO_HEADER, "http2 create stream#%d context error.", stream_id);
-            return SW_ERR;
-        }
+            stream = new http2_stream(fd, stream_id);
+            if (unlikely(!stream->ctx))
+            {
+                sw_zval_ptr_dtor(&zdata);
+                swoole_error_log(SW_LOG_WARNING, SW_ERROR_HTTP2_STREAM_NO_HEADER, "http2 create stream#%d context error.", stream_id);
+                return SW_ERR;
+            }
+            client->streams[stream_id] = stream;
+            ctx = stream->ctx;
 
-        zrequest_object = ctx->request.zobject;
-        zend_update_property_long(Z_OBJCE_P(zrequest_object), zrequest_object, ZEND_STRL("streamId"), stream_id TSRMLS_CC);
+            zrequest_object = ctx->request.zobject;
+            zend_update_property_long(Z_OBJCE_P(zrequest_object), zrequest_object, ZEND_STRL("streamId"), stream_id TSRMLS_CC);
+
+
+            zval *zserver = ctx->request.zserver;
+            add_assoc_long(zserver, "request_time", serv->gs->now);
+            // Add REQUEST_TIME_FLOAT
+            double now_float = swoole_microtime();
+            add_assoc_double(zserver, "request_time_float", now_float);
+            add_assoc_long(zserver, "server_port", swConnection_get_port(&SwooleG.serv->connection_list[conn->from_fd]));
+            add_assoc_long(zserver, "remote_port", swConnection_get_port(conn));
+            add_assoc_string(zserver, "remote_addr", swConnection_get_ip(conn));
+            add_assoc_string(zserver, "server_protocol", (char *) "HTTP/2");
+            add_assoc_string(zserver, "server_software", (char *) SW_HTTP_SERVER_SOFTWARE);
+        }
+        else
+        {
+            ctx = stream->ctx;
+        }
 
         http2_parse_header(client, ctx, flags, buf, length);
 
-        zval *zserver = ctx->request.zserver;
-        add_assoc_long(zserver, "request_time", serv->gs->now);
-        // Add REQUEST_TIME_FLOAT
-        double now_float = swoole_microtime();
-        add_assoc_double(zserver, "request_time_float", now_float);
-        add_assoc_long(zserver, "server_port", swConnection_get_port(&SwooleG.serv->connection_list[conn->from_fd]));
-        add_assoc_long(zserver, "remote_port", swConnection_get_port(conn));
-        add_assoc_string(zserver, "remote_addr", swConnection_get_ip(conn));
-        add_assoc_string(zserver, "server_protocol", (char *) "HTTP/2");
-        add_assoc_string(zserver, "server_software", (char *) SW_HTTP_SERVER_SOFTWARE);
-
-        // FIXME?
-        client->streams[stream_id] = stream;
         if (flags & SW_HTTP2_FLAG_END_STREAM)
         {
             http2_onRequest(ctx, from_fd TSRMLS_CC);
+        }
+        else
+        {
+            // need continue frame
         }
         break;
     }
@@ -914,7 +926,14 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
     {
         value = ntohl(*(int *) (buf));
         swHttp2FrameTraceLog(recv, "error_code=%d", value);
-        // TODO
+        if (client->streams.find(stream_id) != client->streams.end())
+        {
+            // TODO: onRequest?
+            // stream exist
+            stream = client->streams[stream_id];
+            client->streams.erase(stream_id);
+            delete stream;
+        }
         break;
     }
     case SW_HTTP2_TYPE_GOAWAY:
