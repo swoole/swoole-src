@@ -105,7 +105,7 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swCon
                 buffer->length = remaining_length;
                 buffer->offset = 0;
 #ifdef SW_USE_OPENSSL
-                if (conn->ssl && SSL_pending(conn->ssl) > 0)
+                if (conn->ssl)
                 {
                     return SW_CONTINUE;
                 }
@@ -135,7 +135,7 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swCon
     swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[3] length=%ld, size=%ld, offset=%ld", buffer->length, buffer->size, (long)buffer->offset);
     swString_clear(buffer);
 #ifdef SW_USE_OPENSSL
-    if (conn->ssl && SSL_pending(conn->ssl) > 0)
+    if (conn->ssl)
     {
         return SW_CONTINUE;
     }
@@ -225,9 +225,8 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
             }
             _pending_check:
 #ifdef SW_USE_OPENSSL
-            if (conn->ssl && SSL_pending(conn->ssl) > 0)
+            if (conn->ssl)
             {
-                swDebug("ssl pending=%d", SSL_pending(conn->ssl));
                 goto do_recv;
             }
             else
@@ -354,12 +353,15 @@ int swProtocol_recv_check_eof(swProtocol *protocol, swConnection *conn, swString
             }
             swString_clear(buffer);
 #ifdef SW_USE_OPENSSL
-            if (conn->ssl && SSL_pending(conn->ssl) > 0)
+            if (conn->ssl)
             {
                 goto recv_data;
             }
+            else
 #endif
-            return SW_OK;
+            {
+                return SW_OK;
+            }
         }
 
         //over max length, will discard
