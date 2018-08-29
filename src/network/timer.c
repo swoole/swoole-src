@@ -158,6 +158,7 @@ static swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *
         sw_free(tnode);
         return NULL;
     }
+    swTrace("timer_id=%d, msec=%d", tnode->id, _msec);
     swHashMap_add_int(timer->map, tnode->id, tnode);
     return tnode;
 }
