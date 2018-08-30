@@ -10,9 +10,9 @@ require_once __DIR__ . '/../include/lib/curl.php';
 $pm = new ProcessManager;
 
 $pm->parentFunc = function ($pid) use ($pm) {
-    go(function () {
-        $cli = new Co\http\Client("127.0.0.1", 9501);
-        $ret = $cli->upgrade("/");
+    go(function () use ($pm) {
+        $cli = new Co\http\Client('127.0.0.1', $pm->getFreePort());
+        $ret = $cli->upgrade('/');
         if (!$ret)
         {
             echo "ERROR\n";
@@ -27,11 +27,11 @@ $pm->parentFunc = function ($pid) use ($pm) {
 
 $pm->childFunc = function () use ($pm)
 {
-    $ws = new swoole_server("127.0.0.1", 9501, SWOOLE_BASE);
+    $ws = new swoole_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $ws->set(array(
         'log_file' => '/dev/null'
     ));
-    $ws->on("WorkerStart", function (\swoole_server $serv) {
+    $ws->on('WorkerStart', function (\swoole_server $serv) {
         /**
          * @var $pm ProcessManager
          */

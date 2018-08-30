@@ -11,7 +11,7 @@ $pm->parentFunc = function ($pid)
 {
     go(function () {
         $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', 9501);
-        $cli->addData(co::readFile(TEST_IMAGE), 'test.jpg', mime_content_type(TEST_IMAGE), 'test.jpg');
+        $cli->addData(co::readFile(TEST_IMAGE), 'test.jpg', 'image/jpeg', 'test.jpg');
         $cli->post('/upload_file', array('name' => 'rango'));
         assert($cli->statusCode == 200);
         $ret = json_decode($cli->body, true);
@@ -25,7 +25,7 @@ $pm->parentFunc = function ($pid)
 
 $pm->childFunc = function () use ($pm)
 {
-    include __DIR__ . "/../include/api/http_server.php";
+    include __DIR__ . '/../include/api/http_server.php';
 };
 
 $pm->childFirst();

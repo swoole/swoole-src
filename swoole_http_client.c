@@ -1183,7 +1183,7 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
     return ret;
 }
 
-void http_client_clear(http_client *http)
+void sw_inline http_client_clear(http_client *http)
 {
     // clear timeout timer
     if (http->timer)
@@ -1235,7 +1235,7 @@ int http_client_check_keep(http_client *http)
     }
 }
 
-void http_client_reset(http_client *http)
+void sw_inline http_client_reset(http_client *http)
 {
     // reset attributes
     http->completed = 0;
@@ -1243,7 +1243,7 @@ void http_client_reset(http_client *http)
     http->state = HTTP_CLIENT_STATE_READY;
 }
 
-void http_client_free(zval *object TSRMLS_DC)
+void sw_inline http_client_free(zval *object TSRMLS_DC)
 {
     http_client *http = swoole_get_object(object);
     if (!http)
