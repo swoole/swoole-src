@@ -1009,9 +1009,9 @@ static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
         }
 
         int type = client->response.columns[i].type;
+        uint32_t flags = client->response.columns[i].flags;
 
-        swTraceLog(SW_TRACE_MYSQL_CLIENT, "value: name=%s, type=%d, value=%s, len=%ld",
-                client->response.columns[i].name, type, swoole_strndup(buf + read_n, len), len);
+        swTraceLog(SW_TRACE_MYSQL_CLIENT, "value: name=%s, type=%d, value=%s, len=%ld", client->response.columns[i].name, type, swoole_strndup(buf + read_n, len), len);
 
         switch (type)
         {
@@ -1048,28 +1048,50 @@ static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
             {
                 memcpy(value_buffer, buf + read_n, len);
                 value_buffer[len] = 0;
-                row.sint = strtol(value_buffer, &error, 10);
-                if (*error != '\0')
+                if (flags & SW_MYSQL_UNSIGNED_FLAG)
                 {
-                    return -SW_MYSQL_ERR_CONVLONG;
+                    row.uint = strtoul(value_buffer, &error, 10);
+                    if (*error != '\0')
+                    {
+                        return -SW_MYSQL_ERR_CONVLONG;
+                    }
+                    add_assoc_long(row_array, client->response.columns[i].name, row.uint);
                 }
-                add_assoc_long(row_array, client->response.columns[i].name, row.sint);
+                else
+                {
+                    row.sint = strtol(value_buffer, &error, 10);
+                    if (*error != '\0')
+                    {
+                        return -SW_MYSQL_ERR_CONVLONG;
+                    }
+                    add_assoc_long(row_array, client->response.columns[i].name, row.sint);
+                }
             }
             else
             {
                 sw_add_assoc_stringl(row_array, client->response.columns[i].name, buf + read_n, len, 1);
-
             }
             break;
         case SW_MYSQL_TYPE_LONGLONG:
             if(client->connector.strict_type) {
                 memcpy(value_buffer, buf + read_n, len);
                 value_buffer[len] = 0;
-                row.sbigint = strtoll(value_buffer, &error, 10);
-                if (*error != '\0') {
-                    return -SW_MYSQL_ERR_CONVLONG;
+                if (flags & SW_MYSQL_UNSIGNED_FLAG)
+                {
+                    row.ubigint = strtoull(value_buffer, &error, 10);
+                    if (*error != '\0') {
+                        return -SW_MYSQL_ERR_CONVLONG;
+                    }
+                    add_assoc_long(row_array, client->response.columns[i].name, row.ubigint);
                 }
-                add_assoc_long(row_array, client->response.columns[i].name, row.sbigint);
+                else
+                {
+                    row.sbigint = strtoll(value_buffer, &error, 10);
+                    if (*error != '\0') {
+                        return -SW_MYSQL_ERR_CONVLONG;
+                    }
+                    add_assoc_long(row_array, client->response.columns[i].name, row.sbigint);
+                }
             }
             else
             {
