@@ -435,20 +435,19 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
      |                           Padding (*)                       ...
      +---------------------------------------------------------------+
      */
-    char frame_header[9];
+    char frame_header[SW_HTTP2_FRAME_HEADER_SIZE];
     zval *trailer = ctx->response.ztrailer;
 
     if (trailer == NULL && body->length == 0)
     {
-        swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, ret,
-                SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, stream->stream_id);
+        swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, ret, SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, stream->stream_id);
     }
     else
     {
         swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, ret, SW_HTTP2_FLAG_END_HEADERS, stream->stream_id);
     }
 
-    swString_append_ptr(swoole_http_buffer, frame_header, 9);
+    swString_append_ptr(swoole_http_buffer, frame_header, SW_HTTP2_FRAME_HEADER_SIZE);
     swString_append_ptr(swoole_http_buffer, header_buffer, ret);
 
     int flag = SW_HTTP2_FLAG_END_STREAM;
@@ -491,9 +490,9 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
     {
         int _send_flag;
         swString_clear(swoole_http_buffer);
-        if (l > SW_HTTP2_MAX_FRAME_SIZE)
+        if (l > client->max_frame_size)
         {
-            send_n = SW_HTTP2_MAX_FRAME_SIZE;
+            send_n = client->max_frame_size;
             _send_flag = 0;
         }
         else
@@ -502,7 +501,7 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
             _send_flag = flag;
         }
         swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_DATA, send_n, _send_flag, stream->stream_id);
-        swString_append_ptr(swoole_http_buffer, frame_header, 9);
+        swString_append_ptr(swoole_http_buffer, frame_header, SW_HTTP2_FRAME_HEADER_SIZE);
         swString_append_ptr(swoole_http_buffer, p, send_n);
 
         if (swServer_tcp_send(SwooleG.serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length) < 0)
@@ -521,9 +520,8 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
         swString_clear(swoole_http_buffer);
         memset(header_buffer, 0, sizeof(header_buffer));
         ret = http_build_trailer(ctx, (uchar *) header_buffer TSRMLS_CC);
-        swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, ret,
-                SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, stream->stream_id);
-        swString_append_ptr(swoole_http_buffer, frame_header, 9);
+        swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, ret, SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, stream->stream_id);
+        swString_append_ptr(swoole_http_buffer, frame_header, SW_HTTP2_FRAME_HEADER_SIZE);
         swString_append_ptr(swoole_http_buffer, header_buffer, ret);
 
         if (swServer_tcp_send(SwooleG.serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length) < 0)
@@ -749,7 +747,7 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
         if (flags & SW_HTTP2_FLAG_ACK)
         {
             swHttp2FrameTraceLog(recv, "ACK");
-            return SW_OK;
+            break;
         }
 
         while(length > 0)
@@ -790,37 +788,48 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
     }
     case SW_HTTP2_TYPE_HEADERS:
     {
-        swHttp2FrameTraceLog(recv, "new stream");
-        stream = new http2_stream(fd, stream_id);
-        ctx = stream->ctx;
-        if (!ctx)
+        stream = client->streams[stream_id];
+        swHttp2FrameTraceLog(recv, "%s", (stream ? "exist stream" : "new stream"));
+        if (!stream)
         {
-            sw_zval_ptr_dtor(&zdata);
-            swoole_error_log(SW_LOG_WARNING, SW_ERROR_HTTP2_STREAM_NO_HEADER, "http2 create stream#%d context error.", stream_id);
-            return SW_ERR;
-        }
+            stream = new http2_stream(fd, stream_id);
+            if (unlikely(!stream->ctx))
+            {
+                sw_zval_ptr_dtor(&zdata);
+                swoole_error_log(SW_LOG_WARNING, SW_ERROR_HTTP2_STREAM_NO_HEADER, "http2 create stream#%d context error.", stream_id);
+                return SW_ERR;
+            }
+            client->streams[stream_id] = stream;
+            ctx = stream->ctx;
 
-        zrequest_object = ctx->request.zobject;
-        zend_update_property_long(Z_OBJCE_P(zrequest_object), zrequest_object, ZEND_STRL("streamId"), stream_id TSRMLS_CC);
+            zrequest_object = ctx->request.zobject;
+            zend_update_property_long(Z_OBJCE_P(zrequest_object), zrequest_object, ZEND_STRL("streamId"), stream_id TSRMLS_CC);
+
+            zval *zserver = ctx->request.zserver;
+            add_assoc_long(zserver, "request_time", serv->gs->now);
+            // Add REQUEST_TIME_FLOAT
+            double now_float = swoole_microtime();
+            add_assoc_double(zserver, "request_time_float", now_float);
+            add_assoc_long(zserver, "server_port", swConnection_get_port(&SwooleG.serv->connection_list[conn->from_fd]));
+            add_assoc_long(zserver, "remote_port", swConnection_get_port(conn));
+            add_assoc_string(zserver, "remote_addr", swConnection_get_ip(conn));
+            add_assoc_string(zserver, "server_protocol", (char *) "HTTP/2");
+            add_assoc_string(zserver, "server_software", (char *) SW_HTTP_SERVER_SOFTWARE);
+        }
+        else
+        {
+            ctx = stream->ctx;
+        }
 
         http2_parse_header(client, ctx, flags, buf, length);
 
-        zval *zserver = ctx->request.zserver;
-        add_assoc_long(zserver, "request_time", serv->gs->now);
-        // Add REQUEST_TIME_FLOAT
-        double now_float = swoole_microtime();
-        add_assoc_double(zserver, "request_time_float", now_float);
-        add_assoc_long(zserver, "server_port", swConnection_get_port(&SwooleG.serv->connection_list[conn->from_fd]));
-        add_assoc_long(zserver, "remote_port", swConnection_get_port(conn));
-        add_assoc_string(zserver, "remote_addr", swConnection_get_ip(conn));
-        add_assoc_string(zserver, "server_protocol", (char *) "HTTP/2");
-        add_assoc_string(zserver, "server_software", (char *) SW_HTTP_SERVER_SOFTWARE);
-
-        // FIXME?
-        client->streams[stream_id] = stream;
         if (flags & SW_HTTP2_FLAG_END_STREAM)
         {
             http2_onRequest(ctx, from_fd TSRMLS_CC);
+        }
+        else
+        {
+            // need continue frame
         }
         break;
     }
@@ -907,14 +916,21 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
             stream = client->streams[stream_id];
             stream->send_window += value;
         }
-        swTraceLog(SW_TRACE_HTTP2, "recv (stream_id=%d): window_update=%d.", stream_id, value);
+        swHttp2FrameTraceLog(recv, "window_size_increment=%d", value);
         break;
     }
     case SW_HTTP2_TYPE_RST_STREAM:
     {
         value = ntohl(*(int *) (buf));
         swHttp2FrameTraceLog(recv, "error_code=%d", value);
-        // TODO
+        if (client->streams.find(stream_id) != client->streams.end())
+        {
+            // TODO: i onRequest and use request->recv
+            // stream exist
+            stream = client->streams[stream_id];
+            client->streams.erase(stream_id);
+            delete stream;
+        }
         break;
     }
     case SW_HTTP2_TYPE_GOAWAY:
@@ -924,6 +940,7 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
         value = ntohl(*(uint32_t *) (buf));
         buf += 4;
         swHttp2FrameTraceLog(recv, "last_stream_id=%d, error_code=%d, opaque_data=[%.*s]", server_last_stream_id, value, length - SW_HTTP2_GOAWAY_SIZE, buf);
+        //TODO: onRequest
 
         break;
     }
@@ -940,11 +957,11 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
 
 void swoole_http2_free(swConnection *conn)
 {
-    http2_session *client = http2_sessions[conn->session_id];
-    if (client == nullptr)
+    if (http2_sessions.find(conn->session_id) == http2_sessions.end())
     {
         return;
     }
+    http2_session *client = http2_sessions[conn->session_id];
     http2_sessions.erase(conn->session_id);
     delete client;
 }

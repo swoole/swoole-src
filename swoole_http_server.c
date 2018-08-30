@@ -2177,6 +2177,12 @@ static PHP_METHOD(swoole_http_response, end)
         return;
     }
 
+    http_context *ctx = http_get_context(getThis(), 0 TSRMLS_CC);
+    if (!ctx)
+    {
+        RETURN_FALSE;
+    }
+
     swString http_body;
 
     if (zdata)
@@ -2196,12 +2202,6 @@ static PHP_METHOD(swoole_http_response, end)
     {
         http_body.length = 0;
         http_body.str = NULL;
-    }
-
-    http_context *ctx = http_get_context(getThis(), 0 TSRMLS_CC);
-    if (!ctx)
-    {
-        RETURN_FALSE;
     }
 
 #ifdef SW_USE_HTTP2
