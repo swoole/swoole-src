@@ -2450,7 +2450,7 @@ PHP_METHOD(swoole_server, set)
         convert_to_boolean(v);
         serv->http_compression = Z_BVAL_P(v);
     }
-    if (php_swoole_array_get_value(vht, "http_gzip_level", v))
+    if (php_swoole_array_get_value(vht, "http_gzip_level", v) || php_swoole_array_get_value(vht, "http_compression_level", v))
     {
         convert_to_long(v);
         serv->http_gzip_level = Z_LVAL_P(v);
@@ -2458,7 +2458,7 @@ PHP_METHOD(swoole_server, set)
         {
             serv->http_gzip_level = 9;
         }
-        if (serv->http_gzip_level < 0)
+        else if (serv->http_gzip_level < 0)
         {
             serv->http_gzip_level = 0;
         }
