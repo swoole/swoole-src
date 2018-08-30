@@ -1831,7 +1831,7 @@ int http_response_uncompress(z_stream *stream, swString *buffer, char *body, int
 int http_client_parser_on_body(php_http_parser *parser, const char *at, size_t length)
 {
     http_client* http = (http_client*) parser->data;
-    if (swString_append_ptr(http->body, (char *) at, length) < 0)
+    if (swString_append_ptr(http->body, at, length) < 0)
     {
         return -1;
     }
@@ -1862,6 +1862,11 @@ int http_client_parser_on_body(php_http_parser *parser, const char *at, size_t l
     return 0;
 }
 
+enum flags
+{
+    F_CONNECTION_CLOSE = 1 << 2,
+};
+
 int http_client_parser_on_headers_complete(php_http_parser *parser)
 {
     http_client* http = (http_client*) parser->data;
@@ -1869,6 +1874,7 @@ int http_client_parser_on_headers_complete(php_http_parser *parser)
     if (http->chunked == 0 && parser->content_length == -1)
     {
         http->state = HTTP_CLIENT_STATE_WAIT_CLOSE;
+        parser->flags |= F_CONNECTION_CLOSE;
     }
     if (http->method == HTTP_HEAD)
     {
