@@ -179,7 +179,8 @@ static int coro_exit_handler(zend_execute_data *execute_data)
 {
     if (sw_get_current_cid() != -1)
     {
-        swoole_php_fatal_error(E_ERROR, "cannot exit in coroutine.");
+        // DON NOT CATCH IT EXCEPT FOR TESTING!
+        zend_throw_error_exception(zend_ce_error, "cannot exit in coroutine.", EXIT_FAILURE, E_ERROR TSRMLS_CC);
     }
     return ZEND_USER_OPCODE_DISPATCH;
 }
