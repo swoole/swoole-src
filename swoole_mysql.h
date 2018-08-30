@@ -19,6 +19,8 @@
 #ifndef SWOOLE_MYSQL_H_
 #define SWOOLE_MYSQL_H_
 
+BEGIN_EXTERN_C()
+
 #ifdef SW_USE_OPENSSL
 #ifndef OPENSSL_NO_RSA
 #define SW_MYSQL_RSA_SUPPORT
@@ -562,5 +564,7 @@ static sw_inline int mysql_length_coded_binary(char *m, ulong_t *r, char *nul, i
 }
 
 int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callback TSRMLS_DC);
+
+END_EXTERN_C()
 
 #endif /* SWOOLE_MYSQL_H_ */
