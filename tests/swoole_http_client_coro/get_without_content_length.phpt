@@ -31,11 +31,11 @@ $pm->parentFunc = function ($pid) use ($pm) {
 
 $pm->childFunc = function () use ($pm)
 {
-    $serv = new swoole_server("127.0.0.1", 9501, SWOOLE_BASE);
+    $serv = new swoole_server('127.0.0.1', 9501, SWOOLE_BASE);
     $serv->set(array(
         'log_file' => '/dev/null'
     ));
-    $serv->on("WorkerStart", function (\swoole_server $serv)
+    $serv->on('WorkerStart', function (\swoole_server $serv)
     {
         /**
          * @var $pm ProcessManager

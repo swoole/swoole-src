@@ -175,6 +175,7 @@ ZEND_END_ARG_INFO()
 
 zend_class_entry swoole_http_client_coro_ce;
 zend_class_entry *swoole_http_client_coro_class_entry_ptr;
+static zend_object_handlers swoole_http_client_coro_handlers;
 
 static PHP_METHOD(swoole_http_client_coro, __construct);
 static PHP_METHOD(swoole_http_client_coro, __destruct);
@@ -381,36 +382,82 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
     }
 }
 
+static void swoole_http_client_coro_free_storage(zend_object *object)
+{
+    zval _zobject;
+    zval *zobject = &_zobject;
+    ZVAL_OBJ(zobject, object);
+
+    http_client *http = (http_client *) swoole_get_object(zobject);
+    if (http)
+    {
+        http_client_coro_close(zobject);
+    }
+
+    http_client_coro_property *hcc = (http_client_coro_property *) swoole_get_property(zobject, 0);
+    if (hcc)
+    {
+        efree(hcc);
+        swoole_set_property(zobject, 0, NULL);
+    }
+
+    // dtor object
+    zend_object_std_dtor(object);
+}
+
+static zend_object *swoole_http_client_coro_create(zend_class_entry *ce TSRMLS_DC)
+{
+    zend_object *object;
+    object = zend_objects_new(ce);
+    object->handlers = &swoole_http_client_coro_handlers;
+    object_properties_init(object, ce);
+
+    zval _zobject;
+    zval* zobject = &_zobject;
+    ZVAL_OBJ(zobject, object);
+
+    http_client_coro_property *hcc = (http_client_coro_property*) emalloc(sizeof(http_client_coro_property));
+    bzero(hcc, sizeof(http_client_coro_property));
+
+    php_swoole_check_reactor();
+    swoole_set_property(zobject, 0, hcc);
+
+    return object;
+}
+
 void swoole_http_client_coro_init(int module_number TSRMLS_DC)
 {
     INIT_CLASS_ENTRY(swoole_http_client_coro_ce, "Swoole\\Coroutine\\Http\\Client", swoole_http_client_coro_methods);
     swoole_http_client_coro_class_entry_ptr = zend_register_internal_class(&swoole_http_client_coro_ce);
+    swoole_http_client_coro_class_entry_ptr->create_object = swoole_http_client_coro_create;
     swoole_http_client_coro_class_entry_ptr->serialize = zend_class_serialize_deny;
     swoole_http_client_coro_class_entry_ptr->unserialize = zend_class_unserialize_deny;
+    memcpy(&swoole_http_client_coro_handlers, zend_get_std_object_handlers(), sizeof(swoole_http_client_coro_handlers));
+    swoole_http_client_coro_handlers.free_obj = swoole_http_client_coro_free_storage;
 
     if (SWOOLE_G(use_shortname))
     {
         sw_zend_register_class_alias("Co\\Http\\Client", swoole_http_client_coro_class_entry_ptr);
     }
 
-    zend_declare_property_long(swoole_http_client_coro_class_entry_ptr, SW_STRL("errCode")-1, 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_long(swoole_http_client_coro_class_entry_ptr, SW_STRL("sock")-1, 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("sock"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("type"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("setting"), ZEND_ACC_PUBLIC);
     zend_declare_property_bool(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("connected"), 0, ZEND_ACC_PUBLIC);
 
-    zend_declare_property_long(swoole_http_client_coro_class_entry_ptr, SW_STRL("statusCode")-1, 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, SW_STRL("host")-1, ZEND_ACC_PUBLIC);
-    zend_declare_property_long(swoole_http_client_coro_class_entry_ptr, SW_STRL("port")-1, 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, SW_STRL("requestMethod")-1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, SW_STRL("requestHeaders")-1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, SW_STRL("requestBody")-1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, SW_STRL("uploadFiles")-1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, SW_STRL("downloadFile")-1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, SW_STRL("headers")-1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, SW_STRL("set_cookie_headers")-1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, SW_STRL("cookies")-1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, SW_STRL("body")-1, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("statusCode"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("host"), ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("port"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("requestMethod"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("requestHeaders"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("requestBody"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("uploadFiles"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("downloadFile"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("headers"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("set_cookie_headers"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("cookies"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("body"), ZEND_ACC_PUBLIC);
 
     http_client_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
     if (!http_client_buffer)
@@ -884,8 +931,6 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
 
 static PHP_METHOD(swoole_http_client_coro, __construct)
 {
-    coro_check(TSRMLS_C);
-
     char *host;
     zend_size_t host_len;
     long port = 80;
@@ -905,14 +950,7 @@ static PHP_METHOD(swoole_http_client_coro, __construct)
     zend_update_property_stringl(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("host"), host, host_len);
     zend_update_property_long(swoole_http_client_coro_class_entry_ptr,getThis(), ZEND_STRL("port"), port);
 
-    //init
-    swoole_set_object(getThis(), NULL);
-
-    http_client_coro_property *hcc = (http_client_coro_property*) emalloc(sizeof(http_client_coro_property));
-    bzero(hcc, sizeof(http_client_coro_property));
-
-    php_swoole_check_reactor();
-    swoole_set_property(getThis(), 0, hcc);
+    http_client_coro_property *hcc = (http_client_coro_property *) swoole_get_property(getThis(), 0);
 
     if (ssl)
     {
@@ -931,25 +969,6 @@ static PHP_METHOD(swoole_http_client_coro, __destruct)
     SW_PREVENT_USER_DESTRUCT;
 
     swTraceLog(SW_TRACE_HTTP_CLIENT, "dtor, object handle=%d.", sw_get_object_handle(getThis()));
-
-    http_client *http = (http_client *) swoole_get_object(getThis());
-    if (http)
-    {
-        zval *zobject = getThis();
-        zval *retval = NULL;
-        sw_zend_call_method_with_0_params(&zobject, swoole_http_client_coro_class_entry_ptr, NULL, "close", &retval);
-        if (retval)
-        {
-            sw_zval_ptr_dtor(&retval);
-        }
-    }
-
-    http_client_coro_property *hcc = (http_client_coro_property *) swoole_get_property(getThis(), 0);
-    if (hcc)
-    {
-        efree(hcc);
-        swoole_set_property(getThis(), 0, NULL);
-    }
 }
 
 static PHP_METHOD(swoole_http_client_coro, set)
