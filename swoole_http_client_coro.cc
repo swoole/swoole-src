@@ -1257,7 +1257,7 @@ static PHP_METHOD(swoole_http_client_coro, isConnected)
 
 static PHP_METHOD(swoole_http_client_coro, close)
 {
-    http_client_coro_close(getThis());
+    SW_CHECK_RETURN(http_client_coro_close(getThis()));
 }
 
 static PHP_METHOD(swoole_http_client_coro, execute)
