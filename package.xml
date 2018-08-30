@@ -132,9 +132,9 @@
             <file role="src" name="swoole_coroutine.cc" />
             <file role="src" name="swoole_coroutine_util.c" />
             <file role="src" name="swoole_client_coro.cc" />
-            <file role="src" name="swoole_http_client_coro.c" />
+            <file role="src" name="swoole_http_client_coro.cc" />
             <file role="src" name="swoole_redis_coro.c" />
-            <file role="src" name="swoole_mysql_coro.c" />
+            <file role="src" name="swoole_mysql_coro.cc" />
             <file role="src" name="swoole_postgresql_coro.c" />
             <file role="src" name="swoole_postgresql_coro.h" />
             <file role="src" name="swoole_trace.c" />
