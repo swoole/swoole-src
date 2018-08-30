@@ -7,17 +7,8 @@ swoole_http_client_coro: websocket bug use client in server
 require_once __DIR__ . '/../include/bootstrap.php';
 $pm = new \ProcessManager;
 $pm->parentFunc = function () use ($pm) {
-    $pm->kill();
-};
-$pm->childFunc = function () use ($pm) {
-    $port = get_one_free_port();
-    $ws = new swoole_websocket_server('127.0.0.1', $port);
-    $ws->set([
-        'log_file' => '/dev/null',
-        'worker_num' => 1
-    ]);
-    $ws->on('workerStart', function (swoole_websocket_server $serv) use ($pm, $port) {
-        $cli = new Swoole\Coroutine\Http\Client("127.0.0.1", $port);
+    go(function () use ($pm) {
+        $cli = new Swoole\Coroutine\Http\Client("127.0.0.1", $pm->getFreePort());
         $cli->set(['timeout' => -1]);
         $ret = $cli->upgrade('/');
         assert($ret);
@@ -28,6 +19,17 @@ $pm->childFunc = function () use ($pm) {
             co::sleep(0.1);
         }
         $cli->close();
+    });
+    swoole_event::wait();
+    $pm->kill();
+};
+$pm->childFunc = function () use ($pm) {
+    $ws = new swoole_websocket_server('127.0.0.1', $pm->getFreePort());
+    $ws->set([
+        'log_file' => '/dev/null',
+        'worker_num' => 1
+    ]);
+    $ws->on('workerStart', function (swoole_websocket_server $serv) use ($pm) {
         $pm->wakeup();
     });
     $ws->on('open', function (swoole_websocket_server $ws, swoole_http_request $request) {

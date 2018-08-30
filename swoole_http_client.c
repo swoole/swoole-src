@@ -174,23 +174,20 @@ static const zend_function_entry swoole_http_client_methods[] =
 
 void http_client_clear_response_properties(zval *zobject TSRMLS_DC)
 {
-    http_client_property *hcc = swoole_get_property(zobject, 0);
-    hcc->error_flag = 0;
-
     zval *attr;
-    zend_update_property_long(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("errCode"), 0 TSRMLS_CC);
-    zend_update_property_long(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("statusCode"), 0 TSRMLS_CC);
-    attr = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("headers"), 1 TSRMLS_CC);
+    zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("errCode"), 0 TSRMLS_CC);
+    zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("statusCode"), 0 TSRMLS_CC);
+    attr = sw_zend_read_property(Z_OBJCE_P(zobject), zobject, ZEND_STRL("headers"), 1 TSRMLS_CC);
     if (Z_TYPE_P(attr) == IS_ARRAY)
     {
         zend_hash_clean(Z_ARRVAL_P(attr));
     }
-    attr = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("set_cookie_headers"), 1 TSRMLS_CC);
+    attr = sw_zend_read_property(Z_OBJCE_P(zobject), zobject, ZEND_STRL("set_cookie_headers"), 1 TSRMLS_CC);
     if (Z_TYPE_P(attr) == IS_ARRAY)
     {
         zend_hash_clean(Z_ARRVAL_P(attr));
     }
-    zend_update_property_string(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("body"), "" TSRMLS_CC);
+    zend_update_property_string(Z_OBJCE_P(zobject), zobject, ZEND_STRL("body"), "" TSRMLS_CC);
 }
 
 static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zval *callback TSRMLS_DC)
@@ -210,11 +207,13 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
     }
     efree(func_name);
 
+    http_client_property *hcc = swoole_get_property(zobject, 0);
+
     // when new request, clear all properties about the last response
     http_client_clear_response_properties(zobject TSRMLS_CC);
+    hcc->error_flag = 0;
 
     http_client *http = swoole_get_object(zobject);
-
     //http is not null when keeping alive
     if (http)
     {
@@ -269,7 +268,6 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
         swoole_php_fatal_error(E_WARNING, "response callback is not set.");
     }
 
-    http_client_property *hcc = swoole_get_property(zobject, 0);
     sw_zval_add_ref(&callback);
     hcc->onResponse = sw_zval_dup(callback);
 
@@ -1287,17 +1285,19 @@ http_client* http_client_create(zval *object TSRMLS_DC)
     php_http_parser_init(&http->parser, PHP_HTTP_RESPONSE);
     http->parser.data = http;
 
-    ztmp = sw_zend_read_property(swoole_http_client_class_entry_ptr, object, ZEND_STRL("host"), 0 TSRMLS_CC);
+    ztmp = sw_zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("host"), 0 TSRMLS_CC);
     http->host = Z_STRVAL_P(ztmp);
     http->host_len = Z_STRLEN_P(ztmp);
 
-    ztmp = sw_zend_read_property(swoole_http_client_class_entry_ptr, object, ZEND_STRL("port"), 0 TSRMLS_CC);
+    ztmp = sw_zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("port"), 0 TSRMLS_CC);
     convert_to_long(ztmp);
     http->port = Z_LVAL_P(ztmp);
 
     http->timeout = SW_CLIENT_DEFAULT_TIMEOUT;
     http->keep_alive = 1;
     http->state = HTTP_CLIENT_STATE_READY;
+    http->object = object;
+    sw_copy_to_stack(http->object, http->_object);
 
     swTraceLog(SW_TRACE_HTTP_CLIENT, "create, object handle=%d.", sw_get_object_handle(object));
 
@@ -1685,6 +1685,9 @@ static PHP_METHOD(swoole_http_client, on)
     RETURN_TRUE;
 }
 
+/**
+ * Http Parser Callback
+ */
 int http_client_parser_on_header_field(php_http_parser *parser, const char *at, size_t length)
 {
     http_client* http = (http_client*) parser->data;
@@ -1696,9 +1699,8 @@ int http_client_parser_on_header_field(php_http_parser *parser, const char *at, 
 int http_client_parser_on_header_value(php_http_parser *parser, const char *at, size_t length)
 {
     http_client* http = (http_client*) parser->data;
-
-    zval* zobject = (zval*) http->cli->object;
-    zval *headers = sw_zend_read_property_array(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("headers"), 0 TSRMLS_CC);
+    zval* zobject = (zval*) http->object;
+    zval *headers = sw_zend_read_property_array(Z_OBJCE_P(zobject), zobject, ZEND_STRL("headers"), 0 TSRMLS_CC);
 
     char *header_name = zend_str_tolower_dup(http->tmp_header_field_name, http->tmp_header_field_name_len);
     sw_add_assoc_stringl_ex(headers, header_name, http->tmp_header_field_name_len + 1, (char *) at, length, 1);
@@ -1710,8 +1712,8 @@ int http_client_parser_on_header_value(php_http_parser *parser, const char *at, 
     }
     else if (strcasecmp(header_name, "Set-Cookie") == 0)
     {
-        zval *cookies = sw_zend_read_property_array(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("cookies"), 1 TSRMLS_CC);
-        zval *set_cookie_headers = sw_zend_read_property_array(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("set_cookie_headers"), 1 TSRMLS_CC);
+        zval *cookies = sw_zend_read_property_array(Z_OBJCE_P(zobject), zobject, ZEND_STRL("cookies"), 1 TSRMLS_CC);
+        zval *set_cookie_headers = sw_zend_read_property_array(Z_OBJCE_P(zobject), zobject, ZEND_STRL("set_cookie_headers"), 1 TSRMLS_CC);
         if (SW_OK != http_parse_set_cookies(at, length, cookies, set_cookie_headers))
         {
             efree(header_name);
@@ -1878,7 +1880,7 @@ int http_client_parser_on_headers_complete(php_http_parser *parser)
 int http_client_parser_on_message_complete(php_http_parser *parser)
 {
     http_client* http = (http_client*) parser->data;
-    zval* zobject = (zval*) http->cli->object;
+    zval* zobject = (zval*) http->object;
 
     if (parser->upgrade && !http->upgrade)
     {
@@ -1895,18 +1897,18 @@ int http_client_parser_on_message_complete(php_http_parser *parser)
             swWarn("http_response_uncompress failed.");
             return 0;
         }
-        zend_update_property_stringl(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("body"), http->gzip_buffer->str, http->gzip_buffer->length TSRMLS_CC);
+        zend_update_property_stringl(Z_OBJCE_P(zobject), zobject, ZEND_STRL("body"), http->gzip_buffer->str, http->gzip_buffer->length TSRMLS_CC);
     }
     else
 #endif
     {
-        zend_update_property_stringl(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("body"), http->body->str, http->body->length TSRMLS_CC);
+        zend_update_property_stringl(Z_OBJCE_P(zobject), zobject, ZEND_STRL("body"), http->body->str, http->body->length TSRMLS_CC);
     }
 
     http->completed = 1;
 
     //http status code
-    zend_update_property_long(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("statusCode"), http->parser.status_code TSRMLS_CC);
+    zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("statusCode"), http->parser.status_code TSRMLS_CC);
 
     if (parser->upgrade)
     {
@@ -1918,6 +1920,9 @@ int http_client_parser_on_message_complete(php_http_parser *parser)
         return 0;
     }
 }
+/**
+ * Http Parser End
+ */
 
 static PHP_METHOD(swoole_http_client, execute)
 {

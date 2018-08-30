@@ -434,7 +434,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_http_v2_client_coro.c \
         swoole_websocket_server.c \
         swoole_http_client.c \
-        swoole_http_client_coro.c \
+        swoole_http_client_coro.cc \
         swoole_mysql.c \
         swoole_mysql_coro.c \
         swoole_postgresql_coro.c \

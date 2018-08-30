@@ -162,16 +162,24 @@ bool Socket::socks5_handshake()
 bool Socket::http_proxy_handshake()
 {
 #ifdef SW_USE_OPENSSL
-    //https proxy
-    if (http_proxy->ssl && ssl_handshake() == false)
+    if (socket->ssl)
     {
-        return false;
+        if (ssl_handshake() == false)
+        {
+            return false;
+        }
     }
+    else
+    {
+        return true;
+    }
+#else
+    return true;
 #endif
 
     //CONNECT
-    int n = snprintf(http_proxy->buf, sizeof(http_proxy->buf), "CONNECT %s:%d HTTP/1.1\r\n\r\n",
-            http_proxy->target_host, http_proxy->target_port);
+    int n = snprintf(http_proxy->buf, sizeof(http_proxy->buf), "CONNECT %*s:%d HTTP/1.1\r\n\r\n",
+            http_proxy->l_target_host, http_proxy->target_host, http_proxy->target_port);
     if (send(http_proxy->buf, n) <= 0)
     {
         return false;
@@ -359,7 +367,8 @@ bool Socket::connect(string host, int port, int flags)
     if (http_proxy)
     {
         http_proxy->target_host = (char *) host.c_str();
-        http_proxy->target_port = host.size();
+        http_proxy->l_target_host = host.size();
+        http_proxy->target_port = port;
 
         host = http_proxy->proxy_host;
         port = http_proxy->proxy_port;
@@ -505,6 +514,7 @@ static void socket_onTimeout(swTimer *timer, swTimer_node *tnode)
     Socket *sock = (Socket *) tnode->data;
     sock->timer = NULL;
     sock->errCode = ETIMEDOUT;
+    swDebug("socket[%d] timeout", sock->socket->fd);
     sock->reactor->del(sock->reactor, sock->socket->fd);
     sock->resume();
 }
@@ -537,32 +547,41 @@ ssize_t Socket::recv(void *__buf, size_t __n)
     {
         return retval;
     }
+
     if (swConnection_error(errno) != SW_WAIT)
     {
         errCode = errno;
         return -1;
     }
 
-    int events = SW_EVENT_READ;
+    while (true)
+    {
+        int events = SW_EVENT_READ;
 #ifdef SW_USE_OPENSSL
-    if (socket->ssl && socket->ssl_want_write)
-    {
-        events = SW_EVENT_WRITE;
-    }
+        if (socket->ssl && socket->ssl_want_write)
+        {
+            events = SW_EVENT_WRITE;
+        }
 #endif
-    if (!wait_events(events))
-    {
-        return -1;
-    }
-    yield();
-    if (errCode == ETIMEDOUT)
-    {
-        return -1;
-    }
-    retval = swConnection_recv(socket, __buf, __n, 0);
-    if (retval < 0)
-    {
-        errCode = errno;
+        if (!wait_events(events))
+        {
+            return -1;
+        }
+        yield();
+        if (errCode == ETIMEDOUT)
+        {
+            return -1;
+        }
+        retval = swConnection_recv(socket, __buf, __n, 0);
+        if (retval < 0)
+        {
+            if (swConnection_error(errno) == SW_WAIT)
+            {
+                continue;
+            }
+            errCode = errno;
+        }
+        break;
     }
     return retval;
 }
@@ -575,6 +594,10 @@ ssize_t Socket::recv_all(void *__buf, size_t __n)
         retval = recv((char*) __buf + total_bytes, __n - total_bytes);
         if (retval <= 0)
         {
+            if (total_bytes == 0)
+            {
+                total_bytes = retval;
+            }
             break;
         }
         total_bytes += retval;
@@ -594,6 +617,10 @@ ssize_t Socket::send_all(const void *__buf, size_t __n)
         retval = send((char*) __buf + total_bytes, __n - total_bytes);
         if (retval <= 0)
         {
+            if (total_bytes == 0)
+            {
+                total_bytes = retval;
+            }
             break;
         }
         total_bytes += retval;
@@ -607,37 +634,48 @@ ssize_t Socket::send_all(const void *__buf, size_t __n)
 
 ssize_t Socket::send(const void *__buf, size_t __n)
 {
-    ssize_t n = swConnection_send(socket, (void *) __buf, __n, 0);
-    if (n >= 0)
+    ssize_t retval = swConnection_send(socket, (void *) __buf, __n, 0);
+    if (retval >= 0)
     {
-        return n;
+        return retval;
     }
+
     if (swConnection_error(errno) != SW_WAIT)
     {
         errCode = errno;
         return -1;
     }
-    int events = SW_EVENT_WRITE;
+
+    while (true)
+    {
+        int events = SW_EVENT_WRITE;
 #ifdef SW_USE_OPENSSL
-    if (socket->ssl && socket->ssl_want_read)
-    {
-        events = SW_EVENT_READ;
-    }
+        if (socket->ssl && socket->ssl_want_read)
+        {
+            events = SW_EVENT_READ;
+        }
 #endif
-    if (!wait_events(events))
-    {
-        return -1;
+        if (!wait_events(events))
+        {
+            return -1;
+        }
+        yield();
+        if (errCode == ETIMEDOUT)
+        {
+            return -1;
+        }
+        ssize_t retval = swConnection_send(socket, (void *) __buf, __n, 0);
+        if (retval < 0)
+        {
+            if (swConnection_error(errno) == SW_WAIT)
+            {
+                continue;
+            }
+            errCode = errno;
+        }
+        break;
     }
-    yield();
-    if (errCode == ETIMEDOUT)
-    {
-        return -1;
-    }
-    ssize_t retval = swConnection_send(socket, (void *) __buf, __n, 0);
-    if (retval < 0)
-    {
-        errCode = errno;
-    }
+
     return retval;
 }
 
@@ -1117,7 +1155,7 @@ bool Socket::sendfile(char *filename, off_t offset, size_t length)
         }
     }
     ::close(file_fd);
-    return false;
+    return true;
 }
 
 int Socket::sendto(char *address, int port, char *data, int len)
@@ -1177,6 +1215,205 @@ int Socket::recvfrom(void *__buf, size_t __n, char *address, int *port)
         }
     }
     return retval;
+}
+
+/**
+ * recv packet with protocol
+ */
+ssize_t Socket::recv_packet()
+{
+    get_buffer();
+    ssize_t buf_len = SW_BUFFER_SIZE_STD;
+    ssize_t retval;
+
+    if (open_length_check)
+    {
+        uint32_t header_len;
+
+        _get_header_len: header_len = protocol.package_length_offset + protocol.package_length_size;
+        if (buffer->length > 0)
+        {
+            if (buffer->length < header_len)
+            {
+                goto _recv_header;
+            }
+            else
+            {
+                goto _get_length;
+            }
+        }
+
+        _recv_header: retval = recv(buffer->str + buffer->length, header_len - buffer->length);
+        if (retval <= 0)
+        {
+            return 0;
+        }
+        else if (retval < 0 || retval != header_len)
+        {
+            return 0;
+        }
+        else
+        {
+            buffer->length += retval;
+        }
+
+        _get_length: buf_len = protocol.get_package_length(&protocol, socket, buffer->str, (uint32_t) buffer->length);
+        swDebug("packet_len=%ld, length=%ld", buf_len, buffer->length);
+        //error package
+        if (buf_len < 0)
+        {
+            return 0;
+        }
+        else if (buf_len == 0)
+        {
+            header_len = protocol.real_header_length;
+            goto _recv_header;
+        }
+        //empty package
+        else if (buf_len == header_len)
+        {
+            buffer->length = 0;
+            return header_len;
+        }
+        else if (buf_len > protocol.package_max_length)
+        {
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "packet[length=%d] is too big.", (int )buf_len);
+            return 0;
+        }
+
+        if ((size_t) buf_len == buffer->length)
+        {
+            buffer->length = 0;
+            return buf_len;
+        }
+        else if ((size_t) buf_len < buffer->length)
+        {
+            buffer->length = buffer->length - buf_len;
+            memmove(buffer->str, buffer->str + buf_len, buffer->length);
+            goto _get_header_len;
+        }
+
+        if ((size_t) buf_len >= buffer->size)
+        {
+            if (swString_extend(buffer, buf_len) < 0)
+            {
+                buffer->length = 0;
+                return -1;
+            }
+        }
+
+        retval = recv_all(buffer->str + buffer->length, buf_len - buffer->length);
+        if (retval > 0)
+        {
+            buffer->length += retval;
+            if (buffer->length != (size_t) buf_len)
+            {
+                retval = 0;
+            }
+            else
+            {
+                buffer->length = 0;
+                return buf_len;
+            }
+        }
+    }
+    else if (open_eof_check)
+    {
+        int eof = -1;
+        char *buf;
+
+        if (buffer->length > 0)
+        {
+            goto find_eof;
+        }
+
+        while (1)
+        {
+            buf = buffer->str + buffer->length;
+            buf_len = buffer->size - buffer->length;
+
+            if (buf_len > SW_BUFFER_SIZE_BIG)
+            {
+                buf_len = SW_BUFFER_SIZE_BIG;
+            }
+
+            retval = recv(buf, buf_len);
+            if (retval < 0)
+            {
+                buffer->length = 0;
+                return -1;
+            }
+            else if (retval == 0)
+            {
+                buffer->length = 0;
+                return 0;
+            }
+
+            buffer->length += retval;
+
+            if (buffer->length < protocol.package_eof_len)
+            {
+                continue;
+            }
+
+            find_eof: eof = swoole_strnpos(buffer->str, buffer->length, protocol.package_eof, protocol.package_eof_len);
+            if (eof >= 0)
+            {
+                eof += protocol.package_eof_len;
+                if (buffer->length > (uint32_t) eof)
+                {
+                    buffer->length -= eof;
+                    memmove(buffer->str, buffer->str + eof, buffer->length);
+                }
+                else
+                {
+                    buffer->length = 0;
+                }
+                return eof;
+            }
+            else
+            {
+                if (buffer->length == protocol.package_max_length)
+                {
+                    swWarn("no package eof");
+                    buffer->length = 0;
+                    return -1;
+                }
+                else if (buffer->length == buffer->size)
+                {
+                    if (buffer->size < protocol.package_max_length)
+                    {
+                        size_t new_size = buffer->size * 2;
+                        if (new_size > protocol.package_max_length)
+                        {
+                            new_size = protocol.package_max_length;
+                        }
+                        if (swString_extend(buffer, new_size) < 0)
+                        {
+                            buffer->length = 0;
+                            return -1;
+                        }
+                    }
+                }
+            }
+        }
+        buffer->length = 0;
+    }
+    else
+    {
+        return -1;
+    }
+
+    return retval;
+}
+
+swString* Socket::get_buffer()
+{
+    if (unlikely(buffer == nullptr))
+    {
+        buffer = swString_new(SW_BUFFER_SIZE_STD);
+    }
+    return buffer;
 }
 
 Socket::~Socket()

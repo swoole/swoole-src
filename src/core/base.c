@@ -56,6 +56,7 @@ void swoole_init(void)
 
 #ifdef SW_DEBUG
     SwooleG.log_level = 0;
+    SwooleG.trace_flags = 0x7fffffff;
 #else
     SwooleG.log_level = SW_LOG_INFO;
 #endif

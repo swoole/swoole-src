@@ -23,11 +23,11 @@ $pm->parentFunc = function ($pid) use ($pm) {
         $cli->push("hello server");
         
         assert($cli->recv() == false);
-        assert($cli->errCode == SOCKET_EAGAIN);
+        assert($cli->errCode == SOCKET_ETIMEDOUT);
         $cli->errCode = 0;
 
         assert($cli->recv() == false);
-        assert($cli->errCode == SOCKET_EAGAIN);
+        assert($cli->errCode == SOCKET_ETIMEDOUT);
     });
     swoole_event::wait();
     $pm->kill();

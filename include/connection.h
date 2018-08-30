@@ -139,47 +139,38 @@ int swSSL_sendfile(swConnection *conn, int fd, off_t *offset, size_t size);
  */
 static sw_inline ssize_t swConnection_recv(swConnection *conn, void *__buf, size_t __n, int __flags)
 {
-    ssize_t retval;
+    ssize_t total_bytes = 0;
     _recv:
 #ifdef SW_USE_OPENSSL
     if (conn->ssl)
     {
-        ssize_t ret = 0;
-        size_t n_received = 0;
-
-        while (n_received < __n)
+        ssize_t retval = 0;
+        while ((size_t) total_bytes < __n)
         {
-            ret = swSSL_recv(conn, ((char*)__buf) + n_received, __n - n_received);
-            if (__flags & MSG_WAITALL)
+            retval = swSSL_recv(conn, ((char*)__buf) + total_bytes, __n - total_bytes);
+            if (retval <= 0)
             {
-                if (ret <= 0)
+                if (total_bytes == 0)
                 {
-                    retval = ret;
-                    goto _return;
+                    total_bytes = retval;
                 }
-                else
-                {
-                    n_received += ret;
-                }
+                break;
             }
             else
             {
-                retval = ret;
-                goto _return;
+                total_bytes += retval;
             }
         }
-
-        retval = n_received;
     }
     else
     {
-        retval = recv(conn->fd, __buf, __n, __flags);
+        total_bytes = recv(conn->fd, __buf, __n, __flags);
     }
 #else
-    retval = recv(conn->fd, __buf, __n, __flags);
+    total_bytes = recv(conn->fd, __buf, __n, __flags);
 #endif
 
-    if (retval < 0 && errno == EINTR)
+    if (total_bytes < 0 && errno == EINTR)
     {
         goto _recv;
     }
@@ -190,15 +181,15 @@ static sw_inline ssize_t swConnection_recv(swConnection *conn, void *__buf, size
 
     _return:
 #ifdef SW_DEBUG
-    if (retval > 0)
+    if (total_bytes > 0)
     {
-        conn->total_recv_bytes += retval;
+        conn->total_recv_bytes += total_bytes;
     }
 #endif
 
-    swDebug("recv %ld/%ld bytes, errno=%d", retval, __n, errno);
+    swDebug("recv %ld/%ld bytes, errno=%d", total_bytes, __n, errno);
 
-    return retval;
+    return total_bytes;
 }
 
 /**

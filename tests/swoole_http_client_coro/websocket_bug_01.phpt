@@ -8,7 +8,6 @@ require_once __DIR__ . '/../include/bootstrap.php';
 require_once __DIR__ . '/../include/lib/curl.php';
 
 $pm = new ProcessManager;
-Co::set(['log_level' => SWOOLE_LOG_WARNING]);
 
 $pm->parentFunc = function ($pid) use ($pm) {
     go(function () {
