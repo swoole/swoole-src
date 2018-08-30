@@ -13,4 +13,7 @@ go(function () {
 ?>
 --EXPECTF--
 in coroutine
-Fatal error: {closure}(): cannot exit in coroutine. in %s on line %d
+Fatal error: Uncaught Error: cannot exit in coroutine. in %s:%d
+Stack trace:
+#0 {main}
+  thrown in %s on line %d
