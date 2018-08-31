@@ -35,10 +35,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2018-08-10</date>
-    <time>21:30:00</time>
+    <date>2018-08-31</date>
+    <time>18:30:00</time>
     <version>
-        <release>4.0.4</release>
+        <release>4.1.0</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -47,17 +47,26 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        + TaskWait support coroutine scheduling now, call "taskwait" in coroutine would be no longer blocked
-        + Better Http2 support, we can use "\Swoole\Coroutine\Http2\Client" to structure any GRPC client now
-        * Fixed a kernel level bug in an infrequent extreme case when using SWOOLE_PROCESS
-        * Fixed the connection closed when Coroutine WebSocket Client recv timeout
-        * Fixed PHP class extends without parent calls crash
-        * Fixed user call "__destruct" brings crash
-        * Fixed upload filename too long bug
-        * Fixed HAVE_SOCKETS macro does not exist, including static compiler
-        * Fixed co::suspend and co::resume assert failed
-        * Use SSL_pending
-        * Better signal handler on MacOS
+        + **Support `Redis`, `PDO`, `MySQLi`**, use `Swoole\Runtime::enableCoroutine()` to make them become Async IO by coroutine scheduler
+        + **Coroutine tracking**: `Coroutine::listCoroutines()` can list all current coroutines, `Coroutine::getBackTrace($cid)` gets the function call stack of a coroutine
+        + Refactoring `Co\Channel` C code to C++, solving unintended consequences of complex scenes and achieving high stability
+        + Refactoring `Co\Http\Client` C code to C++ coroutine mode, solving asynchronous timing problems and achieving high stability
+        + Support for using `exit` in coroutines and Servers, which will throw a catchable `\Swoole\ExitException` exception.
+        + Remove PCRE dependency limits for all iterators (table/connection/coroutine_list)
+        + Add the `open_websocket_close_frame` configuration to receive close frames in the onMessage event
+        + Remove the `Http\Response->gzip()` method and use the `http_compression` configuration item instead. The bottom layer will automatically determine the client's incoming `Accept-Encoding` to select the appropriate compression method, add Google BR compression support
+        + Add `Co\Http\Client->addData()` method to send the data in the memory as the content of the uploaded file.
+        + `Solaris` system support
+        + Http2 supports `MAX_FRAME_SIZE` framing transmission and `MAX_HEADER_LIST_SIZE` processing. The client adds `isStreamExist` method to detect whether there is a corresponding stream.
+        + `swoole_http_response->status` increases the `reason` parameter
+        * Fixed an issue where unsigned arguments in MySQL prepare used signed values ​​to cause numeric overflows
+        * Fixed an issue with no coroutine in the `onRequest` callback for HTTP2
+        * Fixed the problem that `tasking_num` became `-1` in some special cases
+        * Fixed HTTP2-server window-update frame construction error
+        * Fix all levels of compile warning under all PHP versions
+        * Compile error will occur when GCC version is less than 4.8
+        * Fixed MySQL's memory allocation caused by the use of prepare statement without parameter binding
+        * Fixed old stream memory loss leak when HTTP2 client reconnect
     </notes>
     <contents>
         <dir name="/">
@@ -444,6 +453,7 @@
                 <file name="README.md" role="test" />
                 <file name="clean" role="test" />
                 <file name="coro_test.sh" role="test" />
+                <file name="debug/swoole_table_implements.php" role="test" />
                 <file name="include/api/http_server.php" role="test" />
                 <file name="include/api/swoole_async/read_write.php" role="test" />
                 <file name="include/api/swoole_async/recursive_write.php" role="test" />
@@ -552,7 +562,7 @@
                 <file name="include/swoole.inc" role="test" />
                 <file name="include/toolkit/RandStr.php" role="test" />
                 <file name="include/toolkit/TcpStat.php" role="test" />
-                <file name="init.php" role="test" />
+                <file name="init" role="test" />
                 <file name="new.sh" role="test" />
                 <file name="run-tests" role="test" />
                 <file name="start.sh" role="test" />
@@ -599,10 +609,16 @@
                 <file name="swoole_client_coro/close_resume.phpt" role="test" />
                 <file name="swoole_client_coro/eof.phpt" role="test" />
                 <file name="swoole_client_coro/eof_02.phpt" role="test" />
+                <file name="swoole_client_coro/length_01.phpt" role="test" />
                 <file name="swoole_client_coro/length_02.phpt" role="test" />
+                <file name="swoole_client_coro/recv_timeout.phpt" role="test" />
+                <file name="swoole_client_coro/recvfrom.phpt" role="test" />
+                <file name="swoole_client_coro/sendfile.phpt" role="test" />
+                <file name="swoole_client_coro/sendto.phpt" role="test" />
                 <file name="swoole_client_coro/tcp_client.phpt" role="test" />
                 <file name="swoole_client_coro/timeout.phpt" role="test" />
                 <file name="swoole_client_coro/udp_client.phpt" role="test" />
+                <file name="swoole_client_coro/udp_recv_failed.phpt" role="test" />
                 <file name="swoole_client_sync/eof.phpt" role="test" />
                 <file name="swoole_client_sync/eof_timeout.phpt" role="test" />
                 <file name="swoole_client_sync/length_protocol.phpt" role="test" />
@@ -626,6 +642,7 @@
                 <file name="swoole_coroutine/exception/nested.phpt" role="test" />
                 <file name="swoole_coroutine/exception/yield.phpt" role="test" />
                 <file name="swoole_coroutine/exception/yield1.phpt" role="test" />
+                <file name="swoole_coroutine/exit.phpt" role="test" />
                 <file name="swoole_coroutine/forbidden_case/array_map.phpt" role="test" />
                 <file name="swoole_coroutine/forbidden_case/call_user.phpt" role="test" />
                 <file name="swoole_coroutine/forbidden_case/invoke.phpt" role="test" />
@@ -650,6 +667,9 @@
                 <file name="swoole_coroutine_channel/4.phpt" role="test" />
                 <file name="swoole_coroutine_channel/5.phpt" role="test" />
                 <file name="swoole_coroutine_channel/6.phpt" role="test" />
+                <file name="swoole_coroutine_channel/7.phpt" role="test" />
+                <file name="swoole_coroutine_channel/8.phpt" role="test" />
+                <file name="swoole_coroutine_channel/9.phpt" role="test" />
                 <file name="swoole_coroutine_channel/basic.phpt" role="test" />
                 <file name="swoole_coroutine_channel/bug_clear_timer.phpt" role="test" />
                 <file name="swoole_coroutine_channel/chan_select_timeout.phpt" role="test" />
@@ -666,6 +686,7 @@
                 <file name="swoole_coroutine_channel/pop_timeout5.phpt" role="test" />
                 <file name="swoole_coroutine_channel/pop_timeout6.phpt" role="test" />
                 <file name="swoole_coroutine_channel/pop_timeout7.phpt" role="test" />
+                <file name="swoole_coroutine_channel/pop_timeout8.phpt" role="test" />
                 <file name="swoole_coroutine_util/dns_lookup.phpt" role="test" />
                 <file name="swoole_coroutine_util/exec.phpt" role="test" />
                 <file name="swoole_coroutine_util/fgets.phpt" role="test" />
@@ -705,6 +726,10 @@
                 <file name="swoole_http2_client_coro/send_only_bug.phpt" role="test" />
                 <file name="swoole_http2_client_coro/set-cookies.phpt" role="test" />
                 <file name="swoole_http2_client_coro/wrong_headers.phpt" role="test" />
+                <file name="swoole_http2_server/big_data.phpt" role="test" />
+                <file name="swoole_http2_server/compression.phpt" role="test" />
+                <file name="swoole_http2_server/nghttp2_big_data.phpt" role="test" />
+                <file name="swoole_http2_server/no_compression.phpt" role="test" />
                 <file name="swoole_http_client/connect_host_not_found.phpt" role="test" />
                 <file name="swoole_http_client/connect_port_not_listen.phpt" role="test" />
                 <file name="swoole_http_client/content_length.phpt" role="test" />
@@ -750,6 +775,7 @@
                 <file name="swoole_http_client/websocket_bad_protocol.phpt" role="test" />
                 <file name="swoole_http_client/websocket_bug_18031401.phpt" role="test" />
                 <file name="swoole_http_client/websocket_port_not_listen.phpt" role="test" />
+                <file name="swoole_http_client_coro/addData.phpt" role="test" />
                 <file name="swoole_http_client_coro/disable_keep_alive.phpt" role="test" />
                 <file name="swoole_http_client_coro/get.phpt" role="test" />
                 <file name="swoole_http_client_coro/get_without_content_length.phpt" role="test" />
@@ -761,15 +787,18 @@
                 <file name="swoole_http_client_coro/multi_and_reuse.phpt" role="test" />
                 <file name="swoole_http_client_coro/timeout_before_connect.phpt" role="test" />
                 <file name="swoole_http_client_coro/timeout_when_recv.phpt" role="test" />
+                <file name="swoole_http_client_coro/upload.phpt" role="test" />
                 <file name="swoole_http_client_coro/websocket.phpt" role="test" />
                 <file name="swoole_http_client_coro/websocket_bug_01.phpt" role="test" />
                 <file name="swoole_http_client_coro/websocket_bug_02.phpt" role="test" />
                 <file name="swoole_http_client_coro/websocket_timeout.phpt" role="test" />
                 <file name="swoole_http_server/chunk.phpt" role="test" />
+                <file name="swoole_http_server/compression.phpt" role="test" />
                 <file name="swoole_http_server/cookies.phpt" role="test" />
                 <file name="swoole_http_server/data_parse.phpt" role="test" />
                 <file name="swoole_http_server/enable_coroutine.phpt" role="test" />
                 <file name="swoole_http_server/large_url.phpt" role="test" />
+                <file name="swoole_http_server/no_compression.phpt" role="test" />
                 <file name="swoole_http_server/rawContent.phpt" role="test" />
                 <file name="swoole_http_server/rawCookie.phpt" role="test" />
                 <file name="swoole_http_server/redirect.phpt" role="test" />
@@ -812,6 +841,7 @@
                 <file name="swoole_mysql/transaction.phpt" role="test" />
                 <file name="swoole_mysql/transaction_rollback.phpt" role="test" />
                 <file name="swoole_mysql_coro/aborted_clients.phpt" role="test" />
+                <file name="swoole_mysql_coro/bug_0814.phpt" role="test" />
                 <file name="swoole_mysql_coro/fetch.phpt" role="test" />
                 <file name="swoole_mysql_coro/fetch_mode.phpt" role="test" />
                 <file name="swoole_mysql_coro/fetch_mode_twice.phpt" role="test" />
@@ -957,8 +987,11 @@
                 <file name="swoole_websocket_server/test_send_small_request_data.phpt" role="test" />
                 <file name="swoole_websocket_server/websocket_disconnect.phpt" role="test" />
                 <file name="swoole_websocket_server/websocket_message.phpt" role="test" />
+                <file name="swoole_websocket_server/websocket_pack.phpt" role="test" />
                 <file name="swoole_websocket_server/websocket_pingpong.phpt" role="test" />
                 <file name="swoole_websocket_server/websocket_push.phpt" role="test" />
+                <file name="swoole_websocket_server/websocket_server_active_close.phpt" role="test" />
+                <file name="swoole_websocket_server/websocket_server_close_frame_flag.phpt" role="test" />
                 <file name="template.phpt" role="test" />
                 <file name="test.sql" role="test" />
             </dir>
