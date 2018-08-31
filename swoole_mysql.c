@@ -21,11 +21,6 @@
 #include <ext/hash/php_hash.h>
 #include <ext/hash/php_hash_sha.h>
 
-#ifdef SW_USE_MYSQLND
-#include "ext/mysqlnd/mysqlnd.h"
-#include "ext/mysqlnd/mysqlnd_charset.h"
-#endif
-
 #ifdef SW_MYSQL_RSA_SUPPORT
 #include <openssl/rsa.h>
 #include <openssl/pem.h>

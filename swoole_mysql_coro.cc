@@ -22,11 +22,6 @@
 #include "swoole_coroutine.h"
 #include "swoole_mysql.h"
 
-#ifdef SW_USE_MYSQLND
-#include "ext/mysqlnd/mysqlnd.h"
-#include "ext/mysqlnd/mysqlnd_charset.h"
-#endif
-
 static PHP_METHOD(swoole_mysql_coro, __construct);
 static PHP_METHOD(swoole_mysql_coro, __destruct);
 static PHP_METHOD(swoole_mysql_coro, connect);
