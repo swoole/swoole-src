@@ -82,6 +82,7 @@
                 <file role="src" name="connection.h" />
                 <file role="src" name="atomic.h" />
                 <file role="src" name="buffer.h" />
+                <file role="src" name="channel.h" />
                 <file role="src" name="hashmap.h" />
                 <file role="src" name="list.h" />
                 <file role="src" name="ring_queue.h" />
@@ -98,6 +99,7 @@
                 <file role="src" name="base64.h" />
                 <file role="src" name="mqtt.h" />
                 <file role="src" name="error.h" />
+                <file role="src" name="socket.h" />
                 <file role="src" name="socks5.h" />
                 <file role="src" name="redis.h" />
                 <file role="src" name="context.h" />
@@ -310,8 +312,10 @@
                 <dir name="coroutine">
                     <file role="src" name="base.cc" />
                     <file role="src" name="boost.cc" />
-                    <file role="src" name="ucontext.cc" />
                     <file role="src" name="context.cc" />
+                    <file role="src" name="channel.cc" />
+                    <file role="src" name="ucontext.cc" />
+                    <file role="src" name="socket.cc" />
                 </dir>
             </dir>
             <dir name="examples">
