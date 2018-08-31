@@ -476,7 +476,7 @@ void swoole_http_client_coro_init(int module_number TSRMLS_DC)
 
 static int http_client_coro_recv_response(zval *zobject, http_client_coro_property *hcc, http_client *http)
 {
-    long parsed_n;
+    long parsed_n = 0;
     swString *buffer = hcc->socket->get_buffer();
     ssize_t total_bytes = 0, retval;
 

@@ -405,8 +405,8 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
         hcc->last_stream_id = stream_id;
     }
 
-    uint16_t id;
-    uint32_t value;
+    uint16_t id = 0;
+    uint32_t value = 0;
 
     switch (type)
     {

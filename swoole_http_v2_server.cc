@@ -737,8 +737,8 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
     uint32_t length = swHttp2_get_length(buf);
     buf += SW_HTTP2_FRAME_HEADER_SIZE;
 
-    uint16_t id;
-    uint32_t value;
+    uint16_t id = 0;
+    uint32_t value = 0;
 
     switch (type)
     {
@@ -941,6 +941,7 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
         buf += 4;
         swHttp2FrameTraceLog(recv, "last_stream_id=%d, error_code=%d, opaque_data=[%.*s]", server_last_stream_id, value, length - SW_HTTP2_GOAWAY_SIZE, buf);
         //TODO: onRequest
+        (void) server_last_stream_id;
 
         break;
     }
