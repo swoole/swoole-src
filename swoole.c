@@ -542,7 +542,17 @@ ZEND_GET_MODULE(swoole)
  */
 
 PHP_INI_BEGIN()
+/**
+ * enable swoole coroutine
+ */
+STD_PHP_INI_ENTRY("swoole.enable_coroutine", "On", PHP_INI_ALL, OnUpdateBool, enable_coroutine, zend_swoole_globals, swoole_globals)
+/**
+ * aio thread
+ */
 STD_PHP_INI_ENTRY("swoole.aio_thread_num", "2", PHP_INI_ALL, OnUpdateLong, aio_thread_num, zend_swoole_globals, swoole_globals)
+/**
+ * display error
+ */
 STD_PHP_INI_ENTRY("swoole.display_errors", "On", PHP_INI_ALL, OnUpdateBool, display_errors, zend_swoole_globals, swoole_globals)
 /**
  * namespace class style
@@ -564,6 +574,7 @@ PHP_INI_END()
 
 static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
 {
+    swoole_globals->enable_coroutine = 1;
     swoole_globals->aio_thread_num = SW_AIO_THREAD_NUM_DEFAULT;
     swoole_globals->socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
     swoole_globals->display_errors = 1;
@@ -1052,6 +1063,11 @@ PHP_MINIT_FUNCTION(swoole)
 
     //swoole init
     swoole_init();
+    if (!SWOOLE_G(enable_coroutine))
+    {
+        SwooleG.enable_coroutine = 0;
+    }
+
     swoole_server_port_init(module_number TSRMLS_CC);
     swoole_client_init(module_number TSRMLS_CC);
 #ifdef SW_COROUTINE
@@ -1218,6 +1234,9 @@ PHP_MINFO_FUNCTION(swoole)
 #endif
 #ifdef SW_HAVE_ZLIB
     php_info_print_table_row(2, "zlib", "enabled");
+#endif
+#ifdef SW_HAVE_BROTLI
+    php_info_print_table_row(2, "brotli", "enabled");
 #endif
 #ifdef HAVE_MUTEX_TIMEDLOCK
     php_info_print_table_row(2, "mutex_timedlock", "enabled");
