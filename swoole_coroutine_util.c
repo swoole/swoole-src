@@ -179,6 +179,22 @@ static int coro_exit_handler(zend_execute_data *execute_data)
 {
     if (sw_get_current_cid() != -1)
     {
+        const zend_op opline = execute_data->opline;
+        zval *exit_status = NULL;
+        if (opline->op1_type == IS_CV)
+        {
+            exit_status = _get_zval_ptr_cv_BP_VAR_R(execute_data, opline->op1.var);
+        }
+        else if (opline->op1_type == IS_CONST)
+        {
+            exit_status = EX_CONSTANT(opline->op1);
+        }
+        else if (opline->op1_type == IS_TMP_VAR || opline->op1_type == IS_VAR)
+        {
+            zend_free_op free_op1;
+            exit_status = _get_zval_ptr_var(opline->op1.var, execute_data, &free_op1);
+            zval_ptr_dtor_nogc(free_op1);
+        }
         // DON NOT CATCH IT EXCEPT FOR TESTING!
         zend_throw_error_exception(zend_ce_error, "cannot exit in coroutine.", EXIT_FAILURE, E_ERROR TSRMLS_CC);
     }
