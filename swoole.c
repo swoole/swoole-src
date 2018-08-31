@@ -1174,6 +1174,12 @@ PHP_MINFO_FUNCTION(swoole)
 #ifdef SW_COROUTINE
     php_info_print_table_row(2, "coroutine", "enabled");
 #endif
+#ifdef SW_DEBUG
+    php_info_print_table_row(2, "debug", "enabled");
+#endif
+#ifdef SW_LOG_TRACE_OPEN
+    php_info_print_table_row(2, "trace-log", "enabled");
+#endif
 #if USE_BOOST_CONTEXT
     php_info_print_table_row(2, "boost.context", "enabled");
 #endif
@@ -1204,16 +1210,6 @@ PHP_MINFO_FUNCTION(swoole)
 #ifdef HAVE_RWLOCK
     php_info_print_table_row(2, "rwlock", "enabled");
 #endif
-#ifdef SW_ASYNC_MYSQL
-    php_info_print_table_row(2, "async mysql client", "enabled");
-#endif
-#ifdef SW_USE_POSTGRESQL
-    php_info_print_table_row(2, "async postgresql", "enabled");
-#endif
-#ifdef SW_USE_REDIS
-    php_info_print_table_row(2, "async redis client", "enabled");
-#endif
-    php_info_print_table_row(2, "async http/websocket client", "enabled");
 #ifdef SW_SOCKETS
     php_info_print_table_row(2, "sockets", "enabled");
 #endif
@@ -1259,8 +1255,11 @@ PHP_MINFO_FUNCTION(swoole)
 #ifdef SW_USE_HUGEPAGE
     php_info_print_table_row(2, "hugepage", "enabled");
 #endif
-#ifdef SW_DEBUG
-    php_info_print_table_row(2, "debug", "enabled");
+#ifdef SW_USE_REDIS
+    php_info_print_table_row(2, "redis client", "enabled");
+#endif
+#ifdef SW_USE_POSTGRESQL
+    php_info_print_table_row(2, "postgresql client", "enabled");
 #endif
     php_info_print_table_end();
 
