@@ -18,6 +18,8 @@
 
 #include "php_swoole.h"
 #include "swoole_mysql.h"
+// see mysqlnd 'L64' macro redefined
+#undef L64
 #include <ext/hash/php_hash.h>
 #include <ext/hash/php_hash_sha.h>
 

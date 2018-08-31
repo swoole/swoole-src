@@ -478,7 +478,7 @@ static int http_client_coro_recv_response(zval *zobject, http_client_coro_proper
 {
     long parsed_n = 0;
     swString *buffer = hcc->socket->get_buffer();
-    ssize_t total_bytes = 0, retval;
+    ssize_t total_bytes = 0, retval = 0;
 
     while (http->completed == 0)
     {
