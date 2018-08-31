@@ -1752,7 +1752,7 @@ static int swoole_mysql_coro_onHandShake(mysql_client *client TSRMLS_DC)
         }
 #else
         connector->error_code = -1;
-        connector->error_msg = "MySQL8 RSA-Auth need enable OpenSSL!";
+        connector->error_msg = (char *) "MySQL8 RSA-Auth need enable OpenSSL!";
         connector->error_length = strlen(connector->error_msg);
         swoole_mysql_coro_onConnect(client TSRMLS_CC);
         return SW_OK;

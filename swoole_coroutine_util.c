@@ -208,17 +208,24 @@ static int coro_exit_handler(zend_execute_data *execute_data)
     }
     if (flags)
     {
+        const zend_op *opline = EX(opline);
         zval _exit_status;
         zval *exit_status = NULL;
-        if (EX(opline)->op1_type != IS_UNUSED)
+
+        if (opline->op1_type != IS_UNUSED)
         {
-            if (EX(opline)->op1_type == IS_CONST)
+            if (opline->op1_type == IS_CONST)
             {
-                exit_status = EX_CONSTANT(EX(opline)->op1);
+                // see: https://github.com/php/php-src/commit/e70618aff6f447a298605d07648f2ce9e5a284f5
+#ifdef EX_CONSTANT
+                exit_status = EX_CONSTANT(opline->op1);
+#else
+                exit_status = RT_CONSTANT(opline, opline->op1);
+#endif
             }
             else
             {
-                exit_status = EX_VAR(EX(opline)->op1.var);
+                exit_status = EX_VAR(opline->op1.var);
             }
             if (Z_ISREF_P(exit_status))
             {

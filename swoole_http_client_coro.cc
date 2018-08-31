@@ -950,11 +950,10 @@ static PHP_METHOD(swoole_http_client_coro, __construct)
     zend_update_property_stringl(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("host"), host, host_len);
     zend_update_property_long(swoole_http_client_coro_class_entry_ptr,getThis(), ZEND_STRL("port"), port);
 
-    http_client_coro_property *hcc = (http_client_coro_property *) swoole_get_property(getThis(), 0);
-
     if (ssl)
     {
 #ifdef SW_USE_OPENSSL
+        http_client_coro_property *hcc = (http_client_coro_property *) swoole_get_property(getThis(), 0);
         hcc->ssl = 1;
 #else
         swoole_php_fatal_error(E_ERROR, "require openssl library.");
