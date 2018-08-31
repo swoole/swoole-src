@@ -130,6 +130,7 @@ static PHP_METHOD(swoole_coroutine_iterator, valid);
 static PHP_METHOD(swoole_coroutine_iterator, __destruct);
 
 static PHP_METHOD(swoole_exit_exception, getFlags);
+static PHP_METHOD(swoole_exit_exception, getStatus);
 
 static swHashMap *defer_coros;
 
@@ -180,6 +181,7 @@ static const zend_function_entry iterator_methods[] =
 static const zend_function_entry swoole_exit_exception_methods[] =
 {
     PHP_ME(swoole_exit_exception, getFlags, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_exit_exception, getStatus, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
@@ -206,6 +208,7 @@ static int coro_exit_handler(zend_execute_data *execute_data)
     }
     if (flags)
     {
+        zval _exit_status;
         zval *exit_status = NULL;
         if (EX(opline)->op1_type != IS_UNUSED)
         {
@@ -222,9 +225,19 @@ static int coro_exit_handler(zend_execute_data *execute_data)
                 exit_status = Z_REFVAL_P(exit_status);
             }
         }
-        obj = zend_throw_error_exception(swoole_exit_exception_class_entry_ptr, "swoole exit.", EXIT_FAILURE, E_ERROR TSRMLS_CC);
+        else
+        {
+            exit_status = &_exit_status;
+            ZVAL_NULL(exit_status);
+        }
+        obj = zend_throw_error_exception(swoole_exit_exception_class_entry_ptr, "swoole exit.", 0, E_ERROR TSRMLS_CC);
         ZVAL_OBJ(&ex, obj);
         zend_update_property_long(swoole_exit_exception_class_entry_ptr, &ex, ZEND_STRL("flags"), flags);
+        zend_update_property(swoole_exit_exception_class_entry_ptr, &ex, ZEND_STRL("status"), exit_status);
+        if (Z_TYPE_FLAGS_P(exit_status) & IS_TYPE_REFCOUNTED)
+        {
+            zval_ptr_dtor(exit_status);
+        }
     }
 
     return ZEND_USER_OPCODE_DISPATCH;
@@ -269,6 +282,11 @@ void swoole_coroutine_util_init(int module_number TSRMLS_DC)
 static PHP_METHOD(swoole_exit_exception, getFlags)
 {
     RETURN_LONG(Z_LVAL_P(sw_zend_read_property(Z_OBJCE_P(getThis()), getThis(), ZEND_STRL("flags"), 1)));
+}
+
+static PHP_METHOD(swoole_exit_exception, getStatus)
+{
+    RETURN_ZVAL(sw_zend_read_property(Z_OBJCE_P(getThis()), getThis(), ZEND_STRL("status"), 1), 0, 0);
 }
 
 /*
