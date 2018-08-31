@@ -206,6 +206,22 @@ static int coro_exit_handler(zend_execute_data *execute_data)
     }
     if (flags)
     {
+        zval *exit_status = NULL;
+        if (EX(opline)->op1_type != IS_UNUSED)
+        {
+            if (EX(opline)->op1_type == IS_CONST)
+            {
+                exit_status = EX_CONSTANT(EX(opline)->op1);
+            }
+            else
+            {
+                exit_status = EX_VAR(EX(opline)->op1.var);
+            }
+            if (Z_ISREF_P(exit_status))
+            {
+                exit_status = Z_REFVAL_P(exit_status);
+            }
+        }
         obj = zend_throw_error_exception(swoole_exit_exception_class_entry_ptr, "swoole exit.", EXIT_FAILURE, E_ERROR TSRMLS_CC);
         ZVAL_OBJ(&ex, obj);
         zend_update_property_long(swoole_exit_exception_class_entry_ptr, &ex, ZEND_STRL("flags"), flags);
