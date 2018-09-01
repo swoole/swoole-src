@@ -458,7 +458,6 @@
                 <file name="README.md" role="test" />
                 <file name="clean" role="test" />
                 <file name="coro_test.sh" role="test" />
-                <file name="debug/swoole_table_implements.php" role="test" />
                 <file name="include/api/http_server.php" role="test" />
                 <file name="include/api/swoole_async/read_write.php" role="test" />
                 <file name="include/api/swoole_async/recursive_write.php" role="test" />
