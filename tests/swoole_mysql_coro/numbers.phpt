@@ -23,19 +23,23 @@ go(function () {
     $stmt = $db->prepare('SELECT * FROM numbers');
     $r_strong2 = $stmt->execute();
 
-    $pdo = new PDO(
-        "mysql:host=" . MYSQL_SERVER_HOST . ";dbname=" . MYSQL_SERVER_DB . ";charset=utf8",
-        MYSQL_SERVER_USER, MYSQL_SERVER_PWD
-    );
-    $r_string2 = $pdo->query('SELECT * FROM numbers')->fetchAll(PDO::FETCH_ASSOC);
-    $pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
-    $stmt = $pdo->prepare('SELECT * FROM numbers');
-    $stmt->execute();
-    $r_strong3 = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    try {
+        $pdo = new PDO(
+            "mysql:host=" . MYSQL_SERVER_HOST . ";dbname=" . MYSQL_SERVER_DB . ";charset=utf8",
+            MYSQL_SERVER_USER, MYSQL_SERVER_PWD
+        );
+        $r_string2 = $pdo->query('SELECT * FROM numbers')->fetchAll(PDO::FETCH_ASSOC);
+        $pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
+        $stmt = $pdo->prepare('SELECT * FROM numbers');
+        $stmt->execute();
+        $r_strong3 = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        assert($r_string1 === $r_string2);
+        assert($r_strong2 === $r_strong3);
+    } catch (\PDOException $e) {
+        assert($e->getCode() === 2054); // not support auth plugin
+    }
 
-    assert($r_string1 === $r_string2);
     assert($r_strong1 === $r_strong2);
-    assert($r_strong2 === $r_strong3);
     var_dump($r_strong2);
 });
 ?>
