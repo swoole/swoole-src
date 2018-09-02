@@ -122,6 +122,8 @@ void swSignal_add(int signo, swSignalHander func)
 
 static void swSignal_async_handler(int signo)
 {
+    int save_errno = errno;
+
     if (SwooleG.main_reactor)
     {
         SwooleG.main_reactor->singal_no = signo;
@@ -137,6 +139,8 @@ static void swSignal_async_handler(int signo)
         swSignal_callback(signo);
         _lock = 0;
     }
+
+    errno = save_errno;
 }
 
 void swSignal_callback(int signo)
