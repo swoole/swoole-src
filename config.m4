@@ -466,6 +466,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/coroutine/ucontext.cc \
         src/coroutine/socket.cc \
         src/coroutine/channel.cc \
+    	src/coroutine/hook.cc \
         src/memory/shared_memory.c \
         src/memory/global_memory.c \
         src/memory/ring_buffer.c \

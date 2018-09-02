@@ -249,7 +249,7 @@ bool Socket::http_proxy_handshake()
     return false;
 }
 
-static inline int socket_connect(int fd, struct sockaddr *addr, socklen_t len)
+static inline int socket_connect(int fd, const struct sockaddr *addr, socklen_t len)
 {
     int retval;
     while (1)
@@ -350,6 +350,38 @@ Socket::Socket(int _fd, Socket *sock)
     init();
 }
 
+bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen)
+{
+    int retval = socket_connect(socket->fd, addr, addrlen);
+    if (retval == -1)
+    {
+        if (errno != EINPROGRESS)
+        {
+            _error: errCode = errno;
+            return false;
+        }
+        if (!wait_events(SW_EVENT_WRITE))
+        {
+            goto _error;
+        }
+        yield();
+        //Connection has timed out
+        if (errCode == ETIMEDOUT)
+        {
+            errMsg = strerror(errCode);
+            return false;
+        }
+        socklen_t len = sizeof(errCode);
+        if (getsockopt(socket->fd, SOL_SOCKET, SO_ERROR, &errCode, &len) < 0 || errCode != 0)
+        {
+            errMsg = strerror(errCode);
+            return false;
+        }
+    }
+    socket->active = 1;
+    return true;
+}
+
 bool Socket::connect(string host, int port, int flags)
 {
     //enable socks5 proxy
@@ -394,9 +426,10 @@ bool Socket::connect(string host, int port, int flags)
         return false;
     }
 
-    int retval = 0;
     _host = host;
     _port = port;
+
+    struct sockaddr *_target_addr;
 
     for (int i = 0; i < 2; i++)
     {
@@ -417,7 +450,7 @@ bool Socket::connect(string host, int port, int flags)
             else
             {
                 socket->info.len = sizeof( socket->info.addr.inet_v4);
-                retval = socket_connect(socket->fd, (struct sockaddr *) &socket->info.addr.inet_v4, socket->info.len);
+                _target_addr = (struct sockaddr *) &socket->info.addr.inet_v4;
                 break;
             }
         }
@@ -438,7 +471,7 @@ bool Socket::connect(string host, int port, int flags)
             else
             {
                 socket->info.len = sizeof(socket->info.addr.inet_v6);
-                retval = socket_connect(socket->fd, (struct sockaddr *) &socket->info.addr.inet_v6, socket->info.len);
+                _target_addr = (struct sockaddr *) &socket->info.addr.inet_v6;
                 break;
             }
         }
@@ -450,8 +483,8 @@ bool Socket::connect(string host, int port, int flags)
             }
             socket->info.addr.un.sun_family = AF_UNIX;
             memcpy(&socket->info.addr.un.sun_path, _host.c_str(), _host.size());
-            retval = socket_connect(socket->fd, (struct sockaddr *) &socket->info.addr.un,
-                    (socklen_t) (offsetof(struct sockaddr_un, sun_path) + _host.size()));
+            socket->info.len = (socklen_t) (offsetof(struct sockaddr_un, sun_path) + _host.size());
+            _target_addr = (struct sockaddr *) &socket->info.addr.un;
             break;
         }
         else
@@ -459,33 +492,10 @@ bool Socket::connect(string host, int port, int flags)
             return false;
         }
     }
-
-    if (retval == -1)
+    if (connect(_target_addr, socket->info.len) == false)
     {
-        if (errno != EINPROGRESS)
-        {
-            _error: errCode = errno;
-            return false;
-        }
-        if (!wait_events(SW_EVENT_WRITE))
-        {
-            goto _error;
-        }
-        yield();
-        //Connection has timed out
-        if (errCode == ETIMEDOUT)
-        {
-            errMsg = strerror(errCode);
-            return false;
-        }
-        socklen_t len = sizeof(errCode);
-        if (getsockopt(socket->fd, SOL_SOCKET, SO_ERROR, &errCode, &len) < 0 || errCode != 0)
-        {
-            errMsg = strerror(errCode);
-            return false;
-        }
+        return false;
     }
-    socket->active = 1;
     //socks5 proxy
     if (socks5_proxy && socks5_handshake() == false)
     {

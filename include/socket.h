@@ -14,6 +14,7 @@ public:
     Socket(int _fd, Socket *sock);
     ~Socket();
     bool connect(std::string host, int port, int flags = 0);
+    bool connect(const struct sockaddr *addr, socklen_t addrlen);
     bool shutdown(int how);
     bool close();
     ssize_t send(const void *__buf, size_t __n);
