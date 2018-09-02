@@ -22,11 +22,6 @@
 #include "swoole_coroutine.h"
 #include "swoole_mysql.h"
 
-#ifdef SW_USE_MYSQLND
-#include "ext/mysqlnd/mysqlnd.h"
-#include "ext/mysqlnd/mysqlnd_charset.h"
-#endif
-
 static PHP_METHOD(swoole_mysql_coro, __construct);
 static PHP_METHOD(swoole_mysql_coro, __destruct);
 static PHP_METHOD(swoole_mysql_coro, connect);
@@ -1314,7 +1309,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, nextResult)
 
     mysql_client *client = stmt->client;
 
-    if (stmt->buffer && stmt->buffer->offset < stmt->buffer->length)
+    if (stmt->buffer && (size_t) stmt->buffer->offset < stmt->buffer->length)
     {
         client->cmd = SW_MYSQL_COM_STMT_EXECUTE;
         client->state = SW_MYSQL_STATE_READ_START;
@@ -1731,7 +1726,7 @@ static int swoole_mysql_coro_onHandShake(mysql_client *client TSRMLS_DC)
         }
 
         // may be more packages
-        if (buffer->offset < buffer->length)
+        if ((size_t) buffer->offset < buffer->length)
         {
             goto _again;
         }
@@ -1757,7 +1752,7 @@ static int swoole_mysql_coro_onHandShake(mysql_client *client TSRMLS_DC)
         }
 #else
         connector->error_code = -1;
-        connector->error_msg = "MySQL8 RSA-Auth need enable OpenSSL!";
+        connector->error_msg = (char *) "MySQL8 RSA-Auth need enable OpenSSL!";
         connector->error_length = strlen(connector->error_msg);
         swoole_mysql_coro_onConnect(client TSRMLS_CC);
         return SW_OK;
@@ -1842,7 +1837,7 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
                 case SW_CLOSE:
                     goto close_fd;
                 case SW_WAIT:
-                    if (client->check_offset == buffer->length)
+                    if ((size_t) client->check_offset == buffer->length)
                     {
                         return SW_OK;
                     }

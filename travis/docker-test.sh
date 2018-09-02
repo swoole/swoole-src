@@ -7,7 +7,7 @@ cd ${__DIR__} && cd ../tests/
 # initialization
 php ./init
 # debug
-for debug_file in ./debug/*.php
+for debug_file in ${__DIR__}/debug/*.php
 do
     if test -f "${debug_file}";then
         echo "====== Run debug File ${debug_file} ======\n"

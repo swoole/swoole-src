@@ -21,6 +21,11 @@
 
 BEGIN_EXTERN_C()
 
+#ifdef SW_USE_MYSQLND
+#include "ext/mysqlnd/mysqlnd.h"
+#include "ext/mysqlnd/mysqlnd_charset.h"
+#endif
+
 #ifdef SW_USE_OPENSSL
 #ifndef OPENSSL_NO_RSA
 #define SW_MYSQL_RSA_SUPPORT
