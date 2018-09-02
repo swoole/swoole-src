@@ -101,6 +101,7 @@
                 <file role="src" name="mqtt.h" />
                 <file role="src" name="error.h" />
                 <file role="src" name="socket.h" />
+                <file role="src" name="socket_hook.h" />
                 <file role="src" name="socks5.h" />
                 <file role="src" name="redis.h" />
                 <file role="src" name="context.h" />
@@ -315,6 +316,7 @@
                     <file role="src" name="boost.cc" />
                     <file role="src" name="context.cc" />
                     <file role="src" name="channel.cc" />
+                    <file role="src" name="hook.cc" />
                     <file role="src" name="ucontext.cc" />
                     <file role="src" name="socket.cc" />
                 </dir>
@@ -568,6 +570,7 @@
                 <file name="include/toolkit/TcpStat.php" role="test" />
                 <file name="init" role="test" />
                 <file name="new.sh" role="test" />
+                <file name="numbers.sql" role="test" />
                 <file name="run-tests" role="test" />
                 <file name="start.sh" role="test" />
                 <file name="swoole_async/aio1.phpt" role="test" />
@@ -850,6 +853,7 @@
                 <file name="swoole_mysql_coro/fetch_mode.phpt" role="test" />
                 <file name="swoole_mysql_coro/fetch_mode_twice.phpt" role="test" />
                 <file name="swoole_mysql_coro/illegal_extends.phpt" role="test" />
+                <file name="swoole_mysql_coro/numbers.phpt" role="test" />
                 <file name="swoole_mysql_coro/prepare_insert.phpt" role="test" />
                 <file name="swoole_mysql_coro/prepare_select.phpt" role="test" />
                 <file name="swoole_mysql_coro/procedure.phpt" role="test" />
@@ -860,6 +864,7 @@
                 <file name="swoole_mysql_coro/simple_query.phpt" role="test" />
                 <file name="swoole_mysql_coro/statement_destruct.phpt" role="test" />
                 <file name="swoole_mysql_coro/without_fetch.phpt" role="test" />
+                <file name="swoole_mysql_coro/z_reset.phpt" role="test" />
                 <file name="swoole_process/echo.py" role="test" />
                 <file name="swoole_process/process_exec.phpt" role="test" />
                 <file name="swoole_process/process_msgqueue.phpt" role="test" />
