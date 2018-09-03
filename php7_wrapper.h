@@ -29,6 +29,22 @@ static sw_inline zend_bool Z_BVAL_P(zval *v)
 }
 
 //----------------------------------Array API------------------------------------
+
+static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong value)
+{
+    if (likely(value <= ZEND_LONG_MAX))
+    {
+        return add_assoc_long(arg, key, value);
+    }
+    else
+    {
+        char buf[MAX_LENGTH_OF_LONG + 1];
+        memset((char *) buf, 0, MAX_LENGTH_OF_LONG + 1);
+        sprintf((char *) buf, ZEND_ULONG_FMT, value);
+        return add_assoc_string(arg, key, buf);
+    }
+}
+
 #define sw_add_assoc_stringl(__arg, __key, __str, __length, __duplicate)   add_assoc_stringl_ex(__arg, __key, strlen(__key), __str, __length)
 static sw_inline int sw_add_assoc_stringl_ex(zval *arg, const char *key, size_t key_len, char *str, size_t length, int __duplicate)
 {
@@ -47,6 +63,8 @@ static sw_inline int sw_add_assoc_double_ex(zval *arg, const char *key, size_t k
     return add_assoc_double_ex(arg, key, key_len - 1, value);
 }
 
+#define SW_Z_ARRVAL_P(z)                          Z_ARRVAL_P(z)->ht
+
 #define SW_HASHTABLE_FOREACH_START(ht, _val) ZEND_HASH_FOREACH_VAL(ht, _val);  {
 #define SW_HASHTABLE_FOREACH_START2(ht, k, klen, ktype, _val) zend_string *_foreach_key;\
     ZEND_HASH_FOREACH_STR_KEY_VAL(ht, _foreach_key, _val);\
@@ -56,7 +74,12 @@ static sw_inline int sw_add_assoc_double_ex(zval *arg, const char *key, size_t k
 #define SW_HASHTABLE_FOREACH_END()                 } ZEND_HASH_FOREACH_END();
 
 #define Z_ARRVAL_PP(s)                             Z_ARRVAL_P(*s)
-#define SW_Z_TYPE_P                                Z_TYPE_P    	
+#define SW_Z_TYPE_P                                Z_TYPE_P
+#define SW_Z_TYPE_PP(s)                            SW_Z_TYPE_P(*s)
+#define Z_STRVAL_PP(s)                             Z_STRVAL_P(*s)
+#define Z_STRLEN_PP(s)                             Z_STRLEN_P(*s)
+#define Z_LVAL_PP(v)                               Z_LVAL_P(*v)
+
 static inline char* sw_php_format_date(char *format, size_t format_len, time_t ts, int localtime)
 {
     zend_string *time = php_format_date(format, format_len, ts, localtime);
