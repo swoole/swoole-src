@@ -93,6 +93,21 @@ enum swHttp2StreamType
 #define SW_HTTP2_STREAM_ID_SIZE               4
 #define SW_HTTP2_SETTINGS_PARAM_SIZE          6
 
+#define swHttp2FrameTraceLogFlags \
+    ((flags & SW_HTTP2_FLAG_ACK) ? "\nEND_ACK |" : ""), \
+    ((flags & SW_HTTP2_FLAG_END_STREAM) ? "\nEND_STREAM |" : ""), \
+    ((flags & SW_HTTP2_FLAG_END_HEADERS) ? "\nEND_HEADERS |" : ""), \
+    ((flags & SW_HTTP2_FLAG_PADDED) ? "\nEND_PADDED |" : ""), \
+    ((flags & SW_HTTP2_FLAG_PRIORITY) ? "\nEND_PRIORITY |" : "")
+#define swHttp2FrameTraceLog(recv, str, ...) \
+    swTraceLog( \
+        SW_TRACE_HTTP2, \
+        "\nrecv [" "\e[3" "%d" "m" "%s" "\e[0m" "] frame <length=%d, flags=%d, stream_id=%d> " str "%s%s%s%s%s", \
+        swHttp2_get_type_color(type), swHttp2_get_type(type), length, flags, stream_id, \
+        ##__VA_ARGS__, \
+        swHttp2FrameTraceLogFlags \
+    );
+
 /**
  +-----------------------------------------------+
  |                 Length (24)                   |
@@ -119,18 +134,10 @@ static sw_inline uint32_t swHttp2_get_length(char *buf)
     return (((uint8_t) buf[0]) << 16) + (((uint8_t) buf[1]) << 8) + (uint8_t) buf[2];
 }
 
-static sw_inline uint32_t swHttp2_get_increment_size(char *buf)
-{
-    return (((uint8_t) buf[1 + SW_HTTP2_FRAME_HEADER_SIZE]) << 16)      \
-            + (((uint8_t) buf[2 + SW_HTTP2_FRAME_HEADER_SIZE]) << 8)    \
-            + (uint8_t) buf[3 + SW_HTTP2_FRAME_HEADER_SIZE];
-}
-
-
 int swHttp2_get_frame_length(swProtocol *protocol, swConnection *conn, char *buf, uint32_t length);
 int swHttp2_send_setting_frame(swProtocol *protocol, swConnection *conn);
-int swHttp2_parse_frame(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 char* swHttp2_get_type(int type);
+int swHttp2_get_type_color(int type);
 
 /**
  +-----------------------------------------------+
@@ -143,14 +150,14 @@ char* swHttp2_get_type(int type);
  |                   Frame Payload (0...)                      ...
  +---------------------------------------------------------------+
  */
-static void sw_inline swHttp2_set_frame_header(char *buffer, int type, int length, int flags, int stream_id)
+static void sw_inline swHttp2_set_frame_header(char *buffer, uint8_t type, uint32_t length, uint8_t flags, uint32_t stream_id)
 {
     buffer[0] = length >> 16;
     buffer[1] = length >> 8;
     buffer[2] = length;
     buffer[3] = type;
     buffer[4] = flags;
-    *(int*) (buffer + 5) = htonl(stream_id);
+    *(uint32_t *) (buffer + 5) = htonl(stream_id);
 }
 
 #ifdef __cplusplus

@@ -11,8 +11,8 @@ $pm = new ProcessManager;
 
 $pm->parentFunc = function ($pid) use ($pm) {
     go(function () {
-        $cli = new Co\http\Client("127.0.0.1", 9501);
-        $ret = $cli->upgrade("/");
+        $cli = new Co\http\Client('127.0.0.1', 9501);
+        $ret = $cli->upgrade('/');
 
         if (!$ret)
         {
@@ -20,14 +20,14 @@ $pm->parentFunc = function ($pid) use ($pm) {
             return;
         }
         echo $cli->recv()->data;
-        $cli->push("hello server");
+        $cli->push('hello server');
         
         assert($cli->recv() == false);
-        assert($cli->errCode == SOCKET_EAGAIN);
+        assert($cli->errCode == SOCKET_ETIMEDOUT);
         $cli->errCode = 0;
 
         assert($cli->recv() == false);
-        assert($cli->errCode == SOCKET_EAGAIN);
+        assert($cli->errCode == SOCKET_ETIMEDOUT);
     });
     swoole_event::wait();
     $pm->kill();
@@ -35,11 +35,11 @@ $pm->parentFunc = function ($pid) use ($pm) {
 
 $pm->childFunc = function () use ($pm)
 {
-    $ws = new swoole_websocket_server("127.0.0.1", 9501, SWOOLE_BASE);
+    $ws = new swoole_websocket_server('127.0.0.1', 9501, SWOOLE_BASE);
     $ws->set(array(
         'log_file' => '/dev/null'
     ));
-    $ws->on("WorkerStart", function (\swoole_server $serv) {
+    $ws->on('WorkerStart', function (\swoole_server $serv) {
         /**
          * @var $pm ProcessManager
          */

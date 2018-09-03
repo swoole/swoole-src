@@ -66,7 +66,7 @@ BEGIN_EXTERN_C()
 #include <ext/standard/basic_functions.h>
 #include <ext/standard/php_http.h>
 
-#define PHP_SWOOLE_VERSION  "4.1.0-beta.2"
+#define PHP_SWOOLE_VERSION  "4.1.1"
 #define PHP_SWOOLE_CHECK_CALLBACK
 #define PHP_SWOOLE_ENABLE_FASTCALL
 #define PHP_SWOOLE_CLIENT_USE_POLL
@@ -130,14 +130,6 @@ extern swoole_object_array swoole_objects;
 #define swoole_php_fatal_error(level, fmt_str, ...)   php_error_docref(NULL TSRMLS_CC, level, fmt_str, ##__VA_ARGS__)
 #define swoole_php_sys_error(level, fmt_str, ...)  if (SWOOLE_G(display_errors)) php_error_docref(NULL TSRMLS_CC, level, fmt_str" Error: %s[%d].", ##__VA_ARGS__, strerror(errno), errno)
 #define swoole_efree(p)  if (p) efree(p)
-
-#if defined(SW_ASYNC_MYSQL)
-#if defined(SW_HAVE_MYSQLI) && defined(SW_HAVE_MYSQLND)
-#else
-#error "Enable async_mysql support, require mysqli and mysqlnd."
-#undef SW_ASYNC_MYSQL
-#endif
-#endif
 
 #ifdef SW_USE_OPENSSL
 #ifndef HAVE_OPENSSL
@@ -616,6 +608,7 @@ ZEND_BEGIN_MODULE_GLOBALS(swoole)
     zend_bool use_namespace;
     zend_bool use_shortname;
     zend_bool fast_serialize;
+    zend_bool enable_coroutine;
     long socket_buffer_size;
     php_swoole_req_status req_status;
     swLinkedList *rshutdown_functions;
@@ -629,6 +622,7 @@ extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
 #define SWOOLE_G(v) (swoole_globals.v)
 #endif
 
+#define SWOOLE_RAW_DEFINE(constant)    REGISTER_LONG_CONSTANT(#constant, constant, CONST_CS | CONST_PERSISTENT)
 #define SWOOLE_DEFINE(constant)    REGISTER_LONG_CONSTANT("SWOOLE_"#constant, SW_##constant, CONST_CS | CONST_PERSISTENT)
 
 #define SWOOLE_INIT_CLASS_ENTRY(ce, name, name_ns, methods) \

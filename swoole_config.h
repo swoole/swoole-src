@@ -241,6 +241,7 @@
 #define SW_HTTP2_MAX_FRAME_SIZE          ((1u << 14))
 #define SW_HTTP2_MAX_WINDOW_SIZE         ((1u << 31) - 1)
 #define SW_HTTP2_DEFAULT_WINDOW_SIZE     65535
+#define SW_HTTP2_MAX_HEADER_LIST_SIZE    8192
 
 #define SW_HTTP_CLIENT_USERAGENT         "swoole-http-client"
 #define SW_HTTP_CLIENT_BOUNDARY_PREKEY   "----SwooleBoundary"
@@ -269,5 +270,11 @@
 #define SW_DEFAULT_STACK_SIZE            8192
 #define SW_DEFAULT_C_STACK_SIZE          (1024 * 1024 * 2)
 #define SW_MAX_CORO_NUM_LIMIT            0x80000
+
+#ifdef SW_DEBUG
+#ifndef SW_LOG_TRACE_OPEN
+#define SW_LOG_TRACE_OPEN
+#endif
+#endif
 
 #endif /* SWOOLE_CONFIG_H_ */

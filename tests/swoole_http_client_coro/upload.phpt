@@ -25,7 +25,7 @@ $pm->parentFunc = function ($pid)
 
 $pm->childFunc = function () use ($pm)
 {
-    include __DIR__ . "/../include/api/http_server.php";
+    include __DIR__ . '/../include/api/http_server.php';
 };
 
 $pm->childFirst();

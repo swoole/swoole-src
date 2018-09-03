@@ -4,7 +4,7 @@ using namespace swoole;
 
 static void coro1(void *arg)
 {
-    int cid = coroutine_get_cid();
+    int cid = coroutine_get_current_cid();
     coroutine_t *co = coroutine_get_by_id(cid);
     coroutine_yield(co);
 }

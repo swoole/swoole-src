@@ -77,6 +77,7 @@ typedef struct _coro_global
 {
     uint32_t coro_num;
     uint32_t max_coro_num;
+    uint32_t peak_coro_num;
     uint32_t stack_size;
     zend_vm_stack origin_vm_stack;
     zval *origin_vm_stack_top;

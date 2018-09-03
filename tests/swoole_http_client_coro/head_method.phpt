@@ -11,7 +11,7 @@ Swoole\Coroutine::create(function ()
 {
     $cli = new \Swoole\Coroutine\Http\Client('www.baidu.com', 80);
     $cli->set(['timeout' => 10]);
-    $cli->setMethod("HEAD");
+    $cli->setMethod('HEAD');
     $cli->get('/');
     assert($cli->statusCode == 200);
     assert(count($cli->headers) > 0);

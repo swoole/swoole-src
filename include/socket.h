@@ -14,6 +14,7 @@ public:
     Socket(int _fd, Socket *sock);
     ~Socket();
     bool connect(std::string host, int port, int flags = 0);
+    bool connect(const struct sockaddr *addr, socklen_t addrlen);
     bool shutdown(int how);
     bool close();
     ssize_t send(const void *__buf, size_t __n);
@@ -21,6 +22,7 @@ public:
     ssize_t recv(void *__buf, size_t __n);
     ssize_t recv_all(void *__buf, size_t __n);
     ssize_t send_all(const void *__buf, size_t __n);
+    ssize_t recv_packet();
     Socket* accept();
     void resume();
     void yield();
@@ -30,6 +32,7 @@ public:
     bool sendfile(char *filename, off_t offset, size_t length);
     int sendto(char *address, int port, char *data, int len);
     int recvfrom(void *__buf, size_t __n, char *address, int *port = nullptr);
+    swString* get_buffer();
 
     void setTimeout(double timeout)
     {
@@ -66,6 +69,11 @@ protected:
 
         buffer = nullptr;
         protocol = {0};
+
+        protocol.package_length_type = 'N';
+        protocol.package_length_size = 4;
+        protocol.package_body_offset = 0;
+        protocol.package_max_length = SW_BUFFER_INPUT_SIZE;
 
 #ifdef SW_USE_OPENSSL
         open_ssl = 0;

@@ -18,13 +18,11 @@
 
 #include "php_swoole.h"
 #include "swoole_mysql.h"
+// see mysqlnd 'L64' macro redefined
+#undef L64
 #include <ext/hash/php_hash.h>
 #include <ext/hash/php_hash_sha.h>
-
-#ifdef SW_USE_MYSQLND
-#include "ext/mysqlnd/mysqlnd.h"
-#include "ext/mysqlnd/mysqlnd_charset.h"
-#endif
+#include <ext/standard/php_math.h>
 
 #ifdef SW_MYSQL_RSA_SUPPORT
 #include <openssl/rsa.h>
@@ -985,6 +983,8 @@ static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
 
     swTraceLog(SW_TRACE_MYSQL_CLIENT, "mysql_decode_row begin, num_column=%ld, packet_len=%d.", client->response.num_column, packet_len);
 
+    mysql_field *field = NULL;
+
     for (i = 0; i < client->response.num_column; i++)
     {
         tmp_len = mysql_length_coded_binary(&buf[read_n], &len, &nul, packet_len - read_n);
@@ -999,24 +999,22 @@ static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
             return -SW_MYSQL_ERR_LEN_OVER_BUFFER;
         }
 
-        swTraceLog(SW_TRACE_MYSQL_CLIENT, "n=%d, fname=%s, name_length=%d", i, client->response.columns[i].name,
-                client->response.columns[i].name_length);
+        field = &client->response.columns[i];
+
+        swTraceLog(SW_TRACE_MYSQL_CLIENT, "n=%d, field_name=%s, name_length=%d", i, field->name, field->name_length);
 
         if (nul == 1)
         {
-            add_assoc_null(row_array, client->response.columns[i].name);
+            add_assoc_null(row_array, field->name);
             continue;
         }
 
-        int type = client->response.columns[i].type;
+        swTraceLog(SW_TRACE_MYSQL_CLIENT, "value: name=%s, type=%d, value=%s, len=%ld", field->name, field->type, swoole_strndup(buf + read_n, len), len);
 
-        swTraceLog(SW_TRACE_MYSQL_CLIENT, "value: name=%s, type=%d, value=%s, len=%ld",
-                client->response.columns[i].name, type, swoole_strndup(buf + read_n, len), len);
-
-        switch (type)
+        switch (field->type)
         {
         case SW_MYSQL_TYPE_NULL:
-            add_assoc_null(row_array, client->response.columns[i].name);
+            add_assoc_null(row_array, field->name);
             break;
         /* String */
         case SW_MYSQL_TYPE_TINY_BLOB:
@@ -1037,7 +1035,7 @@ static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
         case SW_MYSQL_TYPE_DATETIME:
         case SW_MYSQL_TYPE_DATE:
         case SW_MYSQL_TYPE_JSON:
-            sw_add_assoc_stringl(row_array, client->response.columns[i].name, buf + read_n, len, 1);
+            sw_add_assoc_stringl(row_array, field->name, buf + read_n, len, 1);
             break;
         /* Integer */
         case SW_MYSQL_TYPE_TINY:
@@ -1048,48 +1046,74 @@ static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
             {
                 memcpy(value_buffer, buf + read_n, len);
                 value_buffer[len] = 0;
-                row.sint = strtol(value_buffer, &error, 10);
-                if (*error != '\0')
+                if (field->flags & SW_MYSQL_UNSIGNED_FLAG)
                 {
-                    return -SW_MYSQL_ERR_CONVLONG;
+                    row.uint = strtoul(value_buffer, &error, 10);
+                    if (*error != '\0')
+                    {
+                        return -SW_MYSQL_ERR_CONVLONG;
+                    }
+                    add_assoc_long(row_array, field->name, row.uint);
                 }
-                add_assoc_long(row_array, client->response.columns[i].name, row.sint);
+                else
+                {
+                    row.sint = strtol(value_buffer, &error, 10);
+                    if (*error != '\0')
+                    {
+                        return -SW_MYSQL_ERR_CONVLONG;
+                    }
+                    add_assoc_long(row_array, field->name, row.sint);
+                }
             }
             else
             {
-                sw_add_assoc_stringl(row_array, client->response.columns[i].name, buf + read_n, len, 1);
-
+                sw_add_assoc_stringl(row_array, field->name, buf + read_n, len, 1);
             }
             break;
         case SW_MYSQL_TYPE_LONGLONG:
             if(client->connector.strict_type) {
                 memcpy(value_buffer, buf + read_n, len);
                 value_buffer[len] = 0;
-                row.sbigint = strtoll(value_buffer, &error, 10);
-                if (*error != '\0') {
-                    return -SW_MYSQL_ERR_CONVLONG;
+                if (field->flags & SW_MYSQL_UNSIGNED_FLAG)
+                {
+                    row.ubigint = strtoull(value_buffer, &error, 10);
+                    if (*error != '\0') {
+                        return -SW_MYSQL_ERR_CONVLONGLONG;
+                    }
+                    if (unlikely(row.ubigint > ZEND_LONG_MAX))
+                    {
+                        goto _longlongstring;
+                    }
+                    add_assoc_long(row_array, field->name, row.ubigint);
                 }
-                add_assoc_long(row_array, client->response.columns[i].name, row.sbigint);
+                else
+                {
+                    row.sbigint = strtoll(value_buffer, &error, 10);
+                    if (*error != '\0') {
+                        return -SW_MYSQL_ERR_CONVLONGLONG;
+                    }
+                    add_assoc_long(row_array, field->name, row.sbigint);
+                }
             }
             else
             {
-                sw_add_assoc_stringl(row_array, client->response.columns[i].name, buf + read_n, len, 1);
-
+                _longlongstring:
+                sw_add_assoc_stringl(row_array, field->name, buf + read_n, len, 1);
             }
             break;
         case SW_MYSQL_TYPE_FLOAT:
             if(client->connector.strict_type) {
                 memcpy(value_buffer, buf + read_n, len);
                 value_buffer[len] = 0;
-                row.mfloat = strtof(value_buffer, &error);
+                row.mdouble = strtod(value_buffer, &error);
                 if (*error != '\0') {
                     return -SW_MYSQL_ERR_CONVFLOAT;
                 }
-                add_assoc_double(row_array, client->response.columns[i].name, row.mfloat);
+                add_assoc_double(row_array, field->name, row.mdouble);
             }
             else
             {
-                sw_add_assoc_stringl(row_array, client->response.columns[i].name, buf + read_n, len, 1);
+                sw_add_assoc_stringl(row_array, field->name, buf + read_n, len, 1);
             }
             break;
 
@@ -1101,17 +1125,16 @@ static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
                 if (*error != '\0') {
                     return -SW_MYSQL_ERR_CONVDOUBLE;
                 }
-                add_assoc_double(row_array, client->response.columns[i].name, row.mdouble);
+                add_assoc_double(row_array, field->name, row.mdouble);
             }
             else
             {
-                sw_add_assoc_stringl(row_array, client->response.columns[i].name, buf + read_n, len, 1);
-
+                sw_add_assoc_stringl(row_array, field->name, buf + read_n, len, 1);
             }
             break;
 
         default:
-            swWarn("unknown field type[%d].", type);
+            swWarn("unknown field type[%d].", field->type);
             return -1;
         }
         read_n += len;
@@ -1221,49 +1244,51 @@ static int mysql_decode_row_prepare(mysql_client *client, char *buf, int packet_
 
     swTraceLog(SW_TRACE_MYSQL_CLIENT, "mysql_decode_row begin, num_column=%ld, packet_len=%d.", client->response.num_column, packet_len);
 
+    mysql_field *field = NULL;
     for (i = 0; i < client->response.num_column; i++)
     {
+        field = &client->response.columns[i];
         /* to check Null-Bitmap @see https://dev.mysql.com/doc/internals/en/null-bitmap.html */
         if (((buf - null_count + 1)[((i + 2) / 8)] & (0x01 << ((i + 2) % 8))) != 0)
         {
-            swTraceLog(SW_TRACE_MYSQL_CLIENT, "value: %s is null ,flag2", client->response.columns[i].name);
-            add_assoc_null(row_array, client->response.columns[i].name);
+            swTraceLog(SW_TRACE_MYSQL_CLIENT, "value: %s is null ,flag2", field->name);
+            add_assoc_null(row_array, field->name);
             continue;
         }
 
-        int type = client->response.columns[i].type;
-        swTraceLog(SW_TRACE_MYSQL_CLIENT, "value: name=%s, type=%d", client->response.columns[i].name, type);
-        switch (type)
+        swTraceLog(SW_TRACE_MYSQL_CLIENT, "value: name=%s, type=%d, len=%u", field->name, field->type, field->length);
+
+        switch (field->type)
         {
         /* Date Time */
         case SW_MYSQL_TYPE_TIME:
             len = mysql_decode_time(buf + read_n, datetime_buffer) + 1;
-            sw_add_assoc_stringl(row_array, client->response.columns[i].name, datetime_buffer, 8, 1);
-            swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%s", client->response.columns[i].name, datetime_buffer);
+            sw_add_assoc_stringl(row_array, field->name, datetime_buffer, 8, 1);
+            swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%s", field->name, datetime_buffer);
             break;
 
         case SW_MYSQL_TYPE_YEAR:
             mysql_decode_year(buf + read_n, datetime_buffer);
-            sw_add_assoc_stringl(row_array, client->response.columns[i].name, datetime_buffer, 4, 1);
+            sw_add_assoc_stringl(row_array, field->name, datetime_buffer, 4, 1);
             len = 2;
-            swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%s", client->response.columns[i].name, datetime_buffer);
+            swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%s", field->name, datetime_buffer);
             break;
 
         case SW_MYSQL_TYPE_DATE:
             len = mysql_decode_date(buf + read_n, datetime_buffer) + 1;
-            sw_add_assoc_stringl(row_array, client->response.columns[i].name, datetime_buffer, 10, 1);
-            swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%s", client->response.columns[i].name, datetime_buffer);
+            sw_add_assoc_stringl(row_array, field->name, datetime_buffer, 10, 1);
+            swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%s", field->name, datetime_buffer);
             break;
 
         case SW_MYSQL_TYPE_TIMESTAMP:
         case SW_MYSQL_TYPE_DATETIME:
             len = mysql_decode_datetime(buf + read_n, datetime_buffer) + 1;
-            sw_add_assoc_stringl(row_array, client->response.columns[i].name, datetime_buffer, 19, 1);
-            swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%s", client->response.columns[i].name, datetime_buffer);
+            sw_add_assoc_stringl(row_array, field->name, datetime_buffer, 19, 1);
+            swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%s", field->name, datetime_buffer);
             break;
 
         case SW_MYSQL_TYPE_NULL:
-            add_assoc_null(row_array, client->response.columns[i].name);
+            add_assoc_null(row_array, field->name);
             break;
 
         /* String */
@@ -1285,56 +1310,97 @@ static int mysql_decode_row_prepare(mysql_client *client, char *buf, int packet_
                 return -SW_MYSQL_ERR_BAD_LCB;
             }
             read_n += tmp_len;
-            sw_add_assoc_stringl(row_array, client->response.columns[i].name, buf + read_n, len, 1);
-            swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%s", client->response.columns[i].name, swoole_strndup(buf + read_n, len));
+            sw_add_assoc_stringl(row_array, field->name, buf + read_n, len, 1);
+            swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%s", field->name, swoole_strndup(buf + read_n, len));
             break;
 
         /* Integer */
         case SW_MYSQL_TYPE_TINY:
-            row.stiny = *(int8_t *) (buf + read_n);
-            add_assoc_long(row_array, client->response.columns[i].name, row.stiny);
-            len = sizeof(row.stiny);
-            swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%d", client->response.columns[i].name, row.stiny);
+            if (field->flags & SW_MYSQL_UNSIGNED_FLAG)
+            {
+                row.utiny = *(uint8_t *) (buf + read_n);
+                add_assoc_long(row_array, field->name, row.utiny);
+                len = sizeof(row.utiny);
+                swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%u", field->name, row.utiny);
+            }
+            else
+            {
+                row.stiny = *(int8_t *) (buf + read_n);
+                add_assoc_long(row_array, field->name, row.stiny);
+                len = sizeof(row.stiny);
+                swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%d", field->name, row.stiny);
+            }
             break;
 
         case SW_MYSQL_TYPE_SHORT:
-            row.ssmall = *(int16_t *) (buf + read_n);
-            add_assoc_long(row_array, client->response.columns[i].name, row.ssmall);
-            len = sizeof(row.ssmall);
-            swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%d", client->response.columns[i].name, row.ssmall);
+            if (field->flags & SW_MYSQL_UNSIGNED_FLAG)
+            {
+                row.small = *(uint16_t *) (buf + read_n);
+                add_assoc_long(row_array, field->name, row.small);
+                len = sizeof(row.small);
+                swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%u", field->name, row.small);
+            }
+            else
+            {
+                row.ssmall = *(int16_t *) (buf + read_n);
+                add_assoc_long(row_array, field->name, row.ssmall);
+                len = sizeof(row.ssmall);
+                swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%d", field->name, row.ssmall);
+            }
             break;
 
         case SW_MYSQL_TYPE_INT24:
         case SW_MYSQL_TYPE_LONG:
-            row.sint = *(int32_t *) (buf + read_n);
-            add_assoc_long(row_array, client->response.columns[i].name, row.sint);
-            len = sizeof(row.sint);
-            swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%d", client->response.columns[i].name, row.sint);
+            if (field->flags & SW_MYSQL_UNSIGNED_FLAG)
+            {
+                row.uint = *(uint32_t *) (buf + read_n);
+                add_assoc_long(row_array, field->name, row.uint);
+                len = sizeof(row.uint);
+                swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%u", field->name, row.uint);
+            }
+            else
+            {
+                row.sint = *(int32_t *) (buf + read_n);
+                add_assoc_long(row_array, field->name, row.sint);
+                len = sizeof(row.sint);
+                swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%d", field->name, row.sint);
+            }
             break;
 
         case SW_MYSQL_TYPE_LONGLONG:
-            row.sbigint = *(int64_t *) (buf + read_n);
-            add_assoc_long(row_array, client->response.columns[i].name, row.sbigint);
-            len = sizeof(row.sbigint);
-            swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%lld", client->response.columns[i].name, row.sbigint);
+            if (field->flags & SW_MYSQL_UNSIGNED_FLAG)
+            {
+                row.ubigint = *(uint64_t *) (buf + read_n);
+                add_assoc_ulong_safe(row_array, field->name, row.ubigint);
+                len = sizeof(row.ubigint);
+                swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%llu", field->name, row.ubigint);
+            }
+            else
+            {
+                row.sbigint = *(int64_t *) (buf + read_n);
+                add_assoc_long(row_array, field->name, row.sbigint);
+                len = sizeof(row.sbigint);
+                swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%lld", field->name, row.sbigint);
+            }
             break;
 
         case SW_MYSQL_TYPE_FLOAT:
             row.mfloat = *(float *) (buf + read_n);
-            add_assoc_double(row_array, client->response.columns[i].name, row.mfloat);
+            swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%.7f", field->name, row.mfloat);
+            row.mdouble = _php_math_round(row.mfloat, 5, PHP_ROUND_HALF_DOWN);
+            add_assoc_double(row_array, field->name, row.mdouble);
             len = sizeof(row.mfloat);
-            swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%f", client->response.columns[i].name, row.mfloat);
             break;
 
         case SW_MYSQL_TYPE_DOUBLE:
             row.mdouble = *(double *) (buf + read_n);
-            add_assoc_double(row_array, client->response.columns[i].name, row.mdouble);
+            swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%.16f", field->name, row.mdouble);
+            add_assoc_double(row_array, field->name, row.mdouble);
             len = sizeof(row.mdouble);
-            swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%f", client->response.columns[i].name, row.mdouble);
             break;
 
         default:
-            swWarn("unknown field type[%d].", type);
+            swWarn("unknown field type[%d].", field->type);
             return -1;
         }
         read_n += len;
@@ -2246,34 +2312,14 @@ static PHP_METHOD(swoole_mysql, connect)
 
     if (php_swoole_array_get_value(_ht, "strict_type", value))
     {
-        if (Z_TYPE_P(value) == IS_TRUE)
-        {
-            connector->strict_type = 1;
-        }
-        else
-        {
-            connector->strict_type = 0;
-        }
-    }
-    else
-    {
-        connector->strict_type = 0;
+        convert_to_boolean(value);
+        connector->strict_type = Z_BVAL_P(value);
     }
 
     if (php_swoole_array_get_value(_ht, "fetch_mode", value))
     {
-        if (Z_TYPE_P(value) == IS_TRUE)
-        {
-            connector->fetch_mode = 1;
-        }
-        else
-        {
-            connector->fetch_mode = 0;
-        }
-    }
-    else
-    {
-        connector->fetch_mode = 0;
+        convert_to_boolean(value);
+        connector->fetch_mode = Z_BVAL_P(value);
     }
 
     swClient *cli = emalloc(sizeof(swClient));

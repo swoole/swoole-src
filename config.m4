@@ -434,9 +434,9 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_http_v2_client_coro.c \
         swoole_websocket_server.c \
         swoole_http_client.c \
-        swoole_http_client_coro.c \
+        swoole_http_client_coro.cc \
         swoole_mysql.c \
-        swoole_mysql_coro.c \
+        swoole_mysql_coro.cc \
         swoole_postgresql_coro.c \
         swoole_redis.c \
         swoole_redis_coro.c \
@@ -466,6 +466,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/coroutine/ucontext.cc \
         src/coroutine/socket.cc \
         src/coroutine/channel.cc \
+    	src/coroutine/hook.cc \
         src/memory/shared_memory.c \
         src/memory/global_memory.c \
         src/memory/ring_buffer.c \

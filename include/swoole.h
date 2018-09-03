@@ -142,10 +142,20 @@ typedef unsigned long ulong_t;
 
 #define SW_START_LINE  "-------------------------START----------------------------"
 #define SW_END_LINE    "-------------------------END------------------------------"
-#define SW_ECHO_GREEN             "\e[32m%s\e[0m"
 #define SW_ECHO_RED               "\e[31m%s\e[0m"
+#define SW_ECHO_GREEN             "\e[32m%s\e[0m"
 #define SW_ECHO_YELLOW            "\e[33m%s\e[0m"
-#define SW_ECHO_CYAN_BLUE         "\e[36m%s\e[0m"
+#define SW_ECHO_BLUE              "\e[34m%s\e[0m"
+#define SW_ECHO_MAGENTA           "\e[35m%s\e[0m"
+#define SW_ECHO_CYAN              "\e[36m%s\e[0m"
+#define SW_ECHO_WHITE             "\e[37m%s\e[0m"
+#define SW_COLOR_RED              1
+#define SW_COLOR_GREEN            2
+#define SW_COLOR_YELLOW           3
+#define SW_COLOR_BLUE             4
+#define SW_COLOR_MAGENTA          5
+#define SW_COLOR_CYAN             6
+#define SW_COLOR_WHITE            7
 
 #define SW_SPACE       ' '
 #define SW_CRLF        "\r\n"
@@ -651,6 +661,7 @@ typedef struct _swProtocol
     uint32_t package_max_length;
 
     void *private_data;
+    uint16_t real_header_length;
 
     int (*onPackage)(swConnection *conn, char *data, uint32_t length);
     int (*get_package_length)(struct _swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
@@ -712,7 +723,7 @@ swString *swString_dup2(swString *src);
 void swString_print(swString *str);
 void swString_free(swString *str);
 int swString_append(swString *str, swString *append_str);
-int swString_append_ptr(swString *str, char *append_str, int length);
+int swString_append_ptr(swString *str, const char *append_str, int length);
 int swString_write(swString *str, off_t offset, swString *write_str);
 int swString_write_ptr(swString *str, off_t offset, char *write_str, int length);
 int swString_extend(swString *str, size_t new_size);

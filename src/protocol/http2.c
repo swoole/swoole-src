@@ -20,48 +20,6 @@
 #include "connection.h"
 #include "http2.h"
 
-int swHttp2_parse_frame(swProtocol *protocol, swConnection *conn, char *data, uint32_t length)
-{
-    int wait_body = 0;
-    int package_length = 0;
-
-    while (length > 0)
-    {
-        if (wait_body)
-        {
-            if (length >= package_length)
-            {
-                protocol->onPackage(conn, data, package_length);
-                wait_body = 0;
-                data += package_length;
-                length -= package_length;
-                continue;
-            }
-            else
-            {
-                break;
-            }
-        }
-        else
-        {
-            package_length = protocol->get_package_length(protocol, conn, data, length);
-            if (package_length < 0)
-            {
-                return SW_ERR;
-            }
-            else if (package_length == 0)
-            {
-                return SW_OK;
-            }
-            else
-            {
-                wait_body = 1;
-            }
-        }
-    }
-    return SW_OK;
-}
-
 int swHttp2_send_setting_frame(swProtocol *protocol, swConnection *conn)
 {
     char setting_frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_SETTING_OPTION_SIZE * 3];
@@ -138,5 +96,27 @@ char* swHttp2_get_type(int type)
         return "CONTINUATION";
     default:
         return "UNKOWN";
+    }
+}
+
+int swHttp2_get_type_color(int type)
+{
+    switch(type)
+    {
+    case SW_HTTP2_TYPE_DATA:
+    case SW_HTTP2_TYPE_WINDOW_UPDATE:
+        return SW_COLOR_MAGENTA;
+    case SW_HTTP2_TYPE_HEADERS:
+    case SW_HTTP2_TYPE_SETTINGS:
+    case SW_HTTP2_TYPE_PUSH_PROMISE:
+    case SW_HTTP2_TYPE_CONTINUATION:
+        return SW_COLOR_GREEN;
+    case SW_HTTP2_TYPE_PING:
+    case SW_HTTP2_TYPE_PRIORITY:
+        return SW_COLOR_WHITE;
+    case SW_HTTP2_TYPE_RST_STREAM:
+    case SW_HTTP2_TYPE_GOAWAY:
+    default:
+        return SW_COLOR_RED;
     }
 }
