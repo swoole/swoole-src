@@ -1,8 +1,26 @@
 <?php
+function route()
+{
+    controller();
+}
+
+function controller()
+{
+    your_code();
+}
+
+function your_code()
+{
+    co::sleep(.001);
+    exit(1);
+}
+
 go(function () {
-    $a = "hello";
-    $b = "world";
-    $str = $a.str_repeat(' ', 1).$b."\n";
-    echo $str;
-	exit($str);
+    try {
+        route();
+    } catch (\Swoole\ExitException $e) {
+        assert($e->getStatus() === 1);
+        assert($e->getFlags() === SWOOLE_EXIT_IN_COROUTINE);
+        return;
+    }
 });
