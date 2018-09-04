@@ -226,7 +226,7 @@ int swSocket_recv_blocking(int fd, void *__data, size_t __len, int flags)
     return read_bytes;
 }
 
-int swSocket_udp_sendto(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len)
+ssize_t swSocket_udp_sendto(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len)
 {
     struct sockaddr_in addr;
     if (inet_aton(dst_ip, &addr.sin_addr) == 0)
@@ -239,7 +239,7 @@ int swSocket_udp_sendto(int server_sock, char *dst_ip, int dst_port, char *data,
     return swSocket_sendto_blocking(server_sock, data, len, 0, (struct sockaddr *) &addr, sizeof(addr));
 }
 
-int swSocket_udp_sendto6(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len)
+ssize_t swSocket_udp_sendto6(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len)
 {
     struct sockaddr_in6 addr;
     bzero(&addr, sizeof(addr));
@@ -253,7 +253,7 @@ int swSocket_udp_sendto6(int server_sock, char *dst_ip, int dst_port, char *data
     return swSocket_sendto_blocking(server_sock, data, len, 0, (struct sockaddr *) &addr, sizeof(addr));
 }
 
-int swSocket_unix_sendto(int server_sock, char *dst_path, char *data, uint32_t len)
+ssize_t swSocket_unix_sendto(int server_sock, char *dst_path, char *data, uint32_t len)
 {
     struct sockaddr_un addr;
     bzero(&addr, sizeof(addr));
@@ -261,9 +261,9 @@ int swSocket_unix_sendto(int server_sock, char *dst_path, char *data, uint32_t l
     return swSocket_sendto_blocking(server_sock, data, len, 0, (struct sockaddr *) &addr, sizeof(addr));
 }
 
-int swSocket_sendto_blocking(int fd, void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len)
+ssize_t swSocket_sendto_blocking(int fd, void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len)
 {
-    int n = 0;
+    ssize_t n = 0;
 
     while (1)
     {

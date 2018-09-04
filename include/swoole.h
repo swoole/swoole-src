@@ -1368,11 +1368,11 @@ int swSocket_bind(int sock, int type, char *host, int *port);
 int swSocket_wait(int fd, int timeout_ms, int events);
 int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events);
 void swSocket_clean(int fd);
-int swSocket_sendto_blocking(int fd, void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len);
+ssize_t swSocket_sendto_blocking(int fd, void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len);
 int swSocket_set_buffer_size(int fd, int buffer_size);
-int swSocket_udp_sendto(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len);
-int swSocket_udp_sendto6(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len);
-int swSocket_unix_sendto(int server_sock, char *dst_path, char *data, uint32_t len);
+ssize_t swSocket_udp_sendto(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len);
+ssize_t swSocket_udp_sendto6(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len);
+ssize_t swSocket_unix_sendto(int server_sock, char *dst_path, char *data, uint32_t len);
 int swSocket_sendfile_sync(int sock, char *filename, off_t offset, size_t length, double timeout);
 int swSocket_write_blocking(int __fd, void *__data, int __len);
 int swSocket_recv_blocking(int fd, void *__data, size_t __len, int flags);
@@ -1819,6 +1819,20 @@ static sw_inline int swReactor_remove_read_event(swReactor *reactor, int fd)
     }
 }
 
+static sw_inline int swReactor_remove_write_event(swReactor *reactor, int fd)
+{
+    swConnection *conn = swReactor_get(reactor, fd);
+    if (conn->events & SW_EVENT_WRITE)
+    {
+        conn->events &= (~SW_EVENT_READ);
+        return reactor->set(reactor, fd, conn->fdtype | conn->events);
+    }
+    else
+    {
+        return reactor->del(reactor, fd);
+    }
+}
+
 static sw_inline swReactor_handle swReactor_getHandle(swReactor *reactor, int event_type, int fdtype)
 {
     if (event_type == SW_EVENT_WRITE)
@@ -1986,8 +2000,10 @@ struct _swTimer_node
 enum swTimer_type
 {
     SW_TIMER_TYPE_KERNEL,
-    SW_TIMER_TYPE_CORO,
     SW_TIMER_TYPE_PHP,
+    SW_TIMER_TYPE_CORO_READ,
+    SW_TIMER_TYPE_CORO_WRITE,
+    SW_TIMER_TYPE_CORO_ALL,
 };
 
 struct _swTimer
