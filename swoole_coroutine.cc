@@ -270,7 +270,8 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     COROG.error = 0;
     COROG.coro_num++;
 
-    if (COROG.coro_num >= COROG.peak_coro_num) {
+    if (COROG.coro_num > COROG.peak_coro_num)
+    {
         COROG.peak_coro_num = COROG.coro_num;
     }
 

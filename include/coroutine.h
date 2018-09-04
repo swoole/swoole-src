@@ -42,6 +42,7 @@ void coroutine_set_ptr(coroutine_t *co, void *ptr);
 void* coroutine_get_ptr_by_cid(int cid);
 coroutine_t *coroutine_get_by_id(int cid);
 int coroutine_get_current_cid();
+coroutine_t* coroutine_get_current_task();
 int coroutine_get_cid(coroutine_t *co);
 int coroutine_test_alloc_cid();
 void coroutine_test_free_cid(int cid);
