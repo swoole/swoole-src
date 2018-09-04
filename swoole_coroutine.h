@@ -86,7 +86,7 @@ typedef struct _coro_global
     zend_execute_data *origin_ex;
     coro_task *current_coro;
     zend_bool active;
-    coro_task *call_stack[128];
+    coro_task *call_stack[SW_MAX_CORO_NESTING_LEVEL];
     int call_stack_size;
     int error;
 } coro_global;
