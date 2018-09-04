@@ -240,11 +240,8 @@ static int coro_exit_handler(zend_execute_data *execute_data)
         obj = zend_throw_error_exception(swoole_exit_exception_class_entry_ptr, "swoole exit.", 0, E_ERROR TSRMLS_CC);
         ZVAL_OBJ(&ex, obj);
         zend_update_property_long(swoole_exit_exception_class_entry_ptr, &ex, ZEND_STRL("flags"), flags);
+        Z_TRY_ADDREF_P(exit_status);
         zend_update_property(swoole_exit_exception_class_entry_ptr, &ex, ZEND_STRL("status"), exit_status);
-        if (Z_TYPE_FLAGS_P(exit_status) & IS_TYPE_REFCOUNTED)
-        {
-            zval_ptr_dtor(exit_status);
-        }
     }
 
     return ZEND_USER_OPCODE_DISPATCH;
