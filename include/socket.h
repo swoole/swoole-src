@@ -23,8 +23,10 @@ public:
     bool shutdown(int how);
     bool close();
     ssize_t send(const void *__buf, size_t __n);
+    ssize_t sendmsg(const struct msghdr *msg, int flags);
     ssize_t peek(void *__buf, size_t __n);
     ssize_t recv(void *__buf, size_t __n);
+    ssize_t recvmsg(struct msghdr *msg, int flags);
     ssize_t recv_all(void *__buf, size_t __n);
     ssize_t send_all(const void *__buf, size_t __n);
     ssize_t recv_packet();
@@ -42,6 +44,11 @@ public:
     void setTimeout(double timeout)
     {
         _timeout = timeout;
+    }
+
+    int get_fd()
+    {
+        return socket->fd;
     }
 
 #ifdef SW_USE_OPENSSL
@@ -154,5 +161,25 @@ public:
     swSSL_option ssl_option;
 #endif
 };
+
+static inline enum swSocket_type get_socket_type(int domain, int type, int protocol)
+{
+    if (domain == AF_INET)
+    {
+        return type == SOCK_STREAM ? SW_SOCK_TCP : SW_SOCK_UDP;
+    }
+    else if (domain == AF_INET6)
+    {
+        return type == SOCK_STREAM ? SW_SOCK_TCP6 : SW_SOCK_UDP6;
+    }
+    else if (domain == AF_UNIX)
+    {
+        return type == SOCK_STREAM ? SW_SOCK_UNIX_STREAM : SW_SOCK_UNIX_DGRAM;
+    }
+    else
+    {
+        return SW_SOCK_TCP;
+    }
+}
 
 };

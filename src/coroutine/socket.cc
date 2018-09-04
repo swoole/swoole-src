@@ -736,6 +736,80 @@ ssize_t Socket::send(const void *__buf, size_t __n)
     return retval;
 }
 
+ssize_t Socket::sendmsg(const struct msghdr *msg, int flags)
+{
+    if (write_locked)
+    {
+        swWarn("socket has already been bound to another coroutine.");
+        return -1;
+    }
+    ssize_t retval = ::sendmsg(socket->fd, msg, flags);
+    if (retval >= 0)
+    {
+        return retval;
+    }
+
+    if (swConnection_error(errno) != SW_WAIT)
+    {
+        errCode = errno;
+        return -1;
+    }
+
+    int events = SW_EVENT_WRITE;
+    if (!wait_events(events))
+    {
+        return -1;
+    }
+    yield(SOCKET_LOCK_WRITE);
+    if (errCode == ETIMEDOUT)
+    {
+        return -1;
+    }
+    retval = ::sendmsg(socket->fd, msg, flags);
+    if (retval < 0)
+    {
+        errCode = errno;
+    }
+    return retval;
+}
+
+ssize_t Socket::recvmsg(struct msghdr *msg, int flags)
+{
+    if (read_locked)
+    {
+        swWarn("socket has already been bound to another coroutine.");
+        return -1;
+    }
+    ssize_t retval = ::recvmsg(socket->fd, msg, flags);
+    if (retval >= 0)
+    {
+        return retval;
+    }
+
+    if (swConnection_error(errno) != SW_WAIT)
+    {
+        errCode = errno;
+        return -1;
+    }
+
+    int events = SW_EVENT_READ;
+    if (!wait_events(events))
+    {
+        return -1;
+    }
+    yield(SOCKET_LOCK_READ);
+    if (errCode == ETIMEDOUT)
+    {
+        return -1;
+    }
+    retval = ::recvmsg(socket->fd, msg, flags);
+    if (retval < 0)
+    {
+        errCode = errno;
+    }
+    return retval;
+}
+
 void Socket::yield(int operation)
 {
     errCode = 0;
