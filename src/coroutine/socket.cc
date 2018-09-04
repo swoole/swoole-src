@@ -429,7 +429,7 @@ bool Socket::connect(string host, int port, int flags)
     _host = host;
     _port = port;
 
-    struct sockaddr *_target_addr;
+    struct sockaddr *_target_addr = nullptr;
 
     for (int i = 0; i < 2; i++)
     {
