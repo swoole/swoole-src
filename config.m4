@@ -294,14 +294,24 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_SWOOLE_HAVE_BOOST_CONTEXT
     AC_SWOOLE_HAVE_VALGRIND
 
+    AS_CASE([$host_os],
+      [darwin*], [SW_OS="MAC"],
+      [cygwin*], [SW_OS="CYGWIN"],
+      [mingw*], [SW_OS="MINGW"],
+      [linux*], [SW_OS="LINUX"],
+      []
+    )
+
     CFLAGS="-Wall -pthread $CFLAGS"
     LDFLAGS="$LDFLAGS -lpthread"
 
-    if test `uname` = "Darwin"; then
+    if test "$SW_OS" = 'MAC'; then
         AC_CHECK_LIB(c, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
     else
         AC_CHECK_LIB(rt, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
         PHP_ADD_LIBRARY(rt, 1, SWOOLE_SHARED_LIBADD)
+    fi
+    if test "$SW_OS" = 'LINUX'; then
         LDFLAGS="$LDFLAGS -z now"
     fi
 
@@ -543,17 +553,6 @@ if test "$PHP_SWOOLE" != "no"; then
       [x86*], [SW_CPU="x86"],
       [arm*], [SW_CPU="arm"],
       [arm64*], [SW_CPU="arm64"],
-      [
-        SW_NO_USE_ASM_CONTEXT="yes"
-        AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
-      ]
-    )
-
-    AS_CASE([$host_os],
-      [linux*], [SW_OS="LINUX"],
-      [darwin*], [SW_OS="MAC"],
-      [cygwin*], [SW_OS="WIN"],
-      [mingw*], [SW_OS="WIN"],
       [
         SW_NO_USE_ASM_CONTEXT="yes"
         AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
