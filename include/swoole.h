@@ -1822,9 +1822,9 @@ static sw_inline int swReactor_remove_read_event(swReactor *reactor, int fd)
 static sw_inline int swReactor_remove_write_event(swReactor *reactor, int fd)
 {
     swConnection *conn = swReactor_get(reactor, fd);
-    if (conn->events & SW_EVENT_WRITE)
+    if (conn->events & SW_EVENT_READ)
     {
-        conn->events &= (~SW_EVENT_READ);
+        conn->events &= (~SW_EVENT_WRITE);
         return reactor->set(reactor, fd, conn->fdtype | conn->events);
     }
     else
