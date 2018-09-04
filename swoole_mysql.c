@@ -1256,7 +1256,7 @@ static int mysql_decode_row_prepare(mysql_client *client, char *buf, int packet_
             continue;
         }
 
-        swTraceLog(SW_TRACE_MYSQL_CLIENT, "value: name=%s, type=%d, len=%u", field->name, field->type, field->length);
+        swTraceLog(SW_TRACE_MYSQL_CLIENT, "value: name=%s, type=%d, len=%lu", field->name, field->type, field->length);
 
         switch (field->type)
         {
