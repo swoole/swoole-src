@@ -35,10 +35,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2018-08-31</date>
-    <time>20:30:00</time>
+    <date>2018-09-05</date>
+    <time>12:30:00</time>
     <version>
-        <release>4.1.1</release>
+        <release>4.1.2</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -47,27 +47,13 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        + **Support `Redis`, `PDO`, `MySQLi`**, use `Swoole\Runtime::enableCoroutine()` to make them become Async IO by coroutine scheduler
-        + **Coroutine tracking**: `Coroutine::listCoroutines()` can list all current coroutines, `Coroutine::getBackTrace($cid)` gets the function call stack of a coroutine
-        + Refactoring `Co\Channel` C code to C++, solving unintended consequences of complex scenes and achieving high stability
-        + Refactoring `Co\Http\Client` C code to C++ coroutine mode, solving asynchronous timing problems and achieving high stability
-        + Support for using `exit` in coroutines and Servers, which will throw a catchable `\Swoole\ExitException` exception.
-        + Remove PCRE dependency limits for all iterators (table/connection/coroutine_list)
-        + Add the `open_websocket_close_frame` configuration to receive close frames in the onMessage event
-        + Remove the `Http\Response->gzip()` method and use the `http_compression` configuration item instead. The bottom layer will automatically determine the client's incoming `Accept-Encoding` to select the appropriate compression method, add Google BR compression support
-        + Add `Co\Http\Client->addData()` method to send the data in the memory as the content of the uploaded file.
-        + `Solaris` system support
-        + Http2 supports `MAX_FRAME_SIZE` framing transmission and `MAX_HEADER_LIST_SIZE` processing. The client adds `isStreamExist` method to detect whether there is a corresponding stream.
-        + `swoole_http_response->status` increases the `reason` parameter
-        * Fixed an issue where unsigned arguments in MySQL prepare used signed values ​​to cause numeric overflows
-        * Fixed an issue with no coroutine in the `onRequest` callback for HTTP2
-        * Fixed the problem that `tasking_num` became `-1` in some special cases
-        * Fixed HTTP2-server window-update frame construction error
-        * Fix all levels of compile warning under all PHP versions
-        * Compile error will occur when GCC version is less than 4.8
-        * Fixed MySQL's memory allocation caused by the use of prepare statement without parameter binding
-        * Fixed old stream memory loss leak when HTTP2 client reconnect
-        * Fixed wrong package info by version 4.1.0
+        + Add `socket_hook`
+        * Fix bugs in nested coroutines
+        * Fixed variable reference count problem when `exit` in the coroutine
+        * Coroutine MySQL`query`, `prepare`, `execute` does not time out by default, conforms to the documentation API description
+        * The MySQL transaction operation of the coroutine is forbidden to use the defer mode, and the developer needs to use it explicitly. The concurrent open transaction can be replaced by `query`.
+        * Fix the problem of mmap `MAP_FAILED` return value detection
+        + Add PECL package verification
     </notes>
     <contents>
         <dir name="/">
@@ -162,6 +148,7 @@
             <file role="src" name="examples/coroutine/enable_coroutine.php" />
             <file role="src" name="examples/coroutine/exception/empty.php" />
             <file role="src" name="examples/coroutine/exit_in_coroutine.php" />
+            <file role="src" name="examples/coroutine/exit_with_status.php" />
             <file role="src" name="examples/coroutine/fgets.php" />
             <file role="src" name="examples/coroutine/fread.php" />
             <file role="src" name="examples/coroutine/fwrite.php" />
@@ -781,6 +768,7 @@
             <file role="test" name="tests/swoole_coroutine_channel/8.phpt" />
             <file role="test" name="tests/swoole_coroutine_channel/9.phpt" />
             <file role="test" name="tests/swoole_coroutine_channel/basic.phpt" />
+            <file role="test" name="tests/swoole_coroutine_channel/bug_1947.phpt" />
             <file role="test" name="tests/swoole_coroutine_channel/bug_clear_timer.phpt" />
             <file role="test" name="tests/swoole_coroutine_channel/chan_select_timeout.phpt" />
             <file role="test" name="tests/swoole_coroutine_channel/chan_stats.phpt" />
@@ -966,6 +954,7 @@
             <file role="test" name="tests/swoole_mysql_coro/query_timeout.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/simple_query.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/statement_destruct.phpt" />
+            <file role="test" name="tests/swoole_mysql_coro/transaction.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/without_fetch.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/z_reset.phpt" />
             <file role="src" name="tests/swoole_process/echo.py" />

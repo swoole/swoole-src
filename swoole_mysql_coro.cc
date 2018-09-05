@@ -57,12 +57,15 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_query, 0, 0, 1)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_begin, 0, 0, 0)
+    ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_commit, 0, 0, 0)
+    ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_rollback, 0, 0, 0)
+    ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_prepare, 0, 0, 1)
@@ -830,7 +833,7 @@ static PHP_METHOD(swoole_mysql_coro, query)
         RETURN_FALSE;
     }
 
-    double timeout = client->connector.timeout;
+    double timeout = -1;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|d", &sql.str, &sql.length, &timeout) == FAILURE)
     {
@@ -870,7 +873,7 @@ static PHP_METHOD(swoole_mysql_coro, query)
     coro_yield();
 }
 
-static PHP_METHOD(swoole_mysql_coro, begin)
+static void swoole_mysql_coro_query_transcation(const char* command, uint8_t in_transaction, zend_execute_data *execute_data, zval *return_value)
 {
     mysql_client *client = (mysql_client *) swoole_get_object(getThis());
     if (!client)
@@ -878,150 +881,78 @@ static PHP_METHOD(swoole_mysql_coro, begin)
         swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_mysql.");
         RETURN_FALSE;
     }
+
     if (unlikely(client->cid && client->cid != sw_get_current_cid()))
     {
         swoole_php_fatal_error(E_ERROR, "mysql client has already been bound to another coroutine.");
         RETURN_FALSE;
     }
-    if (client->transaction)
+
+    // we deny the dangerous operation of transaction
+    // if developers need use defer to begin transaction, they can use query("begin/commit/rollback") with defer
+    // to make sure they know what they are doing
+    if (unlikely(client->defer))
     {
-        zend_throw_exception(swoole_mysql_coro_exception_class_entry_ptr, "There is already an active transaction.", 21 TSRMLS_CC);
+        swoole_php_fatal_error(E_DEPRECATED, "you should not use defer to handle transaction, if you want, please use `query` instead.");
+        client->defer = 0;
+    }
+
+    if (in_transaction && client->transaction)
+    {
+        zend_throw_exception(swoole_mysql_coro_exception_class_entry_ptr, "There is already an active transaction.", 21);
+        RETURN_FALSE;
+    }
+
+    if (!in_transaction && !client->transaction)
+    {
+        zend_throw_exception(swoole_mysql_coro_exception_class_entry_ptr, "There is no active transaction.", 22);
         RETURN_FALSE;
     }
 
     swString sql;
     bzero(&sql, sizeof(sql));
-    swString_append_ptr(&sql, ZEND_STRL("START TRANSACTION"));
-    if (mysql_query(getThis(), client, &sql, NULL TSRMLS_CC) < 0)
+    swString_append_ptr(&sql, command, strlen(command));
+    if (mysql_query(getThis(), client, &sql, NULL) < 0)
     {
         RETURN_FALSE;
     }
     else
     {
-        client->transaction = 1;
-        double timeout = client->connector.timeout;
+        double timeout = -1;
+        if (zend_parse_parameters(ZEND_NUM_ARGS(), "|d", &timeout) == FAILURE)
+        {
+            RETURN_FALSE;
+        }
         php_context *context = (php_context *) swoole_get_property(getThis(), 0);
         if (timeout > 0)
         {
             client->timer = SwooleG.timer.add(&SwooleG.timer, (int) (timeout * 1000), 0, context, swoole_mysql_coro_onTimeout);
-            if (client->timer && client->defer)
-            {
-                context->state = SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST;
-            }
-        }
-        if (client->defer)
-        {
-            client->iowait = SW_MYSQL_CORO_STATUS_WAIT;
-            //RETURN_TRUE;
         }
         client->cid = sw_get_current_cid();
         coro_save(context);
+        coro_use_return_value();
         coro_yield();
+        // resume true
+        if (Z_BVAL_P(return_value))
+        {
+            client->transaction = in_transaction;
+        }
     }
+}
+
+static PHP_METHOD(swoole_mysql_coro, begin)
+{
+    swoole_mysql_coro_query_transcation("BEGIN", 1, execute_data, return_value);
 }
 
 static PHP_METHOD(swoole_mysql_coro, commit)
 {
-    mysql_client *client = (mysql_client *) swoole_get_object(getThis());
-    if (!client)
-    {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_mysql.");
-        RETURN_FALSE;
-    }
-
-    if (unlikely(client->cid && client->cid != sw_get_current_cid()))
-    {
-        swoole_php_fatal_error(E_ERROR, "mysql client has already been bound to another coroutine.");
-        RETURN_FALSE;
-    }
-
-    if (!client->transaction)
-    {
-        zend_throw_exception(swoole_mysql_coro_exception_class_entry_ptr, "There is no active transaction.", 22 TSRMLS_CC);
-        RETURN_FALSE;
-    }
-
-    swString sql;
-    bzero(&sql, sizeof(sql));
-    swString_append_ptr(&sql, ZEND_STRL("COMMIT"));
-    if (mysql_query(getThis(), client, &sql, NULL TSRMLS_CC) < 0)
-    {
-        RETURN_FALSE;
-    }
-    else
-    {
-        client->transaction = 0;
-        php_context *context = (php_context *) swoole_get_property(getThis(), 0);
-        double timeout = client->connector.timeout;
-        if (timeout > 0)
-        {
-            client->timer = SwooleG.timer.add(&SwooleG.timer, (int) (timeout * 1000), 0, context, swoole_mysql_coro_onTimeout);
-            if (client->timer && client->defer)
-            {
-                context->state = SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST;
-            }
-        }
-        if (client->defer)
-        {
-            client->iowait = SW_MYSQL_CORO_STATUS_WAIT;
-            //RETURN_TRUE;
-        }
-        client->cid = sw_get_current_cid();
-        coro_save(context);
-        coro_yield();
-    }
+    swoole_mysql_coro_query_transcation("COMMIT", 0, execute_data, return_value);
 }
 
 static PHP_METHOD(swoole_mysql_coro, rollback)
 {
-    mysql_client *client = (mysql_client *) swoole_get_object(getThis());
-    if (!client)
-    {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_mysql.");
-        RETURN_FALSE;
-    }
-
-    if (unlikely(client->cid && client->cid != sw_get_current_cid()))
-    {
-        swoole_php_fatal_error(E_ERROR, "mysql client has already been bound to another coroutine.");
-        RETURN_FALSE;
-    }
-
-    if (!client->transaction)
-    {
-        zend_throw_exception(swoole_mysql_coro_exception_class_entry_ptr, "There is no active transaction.", 22 TSRMLS_CC);
-        RETURN_FALSE;
-    }
-
-    swString sql;
-    bzero(&sql, sizeof(sql));
-    swString_append_ptr(&sql, ZEND_STRL("ROLLBACK"));
-    if (mysql_query(getThis(), client, &sql, NULL TSRMLS_CC) < 0)
-    {
-        RETURN_FALSE;
-    }
-    else
-    {
-        client->transaction = 0;
-        php_context *context = (php_context *) swoole_get_property(getThis(), 0);
-        double timeout = client->connector.timeout;
-        if (timeout > 0)
-        {
-            client->timer = SwooleG.timer.add(&SwooleG.timer, (int) (timeout * 1000), 0, context, swoole_mysql_coro_onTimeout);
-            if (client->timer && client->defer)
-            {
-                context->state = SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST;
-            }
-        }
-        if (client->defer)
-        {
-            client->iowait = SW_MYSQL_CORO_STATUS_WAIT;
-            //RETURN_TRUE;
-        }
-        client->cid = sw_get_current_cid();
-        coro_save(context);
-        coro_yield();
-    }
+    swoole_mysql_coro_query_transcation("ROLLBACK", 0, execute_data, return_value);
 }
 
 static PHP_METHOD(swoole_mysql_coro, getDefer)
@@ -1112,7 +1043,7 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
         RETURN_FALSE;
     }
 
-    double timeout = client->connector.timeout;
+    double timeout = -1;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "s|d", &sql.str, &sql.length, &timeout) == FAILURE)
     {
@@ -1186,7 +1117,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, execute)
         RETURN_FALSE;
     }
 
-    double timeout = client->connector.timeout;
+    double timeout = -1;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "|ad", &params, &timeout) == FAILURE)
     {
