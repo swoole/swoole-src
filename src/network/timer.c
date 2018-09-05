@@ -60,7 +60,6 @@ int swTimer_init(long msec)
         return SW_ERR;
     }
 
-
     SwooleG.timer.heap = swHeap_new(1024, SW_MIN_HEAP);
     if (!SwooleG.timer.heap)
     {
@@ -79,6 +78,7 @@ int swTimer_init(long msec)
     SwooleG.timer._next_msec = msec;
     SwooleG.timer._next_id = 1;
     SwooleG.timer.add = swTimer_add;
+    SwooleG.timer.round = 0;
 
     if (swIsTaskWorker())
     {
@@ -137,6 +137,7 @@ static swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *
     tnode->interval = interval ? _msec : 0;
     tnode->remove = 0;
     tnode->callback = callback;
+    tnode->round = timer->round;
 
     if (timer->_next_msec < 0 || timer->_next_msec > _msec)
     {
@@ -158,7 +159,7 @@ static swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *
         sw_free(tnode);
         return NULL;
     }
-    swTrace("timer_id=%ld, msec=%d", tnode->id, _msec);
+    swTrace("id=%ld, exec_msec=%ld, msec=%d, round=%ld", tnode->id, tnode->exec_msec, _msec, tnode->round);
     swHashMap_add_int(timer->map, tnode->id, tnode);
     return tnode;
 }
@@ -204,7 +205,7 @@ int swTimer_select(swTimer *timer)
     while ((tmp = swHeap_top(timer->heap)))
     {
         tnode = tmp->data;
-        if (tnode->exec_msec > now_msec)
+        if (tnode->exec_msec > now_msec || tnode->round == timer->round)
         {
             break;
         }
@@ -240,7 +241,13 @@ int swTimer_select(swTimer *timer)
     }
     else
     {
-        timer->set(timer, tnode->exec_msec - now_msec);
+        long next_msec = tnode->exec_msec - now_msec;
+        if (next_msec <= 0)
+        {
+            next_msec = 1;
+        }
+        timer->set(timer, next_msec);
     }
+    timer->round++;
     return SW_OK;
 }
