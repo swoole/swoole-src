@@ -63,6 +63,7 @@ BEGIN_EXTERN_C()
 #include <ext/standard/url.h>
 #include <ext/standard/info.h>
 #include <ext/standard/php_array.h>
+#include <ext/standard/php_var.h>
 #include <ext/standard/basic_functions.h>
 #include <ext/standard/php_http.h>
 
