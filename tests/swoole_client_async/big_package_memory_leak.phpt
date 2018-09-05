@@ -43,7 +43,8 @@ $cli->on("close", function (swoole_client $cli) use ($closeServer)
 });
 $cli->connect("127.0.0.1", 9001);
 assert(memory_get_usage(true) == $mem);
-echo "SUCCESS";
+echo "SUCCESS\n";
+swoole_event::wait();
 ?>
 
 --EXPECT--
