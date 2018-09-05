@@ -1,5 +1,5 @@
 --TEST--
-swoole_client_async: swoole_client connect & send & close
+swoole_timer: timer round control
 
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
@@ -41,8 +41,10 @@ $pm->parentFunc = function ($pid) use($pm)
     $cli->on("close", function(swoole_client $cli) {
         echo "CLOSE\n";
     });
+
     $cli->connect(TCP_SERVER_HOST, $pm->getFreePort(), 0.2);
     swoole_event::wait();
+    $pm->kill();
 };
 
 $pm->childFunc = function () use ($pm)
@@ -67,4 +69,5 @@ $pm->run();
 ?>
 
 --EXPECT--
-SUCCESS
+hello world
+CLOSE
