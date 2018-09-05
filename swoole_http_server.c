@@ -640,17 +640,23 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
             }
             else if (http_strncasecmp("multipart/form-data", at, length))
             {
+                // start offset
                 offset = sizeof("multipart/form-data;") - 1;
-
                 while (at[offset] == ' ')
                 {
-                    offset += 1;
+                    offset++;
                 }
-
                 offset += sizeof("boundary=") - 1;
 
                 int boundary_len = length - offset;
-                char *boundary_str = (char *) at + length - boundary_len;
+                char *boundary_str = (char *) at + offset;
+
+                // find end
+                while (offset < boundary_len && *(boundary_str + offset) != ';')
+                {
+                    offset++;
+                }
+                boundary_len = offset;
 
                 if (boundary_len <= 0)
                 {
