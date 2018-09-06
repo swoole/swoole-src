@@ -512,6 +512,12 @@ bool Socket::connect(string host, int port, int flags)
     {
         return false;
     }
+#ifdef SW_USE_OPENSSL
+    if (open_ssl && ssl_handshake() == false)
+    {
+        return false;
+    }
+#endif
     //socks5 proxy
     if (socks5_proxy && socks5_handshake() == false)
     {
