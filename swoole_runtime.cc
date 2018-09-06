@@ -62,7 +62,9 @@ static bool hook_init = false;
 
 static php_stream_transport_factory ori_factory_tcp = nullptr;
 static php_stream_transport_factory ori_factory_unix = nullptr;
+#ifdef SW_USE_OPENSSL
 static php_stream_transport_factory ori_factory_ssl = nullptr;
+#endif
 
 static const zend_function_entry swoole_runtime_methods[] =
 {
@@ -317,20 +319,20 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
     return ret;
 }
 
+#ifdef SW_USE_OPENSSL
 #define PHP_SSL_MAX_VERSION_LEN 32
 
 static char *php_ssl_cipher_get_version(const SSL_CIPHER *c, char *buffer, size_t max_len)
 {
     const char *version = SSL_CIPHER_get_version(c);
-
     strncpy(buffer, version, max_len);
     if (max_len <= strlen(version))
     {
         buffer[max_len - 1] = 0;
     }
-
     return buffer;
 }
+#endif
 
 static int socket_set_option(php_stream *stream, int option, int value, void *ptrparam)
 {
@@ -426,10 +428,12 @@ static php_stream *socket_create(const char *proto, size_t protolen, const char 
     {
         sock = new Socket(SW_SOCK_TCP);
     }
+#ifdef SW_USE_OPENSSL
     if (strncmp(proto, "ssl", protolen) == 0)
     {
         sock->open_ssl = true;
     }
+#endif
     sock->setTimeout((double) FG(default_socket_timeout));
     stream = php_stream_alloc_rel(&socket_ops, sock, persistent_id, "r+");
 
