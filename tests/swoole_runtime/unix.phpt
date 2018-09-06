@@ -37,7 +37,7 @@ go(function () {
         for ($i = 0; $i < N; $i++) {
             fwrite($fp, "hello-{$i}");
             $data = fread($fp, 1024);
-            list($address, $port) = explode(':', (stream_socket_get_name($fp, true)));
+            list($address) = explode(':', (stream_socket_get_name($fp, true)));
             $address = basename($address);
             echo "[Client] recvfrom[{$address}] : $data\n";
         }

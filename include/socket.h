@@ -54,7 +54,8 @@ public:
     bool listen(int backlog = 0);
     bool sendfile(char *filename, off_t offset, size_t length);
     ssize_t sendto(char *address, int port, char *data, int len);
-    ssize_t recvfrom(void *__buf, size_t __n, char *address, int *port = nullptr);
+    ssize_t recvfrom(void *__buf, size_t __n);
+    ssize_t recvfrom(void *__buf, size_t __n, struct sockaddr *_addr, socklen_t *_socklen);
     swString* get_buffer();
 
     void setTimeout(double timeout)

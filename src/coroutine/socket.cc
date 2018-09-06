@@ -360,6 +360,12 @@ Socket::Socket(int _fd, Socket *sock)
     _sock_domain = sock->_sock_domain;
     _sock_type = sock->_sock_type;
     init();
+#ifdef SW_USE_OPENSSL
+    if (sock->open_ssl)
+    {
+        open_ssl = true;
+    }
+#endif
 }
 
 bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen)
@@ -974,12 +980,12 @@ Socket* Socket::accept()
     }
     int conn;
     swSocketAddress client_addr;
-    socklen_t client_addrlen = sizeof(client_addr);
+    client_addr.len = sizeof(client_addr.addr);
 
 #ifdef HAVE_ACCEPT4
-    conn = ::accept4(socket->fd, (struct sockaddr *) &client_addr, &client_addrlen, SOCK_NONBLOCK | SOCK_CLOEXEC);
+    conn = ::accept4(socket->fd, (struct sockaddr *) &client_addr.addr, &client_addr.len, SOCK_NONBLOCK | SOCK_CLOEXEC);
 #else
-    conn = ::accept(socket->fd, (struct sockaddr *) &client_addr, &client_addrlen);
+    conn = ::accept(socket->fd, (struct sockaddr *) &client_addr.addr, &client_addr.len);
     if (conn >= 0)
     {
         swoole_fcntl_set_option(conn, 1, 1);
@@ -1374,17 +1380,21 @@ ssize_t Socket::sendto(char *address, int port, char *data, int len)
     }
 }
 
-ssize_t Socket::recvfrom(void *__buf, size_t __n, char *address, int *port)
+ssize_t Socket::recvfrom(void *__buf, size_t __n)
+{
+    socket->info.len = sizeof(socket->info.addr);
+    return recvfrom(__buf, __n, (struct sockaddr*) &socket->info.addr, &socket->info.len);
+}
+
+ssize_t Socket::recvfrom(void *__buf, size_t __n, struct sockaddr* _addr, socklen_t *_socklen)
 {
     if (read_locked)
     {
         swWarn("socket has already been bound to another coroutine.");
         return -1;
     }
-    socket->info.len = sizeof(socket->info.addr);
     ssize_t retval;
-
-    _recv: retval = ::recvfrom(socket->fd, __buf, __n, 0, (struct sockaddr *) &socket->info.addr, &socket->info.len);
+    _recv: retval = ::recvfrom(socket->fd, __buf, __n, 0, _addr, _socklen);
     if (retval < 0)
     {
         if (errno == EINTR)
@@ -1402,15 +1412,10 @@ ssize_t Socket::recvfrom(void *__buf, size_t __n, char *address, int *port)
             {
                 return -1;
             }
-            retval = ::recvfrom(socket->fd, __buf, __n, 0, (struct sockaddr *) &socket->info.addr, &socket->info.len);
+            retval = ::recvfrom(socket->fd, __buf, __n, 0, _addr, _socklen);
             if (retval < 0)
             {
                 errCode = errno;
-            }
-            else
-            {
-                strcpy(address, swConnection_get_ip(socket));
-                *port = swConnection_get_port(socket);
             }
         }
         else

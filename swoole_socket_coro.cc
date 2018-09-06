@@ -369,11 +369,8 @@ static PHP_METHOD(swoole_socket_coro, recvfrom)
     socket_coro *sock = (socket_coro *) Z_SOCKET_CORO_OBJ_P(getThis());
     sock->socket->setTimeout(timeout);
 
-    char address[INET6_ADDRSTRLEN];
-    int port = 0;
-
     zend_string *buf = zend_string_alloc(SW_BUFFER_SIZE_BIG, 0);
-    ssize_t bytes = sock->socket->recvfrom(ZSTR_VAL(buf), SW_BUFFER_SIZE_BIG, address, &port);
+    ssize_t bytes = sock->socket->recvfrom(ZSTR_VAL(buf), SW_BUFFER_SIZE_BIG);
     if (bytes < 0)
     {
         zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), sock->socket->errCode TSRMLS_CC);
@@ -394,17 +391,17 @@ static PHP_METHOD(swoole_socket_coro, recvfrom)
         array_init(peername);
         if (sock->domain == AF_INET)
         {
-            add_assoc_long(peername, "port", port);
-            add_assoc_string(peername, "address", address);
+            add_assoc_long(peername, "port", swConnection_get_port(sock->socket->socket));
+            add_assoc_string(peername, "address", swConnection_get_ip(sock->socket->socket));
         }
         else if (sock->domain == AF_INET6)
         {
-            add_assoc_long(peername, "port", port);
-            add_assoc_string(peername, "address", address);
+            add_assoc_long(peername, "port", swConnection_get_port(sock->socket->socket));
+            add_assoc_string(peername, "address", swConnection_get_ip(sock->socket->socket));
         }
         else if (sock->domain == AF_UNIX)
         {
-            add_assoc_string(peername, "address", address);
+            add_assoc_string(peername, "address", swConnection_get_ip(sock->socket->socket));
         }
         RETURN_STR(buf);
     }
@@ -464,7 +461,6 @@ static PHP_METHOD(swoole_socket_coro, sendto)
 #endif
 
     socket_coro *sock = (socket_coro *) Z_SOCKET_CORO_OBJ_P(getThis());
-
     ssize_t retval = sock->socket->sendto(addr, port, data, l_data);
     if (retval < 0)
     {

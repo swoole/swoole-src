@@ -835,9 +835,7 @@ static PHP_METHOD(swoole_client_coro, recvfrom)
     }
 
     zend_string *retval = zend_string_alloc(length + 1, 0);
-    char tmp_address[SW_IP_MAX_LENGTH];
-    int tmp_port;
-    ssize_t n_bytes = cli->recvfrom(retval->val, length, tmp_address, &tmp_port);
+    ssize_t n_bytes = cli->recvfrom(retval->val, length);
     if (n_bytes < 0)
     {
         zend_string_free(retval);
@@ -847,8 +845,8 @@ static PHP_METHOD(swoole_client_coro, recvfrom)
     {
         ZSTR_LEN(retval) = n_bytes;
         ZSTR_VAL(retval)[ZSTR_LEN(retval)] = '\0';
-        ZVAL_STRING(address, tmp_address);
-        ZVAL_LONG(port, tmp_port);
+        ZVAL_STRING(address, swConnection_get_ip(cli->socket));
+        ZVAL_LONG(port, swConnection_get_port(cli->socket));
         RETURN_STR(retval);
     }
 }
