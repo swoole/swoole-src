@@ -22,7 +22,7 @@ go(function () {
         fwrite($fp, $http);
         $content = '';
         while (!feof($fp)) {
-            $content .= fgets($fp, 1024);
+            $content .= fread($fp, 1024);
         }
         fclose($fp);
         assert(strpos($content,'map.baidu.com') !== false);

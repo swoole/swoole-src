@@ -1,3 +1,19 @@
+/*
+  +----------------------------------------------------------------------+
+  | Swoole                                                               |
+  +----------------------------------------------------------------------+
+  | This source file is subject to version 2.0 of the Apache license,    |
+  | that is bundled with this package in the file LICENSE, and is        |
+  | available through the world-wide-web at the following url:           |
+  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
+  | If you did not receive a copy of the Apache2.0 license and are unable|
+  | to obtain it through the world-wide-web, please send a note to       |
+  | license@swoole.com so we can mail you a copy immediately.            |
+  +----------------------------------------------------------------------+
+  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  +----------------------------------------------------------------------+
+*/
+
 #pragma once
 
 #include "swoole.h"
@@ -46,6 +62,11 @@ public:
         _timeout = timeout;
     }
 
+    void set_timeout(struct timeval *timeout)
+    {
+        setTimeout((double) timeout->tv_sec + ((double) timeout->tv_usec / 1000 / 1000));
+    }
+
     int get_fd()
     {
         return socket->fd;
@@ -89,8 +110,7 @@ protected:
         protocol.package_max_length = SW_BUFFER_INPUT_SIZE;
 
 #ifdef SW_USE_OPENSSL
-        open_ssl = 0;
-        ssl_wait_handshake = 0;
+        open_ssl = false;
         ssl_context = NULL;
         ssl_option = {0};
 #endif
@@ -155,8 +175,8 @@ public:
     struct _http_proxy* http_proxy;
 
 #ifdef SW_USE_OPENSSL
-    uint8_t open_ssl :1;
-    uint8_t ssl_wait_handshake :1;
+    bool open_ssl;
+    bool ssl_wait_handshake;
     SSL_CTX *ssl_context;
     swSSL_option ssl_option;
 #endif
