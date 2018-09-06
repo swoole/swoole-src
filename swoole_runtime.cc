@@ -490,6 +490,7 @@ static inline int socket_sendto(Socket *sock, const char *buf, size_t buflen, st
     }
 }
 
+#ifdef SW_USE_OPENSSL
 static int socket_setup_crypto(php_stream *stream, Socket *sock, php_stream_xport_crypto_param *cparam STREAMS_DC)
 {
     return 0;
@@ -499,6 +500,7 @@ static int socket_enable_crypto(php_stream *stream, Socket *sock, php_stream_xpo
 {
     return sock->ssl_handshake() ? 0 : -1;
 }
+#endif
 
 static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_xport_param *xparam STREAMS_DC)
 {
@@ -667,7 +669,7 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
     case PHP_STREAM_OPTION_READ_TIMEOUT:
         sock->set_timeout((struct timeval*) ptrparam);
         break;
-
+#ifdef SW_USE_OPENSSL
     case PHP_STREAM_OPTION_CRYPTO_API:
     {
         php_stream_xport_crypto_param *cparam = (php_stream_xport_crypto_param *) ptrparam;
@@ -687,6 +689,7 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
         }
         break;
     }
+#endif
     default:
         break;
     }
