@@ -103,6 +103,7 @@ protected:
 
         buffer = nullptr;
         protocol = {0};
+        bind_address_info = {0};
 
         protocol.package_length_type = 'N';
         protocol.package_length_size = 4;
@@ -170,6 +171,7 @@ public:
 
     swProtocol protocol;
     swString *buffer;
+    swSocketAddress bind_address_info;
 
     struct _swSocks5 *socks5_proxy;
     struct _http_proxy* http_proxy;

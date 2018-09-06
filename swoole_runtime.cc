@@ -60,9 +60,21 @@ static php_stream_ops socket_ops
 };
 static bool hook_init = false;
 
-static php_stream_transport_factory ori_factory_tcp = nullptr;
-static php_stream_transport_factory ori_factory_unix = nullptr;
-static php_stream_transport_factory ori_factory_ssl = nullptr;
+static struct
+{
+    php_stream_transport_factory tcp;
+    php_stream_transport_factory udp;
+    php_stream_transport_factory unix;
+    php_stream_transport_factory udg;
+#ifdef SW_USE_OPENSSL
+    php_stream_transport_factory ssl;
+#endif
+} ori_factory =
+{ nullptr, nullptr, nullptr, nullptr,
+#ifdef SW_USE_OPENSSL
+        nullptr,
+#endif
+        };
 
 static const zend_function_entry swoole_runtime_methods[] =
 {
@@ -283,7 +295,7 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
     int ret;
     char *ip_address = NULL;
 
-    if (sock->type == SW_SOCK_TCP || sock->type == SW_SOCK_TCP6)
+    if (sock->type == SW_SOCK_TCP || sock->type == SW_SOCK_TCP6 || sock->type == SW_SOCK_UDP || sock->type == SW_SOCK_UDP6)
     {
         ip_address = parse_ip_address_ex(xparam->inputs.name, xparam->inputs.namelen, &portno, xparam->want_errortext,
                 &xparam->outputs.error_text);
@@ -317,20 +329,20 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
     return ret;
 }
 
+#ifdef SW_USE_OPENSSL
 #define PHP_SSL_MAX_VERSION_LEN 32
 
 static char *php_ssl_cipher_get_version(const SSL_CIPHER *c, char *buffer, size_t max_len)
 {
     const char *version = SSL_CIPHER_get_version(c);
-
     strncpy(buffer, version, max_len);
     if (max_len <= strlen(version))
     {
         buffer[max_len - 1] = 0;
     }
-
     return buffer;
 }
+#endif
 
 static int socket_set_option(php_stream *stream, int option, int value, void *ptrparam)
 {
@@ -346,6 +358,20 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
         case STREAM_XPORT_OP_CONNECT:
         case STREAM_XPORT_OP_CONNECT_ASYNC:
             xparam->outputs.returncode = socket_connect(stream, sock, xparam);
+            break;
+        case STREAM_XPORT_OP_GET_NAME:
+            xparam->outputs.returncode = php_network_get_sock_name(sock->socket->fd,
+                    xparam->want_textaddr ? &xparam->outputs.textaddr : NULL,
+                    xparam->want_addr ? &xparam->outputs.addr : NULL,
+                    xparam->want_addr ? &xparam->outputs.addrlen : NULL
+                    );
+            break;
+        case STREAM_XPORT_OP_GET_PEER_NAME:
+            xparam->outputs.returncode = php_network_get_peer_name(sock->socket->fd,
+                    xparam->want_textaddr ? &xparam->outputs.textaddr : NULL,
+                    xparam->want_addr ? &xparam->outputs.addr : NULL,
+                    xparam->want_addr ? &xparam->outputs.addrlen : NULL
+                    );
             break;
         default:
             break;
@@ -416,20 +442,33 @@ static php_stream *socket_create(const char *proto, size_t protolen, const char 
     {
         coro_init(TSRMLS_C);
     }
+
     php_swoole_check_reactor();
 
     if (strncmp(proto, "unix", protolen) == 0)
     {
         sock = new Socket(SW_SOCK_UNIX_STREAM);
     }
+    else if (strncmp(proto, "udp", protolen) == 0)
+    {
+        sock = new Socket(SW_SOCK_UDP);
+    }
+    else if (strncmp(proto, "udg", protolen) == 0)
+    {
+        sock = new Socket(SW_SOCK_UNIX_DGRAM);
+    }
+#ifdef SW_USE_OPENSSL
+    else if (strncmp(proto, "ssl", protolen) == 0)
+    {
+        sock = new Socket(SW_SOCK_TCP);
+        sock->open_ssl = true;
+    }
+#endif
     else
     {
         sock = new Socket(SW_SOCK_TCP);
     }
-    if (strncmp(proto, "ssl", protolen) == 0)
-    {
-        sock->open_ssl = true;
-    }
+
     sock->setTimeout((double) FG(default_socket_timeout));
     stream = php_stream_alloc_rel(&socket_ops, sock, persistent_id, "r+");
 
@@ -458,14 +497,15 @@ static PHP_METHOD(swoole_runtime, enableCoroutine)
         hook_init = true;
         HashTable *xport_hash = php_stream_xport_get_hash();
 
-        ori_factory_tcp = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("tcp"));
-        ori_factory_unix = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("unix"));
+        ori_factory.tcp = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("tcp"));
+        ori_factory.unix = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("unix"));
 
         php_stream_xport_register("tcp", socket_create);
         php_stream_xport_register("unix", socket_create);
-
+        php_stream_xport_register("udp", socket_create);
+        php_stream_xport_register("udg", socket_create);
 #ifdef SW_USE_OPENSSL
-        ori_factory_ssl = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("ssl"));
+        ori_factory.ssl = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("ssl"));
         php_stream_xport_register("ssl", socket_create);
 #endif
     }
@@ -475,10 +515,12 @@ static PHP_METHOD(swoole_runtime, enableCoroutine)
         {
             RETURN_FALSE;
         }
-        php_stream_xport_register("tcp", ori_factory_tcp);
-        php_stream_xport_register("unix", ori_factory_unix);
+        php_stream_xport_register("tcp", ori_factory.tcp);
+        php_stream_xport_register("unix", ori_factory.unix);
+        php_stream_xport_register("udp", ori_factory.udp);
+        php_stream_xport_register("udg", ori_factory.udg);
 #ifdef SW_USE_OPENSSL
-        php_stream_xport_register("ssl", ori_factory_ssl);
+        php_stream_xport_register("ssl", ori_factory.ssl);
 #endif
     }
 }

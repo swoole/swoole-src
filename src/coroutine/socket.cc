@@ -881,8 +881,7 @@ bool Socket::bind(std::string address, int port)
     bind_address = address;
     bind_port = port;
 
-    struct sockaddr_storage sa_storage = { 0 };
-    struct sockaddr *sock_type = (struct sockaddr*) &sa_storage;
+    struct sockaddr *sock_type = (struct sockaddr*) &bind_address_info.addr.un;
 
     int retval;
     switch (_sock_domain)
@@ -944,6 +943,10 @@ bool Socket::bind(std::string address, int port)
 
 bool Socket::listen(int backlog)
 {
+    if (backlog <= 0)
+    {
+        backlog = SW_BACKLOG;
+    }
     _backlog = backlog;
     if (::listen(socket->fd, backlog) != 0)
     {
@@ -1118,9 +1121,9 @@ bool Socket::close()
 
     int fd = socket->fd;
 
-    if (_sock_type == SW_SOCK_UNIX_DGRAM)
+    if (_sock_domain == AF_UNIX && bind_address.size() > 0)
     {
-        unlink(socket->info.addr.un.sun_path);
+        unlink(bind_address_info.addr.un.sun_path);
     }
 
 #ifdef SW_USE_OPENSSL

@@ -609,10 +609,6 @@ typedef struct _swConnection
     double last_time_usec;
 #endif
 
-#ifdef SW_USE_TIMEWHEEL
-    uint16_t timewheel_index;
-#endif
-
     /**
      * bind uid
      */
@@ -1477,12 +1473,6 @@ struct _swReactor
 
 #ifdef SW_USE_MALLOC_TRIM
     time_t last_malloc_trim_time;
-#endif
-
-#ifdef SW_USE_TIMEWHEEL
-    swTimeWheel *timewheel;
-    uint16_t heartbeat_interval;
-    time_t last_heartbeat_time;
 #endif
 
     /**
