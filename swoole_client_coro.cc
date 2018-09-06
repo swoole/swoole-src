@@ -211,7 +211,7 @@ static Socket* client_coro_new(zval *object, int port)
 #ifdef SW_USE_OPENSSL
     if (type & SW_SOCK_SSL)
     {
-        cli->open_ssl = 1;
+        cli->open_ssl = true;
     }
 #endif
 
@@ -721,20 +721,11 @@ static PHP_METHOD(swoole_client_coro, connect)
 
     if (!cli->connect(host, port, sock_flag))
     {
-#ifdef SW_USE_OPENSSL
-        _error:
-#endif
         zend_update_property_long(swoole_client_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, cli->errCode);
         swoole_php_error(E_WARNING, "connect to server[%s:%d] failed. Error: %s[%d]", host, (int )port, cli->errMsg,
                 cli->errCode);
         RETURN_FALSE;
     }
-#ifdef SW_USE_OPENSSL
-    if (cli->open_ssl && !cli->ssl_handshake())
-    {
-        goto _error;
-    }
-#endif
     zend_update_property_bool(swoole_client_coro_class_entry_ptr, getThis(), SW_STRL("connected")-1, 1);
     RETURN_TRUE;
 }
@@ -1161,7 +1152,7 @@ static PHP_METHOD(swoole_client_coro, enableSSL)
         swoole_php_fatal_error(E_WARNING, "SSL has been enabled.");
         RETURN_FALSE;
     }
-    cli->open_ssl = 1;
+    cli->open_ssl = true;
     zval *zset = sw_zend_read_property(swoole_client_coro_class_entry_ptr, getThis(), ZEND_STRL("setting"), 1 TSRMLS_CC);
     if (zset && !ZVAL_IS_NULL(zset))
     {

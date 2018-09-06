@@ -1992,6 +1992,7 @@ struct _swTimer_node
     swTimerCallback callback;
     int64_t exec_msec;
     uint32_t interval;
+    uint64_t round;
     long id;
     int type;                 //0 normal node 1 node for client_coro
     uint8_t remove;
@@ -2015,6 +2016,7 @@ struct _swTimer
     int use_pipe;
     int lasttime;
     int fd;
+    uint64_t round;
     long _next_id;
     long _current_id;
     long _next_msec;

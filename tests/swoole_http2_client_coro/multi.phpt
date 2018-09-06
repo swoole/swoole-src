@@ -47,6 +47,7 @@ go(function () {
     assert(count($responses_headers_count_map) === 1);
     assert($responses_headers_count_map > 10);
 });
+swoole_event::wait();
 ?>
 --EXPECT--
 200
