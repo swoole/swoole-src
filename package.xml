@@ -466,7 +466,6 @@
             <file role="src" name="src/network/stream.c" />
             <file role="src" name="src/network/task_worker.c" />
             <file role="src" name="src/network/thread_pool.c" />
-            <file role="src" name="src/network/time_wheel.c" />
             <file role="src" name="src/network/timer.c" />
             <file role="src" name="src/network/worker.c" />
             <file role="src" name="src/os/base.c" />
