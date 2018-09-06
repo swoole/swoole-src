@@ -837,6 +837,7 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
     char *key;
     uint32_t keylen;
     int keytype;
+    int setlength = 0;
     zval *value = NULL;
 
     swString_clear(http_client_buffer);
@@ -899,6 +900,7 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
             //ignore Content-Length
             if (strncasecmp(key, ZEND_STRL("Content-Length")) == 0)
             {
+                setlength = 1;
                 continue;
             }
             http_client_swString_append_headers(http_client_buffer, key, keylen, Z_STRVAL_P(value), Z_STRLEN_P(value));
@@ -1161,6 +1163,11 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
     //no body
     else
     {
+        if(setlength == 1)
+        {
+            http_client_append_content_length(http_client_buffer, 0);
+        }
+
         append_crlf: swString_append_ptr(http_client_buffer, ZEND_STRL("\r\n"));
         if ((ret = http->cli->send(http->cli, http_client_buffer->str, http_client_buffer->length, 0)) < 0)
         {
