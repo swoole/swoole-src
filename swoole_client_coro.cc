@@ -104,10 +104,10 @@ static PHP_METHOD(swoole_client_coro, getsockname);
 static PHP_METHOD(swoole_client_coro, getpeername);
 static PHP_METHOD(swoole_client_coro, close);
 
-static void client_coro_check_setting(Socket *cli, zval *zset);
 static void client_coro_check_ssl_setting(Socket *cli, zval *zset);
 static Socket* client_coro_new(zval *object, int port = 0);
-static void client_coro_free(zval *zobject, Socket *cli TSRMLS_DC);
+void php_swoole_client_coro_free(zval *zobject, Socket *cli);
+void php_swoole_client_coro_check_setting(Socket *cli, zval *zset);
 
 static const zend_function_entry swoole_client_coro_methods[] =
 {
@@ -211,14 +211,14 @@ static Socket* client_coro_new(zval *object, int port)
 #ifdef SW_USE_OPENSSL
     if (type & SW_SOCK_SSL)
     {
-        cli->open_ssl = 1;
+        cli->open_ssl = true;
     }
 #endif
 
     return cli;
 }
 
-static void client_coro_free(zval *zobject, Socket *cli TSRMLS_DC)
+void php_swoole_client_coro_free(zval *zobject, Socket *cli TSRMLS_DC)
 {
     if (cli->timer)
     {
@@ -265,10 +265,10 @@ static void client_coro_free(zval *zobject, Socket *cli TSRMLS_DC)
 #endif
     //unset object
     swoole_set_object(zobject, NULL);
-    zend_update_property_bool(swoole_client_coro_class_entry_ptr, zobject, SW_STRL("connected")-1, 0);
+    zend_update_property_bool(Z_OBJCE_P(zobject), zobject, SW_STRL("connected")-1, 0);
 }
 
-static void client_coro_check_setting(Socket *cli, zval *zset TSRMLS_DC)
+void php_swoole_client_coro_check_setting(Socket *cli, zval *zset TSRMLS_DC)
 {
     HashTable *vht;
     zval *v;
@@ -716,25 +716,16 @@ static PHP_METHOD(swoole_client_coro, connect)
     zval *zset = sw_zend_read_property(swoole_client_coro_class_entry_ptr, getThis(), ZEND_STRL("setting"), 1 TSRMLS_CC);
     if (zset && !ZVAL_IS_NULL(zset))
     {
-        client_coro_check_setting(cli, zset);
+        php_swoole_client_coro_check_setting(cli, zset);
     }
 
     if (!cli->connect(host, port, sock_flag))
     {
-#ifdef SW_USE_OPENSSL
-        _error:
-#endif
         zend_update_property_long(swoole_client_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, cli->errCode);
         swoole_php_error(E_WARNING, "connect to server[%s:%d] failed. Error: %s[%d]", host, (int )port, cli->errMsg,
                 cli->errCode);
         RETURN_FALSE;
     }
-#ifdef SW_USE_OPENSSL
-    if (cli->open_ssl && !cli->ssl_handshake())
-    {
-        goto _error;
-    }
-#endif
     zend_update_property_bool(swoole_client_coro_class_entry_ptr, getThis(), SW_STRL("connected")-1, 1);
     RETURN_TRUE;
 }
@@ -844,9 +835,7 @@ static PHP_METHOD(swoole_client_coro, recvfrom)
     }
 
     zend_string *retval = zend_string_alloc(length + 1, 0);
-    char tmp_address[SW_IP_MAX_LENGTH];
-    int tmp_port;
-    ssize_t n_bytes = cli->recvfrom(retval->val, length, tmp_address, &tmp_port);
+    ssize_t n_bytes = cli->recvfrom(retval->val, length);
     if (n_bytes < 0)
     {
         zend_string_free(retval);
@@ -856,8 +845,8 @@ static PHP_METHOD(swoole_client_coro, recvfrom)
     {
         ZSTR_LEN(retval) = n_bytes;
         ZSTR_VAL(retval)[ZSTR_LEN(retval)] = '\0';
-        ZVAL_STRING(address, tmp_address);
-        ZVAL_LONG(port, tmp_port);
+        ZVAL_STRING(address, swConnection_get_ip(cli->socket));
+        ZVAL_LONG(port, swConnection_get_port(cli->socket));
         RETURN_STR(retval);
     }
 }
@@ -909,9 +898,6 @@ static PHP_METHOD(swoole_client_coro, sendfile)
 static PHP_METHOD(swoole_client_coro, recv)
 {
     double timeout = 0;
-    ssize_t ret;
-    char *buf = NULL;
-    ssize_t buf_len = SW_PHP_CLIENT_BUFFER_SIZE;
 
 #ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(0, 2)
@@ -935,176 +921,40 @@ static PHP_METHOD(swoole_client_coro, recv)
     {
         cli->setTimeout(timeout);
     }
-    swProtocol *protocol = &cli->protocol;
-
-    if (cli->open_eof_check)
+    ssize_t retval ;
+    if (cli->open_length_check || cli->open_eof_check)
     {
-        if (cli->buffer == NULL)
+        retval = cli->recv_packet();
+        if (retval > 0)
         {
-            cli->buffer = swString_new(SW_BUFFER_SIZE_BIG);
-        }
-
-        swString *buffer = cli->buffer;
-        int eof = -1;
-
-        if (buffer->length > 0)
-        {
-            goto find_eof;
-        }
-
-        while (1)
-        {
-            buf = buffer->str + buffer->length;
-            buf_len = buffer->size - buffer->length;
-
-            if (buf_len > SW_BUFFER_SIZE_BIG)
-            {
-                buf_len = SW_BUFFER_SIZE_BIG;
-            }
-
-            ret = cli->recv(buf, buf_len);
-            if (ret < 0)
-            {
-                swoole_php_error(E_WARNING, "recv() failed. Error: %s [%d]", strerror(errno), errno);
-                buffer->length = 0;
-                RETURN_FALSE;
-            }
-            else if (ret == 0)
-            {
-                buffer->length = 0;
-                RETURN_EMPTY_STRING();
-            }
-
-            buffer->length += ret;
-
-            if (buffer->length < protocol->package_eof_len)
-            {
-                continue;
-            }
-
-            find_eof: eof = swoole_strnpos(buffer->str, buffer->length, protocol->package_eof, protocol->package_eof_len);
-            if (eof >= 0)
-            {
-                eof += protocol->package_eof_len;
-                SW_RETVAL_STRINGL(buffer->str, eof, 1);
-
-                if (buffer->length > (uint32_t) eof)
-                {
-                    buffer->length -= eof;
-                    memmove(buffer->str, buffer->str + eof, buffer->length);
-                }
-                else
-                {
-                    buffer->length = 0;
-                }
-                return;
-            }
-            else
-            {
-                if (buffer->length == protocol->package_max_length)
-                {
-                    swoole_php_error(E_WARNING, "no package eof");
-                    buffer->length = 0;
-                    RETURN_FALSE;
-                }
-                else if (buffer->length == buffer->size)
-                {
-                    if (buffer->size < protocol->package_max_length)
-                    {
-                        size_t new_size = buffer->size * 2;
-                        if (new_size > protocol->package_max_length)
-                        {
-                            new_size = protocol->package_max_length;
-                        }
-                        if (swString_extend(buffer, new_size) < 0)
-                        {
-                            buffer->length = 0;
-                            RETURN_FALSE;
-                        }
-                    }
-                }
-            }
-        }
-        buffer->length = 0;
-        RETURN_FALSE;
-    }
-    else if (cli->open_length_check)
-    {
-        if (cli->buffer == NULL)
-        {
-            cli->buffer = swString_new(SW_BUFFER_SIZE_STD);
-        }
-
-        uint32_t header_len = protocol->package_length_offset + protocol->package_length_size;
-        ret = cli->recv_all(cli->buffer->str, header_len);
-        if (ret <= 0)
-        {
-            goto check_return;
-        }
-        else if (ret < 0 || ret != header_len)
-        {
-            ret = 0;
-            goto check_return;
-        }
-
-        buf_len = protocol->get_package_length(protocol, cli->socket, cli->buffer->str, ret);
-
-        //error package
-        if (buf_len < 0)
-        {
-            RETURN_EMPTY_STRING();
-        }
-        //empty package
-        else if (buf_len == header_len)
-        {
-            SW_RETURN_STRINGL(cli->buffer->str, header_len, 1);
-        }
-        else if (buf_len > protocol->package_max_length)
-        {
-            swoole_error_log(SW_LOG_WARNING, SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "Package is too big. package_length=%d", (int )buf_len);
-            RETURN_EMPTY_STRING();
-        }
-
-        buf = (char *) emalloc(buf_len + 1);
-        memcpy(buf, cli->buffer->str, header_len);
-        SwooleG.error = 0;
-        ret = cli->recv_all(buf + header_len, buf_len - header_len);
-        if (ret > 0)
-        {
-            ret += header_len;
-            if (ret != buf_len)
-            {
-                ret = 0;
-            }
+            RETVAL_STRINGL(cli->buffer->str, retval);
         }
     }
     else
     {
-        buf = (char *) emalloc(buf_len + 1);
-        ret = cli->recv(buf, buf_len);
+        zend_string *result = zend_string_alloc(SW_PHP_CLIENT_BUFFER_SIZE - sizeof(zend_string), 0);
+        retval = cli->recv(result->val, SW_PHP_CLIENT_BUFFER_SIZE - sizeof(zend_string));
+        if (retval > 0)
+        {
+            result->val[retval] = 0;
+            result->len = retval;
+            RETURN_STR(result);
+        }
+        else
+        {
+            zend_string_free(result);
+        }
     }
-
-    check_return:
-    if (ret < 0)
+    if (retval < 0)
     {
         SwooleG.error = cli->errCode;
         swoole_php_error(E_WARNING, "recv() failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
         zend_update_property_long(swoole_client_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error TSRMLS_CC);
-        swoole_efree(buf);
         RETURN_FALSE;
     }
-    else
+    else if (retval == 0)
     {
-        if (ret == 0)
-        {
-            swoole_efree(buf);
-            RETURN_EMPTY_STRING();
-        }
-        else
-        {
-            buf[ret] = 0;
-            SW_RETVAL_STRINGL(buf, ret, 0);
-        }
+        RETURN_EMPTY_STRING();
     }
 }
 
@@ -1278,7 +1128,7 @@ static PHP_METHOD(swoole_client_coro, close)
         RETURN_FALSE;
     }
     ret = cli->close();
-    client_coro_free(getThis(), cli TSRMLS_CC);
+    php_swoole_client_coro_free(getThis(), cli TSRMLS_CC);
     SW_CHECK_RETURN(ret);
 }
 
@@ -1300,7 +1150,7 @@ static PHP_METHOD(swoole_client_coro, enableSSL)
         swoole_php_fatal_error(E_WARNING, "SSL has been enabled.");
         RETURN_FALSE;
     }
-    cli->open_ssl = 1;
+    cli->open_ssl = true;
     zval *zset = sw_zend_read_property(swoole_client_coro_class_entry_ptr, getThis(), ZEND_STRL("setting"), 1 TSRMLS_CC);
     if (zset && !ZVAL_IS_NULL(zset))
     {

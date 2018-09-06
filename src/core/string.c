@@ -112,7 +112,7 @@ int swString_append_int(swString *str, int value)
     return SW_OK;
 }
 
-int swString_append_ptr(swString *str, char *append_str, int length)
+int swString_append_ptr(swString *str, const char *append_str, int length)
 {
     int new_size = str->length + length;
     if (new_size > str->size)

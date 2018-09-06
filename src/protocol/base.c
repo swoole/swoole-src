@@ -31,6 +31,7 @@ int swProtocol_get_package_length(swProtocol *protocol, swConnection *conn, char
      */
     if (size < length_offset + protocol->package_length_size)
     {
+        protocol->real_header_length = length_offset + protocol->package_length_size;
         return 0;
     }
     body_length = swoole_unpack(protocol->package_length_type, data + length_offset);
@@ -41,6 +42,7 @@ int swProtocol_get_package_length(swProtocol *protocol, swConnection *conn, char
         swWarn("invalid package, remote_addr=%s:%d, length=%d, size=%d.", swConnection_get_ip(conn), swConnection_get_port(conn), body_length, size);
         return SW_ERR;
     }
+    swDebug("length=%d", protocol->package_body_offset + body_length);
     //total package length
     return protocol->package_body_offset + body_length;
 }
@@ -104,7 +106,7 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swCon
                 buffer->length = remaining_length;
                 buffer->offset = 0;
 #ifdef SW_USE_OPENSSL
-                if (conn->ssl && SSL_pending(conn->ssl) > 0)
+                if (conn->ssl)
                 {
                     return SW_CONTINUE;
                 }
@@ -134,7 +136,7 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swCon
     swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[3] length=%ld, size=%ld, offset=%ld", buffer->length, buffer->size, (long)buffer->offset);
     swString_clear(buffer);
 #ifdef SW_USE_OPENSSL
-    if (conn->ssl && SSL_pending(conn->ssl) > 0)
+    if (conn->ssl)
     {
         return SW_CONTINUE;
     }
@@ -221,7 +223,7 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
                 {
                     swString_clear(buffer);
 #ifdef SW_USE_OPENSSL
-                    if (conn->ssl && SSL_pending(conn->ssl) > 0)
+                    if (conn->ssl)
                     {
                         goto do_recv;
                     }

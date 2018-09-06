@@ -29,6 +29,22 @@ static sw_inline zend_bool Z_BVAL_P(zval *v)
 }
 
 //----------------------------------Array API------------------------------------
+
+static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong value)
+{
+    if (likely(value <= ZEND_LONG_MAX))
+    {
+        return add_assoc_long(arg, key, value);
+    }
+    else
+    {
+        char buf[MAX_LENGTH_OF_LONG + 1];
+        memset((char *) buf, 0, MAX_LENGTH_OF_LONG + 1);
+        sprintf((char *) buf, ZEND_ULONG_FMT, value);
+        return add_assoc_string(arg, key, buf);
+    }
+}
+
 #define sw_add_assoc_stringl(__arg, __key, __str, __length, __duplicate)   add_assoc_stringl_ex(__arg, __key, strlen(__key), __str, __length)
 static sw_inline int sw_add_assoc_stringl_ex(zval *arg, const char *key, size_t key_len, char *str, size_t length, int __duplicate)
 {

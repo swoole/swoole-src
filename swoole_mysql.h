@@ -19,6 +19,13 @@
 #ifndef SWOOLE_MYSQL_H_
 #define SWOOLE_MYSQL_H_
 
+BEGIN_EXTERN_C()
+
+#ifdef SW_USE_MYSQLND
+#include "ext/mysqlnd/mysqlnd.h"
+#include "ext/mysqlnd/mysqlnd_charset.h"
+#endif
+
 #ifdef SW_USE_OPENSSL
 #ifndef OPENSSL_NO_RSA
 #define SW_MYSQL_RSA_SUPPORT
@@ -385,6 +392,24 @@ typedef struct _mysql_client
 
 #define mysql_request_buffer (SwooleTG.buffer_stack)
 
+#define SW_MYSQL_NOT_NULL_FLAG               1
+#define SW_MYSQL_PRI_KEY_FLAG                2
+#define SW_MYSQL_UNIQUE_KEY_FLAG             4
+#define SW_MYSQL_MULTIPLE_KEY_FLAG           8
+#define SW_MYSQL_BLOB_FLAG                  16
+#define SW_MYSQL_UNSIGNED_FLAG              32
+#define SW_MYSQL_ZEROFILL_FLAG              64
+#define SW_MYSQL_BINARY_FLAG               128
+#define SW_MYSQL_ENUM_FLAG                 256
+#define SW_MYSQL_AUTO_INCREMENT_FLAG       512
+#define SW_MYSQL_TIMESTAMP_FLAG           1024
+#define SW_MYSQL_SET_FLAG                 2048
+#define SW_MYSQL_NO_DEFAULT_VALUE_FLAG    4096
+#define SW_MYSQL_ON_UPDATE_NOW_FLAG       8192
+#define SW_MYSQL_PART_KEY_FLAG           16384
+#define SW_MYSQL_GROUP_FLAG              32768
+#define SW_MYSQL_NUM_FLAG                32768
+
 #define mysql_uint2korr(A)  (uint16_t) (((uint16_t) ((zend_uchar) (A)[0])) +\
                                ((uint16_t) ((zend_uchar) (A)[1]) << 8))
 #define mysql_uint3korr(A)  (uint32_t) (((uint32_t) ((zend_uchar) (A)[0])) +\
@@ -544,5 +569,7 @@ static sw_inline int mysql_length_coded_binary(char *m, ulong_t *r, char *nul, i
 }
 
 int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callback TSRMLS_DC);
+
+END_EXTERN_C()
 
 #endif /* SWOOLE_MYSQL_H_ */

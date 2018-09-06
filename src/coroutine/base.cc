@@ -1,3 +1,19 @@
+/*
+  +----------------------------------------------------------------------+
+  | Swoole                                                               |
+  +----------------------------------------------------------------------+
+  | This source file is subject to version 2.0 of the Apache license,    |
+  | that is bundled with this package in the file LICENSE, and is        |
+  | available through the world-wide-web at the following url:           |
+  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
+  | If you did not receive a copy of the Apache2.0 license and are unable|
+  | to obtain it through the world-wide-web, please send a note to       |
+  | license@swoole.com so we can mail you a copy immediately.            |
+  +----------------------------------------------------------------------+
+  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  +----------------------------------------------------------------------+
+*/
+
 #include "coroutine.h"
 #include "context.h"
 #include <string>
@@ -28,15 +44,13 @@ public:
 static struct
 {
     int                 stack_size;
-    int                 current_cid;
-    int                 previous_cid;
-    struct coroutine_s *coroutines[MAX_CORO_NUM_LIMIT + 1];
+    int                 call_stack_size;
+    struct coroutine_s* coroutines[MAX_CORO_NUM_LIMIT + 1];
+    struct coroutine_s* call_stack[SW_MAX_CORO_NESTING_LEVEL];
     coro_php_yield_t    onYield;  /* before php yield coro */
     coro_php_resume_t   onResume; /* before php resume coro */
     coro_php_close_t    onClose;  /* before php close coro */
-} swCoroG =
-{ SW_DEFAULT_C_STACK_SIZE, -1, -1,
-{ NULL, }, NULL };
+} swCoroG = { SW_DEFAULT_C_STACK_SIZE, 0, { nullptr, },  { nullptr, }, nullptr, nullptr, nullptr };
 
 /* 1 <= cid <= 524288 */
 static cidmap_t cidmap =
@@ -128,8 +142,7 @@ int coroutine_create(coroutine_func_t fn, void* args)
 
     coroutine_t *co = new coroutine_s(cid, swCoroG.stack_size, fn, args);
     swCoroG.coroutines[cid] = co;
-    swCoroG.previous_cid = swCoroG.current_cid;
-    swCoroG.current_cid = cid;
+    swCoroG.call_stack[swCoroG.call_stack_size++] = co;
     co->ctx.SwapIn();
     if (co->ctx.end)
     {
@@ -144,7 +157,7 @@ void coroutine_yield(coroutine_t *co)
     {
         swCoroG.onYield(co->ptr);
     }
-    swCoroG.current_cid = swCoroG.previous_cid;
+    swCoroG.call_stack_size--;
     co->ctx.SwapOut();
 }
 
@@ -154,8 +167,7 @@ void coroutine_resume(coroutine_t *co)
     {
         swCoroG.onResume(co->ptr);
     }
-    swCoroG.previous_cid = swCoroG.current_cid;
-    swCoroG.current_cid = co->cid;
+    swCoroG.call_stack[swCoroG.call_stack_size++] = co;
     co->ctx.SwapIn();
     if (co->ctx.end)
     {
@@ -165,14 +177,13 @@ void coroutine_resume(coroutine_t *co)
 
 void coroutine_yield_naked(coroutine_t *co)
 {
-    swCoroG.current_cid = swCoroG.previous_cid;
+    swCoroG.call_stack_size--;
     co->ctx.SwapOut();
 }
 
 void coroutine_resume_naked(coroutine_t *co)
 {
-    swCoroG.previous_cid = swCoroG.current_cid;
-    swCoroG.current_cid = co->cid;
+    swCoroG.call_stack[swCoroG.call_stack_size++] = co;
     co->ctx.SwapIn();
     if (co->ctx.end)
     {
@@ -187,6 +198,7 @@ void coroutine_release(coroutine_t *co)
         swCoroG.onClose();
     }
     free_cidmap(co->cid);
+    swCoroG.call_stack_size--;
     swCoroG.coroutines[co->cid] = NULL;
     delete co;
 }
@@ -214,9 +226,22 @@ coroutine_t* coroutine_get_by_id(int cid)
     return swCoroG.coroutines[cid];
 }
 
+coroutine_t* coroutine_get_current_task()
+{
+    return (swCoroG.call_stack_size > 0) ? swCoroG.call_stack[swCoroG.call_stack_size - 1] : nullptr;
+}
+
 int coroutine_get_current_cid()
 {
-    return swCoroG.current_cid;
+    coroutine_t* co = coroutine_get_current_task();
+    if (co)
+    {
+        return co->cid;
+    }
+    else
+    {
+        return -1;
+    }
 }
 
 int coroutine_get_cid(coroutine_t *co)

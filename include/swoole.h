@@ -142,10 +142,20 @@ typedef unsigned long ulong_t;
 
 #define SW_START_LINE  "-------------------------START----------------------------"
 #define SW_END_LINE    "-------------------------END------------------------------"
-#define SW_ECHO_GREEN             "\e[32m%s\e[0m"
 #define SW_ECHO_RED               "\e[31m%s\e[0m"
+#define SW_ECHO_GREEN             "\e[32m%s\e[0m"
 #define SW_ECHO_YELLOW            "\e[33m%s\e[0m"
-#define SW_ECHO_CYAN_BLUE         "\e[36m%s\e[0m"
+#define SW_ECHO_BLUE              "\e[34m%s\e[0m"
+#define SW_ECHO_MAGENTA           "\e[35m%s\e[0m"
+#define SW_ECHO_CYAN              "\e[36m%s\e[0m"
+#define SW_ECHO_WHITE             "\e[37m%s\e[0m"
+#define SW_COLOR_RED              1
+#define SW_COLOR_GREEN            2
+#define SW_COLOR_YELLOW           3
+#define SW_COLOR_BLUE             4
+#define SW_COLOR_MAGENTA          5
+#define SW_COLOR_CYAN             6
+#define SW_COLOR_WHITE            7
 
 #define SW_SPACE       ' '
 #define SW_CRLF        "\r\n"
@@ -599,10 +609,6 @@ typedef struct _swConnection
     double last_time_usec;
 #endif
 
-#ifdef SW_USE_TIMEWHEEL
-    uint16_t timewheel_index;
-#endif
-
     /**
      * bind uid
      */
@@ -651,6 +657,7 @@ typedef struct _swProtocol
     uint32_t package_max_length;
 
     void *private_data;
+    uint16_t real_header_length;
 
     int (*onPackage)(swConnection *conn, char *data, uint32_t length);
     int (*get_package_length)(struct _swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
@@ -712,7 +719,7 @@ swString *swString_dup2(swString *src);
 void swString_print(swString *str);
 void swString_free(swString *str);
 int swString_append(swString *str, swString *append_str);
-int swString_append_ptr(swString *str, char *append_str, int length);
+int swString_append_ptr(swString *str, const char *append_str, int length);
 int swString_write(swString *str, off_t offset, swString *write_str);
 int swString_write_ptr(swString *str, off_t offset, char *write_str, int length);
 int swString_extend(swString *str, size_t new_size);
@@ -1357,11 +1364,11 @@ int swSocket_bind(int sock, int type, char *host, int *port);
 int swSocket_wait(int fd, int timeout_ms, int events);
 int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events);
 void swSocket_clean(int fd);
-int swSocket_sendto_blocking(int fd, void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len);
+ssize_t swSocket_sendto_blocking(int fd, void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len);
 int swSocket_set_buffer_size(int fd, int buffer_size);
-int swSocket_udp_sendto(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len);
-int swSocket_udp_sendto6(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len);
-int swSocket_unix_sendto(int server_sock, char *dst_path, char *data, uint32_t len);
+ssize_t swSocket_udp_sendto(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len);
+ssize_t swSocket_udp_sendto6(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len);
+ssize_t swSocket_unix_sendto(int server_sock, char *dst_path, char *data, uint32_t len);
 int swSocket_sendfile_sync(int sock, char *filename, off_t offset, size_t length, double timeout);
 int swSocket_write_blocking(int __fd, void *__data, int __len);
 int swSocket_recv_blocking(int fd, void *__data, size_t __len, int flags);
@@ -1466,12 +1473,6 @@ struct _swReactor
 
 #ifdef SW_USE_MALLOC_TRIM
     time_t last_malloc_trim_time;
-#endif
-
-#ifdef SW_USE_TIMEWHEEL
-    swTimeWheel *timewheel;
-    uint16_t heartbeat_interval;
-    time_t last_heartbeat_time;
 #endif
 
     /**
@@ -1808,6 +1809,20 @@ static sw_inline int swReactor_remove_read_event(swReactor *reactor, int fd)
     }
 }
 
+static sw_inline int swReactor_remove_write_event(swReactor *reactor, int fd)
+{
+    swConnection *conn = swReactor_get(reactor, fd);
+    if (conn->events & SW_EVENT_READ)
+    {
+        conn->events &= (~SW_EVENT_WRITE);
+        return reactor->set(reactor, fd, conn->fdtype | conn->events);
+    }
+    else
+    {
+        return reactor->del(reactor, fd);
+    }
+}
+
 static sw_inline swReactor_handle swReactor_getHandle(swReactor *reactor, int event_type, int fdtype)
 {
     if (event_type == SW_EVENT_WRITE)
@@ -1967,6 +1982,7 @@ struct _swTimer_node
     swTimerCallback callback;
     int64_t exec_msec;
     uint32_t interval;
+    uint64_t round;
     long id;
     int type;                 //0 normal node 1 node for client_coro
     uint8_t remove;
@@ -1975,8 +1991,10 @@ struct _swTimer_node
 enum swTimer_type
 {
     SW_TIMER_TYPE_KERNEL,
-    SW_TIMER_TYPE_CORO,
     SW_TIMER_TYPE_PHP,
+    SW_TIMER_TYPE_CORO_READ,
+    SW_TIMER_TYPE_CORO_WRITE,
+    SW_TIMER_TYPE_CORO_ALL,
 };
 
 struct _swTimer
@@ -1988,6 +2006,7 @@ struct _swTimer
     int use_pipe;
     int lasttime;
     int fd;
+    uint64_t round;
     long _next_id;
     long _current_id;
     long _next_msec;

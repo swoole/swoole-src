@@ -60,34 +60,37 @@ int swWebSocket_get_package_length(swProtocol *protocol, swConnection *conn, cha
     //uint16_t, 2byte
     if (payload_length == 0x7e)
     {
-        if (length < 4)
+        header_length += sizeof(uint16_t);
+        if (length < header_length)
         {
+            protocol->real_header_length = header_length;
             return 0;
         }
         payload_length = ntohs(*((uint16_t *) buf));
-        header_length += sizeof(uint16_t);
         buf += sizeof(uint16_t);
     }
     //uint64_t, 8byte
     else if (payload_length > 0x7e)
     {
+        header_length += sizeof(uint64_t);
         if (length < 10)
         {
+            protocol->real_header_length = header_length;
             return 0;
         }
         payload_length = swoole_ntoh64(*((uint64_t *) buf));
-        header_length += sizeof(uint64_t);
         buf += sizeof(uint64_t);
     }
     if (mask)
     {
-        if (length < header_length + 4)
+        header_length += SW_WEBSOCKET_MASK_LEN;
+        if (length < header_length)
         {
+            protocol->real_header_length = header_length;
             return 0;
         }
-        header_length += SW_WEBSOCKET_MASK_LEN;
     }
-    swTrace("header_length=%d, payload_length=%d", (int)header_length, (int)payload_length);
+    swTrace("header_length=%d, payload_length=%d", (int )header_length, (int )payload_length);
     return header_length + payload_length;
 }
 
@@ -225,7 +228,7 @@ int swWebSocket_dispatch_frame(swConnection *conn, char *data, uint32_t length)
     size_t offset;
     switch (ws.header.OPCODE)
     {
-    case WEBSOCKET_OPCODE_CONTINUATION_FRAME:
+    case WEBSOCKET_OPCODE_CONTINUATION:
         frame_buffer = conn->websocket_buffer;
         if (frame_buffer == NULL)
         {
@@ -252,8 +255,8 @@ int swWebSocket_dispatch_frame(swConnection *conn, char *data, uint32_t length)
         }
         break;
 
-    case WEBSOCKET_OPCODE_TEXT_FRAME:
-    case WEBSOCKET_OPCODE_BINARY_FRAME:
+    case WEBSOCKET_OPCODE_TEXT:
+    case WEBSOCKET_OPCODE_BINARY:
         offset = length - ws.payload_length - SW_WEBSOCKET_HEADER_LEN;
         data[offset] = 1;
         data[offset + 1] = ws.header.OPCODE;
@@ -293,7 +296,7 @@ int swWebSocket_dispatch_frame(swConnection *conn, char *data, uint32_t length)
     case WEBSOCKET_OPCODE_PONG:
         break;
 
-    case WEBSOCKET_OPCODE_CONNECTION_CLOSE:
+    case WEBSOCKET_OPCODE_CLOSE:
         if (0x7d < (length - 2))
         {
             return SW_ERR;

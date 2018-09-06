@@ -20,8 +20,7 @@ $pm->childFunc = function () use ($pm)
     $http = new swoole_http_server("127.0.0.1", 9501, SWOOLE_BASE, SWOOLE_SOCK_TCP);
 
     $http->set([
-        'http_gzip_level' => 9,
-        'http_compression' => true,
+        'http_compression' => false,
     ]);
 
     $http->on("WorkerStart", function ($serv, $wid) {

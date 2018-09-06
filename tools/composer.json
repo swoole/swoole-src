@@ -1,0 +1,5 @@
+{
+    "require": {
+        "matyhtf/swoole_framework": "^1.20"
+    }
+}
