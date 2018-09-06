@@ -240,7 +240,7 @@ static PHP_METHOD(swoole_socket_coro, bind)
 
 static PHP_METHOD(swoole_socket_coro, listen)
 {
-    zend_long backlog = 0;
+    zend_long backlog = SW_BACKLOG;
 
 #ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(0, 1)
@@ -537,7 +537,7 @@ static PHP_METHOD(swoole_socket_coro, getpeername)
     swSocketAddress info;
     char addr_str[INET6_ADDRSTRLEN + 1];
 
-    if (getpeername(sock->socket->get_fd(), (struct sockaddr *) &info.addr.inet_v4, &info.len) != 0)
+    if (getpeername(sock->socket->get_fd(), (struct sockaddr *) &info.addr, &info.len) != 0)
     {
         zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), errno TSRMLS_CC);
         RETURN_FALSE;
