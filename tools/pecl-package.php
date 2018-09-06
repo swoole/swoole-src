@@ -15,24 +15,27 @@ foreach ($file_list_raw as $file) {
     if (is_dir($root_dir . $file)) {
         continue;
     }
-    if ($file === 'package.xml') {
+    if ($file === 'package.xml' || substr($file, 0, 1) === '.') {
         continue;
     }
-    $ext = pathinfo($file, PATHINFO_EXTENSION);
-    $role = 'src';
-    switch ($ext) {
-        case 'phpt':
-            $role = 'test';
-            break;
-        case 'md':
-        case 'txt':
-            $role = 'doc';
-            break;
-        case '':
-            if (substr(file_get_contents($root_dir . $file), 0, 2) !== '#!') {
+    if (substr($file, 0, 5) === 'tests') {
+        $role = 'test';
+    } else {
+        $ext = pathinfo($file, PATHINFO_EXTENSION);
+        $role = 'src';
+        switch ($ext) {
+            case 'phpt':
+                $role = 'test';
+                break;
+            case 'md':
                 $role = 'doc';
-            }
-            break;
+                break;
+            case '':
+                if (substr(file_get_contents($root_dir . $file), 0, 2) !== '#!') {
+                    $role = 'doc';
+                }
+                break;
+        }
     }
     $file_list[] = "<file role=\"{$role}\" name=\"{$file}\" />\n";
 }
