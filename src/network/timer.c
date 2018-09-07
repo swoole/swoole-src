@@ -159,7 +159,7 @@ static swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *
         sw_free(tnode);
         return NULL;
     }
-    swTrace("id=%ld, exec_msec=%ld, msec=%d, round=%ld", tnode->id, tnode->exec_msec, _msec, tnode->round);
+    swTrace("id=%ld, exec_msec=%" PRId64 ", msec=%d, round=%" PRIu64, tnode->id, tnode->exec_msec, _msec, tnode->round);
     swHashMap_add_int(timer->map, tnode->id, tnode);
     return tnode;
 }
