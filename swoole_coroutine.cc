@@ -23,15 +23,6 @@
 #include "zend_vm.h"
 #include "zend_closures.h"
 
-/* PHP 7.3 compatibility macro {{{*/
-#ifndef ZEND_CLOSURE_OBJECT
-# define ZEND_CLOSURE_OBJECT(func) (zend_object*)func->op_array.prototype
-#endif
-#ifndef GC_ADDREF
-# define GC_ADDREF(ref) ++GC_REFCOUNT(ref)
-# define GC_DELREF(ref) --GC_REFCOUNT(ref)
-#endif/*}}}*/
-
 #define TASK_SLOT \
     ((int)((ZEND_MM_ALIGNED_SIZE(sizeof(coro_task)) + ZEND_MM_ALIGNED_SIZE(sizeof(zval)) - 1) / ZEND_MM_ALIGNED_SIZE(sizeof(zval))))
 #define SWCC(x) sw_current_context->x

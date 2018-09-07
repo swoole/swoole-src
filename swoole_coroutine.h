@@ -6,6 +6,15 @@ extern "C" {
 #endif
 #include "coroutine.h"
 
+/* PHP 7.3 compatibility macro {{{*/
+#ifndef ZEND_CLOSURE_OBJECT
+# define ZEND_CLOSURE_OBJECT(func) (zend_object*)func->op_array.prototype
+#endif
+#ifndef GC_ADDREF
+# define GC_ADDREF(ref) ++GC_REFCOUNT(ref)
+# define GC_DELREF(ref) --GC_REFCOUNT(ref)
+#endif/*}}}*/
+
 #define SW_EX_CV_NUM(ex, n) (((zval ***)(((char *)(ex)) + ZEND_MM_ALIGNED_SIZE(sizeof(zend_execute_data)))) + n)
 #define SW_EX_CV(var) (*SW_EX_CV_NUM(execute_data, var))
 
