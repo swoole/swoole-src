@@ -550,6 +550,7 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
     zval *post_data = hcc->request_body;
     zval *send_header = hcc->request_header;
     zval *value = NULL;
+    uint8_t enable_length = 0;
 
     //POST
     if (hcc->request_method == NULL)
@@ -630,9 +631,10 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
             {
                 continue;
             }
-            //ignore Content-Length
+            //ignore custom Content-Length value
             if (strncasecmp(key, ZEND_STRL("Content-Length")) == 0)
             {
+                enable_length = 1;
                 continue;
             }
             http_client_swString_append_headers(http_client_buffer, key, keylen, Z_STRVAL_P(value), Z_STRLEN_P(value));
@@ -909,9 +911,17 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
         zend_update_property_null(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("requestBody"));
         hcc->request_body = NULL;
     }
+    //no body
     else
     {
-        swString_append_ptr(http_client_buffer, ZEND_STRL("\r\n"));
+        if (enable_length)
+        {
+            http_client_append_content_length(http_client_buffer, 0);
+        }
+        else
+        {
+            swString_append_ptr(http_client_buffer, ZEND_STRL("\r\n"));
+        }
     }
 
     swTrace("[%d]: %s\n", (int)http_client_buffer->length, http_client_buffer->str);
@@ -925,7 +935,9 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
        return SW_ERR;
     }
 
-    send_ok: hcc->wait = true;
+    send_ok:
+    hcc->wait = true;
+
     return SW_OK;
 }
 
