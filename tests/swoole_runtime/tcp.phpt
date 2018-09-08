@@ -1,5 +1,5 @@
 --TEST--
-swoole_runtime: ssl stream
+swoole_runtime: tcp
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';

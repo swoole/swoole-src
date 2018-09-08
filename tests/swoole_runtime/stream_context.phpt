@@ -8,7 +8,7 @@ require __DIR__ . '/../include/skipif.inc';
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
 
-//swoole\runtime::enableCoroutine();
+swoole\runtime::enableCoroutine();
 
 go(function () {
     $opts = array(
