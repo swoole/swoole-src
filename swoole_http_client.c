@@ -814,6 +814,7 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
 
     zval *post_data = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("requestBody"), 1 TSRMLS_CC);
     zval *send_header = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("requestHeaders"), 1 TSRMLS_CC);
+    uint8_t enable_length = 0;
 
     //POST
     if (post_data && !ZVAL_IS_NULL(post_data))
@@ -896,9 +897,10 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
             {
                 continue;
             }
-            //ignore Content-Length
+            //ignore custom Content-Length value
             if (strncasecmp(key, ZEND_STRL("Content-Length")) == 0)
             {
+                enable_length = 1;
                 continue;
             }
             http_client_swString_append_headers(http_client_buffer, key, keylen, Z_STRVAL_P(value), Z_STRLEN_P(value));
@@ -1161,7 +1163,15 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
     //no body
     else
     {
-        append_crlf: swString_append_ptr(http_client_buffer, ZEND_STRL("\r\n"));
+        append_crlf:
+        if (enable_length)
+        {
+            http_client_append_content_length(http_client_buffer, 0);
+        }
+        else
+        {
+            swString_append_ptr(http_client_buffer, ZEND_STRL("\r\n"));
+        }
         if ((ret = http->cli->send(http->cli, http_client_buffer->str, http_client_buffer->length, 0)) < 0)
         {
             send_fail:
