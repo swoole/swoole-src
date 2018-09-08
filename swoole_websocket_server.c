@@ -243,7 +243,7 @@ int swoole_websocket_onMessage(swEventData *req)
     char frame_header[2];
     php_swoole_get_recv_data(zdata, req, frame_header, SW_WEBSOCKET_HEADER_LEN);
 
-    finish = frame_header[0] & 0x80 ? 1 : 0;
+    finish = frame_header[0] ? 1 : 0;
     opcode = frame_header[0] & 0x0F;   // Opcode: low 4 bits of first byte
 
     if (opcode == WEBSOCKET_OPCODE_CLOSE)
