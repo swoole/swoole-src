@@ -104,7 +104,7 @@ protected:
 
         buffer = nullptr;
         protocol = {0};
-        bind_address_info = {0};
+        bind_address_info = {{}, 0};
 
         protocol.package_length_type = 'N';
         protocol.package_length_size = 4;

@@ -418,7 +418,7 @@ static inline int socket_accept(php_stream *stream, Socket *sock, php_stream_xpo
             xparam->outputs.client->ctx = stream->ctx;
             if (stream->ctx)
             {
-                GC_REFCOUNT(stream->ctx)++;
+                GC_ADDREF(stream->ctx);
             }
         }
         return 0;
