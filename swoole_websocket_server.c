@@ -534,10 +534,13 @@ static PHP_METHOD(swoole_websocket_server, disconnect)
     // Format swEventData
     swEventData req;
     req.info.fd         = fd;
-    req.info.len        = swoole_http_buffer->length;
+    req.info.len        = SW_WEBSOCKET_HEADER_LEN + (size_t)payload_length;
     req.info.from_id    = -1;
     req.info.from_fd    = conn->from_fd;
-    memcpy(&req.data, swoole_http_buffer->str, swoole_http_buffer->length);
+
+    req.data[0] = 1;                        // Flag FIN: 1
+    req.data[1] = WEBSOCKET_OPCODE_CLOSE;   // OPCODE: WEBSOCKET_OPCODE_CLOSE
+    memcpy(req.data + SW_WEBSOCKET_HEADER_LEN, swoole_http_buffer->str + SW_WEBSOCKET_HEADER_LEN, (size_t)payload_length);
 
     // Call onClose
     swoole_websocket_onMessage(&req);
