@@ -33,8 +33,8 @@ $pm->childFunc = function () use ($pm) {
     });
     $serv->on('Message', function ($serv, $frame) {
         if ($frame->opcode == WEBSOCKET_OPCODE_CLOSE) {
-            echo "{$frame->code}\n";
-            echo "{$frame->reason}\n";
+            if (isset($frame->code)) echo "{$frame->code}\n";
+            if (isset($frame->reason)) echo "{$frame->reason}\n";
         } else {
             if ($frame->data == 'shutdown') {
                 echo "{$frame->data}\n";
