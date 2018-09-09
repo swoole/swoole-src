@@ -497,7 +497,15 @@ static PHP_METHOD(swoole_websocket_server, disconnect)
         RETURN_FALSE;
     }
 
-    length = php_swoole_get_send_data(zdata, &data TSRMLS_CC);
+    if (zdata)
+    {
+        length = php_swoole_get_send_data(zdata, &data TSRMLS_CC);
+    }
+    else
+    {
+        // Status reason is not set
+        length = 0;
+    }
 
     if (length < 0 || length > SW_WEBSOCKET_CLOSE_REASON_MAX_LEN)
     {
