@@ -254,8 +254,7 @@ int swoole_websocket_onMessage(swEventData *req)
             return SW_OK;
         }
         // WebSocket Close code and reason message
-        long length = Z_STRLEN_P(zdata);
-        payload_length = length;
+        payload_length = Z_STRLEN_P(zdata);
         if (payload_length >= SW_WEBSOCKET_CLOSE_CODE_LEN)
         {
             char *data = Z_STRVAL_P(zdata);
@@ -522,8 +521,8 @@ static PHP_METHOD(swoole_websocket_server, disconnect)
     memcpy(swoole_http_buffer->str + SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_CLOSE_CODE_LEN, data, length);
 
     // Encode close code
-    swoole_http_buffer->str[2] = (char)((code >> 8 & 0x00FF));
-    swoole_http_buffer->str[3] = (char)((code & 0x00FF));
+    swoole_http_buffer->str[2] = (char)((code >> 8 & 0xFF));
+    swoole_http_buffer->str[3] = (char)((code & 0xFF));
 
     swoole_http_buffer->length = payload_length + SW_WEBSOCKET_HEADER_LEN;
 
