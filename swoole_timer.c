@@ -301,7 +301,7 @@ void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode)
 
 void php_swoole_check_timer(int msec)
 {
-    if (SwooleG.timer.fd == 0)
+    if (unlikely(SwooleG.timer.fd == 0))
     {
         swTimer_init(msec);
     }

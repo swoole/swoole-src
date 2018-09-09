@@ -17,6 +17,11 @@
 #ifndef PHP_SWOOLE_H
 #define PHP_SWOOLE_H
 
+// C++ build format macros must defined earlier
+#ifdef __cplusplus
+#define __STDC_FORMAT_MACROS
+#endif
+
 #include "php.h"
 #include "php_ini.h"
 #include "php_globals.h"
@@ -58,10 +63,11 @@ BEGIN_EXTERN_C()
 #include <ext/standard/url.h>
 #include <ext/standard/info.h>
 #include <ext/standard/php_array.h>
+#include <ext/standard/php_var.h>
 #include <ext/standard/basic_functions.h>
 #include <ext/standard/php_http.h>
 
-#define PHP_SWOOLE_VERSION  "4.1.0-alpha"
+#define PHP_SWOOLE_VERSION  "4.1.2"
 #define PHP_SWOOLE_CHECK_CALLBACK
 #define PHP_SWOOLE_ENABLE_FASTCALL
 #define PHP_SWOOLE_CLIENT_USE_POLL
@@ -125,14 +131,6 @@ extern swoole_object_array swoole_objects;
 #define swoole_php_fatal_error(level, fmt_str, ...)   php_error_docref(NULL TSRMLS_CC, level, fmt_str, ##__VA_ARGS__)
 #define swoole_php_sys_error(level, fmt_str, ...)  if (SWOOLE_G(display_errors)) php_error_docref(NULL TSRMLS_CC, level, fmt_str" Error: %s[%d].", ##__VA_ARGS__, strerror(errno), errno)
 #define swoole_efree(p)  if (p) efree(p)
-
-#if defined(SW_ASYNC_MYSQL)
-#if defined(SW_HAVE_MYSQLI) && defined(SW_HAVE_MYSQLND)
-#else
-#error "Enable async_mysql support, require mysqli and mysqlnd."
-#undef SW_ASYNC_MYSQL
-#endif
-#endif
 
 #ifdef SW_USE_OPENSSL
 #ifndef HAVE_OPENSSL
@@ -509,7 +507,7 @@ int php_coroutine_reactor_can_exit(swReactor *reactor);
 static sw_inline zval* php_swoole_server_get_callback(swServer *serv, int server_fd, int event_type)
 {
     swListenPort *port = (swListenPort *) serv->connection_list[server_fd].object;
-    if (port == NULL)
+    if (!port)
     {
         swWarn("invalid server_fd[%d].", server_fd);
         return NULL;
@@ -534,6 +532,11 @@ static sw_inline zval* php_swoole_server_get_callback(swServer *serv, int server
 static sw_inline zend_fcall_info_cache* php_swoole_server_get_cache(swServer *serv, int server_fd, int event_type)
 {
     swListenPort *port = (swListenPort *) serv->connection_list[server_fd].object;
+    if (!port)
+    {
+        swWarn("invalid server_fd[%d].", server_fd);
+        return NULL;
+    }
     swoole_server_port_property *property = (swoole_server_port_property *) port->ptr;
     if (!property)
     {
@@ -606,6 +609,7 @@ ZEND_BEGIN_MODULE_GLOBALS(swoole)
     zend_bool use_namespace;
     zend_bool use_shortname;
     zend_bool fast_serialize;
+    zend_bool enable_coroutine;
     long socket_buffer_size;
     php_swoole_req_status req_status;
     swLinkedList *rshutdown_functions;
@@ -619,6 +623,7 @@ extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
 #define SWOOLE_G(v) (swoole_globals.v)
 #endif
 
+#define SWOOLE_RAW_DEFINE(constant)    REGISTER_LONG_CONSTANT(#constant, constant, CONST_CS | CONST_PERSISTENT)
 #define SWOOLE_DEFINE(constant)    REGISTER_LONG_CONSTANT("SWOOLE_"#constant, SW_##constant, CONST_CS | CONST_PERSISTENT)
 
 #define SWOOLE_INIT_CLASS_ENTRY(ce, name, name_ns, methods) \

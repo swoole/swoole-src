@@ -6,6 +6,15 @@ extern "C" {
 #endif
 #include "coroutine.h"
 
+/* PHP 7.3 compatibility macro {{{*/
+#ifndef ZEND_CLOSURE_OBJECT
+# define ZEND_CLOSURE_OBJECT(func) (zend_object*)func->op_array.prototype
+#endif
+#ifndef GC_ADDREF
+# define GC_ADDREF(ref) ++GC_REFCOUNT(ref)
+# define GC_DELREF(ref) --GC_REFCOUNT(ref)
+#endif/*}}}*/
+
 #define SW_EX_CV_NUM(ex, n) (((zval ***)(((char *)(ex)) + ZEND_MM_ALIGNED_SIZE(sizeof(zend_execute_data)))) + n)
 #define SW_EX_CV(var) (*SW_EX_CV_NUM(execute_data, var))
 
@@ -77,6 +86,7 @@ typedef struct _coro_global
 {
     uint32_t coro_num;
     uint32_t max_coro_num;
+    uint32_t peak_coro_num;
     uint32_t stack_size;
     zend_vm_stack origin_vm_stack;
     zval *origin_vm_stack_top;
@@ -85,7 +95,7 @@ typedef struct _coro_global
     zend_execute_data *origin_ex;
     coro_task *current_coro;
     zend_bool active;
-    coro_task *call_stack[128];
+    coro_task *call_stack[SW_MAX_CORO_NESTING_LEVEL];
     int call_stack_size;
     int error;
 } coro_global;
@@ -112,6 +122,8 @@ void coro_check(TSRMLS_D);
 #define coro_resume(sw_current_context, retval, coro_retval) \
         sw_coro_resume(sw_current_context, retval, *coro_retval)
 #define coro_yield() sw_coro_yield()
+
+#define coro_use_return_value(); *(zend_uchar *) &execute_data->prev_execute_data->opline->result_type = IS_VAR;
 
 /* output globals */
 #define SWOG ((zend_output_globals *) &OG(handlers))

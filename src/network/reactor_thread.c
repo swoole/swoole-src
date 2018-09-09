@@ -32,10 +32,6 @@ static void swReactorThread_onStreamResponse(swStream *stream, char *data, uint3
 static int swReactorThread_dispatch_array_buffer(swReactorThread *thread, swConnection *conn);
 #endif
 
-#ifdef SW_USE_TIMEWHEEL
-static void swReactorThread_onReactorCompleted(swReactor *reactor);
-#endif
-
 #ifdef SW_USE_RINGBUFFER
 static sw_inline void swReactorThread_yield(swReactorThread *thread)
 {
@@ -368,17 +364,8 @@ int swReactorThread_close(swReactor *reactor, int fd)
     }
 #endif
 
-#ifdef SW_REACTOR_USE_SESSION
     swSession *session = swServer_get_session(serv, conn->session_id);
     session->fd = 0;
-#endif
-
-#ifdef SW_USE_TIMEWHEEL
-    if (reactor->timewheel)
-    {
-        swTimeWheel_remove(reactor->timewheel, conn);
-    }
-#endif
 
     /**
      * reset maxfd, for connection_list
@@ -948,16 +935,6 @@ static int swReactorThread_onRead(swReactor *reactor, swEvent *event)
     }
 #endif
 
-#ifdef SW_USE_TIMEWHEEL
-    /**
-     * TimeWheel update
-     */
-    if (reactor->timewheel && swTimeWheel_new_index(reactor->timewheel) != event->socket->timewheel_index)
-    {
-        swTimeWheel_update(reactor->timewheel, event->socket);
-    }
-#endif
-
     event->socket->last_time = serv->gs->now;
 #ifdef SW_BUFFER_RECV_TIME
     event->socket->last_time_usec = swoole_microtime();
@@ -991,12 +968,6 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
     if (conn->connect_notify)
     {
         conn->connect_notify = 0;
-#ifdef SW_USE_TIMEWHEEL
-        if (reactor->timewheel)
-        {
-            swTimeWheel_add(reactor->timewheel, conn);
-        }
-#endif
 #ifdef SW_USE_OPENSSL
         if (conn->ssl)
         {
@@ -1394,31 +1365,6 @@ static int swReactorThread_loop(swThreadParam *param)
         }
     }
 
-#ifdef SW_USE_TIMEWHEEL
-    if (serv->heartbeat_idle_time > 0)
-    {
-        if (serv->heartbeat_idle_time < SW_TIMEWHEEL_SIZE)
-        {
-            reactor->timewheel = swTimeWheel_new(serv->heartbeat_idle_time);
-            reactor->heartbeat_interval = 1;
-        }
-        else
-        {
-            reactor->timewheel = swTimeWheel_new(SW_TIMEWHEEL_SIZE);
-            reactor->heartbeat_interval = serv->heartbeat_idle_time / SW_TIMEWHEEL_SIZE;
-        }
-        reactor->last_heartbeat_time = 0;
-        if (reactor->timewheel == NULL)
-        {
-            swSysError("thread->timewheel create failed.");
-            return SW_ERR;
-        }
-        reactor->timeout_msec = reactor->heartbeat_interval * 1000;
-        reactor->onFinish = swReactorThread_onReactorCompleted;
-        reactor->onTimeout = swReactorThread_onReactorCompleted;
-    }
-#endif
-
     //wait other thread
 #ifdef HAVE_PTHREAD_BARRIER
     pthread_barrier_wait(&serv->barrier);
@@ -1429,13 +1375,6 @@ static int swReactorThread_loop(swThreadParam *param)
     reactor->wait(reactor, NULL);
     //shutdown
     reactor->free(reactor);
-
-#ifdef SW_USE_TIMEWHEEL
-    if (reactor->timewheel)
-    {
-        swTimeWheel_free(reactor->timewheel);
-    }
-#endif
 
     swString_free(SwooleTG.buffer_stack);
     pthread_exit(0);
@@ -1545,7 +1484,7 @@ int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
         send_n -= task.data.info.len;
         offset += task.data.info.len;
 
-        swTrace("dispatch, type=%d|len=%d\n", task.data.info.type, task.data.info.len);
+        swTrace("dispatch, type=%d|len=%d", task.data.info.type, task.data.info.len);
 
         if (factory->dispatch(factory, &task) < 0)
         {
@@ -1604,14 +1543,3 @@ void swReactorThread_free(swServer *serv)
     }
 }
 
-#ifdef SW_USE_TIMEWHEEL
-static void swReactorThread_onReactorCompleted(swReactor *reactor)
-{
-    swServer *serv = reactor->ptr;
-    if (reactor->heartbeat_interval > 0 && reactor->last_heartbeat_time < serv->gs->now - reactor->heartbeat_interval)
-    {
-        swTimeWheel_forward(reactor->timewheel, reactor);
-        reactor->last_heartbeat_time = serv->gs->now;
-    }
-}
-#endif

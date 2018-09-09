@@ -15,8 +15,8 @@ php:
 
 matrix:
   fast_finish: true
-  allow_failures:
-    - php: nightly
+#  allow_failures:
+#    - php: nightly
 
 notifications:
   email: team@swoole.com
@@ -51,6 +51,7 @@ before_script:
   - pwd
   - echo "`git log -10 --pretty --oneline`"
   - echo "`git log -5 --stat --pretty --oneline`"
+  - ./travis/pecl.sh
   - ./travis/compile.sh
   - cat ~/.phpenv/versions/$(phpenv version-name)/etc/php.ini
   - php --ri swoole

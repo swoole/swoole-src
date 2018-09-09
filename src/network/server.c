@@ -49,10 +49,8 @@ static void swServer_signal_hanlder(int sig);
 static int swServer_start_proxy(swServer *serv);
 static void swServer_disable_accept(swReactor *reactor);
 
-#ifndef SW_USE_TIMEWHEEL
 static void swHeartbeatThread_start(swServer *serv);
 static void swHeartbeatThread_loop(swThreadParam *param);
-#endif
 
 static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, int fd, int from_fd, int reactor_id);
 
@@ -368,7 +366,6 @@ static int swServer_start_proxy(swServer *serv)
         return SW_ERR;
     }
 
-#ifndef SW_USE_TIMEWHEEL
     /**
      * heartbeat thread
      */
@@ -377,7 +374,6 @@ static int swServer_start_proxy(swServer *serv)
         swTrace("hb timer start, time: %d live time:%d", serv->heartbeat_check_interval, serv->heartbeat_idle_time);
         swHeartbeatThread_start(serv);
     }
-#endif
 
     /**
      * master thread loop
@@ -1684,7 +1680,6 @@ static void swServer_signal_hanlder(int sig)
     }
 }
 
-#ifndef SW_USE_TIMEWHEEL
 static void swHeartbeatThread_start(swServer *serv)
 {
     swThreadParam *param;
@@ -1774,7 +1769,6 @@ static void swHeartbeatThread_loop(swThreadParam *param)
     }
     pthread_exit(0);
 }
-#endif
 
 /**
  * new connection

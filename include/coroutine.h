@@ -1,3 +1,19 @@
+/*
+  +----------------------------------------------------------------------+
+  | Swoole                                                               |
+  +----------------------------------------------------------------------+
+  | This source file is subject to version 2.0 of the Apache license,    |
+  | that is bundled with this package in the file LICENSE, and is        |
+  | available through the world-wide-web at the following url:           |
+  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
+  | If you did not receive a copy of the Apache2.0 license and are unable|
+  | to obtain it through the world-wide-web, please send a note to       |
+  | license@swoole.com so we can mail you a copy immediately.            |
+  +----------------------------------------------------------------------+
+  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  +----------------------------------------------------------------------+
+*/
+
 #ifndef SW_COROUTINE_H_
 #define SW_COROUTINE_H_
 
@@ -42,6 +58,7 @@ void coroutine_set_ptr(coroutine_t *co, void *ptr);
 void* coroutine_get_ptr_by_cid(int cid);
 coroutine_t *coroutine_get_by_id(int cid);
 int coroutine_get_current_cid();
+coroutine_t* coroutine_get_current_task();
 int coroutine_get_cid(coroutine_t *co);
 int coroutine_test_alloc_cid();
 void coroutine_test_free_cid(int cid);
@@ -50,9 +67,8 @@ void coroutine_set_onYield(coro_php_yield_t func);
 void coroutine_set_onResume(coro_php_resume_t func);
 void coroutine_set_onClose(coro_php_close_t func);
 
-#define php_yield() php_coro_yield(return_value);
-void php_coro_yield(void *return_value);
-void php_coro_resume(void *data);
+void internal_coro_yield(void *return_value);
+void internal_coro_resume(void *data);
 
 #ifdef __cplusplus
 }  /* end extern "C" */

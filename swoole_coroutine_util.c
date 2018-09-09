@@ -129,6 +129,9 @@ static PHP_METHOD(swoole_coroutine_iterator, key);
 static PHP_METHOD(swoole_coroutine_iterator, valid);
 static PHP_METHOD(swoole_coroutine_iterator, __destruct);
 
+static PHP_METHOD(swoole_exit_exception, getFlags);
+static PHP_METHOD(swoole_exit_exception, getStatus);
+
 static swHashMap *defer_coros;
 
 static zend_class_entry swoole_coroutine_util_ce;
@@ -136,6 +139,9 @@ static zend_class_entry *swoole_coroutine_util_class_entry_ptr;
 
 static zend_class_entry swoole_coroutine_iterator_ce;
 static zend_class_entry *swoole_coroutine_iterator_class_entry_ptr;
+
+static zend_class_entry swoole_exit_exception_ce;
+static zend_class_entry *swoole_exit_exception_class_entry_ptr;
 
 static const zend_function_entry swoole_coroutine_util_methods[] =
 {
@@ -160,7 +166,6 @@ static const zend_function_entry swoole_coroutine_util_methods[] =
     PHP_FE_END
 };
 
-
 static const zend_function_entry iterator_methods[] =
 {
     PHP_ME(swoole_coroutine_iterator, rewind,      arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC)
@@ -172,6 +177,75 @@ static const zend_function_entry iterator_methods[] =
     PHP_ME(swoole_coroutine_iterator, __destruct,  arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_FE_END
 };
+
+static const zend_function_entry swoole_exit_exception_methods[] =
+{
+    PHP_ME(swoole_exit_exception, getFlags, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_exit_exception, getStatus, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC)
+    PHP_FE_END
+};
+
+static user_opcode_handler_t ori_exit_handler = NULL;
+
+enum sw_exit_flags
+{
+    SW_EXIT_IN_COROUTINE = 1 << 1,
+    SW_EXIT_IN_SERVER = 1<< 2
+};
+
+static int coro_exit_handler(zend_execute_data *execute_data)
+{
+    zval ex;
+    zend_object *obj;
+    zend_long flags = 0;
+    if (sw_get_current_cid() != -1)
+    {
+        flags |= SW_EXIT_IN_COROUTINE;
+    }
+    if (SwooleG.serv && SwooleG.serv->gs->start)
+    {
+        flags |= SW_EXIT_IN_SERVER;
+    }
+    if (flags)
+    {
+        const zend_op *opline = EX(opline);
+        zval _exit_status;
+        zval *exit_status = NULL;
+
+        if (opline->op1_type != IS_UNUSED)
+        {
+            if (opline->op1_type == IS_CONST)
+            {
+                // see: https://github.com/php/php-src/commit/e70618aff6f447a298605d07648f2ce9e5a284f5
+#ifdef EX_CONSTANT
+                exit_status = EX_CONSTANT(opline->op1);
+#else
+                exit_status = RT_CONSTANT(opline, opline->op1);
+#endif
+            }
+            else
+            {
+                exit_status = EX_VAR(opline->op1.var);
+            }
+            if (Z_ISREF_P(exit_status))
+            {
+                exit_status = Z_REFVAL_P(exit_status);
+            }
+        }
+        else
+        {
+            exit_status = &_exit_status;
+            ZVAL_NULL(exit_status);
+        }
+        obj = zend_throw_error_exception(swoole_exit_exception_class_entry_ptr, "swoole exit.", 0, E_ERROR TSRMLS_CC);
+        ZVAL_OBJ(&ex, obj);
+        zend_update_property_long(swoole_exit_exception_class_entry_ptr, &ex, ZEND_STRL("flags"), flags);
+        Z_TRY_ADDREF_P(exit_status);
+        zend_update_property(swoole_exit_exception_class_entry_ptr, &ex, ZEND_STRL("status"), exit_status);
+    }
+
+    return ZEND_USER_OPCODE_DISPATCH;
+}
 
 void swoole_coroutine_util_init(int module_number TSRMLS_DC)
 {
@@ -199,6 +273,24 @@ void swoole_coroutine_util_init(int module_number TSRMLS_DC)
         sw_zend_register_class_alias("Co", swoole_coroutine_util_class_entry_ptr);
     }
     defer_coros = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
+
+    //prohibit exit in coroutine
+    INIT_CLASS_ENTRY(swoole_exit_exception_ce, "Swoole\\ExitException", swoole_exit_exception_methods);
+    swoole_exit_exception_class_entry_ptr = zend_register_internal_class_ex(&swoole_exit_exception_ce, zend_exception_get_default());
+    SWOOLE_DEFINE(EXIT_IN_COROUTINE);
+    SWOOLE_DEFINE(EXIT_IN_SERVER);
+    ori_exit_handler = zend_get_user_opcode_handler(ZEND_EXIT);
+    zend_set_user_opcode_handler(ZEND_EXIT, coro_exit_handler);
+}
+
+static PHP_METHOD(swoole_exit_exception, getFlags)
+{
+    RETURN_LONG(Z_LVAL_P(sw_zend_read_property(Z_OBJCE_P(getThis()), getThis(), ZEND_STRL("flags"), 1)));
+}
+
+static PHP_METHOD(swoole_exit_exception, getStatus)
+{
+    RETURN_ZVAL(sw_zend_read_property(Z_OBJCE_P(getThis()), getThis(), ZEND_STRL("status"), 1), 0, 0);
 }
 
 /*
@@ -388,6 +480,7 @@ static PHP_METHOD(swoole_coroutine_util, stats)
 {
     array_init(return_value);
     sw_add_assoc_long_ex(return_value, ZEND_STRS("coroutine_num"), COROG.coro_num);
+    sw_add_assoc_long_ex(return_value, ZEND_STRS("coroutine_peak_num"), COROG.peak_coro_num);
 }
 
 static PHP_METHOD(swoole_coroutine_util, getuid)

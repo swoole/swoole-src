@@ -53,6 +53,7 @@ struct _http_proxy
     int l_user;
     int l_password;
     char *target_host;
+    int l_target_host;
     int target_port;
     char buf[600];
 };

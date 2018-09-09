@@ -300,7 +300,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
 #ifdef SW_USE_HTTP2
     if (conn->http2_stream)
     {
-        return swPort_onRead_check_length(reactor, port, event);
+        _parse_frame: return swPort_onRead_check_length(reactor, port, event);
     }
 #endif
 
@@ -397,9 +397,15 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
                 swHttpRequest_free(conn);
                 return SW_OK;
             }
-            swHttp2_parse_frame(protocol, conn, buf + (sizeof(SW_HTTP2_PRI_STRING) - 1), n - (sizeof(SW_HTTP2_PRI_STRING) - 1));
+            swString *buffer = swServer_get_buffer(serv, event->fd);
+            if (!buffer)
+            {
+                goto close_fd;
+            }
+            swString_append_ptr(buffer, buf + (sizeof(SW_HTTP2_PRI_STRING) - 1), n - (sizeof(SW_HTTP2_PRI_STRING) - 1));
             swHttpRequest_free(conn);
-            return SW_OK;
+            conn->skip_recv = 1;
+            goto _parse_frame;
         }
 #endif
         //http header is not the end

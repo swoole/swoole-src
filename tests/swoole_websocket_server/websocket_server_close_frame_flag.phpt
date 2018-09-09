@@ -32,7 +32,7 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
     });
     $serv->on('Message', function ($serv, $frame) {
-        if ($frame->opcode == 0x08) {
+        if ($frame->opcode == WEBSOCKET_OPCODE_CLOSE) {
             echo "{$frame->code}\n";
             echo "{$frame->reason}\n";
             assert(false); // Should never reach here

@@ -17,6 +17,10 @@
 #ifndef SWOOLE_HTTP_CLIENT_H_
 #define SWOOLE_HTTP_CLIENT_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "ext/standard/basic_functions.h"
 #include "ext/standard/php_http.h"
 #include "ext/standard/base64.h"
@@ -136,6 +140,8 @@ typedef struct
 
     php_http_parser parser;
 
+    zval _object;
+    zval *object;
     swString *body;
 
     uint8_t state;       //0 wait 1 ready 2 busy
@@ -194,12 +200,12 @@ static sw_inline int http_client_check_data(zval *data TSRMLS_DC)
     return SW_OK;
 }
 
-static sw_inline void http_client_swString_append_headers(swString* swStr, char* key, zend_size_t key_len, char* data, zend_size_t data_len)
+static sw_inline void http_client_swString_append_headers(swString* swStr, const char* key, zend_size_t key_len, const char* data, zend_size_t data_len)
 {
-    swString_append_ptr(swStr, key, key_len);
-    swString_append_ptr(swStr, ZEND_STRL(": "));
-    swString_append_ptr(swStr, data, data_len);
-    swString_append_ptr(swStr, ZEND_STRL("\r\n"));
+    swString_append_ptr(swStr, (char *)key, key_len);
+    swString_append_ptr(swStr, (char *)ZEND_STRL(": "));
+    swString_append_ptr(swStr, (char *)data, data_len);
+    swString_append_ptr(swStr, (char *)ZEND_STRL("\r\n"));
 }
 
 static sw_inline void http_client_append_content_length(swString* buf, int length)
@@ -211,6 +217,10 @@ static sw_inline void http_client_append_content_length(swString* buf, int lengt
 
 #ifdef SW_HAVE_ZLIB
 extern swString *swoole_zlib_buffer;
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif /* SWOOLE_HTTP_CLIENT_H_ */

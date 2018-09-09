@@ -11,7 +11,7 @@
  Target Server Version : 80011
  File Encoding         : 65001
 
- Date: 26/07/2018 01:42:07
+ Date: 02/09/2018 17:00:26
 */
 
 SET NAMES utf8mb4;
@@ -27,17 +27,45 @@ CREATE TABLE `ckl` (
   `path` varchar(128) NOT NULL,
   `name` varchar(32) NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8;
 
 -- ----------------------------
 -- Records of ckl
 -- ----------------------------
 BEGIN;
 INSERT INTO `ckl` VALUES (1, 'www.baidu.com', '/search', 'baidu');
-INSERT INTO `ckl` VALUES (2, 'www.baidu.com', '/search', 'baidu');
-INSERT INTO `ckl` VALUES (3, 'www.baidu.com', '/search', 'baidu');
-INSERT INTO `ckl` VALUES (4, 'www.baidu.com', '/search', 'baidu');
-INSERT INTO `ckl` VALUES (5, 'www.baidu.com', '/search', 'baidu');
+INSERT INTO `ckl` VALUES (2, 'www.taobao.com', '/search', 'taobao');
+INSERT INTO `ckl` VALUES (3, 'www.qq.com', '/search', 'qq');
+COMMIT;
+
+-- ----------------------------
+-- Table structure for numbers
+-- ----------------------------
+DROP TABLE IF EXISTS `numbers`;
+CREATE TABLE `numbers` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `tinyint` tinyint(4) NOT NULL,
+  `utinyint` tinyint(255) unsigned NOT NULL,
+  `smallint` smallint(6) NOT NULL,
+  `usmallint` smallint(5) unsigned NOT NULL,
+  `mediumint` mediumint(9) NOT NULL,
+  `umediumint` mediumint(8) unsigned NOT NULL,
+  `int` int(11) NOT NULL,
+  `uint` int(10) unsigned NOT NULL,
+  `bigint` bigint(20) NOT NULL,
+  `ubigint` bigint(20) unsigned NOT NULL,
+  `float` float NOT NULL,
+  `double` double NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ----------------------------
+-- Records of numbers
+-- ----------------------------
+BEGIN;
+INSERT INTO `numbers` VALUES (1, 127, 255, 32767, 65535, 8388607, 16777215, 2147483647, 4294967294, 9223372036854775807, 18446744073709551615, 1.23457, 1.2345678901234567);
+INSERT INTO `numbers` VALUES (2, -128, 123, -32768, 12345, -8388608, 123456, -2147483648, 123456, -9223372036854775808, 123456, -1.23457, -1.2345678901234567);
+INSERT INTO `numbers` VALUES (3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.23, 1.23);
 COMMIT;
 
 -- ----------------------------

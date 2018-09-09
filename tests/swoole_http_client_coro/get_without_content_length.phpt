@@ -23,6 +23,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
         $ret = $cli->get('/');
         assert($ret == true);
         assert($cli->statusCode == 200);
+        assert(strlen($cli->body) > 1024 * 5);
         $pm->kill();
         echo "OK\n";
     });
@@ -31,11 +32,11 @@ $pm->parentFunc = function ($pid) use ($pm) {
 
 $pm->childFunc = function () use ($pm)
 {
-    $serv = new swoole_server("127.0.0.1", 9501, SWOOLE_BASE);
+    $serv = new swoole_server('127.0.0.1', 9501, SWOOLE_BASE);
     $serv->set(array(
         'log_file' => '/dev/null'
     ));
-    $serv->on("WorkerStart", function (\swoole_server $serv)
+    $serv->on('WorkerStart', function (\swoole_server $serv)
     {
         /**
          * @var $pm ProcessManager
@@ -46,6 +47,10 @@ $pm->childFunc = function () use ($pm)
     $serv->on('receive', function ($serv, $fd, $threadId, $data)
     {
         $serv->send($fd, "HTTP/1.1 200 OK\r\nServer: nginx\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n");
+        foreach (range(0, 5) as $i) {
+            co::sleep(0.1);
+            $serv->send($fd, str_repeat('A', rand(1024, 2048)));
+        }
         $serv->close($fd);
     });
     $serv->start();

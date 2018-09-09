@@ -10,18 +10,18 @@ require_once __DIR__ . '/../include/lib/curl.php';
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid)
 {
-    $data = curlGet("http://127.0.0.1:9501/");
+    $data = curlGet('http://127.0.0.1:9501/');
     echo $data;
     swoole_process::kill($pid);
 };
 
 $pm->childFunc = function () use ($pm)
 {
-    $http = new swoole_http_server("127.0.0.1", 9501, SWOOLE_BASE);
+    $http = new swoole_http_server('127.0.0.1', 9501, SWOOLE_BASE);
     $http->set(array(
         'log_file' => '/dev/null'
     ));
-    $http->on("WorkerStart", function (\swoole_server $serv)
+    $http->on('WorkerStart', function (\swoole_server $serv)
     {
         /**
          * @var $pm ProcessManager
@@ -34,8 +34,8 @@ $pm->childFunc = function () use ($pm)
         $cli1 = new Swoole\Coroutine\Http\Client('www.baidu.com', 443, true);
         $cli1->set(['timeout' => 10]);
         $cli1->setHeaders([
-            'Host' => "www.baidu.com",
-            "User-Agent" => 'Chrome/49.0.2587.3',
+            'Host' => 'www.baidu.com',
+            'User-Agent' => 'Chrome/49.0.2587.3',
             'Accept' => 'text/html,application/xhtml+xml,application/xml',
             'Accept-Encoding' => 'gzip',
         ]);
@@ -44,8 +44,8 @@ $pm->childFunc = function () use ($pm)
         $cli2 = new Swoole\Coroutine\Http\Client('www.baidu.com', 443, true);
         $cli2->set(['timeout' => 10]);
         $cli2->setHeaders([
-            'Host' => "www.baidu.com",
-            "User-Agent" => 'Chrome/49.0.2587.3',
+            'Host' => 'www.baidu.com',
+            'User-Agent' => 'Chrome/49.0.2587.3',
             'Accept' => 'text/html,application/xhtml+xml,application/xml',
             'Accept-Encoding' => 'gzip',
         ]);

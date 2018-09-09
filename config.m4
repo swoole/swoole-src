@@ -74,9 +74,6 @@ PHP_ARG_ENABLE(picohttpparser, enable picohttpparser support,
 PHP_ARG_WITH(swoole, swoole support,
 [  --with-swoole           With swoole support])
 
-PHP_ARG_ENABLE(timewheel, enable timewheel support,
-[  --enable-timewheel     Experimental: Enable timewheel heartbeat?], no, no)
-
 AC_DEFUN([SWOOLE_HAVE_PHP_EXT], [
     extname=$1
     haveext=$[PHP_]translit($1,a-z_-,A-Z__)
@@ -283,10 +280,6 @@ if test "$PHP_SWOOLE" != "no"; then
         AC_DEFINE(SW_USE_THREAD, 1, [enable thread support])
     fi
 
-    if test "$PHP_TIMEWHEEL" = "yes"; then
-        AC_DEFINE(SW_USE_TIMEWHEEL, 1, [enable timewheel support])
-    fi
-
     AC_SWOOLE_CPU_AFFINITY
     AC_SWOOLE_HAVE_REUSEPORT
     AC_SWOOLE_HAVE_FUTEX
@@ -294,14 +287,24 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_SWOOLE_HAVE_BOOST_CONTEXT
     AC_SWOOLE_HAVE_VALGRIND
 
+    AS_CASE([$host_os],
+      [darwin*], [SW_OS="MAC"],
+      [cygwin*], [SW_OS="CYGWIN"],
+      [mingw*], [SW_OS="MINGW"],
+      [linux*], [SW_OS="LINUX"],
+      []
+    )
+
     CFLAGS="-Wall -pthread $CFLAGS"
     LDFLAGS="$LDFLAGS -lpthread"
 
-    if test `uname` = "Darwin"; then
+    if test "$SW_OS" = 'MAC'; then
         AC_CHECK_LIB(c, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
     else
         AC_CHECK_LIB(rt, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
         PHP_ADD_LIBRARY(rt, 1, SWOOLE_SHARED_LIBADD)
+    fi
+    if test "$SW_OS" = 'LINUX'; then
         LDFLAGS="$LDFLAGS -z now"
     fi
 
@@ -420,7 +423,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_coroutine.cc \
         swoole_coroutine_util.c \
         swoole_event.c \
-        swoole_socket_coro.c \
+        swoole_socket_coro.cc \
         swoole_timer.c \
         swoole_async.c \
         swoole_process.c \
@@ -429,14 +432,14 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_buffer.c \
         swoole_table.c \
         swoole_http_server.c \
-        swoole_http_v2_server.c \
+        swoole_http_v2_server.cc \
         swoole_http_v2_client.c \
         swoole_http_v2_client_coro.c \
         swoole_websocket_server.c \
         swoole_http_client.c \
-        swoole_http_client_coro.c \
+        swoole_http_client_coro.cc \
         swoole_mysql.c \
-        swoole_mysql_coro.c \
+        swoole_mysql_coro.cc \
         swoole_postgresql_coro.c \
         swoole_redis.c \
         swoole_redis_coro.c \
@@ -466,6 +469,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/coroutine/ucontext.cc \
         src/coroutine/socket.cc \
         src/coroutine/channel.cc \
+    	src/coroutine/hook.cc \
         src/memory/shared_memory.c \
         src/memory/global_memory.c \
         src/memory/ring_buffer.c \
@@ -503,7 +507,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/network/timer.c \
         src/network/port.c \
         src/network/dns.c \
-        src/network/time_wheel.c \
         src/network/stream.c \
         src/os/base.c \
         src/os/msg_queue.c \
@@ -542,17 +545,6 @@ if test "$PHP_SWOOLE" != "no"; then
       [x86*], [SW_CPU="x86"],
       [arm*], [SW_CPU="arm"],
       [arm64*], [SW_CPU="arm64"],
-      [
-        SW_NO_USE_ASM_CONTEXT="yes"
-        AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
-      ]
-    )
-
-    AS_CASE([$host_os],
-      [linux*], [SW_OS="LINUX"],
-      [darwin*], [SW_OS="MAC"],
-      [cygwin*], [SW_OS="WIN"],
-      [mingw*], [SW_OS="WIN"],
       [
         SW_NO_USE_ASM_CONTEXT="yes"
         AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
