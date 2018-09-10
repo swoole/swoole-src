@@ -245,7 +245,7 @@ static void sw_coro_func(void *arg)
 int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval *retval, void *post_callback,
         void *params)
 {
-    if (is_xdebug_started == 1)
+    if (unlikely(is_xdebug_started == 1))
     {
         swWarn("xdebug do not support coroutine, please notice that it lead to coredump.");
     }
@@ -361,7 +361,7 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
 
 void sw_coro_yield()
 {
-    if (sw_get_current_cid() == -1)
+    if (unlikely(sw_get_current_cid() == -1))
     {
         swoole_php_fatal_error(E_ERROR, "must be called in the coroutine.");
     }
