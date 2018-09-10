@@ -800,11 +800,10 @@ static PHP_METHOD(swoole_runtime, enableCoroutine)
 
         if (flags & SW_HOOK_FILE)
         {
-            memcpy(&ori_php_plain_files_wrapper, &php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
-            memcpy(&php_plain_files_wrapper, &sw_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
-
-            memcpy(&ori_php_stream_stdio_ops, &php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
-            memcpy(&php_stream_stdio_ops, &sw_php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
+            memcpy((void*) &ori_php_plain_files_wrapper, &php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
+            memcpy((void*) &php_plain_files_wrapper, &sw_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
+            memcpy((void*) &ori_php_stream_stdio_ops, &php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
+            memcpy((void*) &php_stream_stdio_ops, &sw_php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
         }
         if (flags & SW_HOOK_SLEEP)
         {
@@ -859,8 +858,8 @@ static PHP_METHOD(swoole_runtime, enableCoroutine)
         }
         if (hook_flags & SW_HOOK_FILE)
         {
-            memcpy(&php_plain_files_wrapper, &ori_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
-            memcpy(&php_stream_stdio_ops, &ori_php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
+            memcpy((void*) &php_plain_files_wrapper, &ori_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
+            memcpy((void*) &php_stream_stdio_ops, &ori_php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
         }
         if (flags & SW_HOOK_TCP)
         {

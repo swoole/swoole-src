@@ -945,7 +945,7 @@ static php_stream *php_plain_files_dir_opener(php_stream_wrapper *wrapper, const
 
 #ifdef HAVE_GLOB
 	if (options & STREAM_USE_GLOB_DIR_OPEN) {
-		return php_glob_stream_wrapper.wops->dir_opener(&php_glob_stream_wrapper, path, mode, options, opened_path, context STREAMS_REL_CC);
+		return php_glob_stream_wrapper.wops->dir_opener((php_stream_wrapper*)&php_glob_stream_wrapper, path, mode, options, opened_path, context STREAMS_REL_CC);
 	}
 #endif
 
