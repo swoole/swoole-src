@@ -231,7 +231,7 @@ static int websocket_handshake(swListenPort *port, http_context *ctx)
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "session[%d] is closed.", ctx->fd);
         return SW_ERR;
     }
-
+    conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
     return swServer_tcp_send(SwooleG.serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length);
 }
 
