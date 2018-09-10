@@ -107,7 +107,6 @@ void swoole_websocket_onOpen(http_context *ctx)
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "session[%d] is closed.", fd);
         return;
     }
-    conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
 
     zend_fcall_info_cache *cache = php_swoole_server_get_cache(SwooleG.serv, conn->from_fd, SW_SERVER_CB_onOpen);
     if (cache)
@@ -225,6 +224,13 @@ static int websocket_handshake(swListenPort *port, http_context *ctx)
     swString_append_ptr(swoole_http_buffer, ZEND_STRL("Server: "SW_WEBSOCKET_SERVER_SOFTWARE"\r\n\r\n"));
 
     swTrace("websocket header len:%ld\n%s \n", swoole_http_buffer->length, swoole_http_buffer->str);
+
+    swConnection *conn = swWorker_get_connection(SwooleG.serv, ctx->fd);
+    if (!conn)
+    {
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "session[%d] is closed.", ctx->fd);
+        return SW_ERR;
+    }
 
     return swServer_tcp_send(SwooleG.serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length);
 }
