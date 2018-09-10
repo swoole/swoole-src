@@ -35,10 +35,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2018-05-14</date>
+    <date>2018-09-11</date>
     <time>09:50:10</time>
     <version>
-        <release>1.10.5</release>
+        <release>1.10.6</release>
         <api>1.10</api>
     </version>
     <stability>
@@ -47,11 +47,7 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-- Added Lock::destory
-- Added Lock::$errCode
-- Fixed RWLock unavailable
-- Fixed arg of udp connect no effect
-- Added setting window size support for http2 client
+- Merge master branch
     </notes>
     <contents>
         <dir name="/">
