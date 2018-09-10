@@ -367,6 +367,9 @@ void sw_coro_yield()
     }
     coro_task *task = (coro_task *) sw_get_current_task();
     save_php_stack(task);
+#if PHP_VERSION_ID < 70100
+    EG(scope) = task->execute_data->func->common.scope;
+#endif
     coroutine_yield_naked(task->co);
 }
 
