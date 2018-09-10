@@ -76,7 +76,8 @@ typedef struct
     swString *buffer;
 } process_stream;
 
-static void php_swoole_aio_onComplete(swAio_event *event);
+static void php_swoole_aio_onFileCompleted(swAio_event *event);
+static void php_swoole_aio_onDNSCompleted(swAio_event *event);
 static void php_swoole_dns_callback(char *domain, swDNSResolver_result *result, void *data);
 #ifdef SW_COROUTINE
 static void php_swoole_dns_callback_coro(char *domain, swDNSResolver_result *result, void *data);
@@ -260,7 +261,6 @@ static void php_swoole_dns_callback_coro(char *domain, swDNSResolver_result *res
     efree(req);
 }
 
-//用于timeout
 static void php_swoole_dns_timeout_coro(swTimer *timer, swTimer_node *tnode)
 {
     zval *retval = NULL;
@@ -298,7 +298,74 @@ static void php_swoole_dns_timeout_coro(swTimer *timer, swTimer_node *tnode)
 }
 #endif
 
-static void php_swoole_aio_onComplete(swAio_event *event)
+static void php_swoole_aio_onDNSCompleted(swAio_event *event)
+{
+    int64_t ret;
+
+    zval *retval = NULL, *zcallback = NULL;
+    zval **args[2];
+    dns_request *dns_req = NULL;
+
+    zval _zcontent;
+
+    dns_req = (dns_request *) event->req;
+    if (dns_req->callback == NULL)
+    {
+        swoole_php_error(E_WARNING, "swoole_async: onAsyncComplete callback not found[0]");
+        return;
+    }
+    zcallback = dns_req->callback;
+
+    ret = event->ret;
+    if (ret < 0)
+    {
+        SwooleG.error = event->error;
+        swoole_php_error(E_WARNING, "Aio Error: %s[%d]", strerror(event->error), event->error);
+    }
+
+    args[0] = &dns_req->domain;
+    zval *zcontent = &_zcontent;
+    if (ret < 0)
+    {
+        SW_ZVAL_STRING(zcontent, "", 1);
+    }
+    else
+    {
+        SW_ZVAL_STRING(zcontent, event->buf, 1);
+    }
+    args[1] = &zcontent;
+
+    if (zcallback)
+    {
+        if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL) == FAILURE)
+        {
+            swoole_php_fatal_error(E_WARNING, "swoole_async: onAsyncComplete handler error");
+            return;
+        }
+        if (EG(exception))
+        {
+            zend_exception_error(EG(exception), E_ERROR);
+        }
+    }
+
+    if (dns_req)
+    {
+        sw_zval_ptr_dtor(&dns_req->callback);
+        sw_zval_ptr_dtor(&dns_req->domain);
+        efree(dns_req);
+        efree(event->buf);
+    }
+    if (zcontent)
+    {
+        sw_zval_ptr_dtor(&zcontent);
+    }
+    if (retval)
+    {
+        sw_zval_ptr_dtor(&retval);
+    }
+}
+
+static void php_swoole_aio_onFileCompleted(swAio_event *event)
 {
     int isEOF = SW_FALSE;
     int64_t ret;
@@ -307,33 +374,20 @@ static void php_swoole_aio_onComplete(swAio_event *event)
     zval *zcontent = NULL;
     zval **args[2];
     file_request *file_req = NULL;
-    dns_request *dns_req = NULL;
 
     zval _zcontent;
     zval _zwriten;
     bzero(&_zcontent, sizeof(zval));
     bzero(&_zwriten, sizeof(zval));
 
-    if (event->type == SW_AIO_GETHOSTBYNAME)
+
+    file_req = event->object;
+    if (file_req->callback == NULL && file_req->type == SW_AIO_READ)
     {
-        dns_req = (dns_request *) event->req;
-        if (dns_req->callback == NULL)
-        {
-            swoole_php_error(E_WARNING, "swoole_async: onAsyncComplete callback not found[0]");
-            return;
-        }
-        zcallback = dns_req->callback;
+        swoole_php_fatal_error(E_WARNING, "swoole_async: onAsyncComplete callback not found[2]");
+        return;
     }
-    else
-    {
-        file_req = event->object;
-        if (file_req->callback == NULL && file_req->type == SW_AIO_READ)
-        {
-            swoole_php_fatal_error(E_WARNING, "swoole_async: onAsyncComplete callback not found[2]");
-            return;
-        }
-        zcallback = file_req->callback;
-    }
+    zcallback = file_req->callback;
 
     ret = event->ret;
     if (ret < 0)
@@ -341,7 +395,7 @@ static void php_swoole_aio_onComplete(swAio_event *event)
         SwooleG.error = event->error;
         swoole_php_error(E_WARNING, "Aio Error: %s[%d]", strerror(event->error), event->error);
     }
-    else if (file_req != NULL)
+    else
     {
         if (ret == 0)
         {
@@ -379,25 +433,6 @@ static void php_swoole_aio_onComplete(swAio_event *event)
         args[1] = &zwriten;
         ZVAL_LONG(zwriten, ret);
     }
-    else if(event->type == SW_AIO_GETHOSTBYNAME)
-    {
-        args[0] = &dns_req->domain;
-        zcontent = &_zcontent;
-        if (ret < 0)
-        {
-            SW_ZVAL_STRING(zcontent, "", 1);
-        }
-        else
-        {
-            SW_ZVAL_STRING(zcontent, event->buf, 1);
-        }
-        args[1] = &zcontent;
-    }
-    else
-    {
-        swoole_php_fatal_error(E_WARNING, "swoole_async: onAsyncComplete unknown event type[%d].", event->type);
-        return;
-    }
 
     if (zcallback)
     {
@@ -413,72 +448,59 @@ static void php_swoole_aio_onComplete(swAio_event *event)
     }
 
     //file io
-    if (file_req)
+    if (file_req->once == 1)
     {
-        if (file_req->once == 1)
+        close_file:
+        close(event->fd);
+        php_swoole_file_request_free(file_req);
+    }
+    else if(file_req->type == SW_AIO_WRITE)
+    {
+        if (retval != NULL && !ZVAL_IS_NULL(retval) && !Z_BVAL_P(retval))
         {
-            close_file:
-            close(event->fd);
-            php_swoole_file_request_free(file_req);
-        }
-        else if(file_req->type == SW_AIO_WRITE)
-        {
-            if (retval != NULL && !ZVAL_IS_NULL(retval) && !Z_BVAL_P(retval))
-            {
-                swHashMap_del(php_swoole_open_files, Z_STRVAL_P(file_req->filename), Z_STRLEN_P(file_req->filename));
-                goto close_file;
-            }
-            else
-            {
-                php_swoole_file_request_free(file_req);
-            }
+            swHashMap_del(php_swoole_open_files, Z_STRVAL_P(file_req->filename), Z_STRLEN_P(file_req->filename));
+            goto close_file;
         }
         else
         {
-            if ((retval != NULL && !ZVAL_IS_NULL(retval) && !Z_BVAL_P(retval)) || isEOF)
-            {
-                goto close_file;
-            }
-            //Less than expected, at the end of the file
-            else if (event->ret < event->nbytes)
-            {
-                event->ret = 0;
-                php_swoole_aio_onComplete(event);
-            }
-            //continue to read
-            else
-            {
-                swAio_event ev;
-                ev.fd = event->fd;
-                ev.buf = event->buf;
-                ev.type = SW_AIO_READ;
-                ev.nbytes = event->nbytes;
-                ev.offset = file_req->offset;
-                ev.flags = 0;
-                ev.object = file_req;
-                ev.handler = swAio_handler_read;
-                ev.callback = php_swoole_aio_onComplete;
+            php_swoole_file_request_free(file_req);
+        }
+    }
+    else
+    {
+        if ((retval != NULL && !ZVAL_IS_NULL(retval) && !Z_BVAL_P(retval)) || isEOF)
+        {
+            goto close_file;
+        }
+        //Less than expected, at the end of the file
+        else if (event->ret < event->nbytes)
+        {
+            event->ret = 0;
+            php_swoole_aio_onFileCompleted(event);
+        }
+        //continue to read
+        else
+        {
+            swAio_event ev;
+            ev.fd = event->fd;
+            ev.buf = event->buf;
+            ev.type = SW_AIO_READ;
+            ev.nbytes = event->nbytes;
+            ev.offset = file_req->offset;
+            ev.flags = 0;
+            ev.object = file_req;
+            ev.handler = swAio_handler_read;
+            ev.callback = php_swoole_aio_onFileCompleted;
 
-                int ret = swAio_dispatch(&ev);
-                if (ret < 0)
-                {
-                    swoole_php_fatal_error(E_WARNING, "swoole_async: continue to read failed. Error: %s[%d]", strerror(event->error), event->error);
-                    goto close_file;
-                }
-                else
-                {
-                    php_swoole_file_request_free(file_req);
-                }
+            int ret = swAio_dispatch(&ev);
+            if (ret < 0)
+            {
+                swoole_php_fatal_error(E_WARNING, "swoole_async: continue to read failed. Error: %s[%d]", strerror(event->error), event->error);
+                goto close_file;
             }
         }
     }
-    else if (dns_req)
-    {
-        sw_zval_ptr_dtor(&dns_req->callback);
-        sw_zval_ptr_dtor(&dns_req->domain);
-        efree(dns_req);
-        efree(event->buf);
-    }
+
     if (zcontent)
     {
         sw_zval_ptr_dtor(&zcontent);
@@ -577,7 +599,7 @@ PHP_FUNCTION(swoole_async_read)
     ev.flags = 0;
     ev.object = req;
     ev.handler = swAio_handler_read;
-    ev.callback = php_swoole_aio_onComplete;
+    ev.callback = php_swoole_aio_onFileCompleted;
 
     int ret = swAio_dispatch(&ev);
     if (ret == SW_ERR)
@@ -678,7 +700,7 @@ PHP_FUNCTION(swoole_async_write)
     ev.flags = 0;
     ev.object = req;
     ev.handler = swAio_handler_write;
-    ev.callback = php_swoole_aio_onComplete;
+    ev.callback = php_swoole_aio_onFileCompleted;
 
     int ret = swAio_dispatch(&ev);
     if (ret == SW_ERR)
@@ -763,7 +785,7 @@ PHP_FUNCTION(swoole_async_readfile)
     ev.flags = 0;
     ev.object = req;
     ev.handler = swAio_handler_read;
-    ev.callback = php_swoole_aio_onComplete;
+    ev.callback = php_swoole_aio_onFileCompleted;
 
     int ret = swAio_dispatch(&ev);
     if (ret == SW_ERR)
@@ -866,7 +888,7 @@ PHP_FUNCTION(swoole_async_writefile)
     ev.flags = 0;
     ev.object = req;
     ev.handler = swAio_handler_write;
-    ev.callback = php_swoole_aio_onComplete;
+    ev.callback = php_swoole_aio_onFileCompleted;
 
     int ret = swAio_dispatch(&ev);
     if (ret == SW_ERR)
@@ -1041,8 +1063,8 @@ PHP_FUNCTION(swoole_async_dns_lookup)
     ev.flags = 0;
     ev.object = req;
     ev.req = req;
-    ev.handler = swAio_handler_write;
-    ev.callback = php_swoole_aio_onComplete;
+    ev.handler = swAio_handler_gethostbyname;
+    ev.callback = php_swoole_aio_onDNSCompleted;
     SW_CHECK_RETURN(swAio_dispatch(&ev));
 }
 
