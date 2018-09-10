@@ -309,11 +309,6 @@ static void php_swoole_aio_onDNSCompleted(swAio_event *event)
     zval _zcontent;
 
     dns_req = (dns_request *) event->req;
-    if (dns_req->callback == NULL)
-    {
-        swoole_php_error(E_WARNING, "swoole_async: onAsyncComplete callback not found[0]");
-        return;
-    }
     zcallback = dns_req->callback;
 
     ret = event->ret;
@@ -335,26 +330,21 @@ static void php_swoole_aio_onDNSCompleted(swAio_event *event)
     }
     args[1] = &zcontent;
 
-    if (zcallback)
+    if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL) == FAILURE)
     {
-        if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL) == FAILURE)
-        {
-            swoole_php_fatal_error(E_WARNING, "swoole_async: onAsyncComplete handler error");
-            return;
-        }
-        if (EG(exception))
-        {
-            zend_exception_error(EG(exception), E_ERROR);
-        }
+        swoole_php_fatal_error(E_WARNING, "swoole_async: onAsyncComplete handler error");
+        return;
+    }
+    if (EG(exception))
+    {
+        zend_exception_error(EG(exception), E_ERROR);
     }
 
-    if (dns_req)
-    {
-        sw_zval_ptr_dtor(&dns_req->callback);
-        sw_zval_ptr_dtor(&dns_req->domain);
-        efree(dns_req);
-        efree(event->buf);
-    }
+    sw_zval_ptr_dtor(&dns_req->callback);
+    sw_zval_ptr_dtor(&dns_req->domain);
+    efree(dns_req);
+    efree(event->buf);
+
     if (zcontent)
     {
         sw_zval_ptr_dtor(&zcontent);
