@@ -373,20 +373,13 @@ static void php_swoole_aio_onFileCompleted(swAio_event *event)
     zval *retval = NULL, *zcallback = NULL, *zwriten = NULL;
     zval *zcontent = NULL;
     zval **args[2];
-    file_request *file_req = NULL;
 
     zval _zcontent;
     zval _zwriten;
     bzero(&_zcontent, sizeof(zval));
     bzero(&_zwriten, sizeof(zval));
 
-
-    file_req = event->object;
-    if (file_req->callback == NULL && file_req->type == SW_AIO_READ)
-    {
-        swoole_php_fatal_error(E_WARNING, "swoole_async: onAsyncComplete callback not found[2]");
-        return;
-    }
+    file_request *file_req = event->object;
     zcallback = file_req->callback;
 
     ret = event->ret;
@@ -533,6 +526,10 @@ PHP_FUNCTION(swoole_async_read)
         swoole_php_fatal_error(E_WARNING, "offset must be greater than 0.");
         RETURN_FALSE;
     }
+    if (!php_swoole_is_callable(callback TSRMLS_CC))
+    {
+        RETURN_FALSE;
+    }
     if (buf_size > SW_AIO_MAX_CHUNK_SIZE)
     {
         buf_size = SW_AIO_MAX_CHUNK_SIZE;
@@ -575,13 +572,14 @@ PHP_FUNCTION(swoole_async_read)
     sw_zval_add_ref(&filename);
     sw_copy_to_stack(req->filename, req->_filename);
 
-    if (callback && !ZVAL_IS_NULL(callback))
+    if (!php_swoole_is_callable(callback TSRMLS_CC))
     {
-        req->callback = callback;
-        sw_zval_add_ref(&callback);
-        sw_copy_to_stack(req->callback, req->_callback);
+        RETURN_FALSE;
     }
 
+    req->callback = callback;
+    sw_zval_add_ref(&callback);
+    sw_copy_to_stack(req->callback, req->_callback);
     req->content = fcnt;
     req->once = 0;
     req->type = SW_AIO_READ;
@@ -631,14 +629,10 @@ PHP_FUNCTION(swoole_async_write)
     }
     if (callback && !ZVAL_IS_NULL(callback))
     {
-        char *func_name = NULL;
-        if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
+        if (!php_swoole_is_callable(callback TSRMLS_CC))
         {
-            swoole_php_fatal_error(E_WARNING, "Function '%s' is not callable", func_name);
-            efree(func_name);
             RETURN_FALSE;
         }
-        efree(func_name);
     }
 
     convert_to_string(filename);
@@ -731,6 +725,11 @@ PHP_FUNCTION(swoole_async_readfile)
         swoole_php_fatal_error(E_WARNING, "open file[%s] failed. Error: %s[%d]", Z_STRVAL_P(filename), strerror(errno), errno);
         RETURN_FALSE;
     }
+    if (!php_swoole_is_callable(callback TSRMLS_CC))
+    {
+        RETURN_FALSE;
+    }
+
     struct stat file_stat;
     if (fstat(fd, &file_stat) < 0)
     {
@@ -760,12 +759,9 @@ PHP_FUNCTION(swoole_async_readfile)
     sw_zval_add_ref(&filename);
     sw_copy_to_stack(req->filename, req->_filename);
 
-    if (callback && !ZVAL_IS_NULL(callback))
-    {
-        req->callback = callback;
-        sw_zval_add_ref(&callback);
-        sw_copy_to_stack(req->callback, req->_callback);
-    }
+    req->callback = callback;
+    sw_zval_add_ref(&callback);
+    sw_copy_to_stack(req->callback, req->_callback);
 
     req->content = emalloc(length);
     req->once = 1;
@@ -774,7 +770,6 @@ PHP_FUNCTION(swoole_async_readfile)
     req->offset = 0;
 
     php_swoole_check_aio();
-
 
     swAio_event ev;
     ev.fd = fd;
@@ -831,14 +826,10 @@ PHP_FUNCTION(swoole_async_writefile)
     }
     if (callback && !ZVAL_IS_NULL(callback))
     {
-        char *func_name = NULL;
-        if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
+        if (!php_swoole_is_callable(callback TSRMLS_CC))
         {
-            swoole_php_fatal_error(E_WARNING, "Function '%s' is not callable", func_name);
-            efree(func_name);
             RETURN_FALSE;
         }
-        efree(func_name);
     }
 
     convert_to_string(filename);
@@ -1013,6 +1004,11 @@ PHP_FUNCTION(swoole_async_dns_lookup)
     if (Z_STRLEN_P(domain) == 0)
     {
         swoole_php_fatal_error(E_WARNING, "domain name empty.");
+        RETURN_FALSE;
+    }
+
+    if (!php_swoole_is_callable(cb TSRMLS_CC))
+    {
         RETURN_FALSE;
     }
 
