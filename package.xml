@@ -138,6 +138,7 @@
             <file role="doc" name="examples/coroutine/coro_nested.php" />
             <file role="doc" name="examples/coroutine/coro_nested_empty.php" />
             <file role="doc" name="examples/coroutine/coro_serialize.php" />
+            <file role="doc" name="examples/coroutine/coro_set_stack_size.php" />
             <file role="doc" name="examples/coroutine/coro_sleep.php" />
             <file role="doc" name="examples/coroutine/coro_stackless.php" />
             <file role="doc" name="examples/coroutine/coro_util.php" />
@@ -754,6 +755,7 @@
             <file role="test" name="tests/swoole_coroutine/parallel1.phpt" />
             <file role="test" name="tests/swoole_coroutine/parallel2.phpt" />
             <file role="test" name="tests/swoole_coroutine/parallel3.phpt" />
+            <file role="test" name="tests/swoole_coroutine/private_access.phpt" />
             <file role="test" name="tests/swoole_coroutine/use_process.phpt" />
             <file role="test" name="tests/swoole_coroutine/user_coroutine.phpt" />
             <file role="test" name="tests/swoole_coroutine/user_coroutine_2.phpt" />
@@ -997,8 +999,16 @@
             <file role="test" name="tests/swoole_redis_coro/reconnect.phpt" />
             <file role="test" name="tests/swoole_redis_coro/subscribe.phpt" />
             <file role="test" name="tests/swoole_redis_server/big_packet.phpt" />
-            <file role="test" name="tests/swoole_runtime/ssl.phpt" />
+            <file role="test" name="tests/swoole_runtime/accept.phpt" />
+            <file role="test" name="tests/swoole_runtime/accept_timeout.phpt" />
+            <file role="test" name="tests/swoole_runtime/enable_crypto.phpt" />
+            <file role="test" name="tests/swoole_runtime/sento.phpt" />
+            <file role="test" name="tests/swoole_runtime/ssl_client.phpt" />
             <file role="test" name="tests/swoole_runtime/stream_context.phpt" />
+            <file role="test" name="tests/swoole_runtime/tcp.phpt" />
+            <file role="test" name="tests/swoole_runtime/udg.phpt" />
+            <file role="test" name="tests/swoole_runtime/udp.phpt" />
+            <file role="test" name="tests/swoole_runtime/unix.phpt" />
             <file role="test" name="tests/swoole_serialize/001.phpt" />
             <file role="test" name="tests/swoole_serialize/002.phpt" />
             <file role="test" name="tests/swoole_serialize/003.phpt" />

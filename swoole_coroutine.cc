@@ -245,7 +245,7 @@ static void sw_coro_func(void *arg)
 int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval *retval, void *post_callback,
         void *params)
 {
-    if (is_xdebug_started == 1)
+    if (unlikely(is_xdebug_started == 1))
     {
         swWarn("xdebug do not support coroutine, please notice that it lead to coredump.");
     }
@@ -361,12 +361,15 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
 
 void sw_coro_yield()
 {
-    if (sw_get_current_cid() == -1)
+    if (unlikely(sw_get_current_cid() == -1))
     {
         swoole_php_fatal_error(E_ERROR, "must be called in the coroutine.");
     }
     coro_task *task = (coro_task *) sw_get_current_task();
     save_php_stack(task);
+#if PHP_VERSION_ID < 70100
+    EG(scope) = task->execute_data->func->common.scope;
+#endif
     coroutine_yield_naked(task->co);
 }
 
@@ -431,6 +434,11 @@ int sw_get_current_cid()
 coro_task* sw_get_current_task()
 {
     return (COROG.call_stack_size > 0) ? COROG.call_stack[COROG.call_stack_size - 1] : NULL;
+}
+
+void sw_coro_set_stack_size(int stack_size)
+{
+    coroutine_set_stack_size(stack_size);
 }
 
 #endif

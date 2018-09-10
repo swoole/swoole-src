@@ -62,6 +62,7 @@ coroutine_t* coroutine_get_current_task();
 int coroutine_get_cid(coroutine_t *co);
 int coroutine_test_alloc_cid();
 void coroutine_test_free_cid(int cid);
+void coroutine_set_stack_size(int stack_size);
 
 void coroutine_set_onYield(coro_php_yield_t func);
 void coroutine_set_onResume(coro_php_resume_t func);
