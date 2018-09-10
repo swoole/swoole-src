@@ -18,10 +18,7 @@
 #include "php_swoole.h"
 
 #ifdef SW_COROUTINE
-#include "coroutine.h"
 #include "swoole_coroutine.h"
-#include "zend_vm.h"
-#include "zend_closures.h"
 
 #define TASK_SLOT \
     ((int)((ZEND_MM_ALIGNED_SIZE(sizeof(coro_task)) + ZEND_MM_ALIGNED_SIZE(sizeof(zval)) - 1) / ZEND_MM_ALIGNED_SIZE(sizeof(zval))))

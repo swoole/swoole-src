@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 #include "coroutine.h"
+#include "zend_vm.h"
+#include "zend_closures.h"
 
 /* PHP 7.3 compatibility macro {{{*/
 #ifndef ZEND_CLOSURE_OBJECT
