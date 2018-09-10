@@ -304,7 +304,11 @@ int swWebSocket_dispatch_frame(swConnection *conn, char *data, uint32_t length)
 
         if (conn->websocket_status != WEBSOCKET_STATUS_CLOSING)
         {
-            swReactorThread_dispatch(conn, frame.str, length);
+            // Dispatch the frame with the same format of message frame
+            offset = length - ws.payload_length - SW_WEBSOCKET_HEADER_LEN;
+            data[offset] = 1;
+            data[offset + 1] = WEBSOCKET_OPCODE_CLOSE;
+            swReactorThread_dispatch(conn, data + offset, length - offset);
             // Client attempt to close
             char payload_length = 0x7F & frame.str[1];
 
