@@ -138,6 +138,7 @@ void sw_coro_save(zval *return_value, php_context *sw_php_context);
 coro_task* sw_get_current_task();
 void sw_coro_set_stack_size(int stack_size);
 
+extern int swoole_coroutine_sleep(double msec);
 int php_swoole_add_timer_coro(int ms, int cli_fd, long *timeout_id, void* param, swLinkedList_node **node TSRMLS_DC);
 int php_swoole_clear_timer_coro(long id TSRMLS_DC);
 
