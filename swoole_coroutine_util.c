@@ -360,6 +360,7 @@ static PHP_METHOD(swoole_coroutine_util, set)
     {
         convert_to_long(v);
         COROG.stack_size = (uint32_t) Z_LVAL_P(v);
+        sw_coro_set_stack_size(COROG.stack_size);
     }
     if (php_swoole_array_get_value(vht, "log_level", v))
     {
@@ -479,6 +480,7 @@ static PHP_METHOD(swoole_coroutine_util, resume)
 static PHP_METHOD(swoole_coroutine_util, stats)
 {
     array_init(return_value);
+    sw_add_assoc_long_ex(return_value, ZEND_STRS("stack_size"), COROG.stack_size);
     sw_add_assoc_long_ex(return_value, ZEND_STRS("coroutine_num"), COROG.coro_num);
     sw_add_assoc_long_ex(return_value, ZEND_STRS("coroutine_peak_num"), COROG.peak_coro_num);
 }

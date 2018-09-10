@@ -433,4 +433,9 @@ coro_task* sw_get_current_task()
     return (COROG.call_stack_size > 0) ? COROG.call_stack[COROG.call_stack_size - 1] : NULL;
 }
 
+void sw_coro_set_stack_size(int stack_size)
+{
+    coroutine_set_stack_size(stack_size);
+}
+
 #endif

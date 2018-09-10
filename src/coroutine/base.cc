@@ -279,3 +279,9 @@ void coroutine_set_onClose(coro_php_close_t func)
 {
     swCoroG.onClose = func;
 }
+
+void coroutine_set_stack_size(int stack_size)
+{
+    swCoroG.stack_size = stack_size;
+}
+
