@@ -296,9 +296,17 @@
             <file role="doc" name="examples/reflection_test.php" />
             <file role="doc" name="examples/ringqueue.php" />
             <file role="doc" name="examples/runtime/coroutine.php" />
+            <file role="doc" name="examples/runtime/file.php" />
+            <file role="doc" name="examples/runtime/include.php" />
+            <file role="doc" name="examples/runtime/mkdir.php" />
+            <file role="doc" name="examples/runtime/rename.phpt" />
+            <file role="doc" name="examples/runtime/sleep.php" />
             <file role="doc" name="examples/runtime/ssl.php" />
             <file role="doc" name="examples/runtime/stream.php" />
             <file role="doc" name="examples/runtime/strictmode.php" />
+            <file role="doc" name="examples/runtime/sync.php" />
+            <file role="doc" name="examples/runtime/time_sleep_until.php" />
+            <file role="doc" name="examples/runtime/unlink.phpt" />
             <file role="doc" name="examples/send_1m_svr.php" />
             <file role="doc" name="examples/sendfile_server.php" />
             <file role="doc" name="examples/serialize.php" />
@@ -393,6 +401,7 @@
             <file role="src" name="include/context.h" />
             <file role="src" name="include/coroutine.h" />
             <file role="src" name="include/error.h" />
+            <file role="src" name="include/file_hook.h" />
             <file role="src" name="include/hash.h" />
             <file role="src" name="include/hashmap.h" />
             <file role="src" name="include/heap.h" />
@@ -437,7 +446,6 @@
             <file role="src" name="src/coroutine/boost.cc" />
             <file role="src" name="src/coroutine/channel.cc" />
             <file role="src" name="src/coroutine/context.cc" />
-            <file role="src" name="src/coroutine/file.cc" />
             <file role="src" name="src/coroutine/hook.cc" />
             <file role="src" name="src/coroutine/socket.cc" />
             <file role="src" name="src/coroutine/ucontext.cc" />
@@ -1100,12 +1108,14 @@
             <file role="test" name="tests/swoole_websocket_server/test_send_large_request_data.phpt" />
             <file role="test" name="tests/swoole_websocket_server/test_send_small_request_data.phpt" />
             <file role="test" name="tests/swoole_websocket_server/websocket_disconnect.phpt" />
+            <file role="test" name="tests/swoole_websocket_server/websocket_disconnect_default.phpt" />
+            <file role="test" name="tests/swoole_websocket_server/websocket_disconnect_with_code.phpt" />
             <file role="test" name="tests/swoole_websocket_server/websocket_message.phpt" />
             <file role="test" name="tests/swoole_websocket_server/websocket_pack.phpt" />
             <file role="test" name="tests/swoole_websocket_server/websocket_pingpong.phpt" />
             <file role="test" name="tests/swoole_websocket_server/websocket_push.phpt" />
-            <file role="test" name="tests/swoole_websocket_server/websocket_server_active_close.phpt" />
             <file role="test" name="tests/swoole_websocket_server/websocket_server_close_frame_flag.phpt" />
+            <file role="test" name="tests/swoole_websocket_server/websocket_server_decode.phpt" />
             <file role="test" name="tests/template.phpt" />
             <file role="test" name="tests/test.sql" />
             <file role="src" name="thirdparty/boost/asm/jump_arm64_aapcs_elf_gas.S" />
@@ -1162,6 +1172,8 @@
             <file role="src" name="thirdparty/multipart_parser.h" />
             <file role="src" name="thirdparty/php_http_parser.c" />
             <file role="src" name="thirdparty/php_http_parser.h" />
+            <file role="src" name="thirdparty/php_streams_int.h" />
+            <file role="src" name="thirdparty/plain_wrapper.c" />
             <file role="src" name="tools/arginfo_check.php" />
             <file role="src" name="tools/composer.json" />
             <file role="src" name="tools/export.php" />
