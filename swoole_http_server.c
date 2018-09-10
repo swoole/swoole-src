@@ -382,11 +382,6 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_sendfile, 0, 0, 1)
     ZEND_ARG_INFO(0, length)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_redirect, 0, 0, 1)
-    ZEND_ARG_INFO(0, location)
-    ZEND_ARG_INFO(0, http_code)
-ZEND_END_ARG_INFO()
-
 static const php_http_parser_settings http_parser_settings =
 {
     NULL,

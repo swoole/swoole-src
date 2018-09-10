@@ -167,7 +167,7 @@ static sw_inline zval* sw_zend_read_property_array(zend_class_entry *class_ptr, 
     zval *property = sw_zend_read_property(class_ptr, obj, s, len, silent);
     if (Z_TYPE_P(property) != IS_ARRAY)
     {
-        array_init(&property);
+        array_init(property);
     }
     return property;
 }

@@ -1415,7 +1415,7 @@ int http_client_check_keep(http_client *http)
     {
         zval *zobject = http->cli->object;
         zval *retval = NULL;
-        sw_zend_call_method_with_0_params(&zobject, Z_OBJ_P(zobject)->ce, NULL, "close", &retval);
+        sw_zend_call_method_with_0_params(&zobject, swoole_http_client_class_entry_ptr, NULL, "close", &retval);
         if (retval)
         {
             sw_zval_ptr_dtor(&retval);
