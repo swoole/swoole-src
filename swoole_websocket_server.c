@@ -473,21 +473,20 @@ static PHP_METHOD(swoole_websocket_server, on)
 
 static PHP_METHOD(swoole_websocket_server, disconnect)
 {
-    zval *zdata;
     zend_long fd = 0;
     zend_long code = WEBSOCKET_CLOSE_NORMAL;
 
-    char *data;
-    int length;
+    char *data = NULL;
+    size_t length = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|lz", &fd, &code, &zdata) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|ls", &fd, &code, &data, &length) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     if (fd <= 0)
     {
-        swoole_php_fatal_error(E_WARNING, "fd[%d] is invalid.", (int)fd);
+        swoole_php_fatal_error(E_WARNING, "fd[%d] is invalid.", (int) fd);
         RETURN_FALSE;
     }
 
@@ -497,76 +496,36 @@ static PHP_METHOD(swoole_websocket_server, disconnect)
         RETURN_FALSE;
     }
 
-    if (zdata)
-    {
-        length = php_swoole_get_send_data(zdata, &data TSRMLS_CC);
-    }
-    else
-    {
-        // Status reason is not set
-        length = 0;
-    }
-
-    if (length < 0 || length > SW_WEBSOCKET_CLOSE_REASON_MAX_LEN)
+    if (length > SW_WEBSOCKET_CLOSE_REASON_MAX_LEN)
     {
         RETURN_FALSE;
     }
 
     swConnection *conn = swWorker_get_connection(SwooleG.serv, fd);
 
-    if (!conn || conn->websocket_status < WEBSOCKET_STATUS_HANDSHAKE)
+    if (!conn || conn->websocket_status != WEBSOCKET_STATUS_ACTIVE)
     {
-        SwooleG.error = SW_ERROR_WEBSOCKET_BAD_CLIENT;
+        SwooleG.error = SW_ERROR_WEBSOCKET_UNCONNECTED;
         RETURN_FALSE;
     }
+
+    // Send close frame
     swString_clear(swoole_http_buffer);
-
-    char payload_length = length + SW_WEBSOCKET_CLOSE_CODE_LEN;
-
-    swoole_http_buffer->str[0] = 0x88;
-    swoole_http_buffer->str[1] = 0x7F & payload_length;     // Avoid bit 1 being set by accident
-
-    memcpy(swoole_http_buffer->str + SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_CLOSE_CODE_LEN, data, length);
-
+    char payload_length = SW_WEBSOCKET_CLOSE_CODE_LEN + length;
+    swoole_http_buffer->str[0] = 0x88; // FIN | OPCODE: WEBSOCKET_OPCODE_CLOSE
+    swoole_http_buffer->str[1] = 0x7F & payload_length; // Avoid bit 1 being set by accident
     // Encode close code
     swoole_http_buffer->str[2] = (char)((code >> 8 & 0xFF));
     swoole_http_buffer->str[3] = (char)((code & 0xFF));
-
-    swoole_http_buffer->length = payload_length + SW_WEBSOCKET_HEADER_LEN;
-
-    int ret = swServer_tcp_send(SwooleG.serv, fd, swoole_http_buffer->str, swoole_http_buffer->length);
+    memcpy(swoole_http_buffer->str + SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_CLOSE_CODE_LEN, data, length);
+    swoole_http_buffer->length = SW_WEBSOCKET_HEADER_LEN + payload_length;
+    swServer_tcp_send(SwooleG.serv, fd, swoole_http_buffer->str, swoole_http_buffer->length);
 
     // Change status immediately to avoid double close
     conn->websocket_status = WEBSOCKET_STATUS_CLOSING;
 
-    // Format swEventData
-    swEventData req;
-    req.info.fd         = fd;
-    req.info.len        = SW_WEBSOCKET_HEADER_LEN + (size_t)payload_length;
-    req.info.from_id    = -1;
-    req.info.from_fd    = conn->from_fd;
-
-    req.data[0] = 1;                        // Flag FIN: 1
-    req.data[1] = WEBSOCKET_OPCODE_CLOSE;   // OPCODE: WEBSOCKET_OPCODE_CLOSE
-    memcpy(req.data + SW_WEBSOCKET_HEADER_LEN, swoole_http_buffer->str + SW_WEBSOCKET_HEADER_LEN, (size_t)payload_length);
-
-    // Call onClose
-    swoole_websocket_onMessage(&req);
-
-#ifdef SW_COROUTINE
-    swServer *serv = SwooleG.serv;
-    if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_BUFFER_OVERFLOW && serv->send_yield)
-    {
-        zval _yield_data;
-        ZVAL_STRINGL(&_yield_data, swoole_http_buffer->str, swoole_http_buffer->length);
-        php_swoole_server_send_yield(serv, fd, &_yield_data, return_value);
-    }
-    else
-#endif
-    {
-        // Server close connection immediately
-        SW_CHECK_RETURN(SwooleG.serv->close(serv, (int)fd, (int)SW_FALSE));
-    }
+    // Server close connection immediately
+    SW_CHECK_RETURN(SwooleG.serv->close(SwooleG.serv, (int) fd, SW_FALSE));
 }
 
 static PHP_METHOD(swoole_websocket_server, push)
