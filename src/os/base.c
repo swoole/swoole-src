@@ -32,21 +32,10 @@ struct flock lock;
 #endif
 
 swAsyncIO SwooleAIO;
-swPipe swoole_aio_pipe;
+static swPipe swoole_aio_pipe;
 
-static void swAioBase_destroy();
-static int swAioBase_read(int fd, void *inbuf, size_t size, off_t offset);
-static int swAioBase_write(int fd, void *inbuf, size_t size, off_t offset);
 static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len);
-static int swAioBase_onFinish(swReactor *reactor, swEvent *event);
-
-static void swAio_handler_read(swAio_event *event);
-static void swAio_handler_write(swAio_event *event);
-static void swAio_handler_gethostbyname(swAio_event *event);
-static void swAio_handler_getaddrinfo(swAio_event *event);
-static void swAio_handler_stream_get_line(swAio_event *event);
-static void swAio_handler_read_file(swAio_event *event);
-static void swAio_handler_write_file(swAio_event *event);
+static int swAio_onCompleted(swReactor *reactor, swEvent *event);
 
 static swThreadPool swAioBase_thread_pool;
 static int swAioBase_pipe_read;
@@ -64,7 +53,40 @@ int swAio_init(void)
         swWarn("No eventloop, cannot initialized");
         return SW_ERR;
     }
-    return swAioBase_init(SW_AIO_EVENT_NUM);
+    if (swPipeBase_create(&swoole_aio_pipe, 0) < 0)
+    {
+        return SW_ERR;
+    }
+    if (swMutex_create(&SwooleAIO.lock, 0) < 0)
+    {
+        swWarn("create mutex lock error.");
+        return SW_ERR;
+    }
+    if (SwooleAIO.thread_num <= 0)
+    {
+        SwooleAIO.thread_num = SW_AIO_THREAD_NUM_DEFAULT;
+    }
+    if (swThreadPool_create(&swAioBase_thread_pool, SwooleAIO.thread_num) < 0)
+    {
+        return SW_ERR;
+    }
+
+    swAioBase_thread_pool.onTask = swAioBase_thread_onTask;
+
+    swAioBase_pipe_read = swoole_aio_pipe.getFd(&swoole_aio_pipe, 0);
+    swAioBase_pipe_write = swoole_aio_pipe.getFd(&swoole_aio_pipe, 1);
+
+    SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_AIO, swAio_onCompleted);
+    SwooleG.main_reactor->add(SwooleG.main_reactor, swAioBase_pipe_read, SW_FD_AIO);
+
+    if (swThreadPool_run(&swAioBase_thread_pool) < 0)
+    {
+        return SW_ERR;
+    }
+
+    SwooleAIO.init = 1;
+
+    return SW_OK;
 }
 
 void swAio_free(void)
@@ -73,7 +95,12 @@ void swAio_free(void)
     {
         return;
     }
-    SwooleAIO.destroy();
+    swThreadPool_free(&swAioBase_thread_pool);
+    if (SwooleG.main_reactor)
+    {
+        SwooleG.main_reactor->del(SwooleG.main_reactor, swAioBase_pipe_read);
+    }
+    swoole_aio_pipe.close(&swoole_aio_pipe);
     SwooleAIO.init = 0;
 }
 
@@ -137,7 +164,7 @@ int daemon(int nochdir, int noclose)
 }
 #endif
 
-static int swAioBase_onFinish(swReactor *reactor, swEvent *event)
+static int swAio_onCompleted(swReactor *reactor, swEvent *event)
 {
     int i;
     swAio_event *events[SW_AIO_EVENT_NUM];
@@ -149,70 +176,14 @@ static int swAioBase_onFinish(swReactor *reactor, swEvent *event)
     }
     for (i = 0; i < n / sizeof(swAio_event*); i++)
     {
-        if (events[i]->callback)
-        {
-            events[i]->callback(events[i]);
-        }
-        else
-        {
-            SwooleAIO.callback(events[i]);
-        }
+        events[i]->callback(events[i]);
         SwooleAIO.task_num--;
         sw_free(events[i]);
     }
     return SW_OK;
 }
 
-int swAioBase_init(int max_aio_events)
-{
-    if (swPipeBase_create(&swoole_aio_pipe, 0) < 0)
-    {
-        return SW_ERR;
-    }
-    if (swMutex_create(&SwooleAIO.lock, 0) < 0)
-    {
-        swWarn("create mutex lock error.");
-        return SW_ERR;
-    }
-    if (SwooleAIO.thread_num <= 0)
-    {
-        SwooleAIO.thread_num = SW_AIO_THREAD_NUM_DEFAULT;
-    }
-    if (swThreadPool_create(&swAioBase_thread_pool, SwooleAIO.thread_num) < 0)
-    {
-        return SW_ERR;
-    }
-
-    swAioBase_thread_pool.onTask = swAioBase_thread_onTask;
-
-    swAioBase_pipe_read = swoole_aio_pipe.getFd(&swoole_aio_pipe, 0);
-    swAioBase_pipe_write = swoole_aio_pipe.getFd(&swoole_aio_pipe, 1);
-
-    SwooleAIO.handlers[SW_AIO_READ] = swAio_handler_read;
-    SwooleAIO.handlers[SW_AIO_WRITE] = swAio_handler_write;
-    SwooleAIO.handlers[SW_AIO_GETHOSTBYNAME] = swAio_handler_gethostbyname;
-    SwooleAIO.handlers[SW_AIO_GETADDRINFO] = swAio_handler_getaddrinfo;
-    SwooleAIO.handlers[SW_AIO_STREAM_GET_LINE] = swAio_handler_stream_get_line;
-    SwooleAIO.handlers[SW_AIO_READ_FILE] = swAio_handler_read_file;
-    SwooleAIO.handlers[SW_AIO_WRITE_FILE] = swAio_handler_write_file;
-
-    SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_AIO, swAioBase_onFinish);
-    SwooleG.main_reactor->add(SwooleG.main_reactor, swAioBase_pipe_read, SW_FD_AIO);
-
-    if (swThreadPool_run(&swAioBase_thread_pool) < 0)
-    {
-        return SW_ERR;
-    }
-
-    SwooleAIO.destroy = swAioBase_destroy;
-    SwooleAIO.read = swAioBase_read;
-    SwooleAIO.write = swAioBase_write;
-    SwooleAIO.init = 1;
-
-    return SW_OK;
-}
-
-static void swAio_handler_read(swAio_event *event)
+void swAio_handler_read(swAio_event *event)
 {
     int ret = -1;
     if (flock(event->fd, LOCK_SH) < 0)
@@ -252,7 +223,7 @@ static inline char* find_eol(char *buf, size_t size)
     return eol;
 }
 
-static void swAio_handler_stream_get_line(swAio_event *event)
+void swAio_handler_stream_get_line(swAio_event *event)
 {
     int ret = -1;
     if (flock(event->fd, LOCK_SH) < 0)
@@ -358,7 +329,7 @@ static void swAio_handler_stream_get_line(swAio_event *event)
     event->req = (void *) (long) writepos;
 }
 
-static void swAio_handler_read_file(swAio_event *event)
+void swAio_handler_read_file(swAio_event *event)
 {
     int ret = -1;
     int fd = open(event->req, O_RDONLY);
@@ -412,7 +383,7 @@ static void swAio_handler_read_file(swAio_event *event)
     event->error = 0;
 }
 
-static void swAio_handler_write_file(swAio_event *event)
+void swAio_handler_write_file(swAio_event *event)
 {
     int ret = -1;
     int fd = open(event->req, event->flags, 0644);
@@ -448,7 +419,7 @@ static void swAio_handler_write_file(swAio_event *event)
     event->error = 0;
 }
 
-static void swAio_handler_write(swAio_event *event)
+void swAio_handler_write(swAio_event *event)
 {
     int ret = -1;
     if (flock(event->fd, LOCK_EX) < 0)
@@ -482,7 +453,7 @@ static void swAio_handler_write(swAio_event *event)
     event->ret = ret;
 }
 
-static void swAio_handler_gethostbyname(swAio_event *event)
+void swAio_handler_gethostbyname(swAio_event *event)
 {
     struct in_addr addr_v4;
     struct in6_addr addr_v6;
@@ -525,7 +496,7 @@ static void swAio_handler_gethostbyname(swAio_event *event)
     event->ret = ret;
 }
 
-static void swAio_handler_getaddrinfo(swAio_event *event)
+void swAio_handler_getaddrinfo(swAio_event *event)
 {
     swRequest_getaddrinfo *req = (swRequest_getaddrinfo *) event->req;
     event->ret = swoole_getaddrinfo(req);
@@ -535,14 +506,14 @@ static void swAio_handler_getaddrinfo(swAio_event *event)
 static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len)
 {
     swAio_event *event = task;
-    if (event->type >= SW_AIO_HANDLER_MAX_SIZE || SwooleAIO.handlers[event->type] == NULL)
+    if (event->handler == NULL)
     {
         event->error = SW_ERROR_AIO_BAD_REQUEST;
         event->ret = -1;
         goto _error;
     }
 
-    SwooleAIO.handlers[event->type](event);
+    event->handler(event);
 
     swTrace("aio_thread ok. ret=%d, error=%d", event->ret, event->error);
 
@@ -573,60 +544,6 @@ static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len)
     return SW_OK;
 }
 
-static int swAioBase_write(int fd, void *inbuf, size_t size, off_t offset)
-{
-    swAio_event *aio_ev = (swAio_event *) sw_malloc(sizeof(swAio_event));
-    if (aio_ev == NULL)
-    {
-        swWarn("malloc failed.");
-        return SW_ERR;
-    }
-    bzero(aio_ev, sizeof(swAio_event));
-    aio_ev->fd = fd;
-    aio_ev->buf = inbuf;
-    aio_ev->type = SW_AIO_WRITE;
-    aio_ev->nbytes = size;
-    aio_ev->offset = offset;
-    aio_ev->task_id = SwooleAIO.current_id++;
-
-    if (swThreadPool_dispatch(&swAioBase_thread_pool, aio_ev, sizeof(aio_ev)) < 0)
-    {
-        return SW_ERR;
-    }
-    else
-    {
-        SwooleAIO.task_num++;
-        return aio_ev->task_id;
-    }
-}
-
-int swAio_dns_lookup(void *hostname, void *ip_addr, size_t size)
-{
-    swAio_event *aio_ev = (swAio_event *) sw_malloc(sizeof(swAio_event));
-    if (aio_ev == NULL)
-    {
-        swWarn("malloc failed.");
-        return SW_ERR;
-    }
-
-    bzero(aio_ev, sizeof(swAio_event));
-    aio_ev->buf = ip_addr;
-    aio_ev->req = hostname;
-    aio_ev->type = SW_AIO_GETHOSTBYNAME;
-    aio_ev->nbytes = size;
-    aio_ev->task_id = SwooleAIO.current_id++;
-
-    if (swThreadPool_dispatch(&swAioBase_thread_pool, aio_ev, sizeof(aio_ev)) < 0)
-    {
-        return SW_ERR;
-    }
-    else
-    {
-        SwooleAIO.task_num++;
-        return aio_ev->task_id;
-    }
-}
-
 int swAio_dispatch(swAio_event *_event)
 {
     if (SwooleAIO.init == 0)
@@ -653,42 +570,4 @@ int swAio_dispatch(swAio_event *_event)
         SwooleAIO.task_num++;
         return _event->task_id;
     }
-}
-
-static int swAioBase_read(int fd, void *inbuf, size_t size, off_t offset)
-{
-    swAio_event *aio_ev = (swAio_event *) sw_malloc(sizeof(swAio_event));
-    if (aio_ev == NULL)
-    {
-        swWarn("malloc failed.");
-        return SW_ERR;
-    }
-
-    bzero(aio_ev, sizeof(swAio_event));
-    aio_ev->fd = fd;
-    aio_ev->buf = inbuf;
-    aio_ev->type = SW_AIO_READ;
-    aio_ev->nbytes = size;
-    aio_ev->offset = offset;
-    aio_ev->task_id = SwooleAIO.current_id++;
-
-    if (swThreadPool_dispatch(&swAioBase_thread_pool, aio_ev, sizeof(aio_ev)) < 0)
-    {
-        return SW_ERR;
-    }
-    else
-    {
-        SwooleAIO.task_num++;
-        return aio_ev->task_id;
-    }
-}
-
-void swAioBase_destroy()
-{
-    swThreadPool_free(&swAioBase_thread_pool);
-    if (SwooleG.main_reactor)
-    {
-        SwooleG.main_reactor->del(SwooleG.main_reactor, swAioBase_pipe_read);
-    }
-    swoole_aio_pipe.close(&swoole_aio_pipe);
 }
