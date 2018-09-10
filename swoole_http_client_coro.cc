@@ -65,6 +65,7 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
 
 static int http_client_coro_close(zval *zobject)
 {
+    zend_update_property_bool(Z_OBJCE_P(zobject), zobject, ZEND_STRL("connected"), 0);
     http_client_coro_property *hcc = (http_client_coro_property *) swoole_get_property(zobject, 0);
     if (hcc->socket == nullptr)
     {
@@ -302,6 +303,10 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
             zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("errCode"), hcc->socket->errCode);
             zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_CONNECT_TIMEOUT );
             return SW_ERR;
+        }
+        else
+        {
+            zend_update_property_bool(Z_OBJCE_P(zobject), zobject, ZEND_STRL("connected"), 1);
         }
 #ifdef SW_USE_OPENSSL
         if (hcc->ssl && !hcc->socket->ssl_handshake())
@@ -1408,14 +1413,24 @@ static PHP_METHOD(swoole_http_client_coro, push)
     {
         swoole_php_fatal_error(E_WARNING, "opcode max 10");
         SwooleG.error = SW_ERROR_WEBSOCKET_BAD_OPCODE;
+        zend_update_property_long(swoole_http_client_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error);
         RETURN_FALSE;
     }
 
     http_client *http = (http_client *) swoole_get_object(getThis());
+
+    if (!http)
+    {
+        SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
+        zend_update_property_long(swoole_http_client_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error);
+        RETURN_FALSE;
+    }
+
     if (!http->upgrade)
     {
         swoole_php_fatal_error(E_WARNING, "websocket handshake failed, cannot push data.");
         SwooleG.error = SW_ERROR_WEBSOCKET_HANDSHAKE_FAILED;
+        zend_update_property_long(swoole_http_client_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error);
         RETURN_FALSE;
     }
 
