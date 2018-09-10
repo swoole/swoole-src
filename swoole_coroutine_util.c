@@ -488,23 +488,6 @@ static PHP_METHOD(swoole_coroutine_util, getuid)
     RETURN_LONG(sw_get_current_cid());
 }
 
-static void php_coroutine_sleep_timeout(swTimer *timer, swTimer_node *tnode)
-{
-    zval *retval = NULL;
-    zval *result = NULL;
-    SW_MAKE_STD_ZVAL(result);
-    ZVAL_BOOL(result, 1);
-
-    php_context *context = (php_context *) tnode->data;
-    int ret = coro_resume(context, result, &retval);
-    if (ret == CORO_END && retval)
-    {
-        sw_zval_ptr_dtor(&retval);
-    }
-    sw_zval_ptr_dtor(&result);
-    efree(context);
-}
-
 int php_coroutine_reactor_can_exit(swReactor *reactor)
 {
     return COROG.coro_num == 0;
@@ -538,19 +521,11 @@ static PHP_METHOD(swoole_coroutine_util, sleep)
         return;
     }
 
-    php_context *context = emalloc(sizeof(php_context));
-    context->onTimeout = NULL;
-    context->state = SW_CORO_CONTEXT_RUNNING;
-
     php_swoole_check_reactor();
     php_swoole_check_timer(ms);
-    if (SwooleG.timer.add(&SwooleG.timer, ms, 0, context, php_coroutine_sleep_timeout) == NULL)
-    {
-        RETURN_FALSE;
-    }
 
-    coro_save(context);
-    coro_yield();
+    swoole_coroutine_sleep(seconds);
+    RETURN_TRUE;
 }
 
 static void aio_onReadCompleted(swAio_event *event)

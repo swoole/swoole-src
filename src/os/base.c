@@ -32,14 +32,15 @@ struct flock lock;
 #endif
 
 swAsyncIO SwooleAIO;
-static swPipe swoole_aio_pipe;
 
-static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len);
+
+static int swAio_onTask(swThreadPool *pool, void *task, int task_len);
 static int swAio_onCompleted(swReactor *reactor, swEvent *event);
 
-static swThreadPool swAioBase_thread_pool;
-static int swAioBase_pipe_read;
-static int swAioBase_pipe_write;
+static swThreadPool pool;
+static swPipe _aio_pipe;
+static int _pipe_read;
+static int _pipe_write;
 
 int swAio_init(void)
 {
@@ -53,7 +54,7 @@ int swAio_init(void)
         swWarn("No eventloop, cannot initialized");
         return SW_ERR;
     }
-    if (swPipeBase_create(&swoole_aio_pipe, 0) < 0)
+    if (swPipeBase_create(&_aio_pipe, 0) < 0)
     {
         return SW_ERR;
     }
@@ -66,20 +67,20 @@ int swAio_init(void)
     {
         SwooleAIO.thread_num = SW_AIO_THREAD_NUM_DEFAULT;
     }
-    if (swThreadPool_create(&swAioBase_thread_pool, SwooleAIO.thread_num) < 0)
+    if (swThreadPool_create(&pool, SwooleAIO.thread_num) < 0)
     {
         return SW_ERR;
     }
 
-    swAioBase_thread_pool.onTask = swAioBase_thread_onTask;
+    pool.onTask = swAio_onTask;
 
-    swAioBase_pipe_read = swoole_aio_pipe.getFd(&swoole_aio_pipe, 0);
-    swAioBase_pipe_write = swoole_aio_pipe.getFd(&swoole_aio_pipe, 1);
+    _pipe_read = _aio_pipe.getFd(&_aio_pipe, 0);
+    _pipe_write = _aio_pipe.getFd(&_aio_pipe, 1);
 
     SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_AIO, swAio_onCompleted);
-    SwooleG.main_reactor->add(SwooleG.main_reactor, swAioBase_pipe_read, SW_FD_AIO);
+    SwooleG.main_reactor->add(SwooleG.main_reactor, _pipe_read, SW_FD_AIO);
 
-    if (swThreadPool_run(&swAioBase_thread_pool) < 0)
+    if (swThreadPool_run(&pool) < 0)
     {
         return SW_ERR;
     }
@@ -95,24 +96,13 @@ void swAio_free(void)
     {
         return;
     }
-    swThreadPool_free(&swAioBase_thread_pool);
+    swThreadPool_free(&pool);
     if (SwooleG.main_reactor)
     {
-        SwooleG.main_reactor->del(SwooleG.main_reactor, swAioBase_pipe_read);
+        SwooleG.main_reactor->del(SwooleG.main_reactor, _pipe_read);
     }
-    swoole_aio_pipe.close(&swoole_aio_pipe);
+    _aio_pipe.close(&_aio_pipe);
     SwooleAIO.init = 0;
-}
-
-/**
- * for test
- */
-void swAio_callback_test(swAio_event *aio_event)
-{
-    printf("content=%s\n", (char *)aio_event->buf);
-    printf("fd: %d, request_type: %s, offset: %ld, length: %lu\n", aio_event->fd,
-            (aio_event == SW_AIO_READ) ? "READ" : "WRITE", (long)aio_event->offset,  aio_event->nbytes);
-    SwooleG.running = 0;
 }
 
 #ifndef HAVE_DAEMON
@@ -503,7 +493,7 @@ void swAio_handler_getaddrinfo(swAio_event *event)
     event->error = req->error;
 }
 
-static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len)
+static int swAio_onTask(swThreadPool *pool, void *task, int task_len)
 {
     swAio_event *event = task;
     if (event->handler == NULL)
@@ -520,7 +510,7 @@ static int swAioBase_thread_onTask(swThreadPool *pool, void *task, int task_len)
     _error: do
     {
         SwooleAIO.lock.lock(&SwooleAIO.lock);
-        int ret = write(swAioBase_pipe_write, &task, sizeof(task));
+        int ret = write(_pipe_write, &task, sizeof(task));
         SwooleAIO.lock.unlock(&SwooleAIO.lock);
         if (ret < 0)
         {
@@ -561,7 +551,7 @@ int swAio_dispatch(swAio_event *_event)
     }
     memcpy(event, _event, sizeof(swAio_event));
 
-    if (swThreadPool_dispatch(&swAioBase_thread_pool, event, sizeof(event)) < 0)
+    if (swThreadPool_dispatch(&pool, event, sizeof(event)) < 0)
     {
         return SW_ERR;
     }
