@@ -543,13 +543,36 @@ static PHP_METHOD(swoole_websocket_server, push)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lz|lb", &fd, &zdata, &opcode, &fin) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     if (fd <= 0)
     {
         swoole_php_fatal_error(E_WARNING, "fd[%d] is invalid.", (int )fd);
         RETURN_FALSE;
+    }
+
+    if (Z_TYPE_P(zdata) == IS_OBJECT && instanceof_function(Z_OBJCE_P(zdata), swoole_websocket_frame_class_entry_ptr))
+    {
+        swDebug("it is a frame");
+        zval *zframe = zdata;
+        zval *ztmp = NULL;
+        zdata = sw_zend_read_property(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("data"), 1);
+        if (!zdata)
+        {
+            swoole_php_fatal_error(E_WARNING, "websocket frame property data is required.");
+            RETURN_FALSE;
+        }
+        if ((ztmp = sw_zend_read_property(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("opcode"), 1)))
+        {
+            convert_to_long(ztmp);
+            opcode = Z_LVAL_P(ztmp);
+        }
+        if ((ztmp = sw_zend_read_property(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("finish"), 1)))
+        {
+            convert_to_boolean(ztmp);
+            fin = Z_BVAL_P(ztmp);
+        }
     }
 
     if (opcode > WEBSOCKET_OPCODE_PONG)
