@@ -547,7 +547,9 @@ static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_
     switch (xparam->op)
     {
     case STREAM_XPORT_OP_LISTEN:
-    {    zval *val = NULL;
+    {
+#ifdef SW_USE_OPENSSL
+        zval *val = NULL;
         char *certfile = NULL;
         char *private_key;
 
@@ -562,6 +564,7 @@ static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_
 
         sock->ssl_option.cert_file = sw_strdup(certfile);
         sock->ssl_option.key_file = sw_strdup(private_key);
+#endif
         xparam->outputs.returncode = sock->listen(xparam->inputs.backlog) ? 0 : -1;
         break;
     }
