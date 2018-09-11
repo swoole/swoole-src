@@ -178,6 +178,8 @@ zend_class_entry swoole_http_client_coro_ce;
 zend_class_entry *swoole_http_client_coro_class_entry_ptr;
 static zend_object_handlers swoole_http_client_coro_handlers;
 
+extern zend_class_entry *swoole_websocket_frame_class_entry_ptr;
+
 static PHP_METHOD(swoole_http_client_coro, __construct);
 static PHP_METHOD(swoole_http_client_coro, __destruct);
 static PHP_METHOD(swoole_http_client_coro, set);
@@ -1399,19 +1401,45 @@ static PHP_METHOD(swoole_http_client_coro, upgrade)
 
 static PHP_METHOD(swoole_http_client_coro, push)
 {
+    zval *zdata;
     char *data;
     zend_size_t length;
     long opcode = WEBSOCKET_OPCODE_TEXT;
     zend_bool fin = 1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|lb", &data, &length, &opcode, &fin) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|lb", &zdata, &opcode, &fin) == FAILURE)
     {
         return;
     }
 
+    if (Z_TYPE_P(zdata) == IS_OBJECT && instanceof_function(Z_OBJCE_P(zdata), swoole_websocket_frame_class_entry_ptr))
+    {
+        zval *zframe = zdata;
+        zval *ztmp = NULL;
+        zdata = sw_zend_read_property(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("data"), 1);
+        if (!zdata)
+        {
+            swoole_php_fatal_error(E_WARNING, "data property in websocket frame is required.");
+            RETURN_FALSE;
+        }
+        if ((ztmp = sw_zend_read_property(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("opcode"), 1)))
+        {
+            convert_to_long(ztmp);
+            opcode = Z_LVAL_P(ztmp);
+        }
+        if ((ztmp = sw_zend_read_property(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("finish"), 1)))
+        {
+            convert_to_boolean(ztmp);
+            fin = Z_BVAL_P(ztmp);
+        }
+    }
+    convert_to_string(zdata);
+    data = Z_STRVAL_P(zdata);
+    length = Z_STRLEN_P(zdata);
+
     if (opcode > WEBSOCKET_OPCODE_PONG)
     {
-        swoole_php_fatal_error(E_WARNING, "opcode max 10");
+        swoole_php_fatal_error(E_WARNING, "the maximum value of opcode is 10.");
         SwooleG.error = SW_ERROR_WEBSOCKET_BAD_OPCODE;
         zend_update_property_long(swoole_http_client_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error);
         RETURN_FALSE;

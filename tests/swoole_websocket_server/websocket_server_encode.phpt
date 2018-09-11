@@ -56,7 +56,6 @@ $pm->childFunc = function () use ($pm) {
             $frame = new swoole_websocket_frame;
             $frame->opcode = (int)explode('|', $data, 3)[1]; //type
             $frame->data = $data;
-            $frame->finish = true;
             $ret = $serv->push($req->fd, $frame);
             assert($ret);
         }

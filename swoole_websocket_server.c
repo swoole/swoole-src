@@ -36,7 +36,7 @@ static zend_class_entry swoole_websocket_server_ce;
 static zend_class_entry *swoole_websocket_server_class_entry_ptr;
 
 static zend_class_entry swoole_websocket_frame_ce;
-static zend_class_entry *swoole_websocket_frame_class_entry_ptr;
+zend_class_entry *swoole_websocket_frame_class_entry_ptr;
 
 static int websocket_handshake(swListenPort *, http_context *);
 
@@ -370,8 +370,8 @@ void swoole_websocket_init(int module_number TSRMLS_DC)
     SWOOLE_CLASS_ALIAS(swoole_websocket_frame, "Swoole\\WebSocket\\Frame");
     zend_declare_property_long(swoole_websocket_frame_class_entry_ptr, ZEND_STRL("fd"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_websocket_frame_class_entry_ptr, ZEND_STRL("data"), ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_long(swoole_websocket_frame_class_entry_ptr, ZEND_STRL("opcode"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_bool(swoole_websocket_frame_class_entry_ptr, ZEND_STRL("finish"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_websocket_frame_class_entry_ptr, ZEND_STRL("opcode"), WEBSOCKET_OPCODE_TEXT, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_bool(swoole_websocket_frame_class_entry_ptr, ZEND_STRL("finish"), 1, ZEND_ACC_PUBLIC TSRMLS_CC);
 
     if (SWOOLE_G(use_shortname))
     {
@@ -554,13 +554,12 @@ static PHP_METHOD(swoole_websocket_server, push)
 
     if (Z_TYPE_P(zdata) == IS_OBJECT && instanceof_function(Z_OBJCE_P(zdata), swoole_websocket_frame_class_entry_ptr))
     {
-        swDebug("it is a frame");
         zval *zframe = zdata;
         zval *ztmp = NULL;
         zdata = sw_zend_read_property(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("data"), 1);
         if (!zdata)
         {
-            swoole_php_fatal_error(E_WARNING, "websocket frame property data is required.");
+            swoole_php_fatal_error(E_WARNING, "data property in websocket frame is required.");
             RETURN_FALSE;
         }
         if ((ztmp = sw_zend_read_property(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("opcode"), 1)))
