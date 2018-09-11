@@ -32,12 +32,12 @@ struct coroutine_s
 public:
     Context ctx;
     int cid;
-    void *ptr;
+    void *task;
     coroutine_s(int _cid, size_t stack_size, coroutine_func_t fn, void *private_data) :
             ctx(stack_size, fn, private_data)
     {
         cid = _cid;
-        ptr = NULL;
+        task = NULL;
     }
 };
 
@@ -155,7 +155,7 @@ void coroutine_yield(coroutine_t *co)
 {
     if (swCoroG.onYield)
     {
-        swCoroG.onYield(co->ptr);
+        swCoroG.onYield(co->task);
     }
     swCoroG.call_stack_size--;
     co->ctx.SwapOut();
@@ -165,7 +165,7 @@ void coroutine_resume(coroutine_t *co)
 {
     if (swCoroG.onResume)
     {
-        swCoroG.onResume(co->ptr);
+        swCoroG.onResume(co->task);
     }
     swCoroG.call_stack[swCoroG.call_stack_size++] = co;
     co->ctx.SwapIn();
@@ -203,12 +203,12 @@ void coroutine_release(coroutine_t *co)
     delete co;
 }
 
-void coroutine_set_ptr(coroutine_t *co, void *ptr)
+void coroutine_set_task(coroutine_t *co, void *task)
 {
-    co->ptr = ptr;
+    co->task = task;
 }
 
-void* coroutine_get_ptr_by_cid(int cid)
+void* coroutine_get_task_by_cid(int cid)
 {
     coroutine_t *co = swCoroG.coroutines[cid];
     if (co == nullptr)
@@ -217,7 +217,7 @@ void* coroutine_get_ptr_by_cid(int cid)
     }
     else
     {
-        return co->ptr;
+        return co->task;
     }
 }
 
@@ -226,14 +226,27 @@ coroutine_t* coroutine_get_by_id(int cid)
     return swCoroG.coroutines[cid];
 }
 
-coroutine_t* coroutine_get_current_task()
+coroutine_t* coroutine_get_current()
 {
     return (swCoroG.call_stack_size > 0) ? swCoroG.call_stack[swCoroG.call_stack_size - 1] : nullptr;
 }
 
+void* coroutine_get_current_task()
+{
+    coroutine_t* co = coroutine_get_current();
+    if (co == nullptr)
+    {
+        return nullptr;
+    }
+    else
+    {
+        return co->task;
+    }
+}
+
 int coroutine_get_current_cid()
 {
-    coroutine_t* co = coroutine_get_current_task();
+    coroutine_t* co = coroutine_get_current();
     if (co)
     {
         return co->cid;
