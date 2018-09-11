@@ -1506,10 +1506,6 @@ ssize_t Socket::recv_packet()
         {
             return 0;
         }
-        else if (retval < 0 || retval != header_len)
-        {
-            return 0;
-        }
         else
         {
             buffer->length += retval;
