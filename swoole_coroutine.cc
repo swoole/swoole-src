@@ -104,6 +104,9 @@ static void save_php_stack(coro_task *task)
     EG(vm_stack) = task->origin_stack;
     EG(vm_stack_top) = task->origin_vm_stack_top;
     EG(vm_stack_end) = task->origin_vm_stack_end;
+#if PHP_VERSION_ID < 70100
+    EG(scope) = task->execute_data->func->common.scope;
+#endif
 }
 void internal_coro_resume(void *arg)
 {
@@ -144,9 +147,6 @@ void internal_coro_yield(void *arg)
     {
         task->current_coro_output_ptr = NULL;
     }
-#if PHP_VERSION_ID < 70100
-    EG(scope) = task->execute_data->func->common.scope;
-#endif
 }
 
 void coro_check(TSRMLS_D)
@@ -367,9 +367,6 @@ void sw_coro_yield()
     }
     coro_task *task = (coro_task *) sw_get_current_task();
     save_php_stack(task);
-#if PHP_VERSION_ID < 70100
-    EG(scope) = task->execute_data->func->common.scope;
-#endif
     coroutine_yield_naked(task->co);
 }
 
