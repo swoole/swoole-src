@@ -1454,7 +1454,7 @@ static PHP_METHOD(swoole_coroutine_util, getBackTrace)
     }
     else
     {
-        coro_task *task = (coro_task *) coroutine_get_ptr_by_cid(cid);
+        coro_task *task = (coro_task *) coroutine_get_task_by_cid(cid);
         if (task == NULL)
         {
             RETURN_FALSE;

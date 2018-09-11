@@ -347,25 +347,19 @@ Socket::Socket(enum swSocket_type _type)
     init();
 }
 
-Socket::Socket(int _fd, Socket *sock)
+Socket::Socket(int _fd, Socket *server_sock)
 {
-    reactor = sock->reactor;
+    reactor = server_sock->reactor;
 
     socket = swReactor_get(reactor, _fd);
     bzero(socket, sizeof(swConnection));
     socket->fd = _fd;
     socket->object = this;
-    socket->socket_type = sock->type;
+    socket->socket_type = server_sock->type;
 
-    _sock_domain = sock->_sock_domain;
-    _sock_type = sock->_sock_type;
+    _sock_domain = server_sock->_sock_domain;
+    _sock_type = server_sock->_sock_type;
     init();
-#ifdef SW_USE_OPENSSL
-    if (sock->open_ssl)
-    {
-        open_ssl = true;
-    }
-#endif
 }
 
 bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen)
@@ -959,6 +953,17 @@ bool Socket::listen(int backlog)
         errCode = errno;
         return false;
     }
+#ifdef SW_USE_OPENSSL
+    if (open_ssl)
+    {
+        ssl_context = swSSL_get_context(&ssl_option);
+        if (ssl_context == nullptr)
+        {
+            swWarn("swSSL_get_context() error.");
+            return false;
+        }
+    }
+#endif
     return true;
 }
 
@@ -991,15 +996,28 @@ Socket* Socket::accept()
         swoole_fcntl_set_option(conn, 1, 1);
     }
 #endif
-    if (conn >= 0)
-    {
-        return new Socket(conn, this);
-    }
-    else
+    if (conn < 0)
     {
         errCode = errno;
         return nullptr;
     }
+    Socket *client_sock = new Socket(conn, this);
+    memcpy(&client_sock->socket->info.addr, &client_addr.addr, client_addr.len);
+#ifdef SW_USE_OPENSSL
+    if (open_ssl)
+    {
+        if (swSSL_create(client_sock->socket, ssl_context, 0) < 0)
+        {
+            _delete: delete client_sock;
+            return nullptr;
+        }
+        if (client_sock->ssl_accept() == false)
+        {
+            goto _delete;
+        }
+    }
+#endif
+    return client_sock;
 }
 
 string Socket::resolve(string domain_name)
@@ -1134,12 +1152,12 @@ bool Socket::close()
     }
 
 #ifdef SW_USE_OPENSSL
-    if (open_ssl && ssl_context)
+    if (socket->ssl)
     {
-        if (socket->ssl)
-        {
-            swSSL_close(socket);
-        }
+        swSSL_close(socket);
+    }
+    if (ssl_context)
+    {
         swSSL_free_context(ssl_context);
         if (ssl_option.cert_file)
         {
@@ -1268,6 +1286,36 @@ bool Socket::ssl_handshake()
         }
     }
     return true;
+}
+
+bool Socket::ssl_accept()
+{
+    open_ssl = true;
+    while (true)
+    {
+        int retval = swSSL_accept(socket);
+        if (retval == SW_ERROR)
+        {
+            return false;
+        }
+        else if (retval == SW_READY)
+        {
+            return true;
+        }
+        /**
+         * wait event
+         */
+        int events = socket->ssl_want_write ? SW_EVENT_WRITE : SW_EVENT_READ;
+        if (!wait_events(events))
+        {
+            return false;
+        }
+        yield(SOCKET_LOCK_READ | SOCKET_LOCK_WRITE);
+        if (errCode == ETIMEDOUT)
+        {
+            return false;
+        }
+    }
 }
 
 int Socket::ssl_verify(bool allow_self_signed)

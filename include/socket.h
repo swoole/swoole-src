@@ -76,6 +76,7 @@ public:
 #ifdef SW_USE_OPENSSL
     bool ssl_handshake();
     int ssl_verify(bool allow_self_signed);
+    bool ssl_accept();
 #endif
 
 protected:

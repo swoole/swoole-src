@@ -524,6 +524,11 @@ static inline int socket_sendto(Socket *sock, const char *buf, size_t buflen, st
 }
 
 #ifdef SW_USE_OPENSSL
+
+#define GET_VER_OPT(name)               (PHP_STREAM_CONTEXT(stream) && (val = php_stream_context_get_option(PHP_STREAM_CONTEXT(stream), "ssl", name)) != NULL)
+#define GET_VER_OPT_STRING(name, str)   if (GET_VER_OPT(name)) { convert_to_string_ex(val); str = Z_STRVAL_P(val); }
+#define GET_VER_OPT_LONG(name, num)     if (GET_VER_OPT(name)) { convert_to_long_ex(val); num = Z_LVAL_P(val); }
+
 static int socket_setup_crypto(php_stream *stream, Socket *sock, php_stream_xport_crypto_param *cparam STREAMS_DC)
 {
     return 0;
@@ -542,8 +547,24 @@ static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_
     switch (xparam->op)
     {
     case STREAM_XPORT_OP_LISTEN:
+    {    zval *val = NULL;
+        char *certfile = NULL;
+        char *private_key;
+
+        GET_VER_OPT_STRING("local_cert", certfile);
+        GET_VER_OPT_STRING("local_pk", private_key);
+
+        if (!certfile || !private_key)
+        {
+            swoole_php_fatal_error(E_ERROR, "ssl cert/key file not found.");
+            return FAILURE;
+        }
+
+        sock->ssl_option.cert_file = sw_strdup(certfile);
+        sock->ssl_option.key_file = sw_strdup(private_key);
         xparam->outputs.returncode = sock->listen(xparam->inputs.backlog) ? 0 : -1;
         break;
+    }
     case STREAM_XPORT_OP_CONNECT:
     case STREAM_XPORT_OP_CONNECT_ASYNC:
         xparam->outputs.returncode = socket_connect(stream, sock, xparam);
@@ -711,11 +732,9 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
         case STREAM_XPORT_CRYPTO_OP_SETUP:
             cparam->outputs.returncode = socket_setup_crypto(stream, sock, cparam STREAMS_CC);
             return PHP_STREAM_OPTION_RETURN_OK;
-            break;
         case STREAM_XPORT_CRYPTO_OP_ENABLE:
             cparam->outputs.returncode = socket_enable_crypto(stream, sock, cparam STREAMS_CC);
             return PHP_STREAM_OPTION_RETURN_OK;
-            break;
         default:
             /* fall through */
             break;

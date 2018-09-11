@@ -294,7 +294,7 @@ int swoole_coroutine_open(const char *pathname, int flags, mode_t mode)
     ev.flags = flags;
     ev.handler = handler_open;
     ev.callback = aio_onCompleted;
-    ev.object = coroutine_get_current_task();
+    ev.object = coroutine_get_current();
     ev.req = &ev;
 
     int ret = swAio_dispatch(&ev);
@@ -320,7 +320,7 @@ ssize_t swoole_coroutine_read(int fd, void *buf, size_t count)
     ev.nbytes = count;
     ev.handler = handler_read;
     ev.callback = aio_onCompleted;
-    ev.object = coroutine_get_current_task();
+    ev.object = coroutine_get_current();
     ev.req = &ev;
 
     int ret = swAio_dispatch(&ev);
@@ -346,7 +346,7 @@ ssize_t swoole_coroutine_write(int fd, const void *buf, size_t count)
     ev.nbytes = count;
     ev.handler = handler_write;
     ev.callback = aio_onCompleted;
-    ev.object = coroutine_get_current_task();
+    ev.object = coroutine_get_current();
     ev.req = &ev;
 
     int ret = swAio_dispatch(&ev);
@@ -372,7 +372,7 @@ off_t swoole_coroutine_lseek(int fd, off_t offset, int whence)
     ev.flags = whence;
     ev.handler = handler_lseek;
     ev.callback = aio_onCompleted;
-    ev.object = coroutine_get_current_task();
+    ev.object = coroutine_get_current();
     ev.req = &ev;
 
     int ret = swAio_dispatch(&ev);
@@ -397,7 +397,7 @@ int swoole_coroutine_fstat(int fd, struct stat *statbuf)
     ev.buf = (void*) statbuf;
     ev.handler = handler_fstat;
     ev.callback = aio_onCompleted;
-    ev.object = coroutine_get_current_task();
+    ev.object = coroutine_get_current();
     ev.req = &ev;
 
     int ret = swAio_dispatch(&ev);
@@ -421,7 +421,7 @@ int swoole_coroutine_unlink(const char *pathname)
     ev.buf = (void*) pathname;
     ev.handler = handler_unlink;
     ev.callback = aio_onCompleted;
-    ev.object = coroutine_get_current_task();
+    ev.object = coroutine_get_current();
     ev.req = &ev;
 
     int ret = swAio_dispatch(&ev);
@@ -446,7 +446,7 @@ int swoole_coroutine_mkdir(const char *pathname, mode_t mode)
     ev.offset = mode;
     ev.handler = handler_mkdir;
     ev.callback = aio_onCompleted;
-    ev.object = coroutine_get_current_task();
+    ev.object = coroutine_get_current();
     ev.req = &ev;
 
     int ret = swAio_dispatch(&ev);
@@ -470,7 +470,7 @@ int swoole_coroutine_rmdir(const char *pathname)
     ev.buf = (void*) pathname;
     ev.handler = handler_rmdir;
     ev.callback = aio_onCompleted;
-    ev.object = coroutine_get_current_task();
+    ev.object = coroutine_get_current();
     ev.req = &ev;
 
     int ret = swAio_dispatch(&ev);
@@ -495,7 +495,7 @@ int swoole_coroutine_rename(const char *oldpath, const char *newpath)
     ev.offset = (off_t) newpath;
     ev.handler = handler_rename;
     ev.callback = aio_onCompleted;
-    ev.object = coroutine_get_current_task();
+    ev.object = coroutine_get_current();
     ev.req = &ev;
 
     int ret = swAio_dispatch(&ev);
@@ -520,7 +520,7 @@ int swoole_coroutine_access(const char *pathname, int mode)
     ev.offset = mode;
     ev.handler = handler_access;
     ev.callback = aio_onCompleted;
-    ev.object = coroutine_get_current_task();
+    ev.object = coroutine_get_current();
     ev.req = &ev;
 
     int ret = swAio_dispatch(&ev);
@@ -534,7 +534,7 @@ int swoole_coroutine_access(const char *pathname, int mode)
 
 int swoole_coroutine_sleep(double sec)
 {
-    coroutine_t* co = coroutine_get_current_task();
+    coroutine_t* co = coroutine_get_current();
     if (SwooleG.timer.add(&SwooleG.timer, sec * 1000, 0, co, sleep_timeout) == NULL)
     {
         return -1;
