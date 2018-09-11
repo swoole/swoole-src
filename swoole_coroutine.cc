@@ -144,6 +144,9 @@ void internal_coro_yield(void *arg)
     {
         task->current_coro_output_ptr = NULL;
     }
+#if PHP_VERSION_ID < 70100
+    EG(scope) = task->execute_data->func->common.scope;
+#endif
 }
 
 void coro_check(TSRMLS_D)
