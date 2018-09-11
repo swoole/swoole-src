@@ -7,8 +7,8 @@ swoole_websocket_server: websocket server full test
 require_once __DIR__ . '/../include/bootstrap.php';
 include __DIR__ . "/../include/lib/class.websocket_client.php";
 $data_list = [];
-for ($i = 10; $i--;) {
-    $rand = openssl_random_pseudo_bytes(mt_rand(1, 100));
+for ($i = 1000; $i--;) {
+    $rand = openssl_random_pseudo_bytes(mt_rand(1, 128000));
     if (mt_rand(0, 1)) {
         $data_list[$i] = $i . '|' . WEBSOCKET_OPCODE_BINARY . '|' . $rand;
     } else {
@@ -17,18 +17,6 @@ for ($i = 10; $i--;) {
 }
 $pm = new ProcessManager;
 $pm->parentFunc = function (int $pid) use ($pm, $data_list) {
-    // sync
-    $cli = new WebsocketClient;
-    $connected = $cli->connect('127.0.0.1', $pm->getFreePort(), '/');
-    assert($connected);
-    while ($payload = $cli->recvData()) {
-        list($id) = explode('|', $payload, 3);
-        assert($payload == $data_list[$id]);
-        unset($data_list[$id]);
-        if (empty($data_list)) {
-            break;
-        }
-    }
     // coroutine
     go(function () use ($pm) {
         global $data_list;
@@ -56,7 +44,8 @@ $pm->childFunc = function () use ($pm) {
     $serv = new swoole_websocket_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $serv->set([
         'worker_num' => 1,
-        'log_file' => '/dev/null'
+        'log_file' => '/dev/null',
+        'send_yield' => true,
     ]);
     $serv->on('workerStart', function () use ($pm) {
         $pm->wakeup();
