@@ -163,12 +163,10 @@ static sw_inline ssize_t swConnection_recv(swConnection *conn, void *__buf, size
         }
     }
     else
+#endif
     {
         total_bytes = recv(conn->fd, __buf, __n, __flags);
     }
-#else
-    total_bytes = recv(conn->fd, __buf, __n, __flags);
-#endif
 
     if (total_bytes < 0 && errno == EINTR)
     {
