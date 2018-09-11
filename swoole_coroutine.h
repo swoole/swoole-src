@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 #include "coroutine.h"
+#include "zend_vm.h"
+#include "zend_closures.h"
 
 /* PHP 7.3 compatibility macro {{{*/
 #ifndef ZEND_CLOSURE_OBJECT
@@ -133,6 +135,7 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
 void sw_coro_save(zval *return_value, php_context *sw_php_context);
 void sw_coro_set_stack_size(int stack_size);
 
+extern int swoole_coroutine_sleep(double msec);
 int php_swoole_add_timer_coro(int ms, int cli_fd, long *timeout_id, void* param, swLinkedList_node **node TSRMLS_DC);
 int php_swoole_clear_timer_coro(long id TSRMLS_DC);
 

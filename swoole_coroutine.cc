@@ -18,10 +18,7 @@
 #include "php_swoole.h"
 
 #ifdef SW_COROUTINE
-#include "coroutine.h"
 #include "swoole_coroutine.h"
-#include "zend_vm.h"
-#include "zend_closures.h"
 
 #define TASK_SLOT \
     ((int)((ZEND_MM_ALIGNED_SIZE(sizeof(coro_task)) + ZEND_MM_ALIGNED_SIZE(sizeof(zval)) - 1) / ZEND_MM_ALIGNED_SIZE(sizeof(zval))))
@@ -105,6 +102,9 @@ static void save_php_stack(coro_task *task)
     EG(vm_stack) = task->origin_stack;
     EG(vm_stack_top) = task->origin_vm_stack_top;
     EG(vm_stack_end) = task->origin_vm_stack_end;
+#if PHP_VERSION_ID < 70100
+    EG(scope) = task->execute_data->func->common.scope;
+#endif
 }
 void internal_coro_resume(void *arg)
 {
@@ -241,7 +241,7 @@ static void sw_coro_func(void *arg)
 int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval *retval, void *post_callback,
         void *params)
 {
-    if (is_xdebug_started == 1)
+    if (unlikely(is_xdebug_started == 1))
     {
         swWarn("xdebug do not support coroutine, please notice that it lead to coredump.");
     }
@@ -354,7 +354,7 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
 
 void sw_coro_yield()
 {
-    if (sw_get_current_cid() == -1)
+    if (unlikely(sw_get_current_cid() == -1))
     {
         swoole_php_fatal_error(E_ERROR, "must be called in the coroutine.");
     }

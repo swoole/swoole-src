@@ -1025,6 +1025,7 @@ string Socket::resolve(string domain_name)
     ev.flags = _sock_domain;
     ev.type = SW_AIO_GETHOSTBYNAME;
     ev.object = this;
+    ev.handler = swAio_handler_gethostbyname;
     ev.callback = socket_onResolveCompleted;
 
     if (SwooleAIO.init == 0)

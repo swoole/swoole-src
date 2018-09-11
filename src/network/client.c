@@ -716,6 +716,7 @@ static int swClient_tcp_connect_async(swClient *cli, char *host, int port, doubl
         ev.type = SW_AIO_GETHOSTBYNAME;
         ev.object = cli;
         ev.fd = cli->socket->fd;
+        ev.handler = swAio_handler_gethostbyname;
         ev.callback = swClient_onResolveCompleted;
 
         if (swAio_dispatch(&ev) < 0)

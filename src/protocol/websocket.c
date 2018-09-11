@@ -214,7 +214,7 @@ int swWebSocket_dispatch_frame(swConnection *conn, char *data, uint32_t length)
 
     swString send_frame;
     bzero(&send_frame, sizeof(send_frame));
-    char buf[128];
+    char buf[SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_CLOSE_REASON_MAX_LEN + 1]; // 128
     send_frame.str = buf;
     send_frame.size = sizeof(buf);
 
@@ -297,24 +297,25 @@ int swWebSocket_dispatch_frame(swConnection *conn, char *data, uint32_t length)
         break;
 
     case WEBSOCKET_OPCODE_CLOSE:
-        if (0x7d < (length - 2))
+        if ((length - SW_WEBSOCKET_HEADER_LEN) > SW_WEBSOCKET_CLOSE_REASON_MAX_LEN)
         {
             return SW_ERR;
         }
 
         if (conn->websocket_status != WEBSOCKET_STATUS_CLOSING)
         {
-            swReactorThread_dispatch(conn, frame.str, length);
+            // Dispatch the frame with the same format of message frame
+            offset = length - ws.payload_length - SW_WEBSOCKET_HEADER_LEN;
+            data[offset] = 1;
+            data[offset + 1] = WEBSOCKET_OPCODE_CLOSE;
+            swReactorThread_dispatch(conn, data + offset, length - offset);
+
             // Client attempt to close
-            char payload_length = 0x7F & frame.str[1];
-
-            send_frame.str[0] = 0x88;
-            send_frame.str[1] = payload_length;
-
+            send_frame.str[0] = 0x88; // FIN | OPCODE: WEBSOCKET_OPCODE_CLOSE
+            send_frame.str[1] = ws.payload_length;
             // Get payload and return it as it is
-            memcpy(send_frame.str + SW_WEBSOCKET_HEADER_LEN,
-                frame.str + length - payload_length, payload_length);
-            send_frame.length = payload_length + SW_WEBSOCKET_HEADER_LEN;
+            memcpy(send_frame.str + SW_WEBSOCKET_HEADER_LEN, frame.str + frame.length - ws.payload_length, ws.payload_length);
+            send_frame.length = SW_WEBSOCKET_HEADER_LEN + ws.payload_length;
             swConnection_send(conn, send_frame.str, send_frame.length, 0);
         }
         else
