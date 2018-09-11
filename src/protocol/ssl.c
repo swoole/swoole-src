@@ -667,10 +667,14 @@ int swSSL_accept(swConnection *conn)
     long err = SSL_get_error(conn->ssl, n);
     if (err == SSL_ERROR_WANT_READ)
     {
+        conn->ssl_want_read = 1;
+        conn->ssl_want_write = 0;
         return SW_WAIT;
     }
     else if (err == SSL_ERROR_WANT_WRITE)
     {
+        conn->ssl_want_read = 0;
+        conn->ssl_want_write = 1;
         return SW_WAIT;
     }
     else if (err == SSL_ERROR_SSL)
