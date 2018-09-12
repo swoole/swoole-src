@@ -53,10 +53,15 @@ $pm->childFunc = function () use ($pm) {
     $serv->on('open', function (swoole_websocket_server $serv, swoole_http_request $req) {
         global $data_list;
         foreach ($data_list as $data) {
-            $frame = new swoole_websocket_frame;
-            $frame->opcode = (int)explode('|', $data, 3)[1]; //type
-            $frame->data = $data;
-            $ret = $serv->push($req->fd, $frame);
+            $opcode = (int)explode('|', $data, 3)[1];
+            if (mt_rand(0, 1)) {
+                $frame = new swoole_websocket_frame;
+                $frame->opcode = $opcode;
+                $frame->data = $data;
+                $ret = $serv->push($req->fd, $frame);
+            } else {
+                $ret = $serv->push($req->fd, $data, $opcode);
+            }
             assert($ret);
         }
     });

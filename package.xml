@@ -715,6 +715,7 @@
             <file role="test" name="tests/swoole_client_coro/eof_02.phpt" />
             <file role="test" name="tests/swoole_client_coro/length_01.phpt" />
             <file role="test" name="tests/swoole_client_coro/length_02.phpt" />
+            <file role="test" name="tests/swoole_client_coro/length_03.phpt" />
             <file role="test" name="tests/swoole_client_coro/recv_timeout.phpt" />
             <file role="test" name="tests/swoole_client_coro/recvfrom.phpt" />
             <file role="test" name="tests/swoole_client_coro/sendfile.phpt" />
@@ -1012,6 +1013,7 @@
             <file role="test" name="tests/swoole_runtime/enable_crypto.phpt" />
             <file role="test" name="tests/swoole_runtime/sento.phpt" />
             <file role="test" name="tests/swoole_runtime/ssl_client.phpt" />
+            <file role="test" name="tests/swoole_runtime/ssl_server.phpt" />
             <file role="test" name="tests/swoole_runtime/stream_context.phpt" />
             <file role="test" name="tests/swoole_runtime/tcp.phpt" />
             <file role="test" name="tests/swoole_runtime/udg.phpt" />
@@ -1078,6 +1080,7 @@
             <file role="test" name="tests/swoole_server/sendfile_ssl.phpt" />
             <file role="test" name="tests/swoole_server/shutdown.phpt" />
             <file role="test" name="tests/swoole_server/slow_client.phpt" />
+            <file role="test" name="tests/swoole_server/ssl.phpt" />
             <file role="test" name="tests/swoole_server/stats.phpt" />
             <file role="test" name="tests/swoole_server/stop.phpt" />
             <file role="test" name="tests/swoole_server/task.phpt" />
@@ -1105,17 +1108,18 @@
             <file role="test" name="tests/swoole_timer/parameters_is_too_big.phpt" />
             <file role="test" name="tests/swoole_timer/swoole_timer_after.phpt" />
             <file role="test" name="tests/swoole_timer/task_worker.phpt" />
-            <file role="test" name="tests/swoole_websocket_server/test_send_large_request_data.phpt" />
-            <file role="test" name="tests/swoole_websocket_server/test_send_small_request_data.phpt" />
-            <file role="test" name="tests/swoole_websocket_server/websocket_disconnect.phpt" />
-            <file role="test" name="tests/swoole_websocket_server/websocket_disconnect_default.phpt" />
-            <file role="test" name="tests/swoole_websocket_server/websocket_disconnect_with_code.phpt" />
-            <file role="test" name="tests/swoole_websocket_server/websocket_message.phpt" />
-            <file role="test" name="tests/swoole_websocket_server/websocket_pack.phpt" />
-            <file role="test" name="tests/swoole_websocket_server/websocket_pingpong.phpt" />
-            <file role="test" name="tests/swoole_websocket_server/websocket_push.phpt" />
-            <file role="test" name="tests/swoole_websocket_server/websocket_server_close_frame_flag.phpt" />
-            <file role="test" name="tests/swoole_websocket_server/websocket_server_decode.phpt" />
+            <file role="test" name="tests/swoole_websocket_server/close_frame_flag.phpt" />
+            <file role="test" name="tests/swoole_websocket_server/disconnect.phpt" />
+            <file role="test" name="tests/swoole_websocket_server/disconnect_default.phpt" />
+            <file role="test" name="tests/swoole_websocket_server/disconnect_with_code.phpt" />
+            <file role="test" name="tests/swoole_websocket_server/get_large_requests.phpt" />
+            <file role="test" name="tests/swoole_websocket_server/get_small_requests.phpt" />
+            <file role="test" name="tests/swoole_websocket_server/message.phpt" />
+            <file role="test" name="tests/swoole_websocket_server/pack.phpt" />
+            <file role="test" name="tests/swoole_websocket_server/pingpong.phpt" />
+            <file role="test" name="tests/swoole_websocket_server/push.phpt" />
+            <file role="test" name="tests/swoole_websocket_server/recv_decode.phpt" />
+            <file role="test" name="tests/swoole_websocket_server/send_encode.phpt" />
             <file role="test" name="tests/template.phpt" />
             <file role="test" name="tests/test.sql" />
             <file role="src" name="thirdparty/boost/asm/jump_arm64_aapcs_elf_gas.S" />
