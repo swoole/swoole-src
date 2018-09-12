@@ -19,6 +19,6 @@ go(function () {
     echo $db->connect_error, "\n";
 });
 ?>
---EXPECT--
+--EXPECTF--
 1045
-#28000Access denied for user 'root'@'localhost' (using password: YES)
+#28000Access denied for user 'root'@'%s' (using password: YES)

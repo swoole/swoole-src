@@ -43,6 +43,6 @@ go(function () {
     assert($root->query('DROP ROLE readonly'));
 });
 ?>
---EXPECT--
+--EXPECTF--
 1142
-DELETE command denied to user 'readonly'@'localhost' for table 'userinfo'
+DELETE command denied to user 'readonly'@'%s' for table 'userinfo'

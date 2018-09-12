@@ -20,11 +20,14 @@ $pm->parentFunc = function (int $pid) use ($pm) {
             $close_frame->code = $code;
             $close_frame->reason = $reason;
             $cli->push($close_frame);
+            // recv the last close frame
             $frame = $cli->recv();
             assert($frame instanceof swoole_websocket_close_frame);
             assert($frame->opcode = WEBSOCKET_OPCODE_CLOSE);
             assert(md5($frame->code) === $frame->reason);
+            // connection closed
             assert($cli->recv() === false);
+            assert($cli->connected === false);
             assert($cli->errCode === 0); // connection close normally
         }
     });

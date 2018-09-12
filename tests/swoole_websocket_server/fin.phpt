@@ -43,7 +43,7 @@ $pm->childFunc = function () use ($pm) {
     $serv = new swoole_websocket_server('127.0.0.1', $pm->getFreePort());
     $serv->set([
         'worker_num' => 1,
-        'log_file' => TEST_LOG_FILE
+        'log_file' => '/dev/null'
     ]);
     $serv->on('WorkerStart', function () use ($pm) {
         $pm->wakeup();
