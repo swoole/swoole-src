@@ -1404,7 +1404,8 @@ static PHP_METHOD(swoole_http_client_coro, push)
     zval *zdata;
     char *data;
     zend_size_t length;
-    long opcode = WEBSOCKET_OPCODE_TEXT;
+    zend_long opcode = WEBSOCKET_OPCODE_TEXT;
+    zend_long code = WEBSOCKET_CLOSE_NORMAL;
     zend_bool fin = 1;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|lb", &zdata, &opcode, &fin) == FAILURE)
@@ -1412,27 +1413,8 @@ static PHP_METHOD(swoole_http_client_coro, push)
         return;
     }
 
-    if (Z_TYPE_P(zdata) == IS_OBJECT && instanceof_function(Z_OBJCE_P(zdata), swoole_websocket_frame_class_entry_ptr))
-    {
-        zval *zframe = zdata;
-        zval *ztmp = NULL;
-        zdata = sw_zend_read_property(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("data"), 1);
-        if (!zdata)
-        {
-            swoole_php_fatal_error(E_WARNING, "data property in websocket frame is required.");
-            RETURN_FALSE;
-        }
-        if ((ztmp = sw_zend_read_property(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("opcode"), 1)))
-        {
-            convert_to_long(ztmp);
-            opcode = Z_LVAL_P(ztmp);
-        }
-        if ((ztmp = sw_zend_read_property(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("finish"), 1)))
-        {
-            convert_to_boolean(ztmp);
-            fin = Z_BVAL_P(ztmp);
-        }
-    }
+    SW_WEBSOCKET_TRY_PARSE_FRAME_OBJECT;
+
     convert_to_string(zdata);
     data = Z_STRVAL_P(zdata);
     length = Z_STRLEN_P(zdata);
@@ -1462,8 +1444,14 @@ static PHP_METHOD(swoole_http_client_coro, push)
         RETURN_FALSE;
     }
 
-    swString_clear(http_client_buffer);
-    swWebSocket_encode(http_client_buffer, data, length, opcode, (int) fin, http->websocket_mask);
+    switch(opcode)
+    {
+    case WEBSOCKET_OPCODE_CLOSE:
+        swWebSocket_pack_close_frame(http_client_buffer, code, data, length, http->websocket_mask);
+        break;
+    default:
+        swWebSocket_pack_frame(http_client_buffer, data, length, opcode, fin, http->websocket_mask);
+    }
 
     http_client_coro_property *hcc = (http_client_coro_property *) swoole_get_property(getThis(), 0);
     int ret = hcc->socket->send(http_client_buffer->str, http_client_buffer->length);
