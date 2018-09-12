@@ -1115,10 +1115,9 @@
             <file role="test" name="tests/swoole_websocket_server/fin.phpt" />
             <file role="test" name="tests/swoole_websocket_server/get_large_requests.phpt" />
             <file role="test" name="tests/swoole_websocket_server/get_small_requests.phpt" />
-            <file role="test" name="tests/swoole_websocket_server/message.phpt" />
+            <file role="test" name="tests/swoole_websocket_server/greeter.phpt" />
             <file role="test" name="tests/swoole_websocket_server/pack.phpt" />
             <file role="test" name="tests/swoole_websocket_server/pingpong.phpt" />
-            <file role="test" name="tests/swoole_websocket_server/push.phpt" />
             <file role="test" name="tests/swoole_websocket_server/recv_decode.phpt" />
             <file role="test" name="tests/swoole_websocket_server/send_encode.phpt" />
             <file role="test" name="tests/template.phpt" />

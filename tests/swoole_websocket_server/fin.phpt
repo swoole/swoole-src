@@ -35,9 +35,9 @@ $pm->parentFunc = function (int $pid) use ($pm) {
             $frame = $cli->recv();
             assert($frame->data === implode('', $rand_list));
         }
+        $pm->kill();
     });
     swoole_event_wait();
-    $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
     $serv = new swoole_websocket_server('127.0.0.1', $pm->getFreePort());
