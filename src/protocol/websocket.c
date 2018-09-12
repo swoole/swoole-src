@@ -226,6 +226,11 @@ sw_inline int swWebSocket_pack_close_frame(swString *buffer, int code, char* rea
     return swWebSocket_pack_frame(buffer, payload, SW_WEBSOCKET_CLOSE_CODE_LEN + length, WEBSOCKET_OPCODE_CLOSE, 1, mask);
 }
 
+void swWebSocket_unpack()
+{
+
+}
+
 void swWebSocket_print_frame(swWebSocket_frame *frame)
 {
     printf("FIN: %x, RSV1: %d, RSV2: %d, RSV3: %d, opcode: %d, MASK: %d, length: %ld\n", frame->header.FIN,
