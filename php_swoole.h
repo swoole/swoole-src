@@ -484,7 +484,7 @@ php_socket *swoole_convert_to_socket(int sock);
 void php_swoole_server_before_start(swServer *serv, zval *zobject TSRMLS_DC);
 void php_swoole_server_send_yield(swServer *serv, int fd, zval *zdata, zval *return_value);
 void php_swoole_get_recv_data(zval *zdata, swEventData *req, char *header, uint32_t header_length);
-int php_swoole_get_send_data(zval *zdata, char **str TSRMLS_DC);
+ssize_t php_swoole_get_send_data(zval *zdata, char **str TSRMLS_DC);
 void php_swoole_onConnect(swServer *, swDataHead *);
 int php_swoole_onReceive(swServer *, swEventData *);
 int php_swoole_onPacket(swServer *, swEventData *);

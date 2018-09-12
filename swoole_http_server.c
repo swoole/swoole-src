@@ -1766,7 +1766,7 @@ static PHP_METHOD(swoole_http_response, write)
     }
 
     swString http_body;
-    int length = php_swoole_get_send_data(zdata, &http_body.str TSRMLS_CC);
+    ssize_t length = php_swoole_get_send_data(zdata, &http_body.str TSRMLS_CC);
 
     if (length < 0)
     {
@@ -2193,7 +2193,7 @@ static PHP_METHOD(swoole_http_response, end)
 
     if (zdata)
     {
-        int length = php_swoole_get_send_data(zdata, &http_body.str TSRMLS_CC);
+        ssize_t length = php_swoole_get_send_data(zdata, &http_body.str TSRMLS_CC);
 
         if (length < 0)
         {

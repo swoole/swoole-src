@@ -284,7 +284,7 @@ void php_swoole_get_recv_data(zval *zdata, swEventData *req, char *header, uint3
 #endif
 }
 
-int php_swoole_get_send_data(zval *zdata, char **str TSRMLS_DC)
+ssize_t php_swoole_get_send_data(zval *zdata, char **str TSRMLS_DC)
 {
     int length;
 
@@ -1808,7 +1808,7 @@ static void php_swoole_server_send_resume(swServer *serv, php_context *context, 
     }
     else
     {
-        int length = php_swoole_get_send_data(zdata, &data TSRMLS_CC);
+        ssize_t length = php_swoole_get_send_data(zdata, &data TSRMLS_CC);
         if (length <= 0)
         {
             goto _fail;
@@ -2787,7 +2787,7 @@ PHP_METHOD(swoole_server, send)
 #endif
 
     char *data;
-    int length = php_swoole_get_send_data(zdata, &data TSRMLS_CC);
+    ssize_t length = php_swoole_get_send_data(zdata, &data TSRMLS_CC);
 
     if (length < 0)
     {
@@ -3961,7 +3961,7 @@ PHP_METHOD(swoole_server, sendwait)
     }
 
     char *data;
-    int length = php_swoole_get_send_data(zdata, &data TSRMLS_CC);
+    ssize_t length = php_swoole_get_send_data(zdata, &data TSRMLS_CC);
 
     if (length < 0)
     {
