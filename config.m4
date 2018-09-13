@@ -14,7 +14,7 @@ dnl  +----------------------------------------------------------------------+
 dnl  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
 dnl  +----------------------------------------------------------------------+
 
-PHP_ARG_ENABLE(swoole-debug, whether to enable swoole debug log,
+PHP_ARG_ENABLE(debug-log, whether to enable debug log,
 [  --enable-debug-log   Enable swoole debug log], no, no)
 
 PHP_ARG_ENABLE(trace-log, Whether to enable trace log,
