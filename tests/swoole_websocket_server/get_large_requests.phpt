@@ -1,26 +1,62 @@
 --TEST--
-swoole_websocket_server: test server with large data
+swoole_websocket_server: websocket with large data concurrency
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
-
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/api/swoole_websocket_server/send_large_request_data.php';
-
-$swoole_websocket_server = __DIR__ . "/../include/api/swoole_websocket_server/swoole_websocket_server.php";
-$closeServer = start_server($swoole_websocket_server, WEBSOCKET_SERVER_HOST, $port = get_one_free_port());
-
-send_large_request_data(WEBSOCKET_SERVER_HOST, $port);
-echo "SUCCESS";
-
-suicide(1000, SIGTERM, $closeServer);
+$count = 0;
+$pm = new ProcessManager;
+$pm->parentFunc = function (int $pid) use ($pm) {
+    for ($i = 100; $i--;) {
+        go(function () use ($pm) {
+            global $count;
+            $cli = new \Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
+            $cli->set(['timeout' => 1]);
+            $ret = $cli->upgrade('/');
+            assert($ret);
+            $len = mt_rand(35000, 40000);
+            $data = openssl_random_pseudo_bytes($len);
+            for ($i = 100; $i--;) {
+                $cli->push($data);
+                $ret = $cli->recv();
+                if (assert($ret->data == $len)) {
+                    $count++;
+                }
+            }
+            if (co::stats()['coroutine_num'] === 1) {
+                assert($count === (100 * 100));
+                $cli->push('max');
+                assert((int)$cli->recv()->data > 10);
+                $pm->kill();
+            }
+        });
+    }
+    swoole_event_wait();
+};
+$pm->childFunc = function () use ($pm) {
+    $serv = new swoole_websocket_server("127.0.0.1", $pm->getFreePort());
+    $serv->set([
+        'worker_num' => 1,
+        'log_file' => '/dev/null'
+    ]);
+    $serv->on('workerStart', function () use ($pm) {
+        $pm->wakeup();
+    });
+    $serv->on('message', function (swoole_websocket_server $server, swoole_websocket_frame $frame) {
+        if (mt_rand(0, 1)) {
+            co::sleep(0.001); // 50% block
+        }
+        if ($frame->data === 'max') {
+            $server->push($frame->fd, co::stats()['coroutine_peak_num']);
+        } else {
+            assert(strlen($frame->data) > 35000);
+            $server->push($frame->fd, strlen($frame->data));
+        }
+    });
+    $serv->start();
+};
+$pm->childFirst();
+$pm->run();
 ?>
 --EXPECT--
-SUCCESS

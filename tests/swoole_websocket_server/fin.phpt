@@ -5,21 +5,22 @@ swoole_websocket_server: websocket server recv and merge fin packages
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
-include __DIR__ . "/../include/lib/class.websocket_client.php";
+$count = 0;
 $pm = new ProcessManager;
 $pm->parentFunc = function (int $pid) use ($pm) {
-    go(function () use ($pm) {
-        for ($i = 1000; $i--;) {
+    for ($i = 500; $i--;) {
+        go(function () use ($pm) {
+            global $count;
             $cli = new \Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
             $cli->set(['timeout' => 1]);
             $ret = $cli->upgrade('/');
             assert($ret);
             $rand_list = [];
-            $count = 100;
-            for ($j = $count; $j--;) {
+            $times = 100;
+            for ($j = $times; $j--;) {
                 $rand = openssl_random_pseudo_bytes(mt_rand(0, 128));
                 $rand_list[] = $rand;
-                $opcode = $j === $count - 1 ? WEBSOCKET_OPCODE_TEXT : WEBSOCKET_OPCODE_CONTINUATION;
+                $opcode = $j === $times - 1 ? WEBSOCKET_OPCODE_TEXT : WEBSOCKET_OPCODE_CONTINUATION;
                 $finish = $j === 0;
                 if (mt_rand(0, 1)) {
                     $frame = new swoole_websocket_frame;
@@ -33,10 +34,15 @@ $pm->parentFunc = function (int $pid) use ($pm) {
                 assert($ret);
             }
             $frame = $cli->recv();
-            assert($frame->data === implode('', $rand_list));
-        }
-        $pm->kill();
-    });
+            if (assert($frame->data === implode('', $rand_list))) {
+                $count++;
+            }
+            if (co::stats()['coroutine_num'] === 1) {
+                assert($count === 500);
+                $pm->kill();
+            }
+        });
+    }
     swoole_event_wait();
 };
 $pm->childFunc = function () use ($pm) {
