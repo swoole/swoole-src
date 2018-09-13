@@ -14,8 +14,8 @@ dnl  +----------------------------------------------------------------------+
 dnl  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
 dnl  +----------------------------------------------------------------------+
 
-PHP_ARG_ENABLE(swoole-debug, whether to enable swoole debug,
-[  --enable-swoole-debug   Enable swoole debug], no, no)
+PHP_ARG_ENABLE(swoole-debug, whether to enable swoole debug log,
+[  --enable-debug-log   Enable swoole debug log], no, no)
 
 PHP_ARG_ENABLE(trace-log, Whether to enable trace log,
 [  --enable-trace-log   Enable swoole trace log], no, no)
@@ -44,12 +44,6 @@ PHP_ARG_ENABLE(hugepage, enable hugepage support,
 PHP_ARG_ENABLE(swoole, swoole support,
 [  --enable-swoole         Enable swoole support], [enable_swoole="yes"])
 
-PHP_ARG_ENABLE(swoole_static, swoole static compile support,
-[  --enable-swoole-static    Enable swoole static compile support], no, no)
-
-PHP_ARG_WITH(swoole, swoole support,
-[  --with-swoole           With swoole support])
-
 PHP_ARG_WITH(libpq_dir, for libpq support,
 [  --with-libpq-dir[=DIR]    Include libpq support (requires libpq >= 9.5)], no, no)
 
@@ -70,9 +64,6 @@ PHP_ARG_ENABLE(asan, whether to enable asan,
 
 PHP_ARG_ENABLE(picohttpparser, enable picohttpparser support,
 [  --enable-picohttpparser     Experimental: Do you have picohttpparser?], no, no)
-
-PHP_ARG_WITH(swoole, swoole support,
-[  --with-swoole           With swoole support])
 
 AC_DEFUN([SWOOLE_HAVE_PHP_EXT], [
     extname=$1
@@ -452,6 +443,8 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_trace.c \
         swoole_runtime.cc \
         swoole_memory_pool.c \
+        thirdparty/php_http_parser.c \
+        thirdparty/multipart_parser.c \
         src/core/base.c \
         src/core/log.c \
         src/core/hashmap.c \
@@ -523,14 +516,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/protocol/mime_types.c \
         src/protocol/redis.c \
         src/protocol/base64.c"
-
-    if test "$PHP_SWOOLE_STATIC" = "no"; then
-        swoole_source_file="$swoole_source_file thirdparty/php_http_parser.c"
-    else
-        CFLAGS="$CFLAGS -DSW_STATIC_COMPILATION"
-    fi
-
-    swoole_source_file="$swoole_source_file thirdparty/multipart_parser.c"
 
     if test "$PHP_PICOHTTPPARSER" = "yes"; then
         AC_DEFINE(SW_USE_PICOHTTPPARSER, 1, [enable picohttpparser support])
