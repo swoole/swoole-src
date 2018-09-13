@@ -64,8 +64,11 @@ extern int php_get_gid_by_name(const char *name, gid_t *gid);
 # define PLAIN_WRAP_BUF_SIZE(st) (st)
 #endif
 
+extern PHPAPI int php_stream_parse_fopen_modes(const char *mode, int *open_flags);
+
+#if 0
 /* parse standard "fopen" modes into open() flags */
-static int php_stream_parse_fopen_modes(const char *mode, int *open_flags)
+PHPAPI int php_stream_parse_fopen_modes(const char *mode, int *open_flags)
 {
 	int flags;
 
@@ -121,6 +124,7 @@ static int php_stream_parse_fopen_modes(const char *mode, int *open_flags)
 	*open_flags = flags;
 	return SUCCESS;
 }
+#endif
 
 /* {{{ ------- STDIO stream implementation -------*/
 
