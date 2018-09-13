@@ -660,6 +660,12 @@ extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
 # define ZEND_HASH_APPLY_PROTECTION(p) 1
 #endif
 
+/* PHP 7.4 forward compatibility */
+#ifndef ZEND_ACC_CTOR
+#define ZEND_ACC_CTOR 0
+#define ZEND_ACC_DTOR 0
+#endif
+
 END_EXTERN_C()
 
 #endif	/* PHP_SWOOLE_H */
