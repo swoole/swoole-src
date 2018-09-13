@@ -428,10 +428,19 @@ void php_swoole_client_coro_check_setting(Socket *cli, zval *zset TSRMLS_DC)
         swSocket_bind(cli->socket->fd, cli->type, bind_address, &bind_port);
     }
     /**
-     * TCP_NODELAY
+     * client: tcp_nodelay
      */
     if (php_swoole_array_get_value(vht, "open_tcp_nodelay", v))
     {
+        convert_to_boolean(v);
+        if (Z_BVAL_P(v))
+        {
+            goto _open_tcp_nodelay;
+        }
+    }
+    else
+    {
+        _open_tcp_nodelay:
         value = 1;
         if (setsockopt(cli->socket->fd, IPPROTO_TCP, TCP_NODELAY, &value, sizeof(value)) < 0)
         {
