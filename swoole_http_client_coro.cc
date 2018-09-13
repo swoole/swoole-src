@@ -78,7 +78,7 @@ static int http_client_coro_close(zval *zobject)
     return SW_OK;
 }
 
-static const php_http_parser_settings http_parser_settings =
+static const swoole_http_parser_settings http_parser_settings =
 {
     NULL,
     NULL,
@@ -493,7 +493,7 @@ static int http_client_coro_recv_response(zval *zobject, http_client_coro_proper
         if (retval > 0)
         {
             total_bytes += retval;
-            parsed_n = php_http_parser_execute(&http->parser, &http_parser_settings, buffer->str, retval);
+            parsed_n = swoole_http_parser_execute(&http->parser, &http_parser_settings, buffer->str, retval);
             swTraceLog(SW_TRACE_HTTP_CLIENT, "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d.", parsed_n, retval, total_bytes, http->completed);
             if (parsed_n >= 0)
             {

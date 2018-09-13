@@ -14,7 +14,6 @@
   +----------------------------------------------------------------------+
  */
 #include "php_swoole.h"
-#include "ext/standard/file.h"
 #include "swoole_coroutine.h"
 #include "socket.h"
 
@@ -106,6 +105,7 @@ static zend_function *ori_time_sleep_until;
 
 extern "C"
 {
+#include "ext/standard/file.h"
 #include "thirdparty/plain_wrapper.c"
 }
 

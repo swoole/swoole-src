@@ -65,7 +65,7 @@ extern int php_get_gid_by_name(const char *name, gid_t *gid);
 #endif
 
 /* parse standard "fopen" modes into open() flags */
-PHPAPI int php_stream_parse_fopen_modes(const char *mode, int *open_flags)
+static int php_stream_parse_fopen_modes(const char *mode, int *open_flags)
 {
 	int flags;
 
@@ -121,7 +121,6 @@ PHPAPI int php_stream_parse_fopen_modes(const char *mode, int *open_flags)
 	*open_flags = flags;
 	return SUCCESS;
 }
-
 
 /* {{{ ------- STDIO stream implementation -------*/
 
@@ -1437,6 +1436,7 @@ PHPAPI php_stream_wrapper sw_php_plain_files_wrapper = {
 	0
 };
 
+#if 0
 /* {{{ php_stream_fopen_with_path */
 PHPAPI php_stream *_php_stream_fopen_with_path(const char *filename, const char *mode, const char *path, zend_string **opened_path, int options STREAMS_DC)
 {
@@ -1577,6 +1577,7 @@ stream_skip:
 
 }
 /* }}} */
+#endif
 
 /*
  * Local variables:

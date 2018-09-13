@@ -19,8 +19,8 @@
  * IN THE SOFTWARE.
  */
 /* modified by Moriyoshi Koizumi <moriyoshi@php.net> to make it fit to PHP source tree. */
-#ifndef php_http_parser_h
-#define php_http_parser_h
+#ifndef swoole_http_parser_h
+#define swoole_http_parser_h
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -50,8 +50,8 @@ extern "C" {
 #define PHP_HTTP_MAX_HEADER_SIZE (80*1024)
 
 
-typedef struct php_http_parser php_http_parser;
-typedef struct php_http_parser_settings php_http_parser_settings;
+typedef struct swoole_http_parser swoole_http_parser;
+typedef struct swoole_http_parser_settings swoole_http_parser_settings;
 
 
 /* Callbacks should return non-zero to indicate an error. The parser will
@@ -67,12 +67,12 @@ typedef struct php_http_parser_settings php_http_parser_settings;
  * many times for each string. E.G. you might get 10 callbacks for "on_path"
  * each providing just a few characters more data.
  */
-typedef int (*php_http_data_cb) (php_http_parser*, const char *at, size_t length);
-typedef int (*php_http_cb) (php_http_parser*);
+typedef int (*swoole_http_data_cb) (swoole_http_parser*, const char *at, size_t length);
+typedef int (*swoole_http_cb) (swoole_http_parser*);
 
 
 /* Request Methods */
-enum php_http_method
+enum swoole_http_method
   { PHP_HTTP_DELETE    = 0
   , PHP_HTTP_GET
   , PHP_HTTP_HEAD
@@ -108,7 +108,7 @@ enum php_http_method
   };
 
 
-enum php_http_parser_type { PHP_HTTP_REQUEST, PHP_HTTP_RESPONSE, PHP_HTTP_BOTH };
+enum swoole_http_parser_type { PHP_HTTP_REQUEST, PHP_HTTP_RESPONSE, PHP_HTTP_BOTH };
 
 enum state
   { s_dead = 1 /* important that this is > 0 */
@@ -178,7 +178,7 @@ enum state
   , s_body_identity_eof
   };
 
-struct php_http_parser {
+struct swoole_http_parser {
   /** PRIVATE **/
   unsigned char type : 2;
   unsigned char flags : 6;
@@ -207,39 +207,39 @@ struct php_http_parser {
 };
 
 
-struct php_http_parser_settings {
-  php_http_cb      on_message_begin;
-  php_http_data_cb on_path;
-  php_http_data_cb on_query_string;
-  php_http_data_cb on_url;
-  php_http_data_cb on_fragment;
-  php_http_data_cb on_header_field;
-  php_http_data_cb on_header_value;
-  php_http_cb      on_headers_complete;
-  php_http_data_cb on_body;
-  php_http_cb      on_message_complete;
+struct swoole_http_parser_settings {
+  swoole_http_cb      on_message_begin;
+  swoole_http_data_cb on_path;
+  swoole_http_data_cb on_query_string;
+  swoole_http_data_cb on_url;
+  swoole_http_data_cb on_fragment;
+  swoole_http_data_cb on_header_field;
+  swoole_http_data_cb on_header_value;
+  swoole_http_cb      on_headers_complete;
+  swoole_http_data_cb on_body;
+  swoole_http_cb      on_message_complete;
 };
 
 
-void php_http_parser_init(php_http_parser *parser, enum php_http_parser_type type);
+void swoole_http_parser_init(swoole_http_parser *parser, enum swoole_http_parser_type type);
 
 
-size_t php_http_parser_execute(php_http_parser *parser,
-                           const php_http_parser_settings *settings,
+size_t swoole_http_parser_execute(swoole_http_parser *parser,
+                           const swoole_http_parser_settings *settings,
                            const char *data,
                            size_t len);
 
 
-/* If php_http_should_keep_alive() in the on_headers_complete or
+/* If swoole_http_should_keep_alive() in the on_headers_complete or
  * on_message_complete callback returns true, then this will be should be
  * the last message on the connection.
  * If you are the server, respond with the "Connection: close" header.
  * If you are the client, close the connection.
  */
-int php_http_should_keep_alive(php_http_parser *parser);
+int swoole_http_should_keep_alive(swoole_http_parser *parser);
 
 /* Returns a string version of the HTTP method. */
-const char *php_http_method_str(enum php_http_method);
+const char *swoole_http_method_str(enum swoole_http_method);
 
 #ifdef __cplusplus
 }

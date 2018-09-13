@@ -27,7 +27,7 @@ extern "C" {
 
 #include "swoole_http.h"
 #include "websocket.h"
-#include "thirdparty/php_http_parser.h"
+#include "thirdparty/swoole_http_parser.h"
 
 #ifdef SW_HAVE_ZLIB
 #include <zlib.h>
@@ -138,7 +138,7 @@ typedef struct
      */
     int file_fd;
 
-    php_http_parser parser;
+    swoole_http_parser parser;
 
     zval _object;
     zval *object;
@@ -158,11 +158,11 @@ typedef struct
 } http_client;
 
 void http_client_clear_response_properties(zval *zobject TSRMLS_DC);
-int http_client_parser_on_header_field(php_http_parser *parser, const char *at, size_t length);
-int http_client_parser_on_header_value(php_http_parser *parser, const char *at, size_t length);
-int http_client_parser_on_body(php_http_parser *parser, const char *at, size_t length);
-int http_client_parser_on_headers_complete(php_http_parser *parser);
-int http_client_parser_on_message_complete(php_http_parser *parser);
+int http_client_parser_on_header_field(swoole_http_parser *parser, const char *at, size_t length);
+int http_client_parser_on_header_value(swoole_http_parser *parser, const char *at, size_t length);
+int http_client_parser_on_body(swoole_http_parser *parser, const char *at, size_t length);
+int http_client_parser_on_headers_complete(swoole_http_parser *parser);
+int http_client_parser_on_message_complete(swoole_http_parser *parser);
 
 http_client* http_client_create(zval *object TSRMLS_DC);
 void http_client_clear(http_client *http);
