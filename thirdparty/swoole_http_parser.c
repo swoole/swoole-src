@@ -20,7 +20,7 @@
  */
 #include <assert.h>
 #include <stddef.h>
-#include "php_http_parser.h"
+#include "swoole_http_parser.h"
 
 
 #ifndef MIN
@@ -253,8 +253,8 @@ enum flags
 #endif
 
 
-size_t php_http_parser_execute (php_http_parser *parser,
-                            const php_http_parser_settings *settings,
+size_t swoole_http_parser_execute (swoole_http_parser *parser,
+                            const swoole_http_parser_settings *settings,
                             const char *data,
                             size_t len)
 {
@@ -509,7 +509,7 @@ size_t php_http_parser_execute (php_http_parser *parser,
         if (ch < 'A' || 'Z' < ch) goto error;
 
       start_req_method_assign:
-        parser->method = (enum php_http_method) 0;
+        parser->method = (enum swoole_http_method) 0;
         index = 1;
         switch (ch) {
           case 'C': parser->method = PHP_HTTP_CONNECT; /* or COPY, CHECKOUT */ break;
@@ -1363,7 +1363,7 @@ size_t php_http_parser_execute (php_http_parser *parser,
             /* Content-Length header given and non-zero */
             state = s_body_identity;
           } else {
-            if (parser->type == PHP_HTTP_REQUEST || php_http_should_keep_alive(parser)) {
+            if (parser->type == PHP_HTTP_REQUEST || swoole_http_should_keep_alive(parser)) {
               /* Assume content-length 0 - read the next */
               CALLBACK2(message_complete);
               state = NEW_MESSAGE();
@@ -1520,7 +1520,7 @@ error:
 
 
 int
-php_http_should_keep_alive (php_http_parser *parser)
+swoole_http_should_keep_alive (swoole_http_parser *parser)
 {
   if (parser->http_major > 0 && parser->http_minor > 0) {
     /* HTTP/1.1 */
@@ -1540,14 +1540,14 @@ php_http_should_keep_alive (php_http_parser *parser)
 }
 
 
-const char * php_http_method_str (enum php_http_method m)
+const char * swoole_http_method_str (enum swoole_http_method m)
 {
   return method_strings[m];
 }
 
 
 void
-php_http_parser_init (php_http_parser *parser, enum php_http_parser_type t)
+swoole_http_parser_init (swoole_http_parser *parser, enum swoole_http_parser_type t)
 {
   parser->type = t;
   parser->state = (t == PHP_HTTP_REQUEST ? s_start_req : (t == PHP_HTTP_RESPONSE ? s_start_res : s_start_req_or_res));

@@ -443,7 +443,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_trace.c \
         swoole_runtime.cc \
         swoole_memory_pool.c \
-        thirdparty/php_http_parser.c \
+        thirdparty/swoole_http_parser.c \
         thirdparty/multipart_parser.c \
         src/core/base.c \
         src/core/log.c \

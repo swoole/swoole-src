@@ -30,7 +30,7 @@
 #include "websocket.h"
 #include "connection.h"
 #include "base64.h"
-#include "thirdparty/php_http_parser.h"
+#include "thirdparty/swoole_http_parser.h"
 
 static zend_class_entry swoole_websocket_server_ce;
 static zend_class_entry *swoole_websocket_server_class_entry_ptr;

@@ -1174,8 +1174,8 @@
             <file role="src" name="thirdparty/boost/asm/make_x86_64_sysv_macho_gas.S" />
             <file role="src" name="thirdparty/multipart_parser.c" />
             <file role="src" name="thirdparty/multipart_parser.h" />
-            <file role="src" name="thirdparty/php_http_parser.c" />
-            <file role="src" name="thirdparty/php_http_parser.h" />
+            <file role="src" name="thirdparty/swoole_http_parser.c" />
+            <file role="src" name="thirdparty/swoole_http_parser.h" />
             <file role="src" name="thirdparty/php_streams_int.h" />
             <file role="src" name="thirdparty/plain_wrapper.c" />
             <file role="src" name="tools/arginfo_check.php" />

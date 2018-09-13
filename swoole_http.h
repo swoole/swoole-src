@@ -24,7 +24,7 @@ extern "C"
 {
 #endif
 
-#include "thirdparty/php_http_parser.h"
+#include "thirdparty/swoole_http_parser.h"
 #include "thirdparty/multipart_parser.h"
 
 #ifdef SW_USE_HTTP2
@@ -50,7 +50,7 @@ enum http_compress_method
 
 typedef struct
 {
-    enum php_http_method method;
+    enum swoole_http_method method;
     int version;
     char *path;
     uint32_t path_len;
@@ -85,7 +85,7 @@ typedef struct
 
 typedef struct
 {
-    enum php_http_method method;
+    enum swoole_http_method method;
     int version;
     int status;
     char* reason;
@@ -128,7 +128,7 @@ typedef struct
     http_request request;
     http_response response;
 
-    php_http_parser parser;
+    swoole_http_parser parser;
     multipart_parser *mt_parser;
 
     uint16_t input_var_num;
