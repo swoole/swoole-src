@@ -178,6 +178,8 @@ zend_class_entry swoole_http_client_coro_ce;
 zend_class_entry *swoole_http_client_coro_class_entry_ptr;
 static zend_object_handlers swoole_http_client_coro_handlers;
 
+extern zend_class_entry *swoole_websocket_frame_class_entry_ptr;
+
 static PHP_METHOD(swoole_http_client_coro, __construct);
 static PHP_METHOD(swoole_http_client_coro, __destruct);
 static PHP_METHOD(swoole_http_client_coro, set);
@@ -1080,6 +1082,7 @@ static PHP_METHOD(swoole_http_client_coro, recv)
         ssize_t retval = hcc->socket->recv_packet();
         if (retval <= 0)
         {
+            zend_update_property_bool(swoole_http_client_coro_class_entry_ptr, getThis(), SW_STRL("connected")-1, 0);
             zend_update_property_long(swoole_http_client_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, hcc->socket->errCode);
             RETURN_FALSE;
         }
@@ -1399,19 +1402,27 @@ static PHP_METHOD(swoole_http_client_coro, upgrade)
 
 static PHP_METHOD(swoole_http_client_coro, push)
 {
+    zval *zdata;
     char *data;
     zend_size_t length;
-    long opcode = WEBSOCKET_OPCODE_TEXT;
+    zend_long opcode = WEBSOCKET_OPCODE_TEXT;
+    zend_long code = WEBSOCKET_CLOSE_NORMAL;
     zend_bool fin = 1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|lb", &data, &length, &opcode, &fin) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|lb", &zdata, &opcode, &fin) == FAILURE)
     {
         return;
     }
 
-    if (opcode > WEBSOCKET_OPCODE_PONG)
+    SW_WEBSOCKET_TRY_PARSE_FRAME_OBJECT;
+
+    convert_to_string(zdata);
+    data = Z_STRVAL_P(zdata);
+    length = Z_STRLEN_P(zdata);
+
+    if (unlikely(opcode > SW_WEBSOCKET_OPCODE_MAX))
     {
-        swoole_php_fatal_error(E_WARNING, "opcode max 10");
+        swoole_php_fatal_error(E_WARNING, "the maximum value of opcode is %d.", SW_WEBSOCKET_OPCODE_MAX);
         SwooleG.error = SW_ERROR_WEBSOCKET_BAD_OPCODE;
         zend_update_property_long(swoole_http_client_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error);
         RETURN_FALSE;
@@ -1434,8 +1445,14 @@ static PHP_METHOD(swoole_http_client_coro, push)
         RETURN_FALSE;
     }
 
-    swString_clear(http_client_buffer);
-    swWebSocket_encode(http_client_buffer, data, length, opcode, (int) fin, http->websocket_mask);
+    switch(opcode)
+    {
+    case WEBSOCKET_OPCODE_CLOSE:
+        swWebSocket_pack_close_frame(http_client_buffer, code, data, length, http->websocket_mask);
+        break;
+    default:
+        swWebSocket_pack_frame(http_client_buffer, data, length, opcode, fin, http->websocket_mask);
+    }
 
     http_client_coro_property *hcc = (http_client_coro_property *) swoole_get_property(getThis(), 0);
     int ret = hcc->socket->send(http_client_buffer->str, http_client_buffer->length);

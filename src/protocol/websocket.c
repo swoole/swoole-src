@@ -18,6 +18,7 @@
 #include "server.h"
 #include "websocket.h"
 #include "connection.h"
+#include "php_swoole.h"
 
 #include <sys/time.h>
 
@@ -193,6 +194,43 @@ void swWebSocket_decode(swWebSocket_frame *frame, swString *data)
     frame->payload = data->str + header_length;
 }
 
+sw_inline int swWebSocket_pack_frame(swString *buffer, char* data, size_t length, char opcode, uint8_t fin, uint8_t mask)
+{
+    if (unlikely(opcode > SW_WEBSOCKET_OPCODE_MAX))
+    {
+        swoole_php_fatal_error(E_WARNING, "the maximum value of opcode is %d.", SW_WEBSOCKET_OPCODE_MAX);
+        return SW_ERR;
+    }
+
+    swString_clear(buffer);
+    swWebSocket_encode(buffer, data, length, opcode, (int) fin, mask);
+
+    return SW_OK;
+}
+
+sw_inline int swWebSocket_pack_close_frame(swString *buffer, int code, char* reason, size_t length, uint8_t mask)
+{
+    if (unlikely(length > SW_WEBSOCKET_CLOSE_REASON_MAX_LEN))
+    {
+        swoole_php_fatal_error(E_WARNING, "the max length of reason is %d.", SW_WEBSOCKET_CLOSE_REASON_MAX_LEN);
+        return SW_ERR;
+    }
+
+    char payload[SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_CLOSE_CODE_LEN + SW_WEBSOCKET_CLOSE_REASON_MAX_LEN];
+    payload[0] = (char)((code >> 8 & 0xFF));
+    payload[1] = (char)((code & 0xFF));
+    if (length > 0)
+    {
+        memcpy(payload + SW_WEBSOCKET_CLOSE_CODE_LEN, reason, length);
+    }
+    return swWebSocket_pack_frame(buffer, payload, SW_WEBSOCKET_CLOSE_CODE_LEN + length, WEBSOCKET_OPCODE_CLOSE, 1, mask);
+}
+
+void swWebSocket_unpack()
+{
+
+}
+
 void swWebSocket_print_frame(swWebSocket_frame *frame)
 {
     printf("FIN: %x, RSV1: %d, RSV2: %d, RSV3: %d, opcode: %d, MASK: %d, length: %ld\n", frame->header.FIN,
@@ -214,7 +252,7 @@ int swWebSocket_dispatch_frame(swConnection *conn, char *data, uint32_t length)
 
     swString send_frame;
     bzero(&send_frame, sizeof(send_frame));
-    char buf[SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_CLOSE_REASON_MAX_LEN + 1]; // 128
+    char buf[SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_CLOSE_CODE_LEN + SW_WEBSOCKET_CLOSE_REASON_MAX_LEN];
     send_frame.str = buf;
     send_frame.size = sizeof(buf);
 

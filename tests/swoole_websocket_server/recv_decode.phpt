@@ -6,8 +6,8 @@ swoole_websocket_server: websocket server full test
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
 $data_list = [];
-for ($i = 100; $i--;) {
-    $rand = openssl_random_pseudo_bytes(mt_rand(1, 65535));
+for ($i = 1000; $i--;) {
+    $rand = openssl_random_pseudo_bytes(mt_rand(1, 128000));
     if (mt_rand(0, 1)) {
         $data_list[$i] = $i . '|' . WEBSOCKET_OPCODE_BINARY . '|' . $rand;
     } else {
@@ -23,7 +23,14 @@ $pm->parentFunc = function (int $pid) use ($pm) {
         $ret = $cli->upgrade('/');
         assert($ret);
         foreach ($data_list as $data) {
-            $ret = $cli->push($data, (int)explode('|', $data, 3)[1]);
+            if (mt_rand(0, 1)) {
+                $frame = new swoole_websocket_frame;
+                $frame->opcode = (int)explode('|', $data, 3)[1];
+                $frame->data = $data;
+                $ret = $cli->push($frame);
+            } else {
+                $ret = $cli->push($data, (int)explode('|', $data, 3)[1]);
+            }
             if (!assert($ret)) {
                 var_dump(swoole_strerror(swoole_last_error()));
             } else {
@@ -45,21 +52,27 @@ $pm->childFunc = function () use ($pm) {
     $serv->on('workerStart', function () use ($pm) {
         $pm->wakeup();
     });
-    $serv->on('message', function (swoole_websocket_server $serv, swoole_websocket_frame $frame) {
+    $serv->on('message', function (swoole_websocket_server $serv, swoole_websocket_frame $recv_frame) {
         global $data_list;
-        list($id, $opcode) = explode('|', $frame->data, 3);
-        if (!assert($frame->finish)) {
+        list($id, $opcode) = explode('|', $recv_frame->data, 3);
+        if (!assert($recv_frame->finish)) {
             return;
         }
-        if (!assert($frame->opcode === (int)$opcode)) {
+        if (!assert($recv_frame->opcode === (int)$opcode)) {
             return;
         }
-        if (!assert($frame->data === $data_list[$id])) {
-            var_dump($frame->data);
+        if (!assert($recv_frame->data === $data_list[$id])) {
+            var_dump($recv_frame->data);
             var_dump($data_list[$id]);
             return;
         }
-        $serv->push($frame->fd, $id); //index
+        if (mt_rand(0, 1)) {
+            $send_frame = new swoole_websocket_frame;
+            $send_frame->data = $id;
+            $serv->push($recv_frame->fd, $send_frame);
+        } else {
+            $serv->push($recv_frame->fd, $id);
+        }
     });
     $serv->start();
 };

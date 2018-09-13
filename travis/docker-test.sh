@@ -24,6 +24,7 @@ retry_failures()
     # and retry
     ./start.sh \
     --set-timeout 45 \
+    --show-slow 1000 \
     --show-diff \
     -w failed.list \
     "${failed_list}"
@@ -34,6 +35,7 @@ for dir in "*"
 do
     ./start.sh \
     --set-timeout 25 \
+    --show-slow 1000 \
     --show-diff \
     -w failed.list \
     "./swoole_${dir}"

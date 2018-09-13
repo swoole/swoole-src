@@ -549,21 +549,24 @@ static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_
     case STREAM_XPORT_OP_LISTEN:
     {
 #ifdef SW_USE_OPENSSL
-        zval *val = NULL;
-        char *certfile = NULL;
-        char *private_key;
-
-        GET_VER_OPT_STRING("local_cert", certfile);
-        GET_VER_OPT_STRING("local_pk", private_key);
-
-        if (!certfile || !private_key)
+        if (sock->open_ssl)
         {
-            swoole_php_fatal_error(E_ERROR, "ssl cert/key file not found.");
-            return FAILURE;
-        }
+            zval *val = NULL;
+            char *certfile = NULL;
+            char *private_key;
 
-        sock->ssl_option.cert_file = sw_strdup(certfile);
-        sock->ssl_option.key_file = sw_strdup(private_key);
+            GET_VER_OPT_STRING("local_cert", certfile);
+            GET_VER_OPT_STRING("local_pk", private_key);
+
+            if (!certfile || !private_key)
+            {
+                swoole_php_fatal_error(E_ERROR, "ssl cert/key file not found.");
+                return FAILURE;
+            }
+
+            sock->ssl_option.cert_file = sw_strdup(certfile);
+            sock->ssl_option.key_file = sw_strdup(private_key);
+        }
 #endif
         xparam->outputs.returncode = sock->listen(xparam->inputs.backlog) ? 0 : -1;
         break;
