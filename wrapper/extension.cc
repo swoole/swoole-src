@@ -193,17 +193,20 @@ bool Extension::registerFunction(const char *name, function_t func, ArgInfo *inf
     return true;
 }
 
-void Extension::registerIniEntries(int module_number) {
-    if (!ini_entries.size()) {
+void Extension::registerIniEntries(int module_number)
+{
+    if (!ini_entries.size())
+    {
         return;
     }
 
     zend_ini_entry_def* entry_defs = new zend_ini_entry_def[ini_entries.size() + 1];
 
-    for (auto i = 0; i < ini_entries.size(); ++i) {
+    for (size_t i = 0; i < ini_entries.size(); ++i)
+    {
         IniEntry& entry = ini_entries[i];
-        zend_ini_entry_def def = {
-                entry.name.c_str(), // name
+        zend_ini_entry_def def =
+        { entry.name.c_str(), // name
                 NULL,   // on_modify
                 NULL,   // mh_arg1
                 NULL,   // mh_arg2
@@ -211,19 +214,21 @@ void Extension::registerIniEntries(int module_number) {
                 entry.default_value.c_str(), // value
                 NULL,   // displayer
                 entry.modifiable, // modifiable
-                (uint)entry.name.size(), // name_length
-                (uint)entry.default_value.size(), // value_length
-        };
+                (uint) entry.name.size(), // name_length
+                (uint) entry.default_value.size(), // value_length
+                };
         entry_defs[i] = def;
     }
     memset(entry_defs + ini_entries.size(), 0, sizeof(*entry_defs));
 
     zend_register_ini_entries(entry_defs, module_number);
-    delete []entry_defs;
+    delete[] entry_defs;
 }
 
-void Extension::unregisterIniEntries(int module_number) {
-    if (ini_entries.size()) {
+void Extension::unregisterIniEntries(int module_number)
+{
+    if (ini_entries.size())
+    {
         zend_unregister_ini_entries(module_number);
     }
 }

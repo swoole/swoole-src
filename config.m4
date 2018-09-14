@@ -228,7 +228,7 @@ if test "$PHP_SWOOLE" != "no"; then
         [PHP_DEBUG=0]
     )
 
-    if test "$PHP_SWOOLE_DEBUG" != "no"; then
+    if test "$PHP_DEBUG_LOG" != "no"; then
         AC_DEFINE(SW_DEBUG, 1, [do we enable swoole debug])
         PHP_DEBUG=1
     fi
@@ -393,7 +393,7 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(hiredis, redisConnect, AC_DEFINE(HAVE_HIREDIS, 1, [have hiredis]))
     AC_CHECK_LIB(pq, PQconnectdb, AC_DEFINE(HAVE_POSTGRESQL, 1, [have postgresql]))
     AC_CHECK_LIB(nghttp2, nghttp2_hd_inflate_new, AC_DEFINE(HAVE_NGHTTP2, 1, [have nghttp2]))
-    
+
     AC_CHECK_LIB(brotlienc, BrotliEncoderCreateInstance, [
         AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli])
         PHP_ADD_LIBRARY(brotlienc, 1, SWOOLE_SHARED_LIBADD)
@@ -445,6 +445,19 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_memory_pool.c \
         thirdparty/swoole_http_parser.c \
         thirdparty/multipart_parser.c \
+        wrapper/array.cc \
+        wrapper/base.cc \
+        wrapper/class.cc  \
+        wrapper/client.cc  \
+        wrapper/exec.cc  \
+        wrapper/extension.cc  \
+        wrapper/function.cc  \
+        wrapper/hash.cc  \
+        wrapper/object.cc  \
+        wrapper/server.cc  \
+        wrapper/string.cc  \
+        wrapper/timer.cc  \
+        wrapper/variant.cc \
         src/core/base.c \
         src/core/log.c \
         src/core/hashmap.c \

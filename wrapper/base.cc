@@ -329,8 +329,8 @@ int extension_after_request(int type, int module_number)
 
 static inline ZEND_RESULT_CODE _check_args_num(zend_execute_data *data, int num_args)
 {
-    uint32_t min_num_args = data->func->common.required_num_args;
-    uint32_t max_num_args = data->func->common.num_args;
+    int min_num_args = data->func->common.required_num_args;
+    int max_num_args = data->func->common.num_args;
 
     if (num_args < min_num_args || (num_args > max_num_args && max_num_args > 0))
     {
@@ -397,7 +397,7 @@ Variant _call(zval *object, zval *func, Args &args)
 {
     Variant retval;
     zval params[PHPX_MAX_ARGC];
-    for (int i = 0; i < args.count(); i++)
+    for (size_t i = 0; i < args.count(); i++)
     {
         ZVAL_COPY_VALUE(&params[i], args[i].ptr());
     }

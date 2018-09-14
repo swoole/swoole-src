@@ -41,7 +41,7 @@ static struct HashAlgo
 
 static String doHash(const php_hash_ops *ops, String &data, bool raw_output)
 {
-    if (hash_algos.context_size < ops->context_size)
+    if ((int) hash_algos.context_size < ops->context_size)
     {
         hash_algos.context_size = ops->context_size;
         hash_algos.context = malloc(hash_algos.context_size);
@@ -118,7 +118,7 @@ static inline void php_hash_string_xor_char(uchar *out, const uchar *in, const u
 static inline void php_hash_hmac_prep_key(uchar *K, const php_hash_ops *ops, void *context, const uchar *key, const size_t key_len)
 {
     memset(K, 0, ops->block_size);
-    if (key_len > ops->block_size)
+    if ((int) key_len > ops->block_size)
     {
         /* Reduce the key first */
         ops->hash_init(context);
@@ -140,12 +140,12 @@ String hash_hmac(String algo, String data, String key, bool raw_output)
     {
         return "";
     }
-    if (hash_algos.context_size < ops->context_size)
+    if ((int) hash_algos.context_size < ops->context_size)
     {
         hash_algos.context_size = ops->context_size;
         hash_algos.context = malloc(hash_algos.context_size);
     }
-    if (hash_algos.key_size < ops->block_size)
+    if ((int) hash_algos.key_size < ops->block_size)
     {
         hash_algos.key_size = ops->block_size;
         hash_algos.key = (uchar *) malloc(hash_algos.key_size);

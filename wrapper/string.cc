@@ -39,7 +39,7 @@ String String::substr(long _offset, long _length)
     {
         return "";
     }
-    else if (_offset < 0 && -_offset > this->length())
+    else if (_offset < 0 && -_offset > (long) this->length())
     {
         _offset = 0;
     }

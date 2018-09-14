@@ -1134,7 +1134,7 @@ public:
 #if PHP_VERSION_ID >= 70200
     ~ArgInfo()
     {
-        for (int i = 1; i <= list.size(); i++)
+        for (size_t i = 1; i <= list.size(); i++)
         {
             if (ZEND_TYPE_IS_CLASS(info[i].type))
             {
@@ -1190,7 +1190,7 @@ public:
         }
         _info[0].name = (const char*) (zend_uintptr_t) (required_num);
         _info[0].pass_by_reference = return_reference;
-        for (int i = 1; i <= list.size(); i++)
+        for (size_t i = 1; i <= list.size(); i++)
         {
             memcpy(&_info[i], &list[i - 1], sizeof(zend_internal_arg_info));
         }
@@ -1224,7 +1224,7 @@ static inline Variant call(const Variant &func, Args &args)
 static inline Variant call(const Variant &func, Array &args)
 {
     Args _args;
-    for (int i = 0; i < args.count(); i++)
+    for (size_t i = 0; i < args.count(); i++)
     {
         _args.append(args[i].ptr());
     }

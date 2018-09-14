@@ -193,7 +193,7 @@ bool Class::activate()
     /**
      * register property
      */
-    for (int i = 0; i != propertys.size(); i++)
+    for (size_t i = 0; i != propertys.size(); i++)
     {
         Property p = propertys[i];
         if (Z_TYPE(p.value) == IS_STRING)
@@ -208,7 +208,7 @@ bool Class::activate()
     /**
      * register constant
      */
-    for (int i = 0; i != constants.size(); i++)
+    for (size_t i = 0; i != constants.size(); i++)
     {
         if (Z_TYPE(constants[i].value) == IS_STRING)
         {
@@ -220,7 +220,7 @@ bool Class::activate()
             zend_declare_class_constant(ce, constants[i].name.c_str(), constants[i].name.length(), &constants[i].value);
         }
     }
-    for (int i = 0; i < aliases.size(); i++)
+    for (size_t i = 0; i < aliases.size(); i++)
     {
         string alias = aliases[i];
         if (zend_register_class_alias_ex(alias.c_str(), alias.length(), ce) < 0)

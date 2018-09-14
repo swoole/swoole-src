@@ -114,7 +114,6 @@ Variant Variant::jsonEncode(zend_long options, zend_long depth)
 
 Variant Variant::jsonDecode(zend_long options, zend_long depth)
 {
-    smart_str buf = { 0 };
     JSON_G(error_code) = PHP_JSON_ERROR_NONE;
 
     if (this->length() == 0)

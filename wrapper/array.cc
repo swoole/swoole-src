@@ -56,7 +56,7 @@ int array_data_compare(const void *a, const void *b)
 
 Array Array::slice(long offset, long length, bool preserve_keys)
 {
-    size_t num_in = count();
+    long num_in = count();
 
     if (offset > num_in)
     {
