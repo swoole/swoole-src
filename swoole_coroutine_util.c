@@ -777,7 +777,6 @@ static void co_socket_read(int fd, zend_long length, INTERNAL_FUNCTION_PARAMETER
     sock->buf = zend_string_alloc(length + 1, 0);
     sock->nbytes = length <= 0 ? SW_BUFFER_SIZE_STD : length;
 
-    sock->context.onTimeout = NULL;
     sock->context.state = SW_CORO_CONTEXT_RUNNING;
 
     coro_save(&sock->context);
@@ -814,7 +813,6 @@ static void co_socket_write(int fd, char* str, size_t l_str, INTERNAL_FUNCTION_P
 
     php_context *context = &sock->context;
     context->state = SW_CORO_CONTEXT_RUNNING;
-    context->onTimeout = NULL;
     context->private_data = str;
 
     sock->nbytes = l_str;
@@ -910,7 +908,6 @@ static PHP_METHOD(swoole_coroutine_util, fread)
         RETURN_FALSE;
     }
 
-    context->onTimeout = NULL;
     context->state = SW_CORO_CONTEXT_RUNNING;
 
     coro_save(context);
@@ -993,7 +990,6 @@ static PHP_METHOD(swoole_coroutine_util, fgets)
     }
 
     context->coro_params = *handle;
-    context->onTimeout = NULL;
     context->state = SW_CORO_CONTEXT_RUNNING;
 
     coro_save(context);
@@ -1079,7 +1075,6 @@ static PHP_METHOD(swoole_coroutine_util, fwrite)
         RETURN_FALSE;
     }
 
-    context->onTimeout = NULL;
     context->state = SW_CORO_CONTEXT_RUNNING;
 
     coro_save(context);
@@ -1130,7 +1125,6 @@ static PHP_METHOD(swoole_coroutine_util, readFile)
         RETURN_FALSE;
     }
 
-    context->onTimeout = NULL;
     context->state = SW_CORO_CONTEXT_RUNNING;
 
     coro_save(context);
@@ -1200,7 +1194,6 @@ static PHP_METHOD(swoole_coroutine_util, writeFile)
         RETURN_FALSE;
     }
 
-    context->onTimeout = NULL;
     context->state = SW_CORO_CONTEXT_RUNNING;
 
     coro_save(context);

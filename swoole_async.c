@@ -1301,7 +1301,6 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro)
     req->useless = 0;
 
     php_context *sw_current_context = emalloc(sizeof(php_context));
-    sw_current_context->onTimeout = NULL;
     sw_current_context->state = SW_CORO_CONTEXT_RUNNING;
     sw_current_context->coro_params.value.ptr = (void *) req;
     req->context = sw_current_context;
