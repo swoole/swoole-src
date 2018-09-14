@@ -32,7 +32,7 @@ co::create(function () {
         return;
     }
 
-    $ret3 = $stmt->execute(array(10));
+    $ret3 = $stmt->execute([5]);
     if (!$ret3) {
         echo "EXECUTE ERROR#{$stmt->errno}: {$stmt->error}\n";
         return;
@@ -57,7 +57,7 @@ co::create(function () {
         return;
     }
 
-    $ret3 = $stmt->execute(array(10));
+    $ret3 = $stmt->execute([5]);
     if (!$ret3) {
         echo "EXECUTE ERROR#{$stmt->errno}: {$stmt->error}\n";
         return;
