@@ -45,7 +45,8 @@ $pm->childFunc = function () use ($pm) {
     $serv->set([
         // 'worker_num' => 1,
         'log_file' => '/dev/null',
-        'send_yield' => true
+        'send_yield' => true,
+        'send_timeout' => -1
     ]);
     $serv->on('workerStart', function () use ($pm) {
         $pm->wakeup();

@@ -28,11 +28,11 @@ $pm->parentFunc = function (int $pid) use ($pm) {
                 assert($count === (MAX_CONCURRENCY * MAX_REQUESTS));
                 $cli->push('max');
                 assert((int)$cli->recv()->data > 10);
-                $pm->kill();
             }
         });
     }
     swoole_event_wait();
+    $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
     $serv = new swoole_websocket_server('127.0.0.1', $pm->getFreePort(), mt_rand(0, 1) ? SWOOLE_BASE : SWOOLE_PROCESS);

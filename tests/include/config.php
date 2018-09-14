@@ -49,5 +49,6 @@ define('SSL_FILE_DIR', __DIR__ . '/api/swoole_http_server/localhost-ssl');
 
 /** ============== Times ============== */
 define('MAX_CONCURRENCY', IS_IN_TRAVIS ? 50 : 200);
-define('MAX_CONCURRENCY_LOW', IS_IN_TRAVIS ? 25 : 50);
-define('MAX_REQUESTS', IS_IN_TRAVIS ? 50 : 100);
+define('MAX_CONCURRENCY_MID', IS_IN_TRAVIS ? 35 : 100);
+define('MAX_CONCURRENCY_LOW', IS_IN_TRAVIS ? 20 : 50);
+define('MAX_REQUESTS', IS_IN_TRAVIS ? 50 : 200);

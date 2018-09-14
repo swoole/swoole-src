@@ -8,11 +8,11 @@ require_once __DIR__ . '/../include/bootstrap.php';
 $count = 0;
 $pm = new ProcessManager;
 $pm->parentFunc = function (int $pid) use ($pm) {
-    for ($c = MAX_CONCURRENCY_LOW; $c--;) {
+    for ($c = MAX_CONCURRENCY_MID; $c--;) {
         go(function () use ($pm) {
             global $count;
             $cli = new \Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
-            $cli->set(['timeout' => 5]);
+            $cli->set(['timeout' => -1]);
             $ret = $cli->upgrade('/');
             assert($ret);
             $len = mt_rand(35000, 40000);
@@ -25,14 +25,14 @@ $pm->parentFunc = function (int $pid) use ($pm) {
                 }
             }
             if (co::stats()['coroutine_num'] === 1) {
-                assert($count === (MAX_CONCURRENCY_LOW * MAX_REQUESTS));
+                assert($count === (MAX_CONCURRENCY_MID * MAX_REQUESTS));
                 $cli->push('max');
-                assert((int)$cli->recv()->data > 10);
-                $pm->kill();
+                assert((int)$cli->recv()->data > 1);
             }
         });
     }
     swoole_event_wait();
+    $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
     $serv = new swoole_websocket_server('127.0.0.1', $pm->getFreePort(), mt_rand(0, 1) ? SWOOLE_BASE : SWOOLE_PROCESS);
@@ -44,13 +44,11 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
     });
     $serv->on('message', function (swoole_websocket_server $server, swoole_websocket_frame $frame) {
-        if (mt_rand(0, 1)) {
-            co::sleep(0.001); // 50% block
-        }
+        co::sleep(0.001);
         if ($frame->data === 'max') {
             $server->push($frame->fd, co::stats()['coroutine_peak_num']);
         } else {
-            assert(strlen($frame->data) > 35000);
+            assert(strlen($frame->data) >= 35000);
             $server->push($frame->fd, strlen($frame->data));
         }
     });
