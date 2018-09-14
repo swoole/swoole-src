@@ -71,8 +71,8 @@ typedef struct _php_context
     zval **current_coro_return_value_ptr_ptr;
     zval *current_coro_return_value_ptr;
     zval coro_params;
-    void (*onTimeout)(struct _php_context *cxt);
     void *private_data;
+    swTimer_node *timer;
     zval **current_eg_return_value_ptr_ptr;
     zend_execute_data *current_execute_data;
     zval *current_vm_stack_top;

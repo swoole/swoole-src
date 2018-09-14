@@ -58,17 +58,17 @@ public:
     ssize_t recvfrom(void *__buf, size_t __n, struct sockaddr *_addr, socklen_t *_socklen);
     swString* get_buffer();
 
-    void setTimeout(double timeout)
+    inline void setTimeout(double timeout)
     {
         _timeout = timeout;
     }
 
-    void set_timeout(struct timeval *timeout)
+    inline void set_timeout(struct timeval *timeout)
     {
         setTimeout((double) timeout->tv_sec + ((double) timeout->tv_usec / 1000 / 1000));
     }
 
-    int get_fd()
+    inline int get_fd()
     {
         return socket->fd;
     }

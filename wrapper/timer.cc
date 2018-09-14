@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "timer.hpp"
+#include "wrapper/timer.hpp"
 
 using namespace std;
 
@@ -120,7 +120,7 @@ namespace swoole
         {
             return false;
         }
-        if (Timer::del(tnode) < 0)
+        if (Timer::del(tnode) == false)
         {
             return false;
         }

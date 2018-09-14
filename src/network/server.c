@@ -1094,9 +1094,8 @@ int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length)
             _send.info.len = length;
             _send.length = 0;
         }
-        return factory->finish(factory, &_send);
+        return factory->finish(factory, &_send) < 0 ? SW_ERR : SW_OK;
     }
-    return SW_OK;
 }
 
 /**

@@ -14,8 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
-#ifndef SWOOLE_CPP_SERVER_H
-#define SWOOLE_CPP_SERVER_H
+#pragma once
 
 #include <vector>
 #include <string>
@@ -171,4 +170,3 @@ namespace swoole
         int events;
     };
 }
-#endif //SWOOLE_CPP_SERVER_H

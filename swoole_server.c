@@ -418,7 +418,6 @@ static void php_swoole_task_wait_co(swServer *serv, swEventData *req, double tim
     task_co->result = NULL;
     task_co->list = NULL;
     task_co->count = 1;
-    task_co->context.onTimeout = NULL;
     task_co->context.state = SW_CORO_CONTEXT_RUNNING;
     Z_LVAL(task_co->context.coro_params) = req->info.fd;
 
@@ -1773,8 +1772,26 @@ static void php_swoole_onSendTimeout(swTimer *timer, swTimer_node *tnode)
     zval *retval = NULL;
     SW_MAKE_STD_ZVAL(result);
 
-    SwooleG.error = EAGAIN;
+    SwooleG.error = ETIMEDOUT;
     ZVAL_BOOL(result, 0);
+
+    int fd = (int) (long) context->private_data;
+    swLinkedList *coros_list = swHashMap_find_int(send_coroutine_map, fd);
+    if (coros_list)
+    {
+        swLinkedList_remove(coros_list, context);
+        //free memory
+        if (coros_list->num == 0)
+        {
+            swLinkedList_free(coros_list);
+            swHashMap_del_int(send_coroutine_map, fd);
+        }
+    }
+    else
+    {
+        swWarn("send coroutine[fd=%d] not exists.", fd);
+        return;
+    }
 
     context->private_data = NULL;
 
@@ -1796,10 +1813,10 @@ static void php_swoole_server_send_resume(swServer *serv, php_context *context, 
     zval *retval = NULL;
     SW_MAKE_STD_ZVAL(result);
 
-    if (context->private_data)
+    if (context->timer)
     {
-        swTimer_del(&SwooleG.timer, (swTimer_node *) context->private_data);
-        context->private_data = NULL;
+        swTimer_del(&SwooleG.timer, (swTimer_node *) context->timer);
+        context->timer = NULL;
     }
 
     if (ZVAL_IS_NULL(zdata))
@@ -1852,11 +1869,12 @@ void php_swoole_server_send_yield(swServer *serv, int fd, zval *zdata, zval *ret
     if (serv->send_timeout > 0)
     {
         php_swoole_check_timer((int) (serv->send_timeout * 1000));
-        context->private_data = SwooleG.timer.add(&SwooleG.timer, (int) (serv->send_timeout * 1000), 0, context, php_swoole_onSendTimeout);
+        context->private_data = (void*) (long) fd;
+        context->timer = SwooleG.timer.add(&SwooleG.timer, (int) (serv->send_timeout * 1000), 0, context, php_swoole_onSendTimeout);
     }
     else
     {
-        context->private_data = NULL;
+        context->timer = NULL;
     }
     context->coro_params = *zdata;
     coro_save(context);
@@ -3513,7 +3531,6 @@ PHP_METHOD(swoole_server, taskCo)
     task_co->result = result;
     task_co->list = list;
     task_co->count = n_task;
-    task_co->context.onTimeout = NULL;
     task_co->context.state = SW_CORO_CONTEXT_RUNNING;
 
     php_swoole_check_timer(ms);

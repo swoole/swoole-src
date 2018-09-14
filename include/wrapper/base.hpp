@@ -14,8 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
-#ifndef SWOOLE_CPP_BASE_HPP
-#define SWOOLE_CPP_BASE_HPP
+#pragma once
 
 #include "config.h"
 #include "swoole.h"
@@ -26,5 +25,3 @@ namespace swoole
     void event_wait(void);
     void check_reactor(void);
 }
-
-#endif //SWOOLE_CPP_BASE_HPP

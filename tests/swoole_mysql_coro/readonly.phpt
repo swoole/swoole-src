@@ -31,7 +31,7 @@ go(function () {
 
     // read
     $result = $readonly->query('SELECT * FROM userinfo');
-    assert(is_array($result) && count($result) > 10);
+    assert(is_array($result) && count($result) > 5);
     $id = $result[0]['id'];
     // write
     $delete = $readonly->query('DELETE FROM userinfo WHERE id=' . $id);

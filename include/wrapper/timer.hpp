@@ -14,11 +14,9 @@
   +----------------------------------------------------------------------+
 */
 
-#ifndef SWOOLE_CPP_TIMER_HPP
-#define SWOOLE_CPP_TIMER_HPP
+#pragma once
 
 #include "base.hpp"
-
 #include <map>
 
 using namespace std;
@@ -75,4 +73,4 @@ namespace swoole
 
     static map<long, Timer *> timer_map;
 }
-#endif //SWOOLE_CPP_TIMER_HPP
+

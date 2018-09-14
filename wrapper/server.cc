@@ -14,7 +14,8 @@
   +----------------------------------------------------------------------+
 */
 
-#include "server.hpp"
+#include "wrapper/server.hpp"
+
 #include <sys/stat.h>
 
 namespace swoole
@@ -25,6 +26,8 @@ namespace swoole
         host = _host;
         port = _port;
         mode = _mode;
+
+        events = 0;
 
         swServer_init(&serv);
 
