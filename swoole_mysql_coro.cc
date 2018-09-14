@@ -277,6 +277,7 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
        //null bitmap
        unsigned int null_count = (params_length + 7) / 8;
        memset(p, 0, null_count);
+       char *null_start = p;
        p += null_count;
        mysql_request_buffer->length += null_count;
 
@@ -285,50 +286,58 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
        p += 1;
        mysql_request_buffer->length += 1;
 
-       int i;
-       for (i = 0; i < statement->param_count; i++)
-       {
-           mysql_int2store(p, SW_MYSQL_TYPE_VAR_STRING);
-           p += 2;
-       }
-
+       char *type_start = p;
+       p += params_length * 2;
        mysql_request_buffer->length += params_length * 2;
 
-       SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(params), value)
-           ZVAL_DUP(&_value, value);
-           value = &_value;
-           convert_to_string(value);
-           if (Z_STRLEN_P(value) > 0xffff)
-           {
-               buf[0] = (char) SW_MYSQL_TYPE_VAR_STRING;
-               if (swString_append_ptr(mysql_request_buffer, buf, 1) < 0)
-               {
-                   zval_dtor(value);
-                   return SW_ERR;
-               }
-           }
-           else if (Z_STRLEN_P(value) > 250)
-           {
-               buf[0] = (char) SW_MYSQL_TYPE_BLOB;
-               if (swString_append_ptr(mysql_request_buffer, buf, 1) < 0)
-               {
-                   zval_dtor(value);
-                   return SW_ERR;
-               }
-           }
-           lval = mysql_write_lcb(buf, Z_STRLEN_P(value));
-           if (swString_append_ptr(mysql_request_buffer, buf, lval) < 0)
-           {
-               zval_dtor(value);
-               return SW_ERR;
-           }
-           if (swString_append_ptr(mysql_request_buffer, Z_STRVAL_P(value), Z_STRLEN_P(value)) < 0)
-           {
-               zval_dtor(value);
-               return SW_ERR;
-           }
-           zval_dtor(value);
-       SW_HASHTABLE_FOREACH_END();
+       zend_ulong index = 0;
+       ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(params), value)
+       {
+            if (ZVAL_IS_NULL(value))
+            {
+                mysql_int2store(type_start + (index * 2), SW_MYSQL_TYPE_NULL);
+                mysql_int1store(null_start + index, 1);
+            }
+            else
+            {
+                mysql_int2store(type_start + (index * 2), SW_MYSQL_TYPE_VAR_STRING);
+                ZVAL_DUP(&_value, value);
+                value = &_value;
+                convert_to_string(value);
+                if (Z_STRLEN_P(value) > 0xffff)
+                {
+                    buf[0] = (char) SW_MYSQL_TYPE_VAR_STRING;
+                    if (swString_append_ptr(mysql_request_buffer, buf, 1) < 0)
+                    {
+                        zval_dtor(value);
+                        return SW_ERR;
+                    }
+                }
+                else if (Z_STRLEN_P(value) > 250)
+                {
+                    buf[0] = (char) SW_MYSQL_TYPE_BLOB;
+                    if (swString_append_ptr(mysql_request_buffer, buf, 1) < 0)
+                    {
+                        zval_dtor(value);
+                        return SW_ERR;
+                    }
+                }
+                lval = mysql_write_lcb(buf, Z_STRLEN_P(value));
+                if (swString_append_ptr(mysql_request_buffer, buf, lval) < 0)
+                {
+                    zval_dtor(value);
+                    return SW_ERR;
+                }
+                if (swString_append_ptr(mysql_request_buffer, Z_STRVAL_P(value), Z_STRLEN_P(value)) < 0)
+                {
+                    zval_dtor(value);
+                    return SW_ERR;
+                }
+                zval_dtor(value);
+            }
+            index++;
+       }
+       ZEND_HASH_FOREACH_END();
     }
 
     //length
