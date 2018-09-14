@@ -1830,7 +1830,7 @@ static void php_swoole_server_send_resume(swServer *serv, php_context *context, 
         {
             goto _fail;
         }
-        ZVAL_BOOL(result, swServer_tcp_send(serv, fd, data, length) >= 0);
+        ZVAL_BOOL(result, swServer_tcp_send(serv, fd, data, length) == SW_OK);
     }
 
     int ret = coro_resume(context, result, &retval);
