@@ -20,6 +20,7 @@ $pm->parentFunc = function (int $pid) use ($pm, $data_list) {
     $clients = [];
     for ($c = MAX_CONCURRENCY_LOW; $c--;) {
         $cli = new swoole_http_client('127.0.0.1', $pm->getFreePort());
+        $cli->set(['timeout' => -1]);
         global $data_list;
         $cli->data_list = $data_list;
         $cli->on('message', function ($_cli, $frame) {
@@ -33,9 +34,12 @@ $pm->parentFunc = function (int $pid) use ($pm, $data_list) {
             }
         });
 
-        $cli->upgrade('/', function ($cli) {
+        $ret = $cli->upgrade('/', function ($cli) {
             
         });
+        if ($ret == false) {
+            die("error=" . $cli->errCode);
+        }
         $clients[] = $cli;
     }
     swoole_event_wait();
@@ -64,17 +68,12 @@ $pm->childFunc = function () use ($pm) {
             } else {
                 $ret = $serv->push($req->fd, $data, $opcode);
             }
-            if (!$ret) {
-                echo "erron\n";
-            }
             if (!assert($ret)) {
                 var_dump($serv->getLastError());
             }
         }
     });
     $serv->on('message', function (swoole_websocket_server $serv, swoole_websocket_frame $frame) { });
-    require_once "/home/htf/workspace/projects/remote-shell/src/RemoteShell.php";
-    RemoteShell::listen($serv);
     $serv->start();
 };
 $pm->childFirst();

@@ -1486,9 +1486,13 @@ ssize_t Socket::recv_packet()
 
     if (open_length_check)
     {
-        uint32_t header_len;
-
-        _get_header_len: header_len = protocol.package_length_offset + protocol.package_length_size;
+        //unprocessed data
+        if (buffer->offset > 0)
+        {
+            memmove(buffer->str, buffer->str + buffer->offset, buffer->length);
+            buffer->offset = 0;
+        }
+        uint32_t header_len = protocol.package_length_offset + protocol.package_length_size;
         if (buffer->length > 0)
         {
             if (buffer->length < header_len)
@@ -1542,9 +1546,10 @@ ssize_t Socket::recv_packet()
         }
         else if ((size_t) buf_len < buffer->length)
         {
-            buffer->length = buffer->length - buf_len;
-            memmove(buffer->str, buffer->str + buf_len, buffer->length);
-            goto _get_header_len;
+            //unprocessed data
+            buffer->length -= buf_len;
+            buffer->offset = buf_len;
+            return buf_len;
         }
 
         if ((size_t) buf_len > buffer->size)
