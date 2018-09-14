@@ -445,19 +445,6 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_memory_pool.c \
         thirdparty/swoole_http_parser.c \
         thirdparty/multipart_parser.c \
-        wrapper/array.cc \
-        wrapper/base.cc \
-        wrapper/class.cc  \
-        wrapper/client.cc  \
-        wrapper/exec.cc  \
-        wrapper/extension.cc  \
-        wrapper/function.cc  \
-        wrapper/hash.cc  \
-        wrapper/object.cc  \
-        wrapper/server.cc  \
-        wrapper/string.cc  \
-        wrapper/timer.cc  \
-        wrapper/variant.cc \
         src/core/base.c \
         src/core/log.c \
         src/core/hashmap.c \
