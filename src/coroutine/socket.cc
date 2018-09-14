@@ -1547,7 +1547,7 @@ ssize_t Socket::recv_packet()
             goto _get_header_len;
         }
 
-        if ((size_t) buf_len >= buffer->size)
+        if ((size_t) buf_len > buffer->size)
         {
             if (swString_extend(buffer, buf_len) < 0)
             {
