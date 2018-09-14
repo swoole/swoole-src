@@ -108,6 +108,10 @@ static int swSystemTimer_set(swTimer *timer, long new_interval)
     {
         return SW_OK;
     }
+    if (new_interval == 0)
+    {
+        new_interval = 1;
+    }
     current_interval = new_interval;
     return swSystemTimer_signal_set(timer, new_interval);
 }

@@ -91,13 +91,13 @@ zend_class_entry *swoole_http_request_class_entry_ptr;
 static int http_onReceive(swServer *serv, swEventData *req);
 static void http_onClose(swServer *serv, swDataHead *ev);
 
-static int http_request_on_path(php_http_parser *parser, const char *at, size_t length);
-static int http_request_on_query_string(php_http_parser *parser, const char *at, size_t length);
-static int http_request_on_body(php_http_parser *parser, const char *at, size_t length);
-static int http_request_on_header_field(php_http_parser *parser, const char *at, size_t length);
-static int http_request_on_header_value(php_http_parser *parser, const char *at, size_t length);
-static int http_request_on_headers_complete(php_http_parser *parser);
-static int http_request_message_complete(php_http_parser *parser);
+static int http_request_on_path(swoole_http_parser *parser, const char *at, size_t length);
+static int http_request_on_query_string(swoole_http_parser *parser, const char *at, size_t length);
+static int http_request_on_body(swoole_http_parser *parser, const char *at, size_t length);
+static int http_request_on_header_field(swoole_http_parser *parser, const char *at, size_t length);
+static int http_request_on_header_value(swoole_http_parser *parser, const char *at, size_t length);
+static int http_request_on_headers_complete(swoole_http_parser *parser);
+static int http_request_message_complete(swoole_http_parser *parser);
 
 static int multipart_body_on_header_field(multipart_parser* p, const char *at, size_t length);
 static int multipart_body_on_header_value(multipart_parser* p, const char *at, size_t length);
@@ -180,7 +180,7 @@ enum flags
     F_CONNECTION_CLOSE = 1 << 2,
 };
 
-static inline long http_fast_parse(php_http_parser *parser, char *data, size_t length)
+static inline long http_fast_parse(swoole_http_parser *parser, char *data, size_t length)
 {
     http_context *ctx = parser->data;
     const char *method;
@@ -396,7 +396,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_create, 0, 0, 1)
     ZEND_ARG_INFO(0, fd)
 ZEND_END_ARG_INFO()
 
-static const php_http_parser_settings http_parser_settings =
+static const swoole_http_parser_settings http_parser_settings =
 {
     NULL,
     http_request_on_path,
@@ -457,7 +457,7 @@ const zend_function_entry swoole_http_response_methods[] =
     PHP_FE_END
 };
 
-static int http_request_on_path(php_http_parser *parser, const char *at, size_t length)
+static int http_request_on_path(swoole_http_parser *parser, const char *at, size_t length)
 {
     http_context *ctx = parser->data;
     ctx->request.path = estrndup(at, length);
@@ -465,7 +465,7 @@ static int http_request_on_path(php_http_parser *parser, const char *at, size_t 
     return 0;
 }
 
-static int http_request_on_query_string(php_http_parser *parser, const char *at, size_t length)
+static int http_request_on_query_string(swoole_http_parser *parser, const char *at, size_t length)
 {
     http_context *ctx = parser->data;
 
@@ -483,7 +483,7 @@ static int http_request_on_query_string(php_http_parser *parser, const char *at,
     return 0;
 }
 
-static int http_request_on_header_field(php_http_parser *parser, const char *at, size_t length)
+static int http_request_on_header_field(swoole_http_parser *parser, const char *at, size_t length)
 {
     http_context *ctx = parser->data;
     if (ctx->current_header_name_allocated)
@@ -598,7 +598,7 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
     }
 }
 
-static int http_request_on_header_value(php_http_parser *parser, const char *at, size_t length)
+static int http_request_on_header_value(swoole_http_parser *parser, const char *at, size_t length)
 {
     size_t offset = 0;
     http_context *ctx = parser->data;
@@ -640,17 +640,23 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
             }
             else if (http_strncasecmp("multipart/form-data", at, length))
             {
+                // start offset
                 offset = sizeof("multipart/form-data;") - 1;
-
                 while (at[offset] == ' ')
                 {
-                    offset += 1;
+                    offset++;
                 }
-
                 offset += sizeof("boundary=") - 1;
 
                 int boundary_len = length - offset;
-                char *boundary_str = (char *) at + length - boundary_len;
+                char *boundary_str = (char *) at + offset;
+
+                // find end
+                while (offset < boundary_len && *(boundary_str + offset) != ';')
+                {
+                    offset++;
+                }
+                boundary_len = offset;
 
                 if (boundary_len <= 0)
                 {
@@ -688,7 +694,7 @@ static int http_request_on_header_value(php_http_parser *parser, const char *at,
     return 0;
 }
 
-static int http_request_on_headers_complete(php_http_parser *parser)
+static int http_request_on_headers_complete(swoole_http_parser *parser)
 {
     http_context *ctx = parser->data;
     if (ctx->current_header_name_allocated)
@@ -963,7 +969,7 @@ static int multipart_body_on_data_end(multipart_parser* p)
     return 0;
 }
 
-static int http_request_on_body(php_http_parser *parser, const char *at, size_t length)
+static int http_request_on_body(swoole_http_parser *parser, const char *at, size_t length)
 {
     http_context *ctx = parser->data;
     zval *zrequest_object = ctx->request.zobject;
@@ -996,7 +1002,7 @@ static int http_request_on_body(php_http_parser *parser, const char *at, size_t 
     return 0;
 }
 
-static int http_request_message_complete(php_http_parser *parser)
+static int http_request_message_complete(swoole_http_parser *parser)
 {
     http_context *ctx = parser->data;
     ctx->request.version = parser->http_major * 100 + parser->http_minor;
@@ -1064,7 +1070,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
 #endif
 
     http_context *ctx = swoole_http_context_new(fd TSRMLS_CC);
-    php_http_parser *parser = &ctx->parser;
+    swoole_http_parser *parser = &ctx->parser;
     zval *zserver = ctx->request.zserver;
 
     parser->data = ctx;
@@ -1078,14 +1084,14 @@ static int http_onReceive(swServer *serv, swEventData *req)
 #ifdef SW_USE_PICOHTTPPARSER
     long n = http_fast_parse(parser, Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
 #else
-    php_http_parser_init(parser, PHP_HTTP_REQUEST);
-    long n = php_http_parser_execute(parser, &http_parser_settings, Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
+    swoole_http_parser_init(parser, PHP_HTTP_REQUEST);
+    long n = swoole_http_parser_execute(parser, &http_parser_settings, Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
 #endif
 
     if (n < 0)
     {
         sw_zval_free(zdata);
-        swWarn("php_http_parser_execute failed.");
+        swWarn("swoole_http_parser_execute failed.");
         if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)
         {
             return swServer_tcp_close(SwooleG.serv, fd, 1);
@@ -1101,7 +1107,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
         SW_SEPARATE_ZVAL(zrequest_object);
         SW_SEPARATE_ZVAL(zresponse_object);
 
-        ctx->keepalive = php_http_should_keep_alive(parser);
+        ctx->keepalive = swoole_http_should_keep_alive(parser);
         char *method_name = http_get_method_name(parser->method);
 
         sw_add_assoc_string(zserver, "request_method", method_name, 1);
@@ -1760,7 +1766,7 @@ static PHP_METHOD(swoole_http_response, write)
     }
 
     swString http_body;
-    int length = php_swoole_get_send_data(zdata, &http_body.str TSRMLS_CC);
+    ssize_t length = php_swoole_get_send_data(zdata, &http_body.str TSRMLS_CC);
 
     if (length < 0)
     {
@@ -2187,7 +2193,7 @@ static PHP_METHOD(swoole_http_response, end)
 
     if (zdata)
     {
-        int length = php_swoole_get_send_data(zdata, &http_body.str TSRMLS_CC);
+        ssize_t length = php_swoole_get_send_data(zdata, &http_body.str TSRMLS_CC);
 
         if (length < 0)
         {

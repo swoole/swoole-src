@@ -38,7 +38,7 @@ extern voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size);
 extern void php_zlib_free(voidpf opaque, voidpf address);
 #endif
 
-static const php_http_parser_settings http_parser_settings =
+static const swoole_http_parser_settings http_parser_settings =
 {
     NULL,
     NULL,
@@ -687,7 +687,7 @@ static void http_client_onReceive(swClient *cli, char *data, uint32_t length)
         }
     }
 
-    long parsed_n = php_http_parser_execute(&http->parser, &http_parser_settings, data, length);
+    long parsed_n = swoole_http_parser_execute(&http->parser, &http_parser_settings, data, length);
     if (parsed_n < 0)
     {
         swSysError("Parsing http over socket[%d] failed.", cli->socket->fd);
@@ -814,6 +814,7 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
 
     zval *post_data = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("requestBody"), 1 TSRMLS_CC);
     zval *send_header = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("requestHeaders"), 1 TSRMLS_CC);
+    uint8_t enable_length = 0;
 
     //POST
     if (post_data && !ZVAL_IS_NULL(post_data))
@@ -896,9 +897,10 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
             {
                 continue;
             }
-            //ignore Content-Length
+            //ignore custom Content-Length value
             if (strncasecmp(key, ZEND_STRL("Content-Length")) == 0)
             {
+                enable_length = 1;
                 continue;
             }
             http_client_swString_append_headers(http_client_buffer, key, keylen, Z_STRVAL_P(value), Z_STRLEN_P(value));
@@ -1161,7 +1163,15 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
     //no body
     else
     {
-        append_crlf: swString_append_ptr(http_client_buffer, ZEND_STRL("\r\n"));
+        append_crlf:
+        if (enable_length)
+        {
+            http_client_append_content_length(http_client_buffer, 0);
+        }
+        else
+        {
+            swString_append_ptr(http_client_buffer, ZEND_STRL("\r\n"));
+        }
         if ((ret = http->cli->send(http->cli, http_client_buffer->str, http_client_buffer->length, 0)) < 0)
         {
             send_fail:
@@ -1282,7 +1292,7 @@ http_client* http_client_create(zval *object TSRMLS_DC)
 
     swoole_set_object(object, http);
 
-    php_http_parser_init(&http->parser, PHP_HTTP_RESPONSE);
+    swoole_http_parser_init(&http->parser, PHP_HTTP_RESPONSE);
     http->parser.data = http;
 
     ztmp = sw_zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("host"), 0 TSRMLS_CC);
@@ -1688,7 +1698,7 @@ static PHP_METHOD(swoole_http_client, on)
 /**
  * Http Parser Callback
  */
-int http_client_parser_on_header_field(php_http_parser *parser, const char *at, size_t length)
+int http_client_parser_on_header_field(swoole_http_parser *parser, const char *at, size_t length)
 {
     http_client* http = (http_client*) parser->data;
     http->tmp_header_field_name = (char *) at;
@@ -1696,7 +1706,7 @@ int http_client_parser_on_header_field(php_http_parser *parser, const char *at, 
     return 0;
 }
 
-int http_client_parser_on_header_value(php_http_parser *parser, const char *at, size_t length)
+int http_client_parser_on_header_value(swoole_http_parser *parser, const char *at, size_t length)
 {
     http_client* http = (http_client*) parser->data;
     zval* zobject = (zval*) http->object;
@@ -1828,7 +1838,7 @@ int http_response_uncompress(z_stream *stream, swString *buffer, char *body, int
 }
 #endif
 
-int http_client_parser_on_body(php_http_parser *parser, const char *at, size_t length)
+int http_client_parser_on_body(swoole_http_parser *parser, const char *at, size_t length)
 {
     http_client* http = (http_client*) parser->data;
     if (swString_append_ptr(http->body, at, length) < 0)
@@ -1867,7 +1877,7 @@ enum flags
     F_CONNECTION_CLOSE = 1 << 2,
 };
 
-int http_client_parser_on_headers_complete(php_http_parser *parser)
+int http_client_parser_on_headers_complete(swoole_http_parser *parser)
 {
     http_client* http = (http_client*) parser->data;
     //no content-length
@@ -1883,7 +1893,7 @@ int http_client_parser_on_headers_complete(php_http_parser *parser)
     return 0;
 }
 
-int http_client_parser_on_message_complete(php_http_parser *parser)
+int http_client_parser_on_message_complete(swoole_http_parser *parser)
 {
     http_client* http = (http_client*) parser->data;
     zval* zobject = (zval*) http->object;
@@ -2088,9 +2098,9 @@ static PHP_METHOD(swoole_http_client, push)
         return;
     }
 
-    if (opcode > WEBSOCKET_OPCODE_PONG)
+    if (unlikely(opcode > SW_WEBSOCKET_OPCODE_MAX))
     {
-        swoole_php_fatal_error(E_WARNING, "opcode max 10");
+        swoole_php_fatal_error(E_WARNING, "the maximum value of opcode is %d.", SW_WEBSOCKET_OPCODE_MAX);
         SwooleG.error = SW_ERROR_WEBSOCKET_BAD_OPCODE;
         RETURN_FALSE;
     }

@@ -76,7 +76,8 @@ typedef struct
     swString *buffer;
 } process_stream;
 
-static void php_swoole_aio_onComplete(swAio_event *event);
+static void php_swoole_aio_onFileCompleted(swAio_event *event);
+static void php_swoole_aio_onDNSCompleted(swAio_event *event);
 static void php_swoole_dns_callback(char *domain, swDNSResolver_result *result, void *data);
 #ifdef SW_COROUTINE
 static void php_swoole_dns_callback_coro(char *domain, swDNSResolver_result *result, void *data);
@@ -86,7 +87,6 @@ static void php_swoole_dns_timeout_coro(swTimer *timer, swTimer_node *tnode);
 static void php_swoole_file_request_free(void *data);
 
 static swHashMap *php_swoole_open_files;
-static swHashMap *php_swoole_aio_request;
 
 #ifdef SW_COROUTINE
 static swHashMap *request_cache_map = NULL; //以domin为区分
@@ -130,23 +130,14 @@ void swoole_async_init(int module_number TSRMLS_DC)
     {
         swoole_php_fatal_error(E_ERROR, "create hashmap[1] failed.");
     }
-    php_swoole_aio_request = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, php_swoole_file_request_free);
-    if (php_swoole_aio_request == NULL)
-    {
-        swoole_php_fatal_error(E_ERROR, "create hashmap[2] failed.");
-    }
 }
 
 void php_swoole_check_aio()
 {
-    if (SwooleAIO.init == 0)
+    if (unlikely(SwooleAIO.init == 0))
     {
         php_swoole_check_reactor();
         swAio_init();
-    }
-    if (!SwooleAIO.callback)
-    {
-        SwooleAIO.callback = php_swoole_aio_onComplete;
     }
 }
 
@@ -200,7 +191,6 @@ static void php_swoole_dns_callback(char *domain, swDNSResolver_result *result, 
     sw_zval_ptr_dtor(&zaddress);
 }
 
-//用于coro 回调
 #ifdef SW_COROUTINE
 static void php_swoole_dns_callback_coro(char *domain, swDNSResolver_result *result, void *data)
 {
@@ -271,7 +261,6 @@ static void php_swoole_dns_callback_coro(char *domain, swDNSResolver_result *res
     efree(req);
 }
 
-//用于timeout
 static void php_swoole_dns_timeout_coro(swTimer *timer, swTimer_node *tnode)
 {
     zval *retval = NULL;
@@ -309,47 +298,18 @@ static void php_swoole_dns_timeout_coro(swTimer *timer, swTimer_node *tnode)
 }
 #endif
 
-static void php_swoole_aio_onComplete(swAio_event *event)
+static void php_swoole_aio_onDNSCompleted(swAio_event *event)
 {
-    int isEOF = SW_FALSE;
     int64_t ret;
 
-    zval *retval = NULL, *zcallback = NULL, *zwriten = NULL;
-    zval *zcontent = NULL;
+    zval *retval = NULL, *zcallback = NULL;
     zval **args[2];
-    file_request *file_req = NULL;
     dns_request *dns_req = NULL;
 
     zval _zcontent;
-    zval _zwriten;
-    bzero(&_zcontent, sizeof(zval));
-    bzero(&_zwriten, sizeof(zval));
 
-    if (event->type == SW_AIO_GETHOSTBYNAME)
-    {
-        dns_req = (dns_request *) event->req;
-        if (dns_req->callback == NULL)
-        {
-            swoole_php_error(E_WARNING, "swoole_async: onAsyncComplete callback not found[0]");
-            return;
-        }
-        zcallback = dns_req->callback;
-    }
-    else
-    {
-        file_req = swHashMap_find_int(php_swoole_aio_request, event->task_id);
-        if (!file_req)
-        {
-            swoole_php_fatal_error(E_WARNING, "swoole_async: onAsyncComplete callback not found[1]");
-            return;
-        }
-        if (file_req->callback == NULL && file_req->type == SW_AIO_READ)
-        {
-            swoole_php_fatal_error(E_WARNING, "swoole_async: onAsyncComplete callback not found[2]");
-            return;
-        }
-        zcallback = file_req->callback;
-    }
+    dns_req = (dns_request *) event->req;
+    zcallback = dns_req->callback;
 
     ret = event->ret;
     if (ret < 0)
@@ -357,7 +317,68 @@ static void php_swoole_aio_onComplete(swAio_event *event)
         SwooleG.error = event->error;
         swoole_php_error(E_WARNING, "Aio Error: %s[%d]", strerror(event->error), event->error);
     }
-    else if (file_req != NULL)
+
+    args[0] = &dns_req->domain;
+    zval *zcontent = &_zcontent;
+    if (ret < 0)
+    {
+        SW_ZVAL_STRING(zcontent, "", 1);
+    }
+    else
+    {
+        SW_ZVAL_STRING(zcontent, event->buf, 1);
+    }
+    args[1] = &zcontent;
+
+    if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL) == FAILURE)
+    {
+        swoole_php_fatal_error(E_WARNING, "swoole_async: onAsyncComplete handler error");
+        return;
+    }
+    if (EG(exception))
+    {
+        zend_exception_error(EG(exception), E_ERROR);
+    }
+
+    sw_zval_ptr_dtor(&dns_req->callback);
+    sw_zval_ptr_dtor(&dns_req->domain);
+    efree(dns_req);
+    efree(event->buf);
+
+    if (zcontent)
+    {
+        sw_zval_ptr_dtor(&zcontent);
+    }
+    if (retval)
+    {
+        sw_zval_ptr_dtor(&retval);
+    }
+}
+
+static void php_swoole_aio_onFileCompleted(swAio_event *event)
+{
+    int isEOF = SW_FALSE;
+    int64_t ret;
+
+    zval *retval = NULL, *zcallback = NULL, *zwriten = NULL;
+    zval *zcontent = NULL;
+    zval **args[2];
+
+    zval _zcontent;
+    zval _zwriten;
+    bzero(&_zcontent, sizeof(zval));
+    bzero(&_zwriten, sizeof(zval));
+
+    file_request *file_req = event->object;
+    zcallback = file_req->callback;
+
+    ret = event->ret;
+    if (ret < 0)
+    {
+        SwooleG.error = event->error;
+        swoole_php_error(E_WARNING, "Aio Error: %s[%d]", strerror(event->error), event->error);
+    }
+    else
     {
         if (ret == 0)
         {
@@ -395,25 +416,6 @@ static void php_swoole_aio_onComplete(swAio_event *event)
         args[1] = &zwriten;
         ZVAL_LONG(zwriten, ret);
     }
-    else if(event->type == SW_AIO_GETHOSTBYNAME)
-    {
-        args[0] = &dns_req->domain;
-        zcontent = &_zcontent;
-        if (ret < 0)
-        {
-            SW_ZVAL_STRING(zcontent, "", 1);
-        }
-        else
-        {
-            SW_ZVAL_STRING(zcontent, event->buf, 1);
-        }
-        args[1] = &zcontent;
-    }
-    else
-    {
-        swoole_php_fatal_error(E_WARNING, "swoole_async: onAsyncComplete unknown event type[%d].", event->type);
-        return;
-    }
 
     if (zcallback)
     {
@@ -429,61 +431,59 @@ static void php_swoole_aio_onComplete(swAio_event *event)
     }
 
     //file io
-    if (file_req)
+    if (file_req->once == 1)
     {
-        if (file_req->once == 1)
+        close_file:
+        close(event->fd);
+        php_swoole_file_request_free(file_req);
+    }
+    else if(file_req->type == SW_AIO_WRITE)
+    {
+        if (retval != NULL && !ZVAL_IS_NULL(retval) && !Z_BVAL_P(retval))
         {
-            close_file:
-            close(event->fd);
-            swHashMap_del_int(php_swoole_aio_request, event->task_id);
-        }
-        else if(file_req->type == SW_AIO_WRITE)
-        {
-            if (retval != NULL && !ZVAL_IS_NULL(retval) && !Z_BVAL_P(retval))
-            {
-                swHashMap_del(php_swoole_open_files, Z_STRVAL_P(file_req->filename), Z_STRLEN_P(file_req->filename));
-                goto close_file;
-            }
-            else
-            {
-                swHashMap_del_int(php_swoole_aio_request, event->task_id);
-            }
+            swHashMap_del(php_swoole_open_files, Z_STRVAL_P(file_req->filename), Z_STRLEN_P(file_req->filename));
+            goto close_file;
         }
         else
         {
-            if ((retval != NULL && !ZVAL_IS_NULL(retval) && !Z_BVAL_P(retval)) || isEOF)
+            php_swoole_file_request_free(file_req);
+        }
+    }
+    else
+    {
+        if ((retval != NULL && !ZVAL_IS_NULL(retval) && !Z_BVAL_P(retval)) || isEOF)
+        {
+            goto close_file;
+        }
+        //Less than expected, at the end of the file
+        else if (event->ret < event->nbytes)
+        {
+            event->ret = 0;
+            php_swoole_aio_onFileCompleted(event);
+        }
+        //continue to read
+        else
+        {
+            swAio_event ev;
+            ev.fd = event->fd;
+            ev.buf = event->buf;
+            ev.type = SW_AIO_READ;
+            ev.nbytes = event->nbytes;
+            ev.offset = file_req->offset;
+            ev.flags = 0;
+            ev.object = file_req;
+            ev.handler = swAio_handler_read;
+            ev.callback = php_swoole_aio_onFileCompleted;
+
+            int ret = swAio_dispatch(&ev);
+            if (ret < 0)
             {
+                swoole_php_fatal_error(E_WARNING, "swoole_async: continue to read failed. Error: %s[%d]", strerror(event->error), event->error);
                 goto close_file;
-            }
-            //Less than expected, at the end of the file
-            else if (event->ret < event->nbytes)
-            {
-                event->ret = 0;
-                php_swoole_aio_onComplete(event);
-            }
-            //continue to read
-            else
-            {
-                int ret = SwooleAIO.read(event->fd, event->buf, event->nbytes, file_req->offset);
-                if (ret < 0)
-                {
-                    swoole_php_fatal_error(E_WARNING, "swoole_async: continue to read failed. Error: %s[%d]", strerror(event->error), event->error);
-                    goto close_file;
-                }
-                else
-                {
-                    swHashMap_move_int(php_swoole_aio_request, event->task_id, ret);
-                }
             }
         }
     }
-    else if (dns_req)
-    {
-        sw_zval_ptr_dtor(&dns_req->callback);
-        sw_zval_ptr_dtor(&dns_req->domain);
-        efree(dns_req);
-        efree(event->buf);
-    }
+
     if (zcontent)
     {
         sw_zval_ptr_dtor(&zcontent);
@@ -514,6 +514,10 @@ PHP_FUNCTION(swoole_async_read)
     if (offset < 0)
     {
         swoole_php_fatal_error(E_WARNING, "offset must be greater than 0.");
+        RETURN_FALSE;
+    }
+    if (!php_swoole_is_callable(callback TSRMLS_CC))
+    {
         RETURN_FALSE;
     }
     if (buf_size > SW_AIO_MAX_CHUNK_SIZE)
@@ -558,13 +562,14 @@ PHP_FUNCTION(swoole_async_read)
     sw_zval_add_ref(&filename);
     sw_copy_to_stack(req->filename, req->_filename);
 
-    if (callback && !ZVAL_IS_NULL(callback))
+    if (!php_swoole_is_callable(callback TSRMLS_CC))
     {
-        req->callback = callback;
-        sw_zval_add_ref(&callback);
-        sw_copy_to_stack(req->callback, req->_callback);
+        RETURN_FALSE;
     }
 
+    req->callback = callback;
+    sw_zval_add_ref(&callback);
+    sw_copy_to_stack(req->callback, req->_callback);
     req->content = fcnt;
     req->once = 0;
     req->type = SW_AIO_READ;
@@ -573,14 +578,24 @@ PHP_FUNCTION(swoole_async_read)
 
     php_swoole_check_aio();
 
-    int ret = SwooleAIO.read(fd, fcnt, buf_size, offset);
+    swAio_event ev;
+    ev.fd = fd;
+    ev.buf = fcnt;
+    ev.type = SW_AIO_READ;
+    ev.nbytes = buf_size;
+    ev.offset = offset;
+    ev.flags = 0;
+    ev.object = req;
+    ev.handler = swAio_handler_read;
+    ev.callback = php_swoole_aio_onFileCompleted;
+
+    int ret = swAio_dispatch(&ev);
     if (ret == SW_ERR)
     {
         RETURN_FALSE;
     }
     else
     {
-        swHashMap_add_int(php_swoole_aio_request, ret, req);
         RETURN_TRUE;
     }
 }
@@ -604,14 +619,10 @@ PHP_FUNCTION(swoole_async_write)
     }
     if (callback && !ZVAL_IS_NULL(callback))
     {
-        char *func_name = NULL;
-        if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
+        if (!php_swoole_is_callable(callback TSRMLS_CC))
         {
-            swoole_php_fatal_error(E_WARNING, "Function '%s' is not callable", func_name);
-            efree(func_name);
             RETURN_FALSE;
         }
-        efree(func_name);
     }
 
     convert_to_string(filename);
@@ -664,14 +675,24 @@ PHP_FUNCTION(swoole_async_write)
     memcpy(wt_cnt, fcnt, fcnt_len);
     php_swoole_check_aio();
 
-    int ret = SwooleAIO.write(fd, wt_cnt, fcnt_len, offset);
+    swAio_event ev;
+    ev.fd = fd;
+    ev.buf = wt_cnt;
+    ev.type = SW_AIO_WRITE;
+    ev.nbytes = fcnt_len;
+    ev.offset = offset;
+    ev.flags = 0;
+    ev.object = req;
+    ev.handler = swAio_handler_write;
+    ev.callback = php_swoole_aio_onFileCompleted;
+
+    int ret = swAio_dispatch(&ev);
     if (ret == SW_ERR)
     {
         RETURN_FALSE;
     }
     else
     {
-        swHashMap_add_int(php_swoole_aio_request, ret, req);
         RETURN_TRUE;
     }
 }
@@ -694,6 +715,11 @@ PHP_FUNCTION(swoole_async_readfile)
         swoole_php_fatal_error(E_WARNING, "open file[%s] failed. Error: %s[%d]", Z_STRVAL_P(filename), strerror(errno), errno);
         RETURN_FALSE;
     }
+    if (!php_swoole_is_callable(callback TSRMLS_CC))
+    {
+        RETURN_FALSE;
+    }
+
     struct stat file_stat;
     if (fstat(fd, &file_stat) < 0)
     {
@@ -723,12 +749,9 @@ PHP_FUNCTION(swoole_async_readfile)
     sw_zval_add_ref(&filename);
     sw_copy_to_stack(req->filename, req->_filename);
 
-    if (callback && !ZVAL_IS_NULL(callback))
-    {
-        req->callback = callback;
-        sw_zval_add_ref(&callback);
-        sw_copy_to_stack(req->callback, req->_callback);
-    }
+    req->callback = callback;
+    sw_zval_add_ref(&callback);
+    sw_copy_to_stack(req->callback, req->_callback);
 
     req->content = emalloc(length);
     req->once = 1;
@@ -738,14 +761,24 @@ PHP_FUNCTION(swoole_async_readfile)
 
     php_swoole_check_aio();
 
-    int ret = SwooleAIO.read(fd, req->content, length, 0);
+    swAio_event ev;
+    ev.fd = fd;
+    ev.buf = req->content;
+    ev.type = SW_AIO_READ;
+    ev.nbytes = length;
+    ev.offset = 0;
+    ev.flags = 0;
+    ev.object = req;
+    ev.handler = swAio_handler_read;
+    ev.callback = php_swoole_aio_onFileCompleted;
+
+    int ret = swAio_dispatch(&ev);
     if (ret == SW_ERR)
     {
         RETURN_FALSE;
     }
     else
     {
-        swHashMap_add_int(php_swoole_aio_request, ret, req);
         RETURN_TRUE;
     }
 }
@@ -783,14 +816,10 @@ PHP_FUNCTION(swoole_async_writefile)
     }
     if (callback && !ZVAL_IS_NULL(callback))
     {
-        char *func_name = NULL;
-        if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
+        if (!php_swoole_is_callable(callback TSRMLS_CC))
         {
-            swoole_php_fatal_error(E_WARNING, "Function '%s' is not callable", func_name);
-            efree(func_name);
             RETURN_FALSE;
         }
-        efree(func_name);
     }
 
     convert_to_string(filename);
@@ -831,14 +860,24 @@ PHP_FUNCTION(swoole_async_writefile)
 
     php_swoole_check_aio();
 
-    int ret = SwooleAIO.write(fd, wt_cnt, memory_size, 0);
+    swAio_event ev;
+    ev.fd = fd;
+    ev.buf = wt_cnt;
+    ev.type = SW_AIO_WRITE;
+    ev.nbytes = memory_size;
+    ev.offset = 0;
+    ev.flags = 0;
+    ev.object = req;
+    ev.handler = swAio_handler_write;
+    ev.callback = php_swoole_aio_onFileCompleted;
+
+    int ret = swAio_dispatch(&ev);
     if (ret == SW_ERR)
     {
         RETURN_FALSE;
     }
     else
     {
-        swHashMap_add_int(php_swoole_aio_request, ret, req);
         RETURN_TRUE;
     }
 }
@@ -958,6 +997,11 @@ PHP_FUNCTION(swoole_async_dns_lookup)
         RETURN_FALSE;
     }
 
+    if (!php_swoole_is_callable(cb TSRMLS_CC))
+    {
+        RETURN_FALSE;
+    }
+
     dns_request *req = emalloc(sizeof(dns_request));
     req->callback = cb;
     sw_copy_to_stack(req->callback, req->_callback);
@@ -995,7 +1039,19 @@ PHP_FUNCTION(swoole_async_dns_lookup)
     bzero(buf, buf_size);
     memcpy(buf, Z_STRVAL_P(domain), Z_STRLEN_P(domain));
     php_swoole_check_aio();
-    SW_CHECK_RETURN(swAio_dns_lookup(req, buf, buf_size));
+
+    swAio_event ev;
+    ev.fd = 0;
+    ev.buf = buf;
+    ev.type = SW_AIO_WRITE;
+    ev.nbytes = buf_size;
+    ev.offset = 0;
+    ev.flags = 0;
+    ev.object = req;
+    ev.req = req;
+    ev.handler = swAio_handler_gethostbyname;
+    ev.callback = php_swoole_aio_onDNSCompleted;
+    SW_CHECK_RETURN(swAio_dispatch(&ev));
 }
 
 static int process_stream_onRead(swReactor *reactor, swEvent *event)

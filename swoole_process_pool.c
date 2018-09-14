@@ -45,6 +45,7 @@ static PHP_METHOD(swoole_process_pool, __destruct);
 static PHP_METHOD(swoole_process_pool, on);
 static PHP_METHOD(swoole_process_pool, listen);
 static PHP_METHOD(swoole_process_pool, write);
+static PHP_METHOD(swoole_process_pool, getProcess);
 static PHP_METHOD(swoole_process_pool, start);
 
 static const zend_function_entry swoole_process_pool_methods[] =
@@ -52,6 +53,7 @@ static const zend_function_entry swoole_process_pool_methods[] =
     PHP_ME(swoole_process_pool, __construct, arginfo_swoole_process_pool_construct, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
     PHP_ME(swoole_process_pool, __destruct, arginfo_swoole_process_pool_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
     PHP_ME(swoole_process_pool, on, arginfo_swoole_process_pool_on, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_process_pool, getProcess, arginfo_swoole_process_pool_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process_pool, listen, arginfo_swoole_process_pool_listen, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process_pool, write, arginfo_swoole_process_pool_write, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process_pool, start, arginfo_swoole_process_pool_void, ZEND_ACC_PUBLIC)
@@ -71,6 +73,7 @@ typedef struct
 static zend_class_entry swoole_process_pool_ce;
 static zend_class_entry *swoole_process_pool_class_entry_ptr;
 static swProcessPool *current_pool;
+static zval *current_process = NULL;
 
 void swoole_process_pool_init(int module_number TSRMLS_DC)
 {
@@ -81,7 +84,6 @@ void swoole_process_pool_init(int module_number TSRMLS_DC)
 
 static void php_swoole_process_pool_onWorkerStart(swProcessPool *pool, int worker_id)
 {
-
     zval *zobject = (zval *) pool->ptr;
     zval *zworker_id;
     zval *retval = NULL;
@@ -98,6 +100,8 @@ static void php_swoole_process_pool_onWorkerStart(swProcessPool *pool, int worke
     {
         return;
     }
+    SwooleWG.id = worker_id;
+    current_pool = pool;
     if (SwooleG.main_reactor)
     {
         SwooleG.main_reactor->free(SwooleG.main_reactor);
@@ -406,6 +410,8 @@ static PHP_METHOD(swoole_process_pool, start)
     SwooleG.use_signalfd = 0;
 
     swSignal_add(SIGTERM, php_swoole_process_pool_signal_hanlder);
+    swSignal_add(SIGUSR1, php_swoole_process_pool_signal_hanlder);
+    swSignal_add(SIGUSR2, php_swoole_process_pool_signal_hanlder);
 
     if (pool->ipc_mode > SW_IPC_NONE)
     {
@@ -432,6 +438,23 @@ static PHP_METHOD(swoole_process_pool, start)
 
     swProcessPool_wait(pool);
     swProcessPool_shutdown(pool);
+}
+
+static PHP_METHOD(swoole_process_pool, getProcess)
+{
+    zval object;
+
+    if (current_process == NULL)
+    {
+        swWorker *worker = &current_pool->workers[SwooleWG.id];
+        object_init_ex(&object, swoole_process_class_entry_ptr);
+        zend_update_property_long(swoole_process_class_entry_ptr, &object, ZEND_STRL("id"), SwooleWG.id TSRMLS_CC);
+        zend_update_property_long(swoole_process_class_entry_ptr, &object, ZEND_STRL("pid"), getpid() TSRMLS_CC);
+        swoole_set_object(getThis(), worker);
+        current_process = &object;
+    }
+
+    RETURN_ZVAL(current_process, 1, 0);
 }
 
 static PHP_METHOD(swoole_process_pool, __destruct)

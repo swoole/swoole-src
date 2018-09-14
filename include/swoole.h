@@ -37,6 +37,7 @@ extern "C" {
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -607,10 +608,6 @@ typedef struct _swConnection
      * received time(microseconds) with last data
      */
     double last_time_usec;
-#endif
-
-#ifdef SW_USE_TIMEWHEEL
-    uint16_t timewheel_index;
 #endif
 
     /**
@@ -1368,11 +1365,11 @@ int swSocket_bind(int sock, int type, char *host, int *port);
 int swSocket_wait(int fd, int timeout_ms, int events);
 int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events);
 void swSocket_clean(int fd);
-int swSocket_sendto_blocking(int fd, void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len);
+ssize_t swSocket_sendto_blocking(int fd, void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len);
 int swSocket_set_buffer_size(int fd, int buffer_size);
-int swSocket_udp_sendto(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len);
-int swSocket_udp_sendto6(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len);
-int swSocket_unix_sendto(int server_sock, char *dst_path, char *data, uint32_t len);
+ssize_t swSocket_udp_sendto(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len);
+ssize_t swSocket_udp_sendto6(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len);
+ssize_t swSocket_unix_sendto(int server_sock, char *dst_path, char *data, uint32_t len);
 int swSocket_sendfile_sync(int sock, char *filename, off_t offset, size_t length, double timeout);
 int swSocket_write_blocking(int __fd, void *__data, int __len);
 int swSocket_recv_blocking(int fd, void *__data, size_t __len, int flags);
@@ -1477,12 +1474,6 @@ struct _swReactor
 
 #ifdef SW_USE_MALLOC_TRIM
     time_t last_malloc_trim_time;
-#endif
-
-#ifdef SW_USE_TIMEWHEEL
-    swTimeWheel *timewheel;
-    uint16_t heartbeat_interval;
-    time_t last_heartbeat_time;
 #endif
 
     /**
@@ -1819,6 +1810,20 @@ static sw_inline int swReactor_remove_read_event(swReactor *reactor, int fd)
     }
 }
 
+static sw_inline int swReactor_remove_write_event(swReactor *reactor, int fd)
+{
+    swConnection *conn = swReactor_get(reactor, fd);
+    if (conn->events & SW_EVENT_READ)
+    {
+        conn->events &= (~SW_EVENT_WRITE);
+        return reactor->set(reactor, fd, conn->fdtype | conn->events);
+    }
+    else
+    {
+        return reactor->del(reactor, fd);
+    }
+}
+
 static sw_inline swReactor_handle swReactor_getHandle(swReactor *reactor, int event_type, int fdtype)
 {
     if (event_type == SW_EVENT_WRITE)
@@ -1978,6 +1983,7 @@ struct _swTimer_node
     swTimerCallback callback;
     int64_t exec_msec;
     uint32_t interval;
+    uint64_t round;
     long id;
     int type;                 //0 normal node 1 node for client_coro
     uint8_t remove;
@@ -1986,8 +1992,10 @@ struct _swTimer_node
 enum swTimer_type
 {
     SW_TIMER_TYPE_KERNEL,
-    SW_TIMER_TYPE_CORO,
     SW_TIMER_TYPE_PHP,
+    SW_TIMER_TYPE_CORO_READ,
+    SW_TIMER_TYPE_CORO_WRITE,
+    SW_TIMER_TYPE_CORO_ALL,
 };
 
 struct _swTimer
@@ -1999,6 +2007,7 @@ struct _swTimer
     int use_pipe;
     int lasttime;
     int fd;
+    uint64_t round;
     long _next_id;
     long _current_id;
     long _next_msec;

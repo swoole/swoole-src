@@ -1,5 +1,10 @@
 <?php
-// clear
+# @remicollet
+# https://github.com/swoole/swoole-src/commit/ffff7ce074accf7b47768fca6eb238627d7a6b93#r30410846
+# role="src" => not installed, so files only used for the build
+# role="doc" => in $(pecl config-get doc_dir), which is /usr/share/doc/pecl/swoole on RPM distro (LICENSE being an exception, manually moved to /usr/share/licenses)
+# role="test" => in $(pecl config-get test_dir), which is /usr/share/tests/pecl/swoole on RPM distro
+
 $this_dir = __DIR__;
 $tests_dir = __DIR__ . '/../tests/';
 `cd {$tests_dir} && ./clean && cd {$this_dir}`;
@@ -15,24 +20,29 @@ foreach ($file_list_raw as $file) {
     if (is_dir($root_dir . $file)) {
         continue;
     }
-    if ($file === 'package.xml') {
+    if ($file === 'package.xml' || substr($file, 0, 1) === '.') {
         continue;
     }
-    $ext = pathinfo($file, PATHINFO_EXTENSION);
-    $role = 'src';
-    switch ($ext) {
-        case 'phpt':
-            $role = 'test';
-            break;
-        case 'md':
-        case 'txt':
-            $role = 'doc';
-            break;
-        case '':
-            if (substr(file_get_contents($root_dir . $file), 0, 2) !== '#!') {
+    if (strpos($file, 'tests') === 0) {
+        $role = 'test';
+    } elseif (strpos($file, 'examples') === 0) {
+        $role = 'doc';
+    } else {
+        $ext = pathinfo($file, PATHINFO_EXTENSION);
+        $role = 'src';
+        switch ($ext) {
+            case 'phpt':
+                $role = 'test';
+                break;
+            case 'md':
                 $role = 'doc';
-            }
-            break;
+                break;
+            case '':
+                if (substr(file_get_contents($root_dir . $file), 0, 2) !== '#!') {
+                    $role = 'doc';
+                }
+                break;
+        }
     }
     $file_list[] = "<file role=\"{$role}\" name=\"{$file}\" />\n";
 }
@@ -56,4 +66,5 @@ if (!$success) {
 if (!file_put_contents(__DIR__ . '/../package.xml', $content)) {
     exit('output package successful!');
 }
-exit('package successful!');
+echo $result = trim(`cd {$root_dir} && pecl package-validate`);
+exit(strpos($result, '0 error') === false);

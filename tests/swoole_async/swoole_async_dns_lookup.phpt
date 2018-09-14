@@ -17,7 +17,7 @@ swoole_async_dns_lookup("www.baidu.com", function($host, $ip) {
     assert(ip2long($ip));
     echo "SUCCESS";
 });
-
+swoole_event_wait();
 ?>
 
 --EXPECT--

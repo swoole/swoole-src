@@ -196,11 +196,15 @@ static PHP_METHOD(swoole_server_port, set)
         convert_to_long(v);
         port->buffer_low_watermark = (int) Z_LVAL_P(v);
     }
-    //tcp_nodelay
+    //server: tcp_nodelay
     if (php_swoole_array_get_value(vht, "open_tcp_nodelay", v))
     {
         convert_to_boolean(v);
         port->open_tcp_nodelay = Z_BVAL_P(v);
+    }
+    else
+    {
+        port->open_tcp_nodelay = 1;
     }
     //tcp_defer_accept
     if (php_swoole_array_get_value(vht, "tcp_defer_accept", v))

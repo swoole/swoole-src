@@ -1,3 +1,19 @@
+/*
+  +----------------------------------------------------------------------+
+  | Swoole                                                               |
+  +----------------------------------------------------------------------+
+  | This source file is subject to version 2.0 of the Apache license,    |
+  | that is bundled with this package in the file LICENSE, and is        |
+  | available through the world-wide-web at the following url:           |
+  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
+  | If you did not receive a copy of the Apache2.0 license and are unable|
+  | to obtain it through the world-wide-web, please send a note to       |
+  | license@swoole.com so we can mail you a copy immediately.            |
+  +----------------------------------------------------------------------+
+  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  +----------------------------------------------------------------------+
+*/
+
 #pragma once
 
 #include "swoole.h"
@@ -7,6 +23,11 @@
 
 namespace swoole
 {
+enum socket_lock_operation
+{
+    SOCKET_LOCK_READ = 1u << 1, SOCKET_LOCK_WRITE = 1U << 2,
+};
+
 class Socket
 {
 public:
@@ -18,20 +39,23 @@ public:
     bool shutdown(int how);
     bool close();
     ssize_t send(const void *__buf, size_t __n);
+    ssize_t sendmsg(const struct msghdr *msg, int flags);
     ssize_t peek(void *__buf, size_t __n);
     ssize_t recv(void *__buf, size_t __n);
+    ssize_t recvmsg(struct msghdr *msg, int flags);
     ssize_t recv_all(void *__buf, size_t __n);
     ssize_t send_all(const void *__buf, size_t __n);
     ssize_t recv_packet();
     Socket* accept();
     void resume();
-    void yield();
+    void yield(int operation);
     bool bind(std::string address, int port = 0);
     std::string resolve(std::string host);
     bool listen(int backlog = 0);
     bool sendfile(char *filename, off_t offset, size_t length);
-    int sendto(char *address, int port, char *data, int len);
-    int recvfrom(void *__buf, size_t __n, char *address, int *port = nullptr);
+    ssize_t sendto(char *address, int port, char *data, int len);
+    ssize_t recvfrom(void *__buf, size_t __n);
+    ssize_t recvfrom(void *__buf, size_t __n, struct sockaddr *_addr, socklen_t *_socklen);
     swString* get_buffer();
 
     void setTimeout(double timeout)
@@ -39,16 +63,28 @@ public:
         _timeout = timeout;
     }
 
+    void set_timeout(struct timeval *timeout)
+    {
+        setTimeout((double) timeout->tv_sec + ((double) timeout->tv_usec / 1000 / 1000));
+    }
+
+    int get_fd()
+    {
+        return socket->fd;
+    }
+
 #ifdef SW_USE_OPENSSL
     bool ssl_handshake();
     int ssl_verify(bool allow_self_signed);
+    bool ssl_accept();
 #endif
 
 protected:
     inline void init()
     {
         _cid = 0;
-        suspending = false;
+        read_locked = false;
+        write_locked = false;
         _timeout = 0;
         _port = 0;
         errCode = 0;
@@ -69,6 +105,7 @@ protected:
 
         buffer = nullptr;
         protocol = {0};
+        bind_address_info = {{}, 0};
 
         protocol.package_length_type = 'N';
         protocol.package_length_size = 4;
@@ -76,8 +113,7 @@ protected:
         protocol.package_max_length = SW_BUFFER_INPUT_SIZE;
 
 #ifdef SW_USE_OPENSSL
-        open_ssl = 0;
-        ssl_wait_handshake = 0;
+        open_ssl = false;
         ssl_context = NULL;
         ssl_option = {0};
 #endif
@@ -85,15 +121,23 @@ protected:
 
     inline bool wait_events(int events)
     {
-        if (reactor->add(reactor, socket->fd, SW_FD_CORO_SOCKET | events) < 0)
+        if (socket->events == 0)
         {
-            errCode = errno;
-            return false;
+            if (reactor->add(reactor, socket->fd, SW_FD_CORO_SOCKET | events) < 0)
+            {
+                errCode = errno;
+                return false;
+            }
         }
         else
         {
-            return true;
+            if (reactor->set(reactor, socket->fd, SW_FD_CORO_SOCKET | socket->events | events) < 0)
+            {
+                errCode = errno;
+                return false;
+            }
         }
+        return true;
     }
 
     bool socks5_handshake();
@@ -107,7 +151,8 @@ public:
     int bind_port;
     int _port;
     int _cid;
-    bool suspending;
+    bool read_locked;
+    bool write_locked;
     swConnection *socket;
     enum swSocket_type type;
     int _sock_type;
@@ -128,16 +173,37 @@ public:
 
     swProtocol protocol;
     swString *buffer;
+    swSocketAddress bind_address_info;
 
     struct _swSocks5 *socks5_proxy;
     struct _http_proxy* http_proxy;
 
 #ifdef SW_USE_OPENSSL
-    uint8_t open_ssl :1;
-    uint8_t ssl_wait_handshake :1;
+    bool open_ssl;
+    bool ssl_wait_handshake;
     SSL_CTX *ssl_context;
     swSSL_option ssl_option;
 #endif
 };
+
+static inline enum swSocket_type get_socket_type(int domain, int type, int protocol)
+{
+    if (domain == AF_INET)
+    {
+        return type == SOCK_STREAM ? SW_SOCK_TCP : SW_SOCK_UDP;
+    }
+    else if (domain == AF_INET6)
+    {
+        return type == SOCK_STREAM ? SW_SOCK_TCP6 : SW_SOCK_UDP6;
+    }
+    else if (domain == AF_UNIX)
+    {
+        return type == SOCK_STREAM ? SW_SOCK_UNIX_STREAM : SW_SOCK_UNIX_DGRAM;
+    }
+    else
+    {
+        return SW_SOCK_TCP;
+    }
+}
 
 };

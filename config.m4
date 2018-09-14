@@ -14,8 +14,8 @@ dnl  +----------------------------------------------------------------------+
 dnl  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
 dnl  +----------------------------------------------------------------------+
 
-PHP_ARG_ENABLE(swoole-debug, whether to enable swoole debug,
-[  --enable-swoole-debug   Enable swoole debug], no, no)
+PHP_ARG_ENABLE(debug-log, whether to enable debug log,
+[  --enable-debug-log   Enable swoole debug log], no, no)
 
 PHP_ARG_ENABLE(trace-log, Whether to enable trace log,
 [  --enable-trace-log   Enable swoole trace log], no, no)
@@ -44,12 +44,6 @@ PHP_ARG_ENABLE(hugepage, enable hugepage support,
 PHP_ARG_ENABLE(swoole, swoole support,
 [  --enable-swoole         Enable swoole support], [enable_swoole="yes"])
 
-PHP_ARG_ENABLE(swoole_static, swoole static compile support,
-[  --enable-swoole-static    Enable swoole static compile support], no, no)
-
-PHP_ARG_WITH(swoole, swoole support,
-[  --with-swoole           With swoole support])
-
 PHP_ARG_WITH(libpq_dir, for libpq support,
 [  --with-libpq-dir[=DIR]    Include libpq support (requires libpq >= 9.5)], no, no)
 
@@ -70,12 +64,6 @@ PHP_ARG_ENABLE(asan, whether to enable asan,
 
 PHP_ARG_ENABLE(picohttpparser, enable picohttpparser support,
 [  --enable-picohttpparser     Experimental: Do you have picohttpparser?], no, no)
-
-PHP_ARG_WITH(swoole, swoole support,
-[  --with-swoole           With swoole support])
-
-PHP_ARG_ENABLE(timewheel, enable timewheel support,
-[  --enable-timewheel     Experimental: Enable timewheel heartbeat?], no, no)
 
 AC_DEFUN([SWOOLE_HAVE_PHP_EXT], [
     extname=$1
@@ -283,10 +271,6 @@ if test "$PHP_SWOOLE" != "no"; then
         AC_DEFINE(SW_USE_THREAD, 1, [enable thread support])
     fi
 
-    if test "$PHP_TIMEWHEEL" = "yes"; then
-        AC_DEFINE(SW_USE_TIMEWHEEL, 1, [enable timewheel support])
-    fi
-
     AC_SWOOLE_CPU_AFFINITY
     AC_SWOOLE_HAVE_REUSEPORT
     AC_SWOOLE_HAVE_FUTEX
@@ -294,14 +278,24 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_SWOOLE_HAVE_BOOST_CONTEXT
     AC_SWOOLE_HAVE_VALGRIND
 
+    AS_CASE([$host_os],
+      [darwin*], [SW_OS="MAC"],
+      [cygwin*], [SW_OS="CYGWIN"],
+      [mingw*], [SW_OS="MINGW"],
+      [linux*], [SW_OS="LINUX"],
+      []
+    )
+
     CFLAGS="-Wall -pthread $CFLAGS"
     LDFLAGS="$LDFLAGS -lpthread"
 
-    if test `uname` = "Darwin"; then
+    if test "$SW_OS" = 'MAC'; then
         AC_CHECK_LIB(c, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
     else
         AC_CHECK_LIB(rt, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
         PHP_ADD_LIBRARY(rt, 1, SWOOLE_SHARED_LIBADD)
+    fi
+    if test "$SW_OS" = 'LINUX'; then
         LDFLAGS="$LDFLAGS -z now"
     fi
 
@@ -420,7 +414,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_coroutine.cc \
         swoole_coroutine_util.c \
         swoole_event.c \
-        swoole_socket_coro.c \
+        swoole_socket_coro.cc \
         swoole_timer.c \
         swoole_async.c \
         swoole_process.c \
@@ -449,6 +443,8 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_trace.c \
         swoole_runtime.cc \
         swoole_memory_pool.c \
+        thirdparty/swoole_http_parser.c \
+        thirdparty/multipart_parser.c \
         src/core/base.c \
         src/core/log.c \
         src/core/hashmap.c \
@@ -504,7 +500,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/network/timer.c \
         src/network/port.c \
         src/network/dns.c \
-        src/network/time_wheel.c \
         src/network/stream.c \
         src/os/base.c \
         src/os/msg_queue.c \
@@ -522,14 +517,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/protocol/redis.c \
         src/protocol/base64.c"
 
-    if test "$PHP_SWOOLE_STATIC" = "no"; then
-        swoole_source_file="$swoole_source_file thirdparty/php_http_parser.c"
-    else
-        CFLAGS="$CFLAGS -DSW_STATIC_COMPILATION"
-    fi
-
-    swoole_source_file="$swoole_source_file thirdparty/multipart_parser.c"
-
     if test "$PHP_PICOHTTPPARSER" = "yes"; then
         AC_DEFINE(SW_USE_PICOHTTPPARSER, 1, [enable picohttpparser support])
         swoole_source_file="$swoole_source_file thirdparty/picohttpparser/picohttpparser.c"
@@ -543,17 +530,6 @@ if test "$PHP_SWOOLE" != "no"; then
       [x86*], [SW_CPU="x86"],
       [arm*], [SW_CPU="arm"],
       [arm64*], [SW_CPU="arm64"],
-      [
-        SW_NO_USE_ASM_CONTEXT="yes"
-        AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
-      ]
-    )
-
-    AS_CASE([$host_os],
-      [linux*], [SW_OS="LINUX"],
-      [darwin*], [SW_OS="MAC"],
-      [cygwin*], [SW_OS="WIN"],
-      [mingw*], [SW_OS="WIN"],
       [
         SW_NO_USE_ASM_CONTEXT="yes"
         AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])

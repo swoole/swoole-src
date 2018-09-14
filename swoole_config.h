@@ -31,6 +31,7 @@
 #define SW_MAX_FILE_CONTENT        (64*1024*1024) //for swoole_file_get_contents
 #define SW_MAX_LISTEN_PORT         60000
 #define SW_MAX_CONCURRENT_TASK     1024
+#define SW_MAX_CORO_NESTING_LEVEL  128
 #define SW_STACK_BUFFER_SIZE       65536
 
 #ifdef HAVE_MALLOC_TRIM
@@ -42,9 +43,6 @@
 #define SW_USE_EVENT_TIMER
 #define SW_USE_MONOTONIC_TIME
 //#define SW_USE_RINGBUFFER
-
-//#define SW_USE_TIMEWHEEL
-#define SW_TIMEWHEEL_SIZE          60
 
 //#define SW_DEBUG_REMOTE_OPEN
 #define SW_DEBUG_SERVER_HOST       "127.0.0.1"

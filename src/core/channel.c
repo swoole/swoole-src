@@ -33,11 +33,14 @@ swChannel* swChannel_new(size_t size, int maxlen, int flags)
     //use shared memory
     if (flags & SW_CHAN_SHM)
     {
-        mem = sw_shm_malloc(size + sizeof(swChannel));
+        /**
+         * overflow space
+         */
+        mem = sw_shm_malloc(size + sizeof(swChannel) + maxlen);
     }
     else
     {
-        mem = sw_malloc(size + sizeof(swChannel));
+        mem = sw_malloc(size + sizeof(swChannel) + maxlen);
     }
 
     if (mem == NULL)

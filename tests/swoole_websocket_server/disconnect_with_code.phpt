@@ -1,14 +1,7 @@
 --TEST--
-swoole_websocket_server: websocket server active close with code, reason
+swoole_websocket_server: websocket server disconnect with one param code
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
-
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
@@ -18,28 +11,24 @@ $pm->parentFunc = function (int $pid) use ($pm) {
     $cli = new WebsocketClient;
     $connected = $cli->connect('127.0.0.1', $pm->getFreePort(), '/');
     assert($connected);
-    $cli->sendRecv('shutdown');
+    $response = $cli->sendRecv("shutdown");
+    $byteArray = unpack('n', $response);
+    echo $byteArray[1] . "\n";
+    echo substr($response, 2);
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
     $serv = new swoole_websocket_server('127.0.0.1', $pm->getFreePort());
     $serv->set([
         'worker_num' => 1,
-        'log_file' => '/dev/null',
-        'open_websocket_close_frame' => true
+        'log_file' => '/dev/null'
     ]);
     $serv->on('WorkerStart', function () use ($pm) {
         $pm->wakeup();
     });
-    $serv->on('Message', function ($serv, $frame) {
-        if ($frame->opcode == WEBSOCKET_OPCODE_CLOSE) {
-            echo "{$frame->code}\n";
-            echo "{$frame->reason}\n";
-        } else {
-            if ($frame->data == 'shutdown') {
-                echo "{$frame->data}\n";
-                $serv->disconnect($frame->fd, 4000, 'shutdown received');
-            }
+    $serv->on('Message', function (swoole_websocket_server $serv, swoole_websocket_frame $frame) {
+        if ($frame->data == 'shutdown') {
+            $serv->disconnect($frame->fd, 4001);
         }
     });
     $serv->start();
@@ -48,6 +37,4 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
-shutdown
-4000
-shutdown received
+4001

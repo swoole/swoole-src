@@ -34,11 +34,50 @@ extern "C"
 #define SW_WEBSOCKET_MASKED(frm) (frm->header.MASK)
 #define SW_WEBSOCKET_CLOSE_CODE_LEN         2
 #define SW_WEBSOCKET_CLOSE_REASON_MAX_LEN   125
+#define SW_WEBSOCKET_OPCODE_MAX  WEBSOCKET_OPCODE_PONG
 
 #define FRAME_SET_FIN(BYTE) (((BYTE) & 0x01) << 7)
 #define FRAME_SET_OPCODE(BYTE) ((BYTE) & 0x0F)
 #define FRAME_SET_MASK(BYTE) (((BYTE) & 0x01) << 7)
 #define FRAME_SET_LENGTH(X64, IDX) (unsigned char)(((X64) >> ((IDX)*8)) & 0xFF)
+
+#define SW_WEBSOCKET_TRY_PARSE_FRAME_OBJECT \
+    if (Z_TYPE_P(zdata) == IS_OBJECT && instanceof_function(Z_OBJCE_P(zdata), swoole_websocket_frame_class_entry_ptr))\
+    {\
+        zval *zframe = zdata;\
+        zval *ztmp = NULL;\
+        if ((ztmp = sw_zend_read_property(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("opcode"), 1)))\
+        {\
+            convert_to_long(ztmp);\
+            opcode = Z_LVAL_P(ztmp);\
+        }\
+        if (opcode == WEBSOCKET_OPCODE_CLOSE)\
+        {\
+            if ((ztmp = sw_zend_read_property(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("code"), 1)))\
+            {\
+                convert_to_long(ztmp);\
+                code = Z_LVAL_P(ztmp);\
+            }\
+            if ((ztmp = sw_zend_read_property(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("reason"), 1)))\
+            {\
+                convert_to_string(ztmp);\
+                zdata = ztmp;\
+            }\
+        }\
+        else\
+        {\
+            zdata = sw_zend_read_property(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("data"), 1);\
+            if (!zdata)\
+            {\
+                ZVAL_STRING(zdata, "");\
+            }\
+        }\
+        if ((ztmp = sw_zend_read_property(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("finish"), 1)))\
+        {\
+            convert_to_boolean(ztmp);\
+            fin = Z_BVAL_P(ztmp);\
+        }\
+    }
 
 enum swWebsocketStatus
 {
@@ -96,6 +135,8 @@ enum swWebsocketCode
 int swWebSocket_get_package_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 void swWebSocket_encode(swString *buffer, char *data, size_t length, char opcode, int finish, int mask);
 void swWebSocket_decode(swWebSocket_frame *frame, swString *data);
+int swWebSocket_pack_frame(swString *buffer, char* data, size_t length, char opcode, uint8_t fin, uint8_t mask);
+int swWebSocket_pack_close_frame(swString *buffer, int code, char* reason, size_t length, uint8_t mask);
 void swWebSocket_print_frame(swWebSocket_frame *frame);
 int swWebSocket_dispatch_frame(swConnection *conn, char *data, uint32_t length);
 
