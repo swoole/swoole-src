@@ -5,29 +5,35 @@ swoole_websocket_server: websocket greeter and reply twice
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
+$count = 0;
 $pm = new ProcessManager;
-$pm->parentFunc = function (int $pid) use ($pm) {
-    go(function () use ($pm) {
-        $cli = new \Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
-        $cli->set(['timeout' => 1]);
-        $ret = $cli->upgrade('/');
-        assert($ret);
-        $data = sha1(openssl_random_pseudo_bytes(mt_rand(0, 1024)));
-        for ($i = 1000; $i--;) {
-            $cli->push($data);
-            $ret = $cli->recv();
-            assert($ret->data === "Hello {$data}!");
-            $ret = $cli->recv();
-            assert($ret->data === "How are you, {$data}?");
-        }
-        $pm->kill();
-    });
+$pm->parentFunc = function (int $pid) use ($pm, &$count) {
+    for ($c = MAX_CONCURRENCY; $c--;) {
+        go(function () use ($pm, &$count) {
+            global $count;
+            $cli = new \Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
+            $cli->set(['timeout' => 5]);
+            $ret = $cli->upgrade('/');
+            assert($ret);
+            $data = sha1(openssl_random_pseudo_bytes(mt_rand(0, 1024)));
+            for ($n = MAX_REQUESTS; $n--;) {
+                $cli->push($data);
+                $ret = $cli->recv();
+                assert($ret->data === "Hello {$data}!");
+                $ret = $cli->recv();
+                assert($ret->data === "How are you, {$data}?");
+                $count++;
+            }
+        });
+    }
     swoole_event_wait();
+    assert($count === (MAX_CONCURRENCY * MAX_REQUESTS));
+    $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
-    $serv = new swoole_websocket_server("127.0.0.1", $pm->getFreePort());
+    $serv = new swoole_websocket_server('127.0.0.1', $pm->getFreePort(), mt_rand(0, 1) ? SWOOLE_BASE : SWOOLE_PROCESS);
     $serv->set([
-        'worker_num' => 1,
+        // 'worker_num' => 1,
         'log_file' => '/dev/null'
     ]);
     $serv->on('workerStart', function () use ($pm) {

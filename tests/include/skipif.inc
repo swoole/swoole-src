@@ -42,18 +42,18 @@ function skip_if_no_process_affinity()
 
 function skip_if_in_docker(string $reason = 'not support in docker')
 {
-    skip($reason, file_exists('/.dockerenv'));
+    skip($reason, file_exists('/.travisenv'));
 }
 
 function skip_if_no_proxy()
 {
     require_once __DIR__ . '/config.php';
-    if (IS_IN_DOCKER || check_tcp_port(HTTP_PROXY_HOST, HTTP_PROXY_PORT) !== 1) {
+    if (IS_IN_TRAVIS || check_tcp_port(HTTP_PROXY_HOST, HTTP_PROXY_PORT) !== 1) {
         skip('no http proxy available');
     }
 }
 
 function skip_deprecated()
 {
-    skip('it\'s the deprecated.', file_exists('/.dockerenv'), SWOOLE_COLOR_WHITE);
+    skip('it\'s the deprecated.', file_exists('/.travisenv'), SWOOLE_COLOR_WHITE);
 }

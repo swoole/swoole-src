@@ -22,9 +22,9 @@ $pm->parentFunc = function (int $pid) use ($pm) {
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
-    $serv = new swoole_websocket_server('127.0.0.1', $pm->getFreePort());
+    $serv = new swoole_websocket_server('127.0.0.1', $pm->getFreePort(), mt_rand(0, 1) ? SWOOLE_BASE : SWOOLE_PROCESS);
     $serv->set([
-        'worker_num' => 1,
+        // 'worker_num' => 1,
         'log_file' => '/dev/null',
         'open_websocket_close_frame' => false
     ]);

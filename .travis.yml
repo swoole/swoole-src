@@ -46,11 +46,13 @@ addons:
 # compile
 before_script:
   - env
+  - uname -a
+  - ulimit -a
   - php -v
   - ls -al
   - pwd
-  - echo "`git log -10 --pretty --oneline`"
-  - echo "`git log -5 --stat --pretty --oneline`"
+  - echo "`git log -20 --pretty --oneline`"
+  - echo "`git log -10 --stat --pretty --oneline`"
   - ./travis/pecl.sh
   - ./travis/compile.sh
   - cat ~/.phpenv/versions/$(phpenv version-name)/etc/php.ini

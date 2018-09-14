@@ -27,6 +27,7 @@ if [ "${TRAVIS_BUILD_DIR}" ]; then
         docker-compose -v && \
         docker -v && \
         prepare && \
+        docker exec travis_php_1 touch /.travisenv && \
         docker exec travis_php_1 /swoole-src/travis/docker-all.sh
     else
         echo "skip\n"

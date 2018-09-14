@@ -9,7 +9,7 @@ $pm = new ProcessManager;
 $pm->parentFunc = function (int $pid) use ($pm) {
     go(function () use ($pm) {
         $cli = new \Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
-        $cli->set(['timeout' => 1]);
+        $cli->set(['timeout' => 5]);
         $ret = $cli->upgrade('/');
         assert($ret);
         for ($i = 100; $i--;)
@@ -26,9 +26,9 @@ $pm->parentFunc = function (int $pid) use ($pm) {
     swoole_event_wait();
 };
 $pm->childFunc = function () use ($pm) {
-    $serv = new swoole_websocket_server("127.0.0.1", $pm->getFreePort());
+    $serv = new swoole_websocket_server('127.0.0.1', $pm->getFreePort(), mt_rand(0, 1) ? SWOOLE_BASE : SWOOLE_PROCESS);
     $serv->set([
-        'worker_num' => 1,
+        // 'worker_num' => 1,
         'log_file' => '/dev/null'
     ]);
     $serv->on('workerStart', function () use ($pm) {

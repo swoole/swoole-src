@@ -23,7 +23,7 @@ retry_failures()
 
     # and retry
     ./start.sh \
-    --set-timeout 45 \
+    --set-timeout 30 \
     --show-slow 1000 \
     --show-diff \
     -w failed.list \
@@ -34,7 +34,7 @@ retry_failures()
 for dir in "*"
 do
     ./start.sh \
-    --set-timeout 25 \
+    --set-timeout 10 \
     --show-slow 1000 \
     --show-diff \
     -w failed.list \

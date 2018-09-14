@@ -7,21 +7,20 @@ swoole_websocket_server: websocket server recv and merge fin packages
 require_once __DIR__ . '/../include/bootstrap.php';
 $count = 0;
 $pm = new ProcessManager;
-$pm->parentFunc = function (int $pid) use ($pm) {
-    for ($i = 500; $i--;) {
-        go(function () use ($pm) {
-            global $count;
+$pm->parentFunc = function (int $pid) use ($pm, &$count) {
+    for ($c = MAX_CONCURRENCY; $c--;) {
+        go(function () use ($pm, &$count) {
             $cli = new \Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
-            $cli->set(['timeout' => 1]);
+            $cli->set(['timeout' => 5]);
             $ret = $cli->upgrade('/');
             assert($ret);
             $rand_list = [];
-            $times = 100;
-            for ($j = $times; $j--;) {
+            $times = MAX_REQUESTS;
+            for ($n = $times; $n--;) {
                 $rand = openssl_random_pseudo_bytes(mt_rand(0, 128));
                 $rand_list[] = $rand;
-                $opcode = $j === $times - 1 ? WEBSOCKET_OPCODE_TEXT : WEBSOCKET_OPCODE_CONTINUATION;
-                $finish = $j === 0;
+                $opcode = $n === $times - 1 ? WEBSOCKET_OPCODE_TEXT : WEBSOCKET_OPCODE_CONTINUATION;
+                $finish = $n === 0;
                 if (mt_rand(0, 1)) {
                     $frame = new swoole_websocket_frame;
                     $frame->opcode = $opcode;
@@ -37,18 +36,16 @@ $pm->parentFunc = function (int $pid) use ($pm) {
             if (assert($frame->data === implode('', $rand_list))) {
                 $count++;
             }
-            if (co::stats()['coroutine_num'] === 1) {
-                assert($count === 500);
-                $pm->kill();
-            }
         });
     }
     swoole_event_wait();
+    assert($count === MAX_CONCURRENCY);
+    $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
-    $serv = new swoole_websocket_server('127.0.0.1', $pm->getFreePort());
+    $serv = new swoole_websocket_server('127.0.0.1', $pm->getFreePort(), mt_rand(0, 1) ? SWOOLE_BASE : SWOOLE_PROCESS);
     $serv->set([
-        'worker_num' => 1,
+        // 'worker_num' => 1,
         'log_file' => '/dev/null'
     ]);
     $serv->on('WorkerStart', function () use ($pm) {
