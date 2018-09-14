@@ -1183,7 +1183,6 @@ static PHP_METHOD(swoole_redis_coro, connect)
         swoole_set_property(getThis(), 0, sw_current_context);
     }
     sw_current_context->state = SW_CORO_CONTEXT_RUNNING;
-    sw_current_context->onTimeout = NULL;
     sw_current_context->coro_params = *getThis();
     if (redis->timeout > 0)
     {

@@ -803,7 +803,6 @@ static PHP_METHOD(swoole_mysql_coro, connect)
         swoole_set_property(getThis(), 0, context);
     }
     context->state = SW_CORO_CONTEXT_RUNNING;
-    context->onTimeout = NULL;
     context->coro_params = *getThis();
 
     if (connector->timeout > 0)

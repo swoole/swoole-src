@@ -210,7 +210,6 @@ static PHP_METHOD(swoole_http2_client_coro, __construct)
 
     php_context *context = emalloc(sizeof(php_context));
     swoole_set_property(getThis(), HTTP2_CLIENT_CORO_CONTEXT, context);
-    context->onTimeout = NULL;
     context->coro_params = *getThis();
 
     long type = SW_FLAG_ASYNC | SW_SOCK_TCP;
