@@ -6,10 +6,10 @@ swoole_mysql_coro: mysql prepare (insert)
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
 
-use Swoole\Coroutine as co;
+use Swoole\Coroutine as Co;
 
-co::create(function () {
-    $db = new co\MySQL();
+Co::create(function () {
+    $db = new Co\MySQL();
     $server = array(
         'host' => MYSQL_SERVER_HOST,
         'user' => MYSQL_SERVER_USER,
