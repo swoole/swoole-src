@@ -442,7 +442,12 @@ static PHP_METHOD(swoole_process_pool, start)
 
 static PHP_METHOD(swoole_process_pool, getProcess)
 {
-    zval object;
+    static zval object;
+
+    if (current_pool == NULL)
+    {
+        RETURN_FALSE;
+    }
 
     if (current_process == NULL)
     {
