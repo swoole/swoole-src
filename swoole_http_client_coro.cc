@@ -1082,8 +1082,11 @@ static PHP_METHOD(swoole_http_client_coro, recv)
         ssize_t retval = hcc->socket->recv_packet();
         if (retval <= 0)
         {
-            zend_update_property_bool(swoole_http_client_coro_class_entry_ptr, getThis(), SW_STRL("connected")-1, 0);
             zend_update_property_long(swoole_http_client_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, hcc->socket->errCode);
+            if (hcc->socket->errCode != ETIMEDOUT)
+            {
+                http_client_coro_close(getThis());
+            }
             RETURN_FALSE;
         }
         else
