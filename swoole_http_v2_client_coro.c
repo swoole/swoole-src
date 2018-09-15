@@ -849,7 +849,7 @@ static PHP_METHOD(swoole_http2_client_coro, send)
 
     http2_client_property *hcc = swoole_get_property(getThis(), HTTP2_CLIENT_CORO_PROPERTY);
     swClient *cli = hcc->client;
-    
+
     if (!cli || !cli->socket || cli->socket->closed)
     {
         swoole_php_error(E_WARNING, "The connection is closed.");

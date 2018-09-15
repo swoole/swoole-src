@@ -70,4 +70,4 @@ static inline int swRingQueue_count(swRingQueue *queue)
 #define swRingQueue_empty(q) ( (q->head == q->tail) && (q->tag == 0))
 #define swRingQueue_full(q) ( (q->head == q->tail) && (q->tag == 1))
 #endif
-#endif 
+#endif

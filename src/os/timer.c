@@ -27,7 +27,7 @@ int swSystemTimer_init(int interval, int use_pipe)
 {
     swTimer *timer = &SwooleG.timer;
     timer->lasttime = interval;
-    
+
     if (use_pipe)
     {
         if (swPipeNotify_auto(&timer->pipe, 0, 0) < 0)
