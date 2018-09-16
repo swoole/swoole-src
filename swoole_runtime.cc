@@ -558,7 +558,7 @@ static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_
         {
             zval *val = NULL;
             char *certfile = NULL;
-            char *private_key;
+            char *private_key = NULL;
 
             GET_VER_OPT_STRING("local_cert", certfile);
             GET_VER_OPT_STRING("local_pk", private_key);

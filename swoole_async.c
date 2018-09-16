@@ -416,6 +416,11 @@ static void php_swoole_aio_onFileCompleted(swAio_event *event)
         args[1] = &zwriten;
         ZVAL_LONG(zwriten, ret);
     }
+    else
+    {
+        swoole_php_fatal_error(E_WARNING, "swoole_async: onFileCompleted unknown event type[%d].", event->type);
+        return;
+    }
 
     if (zcallback)
     {
