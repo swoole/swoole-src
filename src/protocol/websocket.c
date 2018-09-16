@@ -95,7 +95,7 @@ int swWebSocket_get_package_length(swProtocol *protocol, swConnection *conn, cha
     return header_length + payload_length;
 }
 
-void swWebSocket_encode(swString *buffer, char *data, size_t length, char opcode, int finish, int mask)
+void swWebSocket_encode(swString *buffer, char *data, size_t length, char opcode, uint8_t finish, uint8_t mask)
 {
     int pos = 0;
     char frame_header[16];
@@ -194,25 +194,11 @@ void swWebSocket_decode(swWebSocket_frame *frame, swString *data)
     frame->payload = data->str + header_length;
 }
 
-sw_inline int swWebSocket_pack_frame(swString *buffer, char* data, size_t length, char opcode, uint8_t fin, uint8_t mask)
-{
-    if (unlikely(opcode > SW_WEBSOCKET_OPCODE_MAX))
-    {
-        swoole_php_fatal_error(E_WARNING, "the maximum value of opcode is %d.", SW_WEBSOCKET_OPCODE_MAX);
-        return SW_ERR;
-    }
-
-    swString_clear(buffer);
-    swWebSocket_encode(buffer, data, length, opcode, (int) fin, mask);
-
-    return SW_OK;
-}
-
-sw_inline int swWebSocket_pack_close_frame(swString *buffer, int code, char* reason, size_t length, uint8_t mask)
+int swWebSocket_pack_close_frame(swString *buffer, int code, char* reason, size_t length, uint8_t mask)
 {
     if (unlikely(length > SW_WEBSOCKET_CLOSE_REASON_MAX_LEN))
     {
-        swoole_php_fatal_error(E_WARNING, "the max length of reason is %d.", SW_WEBSOCKET_CLOSE_REASON_MAX_LEN);
+        swoole_php_fatal_error(E_WARNING, "the max length of close reason is %d.", SW_WEBSOCKET_CLOSE_REASON_MAX_LEN);
         return SW_ERR;
     }
 
@@ -223,7 +209,9 @@ sw_inline int swWebSocket_pack_close_frame(swString *buffer, int code, char* rea
     {
         memcpy(payload + SW_WEBSOCKET_CLOSE_CODE_LEN, reason, length);
     }
-    return swWebSocket_pack_frame(buffer, payload, SW_WEBSOCKET_CLOSE_CODE_LEN + length, WEBSOCKET_OPCODE_CLOSE, 1, mask);
+
+    swWebSocket_encode(buffer, payload, SW_WEBSOCKET_CLOSE_CODE_LEN + length, WEBSOCKET_OPCODE_CLOSE, 1, mask);
+    return SW_OK;
 }
 
 void swWebSocket_print_frame(swWebSocket_frame *frame)

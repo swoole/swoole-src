@@ -446,7 +446,8 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset TSRMLS_DC);
 #ifdef SW_USE_OPENSSL
 void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset TSRMLS_DC);
 #endif
-void php_swoole_websocket_unpack(swString *data, zval *zframe TSRMLS_DC);
+void php_swoole_websocket_frame_unpack(swString *data, zval *zframe TSRMLS_DC);
+int php_swoole_websocket_frame_pack(swString *buffer, zval *zdata, zend_bool opcode, zend_bool fin, zend_bool mask);
 void php_swoole_sha1(const char *str, int _len, unsigned char *digest);
 int php_swoole_client_isset_callback(zval *zobject, int type TSRMLS_DC);
 
