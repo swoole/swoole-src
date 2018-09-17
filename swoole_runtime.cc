@@ -42,10 +42,8 @@ static PHP_METHOD(swoole_runtime, enableStrictMode);
 static PHP_METHOD(swoole_runtime, enableCoroutine);
 static PHP_FUNCTION(_sleep);
 static PHP_FUNCTION(_usleep);
-#if HAVE_NANOSLEEP
 static PHP_FUNCTION(_time_nanosleep);
 static PHP_FUNCTION(_time_sleep_until);
-#endif
 }
 
 static int socket_set_option(php_stream *stream, int option, int value, void *ptrparam);
@@ -102,10 +100,8 @@ static php_stream_ops ori_php_stream_stdio_ops;
 
 static zend_function *ori_sleep;
 static zend_function *ori_usleep;
-#if HAVE_NANOSLEEP
 static zend_function *ori_time_nanosleep;
 static zend_function *ori_time_sleep_until;
-#endif
 
 extern "C"
 {
@@ -848,10 +844,8 @@ static PHP_METHOD(swoole_runtime, enableCoroutine)
 
             ori_sleep->internal_function.handler = PHP_FN(_sleep);
             ori_usleep->internal_function.handler = PHP_FN(_usleep);
-#if HAVE_NANOSLEEP
             ori_time_nanosleep->internal_function.handler = PHP_FN(_time_nanosleep);
             ori_time_sleep_until->internal_function.handler = PHP_FN(_time_sleep_until);
-#endif
         }
         if (flags & SW_HOOK_TCP)
         {
@@ -961,7 +955,6 @@ static PHP_FUNCTION(_usleep)
     swoole_coroutine_sleep((double) num / 1000000);
 }
 
-#if HAVE_NANOSLEEP
 static PHP_FUNCTION(_time_nanosleep)
 {
     zend_long tv_sec, tv_nsec;
@@ -1047,4 +1040,3 @@ static PHP_FUNCTION(_time_sleep_until)
     }
     RETURN_TRUE;
 }
-#endif
