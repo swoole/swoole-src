@@ -839,13 +839,14 @@ static PHP_METHOD(swoole_runtime, enableCoroutine)
         {
             ori_sleep = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("sleep"));
             ori_usleep = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("usleep"));
-            ori_time_nanosleep = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("time_nanosleep"));
-            ori_time_sleep_until = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("time_sleep_until"));
-
             ori_sleep->internal_function.handler = PHP_FN(_sleep);
             ori_usleep->internal_function.handler = PHP_FN(_usleep);
+#ifdef HAVE_NANOSLEEP
+            ori_time_nanosleep = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("time_nanosleep"));
+            ori_time_sleep_until = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("time_sleep_until"));
             ori_time_nanosleep->internal_function.handler = PHP_FN(_time_nanosleep);
             ori_time_sleep_until->internal_function.handler = PHP_FN(_time_sleep_until);
+#endif
         }
         if (flags & SW_HOOK_TCP)
         {
@@ -981,9 +982,15 @@ static PHP_FUNCTION(_time_nanosleep)
         swoole_coroutine_sleep(_time);
     }
     else
+#ifndef HAVE_NANOSLEEP
+    {
+        RETURN_FALSE;
+    }
+#else
     {
         PHP_FN(time_nanosleep)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
     }
+#endif
 }
 
 static PHP_FUNCTION(_time_sleep_until)
@@ -1025,6 +1032,9 @@ static PHP_FUNCTION(_time_sleep_until)
     }
     else
     {
+#ifndef HAVE_NANOSLEEP
+        RETURN_FALSE;
+#else
         while (nanosleep(&php_req, &php_rem))
         {
             if (errno == EINTR)
@@ -1037,6 +1047,7 @@ static PHP_FUNCTION(_time_sleep_until)
                 RETURN_FALSE;
             }
         }
+#endif
     }
     RETURN_TRUE;
 }
