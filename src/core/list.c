@@ -219,7 +219,7 @@ void swLinkedList_free(swLinkedList *ll)
         }
         sw_free(node);
         node = tmp;
-    } 
+    }
 
     sw_free(ll);
 }
