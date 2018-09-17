@@ -159,7 +159,7 @@ bool Channel::close()
     {
         notify(PRODUCER);
     }
-    while (consumer_queue.size() > 0 && notify_consumer_count < producer_queue.size())
+    while (consumer_queue.size() > 0 && notify_consumer_count < consumer_queue.size())
     {
         notify(CONSUMER);
     }
