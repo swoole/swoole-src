@@ -19,7 +19,7 @@ func main() {
         Db:          0,
         MaxPoolSize: 10000,
     }
-    
+
     // 限制为CPU的数量减一
     runtime.GOMAXPROCS( runtime.NumCPU() - 1 )
 

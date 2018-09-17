@@ -1010,7 +1010,7 @@ int swoole_gethostbyname(int flags, char *name, char *addr)
     }
 
     sw_free(buf);
-    
+
     return SW_OK;
 }
 #else

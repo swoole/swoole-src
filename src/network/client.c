@@ -356,7 +356,7 @@ static int swClient_inet_addr(swClient *cli, char *host, int port)
         host = cli->socks5_proxy->host;
         port = cli->socks5_proxy->port;
     }
-    
+
     //enable http proxy
     if (cli->http_proxy)
     {

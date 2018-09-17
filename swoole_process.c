@@ -580,7 +580,7 @@ static PHP_METHOD(swoole_process, alarm)
     {
         swoole_php_fatal_error(E_WARNING, "cannot use both 'timer' and 'alarm' at the same time.");
         RETURN_FALSE;
-    }   
+    }
 
     struct itimerval timer_set;
     bzero(&timer_set, sizeof(timer_set));
