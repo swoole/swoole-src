@@ -1,4 +1,4 @@
-language: php 
+language: php
 
 compiler:
   - gcc
