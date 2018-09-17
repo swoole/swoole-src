@@ -1957,7 +1957,7 @@ PHP_METHOD(swoole_server, __construct)
     long serv_mode = SW_MODE_PROCESS;
 
     //only cli env
-    if (strcasecmp("cli", sapi_module.name) != 0)
+    if (!SWOOLE_G(cli))
     {
         swoole_php_fatal_error(E_ERROR, "swoole_server only can be used in PHP CLI mode.");
         RETURN_FALSE;

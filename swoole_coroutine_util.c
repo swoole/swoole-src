@@ -190,7 +190,7 @@ static user_opcode_handler_t ori_exit_handler = NULL;
 enum sw_exit_flags
 {
     SW_EXIT_IN_COROUTINE = 1 << 1,
-    SW_EXIT_IN_SERVER = 1<< 2
+    SW_EXIT_IN_SERVER = 1 << 2
 };
 
 static int coro_exit_handler(zend_execute_data *execute_data)
@@ -279,8 +279,12 @@ void swoole_coroutine_util_init(int module_number TSRMLS_DC)
     swoole_exit_exception_class_entry_ptr = zend_register_internal_class_ex(&swoole_exit_exception_ce, zend_exception_get_default());
     SWOOLE_DEFINE(EXIT_IN_COROUTINE);
     SWOOLE_DEFINE(EXIT_IN_SERVER);
-    ori_exit_handler = zend_get_user_opcode_handler(ZEND_EXIT);
-    zend_set_user_opcode_handler(ZEND_EXIT, coro_exit_handler);
+
+    if (SWOOLE_G(cli))
+    {
+        ori_exit_handler = zend_get_user_opcode_handler(ZEND_EXIT);
+        zend_set_user_opcode_handler(ZEND_EXIT, coro_exit_handler);
+    }
 }
 
 static PHP_METHOD(swoole_exit_exception, getFlags)
