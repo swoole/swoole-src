@@ -504,9 +504,6 @@
             <file role="src" name="src/reactor/kqueue.c" />
             <file role="src" name="src/reactor/poll.c" />
             <file role="src" name="src/reactor/select.c" />
-            <file role="src" name="src/wrapper/client.cc" />
-            <file role="src" name="src/wrapper/server.cc" />
-            <file role="src" name="src/wrapper/timer.cc" />
             <file role="src" name="swoole.c" />
             <file role="src" name="swoole_async.c" />
             <file role="src" name="swoole_atomic.c" />
@@ -955,6 +952,8 @@
             <file role="test" name="tests/swoole_mysql_coro/fetch_mode.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/fetch_mode_twice.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/illegal_extends.phpt" />
+            <file role="test" name="tests/swoole_mysql_coro/not_exist.phpt" />
+            <file role="test" name="tests/swoole_mysql_coro/null.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/numbers.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/prepare_insert.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/prepare_select.phpt" />
@@ -963,11 +962,14 @@
             <file role="test" name="tests/swoole_mysql_coro/procedure_single.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/query.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/query_timeout.phpt" />
+            <file role="test" name="tests/swoole_mysql_coro/readonly.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/simple_query.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/statement_destruct.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/transaction.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/without_fetch.phpt" />
+            <file role="test" name="tests/swoole_mysql_coro/wrong_password.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/z_reset.phpt" />
+            <file role="test" name="tests/swoole_process/alarm.phpt" />
             <file role="test" name="tests/swoole_process/echo.py" />
             <file role="test" name="tests/swoole_process/process_exec.phpt" />
             <file role="test" name="tests/swoole_process/process_msgqueue.phpt" />
@@ -1120,6 +1122,7 @@
             <file role="test" name="tests/swoole_websocket_server/pingpong.phpt" />
             <file role="test" name="tests/swoole_websocket_server/recv_decode.phpt" />
             <file role="test" name="tests/swoole_websocket_server/send_encode.phpt" />
+            <file role="test" name="tests/swoole_websocket_server/send_encode_async.phpt" />
             <file role="test" name="tests/template.phpt" />
             <file role="test" name="tests/test.sql" />
             <file role="src" name="thirdparty/boost/asm/jump_arm64_aapcs_elf_gas.S" />
@@ -1174,10 +1177,10 @@
             <file role="src" name="thirdparty/boost/asm/make_x86_64_sysv_macho_gas.S" />
             <file role="src" name="thirdparty/multipart_parser.c" />
             <file role="src" name="thirdparty/multipart_parser.h" />
-            <file role="src" name="thirdparty/swoole_http_parser.c" />
-            <file role="src" name="thirdparty/swoole_http_parser.h" />
             <file role="src" name="thirdparty/php_streams_int.h" />
             <file role="src" name="thirdparty/plain_wrapper.c" />
+            <file role="src" name="thirdparty/swoole_http_parser.c" />
+            <file role="src" name="thirdparty/swoole_http_parser.h" />
             <file role="src" name="tools/arginfo_check.php" />
             <file role="src" name="tools/composer.json" />
             <file role="src" name="tools/export.php" />

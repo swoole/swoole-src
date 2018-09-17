@@ -212,6 +212,13 @@ static sw_inline zval* sw_zend_read_property(zend_class_entry *class_ptr, zval *
     return zend_read_property(class_ptr, obj, s, len, silent, &rv);
 }
 
+static sw_inline zval* sw_zend_read_property_not_null(zend_class_entry *class_ptr, zval *obj, const char *s, int len, int silent)
+{
+    zval rv;
+    zval *property = zend_read_property(class_ptr, obj, s, len, silent, &rv);
+    return ZVAL_IS_NULL(property) ? NULL : property;
+}
+
 static sw_inline zval* sw_zend_read_property_array(zend_class_entry *class_ptr, zval *obj, const char *s, int len, int silent)
 {
     zval rv, *property = zend_read_property(class_ptr, obj, s, len, silent, &rv);

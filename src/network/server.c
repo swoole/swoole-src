@@ -1789,7 +1789,7 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
     bzero(connection, sizeof(swConnection));
 
     //TCP Nodelay
-    if (ls->open_tcp_nodelay)
+    if (ls->open_tcp_nodelay && ls->type != SW_SOCK_UNIX_STREAM)
     {
         int sockopt = 1;
         if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &sockopt, sizeof(sockopt)) < 0)

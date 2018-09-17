@@ -542,7 +542,7 @@ static int http_client_onMessage(swConnection *conn, char *data, uint32_t length
 
     zval *zframe;
     SW_MAKE_STD_ZVAL(zframe);
-    php_swoole_websocket_unpack(cli->buffer, zframe TSRMLS_CC);
+    php_swoole_websocket_frame_unpack(cli->buffer, zframe TSRMLS_CC);
 
     args[0] = &zobject;
     args[1] = &zframe;
@@ -2088,12 +2088,11 @@ static PHP_METHOD(swoole_http_client, upgrade)
 
 static PHP_METHOD(swoole_http_client, push)
 {
-    char *data;
-    zend_size_t length;
-    long opcode = WEBSOCKET_OPCODE_TEXT;
+    zval *zdata = NULL;
+    zend_long opcode = WEBSOCKET_OPCODE_TEXT;
     zend_bool fin = 1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|lb", &data, &length, &opcode, &fin) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|lb", &zdata, &opcode, &fin) == FAILURE)
     {
         return;
     }
@@ -2124,6 +2123,9 @@ static PHP_METHOD(swoole_http_client, push)
     }
 
     swString_clear(http_client_buffer);
-    swWebSocket_encode(http_client_buffer, data, length, opcode, (int) fin, http->websocket_mask);
+    if (php_swoole_websocket_frame_pack(http_client_buffer, zdata, opcode, fin, http->websocket_mask) < 0)
+    {
+        RETURN_FALSE;
+    }
     SW_CHECK_RETURN(http->cli->send(http->cli, http_client_buffer->str, http_client_buffer->length, 0));
 }

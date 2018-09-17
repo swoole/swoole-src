@@ -171,7 +171,4 @@ static sw_inline void http2_add_header(nghttp2_nv *headers, char *k, int kl, cha
 
 void http2_add_cookie(nghttp2_nv *nv, int *index, zval *cookies TSRMLS_DC);
 
-extern swString *cookie_buffer;
-extern zend_class_entry *swoole_client_class_entry_ptr;
-
 #endif

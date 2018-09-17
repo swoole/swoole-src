@@ -3,7 +3,7 @@ swoole_http2_client: get
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
-skip_if_in_docker('travis network');
+skip_deprecated();
 ?>
 --FILE--
 <?php

@@ -1094,7 +1094,7 @@ static PHP_METHOD(swoole_http_client_coro, recv)
             swString msg;
             msg.length = retval;
             msg.str = hcc->socket->get_buffer()->str;
-            php_swoole_websocket_unpack(&msg, return_value);
+            php_swoole_websocket_frame_unpack(&msg, return_value);
             return;
         }
     }
@@ -1405,30 +1405,13 @@ static PHP_METHOD(swoole_http_client_coro, upgrade)
 
 static PHP_METHOD(swoole_http_client_coro, push)
 {
-    zval *zdata;
-    char *data;
-    zend_size_t length;
+    zval *zdata = NULL;
     zend_long opcode = WEBSOCKET_OPCODE_TEXT;
-    zend_long code = WEBSOCKET_CLOSE_NORMAL;
     zend_bool fin = 1;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|lb", &zdata, &opcode, &fin) == FAILURE)
     {
         return;
-    }
-
-    SW_WEBSOCKET_TRY_PARSE_FRAME_OBJECT;
-
-    convert_to_string(zdata);
-    data = Z_STRVAL_P(zdata);
-    length = Z_STRLEN_P(zdata);
-
-    if (unlikely(opcode > SW_WEBSOCKET_OPCODE_MAX))
-    {
-        swoole_php_fatal_error(E_WARNING, "the maximum value of opcode is %d.", SW_WEBSOCKET_OPCODE_MAX);
-        SwooleG.error = SW_ERROR_WEBSOCKET_BAD_OPCODE;
-        zend_update_property_long(swoole_http_client_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error);
-        RETURN_FALSE;
     }
 
     http_client *http = (http_client *) swoole_get_object(getThis());
@@ -1448,18 +1431,14 @@ static PHP_METHOD(swoole_http_client_coro, push)
         RETURN_FALSE;
     }
 
-    switch(opcode)
+    swString_clear(http_client_buffer);
+    if (php_swoole_websocket_frame_pack(http_client_buffer, zdata, opcode, fin, http->websocket_mask) < 0)
     {
-    case WEBSOCKET_OPCODE_CLOSE:
-        swWebSocket_pack_close_frame(http_client_buffer, code, data, length, http->websocket_mask);
-        break;
-    default:
-        swWebSocket_pack_frame(http_client_buffer, data, length, opcode, fin, http->websocket_mask);
+        RETURN_FALSE;
     }
 
     http_client_coro_property *hcc = (http_client_coro_property *) swoole_get_property(getThis(), 0);
-    int ret = hcc->socket->send(http_client_buffer->str, http_client_buffer->length);
-    if (ret < 0)
+    if (hcc->socket->send(http_client_buffer->str, http_client_buffer->length) < 0)
     {
         SwooleG.error = hcc->socket->errCode;
         swoole_php_sys_error(E_WARNING, "send(%d) %zd bytes failed.", hcc->socket->socket->fd, http_client_buffer->length);

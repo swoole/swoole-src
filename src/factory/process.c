@@ -208,11 +208,8 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     }
     else if (conn->overflow)
     {
-        if (serv->send_yield)
-        {
-            SwooleG.error = SW_ERROR_OUTPUT_BUFFER_OVERFLOW;
-        }
-        else
+        SwooleG.error = SW_ERROR_OUTPUT_BUFFER_OVERFLOW;
+        if (!serv->send_yield)
         {
             swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "send failed, connection[fd=%d] output buffer has been overflowed.", session_id);
         }

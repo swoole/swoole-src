@@ -41,12 +41,12 @@ $pm->parentFunc = function (int $pid) use ($pm, $data_list) {
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
-    $serv = new swoole_websocket_server('127.0.0.1', $pm->getFreePort(),/* mt_rand(0, 1) ? SWOOLE_BASE : */SWOOLE_PROCESS);
+    $serv = new swoole_websocket_server('127.0.0.1', $pm->getFreePort(), mt_rand(0, 1) ? SWOOLE_BASE : SWOOLE_PROCESS);
     $serv->set([
-        'worker_num' => 1,
-        'log_file' => TEST_LOG_FILE,
+        // 'worker_num' => 1,
+        'log_file' => '/dev/null',
         'send_yield' => true,
-        'send_timeout' => 2,
+        'send_timeout' => 0
     ]);
     $serv->on('workerStart', function () use ($pm) {
         $pm->wakeup();

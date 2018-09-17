@@ -2685,7 +2685,8 @@ function show_test($test_idx, $shortname)
     global $test_cnt;
     global $line_length;
 
-    $str = "TEST $test_idx/$test_cnt [$shortname]\r";
+    // swoole patch: pretty output
+    $str = "TEST $test_idx/$test_cnt ";
     $line_length = strlen($str);
     echo $str;
     flush();
@@ -2696,14 +2697,14 @@ function show_result($result, $tested, $tested_file, $extra = '', $temp_filename
     global $html_output, $html_file, $temp_target, $temp_urlbase, $line_length, $SHOW_ONLY_GROUPS;
 
     // swoole patch: color print
-    if ($result == 'FAIL') {
-        $color = SWOOLE_COLOR_RED;
+    if ($result == 'PASS') {
+        $color = SWOOLE_COLOR_GREEN;
     } elseif ($result == 'LEAK' || $result == 'BORK') {
         $color = SWOOLE_COLOR_MAGENTA;
     } elseif ($result == 'SKIP') {
         $color = SWOOLE_COLOR_YELLOW;
     } else {
-        $color = SWOOLE_COLOR_GREEN;
+        $color = SWOOLE_COLOR_RED;
     }
     $result = "\033[3{$color}m[$result]\033[0m";
 
