@@ -90,7 +90,7 @@ static void php_swoole_onManagerStop(swServer *serv);
 #ifdef SW_COROUTINE
 static void php_swoole_onConnect_finish(void *param);
 static void php_swoole_onSendTimeout(swTimer *timer, swTimer_node *tnode);
-static void php_swoole_server_send_resume(swServer *serv, php_context *context, int fd);
+static int php_swoole_server_send_resume(swServer *serv, php_context *context, int fd);
 static void php_swoole_task_onTimeout(swTimer *timer, swTimer_node *tnode);
 #endif
 
@@ -1805,19 +1805,13 @@ static void php_swoole_onSendTimeout(swTimer *timer, swTimer_node *tnode)
     efree(context);
 }
 
-static void php_swoole_server_send_resume(swServer *serv, php_context *context, int fd)
+static int php_swoole_server_send_resume(swServer *serv, php_context *context, int fd)
 {
     char *data;
     zval *zdata = &context->coro_params;
     zval *result;
     zval *retval = NULL;
     SW_MAKE_STD_ZVAL(result);
-
-    if (context->timer)
-    {
-        swTimer_del(&SwooleG.timer, (swTimer_node *) context->timer);
-        context->timer = NULL;
-    }
 
     if (ZVAL_IS_NULL(zdata))
     {
@@ -1830,7 +1824,18 @@ static void php_swoole_server_send_resume(swServer *serv, php_context *context, 
         {
             goto _fail;
         }
-        ZVAL_BOOL(result, swServer_tcp_send(serv, fd, data, length) == SW_OK);
+        int ret = swServer_tcp_send(serv, fd, data, length);
+        if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_BUFFER_OVERFLOW && serv->send_yield)
+        {
+            return SW_AGAIN;
+        }
+        ZVAL_BOOL(result, ret == SW_OK);
+    }
+
+    if (context->timer)
+    {
+        swTimer_del(&SwooleG.timer, (swTimer_node *) context->timer);
+        context->timer = NULL;
     }
 
     int ret = coro_resume(context, result, &retval);
@@ -1841,6 +1846,7 @@ static void php_swoole_server_send_resume(swServer *serv, php_context *context, 
     sw_zval_ptr_dtor(&result);
     sw_zval_ptr_dtor(&zdata);
     efree(context);
+    return SW_OK;
 }
 
 void php_swoole_server_send_yield(swServer *serv, int fd, zval *zdata, zval *return_value)
@@ -1900,19 +1906,27 @@ void php_swoole_onBufferEmpty(swServer *serv, swDataHead *info)
     swLinkedList *coros_list = swHashMap_find_int(send_coroutine_map, info->fd);
     if (coros_list)
     {
-        php_context *context = swLinkedList_shift(coros_list);
+        swLinkedList_node *node = coros_list->head;
+        php_context *context = node ? node->data : NULL;
         if (context == NULL)
         {
             swoole_php_fatal_error(E_WARNING, "Nothing can coroResume.");
             goto _callback;
         }
         //resume coroutine
-        php_swoole_server_send_resume(serv, context, info->fd);
-        //free memory
-        if (coros_list->num == 0)
+        if (php_swoole_server_send_resume(serv, context, info->fd) == SW_AGAIN)
         {
-            swLinkedList_free(coros_list);
-            swHashMap_del_int(send_coroutine_map, info->fd);
+            return;
+        }
+        else
+        {
+            swLinkedList_shift(coros_list);
+            //free memory
+            if (coros_list->num == 0)
+            {
+                swLinkedList_free(coros_list);
+                swHashMap_del_int(send_coroutine_map, info->fd);
+            }
         }
     }
 #endif

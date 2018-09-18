@@ -593,7 +593,7 @@ static sw_inline int swoole_websocket_server_push(int fd, swString *buffer)
         ZVAL_STRINGL(&_yield_data, buffer->str, buffer->length);
         ZVAL_FALSE(return_value);
         php_swoole_server_send_yield(serv, fd, &_yield_data, return_value);
-        return Z_BVAL_P(return_value) ? SW_OK : SW_ERR;
+        ret = Z_BVAL_P(return_value) ? SW_OK : SW_ERR;
     }
     return ret;
 }

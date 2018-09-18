@@ -6,6 +6,7 @@ swoole_websocket_server: websocket server full test
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
 include __DIR__ . "/../include/lib/class.websocket_client.php";
+$count = MAX_CONCURRENCY_MID;
 $data_list = [];
 for ($i = MAX_REQUESTS; $i--;) {
     $rand = openssl_random_pseudo_bytes(mt_rand(1, 128000));
@@ -16,28 +17,34 @@ for ($i = MAX_REQUESTS; $i--;) {
     }
 }
 $pm = new ProcessManager;
-$pm->parentFunc = function (int $pid) use ($pm, $data_list) {
-    for ($c = MAX_CONCURRENCY_LOW; $c--;) {
-        go(function () use ($pm, $data_list) {
+$pm->parentFunc = function (int $pid) use ($pm, &$count, $data_list) {
+    for ($c = $count; $c--;) {
+        go(function () use ($pm, &$count, $data_list) {
             $cli = new \Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
             $cli->set(['timeout' => 5]);
             $ret = $cli->upgrade('/');
             assert($ret);
-            while (($frame = $cli->recv(-1))) {
+            while (($frame = $cli->recv())) {
                 /**@var $frame swoole_websocket_frame */
                 list($id, $opcode) = explode('|', $frame->data, 3);
                 assert($frame->finish);
                 assert($frame->opcode === (int)$opcode);
                 assert($frame->data === $data_list[$id]);
-                unset($data_list[$id]);
+                if (assert(isset($data_list[$id]))) {
+                    unset($data_list[$id]);
+                }
                 if (empty($data_list)) {
                     break;
                 }
             }
-            assert(empty($data_list));
+            if (assert(empty($data_list))) {
+                $count--;
+            }
         });
     }
     swoole_event_wait();
+    assert($count === 0);
+    echo "complete\n";
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
@@ -46,7 +53,7 @@ $pm->childFunc = function () use ($pm) {
         // 'worker_num' => 1,
         'log_file' => '/dev/null',
         'send_yield' => true,
-        'send_timeout' => 0
+        'send_timeout' => 10
     ]);
     $serv->on('workerStart', function () use ($pm) {
         $pm->wakeup();
@@ -75,3 +82,4 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
+complete
