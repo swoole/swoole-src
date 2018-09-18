@@ -100,14 +100,17 @@ static php_stream_wrapper ori_php_plain_files_wrapper;
 static php_stream_ops ori_php_stream_stdio_ops;
 #endif
 
+#if PHP_VERSION_ID < 70200
+typedef void (*zif_handler)(INTERNAL_FUNCTION_PARAMETERS);
+#endif
 static zend_function *ori_sleep;
-static void (*ori_sleep_handler)(INTERNAL_FUNCTION_PARAMETERS);
+static zif_handler ori_sleep_handler;
 static zend_function *ori_usleep;
-static void (*ori_usleep_handler)(INTERNAL_FUNCTION_PARAMETERS);
+static zif_handler ori_usleep_handler;
 static zend_function *ori_time_nanosleep;
-static void (*ori_time_nanosleep_handler)(INTERNAL_FUNCTION_PARAMETERS);
+static zif_handler ori_time_nanosleep_handler;
 static zend_function *ori_time_sleep_until;
-static void (*ori_time_sleep_until_handler)(INTERNAL_FUNCTION_PARAMETERS);
+static zif_handler ori_time_sleep_until_handler;
 
 extern "C"
 {
