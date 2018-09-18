@@ -1067,6 +1067,10 @@ PHP_MINIT_FUNCTION(swoole)
     {
         SwooleG.enable_coroutine = 0;
     }
+    if (strcasecmp("cli", sapi_module.name) == 0)
+    {
+        SWOOLE_G(cli) = 1;
+    }
 
     swoole_server_port_init(module_number TSRMLS_CC);
     swoole_client_init(module_number TSRMLS_CC);
@@ -1136,11 +1140,6 @@ PHP_MINIT_FUNCTION(swoole)
             SWOOLE_G(aio_thread_num) = SW_AIO_THREAD_NUM_MAX;
         }
         SwooleAIO.thread_num = SWOOLE_G(aio_thread_num);
-    }
-
-    if (strcasecmp("cli", sapi_module.name) == 0)
-    {
-        SWOOLE_G(cli) = 1;
     }
 
     swoole_objects.size = 65536;
