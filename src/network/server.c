@@ -1067,20 +1067,6 @@ int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length)
     }
     else
     {
-        if (fd == serv->last_session_id && serv->last_stream_fd > 0)
-        {
-            int _l = htonl(length);
-            if (SwooleG.main_reactor->write(SwooleG.main_reactor, serv->last_stream_fd, (void *) &_l, sizeof(_l)) < 0)
-            {
-                return SW_ERR;
-            }
-            if (SwooleG.main_reactor->write(SwooleG.main_reactor, serv->last_stream_fd, data, length) < 0)
-            {
-                return SW_ERR;
-            }
-            return SW_OK;
-        }
-
         _send.info.fd = fd;
         _send.info.type = SW_EVENT_TCP;
         _send.data = data;
