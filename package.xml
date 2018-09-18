@@ -779,6 +779,7 @@
             <file role="test" name="tests/swoole_coroutine_channel/bug_clear_timer.phpt" />
             <file role="test" name="tests/swoole_coroutine_channel/chan_select_timeout.phpt" />
             <file role="test" name="tests/swoole_coroutine_channel/chan_stats.phpt" />
+            <file role="test" name="tests/swoole_coroutine_channel/close.phpt" />
             <file role="test" name="tests/swoole_coroutine_channel/coro_wait.phpt" />
             <file role="test" name="tests/swoole_coroutine_channel/fibonacci.phpt" />
             <file role="test" name="tests/swoole_coroutine_channel/hybird_chan.phpt" />
