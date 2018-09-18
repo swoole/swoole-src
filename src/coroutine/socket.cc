@@ -1030,7 +1030,14 @@ string Socket::resolve(string domain_name)
 
     swAio_event ev;
     bzero(&ev, sizeof(swAio_event));
-    ev.nbytes = SW_IP_MAX_LENGTH;
+    if (domain_name.size() < SW_IP_MAX_LENGTH)
+    {
+        ev.nbytes = SW_IP_MAX_LENGTH + 1;
+    }
+    else
+    {
+        ev.nbytes = domain_name.size() + 1;
+    }
     ev.buf = sw_malloc(ev.nbytes);
     if (!ev.buf)
     {
