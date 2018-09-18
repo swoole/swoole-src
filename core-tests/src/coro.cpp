@@ -4,7 +4,7 @@ using namespace swoole;
 
 static void coro1(void *arg)
 {
-    int cid = coroutine_get_cid();
+    int cid = coroutine_get_current_cid();
     coroutine_t *co = coroutine_get_by_id(cid);
     coroutine_yield(co);
 }
@@ -170,3 +170,62 @@ TEST(coroutine, socket_accept)
     SwooleG.main_reactor->wait(SwooleG.main_reactor, nullptr);
 }
 
+static void coro9(void *arg)
+{
+    Socket sock(SW_SOCK_TCP);
+    auto retval = sock.resolve("www.qq.com");
+    ASSERT_EQ(retval, "180.163.26.39");
+}
+
+TEST(coroutine, socket_resolve)
+{
+    coroutine_create(coro9, NULL);
+    SwooleG.main_reactor->wait(SwooleG.main_reactor, nullptr);
+}
+
+#define CID_ALLOC_PRINT  0
+
+TEST(coroutine, cid_alloc)
+{
+    //alloc [1] full
+    for (int i = 0; i < 65536 * 8; i++)
+    {
+        int cid = coroutine_test_alloc_cid();
+        ASSERT_GT(cid, 0);
+#if CID_ALLOC_PRINT
+        if (i % 1000 == 0)
+        {
+            printf("cid=%d\n", cid);
+        }
+#endif
+    }
+    //limit
+    {
+        int cid = coroutine_test_alloc_cid();
+        ASSERT_EQ(cid, CORO_LIMIT);
+    }
+    //free
+    for (int i = 1; i < 65536; i++)
+    {
+        int cid = i * 7;
+        coroutine_test_free_cid(cid);
+#if CID_ALLOC_PRINT
+        if (i % 1000 == 0)
+        {
+            printf("free cid=%d\n", cid);
+        }
+#endif
+    }
+    //alloc [2]
+    for (int i = 0; i < 65536 / 2; i++)
+    {
+        int cid = coroutine_test_alloc_cid();
+        ASSERT_GT(cid, 0);
+#if CID_ALLOC_PRINT
+        if (i % 1000 == 0)
+        {
+            printf("cid=%d\n", cid);
+        }
+#endif
+    }
+}

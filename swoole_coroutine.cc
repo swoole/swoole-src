@@ -18,33 +18,17 @@
 #include "php_swoole.h"
 
 #ifdef SW_COROUTINE
-#include "coroutine.h"
 #include "swoole_coroutine.h"
-#include "zend_vm.h"
-#include "zend_closures.h"
-
-/* PHP 7.3 compatibility macro {{{*/
-#ifndef ZEND_CLOSURE_OBJECT
-# define ZEND_CLOSURE_OBJECT(func) (zend_object*)func->op_array.prototype
-#endif
-#ifndef GC_ADDREF
-# define GC_ADDREF(ref) ++GC_REFCOUNT(ref)
-# define GC_DELREF(ref) --GC_REFCOUNT(ref)
-#endif/*}}}*/
-
-/* output globals */
-#define SWOG ((zend_output_globals *) &OG(handlers))
 
 #define TASK_SLOT \
     ((int)((ZEND_MM_ALIGNED_SIZE(sizeof(coro_task)) + ZEND_MM_ALIGNED_SIZE(sizeof(zval)) - 1) / ZEND_MM_ALIGNED_SIZE(sizeof(zval))))
 #define SWCC(x) sw_current_context->x
 
 coro_global COROG;
-static coro_task* sw_get_current_task();
 static void sw_coro_func(void *);
 static zend_bool is_xdebug_started = 0;
 
-#if PHP_MAJOR_VERSION >= 7 && PHP_MINOR_VERSION >= 2
+#if PHP_VERSION_ID >= 70200
 static inline void sw_vm_stack_init(void)
 {
     uint32_t size = COROG.stack_size;
@@ -69,11 +53,13 @@ int coro_init(TSRMLS_D)
     {
         is_xdebug_started = 1;
     }
+    //save init vm
     COROG.origin_vm_stack = EG(vm_stack);
     COROG.origin_vm_stack_top = EG(vm_stack_top);
     COROG.origin_vm_stack_end = EG(vm_stack_end);
 
     COROG.coro_num = 0;
+    COROG.peak_coro_num = 0;
     if (COROG.max_coro_num <= 0)
     {
         COROG.max_coro_num = DEFAULT_MAX_CORO_NUM;
@@ -84,10 +70,82 @@ int coro_init(TSRMLS_D)
     }
 
     COROG.active = 1;
-    coroutine_set_close(sw_coro_close);
+    /* set functions */
+    coroutine_set_onYield(internal_coro_yield);
+    coroutine_set_onResume(internal_coro_resume);
+    coroutine_set_onClose(sw_coro_close);
     return 0;
 }
 
+static void resume_php_stack(coro_task *task)
+{
+    COROG.current_coro = task;
+    swTraceLog(SW_TRACE_COROUTINE,"sw_coro_resume coro id %d", COROG.current_coro->cid);
+    task->state = SW_CORO_RUNNING;
+    EG(current_execute_data) = task->yield_execute_data;
+    EG(vm_stack) = task->yield_stack;
+    EG(vm_stack_top) = task->yield_vm_stack_top;
+    EG(vm_stack_end) = task->yield_vm_stack_end;
+}
+
+static void save_php_stack(coro_task *task)
+{
+    swTraceLog(SW_TRACE_COROUTINE,"coro_yield coro id %d", task->cid);
+    task->state = SW_CORO_YIELD;
+    task->is_yield = 1;
+    /* save vm stack */
+    task->yield_execute_data = EG(current_execute_data);
+    task->yield_stack = EG(vm_stack);
+    task->yield_vm_stack_top = EG(vm_stack_top);
+    task->yield_vm_stack_end = EG(vm_stack_end);
+    /* restore vm stack */
+    EG(vm_stack) = task->origin_stack;
+    EG(vm_stack_top) = task->origin_vm_stack_top;
+    EG(vm_stack_end) = task->origin_vm_stack_end;
+#if PHP_VERSION_ID < 70100
+    EG(scope) = task->execute_data->func->common.scope;
+#endif
+}
+void internal_coro_resume(void *arg)
+{
+    coro_task *task = (coro_task *)arg;
+    resume_php_stack(task);
+
+    if (OG(handlers).elements)
+    {
+        php_output_deactivate();
+        if (!task->current_coro_output_ptr)
+        {
+            php_output_activate();
+        }
+    }
+    /* resume output control global */
+    if (task->current_coro_output_ptr)
+    {
+        memcpy(SWOG, task->current_coro_output_ptr, sizeof(zend_output_globals));
+        efree(task->current_coro_output_ptr);
+        task->current_coro_output_ptr = NULL;
+    }
+    swTraceLog(SW_TRACE_COROUTINE, "cid=%d", task->cid);
+}
+
+void internal_coro_yield(void *arg)
+{
+    coro_task *task = (coro_task *)arg;
+    save_php_stack(task);
+    /* save output control global */
+    if (OG(active))
+    {
+        zend_output_globals *coro_output_globals_ptr = (zend_output_globals *) emalloc(sizeof(zend_output_globals));
+        memcpy(coro_output_globals_ptr, SWOG, sizeof(zend_output_globals));
+        task->current_coro_output_ptr = coro_output_globals_ptr;
+        php_output_activate();
+    }
+    else
+    {
+        task->current_coro_output_ptr = NULL;
+    }
+}
 
 void coro_check(TSRMLS_D)
 {
@@ -99,12 +157,7 @@ void coro_check(TSRMLS_D)
 
 void coro_destroy(TSRMLS_D)
 {
-    if (COROG.chan_pipe)
-    {
-        COROG.chan_pipe->close(COROG.chan_pipe);
-        efree(COROG.chan_pipe);
-        COROG.chan_pipe = NULL;
-    }
+
 }
 
 static void sw_coro_func(void *arg)
@@ -114,12 +167,10 @@ static void sw_coro_func(void *arg)
     zval **argv = php_arg->argv;
     int argc = php_arg->argc;
     zval *retval = php_arg->retval;
-    void *post_callback = php_arg->post_callback;
-    void* params = php_arg->params;
-    int cid = coroutine_get_cid();
+    int cid = coroutine_get_current_cid();
 
+    int i;
     zend_function *func;
-    uint32_t i;
     coro_task *task;
 
     zend_vm_stack origin_vm_stack = EG(vm_stack);
@@ -136,7 +187,7 @@ static void sw_coro_func(void *arg)
     call = zend_vm_stack_push_call_frame(ZEND_CALL_TOP_FUNCTION | ZEND_CALL_ALLOCATED, func, argc,
             fci_cache->called_scope, fci_cache->object);
 
-#if PHP_MINOR_VERSION < 1
+#if PHP_VERSION_ID < 70100
     EG(scope) = func->common.scope;
 #endif
 
@@ -171,13 +222,12 @@ static void sw_coro_func(void *arg)
     task->is_yield = 0;
     task->state = SW_CORO_RUNNING;
     task->co = coroutine_get_by_id(cid);
+    coroutine_set_task(task->co, (void *)task);
 
     if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_CORO_START])
     {
         swoole_call_hook(SW_GLOBAL_HOOK_ON_CORO_START, task);
     }
-
-    COROG.call_stack[COROG.call_stack_size++] = task;
     COROG.current_coro = task;
     swTraceLog(SW_TRACE_COROUTINE, "Create coro id: %d, coro total count: %d, heap size: %zu", cid, COROG.coro_num, zend_memory_usage(0));
 
@@ -191,7 +241,7 @@ static void sw_coro_func(void *arg)
 int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval *retval, void *post_callback,
         void *params)
 {
-    if (is_xdebug_started == 1)
+    if (unlikely(is_xdebug_started == 1))
     {
         swWarn("xdebug do not support coroutine, please notice that it lead to coredump.");
     }
@@ -214,13 +264,18 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     COROG.error = 0;
     COROG.coro_num++;
 
+    if (COROG.coro_num > COROG.peak_coro_num)
+    {
+        COROG.peak_coro_num = COROG.coro_num;
+    }
+
     /**===================Before Coroutine======================**/
     zend_output_globals *coro_output_globals_ptr = NULL;
     if (OG(active)) // save the current OG
     {
         coro_output_globals_ptr = (zend_output_globals *) emalloc(sizeof(zend_output_globals));
         memcpy(coro_output_globals_ptr, SWOG, sizeof(zend_output_globals));
-        php_output_activate(); // new output
+        php_output_activate();
     }
     /**=========================================================**/
 
@@ -233,7 +288,6 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
         efree(coro_output_globals_ptr);
     }
     /**========================================================**/
-
     return ret;
 }
 
@@ -244,15 +298,14 @@ void sw_coro_save(zval *return_value, php_context *sw_current_context)
     SWCC(current_vm_stack) = EG(vm_stack);
     SWCC(current_vm_stack_top) = EG(vm_stack_top);
     SWCC(current_vm_stack_end) = EG(vm_stack_end);
-    SWCC(current_task) = (coro_task *) sw_get_current_task();
+    SWCC(current_task) = (coro_task *) coroutine_get_current_task();
 
-    // save output control global
     if (OG(active))
     {
         zend_output_globals *coro_output_globals_ptr = (zend_output_globals *) emalloc(sizeof(zend_output_globals));
         memcpy(coro_output_globals_ptr, SWOG, sizeof(zend_output_globals));
         SWCC(current_coro_output_ptr) = coro_output_globals_ptr;
-        php_output_activate(); // reset output
+        php_output_activate();
     }
     else
     {
@@ -263,30 +316,21 @@ void sw_coro_save(zval *return_value, php_context *sw_current_context)
 int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_retval)
 {
     coro_task *task = SWCC(current_task);
-    COROG.call_stack[COROG.call_stack_size++] = task;
-    COROG.current_coro = task;
-    swTraceLog(SW_TRACE_COROUTINE,"sw_coro_resume coro id %d", COROG.current_coro->cid);
-    task->state = SW_CORO_RUNNING;
-    EG(current_execute_data) = SWCC(current_execute_data);
-    EG(vm_stack) = SWCC(current_vm_stack);
-    EG(vm_stack_top) = SWCC(current_vm_stack_top);
-    EG(vm_stack_end) = SWCC(current_vm_stack_end);
-
+    resume_php_stack(task);
     if (EG(current_execute_data)->prev_execute_data->opline->result_type != IS_UNUSED && retval)
     {
         ZVAL_COPY(SWCC(current_coro_return_value_ptr), retval);
     }
 
-    // main OG
     if (OG(handlers).elements)
     {
-        php_output_deactivate(); // free main
+        php_output_deactivate();
         if (!SWCC(current_coro_output_ptr))
         {
-            php_output_activate(); // reset output
+            php_output_activate();
         }
     }
-    // resume output control global
+
     if (SWCC(current_coro_output_ptr))
     {
         memcpy(SWOG, SWCC(current_coro_output_ptr), sizeof(zend_output_globals));
@@ -294,8 +338,8 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
         SWCC(current_coro_output_ptr) = NULL;
     }
 
-    swDebug("cid=%d", task->cid);
-    coroutine_resume(task->co);
+    swTraceLog(SW_TRACE_COROUTINE, "cid=%d", task->cid);
+    coroutine_resume_naked(task->co);
 
     if (unlikely(EG(exception)))
     {
@@ -310,20 +354,18 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
 
 void sw_coro_yield()
 {
-    coro_task *task = (coro_task *) sw_get_current_task();
-    COROG.call_stack_size--;
-    swTraceLog(SW_TRACE_COROUTINE,"coro_yield coro id %d", task->cid);
-    task->state = SW_CORO_YIELD;
-    task->is_yield = 1;
-    EG(vm_stack) = task->origin_stack;
-    EG(vm_stack_top) = task->origin_vm_stack_top;
-    EG(vm_stack_end) = task->origin_vm_stack_end;
-    coroutine_yield(task->co);
+    if (unlikely(sw_get_current_cid() == -1))
+    {
+        swoole_php_fatal_error(E_ERROR, "must be called in the coroutine.");
+    }
+    coro_task *task = (coro_task *) coroutine_get_current_task();
+    save_php_stack(task);
+    coroutine_yield_naked(task->co);
 }
 
 void sw_coro_close()
 {
-    coro_task *task = (coro_task *) sw_get_current_task();
+    coro_task *task = (coro_task *) coroutine_get_current_task();
     swTraceLog(SW_TRACE_COROUTINE,"coro_close coro id %d", task->cid);
 
     if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_CORO_STOP])
@@ -343,22 +385,19 @@ void sw_coro_close()
         EG(vm_stack_top) = COROG.origin_vm_stack_top;
         EG(vm_stack_end) = COROG.origin_vm_stack_end;
     }
-    COROG.call_stack_size--;
     efree(task->stack);
     COROG.coro_num--;
     COROG.current_coro = NULL;
 
-    // clear output control global
     if (OG(active))
     {
         php_output_end_all();
     }
     if (OG(handlers).elements)
     {
-        php_output_deactivate(); // free
-        php_output_activate(); // reset output
+        php_output_deactivate();
+        php_output_activate();
     }
-
     swTraceLog(SW_TRACE_COROUTINE, "close coro and %d remained. usage size: %zu. malloc size: %zu", COROG.coro_num, zend_memory_usage(0), zend_memory_usage(1));
 }
 
@@ -370,18 +409,13 @@ int sw_get_current_cid()
     }
     else
     {
-        coro_task* task = sw_get_current_task();
-        if (task)
-        {
-            return task->cid;
-        }
-        return -1;
+        return coroutine_get_current_cid();
     }
 }
 
-static coro_task* sw_get_current_task()
+void sw_coro_set_stack_size(int stack_size)
 {
-    return (COROG.call_stack_size > 0) ? COROG.call_stack[COROG.call_stack_size - 1] : NULL;
+    coroutine_set_stack_size(stack_size);
 }
 
 #endif

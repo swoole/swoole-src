@@ -15,7 +15,7 @@
 */
 
 #include "swoole.h"
-#include "Server.h"
+#include "server.h"
 
 static int swSystemTimer_signal_set(swTimer *timer, long interval);
 static int swSystemTimer_set(swTimer *timer, long new_interval);
@@ -27,7 +27,7 @@ int swSystemTimer_init(int interval, int use_pipe)
 {
     swTimer *timer = &SwooleG.timer;
     timer->lasttime = interval;
-    
+
     if (use_pipe)
     {
         if (swPipeNotify_auto(&timer->pipe, 0, 0) < 0)
@@ -107,6 +107,10 @@ static int swSystemTimer_set(swTimer *timer, long new_interval)
     if (new_interval == current_interval)
     {
         return SW_OK;
+    }
+    if (new_interval == 0)
+    {
+        new_interval = 1;
     }
     current_interval = new_interval;
     return swSystemTimer_signal_set(timer, new_interval);

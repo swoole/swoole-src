@@ -6,9 +6,8 @@ file(GLOB_RECURSE SOURCE_FILES FOLLOW_SYMLINKS src/*.cpp)
 
 add_definitions(-DHAVE_CONFIG_H)
 
-link_directories(/home/htf/workspace/swoole/lib)
-include_directories(./include ./ /usr/local/php/include /usr/local/php/include/Zend /usr/local/php/include/main /home/htf/workspace/swoole/ /home/htf/workspace/swoole/include BEFORE)
-
+link_directories($ENV{SWOOLE_DIR}/lib)
+include_directories(./include ./ /usr/local/php/include /usr/local/php/include/Zend /usr/local/php/include/main $ENV{SWOOLE_DIR}/ $ENV{SWOOLE_DIR}/include/ BEFORE)
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 add_executable(core_tests ${SOURCE_FILES})
 target_link_libraries(core_tests gtest gtest_main pthread swoole)

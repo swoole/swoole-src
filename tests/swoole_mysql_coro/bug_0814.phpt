@@ -32,14 +32,14 @@ co::create(function () {
         return;
     }
 
-    $ret3 = $stmt->execute(array(10));
+    $ret3 = $stmt->execute([5]);
     if (!$ret3) {
         echo "EXECUTE ERROR#{$stmt->errno}: {$stmt->error}\n";
         return;
     }
     assert(count($ret3) > 0);
 
-    $ret = $db->query("select sleep(20)", 1);
+    $ret = $db->query("select sleep(20)", 0.1);
     assert($ret == false);
     assert( $db->errno == SOCKET_ETIMEDOUT);
     $ret1 = $db->connect($server);
@@ -57,7 +57,7 @@ co::create(function () {
         return;
     }
 
-    $ret3 = $stmt->execute(array(10));
+    $ret3 = $stmt->execute([5]);
     if (!$ret3) {
         echo "EXECUTE ERROR#{$stmt->errno}: {$stmt->error}\n";
         return;

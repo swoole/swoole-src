@@ -7,8 +7,8 @@ __DIR__=$(cd "$(dirname "$0")";pwd)
 cd ${__DIR__} && cd ../ && \
 phpize > /dev/null && \
 ./configure \
---enable-openssl  \
---enable-http2  \
+--enable-openssl \
+--enable-http2 \
 --enable-async-redis \
 --enable-sockets \
 --enable-mysqlnd \

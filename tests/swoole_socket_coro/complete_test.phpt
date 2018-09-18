@@ -16,7 +16,7 @@ $pm->parentFunc = function ($pid) use ($pm, $port) {
         $i = 0.000;
         while (true) {
             $socket->send("hello");
-            $server_reply = $socket->recv(.01);
+            $server_reply = $socket->recv(1024, 0.01);
             assert($server_reply === 'swoole');
             co::sleep($i += .001); // after 10 times we sleep 0.01s to trigger server timeout
             if ($i > .01) {
@@ -39,9 +39,9 @@ $pm->childFunc = function () use ($pm, $port) {
         assert($client instanceof Swoole\Coroutine\Socket);
         $i = 0;
         while (true) {
-            $client_data = $client->recv(.01);
+            $client_data = $client->recv(1024, 0.01);
             if ($client->errCode > 0) {
-                assert($client->errCode === SOCKET_EAGAIN); //EAGAIN
+                assert($client->errCode === SOCKET_ETIMEDOUT);
                 break;
             } else {
                 $i++;

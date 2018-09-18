@@ -1,7 +1,10 @@
 --TEST--
 swoole_process: setaffinity
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_no_process_affinity();
+?>
 --INI--
 assert.active=1
 assert.warning=1

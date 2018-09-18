@@ -325,11 +325,12 @@ function start_server($file, $host, $port, $redirect_file = "/dev/null", $ext1 =
 //        proc_terminate($handle, SIGTERM);
 //        @unlink($redirect_file);
 //    });
+    \swoole_async::set(['enable_coroutine' => false]); // need use exit
     return function() use($handle, $redirect_file) {
         // @unlink($redirect_file);
         proc_terminate($handle, SIGTERM);
         swoole_event_exit();
-        exit();
+        exit;
     };
 }
 function fork_exec(callable $fn, $f_stdout = "/dev/null", $f_stderr = null)

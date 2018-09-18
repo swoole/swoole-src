@@ -26,6 +26,10 @@
 #include <execinfo.h>
 #endif
 
+#ifdef __sun
+#include <sys/filio.h>
+#endif
+
 SwooleGS_t *SwooleGS;
 
 void swoole_init(void)
@@ -52,6 +56,7 @@ void swoole_init(void)
 
 #ifdef SW_DEBUG
     SwooleG.log_level = 0;
+    SwooleG.trace_flags = 0x7fffffff;
 #else
     SwooleG.log_level = SW_LOG_INFO;
 #endif
@@ -91,7 +96,7 @@ void swoole_init(void)
         SwooleG.max_sockets = (uint32_t) rlmt.rlim_cur;
     }
 
-    SwooleTG.buffer_stack = swString_new(8192);
+    SwooleTG.buffer_stack = swString_new(SW_STACK_BUFFER_SIZE);
     if (SwooleTG.buffer_stack == NULL)
     {
         exit(3);
@@ -132,6 +137,10 @@ void swoole_clean(void)
         if (SwooleG.timer.fd > 0)
         {
             swTimer_free(&SwooleG.timer);
+        }
+        if (SwooleG.task_tmpdir)
+        {
+            sw_free(SwooleG.task_tmpdir);
         }
         if (SwooleG.main_reactor)
         {
@@ -1001,7 +1010,7 @@ int swoole_gethostbyname(int flags, char *name, char *addr)
     }
 
     sw_free(buf);
-    
+
     return SW_OK;
 }
 #else

@@ -28,12 +28,14 @@ go(function () {
     $cli1->get('/');
     $cli2->get('/');
 
-    assert($cli1->recv() === false);
+    $retval = $cli1->recv();
+    assert($retval === false);
     assert($cli2->recv() === true);
     assert($cli1->statusCode === -2);
     if (!assert($cli2->statusCode === 200)) {
         var_dump($cli2);
     }
 });
+swoole_event::wait();
 ?>
 --EXPECT--

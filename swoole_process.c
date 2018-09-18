@@ -550,14 +550,10 @@ static PHP_METHOD(swoole_process, signal)
     }
     signal_callback[signo] = callback;
 
-#if PHP_MAJOR_VERSION >= 7 || (PHP_MAJOR_VERSION >= 5 && PHP_MINOR_VERSION >= 4)
     /**
      * use user settings
      */
     SwooleG.use_signalfd = SwooleG.enable_signalfd;
-#else
-    SwooleG.use_signalfd = 0;
-#endif
 
     swSignal_add(signo, handler);
 
@@ -583,13 +579,6 @@ static PHP_METHOD(swoole_process, alarm)
     if (SwooleG.timer.fd != 0)
     {
         swoole_php_fatal_error(E_WARNING, "cannot use both 'timer' and 'alarm' at the same time.");
-        RETURN_FALSE;
-    }
-
-    struct timeval now;
-    if (gettimeofday(&now, NULL) < 0)
-    {
-        swoole_php_error(E_WARNING, "gettimeofday() failed. Error: %s[%d]", strerror(errno), errno);
         RETURN_FALSE;
     }
 
@@ -820,9 +809,7 @@ static PHP_METHOD(swoole_process, read)
     }
     buf[ret] = 0;
     SW_ZVAL_STRINGL(return_value, buf, ret, 0);
-#if PHP_MAJOR_VERSION >= 7
     efree(buf);
-#endif
 }
 
 static PHP_METHOD(swoole_process, write)

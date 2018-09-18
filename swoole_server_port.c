@@ -86,9 +86,7 @@ void swoole_server_port_init(int module_number TSRMLS_DC)
     zend_declare_property_long(swoole_server_port_class_entry_ptr, ZEND_STRL("sock"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_server_port_class_entry_ptr, ZEND_STRL("setting"), ZEND_ACC_PUBLIC TSRMLS_CC);
 
-#ifdef HAVE_PCRE
     zend_declare_property_null(swoole_server_port_class_entry_ptr, ZEND_STRL("connections"), ZEND_ACC_PUBLIC TSRMLS_CC);
-#endif
 }
 
 static PHP_METHOD(swoole_server_port, __construct)
@@ -198,11 +196,15 @@ static PHP_METHOD(swoole_server_port, set)
         convert_to_long(v);
         port->buffer_low_watermark = (int) Z_LVAL_P(v);
     }
-    //tcp_nodelay
+    //server: tcp_nodelay
     if (php_swoole_array_get_value(vht, "open_tcp_nodelay", v))
     {
         convert_to_boolean(v);
         port->open_tcp_nodelay = Z_BVAL_P(v);
+    }
+    else
+    {
+        port->open_tcp_nodelay = 1;
     }
     //tcp_defer_accept
     if (php_swoole_array_get_value(vht, "tcp_defer_accept", v))
@@ -266,6 +268,11 @@ static PHP_METHOD(swoole_server_port, set)
         }
         port->websocket_subprotocol = sw_strdup(Z_STRVAL_P(v));
         port->websocket_subprotocol_length = Z_STRLEN_P(v);
+    }
+    if (php_swoole_array_get_value(vht, "open_websocket_close_frame", v))
+    {
+        convert_to_boolean(v);
+        port->open_websocket_close_frame = Z_BVAL_P(v);
     }
 #ifdef SW_USE_HTTP2
     //http2 protocol
@@ -553,6 +560,7 @@ static PHP_METHOD(swoole_server_port, on)
         "Receive",
         "Close",
         "Packet",
+        NULL, //onStart
         NULL,
         NULL,
         NULL,
@@ -561,9 +569,8 @@ static PHP_METHOD(swoole_server_port, on)
         NULL,
         NULL,
         NULL,
-        NULL,
-        NULL,
-        NULL,
+        NULL, //onManagerStop
+        NULL, //onPipeMessage
         "Request",
         "HandShake",
         "Open",

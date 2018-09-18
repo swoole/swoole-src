@@ -6,10 +6,10 @@ swoole_mysql_coro: mysql prepare (select)
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
 
-use Swoole\Coroutine as co;
+use Swoole\Coroutine as Co;
 
-co::create(function () {
-    $db = new co\MySQL();
+Co::create(function () {
+    $db = new Co\MySQL();
     $server = array(
         'host' => MYSQL_SERVER_HOST,
         'user' => MYSQL_SERVER_USER,
@@ -29,7 +29,7 @@ co::create(function () {
         return;
     }
 
-    $ret3 = $stmt->execute(array(10));
+    $ret3 = $stmt->execute([5]);
     if (!$ret3) {
         echo "EXECUTE ERROR#{$stmt->errno}: {$stmt->error}\n";
         return;

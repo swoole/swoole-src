@@ -1,3 +1,19 @@
+/*
+  +----------------------------------------------------------------------+
+  | Swoole                                                               |
+  +----------------------------------------------------------------------+
+  | This source file is subject to version 2.0 of the Apache license,    |
+  | that is bundled with this package in the file LICENSE, and is        |
+  | available through the world-wide-web at the following url:           |
+  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
+  | If you did not receive a copy of the Apache2.0 license and are unable|
+  | to obtain it through the world-wide-web, please send a note to       |
+  | license@swoole.com so we can mail you a copy immediately.            |
+  +----------------------------------------------------------------------+
+  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  +----------------------------------------------------------------------+
+*/
+
 #include "coroutine.h"
 #include "context.h"
 #include <string>
@@ -16,23 +32,25 @@ struct coroutine_s
 public:
     Context ctx;
     int cid;
-    coroutine_s(int _cid, size_t stack_size, coroutine_func_t fn, void* private_data) :
+    void *task;
+    coroutine_s(int _cid, size_t stack_size, coroutine_func_t fn, void *private_data) :
             ctx(stack_size, fn, private_data)
     {
         cid = _cid;
+        task = NULL;
     }
 };
 
 static struct
 {
-    int stack_size;
-    int current_cid;
-    int previous_cid;
-    struct coroutine_s *coroutines[MAX_CORO_NUM_LIMIT + 1];
-    coroutine_close_t onClose;
-} swCoroG =
-{ SW_DEFAULT_C_STACK_SIZE, -1, -1,
-{ NULL, }, NULL };
+    int                 stack_size;
+    int                 call_stack_size;
+    struct coroutine_s* coroutines[MAX_CORO_NUM_LIMIT + 1];
+    struct coroutine_s* call_stack[SW_MAX_CORO_NESTING_LEVEL];
+    coro_php_yield_t    onYield;  /* before php yield coro */
+    coro_php_resume_t   onResume; /* before php resume coro */
+    coro_php_close_t    onClose;  /* before php close coro */
+} swCoroG = { SW_DEFAULT_C_STACK_SIZE, 0, { nullptr, },  { nullptr, }, nullptr, nullptr, nullptr };
 
 /* 1 <= cid <= 524288 */
 static cidmap_t cidmap =
@@ -80,7 +98,7 @@ static inline int find_next_zero_bit(void *addr, int cid)
             break;
         }
         ++cid;
-        cid &= 0x7fff;
+        cid &= 0x7ffff;
     }
 
     return cid;
@@ -122,17 +140,12 @@ int coroutine_create(coroutine_func_t fn, void* args)
         return CORO_LIMIT;
     }
 
-    coroutine_t *co = new coroutine_t(cid, swCoroG.stack_size, fn, args);
+    coroutine_t *co = new coroutine_s(cid, swCoroG.stack_size, fn, args);
     swCoroG.coroutines[cid] = co;
-    swCoroG.previous_cid = swCoroG.current_cid;
-    swCoroG.current_cid = cid;
+    swCoroG.call_stack[swCoroG.call_stack_size++] = co;
     co->ctx.SwapIn();
     if (co->ctx.end)
     {
-        if (swCoroG.onClose)
-        {
-            swCoroG.onClose();
-        }
         coroutine_release(co);
     }
     return cid;
@@ -140,35 +153,72 @@ int coroutine_create(coroutine_func_t fn, void* args)
 
 void coroutine_yield(coroutine_t *co)
 {
-    swCoroG.current_cid = swCoroG.previous_cid;
+    if (swCoroG.onYield)
+    {
+        swCoroG.onYield(co->task);
+    }
+    swCoroG.call_stack_size--;
     co->ctx.SwapOut();
 }
 
 void coroutine_resume(coroutine_t *co)
 {
-    swCoroG.previous_cid = swCoroG.current_cid;
-    swCoroG.current_cid = co->cid;
+    if (swCoroG.onResume)
+    {
+        swCoroG.onResume(co->task);
+    }
+    swCoroG.call_stack[swCoroG.call_stack_size++] = co;
     co->ctx.SwapIn();
     if (co->ctx.end)
     {
-        if (swCoroG.onClose)
-        {
-            swCoroG.onClose();
-        }
+        coroutine_release(co);
+    }
+}
+
+void coroutine_yield_naked(coroutine_t *co)
+{
+    swCoroG.call_stack_size--;
+    co->ctx.SwapOut();
+}
+
+void coroutine_resume_naked(coroutine_t *co)
+{
+    swCoroG.call_stack[swCoroG.call_stack_size++] = co;
+    co->ctx.SwapIn();
+    if (co->ctx.end)
+    {
         coroutine_release(co);
     }
 }
 
 void coroutine_release(coroutine_t *co)
 {
+    if (swCoroG.onClose)
+    {
+        swCoroG.onClose();
+    }
     free_cidmap(co->cid);
+    swCoroG.call_stack_size--;
     swCoroG.coroutines[co->cid] = NULL;
     delete co;
 }
 
-void coroutine_set_close(coroutine_close_t func)
+void coroutine_set_task(coroutine_t *co, void *task)
 {
-    swCoroG.onClose = func;
+    co->task = task;
+}
+
+void* coroutine_get_task_by_cid(int cid)
+{
+    coroutine_t *co = swCoroG.coroutines[cid];
+    if (co == nullptr)
+    {
+        return nullptr;
+    }
+    else
+    {
+        return co->task;
+    }
 }
 
 coroutine_t* coroutine_get_by_id(int cid)
@@ -176,7 +226,75 @@ coroutine_t* coroutine_get_by_id(int cid)
     return swCoroG.coroutines[cid];
 }
 
-int coroutine_get_cid()
+coroutine_t* coroutine_get_current()
 {
-    return swCoroG.current_cid;
+    return (swCoroG.call_stack_size > 0) ? swCoroG.call_stack[swCoroG.call_stack_size - 1] : nullptr;
 }
+
+void* coroutine_get_current_task()
+{
+    coroutine_t* co = coroutine_get_current();
+    if (co == nullptr)
+    {
+        return nullptr;
+    }
+    else
+    {
+        return co->task;
+    }
+}
+
+int coroutine_get_current_cid()
+{
+    coroutine_t* co = coroutine_get_current();
+    if (co)
+    {
+        return co->cid;
+    }
+    else
+    {
+        return -1;
+    }
+}
+
+int coroutine_get_cid(coroutine_t *co)
+{
+    return co->cid;
+}
+
+int coroutine_test_alloc_cid()
+{
+    int cid = alloc_cidmap();
+    if (unlikely(cid == -1))
+    {
+        swWarn("alloc_cidmap failed");
+        return CORO_LIMIT;
+    }
+    return cid;
+}
+
+void coroutine_test_free_cid(int cid)
+{
+    free_cidmap(cid);
+}
+
+void coroutine_set_onYield(coro_php_yield_t func)
+{
+    swCoroG.onYield = func;
+}
+
+void coroutine_set_onResume(coro_php_resume_t func)
+{
+    swCoroG.onResume = func;
+}
+
+void coroutine_set_onClose(coro_php_close_t func)
+{
+    swCoroG.onClose = func;
+}
+
+void coroutine_set_stack_size(int stack_size)
+{
+    swCoroG.stack_size = stack_size;
+}
+

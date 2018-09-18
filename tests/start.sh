@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+__CURRENT__=`pwd`
+__DIR__=$(cd "$(dirname "$0")";pwd)
 
 clear_php()
 {
@@ -7,10 +9,9 @@ clear_php()
 
 clear_php
 export TEST_PHP_EXECUTABLE=`which php`
-BASEDIR=$(dirname "$0")
 glob='swoole_*'
 [ -z "$1" ] || glob="$@"
-${TEST_PHP_EXECUTABLE} -d "memory_limit=1024m" ${BASEDIR}/run-tests ${glob}
+${TEST_PHP_EXECUTABLE} -d "memory_limit=1024m" ${__DIR__}/run-tests ${glob}
 clear_php
 
 rm -f /tmp/swoole.log > /dev/null 2>&1

@@ -8,15 +8,14 @@ dnl  | that is bundled with this package in the file LICENSE, and is        |
 dnl  | available through the world-wide-web at the following url:           |
 dnl  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
 dnl  | If you did not receive a copy of the Apache2.0 license and are unable|
-
 dnl  | to obtain it through the world-wide-web, please send a note to       |
 dnl  | license@swoole.com so we can mail you a copy immediately.            |
 dnl  +----------------------------------------------------------------------+
 dnl  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
 dnl  +----------------------------------------------------------------------+
 
-PHP_ARG_ENABLE(swoole-debug, whether to enable swoole debug,
-[  --enable-swoole-debug   Enable swoole debug], no, no)
+PHP_ARG_ENABLE(debug-log, whether to enable debug log,
+[  --enable-debug-log   Enable swoole debug log], no, no)
 
 PHP_ARG_ENABLE(trace-log, Whether to enable trace log,
 [  --enable-trace-log   Enable swoole trace log], no, no)
@@ -45,12 +44,6 @@ PHP_ARG_ENABLE(hugepage, enable hugepage support,
 PHP_ARG_ENABLE(swoole, swoole support,
 [  --enable-swoole         Enable swoole support], [enable_swoole="yes"])
 
-PHP_ARG_ENABLE(swoole_static, swoole static compile support,
-[  --enable-swoole-static    Enable swoole static compile support], no, no)
-
-PHP_ARG_WITH(swoole, swoole support,
-[  --with-swoole           With swoole support])
-
 PHP_ARG_WITH(libpq_dir, for libpq support,
 [  --with-libpq-dir[=DIR]    Include libpq support (requires libpq >= 9.5)], no, no)
 
@@ -71,12 +64,6 @@ PHP_ARG_ENABLE(asan, whether to enable asan,
 
 PHP_ARG_ENABLE(picohttpparser, enable picohttpparser support,
 [  --enable-picohttpparser     Experimental: Do you have picohttpparser?], no, no)
-
-PHP_ARG_WITH(swoole, swoole support,
-[  --with-swoole           With swoole support])
-
-PHP_ARG_ENABLE(timewheel, enable timewheel support,
-[  --enable-timewheel     Experimental: Enable timewheel heartbeat?], no, no)
 
 AC_DEFUN([SWOOLE_HAVE_PHP_EXT], [
     extname=$1
@@ -241,7 +228,7 @@ if test "$PHP_SWOOLE" != "no"; then
         [PHP_DEBUG=0]
     )
 
-    if test "$PHP_SWOOLE_DEBUG" != "no"; then
+    if test "$PHP_DEBUG_LOG" != "no"; then
         AC_DEFINE(SW_DEBUG, 1, [do we enable swoole debug])
         PHP_DEBUG=1
     fi
@@ -284,10 +271,6 @@ if test "$PHP_SWOOLE" != "no"; then
         AC_DEFINE(SW_USE_THREAD, 1, [enable thread support])
     fi
 
-    if test "$PHP_TIMEWHEEL" = "yes"; then
-        AC_DEFINE(SW_USE_TIMEWHEEL, 1, [enable timewheel support])
-    fi
-
     AC_SWOOLE_CPU_AFFINITY
     AC_SWOOLE_HAVE_REUSEPORT
     AC_SWOOLE_HAVE_FUTEX
@@ -295,14 +278,24 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_SWOOLE_HAVE_BOOST_CONTEXT
     AC_SWOOLE_HAVE_VALGRIND
 
+    AS_CASE([$host_os],
+      [darwin*], [SW_OS="MAC"],
+      [cygwin*], [SW_OS="CYGWIN"],
+      [mingw*], [SW_OS="MINGW"],
+      [linux*], [SW_OS="LINUX"],
+      []
+    )
+
     CFLAGS="-Wall -pthread $CFLAGS"
     LDFLAGS="$LDFLAGS -lpthread"
 
-    if test `uname` = "Darwin"; then
+    if test "$SW_OS" = 'MAC'; then
         AC_CHECK_LIB(c, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
     else
         AC_CHECK_LIB(rt, clock_gettime, AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [have clock_gettime]))
         PHP_ADD_LIBRARY(rt, 1, SWOOLE_SHARED_LIBADD)
+    fi
+    if test "$SW_OS" = 'LINUX'; then
         LDFLAGS="$LDFLAGS -z now"
     fi
 
@@ -325,7 +318,6 @@ if test "$PHP_SWOOLE" != "no"; then
         PHP_ADD_LIBRARY_WITH_PATH(phpx, "${PHP_PHPX_DIR}/${PHP_LIBDIR}")
         AC_DEFINE(SW_USE_PHPX, 1, [enable PHP-X support])
         PHP_ADD_LIBRARY(phpx, 1, SWOOLE_SHARED_LIBADD)
-        CXXFLAGS="$CXXFLAGS -std=c++11"
     fi
 
     if test "$PHP_JEMALLOC_DIR" != "no"; then
@@ -402,6 +394,11 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(pq, PQconnectdb, AC_DEFINE(HAVE_POSTGRESQL, 1, [have postgresql]))
     AC_CHECK_LIB(nghttp2, nghttp2_hd_inflate_new, AC_DEFINE(HAVE_NGHTTP2, 1, [have nghttp2]))
 
+    AC_CHECK_LIB(brotlienc, BrotliEncoderCreateInstance, [
+        AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli])
+        PHP_ADD_LIBRARY(brotlienc, 1, SWOOLE_SHARED_LIBADD)
+    ])
+
     AC_CHECK_LIB(z, gzgets, [
         AC_DEFINE(SW_HAVE_ZLIB, 1, [have zlib])
         PHP_ADD_LIBRARY(z, 1, SWOOLE_SHARED_LIBADD)
@@ -413,11 +410,11 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_atomic.c \
         swoole_lock.c \
         swoole_client.c \
-        swoole_client_coro.c \
+        swoole_client_coro.cc \
         swoole_coroutine.cc \
         swoole_coroutine_util.c \
         swoole_event.c \
-        swoole_socket_coro.c \
+        swoole_socket_coro.cc \
         swoole_timer.c \
         swoole_async.c \
         swoole_process.c \
@@ -426,14 +423,14 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_buffer.c \
         swoole_table.c \
         swoole_http_server.c \
-        swoole_http_v2_server.c \
+        swoole_http_v2_server.cc \
         swoole_http_v2_client.c \
         swoole_http_v2_client_coro.c \
         swoole_websocket_server.c \
         swoole_http_client.c \
-        swoole_http_client_coro.c \
+        swoole_http_client_coro.cc \
         swoole_mysql.c \
-        swoole_mysql_coro.c \
+        swoole_mysql_coro.cc \
         swoole_postgresql_coro.c \
         swoole_redis.c \
         swoole_redis_coro.c \
@@ -446,11 +443,13 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_trace.c \
         swoole_runtime.cc \
         swoole_memory_pool.c \
+        thirdparty/swoole_http_parser.c \
+        thirdparty/multipart_parser.c \
         src/core/base.c \
         src/core/log.c \
         src/core/hashmap.c \
-        src/core/RingQueue.c \
-        src/core/Channel.c \
+        src/core/ring_queue.c \
+        src/core/channel.c \
         src/core/string.c \
         src/core/array.c \
         src/core/socket.c \
@@ -461,68 +460,62 @@ if test "$PHP_SWOOLE" != "no"; then
         src/coroutine/boost.cc \
         src/coroutine/context.cc \
         src/coroutine/ucontext.cc \
-        src/memory/ShareMemory.c \
-        src/memory/MemoryGlobal.c \
-        src/memory/RingBuffer.c \
-        src/memory/FixedPool.c \
-        src/memory/Malloc.c \
-        src/memory/Table.c \
-        src/memory/Buffer.c \
-        src/factory/Factory.c \
-        src/factory/FactoryThread.c \
-        src/factory/FactoryProcess.c \
-        src/reactor/ReactorBase.c \
-        src/reactor/ReactorSelect.c \
-        src/reactor/ReactorPoll.c \
-        src/reactor/ReactorEpoll.c \
-        src/reactor/ReactorKqueue.c \
-        src/pipe/PipeBase.c \
-        src/pipe/PipeEventfd.c \
-        src/pipe/PipeUnsock.c \
-        src/lock/Semaphore.c \
-        src/lock/Mutex.c \
-        src/lock/RWLock.c \
-        src/lock/SpinLock.c \
-        src/lock/FileLock.c \
-        src/lock/Cond.c \
-        src/network/Server.c \
-        src/network/TaskWorker.c \
-        src/network/Client.c \
-        src/network/Connection.c \
-        src/network/ProcessPool.c \
-        src/network/ThreadPool.c \
-        src/network/ReactorThread.c \
-        src/network/ReactorProcess.c \
-        src/network/Manager.c \
-        src/network/Worker.c \
-        src/network/Timer.c \
-        src/network/Port.c \
-        src/network/DNS.c \
-        src/network/TimeWheel.c \
-        src/network/Stream.c \
+        src/coroutine/socket.cc \
+        src/coroutine/channel.cc \
+    	src/coroutine/hook.cc \
+        src/memory/shared_memory.c \
+        src/memory/global_memory.c \
+        src/memory/ring_buffer.c \
+        src/memory/fixed_pool.c \
+        src/memory/malloc.c \
+        src/memory/table.c \
+        src/memory/buffer.c \
+        src/factory/base.c \
+        src/factory/thread.c \
+        src/factory/process.c \
+        src/reactor/base.c \
+        src/reactor/select.c \
+        src/reactor/poll.c \
+        src/reactor/epoll.c \
+        src/reactor/kqueue.c \
+        src/pipe/base.c \
+        src/pipe/eventfd.c \
+        src/pipe/unix_socket.c \
+        src/lock/semaphore.c \
+        src/lock/mutex.c \
+        src/lock/rw_lock.c \
+        src/lock/spin_lock.c \
+        src/lock/file_lock.c \
+        src/lock/cond.c \
+        src/network/server.c \
+        src/network/task_worker.c \
+        src/network/client.c \
+        src/network/connection.c \
+        src/network/process_pool.c \
+        src/network/thread_pool.c \
+        src/network/reactor_thread.c \
+        src/network/reactor_process.c \
+        src/network/manager.c \
+        src/network/worker.c \
+        src/network/timer.c \
+        src/network/port.c \
+        src/network/dns.c \
+        src/network/stream.c \
         src/os/base.c \
         src/os/msg_queue.c \
         src/os/sendfile.c \
         src/os/signal.c \
         src/os/timer.c \
-        src/protocol/Base.c \
-        src/protocol/SSL.c \
-        src/protocol/Http.c \
-        src/protocol/Http2.c \
-        src/protocol/WebSocket.c \
-        src/protocol/Mqtt.c \
-        src/protocol/Socks5.c \
-        src/protocol/MimeTypes.c \
-        src/protocol/Redis.c \
-        src/protocol/Base64.c"
-
-    if test "$PHP_SWOOLE_STATIC" = "no"; then
-        swoole_source_file="$swoole_source_file thirdparty/php_http_parser.c"
-    else
-        CFLAGS="$CFLAGS -DSW_STATIC_COMPILATION"
-    fi
-
-    swoole_source_file="$swoole_source_file thirdparty/multipart_parser.c"
+        src/protocol/base.c \
+        src/protocol/ssl.c \
+        src/protocol/http.c \
+        src/protocol/http2.c \
+        src/protocol/websocket.c \
+        src/protocol/mqtt.c \
+        src/protocol/socks5.c \
+        src/protocol/mime_types.c \
+        src/protocol/redis.c \
+        src/protocol/base64.c"
 
     if test "$PHP_PICOHTTPPARSER" = "yes"; then
         AC_DEFINE(SW_USE_PICOHTTPPARSER, 1, [enable picohttpparser support])
@@ -537,17 +530,6 @@ if test "$PHP_SWOOLE" != "no"; then
       [x86*], [SW_CPU="x86"],
       [arm*], [SW_CPU="arm"],
       [arm64*], [SW_CPU="arm64"],
-      [
-        SW_NO_USE_ASM_CONTEXT="yes"
-        AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
-      ]
-    )
-
-    AS_CASE([$host_os],
-      [linux*], [SW_OS="LINUX"],
-      [darwin*], [SW_OS="MAC"],
-      [cygwin*], [SW_OS="WIN"],
-      [mingw*], [SW_OS="WIN"],
       [
         SW_NO_USE_ASM_CONTEXT="yes"
         AC_DEFINE([SW_NO_USE_ASM_CONTEXT], 1, [use boost asm context?])
@@ -615,6 +597,7 @@ if test "$PHP_SWOOLE" != "no"; then
 
     PHP_REQUIRE_CXX()
     PHP_ADD_LIBRARY(stdc++, 1, SWOOLE_SHARED_LIBADD)
+    CXXFLAGS="$CXXFLAGS -Wall -Wno-unused-function -Wno-deprecated -Wno-deprecated-declarations -std=c++11"
 
     if test "$PHP_PICOHTTPPARSER" = "yes"; then
         PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/picohttpparser])
