@@ -75,6 +75,19 @@ public:
         consumer_queue.remove(co);
     }
 
+    /**
+     * No coroutine scheduling
+     */
+    inline void* pop_data()
+    {
+        void *data = data_queue.front();
+        if (data)
+        {
+            data_queue.pop();
+        }
+        return data;
+    }
+
     inline coroutine_t* pop_coroutine(enum channel_op type)
     {
         coroutine_t* co;

@@ -109,8 +109,11 @@ static PHP_METHOD(swoole_channel_coro, __destruct)
     Channel *chan = (Channel *) swoole_get_object(getThis());
     while (chan->length() > 0)
     {
-        zval *data = (zval *) chan->pop();
-        sw_zval_free(data);
+        zval *data = (zval *) chan->pop_data();
+        if (data)
+        {
+            sw_zval_free(data);
+        }
     }
     delete chan;
     swoole_set_object(getThis(), NULL);
