@@ -96,16 +96,21 @@ static struct
         };
 
 static php_stream_wrapper ori_php_plain_files_wrapper;
+#if 0
 static php_stream_ops ori_php_stream_stdio_ops;
+#endif
 
+#if PHP_VERSION_ID < 70200
+typedef void (*zif_handler)(INTERNAL_FUNCTION_PARAMETERS);
+#endif
 static zend_function *ori_sleep;
-static void (*ori_sleep_handler)(INTERNAL_FUNCTION_PARAMETERS);
+static zif_handler ori_sleep_handler;
 static zend_function *ori_usleep;
-static void (*ori_usleep_handler)(INTERNAL_FUNCTION_PARAMETERS);
+static zif_handler ori_usleep_handler;
 static zend_function *ori_time_nanosleep;
-static void (*ori_time_nanosleep_handler)(INTERNAL_FUNCTION_PARAMETERS);
+static zif_handler ori_time_nanosleep_handler;
 static zend_function *ori_time_sleep_until;
-static void (*ori_time_sleep_until_handler)(INTERNAL_FUNCTION_PARAMETERS);
+static zif_handler ori_time_sleep_until_handler;
 
 extern "C"
 {
@@ -836,8 +841,10 @@ static PHP_METHOD(swoole_runtime, enableCoroutine)
         {
             memcpy((void*) &ori_php_plain_files_wrapper, &php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
             memcpy((void*) &php_plain_files_wrapper, &sw_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
+#if 0
             memcpy((void*) &ori_php_stream_stdio_ops, &php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
             memcpy((void*) &php_stream_stdio_ops, &sw_php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
+#endif
         }
         if (flags & SW_HOOK_SLEEP)
         {
@@ -908,7 +915,9 @@ static PHP_METHOD(swoole_runtime, enableCoroutine)
         if (hook_flags & SW_HOOK_FILE)
         {
             memcpy((void*) &php_plain_files_wrapper, &ori_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
+#if 0
             memcpy((void*) &php_stream_stdio_ops, &ori_php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
+#endif
         }
         if (hook_flags & SW_HOOK_SLEEP)
         {
