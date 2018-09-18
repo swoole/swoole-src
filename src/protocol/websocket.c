@@ -139,8 +139,10 @@ void swWebSocket_encode(swString *buffer, char *data, size_t length, char opcode
             char *_mask_data = SW_WEBSOCKET_MASK_DATA;
             swString_append_ptr(buffer, _mask_data, SW_WEBSOCKET_MASK_LEN);
 
-            char *_data = buffer->str + buffer->length;
+            size_t offset = buffer->length;
+            // Warn: buffer may be extended, string pointer will change
             swString_append_ptr(buffer, data, length);
+            char *_data = buffer->str + offset;
 
             int i;
             for (i = 0; i < length; i++)
