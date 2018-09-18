@@ -15,55 +15,61 @@ dnl  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
 dnl  +----------------------------------------------------------------------+
 
 PHP_ARG_ENABLE(debug-log, whether to enable debug log,
-[  --enable-debug-log   Enable swoole debug log], no, no)
+[  --enable-debug-log        Enable swoole debug log], no, no)
 
 PHP_ARG_ENABLE(trace-log, Whether to enable trace log,
-[  --enable-trace-log   Enable swoole trace log], no, no)
+[  --enable-trace-log        Enable swoole trace log], no, no)
 
 PHP_ARG_ENABLE(sockets, enable sockets support,
-[  --enable-sockets        Do you have sockets extension?], no, no)
+[  --enable-sockets          Do you have sockets extension?], no, no)
 
 PHP_ARG_ENABLE(async_redis, enable async_redis support,
-[  --enable-async-redis    Do you have hiredis?], no, no)
+[  --enable-async-redis      Do you have hiredis?], no, no)
+
+PHP_ARG_ENABLE(openssl, enable openssl support,
+[  --enable-openssl          Use openssl?], no, no)
+
+PHP_ARG_ENABLE(http2, enable http2.0 support,
+[  --enable-http2            Use http2.0?], no, no)
+
+PHP_ARG_ENABLE(swoole, swoole support,
+[  --enable-swoole           Enable swoole support], [enable_swoole="yes"])
+
+PHP_ARG_ENABLE(mysqlnd, enable mysqlnd support,
+[  --enable-mysqlnd          Do you have mysqlnd?], no, no)
 
 PHP_ARG_ENABLE(coroutine-postgresql, enable coroutine postgresql support,
 [  --enable-coroutine-postgresql    Do you install postgresql?], no, no)
 
-PHP_ARG_ENABLE(openssl, enable openssl support,
-[  --enable-openssl        Use openssl?], no, no)
-
-PHP_ARG_ENABLE(http2, enable http2.0 support,
-[  --enable-http2          Use http2.0?], no, no)
-
-PHP_ARG_ENABLE(thread, enable thread support,
-[  --enable-thread         Experimental: Use thread?], no, no)
-
-PHP_ARG_ENABLE(hugepage, enable hugepage support,
-[  --enable-hugepage       Experimental: Use hugepage?], no, no)
-
-PHP_ARG_ENABLE(swoole, swoole support,
-[  --enable-swoole         Enable swoole support], [enable_swoole="yes"])
-
-PHP_ARG_WITH(libpq_dir, for libpq support,
-[  --with-libpq-dir[=DIR]    Include libpq support (requires libpq >= 9.5)], no, no)
-
-PHP_ARG_WITH(openssl_dir, for OpenSSL support,
+PHP_ARG_WITH(openssl_dir, dir of openssl,
 [  --with-openssl-dir[=DIR]    Include OpenSSL support (requires OpenSSL >= 0.9.6)], no, no)
 
-PHP_ARG_WITH(phpx_dir, for PHP-X support,
-[  --with-phpx-dir[=DIR]    Include PHP-X support], no, no)
+PHP_ARG_WITH(hiredis_dir, dir of hiredis,
+[  --with-hiredis-dir[=DIR]    Include hiredis support], no, no)
 
-PHP_ARG_WITH(jemalloc_dir, for jemalloc support,
-[  --with-jemalloc-dir[=DIR]    Include jemalloc support], no, no)
+PHP_ARG_WITH(nghttp2_dir, dir of nghttp2,
+[  --with-nghttp2-dir[=DIR]    Include nghttp2 support], no, no)
 
-PHP_ARG_ENABLE(mysqlnd, enable mysqlnd support,
-[  --enable-mysqlnd       Do you have mysqlnd?], no, no)
+PHP_ARG_WITH(phpx_dir, dir of php-x,
+[  --with-phpx-dir[=DIR]       Include PHP-X support], no, no)
+
+PHP_ARG_WITH(jemalloc_dir, dir of jemalloc,
+[  --with-jemalloc-dir[=DIR]   Include jemalloc support], no, no)
+
+PHP_ARG_WITH(libpq_dir, dir of libpq,
+[  --with-libpq-dir[=DIR]      Include libpq support (requires libpq >= 9.5)], no, no)
+
+PHP_ARG_ENABLE(thread, enable thread support,
+[  --enable-thread           Experimental: Use thread?], no, no)
+
+PHP_ARG_ENABLE(hugepage, enable hugepage support,
+[  --enable-hugepage         Experimental: Use hugepage?], no, no)
 
 PHP_ARG_ENABLE(asan, whether to enable asan,
-[  --enable-asan      Enable asan], no, no)
+[  --enable-asan             Enable asan], no, no)
 
 PHP_ARG_ENABLE(picohttpparser, enable picohttpparser support,
-[  --enable-picohttpparser     Experimental: Do you have picohttpparser?], no, no)
+[  --enable-picohttpparser   Experimental: Do you have picohttpparser?], no, no)
 
 AC_DEFUN([SWOOLE_HAVE_PHP_EXT], [
     extname=$1
@@ -223,7 +229,7 @@ if test "$PHP_SWOOLE" != "no"; then
     PHP_SUBST(SWOOLE_SHARED_LIBADD)
 
     AC_ARG_ENABLE(debug,
-        [--enable-debug,  compile with debug symbols],
+        [  --enable-debug,         compile with debug symbols],
         [PHP_DEBUG=$enableval],
         [PHP_DEBUG=0]
     )
@@ -257,10 +263,6 @@ if test "$PHP_SWOOLE" != "no"; then
         AC_DEFINE(HAVE_SOCKETS, 1, [whether sockets extension is enabled])
 
         PHP_ADD_EXTENSION_DEP(swoole, sockets, true)
-    fi
-
-    if test "$PHP_HTTP2" = "yes"; then
-        AC_DEFINE(SW_USE_HTTP2, 1, [enable http2.0 support])
     fi
 
     if test "$PHP_HUGEPAGE" = "yes"; then
@@ -329,9 +331,27 @@ if test "$PHP_SWOOLE" != "no"; then
 
     PHP_ADD_LIBRARY(pthread, 1, SWOOLE_SHARED_LIBADD)
 
-    if test "$PHP_ASYNC_REDIS" = "yes"; then
+    if test "$PHP_ASYNC_REDIS" = "yes" || test "$PHP_HIREDIS_DIR" != "no"; then
+	    if test "$PHP_HIREDIS_DIR" != "no"; then
+	        PHP_ADD_INCLUDE("${PHP_HIREDIS_DIR}/include")
+	        PHP_ADD_LIBRARY_WITH_PATH(hiredis, "${PHP_HIREDIS_DIR}/${PHP_LIBDIR}")
+	    fi
         AC_DEFINE(SW_USE_REDIS, 1, [enable async-redis support])
         PHP_ADD_LIBRARY(hiredis, 1, SWOOLE_SHARED_LIBADD)
+    fi
+    
+    if test "$PHP_HTTP2" = "yes" || test "$PHP_NGHTTP2_DIR" != "no"; then
+	    if test "$PHP_NGHTTP2_DIR" != "no"; then
+	        PHP_ADD_INCLUDE("${PHP_NGHTTP2_DIR}/include")
+	        PHP_ADD_LIBRARY_WITH_PATH(nghttp2, "${PHP_NGHTTP2_DIR}/${PHP_LIBDIR}")
+	    fi
+        AC_DEFINE(SW_USE_HTTP2, 1, [enable HTTP2 support])
+        PHP_ADD_LIBRARY(nghttp2, 1, SWOOLE_SHARED_LIBADD)
+    fi
+
+    if test "$PHP_MYSQLND" = "yes"; then
+        PHP_ADD_EXTENSION_DEP(mysqli, mysqlnd)
+        AC_DEFINE(SW_USE_MYSQLND, 1, [use mysqlnd])
     fi
 
     if test "$PHP_COROUTINE_POSTGRESQL" = "yes"; then
@@ -359,15 +379,6 @@ if test "$PHP_SWOOLE" != "no"; then
         if test -z "$PGSQL_INCLUDE"; then
            AC_MSG_ERROR(Cannot find libpq-fe.h. Please confirm the libpq or specify correct PostgreSQL(libpq) installation path)
         fi
-    fi
-
-    if test "$PHP_HTTP2" = "yes"; then
-        PHP_ADD_LIBRARY(nghttp2, 1, SWOOLE_SHARED_LIBADD)
-    fi
-
-    if test "$PHP_MYSQLND" = "yes"; then
-        PHP_ADD_EXTENSION_DEP(mysqli, mysqlnd)
-        AC_DEFINE(SW_USE_MYSQLND, 1, [use mysqlnd])
     fi
 
     AC_CHECK_LIB(c, accept4, AC_DEFINE(HAVE_ACCEPT4, 1, [have accept4]))
