@@ -9,7 +9,6 @@ int swoole_coroutine_mkdir(const char *pathname, mode_t mode);
 int swoole_coroutine_rmdir(const char *pathname);
 int swoole_coroutine_rename(const char *oldpath, const char *newpath);
 
-
 #define access(pathname, mode)             swoole_coroutine_access(pathname, mode)
 #define open(pathname, flags, mode)        swoole_coroutine_open(pathname, flags, mode)
 #define read(fd, buf, count)               swoole_coroutine_read(fd, buf, count)
@@ -20,3 +19,10 @@ int swoole_coroutine_rename(const char *oldpath, const char *newpath);
 #define mkdir(pathname, mode)              swoole_coroutine_mkdir(pathname, mode)
 #define rmdir(pathname)                    swoole_coroutine_rmdir(pathname)
 #define rename(oldpath, newpath)           swoole_coroutine_rename(oldpath, newpath)
+
+#if 0
+DIR *swoole_coroutine_opendir(const char *name);
+struct dirent *swoole_coroutine_readdir(DIR *dirp);
+#define opendir(name)                      swoole_coroutine_opendir(name)
+#define readdir(dir)                       swoole_coroutine_readdir(dir)
+#endif

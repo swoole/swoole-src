@@ -21,6 +21,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/poll.h>
+#include <dirent.h>
 #include <string>
 #include <iostream>
 
@@ -543,5 +544,68 @@ int swoole_coroutine_sleep(double sec)
     return 0;
 }
 
+#if 0
+static void handler_opendir(swAio_event *event)
+{
+    swAio_event *req = (swAio_event *) event->object;
+    req->buf = opendir((const char*) event->buf);
+    event->error = errno;
+}
+
+static void handler_readdir(swAio_event *event)
+{
+    swAio_event *req = (swAio_event *) event->object;
+    req->buf = (void*) opendir((const char*) event->buf);
+    event->error = errno;
+}
+
+DIR *swoole_coroutine_opendir(const char *name)
+{
+    if (SwooleG.main_reactor == nullptr || coroutine_get_current_cid() == -1)
+    {
+        return opendir(name);
+    }
+
+    swAio_event ev;
+    bzero(&ev, sizeof(ev));
+    ev.buf = (void*) name;
+    ev.handler = handler_opendir;
+    ev.callback = aio_onCompleted;
+    ev.object = coroutine_get_current();
+    ev.req = &ev;
+
+    int ret = swAio_dispatch(&ev);
+    if (ret < 0)
+    {
+        return nullptr;
+    }
+    coroutine_yield((coroutine_t *) ev.object);
+    return (DIR*) ev.buf;
+}
+
+struct dirent *swoole_coroutine_readdir(DIR *dirp)
+{
+    if (SwooleG.main_reactor == nullptr || coroutine_get_current_cid() == -1)
+    {
+        return readdir(dirp);
+    }
+
+    swAio_event ev;
+    bzero(&ev, sizeof(ev));
+    ev.buf = (void*) dirp;
+    ev.handler = handler_readdir;
+    ev.callback = aio_onCompleted;
+    ev.object = coroutine_get_current();
+    ev.req = &ev;
+
+    int ret = swAio_dispatch(&ev);
+    if (ret < 0)
+    {
+        return nullptr;
+    }
+    coroutine_yield((coroutine_t *) ev.object);
+    return (struct dirent *) ev.buf;
+}
+#endif
 }
 

@@ -96,7 +96,9 @@ static struct
         };
 
 static php_stream_wrapper ori_php_plain_files_wrapper;
+#if 0
 static php_stream_ops ori_php_stream_stdio_ops;
+#endif
 
 static zend_function *ori_sleep;
 static void (*ori_sleep_handler)(INTERNAL_FUNCTION_PARAMETERS);
@@ -836,8 +838,10 @@ static PHP_METHOD(swoole_runtime, enableCoroutine)
         {
             memcpy((void*) &ori_php_plain_files_wrapper, &php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
             memcpy((void*) &php_plain_files_wrapper, &sw_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
+#if 0
             memcpy((void*) &ori_php_stream_stdio_ops, &php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
             memcpy((void*) &php_stream_stdio_ops, &sw_php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
+#endif
         }
         if (flags & SW_HOOK_SLEEP)
         {
@@ -908,7 +912,9 @@ static PHP_METHOD(swoole_runtime, enableCoroutine)
         if (hook_flags & SW_HOOK_FILE)
         {
             memcpy((void*) &php_plain_files_wrapper, &ori_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
+#if 0
             memcpy((void*) &php_stream_stdio_ops, &ori_php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
+#endif
         }
         if (hook_flags & SW_HOOK_SLEEP)
         {
