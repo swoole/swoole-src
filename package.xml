@@ -35,10 +35,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2018-09-05</date>
-    <time>12:30:00</time>
+    <date>2018-09-18</date>
+    <time>19:30:00</time>
     <version>
-        <release>4.1.2</release>
+        <release>4.2.0</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -47,13 +47,26 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        + Add `socket_hook`
-        * Fix bugs in nested coroutines
-        * Fixed variable reference count problem when `exit` in the coroutine
-        * Coroutine MySQL`query`, `prepare`, `execute` does not time out by default, conforms to the documentation API description
-        * The MySQL transaction operation of the coroutine is forbidden to use the defer mode, and the developer needs to use it explicitly. The concurrent open transaction can be replaced by `query`.
-        * Fix the problem of mmap `MAP_FAILED` return value detection
-        + Add PECL package verification
+        + Add new coroutine hooks, `tcp`, `udp`, `ssl`, `tls`, `sleep`, `usleep`, and file read and write, `mkdir`...etc, be async automatically
+        + New ability of the server/client to send the `swoole_websocket_frame` object directly, support any type of `frame` construction, send and receive, support `__toString`
+        + Better `AIO`
+        + Add the `Process\Pool::getProcess` method
+        + Support `--with-hiredis-dir`, `--with-nghttp2-dir` compiling parameters
+        * Enhanced `send_yield`, automatic retry within the timeout
+        * Enhanced timer round detection, repaired millisecond-level ultra-short timer execution error
+        * Enable `TCP_NODELAY` by default, turn off `Nagle algorithm`, reduce latency
+        * More standardized PECL package
+        * Re-support the sending of HTTP-header with custom `content-length` of 0
+        * Fixed an issue that can not access the Private/Protect properties in the class after coroutine yield caused by `EG(scope)` not switched in PHP7.0.x
+        * Fixed the error opcode and finish status in `websocket_server`
+        * Fixed the `async_dns_lookup` bug
+        * Completed the code about `channel.c` overflow space handling
+        * Fixed the bug of `channel->close`
+        * Fixed the bug of coroutine `socket->recv_package`
+        * Repair MySQL Statement->execute does not support null parameters
+        * Support for identifying `form-data` encoding with a semicolon-separated `boundary`
+        * Add many high-quality unit tests, greater stability
+        - Remove useless time wheel algorithm
     </notes>
     <contents>
         <dir name="/">
@@ -1212,7 +1225,7 @@
     </dependencies>
     <providesextension>swoole</providesextension>
     <extsrcrelease>
-        <configureoption default="no" name="enable-swoole-debug" prompt="enable debug/trace log support?" />
+        <configureoption default="no" name="enable-debug-log" prompt="enable debug/trace log support?" />
         <configureoption default="no" name="enable-sockets" prompt="enable sockets supports?" />
         <configureoption default="no" name="enable-openssl" prompt="enable openssl support?" />
         <configureoption default="no" name="enable-http2" prompt="enable http2 support?" />
