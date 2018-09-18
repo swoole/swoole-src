@@ -84,7 +84,7 @@ void* Channel::pop(double timeout)
 {
     if (closed)
     {
-        return false;
+        return nullptr;
     }
     timeout_msg_t msg;
     msg.error = false;
