@@ -51,6 +51,7 @@ for ($i = 0; $i < count($exit_status_list); $i++) {
             $exit_status = array_shift($exit_status_list_copy);
             $exit_status = $exit_status === 'undef' ? null : $exit_status;
             assert($e->getStatus() === $exit_status);
+            var_dump($e->getStatus());
             // exit coroutine
             return;
         }
@@ -59,4 +60,18 @@ for ($i = 0; $i < count($exit_status_list); $i++) {
 }
 
 ?>
---EXPECT--
+--EXPECTF--
+NULL
+NULL
+int(1)
+float(1.1)
+string(4) "exit"
+array(1) {
+  ["exit"]=>
+  string(2) "ok"
+}
+object(stdClass)#1 (1) {
+  ["exit"]=>
+  string(2) "ok"
+}
+resource%s
