@@ -82,6 +82,10 @@ void Channel::notify(enum channel_op type)
 
 void* Channel::pop(double timeout)
 {
+    if (closed)
+    {
+        return false;
+    }
     timeout_msg_t msg;
     msg.error = false;
     if (timeout > 0)
@@ -103,13 +107,13 @@ void* Channel::pop(double timeout)
     {
         yield(CONSUMER);
     }
-    if (msg.error)
-    {
-        return nullptr;
-    }
     if (msg.timer)
     {
         swTimer_del(&SwooleG.timer, msg.timer);
+    }
+    if (msg.error || closed)
+    {
+        return nullptr;
     }
     /**
      * pop data
@@ -128,9 +132,17 @@ void* Channel::pop(double timeout)
 
 bool Channel::push(void *data)
 {
+    if (closed)
+    {
+        return false;
+    }
     if (is_full() || producer_queue.size() > 0)
     {
         yield(PRODUCER);
+    }
+    if (closed)
+    {
+        return false;
     }
     /**
      * push data
