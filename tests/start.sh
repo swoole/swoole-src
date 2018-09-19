@@ -8,7 +8,9 @@ clear_php()
 }
 
 clear_php
-export TEST_PHP_EXECUTABLE=`which php`
+if [ -z "${TEST_PHP_EXECUTABLE}" ]; then
+    export TEST_PHP_EXECUTABLE=`which php`
+fi
 glob='swoole_*'
 [ -z "$1" ] || glob="$@"
 ${TEST_PHP_EXECUTABLE} -d "memory_limit=1024m" ${__DIR__}/run-tests ${glob}

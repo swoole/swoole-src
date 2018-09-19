@@ -274,6 +274,9 @@ void swoole_coroutine_util_init(int module_number TSRMLS_DC)
     }
     defer_coros = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
 
+    SWOOLE_DEFINE(DEFAULT_MAX_CORO_NUM);
+    SWOOLE_DEFINE(MAX_CORO_NUM_LIMIT);
+
     //prohibit exit in coroutine
     INIT_CLASS_ENTRY(swoole_exit_exception_ce, "Swoole\\ExitException", swoole_exit_exception_methods);
     swoole_exit_exception_class_entry_ptr = zend_register_internal_class_ex(&swoole_exit_exception_ce, zend_exception_get_default());
