@@ -114,7 +114,6 @@ static zif_handler ori_time_sleep_until_handler;
 
 extern "C"
 {
-#include "zend_virtual_cwd.h"
 #include "ext/standard/file.h"
 #include "thirdparty/plain_wrapper.c"
 }

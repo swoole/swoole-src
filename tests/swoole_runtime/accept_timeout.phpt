@@ -3,9 +3,6 @@ swoole_runtime: accept timeout
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
-if (!defined("SWOOLE_SSL")) {
-    echo "skip";
-}
 ?>
 --FILE--
 <?php

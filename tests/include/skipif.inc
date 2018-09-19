@@ -26,17 +26,24 @@ function skip(string $reason, bool $is_skip = true, int $color = SWOOLE_COLOR_YE
     }
 }
 
+function skip_if_no_ssl()
+{
+    if (!defined("SWOOLE_SSL")) {
+        skip('no ssl');
+    }
+}
+
 function skip_if_darwin()
 {
     if (PHP_OS == 'Darwin') {
-        exit("skip for Darwin");
+        skip("no darwin");
     }
 }
 
 function skip_if_no_process_affinity()
 {
     if (!method_exists(swoole_process::class, 'setaffinity')) {
-        exit('skip no process affinity');
+        skip('no process affinity');
     }
 }
 

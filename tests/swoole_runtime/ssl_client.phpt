@@ -3,9 +3,7 @@ swoole_runtime: ssl client
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
-if (!defined("SWOOLE_SSL")) {
-    echo "skip";
-}
+skip_if_no_ssl();
 ?>
 --FILE--
 <?php
