@@ -17,7 +17,7 @@ go(function () {
     }
 });
     echo "end\n";
-    
+
 ?>
 --EXPECT--
 start

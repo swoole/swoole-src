@@ -8,12 +8,12 @@ require_once __DIR__ . '/../include/bootstrap.php';
 
 $c1 = new chan();
 
-go(function () use ($c1) {    
-    $ret = $c1->pop(0.5);   
+go(function () use ($c1) {
+    $ret = $c1->pop(0.5);
     echo "pop ret:".var_export($ret,1)." error:".$c1->errCode."\n";
-    
-    $ret = $c1->pop(1);   
-    echo "pop ret:".var_export($ret,1)."\n";    
+
+    $ret = $c1->pop(1);
+    echo "pop ret:".var_export($ret,1)."\n";
 
 });
 

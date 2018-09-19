@@ -1,6 +1,6 @@
 <?php
 
-echo "start \n"; 
+echo "start \n";
 go(function ()  {
     $conn = new Swoole\Coroutine\Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
     $ret = $conn->connect('127.0.0.1', 9601);

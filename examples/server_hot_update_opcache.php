@@ -64,16 +64,16 @@ function my_onWorkerStop($serv, $worker_id)
 function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
 {
 	$cmd = trim($data);
-    if($cmd == "reload") 
+    if($cmd == "reload")
     {
 		$serv->reload($serv);
 	}
-	elseif($cmd == "task") 
+	elseif($cmd == "task")
     {
 		$task_id = $serv->task("hello world", 0);
 		echo "Dispath AsyncTask: id=$task_id\n";
 	}
-	elseif($cmd == "info") 
+	elseif($cmd == "info")
     {
 		$info = $serv->connection_info($fd);
 		$serv->send($fd, 'Info: '.var_export($info, true).PHP_EOL);
@@ -101,11 +101,11 @@ function my_onReceive(swoole_server $serv, $fd, $from_id, $data)
     {
         hello_no_exists();
     }
-	elseif($cmd == "shutdown") 
+	elseif($cmd == "shutdown")
     {
 		$serv->shutdown();
 	}
-	else 
+	else
 	{
         global $class;
         $data .= $class->getData();

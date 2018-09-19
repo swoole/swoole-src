@@ -24,7 +24,7 @@ $serv->on('Receive', function(swoole_server $serv, $fd, $from_id, $data) {
 	else
     {
         $res = $serv->taskwait($data, 10);
-        echo "Dispath SyncTask: result=".$res.PHP_EOL;       
+        echo "Dispath SyncTask: result=".$res.PHP_EOL;
     }
     //$serv->send($fd, "OK\n");
 });

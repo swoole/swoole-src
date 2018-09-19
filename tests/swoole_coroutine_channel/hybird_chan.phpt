@@ -1,7 +1,7 @@
 --TEST--
 swoole_coroutine_channel: hybird channel
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; 
+<?php require __DIR__ . '/../include/skipif.inc';
 exit("skip for select");
 ?>
 --FILE--
@@ -16,9 +16,9 @@ go(function () use ($c2,$num) {
     {
         $ret = $c2->push("chan2-$i");
         echo "chan 2 push [#$i] ret:".var_export($ret,1)."\n";
-    }  
+    }
 });
-go(function () use ($c1,$num) {  
+go(function () use ($c1,$num) {
     $read_list = [$c1];
     $write_list = null;
     $result = chan::select($read_list, $write_list, 2);
@@ -35,7 +35,7 @@ go(function () use ($c1,$num) {
         }
     }
 });
-    
+
 go(function () use ($c1,$num) {
     echo "chan1 push start\n";
     for ($i=0;$i<$num;$i++)
@@ -48,7 +48,7 @@ go(function () use ($c1,$num) {
         $ret = $c1->push("chan1-$i");
         echo "chan1 push [#$i] ret:".var_export($ret,1)."\n";
     }
-    
+
 });
 
 go(function () use ($c2,$num) {
@@ -57,7 +57,7 @@ go(function () use ($c2,$num) {
     {
         $ret = $c2->pop();
         echo "chan2 pop [#$i] ret:".var_export($ret,1)."\n";
-    }    
+    }
 });
 echo "main end\n";
 ?>
