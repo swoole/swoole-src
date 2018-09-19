@@ -1098,16 +1098,16 @@ static int php_plain_files_url_stater(php_stream_wrapper *wrapper, const char *u
 
 #ifdef PHP_WIN32
 	if (flags & PHP_STREAM_URL_STAT_LINK) {
-		return VCWD_LSTAT(url, &ssb->sb);
+		return lstat(url, &ssb->sb);
 	}
 #else
 # ifdef HAVE_SYMLINK
 	if (flags & PHP_STREAM_URL_STAT_LINK) {
-		return VCWD_LSTAT(url, &ssb->sb);
+		return lstat(url, &ssb->sb);
 	} else
 # endif
 #endif
-		return VCWD_STAT(url, &ssb->sb);
+		return stat(url, &ssb->sb);
 }
 
 static int php_plain_files_unlink(php_stream_wrapper *wrapper, const char *url, int options, php_stream_context *context)
@@ -1175,28 +1175,28 @@ static int php_plain_files_rename(php_stream_wrapper *wrapper, const char *url_f
 		if (errno == EXDEV) {
 			zend_stat_t sb;
 			if (php_copy_file(url_from, url_to) == SUCCESS) {
-				if (VCWD_STAT(url_from, &sb) == 0) {
+				if (stat(url_from, &sb) == 0) {
 #  if !defined(TSRM_WIN32) && !defined(NETWARE)
-					if (VCWD_CHMOD(url_to, sb.st_mode)) {
+					if (chmod(url_to, sb.st_mode)) {
 						if (errno == EPERM) {
 							php_error_docref2(NULL, url_from, url_to, E_WARNING, "%s", strerror(errno));
-							VCWD_UNLINK(url_from);
+							unlink(url_from);
 							return 1;
 						}
 						php_error_docref2(NULL, url_from, url_to, E_WARNING, "%s", strerror(errno));
 						return 0;
 					}
-					if (VCWD_CHOWN(url_to, sb.st_uid, sb.st_gid)) {
+					if (chown(url_to, sb.st_uid, sb.st_gid)) {
 						if (errno == EPERM) {
 							php_error_docref2(NULL, url_from, url_to, E_WARNING, "%s", strerror(errno));
-							VCWD_UNLINK(url_from);
+							unlink(url_from);
 							return 1;
 						}
 						php_error_docref2(NULL, url_from, url_to, E_WARNING, "%s", strerror(errno));
 						return 0;
 					}
 #  endif
-					VCWD_UNLINK(url_from);
+					unlink(url_from);
 					return 1;
 				}
 			}
@@ -1264,7 +1264,7 @@ static int php_plain_files_mkdir(php_stream_wrapper *wrapper, const char *dir, i
 					--p;
 					*p = '\0';
 				}
-				if (VCWD_STAT(buf, &sb) == 0) {
+				if (stat(buf, &sb) == 0) {
 					while (1) {
 						*p = DEFAULT_SLASH;
 						if (!n) break;
@@ -1323,7 +1323,7 @@ static int php_plain_files_rmdir(php_stream_wrapper *wrapper, const char *url, i
 	}
 #endif
 
-	if (VCWD_RMDIR(url) < 0) {
+	if (rmdir(url) < 0) {
 		php_error_docref1(NULL, url, E_WARNING, "%s", strerror(errno));
 		return 0;
 	}
