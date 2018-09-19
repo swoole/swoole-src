@@ -144,7 +144,7 @@ static void php_swoole_websocket_construct_frame(zval *zframe, zend_long opcode,
     zend_update_property_long(swoole_websocket_frame_class_entry_ptr, zframe, ZEND_STRL("opcode"), opcode TSRMLS_CC);
 }
 
-void sw_inline php_swoole_websocket_frame_unpack(swString *data, zval *zframe TSRMLS_DC)
+void php_swoole_websocket_frame_unpack(swString *data, zval *zframe TSRMLS_DC)
 {
     swWebSocket_frame frame;
 
@@ -158,7 +158,7 @@ void sw_inline php_swoole_websocket_frame_unpack(swString *data, zval *zframe TS
     php_swoole_websocket_construct_frame(zframe, frame.header.OPCODE, frame.payload, frame.payload_length, frame.header.FIN);
 }
 
-int sw_inline php_swoole_websocket_frame_pack(swString *buffer, zval *zdata, zend_bool opcode, zend_bool fin, zend_bool mask)
+int php_swoole_websocket_frame_pack(swString *buffer, zval *zdata, zend_bool opcode, zend_bool fin, zend_bool mask)
 {
     char *data = NULL;
     size_t length = 0;
