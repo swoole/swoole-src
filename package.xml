@@ -35,10 +35,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2018-09-18</date>
-    <time>19:30:00</time>
+    <date>2018-09-19</date>
+    <time>12:00:00</time>
     <version>
-        <release>4.2.0</release>
+        <release>4.2.1</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -47,26 +47,12 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        + Add new coroutine hooks, `tcp`, `udp`, `ssl`, `tls`, `sleep`, `usleep`, and file read and write, `mkdir`...etc, be async automatically
-        + New ability of the server/client to send the `swoole_websocket_frame` object directly, support any type of `frame` construction, send and receive, support `__toString`
-        + Better `AIO`
-        + Add the `Process\Pool::getProcess` method
-        + Support `--with-hiredis-dir`, `--with-nghttp2-dir` compiling parameters
-        * Enhanced `send_yield`, automatic retry within the timeout
-        * Enhanced timer round detection, repaired millisecond-level ultra-short timer execution error
-        * Enable `TCP_NODELAY` by default, turn off `Nagle algorithm`, reduce latency
-        * More standardized PECL package
-        * Re-support the sending of HTTP-header with custom `content-length` of 0
-        * Fixed an issue that can not access the Private/Protect properties in the class after coroutine yield caused by `EG(scope)` not switched in PHP7.0.x
-        * Fixed the error opcode and finish status in `websocket_server`
-        * Fixed the `async_dns_lookup` bug
-        * Completed the code about `channel.c` overflow space handling
-        * Fixed the bug of `channel->close`
-        * Fixed the bug of coroutine `socket->recv_package`
-        * Repair MySQL Statement->execute does not support null parameters
-        * Support for identifying `form-data` encoding with a semicolon-separated `boundary`
-        * Add many high-quality unit tests, greater stability
-        - Remove useless time wheel algorithm
+        + This version is based on the previous version and made some fixes.
+        * Fixed compilation failure caused by no time_nanosleep in some environments
+        * Fixed loading error in PHP-ZTS version
+        * Fixed the Bad file descriptor error when using coroutine in dispatch mode 7
+        * Fixed exit interceptor does not work
+        * Fixed too long domain name DNS buffer overflow in client
     </notes>
     <contents>
         <dir name="/">
@@ -902,6 +888,7 @@
             <file role="test" name="tests/swoole_http_client_coro/head_method.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/http_proxy.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/https.phpt" />
+            <file role="test" name="tests/swoole_http_client_coro/long_domain.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/multi.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/multi_and_reuse.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/timeout_before_connect.phpt" />
