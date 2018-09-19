@@ -822,11 +822,7 @@ void Socket::yield(int operation)
     if (_timeout > 0)
     {
         int ms = (int) (_timeout * 1000);
-        if (SwooleG.timer.fd == 0)
-        {
-            swTimer_init(ms);
-        }
-        timer = SwooleG.timer.add(&SwooleG.timer, ms, 0, this, socket_onTimeout);
+        timer = swTimer_add(&SwooleG.timer, ms, 0, this, socket_onTimeout);
         if (operation == SOCKET_LOCK_READ)
         {
             timer->type = SW_TIMER_TYPE_CORO_READ;

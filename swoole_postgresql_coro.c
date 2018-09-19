@@ -210,8 +210,7 @@ static PHP_METHOD(swoole_postgresql_coro, connect)
 
     if (pg_object->timeout > 0)
     {
-        php_swoole_check_timer((int) (pg_object->timeout * 1000));
-        pg_object->timer = SwooleG.timer.add(&SwooleG.timer, (int) (pg_object->timeout * 1000), 0, sw_current_context, swoole_pgsql_coro_onTimeout);
+        pg_object->timer = swTimer_add(&SwooleG.timer, (int) (pg_object->timeout * 1000), 0, sw_current_context, swoole_pgsql_coro_onTimeout);
     }
     coro_save(sw_current_context);
     coro_yield();
@@ -532,8 +531,7 @@ static PHP_METHOD(swoole_postgresql_coro, query)
     /*
         if (pg_object->timeout > 0)
         {
-            php_swoole_check_timer((int) (ph_object->timeout * 1000));
-            pg_object->timer = SwooleG.timer.add(&SwooleG.timer, (int) (pg_object->timeout * 1000), 0, sw_current_context, swoole_pgsql_coro_onTimeout);
+            pg_object->timer = swTimer_add(&SwooleG.timer, (int) (pg_object->timeout * 1000), 0, sw_current_context, swoole_pgsql_coro_onTimeout);
         }*/
     coro_save(sw_current_context);
     coro_yield();
@@ -771,8 +769,7 @@ static PHP_METHOD(swoole_postgresql_coro,metaData)
         /*
             if (pg_object->timeout > 0)
             {
-                php_swoole_check_timer((int) (pg_object->timeout * 1000));
-                pg_object->timer = SwooleG.timer.add(&SwooleG.timer, (int) (pg_object->timeout * 1000), 0, sw_current_context, swoole_pg_object_coro_onTimeout);
+                pg_object->timer = swTimer_add(&SwooleG.timer, (int) (pg_object->timeout * 1000), 0, sw_current_context, swoole_pg_object_coro_onTimeout);
             }*/
     coro_save(sw_current_context);
     coro_yield();

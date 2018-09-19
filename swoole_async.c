@@ -1317,8 +1317,7 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro)
         SW_CHECK_RETURN(ret);
     }
     //add timeout
-    php_swoole_check_timer(timeout);
-    req->timer = SwooleG.timer.add(&SwooleG.timer, (int) (timeout * 1000), 0, sw_current_context, php_swoole_dns_timeout_coro);
+    req->timer = swTimer_add(&SwooleG.timer, (int) (timeout * 1000), 0, sw_current_context, php_swoole_dns_timeout_coro);
     if (req->timer)
     {
         sw_current_context->state = SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST;

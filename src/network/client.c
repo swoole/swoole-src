@@ -752,11 +752,7 @@ static int swClient_tcp_connect_async(swClient *cli, char *host, int port, doubl
         }
         if (timeout > 0)
         {
-            if (SwooleG.timer.fd == 0)
-            {
-                swTimer_init((int) (timeout * 1000));
-            }
-            cli->timer = SwooleG.timer.add(&SwooleG.timer, (int) (timeout * 1000), 0, cli, swClient_onTimeout);
+            cli->timer = swTimer_add(&SwooleG.timer, (int) (timeout * 1000), 0, cli, swClient_onTimeout);
         }
         return SW_OK;
     }

@@ -123,11 +123,7 @@ static int swReactor_defer(swReactor *reactor, swCallback callback, void *data)
     cb->data = data;
     if (unlikely(reactor->start == 0))
     {
-        if (unlikely(SwooleG.timer.fd == 0))
-        {
-            swTimer_init(1);
-        }
-        SwooleG.timer.add(&SwooleG.timer, 1, 0, cb, swReactor_defer_timer_callback);
+        swTimer_add(&SwooleG.timer, 1, 0, cb, swReactor_defer_timer_callback);
     }
     else
     {

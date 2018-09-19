@@ -531,7 +531,6 @@ static PHP_METHOD(swoole_coroutine_util, sleep)
     }
 
     php_swoole_check_reactor();
-    php_swoole_check_timer(ms);
 
     swoole_coroutine_sleep(seconds);
     RETURN_TRUE;

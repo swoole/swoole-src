@@ -366,16 +366,9 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     swReactorThread_set_protocol(serv, reactor);
 
     /**
-     * init timer
-     */
-    if (swTimer_init(1000) < 0)
-    {
-        return SW_ERR;
-    }
-    /**
      * 1 second timer, update serv->gs->now
      */
-    if (SwooleG.timer.add(&SwooleG.timer, 1000, 1, serv, swServer_master_onTimer) == NULL)
+    if (swTimer_add(&SwooleG.timer, 1000, 1, serv, swServer_master_onTimer) == NULL)
     {
         return SW_ERR;
     }
@@ -401,7 +394,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
      */
     if (serv->heartbeat_check_interval > 0)
     {
-        if (SwooleG.timer.add(&SwooleG.timer, serv->heartbeat_check_interval * 1000, 1, reactor, swReactorProcess_onTimeout) == NULL)
+        if (swTimer_add(&SwooleG.timer, serv->heartbeat_check_interval * 1000, 1, reactor, swReactorProcess_onTimeout) == NULL)
         {
             return SW_ERR;
         }

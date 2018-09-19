@@ -18,7 +18,6 @@
 
 static int swReactorTimer_init(long msec);
 static int swReactorTimer_set(swTimer *timer, long exec_msec);
-static swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *data, swTimerCallback callback);
 
 int swTimer_now(struct timeval *time)
 {
@@ -53,7 +52,7 @@ static sw_inline int64_t swTimer_get_relative_msec()
     return msec1 + msec2;
 }
 
-int swTimer_init(long msec)
+static int swTimer_init(long msec)
 {
     if (swTimer_now(&SwooleG.timer.basetime) < 0)
     {
@@ -77,7 +76,6 @@ int swTimer_init(long msec)
     SwooleG.timer._current_id = -1;
     SwooleG.timer._next_msec = msec;
     SwooleG.timer._next_id = 1;
-    SwooleG.timer.add = swTimer_add;
     SwooleG.timer.round = 0;
 
     if (swIsTaskWorker())
@@ -115,8 +113,13 @@ static int swReactorTimer_set(swTimer *timer, long exec_msec)
     return SW_OK;
 }
 
-static swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *data, swTimerCallback callback)
+swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *data, swTimerCallback callback)
 {
+    if (unlikely(SwooleG.timer.fd == 0))
+    {
+        swTimer_init(_msec);
+    }
+
     swTimer_node *tnode = sw_malloc(sizeof(swTimer_node));
     if (!tnode)
     {

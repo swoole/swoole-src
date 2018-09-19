@@ -434,7 +434,6 @@ void php_swoole_check_aio();
 void php_swoole_at_shutdown(char *function);
 void php_swoole_event_init();
 void php_swoole_event_wait();
-void php_swoole_check_timer(int interval);
 long php_swoole_add_timer(int ms, zval *callback, zval *param, int persistent TSRMLS_DC);
 void php_swoole_clear_all_timer();
 void php_swoole_register_callback(swServer *serv);

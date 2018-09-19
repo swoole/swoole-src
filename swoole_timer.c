@@ -95,7 +95,6 @@ long php_swoole_add_timer(int ms, zval *callback, zval *param, int persistent TS
         php_swoole_check_reactor();
     }
 
-    php_swoole_check_timer(ms);
     swTimer_callback *cb = emalloc(sizeof(swTimer_callback));
 
     cb->data = &cb->_data;
@@ -138,7 +137,7 @@ long php_swoole_add_timer(int ms, zval *callback, zval *param, int persistent TS
         sw_zval_add_ref(&cb->data);
     }
 
-    swTimer_node *tnode = SwooleG.timer.add(&SwooleG.timer, ms, persistent, cb, timer_func);
+    swTimer_node *tnode = swTimer_add(&SwooleG.timer, ms, persistent, cb, timer_func);
     if (tnode == NULL)
     {
         swoole_php_fatal_error(E_WARNING, "add timer failed.");
@@ -296,14 +295,6 @@ void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode)
     if (tnode->remove)
     {
         php_swoole_del_timer(tnode TSRMLS_CC);
-    }
-}
-
-void php_swoole_check_timer(int msec)
-{
-    if (unlikely(SwooleG.timer.fd == 0))
-    {
-        swTimer_init(msec);
     }
 }
 

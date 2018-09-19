@@ -376,8 +376,7 @@ static PHP_METHOD(swoole_redis, connect)
 
     if (redis->timeout > 0)
     {
-        php_swoole_check_timer((int) (redis->timeout * 1000));
-        redis->timer = SwooleG.timer.add(&SwooleG.timer, (int) (redis->timeout * 1000), 0, redis, swoole_redis_onTimeout);
+        redis->timer = swTimer_add(&SwooleG.timer, (int) (redis->timeout * 1000), 0, redis, swoole_redis_onTimeout);
     }
 
     sw_zval_add_ref(&redis->object);

@@ -905,8 +905,7 @@ static PHP_METHOD(swoole_http2_client_coro, recv)
     php_context *context = swoole_get_property(getThis(), HTTP2_CLIENT_CORO_CONTEXT);
     if (timeout > 0)
     {
-        php_swoole_check_timer((int) (timeout * 1000));
-        cli->timer = SwooleG.timer.add(&SwooleG.timer, (int) (timeout * 1000), 0, context, http2_client_onTimeout);
+        cli->timer = swTimer_add(&SwooleG.timer, (int) (timeout * 1000), 0, context, http2_client_onTimeout);
     }
     hcc->cid = sw_get_current_cid();
     coro_save(context);

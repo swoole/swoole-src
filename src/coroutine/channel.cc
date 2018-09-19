@@ -91,13 +91,9 @@ void* Channel::pop(double timeout)
     if (timeout > 0)
     {
         int msec = (int) (timeout * 1000);
-        if (SwooleG.timer.fd == 0)
-        {
-            swTimer_init (msec);
-        }
         msg.chan = this;
         msg.co = coroutine_get_by_id(coroutine_get_current_cid());
-        msg.timer = SwooleG.timer.add(&SwooleG.timer, msec, 0, &msg, channel_pop_timeout);
+        msg.timer = swTimer_add(&SwooleG.timer, msec, 0, &msg, channel_pop_timeout);
     }
     else
     {

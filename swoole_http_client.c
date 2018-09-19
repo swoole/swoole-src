@@ -1184,8 +1184,7 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
 
     if (http->timeout > 0)
     {
-        php_swoole_check_timer((int) (http->timeout * 1000));
-        http->timer = SwooleG.timer.add(&SwooleG.timer, (int) (http->timeout * 1000), 0, http->cli, http_client_onRequestTimeout);
+        http->timer = swTimer_add(&SwooleG.timer, (int) (http->timeout * 1000), 0, http->cli, http_client_onRequestTimeout);
     }
 
     swTrace("[%d]: %s\n", (int) http_client_buffer->length, http_client_buffer->str);
