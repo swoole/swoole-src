@@ -1254,10 +1254,10 @@ PHP_MINFO_FUNCTION(swoole)
     php_info_print_table_row(2, "hugepage", "enabled");
 #endif
 #ifdef SW_USE_REDIS
-    php_info_print_table_row(2, "redis client", "enabled");
+    php_info_print_table_row(2, "async redis", "enabled");
 #endif
 #ifdef SW_USE_POSTGRESQL
-    php_info_print_table_row(2, "postgresql client", "enabled");
+    php_info_print_table_row(2, "coroutine postgresql", "enabled");
 #endif
     php_info_print_table_end();
 
