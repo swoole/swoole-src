@@ -48,9 +48,12 @@ extern "C" {
 #include <time.h>
 #include <limits.h>
 
-#include <fcntl.h>
-#include <unistd.h>
-#include <pthread.h>
+#ifdef _WIN32
+#include "win.h"
+#else
+#include "unix.h"
+#endif
+
 #if defined(HAVE_CPU_AFFINITY)
 #ifdef __FreeBSD__
 #include <sys/types.h>
@@ -61,20 +64,6 @@ typedef cpuset_t cpu_set_t;
 #include <sched.h>
 #endif
 #endif
-
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <netdb.h>
-#include <sys/socket.h>
-#include <sys/time.h>
-#include <sys/select.h>
-#include <sys/mman.h>
-#include <sys/ipc.h>
-#include <sys/wait.h>
-#include <sys/un.h>
-#include <sys/types.h>
-#include <sys/utsname.h>
 
 #ifdef __MACH__
 #include <mach/clock.h>
@@ -481,7 +470,9 @@ typedef struct
     {
         struct sockaddr_in inet_v4;
         struct sockaddr_in6 inet_v6;
+#ifndef _WIN32
         struct sockaddr_un un;
+#endif
     } addr;
     socklen_t len;
 } swSocketAddress;
@@ -855,6 +846,7 @@ static inline int swPipeNotify_auto(swPipe *p, int blocking, int semaphore)
 void swBreakPoint(void);
 
 //------------------Queue--------------------
+#ifndef _WIN32
 typedef struct _swQueue_Data
 {
     long mtype; /* type of received/sent message */
@@ -875,7 +867,7 @@ int swMsgQueue_push(swMsgQueue *q, swQueue_data *in, int data_length);
 int swMsgQueue_pop(swMsgQueue *q, swQueue_data *out, int buffer_length);
 int swMsgQueue_stat(swMsgQueue *q, int *queue_num, int *queue_bytes);
 int swMsgQueue_free(swMsgQueue *q);
-
+#endif
 //------------------Lock--------------------------------------
 enum SW_LOCKS
 {
@@ -910,19 +902,18 @@ typedef struct
     int count;
 } swRequest_getaddrinfo;
 
-//文件锁
-typedef struct _swFileLock
-{
-    struct flock lock_t;
-    int fd;
-} swFileLock;
-
-//互斥锁
 typedef struct _swMutex
 {
     pthread_mutex_t _lock;
     pthread_mutexattr_t attr;
 } swMutex;
+
+#ifndef _WIN32
+typedef struct _swFileLock
+{
+    struct flock lock_t;
+    int fd;
+} swFileLock;
 
 #ifdef HAVE_RWLOCK
 typedef struct _swRWLock
@@ -951,6 +942,7 @@ typedef struct _swSem
     key_t key;
     int semid;
 } swSem;
+#endif
 
 typedef struct _swLock
 {
@@ -958,6 +950,7 @@ typedef struct _swLock
     union
     {
         swMutex mutex;
+#ifndef _WIN32
 #ifdef HAVE_RWLOCK
         swRWLock rwlock;
 #endif
@@ -967,6 +960,7 @@ typedef struct _swLock
         swFileLock filelock;
         swSem sem;
         swAtomicLock atomlock;
+#endif
     } object;
 
     int (*lock_rd)(struct _swLock *);
@@ -976,6 +970,7 @@ typedef struct _swLock
     int (*trylock)(struct _swLock *);
     int (*free)(struct _swLock *);
 } swLock;
+
 
 //Thread Condition
 typedef struct _swCond
@@ -1083,17 +1078,21 @@ void sw_shm_free(void *ptr);
 void* sw_shm_calloc(size_t num, size_t _size);
 int sw_shm_protect(void *addr, int flags);
 void* sw_shm_realloc(void *ptr, size_t new_size);
+
+#ifndef _WIN32
 #ifdef HAVE_RWLOCK
 int swRWLock_create(swLock *lock, int use_in_process);
 #endif
 int swSem_create(swLock *lock, key_t key);
-int swMutex_create(swLock *lock, int use_in_process);
-int swMutex_lockwait(swLock *lock, int timeout_msec);
 int swFileLock_create(swLock *lock, int fd);
 #ifdef HAVE_SPINLOCK
 int swSpinLock_create(swLock *object, int spin);
 #endif
 int swAtomicLock_create(swLock *object, int spin);
+#endif
+
+int swMutex_create(swLock *lock, int use_in_process);
+int swMutex_lockwait(swLock *lock, int timeout_msec);
 int swCond_create(swCond *cond);
 
 typedef struct _swThreadParam
@@ -1323,7 +1322,9 @@ void swoole_clean(void);
 double swoole_microtime(void);
 void swoole_rtrim(char *str, int len);
 void swoole_redirect_stdout(int new_fd);
+#ifndef _WIN32
 int swoole_shell_exec(char *command, pid_t *pid);
+#endif
 SW_API int swoole_add_function(const char *name, void* func);
 SW_API void* swoole_get_function(char *name, uint32_t length);
 SW_API int swoole_add_hook(enum swGlobal_hook_type type, swCallback func, int push_back);
@@ -1365,7 +1366,7 @@ int swSocket_bind(int sock, int type, char *host, int *port);
 int swSocket_wait(int fd, int timeout_ms, int events);
 int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events);
 void swSocket_clean(int fd);
-ssize_t swSocket_sendto_blocking(int fd, void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len);
+ssize_t swSocket_sendto_blocking(int, void *, size_t, int, struct sockaddr *, socklen_t);
 int swSocket_set_buffer_size(int fd, int buffer_size);
 ssize_t swSocket_udp_sendto(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len);
 ssize_t swSocket_udp_sendto6(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len);
@@ -1533,7 +1534,9 @@ struct _swWorker
 
 	swMemoryPool *pool_output;
 
+#ifndef _WIN32
 	swMsgQueue *queue;
+#endif
 
 	/**
 	 * redirect stdout to pipe_master
@@ -1657,7 +1660,9 @@ struct _swProcessPool
     swPipe *pipes;
     swHashMap *map;
     swReactor *reactor;
+#ifndef _WIN32
     swMsgQueue *queue;
+#endif
     swStreamInfo *stream;
 
     void *ptr;
@@ -2150,7 +2155,10 @@ typedef struct
 
     uint32_t pagesize;
     uint32_t max_sockets;
+
+#ifndef _WIN32
     struct utsname uname;
+#endif
 
     /**
      * tcp socket default buffer size
