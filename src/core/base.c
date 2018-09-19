@@ -18,9 +18,12 @@
 #include "atomic.h"
 
 #include <stdarg.h>
+
+#ifndef _WIN32
 #include <sys/stat.h>
 #include <sys/resource.h>
 #include <sys/ioctl.h>
+#endif
 
 #ifdef HAVE_EXECINFO
 #include <execinfo.h>
@@ -34,7 +37,6 @@ SwooleGS_t *SwooleGS;
 
 void swoole_init(void)
 {
-    struct rlimit rlmt;
     if (SwooleG.running)
     {
         return;
@@ -49,9 +51,23 @@ void swoole_init(void)
     sw_errno = 0;
 
     SwooleG.log_fd = STDOUT_FILENO;
+
+#ifdef _WIN32
+    SYSTEM_INFO info;
+    GetSystemInfo(&info);
+    SwooleG.cpu_num =  info.dwNumberOfProcessors;
+    SwooleG.pagesize = info.dwPageSize;
+#else
     SwooleG.cpu_num = sysconf(_SC_NPROCESSORS_ONLN);
     SwooleG.pagesize = getpagesize();
+    //get system uname
+    uname(&SwooleG.uname);
+    //random seed
+    srandom(time(NULL));
+#endif
+
     SwooleG.pid = getpid();
+
     SwooleG.socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
 
 #ifdef SW_DEBUG
@@ -60,12 +76,6 @@ void swoole_init(void)
 #else
     SwooleG.log_level = SW_LOG_INFO;
 #endif
-
-    //get system uname
-    uname(&SwooleG.uname);
-
-    //random seed
-    srandom(time(NULL));
 
     //init global shared memory
     SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
@@ -86,6 +96,10 @@ void swoole_init(void)
     swMutex_create(&SwooleGS->lock_2, 1);
     swMutex_create(&SwooleG.lock, 0);
 
+#ifdef _WIN32
+    SwooleG.max_sockets = 1024;
+#else
+    struct rlimit rlmt;
     if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0)
     {
         swWarn("getrlimit() failed. Error: %s[%d]", strerror(errno), errno);
@@ -95,6 +109,7 @@ void swoole_init(void)
     {
         SwooleG.max_sockets = (uint32_t) rlmt.rlim_cur;
     }
+#endif
 
     SwooleTG.buffer_stack = swString_new(SW_STACK_BUFFER_SIZE);
     if (SwooleTG.buffer_stack == NULL)

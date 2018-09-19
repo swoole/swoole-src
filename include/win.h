@@ -27,7 +27,7 @@ typedef HANDLE pthread_t;
 typedef int pthread_mutexattr_t;
 typedef size_t off_t;
 typedef intptr_t ssize_t;
-typedef int pid_t;
+typedef DWORD pid_t;
 typedef intptr_t key_t;
 
 #ifndef LOCALE_INVARIANT
@@ -35,6 +35,8 @@ typedef intptr_t key_t;
 #endif
 
 #define bzero(p, s)            memset(p, 0, s)
+#define getpid()               GetCurrentProcessId()
+#define sched_yield()          SwitchToThread()
 
 #define __thread
 #define EHOSTDOWN               WSAEHOSTDOWN
