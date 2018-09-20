@@ -659,7 +659,7 @@ static PHP_METHOD(swoole_table, offsetGet)
     object_init_ex(return_value, swoole_table_row_class_entry_ptr);
     zend_update_property(swoole_table_row_class_entry_ptr, return_value, ZEND_STRL("value"), value TSRMLS_CC);
     zend_update_property_stringl(swoole_table_row_class_entry_ptr, return_value, ZEND_STRL("key"), key, keylen TSRMLS_CC);
-    sw_zval_ptr_dtor(&value);
+    zval_ptr_dtor(value);
     swoole_set_object(return_value, table);
 }
 

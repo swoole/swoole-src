@@ -1069,7 +1069,7 @@ static PHP_METHOD(swoole_redis_coro, __construct)
     {
         php_swoole_array_separate(zset);
         zend_update_property(swoole_redis_coro_class_entry_ptr, getThis(), ZEND_STRL("setting"), zset TSRMLS_CC);
-        sw_zval_ptr_dtor(&zset);
+        zval_ptr_dtor(zset);
 
         HashTable *vht;
         zval *ztmp;
@@ -1334,7 +1334,7 @@ static PHP_METHOD(swoole_redis_coro, __destruct)
         sw_zend_call_method_with_0_params(&zobject, swoole_redis_coro_class_entry_ptr, NULL, "close", &retval);
         if (retval)
         {
-            sw_zval_ptr_dtor(&retval);
+            zval_ptr_dtor(retval);
         }
     }
     else if (!redis->released)
@@ -3813,11 +3813,11 @@ static void swoole_redis_coro_resume(void *data)
     int ret = coro_resume(sw_current_context, redis_result, &retval);
     if (ret == CORO_END && retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
     free_result: if (redis_result)
     {
-        sw_zval_ptr_dtor(&redis_result);
+        zval_ptr_dtor(redis_result);
     }
     efree(result);
 }
@@ -3846,7 +3846,7 @@ static void swoole_redis_coro_onResult(redisAsyncContext *c, void *r, void *priv
         if (redis->state == SWOOLE_REDIS_CORO_STATE_CLOSING)
         {
             error:
-            sw_zval_ptr_dtor(&result->value);
+            zval_ptr_dtor(result->value);
             efree(result);
             return;
         }
@@ -3960,7 +3960,7 @@ void swoole_redis_coro_onConnect(const redisAsyncContext *c, int status)
         int ret = coro_resume(sw_current_context, redis_result, &retval);
         if (ret == CORO_END && retval)
         {
-            sw_zval_ptr_dtor(&retval);
+            zval_ptr_dtor(retval);
         }
     }
     else
@@ -4011,9 +4011,9 @@ static void swoole_redis_coro_onClose(const redisAsyncContext *c, int status)
             int ret = coro_resume(context, redis_result, &retval);
             if (ret == CORO_END && retval)
             {
-                sw_zval_ptr_dtor(&retval);
+                zval_ptr_dtor(retval);
             }
-            sw_zval_ptr_dtor(&redis_result);
+            zval_ptr_dtor(redis_result);
         }
     }
 
@@ -4080,7 +4080,7 @@ static int swoole_redis_coro_onError(swReactor *reactor, swEvent *event)
     sw_zend_call_method_with_0_params(&redis->object, swoole_redis_coro_class_entry_ptr, NULL, "close", &retval);
     if (retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
 
     return SW_OK;
@@ -4106,7 +4106,7 @@ static void swoole_redis_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
     int ret = coro_resume(ctx, result, &retval);
     if (ret == CORO_END && retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
     sw_zval_free(result);
 }

@@ -462,7 +462,7 @@ static void php_swoole_task_onTimeout(swTimer *timer, swTimer_node *tnode)
         int ret = coro_resume(context, &result, &retval);
         if (ret == CORO_END && retval)
         {
-            sw_zval_ptr_dtor(&retval);
+            zval_ptr_dtor(retval);
         }
         efree(task_co);
         swHashMap_del_int(task_coroutine_map, Z_LVAL(context->coro_params));
@@ -484,7 +484,7 @@ static void php_swoole_task_onTimeout(swTimer *timer, swTimer_node *tnode)
     int ret = coro_resume(context, result, &retval);
     if (ret == CORO_END && retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
     sw_zval_free(result);
     efree(task_co);
@@ -619,7 +619,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject TSRMLS_DC)
             sw_zend_call_method_with_1_params(&port_object, swoole_server_port_class_entry_ptr, NULL, "set", &retval, zsetting);
             if (retval != NULL)
             {
-                sw_zval_ptr_dtor(&retval);
+                zval_ptr_dtor(retval);
             }
         }
     }
@@ -768,7 +768,7 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
         int ret = coro_create(cache, args, 3, &retval, NULL, NULL);
         if (ret < 0)
         {
-            sw_zval_ptr_dtor(&zworker_id);
+            zval_ptr_dtor(zworker_id);
             sw_zval_free(zdata);
             if (ret == CORO_LIMIT)
             {
@@ -797,12 +797,12 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
 
-    sw_zval_ptr_dtor(&zworker_id);
+    zval_ptr_dtor(zworker_id);
     sw_zval_free(zdata);
 
     if (retval != NULL)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
 }
 
@@ -889,9 +889,9 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
         int ret = coro_create(cache, args, 4, &retval, NULL, NULL);
         if (ret < 0)
         {
-            sw_zval_ptr_dtor(&zfd);
-            sw_zval_ptr_dtor(&zfrom_id);
-            sw_zval_ptr_dtor(&zdata);
+            zval_ptr_dtor(zfd);
+            zval_ptr_dtor(zfrom_id);
+            zval_ptr_dtor(zdata);
             if (ret == CORO_LIMIT)
             {
                 serv->factory.end(&SwooleG.serv->factory, req->info.fd);
@@ -925,12 +925,12 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
-    sw_zval_ptr_dtor(&zfd);
-    sw_zval_ptr_dtor(&zfrom_id);
-    sw_zval_ptr_dtor(&zdata);
+    zval_ptr_dtor(zfd);
+    zval_ptr_dtor(zfrom_id);
+    zval_ptr_dtor(zdata);
     if (retval != NULL)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
     return SW_OK;
 }
@@ -995,8 +995,8 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
         int ret = coro_create(cache, args, 3, &retval, NULL, NULL);
         if (ret < 0)
         {
-            sw_zval_ptr_dtor(&zaddr);
-            sw_zval_ptr_dtor(&zdata);
+            zval_ptr_dtor(zaddr);
+            zval_ptr_dtor(zdata);
             return SW_OK;
         }
     }
@@ -1024,11 +1024,11 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
-    sw_zval_ptr_dtor(&zaddr);
-    sw_zval_ptr_dtor(&zdata);
+    zval_ptr_dtor(zaddr);
+    zval_ptr_dtor(zdata);
     if (retval != NULL)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
     return SW_OK;
 }
@@ -1073,8 +1073,8 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
 
-    sw_zval_ptr_dtor(&zfd);
-    sw_zval_ptr_dtor(&zfrom_id);
+    zval_ptr_dtor(zfd);
+    zval_ptr_dtor(zfrom_id);
     sw_zval_free(zdata);
 
     if (retval)
@@ -1083,7 +1083,7 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
         {
             php_swoole_task_finish(serv, retval TSRMLS_CC);
         }
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
 
     return SW_OK;
@@ -1130,7 +1130,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
             int ret = coro_resume(context, zdata, &retval);
             if (ret == CORO_END && retval)
             {
-                sw_zval_ptr_dtor(&retval);
+                zval_ptr_dtor(retval);
             }
             efree(task_co);
             efree(zdata);
@@ -1168,7 +1168,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
             int ret = coro_resume(context, result, &retval);
             if (ret == CORO_END && retval)
             {
-                sw_zval_ptr_dtor(&retval);
+                zval_ptr_dtor(retval);
             }
             sw_zval_free(result);
             efree(task_co);
@@ -1202,11 +1202,11 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
-    sw_zval_ptr_dtor(&ztask_id);
+    zval_ptr_dtor(ztask_id);
     sw_zval_free(zdata);
     if (retval != NULL)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
     if (swTask_type(req) & SW_TASK_CALLBACK)
     {
@@ -1241,7 +1241,7 @@ static void php_swoole_onStart(swServer *serv)
     }
     if (retval != NULL)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
     SwooleG.lock.unlock(&SwooleG.lock);
 }
@@ -1270,7 +1270,7 @@ static void php_swoole_onManagerStart(swServer *serv)
     }
     if (retval != NULL)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
 }
 
@@ -1292,7 +1292,7 @@ static void php_swoole_onManagerStop(swServer *serv)
     }
     if (retval != NULL)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
 }
 
@@ -1318,7 +1318,7 @@ static void php_swoole_onShutdown(swServer *serv)
         }
         if (retval != NULL)
         {
-            sw_zval_ptr_dtor(&retval);
+            zval_ptr_dtor(retval);
         }
     }
     SwooleG.lock.unlock(&SwooleG.lock);
@@ -1335,7 +1335,7 @@ static void php_swoole_onWorkerStart_coroutine(zval *zserv, zval *zworker_id)
     int ret = coro_create(cache, args, 2, &retval, NULL, NULL);
     if (ret < 0)
     {
-        sw_zval_ptr_dtor(&zworker_id);
+        zval_ptr_dtor(zworker_id);
         if (ret == CORO_LIMIT)
         {
             swWarn("Failed to handle onWorkerStart. Coroutine limited.");
@@ -1349,7 +1349,7 @@ static void php_swoole_onWorkerStart_coroutine(zval *zserv, zval *zworker_id)
     }
     if (retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
 }
 
@@ -1372,7 +1372,7 @@ static void php_swoole_onWorkerStart_callback(zval *zserv, zval *zworker_id)
     }
     if (retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
 }
 
@@ -1462,10 +1462,10 @@ static void php_swoole_onWorkerStop(swServer *serv, int worker_id)
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
-    sw_zval_ptr_dtor(&zworker_id);
+    zval_ptr_dtor(zworker_id);
     if (retval != NULL)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
 }
 
@@ -1491,10 +1491,10 @@ static void php_swoole_onWorkerExit(swServer *serv, int worker_id)
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
-    sw_zval_ptr_dtor(&zworker_id);
+    zval_ptr_dtor(zworker_id);
     if (retval != NULL)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
 }
 
@@ -1547,14 +1547,14 @@ static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
 
-    sw_zval_ptr_dtor(&zworker_id);
-    sw_zval_ptr_dtor(&zworker_pid);
-    sw_zval_ptr_dtor(&zexit_code);
-    sw_zval_ptr_dtor(&zsigno);
+    zval_ptr_dtor(zworker_id);
+    zval_ptr_dtor(zworker_pid);
+    zval_ptr_dtor(zexit_code);
+    zval_ptr_dtor(zsigno);
 
     if (retval != NULL)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
 }
 
@@ -1604,8 +1604,8 @@ void php_swoole_onConnect(swServer *serv, swDataHead *info)
 
         if (ret < 0)
         {
-            sw_zval_ptr_dtor(&zfd);
-            sw_zval_ptr_dtor(&zfrom_id);
+            zval_ptr_dtor(zfd);
+            zval_ptr_dtor(zfrom_id);
             return;
         }
     }
@@ -1633,11 +1633,11 @@ void php_swoole_onConnect(swServer *serv, swDataHead *info)
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
 
-    sw_zval_ptr_dtor(&zfd);
-    sw_zval_ptr_dtor(&zfrom_id);
+    zval_ptr_dtor(zfd);
+    zval_ptr_dtor(zfrom_id);
     if (retval != NULL)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
 }
 
@@ -1696,8 +1696,8 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
 
         ret = coro_create(cache, args, 3, &retval, NULL, NULL);
 
-        sw_zval_ptr_dtor(&zfd);
-        sw_zval_ptr_dtor(&zfrom_id);
+        zval_ptr_dtor(zfd);
+        zval_ptr_dtor(zfrom_id);
 
         if (ret < 0)
         {
@@ -1728,7 +1728,7 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
     }
     if (retval != NULL)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
 }
 
@@ -1760,10 +1760,10 @@ void php_swoole_onBufferFull(swServer *serv, swDataHead *info)
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
-    sw_zval_ptr_dtor(&zfd);
+    zval_ptr_dtor(zfd);
     if (retval != NULL)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
 }
 
@@ -1802,10 +1802,10 @@ static void php_swoole_onSendTimeout(swTimer *timer, swTimer_node *tnode)
     int ret = coro_resume(context, result, &retval);
     if (ret == CORO_END && retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
-    sw_zval_ptr_dtor(&result);
-    sw_zval_ptr_dtor(&zdata);
+    zval_ptr_dtor(result);
+    zval_ptr_dtor(zdata);
     efree(context);
 }
 
@@ -1845,10 +1845,10 @@ static int php_swoole_server_send_resume(swServer *serv, php_context *context, i
     int ret = coro_resume(context, result, &retval);
     if (ret == CORO_END && retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
-    sw_zval_ptr_dtor(&result);
-    sw_zval_ptr_dtor(&zdata);
+    zval_ptr_dtor(result);
+    zval_ptr_dtor(zdata);
     efree(context);
     return SW_OK;
 }
@@ -1958,10 +1958,10 @@ void php_swoole_onBufferEmpty(swServer *serv, swDataHead *info)
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
-    sw_zval_ptr_dtor(&zfd);
+    zval_ptr_dtor(zfd);
     if (retval != NULL)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
 }
 
@@ -2577,7 +2577,7 @@ PHP_METHOD(swoole_server, set)
 
     zval *zsetting = php_swoole_read_init_property(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("setting") TSRMLS_CC);
     sw_php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
-    sw_zval_ptr_dtor(&zset);
+    zval_ptr_dtor(zset);
 
     RETURN_TRUE;
 }
@@ -4262,7 +4262,7 @@ PHP_METHOD(swoole_connection_iterator, offsetExists)
     if (retval)
     {
         RETVAL_BOOL(Z_BVAL_P(retval));
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
 }
 

@@ -1201,7 +1201,7 @@ static PHP_METHOD(swoole_http_client_coro, addFile)
         SW_MAKE_STD_ZVAL(files);
         array_init(files);
         zend_update_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("uploadFiles"), files);
-        sw_zval_ptr_dtor(&files);
+        zval_ptr_dtor(files);
 
         hcc->request_upload_files = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("uploadFiles"), 0);
         sw_copy_to_stack(hcc->request_upload_files, hcc->_request_upload_files);
@@ -1256,7 +1256,7 @@ static PHP_METHOD(swoole_http_client_coro, addData)
         SW_MAKE_STD_ZVAL(files);
         array_init(files);
         zend_update_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("uploadFiles"), files);
-        sw_zval_ptr_dtor(&files);
+        zval_ptr_dtor(files);
 
         hcc->request_upload_files = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("uploadFiles"), 0);
         sw_copy_to_stack(hcc->request_upload_files, hcc->_request_upload_files);

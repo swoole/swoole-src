@@ -593,7 +593,7 @@ static sw_inline zval* php_swoole_read_init_property(zend_class_entry *scope, zv
         SW_MAKE_STD_ZVAL(property);
         array_init(property);
         zend_update_property(scope, object, p, pl, property TSRMLS_CC);
-        sw_zval_ptr_dtor(&property);
+        zval_ptr_dtor(property);
         return sw_zend_read_property(scope, object, p, pl, 1 TSRMLS_CC);
     }
     else

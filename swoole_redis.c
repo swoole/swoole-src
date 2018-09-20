@@ -165,9 +165,9 @@ static sw_inline void redis_execute_connect_callback(swRedisClient *redis, int s
     }
     if (retval != NULL)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
-    sw_zval_ptr_dtor(&result);
+    zval_ptr_dtor(result);
     redis->connecting = 0;
 }
 
@@ -214,7 +214,7 @@ static PHP_METHOD(swoole_redis, __construct)
     {
         php_swoole_array_separate(zset);
         zend_update_property(swoole_redis_class_entry_ptr, getThis(), ZEND_STRL("setting"), zset TSRMLS_CC);
-        sw_zval_ptr_dtor(&zset);
+        zval_ptr_dtor(zset);
 
         HashTable *vht;
         zval *ztmp;
@@ -394,7 +394,7 @@ static void redis_close(void* data)
 static void redis_free_object(void *data)
 {
     zval *object = (zval*) data;
-    sw_zval_ptr_dtor(&object);
+    zval_ptr_dtor(object);
 }
 
 static PHP_METHOD(swoole_redis, close)
@@ -691,7 +691,7 @@ static void swoole_redis_onTimeout(swTimer *timer, swTimer_node *tnode)
     redis->state = SWOOLE_REDIS_STATE_CLOSED;
     redis_execute_connect_callback(redis, 0 TSRMLS_CC);
     redisAsyncDisconnect(redis->context);
-    sw_zval_ptr_dtor(&redis->object);
+    zval_ptr_dtor(redis->object);
 }
 
 static void swoole_redis_onCompleted(redisAsyncContext *c, void *r, void *privdata)
@@ -743,7 +743,7 @@ static void swoole_redis_onCompleted(redisAsyncContext *c, void *r, void *privda
             sw_zend_call_method_with_0_params(&zobject, swoole_redis_class_entry_ptr, NULL, "close", &retval);
             if (retval)
             {
-                sw_zval_ptr_dtor(&retval);
+                zval_ptr_dtor(retval);
             }
             return;
         }
@@ -802,9 +802,9 @@ static void swoole_redis_onResult(redisAsyncContext *c, void *r, void *privdata)
     }
     if (retval != NULL)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
-    sw_zval_ptr_dtor(&result);
+    zval_ptr_dtor(result);
     if (!is_subscribe)
     {
         sw_zval_free(callback);
@@ -874,11 +874,11 @@ void swoole_redis_onClose(const redisAsyncContext *c, int status)
         }
         if (retval != NULL)
         {
-            sw_zval_ptr_dtor(&retval);
+            zval_ptr_dtor(retval);
         }
     }
 
-    sw_zval_ptr_dtor(&redis->object);
+    zval_ptr_dtor(redis->object);
 }
 
 static int swoole_redis_onError(swReactor *reactor, swEvent *event)
@@ -912,9 +912,9 @@ static int swoole_redis_onError(swReactor *reactor, swEvent *event)
         }
         if (retval != NULL)
         {
-            sw_zval_ptr_dtor(&retval);
+            zval_ptr_dtor(retval);
         }
-        sw_zval_ptr_dtor(&result);
+        zval_ptr_dtor(result);
 
         redis->connecting = 0;
         retval = NULL;
@@ -922,7 +922,7 @@ static int swoole_redis_onError(swReactor *reactor, swEvent *event)
         sw_zend_call_method_with_0_params(&zobject, swoole_redis_class_entry_ptr, NULL, "close", &retval);
         if (retval)
         {
-            sw_zval_ptr_dtor(&retval);
+            zval_ptr_dtor(retval);
         }
     }
     return SW_OK;

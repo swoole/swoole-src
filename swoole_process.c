@@ -643,9 +643,9 @@ static void php_swoole_onSignal(int signo)
     }
     if (retval != NULL)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
-    sw_zval_ptr_dtor(&zsigno);
+    zval_ptr_dtor(zsigno);
 }
 
 int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
@@ -730,7 +730,7 @@ int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
     }
     if (retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
 
     if (SwooleG.main_reactor)

@@ -118,7 +118,7 @@ static void php_swoole_process_pool_onWorkerStart(swProcessPool *pool, int worke
     }
     if (retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
     if (SwooleG.main_reactor)
     {
@@ -151,10 +151,10 @@ static void php_swoole_process_pool_onMessage(swProcessPool *pool, char *data, u
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
-    sw_zval_ptr_dtor(&zdata);
+    zval_ptr_dtor(zdata);
     if (retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
 }
 
@@ -187,7 +187,7 @@ static void php_swoole_process_pool_onWorkerStop(swProcessPool *pool, int worker
     }
     if (retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
 }
 
@@ -292,7 +292,7 @@ static PHP_METHOD(swoole_process_pool, on)
     {
         if (pp->onWorkerStart)
         {
-            sw_zval_ptr_dtor(&pp->onWorkerStart);
+            zval_ptr_dtor(pp->onWorkerStart);
         }
         pp->onWorkerStart = callback;
         sw_zval_add_ref(&callback);
@@ -308,7 +308,7 @@ static PHP_METHOD(swoole_process_pool, on)
         }
         if (pp->onMessage)
         {
-            sw_zval_ptr_dtor(&pp->onMessage);
+            zval_ptr_dtor(pp->onMessage);
         }
         pp->onMessage = callback;
         sw_zval_add_ref(&callback);
@@ -319,7 +319,7 @@ static PHP_METHOD(swoole_process_pool, on)
     {
         if (pp->onWorkerStop)
         {
-            sw_zval_ptr_dtor(&pp->onWorkerStop);
+            zval_ptr_dtor(pp->onWorkerStop);
         }
         pp->onWorkerStop = callback;
         sw_zval_add_ref(&callback);
@@ -473,15 +473,15 @@ static PHP_METHOD(swoole_process_pool, __destruct)
     process_pool_property *pp = swoole_get_property(getThis(), 0);
     if (pp->onWorkerStart)
     {
-        sw_zval_ptr_dtor(&pp->onWorkerStart);
+        zval_ptr_dtor(pp->onWorkerStart);
     }
     if (pp->onMessage)
     {
-        sw_zval_ptr_dtor(&pp->onMessage);
+        zval_ptr_dtor(pp->onMessage);
     }
     if (pp->onWorkerStop)
     {
-        sw_zval_ptr_dtor(&pp->onWorkerStop);
+        zval_ptr_dtor(pp->onWorkerStop);
     }
     efree(pp);
 }

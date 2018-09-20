@@ -499,7 +499,7 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
         sw_zend_call_method_with_0_params(&zobject, swoole_http2_client_coro_class_entry_ptr, NULL, "close", &retval);
         if (retval)
         {
-            sw_zval_ptr_dtor(&retval);
+            zval_ptr_dtor(retval);
         }
         if (hcc->iowait != 0)
         {
@@ -512,7 +512,7 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
             int ret = coro_resume(context, result, &retval);
             if (ret == CORO_END && retval)
             {
-                sw_zval_ptr_dtor(&retval);
+                zval_ptr_dtor(retval);
             }
         }
         return;
@@ -634,7 +634,7 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
             int ret = coro_resume(context, zresponse, &retval);
             if (ret == CORO_END && retval)
             {
-                sw_zval_ptr_dtor(&retval);
+                zval_ptr_dtor(retval);
             }
         }
 
@@ -946,7 +946,7 @@ static void http2_client_onConnect(swClient *cli)
     int ret = coro_resume(context, result, &retval);
     if (ret == CORO_END && retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
 }
 
@@ -1003,7 +1003,7 @@ static void http2_client_onTimeout(swTimer *timer, swTimer_node *tnode)
     int ret = coro_resume(ctx, result, &retval);
     if (ret == CORO_END && retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
 }
 
@@ -1045,7 +1045,7 @@ static PHP_METHOD(swoole_http2_client_coro, __destruct)
         sw_zend_call_method_with_0_params(&zobject, swoole_http2_client_coro_class_entry_ptr, NULL, "close", &retval);
         if (retval)
         {
-            sw_zval_ptr_dtor(&retval);
+            zval_ptr_dtor(retval);
         }
     }
 

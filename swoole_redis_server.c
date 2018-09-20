@@ -211,9 +211,9 @@ static int redis_onReceive(swServer *serv, swEventData *req)
         zend_fcall_info_cache *cache = func_cache_array.array[Z_LVAL_P(index)];
         if (coro_create(cache, args, 2, &retval, NULL, NULL) < 0)
         {
-            sw_zval_ptr_dtor(&zfd);
-            sw_zval_ptr_dtor(&zdata);
-            sw_zval_ptr_dtor(&zparams);
+            zval_ptr_dtor(zfd);
+            zval_ptr_dtor(zdata);
+            zval_ptr_dtor(zparams);
             return SW_OK;
         }
     }
@@ -247,11 +247,11 @@ static int redis_onReceive(swServer *serv, swEventData *req)
         {
             serv->send(serv, fd, Z_STRVAL_P(retval), Z_STRLEN_P(retval));
         }
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
-    sw_zval_ptr_dtor(&zfd);
-    sw_zval_ptr_dtor(&zdata);
-    sw_zval_ptr_dtor(&zparams);
+    zval_ptr_dtor(zfd);
+    zval_ptr_dtor(zdata);
+    zval_ptr_dtor(zparams);
     return SW_OK;
 }
 

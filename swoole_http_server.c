@@ -800,7 +800,7 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
 
             ctx->current_multipart_header = multipart_header;
         }
-        sw_zval_ptr_dtor(&tmp_array);
+        zval_ptr_dtor(tmp_array);
     }
 
     if (strncasecmp(headername, "content-type", header_len) == 0 && ctx->current_multipart_header)
@@ -1219,11 +1219,11 @@ static int http_onReceive(swServer *serv, swEventData *req)
         }
 
         _free_object:
-        sw_zval_ptr_dtor(&zrequest_object);
-        sw_zval_ptr_dtor(&zresponse_object);
+        zval_ptr_dtor(zrequest_object);
+        zval_ptr_dtor(zresponse_object);
         if (retval)
         {
-            sw_zval_ptr_dtor(&retval);
+            zval_ptr_dtor(retval);
         }
     }
 
@@ -2826,7 +2826,7 @@ static PHP_METHOD(swoole_http_response, __destruct)
             sw_zend_call_method_with_0_params(&zobject, swoole_http_response_class_entry_ptr, NULL, "end", &retval);
             if (retval)
             {
-                sw_zval_ptr_dtor(&retval);
+                zval_ptr_dtor(retval);
             }
 
             context = swoole_get_object(getThis());

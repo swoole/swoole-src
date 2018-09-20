@@ -2389,7 +2389,7 @@ static PHP_METHOD(swoole_mysql, connect)
     client->cli = cli;
     sw_copy_to_stack(client->object, client->_object);
     sw_zval_add_ref(&client->object);
-    sw_zval_ptr_dtor(&server_info);
+    zval_ptr_dtor(server_info);
 
     swConnection *_socket = swReactor_get(SwooleG.main_reactor, cli->socket->fd);
     _socket->object = client;
@@ -2565,7 +2565,7 @@ static PHP_METHOD(swoole_mysql, __destruct)
         sw_zend_call_method_with_0_params(&zobject, swoole_mysql_class_entry_ptr, NULL, "close", &retval);
         if (retval)
         {
-            sw_zval_ptr_dtor(&retval);
+            zval_ptr_dtor(retval);
         }
     }
     //release buffer memory
@@ -2623,13 +2623,13 @@ static PHP_METHOD(swoole_mysql, close)
         }
         if (retval)
         {
-            sw_zval_ptr_dtor(&retval);
+            zval_ptr_dtor(retval);
         }
     }
     mysql_client_free(client, getThis());
     if (!is_destroyed)
     {
-        sw_zval_ptr_dtor(&object);
+        zval_ptr_dtor(object);
     }
 }
 
@@ -2701,7 +2701,7 @@ static int swoole_mysql_onError(swReactor *reactor, swEvent *event)
         sw_zend_call_method_with_0_params(&zobject, swoole_mysql_class_entry_ptr, NULL, "close", &retval);
         if (retval)
         {
-            sw_zval_ptr_dtor(&retval);
+            zval_ptr_dtor(retval);
         }
         return SW_OK;
     }
@@ -2754,9 +2754,9 @@ static void swoole_mysql_onConnect(mysql_client *client TSRMLS_DC)
     }
     if (retval != NULL)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
-    sw_zval_ptr_dtor(&result);
+    zval_ptr_dtor(result);
     if (client->connector.error_code > 0)
     {
         retval = NULL;
@@ -2764,7 +2764,7 @@ static void swoole_mysql_onConnect(mysql_client *client TSRMLS_DC)
         sw_zend_call_method_with_0_params(&zobject, swoole_mysql_class_entry_ptr, NULL, "close", &retval);
         if (retval)
         {
-            sw_zval_ptr_dtor(&retval);
+            zval_ptr_dtor(retval);
         }
     }
 }
@@ -3024,7 +3024,7 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
             sw_zend_call_method_with_0_params(&zobject, swoole_mysql_class_entry_ptr, NULL, "close", &retval);
             if (retval)
             {
-                sw_zval_ptr_dtor(&retval);
+                zval_ptr_dtor(retval);
             }
             return SW_OK;
         }
@@ -3089,7 +3089,7 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
             /* free memory */
             if (retval)
             {
-                sw_zval_ptr_dtor(&retval);
+                zval_ptr_dtor(retval);
             }
             if (result)
             {

@@ -507,7 +507,7 @@ static void http_client_execute_callback(zval *zobject, enum php_swoole_client_c
     //free the callback return value
     if (retval != NULL)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
 }
 
@@ -530,7 +530,7 @@ static void http_client_onClose(swClient *cli)
     http_client_free(zobject TSRMLS_CC);
 
     http_client_execute_callback(zobject, SW_CLIENT_CB_onClose);
-    sw_zval_ptr_dtor(&zobject);
+    zval_ptr_dtor(zobject);
 }
 
 static int http_client_onMessage(swConnection *conn, char *data, uint32_t length)
@@ -560,9 +560,9 @@ static int http_client_onMessage(swConnection *conn, char *data, uint32_t length
     //free the callback return value
     if (retval != NULL)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
-    sw_zval_ptr_dtor(&zframe);
+    zval_ptr_dtor(zframe);
 
     return SW_OK;
 }
@@ -576,7 +576,7 @@ static void http_client_onError(swClient *cli)
     zend_update_property_long(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error TSRMLS_CC);
     http_client_free(zobject TSRMLS_CC);
     http_client_execute_callback(zobject, SW_CLIENT_CB_onError);
-    sw_zval_ptr_dtor(&zobject);
+    zval_ptr_dtor(zobject);
 }
 
 static void http_client_onRequestTimeout(swTimer *timer, swTimer_node *tnode)
@@ -611,7 +611,7 @@ static void http_client_onRequestTimeout(swTimer *timer, swTimer_node *tnode)
     sw_zend_call_method_with_0_params(&zobject, swoole_http_client_class_entry_ptr, NULL, "close", &retval);
     if (retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
 }
 
@@ -642,7 +642,7 @@ static void http_client_onResponseException(zval *zobject TSRMLS_DC)
     }
     if (retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
 }
 
@@ -750,7 +750,7 @@ static void http_client_onReceive(swClient *cli, char *data, uint32_t length)
     }
     if (retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
     sw_zval_free(zcallback);
 
@@ -1234,7 +1234,7 @@ int http_client_check_keep(http_client *http)
         sw_zend_call_method_with_0_params(&zobject, Z_OBJ_P(zobject)->ce, NULL, "close", &retval);
         if (retval)
         {
-            sw_zval_ptr_dtor(&retval);
+            zval_ptr_dtor(retval);
         }
         return 0; // no keep
     }
@@ -1376,7 +1376,7 @@ static PHP_METHOD(swoole_http_client, __destruct)
         sw_zend_call_method_with_0_params(&zobject, swoole_http_client_class_entry_ptr, NULL, "close", &retval);
         if (retval)
         {
-            sw_zval_ptr_dtor(&retval);
+            zval_ptr_dtor(retval);
         }
     }
     http_client_property *hcc = swoole_get_property(getThis(), 0);
@@ -1539,7 +1539,7 @@ static PHP_METHOD(swoole_http_client, addFile)
         SW_MAKE_STD_ZVAL(files);
         array_init(files);
         zend_update_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("uploadFiles"), files TSRMLS_CC);
-        sw_zval_ptr_dtor(&files);
+        zval_ptr_dtor(files);
 
         hcc->request_upload_files = sw_zend_read_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("uploadFiles"), 0 TSRMLS_CC);
         sw_copy_to_stack(hcc->request_upload_files, hcc->_request_upload_files);

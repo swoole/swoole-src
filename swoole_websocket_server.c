@@ -273,7 +273,7 @@ void swoole_websocket_onOpen(http_context *ctx)
         }
         if (retval)
         {
-            sw_zval_ptr_dtor(&retval);
+            zval_ptr_dtor(retval);
         }
     }
 }
@@ -380,7 +380,7 @@ int swoole_websocket_onMessage(swEventData *req)
     {
         if (!SwooleG.serv->listen_list->open_websocket_close_frame)
         {
-            sw_zval_ptr_dtor(&zdata);
+            zval_ptr_dtor(zdata);
             return SW_OK;
         }
     }
@@ -404,8 +404,8 @@ int swoole_websocket_onMessage(swEventData *req)
         int ret = coro_create(cache, args, 2, &retval, NULL, NULL);
         if (ret == CORO_LIMIT)
         {
-            sw_zval_ptr_dtor(&zdata);
-            sw_zval_ptr_dtor(&zframe);
+            zval_ptr_dtor(zdata);
+            zval_ptr_dtor(zframe);
             SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
             return SW_OK;
         }
@@ -431,10 +431,10 @@ int swoole_websocket_onMessage(swEventData *req)
     }
     if (retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
-    sw_zval_ptr_dtor(&zdata);
-    sw_zval_ptr_dtor(&zframe);
+    zval_ptr_dtor(zdata);
+    zval_ptr_dtor(zframe);
     return SW_OK;
 }
 

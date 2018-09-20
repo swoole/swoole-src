@@ -517,7 +517,7 @@ static PHP_METHOD(swoole_server_port, set)
 
     zval *zsetting = php_swoole_read_init_property(swoole_server_port_class_entry_ptr, getThis(), ZEND_STRL("setting") TSRMLS_CC);
     sw_php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
-    sw_zval_ptr_dtor(&zset);
+    zval_ptr_dtor(zset);
 }
 
 static PHP_METHOD(swoole_server_port, on)

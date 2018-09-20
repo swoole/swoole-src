@@ -263,7 +263,7 @@ static void swoole_pgsql_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
     int ret = coro_resume(ctx, result, &retval);
     if (ret == CORO_END && retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
     zval_ptr_dtor(result);
 }
@@ -341,7 +341,7 @@ static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event)
     int ret = coro_resume(sw_current_context, &return_value, &retval);
     if (ret == CORO_END && retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
     return SW_OK;
 }
@@ -426,7 +426,7 @@ static  int meta_data_result_parse(pg_object *pg_object)
     int ret  = coro_resume(sw_current_context, &return_value, &retval);
     if (ret == CORO_END && retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
     zval_ptr_dtor(&return_value);
     zval_ptr_dtor(&elem);
@@ -466,7 +466,7 @@ static  int query_result_parse(pg_object *pg_object)
             ret = coro_resume(sw_current_context, &return_value,  &retval);
             if (ret == CORO_END && retval)
             {
-                sw_zval_ptr_dtor(&retval);
+                zval_ptr_dtor(retval);
             }
             swoole_postgresql_coro_close(pg_object);
             break;
@@ -481,7 +481,7 @@ static  int query_result_parse(pg_object *pg_object)
             ret = coro_resume(sw_current_context, &return_value,  &retval);
             if (ret == CORO_END && retval)
             {
-                sw_zval_ptr_dtor(&retval);
+                zval_ptr_dtor(retval);
             }
             PQclear(pgsql_result);
 
@@ -1049,7 +1049,7 @@ static int swoole_pgsql_coro_onError(swReactor *reactor, swEvent *event)
 
     if (ret == CORO_END && retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
 
     return SW_OK;

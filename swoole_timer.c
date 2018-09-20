@@ -159,11 +159,11 @@ static int php_swoole_del_timer(swTimer_node *tnode TSRMLS_DC)
     }
     if (cb->callback)
     {
-        sw_zval_ptr_dtor(&cb->callback);
+        zval_ptr_dtor(cb->callback);
     }
     if (cb->data)
     {
-        sw_zval_ptr_dtor(&cb->data);
+        zval_ptr_dtor(cb->data);
     }
     if (SwooleG.enable_coroutine && cb->func_cache)
     {
@@ -229,7 +229,7 @@ void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
     }
     if (retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
     php_swoole_del_timer(tnode TSRMLS_CC);
 }
@@ -288,9 +288,9 @@ void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode)
     }
     if (retval != NULL)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
-    sw_zval_ptr_dtor(&ztimer_id);
+    zval_ptr_dtor(ztimer_id);
 
     if (tnode->remove)
     {

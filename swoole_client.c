@@ -192,7 +192,7 @@ static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_cli
     }
     if (retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
 }
 
@@ -390,10 +390,10 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
     }
     if (retval != NULL)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
     free_zdata:
-    sw_zval_ptr_dtor(&zdata);
+    zval_ptr_dtor(zdata);
 }
 
 static void client_onConnect(swClient *cli)
@@ -425,7 +425,7 @@ static void client_onClose(swClient *cli)
     zval *zobject = (zval *) cli->object;
     php_swoole_client_free(zobject, cli TSRMLS_CC);
     client_execute_callback(zobject, SW_CLIENT_CB_onClose);
-    sw_zval_ptr_dtor(&zobject);
+    zval_ptr_dtor(zobject);
 }
 
 static void client_onError(swClient *cli)
@@ -434,7 +434,7 @@ static void client_onError(swClient *cli)
     zend_update_property_long(swoole_client_class_entry_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error TSRMLS_CC);
     php_swoole_client_free(zobject, cli TSRMLS_CC);
     client_execute_callback(zobject, SW_CLIENT_CB_onError);
-    sw_zval_ptr_dtor(&zobject);
+    zval_ptr_dtor(zobject);
 }
 
 static void client_onBufferFull(swClient *cli)
@@ -1073,7 +1073,7 @@ static PHP_METHOD(swoole_client, __destruct)
         sw_zend_call_method_with_0_params(&zobject, swoole_client_class_entry_ptr, NULL, "close", &retval);
         if (retval)
         {
-            sw_zval_ptr_dtor(&retval);
+            zval_ptr_dtor(retval);
         }
     }
     //free memory
@@ -1768,7 +1768,7 @@ static PHP_METHOD(swoole_client, close)
     if (cli->async && cli->socket->active == 0)
     {
         zval *zobject = getThis();
-        sw_zval_ptr_dtor(&zobject);
+        zval_ptr_dtor(zobject);
     }
     //Connection error, or short tcp connection.
     //No keep connection

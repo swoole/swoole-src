@@ -609,12 +609,12 @@ int php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data,
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
         goto error;
     }
-    sw_zval_ptr_dtor(&zdata);
+    zval_ptr_dtor(zdata);
     if (retval != NULL)
     {
         convert_to_long(retval);
         int length = Z_LVAL_P(retval);
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
         SwooleG.lock.unlock(&SwooleG.lock);
         return length;
     }
@@ -660,9 +660,9 @@ int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swEventData *da
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
         goto error;
     }
-    sw_zval_ptr_dtor(&zfd);
-    sw_zval_ptr_dtor(&ztype);
-    sw_zval_ptr_dtor(&zdata);
+    zval_ptr_dtor(zfd);
+    zval_ptr_dtor(ztype);
+    zval_ptr_dtor(zdata);
     if (retval != NULL)
     {
         convert_to_long(retval);
@@ -672,7 +672,7 @@ int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swEventData *da
             swoole_php_fatal_error(E_WARNING, "invalid target worker-id[%d].", worker_id);
             goto error;
         }
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
         SwooleG.lock.unlock(&SwooleG.lock);
         return worker_id;
     }
@@ -1475,10 +1475,10 @@ PHP_FUNCTION(swoole_set_process_name)
     {
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
-    sw_zval_ptr_dtor(&function);
+    zval_ptr_dtor(function);
     if (retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
 }
 

@@ -87,7 +87,6 @@ static sw_inline char* sw_php_url_encode(char *value, size_t value_len, int* ext
 }
 
 #define sw_zval_add_ref(p)   Z_TRY_ADDREF_P(*p)
-#define sw_zval_ptr_dtor(p)  zval_ptr_dtor(*p)
 
 #define SW_PHP_MAX_PARAMS_NUM     20
 
@@ -186,7 +185,7 @@ static sw_inline zval* sw_zval_dup(zval *val)
 
 static sw_inline void sw_zval_free(zval *val)
 {
-    sw_zval_ptr_dtor(&val);
+    zval_ptr_dtor(val);
     efree(val);
 }
 

@@ -111,10 +111,10 @@ static void php_swoole_file_request_free(void *data)
     file_request *file_req = data;
     if (file_req->callback)
     {
-        sw_zval_ptr_dtor(&file_req->callback);
+        zval_ptr_dtor(file_req->callback);
     }
     efree(file_req->content);
-    sw_zval_ptr_dtor(&file_req->filename);
+    zval_ptr_dtor(file_req->filename);
     efree(file_req);
 }
 
@@ -181,14 +181,14 @@ static void php_swoole_dns_callback(char *domain, swDNSResolver_result *result, 
         zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
     }
 
-    sw_zval_ptr_dtor(&req->callback);
-    sw_zval_ptr_dtor(&req->domain);
+    zval_ptr_dtor(req->callback);
+    zval_ptr_dtor(req->domain);
     efree(req);
     if (retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
-    sw_zval_ptr_dtor(&zaddress);
+    zval_ptr_dtor(zaddress);
 }
 
 #ifdef SW_COROUTINE
@@ -251,12 +251,12 @@ static void php_swoole_dns_callback_coro(char *domain, swDNSResolver_result *res
 
     if (retval != NULL)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
     //说明已经yield走了
     free_zdata:
     // free 上下文
-    sw_zval_ptr_dtor(&zaddress);
+    zval_ptr_dtor(zaddress);
     efree(req->context);
     efree(req);
 }
@@ -288,10 +288,10 @@ static void php_swoole_dns_timeout_coro(swTimer *timer, swTimer_node *tnode)
 
     if (retval != NULL)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
     free_zdata:
-    sw_zval_ptr_dtor(&zaddress);
+    zval_ptr_dtor(zaddress);
     efree(req->context);
     req->useless = 1;
 
@@ -340,18 +340,18 @@ static void php_swoole_aio_onDNSCompleted(swAio_event *event)
         zend_exception_error(EG(exception), E_ERROR);
     }
 
-    sw_zval_ptr_dtor(&dns_req->callback);
-    sw_zval_ptr_dtor(&dns_req->domain);
+    zval_ptr_dtor(dns_req->callback);
+    zval_ptr_dtor(dns_req->domain);
     efree(dns_req);
     efree(event->buf);
 
     if (zcontent)
     {
-        sw_zval_ptr_dtor(&zcontent);
+        zval_ptr_dtor(zcontent);
     }
     if (retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
 }
 
@@ -491,15 +491,15 @@ static void php_swoole_aio_onFileCompleted(swAio_event *event)
 
     if (zcontent)
     {
-        sw_zval_ptr_dtor(&zcontent);
+        zval_ptr_dtor(zcontent);
     }
     if (zwriten)
     {
-        sw_zval_ptr_dtor(&zwriten);
+        zval_ptr_dtor(zwriten);
     }
     if (retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
 }
 
@@ -977,7 +977,7 @@ PHP_FUNCTION(swoole_async_set)
         }
     }
 #endif
-    sw_zval_ptr_dtor(&zset);
+    zval_ptr_dtor(zset);
 }
 
 PHP_FUNCTION(swoole_async_dns_lookup)
@@ -1131,7 +1131,7 @@ static int process_stream_onRead(swReactor *reactor, swEvent *event)
         int ret = coro_resume(context, zstatus, &retval);
         if (ret == CORO_END && retval)
         {
-            sw_zval_ptr_dtor(&retval);
+            zval_ptr_dtor(retval);
         }
         efree(context);
 #else
@@ -1145,10 +1145,10 @@ static int process_stream_onRead(swReactor *reactor, swEvent *event)
     }
     if (retval != NULL)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
-    sw_zval_ptr_dtor(&zdata);
-    sw_zval_ptr_dtor(&zstatus);
+    zval_ptr_dtor(zdata);
+    zval_ptr_dtor(zstatus);
     close(ps->fd);
     efree(ps);
 

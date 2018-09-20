@@ -51,17 +51,17 @@ static void free_event_callback(void* data)
     php_reactor_fd *ev_set = (php_reactor_fd*) data;
     if (ev_set->cb_read)
     {
-        sw_zval_ptr_dtor(&(ev_set->cb_read));
+        zval_ptr_dtor((ev_set->cb_read));
         ev_set->cb_read = NULL;
     }
     if (ev_set->cb_write)
     {
-        sw_zval_ptr_dtor(&(ev_set->cb_write));
+        zval_ptr_dtor((ev_set->cb_write));
         ev_set->cb_write = NULL;
     }
     if (ev_set->socket)
     {
-        sw_zval_ptr_dtor(&(ev_set->socket));
+        zval_ptr_dtor((ev_set->socket));
         ev_set->socket = NULL;
     }
     efree(ev_set);
@@ -70,7 +70,7 @@ static void free_event_callback(void* data)
 static void free_callback(void* data)
 {
     php_defer_callback *cb = (php_defer_callback *) data;
-    sw_zval_ptr_dtor(&cb->callback);
+    zval_ptr_dtor(cb->callback);
     efree(cb);
 }
 
@@ -95,7 +95,7 @@ static int php_swoole_event_onRead(swReactor *reactor, swEvent *event)
     }
     if (retval != NULL)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
     return SW_OK;
 }
@@ -126,7 +126,7 @@ static int php_swoole_event_onWrite(swReactor *reactor, swEvent *event)
     }
     if (retval != NULL)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
     return SW_OK;
 }
@@ -171,9 +171,9 @@ static void php_swoole_event_onDefer(void *_cb)
     }
     if (retval != NULL)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
-    sw_zval_ptr_dtor(&defer->callback);
+    zval_ptr_dtor(defer->callback);
     efree(defer);
 }
 
@@ -193,7 +193,7 @@ static void php_swoole_event_onEndCallback(void *_cb)
     }
     if (retval != NULL)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
 }
 
@@ -606,7 +606,7 @@ PHP_FUNCTION(swoole_event_set)
         {
             if (ev_set->cb_read)
             {
-                sw_zval_ptr_dtor(&ev_set->cb_read);
+                zval_ptr_dtor(ev_set->cb_read);
             }
             ev_set->cb_read = cb_read;
             sw_zval_add_ref(&cb_read);
@@ -632,7 +632,7 @@ PHP_FUNCTION(swoole_event_set)
         {
             if (ev_set->cb_write)
             {
-                sw_zval_ptr_dtor(&ev_set->cb_write);
+                zval_ptr_dtor(ev_set->cb_write);
             }
             ev_set->cb_write = cb_write;
             sw_zval_add_ref(&cb_write);

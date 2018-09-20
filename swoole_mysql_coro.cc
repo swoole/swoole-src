@@ -632,7 +632,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     else
     {
         zend_throw_exception(swoole_mysql_coro_exception_class_entry_ptr, "HOST parameter is required.", 11 TSRMLS_CC);
-        sw_zval_ptr_dtor(&server_info);
+        zval_ptr_dtor(server_info);
         RETURN_FALSE;
     }
     if (php_swoole_array_get_value(_ht, "port", value))
@@ -653,7 +653,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     else
     {
         zend_throw_exception(swoole_mysql_coro_exception_class_entry_ptr, "USER parameter is required.", 11 TSRMLS_CC);
-        sw_zval_ptr_dtor(&server_info);
+        zval_ptr_dtor(server_info);
         RETURN_FALSE;
     }
     if (php_swoole_array_get_value(_ht, "password", value))
@@ -665,7 +665,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     else
     {
         zend_throw_exception(swoole_mysql_coro_exception_class_entry_ptr, "PASSWORD parameter is required.", 11 TSRMLS_CC);
-        sw_zval_ptr_dtor(&server_info);
+        zval_ptr_dtor(server_info);
         RETURN_FALSE;
     }
     if (php_swoole_array_get_value(_ht, "database", value))
@@ -677,7 +677,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     else
     {
         zend_throw_exception(swoole_mysql_coro_exception_class_entry_ptr, "DATABASE parameter is required.", 11 TSRMLS_CC);
-        sw_zval_ptr_dtor(&server_info);
+        zval_ptr_dtor(server_info);
         RETURN_FALSE;
     }
     if (php_swoole_array_get_value(_ht, "timeout", value))
@@ -697,7 +697,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
         {
             snprintf(buf, sizeof(buf), "unknown charset [%s].", Z_STRVAL_P(value));
             zend_throw_exception(swoole_mysql_coro_exception_class_entry_ptr, buf, 11 TSRMLS_CC);
-            sw_zval_ptr_dtor(&server_info);
+            zval_ptr_dtor(server_info);
             RETURN_FALSE;
         }
     }
@@ -747,7 +747,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
         zend_update_property_string(swoole_mysql_coro_class_entry_ptr, getThis(), ZEND_STRL("connect_error"), strerror(errno) TSRMLS_CC);
         zend_update_property_long(swoole_mysql_coro_class_entry_ptr, getThis(), ZEND_STRL("connect_errno"), errno TSRMLS_CC);
         efree(cli);
-        sw_zval_ptr_dtor(&server_info);
+        zval_ptr_dtor(server_info);
         RETURN_FALSE;
     }
 
@@ -775,7 +775,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     }
 
     zend_update_property(swoole_mysql_coro_class_entry_ptr, getThis(), ZEND_STRL("serverInfo"), server_info TSRMLS_CC);
-    sw_zval_ptr_dtor(&server_info);
+    zval_ptr_dtor(server_info);
     zend_update_property_long(swoole_mysql_coro_class_entry_ptr, getThis(), ZEND_STRL("sock"), cli->socket->fd TSRMLS_CC);
 
     if (!client->buffer)
@@ -1182,7 +1182,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, fetch)
         int ret;
         zval retval;
         ret = call_user_function_ex(EG(function_table), NULL, fcn, &retval, 1, args, 0, NULL TSRMLS_CC);
-        sw_zval_ptr_dtor(&fcn);
+        zval_ptr_dtor(fcn);
         ZVAL_UNREF(stmt->result);
 
         if (ret == FAILURE)
@@ -1419,7 +1419,7 @@ static int swoole_mysql_coro_onError(swReactor *reactor, swEvent *event)
 
     if (ret == CORO_END && retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
 
     return SW_OK;
@@ -1464,10 +1464,10 @@ static void swoole_mysql_coro_onConnect(mysql_client *client TSRMLS_DC)
 
     php_context *sw_current_context = (php_context *) swoole_get_property(zobject, 0);
     int ret = coro_resume(sw_current_context, result, &retval);
-    sw_zval_ptr_dtor(&result);
+    zval_ptr_dtor(result);
     if (ret == CORO_END && retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
 }
 
@@ -1513,7 +1513,7 @@ static void swoole_mysql_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
 
     if (ret == CORO_END && retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
 
     sw_zval_free(result);
@@ -1831,7 +1831,7 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
             sw_zval_free(result);
             if (ret == CORO_END && retval)
             {
-                sw_zval_ptr_dtor(&retval);
+                zval_ptr_dtor(retval);
             }
             client->state = SW_MYSQL_STATE_QUERY;
             return SW_OK;
@@ -1886,7 +1886,7 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
             }
             if (ret == CORO_END && retval)
             {
-                sw_zval_ptr_dtor(&retval);
+                zval_ptr_dtor(retval);
             }
             return SW_OK;
         }

@@ -379,7 +379,7 @@ static PHP_METHOD(swoole_coroutine_util, set)
         convert_to_long(v);
         SwooleG.trace_flags = (int32_t) Z_LVAL_P(v);
     }
-    sw_zval_ptr_dtor(&zset);
+    zval_ptr_dtor(zset);
 }
 
 PHP_FUNCTION(swoole_coroutine_create)
@@ -429,7 +429,7 @@ PHP_FUNCTION(swoole_coroutine_create)
     }
     if (retval != NULL)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
     if (cid < 0)
     {
@@ -474,9 +474,9 @@ static PHP_METHOD(swoole_coroutine_util, resume)
     int ret = coro_resume(context, result, &retval);
     if (ret == CORO_END && retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
-    sw_zval_ptr_dtor(&result);
+    zval_ptr_dtor(result);
     efree(context);
     EG(vm_stack) = origin_vm_stack;
     EG(vm_stack_top) = origin_vm_stack_top;
@@ -556,9 +556,9 @@ static void aio_onReadCompleted(swAio_event *event)
     int ret = coro_resume(context, result, &retval);
     if (ret == CORO_END && retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
-    sw_zval_ptr_dtor(&result);
+    zval_ptr_dtor(result);
     efree(event->buf);
     efree(context);
 }
@@ -592,9 +592,9 @@ static void aio_onStreamGetLineCompleted(swAio_event *event)
     int ret = coro_resume(context, result, &retval);
     if (ret == CORO_END && retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
-    sw_zval_ptr_dtor(&result);
+    zval_ptr_dtor(result);
     efree(context);
 }
 
@@ -618,9 +618,9 @@ static void aio_onWriteCompleted(swAio_event *event)
     int ret = coro_resume(context, result, &retval);
     if (ret == CORO_END && retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
-    sw_zval_ptr_dtor(&result);
+    zval_ptr_dtor(result);
     efree(event->buf);
     efree(context);
 }
@@ -646,9 +646,9 @@ static void aio_onReadFileCompleted(swAio_event *event)
     int ret = coro_resume(context, result, &retval);
     if (ret == CORO_END && retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
-    sw_zval_ptr_dtor(&result);
+    zval_ptr_dtor(result);
     efree(event->req);
     efree(context);
 }
@@ -673,9 +673,9 @@ static void aio_onWriteFileCompleted(swAio_event *event)
     int ret = coro_resume(context, result, &retval);
     if (ret == CORO_END && retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
-    sw_zval_ptr_dtor(&result);
+    zval_ptr_dtor(result);
     efree(event->req);
     efree(context);
 }
@@ -1228,9 +1228,9 @@ static void coro_dns_onResolveCompleted(swAio_event *event)
     int ret = coro_resume(context, result, &retval);
     if (ret == CORO_END && retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
-    sw_zval_ptr_dtor(&result);
+    zval_ptr_dtor(result);
     efree(event->buf);
     efree(context);
 }
@@ -1283,9 +1283,9 @@ static void coro_dns_onGetaddrinfoCompleted(swAio_event *event)
     int ret = coro_resume(context, result, &retval);
     if (ret == CORO_END && retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
-    sw_zval_ptr_dtor(&result);
+    zval_ptr_dtor(result);
     efree(req->hostname);
     efree(req->result);
     if (req->service)
