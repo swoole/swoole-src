@@ -1297,7 +1297,7 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro)
     dns_cache *cache = swHashMap_find(request_cache_map, Z_STRVAL_P(domain), Z_STRLEN_P(domain));
     if (cache != NULL && cache->update_time > (int64_t)swTimer_get_now_msec )
     {
-        SW_RETURN_STRINGL((*cache->zaddress).str,(*cache->zaddress).length,1);
+        RETURN_STRINGL((*cache->zaddress).str,(*cache->zaddress).length);
     }
 
     dns_request *req = emalloc(sizeof(dns_request));

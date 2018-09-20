@@ -388,7 +388,7 @@ static PHP_METHOD(swoole_redis_server, format)
 
     if (type == SW_REDIS_REPLY_NIL)
     {
-        SW_RETURN_STRINGL(SW_REDIS_RETURN_NIL, sizeof(SW_REDIS_RETURN_NIL)-1, 1);
+        RETURN_STRINGL(SW_REDIS_RETURN_NIL, sizeof(SW_REDIS_RETURN_NIL)-1);
     }
     else if (type == SW_REDIS_REPLY_STATUS)
     {
@@ -401,7 +401,7 @@ static PHP_METHOD(swoole_redis_server, format)
         {
             length = snprintf(message, sizeof(message), "+%s\r\n", "OK");
         }
-        SW_RETURN_STRINGL(message, length, 1);
+        RETURN_STRINGL(message, length);
     }
     else if (type == SW_REDIS_REPLY_ERROR)
     {
@@ -414,7 +414,7 @@ static PHP_METHOD(swoole_redis_server, format)
         {
             length = snprintf(message, sizeof(message), "-%s\r\n", "ERR");
         }
-        SW_RETURN_STRINGL(message, length, 1);
+        RETURN_STRINGL(message, length);
     }
     else if (type == SW_REDIS_REPLY_INT)
     {
@@ -425,7 +425,7 @@ static PHP_METHOD(swoole_redis_server, format)
 
         convert_to_long(value);
         length = snprintf(message, sizeof(message), ":" ZEND_LONG_FMT "\r\n", Z_LVAL_P(value));
-        SW_RETURN_STRINGL(message, length, 1);
+        RETURN_STRINGL(message, length);
     }
     else if (type == SW_REDIS_REPLY_STRING)
     {
@@ -446,7 +446,7 @@ static PHP_METHOD(swoole_redis_server, format)
         swString_append_ptr(format_buffer, message, length);
         swString_append_ptr(format_buffer, Z_STRVAL_P(value), Z_STRLEN_P(value));
         swString_append_ptr(format_buffer, SW_CRLF, SW_CRLF_LEN);
-        SW_RETURN_STRINGL(format_buffer->str, format_buffer->length, 1);
+        RETURN_STRINGL(format_buffer->str, format_buffer->length);
     }
     else if (type == SW_REDIS_REPLY_SET)
     {
@@ -481,7 +481,7 @@ static PHP_METHOD(swoole_redis_server, format)
             }
         SW_HASHTABLE_FOREACH_END();
 
-        SW_RETURN_STRINGL(format_buffer->str, format_buffer->length, 1);
+        RETURN_STRINGL(format_buffer->str, format_buffer->length);
     }
     else if (type == SW_REDIS_REPLY_MAP)
     {
@@ -526,7 +526,7 @@ static PHP_METHOD(swoole_redis_server, format)
             (void) keytype;
         SW_HASHTABLE_FOREACH_END();
 
-        SW_RETURN_STRINGL(format_buffer->str, format_buffer->length, 1);
+        RETURN_STRINGL(format_buffer->str, format_buffer->length);
     }
     else
     {

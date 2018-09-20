@@ -1667,12 +1667,12 @@ static PHP_METHOD(swoole_http_request, rawcontent)
     if (req->post_length > 0)
     {
         zval *zdata = swoole_get_property(getThis(), 0);
-        SW_RETVAL_STRINGL(Z_STRVAL_P(zdata) + Z_STRLEN_P(zdata) - req->post_length, req->post_length, 1);
+        RETVAL_STRINGL(Z_STRVAL_P(zdata) + Z_STRLEN_P(zdata) - req->post_length, req->post_length);
     }
 #ifdef SW_USE_HTTP2
     else if (req->post_buffer)
     {
-        SW_RETVAL_STRINGL(req->post_buffer->str, req->post_buffer->length, 1);
+        RETVAL_STRINGL(req->post_buffer->str, req->post_buffer->length);
     }
 #endif
     else
@@ -1686,7 +1686,7 @@ static PHP_METHOD(swoole_http_request, getData)
     zval *zdata = swoole_get_property(getThis(), 0);
     if (zdata)
     {
-        SW_RETURN_STRINGL(Z_STRVAL_P(zdata), Z_STRLEN_P(zdata), 1);
+        RETURN_STRINGL(Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
     }
     else
     {

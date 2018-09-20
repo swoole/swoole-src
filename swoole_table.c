@@ -800,7 +800,7 @@ static PHP_METHOD(swoole_table, key)
     }
     swTableRow *row = swTable_iterator_current(table);
     swTableRow_lock(row);
-    SW_RETVAL_STRING(row->key, 1);
+    RETVAL_STRING(row->key);
     swTableRow_unlock(row);
 }
 

@@ -3159,6 +3159,8 @@ static PHP_METHOD(swoole_mysql, escape)
         swoole_php_fatal_error(E_ERROR, "mysqlnd_cset_escape_slashes() failed.");
         RETURN_FALSE;
     }
-    SW_RETURN_STRINGL(newstr, newstr_len, 0);
+    RETVAL_STRINGL(newstr, newstr_len);
+    efree(newstr);
+    return;
 }
 #endif

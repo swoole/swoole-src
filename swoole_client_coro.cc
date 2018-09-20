@@ -1007,7 +1007,8 @@ static PHP_METHOD(swoole_client_coro, peek)
     else
     {
         buf[ret] = 0;
-        SW_RETVAL_STRINGL(buf, ret, 0);
+        RETVAL_STRINGL(buf, ret);
+        efree(buf);
     }
 }
 
@@ -1190,7 +1191,7 @@ static PHP_METHOD(swoole_client_coro, getPeerCert)
     {
         RETURN_FALSE;
     }
-    SW_RETURN_STRINGL(buf, n, 1);
+    RETURN_STRINGL(buf, n);
 }
 
 static PHP_METHOD(swoole_client_coro, verifyPeerCert)

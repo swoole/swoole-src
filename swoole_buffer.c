@@ -225,13 +225,13 @@ static PHP_METHOD(swoole_buffer, substr)
             swoole_buffer_recycle(buffer);
         }
     }
-    SW_RETURN_STRINGL(buffer->str + offset, length, 1);
+    RETURN_STRINGL(buffer->str + offset, length);
 }
 
 static PHP_METHOD(swoole_buffer, __toString)
 {
     swString *buffer = swoole_get_object(getThis());
-    SW_RETURN_STRINGL(buffer->str + buffer->offset, buffer->length - buffer->offset, 1);
+    RETURN_STRINGL(buffer->str + buffer->offset, buffer->length - buffer->offset);
 }
 
 static PHP_METHOD(swoole_buffer, write)
@@ -318,7 +318,7 @@ static PHP_METHOD(swoole_buffer, read)
         RETURN_FALSE;
     }
 
-    SW_RETURN_STRINGL(buffer->str + offset, length, 1);
+    RETURN_STRINGL(buffer->str + offset, length);
 }
 
 static PHP_METHOD(swoole_buffer, expand)

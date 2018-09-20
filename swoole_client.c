@@ -1486,7 +1486,7 @@ static PHP_METHOD(swoole_client, recv)
             if (eof >= 0)
             {
                 eof += protocol->package_eof_len;
-                SW_RETVAL_STRINGL(buffer->str, eof, 1);
+                RETVAL_STRINGL(buffer->str, eof);
 
                 if (buffer->length > eof)
                 {
@@ -1557,7 +1557,7 @@ static PHP_METHOD(swoole_client, recv)
         //empty package
         else if (buf_len == header_len)
         {
-            SW_RETURN_STRINGL(cli->buffer->str, header_len, 1);
+            RETURN_STRINGL(cli->buffer->str, header_len);
         }
         else if (buf_len > protocol->package_max_length)
         {
@@ -1609,7 +1609,8 @@ static PHP_METHOD(swoole_client, recv)
         else
         {
             buf[ret] = 0;
-            SW_RETVAL_STRINGL(buf, ret, 0);
+            RETVAL_STRINGL(buf, ret);
+            efree(buff);
         }
     }
 }
@@ -2025,7 +2026,7 @@ static PHP_METHOD(swoole_client, getPeerCert)
     {
         RETURN_FALSE;
     }
-    SW_RETURN_STRINGL(buf, n, 1);
+    RETURN_STRINGL(buf, n);
 }
 
 static PHP_METHOD(swoole_client, verifyPeerCert)

@@ -949,7 +949,7 @@ static PHP_METHOD(swoole_process, pop)
     {
         RETURN_FALSE;
     }
-    SW_RETURN_STRINGL(message.data, n, 1);
+    RETURN_STRINGL(message.data, n);
 }
 
 static PHP_METHOD(swoole_process, exec)
