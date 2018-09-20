@@ -85,6 +85,7 @@
             <file role="src" name="build.sh" />
             <file role="src" name="clear.sh" />
             <file role="src" name="config.m4" />
+            <file role="src" name="config.w32" />
             <file role="src" name="core-tests/CMakeLists.txt" />
             <file role="src" name="core-tests/include/tests.h" />
             <file role="src" name="core-tests/server/tcp.php" />
@@ -420,8 +421,10 @@
             <file role="src" name="include/socks5.h" />
             <file role="src" name="include/swoole.h" />
             <file role="src" name="include/table.h" />
+            <file role="src" name="include/unix.h" />
             <file role="src" name="include/uthash.h" />
             <file role="src" name="include/websocket.h" />
+            <file role="src" name="include/win.h" />
             <file role="src" name="include/wrapper/base.hpp" />
             <file role="src" name="include/wrapper/client.hpp" />
             <file role="src" name="include/wrapper/server.hpp" />
@@ -734,6 +737,7 @@
             <file role="test" name="tests/swoole_client_sync/swoole_client_sync_send_recv.phpt" />
             <file role="test" name="tests/swoole_client_sync/udp_client_sendto.phpt" />
             <file role="test" name="tests/swoole_coroutine/call_user_func_array.phpt" />
+            <file role="test" name="tests/swoole_coroutine/cidmap_max.phpt" />
             <file role="test" name="tests/swoole_coroutine/coro_stats.phpt" />
             <file role="test" name="tests/swoole_coroutine/current.phpt" />
             <file role="test" name="tests/swoole_coroutine/destruct/destruct1.phpt" />
@@ -1111,6 +1115,7 @@
             <file role="test" name="tests/swoole_timer/parameters_is_too_big.phpt" />
             <file role="test" name="tests/swoole_timer/swoole_timer_after.phpt" />
             <file role="test" name="tests/swoole_timer/task_worker.phpt" />
+            <file role="test" name="tests/swoole_timer/verify.phpt" />
             <file role="test" name="tests/swoole_websocket_server/close_frame_flag.phpt" />
             <file role="test" name="tests/swoole_websocket_server/close_frame_full.phpt" />
             <file role="test" name="tests/swoole_websocket_server/disconnect.phpt" />
