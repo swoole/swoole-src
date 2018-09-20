@@ -890,7 +890,7 @@ static PHP_METHOD(swoole_http2_client_coro, recv)
         swoole_php_error(E_WARNING, "The connection is closed.");
         RETURN_FALSE;
     }
-    if (hcc->cid != 0 && hcc->cid != sw_get_current_cid())
+    if (unlikely(hcc->cid != 0 && hcc->cid != sw_get_current_cid()))
     {
         swoole_php_fatal_error(E_ERROR, "client has been bound to another coroutine.");
         RETURN_FALSE;

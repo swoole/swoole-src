@@ -18,13 +18,11 @@
 #define SW_COROUTINE_H_
 
 #include "swoole.h"
+
 #ifdef __cplusplus
 extern "C"
 {
 #endif
-
-void coro_yield();
-void coro_handle_timeout();
 
 #define DEFAULT_MAX_CORO_NUM 3000
 #define DEFAULT_STACK_SIZE   8192
@@ -47,6 +45,10 @@ typedef enum
 {
     SW_CORO_YIELD = 0, SW_CORO_SUSPENDED, SW_CORO_RUNNING, SW_CORO_END,
 } sw_coro_state;
+
+
+void coro_yield();
+void coro_handle_timeout();
 
 /* basic api */
 int coroutine_create(coroutine_func_t func, void* args);

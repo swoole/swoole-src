@@ -115,6 +115,7 @@ int coro_init(TSRMLS_D);
 void coro_destroy(TSRMLS_D);
 void coro_check(TSRMLS_D);
 
+#define sw_coro_is_in() (sw_get_current_cid() != -1)
 #define coro_create(op_array, argv, argc, retval, post_callback, param) \
         sw_coro_create(op_array, argv, argc, *retval, post_callback, param)
 #define coro_save(sw_php_context) \
@@ -122,7 +123,6 @@ void coro_check(TSRMLS_D);
 #define coro_resume(sw_current_context, retval, coro_retval) \
         sw_coro_resume(sw_current_context, retval, *coro_retval)
 #define coro_yield() sw_coro_yield()
-
 #define coro_use_return_value(); *(zend_uchar *) &execute_data->prev_execute_data->opline->result_type = IS_VAR;
 
 /* output globals */

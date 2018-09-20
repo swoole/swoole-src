@@ -198,7 +198,7 @@ static int coro_exit_handler(zend_execute_data *execute_data)
     zval ex;
     zend_object *obj;
     zend_long flags = 0;
-    if (sw_get_current_cid() != -1)
+    if (sw_coro_is_in())
     {
         flags |= SW_EXIT_IN_COROUTINE;
     }

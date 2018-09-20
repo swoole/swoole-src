@@ -228,7 +228,7 @@ coroutine_t* coroutine_get_by_id(int cid)
 
 coroutine_t* coroutine_get_current()
 {
-    return (swCoroG.call_stack_size > 0) ? swCoroG.call_stack[swCoroG.call_stack_size - 1] : nullptr;
+    return likely(swCoroG.call_stack_size > 0) ? swCoroG.call_stack[swCoroG.call_stack_size - 1] : nullptr;
 }
 
 void* coroutine_get_current_task()
@@ -247,7 +247,7 @@ void* coroutine_get_current_task()
 int coroutine_get_current_cid()
 {
     coroutine_t* co = coroutine_get_current();
-    if (co)
+    if (likely(co))
     {
         return co->cid;
     }
