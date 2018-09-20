@@ -247,6 +247,7 @@ typedef enum
     PHP_SWOOLE_RSHUTDOWN_END,
 } php_swoole_req_status;
 //---------------------------------------------------------
+#define php_swoole_check_reactor()          if(unlikely(!SwooleWG.reactor_init)){php_swoole_reactor_init();}
 #define php_swoole_socktype(type)           (type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP) & (~SW_SOCK_SSL))
 #define php_swoole_array_length(array)      zend_hash_num_elements(Z_ARRVAL_P(array))
 
@@ -429,7 +430,7 @@ void swoole_memory_pool_init(int module_number TSRMLS_DC);
 
 int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC);
 
-void php_swoole_check_reactor();
+void php_swoole_reactor_init();
 void php_swoole_check_aio();
 void php_swoole_at_shutdown(char *function);
 void php_swoole_event_init();
