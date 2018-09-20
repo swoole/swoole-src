@@ -43,7 +43,7 @@ $pm->childFunc = function () use ($pm) {
         "worker_num" => 1,
         'log_file' => '/dev/null'
     ]);
-    
+
     $proc = new swoole\process(function ($process) use ($serv) {
        $data = json_decode($process->read(), true);
         for ($i = 0; $i < TIMES/2; $i ++) {
@@ -56,7 +56,7 @@ $pm->childFunc = function () use ($pm) {
             });
         }
     }, false, true);
-    
+
     $serv->addProcess($proc);
     $serv->on("WorkerStart", function (\swoole_server $serv) use ($pm) {
         $pm->wakeup();

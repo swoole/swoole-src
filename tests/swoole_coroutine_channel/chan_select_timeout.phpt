@@ -1,7 +1,7 @@
 --TEST--
 swoole_coroutine_channel: coro channel select timeout
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; 
+<?php require __DIR__ . '/../include/skipif.inc';
 exit("skip for select");
 ?>
 --FILE--

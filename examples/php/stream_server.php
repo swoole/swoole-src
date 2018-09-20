@@ -16,11 +16,11 @@ if (!$socket) {
 			}
 		    else{
 				$i++;
-			} 
+			}
 			if ($r === false) break;
 	  }
 	  fclose($conn);
-   
+
   }
   fclose($socket);
 }

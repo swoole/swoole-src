@@ -24,7 +24,7 @@ for($i=0; $i<$loop; $i++)
 	//$client->send("Host: localhost\r\n");
 	//$client->send("Connection: keep-alive\r\n");
 	$client->send("\r\n\r\n");
-	
+
 	//$data = $client->recv(1024, 0);
 	//if($data === false)
 	//{

@@ -15,7 +15,7 @@ go(function () {
 assert(Co::getuid() === -1);
 go(function () {
     assert(Co::getuid() === 2);
-   
+
     go(function () {
         assert(Co::getuid() === 3);
         go(function () {

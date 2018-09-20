@@ -29,7 +29,7 @@ $cli->on("connect", function(swoole_client $cli) {
     // getSocket BUG
     $cli->getSocket();
     $cli->getSocket();
-    
+
     echo "SUCCESS";
     /*
     @$cli->getSocket();

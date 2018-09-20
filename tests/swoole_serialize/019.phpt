@@ -18,7 +18,7 @@ function test($type, $test) {
     $unserialized = swoole_serialize::unpack($serialized);
 
     echo $type, PHP_EOL;
-     
+
     var_dump($unserialized);
     echo $test || $unserialized->b == 2 ? 'OK' : 'ERROR', PHP_EOL;
 }

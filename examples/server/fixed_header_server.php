@@ -24,7 +24,7 @@ class FixedHeaderServer
         $this->serv->send($fd, $resp);
         $this->current_fd = '';
     }
-    
+
     function onReceive($serv, $fd, $from_id, $data)
     {
     	echo "package".substr($data, -4, 4)." length=". (strlen($data) - 2)."\n";
@@ -77,7 +77,7 @@ class FixedHeaderServer
         register_shutdown_function(array($this, 'errorHandler'));
         $this->serv = new swoole_server($host, $port);
 		file_put_contents(PID_FILE_NAME, posix_getpid());
-		
+
         $this->serv->set(array(
             'max_request' => 0,
 // 			'dispatch_mode' => 3,
