@@ -649,7 +649,7 @@ static void swoole_redis_parse_result(swRedisClient *redis, zval* return_value, 
         {
             if (reply->len > 0)
             {
-                SW_ZVAL_STRINGL(return_value, reply->str, reply->len, 1);
+                ZVAL_STRINGL(return_value, reply->str, reply->len);
             }
             else
             {
@@ -664,7 +664,7 @@ static void swoole_redis_parse_result(swRedisClient *redis, zval* return_value, 
         break;
 
     case REDIS_REPLY_STRING:
-        SW_ZVAL_STRINGL(return_value, reply->str, reply->len, 1);
+        ZVAL_STRINGL(return_value, reply->str, reply->len);
         break;
 
     case REDIS_REPLY_ARRAY:

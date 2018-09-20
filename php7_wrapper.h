@@ -164,10 +164,6 @@ static sw_inline int sw_call_user_function_fast(zval *function_name, zend_fcall_
     if (ZVAL_IS_NULL(&__retval)) *(retval) = NULL;\
     else *(retval) = &__retval;
 
-#define SW_ZVAL_STRINGL(z, s, l, dup)         ZVAL_STRINGL(z, s, l)
-#define SW_ZVAL_STRING(z,s,dup)               ZVAL_STRING(z,s)
-#define sw_smart_str                          smart_string
-#define zend_get_class_entry                  Z_OBJCE_P
 #define sw_copy_to_stack(a, b)                {zval *__tmp = (zval *) a;\
     a = &b;\
     memcpy(a, __tmp, sizeof(zval));}

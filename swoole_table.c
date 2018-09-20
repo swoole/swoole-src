@@ -218,7 +218,7 @@ static inline void php_swoole_table_get_field_value(swTable *table, swTableRow *
     if (col->type == SW_TABLE_STRING)
     {
         memcpy(&vlen, row->data + col->index, sizeof(swTable_string_length_t));
-        SW_ZVAL_STRINGL(return_value, row->data + col->index + sizeof(swTable_string_length_t), vlen, 1);
+        ZVAL_STRINGL(return_value, row->data + col->index + sizeof(swTable_string_length_t), vlen);
     }
     else if (col->type == SW_TABLE_FLOAT)
     {

@@ -592,7 +592,7 @@ int php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data,
     zval *retval = NULL;
 
     SW_MAKE_STD_ZVAL(zdata);
-    SW_ZVAL_STRINGL(zdata, data, length, 1);
+    ZVAL_STRINGL(zdata, data, length);
 
     zval **args[1];
     args[0] = &zdata;
@@ -635,7 +635,7 @@ int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swEventData *da
     zval *retval = NULL;
 
     SW_MAKE_STD_ZVAL(zdata);
-    SW_ZVAL_STRINGL(zdata, data->data, data->info.len, 1);
+    ZVAL_STRINGL(zdata, data->data, data->info.len);
 
     SW_MAKE_STD_ZVAL(zfd);
     ZVAL_LONG(zfd, (long ) conn->session_id);
@@ -1465,7 +1465,7 @@ PHP_FUNCTION(swoole_set_process_name)
 
     zval *function;
     SW_MAKE_STD_ZVAL(function);
-    SW_ZVAL_STRING(function, "cli_set_process_title", 1);
+    ZVAL_STRING(function, "cli_set_process_title");
 
     if (sw_call_user_function_ex(EG(function_table), NULL, function, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {

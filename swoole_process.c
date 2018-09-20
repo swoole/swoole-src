@@ -808,7 +808,7 @@ static PHP_METHOD(swoole_process, read)
         RETURN_FALSE;
     }
     buf[ret] = 0;
-    SW_ZVAL_STRINGL(return_value, buf, ret, 0);
+    ZVAL_STRINGL(return_value, buf, ret);
     efree(buf);
 }
 

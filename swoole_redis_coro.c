@@ -3762,14 +3762,14 @@ static void swoole_redis_coro_parse_result(swRedisClient *redis, zval* return_va
             if(!php_var_unserialize(return_value,
                 (const unsigned char**)&reply->str,
                 (const unsigned char*)reply->str + reply->len, &s_ht TSRMLS_CC)) {
-                SW_ZVAL_STRINGL(return_value, reply->str, reply->len, 1);
+                ZVAL_STRINGL(return_value, reply->str, reply->len);
             }
             PHP_VAR_UNSERIALIZE_DESTROY(s_ht);
             reply->str = reserve_str;
         }
         else
         {
-            SW_ZVAL_STRINGL(return_value, reply->str, reply->len, 1);
+            ZVAL_STRINGL(return_value, reply->str, reply->len);
         }
         break;
 

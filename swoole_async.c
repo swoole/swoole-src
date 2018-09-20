@@ -160,11 +160,11 @@ static void php_swoole_dns_callback(char *domain, swDNSResolver_result *result, 
         {
             address = result->hosts[0].address;
         }
-        SW_ZVAL_STRING(zaddress, address, 1);
+        ZVAL_STRING(zaddress, address);
     }
     else
     {
-        SW_ZVAL_STRING(zaddress, "", 1);
+        ZVAL_STRING(zaddress, "");
     }
 
     args[0] = &req->domain;
@@ -211,11 +211,11 @@ static void php_swoole_dns_callback_coro(char *domain, swDNSResolver_result *res
             address = result->hosts[0].address;
         }
 
-        SW_ZVAL_STRING(zaddress, address, 1);
+        ZVAL_STRING(zaddress, address);
     }
     else
     {
-        SW_ZVAL_STRING(zaddress, "", 1);
+        ZVAL_STRING(zaddress, "");
     }
 
     //update cache
@@ -273,11 +273,11 @@ static void php_swoole_dns_timeout_coro(swTimer *timer, swTimer_node *tnode)
     dns_cache *cache = swHashMap_find(request_cache_map, Z_STRVAL_P(req->domain), Z_STRLEN_P(req->domain));
     if (cache != NULL && cache->update_time > (int64_t) swTimer_get_now_msec)
     {
-        SW_ZVAL_STRINGL(zaddress, (*cache->zaddress).str, (*cache->zaddress).length, 1);
+        ZVAL_STRINGL(zaddress, (*cache->zaddress).str, (*cache->zaddress).length);
     }
     else
     {
-        SW_ZVAL_STRING(zaddress, "", 1);
+        ZVAL_STRING(zaddress, "");
     }
 
     int ret = coro_resume(req->context, zaddress, &retval);
@@ -322,11 +322,11 @@ static void php_swoole_aio_onDNSCompleted(swAio_event *event)
     zval *zcontent = &_zcontent;
     if (ret < 0)
     {
-        SW_ZVAL_STRING(zcontent, "", 1);
+        ZVAL_STRING(zcontent, "");
     }
     else
     {
-        SW_ZVAL_STRING(zcontent, event->buf, 1);
+        ZVAL_STRING(zcontent, event->buf);
     }
     args[1] = &zcontent;
 
@@ -402,11 +402,11 @@ static void php_swoole_aio_onFileCompleted(swAio_event *event)
         zcontent = &_zcontent;
         if (ret < 0)
         {
-            SW_ZVAL_STRING(zcontent, "", 1);
+            ZVAL_STRING(zcontent, "");
         }
         else
         {
-            SW_ZVAL_STRINGL(zcontent, event->buf, ret, 1);
+            ZVAL_STRINGL(zcontent, event->buf, ret);
         }
     }
     else if (event->type == SW_AIO_WRITE)
@@ -1087,7 +1087,7 @@ static int process_stream_onRead(swReactor *reactor, swEvent *event)
 
     zval *zdata;
     SW_MAKE_STD_ZVAL(zdata);
-    SW_ZVAL_STRINGL(zdata, ps->buffer->str, ps->buffer->length, 1);
+    ZVAL_STRINGL(zdata, ps->buffer->str, ps->buffer->length);
 
     SwooleG.main_reactor->del(SwooleG.main_reactor, ps->fd);
 

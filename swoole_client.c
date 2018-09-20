@@ -362,7 +362,7 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
 
     zval *zdata;
     SW_MAKE_STD_ZVAL(zdata);
-    SW_ZVAL_STRINGL(zdata, data, length, 1);
+    ZVAL_STRINGL(zdata, data, length);
 
     args[0] = &zobject;
     args[1] = &zdata;
@@ -1610,7 +1610,7 @@ static PHP_METHOD(swoole_client, recv)
         {
             buf[ret] = 0;
             RETVAL_STRINGL(buf, ret);
-            efree(buff);
+            efree(buf);
         }
     }
 }

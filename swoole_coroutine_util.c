@@ -544,7 +544,7 @@ static void aio_onReadCompleted(swAio_event *event)
 
     if (event->error == 0)
     {
-        SW_ZVAL_STRINGL(result, event->buf, event->ret, 1);
+        ZVAL_STRINGL(result, event->buf, event->ret);
     }
     else
     {
@@ -571,7 +571,7 @@ static void aio_onStreamGetLineCompleted(swAio_event *event)
 
     if (event->error == 0)
     {
-        SW_ZVAL_STRINGL(result, event->buf, event->ret, 1);
+        ZVAL_STRINGL(result, event->buf, event->ret);
     }
     else
     {
@@ -1217,7 +1217,7 @@ static void coro_dns_onResolveCompleted(swAio_event *event)
 
     if (event->error == 0)
     {
-        SW_ZVAL_STRING(result, event->buf, 1);
+        ZVAL_STRING(result, event->buf);
     }
     else
     {

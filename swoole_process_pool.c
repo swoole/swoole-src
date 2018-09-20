@@ -135,7 +135,7 @@ static void php_swoole_process_pool_onMessage(swProcessPool *pool, char *data, u
     zval *retval;
 
     SW_MAKE_STD_ZVAL(zdata);
-    SW_ZVAL_STRINGL(zdata, data, length, 1);
+    ZVAL_STRINGL(zdata, data, length);
 
     zval **args[2];
     args[0] = &zobject;
