@@ -190,7 +190,7 @@ int php_swoole_task_pack(swEventData *task, zval *data TSRMLS_DC)
         else
         {
             PHP_VAR_SERIALIZE_INIT(var_hash);
-            sw_php_var_serialize(&serialized_data, data, &var_hash TSRMLS_CC);
+            php_var_serialize(&serialized_data, data, &var_hash TSRMLS_CC);
             PHP_VAR_SERIALIZE_DESTROY(var_hash);
 
             if (!serialized_data.s)
@@ -387,8 +387,13 @@ zval* php_swoole_task_unpack(swEventData *task_result TSRMLS_DC)
         {
             PHP_VAR_UNSERIALIZE_INIT(var_hash);
             //unserialize success
-            if (sw_php_var_unserialize(&result_unserialized_data, (const unsigned char ** ) &result_data_str,
-                    (const unsigned char * ) (result_data_str + result_data_len), &var_hash TSRMLS_CC))
+            if (php_var_unserialize(
+                    *&result_unserialized_data,
+                    (const unsigned char **) &result_data_str,
+                    (const unsigned char *) (result_data_str + result_data_len),
+                    &var_hash
+                )
+            )
             {
                 result_data = result_unserialized_data;
             }
@@ -712,7 +717,7 @@ static int php_swoole_task_finish(swServer *serv, zval *data TSRMLS_DC)
         else
         {
             PHP_VAR_SERIALIZE_INIT(var_hash);
-            sw_php_var_serialize(&serialized_data, data, &var_hash TSRMLS_CC);
+            php_var_serialize(&serialized_data, data, &var_hash TSRMLS_CC);
             PHP_VAR_SERIALIZE_DESTROY(var_hash);
             data_str = serialized_data.s->val;
             data_len = serialized_data.s->len;
