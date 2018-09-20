@@ -18,10 +18,10 @@ require_once __DIR__ . '/../include/bootstrap.php';
 
 $name = "SWOOLE_PROCESS_TEST_" . rand(1, 100);
 
-$proc = new \swoole_process(function($childProc) { 
+$proc = new \swoole_process(function($childProc) {
 	global $name;
 	$childProc->name($name);
-	sleep(PHP_INT_MAX); 
+	sleep(PHP_INT_MAX);
 });
 
 $pid = $proc->start();

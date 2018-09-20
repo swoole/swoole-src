@@ -7,7 +7,7 @@ swoole_coroutine: coro parallel3
 require_once __DIR__ . '/../include/bootstrap.php';
 
 go(function () {
-    echo "co[1] start\n";     
+    echo "co[1] start\n";
     co::sleep(2.0);
     echo "co[1] exit\n";
 });
@@ -18,10 +18,10 @@ go(function () {
         echo "co[3] start\n";
         co::sleep(3.0);
         echo "co[3] exit\n";
-    });  
+    });
     co::sleep(1.0);
     echo "co[2] exit\n";
-});   
+});
 echo "end\n";
 ?>
 --EXPECT--

@@ -16,11 +16,11 @@ go(function () use ($size, $chan) {
     }
 });
 
-for ($i=0; $i < $coro_num; $i++) {    
-    go(function () use ($i, $chan, $coro_num) {        
+for ($i=0; $i < $coro_num; $i++) {
+    go(function () use ($i, $chan, $coro_num) {
         for ($j = 0; $j < $coro_num; $j ++) {
             $c = $chan->pop();
-            echo  "@".$j . "->coro:" . $i . " pop chan id :" . var_export($c, 1) . PHP_EOL;            
+            echo  "@".$j . "->coro:" . $i . " pop chan id :" . var_export($c, 1) . PHP_EOL;
             co::sleep(0.2);
             $ret = $chan->push($c);
         }

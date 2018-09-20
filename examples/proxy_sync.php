@@ -46,7 +46,7 @@ class ProxyServer
 
     function onConnect($serv, $fd, $from_id)
     {
-        
+
     }
 
     function onReceive($serv, $fd, $from_id, $data)

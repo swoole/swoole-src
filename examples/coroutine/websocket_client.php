@@ -3,14 +3,14 @@
 //     $cli = new Co\http\Client("127.0.0.1", 9501);
 //     $ret = $cli->upgrade("/");
 
-//     if ($ret) {          
+//     if ($ret) {
 //         while(true) {
 //             $cli->push("hello");
 //             var_dump($cli->recv());
 //             co::sleep(0.1);
 //         }
 //     }
-    
+
 // });
 go(function () {
     $cli = new Co\http\Client("127.0.0.1", 9501);
@@ -18,7 +18,7 @@ go(function () {
         'timeout' => 1
     ]);
     $ret = $cli->upgrade("/");
-    
+
     if (!$ret) {
         echo "ERROR\n";
         return;

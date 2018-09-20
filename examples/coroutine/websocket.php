@@ -4,7 +4,7 @@ $ws->set(array(
     'log_file' => '/dev/null'
 ));
 $ws->on("WorkerStart", function (\swoole_server $serv) {
-    
+
 });
 
 $ws->on('open', function ($serv, swoole_http_request $request) {

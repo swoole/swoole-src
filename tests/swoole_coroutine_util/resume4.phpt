@@ -10,7 +10,7 @@ use Swoole\Coroutine as co;
 co::yield();
 $id = go(function(){
     $id = co::getUid();
-    echo "start coro $id\n";    
+    echo "start coro $id\n";
     co::yield();
     echo "resume coro $id\n";
 });

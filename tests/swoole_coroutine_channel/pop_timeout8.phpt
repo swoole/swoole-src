@@ -18,12 +18,12 @@ class T {
 
     function __destruct()
     {
-        go(function(){            
+        go(function(){
             echo "__destruct\n";
-            $ret = $this->c->pop(0.5); 
+            $ret = $this->c->pop(0.5);
             echo "pop ret:".var_export($ret,1)." error:".$this->c->errCode."\n";
         });
- 
+
     }
 }
 $t = new T();

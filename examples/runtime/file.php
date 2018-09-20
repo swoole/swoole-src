@@ -1,6 +1,6 @@
 <?php
 Swoole\Runtime::enableCoroutine();
-go(function() {	
+go(function() {
 	$fp = fopen('data.txt', 'w');
 	echo "open\n";
 	fwrite($fp, str_repeat('A', 1024));

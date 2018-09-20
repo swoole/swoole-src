@@ -41,7 +41,7 @@ go(function () use ($c1, $c2, $num) {
         echo "fibonacci @$i $ret\n";
     }
     $c2->push(1);
-});    
+});
 fibonacci($c1, $c2);
 ?>
 --EXPECT--

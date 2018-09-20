@@ -1,6 +1,6 @@
 <?php
 $c1 = new chan();
-//consumer first with select mode 
+//consumer first with select mode
 $num = 10;
 go(function () use ($c1,$num) {
     $read_list = [$c1];
@@ -20,7 +20,7 @@ go(function () use ($c1,$num) {
         }
     }
 });
-    
+
 go(function () use ($c1,$num) {
     echo "push start\n";
     for ($i=0;$i<$num;$i++)

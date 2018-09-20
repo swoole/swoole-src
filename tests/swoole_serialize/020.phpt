@@ -18,7 +18,7 @@ function test($variable, $test) {
     $unserialized = swoole_serialize::unpack($serialized, UNSERIALIZE_OBJECT_TO_STDCLASS);
 
     echo UNSERIALIZE_OBJECT_TO_STDCLASS, PHP_EOL;
-     
+
     var_dump($unserialized);
     echo get_class($unserialized->sub) == "stdClass" ? 'OK' : 'ERROR', PHP_EOL;
 }
