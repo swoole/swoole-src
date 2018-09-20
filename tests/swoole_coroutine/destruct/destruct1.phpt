@@ -11,18 +11,18 @@ class T
 {
     function __construct()
     {
-      
+
     }
     function test()
     {
-        echo "call function \n";
+        echo "call function\n";
     }
 
     function __destruct()
-    {    
+    {
         go(function () {
             echo "coro start\n";
-            co::sleep(1.0);       
+            co::sleep(1.0);
             echo "coro exit\n";
         });
     }
@@ -34,7 +34,7 @@ unset($t);
 echo "end\n";
 ?>
 --EXPECT--
-call function 
+call function
 coro start
 end
 coro exit
