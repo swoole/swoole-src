@@ -303,7 +303,7 @@ int swoole_convert_to_fd(zval *zfd TSRMLS_DC)
 #ifdef SWOOLE_SOCKETS_SUPPORT
     php_socket *php_sock;
 #endif
-    if (SW_Z_TYPE_P(zfd) == IS_RESOURCE)
+    if (Z_TYPE_P(zfd) == IS_RESOURCE)
     {
         if (SW_ZEND_FETCH_RESOURCE_NO_RETURN(stream, php_stream *, &zfd, -1, NULL, php_file_le_stream()))
         {
@@ -331,7 +331,7 @@ int swoole_convert_to_fd(zval *zfd TSRMLS_DC)
 #endif
         }
     }
-    else if (SW_Z_TYPE_P(zfd) == IS_LONG)
+    else if (Z_TYPE_P(zfd) == IS_LONG)
     {
         socket_fd = Z_LVAL_P(zfd);
         if (socket_fd < 0)
@@ -340,7 +340,7 @@ int swoole_convert_to_fd(zval *zfd TSRMLS_DC)
             return SW_ERR;
         }
     }
-    else if (SW_Z_TYPE_P(zfd) == IS_OBJECT)
+    else if (Z_TYPE_P(zfd) == IS_OBJECT)
     {
         zval *zsock = NULL;
         if (instanceof_function(Z_OBJCE_P(zfd), swoole_client_class_entry_ptr TSRMLS_CC))
@@ -374,7 +374,7 @@ int swoole_convert_to_fd_ex(zval *zfd, int *async TSRMLS_DC)
     php_socket *php_sock;
 #endif
 
-    if (SW_Z_TYPE_P(zfd) != IS_RESOURCE)
+    if (Z_TYPE_P(zfd) != IS_RESOURCE)
     {
         swoole_php_fatal_error(E_WARNING, "fd argument must be either valid PHP stream or valid PHP socket resource");
         return SW_ERR;

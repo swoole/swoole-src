@@ -859,7 +859,7 @@ static PHP_METHOD(swoole_http2_client_coro, send)
     {
         return;
     }
-    if (SW_Z_TYPE_P(request) != IS_OBJECT)
+    if (Z_TYPE_P(request) != IS_OBJECT)
     {
         error:
         swoole_php_fatal_error(E_ERROR, "object is not instanceof swoole_http2_request.");

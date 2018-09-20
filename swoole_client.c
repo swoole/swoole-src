@@ -2066,7 +2066,7 @@ static PHP_METHOD(swoole_client, pipe)
     int flags = 0;
 
     //server session id
-    if (SW_Z_TYPE_P(write_socket) == IS_LONG)
+    if (Z_TYPE_P(write_socket) == IS_LONG)
     {
         fd = Z_LVAL_P(write_socket);
         swConnection *conn = swWorker_get_connection(SwooleG.serv, fd);
@@ -2237,7 +2237,7 @@ static int client_poll_wait(zval *sock_array, struct pollfd *fds, int maxevents,
     int sock;
 
     ulong_t num = 0;
-    if (SW_Z_TYPE_P(sock_array) != IS_ARRAY)
+    if (Z_TYPE_P(sock_array) != IS_ARRAY)
     {
         return 0;
     }
@@ -2289,7 +2289,7 @@ static int client_poll_wait(zval *sock_array, struct pollfd *fds, int maxevents,
 static int client_poll_add(zval *sock_array, int index, struct pollfd *fds, int maxevents, int event)
 {
     zval *element = NULL;
-    if (SW_Z_TYPE_P(sock_array) != IS_ARRAY)
+    if (Z_TYPE_P(sock_array) != IS_ARRAY)
     {
         return -1;
     }
@@ -2329,7 +2329,7 @@ static int client_select_wait(zval *sock_array, fd_set *fds TSRMLS_DC)
     int sock;
 
     ulong_t num = 0;
-    if (SW_Z_TYPE_P(sock_array) != IS_ARRAY)
+    if (Z_TYPE_P(sock_array) != IS_ARRAY)
     {
         return 0;
     }
@@ -2374,7 +2374,7 @@ static int client_select_wait(zval *sock_array, fd_set *fds TSRMLS_DC)
 static int client_select_add(zval *sock_array, fd_set *fds, int *max_fd TSRMLS_DC)
 {
     zval *element = NULL;
-    if (SW_Z_TYPE_P(sock_array) != IS_ARRAY)
+    if (Z_TYPE_P(sock_array) != IS_ARRAY)
     {
         return 0;
     }

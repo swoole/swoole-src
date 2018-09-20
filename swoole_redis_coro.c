@@ -2338,7 +2338,7 @@ static PHP_METHOD(swoole_redis_coro, zUnion)
         SW_REDIS_COMMAND_ARGV_FILL("WEIGHTS", 7)
 
         SW_HASHTABLE_FOREACH_START(ht_weights, value)
-            if(SW_Z_TYPE_P(value) != IS_LONG && SW_Z_TYPE_P(value) != IS_DOUBLE &&
+            if(Z_TYPE_P(value) != IS_LONG && Z_TYPE_P(value) != IS_DOUBLE &&
                strncasecmp(Z_STRVAL_P(value),"inf",sizeof("inf")) != 0 &&
                strncasecmp(Z_STRVAL_P(value),"-inf",sizeof("-inf")) != 0 &&
                strncasecmp(Z_STRVAL_P(value),"+inf",sizeof("+inf")) != 0)
@@ -2352,7 +2352,7 @@ static PHP_METHOD(swoole_redis_coro, zUnion)
                 SW_REDIS_COMMAND_FREE_ARGV
                 RETURN_FALSE;
             }
-            switch (SW_Z_TYPE_P(value)) {
+            switch (Z_TYPE_P(value)) {
                 case IS_LONG:
                     buf_len = sprintf(buf, ZEND_LONG_FMT, Z_LVAL_P(value));
                     SW_REDIS_COMMAND_ARGV_FILL(buf, buf_len)
@@ -2451,7 +2451,7 @@ static PHP_METHOD(swoole_redis_coro, zInter)
         SW_REDIS_COMMAND_ARGV_FILL("WEIGHTS", 7)
 
         SW_HASHTABLE_FOREACH_START(ht_weights, value)
-            if(SW_Z_TYPE_P(value) != IS_LONG && SW_Z_TYPE_P(value) != IS_DOUBLE &&
+            if(Z_TYPE_P(value) != IS_LONG && Z_TYPE_P(value) != IS_DOUBLE &&
                strncasecmp(Z_STRVAL_P(value),"inf",sizeof("inf")) != 0 &&
                strncasecmp(Z_STRVAL_P(value),"-inf",sizeof("-inf")) != 0 &&
                strncasecmp(Z_STRVAL_P(value),"+inf",sizeof("+inf")) != 0)
@@ -2465,7 +2465,7 @@ static PHP_METHOD(swoole_redis_coro, zInter)
                 SW_REDIS_COMMAND_FREE_ARGV
                 RETURN_FALSE;
             }
-            switch (SW_Z_TYPE_P(value)) {
+            switch (Z_TYPE_P(value)) {
                 case IS_LONG:
                     buf_len = sprintf(buf, ZEND_LONG_FMT, Z_LVAL_P(value));
                     SW_REDIS_COMMAND_ARGV_FILL(buf, buf_len)
@@ -2644,7 +2644,7 @@ static PHP_METHOD(swoole_redis_coro, zRangeByScore)
             zval *z_off, *z_cnt;
             z_off = zend_hash_index_find(ht_limit, 0);
             z_cnt = zend_hash_index_find(ht_limit, 1);
-            if (z_off && z_cnt && SW_Z_TYPE_P(z_off) == IS_LONG && SW_Z_TYPE_P(z_cnt) == IS_LONG)
+            if (z_off && z_cnt && Z_TYPE_P(z_off) == IS_LONG && Z_TYPE_P(z_cnt) == IS_LONG)
             {
                 has_limit = 1;
                 limit_low = Z_LVAL_P(z_off);
@@ -2718,7 +2718,7 @@ static PHP_METHOD(swoole_redis_coro, zRevRangeByScore)
             zval *z_off, *z_cnt;
             z_off = zend_hash_index_find(ht_limit,0);
             z_cnt = zend_hash_index_find(ht_limit, 1);
-            if (z_off && z_cnt && SW_Z_TYPE_P(z_off) == IS_LONG && SW_Z_TYPE_P(z_cnt) == IS_LONG)
+            if (z_off && z_cnt && Z_TYPE_P(z_off) == IS_LONG && Z_TYPE_P(z_cnt) == IS_LONG)
             {
                 has_limit = 1;
                 limit_low = Z_LVAL_P(z_off);
