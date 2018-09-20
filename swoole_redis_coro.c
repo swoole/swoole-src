@@ -1311,7 +1311,7 @@ static PHP_METHOD(swoole_redis_coro, __destruct)
 {
     SW_PREVENT_USER_DESTRUCT;
 
-    swTraceLog(SW_TRACE_REDIS_CLIENT, "object_id=%d", sw_get_object_handle(getThis()));
+    swTraceLog(SW_TRACE_REDIS_CLIENT, "object_id=%d", Z_OBJ_HANDLE_P(getThis()));
 
     php_context *sw_current_context = swoole_get_property(getThis(), 0);
     if (sw_current_context)
@@ -3801,7 +3801,7 @@ static void swoole_redis_coro_resume(void *data)
         goto free_result;
     }
 
-    swTraceLog(SW_TRACE_REDIS_CLIENT, "resume, fd=%d, object_id=%d", redis->context->c.fd, sw_get_object_handle(redis->object));
+    swTraceLog(SW_TRACE_REDIS_CLIENT, "resume, fd=%d, object_id=%d", redis->context->c.fd, Z_OBJ_HANDLE_P(redis->object));
 
     redis->cid = 0;
     redis->iowait = SW_REDIS_CORO_STATUS_READY;
@@ -3838,7 +3838,7 @@ static void swoole_redis_coro_onResult(redisAsyncContext *c, void *r, void *priv
     result->value = &result->_value;
     bzero(result->value, sizeof(result->_value));
 
-    swTraceLog(SW_TRACE_REDIS_CLIENT, "get response, fd=%d, object_id=%d", redis->context->c.fd, sw_get_object_handle(redis->object));
+    swTraceLog(SW_TRACE_REDIS_CLIENT, "get response, fd=%d, object_id=%d", redis->context->c.fd, Z_OBJ_HANDLE_P(redis->object));
 
     result->redis = redis;
     if (reply == NULL)
@@ -3994,7 +3994,7 @@ static void swoole_redis_coro_onClose(const redisAsyncContext *c, int status)
 
     if (redis->object)
     {
-        swTraceLog(SW_TRACE_REDIS_CLIENT, "fd=%d, object_id=%d", redis->context->c.fd, sw_get_object_handle(redis->object));
+        swTraceLog(SW_TRACE_REDIS_CLIENT, "fd=%d, object_id=%d", redis->context->c.fd, Z_OBJ_HANDLE_P(redis->object));
 
         redis->context = NULL;
         redis->iowait = SW_REDIS_CORO_STATUS_CLOSED;

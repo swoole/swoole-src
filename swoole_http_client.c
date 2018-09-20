@@ -1278,7 +1278,7 @@ void http_client_free(zval *object TSRMLS_DC)
     }
     efree(http);
 
-    swTraceLog(SW_TRACE_HTTP_CLIENT, "free, object handle=%d.", sw_get_object_handle(object));
+    swTraceLog(SW_TRACE_HTTP_CLIENT, "free, object handle=%d.", Z_OBJ_HANDLE_P(object));
 }
 
 http_client* http_client_create(zval *object TSRMLS_DC)
@@ -1308,7 +1308,7 @@ http_client* http_client_create(zval *object TSRMLS_DC)
     http->object = object;
     sw_copy_to_stack(http->object, http->_object);
 
-    swTraceLog(SW_TRACE_HTTP_CLIENT, "create, object handle=%d.", sw_get_object_handle(object));
+    swTraceLog(SW_TRACE_HTTP_CLIENT, "create, object handle=%d.", Z_OBJ_HANDLE_P(object));
 
     return http;
 }
@@ -1405,7 +1405,7 @@ static PHP_METHOD(swoole_http_client, set)
     }
 
     zval *zsetting = php_swoole_read_init_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("setting") TSRMLS_CC);
-    sw_php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
+    php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
 
     RETURN_TRUE;
 }
@@ -1419,7 +1419,7 @@ static PHP_METHOD(swoole_http_client, setHeaders)
     }
 
     zval *headers_property = php_swoole_read_init_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestHeaders") TSRMLS_CC);
-    sw_php_array_merge(Z_ARRVAL_P(headers_property), Z_ARRVAL_P(headers));
+    php_array_merge(Z_ARRVAL_P(headers_property), Z_ARRVAL_P(headers));
 
     RETURN_TRUE;
 }
@@ -1433,7 +1433,7 @@ static PHP_METHOD(swoole_http_client, setCookies)
     }
 
     zval *cookies_property = php_swoole_read_init_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("cookies") TSRMLS_CC);
-    sw_php_array_merge(Z_ARRVAL_P(cookies_property), Z_ARRVAL_P(cookies));
+    php_array_merge(Z_ARRVAL_P(cookies_property), Z_ARRVAL_P(cookies));
 
     RETURN_TRUE;
 }
@@ -1452,7 +1452,7 @@ static PHP_METHOD(swoole_http_client, setData)
     if (Z_TYPE_P(data) == IS_ARRAY)
     {
         zval *data_property = php_swoole_read_init_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestBody") TSRMLS_CC);
-        sw_php_array_merge(Z_ARRVAL_P(data_property), Z_ARRVAL_P(data));
+        php_array_merge(Z_ARRVAL_P(data_property), Z_ARRVAL_P(data));
     }
     else
     {
@@ -2035,7 +2035,7 @@ static PHP_METHOD(swoole_http_client, post)
     if (Z_TYPE_P(data) == IS_ARRAY)
     {
         zval *data_property = php_swoole_read_init_property(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestBody") TSRMLS_CC);
-        sw_php_array_merge(Z_ARRVAL_P(data_property), Z_ARRVAL_P(data));
+        php_array_merge(Z_ARRVAL_P(data_property), Z_ARRVAL_P(data));
     }
     else
     {

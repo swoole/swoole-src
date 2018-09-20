@@ -373,7 +373,7 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
         http->file_fd = fd;
     }
 
-    swTraceLog(SW_TRACE_HTTP_CLIENT, "connect to server, object handle=%d, fd=%d", sw_get_object_handle(zobject), hcc->socket->socket->fd);
+    swTraceLog(SW_TRACE_HTTP_CLIENT, "connect to server, object handle=%d, fd=%d", Z_OBJ_HANDLE_P(zobject), hcc->socket->socket->fd);
 
     if (http_client_coro_send_request(zobject, hcc, http) < 0)
     {
@@ -979,14 +979,14 @@ static PHP_METHOD(swoole_http_client_coro, __construct)
 #endif
     }
 
-    swTraceLog(SW_TRACE_HTTP_CLIENT, "ctor, object handle=%d.", sw_get_object_handle(getThis()));
+    swTraceLog(SW_TRACE_HTTP_CLIENT, "ctor, object handle=%d.", Z_OBJ_HANDLE_P(getThis()));
 }
 
 static PHP_METHOD(swoole_http_client_coro, __destruct)
 {
     SW_PREVENT_USER_DESTRUCT;
 
-    swTraceLog(SW_TRACE_HTTP_CLIENT, "dtor, object handle=%d.", sw_get_object_handle(getThis()));
+    swTraceLog(SW_TRACE_HTTP_CLIENT, "dtor, object handle=%d.", Z_OBJ_HANDLE_P(getThis()));
 }
 
 static PHP_METHOD(swoole_http_client_coro, set)
@@ -1001,7 +1001,7 @@ static PHP_METHOD(swoole_http_client_coro, set)
         RETURN_FALSE;
     }
     zval *zsetting = php_swoole_read_init_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("setting"));
-    sw_php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
+    php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
     RETURN_TRUE;
 }
 

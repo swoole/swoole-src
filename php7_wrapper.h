@@ -144,10 +144,7 @@ static sw_inline int sw_call_user_function_fast(zval *function_name, zend_fcall_
 #define SW_ZEND_REGISTER_RESOURCE(return_value, result, le_result)  ZVAL_RES(return_value,zend_register_resource(result, le_result))
 
 #define sw_add_assoc_string(array, key, value, duplicate)   add_assoc_string(array, key, value)
-#define sw_zend_hash_copy(target,source,pCopyConstructor,tmp,size) zend_hash_copy(target,source,pCopyConstructor)
-#define sw_php_array_merge                                          php_array_merge
 #define sw_zend_register_internal_class_ex(entry,parent_ptr,str)    zend_register_internal_class_ex(entry,parent_ptr)
-#define sw_zend_get_executed_filename()                             zend_get_executed_filename()
 
 #define sw_zend_call_method_with_0_params(obj, ptr, what, method, retval) \
     zval __retval;\
@@ -321,8 +318,6 @@ static sw_inline char* sw_http_build_query(zval *data, zend_size_t *length, smar
     *length = formstr->s->len;
     return formstr->s->val;
 }
-
-#define sw_get_object_handle(object)    Z_OBJ_HANDLE(*object)
 
 #define SW_PREVENT_USER_DESTRUCT if(unlikely(!(GC_FLAGS(Z_OBJ_P(getThis())) & IS_OBJ_DESTRUCTOR_CALLED))){RETURN_NULL()}
 

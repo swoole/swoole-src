@@ -455,14 +455,14 @@ zval* php_swoole_task_unpack(swEventData *task_result TSRMLS_DC);
 
 static sw_inline void* swoole_get_object(zval *object)
 {
-    uint32_t handle = sw_get_object_handle(object);
+    uint32_t handle = Z_OBJ_HANDLE_P(object);
     assert(handle < swoole_objects.size);
     return swoole_objects.array[handle];
 }
 
 static sw_inline void* swoole_get_property(zval *object, int property_id)
 {
-    uint32_t handle = sw_get_object_handle(object);
+    uint32_t handle = Z_OBJ_HANDLE_P(object);
     if (handle >= swoole_objects.property_size[property_id])
     {
         return NULL;
@@ -582,7 +582,7 @@ static sw_inline int php_swoole_is_callable(zval *callback TSRMLS_DC)
 #define php_swoole_array_separate(arr)       zval *_new_##arr;\
     SW_MAKE_STD_ZVAL(_new_##arr);\
     array_init(_new_##arr);\
-    sw_php_array_merge(Z_ARRVAL_P(_new_##arr), Z_ARRVAL_P(arr));\
+    php_array_merge(Z_ARRVAL_P(_new_##arr), Z_ARRVAL_P(arr));\
     arr = _new_##arr;
 
 static sw_inline zval* php_swoole_read_init_property(zend_class_entry *scope, zval *object, const char *p, size_t pl TSRMLS_DC)

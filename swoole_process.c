@@ -383,7 +383,7 @@ static PHP_METHOD(swoole_process, useQueue)
 
     if (msgkey <= 0)
     {
-        msgkey = ftok(sw_zend_get_executed_filename(), 1);
+        msgkey = ftok(zend_get_executed_filename(), 1);
     }
 
     swMsgQueue *queue = emalloc(sizeof(swMsgQueue));
