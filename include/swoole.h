@@ -654,7 +654,7 @@ typedef struct _swProtocol
     int (*onPackage)(swConnection *conn, char *data, uint32_t length);
 	ssize_t (*get_package_length)(struct _swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 } swProtocol;
-typedef int (*swProtocol_length_function)(struct _swProtocol *, swConnection *, char *, uint32_t);
+typedef ssize_t (*swProtocol_length_function)(struct _swProtocol *, swConnection *, char *, uint32_t);
 //------------------------------String--------------------------------
 #define swoole_tolower(c)      (u_char) ((c >= 'A' && c <= 'Z') ? (c | 0x20) : c)
 #define swoole_toupper(c)      (u_char) ((c >= 'a' && c <= 'z') ? (c & ~0x20) : c)
@@ -1973,7 +1973,7 @@ int swThreadPool_run(swThreadPool *pool);
 int swThreadPool_free(swThreadPool *pool);
 
 //--------------------------------protocol------------------------------
-int swProtocol_get_package_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t size);
+ssize_t swProtocol_get_package_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t size);
 int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swString *buffer);
 int swProtocol_recv_check_eof(swProtocol *protocol, swConnection *conn, swString *buffer);
 

@@ -33,7 +33,7 @@ swMemoryPool* swFixedPool_new(uint32_t slice_num, uint32_t slice_size, uint8_t s
     void *memory = (shared == 1) ? sw_shm_malloc(alloc_size) : sw_malloc(alloc_size);
 
     swFixedPool *object = memory;
-    (char *) memory += sizeof(swFixedPool);
+    memory = (char *) memory + sizeof(swFixedPool);
     bzero(object, sizeof(swFixedPool));
 
     object->shared = shared;
@@ -42,7 +42,7 @@ swMemoryPool* swFixedPool_new(uint32_t slice_num, uint32_t slice_size, uint8_t s
     object->size = size;
 
     swMemoryPool *pool = memory;
-	(char *) memory += sizeof(swMemoryPool);
+    memory = (char *) memory + sizeof(swMemoryPool);
     pool->object = object;
     pool->alloc = swFixedPool_alloc;
     pool->free = swFixedPool_free;
@@ -64,7 +64,7 @@ swMemoryPool* swFixedPool_new(uint32_t slice_num, uint32_t slice_size, uint8_t s
 swMemoryPool* swFixedPool_new2(uint32_t slice_size, void *memory, size_t size)
 {
     swFixedPool *object = memory;
-	(char *) memory += sizeof(swFixedPool);
+    memory = (char *) memory + sizeof(swFixedPool);
     bzero(object, sizeof(swFixedPool));
 
     object->slice_size = slice_size;
@@ -72,7 +72,7 @@ swMemoryPool* swFixedPool_new2(uint32_t slice_size, void *memory, size_t size)
     object->slice_num = object->size / (slice_size + sizeof(swFixedPool_slice));
 
     swMemoryPool *pool = memory;
-	(char *) memory += sizeof(swMemoryPool);
+    memory = (char *) memory + sizeof(swMemoryPool);
     bzero(pool, sizeof(swMemoryPool));
 
     pool->object = object;
@@ -114,7 +114,7 @@ static void swFixedPool_init(swFixedPool *object)
         }
 
         object->head = slice;
-		(char *) cur += (sizeof(swFixedPool_slice) + object->slice_size);
+        cur = (char *) cur + (sizeof(swFixedPool_slice) + object->slice_size);
 
         if (cur < max)
         {
@@ -167,9 +167,9 @@ static void swFixedPool_free(swMemoryPool *pool, void *ptr)
     swFixedPool *object = pool->object;
     swFixedPool_slice *slice;
 
-    assert(ptr > object->memory && ptr < (char *) object->memory + object->size);
+    assert(ptr > object->memory && (char* )ptr < (char * ) object->memory + object->size);
 
-    slice = (char *) ptr - sizeof(swFixedPool_slice);
+    slice = (swFixedPool_slice *) ((char *) ptr - sizeof(swFixedPool_slice));
 
     if (slice->lock)
     {

@@ -61,7 +61,7 @@ int swHttp2_send_setting_frame(swProtocol *protocol, swConnection *conn)
  |                   Frame Payload (0...)                      ...
  +---------------------------------------------------------------+
  */
-int swHttp2_get_frame_length(swProtocol *protocol, swConnection *conn, char *buf, uint32_t length)
+ssize_t swHttp2_get_frame_length(swProtocol *protocol, swConnection *conn, char *buf, uint32_t length)
 {
     if (length < SW_HTTP2_FRAME_HEADER_SIZE)
     {

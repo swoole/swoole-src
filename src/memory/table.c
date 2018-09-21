@@ -192,7 +192,7 @@ int swTable_create(swTable *table)
     table->memory = memory;
 
     table->rows = memory;
-	(char *) memory += table->size * sizeof(swTableRow *);
+    memory = (char *) memory + table->size * sizeof(swTableRow *);
     memory_size -= table->size * sizeof(swTableRow *);
 
 #if SW_TABLE_USE_SPINLOCK == 0
@@ -206,14 +206,14 @@ int swTable_create(swTable *table)
     int i;
     for (i = 0; i < table->size; i++)
     {
-        table->rows[i] = (char *) memory + (row_memory_size * i);
+        table->rows[i] = (swTableRow *) ((char *) memory + (row_memory_size * i));
         memset(table->rows[i], 0, sizeof(swTableRow));
 #if SW_TABLE_USE_SPINLOCK == 0
         pthread_mutex_init(&table->rows[i]->lock, &attr);
 #endif
     }
 
-	(char *) memory += row_memory_size * table->size;
+    memory = (char *) memory + row_memory_size * table->size;
     memory_size -= row_memory_size * table->size;
     table->pool = swFixedPool_new2(row_memory_size, memory, memory_size);
 

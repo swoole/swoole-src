@@ -584,7 +584,7 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
     swoole_globals->rshutdown_functions = NULL;
 }
 
-int php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data, uint32_t length)
+ssize_t php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data, uint32_t length)
 {
     SwooleG.lock.lock(&SwooleG.lock);
 

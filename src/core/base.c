@@ -351,7 +351,7 @@ int swoole_sync_writefile(int fd, void *data, int len)
         n = write(fd, data, towrite);
         if (n > 0)
         {
-            (char*) data += n;
+            data = (char*) data + n;
             count -= n;
             written += n;
         }
@@ -680,7 +680,7 @@ int swoole_sync_readfile(int fd, void *buf, int len)
         n = read(fd, buf, toread);
         if (n > 0)
         {
-            (char *) buf += n;
+            buf = (char *) buf + n;
             count -= n;
             readn += n;
         }

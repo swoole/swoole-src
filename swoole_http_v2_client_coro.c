@@ -391,7 +391,7 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
     uint8_t type = buf[3];
     uint8_t flags = buf[4];
     uint32_t stream_id = ntohl((*(int *) (buf + 5))) & 0x7fffffff;
-    uint32_t length = swHttp2_get_length(buf);
+    ssize_t length = swHttp2_get_length(buf);
     buf += SW_HTTP2_FRAME_HEADER_SIZE;
 
     zval *zobject = cli->object;

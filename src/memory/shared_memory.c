@@ -64,13 +64,13 @@ int sw_shm_protect(void *addr, int flags)
 
 void sw_shm_free(void *ptr)
 {
-    swShareMemory *object = (char *) ptr - sizeof(swShareMemory);
+    swShareMemory *object = (swShareMemory *) ((char *) ptr - sizeof(swShareMemory));
     swShareMemory_mmap_free(object);
 }
 
 void* sw_shm_realloc(void *ptr, size_t new_size)
 {
-    swShareMemory *object = (char *) ptr - sizeof(swShareMemory);
+    swShareMemory *object = (swShareMemory *) ((char *) ptr - sizeof(swShareMemory));
     void *new_ptr;
     new_ptr = sw_shm_malloc(new_size);
     if (new_ptr == NULL)
