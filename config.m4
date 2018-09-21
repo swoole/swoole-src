@@ -524,7 +524,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/protocol/websocket.c \
         src/protocol/mqtt.c \
         src/protocol/socks5.c \
-        src/protocol/mime_types.c \
+        src/protocol/mime_types.cc \
         src/protocol/redis.c \
         src/protocol/base64.c"
 

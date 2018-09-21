@@ -21,13 +21,13 @@ go(function () {
     co::yield();
     echo "after yield\n";
 });
-echo "main \n";
+echo "main\n";
 
 ?>
 --EXPECTF--
 start to create coro
 coro 2
 before yield
-main 
+main
 resume
 after yield
