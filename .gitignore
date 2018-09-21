@@ -78,6 +78,7 @@ tests/.idea
 cmake-build-debug/
 *.cbp
 /.vscode
+/.vs
 /configure.in
 /configure.ac
 /core-tests/CMakeCache.txt
