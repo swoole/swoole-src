@@ -2131,7 +2131,7 @@ int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callba
 
     if (callback != NULL)
     {
-        sw_zval_add_ref(&callback);
+        Z_TRY_ADDREF_P(callback);
         client->callback = sw_zval_dup(callback);
     }
 
@@ -2388,7 +2388,7 @@ static PHP_METHOD(swoole_mysql, connect)
     client->object = getThis();
     client->cli = cli;
     sw_copy_to_stack(client->object, client->_object);
-    sw_zval_add_ref(&client->object);
+    Z_TRY_ADDREF_P(client->object);
     zval_ptr_dtor(server_info);
 
     swConnection *_socket = swReactor_get(SwooleG.main_reactor, cli->socket->fd);

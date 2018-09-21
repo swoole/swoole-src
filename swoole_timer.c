@@ -131,10 +131,10 @@ long php_swoole_add_timer(int ms, zval *callback, zval *param, int persistent TS
         timer_func = php_swoole_onTimeout;
     }
 
-    sw_zval_add_ref(&cb->callback);
+    Z_TRY_ADDREF_P(cb->callback);
     if (cb->data)
     {
-        sw_zval_add_ref(&cb->data);
+        Z_TRY_ADDREF_P(cb->data);
     }
 
     swTimer_node *tnode = swTimer_add(&SwooleG.timer, ms, persistent, cb, timer_func);
@@ -252,7 +252,7 @@ void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode)
         if (cb->data)
         {
             argc = 2;
-            sw_zval_add_ref(&cb->data);
+            Z_TRY_ADDREF_P(cb->data);
             args[1] = cb->data;
         }
         args[0] = ztimer_id;
@@ -270,7 +270,7 @@ void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode)
         if (cb->data)
         {
             argc = 2;
-            sw_zval_add_ref(&cb->data);
+            Z_TRY_ADDREF_P(cb->data);
             args[1] = &cb->data;
         }
         args[0] = &ztimer_id;

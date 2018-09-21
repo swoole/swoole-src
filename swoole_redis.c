@@ -379,7 +379,7 @@ static PHP_METHOD(swoole_redis, connect)
         redis->timer = swTimer_add(&SwooleG.timer, (int) (redis->timeout * 1000), 0, redis, swoole_redis_onTimeout);
     }
 
-    sw_zval_add_ref(&redis->object);
+    Z_TRY_ADDREF_P(redis->object);
 
     swConnection *conn = swReactor_get(SwooleG.main_reactor, redis->context->c.fd);
     conn->object = redis;
@@ -575,7 +575,7 @@ static PHP_METHOD(swoole_redis, __call)
             RETURN_FALSE;
         }
 
-        sw_zval_add_ref(&callback);
+        Z_TRY_ADDREF_P(callback);
         callback = sw_zval_dup(callback);
 
         SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(params), value)

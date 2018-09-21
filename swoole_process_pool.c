@@ -295,7 +295,7 @@ static PHP_METHOD(swoole_process_pool, on)
             zval_ptr_dtor(pp->onWorkerStart);
         }
         pp->onWorkerStart = callback;
-        sw_zval_add_ref(&callback);
+        Z_TRY_ADDREF_P(callback);
         sw_copy_to_stack(pp->onWorkerStart, pp->_onWorkerStart);
         RETURN_TRUE;
     }
@@ -311,7 +311,7 @@ static PHP_METHOD(swoole_process_pool, on)
             zval_ptr_dtor(pp->onMessage);
         }
         pp->onMessage = callback;
-        sw_zval_add_ref(&callback);
+        Z_TRY_ADDREF_P(callback);
         sw_copy_to_stack(pp->onMessage, pp->_onMessage);
         RETURN_TRUE;
     }
@@ -322,7 +322,7 @@ static PHP_METHOD(swoole_process_pool, on)
             zval_ptr_dtor(pp->onWorkerStop);
         }
         pp->onWorkerStop = callback;
-        sw_zval_add_ref(&callback);
+        Z_TRY_ADDREF_P(callback);
         sw_copy_to_stack(pp->onWorkerStop, pp->_onWorkerStop);
         RETURN_TRUE;
     }

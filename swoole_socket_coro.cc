@@ -619,7 +619,7 @@ static PHP_METHOD(swoole_socket_coro, getSocket)
     }
     SW_ZEND_REGISTER_RESOURCE(return_value, (void * ) socket_object, php_sockets_le_socket());
     zval *zsocket = sw_zval_dup(return_value);
-    sw_zval_add_ref(&zsocket);
+    Z_TRY_ADDREF_P(zsocket);
     sock->resource = zsocket;
 }
 #endif

@@ -1712,7 +1712,7 @@ static PHP_METHOD(swoole_http_request, __destruct)
             unlink(Z_STRVAL_P(file_path));
             if (SG(rfc1867_uploaded_files))
             {
-                sw_zend_hash_del(SG(rfc1867_uploaded_files), Z_STRVAL_P(file_path), Z_STRLEN_P(file_path) + 1);
+                zend_hash_str_del(SG(rfc1867_uploaded_files), Z_STRVAL_P(file_path), Z_STRLEN_P(file_path));
             }
         }
         SW_HASHTABLE_FOREACH_END();

@@ -533,7 +533,7 @@ static PHP_METHOD(swoole_process, signal)
         efree(func_name);
 
         callback = sw_zval_dup(callback);
-        sw_zval_add_ref(&callback);
+        Z_TRY_ADDREF_P(callback);
 
         handler = php_swoole_onSignal;
     }
@@ -717,7 +717,7 @@ int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
 
     zval *retval = NULL;
     args[0] = &object;
-    sw_zval_add_ref(&object);
+    Z_TRY_ADDREF_P(object);
 
     if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
     {
@@ -978,7 +978,7 @@ static PHP_METHOD(swoole_process, exec)
 
     SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(args), value)
         convert_to_string(value);
-        sw_zval_add_ref(&value);
+        Z_TRY_ADDREF_P(value);
         exec_args[i] = Z_STRVAL_P(value);
         i++;
     SW_HASHTABLE_FOREACH_END();

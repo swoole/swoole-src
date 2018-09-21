@@ -360,7 +360,7 @@ static PHP_METHOD(swoole_server_port, set)
             }
             efree(func_name);
             port->protocol.get_package_length = php_swoole_length_func;
-            sw_zval_add_ref(&v);
+            Z_TRY_ADDREF_P(v);
             port->protocol.private_data = sw_zval_dup(v);
             break;
         }
@@ -643,6 +643,6 @@ static PHP_METHOD(swoole_server_port, getSocket)
     }
     SW_ZEND_REGISTER_RESOURCE(return_value, (void *) socket_object, php_sockets_le_socket());
     zval *zsocket = sw_zval_dup(return_value);
-    sw_zval_add_ref(&zsocket);
+    Z_TRY_ADDREF_P(zsocket);
 }
 #endif

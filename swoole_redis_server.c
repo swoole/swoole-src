@@ -363,7 +363,7 @@ static PHP_METHOD(swoole_redis_server, setHandler)
         func_cache_array.size *= 2;
         func_cache_array.array = ecalloc(func_cache_array.size, sizeof(zend_fcall_info_cache *));
     }
-    sw_zval_add_ref(&zcallback);
+    Z_TRY_ADDREF_P(zcallback);
     zend_update_property_long(swoole_redis_server_class_entry_ptr, getThis(), _command, length, func_cache_index TSRMLS_CC);
 #else
     php_strtolower(_command, length);

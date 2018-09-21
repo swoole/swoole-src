@@ -999,7 +999,7 @@ PHP_MINIT_FUNCTION(swoole)
 
     if (!SWOOLE_G(use_shortname))
     {
-        sw_zend_hash_del(CG(function_table), ZEND_STRS("go"));
+        zend_hash_str_del(CG(function_table), ZEND_STRL("go"));
     }
     else
     {

@@ -416,7 +416,7 @@ PHP_FUNCTION(swoole_coroutine_create)
     }
     php_swoole_check_reactor();
     callback = sw_zval_dup(callback);
-    sw_zval_add_ref(&callback);
+    Z_TRY_ADDREF_P(callback);
 
     zval *retval = NULL;
     zval *args[1];

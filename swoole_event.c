@@ -469,7 +469,7 @@ PHP_FUNCTION(swoole_event_add)
     php_reactor_fd *reactor_fd = emalloc(sizeof(php_reactor_fd));
     reactor_fd->socket = zfd;
     sw_copy_to_stack(reactor_fd->socket, reactor_fd->stack.socket);
-    sw_zval_add_ref(&reactor_fd->socket);
+    Z_TRY_ADDREF_P(reactor_fd->socket);
 
     if (cb_read!= NULL && !ZVAL_IS_NULL(cb_read))
     {
@@ -481,7 +481,7 @@ PHP_FUNCTION(swoole_event_add)
         }
         efree(func_name);
         reactor_fd->cb_read = cb_read;
-        sw_zval_add_ref(&cb_read);
+        Z_TRY_ADDREF_P(cb_read);
         sw_copy_to_stack(reactor_fd->cb_read, reactor_fd->stack.cb_read);
     }
     else
@@ -499,7 +499,7 @@ PHP_FUNCTION(swoole_event_add)
         }
         efree(func_name);
         reactor_fd->cb_write = cb_write;
-        sw_zval_add_ref(&cb_write);
+        Z_TRY_ADDREF_P(cb_write);
         sw_copy_to_stack(reactor_fd->cb_write, reactor_fd->stack.cb_write);
     }
     else
@@ -609,7 +609,7 @@ PHP_FUNCTION(swoole_event_set)
                 zval_ptr_dtor(ev_set->cb_read);
             }
             ev_set->cb_read = cb_read;
-            sw_zval_add_ref(&cb_read);
+            Z_TRY_ADDREF_P(cb_read);
             sw_copy_to_stack(ev_set->cb_read, ev_set->stack.cb_read);
             efree(func_name);
         }
@@ -635,7 +635,7 @@ PHP_FUNCTION(swoole_event_set)
                 zval_ptr_dtor(ev_set->cb_write);
             }
             ev_set->cb_write = cb_write;
-            sw_zval_add_ref(&cb_write);
+            Z_TRY_ADDREF_P(cb_write);
             sw_copy_to_stack(ev_set->cb_write, ev_set->stack.cb_write);
             efree(func_name);
         }
@@ -718,7 +718,7 @@ PHP_FUNCTION(swoole_event_defer)
     php_defer_callback *defer = emalloc(sizeof(php_defer_callback));
     defer->callback = &defer->_callback;
     memcpy(defer->callback, callback, sizeof(zval));
-    sw_zval_add_ref(&callback);
+    Z_TRY_ADDREF_P(callback);
     SW_CHECK_RETURN(SwooleG.main_reactor->defer(SwooleG.main_reactor, php_swoole_event_onDefer, defer));
 }
 
@@ -766,7 +766,7 @@ PHP_FUNCTION(swoole_event_cycle)
 
     cb->callback = &cb->_callback;
     memcpy(cb->callback, callback, sizeof(zval));
-    sw_zval_add_ref(&callback);
+    Z_TRY_ADDREF_P(callback);
 
     if (before == 0)
     {

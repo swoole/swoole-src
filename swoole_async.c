@@ -564,7 +564,7 @@ PHP_FUNCTION(swoole_async_read)
     req->fd = fd;
 
     req->filename = filename;
-    sw_zval_add_ref(&filename);
+    Z_TRY_ADDREF_P(filename);
     sw_copy_to_stack(req->filename, req->_filename);
 
     if (!php_swoole_is_callable(callback TSRMLS_CC))
@@ -573,7 +573,7 @@ PHP_FUNCTION(swoole_async_read)
     }
 
     req->callback = callback;
-    sw_zval_add_ref(&callback);
+    Z_TRY_ADDREF_P(callback);
     sw_copy_to_stack(req->callback, req->_callback);
     req->content = fcnt;
     req->once = 0;
@@ -663,13 +663,13 @@ PHP_FUNCTION(swoole_async_write)
     req->length = fcnt_len;
     req->offset = offset;
     req->filename = filename;
-    sw_zval_add_ref(&filename);
+    Z_TRY_ADDREF_P(filename);
     sw_copy_to_stack(req->filename, req->_filename);
 
     if (callback && !ZVAL_IS_NULL(callback))
     {
         req->callback = callback;
-        sw_zval_add_ref(&callback);
+        Z_TRY_ADDREF_P(callback);
         sw_copy_to_stack(req->callback, req->_callback);
     }
     else
@@ -751,11 +751,11 @@ PHP_FUNCTION(swoole_async_readfile)
     req->fd = fd;
 
     req->filename = filename;
-    sw_zval_add_ref(&filename);
+    Z_TRY_ADDREF_P(filename);
     sw_copy_to_stack(req->filename, req->_filename);
 
     req->callback = callback;
-    sw_zval_add_ref(&callback);
+    Z_TRY_ADDREF_P(callback);
     sw_copy_to_stack(req->callback, req->_callback);
 
     req->content = emalloc(length);
@@ -840,13 +840,13 @@ PHP_FUNCTION(swoole_async_writefile)
 
     file_request *req = emalloc(sizeof(file_request));
     req->filename = filename;
-    sw_zval_add_ref(&filename);
+    Z_TRY_ADDREF_P(filename);
     sw_copy_to_stack(req->filename, req->_filename);
 
     if (callback && !ZVAL_IS_NULL(callback))
     {
         req->callback = callback;
-        sw_zval_add_ref(&callback);
+        Z_TRY_ADDREF_P(callback);
         sw_copy_to_stack(req->callback, req->_callback);
     }
     else
@@ -1010,11 +1010,11 @@ PHP_FUNCTION(swoole_async_dns_lookup)
     dns_request *req = emalloc(sizeof(dns_request));
     req->callback = cb;
     sw_copy_to_stack(req->callback, req->_callback);
-    sw_zval_add_ref(&req->callback);
+    Z_TRY_ADDREF_P(req->callback);
 
     req->domain = domain;
     sw_copy_to_stack(req->domain, req->_domain);
-    sw_zval_add_ref(&req->domain);
+    Z_TRY_ADDREF_P(req->domain);
 
     /**
      * Use asynchronous IO
@@ -1126,7 +1126,7 @@ static int process_stream_onRead(swReactor *reactor, swEvent *event)
     {
 #ifdef SW_COROUTINE
         php_context *context = ps->context;
-        sw_zval_add_ref(&zdata);
+        Z_TRY_ADDREF_P(zdata);
         add_assoc_zval(zstatus, "output", zdata);
         int ret = coro_resume(context, zstatus, &retval);
         if (ret == CORO_END && retval)
@@ -1192,7 +1192,7 @@ PHP_METHOD(swoole_async, exec)
 #ifdef SW_COROUTINE
     ps->context = NULL;
 #endif
-    sw_zval_add_ref(&ps->callback);
+    Z_TRY_ADDREF_P(ps->callback);
 
     ps->fd = fd;
     ps->pid = pid;

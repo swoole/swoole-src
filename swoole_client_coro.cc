@@ -360,7 +360,7 @@ void php_swoole_client_coro_check_setting(Socket *cli, zval *zset TSRMLS_DC)
             }
             efree(func_name);
             cli->protocol.get_package_length = php_swoole_length_func;
-            sw_zval_add_ref(&v);
+            Z_TRY_ADDREF_P(v);
             cli->protocol.private_data = sw_zval_dup(v);
             break;
         }
@@ -1087,7 +1087,7 @@ static PHP_METHOD(swoole_client_coro, getSocket)
     }
     SW_ZEND_REGISTER_RESOURCE(return_value, (void * ) socket_object, php_sockets_le_socket());
     zsocket = sw_zval_dup(return_value);
-    sw_zval_add_ref(&zsocket);
+    Z_TRY_ADDREF_P(zsocket);
     swoole_set_property(getThis(), client_property_socket, zsocket);
 }
 #endif

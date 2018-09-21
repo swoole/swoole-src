@@ -268,7 +268,7 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
         swoole_php_fatal_error(E_WARNING, "response callback is not set.");
     }
 
-    sw_zval_add_ref(&callback);
+    Z_TRY_ADDREF_P(callback);
     hcc->onResponse = sw_zval_dup(callback);
 
     /**
@@ -389,7 +389,7 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
 
     cli->object = zobject;
     sw_copy_to_stack(cli->object, hcc->_object);
-    sw_zval_add_ref(&zobject);
+    Z_TRY_ADDREF_P(zobject);
 
     cli->open_eof_check = 0;
     cli->open_length_check = 0;

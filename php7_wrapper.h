@@ -86,8 +86,6 @@ static sw_inline char* sw_php_url_encode(char *value, size_t value_len, int* ext
     return return_str;
 }
 
-#define sw_zval_add_ref(p)   Z_TRY_ADDREF_P(*p)
-
 #define SW_PHP_MAX_PARAMS_NUM     20
 
 static sw_inline int sw_call_user_function_ex(HashTable *function_table, zval** object_pp, zval *function_name, zval **retval_ptr_ptr, uint32_t param_count, zval ***params, int no_separation, HashTable* ymbol_table)
@@ -234,11 +232,6 @@ static inline int sw_zend_is_callable_ex(zval *callable, zval *object, uint chec
     zend_string_release(key);
     *callable_name = tmp;
     return ret;
-}
-
-static inline int sw_zend_hash_del(HashTable *ht, char *k, int len)
-{
-    return zend_hash_str_del(ht, k, len - 1);
 }
 
 static inline int sw_zend_hash_add(HashTable *ht, char *k, int len, void *pData, int datasize, void **pDest)

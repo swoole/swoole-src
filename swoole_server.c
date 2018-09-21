@@ -538,7 +538,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject TSRMLS_DC)
 
     swTrace("Create swoole_server host=%s, port=%d, mode=%d, type=%d", serv->listen_list->host, (int) serv->listen_list->port, serv->factory_mode, (int) serv->listen_list->type);
 
-    sw_zval_add_ref(&zobject);
+    Z_TRY_ADDREF_P(zobject);
     serv->ptr2 = sw_zval_dup(zobject);
 
 #ifdef SW_COROUTINE
@@ -614,8 +614,8 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject TSRMLS_DC)
         //use swoole_server->setting
         if (port_setting == NULL || ZVAL_IS_NULL(port_setting))
         {
-            sw_zval_add_ref(&port_setting);
-            sw_zval_add_ref(&port_object);
+            Z_TRY_ADDREF_P(port_setting);
+            Z_TRY_ADDREF_P(port_object);
             sw_zend_call_method_with_1_params(&port_object, swoole_server_port_class_entry_ptr, NULL, "set", &retval, zsetting);
             if (retval != NULL)
             {
@@ -2274,7 +2274,7 @@ PHP_METHOD(swoole_server, set)
                 return;
             }
             efree(func_name);
-            sw_zval_add_ref(&v);
+            Z_TRY_ADDREF_P(v);
             serv->private_data_3 = sw_zval_dup(v);
             func = php_swoole_dispatch_func;
             break;
@@ -2570,8 +2570,8 @@ PHP_METHOD(swoole_server, set)
     zval *retval = NULL;
     zval *port_object = server_port_list.zobjects[0];
 
-    sw_zval_add_ref(&port_object);
-    sw_zval_add_ref(&zset);
+    Z_TRY_ADDREF_P(port_object);
+    Z_TRY_ADDREF_P(zset);
 
     sw_zend_call_method_with_1_params(&port_object, swoole_server_port_class_entry_ptr, NULL, "set", &retval, zset);
 
@@ -2670,7 +2670,7 @@ PHP_METHOD(swoole_server, on)
     {
         zval *port_object = server_port_list.zobjects[0];
         zval *retval = NULL;
-        sw_zval_add_ref(&port_object);
+        Z_TRY_ADDREF_P(port_object);
         sw_zend_call_method_with_2_params(&port_object, swoole_server_port_class_entry_ptr, NULL, "on", &retval, name, cb);
     }
     else
@@ -2744,7 +2744,7 @@ PHP_METHOD(swoole_server, addProcess)
     memcpy(tmp_process, process, sizeof(zval));
     process = tmp_process;
 
-    sw_zval_add_ref(&process);
+    Z_TRY_ADDREF_P(process);
 
     swWorker *worker = swoole_get_object(process);
     worker->ptr = process;
@@ -3612,7 +3612,7 @@ PHP_METHOD(swoole_server, task)
         efree(func_name);
 #endif
         swTask_type(&buf) |= SW_TASK_CALLBACK;
-        sw_zval_add_ref(&callback);
+        Z_TRY_ADDREF_P(callback);
         swHashMap_add_int(task_callbacks, buf.info.fd, sw_zval_dup(callback));
     }
 
@@ -3763,7 +3763,7 @@ PHP_METHOD(swoole_server, getSocket)
     }
     SW_ZEND_REGISTER_RESOURCE(return_value, (void *) socket_object, php_sockets_le_socket());
     zval *zsocket = sw_zval_dup(return_value);
-    sw_zval_add_ref(&zsocket);
+    Z_TRY_ADDREF_P(zsocket);
 }
 #endif
 
