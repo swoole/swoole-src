@@ -619,6 +619,10 @@ int swPort_http_static_handler(swHttpRequest *request, swConnection *conn)
     {
         return SW_FALSE;
     }
+    if (file_stat.st_size == 0)
+    {
+        return SW_FALSE;
+    }
     if ((file_stat.st_mode & S_IFMT) != S_IFREG)
     {
         return SW_FALSE;
@@ -737,7 +741,7 @@ int swPort_http_static_handler(swHttpRequest *request, swConnection *conn)
             "Server: %s\r\n\r\n",
             request->keep_alive ? "Connection: keep-alive\r\n" : "",
             (long) file_stat.st_size,
-            swoole_get_mimetype(buffer.filename),
+            swoole_get_mime_type(buffer.filename),
             date_,
             date_last_modified,
             SW_HTTP_SERVER_SOFTWARE);

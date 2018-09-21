@@ -314,6 +314,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_hashcode, 0, 0, 1)
     ZEND_ARG_INFO(0, type)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_get_mime_type, 0, 0, 1)
+    ZEND_ARG_INFO(0, filename)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_connection_iterator_offsetExists, 0, 0, 1)
     ZEND_ARG_INFO(0, fd)
 ZEND_END_ARG_INFO()
@@ -336,6 +340,7 @@ ZEND_END_ARG_INFO()
 #include "zend_exceptions.h"
 
 static PHP_FUNCTION(swoole_last_error);
+static PHP_FUNCTION(swoole_get_mime_type);
 static PHP_FUNCTION(swoole_hashcode);
 
 const zend_function_entry swoole_functions[] =
@@ -381,6 +386,7 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_strerror, arginfo_swoole_strerror)
     PHP_FE(swoole_errno, arginfo_swoole_void)
     PHP_FE(swoole_hashcode, arginfo_swoole_hashcode)
+    PHP_FE(swoole_get_mime_type, arginfo_swoole_get_mime_type)
     PHP_FE(swoole_call_user_shutdown_begin, arginfo_swoole_void)
     PHP_FE_END /* Must be the last line in swoole_functions[] */
 };
@@ -1423,6 +1429,17 @@ PHP_FUNCTION(swoole_strerror)
         snprintf(error_msg, sizeof(error_msg) - 1, "%s", strerror(swoole_errno));
     }
     SW_RETURN_STRING(error_msg, 1);
+}
+
+PHP_FUNCTION(swoole_get_mime_type)
+{
+    char *filename;
+    zend_long filename_len;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &filename, &filename_len) == FAILURE)
+    {
+        return;
+    }
+    RETURN_STRING(swoole_get_mime_type(filename));
 }
 
 PHP_FUNCTION(swoole_errno)
