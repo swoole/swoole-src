@@ -82,7 +82,7 @@ static struct
 {
     php_stream_transport_factory tcp;
     php_stream_transport_factory udp;
-    php_stream_transport_factory unix;
+    php_stream_transport_factory _unix;
     php_stream_transport_factory udg;
 #ifdef SW_USE_OPENSSL
     php_stream_transport_factory ssl;
@@ -880,17 +880,17 @@ static PHP_METHOD(swoole_runtime, enableCoroutine)
         }
         if (flags & SW_HOOK_UNIX)
         {
-            ori_factory.unix = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("unix"));
+            ori_factory._unix = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("unix"));
             php_stream_xport_register("unix", socket_create);
         }
         if (flags & SW_HOOK_UDG)
         {
-            ori_factory.unix = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("udg"));
+            ori_factory._unix = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("udg"));
             php_stream_xport_register("udg", socket_create);
         }
         if (flags & SW_HOOK_UDP)
         {
-            ori_factory.unix = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("udp"));
+            ori_factory._unix = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("udp"));
             php_stream_xport_register("udp", socket_create);
         }
 #ifdef SW_USE_OPENSSL
@@ -948,7 +948,7 @@ static PHP_METHOD(swoole_runtime, enableCoroutine)
         }
         if (flags & SW_HOOK_UNIX)
         {
-            php_stream_xport_register("unix", ori_factory.unix);
+            php_stream_xport_register("unix", ori_factory._unix);
         }
         if (flags & SW_HOOK_UDP)
         {
