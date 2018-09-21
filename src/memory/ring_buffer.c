@@ -60,14 +60,14 @@ swMemoryPool *swRingBuffer_new(uint32_t size, uint8_t shared)
     }
 
     swRingBuffer *object = mem;
-    mem += sizeof(swRingBuffer);
+	(char *) mem += sizeof(swRingBuffer);
     bzero(object, sizeof(swRingBuffer));
 
     object->size = (size - sizeof(swRingBuffer) - sizeof(swMemoryPool));
     object->shared = shared;
 
     swMemoryPool *pool = mem;
-    mem += sizeof(swMemoryPool);
+	(char *) mem += sizeof(swMemoryPool);
 
     pool->object = object;
     pool->destroy = swRingBuffer_destory;
@@ -92,7 +92,7 @@ static void swRingBuffer_collect(swRingBuffer *object)
 
     for (i = 0; i < count; i++)
     {
-        item = object->memory + object->collect_offset;
+        item = (char *) object->memory + object->collect_offset;
         if (item->lock == 0)
         {
             n_size = item->length + sizeof(swRingBuffer_item);
@@ -135,7 +135,7 @@ static void* swRingBuffer_alloc(swMemoryPool *pool, uint32_t size)
             uint32_t skip_n = object->size - object->alloc_offset;
             if (skip_n >= sizeof(swRingBuffer_item))
             {
-                item = object->memory + object->alloc_offset;
+                item = (char *) object->memory + object->alloc_offset;
                 item->lock = 0;
                 item->length = skip_n - sizeof(swRingBuffer_item);
                 sw_atomic_t *free_count = &object->free_count;
@@ -160,7 +160,7 @@ static void* swRingBuffer_alloc(swMemoryPool *pool, uint32_t size)
         return NULL;
     }
 
-    item = object->memory + object->alloc_offset;
+    item = (char *) object->memory + object->alloc_offset;
     item->lock = 1;
     item->length = size;
     item->index = object->alloc_count;
@@ -176,10 +176,10 @@ static void* swRingBuffer_alloc(swMemoryPool *pool, uint32_t size)
 static void swRingBuffer_free(swMemoryPool *pool, void *ptr)
 {
     swRingBuffer *object = pool->object;
-    swRingBuffer_item *item = ptr - sizeof(swRingBuffer_item);
+    swRingBuffer_item *item = (char *) ptr - sizeof(swRingBuffer_item);
 
     assert(ptr >= object->memory);
-    assert(ptr <= object->memory + object->size);
+    assert(ptr <= (char *) object->memory + object->size);
     assert(item->lock == 1);
 
     if (item->lock != 1)
