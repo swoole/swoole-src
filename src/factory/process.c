@@ -18,7 +18,6 @@
 #include "server.h"
 
 #include <signal.h>
-#include <sys/time.h>
 
 static int swFactoryProcess_start(swFactory *factory);
 static int swFactoryProcess_notify(swFactory *factory, swDataHead *event);

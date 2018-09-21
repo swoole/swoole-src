@@ -17,9 +17,6 @@
 #include "swoole.h"
 #include "connection.h"
 
-#include <sys/stat.h>
-#include <poll.h>
-
 int swSocket_sendfile_sync(int sock, char *filename, off_t offset, size_t length, double timeout)
 {
     int timeout_ms = timeout < 0 ? -1 : timeout * 1000;
@@ -177,7 +174,7 @@ int swSocket_write_blocking(int __fd, void *__data, int __len)
 
     while (written < __len)
     {
-        n = write(__fd, __data + written, __len - written);
+        n = write(__fd, (char *) __data + written, __len - written);
         if (n < 0)
         {
             if (errno == EINTR)
@@ -209,7 +206,7 @@ int swSocket_recv_blocking(int fd, void *__data, size_t __len, int flags)
     while (read_bytes != __len)
     {
         errno = 0;
-        ret = recv(fd, __data + read_bytes, __len - read_bytes, flags);
+        ret = recv(fd, (char *) __data + read_bytes, __len - read_bytes, flags);
         if (ret > 0)
         {
             read_bytes += ret;
@@ -253,6 +250,7 @@ ssize_t swSocket_udp_sendto6(int server_sock, char *dst_ip, int dst_port, char *
     return swSocket_sendto_blocking(server_sock, data, len, 0, (struct sockaddr *) &addr, sizeof(addr));
 }
 
+#ifndef _WIN32
 ssize_t swSocket_unix_sendto(int server_sock, char *dst_path, char *data, uint32_t len)
 {
     struct sockaddr_un addr;
@@ -260,6 +258,7 @@ ssize_t swSocket_unix_sendto(int server_sock, char *dst_path, char *data, uint32
     strncpy(addr.sun_path, dst_path, sizeof(addr.sun_path));
     return swSocket_sendto_blocking(server_sock, data, len, 0, (struct sockaddr *) &addr, sizeof(addr));
 }
+#endif
 
 ssize_t swSocket_sendto_blocking(int fd, void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len)
 {
@@ -337,7 +336,9 @@ int swSocket_bind(int sock, int type, char *host, int *port)
 
     struct sockaddr_in addr_in4;
     struct sockaddr_in6 addr_in6;
+#ifndef _WIN32
     struct sockaddr_un addr_un;
+#endif
     socklen_t len;
 
     //SO_REUSEADDR option
@@ -357,6 +358,8 @@ int swSocket_bind(int sock, int type, char *host, int *port)
         }
     }
 #endif
+
+#ifndef _WIN32
     //unix socket
     if (type == SW_SOCK_UNIX_DGRAM || type == SW_SOCK_UNIX_STREAM)
     {
@@ -367,7 +370,9 @@ int swSocket_bind(int sock, int type, char *host, int *port)
         ret = bind(sock, (struct sockaddr*) &addr_un, sizeof(addr_un));
     }
     //IPv6
-    else if (type > SW_SOCK_UDP)
+    else
+#endif
+	if (type > SW_SOCK_UDP)
     {
         bzero(&addr_in6, sizeof(addr_in6));
         inet_pton(AF_INET6, host, &(addr_in6.sin6_addr));

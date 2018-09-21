@@ -1,6 +1,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <poll.h>
+
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -14,3 +16,4 @@
 #include <sys/un.h>
 #include <sys/types.h>
 #include <sys/utsname.h>
+#include <sys/stat.h>

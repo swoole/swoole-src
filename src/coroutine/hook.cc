@@ -18,6 +18,8 @@
 #include "async.h"
 #include "coroutine.h"
 
+#ifndef _WIN32
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/poll.h>
@@ -609,3 +611,4 @@ struct dirent *swoole_coroutine_readdir(DIR *dirp)
 #endif
 }
 
+#endif

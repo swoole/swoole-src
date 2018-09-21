@@ -122,6 +122,8 @@ enum
 #define F_OK 0
 
 #define O_APPEND    _O_APPEND
+#define MAP_FAILED  ((void *) -1)
+#define MSG_DONTWAIT       0
 
 typedef struct _CLIENT_ID {
 	PVOID UniqueProcess;
@@ -178,7 +180,9 @@ pid_t fork(void)
 
 	clone_p = (RtlCloneUserProcess_f)GetProcAddress(mod, "RtlCloneUserProcess");
 	if (clone_p == NULL)
+	{
 		return -ENOSYS;
+	}
 
 	/* lets do this */
 	result = clone_p(RTL_CLONE_PROCESS_FLAGS_CREATE_SUSPENDED | RTL_CLONE_PROCESS_FLAGS_INHERIT_HANDLES, NULL, NULL, NULL, &process_info);
@@ -206,11 +210,57 @@ pid_t fork(void)
 		return 0;
 	}
 	else
+	{
 		return -1;
+	}
 
 	/* NOTREACHED */
 	return -1;
 }
 
+
+typedef int nfds_t;
+
+static inline int poll(struct pollfd *fds, nfds_t nfds, int mille_timeout)
+{
+	struct timeval timeout;
+	timeout.tv_sec = mille_timeout / 1000;
+	timeout.tv_usec = 1000000 * mille_timeout % 1000;
+
+	struct fd_set* fd = (fd_set*)malloc(2 * nfds * sizeof(fd_set));
+	if (!fd)
+	{
+		return -1;
+	}
+
+	u_int* readerCount = &fd[0].fd_count;
+	*readerCount = 0;
+	SOCKET* fdReader = fd[0].fd_array;
+	int writer = nfds;
+	u_int* writerCount = &fd[nfds].fd_count;
+	*writerCount = 0;
+	SOCKET* fdWriter = fd[nfds].fd_array;
+
+	for (int i = 0; i<nfds; i++)
+	{
+		if (fds[i].events & POLLIN)
+		{
+			fdReader[*readerCount] = fds[i].fd;
+			*readerCount++;
+		}
+		if (fds[i].events & POLLOUT)
+		{
+			fdWriter[*writerCount] = fds[i].fd;
+			*writerCount++;
+		}
+	}
+
+	fd_set fdExcept;
+	fdExcept.fd_count = 0;
+	const int ok = select(nfds, &fd[0], &fd[nfds], &fdExcept, &timeout);
+	free(fd);
+
+	return ok;
+}
 
 #endif
