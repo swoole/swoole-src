@@ -838,7 +838,7 @@ static PHP_METHOD(swoole_table_row, offsetExists)
     }
 
     zval *value = sw_zend_read_property(swoole_table_row_class_entry_ptr, getThis(), SW_STRL("value")-1, 0 TSRMLS_CC);
-    RETURN_BOOL(zend_hash_str_exists(Z_ARRVAL_P(value), key, keylen) == SUCCESS);
+    RETURN_BOOL(zend_hash_str_exists(Z_ARRVAL_P(value), key, keylen));
 }
 
 static PHP_METHOD(swoole_table_row, offsetGet)
@@ -891,6 +891,12 @@ static PHP_METHOD(swoole_table_row, offsetSet)
 
     swTableColumn *col;
     col = swTableColumn_get(table, key, keylen);
+    if (col == NULL)
+    {
+        swTableRow_unlock(_rowlock);
+        swoole_php_fatal_error(E_WARNING, "column[%s] does not exist.", key);
+        RETURN_FALSE;
+    }
     if (col->type == SW_TABLE_STRING)
     {
         convert_to_string(value);
@@ -909,7 +915,7 @@ static PHP_METHOD(swoole_table_row, offsetSet)
     swTableRow_unlock(_rowlock);
 
     zval *prop_value = sw_zend_read_property(swoole_table_row_class_entry_ptr, getThis(), SW_STRL("value")-1, 0 TSRMLS_CC);
-    sw_zend_hash_update(Z_ARRVAL_P(prop_value), key, keylen, value, sizeof(zval *), NULL);
+    zend_hash_str_update(Z_ARRVAL_P(prop_value), key, keylen, value);
     RETURN_TRUE;
 }
 

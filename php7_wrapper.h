@@ -234,23 +234,6 @@ static inline int sw_zend_is_callable_ex(zval *callable, zval *object, uint chec
     return ret;
 }
 
-static inline int sw_zend_hash_add(HashTable *ht, char *k, int len, void *pData, int datasize, void **pDest)
-{
-    zval **real_p = (zval **)pData;
-    return zend_hash_str_add(ht, k, len - 1, *real_p) ? SUCCESS : FAILURE;
-}
-
-static inline int sw_zend_hash_index_update(HashTable *ht, int key, void *pData, int datasize, void **pDest)
-{
-    zval **real_p = (zval **)pData;
-    return zend_hash_index_update(ht, key, *real_p) ? SUCCESS : FAILURE;
-}
-
-static inline int sw_zend_hash_update(HashTable *ht, char *k, int len, zval *val, int size, void *ptr)
-{
-    return zend_hash_str_update(ht, (const char*)k, len -1, val) ? SUCCESS : FAILURE;
-}
-
 static inline int sw_zend_hash_find(HashTable *ht, const char *k, int len, void **v)
 {
     zval *value = zend_hash_str_find(ht, k, len - 1);

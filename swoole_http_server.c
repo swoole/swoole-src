@@ -906,8 +906,9 @@ static int multipart_body_on_header_complete(multipart_parser* p)
 
     int file_path_len = strlen(file_path);
     sw_add_next_index_stringl(ztmpfiles, file_path, file_path_len, 1);
-    char *temp_filename = file_path;
-    sw_zend_hash_add(SG(rfc1867_uploaded_files), temp_filename, file_path_len + 1, &temp_filename, sizeof(char *), NULL);
+
+    // support is_upload_file
+    zend_hash_str_add_ptr(SG(rfc1867_uploaded_files), file_path, file_path_len, (char *) file_path);
 
     return 0;
 }
