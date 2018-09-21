@@ -121,6 +121,12 @@ enum
 #define X_OK 0
 #define F_OK 0
 
+#define SHUT_RD              SD_RECEIVE      
+#define SHUT_WR              SD_SEND
+#define SHUT_RDWR            SD_BOTH         
+
+
+
 #define O_APPEND    _O_APPEND
 #define MAP_FAILED  ((void *) -1)
 #define MSG_DONTWAIT       0
@@ -190,10 +196,10 @@ pid_t fork(void)
 	if (result == RTL_CLONE_PARENT)
 	{
 		HANDLE me, hp, ht, hcp = 0;
-		DWORD pi, ti, mi;
+		DWORD pi, ti;
 		me = GetCurrentProcess();
-		pi = (DWORD)process_info.ClientId.UniqueProcess;
-		ti = (DWORD)process_info.ClientId.UniqueThread;
+		pi = (DWORD) process_info.ClientId.UniqueProcess;
+		ti = (DWORD) process_info.ClientId.UniqueThread;
 
 		assert(hp = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pi));
 		assert(ht = OpenThread(THREAD_ALL_ACCESS, FALSE, ti));

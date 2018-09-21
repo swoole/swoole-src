@@ -652,7 +652,7 @@ typedef struct _swProtocol
     uint16_t real_header_length;
 
     int (*onPackage)(swConnection *conn, char *data, uint32_t length);
-    int (*get_package_length)(struct _swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
+	ssize_t (*get_package_length)(struct _swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 } swProtocol;
 typedef int (*swProtocol_length_function)(struct _swProtocol *, swConnection *, char *, uint32_t);
 //------------------------------String--------------------------------
@@ -1375,6 +1375,7 @@ int swSocket_sendfile_sync(int sock, char *filename, off_t offset, size_t length
 int swSocket_write_blocking(int __fd, void *__data, int __len);
 int swSocket_recv_blocking(int fd, void *__data, size_t __len, int flags);
 
+#ifndef _WIN32
 static sw_inline int swWaitpid(pid_t __pid, int *__stat_loc, int __options)
 {
     int ret;
@@ -1404,6 +1405,7 @@ static sw_inline int swKill(pid_t __pid, int __sig)
     } while (1);
     return ret;
 }
+#endif
 
 #ifdef TCP_CORK
 #define HAVE_TCP_NOPUSH
