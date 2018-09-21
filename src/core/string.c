@@ -83,7 +83,7 @@ int swString_append(swString *str, swString *append_str)
     int new_size = str->length + append_str->length;
     if (new_size > str->size)
     {
-        if (swString_extend(str, swoole_size_align(new_size * 2, sysconf(_SC_PAGESIZE))) < 0)
+        if (swString_extend(str, swoole_size_align(new_size * 2, SwooleG.pagesize)) < 0)
         {
             return SW_ERR;
         }
@@ -101,7 +101,7 @@ int swString_append_int(swString *str, int value)
     int new_size = str->length + s_len;
     if (new_size > str->size)
     {
-        if (swString_extend(str, swoole_size_align(new_size * 2, sysconf(_SC_PAGESIZE))) < 0)
+        if (swString_extend(str, swoole_size_align(new_size * 2, SwooleG.pagesize)) < 0)
         {
             return SW_ERR;
         }
@@ -117,7 +117,7 @@ int swString_append_ptr(swString *str, const char *append_str, int length)
     int new_size = str->length + length;
     if (new_size > str->size)
     {
-        if (swString_extend(str, swoole_size_align(new_size * 2, sysconf(_SC_PAGESIZE))) < 0)
+        if (swString_extend(str, swoole_size_align(new_size * 2, SwooleG.pagesize)) < 0)
         {
             return SW_ERR;
         }
@@ -132,7 +132,7 @@ int swString_write(swString *str, off_t offset, swString *write_str)
     int new_length = offset + write_str->length;
     if (new_length > str->size)
     {
-        if (swString_extend(str, swoole_size_align(new_length * 2, sysconf(_SC_PAGESIZE))) < 0)
+        if (swString_extend(str, swoole_size_align(new_length * 2, SwooleG.pagesize)) < 0)
         {
             return SW_ERR;
         }
@@ -153,7 +153,7 @@ int swString_write_ptr(swString *str, off_t offset, char *write_str, int length)
     int new_length = offset + length;
     if (new_length > str->size)
     {
-        if (swString_extend(str, swoole_size_align(new_length * 2, sysconf(_SC_PAGESIZE))) < 0)
+        if (swString_extend(str, swoole_size_align(new_length * 2, SwooleG.pagesize)) < 0)
         {
             return SW_ERR;
         }
