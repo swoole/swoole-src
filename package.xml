@@ -494,7 +494,7 @@
             <file role="src" name="src/protocol/base64.c" />
             <file role="src" name="src/protocol/http.c" />
             <file role="src" name="src/protocol/http2.c" />
-            <file role="src" name="src/protocol/mime_types.c" />
+            <file role="src" name="src/protocol/mime_types.cc" />
             <file role="src" name="src/protocol/mqtt.c" />
             <file role="src" name="src/protocol/redis.c" />
             <file role="src" name="src/protocol/sha1.c" />
