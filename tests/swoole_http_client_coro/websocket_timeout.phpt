@@ -21,7 +21,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
         }
         echo $cli->recv()->data;
         $cli->push('hello server');
-        
+
         assert($cli->recv() == false);
         assert($cli->errCode == SOCKET_ETIMEDOUT);
         $cli->errCode = 0;

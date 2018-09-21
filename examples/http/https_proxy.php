@@ -5,7 +5,7 @@ Swoole\Async::dnsLookup("www.baidu.com", function ($domainName, $ip) {
     $cli->set(array(
       'http_proxy_host'=>"127.0.0.1",
       'http_proxy_port'=>3128,
-      
+
     ));
     $cli->setHeaders([
         'Host' => $domainName,

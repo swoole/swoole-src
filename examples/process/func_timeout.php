@@ -6,7 +6,7 @@ Swoole\Async::set([
 
 class FunctionTimeoutException extends RuntimeException
 {
-    
+
 }
 
 function test()
@@ -21,7 +21,7 @@ $serv->set(['worker_num' => 1]);
 $serv->on('WorkerStart', function($serv, $workerId) {
     pcntl_signal(SIGALRM, function () {
         Swoole\Process::alarm(-1);
-        throw new FunctionTimeoutException; 
+        throw new FunctionTimeoutException;
     });
 });
 

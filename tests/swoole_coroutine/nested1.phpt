@@ -13,7 +13,7 @@ go(function () {
         echo "co[2] start\n";
         co::sleep(1.0);
         echo "co[2] exit\n";
-    });    
+    });
     echo "co[1] exit\n";
 });
 echo "end\n";

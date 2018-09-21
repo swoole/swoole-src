@@ -197,13 +197,8 @@ static void php_swoole_event_onEndCallback(void *_cb)
     }
 }
 
-void php_swoole_check_reactor()
+void php_swoole_reactor_init()
 {
-    if (likely(SwooleWG.reactor_init))
-    {
-        return;
-    }
-
     if (!SWOOLE_G(cli))
     {
         swoole_php_fatal_error(E_ERROR, "async-io must be used in PHP CLI mode.");

@@ -339,7 +339,7 @@ if test "$PHP_SWOOLE" != "no"; then
         AC_DEFINE(SW_USE_REDIS, 1, [enable async-redis support])
         PHP_ADD_LIBRARY(hiredis, 1, SWOOLE_SHARED_LIBADD)
     fi
-    
+
     if test "$PHP_HTTP2" = "yes" || test "$PHP_NGHTTP2_DIR" != "no"; then
 	    if test "$PHP_NGHTTP2_DIR" != "no"; then
 	        PHP_ADD_INCLUDE("${PHP_NGHTTP2_DIR}/include")

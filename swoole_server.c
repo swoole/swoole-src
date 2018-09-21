@@ -433,8 +433,7 @@ static void php_swoole_task_wait_co(swServer *serv, swEventData *req, double tim
     }
 
     int ms = (int) (timeout * 1000);
-    php_swoole_check_timer(ms);
-    swTimer_node *timer = SwooleG.timer.add(&SwooleG.timer, ms, 0, task_co, php_swoole_task_onTimeout);
+    swTimer_node *timer = swTimer_add(&SwooleG.timer, ms, 0, task_co, php_swoole_task_onTimeout);
     if (timer)
     {
         task_co->timer = timer;
@@ -1874,9 +1873,8 @@ void php_swoole_server_send_yield(swServer *serv, int fd, zval *zdata, zval *ret
     }
     if (serv->send_timeout > 0)
     {
-        php_swoole_check_timer((int) (serv->send_timeout * 1000));
         context->private_data = (void*) (long) fd;
-        context->timer = SwooleG.timer.add(&SwooleG.timer, (int) (serv->send_timeout * 1000), 0, context, php_swoole_onSendTimeout);
+        context->timer = swTimer_add(&SwooleG.timer, (int) (serv->send_timeout * 1000), 0, context, php_swoole_onSendTimeout);
     }
     else
     {
@@ -3547,8 +3545,7 @@ PHP_METHOD(swoole_server, taskCo)
     task_co->count = n_task;
     task_co->context.state = SW_CORO_CONTEXT_RUNNING;
 
-    php_swoole_check_timer(ms);
-    swTimer_node *timer = SwooleG.timer.add(&SwooleG.timer, ms, 0, task_co, php_swoole_task_onTimeout);
+    swTimer_node *timer = swTimer_add(&SwooleG.timer, ms, 0, task_co, php_swoole_task_onTimeout);
     if (timer)
     {
         task_co->timer = timer;

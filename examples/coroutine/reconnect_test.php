@@ -21,7 +21,7 @@ $server->on('Request', function ($request, $response) {
 		return;
 	}
 	$mysql->close();
-	
+
 	$res = $mysql->connect(['host' => '192.168.244.128', 'user' => 'mha_manager', 'password' => 'mhapass', 'database' => 'tt']);
 	if ($res == false) {
 		$response->end("MySQL connect fail!");

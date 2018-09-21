@@ -2021,10 +2021,9 @@ struct _swTimer
     struct timeval basetime;
     /*--------------------------------------------------*/
     int (*set)(swTimer *timer, long exec_msec);
-    swTimer_node* (*add)(swTimer *timer, int _msec, int persistent, void *data, swTimerCallback callback);
 };
 
-int swTimer_init(long msec);
+swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *data, swTimerCallback callback);
 int swTimer_del(swTimer *timer, swTimer_node *node);
 void swTimer_free(swTimer *timer);
 int swTimer_select(swTimer *timer);

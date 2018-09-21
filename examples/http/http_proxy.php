@@ -14,7 +14,7 @@ Swoole\Async::dnsLookup("www.htmleaf.com", function ($domainName, $ip) {
     ]);
     $cli->get('/', function ($cli) {
         echo "Length: " . strlen($cli->body) . "\n";
-$cli->close();     
+$cli->close();
  // echo $cli->body;
     });
 });

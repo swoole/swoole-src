@@ -1184,8 +1184,7 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
 
     if (http->timeout > 0)
     {
-        php_swoole_check_timer((int) (http->timeout * 1000));
-        http->timer = SwooleG.timer.add(&SwooleG.timer, (int) (http->timeout * 1000), 0, http->cli, http_client_onRequestTimeout);
+        http->timer = swTimer_add(&SwooleG.timer, (int) (http->timeout * 1000), 0, http->cli, http_client_onRequestTimeout);
     }
 
     swTrace("[%d]: %s\n", (int) http_client_buffer->length, http_client_buffer->str);
@@ -1193,7 +1192,7 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
     return ret;
 }
 
-void sw_inline http_client_clear(http_client *http)
+void http_client_clear(http_client *http)
 {
     // clear timeout timer
     if (http->timer)
@@ -1245,7 +1244,7 @@ int http_client_check_keep(http_client *http)
     }
 }
 
-void sw_inline http_client_reset(http_client *http)
+void http_client_reset(http_client *http)
 {
     // reset attributes
     http->completed = 0;
@@ -1253,7 +1252,7 @@ void sw_inline http_client_reset(http_client *http)
     http->state = HTTP_CLIENT_STATE_READY;
 }
 
-void sw_inline http_client_free(zval *object TSRMLS_DC)
+void http_client_free(zval *object TSRMLS_DC)
 {
     http_client *http = swoole_get_object(object);
     if (!http)

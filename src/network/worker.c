@@ -629,11 +629,7 @@ static void swWorker_stop()
     }
 
     try_to_exit: SwooleWG.wait_exit = 1;
-    if (SwooleG.timer.fd == 0)
-    {
-        swTimer_init(serv->max_wait_time * 1000);
-    }
-    SwooleG.timer.add(&SwooleG.timer, serv->max_wait_time * 1000, 0, NULL, swWorker_onTimeout);
+    swTimer_add(&SwooleG.timer, serv->max_wait_time * 1000, 0, NULL, swWorker_onTimeout);
 
     swWorker_try_to_exit();
 }

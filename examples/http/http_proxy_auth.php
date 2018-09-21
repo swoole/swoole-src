@@ -13,7 +13,7 @@ $cli->setHeaders([
 ]);
 $cli->get('/', function ($cli) {
     echo "Length: " . strlen($cli->body) . ", statusCode=".$cli->statusCode."\n";
-    $cli->close();     
+    $cli->close();
     echo $cli->body;
 });
 

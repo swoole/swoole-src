@@ -20,4 +20,3 @@ go(function () use ($c1, $num) {
     }
 });
 echo "main end\n";
-        

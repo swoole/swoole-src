@@ -401,16 +401,9 @@ static int swServer_start_proxy(swServer *serv)
     }
 
     /**
-     * init timer
-     */
-    if (swTimer_init(1000) < 0)
-    {
-        return SW_ERR;
-    }
-    /**
      * 1 second timer, update serv->gs->now
      */
-    if (SwooleG.timer.add(&SwooleG.timer, 1000, 1, serv, swServer_master_onTimer) == NULL)
+    if (swTimer_add(&SwooleG.timer, 1000, 1, serv, swServer_master_onTimer) == NULL)
     {
         return SW_ERR;
     }

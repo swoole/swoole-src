@@ -149,7 +149,7 @@ void internal_coro_yield(void *arg)
 
 void coro_check(TSRMLS_D)
 {
-    if (sw_get_current_cid() == -1)
+    if (unlikely(!sw_coro_is_in()))
     {
         swoole_php_fatal_error(E_ERROR, "must be called in the coroutine.");
     }
@@ -354,7 +354,7 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
 
 void sw_coro_yield()
 {
-    if (unlikely(sw_get_current_cid() == -1))
+    if (unlikely(!sw_coro_is_in()))
     {
         swoole_php_fatal_error(E_ERROR, "must be called in the coroutine.");
     }

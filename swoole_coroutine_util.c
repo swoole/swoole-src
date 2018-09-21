@@ -198,7 +198,7 @@ static int coro_exit_handler(zend_execute_data *execute_data)
     zval ex;
     zend_object *obj;
     zend_long flags = 0;
-    if (sw_get_current_cid() != -1)
+    if (sw_coro_is_in())
     {
         flags |= SW_EXIT_IN_COROUTINE;
     }
@@ -531,7 +531,6 @@ static PHP_METHOD(swoole_coroutine_util, sleep)
     }
 
     php_swoole_check_reactor();
-    php_swoole_check_timer(ms);
 
     swoole_coroutine_sleep(seconds);
     RETURN_TRUE;

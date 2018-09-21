@@ -536,7 +536,7 @@ int swoole_coroutine_access(const char *pathname, int mode)
 int swoole_coroutine_sleep(double sec)
 {
     coroutine_t* co = coroutine_get_current();
-    if (SwooleG.timer.add(&SwooleG.timer, sec * 1000, 0, co, sleep_timeout) == NULL)
+    if (swTimer_add(&SwooleG.timer, sec * 1000, 0, co, sleep_timeout) == NULL)
     {
         return -1;
     }

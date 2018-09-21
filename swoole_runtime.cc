@@ -983,10 +983,16 @@ static PHP_FUNCTION(_sleep)
         php_error_docref(NULL, E_WARNING, "Number of seconds must be greater than or equal to 0");
         RETURN_FALSE;
     }
-    php_swoole_check_reactor();
-    php_swoole_check_timer(num * 1000);
-    swoole_coroutine_sleep((double) num);
-    RETURN_LONG(num);
+
+    if (num >= 0.001 && sw_coro_is_in())
+    {
+        php_swoole_check_reactor();
+        RETURN_LONG(swoole_coroutine_sleep((double) num) < 0 ? num : 0);
+    }
+    else
+    {
+        RETURN_LONG(php_sleep(num));
+    }
 }
 
 static PHP_FUNCTION(_usleep)
@@ -1001,9 +1007,17 @@ static PHP_FUNCTION(_usleep)
         php_error_docref(NULL, E_WARNING, "Number of seconds must be greater than or equal to 0");
         RETURN_FALSE;
     }
-    php_swoole_check_reactor();
-    php_swoole_check_timer(num / 1000);
-    swoole_coroutine_sleep((double) num / 1000000);
+    double _time = (double) num / 1000000;
+
+    if (_time >= 0.001 && sw_coro_is_in())
+    {
+        php_swoole_check_reactor();
+        swoole_coroutine_sleep((double) num / 1000000);
+    }
+    else
+    {
+        usleep((unsigned int)num);
+    }
 }
 
 static PHP_FUNCTION(_time_nanosleep)
@@ -1025,10 +1039,9 @@ static PHP_FUNCTION(_time_nanosleep)
         RETURN_FALSE;
     }
     double _time = (double) tv_sec + (double) tv_nsec / 1000000000.00;
-    if (_time >= 0.001)
+    if (_time >= 0.001 && sw_coro_is_in())
     {
         php_swoole_check_reactor();
-        php_swoole_check_timer(_time * 1000);
         swoole_coroutine_sleep(_time);
     }
     else
@@ -1085,10 +1098,9 @@ static PHP_FUNCTION(_time_sleep_until)
     php_req.tv_nsec = (long) ((c_ts - php_req.tv_sec) * 1000000000.00);
 
     double _time = (double) php_req.tv_sec + (double) php_req.tv_nsec / 1000000000.00;
-    if (_time >= 0.001)
+    if (_time >= 0.001 && sw_coro_is_in())
     {
         php_swoole_check_reactor();
-        php_swoole_check_timer(_time * 1000);
         swoole_coroutine_sleep(_time);
     }
     else
