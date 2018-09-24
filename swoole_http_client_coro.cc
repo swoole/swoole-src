@@ -303,7 +303,7 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
         if (!hcc->socket->connect(std::string(http->host, http->host_len), http->port))
         {
             zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("errCode"), hcc->socket->errCode);
-            zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_CONNECT_TIMEOUT );
+            zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_CONNECT_TIMEOUT);
             return SW_ERR;
         }
         else
