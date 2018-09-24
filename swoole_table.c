@@ -853,7 +853,7 @@ static PHP_METHOD(swoole_table_row, offsetGet)
 
     zval *value = sw_zend_read_property(swoole_table_row_class_entry_ptr, getThis(), SW_STRL("value")-1, 0 TSRMLS_CC);
     zval *zvalue;
-    if (sw_zend_hash_find(Z_ARRVAL_P(value), key, keylen + 1, (void **) &zvalue) == FAILURE)
+    if (!(zvalue = zend_hash_str_find(Z_ARRVAL_P(value), key, keylen)))
     {
         RETURN_FALSE;
     }

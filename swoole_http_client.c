@@ -360,7 +360,7 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
                 return SW_ERR;
             }
             zval *value;
-            if (sw_zend_hash_find(Z_ARRVAL_P(send_header), ZEND_STRS("Host"), (void **) &value) == FAILURE ||
+            if (!(value = zend_hash_str_find(Z_ARRVAL_P(send_header), ZEND_STRL("Host"))) ||
                     Z_TYPE_P(value) != IS_STRING || Z_STRLEN_P(value) < 1)
             {
                 swoole_php_fatal_error(E_WARNING, "http proxy must set Host");
@@ -850,7 +850,7 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
     if (http->cli->http_proxy)
 #endif
     {
-        sw_zend_hash_find(Z_ARRVAL_P(send_header), ZEND_STRS("Host"), (void **) &value); //checked before
+        value = zend_hash_str_find(Z_ARRVAL_P(send_header), ZEND_STRL("Host")); //checked before
         char *pre = "http://";
         int len = http->uri_len + Z_STRLEN_P(value) + strlen(pre) + 10;
         void *addr = emalloc(http->uri_len + Z_STRLEN_P(value) + strlen(pre) + 10);
@@ -863,7 +863,7 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
 
     if (send_header && Z_TYPE_P(send_header) == IS_ARRAY)
     {
-        if (sw_zend_hash_find(Z_ARRVAL_P(send_header), ZEND_STRS("Connection"), (void **) &value) == FAILURE)
+        if (!(value = zend_hash_str_find(Z_ARRVAL_P(send_header), ZEND_STRL("Connection"))))
         {
             if (http->keep_alive)
             {
@@ -875,13 +875,13 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
             }
         }
 
-        if (sw_zend_hash_find(Z_ARRVAL_P(send_header), ZEND_STRS("Host"), (void **) &value) == FAILURE)
+        if (!(value = zend_hash_str_find(Z_ARRVAL_P(send_header), ZEND_STRL("Host"))))
         {
             http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Host"), http->host, http->host_len);
         }
 
 #ifdef SW_HAVE_ZLIB
-        if (sw_zend_hash_find(Z_ARRVAL_P(send_header), ZEND_STRS("Accept-Encoding"), (void **) &value) == FAILURE)
+        if (!(value = zend_hash_str_find(Z_ARRVAL_P(send_header), ZEND_STRL("Accept-Encoding"))))
         {
             http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Accept-Encoding"), ZEND_STRL("gzip"));
         }
@@ -998,19 +998,19 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
         {
             //upload files
             SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(hcc->request_upload_files), key, keylen, keytype, value)
-                if (sw_zend_hash_find(Z_ARRVAL_P(value), ZEND_STRS("name"), (void **) &zname) == FAILURE)
+                if (!(zname = zend_hash_str_find(Z_ARRVAL_P(value), ZEND_STRL("name"))))
                 {
                     continue;
                 }
-                if (sw_zend_hash_find(Z_ARRVAL_P(value), ZEND_STRS("filename"), (void **) &zfilename) == FAILURE)
+                if (!(zfilename = zend_hash_str_find(Z_ARRVAL_P(value), ZEND_STRL("filename"))))
                 {
                     continue;
                 }
-                if (sw_zend_hash_find(Z_ARRVAL_P(value), ZEND_STRS("size"), (void **) &zsize) == FAILURE)
+                if (!(zsize = zend_hash_str_find(Z_ARRVAL_P(value), ZEND_STRL("size"))))
                 {
                     continue;
                 }
-                if (sw_zend_hash_find(Z_ARRVAL_P(value), ZEND_STRS("type"), (void **) &ztype) == FAILURE)
+                if (!(ztype = zend_hash_str_find(Z_ARRVAL_P(value), ZEND_STRL("type"))))
                 {
                     continue;
                 }
@@ -1052,27 +1052,27 @@ static int http_client_send_http_request(zval *zobject TSRMLS_DC)
         {
             //upload files
             SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(hcc->request_upload_files), key, keylen, keytype, value)
-                if (sw_zend_hash_find(Z_ARRVAL_P(value), ZEND_STRS("name"), (void **) &zname) == FAILURE)
+                if (!(zname = zend_hash_str_find(Z_ARRVAL_P(value), ZEND_STRL("name"))))
                 {
                     continue;
                 }
-                if (sw_zend_hash_find(Z_ARRVAL_P(value), ZEND_STRS("filename"), (void **) &zfilename) == FAILURE)
+                if (!(zfilename = zend_hash_str_find(Z_ARRVAL_P(value), ZEND_STRL("filename"))))
                 {
                     continue;
                 }
-                if (sw_zend_hash_find(Z_ARRVAL_P(value), ZEND_STRS("path"), (void **) &zpath) == FAILURE)
+                if (!(zpath = zend_hash_str_find(Z_ARRVAL_P(value), ZEND_STRL("path"))))
                 {
                     continue;
                 }
-                if (sw_zend_hash_find(Z_ARRVAL_P(value), ZEND_STRS("size"), (void **) &zsize) == FAILURE)
+                if (!(zsize = zend_hash_str_find(Z_ARRVAL_P(value), ZEND_STRL("size"))))
                 {
                     continue;
                 }
-                if (sw_zend_hash_find(Z_ARRVAL_P(value), ZEND_STRS("type"), (void **) &ztype) == FAILURE)
+                if (!(ztype = zend_hash_str_find(Z_ARRVAL_P(value), ZEND_STRL("type"))))
                 {
                     continue;
                 }
-                if (sw_zend_hash_find(Z_ARRVAL_P(value), ZEND_STRS("offset"), (void **) &zoffset) == FAILURE)
+                if (!(zoffset = zend_hash_str_find(Z_ARRVAL_P(value), ZEND_STRL("offset"))))
                 {
                     continue;
                 }

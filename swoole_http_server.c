@@ -750,7 +750,7 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
         http_parse_cookie(tmp_array, (char *) at + sizeof("form-data;") - 1, length - sizeof("form-data;") + 1);
 
         zval *form_name;
-        if (sw_zend_hash_find(Z_ARRVAL_P(tmp_array), ZEND_STRS("name"), (void **) &form_name) == FAILURE)
+        if (!(form_name = zend_hash_str_find(Z_ARRVAL_P(tmp_array), ZEND_STRL("name"))))
         {
             return SW_OK;
         }
@@ -767,7 +767,7 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
 
         zval *filename;
         //POST form data
-        if (sw_zend_hash_find(Z_ARRVAL_P(tmp_array), ZEND_STRS("filename"), (void **) &filename) == FAILURE)
+        if (!(filename = zend_hash_str_find(Z_ARRVAL_P(tmp_array), ZEND_STRL("filename"))))
         {
             ctx->current_form_data_name = estrndup(tmp, value_len);
             ctx->current_form_data_name_len = value_len;
@@ -870,7 +870,7 @@ static int multipart_body_on_header_complete(multipart_parser* p)
     zval *multipart_header = ctx->current_multipart_header;
     zval *zrequest_object = ctx->request.zobject;
     zval *zerr = NULL;
-    if (sw_zend_hash_find(Z_ARRVAL_P(multipart_header), ZEND_STRS("error"), (void **) &zerr) == FAILURE)
+    if (!(zerr = zend_hash_str_find(Z_ARRVAL_P(multipart_header), ZEND_STRL("error"))))
     {
         return 0;
     }

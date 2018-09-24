@@ -193,7 +193,7 @@ void swoole_process_init(int module_number TSRMLS_DC)
      * 31 signal constants
      */
     zval *zpcntl;
-    if (sw_zend_hash_find(&module_registry, ZEND_STRS("pcntl"), (void **) &zpcntl) == FAILURE)
+    if (!(zpcntl = zend_hash_str_find(&module_registry, ZEND_STRL("pcntl"))))
     {
         REGISTER_LONG_CONSTANT("SIGHUP", (long) SIGHUP, CONST_CS | CONST_PERSISTENT);
         REGISTER_LONG_CONSTANT("SIGINT", (long) SIGINT, CONST_CS | CONST_PERSISTENT);

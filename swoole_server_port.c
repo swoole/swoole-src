@@ -307,13 +307,13 @@ static PHP_METHOD(swoole_server_port, set)
         port->tcp_keepinterval = (uint16_t) Z_LVAL_P(v);
     }
     //tcp_keepcount
-    if (sw_zend_hash_find(vht, ZEND_STRS("tcp_keepcount"), (void **) &v) == SUCCESS)
+    if ((v = zend_hash_str_find(vht, ZEND_STRL("tcp_keepcount"))))
     {
         convert_to_long(v);
         port->tcp_keepcount = (uint16_t) Z_LVAL_P(v);
     }
     //tcp_fastopen
-    if (sw_zend_hash_find(vht, ZEND_STRS("tcp_fastopen"), (void **) &v) == SUCCESS)
+    if ((v = zend_hash_str_find(vht, ZEND_STRL("tcp_fastopen"))))
     {
         convert_to_boolean(v);
         port->tcp_fastopen = Z_BVAL_P(v);
@@ -460,17 +460,17 @@ static PHP_METHOD(swoole_server_port, set)
             convert_to_boolean(v);
             port->ssl_config.prefer_server_ciphers = Z_BVAL_P(v);
         }
-        //    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_session_tickets"), (void **) &v) == SUCCESS)
+        //    if ((v = zend_hash_str_find(vht, ZEND_STRL("ssl_session_tickets"))))
         //    {
         //        convert_to_boolean(v);
         //        port->ssl_config.session_tickets = Z_BVAL_P(v);
         //    }
-        //    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_stapling"), (void **) &v) == SUCCESS)
+        //    if ((v = zend_hash_str_find(vht, ZEND_STRL("ssl_stapling"))))
         //    {
         //        convert_to_boolean(v);
         //        port->ssl_config.stapling = Z_BVAL_P(v);
         //    }
-        //    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_stapling_verify"), (void **) &v) == SUCCESS)
+        //    if ((v = zend_hash_str_find(vht, ZEND_STRL("ssl_stapling_verify"))))
         //    {
         //        convert_to_boolean(v);
         //        port->ssl_config.stapling_verify = Z_BVAL_P(v);
@@ -502,7 +502,7 @@ static PHP_METHOD(swoole_server_port, set)
             }
             port->ssl_config.dhparam = sw_strdup(Z_STRVAL_P(v));
         }
-        //    if (sw_zend_hash_find(vht, ZEND_STRS("ssl_session_cache"), (void **) &v) == SUCCESS)
+        //    if ((v = zend_hash_str_find(vht, ZEND_STRL("ssl_session_cache"))))
         //    {
         //        convert_to_string(v);
         //        port->ssl_config.session_cache = strdup(Z_STRVAL_P(v));

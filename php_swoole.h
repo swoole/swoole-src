@@ -578,7 +578,7 @@ static sw_inline int php_swoole_is_callable(zval *callback TSRMLS_DC)
     }
 }
 
-#define php_swoole_array_get_value(ht, str, v)     (sw_zend_hash_find(ht, str, sizeof(str), (void **) &v) == SUCCESS && !ZVAL_IS_NULL(v))
+#define php_swoole_array_get_value(ht, str, v)     ((v = zend_hash_str_find(ht, str, sizeof(str)-1)) && !ZVAL_IS_NULL(v))
 #define php_swoole_array_separate(arr)       zval *_new_##arr;\
     SW_MAKE_STD_ZVAL(_new_##arr);\
     array_init(_new_##arr);\

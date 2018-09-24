@@ -232,20 +232,6 @@ static inline int sw_zend_is_callable_ex(zval *callable, zval *object, uint chec
     return ret;
 }
 
-static inline int sw_zend_hash_find(HashTable *ht, const char *k, int len, void **v)
-{
-    zval *value = zend_hash_str_find(ht, k, len - 1);
-    if (value == NULL)
-    {
-        return FAILURE;
-    }
-    else
-    {
-        *v = (void *) value;
-        return SUCCESS;
-    }
-}
-
 static inline int sw_zend_register_class_alias(const char *name, zend_class_entry *ce)
 {
     int name_len = strlen(name);

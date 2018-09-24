@@ -2629,7 +2629,7 @@ static PHP_METHOD(swoole_redis_coro, zRangeByScore)
         ht_opt = Z_ARRVAL_P(z_opt);
 
         // Check for WITHSCORES
-        if (sw_zend_hash_find(ht_opt, ZEND_STRS("withscores"), (void **) &z_ele) == SUCCESS
+        if ((z_ele = zend_hash_str_find(ht_opt, ZEND_STRL("withscores")))
             && Z_TYPE_P(z_ele) == IS_TRUE
         )
         {
@@ -2638,7 +2638,7 @@ static PHP_METHOD(swoole_redis_coro, zRangeByScore)
         }
 
         // LIMIT
-        if (sw_zend_hash_find(ht_opt, ZEND_STRS("limit"), (void **) &z_ele) == SUCCESS)
+        if ((z_ele = zend_hash_str_find(ht_opt, ZEND_STRL("limit"))))
         {
             HashTable *ht_limit = Z_ARRVAL_P(z_ele);
             zval *z_off, *z_cnt;
@@ -2703,7 +2703,7 @@ static PHP_METHOD(swoole_redis_coro, zRevRangeByScore)
         ht_opt = Z_ARRVAL_P(z_opt);
 
         // Check for WITHSCORES
-        if (sw_zend_hash_find(ht_opt, ZEND_STRS("withscores"), (void **) &z_ele) == SUCCESS
+        if ((z_ele = zend_hash_str_find(ht_opt, ZEND_STRL("withscores")))
             && Z_TYPE_P(z_ele) == IS_TRUE
         )
         {
@@ -2712,7 +2712,7 @@ static PHP_METHOD(swoole_redis_coro, zRevRangeByScore)
         }
 
         // LIMIT
-        if (sw_zend_hash_find(ht_opt, ZEND_STRS("limit"), (void **) &z_ele) == SUCCESS)
+        if ((z_ele = zend_hash_str_find(ht_opt, ZEND_STRL("limit"))))
         {
             HashTable *ht_limit = Z_ARRVAL_P(z_ele);
             zval *z_off, *z_cnt;

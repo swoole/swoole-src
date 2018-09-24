@@ -312,7 +312,7 @@ static int websocket_handshake(swListenPort *port, http_context *ctx)
     HashTable *ht = Z_ARRVAL_P(header);
     zval *pData;
 
-    if (sw_zend_hash_find(ht, ZEND_STRS("sec-websocket-key"), (void **) &pData) == FAILURE)
+    if (!(pData = zend_hash_str_find(ht, ZEND_STRL("sec-websocket-key"))))
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "header no sec-websocket-key");
         return SW_ERR;
