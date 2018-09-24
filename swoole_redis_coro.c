@@ -1026,10 +1026,12 @@ void swoole_redis_coro_init(int module_number TSRMLS_DC)
     REGISTER_LONG_CONSTANT("SWOOLE_REDIS_TYPE_HASH", SW_REDIS_HASH, CONST_CS | CONST_PERSISTENT);
 }
 
-static void redis_coro_close(void* data)
+static void redis_coro_close(void* context)
 {
-    redisAsyncContext *context = data;
-    redisAsyncDisconnect(context);
+    if (context)
+    {
+        redisAsyncDisconnect((redisAsyncContext *) context);
+    }
 }
 
 static void redis_coro_free(void* redis)
@@ -4099,9 +4101,13 @@ static void swoole_redis_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
     zval *zobject = &_zobject;
 
     swRedisClient *redis = swoole_get_object(zobject);
+    redis->timer = NULL;
     zend_update_property_long(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errCode"), ETIMEDOUT TSRMLS_CC);
     zend_update_property_string(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), strerror(ETIMEDOUT) TSRMLS_CC);
-    redisAsyncDisconnect(redis->context);
+    if (redis->context)
+    {
+        redisAsyncDisconnect(redis->context);
+    }
 
     int ret = coro_resume(ctx, result, &retval);
     if (ret == CORO_END && retval)
