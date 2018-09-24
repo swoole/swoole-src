@@ -1000,7 +1000,7 @@ static PHP_METHOD(swoole_http_client_coro, set)
     {
         RETURN_FALSE;
     }
-    zval *zsetting = php_swoole_read_init_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("setting"));
+    zval *zsetting = sw_zend_read_property_array(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("setting"), 1);
     php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
     RETURN_TRUE;
 }
@@ -1385,7 +1385,7 @@ static PHP_METHOD(swoole_http_client_coro, upgrade)
     zval *headers = hcc->request_header;
     if (hcc->request_header == NULL)
     {
-        headers = php_swoole_read_init_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("requestHeaders"));
+        headers = sw_zend_read_property_array(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("requestHeaders"), 1);
         hcc->request_header = headers;
         sw_copy_to_stack(hcc->request_header, hcc->_request_header);
     }

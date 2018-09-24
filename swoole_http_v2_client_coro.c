@@ -243,7 +243,7 @@ static PHP_METHOD(swoole_http2_client_coro, set)
     {
         RETURN_FALSE;
     }
-    zval *zsetting = php_swoole_read_init_property(swoole_http2_client_coro_class_entry_ptr, getThis(), ZEND_STRL("setting") TSRMLS_CC);
+    zval *zsetting = sw_zend_read_property_array(swoole_http2_client_coro_class_entry_ptr, getThis(), ZEND_STRL("setting"), 1);
     php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
     RETURN_TRUE;
 }
@@ -673,7 +673,7 @@ static uint32_t http2_client_send_request(zval *zobject, zval *req TSRMLS_DC)
     http2_client_property *hcc = swoole_get_property(zobject, HTTP2_CLIENT_CORO_PROPERTY);
     swClient *cli = hcc->client;
 
-    zval *headers = sw_zend_read_property_array(swoole_http2_request_class_entry_ptr, req, ZEND_STRL("headers"), 1 TSRMLS_CC);
+    zval *headers = sw_zend_read_property_array(swoole_http2_request_class_entry_ptr, req, ZEND_STRL("headers"), 1);
     zval *post_data = sw_zend_read_property(swoole_http2_request_class_entry_ptr, req, ZEND_STRL("data"), 1 TSRMLS_CC);
     zval *pipeline = sw_zend_read_property(swoole_http2_request_class_entry_ptr, req, ZEND_STRL("pipeline"), 1 TSRMLS_CC);
 
