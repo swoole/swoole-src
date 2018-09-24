@@ -388,7 +388,10 @@ static PHP_METHOD(swoole_redis, connect)
 static void redis_close(void* data)
 {
     swRedisClient *redis = data;
-    redisAsyncDisconnect(redis->context);
+    if (redis->context)
+    {
+        redisAsyncDisconnect(redis->context);
+    }
 }
 
 static void redis_free_object(void *data)
@@ -686,11 +689,15 @@ static void swoole_redis_parse_result(swRedisClient *redis, zval* return_value, 
 static void swoole_redis_onTimeout(swTimer *timer, swTimer_node *tnode)
 {
     swRedisClient *redis = tnode->data;
+    redis->timer = NULL;
     zend_update_property_long(swoole_redis_class_entry_ptr, redis->object, ZEND_STRL("errCode"), ETIMEDOUT TSRMLS_CC);
     zend_update_property_string(swoole_redis_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), strerror(ETIMEDOUT) TSRMLS_CC);
     redis->state = SWOOLE_REDIS_STATE_CLOSED;
     redis_execute_connect_callback(redis, 0 TSRMLS_CC);
-    redisAsyncDisconnect(redis->context);
+    if (redis->context)
+    {
+        redisAsyncDisconnect(redis->context);
+    }
     zval_ptr_dtor(redis->object);
 }
 
