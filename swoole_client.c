@@ -111,7 +111,7 @@ static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_cli
 
     zval *callback = NULL;
     zval *retval = NULL;
-    zval **args[1];
+    zval args[1];
 
     client_callback *cb = (client_callback *) swoole_get_property(zobject, client_property_callback);
     char *callback_name;
@@ -176,9 +176,9 @@ static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_cli
         return;
     }
 
-    args[0] = &zobject;
+    args[0] = *zobject;
 #ifdef PHP_SWOOLE_ENABLE_FASTCALL
-    if (sw_call_user_function_fast(callback, fci_cache, &retval, 1, args TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_fast_ex(callback, fci_cache, &retval, 1, args) == FAILURE)
 #else
     if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
 #endif
@@ -357,15 +357,15 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
 {
     zval *zobject = (zval *) cli->object;
     zval *zcallback = NULL;
-    zval **args[2];
+    zval args[2];
     zval *retval;
 
     zval *zdata;
     SW_MAKE_STD_ZVAL(zdata);
     ZVAL_STRINGL(zdata, data, length);
 
-    args[0] = &zobject;
-    args[1] = &zdata;
+    args[0] = *zobject;
+    args[1] = *zdata;
 
     client_callback *cb = (client_callback *) swoole_get_property(zobject, 0);
     zcallback = cb->onReceive;
@@ -376,7 +376,7 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
     }
 
 #ifdef PHP_SWOOLE_ENABLE_FASTCALL
-    if (sw_call_user_function_fast(zcallback, &cb->cache_onReceive, &retval, 2, args TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_fast_ex(zcallback, &cb->cache_onReceive, &retval, 2, args) == FAILURE)
 #else
     if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
 #endif

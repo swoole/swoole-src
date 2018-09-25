@@ -84,18 +84,10 @@ static sw_inline int sw_call_user_function_ex(HashTable *function_table, zval** 
     return call_user_function_ex(function_table, object_p, function_name, &phpng_retval, param_count, real_params, no_separation, NULL);
 }
 
-
-static sw_inline int sw_call_user_function_fast(zval *function_name, zend_fcall_info_cache *fci_cache, zval **retval_ptr_ptr, uint32_t param_count, zval ***params)
+static sw_inline int sw_call_user_function_fast_ex(zval *function_name, zend_fcall_info_cache *fci_cache, zval **retval_ptr_ptr, uint32_t param_count, zval *params)
 {
-    zval real_params[SW_PHP_MAX_PARAMS_NUM];
-    uint32_t i = 0;
-    for (; i < param_count; i++)
-    {
-        real_params[i] = **params[i];
-    }
-
-    zval phpng_retval;
-    *retval_ptr_ptr = &phpng_retval;
+    zval _retval;
+    *retval_ptr_ptr = &_retval;
 
     zend_fcall_info fci;
     fci.size = sizeof(fci);
@@ -105,9 +97,9 @@ static sw_inline int sw_call_user_function_fast(zval *function_name, zend_fcall_
 #endif
     fci.object = NULL;
     ZVAL_COPY_VALUE(&fci.function_name, function_name);
-    fci.retval = &phpng_retval;
+    fci.retval = *retval_ptr_ptr;
     fci.param_count = param_count;
-    fci.params = real_params;
+    fci.params = params;
     fci.no_separation = 0;
 
     return zend_call_function(&fci, fci_cache);

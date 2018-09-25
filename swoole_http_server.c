@@ -1194,12 +1194,12 @@ static int http_onReceive(swServer *serv, swEventData *req)
         }
         else
         {
-            zval **args[2];
-            args[0] = &zrequest_object;
-            args[1] = &zresponse_object;
+            zval args[2];
+            args[0] = *zrequest_object;
+            args[1] = *zresponse_object;
 
             zend_fcall_info_cache *fci_cache = php_swoole_server_get_cache(serv, from_fd, callback_type);
-            if (sw_call_user_function_fast(zcallback, fci_cache, &retval, 2, args TSRMLS_CC) == FAILURE)
+            if (sw_call_user_function_fast_ex(zcallback, fci_cache, &retval, 2, args) == FAILURE)
             {
                 swoole_php_error(E_WARNING, "onRequest handler error");
             }
