@@ -219,7 +219,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
     }
     else
     {
-        zval **args[2];
+        zval args[2];
         zval *zcallback = sw_zend_read_property(swoole_redis_server_class_entry_ptr, zobject, _command, _command_len, 1 TSRMLS_CC);
         if (!zcallback || ZVAL_IS_NULL(zcallback))
         {
@@ -227,10 +227,10 @@ static int redis_onReceive(swServer *serv, swEventData *req)
             swServer_tcp_send(serv, fd, err_msg, length);
             return SW_OK;
         }
-        args[0] = &zfd;
-        args[1] = &zparams;
+        args[0] = *zfd;
+        args[1] = *zparams;
 
-        if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+        if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL) == FAILURE)
         {
             swoole_php_error(E_WARNING, "command handler error.");
         }

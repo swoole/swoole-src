@@ -146,7 +146,7 @@ static void php_swoole_dns_callback(char *domain, swDNSResolver_result *result, 
     dns_request *req = data;
     zval *retval = NULL;
     zval *zaddress;
-    zval **args[2];
+    zval args[2];
     char *address;
 
     SW_MAKE_STD_ZVAL(zaddress);
@@ -167,11 +167,11 @@ static void php_swoole_dns_callback(char *domain, swDNSResolver_result *result, 
         ZVAL_STRING(zaddress, "");
     }
 
-    args[0] = &req->domain;
-    args[1] = &zaddress;
+    args[0] = *req->domain;
+    args[1] = *zaddress;
 
     zval *zcallback = req->callback;
-    if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_asyns_dns_lookup handler error.");
         return;
@@ -303,7 +303,7 @@ static void php_swoole_aio_onDNSCompleted(swAio_event *event)
     int64_t ret;
 
     zval *retval = NULL, *zcallback = NULL;
-    zval **args[2];
+    zval args[2];
     dns_request *dns_req = NULL;
 
     zval _zcontent;
@@ -318,7 +318,7 @@ static void php_swoole_aio_onDNSCompleted(swAio_event *event)
         swoole_php_error(E_WARNING, "Aio Error: %s[%d]", strerror(event->error), event->error);
     }
 
-    args[0] = &dns_req->domain;
+    args[0] = *dns_req->domain;
     zval *zcontent = &_zcontent;
     if (ret < 0)
     {
@@ -328,7 +328,7 @@ static void php_swoole_aio_onDNSCompleted(swAio_event *event)
     {
         ZVAL_STRING(zcontent, event->buf);
     }
-    args[1] = &zcontent;
+    args[1] = *zcontent;
 
     if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL) == FAILURE)
     {
@@ -362,7 +362,7 @@ static void php_swoole_aio_onFileCompleted(swAio_event *event)
 
     zval *retval = NULL, *zcallback = NULL, *zwriten = NULL;
     zval *zcontent = NULL;
-    zval **args[2];
+    zval args[2];
 
     zval _zcontent;
     zval _zwriten;
@@ -397,9 +397,9 @@ static void php_swoole_aio_onFileCompleted(swAio_event *event)
 
     if (event->type == SW_AIO_READ)
     {
-        args[0] = &file_req->filename;
-        args[1] = &zcontent;
         zcontent = &_zcontent;
+        args[0] = *file_req->filename;
+        args[1] = *zcontent;
         if (ret < 0)
         {
             ZVAL_STRING(zcontent, "");
@@ -412,8 +412,8 @@ static void php_swoole_aio_onFileCompleted(swAio_event *event)
     else if (event->type == SW_AIO_WRITE)
     {
         zwriten = &_zwriten;
-        args[0] = &file_req->filename;
-        args[1] = &zwriten;
+        args[0] = *file_req->filename;
+        args[1] = *zwriten;
         ZVAL_LONG(zwriten, ret);
     }
     else
@@ -424,7 +424,7 @@ static void php_swoole_aio_onFileCompleted(swAio_event *event)
 
     if (zcallback)
     {
-        if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+        if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL) == FAILURE)
         {
             swoole_php_fatal_error(E_WARNING, "swoole_async: onAsyncComplete handler error");
             return;
@@ -1083,7 +1083,7 @@ static int process_stream_onRead(swReactor *reactor, swEvent *event)
     }
 
     zval *retval = NULL;
-    zval **args[2];
+    zval args[2];
 
     zval *zdata;
     SW_MAKE_STD_ZVAL(zdata);
@@ -1092,7 +1092,7 @@ static int process_stream_onRead(swReactor *reactor, swEvent *event)
     SwooleG.main_reactor->del(SwooleG.main_reactor, ps->fd);
 
     swString_free(ps->buffer);
-    args[0] = &zdata;
+    args[0] = *zdata;
 
     int status;
     zval *zstatus;
@@ -1110,13 +1110,13 @@ static int process_stream_onRead(swReactor *reactor, swEvent *event)
         ZVAL_FALSE(zstatus);
     }
 
-    args[1] = &zstatus;
+    args[1] = *zstatus;
 
     zval *zcallback = ps->callback;
 
     if (zcallback)
     {
-        if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+        if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL) == FAILURE)
         {
             swoole_php_fatal_error(E_WARNING, "swoole_async: onAsyncComplete handler error");
         }

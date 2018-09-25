@@ -77,13 +77,13 @@ static void free_callback(void* data)
 static int php_swoole_event_onRead(swReactor *reactor, swEvent *event)
 {
     zval *retval;
-    zval **args[1];
+    zval args[1];
     php_reactor_fd *fd = event->socket->object;
 
 
-    args[0] = &fd->socket;
+    args[0] = *fd->socket;
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, fd->cb_read, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, fd->cb_read, &retval, 1, args, 0, NULL) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_event: onRead handler error.");
         SwooleG.main_reactor->del(SwooleG.main_reactor, event->fd);
@@ -103,7 +103,7 @@ static int php_swoole_event_onRead(swReactor *reactor, swEvent *event)
 static int php_swoole_event_onWrite(swReactor *reactor, swEvent *event)
 {
     zval *retval;
-    zval **args[1];
+    zval args[1];
     php_reactor_fd *fd = event->socket->object;
 
 
@@ -112,9 +112,9 @@ static int php_swoole_event_onWrite(swReactor *reactor, swEvent *event)
         return swReactor_onWrite(reactor, event);
     }
 
-    args[0] = &fd->socket;
+    args[0] = *fd->socket;
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, fd->cb_write, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, fd->cb_write, &retval, 1, args, 0, NULL) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_event: onWrite handler error");
         SwooleG.main_reactor->del(SwooleG.main_reactor, event->fd);
@@ -160,7 +160,7 @@ static void php_swoole_event_onDefer(void *_cb)
     php_defer_callback *defer = _cb;
 
     zval *retval;
-    if (sw_call_user_function_ex(EG(function_table), NULL, defer->callback, &retval, 0, NULL, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, defer->callback, &retval, 0, NULL, 0, NULL) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_event: defer handler error");
         return;
@@ -182,7 +182,7 @@ static void php_swoole_event_onEndCallback(void *_cb)
     php_defer_callback *defer = _cb;
 
     zval *retval;
-    if (sw_call_user_function_ex(EG(function_table), NULL, defer->callback, &retval, 0, NULL, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, defer->callback, &retval, 0, NULL, 0, NULL) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_event: defer handler error");
         return;

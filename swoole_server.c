@@ -1002,10 +1002,10 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
     }
     else
     {
-        zval **args[3];
-        args[0] = &zserv;
-        args[1] = &zdata;
-        args[2] = &zaddr;
+        zval args[3];
+        args[0] = *zserv;
+        args[1] = *zdata;
+        args[2] = *zaddr;
 
         zval *callback = php_swoole_server_get_callback(serv, req->info.from_fd, SW_SERVER_CB_onPacket);
         if (callback == NULL || ZVAL_IS_NULL(callback))
@@ -1014,7 +1014,7 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
             return SW_OK;
         }
 
-        if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
+        if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL) == FAILURE)
         {
             swoole_php_fatal_error(E_WARNING, "onPacket handler error.");
         }
@@ -1092,7 +1092,7 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
 static int php_swoole_onFinish(swServer *serv, swEventData *req)
 {
     zval *zserv = (zval *) serv->ptr2;
-    zval **args[3];
+    zval args[3];
 
     zval *ztask_id;
     zval *zdata;
@@ -1177,9 +1177,9 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
     }
 #endif
 
-    args[0] = &zserv;
-    args[1] = &ztask_id;
-    args[2] = &zdata;
+    args[0] = *zserv;
+    args[1] = *ztask_id;
+    args[2] = *zdata;
 
     zval *callback = NULL;
     if (swTask_type(req) & SW_TASK_CALLBACK)
@@ -1194,7 +1194,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
     {
         callback = php_sw_server_callbacks[SW_SERVER_CB_onFinish];
     }
-    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onFinish handler error.");
     }
@@ -1221,7 +1221,7 @@ static void php_swoole_onStart(swServer *serv)
     SwooleG.lock.lock(&SwooleG.lock);
 
     zval *zserv = (zval *) serv->ptr2;
-    zval **args[1];
+    zval args[1];
     zval *retval = NULL;
 
     pid_t manager_pid = serv->factory_mode == SW_MODE_PROCESS ? serv->gs->manager_pid : 0;
@@ -1229,9 +1229,9 @@ static void php_swoole_onStart(swServer *serv)
     zend_update_property_long(swoole_server_class_entry_ptr, zserv, ZEND_STRL("master_pid"), serv->gs->master_pid TSRMLS_CC);
     zend_update_property_long(swoole_server_class_entry_ptr, zserv, ZEND_STRL("manager_pid"), manager_pid TSRMLS_CC);
 
-    args[0] = &zserv;
+    args[0] = *zserv;
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onStart], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onStart], &retval, 1, args, 0, NULL) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onStart handler error.");
     }
@@ -1250,7 +1250,7 @@ static void php_swoole_onManagerStart(swServer *serv)
 {
 
     zval *zserv = (zval *) serv->ptr2;
-    zval **args[1];
+    zval args[1];
     zval *retval = NULL;
 
     pid_t manager_pid = serv->factory_mode == SW_MODE_PROCESS ? serv->gs->manager_pid : 0;
@@ -1258,9 +1258,9 @@ static void php_swoole_onManagerStart(swServer *serv)
     zend_update_property_long(swoole_server_class_entry_ptr, zserv, ZEND_STRL("master_pid"), serv->gs->master_pid TSRMLS_CC);
     zend_update_property_long(swoole_server_class_entry_ptr, zserv, ZEND_STRL("manager_pid"), manager_pid TSRMLS_CC);
 
-    args[0] = &zserv;
+    args[0] = *zserv;
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onManagerStart], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onManagerStart], &retval, 1, args, 0, NULL) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onManagerStart handler error.");
     }
@@ -1277,12 +1277,12 @@ static void php_swoole_onManagerStart(swServer *serv)
 static void php_swoole_onManagerStop(swServer *serv)
 {
     zval *zserv = (zval *) serv->ptr2;
-    zval **args[1];
+    zval args[1];
     zval *retval = NULL;
 
-    args[0] = &zserv;
+    args[0] = *zserv;
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onManagerStop], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onManagerStop], &retval, 1, args, 0, NULL) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onManagerStop handler error.");
     }
@@ -1300,15 +1300,15 @@ static void php_swoole_onShutdown(swServer *serv)
 {
     SwooleG.lock.lock(&SwooleG.lock);
     zval *zserv = (zval *) serv->ptr2;
-    zval **args[1];
+    zval args[1];
     zval *retval = NULL;
 
-    args[0] = &zserv;
+    args[0] = *zserv;
 
 
     if (php_sw_server_callbacks[SW_SERVER_CB_onShutdown] != NULL)
     {
-        if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onShutdown], &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+        if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onShutdown], &retval, 1, args, 0, NULL) == FAILURE)
         {
             swoole_php_fatal_error(E_WARNING, "onShutdown handler error.");
         }
@@ -1356,9 +1356,9 @@ static void php_swoole_onWorkerStart_coroutine(zval *zserv, zval *zworker_id)
 static void php_swoole_onWorkerStart_callback(zval *zserv, zval *zworker_id)
 {
     zval *retval = NULL;
-    zval **args[2];
-    args[0] = &zserv;
-    args[1] = &zworker_id;
+    zval args[2];
+    args[0] = *zserv;
+    args[1] = *zworker_id;
 
     if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onWorkerStart], &retval,
             2, args, 0, NULL TSRMLS_CC) == FAILURE)
@@ -1444,15 +1444,15 @@ static void php_swoole_onWorkerStop(swServer *serv, int worker_id)
 
     zval *zobject = (zval *) serv->ptr2;
     zval *zworker_id;
-    zval **args[2];
+    zval args[2];
     zval *retval = NULL;
 
     SW_MAKE_STD_ZVAL(zworker_id);
     ZVAL_LONG(zworker_id, worker_id);
 
 
-    args[0] = &zobject;
-    args[1] = &zworker_id;
+    args[0] = *zobject;
+    args[1] = *zworker_id;
     if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onWorkerStop], &retval, 2, args, 0,
             NULL TSRMLS_CC) == FAILURE)
     {
@@ -1473,15 +1473,15 @@ static void php_swoole_onWorkerExit(swServer *serv, int worker_id)
 {
     zval *zobject = (zval *) serv->ptr2;
     zval *zworker_id;
-    zval **args[2];
+    zval args[2];
     zval *retval = NULL;
 
     SW_MAKE_STD_ZVAL(zworker_id);
     ZVAL_LONG(zworker_id, worker_id);
 
 
-    args[0] = &zobject;
-    args[1] = &zworker_id;
+    args[0] = *zobject;
+    args[1] = *zworker_id;
     if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onWorkerExit], &retval, 2, args, 0,
             NULL TSRMLS_CC) == FAILURE)
     {
@@ -1515,7 +1515,7 @@ static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker
 {
     zval *zobject = (zval *) serv->ptr2;
     zval *zworker_id, *zworker_pid, *zexit_code, *zsigno;
-    zval **args[5];
+    zval args[5];
     zval *retval = NULL;
 
     SW_MAKE_STD_ZVAL(zworker_id);
@@ -1531,13 +1531,13 @@ static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker
     ZVAL_LONG(zsigno, signo);
 
 
-    args[0] = &zobject;
-    args[1] = &zworker_id;
-    args[2] = &zworker_pid;
-    args[3] = &zexit_code;
-    args[4] = &zsigno;
+    args[0] = *zobject;
+    args[1] = *zworker_id;
+    args[2] = *zworker_pid;
+    args[3] = *zexit_code;
+    args[4] = *zsigno;
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onWorkerError], &retval, 5, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, php_sw_server_callbacks[SW_SERVER_CB_onWorkerError], &retval, 5, args, 0, NULL) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onWorkerError handler error.");
     }
@@ -1611,10 +1611,10 @@ void php_swoole_onConnect(swServer *serv, swDataHead *info)
     }
     else
     {
-        zval **args[3];
-        args[0] = &zserv;
-        args[1] = &zfd;
-        args[2] = &zfrom_id;
+        zval args[3];
+        args[0] = *zserv;
+        args[1] = *zfd;
+        args[2] = *zfrom_id;
 
         zval *callback = php_swoole_server_get_callback(serv, info->from_fd, SW_SERVER_CB_onConnect);
         if (callback == NULL || ZVAL_IS_NULL(callback))
@@ -1622,7 +1622,7 @@ void php_swoole_onConnect(swServer *serv, swDataHead *info)
             return;
         }
 
-        if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
+        if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL) == FAILURE)
         {
             swoole_php_error(E_WARNING, "onConnect handler error.");
         }
@@ -1706,17 +1706,17 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
     }
     else
     {
-        zval **args[3];
-        args[0] = &zserv;
-        args[1] = &zfd;
-        args[2] = &zfrom_id;
+        zval args[3];
+        args[0] = *zserv;
+        args[1] = *zfd;
+        args[2] = *zfrom_id;
 
         zval *callback = php_swoole_server_get_callback(serv, info->from_fd, SW_SERVER_CB_onClose);
         if (callback == NULL)
         {
             return;
         }
-        if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL TSRMLS_CC) == FAILURE)
+        if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL) == FAILURE)
         {
             swoole_php_error(E_WARNING, "onClose handler error.");
         }

@@ -624,16 +624,16 @@ static void free_signal_callback(void* data)
 static void php_swoole_onSignal(int signo)
 {
     zval *retval = NULL;
-    zval **args[1];
+    zval args[1];
     zval *callback = signal_callback[signo];
 
     zval *zsigno;
     SW_MAKE_STD_ZVAL(zsigno);
     ZVAL_LONG(zsigno, signo);
 
-    args[0] = &zsigno;
+    args[0] = *zsigno;
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 1, args, 0, NULL) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "user_signal handler error");
     }
@@ -707,7 +707,7 @@ int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
     zend_update_property_long(swoole_process_class_entry_ptr, object, ZEND_STRL("pipe"), process->pipe_worker TSRMLS_CC);
 
     zval *zcallback = sw_zend_read_property(swoole_process_class_entry_ptr, object, ZEND_STRL("callback"), 0 TSRMLS_CC);
-    zval **args[1];
+    zval args[1];
 
     if (zcallback == NULL || ZVAL_IS_NULL(zcallback))
     {
@@ -716,10 +716,10 @@ int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
     }
 
     zval *retval = NULL;
-    args[0] = &object;
+    args[0] = *object;
     Z_TRY_ADDREF_P(object);
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL) == FAILURE)
     {
         swoole_php_fatal_error(E_ERROR, "callback function error");
         return SW_ERR;

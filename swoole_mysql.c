@@ -2607,13 +2607,13 @@ static PHP_METHOD(swoole_mysql, close)
     zend_bool is_destroyed = client->cli->destroyed;
 
     zval *retval = NULL;
-    zval **args[1];
+    zval args[1];
     zval *object = getThis();
     if (client->onClose)
     {
         client->cli->socket->closing = 1;
-        args[0] = &object;
-        if (sw_call_user_function_ex(EG(function_table), NULL, client->onClose, &retval, 1, args, 0, NULL TSRMLS_CC) != SUCCESS)
+        args[0] = *object;
+        if (sw_call_user_function_ex(EG(function_table), NULL, client->onClose, &retval, 1, args, 0, NULL) != SUCCESS)
         {
             swoole_php_fatal_error(E_WARNING, "swoole_mysql onClose callback error.");
         }
@@ -2718,7 +2718,7 @@ static void swoole_mysql_onConnect(mysql_client *client TSRMLS_DC)
 
     zval *retval = NULL;
     zval *result;
-    zval **args[2];
+    zval args[2];
 
     SW_MAKE_STD_ZVAL(result);
 
@@ -2741,10 +2741,10 @@ static void swoole_mysql_onConnect(mysql_client *client TSRMLS_DC)
         client->connected = 1;
     }
 
-    args[0] = &zobject;
-    args[1] = &result;
+    args[0] = *zobject;
+    args[1] = *result;
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 2, args, 0, NULL TSRMLS_CC) != SUCCESS)
+    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 2, args, 0, NULL) != SUCCESS)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_mysql onConnect handler error.");
     }
@@ -2984,7 +2984,7 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
     zval *zobject = client->object;
     swString *buffer = client->buffer;
 
-    zval **args[2];
+    zval args[2];
     zval *callback = NULL;
     zval *retval = NULL;
     zval *result = NULL;
@@ -3052,7 +3052,7 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
             zend_update_property_long(swoole_mysql_class_entry_ptr, zobject, ZEND_STRL("insert_id"), client->response.insert_id TSRMLS_CC);
             client->state = SW_MYSQL_STATE_QUERY;
 
-            args[0] = &zobject;
+            args[0] = *zobject;
 
             //OK
             if (client->response.response_type == 0)
@@ -3075,9 +3075,9 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
                 result = client->response.result_array;
             }
 
-            args[1] = &result;
+            args[1] = *result;
             callback = client->callback;
-            if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 2, args, 0, NULL TSRMLS_CC) != SUCCESS)
+            if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 2, args, 0, NULL) != SUCCESS)
             {
                 swoole_php_fatal_error(E_WARNING, "swoole_async_mysql callback[2] handler error.");
                 reactor->del(SwooleG.main_reactor, event->fd);

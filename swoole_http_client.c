@@ -442,7 +442,7 @@ static void http_client_execute_callback(zval *zobject, enum php_swoole_client_c
 {
     zval *callback = NULL;
     zval *retval = NULL;
-    zval **args[1];
+    zval args[1];
 
     http_client_property *hcc = swoole_get_property(zobject, 0);
     if (!hcc)
@@ -469,7 +469,7 @@ static void http_client_execute_callback(zval *zobject, enum php_swoole_client_c
         return;
     }
 
-    args[0] = &zobject;
+    args[0] = *zobject;
     //request is not completed
     if (hcc->onResponse && (type == SW_CLIENT_CB_onError || type == SW_CLIENT_CB_onClose))
     {
@@ -496,7 +496,7 @@ static void http_client_execute_callback(zval *zobject, enum php_swoole_client_c
     {
         return;
     }
-    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 1, args, 0, NULL) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_http_client->%s handler error.", callback_name);
     }
@@ -537,19 +537,19 @@ static int http_client_onMessage(swConnection *conn, char *data, uint32_t length
 {
     swClient *cli = conn->object;
     zval *zobject = cli->object;
-    zval **args[2];
+    zval args[2];
     zval *retval;
 
     zval *zframe;
     SW_MAKE_STD_ZVAL(zframe);
     php_swoole_websocket_frame_unpack(cli->buffer, zframe TSRMLS_CC);
 
-    args[0] = &zobject;
-    args[1] = &zframe;
+    args[0] = *zobject;
+    args[1] = *zframe;
 
     http_client_property *hcc = swoole_get_property(zobject, 0);
     zval *zcallback = hcc->onMessage;
-    if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL TSRMLS_CC)  == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL)  == FAILURE)
     {
         swoole_php_fatal_error(E_ERROR, "swoole_http_client->onMessage: onClose handler error");
     }
@@ -617,7 +617,7 @@ static void http_client_onRequestTimeout(swTimer *timer, swTimer_node *tnode)
 
 static void http_client_onResponseException(zval *zobject TSRMLS_DC)
 {
-    zval **args[1];
+    zval args[1];
     zval *retval = NULL;
 
     http_client_property *hcc = swoole_get_property(zobject, 0);
@@ -631,8 +631,8 @@ static void http_client_onResponseException(zval *zobject TSRMLS_DC)
     }
     hcc->shutdown = 1;
     zval *zcallback = hcc->onResponse;
-    args[0] = &zobject;
-    if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+    args[0] = *zobject;
+    if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onResponse handler error");
     }
@@ -738,9 +738,9 @@ static void http_client_onReceive(swClient *cli, char *data, uint32_t length)
     http_client_reset(http);
     hcc->onResponse = NULL;
 
-    zval **args[1];
-    args[0] = &zobject;
-    if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+    zval args[1];
+    args[0] = *zobject;
+    if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onReactorCallback handler error");
     }

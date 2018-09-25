@@ -600,12 +600,12 @@ int php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data,
     SW_MAKE_STD_ZVAL(zdata);
     ZVAL_STRINGL(zdata, data, length);
 
-    zval **args[1];
-    args[0] = &zdata;
+    zval args[1];
+    args[0] = *zdata;
 
     zval *callback = protocol->private_data;
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 1, args, 0, NULL) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "length function handler error.");
         goto error;
@@ -649,14 +649,14 @@ int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swEventData *da
     SW_MAKE_STD_ZVAL(ztype);
     ZVAL_LONG(ztype, (long ) data->info.type);
 
-    zval **args[4];
-    args[0] = &zserv;
-    args[1] = &zfd;
-    args[2] = &ztype;
-    args[3] = &zdata;
+    zval args[4];
+    args[0] = *zserv;
+    args[1] = *zfd;
+    args[2] = *ztype;
+    args[3] = *zdata;
 
     zval *callback = (zval*) serv->private_data_3;
-    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 4, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 4, args, 0, NULL) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "dispatch function handler error.");
         goto error;
@@ -1477,14 +1477,14 @@ PHP_FUNCTION(swoole_set_process_name)
     }
 
     zval *retval;
-    zval **args[1];
-    args[0] = &name;
+    zval args[1];
+    args[0] = *name;
 
     zval *function;
     SW_MAKE_STD_ZVAL(function);
     ZVAL_STRING(function, "cli_set_process_title");
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, function, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, function, &retval, 1, args, 0, NULL) == FAILURE)
     {
         return;
     }

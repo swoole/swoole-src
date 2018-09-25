@@ -91,9 +91,9 @@ static void php_swoole_process_pool_onWorkerStart(swProcessPool *pool, int worke
     SW_MAKE_STD_ZVAL(zworker_id);
     ZVAL_LONG(zworker_id, worker_id);
 
-    zval **args[2];
-    args[0] = &zobject;
-    args[1] = &zworker_id;
+    zval args[2];
+    args[0] = *zobject;
+    args[1] = *zworker_id;
 
     process_pool_property *pp = swoole_get_property(zobject, 0);
     if (pp->onWorkerStart == NULL)
@@ -108,7 +108,7 @@ static void php_swoole_process_pool_onWorkerStart(swProcessPool *pool, int worke
         SwooleG.main_reactor = NULL;
         swTraceLog(SW_TRACE_PHP, "destroy reactor");
     }
-    if (sw_call_user_function_ex(EG(function_table), NULL, pp->onWorkerStart, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, pp->onWorkerStart, &retval, 2, args, 0, NULL) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onWorkerStart handler error.");
     }
@@ -137,13 +137,13 @@ static void php_swoole_process_pool_onMessage(swProcessPool *pool, char *data, u
     SW_MAKE_STD_ZVAL(zdata);
     ZVAL_STRINGL(zdata, data, length);
 
-    zval **args[2];
-    args[0] = &zobject;
-    args[1] = &zdata;
+    zval args[2];
+    args[0] = *zobject;
+    args[1] = *zdata;
 
     process_pool_property *pp = swoole_get_property(zobject, 0);
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, pp->onMessage, &retval, 2, args, 0, NULL TSRMLS_CC)  == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, pp->onMessage, &retval, 2, args, 0, NULL)  == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onMessage handler error.");
     }
@@ -168,16 +168,16 @@ static void php_swoole_process_pool_onWorkerStop(swProcessPool *pool, int worker
     SW_MAKE_STD_ZVAL(zworker_id);
     ZVAL_LONG(zworker_id, worker_id);
 
-    zval **args[2];
-    args[0] = &zobject;
-    args[1] = &zworker_id;
+    zval args[2];
+    args[0] = *zobject;
+    args[1] = *zworker_id;
 
     process_pool_property *pp = swoole_get_property(zobject, 0);
     if (pp->onWorkerStop == NULL)
     {
         return;
     }
-    if (sw_call_user_function_ex(EG(function_table), NULL, pp->onWorkerStop, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
+    if (sw_call_user_function_ex(EG(function_table), NULL, pp->onWorkerStop, &retval, 2, args, 0, NULL) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onWorkerStop handler error.");
     }

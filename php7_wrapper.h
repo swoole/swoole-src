@@ -70,18 +70,11 @@ static sw_inline char* sw_php_url_encode(char *value, size_t value_len, int* ext
 
 #define SW_PHP_MAX_PARAMS_NUM     20
 
-static sw_inline int sw_call_user_function_ex(HashTable *function_table, zval** object_pp, zval *function_name, zval **retval_ptr_ptr, uint32_t param_count, zval ***params, int no_separation, HashTable* ymbol_table)
+static sw_inline int sw_call_user_function_ex(HashTable *function_table, zval* object_p, zval *function_name, zval **retval_ptr_ptr, uint32_t param_count, zval *params, int no_separation, HashTable* ymbol_table)
 {
-    zval real_params[SW_PHP_MAX_PARAMS_NUM];
-    uint32_t i = 0;
-    for (; i < param_count; i++)
-    {
-        real_params[i] = **params[i];
-    }
     zval phpng_retval;
     *retval_ptr_ptr = &phpng_retval;
-    zval *object_p = (object_pp == NULL) ? NULL : *object_pp;
-    return call_user_function_ex(function_table, object_p, function_name, &phpng_retval, param_count, real_params, no_separation, NULL);
+    return call_user_function_ex(function_table, object_p, function_name, &phpng_retval, param_count, param_count ? params : NULL, no_separation, ymbol_table);
 }
 
 static sw_inline int sw_call_user_function_fast_ex(zval *function_name, zend_fcall_info_cache *fci_cache, zval **retval_ptr_ptr, uint32_t param_count, zval *params)

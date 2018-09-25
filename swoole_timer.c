@@ -202,21 +202,16 @@ void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
     }
     else
     {
-        zval **args[2];
-        int argc;
+        zval args[1];
+        int argc = 0;
 
-        if (NULL == cb->data)
-        {
-            argc = 0;
-            args[0] = NULL;
-        }
-        else
+        if (cb->data)
         {
             argc = 1;
-            args[0] = &cb->data;
+            args[0] = *cb->data;
         }
 
-        if (sw_call_user_function_ex(EG(function_table), NULL, cb->callback, &retval, argc, args, 0, NULL TSRMLS_CC) == FAILURE)
+        if (sw_call_user_function_ex(EG(function_table), NULL, cb->callback, &retval, argc, args, 0, NULL) == FAILURE)
         {
             swoole_php_fatal_error(E_WARNING, "swoole_timer: onTimeout handler error");
             return;
@@ -266,16 +261,16 @@ void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode)
     }
     else
     {
-        zval **args[2];
+        zval args[2];
         if (cb->data)
         {
             argc = 2;
             Z_TRY_ADDREF_P(cb->data);
-            args[1] = &cb->data;
+            args[1] = *cb->data;
         }
-        args[0] = &ztimer_id;
+        args[0] = *ztimer_id;
 
-        if (sw_call_user_function_ex(EG(function_table), NULL, cb->callback, &retval, argc, args, 0, NULL TSRMLS_CC) == FAILURE)
+        if (sw_call_user_function_ex(EG(function_table), NULL, cb->callback, &retval, argc, args, 0, NULL) == FAILURE)
         {
             swoole_php_fatal_error(E_WARNING, "swoole_timer: onTimerCallback handler error");
             return;
