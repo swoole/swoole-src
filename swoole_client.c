@@ -177,11 +177,7 @@ static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_cli
     }
 
     args[0] = *zobject;
-#ifdef PHP_SWOOLE_ENABLE_FASTCALL
     if (sw_call_user_function_fast_ex(callback, fci_cache, &retval, 1, args) == FAILURE)
-#else
-    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 1, args, 0, NULL TSRMLS_CC) == FAILURE)
-#endif
     {
         swoole_php_fatal_error(E_WARNING, "%s handler error.", callback_name);
         return;
@@ -375,11 +371,7 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
         goto free_zdata;
     }
 
-#ifdef PHP_SWOOLE_ENABLE_FASTCALL
     if (sw_call_user_function_fast_ex(zcallback, &cb->cache_onReceive, &retval, 2, args) == FAILURE)
-#else
-    if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL TSRMLS_CC) == FAILURE)
-#endif
     {
         swoole_php_fatal_error(E_WARNING, "onReactorCallback handler error");
         goto free_zdata;
