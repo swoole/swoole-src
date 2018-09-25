@@ -2179,10 +2179,10 @@ static PHP_METHOD(swoole_http_response, end)
     zval *zdata = NULL;
     int ret;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|z", &zdata) == FAILURE)
-    {
-        return;
-    }
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_ZVAL(zdata)
+    ZEND_PARSE_PARAMETERS_END();
 
     http_context *ctx = http_get_context(getThis(), 0 TSRMLS_CC);
     if (!ctx)
@@ -2371,15 +2371,20 @@ static PHP_METHOD(swoole_http_response, sendfile)
 static PHP_METHOD(swoole_http_response, cookie)
 {
     char *name, *value = NULL, *path = NULL, *domain = NULL;
-    long expires = 0;
+    zend_long expires = 0;
     zend_bool secure = 0, httponly = 0;
     zend_size_t name_len, value_len = 0, path_len = 0, domain_len = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|slssbb", &name, &name_len, &value, &value_len, &expires,
-                &path, &path_len, &domain, &domain_len, &secure, &httponly) == FAILURE)
-    {
-        return;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 7)
+        Z_PARAM_STRING(name, name_len)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_STRING(value, value_len)
+        Z_PARAM_LONG(expires)
+        Z_PARAM_STRING(path, path_len)
+        Z_PARAM_STRING(domain, domain_len)
+        Z_PARAM_BOOL(secure)
+        Z_PARAM_BOOL(httponly)
+    ZEND_PARSE_PARAMETERS_END();
 
     http_context *ctx = http_get_context(getThis(), 0 TSRMLS_CC);
     if (!ctx)
@@ -2478,15 +2483,20 @@ static PHP_METHOD(swoole_http_response, cookie)
 static PHP_METHOD(swoole_http_response, rawcookie)
 {
     char *name, *value = NULL, *path = NULL, *domain = NULL;
-    long expires = 0;
+    zend_long expires = 0;
     zend_bool secure = 0, httponly = 0;
     zend_size_t name_len, value_len = 0, path_len = 0, domain_len = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|slssbb", &name, &name_len, &value, &value_len, &expires,
-                &path, &path_len, &domain, &domain_len, &secure, &httponly) == FAILURE)
-    {
-        return;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 7)
+        Z_PARAM_STRING(name, name_len)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_STRING(value, value_len)
+        Z_PARAM_LONG(expires)
+        Z_PARAM_STRING(path, path_len)
+        Z_PARAM_STRING(domain, domain_len)
+        Z_PARAM_BOOL(secure)
+        Z_PARAM_BOOL(httponly)
+    ZEND_PARSE_PARAMETERS_END();
 
     http_context *ctx = http_get_context(getThis(), 0 TSRMLS_CC);
     if (!ctx)
@@ -2583,13 +2593,15 @@ static PHP_METHOD(swoole_http_response, rawcookie)
 
 static PHP_METHOD(swoole_http_response, status)
 {
-    long http_status;
+    zend_long http_status;
     char* reason = NULL;
-    long reason_len = 0;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|s", &http_status, &reason, &reason_len) == FAILURE)
-    {
-        return;
-    }
+    zend_size_t reason_len = 0;
+
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_LONG(http_status)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_STRING(reason, reason_len)
+    ZEND_PARSE_PARAMETERS_END();
 
     http_context *ctx = http_get_context(getThis(), 0 TSRMLS_CC);
     if (!ctx)
@@ -2611,10 +2623,12 @@ static PHP_METHOD(swoole_http_response, header)
     zend_size_t klen, vlen;
     zend_bool ucwords = 1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss|b", &k, &klen, &v, &vlen, &ucwords) == FAILURE)
-    {
-        return;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 3)
+        Z_PARAM_STRING(k, klen)
+        Z_PARAM_STRING(v, vlen)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_BOOL(ucwords)
+    ZEND_PARSE_PARAMETERS_END();
 
     http_context *ctx = http_get_context(getThis(), 0 TSRMLS_CC);
     if (!ctx)
