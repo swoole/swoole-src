@@ -905,7 +905,7 @@ static int multipart_body_on_header_complete(multipart_parser* p)
     }
 
     int file_path_len = strlen(file_path);
-    sw_add_next_index_stringl(ztmpfiles, file_path, file_path_len, 1);
+    add_next_index_stringl(ztmpfiles, file_path, file_path_len);
 
     // support is_upload_file
     zend_hash_str_add_ptr(SG(rfc1867_uploaded_files), file_path, file_path_len, (char *) file_path);
@@ -2471,7 +2471,7 @@ static PHP_METHOD(swoole_http_response, cookie)
     {
         strlcat(cookie, "; httponly", len + 100);
     }
-    sw_add_next_index_stringl(zcookie, cookie, strlen(cookie), 0);
+    add_next_index_stringl(zcookie, cookie, strlen(cookie));
     efree(cookie);
 }
 
@@ -2577,7 +2577,7 @@ static PHP_METHOD(swoole_http_response, rawcookie)
     {
         strlcat(cookie, "; httponly", len + 100);
     }
-    sw_add_next_index_stringl(zcookie, cookie, strlen(cookie), 0);
+    add_next_index_stringl(zcookie, cookie, strlen(cookie));
     efree(cookie);
 }
 

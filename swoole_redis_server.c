@@ -165,7 +165,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
             }
             else
             {
-                sw_add_next_index_stringl(zparams, p, length, 1);
+                add_next_index_stringl(zparams, p, length);
             }
             p += length + SW_CRLF_LEN;
             state = SW_REDIS_RECEIVE_LENGTH;

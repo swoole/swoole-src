@@ -43,8 +43,6 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
     }
 }
 
-#define sw_add_next_index_stringl(arr, str, len, dup)    add_next_index_stringl(arr, str, len)
-
 static sw_inline int sw_add_assoc_long_ex(zval *arg, const char *key, size_t key_len, long value)
 {
     return add_assoc_long_ex(arg, key, key_len - 1, value);
