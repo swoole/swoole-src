@@ -964,7 +964,7 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
     if (req->info.type == SW_EVENT_UDP)
     {
         inet_ntop(AF_INET, &packet->addr.v4, address, sizeof(address));
-        sw_add_assoc_string(zaddr, "address", address, 1);
+        add_assoc_string(zaddr, "address", address);
         add_assoc_long(zaddr, "port", packet->port);
         ZVAL_STRINGL(zdata, packet->data, packet->length);
     }
@@ -972,7 +972,7 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
     else if (req->info.type == SW_EVENT_UDP6)
     {
         inet_ntop(AF_INET6, &packet->addr.v6, address, sizeof(address));
-        sw_add_assoc_string(zaddr, "address", address, 1);
+        add_assoc_string(zaddr, "address", address);
         add_assoc_long(zaddr, "port", packet->port);
         ZVAL_STRINGL(zdata, packet->data, packet->length);
     }
@@ -3824,7 +3824,7 @@ PHP_METHOD(swoole_server, connection_info)
         {
             struct in_addr sin_addr;
             sin_addr.s_addr = fd;
-            sw_add_assoc_string(return_value, "remote_ip", inet_ntoa(sin_addr), 1);
+            add_assoc_string(return_value, "remote_ip", inet_ntoa(sin_addr));
         }
 
         if (from_id == 0)
@@ -3887,7 +3887,7 @@ PHP_METHOD(swoole_server, connection_info)
         add_assoc_long(return_value, "socket_fd", conn->fd);
         add_assoc_long(return_value, "socket_type", conn->socket_type);
         add_assoc_long(return_value, "remote_port", swConnection_get_port(conn));
-        sw_add_assoc_string(return_value, "remote_ip", swConnection_get_ip(conn), 1);
+        add_assoc_string(return_value, "remote_ip", swConnection_get_ip(conn));
         add_assoc_long(return_value, "reactor_id", conn->from_id);
         add_assoc_long(return_value, "connect_time", conn->connect_time);
         add_assoc_long(return_value, "last_time", conn->last_time);

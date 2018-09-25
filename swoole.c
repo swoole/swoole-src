@@ -1543,7 +1543,7 @@ PHP_FUNCTION(swoole_get_local_ip)
             {
                 continue;
             }
-            sw_add_assoc_string(return_value, ifa->ifa_name, ip, 1);
+            add_assoc_string(return_value, ifa->ifa_name, ip);
         }
     }
     freeifaddrs(ipaddrs);
@@ -1582,7 +1582,7 @@ PHP_FUNCTION(swoole_get_local_mac)
                         (unsigned char) buf[i].ifr_hwaddr.sa_data[3],
                         (unsigned char) buf[i].ifr_hwaddr.sa_data[4],
                         (unsigned char) buf[i].ifr_hwaddr.sa_data[5]);
-                sw_add_assoc_string(return_value, buf[i].ifr_name, mac, 1);
+                add_assoc_string(return_value, buf[i].ifr_name, mac);
             }
             i++;
         }

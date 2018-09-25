@@ -786,9 +786,9 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
             SW_ALLOC_INIT_ZVAL(multipart_header);
             array_init(multipart_header);
 
-            sw_add_assoc_string(multipart_header, "name", "", 1);
-            sw_add_assoc_string(multipart_header, "type", "", 1);
-            sw_add_assoc_string(multipart_header, "tmp_name", "", 1);
+            add_assoc_string(multipart_header, "name", "");
+            add_assoc_string(multipart_header, "type", "");
+            add_assoc_string(multipart_header, "tmp_name", "");
             add_assoc_long(multipart_header, "error", HTTP_UPLOAD_ERR_OK);
             add_assoc_long(multipart_header, "size", 0);
 
@@ -896,7 +896,7 @@ static int multipart_body_on_header_complete(multipart_parser* p)
     }
 
     p->fp = fp;
-    sw_add_assoc_string(multipart_header, "tmp_name", file_path, 1);
+    add_assoc_string(multipart_header, "tmp_name", file_path);
 
     zval *ztmpfiles = sw_zend_read_property(swoole_http_request_class_entry_ptr, zrequest_object, ZEND_STRL("tmpfiles"), 1 TSRMLS_CC);
     if (ztmpfiles == NULL || ZVAL_IS_NULL(ztmpfiles))
@@ -1111,7 +1111,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
         ctx->keepalive = swoole_http_should_keep_alive(parser);
         char *method_name = http_get_method_name(parser->method);
 
-        sw_add_assoc_string(zserver, "request_method", method_name, 1);
+        add_assoc_string(zserver, "request_method", method_name);
         add_assoc_stringl(zserver, "request_uri", ctx->request.path, ctx->request.path_len);
         add_assoc_stringl(zserver, "path_info", ctx->request.path, ctx->request.path_len);
         add_assoc_long_ex(zserver, ZEND_STRL("request_time"), serv->gs->now);
@@ -1132,17 +1132,17 @@ static int http_onReceive(swServer *serv, swEventData *req)
 
         add_assoc_long(zserver, "server_port", swConnection_get_port(&SwooleG.serv->connection_list[conn->from_fd]));
         add_assoc_long(zserver, "remote_port", swConnection_get_port(conn));
-        sw_add_assoc_string(zserver, "remote_addr", swConnection_get_ip(conn), 1);
+        add_assoc_string(zserver, "remote_addr", swConnection_get_ip(conn));
         add_assoc_long(zserver, "master_time", conn->last_time);
         if (ctx->request.version == 101)
         {
-            sw_add_assoc_string(zserver, "server_protocol", "HTTP/1.1", 1);
+            add_assoc_string(zserver, "server_protocol", "HTTP/1.1");
         }
         else
         {
-            sw_add_assoc_string(zserver, "server_protocol", "HTTP/1.0", 1);
+            add_assoc_string(zserver, "server_protocol", "HTTP/1.0");
         }
-        sw_add_assoc_string(zserver, "server_software", SW_HTTP_SERVER_SOFTWARE, 1);
+        add_assoc_string(zserver, "server_software", SW_HTTP_SERVER_SOFTWARE);
 
         int callback_type = 0;
         zval *zcallback = NULL;

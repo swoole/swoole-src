@@ -2074,9 +2074,9 @@ static PHP_METHOD(swoole_http_client, upgrade)
     char buf[SW_WEBSOCKET_KEY_LENGTH + 1];
     http_client_create_token(SW_WEBSOCKET_KEY_LENGTH, buf);
 
-    sw_add_assoc_string(headers, "Connection", "Upgrade", 1);
-    sw_add_assoc_string(headers, "Upgrade", "websocket", 1);
-    sw_add_assoc_string(headers, "Sec-WebSocket-Version", SW_WEBSOCKET_VERSION, 1);
+    add_assoc_string(headers, "Connection", "Upgrade");
+    add_assoc_string(headers, "Upgrade", "websocket");
+    add_assoc_string(headers, "Sec-WebSocket-Version", SW_WEBSOCKET_VERSION);
 
     zend_string *str = php_base64_encode((const unsigned char *) buf, SW_WEBSOCKET_KEY_LENGTH);
     add_assoc_str_ex(headers, ZEND_STRL("Sec-WebSocket-Key"), str);

@@ -1053,7 +1053,7 @@ static PHP_METHOD(swoole_client_coro, getsockname)
         char tmp[INET6_ADDRSTRLEN];
         if (inet_ntop(AF_INET6, &cli->socket->info.addr.inet_v6.sin6_addr, tmp, sizeof(tmp)))
         {
-            sw_add_assoc_string(return_value, "host", tmp, 1);
+            add_assoc_string(return_value, "host", tmp);
         }
         else
         {
@@ -1063,7 +1063,7 @@ static PHP_METHOD(swoole_client_coro, getsockname)
     else
     {
         add_assoc_long(return_value, "port", ntohs(cli->socket->info.addr.inet_v4.sin_port));
-        sw_add_assoc_string(return_value, "host", inet_ntoa(cli->socket->info.addr.inet_v4.sin_addr), 1);
+        add_assoc_string(return_value, "host", inet_ntoa(cli->socket->info.addr.inet_v4.sin_addr));
     }
 }
 
@@ -1104,7 +1104,7 @@ static PHP_METHOD(swoole_client_coro, getpeername)
     {
         array_init(return_value);
         add_assoc_long(return_value, "port", ntohs(cli->socket->info.addr.inet_v4.sin_port));
-        sw_add_assoc_string(return_value, "host", inet_ntoa(cli->socket->info.addr.inet_v4.sin_addr), 1);
+        add_assoc_string(return_value, "host", inet_ntoa(cli->socket->info.addr.inet_v4.sin_addr));
     }
     else if (cli->type == SW_SOCK_UDP6)
     {
@@ -1114,7 +1114,7 @@ static PHP_METHOD(swoole_client_coro, getpeername)
 
         if (inet_ntop(AF_INET6, &cli->socket->info.addr.inet_v6.sin6_addr, tmp, sizeof(tmp)))
         {
-            sw_add_assoc_string(return_value, "host", tmp, 1);
+            add_assoc_string(return_value, "host", tmp);
         }
         else
         {

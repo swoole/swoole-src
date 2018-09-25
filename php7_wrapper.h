@@ -123,7 +123,6 @@ static sw_inline int sw_call_user_function_fast(zval *function_name, zend_fcall_
         (rsrc = (rsrc_type) zend_fetch_resource(Z_RES_P(*passed_id), resource_type_name, resource_type))
 #define SW_ZEND_REGISTER_RESOURCE(return_value, result, le_result)  ZVAL_RES(return_value,zend_register_resource(result, le_result))
 
-#define sw_add_assoc_string(array, key, value, duplicate)   add_assoc_string(array, key, value)
 #define sw_zend_register_internal_class_ex(entry,parent_ptr,str)    zend_register_internal_class_ex(entry,parent_ptr)
 
 #define sw_zend_call_method_with_0_params(obj, ptr, what, method, retval) \
