@@ -1118,7 +1118,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
 
         // Add REQUEST_TIME_FLOAT
         double now_float = swoole_microtime();
-        sw_add_assoc_double_ex(zserver, ZEND_STRS("request_time_float"), now_float);
+        add_assoc_double_ex(zserver, ZEND_STRL("request_time_float"), now_float);
 
         swConnection *conn = swWorker_get_connection(serv, fd);
         if (!conn)

@@ -43,11 +43,6 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
     }
 }
 
-static sw_inline int sw_add_assoc_double_ex(zval *arg, const char *key, size_t key_len, double value)
-{
-    return add_assoc_double_ex(arg, key, key_len - 1, value);
-}
-
 #define SW_HASHTABLE_FOREACH_START(ht, _val) ZEND_HASH_FOREACH_VAL(ht, _val);  {
 #define SW_HASHTABLE_FOREACH_START2(ht, k, klen, ktype, _val) zend_string *_foreach_key;\
     ZEND_HASH_FOREACH_STR_KEY_VAL(ht, _foreach_key, _val);\
