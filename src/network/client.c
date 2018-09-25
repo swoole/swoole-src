@@ -395,6 +395,7 @@ static int swClient_inet_addr(swClient *cli, char *host, int port)
             return SW_OK;
         }
     }
+#ifndef _WIN32
     else if (cli->type == SW_SOCK_UNIX_STREAM || cli->type == SW_SOCK_UNIX_DGRAM)
     {
         cli->server_addr.addr.un.sun_family = AF_UNIX;
@@ -403,6 +404,7 @@ static int swClient_inet_addr(swClient *cli, char *host, int port)
         cli->server_addr.len = sizeof(cli->server_addr.addr.un.sun_path);
         return SW_OK;
     }
+#endif
     else
     {
         return SW_ERR;
@@ -504,10 +506,12 @@ static int swClient_close(swClient *cli)
         swString_free(cli->buffer);
         cli->buffer = NULL;
     }
+#ifndef _WIN32
     if (cli->type == SW_SOCK_UNIX_DGRAM)
     {
         unlink(cli->socket->info.addr.un.sun_path);
     }
+#endif
     if (cli->async)
     {
         //remove from reactor
@@ -951,6 +955,7 @@ static int swClient_udp_connect(swClient *cli, char *host, int port, double time
         swSocket_set_timeout(cli->socket->fd, timeout);
     }
 
+#ifndef _WIN32
     if (cli->type == SW_SOCK_UNIX_DGRAM)
     {
         struct sockaddr_un* client_addr = &cli->socket->info.addr.un;
@@ -964,6 +969,8 @@ static int swClient_udp_connect(swClient *cli, char *host, int port, double time
             return SW_ERR;
         }
     }
+#endif
+
     if (udp_connect != 1)
     {
         goto connect_ok;

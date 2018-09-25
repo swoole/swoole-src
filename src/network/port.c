@@ -21,8 +21,6 @@
 #include "mqtt.h"
 #include "redis.h"
 
-#include <sys/stat.h>
-
 static int swPort_onRead_raw(swReactor *reactor, swListenPort *lp, swEvent *event);
 static int swPort_onRead_check_length(swReactor *reactor, swListenPort *lp, swEvent *event);
 static int swPort_onRead_check_eof(swReactor *reactor, swListenPort *lp, swEvent *event);
@@ -588,10 +586,6 @@ void swPort_free(swListenPort *port)
     }
 }
 
-#ifndef PATH_MAX
-#define PATH_MAX 4096
-#endif
-
 int swPort_http_static_handler(swHttpRequest *request, swConnection *conn)
 {
     swServer *serv = SwooleG.serv;
@@ -680,6 +674,8 @@ int swPort_http_static_handler(swHttpRequest *request, swConnection *conn)
     char date_last_modified[64];
 #ifdef __MACH__
     time_t file_mtime = file_stat.st_mtimespec.tv_sec;
+#elif defined(_WIN32)
+	time_t file_mtime = file_stat.st_mtime;
 #else
     time_t file_mtime = file_stat.st_mtim.tv_sec;
 #endif

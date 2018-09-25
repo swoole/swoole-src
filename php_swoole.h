@@ -67,7 +67,7 @@ BEGIN_EXTERN_C()
 #include <ext/standard/basic_functions.h>
 #include <ext/standard/php_http.h>
 
-#define PHP_SWOOLE_VERSION  "4.2.1"
+#define PHP_SWOOLE_VERSION SWOOLE_VERSION
 #define PHP_SWOOLE_CHECK_CALLBACK
 #define PHP_SWOOLE_ENABLE_FASTCALL
 #define PHP_SWOOLE_CLIENT_USE_POLL
@@ -146,6 +146,8 @@ extern swoole_object_array swoole_objects;
 #ifdef SW_USE_HTTP2
 #if !defined(HAVE_NGHTTP2)
 #error "Enable http2 support, require nghttp2 library."
+#else
+#include <nghttp2/nghttp2ver.h>
 #endif
 #endif
 
@@ -491,7 +493,7 @@ int php_swoole_onPacket(swServer *, swEventData *);
 void php_swoole_onClose(swServer *, swDataHead *);
 void php_swoole_onBufferFull(swServer *, swDataHead *);
 void php_swoole_onBufferEmpty(swServer *, swDataHead *);
-int php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
+ssize_t php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swEventData *data);
 int php_swoole_client_onPackage(swConnection *conn, char *data, uint32_t length);
 void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode);

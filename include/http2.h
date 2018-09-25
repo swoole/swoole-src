@@ -129,12 +129,12 @@ typedef struct
     char data[0];
 } swHttp2_frame;
 
-static sw_inline uint32_t swHttp2_get_length(char *buf)
+static sw_inline ssize_t swHttp2_get_length(char *buf)
 {
     return (((uint8_t) buf[0]) << 16) + (((uint8_t) buf[1]) << 8) + (uint8_t) buf[2];
 }
 
-int swHttp2_get_frame_length(swProtocol *protocol, swConnection *conn, char *buf, uint32_t length);
+ssize_t swHttp2_get_frame_length(swProtocol *protocol, swConnection *conn, char *buf, uint32_t length);
 int swHttp2_send_setting_frame(swProtocol *protocol, swConnection *conn);
 char* swHttp2_get_type(int type);
 int swHttp2_get_type_color(int type);

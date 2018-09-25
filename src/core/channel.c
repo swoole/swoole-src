@@ -49,7 +49,7 @@ swChannel* swChannel_new(size_t size, int maxlen, int flags)
         return NULL;
     }
     swChannel *object = mem;
-    mem += sizeof(swChannel);
+    mem = (char*) mem + sizeof(swChannel);
 
     bzero(object, sizeof(swChannel));
 
@@ -102,12 +102,12 @@ int swChannel_in(swChannel *object, void *in, int data_length)
         {
             return SW_ERR;
         }
-        item = object->mem + object->tail;
+        item = (swChannel_item *) ((char*) object->mem + object->tail);
         object->tail += msize;
     }
     else
     {
-        item = object->mem + object->tail;
+        item = (swChannel_item *) ((char*) object->mem + object->tail);
         object->tail += msize;
         if (object->tail >= object->size)
         {
@@ -132,7 +132,7 @@ int swChannel_out(swChannel *object, void *out, int buffer_length)
         return SW_ERR;
     }
 
-    swChannel_item *item = object->mem + object->head;
+    swChannel_item *item = (swChannel_item *) ((char*) object->mem + object->head);
     assert(buffer_length >= item->length);
     memcpy(out, item->data, item->length);
     object->head += (item->length + sizeof(item->length));
@@ -158,7 +158,7 @@ int swChannel_peek(swChannel *object, void *out, int buffer_length)
 
     int length;
     object->lock.lock(&object->lock);
-    swChannel_item *item = object->mem + object->head;
+    swChannel_item *item = (swChannel_item *) ((char*) object->mem + object->head);
     assert(buffer_length >= item->length);
     memcpy(out, item->data, item->length);
     length = item->length;

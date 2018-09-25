@@ -85,6 +85,19 @@ int daemon(int nochdir, int noclose);
 #endif
 
 /*----------------------------------------------------------------------------*/
+
+#define SWOOLE_VERSION "4.2.1"
+#define SWOOLE_BUG_REPORT \
+    "A bug occurred in Swoole-v" SWOOLE_VERSION ", please report it.\n"\
+    "The Swoole developers probably don't know about it,\n"\
+    "and unless you report it, chances are it won't be fixed.\n"\
+    "You can read How to report a bug doc before submitting any bug reports:\n"\
+    ">> https://github.com/swoole/swoole-src/issues/2000\n"\
+    "Please do not send bug reports in the mailing list or personal letters.\n"\
+    "The issue page is also suitable to submit feature requests.\n"
+
+/*----------------------------------------------------------------------------*/
+
 #ifndef ulong
 #define ulong unsigned long
 #endif
@@ -652,9 +665,9 @@ typedef struct _swProtocol
     uint16_t real_header_length;
 
     int (*onPackage)(swConnection *conn, char *data, uint32_t length);
-    int (*get_package_length)(struct _swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
+	ssize_t (*get_package_length)(struct _swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 } swProtocol;
-typedef int (*swProtocol_length_function)(struct _swProtocol *, swConnection *, char *, uint32_t);
+typedef ssize_t (*swProtocol_length_function)(struct _swProtocol *, swConnection *, char *, uint32_t);
 //------------------------------String--------------------------------
 #define swoole_tolower(c)      (u_char) ((c >= 'A' && c <= 'Z') ? (c | 0x20) : c)
 #define swoole_toupper(c)      (u_char) ((c >= 'a' && c <= 'z') ? (c & ~0x20) : c)
@@ -1375,6 +1388,7 @@ int swSocket_sendfile_sync(int sock, char *filename, off_t offset, size_t length
 int swSocket_write_blocking(int __fd, void *__data, int __len);
 int swSocket_recv_blocking(int fd, void *__data, size_t __len, int flags);
 
+#ifndef _WIN32
 static sw_inline int swWaitpid(pid_t __pid, int *__stat_loc, int __options)
 {
     int ret;
@@ -1404,6 +1418,7 @@ static sw_inline int swKill(pid_t __pid, int __sig)
     } while (1);
     return ret;
 }
+#endif
 
 #ifdef TCP_CORK
 #define HAVE_TCP_NOPUSH
@@ -1971,7 +1986,7 @@ int swThreadPool_run(swThreadPool *pool);
 int swThreadPool_free(swThreadPool *pool);
 
 //--------------------------------protocol------------------------------
-int swProtocol_get_package_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t size);
+ssize_t swProtocol_get_package_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t size);
 int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swString *buffer);
 int swProtocol_recv_check_eof(swProtocol *protocol, swConnection *conn, swString *buffer);
 

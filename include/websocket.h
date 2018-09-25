@@ -94,7 +94,7 @@ enum swWebsocketCode
     WEBSOCKET_VERSION = 13,
 };
 
-int swWebSocket_get_package_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
+ssize_t swWebSocket_get_package_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
 void swWebSocket_encode(swString *buffer, char *data, size_t length, char opcode, uint8_t finish, uint8_t mask);
 void swWebSocket_decode(swWebSocket_frame *frame, swString *data);
 int swWebSocket_pack_close_frame(swString *buffer, int code, char* reason, size_t length, uint8_t mask);

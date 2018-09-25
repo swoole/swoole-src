@@ -205,6 +205,7 @@ static int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
             memcpy(&pkt.addr.v6, &info.addr.inet_v6.sin6_addr, sizeof(info.addr.inet_v6.sin6_addr));
             memcpy(&task.data.info.fd, &info.addr.inet_v6.sin6_addr, sizeof(task.data.info.fd));
         }
+#ifndef _WIN32
         //Unix Dgram
         else
         {
@@ -213,18 +214,21 @@ static int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
             pkt.port = 0;
             memcpy(&task.data.info.fd, info.addr.un.sun_path + pkt.addr.un.path_length - 6, sizeof(task.data.info.fd));
         }
+#endif
 
         task.target_worker_id = -1;
         uint32_t header_size = sizeof(pkt);
 
         //dgram header
         memcpy(task.data.data, &pkt, sizeof(pkt));
+#ifndef _WIN32
         //unix dgram
         if (socket_type == SW_SOCK_UNIX_DGRAM)
         {
             header_size += pkt.addr.un.path_length;
             memcpy(task.data.data + sizeof(pkt), info.addr.un.sun_path, pkt.addr.un.path_length);
         }
+#endif
         //dgram body
         if (pkt.length > SW_BUFFER_SIZE - sizeof(pkt))
         {

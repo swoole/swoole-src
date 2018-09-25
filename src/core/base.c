@@ -351,7 +351,7 @@ int swoole_sync_writefile(int fd, void *data, int len)
         n = write(fd, data, towrite);
         if (n > 0)
         {
-            data += n;
+            data = (char*) data + n;
             count -= n;
             written += n;
         }
@@ -680,7 +680,7 @@ int swoole_sync_readfile(int fd, void *buf, int len)
         n = read(fd, buf, toread);
         if (n > 0)
         {
-            buf += n;
+            buf = (char *) buf + n;
             count -= n;
             readn += n;
         }
@@ -1099,10 +1099,10 @@ int swoole_getaddrinfo(swRequest_getaddrinfo *req)
         switch (ptr->ai_family)
         {
         case AF_INET:
-            memcpy(buffer + (i * sizeof(struct sockaddr_in)), ptr->ai_addr, sizeof(struct sockaddr_in));
+            memcpy((char *) buffer + (i * sizeof(struct sockaddr_in)), ptr->ai_addr, sizeof(struct sockaddr_in));
             break;
         case AF_INET6:
-            memcpy(buffer + (i * sizeof(struct sockaddr_in6)), ptr->ai_addr, sizeof(struct sockaddr_in6));
+            memcpy((char *) buffer + (i * sizeof(struct sockaddr_in6)), ptr->ai_addr, sizeof(struct sockaddr_in6));
             break;
         default:
             swWarn("unknown socket family[%d].", ptr->ai_family);

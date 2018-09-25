@@ -22,7 +22,7 @@
 /**
  * return the package total length
  */
-int swProtocol_get_package_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t size)
+ssize_t swProtocol_get_package_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t size)
 {
     uint16_t length_offset = protocol->package_length_offset;
     int32_t body_length;

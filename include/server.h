@@ -904,6 +904,8 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swEventDat
         {
 #ifdef HAVE_KQUEUE
             key = *(((uint32_t *) &conn->info.addr.inet_v6.sin6_addr) + 3);
+#elif defined(_WIN32)
+			key = conn->info.addr.inet_v6.sin6_addr.u.Word[3];
 #else
             key = conn->info.addr.inet_v6.sin6_addr.s6_addr32[3];
 #endif

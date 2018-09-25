@@ -20,8 +20,6 @@
 #include "connection.h"
 #include "php_swoole.h"
 
-#include <sys/time.h>
-
 /*  The following is websocket data frame:
  +-+-+-+-+-------+-+-------------+-------------------------------+
  0                   1                   2                   3   |
@@ -44,7 +42,7 @@
  +---------------------------------------------------------------+
  */
 
-int swWebSocket_get_package_length(swProtocol *protocol, swConnection *conn, char *buf, uint32_t length)
+ssize_t swWebSocket_get_package_length(swProtocol *protocol, swConnection *conn, char *buf, uint32_t length)
 {
     //need more data
     if (length < SW_WEBSOCKET_HEADER_LEN)
@@ -55,7 +53,7 @@ int swWebSocket_get_package_length(swProtocol *protocol, swConnection *conn, cha
     char mask = (buf[1] >> 7) & 0x1;
     //0-125
     uint64_t payload_length = buf[1] & 0x7f;
-    int header_length = SW_WEBSOCKET_HEADER_LEN;
+	ssize_t header_length = SW_WEBSOCKET_HEADER_LEN;
     buf += SW_WEBSOCKET_HEADER_LEN;
 
     //uint16_t, 2byte

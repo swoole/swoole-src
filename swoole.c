@@ -590,7 +590,7 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
     swoole_globals->rshutdown_functions = NULL;
 }
 
-int php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data, uint32_t length)
+ssize_t php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *data, uint32_t length)
 {
     SwooleG.lock.lock(&SwooleG.lock);
 
@@ -898,7 +898,7 @@ PHP_MINIT_FUNCTION(swoole)
     REGISTER_LONG_CONSTANT("SWOOLE_EVENT_READ", SW_EVENT_READ, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("SWOOLE_EVENT_WRITE", SW_EVENT_WRITE, CONST_CS | CONST_PERSISTENT);
 
-    REGISTER_STRINGL_CONSTANT("SWOOLE_VERSION", PHP_SWOOLE_VERSION, sizeof(PHP_SWOOLE_VERSION) - 1, CONST_CS | CONST_PERSISTENT);
+    REGISTER_STRINGL_CONSTANT("SWOOLE_VERSION", SWOOLE_VERSION, sizeof(SWOOLE_VERSION) - 1, CONST_CS | CONST_PERSISTENT);
 
     SWOOLE_DEFINE(ERROR_MALLOC_FAIL);
     SWOOLE_DEFINE(ERROR_SYSTEM_CALL_FAIL);
@@ -1172,7 +1172,7 @@ PHP_MINFO_FUNCTION(swoole)
 {
     php_info_print_table_start();
     php_info_print_table_header(2, "swoole support", "enabled");
-    php_info_print_table_row(2, "Version", PHP_SWOOLE_VERSION);
+    php_info_print_table_row(2, "Version", SWOOLE_VERSION);
     php_info_print_table_row(2, "Author", "Swoole Group[email: team@swoole.com]");
 
 #ifdef SW_COROUTINE
@@ -1218,10 +1218,18 @@ PHP_MINFO_FUNCTION(swoole)
     php_info_print_table_row(2, "sockets", "enabled");
 #endif
 #ifdef SW_USE_OPENSSL
+#ifdef OPENSSL_VERSION_TEXT
+    php_info_print_table_row(2, "openssl", OPENSSL_VERSION_TEXT);
+#else
     php_info_print_table_row(2, "openssl", "enabled");
 #endif
+#endif
 #ifdef SW_USE_HTTP2
+#ifdef NGHTTP2_VERSION
+    php_info_print_table_row(2, "http2", NGHTTP2_VERSION);
+#else
     php_info_print_table_row(2, "http2", "enabled");
+#endif
 #endif
 #ifdef SW_USE_RINGBUFFER
     php_info_print_table_row(2, "ringbuffer", "enabled");
@@ -1341,7 +1349,7 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
 
 PHP_FUNCTION(swoole_version)
 {
-    RETURN_STRING(PHP_SWOOLE_VERSION);
+    RETURN_STRING(SWOOLE_VERSION);
 }
 
 static uint32_t hashkit_one_at_a_time(const char *key, size_t key_length)

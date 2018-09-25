@@ -931,7 +931,7 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
         }
     }
 
-    swTrace("[%d]: %s\n", (int)http_client_buffer->length, http_client_buffer->str);
+    swTrace("[%zu]:<<EOF\n%.*s\nEOF", http_client_buffer->length, (int) http_client_buffer->length, http_client_buffer->str);
 
     if (!hcc->socket->send(http_client_buffer->str, http_client_buffer->length))
     {

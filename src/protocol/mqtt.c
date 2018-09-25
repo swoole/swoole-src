@@ -23,11 +23,11 @@ void swMqtt_print_package(swMqtt_package *pkg)
     printf("type=%d, length=%d\n", pkg->type, pkg->length);
 }
 
-static sw_inline int swMqtt_get_length(char *data, uint32_t size, int *count)
+static sw_inline ssize_t swMqtt_get_length(char *data, uint32_t size, ssize_t *count)
 {
     uint8_t byte;
     int mul = 1;
-    int length = 0;
+    ssize_t length = 0;
 
     *count = 0;
     do
@@ -41,30 +41,33 @@ static sw_inline int swMqtt_get_length(char *data, uint32_t size, int *count)
     return length;
 }
 
-//int swMqtt_unpack(swMqtt_package *pkg, char *data, uint32_t size)
-//{
-//    uint8_t byte = data[0];
-//    off_t offset;
-//
-//    pkg->type = (byte & 0xF0) >> 4;
-//    pkg->dup = (byte & 0x08) >> 3;
-//    pkg->qos = (byte & 0x06) >> 1;
-//    pkg->retain = byte & 0x01;
-//
-//    offset += 1;
-//
-//    int count = 0;
-//    pkg->length = swMqtt_get_length(data, size, &count);
-//    offset += count + 1;
-//}
+#if 0
+int swMqtt_unpack(swMqtt_package *pkg, char *data, uint32_t size)
+{
+    uint8_t byte = data[0];
+    off_t offset;
 
-int swMqtt_get_package_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t size)
+    pkg->type = (byte & 0xF0) >> 4;
+    pkg->dup = (byte & 0x08) >> 3;
+    pkg->qos = (byte & 0x06) >> 1;
+    pkg->retain = byte & 0x01;
+
+    offset += 1;
+
+    int count = 0;
+    pkg->length = swMqtt_get_length(data, size, &count);
+    offset += count + 1;
+    return 0;
+}
+#endif
+
+ssize_t swMqtt_get_package_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t size)
 {
     if (size < SW_MQTT_MIN_LENGTH)
     {
         return 0;
     }
-    int count = 0;
-    int length = swMqtt_get_length(data, size, &count);
+    ssize_t count = 0;
+    ssize_t length = swMqtt_get_length(data, size, &count);
     return length + count + 1;
 }

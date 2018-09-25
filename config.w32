@@ -118,7 +118,7 @@ if (PHP_SWOOLE != "no") {
         + 'src/protocol/socks5.c '
         + 'src/protocol/mime_types.cc '
         + 'src/protocol/redis.c '
-        + 'src/protocol/base64.c', PHP_SWOOLE_SHARED, "-Iext/swoole/ -Iext/swoole/include /DZEND_ENABLE_STATIC_TSRMLS_CACHE=1");
+        + 'src/protocol/base64.c', PHP_SWOOLE_SHARED, "-Iext/swoole/ -Iext/swoole/include /DZEND_ENABLE_STATIC_TSRMLS_CACHE=1 /w");
 		AC_DEFINE('HAVE_SWOOLE', 1);
 		PHP_INSTALL_HEADERS("ext/swoole", "php_swoole.h");
 	} else {

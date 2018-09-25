@@ -15,6 +15,8 @@
 */
 
 #include "swoole.h"
+
+#ifndef _WIN32
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
@@ -125,3 +127,4 @@ int swMsgQueue_stat(swMsgQueue *q, int *queue_num, int *queue_bytes)
         return -1;
     }
 }
+#endif
