@@ -979,7 +979,7 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
     //unix dgram
     else if (req->info.type == SW_EVENT_UNIX_DGRAM)
     {
-        sw_add_assoc_stringl(zaddr, "address", packet->data, packet->addr.un.path_length, 1);
+        add_assoc_stringl(zaddr, "address", packet->data, packet->addr.un.path_length);
         ZVAL_STRINGL(zdata, packet->data + packet->addr.un.path_length, packet->length - packet->addr.un.path_length);
         dgram_server_socket = req->info.from_fd;
     }
@@ -3874,7 +3874,7 @@ PHP_METHOD(swoole_server, connection_info)
 #ifdef SW_USE_OPENSSL
         if (conn->ssl_client_cert.length > 0)
         {
-            sw_add_assoc_stringl(return_value, "ssl_client_cert", conn->ssl_client_cert.str, conn->ssl_client_cert.length - 1, 1);
+            add_assoc_stringl(return_value, "ssl_client_cert", conn->ssl_client_cert.str, conn->ssl_client_cert.length - 1);
         }
 #endif
         //server socket

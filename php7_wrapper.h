@@ -43,7 +43,6 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
     }
 }
 
-#define sw_add_assoc_stringl(__arg, __key, __str, __length, __duplicate)   add_assoc_stringl_ex(__arg, __key, strlen(__key), __str, __length)
 static sw_inline int sw_add_assoc_stringl_ex(zval *arg, const char *key, size_t key_len, char *str, size_t length, int __duplicate)
 {
     return add_assoc_stringl_ex(arg, key, key_len - 1, str, length);

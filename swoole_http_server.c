@@ -796,7 +796,7 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
             value_len = Z_STRLEN_P(filename);
             tmp = http_trim_double_quote(value_buf, &value_len);
 
-            sw_add_assoc_stringl(multipart_header, "name", tmp, value_len, 1);
+            add_assoc_stringl(multipart_header, "name", tmp, value_len);
 
             ctx->current_multipart_header = multipart_header;
         }
@@ -805,7 +805,7 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
 
     if (strncasecmp(headername, "content-type", header_len) == 0 && ctx->current_multipart_header)
     {
-        sw_add_assoc_stringl(ctx->current_multipart_header, "type", (char * ) at, length, 1);
+        add_assoc_stringl(ctx->current_multipart_header, "type", (char * ) at, length);
     }
 
     if (ctx->current_header_name_allocated)
@@ -1112,8 +1112,8 @@ static int http_onReceive(swServer *serv, swEventData *req)
         char *method_name = http_get_method_name(parser->method);
 
         sw_add_assoc_string(zserver, "request_method", method_name, 1);
-        sw_add_assoc_stringl(zserver, "request_uri", ctx->request.path, ctx->request.path_len, 1);
-        sw_add_assoc_stringl(zserver, "path_info", ctx->request.path, ctx->request.path_len, 1);
+        add_assoc_stringl(zserver, "request_uri", ctx->request.path, ctx->request.path_len);
+        add_assoc_stringl(zserver, "path_info", ctx->request.path, ctx->request.path_len);
         sw_add_assoc_long_ex(zserver, ZEND_STRS("request_time"), serv->gs->now);
 
         // Add REQUEST_TIME_FLOAT

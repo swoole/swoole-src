@@ -1035,7 +1035,7 @@ static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
         case SW_MYSQL_TYPE_DATETIME:
         case SW_MYSQL_TYPE_DATE:
         case SW_MYSQL_TYPE_JSON:
-            sw_add_assoc_stringl(row_array, field->name, buf + read_n, len, 1);
+            add_assoc_stringl(row_array, field->name, buf + read_n, len);
             break;
         /* Integer */
         case SW_MYSQL_TYPE_TINY:
@@ -1067,7 +1067,7 @@ static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
             }
             else
             {
-                sw_add_assoc_stringl(row_array, field->name, buf + read_n, len, 1);
+                add_assoc_stringl(row_array, field->name, buf + read_n, len);
             }
             break;
         case SW_MYSQL_TYPE_LONGLONG:
@@ -1098,7 +1098,7 @@ static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
             else
             {
                 _longlongstring:
-                sw_add_assoc_stringl(row_array, field->name, buf + read_n, len, 1);
+                add_assoc_stringl(row_array, field->name, buf + read_n, len);
             }
             break;
         case SW_MYSQL_TYPE_FLOAT:
@@ -1113,7 +1113,7 @@ static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
             }
             else
             {
-                sw_add_assoc_stringl(row_array, field->name, buf + read_n, len, 1);
+                add_assoc_stringl(row_array, field->name, buf + read_n, len);
             }
             break;
 
@@ -1129,7 +1129,7 @@ static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
             }
             else
             {
-                sw_add_assoc_stringl(row_array, field->name, buf + read_n, len, 1);
+                add_assoc_stringl(row_array, field->name, buf + read_n, len);
             }
             break;
 
@@ -1263,27 +1263,27 @@ static int mysql_decode_row_prepare(mysql_client *client, char *buf, int packet_
         /* Date Time */
         case SW_MYSQL_TYPE_TIME:
             len = mysql_decode_time(buf + read_n, datetime_buffer) + 1;
-            sw_add_assoc_stringl(row_array, field->name, datetime_buffer, 8, 1);
+            add_assoc_stringl(row_array, field->name, datetime_buffer, 8);
             swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%s", field->name, datetime_buffer);
             break;
 
         case SW_MYSQL_TYPE_YEAR:
             mysql_decode_year(buf + read_n, datetime_buffer);
-            sw_add_assoc_stringl(row_array, field->name, datetime_buffer, 4, 1);
+            add_assoc_stringl(row_array, field->name, datetime_buffer, 4);
             len = 2;
             swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%s", field->name, datetime_buffer);
             break;
 
         case SW_MYSQL_TYPE_DATE:
             len = mysql_decode_date(buf + read_n, datetime_buffer) + 1;
-            sw_add_assoc_stringl(row_array, field->name, datetime_buffer, 10, 1);
+            add_assoc_stringl(row_array, field->name, datetime_buffer, 10);
             swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%s", field->name, datetime_buffer);
             break;
 
         case SW_MYSQL_TYPE_TIMESTAMP:
         case SW_MYSQL_TYPE_DATETIME:
             len = mysql_decode_datetime(buf + read_n, datetime_buffer) + 1;
-            sw_add_assoc_stringl(row_array, field->name, datetime_buffer, 19, 1);
+            add_assoc_stringl(row_array, field->name, datetime_buffer, 19);
             swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%s", field->name, datetime_buffer);
             break;
 
@@ -1310,7 +1310,7 @@ static int mysql_decode_row_prepare(mysql_client *client, char *buf, int packet_
                 return -SW_MYSQL_ERR_BAD_LCB;
             }
             read_n += tmp_len;
-            sw_add_assoc_stringl(row_array, field->name, buf + read_n, len, 1);
+            add_assoc_stringl(row_array, field->name, buf + read_n, len);
             swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s=%s", field->name, swoole_strndup(buf + read_n, len));
             break;
 
