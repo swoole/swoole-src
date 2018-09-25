@@ -155,13 +155,13 @@ void swoole_websocket_onRequest(http_context *);
  * Http Context
  */
 http_context* swoole_http_context_new(int fd);
-void swoole_http_context_free(http_context *ctx TSRMLS_DC);
-int swoole_http_parse_form_data(http_context *ctx, const char *boundary_str, int boundary_len TSRMLS_DC);
+void swoole_http_context_free(http_context *ctx);
+int swoole_http_parse_form_data(http_context *ctx, const char *boundary_str, int boundary_len);
 
 #define swoole_http_server_array_init(name, class)    SW_MAKE_STD_ZVAL(z##name);\
 array_init(z##name);\
-zend_update_property(swoole_http_##class##_class_entry_ptr, z##class##_object, ZEND_STRL(#name), z##name TSRMLS_CC);\
-ctx->class.z##name = sw_zend_read_property(swoole_http_##class##_class_entry_ptr, z##class##_object, ZEND_STRL(#name), 0 TSRMLS_CC);\
+zend_update_property(swoole_http_##class##_class_entry_ptr, z##class##_object, ZEND_STRL(#name), z##name);\
+ctx->class.z##name = sw_zend_read_property(swoole_http_##class##_class_entry_ptr, z##class##_object, ZEND_STRL(#name), 0);\
 sw_copy_to_stack(ctx->class.z##name, ctx->class._z##name);\
 zval_ptr_dtor(z##name);\
 z##name = ctx->class.z##name;

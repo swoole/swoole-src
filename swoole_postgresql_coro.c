@@ -121,13 +121,13 @@ static zend_class_entry swoole_postgresql_coro_ce;
 static zend_class_entry *swoole_postgresql_coro_class_entry_ptr;
 static int le_link , le_result;
 
-void swoole_postgresql_coro_init(int module_number TSRMLS_DC)
+void swoole_postgresql_coro_init(int module_number)
 {
 
     INIT_CLASS_ENTRY(swoole_postgresql_coro_ce, "Swoole\\Coroutine\\PostgreSQL", swoole_postgresql_coro_methods);
     le_link = zend_register_list_destructors_ex(_destroy_pgsql_link, NULL, "pgsql link", module_number);
     le_result = zend_register_list_destructors_ex(_free_result, NULL, "pgsql result", module_number);
-    swoole_postgresql_coro_class_entry_ptr = zend_register_internal_class(&swoole_postgresql_coro_ce TSRMLS_CC);
+    swoole_postgresql_coro_class_entry_ptr = zend_register_internal_class(&swoole_postgresql_coro_ce);
 
     if (SWOOLE_G(use_shortname))
     {
@@ -142,7 +142,7 @@ void swoole_postgresql_coro_init(int module_number TSRMLS_DC)
 
 static PHP_METHOD(swoole_postgresql_coro, __construct)
 {
-    coro_check(TSRMLS_C);
+    coro_check();
     pg_object *pg;
     pg = emalloc(sizeof(pg_object));
     bzero(pg,sizeof(pg_object));

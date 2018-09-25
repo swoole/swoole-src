@@ -22,7 +22,7 @@
 
 extern zend_class_entry *swoole_http2_response_class_entry_ptr;
 
-void http2_add_cookie(nghttp2_nv *nv, int *index, zval *cookies TSRMLS_DC)
+void http2_add_cookie(nghttp2_nv *nv, int *index, zval *cookies)
 {
     char *key;
     uint32_t keylen;
@@ -113,7 +113,7 @@ int http2_client_parse_header(http2_client_property *hcc, http2_client_stream *s
             {
                 if (strncasecmp((char *) nv.name + 1, "status", nv.namelen -1) == 0)
                 {
-                    zend_update_property_long(swoole_http2_response_class_entry_ptr, zresponse, ZEND_STRL("statusCode"), atoi((char *) nv.value) TSRMLS_CC);
+                    zend_update_property_long(swoole_http2_response_class_entry_ptr, zresponse, ZEND_STRL("statusCode"), atoi((char *) nv.value));
                     continue;
                 }
             }

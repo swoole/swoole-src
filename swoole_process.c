@@ -169,25 +169,25 @@ static const zend_function_entry swoole_process_methods[] =
     PHP_FE_END
 };
 
-void swoole_process_init(int module_number TSRMLS_DC)
+void swoole_process_init(int module_number)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_process_ce, "swoole_process", "Swoole\\Process", swoole_process_methods);
-    swoole_process_class_entry_ptr = zend_register_internal_class(&swoole_process_ce TSRMLS_CC);
+    swoole_process_class_entry_ptr = zend_register_internal_class(&swoole_process_ce);
     SWOOLE_CLASS_ALIAS(swoole_process, "Swoole\\Process");
 
-    zend_declare_class_constant_long(swoole_process_class_entry_ptr, SW_STRL("IPC_NOWAIT")-1, MSGQUEUE_NOWAIT TSRMLS_CC);
-    zend_declare_class_constant_long(swoole_process_class_entry_ptr, SW_STRL("PIPE_MASTER")-1, SW_PIPE_CLOSE_MASTER TSRMLS_CC);
-    zend_declare_class_constant_long(swoole_process_class_entry_ptr, SW_STRL("PIPE_WORKER")-1, SW_PIPE_CLOSE_WORKER TSRMLS_CC);
-    zend_declare_class_constant_long(swoole_process_class_entry_ptr, SW_STRL("PIPE_READ")-1, SW_PIPE_CLOSE_READ TSRMLS_CC);
-    zend_declare_class_constant_long(swoole_process_class_entry_ptr, SW_STRL("PIPE_WRITE")-1, SW_PIPE_CLOSE_WRITE TSRMLS_CC);
+    zend_declare_class_constant_long(swoole_process_class_entry_ptr, SW_STRL("IPC_NOWAIT")-1, MSGQUEUE_NOWAIT);
+    zend_declare_class_constant_long(swoole_process_class_entry_ptr, SW_STRL("PIPE_MASTER")-1, SW_PIPE_CLOSE_MASTER);
+    zend_declare_class_constant_long(swoole_process_class_entry_ptr, SW_STRL("PIPE_WORKER")-1, SW_PIPE_CLOSE_WORKER);
+    zend_declare_class_constant_long(swoole_process_class_entry_ptr, SW_STRL("PIPE_READ")-1, SW_PIPE_CLOSE_READ);
+    zend_declare_class_constant_long(swoole_process_class_entry_ptr, SW_STRL("PIPE_WRITE")-1, SW_PIPE_CLOSE_WRITE);
     bzero(signal_callback, sizeof(signal_callback));
 
-    zend_declare_property_null(swoole_process_class_entry_ptr, SW_STRL("pipe")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_null(swoole_process_class_entry_ptr, SW_STRL("callback")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_null(swoole_process_class_entry_ptr, SW_STRL("msgQueueId")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_null(swoole_process_class_entry_ptr, SW_STRL("msgQueueKey")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_null(swoole_process_class_entry_ptr, SW_STRL("pid")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_null(swoole_process_class_entry_ptr, SW_STRL("id")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_process_class_entry_ptr, SW_STRL("pipe")-1, ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_process_class_entry_ptr, SW_STRL("callback")-1, ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_process_class_entry_ptr, SW_STRL("msgQueueId")-1, ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_process_class_entry_ptr, SW_STRL("msgQueueKey")-1, ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_process_class_entry_ptr, SW_STRL("pid")-1, ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_process_class_entry_ptr, SW_STRL("id")-1, ZEND_ACC_PUBLIC);
 
     /**
      * 31 signal constants
@@ -261,13 +261,13 @@ static PHP_METHOD(swoole_process, __construct)
         RETURN_FALSE;
     }
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|bl", &callback, &redirect_stdin_and_stdout, &pipe_type) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|bl", &callback, &redirect_stdin_and_stdout, &pipe_type) == FAILURE)
     {
         RETURN_FALSE;
     }
 
     char *func_name = NULL;
-    if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
+    if (!sw_zend_is_callable(callback, 0, &func_name))
     {
         swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
         efree(func_name);
@@ -314,11 +314,11 @@ static PHP_METHOD(swoole_process, __construct)
         process->pipe_worker = _pipe->getFd(_pipe, SW_PIPE_WORKER);
         process->pipe = process->pipe_master;
 
-        zend_update_property_long(swoole_process_class_entry_ptr, getThis(), ZEND_STRL("pipe"), process->pipe_master TSRMLS_CC);
+        zend_update_property_long(swoole_process_class_entry_ptr, getThis(), ZEND_STRL("pipe"), process->pipe_master);
     }
 
     swoole_set_object(getThis(), process);
-    zend_update_property(swoole_process_class_entry_ptr, getThis(), ZEND_STRL("callback"), callback TSRMLS_CC);
+    zend_update_property(swoole_process_class_entry_ptr, getThis(), ZEND_STRL("callback"), callback);
 }
 
 static PHP_METHOD(swoole_process, __destruct)
@@ -344,7 +344,7 @@ static PHP_METHOD(swoole_process, wait)
     int status;
     zend_bool blocking = 1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|b", &blocking) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|b", &blocking) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -374,7 +374,7 @@ static PHP_METHOD(swoole_process, useQueue)
     long msgkey = 0;
     long mode = 2;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|ll", &msgkey, &mode) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|ll", &msgkey, &mode) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -398,8 +398,8 @@ static PHP_METHOD(swoole_process, useQueue)
     }
     process->queue = queue;
     process->ipc_mode = mode;
-    zend_update_property_long(swoole_process_class_entry_ptr, getThis(), ZEND_STRL("msgQueueId"), queue->msg_id TSRMLS_CC);
-    zend_update_property_long(swoole_process_class_entry_ptr, getThis(), ZEND_STRL("msgQueueKey"), msgkey TSRMLS_CC);
+    zend_update_property_long(swoole_process_class_entry_ptr, getThis(), ZEND_STRL("msgQueueId"), queue->msg_id);
+    zend_update_property_long(swoole_process_class_entry_ptr, getThis(), ZEND_STRL("msgQueueKey"), msgkey);
     RETURN_TRUE;
 }
 
@@ -446,7 +446,7 @@ static PHP_METHOD(swoole_process, kill)
     long pid;
     long sig = SIGTERM;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|l", &pid, &sig) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|l", &pid, &sig) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -468,7 +468,7 @@ static PHP_METHOD(swoole_process, signal)
     zval *callback = NULL;
     long signo = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lz", &signo, &callback) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "lz", &signo, &callback) == FAILURE)
     {
         return;
     }
@@ -524,7 +524,7 @@ static PHP_METHOD(swoole_process, signal)
     else
     {
         char *func_name;
-        if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
+        if (!sw_zend_is_callable(callback, 0, &func_name))
         {
             swoole_php_error(E_WARNING, "function '%s' is not callable", func_name);
             efree(func_name);
@@ -565,7 +565,7 @@ static PHP_METHOD(swoole_process, alarm)
     long usec = 0;
     long type = ITIMER_REAL;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|l", &usec, &type) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|l", &usec, &type) == FAILURE)
     {
         return;
     }
@@ -639,7 +639,7 @@ static void php_swoole_onSignal(int signo)
     }
     if (EG(exception))
     {
-        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+        zend_exception_error(EG(exception), E_ERROR);
     }
     if (retval != NULL)
     {
@@ -648,7 +648,7 @@ static void php_swoole_onSignal(int signo)
     zval_ptr_dtor(zsigno);
 }
 
-int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
+int php_swoole_process_start(swWorker *process, zval *object)
 {
     process->pipe = process->pipe_worker;
     process->pid = getpid();
@@ -703,10 +703,10 @@ int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
 
     swSignal_clear();
 
-    zend_update_property_long(swoole_process_class_entry_ptr, object, ZEND_STRL("pid"), process->pid TSRMLS_CC);
-    zend_update_property_long(swoole_process_class_entry_ptr, object, ZEND_STRL("pipe"), process->pipe_worker TSRMLS_CC);
+    zend_update_property_long(swoole_process_class_entry_ptr, object, ZEND_STRL("pid"), process->pid);
+    zend_update_property_long(swoole_process_class_entry_ptr, object, ZEND_STRL("pipe"), process->pipe_worker);
 
-    zval *zcallback = sw_zend_read_property(swoole_process_class_entry_ptr, object, ZEND_STRL("callback"), 0 TSRMLS_CC);
+    zval *zcallback = sw_zend_read_property(swoole_process_class_entry_ptr, object, ZEND_STRL("callback"), 0);
     zval args[1];
 
     if (zcallback == NULL || ZVAL_IS_NULL(zcallback))
@@ -726,7 +726,7 @@ int php_swoole_process_start(swWorker *process, zval *object TSRMLS_DC)
     }
     if (EG(exception))
     {
-        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+        zend_exception_error(EG(exception), E_ERROR);
     }
     if (retval)
     {
@@ -763,13 +763,13 @@ static PHP_METHOD(swoole_process, start)
     {
         process->pid = pid;
         process->child_process = 0;
-        zend_update_property_long(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("pid"), process->pid TSRMLS_CC);
+        zend_update_property_long(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("pid"), process->pid);
         RETURN_LONG(pid);
     }
     else
     {
         process->child_process = 1;
-        SW_CHECK_RETURN(php_swoole_process_start(process, getThis() TSRMLS_CC));
+        SW_CHECK_RETURN(php_swoole_process_start(process, getThis()));
     }
     RETURN_TRUE;
 }
@@ -778,7 +778,7 @@ static PHP_METHOD(swoole_process, read)
 {
     long buf_size = 8192;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &buf_size) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &buf_size) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -817,7 +817,7 @@ static PHP_METHOD(swoole_process, write)
     char *data = NULL;
     zend_size_t data_len = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &data, &data_len) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &data, &data_len) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -874,7 +874,7 @@ static PHP_METHOD(swoole_process, push)
         char data[SW_MSGMAX];
     } message;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &data, &length) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &data, &length) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -912,7 +912,7 @@ static PHP_METHOD(swoole_process, pop)
 {
     long maxsize = SW_MSGMAX;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &maxsize) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &maxsize) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -958,7 +958,7 @@ static PHP_METHOD(swoole_process, exec)
     zend_size_t execfile_len = 0;
     zval *args;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sa", &execfile, &execfile_len, &args) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sa", &execfile, &execfile_len, &args) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -1000,7 +1000,7 @@ static PHP_METHOD(swoole_process, daemon)
     zend_bool nochdir = 1;
     zend_bool noclose = 1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|bb", &nochdir, &noclose) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|bb", &nochdir, &noclose) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -1011,7 +1011,7 @@ static PHP_METHOD(swoole_process, daemon)
 static PHP_METHOD(swoole_process, setaffinity)
 {
     zval *array;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a", &array) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "a", &array) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -1057,7 +1057,7 @@ static PHP_METHOD(swoole_process, exit)
 {
     long ret_code = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &ret_code) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &ret_code) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -1093,7 +1093,7 @@ static PHP_METHOD(swoole_process, exit)
 static PHP_METHOD(swoole_process, close)
 {
     long which = 0;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &which) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &which) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -1135,7 +1135,7 @@ static PHP_METHOD(swoole_process, close)
 static PHP_METHOD(swoole_process, setTimeout)
 {
     double seconds;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "d", &seconds) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "d", &seconds) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -1152,7 +1152,7 @@ static PHP_METHOD(swoole_process, setTimeout)
 static PHP_METHOD(swoole_process, setBlocking)
 {
     zend_bool blocking;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "b", &blocking) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "b", &blocking) == FAILURE)
     {
         RETURN_FALSE;
     }

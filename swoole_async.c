@@ -118,7 +118,7 @@ static void php_swoole_file_request_free(void *data)
     efree(file_req);
 }
 
-void swoole_async_init(int module_number TSRMLS_DC)
+void swoole_async_init(int module_number)
 {
     bzero(&SwooleAIO, sizeof(SwooleAIO));
 
@@ -178,7 +178,7 @@ static void php_swoole_dns_callback(char *domain, swDNSResolver_result *result, 
     }
     if (EG(exception))
     {
-        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+        zend_exception_error(EG(exception), E_ERROR);
     }
 
     zval_ptr_dtor(req->callback);
@@ -431,7 +431,7 @@ static void php_swoole_aio_onFileCompleted(swAio_event *event)
         }
         if (EG(exception))
         {
-            zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+            zend_exception_error(EG(exception), E_ERROR);
         }
     }
 
@@ -511,7 +511,7 @@ PHP_FUNCTION(swoole_async_read)
     long offset = 0;
     int open_flag = O_RDONLY;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zz|ll", &filename, &callback, &buf_size, &offset) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "zz|ll", &filename, &callback, &buf_size, &offset) == FAILURE)
     {
         return;
     }
@@ -521,7 +521,7 @@ PHP_FUNCTION(swoole_async_read)
         swoole_php_fatal_error(E_WARNING, "offset must be greater than 0.");
         RETURN_FALSE;
     }
-    if (!php_swoole_is_callable(callback TSRMLS_CC))
+    if (!php_swoole_is_callable(callback))
     {
         RETURN_FALSE;
     }
@@ -567,7 +567,7 @@ PHP_FUNCTION(swoole_async_read)
     Z_TRY_ADDREF_P(filename);
     sw_copy_to_stack(req->filename, req->_filename);
 
-    if (!php_swoole_is_callable(callback TSRMLS_CC))
+    if (!php_swoole_is_callable(callback))
     {
         RETURN_FALSE;
     }
@@ -614,7 +614,7 @@ PHP_FUNCTION(swoole_async_write)
     zend_size_t fcnt_len = 0;
     off_t offset = -1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zs|lz", &filename, &fcnt, &fcnt_len, &offset, &callback) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "zs|lz", &filename, &fcnt, &fcnt_len, &offset, &callback) == FAILURE)
     {
         return;
     }
@@ -624,7 +624,7 @@ PHP_FUNCTION(swoole_async_write)
     }
     if (callback && !ZVAL_IS_NULL(callback))
     {
-        if (!php_swoole_is_callable(callback TSRMLS_CC))
+        if (!php_swoole_is_callable(callback))
         {
             RETURN_FALSE;
         }
@@ -708,7 +708,7 @@ PHP_FUNCTION(swoole_async_readfile)
     zval *filename;
 
     int open_flag = O_RDONLY;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zz", &filename, &callback) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "zz", &filename, &callback) == FAILURE)
     {
         return;
     }
@@ -720,7 +720,7 @@ PHP_FUNCTION(swoole_async_readfile)
         swoole_php_fatal_error(E_WARNING, "open file[%s] failed. Error: %s[%d]", Z_STRVAL_P(filename), strerror(errno), errno);
         RETURN_FALSE;
     }
-    if (!php_swoole_is_callable(callback TSRMLS_CC))
+    if (!php_swoole_is_callable(callback))
     {
         RETURN_FALSE;
     }
@@ -796,7 +796,7 @@ PHP_FUNCTION(swoole_async_writefile)
     zend_size_t fcnt_len;
     long flags = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "zs|zl", &filename, &fcnt, &fcnt_len, &callback, &flags) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "zs|zl", &filename, &fcnt, &fcnt_len, &callback, &flags) == FAILURE)
     {
         return;
     }
@@ -821,7 +821,7 @@ PHP_FUNCTION(swoole_async_writefile)
     }
     if (callback && !ZVAL_IS_NULL(callback))
     {
-        if (!php_swoole_is_callable(callback TSRMLS_CC))
+        if (!php_swoole_is_callable(callback))
         {
             RETURN_FALSE;
         }
@@ -899,7 +899,7 @@ PHP_FUNCTION(swoole_async_set)
     HashTable *vht;
     zval *v;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zset) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &zset) == FAILURE)
     {
         return;
     }
@@ -985,7 +985,7 @@ PHP_FUNCTION(swoole_async_dns_lookup)
     zval *domain;
     zval *cb;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zz", &domain, &cb) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "zz", &domain, &cb) == FAILURE)
     {
         return;
     }
@@ -1002,7 +1002,7 @@ PHP_FUNCTION(swoole_async_dns_lookup)
         RETURN_FALSE;
     }
 
-    if (!php_swoole_is_callable(cb TSRMLS_CC))
+    if (!php_swoole_is_callable(cb))
     {
         RETURN_FALSE;
     }
@@ -1141,7 +1141,7 @@ static int process_stream_onRead(swReactor *reactor, swEvent *event)
 
     if (EG(exception))
     {
-        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+        zend_exception_error(EG(exception), E_ERROR);
     }
     if (retval != NULL)
     {
@@ -1161,7 +1161,7 @@ PHP_METHOD(swoole_async, exec)
     zend_size_t command_len;
     zval *callback;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sz", &command, &command_len, &callback) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &command, &command_len, &callback) == FAILURE)
     {
         return;
     }
@@ -1218,12 +1218,12 @@ PHP_FUNCTION(swoole_coroutine_exec)
     char *command;
     zend_size_t command_len;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &command, &command_len) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &command, &command_len) == FAILURE)
     {
         return;
     }
 
-    coro_check(TSRMLS_C);
+    coro_check();
 
     php_swoole_check_reactor();
     if (!swReactor_handle_isset(SwooleG.main_reactor, PHP_SWOOLE_FD_PROCESS_STREAM))
@@ -1272,11 +1272,11 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro)
 {
     zval *domain;
     double timeout = SW_CLIENT_DEFAULT_TIMEOUT;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|d", &domain, &timeout) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|d", &domain, &timeout) == FAILURE)
     {
         RETURN_FALSE;
     }
-    coro_check(TSRMLS_C);
+    coro_check();
     if (Z_TYPE_P(domain) != IS_STRING)
     {
         swoole_php_fatal_error(E_WARNING, "invalid domain name.");

@@ -166,7 +166,7 @@ static sw_inline zval* sw_zend_read_property_array(zend_class_entry *class_ptr, 
     {
         zval temp_array;
         array_init(&temp_array);
-        zend_update_property(class_ptr, obj, s, len, &temp_array TSRMLS_CC);
+        zend_update_property(class_ptr, obj, s, len, &temp_array);
         zval_ptr_dtor(&temp_array);
         // NOTICE: if user unset the property, zend_read_property will return uninitialized_zval instead of NULL pointer
         if (unlikely(property == &EG(uninitialized_zval)))
@@ -188,7 +188,7 @@ static sw_inline int sw_zend_is_callable(zval *cb, int a, char **name)
     return ret;
 }
 
-static inline int sw_zend_is_callable_ex(zval *callable, zval *object, uint check_flags, char **callable_name, int *callable_name_len, zend_fcall_info_cache *fcc, char **error TSRMLS_DC)
+static inline int sw_zend_is_callable_ex(zval *callable, zval *object, uint check_flags, char **callable_name, int *callable_name_len, zend_fcall_info_cache *fcc, char **error)
 {
     zend_string *key = NULL;
     int ret = zend_is_callable_ex(callable, NULL, check_flags, &key, fcc, error);
@@ -222,7 +222,7 @@ static inline int sw_zend_register_class_alias(const char *name, zend_class_entr
 #endif
 }
 
-static sw_inline char* sw_http_build_query(zval *data, zend_size_t *length, smart_str *formstr TSRMLS_DC)
+static sw_inline char* sw_http_build_query(zval *data, zend_size_t *length, smart_str *formstr)
 {
     if (php_url_encode_hash_ex(HASH_OF(data), formstr, NULL, 0, NULL, 0, NULL, 0, NULL, NULL, (int) PHP_QUERY_RFC1738) == FAILURE)
     {

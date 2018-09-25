@@ -169,6 +169,6 @@ static sw_inline void http2_add_header(nghttp2_nv *headers, char *k, int kl, cha
     swTrace("k=%s, len=%d, v=%s, len=%d", k, kl, v, vl);
 }
 
-void http2_add_cookie(nghttp2_nv *nv, int *index, zval *cookies TSRMLS_DC);
+void http2_add_cookie(nghttp2_nv *nv, int *index, zval *cookies);
 
 #endif

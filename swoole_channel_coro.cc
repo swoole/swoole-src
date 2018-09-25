@@ -67,7 +67,7 @@ static const zend_function_entry swoole_channel_coro_methods[] =
     PHP_FE_END
 };
 
-void swoole_channel_coro_init(int module_number TSRMLS_DC)
+void swoole_channel_coro_init(int module_number)
 {
     INIT_CLASS_ENTRY(swoole_channel_coro_ce, "Swoole\\Coroutine\\Channel", swoole_channel_coro_methods);
     swoole_channel_coro_class_entry_ptr = zend_register_internal_class(&swoole_channel_coro_ce);
@@ -121,7 +121,7 @@ static PHP_METHOD(swoole_channel_coro, __destruct)
 
 static PHP_METHOD(swoole_channel_coro, push)
 {
-    coro_check(TSRMLS_C);
+    coro_check();
 
     Channel *chan = (Channel *) swoole_get_object(getThis());
     if (chan->closed)
@@ -150,7 +150,7 @@ static PHP_METHOD(swoole_channel_coro, push)
 
 static PHP_METHOD(swoole_channel_coro, pop)
 {
-    coro_check(TSRMLS_C);
+    coro_check();
 
     Channel *chan = (Channel *) swoole_get_object(getThis());
     if (chan->closed)

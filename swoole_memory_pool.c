@@ -95,21 +95,21 @@ static const zend_function_entry swoole_memory_pool_slice_methods[] =
     PHP_FE_END
 };
 
-void swoole_memory_pool_init(int module_number TSRMLS_DC)
+void swoole_memory_pool_init(int module_number)
 {
     static zend_class_entry _ce;
     INIT_CLASS_ENTRY(_ce, "Swoole\\Memory\\Pool", swoole_memory_pool_methods);
-    ce = zend_register_internal_class(&_ce TSRMLS_CC);
+    ce = zend_register_internal_class(&_ce);
 
     static zend_class_entry _ce_slice;
     INIT_CLASS_ENTRY(_ce_slice, "Swoole\\Memory\\Pool\\Slice", swoole_memory_pool_slice_methods);
-    ce_slice = zend_register_internal_class(&_ce_slice TSRMLS_CC);
+    ce_slice = zend_register_internal_class(&_ce_slice);
 
-    zend_declare_class_constant_long(ce, SW_STRL("TYPE_RING")-1, memory_pool_type_ring TSRMLS_CC);
-    zend_declare_class_constant_long(ce, SW_STRL("TYPE_GLOBAL")-1, memory_pool_type_global TSRMLS_CC);
-    zend_declare_class_constant_long(ce, SW_STRL("TYPE_FIXED")-1, memory_pool_type_fixed TSRMLS_CC);
-    zend_declare_class_constant_long(ce, SW_STRL("TYPE_MALLOC")-1, memory_pool_type_malloc TSRMLS_CC);
-    zend_declare_class_constant_long(ce, SW_STRL("TYPE_EMALLOC")-1, memory_pool_type_emalloc TSRMLS_CC);
+    zend_declare_class_constant_long(ce, SW_STRL("TYPE_RING")-1, memory_pool_type_ring);
+    zend_declare_class_constant_long(ce, SW_STRL("TYPE_GLOBAL")-1, memory_pool_type_global);
+    zend_declare_class_constant_long(ce, SW_STRL("TYPE_FIXED")-1, memory_pool_type_fixed);
+    zend_declare_class_constant_long(ce, SW_STRL("TYPE_MALLOC")-1, memory_pool_type_malloc);
+    zend_declare_class_constant_long(ce, SW_STRL("TYPE_EMALLOC")-1, memory_pool_type_emalloc);
 }
 
 static PHP_METHOD(swoole_memory_pool, __construct)
@@ -131,7 +131,7 @@ static PHP_METHOD(swoole_memory_pool, __construct)
         void *memory = (shared == 1) ? sw_shm_malloc(size) : sw_malloc(size);
         if (memory == NULL)
         {
-            zend_throw_exception(swoole_exception_class_entry_ptr, "malloc failed.", SW_ERROR_MALLOC_FAIL TSRMLS_CC);
+            zend_throw_exception(swoole_exception_class_entry_ptr, "malloc failed.", SW_ERROR_MALLOC_FAIL);
             RETURN_FALSE;
         }
         pool = swFixedPool_new2(slice_size, memory, size);
@@ -150,7 +150,7 @@ static PHP_METHOD(swoole_memory_pool, __construct)
     }
     else
     {
-        zend_throw_exception(swoole_exception_class_entry_ptr, "unknown memory pool type.", SW_ERROR_INVALID_PARAMS TSRMLS_CC);
+        zend_throw_exception(swoole_exception_class_entry_ptr, "unknown memory pool type.", SW_ERROR_INVALID_PARAMS);
         RETURN_FALSE;
     }
 
@@ -165,7 +165,7 @@ static PHP_METHOD(swoole_memory_pool, __construct)
     }
     if (mp == NULL)
     {
-        zend_throw_exception(swoole_exception_class_entry_ptr, "malloc failed.", SW_ERROR_MALLOC_FAIL TSRMLS_CC);
+        zend_throw_exception(swoole_exception_class_entry_ptr, "malloc failed.", SW_ERROR_MALLOC_FAIL);
         RETURN_FALSE;
     }
 
@@ -192,7 +192,7 @@ static PHP_METHOD(swoole_memory_pool, alloc)
 
     if (mp->type != memory_pool_type_fixed && size <= 0)
     {
-        zend_throw_exception(swoole_exception_class_entry_ptr, "invalid size.", SW_ERROR_INVALID_PARAMS TSRMLS_CC);
+        zend_throw_exception(swoole_exception_class_entry_ptr, "invalid size.", SW_ERROR_INVALID_PARAMS);
         RETURN_FALSE;
     }
 

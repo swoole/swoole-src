@@ -146,10 +146,10 @@ static void swoole_socket_coro_free_storage(zend_object *object)
     zend_object_std_dtor(&sock->std);
 }
 
-static zend_object *swoole_socket_coro_create(zend_class_entry *ce TSRMLS_DC)
+static zend_object *swoole_socket_coro_create(zend_class_entry *ce)
 {
     socket_coro *sock = (socket_coro *) ecalloc(1, sizeof(socket_coro) + zend_object_properties_size(ce));
-    zend_object_std_init(&sock->std, ce TSRMLS_CC);
+    zend_object_std_init(&sock->std, ce);
     /* Even if you don't use properties yourself you should still call object_properties_init(),
      * because extending classes may use properties. (Generally a lot of the stuff you will do is
      * for the sake of not breaking extending classes). */
@@ -158,16 +158,16 @@ static zend_object *swoole_socket_coro_create(zend_class_entry *ce TSRMLS_DC)
     return &sock->std;
 }
 
-void swoole_socket_coro_init(int module_number TSRMLS_DC)
+void swoole_socket_coro_init(int module_number)
 {
     INIT_CLASS_ENTRY(swoole_socket_coro_ce, "Swoole\\Coroutine\\Socket", swoole_socket_coro_methods);
 
-    swoole_socket_coro_class_entry_ptr = zend_register_internal_class(&swoole_socket_coro_ce TSRMLS_CC);
+    swoole_socket_coro_class_entry_ptr = zend_register_internal_class(&swoole_socket_coro_ce);
     swoole_socket_coro_class_entry_ptr->ce_flags |= ZEND_ACC_FINAL;
     swoole_socket_coro_class_entry_ptr->create_object = swoole_socket_coro_create;
     swoole_socket_coro_class_entry_ptr->serialize = zend_class_serialize_deny;
     swoole_socket_coro_class_entry_ptr->unserialize = zend_class_unserialize_deny;
-    zend_declare_property_long(swoole_socket_coro_class_entry_ptr, SW_STRL("errCode") - 1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(swoole_socket_coro_class_entry_ptr, SW_STRL("errCode") - 1, 0, ZEND_ACC_PUBLIC);
 
     memcpy(&swoole_socket_coro_handlers, zend_get_std_object_handlers(), sizeof(swoole_socket_coro_handlers));
     swoole_socket_coro_handlers.free_obj = swoole_socket_coro_free_storage;
@@ -176,7 +176,7 @@ void swoole_socket_coro_init(int module_number TSRMLS_DC)
 
     INIT_CLASS_ENTRY(swoole_socket_coro_exception_ce, "Swoole\\Coroutine\\Socket\\Exception", NULL);
     swoole_socket_coro_exception_class_entry_ptr = sw_zend_register_internal_class_ex(&swoole_socket_coro_exception_ce,
-            zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
+            zend_exception_get_default(), NULL);
 
     if (SWOOLE_G(use_shortname))
     {
@@ -196,7 +196,7 @@ static PHP_METHOD(swoole_socket_coro, __construct)
         Z_PARAM_LONG(protocol);
     ZEND_PARSE_PARAMETERS_END();
 #else
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lll", &domain, &type, &protocol) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "lll", &domain, &type, &protocol) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -223,7 +223,7 @@ static PHP_METHOD(swoole_socket_coro, bind)
         Z_PARAM_LONG(port);
     ZEND_PARSE_PARAMETERS_END();
 #else
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|l", &address, &l_address, &port) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|l", &address, &l_address, &port) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -232,7 +232,7 @@ static PHP_METHOD(swoole_socket_coro, bind)
     socket_coro *sock = (socket_coro *) Z_SOCKET_CORO_OBJ_P(getThis());
     if (!sock->socket->bind(std::string(address, l_address), port))
     {
-        zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), sock->socket->errCode TSRMLS_CC);
+        zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), sock->socket->errCode);
         RETURN_FALSE;
     }
     RETURN_TRUE;
@@ -248,7 +248,7 @@ static PHP_METHOD(swoole_socket_coro, listen)
         Z_PARAM_LONG(backlog);
     ZEND_PARSE_PARAMETERS_END();
 #else
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &backlog) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &backlog) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -257,7 +257,7 @@ static PHP_METHOD(swoole_socket_coro, listen)
     socket_coro *sock = (socket_coro *) Z_SOCKET_CORO_OBJ_P(getThis());
     if (!sock->socket->listen(backlog))
     {
-        zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), sock->socket->errCode TSRMLS_CC);
+        zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), sock->socket->errCode);
         RETURN_FALSE;
     }
     RETURN_TRUE;
@@ -273,7 +273,7 @@ static PHP_METHOD(swoole_socket_coro, accept)
         Z_PARAM_DOUBLE(timeout);
     ZEND_PARSE_PARAMETERS_END();
 #else
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|d", &timeout) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|d", &timeout) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -294,14 +294,14 @@ static PHP_METHOD(swoole_socket_coro, accept)
     }
     else
     {
-        zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), sock->socket->errCode TSRMLS_CC);
+        zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), sock->socket->errCode);
         RETURN_FALSE;
     }
 }
 
 static PHP_METHOD(swoole_socket_coro, recv)
 {
-    coro_check(TSRMLS_C);
+    coro_check();
 
     long length = SW_BUFFER_SIZE_BIG;
     double timeout = -1;
@@ -313,7 +313,7 @@ static PHP_METHOD(swoole_socket_coro, recv)
         Z_PARAM_DOUBLE(timeout);
     ZEND_PARSE_PARAMETERS_END();
 #else
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|ld", &length, &timeout) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|ld", &length, &timeout) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -331,7 +331,7 @@ static PHP_METHOD(swoole_socket_coro, recv)
     ssize_t bytes = sock->socket->recv(ZSTR_VAL(buf), length);
     if (bytes < 0)
     {
-        zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), sock->socket->errCode TSRMLS_CC);
+        zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), sock->socket->errCode);
         zend_string_free(buf);
         RETURN_FALSE;
     }
@@ -360,7 +360,7 @@ static PHP_METHOD(swoole_socket_coro, recvfrom)
         Z_PARAM_DOUBLE(timeout);
     ZEND_PARSE_PARAMETERS_END();
 #else
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z/|d", &peername, &timeout) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z/|d", &peername, &timeout) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -373,7 +373,7 @@ static PHP_METHOD(swoole_socket_coro, recvfrom)
     ssize_t bytes = sock->socket->recvfrom(ZSTR_VAL(buf), SW_BUFFER_SIZE_BIG);
     if (bytes < 0)
     {
-        zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), sock->socket->errCode TSRMLS_CC);
+        zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), sock->socket->errCode);
         zend_string_free(buf);
         RETURN_FALSE;
     }
@@ -420,7 +420,7 @@ static PHP_METHOD(swoole_socket_coro, send)
         Z_PARAM_DOUBLE(timeout);
     ZEND_PARSE_PARAMETERS_END();
 #else
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|d", &data, &l_data, &timeout) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|d", &data, &l_data, &timeout) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -430,7 +430,7 @@ static PHP_METHOD(swoole_socket_coro, send)
     ssize_t retval = sock->socket->send(data, l_data);
     if (retval < 0)
     {
-        zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), sock->socket->errCode TSRMLS_CC);
+        zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), sock->socket->errCode);
         RETURN_FALSE;
     }
     else
@@ -454,7 +454,7 @@ static PHP_METHOD(swoole_socket_coro, sendto)
         Z_PARAM_STRING(data, l_data);
     ZEND_PARSE_PARAMETERS_END();
 #else
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sls", &addr, &l_addr, &port, &data, &l_data) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sls", &addr, &l_addr, &port, &data, &l_data) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -464,7 +464,7 @@ static PHP_METHOD(swoole_socket_coro, sendto)
     ssize_t retval = sock->socket->sendto(addr, port, data, l_data);
     if (retval < 0)
     {
-        zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), sock->socket->errCode TSRMLS_CC);
+        zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), sock->socket->errCode);
         RETURN_FALSE;
     }
     else
@@ -475,13 +475,13 @@ static PHP_METHOD(swoole_socket_coro, sendto)
 
 static PHP_METHOD(swoole_socket_coro, close)
 {
-    coro_check(TSRMLS_C);
+    coro_check();
 
     socket_coro *sock = (socket_coro *) Z_SOCKET_CORO_OBJ_P(getThis());
 
     if (sock->socket->close())
     {
-        zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), sock->socket->errCode TSRMLS_CC);
+        zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), sock->socket->errCode);
         RETURN_FALSE;
     }
     else
@@ -500,7 +500,7 @@ static PHP_METHOD(swoole_socket_coro, getsockname)
 
     if (getsockname(sock->socket->get_fd(), (struct sockaddr *) &info.addr.inet_v4, &info.len) != 0)
     {
-        zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), errno TSRMLS_CC);
+        zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), errno);
         RETURN_FALSE;
     }
 
@@ -535,7 +535,7 @@ static PHP_METHOD(swoole_socket_coro, getpeername)
 
     if (getpeername(sock->socket->get_fd(), (struct sockaddr *) &info.addr, &info.len) != 0)
     {
-        zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), errno TSRMLS_CC);
+        zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), errno);
         RETURN_FALSE;
     }
 
@@ -562,7 +562,7 @@ static PHP_METHOD(swoole_socket_coro, getpeername)
 
 static PHP_METHOD(swoole_socket_coro, connect)
 {
-    coro_check(TSRMLS_C);
+    coro_check();
 
     socket_coro *sock = (socket_coro *) Z_SOCKET_CORO_OBJ_P(getThis());
     char *host;
@@ -578,7 +578,7 @@ static PHP_METHOD(swoole_socket_coro, connect)
         Z_PARAM_DOUBLE(timeout);
     ZEND_PARSE_PARAMETERS_END();
 #else
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|ld", &host, &l_host, &port, &timeout) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|ld", &host, &l_host, &port, &timeout) == FAILURE)
     {
         RETURN_FALSE;
     }

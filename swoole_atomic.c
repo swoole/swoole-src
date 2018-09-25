@@ -139,16 +139,16 @@ static const zend_function_entry swoole_atomic_long_methods[] =
     PHP_FE_END
 };
 
-void swoole_atomic_init(int module_number TSRMLS_DC)
+void swoole_atomic_init(int module_number)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_atomic_ce, "swoole_atomic", "Swoole\\Atomic", swoole_atomic_methods);
-    swoole_atomic_class_entry_ptr = zend_register_internal_class(&swoole_atomic_ce TSRMLS_CC);
+    swoole_atomic_class_entry_ptr = zend_register_internal_class(&swoole_atomic_ce);
     swoole_atomic_class_entry_ptr->serialize = zend_class_serialize_deny;
     swoole_atomic_class_entry_ptr->unserialize = zend_class_unserialize_deny;
     SWOOLE_CLASS_ALIAS(swoole_atomic, "Swoole\\Atomic");
 
     SWOOLE_INIT_CLASS_ENTRY(swoole_atomic_long_ce, "swoole_atomic_long", "Swoole\\Atomic\\Long", swoole_atomic_long_methods);
-    swoole_atomic_long_class_entry_ptr = zend_register_internal_class(&swoole_atomic_long_ce TSRMLS_CC);
+    swoole_atomic_long_class_entry_ptr = zend_register_internal_class(&swoole_atomic_long_ce);
     swoole_atomic_long_class_entry_ptr->serialize = zend_class_serialize_deny;
     swoole_atomic_long_class_entry_ptr->unserialize = zend_class_unserialize_deny;
     SWOOLE_CLASS_ALIAS(swoole_atomic_long, "Swoole\\Atomic\\Long");
@@ -164,7 +164,7 @@ PHP_METHOD(swoole_atomic, __construct)
         Z_PARAM_LONG(value)
     ZEND_PARSE_PARAMETERS_END();
 #else
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &value) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &value) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -173,7 +173,7 @@ PHP_METHOD(swoole_atomic, __construct)
     sw_atomic_t *atomic = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(sw_atomic_t));
     if (atomic == NULL)
     {
-        zend_throw_exception(swoole_exception_class_entry_ptr, "global memory allocation failure.", SW_ERROR_MALLOC_FAIL TSRMLS_CC);
+        zend_throw_exception(swoole_exception_class_entry_ptr, "global memory allocation failure.", SW_ERROR_MALLOC_FAIL);
         RETURN_FALSE;
     }
     *atomic = (sw_atomic_t) value;
@@ -193,7 +193,7 @@ PHP_METHOD(swoole_atomic, add)
         Z_PARAM_LONG(add_value)
     ZEND_PARSE_PARAMETERS_END();
 #else
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &add_value) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &add_value) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -212,7 +212,7 @@ PHP_METHOD(swoole_atomic, sub)
         Z_PARAM_LONG(sub_value)
     ZEND_PARSE_PARAMETERS_END();
 #else
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &sub_value) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &sub_value) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -236,7 +236,7 @@ PHP_METHOD(swoole_atomic, set)
         Z_PARAM_LONG(set_value)
     ZEND_PARSE_PARAMETERS_END();
 #else
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &set_value) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &set_value) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -255,7 +255,7 @@ PHP_METHOD(swoole_atomic, cmpset)
         Z_PARAM_LONG(set_value)
     ZEND_PARSE_PARAMETERS_END();
 #else
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ll", &cmp_value, &set_value) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "ll", &cmp_value, &set_value) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -275,7 +275,7 @@ PHP_METHOD(swoole_atomic, wait)
         Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END();
 #else
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|d", &timeout) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|d", &timeout) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -311,7 +311,7 @@ PHP_METHOD(swoole_atomic, wakeup)
         Z_PARAM_LONG(n)
     ZEND_PARSE_PARAMETERS_END();
 #else
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &n) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &n) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -334,7 +334,7 @@ PHP_METHOD(swoole_atomic_long, __construct)
         Z_PARAM_LONG(value)
     ZEND_PARSE_PARAMETERS_END();
 #else
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &value) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &value) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -343,7 +343,7 @@ PHP_METHOD(swoole_atomic_long, __construct)
     sw_atomic_long_t *atomic = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(sw_atomic_long_t));
     if (atomic == NULL)
     {
-        zend_throw_exception(swoole_exception_class_entry_ptr, "global memory allocation failure.", SW_ERROR_MALLOC_FAIL TSRMLS_CC);
+        zend_throw_exception(swoole_exception_class_entry_ptr, "global memory allocation failure.", SW_ERROR_MALLOC_FAIL);
         RETURN_FALSE;
     }
     *atomic = (sw_atomic_long_t) value;
@@ -363,7 +363,7 @@ PHP_METHOD(swoole_atomic_long, add)
         Z_PARAM_LONG(add_value)
     ZEND_PARSE_PARAMETERS_END();
 #else
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &add_value) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &add_value) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -383,7 +383,7 @@ PHP_METHOD(swoole_atomic_long, sub)
         Z_PARAM_LONG(sub_value)
     ZEND_PARSE_PARAMETERS_END();
 #else
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &sub_value) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &sub_value) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -408,7 +408,7 @@ PHP_METHOD(swoole_atomic_long, set)
         Z_PARAM_LONG(set_value)
     ZEND_PARSE_PARAMETERS_END();
 #else
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &set_value) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &set_value) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -427,7 +427,7 @@ PHP_METHOD(swoole_atomic_long, cmpset)
         Z_PARAM_LONG(set_value)
     ZEND_PARSE_PARAMETERS_END();
 #else
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ll", &cmp_value, &set_value) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "ll", &cmp_value, &set_value) == FAILURE)
     {
         RETURN_FALSE;
     }

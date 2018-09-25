@@ -412,7 +412,7 @@ static void swoole_http_client_coro_free_storage(zend_object *object)
     zend_object_std_dtor(object);
 }
 
-static zend_object *swoole_http_client_coro_create(zend_class_entry *ce TSRMLS_DC)
+static zend_object *swoole_http_client_coro_create(zend_class_entry *ce)
 {
     zend_object *object;
     object = zend_objects_new(ce);
@@ -432,7 +432,7 @@ static zend_object *swoole_http_client_coro_create(zend_class_entry *ce TSRMLS_D
     return object;
 }
 
-void swoole_http_client_coro_init(int module_number TSRMLS_DC)
+void swoole_http_client_coro_init(int module_number)
 {
     INIT_CLASS_ENTRY(swoole_http_client_coro_ce, "Swoole\\Coroutine\\Http\\Client", swoole_http_client_coro_methods);
     swoole_http_client_coro_class_entry_ptr = zend_register_internal_class(&swoole_http_client_coro_ce);
@@ -1008,7 +1008,7 @@ static PHP_METHOD(swoole_http_client_coro, set)
 static PHP_METHOD(swoole_http_client_coro, setHeaders)
 {
     zval *headers;
-    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "z", &headers) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &headers) == FAILURE)
     {
         return;
     }
@@ -1022,7 +1022,7 @@ static PHP_METHOD(swoole_http_client_coro, setHeaders)
 static PHP_METHOD(swoole_http_client_coro, setCookies)
 {
     zval *cookies;
-    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "z", &cookies) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &cookies) == FAILURE)
     {
         return;
     }
@@ -1067,7 +1067,7 @@ static PHP_METHOD(swoole_http_client_coro, recv)
         RETURN_FALSE;
     }
     double timeout = http->timeout;
-    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "|d", &timeout) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|d", &timeout) == FAILURE)
     {
         return;
     }

@@ -249,29 +249,29 @@ static inline void php_swoole_table_get_field_value(swTable *table, swTableRow *
     }
 }
 
-void swoole_table_init(int module_number TSRMLS_DC)
+void swoole_table_init(int module_number)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_table_ce, "swoole_table", "Swoole\\Table", swoole_table_methods);
-    swoole_table_class_entry_ptr = zend_register_internal_class(&swoole_table_ce TSRMLS_CC);
+    swoole_table_class_entry_ptr = zend_register_internal_class(&swoole_table_ce);
     swoole_table_class_entry_ptr->serialize = zend_class_serialize_deny;
     swoole_table_class_entry_ptr->unserialize = zend_class_unserialize_deny;
     SWOOLE_CLASS_ALIAS(swoole_table, "Swoole\\Table");
-    zend_class_implements(swoole_table_class_entry_ptr TSRMLS_CC, 2, zend_ce_iterator, zend_ce_arrayaccess);
+    zend_class_implements(swoole_table_class_entry_ptr, 2, zend_ce_iterator, zend_ce_arrayaccess);
 #ifdef SW_HAVE_COUNTABLE
-    zend_class_implements(swoole_table_class_entry_ptr TSRMLS_CC, 1, zend_ce_countable);
+    zend_class_implements(swoole_table_class_entry_ptr, 1, zend_ce_countable);
 #endif
 
-    zend_declare_class_constant_long(swoole_table_class_entry_ptr, SW_STRL("TYPE_INT")-1, SW_TABLE_INT TSRMLS_CC);
-    zend_declare_class_constant_long(swoole_table_class_entry_ptr, SW_STRL("TYPE_STRING")-1, SW_TABLE_STRING TSRMLS_CC);
-    zend_declare_class_constant_long(swoole_table_class_entry_ptr, SW_STRL("TYPE_FLOAT")-1, SW_TABLE_FLOAT TSRMLS_CC);
+    zend_declare_class_constant_long(swoole_table_class_entry_ptr, SW_STRL("TYPE_INT")-1, SW_TABLE_INT);
+    zend_declare_class_constant_long(swoole_table_class_entry_ptr, SW_STRL("TYPE_STRING")-1, SW_TABLE_STRING);
+    zend_declare_class_constant_long(swoole_table_class_entry_ptr, SW_STRL("TYPE_FLOAT")-1, SW_TABLE_FLOAT);
 
     SWOOLE_INIT_CLASS_ENTRY(swoole_table_row_ce, "swoole_table_row", "Swoole\\Table\\Row", swoole_table_row_methods);
-    swoole_table_row_class_entry_ptr = zend_register_internal_class(&swoole_table_row_ce TSRMLS_CC);
+    swoole_table_row_class_entry_ptr = zend_register_internal_class(&swoole_table_row_ce);
     SWOOLE_CLASS_ALIAS(swoole_table_row, "Swoole\\Table\\Row");
-    zend_class_implements(swoole_table_row_class_entry_ptr TSRMLS_CC, 1, zend_ce_arrayaccess);
+    zend_class_implements(swoole_table_row_class_entry_ptr, 1, zend_ce_arrayaccess);
 
-    zend_declare_property_null(swoole_table_row_class_entry_ptr, ZEND_STRL("key"), ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_null(swoole_table_row_class_entry_ptr, ZEND_STRL("value"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(swoole_table_row_class_entry_ptr, ZEND_STRL("key"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_table_row_class_entry_ptr, ZEND_STRL("value"), ZEND_ACC_PUBLIC);
 }
 
 void swoole_table_column_free(swTableColumn *col)
@@ -284,7 +284,7 @@ PHP_METHOD(swoole_table, __construct)
     long table_size;
     double conflict_proportion = SW_TABLE_CONFLICT_PROPORTION;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|d", &table_size, &conflict_proportion) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|d", &table_size, &conflict_proportion) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -292,7 +292,7 @@ PHP_METHOD(swoole_table, __construct)
     swTable *table = swTable_new(table_size, conflict_proportion);
     if (table == NULL)
     {
-        zend_throw_exception(swoole_exception_class_entry_ptr, "global memory allocation failure.", SW_ERROR_MALLOC_FAIL TSRMLS_CC);
+        zend_throw_exception(swoole_exception_class_entry_ptr, "global memory allocation failure.", SW_ERROR_MALLOC_FAIL);
         RETURN_FALSE;
     }
     swoole_set_object(getThis(), table);
@@ -305,7 +305,7 @@ PHP_METHOD(swoole_table, column)
     long type;
     long size = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sl|l", &name, &len, &type, &size) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sl|l", &name, &len, &type, &size) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -342,8 +342,8 @@ static PHP_METHOD(swoole_table, create)
         swoole_php_fatal_error(E_ERROR, "unable to allocate memory.");
         RETURN_FALSE;
     }
-    zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("size"), table->size TSRMLS_CC);
-    zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("memorySize"), table->memory_size TSRMLS_CC);
+    zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("size"), table->size);
+    zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("memorySize"), table->memory_size);
     RETURN_TRUE;
 }
 
@@ -366,7 +366,7 @@ static PHP_METHOD(swoole_table, set)
     char *key;
     zend_size_t keylen;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sa", &key, &keylen, &array) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sa", &key, &keylen, &array) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -436,7 +436,7 @@ static PHP_METHOD(swoole_table, incr)
     zend_size_t col_len;
     zval* incrby = NULL;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss|z", &key, &key_len, &col, &col_len, &incrby) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "ss|z", &key, &key_len, &col, &col_len, &incrby) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -514,7 +514,7 @@ static PHP_METHOD(swoole_table, decr)
     zend_size_t col_len;
     zval *decrby = NULL;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss|z", &key, &key_len, &col, &col_len, &decrby) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "ss|z", &key, &key_len, &col, &col_len, &decrby) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -592,7 +592,7 @@ static PHP_METHOD(swoole_table, get)
     char *field = NULL;
     zend_size_t field_len = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|s", &key, &keylen, &field, &field_len) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|s", &key, &keylen, &field, &field_len) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -629,7 +629,7 @@ static PHP_METHOD(swoole_table, offsetGet)
     char *field = NULL;
     zend_size_t field_len = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|s", &key, &keylen, &field, &field_len) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|s", &key, &keylen, &field, &field_len) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -657,8 +657,8 @@ static PHP_METHOD(swoole_table, offsetGet)
     swTableRow_unlock(_rowlock);
 
     object_init_ex(return_value, swoole_table_row_class_entry_ptr);
-    zend_update_property(swoole_table_row_class_entry_ptr, return_value, ZEND_STRL("value"), value TSRMLS_CC);
-    zend_update_property_stringl(swoole_table_row_class_entry_ptr, return_value, ZEND_STRL("key"), key, keylen TSRMLS_CC);
+    zend_update_property(swoole_table_row_class_entry_ptr, return_value, ZEND_STRL("value"), value);
+    zend_update_property_stringl(swoole_table_row_class_entry_ptr, return_value, ZEND_STRL("key"), key, keylen);
     zval_ptr_dtor(value);
     swoole_set_object(return_value, table);
 }
@@ -668,7 +668,7 @@ static PHP_METHOD(swoole_table, exist)
     char *key;
     zend_size_t keylen;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &key, &keylen) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &key, &keylen) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -703,7 +703,7 @@ static PHP_METHOD(swoole_table, del)
     char *key;
     zend_size_t keylen;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &key, &keylen) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &key, &keylen) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -729,7 +729,7 @@ static PHP_METHOD(swoole_table, count)
 
     long mode = COUNT_NORMAL;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &mode) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &mode) == FAILURE)
     {
         return;
     }
@@ -832,12 +832,12 @@ static PHP_METHOD(swoole_table_row, offsetExists)
     char *key;
     zend_size_t keylen;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &key, &keylen) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &key, &keylen) == FAILURE)
     {
         RETURN_FALSE;
     }
 
-    zval *value = sw_zend_read_property(swoole_table_row_class_entry_ptr, getThis(), SW_STRL("value")-1, 0 TSRMLS_CC);
+    zval *value = sw_zend_read_property(swoole_table_row_class_entry_ptr, getThis(), SW_STRL("value")-1, 0);
     RETURN_BOOL(zend_hash_str_exists(Z_ARRVAL_P(value), key, keylen));
 }
 
@@ -846,12 +846,12 @@ static PHP_METHOD(swoole_table_row, offsetGet)
     char *key;
     zend_size_t keylen;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &key, &keylen) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &key, &keylen) == FAILURE)
     {
         RETURN_FALSE;
     }
 
-    zval *value = sw_zend_read_property(swoole_table_row_class_entry_ptr, getThis(), SW_STRL("value")-1, 0 TSRMLS_CC);
+    zval *value = sw_zend_read_property(swoole_table_row_class_entry_ptr, getThis(), SW_STRL("value")-1, 0);
     zval *zvalue;
     if (!(zvalue = zend_hash_str_find(Z_ARRVAL_P(value), key, keylen)))
     {
@@ -866,7 +866,7 @@ static PHP_METHOD(swoole_table_row, offsetSet)
     char *key;
     zend_size_t keylen;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sz", &key, &keylen, &value) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &key, &keylen, &value) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -878,7 +878,7 @@ static PHP_METHOD(swoole_table_row, offsetSet)
         RETURN_FALSE;
     }
 
-    zval *prop_key = sw_zend_read_property(swoole_table_row_class_entry_ptr, getThis(), SW_STRL("key")-1, 0 TSRMLS_CC);
+    zval *prop_key = sw_zend_read_property(swoole_table_row_class_entry_ptr, getThis(), SW_STRL("key")-1, 0);
 
     swTableRow *_rowlock = NULL;
     swTableRow *row = swTableRow_set(table, Z_STRVAL_P(prop_key), Z_STRLEN_P(prop_key), &_rowlock);
@@ -914,7 +914,7 @@ static PHP_METHOD(swoole_table_row, offsetSet)
     }
     swTableRow_unlock(_rowlock);
 
-    zval *prop_value = sw_zend_read_property(swoole_table_row_class_entry_ptr, getThis(), SW_STRL("value")-1, 0 TSRMLS_CC);
+    zval *prop_value = sw_zend_read_property(swoole_table_row_class_entry_ptr, getThis(), SW_STRL("value")-1, 0);
     zend_hash_str_update(Z_ARRVAL_P(prop_value), key, keylen, value);
     RETURN_TRUE;
 }
