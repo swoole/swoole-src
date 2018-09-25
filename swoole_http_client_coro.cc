@@ -1211,10 +1211,10 @@ static PHP_METHOD(swoole_http_client_coro, addFile)
     SW_MAKE_STD_ZVAL(upload_file);
     array_init(upload_file);
 
-    sw_add_assoc_stringl_ex(upload_file, ZEND_STRS("path"), path, l_path, 1);
-    sw_add_assoc_stringl_ex(upload_file, ZEND_STRS("name"), name, l_name, 1);
-    sw_add_assoc_stringl_ex(upload_file, ZEND_STRS("filename"), filename, l_filename, 1);
-    sw_add_assoc_stringl_ex(upload_file, ZEND_STRS("type"), type, l_type, 1);
+    add_assoc_stringl_ex(upload_file, ZEND_STRL("path"), path, l_path);
+    add_assoc_stringl_ex(upload_file, ZEND_STRL("name"), name, l_name);
+    add_assoc_stringl_ex(upload_file, ZEND_STRL("filename"), filename, l_filename);
+    add_assoc_stringl_ex(upload_file, ZEND_STRL("type"), type, l_type);
     add_assoc_long(upload_file, "size", length);
     add_assoc_long(upload_file, "offset", offset);
 

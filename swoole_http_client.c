@@ -1549,10 +1549,10 @@ static PHP_METHOD(swoole_http_client, addFile)
     SW_MAKE_STD_ZVAL(upload_file);
     array_init(upload_file);
 
-    sw_add_assoc_stringl_ex(upload_file, ZEND_STRS("path"), path, l_path, 1);
-    sw_add_assoc_stringl_ex(upload_file, ZEND_STRS("name"), name, l_name, 1);
-    sw_add_assoc_stringl_ex(upload_file, ZEND_STRS("filename"), filename, l_filename, 1);
-    sw_add_assoc_stringl_ex(upload_file, ZEND_STRS("type"), type, l_type, 1);
+    add_assoc_stringl_ex(upload_file, ZEND_STRL("path"), path, l_path);
+    add_assoc_stringl_ex(upload_file, ZEND_STRL("name"), name, l_name);
+    add_assoc_stringl_ex(upload_file, ZEND_STRL("filename"), filename, l_filename);
+    add_assoc_stringl_ex(upload_file, ZEND_STRL("type"), type, l_type);
     add_assoc_long(upload_file, "size", length);
     add_assoc_long(upload_file, "offset", offset);
 
@@ -1712,7 +1712,7 @@ int http_client_parser_on_header_value(swoole_http_parser *parser, const char *a
     zval *headers = sw_zend_read_property_array(Z_OBJCE_P(zobject), zobject, ZEND_STRL("headers"), 1);
 
     char *header_name = zend_str_tolower_dup(http->tmp_header_field_name, http->tmp_header_field_name_len);
-    sw_add_assoc_stringl_ex(headers, header_name, http->tmp_header_field_name_len + 1, (char *) at, length, 1);
+    add_assoc_stringl_ex(headers, header_name, http->tmp_header_field_name_len, (char *) at, length);
 
     //websocket client
     if (strcasecmp(header_name, "Upgrade") == 0 && strncasecmp(at, "websocket", length) == 0)

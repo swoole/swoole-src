@@ -681,7 +681,7 @@ static uint32_t http2_client_send_request(zval *zobject, zval *req TSRMLS_DC)
     {
         if (Z_TYPE_P(post_data) == IS_ARRAY)
         {
-            sw_add_assoc_stringl_ex(headers, ZEND_STRS("content-type"), ZEND_STRL("application/x-www-form-urlencoded"), 1);
+            add_assoc_stringl_ex(headers, ZEND_STRL("content-type"), ZEND_STRL("application/x-www-form-urlencoded"));
         }
     }
     /**

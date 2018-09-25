@@ -595,7 +595,7 @@ static int http2_parse_header(http2_session *client, http_context *ctx, int flag
             {
                 if (strncasecmp((char *) nv.name + 1, "method", nv.namelen -1) == 0)
                 {
-                    sw_add_assoc_stringl_ex(zserver, ZEND_STRS("request_method"), (char *) nv.value, nv.valuelen, 1);
+                    add_assoc_stringl_ex(zserver, ZEND_STRL("request_method"), (char *) nv.value, nv.valuelen);
                 }
                 else if (strncasecmp((char *) nv.name + 1, "path", nv.namelen -1) == 0)
                 {
@@ -608,8 +608,8 @@ static int http2_parse_header(http2_session *client, http_context *ctx, int flag
                         int v_len = nv.valuelen - k_len - 1;
                         memcpy(pathbuf, nv.value, k_len);
                         pathbuf[k_len] = 0;
-                        sw_add_assoc_stringl_ex(zserver, ZEND_STRS("query_string"), v_str, v_len, 1);
-                        sw_add_assoc_stringl_ex(zserver, ZEND_STRS("request_uri"), pathbuf, k_len, 1);
+                        add_assoc_stringl_ex(zserver, ZEND_STRL("query_string"), v_str, v_len);
+                        add_assoc_stringl_ex(zserver, ZEND_STRL("request_uri"), pathbuf, k_len);
 
                         zval *zget;
                         zval *zrequest_object = ctx->request.zobject;
@@ -622,12 +622,12 @@ static int http2_parse_header(http2_session *client, http_context *ctx, int flag
                     }
                     else
                     {
-                        sw_add_assoc_stringl_ex(zserver, ZEND_STRS("request_uri"), (char *) nv.value, nv.valuelen, 1);
+                        add_assoc_stringl_ex(zserver, ZEND_STRL("request_uri"), (char *) nv.value, nv.valuelen);
                     }
                 }
                 else if (strncasecmp((char *) nv.name + 1, "authority", nv.namelen -1) == 0)
                 {
-                    sw_add_assoc_stringl_ex(zheader, ZEND_STRS("host"), (char * ) nv.value, nv.valuelen, 1);
+                    add_assoc_stringl_ex(zheader, ZEND_STRL("host"), (char * ) nv.value, nv.valuelen);
                 }
             }
             else
@@ -665,7 +665,7 @@ static int http2_parse_header(http2_session *client, http_context *ctx, int flag
                     int v_len = nv.valuelen - k_len - 1;
                     memcpy(keybuf, nv.value, k_len);
                     keybuf[k_len] = 0;
-                    sw_add_assoc_stringl_ex(zcookie, keybuf, k_len + 1, v_str, v_len, 1);
+                    add_assoc_stringl_ex(zcookie, keybuf, k_len, v_str, v_len);
                     continue;
                 }
 #ifdef SW_HAVE_ZLIB
@@ -674,7 +674,7 @@ static int http2_parse_header(http2_session *client, http_context *ctx, int flag
                     swoole_http_get_compression_method(ctx, (char *) nv.value, nv.valuelen);
                 }
 #endif
-                sw_add_assoc_stringl_ex(zheader, (char *) nv.name, nv.namelen + 1, (char *) nv.value, nv.valuelen, 1);
+                add_assoc_stringl_ex(zheader, (char *) nv.name, nv.namelen, (char *) nv.value, nv.valuelen);
             }
         }
 

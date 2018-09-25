@@ -223,8 +223,8 @@ static sw_inline int http_parse_set_cookies(const char *at, size_t length, zval 
     char keybuf[SW_HTTP_COOKIE_KEYLEN];
     memcpy(keybuf, at, l_key);
     keybuf[l_key] = '\0';
-    sw_add_assoc_stringl_ex(cookies, keybuf, l_key + 1, (char*) at + l_key + 1, l_cookie - l_key - 1, 1);
-    sw_add_assoc_stringl_ex(set_cookie_headers, keybuf, l_key + 1, (char*) at, length, 1);
+    add_assoc_stringl_ex(cookies, keybuf, l_key, (char*) at + l_key + 1, l_cookie - l_key - 1);
+    add_assoc_stringl_ex(set_cookie_headers, keybuf, l_key, (char*) at, length);
 
     return SW_OK;
 }

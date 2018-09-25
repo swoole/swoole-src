@@ -171,7 +171,7 @@ static inline void php_swoole_table_row2array(swTable *table, swTableRow *row, z
         if (col->type == SW_TABLE_STRING)
         {
             memcpy(&vlen, row->data + col->index, sizeof(swTable_string_length_t));
-            sw_add_assoc_stringl_ex(return_value, col->name->str, col->name->length + 1, row->data + col->index + sizeof(swTable_string_length_t), vlen, 1);
+            add_assoc_stringl_ex(return_value, col->name->str, col->name->length, row->data + col->index + sizeof(swTable_string_length_t), vlen);
         }
         else if (col->type == SW_TABLE_FLOAT)
         {

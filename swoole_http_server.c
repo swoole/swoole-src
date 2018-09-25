@@ -471,7 +471,7 @@ static int http_request_on_query_string(swoole_http_parser *parser, const char *
 
     //no need free, will free by treat_data
     char *query = estrndup(at, length);
-    sw_add_assoc_stringl_ex(ctx->request.zserver, ZEND_STRS("query_string"), query, length, 1);
+    add_assoc_stringl_ex(ctx->request.zserver, ZEND_STRL("query_string"), query, length);
 
     zval *zrequest_object = ctx->request.zobject;
     zval *zget;
@@ -553,7 +553,7 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
             vlen = php_url_decode(_value, vlen);
             if (klen > 1)
             {
-                sw_add_assoc_stringl_ex(array, keybuf, klen, _value, vlen, 1);
+                add_assoc_stringl_ex(array, keybuf, klen - 1, _value, vlen);
             }
             j = i + 1;
             state = -1;
@@ -593,7 +593,7 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
         vlen = php_url_decode(_value, vlen);
         if (klen > 1)
         {
-            sw_add_assoc_stringl_ex(array, keybuf, klen, _value, vlen, 1);
+            add_assoc_stringl_ex(array, keybuf, klen - 1, _value, vlen);
         }
     }
 }
@@ -681,7 +681,7 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
 #endif
 
     zval *header = ctx->request.zheader;
-    sw_add_assoc_stringl_ex(header, header_name, ctx->current_header_name_len + 1, (char *) at, length, 1);
+    add_assoc_stringl_ex(header, header_name, ctx->current_header_name_len, (char *) at, length);
 
     free_memory:
     if (ctx->current_header_name_allocated)
@@ -2654,11 +2654,11 @@ static PHP_METHOD(swoole_http_response, header)
         {
             http_header_key_format(key_buf, klen);
         }
-        sw_add_assoc_stringl_ex(zheader, key_buf, klen + 1, v, vlen, 1);
+        add_assoc_stringl_ex(zheader, key_buf, klen, v, vlen);
     }
     else
     {
-        sw_add_assoc_stringl_ex(zheader, k, klen + 1, v, vlen, 1);
+        add_assoc_stringl_ex(zheader, k, klen, v, vlen);
     }
 
 }
@@ -2713,11 +2713,11 @@ static PHP_METHOD(swoole_http_response, trailer)
         {
             http_header_key_format(key_buf, klen);
         }
-        sw_add_assoc_stringl_ex(ztrailer, key_buf, klen + 1, v, vlen, 1);
+        add_assoc_stringl_ex(ztrailer, key_buf, klen, v, vlen);
     }
     else
     {
-        sw_add_assoc_stringl_ex(ztrailer, k, klen + 1, v, vlen, 1);
+        add_assoc_stringl_ex(ztrailer, k, klen, v, vlen);
     }
 }
 #endif
