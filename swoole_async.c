@@ -398,8 +398,6 @@ static void php_swoole_aio_onFileCompleted(swAio_event *event)
     if (event->type == SW_AIO_READ)
     {
         zcontent = &_zcontent;
-        args[0] = *file_req->filename;
-        args[1] = *zcontent;
         if (ret < 0)
         {
             ZVAL_STRING(zcontent, "");
@@ -408,13 +406,15 @@ static void php_swoole_aio_onFileCompleted(swAio_event *event)
         {
             ZVAL_STRINGL(zcontent, event->buf, ret);
         }
+        args[0] = *file_req->filename;
+        args[1] = *zcontent;
     }
     else if (event->type == SW_AIO_WRITE)
     {
         zwriten = &_zwriten;
+        ZVAL_LONG(zwriten, ret);
         args[0] = *file_req->filename;
         args[1] = *zwriten;
-        ZVAL_LONG(zwriten, ret);
     }
     else
     {
