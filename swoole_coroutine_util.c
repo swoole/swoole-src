@@ -487,9 +487,9 @@ static PHP_METHOD(swoole_coroutine_util, resume)
 static PHP_METHOD(swoole_coroutine_util, stats)
 {
     array_init(return_value);
-    sw_add_assoc_long_ex(return_value, ZEND_STRS("stack_size"), COROG.stack_size);
-    sw_add_assoc_long_ex(return_value, ZEND_STRS("coroutine_num"), COROG.coro_num);
-    sw_add_assoc_long_ex(return_value, ZEND_STRS("coroutine_peak_num"), COROG.peak_coro_num);
+    add_assoc_long_ex(return_value, ZEND_STRL("stack_size"), COROG.stack_size);
+    add_assoc_long_ex(return_value, ZEND_STRL("coroutine_num"), COROG.coro_num);
+    add_assoc_long_ex(return_value, ZEND_STRL("coroutine_peak_num"), COROG.peak_coro_num);
 }
 
 static PHP_METHOD(swoole_coroutine_util, getuid)

@@ -1114,7 +1114,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
         sw_add_assoc_string(zserver, "request_method", method_name, 1);
         add_assoc_stringl(zserver, "request_uri", ctx->request.path, ctx->request.path_len);
         add_assoc_stringl(zserver, "path_info", ctx->request.path, ctx->request.path_len);
-        sw_add_assoc_long_ex(zserver, ZEND_STRS("request_time"), serv->gs->now);
+        add_assoc_long_ex(zserver, ZEND_STRL("request_time"), serv->gs->now);
 
         // Add REQUEST_TIME_FLOAT
         double now_float = swoole_microtime();

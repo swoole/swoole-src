@@ -1177,14 +1177,14 @@ static PHP_METHOD(swoole_http2_client_coro, stats)
     else
     {
         array_init(return_value);
-        sw_add_assoc_long_ex(return_value, ZEND_STRS("current_stream_id"), hcc->stream_id);
-        sw_add_assoc_long_ex(return_value, ZEND_STRS("last_stream_id"), hcc->last_stream_id);
-        sw_add_assoc_long_ex(return_value, ZEND_STRS("send_window"), hcc->send_window);
-        sw_add_assoc_long_ex(return_value, ZEND_STRS("recv_window"), hcc->recv_window);
-        sw_add_assoc_long_ex(return_value, ZEND_STRS("max_concurrent_streams"), hcc->max_concurrent_streams);
-        sw_add_assoc_long_ex(return_value, ZEND_STRS("max_frame_size"), hcc->max_frame_size);
-        sw_add_assoc_long_ex(return_value, ZEND_STRS("max_header_list_size"), hcc->max_header_list_size);
-        sw_add_assoc_long_ex(return_value, ZEND_STRS("active_stream_num"), hcc->streams ? swHashMap_count(hcc->streams) : 0);
+        add_assoc_long_ex(return_value, ZEND_STRL("current_stream_id"), hcc->stream_id);
+        add_assoc_long_ex(return_value, ZEND_STRL("last_stream_id"), hcc->last_stream_id);
+        add_assoc_long_ex(return_value, ZEND_STRL("send_window"), hcc->send_window);
+        add_assoc_long_ex(return_value, ZEND_STRL("recv_window"), hcc->recv_window);
+        add_assoc_long_ex(return_value, ZEND_STRL("max_concurrent_streams"), hcc->max_concurrent_streams);
+        add_assoc_long_ex(return_value, ZEND_STRL("max_frame_size"), hcc->max_frame_size);
+        add_assoc_long_ex(return_value, ZEND_STRL("max_header_list_size"), hcc->max_header_list_size);
+        add_assoc_long_ex(return_value, ZEND_STRL("active_stream_num"), hcc->streams ? swHashMap_count(hcc->streams) : 0);
     }
 }
 

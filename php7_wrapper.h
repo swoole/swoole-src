@@ -43,11 +43,6 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
     }
 }
 
-static sw_inline int sw_add_assoc_long_ex(zval *arg, const char *key, size_t key_len, long value)
-{
-    return add_assoc_long_ex(arg, key, key_len - 1, value);
-}
-
 static sw_inline int sw_add_assoc_double_ex(zval *arg, const char *key, size_t key_len, double value)
 {
     return add_assoc_double_ex(arg, key, key_len - 1, value);

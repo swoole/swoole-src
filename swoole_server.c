@@ -3109,10 +3109,10 @@ PHP_METHOD(swoole_server, stats)
     }
 
     array_init(return_value);
-    sw_add_assoc_long_ex(return_value, ZEND_STRS("start_time"), serv->stats->start_time);
-    sw_add_assoc_long_ex(return_value, ZEND_STRS("connection_num"), serv->stats->connection_num);
-    sw_add_assoc_long_ex(return_value, ZEND_STRS("accept_count"), serv->stats->accept_count);
-    sw_add_assoc_long_ex(return_value, ZEND_STRS("close_count"), serv->stats->close_count);
+    add_assoc_long_ex(return_value, ZEND_STRL("start_time"), serv->stats->start_time);
+    add_assoc_long_ex(return_value, ZEND_STRL("connection_num"), serv->stats->connection_num);
+    add_assoc_long_ex(return_value, ZEND_STRL("accept_count"), serv->stats->accept_count);
+    add_assoc_long_ex(return_value, ZEND_STRL("close_count"), serv->stats->close_count);
     /**
      * reset
      */
@@ -3121,11 +3121,11 @@ PHP_METHOD(swoole_server, stats)
     {
         tasking_num = serv->stats->tasking_num = 0;
     }
-    sw_add_assoc_long_ex(return_value, ZEND_STRS("tasking_num"), tasking_num);
-    sw_add_assoc_long_ex(return_value, ZEND_STRS("request_count"), serv->stats->request_count);
+    add_assoc_long_ex(return_value, ZEND_STRL("tasking_num"), tasking_num);
+    add_assoc_long_ex(return_value, ZEND_STRL("request_count"), serv->stats->request_count);
     if (SwooleWG.worker)
     {
-        sw_add_assoc_long_ex(return_value, ZEND_STRS("worker_request_count"), SwooleWG.worker->request_count);
+        add_assoc_long_ex(return_value, ZEND_STRL("worker_request_count"), SwooleWG.worker->request_count);
     }
 
     if (serv->task_ipc_mode > SW_TASK_IPC_UNIXSOCK && serv->gs->task_workers.queue)
@@ -3134,13 +3134,13 @@ PHP_METHOD(swoole_server, stats)
         int queue_bytes = -1;
         if (swMsgQueue_stat(serv->gs->task_workers.queue, &queue_num, &queue_bytes) == 0)
         {
-            sw_add_assoc_long_ex(return_value, ZEND_STRS("task_queue_num"), queue_num);
-            sw_add_assoc_long_ex(return_value, ZEND_STRS("task_queue_bytes"), queue_bytes);
+            add_assoc_long_ex(return_value, ZEND_STRL("task_queue_num"), queue_num);
+            add_assoc_long_ex(return_value, ZEND_STRL("task_queue_bytes"), queue_bytes);
         }
     }
 
 #ifdef SW_COROUTINE
-    sw_add_assoc_long_ex(return_value, ZEND_STRS("coroutine_num"), COROG.coro_num);
+    add_assoc_long_ex(return_value, ZEND_STRL("coroutine_num"), COROG.coro_num);
 #endif
 }
 

@@ -205,11 +205,11 @@ static PHP_METHOD(swoole_channel_coro, stats)
 {
     Channel *chan = (Channel *) swoole_get_object(getThis());
     array_init(return_value);
-    sw_add_assoc_long_ex(return_value, ZEND_STRS("consumer_num"), chan->consumer_num());
-    sw_add_assoc_long_ex(return_value, ZEND_STRS("producer_num"), chan->producer_num());
+    add_assoc_long_ex(return_value, ZEND_STRL("consumer_num"), chan->consumer_num());
+    add_assoc_long_ex(return_value, ZEND_STRL("producer_num"), chan->producer_num());
     if (chan)
     {
-        sw_add_assoc_long_ex(return_value, ZEND_STRS("queue_num"), chan->length());
+        add_assoc_long_ex(return_value, ZEND_STRL("queue_num"), chan->length());
     }
 }
 

@@ -155,6 +155,6 @@ static PHP_METHOD(swoole_channel, stats)
     swChannel *chan = swoole_get_object(getThis());
     array_init(return_value);
 
-    sw_add_assoc_long_ex(return_value, ZEND_STRS("queue_num"), chan->num);
-    sw_add_assoc_long_ex(return_value, ZEND_STRS("queue_bytes"), chan->bytes);
+    add_assoc_long_ex(return_value, ZEND_STRL("queue_num"), chan->num);
+    add_assoc_long_ex(return_value, ZEND_STRL("queue_bytes"), chan->bytes);
 }
