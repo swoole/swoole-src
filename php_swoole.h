@@ -67,7 +67,7 @@ BEGIN_EXTERN_C()
 #include <ext/standard/basic_functions.h>
 #include <ext/standard/php_http.h>
 
-#define PHP_SWOOLE_VERSION  "4.2.1"
+#define PHP_SWOOLE_VERSION SWOOLE_VERSION
 #define PHP_SWOOLE_CHECK_CALLBACK
 #define PHP_SWOOLE_ENABLE_FASTCALL
 #define PHP_SWOOLE_CLIENT_USE_POLL
@@ -146,6 +146,8 @@ extern swoole_object_array swoole_objects;
 #ifdef SW_USE_HTTP2
 #if !defined(HAVE_NGHTTP2)
 #error "Enable http2 support, require nghttp2 library."
+#else
+#include <nghttp2/nghttp2ver.h>
 #endif
 #endif
 
