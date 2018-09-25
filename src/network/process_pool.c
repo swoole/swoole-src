@@ -585,6 +585,7 @@ static int swProcessPool_worker_loop_ex(swProcessPool *pool, swWorker *worker)
                 break;
             }
             data = outbuf->mdata;
+            outbuf->mtype = 0;
         }
         else if (pool->use_socket)
         {
