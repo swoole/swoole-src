@@ -469,7 +469,6 @@ static void http_client_execute_callback(zval *zobject, enum php_swoole_client_c
         return;
     }
 
-    args[0] = *zobject;
     //request is not completed
     if (hcc->onResponse && (type == SW_CLIENT_CB_onError || type == SW_CLIENT_CB_onClose))
     {
@@ -496,6 +495,7 @@ static void http_client_execute_callback(zval *zobject, enum php_swoole_client_c
     {
         return;
     }
+    args[0] = *zobject;
     if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 1, args, 0, NULL) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_http_client->%s handler error.", callback_name);

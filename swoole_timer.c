@@ -244,13 +244,13 @@ void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode)
     if (SwooleG.enable_coroutine)
     {
         zval *args[2];
+        args[0] = ztimer_id;
         if (cb->data)
         {
             argc = 2;
             Z_TRY_ADDREF_P(cb->data);
             args[1] = cb->data;
         }
-        args[0] = ztimer_id;
 
         int ret = coro_create(cb->func_cache, args, argc, &retval, NULL, NULL);
         if (CORO_LIMIT == ret)
@@ -262,13 +262,13 @@ void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode)
     else
     {
         zval args[2];
+        args[0] = *ztimer_id;
         if (cb->data)
         {
             argc = 2;
             Z_TRY_ADDREF_P(cb->data);
             args[1] = *cb->data;
         }
-        args[0] = *ztimer_id;
 
         if (sw_call_user_function_ex(EG(function_table), NULL, cb->callback, &retval, argc, args, 0, NULL) == FAILURE)
         {

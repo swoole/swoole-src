@@ -3052,8 +3052,6 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
             zend_update_property_long(swoole_mysql_class_entry_ptr, zobject, ZEND_STRL("insert_id"), client->response.insert_id TSRMLS_CC);
             client->state = SW_MYSQL_STATE_QUERY;
 
-            args[0] = *zobject;
-
             //OK
             if (client->response.response_type == 0)
             {
@@ -3075,6 +3073,7 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
                 result = client->response.result_array;
             }
 
+            args[0] = *zobject;
             args[1] = *result;
             callback = client->callback;
             if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 2, args, 0, NULL) != SUCCESS)
