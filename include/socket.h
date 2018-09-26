@@ -70,7 +70,7 @@ public:
 
     inline int get_fd()
     {
-        return socket->fd;
+        return socket ? socket->fd : -1;
     }
 
 #ifdef SW_USE_OPENSSL
@@ -153,7 +153,7 @@ public:
     int _cid;
     bool read_locked;
     bool write_locked;
-    swConnection *socket;
+    swConnection *socket = nullptr;
     enum swSocket_type type;
     int _sock_type;
     int _sock_domain;

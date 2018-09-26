@@ -102,7 +102,7 @@ enum swHttp2StreamType
 #define swHttp2FrameTraceLog(recv, str, ...) \
     swTraceLog( \
         SW_TRACE_HTTP2, \
-        "\nrecv [" "\e[3" "%d" "m" "%s" "\e[0m" "] frame <length=%d, flags=%d, stream_id=%d> " str "%s%s%s%s%s", \
+        "\nrecv [" "\e[3" "%d" "m" "%s" "\e[0m" "] frame <length=%jd, flags=%d, stream_id=%d> " str "%s%s%s%s%s", \
         swHttp2_get_type_color(type), swHttp2_get_type(type), length, flags, stream_id, \
         ##__VA_ARGS__, \
         swHttp2FrameTraceLogFlags \
