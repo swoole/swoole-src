@@ -47,9 +47,14 @@ function skip_if_no_process_affinity()
     }
 }
 
-function skip_if_in_docker(string $reason = 'not support in docker')
+function skip_if_in_travis(string $reason = 'not support in travis')
 {
     skip($reason, file_exists('/.travisenv'));
+}
+
+function skip_if_in_docker(string $reason = 'not support in docker')
+{
+    skip($reason, file_exists('/.dockerenv'));
 }
 
 function skip_if_no_proxy()

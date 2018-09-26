@@ -121,13 +121,13 @@ static zend_class_entry swoole_postgresql_coro_ce;
 static zend_class_entry *swoole_postgresql_coro_class_entry_ptr;
 static int le_link , le_result;
 
-void swoole_postgresql_coro_init(int module_number TSRMLS_DC)
+void swoole_postgresql_coro_init(int module_number)
 {
 
     INIT_CLASS_ENTRY(swoole_postgresql_coro_ce, "Swoole\\Coroutine\\PostgreSQL", swoole_postgresql_coro_methods);
     le_link = zend_register_list_destructors_ex(_destroy_pgsql_link, NULL, "pgsql link", module_number);
     le_result = zend_register_list_destructors_ex(_free_result, NULL, "pgsql result", module_number);
-    swoole_postgresql_coro_class_entry_ptr = zend_register_internal_class(&swoole_postgresql_coro_ce TSRMLS_CC);
+    swoole_postgresql_coro_class_entry_ptr = zend_register_internal_class(&swoole_postgresql_coro_ce);
 
     if (SWOOLE_G(use_shortname))
     {
@@ -142,7 +142,7 @@ void swoole_postgresql_coro_init(int module_number TSRMLS_DC)
 
 static PHP_METHOD(swoole_postgresql_coro, __construct)
 {
-    coro_check(TSRMLS_C);
+    coro_check();
     pg_object *pg;
     pg = emalloc(sizeof(pg_object));
     bzero(pg,sizeof(pg_object));
@@ -263,7 +263,7 @@ static void swoole_pgsql_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
     int ret = coro_resume(ctx, result, &retval);
     if (ret == CORO_END && retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
     zval_ptr_dtor(result);
 }
@@ -341,7 +341,7 @@ static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event)
     int ret = coro_resume(sw_current_context, &return_value, &retval);
     if (ret == CORO_END && retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
     return SW_OK;
 }
@@ -426,7 +426,7 @@ static  int meta_data_result_parse(pg_object *pg_object)
     int ret  = coro_resume(sw_current_context, &return_value, &retval);
     if (ret == CORO_END && retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
     zval_ptr_dtor(&return_value);
     zval_ptr_dtor(&elem);
@@ -466,7 +466,7 @@ static  int query_result_parse(pg_object *pg_object)
             ret = coro_resume(sw_current_context, &return_value,  &retval);
             if (ret == CORO_END && retval)
             {
-                sw_zval_ptr_dtor(&retval);
+                zval_ptr_dtor(retval);
             }
             swoole_postgresql_coro_close(pg_object);
             break;
@@ -481,7 +481,7 @@ static  int query_result_parse(pg_object *pg_object)
             ret = coro_resume(sw_current_context, &return_value,  &retval);
             if (ret == CORO_END && retval)
             {
-                sw_zval_ptr_dtor(&retval);
+                zval_ptr_dtor(retval);
             }
             PQclear(pgsql_result);
 
@@ -1049,7 +1049,7 @@ static int swoole_pgsql_coro_onError(swReactor *reactor, swEvent *event)
 
     if (ret == CORO_END && retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
 
     return SW_OK;

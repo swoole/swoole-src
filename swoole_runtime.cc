@@ -125,11 +125,11 @@ static const zend_function_entry swoole_runtime_methods[] =
     PHP_FE_END
 };
 
-void swoole_runtime_init(int module_number TSRMLS_DC)
+void swoole_runtime_init(int module_number)
 {
     static zend_class_entry _ce;
     INIT_CLASS_ENTRY(_ce, "Swoole\\Runtime", swoole_runtime_methods);
-    ce = zend_register_internal_class(&_ce TSRMLS_CC);
+    ce = zend_register_internal_class(&_ce);
 
     SWOOLE_DEFINE(HOOK_FILE);
     SWOOLE_DEFINE(HOOK_SLEEP);
@@ -792,7 +792,7 @@ static php_stream *socket_create(const char *proto, size_t protolen, const char 
 
     if (unlikely(COROG.active == 0))
     {
-        coro_init(TSRMLS_C);
+        coro_init();
     }
 
     php_swoole_check_reactor();
@@ -837,7 +837,7 @@ static PHP_METHOD(swoole_runtime, enableCoroutine)
     zend_bool enable = 1;
     zend_long flags = SW_HOOK_ALL;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "|bl", &enable, &flags) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|bl", &enable, &flags) == FAILURE)
     {
         RETURN_FALSE;
     }
