@@ -705,6 +705,7 @@
             <file role="test" name="tests/swoole_client_async/getpeername.phpt" />
             <file role="test" name="tests/swoole_client_async/getsockname.phpt" />
             <file role="test" name="tests/swoole_client_async/length_protocol.phpt" />
+            <file role="test" name="tests/swoole_client_async/port_invalid.phpt" />
             <file role="test" name="tests/swoole_client_async/sendfile.phpt" />
             <file role="test" name="tests/swoole_client_async/sleep_wake.phpt" />
             <file role="test" name="tests/swoole_client_async/swoole_client.phpt" />
@@ -1001,6 +1002,7 @@
             <file role="test" name="tests/swoole_process/timeout.phpt" />
             <file role="test" name="tests/swoole_process/write_in_worker.phpt" />
             <file role="test" name="tests/swoole_process_pool/message.phpt" />
+            <file role="test" name="tests/swoole_process_pool/msgqueue.phpt" />
             <file role="test" name="tests/swoole_redis/connect_refuse.phpt" />
             <file role="test" name="tests/swoole_redis/connect_timeout.phpt" />
             <file role="test" name="tests/swoole_redis/get_set.phpt" />
@@ -1100,6 +1102,7 @@
             <file role="test" name="tests/swoole_server/unsock_dgram.phpt" />
             <file role="test" name="tests/swoole_server/unsock_stream.phpt" />
             <file role="test" name="tests/swoole_server/use_process.phpt" />
+            <file role="test" name="tests/swoole_server_port/http.phpt" />
             <file role="test" name="tests/swoole_server_port/swoole_server_port.phpt" />
             <file role="test" name="tests/swoole_server_port/tcp_eof.phpt" />
             <file role="test" name="tests/swoole_socket_coro/accept.phpt" />
@@ -1109,6 +1112,7 @@
             <file role="test" name="tests/swoole_table/foreach.phpt" />
             <file role="test" name="tests/swoole_table/int.phpt" />
             <file role="test" name="tests/swoole_table/key_value.phpt" />
+            <file role="test" name="tests/swoole_table/row.phpt" />
             <file role="test" name="tests/swoole_timer/enable_coroutine.phpt" />
             <file role="test" name="tests/swoole_timer/greater_than_0.phpt" />
             <file role="test" name="tests/swoole_timer/next_round.phpt" />
