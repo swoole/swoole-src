@@ -1768,8 +1768,8 @@ static PHP_METHOD(swoole_client, close)
     }
     if (cli->object)
     {
-        cli->object = NULL;
         zval_ptr_dtor(cli->object);
+        cli->object = NULL;
     }
     //Connection error, or short tcp connection.
     //No keep connection
