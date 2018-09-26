@@ -697,6 +697,8 @@
             <file role="test" name="tests/swoole_client_async/buffer_full.phpt" />
             <file role="test" name="tests/swoole_client_async/connect_dns.phpt" />
             <file role="test" name="tests/swoole_client_async/connect_refuse.phpt" />
+            <file role="test" name="tests/swoole_client_async/connect_refuse_udg.phpt" />
+            <file role="test" name="tests/swoole_client_async/connect_refuse_unix.phpt" />
             <file role="test" name="tests/swoole_client_async/connect_timeout.phpt" />
             <file role="test" name="tests/swoole_client_async/connect_twice.phpt" />
             <file role="test" name="tests/swoole_client_async/eof.phpt" />
@@ -1103,7 +1105,7 @@
             <file role="test" name="tests/swoole_server/unsock_stream.phpt" />
             <file role="test" name="tests/swoole_server/use_process.phpt" />
             <file role="test" name="tests/swoole_server_port/http.phpt" />
-            <file role="test" name="tests/swoole_server_port/swoole_server_port.phpt" />
+            <file role="test" name="tests/swoole_server_port/multi_port.phpt" />
             <file role="test" name="tests/swoole_server_port/tcp_eof.phpt" />
             <file role="test" name="tests/swoole_socket_coro/accept.phpt" />
             <file role="test" name="tests/swoole_socket_coro/complete_test.phpt" />
