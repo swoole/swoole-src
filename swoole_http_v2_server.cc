@@ -734,7 +734,7 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
     int type = buf[3];
     int flags = buf[4];
     uint32_t stream_id = ntohl((*(int *) (buf + 5))) & 0x7fffffff;
-    uint32_t length = swHttp2_get_length(buf);
+    ssize_t length = swHttp2_get_length(buf);
     buf += SW_HTTP2_FRAME_HEADER_SIZE;
 
     uint16_t id = 0;
@@ -886,7 +886,7 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
             {
                 multipart_parser *multipart_parser = ctx->mt_parser;
                 size_t n = multipart_parser_execute(multipart_parser, buffer->str, buffer->length);
-                if (n != length)
+                if (n != (size_t) length)
                 {
                     swoole_php_fatal_error(E_WARNING, "parse multipart body failed.");
                 }
@@ -939,7 +939,7 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
         buf += 4;
         value = ntohl(*(uint32_t *) (buf));
         buf += 4;
-        swHttp2FrameTraceLog(recv, "last_stream_id=%d, error_code=%d, opaque_data=[%.*s]", server_last_stream_id, value, length - SW_HTTP2_GOAWAY_SIZE, buf);
+        swHttp2FrameTraceLog(recv, "last_stream_id=%d, error_code=%d, opaque_data=[%.*s]", server_last_stream_id, value, (int) (length - SW_HTTP2_GOAWAY_SIZE), buf);
         //TODO: onRequest
         (void) server_last_stream_id;
 
