@@ -600,17 +600,9 @@ static PHP_METHOD(swoole_server_port, on)
         {
             serv->onBufferEmpty = php_swoole_onBufferEmpty;
         }
-        else if (i == SW_SERVER_CB_onMessage)
+        else if (i == SW_SERVER_CB_onMessage || i == SW_SERVER_CB_onRequest)
         {
-            swPort_clear_protocol(port);
             serv->onReceive = php_swoole_http_onReceive;
-            port->open_websocket_protocol = 1;
-        }
-        else if (i == SW_SERVER_CB_onRequest)
-        {
-            swPort_clear_protocol(port);
-            serv->onReceive = php_swoole_http_onReceive;
-            port->open_http_protocol = 1;
         }
         property->caches[i] = func_cache;
         break;

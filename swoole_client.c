@@ -1211,6 +1211,10 @@ static PHP_METHOD(swoole_client, connect)
             {
                 cli->onClose = client_onClose;
             }
+            if (cb->onError)
+            {
+                cli->onError = client_onError;
+            }
             cli->onReceive = client_onReceive;
             cli->reactor_fdtype = PHP_SWOOLE_FD_DGRAM_CLIENT;
         }
@@ -1224,7 +1228,7 @@ static PHP_METHOD(swoole_client, connect)
     //nonblock async
     if (cli->connect(cli, host, port, timeout, sock_flag) < 0)
     {
-        if (errno == 0 )
+        if (errno == 0)
         {
             if (SwooleG.error == SW_ERROR_DNSLOOKUP_RESOLVE_FAILED)
             {
@@ -1237,6 +1241,11 @@ static PHP_METHOD(swoole_client, connect)
         {
             swoole_php_sys_error(E_WARNING, "connect to server[%s:%d] failed.", host, (int )port);
             zend_update_property_long(swoole_client_class_entry_ptr, getThis(), SW_STRL("errCode")-1, errno);
+        }
+        if (cli->async && cli->onError == NULL)
+        {
+            php_swoole_client_free(getThis(), cli TSRMLS_CC);
+            zval_ptr_dtor(getThis());
         }
         RETURN_FALSE;
     }
@@ -1743,19 +1752,17 @@ static PHP_METHOD(swoole_client, close)
         swoole_php_error(E_WARNING, "client socket is closed.");
         RETURN_FALSE;
     }
+    if (cli->async && cli->socket->active == 0)
+    {
+        zval *zobject = getThis();
+        sw_zval_ptr_dtor(&zobject);
+    }
     //Connection error, or short tcp connection.
     //No keep connection
     if (force || !cli->keep || swConnection_error(SwooleG.error) == SW_CLOSE)
     {
         uint8_t need_free = !cli->async;
-        if (cli->async && cli->socket->active == 0)
-        {
-            need_free = 1;
-        }
-        else
-        {
-            ret = cli->close(cli);
-        }
+        ret = cli->close(cli);
         if (need_free)
         {
             php_swoole_client_free(getThis(), cli);

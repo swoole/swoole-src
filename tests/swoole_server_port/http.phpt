@@ -15,7 +15,7 @@ $pm->parentFunc = function ($pid)
     {
         $cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
         $cli->set(['open_eof_check' => true, "package_eof" => "\r\n\r\n"]);
-        if (!$cli->connect('127.0.0.1', 9502, 0.5))
+        if (!$cli->connect('127.0.0.1', 9501, 0.5))
         {
             fail:
             echo "ERROR\n";
@@ -65,7 +65,9 @@ $pm->childFunc = function () use ($pm)
     });
 
     $port2 = $server->listen('127.0.0.1', 9502, SWOOLE_SOCK_TCP);
-    $port2->on("request", function ($req, $resp) {
+    $port2->set(['open_http_protocol' => true,]);
+    $port2->on("request", function ($req, $resp)
+    {
         $resp->end("hello swooler\n");
     });
 
