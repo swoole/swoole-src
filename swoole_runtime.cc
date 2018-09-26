@@ -130,6 +130,16 @@ void swoole_runtime_init(int module_number)
     static zend_class_entry _ce;
     INIT_CLASS_ENTRY(_ce, "Swoole\\Runtime", swoole_runtime_methods);
     ce = zend_register_internal_class(&_ce);
+
+    SWOOLE_DEFINE(HOOK_FILE);
+    SWOOLE_DEFINE(HOOK_SLEEP);
+    SWOOLE_DEFINE(HOOK_TCP);
+    SWOOLE_DEFINE(HOOK_UDP);
+    SWOOLE_DEFINE(HOOK_UNIX);
+    SWOOLE_DEFINE(HOOK_UDG);
+    SWOOLE_DEFINE(HOOK_SSL);
+    SWOOLE_DEFINE(HOOK_TLS);
+    SWOOLE_DEFINE(HOOK_ALL);
 }
 
 static auto block_io_functions =
@@ -339,6 +349,11 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
     int portno = 0;
     int ret;
     char *ip_address = NULL;
+
+    if (sock->get_fd() < 0)
+    {
+        return -1;
+    }
 
     if (sock->type == SW_SOCK_TCP || sock->type == SW_SOCK_TCP6 || sock->type == SW_SOCK_UDP || sock->type == SW_SOCK_UDP6)
     {

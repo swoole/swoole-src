@@ -311,14 +311,17 @@ Socket::Socket(enum swSocket_type _type)
         break;
     }
 
+    init();
+
 #ifdef SOCK_CLOEXEC
     int sockfd = ::socket(_sock_domain, _sock_type | SOCK_CLOEXEC, 0);
 #else
     int sockfd = ::socket(_sock_domain, _sock_type, 0);
 #endif
+
     if (sockfd < 0)
     {
-        swWarn("socket() failed. Error: %s[%d]", strerror(errno), errno);
+        swWarn("Socket construct failed. Error: %s[%d]", strerror(errno), errno);
         return;
     }
 
@@ -330,6 +333,7 @@ Socket::Socket(enum swSocket_type _type)
     {
         reactor = SwooleG.main_reactor;
     }
+
     socket = swReactor_get(reactor, sockfd);
 
     bzero(socket, sizeof(swConnection));
@@ -344,7 +348,6 @@ Socket::Socket(enum swSocket_type _type)
         reactor->setHandle(reactor, SW_FD_CORO_SOCKET | SW_EVENT_WRITE, socket_onWrite);
         reactor->setHandle(reactor, SW_FD_CORO_SOCKET | SW_EVENT_ERROR, socket_onRead);
     }
-    init();
 }
 
 Socket::Socket(int _fd, Socket *server_sock)
@@ -994,10 +997,15 @@ Socket* Socket::accept()
 #endif
     if (conn < 0)
     {
+        _error:
         errCode = errno;
         return nullptr;
     }
     Socket *client_sock = new Socket(conn, this);
+    if (client_sock->get_fd() < 0)
+    {
+        goto _error;
+    }
     memcpy(&client_sock->socket->info.addr, &client_addr.addr, client_addr.len);
 #ifdef SW_USE_OPENSSL
     if (open_ssl)
@@ -1680,24 +1688,27 @@ swString* Socket::get_buffer()
 
 Socket::~Socket()
 {
-    if (!socket->closed)
+    if (socket)
     {
-        close();
-    }
-    if (socket->out_buffer)
-    {
-        swBuffer_free(socket->out_buffer);
-        socket->out_buffer = NULL;
-    }
-    if (socket->in_buffer)
-    {
-        swBuffer_free(socket->in_buffer);
-        socket->in_buffer = NULL;
+        if (!socket->closed)
+        {
+            close();
+        }
+        if (socket->out_buffer)
+        {
+            swBuffer_free(socket->out_buffer);
+            socket->out_buffer = NULL;
+        }
+        if (socket->in_buffer)
+        {
+            swBuffer_free(socket->in_buffer);
+            socket->in_buffer = NULL;
+        }
+        bzero(socket, sizeof(swConnection));
+        socket->removed = 1;
     }
     if (buffer)
     {
         swString_free(buffer);
     }
-    bzero(socket, sizeof(swConnection));
-    socket->removed = 1;
 }

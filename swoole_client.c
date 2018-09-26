@@ -920,11 +920,18 @@ swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port
     }
 
     long type = Z_LVAL_P(ztype);
-
     //new flag, swoole-1.6.12+
     if (type & SW_FLAG_ASYNC)
     {
         async = 1;
+    }
+
+    int client_type = php_swoole_socktype(type);
+    if ((client_type == SW_SOCK_TCP || client_type == SW_SOCK_TCP6) && (port <= 0 || port > SW_CLIENT_MAX_PORT))
+    {
+        swoole_php_fatal_error(E_WARNING, "The port is invalid.");
+        SwooleG.error = SW_ERROR_INVALID_PARAMS;
+        return NULL;
     }
 
     swClient *cli;
@@ -1139,11 +1146,6 @@ static PHP_METHOD(swoole_client, connect)
 
     if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6)
     {
-        if (port <= 0 || port > SW_CLIENT_MAX_PORT)
-        {
-            swoole_php_fatal_error(E_WARNING, "The port is invalid.");
-            RETURN_FALSE;
-        }
         if (cli->async == 1)
         {
             //for tcp: nonblock
@@ -1757,10 +1759,10 @@ static PHP_METHOD(swoole_client, close)
         swoole_php_error(E_WARNING, "client socket is closed.");
         RETURN_FALSE;
     }
-    if (cli->async && cli->socket->active == 0)
+    if (cli->object)
     {
-        zval *zobject = getThis();
-        zval_ptr_dtor(zobject);
+        cli->object = NULL;
+        zval_ptr_dtor(cli->object);
     }
     //Connection error, or short tcp connection.
     //No keep connection
