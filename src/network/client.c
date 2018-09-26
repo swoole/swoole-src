@@ -760,6 +760,16 @@ static int swClient_tcp_connect_async(swClient *cli, char *host, int port, doubl
         }
         return SW_OK;
     }
+    else
+    {
+        cli->socket->active = 0;
+        cli->socket->removed = 1;
+        cli->close(cli);
+        if (cli->onError)
+        {
+            cli->onError(cli);
+        }
+    }
 
     return ret;
 }
@@ -996,9 +1006,13 @@ static int swClient_udp_connect(swClient *cli, char *host, int port, double time
     }
     else
     {
-        swSysError("connect() failed.");
         cli->socket->active = 0;
         cli->socket->removed = 1;
+        cli->close(cli);
+        if (cli->async && cli->onError)
+        {
+            cli->onError(cli);
+        }
         return SW_ERR;
     }
 }
