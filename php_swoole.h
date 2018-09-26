@@ -69,7 +69,6 @@ BEGIN_EXTERN_C()
 
 #define PHP_SWOOLE_VERSION SWOOLE_VERSION
 #define PHP_SWOOLE_CHECK_CALLBACK
-#define PHP_SWOOLE_ENABLE_FASTCALL
 #define PHP_SWOOLE_CLIENT_USE_POLL
 
 #ifndef ZEND_MOD_END
@@ -177,11 +176,6 @@ enum php_swoole_client_callback_type
 //--------------------------------------------------------
 enum php_swoole_server_callback_type
 {
-    //--------------------------Swoole\Server--------------------------
-    SW_SERVER_CB_onConnect,        //worker(event)
-    SW_SERVER_CB_onReceive,        //worker(event)
-    SW_SERVER_CB_onClose,          //worker(event)
-    SW_SERVER_CB_onPacket,         //worker(event)
     SW_SERVER_CB_onStart,          //master
     SW_SERVER_CB_onShutdown,       //master
     SW_SERVER_CB_onWorkerStart,    //worker(event & task)
@@ -193,27 +187,33 @@ enum php_swoole_server_callback_type
     SW_SERVER_CB_onManagerStart,   //manager
     SW_SERVER_CB_onManagerStop,    //manager
     SW_SERVER_CB_onPipeMessage,    //worker(evnet & task)
-    //--------------------------Swoole\Http\Server----------------------
+};
+//--------------------------------------------------------
+enum php_swoole_server_port_callback_type
+{
+    SW_SERVER_CB_onConnect,        //worker(event)
+    SW_SERVER_CB_onReceive,        //worker(event)
+    SW_SERVER_CB_onClose,          //worker(event)
+    SW_SERVER_CB_onPacket,         //worker(event)
     SW_SERVER_CB_onRequest,        //http server
-    //--------------------------Swoole\WebSocket\Server-----------------
     SW_SERVER_CB_onHandShake,      //worker(event)
     SW_SERVER_CB_onOpen,           //worker(event)
     SW_SERVER_CB_onMessage,        //worker(event)
-    //--------------------------Buffer Event----------------------------
     SW_SERVER_CB_onBufferFull,     //worker(event)
     SW_SERVER_CB_onBufferEmpty,    //worker(event)
-    //-------------------------------END--------------------------------
 };
 
-#define PHP_SERVER_CALLBACK_NUM             (SW_SERVER_CB_onBufferEmpty+1)
+#define PHP_SWOOLE_SERVER_CALLBACK_NUM         (SW_SERVER_CB_onPipeMessage + 1)
+#define PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM    (SW_SERVER_CB_onBufferEmpty + 1)
 
 typedef struct
 {
-    zval *callbacks[PHP_SERVER_CALLBACK_NUM];
-    zend_fcall_info_cache *caches[PHP_SERVER_CALLBACK_NUM];
-    zval _callbacks[PHP_SERVER_CALLBACK_NUM];
+    zval *callbacks[PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM];
+    zend_fcall_info_cache *caches[PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM];
+    zval _callbacks[PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM];
     zval *setting;
     swServer *serv;
+    swListenPort *port;
 } swoole_server_port_property;
 //---------------------------------------------------------
 #define SW_FLAG_KEEP                        (1u << 12)
@@ -264,9 +264,9 @@ extern zend_class_entry *swoole_http_server_class_entry_ptr;
 extern zend_class_entry *swoole_server_port_class_entry_ptr;
 extern zend_class_entry *swoole_exception_class_entry_ptr;
 
-extern zval *php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
-extern zend_fcall_info_cache *php_sw_server_caches[PHP_SERVER_CALLBACK_NUM];
-extern zval _php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
+extern zval *php_sw_server_callbacks[PHP_SWOOLE_SERVER_CALLBACK_NUM];
+extern zend_fcall_info_cache *php_sw_server_caches[PHP_SWOOLE_SERVER_CALLBACK_NUM];
+extern zval _php_sw_server_callbacks[PHP_SWOOLE_SERVER_CALLBACK_NUM];
 
 PHP_MINIT_FUNCTION(swoole);
 PHP_MSHUTDOWN_FUNCTION(swoole);
@@ -483,12 +483,17 @@ void swoole_call_rshutdown_function(void *arg);
 php_socket *swoole_convert_to_socket(int sock);
 #endif
 
-void php_swoole_server_before_start(swServer *serv, zval *zobject TSRMLS_DC);
+zval* php_swoole_server_get_callback(swServer *serv, int server_fd, int event_type);
+zend_fcall_info_cache* php_swoole_server_get_cache(swServer *serv, int server_fd, int event_type);
+void php_swoole_server_before_start(swServer *serv, zval *zobject);
+void php_swoole_http_server_before_start(swServer *serv, zval *zobject);
 void php_swoole_server_send_yield(swServer *serv, int fd, zval *zdata, zval *return_value);
 void php_swoole_get_recv_data(zval *zdata, swEventData *req, char *header, uint32_t header_length);
 ssize_t php_swoole_get_send_data(zval *zdata, char **str TSRMLS_DC);
 void php_swoole_onConnect(swServer *, swDataHead *);
 int php_swoole_onReceive(swServer *, swEventData *);
+int php_swoole_http_onReceive(swServer *, swEventData *);
+void php_swoole_http_onClose(swServer *, swDataHead *);
 int php_swoole_onPacket(swServer *, swEventData *);
 void php_swoole_onClose(swServer *, swDataHead *);
 void php_swoole_onBufferFull(swServer *, swDataHead *);
@@ -504,56 +509,6 @@ PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, 
 
 #ifdef SW_COROUTINE
 int php_coroutine_reactor_can_exit(swReactor *reactor);
-#endif
-
-static sw_inline zval* php_swoole_server_get_callback(swServer *serv, int server_fd, int event_type)
-{
-    swListenPort *port = (swListenPort *) serv->connection_list[server_fd].object;
-    if (!port)
-    {
-        swWarn("invalid server_fd[%d].", server_fd);
-        return NULL;
-    }
-    swoole_server_port_property *property = (swoole_server_port_property *) port->ptr;
-    if (!property)
-    {
-        return php_sw_server_callbacks[event_type];
-    }
-    zval *callback = property->callbacks[event_type];
-    if (!callback)
-    {
-        return php_sw_server_callbacks[event_type];
-    }
-    else
-    {
-        return callback;
-    }
-}
-
-#ifdef PHP_SWOOLE_ENABLE_FASTCALL
-static sw_inline zend_fcall_info_cache* php_swoole_server_get_cache(swServer *serv, int server_fd, int event_type)
-{
-    swListenPort *port = (swListenPort *) serv->connection_list[server_fd].object;
-    if (!port)
-    {
-        swWarn("invalid server_fd[%d].", server_fd);
-        return NULL;
-    }
-    swoole_server_port_property *property = (swoole_server_port_property *) port->ptr;
-    if (!property)
-    {
-        return php_sw_server_caches[event_type];
-    }
-    zend_fcall_info_cache* cache = property->caches[event_type];
-    if (!cache)
-    {
-        return php_sw_server_caches[event_type];
-    }
-    else
-    {
-        return cache;
-    }
-}
 #endif
 
 #ifdef SW_USE_OPENSSL

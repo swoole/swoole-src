@@ -44,15 +44,17 @@ static int php_swoole_task_id = 0;
 static int udp_server_socket;
 static int dgram_server_socket;
 
-static struct
+struct
 {
     zval *zobjects[SW_MAX_LISTEN_PORT];
     zval *zports;
     uint8_t num;
+    swoole_server_port_property *primary_port;
 } server_port_list;
 
-zval *php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
-zend_fcall_info_cache *php_sw_server_caches[PHP_SERVER_CALLBACK_NUM];
+zval *php_sw_server_callbacks[PHP_SWOOLE_SERVER_CALLBACK_NUM];
+zval _php_sw_server_callbacks[PHP_SWOOLE_SERVER_CALLBACK_NUM];
+zend_fcall_info_cache *php_sw_server_caches[PHP_SWOOLE_SERVER_CALLBACK_NUM];
 
 static swHashMap *task_callbacks = NULL;
 #ifdef SW_COROUTINE
@@ -70,8 +72,6 @@ typedef struct
     swTimer_node *timer;
 } swTaskCo;
 #endif
-
-zval _php_sw_server_callbacks[PHP_SERVER_CALLBACK_NUM];
 
 static int php_swoole_task_finish(swServer *serv, zval *data TSRMLS_DC);
 static void php_swoole_onPipeMessage(swServer *serv, swEventData *req);
@@ -95,6 +95,54 @@ static void php_swoole_task_onTimeout(swTimer *timer, swTimer_node *tnode);
 #endif
 
 static zval* php_swoole_server_add_port(swServer *serv, swListenPort *port TSRMLS_DC);
+
+zval* php_swoole_server_get_callback(swServer *serv, int server_fd, int event_type)
+{
+    swListenPort *port = (swListenPort *) serv->connection_list[server_fd].object;
+    if (!port)
+    {
+        swWarn("invalid server_fd[%d].", server_fd);
+        return NULL;
+    }
+    swoole_server_port_property *property = (swoole_server_port_property *) port->ptr;
+    if (!property)
+    {
+        goto _primary_port;
+    }
+    zval *callback = property->callbacks[event_type];
+    if (!callback)
+    {
+        _primary_port: return server_port_list.primary_port->callbacks[event_type];
+    }
+    else
+    {
+        return callback;
+    }
+}
+
+zend_fcall_info_cache* php_swoole_server_get_cache(swServer *serv, int server_fd, int event_type)
+{
+    swListenPort *port = (swListenPort *) serv->connection_list[server_fd].object;
+    if (!port)
+    {
+        swWarn("invalid server_fd[%d].", server_fd);
+        return NULL;
+    }
+    swoole_server_port_property *property = (swoole_server_port_property *) port->ptr;
+    if (!property)
+    {
+        goto _primary_port;
+    }
+    zend_fcall_info_cache* cache = property->caches[event_type];
+    if (!cache)
+    {
+        _primary_port: return server_port_list.primary_port->caches[event_type];
+    }
+    else
+    {
+        return cache;
+    }
+}
 
 static int php_swoole_create_dir(const char* path, size_t length TSRMLS_DC)
 {
@@ -498,6 +546,9 @@ static zval* php_swoole_server_add_port(swServer *serv, swListenPort *port TSRML
     swoole_set_property(port_object, 0, property);
     swoole_set_object(port_object, port);
     property->serv = serv;
+    property->port = port;
+
+    port->ptr = property;
 
     zend_update_property_string(swoole_server_port_class_entry_ptr, port_object, ZEND_STRL("host"), port->host TSRMLS_CC);
     zend_update_property_long(swoole_server_port_class_entry_ptr, port_object, ZEND_STRL("port"), port->port TSRMLS_CC);
@@ -601,6 +652,8 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject TSRMLS_DC)
     zval *retval = NULL;
     zval *port_object;
     zval *port_setting;
+    swListenPort *port;
+    zend_bool find_http_port = SW_FALSE;
 
     for (i = 1; i < server_port_list.num; i++)
     {
@@ -617,6 +670,36 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject TSRMLS_DC)
                 sw_zval_ptr_dtor(&retval);
             }
         }
+        port = swoole_get_object(port_object);
+        if (port->open_websocket_protocol || port->open_http_protocol)
+        {
+            find_http_port = SW_TRUE;
+            if (port->open_websocket_protocol)
+            {
+                if (((swoole_server_port_property *) port->ptr)->callbacks[SW_SERVER_CB_onMessage] == NULL)
+                {
+                    swoole_php_fatal_error(E_ERROR, "require onMessage callback");
+                    return;
+                }
+                if (port->open_http2_protocol == 1)
+                {
+                    swoole_php_fatal_error(E_ERROR, "cannot use http2 protocol in websocket server");
+                    return;
+                }
+            }
+            else if (port->open_http_protocol && ((swoole_server_port_property *) port->ptr)->callbacks[SW_SERVER_CB_onRequest] == NULL)
+            {
+                swoole_php_fatal_error(E_ERROR, "require onRequest callback");
+                return;
+            }
+        }
+    }
+
+    if (find_http_port)
+    {
+        serv->onReceive = php_swoole_http_onReceive;
+        serv->onClose = php_swoole_http_onClose;
+        php_swoole_http_server_before_start(serv, zobject);
     }
 }
 
@@ -642,13 +725,6 @@ void php_swoole_register_callback(swServer *serv)
     if (php_sw_server_callbacks[SW_SERVER_CB_onWorkerExit] != NULL)
     {
         serv->onWorkerExit = php_swoole_onWorkerExit;
-    }
-    /**
-     * UDP Packet
-     */
-    if (php_sw_server_callbacks[SW_SERVER_CB_onPacket] != NULL)
-    {
-        serv->onPacket = php_swoole_onPacket;
     }
     /**
      * Task Worker
@@ -677,11 +753,7 @@ void php_swoole_register_callback(swServer *serv)
     {
         serv->onPipeMessage = php_swoole_onPipeMessage;
     }
-    if (php_sw_server_callbacks[SW_SERVER_CB_onBufferFull] != NULL)
-    {
-        serv->onBufferFull = php_swoole_onBufferFull;
-    }
-    if (php_sw_server_callbacks[SW_SERVER_CB_onBufferEmpty] != NULL || serv->send_yield)
+    if (serv->send_yield)
     {
         serv->onBufferEmpty = php_swoole_onBufferEmpty;
     }
@@ -2013,7 +2085,7 @@ PHP_METHOD(swoole_server, __construct)
         serv->max_request = 0;
     }
 
-    bzero(php_sw_server_callbacks, sizeof (zval*) * PHP_SERVER_CALLBACK_NUM);
+    bzero(php_sw_server_callbacks, sizeof(zval*) * PHP_SWOOLE_SERVER_CALLBACK_NUM);
 
     if (serv_port == 0 && strcasecmp(serv_host, "SYSTEMD") == 0)
     {
@@ -2066,6 +2138,8 @@ PHP_METHOD(swoole_server, __construct)
     {
         php_swoole_server_add_port(serv, ls TSRMLS_CC);
     }
+
+    server_port_list.primary_port = serv->listen_list->ptr;
 
     zend_update_property(swoole_server_class_entry_ptr, server_object, ZEND_STRL("ports"), ports TSRMLS_CC);
 }
@@ -2606,11 +2680,7 @@ PHP_METHOD(swoole_server, on)
 
     convert_to_string(name);
 
-    char *callback_name[PHP_SERVER_CALLBACK_NUM] = {
-        "Connect",
-        "Receive",
-        "Close",
-        "Packet",
+    char *callback_name[PHP_SWOOLE_SERVER_CALLBACK_NUM] = {
         "Start",
         "Shutdown",
         "WorkerStart",
@@ -2622,12 +2692,6 @@ PHP_METHOD(swoole_server, on)
         "ManagerStart",
         "ManagerStop",
         "PipeMessage",
-        NULL, //onRequest
-        NULL, //onHandShake
-        NULL, //onOpen
-        NULL, //onMessage
-        "BufferFull",
-        "BufferEmpty",
     };
 
     int i;
@@ -2635,33 +2699,24 @@ PHP_METHOD(swoole_server, on)
     int l_property_name = 0;
     memcpy(property_name, "on", 2);
 
-    for (i = 0; i < PHP_SERVER_CALLBACK_NUM; i++)
+    for (i = 0; i < PHP_SWOOLE_SERVER_CALLBACK_NUM; i++)
     {
-        if (callback_name[i] == NULL)
+        if (strncasecmp(callback_name[i], Z_STRVAL_P(name), Z_STRLEN_P(name)) != 0)
         {
             continue;
         }
-        if (strncasecmp(callback_name[i], Z_STRVAL_P(name), Z_STRLEN_P(name)) == 0)
-        {
-            memcpy(property_name + 2, callback_name[i], Z_STRLEN_P(name));
-            l_property_name = Z_STRLEN_P(name) + 2;
-            property_name[l_property_name] = '\0';
-            zend_update_property(swoole_server_class_entry_ptr, getThis(), property_name, l_property_name, cb TSRMLS_CC);
-            php_sw_server_callbacks[i] = sw_zend_read_property(swoole_server_class_entry_ptr, getThis(), property_name, l_property_name, 0 TSRMLS_CC);
-            php_sw_server_caches[i] = func_cache;
-            sw_copy_to_stack(php_sw_server_callbacks[i], _php_sw_server_callbacks[i]);
-            break;
-        }
+
+        memcpy(property_name + 2, callback_name[i], Z_STRLEN_P(name));
+        l_property_name = Z_STRLEN_P(name) + 2;
+        property_name[l_property_name] = '\0';
+        zend_update_property(swoole_server_class_entry_ptr, getThis(), property_name, l_property_name, cb);
+        php_sw_server_callbacks[i] = sw_zend_read_property(swoole_server_class_entry_ptr, getThis(), property_name, l_property_name, 0);
+        php_sw_server_caches[i] = func_cache;
+        sw_copy_to_stack(php_sw_server_callbacks[i], _php_sw_server_callbacks[i]);
+        break;
     }
 
     if (l_property_name == 0)
-    {
-        swoole_php_error(E_WARNING, "unknown event types[%s]", Z_STRVAL_P(name));
-        efree(func_cache);
-        RETURN_FALSE;
-    }
-
-    if (i < SW_SERVER_CB_onStart)
     {
         zval *port_object = server_port_list.zobjects[0];
         zval *retval = NULL;
@@ -2767,15 +2822,7 @@ PHP_METHOD(swoole_server, start)
     }
 
     php_swoole_register_callback(serv);
-
-    if (php_sw_server_callbacks[SW_SERVER_CB_onReceive] == NULL && php_sw_server_callbacks[SW_SERVER_CB_onPacket] == NULL)
-    {
-        swoole_php_fatal_error(E_ERROR, "require onReceive/onPacket callback");
-        RETURN_FALSE;
-    }
-    //-------------------------------------------------------------
     serv->onReceive = php_swoole_onReceive;
-
     php_swoole_server_before_start(serv, zobject TSRMLS_CC);
 
     ret = swServer_start(serv);

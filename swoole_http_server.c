@@ -88,9 +88,6 @@ zend_class_entry *swoole_http_response_class_entry_ptr;
 zend_class_entry swoole_http_request_ce;
 zend_class_entry *swoole_http_request_class_entry_ptr;
 
-static int http_onReceive(swServer *serv, swEventData *req);
-static void http_onClose(swServer *serv, swDataHead *ev);
-
 static int http_request_on_path(swoole_http_parser *parser, const char *at, size_t length);
 static int http_request_on_query_string(swoole_http_parser *parser, const char *at, size_t length);
 static int http_request_on_body(swoole_http_parser *parser, const char *at, size_t length);
@@ -247,9 +244,6 @@ voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size);
 void php_zlib_free(voidpf opaque, voidpf address);
 #endif
 
-static PHP_METHOD(swoole_http_server, on);
-static PHP_METHOD(swoole_http_server, start);
-
 static PHP_METHOD(swoole_http_request, getData);
 static PHP_METHOD(swoole_http_request, rawcontent);
 static PHP_METHOD(swoole_http_request, __destruct);
@@ -335,11 +329,6 @@ static sw_inline char* http_get_method_name(int method)
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_server_on, 0, 0, 2)
-    ZEND_ARG_INFO(0, event_name)
-    ZEND_ARG_INFO(0, callback)
-ZEND_END_ARG_INFO()
-
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_gzip, 0, 0, 0)
     ZEND_ARG_INFO(0, compress_level)
 ZEND_END_ARG_INFO()
@@ -419,13 +408,6 @@ static const multipart_parser_settings mt_parser_settings =
     multipart_body_on_header_complete,
     multipart_body_on_data_end,
     NULL,
-};
-
-const zend_function_entry swoole_http_server_methods[] =
-{
-    PHP_ME(swoole_http_server, on,         arginfo_swoole_http_server_on, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_server, start,      arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
-    PHP_FE_END
 };
 
 const zend_function_entry swoole_http_request_methods[] =
@@ -1032,7 +1014,7 @@ static int http_request_message_complete(swoole_http_parser *parser)
     return 0;
 }
 
-static int http_onReceive(swServer *serv, swEventData *req)
+int php_swoole_http_onReceive(swServer *serv, swEventData *req)
 {
     if (swEventData_is_dgram(req->info.type))
     {
@@ -1230,7 +1212,7 @@ static int http_onReceive(swServer *serv, swEventData *req)
     return SW_OK;
 }
 
-static void http_onClose(swServer *serv, swDataHead *ev)
+void php_swoole_http_onClose(swServer *serv, swDataHead *ev)
 {
     int fd = ev->fd;
     swConnection *conn = swWorker_get_connection(SwooleG.serv, fd);
@@ -1249,7 +1231,7 @@ static void http_onClose(swServer *serv, swDataHead *ev)
 
 void swoole_http_server_init(int module_number TSRMLS_DC)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_http_server_ce, "swoole_http_server", "Swoole\\Http\\Server", swoole_http_server_methods);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_http_server_ce, "swoole_http_server", "Swoole\\Http\\Server", NULL);
     swoole_http_server_class_entry_ptr = sw_zend_register_internal_class_ex(&swoole_http_server_ce, swoole_server_class_entry_ptr, "swoole_server" TSRMLS_CC);
     swoole_http_server_class_entry_ptr->serialize = zend_class_serialize_deny;
     swoole_http_server_class_entry_ptr->unserialize = zend_class_unserialize_deny;
@@ -1295,76 +1277,6 @@ void swoole_http_server_init(int module_number TSRMLS_DC)
     zend_declare_property_null(swoole_http_request_class_entry_ptr, SW_STRL("files")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_http_request_class_entry_ptr, SW_STRL("post")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(swoole_http_request_class_entry_ptr, SW_STRL("tmpfiles")-1, ZEND_ACC_PUBLIC TSRMLS_CC);
-}
-
-static PHP_METHOD(swoole_http_server, on)
-{
-    zval *callback;
-    zval *event_name;
-
-    swServer *serv = swoole_get_object(getThis());
-    if (serv->gs->start > 0)
-    {
-        swoole_php_error(E_WARNING, "server is running. unable to register event callback function.");
-        RETURN_FALSE;
-    }
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zz", &event_name, &callback) == FAILURE)
-    {
-        return;
-    }
-
-#ifdef PHP_SWOOLE_CHECK_CALLBACK
-    char *func_name = NULL;
-#if !defined(SW_COROUTINE) && !defined(PHP_SWOOLE_ENABLE_FASTCALL)
-    if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
-#else
-    zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
-    if (!sw_zend_is_callable_ex(callback, NULL, 0, &func_name, NULL, func_cache, NULL TSRMLS_CC))
-#endif
-    {
-        swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
-        efree(func_name);
-        RETURN_FALSE;
-    }
-    efree(func_name);
-#elif defined(PHP_SWOOLE_CHECK_CALLBACK)
-    char *func_name = NULL;
-    if (!sw_zend_is_callable(callback, 0, &func_name TSRMLS_CC))
-    {
-        swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
-        efree(func_name);
-        return;
-    }
-    efree(func_name);
-#endif
-
-    if (strncasecmp("request", Z_STRVAL_P(event_name), Z_STRLEN_P(event_name)) == 0)
-    {
-        zend_update_property(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("onRequest"), callback TSRMLS_CC);
-        php_sw_server_callbacks[SW_SERVER_CB_onRequest] = sw_zend_read_property(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("onRequest"), 0 TSRMLS_CC);
-        sw_copy_to_stack(php_sw_server_callbacks[SW_SERVER_CB_onRequest], _php_sw_server_callbacks[SW_SERVER_CB_onRequest]);
-#if defined(SW_COROUTINE) || defined(PHP_SWOOLE_ENABLE_FASTCALL)
-        php_sw_server_caches[SW_SERVER_CB_onRequest] = func_cache;
-#endif
-    }
-    else if (strncasecmp("handshake", Z_STRVAL_P(event_name), Z_STRLEN_P(event_name)) == 0)
-    {
-        zend_update_property(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("onHandshake"), callback TSRMLS_CC);
-        php_sw_server_callbacks[SW_SERVER_CB_onHandShake] = sw_zend_read_property(swoole_http_server_class_entry_ptr, getThis(), ZEND_STRL("onHandshake"), 0 TSRMLS_CC);
-        sw_copy_to_stack(php_sw_server_callbacks[SW_SERVER_CB_onHandShake], _php_sw_server_callbacks[SW_SERVER_CB_onHandShake]);
-#if defined(SW_COROUTINE) || defined(PHP_SWOOLE_ENABLE_FASTCALL)
-        php_sw_server_caches[SW_SERVER_CB_onHandShake] = func_cache;
-#endif
-    }
-    else
-    {
-#if defined(SW_COROUTINE) || defined(PHP_SWOOLE_ENABLE_FASTCALL)
-        efree(func_cache);
-#endif
-        zval *obj = getThis();
-        sw_zend_call_method_with_2_params(&obj, swoole_server_class_entry_ptr, NULL, "on", &return_value, event_name, callback);
-    }
 }
 
 http_context* swoole_http_context_new(int fd)
@@ -1552,50 +1464,20 @@ static char *http_status_message(int code)
     }
 }
 
-static PHP_METHOD(swoole_http_server, start)
+void php_swoole_http_server_before_start(swServer *serv, zval *zobject)
 {
-    int ret;
-
-    swServer *serv = swoole_get_object(getThis());
-    if (serv->gs->start > 0)
-    {
-        swoole_php_error(E_WARNING, "Server is running. Unable to execute swoole_server::start.");
-        RETURN_FALSE;
-    }
-
-    php_swoole_register_callback(serv);
-
-    if (serv->listen_list->open_websocket_protocol)
-    {
-        if (php_sw_server_callbacks[SW_SERVER_CB_onMessage] == NULL)
-        {
-            swoole_php_fatal_error(E_ERROR, "require onMessage callback");
-            RETURN_FALSE;
-        }
-        if (serv->listen_list->open_http2_protocol == 1)
-        {
-            swoole_php_fatal_error(E_ERROR, "cannot use http2 protocol in websocket server");
-            RETURN_FALSE;
-        }
-    }
-    else if (php_sw_server_callbacks[SW_SERVER_CB_onRequest] == NULL)
-    {
-        swoole_php_fatal_error(E_ERROR, "require onRequest callback");
-        RETURN_FALSE;
-    }
-
     swoole_http_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
     if (!swoole_http_buffer)
     {
         swoole_php_fatal_error(E_ERROR, "[1] swString_new(%d) failed.", SW_HTTP_RESPONSE_INIT_SIZE);
-        RETURN_FALSE;
+        return;
     }
 
     swoole_http_form_data_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
     if (!swoole_http_form_data_buffer)
     {
         swoole_php_fatal_error(E_ERROR, "[2] swString_new(%d) failed.", SW_HTTP_RESPONSE_INIT_SIZE);
-        RETURN_FALSE;
+        return;
     }
 
 #ifdef SW_HAVE_ZLIB
@@ -1603,56 +1485,13 @@ static PHP_METHOD(swoole_http_server, start)
     if (!swoole_zlib_buffer)
     {
         swoole_php_fatal_error(E_ERROR, "[3] swString_new(%d) failed.", SW_HTTP_RESPONSE_INIT_SIZE);
-        RETURN_FALSE;
+        return;
     }
 #endif
-
-    serv->onReceive = http_onReceive;
-
-    if (serv->listen_list->open_http2_protocol)
-    {
-        serv->onClose = http_onClose;
-    }
-
-    zval *zsetting = sw_zend_read_property(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("setting"), 1 TSRMLS_CC);
-    if (zsetting == NULL || ZVAL_IS_NULL(zsetting))
-    {
-        SW_ALLOC_INIT_ZVAL(zsetting);
-        array_init(zsetting);
-#ifdef HT_ALLOW_COW_VIOLATION
-        HT_ALLOW_COW_VIOLATION(Z_ARRVAL_P(zsetting));
-#endif
-        zend_update_property(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("setting"), zsetting TSRMLS_CC);
-    }
-
-    add_assoc_bool(zsetting, "open_http_protocol", 1);
-    add_assoc_bool(zsetting, "open_mqtt_protocol", 0);
-    add_assoc_bool(zsetting, "open_eof_check", 0);
-    add_assoc_bool(zsetting, "open_length_check", 0);
-
-    if (serv->listen_list->open_websocket_protocol)
-    {
-        add_assoc_bool(zsetting, "open_websocket_protocol", 1);
-    }
-
-    serv->listen_list->open_http_protocol = 1;
-    serv->listen_list->open_mqtt_protocol = 0;
-    serv->listen_list->open_eof_check = 0;
-    serv->listen_list->open_length_check = 0;
 
     //for is_uploaded_file and move_uploaded_file
     ALLOC_HASHTABLE(SG(rfc1867_uploaded_files));
     zend_hash_init(SG(rfc1867_uploaded_files), 8, NULL, NULL, 0);
-
-    php_swoole_server_before_start(serv, getThis() TSRMLS_CC);
-
-    ret = swServer_start(serv);
-    if (ret < 0)
-    {
-        swoole_php_fatal_error(E_ERROR, "failed to start server. Error: %s", sw_error);
-        RETURN_LONG(ret);
-    }
-    RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_http_request, rawcontent)

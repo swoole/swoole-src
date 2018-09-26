@@ -13,62 +13,77 @@ assert.quiet_eval=0
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
 
-/**
-
- * Time: 下午4:34
- */
-
-$simple_tcp_server = __DIR__ . "/../include/api/swoole_server/multi_protocol_server.php";
-
-$port = get_one_free_port();
 $port1 = get_one_free_port();
 $port2 = get_one_free_port();
+$port3 = get_one_free_port();
 
-start_server($simple_tcp_server, TCP_SERVER_HOST, $port, "/dev/null", $port1, $port2);
+$pm = new ProcessManager;
 
-suicide(2000);
-usleep(500 * 1000);
-
-
-$tokens = [1,1,1];
-function checkDone()
+$pm->parentFunc = function ($pid) use ($pm, $port1, $port2, $port3)
 {
-    global $tokens;
-    array_pop($tokens);
+    makeTcpClient_without_protocol(TCP_SERVER_HOST, $port1, function(\swoole_client $cli) use($port1) {
+        $r = $cli->send("$port1\r\n");
+        assert($r !== false);
+    }, function(\swoole_client $cli, $data) use($port1) {
+        assert($data == $port1);
+        $cli->close();
+    });
 
-    if (empty($tokens)) {
-        echo "SUCCESS";
-        swoole_event_exit();
-    }
-}
+    makeTcpClient_without_protocol(TCP_SERVER_HOST, $port2, function(\swoole_client $cli) use($port2) {
+        $r = $cli->send("$port2\n");
+        assert($r !== false);
+    }, function(\swoole_client $cli, $data) use($port2) {
+        assert($data == $port2);
+        $cli->close();
+    });
 
-makeTcpClient(TCP_SERVER_HOST, $port, function(\swoole_client $cli) use($port) {
-    $r = $cli->send("$port\r\n");
-    assert($r !== false);
-}, function(\swoole_client $cli, $recv) use($port) {
-    list($op, $data) = opcode_decode($recv);
-    assert(intval($data) === $port);
-    checkDone();
-});
+    makeTcpClient_without_protocol(TCP_SERVER_HOST, $port3, function(\swoole_client $cli) use($port1, $port3) {
+        $r = $cli->send("$port3\r");
+        assert($r !== false);
+    }, function(\swoole_client $cli, $data) use($port1, $port3) {
+        assert($data == $port1);
+        $cli->close();
+    });
+    swoole_event_wait();
+    $pm->kill();
+};
 
-makeTcpClient(TCP_SERVER_HOST, $port1, function(\swoole_client $cli) use($port1) {
-    $r = $cli->send("$port1\r");
-    assert($r !== false);
-}, function(\swoole_client $cli, $recv) use($port1) {
-    list($op, $data) = opcode_decode($recv);
-    assert(intval($data) === $port1);
-    checkDone();
-});
+$pm->childFunc = function () use ($pm,  $port1, $port2, $port3)
+{
+    $server = new swoole_server("127.0.0.1", $port1);
+    $server->set(array(
+        'log_file' => '/dev/null',
+        'worker_num' => 1,
+    ));
 
-makeTcpClient(TCP_SERVER_HOST, $port2, function(\swoole_client $cli) use($port2) {
-    $r = $cli->send("$port2\n");
-    assert($r !== false);
-}, function(\swoole_client $cli, $recv) use($port2) {
-    list($op, $data) = opcode_decode($recv);
-    assert(intval($data) === $port2);
-    checkDone();
-});
+    $p2 = $server->listen('127.0.0.1', $port2, SWOOLE_SOCK_TCP);
+    $p2->on('receive', function ($serv, $fd, $tid, $data) use ($port2)
+    {
+        $serv->send($fd, $port2);
+    });
 
+    $server->listen('127.0.0.1', $port3, SWOOLE_SOCK_TCP);
+
+    $server->on('Receive', function ($serv, $fd, $rid, $data)  use ($port1)
+    {
+        $serv->send($fd, "$port1");
+    });
+
+    $server->on("WorkerStart", function (\swoole_server $serv)
+    {
+        /**
+         * @var $pm ProcessManager
+         */
+        global $pm;
+        $pm->wakeup();
+    });
+    $server->start();
+};
+
+$pm->childFirst();
+$pm->run();
 ?>
 --EXPECT--
-SUCCESS
+close
+close
+close

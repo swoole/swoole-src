@@ -1771,7 +1771,14 @@ static PHP_METHOD(swoole_client, close)
     if (force || !cli->keep || swConnection_error(SwooleG.error) == SW_CLOSE)
     {
         uint8_t need_free = !cli->async;
-        ret = cli->close(cli);
+        if (cli->async && cli->socket->active == 0)
+        {
+            need_free = 1;
+        }
+        else
+        {
+            ret = cli->close(cli);
+        }
         if (need_free)
         {
             php_swoole_client_free(getThis(), cli TSRMLS_CC);
