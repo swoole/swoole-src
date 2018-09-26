@@ -1126,7 +1126,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
         }
         add_assoc_string(zserver, "server_software", SW_HTTP_SERVER_SOFTWARE);
 
-        int callback_type = 0;
+        int callback_type = SW_SERVER_CB_onRequest;
         zval *zcallback = NULL;
 
         if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)

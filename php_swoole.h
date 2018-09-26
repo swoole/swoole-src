@@ -261,6 +261,7 @@ extern zend_class_entry *swoole_server_class_entry_ptr;
 extern zend_class_entry *swoole_connection_iterator_class_entry_ptr;
 extern zend_class_entry *swoole_buffer_class_entry_ptr;
 extern zend_class_entry *swoole_http_server_class_entry_ptr;
+extern zend_class_entry *swoole_websocket_server_class_entry_ptr;
 extern zend_class_entry *swoole_server_port_class_entry_ptr;
 extern zend_class_entry *swoole_exception_class_entry_ptr;
 

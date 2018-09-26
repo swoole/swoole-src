@@ -547,7 +547,7 @@ static PHP_METHOD(swoole_server_port, on)
     }
     efree(func_name);
 
-    char *callback_name[PHP_SWOOLE_SERVER_CALLBACK_NUM] = {
+    char *callback_name[PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM] = {
         "Connect",
         "Receive",
         "Close",
