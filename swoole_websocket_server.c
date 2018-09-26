@@ -33,7 +33,7 @@
 #include "thirdparty/swoole_http_parser.h"
 
 static zend_class_entry swoole_websocket_server_ce;
-static zend_class_entry *swoole_websocket_server_class_entry_ptr;
+zend_class_entry *swoole_websocket_server_class_entry_ptr;
 
 static zend_class_entry swoole_websocket_frame_ce;
 zend_class_entry *swoole_websocket_frame_class_entry_ptr;

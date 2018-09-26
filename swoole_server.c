@@ -683,6 +683,11 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject TSRMLS_DC)
                 sw_zval_ptr_dtor(&retval);
             }
         }
+    }
+
+    for (i = 0; i < server_port_list.num; i++)
+    {
+        port_object = server_port_list.zobjects[i];
         port = swoole_get_object(port_object);
         if (port->open_websocket_protocol || port->open_http_protocol)
         {
@@ -2163,13 +2168,11 @@ PHP_METHOD(swoole_server, __destruct)
     int i;
     for (i = 0; i < PHP_SERVER_CALLBACK_NUM; i++)
     {
-#ifdef PHP_SWOOLE_ENABLE_FASTCALL
         if (php_sw_server_caches[i])
         {
             efree(php_sw_server_caches[i]);
             php_sw_server_caches[i] = NULL;
         }
-#endif
     }
 
     zval *port_object;
@@ -2836,6 +2839,15 @@ PHP_METHOD(swoole_server, start)
 
     php_swoole_register_callback(serv);
     serv->onReceive = php_swoole_onReceive;
+    if (Z_OBJCE_P(zobject) == swoole_http_server_class_entry_ptr)
+    {
+        serv->listen_list->open_http_protocol = 1;
+    }
+    if (Z_OBJCE_P(zobject) == swoole_websocket_server_class_entry_ptr)
+    {
+        serv->listen_list->open_http_protocol = 1;
+        serv->listen_list->open_websocket_protocol = 1;
+    }
     php_swoole_server_before_start(serv, zobject TSRMLS_CC);
 
     ret = swServer_start(serv);
