@@ -33,7 +33,6 @@ $pm->parentFunc = function ($pid)
 $pm->childFunc = function () use ($pm)
 {
     $serv = new \swoole_server('127.0.0.1', 9501, SWOOLE_BASE, SWOOLE_SOCK_TCP);
-    $serv->set(['open_http_protocol' => true]);
     $serv->on('workerStart', function (\swoole_server $serv)
     {
         /**
