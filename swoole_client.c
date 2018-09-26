@@ -1755,7 +1755,7 @@ static PHP_METHOD(swoole_client, close)
     if (cli->async && cli->socket->active == 0)
     {
         zval *zobject = getThis();
-        sw_zval_ptr_dtor(&zobject);
+        zval_ptr_dtor(zobject);
     }
     //Connection error, or short tcp connection.
     //No keep connection

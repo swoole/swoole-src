@@ -547,8 +547,6 @@ static PHP_METHOD(swoole_server_port, on)
     }
     efree(func_name);
 
-    swListenPort *port = swoole_get_object(getThis());
-
     char *callback_name[PHP_SWOOLE_SERVER_CALLBACK_NUM] = {
         "Connect",
         "Receive",
