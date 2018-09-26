@@ -206,7 +206,7 @@ static int coro_exit_handler(zend_execute_data *execute_data)
     {
         flags |= SW_EXIT_IN_SERVER;
     }
-    if (flags)
+    if (flags && !(flags == SW_EXIT_IN_COROUTINE && COROG.coro_num == 1))
     {
         const zend_op *opline = EX(opline);
         zval _exit_status;
