@@ -96,6 +96,19 @@ static void php_swoole_task_onTimeout(swTimer *timer, swTimer_node *tnode);
 
 static zval* php_swoole_server_add_port(swServer *serv, swListenPort *port TSRMLS_DC);
 
+static inline zend_bool php_swoole_server_isset_callback(swListenPort *port, int event_type)
+{
+    swoole_server_port_property *property = (swoole_server_port_property *) port->ptr;
+    if (property->callbacks[event_type] || server_port_list.primary_port->callbacks[event_type])
+    {
+        return SW_TRUE;
+    }
+    else
+    {
+        return SW_FALSE;
+    }
+}
+
 zval* php_swoole_server_get_callback(swServer *serv, int server_fd, int event_type)
 {
     swListenPort *port = (swListenPort *) serv->connection_list[server_fd].object;
@@ -676,7 +689,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject TSRMLS_DC)
             find_http_port = SW_TRUE;
             if (port->open_websocket_protocol)
             {
-                if (((swoole_server_port_property *) port->ptr)->callbacks[SW_SERVER_CB_onMessage] == NULL)
+                if (!php_swoole_server_isset_callback(port, SW_SERVER_CB_onMessage))
                 {
                     swoole_php_fatal_error(E_ERROR, "require onMessage callback");
                     return;
@@ -687,7 +700,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject TSRMLS_DC)
                     return;
                 }
             }
-            else if (port->open_http_protocol && ((swoole_server_port_property *) port->ptr)->callbacks[SW_SERVER_CB_onRequest] == NULL)
+            else if (port->open_http_protocol && !php_swoole_server_isset_callback(port, SW_SERVER_CB_onRequest))
             {
                 swoole_php_fatal_error(E_ERROR, "require onRequest callback");
                 return;
