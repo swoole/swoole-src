@@ -2155,13 +2155,11 @@ PHP_METHOD(swoole_server, __destruct)
     int i;
     for (i = 0; i < PHP_SERVER_CALLBACK_NUM; i++)
     {
-#ifdef PHP_SWOOLE_ENABLE_FASTCALL
         if (php_sw_server_caches[i])
         {
             efree(php_sw_server_caches[i]);
             php_sw_server_caches[i] = NULL;
         }
-#endif
     }
 
     zval *port_object;
