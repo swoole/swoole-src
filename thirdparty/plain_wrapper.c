@@ -64,67 +64,73 @@ extern int php_get_gid_by_name(const char *name, gid_t *gid);
 # define PLAIN_WRAP_BUF_SIZE(st) (st)
 #endif
 
-extern PHPAPI int php_stream_parse_fopen_modes(const char *mode, int *open_flags);
-
-#if 0
-/* parse standard "fopen" modes into open() flags */
-PHPAPI int php_stream_parse_fopen_modes(const char *mode, int *open_flags)
+static int sw_php_stream_parse_fopen_modes(const char *mode, int *open_flags)
 {
-	int flags;
+    int flags;
 
-	switch (mode[0]) {
-		case 'r':
-			flags = 0;
-			break;
-		case 'w':
-			flags = O_TRUNC|O_CREAT;
-			break;
-		case 'a':
-			flags = O_CREAT|O_APPEND;
-			break;
-		case 'x':
-			flags = O_CREAT|O_EXCL;
-			break;
-		case 'c':
-			flags = O_CREAT;
-			break;
-		default:
-			/* unknown mode */
-			return FAILURE;
-	}
+    switch (mode[0])
+    {
+    case 'r':
+        flags = 0;
+        break;
+    case 'w':
+        flags = O_TRUNC | O_CREAT;
+        break;
+    case 'a':
+        flags = O_CREAT | O_APPEND;
+        break;
+    case 'x':
+        flags = O_CREAT | O_EXCL;
+        break;
+    case 'c':
+        flags = O_CREAT;
+        break;
+    default:
+        /* unknown mode */
+        return FAILURE;
+    }
 
-	if (strchr(mode, '+')) {
-		flags |= O_RDWR;
-	} else if (flags) {
-		flags |= O_WRONLY;
-	} else {
-		flags |= O_RDONLY;
-	}
+    if (strchr(mode, '+'))
+    {
+        flags |= O_RDWR;
+    }
+    else if (flags)
+    {
+        flags |= O_WRONLY;
+    }
+    else
+    {
+        flags |= O_RDONLY;
+    }
 
 #if defined(O_CLOEXEC)
-	if (strchr(mode, 'e')) {
-		flags |= O_CLOEXEC;
-	}
+    if (strchr(mode, 'e'))
+    {
+        flags |= O_CLOEXEC;
+    }
 #endif
 
 #if defined(O_NONBLOCK)
-	if (strchr(mode, 'n')) {
-		flags |= O_NONBLOCK;
-	}
+    if (strchr(mode, 'n'))
+    {
+        flags |= O_NONBLOCK;
+    }
 #endif
 
 #if defined(_O_TEXT) && defined(O_BINARY)
-	if (strchr(mode, 't')) {
-		flags |= _O_TEXT;
-	} else {
-		flags |= O_BINARY;
-	}
+    if (strchr(mode, 't'))
+    {
+        flags |= _O_TEXT;
+    }
+    else
+    {
+        flags |= O_BINARY;
+    }
 #endif
 
-	*open_flags = flags;
-	return SUCCESS;
+    *open_flags = flags;
+    return SUCCESS;
 }
-#endif
 
 /* {{{ ------- STDIO stream implementation -------*/
 
@@ -341,6 +347,7 @@ PHPAPI php_stream *_php_stream_fopen_from_pipe(FILE *file, const char *mode STRE
 	stream->flags |= PHP_STREAM_FLAG_NO_SEEK;
 	return stream;
 }
+#endif
 
 static size_t php_stdiop_write(php_stream *stream, const char *buf, size_t count)
 {
@@ -547,6 +554,8 @@ static int php_stdiop_seek(php_stream *stream, zend_off_t offset, int whence, ze
 
 static int php_stdiop_cast(php_stream *stream, int castas, void **ret)
 {
+    return FAILURE;
+#if 0
 	php_socket_t fd;
 	php_stdio_stream_data *data = (php_stdio_stream_data*) stream->abstract;
 
@@ -601,6 +610,7 @@ static int php_stdiop_cast(php_stream *stream, int castas, void **ret)
 		default:
 			return FAILURE;
 	}
+#endif
 }
 
 static int php_stdiop_stat(php_stream *stream, php_stream_statbuf *ssb)
@@ -887,7 +897,7 @@ static int php_stdiop_set_option(php_stream *stream, int option, int value, void
 	}
 }
 
-static php_stream_ops	sw_php_stream_stdio_ops = {
+static php_stream_ops sw_php_stream_stdio_ops = {
 	php_stdiop_write, php_stdiop_read,
 	php_stdiop_close, php_stdiop_flush,
 	"STDIO/coroutine",
@@ -897,7 +907,6 @@ static php_stream_ops	sw_php_stream_stdio_ops = {
 	php_stdiop_set_option
 };
 /* }}} */
-#endif
 
 /* {{{ plain files opendir/readdir implementation */
 static size_t php_plain_files_dirstream_read(php_stream *stream, char *buf, size_t count)
@@ -987,7 +996,7 @@ static php_stream *sw_php_stream_fopen_rel(const char *filename, const char *mod
 	int persistent = options & STREAM_OPEN_PERSISTENT;
 	char *persistent_id = NULL;
 
-	if (FAILURE == php_stream_parse_fopen_modes(mode, &open_flags)) {
+	if (FAILURE == sw_php_stream_parse_fopen_modes(mode, &open_flags)) {
 		if (options & REPORT_ERRORS) {
 			php_error_docref(NULL, E_WARNING, "`%s' is not a valid mode for fopen", mode);
 		}
