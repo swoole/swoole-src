@@ -16,7 +16,6 @@ $exit_status_list = [
     (object)['exit' => 'ok'],
     STDIN
 ];
-$exit_status_list_copy = $exit_status_list;
 
 function route()
 {
@@ -40,15 +39,22 @@ function your_code()
     }
 }
 
+$chan = new Swoole\Coroutine\Channel;
+
+go(function () use ($chan, $exit_status_list) {
+    foreach ($exit_status_list as $val) {
+        $chan->push($val);
+    }
+});
+
 for ($i = 0; $i < count($exit_status_list); $i++) {
-    go(function () {
-        global $exit_status_list_copy;
+    go(function () use ($exit_status_list, $chan) {
         try {
             // in coroutine
             route();
         } catch (\Swoole\ExitException $e) {
             assert($e->getFlags() & SWOOLE_EXIT_IN_COROUTINE);
-            $exit_status = array_shift($exit_status_list_copy);
+            $exit_status = $chan->pop();
             $exit_status = $exit_status === 'undef' ? null : $exit_status;
             assert($e->getStatus() === $exit_status);
             var_dump($e->getStatus());
@@ -74,4 +80,4 @@ object(stdClass)#1 (1) {
   ["exit"]=>
   string(2) "ok"
 }
-resource%s
+resource(1) of type (stream)

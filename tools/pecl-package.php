@@ -66,5 +66,5 @@ if (!$success) {
 if (!file_put_contents(__DIR__ . '/../package.xml', $content)) {
     exit('output package successful!');
 }
-echo $result = trim(`cd {$root_dir} && pecl package-validate`);
-exit(strpos($result, '0 error') === false);
+echo $package = trim(`cd {$root_dir} && pecl package`);
+exit(preg_match('/Package swoole-[\d.]+\.tgz done/', $package) ? 0 : 255);
