@@ -235,16 +235,15 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
     zval *value;
     zval _value;
 
-    int params_length = 0;
+    uint16_t param_count = 0;
     if (params)
     {
-        params_length = php_swoole_array_length(params);
+        param_count = php_swoole_array_length(params);
     }
 
-    if (params_length != statement->param_count)
+    if (param_count != statement->param_count)
     {
-        swoole_php_fatal_error(E_WARNING, "mysql statement#%d expects %d parameter, %d given.", statement->id,
-                statement->param_count, params_length);
+        swoole_php_fatal_error(E_WARNING, "mysql statement#%u expects %u parameter, %u given.", statement->id, statement->param_count, param_count);
         return SW_ERR;
     }
 
@@ -272,14 +271,14 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
 
     mysql_request_buffer->length += 9;
 
-    if (params_length != 0)
+    if (param_count != 0)
     {
        //null bitmap
-       unsigned int null_count = (params_length + 7) / 8;
-       memset(p, 0, null_count);
        char *null_start = p;
-       p += null_count;
-       mysql_request_buffer->length += null_count;
+       unsigned int map_size = (param_count + 7) / 8;
+       memset(p, 0, map_size);
+       p += map_size;
+       mysql_request_buffer->length += map_size;
 
        //rebind
        mysql_int1store(p, 1);
@@ -287,8 +286,8 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
        mysql_request_buffer->length += 1;
 
        char *type_start = p;
-       p += params_length * 2;
-       mysql_request_buffer->length += params_length * 2;
+       p += param_count * 2;
+       mysql_request_buffer->length += param_count * 2;
 
        zend_ulong index = 0;
        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(params), value)
@@ -296,7 +295,7 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
             if (ZVAL_IS_NULL(value))
             {
                 mysql_int2store(type_start + (index * 2), SW_MYSQL_TYPE_NULL);
-                mysql_int1store(null_start + index, 1);
+                *(null_start + (index / 8)) |= (1UL << (index % (8 - 1)));
             }
             else
             {
