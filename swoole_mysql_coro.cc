@@ -294,8 +294,8 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
        {
             if (ZVAL_IS_NULL(value))
             {
+                *(null_start + (index / 8)) |= (1UL << (index % 8));
                 mysql_int2store(type_start + (index * 2), SW_MYSQL_TYPE_NULL);
-                *(null_start + (index / 8)) |= (1UL << (index % (8 - 1)));
             }
             else
             {
