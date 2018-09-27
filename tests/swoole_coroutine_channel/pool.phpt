@@ -1,12 +1,7 @@
 --TEST--
 swoole_coroutine_channel: connection pool
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc';
-if (!class_exists("swoole_redis", false))
-{
-    exit("SKIP");
-}
-?>
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require_once __DIR__ . '/../include/bootstrap.php';
@@ -35,54 +30,44 @@ class RedisPool
      * RedisPool constructor.
      * @param int $size 连接池的尺寸
      */
-    function __construct($size = 100)
+    public function __construct($size = 100)
     {
         $this->pool = new Swoole\Coroutine\Channel($size);
-        for ($i = 0; $i < $size; $i++)
-        {
+        for ($i = 0; $i < $size; $i++) {
             $redis = new Swoole\Coroutine\Redis();
-            $res = $redis->connect('127.0.0.1', 6379);
-            if ($res == false)
-            {
+            $res = $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
+            if ($res == false) {
                 throw new RuntimeException("failed to connect redis server.");
-            }
-            else
-            {
+            } else {
                 $this->put($redis);
             }
         }
     }
 
-    function put($redis)
+    public function put(Swoole\Coroutine\Redis $redis)
     {
         $this->pool->push($redis);
     }
 
-    function get()
+    public function get(): Swoole\Coroutine\Redis
     {
         return $this->pool->pop();
     }
 }
 
-global $count;
 $count = 0;
-
-go(function ()
-{
+go(function () use (&$count) {
     $pool = new RedisPool(POOL_SIZE);
-    for ($i = 0; $i < CONCURRENCY; $i++)
-    {
-        go(function () use ($pool)
-        {
-            for ($i = 0; $i < COUNT; $i++)
-            {
+    for ($i = 0; $i < CONCURRENCY; $i++) {
+        go(function () use ($pool) {
+            for ($i = 0; $i < COUNT; $i++) {
                 $redis = $pool->get();
                 assert($redis->set("key", "value"));
                 $retval = $redis->get("key");
                 assert($retval == "value");
                 $pool->put($redis);
                 global $count;
-                $count ++;
+                $count++;
             }
         });
     }

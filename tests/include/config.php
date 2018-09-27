@@ -4,6 +4,9 @@ require_once __DIR__ . '/functions.php';
 /** ============== Env =============== */
 define('IS_MAC_OS', stripos(PHP_OS, 'Darwin') !== false);
 define('IS_IN_TRAVIS', file_exists('/.travisenv'));
+define('HAS_SSL', defined("SWOOLE_SSL"));
+define('HAS_ASYNC_REDIS', class_exists("swoole_redis", false));
+define('HAS_HTTP2', class_exists("swoole_http2_request", false));
 
 /** ============ Servers ============ */
 define('TCP_SERVER_HOST', '127.0.0.1');

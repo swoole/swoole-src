@@ -48,12 +48,14 @@ go(function () {
     } catch (\Exception $exception) {
         assert(strpos($exception->getMessage(), 'Serialization') === 0);
     }
-    try {
-        $hcc = new \Swoole\Coroutine\Redis();
-        serialize($hcc);
-        assert(false);
-    } catch (\Exception $exception) {
-        assert(strpos($exception->getMessage(), 'Serialization') === 0);
+    if (HAS_ASYNC_REDIS) {
+        try {
+            $hcc = new \Swoole\Coroutine\Redis();
+            serialize($hcc);
+            assert(false);
+        } catch (\Exception $exception) {
+            assert(strpos($exception->getMessage(), 'Serialization') === 0);
+        }
     }
     try {
         $hcc = new \Swoole\Table(1);

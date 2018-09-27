@@ -1,11 +1,7 @@
 --TEST--
 swoole_redis_coro: connect twice
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc';
-if (!class_exists("Swoole\\Coroutine\\Redis", false))
-{
-    exit("SKIP");
-}
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 ?>
 --FILE--
 <?php

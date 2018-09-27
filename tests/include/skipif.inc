@@ -33,9 +33,23 @@ function skip_if_no_ssl()
     }
 }
 
+function skip_if_no_async_redis()
+{
+    if (!class_exists("swoole_redis", false)) {
+        skip('no async redis');
+    }
+}
+
+function skip_if_no_http2()
+{
+    if (!class_exists("swoole_http2_reqeust", false)) {
+        skip('no http2');
+    }
+}
+
 function skip_if_darwin()
 {
-    if (PHP_OS == 'Darwin') {
+    if (stripos(PHP_OS, 'Darwin') !== false) {
         skip("no darwin");
     }
 }
@@ -69,3 +83,11 @@ function skip_deprecated()
 {
     skip('it\'s the deprecated.', file_exists('/.travisenv'), SWOOLE_COLOR_WHITE);
 }
+
+(function () {
+    if (stripos(__DIR__, 'redis') !== false) {
+        skip_if_no_http2();
+    } elseif (stripos(__DIR__, 'http2') !== false) {
+        skip_if_no_http2();
+    }
+})();
