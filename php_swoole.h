@@ -49,10 +49,6 @@
 #define SW_HAVE_COUNTABLE 1
 #endif
 
-#ifdef SW_STATIC_COMPILATION
-#include "php_config.h"
-#endif
-
 #include "swoole.h"
 #include "server.h"
 #include "client.h"
