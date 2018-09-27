@@ -206,7 +206,11 @@ static int coro_exit_handler(zend_execute_data *execute_data)
     {
         flags |= SW_EXIT_IN_SERVER;
     }
-    if (flags && !(flags == SW_EXIT_IN_COROUTINE && COROG.coro_num == 1))
+    if (flags == SW_EXIT_IN_COROUTINE && COROG.coro_num == 1)
+    {
+        php_swoole_event_exit();
+    }
+    else if (flags)
     {
         const zend_op *opline = EX(opline);
         zval _exit_status;
@@ -242,10 +246,6 @@ static int coro_exit_handler(zend_execute_data *execute_data)
         zend_update_property_long(swoole_exit_exception_class_entry_ptr, &ex, ZEND_STRL("flags"), flags);
         Z_TRY_ADDREF_P(exit_status);
         zend_update_property(swoole_exit_exception_class_entry_ptr, &ex, ZEND_STRL("status"), exit_status);
-    }
-    else
-    {
-        php_swoole_event_exit();
     }
 
     return ZEND_USER_OPCODE_DISPATCH;
