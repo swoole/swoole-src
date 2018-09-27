@@ -243,6 +243,10 @@ static int coro_exit_handler(zend_execute_data *execute_data)
         Z_TRY_ADDREF_P(exit_status);
         zend_update_property(swoole_exit_exception_class_entry_ptr, &ex, ZEND_STRL("status"), exit_status);
     }
+    else
+    {
+        php_swoole_event_exit();
+    }
 
     return ZEND_USER_OPCODE_DISPATCH;
 }

@@ -295,6 +295,18 @@ void php_swoole_event_wait()
     }
 }
 
+void php_swoole_event_exit()
+{
+    if (SwooleWG.in_client == 1)
+    {
+        if (SwooleG.main_reactor)
+        {
+            SwooleG.main_reactor->running = 0;
+        }
+        SwooleG.running = 0;
+    }
+}
+
 int swoole_convert_to_fd(zval *zfd)
 {
     php_stream *stream;
@@ -796,14 +808,7 @@ PHP_FUNCTION(swoole_event_cycle)
 
 PHP_FUNCTION(swoole_event_exit)
 {
-    if (SwooleWG.in_client == 1)
-    {
-        if (SwooleG.main_reactor)
-        {
-            SwooleG.main_reactor->running = 0;
-        }
-        SwooleG.running = 0;
-    }
+    php_swoole_event_exit();
 }
 
 PHP_FUNCTION(swoole_event_wait)
