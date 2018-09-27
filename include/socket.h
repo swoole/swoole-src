@@ -25,7 +25,9 @@ namespace swoole
 {
 enum socket_lock_operation
 {
-    SOCKET_LOCK_READ = 1u << 1, SOCKET_LOCK_WRITE = 1U << 2,
+    SOCKET_LOCK_READ = 1u << 1,
+    SOCKET_LOCK_WRITE = 1U << 2,
+    SOCKET_LOCK_RW = SOCKET_LOCK_READ | SOCKET_LOCK_WRITE
 };
 
 class Socket
@@ -47,7 +49,7 @@ public:
     ssize_t send_all(const void *__buf, size_t __n);
     ssize_t recv_packet();
     Socket* accept();
-    void resume();
+    void resume(int operation);
     void yield(int operation);
     bool bind(std::string address, int port = 0);
     std::string resolve(std::string host);
@@ -82,9 +84,8 @@ public:
 protected:
     inline void init()
     {
-        _cid = 0;
-        read_locked = false;
-        write_locked = false;
+        read_cid = 0;
+        write_cid = 0;
         _timeout = 0;
         _port = 0;
         errCode = 0;
@@ -150,9 +151,8 @@ public:
     std::string bind_address;
     int bind_port;
     int _port;
-    int _cid;
-    bool read_locked;
-    bool write_locked;
+    int read_cid;
+    int write_cid;
     swConnection *socket = nullptr;
     enum swSocket_type type;
     int _sock_type;
