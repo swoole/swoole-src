@@ -638,10 +638,10 @@ class ProcessManager
                 $this->wait();
             }
             $this->runParentFunc($pid);
-            if ($this->async)
-            {
-                swoole_event::wait();
-            }
+            // if ($this->async)
+            // {
+            swoole_event_wait();
+            // }
             pcntl_waitpid($pid, $status);
             $this->childStatus = $status;
         }
