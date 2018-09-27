@@ -852,7 +852,9 @@ static PHP_METHOD(swoole_http2_client_coro, send)
 
     if (!cli || !cli->socket || cli->socket->closed)
     {
-        swoole_php_error(E_WARNING, "The connection is closed.");
+        zend_update_property_long(swoole_http2_client_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), (SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION));
+        zend_update_property_string(swoole_http2_client_coro_class_entry_ptr, getThis(), ZEND_STRL("errMsg"), "client is not connected to server.");
+        swoole_php_error(E_WARNING, "client is not connected to server.");
         RETURN_FALSE;
     }
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &request) == FAILURE)
@@ -887,7 +889,9 @@ static PHP_METHOD(swoole_http2_client_coro, recv)
     swClient *cli = hcc->client;
     if (!cli || !cli->socket || cli->socket->closed)
     {
-        swoole_php_error(E_WARNING, "The connection is closed.");
+        zend_update_property_long(swoole_http2_client_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), (SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION));
+        zend_update_property_string(swoole_http2_client_coro_class_entry_ptr, getThis(), ZEND_STRL("errMsg"), "client is not connected to server.");
+        swoole_php_error(E_WARNING, "client is not connected to server.");
         RETURN_FALSE;
     }
     if (unlikely(hcc->cid != 0 && hcc->cid != sw_get_current_cid()))
@@ -919,6 +923,8 @@ static void http2_client_onConnect(swClient *cli)
     http2_client_property *hcc = swoole_get_property(zobject, HTTP2_CLIENT_CORO_PROPERTY);
 
     zend_update_property_bool(swoole_http2_client_coro_class_entry_ptr, zobject, ZEND_STRL("connected"), 1);
+    zend_update_property_long(swoole_http2_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), 0);
+    zend_update_property_string(swoole_http2_client_coro_class_entry_ptr, zobject, ZEND_STRL("errMsg"), "");
 
     cli->send(cli, ZEND_STRL("PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"), 0);
     cli->open_length_check = 1;
@@ -954,6 +960,8 @@ static void http2_client_onClose(swClient *cli)
 {
     zval *zobject = cli->object;
     zend_update_property_bool(swoole_http2_client_coro_class_entry_ptr, zobject, ZEND_STRL("connected"), 0);
+    zend_update_property_long(swoole_http2_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error);
+    zend_update_property_string(swoole_http2_client_coro_class_entry_ptr, zobject, ZEND_STRL("errMsg"), strerror(SwooleG.error));
     php_swoole_client_free(zobject, cli);
 
     http2_client_property *hcc = swoole_get_property(zobject, HTTP2_CLIENT_CORO_PROPERTY);
@@ -1055,17 +1063,7 @@ static PHP_METHOD(swoole_http2_client_coro, __destruct)
 static PHP_METHOD(swoole_http2_client_coro, close)
 {
     swClient *cli = swoole_get_object(getThis());
-    if (!cli)
-    {
-        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_http_client_coro.");
-        RETURN_FALSE;
-    }
-    if (!cli->socket)
-    {
-        swoole_php_error(E_WARNING, "not connected to the server");
-        RETURN_FALSE;
-    }
-    if (cli->socket->closed)
+    if (!cli || !cli->socket || cli->socket->closed)
     {
         RETURN_FALSE;
     }
@@ -1226,7 +1224,9 @@ static PHP_METHOD(swoole_http2_client_coro, write)
 
     if (!cli || !cli->socket || cli->socket->closed)
     {
-        swoole_php_error(E_WARNING, "The connection is closed.");
+        zend_update_property_long(swoole_http2_client_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), (SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION));
+        zend_update_property_string(swoole_http2_client_coro_class_entry_ptr, getThis(), ZEND_STRL("errMsg"), "client is not connected to server.");
+        swoole_php_error(E_WARNING, "client is not connected to server.");
         RETURN_FALSE;
     }
 
@@ -1261,7 +1261,9 @@ static PHP_METHOD(swoole_http2_client_coro, goaway)
 
     if (!cli || !cli->socket || cli->socket->closed)
     {
-        swoole_php_error(E_WARNING, "The connection is closed.");
+        zend_update_property_long(swoole_http2_client_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), (SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION));
+        zend_update_property_string(swoole_http2_client_coro_class_entry_ptr, getThis(), ZEND_STRL("errMsg"), "client is not connected to server.");
+        swoole_php_error(E_WARNING, "client is not connected to server.");
         RETURN_FALSE;
     }
 
