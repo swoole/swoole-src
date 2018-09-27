@@ -568,7 +568,7 @@ static sw_inline int mysql_length_coded_binary(char *m, ulong_t *r, char *nul, i
     return retcode;
 }
 
-int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callback TSRMLS_DC);
+int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callback);
 
 END_EXTERN_C()
 

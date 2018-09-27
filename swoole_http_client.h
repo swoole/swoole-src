@@ -157,18 +157,18 @@ typedef struct
 
 } http_client;
 
-void http_client_clear_response_properties(zval *zobject TSRMLS_DC);
+void http_client_clear_response_properties(zval *zobject);
 int http_client_parser_on_header_field(swoole_http_parser *parser, const char *at, size_t length);
 int http_client_parser_on_header_value(swoole_http_parser *parser, const char *at, size_t length);
 int http_client_parser_on_body(swoole_http_parser *parser, const char *at, size_t length);
 int http_client_parser_on_headers_complete(swoole_http_parser *parser);
 int http_client_parser_on_message_complete(swoole_http_parser *parser);
 
-http_client* http_client_create(zval *object TSRMLS_DC);
+http_client* http_client_create(zval *object);
 void http_client_clear(http_client *http);
 int http_client_check_keep(http_client *http);
 void http_client_reset(http_client *http);
-void http_client_free(zval *object TSRMLS_DC);
+void http_client_free(zval *object);
 
 static sw_inline void http_client_create_token(int length, char *buf)
 {
@@ -182,7 +182,7 @@ static sw_inline void http_client_create_token(int length, char *buf)
     buf[length] = '\0';
 }
 
-static sw_inline int http_client_check_data(zval *data TSRMLS_DC)
+static sw_inline int http_client_check_data(zval *data)
 {
     if (Z_TYPE_P(data) != IS_ARRAY && Z_TYPE_P(data) != IS_STRING)
     {

@@ -1114,6 +1114,7 @@
             <file role="test" name="tests/swoole_table/foreach.phpt" />
             <file role="test" name="tests/swoole_table/int.phpt" />
             <file role="test" name="tests/swoole_table/key_value.phpt" />
+            <file role="test" name="tests/swoole_table/row.phpt" />
             <file role="test" name="tests/swoole_timer/enable_coroutine.phpt" />
             <file role="test" name="tests/swoole_timer/greater_than_0.phpt" />
             <file role="test" name="tests/swoole_timer/next_round.phpt" />

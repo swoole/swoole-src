@@ -155,15 +155,15 @@ void swoole_websocket_onRequest(http_context *);
  * Http Context
  */
 http_context* swoole_http_context_new(int fd);
-void swoole_http_context_free(http_context *ctx TSRMLS_DC);
-int swoole_http_parse_form_data(http_context *ctx, const char *boundary_str, int boundary_len TSRMLS_DC);
+void swoole_http_context_free(http_context *ctx);
+int swoole_http_parse_form_data(http_context *ctx, const char *boundary_str, int boundary_len);
 
 #define swoole_http_server_array_init(name, class)    SW_MAKE_STD_ZVAL(z##name);\
 array_init(z##name);\
-zend_update_property(swoole_http_##class##_class_entry_ptr, z##class##_object, ZEND_STRL(#name), z##name TSRMLS_CC);\
-ctx->class.z##name = sw_zend_read_property(swoole_http_##class##_class_entry_ptr, z##class##_object, ZEND_STRL(#name), 0 TSRMLS_CC);\
+zend_update_property(swoole_http_##class##_class_entry_ptr, z##class##_object, ZEND_STRL(#name), z##name);\
+ctx->class.z##name = sw_zend_read_property(swoole_http_##class##_class_entry_ptr, z##class##_object, ZEND_STRL(#name), 0);\
 sw_copy_to_stack(ctx->class.z##name, ctx->class._z##name);\
-sw_zval_ptr_dtor(&z##name);\
+zval_ptr_dtor(z##name);\
 z##name = ctx->class.z##name;
 
 #define http_strncasecmp(const_str, at, length) ((length >= sizeof(const_str)-1) &&\
@@ -223,8 +223,8 @@ static sw_inline int http_parse_set_cookies(const char *at, size_t length, zval 
     char keybuf[SW_HTTP_COOKIE_KEYLEN];
     memcpy(keybuf, at, l_key);
     keybuf[l_key] = '\0';
-    sw_add_assoc_stringl_ex(cookies, keybuf, l_key + 1, (char*) at + l_key + 1, l_cookie - l_key - 1, 1);
-    sw_add_assoc_stringl_ex(set_cookie_headers, keybuf, l_key + 1, (char*) at, length, 1);
+    add_assoc_stringl_ex(cookies, keybuf, l_key, (char*) at + l_key + 1, l_cookie - l_key - 1);
+    add_assoc_stringl_ex(set_cookie_headers, keybuf, l_key, (char*) at, length);
 
     return SW_OK;
 }

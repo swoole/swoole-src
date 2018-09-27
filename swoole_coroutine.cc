@@ -47,7 +47,7 @@ static inline void sw_vm_stack_init(void)
 #define sw_vm_stack_init zend_vm_stack_init
 #endif
 
-int coro_init(TSRMLS_D)
+int coro_init(void)
 {
     if (zend_get_module_started("xdebug") == SUCCESS)
     {
@@ -147,7 +147,7 @@ void internal_coro_yield(void *arg)
     }
 }
 
-void coro_check(TSRMLS_D)
+void coro_check(void)
 {
     if (unlikely(!sw_coro_is_in()))
     {
@@ -155,7 +155,7 @@ void coro_check(TSRMLS_D)
     }
 }
 
-void coro_destroy(TSRMLS_D)
+void coro_destroy(void)
 {
 
 }
@@ -235,7 +235,7 @@ static void sw_coro_func(void *arg)
     EG(vm_stack) = task->stack;
     EG(vm_stack_top) = task->vm_stack_top;
     EG(vm_stack_end) = task->vm_stack_end;
-    zend_execute_ex(EG(current_execute_data) TSRMLS_CC);
+    zend_execute_ex(EG(current_execute_data));
 }
 
 int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval *retval, void *post_callback,
@@ -347,7 +347,7 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
         {
             zval_ptr_dtor(retval);
         }
-        zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+        zend_exception_error(EG(exception), E_ERROR);
     }
     return CORO_END;
 }

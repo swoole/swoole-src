@@ -51,15 +51,15 @@ zend_class_entry swoole_serialize_ce;
 zend_class_entry *swoole_serialize_class_entry_ptr;
 
 #define SWOOLE_SERI_EOF "EOF"
-#define CHECK_STEP if(buffer>unseri_buffer_end){ php_error_docref(NULL TSRMLS_CC, E_ERROR, "illegal unserialize data"); return NULL;}
+#define CHECK_STEP if(buffer>unseri_buffer_end){ php_error_docref(NULL, E_ERROR, "illegal unserialize data"); return NULL;}
 
 static struct _swSeriaG swSeriaG;
 void *unseri_buffer_end = NULL;
 
-void swoole_serialize_init(int module_number TSRMLS_DC)
+void swoole_serialize_init(int module_number)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_serialize_ce, "swoole_serialize", "Swoole\\Serialize", swoole_serialize_methods);
-    swoole_serialize_class_entry_ptr = zend_register_internal_class(&swoole_serialize_ce TSRMLS_CC);
+    swoole_serialize_class_entry_ptr = zend_register_internal_class(&swoole_serialize_ce);
     SWOOLE_CLASS_ALIAS(swoole_serialize, "Swoole\\Serialize");
 
     //    ZVAL_STRING(&swSeriaG.sleep_fname, "__sleep");
@@ -87,7 +87,7 @@ static CPINLINE int swoole_string_new(size_t size, seriaString *str, zend_uchar 
     str->buffer = ecalloc(1, total);
     if (!str->buffer)
     {
-        php_error_docref(NULL TSRMLS_CC, E_ERROR, "malloc Error: %s [%d]", strerror(errno), errno);
+        php_error_docref(NULL, E_ERROR, "malloc Error: %s [%d]", strerror(errno), errno);
     }
 
     SBucketType real_type = {0};
@@ -108,7 +108,7 @@ static CPINLINE void swoole_check_size(seriaString *str, size_t len)
         str->buffer = erealloc2(str->buffer, new_size, str->offset);
         if (!str->buffer)
         {
-            php_error_docref(NULL TSRMLS_CC, E_ERROR, "realloc Error: %s [%d]", strerror(errno), errno);
+            php_error_docref(NULL, E_ERROR, "realloc Error: %s [%d]", strerror(errno), errno);
         }
         str->total = new_size;
     }
@@ -416,7 +416,7 @@ static uint32_t CPINLINE cp_zend_hash_check_size(uint32_t nSize)
     }//    else if (UNEXPECTED(nSize >= 1000000))
     else if (UNEXPECTED(nSize >= HT_MAX_SIZE))
     {
-        php_error_docref(NULL TSRMLS_CC, E_NOTICE, "invalid unserialize data");
+        php_error_docref(NULL, E_NOTICE, "invalid unserialize data");
         return 0;
     }
 
@@ -657,7 +657,7 @@ static void* swoole_unserialize_arr(void *buffer, zval *zvalue, uint32_t nNumOfE
     }
     if (!buffer)
     {
-        php_error_docref(NULL TSRMLS_CC, E_NOTICE, "illegal unserialize data");
+        php_error_docref(NULL, E_NOTICE, "illegal unserialize data");
         return NULL;
     }
     ZVAL_NEW_ARR(zvalue);
@@ -683,7 +683,7 @@ static void* swoole_unserialize_arr(void *buffer, zval *zvalue, uint32_t nNumOfE
     int ht_hash_size = HT_HASH_SIZE((ht)->nTableMask);
     if (ht_hash_size <= 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_NOTICE, "illegal unserialize data");
+        php_error_docref(NULL, E_NOTICE, "illegal unserialize data");
         return NULL;
     }
     HT_HASH_RESET(ht);
@@ -696,7 +696,7 @@ static void* swoole_unserialize_arr(void *buffer, zval *zvalue, uint32_t nNumOfE
     {
         if (!buffer)
         {
-            php_error_docref(NULL TSRMLS_CC, E_NOTICE, "illegal array unserialize data");
+            php_error_docref(NULL, E_NOTICE, "illegal array unserialize data");
             return NULL;
         }
         SBucketType type = *((SBucketType*) buffer);
@@ -1002,7 +1002,7 @@ try_again:
                 if (GC_IS_RECURSIVE(ht))
                 {
                     ((SBucketType*) (buffer->buffer + p))->data_type = IS_NULL; //reset type null
-                    php_error_docref(NULL TSRMLS_CC, E_NOTICE, "the array has cycle ref");
+                    php_error_docref(NULL, E_NOTICE, "the array has cycle ref");
                 }
                 else
                 {
@@ -1182,7 +1182,7 @@ static void swoole_serialize_object(seriaString *buffer, zval *obj, size_t start
                 //there some member not in property
                 if (zend_hash_num_elements(Z_ARRVAL(retval)) > got_num)
                 {
-                    php_error_docref(NULL TSRMLS_CC, E_NOTICE, "__sleep() retrun a member but does not exist in property");
+                    php_error_docref(NULL, E_NOTICE, "__sleep() retrun a member but does not exist in property");
 
                 }
                 seria_array_type(ht, buffer, start, buffer->offset);
@@ -1194,7 +1194,7 @@ static void swoole_serialize_object(seriaString *buffer, zval *obj, size_t start
             }
             else
             {
-                php_error_docref(NULL TSRMLS_CC, E_NOTICE, " __sleep should return an array only containing the "
+                php_error_docref(NULL, E_NOTICE, " __sleep should return an array only containing the "
                         "names of instance-variables to serialize");
                 zval_dtor(&retval);
             }
@@ -1250,7 +1250,7 @@ static CPINLINE zend_class_entry* swoole_try_get_ce(zend_string *class_name)
     /* Check for unserialize callback */
     if ((PG(unserialize_callback_func) == NULL) || (PG(unserialize_callback_func)[0] == '\0'))
     {
-        zend_throw_exception_ex(NULL, 0, "can not find class %s", class_name->val TSRMLS_CC);
+        zend_throw_exception_ex(NULL, 0, "can not find class %s", class_name->val);
         return NULL;
     }
 
@@ -1267,7 +1267,7 @@ static CPINLINE zend_class_entry* swoole_try_get_ce(zend_string *class_name)
     ce = zend_lookup_class(class_name);
     if (!ce)
     {
-        zend_throw_exception_ex(NULL, 0, "can not find class %s", class_name->val TSRMLS_CC);
+        zend_throw_exception_ex(NULL, 0, "can not find class %s", class_name->val);
         return NULL;
     }
     else
@@ -1288,7 +1288,7 @@ static void* swoole_unserialize_object(void *buffer, zval *return_value, zend_uc
     CHECK_STEP;
     if (!name_len)
     {
-        php_error_docref(NULL TSRMLS_CC, E_NOTICE, "illegal unserialize data");
+        php_error_docref(NULL, E_NOTICE, "illegal unserialize data");
         return NULL;
     }
     buffer += 2;
@@ -1445,7 +1445,7 @@ again:
             break;
         }
         default:
-            php_error_docref(NULL TSRMLS_CC, E_NOTICE, "the type is not supported by swoole serialize.");
+            php_error_docref(NULL, E_NOTICE, "the type is not supported by swoole serialize.");
 
             break;
     }
@@ -1517,7 +1517,7 @@ PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, 
         {
             if (swoole_seria_check_eof(buffer, len) < 0)
             {
-                php_error_docref(NULL TSRMLS_CC, E_NOTICE, "detect the error eof");
+                php_error_docref(NULL, E_NOTICE, "detect the error eof");
                 return SW_FALSE;
             }
             unser_start = buffer - sizeof (SBucketType);
@@ -1532,7 +1532,7 @@ PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, 
         case IS_UNDEF:
             if (swoole_seria_check_eof(buffer, len) < 0)
             {
-                php_error_docref(NULL TSRMLS_CC, E_NOTICE, "detect the error eof");
+                php_error_docref(NULL, E_NOTICE, "detect the error eof");
                 return SW_FALSE;
             }
             unser_start = buffer - sizeof (SBucketType);
@@ -1542,7 +1542,7 @@ PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, 
             }
             break;
         default:
-            php_error_docref(NULL TSRMLS_CC, E_NOTICE, "the type is not supported by swoole serialize.");
+            php_error_docref(NULL, E_NOTICE, "the type is not supported by swoole serialize.");
             return SW_FALSE;
     }
 
@@ -1554,7 +1554,7 @@ static PHP_METHOD(swoole_serialize, pack)
     zval *zvalue;
     zend_size_t is_fast = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|l", &zvalue, &is_fast) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|l", &zvalue, &is_fast) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -1571,7 +1571,7 @@ static PHP_METHOD(swoole_serialize, unpack)
     zval *args = NULL; //for object
     long flag = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|la", &buffer, &arg_len, &flag, &args) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|la", &buffer, &arg_len, &flag, &args) == FAILURE)
     {
         RETURN_FALSE;
     }
