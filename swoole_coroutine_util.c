@@ -932,7 +932,7 @@ static PHP_METHOD(swoole_coroutine_util, fgets)
     php_stream *stream;
 
 #ifdef FAST_ZPP
-    ZEND_PARSE_PARAMETERS_START(1, 2)
+    ZEND_PARSE_PARAMETERS_START(1, 1)
         Z_PARAM_RESOURCE(handle)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 #else
@@ -1099,7 +1099,7 @@ static PHP_METHOD(swoole_coroutine_util, readFile)
     size_t l_filename = 0;
 
 #ifdef FAST_ZPP
-    ZEND_PARSE_PARAMETERS_START(1, 2)
+    ZEND_PARSE_PARAMETERS_START(1, 1)
         Z_PARAM_STRING(filename, l_filename)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 #else
