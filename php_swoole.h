@@ -581,7 +581,12 @@ extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
 /* PHP 7 patches */
 // Fixed in php-7.0.28, php-7.1.15RC1, php-7.2.3RC1 (https://github.com/php/php-src/commit/e88e83d3e5c33fcd76f08b23e1a2e4e8dc98ce41)
 #if PHP_MAJOR_VERSION == 7 && ((PHP_MINOR_VERSION == 0 && PHP_RELEASE_VERSION < 28) || (PHP_MINOR_VERSION == 1 && PHP_RELEASE_VERSION < 15) || (PHP_MINOR_VERSION == 2 && PHP_RELEASE_VERSION < 3))
-#undef ZEND_PARSE_PARAMETERS_START_EX(flags, min_num_args, max_num_args)
+// See https://github.com/php/php-src/commit/0495bf5650995cd8f18d6a9909eb4c5dcefde669
+// Then https://github.com/php/php-src/commit/2dcfd8d16f5fa69582015cbd882aff833075a34c
+#if PHP_VERSION_ID < 70100
+#define zend_wrong_parameters_count_error zend_wrong_paramers_count_error
+#endif
+#undef ZEND_PARSE_PARAMETERS_START_EX
 #define ZEND_PARSE_PARAMETERS_START_EX(flags, min_num_args, max_num_args) do { \
         const int _flags = (flags); \
         int _min_num_args = (min_num_args); \
@@ -607,7 +612,7 @@ extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
                 (UNEXPECTED(_num_args > _max_num_args) && \
                  EXPECTED(_max_num_args >= 0))) { \
                 if (!(_flags & ZEND_PARSE_PARAMS_QUIET)) { \
-                    zend_wrong_paramers_count_error(_num_args, _min_num_args, _max_num_args); \
+                    zend_wrong_parameters_count_error(_num_args, _min_num_args, _max_num_args); \
                 } \
                 error_code = ZPP_ERROR_FAILURE; \
                 break; \
