@@ -390,12 +390,12 @@ void swoole_mysql_init(int module_number)
     zend_declare_property_null(swoole_mysql_class_entry_ptr, ZEND_STRL("onConnect"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_mysql_class_entry_ptr, ZEND_STRL("onClose"), ZEND_ACC_PUBLIC);
 
-    zend_declare_class_constant_long(swoole_mysql_class_entry_ptr, SW_STRL("STATE_QUERY")-1, SW_MYSQL_STATE_QUERY);
-    zend_declare_class_constant_long(swoole_mysql_class_entry_ptr, SW_STRL("STATE_READ_START")-1, SW_MYSQL_STATE_READ_START);
-    zend_declare_class_constant_long(swoole_mysql_class_entry_ptr, SW_STRL("STATE_READ_FIELD ")-1, SW_MYSQL_STATE_READ_FIELD);
-    zend_declare_class_constant_long(swoole_mysql_class_entry_ptr, SW_STRL("STATE_READ_ROW")-1, SW_MYSQL_STATE_READ_ROW);
-    zend_declare_class_constant_long(swoole_mysql_class_entry_ptr, SW_STRL("STATE_READ_END")-1, SW_MYSQL_STATE_READ_END);
-    zend_declare_class_constant_long(swoole_mysql_class_entry_ptr, SW_STRL("STATE_CLOSED")-1, SW_MYSQL_STATE_CLOSED);
+    zend_declare_class_constant_long(swoole_mysql_class_entry_ptr, ZEND_STRL("STATE_QUERY"), SW_MYSQL_STATE_QUERY);
+    zend_declare_class_constant_long(swoole_mysql_class_entry_ptr, ZEND_STRL("STATE_READ_START"), SW_MYSQL_STATE_READ_START);
+    zend_declare_class_constant_long(swoole_mysql_class_entry_ptr, ZEND_STRL("STATE_READ_FIELD "), SW_MYSQL_STATE_READ_FIELD);
+    zend_declare_class_constant_long(swoole_mysql_class_entry_ptr, ZEND_STRL("STATE_READ_ROW"), SW_MYSQL_STATE_READ_ROW);
+    zend_declare_class_constant_long(swoole_mysql_class_entry_ptr, ZEND_STRL("STATE_READ_END"), SW_MYSQL_STATE_READ_END);
+    zend_declare_class_constant_long(swoole_mysql_class_entry_ptr, ZEND_STRL("STATE_CLOSED"), SW_MYSQL_STATE_CLOSED);
 }
 
 int mysql_request(swString *sql, swString *buffer)

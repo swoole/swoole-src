@@ -372,7 +372,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
             }
             swoole_error_log(SW_LOG_TRACE, SW_ERROR_HTTP_INVALID_PROTOCOL, "get protocol failed.");
 #ifdef SW_HTTP_BAD_REQUEST
-            if (swConnection_send(conn, SW_STRL(SW_HTTP_BAD_REQUEST) - 1, 0) < 0)
+            if (swConnection_send(conn, SW_STRL(SW_HTTP_BAD_REQUEST), 0) < 0)
             {
                 swSysError("send() failed.");
             }
@@ -640,7 +640,7 @@ int swPort_http_static_handler(swHttpRequest *request, swConnection *conn)
         switch(state)
         {
         case 0:
-            if (strncasecmp(p, SW_STRL("If-Modified-Since") - 1) == 0)
+            if (strncasecmp(p, SW_STRL("If-Modified-Since")) == 0)
             {
                 p += sizeof("If-Modified-Since");
                 state = 1;
@@ -654,7 +654,7 @@ int swPort_http_static_handler(swHttpRequest *request, swConnection *conn)
             }
             break;
         case 2:
-            if (strncasecmp(p, SW_STRL("\r\n") - 1) == 0)
+            if (strncasecmp(p, SW_STRL("\r\n")) == 0)
             {
                 length_if_modified_since = p - date_if_modified_since;
                 goto check_modify_date;

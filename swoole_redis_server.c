@@ -73,13 +73,13 @@ void swoole_redis_server_init(int module_number)
         sw_zend_register_class_alias("Co\\Redis\\Server", swoole_redis_server_class_entry_ptr);
     }
 
-    zend_declare_class_constant_long(swoole_redis_server_class_entry_ptr, SW_STRL("NIL")-1, SW_REDIS_REPLY_NIL);
-    zend_declare_class_constant_long(swoole_redis_server_class_entry_ptr, SW_STRL("ERROR")-1, SW_REDIS_REPLY_ERROR);
-    zend_declare_class_constant_long(swoole_redis_server_class_entry_ptr, SW_STRL("STATUS")-1, SW_REDIS_REPLY_STATUS);
-    zend_declare_class_constant_long(swoole_redis_server_class_entry_ptr, SW_STRL("INT")-1, SW_REDIS_REPLY_INT);
-    zend_declare_class_constant_long(swoole_redis_server_class_entry_ptr, SW_STRL("STRING")-1, SW_REDIS_REPLY_STRING);
-    zend_declare_class_constant_long(swoole_redis_server_class_entry_ptr, SW_STRL("SET")-1, SW_REDIS_REPLY_SET);
-    zend_declare_class_constant_long(swoole_redis_server_class_entry_ptr, SW_STRL("MAP")-1, SW_REDIS_REPLY_MAP);
+    zend_declare_class_constant_long(swoole_redis_server_class_entry_ptr, ZEND_STRL("NIL"), SW_REDIS_REPLY_NIL);
+    zend_declare_class_constant_long(swoole_redis_server_class_entry_ptr, ZEND_STRL("ERROR"), SW_REDIS_REPLY_ERROR);
+    zend_declare_class_constant_long(swoole_redis_server_class_entry_ptr, ZEND_STRL("STATUS"), SW_REDIS_REPLY_STATUS);
+    zend_declare_class_constant_long(swoole_redis_server_class_entry_ptr, ZEND_STRL("INT"), SW_REDIS_REPLY_INT);
+    zend_declare_class_constant_long(swoole_redis_server_class_entry_ptr, ZEND_STRL("STRING"), SW_REDIS_REPLY_STRING);
+    zend_declare_class_constant_long(swoole_redis_server_class_entry_ptr, ZEND_STRL("SET"), SW_REDIS_REPLY_SET);
+    zend_declare_class_constant_long(swoole_redis_server_class_entry_ptr, ZEND_STRL("MAP"), SW_REDIS_REPLY_MAP);
 }
 
 static int redis_onReceive(swServer *serv, swEventData *req)

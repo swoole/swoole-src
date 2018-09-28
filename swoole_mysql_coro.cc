@@ -191,20 +191,20 @@ void swoole_mysql_coro_init(int module_number)
         sw_zend_register_class_alias("Co\\MySQL\\Exception", swoole_mysql_coro_exception_class_entry_ptr);
     }
     /** ============================================= DECLARES =============================================**/
-    zend_declare_property_string(swoole_mysql_coro_class_entry_ptr, SW_STRL("serverInfo") - 1, "", ZEND_ACC_PRIVATE);
-    zend_declare_property_long(swoole_mysql_coro_class_entry_ptr, SW_STRL("sock") - 1, 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_bool(swoole_mysql_coro_class_entry_ptr, SW_STRL("connected") - 1, 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_string(swoole_mysql_coro_class_entry_ptr, SW_STRL("connect_error") - 1, "", ZEND_ACC_PUBLIC);
-    zend_declare_property_long(swoole_mysql_coro_class_entry_ptr, SW_STRL("connect_errno") - 1, 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_long(swoole_mysql_coro_class_entry_ptr, SW_STRL("affected_rows") - 1, 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_long(swoole_mysql_coro_class_entry_ptr, SW_STRL("insert_id") - 1, 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_string(swoole_mysql_coro_class_entry_ptr, SW_STRL("error") - 1, "", ZEND_ACC_PUBLIC);
-    zend_declare_property_long(swoole_mysql_coro_class_entry_ptr, SW_STRL("errno") - 1, 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_string(swoole_mysql_coro_class_entry_ptr, ZEND_STRL("serverInfo"), "", ZEND_ACC_PRIVATE);
+    zend_declare_property_long(swoole_mysql_coro_class_entry_ptr, ZEND_STRL("sock"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_bool(swoole_mysql_coro_class_entry_ptr, ZEND_STRL("connected"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_string(swoole_mysql_coro_class_entry_ptr, ZEND_STRL("connect_error"), "", ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_mysql_coro_class_entry_ptr, ZEND_STRL("connect_errno"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_mysql_coro_class_entry_ptr, ZEND_STRL("affected_rows"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_mysql_coro_class_entry_ptr, ZEND_STRL("insert_id"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_string(swoole_mysql_coro_class_entry_ptr, ZEND_STRL("error"), "", ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_mysql_coro_class_entry_ptr, ZEND_STRL("errno"), 0, ZEND_ACC_PUBLIC);
 
-    zend_declare_property_long(swoole_mysql_coro_statement_class_entry_ptr, SW_STRL("affected_rows") - 1, 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_long(swoole_mysql_coro_statement_class_entry_ptr, SW_STRL("insert_id") - 1, 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_string(swoole_mysql_coro_statement_class_entry_ptr, SW_STRL("error") - 1, "", ZEND_ACC_PUBLIC);
-    zend_declare_property_long(swoole_mysql_coro_statement_class_entry_ptr, SW_STRL("errno") - 1, 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_mysql_coro_statement_class_entry_ptr, ZEND_STRL("affected_rows"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_mysql_coro_statement_class_entry_ptr, ZEND_STRL("insert_id"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_string(swoole_mysql_coro_statement_class_entry_ptr, ZEND_STRL("error"), "", ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_mysql_coro_statement_class_entry_ptr, ZEND_STRL("errno"), 0, ZEND_ACC_PUBLIC);
 }
 
 int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callback);
@@ -822,7 +822,7 @@ static PHP_METHOD(swoole_mysql_coro, query)
     if (!client || client->state == SW_MYSQL_STATE_CLOSED)
     {
         SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
-        zend_update_property_long(swoole_mysql_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error);
+        zend_update_property_long(swoole_mysql_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), SwooleG.error);
         swoole_php_fatal_error(E_WARNING, "The MySQL connection is not established.");
         RETURN_FALSE;
     }
@@ -1032,7 +1032,7 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
     if (!client || client->state == SW_MYSQL_STATE_CLOSED)
     {
         SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
-        zend_update_property_long(swoole_mysql_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error);
+        zend_update_property_long(swoole_mysql_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), SwooleG.error);
         swoole_php_fatal_error(E_WARNING, "The MySQL connection is not established.");
         RETURN_FALSE;
     }

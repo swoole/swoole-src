@@ -938,7 +938,7 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
        send_fail:
        SwooleG.error = errno;
        swoole_php_sys_error(E_WARNING, "send(%d) %d bytes failed.", hcc->socket->socket->fd, (int )http_client_buffer->length);
-       zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, SW_STRL("errCode")-1, SwooleG.error);
+       zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error);
        return SW_ERR;
     }
 
@@ -1063,7 +1063,7 @@ static PHP_METHOD(swoole_http_client_coro, recv)
     if (!http)
     {
         SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
-        zend_update_property_long(swoole_http_client_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error);
+        zend_update_property_long(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), SwooleG.error);
         RETURN_FALSE;
     }
     double timeout = http->timeout;
@@ -1082,7 +1082,7 @@ static PHP_METHOD(swoole_http_client_coro, recv)
         ssize_t retval = hcc->socket->recv_packet();
         if (retval <= 0)
         {
-            zend_update_property_long(swoole_http_client_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, hcc->socket->errCode);
+            zend_update_property_long(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), hcc->socket->errCode);
             if (hcc->socket->errCode != ETIMEDOUT)
             {
                 http_client_coro_close(getThis());
@@ -1419,7 +1419,7 @@ static PHP_METHOD(swoole_http_client_coro, push)
     if (!http)
     {
         SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
-        zend_update_property_long(swoole_http_client_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error);
+        zend_update_property_long(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), SwooleG.error);
         RETURN_FALSE;
     }
 
@@ -1427,7 +1427,7 @@ static PHP_METHOD(swoole_http_client_coro, push)
     {
         swoole_php_fatal_error(E_WARNING, "websocket handshake failed, cannot push data.");
         SwooleG.error = SW_ERROR_WEBSOCKET_HANDSHAKE_FAILED;
-        zend_update_property_long(swoole_http_client_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error);
+        zend_update_property_long(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), SwooleG.error);
         RETURN_FALSE;
     }
 
@@ -1442,7 +1442,7 @@ static PHP_METHOD(swoole_http_client_coro, push)
     {
         SwooleG.error = hcc->socket->errCode;
         swoole_php_sys_error(E_WARNING, "send(%d) %zd bytes failed.", hcc->socket->socket->fd, http_client_buffer->length);
-        zend_update_property_long(swoole_http_client_coro_class_entry_ptr, getThis(), SW_STRL("errCode")-1, SwooleG.error);
+        zend_update_property_long(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), SwooleG.error);
         RETURN_FALSE;
     }
     else

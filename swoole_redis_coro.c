@@ -1684,8 +1684,8 @@ void swoole_redis_coro_init(int module_number)
     zend_declare_property_null(swoole_redis_coro_class_entry_ptr, ZEND_STRL("port"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_redis_coro_class_entry_ptr, ZEND_STRL("sock"), ZEND_ACC_PUBLIC);
     zend_declare_property_bool(swoole_redis_coro_class_entry_ptr, ZEND_STRL("connected"), 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_long(swoole_redis_coro_class_entry_ptr, SW_STRL("errCode")-1, 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_string(swoole_redis_coro_class_entry_ptr, SW_STRL("errMsg")-1, "", ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_redis_coro_class_entry_ptr, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_string(swoole_redis_coro_class_entry_ptr, ZEND_STRL("errMsg"), "", ZEND_ACC_PUBLIC);
 
     REGISTER_LONG_CONSTANT("SWOOLE_REDIS_MODE_MULTI", SW_REDIS_MODE_MULTI, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("SWOOLE_REDIS_MODE_PIPELINE", SW_REDIS_MODE_PIPELINE, CONST_CS | CONST_PERSISTENT);
@@ -1974,7 +1974,7 @@ static PHP_METHOD(swoole_redis_coro, close)
         redis_coro_close(redis->context);
     }
 
-    zend_update_property_bool(swoole_redis_coro_class_entry_ptr, getThis(), SW_STRL("connected") - 1, 0);
+    zend_update_property_bool(swoole_redis_coro_class_entry_ptr, getThis(), ZEND_STRL("connected"), 0);
     swoole_set_object(getThis(), NULL);
 
     RETURN_TRUE;

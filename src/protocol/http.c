@@ -219,7 +219,7 @@ int swHttpRequest_get_header_info(swHttpRequest *request)
         if (*p == '\n' && *(p-1) == '\r')
         {
             p++;
-            if (strncasecmp(p, SW_STRL("Content-Length:") - 1) == 0)
+            if (strncasecmp(p, SW_STRL("Content-Length:")) == 0)
             {
                 // strlen("Content-Length:")
                 p += (sizeof("Content-Length:") - 1);
@@ -231,7 +231,7 @@ int swHttpRequest_get_header_info(swHttpRequest *request)
                 request->content_length = atoi(p);
                 got_len = 1;
             }
-            else if (strncasecmp(p, SW_STRL("Connection:") - 1) == 0)
+            else if (strncasecmp(p, SW_STRL("Connection:")) == 0)
             {
                 // strlen("Connection:")
                 p += (sizeof("Connection:") - 1);
@@ -240,7 +240,7 @@ int swHttpRequest_get_header_info(swHttpRequest *request)
                 {
                     p++;
                 }
-                if (strncasecmp(p, SW_STRL("keep-alive") - 1) == 0)
+                if (strncasecmp(p, SW_STRL("keep-alive")) == 0)
                 {
                     request->keep_alive = 1;
                 }
@@ -269,10 +269,10 @@ int swHttpRequest_has_expect_header(swHttpRequest *request)
         if (*p == '\r' && pe - p > sizeof("\r\nExpect"))
         {
             p += 2;
-            if (strncasecmp(p, SW_STRL("Expect") - 1) == 0)
+            if (strncasecmp(p, SW_STRL("Expect")) == 0)
             {
                 p += sizeof("Expect: ") - 1;
-                if (strncasecmp(p, SW_STRL("100-continue") - 1) == 0)
+                if (strncasecmp(p, SW_STRL("100-continue")) == 0)
                 {
                     return 1;
                 }

@@ -167,7 +167,7 @@ void swoole_socket_coro_init(int module_number)
     swoole_socket_coro_class_entry_ptr->create_object = swoole_socket_coro_create;
     swoole_socket_coro_class_entry_ptr->serialize = zend_class_serialize_deny;
     swoole_socket_coro_class_entry_ptr->unserialize = zend_class_unserialize_deny;
-    zend_declare_property_long(swoole_socket_coro_class_entry_ptr, SW_STRL("errCode") - 1, 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_socket_coro_class_entry_ptr, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
 
     memcpy(&swoole_socket_coro_handlers, zend_get_std_object_handlers(), sizeof(swoole_socket_coro_handlers));
     swoole_socket_coro_handlers.free_obj = swoole_socket_coro_free_storage;

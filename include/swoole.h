@@ -186,7 +186,8 @@ typedef unsigned long ulong_t;
 #define MIN(a, b)              (a)<(b)?a:b;
 #endif
 
-#define SW_STRL(s)             s, sizeof(s)
+#define SW_STRS(s)             s, sizeof(s)
+#define SW_STRL(s)             s, sizeof(s)-1
 #define SW_START_SLEEP         usleep(100000)  //sleep 1s,wait fork and pthread_create
 
 #ifdef SW_USE_JEMALLOC

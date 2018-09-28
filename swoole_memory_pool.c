@@ -105,11 +105,11 @@ void swoole_memory_pool_init(int module_number)
     INIT_CLASS_ENTRY(_ce_slice, "Swoole\\Memory\\Pool\\Slice", swoole_memory_pool_slice_methods);
     ce_slice = zend_register_internal_class(&_ce_slice);
 
-    zend_declare_class_constant_long(ce, SW_STRL("TYPE_RING")-1, memory_pool_type_ring);
-    zend_declare_class_constant_long(ce, SW_STRL("TYPE_GLOBAL")-1, memory_pool_type_global);
-    zend_declare_class_constant_long(ce, SW_STRL("TYPE_FIXED")-1, memory_pool_type_fixed);
-    zend_declare_class_constant_long(ce, SW_STRL("TYPE_MALLOC")-1, memory_pool_type_malloc);
-    zend_declare_class_constant_long(ce, SW_STRL("TYPE_EMALLOC")-1, memory_pool_type_emalloc);
+    zend_declare_class_constant_long(ce, ZEND_STRL("TYPE_RING"), memory_pool_type_ring);
+    zend_declare_class_constant_long(ce, ZEND_STRL("TYPE_GLOBAL"), memory_pool_type_global);
+    zend_declare_class_constant_long(ce, ZEND_STRL("TYPE_FIXED"), memory_pool_type_fixed);
+    zend_declare_class_constant_long(ce, ZEND_STRL("TYPE_MALLOC"), memory_pool_type_malloc);
+    zend_declare_class_constant_long(ce, ZEND_STRL("TYPE_EMALLOC"), memory_pool_type_emalloc);
 }
 
 static PHP_METHOD(swoole_memory_pool, __construct)

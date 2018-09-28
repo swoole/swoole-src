@@ -175,19 +175,19 @@ void swoole_process_init(int module_number)
     swoole_process_class_entry_ptr = zend_register_internal_class(&swoole_process_ce);
     SWOOLE_CLASS_ALIAS(swoole_process, "Swoole\\Process");
 
-    zend_declare_class_constant_long(swoole_process_class_entry_ptr, SW_STRL("IPC_NOWAIT")-1, MSGQUEUE_NOWAIT);
-    zend_declare_class_constant_long(swoole_process_class_entry_ptr, SW_STRL("PIPE_MASTER")-1, SW_PIPE_CLOSE_MASTER);
-    zend_declare_class_constant_long(swoole_process_class_entry_ptr, SW_STRL("PIPE_WORKER")-1, SW_PIPE_CLOSE_WORKER);
-    zend_declare_class_constant_long(swoole_process_class_entry_ptr, SW_STRL("PIPE_READ")-1, SW_PIPE_CLOSE_READ);
-    zend_declare_class_constant_long(swoole_process_class_entry_ptr, SW_STRL("PIPE_WRITE")-1, SW_PIPE_CLOSE_WRITE);
+    zend_declare_class_constant_long(swoole_process_class_entry_ptr, ZEND_STRL("IPC_NOWAIT"), MSGQUEUE_NOWAIT);
+    zend_declare_class_constant_long(swoole_process_class_entry_ptr, ZEND_STRL("PIPE_MASTER"), SW_PIPE_CLOSE_MASTER);
+    zend_declare_class_constant_long(swoole_process_class_entry_ptr, ZEND_STRL("PIPE_WORKER"), SW_PIPE_CLOSE_WORKER);
+    zend_declare_class_constant_long(swoole_process_class_entry_ptr, ZEND_STRL("PIPE_READ"), SW_PIPE_CLOSE_READ);
+    zend_declare_class_constant_long(swoole_process_class_entry_ptr, ZEND_STRL("PIPE_WRITE"), SW_PIPE_CLOSE_WRITE);
     bzero(signal_callback, sizeof(signal_callback));
 
-    zend_declare_property_null(swoole_process_class_entry_ptr, SW_STRL("pipe")-1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_process_class_entry_ptr, SW_STRL("callback")-1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_process_class_entry_ptr, SW_STRL("msgQueueId")-1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_process_class_entry_ptr, SW_STRL("msgQueueKey")-1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_process_class_entry_ptr, SW_STRL("pid")-1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_process_class_entry_ptr, SW_STRL("id")-1, ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_process_class_entry_ptr, ZEND_STRL("pipe"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_process_class_entry_ptr, ZEND_STRL("callback"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_process_class_entry_ptr, ZEND_STRL("msgQueueId"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_process_class_entry_ptr, ZEND_STRL("msgQueueKey"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_process_class_entry_ptr, ZEND_STRL("pid"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_process_class_entry_ptr, ZEND_STRL("id"), ZEND_ACC_PUBLIC);
 
     /**
      * 31 signal constants

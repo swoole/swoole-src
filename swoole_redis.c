@@ -188,11 +188,11 @@ void swoole_redis_init(int module_number)
     zend_declare_property_null(swoole_redis_class_entry_ptr, ZEND_STRL("errCode"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_redis_class_entry_ptr, ZEND_STRL("errMsg"), ZEND_ACC_PUBLIC);
 
-    zend_declare_class_constant_long(swoole_redis_class_entry_ptr, SW_STRL("STATE_CONNECT")-1, SWOOLE_REDIS_STATE_CONNECT);
-    zend_declare_class_constant_long(swoole_redis_class_entry_ptr, SW_STRL("STATE_READY")-1, SWOOLE_REDIS_STATE_READY);
-    zend_declare_class_constant_long(swoole_redis_class_entry_ptr, SW_STRL("STATE_WAIT_RESULT")-1, SWOOLE_REDIS_STATE_WAIT_RESULT);
-    zend_declare_class_constant_long(swoole_redis_class_entry_ptr, SW_STRL("STATE_SUBSCRIBE")-1, SWOOLE_REDIS_STATE_SUBSCRIBE);
-    zend_declare_class_constant_long(swoole_redis_class_entry_ptr, SW_STRL("STATE_CLOSED")-1, SWOOLE_REDIS_STATE_CLOSED);
+    zend_declare_class_constant_long(swoole_redis_class_entry_ptr, ZEND_STRL("STATE_CONNECT"), SWOOLE_REDIS_STATE_CONNECT);
+    zend_declare_class_constant_long(swoole_redis_class_entry_ptr, ZEND_STRL("STATE_READY"), SWOOLE_REDIS_STATE_READY);
+    zend_declare_class_constant_long(swoole_redis_class_entry_ptr, ZEND_STRL("STATE_WAIT_RESULT"), SWOOLE_REDIS_STATE_WAIT_RESULT);
+    zend_declare_class_constant_long(swoole_redis_class_entry_ptr, ZEND_STRL("STATE_SUBSCRIBE"), SWOOLE_REDIS_STATE_SUBSCRIBE);
+    zend_declare_class_constant_long(swoole_redis_class_entry_ptr, ZEND_STRL("STATE_CLOSED"), SWOOLE_REDIS_STATE_CLOSED);
 }
 
 static PHP_METHOD(swoole_redis, __construct)

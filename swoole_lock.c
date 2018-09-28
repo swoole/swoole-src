@@ -61,17 +61,17 @@ void swoole_lock_init(int module_number)
     swoole_lock_class_entry_ptr = zend_register_internal_class(&swoole_lock_ce);
     SWOOLE_CLASS_ALIAS(swoole_lock, "Swoole\\Lock");
 
-    zend_declare_class_constant_long(swoole_lock_class_entry_ptr, SW_STRL("FILELOCK")-1, SW_FILELOCK);
-    zend_declare_class_constant_long(swoole_lock_class_entry_ptr, SW_STRL("MUTEX")-1, SW_MUTEX);
-    zend_declare_class_constant_long(swoole_lock_class_entry_ptr, SW_STRL("SEM")-1, SW_SEM);
+    zend_declare_class_constant_long(swoole_lock_class_entry_ptr, ZEND_STRL("FILELOCK"), SW_FILELOCK);
+    zend_declare_class_constant_long(swoole_lock_class_entry_ptr, ZEND_STRL("MUTEX"), SW_MUTEX);
+    zend_declare_class_constant_long(swoole_lock_class_entry_ptr, ZEND_STRL("SEM"), SW_SEM);
 #ifdef HAVE_RWLOCK
-    zend_declare_class_constant_long(swoole_lock_class_entry_ptr, SW_STRL("RWLOCK")-1, SW_RWLOCK);
+    zend_declare_class_constant_long(swoole_lock_class_entry_ptr, ZEND_STRL("RWLOCK"), SW_RWLOCK);
 #endif
 #ifdef HAVE_SPINLOCK
-    zend_declare_class_constant_long(swoole_lock_class_entry_ptr, SW_STRL("SPINLOCK")-1, SW_SPINLOCK);
+    zend_declare_class_constant_long(swoole_lock_class_entry_ptr, ZEND_STRL("SPINLOCK"), SW_SPINLOCK);
 #endif
 
-    zend_declare_property_long(swoole_lock_class_entry_ptr, SW_STRL("errCode")-1, 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_lock_class_entry_ptr, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
 
     REGISTER_LONG_CONSTANT("SWOOLE_FILELOCK", SW_FILELOCK, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("SWOOLE_MUTEX", SW_MUTEX, CONST_CS | CONST_PERSISTENT);

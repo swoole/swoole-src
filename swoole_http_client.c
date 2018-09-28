@@ -408,22 +408,22 @@ void swoole_http_client_init(int module_number)
     swoole_http_client_class_entry_ptr = zend_register_internal_class(&swoole_http_client_ce);
     SWOOLE_CLASS_ALIAS(swoole_http_client, "Swoole\\Http\\Client");
 
-    zend_declare_property_long(swoole_http_client_class_entry_ptr, SW_STRL("type")-1, 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_long(swoole_http_client_class_entry_ptr, SW_STRL("errCode")-1, 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_long(swoole_http_client_class_entry_ptr, SW_STRL("sock")-1, 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_long(swoole_http_client_class_entry_ptr, SW_STRL("statusCode")-1, 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_http_client_class_entry_ptr, SW_STRL("host")-1, ZEND_ACC_PUBLIC);
-    zend_declare_property_long(swoole_http_client_class_entry_ptr, SW_STRL("port")-1, 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_http_client_class_entry_ptr, ZEND_STRL("type"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_http_client_class_entry_ptr, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_http_client_class_entry_ptr, ZEND_STRL("sock"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_http_client_class_entry_ptr, ZEND_STRL("statusCode"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_client_class_entry_ptr, ZEND_STRL("host"), ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_http_client_class_entry_ptr, ZEND_STRL("port"), 0, ZEND_ACC_PUBLIC);
 
-    zend_declare_property_null(swoole_http_client_class_entry_ptr, SW_STRL("requestMethod")-1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_http_client_class_entry_ptr, SW_STRL("requestHeaders")-1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_http_client_class_entry_ptr, SW_STRL("requestBody")-1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_http_client_class_entry_ptr, SW_STRL("uploadFiles")-1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_http_client_class_entry_ptr, SW_STRL("set_cookie_headers")-1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_http_client_class_entry_ptr, SW_STRL("downloadFile")-1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_http_client_class_entry_ptr, SW_STRL("headers")-1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_http_client_class_entry_ptr, SW_STRL("cookies")-1, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_http_client_class_entry_ptr, SW_STRL("body")-1, ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_client_class_entry_ptr, ZEND_STRL("requestMethod"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_client_class_entry_ptr, ZEND_STRL("requestHeaders"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_client_class_entry_ptr, ZEND_STRL("requestBody"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_client_class_entry_ptr, ZEND_STRL("uploadFiles"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_client_class_entry_ptr, ZEND_STRL("set_cookie_headers"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_client_class_entry_ptr, ZEND_STRL("downloadFile"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_client_class_entry_ptr, ZEND_STRL("headers"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_client_class_entry_ptr, ZEND_STRL("cookies"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_client_class_entry_ptr, ZEND_STRL("body"), ZEND_ACC_PUBLIC);
 
     zend_declare_property_null(swoole_http_client_class_entry_ptr, ZEND_STRL("onConnect"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_client_class_entry_ptr, ZEND_STRL("onError"), ZEND_ACC_PUBLIC);
@@ -1177,7 +1177,7 @@ static int http_client_send_http_request(zval *zobject)
             send_fail:
             SwooleG.error = errno;
             swoole_php_sys_error(E_WARNING, "send(%d) %d bytes failed.", http->cli->socket->fd, (int )http_client_buffer->length);
-            zend_update_property_long(swoole_http_client_class_entry_ptr, zobject, SW_STRL("errCode")-1, SwooleG.error);
+            zend_update_property_long(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error);
             return SW_ERR;
         }
     }

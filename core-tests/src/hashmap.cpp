@@ -16,23 +16,23 @@ bool type_eof()
 TEST(hashmap, string)
 {
     swHashMap *hm = swHashMap_new(16, NULL);
-    swHashMap_add(hm, (char *) SW_STRL("hello")-1, (void *) 199);
-    swHashMap_add(hm, (char *) SW_STRL("swoole22")-1, (void *) 8877);
-    swHashMap_add(hm, (char *) SW_STRL("hello2")-1, (void *) 200);
-    swHashMap_add(hm, (char *) SW_STRL("willdel")-1, (void *) 888);
-    swHashMap_add(hm, (char *) SW_STRL("willupadte")-1, (void *) 9999);
-    swHashMap_add(hm, (char *) SW_STRL("hello3")-1, (void *) 78978);
+    swHashMap_add(hm, (char *) SW_STRL("hello"), (void *) 199);
+    swHashMap_add(hm, (char *) SW_STRL("swoole22"), (void *) 8877);
+    swHashMap_add(hm, (char *) SW_STRL("hello2"), (void *) 200);
+    swHashMap_add(hm, (char *) SW_STRL("willdel"), (void *) 888);
+    swHashMap_add(hm, (char *) SW_STRL("willupadte"), (void *) 9999);
+    swHashMap_add(hm, (char *) SW_STRL("hello3"), (void *) 78978);
 
-    swHashMap_del(hm, (char *) SW_STRL("willdel") - 1);
-    swHashMap_update(hm, (char *) SW_STRL("willupadte")-1, (void *) (9999 * 5555));
+    swHashMap_del(hm, (char *) SW_STRL("willdel"));
+    swHashMap_update(hm, (char *) SW_STRL("willupadte"), (void *) (9999 * 5555));
 
-    int ret1 = (int) (long) swHashMap_find(hm, (char *) SW_STRL("hello") - 1);
+    int ret1 = (int) (long) swHashMap_find(hm, (char *) SW_STRL("hello"));
     ASSERT_GT(ret1, 0);
 
-    int ret2 = (int) (long) swHashMap_find(hm, (char *) SW_STRL("hello2") - 1);
+    int ret2 = (int) (long) swHashMap_find(hm, (char *) SW_STRL("hello2"));
     ASSERT_GT(ret2, 0);
 
-    int ret3 = (int) (long) swHashMap_find(hm, (char *) SW_STRL("notfound") - 1);
+    int ret3 = (int) (long) swHashMap_find(hm, (char *) SW_STRL("notfound"));
     ASSERT_EQ(ret3, 0);
 
     char *key;

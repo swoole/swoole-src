@@ -8,11 +8,11 @@ TEST(pipe, unixsock)
     int ret = swPipeUnsock_create(&p, 1, SOCK_DGRAM);
     ASSERT_EQ(ret, 0);
 
-    ret = p.write(&p, (void*) SW_STRL("hello world1"));
+    ret = p.write(&p, (void*) SW_STRS("hello world1"));
     ASSERT_GT(ret, 0);
-    ret = p.write(&p, (void*) SW_STRL("hello world2"));
+    ret = p.write(&p, (void*) SW_STRS("hello world2"));
     ASSERT_GT(ret, 0);
-    ret = p.write(&p, (void*) SW_STRL("hello world3"));
+    ret = p.write(&p, (void*) SW_STRS("hello world3"));
     ASSERT_GT(ret, 0);
 
     //1
@@ -37,9 +37,9 @@ TEST(pipe, base)
 
     ret = swPipeBase_create(&p, 1);
     ASSERT_EQ(ret, 0);
-    ret = p.write(&p, (void *) SW_STRL("hello world\n") - 1);
+    ret = p.write(&p, (void *) SW_STRL("hello world\n"));
     ASSERT_GT(ret, 0);
-    ret = p.write(&p, (void *) SW_STRL("你好中国。\n") - 1);
+    ret = p.write(&p, (void *) SW_STRL("你好中国。\n"));
     ASSERT_GT(ret, 0);
 
     bzero(data, 256);

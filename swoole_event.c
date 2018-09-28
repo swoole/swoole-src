@@ -357,11 +357,11 @@ int swoole_convert_to_fd(zval *zfd)
         zval *zsock = NULL;
         if (instanceof_function(Z_OBJCE_P(zfd), swoole_client_class_entry_ptr))
         {
-            zsock = sw_zend_read_property(Z_OBJCE_P(zfd), zfd, SW_STRL("sock")-1, 0);
+            zsock = sw_zend_read_property(Z_OBJCE_P(zfd), zfd, ZEND_STRL("sock"), 0);
         }
         else if (instanceof_function(Z_OBJCE_P(zfd), swoole_process_class_entry_ptr))
         {
-            zsock = sw_zend_read_property(Z_OBJCE_P(zfd), zfd, SW_STRL("pipe")-1, 0);
+            zsock = sw_zend_read_property(Z_OBJCE_P(zfd), zfd, ZEND_STRL("pipe"), 0);
         }
         if (zsock == NULL || ZVAL_IS_NULL(zsock))
         {
