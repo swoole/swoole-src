@@ -2597,7 +2597,7 @@ static PHP_METHOD(swoole_http_response, create)
     zend_long fd;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
-        Z_PARAM_LONG(fd);
+        Z_PARAM_LONG(fd)
     ZEND_PARSE_PARAMETERS_END();
 
     http_context *ctx = emalloc(sizeof(http_context));
@@ -2623,9 +2623,9 @@ static PHP_METHOD(swoole_http_response, redirect)
     zval *http_code = NULL;
 
     ZEND_PARSE_PARAMETERS_START(1, 2)
-        Z_PARAM_ZVAL(url);
+        Z_PARAM_ZVAL(url)
         Z_PARAM_OPTIONAL
-        Z_PARAM_ZVAL(http_code);
+        Z_PARAM_ZVAL(http_code)
     ZEND_PARSE_PARAMETERS_END();
 
     http_context *ctx = http_get_context(getThis(), 0);

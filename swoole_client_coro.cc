@@ -30,10 +30,6 @@ enum client_property
 
 using namespace swoole;
 
-#ifdef FAST_ZPP
-#undef FAST_ZPP
-#endif
-
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_coro_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
@@ -686,7 +682,6 @@ static PHP_METHOD(swoole_client_coro, connect)
     zend_size_t host_len;
     double timeout = SW_CLIENT_DEFAULT_TIMEOUT;
 
-#ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(1, 4)
         Z_PARAM_STRING(host, host_len)
         Z_PARAM_OPTIONAL
@@ -694,12 +689,6 @@ static PHP_METHOD(swoole_client_coro, connect)
         Z_PARAM_DOUBLE(timeout)
         Z_PARAM_LONG(sock_flag)
     ZEND_PARSE_PARAMETERS_END();
-#else
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|ldl", &host, &host_len, &port, &timeout, &sock_flag) == FAILURE)
-    {
-        return;
-    }
-#endif
 
     if (host_len <= 0)
     {
@@ -744,16 +733,9 @@ static PHP_METHOD(swoole_client_coro, send)
     char *data;
     zend_size_t data_len;
 
-#ifdef FAST_ZPP
-    ZEND_PARSE_PARAMETERS_START(1, 2)
+    ZEND_PARSE_PARAMETERS_START(1, 1)
         Z_PARAM_STRING(data, data_len)
     ZEND_PARSE_PARAMETERS_END();
-#else
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &data, &data_len) == FAILURE)
-    {
-        return;
-    }
-#endif
 
     if (data_len <= 0)
     {
@@ -908,18 +890,10 @@ static PHP_METHOD(swoole_client_coro, recv)
 {
     double timeout = 0;
 
-#ifdef FAST_ZPP
-    ZEND_PARSE_PARAMETERS_START(0, 2)
+    ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
-        Z_PARAM_LONG(buf_len)
-        Z_PARAM_LONG(flags)
+        Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END();
-#else
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|d", &timeout) == FAILURE)
-    {
-        return;
-    }
-#endif
 
     Socket *cli = client_get_ptr(getThis());
     if (!cli)
@@ -973,17 +947,10 @@ static PHP_METHOD(swoole_client_coro, peek)
     int ret;
     char *buf = NULL;
 
-#ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(buf_len)
     ZEND_PARSE_PARAMETERS_END();
-#else
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &buf_len) == FAILURE)
-    {
-        return;
-    }
-#endif
 
     Socket *cli = client_get_ptr(getThis());
     if (!cli)

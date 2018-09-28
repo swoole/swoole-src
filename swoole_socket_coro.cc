@@ -25,10 +25,6 @@
 
 using namespace swoole;
 
-#ifdef FAST_ZPP
-#undef FAST_ZPP
-#endif
-
 static zend_class_entry swoole_socket_coro_ce;
 static zend_class_entry *swoole_socket_coro_class_entry_ptr;
 static zend_object_handlers swoole_socket_coro_handlers;
@@ -189,18 +185,11 @@ static PHP_METHOD(swoole_socket_coro, __construct)
 {
     zend_long domain, type, protocol;
 
-#ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(3, 3)
-        Z_PARAM_LONG(domain);
-        Z_PARAM_LONG(type);
-        Z_PARAM_LONG(protocol);
+        Z_PARAM_LONG(domain)
+        Z_PARAM_LONG(type)
+        Z_PARAM_LONG(protocol)
     ZEND_PARSE_PARAMETERS_END();
-#else
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "lll", &domain, &type, &protocol) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
-#endif
 
     php_swoole_check_reactor();
 
@@ -216,18 +205,11 @@ static PHP_METHOD(swoole_socket_coro, bind)
     size_t l_address;
     zend_long port = 0;
 
-#ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(1, 2)
-        Z_PARAM_STRING(address, l_address);
+        Z_PARAM_STRING(address, l_address)
         Z_PARAM_OPTIONAL
-        Z_PARAM_LONG(port);
+        Z_PARAM_LONG(port)
     ZEND_PARSE_PARAMETERS_END();
-#else
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|l", &address, &l_address, &port) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
-#endif
 
     socket_coro *sock = (socket_coro *) Z_SOCKET_CORO_OBJ_P(getThis());
     if (!sock->socket->bind(std::string(address, l_address), port))
@@ -242,17 +224,10 @@ static PHP_METHOD(swoole_socket_coro, listen)
 {
     zend_long backlog = SW_BACKLOG;
 
-#ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
-        Z_PARAM_LONG(backlog);
+        Z_PARAM_LONG(backlog)
     ZEND_PARSE_PARAMETERS_END();
-#else
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &backlog) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
-#endif
 
     socket_coro *sock = (socket_coro *) Z_SOCKET_CORO_OBJ_P(getThis());
     if (!sock->socket->listen(backlog))
@@ -267,17 +242,10 @@ static PHP_METHOD(swoole_socket_coro, accept)
 {
     double timeout = -1;
 
-#ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
-        Z_PARAM_DOUBLE(timeout);
+        Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END();
-#else
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|d", &timeout) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
-#endif
 
     socket_coro *sock = (socket_coro *) Z_SOCKET_CORO_OBJ_P(getThis());
     if (timeout != 0)
@@ -303,21 +271,14 @@ static PHP_METHOD(swoole_socket_coro, recv)
 {
     coro_check();
 
-    long length = SW_BUFFER_SIZE_BIG;
+    zend_long length = SW_BUFFER_SIZE_BIG;
     double timeout = -1;
 
-#ifdef FAST_ZPP
-    ZEND_PARSE_PARAMETERS_START(1, 2)
-        Z_PARAM_LONG(length);
+    ZEND_PARSE_PARAMETERS_START(0, 2)
         Z_PARAM_OPTIONAL
-        Z_PARAM_DOUBLE(timeout);
+        Z_PARAM_LONG(length)
+        Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END();
-#else
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|ld", &length, &timeout) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
-#endif
 
     if (length <= 0)
     {
@@ -353,18 +314,11 @@ static PHP_METHOD(swoole_socket_coro, recvfrom)
     zval *peername;
     double timeout = -1;
 
-#ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(1, 2)
-        Z_PARAM_ZVAL(peername);
+        Z_PARAM_ZVAL_EX(peername, 0, 1)
         Z_PARAM_OPTIONAL
-        Z_PARAM_DOUBLE(timeout);
+        Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END();
-#else
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z/|d", &peername, &timeout) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
-#endif
 
     socket_coro *sock = (socket_coro *) Z_SOCKET_CORO_OBJ_P(getThis());
     sock->socket->setTimeout(timeout);
@@ -413,18 +367,11 @@ static PHP_METHOD(swoole_socket_coro, send)
     char *data;
     size_t l_data;
 
-#ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(1, 2)
-        Z_PARAM_STRING(data, l_data);
+        Z_PARAM_STRING(data, l_data)
         Z_PARAM_OPTIONAL
-        Z_PARAM_DOUBLE(timeout);
+        Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END();
-#else
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|d", &data, &l_data, &timeout) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
-#endif
 
     socket_coro *sock = (socket_coro *) Z_SOCKET_CORO_OBJ_P(getThis());
     ssize_t retval = sock->socket->send(data, l_data);
@@ -447,18 +394,11 @@ static PHP_METHOD(swoole_socket_coro, sendto)
     size_t l_addr;
     zend_long port = 0;
 
-#ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(3, 3)
-        Z_PARAM_STRING(addr, l_addr);
-        Z_PARAM_LONG(port);
-        Z_PARAM_STRING(data, l_data);
+        Z_PARAM_STRING(addr, l_addr)
+        Z_PARAM_LONG(port)
+        Z_PARAM_STRING(data, l_data)
     ZEND_PARSE_PARAMETERS_END();
-#else
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sls", &addr, &l_addr, &port, &data, &l_data) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
-#endif
 
     socket_coro *sock = (socket_coro *) Z_SOCKET_CORO_OBJ_P(getThis());
     ssize_t retval = sock->socket->sendto(addr, port, data, l_data);
@@ -570,19 +510,12 @@ static PHP_METHOD(swoole_socket_coro, connect)
     zend_long port = 0;
     double timeout = SW_CLIENT_DEFAULT_TIMEOUT;
 
-#ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(1, 3)
-        Z_PARAM_STRING(host, l_host);
+        Z_PARAM_STRING(host, l_host)
         Z_PARAM_OPTIONAL
-        Z_PARAM_LONG(port);
-        Z_PARAM_DOUBLE(timeout);
+        Z_PARAM_LONG(port)
+        Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END();
-#else
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|ld", &host, &l_host, &port, &timeout) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
-#endif
 
     if (sock->domain == AF_INET6 || sock->domain == AF_INET)
     {

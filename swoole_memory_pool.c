@@ -292,7 +292,7 @@ static PHP_METHOD(swoole_memory_pool_slice, write)
     zend_long offset = 0;
 
     ZEND_PARSE_PARAMETERS_START(1, 2)
-        Z_PARAM_STR(data);
+        Z_PARAM_STR(data)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(offset)
     ZEND_PARSE_PARAMETERS_END();
