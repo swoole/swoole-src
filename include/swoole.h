@@ -1097,7 +1097,9 @@ void* sw_shm_realloc(void *ptr, size_t new_size);
 #ifdef HAVE_RWLOCK
 int swRWLock_create(swLock *lock, int use_in_process);
 #endif
+#ifdef SEM_UNDO
 int swSem_create(swLock *lock, key_t key);
+#endif
 int swFileLock_create(swLock *lock, int fd);
 #ifdef HAVE_SPINLOCK
 int swSpinLock_create(swLock *object, int spin);

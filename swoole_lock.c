@@ -124,9 +124,11 @@ static PHP_METHOD(swoole_lock, __construct)
         }
         ret = swFileLock_create(lock, fd);
         break;
+#ifdef SEM_UNDO
     case SW_SEM:
         ret = swSem_create(lock, IPC_PRIVATE);
         break;
+#endif
 #ifdef HAVE_SPINLOCK
     case SW_SPINLOCK:
         ret = swSpinLock_create(lock, 1);
