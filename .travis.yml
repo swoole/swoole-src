@@ -55,7 +55,6 @@ before_script:
   - echo "`git log -10 --stat --pretty --oneline`"
   - ./travis/pecl.sh
   - ./travis/compile.sh
-  - cat ~/.phpenv/versions/$(phpenv version-name)/etc/php.ini
   - php --ri swoole
 
 script:
