@@ -8,6 +8,15 @@ extern "C" {
 #include "zend_vm.h"
 #include "zend_closures.h"
 
+/* PHP 7.0 compatibility macro {{{*/
+#if PHP_VERSION_ID < 70100
+#define SW_SAVE_EG_SCOPE(_scope) zend_class_entry *_scope = EG(scope)
+#define SW_RESUME_EG_SCOPE(_scope) EG(scope) = _scope
+#else
+#define SW_SAVE_EG_SCOPE(scope)
+#define SW_RESUME_EG_SCOPE(scope)
+#endif/*}}}*/
+
 /* PHP 7.3 compatibility macro {{{*/
 #ifndef ZEND_CLOSURE_OBJECT
 # define ZEND_CLOSURE_OBJECT(func) (zend_object*)func->op_array.prototype

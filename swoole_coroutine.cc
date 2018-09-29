@@ -102,9 +102,7 @@ static void save_php_stack(coro_task *task)
     EG(vm_stack) = task->origin_stack;
     EG(vm_stack_top) = task->origin_vm_stack_top;
     EG(vm_stack_end) = task->origin_vm_stack_end;
-#if PHP_VERSION_ID < 70100
-    EG(scope) = task->execute_data->func->common.scope;
-#endif
+    SW_RESUME_EG_SCOPE(task->execute_data->func->common.scope);
 }
 void internal_coro_resume(void *arg)
 {
