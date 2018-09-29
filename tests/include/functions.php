@@ -1,5 +1,34 @@
 <?php
 
+function tcp_pack(string $data, string $type = 'n'): string
+{
+    return pack($type, strlen($data)) . $data;
+}
+
+function tcp_unpack(string $data, string $type = 'n'): string
+{
+    $type_length = (function ($type) {
+        switch ($type) {
+            case 'c':
+            case 'C':
+                return 1;
+            case 's':
+            case 'S':
+            case 'n':
+            case 'v':
+                return 2;
+            case 'l':
+            case 'L':
+            case 'N':
+            case 'V':
+                return 4;
+            default:
+                return 0;
+        }
+    })($type);
+    return substr($data, $type_length, unpack('n', substr($data, 0, $type_length))[1]);
+}
+
 function var_dump_return(...$data): string
 {
     ob_start();
@@ -497,7 +526,7 @@ class ProcessManager
      */
     protected $atomic;
     protected $alone = false;
-    protected $freePort;
+    protected $freePorts = [];
 
     public $parentFunc;
     public $childFunc;
@@ -549,9 +578,9 @@ class ProcessManager
         return call_user_func($this->parentFunc, $pid);
     }
 
-    function getFreePort()
+    function getFreePort(int $index = 0)
     {
-        return $this->freePort;
+        return $this->freePorts[$index];
     }
 
     function runChildFunc()
@@ -588,6 +617,15 @@ class ProcessManager
         }
     }
 
+    function initFreePorts(int $num = 1)
+    {
+        if (empty($this->freePorts)) {
+            for ($i = $num; $i--;) {
+                $this->freePorts[] = get_one_free_port();
+            }
+        }
+    }
+
     function run()
     {
         global $argv, $argc;
@@ -595,18 +633,18 @@ class ProcessManager
         {
             if ($argv[1] == 'child')
             {
-                $this->freePort = 9501;
+                $this->freePorts = [9501];
                 $this->alone = true;
                 return $this->runChildFunc();
             }
             elseif ($argv[1] == 'parent')
             {
-                $this->freePort = 9501;
+                $this->freePorts = [9501];
                 $this->alone = true;
                 return $this->runParentFunc();
             }
         }
-        $this->freePort = get_one_free_port();
+        $this->initFreePorts();
         $pid = pcntl_fork();
         if ($this->parentFirst)
         {
@@ -651,7 +689,6 @@ class ProcessManager
         assert(pcntl_wexitstatus($this->childStatus) == $code);
     }
 }
-
 
 /*
  +----------------------------------------------------------------------+
