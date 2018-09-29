@@ -667,6 +667,7 @@ typedef struct _swProtocol
 
     int (*onPackage)(swConnection *conn, char *data, uint32_t length);
 	ssize_t (*get_package_length)(struct _swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
+	uint8_t (*get_package_length_size)(swConnection *conn);
 } swProtocol;
 typedef ssize_t (*swProtocol_length_function)(struct _swProtocol *, swConnection *, char *, uint32_t);
 //------------------------------String--------------------------------

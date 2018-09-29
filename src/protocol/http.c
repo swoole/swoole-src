@@ -14,8 +14,10 @@
  +----------------------------------------------------------------------+
  */
 #include "swoole.h"
+#include "server.h"
 #include "http.h"
 #include "http2.h"
+#include "websocket.h"
 
 #include <assert.h>
 #include <stddef.h>
@@ -313,4 +315,55 @@ int swHttpRequest_get_header_length(swHttpRequest *request)
         }
     }
     return SW_ERR;
+}
+
+ssize_t swHttpMix_get_package_length(struct _swProtocol *protocol, swConnection *conn, char *data, uint32_t length)
+{
+    if (conn->websocket_status == WEBSOCKET_STATUS_ACTIVE)
+    {
+        return swWebSocket_get_package_length(protocol, conn, data, length);
+    }
+    else if (conn->http2_stream)
+    {
+        return swHttp2_get_frame_length(protocol, conn, data, length);
+    }
+    else
+    {
+        assert(0);
+        return SW_ERR;
+    }
+}
+
+uint8_t swHttpMix_get_package_length_size(swConnection *conn)
+{
+    if (conn->websocket_status == WEBSOCKET_STATUS_ACTIVE)
+    {
+        return SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_MASK_LEN + sizeof(uint64_t);
+    }
+    else if (conn->http2_stream)
+    {
+        return SW_HTTP2_FRAME_HEADER_SIZE;
+    }
+    else
+    {
+        assert(0);
+        return 0;
+    }
+}
+
+int swHttpMix_dispatch_frame(swConnection *conn, char *data, uint32_t length)
+{
+    if (conn->websocket_status == WEBSOCKET_STATUS_ACTIVE)
+    {
+        return swWebSocket_dispatch_frame(conn, data, length);
+    }
+    else if (conn->http2_stream)
+    {
+        return swReactorThread_dispatch(conn, data, length);
+    }
+    else
+    {
+        assert(0);
+        return SW_ERR;
+    }
 }

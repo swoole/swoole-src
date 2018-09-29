@@ -704,11 +704,6 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
                     swoole_php_fatal_error(E_ERROR, "require onMessage callback");
                     return;
                 }
-                if (port->open_http2_protocol == 1)
-                {
-                    swoole_php_fatal_error(E_ERROR, "cannot use http2 protocol in websocket server");
-                    return;
-                }
             }
             else if (port->open_http_protocol && !php_swoole_server_isset_callback(port, SW_SERVER_CB_onRequest))
             {

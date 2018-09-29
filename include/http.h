@@ -73,6 +73,9 @@ void swHttpRequest_free(swConnection *conn);
 #ifdef SW_HTTP_100_CONTINUE
 int swHttpRequest_has_expect_header(swHttpRequest *request);
 #endif
+ssize_t swHttpMix_get_package_length(struct _swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
+uint8_t swHttpMix_get_package_length_size(swConnection *conn);
+int swHttpMix_dispatch_frame(swConnection *conn, char *data, uint32_t length);
 
 #ifdef __cplusplus
 }

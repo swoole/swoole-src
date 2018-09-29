@@ -170,20 +170,27 @@ void swPort_set_protocol(swListenPort *ls)
     }
     else if (ls->open_http_protocol)
     {
-        if (ls->open_websocket_protocol)
-        {
-            ls->protocol.get_package_length = swWebSocket_get_package_length;
-            ls->protocol.onPackage = swWebSocket_dispatch_frame;
-            ls->protocol.package_length_size = SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_MASK_LEN + sizeof(uint64_t);
-        }
 #ifdef SW_USE_HTTP2
+        if (ls->open_http2_protocol && ls->open_websocket_protocol)
+        {
+            ls->protocol.get_package_length = swHttpMix_get_package_length;
+            ls->protocol.get_package_length_size = swHttpMix_get_package_length_size;
+            ls->protocol.onPackage = swHttpMix_dispatch_frame;
+        }
         else if (ls->open_http2_protocol)
         {
             ls->protocol.get_package_length = swHttp2_get_frame_length;
             ls->protocol.package_length_size = SW_HTTP2_FRAME_HEADER_SIZE;
             ls->protocol.onPackage = swReactorThread_dispatch;
         }
+        else
 #endif
+        if (ls->open_websocket_protocol)
+        {
+            ls->protocol.get_package_length = swWebSocket_get_package_length;
+            ls->protocol.package_length_size = SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_MASK_LEN + sizeof(uint64_t);
+            ls->protocol.onPackage = swWebSocket_dispatch_frame;
+        }
         ls->onRead = swPort_onRead_http;
     }
     else if (ls->open_mqtt_protocol)

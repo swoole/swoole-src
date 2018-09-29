@@ -25,13 +25,14 @@
 ssize_t swProtocol_get_package_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t size)
 {
     uint16_t length_offset = protocol->package_length_offset;
+    uint8_t package_length_size = protocol->get_package_length_size ? protocol->get_package_length_size(conn) : protocol->package_length_size;
     int32_t body_length;
     /**
      * no have length field, wait more data
      */
-    if (size < length_offset + protocol->package_length_size)
+    if (size < length_offset + package_length_size)
     {
-        protocol->real_header_length = length_offset + protocol->package_length_size;
+        protocol->real_header_length = length_offset + package_length_size;
         return 0;
     }
     body_length = swoole_unpack(protocol->package_length_type, data + length_offset);
@@ -151,6 +152,7 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swCon
 int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swString *buffer)
 {
     int package_length;
+    uint8_t package_length_size = protocol->get_package_length_size ? protocol->get_package_length_size(conn) : protocol->package_length_size;
     uint32_t recv_size;
 
     if (conn->skip_recv)
@@ -170,7 +172,7 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
     }
     else
     {
-        recv_size = protocol->package_length_offset + protocol->package_length_size;
+        recv_size = protocol->package_length_offset + package_length_size;
     }
 
     int n = swConnection_recv(conn, buffer->str + buffer->length, recv_size, 0);
