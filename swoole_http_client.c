@@ -1884,7 +1884,7 @@ int http_client_parser_on_headers_complete(swoole_http_parser *parser)
         http->state = HTTP_CLIENT_STATE_WAIT_CLOSE;
         parser->flags |= F_CONNECTION_CLOSE;
     }
-    if (http->method == HTTP_HEAD)
+    if (http->method == HTTP_HEAD || parser->status_code == SW_HTTP_NO_CONTENT)
     {
         return 1;
     }
