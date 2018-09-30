@@ -307,8 +307,7 @@ static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zv
     //if connection exists
     if (http->cli)
     {
-        http_client_send_http_request(zobject);
-        return SW_OK;
+        return http_client_send_http_request(zobject) < 0 ? SW_ERR : SW_OK;
     }
 
     swClient *cli = php_swoole_client_new(zobject, http->host, http->host_len, http->port);
