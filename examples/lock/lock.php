@@ -27,4 +27,3 @@ echo "[Master]release lock\n";
 unset($lock);
 sleep(1);
 echo "[Master]exit\n";
-

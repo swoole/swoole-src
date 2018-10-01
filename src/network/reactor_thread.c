@@ -1546,4 +1546,3 @@ void swReactorThread_free(swServer *serv)
 #endif
     }
 }
-

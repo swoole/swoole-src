@@ -158,4 +158,3 @@ static void thread_read(int i)
     }
     printf("worker #%d finish, recv_count=%d\n", i, recv_count);
 }
-

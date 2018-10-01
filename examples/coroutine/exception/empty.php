@@ -12,4 +12,3 @@ go(function () {
     }
 });
 echo "exec file end\n";
-

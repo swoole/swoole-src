@@ -833,4 +833,3 @@ static void swProcessPool_free(swProcessPool *pool)
         swHashMap_free(pool->map);
     }
 }
-

@@ -39,4 +39,3 @@ co::create(function() {
     $ret4 = $stmt2->execute(array(10, 99));
     var_dump($ret4);
 });
-

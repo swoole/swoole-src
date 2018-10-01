@@ -7,4 +7,3 @@ swoole_event_add($fp, function ($fp) {
     swoole_event_del($fp);
     fclose($fp);
 });
-

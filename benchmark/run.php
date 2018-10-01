@@ -571,4 +571,3 @@ class Swoole_Benchmark
 		echo "one req use(ms):\t".substr($usetime/$this->request_num*1000,0,5),"\n";
 	}
 }
-

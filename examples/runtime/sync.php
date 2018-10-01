@@ -6,4 +6,3 @@ go(function () {
     fflush($fp);
     fclose($fp);
 });
-

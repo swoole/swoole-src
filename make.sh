@@ -4,4 +4,3 @@ phpize
 make clean
 make -j
 make install
-
