@@ -1181,6 +1181,3 @@ static PHP_METHOD(swoole_client_coro, verifyPeerCert)
     SW_CHECK_RETURN(cli->ssl_verify(allow_self_signed));
 }
 #endif
-
-
-

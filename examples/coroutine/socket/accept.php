@@ -14,4 +14,3 @@ go(function () {
     echo "send res {$ret} \n";
     $conn->close();
 });
-

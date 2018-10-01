@@ -8,4 +8,3 @@ var_dump($client->getpeername());
 $client->sendto('::1', 9502, "admin2");
 echo $client->recv()."\n";
 sleep(1);
-

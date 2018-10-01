@@ -185,4 +185,3 @@ static void* swThreadPool_loop(void *arg)
     pthread_exit(NULL);
     return NULL;
 }
-

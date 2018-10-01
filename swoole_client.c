@@ -2359,4 +2359,3 @@ static int client_select_add(zval *sock_array, fd_set *fds, int *max_fd)
     return num ? 1 : 0;
 }
 #endif
-

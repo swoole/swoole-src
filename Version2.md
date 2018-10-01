@@ -167,5 +167,3 @@ You should add "extension=swoole.so" to php.ini, execute the demo program.
 * aop
 * molten
 * xhprof
-
-

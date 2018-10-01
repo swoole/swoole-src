@@ -38,6 +38,3 @@ class Server
 $server = new Server();
 
 $server->run();
-
-
-

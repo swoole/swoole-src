@@ -61,4 +61,3 @@ void swSha1_final();
 #endif
 
 #endif
-

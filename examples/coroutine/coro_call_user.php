@@ -17,4 +17,3 @@ function test($params)
     return "test return\n";
 }
 echo "main script last\n";
-
