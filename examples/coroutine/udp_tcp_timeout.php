@@ -120,7 +120,3 @@ $setting = array(
 $th = new TestHttpServer();
 $th ->set($setting);
 $th ->start();
-
-
-
-

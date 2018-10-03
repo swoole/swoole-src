@@ -297,4 +297,3 @@ void coroutine_set_stack_size(int stack_size)
 {
     swCoroG.stack_size = stack_size;
 }
-

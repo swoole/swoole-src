@@ -16,4 +16,3 @@ go(function() {
 	echo "fseek\n";
 	fclose($fp);
 });
-

@@ -28,4 +28,3 @@ $serv->on('close', function ($serv, $fd, $from_id) {
     echo "[#".posix_getpid()."]\tClient@[$fd:$from_id]: Close.\n";
 });
 $serv->start();
-

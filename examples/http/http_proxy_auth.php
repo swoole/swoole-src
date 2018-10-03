@@ -16,5 +16,3 @@ $cli->get('/', function ($cli) {
     $cli->close();
     echo $cli->body;
 });
-
-

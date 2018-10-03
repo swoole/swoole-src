@@ -83,4 +83,3 @@ TEST(hashmap, integer)
         free(lists[i]);
     }
 }
-

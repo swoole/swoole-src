@@ -142,4 +142,3 @@ $serv->on('WorkerError', function($serv, $worker_id, $worker_pid, $exit_code) {
     echo "worker abnormal exit. WorkerId=$worker_id|Pid=$worker_pid|ExitCode=$exit_code\n";
 });
 $serv->start();
-

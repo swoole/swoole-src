@@ -249,4 +249,3 @@ void swChannel_print(swChannel *chan)
             "\n}\n", (long)chan->head, (long)chan->tail, chan->size, chan->tail_tag, chan->head_tag, chan->num, chan->bytes,
             chan->flag, chan->maxlen);
 }
-
