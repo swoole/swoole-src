@@ -13,7 +13,7 @@ $url_info = parse_url('http://httpbin.org/status/204');
 $domain = $url_info['host'];
 $path = $url_info['path'];
 $cli = new Swoole\Http\Client($domain);
-$cli->set(['timeout' => 1]);
+$cli->set(['timeout' => 5]);
 $cli->setHeaders([
     'Host' => $domain,
     'User-Agent' => 'Chrome/49.0.2587.3',

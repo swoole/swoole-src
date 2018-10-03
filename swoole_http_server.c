@@ -1702,7 +1702,7 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
      * http header
      */
     zval *header = ctx->response.zheader;
-    int flag = 0x0;
+    uint32_t header_flag = 0x0;
     if (header)
     {
         HashTable *ht = Z_ARRVAL_P(header);
@@ -1719,23 +1719,23 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
             }
             if (strncasecmp(key, "Server", keylen) == 0)
             {
-                flag |= HTTP_RESPONSE_SERVER;
+                header_flag |= HTTP_HEADER_SERVER;
             }
             else if (strncasecmp(key, "Connection", keylen) == 0)
             {
-                flag |= HTTP_RESPONSE_CONNECTION;
+                header_flag |= HTTP_HEADER_CONNECTION;
             }
             else if (strncasecmp(key, "Date", keylen) == 0)
             {
-                flag |= HTTP_RESPONSE_DATE;
+                header_flag |= HTTP_HEADER_DATE;
             }
             else if (strncasecmp(key, "Content-Type", keylen) == 0)
             {
-                flag |= HTTP_RESPONSE_CONTENT_TYPE;
+                header_flag |= HTTP_HEADER_CONTENT_TYPE;
             }
             else if (strncasecmp(key, "Transfer-Encoding", keylen) == 0)
             {
-                flag |= HTTP_RESPONSE_TRANSFER_ENCODING;
+                header_flag |= HTTP_HEADER_TRANSFER_ENCODING;
             }
             n = snprintf(buf, l_buf, "%*s: %*s\r\n", keylen - 1, key, (int)Z_STRLEN_P(value), Z_STRVAL_P(value));
             swString_append_ptr(response, buf, n);
@@ -1744,7 +1744,7 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
         (void)type;
     }
 
-    if (!(flag & HTTP_RESPONSE_SERVER))
+    if (!(header_flag & HTTP_HEADER_SERVER))
     {
         swString_append_ptr(response, ZEND_STRL("Server: "SW_HTTP_SERVER_SOFTWARE"\r\n"));
     }
@@ -1755,7 +1755,7 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
         ctx->send_header = 1;
         return;
     }
-    if (!(flag & HTTP_RESPONSE_CONNECTION))
+    if (!(header_flag & HTTP_HEADER_CONNECTION))
     {
         if (ctx->keepalive)
         {
@@ -1766,11 +1766,11 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
             swString_append_ptr(response, ZEND_STRL("Connection: close\r\n"));
         }
     }
-    if (!(flag & HTTP_RESPONSE_CONTENT_TYPE))
+    if (!(header_flag & HTTP_HEADER_CONTENT_TYPE))
     {
         swString_append_ptr(response, ZEND_STRL("Content-Type: text/html\r\n"));
     }
-    if (!(flag & HTTP_RESPONSE_DATE))
+    if (!(header_flag & HTTP_HEADER_DATE))
     {
         date_str = sw_php_format_date(ZEND_STRL(SW_HTTP_DATE_FORMAT), serv->gs->now, 0);
         n = snprintf(buf, l_buf, "Date: %s\r\n", date_str);
@@ -1780,7 +1780,7 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
 
     if (ctx->chunk)
     {
-        if (!(flag & HTTP_RESPONSE_TRANSFER_ENCODING))
+        if (!(header_flag & HTTP_HEADER_TRANSFER_ENCODING))
         {
             swString_append_ptr(response, ZEND_STRL("Transfer-Encoding: chunked\r\n"));
         }

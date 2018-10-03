@@ -813,7 +813,7 @@ static int http_client_send_http_request(zval *zobject)
 
     zval *post_data = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("requestBody"), 1);
     zval *send_header = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("requestHeaders"), 1);
-    uint8_t enable_length = 0;
+    uint32_t header_flag = 0x0;
 
     //POST
     if (post_data && !ZVAL_IS_NULL(post_data))
@@ -862,29 +862,16 @@ static int http_client_send_http_request(zval *zobject)
 
     if (send_header && Z_TYPE_P(send_header) == IS_ARRAY)
     {
-        if (!(value = zend_hash_str_find(Z_ARRVAL_P(send_header), ZEND_STRL("Connection"))))
+        // As much as possible to ensure that Host is the first header.
+        // See: http://tools.ietf.org/html/rfc7230#section-5.4
+        if ((value = zend_hash_str_find(Z_ARRVAL_P(send_header), ZEND_STRL("Host"))) || (value = zend_hash_str_find(Z_ARRVAL_P(send_header), ZEND_STRL("host"))))
         {
-            if (http->keep_alive)
-            {
-                http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Connection"), ZEND_STRL("keep-alive"));
-            }
-            else
-            {
-                http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Connection"), ZEND_STRL("closed"));
-            }
+            http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Host"), Z_STRVAL_P(value), Z_STRLEN_P(value));
         }
-
-        if (!(value = zend_hash_str_find(Z_ARRVAL_P(send_header), ZEND_STRL("Host"))))
+        else
         {
             http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Host"), http->host, http->host_len);
         }
-
-#ifdef SW_HAVE_ZLIB
-        if (!(value = zend_hash_str_find(Z_ARRVAL_P(send_header), ZEND_STRL("Accept-Encoding"))))
-        {
-            http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Accept-Encoding"), ZEND_STRL("gzip"));
-        }
-#endif
 
         SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(send_header), key, keylen, keytype, value)
             if (HASH_KEY_IS_STRING != keytype)
@@ -892,28 +879,48 @@ static int http_client_send_http_request(zval *zobject)
                 continue;
             }
             convert_to_string(value);
-            if (Z_STRLEN_P(value) == 0)
+            if ((Z_STRLEN_P(value) == 0) || (strncasecmp(key, ZEND_STRL("Host")) == 0))
             {
                 continue;
             }
-            //ignore custom Content-Length value
             if (strncasecmp(key, ZEND_STRL("Content-Length")) == 0)
             {
-                enable_length = 1;
+                header_flag |= HTTP_HEADER_CONTENT_LENGTH;
+                //ignore custom Content-Length value
                 continue;
+            }
+            else if (strncasecmp(key, ZEND_STRL("Connection")) == 0)
+            {
+                header_flag |= HTTP_HEADER_CONNECTION;
+            }
+            else if (strncasecmp(key, ZEND_STRL("Accept-Encoding")) == 0)
+            {
+                header_flag |= HTTP_HEADER_ACCEPT_ENCODING;
             }
             http_client_swString_append_headers(http_client_buffer, key, keylen, Z_STRVAL_P(value), Z_STRLEN_P(value));
         SW_HASHTABLE_FOREACH_END();
     }
     else
     {
-        http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Connection"), ZEND_STRL("keep-alive"));
-        http->keep_alive = 1;
         http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Host"), http->host, http->host_len);
-#ifdef SW_HAVE_ZLIB
-        http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Accept-Encoding"), ZEND_STRL("gzip"));
-#endif
     }
+    if (!(header_flag & HTTP_HEADER_CONNECTION))
+    {
+        if (http->keep_alive)
+        {
+            http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Connection"), ZEND_STRL("keep-alive"));
+        }
+        else
+        {
+            http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Connection"), ZEND_STRL("closed"));
+        }
+    }
+#ifdef SW_HAVE_ZLIB
+    if (!(header_flag & HTTP_HEADER_ACCEPT_ENCODING))
+    {
+        http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Accept-Encoding"), ZEND_STRL("gzip"));
+    }
+#endif
 
     zval *cookies = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("cookies"), 1);
     if (cookies && Z_TYPE_P(cookies) == IS_ARRAY)
@@ -1163,7 +1170,7 @@ static int http_client_send_http_request(zval *zobject)
     else
     {
         append_crlf:
-        if (enable_length)
+        if (header_flag & HTTP_HEADER_CONTENT_LENGTH)
         {
             http_client_append_content_length(http_client_buffer, 0);
         }

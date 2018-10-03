@@ -262,7 +262,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length)
 
     if (zheader)
     {
-        int flag = 0x0;
+        uint32_t header_flag = 0x0;
 
         HashTable *ht = Z_ARRVAL_P(zheader);
         zval *value = NULL;
@@ -278,30 +278,30 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length)
             }
             if (strncmp(key, "server", keylen) == 0)
             {
-                flag |= HTTP_RESPONSE_SERVER;
+                header_flag |= HTTP_HEADER_SERVER;
             }
             else if (strncmp(key, "content-length", keylen) == 0)
             {
-                flag |= HTTP_RESPONSE_CONTENT_LENGTH;
+                header_flag |= HTTP_HEADER_CONTENT_LENGTH;
             }
             else if (strncmp(key, "date", keylen) == 0)
             {
-                flag |= HTTP_RESPONSE_DATE;
+                header_flag |= HTTP_HEADER_DATE;
             }
             else if (strncmp(key, "content-type", keylen) == 0)
             {
-                flag |= HTTP_RESPONSE_CONTENT_TYPE;
+                header_flag |= HTTP_HEADER_CONTENT_TYPE;
             }
             http2_add_header(&nv[index++], key, keylen, Z_STRVAL_P(value), Z_STRLEN_P(value));
         }
         SW_HASHTABLE_FOREACH_END();
         (void)type;
 
-        if (!(flag & HTTP_RESPONSE_SERVER))
+        if (!(header_flag & HTTP_HEADER_SERVER))
         {
             http2_add_header(&nv[index++], ZEND_STRL("server"), ZEND_STRL(SW_HTTP_SERVER_SOFTWARE));
         }
-        if (!(flag & HTTP_RESPONSE_CONTENT_LENGTH) && body_length >= 0)
+        if (!(header_flag & HTTP_HEADER_CONTENT_LENGTH) && body_length >= 0)
         {
 #ifdef SW_HAVE_ZLIB
             if (ctx->enable_compression)
@@ -312,12 +312,12 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length)
             ret = swoole_itoa(intbuf[1], body_length);
             http2_add_header(&nv[index++], ZEND_STRL("content-length"), intbuf[1], ret);
         }
-        if (!(flag & HTTP_RESPONSE_DATE))
+        if (!(header_flag & HTTP_HEADER_DATE))
         {
             date_str = sw_php_format_date((char *)ZEND_STRL(SW_HTTP_DATE_FORMAT), serv->gs->now, 0);
             http2_add_header(&nv[index++], ZEND_STRL("date"), date_str, strlen(date_str));
         }
-        if (!(flag & HTTP_RESPONSE_CONTENT_TYPE))
+        if (!(header_flag & HTTP_HEADER_CONTENT_TYPE))
         {
             http2_add_header(&nv[index++], ZEND_STRL("content-type"), ZEND_STRL("text/html"));
         }
