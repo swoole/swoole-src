@@ -586,7 +586,16 @@ extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
 #if PHP_VERSION_ID < 70100
 #define zend_wrong_parameters_count_error zend_wrong_paramers_count_error
 #endif
+
+// See https://github.com/php/php-src/commit/52db03b3e52bfc886896925d050af79bc4dc1ba3
+#if PHP_MINOR_VERSION == 2
+#define SW_ZEND_WRONG_PARAMETERS_COUNT_ERROR zend_wrong_parameters_count_error(_flags & ZEND_PARSE_PARAMS_THROW, _num_args, _min_num_args, _max_num_args)
+#else
+#define SW_ZEND_WRONG_PARAMETERS_COUNT_ERROR zend_wrong_parameters_count_error(_num_args, _min_num_args, _max_num_args)
+#endif
+
 #undef ZEND_PARSE_PARAMETERS_START_EX
+
 #define ZEND_PARSE_PARAMETERS_START_EX(flags, min_num_args, max_num_args) do { \
         const int _flags = (flags); \
         int _min_num_args = (min_num_args); \
@@ -612,7 +621,7 @@ extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
                 (UNEXPECTED(_num_args > _max_num_args) && \
                  EXPECTED(_max_num_args >= 0))) { \
                 if (!(_flags & ZEND_PARSE_PARAMS_QUIET)) { \
-                    zend_wrong_parameters_count_error(_num_args, _min_num_args, _max_num_args); \
+                    SW_ZEND_WRONG_PARAMETERS_COUNT_ERROR; \
                 } \
                 error_code = ZPP_ERROR_FAILURE; \
                 break; \
