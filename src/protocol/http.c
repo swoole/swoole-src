@@ -107,6 +107,54 @@ int swHttpRequest_get_protocol(swHttpRequest *request)
         request->offset = 8;
         buf += 8;
     }
+    else if (memcmp(buf, "COPY", 4) == 0)
+    {
+        request->method = HTTP_COPY;
+        request->offset = 5;
+        buf += 5;
+    }
+    else if (memcmp(buf, "LOCK", 4) == 0)
+    {
+        request->method = HTTP_LOCK;
+        request->offset = 5;
+        buf += 5;
+    }
+    else if (memcmp(buf, "MKCOL", 5) == 0)
+    {
+        request->method = HTTP_MKCOL;
+        request->offset = 4;
+        buf += 4;
+    }
+    else if (memcmp(buf, "MOVE", 4) == 0)
+    {
+        request->method = HTTP_MOVE;
+        request->offset = 5;
+        buf += 5;
+    }
+    else if (memcmp(buf, "PROPFIND", 8) == 0)
+    {
+        request->method = HTTP_PROPFIND;
+        request->offset = 9;
+        buf += 9;
+    }
+    else if (memcmp(buf, "PROPPATCH", 9) == 0)
+    {
+        request->method = HTTP_PROPPATCH;
+        request->offset = 10;
+        buf += 10;
+    }
+    else if (memcmp(buf, "UNLOCK", 6) == 0)
+    {
+        request->method = HTTP_UNLOCK;
+        request->offset = 7;
+        buf += 7;
+    }
+    else if (memcmp(buf, "REPORT", 6) == 0)
+    {
+        request->method = HTTP_REPORT;
+        request->offset = 7;
+        buf += 7;
+    }
 #ifdef SW_USE_HTTP2
     //HTTP2 Connection Preface
     else if (memcmp(buf, "PRI", 3) == 0)
