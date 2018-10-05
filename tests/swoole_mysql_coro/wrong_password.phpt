@@ -4,7 +4,7 @@ swoole_mysql_coro: mysql connect with wrong password
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 go(function () {
     $db = new Swoole\Coroutine\Mysql;
     $server = [

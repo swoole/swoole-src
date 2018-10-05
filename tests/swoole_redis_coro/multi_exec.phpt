@@ -4,8 +4,7 @@ swoole_redis_coro: redis multi and exec
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/lib/curl.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 go(function () {
     $redis = new \Swoole\Coroutine\Redis();

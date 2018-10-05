@@ -4,7 +4,7 @@ swoole_coroutine_channel: push with sleep
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 $chan = new chan(1);
 
 go(function () use ($chan) {

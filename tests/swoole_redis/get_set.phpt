@@ -4,8 +4,8 @@ swoole_redis: get & set
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/api/swoole_redis/simple_redis.php';
+require __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/api/swoole_redis/simple_redis.php';
 ?>
 --EXPECT--
 close

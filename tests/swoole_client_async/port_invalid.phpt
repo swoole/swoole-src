@@ -3,15 +3,9 @@ swoole_client_async: port invalid
 
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 $cli = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
 
@@ -35,6 +29,5 @@ assert(swoole_last_error() == SWOOLE_ERROR_INVALID_PARAMS);
 
 swoole_event::wait();
 ?>
-
 --EXPECT--
 

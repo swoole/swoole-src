@@ -4,7 +4,7 @@ swoole_http2_client_coro: http2 go away
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 go(function () {
     $domain = 'nghttp2.org';
     $cli = new Swoole\Coroutine\Http2\Client($domain, 443, true);

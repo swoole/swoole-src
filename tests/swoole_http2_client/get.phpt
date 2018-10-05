@@ -7,7 +7,7 @@ skip_deprecated();
 ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 swoole_async_dns_lookup("www.jd.com", function ($domain, $ip)
 {
     $client = new Swoole\Http2\Client($ip, 443, true);

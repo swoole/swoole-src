@@ -4,7 +4,7 @@ swoole_redis: subscribe & publish
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 parent_child(function ($pid)
 {

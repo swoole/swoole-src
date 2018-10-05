@@ -4,7 +4,7 @@ swoole_mysql_coro: mysql null bit map rand test
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 function gen_type(): string
 {

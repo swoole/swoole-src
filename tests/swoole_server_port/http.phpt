@@ -4,8 +4,7 @@ swoole_server_port: http and tcp
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/lib/curl.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new ProcessManager;
 ini_set("swoole.display_errors", "Off");

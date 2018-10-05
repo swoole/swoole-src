@@ -7,7 +7,7 @@ skip_if_in_travis('foreign network dns error');
 ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 go(function () {
     $host = 'www.qq.com';
     $requestHeaders = [

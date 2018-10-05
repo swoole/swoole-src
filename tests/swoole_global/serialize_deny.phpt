@@ -4,7 +4,7 @@ swoole_global: deny serialize and unserialize
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 go(function () {
     try {
         $hcc = new \Swoole\Atomic();

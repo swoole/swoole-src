@@ -2,17 +2,10 @@
 swoole_websocket_server: websocket server active close with close frame flag false
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
-
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
-include __DIR__ . "/../include/lib/class.websocket_client.php";
+require __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/lib/class.websocket_client.php';
 $pm = new ProcessManager;
 $pm->parentFunc = function (int $pid) use ($pm) {
     $cli = new WebsocketClient;

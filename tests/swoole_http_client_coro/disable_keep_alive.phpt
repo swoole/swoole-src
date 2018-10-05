@@ -4,7 +4,7 @@ swoole_http_client_coro: disable keep alive
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 go(function () {
     $host = 'www.qq.com';
     $cli = new \Swoole\Coroutine\Http\Client($host, 80);

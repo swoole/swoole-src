@@ -5,14 +5,9 @@ swoole_process: write in worker
 require __DIR__ . '/../include/skipif.inc';
 skip_if_in_docker('unknown reason');
 ?>
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new \ProcessManager;
 $pm->parentFunc = function () use ($pm) {

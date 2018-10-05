@@ -4,8 +4,8 @@ swoole_websocket_server: websocket server full test
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
-include __DIR__ . "/../include/lib/class.websocket_client.php";
+require __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/lib/class.websocket_client.php';
 $count = MAX_CONCURRENCY_MID;
 $data_list = [];
 for ($i = MAX_REQUESTS; $i--;) {

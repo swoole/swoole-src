@@ -4,7 +4,7 @@ swoole_client_coro: udp recv failed
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 go(function () {
     $cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_UDP);

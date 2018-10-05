@@ -2,16 +2,9 @@
 swoole_server: send big udp packet to server
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
-
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 //最大长度：65535 - UDP包头 8字节 + IP包头 20字节 = 65507
 const N = 65507;
@@ -46,7 +39,6 @@ $pm->childFunc = function () use ($pm, $port)
     });
     $serv->start();
 };
-
 
 $pm->childFirst();
 $pm->run();

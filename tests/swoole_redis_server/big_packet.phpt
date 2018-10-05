@@ -1,23 +1,12 @@
 --TEST--
 swoole_redis_server: test big packet
-
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc';
-if (!class_exists("redis", false))
-{
-    exit("skip");
-}
+skip_if_no_async_redis();
 ?>
-
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 use Swoole\Redis\Server;
 
 define('VALUE_LEN',  8192 * 128);
@@ -74,5 +63,4 @@ $pm->childFunc = function () use ($pm)
 $pm->childFirst();
 $pm->run();
 ?>
-
 --EXPECT--

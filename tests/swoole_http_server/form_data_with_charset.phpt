@@ -4,7 +4,7 @@ swoole_http_server: http server parse form data with charset
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 function getRandomData(int $num): array
 {

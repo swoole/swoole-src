@@ -4,7 +4,7 @@ swoole_table: row
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 $table = new swoole_table(1);
 $table->column('bar', swoole_table::TYPE_STRING, 255);
 $table->create();

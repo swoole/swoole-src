@@ -3,15 +3,9 @@ swoole_server: kill worker [SWOOLE_BASE]
 
 --SKIPIF--
 <?php require __DIR__ . "/../include/skipif.inc"; ?>
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
 --FILE--
 <?php
-require_once __DIR__ . "/../include/bootstrap.php";
+require __DIR__ . "/../include/bootstrap.php";
 
 const WORKER_PROC_NAME = 'swoole_unittest_server_event_worker';
 $pm = new ProcessManager;
@@ -48,5 +42,4 @@ $pm->childFirst();
 $pm->run();
 
 ?>
-
 --EXPECT--

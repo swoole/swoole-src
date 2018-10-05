@@ -10,7 +10,7 @@ if (!class_exists("swoole_serialize", false))
 ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 ini_set("display_errors", "Off");
 
@@ -34,9 +34,7 @@ class test extends AbstractAsyncTask
 
 }
 
-
 $data = swoole_serialize::pack(new test('aaa'));
-
 
 $a = swoole_serialize::unpack($data);
 

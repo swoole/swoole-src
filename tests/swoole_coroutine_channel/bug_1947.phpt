@@ -5,7 +5,7 @@ swoole_coroutine_channel: channel by return value
 ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 go(function () {
     $foo = foo();
     $ret = $foo->pop(0.001);

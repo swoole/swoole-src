@@ -7,7 +7,7 @@ skip_if_in_travis('travis network');
 ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 go(function () {
     $domain = 'www.zhihu.com';
     $cli = new Swoole\Coroutine\Http2\Client($domain, 443, true);

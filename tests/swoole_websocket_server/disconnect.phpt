@@ -4,8 +4,8 @@ swoole_websocket_server: websocket server disconnect
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
-include __DIR__ . "/../include/lib/class.websocket_client.php";
+require __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/lib/class.websocket_client.php';
 $pm = new ProcessManager;
 $pm->parentFunc = function (int $pid) use ($pm) {
     $cli = new WebsocketClient;

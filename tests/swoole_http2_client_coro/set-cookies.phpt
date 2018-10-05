@@ -4,7 +4,7 @@ swoole_http2_client_coro: http2 response cookies
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 go(function () {
     $domain = 'www.bing.com';
     $cli = new Swoole\Coroutine\Http2\Client($domain, 443, true);

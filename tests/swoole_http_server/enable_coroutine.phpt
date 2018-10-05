@@ -4,8 +4,7 @@ swoole_http_server: enable_coroutine setting in server
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/lib/curl.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Http\Request;
 use Swoole\Http\Response;

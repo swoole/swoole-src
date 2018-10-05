@@ -8,7 +8,7 @@ if (function_exists('msg_get_queue') == false) {
 ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 const MSGQ_KEY = 0x70000001;
 

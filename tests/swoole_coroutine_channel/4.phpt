@@ -4,7 +4,7 @@ swoole_coroutine_channel: product first without select mode
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 $c1 = new chan(1);
 //product first without select mode

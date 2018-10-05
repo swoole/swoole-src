@@ -4,7 +4,7 @@ swoole_coroutine: exception before yield
 <?php require  __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../../include/bootstrap.php';
+require __DIR__ . '/../../include/bootstrap.php';
 
 use Swoole\Coroutine as co;
 go(function () {

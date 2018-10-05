@@ -9,7 +9,7 @@ if (strpos(@`nghttp --version`, 'nghttp2') === false) {
 ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {
     $file = __DIR__ . '/../../benchmark/post.big.data';

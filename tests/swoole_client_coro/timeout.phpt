@@ -4,7 +4,7 @@ swoole_client_coro: timeout of udp client
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 go(function () {
     $socket = new Swoole\Coroutine\Socket(AF_INET, SOCK_DGRAM, 0);

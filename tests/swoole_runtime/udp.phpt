@@ -6,7 +6,7 @@ require __DIR__ . '/../include/skipif.inc';
 ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 swoole\runtime::enableCoroutine();
 const N = 5;

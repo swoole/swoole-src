@@ -2,15 +2,9 @@
 swoole_server: dispatch_mode = 1
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 const REQ_N = 10000;
 const CLIENT_N = 16;
 const WORKER_N = 4;

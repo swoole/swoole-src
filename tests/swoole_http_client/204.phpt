@@ -7,7 +7,7 @@ skip_if_in_travis('travis network');
 ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 $url_info = parse_url('http://httpbin.org/status/204');
 $domain = $url_info['host'];

@@ -4,7 +4,7 @@ swoole_coroutine: use ob_* in nest co
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../../include/bootstrap.php';
+require __DIR__ . '/../../include/bootstrap.php';
 go(function () {
     ob_start();
     echo "2\n"; // [#1] yield

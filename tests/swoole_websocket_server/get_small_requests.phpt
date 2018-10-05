@@ -4,7 +4,7 @@ swoole_websocket_server: websocket with small data concurrency
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 $count = 0;
 $pm = new ProcessManager;
 $pm->parentFunc = function (int $pid) use ($pm) {

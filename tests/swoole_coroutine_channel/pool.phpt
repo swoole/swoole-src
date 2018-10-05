@@ -7,7 +7,7 @@ skip_if_no_async_redis();
 ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 /**
  * 连接池尺寸

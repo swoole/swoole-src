@@ -6,7 +6,7 @@ require __DIR__ . '/../include/skipif.inc';
 ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 go(function () {
     $domain = 'www.zhihu.com';
     $cli = new Swoole\Coroutine\Http2\Client($domain, 443, true);

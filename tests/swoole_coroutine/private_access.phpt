@@ -4,7 +4,7 @@ swoole_coroutine: $this private access in PHP70
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 (new Bar)->foo();
 
 class Bar

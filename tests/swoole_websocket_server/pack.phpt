@@ -4,7 +4,7 @@ swoole_websocket_server: websocket frame pack/unpack
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 use swoole_websocket_frame as f;
 
