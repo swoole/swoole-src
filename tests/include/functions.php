@@ -639,7 +639,7 @@ class ProcessManager
      */
     function kill()
     {
-        if (!$this->alone)
+        if (!$this->alone && $this->childPid)
         {
             swoole_process::kill($this->childPid);
         }
@@ -712,6 +712,7 @@ class ProcessManager
             $this->childStatus = $status;
         }
     }
+
     function expectExitCode($code = 0)
     {
         assert(pcntl_wexitstatus($this->childStatus) == $code);

@@ -1,5 +1,5 @@
 --TEST--
-swoole_websocket_server: websocket push 2
+swoole_websocket_server: websocket ping pong (auto)
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
