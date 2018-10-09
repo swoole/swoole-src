@@ -654,7 +654,6 @@
             <file role="test" name="tests/include/functions.php" />
             <file role="test" name="tests/include/ignore_files.php" />
             <file role="test" name="tests/include/lib/class.websocket_client.php" />
-            <file role="test" name="tests/include/lib/curl.php" />
             <file role="test" name="tests/include/macos/phpstorm.py" />
             <file role="test" name="tests/include/memoryleak/connect_host_not_found.php" />
             <file role="test" name="tests/include/memoryleak/tcp_client_memory_leak/tcp_serv.php" />
@@ -663,8 +662,6 @@
             <file role="test" name="tests/include/redis/bug_03.php" />
             <file role="test" name="tests/include/skipif.inc" />
             <file role="test" name="tests/include/swoole.inc" />
-            <file role="test" name="tests/include/toolkit/RandStr.php" />
-            <file role="test" name="tests/include/toolkit/TcpStat.php" />
             <file role="test" name="tests/init" />
             <file role="test" name="tests/new.sh" />
             <file role="test" name="tests/run-tests" />
@@ -791,6 +788,7 @@
             <file role="test" name="tests/swoole_coroutine_channel/hybird_chan.phpt" />
             <file role="test" name="tests/swoole_coroutine_channel/hybird_chan2.phpt" />
             <file role="test" name="tests/swoole_coroutine_channel/hybird_chan3.phpt" />
+            <file role="test" name="tests/swoole_coroutine_channel/pool.phpt" />
             <file role="test" name="tests/swoole_coroutine_channel/pop_timeout1.phpt" />
             <file role="test" name="tests/swoole_coroutine_channel/pop_timeout2.phpt" />
             <file role="test" name="tests/swoole_coroutine_channel/pop_timeout3.phpt" />
@@ -842,6 +840,7 @@
             <file role="test" name="tests/swoole_http2_server/compression.phpt" />
             <file role="test" name="tests/swoole_http2_server/nghttp2_big_data.phpt" />
             <file role="test" name="tests/swoole_http2_server/no_compression.phpt" />
+            <file role="test" name="tests/swoole_http_client/204.phpt" />
             <file role="test" name="tests/swoole_http_client/connect_host_not_found.phpt" />
             <file role="test" name="tests/swoole_http_client/connect_port_not_listen.phpt" />
             <file role="test" name="tests/swoole_http_client/content_length.phpt" />
@@ -887,6 +886,7 @@
             <file role="test" name="tests/swoole_http_client/websocket_bad_protocol.phpt" />
             <file role="test" name="tests/swoole_http_client/websocket_bug_18031401.phpt" />
             <file role="test" name="tests/swoole_http_client/websocket_port_not_listen.phpt" />
+            <file role="test" name="tests/swoole_http_client_coro/204.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/addData.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/disable_keep_alive.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/get.phpt" />
@@ -911,7 +911,9 @@
             <file role="test" name="tests/swoole_http_server/data_parse.phpt" />
             <file role="test" name="tests/swoole_http_server/enable_coroutine.phpt" />
             <file role="test" name="tests/swoole_http_server/form_data_with_charset.phpt" />
+            <file role="test" name="tests/swoole_http_server/httpdata" />
             <file role="test" name="tests/swoole_http_server/large_url.phpt" />
+            <file role="test" name="tests/swoole_http_server/mixed_server.phpt" />
             <file role="test" name="tests/swoole_http_server/no_compression.phpt" />
             <file role="test" name="tests/swoole_http_server/rawContent.phpt" />
             <file role="test" name="tests/swoole_http_server/rawCookie.phpt" />
@@ -920,6 +922,8 @@
             <file role="test" name="tests/swoole_http_server/static_handler.phpt" />
             <file role="test" name="tests/swoole_http_server/upload.phpt" />
             <file role="test" name="tests/swoole_http_server/uploadFile.phpt" />
+            <file role="test" name="tests/swoole_http_server/upload_02.phpt" />
+            <file role="test" name="tests/swoole_http_server/upload_03.phpt" />
             <file role="test" name="tests/swoole_https_client/get_with_query_string.phpt" />
             <file role="test" name="tests/swoole_https_client/get_without_query_string.phpt" />
             <file role="test" name="tests/swoole_https_client/http_proxy.phpt" />
@@ -962,6 +966,7 @@
             <file role="test" name="tests/swoole_mysql_coro/illegal_extends.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/not_exist.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/null.phpt" />
+            <file role="test" name="tests/swoole_mysql_coro/null_bit_map.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/numbers.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/prepare_insert.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/prepare_select.phpt" />
@@ -1022,6 +1027,9 @@
             <file role="test" name="tests/swoole_runtime/accept.phpt" />
             <file role="test" name="tests/swoole_runtime/accept_timeout.phpt" />
             <file role="test" name="tests/swoole_runtime/enable_crypto.phpt" />
+            <file role="test" name="tests/swoole_runtime/file_hook/a.inc" />
+            <file role="test" name="tests/swoole_runtime/file_hook/b.inc" />
+            <file role="test" name="tests/swoole_runtime/file_hook/include.phpt" />
             <file role="test" name="tests/swoole_runtime/sento.phpt" />
             <file role="test" name="tests/swoole_runtime/ssl_client.phpt" />
             <file role="test" name="tests/swoole_runtime/ssl_server.phpt" />
@@ -1131,6 +1139,7 @@
             <file role="test" name="tests/swoole_websocket_server/get_small_requests.phpt" />
             <file role="test" name="tests/swoole_websocket_server/greeter.phpt" />
             <file role="test" name="tests/swoole_websocket_server/pack.phpt" />
+            <file role="test" name="tests/swoole_websocket_server/pingloop.phpt" />
             <file role="test" name="tests/swoole_websocket_server/pingpong.phpt" />
             <file role="test" name="tests/swoole_websocket_server/recv_decode.phpt" />
             <file role="test" name="tests/swoole_websocket_server/send_encode.phpt" />
