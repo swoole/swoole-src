@@ -633,24 +633,23 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
                 int boundary_len = length - offset;
                 char *boundary_str = (char *) at + offset;
 
-                // find end
-                while (offset < boundary_len && *(boundary_str + offset) != ';')
+                // find ';'
+                char *tmp = memchr(boundary_str, ';', boundary_len);
+                if (tmp)
                 {
-                    offset++;
+                    boundary_len = tmp - boundary_str;
                 }
-                boundary_len = offset;
-
                 if (boundary_len <= 0)
                 {
                     swWarn("invalid multipart/form-data body fd:%d.", ctx->fd);
                     return 0;
                 }
+                // trim '"'
                 if (boundary_len >= 2 && boundary_str[0] == '"' && *(boundary_str + boundary_len - 1) == '"')
                 {
                     boundary_str++;
                     boundary_len -= 2;
                 }
-
                 swoole_http_parse_form_data(ctx, boundary_str, boundary_len);
             }
         }
@@ -978,7 +977,7 @@ static int http_request_on_body(swoole_http_parser *parser, const char *at, size
         size_t n = multipart_parser_execute(multipart_parser, c, length);
         if (n != length)
         {
-            swoole_php_fatal_error(E_WARNING, "parse multipart body failed.");
+            swoole_php_fatal_error(E_WARNING, "parse multipart body failed, n=%u.", n);
         }
     }
 

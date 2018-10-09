@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_server: cookies
+swoole_http_server: upload 01
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
