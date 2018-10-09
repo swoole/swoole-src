@@ -49,8 +49,8 @@ ZEND_END_ARG_INFO()
 
 static const zend_function_entry swoole_msgqueue_methods[] =
 {
-    PHP_ME(swoole_msgqueue, __construct, arginfo_swoole_msgqueue_construct, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
-    PHP_ME(swoole_msgqueue, __destruct, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
+    PHP_ME(swoole_msgqueue, __construct, arginfo_swoole_msgqueue_construct, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_msgqueue, __destruct, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_msgqueue, push, arginfo_swoole_msgqueue_push, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_msgqueue, pop, arginfo_swoole_msgqueue_pop, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_msgqueue, setBlocking, arginfo_swoole_msgqueue_setBlocking, ZEND_ACC_PUBLIC)
