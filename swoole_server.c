@@ -73,7 +73,7 @@ typedef struct
 } swTaskCo;
 #endif
 
-static int php_swoole_task_finish(swServer *serv, zval *data);
+static int php_swoole_task_finish(swServer *serv, zval *data, swEventData *current_task);
 static void php_swoole_onPipeMessage(swServer *serv, swEventData *req);
 static void php_swoole_onStart(swServer *);
 static void php_swoole_onShutdown(swServer *);
@@ -777,7 +777,7 @@ void php_swoole_register_callback(swServer *serv)
     }
 }
 
-static int php_swoole_task_finish(swServer *serv, zval *data)
+static int php_swoole_task_finish(swServer *serv, zval *data, swEventData *current_task)
 {
     int flags = 0;
     smart_str serialized_data = {0};
@@ -814,7 +814,7 @@ static int php_swoole_task_finish(swServer *serv, zval *data)
         data_len = Z_STRLEN_P(data);
     }
 
-    ret = swTaskWorker_finish(serv, data_str, data_len, flags);
+    ret = swTaskWorker_finish(serv, data_str, data_len, flags, current_task);
     if (SWOOLE_G(fast_serialize) && serialized_string)
     {
         zend_string_release(serialized_string);
@@ -828,7 +828,6 @@ static int php_swoole_task_finish(swServer *serv, zval *data)
 
 static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
 {
-
     zval *zserv = (zval *) serv->ptr2;
     zval *zworker_id;
     zval *retval = NULL;
@@ -1124,7 +1123,7 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
     zval args[4];
 
     zval *zfd;
-    zval *zfrom_id;
+    zval *zworker_id;
 
     sw_atomic_fetch_sub(&serv->stats->tasking_num, 1);
 
@@ -1133,8 +1132,8 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
     SW_MAKE_STD_ZVAL(zfd);
     ZVAL_LONG(zfd, (long) req->info.fd);
 
-    SW_MAKE_STD_ZVAL(zfrom_id);
-    ZVAL_LONG(zfrom_id, (long) req->info.from_id);
+    SW_MAKE_STD_ZVAL(zworker_id);
+    ZVAL_LONG(zworker_id, (long) req->info.from_id);
 
     zval *zdata = php_swoole_task_unpack(req);
     if (zdata == NULL)
@@ -1144,7 +1143,7 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
 
     args[0] = *zserv;
     args[1] = *zfd;
-    args[2] = *zfrom_id;
+    args[2] = *zworker_id;
     args[3] = *zdata;
 
     zend_fcall_info_cache *fci_cache = php_sw_server_caches[SW_SERVER_CB_onTask];
@@ -1159,14 +1158,14 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
     }
 
     zval_ptr_dtor(zfd);
-    zval_ptr_dtor(zfrom_id);
+    zval_ptr_dtor(zworker_id);
     sw_zval_free(zdata);
 
     if (retval)
     {
         if (Z_TYPE_P(retval) != IS_NULL)
         {
-            php_swoole_task_finish(serv, retval);
+            php_swoole_task_finish(serv, retval, req);
         }
         zval_ptr_dtor(retval);
     }
@@ -3770,7 +3769,7 @@ PHP_METHOD(swoole_server, finish)
     }
 #endif
 
-    SW_CHECK_RETURN(php_swoole_task_finish(serv, data));
+    SW_CHECK_RETURN(php_swoole_task_finish(serv, data, NULL));
 }
 
 PHP_METHOD(swoole_server, bind)

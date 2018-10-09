@@ -17,10 +17,15 @@
 #include "swoole.h"
 #include "server.h"
 
-static swEventData *current_task = NULL;
+static swEventData *g_current_task = NULL;
 
 static void swTaskWorker_signal_init(void);
+static int swTaskWorker_onPipeReceive(swReactor *reactor, swEvent *event);
+static int swTaskWorker_loop_async(struct _swProcessPool *pool, swWorker *worker);
 
+/**
+ * after pool->create, before pool->start
+ */
 void swTaskWorker_init(swProcessPool *pool)
 {
     swServer *serv = SwooleG.serv;
@@ -30,6 +35,10 @@ void swTaskWorker_init(swProcessPool *pool)
     pool->onWorkerStop = swTaskWorker_onStop;
     pool->type = SW_PROCESS_TASKWORKER;
     pool->start_id = serv->worker_num;
+    /**
+     * Make the task worker support asynchronous
+     */
+    pool->main_loop = swTaskWorker_loop_async;
 
     if (serv->task_ipc_mode == SW_TASK_IPC_PREEMPTIVE)
     {
@@ -58,7 +67,7 @@ int swTaskWorker_onTask(swProcessPool *pool, swEventData *task)
 {
     int ret = SW_OK;
     swServer *serv = pool->ptr;
-    current_task = task;
+    g_current_task = task;
 
     if (task->info.type == SW_EVENT_PIPE_MESSAGE)
     {
@@ -105,14 +114,20 @@ int swTaskWorker_large_pack(swEventData *task, void *data, int data_len)
 
 static void swTaskWorker_signal_init(void)
 {
-    swSignal_set(SIGHUP, NULL, 1, 0);
-    swSignal_set(SIGPIPE, NULL, 1, 0);
-    swSignal_set(SIGUSR1, swWorker_signal_handler, 1, 0);
-    swSignal_set(SIGUSR2, NULL, 1, 0);
-    swSignal_set(SIGTERM, swWorker_signal_handler, 1, 0);
-    swSignal_set(SIGALRM, swSystemTimer_signal_handler, 1, 0);
+    swSignal_clear();
+    /**
+     * use user settings
+     */
+    SwooleG.use_signalfd = SwooleG.enable_signalfd;
+
+    swSignal_add(SIGHUP, NULL);
+    swSignal_add(SIGPIPE, NULL);
+    swSignal_add(SIGUSR1, swWorker_signal_handler);
+    swSignal_add(SIGUSR2, NULL);
+    swSignal_add(SIGTERM, swWorker_signal_handler);
+    swSignal_add(SIGALRM, swSystemTimer_signal_handler);
 #ifdef SIGRTMIN
-    swSignal_set(SIGRTMIN, swWorker_signal_handler, 1, 0);
+    swSignal_add(SIGRTMIN, swWorker_signal_handler);
 #endif
 }
 
@@ -145,14 +160,82 @@ void swTaskWorker_onStop(swProcessPool *pool, int worker_id)
 }
 
 /**
+ * receive data from worker process
+ */
+static int swTaskWorker_onPipeReceive(swReactor *reactor, swEvent *event)
+{
+    swEventData task;
+    swProcessPool *pool = reactor->ptr;
+
+    if (read(event->fd, &task, sizeof(task)) > 0)
+    {
+        return swTaskWorker_onTask(pool, &task);
+    }
+    return SW_ERR;
+}
+
+/**
+ * async task worker
+ */
+static int swTaskWorker_loop_async(swProcessPool *pool, swWorker *worker)
+{
+    swServer *serv = pool->ptr;
+    SwooleG.main_reactor = sw_malloc(sizeof(swReactor));
+    if (SwooleG.main_reactor == NULL)
+    {
+        swError("[Worker] malloc for reactor failed.");
+        return SW_ERR;
+    }
+
+    if (swReactor_create(SwooleG.main_reactor, SW_REACTOR_MAXEVENTS) < 0)
+    {
+        swError("[Worker] create worker_reactor failed.");
+        return SW_ERR;
+    }
+
+    worker->status = SW_WORKER_IDLE;
+
+    int pipe_worker = worker->pipe_worker;
+
+    swSetNonBlock(pipe_worker);
+    SwooleG.main_reactor->ptr = pool;
+    SwooleG.main_reactor->add(SwooleG.main_reactor, pipe_worker, SW_FD_PIPE | SW_EVENT_READ);
+    SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_PIPE, swTaskWorker_onPipeReceive);
+    SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_WRITE, swReactor_onWrite);
+
+    /**
+     * set pipe buffer size
+     */
+    int i;
+    swConnection *pipe_socket;
+    for (i = 0; i < serv->worker_num + serv->task_worker_num; i++)
+    {
+        worker = swServer_get_worker(serv, i);
+        pipe_socket = swReactor_get(SwooleG.main_reactor, worker->pipe_master);
+        pipe_socket->buffer_size = SW_MAX_INT;
+        pipe_socket = swReactor_get(SwooleG.main_reactor, worker->pipe_worker);
+        pipe_socket->buffer_size = SW_MAX_INT;
+    }
+
+#ifdef HAVE_SIGNALFD
+    if (SwooleG.use_signalfd)
+    {
+        swSignalfd_setup(SwooleG.main_reactor);
+    }
+#endif
+    //main loop
+    return SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
+}
+
+/**
  * Send the task result to worker
  */
-int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags)
+int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags, swEventData *current_task)
 {
     swEventData buf;
-    if (!current_task)
+    if (current_task == NULL)
     {
-        swWarn("cannot use finish in worker");
+        current_task = g_current_task;
         return SW_ERR;
     }
     if (serv->task_worker_num < 1)

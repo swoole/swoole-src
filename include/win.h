@@ -16,6 +16,8 @@
 #ifndef SW_WINDOWS_H
 #define SW_WINDOWS_H
 
+#ifdef _WIN32
+
 #pragma comment(lib, "Ws2_32.lib")
 
 #include <Winsock2.h>
@@ -268,5 +270,6 @@ static inline int poll(struct pollfd *fds, nfds_t nfds, int mille_timeout)
 
 	return ok;
 }
+#endif
 
 #endif

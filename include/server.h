@@ -774,7 +774,7 @@ int swTaskWorker_onFinish(swReactor *reactor, swEvent *event);
 void swTaskWorker_onStart(swProcessPool *pool, int worker_id);
 void swTaskWorker_onStop(swProcessPool *pool, int worker_id);
 int swTaskWorker_large_pack(swEventData *task, void *data, int data_len);
-int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags);
+int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags, swEventData *current_task);
 
 #define swTask_type(task)                  ((task)->info.from_fd)
 

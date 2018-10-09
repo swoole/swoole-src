@@ -23,11 +23,6 @@ function my_onShutdown($serv)
     echo "Server: onShutdown\n";
 }
 
-function my_onTimer($serv, $interval)
-{
-    echo "Server:Timer Call.Interval=$interval\n";
-}
-
 function my_onClose($serv, $fd, $from_id)
 {
     //echo "Client: fd=$fd is closed.\n";
@@ -132,7 +127,6 @@ $serv->on('Connect', 'my_onConnect');
 $serv->on('Receive', 'my_onReceive');
 $serv->on('Close', 'my_onClose');
 $serv->on('Shutdown', 'my_onShutdown');
-$serv->on('Timer', 'my_onTimer');
 $serv->on('WorkerStart', 'my_onWorkerStart');
 $serv->on('WorkerStop', 'my_onWorkerStop');
 $serv->on('Task', 'my_onTask');
