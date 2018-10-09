@@ -926,9 +926,7 @@ static PHP_METHOD(swoole_runtime, enableCoroutine)
         if (hook_flags & SW_HOOK_FILE)
         {
             memcpy((void*) &php_plain_files_wrapper, &ori_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
-#if 0
             memcpy((void*) &php_stream_stdio_ops, &ori_php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
-#endif
         }
         if (hook_flags & SW_HOOK_SLEEP)
         {
