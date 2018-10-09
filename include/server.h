@@ -764,7 +764,6 @@ int swServer_get_socket(swServer *serv, int port);
 int swServer_worker_init(swServer *serv, swWorker *worker);
 swString** swServer_create_worker_buffer(swServer *serv);
 int swServer_create_task_worker(swServer *serv);
-void swServer_close_listen_port(swServer *serv);
 void swServer_enable_accept(swReactor *reactor);
 void swServer_reopen_log_file(swServer *serv);
 

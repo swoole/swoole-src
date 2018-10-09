@@ -1021,22 +1021,11 @@ void swServer_store_pipe_fd(swServer *serv, swPipe *p)
     }
 }
 
-void swServer_close_listen_port(swServer *serv)
-{
-    swListenPort *ls;
-    LL_FOREACH(serv->listen_list, ls)
-    {
-        if (swSocket_is_stream(ls->type))
-        {
-            close(ls->sock);
-        }
-    }
-}
-
 swPipe * swServer_get_pipe_object(swServer *serv, int pipe_fd)
 {
     return (swPipe *) serv->connection_list[pipe_fd].object;
 }
+
 
 int swServer_tcp_send(swServer *serv, int fd, void *data, uint32_t length)
 {

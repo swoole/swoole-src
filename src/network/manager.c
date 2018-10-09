@@ -51,7 +51,6 @@ int swManager_start(swFactory *factory)
         return SW_ERR;
     }
 
-    //worker进程的pipes
     for (i = 0; i < serv->worker_num; i++)
     {
         if (swPipeUnsock_create(&object->pipes[i], 1, SOCK_DGRAM) < 0)
@@ -128,8 +127,7 @@ int swManager_start(swFactory *factory)
         {
             return SW_OK;
         }
-        swServer_close_listen_port(serv);
-
+        swServer_close_port(serv, SW_TRUE);
         /**
          * create task worker process
          */
