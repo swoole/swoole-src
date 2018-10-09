@@ -101,7 +101,6 @@ int swReactorProcess_start(swServer *serv)
     serv->gs->event_workers.ptr = serv;
     serv->gs->event_workers.main_loop = swReactorProcess_loop;
     serv->gs->event_workers.type = SW_PROCESS_WORKER;
-    serv->gs->event_workers.run_worker_num = serv->worker_num;
 
     //no worker
     if (serv->worker_num == 1 && serv->task_worker_num == 0 && serv->max_request == 0 && serv->user_worker_list == NULL)

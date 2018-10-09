@@ -30,7 +30,6 @@ void swTaskWorker_init(swProcessPool *pool)
     pool->onWorkerStop = swTaskWorker_onStop;
     pool->type = SW_PROCESS_TASKWORKER;
     pool->start_id = serv->worker_num;
-    pool->run_worker_num = serv->task_worker_num;
 
     if (serv->task_ipc_mode == SW_TASK_IPC_PREEMPTIVE)
     {

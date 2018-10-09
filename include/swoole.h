@@ -1673,7 +1673,6 @@ struct _swProcessPool
     int (*onWorkerNotFound)(struct _swProcessPool *pool, pid_t pid, int status);
 
     sw_atomic_t round_id;
-    sw_atomic_t run_worker_num;
 
     swWorker *workers;
     swPipe *pipes;

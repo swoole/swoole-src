@@ -174,7 +174,6 @@ int swProcessPool_start(swProcessPool *pool)
 
     int i;
     pool->started = 1;
-    pool->run_worker_num = pool->worker_num;
 
     for (i = 0; i < pool->worker_num; i++)
     {
@@ -198,11 +197,10 @@ static sw_inline int swProcessPool_schedule(swProcessPool *pool)
     }
 
     int i, target_worker_id = 0;
-    int run_worker_num = pool->run_worker_num;
 
-    for (i = 0; i < run_worker_num + 1; i++)
+    for (i = 0; i < pool->worker_num + 1; i++)
     {
-        target_worker_id = sw_atomic_fetch_add(&pool->round_id, 1) % run_worker_num;
+        target_worker_id = sw_atomic_fetch_add(&pool->round_id, 1) % pool->worker_num;
         if (pool->workers[target_worker_id].status == SW_WORKER_IDLE)
         {
             break;
@@ -325,7 +323,7 @@ void swProcessPool_shutdown(swProcessPool *pool)
 
 	swSignal_none();
     //concurrent kill
-    for (i = 0; i < pool->run_worker_num; i++)
+    for (i = 0; i < pool->worker_num; i++)
     {
         worker = &pool->workers[i];
         if (swKill(worker->pid, SIGTERM) < 0)
@@ -334,7 +332,7 @@ void swProcessPool_shutdown(swProcessPool *pool)
             continue;
         }
     }
-    for (i = 0; i < pool->run_worker_num; i++)
+    for (i = 0; i < pool->worker_num; i++)
     {
         worker = &pool->workers[i];
         if (swWaitpid(worker->pid, &status, 0) < 0)
