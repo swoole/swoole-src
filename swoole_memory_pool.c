@@ -81,8 +81,8 @@ typedef struct
 
 static const zend_function_entry swoole_memory_pool_methods[] =
 {
-    PHP_ME(swoole_memory_pool, __construct, arginfo_swoole_memory_pool_construct, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
-    PHP_ME(swoole_memory_pool, __destruct, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
+    PHP_ME(swoole_memory_pool, __construct, arginfo_swoole_memory_pool_construct, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_memory_pool, __destruct, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_memory_pool, alloc, arginfo_swoole_memory_pool_alloc, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
@@ -91,7 +91,7 @@ static const zend_function_entry swoole_memory_pool_slice_methods[] =
 {
     PHP_ME(swoole_memory_pool_slice, read, arginfo_swoole_memory_pool_slice_read, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_memory_pool_slice, write, arginfo_swoole_memory_pool_slice_write, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_memory_pool_slice, __destruct, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
+    PHP_ME(swoole_memory_pool_slice, __destruct, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
