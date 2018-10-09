@@ -141,7 +141,10 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
 
     SwooleG.use_timer_pipe = 0;
 
-    swServer_close_port(serv, SW_TRUE);
+    if (serv->factory_mode == SW_MODE_SINGLE)
+    {
+        swServer_close_port(serv, SW_TRUE);
+    }
 
     /**
      * Make the task worker support asynchronous
@@ -241,15 +244,14 @@ static int swTaskWorker_loop_async(swProcessPool *pool, swWorker *worker)
 int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags, swEventData *current_task)
 {
     swEventData buf;
-    if (current_task == NULL)
-    {
-        current_task = g_current_task;
-        return SW_ERR;
-    }
     if (serv->task_worker_num < 1)
     {
         swWarn("cannot use task/finish, because no set serv->task_worker_num.");
         return SW_ERR;
+    }
+    if (current_task == NULL)
+    {
+        current_task = g_current_task;
     }
 	if (current_task->info.type == SW_EVENT_PIPE_MESSAGE)
 	{
