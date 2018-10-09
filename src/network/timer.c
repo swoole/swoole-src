@@ -78,7 +78,7 @@ static int swTimer_init(long msec)
     SwooleG.timer._next_id = 1;
     SwooleG.timer.round = 0;
 
-    if (swIsTaskWorker())
+    if (SwooleG.main_reactor == NULL)
     {
         swSystemTimer_init(msec, SwooleG.use_timer_pipe);
     }
