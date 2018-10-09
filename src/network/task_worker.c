@@ -253,11 +253,11 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags, swE
     {
         current_task = g_current_task;
     }
-	if (current_task->info.type == SW_EVENT_PIPE_MESSAGE)
-	{
-		swWarn("task/finish is not supported in onPipeMessage callback.");
-		return SW_ERR;
-	}
+    if (current_task->info.type == SW_EVENT_PIPE_MESSAGE)
+    {
+        swWarn("task/finish is not supported in onPipeMessage callback.");
+        return SW_ERR;
+    }
 
     uint16_t source_worker_id = current_task->info.from_id;
     swWorker *worker = swServer_get_worker(serv, source_worker_id);
@@ -288,7 +288,7 @@ int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags, swE
         //write to file
         if (data_len >= SW_IPC_MAX_SIZE - sizeof(buf.info))
         {
-            if (swTaskWorker_large_pack(&buf, data, data_len) < 0 )
+            if (swTaskWorker_large_pack(&buf, data, data_len) < 0)
             {
                 swWarn("large task pack failed()");
                 return SW_ERR;
