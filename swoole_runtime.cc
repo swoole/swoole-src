@@ -75,6 +75,7 @@ static php_stream_ops socket_ops
     socket_stat,
     socket_set_option,
 };
+
 static bool hook_init = false;
 static int hook_flags;
 
@@ -88,15 +89,17 @@ static struct
     php_stream_transport_factory ssl;
     php_stream_transport_factory tls;
 #endif
-} ori_factory =
-{ nullptr, nullptr, nullptr, nullptr,
+} ori_factory = {
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
 #ifdef SW_USE_OPENSSL
-        nullptr,
+    nullptr,
 #endif
-        };
+};
 
 static php_stream_wrapper ori_php_plain_files_wrapper;
-static php_stream_ops ori_php_stream_stdio_ops;
 
 #if PHP_VERSION_ID < 70200
 typedef void (*zif_handler)(INTERNAL_FUNCTION_PARAMETERS);
@@ -854,8 +857,6 @@ static PHP_METHOD(swoole_runtime, enableCoroutine)
         {
             memcpy((void*) &ori_php_plain_files_wrapper, &php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
             memcpy((void*) &php_plain_files_wrapper, &sw_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
-            memcpy((void*) &ori_php_stream_stdio_ops, &php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
-            memcpy((void*) &php_stream_stdio_ops, &sw_php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
         }
         if (flags & SW_HOOK_SLEEP)
         {
@@ -926,7 +927,6 @@ static PHP_METHOD(swoole_runtime, enableCoroutine)
         if (hook_flags & SW_HOOK_FILE)
         {
             memcpy((void*) &php_plain_files_wrapper, &ori_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
-            memcpy((void*) &php_stream_stdio_ops, &ori_php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
         }
         if (hook_flags & SW_HOOK_SLEEP)
         {
