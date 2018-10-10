@@ -1,6 +1,8 @@
 <?php
 require_once __DIR__ . '/swoole.inc';
 
+define('TESTS_ROOT_PATH', dirname(__DIR__));
+
 ini_set("assert.active", 1);
 ini_set('swoole.display_errors', 'Off');
 assert_options(ASSERT_ACTIVE, 1);
