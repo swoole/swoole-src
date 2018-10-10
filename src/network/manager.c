@@ -636,7 +636,11 @@ pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker)
         {
             swHashMap_del_int(serv->user_worker_map, worker->pid);
         }
-        worker->pid = pid;
+        /**
+         * worker: local memory
+         * serv->user_workers: shared memory
+         */
+        swServer_get_worker(serv, worker->id)->pid = worker->pid = pid;
         swHashMap_add_int(serv->user_worker_map, pid, worker);
         return pid;
     }
