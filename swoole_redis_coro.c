@@ -890,6 +890,8 @@ ZEND_END_ARG_INFO()
     }
 
 #define SW_REDIS_COMMAND_YIELD \
+    redis->context->err = 0; \
+    redis->context->errstr = NULL; \
     if (redis->state == SWOOLE_REDIS_CORO_STATE_MULTI || redis->state == SWOOLE_REDIS_CORO_STATE_PIPELINE) \
     { \
         redis->queued_cmd_count++; \
