@@ -90,10 +90,7 @@ long php_swoole_add_timer(int ms, zval *callback, zval *param, int persistent)
     }
     efree(func_name);
 
-    if (!swIsTaskWorker())
-    {
-        php_swoole_check_reactor();
-    }
+    php_swoole_check_reactor();
 
     swTimer_callback *cb = emalloc(sizeof(swTimer_callback));
 
