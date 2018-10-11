@@ -892,6 +892,8 @@ ZEND_END_ARG_INFO()
 #define SW_REDIS_COMMAND_YIELD \
     redis->context->err = 0; \
     redis->context->errstr = NULL; \
+    zend_update_property_long(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errCode"), 0); \
+    zend_update_property_string(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), "");  \
     if (redis->state == SWOOLE_REDIS_CORO_STATE_MULTI || redis->state == SWOOLE_REDIS_CORO_STATE_PIPELINE) \
     { \
         redis->queued_cmd_count++; \
