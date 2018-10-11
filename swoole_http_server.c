@@ -977,7 +977,7 @@ static int http_request_on_body(swoole_http_parser *parser, const char *at, size
         size_t n = multipart_parser_execute(multipart_parser, c, length);
         if (n != length)
         {
-            swoole_php_fatal_error(E_WARNING, "parse multipart body failed, n=%u.", n);
+            swoole_php_fatal_error(E_WARNING, "parse multipart body failed, n=%zu.", n);
         }
     }
 
