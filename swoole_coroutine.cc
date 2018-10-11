@@ -26,7 +26,6 @@
 
 coro_global COROG;
 static void sw_coro_func(void *);
-static zend_bool is_xdebug_started = 0;
 
 #if PHP_VERSION_ID >= 70200
 static inline void sw_vm_stack_init(void)
@@ -51,7 +50,7 @@ int coro_init(void)
 {
     if (zend_get_module_started("xdebug") == SUCCESS)
     {
-        is_xdebug_started = 1;
+        swWarn("xdebug do not support coroutine, please notice that it lead to coredump.");
     }
     //save init vm
     COROG.origin_vm_stack = EG(vm_stack);
@@ -239,11 +238,6 @@ static void sw_coro_func(void *arg)
 int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval *retval, void *post_callback,
         void *params)
 {
-    if (unlikely(is_xdebug_started == 1))
-    {
-        swWarn("xdebug do not support coroutine, please notice that it lead to coredump.");
-    }
-
     if (unlikely(COROG.coro_num >= COROG.max_coro_num) )
     {
         COROG.error = 1;
