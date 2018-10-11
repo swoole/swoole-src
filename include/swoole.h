@@ -348,10 +348,11 @@ enum swWorker_status
 };
 //-------------------------------------------------------------------------------
 
-#define swWarn(str,...)        SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
-snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: " str,__func__,##__VA_ARGS__);\
-swLog_put(SW_LOG_WARNING, sw_error);\
-SwooleGS->lock_2.unlock(&SwooleGS->lock_2)
+#define swWarn(str,...)          if (SW_LOG_WARNING >= SwooleG.log_level){\
+    SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
+    snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: " str,__func__,##__VA_ARGS__);\
+    swLog_put(SW_LOG_WARNING, sw_error);\
+    SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}
 
 #define swNotice(str,...)        if (SW_LOG_NOTICE >= SwooleG.log_level){\
     SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
