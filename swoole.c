@@ -1182,7 +1182,7 @@ PHP_MINFO_FUNCTION(swoole)
     php_info_print_table_row(2, "debug", "enabled");
 #endif
 #ifdef SW_LOG_TRACE_OPEN
-    php_info_print_table_row(2, "trace-log", "enabled");
+    php_info_print_table_row(2, "trace_log", "enabled");
 #endif
 #if USE_BOOST_CONTEXT
     php_info_print_table_row(2, "boost.context", "enabled");
@@ -1206,7 +1206,7 @@ PHP_MINFO_FUNCTION(swoole)
     php_info_print_table_row(2, "accept4", "enabled");
 #endif
 #ifdef HAVE_CPU_AFFINITY
-    php_info_print_table_row(2, "cpu affinity", "enabled");
+    php_info_print_table_row(2, "cpu_affinity", "enabled");
 #endif
 #ifdef HAVE_SPINLOCK
     php_info_print_table_row(2, "spinlock", "enabled");
@@ -1235,7 +1235,7 @@ PHP_MINFO_FUNCTION(swoole)
     php_info_print_table_row(2, "ringbuffer", "enabled");
 #endif
 #ifdef HAVE_GCC_AIO
-    php_info_print_table_row(2, "GCC AIO", "enabled");
+    php_info_print_table_row(2, "GCC_AIO", "enabled");
 #endif
 #ifdef HAVE_PCRE
     php_info_print_table_row(2, "pcre", "enabled");
@@ -1268,10 +1268,10 @@ PHP_MINFO_FUNCTION(swoole)
     php_info_print_table_row(2, "hugepage", "enabled");
 #endif
 #ifdef SW_USE_REDIS
-    php_info_print_table_row(2, "async redis", "enabled");
+    php_info_print_table_row(2, "async_redis", "enabled");
 #endif
 #ifdef SW_USE_POSTGRESQL
-    php_info_print_table_row(2, "coroutine postgresql", "enabled");
+    php_info_print_table_row(2, "coroutine_postgresql", "enabled");
 #endif
     php_info_print_table_end();
 

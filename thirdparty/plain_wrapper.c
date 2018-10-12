@@ -961,7 +961,7 @@ static php_stream *stream_opener(php_stream_wrapper *wrapper, const char *path, 
      */
     if (options & STREAM_OPEN_FOR_INCLUDE)
     {
-        return php_stream_fopen_rel(path, mode, opened_path, options STREAMS_REL_CC);
+        return php_stream_fopen_rel(path, mode, opened_path, options);
     }
     else
     {
