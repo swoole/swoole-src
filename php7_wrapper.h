@@ -26,6 +26,11 @@ static sw_inline zend_bool Z_BVAL_P(zval *v)
     return Z_TYPE_P(v) == IS_TRUE;
 }
 
+static sw_inline zend_bool ZVAL_IS_ARRAY(zval *v)
+{
+    return Z_TYPE_P(v) == IS_ARRAY;
+}
+
 //----------------------------------Array API------------------------------------
 
 static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong value)

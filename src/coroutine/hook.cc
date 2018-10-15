@@ -22,6 +22,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/statvfs.h>
 #include <sys/poll.h>
 #include <dirent.h>
 #include <string>
@@ -264,6 +265,12 @@ static void handler_rmdir(swAio_event *event)
     event->error = errno;
 }
 
+static void handler_statvfs(swAio_event *event)
+{
+    event->ret = statvfs((const char *) event->buf, (struct statvfs *) event->offset);
+    event->error = errno;
+}
+
 static void handler_rename(swAio_event *event)
 {
     event->ret = rename((const char*) event->buf, (const char*) event->offset);
@@ -423,6 +430,31 @@ int swoole_coroutine_unlink(const char *pathname)
     bzero(&ev, sizeof(ev));
     ev.buf = (void*) pathname;
     ev.handler = handler_unlink;
+    ev.callback = aio_onCompleted;
+    ev.object = coroutine_get_current();
+    ev.req = &ev;
+
+    int ret = swAio_dispatch(&ev);
+    if (ret < 0)
+    {
+        return SW_ERR;
+    }
+    coroutine_yield((coroutine_t *) ev.object);
+    return ev.ret;
+}
+
+int swoole_coroutine_statvfs(const char *path, struct statvfs *buf)
+{
+    if (SwooleG.main_reactor == nullptr || coroutine_get_current_cid() == -1)
+    {
+        return statvfs(path, buf);
+    }
+
+    swAio_event ev;
+    bzero(&ev, sizeof(ev));
+    ev.buf = (void*) path;
+    ev.offset = (off_t) buf;
+    ev.handler = handler_statvfs;
     ev.callback = aio_onCompleted;
     ev.object = coroutine_get_current();
     ev.req = &ev;

@@ -21,6 +21,7 @@
 #include "async.h"
 #include "zend_builtin_functions.h"
 #include "ext/standard/file.h"
+#include <sys/statvfs.h>
 
 typedef struct
 {
@@ -99,6 +100,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_writeFile, 0, 0, 2)
     ZEND_ARG_INFO(0, flags)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_statvfs, 0, 0, 1)
+    ZEND_ARG_INFO(0, path)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_getBackTrace, 0, 0, 1)
     ZEND_ARG_INFO(0, cid)
     ZEND_ARG_INFO(0, options)
@@ -115,6 +120,7 @@ static PHP_METHOD(swoole_coroutine_util, sleep);
 static PHP_METHOD(swoole_coroutine_util, fread);
 static PHP_METHOD(swoole_coroutine_util, fgets);
 static PHP_METHOD(swoole_coroutine_util, fwrite);
+static PHP_METHOD(swoole_coroutine_util, statvfs);
 static PHP_METHOD(swoole_coroutine_util, gethostbyname);
 static PHP_METHOD(swoole_coroutine_util, getaddrinfo);
 static PHP_METHOD(swoole_coroutine_util, readFile);
@@ -143,6 +149,8 @@ static zend_class_entry *swoole_coroutine_iterator_class_entry_ptr;
 static zend_class_entry swoole_exit_exception_ce;
 static zend_class_entry *swoole_exit_exception_class_entry_ptr;
 
+extern int swoole_coroutine_statvfs(const char *path, struct statvfs *buf);
+
 static const zend_function_entry swoole_coroutine_util_methods[] =
 {
     ZEND_FENTRY(create, ZEND_FN(swoole_coroutine_create), arginfo_swoole_coroutine_create, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -161,6 +169,7 @@ static const zend_function_entry swoole_coroutine_util_methods[] =
     PHP_ME(swoole_coroutine_util, writeFile, arginfo_swoole_coroutine_writeFile, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, gethostbyname, arginfo_swoole_coroutine_gethostbyname, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, getaddrinfo, arginfo_swoole_coroutine_getaddrinfo, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_util, statvfs, arginfo_swoole_coroutine_statvfs, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, getBackTrace, arginfo_swoole_coroutine_getBackTrace, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, listCoroutines, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
@@ -1530,4 +1539,32 @@ static PHP_METHOD(swoole_coroutine_util, listCoroutines)
     coroutine_iterator *i = emalloc(sizeof(coroutine_iterator));
     bzero(i, sizeof(coroutine_iterator));
     swoole_set_object(return_value, i);
+}
+
+static PHP_METHOD(swoole_coroutine_util, statvfs)
+{
+    coro_check();
+
+    char *path;
+    size_t l_path;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_STRING(path, l_path)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    struct statvfs _stat;
+    swoole_coroutine_statvfs(path, &_stat);
+
+    array_init(return_value);
+    add_assoc_long(return_value, "bsize", _stat.f_bsize);
+    add_assoc_long(return_value, "frsize", _stat.f_frsize);
+    add_assoc_long(return_value, "blocks", _stat.f_blocks);
+    add_assoc_long(return_value, "bfree", _stat.f_bfree);
+    add_assoc_long(return_value, "bavail", _stat.f_bavail);
+    add_assoc_long(return_value, "files", _stat.f_files);
+    add_assoc_long(return_value, "ffree", _stat.f_ffree);
+    add_assoc_long(return_value, "favail", _stat.f_favail);
+    add_assoc_long(return_value, "fsid", _stat.f_fsid);
+    add_assoc_long(return_value, "flag", _stat.f_flag);
+    add_assoc_long(return_value, "namemax", _stat.f_namemax);
 }
