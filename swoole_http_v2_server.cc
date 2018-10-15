@@ -114,8 +114,8 @@ static int http_build_trailer(http_context *ctx, uchar *buffer)
     nghttp2_nv nv[128];
     size_t index = 0;
 
-    zval *trailer = ctx->response.ztrailer;
-    if (trailer)
+    zval *trailer = sw_zend_read_property(swoole_http_response_class_entry_ptr, ctx->response.zobject, ZEND_STRL("trailer"), 1);
+    if (ZVAL_IS_ARRAY(trailer))
     {
         HashTable *ht = Z_ARRVAL_P(trailer);
         zval *value = NULL;
@@ -241,10 +241,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length)
 
     int ret;
 
-    /**
-     * http header
-     */
-    zval *zheader = ctx->response.zheader;
+
     size_t index = 0;
 
     nghttp2_nv nv[128];
@@ -260,7 +257,11 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length)
     ret = swoole_itoa(intbuf[0], ctx->response.status);
     http2_add_header(&nv[index++], ZEND_STRL(":status"), intbuf[0], ret);
 
-    if (zheader)
+    /**
+     * http header
+     */
+    zval *zheader = sw_zend_read_property(swoole_http_response_class_entry_ptr, ctx->response.zobject, ZEND_STRL("header"), 1);
+    if (ZVAL_IS_ARRAY(zheader))
     {
         uint32_t header_flag = 0x0;
 
@@ -340,10 +341,11 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length)
         http2_add_header(&nv[index++], ZEND_STRL("content-length"), intbuf[1], ret);
     }
     //http cookies
-    if (ctx->response.zcookie)
+    zval *zcookie = sw_zend_read_property(swoole_http_response_class_entry_ptr, ctx->response.zobject, ZEND_STRL("cookie"), 1);
+    if (ZVAL_IS_ARRAY(zcookie))
     {
         zval *value;
-        SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ctx->response.zcookie), value)
+        SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(zcookie), value)
         {
             if (Z_TYPE_P(value) != IS_STRING)
             {
@@ -436,9 +438,9 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
      +---------------------------------------------------------------+
      */
     char frame_header[SW_HTTP2_FRAME_HEADER_SIZE];
-    zval *trailer = ctx->response.ztrailer;
+    zval *trailer = sw_zend_read_property(swoole_http_response_class_entry_ptr, ctx->response.zobject, ZEND_STRL("trailer"), 1);
 
-    if (trailer == NULL && body->length == 0)
+    if (!ZVAL_IS_ARRAY(trailer) && body->length == 0)
     {
         swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, ret, SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, stream->stream_id);
     }
@@ -451,7 +453,7 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
     swString_append_ptr(swoole_http_buffer, header_buffer, ret);
 
     int flag = SW_HTTP2_FLAG_END_STREAM;
-    if (trailer)
+    if (ZVAL_IS_ARRAY(trailer))
     {
         flag = SW_HTTP2_FLAG_NONE;
     }
@@ -464,7 +466,7 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
     }
 
     ctx->send_header = 1;
-    if (trailer == NULL && body->length == 0)
+    if (!ZVAL_IS_ARRAY(trailer) && body->length == 0)
     {
         goto _end;
     }

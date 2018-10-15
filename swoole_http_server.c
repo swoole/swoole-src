@@ -1700,9 +1700,9 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
     /**
      * http header
      */
-    zval *header = ctx->response.zheader;
+    zval *header = sw_zend_read_property(swoole_http_response_class_entry_ptr, ctx->response.zobject, ZEND_STRL("header"), 1);
     uint32_t header_flag = 0x0;
-    if (header)
+    if (ZVAL_IS_ARRAY(header))
     {
         HashTable *ht = Z_ARRVAL_P(header);
         zval *value = NULL;
@@ -1798,10 +1798,11 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
     }
 
     //http cookies
-    if (ctx->response.zcookie)
+    zval *zcookie = sw_zend_read_property(swoole_http_response_class_entry_ptr, ctx->response.zobject, ZEND_STRL("cookie"), 1);
+    if (ZVAL_IS_ARRAY(zcookie))
     {
         zval *value;
-        SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ctx->response.zcookie), value)
+        SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(zcookie), value)
         {
             if (Z_TYPE_P(value) != IS_STRING)
             {
@@ -1993,20 +1994,20 @@ static PHP_METHOD(swoole_http_response, initHeader)
         RETURN_FALSE;
     }
     zval *zresponse_object = ctx->response.zobject;
-    zval *zheader = ctx->response.zheader;
-    if (!zheader)
+    zval *zheader = sw_zend_read_property(swoole_http_response_class_entry_ptr, zresponse_object, ZEND_STRL("header"), 1);
+    if (!ZVAL_IS_ARRAY(zheader))
     {
         swoole_http_server_array_init(header, response);
     }
 
-    zval *zcookie = ctx->response.zcookie;
-    if (!zcookie)
+    zval *zcookie = sw_zend_read_property(swoole_http_response_class_entry_ptr, zresponse_object, ZEND_STRL("cookie"), 1);
+    if (!ZVAL_IS_ARRAY(zcookie))
     {
         swoole_http_server_array_init(cookie, response);
     }
 
-    zval *ztrailer = ctx->response.ztrailer;
-    if (!ztrailer)
+    zval *ztrailer = sw_zend_read_property(swoole_http_response_class_entry_ptr, zresponse_object, ZEND_STRL("trailer"), 1);
+    if (!ZVAL_IS_ARRAY(ztrailer))
     {
         swoole_http_server_array_init(trailer, response);
     }
@@ -2230,9 +2231,9 @@ static PHP_METHOD(swoole_http_response, cookie)
         RETURN_FALSE;
     }
 
-    zval *zcookie = ctx->response.zcookie;
     zval *zresponse_object = ctx->response.zobject;
-    if (!zcookie)
+    zval *zcookie = sw_zend_read_property(swoole_http_response_class_entry_ptr, zresponse_object, ZEND_STRL("cookie"), 1);
+    if (!ZVAL_IS_ARRAY(zcookie))
     {
         swoole_http_server_array_init(cookie, response);
     }
@@ -2342,9 +2343,10 @@ static PHP_METHOD(swoole_http_response, rawcookie)
         RETURN_FALSE;
     }
 
-    zval *zcookie = ctx->response.zcookie;
+
     zval *zresponse_object = ctx->response.zobject;
-    if (!zcookie)
+    zval *zcookie = sw_zend_read_property(swoole_http_response_class_entry_ptr, zresponse_object, ZEND_STRL("cookie"), 1);
+    if (!ZVAL_IS_ARRAY(zcookie))
     {
         swoole_http_server_array_init(cookie, response);
     }
@@ -2474,9 +2476,9 @@ static PHP_METHOD(swoole_http_response, header)
         RETURN_FALSE;
     }
 
-    zval *zheader = ctx->response.zheader;
     zval *zresponse_object = ctx->response.zobject;
-    if (!zheader)
+    zval *zheader = sw_zend_read_property(swoole_http_response_class_entry_ptr, zresponse_object, ZEND_STRL("header"), 1);
+    if (!ZVAL_IS_ARRAY(zheader))
     {
         swoole_http_server_array_init(header, response);
     }
@@ -2533,9 +2535,9 @@ static PHP_METHOD(swoole_http_response, trailer)
         RETURN_FALSE;
     }
 
-    zval *ztrailer = ctx->response.ztrailer;
     zval *zresponse_object = ctx->response.zobject;
-    if (!ztrailer)
+    zval *ztrailer = sw_zend_read_property(swoole_http_response_class_entry_ptr, zresponse_object, ZEND_STRL("trailer"), 1);
+    if (!ZVAL_IS_ARRAY(ztrailer))
     {
         swoole_http_server_array_init(trailer, response);
     }
