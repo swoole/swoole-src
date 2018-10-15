@@ -906,6 +906,22 @@ bool Socket::bind(std::string address, int port)
 
     struct sockaddr *sock_type = (struct sockaddr*) &bind_address_info.addr.un;
 
+    int option = 1;
+    if (::setsockopt(socket->fd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int)) < 0)
+    {
+        swSysError("setsockopt(%d, SO_REUSEADDR) failed.", socket->fd);
+    }
+#ifdef HAVE_REUSEPORT
+    if (SwooleG.reuse_port)
+    {
+        if (::setsockopt(socket->fd, SOL_SOCKET, SO_REUSEPORT, &option, sizeof(int)) < 0)
+        {
+            swSysError("setsockopt(SO_REUSEPORT) failed.");
+            SwooleG.reuse_port = 0;
+        }
+    }
+#endif
+
     int retval;
     switch (_sock_domain)
     {

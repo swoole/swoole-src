@@ -419,7 +419,7 @@ static PHP_METHOD(swoole_socket_coro, close)
 
     socket_coro *sock = (socket_coro *) Z_SOCKET_CORO_OBJ_P(getThis());
 
-    if (sock->socket->close())
+    if (!sock->socket->close())
     {
         zend_update_property_long(swoole_socket_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), sock->socket->errCode);
         RETURN_FALSE;
