@@ -345,31 +345,46 @@ void swAio_handler_read_file(swAio_event *event)
         goto _error;
     }
 
-    long filesize = file_stat.st_size;
-    if (filesize == 0)
-    {
-        errno = SW_ERROR_FILE_EMPTY;
-        goto _error;
-    }
-
+    /**
+     * lock
+     */
     if (flock(fd, LOCK_SH) < 0)
     {
         swSysError("flock(%d, LOCK_SH) failed.", event->fd);
         goto _error;
     }
-
-    event->buf = sw_malloc(filesize);
-    if (event->buf == NULL)
+    /**
+     * regular file
+     */
+    if (file_stat.st_size == 0)
     {
-        goto _error;
+        swString *data = swoole_sync_readfile_eof(fd);
+        if (data == NULL)
+        {
+            goto _error;
+        }
+        event->ret = data->length;
+        event->buf = data->str;
+        sw_free(data);
     }
-    int readn = swoole_sync_readfile(fd, event->buf, (int) filesize);
+    else
+    {
+        event->buf = sw_malloc(file_stat.st_size);
+        if (event->buf == NULL)
+        {
+            goto _error;
+        }
+        int readn = swoole_sync_readfile(fd, event->buf, (int) file_stat.st_size);
+        event->ret = readn;
+    }
+    /**
+     * unlock
+     */
     if (flock(fd, LOCK_UN) < 0)
     {
         swSysError("flock(%d, LOCK_UN) failed.", event->fd);
     }
     close(fd);
-    event->ret = readn;
     event->error = 0;
 }
 

@@ -1295,6 +1295,7 @@ char* swoole_dirname(char *file);
 void swoole_dump_ascii(char *data, int size);
 int swoole_sync_writefile(int fd, void *data, int len);
 int swoole_sync_readfile(int fd, void *buf, int len);
+swString* swoole_sync_readfile_eof(int fd);
 int swoole_rand(int min, int max);
 int swoole_system_random(int min, int max);
 long swoole_file_get_size(FILE *fp);
