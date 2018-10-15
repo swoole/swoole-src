@@ -35,10 +35,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2018-09-19</date>
-    <time>12:00:00</time>
+    <date>2018-10-15</date>
+    <time>18:00:00</time>
     <version>
-        <release>4.2.1</release>
+        <release>4.2.2</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -47,12 +47,29 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        + This version is based on the previous version and made some fixes.
-        * Fixed compilation failure caused by no time_nanosleep in some environments
-        * Fixed loading error in PHP-ZTS version
-        * Fixed the Bad file descriptor error when using coroutine in dispatch mode 7
-        * Fixed exit interceptor does not work
-        * Fixed too long domain name DNS buffer overflow in client
+        + Task process supports asynchronous and coroutine
+        + Refactor `addListener`, now developers can add new service listeners in any order
+        + Support  mixed server of `http`, `http2`, `websocket`, `tcp`
+        + Completed coroutine redis client method parameter definition
+        + `Co::readFile` supports reading non-disk files
+        + Now static_handler supports more file types and skips files with length 0
+        * Fixed multipart/form-data in some cases parsing errors
+        * Fixed the dislocation of sendfile data on MacOS
+        * Fixed bug where SIGRTMIN processing error caused the log file to fail to reopen
+        * Fixed a bug where redis-client last error value was not cleared and the next request was incorrect
+        * Fixed a bug about connecting a connected asynchronous redis coredump
+        * Fixed MySQL client protocol processing parameter binding NULL bug
+        * Fixed segment fault caused by file hook, closed the include/require coroutine
+        * Fixed the socket hook construct error
+        * Fixed the sleep hook
+        * Fixed a bug that returned an illegal pointer when reading an unset object property
+        * Fixed the bug that after event_wait, EG(scope) is not restored in PHP70, causing private properties to be inaccessible
+        * Alpine dependency compatibility optimization
+        * Cygwin compatibility optimization
+        * Support log_level to block warning information
+        * Distinguish 204 response then skip body processing
+        * The underlying code is cleaned up, all TSRM macros, PHP5 compatible macros and functions are removed, useless stack allocation and multiple pointers are reduced, FASTZPP is re-enabled to improve parameter parsing performance
+        * Error tips optimization, error reporting guidelines will be generated when the underlying crash occurs
     </notes>
     <contents>
         <dir name="/">
@@ -299,6 +316,7 @@
             <file role="doc" name="examples/runtime/file.php" />
             <file role="doc" name="examples/runtime/include.php" />
             <file role="doc" name="examples/runtime/mkdir.php" />
+            <file role="doc" name="examples/runtime/read.php" />
             <file role="doc" name="examples/runtime/rename.phpt" />
             <file role="doc" name="examples/runtime/sleep.php" />
             <file role="doc" name="examples/runtime/ssl.php" />
@@ -813,6 +831,7 @@
             <file role="test" name="tests/swoole_coroutine_util/resume5.phpt" />
             <file role="test" name="tests/swoole_coroutine_util/resume6.phpt" />
             <file role="test" name="tests/swoole_coroutine_util/sleep.phpt" />
+            <file role="test" name="tests/swoole_coroutine_util/task_worker.phpt" />
             <file role="test" name="tests/swoole_coroutine_util/writefile.phpt" />
             <file role="test" name="tests/swoole_event/defer.phpt" />
             <file role="test" name="tests/swoole_event/swoole_event.phpt" />
@@ -1012,6 +1031,7 @@
             <file role="test" name="tests/swoole_process_pool/msgqueue.phpt" />
             <file role="test" name="tests/swoole_redis/connect_refuse.phpt" />
             <file role="test" name="tests/swoole_redis/connect_timeout.phpt" />
+            <file role="test" name="tests/swoole_redis/err.phpt" />
             <file role="test" name="tests/swoole_redis/get_set.phpt" />
             <file role="test" name="tests/swoole_redis/subscribe.phpt" />
             <file role="test" name="tests/swoole_redis_coro/basic.phpt" />
@@ -1019,6 +1039,7 @@
             <file role="test" name="tests/swoole_redis_coro/connect_twice-2.phpt" />
             <file role="test" name="tests/swoole_redis_coro/connect_twice.phpt" />
             <file role="test" name="tests/swoole_redis_coro/defer.phpt" />
+            <file role="test" name="tests/swoole_redis_coro/err.phpt" />
             <file role="test" name="tests/swoole_redis_coro/multi_exec.phpt" />
             <file role="test" name="tests/swoole_redis_coro/pool.phpt" />
             <file role="test" name="tests/swoole_redis_coro/reconnect.phpt" />
@@ -1030,6 +1051,7 @@
             <file role="test" name="tests/swoole_runtime/file_hook/a.inc" />
             <file role="test" name="tests/swoole_runtime/file_hook/b.inc" />
             <file role="test" name="tests/swoole_runtime/file_hook/include.phpt" />
+            <file role="test" name="tests/swoole_runtime/file_hook/read.phpt" />
             <file role="test" name="tests/swoole_runtime/sento.phpt" />
             <file role="test" name="tests/swoole_runtime/ssl_client.phpt" />
             <file role="test" name="tests/swoole_runtime/ssl_server.phpt" />
@@ -1117,6 +1139,7 @@
             <file role="test" name="tests/swoole_server_port/tcp_eof.phpt" />
             <file role="test" name="tests/swoole_socket_coro/accept.phpt" />
             <file role="test" name="tests/swoole_socket_coro/complete_test.phpt" />
+            <file role="test" name="tests/swoole_socket_coro/concurrency.phpt" />
             <file role="test" name="tests/swoole_socket_coro/recv_timeout.phpt" />
             <file role="test" name="tests/swoole_socket_coro/sendto.phpt" />
             <file role="test" name="tests/swoole_table/foreach.phpt" />
