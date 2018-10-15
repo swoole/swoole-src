@@ -701,6 +701,34 @@ int swoole_sync_readfile(int fd, void *buf, int len)
     return readn;
 }
 
+swString* swoole_sync_readfile_eof(int fd)
+{
+    int n = 0;
+    swString *data = swString_new(SW_BUFFER_SIZE_STD);
+    if (data == NULL)
+    {
+        return data;
+    }
+
+    while (1)
+    {
+        n = read(fd, data->str + data->length, data->size - data->length);
+        if (n <= 0)
+        {
+            return data;
+        }
+        else
+        {
+            if (swString_extend(data, data->size * 2) < 0)
+            {
+                return data;
+            }
+            data->length += n;
+        }
+    }
+    return data;
+}
+
 /**
  * Maximum common divisor
  */
