@@ -1229,7 +1229,7 @@ bool Socket::close()
     if (timer)
     {
         swTimer_del(&SwooleG.timer, timer);
-        timer = NULL;
+        timer = nullptr;
     }
     socket->active = 0;
     ::close(fd);
