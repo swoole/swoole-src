@@ -562,7 +562,12 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
     {
         convert_to_string(v);
         cli->protocol.package_eof_len = Z_STRLEN_P(v);
-        if (cli->protocol.package_eof_len > SW_DATA_EOF_MAXLEN)
+        if (cli->protocol.package_eof_len == 0)
+        {
+            swoole_php_fatal_error(E_ERROR, "pacakge_eof cannot be an empty string", SW_DATA_EOF_MAXLEN);
+            return;
+        }
+        else if (cli->protocol.package_eof_len > SW_DATA_EOF_MAXLEN)
         {
             swoole_php_fatal_error(E_ERROR, "pacakge_eof max length is %d", SW_DATA_EOF_MAXLEN);
             return;

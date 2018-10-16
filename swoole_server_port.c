@@ -237,7 +237,12 @@ static PHP_METHOD(swoole_server_port, set)
     {
         convert_to_string(v);
         port->protocol.package_eof_len = Z_STRLEN_P(v);
-        if (port->protocol.package_eof_len > SW_DATA_EOF_MAXLEN)
+        if (port->protocol.package_eof_len == 0)
+        {
+            swoole_php_fatal_error(E_ERROR, "pacakge_eof cannot be an empty string", SW_DATA_EOF_MAXLEN);
+            RETURN_FALSE;
+        }
+        else if (port->protocol.package_eof_len > SW_DATA_EOF_MAXLEN)
         {
             swoole_php_fatal_error(E_ERROR, "pacakge_eof max length is %d", SW_DATA_EOF_MAXLEN);
             RETURN_FALSE;
