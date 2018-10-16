@@ -2840,10 +2840,12 @@ PHP_METHOD(swoole_server, start)
     serv->onReceive = php_swoole_onReceive;
     if (Z_OBJCE_P(zobject) == swoole_http_server_class_entry_ptr)
     {
+        swPort_clear_protocol(serv->listen_list);
         serv->listen_list->open_http_protocol = 1;
     }
     if (Z_OBJCE_P(zobject) == swoole_websocket_server_class_entry_ptr)
     {
+        swPort_clear_protocol(serv->listen_list);
         serv->listen_list->open_http_protocol = 1;
         serv->listen_list->open_websocket_protocol = 1;
     }
