@@ -43,6 +43,6 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-Fatal error: Swoole\Server\Port::set(): pacakge_eof cannot be an empty string in %s on line %d
+Fatal error: %s: pacakge_eof cannot be an empty string in %s on line %d
 
-Fatal error: Swoole\Client::connect(): pacakge_eof cannot be an empty string in %s on line %d
+Fatal error: %s: pacakge_eof cannot be an empty string in %s on line %d

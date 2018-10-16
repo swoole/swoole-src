@@ -2838,18 +2838,27 @@ PHP_METHOD(swoole_server, start)
 
     php_swoole_register_callback(serv);
     serv->onReceive = php_swoole_onReceive;
-    if (Z_OBJCE_P(zobject) == swoole_http_server_class_entry_ptr)
+    if (instanceof_function(Z_OBJCE_P(zobject), swoole_http_server_class_entry_ptr))
     {
-        uint32_t http2 = serv->listen_list->open_http2_protocol;
+        enum protocol_flags
+        {
+            SW_HTTP2_PROTOCOL = 1u << 1,
+            SW_WEBSOCKET_PROTOCOL = 1u << 2
+        };
+        uint8_t protocol_flag = 0;
+        swListenPort *ls = serv->listen_list;
+        if (ls->open_http2_protocol)
+        {
+            protocol_flag |= SW_HTTP2_PROTOCOL;
+        }
+        if (ls->open_websocket_protocol || instanceof_function(Z_OBJCE_P(zobject), swoole_websocket_server_class_entry_ptr))
+        {
+            protocol_flag |= SW_WEBSOCKET_PROTOCOL;
+        }
         swPort_clear_protocol(serv->listen_list);
-        serv->listen_list->open_http_protocol = 1;
-        serv->listen_list->open_http2_protocol = http2;
-    }
-    if (Z_OBJCE_P(zobject) == swoole_websocket_server_class_entry_ptr)
-    {
-        swPort_clear_protocol(serv->listen_list);
-        serv->listen_list->open_http_protocol = 1;
-        serv->listen_list->open_websocket_protocol = 1;
+        ls->open_http_protocol = 1;
+        ls->open_http2_protocol = !!(protocol_flag & SW_HTTP2_PROTOCOL);
+        ls->open_websocket_protocol = !!(protocol_flag & SW_WEBSOCKET_PROTOCOL);
     }
     php_swoole_server_before_start(serv, zobject);
 
