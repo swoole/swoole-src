@@ -271,10 +271,17 @@ static int swManager_loop(swFactory *factory)
                 {
                     continue;
                 }
-                pid_t new_pid = swManager_spawn_worker(factory, msg.worker_id);
-                if (new_pid > 0)
+                if (msg.worker_id >= serv->worker_num)
                 {
-                    serv->workers[msg.worker_id].pid = new_pid;
+                    swProcessPool_spawn(&serv->gs->task_workers, swServer_get_worker(serv, msg.worker_id));
+                }
+                else
+                {
+                    pid_t new_pid = swManager_spawn_worker(factory, msg.worker_id);
+                    if (new_pid > 0)
+                    {
+                        serv->workers[msg.worker_id].pid = new_pid;
+                    }
                 }
             }
             ManagerProcess.read_message = 0;
