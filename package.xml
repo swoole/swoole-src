@@ -35,10 +35,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2018-10-15</date>
-    <time>18:00:00</time>
+    <date>2018-10-16</date>
+    <time>09:30:00</time>
     <version>
-        <release>4.2.2</release>
+        <release>4.2.3</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -47,29 +47,10 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        + Task process supports asynchronous and coroutine
-        + Refactor `addListener`, now developers can add new service listeners in any order
-        + Support  mixed server of `http`, `http2`, `websocket`, `tcp`
-        + Completed coroutine redis client method parameter definition
-        + `Co::readFile` supports reading non-disk files
-        + Now static_handler supports more file types and skips files with length 0
-        * Fixed multipart/form-data in some cases parsing errors
-        * Fixed the dislocation of sendfile data on MacOS
-        * Fixed bug where SIGRTMIN processing error caused the log file to fail to reopen
-        * Fixed a bug where redis-client last error value was not cleared and the next request was incorrect
-        * Fixed a bug about connecting a connected asynchronous redis coredump
-        * Fixed MySQL client protocol processing parameter binding NULL bug
-        * Fixed segment fault caused by file hook, closed the include/require coroutine
-        * Fixed the socket hook construct error
-        * Fixed the sleep hook
-        * Fixed a bug that returned an illegal pointer when reading an unset object property
-        * Fixed the bug that after event_wait, EG(scope) is not restored in PHP70, causing private properties to be inaccessible
-        * Alpine dependency compatibility optimization
-        * Cygwin compatibility optimization
-        * Support log_level to block warning information
-        * Distinguish 204 response then skip body processing
-        * The underlying code is cleaned up, all TSRM macros, PHP5 compatible macros and functions are removed, useless stack allocation and multiple pointers are reduced, FASTZPP is re-enabled to improve parameter parsing performance
-        * Error tips optimization, error reporting guidelines will be generated when the underlying crash occurs
+        This version is mostly based on the v4.2.2 made some fixes
+        + Add `Co::statvfs` to retrieve file system information
+        * Fixed non-array property error on swoole_http_response object
+        * Fixed bad version number, add automated fixing tool
     </notes>
     <contents>
         <dir name="/">
@@ -206,6 +187,7 @@
             <file role="doc" name="examples/coroutine/socket/accept.php" />
             <file role="doc" name="examples/coroutine/socket/sendto.php" />
             <file role="doc" name="examples/coroutine/stack.php" />
+            <file role="doc" name="examples/coroutine/statvfs.php" />
             <file role="doc" name="examples/coroutine/task_co.php" />
             <file role="doc" name="examples/coroutine/tcp_backend_serv.php" />
             <file role="doc" name="examples/coroutine/tcp_echo.php" />
