@@ -302,9 +302,7 @@ enum swGlobal_hook_type
 enum swServer_mode
 {
     SW_MODE_BASE          =  1,
-    SW_MODE_THREAD        =  2,
-    SW_MODE_PROCESS       =  3,
-    SW_MODE_SINGLE        =  4,
+    SW_MODE_PROCESS       =  2,
 };
 //-------------------------------------------------------------------------------
 enum swSocket_type

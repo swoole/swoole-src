@@ -141,7 +141,7 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
 
     SwooleG.use_timer_pipe = 0;
 
-    if (serv->factory_mode == SW_MODE_SINGLE)
+    if (serv->factory_mode == SW_MODE_BASE)
     {
         swServer_close_port(serv, SW_TRUE);
     }

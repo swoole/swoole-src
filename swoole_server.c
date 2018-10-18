@@ -2092,28 +2092,13 @@ PHP_METHOD(swoole_server, __construct)
         return;
     }
 
-    if (serv_mode < SW_MODE_BASE || serv_mode > SW_MODE_SINGLE)
+    if (serv_mode != SW_MODE_BASE && serv_mode != SW_MODE_BASE)
     {
         swoole_php_fatal_error(E_ERROR, "invalid $mode parameters.");
         return;
     }
 
-#ifdef __CYGWIN__
-    serv_mode = SW_MODE_SINGLE;
-#elif !defined(SW_USE_THREAD)
-    if (serv_mode == SW_MODE_THREAD || serv_mode == SW_MODE_BASE)
-    {
-        serv_mode = SW_MODE_SINGLE;
-        swoole_php_fatal_error(E_WARNING, "can't use multi-threading in PHP. reset server mode to be SWOOLE_MODE_BASE");
-    }
-#endif
     serv->factory_mode = serv_mode;
-
-    if (serv->factory_mode == SW_MODE_SINGLE)
-    {
-        serv->worker_num = 1;
-        serv->max_request = 0;
-    }
 
     bzero(php_sw_server_callbacks, sizeof(zval*) * PHP_SWOOLE_SERVER_CALLBACK_NUM);
 
@@ -4124,7 +4109,7 @@ PHP_METHOD(swoole_server, sendwait)
         RETURN_FALSE;
     }
 
-    if (serv->factory_mode != SW_MODE_SINGLE || swIsTaskWorker())
+    if (serv->factory_mode != SW_MODE_BASE || swIsTaskWorker())
     {
         swoole_php_fatal_error(E_WARNING, "can't sendwait.");
         RETURN_FALSE;

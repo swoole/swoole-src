@@ -320,8 +320,6 @@ int swFactory_end(swFactory *factory, int fd);
 int swFactory_check_callback(swFactory *factory);
 
 int swFactoryProcess_create(swFactory *factory, int worker_num);
-int swFactoryThread_create(swFactory *factory, int writer_num);
-
 
 //------------------------------------Server-------------------------------------------
 enum swServer_callback_type
@@ -971,13 +969,9 @@ static sw_inline swConnection *swWorker_get_connection(swServer *serv, int sessi
 
 static sw_inline swString *swWorker_get_buffer(swServer *serv, int reactor_id)
 {
-    if (serv->factory_mode == SW_MODE_SINGLE)
+    if (serv->factory_mode == SW_MODE_BASE)
     {
         return SwooleWG.buffer_input[0];
-    }
-    else if (serv->factory_mode == SW_MODE_THREAD)
-    {
-        return SwooleTG.buffer_input[reactor_id];
     }
     else
     {
