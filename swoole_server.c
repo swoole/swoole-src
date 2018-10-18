@@ -710,9 +710,15 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
                 return;
             }
         }
-        else
+
+        if (!port->open_redis_protocol)
         {
-            if (!port->open_redis_protocol && !php_swoole_server_isset_callback(port, SW_SERVER_CB_onReceive))
+            if (swSocket_is_dgram(port->type) && !php_swoole_server_isset_callback(port, SW_SERVER_CB_onPacket))
+            {
+                swoole_php_fatal_error(E_ERROR, "require onPacket callback");
+                return;
+            }
+            if (swSocket_is_stream(port->type) && !php_swoole_server_isset_callback(port, SW_SERVER_CB_onReceive))
             {
                 swoole_php_fatal_error(E_ERROR, "require onReceive callback");
                 return;
