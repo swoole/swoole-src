@@ -2112,7 +2112,6 @@ typedef struct
     uint8_t update_time;
     uint8_t factory_lock_target;
     int16_t factory_target_worker;
-    swString **buffer_input;
     swString *buffer_stack;
     swReactor *reactor;
 } swThreadG;

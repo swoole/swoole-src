@@ -1198,15 +1198,6 @@ static int swReactorThread_loop(swThreadParam *param)
     SwooleTG.id = reactor_id;
     SwooleTG.type = SW_THREAD_REACTOR;
 
-    if (serv->factory_mode == SW_MODE_BASE)
-    {
-        SwooleTG.buffer_input = swServer_create_worker_buffer(serv);
-        if (!SwooleTG.buffer_input)
-        {
-            return SW_ERR;
-        }
-    }
-
     SwooleTG.buffer_stack = swString_new(SW_STACK_BUFFER_SIZE);
     if (SwooleTG.buffer_stack == NULL)
     {
