@@ -680,7 +680,6 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
         //use swoole_server->setting
         if (port_setting == NULL || ZVAL_IS_NULL(port_setting))
         {
-            Z_TRY_ADDREF_P(port_setting);
             Z_TRY_ADDREF_P(port_object);
             sw_zend_call_method_with_1_params(&port_object, swoole_server_port_class_entry_ptr, NULL, "set", &retval, zsetting);
             if (retval != NULL)
@@ -2838,6 +2837,16 @@ PHP_METHOD(swoole_server, addProcess)
     RETURN_LONG(id);
 }
 
+static inline zend_bool is_websocket_server(zval *zobject)
+{
+    return instanceof_function(Z_OBJCE_P(zobject), swoole_websocket_server_class_entry_ptr);
+}
+
+static inline zend_bool is_http_server(zval *zobject)
+{
+    return instanceof_function(Z_OBJCE_P(zobject), swoole_http_server_class_entry_ptr);
+}
+
 PHP_METHOD(swoole_server, start)
 {
     zval *zobject = getThis();
@@ -2852,7 +2861,7 @@ PHP_METHOD(swoole_server, start)
 
     php_swoole_register_callback(serv);
     serv->onReceive = php_swoole_onReceive;
-    if (instanceof_function(Z_OBJCE_P(zobject), swoole_http_server_class_entry_ptr))
+    if (is_websocket_server(zobject) || is_http_server(zobject))
     {
         zval *zsetting = sw_zend_read_property(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("setting"), 1 TSRMLS_CC);
         if (zsetting == NULL || ZVAL_IS_NULL(zsetting))
@@ -2880,9 +2889,9 @@ PHP_METHOD(swoole_server, start)
         {
             protocol_flag |= SW_HTTP2_PROTOCOL;
         }
-        if (ls->open_websocket_protocol || instanceof_function(Z_OBJCE_P(zobject), swoole_websocket_server_class_entry_ptr))
+        if (ls->open_websocket_protocol || is_websocket_server(zobject))
         {
-            add_assoc_bool(zsetting, "open_websocket_protocol", 0);
+            add_assoc_bool(zsetting, "open_websocket_protocol", 1);
             protocol_flag |= SW_WEBSOCKET_PROTOCOL;
         }
         swPort_clear_protocol(serv->listen_list);
