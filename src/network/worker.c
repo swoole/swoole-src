@@ -596,7 +596,7 @@ static void swWorker_stop()
         serv->onWorkerStop = NULL;
     }
 
-    if (serv->factory_mode == SW_MODE_SINGLE)
+    if (serv->factory_mode == SW_MODE_BASE)
     {
         swListenPort *port;
         LL_FOREACH(serv->listen_list, port)
@@ -654,7 +654,7 @@ void swWorker_try_to_exit()
     swDNSResolver_free();
 
     //close all client connections
-    if (serv->factory_mode == SW_MODE_SINGLE)
+    if (serv->factory_mode == SW_MODE_BASE)
     {
         int find_fd = swServer_get_minfd(serv);
         int max_fd = swServer_get_maxfd(serv);

@@ -397,7 +397,7 @@ int swReactorThread_close(swReactor *reactor, int fd)
 int swReactorThread_onClose(swReactor *reactor, swEvent *event)
 {
     swServer *serv = reactor->ptr;
-    if (serv->factory_mode == SW_MODE_SINGLE)
+    if (serv->factory_mode == SW_MODE_BASE)
     {
         return swReactorProcess_onClose(reactor, event);
     }
@@ -616,7 +616,7 @@ int swReactorThread_send(swSendData *_send)
     int fd = conn->fd;
     swReactor *reactor;
 
-    if (serv->factory_mode == SW_MODE_SINGLE)
+    if (serv->factory_mode == SW_MODE_BASE)
     {
         reactor = &(serv->reactor_threads[0].reactor);
         if (conn->overflow)
@@ -1102,16 +1102,7 @@ int swReactorThread_create(swServer *serv)
     }
 
     //create factry object
-    if (serv->factory_mode == SW_MODE_THREAD)
-    {
-        if (serv->worker_num < 1)
-        {
-            swError("Fatal Error: serv->worker_num < 1");
-            return SW_ERR;
-        }
-        ret = swFactoryThread_create(&(serv->factory), serv->worker_num);
-    }
-    else if (serv->factory_mode == SW_MODE_PROCESS)
+    if (serv->factory_mode == SW_MODE_PROCESS)
     {
         if (serv->worker_num < 1)
         {
@@ -1206,15 +1197,6 @@ static int swReactorThread_loop(swThreadParam *param)
     SwooleTG.factory_target_worker = -1;
     SwooleTG.id = reactor_id;
     SwooleTG.type = SW_THREAD_REACTOR;
-
-    if (serv->factory_mode == SW_MODE_BASE || serv->factory_mode == SW_MODE_THREAD)
-    {
-        SwooleTG.buffer_input = swServer_create_worker_buffer(serv);
-        if (!SwooleTG.buffer_input)
-        {
-            return SW_ERR;
-        }
-    }
 
     SwooleTG.buffer_stack = swString_new(SW_STACK_BUFFER_SIZE);
     if (SwooleTG.buffer_stack == NULL)

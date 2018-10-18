@@ -302,9 +302,7 @@ enum swGlobal_hook_type
 enum swServer_mode
 {
     SW_MODE_BASE          =  1,
-    SW_MODE_THREAD        =  2,
-    SW_MODE_PROCESS       =  3,
-    SW_MODE_SINGLE        =  4,
+    SW_MODE_PROCESS       =  2,
 };
 //-------------------------------------------------------------------------------
 enum swSocket_type
@@ -2114,7 +2112,6 @@ typedef struct
     uint8_t update_time;
     uint8_t factory_lock_target;
     int16_t factory_target_worker;
-    swString **buffer_input;
     swString *buffer_stack;
     swReactor *reactor;
 } swThreadG;

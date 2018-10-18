@@ -59,9 +59,6 @@ PHP_ARG_WITH(jemalloc_dir, dir of jemalloc,
 PHP_ARG_WITH(libpq_dir, dir of libpq,
 [  --with-libpq-dir[=DIR]      Include libpq support (requires libpq >= 9.5)], no, no)
 
-PHP_ARG_ENABLE(thread, enable thread support,
-[  --enable-thread           Experimental: Use thread?], no, no)
-
 PHP_ARG_ENABLE(hugepage, enable hugepage support,
 [  --enable-hugepage         Experimental: Use hugepage?], no, no)
 
@@ -482,7 +479,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/memory/table.c \
         src/memory/buffer.c \
         src/factory/base.c \
-        src/factory/thread.c \
         src/factory/process.c \
         src/reactor/base.c \
         src/reactor/select.c \

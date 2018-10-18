@@ -453,7 +453,6 @@
             <file role="src" name="src/coroutine/ucontext.cc" />
             <file role="src" name="src/factory/base.c" />
             <file role="src" name="src/factory/process.c" />
-            <file role="src" name="src/factory/thread.c" />
             <file role="src" name="src/lock/atomic.c" />
             <file role="src" name="src/lock/cond.c" />
             <file role="src" name="src/lock/file_lock.c" />
