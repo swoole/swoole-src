@@ -55,9 +55,16 @@ typedef struct
 
 typedef struct
 {
+
+    char *host;
+    zend_size_t host_len;
+    int port;
     uint8_t ssl;
-    uint8_t connecting;
-    uint8_t ready;
+
+    nghttp2_hd_inflater *inflater;
+    nghttp2_hd_deflater *deflater;
+    zval *object;
+    double timeout;
 
 #ifdef SW_COROUTINE
     uint8_t iowait;
@@ -76,17 +83,6 @@ typedef struct
     uint32_t max_frame_size;
     uint32_t max_header_list_size;
 
-    char *host;
-    zend_size_t host_len;
-    int port;
-
-    nghttp2_hd_inflater *inflater;
-    nghttp2_hd_deflater *deflater;
-    zval *object;
-    double timeout;
-
-    swLinkedList *requests;
-    swLinkedList *stream_requests;
     swHashMap *streams;
 
 } http2_client_property;

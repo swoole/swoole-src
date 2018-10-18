@@ -931,7 +931,6 @@ static void http2_client_onConnect(swClient *cli)
     cli->protocol.get_package_length = swHttp2_get_frame_length;
     cli->protocol.package_length_size = SW_HTTP2_FRAME_HEADER_SIZE;
 
-    hcc->ready = 1;
     hcc->stream_id = 1;
     hcc->streams = swHashMap_new(8, http2_client_stream_free);
     http2_client_send_setting(cli);
@@ -960,8 +959,9 @@ static void http2_client_onClose(swClient *cli)
 {
     zval *zobject = cli->object;
     zend_update_property_bool(swoole_http2_client_coro_class_entry_ptr, zobject, ZEND_STRL("connected"), 0);
-    zend_update_property_long(swoole_http2_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error);
-    zend_update_property_string(swoole_http2_client_coro_class_entry_ptr, zobject, ZEND_STRL("errMsg"), strerror(SwooleG.error));
+    int errCode = cli->socket->close_errno ? cli->socket->close_errno : SwooleG.error;
+    zend_update_property_long(swoole_http2_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), errCode);
+    zend_update_property_string(swoole_http2_client_coro_class_entry_ptr, zobject, ZEND_STRL("errMsg"), strerror(errCode));
     php_swoole_client_free(zobject, cli);
 
     http2_client_property *hcc = swoole_get_property(zobject, HTTP2_CLIENT_CORO_PROPERTY);
@@ -999,6 +999,9 @@ static void http2_client_onTimeout(swTimer *timer, swTimer_node *tnode)
     php_context *ctx = tnode->data;
     zval _zobject = ctx->coro_params;
     zval *zobject = &_zobject;
+    zend_update_property_long(swoole_http2_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), ETIMEDOUT);
+    zend_update_property_string(swoole_http2_client_coro_class_entry_ptr, zobject, ZEND_STRL("errMsg"), strerror(ETIMEDOUT));
+
     swClient *cli = swoole_get_object(zobject);
     cli->timer = NULL;
 
@@ -1077,6 +1080,12 @@ static PHP_METHOD(swoole_http2_client_coro, close)
 static PHP_METHOD(swoole_http2_client_coro, connect)
 {
     http2_client_property *hcc = swoole_get_property(getThis(), HTTP2_CLIENT_CORO_PROPERTY);
+
+    if (hcc->client)
+    {
+        swoole_php_fatal_error(E_WARNING, "The HTTP2 connection has already been established.");
+        RETURN_FALSE;
+    }
 
     php_swoole_check_reactor();
     swClient *cli = php_swoole_client_new(getThis(), hcc->host, hcc->host_len, hcc->port);
