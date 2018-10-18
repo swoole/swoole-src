@@ -710,8 +710,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
                 return;
             }
         }
-
-        if (!port->open_redis_protocol)
+        else if (!port->open_redis_protocol)
         {
             if (swSocket_is_dgram(port->type) && !php_swoole_server_isset_callback(port, SW_SERVER_CB_onPacket))
             {
@@ -2098,12 +2097,16 @@ PHP_METHOD(swoole_server, __construct)
         return;
     }
 
-    if (serv_mode != SW_MODE_BASE && serv_mode != SW_MODE_BASE)
+    if (serv_mode != SW_MODE_BASE && serv_mode != SW_MODE_PROCESS)
     {
         swoole_php_fatal_error(E_ERROR, "invalid $mode parameters.");
         return;
     }
-
+    if (serv_mode == SW_MODE_BASE)
+    {
+        serv->reactor_num = 1;
+        serv->worker_num = 1;
+    }
     serv->factory_mode = serv_mode;
 
     bzero(php_sw_server_callbacks, sizeof(zval*) * PHP_SWOOLE_SERVER_CALLBACK_NUM);
