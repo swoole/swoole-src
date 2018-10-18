@@ -825,6 +825,12 @@ ssize_t Socket::recvmsg(struct msghdr *msg, int flags)
 
 void Socket::yield(int operation)
 {
+    int cid = coroutine_get_current_cid();
+    if (unlikely(cid == -1))
+    {
+        swError("Socket::yield() must be called in the coroutine.");
+    }
+
     errCode = 0;
     if (_timeout > 0)
     {
@@ -842,12 +848,6 @@ void Socket::yield(int operation)
         {
             timer->type = SW_TIMER_TYPE_CORO_ALL;
         }
-    }
-
-    int cid = coroutine_get_current_cid();
-    if (unlikely(cid == -1))
-    {
-        swWarn("Socket::yield() must be called in the coroutine.");
     }
 
     // bind read/write coroutine
