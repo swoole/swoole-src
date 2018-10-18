@@ -711,6 +711,14 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
                 return;
             }
         }
+        else
+        {
+            if (!port->open_redis_protocol && !php_swoole_server_isset_callback(port, SW_SERVER_CB_onReceive))
+            {
+                swoole_php_fatal_error(E_ERROR, "require onReceive callback");
+                return;
+            }
+        }
     }
 
     if (find_http_port)
@@ -2085,6 +2093,12 @@ PHP_METHOD(swoole_server, __construct)
         return;
     }
 
+    if (serv_mode < SW_MODE_BASE || serv_mode > SW_MODE_SINGLE)
+    {
+        swoole_php_fatal_error(E_ERROR, "invalid $mode parameters.");
+        return;
+    }
+
 #ifdef __CYGWIN__
     serv_mode = SW_MODE_SINGLE;
 #elif !defined(SW_USE_THREAD)
@@ -2840,6 +2854,21 @@ PHP_METHOD(swoole_server, start)
     serv->onReceive = php_swoole_onReceive;
     if (instanceof_function(Z_OBJCE_P(zobject), swoole_http_server_class_entry_ptr))
     {
+        zval *zsetting = sw_zend_read_property(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("setting"), 1 TSRMLS_CC);
+        if (zsetting == NULL || ZVAL_IS_NULL(zsetting))
+        {
+            SW_ALLOC_INIT_ZVAL(zsetting);
+            array_init(zsetting);
+#ifdef HT_ALLOW_COW_VIOLATION
+            HT_ALLOW_COW_VIOLATION(Z_ARRVAL_P(zsetting));
+#endif
+            zend_update_property(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("setting"), zsetting TSRMLS_CC);
+        }
+        add_assoc_bool(zsetting, "open_http_protocol", 1);
+        add_assoc_bool(zsetting, "open_mqtt_protocol", 0);
+        add_assoc_bool(zsetting, "open_eof_check", 0);
+        add_assoc_bool(zsetting, "open_length_check", 0);
+
         enum protocol_flags
         {
             SW_HTTP2_PROTOCOL = 1u << 1,
@@ -2853,6 +2882,7 @@ PHP_METHOD(swoole_server, start)
         }
         if (ls->open_websocket_protocol || instanceof_function(Z_OBJCE_P(zobject), swoole_websocket_server_class_entry_ptr))
         {
+            add_assoc_bool(zsetting, "open_websocket_protocol", 0);
             protocol_flag |= SW_WEBSOCKET_PROTOCOL;
         }
         swPort_clear_protocol(serv->listen_list);
