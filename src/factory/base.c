@@ -31,11 +31,13 @@ int swFactory_create(swFactory *factory)
 int swFactory_start(swFactory *factory)
 {
     SwooleWG.run_always = 1;
+    SwooleWG.worker = sw_malloc(sizeof(swWorker));
     return SW_OK;
 }
 
 int swFactory_shutdown(swFactory *factory)
 {
+    sw_free(SwooleWG.worker);
     return SW_OK;
 }
 
