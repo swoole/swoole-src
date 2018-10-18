@@ -2085,7 +2085,7 @@ PHP_METHOD(swoole_server, __construct)
         return;
     }
 
-    if (serv_mode < SW_MODE_BASE || serv_mode > SW_MODE_PROCESS)
+    if (serv_mode < SW_MODE_BASE || serv_mode > SW_MODE_SINGLE)
     {
         swoole_php_fatal_error(E_ERROR, "invalid $mode parameters.");
         return;
