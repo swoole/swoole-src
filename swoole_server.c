@@ -2065,9 +2065,9 @@ PHP_METHOD(swoole_server, __construct)
 {
     zend_size_t host_len = 0;
     char *serv_host;
-    long sock_type = SW_SOCK_TCP;
-    long serv_port = 0;
-    long serv_mode = SW_MODE_PROCESS;
+    zend_long sock_type = SW_SOCK_TCP;
+    zend_long serv_port = 0;
+    zend_long serv_mode = SW_MODE_PROCESS;
 
     //only cli env
     if (!SWOOLE_G(cli))
@@ -2099,7 +2099,7 @@ PHP_METHOD(swoole_server, __construct)
 
     if (serv_mode != SW_MODE_BASE && serv_mode != SW_MODE_PROCESS)
     {
-        swoole_php_fatal_error(E_ERROR, "invalid $mode parameters.");
+        swoole_php_fatal_error(E_ERROR, "invalid $mode parameters %d.", (int) serv_mode);
         return;
     }
     if (serv_mode == SW_MODE_BASE)

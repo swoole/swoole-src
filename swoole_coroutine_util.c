@@ -880,17 +880,22 @@ static PHP_METHOD(swoole_coroutine_util, fread)
         RETURN_FALSE;
     }
 
+    if (file_stat.st_size == 0)
+    {
+        RETURN_EMPTY_STRING();
+    }
+
     off_t _seek = lseek(fd, 0, SEEK_CUR);
     if (_seek < 0)
     {
         SwooleG.error = errno;
         RETURN_FALSE;
     }
-    if (length <= 0 )
+    if (length <= 0)
     {
-        if (file_stat.st_size == 0 || _seek > file_stat.st_size)
+        if (_seek > file_stat.st_size)
         {
-            length = SW_BUFFER_SIZE_STD;
+            RETURN_EMPTY_STRING();
         }
         else
         {

@@ -837,15 +837,10 @@ static PHP_METHOD(swoole_http2_client_coro, send)
     {
         return;
     }
-    if (Z_TYPE_P(request) != IS_OBJECT)
+    if (Z_TYPE_P(request) != IS_OBJECT || !instanceof_function(Z_OBJCE_P(request), swoole_http2_request_class_entry_ptr))
     {
-        error:
         swoole_php_fatal_error(E_ERROR, "object is not instanceof swoole_http2_request.");
         RETURN_FALSE;
-    }
-    if (!instanceof_function(Z_OBJCE_P(request), swoole_http2_request_class_entry_ptr))
-    {
-        goto error;
     }
 
     uint32_t stream_id = http2_client_send_request(getThis(), request);

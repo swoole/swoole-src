@@ -69,5 +69,4 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
-100
 DONE

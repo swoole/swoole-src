@@ -10,15 +10,12 @@ use Swoole\Coroutine as co;
 
 co::create(function () {
     $fp = fopen(__FILE__, 'r');
-    if ($fp)
-    {
+    if ($fp) {
         fseek($fp, 1024);
-        $data = co::fread($fp);
-        var_dump($data);
-        assert(md5($data) == md5_file(TEST_IMAGE));
-    }
-    else
-    {
+        $php_data = fread($fp, fstat($fp)['size']);
+        $co_data = co::fread($fp);
+        assert($php_data === $co_data);
+    } else {
         echo "ERROR\n";
     }
 });
