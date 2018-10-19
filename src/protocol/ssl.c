@@ -639,6 +639,7 @@ int swSSL_get_client_certificate(SSL *ssl, char *buffer, size_t length)
 
 int swSSL_accept(swConnection *conn)
 {
+    ERR_clear_error();
     int n = SSL_do_handshake(conn->ssl);
     /**
      * The TLS/SSL handshake was successfully completed
@@ -693,6 +694,7 @@ int swSSL_accept(swConnection *conn)
 
 int swSSL_connect(swConnection *conn)
 {
+    ERR_clear_error();
     int n = SSL_connect(conn->ssl);
     if (n == 1)
     {
@@ -887,12 +889,13 @@ static sw_inline void swSSL_connection_error(swConnection *conn)
         break;
 #endif
 
-    swoole_error_log(level, SW_ERROR_SSL_BAD_PROTOCOL, "SSL connection[%s:%d] protocol error[%d].",
+    swoole_error_log(level, SW_ERROR_SSL_BAD_PROTOCOL, "SSL connection#%d[%s:%d] protocol error[%d].", conn->session_id,
             swConnection_get_ip(conn), swConnection_get_port(conn), reason);
 }
 
 ssize_t swSSL_recv(swConnection *conn, void *__buf, size_t __n)
 {
+    ERR_clear_error();
     int n = SSL_read(conn->ssl, __buf, __n);
     if (n < 0)
     {
@@ -926,6 +929,7 @@ ssize_t swSSL_recv(swConnection *conn, void *__buf, size_t __n)
 
 ssize_t swSSL_send(swConnection *conn, void *__buf, size_t __n)
 {
+    ERR_clear_error();
     int n = SSL_write(conn->ssl, __buf, __n);
     if (n < 0)
     {

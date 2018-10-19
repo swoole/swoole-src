@@ -176,9 +176,9 @@ int swReactorProcess_start(swServer *serv)
      */
     SwooleG.use_signalfd = 0;
     SwooleG.use_timer_pipe = 0;
-    swServer_signal_init(serv);
 
     swProcessPool_start(&serv->gs->event_workers);
+    swServer_signal_init(serv);
     swProcessPool_wait(&serv->gs->event_workers);
     swProcessPool_shutdown(&serv->gs->event_workers);
 
