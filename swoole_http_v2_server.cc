@@ -71,8 +71,8 @@ namespace swoole
             fd = _fd;
             send_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
             recv_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
-            max_concurrent_streams = SW_HTTP2_MAX_CONCURRENT_STREAMS;
-            max_frame_size = SW_HTTP2_MAX_FRAME_SIZE;
+            max_concurrent_streams = SW_HTTP2_MAX_MAX_CONCURRENT_STREAMS;
+            max_frame_size = SW_HTTP2_MAX_MAX_FRAME_SIZE;
             deflater = nullptr;
             inflater = nullptr;
         }
@@ -143,7 +143,7 @@ static int http_build_trailer(http_context *ctx, uchar *buffer)
 
     if (!deflater)
     {
-        ret = nghttp2_hd_deflate_new(&deflater, 4096);
+        ret = nghttp2_hd_deflate_new(&deflater, SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE);
         if (ret != 0)
         {
             swoole_php_error(E_WARNING, "nghttp2_hd_deflate_init failed with error: %s\n", nghttp2_strerror(ret));
@@ -165,7 +165,7 @@ static int http_build_trailer(http_context *ctx, uchar *buffer)
         return SW_ERR;
     }
 
-    ret = nghttp2_hd_deflate_change_table_size(deflater, 4096);
+    ret = nghttp2_hd_deflate_change_table_size(deflater, SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE);
     if (ret != 0)
     {
         swoole_php_error(E_WARNING, "nghttp2_hd_deflate_change_table_size failed with error: %s\n", nghttp2_strerror(ret));
@@ -370,7 +370,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length)
     size_t sum = 0;
 
     nghttp2_hd_deflater *deflater;
-    ret = nghttp2_hd_deflate_new(&deflater, 4096);
+    ret = nghttp2_hd_deflate_new(&deflater, SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE);
     if (ret != 0)
     {
         swoole_php_error(E_WARNING, "nghttp2_hd_deflate_init failed with error: %s\n", nghttp2_strerror(ret));
@@ -692,7 +692,7 @@ static int http2_parse_header(http2_session *client, http_context *ctx, int flag
         }
     }
 
-    rv = nghttp2_hd_inflate_change_table_size(inflater, 4096);
+    rv = nghttp2_hd_inflate_change_table_size(inflater, SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE);
     if (rv != 0)
     {
         return rv;

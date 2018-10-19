@@ -180,10 +180,10 @@ typedef unsigned long ulong_t;
 #define SW_MAX_INT             INT_MAX
 
 #ifndef MAX
-#define MAX(a, b)              (a)>(b)?a:b;
+#define MAX(A, B)              ((A) > (B) ? (A) : (B))
 #endif
 #ifndef MIN
-#define MIN(a, b)              (a)<(b)?a:b;
+#define MIN(A, B)              ((A) < (B) ? (A) : (B))
 #endif
 
 #define SW_STRS(s)             s, sizeof(s)

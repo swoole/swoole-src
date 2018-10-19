@@ -29,9 +29,7 @@ void http2_add_cookie(nghttp2_nv *nv, int *index, zval *cookies)
     int keytype;
     zval *value = NULL;
     char *encoded_value;
-    uint32_t offest = 0;
     swString *buffer = SwooleTG.buffer_stack;
-    swString_clear(buffer);
 
     SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(cookies), key, keylen, keytype, value)
         if (HASH_KEY_IS_STRING != keytype)
@@ -44,6 +42,7 @@ void http2_add_cookie(nghttp2_nv *nv, int *index, zval *cookies)
             continue;
         }
 
+        swString_clear(buffer);
         swString_append_ptr(buffer, key, keylen);
         swString_append_ptr(buffer, "=", 1);
 
@@ -53,26 +52,14 @@ void http2_add_cookie(nghttp2_nv *nv, int *index, zval *cookies)
         {
             swString_append_ptr(buffer, encoded_value, encoded_value_len);
             efree(encoded_value);
-            http2_add_header(&nv[(*index)++], ZEND_STRL("cookie"), buffer->str + offest, keylen + 1 + encoded_value_len);
-            offest += keylen + 1 + encoded_value_len;
+            http2_add_header(&nv[(*index)++], ZEND_STRL("cookie"), buffer->str, buffer->length);
         }
     SW_HASHTABLE_FOREACH_END();
 }
 
 int http2_client_parse_header(http2_client_property *hcc, http2_client_stream *stream , int flags, char *in, size_t inlen)
 {
-    nghttp2_hd_inflater *inflater = hcc->inflater;
     zval *zresponse = stream->response_object;
-    if (!inflater)
-    {
-        int ret = nghttp2_hd_inflate_new(&inflater);
-        if (ret != 0)
-        {
-            swoole_php_error(E_WARNING, "nghttp2_hd_inflate_init() failed, Error: %s[%d].", nghttp2_strerror(ret), ret);
-            return SW_ERR;
-        }
-        hcc->inflater = inflater;
-    }
 
     if (flags & SW_HTTP2_FLAG_PRIORITY)
     {
@@ -93,7 +80,7 @@ int http2_client_parse_header(http2_client_property *hcc, http2_client_stream *s
         int inflate_flags = 0;
         size_t proclen;
 
-        rv = nghttp2_hd_inflate_hd(inflater, &nv, &inflate_flags, (uchar *) in, inlen, 1);
+        rv = nghttp2_hd_inflate_hd(hcc->inflater, &nv, &inflate_flags, (uchar *) in, inlen, 1);
         if (rv < 0)
         {
             swoole_php_error(E_WARNING, "inflate failed, Error: %s[%zd].", nghttp2_strerror(rv), rv);
@@ -141,7 +128,7 @@ int http2_client_parse_header(http2_client_property *hcc, http2_client_stream *s
 
         if (inflate_flags & NGHTTP2_HD_INFLATE_FINAL)
         {
-            nghttp2_hd_inflate_end_headers(inflater);
+            nghttp2_hd_inflate_end_headers(hcc->inflater);
             break;
         }
 
@@ -151,11 +138,6 @@ int http2_client_parse_header(http2_client_property *hcc, http2_client_stream *s
         }
     }
 
-    rv = nghttp2_hd_inflate_change_table_size(inflater, 4096);
-    if (rv != 0)
-    {
-        return rv;
-    }
     return SW_OK;
 }
 

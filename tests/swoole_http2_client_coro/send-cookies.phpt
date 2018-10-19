@@ -25,16 +25,17 @@ $pm->parentFunc = function ($pid) use ($pm) {
             'bar' => 'char'
         ];
         assert($cli->send($req));
-        $response = $cli->recv();
+        $response = $cli->recv(1);
         assert($response->data === co::readFile(__FILE__));
+        `ps -A | grep nghttpd | awk '{print $1}' | xargs kill -9 > /dev/null 2>&1`;
         echo "DONE\n";
     });
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
-    $pm->wakeup();
     $root = __DIR__;
-    `nghttpd -v -d {$root}/ -a 0.0.0.0 {$pm->getFreePort()} --no-tls`;
+    `nghttpd -v -d {$root}/ -a 0.0.0.0 {$pm->getFreePort()} --no-tls&`;
+    $pm->wakeup();
 };
 $pm->childFirst();
 $pm->run();
