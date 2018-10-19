@@ -61,18 +61,6 @@ $pm->childFunc = function () use ($pm) {
             $cli->get("/random?n={$n}");
             $server->finish([$n, $cli->body]);
         });
-        go(function () use ($n) {
-            global $pdo;
-            $pdo = $pdo ?? new PDO(
-                    "mysql:host=" . MYSQL_SERVER_HOST . ";dbname=" . MYSQL_SERVER_DB . ";charset=utf8",
-                    MYSQL_SERVER_USER, MYSQL_SERVER_PWD
-                );
-            $pdo->exec('UPDATE `incr` SET `id` = `id` + 1');
-            if ($n == 0) {
-                echo $pdo->query('SELECT `id` FROM `incr`')->fetch(PDO::FETCH_ASSOC)['id'] . "\n";
-                @$pdo->exec('DROP TABLE IF EXISTS `incr`');
-            }
-        });
     });
     $server->on('finish', function () { });
     $server->start();
