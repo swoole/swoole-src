@@ -2201,6 +2201,13 @@ COMMAND $cmd
             $diff = "# original source file: $shortname\n" . $diff;
         }
         show_file_block('diff', $diff);
+
+        // swoole patch: clear port
+        if (preg_match('/bind\([^:]+?:(?<port>\d+?)\)/', $diff, $matches)) {
+            $port = $matches['port'];
+            @`lsof -i:{$port} | grep LISTEN | awk '{print $2}' | xargs kill -9`;
+        }
+
         if (strpos($log_format, 'D') !== false && file_put_contents($diff_filename, $diff, FILE_BINARY) === false) {
             error("Cannot create test diff - $diff_filename");
         }
