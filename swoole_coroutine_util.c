@@ -886,9 +886,16 @@ static PHP_METHOD(swoole_coroutine_util, fread)
         SwooleG.error = errno;
         RETURN_FALSE;
     }
-    if (length <= 0 || file_stat.st_size - _seek < length)
+    if (length <= 0 )
     {
-        length = file_stat.st_size - _seek;
+        if (file_stat.st_size == 0 || _seek > file_stat.st_size)
+        {
+            length = SW_BUFFER_SIZE_STD;
+        }
+        else
+        {
+            length = file_stat.st_size - _seek;
+        }
     }
 
     swAio_event ev;
