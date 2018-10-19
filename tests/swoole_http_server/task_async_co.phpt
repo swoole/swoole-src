@@ -5,7 +5,12 @@ swoole_http_server: use async io and coroutine in task process
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-// Swoole\Runtime::enableCoroutine();
+$randoms = [];
+for ($n = MAX_REQUESTS; $n--;)
+{
+    $randoms[] = openssl_random_pseudo_bytes(mt_rand(0, 65536));
+}
+
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {
     for ($n = MAX_REQUESTS; $n--;) {
@@ -27,22 +32,7 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
     });
     $server->on('request', function (swoole_http_request $request, swoole_http_response $response) use ($server) {
-        static $randoms;
-        if (!$randoms) {
-            for ($n = MAX_REQUESTS; $n--;) {
-                $randoms[] = openssl_random_pseudo_bytes(mt_rand(0, 65536));
-            }
-            $pdo = new PDO(
-                "mysql:host=" . MYSQL_SERVER_HOST . ";dbname=" . MYSQL_SERVER_DB . ";charset=utf8",
-                MYSQL_SERVER_USER, MYSQL_SERVER_PWD
-            );
-            $sql = <<<SQL
-DROP TABLE IF EXISTS `incr`;
-CREATE TABLE `incr` (`id` int(10) unsigned NOT NULL AUTO_INCREMENT, PRIMARY KEY (`id`));
-INSERT INTO `incr` VALUES (1);
-SQL;
-            $pdo->exec($sql);
-        }
+        global $randoms;
         $n = $request->get['n'];
         switch ($request->server['path_info']) {
             case '/task':
