@@ -261,6 +261,11 @@ static PHP_METHOD(swoole_server_port, set)
     {
         convert_to_boolean(v);
         port->open_websocket_protocol = Z_BVAL_P(v);
+        if (port->open_websocket_protocol)
+        {
+            port->open_http_protocol = 1;
+            port->open_http2_protocol = 0;
+        }
     }
     if (php_swoole_array_get_value(vht, "websocket_subprotocol", v))
     {
