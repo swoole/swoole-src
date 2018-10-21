@@ -175,19 +175,20 @@ static const zend_function_entry swoole_http_client_methods[] =
 void http_client_clear_response_properties(zval *zobject)
 {
     zval *attr;
-    zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("errCode"), 0);
-    zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("statusCode"), 0);
-    attr = sw_zend_read_property(Z_OBJCE_P(zobject), zobject, ZEND_STRL("headers"), 1);
+    zend_class_entry *ce = Z_OBJCE_P(zobject);
+    zend_update_property_long(ce, zobject, ZEND_STRL("errCode"), 0);
+    zend_update_property_long(ce, zobject, ZEND_STRL("statusCode"), 0);
+    attr = sw_zend_read_property(ce, zobject, ZEND_STRL("headers"), 1);
     if (Z_TYPE_P(attr) == IS_ARRAY)
     {
         zend_hash_clean(Z_ARRVAL_P(attr));
     }
-    attr = sw_zend_read_property(Z_OBJCE_P(zobject), zobject, ZEND_STRL("set_cookie_headers"), 1);
+    attr = sw_zend_read_property(ce, zobject, ZEND_STRL("set_cookie_headers"), 1);
     if (Z_TYPE_P(attr) == IS_ARRAY)
     {
         zend_hash_clean(Z_ARRVAL_P(attr));
     }
-    zend_update_property_string(Z_OBJCE_P(zobject), zobject, ZEND_STRL("body"), "");
+    zend_update_property_string(ce, zobject, ZEND_STRL("body"), "");
 }
 
 static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zval *callback)
@@ -409,7 +410,6 @@ void swoole_http_client_init(int module_number)
 
     zend_declare_property_long(swoole_http_client_class_entry_ptr, ZEND_STRL("type"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_http_client_class_entry_ptr, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_long(swoole_http_client_class_entry_ptr, ZEND_STRL("sock"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_http_client_class_entry_ptr, ZEND_STRL("statusCode"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_client_class_entry_ptr, ZEND_STRL("host"), ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_http_client_class_entry_ptr, ZEND_STRL("port"), 0, ZEND_ACC_PUBLIC);

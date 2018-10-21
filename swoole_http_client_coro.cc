@@ -447,23 +447,23 @@ void swoole_http_client_coro_init(int module_number)
     }
 
     zend_declare_property_long(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_long(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("sock"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("type"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("setting"), ZEND_ACC_PUBLIC);
     zend_declare_property_bool(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("connected"), 0, ZEND_ACC_PUBLIC);
 
     zend_declare_property_long(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("statusCode"), 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("host"), ZEND_ACC_PUBLIC);
+    zend_declare_property_string(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("host"), "", ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("port"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("requestMethod"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("requestHeaders"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("requestBody"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("uploadFiles"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("downloadFile"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("downloadOffset"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("headers"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("set_cookie_headers"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("cookies"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("body"), ZEND_ACC_PUBLIC);
+    zend_declare_property_string(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("body"), "", ZEND_ACC_PUBLIC);
 
     http_client_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
     if (!http_client_buffer)
@@ -472,7 +472,7 @@ void swoole_http_client_coro_init(int module_number)
     }
 
 #ifdef SW_HAVE_ZLIB
-    swoole_zlib_buffer = swString_new(2048);
+    swoole_zlib_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
     if (!swoole_zlib_buffer)
     {
         swoole_php_fatal_error(E_ERROR, "[2] swString_new(%d) failed.", SW_HTTP_RESPONSE_INIT_SIZE);
@@ -1047,7 +1047,7 @@ static PHP_METHOD(swoole_http_client_coro, setDefer)
     zend_bool defer = 1;
     http_client_coro_property *hcc = (http_client_coro_property *) swoole_get_property(getThis(), 0);
 
-    ZEND_PARSE_PARAMETERS_START(1, 1)
+    ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
         Z_PARAM_BOOL(defer)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
