@@ -27,13 +27,11 @@ using namespace swoole;
 
 typedef struct
 {
-    zval _request_body;
     zval _request_upload_files;
     zval _download_file;
     zval _cookies;
 
     zval *cookies;
-    zval *request_body;
     zval *request_upload_files;
     zval *download_file;
     off_t download_offset;
@@ -550,11 +548,14 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
     zval *zmethod = sw_zend_read_property_not_null(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("requestMethod"), 1);
     uint32_t header_flag = 0x0;
     zval *request_headers = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("requestHeaders"), 1);
-    zval *post_data = hcc->request_body;
+    zval *request_body = sw_zend_read_property_not_null(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("requestBody"), 1);
 
     //clear errno
     SwooleG.error = 0;
+    //clear buffer
+    swString_clear(http_client_buffer);
 
+    // ============ method ============
     if (zmethod)
     {
         convert_to_string(zmethod);
@@ -562,14 +563,13 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
     }
     else
     {
-        method = (char *) (post_data ? "POST" : "GET");
+        method = (char *) (request_body ? "POST" : "GET");
     }
     http->method = swHttp_get_method(method, strlen(method) + 1);
-
-    swString_clear(http_client_buffer);
     swString_append_ptr(http_client_buffer, method, strlen(method));
     swString_append_ptr(http_client_buffer, ZEND_STRL(" "));
 
+    // ============ proxy ============
 #ifdef SW_USE_OPENSSL
     if (hcc->socket->http_proxy && !hcc->socket->open_ssl)
 #else
@@ -594,9 +594,11 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
         http->uri = proxy_uri;
     }
 
+    // ============ uri ============
     swString_append_ptr(http_client_buffer, http->uri, http->uri_len);
     swString_append_ptr(http_client_buffer, ZEND_STRL(" HTTP/1.1\r\n"));
 
+    // ============ headers ============
     char *key;
     uint32_t keylen;
     int keytype;
@@ -663,6 +665,7 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
     }
 #endif
 
+    // ============ cookies ============
     if (hcc->cookies && Z_TYPE_P(hcc->cookies) == IS_ARRAY)
     {
         swString_append_ptr(http_client_buffer, ZEND_STRL("Cookie: "));
@@ -699,28 +702,33 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
         swString_append_ptr(http_client_buffer, ZEND_STRL("\r\n"));
     }
 
-    //multipart/form-data
+    // ============ multipart/form-data ============
     if (hcc->request_upload_files)
     {
         char header_buf[2048];
         char boundary_str[39];
         int n;
 
+        // ============ content-type ============
         memcpy(boundary_str, SW_HTTP_CLIENT_BOUNDARY_PREKEY, sizeof(SW_HTTP_CLIENT_BOUNDARY_PREKEY) - 1);
-        swoole_random_string(boundary_str + sizeof(SW_HTTP_CLIENT_BOUNDARY_PREKEY) - 1,
-                sizeof(boundary_str) - sizeof(SW_HTTP_CLIENT_BOUNDARY_PREKEY));
-
-        n = snprintf(header_buf, sizeof(header_buf), "Content-Type: multipart/form-data; boundary=%*s\r\n",
-                (int)(sizeof(boundary_str) - 1), boundary_str);
-
+        swoole_random_string(
+            boundary_str + sizeof(SW_HTTP_CLIENT_BOUNDARY_PREKEY) - 1,
+            sizeof(boundary_str) - sizeof(SW_HTTP_CLIENT_BOUNDARY_PREKEY)
+        );
+        n = snprintf(
+            header_buf,
+            sizeof(header_buf), "Content-Type: multipart/form-data; boundary=%*s\r\n",
+            (int)(sizeof(boundary_str) - 1), boundary_str
+        );
         swString_append_ptr(http_client_buffer, header_buf, n);
 
-        int content_length = 0;
+        // ============ content-length ============
+        size_t content_length = 0;
 
-        //post data
-        if (post_data && Z_TYPE_P(post_data) == IS_ARRAY)
+        // calculate length before encode array
+        if (request_body && Z_TYPE_P(request_body) == IS_ARRAY)
         {
-            SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(post_data), key, keylen, keytype, value)
+            SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(request_body), key, keylen, keytype, value)
                 if (HASH_KEY_IS_STRING != keytype)
                 {
                     continue;
@@ -728,8 +736,7 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
                 convert_to_string(value);
                 //strlen("%.*")*2 = 6
                 //header + body + CRLF
-                content_length += (sizeof(SW_HTTP_FORM_DATA_FORMAT_STRING) - 7) + (sizeof(boundary_str) - 1) + keylen
-                        + Z_STRLEN_P(value) + 2;
+                content_length += (sizeof(SW_HTTP_FORM_DATA_FORMAT_STRING) - 7) + (sizeof(boundary_str) - 1) + keylen + Z_STRLEN_P(value) + 2;
             SW_HASHTABLE_FOREACH_END();
         }
 
@@ -770,29 +777,29 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
 
         http_client_append_content_length(http_client_buffer, content_length + sizeof(boundary_str) - 1 + 6);
 
-        //post data
-        if (post_data && Z_TYPE_P(post_data) == IS_ARRAY)
+        // ============ form-data body ============
+        if (request_body && Z_TYPE_P(request_body) == IS_ARRAY)
         {
-            SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(post_data), key, keylen, keytype, value)
+            SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(request_body), key, keylen, keytype, value)
                 if (HASH_KEY_IS_STRING != keytype)
                 {
                     continue;
                 }
                 convert_to_string(value);
-                n = snprintf(header_buf, sizeof(header_buf), SW_HTTP_FORM_DATA_FORMAT_STRING, (int)(sizeof(boundary_str) - 1),
-                        boundary_str, keylen, key);
+                n = snprintf(
+                    header_buf, sizeof(header_buf),
+                    SW_HTTP_FORM_DATA_FORMAT_STRING, (int)(sizeof(boundary_str) - 1),
+                    boundary_str, keylen, key
+                );
                 swString_append_ptr(http_client_buffer, header_buf, n);
                 swString_append_ptr(http_client_buffer, Z_STRVAL_P(value), Z_STRLEN_P(value));
                 swString_append_ptr(http_client_buffer, ZEND_STRL("\r\n"));
             SW_HASHTABLE_FOREACH_END();
-
-            zend_update_property_null(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("requestBody"));
-            hcc->request_body = NULL;
         }
 
         if (!hcc->socket->send(http_client_buffer->str, http_client_buffer->length))
         {
-            goto send_fail;
+            goto _send_fail;
         }
 
         if (hcc->request_upload_files)
@@ -840,9 +847,13 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
                 /**
                  * part header
                  */
-                n = snprintf(header_buf, sizeof(header_buf), SW_HTTP_FORM_DATA_FORMAT_FILE, (int)(sizeof(boundary_str) - 1),
-                        boundary_str, (int)Z_STRLEN_P(zname), Z_STRVAL_P(zname), (int)Z_STRLEN_P(zfilename),
-                        Z_STRVAL_P(zfilename), (int)Z_STRLEN_P(ztype), Z_STRVAL_P(ztype));
+                n = snprintf(
+                    header_buf, sizeof(header_buf), SW_HTTP_FORM_DATA_FORMAT_FILE,
+                    (int) (sizeof(boundary_str) - 1), boundary_str,
+                    (int) Z_STRLEN_P(zname), Z_STRVAL_P(zname),
+                    (int) Z_STRLEN_P(zfilename), Z_STRVAL_P(zfilename),
+                    (int) Z_STRLEN_P(ztype), Z_STRVAL_P(ztype)
+                );
                 /**
                  * from memory
                  */
@@ -854,7 +865,7 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
                     swString_append_ptr(http_client_buffer, "\r\n", 2);
                     if (!hcc->socket->send(http_client_buffer->str, http_client_buffer->length))
                     {
-                        goto send_fail;
+                        goto _send_fail;
                     }
                 }
                 /**
@@ -864,15 +875,15 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
                 {
                     if (!hcc->socket->send(header_buf, n))
                     {
-                        goto send_fail;
+                        goto _send_fail;
                     }
                     if (!hcc->socket->sendfile(Z_STRVAL_P(zpath), Z_LVAL_P(zoffset), Z_LVAL_P(zsize)))
                     {
-                        goto send_fail;
+                        goto _send_fail;
                     }
                     if (!hcc->socket->send("\r\n", 2))
                     {
-                        goto send_fail;
+                        goto _send_fail;
                     }
                 }
             SW_HASHTABLE_FOREACH_END();
@@ -884,24 +895,24 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
         n = snprintf(header_buf, sizeof(header_buf), "--%*s--\r\n", (int)(sizeof(boundary_str) - 1), boundary_str);
         if (!hcc->socket->send( header_buf, n))
         {
-            goto send_fail;
+            goto _send_fail;
         }
         else
         {
-            goto send_ok;
+            goto _send_ok;
         }
     }
-    //x-www-form-urlencoded or raw
-    else if (post_data)
+    // ============ x-www-form-urlencoded or raw ============
+    else if (request_body)
     {
-        if (Z_TYPE_P(post_data) == IS_ARRAY)
+        if (Z_TYPE_P(request_body) == IS_ARRAY)
         {
             zend_size_t len;
             http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Content-Type"), ZEND_STRL("application/x-www-form-urlencoded"));
-            if (php_swoole_array_length(post_data) > 0)
+            if (php_swoole_array_length(request_body) > 0)
             {
                 smart_str formstr_s = { 0 };
-                char *formstr = sw_http_build_query(post_data, &len, &formstr_s);
+                char *formstr = sw_http_build_query(request_body, &len, &formstr_s);
                 if (formstr == NULL)
                 {
                     swoole_php_error(E_WARNING, "http_build_query failed.");
@@ -918,13 +929,12 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
         }
         else
         {
-            http_client_append_content_length(http_client_buffer, Z_STRLEN_P(post_data));
-            swString_append_ptr(http_client_buffer, Z_STRVAL_P(post_data), Z_STRLEN_P(post_data));
+            convert_to_string(request_body);
+            http_client_append_content_length(http_client_buffer, Z_STRLEN_P(request_body));
+            swString_append_ptr(http_client_buffer, Z_STRVAL_P(request_body), Z_STRLEN_P(request_body));
         }
-        zend_update_property_null(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("requestBody"));
-        hcc->request_body = NULL;
     }
-    //no body
+    // ============ no body ============
     else
     {
         if (header_flag & HTTP_HEADER_CONTENT_LENGTH)
@@ -941,14 +951,14 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
 
     if (!hcc->socket->send(http_client_buffer->str, http_client_buffer->length))
     {
-       send_fail:
+       _send_fail:
        SwooleG.error = errno;
        swoole_php_sys_error(E_WARNING, "send(%d) %d bytes failed.", hcc->socket->socket->fd, (int )http_client_buffer->length);
        zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error);
        return SW_ERR;
     }
 
-    send_ok:
+    _send_ok:
     hcc->wait = true;
 
     return SW_OK;
@@ -1124,9 +1134,7 @@ static PHP_METHOD(swoole_http_client_coro, setData)
     ZEND_PARSE_PARAMETERS_END();
 
     zend_update_property_stringl(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("requestBody"), data, data_len);
-    http_client_coro_property *hcc = (http_client_coro_property *) swoole_get_property(getThis(), 0);
-    hcc->request_body = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("requestBody"), 1);
-    sw_copy_to_stack(hcc->request_body, hcc->_request_body);
+
     RETURN_TRUE;
 }
 
@@ -1352,7 +1360,6 @@ static PHP_METHOD(swoole_http_client_coro, post)
     char *uri = NULL;
     zend_size_t uri_len = 0;
     zval *post_data;
-    http_client_coro_property *hcc = (http_client_coro_property *) swoole_get_property(getThis(), 0);
 
     ZEND_PARSE_PARAMETERS_START(2, 2)
         Z_PARAM_STRING(uri, uri_len)
@@ -1366,10 +1373,14 @@ static PHP_METHOD(swoole_http_client_coro, post)
     }
 
     zend_update_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("requestBody"), post_data);
-    hcc->request_body = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("requestBody"), 1);
-    sw_copy_to_stack(hcc->request_body, hcc->_request_body);
 
-    SW_CHECK_RETURN(http_client_coro_execute(getThis(), hcc, uri, uri_len));
+    SW_CHECK_RETURN(
+        http_client_coro_execute(
+            getThis(),
+            (http_client_coro_property *) swoole_get_property(getThis(), 0),
+            uri, uri_len
+        )
+    );
 }
 
 static PHP_METHOD(swoole_http_client_coro, download)
