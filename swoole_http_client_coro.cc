@@ -27,7 +27,6 @@ using namespace swoole;
 
 typedef struct
 {
-    zval _object;
     zval _request_body;
     zval _request_upload_files;
     zval _download_file;
@@ -38,10 +37,8 @@ typedef struct
     zval *request_upload_files;
     zval *download_file;
     off_t download_offset;
-    const char *request_method;
 
     uint8_t error_flag;
-    uint8_t shutdown;
 
     Socket *socket;
     bool ssl;
