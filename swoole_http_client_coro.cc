@@ -29,13 +29,11 @@ typedef struct
 {
     zval _object;
     zval _request_body;
-    zval _request_header;
     zval _request_upload_files;
     zval _download_file;
     zval _cookies;
 
     zval *cookies;
-    zval *request_header;
     zval *request_body;
     zval *request_upload_files;
     zval *download_file;
@@ -271,14 +269,14 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
             }
             if (hcc->socket->http_proxy)
             {
-                zval *send_header = sw_zend_read_property(Z_OBJCE_P(zobject), zobject, ZEND_STRL("requestHeaders"), 1);
-                if (send_header == NULL || Z_TYPE_P(send_header) != IS_ARRAY)
+                zval *request_headers = sw_zend_read_property(Z_OBJCE_P(zobject), zobject, ZEND_STRL("requestHeaders"), 1);
+                if (request_headers == NULL || Z_TYPE_P(request_headers) != IS_ARRAY)
                 {
                     swoole_php_fatal_error (E_WARNING, "http proxy must set Host");
                     return SW_ERR;
                 }
                 zval *value;
-                if (!(value = zend_hash_str_find(Z_ARRVAL_P(send_header), ZEND_STRL("Host"))))
+                if (!(value = zend_hash_str_find(Z_ARRVAL_P(request_headers), ZEND_STRL("Host"))))
                 {
                     swoole_php_fatal_error (E_WARNING, "http proxy must set Host");
                     return SW_ERR;
@@ -293,7 +291,7 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
                     zend_string *str = php_base64_encode((const unsigned char *) _buf1, _n1);
                     int _n2 = snprintf(_buf2, sizeof(_buf2), "Basic %*s", (int)str->len, str->val);
                     zend_string_free(str);
-                    add_assoc_stringl_ex(send_header, ZEND_STRL("Proxy-Authorization"), _buf2, _n2);
+                    add_assoc_stringl_ex(request_headers, ZEND_STRL("Proxy-Authorization"), _buf2, _n2);
                 }
             }
             php_swoole_client_coro_check_setting(hcc->socket, zset);
@@ -550,16 +548,16 @@ static int http_client_coro_recv_response(zval *zobject, http_client_coro_proper
 
 static int http_client_coro_send_request(zval *zobject, http_client_coro_property *hcc, http_client *http)
 {
+    zval *value = NULL;
+    char *method;
+    zval *zmethod = sw_zend_read_property_not_null(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("requestMethod"), 1);
+    uint32_t header_flag = 0x0;
+    zval *request_headers = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("requestHeaders"), 1);
+    zval *post_data = hcc->request_body;
+
     //clear errno
     SwooleG.error = 0;
 
-    zval *post_data = hcc->request_body;
-    zval *send_header = hcc->request_header;
-    zval *value = NULL;
-    uint32_t header_flag = 0x0;
-
-    char *method;
-    zval *zmethod = sw_zend_read_property_not_null(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("requestMethod"), 1);
     if (zmethod)
     {
         convert_to_string(zmethod);
@@ -581,13 +579,22 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
     if (hcc->socket->http_proxy)
 #endif
     {
-        value = zend_hash_str_find(Z_ARRVAL_P(send_header), ZEND_STRL("Host")); //checked before
+        char *host = http->host;
+        size_t host_len = http->host_len;
+        if (request_headers && Z_TYPE_P(request_headers) == IS_ARRAY)
+        {
+            if ((value = zend_hash_str_find(Z_ARRVAL_P(request_headers), ZEND_STRL("Host"))))
+            {
+                host = Z_STRVAL_P(value);
+                host_len = Z_STRLEN_P(value);
+            }
+        }
         const char *pre = "http://";
-        int len = http->uri_len + Z_STRLEN_P(value) + strlen(pre) + 10;
-        char *addr = (char*) emalloc(http->uri_len + Z_STRLEN_P(value) + strlen(pre) + 10);
-        http->uri_len = snprintf(addr, len, "%s%s:%ld%s", pre, Z_STRVAL_P(value), http->port, http->uri);
+        size_t proxy_uri_len = http->uri_len + host_len + strlen(pre) + 10;
+        char *proxy_uri = (char*) emalloc(http->uri_len + host_len + strlen(pre) + 10);
+        http->uri_len = snprintf(proxy_uri, proxy_uri_len, "%s%s:%ld%s", pre, host, http->port, http->uri);
         efree(http->uri);
-        http->uri = addr;
+        http->uri = proxy_uri;
     }
 
     swString_append_ptr(http_client_buffer, http->uri, http->uri_len);
@@ -597,11 +604,11 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
     uint32_t keylen;
     int keytype;
 
-    if (send_header && Z_TYPE_P(send_header) == IS_ARRAY)
+    if (request_headers && Z_TYPE_P(request_headers) == IS_ARRAY)
     {
         // As much as possible to ensure that Host is the first header.
         // See: http://tools.ietf.org/html/rfc7230#section-5.4
-        if ((value = zend_hash_str_find(Z_ARRVAL_P(send_header), ZEND_STRL("Host"))) || (value = zend_hash_str_find(Z_ARRVAL_P(send_header), ZEND_STRL("host"))))
+        if ((value = zend_hash_str_find(Z_ARRVAL_P(request_headers), ZEND_STRL("Host"))) || (value = zend_hash_str_find(Z_ARRVAL_P(request_headers), ZEND_STRL("host"))))
         {
             http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Host"), Z_STRVAL_P(value), Z_STRLEN_P(value));
         }
@@ -610,7 +617,7 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
             http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Host"), http->host, http->host_len);
         }
 
-        SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(send_header), key, keylen, keytype, value)
+        SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(request_headers), key, keylen, keytype, value)
             if (HASH_KEY_IS_STRING != keytype)
             {
                 continue;
@@ -1013,9 +1020,6 @@ static PHP_METHOD(swoole_http_client_coro, setHeaders)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     zend_update_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("requestHeaders"), headers);
-    http_client_coro_property *hcc = (http_client_coro_property *) swoole_get_property(getThis(), 0);
-    hcc->request_header = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("requestHeaders"), 1);
-    sw_copy_to_stack(hcc->request_header, hcc->_request_header);
     RETURN_TRUE;
 }
 
@@ -1404,13 +1408,7 @@ static PHP_METHOD(swoole_http_client_coro, upgrade)
         Z_PARAM_STRING(uri, uri_len)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    zval *headers = hcc->request_header;
-    if (hcc->request_header == NULL)
-    {
-        headers = sw_zend_read_property_array(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("requestHeaders"), 1);
-        hcc->request_header = headers;
-        sw_copy_to_stack(hcc->request_header, hcc->_request_header);
-    }
+    zval *headers = sw_zend_read_property_array(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("requestHeaders"), 1);
 
     char buf[SW_WEBSOCKET_KEY_LENGTH + 1];
     http_client_create_token(SW_WEBSOCKET_KEY_LENGTH, buf);

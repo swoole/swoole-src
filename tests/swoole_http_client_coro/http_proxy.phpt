@@ -13,7 +13,7 @@ $pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {
         $domain = 'www.qq.com';
         $cli = new Swoole\Coroutine\Http\Client($domain);
-        $cli->setHeaders(['Host' => $domain]);
+        // $cli->setHeaders(['Host' => $domain]); // without host header it can also work well
         $cli->set([
             'timeout' => 5,
             'http_proxy_host' => HTTP_PROXY_HOST,
