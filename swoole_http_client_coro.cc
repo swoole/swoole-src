@@ -968,13 +968,15 @@ static PHP_METHOD(swoole_http_client_coro, __construct)
 {
     char *host;
     zend_size_t host_len;
-    long port = 80;
-    zend_bool ssl = SW_FALSE;
+    zend_long port = 80;
+    zend_bool ssl = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|lb", &host, &host_len, &port, &ssl) == FAILURE)
-    {
-        return;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 3)
+        Z_PARAM_STRING(host, host_len)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(port)
+        Z_PARAM_BOOL(ssl)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (host_len <= 0)
     {
@@ -1150,12 +1152,6 @@ static PHP_METHOD(swoole_http_client_coro, addFile)
     zend_size_t l_filename;
     zend_long offset = 0;
     zend_long length = 0;
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "ss|ssll", &path, &l_path, &name, &l_name, &type, &l_type,
-            &filename, &l_filename, &offset, &length) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
 
     ZEND_PARSE_PARAMETERS_START(2, 6)
         Z_PARAM_STRING(path, l_path)
