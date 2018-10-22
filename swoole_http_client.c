@@ -1308,6 +1308,7 @@ http_client* http_client_create(zval *object)
     http->parser.data = http;
 
     ztmp = sw_zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("host"), 0);
+    convert_to_string(ztmp);
     http->host = Z_STRVAL_P(ztmp);
     http->host_len = Z_STRLEN_P(ztmp);
 
