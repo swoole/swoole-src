@@ -554,10 +554,14 @@ struct _swServer
     char *upload_tmp_dir;
 
     /**
+     * http compression level for gzip/br
+     */
+    uint8_t http_compression_level;
+
+    /**
      * http static file directory
      */
     char *document_root;
-    uint8_t http_gzip_level;
     uint16_t document_root_len;
 
     /**

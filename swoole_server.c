@@ -2570,23 +2570,21 @@ PHP_METHOD(swoole_server, set)
     {
         convert_to_boolean(v);
         serv->http_compression = Z_BVAL_P(v);
+        serv->http_compression_level = Z_BEST_SPEED;
     }
     if (php_swoole_array_get_value(vht, "http_gzip_level", v) || php_swoole_array_get_value(vht, "http_compression_level", v))
     {
         convert_to_long(v);
-        serv->http_gzip_level = Z_LVAL_P(v);
-        if (serv->http_gzip_level > 9)
+        zend_long level = Z_LVAL_P(v);
+        if (level > UINT8_MAX)
         {
-            serv->http_gzip_level = 9;
+            level = UINT8_MAX;
         }
-        else if (serv->http_gzip_level < 0)
+        else if (level < 0)
         {
-            serv->http_gzip_level = 0;
+            level = 0;
         }
-    }
-    else
-    {
-        serv->http_gzip_level = Z_DEFAULT_COMPRESSION;
+        serv->http_compression_level = level;
     }
 #endif
     //temporary directory for HTTP uploaded file.

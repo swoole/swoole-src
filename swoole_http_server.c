@@ -1480,15 +1480,6 @@ void php_swoole_http_server_before_start(swServer *serv, zval *zobject)
         return;
     }
 
-#ifdef SW_HAVE_ZLIB
-    swoole_zlib_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
-    if (!swoole_zlib_buffer)
-    {
-        swoole_php_fatal_error(E_ERROR, "[3] swString_new(%d) failed.", SW_HTTP_RESPONSE_INIT_SIZE);
-        return;
-    }
-#endif
-
     //for is_uploaded_file and move_uploaded_file
     ALLOC_HASHTABLE(SG(rfc1867_uploaded_files));
     zend_hash_init(SG(rfc1867_uploaded_files), 8, NULL, NULL, 0);
@@ -1845,7 +1836,7 @@ void swoole_http_get_compression_method(http_context *ctx, const char *accept_en
     if (swoole_strnpos((char *) accept_encoding, length, ZEND_STRL("br")) >= 0)
     {
         ctx->enable_compression = 1;
-        ctx->compression_level = SwooleG.serv->http_gzip_level;
+        ctx->compression_level = SwooleG.serv->http_compression_level;
         ctx->compression_method = HTTP_COMPRESS_BR;
     }
     else
@@ -1853,13 +1844,13 @@ void swoole_http_get_compression_method(http_context *ctx, const char *accept_en
     if (swoole_strnpos((char *) accept_encoding, length, ZEND_STRL("gzip")) >= 0)
     {
         ctx->enable_compression = 1;
-        ctx->compression_level = SwooleG.serv->http_gzip_level;
+        ctx->compression_level = SwooleG.serv->http_compression_level;
         ctx->compression_method = HTTP_COMPRESS_GZIP;
     }
     else if (swoole_strnpos((char *) accept_encoding, length, ZEND_STRL("deflate")) >= 0)
     {
         ctx->enable_compression = 1;
-        ctx->compression_level = SwooleG.serv->http_gzip_level;
+        ctx->compression_level = SwooleG.serv->http_compression_level;
         ctx->compression_method = HTTP_COMPRESS_DEFLATE;
     }
     else
@@ -1892,8 +1883,6 @@ const char* swoole_http_get_content_encoding(http_context *ctx)
 
 int swoole_http_response_compress(swString *body, int method, int level)
 {
-    assert(level > 0 || level < 10);
-
     int encoding;
     //gzip: 0x1f
     if (method == HTTP_COMPRESS_GZIP)
@@ -1908,9 +1897,13 @@ int swoole_http_response_compress(swString *body, int method, int level)
 #ifdef SW_HAVE_BROTLI
     else if (method == HTTP_COMPRESS_BR)
     {
-        if (level <= 0)
+        if (level < BROTLI_MIN_QUALITY)
         {
-            level = 6;
+            level = BROTLI_MAX_QUALITY;
+        }
+        else if (level > BROTLI_MAX_QUALITY)
+        {
+            level = BROTLI_MAX_QUALITY;
         }
 
         size_t memory_size = BrotliEncoderMaxCompressedSize(body->length);
@@ -1922,18 +1915,22 @@ int swoole_http_response_compress(swString *body, int method, int level)
             }
         }
 
-        size_t total_out;
-        const uint8_t *next_in = (uint8_t *) body->str;
-        uint8_t *next_out = (uint8_t *) swoole_zlib_buffer->str;
+        size_t input_size = body->length;
+        const uint8_t *input_buffer = (uint8_t *) body->str;
+        size_t encoded_size = swoole_zlib_buffer->size;
+        uint8_t *encoded_buffer = (uint8_t *) swoole_zlib_buffer->str;
 
-        if (!BrotliEncoderCompress(level, BROTLI_DEFAULT_WINDOW, BROTLI_DEFAULT_MODE, body->length, next_in, &total_out,
-                next_out))
+        if (BROTLI_TRUE != BrotliEncoderCompress(
+            level, BROTLI_DEFAULT_WINDOW, BROTLI_DEFAULT_MODE,
+            input_size, input_buffer, &encoded_size, encoded_buffer
+        ))
         {
+            swWarn("BrotliEncoderCompress() failed.");
             return SW_ERR;
         }
         else
         {
-            swoole_zlib_buffer->length = total_out;
+            swoole_zlib_buffer->length = encoded_size;
             return SW_OK;
         }
     }
@@ -1942,6 +1939,16 @@ int swoole_http_response_compress(swString *body, int method, int level)
     {
         swWarn("Unknown compression method");
         return SW_ERR;
+    }
+
+    // ==== ZLIB ====
+    if (level == Z_NO_COMPRESSION)
+    {
+        level = Z_DEFAULT_COMPRESSION;
+    }
+    else if (level > Z_BEST_COMPRESSION)
+    {
+        level = Z_BEST_COMPRESSION;
     }
 
     size_t memory_size = ((size_t) ((double) body->length * (double) 1.015)) + 10 + 8 + 4 + 1;
@@ -2074,11 +2081,7 @@ static PHP_METHOD(swoole_http_response, end)
 #ifdef SW_HAVE_ZLIB
         if (ctx->enable_compression)
         {
-            if (http_body.length > 0)
-            {
-                swoole_http_response_compress(&http_body, ctx->compression_method, ctx->compression_level);
-            }
-            else
+            if (http_body.length == 0 || swoole_http_response_compress(&http_body, ctx->compression_method, ctx->compression_level) != SW_OK)
             {
                 ctx->enable_compression = 0;
             }

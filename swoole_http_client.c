@@ -18,7 +18,7 @@
 #include "php_swoole.h"
 #include "swoole_http_client.h"
 
-static swString *http_client_buffer;
+swString *http_client_buffer;
 
 static void http_client_onReceive(swClient *cli, char *data, uint32_t length);
 static void http_client_onConnect(swClient *cli);
@@ -435,6 +435,13 @@ void swoole_http_client_init(int module_number)
         swoole_php_fatal_error(E_ERROR, "[1] swString_new(%d) failed.", SW_HTTP_RESPONSE_INIT_SIZE);
     }
 
+#ifdef SW_HAVE_ZLIB
+    swoole_zlib_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
+    if (!swoole_zlib_buffer)
+    {
+        swoole_php_fatal_error(E_ERROR, "[2] swString_new(%d) failed.", SW_HTTP_RESPONSE_INIT_SIZE);
+    }
+#endif
 }
 
 static void http_client_execute_callback(zval *zobject, enum php_swoole_client_callback_type type)
@@ -1855,7 +1862,7 @@ int http_client_parser_on_body(swoole_http_parser *parser, const char *at, size_
 #ifdef SW_HAVE_ZLIB
         if (http->gzip)
         {
-            if (http_response_uncompress(&http->gzip_stream, http->gzip_buffer, http->body->str, http->body->length))
+            if (http_response_uncompress(&http->gzip_stream, http->gzip_buffer, http->body->str, http->body->length) != SW_OK)
             {
                 return -1;
             }

@@ -41,7 +41,7 @@ typedef struct
 
 } http_client_coro_property;
 
-static swString *http_client_buffer;
+extern swString *http_client_buffer;
 
 extern void php_swoole_client_coro_check_setting(Socket *cli, zval *zset);
 extern void php_swoole_client_coro_free(zval *zobject, Socket *cli);
@@ -468,20 +468,6 @@ void swoole_http_client_coro_init(int module_number)
     zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("set_cookie_headers"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("cookies"), ZEND_ACC_PUBLIC);
     zend_declare_property_string(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("body"), "", ZEND_ACC_PUBLIC);
-
-    http_client_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
-    if (!http_client_buffer)
-    {
-        swoole_php_fatal_error(E_ERROR, "[1] swString_new(%d) failed.", SW_HTTP_RESPONSE_INIT_SIZE);
-    }
-
-#ifdef SW_HAVE_ZLIB
-    swoole_zlib_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
-    if (!swoole_zlib_buffer)
-    {
-        swoole_php_fatal_error(E_ERROR, "[2] swString_new(%d) failed.", SW_HTTP_RESPONSE_INIT_SIZE);
-    }
-#endif
 }
 
 static int http_client_coro_recv_response(zval *zobject, http_client_coro_property *hcc, http_client *http)

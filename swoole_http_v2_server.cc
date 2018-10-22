@@ -410,11 +410,7 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
 #ifdef SW_HAVE_ZLIB
     if (ctx->enable_compression)
     {
-        if (body->length > 0)
-        {
-            swoole_http_response_compress(body, ctx->compression_method, ctx->compression_level);
-        }
-        else
+        if (body->length == 0 || swoole_http_response_compress(body, ctx->compression_method, ctx->compression_level) != SW_OK)
         {
             ctx->enable_compression = 0;
         }
