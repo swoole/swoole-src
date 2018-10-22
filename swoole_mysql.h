@@ -256,10 +256,10 @@ typedef struct
     zend_bool strict_type;
     zend_bool fetch_mode;
 
-    zend_size_t host_len;
-    zend_size_t user_len;
-    zend_size_t password_len;
-    zend_size_t database_len;
+    size_t host_len;
+    size_t user_len;
+    size_t password_len;
+    size_t database_len;
 
     long port;
     double timeout;

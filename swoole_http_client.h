@@ -117,11 +117,11 @@ typedef struct
 {
     swClient *cli;
     char *host;
-    zend_size_t host_len;
+    size_t host_len;
     long port;
     double timeout;
     char* uri;
-    zend_size_t uri_len;
+    size_t uri_len;
 
     swTimer_node *timer;
 
@@ -200,7 +200,7 @@ static sw_inline int http_client_check_data(zval *data)
     return SW_OK;
 }
 
-static sw_inline void http_client_swString_append_headers(swString* swStr, const char* key, zend_size_t key_len, const char* data, zend_size_t data_len)
+static sw_inline void http_client_swString_append_headers(swString* swStr, const char* key, size_t key_len, const char* data, size_t data_len)
 {
     swString_append_ptr(swStr, (char *)key, key_len);
     swString_append_ptr(swStr, (char *)ZEND_STRL(": "));

@@ -265,7 +265,7 @@ static PHP_METHOD(swoole_process_pool, __construct)
 static PHP_METHOD(swoole_process_pool, on)
 {
     char *name;
-    zend_size_t l_name;
+    size_t l_name;
     zval *callback;
 
     swProcessPool *pool = swoole_get_object(getThis());
@@ -336,7 +336,7 @@ static PHP_METHOD(swoole_process_pool, on)
 static PHP_METHOD(swoole_process_pool, listen)
 {
     char *host;
-    zend_size_t l_host;
+    size_t l_host;
     long port;
     long backlog = 2048;
 
@@ -376,7 +376,7 @@ static PHP_METHOD(swoole_process_pool, listen)
 static PHP_METHOD(swoole_process_pool, write)
 {
     char *data;
-    zend_size_t length;
+    size_t length;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &data, &length) == FAILURE)
     {

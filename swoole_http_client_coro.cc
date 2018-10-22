@@ -42,7 +42,7 @@ extern void php_swoole_client_coro_free(zval *zobject, Socket *cli);
 
 static int http_client_coro_send_request(zval *zobject, http_client_coro_property *hcc, http_client *client);
 static int http_client_coro_recv_response(zval *zobject, http_client_coro_property *hcc, http_client *client);
-static int http_client_coro_execute(zval *zobject, http_client_coro_property *hcc, char *uri, zend_size_t uri_len);
+static int http_client_coro_execute(zval *zobject, http_client_coro_property *hcc, char *uri, size_t uri_len);
 
 static int http_client_coro_close(zval *zobject)
 {
@@ -207,7 +207,7 @@ static const zend_function_entry swoole_http_client_coro_methods[] =
     PHP_FE_END
 };
 
-static int http_client_coro_execute(zval *zobject, http_client_coro_property *hcc, char *uri, zend_size_t uri_len)
+static int http_client_coro_execute(zval *zobject, http_client_coro_property *hcc, char *uri, size_t uri_len)
 {
     if (uri_len <= 0)
     {
@@ -898,7 +898,7 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
     {
         if (Z_TYPE_P(request_body) == IS_ARRAY)
         {
-            zend_size_t len;
+            size_t len;
             http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Content-Type"), ZEND_STRL("application/x-www-form-urlencoded"));
             if (php_swoole_array_length(request_body) > 0)
             {
@@ -958,7 +958,7 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
 static PHP_METHOD(swoole_http_client_coro, __construct)
 {
     char *host;
-    zend_size_t host_len;
+    size_t host_len;
     zend_long port = 80;
     zend_bool ssl = 0;
 
@@ -1131,13 +1131,13 @@ static PHP_METHOD(swoole_http_client_coro, setData)
 static PHP_METHOD(swoole_http_client_coro, addFile)
 {
     char *path;
-    zend_size_t l_path;
+    size_t l_path;
     char *name;
-    zend_size_t l_name;
+    size_t l_name;
     char *type = NULL;
-    zend_size_t l_type;
+    size_t l_type;
     char *filename = NULL;
-    zend_size_t l_filename;
+    size_t l_filename;
     zend_long offset = 0;
     zend_long length = 0;
 
@@ -1222,13 +1222,13 @@ static PHP_METHOD(swoole_http_client_coro, addFile)
 static PHP_METHOD(swoole_http_client_coro, addData)
 {
     char *data;
-    zend_size_t l_data;
+    size_t l_data;
     char *name;
-    zend_size_t l_name;
+    size_t l_name;
     char *type = NULL;
-    zend_size_t l_type;
+    size_t l_type;
     char *filename = NULL;
-    zend_size_t l_filename;
+    size_t l_filename;
 
     ZEND_PARSE_PARAMETERS_START(2, 4)
         Z_PARAM_STRING(data, l_data)
@@ -1289,7 +1289,7 @@ static PHP_METHOD(swoole_http_client_coro, close)
 static PHP_METHOD(swoole_http_client_coro, execute)
 {
     char *uri = NULL;
-    zend_size_t uri_len = 0;
+    size_t uri_len = 0;
     http_client_coro_property *hcc = (http_client_coro_property *) swoole_get_property(getThis(), 0);
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
@@ -1302,7 +1302,7 @@ static PHP_METHOD(swoole_http_client_coro, execute)
 static PHP_METHOD(swoole_http_client_coro, get)
 {
     char *uri = NULL;
-    zend_size_t uri_len = 0;
+    size_t uri_len = 0;
     http_client_coro_property *hcc = (http_client_coro_property *) swoole_get_property(getThis(), 0);
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
@@ -1315,7 +1315,7 @@ static PHP_METHOD(swoole_http_client_coro, get)
 static PHP_METHOD(swoole_http_client_coro, post)
 {
     char *uri = NULL;
-    zend_size_t uri_len = 0;
+    size_t uri_len = 0;
     zval *post_data;
 
     ZEND_PARSE_PARAMETERS_START(2, 2)
@@ -1343,7 +1343,7 @@ static PHP_METHOD(swoole_http_client_coro, post)
 static PHP_METHOD(swoole_http_client_coro, download)
 {
     char *uri = NULL;
-    zend_size_t uri_len = 0;
+    size_t uri_len = 0;
     zval *download_file;
     zend_long offset = 0;
     http_client_coro_property *hcc = (http_client_coro_property *) swoole_get_property(getThis(), 0);
@@ -1364,7 +1364,7 @@ static PHP_METHOD(swoole_http_client_coro, download)
 static PHP_METHOD(swoole_http_client_coro, upgrade)
 {
     char *uri = NULL;
-    zend_size_t uri_len = 0;
+    size_t uri_len = 0;
     http_client_coro_property *hcc = (http_client_coro_property *) swoole_get_property(getThis(), 0);
 
     ZEND_PARSE_PARAMETERS_START(1, 1)

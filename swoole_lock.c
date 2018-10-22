@@ -88,7 +88,7 @@ static PHP_METHOD(swoole_lock, __construct)
 {
     long type = SW_MUTEX;
     char *filelock;
-    zend_size_t filelock_len = 0;
+    size_t filelock_len = 0;
     int ret;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|ls", &type, &filelock, &filelock_len) == FAILURE)

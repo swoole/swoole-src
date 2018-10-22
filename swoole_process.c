@@ -815,7 +815,7 @@ static PHP_METHOD(swoole_process, read)
 static PHP_METHOD(swoole_process, write)
 {
     char *data = NULL;
-    zend_size_t data_len = 0;
+    size_t data_len = 0;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &data, &data_len) == FAILURE)
     {
@@ -866,7 +866,7 @@ static PHP_METHOD(swoole_process, write)
 static PHP_METHOD(swoole_process, push)
 {
     char *data;
-    zend_size_t length;
+    size_t length;
 
     struct
     {
@@ -955,7 +955,7 @@ static PHP_METHOD(swoole_process, pop)
 static PHP_METHOD(swoole_process, exec)
 {
     char *execfile = NULL;
-    zend_size_t execfile_len = 0;
+    size_t execfile_len = 0;
     zval *args;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sa", &execfile, &execfile_len, &args) == FAILURE)

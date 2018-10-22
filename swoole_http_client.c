@@ -29,7 +29,7 @@ static void http_client_onResponseException();
 static int http_client_onMessage(swConnection *conn, char *data, uint32_t length);
 
 static int http_client_send_http_request(zval *zobject);
-static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zval *callback);
+static int http_client_execute(zval *zobject, char *uri, size_t uri_len, zval *callback);
 
 #ifdef SW_HAVE_ZLIB
 int http_response_uncompress(z_stream *stream, swString *buffer, char *body, int length);
@@ -191,7 +191,7 @@ void http_client_clear_response_properties(zval *zobject)
     zend_update_property_string(ce, zobject, ZEND_STRL("body"), "");
 }
 
-static int http_client_execute(zval *zobject, char *uri, zend_size_t uri_len, zval *callback)
+static int http_client_execute(zval *zobject, char *uri, size_t uri_len, zval *callback)
 {
     if (uri_len <= 0)
     {
@@ -1123,7 +1123,7 @@ static int http_client_send_http_request(zval *zobject)
     {
         if (Z_TYPE_P(post_data) == IS_ARRAY)
         {
-            zend_size_t len;
+            size_t len;
             http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Content-Type"), ZEND_STRL("application/x-www-form-urlencoded"));
             if (php_swoole_array_length(post_data) > 0) //if it's an empty array, http build will fail
             {
@@ -1330,7 +1330,7 @@ http_client* http_client_create(zval *object)
 static PHP_METHOD(swoole_http_client, __construct)
 {
     char *host;
-    zend_size_t host_len;
+    size_t host_len;
     long port = 80;
     zend_bool ssl = SW_FALSE;
 
@@ -1478,13 +1478,13 @@ static PHP_METHOD(swoole_http_client, setData)
 static PHP_METHOD(swoole_http_client, addFile)
 {
     char *path;
-    zend_size_t l_path;
+    size_t l_path;
     char *name;
-    zend_size_t l_name;
+    size_t l_name;
     char *type = NULL;
-    zend_size_t l_type;
+    size_t l_type;
     char *filename = NULL;
-    zend_size_t l_filename;
+    size_t l_filename;
     long offset = 0;
     long length = 0;
 
@@ -1577,7 +1577,7 @@ static PHP_METHOD(swoole_http_client, addFile)
 static PHP_METHOD(swoole_http_client, setMethod)
 {
     char *method;
-    zend_size_t length = 0;
+    size_t length = 0;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &method, &length) == FAILURE)
     {
         return;
@@ -1656,7 +1656,7 @@ static PHP_METHOD(swoole_http_client, close)
 static PHP_METHOD(swoole_http_client, on)
 {
     char *cb_name;
-    zend_size_t cb_name_len;
+    size_t cb_name_len;
     zval *zcallback;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &cb_name, &cb_name_len, &zcallback) == FAILURE)
@@ -1957,7 +1957,7 @@ static PHP_METHOD(swoole_http_client, execute)
 {
     int ret;
     char *uri = NULL;
-    zend_size_t uri_len = 0;
+    size_t uri_len = 0;
     zval *finish_cb;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &uri, &uri_len, &finish_cb) == FAILURE)
@@ -1978,7 +1978,7 @@ static PHP_METHOD(swoole_http_client, get)
 {
     int ret;
     char *uri = NULL;
-    zend_size_t uri_len = 0;
+    size_t uri_len = 0;
     zval *finish_cb;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &uri, &uri_len, &finish_cb) == FAILURE)
@@ -1999,7 +1999,7 @@ static PHP_METHOD(swoole_http_client, download)
 {
     int ret;
     char *uri = NULL;
-    zend_size_t uri_len = 0;
+    size_t uri_len = 0;
     zval *finish_cb;
     zval *download_file;
     off_t offset = 0;
@@ -2027,7 +2027,7 @@ static PHP_METHOD(swoole_http_client, post)
 {
     int ret;
     char *uri = NULL;
-    zend_size_t uri_len = 0;
+    size_t uri_len = 0;
     zval *callback;
     zval *data;
 
@@ -2063,7 +2063,7 @@ static PHP_METHOD(swoole_http_client, upgrade)
 {
     int ret;
     char *uri = NULL;
-    zend_size_t uri_len = 0;
+    size_t uri_len = 0;
     zval *finish_cb;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &uri, &uri_len, &finish_cb) == FAILURE)

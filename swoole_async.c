@@ -611,7 +611,7 @@ PHP_FUNCTION(swoole_async_write)
     zval *filename;
 
     char *fcnt;
-    zend_size_t fcnt_len = 0;
+    size_t fcnt_len = 0;
     off_t offset = -1;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "zs|lz", &filename, &fcnt, &fcnt_len, &offset, &callback) == FAILURE)
@@ -793,7 +793,7 @@ PHP_FUNCTION(swoole_async_writefile)
     zval *callback = NULL;
     zval *filename;
     char *fcnt;
-    zend_size_t fcnt_len;
+    size_t fcnt_len;
     long flags = 0;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "zs|zl", &filename, &fcnt, &fcnt_len, &callback, &flags) == FAILURE)
@@ -1158,7 +1158,7 @@ static int process_stream_onRead(swReactor *reactor, swEvent *event)
 PHP_METHOD(swoole_async, exec)
 {
     char *command;
-    zend_size_t command_len;
+    size_t command_len;
     zval *callback;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &command, &command_len, &callback) == FAILURE)
@@ -1216,7 +1216,7 @@ PHP_METHOD(swoole_async, exec)
 PHP_FUNCTION(swoole_coroutine_exec)
 {
     char *command;
-    zend_size_t command_len;
+    size_t command_len;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &command, &command_len) == FAILURE)
     {

@@ -188,7 +188,7 @@ void swoole_http2_client_coro_init(int module_number)
 static PHP_METHOD(swoole_http2_client_coro, __construct)
 {
     char *host;
-    zend_size_t host_len;
+    size_t host_len;
     long port = 80;
     zend_bool ssl = SW_FALSE;
 
@@ -717,7 +717,7 @@ static uint32_t http2_client_send_request(zval *zobject, zval *req)
     if (!ZVAL_IS_NULL(post_data))
     {
         char *p;
-        zend_size_t len;
+        size_t len;
         smart_str formstr_s = { NULL, 0 };
         uint8_t send_flag;
         uint32_t send_len;
@@ -792,7 +792,7 @@ static int http2_client_send_data(http2_client_property *hcc, uint32_t stream_id
 
     if (Z_TYPE_P(data) == IS_ARRAY)
     {
-        zend_size_t len;
+        size_t len;
         smart_str formstr_s = { 0 };
         char *formstr = sw_http_build_query(data, &len, &formstr_s);
         if (formstr == NULL)

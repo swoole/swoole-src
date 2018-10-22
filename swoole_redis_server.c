@@ -315,7 +315,7 @@ static PHP_METHOD(swoole_redis_server, start)
 static PHP_METHOD(swoole_redis_server, setHandler)
 {
     char *command;
-    zend_size_t command_len;
+    size_t command_len;
     zval *zcallback;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &command, &command_len, &zcallback) == FAILURE)

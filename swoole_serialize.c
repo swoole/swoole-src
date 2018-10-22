@@ -1552,7 +1552,7 @@ PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, 
 static PHP_METHOD(swoole_serialize, pack)
 {
     zval *zvalue;
-    zend_size_t is_fast = 0;
+    size_t is_fast = 0;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|l", &zvalue, &is_fast) == FAILURE)
     {

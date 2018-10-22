@@ -2117,7 +2117,7 @@ static PHP_METHOD(swoole_http_response, end)
 static PHP_METHOD(swoole_http_response, sendfile)
 {
     char *filename;
-    zend_size_t filename_length;
+    size_t filename_length;
     long offset = 0;
     long length = 0;
 
@@ -2202,7 +2202,7 @@ static PHP_METHOD(swoole_http_response, cookie)
     char *name, *value = NULL, *path = NULL, *domain = NULL;
     zend_long expires = 0;
     zend_bool secure = 0, httponly = 0;
-    zend_size_t name_len, value_len = 0, path_len = 0, domain_len = 0;
+    size_t name_len, value_len = 0, path_len = 0, domain_len = 0;
 
     ZEND_PARSE_PARAMETERS_START(1, 7)
         Z_PARAM_STRING(name, name_len)
@@ -2314,7 +2314,7 @@ static PHP_METHOD(swoole_http_response, rawcookie)
     char *name, *value = NULL, *path = NULL, *domain = NULL;
     zend_long expires = 0;
     zend_bool secure = 0, httponly = 0;
-    zend_size_t name_len, value_len = 0, path_len = 0, domain_len = 0;
+    size_t name_len, value_len = 0, path_len = 0, domain_len = 0;
 
     ZEND_PARSE_PARAMETERS_START(1, 7)
         Z_PARAM_STRING(name, name_len)
@@ -2425,7 +2425,7 @@ static PHP_METHOD(swoole_http_response, status)
 {
     zend_long http_status;
     char* reason = NULL;
-    zend_size_t reason_len = 0;
+    size_t reason_len = 0;
 
     ZEND_PARSE_PARAMETERS_START(1, 2)
         Z_PARAM_LONG(http_status)
@@ -2450,7 +2450,7 @@ static PHP_METHOD(swoole_http_response, status)
 static PHP_METHOD(swoole_http_response, header)
 {
     char *k, *v;
-    zend_size_t klen, vlen;
+    size_t klen, vlen;
     zend_bool ucwords = 1;
 
     ZEND_PARSE_PARAMETERS_START(2, 3)
@@ -2511,7 +2511,7 @@ static PHP_METHOD(swoole_http_response, header)
 static PHP_METHOD(swoole_http_response, trailer)
 {
     char *k, *v;
-    zend_size_t klen, vlen;
+    size_t klen, vlen;
     zend_bool ucwords = 1;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "ss|b", &k, &klen, &v, &vlen, &ucwords) == FAILURE)

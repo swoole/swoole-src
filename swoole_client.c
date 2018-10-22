@@ -1002,7 +1002,7 @@ static PHP_METHOD(swoole_client, __construct)
     long async = 0;
     long type = 0;
     char *id = NULL;
-    zend_size_t len = 0;
+    size_t len = 0;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|ls", &type, &async, &id, &len) == FAILURE)
     {
@@ -1095,7 +1095,7 @@ static PHP_METHOD(swoole_client, connect)
 {
     zend_long port = 0, sock_flag = 0;
     char *host = NULL;
-    zend_size_t host_len;
+    size_t host_len;
     double timeout = SW_CLIENT_DEFAULT_TIMEOUT;
 
 #ifdef FAST_ZPP
@@ -1260,7 +1260,7 @@ static PHP_METHOD(swoole_client, connect)
 static PHP_METHOD(swoole_client, send)
 {
     char *data;
-    zend_size_t data_len;
+    size_t data_len;
     zend_long flags = 0;
 
 #ifdef FAST_ZPP
@@ -1306,10 +1306,10 @@ static PHP_METHOD(swoole_client, send)
 static PHP_METHOD(swoole_client, sendto)
 {
     char* ip;
-    zend_size_t ip_len;
+    size_t ip_len;
     long port;
     char *data;
-    zend_size_t len;
+    size_t len;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sls", &ip, &ip_len, &port, &data, &len) == FAILURE)
     {
@@ -1354,7 +1354,7 @@ static PHP_METHOD(swoole_client, sendto)
 static PHP_METHOD(swoole_client, sendfile)
 {
     char *file;
-    zend_size_t file_len;
+    size_t file_len;
     long offset = 0;
     long length = 0;
 
@@ -1784,7 +1784,7 @@ static PHP_METHOD(swoole_client, close)
 static PHP_METHOD(swoole_client, on)
 {
     char *cb_name;
-    zend_size_t cb_name_len;
+    size_t cb_name_len;
     zval *zcallback;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &cb_name, &cb_name_len, &zcallback) == FAILURE)

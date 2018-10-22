@@ -1370,7 +1370,7 @@ static uint32_t hashkit_one_at_a_time(const char *key, size_t key_length)
 static PHP_FUNCTION(swoole_hashcode)
 {
     char *data;
-    zend_size_t l_data;
+    size_t l_data;
     zend_long type = 0;
 
 #ifdef FAST_ZPP

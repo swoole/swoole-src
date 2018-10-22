@@ -684,7 +684,7 @@ static PHP_METHOD(swoole_client_coro, connect)
 {
     zend_long port = 0, sock_flag = 0;
     char *host = NULL;
-    zend_size_t host_len;
+    size_t host_len;
     double timeout = SW_CLIENT_DEFAULT_TIMEOUT;
 
     ZEND_PARSE_PARAMETERS_START(1, 4)
@@ -736,7 +736,7 @@ static PHP_METHOD(swoole_client_coro, connect)
 static PHP_METHOD(swoole_client_coro, send)
 {
     char *data;
-    zend_size_t data_len;
+    size_t data_len;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
         Z_PARAM_STRING(data, data_len)
@@ -772,10 +772,10 @@ static PHP_METHOD(swoole_client_coro, send)
 static PHP_METHOD(swoole_client_coro, sendto)
 {
     char* ip;
-    zend_size_t ip_len;
+    size_t ip_len;
     long port;
     char *data;
-    zend_size_t len;
+    size_t len;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sls", &ip, &ip_len, &port, &data, &len) == FAILURE)
     {
@@ -850,7 +850,7 @@ static PHP_METHOD(swoole_client_coro, recvfrom)
 static PHP_METHOD(swoole_client_coro, sendfile)
 {
     char *file;
-    zend_size_t file_len;
+    size_t file_len;
     long offset = 0;
     long length = 0;
 

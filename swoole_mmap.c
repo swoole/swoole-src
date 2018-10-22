@@ -154,7 +154,7 @@ void swoole_mmap_init(int module_number)
 static PHP_METHOD(swoole_mmap, open)
 {
     char *filename;
-    zend_size_t l_filename;
+    size_t l_filename;
     long offset = 0;
     long size = -1;
 

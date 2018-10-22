@@ -531,7 +531,7 @@ static PHP_METHOD(swoole_server_port, set)
 static PHP_METHOD(swoole_server_port, on)
 {
     char *name = NULL;
-    zend_size_t len, i;
+    size_t len, i;
     zval *cb;
 
     swoole_server_port_property *property = swoole_get_property(getThis(), 0);

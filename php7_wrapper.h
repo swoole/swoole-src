@@ -19,8 +19,6 @@
 
 #include "ext/standard/php_http.h"
 
-typedef size_t zend_size_t;
-
 static sw_inline zend_bool Z_BVAL_P(zval *v)
 {
     return Z_TYPE_P(v) == IS_TRUE;
@@ -227,7 +225,7 @@ static inline int sw_zend_register_class_alias(const char *name, zend_class_entr
 #endif
 }
 
-static sw_inline char* sw_http_build_query(zval *data, zend_size_t *length, smart_str *formstr)
+static sw_inline char* sw_http_build_query(zval *data, size_t *length, smart_str *formstr)
 {
     if (php_url_encode_hash_ex(HASH_OF(data), formstr, NULL, 0, NULL, 0, NULL, 0, NULL, NULL, (int) PHP_QUERY_RFC1738) == FAILURE)
     {

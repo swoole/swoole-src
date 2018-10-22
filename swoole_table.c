@@ -301,7 +301,7 @@ PHP_METHOD(swoole_table, __construct)
 PHP_METHOD(swoole_table, column)
 {
     char *name;
-    zend_size_t len;
+    size_t len;
     long type;
     long size = 0;
 
@@ -364,7 +364,7 @@ static PHP_METHOD(swoole_table, set)
 {
     zval *array;
     char *key;
-    zend_size_t keylen;
+    size_t keylen;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sa", &key, &keylen, &array) == FAILURE)
     {
@@ -431,9 +431,9 @@ static PHP_METHOD(swoole_table, offsetSet)
 static PHP_METHOD(swoole_table, incr)
 {
     char *key;
-    zend_size_t key_len;
+    size_t key_len;
     char *col;
-    zend_size_t col_len;
+    size_t col_len;
     zval* incrby = NULL;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "ss|z", &key, &key_len, &col, &col_len, &incrby) == FAILURE)
@@ -509,9 +509,9 @@ static PHP_METHOD(swoole_table, incr)
 static PHP_METHOD(swoole_table, decr)
 {
     char *key;
-    zend_size_t key_len;
+    size_t key_len;
     char *col;
-    zend_size_t col_len;
+    size_t col_len;
     zval *decrby = NULL;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "ss|z", &key, &key_len, &col, &col_len, &decrby) == FAILURE)
@@ -587,10 +587,10 @@ static PHP_METHOD(swoole_table, decr)
 static PHP_METHOD(swoole_table, get)
 {
     char *key;
-    zend_size_t keylen;
+    size_t keylen;
 
     char *field = NULL;
-    zend_size_t field_len = 0;
+    size_t field_len = 0;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|s", &key, &keylen, &field, &field_len) == FAILURE)
     {
@@ -624,10 +624,10 @@ static PHP_METHOD(swoole_table, get)
 static PHP_METHOD(swoole_table, offsetGet)
 {
     char *key;
-    zend_size_t keylen;
+    size_t keylen;
 
     char *field = NULL;
-    zend_size_t field_len = 0;
+    size_t field_len = 0;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|s", &key, &keylen, &field, &field_len) == FAILURE)
     {
@@ -666,7 +666,7 @@ static PHP_METHOD(swoole_table, offsetGet)
 static PHP_METHOD(swoole_table, exist)
 {
     char *key;
-    zend_size_t keylen;
+    size_t keylen;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &key, &keylen) == FAILURE)
     {
@@ -701,7 +701,7 @@ static PHP_METHOD(swoole_table, offsetExists)
 static PHP_METHOD(swoole_table, del)
 {
     char *key;
-    zend_size_t keylen;
+    size_t keylen;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &key, &keylen) == FAILURE)
     {
@@ -830,7 +830,7 @@ static PHP_METHOD(swoole_table, valid)
 static PHP_METHOD(swoole_table_row, offsetExists)
 {
     char *key;
-    zend_size_t keylen;
+    size_t keylen;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &key, &keylen) == FAILURE)
     {
@@ -844,7 +844,7 @@ static PHP_METHOD(swoole_table_row, offsetExists)
 static PHP_METHOD(swoole_table_row, offsetGet)
 {
     char *key;
-    zend_size_t keylen;
+    size_t keylen;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &key, &keylen) == FAILURE)
     {
@@ -864,7 +864,7 @@ static PHP_METHOD(swoole_table_row, offsetSet)
 {
     zval *value;
     char *key;
-    zend_size_t keylen;
+    size_t keylen;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &key, &keylen, &value) == FAILURE)
     {

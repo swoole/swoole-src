@@ -2053,7 +2053,7 @@ void php_swoole_onBufferEmpty(swServer *serv, swDataHead *info)
 
 PHP_METHOD(swoole_server, __construct)
 {
-    zend_size_t host_len = 0;
+    size_t host_len = 0;
     char *serv_host;
     zend_long sock_type = SW_SOCK_TCP;
     zend_long serv_port = 0;
@@ -2742,7 +2742,7 @@ PHP_METHOD(swoole_server, on)
 PHP_METHOD(swoole_server, listen)
 {
     char *host;
-    zend_size_t host_len;
+    size_t host_len;
     long sock_type;
     long port;
 
@@ -3001,7 +3001,7 @@ PHP_METHOD(swoole_server, sendto)
 {
     char *ip;
     char *data;
-    zend_size_t len, ip_len;
+    size_t len, ip_len;
 
     zend_long port;
     zend_long server_socket = -1;
@@ -3070,7 +3070,7 @@ PHP_METHOD(swoole_server, sendto)
 
 PHP_METHOD(swoole_server, sendfile)
 {
-    zend_size_t len;
+    size_t len;
 
     char *filename;
     long fd;

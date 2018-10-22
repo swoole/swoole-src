@@ -1033,7 +1033,7 @@ static PHP_METHOD(swoole_coroutine_util, fwrite)
 
     zval *handle;
     char *str;
-    zend_size_t l_str;
+    size_t l_str;
     zend_long length = 0;
 
 #ifdef FAST_ZPP
@@ -1326,7 +1326,7 @@ static PHP_METHOD(swoole_coroutine_util, gethostbyname)
     coro_check();
 
     char *domain_name;
-    zend_size_t l_domain_name;
+    size_t l_domain_name;
     long family = AF_INET;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|l", &domain_name, &l_domain_name, &family) == FAILURE)
@@ -1392,12 +1392,12 @@ static PHP_METHOD(swoole_coroutine_util, getaddrinfo)
     coro_check();
 
     char *hostname;
-    zend_size_t l_hostname;
+    size_t l_hostname;
     long family = AF_INET;
     long socktype = SOCK_STREAM;
     long protocol = IPPROTO_TCP;
     char *service = NULL;
-    zend_size_t l_service = 0;
+    size_t l_service = 0;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|llls", &hostname, &l_hostname, &family, socktype, &protocol,
             &hostname, &l_hostname) == FAILURE)

@@ -471,7 +471,7 @@ static void php_swoole_sha256(const char *str, int _len, unsigned char *digest)
 }
 
 //sha256
-static void mysql_sha2_password_with_nonce(char* ret, char* nonce, char* password, zend_size_t password_len)
+static void mysql_sha2_password_with_nonce(char* ret, char* nonce, char* password, size_t password_len)
 {
     // XOR(SHA256(password), SHA256(SHA256(SHA256(password)), nonce))
     char hashed[32], double_hashed[32];
@@ -493,7 +493,7 @@ static void mysql_sha2_password_with_nonce(char* ret, char* nonce, char* passwor
 /**
  * Return: password length
  */
-static int mysql_auth_encrypt_dispatch(char *buf, char *auth_plugin_name, char *password, zend_size_t password_len, char* nonce, int *next_state)
+static int mysql_auth_encrypt_dispatch(char *buf, char *auth_plugin_name, char *password, size_t password_len, char* nonce, int *next_state)
 {
     if (!auth_plugin_name || strcasecmp("mysql_native_password", auth_plugin_name) == 0)
     {
@@ -2636,7 +2636,7 @@ static PHP_METHOD(swoole_mysql, close)
 static PHP_METHOD(swoole_mysql, on)
 {
     char *name;
-    zend_size_t len;
+    size_t len;
     zval *cb;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &name, &len, &cb) == FAILURE)

@@ -267,7 +267,7 @@ static PHP_METHOD(swoole_redis, __construct)
 static PHP_METHOD(swoole_redis, on)
 {
     char *name;
-    zend_size_t len;
+    size_t len;
     zval *cb;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &name, &len, &cb) == FAILURE)
@@ -305,7 +305,7 @@ static PHP_METHOD(swoole_redis, on)
 static PHP_METHOD(swoole_redis, connect)
 {
     char *host;
-    zend_size_t host_len;
+    size_t host_len;
     long port;
     zval *callback;
 
@@ -440,7 +440,7 @@ static PHP_METHOD(swoole_redis, __call)
 {
     zval *params;
     char *command;
-    zend_size_t command_len;
+    size_t command_len;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &command, &command_len, &params) == FAILURE)
     {

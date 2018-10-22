@@ -57,7 +57,7 @@ typedef struct
 {
 
     char *host;
-    zend_size_t host_len;
+    size_t host_len;
     int port;
     uint8_t ssl;
     double timeout;

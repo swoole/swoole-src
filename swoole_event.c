@@ -536,7 +536,7 @@ PHP_FUNCTION(swoole_event_write)
 {
     zval *zfd;
     char *data;
-    zend_size_t len;
+    size_t len;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "zs", &zfd, &data, &len) == FAILURE)
     {

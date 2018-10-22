@@ -102,7 +102,7 @@ static PHP_METHOD(swoole_msgqueue, __destruct)
 static PHP_METHOD(swoole_msgqueue, push)
 {
     char *data;
-    zend_size_t length;
+    size_t length;
     long type = 1;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|l", &data, &length, &type) == FAILURE)
