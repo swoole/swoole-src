@@ -345,18 +345,13 @@ void php_swoole_get_recv_data(zval *zdata, swEventData *req, char *header, uint3
 #endif
 }
 
-ssize_t php_swoole_get_send_data(zval *zdata, char **str)
+size_t php_swoole_get_send_data(zval *zdata, char **str)
 {
     size_t length;
 
     if (Z_TYPE_P(zdata) == IS_OBJECT && instanceof_function(Z_OBJCE_P(zdata), swoole_buffer_class_entry_ptr))
     {
         swString *str_buffer = swoole_get_object(zdata);
-        if (!str_buffer->str)
-        {
-            swoole_php_fatal_error(E_WARNING, "swoole_buffer object is empty.");
-            return SW_ERR;
-        }
         length = str_buffer->length - str_buffer->offset;
         *str = str_buffer->str + str_buffer->offset;
     }
@@ -1914,8 +1909,8 @@ static int php_swoole_server_send_resume(swServer *serv, php_context *context, i
     }
     else
     {
-        ssize_t length = php_swoole_get_send_data(zdata, &data);
-        if (length <= 0)
+        size_t length = php_swoole_get_send_data(zdata, &data);
+        if (length == 0)
         {
             goto _fail;
         }
@@ -2927,13 +2922,9 @@ PHP_METHOD(swoole_server, send)
 #endif
 
     char *data;
-    ssize_t length = php_swoole_get_send_data(zdata, &data);
+    size_t length = php_swoole_get_send_data(zdata, &data);
 
-    if (length < 0)
-    {
-        RETURN_FALSE;
-    }
-    else if (length == 0)
+    if (length == 0)
     {
         swoole_php_fatal_error(E_WARNING, "data is empty.");
         RETURN_FALSE;
@@ -4099,13 +4090,9 @@ PHP_METHOD(swoole_server, sendwait)
     }
 
     char *data;
-    ssize_t length = php_swoole_get_send_data(zdata, &data);
+    size_t length = php_swoole_get_send_data(zdata, &data);
 
-    if (length < 0)
-    {
-        RETURN_FALSE;
-    }
-    else if (length == 0)
+    if (length == 0)
     {
         swoole_php_fatal_error(E_WARNING, "data is empty.");
         RETURN_FALSE;

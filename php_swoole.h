@@ -495,7 +495,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject);
 void php_swoole_http_server_before_start(swServer *serv, zval *zobject);
 void php_swoole_server_send_yield(swServer *serv, int fd, zval *zdata, zval *return_value);
 void php_swoole_get_recv_data(zval *zdata, swEventData *req, char *header, uint32_t header_length);
-ssize_t php_swoole_get_send_data(zval *zdata, char **str);
+size_t php_swoole_get_send_data(zval *zdata, char **str);
 void php_swoole_onConnect(swServer *, swDataHead *);
 int php_swoole_onReceive(swServer *, swEventData *);
 int php_swoole_http_onReceive(swServer *, swEventData *);

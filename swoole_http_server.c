@@ -1596,13 +1596,9 @@ static PHP_METHOD(swoole_http_response, write)
     }
 
     swString http_body;
-    ssize_t length = php_swoole_get_send_data(zdata, &http_body.str);
+    size_t length = php_swoole_get_send_data(zdata, &http_body.str);
 
-    if (length < 0)
-    {
-        RETURN_FALSE;
-    }
-    else if (length == 0)
+    if (length == 0)
     {
         swoole_php_error(E_WARNING, "data to send is empty.");
         RETURN_FALSE;
@@ -2040,16 +2036,7 @@ static PHP_METHOD(swoole_http_response, end)
 
     if (zdata)
     {
-        ssize_t length = php_swoole_get_send_data(zdata, &http_body.str);
-
-        if (length < 0)
-        {
-            RETURN_FALSE;
-        }
-        else
-        {
-            http_body.length = length;
-        }
+        http_body.length = php_swoole_get_send_data(zdata, &http_body.str);
     }
     else
     {
