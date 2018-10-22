@@ -27,12 +27,9 @@ using namespace swoole;
 
 typedef struct
 {
-    zval _download_file;
     zval _cookies;
 
     zval *cookies;
-    zval *download_file;
-    off_t download_offset;
 
     uint8_t error_flag;
 
@@ -333,28 +330,38 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
     /**
      * download response body
      */
-    if (hcc->download_file)
+    zval *z_download_file = sw_zend_read_property_not_null(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("downloadFile"), 1);
+    if (z_download_file)
     {
-        int fd = open(Z_STRVAL_P(hcc->download_file), O_CREAT | O_WRONLY, 0664);
+        convert_to_string(z_download_file);
+        char *download_file_name = Z_STRVAL_P(z_download_file);
+        zval *z_download_offset = sw_zend_read_property_not_null(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("downloadOffset"), 1);
+        off_t download_offset = 0;
+        if (z_download_offset)
+        {
+            download_offset = (off_t) Z_LVAL_P(z_download_offset);
+        }
+
+        int fd = open(download_file_name, O_CREAT | O_WRONLY, 0664);
         if (fd < 0)
         {
-            swSysError("open(%s, O_CREAT | O_WRONLY) failed.", Z_STRVAL_P(hcc->download_file));
+            swSysError("open(%s, O_CREAT | O_WRONLY) failed.", download_file_name);
             return SW_ERR;
         }
-        if (hcc->download_offset == 0)
+        if (download_offset == 0)
         {
             if (ftruncate(fd, 0) < 0)
             {
-                swSysError("ftruncate(%s) failed.", Z_STRVAL_P(hcc->download_file));
+                swSysError("ftruncate(%s) failed.", download_file_name);
                 close(fd);
                 return SW_ERR;
             }
         }
         else
         {
-            if (lseek(fd, hcc->download_offset, SEEK_SET) < 0)
+            if (lseek(fd, download_offset, SEEK_SET) < 0)
             {
-                swSysError("fseek(%s, %jd) failed.", Z_STRVAL_P(hcc->download_file), (intmax_t) hcc->download_offset);
+                swSysError("fseek(%s, %jd) failed.", download_file_name, (intmax_t) download_offset);
                 close(fd);
                 return SW_ERR;
             }
@@ -1372,9 +1379,7 @@ static PHP_METHOD(swoole_http_client_coro, download)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     zend_update_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("downloadFile"), download_file);
-    hcc->download_file = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("downloadFile"), 1);
-    hcc->download_offset = offset;
-    sw_copy_to_stack(hcc->download_file, hcc->_download_file);
+    zend_update_property_long(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("downloadOffset"), offset);
 
     SW_CHECK_RETURN(http_client_coro_execute(getThis(), hcc, uri, uri_len));
 }
