@@ -27,12 +27,6 @@ using namespace swoole;
 
 typedef struct
 {
-    zval _cookies;
-
-    zval *cookies;
-
-    uint8_t error_flag;
-
     Socket *socket;
     bool ssl;
     bool wait;
@@ -229,7 +223,6 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
 
     // when new request, clear all properties about the last response
     http_client_clear_response_properties(zobject);
-    hcc->error_flag = 0;
 
     if (hcc->socket == nullptr)
     {
@@ -546,7 +539,8 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
     uint32_t header_flag = 0x0;
     zval *request_headers = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("requestHeaders"), 1);
     zval *request_body = sw_zend_read_property_not_null(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("requestBody"), 1);
-    zval *upload_files = sw_zend_read_property_not_null(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("uploadFiles"), 1);
+    zval *upload_files = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("uploadFiles"), 1);
+    zval *cookies = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("cookies"), 1);
 
     //clear errno
     SwooleG.error = 0;
@@ -664,14 +658,14 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
 #endif
 
     // ============ cookies ============
-    if (hcc->cookies && Z_TYPE_P(hcc->cookies) == IS_ARRAY)
+    if (cookies && Z_TYPE_P(cookies) == IS_ARRAY)
     {
         swString_append_ptr(http_client_buffer, ZEND_STRL("Cookie: "));
-        int n_cookie = Z_ARRVAL_P(hcc->cookies)->nNumOfElements;
+        int n_cookie = Z_ARRVAL_P(cookies)->nNumOfElements;
         int i = 0;
         char *encoded_value;
 
-        SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(hcc->cookies), key, keylen, keytype, value)
+        SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(cookies), key, keylen, keytype, value)
             i++;
             if (HASH_KEY_IS_STRING != keytype)
             {
@@ -1038,9 +1032,6 @@ static PHP_METHOD(swoole_http_client_coro, setCookies)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     zend_update_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("cookies"), cookies);
-    http_client_coro_property *hcc = (http_client_coro_property *) swoole_get_property(getThis(), 0);
-    hcc->cookies = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("cookies"), 1);
-    sw_copy_to_stack(hcc->cookies, hcc->_cookies);
 
     RETURN_TRUE;
 }
