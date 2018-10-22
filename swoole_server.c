@@ -347,14 +347,10 @@ void php_swoole_get_recv_data(zval *zdata, swEventData *req, char *header, uint3
 
 ssize_t php_swoole_get_send_data(zval *zdata, char **str)
 {
-    int length;
+    size_t length;
 
-    if (Z_TYPE_P(zdata) == IS_OBJECT)
+    if (Z_TYPE_P(zdata) == IS_OBJECT && instanceof_function(Z_OBJCE_P(zdata), swoole_buffer_class_entry_ptr))
     {
-        if (!instanceof_function(Z_OBJCE_P(zdata), swoole_buffer_class_entry_ptr))
-        {
-            goto convert;
-        }
         swString *str_buffer = swoole_get_object(zdata);
         if (!str_buffer->str)
         {
@@ -366,7 +362,6 @@ ssize_t php_swoole_get_send_data(zval *zdata, char **str)
     }
     else
     {
-        convert:
         convert_to_string(zdata);
         length = Z_STRLEN_P(zdata);
         *str = Z_STRVAL_P(zdata);
