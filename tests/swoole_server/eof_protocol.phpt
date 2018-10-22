@@ -93,6 +93,6 @@ $pm->childFirst();
 //$pm->runParentFunc();
 $pm->run();
 ?>
---EXPECTF--
+--EXPECTREGEX--
 end
-Total count=100000, bytes=%d
+Total count=100000?, bytes=\d+

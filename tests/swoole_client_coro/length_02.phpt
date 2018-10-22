@@ -6,7 +6,6 @@ swoole_client_coro: (length protocol) wrong packet
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-require __DIR__ . '/../include/api/swoole_server/TestServer.php';
 
 $pm = new ProcessManager;
 $port = get_one_free_port();

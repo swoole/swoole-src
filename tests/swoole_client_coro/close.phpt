@@ -6,7 +6,6 @@ swoole_client_coro: close actively by client
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-require __DIR__ . '/../include/api/swoole_server/TestServer.php';
 
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm)

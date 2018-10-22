@@ -70,6 +70,7 @@ $pm->parentFunc = function ($pid)
     //echo "send ".TestServer::PKG_NUM." packet sucess, send $bytes bytes\n";
     $client->close();
 
+    sleep(0.1);
     swoole_process::kill($pid);
 };
 
@@ -92,6 +93,6 @@ $pm->childFunc = function () use ($pm) {
 $pm->childFirst();
 $pm->run();
 ?>
---EXPECTF--
+--EXPECTREGEX--
 end
-Total count=100000, bytes=%d
+Total count=100000?, bytes=\d+

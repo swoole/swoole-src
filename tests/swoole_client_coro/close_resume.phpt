@@ -6,7 +6,6 @@ swoole_client_coro: (length protocol) resume in onClose callback
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-require __DIR__ . '/../include/api/swoole_server/TestServer.php';
 
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm)
