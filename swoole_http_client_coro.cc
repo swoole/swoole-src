@@ -27,12 +27,10 @@ using namespace swoole;
 
 typedef struct
 {
-    zval _request_upload_files;
     zval _download_file;
     zval _cookies;
 
     zval *cookies;
-    zval *request_upload_files;
     zval *download_file;
     off_t download_offset;
 
@@ -439,20 +437,26 @@ void swoole_http_client_coro_init(int module_number)
         sw_zend_register_class_alias("Co\\Http\\Client", swoole_http_client_coro_class_entry_ptr);
     }
 
+    // client status
     zend_declare_property_long(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("type"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("setting"), ZEND_ACC_PUBLIC);
     zend_declare_property_bool(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("connected"), 0, ZEND_ACC_PUBLIC);
 
-    zend_declare_property_long(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("statusCode"), 0, ZEND_ACC_PUBLIC);
+    // client info
     zend_declare_property_string(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("host"), "", ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("port"), 0, ZEND_ACC_PUBLIC);
+
+    // request properties
     zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("requestMethod"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("requestHeaders"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("requestBody"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("uploadFiles"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("downloadFile"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("downloadOffset"), ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("downloadOffset"), 0, ZEND_ACC_PUBLIC);
+
+    // response properties
+    zend_declare_property_long(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("statusCode"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("headers"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("set_cookie_headers"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("cookies"), ZEND_ACC_PUBLIC);
@@ -549,6 +553,7 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
     uint32_t header_flag = 0x0;
     zval *request_headers = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("requestHeaders"), 1);
     zval *request_body = sw_zend_read_property_not_null(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("requestBody"), 1);
+    zval *upload_files = sw_zend_read_property_not_null(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("uploadFiles"), 1);
 
     //clear errno
     SwooleG.error = 0;
@@ -703,7 +708,7 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
     }
 
     // ============ multipart/form-data ============
-    if (hcc->request_upload_files)
+    if (upload_files && Z_TYPE_P(upload_files) == IS_ARRAY)
     {
         char header_buf[2048];
         char boundary_str[39];
@@ -748,10 +753,10 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
         zval *zfilename;
         zval *zoffset;
 
-        if (hcc->request_upload_files)
+        // calculate length of files
         {
             //upload files
-            SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(hcc->request_upload_files), key, keylen, keytype, value)
+            SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(upload_files), key, keylen, keytype, value)
                 if (!(zname = zend_hash_str_find(Z_ARRVAL_P(value), ZEND_STRL("name"))))
                 {
                     continue;
@@ -802,10 +807,9 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
             goto _send_fail;
         }
 
-        if (hcc->request_upload_files)
         {
             //upload files
-            SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(hcc->request_upload_files), key, keylen, keytype, value)
+            SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(upload_files), key, keylen, keytype, value)
                 if (!(zname = zend_hash_str_find(Z_ARRVAL_P(value), ZEND_STRL("name"))))
                 {
                     continue;
@@ -887,10 +891,10 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
                     }
                 }
             SW_HASHTABLE_FOREACH_END();
-
-            zend_update_property_null(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("uploadFiles"));
-            hcc->request_upload_files = NULL;
         }
+
+        // clear uploadFiles
+        zend_update_property_null(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("uploadFiles"));
 
         n = snprintf(header_buf, sizeof(header_buf), "--%*s--\r\n", (int)(sizeof(boundary_str) - 1), boundary_str);
         if (!hcc->socket->send( header_buf, n))
@@ -1216,31 +1220,17 @@ static PHP_METHOD(swoole_http_client_coro, addFile)
         }
     }
 
-    http_client_coro_property *hcc = (http_client_coro_property *) swoole_get_property(getThis(), 0);
-    zval *files;
-    if (!hcc->request_upload_files)
-    {
-        SW_MAKE_STD_ZVAL(files);
-        array_init(files);
-        zend_update_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("uploadFiles"), files);
-        zval_ptr_dtor(files);
-
-        hcc->request_upload_files = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("uploadFiles"), 0);
-        sw_copy_to_stack(hcc->request_upload_files, hcc->_request_upload_files);
-    }
-
+    zval *upload_files = sw_zend_read_property_array(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("uploadFiles"), 1);
     zval *upload_file;
     SW_MAKE_STD_ZVAL(upload_file);
     array_init(upload_file);
-
     add_assoc_stringl_ex(upload_file, ZEND_STRL("path"), path, l_path);
     add_assoc_stringl_ex(upload_file, ZEND_STRL("name"), name, l_name);
     add_assoc_stringl_ex(upload_file, ZEND_STRL("filename"), filename, l_filename);
     add_assoc_stringl_ex(upload_file, ZEND_STRL("type"), type, l_type);
     add_assoc_long(upload_file, "size", length);
     add_assoc_long(upload_file, "offset", offset);
-
-    add_next_index_zval(hcc->request_upload_files, upload_file);
+    add_next_index_zval(upload_files, upload_file);
 
     RETURN_TRUE;
 }
@@ -1275,30 +1265,17 @@ static PHP_METHOD(swoole_http_client_coro, addData)
         l_filename = l_name;
     }
 
-    http_client_coro_property *hcc = (http_client_coro_property *) swoole_get_property(getThis(), 0);
-    zval *files;
-    if (!hcc->request_upload_files)
-    {
-        SW_MAKE_STD_ZVAL(files);
-        array_init(files);
-        zend_update_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("uploadFiles"), files);
-        zval_ptr_dtor(files);
-
-        hcc->request_upload_files = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("uploadFiles"), 0);
-        sw_copy_to_stack(hcc->request_upload_files, hcc->_request_upload_files);
-    }
-
+    zval *upload_files = sw_zend_read_property_array(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("uploadFiles"), 1);
     zval *upload_file;
     SW_MAKE_STD_ZVAL(upload_file);
     array_init(upload_file);
-
     add_assoc_stringl_ex(upload_file, ZEND_STRL("content"), data, l_data);
     add_assoc_stringl_ex(upload_file, ZEND_STRL("name"), name, l_name);
     add_assoc_stringl_ex(upload_file, ZEND_STRL("filename"), filename, l_filename);
     add_assoc_stringl_ex(upload_file, ZEND_STRL("type"), type, l_type);
     add_assoc_long(upload_file, "size", l_data);
+    add_next_index_zval(upload_files, upload_file);
 
-    add_next_index_zval(hcc->request_upload_files, upload_file);
     RETURN_TRUE;
 }
 
