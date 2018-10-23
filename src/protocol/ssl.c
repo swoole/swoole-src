@@ -990,10 +990,7 @@ int swSSL_create(swConnection *conn, SSL_CTX* ssl_context, int flags)
 
 void swSSL_free_context(SSL_CTX* ssl_context)
 {
-    if (ssl_context)
-    {
-        SSL_CTX_free(ssl_context);
-    }
+    SSL_CTX_free(ssl_context);
 }
 
 #ifndef OPENSSL_NO_RSA

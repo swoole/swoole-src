@@ -1189,6 +1189,12 @@ bool Socket::close()
         swWarn("socket has already been bound to another coroutine.");
         return false;
     }
+    if (timer)
+    {
+        swTimer_del(&SwooleG.timer, timer);
+        timer = nullptr;
+    }
+
     if (socket == NULL || socket->closed)
     {
         return false;
@@ -1201,7 +1207,6 @@ bool Socket::close()
     {
         unlink(bind_address_info.addr.un.sun_path);
     }
-
 #ifdef SW_USE_OPENSSL
     if (socket->ssl)
     {
@@ -1236,20 +1241,17 @@ bool Socket::close()
         {
             sw_free(ssl_option.capath);
         }
+        ssl_option = {0};
+        ssl_context = nullptr;
     }
 #endif
     if (_sock_type == SW_SOCK_UNIX_DGRAM)
     {
         unlink(socket->info.addr.un.sun_path);
     }
-    if (timer)
-    {
-        swTimer_del(&SwooleG.timer, timer);
-        timer = nullptr;
-    }
     socket->active = 0;
-    ::close(fd);
-    return true;
+
+    return ::close(fd) == 0;
 }
 
 #ifdef SW_USE_OPENSSL

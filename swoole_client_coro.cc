@@ -102,7 +102,7 @@ static PHP_METHOD(swoole_client_coro, close);
 
 static void client_coro_check_ssl_setting(Socket *cli, zval *zset);
 static Socket* client_coro_new(zval *object, int port = 0);
-void php_swoole_client_coro_free(zval *zobject, Socket *cli);
+bool php_swoole_client_coro_socket_free(Socket *cli);
 void php_swoole_client_coro_check_setting(Socket *cli, zval *zset);
 
 static const zend_function_entry swoole_client_coro_methods[] =
@@ -214,54 +214,49 @@ static Socket* client_coro_new(zval *object, int port)
     return cli;
 }
 
-void php_swoole_client_coro_free(zval *zobject, Socket *cli)
+bool php_swoole_client_coro_socket_free(Socket *cli)
 {
-    if (cli->timer)
-    {
-        swTimer_del(&SwooleG.timer, cli->timer);
-        cli->timer = NULL;
-    }
+    bool ret = cli->close();
+    //TODO: move to Socket method, we should not manage it externally
     //socks5 proxy config
     if (cli->socks5_proxy)
     {
         efree(cli->socks5_proxy->host);
+        cli->socks5_proxy->host = nullptr;
         if (cli->socks5_proxy->username)
         {
             efree(cli->socks5_proxy->username);
+            cli->socks5_proxy->username = nullptr;
         }
         if (cli->socks5_proxy->password)
         {
             efree(cli->socks5_proxy->password);
+            cli->socks5_proxy->password = nullptr;
         }
         efree(cli->socks5_proxy);
+        cli->socks5_proxy = nullptr;
     }
     //http proxy config
     if (cli->http_proxy)
     {
         efree(cli->http_proxy->proxy_host);
+        cli->http_proxy->proxy_host = nullptr;
         if (cli->http_proxy->user)
         {
             efree(cli->http_proxy->user);
+            cli->http_proxy->user = nullptr;
         }
         if (cli->http_proxy->password)
         {
             efree(cli->http_proxy->password);
+            cli->http_proxy->password = nullptr;
         }
         efree(cli->http_proxy);
+        cli->http_proxy = nullptr;
     }
     delete cli;
 
-#ifdef SWOOLE_SOCKETS_SUPPORT
-    zval *zsocket = (zval *) swoole_get_property(zobject, client_property_socket);
-    if (zsocket)
-    {
-        sw_zval_free(zsocket);
-        swoole_set_property(zobject, client_property_socket, NULL);
-    }
-#endif
-    //unset object
-    swoole_set_object(zobject, NULL);
-    zend_update_property_bool(Z_OBJCE_P(zobject), zobject, ZEND_STRL("connected"), 0);
+    return ret;
 }
 
 void php_swoole_client_coro_check_setting(Socket *cli, zval *zset)
@@ -1102,15 +1097,29 @@ static PHP_METHOD(swoole_client_coro, getpeername)
 
 static PHP_METHOD(swoole_client_coro, close)
 {
-    int ret = 1;
-    Socket *cli = (Socket *) swoole_get_object(getThis());
+    zval *zobject = getThis();
+    Socket *cli = (Socket *) swoole_get_object(zobject);
+
+    zend_update_property_bool(Z_OBJCE_P(zobject), zobject, ZEND_STRL("connected"), 0);
+
     if (!cli)
     {
         swoole_php_fatal_error(E_WARNING, "client is not connected to the server.");
         RETURN_FALSE;
     }
-    ret = cli->close();
-    php_swoole_client_coro_free(getThis(), cli);
+
+#ifdef SWOOLE_SOCKETS_SUPPORT
+    zval *zsocket = (zval *) swoole_get_property(zobject, client_property_socket);
+    if (zsocket)
+    {
+        sw_zval_free(zsocket);
+        swoole_set_property(zobject, client_property_socket, NULL);
+    }
+#endif
+
+    int ret = php_swoole_client_coro_socket_free(cli) ? SW_OK : SW_ERR;
+    swoole_set_object(zobject, NULL);
+
     SW_CHECK_RETURN(ret);
 }
 

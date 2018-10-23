@@ -168,7 +168,7 @@ http_client* http_client_create(zval *object);
 void http_client_clear(http_client *http);
 int http_client_check_keep(http_client *http);
 void http_client_reset(http_client *http);
-void http_client_free(zval *object);
+int http_client_free(zval *object);
 
 static sw_inline void http_client_create_token(int length, char *buf)
 {

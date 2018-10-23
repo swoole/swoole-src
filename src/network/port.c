@@ -574,7 +574,10 @@ void swPort_free(swListenPort *port)
 #ifdef SW_USE_OPENSSL
     if (port->ssl)
     {
-        swSSL_free_context(port->ssl_context);
+        if (port->ssl_context)
+        {
+            swSSL_free_context(port->ssl_context);
+        }
         sw_free(port->ssl_option.cert_file);
         sw_free(port->ssl_option.key_file);
         if (port->ssl_option.client_cert_file)

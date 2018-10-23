@@ -38,7 +38,7 @@ typedef struct
 extern swString *http_client_buffer;
 
 extern void php_swoole_client_coro_check_setting(Socket *cli, zval *zset);
-extern void php_swoole_client_coro_free(zval *zobject, Socket *cli);
+extern bool php_swoole_client_coro_socket_free(Socket *cli);
 
 static int http_client_coro_send_request(zval *zobject, http_client_coro_property *hcc, http_client *client);
 static int http_client_coro_recv_response(zval *zobject, http_client_coro_property *hcc, http_client *client);
@@ -47,16 +47,20 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
 static int http_client_coro_close(zval *zobject)
 {
     zend_update_property_bool(Z_OBJCE_P(zobject), zobject, ZEND_STRL("connected"), 0);
+
+    int ret = http_client_free(zobject);
     http_client_coro_property *hcc = (http_client_coro_property *) swoole_get_property(zobject, 0);
-    if (hcc->socket == nullptr)
+    if (hcc->socket)
     {
-        return SW_ERR;
+        ret = (ret == SW_OK && php_swoole_client_coro_socket_free(hcc->socket)) ? SW_OK : SW_ERR;
+        hcc->socket = nullptr;
     }
-    http_client_free(zobject);
-    hcc->socket->close();
-    php_swoole_client_coro_free(zobject, hcc->socket);
-    hcc->socket = nullptr;
-    return SW_OK;
+    else
+    {
+        ret = SW_ERR;
+    }
+
+    return ret;
 }
 
 static const swoole_http_parser_settings http_parser_settings =
@@ -215,16 +219,16 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
         return SW_ERR;
     }
 
+    // when new request, clear all properties about the last response
+    http_client_clear_response_properties(zobject);
+
     http_client *http = (http_client *) swoole_get_object(zobject);
     if (!http)
     {
         http = http_client_create(zobject);
     }
 
-    // when new request, clear all properties about the last response
-    http_client_clear_response_properties(zobject);
-
-    if (hcc->socket == nullptr)
+    if (!hcc->socket)
     {
         hcc->socket = new Socket(SW_SOCK_TCP);
         zval *ztmp;
