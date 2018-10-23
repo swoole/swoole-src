@@ -834,7 +834,7 @@ static PHP_METHOD(swoole_mysql_coro, query)
 
     if (unlikely(client->cid && client->cid != sw_get_current_cid()))
     {
-        swoole_php_fatal_error(E_ERROR, "mysql client has already been bound to another coroutine.");
+        swoole_php_coro_bind_error("mysql client", client->cid);
         RETURN_FALSE;
     }
 
@@ -889,7 +889,7 @@ static void swoole_mysql_coro_query_transcation(const char* command, uint8_t in_
 
     if (unlikely(client->cid && client->cid != sw_get_current_cid()))
     {
-        swoole_php_fatal_error(E_ERROR, "mysql client has already been bound to another coroutine.");
+        swoole_php_coro_bind_error("mysql client", client->cid);
         RETURN_FALSE;
     }
 
@@ -995,7 +995,7 @@ static PHP_METHOD(swoole_mysql_coro, recv)
 
     if (unlikely(client->cid && client->cid != sw_get_current_cid()))
     {
-        swoole_php_fatal_error(E_ERROR, "mysql client has already been bound to another coroutine.");
+        swoole_php_coro_bind_error("mysql client", client->cid);
         RETURN_FALSE;
     }
 
@@ -1044,7 +1044,7 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
 
     if (unlikely(client->cid && client->cid != sw_get_current_cid()))
     {
-        swoole_php_fatal_error(E_ERROR, "mysql client has already been bound to another coroutine.");
+        swoole_php_coro_bind_error("mysql client", client->cid);
         RETURN_FALSE;
     }
 
@@ -1118,7 +1118,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, execute)
     }
     if (unlikely(client->cid && client->cid != sw_get_current_cid()))
     {
-        swoole_php_fatal_error(E_ERROR, "mysql client has already been bound to another coroutine.");
+        swoole_php_coro_bind_error("mysql client", client->cid);
         RETURN_FALSE;
     }
 

@@ -867,7 +867,7 @@ static PHP_METHOD(swoole_http2_client_coro, recv)
     }
     if (unlikely(hcc->cid != 0 && hcc->cid != sw_get_current_cid()))
     {
-        swoole_php_fatal_error(E_ERROR, "client has been bound to another coroutine.");
+        swoole_php_coro_bind_error("http2 client", hcc->cid);
         RETURN_FALSE;
     }
 

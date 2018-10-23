@@ -16,6 +16,13 @@
 
 #include "channel.h"
 
+/**
+ * We have to let the developer know where the error is,
+ * In order to use the PHP error, we have to include it
+ * Maybe we can find a better way then it will be removed
+ */
+#include "php_swoole.h"
+
 using namespace swoole;
 
 static void channel_defer_callback(void *data)
@@ -48,7 +55,7 @@ void Channel::yield(enum channel_op type)
     int _cid = coroutine_get_current_cid();
     if (_cid == -1)
     {
-        swError("Socket::yield() must be called in the coroutine.");
+        swoole_php_fatal_error(E_ERROR, "Channel::yield() must be called in the coroutine.");
     }
     coroutine_t *co = coroutine_get_by_id(_cid);
     if (type == PRODUCER)

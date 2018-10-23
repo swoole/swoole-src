@@ -888,7 +888,7 @@ int mysql_parse_rsa(mysql_connector *connector, char *buf, int len)
     RSA *public_rsa = NULL;
     if (unlikely((bio = BIO_new_mem_buf((void *)rsa_public_key, -1)) == NULL))
     {
-        swError("BIO_new_mem_buf publicKey error!");
+        swWarn("BIO_new_mem_buf publicKey error!");
         return SW_ERR;
     }
     // PEM_read_bio_RSA_PUBKEY
@@ -898,7 +898,7 @@ int mysql_parse_rsa(mysql_connector *connector, char *buf, int len)
         ERR_load_crypto_strings();
         char err_buf[512];
         ERR_error_string_n(ERR_get_error(), err_buf, sizeof(err_buf));
-        swError("[PEM_read_bio_RSA_PUBKEY ERROR]: %s", err_buf);
+        swWarn("[PEM_read_bio_RSA_PUBKEY ERROR]: %s", err_buf);
 
         return SW_ERR;
     }
@@ -916,7 +916,7 @@ int mysql_parse_rsa(mysql_connector *connector, char *buf, int len)
         ERR_load_crypto_strings();
         char err_buf[512];
         ERR_error_string_n(ERR_get_error(), err_buf, sizeof(err_buf));
-        swError("[RSA_public_encrypt ERROR]: %s", err_buf);
+        swWarn("[RSA_public_encrypt ERROR]: %s", err_buf);
         return SW_ERR;
     }
     RSA_free(public_rsa);

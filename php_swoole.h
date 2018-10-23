@@ -125,6 +125,7 @@ extern swoole_object_array swoole_objects;
 #define swoole_php_error(level, fmt_str, ...)   if (SWOOLE_G(display_errors)) php_error_docref(NULL, level, fmt_str, ##__VA_ARGS__)
 #define swoole_php_fatal_error(level, fmt_str, ...)   php_error_docref(NULL, level, fmt_str, ##__VA_ARGS__)
 #define swoole_php_sys_error(level, fmt_str, ...)  if (SWOOLE_G(display_errors)) php_error_docref(NULL, level, fmt_str" Error: %s[%d].", ##__VA_ARGS__, strerror(errno), errno)
+#define swoole_php_coro_bind_error(name, cid) swoole_php_fatal_error(E_ERROR, "%s has already been bound to another coroutine %d.", name, cid);
 #define swoole_efree(p)  if (p) efree(p)
 
 #ifdef SW_USE_OPENSSL
