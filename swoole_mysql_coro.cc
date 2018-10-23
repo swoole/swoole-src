@@ -603,10 +603,9 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     zval *server_info;
     char buf[2048];
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "a", &server_info) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ARRAY(server_info)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     php_swoole_array_separate(server_info);
 

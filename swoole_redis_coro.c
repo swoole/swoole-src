@@ -1742,7 +1742,7 @@ static PHP_METHOD(swoole_redis_coro, __construct)
 
     swRedisClient *redis = redis_coro_create(getThis());
 
-    if (zset && !ZVAL_IS_NULL(zset))
+    if (zset && ZVAL_IS_ARRAY(zset))
     {
         php_swoole_array_separate(zset);
         zend_update_property(swoole_redis_coro_class_entry_ptr, getThis(), ZEND_STRL("setting"), zset);

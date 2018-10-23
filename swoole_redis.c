@@ -210,7 +210,7 @@ static PHP_METHOD(swoole_redis, __construct)
     redis->timeout = SW_REDIS_CONNECT_TIMEOUT;
     redis->database = -1;
 
-    if (zset && !ZVAL_IS_NULL(zset))
+    if (zset && ZVAL_IS_ARRAY(zset))
     {
         php_swoole_array_separate(zset);
         zend_update_property(swoole_redis_class_entry_ptr, getThis(), ZEND_STRL("setting"), zset);

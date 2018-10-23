@@ -717,7 +717,7 @@ static PHP_METHOD(swoole_client_coro, connect)
     swoole_set_object(getThis(), cli);
 
     zval *zset = sw_zend_read_property(swoole_client_coro_class_entry_ptr, getThis(), ZEND_STRL("setting"), 1);
-    if (zset && !ZVAL_IS_NULL(zset))
+    if (zset && ZVAL_IS_ARRAY(zset))
     {
         php_swoole_client_coro_check_setting(cli, zset);
     }
@@ -1134,7 +1134,7 @@ static PHP_METHOD(swoole_client_coro, enableSSL)
     }
     cli->open_ssl = true;
     zval *zset = sw_zend_read_property(swoole_client_coro_class_entry_ptr, getThis(), ZEND_STRL("setting"), 1);
-    if (zset && !ZVAL_IS_NULL(zset))
+    if (zset && ZVAL_IS_ARRAY(zset))
     {
         client_coro_check_ssl_setting(cli, zset);
     }

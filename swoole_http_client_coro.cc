@@ -230,7 +230,7 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
         zval *ztmp;
         HashTable *vht;
         zval *zset = sw_zend_read_property(Z_OBJCE_P(zobject), zobject, ZEND_STRL("setting"), 1);
-        if (zset && !ZVAL_IS_NULL(zset))
+        if (zset && ZVAL_IS_ARRAY(zset))
         {
             vht = Z_ARRVAL_P(zset);
             /**
@@ -381,8 +381,7 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
 
 static void swoole_http_client_coro_free_storage(zend_object *object)
 {
-    zval _zobject;
-    zval *zobject = &_zobject;
+    zval _zobject, *zobject = &_zobject;
     ZVAL_OBJ(zobject, object);
 
     http_client *http = (http_client *) swoole_get_object(zobject);
@@ -409,15 +408,14 @@ static zend_object *swoole_http_client_coro_create(zend_class_entry *ce)
     object->handlers = &swoole_http_client_coro_handlers;
     object_properties_init(object, ce);
 
-    zval _zobject;
-    zval* zobject = &_zobject;
+    zval _zobject, *zobject = &_zobject;
     ZVAL_OBJ(zobject, object);
 
     http_client_coro_property *hcc = (http_client_coro_property*) emalloc(sizeof(http_client_coro_property));
     bzero(hcc, sizeof(http_client_coro_property));
+    swoole_set_property(zobject, 0, hcc);
 
     php_swoole_check_reactor();
-    swoole_set_property(zobject, 0, hcc);
 
     return object;
 }
@@ -599,7 +597,7 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
     {
         // As much as possible to ensure that Host is the first header.
         // See: http://tools.ietf.org/html/rfc7230#section-5.4
-        if ((value = zend_hash_str_find(Z_ARRVAL_P(request_headers), ZEND_STRL("Host"))) || (value = zend_hash_str_find(Z_ARRVAL_P(request_headers), ZEND_STRL("host"))))
+        if ((value = zend_hash_str_find(Z_ARRVAL_P(request_headers), ZEND_STRL("Host"))))
         {
             http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Host"), Z_STRVAL_P(value), Z_STRLEN_P(value));
         }

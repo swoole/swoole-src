@@ -1155,7 +1155,7 @@ static PHP_METHOD(swoole_client, connect)
     }
 
     zval *zset = sw_zend_read_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("setting"), 1);
-    if (zset && !ZVAL_IS_NULL(zset))
+    if (zset && ZVAL_IS_ARRAY(zset))
     {
         php_swoole_client_check_setting(cli, zset);
     }
@@ -1913,7 +1913,7 @@ static PHP_METHOD(swoole_client, enableSSL)
     }
     cli->open_ssl = 1;
     zval *zset = sw_zend_read_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("setting"), 1);
-    if (zset && !ZVAL_IS_NULL(zset))
+    if (zset && ZVAL_IS_ARRAY(zset))
     {
         php_swoole_client_check_ssl_setting(cli, zset);
     }

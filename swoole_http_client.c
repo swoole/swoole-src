@@ -321,7 +321,7 @@ static int http_client_execute(zval *zobject, char *uri, size_t uri_len, zval *c
     zval *ztmp;
     HashTable *vht;
     zval *zset = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("setting"), 1);
-    if (zset && !ZVAL_IS_NULL(zset))
+    if (zset && ZVAL_IS_ARRAY(zset))
     {
         vht = Z_ARRVAL_P(zset);
         /**
@@ -1290,6 +1290,9 @@ void http_client_free(zval *object)
         http->cli = NULL;
     }
     efree(http);
+
+    //unset object
+    swoole_set_object(object, NULL);
 
     swTraceLog(SW_TRACE_HTTP_CLIENT, "free, object handle=%d.", Z_OBJ_HANDLE_P(object));
 }

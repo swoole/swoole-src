@@ -1060,7 +1060,7 @@ static PHP_METHOD(swoole_http2_client_coro, connect)
     zval *ztmp;
     HashTable *vht;
     zval *zset = sw_zend_read_property(swoole_http2_client_coro_class_entry_ptr, getThis(), ZEND_STRL("setting"), 1);
-    if (zset && !ZVAL_IS_NULL(zset))
+    if (zset && ZVAL_IS_ARRAY(zset))
     {
         vht = Z_ARRVAL_P(zset);
         /**
