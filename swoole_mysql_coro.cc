@@ -832,7 +832,7 @@ static PHP_METHOD(swoole_mysql_coro, query)
         RETURN_FALSE;
     }
 
-    swoole_php_check_coro_bind("mysql client", client->cid);
+    swoole_php_check_coro_bind("mysql client", client->cid, RETURN_FALSE);
 
     double timeout = -1;
 
@@ -883,7 +883,7 @@ static void swoole_mysql_coro_query_transcation(const char* command, uint8_t in_
         RETURN_FALSE;
     }
 
-    swoole_php_check_coro_bind("mysql client", client->cid);
+    swoole_php_check_coro_bind("mysql client", client->cid, RETURN_FALSE);
 
     // we deny the dangerous operation of transaction
     // if developers need use defer to begin transaction, they can use query("begin/commit/rollback") with defer
@@ -985,7 +985,7 @@ static PHP_METHOD(swoole_mysql_coro, recv)
         RETURN_FALSE;
     }
 
-    swoole_php_check_coro_bind("mysql client", client->cid);
+    swoole_php_check_coro_bind("mysql client", client->cid, RETURN_FALSE);
 
     if (client->iowait == SW_MYSQL_CORO_STATUS_DONE)
     {
@@ -1030,7 +1030,7 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
         RETURN_FALSE;
     }
 
-    swoole_php_check_coro_bind("mysql client", client->cid);
+    swoole_php_check_coro_bind("mysql client", client->cid, RETURN_FALSE);
 
     double timeout = -1;
 
@@ -1101,7 +1101,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, execute)
         RETURN_FALSE;
     }
 
-    swoole_php_check_coro_bind("mysql client", client->cid);
+    swoole_php_check_coro_bind("mysql client", client->cid, RETURN_FALSE);
 
     double timeout = -1;
 

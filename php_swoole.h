@@ -125,14 +125,14 @@ extern swoole_object_array swoole_objects;
 #define swoole_php_error(level, fmt_str, ...)   if (SWOOLE_G(display_errors)) php_error_docref(NULL, level, fmt_str, ##__VA_ARGS__)
 #define swoole_php_fatal_error(level, fmt_str, ...)   php_error_docref(NULL, level, fmt_str, ##__VA_ARGS__)
 #define swoole_php_sys_error(level, fmt_str, ...)  if (SWOOLE_G(display_errors)) php_error_docref(NULL, level, fmt_str" Error: %s[%d].", ##__VA_ARGS__, strerror(errno), errno)
-#define swoole_php_check_coro_bind(name, bind_cid) do { \
-    if (unlikely(((bind_cid) > 0) && ((bind_cid) != (sw_get_current_cid())))) \
-        swoole_php_coro_bind_error(name, bind_cid); \
+#define swoole_php_check_coro_bind(name, bind_cid, error) do { \
+    if (unlikely(((bind_cid) > 0))) \
+        swoole_php_coro_bind_error(name, bind_cid, error); \
 } while (0)
-#define swoole_php_coro_bind_error(name, cid)  do { \
+#define swoole_php_coro_bind_error(name, bind_cid, error)  do { \
     /* Disputed! EG(objects_store).top = 0; then throw E_ERROR to shutdown */ \
-    swoole_php_error(E_WARNING, "%s has already been bound to another coroutine #%d.", name, cid); \
-    RETURN_FALSE; \
+    swoole_php_fatal_error(E_WARNING, "%s has already been bound to another coroutine #%d.", name, bind_cid); \
+    error; \
 } while (0)
 #define swoole_efree(p)  if (p) efree(p)
 

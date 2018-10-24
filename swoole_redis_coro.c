@@ -836,7 +836,7 @@ ZEND_END_ARG_INFO()
     default: \
         break; \
     }\
-    swoole_php_check_coro_bind("redis client", redis->cid);
+    swoole_php_check_coro_bind("redis client", redis->cid, RETURN_FALSE);
 
 #define SW_REDIS_COMMAND_CHECK_WITH_FREE_Z_ARGS \
     coro_check();\
@@ -1942,7 +1942,7 @@ static PHP_METHOD(swoole_redis_coro, close)
         RETURN_TRUE;
     }
 
-    swoole_php_check_coro_bind("redis client", redis->cid);
+    swoole_php_check_coro_bind("redis client", redis->cid, RETURN_FALSE);
 
     swConnection *_socket = swReactor_get(SwooleG.main_reactor, redis->context->c.fd);
     _socket->active = 0;
@@ -3935,7 +3935,7 @@ static PHP_METHOD(swoole_redis_coro, pSubscribe)
         RETURN_FALSE;
     }
 
-    swoole_php_check_coro_bind("redis client", redis->cid);
+    swoole_php_check_coro_bind("redis client", redis->cid, RETURN_FALSE);
 
     php_context *context = swoole_get_property(getThis(), 0);
     switch (redis->state)
@@ -4001,7 +4001,7 @@ static PHP_METHOD(swoole_redis_coro, subscribe)
         RETURN_FALSE;
     }
 
-    swoole_php_check_coro_bind("redis client", redis->cid);
+    swoole_php_check_coro_bind("redis client", redis->cid, RETURN_FALSE);
 
     php_context *context = swoole_get_property(getThis(), 0);
     switch (redis->state)
@@ -4104,7 +4104,7 @@ static PHP_METHOD(swoole_redis_coro, exec)
         RETURN_FALSE;
     }
 
-    swoole_php_check_coro_bind("redis client", redis->cid);
+    swoole_php_check_coro_bind("redis client", redis->cid, RETURN_FALSE);
 
     if (redis->state == SWOOLE_REDIS_CORO_STATE_MULTI)
     {

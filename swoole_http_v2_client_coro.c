@@ -866,7 +866,7 @@ static PHP_METHOD(swoole_http2_client_coro, recv)
         RETURN_FALSE;
     }
 
-    swoole_php_check_coro_bind("http2 client", hcc->cid);
+    swoole_php_check_coro_bind("http2 client", hcc->cid, RETURN_FALSE);
 
     double timeout = hcc->timeout;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|d", &timeout) == FAILURE)
