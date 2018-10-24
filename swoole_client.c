@@ -1585,14 +1585,20 @@ static PHP_METHOD(swoole_client, recv)
         SwooleG.error = errno;
         swoole_php_error(E_WARNING, "recv() failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
         zend_update_property_long(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("errCode"), SwooleG.error);
-        swoole_efree(buf);
+        if (buf)
+        {
+            efree(buf);
+        }
         RETURN_FALSE;
     }
     else
     {
         if (ret == 0)
         {
-            swoole_efree(buf);
+            if (buf)
+            {
+                efree(buf);
+            }
             RETURN_EMPTY_STRING();
         }
         else

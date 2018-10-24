@@ -964,8 +964,8 @@ static PHP_METHOD(swoole_client_coro, peek)
         RETURN_FALSE;
     }
 
-    buf = (char *) emalloc(buf_len + 1);
     SwooleG.error = 0;
+    buf = (char *) emalloc(buf_len + 1);
     ret = cli->peek(buf, buf_len);
 
     if (ret < 0)
@@ -974,7 +974,7 @@ static PHP_METHOD(swoole_client_coro, peek)
         swoole_php_error(E_WARNING, "recv() failed. Error: %s [%d]", strerror(SwooleG.error), SwooleG.error);
         zend_update_property_long(swoole_client_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"),
                 SwooleG.error);
-        swoole_efree(buf);
+        efree(buf);
         RETURN_FALSE;
     }
     else

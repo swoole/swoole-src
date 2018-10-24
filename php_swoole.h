@@ -134,7 +134,6 @@ extern swoole_object_array swoole_objects;
     swoole_php_fatal_error(E_WARNING, "%s has already been bound to another coroutine #%d.", name, bind_cid); \
     error; \
 } while (0)
-#define swoole_efree(p)  if (p) efree(p)
 
 #ifdef SW_USE_OPENSSL
 #ifndef HAVE_OPENSSL
