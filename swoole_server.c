@@ -2902,19 +2902,12 @@ PHP_METHOD(swoole_server, send)
         RETURN_FALSE;
     }
 
-#ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(2, 3)
         Z_PARAM_ZVAL(zfd)
         Z_PARAM_ZVAL(zdata)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(server_socket)
     ZEND_PARSE_PARAMETERS_END();
-#else
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "zz|l", &zfd, &zdata, &server_socket) == FAILURE)
-    {
-        return;
-    }
-#endif
 
     char *data;
     size_t length = php_swoole_get_send_data(zdata, &data);
@@ -3009,7 +3002,6 @@ PHP_METHOD(swoole_server, sendto)
         RETURN_FALSE;
     }
 
-#ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(3, 4)
         Z_PARAM_STRING(ip, ip_len)
         Z_PARAM_LONG(port)
@@ -3017,12 +3009,6 @@ PHP_METHOD(swoole_server, sendto)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(server_socket)
     ZEND_PARSE_PARAMETERS_END();
-#else
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sls|l", &ip, &ip_len, &port, &data, &len, &server_socket) == FAILURE)
-    {
-        return;
-    }
-#endif
 
     if (len <= 0)
     {
@@ -3111,18 +3097,11 @@ PHP_METHOD(swoole_server, close)
         RETURN_FALSE;
     }
 
-#ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(1, 2)
         Z_PARAM_LONG(fd)
         Z_PARAM_OPTIONAL
         Z_PARAM_BOOL(reset)
     ZEND_PARSE_PARAMETERS_END();
-#else
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|b", &fd, &reset) == FAILURE)
-    {
-        return;
-    }
-#endif
 
     SW_CHECK_RETURN(serv->close(serv, (int )fd, (int )reset));
 }
@@ -3666,19 +3645,12 @@ PHP_METHOD(swoole_server, task)
         RETURN_FALSE;
     }
 
-#ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(1, 3)
         Z_PARAM_ZVAL(data)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(dst_worker_id)
         Z_PARAM_ZVAL(callback)
     ZEND_PARSE_PARAMETERS_END();
-#else
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|lz", &data, &dst_worker_id, &callback) == FAILURE)
-    {
-        return;
-    }
-#endif
 
     if (php_swoole_check_task_param(serv, dst_worker_id) < 0)
     {
@@ -3783,16 +3755,9 @@ PHP_METHOD(swoole_server, finish)
         RETURN_FALSE;
     }
 
-#ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(1, 1)
         Z_PARAM_ZVAL(data)
     ZEND_PARSE_PARAMETERS_END();
-#else
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &data) == FAILURE)
-    {
-        return;
-    }
-#endif
 
     SW_CHECK_RETURN(php_swoole_task_finish(serv, data, NULL));
 }
@@ -4123,16 +4088,9 @@ PHP_METHOD(swoole_server, exist)
         RETURN_FALSE;
     }
 
-#ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(1, 1)
         Z_PARAM_LONG(fd)
     ZEND_PARSE_PARAMETERS_END();
-#else
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &fd) == FAILURE)
-    {
-        return;
-    }
-#endif
 
     swConnection *conn = swWorker_get_connection(serv, fd);
     if (!conn)

@@ -1384,18 +1384,12 @@ static PHP_FUNCTION(swoole_hashcode)
     size_t l_data;
     zend_long type = 0;
 
-#ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(1, 2)
         Z_PARAM_STRING(data, l_data)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(type)
     ZEND_PARSE_PARAMETERS_END();
-#else
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|l", &data, &l_data, &type) == FAILURE)
-    {
-        return;
-    }
-#endif
+
     switch(type)
     {
     case 1:

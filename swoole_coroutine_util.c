@@ -847,18 +847,11 @@ static PHP_METHOD(swoole_coroutine_util, fread)
     zval *handle;
     zend_long length = 0;
 
-#ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(1, 2)
         Z_PARAM_RESOURCE(handle)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(length)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
-#else
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "r|l", &handle, &length) == FAILURE)
-    {
-        return;
-    }
-#endif
 
     int async;
     int fd = swoole_convert_to_fd_ex(handle, &async);
@@ -952,16 +945,9 @@ static PHP_METHOD(swoole_coroutine_util, fgets)
     zval *handle;
     php_stream *stream;
 
-#ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(1, 1)
         Z_PARAM_RESOURCE(handle)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
-#else
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "r", &handle) == FAILURE)
-    {
-        return;
-    }
-#endif
 
     int async;
     int fd = swoole_convert_to_fd_ex(handle, &async);
@@ -1036,19 +1022,12 @@ static PHP_METHOD(swoole_coroutine_util, fwrite)
     size_t l_str;
     zend_long length = 0;
 
-#ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(2, 3)
         Z_PARAM_RESOURCE(handle)
         Z_PARAM_STRING(str, l_str)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(length)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
-#else
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "rs|l", &handle, &str, &l_str, &length) == FAILURE)
-    {
-        return;
-    }
-#endif
 
     int async;
     int fd = swoole_convert_to_fd_ex(handle, &async);
@@ -1119,16 +1098,9 @@ static PHP_METHOD(swoole_coroutine_util, readFile)
     char *filename = NULL;
     size_t l_filename = 0;
 
-#ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(1, 1)
         Z_PARAM_STRING(filename, l_filename)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
-#else
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &filename, &l_filename) == FAILURE)
-    {
-        return;
-    }
-#endif
 
     swAio_event ev;
     bzero(&ev, sizeof(swAio_event));
@@ -1172,19 +1144,12 @@ static PHP_METHOD(swoole_coroutine_util, writeFile)
     size_t l_data = 0;
     zend_long flags = 0;
 
-#ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(2, 3)
         Z_PARAM_STRING(filename, l_filename)
         Z_PARAM_STRING(data, l_data)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(flags)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
-#else
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "ss|l", &filename, &l_filename, &data, &l_data, &flags) == FAILURE)
-    {
-        return;
-    }
-#endif
 
     swAio_event ev;
     bzero(&ev, sizeof(swAio_event));
