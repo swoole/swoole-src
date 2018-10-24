@@ -7,14 +7,6 @@
 #include <iostream>
 #include <sys/stat.h>
 
-/**
- * We have to let the developer know where the error is,
- * In order to use the PHP error, we have to include it
- * Maybe we can find a better way then it will be removed
- */
-#include "php_swoole.h"
-
-
 using namespace swoole;
 using namespace std;
 
@@ -27,7 +19,7 @@ bool Socket::socks5_handshake()
 {
     if (read_cid || write_cid)
     {
-        swoole_php_coro_bind_error("socket", read_cid);
+        swWarn("socket has already been bound to another coroutine #%d.", read_cid);
         return false;
     }
 
@@ -177,7 +169,7 @@ bool Socket::http_proxy_handshake()
 {
     if (read_cid || write_cid)
     {
-        swoole_php_coro_bind_error("socket", read_cid);
+        swWarn("socket has already been bound to another coroutine #%d.", read_cid);
         return false;
     }
 
@@ -377,7 +369,7 @@ bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen)
 {
     if (read_cid || write_cid)
     {
-        swoole_php_coro_bind_error("socket", read_cid);
+        swWarn("socket has already been bound to another coroutine #%d.", read_cid);
         return false;
     }
     int retval = socket_connect(socket->fd, addr, addrlen);
@@ -414,7 +406,7 @@ bool Socket::connect(string host, int port, int flags)
 {
     if (read_cid || write_cid)
     {
-        swoole_php_coro_bind_error("socket", read_cid);
+        swWarn("socket has already been bound to another coroutine #%d.", read_cid);
         return false;
     }
     //enable socks5 proxy
@@ -602,7 +594,7 @@ ssize_t Socket::recv(void *__buf, size_t __n)
 {
     if (read_cid)
     {
-        swoole_php_coro_bind_error("socket", read_cid);
+        swWarn("socket has already been bound to another coroutine #%d.", read_cid);
         return -1;
     }
     ssize_t retval = swConnection_recv(socket, __buf, __n, 0);
@@ -653,7 +645,7 @@ ssize_t Socket::recv_all(void *__buf, size_t __n)
 {
     if (read_cid)
     {
-        swoole_php_coro_bind_error("socket", read_cid);
+        swWarn("socket has already been bound to another coroutine #%d.", read_cid);
         return -1;
     }
     ssize_t retval, total_bytes = 0;
@@ -681,7 +673,7 @@ ssize_t Socket::send_all(const void *__buf, size_t __n)
 {
     if (write_cid)
     {
-        swoole_php_coro_bind_error("socket", write_cid);
+        swWarn("socket has already been bound to another coroutine #%d.", write_cid);
         return -1;
     }
     ssize_t retval, total_bytes = 0;
@@ -709,7 +701,7 @@ ssize_t Socket::send(const void *__buf, size_t __n)
 {
     if (write_cid)
     {
-        swoole_php_coro_bind_error("socket", write_cid);
+        swWarn("socket has already been bound to another coroutine #%d.", write_cid);
         return -1;
     }
     ssize_t retval = swConnection_send(socket, (void *) __buf, __n, 0);
@@ -761,7 +753,7 @@ ssize_t Socket::sendmsg(const struct msghdr *msg, int flags)
 {
     if (write_cid)
     {
-        swoole_php_coro_bind_error("socket", write_cid);
+        swWarn("socket has already been bound to another coroutine #%d.", write_cid);
         return -1;
     }
     ssize_t retval = ::sendmsg(socket->fd, msg, flags);
@@ -798,7 +790,7 @@ ssize_t Socket::recvmsg(struct msghdr *msg, int flags)
 {
     if (read_cid)
     {
-        swoole_php_coro_bind_error("socket", read_cid);
+        swWarn("socket has already been bound to another coroutine #%d.", read_cid);
         return -1;
     }
     ssize_t retval = ::recvmsg(socket->fd, msg, flags);
@@ -836,7 +828,7 @@ void Socket::yield(int operation)
     int cid = coroutine_get_current_cid();
     if (unlikely(cid == -1))
     {
-        swoole_php_fatal_error(E_ERROR, "Socket::yield() must be called in the coroutine.");
+        swError("Socket::yield() must be called in the coroutine.");
     }
 
     errCode = 0;
@@ -1018,7 +1010,7 @@ Socket* Socket::accept()
 {
     if (read_cid || write_cid)
     {
-        swoole_php_coro_bind_error("socket", read_cid);
+        swWarn("socket has already been bound to another coroutine #%d.", read_cid);
         return nullptr;
     }
     if (!wait_events(SW_EVENT_READ))
@@ -1076,7 +1068,7 @@ string Socket::resolve(string domain_name)
 {
     if (read_cid || write_cid)
     {
-        swoole_php_coro_bind_error("socket", read_cid);
+        swWarn("socket has already been bound to another coroutine #%d.", read_cid);
         return "";
     }
 
@@ -1141,7 +1133,7 @@ bool Socket::shutdown(int __how)
 {
     if (read_cid || write_cid)
     {
-        swoole_php_coro_bind_error("socket", read_cid);
+        swWarn("socket has already been bound to another coroutine #%d.", read_cid);
         return false;
     }
     if (!socket || socket->closed)
@@ -1194,7 +1186,7 @@ bool Socket::close()
 {
     if (read_cid || write_cid)
     {
-        swoole_php_coro_bind_error("socket", read_cid);
+        swWarn("socket has already been bound to another coroutine #%d.", read_cid);
         return false;
     }
     if (timer)
@@ -1267,7 +1259,7 @@ bool Socket::ssl_handshake()
 {
     if (read_cid || write_cid)
     {
-        swoole_php_coro_bind_error("socket", read_cid);
+        swWarn("socket has already been bound to another coroutine #%d.", read_cid);
         return false;
     }
 
@@ -1397,7 +1389,7 @@ bool Socket::sendfile(char *filename, off_t offset, size_t length)
 {
     if (write_cid)
     {
-        swoole_php_coro_bind_error("socket", write_cid);
+        swWarn("socket has already been bound to another coroutine #%d.", write_cid);
         return -1;
     }
     int file_fd = open(filename, O_RDONLY);
@@ -1472,7 +1464,7 @@ ssize_t Socket::sendto(char *address, int port, char *data, int len)
 {
     if (write_cid)
     {
-        swoole_php_coro_bind_error("socket", write_cid);
+        swWarn("socket has already been bound to another coroutine #%d.", write_cid);
         return -1;
     }
     if (type == SW_SOCK_UDP)
@@ -1500,7 +1492,7 @@ ssize_t Socket::recvfrom(void *__buf, size_t __n, struct sockaddr* _addr, sockle
 {
     if (read_cid)
     {
-        swoole_php_coro_bind_error("socket", read_cid);
+        swWarn("socket has already been bound to another coroutine #%d.", read_cid);
         return -1;
     }
     ssize_t retval;
