@@ -59,6 +59,7 @@ public:
     ssize_t recvfrom(void *__buf, size_t __n);
     ssize_t recvfrom(void *__buf, size_t __n, struct sockaddr *_addr, socklen_t *_socklen);
     swString* get_buffer();
+    int has_bound(socket_lock_operation type);
 
     inline void setTimeout(double timeout)
     {

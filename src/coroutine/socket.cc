@@ -1728,6 +1728,20 @@ swString* Socket::get_buffer()
     return buffer;
 }
 
+int Socket::has_bound(socket_lock_operation type)
+{
+    if ((type &SOCKET_LOCK_READ) && read_cid)
+    {
+        return read_cid;
+    }
+    else if ((type &SOCKET_LOCK_WRITE) && write_cid)
+    {
+        return write_cid;
+    }
+
+    return 0;
+}
+
 Socket::~Socket()
 {
     if (socket)
