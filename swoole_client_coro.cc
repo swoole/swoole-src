@@ -717,6 +717,7 @@ static PHP_METHOD(swoole_client_coro, connect)
         php_swoole_client_coro_check_setting(cli, zset);
     }
 
+    swoole_php_check_coro_bind("client", cli->has_bound(swoole::SOCKET_LOCK_RW), RETURN_FALSE);
     if (!cli->connect(host, port, sock_flag))
     {
         zend_update_property_long(swoole_client_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), cli->errCode);
@@ -751,6 +752,7 @@ static PHP_METHOD(swoole_client_coro, send)
 
     //clear errno
     SwooleG.error = 0;
+    swoole_php_check_coro_bind("client", cli->has_bound(swoole::SOCKET_LOCK_WRITE), RETURN_FALSE);
     int ret = cli->send_all(data, data_len);
     if (ret < 0)
     {
@@ -794,6 +796,7 @@ static PHP_METHOD(swoole_client_coro, sendto)
         cli->socket->active = 1;
         swoole_set_object(getThis(), cli);
     }
+    swoole_php_check_coro_bind("client", cli->has_bound(swoole::SOCKET_LOCK_WRITE), RETURN_FALSE);
     SW_CHECK_RETURN(cli->sendto(ip, port, data, len));
 }
 
@@ -826,6 +829,7 @@ static PHP_METHOD(swoole_client_coro, recvfrom)
     }
 
     zend_string *retval = zend_string_alloc(length + 1, 0);
+    swoole_php_check_coro_bind("client", cli->has_bound(swoole::SOCKET_LOCK_READ), RETURN_FALSE);
     ssize_t n_bytes = cli->recvfrom(retval->val, length);
     if (n_bytes < 0)
     {
@@ -872,6 +876,7 @@ static PHP_METHOD(swoole_client_coro, sendfile)
     }
     //clear errno
     SwooleG.error = 0;
+    swoole_php_check_coro_bind("client", cli->has_bound(swoole::SOCKET_LOCK_WRITE), RETURN_FALSE);
     int ret = cli->sendfile(file, offset, length);
     if (ret < 0)
     {
@@ -900,6 +905,7 @@ static PHP_METHOD(swoole_client_coro, recv)
     {
         RETURN_FALSE;
     }
+    swoole_php_check_coro_bind("client", cli->has_bound(swoole::SOCKET_LOCK_READ), RETURN_FALSE);
     if (timeout != 0)
     {
         cli->setTimeout(timeout);
@@ -1117,6 +1123,7 @@ static PHP_METHOD(swoole_client_coro, close)
     }
 #endif
 
+    swoole_php_check_coro_bind("client", cli->has_bound(swoole::SOCKET_LOCK_RW), RETURN_FALSE);
     int ret = php_swoole_client_coro_socket_free(cli) ? SW_OK : SW_ERR;
     swoole_set_object(zobject, NULL);
 
@@ -1147,6 +1154,7 @@ static PHP_METHOD(swoole_client_coro, enableSSL)
     {
         client_coro_check_ssl_setting(cli, zset);
     }
+    swoole_php_check_coro_bind("client", cli->has_bound(swoole::SOCKET_LOCK_RW), RETURN_FALSE);
     if (cli->ssl_handshake() == false)
     {
         RETURN_FALSE;
