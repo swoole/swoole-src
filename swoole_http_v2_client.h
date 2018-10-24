@@ -64,7 +64,8 @@ typedef struct
     zval *object;
 
 #ifdef SW_COROUTINE
-    int cid;
+    int read_cid;
+    // int write_cid; // useless temporarily
     uint8_t iowait;
     swClient *client;
 #endif

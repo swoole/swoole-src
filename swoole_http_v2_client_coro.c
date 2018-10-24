@@ -866,7 +866,7 @@ static PHP_METHOD(swoole_http2_client_coro, recv)
         RETURN_FALSE;
     }
 
-    swoole_php_check_coro_bind("http2 client", hcc->cid, RETURN_FALSE);
+    swoole_php_check_coro_bind("http2 client", hcc->read_cid, RETURN_FALSE);
 
     double timeout = hcc->timeout;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|d", &timeout) == FAILURE)
@@ -879,10 +879,11 @@ static PHP_METHOD(swoole_http2_client_coro, recv)
     {
         cli->timer = swTimer_add(&SwooleG.timer, (int) (timeout * 1000), 0, context, http2_client_onTimeout);
     }
-    hcc->cid = sw_get_current_cid();
-    coro_save(context);
     hcc->iowait = 1;
+    hcc->read_cid = sw_get_current_cid();
+    coro_save(context);
     coro_yield();
+    hcc->read_cid = 0;
 }
 
 static void http2_client_onConnect(swClient *cli)
@@ -946,6 +947,8 @@ static void http2_client_onClose(swClient *cli)
         return;
     }
     hcc->client = NULL;
+    hcc->read_cid = 0;
+    // hcc->write_cid = 0;
     if (hcc->streams)
     {
         swHashMap_free(hcc->streams);
@@ -963,7 +966,6 @@ static void http2_client_onClose(swClient *cli)
     }
     if (hcc->iowait != 0)
     {
-        hcc->cid = 0;
         hcc->iowait = 0;
     }
     else

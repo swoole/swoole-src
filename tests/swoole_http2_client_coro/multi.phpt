@@ -30,7 +30,7 @@ go(function () {
     $stream_map = [];
     $responses_headers_count_map = [];
     $i = 0;
-    while (true) {
+    while ($cli->connected) {
         $response = $cli->recv(0.1); // it's for the test, you should make timeout bigger
         if ($response) {
             echo "$response->statusCode\n";
