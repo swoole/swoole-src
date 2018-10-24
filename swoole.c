@@ -706,11 +706,12 @@ static sw_inline uint32_t swoole_get_new_size(uint32_t old_size, int handle)
     return new_size;
 }
 
-void swoole_set_object(zval *object, void *ptr)
+void swoole_set_object(zval *zobject, void *ptr)
 {
-    int handle = Z_OBJ_HANDLE_P(object);
+    int handle = Z_OBJ_HANDLE_P(zobject);
     assert(handle < SWOOLE_OBJECT_MAX);
-    if (handle >= swoole_objects.size)
+
+    if (unlikely(handle >= swoole_objects.size))
     {
         uint32_t old_size = swoole_objects.size;
         uint32_t new_size = swoole_get_new_size(old_size, handle);
@@ -728,15 +729,20 @@ void swoole_set_object(zval *object, void *ptr)
         swoole_objects.array = new_ptr;
         swoole_objects.size = new_size;
     }
+    else if (ptr)
+    {
+        assert(swoole_objects.array[handle] == NULL);
+    }
+
     swoole_objects.array[handle] = ptr;
 }
 
-void swoole_set_property(zval *object, int property_id, void *ptr)
+void swoole_set_property(zval *zobject, int property_id, void *ptr)
 {
-    int handle = Z_OBJ_HANDLE_P(object);
+    int handle = Z_OBJ_HANDLE_P(zobject);
     assert(handle < SWOOLE_OBJECT_MAX);
 
-    if (handle >= swoole_objects.property_size[property_id])
+    if (unlikely(handle >= swoole_objects.property_size[property_id]))
     {
         uint32_t old_size = swoole_objects.property_size[property_id];
         uint32_t new_size = 0;
@@ -767,6 +773,11 @@ void swoole_set_property(zval *object, int property_id, void *ptr)
         swoole_objects.property_size[property_id] = new_size;
         swoole_objects.property[property_id] = new_ptr;
     }
+    else if (ptr)
+    {
+        assert(swoole_objects.property[property_id][handle] == NULL);
+    }
+
     swoole_objects.property[property_id][handle] = ptr;
 }
 

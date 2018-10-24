@@ -144,6 +144,7 @@ static PHP_METHOD(swoole_buffer, __destruct)
     {
         swString_free(buffer);
     }
+    swoole_set_object(getThis(), NULL);
 }
 
 static PHP_METHOD(swoole_buffer, append)
