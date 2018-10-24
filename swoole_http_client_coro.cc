@@ -52,14 +52,15 @@ static int http_client_coro_close(zval *zobject)
 {
     zend_update_property_bool(Z_OBJCE_P(zobject), zobject, ZEND_STRL("connected"), 0);
 
-    bool ret1 = false, ret2;
+    bool ret1 = false, ret2 = false;
     http_client_coro_property *hcc = (http_client_coro_property *) swoole_get_property(zobject, 0);
     if (hcc->socket)
     {
+        swoole_php_check_coro_bind("http client", hcc->socket->has_bound(swoole::SOCKET_LOCK_RW), return SW_ERR);
         ret1 = php_swoole_client_coro_socket_free(hcc->socket);
         hcc->socket = nullptr;
+        ret2 = http_client_free(zobject);
     }
-    ret2 = http_client_free(zobject);
 
     return (ret1 && ret2) ? SW_OK : SW_ERR;
 }
@@ -301,8 +302,10 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
             return SW_ERR;
         }
 #endif
+        swTraceLog(SW_TRACE_HTTP_CLIENT, "connect to server, object handle=%d, fd=%d", Z_OBJ_HANDLE_P(zobject), hcc->socket->socket->fd);
     }
 
+    // prepare before send a request
     if (http->body == NULL)
     {
         http->body = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
@@ -321,54 +324,8 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
     {
         efree(http->uri);
     }
-
     http->uri = estrdup(uri);
     http->uri_len = uri_len;
-
-    /**
-     * download response body
-     */
-    zval *z_download_file = sw_zend_read_property_not_null(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("downloadFile"), 1);
-    if (z_download_file)
-    {
-        convert_to_string(z_download_file);
-        char *download_file_name = Z_STRVAL_P(z_download_file);
-        zval *z_download_offset = sw_zend_read_property_not_null(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("downloadOffset"), 1);
-        off_t download_offset = 0;
-        if (z_download_offset)
-        {
-            download_offset = (off_t) Z_LVAL_P(z_download_offset);
-        }
-
-        int fd = open(download_file_name, O_CREAT | O_WRONLY, 0664);
-        if (fd < 0)
-        {
-            swSysError("open(%s, O_CREAT | O_WRONLY) failed.", download_file_name);
-            return SW_ERR;
-        }
-        if (download_offset == 0)
-        {
-            if (ftruncate(fd, 0) < 0)
-            {
-                swSysError("ftruncate(%s) failed.", download_file_name);
-                close(fd);
-                return SW_ERR;
-            }
-        }
-        else
-        {
-            if (lseek(fd, download_offset, SEEK_SET) < 0)
-            {
-                swSysError("fseek(%s, %jd) failed.", download_file_name, (intmax_t) download_offset);
-                close(fd);
-                return SW_ERR;
-            }
-        }
-        http->download = 1;
-        http->file_fd = fd;
-    }
-
-    swTraceLog(SW_TRACE_HTTP_CLIENT, "connect to server, object handle=%d, fd=%d", Z_OBJ_HANDLE_P(zobject), hcc->socket->socket->fd);
 
     if (http_client_coro_send_request(zobject, hcc, http) < 0)
     {
@@ -461,9 +418,12 @@ void swoole_http_client_coro_init(int module_number)
 static int http_client_coro_recv_response(zval *zobject, http_client_coro_property *hcc, http_client *http)
 {
     long parsed_n = 0;
-    swString *buffer = hcc->socket->get_buffer();
+    swString *buffer;
     ssize_t total_bytes = 0, retval = 0;
 
+    swoole_php_check_coro_bind("http client", hcc->socket->has_bound(swoole::SOCKET_LOCK_READ), return SW_ERR);
+
+    buffer = hcc->socket->get_buffer();
     while (http->completed == 0)
     {
         retval = hcc->socket->recv(buffer->str, buffer->size);
@@ -530,17 +490,62 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
 {
     zval *value = NULL;
     char *method;
-    zval *zmethod = sw_zend_read_property_not_null(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("requestMethod"), 1);
     uint32_t header_flag = 0x0;
-    zval *request_headers = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("requestHeaders"), 1);
-    zval *request_body = sw_zend_read_property_not_null(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("requestBody"), 1);
-    zval *upload_files = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("uploadFiles"), 1);
-    zval *cookies = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("cookies"), 1);
+    zval *zmethod, *request_headers, *request_body, *upload_files, *cookies, *z_download_file;
 
     //clear errno
     SwooleG.error = 0;
     //clear buffer
     swString_clear(http_client_buffer);
+    // check coro bind
+    swoole_php_check_coro_bind("http client", hcc->socket->has_bound(swoole::SOCKET_LOCK_WRITE), return SW_ERR);
+
+    zmethod = sw_zend_read_property_not_null(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("requestMethod"), 1);
+    request_headers = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("requestHeaders"), 1);
+    request_body = sw_zend_read_property_not_null(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("requestBody"), 1);
+    upload_files = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("uploadFiles"), 1);
+    cookies = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("cookies"), 1);
+    z_download_file = sw_zend_read_property_not_null(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("downloadFile"), 1);
+
+    // ============ download ============
+    if (z_download_file)
+    {
+        convert_to_string(z_download_file);
+        char *download_file_name = Z_STRVAL_P(z_download_file);
+        zval *z_download_offset = sw_zend_read_property_not_null(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("downloadOffset"), 1);
+        off_t download_offset = 0;
+        if (z_download_offset)
+        {
+            download_offset = (off_t) Z_LVAL_P(z_download_offset);
+        }
+
+        int fd = open(download_file_name, O_CREAT | O_WRONLY, 0664);
+        if (fd < 0)
+        {
+            swSysError("open(%s, O_CREAT | O_WRONLY) failed.", download_file_name);
+            return SW_ERR;
+        }
+        if (download_offset == 0)
+        {
+            if (ftruncate(fd, 0) < 0)
+            {
+                swSysError("ftruncate(%s) failed.", download_file_name);
+                close(fd);
+                return SW_ERR;
+            }
+        }
+        else
+        {
+            if (lseek(fd, download_offset, SEEK_SET) < 0)
+            {
+                swSysError("fseek(%s, %jd) failed.", download_file_name, (intmax_t) download_offset);
+                close(fd);
+                return SW_ERR;
+            }
+        }
+        http->download = 1;
+        http->file_fd = fd;
+    }
 
     // ============ method ============
     if (zmethod)
@@ -1418,6 +1423,7 @@ static PHP_METHOD(swoole_http_client_coro, push)
     }
 
     http_client_coro_property *hcc = (http_client_coro_property *) swoole_get_property(getThis(), 0);
+    swoole_php_check_coro_bind("http client", hcc->socket->has_bound(swoole::SOCKET_LOCK_WRITE), RETURN_FALSE);
     if (hcc->socket->send(http_client_buffer->str, http_client_buffer->length) < 0)
     {
         SwooleG.error = hcc->socket->errCode;

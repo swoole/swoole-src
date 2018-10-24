@@ -17,10 +17,8 @@ $pm->parentFunc = function (int $pid) use ($pm) {
     go(function () use ($cli) {
         $cli->get('/');
     });
-    register_shutdown_function(function () use ($pm) {
-        $pm->kill();
-    });
     swoole_event_wait();
+    $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
     $serv = new swoole_http_server('127.0.0.1', $pm->getFreePort(), mt_rand(0, 1) ? SWOOLE_BASE : SWOOLE_PROCESS);
@@ -29,7 +27,7 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
     });
     $serv->on('request', function (swoole_http_request $request, swoole_http_response $response) use ($pm) {
-        co::sleep(1);
+        co::sleep(0.1);
     });
     $serv->start();
 };
@@ -37,4 +35,4 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-Fatal error: Swoole\Coroutine\Http\Client::close(): socket has already been bound to another coroutine 2. in %s on line %d
+%s: Swoole\Coroutine\Http\Client::close(): http client has already been bound to another coroutine #%d. in %s on line %d
