@@ -865,11 +865,8 @@ static PHP_METHOD(swoole_http2_client_coro, recv)
         swoole_php_error(E_WARNING, "client is not connected to server.");
         RETURN_FALSE;
     }
-    if (unlikely(hcc->cid != 0 && hcc->cid != sw_get_current_cid()))
-    {
-        swoole_php_coro_bind_error("http2 client", hcc->cid);
-        RETURN_FALSE;
-    }
+
+    swoole_php_check_coro_bind("http2 client", hcc->cid);
 
     double timeout = hcc->timeout;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|d", &timeout) == FAILURE)

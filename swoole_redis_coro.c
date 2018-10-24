@@ -836,11 +836,7 @@ ZEND_END_ARG_INFO()
     default: \
         break; \
     }\
-    if (unlikely(redis->cid && redis->cid != sw_get_current_cid()))\
-    {\
-        swoole_php_coro_bind_error("redis client", redis->cid);\
-        RETURN_FALSE;\
-    }
+    swoole_php_check_coro_bind("redis client", redis->cid);
 
 #define SW_REDIS_COMMAND_CHECK_WITH_FREE_Z_ARGS \
     coro_check();\
@@ -1945,11 +1941,8 @@ static PHP_METHOD(swoole_redis_coro, close)
     {
         RETURN_TRUE;
     }
-    if (unlikely(redis->cid && redis->cid != sw_get_current_cid()))
-    {
-        swoole_php_coro_bind_error("redis client", redis->cid);
-        RETURN_FALSE;
-    }
+
+    swoole_php_check_coro_bind("redis client", redis->cid);
 
     swConnection *_socket = swReactor_get(SwooleG.main_reactor, redis->context->c.fd);
     _socket->active = 0;
@@ -3942,11 +3935,7 @@ static PHP_METHOD(swoole_redis_coro, pSubscribe)
         RETURN_FALSE;
     }
 
-    if (unlikely(redis->cid && redis->cid != sw_get_current_cid()))
-    {
-        swoole_php_coro_bind_error("redis client", redis->cid);
-        RETURN_FALSE;
-    }
+    swoole_php_check_coro_bind("redis client", redis->cid);
 
     php_context *context = swoole_get_property(getThis(), 0);
     switch (redis->state)
@@ -4012,11 +4001,7 @@ static PHP_METHOD(swoole_redis_coro, subscribe)
         RETURN_FALSE;
     }
 
-    if (unlikely(redis->cid && redis->cid != sw_get_current_cid()))
-    {
-        swoole_php_coro_bind_error("redis client", redis->cid);
-        RETURN_FALSE;
-    }
+    swoole_php_check_coro_bind("redis client", redis->cid);
 
     php_context *context = swoole_get_property(getThis(), 0);
     switch (redis->state)
@@ -4118,11 +4103,9 @@ static PHP_METHOD(swoole_redis_coro, exec)
         zend_update_property_string(swoole_redis_coro_class_entry_ptr, getThis(), ZEND_STRL("errMsg"), "redis state mode is neither multi nor pipeline!");
         RETURN_FALSE;
     }
-    if (unlikely(redis->cid && redis->cid != sw_get_current_cid()))
-    {
-        swoole_php_coro_bind_error("redis client", redis->cid);
-        RETURN_FALSE;
-    }
+
+    swoole_php_check_coro_bind("redis client", redis->cid);
+
     if (redis->state == SWOOLE_REDIS_CORO_STATE_MULTI)
     {
         size_t argvlen[1];

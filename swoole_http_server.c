@@ -2143,7 +2143,7 @@ static PHP_METHOD(swoole_http_response, sendfile)
 
     if (ctx->chunk)
     {
-        swoole_php_error(E_ERROR, "can't use sendfile when Http-Chunk is enabled.");
+        swoole_php_fatal_error(E_ERROR, "can't use sendfile when Http-Chunk is enabled.");
         RETURN_FALSE;
     }
 
