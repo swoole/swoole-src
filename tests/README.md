@@ -4,7 +4,7 @@ Run these tests to make certain that the swoole extension you installed can work
 
 ## How to run
 1. Run all of the test scripts on source root dir by `make test`
-2. Or run `./strart.sh`
+2. Or run `./start.sh`
 3. use`./start.sh ./swoole_*` command to run a part of the tests
 
 ## Log files
