@@ -1715,6 +1715,10 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
             {
                 header_flag |= HTTP_HEADER_DATE;
             }
+            else if (strncasecmp(key, "Content-Length", keylen) == 0)
+            {
+                continue; // ignore
+            }
             else if (strncasecmp(key, "Content-Type", keylen) == 0)
             {
                 header_flag |= HTTP_HEADER_CONTENT_TYPE;
