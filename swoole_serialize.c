@@ -1487,7 +1487,7 @@ static CPINLINE int swoole_seria_check_eof(void *buffer, size_t len)
  * return_value is unseria bucket
  * args is for the object ctor (can be NULL)
  */
-PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, zval *object_args, long flag)
+PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, zval *zobject_args, long flag)
 {
     SBucketType type = *(SBucketType*) (buffer);
     zend_uchar real_type = type.data_type;
@@ -1536,7 +1536,7 @@ PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, 
                 return SW_FALSE;
             }
             unser_start = buffer - sizeof (SBucketType);
-            if (!swoole_unserialize_object(buffer, return_value, type.data_len, object_args, flag))
+            if (!swoole_unserialize_object(buffer, return_value, type.data_len, zobject_args, flag))
             {
                 return SW_FALSE;
             }

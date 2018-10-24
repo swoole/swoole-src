@@ -658,20 +658,20 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
 
     int i;
     zval *retval = NULL;
-    zval *port_object;
-    zval *port_setting;
+    zval *zport_object;
+    zval *zport_setting;
     swListenPort *port;
     zend_bool find_http_port = SW_FALSE;
 
     for (i = 1; i < server_port_list.num; i++)
     {
-        port_object = server_port_list.zobjects[i];
-        port_setting = sw_zend_read_property(swoole_server_port_class_entry_ptr, port_object, ZEND_STRL("setting"), 1);
+        zport_object = server_port_list.zobjects[i];
+        zport_setting = sw_zend_read_property(swoole_server_port_class_entry_ptr, zport_object, ZEND_STRL("setting"), 1);
         //use swoole_server->setting
-        if (port_setting == NULL || ZVAL_IS_NULL(port_setting))
+        if (zport_setting == NULL || ZVAL_IS_NULL(zport_setting))
         {
-            Z_TRY_ADDREF_P(port_object);
-            sw_zend_call_method_with_1_params(&port_object, swoole_server_port_class_entry_ptr, NULL, "set", &retval, zsetting);
+            Z_TRY_ADDREF_P(zport_object);
+            sw_zend_call_method_with_1_params(&zport_object, swoole_server_port_class_entry_ptr, NULL, "set", &retval, zsetting);
             if (retval != NULL)
             {
                 zval_ptr_dtor(retval);
@@ -681,8 +681,8 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
 
     for (i = 0; i < server_port_list.num; i++)
     {
-        port_object = server_port_list.zobjects[i];
-        port = swoole_get_object(port_object);
+        zport_object = server_port_list.zobjects[i];
+        port = swoole_get_object(zport_object);
         if (port->open_websocket_protocol || port->open_http_protocol)
         {
             find_http_port = SW_TRUE;

@@ -102,10 +102,10 @@ static int multipart_body_on_data(multipart_parser* p, const char *at, size_t le
 static int multipart_body_on_header_complete(multipart_parser* p);
 static int multipart_body_on_data_end(multipart_parser* p);
 
-static http_context* http_get_context(zval *object, int check_end);
+static http_context* http_get_context(zval *zobject, int check_end);
 
 static void http_parse_cookie(zval *array, const char *at, size_t length);
-static void http_build_header(http_context *, zval *object, swString *response, int body_length);
+static void http_build_header(http_context *, zval *zobject, swString *response, int body_length);
 
 static inline void http_header_key_format(char *key, int length)
 {
@@ -1644,9 +1644,9 @@ static PHP_METHOD(swoole_http_response, write)
     SW_CHECK_RETURN(ret);
 }
 
-static http_context* http_get_context(zval *object, int check_end)
+static http_context* http_get_context(zval *zobject, int check_end)
 {
-    http_context *ctx = swoole_get_object(object);
+    http_context *ctx = swoole_get_object(zobject);
     if (!ctx)
     {
         swoole_php_fatal_error(E_WARNING, "Http request is finished.");
@@ -1660,16 +1660,15 @@ static http_context* http_get_context(zval *object, int check_end)
     return ctx;
 }
 
-static void http_build_header(http_context *ctx, zval *object, swString *response, int body_length)
+static void http_build_header(http_context *ctx, zval *zobject, swString *response, int body_length)
 {
-    assert(ctx->send_header == 0);
-
     swServer *serv = SwooleG.serv;
-
     char *buf = SwooleTG.buffer_stack->str;
     size_t l_buf = SwooleTG.buffer_stack->size;
     int n;
     char *date_str;
+
+    assert(ctx->send_header == 0);
 
     /**
      * http status line
@@ -1687,11 +1686,11 @@ static void http_build_header(http_context *ctx, zval *object, swString *respons
     /**
      * http header
      */
-    zval *header = sw_zend_read_property(swoole_http_response_class_entry_ptr, ctx->response.zobject, ZEND_STRL("header"), 1);
+    zval *zheader = sw_zend_read_property(swoole_http_response_class_entry_ptr, ctx->response.zobject, ZEND_STRL("header"), 1);
     uint32_t header_flag = 0x0;
-    if (ZVAL_IS_ARRAY(header))
+    if (ZVAL_IS_ARRAY(zheader))
     {
-        HashTable *ht = Z_ARRVAL_P(header);
+        HashTable *ht = Z_ARRVAL_P(zheader);
         zval *value = NULL;
         char *key = NULL;
         uint32_t keylen = 0;

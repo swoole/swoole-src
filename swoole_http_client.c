@@ -174,19 +174,19 @@ static const zend_function_entry swoole_http_client_methods[] =
 
 void http_client_clear_response_properties(zval *zobject)
 {
-    zval *attr;
+    zval *zattr;
     zend_class_entry *ce = Z_OBJCE_P(zobject);
     zend_update_property_long(ce, zobject, ZEND_STRL("errCode"), 0);
     zend_update_property_long(ce, zobject, ZEND_STRL("statusCode"), 0);
-    attr = sw_zend_read_property(ce, zobject, ZEND_STRL("headers"), 1);
-    if (Z_TYPE_P(attr) == IS_ARRAY)
+    zattr = sw_zend_read_property(ce, zobject, ZEND_STRL("headers"), 1);
+    if (Z_TYPE_P(zattr) == IS_ARRAY)
     {
-        zend_hash_clean(Z_ARRVAL_P(attr));
+        zend_hash_clean(Z_ARRVAL_P(zattr));
     }
-    attr = sw_zend_read_property(ce, zobject, ZEND_STRL("set_cookie_headers"), 1);
-    if (Z_TYPE_P(attr) == IS_ARRAY)
+    zattr = sw_zend_read_property(ce, zobject, ZEND_STRL("set_cookie_headers"), 1);
+    if (Z_TYPE_P(zattr) == IS_ARRAY)
     {
-        zend_hash_clean(Z_ARRVAL_P(attr));
+        zend_hash_clean(Z_ARRVAL_P(zattr));
     }
     zend_update_property_string(ce, zobject, ZEND_STRL("body"), "");
 }
@@ -353,14 +353,14 @@ static int http_client_execute(zval *zobject, char *uri, size_t uri_len, zval *c
 
         if (http->cli->http_proxy)
         {
-            zval *send_header = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("requestHeaders"), 1);
-            if (send_header == NULL || Z_TYPE_P(send_header) != IS_ARRAY)
+            zval *zsend_header = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("requestHeaders"), 1);
+            if (zsend_header == NULL || Z_TYPE_P(zsend_header) != IS_ARRAY)
             {
                 swoole_php_fatal_error (E_WARNING, "http proxy must set Host");
                 return SW_ERR;
             }
             zval *value;
-            if (!(value = zend_hash_str_find(Z_ARRVAL_P(send_header), ZEND_STRL("Host"))) ||
+            if (!(value = zend_hash_str_find(Z_ARRVAL_P(zsend_header), ZEND_STRL("Host"))) ||
                     Z_TYPE_P(value) != IS_STRING || Z_STRLEN_P(value) < 1)
             {
                 swoole_php_fatal_error(E_WARNING, "http proxy must set Host");
@@ -376,7 +376,7 @@ static int http_client_execute(zval *zobject, char *uri, size_t uri_len, zval *c
                 zend_string *str = php_base64_encode((const unsigned char *) _buf1, _n1);
                 int _n2 = snprintf(_buf2, sizeof(_buf2), "Basic %*s", (int)str->len, str->val);
                 zend_string_free(str);
-                add_assoc_stringl_ex(send_header, ZEND_STRL("Proxy-Authorization"), _buf2, _n2);
+                add_assoc_stringl_ex(zsend_header, ZEND_STRL("Proxy-Authorization"), _buf2, _n2);
             }
         }
     }
@@ -601,12 +601,12 @@ static void http_client_onRequestTimeout(swTimer *timer, swTimer_node *tnode)
 
     if (cli->buffer && cli->buffer->length > 0) // received something bug not complete
     {
-        zval *headers = sw_zend_read_property_array(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("requestHeaders"), 1);
-        zval *value;
-        if (php_swoole_array_get_value(Z_ARRVAL_P(headers), "Connection", value))
+        zval *zheaders = sw_zend_read_property_array(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("requestHeaders"), 1);
+        zval *v;
+        if (php_swoole_array_get_value(Z_ARRVAL_P(zheaders), "Connection", v))
         {
-            convert_to_string(value);
-            if (strcmp(Z_STRVAL_P(value), "Upgrade") == 0) // is upgrade
+            convert_to_string(v);
+            if (strcmp(Z_STRVAL_P(v), "Upgrade") == 0) // is upgrade
             {
                 hcc->error_flag |= HTTP_CLIENT_EFLAG_UPGRADE;
             }
@@ -818,12 +818,12 @@ static int http_client_send_http_request(zval *zobject)
 
     http_client_property *hcc = swoole_get_property(zobject, 0);
 
-    zval *post_data = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("requestBody"), 1);
-    zval *send_header = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("requestHeaders"), 1);
+    zval *zpost_data = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("requestBody"), 1);
+    zval *zsend_header = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("requestHeaders"), 1);
     uint32_t header_flag = 0x0;
 
     //POST
-    if (post_data && !ZVAL_IS_NULL(post_data))
+    if (zpost_data && !ZVAL_IS_NULL(zpost_data))
     {
         if (hcc->request_method == NULL)
         {
@@ -856,7 +856,7 @@ static int http_client_send_http_request(zval *zobject)
     if (http->cli->http_proxy)
 #endif
     {
-        value = zend_hash_str_find(Z_ARRVAL_P(send_header), ZEND_STRL("Host")); //checked before
+        value = zend_hash_str_find(Z_ARRVAL_P(zsend_header), ZEND_STRL("Host")); //checked before
         char *pre = "http://";
         int len = http->uri_len + Z_STRLEN_P(value) + strlen(pre) + 10;
         void *addr = emalloc(http->uri_len + Z_STRLEN_P(value) + strlen(pre) + 10);
@@ -867,11 +867,11 @@ static int http_client_send_http_request(zval *zobject)
     swString_append_ptr (http_client_buffer, http->uri, http->uri_len);
     swString_append_ptr(http_client_buffer, ZEND_STRL(" HTTP/1.1\r\n"));
 
-    if (send_header && Z_TYPE_P(send_header) == IS_ARRAY)
+    if (zsend_header && Z_TYPE_P(zsend_header) == IS_ARRAY)
     {
         // As much as possible to ensure that Host is the first header.
         // See: http://tools.ietf.org/html/rfc7230#section-5.4
-        if ((value = zend_hash_str_find(Z_ARRVAL_P(send_header), ZEND_STRL("Host"))) || (value = zend_hash_str_find(Z_ARRVAL_P(send_header), ZEND_STRL("host"))))
+        if ((value = zend_hash_str_find(Z_ARRVAL_P(zsend_header), ZEND_STRL("Host"))) || (value = zend_hash_str_find(Z_ARRVAL_P(zsend_header), ZEND_STRL("host"))))
         {
             http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Host"), Z_STRVAL_P(value), Z_STRLEN_P(value));
         }
@@ -880,7 +880,7 @@ static int http_client_send_http_request(zval *zobject)
             http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Host"), http->host, http->host_len);
         }
 
-        SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(send_header), key, keylen, keytype, value)
+        SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zsend_header), key, keylen, keytype, value)
             if (HASH_KEY_IS_STRING != keytype)
             {
                 continue;
@@ -929,15 +929,15 @@ static int http_client_send_http_request(zval *zobject)
     }
 #endif
 
-    zval *cookies = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("cookies"), 1);
-    if (cookies && Z_TYPE_P(cookies) == IS_ARRAY)
+    zval *zcookies = sw_zend_read_property(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("cookies"), 1);
+    if (zcookies && Z_TYPE_P(zcookies) == IS_ARRAY)
     {
         swString_append_ptr(http_client_buffer, ZEND_STRL("Cookie: "));
-        int n_cookie = Z_ARRVAL_P(cookies)->nNumOfElements;
+        int n_cookie = Z_ARRVAL_P(zcookies)->nNumOfElements;
         int i = 0;
         char *encoded_value;
 
-        SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(cookies), key, keylen, keytype, value)
+        SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zcookies), key, keylen, keytype, value)
             i ++;
             if (HASH_KEY_IS_STRING != keytype)
             {
@@ -985,9 +985,9 @@ static int http_client_send_http_request(zval *zobject)
         int content_length = 0;
 
         //post data
-        if (Z_TYPE_P(post_data) == IS_ARRAY && php_swoole_array_length(post_data) > 0)
+        if (Z_TYPE_P(zpost_data) == IS_ARRAY && php_swoole_array_length(zpost_data) > 0)
         {
-            SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(post_data), key, keylen, keytype, value)
+            SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zpost_data), key, keylen, keytype, value)
                 if (HASH_KEY_IS_STRING != keytype)
                 {
                     continue;
@@ -1037,9 +1037,9 @@ static int http_client_send_http_request(zval *zobject)
         http_client_append_content_length(http_client_buffer, content_length + sizeof(boundary_str) - 1 + 6);
 
         //post data
-        if (Z_TYPE_P(post_data) == IS_ARRAY && php_swoole_array_length(post_data) > 0)
+        if (Z_TYPE_P(zpost_data) == IS_ARRAY && php_swoole_array_length(zpost_data) > 0)
         {
-            SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(post_data), key, keylen, keytype, value)
+            SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zpost_data), key, keylen, keytype, value)
                 if (HASH_KEY_IS_STRING != keytype)
                 {
                     continue;
@@ -1119,16 +1119,16 @@ static int http_client_send_http_request(zval *zobject)
         }
     }
     //x-www-form-urlencoded or raw
-    else if (post_data && !ZVAL_IS_NULL(post_data))
+    else if (zpost_data && !ZVAL_IS_NULL(zpost_data))
     {
-        if (Z_TYPE_P(post_data) == IS_ARRAY)
+        if (Z_TYPE_P(zpost_data) == IS_ARRAY)
         {
             size_t len;
             http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Content-Type"), ZEND_STRL("application/x-www-form-urlencoded"));
-            if (php_swoole_array_length(post_data) > 0) //if it's an empty array, http build will fail
+            if (php_swoole_array_length(zpost_data) > 0) //if it's an empty array, http build will fail
             {
                 smart_str formstr_s = { 0 };
-                char *formstr = sw_http_build_query(post_data, &len, &formstr_s);
+                char *formstr = sw_http_build_query(zpost_data, &len, &formstr_s);
                 if (formstr == NULL)
                 {
                     swoole_php_error(E_WARNING, "http_build_query failed.");
@@ -1150,16 +1150,16 @@ static int http_client_send_http_request(zval *zobject)
             //cleanup request body
             zend_update_property_null(swoole_http_client_class_entry_ptr, zobject, ZEND_STRL("requestBody"));
         }
-        else if (Z_TYPE_P(post_data) == IS_STRING && Z_STRLEN_P(post_data) > 0)
+        else if (Z_TYPE_P(zpost_data) == IS_STRING && Z_STRLEN_P(zpost_data) > 0)
         {
-            http_client_append_content_length(http_client_buffer, Z_STRLEN_P(post_data));
+            http_client_append_content_length(http_client_buffer, Z_STRLEN_P(zpost_data));
             //send http header
             if ((ret = http->cli->send(http->cli, http_client_buffer->str, http_client_buffer->length, 0)) < 0)
             {
                 goto send_fail;
             }
             //send http body
-            if ((ret = http->cli->send(http->cli, Z_STRVAL_P(post_data), Z_STRLEN_P(post_data), 0)) < 0)
+            if ((ret = http->cli->send(http->cli, Z_STRVAL_P(zpost_data), Z_STRLEN_P(zpost_data), 0)) < 0)
             {
                 goto send_fail;
             }
@@ -1265,9 +1265,9 @@ void http_client_reset(http_client *http)
     http->state = HTTP_CLIENT_STATE_READY;
 }
 
-uint8_t http_client_free(zval *object)
+uint8_t http_client_free(zval *zobject)
 {
-    http_client *http = swoole_get_object(object);
+    http_client *http = swoole_get_object(zobject);
     if (!http)
     {
         return 0;
@@ -1286,20 +1286,20 @@ uint8_t http_client_free(zval *object)
     swClient *cli = http->cli;
     if (cli)
     {
-        php_swoole_client_free(object, cli);
+        php_swoole_client_free(zobject, cli);
         http->cli = NULL;
     }
     efree(http);
 
     //unset http_client
-    swoole_set_object(object, NULL);
+    swoole_set_object(zobject, NULL);
 
-    swTraceLog(SW_TRACE_HTTP_CLIENT, "free, object handle=%d.", Z_OBJ_HANDLE_P(object));
+    swTraceLog(SW_TRACE_HTTP_CLIENT, "free, object handle=%d.", Z_OBJ_HANDLE_P(zobject));
 
     return 1;
 }
 
-http_client* http_client_create(zval *object)
+http_client* http_client_create(zval *zobject)
 {
     zval *ztmp;
     http_client *http;
@@ -1307,27 +1307,27 @@ http_client* http_client_create(zval *object)
     http = (http_client*) emalloc(sizeof(http_client));
     bzero(http, sizeof(http_client));
 
-    swoole_set_object(object, http);
+    swoole_set_object(zobject, http);
 
     swoole_http_parser_init(&http->parser, PHP_HTTP_RESPONSE);
     http->parser.data = http;
 
-    ztmp = sw_zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("host"), 0);
+    ztmp = sw_zend_read_property(Z_OBJCE_P(zobject), zobject, ZEND_STRL("host"), 0);
     convert_to_string(ztmp);
     http->host = Z_STRVAL_P(ztmp);
     http->host_len = Z_STRLEN_P(ztmp);
 
-    ztmp = sw_zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("port"), 0);
+    ztmp = sw_zend_read_property(Z_OBJCE_P(zobject), zobject, ZEND_STRL("port"), 0);
     convert_to_long(ztmp);
     http->port = Z_LVAL_P(ztmp);
 
     http->timeout = SW_CLIENT_DEFAULT_TIMEOUT;
     http->keep_alive = 1;
     http->state = HTTP_CLIENT_STATE_READY;
-    http->object = object;
+    http->object = zobject;
     sw_copy_to_stack(http->object, http->_object);
 
-    swTraceLog(SW_TRACE_HTTP_CLIENT, "create, object handle=%d.", Z_OBJ_HANDLE_P(object));
+    swTraceLog(SW_TRACE_HTTP_CLIENT, "create, object handle=%d.", Z_OBJ_HANDLE_P(zobject));
 
     return http;
 }
@@ -1437,8 +1437,8 @@ static PHP_METHOD(swoole_http_client, setHeaders)
         return;
     }
 
-    zval *headers_property = sw_zend_read_property_array(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestHeaders"), 1);
-    php_array_merge(Z_ARRVAL_P(headers_property), Z_ARRVAL_P(headers));
+    zval *zheaders = sw_zend_read_property_array(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestHeaders"), 1);
+    php_array_merge(Z_ARRVAL_P(zheaders), Z_ARRVAL_P(headers));
 
     RETURN_TRUE;
 }
@@ -1451,8 +1451,8 @@ static PHP_METHOD(swoole_http_client, setCookies)
         return;
     }
 
-    zval *cookies_property = sw_zend_read_property_array(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("cookies"), 1);
-    php_array_merge(Z_ARRVAL_P(cookies_property), Z_ARRVAL_P(cookies));
+    zval *zcookies = sw_zend_read_property_array(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("cookies"), 1);
+    php_array_merge(Z_ARRVAL_P(zcookies), Z_ARRVAL_P(cookies));
 
     RETURN_TRUE;
 }
@@ -1470,8 +1470,8 @@ static PHP_METHOD(swoole_http_client, setData)
     }
     if (Z_TYPE_P(data) == IS_ARRAY)
     {
-        zval *data_property = sw_zend_read_property_array(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestBody"), 1);
-        php_array_merge(Z_ARRVAL_P(data_property), Z_ARRVAL_P(data));
+        zval *zbody = sw_zend_read_property_array(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestBody"), 1);
+        php_array_merge(Z_ARRVAL_P(zbody), Z_ARRVAL_P(data));
     }
     else
     {
@@ -1728,10 +1728,10 @@ int http_client_parser_on_header_value(swoole_http_parser *parser, const char *a
 {
     http_client* http = (http_client*) parser->data;
     zval* zobject = (zval*) http->object;
-    zval *headers = sw_zend_read_property_array(Z_OBJCE_P(zobject), zobject, ZEND_STRL("headers"), 1);
+    zval *zheaders = sw_zend_read_property_array(Z_OBJCE_P(zobject), zobject, ZEND_STRL("headers"), 1);
 
     char *header_name = zend_str_tolower_dup(http->tmp_header_field_name, http->tmp_header_field_name_len);
-    add_assoc_stringl_ex(headers, header_name, http->tmp_header_field_name_len, (char *) at, length);
+    add_assoc_stringl_ex(zheaders, header_name, http->tmp_header_field_name_len, (char *) at, length);
 
     //websocket client
     if (strcasecmp(header_name, "Upgrade") == 0 && strncasecmp(at, "websocket", length) == 0)
@@ -1740,9 +1740,9 @@ int http_client_parser_on_header_value(swoole_http_parser *parser, const char *a
     }
     else if (strcasecmp(header_name, "Set-Cookie") == 0)
     {
-        zval *cookies = sw_zend_read_property_array(Z_OBJCE_P(zobject), zobject, ZEND_STRL("cookies"), 1);
-        zval *set_cookie_headers = sw_zend_read_property_array(Z_OBJCE_P(zobject), zobject, ZEND_STRL("set_cookie_headers"), 1);
-        if (SW_OK != http_parse_set_cookies(at, length, cookies, set_cookie_headers))
+        zval *zcookies = sw_zend_read_property_array(Z_OBJCE_P(zobject), zobject, ZEND_STRL("cookies"), 1);
+        zval *zset_cookie_headers = sw_zend_read_property_array(Z_OBJCE_P(zobject), zobject, ZEND_STRL("set_cookie_headers"), 1);
+        if (SW_OK != http_parse_set_cookies(at, length, zcookies, zset_cookie_headers))
         {
             efree(header_name);
             return SW_ERR;
@@ -2053,8 +2053,8 @@ static PHP_METHOD(swoole_http_client, post)
     }
     if (Z_TYPE_P(data) == IS_ARRAY)
     {
-        zval *data_property = sw_zend_read_property_array(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestBody"), 1);
-        php_array_merge(Z_ARRVAL_P(data_property), Z_ARRVAL_P(data));
+        zval *zbody = sw_zend_read_property_array(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestBody"), 1);
+        php_array_merge(Z_ARRVAL_P(zbody), Z_ARRVAL_P(data));
     }
     else
     {
@@ -2088,17 +2088,17 @@ static PHP_METHOD(swoole_http_client, upgrade)
         return;
     }
 
-    zval *headers = sw_zend_read_property_array(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestHeaders"), 1);
+    zval *zheaders = sw_zend_read_property_array(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("requestHeaders"), 1);
 
     char buf[SW_WEBSOCKET_KEY_LENGTH + 1];
     http_client_create_token(SW_WEBSOCKET_KEY_LENGTH, buf);
 
-    add_assoc_string(headers, "Connection", "Upgrade");
-    add_assoc_string(headers, "Upgrade", "websocket");
-    add_assoc_string(headers, "Sec-WebSocket-Version", SW_WEBSOCKET_VERSION);
+    add_assoc_string(zheaders, "Connection", "Upgrade");
+    add_assoc_string(zheaders, "Upgrade", "websocket");
+    add_assoc_string(zheaders, "Sec-WebSocket-Version", SW_WEBSOCKET_VERSION);
 
     zend_string *str = php_base64_encode((const unsigned char *) buf, SW_WEBSOCKET_KEY_LENGTH);
-    add_assoc_str_ex(headers, ZEND_STRL("Sec-WebSocket-Key"), str);
+    add_assoc_str_ex(zheaders, ZEND_STRL("Sec-WebSocket-Key"), str);
 
     ret = http_client_execute(getThis(), uri, uri_len, finish_cb);
     SW_CHECK_RETURN(ret);

@@ -261,28 +261,28 @@ static ssize_t http2_client_build_header(zval *zobject, zval *req, char *buffer)
     int index = 0;
     int find_host = 0;
 
-    zval *cookies = sw_zend_read_property(swoole_http2_request_class_entry_ptr, req, ZEND_STRL("cookies"), 1);
-    zval *method = sw_zend_read_property(swoole_http2_request_class_entry_ptr, req, ZEND_STRL("method"), 1);
-    zval *path = sw_zend_read_property(swoole_http2_request_class_entry_ptr, req, ZEND_STRL("path"), 1);
-    zval *headers = sw_zend_read_property(swoole_http2_request_class_entry_ptr, req, ZEND_STRL("headers"), 1);
+    zval *zmethod = sw_zend_read_property(swoole_http2_request_class_entry_ptr, req, ZEND_STRL("method"), 1);
+    zval *zpath = sw_zend_read_property(swoole_http2_request_class_entry_ptr, req, ZEND_STRL("path"), 1);
+    zval *zheaders = sw_zend_read_property(swoole_http2_request_class_entry_ptr, req, ZEND_STRL("headers"), 1);
+    zval *zcookies = sw_zend_read_property(swoole_http2_request_class_entry_ptr, req, ZEND_STRL("cookies"), 1);
 
     nghttp2_nv nv[1024];
     http2_client_property *hcc = swoole_get_property(zobject, HTTP2_CLIENT_CORO_PROPERTY);
-    if (ZVAL_IS_NULL(method) || Z_TYPE_P(method) != IS_STRING || Z_STRLEN_P(method) == 0)
+    if (ZVAL_IS_NULL(zmethod) || Z_TYPE_P(zmethod) != IS_STRING || Z_STRLEN_P(zmethod) == 0)
     {
         http2_add_header(&nv[index++], ZEND_STRL(":method"), ZEND_STRL("GET"));
     }
     else
     {
-        http2_add_header(&nv[index++], ZEND_STRL(":method"), Z_STRVAL_P(method), Z_STRLEN_P(method));
+        http2_add_header(&nv[index++], ZEND_STRL(":method"), Z_STRVAL_P(zmethod), Z_STRLEN_P(zmethod));
     }
-    if (ZVAL_IS_NULL(path) || Z_TYPE_P(path) != IS_STRING || Z_STRLEN_P(path) == 0)
+    if (ZVAL_IS_NULL(zpath) || Z_TYPE_P(zpath) != IS_STRING || Z_STRLEN_P(zpath) == 0)
     {
         http2_add_header(&nv[index++], ZEND_STRL(":path"), "/", 1);
     }
     else
     {
-        http2_add_header(&nv[index++], ZEND_STRL(":path"), Z_STRVAL_P(path), Z_STRLEN_P(path));
+        http2_add_header(&nv[index++], ZEND_STRL(":path"), Z_STRVAL_P(zpath), Z_STRLEN_P(zpath));
     }
     if (hcc->ssl)
     {
@@ -295,9 +295,9 @@ static ssize_t http2_client_build_header(zval *zobject, zval *req, char *buffer)
     //Host
     index++;
 
-    if (headers && Z_TYPE_P(headers) == IS_ARRAY)
+    if (zheaders && Z_TYPE_P(zheaders) == IS_ARRAY)
     {
-        HashTable *ht = Z_ARRVAL_P(headers);
+        HashTable *ht = Z_ARRVAL_P(zheaders);
         zval *value = NULL;
         char *key = NULL;
         uint32_t keylen = 0;
@@ -313,7 +313,7 @@ static ssize_t http2_client_build_header(zval *zobject, zval *req, char *buffer)
             {
                 continue;
             }
-            if (strncasecmp("Host", key, keylen) == 0)
+            if (strncasecmp("host", key, keylen) == 0)
             {
                 http2_add_header(&nv[HTTP2_CLIENT_HOST_HEADER_INDEX], ZEND_STRL(":authority"), Z_STRVAL_P(value), Z_STRLEN_P(value));
                 find_host = 1;
@@ -332,9 +332,9 @@ static ssize_t http2_client_build_header(zval *zobject, zval *req, char *buffer)
     }
 
     //http cookies
-    if (cookies && Z_TYPE_P(cookies) == IS_ARRAY)
+    if (zcookies && Z_TYPE_P(zcookies) == IS_ARRAY)
     {
-        http2_add_cookie(nv, &index, cookies);
+        http2_add_cookie(nv, &index, zcookies);
     }
 
     ssize_t rv;
@@ -652,15 +652,15 @@ static uint32_t http2_client_send_request(zval *zobject, zval *req)
     http2_client_property *hcc = swoole_get_property(zobject, HTTP2_CLIENT_CORO_PROPERTY);
     swClient *cli = hcc->client;
 
-    zval *headers = sw_zend_read_property_array(swoole_http2_request_class_entry_ptr, req, ZEND_STRL("headers"), 1);
-    zval *post_data = sw_zend_read_property(swoole_http2_request_class_entry_ptr, req, ZEND_STRL("data"), 1);
-    zval *pipeline = sw_zend_read_property(swoole_http2_request_class_entry_ptr, req, ZEND_STRL("pipeline"), 1);
+    zval *zheaders = sw_zend_read_property_array(swoole_http2_request_class_entry_ptr, req, ZEND_STRL("headers"), 1);
+    zval *zpost_data = sw_zend_read_property(swoole_http2_request_class_entry_ptr, req, ZEND_STRL("data"), 1);
+    zval *zpipeline = sw_zend_read_property(swoole_http2_request_class_entry_ptr, req, ZEND_STRL("pipeline"), 1);
 
-    if (!ZVAL_IS_NULL(post_data))
+    if (!ZVAL_IS_NULL(zpost_data))
     {
-        if (Z_TYPE_P(post_data) == IS_ARRAY)
+        if (Z_TYPE_P(zpost_data) == IS_ARRAY)
         {
-            add_assoc_stringl_ex(headers, ZEND_STRL("content-type"), ZEND_STRL("application/x-www-form-urlencoded"));
+            add_assoc_stringl_ex(zheaders, ZEND_STRL("content-type"), ZEND_STRL("application/x-www-form-urlencoded"));
         }
     }
     /**
@@ -682,14 +682,14 @@ static uint32_t http2_client_send_request(zval *zobject, zval *req)
     stream->response_object = &stream->_response_object;
     object_init_ex(stream->response_object, swoole_http2_response_class_entry_ptr);
     stream->stream_id = hcc->stream_id;
-    stream->type = Z_BVAL_P(pipeline) ? SW_HTTP2_STREAM_PIPELINE : SW_HTTP2_STREAM_NORMAL;
+    stream->type = Z_BVAL_P(zpipeline) ? SW_HTTP2_STREAM_PIPELINE : SW_HTTP2_STREAM_NORMAL;
     stream->remote_window_size = SW_HTTP2_DEFAULT_WINDOW_SIZE;
     stream->local_window_size = SW_HTTP2_DEFAULT_WINDOW_SIZE;
 
     // add to map
     swHashMap_add_int(hcc->streams, stream->stream_id, stream);
 
-    if (ZVAL_IS_NULL(post_data))
+    if (ZVAL_IS_NULL(zpost_data))
     {
         //pipeline
         if (stream->type == SW_HTTP2_STREAM_PIPELINE)
@@ -714,7 +714,7 @@ static uint32_t http2_client_send_request(zval *zobject, zval *req)
     /**
      * send body
      */
-    if (!ZVAL_IS_NULL(post_data))
+    if (!ZVAL_IS_NULL(zpost_data))
     {
         char *p;
         size_t len;
@@ -723,9 +723,9 @@ static uint32_t http2_client_send_request(zval *zobject, zval *req)
         uint32_t send_len;
 
         int flag = stream->type == SW_HTTP2_STREAM_PIPELINE ? 0 : SW_HTTP2_FLAG_END_STREAM;
-        if (Z_TYPE_P(post_data) == IS_ARRAY)
+        if (Z_TYPE_P(zpost_data) == IS_ARRAY)
         {
-            p = sw_http_build_query(post_data, &len, &formstr_s);
+            p = sw_http_build_query(zpost_data, &len, &formstr_s);
             if (p == NULL)
             {
                 swoole_php_error(E_WARNING, "http_build_query failed.");
@@ -734,9 +734,9 @@ static uint32_t http2_client_send_request(zval *zobject, zval *req)
         }
         else
         {
-            convert_to_string(post_data);
-            p = Z_STRVAL_P(post_data);
-            len = Z_STRLEN_P(post_data);
+            convert_to_string(zpost_data);
+            p = Z_STRVAL_P(zpost_data);
+            len = Z_STRLEN_P(zpost_data);
         }
 
         swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN", END, STREAM#%d] length=%zu", swHttp2_get_type(SW_HTTP2_TYPE_DATA), stream->stream_id, len);

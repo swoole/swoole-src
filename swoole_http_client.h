@@ -164,11 +164,11 @@ int http_client_parser_on_body(swoole_http_parser *parser, const char *at, size_
 int http_client_parser_on_headers_complete(swoole_http_parser *parser);
 int http_client_parser_on_message_complete(swoole_http_parser *parser);
 
-http_client* http_client_create(zval *object);
+http_client* http_client_create(zval *zobject);
 void http_client_clear(http_client *http);
 int http_client_check_keep(http_client *http);
 void http_client_reset(http_client *http);
-uint8_t http_client_free(zval *object);
+uint8_t http_client_free(zval *zobject);
 
 static sw_inline void http_client_create_token(int length, char *buf)
 {

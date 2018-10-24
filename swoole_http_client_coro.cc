@@ -258,14 +258,14 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
             }
             if (hcc->socket->http_proxy)
             {
-                zval *request_headers = sw_zend_read_property(Z_OBJCE_P(zobject), zobject, ZEND_STRL("requestHeaders"), 1);
-                if (request_headers == NULL || Z_TYPE_P(request_headers) != IS_ARRAY)
+                zval *zrequest_headers = sw_zend_read_property(Z_OBJCE_P(zobject), zobject, ZEND_STRL("requestHeaders"), 1);
+                if (zrequest_headers == NULL || Z_TYPE_P(zrequest_headers) != IS_ARRAY)
                 {
                     swoole_php_fatal_error (E_WARNING, "http proxy must set Host");
                     return SW_ERR;
                 }
                 zval *value;
-                if (!(value = zend_hash_str_find(Z_ARRVAL_P(request_headers), ZEND_STRL("Host"))))
+                if (!(value = zend_hash_str_find(Z_ARRVAL_P(zrequest_headers), ZEND_STRL("Host"))))
                 {
                     swoole_php_fatal_error (E_WARNING, "http proxy must set Host");
                     return SW_ERR;
@@ -280,7 +280,7 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
                     zend_string *str = php_base64_encode((const unsigned char *) _buf1, _n1);
                     int _n2 = snprintf(_buf2, sizeof(_buf2), "Basic %*s", (int)str->len, str->val);
                     zend_string_free(str);
-                    add_assoc_stringl_ex(request_headers, ZEND_STRL("Proxy-Authorization"), _buf2, _n2);
+                    add_assoc_stringl_ex(zrequest_headers, ZEND_STRL("Proxy-Authorization"), _buf2, _n2);
                 }
             }
             php_swoole_client_coro_check_setting(hcc->socket, zset);
@@ -491,7 +491,7 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
     zval *value = NULL;
     char *method;
     uint32_t header_flag = 0x0;
-    zval *zmethod, *request_headers, *request_body, *upload_files, *cookies, *z_download_file;
+    zval *zmethod, *zheaders, *zbody, *zupload_files, *zcookies, *z_download_file;
 
     //clear errno
     SwooleG.error = 0;
@@ -501,10 +501,10 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
     swoole_php_check_coro_bind("http client", hcc->socket->has_bound(swoole::SOCKET_LOCK_WRITE), return SW_ERR);
 
     zmethod = sw_zend_read_property_not_null(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("requestMethod"), 1);
-    request_headers = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("requestHeaders"), 1);
-    request_body = sw_zend_read_property_not_null(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("requestBody"), 1);
-    upload_files = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("uploadFiles"), 1);
-    cookies = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("cookies"), 1);
+    zheaders = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("requestHeaders"), 1);
+    zbody = sw_zend_read_property_not_null(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("requestBody"), 1);
+    zupload_files = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("uploadFiles"), 1);
+    zcookies = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("cookies"), 1);
     z_download_file = sw_zend_read_property_not_null(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("downloadFile"), 1);
 
     // ============ download ============
@@ -555,7 +555,7 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
     }
     else
     {
-        method = (char *) (request_body ? "POST" : "GET");
+        method = (char *) (zbody ? "POST" : "GET");
     }
     http->method = swHttp_get_method(method, strlen(method) + 1);
     swString_append_ptr(http_client_buffer, method, strlen(method));
@@ -570,9 +570,9 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
     {
         char *host = http->host;
         size_t host_len = http->host_len;
-        if (request_headers && Z_TYPE_P(request_headers) == IS_ARRAY)
+        if (zheaders && Z_TYPE_P(zheaders) == IS_ARRAY)
         {
-            if ((value = zend_hash_str_find(Z_ARRVAL_P(request_headers), ZEND_STRL("Host"))))
+            if ((value = zend_hash_str_find(Z_ARRVAL_P(zheaders), ZEND_STRL("Host"))))
             {
                 host = Z_STRVAL_P(value);
                 host_len = Z_STRLEN_P(value);
@@ -595,11 +595,11 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
     uint32_t keylen;
     int keytype;
 
-    if (request_headers && Z_TYPE_P(request_headers) == IS_ARRAY)
+    if (zheaders && Z_TYPE_P(zheaders) == IS_ARRAY)
     {
         // As much as possible to ensure that Host is the first header.
         // See: http://tools.ietf.org/html/rfc7230#section-5.4
-        if ((value = zend_hash_str_find(Z_ARRVAL_P(request_headers), ZEND_STRL("Host"))))
+        if ((value = zend_hash_str_find(Z_ARRVAL_P(zheaders), ZEND_STRL("Host"))))
         {
             http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Host"), Z_STRVAL_P(value), Z_STRLEN_P(value));
         }
@@ -608,7 +608,7 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
             http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Host"), http->host, http->host_len);
         }
 
-        SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(request_headers), key, keylen, keytype, value)
+        SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zheaders), key, keylen, keytype, value)
             if (HASH_KEY_IS_STRING != keytype)
             {
                 continue;
@@ -658,14 +658,14 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
 #endif
 
     // ============ cookies ============
-    if (cookies && Z_TYPE_P(cookies) == IS_ARRAY)
+    if (zcookies && Z_TYPE_P(zcookies) == IS_ARRAY)
     {
         swString_append_ptr(http_client_buffer, ZEND_STRL("Cookie: "));
-        int n_cookie = Z_ARRVAL_P(cookies)->nNumOfElements;
+        int n_cookie = Z_ARRVAL_P(zcookies)->nNumOfElements;
         int i = 0;
         char *encoded_value;
 
-        SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(cookies), key, keylen, keytype, value)
+        SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zcookies), key, keylen, keytype, value)
             i++;
             if (HASH_KEY_IS_STRING != keytype)
             {
@@ -695,7 +695,7 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
     }
 
     // ============ multipart/form-data ============
-    if (upload_files && Z_TYPE_P(upload_files) == IS_ARRAY)
+    if (zupload_files && Z_TYPE_P(zupload_files) == IS_ARRAY)
     {
         char header_buf[2048];
         char boundary_str[39];
@@ -718,9 +718,9 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
         size_t content_length = 0;
 
         // calculate length before encode array
-        if (request_body && Z_TYPE_P(request_body) == IS_ARRAY)
+        if (zbody && Z_TYPE_P(zbody) == IS_ARRAY)
         {
-            SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(request_body), key, keylen, keytype, value)
+            SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zbody), key, keylen, keytype, value)
                 if (HASH_KEY_IS_STRING != keytype)
                 {
                     continue;
@@ -743,7 +743,7 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
         // calculate length of files
         {
             //upload files
-            SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(upload_files), key, keylen, keytype, value)
+            SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zupload_files), key, keylen, keytype, value)
                 if (!(zname = zend_hash_str_find(Z_ARRVAL_P(value), ZEND_STRL("name"))))
                 {
                     continue;
@@ -770,9 +770,9 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
         http_client_append_content_length(http_client_buffer, content_length + sizeof(boundary_str) - 1 + 6);
 
         // ============ form-data body ============
-        if (request_body && Z_TYPE_P(request_body) == IS_ARRAY)
+        if (zbody && Z_TYPE_P(zbody) == IS_ARRAY)
         {
-            SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(request_body), key, keylen, keytype, value)
+            SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zbody), key, keylen, keytype, value)
                 if (HASH_KEY_IS_STRING != keytype)
                 {
                     continue;
@@ -796,7 +796,7 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
 
         {
             //upload files
-            SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(upload_files), key, keylen, keytype, value)
+            SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zupload_files), key, keylen, keytype, value)
                 if (!(zname = zend_hash_str_find(Z_ARRVAL_P(value), ZEND_STRL("name"))))
                 {
                     continue;
@@ -894,16 +894,16 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
         }
     }
     // ============ x-www-form-urlencoded or raw ============
-    else if (request_body)
+    else if (zbody)
     {
-        if (Z_TYPE_P(request_body) == IS_ARRAY)
+        if (Z_TYPE_P(zbody) == IS_ARRAY)
         {
             size_t len;
             http_client_swString_append_headers(http_client_buffer, ZEND_STRL("Content-Type"), ZEND_STRL("application/x-www-form-urlencoded"));
-            if (php_swoole_array_length(request_body) > 0)
+            if (php_swoole_array_length(zbody) > 0)
             {
                 smart_str formstr_s = { 0 };
-                char *formstr = sw_http_build_query(request_body, &len, &formstr_s);
+                char *formstr = sw_http_build_query(zbody, &len, &formstr_s);
                 if (formstr == NULL)
                 {
                     swoole_php_error(E_WARNING, "http_build_query failed.");
@@ -920,9 +920,9 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
         }
         else
         {
-            convert_to_string(request_body);
-            http_client_append_content_length(http_client_buffer, Z_STRLEN_P(request_body));
-            swString_append_ptr(http_client_buffer, Z_STRVAL_P(request_body), Z_STRLEN_P(request_body));
+            convert_to_string(zbody);
+            http_client_append_content_length(http_client_buffer, Z_STRLEN_P(zbody));
+            swString_append_ptr(http_client_buffer, Z_STRVAL_P(zbody), Z_STRLEN_P(zbody));
         }
     }
     // ============ no body ============
@@ -1204,17 +1204,17 @@ static PHP_METHOD(swoole_http_client_coro, addFile)
         }
     }
 
-    zval *upload_files = sw_zend_read_property_array(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("uploadFiles"), 1);
-    zval *upload_file;
-    SW_MAKE_STD_ZVAL(upload_file);
-    array_init(upload_file);
-    add_assoc_stringl_ex(upload_file, ZEND_STRL("path"), path, l_path);
-    add_assoc_stringl_ex(upload_file, ZEND_STRL("name"), name, l_name);
-    add_assoc_stringl_ex(upload_file, ZEND_STRL("filename"), filename, l_filename);
-    add_assoc_stringl_ex(upload_file, ZEND_STRL("type"), type, l_type);
-    add_assoc_long(upload_file, "size", length);
-    add_assoc_long(upload_file, "offset", offset);
-    add_next_index_zval(upload_files, upload_file);
+    zval *zupload_files = sw_zend_read_property_array(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("uploadFiles"), 1);
+    zval *zupload_file;
+    SW_MAKE_STD_ZVAL(zupload_file);
+    array_init(zupload_file);
+    add_assoc_stringl_ex(zupload_file, ZEND_STRL("path"), path, l_path);
+    add_assoc_stringl_ex(zupload_file, ZEND_STRL("name"), name, l_name);
+    add_assoc_stringl_ex(zupload_file, ZEND_STRL("filename"), filename, l_filename);
+    add_assoc_stringl_ex(zupload_file, ZEND_STRL("type"), type, l_type);
+    add_assoc_long(zupload_file, "size", length);
+    add_assoc_long(zupload_file, "offset", offset);
+    add_next_index_zval(zupload_files, zupload_file);
 
     RETURN_TRUE;
 }
@@ -1249,16 +1249,16 @@ static PHP_METHOD(swoole_http_client_coro, addData)
         l_filename = l_name;
     }
 
-    zval *upload_files = sw_zend_read_property_array(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("uploadFiles"), 1);
-    zval *upload_file;
-    SW_MAKE_STD_ZVAL(upload_file);
-    array_init(upload_file);
-    add_assoc_stringl_ex(upload_file, ZEND_STRL("content"), data, l_data);
-    add_assoc_stringl_ex(upload_file, ZEND_STRL("name"), name, l_name);
-    add_assoc_stringl_ex(upload_file, ZEND_STRL("filename"), filename, l_filename);
-    add_assoc_stringl_ex(upload_file, ZEND_STRL("type"), type, l_type);
-    add_assoc_long(upload_file, "size", l_data);
-    add_next_index_zval(upload_files, upload_file);
+    zval *zupload_files = sw_zend_read_property_array(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("uploadFiles"), 1);
+    zval *zupload_file;
+    SW_MAKE_STD_ZVAL(zupload_file);
+    array_init(zupload_file);
+    add_assoc_stringl_ex(zupload_file, ZEND_STRL("content"), data, l_data);
+    add_assoc_stringl_ex(zupload_file, ZEND_STRL("name"), name, l_name);
+    add_assoc_stringl_ex(zupload_file, ZEND_STRL("filename"), filename, l_filename);
+    add_assoc_stringl_ex(zupload_file, ZEND_STRL("type"), type, l_type);
+    add_assoc_long(zupload_file, "size", l_data);
+    add_next_index_zval(zupload_files, zupload_file);
 
     RETURN_TRUE;
 }
@@ -1371,17 +1371,17 @@ static PHP_METHOD(swoole_http_client_coro, upgrade)
         Z_PARAM_STRING(uri, uri_len)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    zval *headers = sw_zend_read_property_array(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("requestHeaders"), 1);
+    zval *zheaders = sw_zend_read_property_array(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("requestHeaders"), 1);
 
     char buf[SW_WEBSOCKET_KEY_LENGTH + 1];
     http_client_create_token(SW_WEBSOCKET_KEY_LENGTH, buf);
 
-    add_assoc_string(headers, "Connection", (char* )"Upgrade");
-    add_assoc_string(headers, "Upgrade", (char* ) "websocket");
-    add_assoc_string(headers, "Sec-WebSocket-Version", (char*)SW_WEBSOCKET_VERSION);
+    add_assoc_string(zheaders, "Connection", (char* )"Upgrade");
+    add_assoc_string(zheaders, "Upgrade", (char* ) "websocket");
+    add_assoc_string(zheaders, "Sec-WebSocket-Version", (char*)SW_WEBSOCKET_VERSION);
 
     zend_string *str = php_base64_encode((const unsigned char *) buf, SW_WEBSOCKET_KEY_LENGTH);
-    add_assoc_str_ex(headers, ZEND_STRL("Sec-WebSocket-Key"), str);
+    add_assoc_str_ex(zheaders, ZEND_STRL("Sec-WebSocket-Key"), str);
 
     SW_CHECK_RETURN(http_client_coro_execute(getThis(), hcc, uri, uri_len));
 }

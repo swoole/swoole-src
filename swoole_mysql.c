@@ -2714,7 +2714,7 @@ static int swoole_mysql_onError(swReactor *reactor, swEvent *event)
 static void swoole_mysql_onConnect(mysql_client *client)
 {
     zval *zobject = client->object;
-    zval *callback = sw_zend_read_property(swoole_mysql_class_entry_ptr, zobject, ZEND_STRL("onConnect"), 0);
+    zval *zcallback = sw_zend_read_property(swoole_mysql_class_entry_ptr, zobject, ZEND_STRL("onConnect"), 0);
 
     zval *retval = NULL;
     zval *result;
@@ -2744,7 +2744,7 @@ static void swoole_mysql_onConnect(mysql_client *client)
     args[0] = *zobject;
     args[1] = *result;
 
-    if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 2, args, 0, NULL) != SUCCESS)
+    if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL) != SUCCESS)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_mysql onConnect handler error.");
     }

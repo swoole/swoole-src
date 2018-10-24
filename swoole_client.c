@@ -891,7 +891,7 @@ void php_swoole_client_free(zval *zobject, swClient *cli)
     swoole_set_object(zobject, NULL);
 }
 
-swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port)
+swClient* php_swoole_client_new(zval *zobject, char *host, int host_len, int port)
 {
     zval *ztype;
     int async = 0;
@@ -900,7 +900,7 @@ swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port
     uint64_t tmp_buf;
     int ret;
 
-    ztype = sw_zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("type"), 0);
+    ztype = sw_zend_read_property(Z_OBJCE_P(zobject), zobject, ZEND_STRL("type"), 0);
 
     if (ztype == NULL || ZVAL_IS_NULL(ztype))
     {
@@ -925,15 +925,16 @@ swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port
 
     swClient *cli;
     bzero(conn_key, SW_LONG_CONNECTION_KEY_LEN);
-    zval *connection_id = sw_zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("id"), 1);
+    zval *zconnection_id = sw_zend_read_property_not_null(Z_OBJCE_P(zobject), zobject, ZEND_STRL("id"), 1);
 
-    if (connection_id == NULL || ZVAL_IS_NULL(connection_id))
+    if (!zconnection_id)
     {
         conn_key_len = snprintf(conn_key, SW_LONG_CONNECTION_KEY_LEN, "%s:%d", host, port) + 1;
     }
     else
     {
-        conn_key_len = snprintf(conn_key, SW_LONG_CONNECTION_KEY_LEN, "%s", Z_STRVAL_P(connection_id)) + 1;
+        convert_to_string(zconnection_id);
+        conn_key_len = snprintf(conn_key, SW_LONG_CONNECTION_KEY_LEN, "%s", Z_STRVAL_P(zconnection_id)) + 1;
     }
 
     //keep the tcp connection
@@ -960,7 +961,7 @@ swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port
                 goto create_socket;
             }
             cli->reuse_count ++;
-            zend_update_property_long(Z_OBJCE_P(object), object, ZEND_STRL("reuseCount"), cli->reuse_count);
+            zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("reuseCount"), cli->reuse_count);
         }
     }
     else
@@ -971,7 +972,7 @@ swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port
         if (swClient_create(cli, php_swoole_socktype(type), async) < 0)
         {
             swoole_php_fatal_error(E_WARNING, "swClient_create() failed. Error: %s [%d]", strerror(errno), errno);
-            zend_update_property_long(Z_OBJCE_P(object), object, ZEND_STRL("errCode"), errno);
+            zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("errCode"), errno);
             return NULL;
         }
 
@@ -980,7 +981,7 @@ swClient* php_swoole_client_new(zval *object, char *host, int host_len, int port
         cli->server_strlen = conn_key_len;
     }
 
-    zend_update_property_long(Z_OBJCE_P(object), object, ZEND_STRL("sock"), cli->socket->fd);
+    zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("sock"), cli->socket->fd);
 
     if (type & SW_FLAG_KEEP)
     {
@@ -1034,10 +1035,6 @@ static PHP_METHOD(swoole_client, __construct)
     if (id)
     {
         zend_update_property_stringl(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("id"), id, len);
-    }
-    else
-    {
-        zend_update_property_null(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("id"));
     }
     //init
     swoole_set_object(getThis(), NULL);

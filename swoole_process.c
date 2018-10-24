@@ -648,7 +648,7 @@ static void php_swoole_onSignal(int signo)
     zval_ptr_dtor(zsigno);
 }
 
-int php_swoole_process_start(swWorker *process, zval *object)
+int php_swoole_process_start(swWorker *process, zval *zobject)
 {
     process->pipe = process->pipe_worker;
     process->pid = getpid();
@@ -703,10 +703,10 @@ int php_swoole_process_start(swWorker *process, zval *object)
 
     swSignal_clear();
 
-    zend_update_property_long(swoole_process_class_entry_ptr, object, ZEND_STRL("pid"), process->pid);
-    zend_update_property_long(swoole_process_class_entry_ptr, object, ZEND_STRL("pipe"), process->pipe_worker);
+    zend_update_property_long(swoole_process_class_entry_ptr, zobject, ZEND_STRL("pid"), process->pid);
+    zend_update_property_long(swoole_process_class_entry_ptr, zobject, ZEND_STRL("pipe"), process->pipe_worker);
 
-    zval *zcallback = sw_zend_read_property(swoole_process_class_entry_ptr, object, ZEND_STRL("callback"), 0);
+    zval *zcallback = sw_zend_read_property(swoole_process_class_entry_ptr, zobject, ZEND_STRL("callback"), 0);
     zval args[1];
 
     if (zcallback == NULL || ZVAL_IS_NULL(zcallback))
@@ -716,8 +716,8 @@ int php_swoole_process_start(swWorker *process, zval *object)
     }
 
     zval *retval = NULL;
-    args[0] = *object;
-    Z_TRY_ADDREF_P(object);
+    args[0] = *zobject;
+    Z_TRY_ADDREF_P(zobject);
 
     if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL) == FAILURE)
     {

@@ -69,9 +69,9 @@ int http2_client_parse_header(http2_client_property *hcc, http2_client_stream *s
         inlen -= 5;
     }
 
-    zval *headers = sw_zend_read_property_array(swoole_http2_response_class_entry_ptr, zresponse, ZEND_STRL("headers"), 1);
-    zval *cookies = sw_zend_read_property_array(swoole_http2_response_class_entry_ptr, zresponse, ZEND_STRL("cookies"), 1);
-    zval *set_cookie_headers = sw_zend_read_property_array(swoole_http2_response_class_entry_ptr, zresponse, ZEND_STRL("set_cookie_headers"), 1);
+    zval *zheaders = sw_zend_read_property_array(swoole_http2_response_class_entry_ptr, zresponse, ZEND_STRL("headers"), 1);
+    zval *zcookies = sw_zend_read_property_array(swoole_http2_response_class_entry_ptr, zresponse, ZEND_STRL("cookies"), 1);
+    zval *zset_cookie_headers = sw_zend_read_property_array(swoole_http2_response_class_entry_ptr, zresponse, ZEND_STRL("set_cookie_headers"), 1);
 
     ssize_t rv;
     for (;;)
@@ -117,13 +117,13 @@ int http2_client_parse_header(http2_client_property *hcc, http2_client_stream *s
 #endif
             else if (strncasecmp((char *) nv.name, "set-cookie", nv.namelen) == 0)
             {
-                if (SW_OK != http_parse_set_cookies((char *) nv.value, nv.valuelen, cookies, set_cookie_headers))
+                if (SW_OK != http_parse_set_cookies((char *) nv.value, nv.valuelen, zcookies, zset_cookie_headers))
                 {
                     return SW_ERR;
                 }
             }
 
-            add_assoc_stringl_ex(headers, (char *) nv.name, nv.namelen, (char *) nv.value, nv.valuelen);
+            add_assoc_stringl_ex(zheaders, (char *) nv.name, nv.namelen, (char *) nv.value, nv.valuelen);
         }
 
         if (inflate_flags & NGHTTP2_HD_INFLATE_FINAL)

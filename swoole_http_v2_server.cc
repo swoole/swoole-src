@@ -24,6 +24,8 @@
 #include <main/php_variables.h>
 #include <unordered_map>
 
+extern swString *swoole_http_buffer;
+
 namespace swoole
 {
     class http2_stream
@@ -114,10 +116,10 @@ static int http_build_trailer(http_context *ctx, uchar *buffer)
     nghttp2_nv nv[128];
     size_t index = 0;
 
-    zval *trailer = sw_zend_read_property(swoole_http_response_class_entry_ptr, ctx->response.zobject, ZEND_STRL("trailer"), 1);
-    if (ZVAL_IS_ARRAY(trailer))
+    zval *ztrailer = sw_zend_read_property(swoole_http_response_class_entry_ptr, ctx->response.zobject, ZEND_STRL("trailer"), 1);
+    if (ZVAL_IS_ARRAY(ztrailer))
     {
-        HashTable *ht = Z_ARRVAL_P(trailer);
+        HashTable *ht = Z_ARRVAL_P(ztrailer);
         zval *value = NULL;
         char *key = NULL;
         uint32_t keylen = 0;
@@ -230,36 +232,26 @@ static sw_inline void http2_onRequest(http_context *ctx, int from_fd)
     }
 }
 
-static int http2_build_header(http_context *ctx, uchar *buffer, int body_length)
+static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_length)
 {
-    assert(ctx->send_header == 0);
-
     swServer *serv = SwooleG.serv;
-
     char *date_str = NULL;
     char intbuf[2][16];
-
     int ret;
-
-
     size_t index = 0;
-
     nghttp2_nv nv[128];
 
-    /**
-     * http status code
-     */
+    assert(ctx->send_header == 0);
+
+    // status code
     if (ctx->response.status == 0)
     {
         ctx->response.status = 200;
     }
-
     ret = swoole_itoa(intbuf[0], ctx->response.status);
     http2_add_header(&nv[index++], ZEND_STRL(":status"), intbuf[0], ret);
 
-    /**
-     * http header
-     */
+    // headers
     zval *zheader = sw_zend_read_property(swoole_http_response_class_entry_ptr, ctx->response.zobject, ZEND_STRL("header"), 1);
     if (ZVAL_IS_ARRAY(zheader))
     {
@@ -283,7 +275,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length)
             }
             else if (strncmp(key, "content-length", keylen) == 0)
             {
-                header_flag |= HTTP_HEADER_CONTENT_LENGTH;
+                continue; // ignore
             }
             else if (strncmp(key, "date", keylen) == 0)
             {
@@ -302,17 +294,6 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length)
         {
             http2_add_header(&nv[index++], ZEND_STRL("server"), ZEND_STRL(SW_HTTP_SERVER_SOFTWARE));
         }
-        if (!(header_flag & HTTP_HEADER_CONTENT_LENGTH) && body_length >= 0)
-        {
-#ifdef SW_HAVE_ZLIB
-            if (ctx->enable_compression)
-            {
-                body_length = swoole_zlib_buffer->length;
-            }
-#endif
-            ret = swoole_itoa(intbuf[1], body_length);
-            http2_add_header(&nv[index++], ZEND_STRL("content-length"), intbuf[1], ret);
-        }
         if (!(header_flag & HTTP_HEADER_DATE))
         {
             date_str = sw_php_format_date((char *)ZEND_STRL(SW_HTTP_DATE_FORMAT), serv->gs->now, 0);
@@ -327,20 +308,11 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length)
     {
         http2_add_header(&nv[index++], ZEND_STRL("server"), ZEND_STRL(SW_HTTP_SERVER_SOFTWARE));
         http2_add_header(&nv[index++], ZEND_STRL("content-type"), ZEND_STRL("text/html"));
-
         date_str = sw_php_format_date((char *)ZEND_STRL(SW_HTTP_DATE_FORMAT), serv->gs->now, 0);
         http2_add_header(&nv[index++], ZEND_STRL("date"), date_str, strlen(date_str));
-
-#ifdef SW_HAVE_ZLIB
-        if (ctx->enable_compression)
-        {
-            body_length = swoole_zlib_buffer->length;
-        }
-#endif
-        ret = swoole_itoa(intbuf[1], body_length);
-        http2_add_header(&nv[index++], ZEND_STRL("content-length"), intbuf[1], ret);
     }
-    //http cookies
+
+    // cookies
     zval *zcookie = sw_zend_read_property(swoole_http_response_class_entry_ptr, ctx->response.zobject, ZEND_STRL("cookie"), 1);
     if (ZVAL_IS_ARRAY(zcookie))
     {
@@ -362,6 +334,17 @@ static int http2_build_header(http_context *ctx, uchar *buffer, int body_length)
         http2_add_header(&nv[index++], ZEND_STRL("content-encoding"), (char *) content_encoding, strlen(content_encoding));
     }
 #endif
+
+    // content length
+#ifdef SW_HAVE_ZLIB
+    if (ctx->enable_compression)
+    {
+        body_length = swoole_zlib_buffer->length;
+    }
+#endif
+    ret = swoole_itoa(intbuf[1], body_length);
+    http2_add_header(&nv[index++], ZEND_STRL("content-length"), intbuf[1], ret);
+
     ctx->send_header = 1;
 
     ssize_t rv;
@@ -434,9 +417,13 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
      +---------------------------------------------------------------+
      */
     char frame_header[SW_HTTP2_FRAME_HEADER_SIZE];
-    zval *trailer = sw_zend_read_property(swoole_http_response_class_entry_ptr, ctx->response.zobject, ZEND_STRL("trailer"), 1);
+    zval *ztrailer = sw_zend_read_property(swoole_http_response_class_entry_ptr, ctx->response.zobject, ZEND_STRL("trailer"), 1);
+    if (!ZVAL_IS_ARRAY(ztrailer))
+    {
+        ztrailer = NULL;
+    }
 
-    if (!ZVAL_IS_ARRAY(trailer) && body->length == 0)
+    if (!ztrailer && body->length == 0)
     {
         swHttp2_set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, ret, SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, stream->stream_id);
     }
@@ -449,7 +436,7 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
     swString_append_ptr(swoole_http_buffer, header_buffer, ret);
 
     int flag = SW_HTTP2_FLAG_END_STREAM;
-    if (ZVAL_IS_ARRAY(trailer))
+    if (ztrailer)
     {
         flag = SW_HTTP2_FLAG_NONE;
     }
@@ -462,7 +449,7 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
     }
 
     ctx->send_header = 1;
-    if (!ZVAL_IS_ARRAY(trailer) && body->length == 0)
+    if (!ztrailer && body->length == 0)
     {
         goto _end;
     }
@@ -513,7 +500,7 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
         }
     }
 
-    if (trailer)
+    if (ztrailer)
     {
         swString_clear(swoole_http_buffer);
         memset(header_buffer, 0, sizeof(header_buffer));

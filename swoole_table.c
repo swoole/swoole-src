@@ -837,8 +837,8 @@ static PHP_METHOD(swoole_table_row, offsetExists)
         RETURN_FALSE;
     }
 
-    zval *value = sw_zend_read_property(swoole_table_row_class_entry_ptr, getThis(), ZEND_STRL("value"), 0);
-    RETURN_BOOL(zend_hash_str_exists(Z_ARRVAL_P(value), key, keylen));
+    zval *zprop_value = sw_zend_read_property(swoole_table_row_class_entry_ptr, getThis(), ZEND_STRL("value"), 0);
+    RETURN_BOOL(zend_hash_str_exists(Z_ARRVAL_P(zprop_value), key, keylen));
 }
 
 static PHP_METHOD(swoole_table_row, offsetGet)
@@ -851,13 +851,13 @@ static PHP_METHOD(swoole_table_row, offsetGet)
         RETURN_FALSE;
     }
 
-    zval *value = sw_zend_read_property(swoole_table_row_class_entry_ptr, getThis(), ZEND_STRL("value"), 0);
-    zval *zvalue;
-    if (!(zvalue = zend_hash_str_find(Z_ARRVAL_P(value), key, keylen)))
+    zval *zprop_value = sw_zend_read_property(swoole_table_row_class_entry_ptr, getThis(), ZEND_STRL("value"), 0);
+    zval *retval;
+    if (!(retval = zend_hash_str_find(Z_ARRVAL_P(zprop_value), key, keylen)))
     {
         RETURN_FALSE;
     }
-    RETURN_ZVAL(zvalue, 1, 0);
+    RETURN_ZVAL(retval, 1, 0);
 }
 
 static PHP_METHOD(swoole_table_row, offsetSet)
@@ -878,10 +878,10 @@ static PHP_METHOD(swoole_table_row, offsetSet)
         RETURN_FALSE;
     }
 
-    zval *prop_key = sw_zend_read_property(swoole_table_row_class_entry_ptr, getThis(), ZEND_STRL("key"), 0);
+    zval *zprop_key = sw_zend_read_property(swoole_table_row_class_entry_ptr, getThis(), ZEND_STRL("key"), 0);
 
     swTableRow *_rowlock = NULL;
-    swTableRow *row = swTableRow_set(table, Z_STRVAL_P(prop_key), Z_STRLEN_P(prop_key), &_rowlock);
+    swTableRow *row = swTableRow_set(table, Z_STRVAL_P(zprop_key), Z_STRLEN_P(zprop_key), &_rowlock);
     if (!row)
     {
         swTableRow_unlock(_rowlock);
@@ -914,8 +914,8 @@ static PHP_METHOD(swoole_table_row, offsetSet)
     }
     swTableRow_unlock(_rowlock);
 
-    zval *prop_value = sw_zend_read_property(swoole_table_row_class_entry_ptr, getThis(), ZEND_STRL("value"), 0);
-    zend_hash_str_update(Z_ARRVAL_P(prop_value), key, keylen, value);
+    zval *zprop_value = sw_zend_read_property(swoole_table_row_class_entry_ptr, getThis(), ZEND_STRL("value"), 0);
+    zend_hash_str_update(Z_ARRVAL_P(zprop_value), key, keylen, value);
     RETURN_TRUE;
 }
 

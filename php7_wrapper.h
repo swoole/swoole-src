@@ -191,10 +191,10 @@ static sw_inline int sw_zend_is_callable(zval *cb, int a, char **name)
     return ret;
 }
 
-static inline int sw_zend_is_callable_ex(zval *callable, zval *object, uint check_flags, char **callable_name, int *callable_name_len, zend_fcall_info_cache *fcc, char **error)
+static inline int sw_zend_is_callable_ex(zval *zcallable, zval *zobject, uint check_flags, char **callable_name, int *callable_name_len, zend_fcall_info_cache *fcc, char **error)
 {
     zend_string *key = NULL;
-    int ret = zend_is_callable_ex(callable, NULL, check_flags, &key, fcc, error);
+    int ret = zend_is_callable_ex(zcallable, NULL, check_flags, &key, fcc, error);
     char *tmp = estrndup(key->val, key->len);
     zend_string_release(key);
     *callable_name = tmp;
@@ -225,9 +225,9 @@ static inline int sw_zend_register_class_alias(const char *name, zend_class_entr
 #endif
 }
 
-static sw_inline char* sw_http_build_query(zval *data, size_t *length, smart_str *formstr)
+static sw_inline char* sw_http_build_query(zval *zdata, size_t *length, smart_str *formstr)
 {
-    if (php_url_encode_hash_ex(HASH_OF(data), formstr, NULL, 0, NULL, 0, NULL, 0, NULL, NULL, (int) PHP_QUERY_RFC1738) == FAILURE)
+    if (php_url_encode_hash_ex(HASH_OF(zdata), formstr, NULL, 0, NULL, 0, NULL, 0, NULL, NULL, (int) PHP_QUERY_RFC1738) == FAILURE)
     {
         if (formstr->s)
         {

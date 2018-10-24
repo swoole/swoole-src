@@ -197,8 +197,8 @@ static int redis_onReceive(swServer *serv, swEventData *req)
 
     if (SwooleG.enable_coroutine)
     {
-        zval *index = sw_zend_read_property(swoole_redis_server_class_entry_ptr, zobject, _command, _command_len, 1);
-        if (!index || ZVAL_IS_NULL(index))
+        zval *zindex = sw_zend_read_property(swoole_redis_server_class_entry_ptr, zobject, _command, _command_len, 1);
+        if (!zindex || ZVAL_IS_NULL(zindex))
         {
             length = snprintf(err_msg, sizeof(err_msg), "-ERR unknown command '%*s'\r\n", command_len, command);
             swServer_tcp_send(serv, fd, err_msg, length);
@@ -208,7 +208,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
         args[0] = zfd;
         args[1] = zparams;
 
-        zend_fcall_info_cache *cache = func_cache_array.array[Z_LVAL_P(index)];
+        zend_fcall_info_cache *cache = func_cache_array.array[Z_LVAL_P(zindex)];
         if (coro_create(cache, args, 2, &retval, NULL, NULL) < 0)
         {
             zval_ptr_dtor(zfd);
