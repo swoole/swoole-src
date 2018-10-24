@@ -1265,12 +1265,12 @@ void http_client_reset(http_client *http)
     http->state = HTTP_CLIENT_STATE_READY;
 }
 
-int http_client_free(zval *object)
+uint8_t http_client_free(zval *object)
 {
     http_client *http = swoole_get_object(object);
     if (!http)
     {
-        return SW_ERR;
+        return 0;
     }
     if (http->uri)
     {
@@ -1291,12 +1291,12 @@ int http_client_free(zval *object)
     }
     efree(http);
 
-    //unset object
+    //unset http_client
     swoole_set_object(object, NULL);
 
     swTraceLog(SW_TRACE_HTTP_CLIENT, "free, object handle=%d.", Z_OBJ_HANDLE_P(object));
 
-    return SW_OK;
+    return 1;
 }
 
 http_client* http_client_create(zval *object)

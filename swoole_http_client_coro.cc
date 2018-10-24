@@ -44,23 +44,24 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
 static int http_client_coro_recv_response(zval *zobject, http_client_coro_property *hcc, http_client *client);
 static int http_client_coro_execute(zval *zobject, http_client_coro_property *hcc, char *uri, size_t uri_len);
 
+/**
+ * it's a safe function for any calling
+ * @return whether close an established connection successfully
+ */
 static int http_client_coro_close(zval *zobject)
 {
     zend_update_property_bool(Z_OBJCE_P(zobject), zobject, ZEND_STRL("connected"), 0);
 
-    int ret = http_client_free(zobject);
+    bool ret1 = false, ret2;
     http_client_coro_property *hcc = (http_client_coro_property *) swoole_get_property(zobject, 0);
     if (hcc->socket)
     {
-        ret = (ret == SW_OK && php_swoole_client_coro_socket_free(hcc->socket)) ? SW_OK : SW_ERR;
+        ret1 = php_swoole_client_coro_socket_free(hcc->socket);
         hcc->socket = nullptr;
     }
-    else
-    {
-        ret = SW_ERR;
-    }
+    ret2 = http_client_free(zobject);
 
-    return ret;
+    return (ret1 && ret2) ? SW_OK : SW_ERR;
 }
 
 static const swoole_http_parser_settings http_parser_settings =
@@ -388,18 +389,10 @@ static void swoole_http_client_coro_free_storage(zend_object *object)
     zval _zobject, *zobject = &_zobject;
     ZVAL_OBJ(zobject, object);
 
-    http_client *http = (http_client *) swoole_get_object(zobject);
-    if (http)
-    {
-        http_client_coro_close(zobject);
-    }
-
+    http_client_coro_close(zobject);
     http_client_coro_property *hcc = (http_client_coro_property *) swoole_get_property(zobject, 0);
-    if (hcc)
-    {
-        efree(hcc);
-        swoole_set_property(zobject, 0, NULL);
-    }
+    efree(hcc);
+    swoole_set_property(zobject, 0, NULL);
 
     // dtor object
     zend_object_std_dtor(object);
