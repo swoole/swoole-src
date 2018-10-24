@@ -609,6 +609,7 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
         if (hcc->iowait != 0)
         {
             hcc->iowait = 0;
+            hcc->read_cid = 0;
             php_context *context = swoole_get_property(zobject, HTTP2_CLIENT_CORO_CONTEXT);
             int ret = coro_resume(context, zresponse, &retval);
             if (ret == CORO_END && retval)
@@ -883,7 +884,6 @@ static PHP_METHOD(swoole_http2_client_coro, recv)
     hcc->read_cid = sw_get_current_cid();
     coro_save(context);
     coro_yield();
-    hcc->read_cid = 0;
 }
 
 static void http2_client_onConnect(swClient *cli)
@@ -923,6 +923,8 @@ static void http2_client_onConnect(swClient *cli)
     http2_client_send_setting(cli, &hcc->local_settings);
 
     hcc->iowait = 0;
+    hcc->read_cid = 0;
+    // hcc->write_cid = 0;
     zval *result;
     SW_MAKE_STD_ZVAL(result);
     ZVAL_BOOL(result, 1);
@@ -998,6 +1000,7 @@ static void http2_client_onTimeout(swTimer *timer, swTimer_node *tnode)
 
     http2_client_property *hcc = swoole_get_property(zobject, HTTP2_CLIENT_CORO_PROPERTY);
     hcc->iowait = 0;
+    hcc->read_cid = 0;
     zval *result;
     SW_MAKE_STD_ZVAL(result);
     ZVAL_BOOL(result, 0);

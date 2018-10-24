@@ -211,6 +211,9 @@ int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callba
 
 static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *params)
 {
+
+    swoole_php_check_coro_bind("mysql client", client->cid, return SW_ERR);
+
     if (!client->cli)
     {
         swoole_php_fatal_error(E_WARNING, "mysql connection#%d is closed.", client->fd);
@@ -1100,8 +1103,6 @@ static PHP_METHOD(swoole_mysql_coro_statement, execute)
         swoole_php_fatal_error(E_WARNING, "mysql connection#%d is closed.", client->fd);
         RETURN_FALSE;
     }
-
-    swoole_php_check_coro_bind("mysql client", client->cid, RETURN_FALSE);
 
     double timeout = -1;
 

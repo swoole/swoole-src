@@ -4614,6 +4614,7 @@ void swoole_redis_coro_onConnect(const redisAsyncContext *c, int status)
 
         php_context *sw_current_context = swoole_get_property(redis->object, 0);
 
+        redis->cid = 0;
         swoole_set_object(redis->object, NULL);
         SwooleG.main_reactor->defer(SwooleG.main_reactor, redis_coro_free, redis);
 
@@ -4656,6 +4657,7 @@ static void swoole_redis_coro_onClose(const redisAsyncContext *c, int status)
     {
         swTraceLog(SW_TRACE_REDIS_CLIENT, "fd=%d, object_id=%d", redis->context->c.fd, Z_OBJ_HANDLE_P(redis->object));
 
+        redis->cid = 0;
         redis->context = NULL;
         redis->iowait = SW_REDIS_CORO_STATUS_CLOSED;
         zend_update_property_bool(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("connected"), 0);
@@ -4759,6 +4761,7 @@ static void swoole_redis_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
     zval *zobject = &_zobject;
 
     swRedisClient *redis = swoole_get_object(zobject);
+    redis->cid = 0;
     redis->timer = NULL;
     zend_update_property_long(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errCode"), ETIMEDOUT);
     zend_update_property_string(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), strerror(ETIMEDOUT));

@@ -2111,6 +2111,9 @@ int mysql_response(mysql_client *client)
 
 int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callback)
 {
+
+    swoole_php_check_coro_bind("mysql client", client->cid, return SW_ERR);
+
     if (!client->cli)
     {
         SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
