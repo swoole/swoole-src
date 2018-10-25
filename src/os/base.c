@@ -33,7 +33,6 @@ struct flock lock;
 
 swAsyncIO SwooleAIO;
 
-
 static int swAio_onTask(swThreadPool *pool, void *task, int task_len);
 static int swAio_onCompleted(swReactor *reactor, swEvent *event);
 
@@ -176,7 +175,7 @@ static int swAio_onCompleted(swReactor *reactor, swEvent *event)
 void swAio_handler_read(swAio_event *event)
 {
     int ret = -1;
-    if (flock(event->fd, LOCK_SH) < 0)
+    if (event->lock && flock(event->fd, LOCK_SH) < 0)
     {
         swSysError("flock(%d, LOCK_SH) failed.", event->fd);
         event->ret = -1;
@@ -192,7 +191,7 @@ void swAio_handler_read(swAio_event *event)
         }
         break;
     }
-    if (flock(event->fd, LOCK_UN) < 0)
+    if (event->lock && flock(event->fd, LOCK_UN) < 0)
     {
         swSysError("flock(%d, LOCK_UN) failed.", event->fd);
     }
@@ -216,7 +215,7 @@ static inline char* find_eol(char *buf, size_t size)
 void swAio_handler_stream_get_line(swAio_event *event)
 {
     int ret = -1;
-    if (flock(event->fd, LOCK_SH) < 0)
+    if (event->lock && flock(event->fd, LOCK_SH) < 0)
     {
         swSysError("flock(%d, LOCK_SH) failed.", event->fd);
         event->ret = -1;
@@ -311,7 +310,7 @@ void swAio_handler_stream_get_line(swAio_event *event)
     }
 
     _return:
-    if (flock(event->fd, LOCK_UN) < 0)
+    if (event->lock && flock(event->fd, LOCK_UN) < 0)
     {
         swSysError("flock(%d, LOCK_UN) failed.", event->fd);
     }
@@ -348,7 +347,7 @@ void swAio_handler_read_file(swAio_event *event)
     /**
      * lock
      */
-    if (flock(fd, LOCK_SH) < 0)
+    if (event->lock && flock(fd, LOCK_SH) < 0)
     {
         swSysError("flock(%d, LOCK_SH) failed.", event->fd);
         goto _error;
@@ -380,7 +379,7 @@ void swAio_handler_read_file(swAio_event *event)
     /**
      * unlock
      */
-    if (flock(fd, LOCK_UN) < 0)
+    if (event->lock && flock(fd, LOCK_UN) < 0)
     {
         swSysError("flock(%d, LOCK_UN) failed.", event->fd);
     }
@@ -399,7 +398,7 @@ void swAio_handler_write_file(swAio_event *event)
         event->error = errno;
         return;
     }
-    if (flock(fd, LOCK_EX) < 0)
+    if (event->lock && flock(fd, LOCK_EX) < 0)
     {
         swSysError("flock(%d, LOCK_EX) failed.", event->fd);
         event->ret = ret;
@@ -415,7 +414,7 @@ void swAio_handler_write_file(swAio_event *event)
             swSysError("fsync(%d) failed.", event->fd);
         }
     }
-    if (flock(fd, LOCK_UN) < 0)
+    if (event->lock && flock(fd, LOCK_UN) < 0)
     {
         swSysError("flock(%d, LOCK_UN) failed.", event->fd);
     }
@@ -427,7 +426,7 @@ void swAio_handler_write_file(swAio_event *event)
 void swAio_handler_write(swAio_event *event)
 {
     int ret = -1;
-    if (flock(event->fd, LOCK_EX) < 0)
+    if (event->lock && flock(event->fd, LOCK_EX) < 0)
     {
         swSysError("flock(%d, LOCK_EX) failed.", event->fd);
         return;
@@ -447,7 +446,7 @@ void swAio_handler_write(swAio_event *event)
             swSysError("fsync(%d) failed.", event->fd);
         }
     }
-    if (flock(event->fd, LOCK_UN) < 0)
+    if (event->lock && flock(event->fd, LOCK_UN) < 0)
     {
         swSysError("flock(%d, LOCK_UN) failed.", event->fd);
     }

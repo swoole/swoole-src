@@ -50,6 +50,7 @@ typedef struct _swAio_event
     int fd;
     int task_id;
     uint8_t type;
+    uint8_t lock;
     uint16_t flags;
     off_t offset;
     size_t nbytes;
