@@ -244,6 +244,23 @@ static sw_inline char* sw_http_build_query(zval *zdata, size_t *length, smart_st
     return formstr->s->val;
 }
 
+static sw_inline void sw_get_debug_print_backtrace(swString *buffer, zend_long options, zend_long limit)
+{
+    zval _fcn, *fcn = &_fcn, args[2], *retval = NULL;
+    php_output_start_user(NULL, 0, PHP_OUTPUT_HANDLER_STDFLAGS);
+    ZVAL_STRING(fcn, "debug_print_backtrace");
+    ZVAL_LONG(&args[0], options);
+    ZVAL_LONG(&args[1], limit);
+    sw_call_user_function_ex(EG(function_table), NULL, fcn, &retval, 2, args, 0, NULL);
+    zval_ptr_dtor(fcn);
+    php_output_get_contents(retval);
+    php_output_discard();
+    swString_clear(buffer);
+    swString_append_ptr(buffer, ZEND_STRL("Stack trace:\n"));
+    swString_append_ptr(buffer, Z_STRVAL_P(retval), Z_STRLEN_P(retval)-1); // trim \n
+    zval_ptr_dtor(retval);
+}
+
 #define SW_PREVENT_USER_DESTRUCT if(unlikely(!(GC_FLAGS(Z_OBJ_P(getThis())) & IS_OBJ_DESTRUCTOR_CALLED))){RETURN_NULL()}
 
 #endif /* EXT_SWOOLE_PHP7_WRAPPER_H_ */

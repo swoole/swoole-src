@@ -2097,7 +2097,7 @@ int mysql_response(mysql_client *client)
 int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callback)
 {
 
-    swoole_php_check_coro_bind("mysql client", client->cid, return SW_ERR);
+    sw_coro_check_bind("mysql client", client->cid);
 
     if (!client->cli)
     {

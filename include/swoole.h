@@ -429,7 +429,6 @@ enum swTraceType
 #define swYield()              sched_yield() //or usleep(1)
 //#define swYield()              usleep(500000)
 #define SW_MAX_FDTYPE          32 //32 kinds of event
-#define SW_ERROR_MSG_SIZE      512
 
 //------------------------------Base--------------------------------
 #ifndef uchar
