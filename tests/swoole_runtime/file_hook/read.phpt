@@ -22,11 +22,11 @@ function readfile_co($file)
 
 $files = array(
     [
-        'file' => dirname(TESTS_ROOT_PATH) . '/README.md',
+        'file' => SOURCE_ROOT_PATH . '/README.md',
         'hash'  => '',
     ],
     [
-        'file' => dirname(TESTS_ROOT_PATH) . '/package.xml',
+        'file' => SOURCE_ROOT_PATH . '/package.xml',
         'hash'  => '',
     ],
     [

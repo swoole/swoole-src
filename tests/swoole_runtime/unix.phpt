@@ -24,6 +24,8 @@ go(function () {
         $data = $client->recv();
         $client->send("Swoole: $data");
     }
+
+    usleep(1000);
 });
 
 go(function () {

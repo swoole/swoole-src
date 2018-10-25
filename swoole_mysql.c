@@ -910,7 +910,7 @@ int mysql_parse_rsa(mysql_connector *connector, char *buf, int len)
     ERR_clear_error();
     int flen = rsa_len - 42;
     flen = password_len > flen ? flen : password_len;
-    swDebug("rsa_len=%d", rsa_len);
+    swTraceLog(SW_TRACE_MYSQL_CLIENT, "rsa_len=%d", rsa_len);
     if (unlikely(RSA_public_encrypt(flen, (const unsigned char *)password, (unsigned char *)encrypt_msg, public_rsa, RSA_PKCS1_OAEP_PADDING) < 0))
     {
         ERR_load_crypto_strings();
@@ -1828,36 +1828,26 @@ int mysql_is_over(mysql_client *client)
 {
     swString *buffer = MYSQL_RESPONSE_BUFFER;
     char *p;
-    if (client->check_offset == buffer->length)
-    {
-        // have already check all of the data
-        goto again;
-    }
-    size_t n_buf = buffer->length - client->check_offset; // remaining buffer size
-    uint32_t temp;
+    off_t remaining_size = buffer->length - client->check_offset; // remaining buffer size
+    uint32_t package_len;
 
-    while (1)
+    while (remaining_size > 0) // if false: have already check all of the data
     {
         p = buffer->str + client->check_offset; // where to start checking now
-        if (unlikely(buffer->length - buffer->offset < 5))
+        if (unlikely(buffer->length < client->check_offset + 5))
         {
-            break;
+            break; // header incomplete
         }
-        temp = mysql_uint3korr(p); //package length
+        package_len = mysql_uint3korr(p); // parse package length
         // add header
         p += 4;
-        n_buf -= 4;
-        if (unlikely(n_buf < temp)) //package is incomplete
+        remaining_size -= 4;
+        if (unlikely(remaining_size < package_len)) // package is incomplete
         {
             break;
         }
-        else
-        {
-            client->check_offset += 4;
-        }
 
-        client->check_offset += temp; // add package length
-
+        client->check_offset += (4 + package_len); // add header length + package length
         if (client->check_offset >= buffer->length) // if false: more packages exist, skip the current one
         {
             switch ((uint8_t) p[0])
@@ -1866,37 +1856,32 @@ int mysql_is_over(mysql_client *client)
             {
                 // +type +warning
                 p += 3;
-                swDebug("meet eof and flag=%d", mysql_uint2korr(p));
-                goto check_flag;
+                swTraceLog(SW_TRACE_MYSQL_CLIENT, "meet eof and flag=%d", mysql_uint2korr(p));
+                goto _check_flag;
             }
             case 0x00: // ok
             {
-
-//                if (temp < 7)
-//                {
-//                    break;
-//                }
                 ulong_t val = 0;
                 char nul;
                 int retcode;
-                int t_nbuf = n_buf;
+                off_t temp_remaining_len = remaining_size;
 
-                //+type
+                // +type
                 p++;
-                t_nbuf--;
+                temp_remaining_len--;
 
-                retcode = mysql_lcb_ll(p, &val, &nul, t_nbuf); //affecr rows
-                t_nbuf -= retcode;
+                retcode = mysql_lcb_ll(p, &val, &nul, temp_remaining_len); // affect rows
                 p += retcode;
+                temp_remaining_len -= retcode;
 
-                retcode = mysql_lcb_ll(p, &val, &nul, t_nbuf); //insert id
-                t_nbuf -= retcode;
+                retcode = mysql_lcb_ll(p, &val, &nul, temp_remaining_len); // insert id
                 p += retcode;
+                temp_remaining_len -= retcode;
 
-                check_flag:
+                _check_flag:
                 if ((mysql_uint2korr(p) & SW_MYSQL_SERVER_MORE_RESULTS_EXISTS) == 0)
                 {
-                    over:
+                    _over:
                     client->response.wait_recv = 0;
                     client->check_offset = 0;
                     return SW_OK;
@@ -1905,19 +1890,19 @@ int mysql_is_over(mysql_client *client)
             }
             case 0xff: // response type = error
             {
-                goto over;
+                goto _over;
             }
             }
         }
 
-        n_buf -= temp;
-        if (n_buf == 0)
+        // not complete and without remaining data
+        remaining_size -= package_len;
+        if (remaining_size <= 0)
         {
-            break;
+            break; // again
         }
     }
 
-    again:
     client->response.wait_recv = 2;
     return SW_AGAIN;
 }
