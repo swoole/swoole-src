@@ -382,7 +382,10 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
     if (sock->connect(host, portno) == false)
     {
         xparam->outputs.error_code = sock->errCode;
-        xparam->outputs.error_text = zend_string_init(sock->errMsg, strlen(sock->errMsg), 0);
+        if (sock->errMsg)
+        {
+            xparam->outputs.error_text = zend_string_init(sock->errMsg, strlen(sock->errMsg), 0);
+        }
         ret = -1;
     }
     else
