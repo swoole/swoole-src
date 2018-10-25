@@ -157,7 +157,7 @@ static PHP_METHOD(swoole_postgresql_coro, connect)
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
         Z_PARAM_ZVAL(conninfo)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     pgsql = PQconnectStart(Z_STRVAL_P(conninfo));
     int fd =  PQsocket(pgsql);
@@ -504,7 +504,7 @@ static PHP_METHOD(swoole_postgresql_coro, query)
 
     ZEND_PARSE_PARAMETERS_START(1,1)
         Z_PARAM_ZVAL(query)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     pg_object *pg_object = swoole_get_object(getThis());
     pg_object->request_type = NORMAL_QUERY;
@@ -602,7 +602,7 @@ static PHP_METHOD(swoole_postgresql_coro, fetchAll)
         Z_PARAM_RESOURCE(result)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(result_type)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if ((object = (pg_object *)zend_fetch_resource(Z_RES_P(result), "PostgreSQL result", le_result)) == NULL)
     {
@@ -626,7 +626,7 @@ static PHP_METHOD(swoole_postgresql_coro,affectedRows)
 
     ZEND_PARSE_PARAMETERS_START(1,1)
         Z_PARAM_RESOURCE(result)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if ((object = (pg_object *)zend_fetch_resource(Z_RES_P(result), "PostgreSQL result", le_result)) == NULL)
     {
@@ -647,7 +647,7 @@ static PHP_METHOD(swoole_postgresql_coro,numRows)
 
     ZEND_PARSE_PARAMETERS_START(1,1)
         Z_PARAM_RESOURCE(result)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if ((object = (pg_object *)zend_fetch_resource(Z_RES_P(result), "PostgreSQL result", le_result)) == NULL)
     {
@@ -675,7 +675,7 @@ static PHP_METHOD(swoole_postgresql_coro,metaData)
 
     ZEND_PARSE_PARAMETERS_START(1,1)
         Z_PARAM_STRING(table_name, table_name_len)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     pg_object *pg_object = swoole_get_object(getThis());
     pg_object->request_type = META_DATA;
@@ -794,7 +794,7 @@ static void php_pgsql_fetch_hash(INTERNAL_FUNCTION_PARAMETERS, zend_long result_
 
         if (zend_parse_parameters(ZEND_NUM_ARGS(), "r|z!Sz", &result, &zrow, &class_name, &ctor_params) == FAILURE)
         {
-            return;
+            RETURN_FALSE;
         }
         if (!class_name)
         {
@@ -813,7 +813,7 @@ static void php_pgsql_fetch_hash(INTERNAL_FUNCTION_PARAMETERS, zend_long result_
     {
         if (zend_parse_parameters(ZEND_NUM_ARGS(), "r|z!l", &result, &zrow, &result_type) == FAILURE)
         {
-            return;
+            RETURN_FALSE;
         }
     }
     if (zrow == NULL)

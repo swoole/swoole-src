@@ -1388,7 +1388,7 @@ static PHP_FUNCTION(swoole_hashcode)
         Z_PARAM_STRING(data, l_data)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(type)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     switch(type)
     {
@@ -1423,7 +1423,7 @@ PHP_FUNCTION(swoole_strerror)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|l", &swoole_errno, &error_type) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
     if (error_type == 1)
     {
@@ -1446,7 +1446,7 @@ PHP_FUNCTION(swoole_get_mime_type)
     zend_long filename_len;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &filename, &filename_len) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
     RETURN_STRING(swoole_get_mime_type(filename));
 }
@@ -1468,7 +1468,7 @@ PHP_FUNCTION(swoole_set_process_name)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|l", &name, &size) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     if (Z_STRLEN_P(name) == 0)

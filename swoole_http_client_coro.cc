@@ -1121,7 +1121,7 @@ static PHP_METHOD(swoole_http_client_coro, setData)
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
         Z_PARAM_STRING(data, data_len)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     zend_update_property_stringl(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("requestBody"), data, data_len);
 

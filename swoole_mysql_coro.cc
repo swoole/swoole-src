@@ -841,7 +841,7 @@ static PHP_METHOD(swoole_mysql_coro, query)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|d", &sql.str, &sql.length, &timeout) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     if (sql.length <= 0)
@@ -966,7 +966,7 @@ static PHP_METHOD(swoole_mysql_coro, setDefer)
     zend_bool defer = 1;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|b", &defer) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     mysql_client *client = (mysql_client *) swoole_get_object(getThis());
@@ -1277,7 +1277,7 @@ static PHP_METHOD(swoole_mysql_coro, escape)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|l", &str.str, &str.length, &flags) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     if (str.length <= 0)

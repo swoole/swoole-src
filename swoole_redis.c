@@ -200,7 +200,7 @@ static PHP_METHOD(swoole_redis, __construct)
     zval *zset = NULL;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|z", &zset) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     swRedisClient *redis = emalloc(sizeof(swRedisClient));
@@ -272,7 +272,7 @@ static PHP_METHOD(swoole_redis, on)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &name, &len, &cb) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     swRedisClient *redis = swoole_get_object(getThis());
@@ -444,7 +444,7 @@ static PHP_METHOD(swoole_redis, __call)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &command, &command_len, &params) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     if (Z_TYPE_P(params) != IS_ARRAY)

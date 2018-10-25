@@ -731,7 +731,7 @@ static PHP_METHOD(swoole_table, count)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &mode) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     swTable *table = swoole_get_object(getThis());

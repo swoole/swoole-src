@@ -161,7 +161,7 @@ PHP_METHOD(swoole_atomic, __construct)
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(value)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     sw_atomic_t *atomic = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(sw_atomic_t));
     if (atomic == NULL)
@@ -183,7 +183,7 @@ PHP_METHOD(swoole_atomic, add)
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(add_value)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     RETURN_LONG(sw_atomic_add_fetch(atomic, (uint32_t ) add_value));
 }
@@ -196,7 +196,7 @@ PHP_METHOD(swoole_atomic, sub)
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(sub_value)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     RETURN_LONG(sw_atomic_sub_fetch(atomic, (uint32_t ) sub_value));
 }
@@ -214,7 +214,7 @@ PHP_METHOD(swoole_atomic, set)
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
         Z_PARAM_LONG(set_value)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     *atomic = (uint32_t) set_value;
 }
@@ -227,7 +227,7 @@ PHP_METHOD(swoole_atomic, cmpset)
     ZEND_PARSE_PARAMETERS_START(2, 2)
         Z_PARAM_LONG(cmp_value)
         Z_PARAM_LONG(set_value)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     RETURN_BOOL(sw_atomic_cmp_set(atomic, (sw_atomic_t) cmp_value, (sw_atomic_t) set_value));
 }
@@ -240,7 +240,7 @@ PHP_METHOD(swoole_atomic, wait)
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
         Z_PARAM_DOUBLE(timeout)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
 #ifdef HAVE_FUTEX
     SW_CHECK_RETURN(swoole_futex_wait(atomic, timeout));
@@ -269,7 +269,7 @@ PHP_METHOD(swoole_atomic, wakeup)
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(n)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
 #ifdef HAVE_FUTEX
     SW_CHECK_RETURN(swoole_futex_wakeup(atomic, (int ) n));
@@ -285,7 +285,7 @@ PHP_METHOD(swoole_atomic_long, __construct)
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(value)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     sw_atomic_long_t *atomic = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(sw_atomic_long_t));
     if (atomic == NULL)
@@ -307,7 +307,7 @@ PHP_METHOD(swoole_atomic_long, add)
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(add_value)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     RETURN_LONG(sw_atomic_add_fetch(atomic, (sw_atomic_long_t ) add_value));
 }
@@ -320,7 +320,7 @@ PHP_METHOD(swoole_atomic_long, sub)
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(sub_value)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     RETURN_LONG(sw_atomic_sub_fetch(atomic, (sw_atomic_long_t ) sub_value));
 }
@@ -338,7 +338,7 @@ PHP_METHOD(swoole_atomic_long, set)
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
         Z_PARAM_LONG(set_value)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     *atomic = (sw_atomic_long_t) set_value;
 }
@@ -351,7 +351,7 @@ PHP_METHOD(swoole_atomic_long, cmpset)
     ZEND_PARSE_PARAMETERS_START(2, 2)
         Z_PARAM_LONG(cmp_value)
         Z_PARAM_LONG(set_value)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     RETURN_BOOL(sw_atomic_cmp_set(atomic, (sw_atomic_long_t) cmp_value, (sw_atomic_long_t) set_value));
 }

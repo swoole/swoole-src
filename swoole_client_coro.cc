@@ -662,7 +662,7 @@ static PHP_METHOD(swoole_client_coro, set)
     zval *zset;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &zset) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
     if (Z_TYPE_P(zset) != IS_ARRAY)
     {
@@ -688,7 +688,7 @@ static PHP_METHOD(swoole_client_coro, connect)
         Z_PARAM_LONG(port)
         Z_PARAM_DOUBLE(timeout)
         Z_PARAM_LONG(sock_flag)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (host_len <= 0)
     {
@@ -736,7 +736,7 @@ static PHP_METHOD(swoole_client_coro, send)
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
         Z_PARAM_STRING(data, data_len)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (data_len <= 0)
     {
@@ -776,7 +776,7 @@ static PHP_METHOD(swoole_client_coro, sendto)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sls", &ip, &ip_len, &port, &data, &len) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     if (len <= 0)
@@ -807,7 +807,7 @@ static PHP_METHOD(swoole_client_coro, recvfrom)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "lz/|z/", &length, &address, &port) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     if (length <= 0)
@@ -855,7 +855,7 @@ static PHP_METHOD(swoole_client_coro, sendfile)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|ll", &file, &file_len, &offset, &length) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
     if (file_len <= 0)
     {
@@ -898,7 +898,7 @@ static PHP_METHOD(swoole_client_coro, recv)
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
         Z_PARAM_DOUBLE(timeout)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     Socket *cli = client_get_ptr(getThis());
     if (!cli)
@@ -956,7 +956,7 @@ static PHP_METHOD(swoole_client_coro, peek)
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(buf_len)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     Socket *cli = client_get_ptr(getThis());
     if (!cli)
@@ -1198,7 +1198,7 @@ static PHP_METHOD(swoole_client_coro, verifyPeerCert)
     zend_bool allow_self_signed = 0;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|b", &allow_self_signed) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
     SW_CHECK_RETURN(cli->ssl_verify(allow_self_signed));
 }

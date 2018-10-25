@@ -1134,7 +1134,7 @@ static sw_inline void sw_redis_command_key(INTERNAL_FUNCTION_PARAMETERS, char *c
     size_t key_len;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &key, &key_len) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
     SW_REDIS_COMMAND_CHECK
     int i =0;
@@ -1188,7 +1188,7 @@ static sw_inline void sw_redis_command_key_long_val(INTERNAL_FUNCTION_PARAMETERS
     zval *z_value;
     if(zend_parse_parameters(ZEND_NUM_ARGS(), "slz", &key, &key_len, &l_val, &z_value) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
     SW_REDIS_COMMAND_CHECK
     int i = 0;
@@ -1280,7 +1280,7 @@ static sw_inline void sw_redis_command_key_dbl(INTERNAL_FUNCTION_PARAMETERS, cha
     double d_val;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sd", &key, &key_len, &d_val) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
     SW_REDIS_COMMAND_CHECK
     int i =0;
@@ -1301,7 +1301,7 @@ static sw_inline void sw_redis_command_key_key(INTERNAL_FUNCTION_PARAMETERS, cha
     size_t key1_len, key2_len;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "ss", &key1, &key1_len, &key2, &key2_len) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
     SW_REDIS_COMMAND_CHECK
     int i =0;
@@ -1321,7 +1321,7 @@ static sw_inline void sw_redis_command_key_val(INTERNAL_FUNCTION_PARAMETERS, cha
     zval *z_value;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &key, &key_len, &z_value) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
     SW_REDIS_COMMAND_CHECK
     int i =0;
@@ -1340,7 +1340,7 @@ static sw_inline void sw_redis_command_key_str(INTERNAL_FUNCTION_PARAMETERS, cha
     size_t key_len, val_len;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "ss", &key, &key_len, &val, &val_len) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
     SW_REDIS_COMMAND_CHECK
     int i =0;
@@ -1359,7 +1359,7 @@ static sw_inline void sw_redis_command_key_str_str(INTERNAL_FUNCTION_PARAMETERS,
     size_t key_len, val1_len, val2_len;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sss", &key, &key_len, &val1, &val1_len, &val2, &val2_len) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
     SW_REDIS_COMMAND_CHECK
     int i =0;
@@ -1733,7 +1733,7 @@ static PHP_METHOD(swoole_redis_coro, __construct)
     zval *zset = NULL;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|z", &zset) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     swRedisClient *redis = redis_coro_create(getThis());
@@ -1769,7 +1769,7 @@ static PHP_METHOD(swoole_redis_coro, connect)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sl|b", &host, &host_len, &port, &serialize) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     if (host_len <= 0)
@@ -1878,7 +1878,7 @@ static PHP_METHOD(swoole_redis_coro, setDefer)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|b", &defer) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     swRedisClient *redis = swoole_get_object(getThis());
@@ -2023,7 +2023,7 @@ static PHP_METHOD(swoole_redis_coro, set)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz|z", &key, &key_len, &z_value, &z_opts) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     SW_REDIS_COMMAND_CHECK
@@ -2195,7 +2195,7 @@ static PHP_METHOD(swoole_redis_coro, mGet)
     zval *z_args;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "a", &z_args) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
     int argc;
     argc = zend_hash_num_elements(Z_ARRVAL_P(z_args));
@@ -2382,7 +2382,7 @@ static PHP_METHOD(swoole_redis_coro, mSet)
     zval *z_args;
     if(zend_parse_parameters(ZEND_NUM_ARGS(), "a", &z_args) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
     int argc;
     argc = zend_hash_num_elements(Z_ARRVAL_P(z_args));
@@ -2760,7 +2760,7 @@ static PHP_METHOD(swoole_redis_coro, auth)
     size_t pw_len;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &pw, &pw_len) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
     SW_REDIS_COMMAND_CHECK
     int i = 0;
@@ -2871,7 +2871,7 @@ static PHP_METHOD(swoole_redis_coro, zRange)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sll|b", &key, &key_len, &start, &end, &ws) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
     SW_REDIS_COMMAND_CHECK
 
@@ -2908,7 +2908,7 @@ static PHP_METHOD(swoole_redis_coro, zRevRange)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sll|b", &key, &key_len, &start, &end, &ws) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
     SW_REDIS_COMMAND_CHECK
 
@@ -3431,7 +3431,7 @@ static PHP_METHOD(swoole_redis_coro, zIncrBy)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sdz", &key, &key_len, &incrby, &z_val) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     SW_REDIS_COMMAND_CHECK;
@@ -3924,7 +3924,7 @@ static PHP_METHOD(swoole_redis_coro, pSubscribe)
     zval *z_arr;
     if(zend_parse_parameters(ZEND_NUM_ARGS(), "a", &z_arr) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     swRedisClient *redis = swoole_get_object(getThis());
@@ -3990,7 +3990,7 @@ static PHP_METHOD(swoole_redis_coro, subscribe)
     zval *z_arr;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "a", &z_arr) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     swRedisClient *redis = swoole_get_object(getThis());
@@ -4056,7 +4056,7 @@ static PHP_METHOD(swoole_redis_coro, multi)
     long mode = SW_REDIS_MODE_MULTI;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &mode) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     SW_REDIS_COMMAND_CHECK
@@ -4138,7 +4138,7 @@ static PHP_METHOD(swoole_redis_coro, request)
     zval *params = NULL;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &params) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     int argc = zend_hash_num_elements(Z_ARRVAL_P(params));
@@ -4195,7 +4195,7 @@ static PHP_METHOD(swoole_redis_coro, eval)
     long keys_num = 0;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|al", &script, &script_len, &params, &keys_num) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     HashTable *params_ht = NULL;
@@ -4240,7 +4240,7 @@ static PHP_METHOD(swoole_redis_coro, evalSha)
     long keys_num = 0;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|al", &sha, &sha_len, &params, &keys_num) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     HashTable *params_ht = NULL;

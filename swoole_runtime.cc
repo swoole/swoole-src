@@ -1038,7 +1038,7 @@ static PHP_FUNCTION(_time_nanosleep)
     zend_long tv_sec, tv_nsec;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "ll", &tv_sec, &tv_nsec) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     if (tv_sec < 0)
@@ -1088,7 +1088,7 @@ static PHP_FUNCTION(_time_sleep_until)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "d", &d_ts) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     if (gettimeofday((struct timeval *) &tm, NULL) != 0)

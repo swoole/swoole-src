@@ -453,7 +453,7 @@ PHP_FUNCTION(swoole_event_add)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|zzl", &zfd, &cb_read, &cb_write, &event_flag) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     if ((cb_read == NULL && cb_write == NULL) || (ZVAL_IS_NULL(cb_read) && ZVAL_IS_NULL(cb_write)))
@@ -540,7 +540,7 @@ PHP_FUNCTION(swoole_event_write)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "zs", &zfd, &data, &len) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     if (len <= 0)
@@ -583,7 +583,7 @@ PHP_FUNCTION(swoole_event_set)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|zzl", &zfd, &cb_read, &cb_write, &event_flag) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     int socket_fd = swoole_convert_to_fd(zfd);
@@ -682,7 +682,7 @@ PHP_FUNCTION(swoole_event_del)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &zfd) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     int socket_fd = swoole_convert_to_fd(zfd);
@@ -709,7 +709,7 @@ PHP_FUNCTION(swoole_event_defer)
     zval *callback;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &callback) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     char *func_name;
@@ -743,7 +743,7 @@ PHP_FUNCTION(swoole_event_cycle)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|b", &callback, &before) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     if (ZVAL_IS_NULL(callback))
@@ -860,7 +860,7 @@ PHP_FUNCTION(swoole_event_isset)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|l", &zfd, &events) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     int socket_fd = swoole_convert_to_fd(zfd);
