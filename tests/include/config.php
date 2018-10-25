@@ -46,6 +46,7 @@ if (IS_MAC_OS) {
 }
 
 /** ============== Files ============== */
+define('SOURCE_ROOT_PATH', __DIR__ . '/../../');
 define('TEST_IMAGE', __DIR__ . '/../../examples/test.jpg');
 define('TEST_LOG_FILE', '/tmp/swoole.log');
 define('SSL_FILE_DIR', __DIR__ . '/api/swoole_http_server/localhost-ssl');
