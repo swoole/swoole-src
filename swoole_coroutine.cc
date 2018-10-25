@@ -233,6 +233,11 @@ static void sw_coro_func(void *arg)
     EG(vm_stack_top) = task->vm_stack_top;
     EG(vm_stack_end) = task->vm_stack_end;
     zend_execute_ex(EG(current_execute_data));
+
+    if (EG(exception))
+    {
+        zend_exception_error(EG(exception), E_ERROR);
+    }
 }
 
 int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval *retval, void *post_callback,
