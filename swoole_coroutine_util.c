@@ -873,11 +873,6 @@ static PHP_METHOD(swoole_coroutine_util, fread)
         RETURN_FALSE;
     }
 
-    if (file_stat.st_size == 0)
-    {
-        RETURN_EMPTY_STRING();
-    }
-
     off_t _seek = lseek(fd, 0, SEEK_CUR);
     if (_seek < 0)
     {
@@ -886,9 +881,9 @@ static PHP_METHOD(swoole_coroutine_util, fread)
     }
     if (length <= 0)
     {
-        if (_seek > file_stat.st_size)
+        if (_seek >= file_stat.st_size)
         {
-            RETURN_EMPTY_STRING();
+            length = SW_BUFFER_SIZE_STD;
         }
         else
         {
@@ -1097,15 +1092,23 @@ static PHP_METHOD(swoole_coroutine_util, readFile)
 
     char *filename = NULL;
     size_t l_filename = 0;
+    zend_long flags = 0;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
         Z_PARAM_STRING(filename, l_filename)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(flags)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     swAio_event ev;
     bzero(&ev, sizeof(swAio_event));
 
     php_context *context = emalloc(sizeof(php_context));
+
+    if (flags & LOCK_EX)
+    {
+        ev.lock = 1;
+    }
 
     ev.type = SW_AIO_READ_FILE;
     ev.object = context;
@@ -1173,6 +1176,11 @@ static PHP_METHOD(swoole_coroutine_util, writeFile)
     else
     {
         ev.flags |= O_TRUNC;
+    }
+
+    if (flags & LOCK_EX)
+    {
+        ev.lock = 1;
     }
 
     if (!SwooleAIO.init)

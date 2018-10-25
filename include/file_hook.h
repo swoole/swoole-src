@@ -8,6 +8,7 @@ int swoole_coroutine_unlink(const char *pathname);
 int swoole_coroutine_mkdir(const char *pathname, mode_t mode);
 int swoole_coroutine_rmdir(const char *pathname);
 int swoole_coroutine_rename(const char *oldpath, const char *newpath);
+int swoole_coroutine_flock(int fd, int operation);
 
 #define access(pathname, mode)             swoole_coroutine_access(pathname, mode)
 #define open(pathname, flags, mode)        swoole_coroutine_open(pathname, flags, mode)

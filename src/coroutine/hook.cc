@@ -20,6 +20,7 @@
 
 #ifndef _WIN32
 
+#include <sys/file.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
@@ -214,6 +215,12 @@ int swoole_coroutine_poll(struct pollfd *fds, nfds_t nfds, int timeout)
 static void handler_access(swAio_event *event)
 {
     event->ret = access((const char*) event->buf, event->offset);
+    event->error = errno;
+}
+
+static void handler_flock(swAio_event *event)
+{
+    event->ret = ::flock(event->fd, (int) event->flags);
     event->error = errno;
 }
 
@@ -576,6 +583,31 @@ int swoole_coroutine_sleep(double sec)
     }
     coroutine_yield(co);
     return 0;
+}
+
+int swoole_coroutine_flock(int fd, int operation)
+{
+    if (SwooleG.main_reactor == nullptr || coroutine_get_current_cid() == -1)
+    {
+        return flock(fd, operation);
+    }
+
+    swAio_event ev;
+    bzero(&ev, sizeof(ev));
+    ev.fd = fd;
+    ev.flags = operation;
+    ev.handler = handler_flock;
+    ev.callback = aio_onCompleted;
+    ev.object = coroutine_get_current();
+    ev.req = &ev;
+
+    int ret = swAio_dispatch(&ev);
+    if (ret < 0)
+    {
+        return SW_ERR;
+    }
+    coroutine_yield((coroutine_t *) ev.object);
+    return ev.ret;
 }
 
 #if 0

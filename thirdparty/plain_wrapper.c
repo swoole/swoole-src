@@ -563,7 +563,7 @@ static int php_stdiop_set_option(php_stream *stream, int option, int value, void
 				return 0;
 			}
 
-			if (!flock(fd, value)) {
+			if (!swoole_coroutine_flock(fd, value)) {
 				data->lock_flag = value;
 				return 0;
 			} else {
