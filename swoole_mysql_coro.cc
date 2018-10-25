@@ -1759,6 +1759,7 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
                 case SW_WAIT:
                     if ((size_t) client->check_offset == buffer->length)
                     {
+                        // check all of the package but not complete
                         return SW_OK;
                     }
                     else
