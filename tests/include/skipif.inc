@@ -26,6 +26,13 @@ function skip(string $reason, bool $is_skip = true, int $color = SWOOLE_COLOR_YE
     }
 }
 
+function skip_by_php_version($require_version = '7.0')
+{
+    if (version_compare(PHP_VERSION, $require_version, '<')) {
+        skip('need php version >= ' . $require_version);
+    }
+}
+
 function skip_if_no_ssl()
 {
     if (!defined("SWOOLE_SSL")) {
