@@ -1135,9 +1135,9 @@ static PHP_METHOD(swoole_http_client_coro, addFile)
     char *name;
     size_t l_name;
     char *type = NULL;
-    size_t l_type;
+    size_t l_type = 0;
     char *filename = NULL;
-    size_t l_filename;
+    size_t l_filename = 0;
     zend_long offset = 0;
     zend_long length = 0;
 
@@ -1226,9 +1226,9 @@ static PHP_METHOD(swoole_http_client_coro, addData)
     char *name;
     size_t l_name;
     char *type = NULL;
-    size_t l_type;
+    size_t l_type = 0;
     char *filename = NULL;
-    size_t l_filename;
+    size_t l_filename = 0;
 
     ZEND_PARSE_PARAMETERS_START(2, 4)
         Z_PARAM_STRING(data, l_data)

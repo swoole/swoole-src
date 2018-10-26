@@ -11,7 +11,7 @@ require __DIR__ . '/../include/bootstrap.php';
 \Swoole\Runtime::enableCoroutine();
 $pm = new ProcessManager;
 $pm->parentFunc = function (int $pid) use ($pm) {
-    for ($i = MAX_REQUESTS; $i--;) {
+    for ($i = MAX_REQUESTS_LOW; $i--;) {
         $ret = curlGet("http://127.0.0.1:{$pm->getFreePort()}");
         assert($ret === 'Hello Swoole!');
     }
