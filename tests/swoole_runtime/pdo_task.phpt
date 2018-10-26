@@ -1,5 +1,5 @@
 --TEST--
-swoole_runtime: pdo
+swoole_runtime: pdo in task and http response detach
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
@@ -11,9 +11,11 @@ require __DIR__ . '/../include/bootstrap.php';
 \Swoole\Runtime::enableCoroutine();
 $pm = new ProcessManager;
 $pm->parentFunc = function (int $pid) use ($pm) {
-    for ($i = MAX_REQUESTS; $i--;) {
-        $ret = curlGet("http://127.0.0.1:{$pm->getFreePort()}");
-        assert($ret === 'Hello Swoole!');
+    for ($i = MAX_CONCURRENCY_LOW; $i--;) {
+        go(function () use ($pm) {
+            $ret = httpCoroGet("http://127.0.0.1:{$pm->getFreePort()}");
+            assert($ret === 'Hello Swoole!');
+        });
     }
     swoole_event_wait();
     echo "DONE\n";
@@ -38,7 +40,8 @@ $pm->childFunc = function () use ($pm) {
             );
             $stmt = $pdo->query('SELECT "Hello Swoole!"');
             assert($stmt->execute());
-            $response->end($stmt->fetchAll(PDO::FETCH_COLUMN)[0]);
+            $ret = $stmt->fetchAll(PDO::FETCH_COLUMN)[0];
+            $response->end($ret);
         });
     });
     $http->on('finish', function (swoole_http_server $server, $taskId, $data) { });

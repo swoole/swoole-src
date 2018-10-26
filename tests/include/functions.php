@@ -36,6 +36,20 @@ function get_one_free_port()
     return $port;
 }
 
+function httpCoroGet(string $uri)
+{
+    $url_info = parse_url($uri);
+    $domain = $url_info['host'];
+    $path = $url_info['path'] ?? null ?: '/';
+    $port = (int)($url_info['port'] ?? null ?: 80);
+    $cli = new Swoole\Coroutine\Http\Client($domain, $port, $port == 443);
+    $cli->set(['timeout' => 5]);
+    $cli->setHeaders(['Host' => $domain]);
+    $cli->get($path);
+
+    return $cli->body;
+}
+
 function curlGet($url, $gzip = true)
 {
     $ch = curl_init();
