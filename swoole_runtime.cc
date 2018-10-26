@@ -492,7 +492,12 @@ static inline int socket_accept(php_stream *stream, Socket *sock, php_stream_xpo
             setsockopt(clisock->get_fd(), IPPROTO_TCP, TCP_NODELAY, (char*) &tcp_nodelay, sizeof(tcp_nodelay));
         }
 #endif
-        xparam->outputs.client = php_stream_alloc_rel(stream->ops, (void* )clisock, NULL, "r+");
+        php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t*) emalloc(sizeof(*abstract));
+        memset(abstract, 0, sizeof(*abstract));
+
+        abstract->socket = clisock;
+
+        xparam->outputs.client = php_stream_alloc_rel(stream->ops, (void* )abstract, NULL, "r+");
         if (xparam->outputs.client)
         {
             xparam->outputs.client->ctx = stream->ctx;
