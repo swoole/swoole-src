@@ -63,6 +63,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_runtime_enableCoroutine, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
 static zend_class_entry *ce;
+
 static php_stream_ops socket_ops
 {
     socket_write,
@@ -75,6 +76,12 @@ static php_stream_ops socket_ops
     socket_stat,
     socket_set_option,
 };
+
+typedef struct
+{
+    php_netstream_data_t stream;
+    Socket *socket;
+} php_swoole_netstream_data_t;
 
 static bool hook_init = false;
 static int hook_flags;
@@ -213,7 +220,8 @@ static inline char *parse_ip_address_ex(const char *str, size_t str_len, int *po
 
 static size_t socket_write(php_stream *stream, const char *buf, size_t count)
 {
-    Socket *sock = (Socket*) stream->abstract;
+    php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) stream->abstract;
+    Socket *sock = (Socket*) abstract->socket;
     int didwrite;
     if (!sock)
     {
@@ -247,7 +255,8 @@ static size_t socket_write(php_stream *stream, const char *buf, size_t count)
 
 static size_t socket_read(php_stream *stream, char *buf, size_t count)
 {
-    Socket *sock = (Socket*) stream->abstract;
+    php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) stream->abstract;
+    Socket *sock = (Socket*) abstract->socket;
     ssize_t nr_bytes = 0;
 
     if (!sock)
@@ -278,8 +287,10 @@ static int socket_flush(php_stream *stream)
 
 static int socket_close(php_stream *stream, int close_handle)
 {
-    Socket *sock = (Socket*) stream->abstract;
+    php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) stream->abstract;
+    Socket *sock = (Socket*) abstract->socket;
     delete sock;
+    efree(abstract);
     return 0;
 }
 
@@ -304,7 +315,8 @@ enum
 
 static int socket_cast(php_stream *stream, int castas, void **ret)
 {
-    Socket *sock = (Socket*) stream->abstract;
+    php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) stream->abstract;
+    Socket *sock = (Socket*) abstract->socket;
     if (!sock)
     {
         return FAILURE;
@@ -336,7 +348,8 @@ static int socket_cast(php_stream *stream, int castas, void **ret)
 
 static int socket_stat(php_stream *stream, php_stream_statbuf *ssb)
 {
-    Socket *sock = (Socket*) stream->abstract;
+    php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) stream->abstract;
+    Socket *sock = (Socket*) abstract->socket;
     if (!sock)
     {
         return FAILURE;
@@ -708,7 +721,8 @@ static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_
 
 static int socket_set_option(php_stream *stream, int option, int value, void *ptrparam)
 {
-    Socket *sock = (Socket*) stream->abstract;
+    php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) stream->abstract;
+    Socket *sock = (Socket*) abstract->socket;
     switch (option)
     {
     case PHP_STREAM_OPTION_XPORT_API:
@@ -826,8 +840,19 @@ static php_stream *socket_create(const char *proto, size_t protolen, const char 
         sock = new Socket(SW_SOCK_TCP);
     }
 
-    sock->setTimeout((double) FG(default_socket_timeout));
-    stream = php_stream_alloc_rel(&socket_ops, sock, persistent_id, "r+");
+    if (FG(default_socket_timeout) > 0)
+    {
+        sock->setTimeout((double) FG(default_socket_timeout));
+    }
+
+    php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t*) emalloc(sizeof(*abstract));
+    memset(abstract, 0, sizeof(*abstract));
+
+    abstract->socket = sock;
+    abstract->stream.timeout.tv_sec = FG(default_socket_timeout);
+    abstract->stream.socket = sock->get_fd();
+
+    stream = php_stream_alloc_rel(&socket_ops, abstract, persistent_id, "r+");
 
     if (stream == NULL)
     {

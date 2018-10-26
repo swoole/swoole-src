@@ -120,6 +120,12 @@ swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *data, s
         swTimer_init(_msec);
     }
 
+    if (_msec <= 0 || _msec > INT_MAX)
+    {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "_msec value[%d] is invalid.", _msec);
+        return NULL;
+    }
+
     swTimer_node *tnode = sw_malloc(sizeof(swTimer_node));
     if (!tnode)
     {
