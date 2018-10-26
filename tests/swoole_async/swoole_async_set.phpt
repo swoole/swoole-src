@@ -3,18 +3,9 @@ swoole_async: swoole_async_set
 
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
-
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
-
+require __DIR__ . '/../include/bootstrap.php';
 
 swoole_async_set([
     "aio_mode" => 1,
@@ -27,7 +18,6 @@ swoole_async_set([
     "dns_lookup_random" => true,
     "enable_reuse_port" => true,
 ]);
-
 
 // 一个线程 进行dns查询, 结果有序
 $r = [];
@@ -49,10 +39,6 @@ for($i = 0; $i < 10; $i++) {
     });
 }
 
-
-
-
 ?>
-
 --EXPECT--
 SUCCESS

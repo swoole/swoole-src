@@ -1,4 +1,4 @@
-<?php 
+<?php
 $cli = new swoole_client(SWOOLE_SOCK_TCP);
 $cli->connect('127.0.0.1', 9501);
 

@@ -3,17 +3,10 @@ swoole_server: (eof protocol) recv 100k packet
 
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
-require_once __DIR__ . '/../include/api/swoole_server/TestServer.php';
+require __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/api/swoole_server/TestServer.php';
 
 class EofServer extends TestServer
 {
@@ -100,6 +93,6 @@ $pm->childFirst();
 //$pm->runParentFunc();
 $pm->run();
 ?>
---EXPECTF--
+--EXPECTREGEX--
 end
-Total count=100000, bytes=%d
+Total count=100000?, bytes=\d+

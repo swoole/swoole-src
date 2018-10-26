@@ -1,17 +1,16 @@
 --TEST--
-swoole_coroutine: coro channel
+swoole_coroutine_channel: coro channel
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
+require __DIR__ . '/../include/bootstrap.php';
 use Swoole\Coroutine as co;
 $chan = new co\Channel(1);
 co::create(function () use ($chan) {
     for($i=1; $i<=10; $i++) {
         co::sleep(0.01);
-        $chan->push(['rand' => rand(1000, 9999), 'index' => $i]);
+        $chan->push($i);
         echo "$i\n";
     }
 });

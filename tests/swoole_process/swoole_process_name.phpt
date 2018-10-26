@@ -3,25 +3,18 @@ swoole_process: name
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
-require __DIR__ . '/../inc/skipifDarwin.inc';
+skip_if_darwin();
 ?>
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
-
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 $name = "SWOOLE_PROCESS_TEST_" . rand(1, 100);
 
-$proc = new \swoole_process(function($childProc) { 
+$proc = new \swoole_process(function($childProc) {
 	global $name;
 	$childProc->name($name);
-	sleep(PHP_INT_MAX); 
+	sleep(PHP_INT_MAX);
 });
 
 $pid = $proc->start();

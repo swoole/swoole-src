@@ -2,24 +2,10 @@
 swoole_redis: connect refuse
 
 --SKIPIF--
-<?php require  __DIR__ . '/../include/skipif.inc';
-if (!class_exists("swoole_redis", false))
-{
-    exit("SKIP");
-}
-?>
-
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
-
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
+require __DIR__ . '/../include/bootstrap.php';
 
 $redis = new swoole_redis();
 
@@ -33,5 +19,4 @@ $result = $redis->connect("127.0.0.1", 19009, function ($redis, $result)
     assert($result === false);
 });
 ?>
-
 --EXPECT--

@@ -19,6 +19,19 @@
 #ifndef SWOOLE_MYSQL_H_
 #define SWOOLE_MYSQL_H_
 
+BEGIN_EXTERN_C()
+
+#ifdef SW_USE_MYSQLND
+#include "ext/mysqlnd/mysqlnd.h"
+#include "ext/mysqlnd/mysqlnd_charset.h"
+#endif
+
+#ifdef SW_USE_OPENSSL
+#ifndef OPENSSL_NO_RSA
+#define SW_MYSQL_RSA_SUPPORT
+#endif
+#endif
+
 //#define SW_MYSQL_DEBUG
 
 enum mysql_command
@@ -60,9 +73,25 @@ enum mysql_command
 enum mysql_handshake_state
 {
     SW_MYSQL_HANDSHAKE_WAIT_REQUEST,
+    SW_MYSQL_HANDSHAKE_WAIT_SWITCH,
+    SW_MYSQL_HANDSHAKE_WAIT_SIGNATURE,
+    SW_MYSQL_HANDSHAKE_WAIT_RSA,
     SW_MYSQL_HANDSHAKE_WAIT_RESULT,
     SW_MYSQL_HANDSHAKE_COMPLETED,
 };
+
+enum mysql_auth_signature
+{
+    SW_MYSQL_AUTH_SIGNATURE_ERROR = 0x00, // get signature failed
+    SW_MYSQL_AUTH_SIGNATURE = 0x01,
+    SW_MYSQL_AUTH_SIGNATURE_RSA_PREPARED = 0x02,
+    SW_MYSQL_AUTH_SIGNATURE_SUCCESS = 0x03,
+    SW_MYSQL_AUTH_SIGNATURE_FULL_AUTH_REQUIRED = 0x04, //rsa required
+};
+
+// nonce: a number or bit string used only once, in security engineering
+// other names on doc: challenge/scramble/salt
+#define SW_MYSQL_NONCE_LENGTH 20
 
 enum mysql_read_state
 {
@@ -207,7 +236,7 @@ typedef struct
     uint8_t protocol_version;
     char *server_version;
     int connection_id;
-    char auth_plugin_data[21];
+    char auth_plugin_data[SW_MYSQL_NONCE_LENGTH + 1]; // nonce + '\0'
     uint8_t l_auth_plugin_data;
     char filler;
     int capability_flags;
@@ -227,10 +256,10 @@ typedef struct
     zend_bool strict_type;
     zend_bool fetch_mode;
 
-    zend_size_t host_len;
-    zend_size_t user_len;
-    zend_size_t password_len;
-    zend_size_t database_len;
+    size_t host_len;
+    size_t user_len;
+    size_t password_len;
+    size_t database_len;
 
     long port;
     double timeout;
@@ -241,6 +270,9 @@ typedef struct
     char character_set;
     int packet_length;
     char buf[512];
+#ifdef SW_USE_OPENSSL
+    char auth_plugin_data[SW_MYSQL_NONCE_LENGTH]; // save challenge data for RSA auth
+#endif
 
     uint16_t error_code;
     char *error_msg;
@@ -332,6 +364,7 @@ typedef struct _mysql_client
     int cid;
 #endif
     uint8_t state;
+    uint32_t switch_check :1; /* check if server request auth switch */
     uint8_t handshake;
     uint8_t cmd; /* help with judging to do what in callback */
     swString *buffer; /* save the mysql responses data */
@@ -349,15 +382,33 @@ typedef struct _mysql_client
 
     swTimer_node *timer;
 
-#if PHP_MAJOR_VERSION >= 7
     zval _object;
     zval _onClose;
-#endif
 
     off_t check_offset;
     mysql_response_t response; /* single response */
 
 } mysql_client;
+
+#define mysql_request_buffer (SwooleTG.buffer_stack)
+
+#define SW_MYSQL_NOT_NULL_FLAG               1
+#define SW_MYSQL_PRI_KEY_FLAG                2
+#define SW_MYSQL_UNIQUE_KEY_FLAG             4
+#define SW_MYSQL_MULTIPLE_KEY_FLAG           8
+#define SW_MYSQL_BLOB_FLAG                  16
+#define SW_MYSQL_UNSIGNED_FLAG              32
+#define SW_MYSQL_ZEROFILL_FLAG              64
+#define SW_MYSQL_BINARY_FLAG               128
+#define SW_MYSQL_ENUM_FLAG                 256
+#define SW_MYSQL_AUTO_INCREMENT_FLAG       512
+#define SW_MYSQL_TIMESTAMP_FLAG           1024
+#define SW_MYSQL_SET_FLAG                 2048
+#define SW_MYSQL_NO_DEFAULT_VALUE_FLAG    4096
+#define SW_MYSQL_ON_UPDATE_NOW_FLAG       8192
+#define SW_MYSQL_PART_KEY_FLAG           16384
+#define SW_MYSQL_GROUP_FLAG              32768
+#define SW_MYSQL_NUM_FLAG                32768
 
 #define mysql_uint2korr(A)  (uint16_t) (((uint16_t) ((zend_uchar) (A)[0])) +\
                                ((uint16_t) ((zend_uchar) (A)[1]) << 8))
@@ -416,6 +467,9 @@ typedef struct _mysql_client
 int mysql_get_result(mysql_connector *connector, char *buf, int len);
 int mysql_get_charset(char *name);
 int mysql_handshake(mysql_connector *connector, char *buf, int len);
+int mysql_parse_auth_signature(swString *buffer, mysql_connector *connector);
+int mysql_parse_rsa(mysql_connector *connector, char *buf, int len);
+int mysql_auth_switch(mysql_connector *connector, char *buf, int len);
 int mysql_request(swString *sql, swString *buffer);
 int mysql_prepare(swString *sql, swString *buffer);
 int mysql_response(mysql_client *client);
@@ -514,6 +568,8 @@ static sw_inline int mysql_length_coded_binary(char *m, ulong_t *r, char *nul, i
     return retcode;
 }
 
-int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callback TSRMLS_DC);
+int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callback);
+
+END_EXTERN_C()
 
 #endif /* SWOOLE_MYSQL_H_ */

@@ -18,21 +18,21 @@
 
 #ifndef __clang__
 //gcc version check
-#if defined(__GNUC__) && (__GNUC__ < 3 || (__GNUC__ == 4 && __GNUC_MINOR__ < 4))
-#error "GCC 4.4 or later required."
+#if defined(__GNUC__) && (__GNUC__ < 3 || (__GNUC__ == 4 && __GNUC_MINOR__ < 8))
+#error "GCC 4.8 or later required."
 #endif
 #endif
 
-#ifndef SW_USE_LIBCO
-//#define SW_USE_LIBCO
-#endif
+#define SW_COROUTINE               1
 
 #define SW_MAX_FDTYPE              32   //32 kinds of event
 #define SW_MAX_HOOK_TYPE           32
-#define SW_ERROR_MSG_SIZE          512
+#define SW_ERROR_MSG_SIZE          1024
 #define SW_MAX_FILE_CONTENT        (64*1024*1024) //for swoole_file_get_contents
 #define SW_MAX_LISTEN_PORT         60000
 #define SW_MAX_CONCURRENT_TASK     1024
+#define SW_MAX_CORO_NESTING_LEVEL  128
+#define SW_STACK_BUFFER_SIZE       65536
 
 #ifdef HAVE_MALLOC_TRIM
 #define SW_USE_MALLOC_TRIM
@@ -43,9 +43,6 @@
 #define SW_USE_EVENT_TIMER
 #define SW_USE_MONOTONIC_TIME
 //#define SW_USE_RINGBUFFER
-
-//#define SW_USE_TIMEWHEEL
-#define SW_TIMEWHEEL_SIZE          60
 
 //#define SW_DEBUG_REMOTE_OPEN
 #define SW_DEBUG_SERVER_HOST       "127.0.0.1"
@@ -95,6 +92,7 @@
 #define SW_BUFFER_SIZE_STD         8192
 #define SW_BUFFER_SIZE_BIG         65536
 #define SW_BUFFER_SIZE_UDP         65536
+//#define SW_BUFFER_RECV_TIME
 #define SW_SENDFILE_CHUNK_SIZE     65536
 
 #define SW_SENDFILE_MAXLEN         4194304
@@ -118,7 +116,7 @@
 #define SW_AIO_HANDLER_MAX_SIZE          8
 //#define SW_THREADPOOL_USE_CHANNEL
 #define SW_THREADPOOL_QUEUE_LEN          10000
-#define SW_IP_MAX_LENGTH                 32
+#define SW_IP_MAX_LENGTH                 46
 
 //#define SW_USE_SOCKET_LINGER
 
@@ -212,32 +210,37 @@
 #define SW_DNS_SERVER_PORT               53
 #define SW_DNS_DEFAULT_SERVER            "8.8.8.8"
 
-//#define SW_HTTP_CLIENT_ENABLE
-
+/**
+ * HTTP Protocol
+ */
 #define SW_HTTP_SERVER_SOFTWARE          "swoole-http-server"
-#define SW_HTTP_BAD_REQUEST              "<h1>400 Bad Request</h1>\r\n"
+#define SW_HTTP_BAD_REQUEST_TIP          "<h1>400 Bad Request</h1>\r\n"
 #define SW_HTTP_PARAM_MAX_NUM            128
 #define SW_HTTP_COOKIE_KEYLEN            128
 #define SW_HTTP_COOKIE_VALLEN            4096
 #define SW_HTTP_RESPONSE_INIT_SIZE       65536
-#define SW_HTTP_HEADER_MAX_SIZE          8192
+#define SW_HTTP_HEADER_MAX_SIZE          65536
 #define SW_HTTP_HEADER_KEY_SIZE          128
 #define SW_HTTP_HEADER_VALUE_SIZE        4096
 #define SW_HTTP_HEADER_BUFFER_SIZE       128
-#define SW_HTTP_COMPRESS_GZIP
 #define SW_HTTP_UPLOAD_TMPDIR_SIZE       256
 #define SW_HTTP_DATE_FORMAT              "D, d M Y H:i:s T"
 #define SW_HTTP_RFC1123_DATE_GMT         "%a, %d %b %Y %T GMT"
 #define SW_HTTP_RFC1123_DATE_UTC         "%a, %d %b %Y %T UTC"
 #define SW_HTTP_RFC850_DATE              "%A, %d-%b-%y %T GMT"
 #define SW_HTTP_ASCTIME_DATE             "%a %b %e %T %Y"
-
 //#define SW_HTTP_100_CONTINUE
-#define SW_HTTP2_DATA_BUFFSER_SIZE       8192
-#define SW_HTTP2_MAX_CONCURRENT_STREAMS  128
-#define SW_HTTP2_MAX_FRAME_SIZE          ((1u << 14))
-#define SW_HTTP2_MAX_WINDOW              ((1u << 31) - 1)
-#define SW_HTTP2_DEFAULT_WINDOW          65535
+
+/**
+ * HTTP2 Protocol
+ */
+#define SW_HTTP2_DATA_BUFFER_SIZE            8192
+#define SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE   (1 << 12)
+#define SW_HTTP2_MAX_MAX_CONCURRENT_STREAMS  128
+#define SW_HTTP2_MAX_MAX_FRAME_SIZE          ((1u << 14))
+#define SW_HTTP2_MAX_WINDOW_SIZE             ((1u << 31) - 1)
+#define SW_HTTP2_DEFAULT_WINDOW_SIZE         65535
+#define SW_HTTP2_MAX_MAX_HEADER_LIST_SIZE    UINT32_MAX
 
 #define SW_HTTP_CLIENT_USERAGENT         "swoole-http-client"
 #define SW_HTTP_CLIENT_BOUNDARY_PREKEY   "----SwooleBoundary"
@@ -255,6 +258,7 @@
 #define SW_MYSQL_DEFAULT_CHARSET         33  //0x21, utf8_general_ci
 
 #define SW_REDIS_CONNECT_TIMEOUT         1.0
+#define SW_PGSQL_CONNECT_TIMEOUT         3.0
 
 #define SW_TIMER_MAX_VALUE               86400000
 
@@ -265,5 +269,11 @@
 #define SW_DEFAULT_STACK_SIZE            8192
 #define SW_DEFAULT_C_STACK_SIZE          (1024 * 1024 * 2)
 #define SW_MAX_CORO_NUM_LIMIT            0x80000
+
+#ifdef SW_DEBUG
+#ifndef SW_LOG_TRACE_OPEN
+#define SW_LOG_TRACE_OPEN
+#endif
+#endif
 
 #endif /* SWOOLE_CONFIG_H_ */

@@ -93,7 +93,7 @@ class TcpServer
 		$param = array(
 			'fd' => $fd,
 			'data' => $data,
-		);		
+		);
 		$swooleServer->task(json_encode($param));
 		//echo "send data to task worker.\n";
 	}

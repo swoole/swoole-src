@@ -1,7 +1,7 @@
 <?php
 go(function () {
     $redis = new co\Redis();
-    $redis->connect('127.0.0.1', 6379);
+    $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
     while (true)
     {
         $val = $redis->subscribe(['test']);

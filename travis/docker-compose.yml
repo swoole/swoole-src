@@ -1,0 +1,32 @@
+version: '3.4'
+services:
+  php:
+    image: "twosee/php:${PHP_VERSION}"
+    volumes:
+      - "${TRAVIS_BUILD_DIR}:/swoole-src:rw"
+    working_dir: /swoole-src
+    ulimits:
+      core: -1
+    privileged: true
+    depends_on:
+      - mysql
+      - redis
+    dns:
+      - 223.6.6.6
+      - 119.29.29.29
+    command: tail -f /etc/group
+  mysql:
+    image: "twosee/swoole-coroutine:mysql"
+    volumes:
+      - ./data/mysql:/var/lib/mysql:rw
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: test
+      MYSQL_USER: swoole
+      MYSQL_PASSWORD: swoole
+  redis:
+    image: "twosee/swoole-coroutine:redis"
+    volumes:
+      - ./data/redis:/var/lib/redis:rw
+    sysctls:
+        net.core.somaxconn: 65535

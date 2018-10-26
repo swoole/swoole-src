@@ -10,14 +10,14 @@ if (!class_exists("swoole_serialize", false))
 ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 function test($type, $variable, $test) {
     $serialized = swoole_serialize::pack($variable);
     $unserialized = swoole_serialize::unpack($serialized);
 
     echo $type, PHP_EOL;
-     
+
     var_dump($unserialized);
     echo $test || $unserialized->b == 3 ? 'OK' : 'ERROR', PHP_EOL;
 }
@@ -37,7 +37,6 @@ class Obj {
 }
 
 $o = new Obj(1, 2);
-
 
 test('object', $o, false);
 ?>

@@ -22,4 +22,3 @@ var_dump($ret);
 $recv =  fread($fp, 8192);
 var_dump($recv);
 echo "finish\n";
-

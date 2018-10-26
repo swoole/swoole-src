@@ -4,7 +4,7 @@ swoole_coroutine: IO empty Exception
 <?php require  __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../../include/bootstrap.php';
+require __DIR__ . '/../../include/bootstrap.php';
 
 go(function () {
     try {
@@ -17,7 +17,7 @@ go(function () {
     }
 });
     echo "end\n";
-    
+
 ?>
 --EXPECT--
 start

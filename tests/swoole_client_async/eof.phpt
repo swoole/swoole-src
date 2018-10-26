@@ -1,18 +1,10 @@
 --TEST--
-swoole_client: eof protocol [async]
+swoole_client_async: eof protocol [async]
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
-
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
+require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new ProcessManager;
 $port = get_one_free_port();
@@ -93,7 +85,7 @@ $pm->childFunc = function () use ($pm, $port)
         'socket_buffer_size' => 128 * 1024 * 1024,
         "worker_num" => 1,
         'send_yield' => true,
-        'log_file' => '/data/logs/swoole.log',
+        'log_file' => TEST_LOG_FILE,
     ));
     $serv->on("WorkerStart", function (\swoole_server $serv)  use ($pm)
     {

@@ -44,42 +44,41 @@ typedef struct
     z_stream gzip_stream;
     swString *gzip_buffer;
 #endif
-#if PHP_MAJOR_VERSION >= 7
     zval _callback;
     zval _response_object;
-#endif
+
+    // flow control
+    uint32_t remote_window_size;
+    uint32_t local_window_size;
+
 } http2_client_stream;
 
 typedef struct
 {
+
+    char *host;
+    size_t host_len;
+    int port;
     uint8_t ssl;
-    uint8_t connecting;
-    uint8_t ready;
-    uint8_t send_setting;
+    double timeout;
+    zval *object;
 
 #ifdef SW_COROUTINE
+    int read_cid;
+    // int write_cid; // useless temporarily
     uint8_t iowait;
-    int cid;
     swClient *client;
 #endif
 
-    uint32_t stream_id;
-
-    uint32_t window_size;
-    uint32_t max_concurrent_streams;
-    uint32_t max_frame_size;
-    uint32_t max_header_list_size;
-
-    char *host;
-    zend_size_t host_len;
-    int port;
-
     nghttp2_hd_inflater *inflater;
-    zval *object;
-    double timeout;
+    nghttp2_hd_deflater *deflater;
 
-    swLinkedList *requests;
-    swLinkedList *stream_requests;
+    uint32_t stream_id; // the next send stream id
+    uint32_t last_stream_id; // the last received stream id
+
+    swHttp2_settings local_settings;
+    swHttp2_settings remote_settings;
+
     swHashMap *streams;
 
 } http2_client_property;
@@ -100,7 +99,7 @@ static sw_inline void http2_client_init_gzip_stream(http2_client_stream *stream)
 
 int http2_client_parse_header(http2_client_property *hcc, http2_client_stream *stream , int flags, char *in, size_t inlen);
 
-static sw_inline void http2_client_send_setting(swClient *cli)
+static sw_inline void http2_client_send_setting(swClient *cli, swHttp2_settings  *settings)
 {
     uint16_t id = 0;
     uint32_t value = 0;
@@ -116,7 +115,7 @@ static sw_inline void http2_client_send_setting(swClient *cli)
     id = htons(SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS);
     memcpy(p, &id, sizeof(id));
     p += 2;
-    value = htonl(SW_HTTP2_MAX_CONCURRENT_STREAMS);
+    value = htonl(settings->max_concurrent_streams);
     memcpy(p, &value, sizeof(value));
     p += 4;
     /**
@@ -125,7 +124,7 @@ static sw_inline void http2_client_send_setting(swClient *cli)
     id = htons(SW_HTTP2_SETTINGS_MAX_FRAME_SIZE);
     memcpy(p, &id, sizeof(id));
     p += 2;
-    value = htonl(SW_HTTP2_MAX_FRAME_SIZE);
+    value = htonl(settings->max_frame_size);
     memcpy(p, &value, sizeof(value));
     p += 4;
     /**
@@ -134,7 +133,7 @@ static sw_inline void http2_client_send_setting(swClient *cli)
     id = htons(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE);
     memcpy(p, &id, sizeof(id));
     p += 2;
-    value = htonl(65535);
+    value = htonl(settings->window_size);
     memcpy(p, &value, sizeof(value));
     p += 4;
 
@@ -142,8 +141,18 @@ static sw_inline void http2_client_send_setting(swClient *cli)
     cli->send(cli, frame, SW_HTTP2_FRAME_HEADER_SIZE + 18, 0);
 }
 
+static sw_inline void http2_client_send_window_update(swClient *cli, int stream_id, uint32_t size)
+{
+    char frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_WINDOW_UPDATE_SIZE];
+    swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_YELLOW"] stream_id=%d, size=%d", "WINDOW_UPDATE", stream_id, size);
+    *(uint32_t*) ((char *)frame + SW_HTTP2_FRAME_HEADER_SIZE) = htonl(size);
+    swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_WINDOW_UPDATE, SW_HTTP2_WINDOW_UPDATE_SIZE, 0, stream_id);
+    cli->send(cli, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_WINDOW_UPDATE_SIZE, 0);
+}
+
 static sw_inline void http2_add_header(nghttp2_nv *headers, char *k, int kl, char *v, int vl)
 {
+    k = zend_str_tolower_dup(k, kl); // auto to lower
     headers->name = (uchar*) k;
     headers->namelen = kl;
     headers->value = (uchar*) v;
@@ -152,9 +161,6 @@ static sw_inline void http2_add_header(nghttp2_nv *headers, char *k, int kl, cha
     swTrace("k=%s, len=%d, v=%s, len=%d", k, kl, v, vl);
 }
 
-void http2_add_cookie(nghttp2_nv *nv, int *index, zval *cookies TSRMLS_DC);
-
-extern swString *cookie_buffer;
-extern zend_class_entry *swoole_client_class_entry_ptr;
+void http2_add_cookie(nghttp2_nv *nv, int *index, zval *cookies);
 
 #endif

@@ -1,3 +1,19 @@
+/*
+  +----------------------------------------------------------------------+
+  | Swoole                                                               |
+  +----------------------------------------------------------------------+
+  | This source file is subject to version 2.0 of the Apache license,    |
+  | that is bundled with this package in the file LICENSE, and is        |
+  | available through the world-wide-web at the following url:           |
+  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
+  | If you did not receive a copy of the Apache2.0 license and are unable|
+  | to obtain it through the world-wide-web, please send a note to       |
+  | license@swoole.com so we can mail you a copy immediately.            |
+  +----------------------------------------------------------------------+
+  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  +----------------------------------------------------------------------+
+*/
+
 #include "swoole.h"
 #include "context.h"
 
@@ -18,7 +34,7 @@ Context::Context(size_t stack_size, coroutine_func_t fn, void* private_data) :
     end = false;
 
     stack_ = (char*) sw_malloc(stack_size);
-    swDebug("alloc stack: size=%lu, ptr=%p", stack_size, stack_);
+    swTraceLog(SW_TRACE_COROUTINE, "alloc stack: size=%lu, ptr=%p", stack_size, stack_);
 
     ctx_.uc_stack.ss_sp = stack_;
     ctx_.uc_stack.ss_size = stack_size;
@@ -44,7 +60,7 @@ Context::~Context()
 {
     if (stack_)
     {
-        swDebug("free stack: ptr=%p", stack_);
+        swTraceLog(SW_TRACE_COROUTINE, "free stack: ptr=%p", stack_);
         if (protect_page_)
         {
             unprotect_stack(stack_, protect_page_);

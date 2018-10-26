@@ -1,11 +1,10 @@
 --TEST--
-swoole_coroutine: gethostbyname
+swoole_coroutine_util: gethostbyname
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
+require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Coroutine as co;
 

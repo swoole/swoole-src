@@ -16,4 +16,3 @@ var_dump($table['microsoft']);
 
 $table['google']['num'] = 500.90;
 var_dump($table['google']);
-

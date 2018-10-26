@@ -22,4 +22,3 @@ go(function() {
     var_dump($ret1);
 
 });
-

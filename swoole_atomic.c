@@ -59,7 +59,7 @@ static sw_inline int swoole_futex_wait(sw_atomic_t *atomic, double timeout)
     }
     if (ret == SW_OK)
     {
-        *atomic = 0;
+        sw_atomic_cmp_set(atomic, 1, 0);
     }
     return ret;
 }
@@ -117,7 +117,7 @@ zend_class_entry *swoole_atomic_long_class_entry_ptr;
 
 static const zend_function_entry swoole_atomic_methods[] =
 {
-    PHP_ME(swoole_atomic, __construct, arginfo_swoole_atomic_construct, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+    PHP_ME(swoole_atomic, __construct, arginfo_swoole_atomic_construct, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_atomic, add, arginfo_swoole_atomic_add, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_atomic, sub, arginfo_swoole_atomic_sub, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_atomic, get, arginfo_swoole_atomic_get, ZEND_ACC_PUBLIC)
@@ -125,32 +125,32 @@ static const zend_function_entry swoole_atomic_methods[] =
     PHP_ME(swoole_atomic, wait, arginfo_swoole_atomic_wait, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_atomic, wakeup, arginfo_swoole_atomic_waitup, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_atomic, cmpset, arginfo_swoole_atomic_cmpset, ZEND_ACC_PUBLIC)
-    PHP_FALIAS(__sleep, swoole_unsupport_serialize, NULL)
-    PHP_FALIAS(__wakeup, swoole_unsupport_serialize, NULL)
     PHP_FE_END
 };
 
 static const zend_function_entry swoole_atomic_long_methods[] =
 {
-    PHP_ME(swoole_atomic_long, __construct, arginfo_swoole_atomic_construct, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+    PHP_ME(swoole_atomic_long, __construct, arginfo_swoole_atomic_construct, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_atomic_long, add, arginfo_swoole_atomic_add, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_atomic_long, sub, arginfo_swoole_atomic_sub, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_atomic_long, get, arginfo_swoole_atomic_get, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_atomic_long, set, arginfo_swoole_atomic_set, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_atomic_long, cmpset, arginfo_swoole_atomic_cmpset, ZEND_ACC_PUBLIC)
-    PHP_FALIAS(__sleep, swoole_unsupport_serialize, NULL)
-    PHP_FALIAS(__wakeup, swoole_unsupport_serialize, NULL)
     PHP_FE_END
 };
 
-void swoole_atomic_init(int module_number TSRMLS_DC)
+void swoole_atomic_init(int module_number)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_atomic_ce, "swoole_atomic", "Swoole\\Atomic", swoole_atomic_methods);
-    swoole_atomic_class_entry_ptr = zend_register_internal_class(&swoole_atomic_ce TSRMLS_CC);
+    swoole_atomic_class_entry_ptr = zend_register_internal_class(&swoole_atomic_ce);
+    swoole_atomic_class_entry_ptr->serialize = zend_class_serialize_deny;
+    swoole_atomic_class_entry_ptr->unserialize = zend_class_unserialize_deny;
     SWOOLE_CLASS_ALIAS(swoole_atomic, "Swoole\\Atomic");
 
     SWOOLE_INIT_CLASS_ENTRY(swoole_atomic_long_ce, "swoole_atomic_long", "Swoole\\Atomic\\Long", swoole_atomic_long_methods);
-    swoole_atomic_long_class_entry_ptr = zend_register_internal_class(&swoole_atomic_long_ce TSRMLS_CC);
+    swoole_atomic_long_class_entry_ptr = zend_register_internal_class(&swoole_atomic_long_ce);
+    swoole_atomic_long_class_entry_ptr->serialize = zend_class_serialize_deny;
+    swoole_atomic_long_class_entry_ptr->unserialize = zend_class_unserialize_deny;
     SWOOLE_CLASS_ALIAS(swoole_atomic_long, "Swoole\\Atomic\\Long");
 }
 
@@ -158,22 +158,15 @@ PHP_METHOD(swoole_atomic, __construct)
 {
     zend_long value = 0;
 
-#ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(value)
-    ZEND_PARSE_PARAMETERS_END();
-#else
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &value) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
-#endif
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     sw_atomic_t *atomic = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(sw_atomic_t));
     if (atomic == NULL)
     {
-        zend_throw_exception(swoole_exception_class_entry_ptr, "global memory allocation failure.", SW_ERROR_MALLOC_FAIL TSRMLS_CC);
+        zend_throw_exception(swoole_exception_class_entry_ptr, "global memory allocation failure.", SW_ERROR_MALLOC_FAIL);
         RETURN_FALSE;
     }
     *atomic = (sw_atomic_t) value;
@@ -187,17 +180,11 @@ PHP_METHOD(swoole_atomic, add)
     zend_long add_value = 1;
     sw_atomic_t *atomic = swoole_get_object(getThis());
 
-#ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(add_value)
-    ZEND_PARSE_PARAMETERS_END();
-#else
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &add_value) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
-#endif
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
     RETURN_LONG(sw_atomic_add_fetch(atomic, (uint32_t ) add_value));
 }
 
@@ -206,17 +193,11 @@ PHP_METHOD(swoole_atomic, sub)
     zend_long sub_value = 1;
     sw_atomic_t *atomic = swoole_get_object(getThis());
 
-#ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(sub_value)
-    ZEND_PARSE_PARAMETERS_END();
-#else
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &sub_value) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
-#endif
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
     RETURN_LONG(sw_atomic_sub_fetch(atomic, (uint32_t ) sub_value));
 }
 
@@ -231,16 +212,10 @@ PHP_METHOD(swoole_atomic, set)
     sw_atomic_t *atomic = swoole_get_object(getThis());
     zend_long set_value;
 
-#ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(1, 1)
         Z_PARAM_LONG(set_value)
-    ZEND_PARSE_PARAMETERS_END();
-#else
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &set_value) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
-#endif
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
     *atomic = (uint32_t) set_value;
 }
 
@@ -249,17 +224,10 @@ PHP_METHOD(swoole_atomic, cmpset)
     zend_long cmp_value, set_value;
     sw_atomic_t *atomic = swoole_get_object(getThis());
 
-#ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(2, 2)
         Z_PARAM_LONG(cmp_value)
         Z_PARAM_LONG(set_value)
-    ZEND_PARSE_PARAMETERS_END();
-#else
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ll", &cmp_value, &set_value) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
-#endif
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     RETURN_BOOL(sw_atomic_cmp_set(atomic, (sw_atomic_t) cmp_value, (sw_atomic_t) set_value));
 }
@@ -269,17 +237,10 @@ PHP_METHOD(swoole_atomic, wait)
     double timeout = 1.0;
     sw_atomic_t *atomic = swoole_get_object(getThis());
 
-#ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
         Z_PARAM_DOUBLE(timeout)
-    ZEND_PARSE_PARAMETERS_END();
-#else
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|d", &timeout) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
-#endif
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
 #ifdef HAVE_FUTEX
     SW_CHECK_RETURN(swoole_futex_wait(atomic, timeout));
@@ -305,17 +266,10 @@ PHP_METHOD(swoole_atomic, wakeup)
     zend_long n = 1;
     sw_atomic_t *atomic = swoole_get_object(getThis());
 
-#ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(n)
-    ZEND_PARSE_PARAMETERS_END();
-#else
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &n) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
-#endif
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
 #ifdef HAVE_FUTEX
     SW_CHECK_RETURN(swoole_futex_wakeup(atomic, (int ) n));
@@ -328,22 +282,15 @@ PHP_METHOD(swoole_atomic_long, __construct)
 {
     zend_long value = 0;
 
-#ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(value)
-    ZEND_PARSE_PARAMETERS_END();
-#else
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &value) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
-#endif
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     sw_atomic_long_t *atomic = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(sw_atomic_long_t));
     if (atomic == NULL)
     {
-        zend_throw_exception(swoole_exception_class_entry_ptr, "global memory allocation failure.", SW_ERROR_MALLOC_FAIL TSRMLS_CC);
+        zend_throw_exception(swoole_exception_class_entry_ptr, "global memory allocation failure.", SW_ERROR_MALLOC_FAIL);
         RETURN_FALSE;
     }
     *atomic = (sw_atomic_long_t) value;
@@ -357,17 +304,10 @@ PHP_METHOD(swoole_atomic_long, add)
     zend_long add_value = 1;
     sw_atomic_long_t *atomic = swoole_get_object(getThis());
 
-#ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(add_value)
-    ZEND_PARSE_PARAMETERS_END();
-#else
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &add_value) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
-#endif
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     RETURN_LONG(sw_atomic_add_fetch(atomic, (sw_atomic_long_t ) add_value));
 }
@@ -377,17 +317,10 @@ PHP_METHOD(swoole_atomic_long, sub)
     zend_long sub_value = 1;
     sw_atomic_long_t *atomic = swoole_get_object(getThis());
 
-#ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(sub_value)
-    ZEND_PARSE_PARAMETERS_END();
-#else
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &sub_value) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
-#endif
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     RETURN_LONG(sw_atomic_sub_fetch(atomic, (sw_atomic_long_t ) sub_value));
 }
@@ -403,16 +336,10 @@ PHP_METHOD(swoole_atomic_long, set)
     sw_atomic_long_t *atomic = swoole_get_object(getThis());
     zend_long set_value;
 
-#ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(1, 1)
         Z_PARAM_LONG(set_value)
-    ZEND_PARSE_PARAMETERS_END();
-#else
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &set_value) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
-#endif
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
     *atomic = (sw_atomic_long_t) set_value;
 }
 
@@ -421,17 +348,10 @@ PHP_METHOD(swoole_atomic_long, cmpset)
     zend_long cmp_value, set_value;
     sw_atomic_long_t *atomic = swoole_get_object(getThis());
 
-#ifdef FAST_ZPP
     ZEND_PARSE_PARAMETERS_START(2, 2)
         Z_PARAM_LONG(cmp_value)
         Z_PARAM_LONG(set_value)
-    ZEND_PARSE_PARAMETERS_END();
-#else
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ll", &cmp_value, &set_value) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
-#endif
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     RETURN_BOOL(sw_atomic_cmp_set(atomic, (sw_atomic_long_t) cmp_value, (sw_atomic_long_t) set_value));
 }

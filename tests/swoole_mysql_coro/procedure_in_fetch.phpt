@@ -1,11 +1,10 @@
 --TEST--
-procedure: procedure in fetch mode
+swoole_mysql_coro: procedure in fetch mode
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/config.php';
+require __DIR__ . '/../include/bootstrap.php';
 go(function () {
     $db = new Swoole\Coroutine\Mysql;
     $server = [
@@ -53,22 +52,28 @@ SQL;
         assert(empty($_map), 'there are some results lost!');
 
         //PDO
-        !extension_loaded('PDO') && exit;
+        !extension_loaded('PDO') && exit("DONE\n");
         $_map = $map;
-        $pdo = new PDO(
-            "mysql:host=" . MYSQL_SERVER_HOST . ";dbname=" . MYSQL_SERVER_DB . ";charset=utf8",
-            MYSQL_SERVER_USER, MYSQL_SERVER_PWD
-        );
-        $pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
-        $stmt = $pdo->prepare("CALL reply(?)");
-        assert($stmt->execute(['hello mysql!']) === true);
-        do {
-            $res = $stmt->fetchAll();
-            assert(current($res[0]) === array_shift($_map));
-        } while ($ret = $stmt->nextRowset());
-        assert($stmt->rowCount() === 1, 'get the affected rows failed!');
-        assert(empty($_map), 'there are some results lost!');
+        try {
+            $pdo = new PDO(
+                "mysql:host=" . MYSQL_SERVER_HOST . ";dbname=" . MYSQL_SERVER_DB . ";charset=utf8",
+                MYSQL_SERVER_USER, MYSQL_SERVER_PWD
+            );
+            $pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
+            $stmt = $pdo->prepare("CALL reply(?)");
+            assert($stmt->execute(['hello mysql!']) === true);
+            do {
+                $res = $stmt->fetchAll();
+                assert(current($res[0]) === array_shift($_map));
+            } while ($ret = $stmt->nextRowset());
+            assert($stmt->rowCount() === 1, 'get the affected rows failed!');
+            assert(empty($_map), 'there are some results lost!');
+        } catch (\PDOException $e) {
+            assert($e->getCode() === 2054); // not support auth plugin
+        }
+        echo "DONE\n";
     }
 });
 ?>
 --EXPECT--
+DONE

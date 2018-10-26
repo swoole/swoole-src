@@ -1,12 +1,10 @@
 --TEST--
-swoole_coroutine: mysql query timeout
+swoole_mysql_coro: mysql query timeout
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
-require_once __DIR__ . '/../include/lib/curl.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 go(function (){
     $mysql = new Swoole\Coroutine\MySQL();
@@ -25,7 +23,7 @@ go(function (){
     $ret = $mysql->query('select sleep(1)', 0.2);
     if (!$ret)
     {
-        echo $mysql->errno ."\n";
+        assert($mysql->errno, SOCKET_ETIMEDOUT);
         echo $mysql->error."\n";
     }
     else
@@ -36,5 +34,4 @@ go(function (){
 swoole_event::wait();
 ?>
 --EXPECT--
-110
 query timeout

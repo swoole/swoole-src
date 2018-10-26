@@ -3,22 +3,15 @@ swoole_server: task_max_request
 
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
+require __DIR__ . '/../include/bootstrap.php';
 
 const N = 4000;
 
-$counter1 = new swoole_atomic();
-$counter2 = new swoole_atomic();
-$counter3 = new swoole_atomic();
+$counter1 = new swoole_atomic(); // onTask
+$counter2 = new swoole_atomic(); // onFinish
+$counter3 = new swoole_atomic(); // task num
 
 swoole_unittest_fork(function() {
 
@@ -70,7 +63,6 @@ swoole_unittest_fork(function() {
 swoole_unittest_wait();
 assert($counter1->get() == 4000);
 assert($counter2->get() == 4000);
-assert($counter2->get() > 15);
+assert($counter3->get() > 15);
 ?>
-
 --EXPECT--

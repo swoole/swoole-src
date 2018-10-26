@@ -45,6 +45,7 @@ int php_pgsql_result2array(PGresult *pg_result, zval *ret_array, long result_typ
 static int swoole_postgresql_coro_close(pg_object *pg_object);
 static  int query_result_parse(pg_object *pg_object);
 static  int meta_data_result_parse(pg_object *pg_object);
+static void swoole_pgsql_coro_onTimeout(swTimer *timer, swTimer_node *tnode);
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -101,7 +102,7 @@ ZEND_END_ARG_INFO()
 
 static const zend_function_entry swoole_postgresql_coro_methods[] =
 {
-    PHP_ME(swoole_postgresql_coro, __construct, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
+    PHP_ME(swoole_postgresql_coro, __construct, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_postgresql_coro, connect, arginfo_pg_connect, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_postgresql_coro, query, arginfo_pg_query, ZEND_ACC_PUBLIC )
     PHP_ME(swoole_postgresql_coro, fetchAll, arginfo_pg_fetch_all, ZEND_ACC_PUBLIC)
@@ -112,7 +113,7 @@ static const zend_function_entry swoole_postgresql_coro_methods[] =
     PHP_ME(swoole_postgresql_coro, fetchAssoc, arginfo_pg_fetch_assoc, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_postgresql_coro, fetchArray, arginfo_pg_fetch_array, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_postgresql_coro, fetchRow, arginfo_pg_fetch_row, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_postgresql_coro, __destruct, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
+    PHP_ME(swoole_postgresql_coro, __destruct, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
@@ -120,13 +121,13 @@ static zend_class_entry swoole_postgresql_coro_ce;
 static zend_class_entry *swoole_postgresql_coro_class_entry_ptr;
 static int le_link , le_result;
 
-void swoole_postgresql_coro_init(int module_number TSRMLS_DC)
+void swoole_postgresql_coro_init(int module_number)
 {
 
     INIT_CLASS_ENTRY(swoole_postgresql_coro_ce, "Swoole\\Coroutine\\PostgreSQL", swoole_postgresql_coro_methods);
     le_link = zend_register_list_destructors_ex(_destroy_pgsql_link, NULL, "pgsql link", module_number);
     le_result = zend_register_list_destructors_ex(_free_result, NULL, "pgsql result", module_number);
-    swoole_postgresql_coro_class_entry_ptr = zend_register_internal_class(&swoole_postgresql_coro_ce TSRMLS_CC);
+    swoole_postgresql_coro_class_entry_ptr = zend_register_internal_class(&swoole_postgresql_coro_ce);
 
     if (SWOOLE_G(use_shortname))
     {
@@ -141,7 +142,7 @@ void swoole_postgresql_coro_init(int module_number TSRMLS_DC)
 
 static PHP_METHOD(swoole_postgresql_coro, __construct)
 {
-    coro_check(TSRMLS_C);
+    coro_check();
     pg_object *pg;
     pg = emalloc(sizeof(pg_object));
     bzero(pg,sizeof(pg_object));
@@ -156,7 +157,7 @@ static PHP_METHOD(swoole_postgresql_coro, connect)
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
         Z_PARAM_ZVAL(conninfo)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     pgsql = PQconnectStart(Z_STRVAL_P(conninfo));
     int fd =  PQsocket(pgsql);
@@ -179,13 +180,14 @@ static PHP_METHOD(swoole_postgresql_coro, connect)
     pg_object *pg_object = swoole_get_object(getThis());
     pg_object->fd = fd;
     pg_object->conn = pgsql;
+    pg_object->timeout = SW_PGSQL_CONNECT_TIMEOUT;
     pg_object->status = CONNECTION_STARTED;
 
     PQsetnonblocking(pgsql , 1);
 
     if (pgsql==NULL || PQstatus(pgsql)==CONNECTION_BAD)
     {
-        swWarn("Unable to connect to PostgreSQL server: [%s]",pgsql);
+        swWarn("Unable to connect to PostgreSQL server: [%s]", PQhost(pgsql));
         if (pgsql)
         {
             PQfinish(pgsql);
@@ -204,32 +206,71 @@ static PHP_METHOD(swoole_postgresql_coro, connect)
         swoole_set_property(getThis(), 0, sw_current_context);
     }
     sw_current_context->state = SW_CORO_CONTEXT_RUNNING;
-    sw_current_context->onTimeout = NULL;
-    #if PHP_MAJOR_VERSION < 7
-    sw_current_context->coro_params = getThis();
-    #else
     sw_current_context->coro_params = *getThis();
-    #endif
 
-    //TODO:  add the timeout
-    /*
     if (pg_object->timeout > 0)
     {
-        php_swoole_check_timer((int) (ph_object->timeout * 1000));
-        pg_object->timer = SwooleG.timer.add(&SwooleG.timer, (int) (redis->timeout * 1000), 0, sw_current_context, swoole_pgsql_coro_onTimeout);
-    }*/
+        pg_object->timer = swTimer_add(&SwooleG.timer, (int) (pg_object->timeout * 1000), 0, sw_current_context, swoole_pgsql_coro_onTimeout);
+    }
     coro_save(sw_current_context);
     coro_yield();
 
 }
 
+static void swoole_pgsql_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
+{
+    zval _result;
+    zval *result = &_result;
+    zval *retval = NULL;
+    PGconn *pgsql;
+    php_context *ctx = tnode->data;
+    char *feedback;
+    char *err_msg;
+
+    ZVAL_BOOL(result, 0);
+
+    zval _zobject = ctx->coro_params;
+    zval *zobject = &_zobject;
+
+    pg_object *pg_object = swoole_get_object(zobject);
+    pg_object->timer = NULL;
+    pgsql = pg_object -> conn;
+
+    switch(PQstatus(pgsql))
+    {
+        case CONNECTION_STARTED:
+            feedback = "connection time out...please make sure your host,dbname,user and password is correct ";
+            break;
+
+        case CONNECTION_MADE:
+            feedback = "Connected to server...";
+            break;
+
+        default:
+            feedback = " time out...";
+    }
+
+    err_msg = PQerrorMessage(pg_object->conn);
+
+    if (pgsql==NULL || PQstatus(pgsql) == CONNECTION_STARTED)
+    {
+        swWarn(" [%s, %s] ", feedback, err_msg);
+    } else if (PQstatus(pgsql) == CONNECTION_MADE)
+    {
+        PQfinish(pgsql);
+    }
+
+    int ret = coro_resume(ctx, result, &retval);
+    if (ret == CORO_END && retval)
+    {
+        zval_ptr_dtor(retval);
+    }
+    zval_ptr_dtor(result);
+}
+
 static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event)
 {
-    char *errMsg;
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
+    char *err_msg;
     if (event->socket->active)
     {
         return swReactor_onWrite(SwooleG.main_reactor, event);
@@ -244,6 +285,11 @@ static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event)
 
     pg_object *pg_object = event->socket->object;
 
+    if (pg_object->timer)
+    {
+        swTimer_del(&SwooleG.timer, pg_object->timer);
+        pg_object->timer = NULL;
+    }
 
     // wait the connection ok
     ConnStatusType status =  PQstatus(pg_object->conn);
@@ -260,8 +306,8 @@ static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event)
                 case PGRES_POLLING_WRITING:
                     break;
                 case PGRES_POLLING_FAILED:
-                    errMsg = PQerrorMessage(pg_object->conn);
-                    swWarn("error:[%s]",errMsg);
+                    err_msg = PQerrorMessage(pg_object->conn);
+                    swWarn("error:[%s]",err_msg);
                     break;
                 default:
                     break;
@@ -274,8 +320,8 @@ static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event)
             }
             if(flag == PGRES_POLLING_FAILED )
             {
-                errMsg = PQerrorMessage(pg_object->conn);
-                swWarn("error:[%s] please cofirm that the connection configuration is correct \n",errMsg);
+                err_msg = PQerrorMessage(pg_object->conn);
+                swWarn("error:[%s] please cofirm that the connection configuration is correct \n",err_msg);
                 break;
             }
         }
@@ -295,7 +341,7 @@ static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event)
     int ret = coro_resume(sw_current_context, &return_value, &retval);
     if (ret == CORO_END && retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
     return SW_OK;
 }
@@ -304,9 +350,11 @@ static int swoole_pgsql_coro_onRead(swReactor *reactor, swEvent *event)
 {
     pg_object *pg_object = (event->socket->object);
 
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
+    if (pg_object->timer)
+    {
+        swTimer_del(&SwooleG.timer, pg_object->timer);
+        pg_object->timer = NULL;
+    }
 
     switch (pg_object->request_type)
     {
@@ -378,7 +426,7 @@ static  int meta_data_result_parse(pg_object *pg_object)
     int ret  = coro_resume(sw_current_context, &return_value, &retval);
     if (ret == CORO_END && retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
     zval_ptr_dtor(&return_value);
     zval_ptr_dtor(&elem);
@@ -395,7 +443,7 @@ static  int query_result_parse(pg_object *pg_object)
 
 
     int error = 0;
-    char *errMsg;
+    char *err_msg;
     int ret, res;
     zval *retval = NULL;
     zval return_value;
@@ -410,15 +458,15 @@ static  int query_result_parse(pg_object *pg_object)
         case PGRES_BAD_RESPONSE:
         case PGRES_NONFATAL_ERROR:
         case PGRES_FATAL_ERROR:
-            errMsg = PQerrorMessage(pg_object->conn);
-            swWarn("Query failed: [%s]",errMsg);
+            err_msg = PQerrorMessage(pg_object->conn);
+            swWarn("Query failed: [%s]",err_msg);
 
             PQclear(pgsql_result);
             ZVAL_FALSE(&return_value);
             ret = coro_resume(sw_current_context, &return_value,  &retval);
             if (ret == CORO_END && retval)
             {
-                sw_zval_ptr_dtor(&retval);
+                zval_ptr_dtor(retval);
             }
             swoole_postgresql_coro_close(pg_object);
             break;
@@ -433,7 +481,7 @@ static  int query_result_parse(pg_object *pg_object)
             ret = coro_resume(sw_current_context, &return_value,  &retval);
             if (ret == CORO_END && retval)
             {
-                sw_zval_ptr_dtor(&retval);
+                zval_ptr_dtor(retval);
             }
             PQclear(pgsql_result);
 
@@ -456,7 +504,7 @@ static PHP_METHOD(swoole_postgresql_coro, query)
 
     ZEND_PARSE_PARAMETERS_START(1,1)
         Z_PARAM_ZVAL(query)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     pg_object *pg_object = swoole_get_object(getThis());
     pg_object->request_type = NORMAL_QUERY;
@@ -470,26 +518,20 @@ static PHP_METHOD(swoole_postgresql_coro, query)
     int ret  = PQsendQuery(pgsql, Z_STRVAL_P(query));
     if(ret == 0)
     {
-        char * errMsg = PQerrorMessage(pgsql);
-        swWarn("error:[%s]",errMsg);
+        char * err_msg = PQerrorMessage(pgsql);
+        swWarn("error:[%s]",err_msg);
 
     }
 
     php_context *sw_current_context = swoole_get_property(getThis(), 0);
     sw_current_context->state = SW_CORO_CONTEXT_RUNNING;
-    sw_current_context->onTimeout = NULL;
-    #if PHP_MAJOR_VERSION < 7
-    sw_current_context->coro_params = getThis();
-    #else
     sw_current_context->coro_params = *getThis();
-    #endif
 
     //TODO:  add the timeout
     /*
         if (pg_object->timeout > 0)
         {
-            php_swoole_check_timer((int) (ph_object->timeout * 1000));
-            pg_object->timer = SwooleG.timer.add(&SwooleG.timer, (int) (redis->timeout * 1000), 0, sw_current_context, swoole_pgsql_coro_onTimeout);
+            pg_object->timer = swTimer_add(&SwooleG.timer, (int) (pg_object->timeout * 1000), 0, sw_current_context, swoole_pgsql_coro_onTimeout);
         }*/
     coro_save(sw_current_context);
     coro_yield();
@@ -560,7 +602,7 @@ static PHP_METHOD(swoole_postgresql_coro, fetchAll)
         Z_PARAM_RESOURCE(result)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(result_type)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if ((object = (pg_object *)zend_fetch_resource(Z_RES_P(result), "PostgreSQL result", le_result)) == NULL)
     {
@@ -584,7 +626,7 @@ static PHP_METHOD(swoole_postgresql_coro,affectedRows)
 
     ZEND_PARSE_PARAMETERS_START(1,1)
         Z_PARAM_RESOURCE(result)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if ((object = (pg_object *)zend_fetch_resource(Z_RES_P(result), "PostgreSQL result", le_result)) == NULL)
     {
@@ -605,7 +647,7 @@ static PHP_METHOD(swoole_postgresql_coro,numRows)
 
     ZEND_PARSE_PARAMETERS_START(1,1)
         Z_PARAM_RESOURCE(result)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if ((object = (pg_object *)zend_fetch_resource(Z_RES_P(result), "PostgreSQL result", le_result)) == NULL)
     {
@@ -633,7 +675,7 @@ static PHP_METHOD(swoole_postgresql_coro,metaData)
 
     ZEND_PARSE_PARAMETERS_START(1,1)
         Z_PARAM_STRING(table_name, table_name_len)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     pg_object *pg_object = swoole_get_object(getThis());
     pg_object->request_type = META_DATA;
@@ -715,28 +757,22 @@ static PHP_METHOD(swoole_postgresql_coro,metaData)
     int ret  = PQsendQuery(pgsql, ZSTR_VAL(querystr.s));
     if(ret == 0)
     {
-        char * errMsg = PQerrorMessage(pgsql);
-        swWarn("error:[%s]",errMsg);
+        char * err_msg = PQerrorMessage(pgsql);
+        swWarn("error:[%s]",err_msg);
 
     }
     smart_str_free(&querystr);
 
     php_context *sw_current_context = swoole_get_property(getThis(), 0);
     sw_current_context->state = SW_CORO_CONTEXT_RUNNING;
-    sw_current_context->onTimeout = NULL;
-#if PHP_MAJOR_VERSION < 7
-        sw_current_context->coro_params = getThis();
-#else
-        sw_current_context->coro_params = *getThis();
-#endif
+    sw_current_context->coro_params = *getThis();
         /*
-            if (redis->timeout > 0)
+            if (pg_object->timeout > 0)
             {
-                php_swoole_check_timer((int) (redis->timeout * 1000));
-                redis->timer = SwooleG.timer.add(&SwooleG.timer, (int) (redis->timeout * 1000), 0, sw_current_context, swoole_redis_coro_onTimeout);
+                pg_object->timer = swTimer_add(&SwooleG.timer, (int) (pg_object->timeout * 1000), 0, sw_current_context, swoole_pg_object_coro_onTimeout);
             }*/
-        coro_save(sw_current_context);
-        coro_yield();
+    coro_save(sw_current_context);
+    coro_yield();
 
 }
 
@@ -758,7 +794,7 @@ static void php_pgsql_fetch_hash(INTERNAL_FUNCTION_PARAMETERS, zend_long result_
 
         if (zend_parse_parameters(ZEND_NUM_ARGS(), "r|z!Sz", &result, &zrow, &class_name, &ctor_params) == FAILURE)
         {
-            return;
+            RETURN_FALSE;
         }
         if (!class_name)
         {
@@ -777,7 +813,7 @@ static void php_pgsql_fetch_hash(INTERNAL_FUNCTION_PARAMETERS, zend_long result_
     {
         if (zend_parse_parameters(ZEND_NUM_ARGS(), "r|z!l", &result, &zrow, &result_type) == FAILURE)
         {
-            return;
+            RETURN_FALSE;
         }
     }
     if (zrow == NULL)
@@ -905,9 +941,11 @@ static void php_pgsql_fetch_hash(INTERNAL_FUNCTION_PARAMETERS, zend_long result_
                 }
             }
 
+#if PHP_VERSION_ID < 70300
             fcc.initialized = 1;
+#endif
             fcc.function_handler = ce->constructor;
-#if PHP_MINOR_VERSION > 0
+#if PHP_VERSION_ID >= 70100
             fcc.calling_scope = zend_get_executed_scope();
 #else
             fcc.calling_scope = EG(scope);
@@ -995,26 +1033,23 @@ static void _free_result(zend_resource *rsrc)
 
 static int swoole_pgsql_coro_onError(swReactor *reactor, swEvent *event)
 {
-#if PHP_MAJOR_VERSION < 7
-    TSRMLS_FETCH_FROM_CTX(sw_thread_ctx ? sw_thread_ctx : NULL);
-#endif
-
+    zval _result;
+    zval *result = &_result;
     pg_object *pg_object = (event->socket->object);
-    zval *retval = NULL, *result;
+    zval *retval = NULL;
     zval *zobject  = pg_object->object;
 
     swoole_postgresql_coro_close(pg_object);
 
-    SW_ALLOC_INIT_ZVAL(result);
     ZVAL_BOOL(result, 0);
 
     php_context *sw_current_context = swoole_get_property(zobject, 0);
     int ret = coro_resume(sw_current_context, result, &retval);
-    sw_zval_free(result);
+    zval_ptr_dtor(result);
 
     if (ret == CORO_END && retval)
     {
-        sw_zval_ptr_dtor(&retval);
+        zval_ptr_dtor(retval);
     }
 
     return SW_OK;
@@ -1022,6 +1057,8 @@ static int swoole_pgsql_coro_onError(swReactor *reactor, swEvent *event)
 
 static PHP_METHOD(swoole_postgresql_coro, __destruct)
 {
+    SW_PREVENT_USER_DESTRUCT;
+
     pg_object *pg_object = swoole_get_object(getThis());
     swoole_postgresql_coro_close(pg_object);
 

@@ -1,11 +1,13 @@
 --TEST--
 swoole_http2_client: get
 --SKIPIF--
-<?php require  __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_deprecated();
+?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
+require __DIR__ . '/../include/bootstrap.php';
 swoole_async_dns_lookup("www.jd.com", function ($domain, $ip)
 {
     $client = new Swoole\Http2\Client($ip, 443, true);
@@ -20,7 +22,7 @@ swoole_async_dns_lookup("www.jd.com", function ($domain, $ip)
     $client->get("/", function ($o) use ($client)
     {
         assert($o->statusCode == 200);
-        assert(strlen($o->body) > 1024);
+        assert(strlen($o->data) > 1024);
         $client->close();
     });
 });

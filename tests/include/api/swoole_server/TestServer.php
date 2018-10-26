@@ -23,7 +23,7 @@ abstract class TestServer
     protected $count = 0;
     protected $show_lost_package = false;
 
-    const PKG_NUM = 100000;
+    const PKG_NUM = IS_IN_TRAVIS ? 10000 : 100000;
     const LEN_MIN = 0;
     const LEN_MAX = 200;
 

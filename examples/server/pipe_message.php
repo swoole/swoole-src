@@ -17,7 +17,7 @@ $serv->on('task', function (swoole_server $serv, $task_id, $from_id, $data){
 });
 
 $serv->on('finish', function ($serv, $fd, $from_id){
-	
+
 });
 
 $serv->on('receive', function (swoole_server $serv, $fd, $from_id, $data) {
@@ -46,4 +46,3 @@ $serv->on('close', function ($serv, $fd, $from_id) {
 });
 
 $serv->start();
-

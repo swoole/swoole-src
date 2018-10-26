@@ -16,7 +16,7 @@ Last but not least, developers can use coroutine in both PHP7 and PHP5(>=5.5). P
 To set up a Http server:
 
 ```php
-<?php  
+<?php
 $server = new Swoole\Http\Server('127.0.0.1', 9501);
 
 /*
@@ -26,9 +26,9 @@ $server->on('Request', function($request, $response) {
 
     $tcp_cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
     /*
-        In the underlining implement of method connect, swoole will 
+        In the underlining implement of method connect, swoole will
         save the php context and suspend this coroutine.
-        After tcp connection is established, swoole will set the 
+        After tcp connection is established, swoole will set the
         return value and resume this cortoutine.
      */
     $ret = $tcp_cli->connect('127.0.0.1', 9906);
@@ -55,7 +55,7 @@ $server->start();
 UDP server Demo
 
 ```php
-<?php  
+<?php
 $server = new Swoole\Http\Server('127.0.0.1', 9501);
 
 $server->on('Request', function($request, $response) {
@@ -110,7 +110,7 @@ $cli->setHeaders([
 ]);
 $cli->set([ 'timeout' => 1]);
 $cli->get('/index.php');
-echo $cli->body;  
+echo $cli->body;
 $cli->close();
 ```
 3. redis client
@@ -133,7 +133,7 @@ $res = $swoole_mysql->query('select sleep(1)');
 
 ```shell
 phpize
-./configure 
+./configure
 make -j 4
 sudo make install
 
@@ -142,7 +142,7 @@ You should add "extension=swoole.so" to php.ini, execute the demo program.
 
 ## Safety warning
 
-#### Do not use coroutines in these functions: 
+#### Do not use coroutines in these functions:
 
 * `__get`
 * `__set`
@@ -167,5 +167,3 @@ You should add "extension=swoole.so" to php.ini, execute the demo program.
 * aop
 * molten
 * xhprof
-
-

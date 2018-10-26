@@ -17,7 +17,12 @@
 #ifndef SW_SOCKS5_H_
 #define SW_SOCKS5_H_
 
-#include "Client.h"
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+#include "client.h"
 
 #define SW_SOCKS5_VERSION_CODE    0x05
 
@@ -65,6 +70,11 @@ static sw_inline void swSocks5_pack(char *buf, int method)
     buf[2] = method;
 }
 
+char* swSocks5_strerror(int code);
 int swSocks5_connect(swClient *cli, char *recv_data, int length);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* SW_SOCKS5_H_ */

@@ -4,7 +4,7 @@ swoole_coroutine: call_user_func_array
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 class A {
 	public function foo() {

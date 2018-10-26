@@ -25,11 +25,11 @@ typedef struct
     void *ptr;
 } swMmapFile;
 
-static size_t mmap_stream_write(php_stream * stream, const char *buffer, size_t length TSRMLS_DC);
-static size_t mmap_stream_read(php_stream *stream, char *buffer, size_t length TSRMLS_DC);
-static int mmap_stream_flush(php_stream *stream TSRMLS_DC);
-static int mmap_stream_seek(php_stream *stream, off_t offset, int whence, off_t *newoffset TSRMLS_DC);
-static int mmap_stream_close(php_stream *stream, int close_handle TSRMLS_DC);
+static size_t mmap_stream_write(php_stream * stream, const char *buffer, size_t length);
+static size_t mmap_stream_read(php_stream *stream, char *buffer, size_t length);
+static int mmap_stream_flush(php_stream *stream);
+static int mmap_stream_seek(php_stream *stream, off_t offset, int whence, off_t *newoffset);
+static int mmap_stream_close(php_stream *stream, int close_handle);
 static PHP_METHOD(swoole_mmap, open);
 
 static zend_class_entry swoole_mmap_ce;
@@ -60,7 +60,7 @@ php_stream_ops mmap_ops =
     NULL
 };
 
-static size_t mmap_stream_write(php_stream * stream, const char *buffer, size_t length TSRMLS_DC)
+static size_t mmap_stream_write(php_stream * stream, const char *buffer, size_t length)
 {
     swMmapFile *res = stream->abstract;
 
@@ -74,7 +74,7 @@ static size_t mmap_stream_write(php_stream * stream, const char *buffer, size_t 
     return n_write;
 }
 
-static size_t mmap_stream_read(php_stream *stream, char *buffer, size_t length TSRMLS_DC)
+static size_t mmap_stream_read(php_stream *stream, char *buffer, size_t length)
 {
     swMmapFile *res = stream->abstract;
 
@@ -88,13 +88,13 @@ static size_t mmap_stream_read(php_stream *stream, char *buffer, size_t length T
     return n_read;
 }
 
-static int mmap_stream_flush(php_stream *stream TSRMLS_DC)
+static int mmap_stream_flush(php_stream *stream)
 {
     swMmapFile *res = stream->abstract;
     return msync(res->memory, res->size, MS_SYNC | MS_INVALIDATE);
 }
 
-static int mmap_stream_seek(php_stream *stream, off_t offset, int whence, off_t *newoffset TSRMLS_DC)
+static int mmap_stream_seek(php_stream *stream, off_t offset, int whence, off_t *newoffset)
 {
     swMmapFile *res = stream->abstract;
 
@@ -133,7 +133,7 @@ static int mmap_stream_seek(php_stream *stream, off_t offset, int whence, off_t 
     }
 }
 
-static int mmap_stream_close(php_stream *stream, int close_handle TSRMLS_DC)
+static int mmap_stream_close(php_stream *stream, int close_handle)
 {
     swMmapFile *res = stream->abstract;
     if (close_handle)
@@ -144,21 +144,21 @@ static int mmap_stream_close(php_stream *stream, int close_handle TSRMLS_DC)
     return 0;
 }
 
-void swoole_mmap_init(int module_number TSRMLS_DC)
+void swoole_mmap_init(int module_number)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_mmap_ce, "swoole_mmap", "Swoole\\Mmap", swoole_mmap_methods);
-    swoole_mmap_class_entry_ptr = zend_register_internal_class(&swoole_mmap_ce TSRMLS_CC);
+    swoole_mmap_class_entry_ptr = zend_register_internal_class(&swoole_mmap_ce);
     SWOOLE_CLASS_ALIAS(swoole_mmap, "Swoole\\Mmap");
 }
 
 static PHP_METHOD(swoole_mmap, open)
 {
     char *filename;
-    zend_size_t l_filename;
+    size_t l_filename;
     long offset = 0;
     long size = -1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|ll", &filename, &l_filename, &size, &offset) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|ll", &filename, &l_filename, &size, &offset) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -202,7 +202,7 @@ static PHP_METHOD(swoole_mmap, open)
     }
 
     void *addr = mmap(NULL, size, PROT_WRITE | PROT_READ, MAP_SHARED, fd, offset);
-    if (addr == NULL)
+    if (addr == MAP_FAILED)
     {
         swoole_php_sys_error(E_WARNING, "mmap(%ld) failed.", size);
         RETURN_FALSE;

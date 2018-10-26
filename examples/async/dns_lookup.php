@@ -8,10 +8,10 @@ swoole_async_set(array(
 ));
 swoole_async_dns_lookup("www.sina.com.cn", function ($host, $ip)
 {
-    echo "{$host} reslove to {$ip}\n";
+    echo "{$host} resolve to {$ip}\n";
 });
 
 swoole_async_dns_lookup("www.baidu.com", function ($host, $ip)
 {
-    echo "{$host} reslove to {$ip}\n";
+    echo "{$host} resolve to {$ip}\n";
 });

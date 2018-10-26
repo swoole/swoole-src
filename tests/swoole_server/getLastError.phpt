@@ -2,22 +2,14 @@
 swoole_server: get last error
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
-
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 /**
 
  * Time: 下午4:34
  */
-require_once __DIR__ . '/../include/swoole.inc';
 
 $simple_tcp_server = __DIR__ . "/../include/api/swoole_server/opcode_server.php";
 $port = get_one_free_port();

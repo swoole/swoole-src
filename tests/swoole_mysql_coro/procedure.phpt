@@ -1,11 +1,10 @@
 --TEST--
-procedure: procedure without fetch mode
+swoole_mysql_coro: procedure without fetch mode
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/config.php';
+require __DIR__ . '/../include/bootstrap.php';
 go(function () {
     $db = new Swoole\Coroutine\Mysql;
     $server = [
@@ -38,17 +37,23 @@ SQL;
 SQL;
 
     $db->connect($server);
-    if ($db->query($clear) && $db->query($procedure)) {
-        //SWOOLE
-        $_map = $map;
-        $stmt = $db->prepare('CALL reply(?)');
-        $res = $stmt->execute(['hello mysql!']);
-        do {
-            assert(current($res[0]) === array_shift($_map));
-        } while ($res = $stmt->nextResult());
-        assert($stmt->affected_rows === 1, 'get the affected rows failed!');
-        assert(empty($_map), 'there are some results lost!');
+
+    for ($n = MAX_REQUESTS; $n--;) {
+        if ($db->query($clear) && $db->query($procedure)) {
+            //SWOOLE
+            $_map = $map;
+            $stmt = $db->prepare('CALL reply(?)');
+            $res = $stmt->execute(['hello mysql!']);
+            do {
+                assert(current($res[0]) === array_shift($_map));
+            } while ($res = $stmt->nextResult());
+            assert($stmt->affected_rows === 1, 'get the affected rows failed!');
+            assert(empty($_map), 'there are some results lost!');
+        }
     }
+
+    echo "DONE\n";
 });
 ?>
 --EXPECT--
+DONE

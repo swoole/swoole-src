@@ -4,8 +4,8 @@ go(function () {
     $ret = $sock->bind('127.0.0.1', 9601);
     var_dump($ret);
     assert($sock->listen(512));
-    $conn = $sock->accept();    
-   
+    $conn = $sock->accept();
+
     $data = $conn->recv();
     var_dump($data);
     $json = json_decode($data, true);
@@ -14,4 +14,3 @@ go(function () {
     echo "send res {$ret} \n";
     $conn->close();
 });
-

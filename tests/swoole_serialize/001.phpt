@@ -10,7 +10,7 @@ if (!class_exists("swoole_serialize", false))
 ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
   class Obj {
         var $a;

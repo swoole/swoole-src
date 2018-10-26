@@ -1,4 +1,4 @@
-<?php 
+<?php
 $table = new swoole_table(1024);
 $table->column('fd', swoole_table::TYPE_INT);
 $table->column('from_id', swoole_table::TYPE_INT);
@@ -15,14 +15,14 @@ $serv->on('connect', function($serv, $fd, $from_id){
 });
 
 $serv->on('receive', function ($serv, $fd, $from_id, $data) {
-	
+
 	$cmd = explode(" ", trim($data));
-	
+
 	//get
 	if ($cmd[0] == 'get')
 	{
 		//get self
-		if (count($cmd) < 2) 
+		if (count($cmd) < 2)
 		{
 			$cmd[1] = $fd;
 		}
@@ -34,7 +34,7 @@ $serv->on('receive', function ($serv, $fd, $from_id, $data) {
 	elseif ($cmd[0] == 'set')
 	{
 		$ret = $serv->table->set($fd, array('from_id' => $data, 'fd' => $fd, 'data' => $cmd[1]));
-		if ($ret === false) 
+		if ($ret === false)
 		{
 			$serv->send($fd, "ERROR\n");
 		}
@@ -43,7 +43,7 @@ $serv->on('receive', function ($serv, $fd, $from_id, $data) {
 			$serv->send($fd, "OK\n");
 		}
 	}
-	else 
+	else
 	{
 		$serv->send($fd, "command error.\n");
 	}

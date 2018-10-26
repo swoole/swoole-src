@@ -1,14 +1,19 @@
 #!/usr/bin/env bash
+__CURRENT__=`pwd`
+__DIR__=$(cd "$(dirname "$0")";pwd)
 
-pidof_php()
+clear_php()
 {
-  echo `ps -A | grep -m1 php | grep -v phpstorm | awk '{print $1}'`
+  ps -A | grep \.php$ | grep -v phpstorm | grep -v php-fpm | awk '{print $1}' | xargs kill -9 > /dev/null 2>&1
 }
 
-`pidof_php | xargs kill > /dev/null 2>&1`
-export TEST_PHP_EXECUTABLE=`which php`
-BASEDIR=$(dirname "$0")
+clear_php
+if [ -z "${TEST_PHP_EXECUTABLE}" ]; then
+    export TEST_PHP_EXECUTABLE=`which php`
+fi
 glob='swoole_*'
 [ -z "$1" ] || glob="$@"
-${TEST_PHP_EXECUTABLE} -d "memory_limit=1024m" ${BASEDIR}/run-tests ${glob}
-`pidof_php | xargs kill > /dev/null 2>&1`
+${TEST_PHP_EXECUTABLE} -d "memory_limit=1024m" ${__DIR__}/run-tests ${glob}
+clear_php
+
+rm -f /tmp/swoole.log > /dev/null 2>&1

@@ -68,6 +68,7 @@ enum swErrorCode
      */
     SW_ERROR_HTTP2_STREAM_ID_TOO_BIG = 3001,
     SW_ERROR_HTTP2_STREAM_NO_HEADER,
+    SW_ERROR_HTTP2_STREAM_NOT_FOUND,
 
     /**
      * AIO
@@ -83,7 +84,7 @@ enum swErrorCode
     SW_ERROR_SOCKS5_UNSUPPORT_METHOD,
     SW_ERROR_SOCKS5_AUTH_FAILED,
     SW_ERROR_SOCKS5_SERVER_ERROR,
-    
+
     SW_ERROR_HTTP_PROXY_HANDSHAKE_ERROR = 8001,
     SW_ERROR_HTTP_INVALID_PROTOCOL,
 
@@ -104,6 +105,7 @@ enum swErrorCode
     SW_ERROR_SERVER_NO_IDLE_WORKER,
 
     SW_ERROR_SERVER_ONLY_START_ONE,
+    SW_ERROR_SERVER_SEND_IN_MASTER,
 
     /**
      * Process exit timeout, forced to end.
@@ -125,7 +127,6 @@ enum swErrorCode
     SW_ERROR_CO_PROTECT_STACK_FAILED,
     SW_ERROR_CO_STD_THREAD_LINK_ERROR,
     SW_ERROR_CO_DISABLED_MULTI_THREAD,
-
 };
 
 void swoole_throw_error(enum swErrorCode code);

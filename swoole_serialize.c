@@ -20,7 +20,6 @@
 #include <emmintrin.h>
 #endif
 
-#if PHP_MAJOR_VERSION >= 7
 #define CPINLINE sw_inline
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_serialize_pack, 0, 0, 1)
@@ -52,13 +51,15 @@ zend_class_entry swoole_serialize_ce;
 zend_class_entry *swoole_serialize_class_entry_ptr;
 
 #define SWOOLE_SERI_EOF "EOF"
+#define CHECK_STEP if(buffer>unseri_buffer_end){ php_error_docref(NULL, E_ERROR, "illegal unserialize data"); return NULL;}
 
 static struct _swSeriaG swSeriaG;
+void *unseri_buffer_end = NULL;
 
-void swoole_serialize_init(int module_number TSRMLS_DC)
+void swoole_serialize_init(int module_number)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_serialize_ce, "swoole_serialize", "Swoole\\Serialize", swoole_serialize_methods);
-    swoole_serialize_class_entry_ptr = zend_register_internal_class(&swoole_serialize_ce TSRMLS_CC);
+    swoole_serialize_class_entry_ptr = zend_register_internal_class(&swoole_serialize_ce);
     SWOOLE_CLASS_ALIAS(swoole_serialize, "Swoole\\Serialize");
 
     //    ZVAL_STRING(&swSeriaG.sleep_fname, "__sleep");
@@ -86,7 +87,7 @@ static CPINLINE int swoole_string_new(size_t size, seriaString *str, zend_uchar 
     str->buffer = ecalloc(1, total);
     if (!str->buffer)
     {
-        php_error_docref(NULL TSRMLS_CC, E_ERROR, "malloc Error: %s [%d]", strerror(errno), errno);
+        php_error_docref(NULL, E_ERROR, "malloc Error: %s [%d]", strerror(errno), errno);
     }
 
     SBucketType real_type = {0};
@@ -107,12 +108,13 @@ static CPINLINE void swoole_check_size(seriaString *str, size_t len)
         str->buffer = erealloc2(str->buffer, new_size, str->offset);
         if (!str->buffer)
         {
-            php_error_docref(NULL TSRMLS_CC, E_ERROR, "realloc Error: %s [%d]", strerror(errno), errno);
+            php_error_docref(NULL, E_ERROR, "realloc Error: %s [%d]", strerror(errno), errno);
         }
         str->total = new_size;
     }
 }
 #ifdef __SSE2__
+
 void CPINLINE swoole_mini_memcpy(void *dst, const void *src, size_t len)
 {
     register unsigned char *dd = (unsigned char*) dst + len;
@@ -120,69 +122,69 @@ void CPINLINE swoole_mini_memcpy(void *dst, const void *src, size_t len)
     switch (len)
     {
         case 68: *((int*) (dd - 68)) = *((int*) (ss - 68));
-        /* no break */
+            /* no break */
         case 64: *((int*) (dd - 64)) = *((int*) (ss - 64));
-        /* no break */
+            /* no break */
         case 60: *((int*) (dd - 60)) = *((int*) (ss - 60));
-        /* no break */
+            /* no break */
         case 56: *((int*) (dd - 56)) = *((int*) (ss - 56));
-        /* no break */
+            /* no break */
         case 52: *((int*) (dd - 52)) = *((int*) (ss - 52));
-        /* no break */
+            /* no break */
         case 48: *((int*) (dd - 48)) = *((int*) (ss - 48));
-        /* no break */
+            /* no break */
         case 44: *((int*) (dd - 44)) = *((int*) (ss - 44));
-        /* no break */
+            /* no break */
         case 40: *((int*) (dd - 40)) = *((int*) (ss - 40));
-        /* no break */
+            /* no break */
         case 36: *((int*) (dd - 36)) = *((int*) (ss - 36));
-        /* no break */
+            /* no break */
         case 32: *((int*) (dd - 32)) = *((int*) (ss - 32));
-        /* no break */
+            /* no break */
         case 28: *((int*) (dd - 28)) = *((int*) (ss - 28));
-        /* no break */
+            /* no break */
         case 24: *((int*) (dd - 24)) = *((int*) (ss - 24));
-        /* no break */
+            /* no break */
         case 20: *((int*) (dd - 20)) = *((int*) (ss - 20));
-        /* no break */
+            /* no break */
         case 16: *((int*) (dd - 16)) = *((int*) (ss - 16));
-        /* no break */
+            /* no break */
         case 12: *((int*) (dd - 12)) = *((int*) (ss - 12));
-        /* no break */
+            /* no break */
         case 8: *((int*) (dd - 8)) = *((int*) (ss - 8));
-        /* no break */
+            /* no break */
         case 4: *((int*) (dd - 4)) = *((int*) (ss - 4));
             break;
         case 67: *((int*) (dd - 67)) = *((int*) (ss - 67));
-        /* no break */
+            /* no break */
         case 63: *((int*) (dd - 63)) = *((int*) (ss - 63));
-        /* no break */
+            /* no break */
         case 59: *((int*) (dd - 59)) = *((int*) (ss - 59));
-        /* no break */
+            /* no break */
         case 55: *((int*) (dd - 55)) = *((int*) (ss - 55));
-        /* no break */
+            /* no break */
         case 51: *((int*) (dd - 51)) = *((int*) (ss - 51));
-        /* no break */
+            /* no break */
         case 47: *((int*) (dd - 47)) = *((int*) (ss - 47));
-        /* no break */
+            /* no break */
         case 43: *((int*) (dd - 43)) = *((int*) (ss - 43));
-        /* no break */
+            /* no break */
         case 39: *((int*) (dd - 39)) = *((int*) (ss - 39));
-        /* no break */
+            /* no break */
         case 35: *((int*) (dd - 35)) = *((int*) (ss - 35));
-        /* no break */
+            /* no break */
         case 31: *((int*) (dd - 31)) = *((int*) (ss - 31));
-        /* no break */
+            /* no break */
         case 27: *((int*) (dd - 27)) = *((int*) (ss - 27));
-        /* no break */
+            /* no break */
         case 23: *((int*) (dd - 23)) = *((int*) (ss - 23));
-        /* no break */
+            /* no break */
         case 19: *((int*) (dd - 19)) = *((int*) (ss - 19));
-        /* no break */
+            /* no break */
         case 15: *((int*) (dd - 15)) = *((int*) (ss - 15));
-        /* no break */
+            /* no break */
         case 11: *((int*) (dd - 11)) = *((int*) (ss - 11));
-        /* no break */
+            /* no break */
         case 7: *((int*) (dd - 7)) = *((int*) (ss - 7));
             *((int*) (dd - 4)) = *((int*) (ss - 4));
             break;
@@ -190,71 +192,71 @@ void CPINLINE swoole_mini_memcpy(void *dst, const void *src, size_t len)
             dd[-1] = ss[-1];
             break;
         case 66: *((int*) (dd - 66)) = *((int*) (ss - 66));
-        /* no break */
+            /* no break */
         case 62: *((int*) (dd - 62)) = *((int*) (ss - 62));
-        /* no break */
+            /* no break */
         case 58: *((int*) (dd - 58)) = *((int*) (ss - 58));
-        /* no break */
+            /* no break */
         case 54: *((int*) (dd - 54)) = *((int*) (ss - 54));
-        /* no break */
+            /* no break */
         case 50: *((int*) (dd - 50)) = *((int*) (ss - 50));
-        /* no break */
+            /* no break */
         case 46: *((int*) (dd - 46)) = *((int*) (ss - 46));
-        /* no break */
+            /* no break */
         case 42: *((int*) (dd - 42)) = *((int*) (ss - 42));
-        /* no break */
+            /* no break */
         case 38: *((int*) (dd - 38)) = *((int*) (ss - 38));
-        /* no break */
+            /* no break */
         case 34: *((int*) (dd - 34)) = *((int*) (ss - 34));
-        /* no break */
+            /* no break */
         case 30: *((int*) (dd - 30)) = *((int*) (ss - 30));
-        /* no break */
+            /* no break */
         case 26: *((int*) (dd - 26)) = *((int*) (ss - 26));
-        /* no break */
+            /* no break */
         case 22: *((int*) (dd - 22)) = *((int*) (ss - 22));
-        /* no break */
+            /* no break */
         case 18: *((int*) (dd - 18)) = *((int*) (ss - 18));
-        /* no break */
+            /* no break */
         case 14: *((int*) (dd - 14)) = *((int*) (ss - 14));
-        /* no break */
+            /* no break */
         case 10: *((int*) (dd - 10)) = *((int*) (ss - 10));
-        /* no break */
+            /* no break */
         case 6: *((int*) (dd - 6)) = *((int*) (ss - 6));
-        /* no break */
+            /* no break */
         case 2: *((short*) (dd - 2)) = *((short*) (ss - 2));
             break;
         case 65: *((int*) (dd - 65)) = *((int*) (ss - 65));
-        /* no break */
+            /* no break */
         case 61: *((int*) (dd - 61)) = *((int*) (ss - 61));
-        /* no break */
+            /* no break */
         case 57: *((int*) (dd - 57)) = *((int*) (ss - 57));
-        /* no break */
+            /* no break */
         case 53: *((int*) (dd - 53)) = *((int*) (ss - 53));
-        /* no break */
+            /* no break */
         case 49: *((int*) (dd - 49)) = *((int*) (ss - 49));
-        /* no break */
+            /* no break */
         case 45: *((int*) (dd - 45)) = *((int*) (ss - 45));
-        /* no break */
+            /* no break */
         case 41: *((int*) (dd - 41)) = *((int*) (ss - 41));
-        /* no break */
+            /* no break */
         case 37: *((int*) (dd - 37)) = *((int*) (ss - 37));
-        /* no break */
+            /* no break */
         case 33: *((int*) (dd - 33)) = *((int*) (ss - 33));
-        /* no break */
+            /* no break */
         case 29: *((int*) (dd - 29)) = *((int*) (ss - 29));
-        /* no break */
+            /* no break */
         case 25: *((int*) (dd - 25)) = *((int*) (ss - 25));
-        /* no break */
+            /* no break */
         case 21: *((int*) (dd - 21)) = *((int*) (ss - 21));
-        /* no break */
+            /* no break */
         case 17: *((int*) (dd - 17)) = *((int*) (ss - 17));
-        /* no break */
+            /* no break */
         case 13: *((int*) (dd - 13)) = *((int*) (ss - 13));
-        /* no break */
+            /* no break */
         case 9: *((int*) (dd - 9)) = *((int*) (ss - 9));
-        /* no break */
+            /* no break */
         case 5: *((int*) (dd - 5)) = *((int*) (ss - 5));
-        /* no break */
+            /* no break */
         case 1: dd[-1] = ss[-1];
             break;
         case 0:
@@ -414,7 +416,7 @@ static uint32_t CPINLINE cp_zend_hash_check_size(uint32_t nSize)
     }//    else if (UNEXPECTED(nSize >= 1000000))
     else if (UNEXPECTED(nSize >= HT_MAX_SIZE))
     {
-        php_error_docref(NULL TSRMLS_CC, E_NOTICE, "invalid unserialize data");
+        php_error_docref(NULL, E_NOTICE, "invalid unserialize data");
         return 0;
     }
 
@@ -648,13 +650,14 @@ static void* swoole_unserialize_arr(void *buffer, zval *zvalue, uint32_t nNumOfE
     //Initialize zend array
     zend_ulong h, nIndex, max_index = 0;
     uint32_t size = cp_zend_hash_check_size(nNumOfElements);
+    CHECK_STEP;
     if (!size)
     {
         return NULL;
     }
     if (!buffer)
     {
-        php_error_docref(NULL TSRMLS_CC, E_NOTICE, "illegal unserialize data");
+        php_error_docref(NULL, E_NOTICE, "illegal unserialize data");
         return NULL;
     }
     ZVAL_NEW_ARR(zvalue);
@@ -680,7 +683,7 @@ static void* swoole_unserialize_arr(void *buffer, zval *zvalue, uint32_t nNumOfE
     int ht_hash_size = HT_HASH_SIZE((ht)->nTableMask);
     if (ht_hash_size <= 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_NOTICE, "illegal unserialize data");
+        php_error_docref(NULL, E_NOTICE, "illegal unserialize data");
         return NULL;
     }
     HT_HASH_RESET(ht);
@@ -693,7 +696,7 @@ static void* swoole_unserialize_arr(void *buffer, zval *zvalue, uint32_t nNumOfE
     {
         if (!buffer)
         {
-            php_error_docref(NULL TSRMLS_CC, E_NOTICE, "illegal array unserialize data");
+            php_error_docref(NULL, E_NOTICE, "illegal array unserialize data");
             return NULL;
         }
         SBucketType type = *((SBucketType*) buffer);
@@ -727,6 +730,7 @@ static void* swoole_unserialize_arr(void *buffer, zval *zvalue, uint32_t nNumOfE
                     key_len = *((size_t*) buffer);
                     buffer += sizeof (size_t);
                 }
+                CHECK_STEP;
                 p->key = zend_string_init((char*) buffer, key_len, 0);
                 //           h = zend_inline_hash_func((char*) buffer, key_len);
                 h = zend_inline_hash_func((char*) buffer, key_len);
@@ -804,6 +808,7 @@ static void* swoole_unserialize_arr(void *buffer, zval *zvalue, uint32_t nNumOfE
                     data_len = *((size_t*) buffer);
                     buffer += sizeof (size_t);
                 }
+                CHECK_STEP;
                 p->val.value.str = zend_string_init((char*) buffer, data_len, 0);
                 buffer += data_len;
             }
@@ -832,6 +837,7 @@ static void* swoole_unserialize_arr(void *buffer, zval *zvalue, uint32_t nNumOfE
 
     }
     ht->nNextFreeElement = max_index;
+    CHECK_STEP;
 
     return buffer;
 
@@ -995,7 +1001,8 @@ try_again:
 
                 if (GC_IS_RECURSIVE(ht))
                 {
-                    php_error_docref(NULL TSRMLS_CC, E_NOTICE, "the array has cycle ref");
+                    ((SBucketType*) (buffer->buffer + p))->data_type = IS_NULL; //reset type null
+                    php_error_docref(NULL, E_NOTICE, "the array has cycle ref");
                 }
                 else
                 {
@@ -1017,7 +1024,8 @@ try_again:
                 //object propterty table is this type
             case IS_INDIRECT:
                 data = Z_INDIRECT_P(data);
-                ((SBucketType*) (buffer->buffer + p))->data_type = Z_TYPE_P(data);
+                zend_uchar type = Z_TYPE_P(data);
+                ((SBucketType*) (buffer->buffer + p))->data_type = (type == IS_UNDEF ? IS_NULL : type);
                 goto try_again;
                 break;
             case IS_OBJECT:
@@ -1075,6 +1083,7 @@ static CPINLINE void swoole_unserialize_raw(void *buffer, zval *zvalue)
 }
 
 #if 0
+
 /*
  * null
  */
@@ -1135,7 +1144,7 @@ static void swoole_serialize_object(seriaString *buffer, zval *obj, size_t start
                 //for the zero malloc
                 zend_array tmp_arr;
                 zend_array *ht = (zend_array *) & tmp_arr;
-                _zend_hash_init(ht, zend_hash_num_elements(Z_ARRVAL(retval)), ZVAL_PTR_DTOR, 0 ZEND_FILE_LINE_CC);
+                zend_hash_init(ht, zend_hash_num_elements(Z_ARRVAL(retval)), NULL, ZVAL_PTR_DTOR, 0);
                 ht->nTableMask = -(ht)->nTableSize;
                 ALLOCA_FLAG(use_heap);
                 void *ht_addr = do_alloca(HT_SIZE(ht), use_heap);
@@ -1159,7 +1168,7 @@ static void swoole_serialize_object(seriaString *buffer, zval *obj, size_t start
                         {
                             got_num++;
                             //add mangle key,unmangle in unseria
-                            _zend_hash_add_or_update(ht, prop_key, prop_value, HASH_UPDATE ZEND_FILE_LINE_CC);
+                            zend_hash_update(ht, prop_key, prop_value);
 
                             break;
                         }
@@ -1173,7 +1182,7 @@ static void swoole_serialize_object(seriaString *buffer, zval *obj, size_t start
                 //there some member not in property
                 if (zend_hash_num_elements(Z_ARRVAL(retval)) > got_num)
                 {
-                    php_error_docref(NULL TSRMLS_CC, E_NOTICE, "__sleep() retrun a member but does not exist in property");
+                    php_error_docref(NULL, E_NOTICE, "__sleep() retrun a member but does not exist in property");
 
                 }
                 seria_array_type(ht, buffer, start, buffer->offset);
@@ -1185,7 +1194,7 @@ static void swoole_serialize_object(seriaString *buffer, zval *obj, size_t start
             }
             else
             {
-                php_error_docref(NULL TSRMLS_CC, E_NOTICE, " __sleep should return an array only containing the "
+                php_error_docref(NULL, E_NOTICE, " __sleep should return an array only containing the "
                         "names of instance-variables to serialize");
                 zval_dtor(&retval);
             }
@@ -1202,11 +1211,15 @@ static void swoole_serialize_object(seriaString *buffer, zval *obj, size_t start
  */
 static CPINLINE zend_string * swoole_string_init(const char *str, size_t len)
 {
+#ifdef ZEND_DEBUG
+    return zend_string_init(str, len, 0);
+#else
     ALLOCA_FLAG(use_heap);
     zend_string *ret;
     ZSTR_ALLOCA_INIT(ret, str, len, use_heap);
 
     return ret;
+#endif
 }
 
 /*
@@ -1214,9 +1227,13 @@ static CPINLINE zend_string * swoole_string_init(const char *str, size_t len)
  */
 static CPINLINE void swoole_string_release(zend_string *str)
 {
+#ifdef ZEND_DEBUG
+    zend_string_release(str);
+#else
     //if dont support alloc 0 will ignore
     //if support alloc size is definitely < ZEND_ALLOCA_MAX_SIZE
     ZSTR_ALLOCA_FREE(str, 0);
+#endif
 }
 
 static CPINLINE zend_class_entry* swoole_try_get_ce(zend_string *class_name)
@@ -1229,7 +1246,15 @@ static CPINLINE zend_class_entry* swoole_try_get_ce(zend_string *class_name)
     }
     // try call unserialize callback and retry lookup
     zval user_func, args[1], retval;
-    zend_string *fname = swoole_string_init(PG(unserialize_callback_func), strlen(PG(unserialize_callback_func)));
+
+    /* Check for unserialize callback */
+    if ((PG(unserialize_callback_func) == NULL) || (PG(unserialize_callback_func)[0] == '\0'))
+    {
+        zend_throw_exception_ex(NULL, 0, "can not find class %s", class_name->val);
+        return NULL;
+    }
+
+    zend_string *fname = swoole_string_init(ZEND_STRL(PG(unserialize_callback_func)));
     Z_STR(user_func) = fname;
     Z_TYPE_INFO(user_func) = IS_STRING_EX;
     ZVAL_STR(&args[0], class_name);
@@ -1242,7 +1267,7 @@ static CPINLINE zend_class_entry* swoole_try_get_ce(zend_string *class_name)
     ce = zend_lookup_class(class_name);
     if (!ce)
     {
-        zend_throw_exception_ex(NULL, 0, "can not find class %s", class_name->val TSRMLS_CC);
+        zend_throw_exception_ex(NULL, 0, "can not find class %s", class_name->val);
         return NULL;
     }
     else
@@ -1260,24 +1285,26 @@ static void* swoole_unserialize_object(void *buffer, zval *return_value, zend_uc
     zval property;
     uint32_t arr_num = 0;
     size_t name_len = *((unsigned short*) buffer);
+    CHECK_STEP;
     if (!name_len)
     {
-        php_error_docref(NULL TSRMLS_CC, E_NOTICE, "illegal unserialize data");
+        php_error_docref(NULL, E_NOTICE, "illegal unserialize data");
         return NULL;
     }
     buffer += 2;
     zend_string *class_name;
-    if (flag == UNSERIALIZE_OBJECT_TO_STDCLASS) 
+    if (flag == UNSERIALIZE_OBJECT_TO_STDCLASS)
     {
-        class_name = swoole_string_init("StdClass", 8);
-    } 
-    else 
+        class_name = swoole_string_init(ZEND_STRL("StdClass"));
+    }
+    else
     {
         class_name = swoole_string_init((char*) buffer, name_len);
     }
     buffer += name_len;
     zend_class_entry *ce = swoole_try_get_ce(class_name);
     swoole_string_release(class_name);
+    CHECK_STEP;
 
     if (!ce)
     {
@@ -1289,8 +1316,8 @@ static void* swoole_unserialize_object(void *buffer, zval *return_value, zend_uc
 
     object_init_ex(return_value, ce);
 
-    zval *data;
-    const zend_string *key;
+    zval *data, *d;
+    zend_string *key;
     zend_ulong index;
 
     ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL(property), index, key, data)
@@ -1299,15 +1326,30 @@ static void* swoole_unserialize_object(void *buffer, zval *return_value, zend_uc
         size_t prop_len;
         if (key)
         {
-            zend_unmangle_property_name_ex(key, &tmp, &prop_name, &prop_len);
-            zend_update_property(ce, return_value, prop_name, prop_len, data);
+
+            if ((d = zend_hash_find(Z_OBJPROP_P(return_value), key)) != NULL)
+            {
+                if (Z_TYPE_P(d) == IS_INDIRECT)
+                {
+                    d = Z_INDIRECT_P(d);
+                }
+                zval_dtor(d);
+                ZVAL_COPY(d, data);
+            }
+            else
+            {
+                zend_unmangle_property_name_ex(key, &tmp, &prop_name, &prop_len);
+                zend_update_property(ce, return_value, prop_name, prop_len, data);
+            }
+            //            zend_hash_update(Z_OBJPROP_P(return_value),key,data);
+            //            zend_update_property(ce, return_value, ZSTR_VAL(key), ZSTR_LEN(key), data);
         }
         else
         {
             zend_hash_next_index_insert(Z_OBJPROP_P(return_value), data);
         }
+        (void)index;
     }
-    (void) index;
     ZEND_HASH_FOREACH_END();
     zval_dtor(&property);
 
@@ -1341,17 +1383,17 @@ static void* swoole_unserialize_object(void *buffer, zval *return_value, zend_uc
 
 
     //call object __wakeup
-    if (zend_hash_str_exists(&ce->function_table, "__wakeup", sizeof ("__wakeup") - 1))
+    if (zend_hash_str_exists(&ce->function_table, ZEND_STRL("__wakeup")))
     {
         zval ret, wakeup;
-        zend_string *fname = swoole_string_init("__wakeup", sizeof ("__wakeup") - 1);
+        zend_string *fname = swoole_string_init(ZEND_STRL("__wakeup"));
         Z_STR(wakeup) = fname;
         Z_TYPE_INFO(wakeup) = IS_STRING_EX;
         call_user_function_ex(CG(function_table), return_value, &wakeup, &ret, 0, NULL, 1, NULL);
         swoole_string_release(fname);
         zval_ptr_dtor(&ret);
     }
-
+    CHECK_STEP;
     return buffer;
 
 }
@@ -1403,7 +1445,7 @@ again:
             break;
         }
         default:
-            php_error_docref(NULL TSRMLS_CC, E_NOTICE, "the type is not supported by swoole serialize.");
+            php_error_docref(NULL, E_NOTICE, "the type is not supported by swoole serialize.");
 
             break;
     }
@@ -1417,8 +1459,8 @@ PHPAPI zend_string* php_swoole_serialize(zval *zvalue)
     swoole_seria_dispatch(&str, zvalue); //serialize into a string
     zend_string *z_str = (zend_string *) str.buffer;
 
-    z_str->val[str.offset] = '\0';
     z_str->len = str.offset - _STR_HEADER_SIZE;
+    z_str->val[z_str->len] = '\0';
     z_str->h = 0;
     GC_SET_REFCOUNT(z_str, 1);
     GC_TYPE_INFO(z_str) = IS_STRING_EX;
@@ -1445,10 +1487,11 @@ static CPINLINE int swoole_seria_check_eof(void *buffer, size_t len)
  * return_value is unseria bucket
  * args is for the object ctor (can be NULL)
  */
-PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, zval *object_args, long flag)
+PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, zval *zobject_args, long flag)
 {
     SBucketType type = *(SBucketType*) (buffer);
     zend_uchar real_type = type.data_type;
+    unseri_buffer_end = buffer + len;
     buffer += sizeof (SBucketType);
     switch (real_type)
     {
@@ -1474,8 +1517,8 @@ PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, 
         {
             if (swoole_seria_check_eof(buffer, len) < 0)
             {
-                  php_error_docref(NULL TSRMLS_CC, E_NOTICE, "detect the error eof");
-                  return SW_FALSE;
+                php_error_docref(NULL, E_NOTICE, "detect the error eof");
+                return SW_FALSE;
             }
             unser_start = buffer - sizeof (SBucketType);
             uint32_t num = 0;
@@ -1489,17 +1532,17 @@ PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, 
         case IS_UNDEF:
             if (swoole_seria_check_eof(buffer, len) < 0)
             {
-                  php_error_docref(NULL TSRMLS_CC, E_NOTICE, "detect the error eof");
-                  return SW_FALSE;
+                php_error_docref(NULL, E_NOTICE, "detect the error eof");
+                return SW_FALSE;
             }
             unser_start = buffer - sizeof (SBucketType);
-            if (!swoole_unserialize_object(buffer, return_value, type.data_len, object_args, flag))
+            if (!swoole_unserialize_object(buffer, return_value, type.data_len, zobject_args, flag))
             {
                 return SW_FALSE;
             }
             break;
         default:
-            php_error_docref(NULL TSRMLS_CC, E_NOTICE, "the type is not supported by swoole serialize.");
+            php_error_docref(NULL, E_NOTICE, "the type is not supported by swoole serialize.");
             return SW_FALSE;
     }
 
@@ -1509,9 +1552,9 @@ PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, 
 static PHP_METHOD(swoole_serialize, pack)
 {
     zval *zvalue;
-    zend_size_t is_fast = 0;
+    size_t is_fast = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|l", &zvalue, &is_fast) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|l", &zvalue, &is_fast) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -1528,7 +1571,7 @@ static PHP_METHOD(swoole_serialize, unpack)
     zval *args = NULL; //for object
     long flag = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|la", &buffer, &arg_len, &flag, &args) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|la", &buffer, &arg_len, &flag, &args) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -1537,5 +1580,3 @@ static PHP_METHOD(swoole_serialize, unpack)
         RETURN_FALSE;
     }
 }
-
-#endif

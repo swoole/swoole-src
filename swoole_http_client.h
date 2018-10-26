@@ -17,12 +17,17 @@
 #ifndef SWOOLE_HTTP_CLIENT_H_
 #define SWOOLE_HTTP_CLIENT_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "ext/standard/basic_functions.h"
 #include "ext/standard/php_http.h"
 #include "ext/standard/base64.h"
 
+#include "swoole_http.h"
 #include "websocket.h"
-#include "thirdparty/php_http_parser.h"
+#include "thirdparty/swoole_http_parser.h"
 
 #ifdef SW_HAVE_ZLIB
 #include <zlib.h>
@@ -37,6 +42,19 @@ enum http_client_state
     HTTP_CLIENT_STATE_UPGRADE,
     HTTP_CLIENT_STATE_WAIT_CLOSE,
     HTTP_CLIENT_STATE_CLOSED,
+};
+
+enum http_client_error_status_code
+{
+    HTTP_CLIENT_ESTATUS_CONNECT_TIMEOUT = -1,
+    HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT = -2,
+    HTTP_CLIENT_ESTATUS_SERVER_RESET = -3,
+};
+
+enum http_client_error_flags
+{
+    HTTP_CLIENT_EFLAG_TIMEOUT = 1,
+    HTTP_CLIENT_EFLAG_UPGRADE = 1 << 1,
 };
 
 #ifdef SW_COROUTINE
@@ -57,7 +75,6 @@ typedef struct
     zval *onMessage;
     zval *onResponse;
 
-#if PHP_MAJOR_VERSION >= 7
     zval _object;
     zval _request_body;
     zval _request_header;
@@ -68,7 +85,6 @@ typedef struct
     zval _onError;
     zval _onClose;
     zval _onMessage;
-#endif
 
     zval *cookies;
     zval *request_header;
@@ -79,8 +95,7 @@ typedef struct
     char *request_method;
     int callback_index;
 
-    double request_timeout;
-
+    uint8_t error_flag;
     uint8_t shutdown;
 
 #ifdef SW_COROUTINE
@@ -102,11 +117,11 @@ typedef struct
 {
     swClient *cli;
     char *host;
-    zend_size_t host_len;
+    size_t host_len;
     long port;
     double timeout;
     char* uri;
-    zend_size_t uri_len;
+    size_t uri_len;
 
     swTimer_node *timer;
 
@@ -123,13 +138,15 @@ typedef struct
      */
     int file_fd;
 
-    php_http_parser parser;
+    swoole_http_parser parser;
 
+    zval _object;
+    zval *object;
     swString *body;
 
     uint8_t state;       //0 wait 1 ready 2 busy
     uint8_t keep_alive;  //0 no 1 keep
-    uint8_t upgrade;
+    uint8_t upgrade;     //if upgrade successfully
     uint8_t gzip;
     uint8_t chunked;     //Transfer-Encoding: chunked
     uint8_t completed;
@@ -140,14 +157,18 @@ typedef struct
 
 } http_client;
 
-int http_client_parser_on_header_field(php_http_parser *parser, const char *at, size_t length);
-int http_client_parser_on_header_value(php_http_parser *parser, const char *at, size_t length);
-int http_client_parser_on_body(php_http_parser *parser, const char *at, size_t length);
-int http_client_parser_on_headers_complete(php_http_parser *parser);
-int http_client_parser_on_message_complete(php_http_parser *parser);
+void http_client_clear_response_properties(zval *zobject);
+int http_client_parser_on_header_field(swoole_http_parser *parser, const char *at, size_t length);
+int http_client_parser_on_header_value(swoole_http_parser *parser, const char *at, size_t length);
+int http_client_parser_on_body(swoole_http_parser *parser, const char *at, size_t length);
+int http_client_parser_on_headers_complete(swoole_http_parser *parser);
+int http_client_parser_on_message_complete(swoole_http_parser *parser);
 
-http_client* http_client_create(zval *object TSRMLS_DC);
-void http_client_free(zval *object TSRMLS_DC);
+http_client* http_client_create(zval *zobject);
+void http_client_clear(http_client *http);
+int http_client_check_keep(http_client *http);
+void http_client_reset(http_client *http);
+uint8_t http_client_free(zval *zobject);
 
 static sw_inline void http_client_create_token(int length, char *buf)
 {
@@ -161,7 +182,7 @@ static sw_inline void http_client_create_token(int length, char *buf)
     buf[length] = '\0';
 }
 
-static sw_inline int http_client_check_data(zval *data TSRMLS_DC)
+static sw_inline int http_client_check_data(zval *data)
 {
     if (Z_TYPE_P(data) != IS_ARRAY && Z_TYPE_P(data) != IS_STRING)
     {
@@ -179,12 +200,12 @@ static sw_inline int http_client_check_data(zval *data TSRMLS_DC)
     return SW_OK;
 }
 
-static sw_inline void http_client_swString_append_headers(swString* swStr, char* key, zend_size_t key_len, char* data, zend_size_t data_len)
+static sw_inline void http_client_swString_append_headers(swString* swStr, const char* key, size_t key_len, const char* data, size_t data_len)
 {
-    swString_append_ptr(swStr, key, key_len);
-    swString_append_ptr(swStr, ZEND_STRL(": "));
-    swString_append_ptr(swStr, data, data_len);
-    swString_append_ptr(swStr, ZEND_STRL("\r\n"));
+    swString_append_ptr(swStr, (char *)key, key_len);
+    swString_append_ptr(swStr, (char *)ZEND_STRL(": "));
+    swString_append_ptr(swStr, (char *)data, data_len);
+    swString_append_ptr(swStr, (char *)ZEND_STRL("\r\n"));
 }
 
 static sw_inline void http_client_append_content_length(swString* buf, int length)
@@ -196,6 +217,10 @@ static sw_inline void http_client_append_content_length(swString* buf, int lengt
 
 #ifdef SW_HAVE_ZLIB
 extern swString *swoole_zlib_buffer;
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif /* SWOOLE_HTTP_CLIENT_H_ */

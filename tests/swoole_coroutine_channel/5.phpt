@@ -1,10 +1,12 @@
 --TEST--
-swoole_coroutine: push with sleep
+swoole_coroutine_channel: push with sleep
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../include/skipif.inc';
+exit("skip for select");
+?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 $c1 = new chan();
 
@@ -27,7 +29,7 @@ go(function () use ($c1,$num) {
         }
     }
 });
-    
+
 go(function () use ($c1,$num) {
     echo "push start\n";
     for ($i=0;$i<$num;$i++)
@@ -40,7 +42,7 @@ go(function () use ($c1,$num) {
         $ret = $c1->push("data-$i");
         echo "push [#$i] ret:".var_export($ret,1)."\n";
     }
-    
+
 });
 echo "main end\n";
 ?>

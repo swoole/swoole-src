@@ -20,7 +20,7 @@ $array = array(
 $list = array();
 for($i = 0; $i < 1; $i++) {
     $client = new swoole_http2_client($host , $port, $ssl);
-    
+
     $client->setHeaders($array);
     //$client->setCookies(array("a" => "1", "b" => "2"));
 
@@ -32,14 +32,14 @@ for($i = 0; $i < 1; $i++) {
     });
 
     /*$client->post("/", $array, function ($o) use($client) {
-        echo "{$client->sock} hello world 2\n";  
+        echo "{$client->sock} hello world 2\n";
     });
 
-    
+
     $client->post("/", $array, function ($o) use($client) {
         echo "{$client->sock} hello world 3\n";
         echo $o->body;
-        $client->close();        
+        $client->close();
     });*/
     $list[] = $client;
 }

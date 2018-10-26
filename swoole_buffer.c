@@ -60,8 +60,8 @@ ZEND_END_ARG_INFO()
 
 static const zend_function_entry swoole_buffer_methods[] =
 {
-    PHP_ME(swoole_buffer, __construct, arginfo_swoole_buffer_construct, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
-    PHP_ME(swoole_buffer, __destruct, arginfo_swoole_buffer_void, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
+    PHP_ME(swoole_buffer, __construct, arginfo_swoole_buffer_construct, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_buffer, __destruct, arginfo_swoole_buffer_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_buffer, __toString, arginfo_swoole_buffer_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_buffer, substr, arginfo_swoole_buffer_substr, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_buffer, write, arginfo_swoole_buffer_write, ZEND_ACC_PUBLIC)
@@ -70,18 +70,18 @@ static const zend_function_entry swoole_buffer_methods[] =
     PHP_ME(swoole_buffer, expand, arginfo_swoole_buffer_expand, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_buffer, recycle, arginfo_swoole_buffer_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_buffer, clear, arginfo_swoole_buffer_void, ZEND_ACC_PUBLIC)
-    PHP_FALIAS(__sleep, swoole_unsupport_serialize, NULL)
-    PHP_FALIAS(__wakeup, swoole_unsupport_serialize, NULL)
     PHP_FE_END
 };
 
 zend_class_entry swoole_buffer_ce;
 zend_class_entry *swoole_buffer_class_entry_ptr;
 
-void swoole_buffer_init(int module_number TSRMLS_DC)
+void swoole_buffer_init(int module_number)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_buffer_ce, "swoole_buffer", "Swoole\\Buffer", swoole_buffer_methods);
-    swoole_buffer_class_entry_ptr = zend_register_internal_class(&swoole_buffer_ce TSRMLS_CC);
+    swoole_buffer_class_entry_ptr = zend_register_internal_class(&swoole_buffer_ce);
+    swoole_buffer_class_entry_ptr->serialize = zend_class_serialize_deny;
+    swoole_buffer_class_entry_ptr->unserialize = zend_class_unserialize_deny;
     SWOOLE_CLASS_ALIAS(swoole_buffer, "Swoole\\Buffer");
 }
 
@@ -107,41 +107,44 @@ static PHP_METHOD(swoole_buffer, __construct)
 {
     long size = SW_STRING_BUFFER_DEFAULT;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &size) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &size) == FAILURE)
     {
         RETURN_FALSE;
     }
 
     if (size < 1)
     {
-        zend_throw_exception(swoole_exception_class_entry_ptr, "buffer size can't be less than 0.", SW_ERROR_INVALID_PARAMS TSRMLS_CC);
+        zend_throw_exception(swoole_exception_class_entry_ptr, "buffer size can't be less than 0.", SW_ERROR_INVALID_PARAMS);
         RETURN_FALSE;
     }
     else if (size > SW_STRING_BUFFER_MAXLEN)
     {
-        zend_throw_exception_ex(swoole_exception_class_entry_ptr, errno TSRMLS_CC, "buffer size can't exceed %d", SW_STRING_BUFFER_MAXLEN);
+        zend_throw_exception_ex(swoole_exception_class_entry_ptr, errno, "buffer size can't exceed %d", SW_STRING_BUFFER_MAXLEN);
         RETURN_FALSE;
     }
 
     swString *buffer = swString_new(size);
     if (buffer == NULL)
     {
-        zend_throw_exception_ex(swoole_exception_class_entry_ptr, errno TSRMLS_CC, "malloc(%ld) failed.", size);
+        zend_throw_exception_ex(swoole_exception_class_entry_ptr, errno, "malloc(%ld) failed.", size);
         RETURN_FALSE;
     }
 
     swoole_set_object(getThis(), buffer);
-    zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("capacity"), size TSRMLS_CC);
-    zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("length"), 0 TSRMLS_CC);
+    zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("capacity"), size);
+    zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("length"), 0);
 }
 
 static PHP_METHOD(swoole_buffer, __destruct)
 {
+    SW_PREVENT_USER_DESTRUCT;
+
     swString *buffer = swoole_get_object(getThis());
     if (buffer)
     {
         swString_free(buffer);
     }
+    swoole_set_object(getThis(), NULL);
 }
 
 static PHP_METHOD(swoole_buffer, append)
@@ -149,20 +152,20 @@ static PHP_METHOD(swoole_buffer, append)
     swString str;
     bzero(&str, sizeof(str));
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &str.str, &str.length) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &str.str, &str.length) == FAILURE)
     {
         RETURN_FALSE;
     }
     if (str.length < 1)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "string empty.");
+        php_error_docref(NULL, E_WARNING, "string empty.");
         RETURN_FALSE;
     }
     swString *buffer = swoole_get_object(getThis());
 
     if ((str.length + buffer->length) > buffer->size && (str.length + buffer->length) > SW_STRING_BUFFER_MAXLEN)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "buffer size can't exceed %d", SW_STRING_BUFFER_MAXLEN);
+        php_error_docref(NULL, E_WARNING, "buffer size can't exceed %d", SW_STRING_BUFFER_MAXLEN);
         RETURN_FALSE;
     }
 
@@ -171,10 +174,10 @@ static PHP_METHOD(swoole_buffer, append)
     {
         if (buffer->size > size_old)
         {
-            zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("capacity"), buffer->size TSRMLS_CC);
+            zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("capacity"), buffer->size);
         }
         zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("length"),
-                buffer->length - buffer->offset TSRMLS_CC);
+                buffer->length - buffer->offset);
         RETURN_LONG(buffer->length - buffer->offset);
     }
     else
@@ -189,7 +192,7 @@ static PHP_METHOD(swoole_buffer, substr)
     long length = -1;
     zend_bool remove = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|lb", &offset, &length, &remove) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|lb", &offset, &length, &remove) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -216,20 +219,20 @@ static PHP_METHOD(swoole_buffer, substr)
     if (remove)
     {
         buffer->offset += length;
-        zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("length"), buffer->length - buffer->offset TSRMLS_CC);
+        zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("length"), buffer->length - buffer->offset);
 
         if (buffer->offset > SW_STRING_BUFFER_GARBAGE_MIN && buffer->offset * SW_STRING_BUFFER_GARBAGE_RATIO > buffer->size)
         {
             swoole_buffer_recycle(buffer);
         }
     }
-    SW_RETURN_STRINGL(buffer->str + offset, length, 1);
+    RETURN_STRINGL(buffer->str + offset, length);
 }
 
 static PHP_METHOD(swoole_buffer, __toString)
 {
     swString *buffer = swoole_get_object(getThis());
-    SW_RETURN_STRINGL(buffer->str + buffer->offset, buffer->length - buffer->offset, 1);
+    RETURN_STRINGL(buffer->str + buffer->offset, buffer->length - buffer->offset);
 }
 
 static PHP_METHOD(swoole_buffer, write)
@@ -239,14 +242,14 @@ static PHP_METHOD(swoole_buffer, write)
 
     bzero(&str, sizeof(str));
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ls", &offset, &str.str, &str.length) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "ls", &offset, &str.str, &str.length) == FAILURE)
     {
         RETURN_FALSE;
     }
 
     if (str.length < 1)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "string to write is empty.");
+        php_error_docref(NULL, E_WARNING, "string to write is empty.");
         RETURN_FALSE;
     }
 
@@ -258,7 +261,7 @@ static PHP_METHOD(swoole_buffer, write)
     }
     if (offset < 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "offset(%ld) is out of bounds.", offset);
+        php_error_docref(NULL, E_WARNING, "offset(%ld) is out of bounds.", offset);
         RETURN_FALSE;
     }
 
@@ -266,7 +269,7 @@ static PHP_METHOD(swoole_buffer, write)
 
     if ((str.length + offset) > buffer->size && (str.length + offset) > SW_STRING_BUFFER_MAXLEN)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "buffer size can't exceed %d", SW_STRING_BUFFER_MAXLEN);
+        php_error_docref(NULL, E_WARNING, "buffer size can't exceed %d", SW_STRING_BUFFER_MAXLEN);
         RETURN_FALSE;
     }
 
@@ -275,10 +278,10 @@ static PHP_METHOD(swoole_buffer, write)
     {
         if (buffer->size > size_old)
         {
-            zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("capacity"), buffer->size TSRMLS_CC);
+            zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("capacity"), buffer->size);
         }
         zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("length"),
-                buffer->length - buffer->offset TSRMLS_CC);
+                buffer->length - buffer->offset);
         RETURN_LONG(buffer->length - buffer->offset);
     }
     else
@@ -292,7 +295,7 @@ static PHP_METHOD(swoole_buffer, read)
     long offset;
     long length;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ll", &offset, &length) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "ll", &offset, &length) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -305,7 +308,7 @@ static PHP_METHOD(swoole_buffer, read)
     }
     if (offset < 0)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "offset(%ld) is out of bounds.", offset);
+        php_error_docref(NULL, E_WARNING, "offset(%ld) is out of bounds.", offset);
         RETURN_FALSE;
     }
 
@@ -316,14 +319,14 @@ static PHP_METHOD(swoole_buffer, read)
         RETURN_FALSE;
     }
 
-    SW_RETURN_STRINGL(buffer->str + offset, length, 1);
+    RETURN_STRINGL(buffer->str + offset, length);
 }
 
 static PHP_METHOD(swoole_buffer, expand)
 {
     long size = -1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &size) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &size) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -332,13 +335,13 @@ static PHP_METHOD(swoole_buffer, expand)
 
     if (size <= buffer->size)
     {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "new size must be more than %ld", buffer->size);
+        php_error_docref(NULL, E_WARNING, "new size must be more than %ld", buffer->size);
         RETURN_FALSE;
     }
 
     if (swString_extend(buffer, size) == SW_OK)
     {
-        zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("capacity"), size TSRMLS_CC);
+        zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("capacity"), size);
         RETURN_TRUE;
     }
     else
@@ -353,7 +356,7 @@ static PHP_METHOD(swoole_buffer, recycle)
 
     swoole_buffer_recycle(buffer);
 
-    zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("length"), buffer->length TSRMLS_CC);
+    zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("length"), buffer->length);
 }
 
 static PHP_METHOD(swoole_buffer, clear)
@@ -361,5 +364,5 @@ static PHP_METHOD(swoole_buffer, clear)
     swString *buffer = swoole_get_object(getThis());
     buffer->length = 0;
     buffer->offset = 0;
-    zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("length"), 0 TSRMLS_CC);
+    zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("length"), 0);
 }

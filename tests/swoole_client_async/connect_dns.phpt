@@ -1,19 +1,11 @@
 --TEST--
-swoole_client: connect & dns
+swoole_client_async: connect & dns
 
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
-
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
+require __DIR__ . '/../include/bootstrap.php';
 
 $cli = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
 
@@ -40,6 +32,5 @@ $cli->connect("www.baidu.com", 80, 2.0);
 
 swoole_event::wait();
 ?>
-
 --EXPECT--
 SUCCESS

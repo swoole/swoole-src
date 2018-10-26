@@ -13,4 +13,3 @@ echo "From Worker: ".$process->read();
 
 $ret = swoole_process::wait();
 var_dump($ret);
-

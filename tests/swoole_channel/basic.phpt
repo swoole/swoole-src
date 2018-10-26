@@ -1,19 +1,17 @@
 --TEST--
-swoole_coroutine: coro channel
+swoole_channel: coro channel
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
-require_once __DIR__ . '/../include/lib/curl.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid)
+$pm->parentFunc = function ($pid) use ($pm)
 {
     $data = curlGet("http://127.0.0.1:9501/");
     echo $data;
-    swoole_process::kill($pid);
+    $pm->kill();
 };
 
 $pm->childFunc = function () use ($pm)
@@ -34,10 +32,10 @@ $pm->childFunc = function () use ($pm)
     {
         $ch = new \Swoole\Channel(1);
         $out = new \Swoole\Channel(1);
-        Swoole\Coroutine::create(function() use ($ch, $out) {
+        Swoole\Coroutine::create(function () use ($ch, $out) {
             $tmp = $ch->pop();
             $out->push("OK");
-            });
+        });
         $ch->push("test");
         $ret = $out->pop();
         $response->end("$ret\n");

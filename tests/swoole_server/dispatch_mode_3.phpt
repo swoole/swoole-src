@@ -1,17 +1,13 @@
 --TEST--
 swoole_server: dispatch_mode = 3
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_in_docker('unknown reason in docker');
+?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
+require __DIR__ . '/../include/bootstrap.php';
 const REQ_N = 10000;
 const CLIENT_N = 16;
 const WORKER_N = 16;

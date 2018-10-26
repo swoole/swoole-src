@@ -1,66 +1,59 @@
 <?php
-define("TCP_SERVER_HOST", "127.0.0.1");
-define("TCP_SERVER_PORT", 9001);
+require_once __DIR__ . '/functions.php';
 
-define("TCP_SERVER_HOST1", "127.0.0.1");
-define("TCP_SERVER_PORT1", 9011);
+/** ============== Env =============== */
+define('IS_MAC_OS', stripos(PHP_OS, 'Darwin') !== false);
+define('IS_IN_TRAVIS', file_exists('/.travisenv'));
+define('HAS_SSL', defined("SWOOLE_SSL"));
+define('HAS_ASYNC_REDIS', class_exists("swoole_redis", false));
+define('HAS_HTTP2', class_exists("swoole_http2_request", false));
 
-define("TCP_SERVER_HOST2", "127.0.0.1");
-define("TCP_SERVER_PORT2", 9021);
+/** ============ Servers ============ */
+define('TCP_SERVER_HOST', '127.0.0.1');
+define('TCP_SERVER_PORT', 9001);
 
-define("HTTP_SERVER_HOST", "127.0.0.1");
-define("HTTP_SERVER_PORT", 9002);
-define("WEBSOCKET_SERVER_HOST", "127.0.0.1");
-define("WEBSOCKET_SERVER_PORT", 9003);
+define('HTTP_SERVER_HOST', '127.0.0.1');
+define('HTTP_SERVER_PORT', 9002);
+define('WEBSOCKET_SERVER_HOST', '127.0.0.1');
+define('WEBSOCKET_SERVER_PORT', 9003);
 
-define("UNIXSOCK_SERVER_PATH", __DIR__ . "/unix-sock-test.sock");
+define('UNIXSOCK_SERVER_PATH', __DIR__ . '/unix-sock-test.sock');
 
-define("UDP_SERVER_HOST", "127.0.0.1");
-define("UDP_SERVER_PORT", "9003");
+define('UDP_SERVER_HOST', '127.0.0.1');
+define('UDP_SERVER_PORT', '9003');
 
-define("REDIS_SERVER_PATH", "");
-define("REDIS_SERVER_HOST", "127.0.0.1");
-define("REDIS_SERVER_PORT", 6379);
+/** ============== MySQL ============== */
+define('MYSQL_SERVER_HOST', IS_IN_TRAVIS ? 'mysql' : '127.0.0.1');
+define('MYSQL_SERVER_PORT', 3306);
+define('MYSQL_SERVER_USER', 'root');
+define('MYSQL_SERVER_PWD', 'root');
+define('MYSQL_SERVER_DB', 'test');
 
-define("REDIS_SERVER_PATH1", "");
-define("REDIS_SERVER_HOST1", "127.0.0.1");
-define("REDIS_SERVER_PORT1", 6379);
+/** ============== Redis ============== */
+define('REDIS_SERVER_PATH', "");
+define('REDIS_SERVER_HOST', IS_IN_TRAVIS ? 'redis' : '127.0.0.1');
+define('REDIS_SERVER_PORT', 6379);
 
-define("REDIS_SERVER_PATH2", "");
-define("REDIS_SERVER_HOST2", "127.0.0.1");
-define("REDIS_SERVER_PORT2", 6379);
+/** =============== IP ================ */
+define('IP_BAIDU', '180.97.33.107');
 
-define("REDIS_SERVER_PATH3", "");
-define("REDIS_SERVER_HOST3", "127.0.0.1");
-define("REDIS_SERVER_PORT3", 6379);
-
-define("MYSQL_SERVER_HOST", "127.0.0.1");
-define("MYSQL_SERVER_PORT", 3306);
-define("MYSQL_SERVER_USER", "root");
-define("MYSQL_SERVER_PWD", "root");
-define("MYSQL_SERVER_DB", "test");
-
-define("MYSQL_SERVER_HOST1", "127.0.0.1");
-define("MYSQL_SERVER_PORT1", 3306);
-define("MYSQL_SERVER_USER1", "root");
-define("MYSQL_SERVER_PWD1", "");
-define("MYSQL_SERVER_DB1", "test");
-
-define("MYSQL_SERVER_HOST2", "127.0.0.1");
-define("MYSQL_SERVER_PORT2", 3306);
-define("MYSQL_SERVER_USER2", "root");
-define("MYSQL_SERVER_PWD2", "");
-define("MYSQL_SERVER_DB2", "test");
-
-define("MYSQL_SERVER_HOST3", "127.0.0.1");
-define("MYSQL_SERVER_PORT3", 3306);
-define("MYSQL_SERVER_USER3", "root");
-define("MYSQL_SERVER_PWD3", "");
-define("MYSQL_SERVER_DB3", "test");
-
-define("TEST_IMAGE", __DIR__ . "/../../examples/test.jpg");
-
-define("IP_BAIDU", "180.97.33.107");
-
+/** ============= Proxy ============== */
 define('HTTP_PROXY_HOST', '127.0.0.1');
-define('HTTP_PROXY_PORT', 8888);
+if (IS_MAC_OS) {
+    define('HTTP_PROXY_PORT', 1087);
+} else {
+    define('HTTP_PROXY_PORT', 8888);
+}
+
+/** ============== Files ============== */
+define('SOURCE_ROOT_PATH', __DIR__ . '/../../');
+define('TEST_IMAGE', __DIR__ . '/../../examples/test.jpg');
+define('TEST_LOG_FILE', '/tmp/swoole.log');
+define('SSL_FILE_DIR', __DIR__ . '/api/swoole_http_server/localhost-ssl');
+
+/** ============== Times ============== */
+define('MAX_CONCURRENCY', IS_IN_TRAVIS ? 50 : 200);
+define('MAX_CONCURRENCY_MID', IS_IN_TRAVIS ? 35 : 100);
+define('MAX_CONCURRENCY_LOW', IS_IN_TRAVIS ? 20 : 50);
+define('MAX_REQUESTS', IS_IN_TRAVIS ? 50 : 100);
+define('MAX_REQUESTS_LOW', IS_IN_TRAVIS ? 10 : 25);

@@ -1,11 +1,10 @@
 --TEST--
-swoole_coroutine: fread
+swoole_coroutine_util: fread
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/swoole.inc';
+require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Coroutine as co;
 

@@ -2,17 +2,13 @@
 swoole_memory_pool: fixed pool free [01]
 
 --SKIPIF--
-<?php require  __DIR__ . '/../include/skipif.inc'; ?>
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
-
+<?php
+require  __DIR__ . '/../include/skipif.inc';
+skip_deprecated();
+?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Memory\Pool;
 $pool = new Pool(128 * 1024, Pool::TYPE_FIXED, 1024);

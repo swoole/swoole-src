@@ -3,16 +3,9 @@ swoole_table: int
 
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
-
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 $table = new swoole_table(65536);
 
@@ -62,7 +55,6 @@ if (!$ret)
 }
 assert($table->get('test_key', 'i32') == -1247483648 - 8);
 
-
 $ret = $table->set('test_key', array(
     'i8' => 120,
     'i16' => 30000,
@@ -101,6 +93,5 @@ assert($table->get('test_key', 'i32') == 1247483648 - 8);
 
 echo "SUCCESS";
 ?>
-
 --EXPECT--
 SUCCESS
