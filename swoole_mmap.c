@@ -205,6 +205,7 @@ static PHP_METHOD(swoole_mmap, open)
     if (addr == MAP_FAILED)
     {
         swoole_php_sys_error(E_WARNING, "mmap(%ld) failed.", size);
+        close(fd);
         RETURN_FALSE;
     }
 
