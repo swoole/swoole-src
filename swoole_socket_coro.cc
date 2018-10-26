@@ -435,7 +435,7 @@ static PHP_METHOD(swoole_socket_coro, getsockname)
     socket_coro *sock = (socket_coro *) Z_SOCKET_CORO_OBJ_P(getThis());
     array_init(return_value);
 
-    swSocketAddress info;
+    swSocketAddress info = {0};
     char addr_str[INET6_ADDRSTRLEN + 1];
 
     if (getsockname(sock->socket->get_fd(), (struct sockaddr *) &info.addr.inet_v4, &info.len) != 0)
@@ -470,7 +470,7 @@ static PHP_METHOD(swoole_socket_coro, getpeername)
     socket_coro *sock = (socket_coro *) Z_SOCKET_CORO_OBJ_P(getThis());
     array_init(return_value);
 
-    swSocketAddress info;
+    swSocketAddress info = {0};
     char addr_str[INET6_ADDRSTRLEN + 1];
 
     if (getpeername(sock->socket->get_fd(), (struct sockaddr *) &info.addr, &info.len) != 0)

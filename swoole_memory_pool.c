@@ -114,7 +114,7 @@ void swoole_memory_pool_init(int module_number)
 
 static PHP_METHOD(swoole_memory_pool, __construct)
 {
-    zend_long size, type, slice_size;
+    zend_long size, type, slice_size = SW_BUFFER_SIZE_STD;
     zend_bool shared = 0;
 
     ZEND_PARSE_PARAMETERS_START(2, 4)

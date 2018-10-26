@@ -1445,6 +1445,7 @@ bool Socket::sendfile(char *filename, off_t offset, size_t length)
         else if (n == 0)
         {
             swWarn("sendfile return zero.");
+            ::close(file_fd);
             return false;
         }
         else if (errno != EAGAIN)
