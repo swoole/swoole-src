@@ -52,7 +52,7 @@ SQL;
         assert(empty($_map), 'there are some results lost!');
 
         //PDO
-        !extension_loaded('PDO') && exit;
+        !extension_loaded('PDO') && exit("DONE\n");
         $_map = $map;
         try {
             $pdo = new PDO(
@@ -71,7 +71,9 @@ SQL;
         } catch (\PDOException $e) {
             assert($e->getCode() === 2054); // not support auth plugin
         }
+        echo "DONE\n";
     }
 });
 ?>
 --EXPECT--
+DONE
