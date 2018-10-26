@@ -2606,7 +2606,7 @@ static PHP_METHOD(swoole_http_response, create)
     object_init_ex(return_value, swoole_http_response_class_entry_ptr);
     swoole_set_object(return_value, ctx);
     ctx->response.zobject = return_value;
-    sw_copy_to_stack(return_value, ctx->response._zobject);
+    sw_copy_to_stack(ctx->response.zobject, ctx->response._zobject);
 
     zend_update_property_long(swoole_http_response_class_entry_ptr, return_value, ZEND_STRL("fd"), ctx->fd);
 }
