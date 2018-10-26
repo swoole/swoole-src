@@ -125,7 +125,7 @@ void swoole_postgresql_coro_init(int module_number)
 {
 
     INIT_CLASS_ENTRY(swoole_postgresql_coro_ce, "Swoole\\Coroutine\\PostgreSQL", swoole_postgresql_coro_methods);
-    le_link = zend_register_list_destructors_ex(_destroy_pgsql_link, NULL, "pgsql link", module_number);
+//    le_link = zend_register_list_destructors_ex(_destroy_pgsql_link, NULL, "pgsql link", module_number);
     le_result = zend_register_list_destructors_ex(_free_result, NULL, "pgsql result", module_number);
     swoole_postgresql_coro_class_entry_ptr = zend_register_internal_class(&swoole_postgresql_coro_ce);
 
@@ -292,6 +292,7 @@ static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event)
     }
 
     // wait the connection ok
+    uint8_t success = 1;
     ConnStatusType status =  PQstatus(pg_object->conn);
     if(status != CONNECTION_OK){
         PostgresPollingStatusType flag = PGRES_POLLING_WRITING;
@@ -308,6 +309,7 @@ static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event)
                 case PGRES_POLLING_FAILED:
                     err_msg = PQerrorMessage(pg_object->conn);
                     swWarn("error:[%s]",err_msg);
+                    success = 0;
                     break;
                 default:
                     break;
@@ -322,6 +324,7 @@ static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event)
             {
                 err_msg = PQerrorMessage(pg_object->conn);
                 swWarn("error:[%s] please cofirm that the connection configuration is correct \n",err_msg);
+                success = 0;
                 break;
             }
         }
@@ -336,7 +339,14 @@ static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event)
 
     zval *retval = NULL;
     zval return_value;
-    ZVAL_RES(&return_value, zend_register_resource(pg_object->conn, le_link));
+//    ZVAL_RES(&return_value, zend_register_resource(pg_object->conn, le_link));
+    if (success == 1)
+    {
+        ZVAL_TRUE(&return_value);
+    } else
+    {
+        ZVAL_FALSE(&return_value);
+    }
 
     int ret = coro_resume(sw_current_context, &return_value, &retval);
     if (ret == CORO_END && retval)
@@ -1012,17 +1022,17 @@ static PHP_METHOD(swoole_postgresql_coro,fetchObject)
 
 /* {{{ _destroy_pgsql_link
  */
-static void _destroy_pgsql_link(zend_resource *rsrc)
-{
-    PGconn *link = (PGconn *)rsrc->ptr;
-    PGresult *res;
-
-    while ((res = PQgetResult(link)))
-    {
-        PQclear(res);
-    }
-    PQfinish(link);
-}
+//static void _destroy_pgsql_link(zend_resource *rsrc)
+//{
+//    PGconn *link = (PGconn *)rsrc->ptr;
+//    PGresult *res;
+//
+//    while ((res = PQgetResult(link)))
+//    {
+//        PQclear(res);
+//    }
+//    PQfinish(link);
+//}
 
 static void _free_result(zend_resource *rsrc)
 {
@@ -1074,8 +1084,19 @@ static int swoole_postgresql_coro_close(pg_object *pg_object)
     SwooleG.main_reactor->del(SwooleG.main_reactor, pg_object->fd);
 
     swConnection *_socket = swReactor_get(SwooleG.main_reactor, pg_object->fd);
+
+    if (_socket->active == 1) {
+        PGresult *res;
+        while ((res = PQgetResult(pg_object->conn)))
+        {
+            PQclear(res);
+        }
+        PQfinish(pg_object->conn);
+    }
+
     _socket->object = NULL;
     _socket->active = 0;
+
     efree(pg_object);
     if(pg_object->object)
     {
