@@ -963,6 +963,7 @@ void swServer_set_callback_onClose(swServer *serv, void (*callback)(swServer *, 
 
 int swWorker_create(swWorker *worker);
 int swWorker_onTask(swFactory *factory, swEventData *task);
+void swWorker_stop(swWorker *worker);
 
 static sw_inline swConnection *swWorker_get_connection(swServer *serv, int session_id)
 {
