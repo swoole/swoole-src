@@ -278,7 +278,7 @@ static PHP_METHOD(swoole_process_pool, on)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &name, &l_name, &callback) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     if (!php_swoole_is_callable(callback))
@@ -350,7 +350,7 @@ static PHP_METHOD(swoole_process_pool, listen)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|ll", &host, &l_host, &port, &backlog) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     if (pool->ipc_mode != SW_IPC_SOCKET)
@@ -380,7 +380,7 @@ static PHP_METHOD(swoole_process_pool, write)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &data, &length) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     swProcessPool *pool = swoole_get_object(getThis());

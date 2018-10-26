@@ -470,7 +470,7 @@ static PHP_METHOD(swoole_process, signal)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "lz", &signo, &callback) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     if (!SWOOLE_G(cli))
@@ -567,7 +567,7 @@ static PHP_METHOD(swoole_process, alarm)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|l", &usec, &type) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     if (!SWOOLE_G(cli))

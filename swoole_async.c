@@ -513,7 +513,7 @@ PHP_FUNCTION(swoole_async_read)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "zz|ll", &filename, &callback, &buf_size, &offset) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     if (offset < 0)
@@ -616,7 +616,7 @@ PHP_FUNCTION(swoole_async_write)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "zs|lz", &filename, &fcnt, &fcnt_len, &offset, &callback) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
     if (fcnt_len <= 0)
     {
@@ -710,7 +710,7 @@ PHP_FUNCTION(swoole_async_readfile)
     int open_flag = O_RDONLY;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "zz", &filename, &callback) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
     convert_to_string(filename);
 
@@ -798,7 +798,7 @@ PHP_FUNCTION(swoole_async_writefile)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "zs|zl", &filename, &fcnt, &fcnt_len, &callback, &flags) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
     int open_flag = O_CREAT | O_WRONLY;
     if (flags & PHP_FILE_APPEND)
@@ -986,7 +986,7 @@ PHP_FUNCTION(swoole_async_dns_lookup)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "zz", &domain, &cb) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     if (Z_TYPE_P(domain) != IS_STRING)
@@ -1162,7 +1162,7 @@ PHP_METHOD(swoole_async, exec)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &command, &command_len, &callback) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     php_swoole_check_reactor();
@@ -1219,7 +1219,7 @@ PHP_FUNCTION(swoole_coroutine_exec)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &command, &command_len) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     coro_check();

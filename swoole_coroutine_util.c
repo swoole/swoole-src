@@ -358,7 +358,7 @@ static PHP_METHOD(swoole_coroutine_util, set)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &zset) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     php_swoole_array_separate(zset);
@@ -400,7 +400,7 @@ PHP_FUNCTION(swoole_coroutine_create)
     zval *callback;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &callback) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
     if (unlikely(SWOOLE_G(req_status) == PHP_SWOOLE_CALL_USER_SHUTDOWNFUNC_BEGIN))
     {
@@ -459,7 +459,7 @@ static PHP_METHOD(swoole_coroutine_util, resume)
     long id;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &id) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     swLinkedList *coros_list = swHashMap_find_int(defer_coros, id);
@@ -522,7 +522,7 @@ static PHP_METHOD(swoole_coroutine_util, sleep)
     double seconds;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "d", & seconds) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     int ms = (int) (seconds * 1000);
@@ -1443,7 +1443,7 @@ static PHP_METHOD(swoole_coroutine_util, getBackTrace)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|ll", &cid) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
     if (cid == sw_get_current_cid())
     {

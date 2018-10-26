@@ -298,7 +298,7 @@ PHP_FUNCTION(swoole_timer_tick)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "lz|z", &after_ms, &callback, &param) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     long timer_id = php_swoole_add_timer(after_ms, callback, param, 1);
@@ -320,7 +320,7 @@ PHP_FUNCTION(swoole_timer_after)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "lz|z", &after_ms, &callback, &param) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     long timer_id = php_swoole_add_timer(after_ms, callback, param, 0);
@@ -345,7 +345,7 @@ PHP_FUNCTION(swoole_timer_clear)
     long id;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &id) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     swTimer_node *tnode = swTimer_get(&SwooleG.timer, id);
@@ -390,7 +390,7 @@ PHP_FUNCTION(swoole_timer_exists)
     long id;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &id) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     swTimer_node *tnode = swTimer_get(&SwooleG.timer, id);

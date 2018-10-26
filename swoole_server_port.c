@@ -539,7 +539,7 @@ static PHP_METHOD(swoole_server_port, on)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &name, &len, &cb) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     char *func_name = NULL;

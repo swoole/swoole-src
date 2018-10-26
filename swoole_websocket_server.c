@@ -616,7 +616,7 @@ static PHP_METHOD(swoole_websocket_server, pack)
     zend_bool mask = 0;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|lbb", &zdata, &opcode, &fin, &mask) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
     swString_clear(buffer);
     if (php_swoole_websocket_frame_pack(buffer, zdata, opcode, fin, mask) < 0)
@@ -651,7 +651,7 @@ static PHP_METHOD(swoole_websocket_server, unpack)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &buffer.str, &buffer.length) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     php_swoole_websocket_frame_unpack(&buffer, return_value);
@@ -670,7 +670,7 @@ static PHP_METHOD(swoole_websocket_server, exist)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &fd) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     swConnection *conn = swWorker_get_connection(serv, fd);
@@ -714,7 +714,7 @@ static PHP_METHOD(swoole_websocket_server, isEstablished)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &fd) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     swConnection *conn = swWorker_get_connection(serv, fd);

@@ -662,7 +662,7 @@ static PHP_METHOD(swoole_client_coro, set)
     zval *zset;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &zset) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
     if (Z_TYPE_P(zset) != IS_ARRAY)
     {
@@ -688,7 +688,7 @@ static PHP_METHOD(swoole_client_coro, connect)
         Z_PARAM_LONG(port)
         Z_PARAM_DOUBLE(timeout)
         Z_PARAM_LONG(sock_flag)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (host_len <= 0)
     {
@@ -717,7 +717,7 @@ static PHP_METHOD(swoole_client_coro, connect)
         php_swoole_client_coro_check_setting(cli, zset);
     }
 
-    swoole_php_check_coro_bind("client", cli->has_bound(swoole::SOCKET_LOCK_RW), RETURN_FALSE);
+    sw_coro_check_bind("client", cli->has_bound(swoole::SOCKET_LOCK_RW));
     if (!cli->connect(host, port, sock_flag))
     {
         zend_update_property_long(swoole_client_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), cli->errCode);
@@ -736,7 +736,7 @@ static PHP_METHOD(swoole_client_coro, send)
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
         Z_PARAM_STRING(data, data_len)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (data_len <= 0)
     {
@@ -752,7 +752,7 @@ static PHP_METHOD(swoole_client_coro, send)
 
     //clear errno
     SwooleG.error = 0;
-    swoole_php_check_coro_bind("client", cli->has_bound(swoole::SOCKET_LOCK_WRITE), RETURN_FALSE);
+    sw_coro_check_bind("client", cli->has_bound(swoole::SOCKET_LOCK_WRITE));
     int ret = cli->send_all(data, data_len);
     if (ret < 0)
     {
@@ -776,7 +776,7 @@ static PHP_METHOD(swoole_client_coro, sendto)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sls", &ip, &ip_len, &port, &data, &len) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     if (len <= 0)
@@ -796,7 +796,7 @@ static PHP_METHOD(swoole_client_coro, sendto)
         cli->socket->active = 1;
         swoole_set_object(getThis(), cli);
     }
-    swoole_php_check_coro_bind("client", cli->has_bound(swoole::SOCKET_LOCK_WRITE), RETURN_FALSE);
+    sw_coro_check_bind("client", cli->has_bound(swoole::SOCKET_LOCK_WRITE));
     SW_CHECK_RETURN(cli->sendto(ip, port, data, len));
 }
 
@@ -807,7 +807,7 @@ static PHP_METHOD(swoole_client_coro, recvfrom)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "lz/|z/", &length, &address, &port) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     if (length <= 0)
@@ -829,7 +829,7 @@ static PHP_METHOD(swoole_client_coro, recvfrom)
     }
 
     zend_string *retval = zend_string_alloc(length + 1, 0);
-    swoole_php_check_coro_bind("client", cli->has_bound(swoole::SOCKET_LOCK_READ), RETURN_FALSE);
+    sw_coro_check_bind("client", cli->has_bound(swoole::SOCKET_LOCK_READ));
     ssize_t n_bytes = cli->recvfrom(retval->val, length);
     if (n_bytes < 0)
     {
@@ -855,7 +855,7 @@ static PHP_METHOD(swoole_client_coro, sendfile)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|ll", &file, &file_len, &offset, &length) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
     if (file_len <= 0)
     {
@@ -876,7 +876,7 @@ static PHP_METHOD(swoole_client_coro, sendfile)
     }
     //clear errno
     SwooleG.error = 0;
-    swoole_php_check_coro_bind("client", cli->has_bound(swoole::SOCKET_LOCK_WRITE), RETURN_FALSE);
+    sw_coro_check_bind("client", cli->has_bound(swoole::SOCKET_LOCK_WRITE));
     int ret = cli->sendfile(file, offset, length);
     if (ret < 0)
     {
@@ -898,14 +898,14 @@ static PHP_METHOD(swoole_client_coro, recv)
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
         Z_PARAM_DOUBLE(timeout)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     Socket *cli = client_get_ptr(getThis());
     if (!cli)
     {
         RETURN_FALSE;
     }
-    swoole_php_check_coro_bind("client", cli->has_bound(swoole::SOCKET_LOCK_READ), RETURN_FALSE);
+    sw_coro_check_bind("client", cli->has_bound(swoole::SOCKET_LOCK_READ));
     if (timeout != 0)
     {
         cli->setTimeout(timeout);
@@ -956,7 +956,7 @@ static PHP_METHOD(swoole_client_coro, peek)
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(buf_len)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     Socket *cli = client_get_ptr(getThis());
     if (!cli)
@@ -1123,7 +1123,7 @@ static PHP_METHOD(swoole_client_coro, close)
     }
 #endif
 
-    swoole_php_check_coro_bind("client", cli->has_bound(swoole::SOCKET_LOCK_RW), RETURN_FALSE);
+    sw_coro_check_bind("client", cli->has_bound(swoole::SOCKET_LOCK_RW));
     int ret = php_swoole_client_coro_socket_free(cli) ? SW_OK : SW_ERR;
     swoole_set_object(zobject, NULL);
 
@@ -1154,7 +1154,7 @@ static PHP_METHOD(swoole_client_coro, enableSSL)
     {
         client_coro_check_ssl_setting(cli, zset);
     }
-    swoole_php_check_coro_bind("client", cli->has_bound(swoole::SOCKET_LOCK_RW), RETURN_FALSE);
+    sw_coro_check_bind("client", cli->has_bound(swoole::SOCKET_LOCK_RW));
     if (cli->ssl_handshake() == false)
     {
         RETURN_FALSE;
@@ -1198,7 +1198,7 @@ static PHP_METHOD(swoole_client_coro, verifyPeerCert)
     zend_bool allow_self_signed = 0;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|b", &allow_self_signed) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
     SW_CHECK_RETURN(cli->ssl_verify(allow_self_signed));
 }

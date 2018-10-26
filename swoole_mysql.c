@@ -2097,7 +2097,7 @@ int mysql_response(mysql_client *client)
 int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callback)
 {
 
-    swoole_php_check_coro_bind("mysql client", client->cid, return SW_ERR);
+    sw_coro_check_bind("mysql client", client->cid);
 
     if (!client->cli)
     {
@@ -2394,7 +2394,7 @@ static PHP_METHOD(swoole_mysql, query)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &sql.str, &sql.length, &callback) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     if (!php_swoole_is_callable(callback))
@@ -2423,7 +2423,7 @@ static PHP_METHOD(swoole_mysql, begin)
     zval *callback;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &callback) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     if (!php_swoole_is_callable(callback))
@@ -2462,7 +2462,7 @@ static PHP_METHOD(swoole_mysql, commit)
     zval *callback;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &callback) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     if (!php_swoole_is_callable(callback))
@@ -2501,7 +2501,7 @@ static PHP_METHOD(swoole_mysql, rollback)
     zval *callback;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &callback) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     if (!php_swoole_is_callable(callback))
@@ -2629,7 +2629,7 @@ static PHP_METHOD(swoole_mysql, on)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &name, &len, &cb) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     mysql_client *client = swoole_get_object(getThis());
@@ -3106,7 +3106,7 @@ static PHP_METHOD(swoole_mysql, escape)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|l", &str.str, &str.length, &flags) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     if (str.length <= 0)

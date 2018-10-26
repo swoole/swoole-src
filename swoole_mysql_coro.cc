@@ -212,7 +212,7 @@ int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callba
 static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *params)
 {
 
-    swoole_php_check_coro_bind("mysql client", client->cid, return SW_ERR);
+    sw_coro_check_bind("mysql client", client->cid);
 
     if (!client->cli)
     {
@@ -835,13 +835,13 @@ static PHP_METHOD(swoole_mysql_coro, query)
         RETURN_FALSE;
     }
 
-    swoole_php_check_coro_bind("mysql client", client->cid, RETURN_FALSE);
+    sw_coro_check_bind("mysql client", client->cid);
 
     double timeout = -1;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|d", &sql.str, &sql.length, &timeout) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     if (sql.length <= 0)
@@ -886,7 +886,7 @@ static void swoole_mysql_coro_query_transcation(const char* command, uint8_t in_
         RETURN_FALSE;
     }
 
-    swoole_php_check_coro_bind("mysql client", client->cid, RETURN_FALSE);
+    sw_coro_check_bind("mysql client", client->cid);
 
     // we deny the dangerous operation of transaction
     // if developers need use defer to begin transaction, they can use query("begin/commit/rollback") with defer
@@ -966,7 +966,7 @@ static PHP_METHOD(swoole_mysql_coro, setDefer)
     zend_bool defer = 1;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|b", &defer) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     mysql_client *client = (mysql_client *) swoole_get_object(getThis());
@@ -988,7 +988,7 @@ static PHP_METHOD(swoole_mysql_coro, recv)
         RETURN_FALSE;
     }
 
-    swoole_php_check_coro_bind("mysql client", client->cid, RETURN_FALSE);
+    sw_coro_check_bind("mysql client", client->cid);
 
     if (client->iowait == SW_MYSQL_CORO_STATUS_DONE)
     {
@@ -1033,7 +1033,7 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
         RETURN_FALSE;
     }
 
-    swoole_php_check_coro_bind("mysql client", client->cid, RETURN_FALSE);
+    sw_coro_check_bind("mysql client", client->cid);
 
     double timeout = -1;
 
@@ -1277,7 +1277,7 @@ static PHP_METHOD(swoole_mysql_coro, escape)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|l", &str.str, &str.length, &flags) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     if (str.length <= 0)
