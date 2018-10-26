@@ -303,6 +303,7 @@ static int http_client_execute(zval *zobject, char *uri, size_t uri_len, zval *c
         }
         http->download = 1;
         http->file_fd = fd;
+        hcc->download_file = NULL;
     }
 
     //if connection exists

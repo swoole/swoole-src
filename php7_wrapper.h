@@ -131,6 +131,7 @@ static sw_inline int sw_call_user_function_fast_ex(zval *function_name, zend_fca
     if (ZVAL_IS_NULL(&__retval)) *(retval) = NULL;\
     else *(retval) = &__retval;
 
+// do not use sw_copy_to_stack(return_value, foo);
 #define sw_copy_to_stack(a, b)                {zval *__tmp = (zval *) a;\
     a = &b;\
     memcpy(a, __tmp, sizeof(zval));}
