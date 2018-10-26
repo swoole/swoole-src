@@ -1105,10 +1105,12 @@ static PHP_METHOD(swoole_coroutine_util, readFile)
 
     php_context *context = emalloc(sizeof(php_context));
 
+#ifdef LOCK_EX
     if (flags & LOCK_EX)
     {
         ev.lock = 1;
     }
+#endif
 
     ev.type = SW_AIO_READ_FILE;
     ev.object = context;
@@ -1178,10 +1180,12 @@ static PHP_METHOD(swoole_coroutine_util, writeFile)
         ev.flags |= O_TRUNC;
     }
 
+#ifdef LOCK_EX
     if (flags & LOCK_EX)
     {
         ev.lock = 1;
     }
+#endif
 
     if (!SwooleAIO.init)
     {

@@ -722,6 +722,7 @@ PHP_FUNCTION(swoole_async_readfile)
     }
     if (!php_swoole_is_callable(callback))
     {
+        close(fd);
         RETURN_FALSE;
     }
 

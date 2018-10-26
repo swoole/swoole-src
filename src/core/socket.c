@@ -255,7 +255,7 @@ ssize_t swSocket_unix_sendto(int server_sock, char *dst_path, char *data, uint32
 {
     struct sockaddr_un addr;
     bzero(&addr, sizeof(addr));
-    strncpy(addr.sun_path, dst_path, sizeof(addr.sun_path));
+    strncpy(addr.sun_path, dst_path, sizeof(addr.sun_path) - 1);
     return swSocket_sendto_blocking(server_sock, data, len, 0, (struct sockaddr *) &addr, sizeof(addr));
 }
 #endif
@@ -483,17 +483,20 @@ int swSocket_create_server(int type, char *address, int port, int backlog)
     if (fd < 0)
     {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "socket() failed. Error: %s[%d]", strerror(errno), errno);
+        close(fd);
         return SW_ERR;
     }
 
     if (swSocket_bind(fd, type, address, &port) < 0)
     {
+        close(fd);
         return SW_ERR;
     }
 
     if (listen(fd, backlog) < 0)
     {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "listen(%s:%d, %d) failed. Error: %s[%d]", address, port, backlog, strerror(errno), errno);
+        close(fd);
         return SW_ERR;
     }
 
