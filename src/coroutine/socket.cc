@@ -835,7 +835,15 @@ void Socket::yield(int operation)
     if (_timeout > 0)
     {
         int ms = (int) (_timeout * 1000);
+        if (ms <= 0 || ms >= SW_TIMER_MAX_VALUE)
+        {
+            goto _skip_timer;
+        }
         timer = swTimer_add(&SwooleG.timer, ms, 0, this, socket_onTimeout);
+        if (!timer)
+        {
+            goto _skip_timer;
+        }
         if (operation == SOCKET_LOCK_READ)
         {
             timer->type = SW_TIMER_TYPE_CORO_READ;
@@ -851,7 +859,7 @@ void Socket::yield(int operation)
     }
 
     // bind read/write coroutine
-    if (operation & SOCKET_LOCK_WRITE)
+    _skip_timer: if (operation & SOCKET_LOCK_WRITE)
     {
         write_cid = cid;
     }

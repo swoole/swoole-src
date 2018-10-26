@@ -154,11 +154,11 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
         SwooleG.main_reactor = sw_malloc(sizeof(swReactor));
         if (SwooleG.main_reactor == NULL)
         {
-            swError("[Worker] malloc for reactor failed.");
+            swError("[TaskWorker] malloc for reactor failed.");
         }
         if (swReactor_create(SwooleG.main_reactor, SW_REACTOR_MAXEVENTS) < 0)
         {
-            swError("[Worker] create worker_reactor failed.");
+            swError("[TaskWorker] create reactor failed.");
         }
     }
     else
