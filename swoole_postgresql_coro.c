@@ -42,7 +42,7 @@ static int swoole_pgsql_coro_onRead(swReactor *reactor, swEvent *event);
 static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event);
 static int swoole_pgsql_coro_onError(swReactor *reactor, swEvent *event);
 int php_pgsql_result2array(PGresult *pg_result, zval *ret_array, long result_type);
-static int swoole_postgresql_coro_close(pg_object *pg_object);
+static int swoole_postgresql_coro_close(pg_object *pg_object, uint8_t free_context);
 static  int query_result_parse(pg_object *pg_object);
 static  int meta_data_result_parse(pg_object *pg_object);
 static void swoole_pgsql_coro_onTimeout(swTimer *timer, swTimer_node *tnode);
@@ -478,7 +478,7 @@ static  int query_result_parse(pg_object *pg_object)
             {
                 zval_ptr_dtor(retval);
             }
-            swoole_postgresql_coro_close(pg_object);
+            swoole_postgresql_coro_close(pg_object, 0);
             break;
         case PGRES_COMMAND_OK: /* successful command that did not return rows */
         default:
@@ -1049,7 +1049,7 @@ static int swoole_pgsql_coro_onError(swReactor *reactor, swEvent *event)
     zval *retval = NULL;
     zval *zobject  = pg_object->object;
 
-    swoole_postgresql_coro_close(pg_object);
+    swoole_postgresql_coro_close(pg_object, 0);
 
     ZVAL_BOOL(result, 0);
 
@@ -1070,11 +1070,11 @@ static PHP_METHOD(swoole_postgresql_coro, __destruct)
     SW_PREVENT_USER_DESTRUCT;
 
     pg_object *pg_object = swoole_get_object(getThis());
-    swoole_postgresql_coro_close(pg_object);
+    swoole_postgresql_coro_close(pg_object, 1);
 
 }
 
-static int swoole_postgresql_coro_close(pg_object *pg_object)
+static int swoole_postgresql_coro_close(pg_object *pg_object, uint8_t free_context)
 {
     if (!pg_object)
     {
@@ -1098,7 +1098,7 @@ static int swoole_postgresql_coro_close(pg_object *pg_object)
     _socket->active = 0;
 
     efree(pg_object);
-    if(pg_object->object)
+    if(pg_object->object && free_context == 1)
     {
         php_context *sw_current_context = swoole_get_property(pg_object->object, 0);
         efree(sw_current_context);
