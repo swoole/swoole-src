@@ -133,6 +133,7 @@ bool Socket::socks5_handshake()
         /**
          * response
          */
+        buf = ctx->buf;
         n = recv(buf, sizeof(ctx->buf));
         if (n <= 0)
         {
