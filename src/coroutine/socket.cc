@@ -108,6 +108,7 @@ bool Socket::socks5_handshake()
             buf[4] = ctx->l_target_host;
             buf += 5;
             memcpy(buf, ctx->target_host, ctx->l_target_host);
+            sw_free(ctx->target_host);
             buf += ctx->l_target_host;
             *(uint16_t *) buf = htons(ctx->target_port);
 
@@ -413,7 +414,7 @@ bool Socket::connect(string host, int port, int flags)
     //enable socks5 proxy
     if (socks5_proxy)
     {
-        socks5_proxy->target_host = (char *) host.c_str();
+        socks5_proxy->target_host = sw_strndup((char *) host.c_str(), host.size());
         socks5_proxy->l_target_host = host.size();
         socks5_proxy->target_port = port;
 
