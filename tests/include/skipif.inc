@@ -26,7 +26,7 @@ function skip(string $reason, bool $is_skip = true, int $color = SWOOLE_COLOR_YE
     }
 }
 
-function skip_by_php_version($require_version = '7.0')
+function skip_php_version_lower_than($require_version = '7.0')
 {
     if (version_compare(PHP_VERSION, $require_version, '<')) {
         skip('need php version >= ' . $require_version);
@@ -97,4 +97,5 @@ function skip_deprecated()
     } elseif (stripos(__DIR__, 'http2') !== false) {
         skip_if_no_http2();
     }
+    skip_php_version_lower_than('7.0');
 })();
