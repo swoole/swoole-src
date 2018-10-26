@@ -11,7 +11,7 @@ require __DIR__ . '/../include/bootstrap.php';
 \Swoole\Runtime::enableCoroutine();
 $pm = new ProcessManager;
 $pm->parentFunc = function (int $pid) use ($pm) {
-    for ($i = MAX_REQUESTS_LOW; $i--;) {
+    for ($i = MAX_REQUESTS; $i--;) {
         $ret = curlGet("http://127.0.0.1:{$pm->getFreePort()}");
         assert($ret === 'Hello Swoole!');
     }
@@ -32,7 +32,10 @@ $pm->childFunc = function () use ($pm) {
     $http->on('task', function (swoole_http_server $server, $taskId, $srcWorkerId, $fd) {
         $response = swoole_http_response::create($fd);
         go(function () use ($response) {
-            $pdo = new PDO('mysql:dbname=test;host=127.0.0.1', 'root', 'root');
+            $pdo = new PDO(
+                "mysql:host=" . MYSQL_SERVER_HOST . ";dbname=" . MYSQL_SERVER_DB . ";charset=utf8",
+                MYSQL_SERVER_USER, MYSQL_SERVER_PWD
+            );
             $stmt = $pdo->query('SELECT "Hello Swoole!"');
             assert($stmt->execute());
             $response->end($stmt->fetchAll(PDO::FETCH_COLUMN)[0]);
