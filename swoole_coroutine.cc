@@ -166,7 +166,7 @@ void sw_coro_check_bind(const char *name, int bind_cid)
         swError(
             "%s has already been bound to another coroutine #%d, "
             "reading or writing of the same socket in multiple coroutines at the same time is not allowed.\n"
-            "%.*s", name, bind_cid, buffer->length, buffer->str
+            "%.*s", name, bind_cid, (int) buffer->length, buffer->str
         );
     }
 }
