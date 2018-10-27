@@ -302,14 +302,14 @@ static void php_swoole_aio_onDNSCompleted(swAio_event *event)
 {
     int64_t ret;
 
+    dns_request *dns_req = NULL;
     zval *retval = NULL, *zcallback = NULL;
     zval args[2];
-    dns_request *dns_req = NULL;
     zval _zcontent, *zcontent = &_zcontent;
 
-    ZVAL_NULL(zcontent);
     dns_req = (dns_request *) event->req;
     zcallback = dns_req->callback;
+    ZVAL_NULL(zcontent);
 
     ret = event->ret;
     if (ret < 0)
@@ -357,20 +357,18 @@ static void php_swoole_aio_onDNSCompleted(swAio_event *event)
 static void php_swoole_aio_onFileCompleted(swAio_event *event)
 {
     int isEOF = SW_FALSE;
-    int64_t ret;
+    int64_t ret = event->ret;
+    file_request *file_req = event->object;
 
-    zval *retval = NULL, *zcallback = NULL, *zwriten = NULL;
-    zval *zcontent = NULL;
+    zval *retval = NULL, *zcallback = NULL;
     zval args[2];
-    zval _zcontent, *zcontent = &_zcontent, _zwriten, *zwriten = &_zwriten;
+    zval _zcontent, *zcontent = &_zcontent;
+    zval _zwriten, *zwriten = &_zwriten;
 
+    zcallback = file_req->callback;
     ZVAL_NULL(zcontent);
     ZVAL_NULL(zwriten);
 
-    file_request *file_req = event->object;
-    zcallback = file_req->callback;
-
-    ret = event->ret;
     if (ret < 0)
     {
         SwooleG.error = event->error;
