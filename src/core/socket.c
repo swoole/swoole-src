@@ -483,7 +483,6 @@ int swSocket_create_server(int type, char *address, int port, int backlog)
     if (fd < 0)
     {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "socket() failed. Error: %s[%d]", strerror(errno), errno);
-        close(fd);
         return SW_ERR;
     }
 

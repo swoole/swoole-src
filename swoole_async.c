@@ -302,16 +302,14 @@ static void php_swoole_aio_onDNSCompleted(swAio_event *event)
 {
     int64_t ret;
 
+    dns_request *dns_req = NULL;
     zval *retval = NULL, *zcallback = NULL;
     zval args[2];
-    dns_request *dns_req = NULL;
-
-    zval _zcontent;
-    memset(&_zcontent, 0, sizeof(_zcontent));
-    ZVAL_NULL(&_zcontent);
+    zval _zcontent, *zcontent = &_zcontent;
 
     dns_req = (dns_request *) event->req;
     zcallback = dns_req->callback;
+    ZVAL_NULL(zcontent);
 
     ret = event->ret;
     if (ret < 0)
@@ -321,7 +319,6 @@ static void php_swoole_aio_onDNSCompleted(swAio_event *event)
     }
 
     args[0] = *dns_req->domain;
-    zval *zcontent = &_zcontent;
     if (ret < 0)
     {
         ZVAL_STRING(zcontent, "");
@@ -347,7 +344,7 @@ static void php_swoole_aio_onDNSCompleted(swAio_event *event)
     efree(dns_req);
     efree(event->buf);
 
-    if (ZVAL_IS_NULL(zcontent))
+    if (!ZVAL_IS_NULL(zcontent))
     {
         zval_ptr_dtor(zcontent);
     }
@@ -360,24 +357,18 @@ static void php_swoole_aio_onDNSCompleted(swAio_event *event)
 static void php_swoole_aio_onFileCompleted(swAio_event *event)
 {
     int isEOF = SW_FALSE;
-    int64_t ret;
-
-    zval *retval = NULL, *zcallback = NULL, *zwriten = NULL;
-    zval *zcontent = NULL;
-    zval args[2];
-
-    zval _zcontent;
-    memset(&_zcontent, 0, sizeof(_zcontent));
-    ZVAL_NULL(&_zcontent);
-
-    zval _zwriten;
-    memset(&_zwriten, 0, sizeof(_zwriten));
-    ZVAL_NULL(&_zwriten);
-
+    int64_t ret = event->ret;
     file_request *file_req = event->object;
-    zcallback = file_req->callback;
 
-    ret = event->ret;
+    zval *retval = NULL, *zcallback = NULL;
+    zval args[2];
+    zval _zcontent, *zcontent = &_zcontent;
+    zval _zwriten, *zwriten = &_zwriten;
+
+    zcallback = file_req->callback;
+    ZVAL_NULL(zcontent);
+    ZVAL_NULL(zwriten);
+
     if (ret < 0)
     {
         SwooleG.error = event->error;
@@ -402,7 +393,6 @@ static void php_swoole_aio_onFileCompleted(swAio_event *event)
 
     if (event->type == SW_AIO_READ)
     {
-        zcontent = &_zcontent;
         if (ret < 0)
         {
             ZVAL_STRING(zcontent, "");
@@ -416,7 +406,6 @@ static void php_swoole_aio_onFileCompleted(swAio_event *event)
     }
     else if (event->type == SW_AIO_WRITE)
     {
-        zwriten = &_zwriten;
         ZVAL_LONG(zwriten, ret);
         args[0] = *file_req->filename;
         args[1] = *zwriten;
@@ -494,11 +483,11 @@ static void php_swoole_aio_onFileCompleted(swAio_event *event)
         }
     }
 
-    if (ZVAL_IS_NULL(zcontent))
+    if (!ZVAL_IS_NULL(zcontent))
     {
         zval_ptr_dtor(zcontent);
     }
-    if (ZVAL_IS_NULL(zwriten))
+    if (!ZVAL_IS_NULL(zwriten))
     {
         zval_ptr_dtor(zwriten);
     }

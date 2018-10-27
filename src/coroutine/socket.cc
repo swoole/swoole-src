@@ -411,9 +411,10 @@ bool Socket::connect(string host, int port, int flags)
         swWarn("socket has already been bound to another coroutine #%d.", read_cid);
         return false;
     }
-    //enable socks5 proxy
+
     if (socks5_proxy)
     {
+        //enable socks5 proxy
         socks5_proxy->target_host = sw_strndup((char *) host.c_str(), host.size());
         socks5_proxy->l_target_host = host.size();
         socks5_proxy->target_port = port;
@@ -421,11 +422,10 @@ bool Socket::connect(string host, int port, int flags)
         host = socks5_proxy->host;
         port = socks5_proxy->port;
     }
-
-    //enable http proxy
-    if (http_proxy)
+    else if (http_proxy)
     {
-        http_proxy->target_host = (char *) host.c_str();
+        //enable http proxy
+        http_proxy->target_host = sw_strndup((char *) host.c_str(), host.size());
         http_proxy->l_target_host = host.size();
         http_proxy->target_port = port;
 
