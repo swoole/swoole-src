@@ -305,12 +305,9 @@ static void php_swoole_aio_onDNSCompleted(swAio_event *event)
     zval *retval = NULL, *zcallback = NULL;
     zval args[2];
     dns_request *dns_req = NULL;
+    zval _zcontent, *zcontent = &_zcontent;
 
-    zval _zcontent;
-    memset(&_zcontent, 0, sizeof(_zcontent));
-    ZVAL_NULL(&_zcontent);
-    zval *zcontent = &_zcontent;
-    
+    ZVAL_NULL(zcontent);
     dns_req = (dns_request *) event->req;
     zcallback = dns_req->callback;
 
@@ -365,16 +362,10 @@ static void php_swoole_aio_onFileCompleted(swAio_event *event)
     zval *retval = NULL, *zcallback = NULL, *zwriten = NULL;
     zval *zcontent = NULL;
     zval args[2];
+    zval _zcontent, *zcontent = &_zcontent, _zwriten, *zwriten = &_zwriten;
 
-    zval _zcontent;
-    memset(&_zcontent, 0, sizeof(_zcontent));
-    ZVAL_NULL(&_zcontent);
-    zcontent = &_zcontent;
-
-    zval _zwriten;
-    memset(&_zwriten, 0, sizeof(_zwriten));
-    ZVAL_NULL(&_zwriten);
-    zwriten = &_zwriten;
+    ZVAL_NULL(zcontent);
+    ZVAL_NULL(zwriten);
 
     file_request *file_req = event->object;
     zcallback = file_req->callback;
