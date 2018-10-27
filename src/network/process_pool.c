@@ -429,6 +429,7 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
     if (task_n <= 0)
     {
         worker_task_always = 1;
+        task_n = 1;
     }
 
     /**
