@@ -894,7 +894,6 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
 
 int php_swoole_onReceive(swServer *serv, swEventData *req)
 {
-    swFactory *factory = &serv->factory;
     zval *zserv = (zval *) serv->ptr2;
 
     zval *zfd;
@@ -902,66 +901,13 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
     zval *zdata;
     zval *retval = NULL;
 
-
-    php_swoole_udp_t udp_info;
-    swDgramPacket *packet;
-
     SW_MAKE_STD_ZVAL(zfd);
     SW_MAKE_STD_ZVAL(zfrom_id);
     SW_MAKE_STD_ZVAL(zdata);
 
-    //dgram
-    if (swEventData_is_dgram(req->info.type))
-    {
-        swoole_php_error(E_DEPRECATED, "The udp onReceive callback is deprecated, use onPacket instead.");
-
-        swString *buffer = swWorker_get_buffer(serv, req->info.from_id);
-        packet = (swDgramPacket*) buffer->str;
-
-        //udp ipv4
-        if (req->info.type == SW_EVENT_UDP)
-        {
-            udp_info.from_fd = req->info.from_fd;
-            udp_info.port = packet->port;
-            memcpy(&udp_server_socket, &udp_info, sizeof(udp_server_socket));
-            factory->last_from_id = udp_server_socket;
-            swTrace("SendTo: from_id=%d|from_fd=%d", (uint16_t) req->info.from_id, req->info.from_fd);
-            ZVAL_STRINGL(zdata, packet->data, packet->length);
-            ZVAL_LONG(zfrom_id, (long ) udp_server_socket);
-            ZVAL_LONG(zfd, (long ) packet->addr.v4.s_addr);
-        }
-        //udp ipv6
-        else if (req->info.type == SW_EVENT_UDP6)
-        {
-            udp_info.from_fd = req->info.from_fd;
-            udp_info.port = packet->port;
-            memcpy(&dgram_server_socket, &udp_info, sizeof(udp_server_socket));
-            factory->last_from_id = dgram_server_socket;
-
-            swTrace("SendTo: from_id=%d|from_fd=%d", (uint16_t) req->info.from_id, req->info.from_fd);
-
-            ZVAL_LONG(zfrom_id, (long ) dgram_server_socket);
-            char tmp[INET6_ADDRSTRLEN];
-            inet_ntop(AF_INET6, &packet->addr.v6, tmp, sizeof(tmp));
-            ZVAL_STRING(zfd, tmp);
-            ZVAL_STRINGL(zdata, packet->data, packet->length);
-        }
-        //unix dgram
-        else
-        {
-            ZVAL_STRINGL(zfd, packet->data, packet->addr.un.path_length);
-            ZVAL_STRINGL(zdata, packet->data + packet->addr.un.path_length, packet->length - packet->addr.un.path_length);
-            ZVAL_LONG(zfrom_id, (long ) req->info.from_fd);
-            dgram_server_socket = req->info.from_fd;
-        }
-    }
-    //stream
-    else
-    {
-        ZVAL_LONG(zfrom_id, (long ) req->info.from_id);
-        ZVAL_LONG(zfd, (long ) req->info.fd);
-        php_swoole_get_recv_data(zdata, req, NULL, 0);
-    }
+    ZVAL_LONG(zfrom_id, (long ) req->info.from_id);
+    ZVAL_LONG(zfd, (long ) req->info.fd);
+    php_swoole_get_recv_data(zdata, req, NULL, 0);
 
     if (SwooleG.enable_coroutine)
     {
@@ -3844,63 +3790,9 @@ PHP_METHOD(swoole_server, connection_info)
     }
 
     zend_long fd = 0;
-    zend_bool ipv6_udp = 0;
 
-    //ipv6 udp
-    if (Z_TYPE_P(zfd) == IS_STRING)
-    {
-        if (is_numeric_string(Z_STRVAL_P(zfd), Z_STRLEN_P(zfd), &fd, NULL, 0))
-        {
-            ipv6_udp = 0;
-        }
-        else
-        {
-            fd = 0;
-            ipv6_udp = 1;
-        }
-    }
-    else
-    {
-        convert_to_long(zfd);
-        fd = Z_LVAL_P(zfd);
-    }
-
-    //udp
-    if (ipv6_udp || swServer_is_udp(fd))
-    {
-        array_init(return_value);
-
-        swoole_php_error(E_DEPRECATED, "The UDP connection_info is deprecated, use onPacket instead.");
-
-        if (ipv6_udp)
-        {
-            add_assoc_zval(return_value, "remote_ip", zfd);
-        }
-        else
-        {
-            struct in_addr sin_addr;
-            sin_addr.s_addr = fd;
-            add_assoc_string(return_value, "remote_ip", inet_ntoa(sin_addr));
-        }
-
-        if (from_id == 0)
-        {
-            return;
-        }
-
-        php_swoole_udp_t udp_info;
-        memcpy(&udp_info, &from_id, sizeof(udp_info));
-        //server socket
-        swConnection *from_sock = swServer_connection_get(serv, udp_info.from_fd);
-        if (from_sock)
-        {
-            add_assoc_long(return_value, "server_fd", from_sock->fd);
-            add_assoc_long(return_value, "socket_type", from_sock->socket_type);
-            add_assoc_long(return_value, "server_port", swConnection_get_port(from_sock));
-        }
-        add_assoc_long(return_value, "remote_port", udp_info.port);
-        return;
-    }
+    convert_to_long(zfd);
+    fd = Z_LVAL_P(zfd);
 
     swConnection *conn = swServer_connection_verify(serv, fd);
     if (!conn)
