@@ -35,10 +35,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2018-10-26</date>
+    <date>2018-10-27</date>
     <time>20:30:00</time>
     <version>
-        <release>4.2.4</release>
+        <release>4.2.5</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -47,30 +47,10 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        + Refactor HTTP2 client, fix disconnection reconnection problem, fix cookie problem
-        + Added coroutine binding detection and friendly error prompts
-        + Runtime stream hook adds error_text support
-        * Increase asynchronous redis callback function type detection
-        * Fixed http client unable to execute other requests after using the download API
-        * Fixed `swoole_http_response->detach` cross-function memory error
-        * Fixed coroutine PDO connection abnormal disconnection
-        * parameter parsing errors return FALSE (instead of null)
-        * Fixed `Exception` loss after coroutine switchover
-        * Fixed `task_max_request` does not work
-        * Optimize MySQL response packet integrity detection
-        * Fix coroutine flock deadlock problem
-        * Fixed the error that the underlying swoole_buffer did not release the object
-        * Fixed bugs caused by multiple `Content-Length` headers
-        * Enhanced zval type check, defensive programming
-        * Fixed the bug of the HTTP coroutine client setData using the object (stream), refactoring the properties parser of the HTTP coroutine
-        * openssl error cleanup optimization
-        * `co::fread` optimized for fseek and non-normal file reading
-        * swoole_server TCP and UDP mode separation
-        * Fixed the problem caused by passing invalid parameters when creating a server
-        * Fixed the bug by `addProcess` in BASE mode
-        * Fixed the problem that the task process uses `reload_async` (asynchronous safe restart feature)
-        * Improve `package_eof` illegal empty string check
-        - Remove code for deprecated multi-threaded mode
+        * Alpine compatibility (#2071)
+        * Fixed task_ipc_mode bug (#2072)
+        * Improve client proxy settings
+        * Fixed SSL client bug (#2053)
     </notes>
     <contents>
         <dir name="/">
@@ -1142,6 +1122,7 @@
             <file role="test" name="tests/swoole_server/taskWaitMulti.phpt" />
             <file role="test" name="tests/swoole_server/task_callback.phpt" />
             <file role="test" name="tests/swoole_server/task_co.phpt" />
+            <file role="test" name="tests/swoole_server/task_ipc_mode.phpt" />
             <file role="test" name="tests/swoole_server/task_max_request.phpt" />
             <file role="test" name="tests/swoole_server/task_queue.phpt" />
             <file role="test" name="tests/swoole_server/taskwait_01.phpt" />
@@ -1249,6 +1230,7 @@
             <file role="src" name="tools/gen-data.php" />
             <file role="src" name="tools/ip.php" />
             <file role="src" name="tools/pecl-package.php" />
+            <file role="src" name="tools/send_http_data.php" />
             <file role="src" name="travis/.gitignore" />
             <file role="src" name="travis/compile.sh" />
             <file role="src" name="travis/debug/swoole_table_implements.php" />
