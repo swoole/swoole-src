@@ -160,6 +160,13 @@ static void swSSL_lock_callback(int mode, int type, char *file, int line)
     }
 }
 
+static void swSSL_clear_error(swConnection *conn)
+{
+    ERR_clear_error();
+    conn->ssl_want_read = 0;
+    conn->ssl_want_write = 0;
+}
+
 #if OPENSSL_VERSION_NUMBER >= OPENSSL_VERSION_1_0_0
 static void MAYBE_UNUSED swSSL_id_callback(CRYPTO_THREADID * id)
 {
@@ -639,7 +646,8 @@ int swSSL_get_client_certificate(SSL *ssl, char *buffer, size_t length)
 
 int swSSL_accept(swConnection *conn)
 {
-    ERR_clear_error();
+    swSSL_clear_error(conn);
+
     int n = SSL_do_handshake(conn->ssl);
     /**
      * The TLS/SSL handshake was successfully completed
@@ -694,7 +702,8 @@ int swSSL_accept(swConnection *conn)
 
 int swSSL_connect(swConnection *conn)
 {
-    ERR_clear_error();
+    swSSL_clear_error(conn);
+
     int n = SSL_connect(conn->ssl);
     if (n == 1)
     {
@@ -895,7 +904,8 @@ static sw_inline void swSSL_connection_error(swConnection *conn)
 
 ssize_t swSSL_recv(swConnection *conn, void *__buf, size_t __n)
 {
-    ERR_clear_error();
+    swSSL_clear_error(conn);
+
     int n = SSL_read(conn->ssl, __buf, __n);
     if (n < 0)
     {
@@ -929,7 +939,8 @@ ssize_t swSSL_recv(swConnection *conn, void *__buf, size_t __n)
 
 ssize_t swSSL_send(swConnection *conn, void *__buf, size_t __n)
 {
-    ERR_clear_error();
+    swSSL_clear_error(conn);
+
     int n = SSL_write(conn->ssl, __buf, __n);
     if (n < 0)
     {
@@ -963,6 +974,8 @@ ssize_t swSSL_send(swConnection *conn, void *__buf, size_t __n)
 
 int swSSL_create(swConnection *conn, SSL_CTX* ssl_context, int flags)
 {
+    swSSL_clear_error(conn);
+
     SSL *ssl = SSL_new(ssl_context);
     if (ssl == NULL)
     {
