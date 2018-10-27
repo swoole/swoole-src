@@ -309,7 +309,8 @@ static void php_swoole_aio_onDNSCompleted(swAio_event *event)
     zval _zcontent;
     memset(&_zcontent, 0, sizeof(_zcontent));
     ZVAL_NULL(&_zcontent);
-
+    zval *zcontent = &_zcontent;
+    
     dns_req = (dns_request *) event->req;
     zcallback = dns_req->callback;
 
@@ -321,7 +322,6 @@ static void php_swoole_aio_onDNSCompleted(swAio_event *event)
     }
 
     args[0] = *dns_req->domain;
-    zval *zcontent = &_zcontent;
     if (ret < 0)
     {
         ZVAL_STRING(zcontent, "");
@@ -347,7 +347,7 @@ static void php_swoole_aio_onDNSCompleted(swAio_event *event)
     efree(dns_req);
     efree(event->buf);
 
-    if (ZVAL_IS_NULL(zcontent))
+    if (!ZVAL_IS_NULL(zcontent))
     {
         zval_ptr_dtor(zcontent);
     }
@@ -369,10 +369,12 @@ static void php_swoole_aio_onFileCompleted(swAio_event *event)
     zval _zcontent;
     memset(&_zcontent, 0, sizeof(_zcontent));
     ZVAL_NULL(&_zcontent);
+    zcontent = &_zcontent;
 
     zval _zwriten;
     memset(&_zwriten, 0, sizeof(_zwriten));
     ZVAL_NULL(&_zwriten);
+    zwriten = &_zwriten;
 
     file_request *file_req = event->object;
     zcallback = file_req->callback;
@@ -402,7 +404,6 @@ static void php_swoole_aio_onFileCompleted(swAio_event *event)
 
     if (event->type == SW_AIO_READ)
     {
-        zcontent = &_zcontent;
         if (ret < 0)
         {
             ZVAL_STRING(zcontent, "");
@@ -416,7 +417,6 @@ static void php_swoole_aio_onFileCompleted(swAio_event *event)
     }
     else if (event->type == SW_AIO_WRITE)
     {
-        zwriten = &_zwriten;
         ZVAL_LONG(zwriten, ret);
         args[0] = *file_req->filename;
         args[1] = *zwriten;
@@ -494,11 +494,11 @@ static void php_swoole_aio_onFileCompleted(swAio_event *event)
         }
     }
 
-    if (ZVAL_IS_NULL(zcontent))
+    if (!ZVAL_IS_NULL(zcontent))
     {
         zval_ptr_dtor(zcontent);
     }
-    if (ZVAL_IS_NULL(zwriten))
+    if (!ZVAL_IS_NULL(zwriten))
     {
         zval_ptr_dtor(zwriten);
     }
