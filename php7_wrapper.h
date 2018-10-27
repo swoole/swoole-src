@@ -75,14 +75,14 @@ static sw_inline char* sw_php_url_encode(char *value, size_t value_len, int* ext
 
 static sw_inline int sw_call_user_function_ex(HashTable *function_table, zval* object_p, zval *function_name, zval **retval_ptr_ptr, uint32_t param_count, zval *params, int no_separation, HashTable* ymbol_table)
 {
-    zval phpng_retval;
-    *retval_ptr_ptr = &phpng_retval;
-    return call_user_function_ex(function_table, object_p, function_name, &phpng_retval, param_count, param_count ? params : NULL, no_separation, ymbol_table);
+    static zval _retval;
+    *retval_ptr_ptr = &_retval;
+    return call_user_function_ex(function_table, object_p, function_name, &_retval, param_count, param_count ? params : NULL, no_separation, ymbol_table);
 }
 
 static sw_inline int sw_call_user_function_fast_ex(zval *function_name, zend_fcall_info_cache *fci_cache, zval **retval_ptr_ptr, uint32_t param_count, zval *params)
 {
-    zval _retval;
+    static zval _retval;
     *retval_ptr_ptr = &_retval;
 
     zend_fcall_info fci;
