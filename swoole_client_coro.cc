@@ -478,7 +478,10 @@ void php_swoole_client_coro_check_setting(Socket *cli, zval *zset)
             cli->socks5_proxy->l_password = Z_STRLEN_P(v);
         }
     }
-    if (php_swoole_array_get_value(vht, "http_proxy_host", v))
+    /**
+     * http proxy
+     */
+    else if (php_swoole_array_get_value(vht, "http_proxy_host", v))
     {
         convert_to_string(v);
         char *host = Z_STRVAL_P(v);
@@ -488,40 +491,41 @@ void php_swoole_client_coro_check_setting(Socket *cli, zval *zset)
             cli->http_proxy = (struct _http_proxy*) ecalloc(1, sizeof(struct _http_proxy));
             cli->http_proxy->proxy_host = estrdup(host);
             cli->http_proxy->proxy_port = Z_LVAL_P(v);
+            if (php_swoole_array_get_value(vht, "http_proxy_user", v))
+            {
+                convert_to_string(v);
+                char *user = Z_STRVAL_P(v);
+                zval *v2;
+                if (php_swoole_array_get_value(vht, "http_proxy_password", v2))
+                {
+                    convert_to_string(v);
+                    if (Z_STRLEN_P(v) + Z_STRLEN_P(v2) >= 128 - 1)
+                    {
+                        swoole_php_fatal_error(E_WARNING, "http_proxy user and password is too long.");
+                    }
+                    cli->http_proxy->l_user = Z_STRLEN_P(v);
+                    cli->http_proxy->l_password = Z_STRLEN_P(v2);
+                    cli->http_proxy->user = estrdup(user);
+                    cli->http_proxy->password = estrdup(Z_STRVAL_P(v2));
+                }
+                else
+                {
+                    swoole_php_fatal_error(E_WARNING, "http_proxy_password can not be null.");
+                }
+            }
+            //https proxy
+            if (php_swoole_array_get_value(vht, "http_proxy_ssl", v))
+            {
+                convert_to_boolean(v);
+                cli->http_proxy->ssl = Z_BVAL_P(v);
+            }
         }
         else
         {
             swoole_php_fatal_error(E_WARNING, "http_proxy_port can not be null.");
         }
     }
-    if (php_swoole_array_get_value(vht, "http_proxy_user", v) && cli->http_proxy)
-    {
-        convert_to_string(v);
-        char *user = Z_STRVAL_P(v);
-        zval *v2;
-        if (php_swoole_array_get_value(vht, "http_proxy_password", v2))
-        {
-            convert_to_string(v);
-            if (Z_STRLEN_P(v) + Z_STRLEN_P(v2) >= 128 - 1)
-            {
-                swoole_php_fatal_error(E_WARNING, "http_proxy user and password is too long.");
-            }
-            cli->http_proxy->l_user = Z_STRLEN_P(v);
-            cli->http_proxy->l_password = Z_STRLEN_P(v2);
-            cli->http_proxy->user = estrdup(user);
-            cli->http_proxy->password = estrdup(Z_STRVAL_P(v2));
-        }
-        else
-        {
-            swoole_php_fatal_error(E_WARNING, "http_proxy_password can not be null.");
-        }
-    }
-    //https proxy
-    if (php_swoole_array_get_value(vht, "http_proxy_ssl", v) && cli->http_proxy)
-    {
-        convert_to_boolean(v);
-        cli->http_proxy->ssl = Z_BVAL_P(v);
-    }
+
 #ifdef SW_USE_OPENSSL
     if (cli->open_ssl)
     {
