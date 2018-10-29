@@ -1074,10 +1074,6 @@ static int process_stream_onRead(swReactor *reactor, swEvent *event)
         swSysError("read() failed.");
         return SW_OK;
     }
-    else
-    {
-        ps->buffer->length = 0;
-    }
 
     zval *retval = NULL;
     zval args[2];
