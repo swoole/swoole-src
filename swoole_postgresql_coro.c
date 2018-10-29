@@ -127,9 +127,6 @@ void swoole_postgresql_coro_init(int module_number)
     le_result = zend_register_list_destructors_ex(_free_result, NULL, "pgsql result", module_number);
     swoole_postgresql_coro_class_entry_ptr = zend_register_internal_class(&swoole_postgresql_coro_ce);
 
-    zend_declare_property_bool(swoole_postgresql_coro_class_entry_ptr, "connected", 9, 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_postgresql_coro_class_entry_ptr, "error", 5, ZEND_ACC_PUBLIC);
-
     if (SWOOLE_G(use_shortname))
     {
         sw_zend_register_class_alias("Co\\PostgreSQL", swoole_postgresql_coro_class_entry_ptr);
@@ -228,7 +225,10 @@ static void swoole_pgsql_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
     char *feedback;
     char *err_msg;
 
-    ZVAL_BOOL(result, 0);
+//    ZVAL_BOOL(result, 0);
+    array_init_size(result, 2);
+    add_index_bool(result, 0, 0);
+    add_index_string(result, 1, "ontimeout");
 
     zval _zobject = ctx->coro_params;
     zval *zobject = &_zobject;
@@ -261,8 +261,6 @@ static void swoole_pgsql_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
         PQfinish(pgsql);
     }
 
-    zend_update_property_bool(swoole_postgresql_coro_class_entry_ptr, pg_object->object, "connected", 9, 0);
-    zend_update_property_string(swoole_postgresql_coro_class_entry_ptr, pg_object->object, "error", 5, "ontimeout");
     int ret = coro_resume(ctx, result, &retval);
     if (ret == CORO_END && retval)
     {
@@ -350,7 +348,6 @@ static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event)
         ZVAL_FALSE(&return_value);
     }
 
-    zend_update_property_bool(swoole_postgresql_coro_class_entry_ptr, pg_object->object, "connected", 9, success);
     int ret = coro_resume(sw_current_context, &return_value, &retval);
     if (ret == CORO_END && retval)
     {
@@ -436,7 +433,6 @@ static  int meta_data_result_parse(pg_object *pg_object)
 
     }
     php_context *sw_current_context = swoole_get_property(pg_object->object, 0);
-    zend_update_property_null(swoole_postgresql_coro_class_entry_ptr, pg_object->object, "error", 5);
     int ret  = coro_resume(sw_current_context, &return_value, &retval);
     if (ret == CORO_END && retval)
     {
@@ -474,14 +470,12 @@ static  int query_result_parse(pg_object *pg_object)
         case PGRES_FATAL_ERROR:
             err_msg = PQerrorMessage(pg_object->conn);
 //            swWarn("Query failed: [%s]",err_msg);
-            zend_update_property_string(swoole_postgresql_coro_class_entry_ptr, pg_object->object, "error", 5, err_msg);
-            if (status == PGRES_BAD_RESPONSE)
-            {
-                zend_update_property_bool(swoole_postgresql_coro_class_entry_ptr, pg_object->object, "connected", 9, 0);
-            }
 
             PQclear(pgsql_result);
-            ZVAL_FALSE(&return_value);
+//            ZVAL_FALSE(&return_value);
+            array_init_size(&return_value, 2);
+            add_index_bool(&return_value, 0, 0);
+            add_index_string(&return_value, 1, err_msg);
             ret = coro_resume(sw_current_context, &return_value,  &retval);
             if (ret == CORO_END && retval)
             {
@@ -496,7 +490,6 @@ static  int query_result_parse(pg_object *pg_object)
             /* Wait to finish sending buffer */
             res = PQflush(pg_object->conn);
 
-            zend_update_property_null(swoole_postgresql_coro_class_entry_ptr, pg_object->object, "error", 5);
             ZVAL_RES(&return_value, zend_register_resource(pg_object, le_result));
             ret = coro_resume(sw_current_context, &return_value,  &retval);
             if (ret == CORO_END && retval)
@@ -1047,11 +1040,12 @@ static int swoole_pgsql_coro_onError(swReactor *reactor, swEvent *event)
 
 //    swoole_postgresql_coro_close(pg_object);
 
-    ZVAL_BOOL(result, 0);
+//    ZVAL_BOOL(result, 0);
+    array_init_size(result, 2);
+    add_index_bool(result, 0, 0);
+    add_index_string(result, 1, "onerror");
 
     php_context *sw_current_context = swoole_get_property(zobject, 0);
-    zend_update_property_bool(swoole_postgresql_coro_class_entry_ptr, zobject, "connected", 9, 0);
-    zend_update_property_string(swoole_postgresql_coro_class_entry_ptr, zobject, "error", 5, "onerror");
     int ret = coro_resume(sw_current_context, result, &retval);
     zval_ptr_dtor(result);
 
