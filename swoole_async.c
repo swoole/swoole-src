@@ -1055,7 +1055,6 @@ PHP_FUNCTION(swoole_async_dns_lookup)
 
 static int process_stream_onRead(swReactor *reactor, swEvent *event)
 {
-
     process_stream *ps = event->socket->object;
     char *buf = ps->buffer->str + ps->buffer->length;
     size_t len = ps->buffer->size - ps->buffer->length;
@@ -1075,13 +1074,24 @@ static int process_stream_onRead(swReactor *reactor, swEvent *event)
         swSysError("read() failed.");
         return SW_OK;
     }
+    else
+    {
+        ps->buffer->length = 0;
+    }
 
     zval *retval = NULL;
     zval args[2];
 
     zval *zdata;
     SW_MAKE_STD_ZVAL(zdata);
-    ZVAL_STRINGL(zdata, ps->buffer->str, ps->buffer->length);
+    if (ps->buffer->length == 0)
+    {
+        ZVAL_EMPTY_STRING(zdata);
+    }
+    else
+    {
+        ZVAL_STRINGL(zdata, ps->buffer->str, ps->buffer->length);
+    }
 
     SwooleG.main_reactor->del(SwooleG.main_reactor, ps->fd);
 
