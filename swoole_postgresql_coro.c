@@ -127,7 +127,7 @@ void swoole_postgresql_coro_init(int module_number)
     le_result = zend_register_list_destructors_ex(_free_result, NULL, "pgsql result", module_number);
     swoole_postgresql_coro_class_entry_ptr = zend_register_internal_class(&swoole_postgresql_coro_ce);
 
-    zend_update_property_bool(swoole_postgresql_coro_class_entry_ptr, "connected", 9, 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_bool(swoole_postgresql_coro_class_entry_ptr, "connected", 9, 0, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_postgresql_coro_class_entry_ptr, "error", 5, ZEND_ACC_PUBLIC);
 
     if (SWOOLE_G(use_shortname))
