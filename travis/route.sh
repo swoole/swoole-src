@@ -3,14 +3,11 @@ __CURRENT__=`pwd`
 __DIR__=$(cd "$(dirname "$0")";pwd)
 
 prepare(){
-    echo "run phpt in docker...\n"
     cd ${__DIR__} && \
     mkdir -p data && \
     mkdir -p data/mysql && \
     mkdir -p data/redis && \
-    chmod -R 777 data && \
-    docker-compose up -d && \
-    docker ps
+    chmod -R 777 data
 }
 
 #------------Only run once-------------
@@ -27,6 +24,9 @@ if [ "${TRAVIS_BUILD_DIR}" ]; then
         docker-compose -v && \
         docker -v && \
         prepare && \
+        echo "run phpt in docker...\n" && \
+        docker-compose up -d && \
+        docker ps && \
         docker exec travis_php_1 touch /.travisenv && \
         docker exec travis_php_1 /swoole-src/travis/docker-all.sh
     else
