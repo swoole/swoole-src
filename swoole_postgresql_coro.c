@@ -474,7 +474,7 @@ static  int query_result_parse(pg_object *pg_object)
             PQclear(pgsql_result);
 //            ZVAL_FALSE(&return_value);
             array_init_size(&return_value, 2);
-            add_index_bool(&return_value, 0, 0);
+            add_index_bool(&return_value, 0, status == PGRES_BAD_RESPONSE ? 0 : 1);
             add_index_string(&return_value, 1, err_msg);
             ret = coro_resume(sw_current_context, &return_value,  &retval);
             if (ret == CORO_END && retval)
