@@ -436,7 +436,7 @@ static  int meta_data_result_parse(pg_object *pg_object)
 
     }
     php_context *sw_current_context = swoole_get_property(pg_object->object, 0);
-    zend_update_property_null(sw_current_context, pg_object->object, "error", 5);
+    zend_update_property_null(swoole_postgresql_coro_class_entry_ptr, pg_object->object, "error", 5);
     int ret  = coro_resume(sw_current_context, &return_value, &retval);
     if (ret == CORO_END && retval)
     {
@@ -474,7 +474,7 @@ static  int query_result_parse(pg_object *pg_object)
         case PGRES_FATAL_ERROR:
             err_msg = PQerrorMessage(pg_object->conn);
 //            swWarn("Query failed: [%s]",err_msg);
-            zend_declare_property_string(swoole_postgresql_coro_class_entry_ptr, pg_object->object, "error", 5, err_msg);
+            zend_update_property_string(swoole_postgresql_coro_class_entry_ptr, pg_object->object, "error", 5, err_msg);
             if (status == PGRES_BAD_RESPONSE)
             {
                 zend_update_property_bool(swoole_postgresql_coro_class_entry_ptr, pg_object->object, "connected", 9, 0);
@@ -496,7 +496,7 @@ static  int query_result_parse(pg_object *pg_object)
             /* Wait to finish sending buffer */
             res = PQflush(pg_object->conn);
 
-            zend_declare_property_null(swoole_postgresql_coro_class_entry_ptr, pg_object->object, "error", 5);
+            zend_update_property_null(swoole_postgresql_coro_class_entry_ptr, pg_object->object, "error", 5);
             ZVAL_RES(&return_value, zend_register_resource(pg_object, le_result));
             ret = coro_resume(sw_current_context, &return_value,  &retval);
             if (ret == CORO_END && retval)
