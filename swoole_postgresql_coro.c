@@ -469,17 +469,21 @@ static  int query_result_parse(pg_object *pg_object)
         case PGRES_NONFATAL_ERROR:
         case PGRES_FATAL_ERROR:
             err_msg = PQerrorMessage(pg_object->conn);
-//            swWarn("Query failed: [%s]",err_msg);
+            swWarn("Query failed: [%u][%s]",status,err_msg);
 
             PQclear(pgsql_result);
-//            ZVAL_FALSE(&return_value);
-            array_init_size(&return_value, 2);
-            add_index_bool(&return_value, 0, status == PGRES_BAD_RESPONSE ? 0 : 1);
-            add_index_string(&return_value, 1, err_msg);
-            ret = coro_resume(sw_current_context, &return_value,  &retval);
-            if (ret == CORO_END && retval)
+            if (sw_current_context)
             {
-                zval_ptr_dtor(retval);
+//                ZVAL_FALSE(&return_value);
+                array_init_size(&return_value, 3);
+                add_index_bool(&return_value, 0, status == PGRES_BAD_RESPONSE ? 0 : 1);
+                add_index_string(&return_value, 1, err_msg);
+                add_index_long(&return_value, 2, status);
+                ret = coro_resume(sw_current_context, &return_value,  &retval);
+                if (ret == CORO_END && retval)
+                {
+                    zval_ptr_dtor(retval);
+                }
             }
 //            swoole_postgresql_coro_close(pg_object);
             break;
