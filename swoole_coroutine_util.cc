@@ -152,7 +152,10 @@ static zend_class_entry *swoole_coroutine_iterator_class_entry_ptr;
 static zend_class_entry swoole_exit_exception_ce;
 static zend_class_entry *swoole_exit_exception_class_entry_ptr;
 
-extern int swoole_coroutine_statvfs(const char *path, struct statvfs *buf);
+extern "C"
+{
+int swoole_coroutine_statvfs(const char *path, struct statvfs *buf);
+}
 
 static const zend_function_entry swoole_coroutine_util_methods[] =
 {
