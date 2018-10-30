@@ -27,10 +27,10 @@ if [ "${TRAVIS_BUILD_DIR}" ]; then
         echo "run phpt in docker...\n" && \
         docker-compose up -d && \
         docker ps && \
-        docker exec swoole touch /.travisenv && \
-        docker exec swoole /swoole-src/travis/docker-all.sh && \
         docker exec swoole-alpine touch /.travisenv && \
-        docker exec swoole-alpine /swoole-src/travis/docker-all.sh
+        docker exec swoole-alpine /swoole-src/travis/docker-all.sh && \
+        docker exec swoole touch /.travisenv && \
+        docker exec swoole /swoole-src/travis/docker-all.sh
     else
         echo "skip php nightly\n"
     fi
