@@ -367,6 +367,65 @@ Socket::Socket(int _fd, Socket *server_sock)
     init();
 }
 
+Socket::Socket(int _fd, enum swSocket_type _type)
+{
+    type = _type;
+    switch (type)
+    {
+    case SW_SOCK_TCP6:
+        _sock_domain = AF_INET6;
+        _sock_type = SOCK_STREAM;
+        break;
+    case SW_SOCK_UNIX_STREAM:
+        _sock_domain = AF_UNIX;
+        _sock_type = SOCK_STREAM;
+        break;
+    case SW_SOCK_UDP:
+        _sock_domain = AF_INET;
+        _sock_type = SOCK_DGRAM;
+        break;
+    case SW_SOCK_UDP6:
+        _sock_domain = AF_INET6;
+        _sock_type = SOCK_DGRAM;
+        break;
+    case SW_SOCK_UNIX_DGRAM:
+        _sock_domain = AF_UNIX;
+        _sock_type = SOCK_DGRAM;
+        break;
+    case SW_SOCK_TCP:
+    default:
+        _sock_domain = AF_INET;
+        _sock_type = SOCK_STREAM;
+        break;
+    }
+
+    init();
+
+    if (swIsMaster() && SwooleTG.type == SW_THREAD_REACTOR)
+    {
+        reactor = SwooleTG.reactor;
+    }
+    else
+    {
+        reactor = SwooleG.main_reactor;
+    }
+
+    socket = swReactor_get(reactor, _fd);
+
+    bzero(socket, sizeof(swConnection));
+    socket->fd = _fd;
+    socket->object = this;
+    socket->socket_type = type;
+
+    swSetNonBlock(socket->fd);
+    if (!swReactor_handle_isset(reactor, SW_FD_CORO_SOCKET))
+    {
+        reactor->setHandle(reactor, SW_FD_CORO_SOCKET | SW_EVENT_READ, socket_onRead);
+        reactor->setHandle(reactor, SW_FD_CORO_SOCKET | SW_EVENT_WRITE, socket_onWrite);
+        reactor->setHandle(reactor, SW_FD_CORO_SOCKET | SW_EVENT_ERROR, socket_onRead);
+    }
+}
+
 bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen)
 {
     if (read_cid || write_cid)
@@ -640,6 +699,109 @@ ssize_t Socket::recv(void *__buf, size_t __n)
         }
         break;
     }
+    return retval;
+}
+
+ssize_t Socket::read(void *__buf, size_t __n)
+{
+    if (read_cid)
+    {
+        swWarn("socket has already been bound to another coroutine #%d.", read_cid);
+        return -1;
+    }
+    ssize_t retval = ::read(socket->fd, __buf, __n);
+    if (retval >= 0)
+    {
+        return retval;
+    }
+
+    if (swConnection_error(errno) != SW_WAIT)
+    {
+        errCode = errno;
+        return -1;
+    }
+
+    while (true)
+    {
+        int events = SW_EVENT_READ;
+#ifdef SW_USE_OPENSSL
+        if (socket->ssl && socket->ssl_want_write)
+        {
+            events = SW_EVENT_WRITE;
+        }
+#endif
+        if (!wait_events(events))
+        {
+            return -1;
+        }
+        yield(SOCKET_LOCK_READ);
+        if (errCode == ETIMEDOUT)
+        {
+            return -1;
+        }
+        retval = ::read(socket->fd, __buf, __n);
+        if (retval < 0)
+        {
+            if (swConnection_error(errno) == SW_WAIT)
+            {
+                continue;
+            }
+            errCode = errno;
+        }
+        break;
+    }
+    return retval;
+}
+
+ssize_t Socket::write(const void *__buf, size_t __n)
+{
+    if (write_cid)
+    {
+        swWarn("socket has already been bound to another coroutine #%d.", write_cid);
+        return -1;
+    }
+    ssize_t retval = ::write(socket->fd, (void *) __buf, __n);
+    if (retval >= 0)
+    {
+        return retval;
+    }
+
+    if (swConnection_error(errno) != SW_WAIT)
+    {
+        errCode = errno;
+        return -1;
+    }
+
+    while (true)
+    {
+        int events = SW_EVENT_WRITE;
+#ifdef SW_USE_OPENSSL
+        if (socket->ssl && socket->ssl_want_read)
+        {
+            events = SW_EVENT_READ;
+        }
+#endif
+        if (!wait_events(events))
+        {
+            return -1;
+        }
+        yield(SOCKET_LOCK_WRITE);
+        if (errCode == ETIMEDOUT)
+        {
+            return -1;
+        }
+        ssize_t retval =  ::write(socket->fd, (void *) __buf, __n);
+        if (retval < 0)
+        {
+            if (swConnection_error(errno) == SW_WAIT)
+            {
+                continue;
+            }
+            errCode = errno;
+        }
+        break;
+    }
+
     return retval;
 }
 

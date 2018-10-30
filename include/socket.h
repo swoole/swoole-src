@@ -35,6 +35,7 @@ class Socket
 public:
     Socket(enum swSocket_type type);
     Socket(int _fd, Socket *sock);
+    Socket(int _fd, enum swSocket_type _type);
     ~Socket();
     bool connect(std::string host, int port, int flags = 0);
     bool connect(const struct sockaddr *addr, socklen_t addrlen);
@@ -44,6 +45,8 @@ public:
     ssize_t sendmsg(const struct msghdr *msg, int flags);
     ssize_t peek(void *__buf, size_t __n);
     ssize_t recv(void *__buf, size_t __n);
+    ssize_t read(void *__buf, size_t __n);
+    ssize_t write(const void *__buf, size_t __n);
     ssize_t recvmsg(struct msghdr *msg, int flags);
     ssize_t recv_all(void *__buf, size_t __n);
     ssize_t send_all(const void *__buf, size_t __n);
