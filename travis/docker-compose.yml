@@ -34,7 +34,7 @@ services:
     command: tail -f /etc/group
   mysql:
     container_name: "mysql"
-    image: "twosee/swoole:mysql"
+    image: "twosee/swoole:mysql5"
     volumes:
       - ./data/mysql:/var/lib/mysql:rw
     environment:

@@ -101,7 +101,7 @@ static sw_inline int sw_call_user_function_fast_ex(zval *function_name, zend_fca
     return zend_call_function(&fci, fci_cache);
 }
 
-#define SW_MAKE_STD_ZVAL(p)             zval _stack_zval_##p; p = &(_stack_zval_##p)
+#define SW_MAKE_STD_ZVAL(p)             zval _stack_zval_##p; p = &(_stack_zval_##p); bzero(p, sizeof(zval))
 #define SW_ALLOC_INIT_ZVAL(p)           do{p = (zval *)emalloc(sizeof(zval)); bzero(p, sizeof(zval));}while(0)
 #define SW_SEPARATE_ZVAL(p)             zval _##p;\
     memcpy(&_##p, p, sizeof(_##p));\

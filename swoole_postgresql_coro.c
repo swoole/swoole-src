@@ -429,7 +429,6 @@ static  int meta_data_result_parse(pg_object *pg_object)
         zval_ptr_dtor(retval);
     }
     zval_ptr_dtor(&return_value);
-    zval_ptr_dtor(&elem);
     return SW_OK;
 }
 

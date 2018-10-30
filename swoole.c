@@ -729,11 +729,12 @@ void swoole_set_object(zval *zobject, void *ptr)
         swoole_objects.array = new_ptr;
         swoole_objects.size = new_size;
     }
+#ifdef ZEND_DEBUG
     else if (ptr)
     {
         assert(swoole_objects.array[handle] == NULL);
     }
-
+#endif
     swoole_objects.array[handle] = ptr;
 }
 
@@ -773,11 +774,12 @@ void swoole_set_property(zval *zobject, int property_id, void *ptr)
         swoole_objects.property_size[property_id] = new_size;
         swoole_objects.property[property_id] = new_ptr;
     }
+#ifdef ZEND_DEBUG
     else if (ptr)
     {
         assert(swoole_objects.property[property_id][handle] == NULL);
     }
-
+#endif
     swoole_objects.property[property_id][handle] = ptr;
 }
 
