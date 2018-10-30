@@ -1237,10 +1237,10 @@ PHP_FUNCTION(swoole_coroutine_exec)
         RETURN_FALSE;
     }
 
-    Socket *sock = new Socket(fd, SW_SOCK_UNIX_STREAM);
+    Socket sock(fd, SW_SOCK_UNIX_STREAM);
     while (1)
     {
-        ssize_t retval = sock->read(buffer->str + buffer->length, buffer->size - buffer->length);
+        ssize_t retval = sock.read(buffer->str + buffer->length, buffer->size - buffer->length);
         if (retval > 0)
         {
             buffer->length += retval;
@@ -1284,5 +1284,4 @@ PHP_FUNCTION(swoole_coroutine_exec)
     }
 
     swString_free(buffer);
-    close(fd);
 }
