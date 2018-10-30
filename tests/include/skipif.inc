@@ -103,6 +103,18 @@ function skip_if_pdo_not_support_mysql8()
     }
 }
 
+function skip_if_not_mysql8()
+{
+    require_once __DIR__ . '/config.php';
+    if (!preg_match(
+        '/caching_sha2_password/',
+        $r = curlGet('http://' . MYSQL_SERVER_HOST . ':' . MYSQL_SERVER_PORT))
+    ) {
+        skip('require mysql8.');
+    }
+    var_dump($r);
+}
+
 function skip_deprecated()
 {
     skip('it\'s the deprecated.', file_exists('/.travisenv'), SWOOLE_COLOR_WHITE);
