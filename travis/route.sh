@@ -14,7 +14,7 @@ prepare(){
 if [ "${TRAVIS_BUILD_DIR}" ]; then
     php_version=`php -r "echo PHP_VERSION_ID;"`
     if [ ${php_version} -lt 70400 ]; then
-        export PHP_VERSION="`php -r "echo PHP_MAJOR_VERSION;"`.`php -r "echo PHP_MINOR_VERSION;"`-cli"
+        export PHP_VERSION="`php -r "echo PHP_MAJOR_VERSION;"`.`php -r "echo PHP_MINOR_VERSION;"`"
         echo "travis ci with docker...\n"
         set -e
         DOCKER_COMPOSE_VERSION="1.21.0"
