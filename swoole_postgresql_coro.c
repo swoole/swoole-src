@@ -125,7 +125,8 @@ void swoole_postgresql_coro_init(int module_number)
 
     INIT_CLASS_ENTRY(swoole_postgresql_coro_ce, "Swoole\\Coroutine\\PostgreSQL", swoole_postgresql_coro_methods);
     le_result = zend_register_list_destructors_ex(_free_result, NULL, "pgsql result", module_number);
-    swoole_postgresql_coro_class_entry_ptr = zend_register_internal_class(&swoole_postgresql_coro_ce);
+    swoole_postgresql_coro_class_entry_ptr = zend_register_internal_class(&swoole_postgresql_coro_ce TSRMLS_CC);
+    zend_declare_property_null(swoole_postgresql_coro_class_entry_ptr, "error", 5, ZEND_ACC_PUBLIC);
 
     if (SWOOLE_G(use_shortname))
     {
@@ -225,10 +226,7 @@ static void swoole_pgsql_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
     char *feedback;
     char *err_msg;
 
-//    ZVAL_BOOL(result, 0);
-    array_init_size(result, 2);
-    add_index_bool(result, 0, 0);
-    add_index_string(result, 1, "ontimeout");
+    ZVAL_BOOL(result, 0);
 
     zval _zobject = ctx->coro_params;
     zval *zobject = &_zobject;
@@ -261,6 +259,7 @@ static void swoole_pgsql_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
         PQfinish(pgsql);
     }
 
+    zend_update_property_string(swoole_postgresql_coro_class_entry_ptr, zobject, "error", 5, "ontimeout");
     int ret = coro_resume(ctx, result, &retval);
     if (ret == CORO_END && retval)
     {
@@ -292,10 +291,11 @@ static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event)
         pg_object->timer = NULL;
     }
 
-    // wait the connection ok
     uint8_t success = 1;
+    // wait the connection ok
     ConnStatusType status =  PQstatus(pg_object->conn);
     if(status != CONNECTION_OK){
+        success = 0;
         PostgresPollingStatusType flag = PGRES_POLLING_WRITING;
         for (;;)
         {
@@ -310,7 +310,6 @@ static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event)
                 case PGRES_POLLING_FAILED:
                     err_msg = PQerrorMessage(pg_object->conn);
                     swWarn("error:[%s]",err_msg);
-                    success = 0;
                     break;
                 default:
                     break;
@@ -319,13 +318,13 @@ static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event)
             flag = PQconnectPoll(pg_object->conn);
             if(flag == PGRES_POLLING_OK )
             {
+                success = 1;
                 break;
             }
             if(flag == PGRES_POLLING_FAILED )
             {
                 err_msg = PQerrorMessage(pg_object->conn);
                 swWarn("error:[%s] please cofirm that the connection configuration is correct \n",err_msg);
-                success = 0;
                 break;
             }
         }
@@ -340,14 +339,9 @@ static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event)
 
     zval *retval = NULL;
     zval return_value;
-    if (success == 1)
-    {
-        ZVAL_TRUE(&return_value);
-    } else
-    {
-        ZVAL_FALSE(&return_value);
-    }
+    ZVAL_BOOL(&return_value, success);
 
+    zend_update_property_null(swoole_postgresql_coro_class_entry_ptr, pg_object->object, "error", 5);
     int ret = coro_resume(sw_current_context, &return_value, &retval);
     if (ret == CORO_END && retval)
     {
@@ -433,13 +427,13 @@ static  int meta_data_result_parse(pg_object *pg_object)
 
     }
     php_context *sw_current_context = swoole_get_property(pg_object->object, 0);
+    zend_update_property_null(swoole_postgresql_coro_class_entry_ptr, pg_object->object, "error", 5);
     int ret  = coro_resume(sw_current_context, &return_value, &retval);
     if (ret == CORO_END && retval)
     {
         zval_ptr_dtor(retval);
     }
     zval_ptr_dtor(&return_value);
-    zval_ptr_dtor(&elem);
     return SW_OK;
 }
 
@@ -469,23 +463,16 @@ static  int query_result_parse(pg_object *pg_object)
         case PGRES_NONFATAL_ERROR:
         case PGRES_FATAL_ERROR:
             err_msg = PQerrorMessage(pg_object->conn);
-            swWarn("Query failed: [%u][%s]",status,err_msg);
+            swWarn("Query failed: [%s]",err_msg);
 
             PQclear(pgsql_result);
-            if (sw_current_context)
+            ZVAL_FALSE(&return_value);
+            zend_update_property_string(swoole_postgresql_coro_class_entry_ptr, pg_object->object, "error", 5, err_msg);
+            ret = coro_resume(sw_current_context, &return_value,  &retval);
+            if (ret == CORO_END && retval)
             {
-//                ZVAL_FALSE(&return_value);
-                array_init_size(&return_value, 3);
-                add_index_bool(&return_value, 0, status == PGRES_BAD_RESPONSE ? 0 : 1);
-                add_index_string(&return_value, 1, err_msg);
-                add_index_long(&return_value, 2, status);
-                ret = coro_resume(sw_current_context, &return_value,  &retval);
-                if (ret == CORO_END && retval)
-                {
-                    zval_ptr_dtor(retval);
-                }
+                zval_ptr_dtor(retval);
             }
-//            swoole_postgresql_coro_close(pg_object);
             break;
         case PGRES_COMMAND_OK: /* successful command that did not return rows */
         default:
@@ -495,6 +482,7 @@ static  int query_result_parse(pg_object *pg_object)
             res = PQflush(pg_object->conn);
 
             ZVAL_RES(&return_value, zend_register_resource(pg_object, le_result));
+            zend_update_property_null(swoole_postgresql_coro_class_entry_ptr, pg_object->object, "error", 5);
             ret = coro_resume(sw_current_context, &return_value,  &retval);
             if (ret == CORO_END && retval)
             {
