@@ -1015,11 +1015,11 @@ static PHP_METHOD(swoole_process, setaffinity)
     {
         RETURN_FALSE;
     }
-    if (Z_ARRVAL_P(array)->nNumOfElements == 0)
+    if (php_swoole_array_length(array) == 0)
     {
         RETURN_FALSE;
     }
-    if (Z_ARRVAL_P(array)->nNumOfElements > SW_CPU_NUM)
+    if (php_swoole_array_length(array) > SW_CPU_NUM)
     {
         swoole_php_fatal_error(E_WARNING, "More than the number of CPU");
         RETURN_FALSE;
