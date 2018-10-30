@@ -1,5 +1,5 @@
 <?php
-require  __DIR__ . '/config.php';
+require_once  __DIR__ . '/config.php'; // (`once` because it may required in skip when we run phpt)
 
 ini_set('memory_limit', '1024M');
 ini_set('swoole.aio_mode', SWOOLE_AIO_BASE); // SWOOLE_AIO_BASE, SWOOLE_AIO_LINUX
