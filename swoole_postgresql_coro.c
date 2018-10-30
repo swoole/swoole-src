@@ -1030,14 +1030,10 @@ static int swoole_pgsql_coro_onError(swReactor *reactor, swEvent *event)
     zval *retval = NULL;
     zval *zobject  = pg_object->object;
 
-//    swoole_postgresql_coro_close(pg_object);
-
-//    ZVAL_BOOL(result, 0);
-    array_init_size(result, 2);
-    add_index_bool(result, 0, 0);
-    add_index_string(result, 1, "onerror");
+    ZVAL_BOOL(result, 0);
 
     php_context *sw_current_context = swoole_get_property(zobject, 0);
+    zend_update_property_string(swoole_postgresql_coro_class_entry_ptr, zobject, "error", 5, "onerror");
     int ret = coro_resume(sw_current_context, result, &retval);
     zval_ptr_dtor(result);
 
