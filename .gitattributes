@@ -1,0 +1,7 @@
+/.github/ export-ignore
+/.travis export-ignore
+/benchmark/ export-ignore
+/core-tests/ export-ignore
+/examples/ export-ignore
+/tests/ export-ignore
+/travis/ export-ignore
