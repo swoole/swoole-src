@@ -433,7 +433,7 @@ void swoole_redirect_stdout(int new_fd)
     }
 }
 
-int swoole_version_compare(char *version1, char *version2)
+int swoole_version_compare(const char *version1, const char *version2)
 {
     int result = 0;
 
