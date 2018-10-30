@@ -3,7 +3,7 @@ swoole_runtime: pdo
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
-skip_php_version_lower_than('7.1');
+skip_if_pdo_not_support_mysql8();
 ?>
 --FILE--
 <?php

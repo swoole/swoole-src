@@ -16,7 +16,7 @@ services:
       - 119.29.29.29
     command: tail -f /etc/group
   mysql:
-    image: "twosee/swoole-coroutine:mysql"
+    image: "twosee/swoole:mysql5"
     volumes:
       - ./data/mysql:/var/lib/mysql:rw
     environment:
@@ -25,7 +25,7 @@ services:
       MYSQL_USER: swoole
       MYSQL_PASSWORD: swoole
   redis:
-    image: "twosee/swoole-coroutine:redis"
+    image: "twosee/swoole:redis"
     volumes:
       - ./data/redis:/var/lib/redis:rw
     sysctls:
