@@ -386,6 +386,20 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_pexpireAt, 0, 0, 2)
     ZEND_ARG_INFO(0, timestamp)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_pfadd, 0, 0, 2)    
+    ZEND_ARG_INFO(0, key)   
+    ZEND_ARG_INFO(0, elements)  
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_pfcount, 0, 0, 1) 
+    ZEND_ARG_INFO(0, key)   
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_pfmerge, 0, 0, 2) 
+    ZEND_ARG_INFO(0, dstkey)    
+    ZEND_ARG_INFO(0, keys)  
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_ping, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
@@ -1425,6 +1439,9 @@ static PHP_METHOD(swoole_redis_coro, renameKey);
 static PHP_METHOD(swoole_redis_coro, renameNx);
 static PHP_METHOD(swoole_redis_coro, rpoplpush);
 static PHP_METHOD(swoole_redis_coro, randomKey);
+static PHP_METHOD(swoole_redis_coro, pfadd);
+static PHP_METHOD(swoole_redis_coro, pfcount);
+static PHP_METHOD(swoole_redis_coro, pfmerge);
 static PHP_METHOD(swoole_redis_coro, ping);
 static PHP_METHOD(swoole_redis_coro, auth);
 static PHP_METHOD(swoole_redis_coro, unwatch);
@@ -1569,6 +1586,9 @@ static const zend_function_entry swoole_redis_coro_methods[] =
     PHP_ME(swoole_redis_coro, renameNx, arginfo_swoole_redis_coro_renameNx, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, rpoplpush, arginfo_swoole_redis_coro_rpoplpush, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, randomKey, arginfo_swoole_redis_coro_randomKey, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, pfadd, arginfo_swoole_redis_coro_pfadd, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, pfcount, arginfo_swoole_redis_coro_pfcount, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, pfmerge, arginfo_swoole_redis_coro_pfmerge, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, ping, arginfo_swoole_redis_coro_ping, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, auth, arginfo_swoole_redis_coro_auth, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, unwatch, arginfo_swoole_redis_coro_unwatch, ZEND_ACC_PUBLIC)
@@ -2747,6 +2767,21 @@ static PHP_METHOD(swoole_redis_coro, randomKey)
 static PHP_METHOD(swoole_redis_coro, unwatch)
 {
     sw_redis_command_empty(INTERNAL_FUNCTION_PARAM_PASSTHRU, "UNWATCH", 7);
+}
+
+static PHP_METHOD(swoole_redis_coro, pfadd)
+{
+    sw_redis_command_key_val(INTERNAL_FUNCTION_PARAM_PASSTHRU, "PFADD", 5);
+}
+
+static PHP_METHOD(swoole_redis_coro, pfcount)
+{
+    sw_redis_command_key(INTERNAL_FUNCTION_PARAM_PASSTHRU, "PFCOUNT", 7);
+}
+
+static PHP_METHOD(swoole_redis_coro, pfmerge)
+{
+    sw_redis_command_key_val(INTERNAL_FUNCTION_PARAM_PASSTHRU, "PFMERGE", 7);
 }
 
 static PHP_METHOD(swoole_redis_coro, ping)
