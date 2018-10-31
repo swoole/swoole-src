@@ -420,11 +420,11 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_client.c \
         swoole_client_coro.cc \
         swoole_coroutine.cc \
-        swoole_coroutine_util.c \
+        swoole_coroutine_util.cc \
         swoole_event.c \
         swoole_socket_coro.cc \
         swoole_timer.c \
-        swoole_async.c \
+        swoole_async.cc \
         swoole_process.c \
         swoole_process_pool.c \
         swoole_serialize.c \

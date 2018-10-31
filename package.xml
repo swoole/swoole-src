@@ -506,7 +506,7 @@
             <file role="src" name="src/reactor/poll.c" />
             <file role="src" name="src/reactor/select.c" />
             <file role="src" name="swoole.c" />
-            <file role="src" name="swoole_async.c" />
+            <file role="src" name="swoole_async.cc" />
             <file role="src" name="swoole_atomic.c" />
             <file role="src" name="swoole_buffer.c" />
             <file role="src" name="swoole_channel.c" />
@@ -516,7 +516,7 @@
             <file role="src" name="swoole_config.h" />
             <file role="src" name="swoole_coroutine.cc" />
             <file role="src" name="swoole_coroutine.h" />
-            <file role="src" name="swoole_coroutine_util.c" />
+            <file role="src" name="swoole_coroutine_util.cc" />
             <file role="src" name="swoole_event.c" />
             <file role="src" name="swoole_http.h" />
             <file role="src" name="swoole_http_client.c" />

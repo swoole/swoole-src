@@ -1302,7 +1302,7 @@ int swoole_file_put_contents(char *filename, char *content, size_t length);
 long swoole_file_size(char *filename);
 void swoole_open_remote_debug(void);
 char *swoole_dec2hex(int value, int base);
-int swoole_version_compare(char *version1, char *version2);
+int swoole_version_compare(const char *version1, const char *version2);
 #ifdef HAVE_EXECINFO
 void swoole_print_trace(void);
 #endif
@@ -2242,6 +2242,30 @@ static sw_inline void sw_spinlock(sw_atomic_t *lock)
         }
         swYield();
     }
+}
+
+static sw_inline int64_t swTimer_get_relative_msec()
+{
+    struct timeval now;
+    if (swTimer_now(&now) < 0)
+    {
+        return SW_ERR;
+    }
+    int64_t msec1 = (now.tv_sec - SwooleG.timer.basetime.tv_sec) * 1000;
+    int64_t msec2 = (now.tv_usec - SwooleG.timer.basetime.tv_usec) / 1000;
+    return msec1 + msec2;
+}
+
+static sw_inline int64_t swTimer_get_absolute_msec()
+{
+    struct timeval now;
+    if (swTimer_now(&now) < 0)
+    {
+        return SW_ERR;
+    }
+    int64_t msec1 = (now.tv_sec) * 1000;
+    int64_t msec2 = (now.tv_usec) / 1000;
+    return msec1 + msec2;
 }
 
 #ifdef __cplusplus
