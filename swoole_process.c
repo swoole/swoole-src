@@ -326,6 +326,7 @@ static PHP_METHOD(swoole_process, __destruct)
     SW_PREVENT_USER_DESTRUCT;
 
     swWorker *process = swoole_get_object(getThis());
+    swoole_set_object(getThis(), NULL);
     swPipe *_pipe = process->pipe_object;
     if (_pipe)
     {
