@@ -2790,13 +2790,11 @@ static PHP_METHOD(swoole_redis_coro, pfadd)
     SW_REDIS_COMMAND_ALLOC_ARGV
     SW_REDIS_COMMAND_ARGV_FILL("PFADD", 5)
     SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
-    zend_ulong idx;
-    zend_string *_key;
-    ZEND_HASH_FOREACH_KEY_VAL_IND(Z_ARRVAL_P(z_arr), idx, _key, value) {
+    SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(z_arr), value) {
         zend_string *convert_str = zval_get_string(value);
         SW_REDIS_COMMAND_ARGV_FILL(convert_str->val, convert_str->len);
         zend_string_release(convert_str);
-    } ZEND_HASH_FOREACH_END();
+    } SW_HASHTABLE_FOREACH_END();
 
     SW_REDIS_COMMAND(argc)
     SW_REDIS_COMMAND_FREE_ARGV
@@ -2871,13 +2869,11 @@ static PHP_METHOD(swoole_redis_coro, pfmerge)
     SW_REDIS_COMMAND_ALLOC_ARGV
     SW_REDIS_COMMAND_ARGV_FILL("PFMERGE", 7)
     SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
-    zend_ulong idx;
-    zend_string *_key;
-    ZEND_HASH_FOREACH_KEY_VAL_IND(Z_ARRVAL_P(z_arr), idx, _key, value) {
+    SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(z_arr), value) {
         zend_string *convert_str = zval_get_string(value);
         SW_REDIS_COMMAND_ARGV_FILL(convert_str->val, convert_str->len);
         zend_string_release(convert_str);
-    } ZEND_HASH_FOREACH_END();
+    } SW_HASHTABLE_FOREACH_END();
 
     SW_REDIS_COMMAND(argc)
     SW_REDIS_COMMAND_FREE_ARGV
