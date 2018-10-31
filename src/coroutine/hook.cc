@@ -24,7 +24,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
-#include <sys/poll.h>
+#include <poll.h>
 #include <dirent.h>
 #include <string>
 #include <iostream>

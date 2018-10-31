@@ -394,6 +394,28 @@ pid_t swProcessPool_spawn(swProcessPool *pool, swWorker *worker)
     return pid;
 }
 
+int swProcessPool_get_max_request(swProcessPool *pool)
+{
+    int task_n;
+    if (pool->max_request < 1)
+    {
+        return -1;
+    }
+    else
+    {
+        task_n = pool->max_request;
+        if (pool->max_request > 10)
+        {
+            int n = swoole_system_random(1, pool->max_request / 2);
+            if (n > 0)
+            {
+                task_n += n;
+            }
+        }
+    }
+    return task_n;
+}
+
 static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
 {
     struct
@@ -402,25 +424,12 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
         swEventData buf;
     } out;
 
-    int n = 0, ret;
-    int task_n, worker_task_always = 0;
-
-    if (pool->max_request < 1)
+    int n = 0, ret, worker_task_always = 0;
+    int task_n = swProcessPool_get_max_request(pool);
+    if (task_n <= 0)
     {
-        task_n = 1;
         worker_task_always = 1;
-    }
-    else
-    {
-        task_n = pool->max_request;
-        if (pool->max_request > 10)
-        {
-            n = swoole_system_random(1, pool->max_request / 2);
-            if (n > 0)
-            {
-                task_n += n;
-            }
-        }
+        task_n = 1;
     }
 
     /**

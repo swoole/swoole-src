@@ -40,18 +40,6 @@ int swTimer_now(struct timeval *time)
     return SW_OK;
 }
 
-static sw_inline int64_t swTimer_get_relative_msec()
-{
-    struct timeval now;
-    if (swTimer_now(&now) < 0)
-    {
-        return SW_ERR;
-    }
-    int64_t msec1 = (now.tv_sec - SwooleG.timer.basetime.tv_sec) * 1000;
-    int64_t msec2 = (now.tv_usec - SwooleG.timer.basetime.tv_usec) / 1000;
-    return msec1 + msec2;
-}
-
 static int swTimer_init(long msec)
 {
     if (swTimer_now(&SwooleG.timer.basetime) < 0)
@@ -118,6 +106,12 @@ swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *data, s
     if (unlikely(SwooleG.timer.fd == 0))
     {
         swTimer_init(_msec);
+    }
+
+    if (_msec <= 0 || _msec > INT_MAX)
+    {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "_msec value[%d] is invalid.", _msec);
+        return NULL;
     }
 
     swTimer_node *tnode = sw_malloc(sizeof(swTimer_node));

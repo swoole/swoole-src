@@ -75,14 +75,14 @@ static sw_inline char* sw_php_url_encode(char *value, size_t value_len, int* ext
 
 static sw_inline int sw_call_user_function_ex(HashTable *function_table, zval* object_p, zval *function_name, zval **retval_ptr_ptr, uint32_t param_count, zval *params, int no_separation, HashTable* ymbol_table)
 {
-    zval phpng_retval;
-    *retval_ptr_ptr = &phpng_retval;
-    return call_user_function_ex(function_table, object_p, function_name, &phpng_retval, param_count, param_count ? params : NULL, no_separation, ymbol_table);
+    static zval _retval;
+    *retval_ptr_ptr = &_retval;
+    return call_user_function_ex(function_table, object_p, function_name, &_retval, param_count, param_count ? params : NULL, no_separation, ymbol_table);
 }
 
 static sw_inline int sw_call_user_function_fast_ex(zval *function_name, zend_fcall_info_cache *fci_cache, zval **retval_ptr_ptr, uint32_t param_count, zval *params)
 {
-    zval _retval;
+    static zval _retval;
     *retval_ptr_ptr = &_retval;
 
     zend_fcall_info fci;
@@ -101,7 +101,7 @@ static sw_inline int sw_call_user_function_fast_ex(zval *function_name, zend_fca
     return zend_call_function(&fci, fci_cache);
 }
 
-#define SW_MAKE_STD_ZVAL(p)             zval _stack_zval_##p; p = &(_stack_zval_##p)
+#define SW_MAKE_STD_ZVAL(p)             zval _stack_zval_##p; p = &(_stack_zval_##p); bzero(p, sizeof(zval))
 #define SW_ALLOC_INIT_ZVAL(p)           do{p = (zval *)emalloc(sizeof(zval)); bzero(p, sizeof(zval));}while(0)
 #define SW_SEPARATE_ZVAL(p)             zval _##p;\
     memcpy(&_##p, p, sizeof(_##p));\
@@ -131,6 +131,7 @@ static sw_inline int sw_call_user_function_fast_ex(zval *function_name, zend_fca
     if (ZVAL_IS_NULL(&__retval)) *(retval) = NULL;\
     else *(retval) = &__retval;
 
+// do not use sw_copy_to_stack(return_value, foo);
 #define sw_copy_to_stack(a, b)                {zval *__tmp = (zval *) a;\
     a = &b;\
     memcpy(a, __tmp, sizeof(zval));}
@@ -242,6 +243,23 @@ static sw_inline char* sw_http_build_query(zval *zdata, size_t *length, smart_st
     smart_str_0(formstr);
     *length = formstr->s->len;
     return formstr->s->val;
+}
+
+static sw_inline void sw_get_debug_print_backtrace(swString *buffer, zend_long options, zend_long limit)
+{
+    zval _fcn, *fcn = &_fcn, args[2], *retval = NULL;
+    php_output_start_user(NULL, 0, PHP_OUTPUT_HANDLER_STDFLAGS);
+    ZVAL_STRING(fcn, "debug_print_backtrace");
+    ZVAL_LONG(&args[0], options);
+    ZVAL_LONG(&args[1], limit);
+    sw_call_user_function_ex(EG(function_table), NULL, fcn, &retval, 2, args, 0, NULL);
+    zval_ptr_dtor(fcn);
+    php_output_get_contents(retval);
+    php_output_discard();
+    swString_clear(buffer);
+    swString_append_ptr(buffer, ZEND_STRL("Stack trace:\n"));
+    swString_append_ptr(buffer, Z_STRVAL_P(retval), Z_STRLEN_P(retval)-1); // trim \n
+    zval_ptr_dtor(retval);
 }
 
 #define SW_PREVENT_USER_DESTRUCT if(unlikely(!(GC_FLAGS(Z_OBJ_P(getThis())) & IS_OBJ_DESTRUCTOR_CALLED))){RETURN_NULL()}

@@ -1561,7 +1561,7 @@ static PHP_METHOD(swoole_http_response, write)
     zval *zdata;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &zdata) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     http_context *ctx = http_get_context(getThis(), 0);
@@ -2027,7 +2027,7 @@ static PHP_METHOD(swoole_http_response, end)
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
         Z_PARAM_ZVAL(zdata)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     http_context *ctx = http_get_context(getThis(), 0);
     if (!ctx)
@@ -2126,7 +2126,7 @@ static PHP_METHOD(swoole_http_response, sendfile)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|ll", &filename, &filename_length, &offset, &length) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
     if (filename_length <= 0)
     {
@@ -2216,7 +2216,7 @@ static PHP_METHOD(swoole_http_response, cookie)
         Z_PARAM_STRING(domain, domain_len)
         Z_PARAM_BOOL(secure)
         Z_PARAM_BOOL(httponly)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     http_context *ctx = http_get_context(getThis(), 0);
     if (!ctx)
@@ -2328,7 +2328,7 @@ static PHP_METHOD(swoole_http_response, rawcookie)
         Z_PARAM_STRING(domain, domain_len)
         Z_PARAM_BOOL(secure)
         Z_PARAM_BOOL(httponly)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     http_context *ctx = http_get_context(getThis(), 0);
     if (!ctx)
@@ -2434,7 +2434,7 @@ static PHP_METHOD(swoole_http_response, status)
         Z_PARAM_LONG(http_status)
         Z_PARAM_OPTIONAL
         Z_PARAM_STRING(reason, reason_len)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     http_context *ctx = http_get_context(getThis(), 0);
     if (!ctx)
@@ -2461,7 +2461,7 @@ static PHP_METHOD(swoole_http_response, header)
         Z_PARAM_STRING(v, vlen)
         Z_PARAM_OPTIONAL
         Z_PARAM_BOOL(ucwords)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     http_context *ctx = http_get_context(getThis(), 0);
     if (!ctx)
@@ -2519,7 +2519,7 @@ static PHP_METHOD(swoole_http_response, trailer)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "ss|b", &k, &klen, &v, &vlen, &ucwords) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     http_context *ctx = http_get_context(getThis(), 0);
@@ -2592,7 +2592,7 @@ static PHP_METHOD(swoole_http_response, create)
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
         Z_PARAM_LONG(fd)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     http_context *ctx = emalloc(sizeof(http_context));
     if (!ctx)
@@ -2606,7 +2606,7 @@ static PHP_METHOD(swoole_http_response, create)
     object_init_ex(return_value, swoole_http_response_class_entry_ptr);
     swoole_set_object(return_value, ctx);
     ctx->response.zobject = return_value;
-    sw_copy_to_stack(return_value, ctx->response._zobject);
+    sw_copy_to_stack(ctx->response.zobject, ctx->response._zobject);
 
     zend_update_property_long(swoole_http_response_class_entry_ptr, return_value, ZEND_STRL("fd"), ctx->fd);
 }
@@ -2620,7 +2620,7 @@ static PHP_METHOD(swoole_http_response, redirect)
         Z_PARAM_ZVAL(url)
         Z_PARAM_OPTIONAL
         Z_PARAM_ZVAL(http_code)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     http_context *ctx = http_get_context(getThis(), 0);
     if (!ctx)

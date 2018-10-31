@@ -200,7 +200,7 @@ static PHP_METHOD(swoole_redis, __construct)
     zval *zset = NULL;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|z", &zset) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     swRedisClient *redis = emalloc(sizeof(swRedisClient));
@@ -272,7 +272,7 @@ static PHP_METHOD(swoole_redis, on)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &name, &len, &cb) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     swRedisClient *redis = swoole_get_object(getThis());
@@ -400,6 +400,26 @@ static void redis_free_object(void *data)
     zval_ptr_dtor(object);
 }
 
+static void inline redis_free_memory(int argc, char **argv, size_t *argvlen, swRedisClient *redis, zend_bool free_mm)
+{
+    int i;
+    for (i = 1; i < argc; i++)
+    {
+        efree((void* )argv[i]);
+    }
+
+    if (redis->state == SWOOLE_REDIS_STATE_SUBSCRIBE)
+    {
+        efree(argv[argc]);
+    }
+
+    if (free_mm)
+    {
+        efree(argvlen);
+        efree(argv);
+    }
+}
+
 static PHP_METHOD(swoole_redis, close)
 {
     swRedisClient *redis = swoole_get_object(getThis());
@@ -444,7 +464,7 @@ static PHP_METHOD(swoole_redis, __call)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &command, &command_len, &params) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     if (Z_TYPE_P(params) != IS_ARRAY)
@@ -507,23 +527,7 @@ static PHP_METHOD(swoole_redis, __call)
         argvlen = stack_argvlen;
         argv = stack_argv;
     }
-#define FREE_MEM() do {                 \
-    for (i = 1; i < argc; i++)          \
-    {                                   \
-        efree((void* )argv[i]);         \
-    }                                   \
-                                        \
-    if (redis->state == SWOOLE_REDIS_STATE_SUBSCRIBE) \
-    {                                   \
-        efree(argv[argc]);              \
-    }                                   \
-                                        \
-    if (free_mm)                        \
-    {                                   \
-        efree(argvlen);                 \
-        efree(argv);                    \
-    }                                   \
-} while (0)
+
 
     assert(command_len < SW_REDIS_COMMAND_KEY_SIZE - 1);
 
@@ -558,7 +562,7 @@ static PHP_METHOD(swoole_redis, __call)
         if (redisAsyncCommandArgv(redis->context, swoole_redis_onResult, NULL, argc + 1, (const char **) argv, (const size_t *) argvlen) < 0)
         {
             swoole_php_error(E_WARNING, "redisAsyncCommandArgv() failed.");
-            FREE_MEM();
+            redis_free_memory(argc, argv, argvlen, redis, free_mm);
             RETURN_FALSE;
         }
     }
@@ -574,7 +578,13 @@ static PHP_METHOD(swoole_redis, __call)
         if (callback == NULL)
         {
             swoole_php_error(E_WARNING, "index out of array bounds.");
-            FREE_MEM();
+            redis_free_memory(argc, argv, argvlen, redis, free_mm);
+            RETURN_FALSE;
+        }
+
+        if (!php_swoole_is_callable(callback))
+        {
+            redis_free_memory(argc, argv, argvlen, redis, free_mm);
             RETURN_FALSE;
         }
 
@@ -596,12 +606,12 @@ static PHP_METHOD(swoole_redis, __call)
         if (redisAsyncCommandArgv(redis->context, swoole_redis_onResult, callback, argc, (const char **) argv, (const size_t *) argvlen) < 0)
         {
             swoole_php_error(E_WARNING, "redisAsyncCommandArgv() failed.");
-            FREE_MEM();
+            redis_free_memory(argc, argv, argvlen, redis, free_mm);
             RETURN_FALSE;
         }
     }
 
-    FREE_MEM();
+    redis_free_memory(argc, argv, argvlen, redis, free_mm);
     RETURN_TRUE;
 }
 

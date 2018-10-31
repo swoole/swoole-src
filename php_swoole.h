@@ -125,15 +125,6 @@ extern swoole_object_array swoole_objects;
 #define swoole_php_error(level, fmt_str, ...)   if (SWOOLE_G(display_errors)) php_error_docref(NULL, level, fmt_str, ##__VA_ARGS__)
 #define swoole_php_fatal_error(level, fmt_str, ...)   php_error_docref(NULL, level, fmt_str, ##__VA_ARGS__)
 #define swoole_php_sys_error(level, fmt_str, ...)  if (SWOOLE_G(display_errors)) php_error_docref(NULL, level, fmt_str" Error: %s[%d].", ##__VA_ARGS__, strerror(errno), errno)
-#define swoole_php_check_coro_bind(name, bind_cid, error) do { \
-    if (unlikely(((bind_cid) > 0))) \
-        swoole_php_coro_bind_error(name, bind_cid, error); \
-} while (0)
-#define swoole_php_coro_bind_error(name, bind_cid, error)  do { \
-    /* Disputed! EG(objects_store).top = 0; then throw E_ERROR to shutdown */ \
-    swoole_php_fatal_error(E_WARNING, "%s has already been bound to another coroutine #%d.", name, bind_cid); \
-    error; \
-} while (0)
 
 #ifdef SW_USE_OPENSSL
 #ifndef HAVE_OPENSSL
@@ -523,6 +514,7 @@ PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, 
 
 #ifdef SW_COROUTINE
 int php_coroutine_reactor_can_exit(swReactor *reactor);
+void sw_coro_check_bind(const char *name, int bind_cid);
 #endif
 
 #ifdef SW_USE_OPENSSL

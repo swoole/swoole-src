@@ -154,11 +154,11 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
         SwooleG.main_reactor = sw_malloc(sizeof(swReactor));
         if (SwooleG.main_reactor == NULL)
         {
-            swError("[Worker] malloc for reactor failed.");
+            swError("[TaskWorker] malloc for reactor failed.");
         }
         if (swReactor_create(SwooleG.main_reactor, SW_REACTOR_MAXEVENTS) < 0)
         {
-            swError("[Worker] create worker_reactor failed.");
+            swError("[TaskWorker] create reactor failed.");
         }
     }
     else
@@ -175,6 +175,18 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
     worker->traced = 0;
     SwooleWG.worker = worker;
     SwooleWG.worker->status = SW_WORKER_IDLE;
+    /**
+     * task_max_request
+     */
+    if (pool->max_request > 0)
+    {
+        SwooleWG.run_always = 0;
+        SwooleWG.max_request = swProcessPool_get_max_request(pool);
+    }
+    else
+    {
+        SwooleWG.run_always = 1;
+    }
 }
 
 void swTaskWorker_onStop(swProcessPool *pool, int worker_id)
@@ -190,12 +202,29 @@ static int swTaskWorker_onPipeReceive(swReactor *reactor, swEvent *event)
 {
     swEventData task;
     swProcessPool *pool = reactor->ptr;
+    swWorker *worker = SwooleWG.worker;
 
     if (read(event->fd, &task, sizeof(task)) > 0)
     {
-        return swTaskWorker_onTask(pool, &task);
+        worker->status = SW_WORKER_BUSY;
+        worker->request_time = time(NULL);
+        int retval = swTaskWorker_onTask(pool, &task);
+        worker->status = SW_WORKER_IDLE;
+        worker->request_time = 0;
+        worker->traced = 0;
+        worker->request_count++;
+        //maximum number of requests, process will exit.
+        if (!SwooleWG.run_always && worker->request_count >= SwooleWG.max_request)
+        {
+            swWorker_stop(worker);
+        }
+        return retval;
     }
-    return SW_ERR;
+    else
+    {
+        swSysError("read(%d, %ld) failed.", event->fd, sizeof(task));
+        return SW_ERR;
+    }
 }
 
 /**

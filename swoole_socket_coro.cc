@@ -189,7 +189,7 @@ static PHP_METHOD(swoole_socket_coro, __construct)
         Z_PARAM_LONG(domain)
         Z_PARAM_LONG(type)
         Z_PARAM_LONG(protocol)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     php_swoole_check_reactor();
 
@@ -209,7 +209,7 @@ static PHP_METHOD(swoole_socket_coro, bind)
         Z_PARAM_STRING(address, l_address)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(port)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     socket_coro *sock = (socket_coro *) Z_SOCKET_CORO_OBJ_P(getThis());
     if (!sock->socket->bind(std::string(address, l_address), port))
@@ -227,7 +227,7 @@ static PHP_METHOD(swoole_socket_coro, listen)
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(backlog)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     socket_coro *sock = (socket_coro *) Z_SOCKET_CORO_OBJ_P(getThis());
     if (!sock->socket->listen(backlog))
@@ -245,7 +245,7 @@ static PHP_METHOD(swoole_socket_coro, accept)
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
         Z_PARAM_DOUBLE(timeout)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     socket_coro *sock = (socket_coro *) Z_SOCKET_CORO_OBJ_P(getThis());
     if (timeout != 0)
@@ -278,7 +278,7 @@ static PHP_METHOD(swoole_socket_coro, recv)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(length)
         Z_PARAM_DOUBLE(timeout)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (length <= 0)
     {
@@ -318,7 +318,7 @@ static PHP_METHOD(swoole_socket_coro, recvfrom)
         Z_PARAM_ZVAL_EX(peername, 0, 1)
         Z_PARAM_OPTIONAL
         Z_PARAM_DOUBLE(timeout)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     socket_coro *sock = (socket_coro *) Z_SOCKET_CORO_OBJ_P(getThis());
     sock->socket->setTimeout(timeout);
@@ -371,7 +371,7 @@ static PHP_METHOD(swoole_socket_coro, send)
         Z_PARAM_STRING(data, l_data)
         Z_PARAM_OPTIONAL
         Z_PARAM_DOUBLE(timeout)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     socket_coro *sock = (socket_coro *) Z_SOCKET_CORO_OBJ_P(getThis());
     ssize_t retval = sock->socket->send(data, l_data);
@@ -398,7 +398,7 @@ static PHP_METHOD(swoole_socket_coro, sendto)
         Z_PARAM_STRING(addr, l_addr)
         Z_PARAM_LONG(port)
         Z_PARAM_STRING(data, l_data)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     socket_coro *sock = (socket_coro *) Z_SOCKET_CORO_OBJ_P(getThis());
     ssize_t retval = sock->socket->sendto(addr, port, data, l_data);
@@ -436,6 +436,7 @@ static PHP_METHOD(swoole_socket_coro, getsockname)
     array_init(return_value);
 
     swSocketAddress info;
+    memset(&info, 0, sizeof(info));
     char addr_str[INET6_ADDRSTRLEN + 1];
 
     if (getsockname(sock->socket->get_fd(), (struct sockaddr *) &info.addr.inet_v4, &info.len) != 0)
@@ -471,6 +472,7 @@ static PHP_METHOD(swoole_socket_coro, getpeername)
     array_init(return_value);
 
     swSocketAddress info;
+    memset(&info, 0, sizeof(info));
     char addr_str[INET6_ADDRSTRLEN + 1];
 
     if (getpeername(sock->socket->get_fd(), (struct sockaddr *) &info.addr, &info.len) != 0)
@@ -515,7 +517,7 @@ static PHP_METHOD(swoole_socket_coro, connect)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(port)
         Z_PARAM_DOUBLE(timeout)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (sock->domain == AF_INET6 || sock->domain == AF_INET)
     {

@@ -729,11 +729,12 @@ void swoole_set_object(zval *zobject, void *ptr)
         swoole_objects.array = new_ptr;
         swoole_objects.size = new_size;
     }
+#ifdef ZEND_DEBUG
     else if (ptr)
     {
         assert(swoole_objects.array[handle] == NULL);
     }
-
+#endif
     swoole_objects.array[handle] = ptr;
 }
 
@@ -773,11 +774,12 @@ void swoole_set_property(zval *zobject, int property_id, void *ptr)
         swoole_objects.property_size[property_id] = new_size;
         swoole_objects.property[property_id] = new_ptr;
     }
+#ifdef ZEND_DEBUG
     else if (ptr)
     {
         assert(swoole_objects.property[property_id][handle] == NULL);
     }
-
+#endif
     swoole_objects.property[property_id][handle] = ptr;
 }
 
@@ -1388,7 +1390,7 @@ static PHP_FUNCTION(swoole_hashcode)
         Z_PARAM_STRING(data, l_data)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(type)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     switch(type)
     {
@@ -1423,7 +1425,7 @@ PHP_FUNCTION(swoole_strerror)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|l", &swoole_errno, &error_type) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
     if (error_type == 1)
     {
@@ -1446,7 +1448,7 @@ PHP_FUNCTION(swoole_get_mime_type)
     zend_long filename_len;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &filename, &filename_len) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
     RETURN_STRING(swoole_get_mime_type(filename));
 }
@@ -1468,7 +1470,7 @@ PHP_FUNCTION(swoole_set_process_name)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|l", &name, &size) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     if (Z_STRLEN_P(name) == 0)

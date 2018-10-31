@@ -114,7 +114,7 @@ void swoole_memory_pool_init(int module_number)
 
 static PHP_METHOD(swoole_memory_pool, __construct)
 {
-    zend_long size, type, slice_size;
+    zend_long size, type, slice_size = SW_BUFFER_SIZE_STD;
     zend_bool shared = 0;
 
     ZEND_PARSE_PARAMETERS_START(2, 4)
@@ -123,7 +123,7 @@ static PHP_METHOD(swoole_memory_pool, __construct)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(slice_size)
         Z_PARAM_BOOL(shared)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     swMemoryPool* pool = NULL;
     if (type == memory_pool_type_fixed)
@@ -188,7 +188,7 @@ static PHP_METHOD(swoole_memory_pool, alloc)
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(size)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (mp->type != memory_pool_type_fixed && size <= 0)
     {
@@ -263,7 +263,7 @@ static PHP_METHOD(swoole_memory_pool_slice, read)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(size)
         Z_PARAM_LONG(offset)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     MemorySlice *info = (MemorySlice *) swoole_get_object(getThis());
     if (size <= 0)
@@ -295,7 +295,7 @@ static PHP_METHOD(swoole_memory_pool_slice, write)
         Z_PARAM_STR(data)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(offset)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     MemorySlice *info = (MemorySlice *) swoole_get_object(getThis());
     size = data->len;

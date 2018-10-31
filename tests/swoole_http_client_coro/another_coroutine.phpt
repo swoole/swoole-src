@@ -9,30 +9,49 @@ require __DIR__ . '/../include/skipif.inc';
 require __DIR__ . '/../include/bootstrap.php';
 $pm = new ProcessManager;
 $pm->parentFunc = function (int $pid) use ($pm) {
-    $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
-    go(function () use ($cli) {
-        co::sleep(0.001);
-        $cli->close();
-    });
-    go(function () use ($cli) {
-        $cli->get('/');
-    });
-    swoole_event_wait();
+    $process = new swoole_process(function (swoole_process $worker) use ($pm) {
+        function close(Swoole\Coroutine\Http\Client $client)
+        {
+            $client->close();
+        }
+
+        $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
+        go(function () use ($cli) {
+            (function () use ($cli) {
+                (function () use ($cli) {
+                    co::sleep(0.001);
+                    close($cli);
+                })();
+            })();
+        });
+        go(function () use ($cli) {
+            $cli->get('/');
+        });
+        swoole_event_wait();
+    }, false);
+    $process->start();
+    swoole_process::wait();
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
-    $serv = new swoole_http_server('127.0.0.1', $pm->getFreePort(), mt_rand(0, 1) ? SWOOLE_BASE : SWOOLE_PROCESS);
-    $serv->set(['log_file' => '/dev/null']);
-    $serv->on('workerStart', function () use ($pm, $serv) {
+    $server = new swoole_http_server('127.0.0.1', $pm->getFreePort(), mt_rand(0, 1) ? SWOOLE_BASE : SWOOLE_PROCESS);
+    $server->set(['log_file' => '/dev/null']);
+    $server->on('workerStart', function (swoole_http_server $server) use ($pm) {
         $pm->wakeup();
+        co::sleep(0.5);
+        $server->shutdown();
     });
-    $serv->on('request', function (swoole_http_request $request, swoole_http_response $response) use ($pm) {
+    $server->on('request', function (swoole_http_request $request, swoole_http_response $response) use ($pm, $server) {
         co::sleep(0.1);
     });
-    $serv->start();
+    $server->start();
 };
 $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-%s: Swoole\Coroutine\Http\Client::close(): http client has already been bound to another coroutine #%d. in %s on line %d
+[%s]	ERROR	http client has already been bound to another coroutine #%d, reading or writing of the same socket in multiple coroutines at the same time is not allowed.
+Stack trace:
+#0  Swoole\Coroutine\Http\Client->close() called at [%s:%d]
+#1  close() called at [%s:%d]
+#2  {closure}() called at [%s:%d]

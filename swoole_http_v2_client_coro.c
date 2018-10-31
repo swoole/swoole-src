@@ -194,7 +194,7 @@ static PHP_METHOD(swoole_http2_client_coro, __construct)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|lb", &host, &host_len, &port, &ssl) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     if (host_len <= 0)
@@ -235,7 +235,7 @@ static PHP_METHOD(swoole_http2_client_coro, set)
     zval *zset;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &zset) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
     if (Z_TYPE_P(zset) != IS_ARRAY)
     {
@@ -836,7 +836,7 @@ static PHP_METHOD(swoole_http2_client_coro, send)
     }
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &request) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
     if (Z_TYPE_P(request) != IS_OBJECT || !instanceof_function(Z_OBJCE_P(request), swoole_http2_request_class_entry_ptr))
     {
@@ -867,7 +867,7 @@ static PHP_METHOD(swoole_http2_client_coro, recv)
         RETURN_FALSE;
     }
 
-    swoole_php_check_coro_bind("http2 client", hcc->read_cid, RETURN_FALSE);
+    sw_coro_check_bind("http2 client", hcc->read_cid);
 
     double timeout = hcc->timeout;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|d", &timeout) == FAILURE)
@@ -1119,7 +1119,7 @@ static PHP_METHOD(swoole_http2_client_coro, stats)
     bzero(&key, sizeof(key));
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|s", &key.str, &key.length) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
     if (key.length > 0)
     {
@@ -1207,7 +1207,7 @@ static PHP_METHOD(swoole_http2_client_coro, write)
     zend_bool end = 0;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "lz|b", &stream_id, &data, &end) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
     SW_CHECK_RETURN(http2_client_send_data(hcc, stream_id, data, end));
 }
@@ -1241,7 +1241,7 @@ static PHP_METHOD(swoole_http2_client_coro, goaway)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|ls", &error_code, &debug_data, &debug_data_len) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     size_t length = SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_GOAWAY_SIZE + debug_data_len;

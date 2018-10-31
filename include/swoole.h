@@ -86,7 +86,7 @@ int daemon(int nochdir, int noclose);
 
 /*----------------------------------------------------------------------------*/
 
-#define SWOOLE_VERSION "4.2.4-alpha"
+#define SWOOLE_VERSION "4.2.5"
 #define SWOOLE_BUG_REPORT \
     "A bug occurred in Swoole-v" SWOOLE_VERSION ", please report it.\n"\
     "The Swoole developers probably don't know about it,\n"\
@@ -429,7 +429,6 @@ enum swTraceType
 #define swYield()              sched_yield() //or usleep(1)
 //#define swYield()              usleep(500000)
 #define SW_MAX_FDTYPE          32 //32 kinds of event
-#define SW_ERROR_MSG_SIZE      512
 
 //------------------------------Base--------------------------------
 #ifndef uchar
@@ -1303,7 +1302,7 @@ int swoole_file_put_contents(char *filename, char *content, size_t length);
 long swoole_file_size(char *filename);
 void swoole_open_remote_debug(void);
 char *swoole_dec2hex(int value, int base);
-int swoole_version_compare(char *version1, char *version2);
+int swoole_version_compare(const char *version1, const char *version2);
 #ifdef HAVE_EXECINFO
 void swoole_print_trace(void);
 #endif
@@ -1879,6 +1878,7 @@ int swProcessPool_response(swProcessPool *pool, char *data, int length);
 int swProcessPool_dispatch_blocking(swProcessPool *pool, swEventData *data, int *dst_worker_id);
 int swProcessPool_add_worker(swProcessPool *pool, swWorker *worker);
 int swProcessPool_del_worker(swProcessPool *pool, swWorker *worker);
+int swProcessPool_get_max_request(swProcessPool *pool);
 
 static sw_inline swWorker* swProcessPool_get_worker(swProcessPool *pool, int worker_id)
 {
@@ -2242,6 +2242,30 @@ static sw_inline void sw_spinlock(sw_atomic_t *lock)
         }
         swYield();
     }
+}
+
+static sw_inline int64_t swTimer_get_relative_msec()
+{
+    struct timeval now;
+    if (swTimer_now(&now) < 0)
+    {
+        return SW_ERR;
+    }
+    int64_t msec1 = (now.tv_sec - SwooleG.timer.basetime.tv_sec) * 1000;
+    int64_t msec2 = (now.tv_usec - SwooleG.timer.basetime.tv_usec) / 1000;
+    return msec1 + msec2;
+}
+
+static sw_inline int64_t swTimer_get_absolute_msec()
+{
+    struct timeval now;
+    if (swTimer_now(&now) < 0)
+    {
+        return SW_ERR;
+    }
+    int64_t msec1 = (now.tv_sec) * 1000;
+    int64_t msec2 = (now.tv_usec) / 1000;
+    return msec1 + msec2;
 }
 
 #ifdef __cplusplus

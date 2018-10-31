@@ -157,6 +157,20 @@ void coro_destroy(void)
 
 }
 
+void sw_coro_check_bind(const char *name, int bind_cid)
+{
+    if (unlikely((bind_cid) > 0))
+    {
+        swString *buffer = SwooleTG.buffer_stack;
+        sw_get_debug_print_backtrace(SwooleTG.buffer_stack, DEBUG_BACKTRACE_IGNORE_ARGS, 3);
+        swError(
+            "%s has already been bound to another coroutine #%d, "
+            "reading or writing of the same socket in multiple coroutines at the same time is not allowed.\n"
+            "%.*s", name, bind_cid, (int) buffer->length, buffer->str
+        );
+    }
+}
+
 static void sw_coro_func(void *arg)
 {
     php_args *php_arg = (php_args *) arg;
