@@ -3,21 +3,18 @@ __CURRENT__=`pwd`
 __DIR__=$(cd "$(dirname "$0")";pwd)
 
 prepare(){
-    echo "run phpt in docker...\n"
     cd ${__DIR__} && \
     mkdir -p data && \
     mkdir -p data/mysql && \
     mkdir -p data/redis && \
-    chmod -R 777 data && \
-    docker-compose up -d && \
-    docker ps
+    chmod -R 777 data
 }
 
 #------------Only run once-------------
 if [ "${TRAVIS_BUILD_DIR}" ]; then
     php_version=`php -r "echo PHP_VERSION_ID;"`
     if [ ${php_version} -lt 70400 ]; then
-        export PHP_VERSION="`php -r "echo PHP_MAJOR_VERSION;"`.`php -r "echo PHP_MINOR_VERSION;"`-cli"
+        export PHP_VERSION="`php -r "echo PHP_MAJOR_VERSION;"`.`php -r "echo PHP_MINOR_VERSION;"`"
         echo "travis ci with docker...\n"
         set -e
         DOCKER_COMPOSE_VERSION="1.21.0"
@@ -27,10 +24,15 @@ if [ "${TRAVIS_BUILD_DIR}" ]; then
         docker-compose -v && \
         docker -v && \
         prepare && \
-        docker exec travis_php_1 touch /.travisenv && \
-        docker exec travis_php_1 /swoole-src/travis/docker-all.sh
+        echo "run phpt in docker...\n" && \
+        docker-compose up -d && \
+        docker ps && \
+        docker exec swoole-alpine touch /.travisenv && \
+        docker exec swoole-alpine /swoole-src/travis/docker-all.sh && \
+        docker exec swoole touch /.travisenv && \
+        docker exec swoole /swoole-src/travis/docker-all.sh
     else
-        echo "skip\n"
+        echo "skip php nightly\n"
     fi
 else
     echo "user tests in docker...\n"
