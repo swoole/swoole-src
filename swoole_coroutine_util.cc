@@ -559,15 +559,15 @@ static void aio_onReadCompleted(swAio_event *event)
     efree(context);
 }
 
-static void aio_onStreamGetLineCompleted(swAio_event *event)
+static void aio_onFgetsCompleted(swAio_event *event)
 {
     zval *retval = NULL;
     zval *result = NULL;
     SW_MAKE_STD_ZVAL(result);
 
-    if (event->error == 0)
+    if (event->ret != -1)
     {
-        ZVAL_STRINGL(result, (char* )event->buf, event->ret);
+        ZVAL_STRING(result, (char* )event->buf);
     }
     else
     {
@@ -578,8 +578,7 @@ static void aio_onStreamGetLineCompleted(swAio_event *event)
     php_context *context = (php_context *) event->object;
     php_stream *stream;
     php_stream_from_zval_no_verify(stream, &context->coro_params);
-    stream->readpos = event->offset;
-    stream->writepos = (long) event->req;
+
     if (event->flags & SW_AIO_EOF)
     {
         stream->eof = 1;
@@ -890,6 +889,20 @@ static PHP_METHOD(swoole_coroutine_util, fgets)
 
     php_stream_from_res(stream, Z_RES_P(handle));
 
+    FILE *file;
+
+    if (stream->stdiocast)
+    {
+        file = stream->stdiocast;
+    }
+    else
+    {
+        if (php_stream_cast(stream, PHP_STREAM_AS_STDIO, (void**)&file, 1) != SUCCESS || file == NULL)
+        {
+            RETURN_FALSE
+        }
+    }
+
     if (stream->readbuf == NULL)
     {
         stream->readbuflen = stream->chunk_size;
@@ -906,13 +919,12 @@ static PHP_METHOD(swoole_coroutine_util, fgets)
     php_context *context = (php_context *) emalloc(sizeof(php_context));
 
     ev.flags = 0;
-    ev.type = SW_AIO_STREAM_GET_LINE;
+    ev.type = SW_AIO_FGETS;
     ev.object = context;
-    ev.callback = aio_onStreamGetLineCompleted;
-    ev.handler = swAio_handler_stream_get_line;
+    ev.callback = aio_onFgetsCompleted;
+    ev.handler = swAio_handler_fgets;
     ev.fd = fd;
-    ev.offset = stream->readpos;
-    ev.req = (void *) (long) stream->writepos;
+    ev.req = (void *) file;
 
     if (!SwooleAIO.init)
     {
