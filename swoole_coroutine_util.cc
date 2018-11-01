@@ -893,11 +893,7 @@ static PHP_METHOD(swoole_coroutine_util, fread)
     ev.fd = fd;
     ev.offset = _seek;
 
-    if (!SwooleAIO.init)
-    {
-        php_swoole_check_reactor();
-        swAio_init();
-    }
+    php_swoole_check_aio();
 
     swTrace("fd=%d, offset=%jd, length=%ld", fd, (intmax_t) ev.offset, ev.nbytes);
 
@@ -967,11 +963,7 @@ static PHP_METHOD(swoole_coroutine_util, fgets)
     ev.offset = stream->readpos;
     ev.req = (void *) (long) stream->writepos;
 
-    if (!SwooleAIO.init)
-    {
-        php_swoole_check_reactor();
-        swAio_init();
-    }
+    php_swoole_check_aio();
 
     swTrace("fd=%d, offset=%jd, length=%ld", fd, (intmax_t) ev.offset, ev.nbytes);
 
@@ -1097,11 +1089,7 @@ static PHP_METHOD(swoole_coroutine_util, readFile)
     ev.callback = aio_onReadFileCompleted;
     ev.req = estrndup(filename, l_filename);
 
-    if (!SwooleAIO.init)
-    {
-        php_swoole_check_reactor();
-        swAio_init();
-    }
+    php_swoole_check_aio();
 
     swTrace("readFile(%s)", filename);
 
@@ -1164,11 +1152,7 @@ static PHP_METHOD(swoole_coroutine_util, writeFile)
         ev.lock = 1;
     }
 
-    if (!SwooleAIO.init)
-    {
-        php_swoole_check_reactor();
-        swAio_init();
-    }
+    php_swoole_check_aio();
 
     swTrace("writeFile(%s, %ld)", filename, ev.nbytes);
 
