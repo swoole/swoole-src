@@ -33,7 +33,7 @@ static void swReactor_defer_timer_callback(swTimer *timer, swTimer_node *tnode)
 {
     defer_task *cb = (defer_task *) tnode->data;
     cb->callback(cb->data);
-    sw_free(cb);
+    delete cb;
 }
 
 void swReactor_defer_task_create(swReactor *reactor)
