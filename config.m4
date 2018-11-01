@@ -469,7 +469,8 @@ if test "$PHP_SWOOLE" != "no"; then
         src/reactor/poll.c \
         src/reactor/epoll.c \
         src/reactor/kqueue.c \
-        src/pipe/base.c \
+        src/reactor/defer_task.cc \
+	src/pipe/base.c \
         src/pipe/eventfd.c \
         src/pipe/unix_socket.c \
         src/lock/semaphore.c \

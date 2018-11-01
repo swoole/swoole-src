@@ -117,6 +117,7 @@ public:
     }
 
     Channel(size_t _capacity);
+    ~Channel();
     void yield(enum channel_op type);
     void notify(enum channel_op type);
     void* pop(double timeout = 0);

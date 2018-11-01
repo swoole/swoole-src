@@ -331,7 +331,7 @@ ssize_t swoole_coroutine_read(int fd, void *buf, size_t count)
     }
 
     swConnection *conn = swReactor_get(SwooleG.main_reactor, fd);
-    if (conn)
+    if (conn && conn->fdtype == SW_FD_CORO_SOCKET)
     {
         Socket *socket = (Socket *) conn->object;
         return socket->read(buf, count);
@@ -364,7 +364,7 @@ ssize_t swoole_coroutine_write(int fd, const void *buf, size_t count)
     }
 
     swConnection *conn = swReactor_get(SwooleG.main_reactor, fd);
-    if (conn)
+    if (conn && conn->fdtype == SW_FD_CORO_SOCKET)
     {
         Socket *socket = (Socket *) conn->object;
         return socket->write(buf, count);
