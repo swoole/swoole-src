@@ -16,13 +16,23 @@
 
 #include "channel.h"
 
+#include <unordered_map>
+
 using namespace swoole;
+static std::unordered_map<void *, bool> channels;
 
 static void channel_defer_callback(void *data)
 {
     notify_msg_t *msg = (notify_msg_t*) data;
-    coroutine_t *co = msg->chan->pop_coroutine(msg->type);
-    coroutine_resume(co);
+    if (channels.find((void*) msg->chan) != channels.end())
+    {
+        coroutine_t *co = msg->chan->pop_coroutine(msg->type);
+        if (co == nullptr)
+        {
+            return;
+        }
+        coroutine_resume(co);
+    }
     delete msg;
 }
 
@@ -41,6 +51,7 @@ Channel::Channel(size_t _capacity)
     closed = false;
     notify_producer_count = 0;
     notify_consumer_count = 0;
+    channels[(void*) this] = true;
 }
 
 void Channel::yield(enum channel_op type)
@@ -172,4 +183,9 @@ bool Channel::close()
         notify(CONSUMER);
     }
     return true;
+}
+
+Channel::~Channel()
+{
+    channels.erase((void*) this);
 }

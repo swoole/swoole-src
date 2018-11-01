@@ -386,31 +386,23 @@ void swoole_runtime_init(int module_number);
 void swoole_lock_init(int module_number);
 void swoole_atomic_init(int module_number);
 void swoole_client_init(int module_number);
-#ifdef SW_COROUTINE
 void swoole_socket_coro_init(int module_number);
 void swoole_client_coro_init(int module_number);
-#ifdef SW_USE_REDIS
 void swoole_redis_coro_init(int module_number);
-#endif
 #ifdef SW_USE_POSTGRESQL
 void swoole_postgresql_coro_init (int module_number);
 #endif
 void swoole_mysql_coro_init(int module_number);
 void swoole_http_client_coro_init(int module_number);
 void swoole_coroutine_util_init(int module_number);
-#endif
 void swoole_http_client_init(int module_number);
-#ifdef SW_USE_REDIS
 void swoole_redis_init(int module_number);
-#endif
 void swoole_redis_server_init(int module_number);
 void swoole_process_init(int module_number);
 void swoole_process_pool_init(int module_number);
 void swoole_http_server_init(int module_number);
 #ifdef SW_USE_HTTP2
-#ifdef SW_COROUTINE
 void swoole_http2_client_coro_init(int module_number);
-#endif
 #endif
 void swoole_websocket_init(int module_number);
 void swoole_buffer_init(int module_number);
@@ -419,9 +411,7 @@ void swoole_mmap_init(int module_number);
 void swoole_channel_init(int module_number);
 void swoole_ringqueue_init(int module_number);
 void swoole_msgqueue_init(int module_number);
-#ifdef SW_COROUTINE
 void swoole_channel_coro_init(int module_number);
-#endif
 void swoole_serialize_init(int module_number);
 void swoole_memory_pool_init(int module_number);
 

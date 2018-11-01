@@ -1094,19 +1094,15 @@ PHP_MINIT_FUNCTION(swoole)
 
     swoole_server_port_init(module_number);
     swoole_client_init(module_number);
-#ifdef SW_COROUTINE
     swoole_socket_coro_init(module_number);
     swoole_client_coro_init(module_number);
-#ifdef SW_USE_REDIS
     swoole_redis_coro_init(module_number);
-#endif
 #ifdef SW_USE_POSTGRESQL
     swoole_postgresql_coro_init(module_number);
 #endif
     swoole_mysql_coro_init(module_number);
     swoole_http_client_coro_init(module_number);
 	swoole_coroutine_util_init(module_number);
-#endif
     swoole_http_client_init(module_number);
     swoole_async_init(module_number);
     swoole_process_init(module_number);
@@ -1121,23 +1117,16 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_mysql_init(module_number);
     swoole_mmap_init(module_number);
     swoole_channel_init(module_number);
-#ifdef SW_COROUTINE
     swoole_channel_coro_init(module_number);
-#endif
     swoole_ringqueue_init(module_number);
     swoole_msgqueue_init(module_number);
 #ifdef SW_USE_HTTP2
-#ifdef SW_COROUTINE
     swoole_http2_client_coro_init(module_number);
-#endif
 #endif
 
     swoole_serialize_init(module_number);
     swoole_memory_pool_init(module_number);
-
-#ifdef SW_USE_REDIS
     swoole_redis_init(module_number);
-#endif
     swoole_redis_server_init(module_number);
 
     if (SWOOLE_G(socket_buffer_size) > 0)
