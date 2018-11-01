@@ -1,14 +1,23 @@
-int swoole_coroutine_access(const char *pathname, int mode);
-int swoole_coroutine_open(const char *pathname, int flags, mode_t mode);
-ssize_t swoole_coroutine_read(int fd, void *buf, size_t count);
-ssize_t swoole_coroutine_write(int fd, const void *buf, size_t count);
-off_t swoole_coroutine_lseek(int fd, off_t offset, int whence);
-int swoole_coroutine_fstat(int fd, struct stat *statbuf);
-int swoole_coroutine_unlink(const char *pathname);
-int swoole_coroutine_mkdir(const char *pathname, mode_t mode);
-int swoole_coroutine_rmdir(const char *pathname);
-int swoole_coroutine_rename(const char *oldpath, const char *newpath);
-int swoole_coroutine_flock(int fd, int operation);
+/*
+  +----------------------------------------------------------------------+
+  | Swoole                                                               |
+  +----------------------------------------------------------------------+
+  | This source file is subject to version 2.0 of the Apache license,    |
+  | that is bundled with this package in the file LICENSE, and is        |
+  | available through the world-wide-web at the following url:           |
+  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
+  | If you did not receive a copy of the Apache2.0 license and are unable|
+  | to obtain it through the world-wide-web, please send a note to       |
+  | license@swoole.com so we can mail you a copy immediately.            |
+  +----------------------------------------------------------------------+
+  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  +----------------------------------------------------------------------+
+*/
+
+#ifndef SW_FILE_HOOK_H_
+#define SW_FILE_HOOK_H_
+
+#include "coroutine_c_api.h"
 
 #define access(pathname, mode)             swoole_coroutine_access(pathname, mode)
 #define open(pathname, flags, mode)        swoole_coroutine_open(pathname, flags, mode)
@@ -26,4 +35,6 @@ DIR *swoole_coroutine_opendir(const char *name);
 struct dirent *swoole_coroutine_readdir(DIR *dirp);
 #define opendir(name)                      swoole_coroutine_opendir(name)
 #define readdir(dir)                       swoole_coroutine_readdir(dir)
+#endif
+
 #endif

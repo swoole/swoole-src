@@ -1,3 +1,19 @@
+/*
+  +----------------------------------------------------------------------+
+  | Swoole                                                               |
+  +----------------------------------------------------------------------+
+  | This source file is subject to version 2.0 of the Apache license,    |
+  | that is bundled with this package in the file LICENSE, and is        |
+  | available through the world-wide-web at the following url:           |
+  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
+  | If you did not receive a copy of the Apache2.0 license and are unable|
+  | to obtain it through the world-wide-web, please send a note to       |
+  | license@swoole.com so we can mail you a copy immediately.            |
+  +----------------------------------------------------------------------+
+  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  +----------------------------------------------------------------------+
+*/
+
 #ifndef SW_SOCKET_HOOK_H_
 #define SW_SOCKET_HOOK_H_
 
@@ -10,16 +26,7 @@
 extern "C" {
 #endif
 
-int swoole_coroutine_socket(int domain, int type, int protocol);
-ssize_t swoole_coroutine_send(int sockfd, const void *buf, size_t len, int flags);
-ssize_t swoole_coroutine_sendmsg(int sockfd, const struct msghdr *msg, int flags);
-ssize_t swoole_coroutine_recv(int sockfd, void *buf, size_t len, int flags);
-ssize_t swoole_coroutine_recvmsg(int sockfd, struct msghdr *msg, int flags);
-ssize_t swoole_coroutine_read(int fd, void *buf, size_t count);
-ssize_t swoole_coroutine_write(int fd, const void *buf, size_t count);
-int swoole_coroutine_close(int fd);
-int swoole_coroutine_connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
-int swoole_coroutine_poll(struct pollfd *fds, nfds_t nfds, int timeout);
+#include "coroutine_c_api.h"
 
 #define socket(domain, type, protocol)  swoole_coroutine_socket(domain, type, protocol)
 #define send(sockfd, buf, len, flags)   swoole_coroutine_send(sockfd, buf, len, flags)

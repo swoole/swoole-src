@@ -18,9 +18,11 @@
 #include "php_swoole.h"
 
 #include "swoole_coroutine.h"
+#include "coroutine_c_api.h"
 #include "async.h"
 #include "zend_builtin_functions.h"
 #include "ext/standard/file.h"
+
 #include <sys/file.h>
 #include <sys/statvfs.h>
 
@@ -557,15 +559,15 @@ static void aio_onReadCompleted(swAio_event *event)
     efree(context);
 }
 
-static void aio_onStreamGetLineCompleted(swAio_event *event)
+static void aio_onFgetsCompleted(swAio_event *event)
 {
     zval *retval = NULL;
     zval *result = NULL;
     SW_MAKE_STD_ZVAL(result);
 
-    if (event->error == 0)
+    if (event->ret != -1)
     {
-        ZVAL_STRINGL(result, (char* )event->buf, event->ret);
+        ZVAL_STRING(result, (char* )event->buf);
     }
     else
     {
@@ -576,8 +578,7 @@ static void aio_onStreamGetLineCompleted(swAio_event *event)
     php_context *context = (php_context *) event->object;
     php_stream *stream;
     php_stream_from_zval_no_verify(stream, &context->coro_params);
-    stream->readpos = event->offset;
-    stream->writepos = (long) event->req;
+
     if (event->flags & SW_AIO_EOF)
     {
         stream->eof = 1;
@@ -616,61 +617,6 @@ static void aio_onWriteCompleted(swAio_event *event)
     }
     zval_ptr_dtor(result);
     efree(event->buf);
-    efree(context);
-}
-
-static void aio_onReadFileCompleted(swAio_event *event)
-{
-    zval *retval = NULL;
-    zval *result = NULL;
-
-    SW_MAKE_STD_ZVAL(result);
-    if (event->ret < 0)
-    {
-        SwooleG.error = event->error;
-        ZVAL_BOOL(result, 0);
-    }
-    else
-    {
-        ZVAL_STRINGL(result, (char* )event->buf, event->ret);
-        sw_free(event->buf);
-    }
-
-    php_context *context = (php_context *) event->object;
-    int ret = coro_resume(context, result, &retval);
-    if (ret == CORO_END && retval)
-    {
-        zval_ptr_dtor(retval);
-    }
-    zval_ptr_dtor(result);
-    efree(event->req);
-    efree(context);
-}
-
-static void aio_onWriteFileCompleted(swAio_event *event)
-{
-    zval *retval = NULL;
-    zval *result = NULL;
-
-    SW_MAKE_STD_ZVAL(result);
-    if (event->ret < 0)
-    {
-        SwooleG.error = event->error;
-        ZVAL_BOOL(result, 0);
-    }
-    else
-    {
-        ZVAL_LONG(result, event->ret);
-    }
-
-    php_context *context = (php_context *) event->object;
-    int ret = coro_resume(context, result, &retval);
-    if (ret == CORO_END && retval)
-    {
-        zval_ptr_dtor(retval);
-    }
-    zval_ptr_dtor(result);
-    efree(event->req);
     efree(context);
 }
 
@@ -939,6 +885,20 @@ static PHP_METHOD(swoole_coroutine_util, fgets)
 
     php_stream_from_res(stream, Z_RES_P(handle));
 
+    FILE *file;
+
+    if (stream->stdiocast)
+    {
+        file = stream->stdiocast;
+    }
+    else
+    {
+        if (php_stream_cast(stream, PHP_STREAM_AS_STDIO, (void**)&file, 1) != SUCCESS || file == NULL)
+        {
+            RETURN_FALSE
+        }
+    }
+
     if (stream->readbuf == NULL)
     {
         stream->readbuflen = stream->chunk_size;
@@ -955,13 +915,12 @@ static PHP_METHOD(swoole_coroutine_util, fgets)
     php_context *context = (php_context *) emalloc(sizeof(php_context));
 
     ev.flags = 0;
-    ev.type = SW_AIO_STREAM_GET_LINE;
+    ev.type = SW_AIO_FGETS;
     ev.object = context;
-    ev.callback = aio_onStreamGetLineCompleted;
-    ev.handler = swAio_handler_stream_get_line;
+    ev.callback = aio_onFgetsCompleted;
+    ev.handler = swAio_handler_fgets;
     ev.fd = fd;
-    ev.offset = stream->readpos;
-    ev.req = (void *) (long) stream->writepos;
+    ev.req = (void *) file;
 
     php_swoole_check_aio();
 
@@ -1073,37 +1032,18 @@ static PHP_METHOD(swoole_coroutine_util, readFile)
         Z_PARAM_LONG(flags)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    swAio_event ev;
-    bzero(&ev, sizeof(swAio_event));
-
-    php_context *context = (php_context *) emalloc(sizeof(php_context));
-
-    if (flags & LOCK_EX)
-    {
-        ev.lock = 1;
-    }
-
-    ev.type = SW_AIO_READ_FILE;
-    ev.object = context;
-    ev.handler = swAio_handler_read_file;
-    ev.callback = aio_onReadFileCompleted;
-    ev.req = estrndup(filename, l_filename);
-
     php_swoole_check_aio();
 
-    swTrace("readFile(%s)", filename);
-
-    int ret = swAio_dispatch(&ev);
-    if (ret < 0)
+    swString *result = swoole_coroutine_read_file(filename, flags & LOCK_EX);
+    if (result == NULL)
     {
-        efree(context);
         RETURN_FALSE;
     }
-
-    context->state = SW_CORO_CONTEXT_RUNNING;
-
-    coro_save(context);
-    coro_yield();
+    else
+    {
+        RETVAL_STRINGL(result->str, result->length);
+        swString_free(result);
+    }
 }
 
 static PHP_METHOD(swoole_coroutine_util, writeFile)
@@ -1129,44 +1069,25 @@ static PHP_METHOD(swoole_coroutine_util, writeFile)
     ev.nbytes = l_data;
     ev.buf = data;
 
-    php_context *context = (php_context *) emalloc(sizeof(php_context));
-
-    ev.type = SW_AIO_WRITE_FILE;
-    ev.object = context;
-    ev.handler = swAio_handler_write_file;
-    ev.callback = aio_onWriteFileCompleted;
-    ev.req = estrndup(filename, l_filename);
-    ev.flags = O_CREAT | O_WRONLY;
-
+    int _flags = O_CREAT | O_WRONLY;
     if (flags & PHP_FILE_APPEND)
     {
-        ev.flags |= O_APPEND;
+        _flags |= O_APPEND;
     }
     else
     {
-        ev.flags |= O_TRUNC;
+        _flags |= O_TRUNC;
     }
 
-    if (flags & LOCK_EX)
+    ssize_t retval = swoole_coroutine_write_file(filename, data, l_data, flags & LOCK_EX, _flags);
+    if (retval < 0)
     {
-        ev.lock = 1;
+        RETURN_FALSE
     }
-
-    php_swoole_check_aio();
-
-    swTrace("writeFile(%s, %ld)", filename, ev.nbytes);
-
-    int ret = swAio_dispatch(&ev);
-    if (ret < 0)
+    else
     {
-        efree(context);
-        RETURN_FALSE;
+        RETURN_LONG(retval);
     }
-
-    context->state = SW_CORO_CONTEXT_RUNNING;
-
-    coro_save(context);
-    coro_yield();
 }
 
 static void coro_dns_onResolveCompleted(swAio_event *event)
