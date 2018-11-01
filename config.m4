@@ -23,9 +23,6 @@ PHP_ARG_ENABLE(trace-log, Whether to enable trace log,
 PHP_ARG_ENABLE(sockets, enable sockets support,
 [  --enable-sockets          Do you have sockets extension?], no, no)
 
-PHP_ARG_ENABLE(async_redis, enable async_redis support,
-[  --enable-async-redis      Do you have hiredis?], no, no)
-
 PHP_ARG_ENABLE(openssl, enable openssl support,
 [  --enable-openssl          Use openssl?], no, no)
 
@@ -43,9 +40,6 @@ PHP_ARG_ENABLE(coroutine-postgresql, enable coroutine postgresql support,
 
 PHP_ARG_WITH(openssl_dir, dir of openssl,
 [  --with-openssl-dir[=DIR]    Include OpenSSL support (requires OpenSSL >= 0.9.6)], no, no)
-
-PHP_ARG_WITH(hiredis_dir, dir of hiredis,
-[  --with-hiredis-dir[=DIR]    Include hiredis support], no, no)
 
 PHP_ARG_WITH(nghttp2_dir, dir of nghttp2,
 [  --with-nghttp2-dir[=DIR]    Include nghttp2 support], no, no)
@@ -328,15 +322,6 @@ if test "$PHP_SWOOLE" != "no"; then
 
     PHP_ADD_LIBRARY(pthread, 1, SWOOLE_SHARED_LIBADD)
 
-    if test "$PHP_ASYNC_REDIS" = "yes" || test "$PHP_HIREDIS_DIR" != "no"; then
-	    if test "$PHP_HIREDIS_DIR" != "no"; then
-	        PHP_ADD_INCLUDE("${PHP_HIREDIS_DIR}/include")
-	        PHP_ADD_LIBRARY_WITH_PATH(hiredis, "${PHP_HIREDIS_DIR}/${PHP_LIBDIR}")
-	    fi
-        AC_DEFINE(SW_USE_REDIS, 1, [enable async-redis support])
-        PHP_ADD_LIBRARY(hiredis, 1, SWOOLE_SHARED_LIBADD)
-    fi
-
     if test "$PHP_HTTP2" = "yes" || test "$PHP_NGHTTP2_DIR" != "no"; then
 	    if test "$PHP_NGHTTP2_DIR" != "no"; then
 	        PHP_ADD_INCLUDE("${PHP_NGHTTP2_DIR}/include")
@@ -398,7 +383,6 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(pthread, pthread_mutex_timedlock, AC_DEFINE(HAVE_MUTEX_TIMEDLOCK, 1, [have pthread_mutex_timedlock]))
     AC_CHECK_LIB(pthread, pthread_barrier_init, AC_DEFINE(HAVE_PTHREAD_BARRIER, 1, [have pthread_barrier_init]))
     AC_CHECK_LIB(pcre, pcre_compile, AC_DEFINE(HAVE_PCRE, 1, [have pcre]))
-    AC_CHECK_LIB(hiredis, redisConnect, AC_DEFINE(HAVE_HIREDIS, 1, [have hiredis]))
     AC_CHECK_LIB(pq, PQconnectdb, AC_DEFINE(HAVE_POSTGRESQL, 1, [have postgresql]))
     AC_CHECK_LIB(nghttp2, nghttp2_hd_inflate_new, AC_DEFINE(HAVE_NGHTTP2, 1, [have nghttp2]))
 
@@ -441,7 +425,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_mysql_coro.cc \
         swoole_postgresql_coro.c \
         swoole_redis.c \
-        swoole_redis_coro.c \
+        swoole_redis_coro.cc \
         swoole_redis_server.c \
         swoole_mmap.c \
         swoole_channel.c \
@@ -528,6 +512,15 @@ if test "$PHP_SWOOLE" != "no"; then
         AC_DEFINE(SW_USE_PICOHTTPPARSER, 1, [enable picohttpparser support])
         swoole_source_file="$swoole_source_file thirdparty/picohttpparser/picohttpparser.c"
     fi
+    
+    swoole_source_file="$swoole_source_file thirdparty/hiredis/async.c \
+        thirdparty/hiredis/dict.c \
+        thirdparty/hiredis/hiredis.c \
+        thirdparty/hiredis/net.c \
+        thirdparty/hiredis/read.c \
+        thirdparty/hiredis/sds.c \
+        thirdparty/hiredis/test.c"
+     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/hiredis)
 
     SW_NO_USE_ASM_CONTEXT="no"
     SW_ASM_DIR="thirdparty/boost/asm/"

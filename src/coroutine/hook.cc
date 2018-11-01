@@ -330,6 +330,13 @@ ssize_t swoole_coroutine_read(int fd, void *buf, size_t count)
         return read(fd, buf, count);
     }
 
+    swConnection *conn = swReactor_get(SwooleG.main_reactor, fd);
+    if (conn)
+    {
+        Socket *socket = (Socket *) conn->object;
+        return socket->read(buf, count);
+    }
+
     swAio_event ev;
     bzero(&ev, sizeof(ev));
     ev.fd = fd;
@@ -354,6 +361,13 @@ ssize_t swoole_coroutine_write(int fd, const void *buf, size_t count)
     if (SwooleG.main_reactor == nullptr || coroutine_get_current_cid() == -1)
     {
         return write(fd, buf, count);
+    }
+
+    swConnection *conn = swReactor_get(SwooleG.main_reactor, fd);
+    if (conn)
+    {
+        Socket *socket = (Socket *) conn->object;
+        return socket->write(buf, count);
     }
 
     swAio_event ev;

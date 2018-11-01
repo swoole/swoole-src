@@ -30,8 +30,8 @@ typedef struct
     Socket *socket;
     bool ssl;
     bool wait;
-    zend_bool defer;
-    zend_bool keep_alive;
+    bool defer;
+    bool keep_alive;
 
 } http_client_coro_property;
 
