@@ -1673,9 +1673,16 @@ static PHP_METHOD(swoole_redis_coro, connect)
 
     php_swoole_check_reactor();
 
+    struct timeval tv;
+    if (redis->timeout > 0)
+    {
+        tv.tv_sec = redis->timeout;
+        tv.tv_usec = (redis->timeout - (double) tv.tv_sec) * 1000 * 1000;
+    }
+
     if (strncasecmp(host, ZEND_STRL("unix:/")) == 0)
     {
-        context = redisConnectUnix(host + 5);
+        context = redisConnectUnixWithTimeout(host + 5, tv);
     }
     else
     {
@@ -1685,7 +1692,7 @@ static PHP_METHOD(swoole_redis_coro, connect)
             zend_update_property_string(swoole_redis_coro_class_entry_ptr, getThis(), ZEND_STRL("errMsg"), "port is invalid.");
             RETURN_FALSE;
         }
-        context = redisConnect(host, (int) port);
+        context = redisConnectWithTimeout(host, (int) port, tv);
     }
 
     if (context == NULL)

@@ -410,6 +410,13 @@ addrretry:
         memcpy(c->saddr, p->ai_addr, p->ai_addrlen);
         c->addrlen = p->ai_addrlen;
 
+        if (blocking && c->timeout) {
+            struct pollfd _rfd[1];
+            _rfd[0].fd = c->fd;
+            _rfd[0].events = POLLOUT;
+            poll(_rfd, 1, (timeout->tv_sec * 1000) + (timeout->tv_usec / 1000));
+        }
+
         if (connect(s,p->ai_addr,p->ai_addrlen) == -1) {
             if (errno == EHOSTUNREACH) {
                 redisContextCloseFd(c);
@@ -503,6 +510,14 @@ int redisContextConnectUnix(redisContext *c, const char *path, const struct time
 
     sa.sun_family = AF_UNIX;
     strncpy(sa.sun_path,path,sizeof(sa.sun_path)-1);
+
+    if (blocking && c->timeout) {
+        struct pollfd _rfd[1];
+        _rfd[0].fd = c->fd;
+        _rfd[0].events = POLLOUT;
+        poll(_rfd, 1, (timeout->tv_sec * 1000) + (timeout->tv_usec / 1000));
+    }
+
     if (connect(c->fd, (struct sockaddr*)&sa, sizeof(sa)) == -1) {
         if (errno == EINPROGRESS && !blocking) {
             /* This is ok. */
