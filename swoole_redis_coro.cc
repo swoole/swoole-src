@@ -1771,7 +1771,7 @@ static PHP_METHOD(swoole_redis_coro, __destruct)
     }
     if (redis->context)
     {
-        swTraceLog(SW_TRACE_REDIS_CLIENT, "close connection, fd=%d", redis->context->c.fd);
+        swTraceLog(SW_TRACE_REDIS_CLIENT, "close connection, fd=%d", redis->context->fd);
 
         zval *retval = NULL;
         zval *zobject = getThis();

@@ -94,6 +94,10 @@ public:
         if (type == PRODUCER)
         {
             co = producer_queue.front();
+            if (co == nullptr)
+            {
+                return nullptr;
+            }
             producer_queue.pop_front();
             notify_producer_count--;
             swDebug("resume producer[%d]", coroutine_get_cid(co));
@@ -101,6 +105,10 @@ public:
         else
         {
             co = consumer_queue.front();
+            if (co == nullptr)
+            {
+                return nullptr;
+            }
             consumer_queue.pop_front();
             notify_consumer_count--;
             swDebug("resume consumer[%d]", coroutine_get_cid(co));

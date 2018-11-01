@@ -22,6 +22,10 @@ static void channel_defer_callback(void *data)
 {
     notify_msg_t *msg = (notify_msg_t*) data;
     coroutine_t *co = msg->chan->pop_coroutine(msg->type);
+    if (co == nullptr)
+    {
+        return;
+    }
     coroutine_resume(co);
     delete msg;
 }
