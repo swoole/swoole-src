@@ -915,7 +915,9 @@ static PHP_METHOD(swoole_table_row, offsetSet)
     swTableRow_unlock(_rowlock);
 
     zval *zprop_value = sw_zend_read_property(swoole_table_row_class_entry_ptr, getThis(), ZEND_STRL("value"), 0);
-    zend_hash_str_update(Z_ARRVAL_P(zprop_value), key, keylen, value);
+    Z_TRY_ADDREF_P(value);
+    add_assoc_zval_ex(zprop_value, key, keylen, value);
+
     RETURN_TRUE;
 }
 
