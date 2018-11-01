@@ -513,6 +513,8 @@ if test "$PHP_SWOOLE" != "no"; then
         AC_DEFINE(SW_USE_PICOHTTPPARSER, 1, [enable picohttpparser support])
         swoole_source_file="$swoole_source_file thirdparty/picohttpparser/picohttpparser.c"
     fi
+
+    PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/hiredis])
     
     swoole_source_file="$swoole_source_file thirdparty/hiredis/async.c \
         thirdparty/hiredis/hiredis.c \

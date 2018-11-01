@@ -1267,9 +1267,7 @@ PHP_MINFO_FUNCTION(swoole)
 #ifdef SW_USE_HUGEPAGE
     php_info_print_table_row(2, "hugepage", "enabled");
 #endif
-#ifdef SW_USE_REDIS
     php_info_print_table_row(2, "async_redis", "enabled");
-#endif
 #ifdef SW_USE_POSTGRESQL
     php_info_print_table_row(2, "coroutine_postgresql", "enabled");
 #endif
