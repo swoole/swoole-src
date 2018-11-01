@@ -520,7 +520,8 @@ if test "$PHP_SWOOLE" != "no"; then
         thirdparty/hiredis/read.c \
         thirdparty/hiredis/sds.c \
         thirdparty/hiredis/test.c"
-     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/hiredis)
+        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty)
+        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/hiredis)
 
     SW_NO_USE_ASM_CONTEXT="no"
     SW_ASM_DIR="thirdparty/boost/asm/"
@@ -614,7 +615,6 @@ if test "$PHP_SWOOLE" != "no"; then
     PHP_ADD_BUILD_DIR($ext_builddir/src/network)
     PHP_ADD_BUILD_DIR($ext_builddir/src/protocol)
     PHP_ADD_BUILD_DIR($ext_builddir/src/coroutine)
-    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/boost)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/boost/asm)
 fi
