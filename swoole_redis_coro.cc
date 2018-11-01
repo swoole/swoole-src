@@ -868,23 +868,12 @@ typedef struct
 {
     redisContext *context;
     zend_bool defer;
-    zend_bool defer_yield;
-    zend_bool connecting;
-    zend_bool connected;
-    zend_bool released;
     swoole_redis_coro_state state;
     swoole_redis_coro_io_status iowait;
-    uint16_t queued_cmd_count;
-    zval *pipeline_result;
-    zval *defer_result;
     zend_bool serialize;
-
     double timeout;
-    swTimer_node *timer;
-
     zval *object;
     zval _object;
-
 } swRedisClient;
 
 typedef struct
@@ -911,6 +900,7 @@ static void redis_request(swRedisClient *redis, int argc, char **argv, size_t *a
         else
         {
             ZVAL_TRUE(return_value);
+            redis->context->err = 0;
         }
     }
     else
@@ -919,13 +909,16 @@ static void redis_request(swRedisClient *redis, int argc, char **argv, size_t *a
         if (reply == nullptr)
         {
             zend_update_property_long(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errCode"), SW_REDIS_ERR_OTHER);
-            zend_update_property_string(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), "redisAsyncCommandArgv() failed.");
+            zend_update_property_string(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), "redisCommandArgv() failed.");
             ZVAL_FALSE(return_value);
         }
         else
         {
+            zend_update_property_long(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errCode"), 0);
+            zend_update_property_string(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), "");
             swoole_redis_coro_parse_result(redis, return_value, reply);
             freeReplyObject(reply);
+            redis->context->err = 0;
         }
     }
     int i;
@@ -988,9 +981,10 @@ static sw_inline void sw_redis_command_var_key(INTERNAL_FUNCTION_PARAMETERS, con
             SW_REDIS_COMMAND_ARGV_FILL(convert_str->val, convert_str->len)
             zend_string_release(convert_str);
         SW_HASHTABLE_FOREACH_END();
-        if(has_timeout) {
+        if (has_timeout)
+        {
             buf_len = snprintf(buf, sizeof(buf), "%ld", timeout);
-            SW_REDIS_COMMAND_ARGV_FILL((char*)buf, buf_len);
+            SW_REDIS_COMMAND_ARGV_FILL((char* )buf, buf_len);
         }
     }
     else
@@ -1018,7 +1012,6 @@ static sw_inline void sw_redis_command_var_key(INTERNAL_FUNCTION_PARAMETERS, con
 
     redis_request(redis, argc, argv, argvlen, return_value);
 }
-
 
 static inline void sw_redis_command_key(INTERNAL_FUNCTION_PARAMETERS, const char *cmd, int cmd_len)
 {
@@ -1587,24 +1580,6 @@ void swoole_redis_coro_init(int module_number)
     REGISTER_LONG_CONSTANT("SWOOLE_REDIS_TYPE_HASH", SW_REDIS_HASH, CONST_CS | CONST_PERSISTENT);
 }
 
-static swRedisClient* redis_coro_create(zval *object)
-{
-    swRedisClient *redis = (swRedisClient *) emalloc(sizeof(swRedisClient));
-    bzero(redis, sizeof(swRedisClient));
-
-    redis->object = object;
-    sw_copy_to_stack(redis->object, redis->_object);
-
-    swoole_set_object(object, redis);
-
-    redis->state = SWOOLE_REDIS_CORO_STATE_READY;
-    redis->iowait = SW_REDIS_CORO_STATUS_READY;
-    redis->pipeline_result = NULL;
-    redis->timeout = SW_REDIS_CONNECT_TIMEOUT;
-
-    return redis;
-}
-
 static PHP_METHOD(swoole_redis_coro, __construct)
 {
     zval *zset = NULL;
@@ -1613,7 +1588,15 @@ static PHP_METHOD(swoole_redis_coro, __construct)
         RETURN_FALSE;
     }
 
-    swRedisClient *redis = redis_coro_create(getThis());
+    swRedisClient *redis = (swRedisClient *) emalloc(sizeof(swRedisClient));
+    bzero(redis, sizeof(swRedisClient));
+
+    redis->object = getThis();
+    sw_copy_to_stack(redis->object, redis->_object);
+
+    swoole_set_object(getThis(), redis);
+
+    redis->timeout = SW_REDIS_CONNECT_TIMEOUT;
 
     if (zset && ZVAL_IS_ARRAY(zset))
     {
@@ -1657,15 +1640,7 @@ static PHP_METHOD(swoole_redis_coro, connect)
     }
 
     swRedisClient *redis = (swRedisClient *) swoole_get_object(getThis());
-    if (!redis)
-    {
-        redis = redis_coro_create(getThis());
-    }
-
-    redis->serialize = serialize;
-    redisContext *context;
-
-    if (redis->connected)
+    if (redis->context)
     {
         swoole_php_fatal_error(E_WARNING, "connection to the server has already been established.");
         RETURN_FALSE;
@@ -1680,6 +1655,8 @@ static PHP_METHOD(swoole_redis_coro, connect)
         tv.tv_usec = (redis->timeout - (double) tv.tv_sec) * 1000 * 1000;
     }
 
+    redis->serialize = serialize;
+    redisContext *context;
     if (strncasecmp(host, ZEND_STRL("unix:/")) == 0)
     {
         context = redisConnectUnixWithTimeout(host + 5, tv);
@@ -1713,6 +1690,7 @@ static PHP_METHOD(swoole_redis_coro, connect)
     swSetNonBlock(context->fd);
 
     zend_update_property_long(swoole_redis_coro_class_entry_ptr, getThis(), ZEND_STRL("sock"), context->fd);
+    zend_update_property_bool(swoole_redis_coro_class_entry_ptr, getThis(), ZEND_STRL("connected"), 1);
     redis->context = context;
 
     zend_update_property_string(swoole_redis_coro_class_entry_ptr, getThis(), ZEND_STRL("host"), host);
@@ -1738,11 +1716,6 @@ static PHP_METHOD(swoole_redis_coro, setDefer)
     }
 
     swRedisClient *redis = (swRedisClient *) swoole_get_object(getThis());
-    if (redis->iowait > SW_REDIS_CORO_STATUS_READY)
-    {
-        RETURN_BOOL(defer);
-    }
-
     redis->defer = defer;
 
     RETURN_TRUE;
@@ -3728,18 +3701,6 @@ static PHP_METHOD(swoole_redis_coro, pSubscribe)
         RETURN_FALSE;
     }
 
-    switch (redis->state)
-    {
-    case SWOOLE_REDIS_CORO_STATE_MULTI:
-    case SWOOLE_REDIS_CORO_STATE_PIPELINE:
-        zend_update_property_long(swoole_redis_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), SW_REDIS_ERR_OTHER);
-        zend_update_property_string(swoole_redis_coro_class_entry_ptr, getThis(), ZEND_STRL("errMsg"), "redis state mode is multi or pipeline, cann't use subscribe cmd.");
-        RETURN_FALSE;
-        break;
-    default:
-        break;
-    }
-
     HashTable *ht_chan = Z_ARRVAL_P(z_arr);
     int argc = 1 + zend_hash_num_elements(ht_chan), i = 0;
     SW_REDIS_COMMAND_ALLOC_ARGV
@@ -3789,18 +3750,6 @@ static PHP_METHOD(swoole_redis_coro, subscribe)
         zend_update_property_long(swoole_redis_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), SW_REDIS_ERR_OTHER);
         zend_update_property_string(swoole_redis_coro_class_entry_ptr, getThis(), ZEND_STRL("errMsg"), "psubscribe cannot be used with defer enabled");
         RETURN_FALSE;
-    }
-
-    switch (redis->state)
-    {
-    case SWOOLE_REDIS_CORO_STATE_MULTI:
-    case SWOOLE_REDIS_CORO_STATE_PIPELINE:
-        zend_update_property_long(swoole_redis_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), SW_REDIS_ERR_OTHER);
-        zend_update_property_string(swoole_redis_coro_class_entry_ptr, getThis(), ZEND_STRL("errMsg"), "redis state mode is multi or pipeline, cann't use subscribe cmd.");
-        RETURN_FALSE;
-        break;
-    default:
-        break;
     }
 
     HashTable *ht_chan = Z_ARRVAL_P(z_arr);
