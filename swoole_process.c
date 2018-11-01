@@ -326,6 +326,7 @@ static PHP_METHOD(swoole_process, __destruct)
     SW_PREVENT_USER_DESTRUCT;
 
     swWorker *process = swoole_get_object(getThis());
+    swoole_set_object(getThis(), NULL);
     swPipe *_pipe = process->pipe_object;
     if (_pipe)
     {
@@ -1015,11 +1016,11 @@ static PHP_METHOD(swoole_process, setaffinity)
     {
         RETURN_FALSE;
     }
-    if (Z_ARRVAL_P(array)->nNumOfElements == 0)
+    if (php_swoole_array_length(array) == 0)
     {
         RETURN_FALSE;
     }
-    if (Z_ARRVAL_P(array)->nNumOfElements > SW_CPU_NUM)
+    if (php_swoole_array_length(array) > SW_CPU_NUM)
     {
         swoole_php_fatal_error(E_WARNING, "More than the number of CPU");
         RETURN_FALSE;

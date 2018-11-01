@@ -934,7 +934,7 @@ static int http_client_send_http_request(zval *zobject)
     if (zcookies && Z_TYPE_P(zcookies) == IS_ARRAY)
     {
         swString_append_ptr(http_client_buffer, ZEND_STRL("Cookie: "));
-        int n_cookie = Z_ARRVAL_P(zcookies)->nNumOfElements;
+        int n_cookie = php_swoole_array_length(zcookies);
         int i = 0;
         char *encoded_value;
 

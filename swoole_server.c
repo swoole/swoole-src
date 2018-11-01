@@ -3407,7 +3407,7 @@ PHP_METHOD(swoole_server, taskWaitMulti)
     int dst_worker_id;
     int task_id;
     int i = 0;
-    int n_task = Z_ARRVAL_P(tasks)->nNumOfElements;
+    int n_task = php_swoole_array_length(tasks);
 
     if (n_task >= SW_MAX_CONCURRENT_TASK)
     {
@@ -3510,7 +3510,7 @@ PHP_METHOD(swoole_server, taskWaitMulti)
         {
             goto next;
         }
-        for (j = 0; j < Z_ARRVAL_P(tasks)->nNumOfElements; j++)
+        for (j = 0; j < php_swoole_array_length(tasks); j++)
         {
             if (list_of_id[j] == task_id)
             {
@@ -3551,7 +3551,7 @@ PHP_METHOD(swoole_server, taskCo)
     int dst_worker_id = -1;
     int task_id;
     int i = 0;
-    int n_task = Z_ARRVAL_P(tasks)->nNumOfElements;
+    int n_task = php_swoole_array_length(tasks);
 
     if (n_task >= SW_MAX_CONCURRENT_TASK)
     {

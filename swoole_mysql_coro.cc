@@ -157,8 +157,7 @@ static zend_object *swoole_mysql_coro_create(zend_class_entry *ce)
     mysql_client *client = (mysql_client *) emalloc(sizeof(mysql_client));
     bzero(client, sizeof(mysql_client));
 
-    zval _zobject;
-    zval* zobject = &_zobject;
+    zval _zobject, *zobject = &_zobject;
     ZVAL_OBJ(zobject, object);
     swoole_set_object(zobject, client);
 
@@ -1336,42 +1335,32 @@ static PHP_METHOD(swoole_mysql_coro, close)
 static void swoole_mysql_coro_free_storage(zend_object *object)
 {
     // as __destruct
-    zval _zobject;
-    zval* zobject = &_zobject;
+    zval _zobject, *zobject = &_zobject;
     ZVAL_OBJ(zobject, object);
 
     mysql_client *client = (mysql_client *) swoole_get_object(zobject);
-    if (!client)
+    if (client)
     {
-        _dtor: zend_object_std_dtor(object);
-        return;
+        if (client->state != SW_MYSQL_STATE_CLOSED && client->cli)
+        {
+            swoole_mysql_coro_close(zobject);
+        }
+        if (client->buffer)
+        {
+            swString_free(client->buffer);
+        }
+        efree(client);
+        swoole_set_object(zobject, NULL);
     }
-    if (client->state != SW_MYSQL_STATE_CLOSED && client->cli)
-    {
-        swoole_mysql_coro_close(zobject);
-    }
-    if (client->buffer)
-    {
-        swString_free(client->buffer);
-    }
-    efree(client);
-    swoole_set_object(zobject, NULL);
 
     php_context *context = (php_context *) swoole_get_property(zobject, 0);
-    if (!context)
-    {
-        goto _dtor;
-    }
-    if (likely(context->state == SW_CORO_CONTEXT_RUNNING))
+    if (context)
     {
         efree(context);
+        swoole_set_property(zobject, 0, NULL);
     }
-    else
-    {
-        context->state = SW_CORO_CONTEXT_TERM;
-    }
-    swoole_set_property(zobject, 0, NULL);
-    goto _dtor;
+
+    zend_object_std_dtor(object);
 }
 
 static int swoole_mysql_coro_onError(swReactor *reactor, swEvent *event)

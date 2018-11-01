@@ -469,6 +469,7 @@ static PHP_METHOD(swoole_process_pool, __destruct)
     swProcessPool *pool = swoole_get_object(getThis());
     efree(pool->ptr);
     efree(pool);
+    swoole_set_object(getThis(), NULL);
 
     process_pool_property *pp = swoole_get_property(getThis(), 0);
     if (pp->onWorkerStart)
@@ -484,4 +485,5 @@ static PHP_METHOD(swoole_process_pool, __destruct)
         zval_ptr_dtor(pp->onWorkerStop);
     }
     efree(pp);
+    swoole_set_property(getThis(), 0, NULL);
 }
