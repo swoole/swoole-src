@@ -17,12 +17,14 @@
 #ifndef SW_COROUTINE_API_H_
 #define SW_COROUTINE_API_H_
 
-#include "swoole.h"
-
 #ifdef __cplusplus
 extern "C"
 {
 #endif
+
+#include <sys/stat.h>
+#include <sys/socket.h>
+#include <poll.h>
 
 /**
  * file
@@ -50,12 +52,6 @@ ssize_t swoole_coroutine_recvmsg(int sockfd, struct msghdr *msg, int flags);
 int swoole_coroutine_close(int fd);
 int swoole_coroutine_connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
 int swoole_coroutine_poll(struct pollfd *fds, nfds_t nfds, int timeout);
-
-/**
- * custom
- */
-swString* swoole_coroutine_read_file(const char *file, int lock);
-ssize_t swoole_coroutine_write_file(const char *file, char *buf, size_t length, int lock, int flags);
 
 #ifdef __cplusplus
 }  /* end extern "C" */
