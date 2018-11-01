@@ -202,19 +202,8 @@ void swAio_handler_read(swAio_event *event)
     event->ret = ret;
 }
 
-static inline char* find_eol(char *buf, size_t size)
-{
-    char *eol = memchr(buf, '\n', size);
-    if (!eol)
-    {
-        eol = memchr(buf, '\r', size);
-    }
-    return eol;
-}
-
 void swAio_handler_fgets(swAio_event *event)
 {
-    int ret = -1;
     if (event->lock && flock(event->fd, LOCK_SH) < 0)
     {
         swSysError("flock(%d, LOCK_SH) failed.", event->fd);
@@ -232,7 +221,6 @@ void swAio_handler_fgets(swAio_event *event)
         event->flags = SW_AIO_EOF;
     }
 
-    _return:
     if (event->lock && flock(event->fd, LOCK_UN) < 0)
     {
         swSysError("flock(%d, LOCK_UN) failed.", event->fd);

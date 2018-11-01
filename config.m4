@@ -515,7 +515,6 @@ if test "$PHP_SWOOLE" != "no"; then
     fi
     
     swoole_source_file="$swoole_source_file thirdparty/hiredis/async.c \
-        thirdparty/hiredis/dict.c \
         thirdparty/hiredis/hiredis.c \
         thirdparty/hiredis/net.c \
         thirdparty/hiredis/read.c \
