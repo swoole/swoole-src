@@ -711,6 +711,15 @@ int php_swoole_process_start(swWorker *process, zval *zobject)
     }
 
     swSignal_clear();
+    int i;
+    for(i=0; i<SW_SIGNO_MAX; i++)
+    {
+        if (signal_callback[i])
+        {
+            sw_zval_free(signal_callback[i]);
+            signal_callback[i] = NULL;
+        }
+    }
 
     zend_update_property_long(swoole_process_class_entry_ptr, zobject, ZEND_STRL("pid"), process->pid);
     zend_update_property_long(swoole_process_class_entry_ptr, zobject, ZEND_STRL("pipe"), process->pipe_worker);
