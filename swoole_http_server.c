@@ -1082,7 +1082,8 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
     else
     {
         zval *retval = NULL;
-
+        zend_bool destruct_request = 0;
+        zend_bool destruct_response = 0;
         zval *zrequest_object = ctx->request.zobject;
         zval *zresponse_object = ctx->response.zobject;
 
@@ -1105,6 +1106,8 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
         if (!conn)
         {
             sw_zval_free(zdata);
+            zval_ptr_dtor(zrequest_object);
+            zval_ptr_dtor(zresponse_object);
             swWarn("connection[%d] is closed.", fd);
             return SW_ERR;
         }
@@ -1135,6 +1138,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
             if (zcallback == NULL)
             {
                 swoole_websocket_onHandshake(port, ctx);
+                destruct_response = 1;
                 goto _free_object;
             }
             else
@@ -1152,9 +1156,13 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
             if (zcallback == NULL)
             {
                 swoole_websocket_onRequest(ctx);
+                destruct_request = destruct_response = 1;
                 goto _free_object;
             }
         }
+
+        Z_DELREF_P(zrequest_object);
+        Z_DELREF_P(zresponse_object);
 
         if (SwooleG.enable_coroutine)
         {
@@ -1169,8 +1177,8 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
                 if (ret == CORO_LIMIT)
                 {
                     serv->factory.end(&SwooleG.serv->factory, fd);
+                    destruct_request = destruct_response = 1;
                 }
-                goto _free_object;
             }
         }
         else
@@ -1199,10 +1207,14 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
                 conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
             }
         }
-
-        _free_object:
-        zval_ptr_dtor(zrequest_object);
-        zval_ptr_dtor(zresponse_object);
+        _free_object: if (destruct_request)
+        {
+            zval_ptr_dtor(zrequest_object);
+        }
+        if (destruct_response)
+        {
+            zval_ptr_dtor(zresponse_object);
+        }
         if (retval)
         {
             zval_ptr_dtor(retval);

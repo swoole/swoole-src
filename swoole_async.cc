@@ -1125,7 +1125,7 @@ PHP_METHOD(swoole_async, exec)
     }
 
     pid_t pid;
-    int fd = swoole_shell_exec(command, &pid);
+    int fd = swoole_shell_exec(command, &pid, 0);
     if (fd < 0)
     {
         swoole_php_error(E_WARNING, "Unable to execute '%s'", command);

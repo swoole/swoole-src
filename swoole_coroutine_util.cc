@@ -18,6 +18,7 @@
 #include "php_swoole.h"
 
 #include "swoole_coroutine.h"
+#include "socket.h"
 #include "coroutine_c_api.h"
 #include "async.h"
 #include "zend_builtin_functions.h"
@@ -27,6 +28,8 @@
 #include <sys/statvfs.h>
 
 #include <unordered_map>
+
+using namespace swoole;
 
 typedef struct
 {
@@ -1438,4 +1441,90 @@ static PHP_METHOD(swoole_coroutine_util, statvfs)
     add_assoc_long(return_value, "fsid", _stat.f_fsid);
     add_assoc_long(return_value, "flag", _stat.f_flag);
     add_assoc_long(return_value, "namemax", _stat.f_namemax);
+}
+
+PHP_FUNCTION(swoole_coroutine_exec)
+{
+    char *command;
+    size_t command_len;
+    zend_bool get_error_stream = 0;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|b", &command, &command_len, &get_error_stream) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+
+    if (php_swoole_signal_isset_handler(SIGCHLD))
+    {
+        swoole_php_error(E_WARNING, "The signal [SIGCHLD] is registered, cannot execute swoole_coroutine_exec.", command);
+        RETURN_FALSE;
+    }
+
+    coro_check();
+    swoole_coroutine_signal_init();
+    php_swoole_check_reactor();
+
+    pid_t pid;
+    int fd = swoole_shell_exec(command, &pid, get_error_stream);
+    if (fd < 0)
+    {
+        swoole_php_error(E_WARNING, "Unable to execute '%s'", command);
+        RETURN_FALSE;
+    }
+
+    swString *buffer = swString_new(1024);
+    if (buffer == NULL)
+    {
+        RETURN_FALSE;
+    }
+
+    swSetNonBlock(fd);
+    Socket sock(fd, SW_SOCK_UNIX_STREAM);
+    while (1)
+    {
+        ssize_t retval = sock.read(buffer->str + buffer->length, buffer->size - buffer->length);
+        if (retval > 0)
+        {
+            buffer->length += retval;
+            if (buffer->length == buffer->size)
+            {
+                if (swString_extend(buffer, buffer->size * 2) < 0)
+                {
+                    break;
+                }
+            }
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    zval *zdata;
+    SW_MAKE_STD_ZVAL(zdata);
+    if (buffer->length == 0)
+    {
+        ZVAL_EMPTY_STRING(zdata);
+    }
+    else
+    {
+        ZVAL_STRINGL(zdata, buffer->str, buffer->length);
+    }
+
+    int status;
+    pid_t _pid = swoole_coroutine_waitpid(pid, &status, 0);
+    if (_pid > 0)
+    {
+        array_init(return_value);
+        add_assoc_long(return_value, "code", WEXITSTATUS(status));
+        add_assoc_long(return_value, "signal", WTERMSIG(status));
+        add_assoc_zval(return_value, "output", zdata);
+    }
+    else
+    {
+        zval_ptr_dtor(zdata);
+        RETVAL_FALSE;
+    }
+
+    swString_free(buffer);
 }

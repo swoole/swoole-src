@@ -362,15 +362,15 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
                 {
                     struct
                     {
-                        swSignalHander callback;
+                        swSignalHandler handler;
                         uint16_t signo;
                         uint16_t active;
                     } *sw_signal = object->events[i].udata;
                     if (sw_signal->active)
                     {
-                        if (sw_signal->callback)
+                        if (sw_signal->handler)
                         {
-                            sw_signal->callback(sw_signal->signo);
+                            sw_signal->handler(sw_signal->signo);
                         }
                         else
                         {

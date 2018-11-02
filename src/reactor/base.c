@@ -111,14 +111,20 @@ int swReactor_empty(swReactor *reactor)
         return SW_FALSE;
     }
 
+    int event_num = reactor->event_num;
     int empty = SW_FALSE;
-    //thread pool
-    if (SwooleAIO.init && reactor->event_num == 1 && SwooleAIO.task_num == 0)
+    //aio thread pool
+    if (SwooleAIO.init && SwooleAIO.task_num == 0)
     {
-        empty = SW_TRUE;
+        event_num--;
+    }
+    //signalfd
+    if (swReactor_handle_isset(reactor, SW_FD_SIGNAL) && reactor->signal_listener_num == 0)
+    {
+        event_num--;
     }
     //no event
-    else if (reactor->event_num == 0)
+    if (event_num == 0)
     {
         empty = SW_TRUE;
     }

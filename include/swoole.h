@@ -817,7 +817,7 @@ typedef struct
 
 typedef void * (*swThreadStartFunc)(void *);
 typedef int (*swHandle)(swEventData *buf);
-typedef void (*swSignalHander)(int);
+typedef void (*swSignalHandler)(int);
 typedef struct _swReactor swReactor;
 
 typedef int (*swReactor_handle)(swReactor *reactor, swEvent *event);
@@ -1340,7 +1340,7 @@ double swoole_microtime(void);
 void swoole_rtrim(char *str, int len);
 void swoole_redirect_stdout(int new_fd);
 #ifndef _WIN32
-int swoole_shell_exec(char *command, pid_t *pid);
+int swoole_shell_exec(char *command, pid_t *pid, uint8_t get_error_stream);
 #endif
 SW_API int swoole_add_function(const char *name, void* func);
 SW_API void* swoole_get_function(char *name, uint32_t length);
@@ -1434,9 +1434,10 @@ static sw_inline int swSocket_tcp_nopush(int sock, int nopush)
 #define swSocket_tcp_nopush(sock, nopush)
 #endif
 
-swSignalHander swSignal_set(int sig, swSignalHander func, int restart, int mask);
-void swSignal_add(int signo, swSignalHander func);
+swSignalHandler swSignal_set(int sig, swSignalHandler func, int restart, int mask);
+void swSignal_add(int signo, swSignalHandler func);
 void swSignal_callback(int signo);
+swSignalHandler swSignal_get_handler(int signo);
 void swSignal_clear(void);
 void swSignal_none(void);
 
@@ -1464,6 +1465,7 @@ struct _swReactor
 
     uint32_t event_num;
     uint32_t max_event_num;
+    uint32_t signal_listener_num;
 
     uint32_t check_timer :1;
     uint32_t running :1;

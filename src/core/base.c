@@ -1209,7 +1209,7 @@ SW_API void swoole_call_hook(enum swGlobal_hook_type type, void *arg)
     }
 }
 
-int swoole_shell_exec(char *command, pid_t *pid)
+int swoole_shell_exec(char *command, pid_t *pid, uint8_t get_error_stream)
 {
     pid_t child_pid;
     int fds[2];
@@ -1228,6 +1228,10 @@ int swoole_shell_exec(char *command, pid_t *pid)
     {
         close(fds[SW_PIPE_READ]);
         dup2(fds[SW_PIPE_WRITE], 1);
+        if (get_error_stream)
+        {
+            dup2(fds[SW_PIPE_WRITE], 2);
+        }
 
         //Needed so negative PIDs can kill children of /bin/sh
         setpgid(child_pid, child_pid);

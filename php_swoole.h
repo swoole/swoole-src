@@ -498,6 +498,7 @@ int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swEventData *da
 int php_swoole_client_onPackage(swConnection *conn, char *data, uint32_t length);
 void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode);
 void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode);
+zend_bool php_swoole_signal_isset_handler(int signo);
 
 PHPAPI zend_string* php_swoole_serialize(zval *zvalue);
 PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, zval *zobject_args, long flag);
