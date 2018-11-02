@@ -993,6 +993,8 @@ PHP_MINIT_FUNCTION(swoole)
     SWOOLE_DEFINE(TRACE_REDIS_CLIENT);
     SWOOLE_DEFINE(TRACE_MYSQL_CLIENT);
     SWOOLE_DEFINE(TRACE_AIO);
+    SWOOLE_DEFINE(TRACE_SSL);
+    SWOOLE_DEFINE(TRACE_NORMAL);
     REGISTER_LONG_CONSTANT("SWOOLE_TRACE_ALL", 0xffffffff, CONST_CS | CONST_PERSISTENT);
 
     /**
@@ -1092,19 +1094,15 @@ PHP_MINIT_FUNCTION(swoole)
 
     swoole_server_port_init(module_number);
     swoole_client_init(module_number);
-#ifdef SW_COROUTINE
     swoole_socket_coro_init(module_number);
     swoole_client_coro_init(module_number);
-#ifdef SW_USE_REDIS
     swoole_redis_coro_init(module_number);
-#endif
 #ifdef SW_USE_POSTGRESQL
     swoole_postgresql_coro_init(module_number);
 #endif
     swoole_mysql_coro_init(module_number);
     swoole_http_client_coro_init(module_number);
 	swoole_coroutine_util_init(module_number);
-#endif
     swoole_http_client_init(module_number);
     swoole_async_init(module_number);
     swoole_process_init(module_number);
@@ -1119,23 +1117,16 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_mysql_init(module_number);
     swoole_mmap_init(module_number);
     swoole_channel_init(module_number);
-#ifdef SW_COROUTINE
     swoole_channel_coro_init(module_number);
-#endif
     swoole_ringqueue_init(module_number);
     swoole_msgqueue_init(module_number);
 #ifdef SW_USE_HTTP2
-#ifdef SW_COROUTINE
     swoole_http2_client_coro_init(module_number);
-#endif
 #endif
 
     swoole_serialize_init(module_number);
     swoole_memory_pool_init(module_number);
-
-#ifdef SW_USE_REDIS
     swoole_redis_init(module_number);
-#endif
     swoole_redis_server_init(module_number);
 
     if (SWOOLE_G(socket_buffer_size) > 0)
@@ -1276,9 +1267,7 @@ PHP_MINFO_FUNCTION(swoole)
 #ifdef SW_USE_HUGEPAGE
     php_info_print_table_row(2, "hugepage", "enabled");
 #endif
-#ifdef SW_USE_REDIS
     php_info_print_table_row(2, "async_redis", "enabled");
-#endif
 #ifdef SW_USE_POSTGRESQL
     php_info_print_table_row(2, "coroutine_postgresql", "enabled");
 #endif

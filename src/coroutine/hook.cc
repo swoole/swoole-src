@@ -34,6 +34,11 @@ using namespace std;
 
 extern "C"
 {
+struct aio_task
+{
+    coroutine_t *co;
+    swAio_event *event;
+};
 
 int swoole_coroutine_socket(int domain, int type, int protocol)
 {
@@ -292,6 +297,23 @@ static void aio_onCompleted(swAio_event *event)
     coroutine_resume((coroutine_t *) event->object);
 }
 
+static void aio_onReadFileCompleted(swAio_event *event)
+{
+    aio_task *task = (aio_task *) event->object;
+    task->event->buf = event->buf;
+    task->event->nbytes = event->ret;
+    task->event->error = event->error;
+    coroutine_resume((coroutine_t *) task->co);
+}
+
+static void aio_onWriteFileCompleted(swAio_event *event)
+{
+    aio_task *task = (aio_task *) event->object;
+    task->event->ret = event->ret;
+    task->event->error = event->error;
+    coroutine_resume((coroutine_t *) task->co);
+}
+
 static void sleep_timeout(swTimer *timer, swTimer_node *tnode)
 {
     coroutine_resume((coroutine_t *) tnode->data);
@@ -330,6 +352,13 @@ ssize_t swoole_coroutine_read(int fd, void *buf, size_t count)
         return read(fd, buf, count);
     }
 
+    swConnection *conn = swReactor_get(SwooleG.main_reactor, fd);
+    if (conn && conn->fdtype == SW_FD_CORO_SOCKET)
+    {
+        Socket *socket = (Socket *) conn->object;
+        return socket->read(buf, count);
+    }
+
     swAio_event ev;
     bzero(&ev, sizeof(ev));
     ev.fd = fd;
@@ -354,6 +383,13 @@ ssize_t swoole_coroutine_write(int fd, const void *buf, size_t count)
     if (SwooleG.main_reactor == nullptr || coroutine_get_current_cid() == -1)
     {
         return write(fd, buf, count);
+    }
+
+    swConnection *conn = swReactor_get(SwooleG.main_reactor, fd);
+    if (conn && conn->fdtype == SW_FD_CORO_SOCKET)
+    {
+        Socket *socket = (Socket *) conn->object;
+        return socket->write(buf, count);
     }
 
     swAio_event ev;
@@ -607,6 +643,76 @@ int swoole_coroutine_flock(int fd, int operation)
         return SW_ERR;
     }
     coroutine_yield((coroutine_t *) ev.object);
+    return ev.ret;
+}
+
+swString* swoole_coroutine_read_file(const char *file, int lock)
+{
+    aio_task task;
+
+    swAio_event ev;
+    bzero(&ev, sizeof(swAio_event));
+
+    task.co = coroutine_get_current();
+    task.event = &ev;
+
+    ev.lock = lock ? 1 : 0;
+    ev.type = SW_AIO_READ_FILE;
+    ev.object = (void*) &task;
+    ev.handler = swAio_handler_read_file;
+    ev.callback = aio_onReadFileCompleted;
+    ev.req = (void*) file;
+
+    int ret = swAio_dispatch(&ev);
+    if (ret < 0)
+    {
+        return NULL;
+    }
+    coroutine_yield(task.co);
+    if (ev.error == 0)
+    {
+        swString *str = (swString *) sw_malloc(sizeof(swString));
+        str->str = (char*) ev.buf;
+        str->length = ev.nbytes;
+        return str;
+    }
+    else
+    {
+        SwooleG.error = ev.error;
+        return NULL;
+    }
+}
+
+ssize_t swoole_coroutine_write_file(const char *file, char *buf, size_t length, int lock, int flags)
+{
+    aio_task task;
+
+    swAio_event ev;
+    bzero(&ev, sizeof(swAio_event));
+
+    task.co = coroutine_get_current();
+    task.event = &ev;
+
+    ev.lock = lock ? 1 : 0;
+    ev.type = SW_AIO_WRITE_FILE;
+    ev.buf = buf;
+    ev.nbytes = length;
+    ev.object = (void*) &task;
+    ev.handler = swAio_handler_write_file;
+    ev.callback = aio_onWriteFileCompleted;
+    ev.req = (void*) file;
+    ev.flags = flags;
+
+    int ret = swAio_dispatch(&ev);
+    if (ret < 0)
+    {
+        return -1;
+    }
+    coroutine_yield(task.co);
+    if (ev.error != 0)
+    {
+        SwooleG.error = ev.error;
+    }
     return ev.ret;
 }
 

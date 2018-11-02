@@ -202,19 +202,8 @@ void swAio_handler_read(swAio_event *event)
     event->ret = ret;
 }
 
-static inline char* find_eol(char *buf, size_t size)
+void swAio_handler_fgets(swAio_event *event)
 {
-    char *eol = memchr(buf, '\n', size);
-    if (!eol)
-    {
-        eol = memchr(buf, '\r', size);
-    }
-    return eol;
-}
-
-void swAio_handler_stream_get_line(swAio_event *event)
-{
-    int ret = -1;
     if (event->lock && flock(event->fd, LOCK_SH) < 0)
     {
         swSysError("flock(%d, LOCK_SH) failed.", event->fd);
@@ -223,99 +212,19 @@ void swAio_handler_stream_get_line(swAio_event *event)
         return;
     }
 
-    off_t readpos = event->offset;
-    off_t writepos = (long) event->req;
-    size_t avail = 0;
-    char *eol;
-    char *tmp;
-
-    char *read_buf = event->buf;
-    int read_n = event->nbytes;
-
-    while (1)
+    FILE *file = (FILE *) event->req;
+    char *data = fgets(event->buf, event->nbytes, file);
+    if (data == NULL)
     {
-        avail = writepos - readpos;
-
-        swTraceLog(SW_TRACE_AIO, "readpos=%ld, writepos=%ld", (long)readpos, (long)writepos);
-
-        if (avail > 0)
-        {
-            tmp = event->buf + readpos;
-            eol = find_eol(tmp, avail);
-            if (eol)
-            {
-                event->buf = tmp;
-                event->ret = (eol - tmp) + 1;
-                readpos += event->ret;
-                goto _return;
-            }
-            else if (readpos == 0)
-            {
-                if (writepos == event->nbytes)
-                {
-                    writepos = 0;
-                    event->ret = event->nbytes;
-                    goto _return;
-                }
-                else
-                {
-                    event->flags = SW_AIO_EOF;
-                    ((char*) event->buf)[writepos] = '\0';
-                    event->ret = writepos;
-                    writepos = 0;
-                    goto _return;
-                }
-            }
-            else
-            {
-                memmove(event->buf, event->buf + readpos, avail);
-                writepos = avail;
-                read_buf = event->buf + writepos;
-                read_n = event->nbytes - writepos;
-                readpos = 0;
-                goto _readfile;
-            }
-        }
-        else
-        {
-            _readfile: while (1)
-            {
-                ret = read(event->fd, read_buf, read_n);
-                if (ret < 0 && (errno == EINTR || errno == EAGAIN))
-                {
-                    continue;
-                }
-                break;
-            }
-            if (ret > 0)
-            {
-                writepos += ret;
-            }
-            else if (ret == 0)
-            {
-                event->flags = SW_AIO_EOF;
-                if (writepos > 0)
-                {
-                    event->ret = writepos;
-                }
-                else
-                {
-                    ((char*) event->buf)[0] = '\0';
-                    event->ret = 0;
-                }
-                readpos = writepos = 0;
-                goto _return;
-            }
-        }
+        event->ret = -1;
+        event->error = errno;
+        event->flags = SW_AIO_EOF;
     }
 
-    _return:
     if (event->lock && flock(event->fd, LOCK_UN) < 0)
     {
         swSysError("flock(%d, LOCK_UN) failed.", event->fd);
     }
-    event->offset = readpos;
-    event->req = (void *) (long) writepos;
 }
 
 void swAio_handler_read_file(swAio_event *event)

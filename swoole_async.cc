@@ -25,6 +25,7 @@
 #include "ext/standard/basic_functions.h"
 #endif
 
+#include <string>
 #include <unordered_map>
 
 typedef struct

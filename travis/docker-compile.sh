@@ -9,7 +9,6 @@ phpize > /dev/null && \
 ./configure \
 --enable-openssl \
 --enable-http2 \
---enable-async-redis \
 --enable-sockets \
 --enable-mysqlnd \
 > /dev/null && \

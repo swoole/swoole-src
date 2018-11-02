@@ -37,6 +37,7 @@ extern "C" {
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
+#include <stddef.h>
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -86,7 +87,7 @@ int daemon(int nochdir, int noclose);
 
 /*----------------------------------------------------------------------------*/
 
-#define SWOOLE_VERSION "4.2.5"
+#define SWOOLE_VERSION "4.2.6-alpha"
 #define SWOOLE_BUG_REPORT \
     "A bug occurred in Swoole-v" SWOOLE_VERSION ", please report it.\n"\
     "The Swoole developers probably don't know about it,\n"\
@@ -1516,7 +1517,10 @@ struct _swReactor
     void (*free)(swReactor *);
 
     int (*setHandle)(swReactor *, int fdtype, swReactor_handle);
-    swDefer_callback *defer_tasks;
+
+    void *defer_tasks;
+    void (*do_defer_tasks)(swReactor *);
+
     swDefer_callback idle_task;
     swDefer_callback future_task;
 
@@ -1747,6 +1751,9 @@ static sw_inline int swReactor_events(int fdtype)
 int swReactor_create(swReactor *reactor, int max_event);
 int swReactor_setHandle(swReactor *, int, swReactor_handle);
 int swReactor_empty(swReactor *reactor);
+
+void swReactor_defer_task_create(swReactor *reactor);
+void swReactor_defer_task_destory(swReactor *reactor);
 
 static sw_inline swConnection* swReactor_get(swReactor *reactor, int fd)
 {

@@ -143,6 +143,7 @@
             <file role="doc" name="examples/coroutine/defer_client.php" />
             <file role="doc" name="examples/coroutine/enable_coroutine.php" />
             <file role="doc" name="examples/coroutine/exception/empty.php" />
+            <file role="doc" name="examples/coroutine/exec.php" />
             <file role="doc" name="examples/coroutine/exit_in_coroutine.php" />
             <file role="doc" name="examples/coroutine/exit_with_status.php" />
             <file role="doc" name="examples/coroutine/fgets.php" />
@@ -165,9 +166,15 @@
             <file role="doc" name="examples/coroutine/mysql_unixsocket.php" />
             <file role="doc" name="examples/coroutine/reconnect_test.php" />
             <file role="doc" name="examples/coroutine/redis/auth.php" />
+            <file role="doc" name="examples/coroutine/redis/defer.php" />
             <file role="doc" name="examples/coroutine/redis/eval.php" />
+            <file role="doc" name="examples/coroutine/redis/get.php" />
+            <file role="doc" name="examples/coroutine/redis/multi.php" />
+            <file role="doc" name="examples/coroutine/redis/pipeline.php" />
+            <file role="doc" name="examples/coroutine/redis/pub.php" />
             <file role="doc" name="examples/coroutine/redis/request.php" />
             <file role="doc" name="examples/coroutine/redis/serialize.php" />
+            <file role="doc" name="examples/coroutine/redis/sub.php" />
             <file role="doc" name="examples/coroutine/redis_pool.php" />
             <file role="doc" name="examples/coroutine/redis_subscribe.php" />
             <file role="doc" name="examples/coroutine/select/1.php" />
@@ -539,7 +546,7 @@
             <file role="src" name="swoole_process.c" />
             <file role="src" name="swoole_process_pool.c" />
             <file role="src" name="swoole_redis.c" />
-            <file role="src" name="swoole_redis_coro.c" />
+            <file role="src" name="swoole_redis_coro.cc" />
             <file role="src" name="swoole_redis_server.c" />
             <file role="src" name="swoole_ringqueue.c" />
             <file role="src" name="swoole_runtime.cc" />
@@ -667,6 +674,7 @@
             <file role="test" name="tests/swoole_async/aio1.phpt" />
             <file role="test" name="tests/swoole_async/aio2.phpt" />
             <file role="test" name="tests/swoole_async/aio3.phpt" />
+            <file role="test" name="tests/swoole_async/exec.phpt" />
             <file role="test" name="tests/swoole_async/parallel_read_copy_10m_file_with_1m_chunk.phpt" />
             <file role="test" name="tests/swoole_async/parallel_read_copy_10m_file_with_512k_chunk.phpt" />
             <file role="test" name="tests/swoole_async/readfile.phpt" />
@@ -1217,6 +1225,45 @@
             <file role="src" name="thirdparty/boost/asm/make_x86_64_ms_pe_masm.asm" />
             <file role="src" name="thirdparty/boost/asm/make_x86_64_sysv_elf_gas.S" />
             <file role="src" name="thirdparty/boost/asm/make_x86_64_sysv_macho_gas.S" />
+            <file role="doc" name="thirdparty/hiredis/CHANGELOG.md" />
+            <file role="doc" name="thirdparty/hiredis/COPYING" />
+            <file role="doc" name="thirdparty/hiredis/Makefile" />
+            <file role="doc" name="thirdparty/hiredis/README.md" />
+            <file role="src" name="thirdparty/hiredis/adapters/ae.h" />
+            <file role="src" name="thirdparty/hiredis/adapters/glib.h" />
+            <file role="src" name="thirdparty/hiredis/adapters/ivykis.h" />
+            <file role="src" name="thirdparty/hiredis/adapters/libev.h" />
+            <file role="src" name="thirdparty/hiredis/adapters/libevent.h" />
+            <file role="src" name="thirdparty/hiredis/adapters/libuv.h" />
+            <file role="src" name="thirdparty/hiredis/adapters/macosx.h" />
+            <file role="src" name="thirdparty/hiredis/adapters/qt.h" />
+            <file role="src" name="thirdparty/hiredis/appveyor.yml" />
+            <file role="src" name="thirdparty/hiredis/async.c" />
+            <file role="src" name="thirdparty/hiredis/async.h" />
+            <file role="src" name="thirdparty/hiredis/dict.c" />
+            <file role="src" name="thirdparty/hiredis/dict.h" />
+            <file role="src" name="thirdparty/hiredis/examples/example-ae.c" />
+            <file role="src" name="thirdparty/hiredis/examples/example-glib.c" />
+            <file role="src" name="thirdparty/hiredis/examples/example-ivykis.c" />
+            <file role="src" name="thirdparty/hiredis/examples/example-libev.c" />
+            <file role="src" name="thirdparty/hiredis/examples/example-libevent.c" />
+            <file role="src" name="thirdparty/hiredis/examples/example-libuv.c" />
+            <file role="src" name="thirdparty/hiredis/examples/example-macosx.c" />
+            <file role="src" name="thirdparty/hiredis/examples/example-qt.cpp" />
+            <file role="src" name="thirdparty/hiredis/examples/example-qt.h" />
+            <file role="src" name="thirdparty/hiredis/examples/example.c" />
+            <file role="src" name="thirdparty/hiredis/fmacros.h" />
+            <file role="src" name="thirdparty/hiredis/hiredis.c" />
+            <file role="src" name="thirdparty/hiredis/hiredis.h" />
+            <file role="src" name="thirdparty/hiredis/net.c" />
+            <file role="src" name="thirdparty/hiredis/net.h" />
+            <file role="src" name="thirdparty/hiredis/read.c" />
+            <file role="src" name="thirdparty/hiredis/read.h" />
+            <file role="src" name="thirdparty/hiredis/sds.c" />
+            <file role="src" name="thirdparty/hiredis/sds.h" />
+            <file role="src" name="thirdparty/hiredis/sdsalloc.h" />
+            <file role="src" name="thirdparty/hiredis/test.c" />
+            <file role="src" name="thirdparty/hiredis/win32.h" />
             <file role="src" name="thirdparty/multipart_parser.c" />
             <file role="src" name="thirdparty/multipart_parser.h" />
             <file role="src" name="thirdparty/php_streams_int.h" />
@@ -1258,7 +1305,6 @@
         <configureoption default="no" name="enable-sockets" prompt="enable sockets supports?" />
         <configureoption default="no" name="enable-openssl" prompt="enable openssl support?" />
         <configureoption default="no" name="enable-http2" prompt="enable http2 support?" />
-        <configureoption default="no" name="enable-async-redis" prompt="enable async-redis support?" />
         <configureoption default="no" name="enable-mysqlnd" prompt="enable mysqlnd support?" />
         <configureoption default="no" name="enable-coroutine-postgresql" prompt="enable postgresql coroutine client support?" />
     </extsrcrelease>
