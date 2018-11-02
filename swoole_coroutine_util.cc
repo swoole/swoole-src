@@ -1454,6 +1454,12 @@ PHP_FUNCTION(swoole_coroutine_exec)
         RETURN_FALSE;
     }
 
+    if (php_swoole_signal_isset_handler(SIGCHLD))
+    {
+        swoole_php_error(E_WARNING, "The signal [SIGCHLD] is registered, cannot execute swoole_coroutine_exec.", command);
+        RETURN_FALSE;
+    }
+
     coro_check();
     swoole_coroutine_signal_init();
     php_swoole_check_reactor();
