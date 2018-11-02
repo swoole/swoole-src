@@ -480,27 +480,20 @@ static PHP_METHOD(swoole_process, signal)
         RETURN_FALSE;
     }
 
-    if (SwooleG.serv && SwooleG.serv->gs->start)
+    if (signo < 0 || signo >= SW_SIGNO_MAX)
     {
-        if ((swIsWorker() || swIsTaskWorker()) && signo == SIGTERM)
-        {
-            swoole_php_fatal_error(E_WARNING, "unable to register SIGTERM in worker/task process.");
-            RETURN_FALSE;
-        }
-        else if (swIsManager() && (signo == SIGTERM || signo == SIGUSR1 || signo == SIGUSR2 || signo == SIGALRM))
-        {
-            swoole_php_fatal_error(E_WARNING, "unable to register SIGTERM/SIGUSR1/SIGUSR2/SIGALRM in manager process.");
-            RETURN_FALSE;
-        }
-        else if (swIsMaster() && (signo == SIGTERM || signo == SIGUSR1 || signo == SIGUSR2 || signo == SIGALRM || signo == SIGCHLD))
-        {
-            swoole_php_fatal_error(E_WARNING, "unable to register SIGTERM/SIGUSR1/SIGUSR2/SIGALRM/SIGCHLD in manager process.");
-            RETURN_FALSE;
-        }
+        swoole_php_fatal_error(E_WARNING, "invalid signal number [%d].", signo);
+        RETURN_FALSE;
     }
 
     php_swoole_check_reactor();
-    swSignalHander handler;
+    swSignalHandler handler = swSignal_get_handler(signo);
+
+    if (handler && handler != php_swoole_onSignal)
+    {
+        swoole_php_fatal_error(E_WARNING, "This signal [%d] processor has been registered by the system.", signo);
+        RETURN_FALSE
+    }
 
     if (callback == NULL || ZVAL_IS_NULL(callback))
     {
@@ -652,6 +645,16 @@ static void php_swoole_onSignal(int signo)
         zval_ptr_dtor(retval);
     }
     zval_ptr_dtor(zsigno);
+}
+
+zend_bool php_swoole_signal_isset_handler(int signo)
+{
+    if (signo < 0 || signo >= SW_SIGNO_MAX)
+    {
+        swoole_php_fatal_error(E_WARNING, "invalid signal number [%d].", signo);
+        return SW_FALSE;
+    }
+    return signal_callback[signo] != NULL;
 }
 
 int php_swoole_process_start(swWorker *process, zval *zobject)

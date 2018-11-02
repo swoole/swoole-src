@@ -18,7 +18,7 @@
 
 #ifdef HAVE_SIGNALFD
 #include <sys/signalfd.h>
-static void swSignalfd_set(int signo, swSignalHander callback);
+static void swSignalfd_set(int signo, swSignalHandler handler);
 static void swSignalfd_clear();
 static int swSignalfd_onSignal(swReactor *reactor, swEvent *event);
 
@@ -28,12 +28,12 @@ static int signal_fd = 0;
 
 #ifdef HAVE_KQUEUE
 #include <sys/event.h>
-static void swKqueueSignal_set(int signo, swSignalHander callback);
+static void swKqueueSignal_set(int signo, swSignalHandler handler);
 #endif
 
 typedef struct
 {
-    swSignalHander callback;
+    swSignalHandler handler;
     uint16_t signo;
     uint16_t active;
 } swSignal;
@@ -60,7 +60,7 @@ void swSignal_none(void)
 /**
  * setup signal
  */
-swSignalHander swSignal_set(int sig, swSignalHander func, int restart, int mask)
+swSignalHandler swSignal_set(int sig, swSignalHandler func, int restart, int mask)
 {
     //ignore
     if (func == NULL)
@@ -91,12 +91,12 @@ swSignalHander swSignal_set(int sig, swSignalHander func, int restart, int mask)
     return oact.sa_handler;
 }
 
-void swSignal_add(int signo, swSignalHander func)
+void swSignal_add(int signo, swSignalHandler handler)
 {
 #ifdef HAVE_SIGNALFD
     if (SwooleG.use_signalfd)
     {
-        swSignalfd_set(signo, func);
+        swSignalfd_set(signo, handler);
     }
     else
 #endif
@@ -107,12 +107,12 @@ void swSignal_add(int signo, swSignalHander func)
         // if there's no main reactor, signals cannot be monitored either
         if (signo != SIGCHLD && SwooleG.main_reactor)
         {
-            swKqueueSignal_set(signo, func);
+            swKqueueSignal_set(signo, handler);
         }
         else
 #endif
         {
-            signals[signo].callback = func;
+            signals[signo].handler = handler;
             signals[signo].active = 1;
             signals[signo].signo = signo;
             swSignal_set(signo, swSignal_async_handler, 1, 0);
@@ -146,7 +146,7 @@ void swSignal_callback(int signo)
         swWarn("signal[%d] numberis invalid.", signo);
         return;
     }
-    swSignalHander callback = signals[signo].callback;
+    swSignalHandler callback = signals[signo].handler;
     if (!callback)
     {
         swWarn("signal[%d] callback is null.", signo);
@@ -154,6 +154,20 @@ void swSignal_callback(int signo)
     }
     callback(signo);
 }
+
+swSignalHandler swSignal_get_handler(int signo)
+{
+    if (signo >= SW_SIGNO_MAX)
+    {
+        swWarn("signal[%d] numberis invalid.", signo);
+        return NULL;
+    }
+    else
+    {
+        return signals[signo].handler;
+    }
+}
+
 
 void swSignal_clear(void)
 {
@@ -178,7 +192,7 @@ void swSignal_clear(void)
                 else
 #endif
                 {
-                    swSignal_set(signals[i].signo, (swSignalHander) -1, 1, 0);
+                    swSignal_set(signals[i].signo, (swSignalHandler) -1, 1, 0);
                 }
             }
         }
@@ -193,9 +207,9 @@ void swSignalfd_init()
     bzero(&signals, sizeof(signals));
 }
 
-static void swSignalfd_set(int signo, swSignalHander callback)
+static void swSignalfd_set(int signo, swSignalHandler handler)
 {
-    if (callback == NULL && signals[signo].active)
+    if (handler == NULL && signals[signo].active)
     {
         sigdelset(&signalfd_mask, signo);
         bzero(&signals[signo], sizeof(swSignal));
@@ -203,7 +217,7 @@ static void swSignalfd_set(int signo, swSignalHander callback)
     else
     {
         sigaddset(&signalfd_mask, signo);
-        signals[signo].callback = callback;
+        signals[signo].handler = handler;
         signals[signo].signo = signo;
         signals[signo].active = 1;
     }
@@ -272,9 +286,9 @@ static int swSignalfd_onSignal(swReactor *reactor, swEvent *event)
     }
     if (signals[siginfo.ssi_signo].active)
     {
-        if (signals[siginfo.ssi_signo].callback)
+        if (signals[siginfo.ssi_signo].handler)
         {
-            signals[siginfo.ssi_signo].callback(siginfo.ssi_signo);
+            signals[siginfo.ssi_signo].handler(siginfo.ssi_signo);
         }
         else
         {
@@ -288,7 +302,7 @@ static int swSignalfd_onSignal(swReactor *reactor, swEvent *event)
 #endif
 
 #ifdef HAVE_KQUEUE
-static void swKqueueSignal_set(int signo, swSignalHander callback)
+static void swKqueueSignal_set(int signo, swSignalHandler handler)
 {
     struct kevent ev;
     swReactor *reactor = SwooleG.main_reactor;
@@ -298,7 +312,7 @@ static void swKqueueSignal_set(int signo, swSignalHander callback)
     } *reactor_obj = reactor->object;
     int new_event_num;
     // clear signal
-    if (callback == NULL)
+    if (handler == NULL)
     {
         signal(signo, SIG_DFL);
         bzero(&signals[signo], sizeof(swSignal));
@@ -309,7 +323,7 @@ static void swKqueueSignal_set(int signo, swSignalHander callback)
     else
     {
         signal(signo, SIG_IGN);
-        signals[signo].callback = callback;
+        signals[signo].handler = handler;
         signals[signo].signo = signo;
         if (signals[signo].active)
         {
@@ -328,7 +342,7 @@ static void swKqueueSignal_set(int signo, swSignalHander callback)
     int n = kevent(reactor_obj->fd, &ev, 1, NULL, 0, NULL);
     if (n < 0)
     {
-        if (unlikely(callback))
+        if (unlikely(handler))
         {
             swWarn("kevent set signal[%d] error", signo);
         }
