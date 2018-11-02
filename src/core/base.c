@@ -1213,7 +1213,8 @@ int swoole_shell_exec(char *command, pid_t *pid, uint8_t get_error_stream)
 {
     pid_t child_pid;
     int fds[2];
-    if (pipe(fds) < 0)
+    int fds_c[2];
+    if (pipe(fds) < 0 || pipe(fds_c) < 0)
     {
         return SW_ERR;
     }
@@ -1227,8 +1228,11 @@ int swoole_shell_exec(char *command, pid_t *pid, uint8_t get_error_stream)
     if (child_pid == 0)
     {
         close(fds[SW_PIPE_READ]);
-        close(0);
+        close(fds_c[SW_PIPE_WRITE]);
+
         dup2(fds[SW_PIPE_WRITE], 1);
+        dup2(fds_c[SW_PIPE_READ], 0);
+
         if (get_error_stream)
         {
             dup2(fds[SW_PIPE_WRITE], 2);
@@ -1237,12 +1241,13 @@ int swoole_shell_exec(char *command, pid_t *pid, uint8_t get_error_stream)
         //Needed so negative PIDs can kill children of /bin/sh
         setpgid(child_pid, child_pid);
         execl("/bin/sh", "/bin/sh", "-c", command, NULL);
-        exit(0);
+        exit(127);
     }
     else
     {
         *pid = child_pid;
         close(fds[SW_PIPE_WRITE]);
+        close(fds_c[SW_PIPE_READ]);
     }
     return fds[SW_PIPE_READ];
 }
