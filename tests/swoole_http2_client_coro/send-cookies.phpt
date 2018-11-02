@@ -1,5 +1,5 @@
 --TEST--
-swoole_http2_server: nghttp2 big data with ssl
+swoole_http2_client_coro: nghttp2 big data with ssl
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';

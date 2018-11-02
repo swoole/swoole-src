@@ -13,3 +13,5 @@ foreach ($matches[0] as $match) {
 }
 $swoole_c_content = preg_replace('/ *?(?:SWOOLE_DEFINE\(ERROR_[0-9A-Z_]+?\);\n *)+/', $output, $swoole_c_content);
 file_put_contents($swoole_c, $swoole_c_content);
+
+swoole_success('Generate source codes OK!');
