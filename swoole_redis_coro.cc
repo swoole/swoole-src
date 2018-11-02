@@ -2569,11 +2569,10 @@ static PHP_METHOD(swoole_redis_coro, pfadd)
         zend_string *convert_str = zval_get_string(value);
         SW_REDIS_COMMAND_ARGV_FILL(convert_str->val, convert_str->len);
         zend_string_release(convert_str);
-    } SW_HASHTABLE_FOREACH_END();
+    } SW_HASHTABLE_FOREACH_END()
 
-    SW_REDIS_COMMAND(argc)
+    redis_request(redis, argc, argv, argvlen, return_value);
     SW_REDIS_COMMAND_FREE_ARGV
-    SW_REDIS_COMMAND_YIELD
 }
 
 static PHP_METHOD(swoole_redis_coro, pfcount)
@@ -2584,20 +2583,18 @@ static PHP_METHOD(swoole_redis_coro, pfcount)
     if(zend_get_parameters_array(ht, argc, z_args) == FAILURE || argc != 1)
     {
         efree(z_args);
-        return;
+        RETURN_FALSE;
     }
-    SW_REDIS_COMMAND_CHECK_WITH_FREE_Z_ARGS
 
     zend_bool single_array = 0;
     if (SW_REDIS_COMMAND_ARGS_TYPE(z_args[0]) == IS_ARRAY)
     {
-        argc = zend_hash_num_elements(SW_REDIS_COMMAND_ARGS_ARRVAL(z_args[0])) + 1;
+        argc = zend_hash_num_elements(SW_REDIS_COMMAND_ARGS_ARRVAL(z_args[0]));
         single_array = 1;
     }
-    else
-    {
-        argc += 1;
-    }
+
+    SW_REDIS_COMMAND_CHECK
+    argc += 1;
     int i = 0;
     SW_REDIS_COMMAND_ALLOC_ARGV
     SW_REDIS_COMMAND_ARGV_FILL("PFCOUNT", 7)
@@ -2608,7 +2605,7 @@ static PHP_METHOD(swoole_redis_coro, pfcount)
             zend_string *convert_str = zval_get_string(value);
             SW_REDIS_COMMAND_ARGV_FILL(convert_str->val, convert_str->len)
             zend_string_release(convert_str);
-        SW_HASHTABLE_FOREACH_END();
+        SW_HASHTABLE_FOREACH_END()
     }
     else
     {
@@ -2618,9 +2615,8 @@ static PHP_METHOD(swoole_redis_coro, pfcount)
     }
     efree(z_args);
 
-    SW_REDIS_COMMAND(argc)
+    redis_request(redis, argc, argv, argvlen, return_value);
     SW_REDIS_COMMAND_FREE_ARGV
-    SW_REDIS_COMMAND_YIELD
 }
 
 static PHP_METHOD(swoole_redis_coro, pfmerge)
@@ -2632,7 +2628,7 @@ static PHP_METHOD(swoole_redis_coro, pfmerge)
     if(zend_parse_parameters(ZEND_NUM_ARGS(), "sa", &key, &key_len,
                              &z_arr)==FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
     if((argc = zend_hash_num_elements(Z_ARRVAL_P(z_arr))) == 0) {
         RETURN_FALSE;
@@ -2648,11 +2644,10 @@ static PHP_METHOD(swoole_redis_coro, pfmerge)
         zend_string *convert_str = zval_get_string(value);
         SW_REDIS_COMMAND_ARGV_FILL(convert_str->val, convert_str->len);
         zend_string_release(convert_str);
-    } SW_HASHTABLE_FOREACH_END();
+    } SW_HASHTABLE_FOREACH_END()
 
-    SW_REDIS_COMMAND(argc)
+    redis_request(redis, argc, argv, argvlen, return_value);
     SW_REDIS_COMMAND_FREE_ARGV
-    SW_REDIS_COMMAND_YIELD
 }
 
 static PHP_METHOD(swoole_redis_coro, ping)
