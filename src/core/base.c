@@ -1227,6 +1227,7 @@ int swoole_shell_exec(char *command, pid_t *pid, uint8_t get_error_stream)
     if (child_pid == 0)
     {
         close(fds[SW_PIPE_READ]);
+        close(0);
         dup2(fds[SW_PIPE_WRITE], 1);
         if (get_error_stream)
         {
