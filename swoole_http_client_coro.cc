@@ -988,7 +988,7 @@ static PHP_METHOD(swoole_http_client_coro, __construct)
         http_client_coro_property *hcc = (http_client_coro_property *) swoole_get_property(getThis(), 0);
         hcc->ssl = 1;
 #else
-        swoole_php_fatal_error(E_ERROR, "require openssl library.");
+        swoole_php_fatal_error(E_ERROR, "Need to use `--enable-openssl` to support ssl when compiling swoole.");
 #endif
     }
 

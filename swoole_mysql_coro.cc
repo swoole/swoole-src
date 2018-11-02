@@ -423,7 +423,7 @@ static int swoole_mysql_coro_parse_response(mysql_client *client, zval **result,
     else if (client->response.response_type == 255)
     {
         SW_ALLOC_INIT_ZVAL(*result);
-        ZVAL_BOOL(*result, 0);
+        ZVAL_FALSE(*result);
 
         zend_update_property_stringl(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("error"),
                 client->response.server_msg, client->response.l_server_msg);

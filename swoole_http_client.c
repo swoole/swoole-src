@@ -1375,7 +1375,7 @@ static PHP_METHOD(swoole_http_client, __construct)
 #ifdef SW_USE_OPENSSL
         flags |= SW_SOCK_SSL;
 #else
-        swoole_php_fatal_error(E_ERROR, "require openssl library.");
+        swoole_php_fatal_error(E_ERROR, "Need to use `--enable-openssl` to support ssl when compiling swoole.");
 #endif
     }
 
