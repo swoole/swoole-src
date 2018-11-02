@@ -79,6 +79,9 @@ void coroutine_set_onClose(coro_php_close_t func);
 void internal_coro_yield(void *return_value);
 void internal_coro_resume(void *data);
 
+swString* swoole_coroutine_read_file(const char *file, int lock);
+ssize_t swoole_coroutine_write_file(const char *file, char *buf, size_t length, int lock, int flags);
+
 #ifdef __cplusplus
 }  /* end extern "C" */
 #endif

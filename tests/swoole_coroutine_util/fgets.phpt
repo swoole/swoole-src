@@ -6,7 +6,7 @@ swoole_coroutine_util: fgets
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-go(function () use ($fp) {
+go(function () {
     $file = __DIR__ . '/../../swoole.c';
 
     $coroutine = '';
