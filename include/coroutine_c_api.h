@@ -24,6 +24,8 @@ extern "C"
 
 #include <sys/stat.h>
 #include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <poll.h>
 
 /**
@@ -52,6 +54,13 @@ ssize_t swoole_coroutine_recvmsg(int sockfd, struct msghdr *msg, int flags);
 int swoole_coroutine_close(int fd);
 int swoole_coroutine_connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
 int swoole_coroutine_poll(struct pollfd *fds, nfds_t nfds, int timeout);
+
+/**
+ * wait
+ */
+void swoole_coroutine_signal_init();
+pid_t swoole_coroutine_waitpid(pid_t __pid, int *__stat_loc, int __options);
+pid_t swoole_coroutine_wait(int *__stat_loc);
 
 #ifdef __cplusplus
 }  /* end extern "C" */

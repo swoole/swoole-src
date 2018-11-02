@@ -1340,7 +1340,7 @@ double swoole_microtime(void);
 void swoole_rtrim(char *str, int len);
 void swoole_redirect_stdout(int new_fd);
 #ifndef _WIN32
-int swoole_shell_exec(char *command, pid_t *pid);
+int swoole_shell_exec(char *command, pid_t *pid, uint8_t get_error_stream);
 #endif
 SW_API int swoole_add_function(const char *name, void* func);
 SW_API void* swoole_get_function(char *name, uint32_t length);
@@ -1464,6 +1464,7 @@ struct _swReactor
 
     uint32_t event_num;
     uint32_t max_event_num;
+    uint32_t signal_listener_num;
 
     uint32_t check_timer :1;
     uint32_t running :1;

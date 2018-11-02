@@ -510,6 +510,7 @@ static PHP_METHOD(swoole_process, signal)
             swSignal_add(signo, NULL);
             SwooleG.main_reactor->defer(SwooleG.main_reactor, free_signal_callback, callback);
             signal_callback[signo] = NULL;
+            SwooleG.main_reactor->signal_listener_num--;
             RETURN_TRUE;
         }
         else
@@ -548,6 +549,10 @@ static PHP_METHOD(swoole_process, signal)
     if (signal_callback[signo])
     {
         SwooleG.main_reactor->defer(SwooleG.main_reactor, free_signal_callback, signal_callback[signo]);
+    }
+    else
+    {
+        SwooleG.main_reactor->signal_listener_num++;
     }
     signal_callback[signo] = callback;
 
