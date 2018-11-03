@@ -1221,22 +1221,30 @@ int swoole_shell_exec(char *command, pid_t *pid, uint8_t get_error_stream)
     if ((child_pid = fork()) == -1)
     {
         swSysError("fork() failed.");
+        close(fds[0]);
+        close(fds[1]);
         return SW_ERR;
     }
 
     if (child_pid == 0)
     {
         close(fds[SW_PIPE_READ]);
-        dup2(fds[SW_PIPE_WRITE], 1);
-        if (get_error_stream)
-        {
-            dup2(fds[SW_PIPE_WRITE], 2);
+
+        if (fds[SW_PIPE_WRITE] != 1) {
+            dup2(fds[SW_PIPE_WRITE], 1);
         }
 
-        //Needed so negative PIDs can kill children of /bin/sh
-        setpgid(child_pid, child_pid);
-        execl("/bin/sh", "/bin/sh", "-c", command, NULL);
-        exit(0);
+        if (get_error_stream)
+        {
+            if (fds[SW_PIPE_WRITE] != 2) {
+                dup2(fds[SW_PIPE_WRITE], 2);
+            }
+        }
+
+	close(fds[SW_PIPE_WRITE]);
+
+        execl("/bin/sh", "sh", "-c", command, NULL);
+        exit(127);
     }
     else
     {
