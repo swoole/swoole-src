@@ -25,7 +25,7 @@ namespace swoole
 {
 enum socket_lock_operation
 {
-    SOCKET_LOCK_READ = 1u << 1,
+    SOCKET_LOCK_READ = 1U << 1,
     SOCKET_LOCK_WRITE = 1U << 2,
     SOCKET_LOCK_RW = SOCKET_LOCK_READ | SOCKET_LOCK_WRITE
 };
@@ -99,7 +99,6 @@ protected:
         _backlog = 0;
 
         http2 = 0;
-        shutdow_rw = 0;
         shutdown_read = 0;
         shutdown_write = 0;
         open_length_check = 0;
@@ -166,7 +165,6 @@ public:
     int errCode;
     const char *errMsg;
     uint32_t http2 :1;
-    uint32_t shutdow_rw :1;
     uint32_t shutdown_read :1;
     uint32_t shutdown_write :1;
     /**
