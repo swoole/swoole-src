@@ -504,9 +504,11 @@ static int swoole_mysql_coro_statement_free(mysql_statement *stmt)
 
 static int swoole_mysql_coro_statement_close(mysql_statement *stmt)
 {
+    // WARNING: it's wrong operation, we send the close statement package silently, don't change any property in the client!
+    // stmt->client->cmd = SW_MYSQL_COM_STMT_CLOSE;
+
     // call mysql-server to destruct this statement
     swString_clear(mysql_request_buffer);
-    stmt->client->cmd = SW_MYSQL_COM_STMT_CLOSE;
     bzero(mysql_request_buffer->str, 5);
     //command
     mysql_request_buffer->str[4] = SW_MYSQL_COM_STMT_CLOSE;
