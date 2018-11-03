@@ -1,12 +1,5 @@
 <?php
-
-function scan_dir(string $dir, callable $filter = null): array
-{
-    $files = array_filter(scandir($dir), function (string $f) {
-        return $f{0} !== '.';
-    });
-    return array_values($filter ? array_filter($files, $filter) : $files);
-}
+require __DIR__ . '/functions.php';
 
 function get_diff_files(string $dir): array
 {
@@ -28,7 +21,7 @@ function fix_tests_in_this_dir(string $dir)
                 echo "{$dir}/{$file}\n";
             } else {
                 if ($dir_name !== $matches[1]) {
-                    echo "\n", $dir_name, "\n", $matches[1], "\n";
+                    swoole_ok("Fix title [{$dir_name}] to [{$matches[1]}] in {$dir}/{$file}");
                     $content = preg_replace(
                         '/(--TEST--\n)([^:]+?)(:)/',
                         '$1' . $dir_name . '$3',
@@ -50,3 +43,5 @@ $tests_dirs = scan_dir($tests_root, function (string $f) {
 array_walk($tests_dirs, function (string $dir) use ($tests_root) {
     fix_tests_in_this_dir("{$tests_root}/{$dir}");
 });
+
+swoole_success('Fix test title done!');

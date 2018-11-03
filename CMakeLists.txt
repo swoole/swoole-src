@@ -37,47 +37,6 @@ LINK_DIRECTORIES(${LIBRARY_OUTPUT_PATH})
 
 # swoole source
 set(SOURCE_FILES
-    core-tests/include/tests.h
-    examples/server.c
-    examples/ssl/client.c
-    examples/test_server.c
-    include/array.h
-    include/asm_context.h
-    include/async.h
-    include/atomic.h
-    include/base64.h
-    include/buffer.h
-    include/channel.h
-    include/client.h
-    include/connection.h
-    include/context.h
-    include/coroutine.h
-    include/error.h
-    include/file_hook.h
-    include/hash.h
-    include/hashmap.h
-    include/heap.h
-    include/helper/kqueue.h
-    include/http.h
-    include/http2.h
-    include/list.h
-    include/mqtt.h
-    include/rbtree.h
-    include/redis.h
-    include/ring_queue.h
-    include/server.h
-    include/sha1.h
-    include/socket.h
-    include/socket_hook.h
-    include/socks5.h
-    include/swoole.h
-    include/table.h
-    include/unix.h
-    include/uthash.h
-    include/websocket.h
-    include/win.h
-    php7_wrapper.h
-    php_swoole.h
     src/core/array.c
     src/core/base.c
     src/core/channel.c
@@ -147,30 +106,26 @@ set(SOURCE_FILES
     src/protocol/ssl.c
     src/protocol/websocket.c
     src/reactor/base.c
+    src/reactor/defer_task.cc
     src/reactor/epoll.c
     src/reactor/kqueue.c
     src/reactor/poll.c
     src/reactor/select.c
     swoole.c
-    swoole_async.c
+    swoole_async.cc
     swoole_atomic.c
     swoole_buffer.c
     swoole_channel.c
     swoole_channel_coro.cc
     swoole_client.c
     swoole_client_coro.cc
-    swoole_config.h
     swoole_coroutine.cc
-    swoole_coroutine.h
-    swoole_coroutine_util.c
+    swoole_coroutine_util.cc
     swoole_event.c
-    swoole_http.h
     swoole_http_client.c
-    swoole_http_client.h
     swoole_http_client_coro.cc
     swoole_http_server.c
     swoole_http_v2_client.c
-    swoole_http_v2_client.h
     swoole_http_v2_client_coro.c
     swoole_http_v2_server.cc
     swoole_lock.c
@@ -178,19 +133,16 @@ set(SOURCE_FILES
     swoole_mmap.c
     swoole_msgqueue.c
     swoole_mysql.c
-    swoole_mysql.h
     swoole_mysql_coro.cc
     swoole_postgresql_coro.c
-    swoole_postgresql_coro.h
     swoole_process.c
     swoole_process_pool.c
     swoole_redis.c
-    swoole_redis_coro.c
+    swoole_redis_coro.cc
     swoole_redis_server.c
     swoole_ringqueue.c
     swoole_runtime.cc
     swoole_serialize.c
-    swoole_serialize.h
     swoole_server.c
     swoole_server_port.c
     swoole_socket_coro.cc
@@ -198,12 +150,6 @@ set(SOURCE_FILES
     swoole_timer.c
     swoole_trace.c
     swoole_websocket_server.c
-    thirdparty/multipart_parser.c
-    thirdparty/multipart_parser.h
-    thirdparty/php_streams_int.h
-    thirdparty/plain_wrapper.c
-    thirdparty/swoole_http_parser.c
-    thirdparty/swoole_http_parser.h
 )
 add_executable(swoole ${SOURCE_FILES})
 
