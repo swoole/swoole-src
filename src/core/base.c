@@ -1241,7 +1241,7 @@ int swoole_shell_exec(char *command, pid_t *pid, uint8_t get_error_stream)
             }
         }
 
-	close(fds[SW_PIPE_WRITE]);
+        close(fds[SW_PIPE_WRITE]);
 
         execl("/bin/sh", "sh", "-c", command, NULL);
         exit(127);
