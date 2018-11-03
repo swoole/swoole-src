@@ -91,6 +91,7 @@ set(SOURCE_FILES
     src/os/sendfile.c
     src/os/signal.c
     src/os/timer.c
+    src/os/wait.cc
     src/pipe/base.c
     src/pipe/eventfd.c
     src/pipe/unix_socket.c

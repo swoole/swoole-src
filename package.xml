@@ -407,6 +407,7 @@
             <file role="src" name="include/connection.h" />
             <file role="src" name="include/context.h" />
             <file role="src" name="include/coroutine.h" />
+            <file role="src" name="include/coroutine_c_api.h" />
             <file role="src" name="include/error.h" />
             <file role="src" name="include/file_hook.h" />
             <file role="src" name="include/hash.h" />
@@ -493,6 +494,7 @@
             <file role="src" name="src/os/sendfile.c" />
             <file role="src" name="src/os/signal.c" />
             <file role="src" name="src/os/timer.c" />
+            <file role="src" name="src/os/wait.cc" />
             <file role="src" name="src/pipe/base.c" />
             <file role="src" name="src/pipe/eventfd.c" />
             <file role="src" name="src/pipe/unix_socket.c" />
@@ -508,6 +510,7 @@
             <file role="src" name="src/protocol/ssl.c" />
             <file role="src" name="src/protocol/websocket.c" />
             <file role="src" name="src/reactor/base.c" />
+            <file role="src" name="src/reactor/defer_task.cc" />
             <file role="src" name="src/reactor/epoll.c" />
             <file role="src" name="src/reactor/kqueue.c" />
             <file role="src" name="src/reactor/poll.c" />
@@ -785,6 +788,7 @@
             <file role="test" name="tests/swoole_coroutine_channel/8.phpt" />
             <file role="test" name="tests/swoole_coroutine_channel/9.phpt" />
             <file role="test" name="tests/swoole_coroutine_channel/basic.phpt" />
+            <file role="test" name="tests/swoole_coroutine_channel/blocking_timeout.phpt" />
             <file role="test" name="tests/swoole_coroutine_channel/bug_1947.phpt" />
             <file role="test" name="tests/swoole_coroutine_channel/bug_clear_timer.phpt" />
             <file role="test" name="tests/swoole_coroutine_channel/chan_select_timeout.phpt" />
@@ -1271,9 +1275,11 @@
             <file role="src" name="thirdparty/swoole_http_parser.c" />
             <file role="src" name="thirdparty/swoole_http_parser.h" />
             <file role="src" name="tools/arginfo_check.php" />
-            <file role="src" name="tools/composer.json" />
+            <file role="src" name="tools/code_generator.php" />
+            <file role="src" name="tools/config_generator.php" />
             <file role="src" name="tools/export.php" />
             <file role="src" name="tools/fix_test_title.php" />
+            <file role="src" name="tools/functions.php" />
             <file role="src" name="tools/gen-data.php" />
             <file role="src" name="tools/ip.php" />
             <file role="src" name="tools/pecl-package.php" />
