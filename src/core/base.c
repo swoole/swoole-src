@@ -1230,18 +1230,31 @@ int swoole_shell_exec(char *command, pid_t *pid, uint8_t get_error_stream)
     {
         close(fds[SW_PIPE_READ]);
 
-        if (fds[SW_PIPE_WRITE] != 1) {
-            dup2(fds[SW_PIPE_WRITE], 1);
-        }
-
         if (get_error_stream)
         {
-            if (fds[SW_PIPE_WRITE] != 2) {
+            if (fds[SW_PIPE_WRITE] == 1)
+            {
                 dup2(fds[SW_PIPE_WRITE], 2);
             }
+            else if (fds[SW_PIPE_WRITE] == 2)
+            {
+                dup2(fds[SW_PIPE_WRITE], 1);
+            }
+            else
+            {
+                dup2(fds[SW_PIPE_WRITE], 1);
+                dup2(fds[SW_PIPE_WRITE], 2);
+                close(fds[SW_PIPE_WRITE]);
+            }
         }
-
-        close(fds[SW_PIPE_WRITE]);
+        else
+        {
+            if (fds[SW_PIPE_WRITE] != 1)
+            {
+                dup2(fds[SW_PIPE_WRITE], 1);
+                close(fds[SW_PIPE_WRITE]);
+            }
+        }
 
         execl("/bin/sh", "sh", "-c", command, NULL);
         exit(127);
