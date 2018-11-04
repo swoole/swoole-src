@@ -427,7 +427,15 @@ int swReactorThread_onClose(swReactor *reactor, swEvent *event)
     }
     else if (reactor->del(reactor, fd) == 0)
     {
-        return SwooleG.factory->notify(SwooleG.factory, &notify_ev);
+        if (conn->closed && !swBuffer_empty(conn->out_buffer))
+        {
+            swReactorThread_close(reactor, fd);
+            return SW_OK; 
+        }
+        else
+        {
+            return SwooleG.factory->notify(SwooleG.factory, &notify_ev);
+        }
     }
     else
     {

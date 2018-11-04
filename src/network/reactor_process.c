@@ -437,7 +437,15 @@ int swReactorProcess_onClose(swReactor *reactor, swEvent *event)
     }
     if (reactor->del(reactor, fd) == 0)
     {
-        return swServer_tcp_notify(serv, conn, SW_EVENT_CLOSE);
+        if (conn->closed && !swBuffer_empty(conn->out_buffer))
+        {
+            swReactorThread_close(reactor, fd);
+            return SW_OK; 
+        }
+        else 
+        {
+            return swServer_tcp_notify(serv, conn, SW_EVENT_CLOSE);
+        }
     }
     else
     {
