@@ -546,6 +546,7 @@ typedef struct _swConnection
      */
     uint8_t close_actively;
     uint8_t closed;
+    uint8_t close_queued;
     uint8_t closing;
     uint8_t close_reset;
     /**

@@ -427,7 +427,7 @@ int swReactorThread_onClose(swReactor *reactor, swEvent *event)
     }
     else if (reactor->del(reactor, fd) == 0)
     {
-        if (conn->closed && !swBuffer_empty(conn->out_buffer))
+        if (conn->close_queued)
         {
             swReactorThread_close(reactor, fd);
             return SW_OK; 
@@ -756,6 +756,7 @@ int swReactorThread_send(swSendData *_send)
     {
         chunk = swBuffer_new_chunk(conn->out_buffer, SW_CHUNK_CLOSE, 0);
         chunk->store.data.val1 = _send->info.type;
+        conn->close_queued = 1;
     }
     //sendfile to client
     else if (_send->info.type == SW_EVENT_SENDFILE)
