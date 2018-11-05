@@ -303,6 +303,7 @@ static int http_client_execute(zval *zobject, char *uri, size_t uri_len, zval *c
         }
         http->download = 1;
         http->file_fd = fd;
+        hcc->download_file = NULL;
     }
 
     //if connection exists
@@ -933,7 +934,7 @@ static int http_client_send_http_request(zval *zobject)
     if (zcookies && Z_TYPE_P(zcookies) == IS_ARRAY)
     {
         swString_append_ptr(http_client_buffer, ZEND_STRL("Cookie: "));
-        int n_cookie = Z_ARRVAL_P(zcookies)->nNumOfElements;
+        int n_cookie = php_swoole_array_length(zcookies);
         int i = 0;
         char *encoded_value;
 
@@ -1374,7 +1375,7 @@ static PHP_METHOD(swoole_http_client, __construct)
 #ifdef SW_USE_OPENSSL
         flags |= SW_SOCK_SSL;
 #else
-        swoole_php_fatal_error(E_ERROR, "require openssl library.");
+        swoole_php_fatal_error(E_ERROR, "Need to use `--enable-openssl` to support ssl when compiling swoole.");
 #endif
     }
 

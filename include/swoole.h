@@ -37,6 +37,7 @@ extern "C" {
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
+#include <stddef.h>
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -86,7 +87,7 @@ int daemon(int nochdir, int noclose);
 
 /*----------------------------------------------------------------------------*/
 
-#define SWOOLE_VERSION "4.2.4-beta"
+#define SWOOLE_VERSION "4.2.6-alpha"
 #define SWOOLE_BUG_REPORT \
     "A bug occurred in Swoole-v" SWOOLE_VERSION ", please report it.\n"\
     "The Swoole developers probably don't know about it,\n"\
@@ -545,6 +546,7 @@ typedef struct _swConnection
      */
     uint8_t close_actively;
     uint8_t closed;
+    uint8_t close_queued;
     uint8_t closing;
     uint8_t close_reset;
     /**
@@ -816,7 +818,7 @@ typedef struct
 
 typedef void * (*swThreadStartFunc)(void *);
 typedef int (*swHandle)(swEventData *buf);
-typedef void (*swSignalHander)(int);
+typedef void (*swSignalHandler)(int);
 typedef struct _swReactor swReactor;
 
 typedef int (*swReactor_handle)(swReactor *reactor, swEvent *event);
@@ -1302,7 +1304,7 @@ int swoole_file_put_contents(char *filename, char *content, size_t length);
 long swoole_file_size(char *filename);
 void swoole_open_remote_debug(void);
 char *swoole_dec2hex(int value, int base);
-int swoole_version_compare(char *version1, char *version2);
+int swoole_version_compare(const char *version1, const char *version2);
 #ifdef HAVE_EXECINFO
 void swoole_print_trace(void);
 #endif
@@ -1339,7 +1341,7 @@ double swoole_microtime(void);
 void swoole_rtrim(char *str, int len);
 void swoole_redirect_stdout(int new_fd);
 #ifndef _WIN32
-int swoole_shell_exec(char *command, pid_t *pid);
+int swoole_shell_exec(char *command, pid_t *pid, uint8_t get_error_stream);
 #endif
 SW_API int swoole_add_function(const char *name, void* func);
 SW_API void* swoole_get_function(char *name, uint32_t length);
@@ -1433,9 +1435,10 @@ static sw_inline int swSocket_tcp_nopush(int sock, int nopush)
 #define swSocket_tcp_nopush(sock, nopush)
 #endif
 
-swSignalHander swSignal_set(int sig, swSignalHander func, int restart, int mask);
-void swSignal_add(int signo, swSignalHander func);
+swSignalHandler swSignal_set(int sig, swSignalHandler func, int restart, int mask);
+void swSignal_add(int signo, swSignalHandler func);
 void swSignal_callback(int signo);
+swSignalHandler swSignal_get_handler(int signo);
 void swSignal_clear(void);
 void swSignal_none(void);
 
@@ -1463,6 +1466,7 @@ struct _swReactor
 
     uint32_t event_num;
     uint32_t max_event_num;
+    uint32_t signal_listener_num;
 
     uint32_t check_timer :1;
     uint32_t running :1;
@@ -1516,7 +1520,10 @@ struct _swReactor
     void (*free)(swReactor *);
 
     int (*setHandle)(swReactor *, int fdtype, swReactor_handle);
-    swDefer_callback *defer_tasks;
+
+    void *defer_tasks;
+    void (*do_defer_tasks)(swReactor *);
+
     swDefer_callback idle_task;
     swDefer_callback future_task;
 
@@ -1747,6 +1754,9 @@ static sw_inline int swReactor_events(int fdtype)
 int swReactor_create(swReactor *reactor, int max_event);
 int swReactor_setHandle(swReactor *, int, swReactor_handle);
 int swReactor_empty(swReactor *reactor);
+
+void swReactor_defer_task_create(swReactor *reactor);
+void swReactor_defer_task_destory(swReactor *reactor);
 
 static sw_inline swConnection* swReactor_get(swReactor *reactor, int fd)
 {
@@ -2242,6 +2252,30 @@ static sw_inline void sw_spinlock(sw_atomic_t *lock)
         }
         swYield();
     }
+}
+
+static sw_inline int64_t swTimer_get_relative_msec()
+{
+    struct timeval now;
+    if (swTimer_now(&now) < 0)
+    {
+        return SW_ERR;
+    }
+    int64_t msec1 = (now.tv_sec - SwooleG.timer.basetime.tv_sec) * 1000;
+    int64_t msec2 = (now.tv_usec - SwooleG.timer.basetime.tv_usec) / 1000;
+    return msec1 + msec2;
+}
+
+static sw_inline int64_t swTimer_get_absolute_msec()
+{
+    struct timeval now;
+    if (swTimer_now(&now) < 0)
+    {
+        return SW_ERR;
+    }
+    int64_t msec1 = (now.tv_sec) * 1000;
+    int64_t msec2 = (now.tv_usec) / 1000;
+    return msec1 + msec2;
 }
 
 #ifdef __cplusplus

@@ -25,7 +25,7 @@ namespace swoole
 {
 enum socket_lock_operation
 {
-    SOCKET_LOCK_READ = 1u << 1,
+    SOCKET_LOCK_READ = 1U << 1,
     SOCKET_LOCK_WRITE = 1U << 2,
     SOCKET_LOCK_RW = SOCKET_LOCK_READ | SOCKET_LOCK_WRITE
 };
@@ -35,6 +35,7 @@ class Socket
 public:
     Socket(enum swSocket_type type);
     Socket(int _fd, Socket *sock);
+    Socket(int _fd, enum swSocket_type _type);
     ~Socket();
     bool connect(std::string host, int port, int flags = 0);
     bool connect(const struct sockaddr *addr, socklen_t addrlen);
@@ -44,6 +45,8 @@ public:
     ssize_t sendmsg(const struct msghdr *msg, int flags);
     ssize_t peek(void *__buf, size_t __n);
     ssize_t recv(void *__buf, size_t __n);
+    ssize_t read(void *__buf, size_t __n);
+    ssize_t write(const void *__buf, size_t __n);
     ssize_t recvmsg(struct msghdr *msg, int flags);
     ssize_t recv_all(void *__buf, size_t __n);
     ssize_t send_all(const void *__buf, size_t __n);
@@ -96,7 +99,6 @@ protected:
         _backlog = 0;
 
         http2 = 0;
-        shutdow_rw = 0;
         shutdown_read = 0;
         shutdown_write = 0;
         open_length_check = 0;
@@ -163,7 +165,6 @@ public:
     int errCode;
     const char *errMsg;
     uint32_t http2 :1;
-    uint32_t shutdow_rw :1;
     uint32_t shutdown_read :1;
     uint32_t shutdown_write :1;
     /**

@@ -30,8 +30,8 @@ typedef struct
     Socket *socket;
     bool ssl;
     bool wait;
-    zend_bool defer;
-    zend_bool keep_alive;
+    bool defer;
+    bool keep_alive;
 
 } http_client_coro_property;
 
@@ -327,7 +327,13 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
     http->uri = estrdup(uri);
     http->uri_len = uri_len;
 
-    if (http_client_coro_send_request(zobject, hcc, http) < 0)
+    int ret = http_client_coro_send_request(zobject, hcc, http);
+    // clear request data (backward compatible)
+    zend_update_property_null(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("requestBody"));
+    zend_update_property_null(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("uploadFiles"));
+    zend_update_property_null(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("downloadFile"));
+    zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("downloadOffset"), 0);
+    if (ret < 0)
     {
         return SW_ERR;
     }
@@ -661,7 +667,7 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
     if (zcookies && Z_TYPE_P(zcookies) == IS_ARRAY)
     {
         swString_append_ptr(http_client_buffer, ZEND_STRL("Cookie: "));
-        int n_cookie = Z_ARRVAL_P(zcookies)->nNumOfElements;
+        int n_cookie = php_swoole_array_length(zcookies);
         int i = 0;
         char *encoded_value;
 
@@ -880,9 +886,6 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
             SW_HASHTABLE_FOREACH_END();
         }
 
-        // clear uploadFiles
-        zend_update_property_null(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("uploadFiles"));
-
         n = snprintf(header_buf, sizeof(header_buf), "--%*s--\r\n", (int)(sizeof(boundary_str) - 1), boundary_str);
         if (!hcc->socket->send( header_buf, n))
         {
@@ -920,9 +923,10 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
         }
         else
         {
-            convert_to_string(zbody);
-            http_client_append_content_length(http_client_buffer, Z_STRLEN_P(zbody));
-            swString_append_ptr(http_client_buffer, Z_STRVAL_P(zbody), Z_STRLEN_P(zbody));
+            char *body;
+            size_t body_length = php_swoole_get_send_data(zbody, &body);
+            http_client_append_content_length(http_client_buffer, body_length);
+            swString_append_ptr(http_client_buffer, body, body_length);
         }
     }
     // ============ no body ============
@@ -984,7 +988,7 @@ static PHP_METHOD(swoole_http_client_coro, __construct)
         http_client_coro_property *hcc = (http_client_coro_property *) swoole_get_property(getThis(), 0);
         hcc->ssl = 1;
 #else
-        swoole_php_fatal_error(E_ERROR, "require openssl library.");
+        swoole_php_fatal_error(E_ERROR, "Need to use `--enable-openssl` to support ssl when compiling swoole.");
 #endif
     }
 

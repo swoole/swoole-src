@@ -40,18 +40,6 @@ int swTimer_now(struct timeval *time)
     return SW_OK;
 }
 
-static sw_inline int64_t swTimer_get_relative_msec()
-{
-    struct timeval now;
-    if (swTimer_now(&now) < 0)
-    {
-        return SW_ERR;
-    }
-    int64_t msec1 = (now.tv_sec - SwooleG.timer.basetime.tv_sec) * 1000;
-    int64_t msec2 = (now.tv_usec - SwooleG.timer.basetime.tv_usec) / 1000;
-    return msec1 + msec2;
-}
-
 static int swTimer_init(long msec)
 {
     if (swTimer_now(&SwooleG.timer.basetime) < 0)

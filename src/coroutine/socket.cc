@@ -108,6 +108,7 @@ bool Socket::socks5_handshake()
             buf[4] = ctx->l_target_host;
             buf += 5;
             memcpy(buf, ctx->target_host, ctx->l_target_host);
+            sw_free(ctx->target_host);
             buf += ctx->l_target_host;
             *(uint16_t *) buf = htons(ctx->target_port);
 
@@ -133,6 +134,7 @@ bool Socket::socks5_handshake()
         /**
          * response
          */
+        buf = ctx->buf;
         n = recv(buf, sizeof(ctx->buf));
         if (n <= 0)
         {
@@ -365,6 +367,65 @@ Socket::Socket(int _fd, Socket *server_sock)
     init();
 }
 
+Socket::Socket(int _fd, enum swSocket_type _type)
+{
+    type = _type;
+    switch (type)
+    {
+    case SW_SOCK_TCP6:
+        _sock_domain = AF_INET6;
+        _sock_type = SOCK_STREAM;
+        break;
+    case SW_SOCK_UNIX_STREAM:
+        _sock_domain = AF_UNIX;
+        _sock_type = SOCK_STREAM;
+        break;
+    case SW_SOCK_UDP:
+        _sock_domain = AF_INET;
+        _sock_type = SOCK_DGRAM;
+        break;
+    case SW_SOCK_UDP6:
+        _sock_domain = AF_INET6;
+        _sock_type = SOCK_DGRAM;
+        break;
+    case SW_SOCK_UNIX_DGRAM:
+        _sock_domain = AF_UNIX;
+        _sock_type = SOCK_DGRAM;
+        break;
+    case SW_SOCK_TCP:
+    default:
+        _sock_domain = AF_INET;
+        _sock_type = SOCK_STREAM;
+        break;
+    }
+
+    init();
+
+    if (swIsMaster() && SwooleTG.type == SW_THREAD_REACTOR)
+    {
+        reactor = SwooleTG.reactor;
+    }
+    else
+    {
+        reactor = SwooleG.main_reactor;
+    }
+
+    socket = swReactor_get(reactor, _fd);
+
+    bzero(socket, sizeof(swConnection));
+    socket->fd = _fd;
+    socket->object = this;
+    socket->socket_type = type;
+
+    swSetNonBlock(socket->fd);
+    if (!swReactor_handle_isset(reactor, SW_FD_CORO_SOCKET))
+    {
+        reactor->setHandle(reactor, SW_FD_CORO_SOCKET | SW_EVENT_READ, socket_onRead);
+        reactor->setHandle(reactor, SW_FD_CORO_SOCKET | SW_EVENT_WRITE, socket_onWrite);
+        reactor->setHandle(reactor, SW_FD_CORO_SOCKET | SW_EVENT_ERROR, socket_onRead);
+    }
+}
+
 bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen)
 {
     if (read_cid || write_cid)
@@ -409,21 +470,21 @@ bool Socket::connect(string host, int port, int flags)
         swWarn("socket has already been bound to another coroutine #%d.", read_cid);
         return false;
     }
-    //enable socks5 proxy
+
     if (socks5_proxy)
     {
-        socks5_proxy->target_host = (char *) host.c_str();
+        //enable socks5 proxy
+        socks5_proxy->target_host = sw_strndup((char *) host.c_str(), host.size());
         socks5_proxy->l_target_host = host.size();
         socks5_proxy->target_port = port;
 
         host = socks5_proxy->host;
         port = socks5_proxy->port;
     }
-
-    //enable http proxy
-    if (http_proxy)
+    else if (http_proxy)
     {
-        http_proxy->target_host = (char *) host.c_str();
+        //enable http proxy
+        http_proxy->target_host = sw_strndup((char *) host.c_str(), host.size());
         http_proxy->l_target_host = host.size();
         http_proxy->target_port = port;
 
@@ -638,6 +699,109 @@ ssize_t Socket::recv(void *__buf, size_t __n)
         }
         break;
     }
+    return retval;
+}
+
+ssize_t Socket::read(void *__buf, size_t __n)
+{
+    if (read_cid)
+    {
+        swWarn("socket has already been bound to another coroutine #%d.", read_cid);
+        return -1;
+    }
+    ssize_t retval = ::read(socket->fd, __buf, __n);
+    if (retval >= 0)
+    {
+        return retval;
+    }
+
+    if (swConnection_error(errno) != SW_WAIT)
+    {
+        errCode = errno;
+        return -1;
+    }
+
+    while (true)
+    {
+        int events = SW_EVENT_READ;
+#ifdef SW_USE_OPENSSL
+        if (socket->ssl && socket->ssl_want_write)
+        {
+            events = SW_EVENT_WRITE;
+        }
+#endif
+        if (!wait_events(events))
+        {
+            return -1;
+        }
+        yield(SOCKET_LOCK_READ);
+        if (errCode == ETIMEDOUT)
+        {
+            return -1;
+        }
+        retval = ::read(socket->fd, __buf, __n);
+        if (retval < 0)
+        {
+            if (swConnection_error(errno) == SW_WAIT)
+            {
+                continue;
+            }
+            errCode = errno;
+        }
+        break;
+    }
+    return retval;
+}
+
+ssize_t Socket::write(const void *__buf, size_t __n)
+{
+    if (write_cid)
+    {
+        swWarn("socket has already been bound to another coroutine #%d.", write_cid);
+        return -1;
+    }
+    ssize_t retval = ::write(socket->fd, (void *) __buf, __n);
+    if (retval >= 0)
+    {
+        return retval;
+    }
+
+    if (swConnection_error(errno) != SW_WAIT)
+    {
+        errCode = errno;
+        return -1;
+    }
+
+    while (true)
+    {
+        int events = SW_EVENT_WRITE;
+#ifdef SW_USE_OPENSSL
+        if (socket->ssl && socket->ssl_want_read)
+        {
+            events = SW_EVENT_READ;
+        }
+#endif
+        if (!wait_events(events))
+        {
+            return -1;
+        }
+        yield(SOCKET_LOCK_WRITE);
+        if (errCode == ETIMEDOUT)
+        {
+            return -1;
+        }
+        ssize_t retval =  ::write(socket->fd, (void *) __buf, __n);
+        if (retval < 0)
+        {
+            if (swConnection_error(errno) == SW_WAIT)
+            {
+                continue;
+            }
+            errCode = errno;
+        }
+        break;
+    }
+
     return retval;
 }
 
@@ -859,7 +1023,8 @@ void Socket::yield(int operation)
     }
 
     // bind read/write coroutine
-    _skip_timer: if (operation & SOCKET_LOCK_WRITE)
+    _skip_timer:
+    if (operation & SOCKET_LOCK_WRITE)
     {
         write_cid = cid;
     }
@@ -1148,46 +1313,31 @@ bool Socket::shutdown(int __how)
     {
         return false;
     }
-    if (__how == SHUT_RD)
+    if (__how == SHUT_RD && !shutdown_read)
     {
-        if (shutdown_read || shutdow_rw || ::shutdown(socket->fd, SHUT_RD))
-        {
-            return false;
-        }
-        else
+        if (::shutdown(socket->fd, SHUT_RD) == 0)
         {
             shutdown_read = 1;
             return true;
         }
     }
-    else if (__how == SHUT_WR)
+    else if (__how == SHUT_WR && !shutdown_write)
     {
-        if (shutdown_write || shutdow_rw || ::shutdown(socket->fd, SHUT_RD) < 0)
-        {
-            return false;
-        }
-        else
+        if (::shutdown(socket->fd, SHUT_WR) == 0)
         {
             shutdown_write = 1;
             return true;
         }
     }
-    else if (__how == SHUT_RDWR)
+    else if (__how == SHUT_RDWR && !shutdown_read && !shutdown_write)
     {
-        if (shutdow_rw || ::shutdown(socket->fd, SHUT_RDWR) < 0)
+        if (::shutdown(socket->fd, SHUT_RDWR) == 0)
         {
-            return false;
-        }
-        else
-        {
-            shutdown_read = 1;
+            shutdown_read = shutdown_write = 1;
             return true;
         }
     }
-    else
-    {
-        return false;
-    }
+    return false;
 }
 
 bool Socket::close()
@@ -1445,6 +1595,7 @@ bool Socket::sendfile(char *filename, off_t offset, size_t length)
         else if (n == 0)
         {
             swWarn("sendfile return zero.");
+            ::close(file_fd);
             return false;
         }
         else if (errno != EAGAIN)

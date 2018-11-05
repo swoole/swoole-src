@@ -1,7 +1,10 @@
 --TEST--
 swoole_mysql_coro: mysql use readonly user
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_not_mysql8();
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
