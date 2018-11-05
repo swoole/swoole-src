@@ -255,6 +255,8 @@ static int coro_exit_handler(zend_execute_data *execute_data)
             {
                 exit_status = Z_REFVAL_P(exit_status);
             }
+            ZVAL_DUP(&_exit_status, exit_status);
+            exit_status = &_exit_status;
         }
         else
         {
