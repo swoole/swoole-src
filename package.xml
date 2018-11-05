@@ -35,10 +35,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2018-10-27</date>
-    <time>20:30:00</time>
+    <date>2018-11-05</date>
+    <time>21:00:00</time>
     <version>
-        <release>4.2.5</release>
+        <release>4.2.6</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -47,10 +47,18 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        * Alpine compatibility (#2071)
-        * Fixed task_ipc_mode bug (#2072)
-        * Improve client proxy settings
-        * Fixed SSL client bug (#2053)
+        + Built-in `hiredis` dependency, no longer needed to compile it separately, refactor `Co\Redis`, more stable
+        + Improve the compilation test of the Alpine system
+        + Refactor `Co::exec` and functions about file to fix its execution and output issues in some scenarios
+        * Fixed errors about coroutine switching in multi-level nesting and multiple suspend scenarios
+        * Fixed connection leaks that may occur when both sides are closed at the same time
+        * Fixed `channel` bug in blocking scenarios
+        * Fixed `mysql->prepare` return true (#2080)
+        * Fixed the reference count problem when use `swoole_table` as an array (#2079)
+        * Fixed `ssl_host_name` cannot open SNI (#2085)
+        * Fixed `kqueue` nanosecond conversion problem under MacOS (#2087)
+        * Fixed all `swoole_object` dangling pointer
+        * Add a series of scripting tools for the underlying development
     </notes>
     <contents>
         <dir name="/">
@@ -347,6 +355,7 @@
             <file role="doc" name="examples/ssl/async_client.php" />
             <file role="doc" name="examples/ssl/client.c" />
             <file role="doc" name="examples/ssl/client.php" />
+            <file role="doc" name="examples/ssl/co_client.php" />
             <file role="doc" name="examples/ssl/http_client.php" />
             <file role="doc" name="examples/ssl/passphrase.php" />
             <file role="doc" name="examples/ssl/server.php" />
@@ -775,6 +784,7 @@
             <file role="test" name="tests/swoole_coroutine/parallel2.phpt" />
             <file role="test" name="tests/swoole_coroutine/parallel3.phpt" />
             <file role="test" name="tests/swoole_coroutine/private_access.phpt" />
+            <file role="test" name="tests/swoole_coroutine/scheduler.phpt" />
             <file role="test" name="tests/swoole_coroutine/use_process.phpt" />
             <file role="test" name="tests/swoole_coroutine/user_coroutine.phpt" />
             <file role="test" name="tests/swoole_coroutine/user_coroutine_2.phpt" />
@@ -915,6 +925,7 @@
             <file role="test" name="tests/swoole_http_client_coro/long_domain.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/multi.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/multi_and_reuse.phpt" />
+            <file role="test" name="tests/swoole_http_client_coro/ssl_host_name.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/timeout_before_connect.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/timeout_when_recv.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/upload.phpt" />
