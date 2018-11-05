@@ -437,7 +437,7 @@ int swReactorProcess_onClose(swReactor *reactor, swEvent *event)
     }
     if (reactor->del(reactor, fd) == 0)
     {
-        if (conn->closed && !swBuffer_empty(conn->out_buffer))
+        if (conn->close_queued)
         {
             swReactorThread_close(reactor, fd);
             return SW_OK; 
