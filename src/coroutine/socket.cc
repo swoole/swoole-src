@@ -1023,7 +1023,8 @@ void Socket::yield(int operation)
     }
 
     // bind read/write coroutine
-    _skip_timer: if (operation & SOCKET_LOCK_WRITE)
+    _skip_timer:
+    if (operation & SOCKET_LOCK_WRITE)
     {
         write_cid = cid;
     }
@@ -1312,46 +1313,31 @@ bool Socket::shutdown(int __how)
     {
         return false;
     }
-    if (__how == SHUT_RD)
+    if (__how == SHUT_RD && !shutdown_read)
     {
-        if (shutdown_read || shutdow_rw || ::shutdown(socket->fd, SHUT_RD))
-        {
-            return false;
-        }
-        else
+        if (::shutdown(socket->fd, SHUT_RD) == 0)
         {
             shutdown_read = 1;
             return true;
         }
     }
-    else if (__how == SHUT_WR)
+    else if (__how == SHUT_WR && !shutdown_write)
     {
-        if (shutdown_write || shutdow_rw || ::shutdown(socket->fd, SHUT_RD) < 0)
-        {
-            return false;
-        }
-        else
+        if (::shutdown(socket->fd, SHUT_WR) == 0)
         {
             shutdown_write = 1;
             return true;
         }
     }
-    else if (__how == SHUT_RDWR)
+    else if (__how == SHUT_RDWR && !shutdown_read && !shutdown_write)
     {
-        if (shutdow_rw || ::shutdown(socket->fd, SHUT_RDWR) < 0)
+        if (::shutdown(socket->fd, SHUT_RDWR) == 0)
         {
-            return false;
-        }
-        else
-        {
-            shutdown_read = 1;
+            shutdown_read = shutdown_write = 1;
             return true;
         }
     }
-    else
-    {
-        return false;
-    }
+    return false;
 }
 
 bool Socket::close()

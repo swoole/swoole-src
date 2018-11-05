@@ -283,6 +283,12 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
                     add_assoc_stringl_ex(zrequest_headers, ZEND_STRL("Proxy-Authorization"), _buf2, _n2);
                 }
             }
+#ifdef SW_USE_OPENSSL
+            if (hcc->ssl)
+            {
+                hcc->socket->open_ssl = true;
+            }
+#endif
             php_swoole_client_coro_check_setting(hcc->socket, zset);
         }
 
@@ -296,12 +302,6 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
         {
             zend_update_property_bool(Z_OBJCE_P(zobject), zobject, ZEND_STRL("connected"), 1);
         }
-#ifdef SW_USE_OPENSSL
-        if (hcc->ssl && !hcc->socket->ssl_handshake())
-        {
-            return SW_ERR;
-        }
-#endif
         swTraceLog(SW_TRACE_HTTP_CLIENT, "connect to server, object handle=%d, fd=%d", Z_OBJ_HANDLE_P(zobject), hcc->socket->socket->fd);
     }
 

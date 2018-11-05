@@ -437,8 +437,7 @@ void php_swoole_client_coro_check_setting(Socket *cli, zval *zset)
     }
     else
     {
-        _open_tcp_nodelay:
-        value = 1;
+        _open_tcp_nodelay: value = 1;
         if (setsockopt(cli->socket->fd, IPPROTO_TCP, TCP_NODELAY, &value, sizeof(value)) < 0)
         {
             swSysError("setsockopt(%d, TCP_NODELAY) failed.", cli->socket->fd);
