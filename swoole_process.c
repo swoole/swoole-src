@@ -482,7 +482,7 @@ static PHP_METHOD(swoole_process, signal)
 
     if (signo < 0 || signo >= SW_SIGNO_MAX)
     {
-        swoole_php_fatal_error(E_WARNING, "invalid signal number [%d].", signo);
+        swoole_php_fatal_error(E_WARNING, "invalid signal number [%ld].", signo);
         RETURN_FALSE;
     }
 
@@ -491,7 +491,7 @@ static PHP_METHOD(swoole_process, signal)
 
     if (handler && handler != php_swoole_onSignal)
     {
-        swoole_php_fatal_error(E_WARNING, "This signal [%d] processor has been registered by the system.", signo);
+        swoole_php_fatal_error(E_WARNING, "This signal [%ld] processor has been registered by the system.", signo);
         RETURN_FALSE
     }
 
