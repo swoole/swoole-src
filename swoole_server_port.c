@@ -155,6 +155,27 @@ static PHP_METHOD(swoole_server_port, set)
             port->socket_buffer_size = SW_MAX_INT;
         }
     }
+    //heartbeat_check_interval
+    if (php_swoole_array_get_value(vht, "heartbeat_check_interval", v)) {
+        convert_to_long(v);
+        port->heartbeat_check_interval = (int) Z_LVAL_P(v);
+    }
+    //heartbeat idle time
+    if (php_swoole_array_get_value(vht, "heartbeat_idle_time", v))
+    {
+        convert_to_long(v);
+        port->heartbeat_idle_time = (int) Z_LVAL_P(v);
+
+        if (port->heartbeat_check_interval > port->heartbeat_idle_time)
+        {
+            swoole_php_fatal_error(E_WARNING, "heartbeat_idle_time must be greater than heartbeat_check_interval.");
+            port->heartbeat_check_interval = port->heartbeat_idle_time / 2;
+        }
+    }
+    else if (port->heartbeat_check_interval > 0)
+    {
+        port->heartbeat_idle_time = port->heartbeat_check_interval * 2;
+    }
     /**
      * !!! Don't set this option, for tests only.
      */

@@ -48,6 +48,9 @@ void swPort_init(swListenPort *port)
 
     port->socket_buffer_size = SwooleG.socket_buffer_size;
 
+    port->heartbeat_idle_time = SW_HEARTBEAT_IDLE;
+    port->heartbeat_check_interval = SW_HEARTBEAT_CHECK;
+
     char eof[] = SW_DATA_EOF;
     port->protocol.package_eof_len = sizeof(SW_DATA_EOF) - 1;
     memcpy(port->protocol.package_eof, eof, port->protocol.package_eof_len);

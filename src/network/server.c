@@ -369,11 +369,7 @@ static int swServer_start_proxy(swServer *serv)
     /**
      * heartbeat thread
      */
-    if (serv->heartbeat_check_interval >= 1 && serv->heartbeat_check_interval <= serv->heartbeat_idle_time)
-    {
-        swTrace("hb timer start, time: %d live time:%d", serv->heartbeat_check_interval, serv->heartbeat_idle_time);
-        swHeartbeatThread_start(serv);
-    }
+    swHeartbeatThread_start(serv);
 
     /**
      * master thread loop
@@ -1673,36 +1669,114 @@ static void swHeartbeatThread_loop(swThreadParam *param)
     swSignal_none();
 
     swServer *serv = param->object;
+
+    SwooleTG.type = SW_THREAD_HEARTBEAT;
+    SwooleTG.id = serv->reactor_num;
+
+    swListenPort *ls;
+    int count;
+    int i;
+    int idle_time;
+    int check_interval;
+    long (*check_list)[3];
+    long now = (long) time(NULL);
+    long *next = NULL;
+    unsigned int sleep_time;
+
+    LL_COUNT(serv->listen_list, ls, count);
+    check_list = (long (*)[3])malloc(sizeof(long *) * count);
+    count = 0;
+    LL_FOREACH(serv->listen_list, ls)
+    {
+        idle_time = ls->heartbeat_idle_time == 0 ? serv->heartbeat_idle_time : ls->heartbeat_idle_time;
+        check_interval = ls->heartbeat_check_interval == 0 ? serv->heartbeat_check_interval : ls->heartbeat_check_interval;
+
+        if (idle_time > 0 && check_interval > 0)
+        {
+            check_list[count][0] = idle_time;
+            check_list[count][1] = check_interval;
+            check_list[count][2] = now + check_interval;
+
+            ++count;
+        }
+    }
+
+    if (count < 1) goto finish;
+
+    for (i = 0; i < count; ++i)
+    {
+        if (next == NULL || check_list[i][2] < next[2])
+        {
+            next = check_list[i];
+        }
+    }
+
+    while (SwooleG.running)
+    {
+        sleep_time = (next[2] - now) < 0 ? 0 : (unsigned int)(next[2] - now);
+        sleep(sleep_time);
+
+        swHeartbeat_check(serv, NULL, 1, (int)next[1]);
+        now = (long) time(NULL);
+
+        for (i = 0; i < count; ++i)
+        {
+            if (check_list[i][1] == next[1])
+            {
+                check_list[i][2] = now + check_list[i][1];
+            }
+
+            if (check_list[i][2] < next[2])
+            {
+                next = check_list[i];
+            }
+        }
+    }
+
+    finish:
+    free(check_list);
+    pthread_exit(0);
+}
+
+void swHeartbeat_check(swServer *serv, zval *close_list, uint8_t close_connection, int close_check_interval)
+{
+    if (close_list != NULL) {
+        array_init(close_list);
+    }
+
     swConnection *conn;
     swReactor *reactor;
 
     int fd;
     int serv_max_fd;
     int serv_min_fd;
-    int checktime;
+    long now;
+    int idle_time;
+    int check_interval;
 
-    SwooleTG.type = SW_THREAD_HEARTBEAT;
-    SwooleTG.id = serv->reactor_num;
+    serv_max_fd = swServer_get_maxfd(serv);
+    serv_min_fd = swServer_get_minfd(serv);
 
-    while (SwooleG.running)
+    now = (long) time(NULL);
+
+    for (fd = serv_min_fd; fd <= serv_max_fd; ++fd)
     {
-        serv_max_fd = swServer_get_maxfd(serv);
-        serv_min_fd = swServer_get_minfd(serv);
+        swTrace("check fd=%d", fd);
+        conn = swServer_connection_get(serv, fd);
 
-        checktime = (int) time(NULL) - serv->heartbeat_idle_time;
-
-        for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
+        if (conn != NULL && conn->active == 1 && conn->closed == 0 && conn->fdtype == SW_FD_TCP && conn->from_fd != 0)
         {
-            swTrace("check fd=%d", fd);
-            conn = swServer_connection_get(serv, fd);
+            swListenPort *port = serv->connection_list[conn->from_fd].object;
+            idle_time = port->heartbeat_idle_time == 0 ? serv->heartbeat_idle_time : port->heartbeat_idle_time;
+            check_interval = port->heartbeat_check_interval == 0 ? serv->heartbeat_check_interval : port->heartbeat_check_interval;
 
-            if (conn != NULL && conn->active == 1 && conn->closed == 0 && conn->fdtype == SW_FD_TCP)
+            if (idle_time < 1 || (close_check_interval != 0 && check_interval != close_check_interval) || conn->protect || conn->last_time > (now - idle_time))
             {
-                if (conn->protect || conn->last_time > checktime)
-                {
-                    continue;
-                }
+                continue;
+            }
 
+            if (close_connection == 1)
+            {
                 conn->close_force = 1;
                 conn->close_notify = 1;
 
@@ -1731,10 +1805,17 @@ static void swHeartbeatThread_loop(swThreadParam *param)
                     reactor->set(reactor, fd, SW_FD_TCP | SW_EVENT_WRITE);
                 }
             }
+
+            if (close_list != NULL)
+            {
+#ifdef SW_REACTOR_USE_SESSION
+                add_next_index_long(close_list, conn->session_id);
+#else
+                add_next_index_long(close_list, fd);
+#endif
+            }
         }
-        sleep(serv->heartbeat_check_interval);
     }
-    pthread_exit(0);
 }
 
 /**

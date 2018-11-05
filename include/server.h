@@ -17,6 +17,7 @@
 #ifndef SW_SERVER_H_
 #define SW_SERVER_H_
 
+#include "php.h"
 #include "swoole.h"
 #include "buffer.h"
 #include "connection.h"
@@ -167,6 +168,12 @@ typedef struct _swListenPort
     int socket_buffer_size;
     uint32_t buffer_high_watermark;
     uint32_t buffer_low_watermark;
+
+    /**
+     *  heartbeat check time
+     */
+    uint16_t heartbeat_idle_time;
+    uint16_t heartbeat_check_interval;
 
     uint8_t type;
     uint8_t ssl;
@@ -1069,6 +1076,8 @@ int swManager_start(swFactory *factory);
 pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker);
 int swManager_wait_user_worker(swProcessPool *pool, pid_t pid, int status);
 void swManager_kill_user_worker(swServer *serv);
+
+void swHeartbeat_check(swServer *serv, zval *close_list, uint8_t close_connection, int close_check_interval);
 
 #ifdef __cplusplus
 }

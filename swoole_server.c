@@ -14,6 +14,7 @@
   +----------------------------------------------------------------------+
  */
 
+#include "server.h"
 #include "php_swoole.h"
 #include "connection.h"
 
@@ -3241,7 +3242,7 @@ PHP_METHOD(swoole_server, reload)
 
 PHP_METHOD(swoole_server, heartbeat)
 {
-    zend_bool close_connection = 0;
+    zend_bool close_connection = 1;
 
     swServer *serv = swoole_get_object(getThis());
     if (serv->gs->start == 0)
@@ -3255,42 +3256,7 @@ PHP_METHOD(swoole_server, heartbeat)
         RETURN_FALSE;
     }
 
-    if (serv->heartbeat_idle_time < 1)
-    {
-        RETURN_FALSE;
-    }
-
-    int serv_max_fd = swServer_get_maxfd(serv);
-    int serv_min_fd = swServer_get_minfd(serv);
-
-    array_init(return_value);
-
-    int fd;
-    int checktime = (int) serv->gs->now - serv->heartbeat_idle_time;
-    swConnection *conn;
-
-    for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
-    {
-        swTrace("heartbeat check fd=%d", fd);
-        conn = &serv->connection_list[fd];
-
-        if (1 == conn->active && conn->last_time < checktime)
-        {
-            conn->close_force = 1;
-            /**
-             * Close the connection
-             */
-            if (close_connection)
-            {
-                serv->factory.end(&serv->factory, fd);
-            }
-#ifdef SW_REACTOR_USE_SESSION
-            add_next_index_long(return_value, conn->session_id);
-#else
-            add_next_index_long(return_value, fd);
-#endif
-        }
-    }
+    swHeartbeat_check(serv, return_value, (uint8_t)close_connection, 0);
 }
 
 PHP_METHOD(swoole_server, taskwait)
