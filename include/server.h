@@ -17,7 +17,6 @@
 #ifndef SW_SERVER_H_
 #define SW_SERVER_H_
 
-#include "php.h"
 #include "swoole.h"
 #include "buffer.h"
 #include "connection.h"
@@ -1077,7 +1076,59 @@ pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker);
 int swManager_wait_user_worker(swProcessPool *pool, pid_t pid, int status);
 void swManager_kill_user_worker(swServer *serv);
 
-void swHeartbeat_check(swServer *serv, zval *close_list, uint8_t close_connection, int close_check_interval);
+inline uint8_t swHeartbeat_check_conn(swServer *serv, swConnection *conn, long now, int close_check_interval, uint8_t close_connection)
+{
+    swReactor *reactor;
+    int idle_time;
+    int check_interval;
+
+    if (conn != NULL && conn->active == 1 && conn->closed == 0 && conn->fdtype == SW_FD_TCP && conn->from_fd != 0)
+    {
+        swListenPort *port = (swListenPort *)serv->connection_list[conn->from_fd].object;
+        idle_time = port->heartbeat_idle_time == 0 ? serv->heartbeat_idle_time : port->heartbeat_idle_time;
+        check_interval = port->heartbeat_check_interval == 0 ? serv->heartbeat_check_interval : port->heartbeat_check_interval;
+
+        if (idle_time < 1 || (close_check_interval != 0 && check_interval != close_check_interval) || conn->protect || conn->last_time > (now - idle_time))
+        {
+            return 0;
+        }
+
+        if (close_connection)
+        {
+            conn->close_force = 1;
+            conn->close_notify = 1;
+
+            if (serv->factory_mode != SW_MODE_PROCESS)
+            {
+                if (serv->factory_mode == SW_MODE_BASE)
+                {
+                    reactor = SwooleG.main_reactor;
+                }
+                else
+                {
+                    reactor = &serv->reactor_threads[conn->from_id].reactor;
+                }
+            }
+            else
+            {
+                reactor = &serv->reactor_threads[conn->from_id].reactor;
+            }
+            //notify to reactor thread
+            if (conn->removed)
+            {
+                swServer_tcp_notify(serv, conn, SW_EVENT_CLOSE);
+            }
+            else
+            {
+                reactor->set(reactor, conn->fd, SW_FD_TCP | SW_EVENT_WRITE);
+            }
+        }
+
+        return 1;
+    }
+
+    return 0;
+}
 
 #ifdef __cplusplus
 }

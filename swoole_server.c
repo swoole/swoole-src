@@ -3256,7 +3256,31 @@ PHP_METHOD(swoole_server, heartbeat)
         RETURN_FALSE;
     }
 
-    swHeartbeat_check(serv, return_value, (uint8_t)close_connection, 0);
+    array_init(return_value);
+
+    swConnection *conn;
+
+    int fd;
+    int serv_max_fd;
+    int serv_min_fd;
+
+    serv_max_fd = swServer_get_maxfd(serv);
+    serv_min_fd = swServer_get_minfd(serv);
+
+    long now = (long) time(NULL);
+
+    for (fd = serv_min_fd; fd <= serv_max_fd; ++fd)
+    {
+        conn = swServer_connection_get(serv, fd);
+        if (swHeartbeat_check_conn(serv, conn, now, 0, close_connection))
+        {
+#ifdef SW_REACTOR_USE_SESSION
+            add_next_index_long(return_value, conn->session_id);
+#else
+            add_next_index_long(return_value, fd);
+#endif
+        }
+    }
 }
 
 PHP_METHOD(swoole_server, taskwait)

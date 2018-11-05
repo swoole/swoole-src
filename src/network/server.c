@@ -1643,6 +1643,27 @@ static void swServer_signal_hanlder(int sig)
     }
 }
 
+static void swHeartbeat_check(swServer *serv, int close_check_interval)
+{
+    swConnection *conn;
+
+    int fd;
+    int serv_max_fd;
+    int serv_min_fd;
+
+    serv_max_fd = swServer_get_maxfd(serv);
+    serv_min_fd = swServer_get_minfd(serv);
+
+    long now = (long) time(NULL);
+
+    for (fd = serv_min_fd; fd <= serv_max_fd; ++fd)
+    {
+        swTrace("check fd=%d", fd);
+        conn = swServer_connection_get(serv, fd);
+        swHeartbeat_check_conn(serv, conn, now, close_check_interval, 1);
+    }
+}
+
 static void swHeartbeatThread_start(swServer *serv)
 {
     swThreadParam *param;
@@ -1716,7 +1737,7 @@ static void swHeartbeatThread_loop(swThreadParam *param)
         sleep_time = (next[2] - now) < 0 ? 0 : (unsigned int)(next[2] - now);
         sleep(sleep_time);
 
-        swHeartbeat_check(serv, NULL, 1, (int)next[1]);
+        swHeartbeat_check(serv, (int)next[1]);
         now = (long) time(NULL);
 
         for (i = 0; i < count; ++i)
@@ -1736,86 +1757,6 @@ static void swHeartbeatThread_loop(swThreadParam *param)
     finish:
     free(check_list);
     pthread_exit(0);
-}
-
-void swHeartbeat_check(swServer *serv, zval *close_list, uint8_t close_connection, int close_check_interval)
-{
-    if (close_list != NULL) {
-        array_init(close_list);
-    }
-
-    swConnection *conn;
-    swReactor *reactor;
-
-    int fd;
-    int serv_max_fd;
-    int serv_min_fd;
-    long now;
-    int idle_time;
-    int check_interval;
-
-    serv_max_fd = swServer_get_maxfd(serv);
-    serv_min_fd = swServer_get_minfd(serv);
-
-    now = (long) time(NULL);
-
-    for (fd = serv_min_fd; fd <= serv_max_fd; ++fd)
-    {
-        swTrace("check fd=%d", fd);
-        conn = swServer_connection_get(serv, fd);
-
-        if (conn != NULL && conn->active == 1 && conn->closed == 0 && conn->fdtype == SW_FD_TCP && conn->from_fd != 0)
-        {
-            swListenPort *port = serv->connection_list[conn->from_fd].object;
-            idle_time = port->heartbeat_idle_time == 0 ? serv->heartbeat_idle_time : port->heartbeat_idle_time;
-            check_interval = port->heartbeat_check_interval == 0 ? serv->heartbeat_check_interval : port->heartbeat_check_interval;
-
-            if (idle_time < 1 || (close_check_interval != 0 && check_interval != close_check_interval) || conn->protect || conn->last_time > (now - idle_time))
-            {
-                continue;
-            }
-
-            if (close_connection == 1)
-            {
-                conn->close_force = 1;
-                conn->close_notify = 1;
-
-                if (serv->factory_mode != SW_MODE_PROCESS)
-                {
-                    if (serv->factory_mode == SW_MODE_BASE)
-                    {
-                        reactor = SwooleG.main_reactor;
-                    }
-                    else
-                    {
-                        reactor = &serv->reactor_threads[conn->from_id].reactor;
-                    }
-                }
-                else
-                {
-                    reactor = &serv->reactor_threads[conn->from_id].reactor;
-                }
-                //notify to reactor thread
-                if (conn->removed)
-                {
-                    swServer_tcp_notify(serv, conn, SW_EVENT_CLOSE);
-                }
-                else
-                {
-                    reactor->set(reactor, fd, SW_FD_TCP | SW_EVENT_WRITE);
-                }
-            }
-
-            if (close_list != NULL)
-            {
-#ifdef SW_REACTOR_USE_SESSION
-                add_next_index_long(close_list, conn->session_id);
-#else
-                add_next_index_long(close_list, fd);
-#endif
-            }
-        }
-    }
 }
 
 /**
