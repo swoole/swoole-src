@@ -1105,8 +1105,6 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
         if (!conn)
         {
             sw_zval_free(zdata);
-            zval_ptr_dtor(zrequest_object);
-            zval_ptr_dtor(zresponse_object);
             swWarn("connection[%d] is closed.", fd);
             return SW_ERR;
         }
@@ -1164,9 +1162,6 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
             args[0] = zrequest_object;
             args[1] = zresponse_object;
 
-            Z_DELREF_P(zrequest_object);
-            Z_DELREF_P(zresponse_object);
-
             zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, from_fd, callback_type);
             int ret = coro_create(cache, args, 2, &retval, NULL, NULL);
             if (ret < 0)
@@ -1175,6 +1170,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
                 {
                     serv->factory.end(&SwooleG.serv->factory, fd);
                 }
+                goto _free_object;
             }
         }
         else
@@ -1188,10 +1184,6 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
             {
                 swoole_php_error(E_WARNING, "onRequest handler error");
             }
-
-            _free_object:
-            zval_ptr_dtor(zrequest_object);
-            zval_ptr_dtor(zresponse_object);
         }
 
         if (EG(exception))
@@ -1208,6 +1200,9 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
             }
         }
 
+        _free_object:
+        zval_ptr_dtor(zrequest_object);
+        zval_ptr_dtor(zresponse_object);
         if (retval)
         {
             zval_ptr_dtor(retval);

@@ -393,13 +393,12 @@ int swoole_websocket_onMessage(swEventData *req)
         args[0] = zserv;
         args[1] = zframe;
 
-        Z_DELREF_P(zframe);
-
         zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onMessage);
         int ret = coro_create(cache, args, 2, &retval, NULL, NULL);
         if (ret == CORO_LIMIT)
         {
             zval_ptr_dtor(zdata);
+            zval_ptr_dtor(zframe);
             SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
             return SW_OK;
         }
@@ -417,8 +416,6 @@ int swoole_websocket_onMessage(swEventData *req)
         {
             swoole_php_error(E_WARNING, "onMessage handler error");
         }
-
-        zval_ptr_dtor(zframe);
     }
 
     if (EG(exception))
@@ -430,6 +427,7 @@ int swoole_websocket_onMessage(swEventData *req)
         zval_ptr_dtor(retval);
     }
     zval_ptr_dtor(zdata);
+    zval_ptr_dtor(zframe);
     return SW_OK;
 }
 
