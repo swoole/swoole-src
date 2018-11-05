@@ -1232,26 +1232,26 @@ int swoole_shell_exec(char *command, pid_t *pid, uint8_t get_error_stream)
 
         if (get_error_stream)
         {
-            if (fds[SW_PIPE_WRITE] == 1)
+            if (fds[SW_PIPE_WRITE] == fileno(stdout))
             {
-                dup2(fds[SW_PIPE_WRITE], 2);
+                dup2(fds[SW_PIPE_WRITE], fileno(stderr));
             }
-            else if (fds[SW_PIPE_WRITE] == 2)
+            else if (fds[SW_PIPE_WRITE] == fileno(stderr))
             {
-                dup2(fds[SW_PIPE_WRITE], 1);
+                dup2(fds[SW_PIPE_WRITE], fileno(stdout));
             }
             else
             {
-                dup2(fds[SW_PIPE_WRITE], 1);
-                dup2(fds[SW_PIPE_WRITE], 2);
+                dup2(fds[SW_PIPE_WRITE], fileno(stdout));
+                dup2(fds[SW_PIPE_WRITE], fileno(stderr));
                 close(fds[SW_PIPE_WRITE]);
             }
         }
         else
         {
-            if (fds[SW_PIPE_WRITE] != 1)
+            if (fds[SW_PIPE_WRITE] != fileno(stdout))
             {
-                dup2(fds[SW_PIPE_WRITE], 1);
+                dup2(fds[SW_PIPE_WRITE], fileno(stdout));
                 close(fds[SW_PIPE_WRITE]);
             }
         }
