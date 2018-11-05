@@ -82,6 +82,11 @@ static void resume_php_stack(coro_task *task)
     swTraceLog(SW_TRACE_COROUTINE,"sw_coro_resume coro id %d", COROG.current_coro->cid);
     task->state = SW_CORO_RUNNING;
     EG(current_execute_data) = task->yield_execute_data;
+    /* set vm stack to global */
+    task->origin_stack = COROG.origin_vm_stack;
+    task->origin_vm_stack_top = COROG.origin_vm_stack_top;
+    task->origin_vm_stack_end = COROG.origin_vm_stack_end;
+    /* resume vm stack */
     EG(vm_stack) = task->yield_stack;
     EG(vm_stack_top) = task->yield_vm_stack_top;
     EG(vm_stack_end) = task->yield_vm_stack_end;
@@ -91,7 +96,6 @@ static void save_php_stack(coro_task *task)
 {
     swTraceLog(SW_TRACE_COROUTINE,"coro_yield coro id %d", task->cid);
     task->state = SW_CORO_YIELD;
-    task->is_yield = 1;
     /* save vm stack */
     task->yield_execute_data = EG(current_execute_data);
     task->yield_stack = EG(vm_stack);
@@ -103,6 +107,7 @@ static void save_php_stack(coro_task *task)
     EG(vm_stack_end) = task->origin_vm_stack_end;
     SW_RESUME_EG_SCOPE(task->execute_data->func->common.scope);
 }
+
 void internal_coro_resume(void *arg)
 {
     coro_task *task = (coro_task *)arg;
@@ -232,7 +237,6 @@ static void sw_coro_func(void *arg)
     task->origin_vm_stack_end = origin_vm_stack_end;
     task->start_time = time(NULL);
     task->function = NULL;
-    task->is_yield = 0;
     task->state = SW_CORO_RUNNING;
     task->co = coroutine_get_by_id(cid);
     coroutine_set_task(task->co, (void *)task);
@@ -386,18 +390,9 @@ void sw_coro_close()
         swoole_call_hook(SW_GLOBAL_HOOK_ON_CORO_STOP, task);
     }
 
-    if (!task->is_yield)
-    {
-        EG(vm_stack) = task->origin_stack;
-        EG(vm_stack_top) = task->origin_vm_stack_top;
-        EG(vm_stack_end) = task->origin_vm_stack_end;
-    }
-    else
-    {
-        EG(vm_stack) = COROG.origin_vm_stack;
-        EG(vm_stack_top) = COROG.origin_vm_stack_top;
-        EG(vm_stack_end) = COROG.origin_vm_stack_end;
-    }
+    EG(vm_stack) = task->origin_stack;
+    EG(vm_stack_top) = task->origin_vm_stack_top;
+    EG(vm_stack_end) = task->origin_vm_stack_end;
     efree(task->stack);
     COROG.coro_num--;
     COROG.current_coro = NULL;

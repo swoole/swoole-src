@@ -61,7 +61,6 @@ typedef struct _coro_task
     zend_vm_stack yield_stack;
     zval *yield_vm_stack_top;
     zval *yield_vm_stack_end;
-    zend_bool is_yield;
 
     zend_output_globals *current_coro_output_ptr;
     /**
