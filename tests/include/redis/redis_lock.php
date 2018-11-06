@@ -127,7 +127,7 @@ class RedisLock
         return !!$ret;
     }
 
-    public function unlock(?string $key = null)
+    public function unlock(string $key = null)
     {
         if ($key) {
             // unlock one
