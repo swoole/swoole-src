@@ -3,10 +3,7 @@ swoole_serialize: pack & unpack
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
-if (!class_exists("swoole_serialize", false))
-{
-    echo "skip";
-}
+skip_if_class_not_exist('swoole_serialize');
 ?>
 --FILE--
 <?php

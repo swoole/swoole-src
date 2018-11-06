@@ -33,6 +33,13 @@ function skip_php_version_lower_than($require_version = '7.0')
     }
 }
 
+function skip_if_class_not_exist(string $class_name)
+{
+    if (!class_exists($class_name, false)) {
+        skip("{$class_name} not exist");
+    }
+}
+
 function skip_if_no_ssl()
 {
     if (!defined("SWOOLE_SSL")) {
@@ -121,10 +128,16 @@ function skip_deprecated()
 }
 
 (function () {
-    if (stripos(__DIR__, 'redis') !== false) {
+    $dir = explode('/', pathinfo($_SERVER['SCRIPT_FILENAME'], PATHINFO_DIRNAME));
+    $dir = end($dir);
+    if (stripos($dir, 'redis') !== false) {
+        skip_if_no_async_redis();
+    } elseif (stripos($dir, 'http2') !== false) {
         skip_if_no_http2();
-    } elseif (stripos(__DIR__, 'http2') !== false) {
-        skip_if_no_http2();
+    } elseif (PHP_VERSION_ID === 70300 && version_compare(PHP_VERSION, '7.3.0RC5', '<')) {
+        if (stripos($dir, 'runtime') !== false || stripos($dir, 'serialize') !== false) {
+            skip('unsupported php dev version');
+        }
     }
     skip_php_version_lower_than('7.0');
 })();
