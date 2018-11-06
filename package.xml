@@ -1242,7 +1242,7 @@
             <file role="src" name="thirdparty/boost/asm/make_x86_64_sysv_macho_gas.S" />
             <file role="doc" name="thirdparty/hiredis/CHANGELOG.md" />
             <file role="doc" name="thirdparty/hiredis/COPYING" />
-            <file role="doc" name="thirdparty/hiredis/Makefile" />
+            <file role="src" name="thirdparty/hiredis/Makefile" />
             <file role="doc" name="thirdparty/hiredis/README.md" />
             <file role="src" name="thirdparty/hiredis/adapters/ae.h" />
             <file role="src" name="thirdparty/hiredis/adapters/glib.h" />
