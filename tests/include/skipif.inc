@@ -128,8 +128,8 @@ function skip_deprecated()
 }
 
 (function () {
-    $dir = explode('/', pathinfo($_SERVER['SCRIPT_FILENAME'], PATHINFO_DIRNAME));
-    $dir = end($dir);
+    preg_match('#\/(swoole_[^\/]+)\/#', $_SERVER['SCRIPT_FILENAME'], $dir);
+    $dir = $dir[1];
     if (stripos($dir, 'redis') !== false) {
         skip_if_no_async_redis();
     } elseif (stripos($dir, 'http2') !== false) {
