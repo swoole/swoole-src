@@ -33,6 +33,13 @@ function skip_php_version_lower_than($require_version = '7.0')
     }
 }
 
+function skip_php_version_between($a, $b)
+{
+    if (version_compare(PHP_VERSION, $a, '>=') && version_compare(PHP_VERSION, $b, '<=')) {
+        skip("unsupported php version between {$a} and {$b}");
+    }
+}
+
 function skip_if_class_not_exist(string $class_name)
 {
     if (!class_exists($class_name, false)) {
@@ -128,16 +135,20 @@ function skip_deprecated()
 }
 
 (function () {
-    preg_match('#\/(swoole_[^\/]+)\/#', $_SERVER['SCRIPT_FILENAME'], $dir);
-    $dir = $dir[1];
-    if (stripos($dir, 'redis') !== false) {
-        skip_if_no_async_redis();
-    } elseif (stripos($dir, 'http2') !== false) {
-        skip_if_no_http2();
-    } elseif (PHP_VERSION_ID === 70300 && version_compare(PHP_VERSION, '7.3.0RC5', '<')) {
-        if (stripos($dir, 'runtime') !== false || stripos($dir, 'serialize') !== false) {
-            skip('unsupported php dev version');
+    if (preg_match('#\/(swoole_[^\/]+)\/#', $_SERVER['SCRIPT_FILENAME'], $dir)) {
+        $dir = $dir[1];
+        if (stripos($dir, 'redis') !== false) {
+            skip_if_no_async_redis();
+        } elseif (stripos($dir, 'http2') !== false) {
+            skip_if_no_http2();
         }
+        // it should be removed after php73 released
+        elseif (PHP_VERSION_ID === 70300 && version_compare(PHP_VERSION, '7.3.0RC5', '<')) {
+            // it should be removed after php73 released
+            if (stripos($dir, 'runtime') !== false || stripos($dir, 'serialize') !== false) {
+                skip('unsupported php dev version');
+            }
+        }
+        skip_php_version_lower_than('7.0');
     }
-    skip_php_version_lower_than('7.0');
 })();
