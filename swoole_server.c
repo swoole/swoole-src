@@ -2128,8 +2128,11 @@ PHP_METHOD(swoole_server, __construct)
         swListenPort *port = swServer_add_port(serv, sock_type, serv_host, serv_port);
         if (!port)
         {
-            zend_throw_exception_ex(swoole_exception_class_entry_ptr, errno, "failed to listen server port[%s:%ld]. Error: %s[%d].",
-                    serv_host, serv_port, strerror(errno), errno);
+            zend_throw_exception_ex(
+                swoole_exception_class_entry_ptr, errno,
+                "failed to listen server port[%s:" ZEND_LONG_FMT "]. Error: %s[%d].",
+                serv_host, serv_port, strerror(errno), errno
+            );
             return;
         }
     }
