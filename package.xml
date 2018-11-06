@@ -678,6 +678,7 @@
             <file role="test" name="tests/include/redis/bug_01.php" />
             <file role="test" name="tests/include/redis/bug_02.php" />
             <file role="test" name="tests/include/redis/bug_03.php" />
+            <file role="test" name="tests/include/redis/redis_lock.php" />
             <file role="test" name="tests/include/skipif.inc" />
             <file role="test" name="tests/init" />
             <file role="test" name="tests/new.sh" />
@@ -1047,6 +1048,7 @@
             <file role="test" name="tests/swoole_redis/get_set.phpt" />
             <file role="test" name="tests/swoole_redis/subscribe.phpt" />
             <file role="test" name="tests/swoole_redis_coro/basic.phpt" />
+            <file role="test" name="tests/swoole_redis_coro/bug_redislock.phpt" />
             <file role="test" name="tests/swoole_redis_coro/connect_timeout.phpt" />
             <file role="test" name="tests/swoole_redis_coro/connect_twice-2.phpt" />
             <file role="test" name="tests/swoole_redis_coro/connect_twice.phpt" />
@@ -1242,7 +1244,7 @@
             <file role="src" name="thirdparty/boost/asm/make_x86_64_sysv_macho_gas.S" />
             <file role="doc" name="thirdparty/hiredis/CHANGELOG.md" />
             <file role="doc" name="thirdparty/hiredis/COPYING" />
-            <file role="doc" name="thirdparty/hiredis/Makefile" />
+            <file role="src" name="thirdparty/hiredis/Makefile" />
             <file role="doc" name="thirdparty/hiredis/README.md" />
             <file role="src" name="thirdparty/hiredis/adapters/ae.h" />
             <file role="src" name="thirdparty/hiredis/adapters/glib.h" />
@@ -1295,15 +1297,6 @@
             <file role="src" name="tools/ip.php" />
             <file role="src" name="tools/pecl-package.php" />
             <file role="src" name="tools/send_http_data.php" />
-            <file role="src" name="travis/.gitignore" />
-            <file role="src" name="travis/compile.sh" />
-            <file role="src" name="travis/debug/swoole_table_implements.php" />
-            <file role="src" name="travis/docker-all.sh" />
-            <file role="src" name="travis/docker-compile.sh" />
-            <file role="src" name="travis/docker-compose.yml" />
-            <file role="src" name="travis/docker-test.sh" />
-            <file role="src" name="travis/pecl.sh" />
-            <file role="src" name="travis/route.sh" />
         </dir>
     </contents>
     <dependencies>
