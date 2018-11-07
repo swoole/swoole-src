@@ -17,4 +17,3 @@ Swoole\Coroutine::create(function ()
 });
 ?>
 --EXPECT--
-

@@ -7,8 +7,8 @@ swoole_http_server: upload raw
 require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid) {
-    $sock = stream_socket_client("tcp://127.0.0.1:9501");
+$pm->parentFunc = function ($pid) use ($pm) {
+    $sock = stream_socket_client("tcp://127.0.0.1:{$pm->getFreePort()}");
     $boundary = "Boundary+D80E45AE1BB1E1E1";
     $body = implode("\r\n", [
         "--$boundary\r\nContent-Disposition: form-data; name=\"folder_id\"\r\n\r\n999999955",
@@ -35,7 +35,7 @@ $pm->parentFunc = function ($pid) {
 };
 
 $pm->childFunc = function () use ($pm) {
-    $http = new swoole_http_server("127.0.0.1", 9501, SWOOLE_BASE);
+    $http = new swoole_http_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
 
     $http->set(['log_file' => '/dev/null']);
 
@@ -44,7 +44,7 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
     });
 
-    $http->on("request", function ($request, $response)
+    $http->on("request", function (swoole_http_request $request, swoole_http_response $response)
     {
         $response->end(json_encode($request->post));
     });

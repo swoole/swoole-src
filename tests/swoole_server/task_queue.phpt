@@ -5,24 +5,23 @@ swoole_server: task queue
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-$port = 9508;
 const N = 2048;
 
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid) use ($port, $pm)
+$pm->parentFunc = function ($pid) use ($pm)
 {
     $cli = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
-    $cli->connect("127.0.0.1", $port, 10) or die("ERROR");
+    $cli->connect('127.0.0.1', $pm->getFreePort(), 10) or die("ERROR");
     $cli->send("task-01") or die("ERROR");
     echo $cli->recv();
     $cli->close();
     $pm->kill();
 };
 
-$pm->childFunc = function () use ($pm, $port)
+$pm->childFunc = function () use ($pm)
 {
     ini_set('swoole.display_errors', 'Off');
-    $serv = new swoole_server("127.0.0.1", $port, SWOOLE_BASE);
+    $serv = new swoole_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $serv->set(array(
         "worker_num" => 1,
         'task_worker_num' => 1,

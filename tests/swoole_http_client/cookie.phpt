@@ -7,9 +7,9 @@ swoole_http_client: setCookies
 require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid)
+$pm->parentFunc = function ($pid) use ($pm)
 {
-    $cli = new swoole_http_client('127.0.0.1', 9501);
+    $cli = new swoole_http_client('127.0.0.1', $pm->getFreePort());
     $cookies = array('a' => 1, 'b' => '++');
     $cli->setCookies($cookies);
     $cli->setHeaders(array('User-Agent' => "swoole"));

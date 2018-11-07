@@ -57,7 +57,7 @@ $pm->parentFunc = function ($pid) use ($pm)
 
 $pm->childFunc = function () use ($pm)
 {
-    $serv = new swoole_server("127.0.0.1", $pm->getFreePort(), SWOOLE_BASE);
+    $serv = new swoole_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $serv->set(array(
       'package_max_length' => 1024 * 1024 * 2, //2M
       'socket_buffer_size' => 256 * 1024 * 1024,

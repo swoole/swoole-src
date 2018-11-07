@@ -80,11 +80,11 @@ HTTP;
 }
 
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid) {
+$pm->parentFunc = function ($pid) use ($pm) {
     foreach (range(1, 100) as $_) {
         $get = getRandomData(50);
         $post = getRandomData(100);
-        $ret = sendData('127.0.0.1', 9501, $get, $post);
+        $ret = sendData('127.0.0.1', $pm->getFreePort(), $get, $post);
         list($_, $body) = explode("\r\n\r\n", $ret);
         assert($body === var_dump_return($get, $post));
     }
@@ -93,7 +93,7 @@ $pm->parentFunc = function ($pid) {
 };
 
 $pm->childFunc = function () use ($pm) {
-    $http = new swoole_http_server("127.0.0.1", 9501, SWOOLE_BASE);
+    $http = new swoole_http_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $http->set(['log_file' => '/dev/null']);
     $http->on("WorkerStart", function ($serv, $wid) {
         global $pm;

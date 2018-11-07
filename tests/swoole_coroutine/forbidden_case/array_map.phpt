@@ -13,7 +13,7 @@ co::create(function() {
 });
 function test($p) {
     echo $p;
-    co::sleep(1);
+    co::sleep(.001);
     echo "func end\n";
 }
 echo "main end\n";

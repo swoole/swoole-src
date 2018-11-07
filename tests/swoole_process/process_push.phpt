@@ -23,4 +23,3 @@ $process->push("hello worker\n");
 ?>
 --EXPECTREGEX--
 hello worker
---CLEAN--

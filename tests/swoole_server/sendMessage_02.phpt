@@ -15,7 +15,7 @@ $pm->parentFunc = function ($pid) use ($pm)
         'open_eof_check' => true,
         'open_eof_split' => true,
     ]);
-    if (!$client->connect('127.0.0.1', 9501))
+    if (!$client->connect('127.0.0.1', $pm->getFreePort()))
     {
         exit("connect failed\n");
     }
@@ -37,7 +37,7 @@ $pm->parentFunc = function ($pid) use ($pm)
 
 $pm->childFunc = function () use ($pm)
 {
-    $serv = new swoole_server("127.0.0.1", 9501, SWOOLE_PROCESS, SWOOLE_SOCK_TCP );
+    $serv = new swoole_server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS, SWOOLE_SOCK_TCP );
     $serv->set([
         'log_file' => '/dev/null',
         'worker_num' => 4,

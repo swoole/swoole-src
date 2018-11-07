@@ -28,4 +28,3 @@ go(function () {
 
 ?>
 --EXPECT--
-

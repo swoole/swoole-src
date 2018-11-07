@@ -14,7 +14,7 @@ $pm->parentFunc = function () use ($pm) {
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
-    $serv = new \swoole_server('127.0.0.1', 9501);
+    $serv = new \swoole_server('127.0.0.1', $pm->getFreePort());
     $process = new \swoole_process(function (swoole_process $process) use ($serv) {
         sleep(1);
         echo "process start\n";

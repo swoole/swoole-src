@@ -10,7 +10,7 @@ require __DIR__ . '/../include/bootstrap.php';
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm)
 {
-    go(function () {
+    go(function () use ($pm) {
         $cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
         $cli->set([
             'open_length_check' => true,
@@ -19,7 +19,7 @@ $pm->parentFunc = function ($pid) use ($pm)
             'package_length_offset' => 0,
             'package_body_offset' => 4,
         ]);
-        $cli->connect('127.0.0.1', 9501);
+        $cli->connect('127.0.0.1', $pm->getFreePort());
         $data = str_repeat('A', 1025);
         $cli->send(pack('N', strlen($data)).$data);
         co::sleep(0.2);
@@ -34,7 +34,7 @@ $pm->parentFunc = function ($pid) use ($pm)
 };
 
 $pm->childFunc = function () use ($pm) {
-    $serv = new swoole_server("127.0.0.1", 9501, SWOOLE_BASE);
+    $serv = new swoole_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $serv->set([
         'worker_num' => 1,
         //'dispatch_mode'         => 1,
