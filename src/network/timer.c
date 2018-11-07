@@ -65,6 +65,7 @@ static int swTimer_init(long msec)
     SwooleG.timer._next_msec = msec;
     SwooleG.timer._next_id = 1;
     SwooleG.timer.round = 0;
+    SwooleG.timer.initialized = 1;
 
     if (SwooleG.main_reactor == NULL)
     {

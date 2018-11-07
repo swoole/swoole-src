@@ -205,6 +205,12 @@ void php_swoole_reactor_init()
         return;
     }
 
+    if (SwooleG.serv && swIsTaskWorker() && SwooleG.serv->task_async == 0)
+    {
+        swoole_php_fatal_error(E_ERROR, "The task process is not enable asynchronous, unable to use async-io");
+        return;
+    }
+
     if (SwooleG.main_reactor == NULL)
     {
         swTraceLog(SW_TRACE_PHP, "init reactor");
