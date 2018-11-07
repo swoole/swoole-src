@@ -227,7 +227,9 @@ static void sw_coro_func(void *arg)
     }
     zend_init_execute_data(call, &func->op_array, retval);
 
+#ifdef SW_LOG_TRACE_OPEN
     task->cid = cid;
+#endif
     task->execute_data = call;
     task->stack = EG(vm_stack);
     task->vm_stack_top = EG(vm_stack_top);
@@ -235,8 +237,6 @@ static void sw_coro_func(void *arg)
     task->origin_stack = origin_vm_stack;
     task->origin_vm_stack_top = origin_vm_stack_top;
     task->origin_vm_stack_end = origin_vm_stack_end;
-    task->start_time = time(NULL);
-    task->function = NULL;
     task->state = SW_CORO_RUNNING;
     task->co = coroutine_get_by_id(cid);
     coroutine_set_task(task->co, (void *)task);
@@ -275,8 +275,6 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     php_args.argv = argv;
     php_args.argc = argc;
     php_args.retval = retval;
-    php_args.post_callback = post_callback;
-    php_args.params = params;
 
     COROG.error = 0;
     COROG.coro_num++;

@@ -40,13 +40,13 @@ typedef struct _php_args
     zval **argv;
     int argc;
     zval *retval;
-    void *post_callback;
-    void *params;
 } php_args;
 
 typedef struct _coro_task
 {
+#ifdef SW_LOG_TRACE_OPEN
     int cid;
+#endif
     sw_coro_state state;
     zend_execute_data *execute_data;
     zend_vm_stack stack;
@@ -67,11 +67,6 @@ typedef struct _coro_task
      * user coroutine
      */
     coroutine_t *co;
-    zval *function;
-    time_t start_time;
-    void (*post_callback)(void *param);
-    void *post_callback_params;
-    php_args args;
 } coro_task;
 
 typedef struct _php_context
