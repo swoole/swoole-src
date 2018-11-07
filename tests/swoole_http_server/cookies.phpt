@@ -75,7 +75,7 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
     });
 
-    $http->on("request", function ($request, $response) {
+    $http->on("request", function (swoole_http_request $request, swoole_http_response $response) {
         $response->end(json_encode($request->cookie));
     });
 
@@ -86,4 +86,3 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
-

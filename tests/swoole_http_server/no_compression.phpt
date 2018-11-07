@@ -7,7 +7,7 @@ swoole_http_server: no compression
 require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid)
+$pm->parentFunc = function ($pid) use ($pm)
 {
     $data = curlGet("http://127.0.0.1:{$pm->getFreePort()}/", false);
     assert(md5_file(__DIR__ . '/../../README.md') == md5($data));
@@ -38,4 +38,3 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTREGEX--
-

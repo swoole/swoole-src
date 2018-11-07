@@ -41,4 +41,3 @@ clearstatcache();
 assert(!is_file(PID_FILE));
 ?>
 --EXPECT--
-

@@ -52,7 +52,7 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
     });
 
-    $http->on("request", function ($request, $response) {
+    $http->on("request", function (swoole_http_request $request, swoole_http_response $response) {
         $response->header("Content-Type", "text/plain");
         $response->end(strlen($request->get['a']));
     });
@@ -64,4 +64,3 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
-

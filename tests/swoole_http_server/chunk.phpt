@@ -7,7 +7,7 @@ swoole_http_server: http chunk
 require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid) {
+$pm->parentFunc = function ($pid) use ($pm) {
     $data = curlGet("http://127.0.0.1:{$pm->getFreePort()}/");
     assert(!empty($data));
     assert(md5($data) === md5_file(TEST_IMAGE));
@@ -26,7 +26,7 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
     });
 
-    $http->on("request", function ($request, $response) {
+    $http->on("request", function (swoole_http_request $request,  swoole_http_response $response) {
         $data = str_split(file_get_contents(TEST_IMAGE), 8192);
         foreach ($data as $chunk)
         {
