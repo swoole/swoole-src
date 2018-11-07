@@ -256,6 +256,11 @@ bool php_swoole_client_coro_socket_free(Socket *cli)
         efree(cli->http_proxy);
         cli->http_proxy = nullptr;
     }
+    if (cli->protocol.private_data)
+    {
+        zval *zcallback = (zval *) cli->protocol.private_data;
+        sw_zval_free(zcallback);
+    }
     delete cli;
 
     return ret;
