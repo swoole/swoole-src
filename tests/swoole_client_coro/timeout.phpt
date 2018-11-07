@@ -5,20 +5,21 @@ swoole_client_coro: timeout of udp client
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
+$port = get_one_free_port();
 
-go(function () {
+go(function () use ($port) {
     $socket = new Swoole\Coroutine\Socket(AF_INET, SOCK_DGRAM, 0);
-    $socket->bind('127.0.0.1', 9502);
+    $socket->bind('127.0.0.1', $port);
     $peer = null;
-    $data = $socket->recvfrom($peer);
+    $socket->recvfrom($peer);
     echo "recvfrom client\n";
 });
 
-go(function () {
+go(function () use ($port) {
     $cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_UDP);
     $begin = time();
     $timeout_sec = 2;
-    if (!$cli->connect('127.0.0.1', 9502, $timeout_sec)) {
+    if (!$cli->connect('127.0.0.1', $port, $timeout_sec)) {
         fail:
         echo "ERROR\n";
         return;
@@ -37,6 +38,7 @@ go(function () {
     $cli->close();
     echo "TIMEOUT\n";
 });
+
 swoole_event::wait();
 ?>
 --EXPECT--

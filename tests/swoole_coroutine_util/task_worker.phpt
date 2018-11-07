@@ -5,23 +5,21 @@ swoole_coroutine_util: sleep in Task-Worker
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-$port = 9508;
-
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid) use ($port, $pm)
+$pm->parentFunc = function ($pid) use ($pm)
 {
     $cli = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
     $cli->set(['open_eof_check' => true, "package_eof" => "\r\n\r\n"]);
-    $cli->connect("127.0.0.1", $port, 5) or die("ERROR");
+    $cli->connect('127.0.0.1', $pm->getFreePort(), 5) or die("ERROR");
     $cli->send("task-01") or die("ERROR");
     echo trim($cli->recv()) . "\n";
     $pm->kill();
 };
 
-$pm->childFunc = function () use ($pm, $port)
+$pm->childFunc = function () use ($pm)
 {
     ini_set('swoole.display_errors', 'Off');
-    $serv = new swoole_server("127.0.0.1", $port);
+    $serv = new swoole_server('127.0.0.1', $pm->getFreePort());
     $serv->set(array(
         "worker_num" => 1,
         'task_worker_num' => 2,

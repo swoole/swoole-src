@@ -11,7 +11,7 @@ $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($port)
 {
     $cli = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
-    $cli->connect("127.0.0.1", $port, 0.5) or die("ERROR");
+    $cli->connect('127.0.0.1', $port, 0.5) or die("ERROR");
 
     $cli->send("array-01") or die("ERROR");
     assert($cli->recv() == 'OK');
@@ -31,7 +31,7 @@ $pm->childFunc = function () use ($pm, $port)
 {
     ini_set('swoole.display_errors', 'Off');
     ini_set('display_errors', 'Off');
-    $serv = new swoole_server("127.0.0.1", $port);
+    $serv = new swoole_server('127.0.0.1', $port);
     $serv->set(array(
         "worker_num" => 1,
         'task_worker_num' => 1,

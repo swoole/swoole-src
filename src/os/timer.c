@@ -23,26 +23,10 @@ static int swSystemTimer_set(swTimer *timer, long new_interval);
 /**
  * create timer
  */
-int swSystemTimer_init(int interval, int use_pipe)
+int swSystemTimer_init(int interval)
 {
     swTimer *timer = &SwooleG.timer;
     timer->lasttime = interval;
-
-    if (use_pipe)
-    {
-        if (swPipeNotify_auto(&timer->pipe, 0, 0) < 0)
-        {
-            return SW_ERR;
-        }
-        timer->fd = timer->pipe.getFd(&timer->pipe, 0);
-        timer->use_pipe = 1;
-    }
-    else
-    {
-        timer->fd = 1;
-        timer->use_pipe = 0;
-    }
-
     if (swSystemTimer_signal_set(timer, interval) < 0)
     {
         return SW_ERR;
@@ -94,10 +78,7 @@ static int swSystemTimer_signal_set(swTimer *timer, long interval)
 
 void swSystemTimer_free(swTimer *timer)
 {
-    if (timer->use_pipe)
-    {
-        timer->pipe.close(&timer->pipe);
-    }
+    swSystemTimer_signal_set(timer, -1);
 }
 
 static long current_interval = 0;
@@ -119,10 +100,4 @@ static int swSystemTimer_set(swTimer *timer, long new_interval)
 void swSystemTimer_signal_handler(int sig)
 {
     SwooleG.signal_alarm = 1;
-    uint64_t flag = 1;
-
-    if (SwooleG.timer.use_pipe)
-    {
-        SwooleG.timer.pipe.write(&SwooleG.timer.pipe, &flag, sizeof(flag));
-    }
 }

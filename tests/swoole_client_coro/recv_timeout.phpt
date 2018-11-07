@@ -10,9 +10,9 @@ require __DIR__ . '/../include/bootstrap.php';
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm)
 {
-    go(function () {
+    go(function () use ($pm) {
         $cli = new Co\Client(SWOOLE_SOCK_TCP);
-        $cli->connect('127.0.0.1', 9501, -1);
+        $cli->connect('127.0.0.1', $pm->getFreePort(), -1);
         $data = str_repeat('A', 1025);
         $cli->send(pack('N', strlen($data)) . $data);
         $retData = $cli->recv(0.5);
@@ -24,7 +24,7 @@ $pm->parentFunc = function ($pid) use ($pm)
 };
 
 $pm->childFunc = function () use ($pm) {
-    $serv = new swoole_server("127.0.0.1", 9501, SWOOLE_BASE);
+    $serv = new swoole_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $serv->set([
         'worker_num' => 1,
         'log_file' => '/dev/null',

@@ -7,16 +7,16 @@ swoole_http_client: keepalive
 require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid)
+$pm->parentFunc = function ($pid) use ($pm)
 {
-    echo file_get_contents("http://127.0.0.1:9501/keep");
-    echo file_get_contents("http://127.0.0.1:9501/notkeep");
+    echo file_get_contents("http://127.0.0.1:{$pm->getFreePort()}/keep");
+    echo file_get_contents("http://127.0.0.1:{$pm->getFreePort()}/notkeep");
     swoole_process::kill($pid);
 };
 
 $pm->childFunc = function () use ($pm)
 {
-    $http = new swoole_http_server("127.0.0.1", 9501, SWOOLE_BASE);
+    $http = new swoole_http_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $http->set(array(
         'worker_num' => 1,
         'log_file' => '/dev/null'
@@ -32,7 +32,7 @@ $pm->childFunc = function () use ($pm)
             $pm->wakeup();
         }
     });
-    $http->on('request', function ($request, swoole_http_response $response) use ($http)
+    $http->on('request', function ($request, swoole_http_response $response) use ($http, $pm)
     {
         $route = $request->server['request_uri'];
         if ($route == '/info')
@@ -42,7 +42,7 @@ $pm->childFunc = function () use ($pm)
         }
         elseif ($route == '/keep')
         {
-            $cli = new swoole_http_client('127.0.0.1', 9501);
+            $cli = new swoole_http_client('127.0.0.1', $pm->getFreePort());
             $cli->set(array(
                 'keep_alive' => 1,
             ));
@@ -64,7 +64,7 @@ $pm->childFunc = function () use ($pm)
         }
         elseif ($route == '/notkeep')
         {
-            $cli = new swoole_http_client('127.0.0.1', 9501);
+            $cli = new swoole_http_client('127.0.0.1', $pm->getFreePort());
             $cli->set(array(
                 'keep_alive' => 0,
             ));
@@ -94,4 +94,3 @@ Done
 keep-alive
 closed
 Done.*
---CLEAN--

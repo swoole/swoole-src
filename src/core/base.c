@@ -140,8 +140,6 @@ void swoole_init(void)
     SwooleG.use_signalfd = 1;
     SwooleG.enable_signalfd = 1;
 #endif
-
-    SwooleG.use_timer_pipe = 1;
 }
 
 void swoole_clean(void)
@@ -149,7 +147,7 @@ void swoole_clean(void)
     //free the global memory
     if (SwooleG.memory_pool != NULL)
     {
-        if (SwooleG.timer.fd > 0)
+        if (SwooleG.timer.initialized)
         {
             swTimer_free(&SwooleG.timer);
         }

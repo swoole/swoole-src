@@ -17,4 +17,3 @@ go(function () use ($c1) {
 });
 ?>
 --EXPECTF--
-

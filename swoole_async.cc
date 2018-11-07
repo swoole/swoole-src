@@ -1099,6 +1099,7 @@ static int process_stream_onRead(swReactor *reactor, swEvent *event)
     {
         zval_ptr_dtor(retval);
     }
+    zval_ptr_dtor(zdata);
     zval_ptr_dtor(zstatus);
     close(ps->fd);
     efree(ps);

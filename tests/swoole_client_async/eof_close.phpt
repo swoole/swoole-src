@@ -31,7 +31,7 @@ $pm->parentFunc = function ($pid) use ($pm)
         echo "CLOSED\n";
     });
 
-    if (!$client->connect('127.0.0.1', 9501, 0.5, 0))
+    if (!$client->connect('127.0.0.1', $pm->getFreePort(), 0.5, 0))
     {
         echo "Over flow. errno=" . $client->errCode;
         die("\n");
@@ -40,7 +40,7 @@ $pm->parentFunc = function ($pid) use ($pm)
 
 $pm->childFunc = function () use ($pm)
 {
-    $serv = new swoole_server("127.0.0.1", 9501, SWOOLE_BASE);
+    $serv = new swoole_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $serv->set(array(
         'package_eof' => "\r\n\r\n",
         'open_eof_check' => true,

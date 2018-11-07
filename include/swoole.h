@@ -2034,17 +2034,15 @@ enum swTimer_type
 struct _swTimer
 {
     /*--------------signal timer--------------*/
+    uint8_t initialized;
     swHeap *heap;
     swHashMap *map;
     int num;
-    int use_pipe;
     int lasttime;
-    int fd;
     uint64_t round;
     long _next_id;
     long _current_id;
     long _next_msec;
-    swPipe pipe;
     /*-----------------for EventTimer-------------------*/
     struct timeval basetime;
     /*--------------------------------------------------*/
@@ -2062,7 +2060,7 @@ static sw_inline swTimer_node* swTimer_get(swTimer *timer, long id)
     return (swTimer_node*) swHashMap_find_int(timer->map, id);
 }
 
-int swSystemTimer_init(int msec, int use_pipe);
+int swSystemTimer_init(int msec);
 void swSystemTimer_signal_handler(int sig);
 int swSystemTimer_event_handler(swReactor *reactor, swEvent *event);
 
@@ -2150,11 +2148,6 @@ typedef struct
     uint8_t socket_dontwait :1;
     uint8_t dns_lookup_random :1;
     uint8_t use_async_resolver :1;
-
-    /**
-     * Timer used pipe
-     */
-    uint8_t use_timer_pipe :1;
 
     int error;
     int process_type;

@@ -22,7 +22,7 @@ class T
     {
         go(function () {
             echo "coro start\n";
-            co::sleep(1.0);
+            co::sleep(.001);
             echo "coro exit\n";
         });
     }

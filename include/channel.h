@@ -80,11 +80,12 @@ public:
      */
     inline void* pop_data()
     {
-        void *data = data_queue.front();
-        if (data)
+        if (data_queue.size() == 0)
         {
-            data_queue.pop();
+            return nullptr;
         }
+        void *data = data_queue.front();
+        data_queue.pop();
         return data;
     }
 
@@ -93,22 +94,22 @@ public:
         coroutine_t* co;
         if (type == PRODUCER)
         {
-            co = producer_queue.front();
-            if (co == nullptr)
+            if (producer_queue.size() == 0)
             {
                 return nullptr;
             }
+            co = producer_queue.front();
             producer_queue.pop_front();
             notify_producer_count--;
             swDebug("resume producer[%d]", coroutine_get_cid(co));
         }
         else
         {
-            co = consumer_queue.front();
-            if (co == nullptr)
+            if (consumer_queue.size() == 0)
             {
                 return nullptr;
             }
+            co = consumer_queue.front();
             consumer_queue.pop_front();
             notify_consumer_count--;
             swDebug("resume consumer[%d]", coroutine_get_cid(co));

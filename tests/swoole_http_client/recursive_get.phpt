@@ -10,7 +10,7 @@ require __DIR__ . '/../include/bootstrap.php';
 $simple_http_server = __DIR__ . "/../include/api/swoole_http_server/simple_http_server.php";
 $closeServer = start_server($simple_http_server, HTTP_SERVER_HOST, $port = get_one_free_port());
 
-$cli = new \swoole_http_client("127.0.0.1", $port);
+$cli = new \swoole_http_client('127.0.0.1', $port);
 $cli->on("error", function() { /*echo "ERROR";*/ swoole_event_exit(); });
 $cli->on("close", function() { /*echo "CLOSE";*/ swoole_event_exit(); });
 $i = 0;

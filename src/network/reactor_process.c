@@ -175,7 +175,6 @@ int swReactorProcess_start(swServer *serv)
      * manager process can not use signalfd
      */
     SwooleG.use_signalfd = 0;
-    SwooleG.use_timer_pipe = 0;
 
     swProcessPool_start(&serv->gs->event_workers);
     swServer_signal_init(serv);

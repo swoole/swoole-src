@@ -1134,8 +1134,11 @@ PHP_MINIT_FUNCTION(swoole)
 #ifdef SW_USE_HTTP2
     swoole_http2_client_coro_init(module_number);
 #endif
-
+#if SW_USE_FAST_SERIALIZE
     swoole_serialize_init(module_number);
+#else
+    SWOOLE_G(fast_serialize) = 0;
+#endif
     swoole_memory_pool_init(module_number);
     swoole_redis_init(module_number);
     swoole_redis_server_init(module_number);

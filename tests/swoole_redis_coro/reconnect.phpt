@@ -16,4 +16,3 @@ go(function () {
 });
 ?>
 --EXPECT--
-

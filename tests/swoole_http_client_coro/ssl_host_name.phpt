@@ -8,7 +8,10 @@ require __DIR__ . '/../include/bootstrap.php';
 
 go(function () {
     $c = new Co\Http\Client('pro-api.coinmarketcap.com', 443, true);
-    $c->set(['ssl_host_name' => 'pro-api.coinmarketcap.com']);
+    $c->set([
+        'timeout' => 5,
+        'ssl_host_name' => 'pro-api.coinmarketcap.com'
+    ]);
     $c->get('/');
     assert(strlen($c->body) > 0);
     assert($c->statusCode == 200);
@@ -16,4 +19,3 @@ go(function () {
 swoole_event::wait();
 ?>
 --EXPECT--
-

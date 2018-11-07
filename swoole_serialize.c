@@ -15,6 +15,8 @@
  */
 
 #include "php_swoole.h"
+
+#ifdef SW_USE_FAST_SERIALIZE
 #include "swoole_serialize.h"
 #ifdef __SSE2__
 #include <emmintrin.h>
@@ -1580,3 +1582,4 @@ static PHP_METHOD(swoole_serialize, unpack)
         RETURN_FALSE;
     }
 }
+#endif /* SW_USE_FAST_SERIALIZE */
