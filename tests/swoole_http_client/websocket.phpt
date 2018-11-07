@@ -46,7 +46,7 @@ $pm->parentFunc = function ($pid) use ($pm)
 
 $pm->childFunc = function () use ($pm)
 {
-    $serv = new swoole_websocket_server("127.0.0.1", $pm->getFreePort());
+    $serv = new swoole_websocket_server('127.0.0.1', $pm->getFreePort());
     $serv->set(['log_file' => '/dev/null']);
     $serv->count = 0;
     $serv->on('Open', function ($swoole_server, $req)

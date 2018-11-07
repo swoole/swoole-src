@@ -73,7 +73,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
 };
 
 $pm->childFunc = function () use ($pm) {
-    $http = new swoole_http_server("127.0.0.1", $pm->getFreePort(), SWOOLE_BASE);
+    $http = new swoole_http_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $http->set(['log_file' => '/dev/null']);
     $http->on("WorkerStart", function ($serv, $wid) use ($pm) {
         $pm->wakeup();

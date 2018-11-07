@@ -32,7 +32,7 @@ $pm->parentFunc = function ($pid) use ($pm)
 
 $pm->childFunc = function () use ($pm)
 {
-    $ws = new swoole_server("127.0.0.1", $pm->getFreePort(), SWOOLE_BASE);
+    $ws = new swoole_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $ws->set(array(
         'log_file' => '/dev/null'
     ));

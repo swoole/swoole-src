@@ -22,7 +22,7 @@ $pm->parentFunc = function ($pid) use ($port)
 
 $pm->childFunc = function () use ($pm, $port)
 {
-    $http = new swoole_http_server("127.0.0.1", $port, SWOOLE_BASE);
+    $http = new swoole_http_server('127.0.0.1', $port, SWOOLE_BASE);
     $http->set(array(
         'log_file' => '/dev/null'
     ));

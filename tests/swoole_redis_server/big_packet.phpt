@@ -24,7 +24,7 @@ $pm->parentFunc = function ($pid) use ($pm)
 
 $pm->childFunc = function () use ($pm)
 {
-    $server = new Server("127.0.0.1", $pm->getFreePort(), SWOOLE_BASE);
+    $server = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $server->data = array();
 
     $server->setHandler('GET', function ($fd, $data) use ($server) {

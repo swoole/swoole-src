@@ -15,7 +15,7 @@ $counter3 = new swoole_atomic(); // task num
 
 swoole_unittest_fork(function() {
 
-    $serv = new \swoole_server("127.0.0.1", 9503);
+    $serv = new \swoole_server('127.0.0.1', get_one_free_port());
     $serv->set([
         "worker_num" => 1,
         'task_max_request' => 200,

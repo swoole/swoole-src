@@ -11,7 +11,7 @@ skip_if_in_docker('dead wait in docker');
 require __DIR__ . '/../include/bootstrap.php';
 
 $tcp_server = __DIR__ . "/../include/memoryleak/tcp_client_memory_leak/tcp_serv.php";
-$closeServer = start_server($tcp_server, "127.0.0.1", 9001);
+$closeServer = start_server($tcp_server, '127.0.0.1', 9001);
 
 $mem = memory_get_usage(true);
 ini_set("memory_limit", "100m");
@@ -33,7 +33,7 @@ $cli->on("close", function (swoole_client $cli) use ($closeServer)
     echo "closed\n";
     $closeServer();
 });
-$cli->connect("127.0.0.1", 9001);
+$cli->connect('127.0.0.1', 9001);
 assert(memory_get_usage(true) == $mem);
 echo "SUCCESS\n";
 swoole_event::wait();

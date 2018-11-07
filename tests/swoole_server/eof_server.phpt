@@ -46,7 +46,7 @@ $pm->parentFunc = function ($pid) use ($pm)
 
 $pm->childFunc = function () use ($pm)
 {
-    $serv = new swoole_server("127.0.0.1", $pm->getFreePort(), SWOOLE_BASE);
+    $serv = new swoole_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $serv->set(array(
         'package_eof' => "\r\n\r\n",
         'open_eof_check' => true,

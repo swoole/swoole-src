@@ -8,7 +8,7 @@ require __DIR__ . '/../include/bootstrap.php';
 
 go(function () {
     $cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_UDP);
-    $ret = $cli->connect('127.0.0.1', 9502, 3);
+    $ret = $cli->connect('127.0.0.1', get_one_free_port(), 3);
     echo "connect ret:".var_export($ret,1)."\n";
 
     $ret = $cli->send("hello");

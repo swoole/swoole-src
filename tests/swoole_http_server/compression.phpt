@@ -16,7 +16,7 @@ $pm->parentFunc = function ($pid) use ($pm)
 
 $pm->childFunc = function () use ($pm)
 {
-    $http = new swoole_http_server("127.0.0.1", $pm->getFreePort(), SWOOLE_BASE, SWOOLE_SOCK_TCP);
+    $http = new swoole_http_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE, SWOOLE_SOCK_TCP);
 
     $http->set([
         'http_gzip_level' => 9,

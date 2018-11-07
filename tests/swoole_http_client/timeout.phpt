@@ -17,7 +17,7 @@ $pm->parentFunc = function ($pid) use ($pm)
 
 $pm->childFunc = function () use ($pm)
 {
-    $http = new swoole_http_server("127.0.0.1", $pm->getFreePort(0), SWOOLE_BASE);
+    $http = new swoole_http_server('127.0.0.1', $pm->getFreePort(0), SWOOLE_BASE);
     $http->set(array(
         'worker_num' => 2,
         'task_worker_num' => 2,

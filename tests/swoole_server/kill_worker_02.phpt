@@ -1,6 +1,5 @@
 --TEST--
 swoole_server: kill worker [SWOOLE_PROCESS]
-
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -23,7 +22,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
 
 $pm->childFunc = function () use ($pm)
 {
-    $serv = new \swoole_server("127.0.0.1", 9503, SWOOLE_PROCESS);
+    $serv = new \swoole_server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $serv->set(["worker_num" => 2, 'log_file' => '/dev/null',]);
     $serv->on("WorkerStart", function (\swoole_server $serv, $worker_id) use ($pm) {
         if ($worker_id == 0)
