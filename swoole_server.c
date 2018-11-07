@@ -221,7 +221,9 @@ int php_swoole_task_pack(swEventData *task, zval *data)
 {
     smart_str serialized_data = { 0 };
     php_serialize_data_t var_hash;
+#ifdef SW_USE_FAST_SERIALIZE
     zend_string *serialized_string = NULL;
+#endif
 
     task->info.type = SW_EVENT_TASK;
     //field fd save task_id
@@ -242,6 +244,7 @@ int php_swoole_task_pack(swEventData *task, zval *data)
         //serialize
         swTask_type(task) |= SW_TASK_SERIALIZE;
 
+#ifdef SW_USE_FAST_SERIALIZE
         if (SWOOLE_G(fast_serialize))
         {
             serialized_string = php_swoole_serialize(data);
@@ -249,6 +252,7 @@ int php_swoole_task_pack(swEventData *task, zval *data)
             task_data_len = serialized_string->len;
         }
         else
+#endif
         {
             PHP_VAR_SERIALIZE_INIT(var_hash);
             php_var_serialize(&serialized_data, data, &var_hash);
@@ -283,11 +287,13 @@ int php_swoole_task_pack(swEventData *task, zval *data)
         task->info.len = task_data_len;
     }
 
+#ifdef SW_USE_FAST_SERIALIZE
     if (SWOOLE_G(fast_serialize) && serialized_string)
     {
         zend_string_release(serialized_string);
     }
     else
+#endif
     {
         smart_str_free(&serialized_data);
     }
@@ -422,6 +428,7 @@ zval* php_swoole_task_unpack(swEventData *task_result)
     {
         SW_ALLOC_INIT_ZVAL(result_unserialized_data);
 
+#ifdef SW_USE_FAST_SERIALIZE
         if (SWOOLE_G(fast_serialize))
         {
             if (php_swoole_unserialize(result_data_str, result_data_len, result_unserialized_data, NULL, 0))
@@ -435,6 +442,7 @@ zval* php_swoole_task_unpack(swEventData *task_result)
             }
         }
         else
+#endif
         {
             PHP_VAR_UNSERIALIZE_INIT(var_hash);
             //unserialize success
@@ -787,14 +795,16 @@ static int php_swoole_task_finish(swServer *serv, zval *data, swEventData *curre
     char *data_str;
     int data_len = 0;
     int ret;
-
+#ifdef SW_USE_FAST_SERIALIZE
     zend_string *serialized_string = NULL;
+#endif
 
     //need serialize
     if (Z_TYPE_P(data) != IS_STRING)
     {
         //serialize
         flags |= SW_TASK_SERIALIZE;
+#ifdef SW_USE_FAST_SERIALIZE
         if (SWOOLE_G(fast_serialize))
         {
             serialized_string = php_swoole_serialize(data);
@@ -802,6 +812,7 @@ static int php_swoole_task_finish(swServer *serv, zval *data, swEventData *curre
             data_len = serialized_string->len;
         }
         else
+#endif
         {
             PHP_VAR_SERIALIZE_INIT(var_hash);
             php_var_serialize(&serialized_data, data, &var_hash);
@@ -817,11 +828,14 @@ static int php_swoole_task_finish(swServer *serv, zval *data, swEventData *curre
     }
 
     ret = swTaskWorker_finish(serv, data_str, data_len, flags, current_task);
+
+#ifdef SW_USE_FAST_SERIALIZE
     if (SWOOLE_G(fast_serialize) && serialized_string)
     {
         zend_string_release(serialized_string);
     }
     else
+#endif
     {
         smart_str_free(&serialized_data);
     }
@@ -2114,8 +2128,11 @@ PHP_METHOD(swoole_server, __construct)
         swListenPort *port = swServer_add_port(serv, sock_type, serv_host, serv_port);
         if (!port)
         {
-            zend_throw_exception_ex(swoole_exception_class_entry_ptr, errno, "failed to listen server port[%s:%ld]. Error: %s[%d].",
-                    serv_host, serv_port, strerror(errno), errno);
+            zend_throw_exception_ex(
+                swoole_exception_class_entry_ptr, errno,
+                "failed to listen server port[%s:" ZEND_LONG_FMT "]. Error: %s[%d].",
+                serv_host, serv_port, strerror(errno), errno
+            );
             return;
         }
     }

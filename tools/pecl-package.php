@@ -10,11 +10,11 @@ require __DIR__ . '/functions.php';
 
 function check_source_ver(string $expect_ver, $source_file)
 {
-    static $source_ver_regex = '/(SWOOLE_VERSION +)("?)(?<ver>[\w-.]+)("?)/';
+    static $source_ver_regex = '/(SWOOLE_VERSION +)("?)(?<ver>[\w\-.]+)("?)/';
     $replaced = false;
     _check:
     $source_content = file_get_contents($source_file);
-    if (!@preg_match($source_ver_regex, $source_content, $matches)) {
+    if (!preg_match($source_ver_regex, $source_content, $matches)) {
         swoole_log(
             "Warning: Match SWOOLE_VERSION Failed, skip check!\n",
             SWOOLE_COLOR_MAGENTA
@@ -113,6 +113,12 @@ foreach ($file_list_raw as $file) {
                 $role = 'doc';
                 break;
             case '':
+                static $spacial_source_list = [
+                    'Makefile' => true
+                ];
+                if ($spacial_source_list[pathinfo($file, PATHINFO_BASENAME)] ?? false) {
+                    break;
+                }
                 if (substr(file_get_contents("{$root_dir}/{$file}"), 0, 2) !== '#!') {
                     $role = 'doc';
                 }
