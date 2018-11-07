@@ -158,9 +158,11 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
         {
             swError("[TaskWorker] create reactor failed.");
         }
+        SwooleG.enable_signalfd = 1;
     }
     else
     {
+        SwooleG.enable_signalfd = 0;
         SwooleG.main_reactor = NULL;
     }
 

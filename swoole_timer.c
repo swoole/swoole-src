@@ -90,7 +90,10 @@ long php_swoole_add_timer(int ms, zval *callback, zval *param, int persistent)
     }
     efree(func_name);
 
-    php_swoole_check_reactor();
+    if (!(SwooleG.serv && swIsTaskWorker() && SwooleG.serv->task_async == 0))
+    {
+        php_swoole_check_reactor();
+    }
 
     swTimer_callback *cb = emalloc(sizeof(swTimer_callback));
 
@@ -336,7 +339,7 @@ PHP_FUNCTION(swoole_timer_after)
 
 PHP_FUNCTION(swoole_timer_clear)
 {
-    if (!SwooleG.timer.set)
+    if (!SwooleG.timer.initialized)
     {
         swoole_php_error(E_WARNING, "no timer");
         RETURN_FALSE;
