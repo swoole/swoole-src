@@ -24,6 +24,7 @@ $pm->childFunc = function () use ($pm)
         "worker_num" => 1,
         'task_worker_num' => 2,
         'log_file' => '/dev/null',
+        'task_async' => true
     ));
     $serv->on("WorkerStart", function (\swoole_server $serv)  use ($pm)
     {
