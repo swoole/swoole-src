@@ -25,4 +25,3 @@ Done
 --EXPECTREGEX--
 swoole
 Done.*
---CLEAN--
