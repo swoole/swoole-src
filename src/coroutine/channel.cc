@@ -118,7 +118,7 @@ void* Channel::pop(double timeout)
     {
         swTimer_del(&SwooleG.timer, msg.timer);
     }
-    if (msg.error || closed)
+    if (msg.error || closed || data_queue.size() == 0)
     {
         return nullptr;
     }
