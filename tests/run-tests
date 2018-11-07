@@ -355,6 +355,7 @@ define('QA_REPORTS_PAGE', 'http://qa.php.net/reports');
 define('TRAVIS_CI' , (bool) getenv('TRAVIS'));
 
 // swoole patch: color const
+define('SWOOLE_TEST_TIMEOUT', file_exists('/.travisenv') ? 10 : 30);
 define('SWOOLE_COLOR_RED', 1);
 define('SWOOLE_COLOR_GREEN', 2);
 define('SWOOLE_COLOR_YELLOW', 3);
@@ -1157,7 +1158,7 @@ function system_with_timeout($commandline, $env = null, $stdin = null, $captureS
         unset($pipes[0]);
     }
 
-    $timeout = $valgrind ? 300 : ($env['TEST_TIMEOUT'] ?? 10);
+    $timeout = $valgrind ? 300 : ($env['TEST_TIMEOUT'] ?? SWOOLE_TEST_TIMEOUT);
 
     while (true) {
         /* hide errors from interrupted syscalls */
