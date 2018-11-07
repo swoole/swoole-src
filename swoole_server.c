@@ -2397,6 +2397,12 @@ PHP_METHOD(swoole_server, set)
         convert_to_boolean(v);
         serv->enable_delay_receive = Z_BVAL_P(v);
     }
+    //task async
+    if (php_swoole_array_get_value(vht, "task_async", v))
+    {
+        convert_to_boolean(v);
+        serv->task_async = Z_BVAL_P(v);
+    }
     //task_worker_num
     if (php_swoole_array_get_value(vht, "task_worker_num", v))
     {
