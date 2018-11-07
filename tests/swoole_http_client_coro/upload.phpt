@@ -9,7 +9,7 @@ require __DIR__ . '/../include/bootstrap.php';
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm)
 {
-    go(function() {
+    go(function() use ($pm) {
         $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
         $cli->addFile(TEST_IMAGE, 'test.jpg');
         $cli->post('/upload_file', array('name' => 'rango'));
