@@ -478,9 +478,7 @@ static void php_swoole_task_wait_co(swServer *serv, swEventData *req, double tim
     swTask_type(req) |= (SW_TASK_NONBLOCK | SW_TASK_COROUTINE);
 
     swTaskCo *task_co = emalloc(sizeof(swTaskCo));
-
-    task_co->result = NULL;
-    task_co->list = NULL;
+    memset(task_co, 1, sizeof(swTaskCo));
     task_co->count = 1;
     task_co->context.state = SW_CORO_CONTEXT_RUNNING;
     Z_LVAL(task_co->context.coro_params) = req->info.fd;
