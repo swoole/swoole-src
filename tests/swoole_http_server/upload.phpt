@@ -7,9 +7,9 @@ swoole_http_server: upload 01
 require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid) {
+$pm->parentFunc = function ($pid) use ($pm) {
     $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, "http://127.0.0.1:9501");
+    curl_setopt($ch, CURLOPT_URL, "http://127.0.0.1:{$pm->getFreePort()}");
     curl_setopt($ch, CURLOPT_HEADER, 0);
     curl_setopt($ch, CURLOPT_POST, 1); //设置为POST方式
     curl_setopt($ch, CURLOPT_HTTPHEADER, array('Expect:'));
@@ -39,7 +39,7 @@ $pm->parentFunc = function ($pid) {
 };
 
 $pm->childFunc = function () use ($pm) {
-    $http = new swoole_http_server("127.0.0.1", 9501, SWOOLE_BASE);
+    $http = new swoole_http_server("127.0.0.1", $pm->getFreePort(), SWOOLE_BASE);
 
     $http->set(['log_file' => '/dev/null']);
 

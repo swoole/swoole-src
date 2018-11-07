@@ -12,10 +12,10 @@ use Swoole\Redis\Server;
 define('VALUE_LEN',  8192 * 128);
 
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid)
+$pm->parentFunc = function ($pid) use ($pm)
 {
     $redis = new redis;
-    $redis->connect('127.0.0.1', 9501);
+    $redis->connect('127.0.0.1', $pm->getFreePort());
     $redis->set('big_value', str_repeat('A', VALUE_LEN));
     $ret = $redis->get('big_value');
     assert($ret and strlen($ret) == VALUE_LEN);
@@ -24,7 +24,7 @@ $pm->parentFunc = function ($pid)
 
 $pm->childFunc = function () use ($pm)
 {
-    $server = new Server("127.0.0.1", 9501, SWOOLE_BASE);
+    $server = new Server("127.0.0.1", $pm->getFreePort(), SWOOLE_BASE);
     $server->data = array();
 
     $server->setHandler('GET', function ($fd, $data) use ($server) {

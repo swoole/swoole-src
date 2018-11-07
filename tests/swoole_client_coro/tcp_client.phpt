@@ -7,19 +7,20 @@ swoole_client_coro: tcp client
 require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new ProcessManager;
+$pm->initFreePorts(2);
 
 $pm->parentFunc = function ($pid)
 {
-    $data = curlGet("http://127.0.0.1:9501/");
+    $data = curlGet("http://127.0.0.1:{$pm->getFreePort(0)}/");
     echo $data;
     swoole_process::kill($pid);
 };
 
 $pm->childFunc = function () use ($pm)
 {
-    $http = new swoole_http_server("127.0.0.1", 9501, SWOOLE_BASE);
+    $http = new swoole_http_server("127.0.0.1", $pm->getFreePort(0), SWOOLE_BASE);
 
-    $port2 = $http->listen('127.0.0.1', 9502, SWOOLE_SOCK_TCP);
+    $port2 = $http->listen('127.0.0.1', $pm->getFreePort(1), SWOOLE_SOCK_TCP);
     $port2->set([]);
     $port2->on('Receive', function ($serv, $fd, $rid, $data)
     {
@@ -37,10 +38,10 @@ $pm->childFunc = function () use ($pm)
         global $pm;
         $pm->wakeup();
     });
-    $http->on('request', function (swoole_http_request $request, swoole_http_response $response)
+    $http->on('request', function (swoole_http_request $request, swoole_http_response $response) use ($pm)
     {
         $cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
-        if (!$cli->connect('127.0.0.1', 9502))
+        if (!$cli->connect('127.0.0.1', $pm->getFreePort(1)))
         {
             fail:
             $response->end("ERROR\n");

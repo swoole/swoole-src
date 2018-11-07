@@ -7,10 +7,10 @@ swoole_http_client_coro: upload file
 require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid)
+$pm->parentFunc = function ($pid) use ($pm)
 {
     go(function() {
-        $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', 9501);
+        $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
         $cli->addFile(TEST_IMAGE, 'test.jpg');
         $cli->post('/upload_file', array('name' => 'rango'));
         assert($cli->statusCode == 200);

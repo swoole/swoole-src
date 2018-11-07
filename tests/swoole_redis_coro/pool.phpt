@@ -7,11 +7,11 @@ swoole_redis_coro: redis client
 require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid)
+$pm->parentFunc = function ($pid) use ($pm)
 {
-    echo curlGet("http://127.0.0.1:9501/");
-    echo curlGet("http://127.0.0.1:9501/");
-    echo curlGet("http://127.0.0.1:9501/");
+    echo curlGet("http://127.0.0.1:{$pm->getFreePort()}/");
+    echo curlGet("http://127.0.0.1:{$pm->getFreePort()}/");
+    echo curlGet("http://127.0.0.1:{$pm->getFreePort()}/");
     swoole_process::kill($pid);
 };
 
@@ -20,7 +20,7 @@ $pool = new SplQueue();
 
 $pm->childFunc = function () use ($pm)
 {
-    $http = new swoole_http_server("127.0.0.1", 9501, SWOOLE_BASE);
+    $http = new swoole_http_server("127.0.0.1", $pm->getFreePort(), SWOOLE_BASE);
     $http->set(array(
         'log_file' => '/dev/null'
     ));

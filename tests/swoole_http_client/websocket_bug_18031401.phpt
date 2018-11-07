@@ -6,9 +6,9 @@ swoole_http_client: websocket client bug 1015
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid)
+$pm->parentFunc = function ($pid) use ($pm)
 {
-    $cli = new swoole_http_client('127.0.0.1', 9501);
+    $cli = new swoole_http_client('127.0.0.1', $pm->getFreePort());
     $cli->on('close', function ($cli)
     {
         echo "close\n";
@@ -32,7 +32,7 @@ $pm->parentFunc = function ($pid)
 
 $pm->childFunc = function () use ($pm)
 {
-    $ws = new swoole_server("127.0.0.1", 9501, SWOOLE_BASE);
+    $ws = new swoole_server("127.0.0.1", $pm->getFreePort(), SWOOLE_BASE);
     $ws->set(array(
         'log_file' => '/dev/null'
     ));

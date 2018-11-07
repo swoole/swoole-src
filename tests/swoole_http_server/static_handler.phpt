@@ -8,14 +8,14 @@ require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {
-    $data = curlGet('http://127.0.0.1:9501/test.jpg');
+    $data = curlGet("http://127.0.0.1:{$pm->getFreePort()}/test.jpg");
     assert(!empty($data));
     assert(md5($data) === md5_file(TEST_IMAGE));
     $pm->kill();
 };
 
 $pm->childFunc = function () use ($pm) {
-    $http = new swoole_http_server("127.0.0.1", 9501, SWOOLE_BASE);
+    $http = new swoole_http_server("127.0.0.1", $pm->getFreePort(), SWOOLE_BASE);
     $http->set([
         'log_file' => '/dev/null',
         'enable_static_handler' => true,

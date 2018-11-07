@@ -7,9 +7,9 @@ swoole_http_client: get
 require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid)
+$pm->parentFunc = function ($pid) use ($pm)
 {
-    echo file_get_contents("http://127.0.0.1:9501/");
+    echo file_get_contents("http://127.0.0.1:{$pm->getFreePort()}/");
     swoole_process::kill($pid);
 };
 

@@ -34,10 +34,10 @@ abstract class TestServer
 
     abstract function onReceive($serv, $fd, $reactor_id, $data);
 
-    function __construct($base = false)
+    function __construct(int $port, bool $base = false)
     {
         $mode = $base ? SWOOLE_BASE : SWOOLE_PROCESS;
-        $serv = new swoole_server("127.0.0.1", 9501, $mode);
+        $serv = new swoole_server("127.0.0.1", $port, $mode);
         $serv->on('Connect', [$this, 'onConnect']);
         $serv->on('receive', [$this, '_receive']);
         $serv->on('workerStart', [$this, 'onWorkerStart']);

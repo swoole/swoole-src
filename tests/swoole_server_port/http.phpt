@@ -6,15 +6,18 @@ swoole_server_port: http and tcp
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-$pm = new ProcessManager;
 ini_set("swoole.display_errors", "Off");
-$pm->parentFunc = function ($pid)
+
+$pm = new ProcessManager;
+$pm->initFreePorts(2);
+
+$pm->parentFunc = function ($pid) use ($pm)
 {
-    go(function ()
+    go(function () use ($pm)
     {
         $cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
         $cli->set(['open_eof_check' => true, "package_eof" => "\r\n\r\n"]);
-        if (!$cli->connect('127.0.0.1', 9501, 0.5))
+        if (!$cli->connect('127.0.0.1', $pm->getFreePort(0), 0.5))
         {
             fail:
             echo "ERROR\n";
@@ -33,9 +36,9 @@ $pm->parentFunc = function ($pid)
         echo "OK\n";
     });
 
-    go(function ()
+    go(function () use ($pm)
     {
-        $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', 9502);
+        $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort(1));
         if ( $cli->get("/") ) {
             echo $cli->body;
             assert($cli->statusCode == 200);
@@ -50,7 +53,7 @@ $pm->parentFunc = function ($pid)
 
 $pm->childFunc = function () use ($pm)
 {
-    $server = new swoole_server("127.0.0.1", 9501, SWOOLE_BASE);
+    $server = new swoole_server("127.0.0.1", $pm->getFreePort(0), SWOOLE_BASE);
 
     $server->set([
         'open_eof_check' => true,
@@ -63,7 +66,7 @@ $pm->childFunc = function () use ($pm)
         $serv->send($fd, "Swoole: $data\r\n\r\n");
     });
 
-    $port2 = $server->listen('127.0.0.1', 9502, SWOOLE_SOCK_TCP);
+    $port2 = $server->listen('127.0.0.1', $pm->getFreePort(1), SWOOLE_SOCK_TCP);
     $port2->set(['open_http_protocol' => true,]);
     $port2->on("request", function ($req, $resp)
     {

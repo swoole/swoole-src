@@ -1,5 +1,5 @@
 <?php
-$http = new swoole_http_server("127.0.0.1", 9501, SWOOLE_BASE);
+$http = new swoole_http_server("127.0.0.1", $pm->getFreePort(), SWOOLE_BASE);
 $http->set(array(
     'log_file' => '/dev/null',
     "http_parse_post" => 1,

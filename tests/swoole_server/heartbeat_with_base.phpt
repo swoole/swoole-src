@@ -6,13 +6,11 @@ swoole_server: heart beat with SWOOLE_BASE
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-$port = get_one_free_port();
-
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid) use ($port)
+$pm->parentFunc = function ($pid) use ($pm)
 {
     $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
-    if (!$client->connect('127.0.0.1', 9501, 5, 0))
+    if (!$client->connect('127.0.0.1', $pm->getFreePort(), 5, 0))
     {
         echo "Over flow. errno=" . $client->errCode;
         die("\n");
@@ -24,9 +22,9 @@ $pm->parentFunc = function ($pid) use ($port)
     swoole_process::kill($pid);
 };
 
-$pm->childFunc = function () use ($pm, $port)
+$pm->childFunc = function () use ($pm)
 {
-    $serv = new swoole_server("127.0.0.1", 9501, SWOOLE_BASE);
+    $serv = new swoole_server("127.0.0.1", $pm->getFreePort(), SWOOLE_BASE);
     $serv->set(array(
         'heartbeat_check_interval' => 1,
         'heartbeat_idle_time' => 2,

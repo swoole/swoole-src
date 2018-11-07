@@ -8,13 +8,13 @@ require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {
-    $data = curlGet('http://127.0.0.1:9501/');
+    $data = curlGet("http://127.0.0.1:/{$pm->getFreePort()}");
     assert(!empty($data));
     $pm->kill();
 };
 
 $pm->childFunc = function () use ($pm) {
-    $http = new swoole_http_server("127.0.0.1", 9501, SWOOLE_BASE);
+    $http = new swoole_http_server("127.0.0.1", $pm->getFreePort(), SWOOLE_BASE);
     $http->set([
         'log_file' => '/dev/null',
     ]);
