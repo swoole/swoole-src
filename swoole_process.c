@@ -575,7 +575,7 @@ static PHP_METHOD(swoole_process, alarm)
         RETURN_FALSE;
     }
 
-    if (SwooleG.timer.fd != 0)
+    if (SwooleG.timer.initialized != 0)
     {
         swoole_php_fatal_error(E_WARNING, "cannot use both 'timer' and 'alarm' at the same time.");
         RETURN_FALSE;
@@ -704,7 +704,7 @@ int php_swoole_process_start(swWorker *process, zval *zobject)
     }
     SwooleWG.id = process->id;
 
-    if (SwooleG.timer.fd)
+    if (SwooleG.timer.initialized)
     {
         swTimer_free(&SwooleG.timer);
         bzero(&SwooleG.timer, sizeof(SwooleG.timer));
