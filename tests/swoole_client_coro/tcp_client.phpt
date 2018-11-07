@@ -9,7 +9,7 @@ require __DIR__ . '/../include/bootstrap.php';
 $pm = new ProcessManager;
 $pm->initFreePorts(2);
 
-$pm->parentFunc = function ($pid)
+$pm->parentFunc = function ($pid) use ($pm)
 {
     $data = curlGet("http://127.0.0.1:{$pm->getFreePort(0)}/");
     echo $data;

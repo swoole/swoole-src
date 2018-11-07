@@ -15,7 +15,7 @@ class swoole_invalid_mysql_coro extends \Swoole\Coroutine\MySQL
         // miss parent::__construct
     }
 
-    public function connect(array $server_config)
+    public function connect($server_config)
     {
         // miss parent::connect
         return true;

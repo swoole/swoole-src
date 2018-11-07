@@ -46,6 +46,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_coro_connect, 0, 0, 1)
     ZEND_ARG_INFO(0, host)
     ZEND_ARG_INFO(0, port)
     ZEND_ARG_INFO(0, timeout)
+    ZEND_ARG_INFO(0, sock_flag)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_coro_recv, 0, 0, 0)
@@ -725,8 +726,7 @@ static PHP_METHOD(swoole_client_coro, connect)
     if (!cli->connect(host, port, sock_flag))
     {
         zend_update_property_long(swoole_client_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), cli->errCode);
-        swoole_php_error(E_WARNING, "connect to server[%s:%d] failed. Error: %s[%d]", host, (int )port, cli->errMsg,
-                cli->errCode);
+        swoole_php_error(E_WARNING, "connect to server[%s:%d] failed. Error: %s[%d]", host, (int )port, cli->errMsg, cli->errCode);
         RETURN_FALSE;
     }
     zend_update_property_bool(swoole_client_coro_class_entry_ptr, getThis(), ZEND_STRL("connected"), 1);
