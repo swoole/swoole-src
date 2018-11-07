@@ -26,4 +26,3 @@ Done
 --EXPECTREGEX--
 Python: Hello World
 Done.*
---CLEAN--
