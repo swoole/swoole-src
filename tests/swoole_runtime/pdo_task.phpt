@@ -26,6 +26,7 @@ $pm->childFunc = function () use ($pm) {
     $http->set([
         'log_file' => '/dev/null',
         'task_worker_num' => 4,
+        'task_async' => true
     ]);
     $http->on('request', function (swoole_http_request $request, swoole_http_response $response) use ($http) {
         assert($response->detach());
