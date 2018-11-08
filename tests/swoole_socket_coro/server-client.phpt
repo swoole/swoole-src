@@ -1,7 +1,11 @@
 --TEST--
 swoole_socket_coro: server and client concurrency
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+// it should be removed after php73 released
+skip_php_version_between('7.3.0alpha1', '7.3.0RC4');
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
