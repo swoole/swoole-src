@@ -20,7 +20,8 @@ $pm->childFunc = function () use ($pm) {
         // 'log_file' => '/dev/null',
         'log_level' => SWOOLE_LOG_ERROR,
         'worker_num' => 1,
-        'task_worker_num' => 1
+        'task_worker_num' => 1,
+        'task_async' => true
     ]);
     $server->on('workerStart', function ($serv, $wid) use ($pm) {
         $pm->wakeup();
