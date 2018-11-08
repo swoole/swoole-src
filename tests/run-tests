@@ -3037,6 +3037,8 @@ class RuntestsValgrind {
         if ($check_all) {
             $vcmd .= ' --smc-check=all';
         }
+        // swoole patch
+        $vcmd .= ' --undef-value-errors=no';
 
         /* --vex-iropt-register-updates=allregs-at-mem-access is necessary for phpdbg watchpoint tests */
         if ($this->version_3_8_0) {

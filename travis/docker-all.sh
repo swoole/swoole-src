@@ -12,8 +12,8 @@ cd ${__DIR__} && pwd && ls -al / && php -v
 php --ri swoole
 
 #alpine
-if [ "`apk | grep apk-tools`"x != ""x ]; then
-  echo "skip alpine\n"
+if [ "`apk 2>&1 | grep apk-tools`"x != ""x ]; then
+  echo -e "\nskip alpine\n"
   exit 0
 fi
 

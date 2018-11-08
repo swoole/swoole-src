@@ -4,15 +4,20 @@ __DIR__=$(cd "$(dirname "$0")";pwd)
 
 #-------------PHPT-------------
 cd ${__DIR__} && cd ../tests/
+
 # initialization
+echo -e "\nInitialization for tests...\n"
 php ./init
+echo -e "\n"
+
 # debug
 for debug_file in ${__DIR__}/debug/*.php
 do
     if test -f "${debug_file}";then
-        echo "====== Run debug File ${debug_file} ======\n"
+        debug_file="`basename ${debug_file}`"
+        echo -e "\n====== RUN ${debug_file} ======\n"
         php "${debug_file}"
-        echo "\n========================================\n"
+        echo -e "\n========================================\n"
     fi
 done
 # run tests
