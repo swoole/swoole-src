@@ -1186,28 +1186,22 @@ Socket* Socket::accept()
         swWarn("socket has already been bound to another coroutine #%d.", read_cid);
         return nullptr;
     }
-    if (!wait_events(SW_EVENT_READ))
-    {
-        return nullptr;
-    }
-    yield(SOCKET_LOCK_RW);
-    if (errCode == ETIMEDOUT)
-    {
-        return nullptr;
-    }
-    int conn;
-    swSocketAddress client_addr;
-    client_addr.len = sizeof(client_addr.addr);
 
-#ifdef HAVE_ACCEPT4
-    conn = ::accept4(socket->fd, (struct sockaddr *) &client_addr.addr, &client_addr.len, SOCK_NONBLOCK | SOCK_CLOEXEC);
-#else
-    conn = ::accept(socket->fd, (struct sockaddr *) &client_addr.addr, &client_addr.len);
-    if (conn >= 0)
+    swSocketAddress client_addr;
+    int conn = swSocket_accept(socket->fd, &client_addr);
+    if (conn < 0 && errno == EAGAIN)
     {
-        swoole_fcntl_set_option(conn, 1, 1);
+        if (!wait_events(SW_EVENT_READ))
+        {
+            return nullptr;
+        }
+        yield(SOCKET_LOCK_RW);
+        if (errCode == ETIMEDOUT)
+        {
+            return nullptr;
+        }
+        conn = swSocket_accept(socket->fd, &client_addr);
     }
-#endif
     if (conn < 0)
     {
         _error:

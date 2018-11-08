@@ -223,6 +223,22 @@ int swSocket_recv_blocking(int fd, void *__data, size_t __len, int flags)
     return read_bytes;
 }
 
+int swSocket_accept(int fd, swSocketAddress *sa)
+{
+    int conn;
+    sa->len = sizeof(sa->addr);
+#ifdef HAVE_ACCEPT4
+    conn = accept4(fd, (struct sockaddr *) &sa->addr, &sa->len, SOCK_NONBLOCK | SOCK_CLOEXEC);
+#else
+    conn = accept(fd, (struct sockaddr *) &sa->addr, &sa->len);
+    if (conn >= 0)
+    {
+        swoole_fcntl_set_option(conn, 1, 1);
+    }
+#endif
+    return conn;
+}
+
 ssize_t swSocket_udp_sendto(int server_sock, char *dst_ip, int dst_port, char *data, uint32_t len)
 {
     struct sockaddr_in addr;

@@ -1381,6 +1381,7 @@ static sw_inline uint64_t swoole_ntoh64(uint64_t net)
 
 int swSocket_create(int type);
 int swSocket_bind(int sock, int type, char *host, int *port);
+int swSocket_accept(int fd, swSocketAddress *sa);
 int swSocket_wait(int fd, int timeout_ms, int events);
 int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events);
 void swSocket_clean(int fd);
