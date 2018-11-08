@@ -41,7 +41,7 @@ prepare_files(){
 
 run_tests_in_docker(){
     docker exec $1 touch /.travisenv && \
-    docker exec $1 /swoole-src/travis/docker-all.sh
+    docker exec $1 /swoole-src/travis/docker-route.sh
 }
 
 #------------ RUN TESTS -------------

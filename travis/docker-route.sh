@@ -25,4 +25,4 @@ if [ "`apk 2>&1 | grep apk-tools`"x != ""x ]; then
 fi
 
 # run unit tests
-run-tests.sh
+./run-tests.sh

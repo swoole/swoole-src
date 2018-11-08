@@ -1289,22 +1289,22 @@
             <file role="src" name="thirdparty/plain_wrapper.c" />
             <file role="src" name="thirdparty/swoole_http_parser.c" />
             <file role="src" name="thirdparty/swoole_http_parser.h" />
-            <file role="src" name="tools/arginfo_check.php" />
-            <file role="src" name="tools/code_generator.php" />
-            <file role="src" name="tools/config_generator.php" />
+            <file role="src" name="tools/arginfo-check.php" />
+            <file role="src" name="tools/code-generator.php" />
+            <file role="src" name="tools/config-generator.php" />
             <file role="src" name="tools/export.php" />
-            <file role="src" name="tools/fix_test_title.php" />
+            <file role="src" name="tools/fix-tests-title.php" />
             <file role="src" name="tools/functions.php" />
             <file role="src" name="tools/gen-data.php" />
-            <file role="src" name="tools/ip.php" />
+            <file role="src" name="tools/get-ip-info.php" />
             <file role="src" name="tools/pecl-package.php" />
-            <file role="src" name="tools/send_http_data.php" />
+            <file role="src" name="tools/send-http-data.php" />
             <file role="src" name="travis/.gitignore" />
             <file role="doc" name="travis/README.md" />
             <file role="src" name="travis/debug/swoole_table_implements.php" />
-            <file role="src" name="travis/docker-all.sh" />
             <file role="src" name="travis/docker-compile.sh" />
             <file role="src" name="travis/docker-compose.yml" />
+            <file role="src" name="travis/docker-route.sh" />
             <file role="src" name="travis/pecl-install.sh" />
             <file role="src" name="travis/route.sh" />
             <file role="src" name="travis/run-tests.sh" />
