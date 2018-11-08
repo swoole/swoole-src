@@ -97,6 +97,7 @@ protected:
         timer = nullptr;
         bind_port = 0;
         _backlog = 0;
+        _closed = false;
 
         http2 = 0;
         shutdown_read = 0;
@@ -162,6 +163,7 @@ public:
     int _sock_domain;
     double _timeout;
     int _backlog;
+    bool _closed;
     int errCode;
     const char *errMsg;
     uint32_t http2 :1;

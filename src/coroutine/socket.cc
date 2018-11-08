@@ -1341,6 +1341,10 @@ bool Socket::close()
         swWarn("socket has already been bound to another coroutine #%d.", read_cid);
         return false;
     }
+    if (_closed)
+    {
+        return false;
+    }
     if (timer)
     {
         swTimer_del(&SwooleG.timer, timer);
@@ -1351,6 +1355,7 @@ bool Socket::close()
     {
         return false;
     }
+    _closed = true;
     socket->closed = 1;
 
     int fd = socket->fd;
@@ -1401,7 +1406,8 @@ bool Socket::close()
     {
         unlink(socket->info.addr.un.sun_path);
     }
-    socket->active = 0;
+    bzero(socket, sizeof(swConnection));
+    socket->removed = 1;
 
     return ::close(fd) == 0;
 }
@@ -1899,7 +1905,7 @@ Socket::~Socket()
 {
     if (socket)
     {
-        if (!socket->closed)
+        if (!_closed)
         {
             close();
         }
@@ -1913,8 +1919,6 @@ Socket::~Socket()
             swBuffer_free(socket->in_buffer);
             socket->in_buffer = NULL;
         }
-        bzero(socket, sizeof(swConnection));
-        socket->removed = 1;
     }
     if (buffer)
     {
