@@ -94,7 +94,7 @@ function tcp_unpack(string $data, string $type = 'n'): string
                 return 0;
         }
     })($type);
-    return substr($data, $type_length, unpack('n', substr($data, 0, $type_length))[1]);
+    return substr($data, $type_length, unpack($type, substr($data, 0, $type_length))[1]);
 }
 
 function var_dump_return(...$data): string
