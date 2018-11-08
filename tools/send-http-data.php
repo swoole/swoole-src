@@ -1,7 +1,7 @@
+#!/usr/bin/env php
 <?php
 if ($argc < 3)  {
-    echo "php send_http_data.php {port} {file} {:save}\n";
-    die;
+    exit("Usage: php send-http-data.php {port} {file} {:save}\n");
 }
 
 $port = intval($argv[1]);

@@ -1,6 +1,7 @@
+#!/usr/bin/env php
 <?php
 if (empty($argv[1])) {
-    die("php ip.php sin_addr\n");
+    exit("Usage: php get-ip-info.php sin_addr\n");
 }
 $v = $argv[1];
 $n = unpack('Nip', $v);

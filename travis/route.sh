@@ -12,10 +12,17 @@ fi
 export DOCKER_COMPOSE_VERSION="1.21.0"
 
 #------------ FUNCTIONS -------------
+check_docker_dependency(){
+    if [ "`docker -v 2>&1 | grep "version"`"x = ""x ]; then
+        echo "\n❌ Docker not found!"
+        exit 255
+    fi
+}
+
 install_docker_compose(){
     which "docker-compose" > /dev/null
     if [ $? -ne 0 ]; then
-        echo "\nCan no found docker-compose, try to install it now...\n"
+        echo "\n🤔 Can not found docker-compose, try to install it now...\n"
         curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose && \
         chmod +x docker-compose && \
         sudo mv docker-compose /usr/local/bin && \
@@ -34,7 +41,7 @@ prepare_files(){
 
 run_tests_in_docker(){
     docker exec $1 touch /.travisenv && \
-    docker exec $1 /swoole-src/travis/docker-all.sh
+    docker exec $1 /swoole-src/travis/docker-route.sh
 }
 
 #------------ RUN TESTS -------------
@@ -46,12 +53,14 @@ fi
 
 set -e
 
-echo "\nPrepare for files...\n"
+echo "\n✅ Prepare for files...\n"
 prepare_files
 
-echo "\nStart docker containers...\n"
+echo "✅ Start docker containers...\n"
 docker-compose up -d && docker ps
 
-echo "\nRun tests in docker...\n"
+echo "\n✅ Run tests in docker...\n"
 run_tests_in_docker "swoole-alpine"
 run_tests_in_docker "swoole"
+
+echo "\n🚀🚀🚀Completed successfully🚀🚀🚀\n"

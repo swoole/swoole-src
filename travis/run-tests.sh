@@ -6,20 +6,21 @@ __DIR__=$(cd "$(dirname "$0")";pwd)
 cd ${__DIR__} && cd ../tests/
 
 # initialization
-echo -e "\nInitialization for tests...\n"
+echo "\n⭐️ Initialization for tests...\n"
 php ./init
-echo -e "\n"
+echo "\n"
 
 # debug
 for debug_file in ${__DIR__}/debug/*.php
 do
     if test -f "${debug_file}";then
-        debug_file="`basename ${debug_file}`"
-        echo -e "\n====== RUN ${debug_file} ======\n"
+        debug_file_basename="`basename ${debug_file}`"
+        echo "\n====== RUN ${debug_file_basename} ======\n"
         php "${debug_file}"
-        echo -e "\n========================================\n"
+        echo "\n========================================\n"
     fi
 done
+
 # run tests
 retry_failures()
 {
@@ -49,7 +50,7 @@ do
     do
         if [ "`cat failed.list | grep "phpt"`" ]; then
             sleep ${i}
-            echo "retry#${i}..."
+            echo "\n😮 Retry failed tests #${i}...\n"
             retry_failures
         else
             exit 0
