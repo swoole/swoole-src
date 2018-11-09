@@ -331,6 +331,7 @@ Socket::Socket(enum swSocket_type _type)
     socket->fd = sockfd;
     socket->object = this;
     socket->socket_type = type;
+    socket->removed = 1;
 
     swSetNonBlock(socket->fd);
     if (!swReactor_handle_isset(reactor, SW_FD_CORO_SOCKET))
@@ -350,6 +351,7 @@ Socket::Socket(int _fd, Socket *server_sock)
     socket->fd = _fd;
     socket->object = this;
     socket->socket_type = server_sock->type;
+    socket->removed = 1;
 
     _sock_domain = server_sock->_sock_domain;
     _sock_type = server_sock->_sock_type;
@@ -405,6 +407,7 @@ Socket::Socket(int _fd, enum swSocket_type _type)
     socket->fd = _fd;
     socket->object = this;
     socket->socket_type = type;
+    socket->removed = 1;
 
     swSetNonBlock(socket->fd);
     if (!swReactor_handle_isset(reactor, SW_FD_CORO_SOCKET))
