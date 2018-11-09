@@ -61,12 +61,32 @@ public:
     ssize_t sendto(char *address, int port, char *data, int len);
     ssize_t recvfrom(void *__buf, size_t __n);
     ssize_t recvfrom(void *__buf, size_t __n, struct sockaddr *_addr, socklen_t *_socklen);
-    swString* get_buffer();
-    int has_bound(socket_lock_operation type);
+
+    inline int has_bound(socket_lock_operation type)
+    {
+        if ((type & SOCKET_LOCK_READ) && read_cid)
+        {
+            return read_cid;
+        }
+        else if ((type & SOCKET_LOCK_WRITE) && write_cid)
+        {
+            return write_cid;
+        }
+        return 0;
+    }
 
     inline void setTimeout(double timeout)
     {
         _timeout = timeout;
+    }
+
+    inline swString* get_buffer()
+    {
+        if (unlikely(buffer == nullptr))
+        {
+            buffer = swString_new(SW_BUFFER_SIZE_STD);
+        }
+        return buffer;
     }
 
     inline void set_timeout(struct timeval *timeout)
@@ -141,6 +161,23 @@ protected:
                 errCode = errno;
                 return false;
             }
+        }
+        return true;
+    }
+
+    inline bool is_available(int cid)
+    {
+        if (cid)
+        {
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_CO_HAS_BEEN_BOUND, "Socket#%d has already been bound to another coroutine.", socket->fd);
+            errCode = SW_ERROR_CO_HAS_BEEN_BOUND;
+            return false;
+        }
+        if (_closed)
+        {
+            errCode = SW_ERROR_SOCKET_CLOSED;
+            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKET_CLOSED, "Socket#%d has already been closed.", socket->fd);
+            return false;
         }
         return true;
     }
