@@ -68,6 +68,29 @@ function curlGet($url, $gzip = true)
     return $output;
 }
 
+function tcp_type_length(string $type = 'n'): int
+{
+    static $map = [
+        'c' => 1,
+        'C' => 1,
+        's' => 2,
+        'S' => 2,
+        'n' => 2,
+        'v' => 2,
+        'l' => 4,
+        'L' => 4,
+        'N' => 4,
+        'V' => 4,
+    ];
+
+    return $map[$type] ?? 0;
+}
+
+function tcp_length(string $head, string $type = 'n'): int
+{
+    return unpack($type, $head)[1];
+}
+
 function tcp_pack(string $data, string $type = 'n'): string
 {
     return pack($type, strlen($data)) . $data;
@@ -75,25 +98,7 @@ function tcp_pack(string $data, string $type = 'n'): string
 
 function tcp_unpack(string $data, string $type = 'n'): string
 {
-    $type_length = (function ($type) {
-        switch ($type) {
-            case 'c':
-            case 'C':
-                return 1;
-            case 's':
-            case 'S':
-            case 'n':
-            case 'v':
-                return 2;
-            case 'l':
-            case 'L':
-            case 'N':
-            case 'V':
-                return 4;
-            default:
-                return 0;
-        }
-    })($type);
+    $type_length = tcp_type_length($type);
     return substr($data, $type_length, unpack($type, substr($data, 0, $type_length))[1]);
 }
 
