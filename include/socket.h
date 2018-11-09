@@ -186,7 +186,7 @@ protected:
     bool http_proxy_handshake();
 
 public:
-    swTimer_node *timer;
+
     swReactor *reactor;
     std::string _host;
     std::string bind_address;
@@ -194,6 +194,8 @@ public:
     int _port;
     int read_cid;
     int write_cid;
+    swTimer_node *read_timer;
+    swTimer_node *write_timer;
     swConnection *socket = nullptr;
     enum swSocket_type type;
     int _sock_type;

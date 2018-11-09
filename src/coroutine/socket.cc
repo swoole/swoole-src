@@ -312,6 +312,7 @@ Socket::Socket(enum swSocket_type _type)
     if (sockfd < 0)
     {
         swWarn("Socket construct failed. Error: %s[%d]", strerror(errno), errno);
+        _closed = true;
         return;
     }
 
@@ -594,7 +595,6 @@ static void socket_onResolveCompleted(swAio_event *event)
 static void socket_onTimeout(swTimer *timer, swTimer_node *tnode)
 {
     Socket *sock = (Socket *) tnode->data;
-    sock->timer = NULL;
     sock->errCode = ETIMEDOUT;
     swDebug("socket[%d] timeout", sock->socket->fd);
     int operation;
@@ -602,16 +602,19 @@ static void socket_onTimeout(swTimer *timer, swTimer_node *tnode)
     {
         swReactor_remove_read_event(sock->reactor, sock->socket->fd);
         operation = SOCKET_LOCK_READ;
+        sock->read_timer = NULL;
     }
     else if (tnode->type == SW_TIMER_TYPE_CORO_WRITE)
     {
         swReactor_remove_write_event(sock->reactor, sock->socket->fd);
-        operation = SOCKET_LOCK_READ;
+        operation = SOCKET_LOCK_WRITE;
+        sock->write_timer = NULL;
     }
     else
     {
         sock->reactor->del(sock->reactor, sock->socket->fd);
         operation = SOCKET_LOCK_RW;
+        sock->read_timer = NULL;
     }
     sock->resume(operation);
 }
@@ -986,22 +989,29 @@ void Socket::yield(int operation)
         {
             goto _skip_timer;
         }
-        timer = swTimer_add(&SwooleG.timer, ms, 0, this, socket_onTimeout);
-        if (!timer)
+        if (operation == SOCKET_LOCK_WRITE)
         {
-            goto _skip_timer;
+            write_timer = swTimer_add(&SwooleG.timer, ms, 0, this, socket_onTimeout);
+            if (write_timer)
+            {
+                write_timer->type = SW_TIMER_TYPE_CORO_WRITE;
+            }
         }
-        if (operation == SOCKET_LOCK_READ)
+        else if (operation == SOCKET_LOCK_READ)
         {
-            timer->type = SW_TIMER_TYPE_CORO_READ;
-        }
-        else if (operation == SOCKET_LOCK_WRITE)
-        {
-            timer->type = SW_TIMER_TYPE_CORO_WRITE;
+            read_timer = swTimer_add(&SwooleG.timer, ms, 0, this, socket_onTimeout);
+            if (read_timer)
+            {
+                read_timer->type = SW_TIMER_TYPE_CORO_READ;
+            }
         }
         else
         {
-            timer->type = SW_TIMER_TYPE_CORO_ALL;
+            read_timer = swTimer_add(&SwooleG.timer, ms, 0, this, socket_onTimeout);
+            if (read_timer == nullptr)
+            {
+                read_timer->type = SW_TIMER_TYPE_CORO_ALL;
+            }
         }
     }
 
@@ -1029,11 +1039,16 @@ void Socket::yield(int operation)
         read_cid = 0;
     }
 
-    //clear timer
-    if (timer)
+    //=== clear timer ===
+    if (read_timer)
     {
-        swTimer_del(&SwooleG.timer, timer);
-        timer = nullptr;
+        swTimer_del(&SwooleG.timer, read_timer);
+        read_timer = nullptr;
+    }
+    if (write_timer)
+    {
+        swTimer_del(&SwooleG.timer, write_timer);
+        write_timer = nullptr;
     }
 }
 
@@ -1327,11 +1342,6 @@ bool Socket::close()
     if (_closed)
     {
         return false;
-    }
-    if (timer)
-    {
-        swTimer_del(&SwooleG.timer, timer);
-        timer = nullptr;
     }
     if (socket == NULL || socket->closed)
     {
@@ -1818,6 +1828,10 @@ ssize_t Socket::recv_packet()
 
 Socket::~Socket()
 {
+    if (socket == nullptr)
+    {
+        return;
+    }
     if (_sock_domain == AF_UNIX && bind_address.size() > 0)
     {
         unlink(bind_address_info.addr.un.sun_path);
