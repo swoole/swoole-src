@@ -92,12 +92,23 @@ function skip_if_in_docker(string $reason = 'not support in docker')
     skip($reason, file_exists('/.dockerenv'));
 }
 
-function skip_if_no_proxy()
+function skip_if_no_proxy(string $host, string $port)
+{
+    if (IS_IN_TRAVIS || check_tcp_port($host, $port) !== 1) {
+        skip('no available proxy');
+    }
+}
+
+function skip_if_no_http_proxy()
 {
     require_once __DIR__ . '/config.php';
-    if (IS_IN_TRAVIS || check_tcp_port(HTTP_PROXY_HOST, HTTP_PROXY_PORT) !== 1) {
-        skip('no http proxy available');
-    }
+    skip_if_no_proxy(HTTP_PROXY_HOST, HTTP_PROXY_PORT);
+}
+
+function skip_if_no_socks5_proxy()
+{
+    require_once __DIR__ . '/config.php';
+    skip_if_no_proxy(SOCKS5_PROXY_HOST, SOCKS5_PROXY_PORT);
 }
 
 function skip_if_pdo_not_support_mysql8()
@@ -141,8 +152,7 @@ function skip_deprecated()
             skip_if_no_async_redis();
         } elseif (stripos($dir, 'http2') !== false) {
             skip_if_no_http2();
-        }
-        // it should be removed after php73 released
+        } // it should be removed after php73 released
         elseif (PHP_VERSION_ID === 70300 && version_compare(PHP_VERSION, '7.3.0RC5', '<')) {
             // it should be removed after php73 released
             if (stripos($dir, 'runtime') !== false || stripos($dir, 'serialize') !== false) {

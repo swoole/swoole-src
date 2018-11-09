@@ -3,7 +3,7 @@ swoole_http_client: get
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
-skip_if_no_proxy();
+skip_if_no_http_proxy();
 ?>
 --FILE--
 <?php
