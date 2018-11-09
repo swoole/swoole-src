@@ -151,34 +151,19 @@ bool Socket::socks5_handshake()
         if (result == 0)
         {
             ctx->state = SW_SOCKS5_STATE_READY;
+            return true;
         }
         else
         {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_SERVER_ERROR, "Socks5 server error, reason :%s.",
                     swSocks5_strerror(result));
+            return false;
         }
-        return result;
     }
 }
 
 bool Socket::http_proxy_handshake()
 {
-#ifdef SW_USE_OPENSSL
-    if (socket->ssl)
-    {
-        if (ssl_handshake() == false)
-        {
-            return false;
-        }
-    }
-    else
-    {
-        return true;
-    }
-#else
-    return true;
-#endif
-
     //CONNECT
     int n = snprintf(http_proxy->buf, sizeof(http_proxy->buf), "CONNECT %*s:%d HTTP/1.1\r\n\r\n",
             http_proxy->l_target_host, http_proxy->target_host, http_proxy->target_port);
@@ -566,12 +551,6 @@ bool Socket::connect(string host, int port, int flags)
     {
         return false;
     }
-#ifdef SW_USE_OPENSSL
-    if (open_ssl && ssl_handshake() == false)
-    {
-        return false;
-    }
-#endif
     //socks5 proxy
     if (socks5_proxy && socks5_handshake() == false)
     {
@@ -582,6 +561,12 @@ bool Socket::connect(string host, int port, int flags)
     {
         return false;
     }
+#ifdef SW_USE_OPENSSL
+    if (open_ssl && ssl_handshake() == false)
+    {
+        return false;
+    }
+#endif
     return true;
 }
 
@@ -1366,7 +1351,6 @@ bool Socket::ssl_handshake()
     {
         return false;
     }
-
     ssl_context = swSSL_get_context(&ssl_option);
     if (ssl_context == NULL)
     {
