@@ -246,7 +246,7 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
             {
                 convert_to_double(ztmp);
                 http->timeout = (double) Z_DVAL_P(ztmp);
-                hcc->socket->setTimeout(http->timeout);
+                hcc->socket->set_timeout(http->timeout);
             }
             /**
              * keep_alive
@@ -1082,7 +1082,7 @@ static PHP_METHOD(swoole_http_client_coro, recv)
 
     if (timeout != 0)
     {
-        hcc->socket->setTimeout(timeout);
+        hcc->socket->set_timeout(timeout);
     }
 
     if (http->upgrade)

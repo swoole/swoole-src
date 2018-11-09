@@ -61,17 +61,37 @@ public:
     ssize_t sendto(char *address, int port, char *data, int len);
     ssize_t recvfrom(void *__buf, size_t __n);
     ssize_t recvfrom(void *__buf, size_t __n, struct sockaddr *_addr, socklen_t *_socklen);
-    swString* get_buffer();
-    int has_bound(socket_lock_operation type);
 
-    inline void setTimeout(double timeout)
+    inline int has_bound(socket_lock_operation type)
+    {
+        if ((type & SOCKET_LOCK_READ) && read_cid)
+        {
+            return read_cid;
+        }
+        else if ((type & SOCKET_LOCK_WRITE) && write_cid)
+        {
+            return write_cid;
+        }
+        return 0;
+    }
+
+    inline void set_timeout(double timeout)
     {
         _timeout = timeout;
     }
 
+    inline swString* get_buffer()
+    {
+        if (unlikely(buffer == nullptr))
+        {
+            buffer = swString_new(SW_BUFFER_SIZE_STD);
+        }
+        return buffer;
+    }
+
     inline void set_timeout(struct timeval *timeout)
     {
-        setTimeout((double) timeout->tv_sec + ((double) timeout->tv_usec / 1000 / 1000));
+        set_timeout((double) timeout->tv_sec + ((double) timeout->tv_usec / 1000 / 1000));
     }
 
     inline int get_fd()
@@ -94,7 +114,8 @@ protected:
         _port = 0;
         errCode = 0;
         errMsg = nullptr;
-        timer = nullptr;
+        read_timer = nullptr;
+        write_timer = nullptr;
         bind_port = 0;
         _backlog = 0;
         _closed = false;
@@ -145,11 +166,28 @@ protected:
         return true;
     }
 
+    inline bool is_available(int cid)
+    {
+        if (cid)
+        {
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_CO_HAS_BEEN_BOUND, "Socket#%d has already been bound to another coroutine.", socket->fd);
+            errCode = SW_ERROR_CO_HAS_BEEN_BOUND;
+            return false;
+        }
+        if (_closed)
+        {
+            errCode = SW_ERROR_SOCKET_CLOSED;
+            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKET_CLOSED, "Socket#%d has already been closed.", socket->fd);
+            return false;
+        }
+        return true;
+    }
+
     bool socks5_handshake();
     bool http_proxy_handshake();
 
 public:
-    swTimer_node *timer;
+
     swReactor *reactor;
     std::string _host;
     std::string bind_address;
@@ -157,6 +195,8 @@ public:
     int _port;
     int read_cid;
     int write_cid;
+    swTimer_node *read_timer;
+    swTimer_node *write_timer;
     swConnection *socket = nullptr;
     enum swSocket_type type;
     int _sock_type;

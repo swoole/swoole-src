@@ -847,7 +847,7 @@ static php_stream *socket_create(const char *proto, size_t protolen, const char 
 
     if (FG(default_socket_timeout) > 0)
     {
-        sock->setTimeout((double) FG(default_socket_timeout));
+        sock->set_timeout((double) FG(default_socket_timeout));
     }
 
     php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t*) emalloc(sizeof(*abstract));

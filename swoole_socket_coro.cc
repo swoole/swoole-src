@@ -251,7 +251,7 @@ static PHP_METHOD(swoole_socket_coro, accept)
     socket_coro *sock = (socket_coro *) Z_SOCKET_CORO_OBJ_P(getThis());
     if (timeout != 0)
     {
-        sock->socket->setTimeout(timeout);
+        sock->socket->set_timeout(timeout);
     }
     Socket *conn = sock->socket->accept();
     if (conn)
@@ -287,7 +287,7 @@ static PHP_METHOD(swoole_socket_coro, recv)
     }
 
     socket_coro *sock = (socket_coro *) Z_SOCKET_CORO_OBJ_P(getThis());
-    sock->socket->setTimeout(timeout);
+    sock->socket->set_timeout(timeout);
 
     zend_string *buf = zend_string_alloc(length, 0);
     ssize_t bytes = sock->socket->recv(ZSTR_VAL(buf), length);
@@ -322,7 +322,7 @@ static PHP_METHOD(swoole_socket_coro, recvfrom)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     socket_coro *sock = (socket_coro *) Z_SOCKET_CORO_OBJ_P(getThis());
-    sock->socket->setTimeout(timeout);
+    sock->socket->set_timeout(timeout);
 
     zend_string *buf = zend_string_alloc(SW_BUFFER_SIZE_BIG, 0);
     ssize_t bytes = sock->socket->recvfrom(ZSTR_VAL(buf), SW_BUFFER_SIZE_BIG);
@@ -533,7 +533,7 @@ static PHP_METHOD(swoole_socket_coro, connect)
             RETURN_FALSE;
         }
     }
-    sock->socket->setTimeout(timeout);
+    sock->socket->set_timeout(timeout);
     if (sock->socket->connect(std::string(host, l_host), port))
     {
         RETURN_TRUE;
