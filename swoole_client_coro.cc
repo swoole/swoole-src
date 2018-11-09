@@ -917,7 +917,7 @@ static PHP_METHOD(swoole_client_coro, recv)
     sw_coro_check_bind("client", cli->has_bound(swoole::SOCKET_LOCK_READ));
     if (timeout != 0)
     {
-        cli->setTimeout(timeout);
+        cli->set_timeout(timeout);
     }
     ssize_t retval ;
     if (cli->open_length_check || cli->open_eof_check)

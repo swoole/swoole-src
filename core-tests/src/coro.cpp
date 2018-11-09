@@ -37,7 +37,7 @@ TEST(coroutine, socket_connect_refused)
 static void coro3(void *arg)
 {
     Socket sock(SW_SOCK_TCP);
-    sock.setTimeout(0.5);
+    sock.set_timeout(0.5);
     bool retval = sock.connect("192.0.0.1", 9801);
     ASSERT_EQ(retval, false);
     ASSERT_EQ(sock.errCode, ETIMEDOUT);

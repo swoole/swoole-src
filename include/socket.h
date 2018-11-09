@@ -75,7 +75,7 @@ public:
         return 0;
     }
 
-    inline void setTimeout(double timeout)
+    inline void set_timeout(double timeout)
     {
         _timeout = timeout;
     }
@@ -91,7 +91,7 @@ public:
 
     inline void set_timeout(struct timeval *timeout)
     {
-        setTimeout((double) timeout->tv_sec + ((double) timeout->tv_usec / 1000 / 1000));
+        set_timeout((double) timeout->tv_sec + ((double) timeout->tv_usec / 1000 / 1000));
     }
 
     inline int get_fd()
