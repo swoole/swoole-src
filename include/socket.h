@@ -114,7 +114,8 @@ protected:
         _port = 0;
         errCode = 0;
         errMsg = nullptr;
-        timer = nullptr;
+        read_timer = nullptr;
+        write_timer = nullptr;
         bind_port = 0;
         _backlog = 0;
         _closed = false;
