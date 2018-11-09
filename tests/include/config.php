@@ -44,6 +44,13 @@ if (IS_MAC_OS) {
 } else {
     define('HTTP_PROXY_PORT', 8888);
 }
+define('SOCKS5_PROXY_HOST', '127.0.0.1');
+if (IS_MAC_OS) {
+    define('SOCKS5_PROXY_PORT', 1086);
+} else {
+    define('SOCKS5_PROXY_PORT', 1080);
+}
+
 
 /** ============== Files ============== */
 define('SOURCE_ROOT_PATH', __DIR__ . '/../../');
