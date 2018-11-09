@@ -1718,19 +1718,16 @@ static void swHeartbeatThread_loop(swThreadParam *param)
             check_list[count][1] = check_interval;
             check_list[count][2] = now + check_interval;
 
+            if (next == NULL || check_list[count][2] < next[2])
+            {
+                next = check_list[count];
+            }
+
             ++count;
         }
     }
 
     if (count < 1) goto finish;
-
-    for (i = 0; i < count; ++i)
-    {
-        if (next == NULL || check_list[i][2] < next[2])
-        {
-            next = check_list[i];
-        }
-    }
 
     while (SwooleG.running)
     {
