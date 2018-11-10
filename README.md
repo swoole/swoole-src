@@ -26,9 +26,7 @@ Swoole4 or later supports the built-in coroutine with high availability, and you
 
 Developers can understand coroutines as ultra-lightweight threads, and you can easily create thousands of coroutines in a single process.
 
-### Examples
-
-#### MySQL
+### MySQL
 
 Concurrency 10k requests to read data from MySQL takes only 0.2s!
 
@@ -54,7 +52,7 @@ Swoole\Event::wait();
 echo 'use ' . (microtime(true) - $s) . ' s';
 ```
 
-#### Mixed Server
+### Mixed Server
 
 You can create multiple services on the single event loop: TCP, HTTP, Websocket and HTTP2, and easily handle thousands of requests.
 
@@ -87,7 +85,7 @@ $tcp_server->on('receive', function (Swoole\Server $server, int $fd, int $reacto
 $server->start();
 ```
 
-#### Kinds of Clients
+### Kinds of Clients
 
 Whether you DNS query or send requests or receive responses, all of these are scheduled by coroutine automatically.
 
@@ -123,13 +121,13 @@ go(function () use ($tcp_options) {
 });
 ```
 
-#### Channel
+### Channel
 
 Channel is the only way for exchanging data between coroutines, the development combination of the `Coroutine + Channel` is the famous CSP programming model.
 
 In Swoole development, Channel is usually used for implementing connection pool or scheduling coroutine concurrent.
 
-##### The simplest example of a connection pool
+#### The simplest example of a connection pool
 
 In the following example, we have a thousand concurrently requests to redis. Normally, this has exceeded the maximum number of Redis connections setting and will throw a connection exception, but the connection pool based on Channel can perfectly schedule requests. We don't have to worry about connection overload.
 
@@ -192,7 +190,7 @@ go(function () {
 });
 ```
 
-##### Production & Consumption
+#### Production & Consumption
 
 Some Swoole's clients implement the defer mode for concurrency, but you can still implement it flexible with a combination of coroutines and channels.
 
@@ -429,19 +427,19 @@ echo 'use ' . (microtime(true) - $s) . ' s';
 
 > As with any open source project, Swoole always provides the most reliable stability and the most powerful features in **the latest released version**. Please ensure as much as possible that you are using the latest version.
 
-#### Requirements
+### Requirements
 
 - Linux, OS X and basic Windows support (thanks to Cygwin)
 - PHP 7.0.0 or later (The higher the version, the better the performance.)
 - GCC 4.8 or later
 
-#### 1. Install via pecl (beginners)
+### 1. Install via pecl (beginners)
 
 ```shell
 pecl install swoole
 ```
 
-#### 2. Install from source (recommand)
+### 2. Install from source (recommand)
 
 ```shell
 git clone https://github.com/swoole/swoole-src.git && \
@@ -455,7 +453,7 @@ make && make install
 
 After compiling and installing to the system successfully, you need to add a new line `extension=swoole.so` to `php.ini` to enable Swoole extension.
 
-##### Compiler Configurations
+#### Extra Compiler Configurations
 
 > for example: `./configure --enable-openssl --enable-sockets`
 
@@ -465,7 +463,7 @@ After compiling and installing to the system successfully, you need to add a new
 - `--enable-mysqlnd` (need mysqlnd)
 - `--enable-async-redis`, `--with-hiredis-dir=/path/to` (need hiredis, build-in in v4.2.6 or later)
 
-#### Upgrade
+### Upgrade
 
 >  ⚠️ If you upgrade from source, don't forget to `make clean` before you upgrade your swoole
 

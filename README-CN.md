@@ -26,9 +26,7 @@ Swoole4或更高版本拥有高可用性的内置协程，您可以使用完全�
 
 开发者可以将协程理解为超轻量级的线程, 你可以非常容易地在一个进程中创建成千上万个协程。
 
-### 例子
-
-#### MySQL客户端
+### MySQL客户端
 
 并发1万个请求从MySQL读取海量数据仅需要0.2秒
 
@@ -54,7 +52,7 @@ Swoole\Event::wait();
 echo 'use ' . (microtime(true) - $s) . ' s';
 ```
 
-#### 混合服务器
+### 混合服务器=
 
 你可以在一个事件循环上创建多个服务：TCP，HTTP，Websocket和HTTP2，并且能轻松承载上万请求。
 
@@ -86,7 +84,7 @@ $tcp_server->on('receive', function (swoole_server $server, int $fd, int $reacto
 });
 $server->start();
 ```
-#### 多种客户端
+### 多种客户端
 
 不管是DNS查询抑或是发送请求和接收响应，都是协程调度的，不会产生任何阻塞。
 
@@ -122,13 +120,13 @@ go(function () use ($tcp_options) {
 });
 ```
 
-#### 通道
+### 通道
 
 通道(Channel)是协程之间通信交换数据的唯一渠道, 而协程+通道的开发组合即为著名的CSP编程模型。
 
 在Swoole开发中，Channel常用于连接池的实现和协程并发的调度。
 
-##### 连接池最简示例
+#### 连接池最简示例
 
 在以下示例中，我们并发了一千个redis请求，通常的情况下，这已经超过了Redis最大的连接数，将会抛出连接异常， 但基于Channel实现的连接池可以完美地调度请求，开发者就无需担心连接过载。
 
@@ -191,7 +189,7 @@ go(function () {
 });
 ```
 
-##### 生产和消费
+#### 生产和消费
 
 Swoole的部分客户端实现了defer机制来进行并发，但你依然可以用协程和通道的组合来灵活地实现它。
 
@@ -426,19 +424,19 @@ echo 'use ' . (microtime(true) - $s) . ' s';
 
 > 和任何开源项目一样, Swoole总是在**最新的发行版**提供最可靠的稳定性和最强的功能, 请尽量保证你使用的是最新版本
 
-#### 需要
+### 需要
 
 - Linux, OS X 系统 或使用 CygWin
 - PHP 7.0.0 或以上版本 (版本越高性能越好)
 - GCC 4.8 及以上
 
-#### 1. 使用PHP官方的PECL工具安装 (初学者)
+### 1. 使用PHP官方的PECL工具安装 (初学者)
 
 ```shell
 pecl install swoole
 ```
 
-#### 2. 从源码编译安装 (推荐)
+### 2. 从源码编译安装 (推荐)
 
 ```shell
 git clone https://github.com/swoole/swoole-src.git && \
@@ -452,7 +450,7 @@ make && sudo make install
 
 编译安装到系统成功后, 需要在`php.ini`中加入一行`extension=swoole.so`来启用Swoole扩展
 
-##### 额外编译参数
+#### 额外编译参数
 
 > 使用例子: `./configure --enable-openssl --enable-sockets`
 
@@ -462,7 +460,7 @@ make && sudo make install
 - `--enable-mysqlnd` (need mysqlnd)
 - `--enable-async-redis`, `--with-hiredis-dir=/path/to` (需要 hiredis, v4.2.6 或以上内置)
 
-#### 升级
+### 升级
 
 >  ⚠️ 如果你要从源码升级, 别忘记在源码目录执行 `make clean` 
 
