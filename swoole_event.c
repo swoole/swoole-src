@@ -207,7 +207,7 @@ void php_swoole_reactor_init()
 
     if (SwooleG.serv && swIsTaskWorker() && SwooleG.serv->task_async == 0)
     {
-        swoole_php_fatal_error(E_ERROR, "The task process is not enable asynchronous, unable to use async-io");
+        swoole_php_fatal_error(E_ERROR, "Unable to use async-io in task processes, please set `task_async` to true.");
         return;
     }
 

@@ -1,6 +1,6 @@
 #!/bin/sh -e
 
-if [ "${TRAVIS}"x == ""x ]; then
+if [ "${TRAVIS}"x = ""x ]; then
   echo "\n❌ This script is just for Travis!"
   exit 255
 fi
