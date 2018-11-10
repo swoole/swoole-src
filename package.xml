@@ -6,22 +6,23 @@
 	<name>swoole</name>
 	<channel>pecl.php.net</channel>
 	<summary>Event-driven asynchronous and concurrent networking engine with high performance for PHP.</summary>
-	<description>Event-driven asynchronous and concurrent networking engine with high performance for PHP.
-- event-driven
-- asynchronous non-blocking
-- multi-thread reactor
-- multi-process worker
-- multi-protocol
-- millisecond timer
-- async mysql client
-- built-in http/websocket/http2 server
-- async http/websocket client
-- async redis client
-- async task
-- async read/write file system
-- async dns lookup
-- support IPv4/IPv6/UnixSocket/TCP/UDP
-- support SSL/TLS encrypted transmission
+	<description>
+        Event-driven asynchronous and concurrent networking engine with high performance for PHP.
+        - event-driven
+        - coroutine
+        - asynchronous non-blocking
+        - multi-thread reactor
+        - multi-process worker
+        - multi-protocol
+        - millisecond timer
+        - built-in http/websocket/http2 server
+        - coroutine http/websocket client
+        - coroutine mysql client
+        - coroutine redis client
+        - coroutine read/write file system
+        - coroutine dns lookup
+        - support IPv4/IPv6/UnixSocket/TCP/UDP
+        - support SSL/TLS encrypted transmission
     </description>
     <lead>
         <name>Tianfeng Han</name>
@@ -35,10 +36,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2018-11-05</date>
-    <time>21:00:00</time>
+    <date>2018-11-10</date>
+    <time>18:30:00</time>
     <version>
-        <release>4.2.6</release>
+        <release>4.2.7</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -47,18 +48,17 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        + Built-in `hiredis` dependency, no longer needed to compile it separately, refactor `Co\Redis`, more stable
-        + Improve the compilation test of the Alpine system
-        + Refactor `Co::exec` and functions about file to fix its execution and output issues in some scenarios
-        * Fixed errors about coroutine switching in multi-level nesting and multiple suspend scenarios
-        * Fixed connection leaks that may occur when both sides are closed at the same time
-        * Fixed `channel` bug in blocking scenarios
-        * Fixed `mysql->prepare` return true (#2080)
-        * Fixed the reference count problem when use `swoole_table` as an array (#2079)
-        * Fixed `ssl_host_name` cannot open SNI (#2085)
-        * Fixed `kqueue` nanosecond conversion problem under MacOS (#2087)
-        * Fixed all `swoole_object` dangling pointer
-        * Add a series of scripting tools for the underlying development
+        + `Server` adds `task_async` config item, supports switching between pure sync mode and async mode, sync mode by default (backward compatibility)
+        + Support `gethostbyname` in `Runtime::enableCoroutine`
+        + Support `PHP7.3RC5` version
+        * Fixed low version `GCC` compatibility problem (#2094)
+        * Fixed ssl timeout bug for `client->recv`
+        * Fixed `Socks5` proxy not work (#2103)
+        * Fixed the bug that `connected` property of `Co\Redis` was not updated. (#2104)
+        * Fixed `taskWait` segment fault (#2098)
+        * Fixed `Co\Socket` reuse problem
+        * Fixed a bug in `Process\Pool`
+        - `Swoole\Serialize` will be forced to close in PHP73 (unsupported temporarily)
     </notes>
     <contents>
         <dir name="/">
@@ -68,6 +68,7 @@
             <file role="doc" name="README.md" />
             <file role="src" name="benchmark/ab.sh" />
             <file role="src" name="benchmark/async.php" />
+            <file role="src" name="benchmark/benchmark.php" />
             <file role="src" name="benchmark/coroutine.php" />
             <file role="src" name="benchmark/eof_server.php" />
             <file role="src" name="benchmark/http.go" />
@@ -79,6 +80,7 @@
             <file role="src" name="benchmark/post.data" />
             <file role="src" name="benchmark/redis.go" />
             <file role="src" name="benchmark/run.php" />
+            <file role="src" name="benchmark/runtime.php" />
             <file role="src" name="benchmark/seria_bench.php" />
             <file role="src" name="benchmark/table.php" />
             <file role="src" name="benchmark/tcp.go" />
@@ -309,6 +311,7 @@
             <file role="doc" name="examples/ringqueue.php" />
             <file role="doc" name="examples/runtime/coroutine.php" />
             <file role="doc" name="examples/runtime/file.php" />
+            <file role="doc" name="examples/runtime/gethostbyname.php" />
             <file role="doc" name="examples/runtime/include.php" />
             <file role="doc" name="examples/runtime/mkdir.php" />
             <file role="doc" name="examples/runtime/read.php" />
@@ -899,6 +902,7 @@
             <file role="test" name="tests/swoole_http_client/set_cookie_zval.phpt" />
             <file role="test" name="tests/swoole_http_client/set_headers_core1.phpt" />
             <file role="test" name="tests/swoole_http_client/set_headers_core2.phpt" />
+            <file role="test" name="tests/swoole_http_client/socks5_proxy.phpt" />
             <file role="test" name="tests/swoole_http_client/test_big_body.phpt" />
             <file role="test" name="tests/swoole_http_client/test_cookie.phpt" />
             <file role="test" name="tests/swoole_http_client/test_header.phpt" />
@@ -923,10 +927,12 @@
             <file role="test" name="tests/swoole_http_client_coro/h2c_upgrade.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/head_method.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/http_proxy.phpt" />
+            <file role="test" name="tests/swoole_http_client_coro/http_proxy_443.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/https.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/long_domain.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/multi.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/multi_and_reuse.phpt" />
+            <file role="test" name="tests/swoole_http_client_coro/socks5_proxy.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/ssl_host_name.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/timeout_before_connect.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/timeout_when_recv.phpt" />
@@ -972,6 +978,7 @@
             <file role="test" name="tests/swoole_https_client/method_put.phpt" />
             <file role="test" name="tests/swoole_https_client/method_put_with_payload.phpt" />
             <file role="test" name="tests/swoole_https_client/post_with_body.phpt" />
+            <file role="test" name="tests/swoole_https_client/socks5_proxy.phpt" />
             <file role="test" name="tests/swoole_https_client/test_cookie.phpt" />
             <file role="test" name="tests/swoole_https_client/test_header.phpt" />
             <file role="test" name="tests/swoole_https_client/test_header_core.phpt" />
@@ -1042,6 +1049,7 @@
             <file role="test" name="tests/swoole_process/swoole_process_write.phpt" />
             <file role="test" name="tests/swoole_process/timeout.phpt" />
             <file role="test" name="tests/swoole_process/write_in_worker.phpt" />
+            <file role="test" name="tests/swoole_process_pool/getprocess.phpt" />
             <file role="test" name="tests/swoole_process_pool/message.phpt" />
             <file role="test" name="tests/swoole_process_pool/msgqueue.phpt" />
             <file role="test" name="tests/swoole_redis/connect_refuse.phpt" />
@@ -1069,6 +1077,7 @@
             <file role="test" name="tests/swoole_runtime/file_hook/flock.phpt" />
             <file role="test" name="tests/swoole_runtime/file_hook/include.phpt" />
             <file role="test" name="tests/swoole_runtime/file_hook/read.phpt" />
+            <file role="test" name="tests/swoole_runtime/gethostbyname.phpt" />
             <file role="test" name="tests/swoole_runtime/pdo.phpt" />
             <file role="test" name="tests/swoole_runtime/pdo_task.phpt" />
             <file role="test" name="tests/swoole_runtime/sento.phpt" />
@@ -1076,8 +1085,10 @@
             <file role="test" name="tests/swoole_runtime/ssl_client.phpt" />
             <file role="test" name="tests/swoole_runtime/ssl_server.phpt" />
             <file role="test" name="tests/swoole_runtime/stream_context.phpt" />
+            <file role="test" name="tests/swoole_runtime/tcp-c10k.phpt" />
             <file role="test" name="tests/swoole_runtime/tcp.phpt" />
             <file role="test" name="tests/swoole_runtime/udg.phpt" />
+            <file role="test" name="tests/swoole_runtime/udp-c10k.phpt" />
             <file role="test" name="tests/swoole_runtime/udp.phpt" />
             <file role="test" name="tests/swoole_runtime/unix.phpt" />
             <file role="test" name="tests/swoole_serialize/001.phpt" />
@@ -1166,6 +1177,7 @@
             <file role="test" name="tests/swoole_socket_coro/concurrency.phpt" />
             <file role="test" name="tests/swoole_socket_coro/recv_timeout.phpt" />
             <file role="test" name="tests/swoole_socket_coro/sendto.phpt" />
+            <file role="test" name="tests/swoole_socket_coro/tcp-c10k.phpt" />
             <file role="test" name="tests/swoole_table/foreach.phpt" />
             <file role="test" name="tests/swoole_table/int.phpt" />
             <file role="test" name="tests/swoole_table/key_value.phpt" />
