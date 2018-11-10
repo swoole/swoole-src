@@ -3,7 +3,7 @@ swoole_https_client: socks5 proxy
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
-skip_if_no_proxy();
+skip_if_no_socks5_proxy();
 ?>
 --FILE--
 <?php
