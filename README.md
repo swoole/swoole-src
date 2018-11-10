@@ -425,10 +425,59 @@ Swoole\Event::wait();
 echo 'use ' . (microtime(true) - $s) . ' s';
 ```
 
+## ⌛️ Installation
+
+> As with any open source project, Swoole always provides the most reliable stability and the most powerful features in **the latest released version**. Please ensure as much as possible that you are using the latest version.
+
+#### Requirements
+
+- Linux, OS X and basic Windows support (thanks to Cygwin)
+- PHP 7.0.0 or later (The higher the version, the better the performance.)
+- GCC 4.8 or later
+
+#### 1. Install via pecl (beginners)
+
+```shell
+pecl install swoole
+```
+
+#### 2. Install from source (recommand)
+
+```shell
+git clone https://github.com/swoole/swoole-src.git && \
+cd swoole-src && \
+phpize && \
+./configure && \
+make && make install
+```
+
+#### Enable extension in PHP
+
+After compiling and installing to the system successfully, you need to add a new line `extension=swoole.so` to `php.ini` to enable Swoole extension.
+
+##### Compiler Configurations
+
+> for example: `./configure --enable-openssl --enable-sockets`
+
+- `--enable-openssl`
+- `--enable-sockets`
+- `--enable-http2`, `--with-nghttp2-dir=/path/to` (need nghttp2)
+- `--enable-mysqlnd` (need mysqlnd)
+- `--enable-async-redis`, `--with-hiredis-dir=/path/to` (need hiredis, build-in in v4.2.6 or later)
+
+#### Upgrade
+
+>  ⚠️ If you upgrade from source, don't forget to `make clean` before you upgrade your swoole
+
+1. `pecl upgrade swoole`
+2. `git pull && cd swoole-src && make clean && make && sudo make install`
+3. if you change your PHP version, please re-run `phpize clean && phpize` then try to compile
+
 ## 💎 Frameworks & Components
 
 - [**Swoft**](https://github.com/swoft-cloud) is a modern, high-performance AOP and coroutine PHP framework.
 - [**Easyswoole**](https://github.com/swoft-cloud) is a simple, high-performance PHP framework, based on Swoole, which makes using Swoole as easy as `echo "hello world"`.
+- [**Saber**](https://github.com/swlib/saber) Is a human-friendly, high-performance HTTP client component that has almost everything you can imagine.
 
 ## 🛠 Develop & Discussion
 

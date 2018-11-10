@@ -422,6 +422,54 @@ Swoole\Event::wait();
 echo 'use ' . (microtime(true) - $s) . ' s';
 ```
 
+## ⌛️ 安装
+
+> 和任何开源项目一样, Swoole总是在**最新的发行版**提供最可靠的稳定性和最强的功能, 请尽量保证你使用的是最新版本
+
+#### 需要
+
+- Linux, OS X 系统 或使用 CygWin
+- PHP 7.0.0 或以上版本 (版本越高性能越好)
+- GCC 4.8 及以上
+
+#### 1. 使用PHP官方的PECL工具安装 (初学者)
+
+```shell
+pecl install swoole
+```
+
+#### 2. 从源码编译安装 (推荐)
+
+```shell
+git clone https://github.com/swoole/swoole-src.git && \
+cd swoole-src && \
+phpize && \
+./configure && \
+make && sudo make install
+```
+
+#### 启用扩展
+
+编译安装到系统成功后, 需要在`php.ini`中加入一行`extension=swoole.so`来启用Swoole扩展
+
+##### 额外编译参数
+
+> 使用例子: `./configure --enable-openssl --enable-sockets`
+
+- `--enable-openssl`
+- `--enable-sockets`
+- `--enable-http2`, `--with-nghttp2-dir=/path/to` (需要 nghttp2)
+- `--enable-mysqlnd` (need mysqlnd)
+- `--enable-async-redis`, `--with-hiredis-dir=/path/to` (需要 hiredis, v4.2.6 或以上内置)
+
+#### 升级
+
+>  ⚠️ 如果你要从源码升级, 别忘记在源码目录执行 `make clean` 
+
+1. `pecl upgrade swoole`
+2. `git pull && cd swoole-src && make clean && make && sudo make install`
+3. 如果你改变了PHP版本, 请重新执行 `phpize clean && phpize`后重新编译
+
 ## 💎 框架 & 组件
 
 - [**Swoft**](https://github.com/swoft-cloud) 是一个现代化的面向切面的高性能协程全栈组件化框架
