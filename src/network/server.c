@@ -1734,17 +1734,19 @@ static void swHeartbeatThread_loop(swThreadParam *param)
         sleep_time = (next[2] - now) < 0 ? 0 : (unsigned int)(next[2] - now);
         sleep(sleep_time);
 
-        swHeartbeat_check(serv, (int)next[1]);
+        check_interval = (int)next[1];
+        swHeartbeat_check(serv, check_interval);
         now = (long) time(NULL);
 
+        next = NULL;
         for (i = 0; i < count; ++i)
         {
-            if (check_list[i][1] == next[1])
+            if (check_list[i][1] == check_interval)
             {
                 check_list[i][2] = now + check_list[i][1];
             }
 
-            if (check_list[i][2] < next[2])
+            if (next == NULL || check_list[i][2] < next[2])
             {
                 next = check_list[i];
             }
