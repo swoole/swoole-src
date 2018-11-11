@@ -36,6 +36,7 @@ static PHP_METHOD(swoole_mysql_coro, rollback);
 static PHP_METHOD(swoole_mysql_coro, prepare);
 static PHP_METHOD(swoole_mysql_coro, setDefer);
 static PHP_METHOD(swoole_mysql_coro, getDefer);
+static PHP_METHOD(swoole_mysql_coro, getState);
 static PHP_METHOD(swoole_mysql_coro, close);
 
 static PHP_METHOD(swoole_mysql_coro_statement, __destruct);
@@ -124,6 +125,7 @@ static const zend_function_entry swoole_mysql_coro_methods[] =
     PHP_ME(swoole_mysql_coro, prepare, arginfo_swoole_mysql_coro_prepare, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_mysql_coro, setDefer, arginfo_swoole_mysql_coro_setDefer, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_mysql_coro, getDefer, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+	PHP_ME(swoole_mysql_coro, getState, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_mysql_coro, close, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
@@ -960,6 +962,17 @@ static PHP_METHOD(swoole_mysql_coro, getDefer)
 {
     mysql_client *client = (mysql_client *) swoole_get_object(getThis());
     RETURN_BOOL(client->defer);
+}
+
+static PHP_METHOD(swoole_mysql_coro, getState)
+{
+    mysql_client *client = (mysql_client *) swoole_get_object(getThis());
+    if (!client)
+    {
+        swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_mysql_coro.");
+        RETURN_FALSE;
+    }
+    RETURN_LONG(client->state);
 }
 
 static PHP_METHOD(swoole_mysql_coro, setDefer)
