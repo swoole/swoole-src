@@ -72,6 +72,7 @@ int coro_init(void)
     /* set functions */
     coroutine_set_onYield(internal_coro_yield);
     coroutine_set_onResume(internal_coro_resume);
+    coroutine_set_onResumeBack(internal_coro_resume_back);
     coroutine_set_onClose(sw_coro_close);
     return 0;
 }
@@ -92,7 +93,7 @@ static void resume_php_stack(coro_task *task)
 
 static void save_php_stack(coro_task *task)
 {
-    swTraceLog(SW_TRACE_COROUTINE,"coro_yield coro id %d", task->cid);
+    swTraceLog(SW_TRACE_COROUTINE,"coro_yield cid=%d", task->cid);
     /* save vm stack */
     task->yield_execute_data = EG(current_execute_data);
     task->yield_stack = EG(vm_stack);
@@ -107,7 +108,15 @@ static void save_php_stack(coro_task *task)
 
 void internal_coro_resume(void *arg)
 {
-    coro_task *task = (coro_task *)arg;
+    coro_task *current_task = (coro_task *) coroutine_get_current_task();
+    coro_task *task = (coro_task *) arg;
+    if (current_task)
+    {
+        current_task->yield_execute_data = EG(current_execute_data);
+        current_task->yield_stack = EG(vm_stack);
+        current_task->yield_vm_stack_top = EG(vm_stack_top);
+        current_task->yield_vm_stack_end = EG(vm_stack_end);
+    }
     resume_php_stack(task);
 
     if (OG(handlers).elements)
@@ -125,7 +134,19 @@ void internal_coro_resume(void *arg)
         efree(task->current_coro_output_ptr);
         task->current_coro_output_ptr = NULL;
     }
-    swTraceLog(SW_TRACE_COROUTINE, "cid=%d", task->cid);
+    swTraceLog(SW_TRACE_COROUTINE, "coro_resume cid=%d", task->cid);
+}
+
+void internal_coro_resume_back(void *arg)
+{
+    coro_task *current_task = (coro_task *) arg;
+    if (current_task) // TODO: COROG
+    {
+        EG(current_execute_data) = current_task->execute_data;
+        EG(vm_stack) = current_task->yield_stack;
+        EG(vm_stack_top) = current_task->yield_vm_stack_top;
+        EG(vm_stack_end) = current_task->yield_vm_stack_end;
+    }
 }
 
 void internal_coro_yield(void *arg)

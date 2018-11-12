@@ -97,7 +97,6 @@ typedef struct _coro_global
     zval *origin_vm_stack_end;
     zval *allocated_return_value_ptr;
     zend_execute_data *origin_ex;
-    coro_task *current_coro;
     zend_bool active;
     int error;
 } coro_global;
