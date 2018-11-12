@@ -325,6 +325,7 @@ static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event)
             {
                 err_msg = PQerrorMessage(pg_object->conn);
                 swWarn("error:[%s] please cofirm that the connection configuration is correct \n",err_msg);
+                zend_update_property_string(swoole_postgresql_coro_class_entry_ptr, pg_object->object, "error", 5, err_msg);
                 break;
             }
         }
@@ -340,8 +341,11 @@ static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event)
     zval *retval = NULL;
     zval return_value;
     ZVAL_BOOL(&return_value, success);
+    if (success == 1)
+    {
+        zend_update_property_null(swoole_postgresql_coro_class_entry_ptr, pg_object->object, "error", 5);
+    }
 
-    zend_update_property_null(swoole_postgresql_coro_class_entry_ptr, pg_object->object, "error", 5);
     int ret = coro_resume(sw_current_context, &return_value, &retval);
     if (ret == CORO_END && retval)
     {
