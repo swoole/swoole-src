@@ -663,7 +663,7 @@ ssize_t Socket::recv(void *__buf, size_t __n)
         {
             return -1;
         }
-        yield(SOCKET_LOCK_READ);
+        yield(events == SW_EVENT_WRITE ? SOCKET_LOCK_RW : SOCKET_LOCK_READ);
         if (errCode == ETIMEDOUT)
         {
             return -1;
@@ -713,7 +713,7 @@ ssize_t Socket::read(void *__buf, size_t __n)
         {
             return -1;
         }
-        yield(SOCKET_LOCK_READ);
+        yield(events == SW_EVENT_WRITE ? SOCKET_LOCK_RW : SOCKET_LOCK_READ);
         if (errCode == ETIMEDOUT)
         {
             return -1;
@@ -763,7 +763,7 @@ ssize_t Socket::write(const void *__buf, size_t __n)
         {
             return -1;
         }
-        yield(SOCKET_LOCK_WRITE);
+        yield(events == SW_EVENT_READ ? SOCKET_LOCK_RW : SOCKET_LOCK_WRITE);
         if (errCode == ETIMEDOUT)
         {
             return -1;
@@ -868,7 +868,7 @@ ssize_t Socket::send(const void *__buf, size_t __n)
         {
             return -1;
         }
-        yield(SOCKET_LOCK_WRITE);
+        yield(events == SW_EVENT_READ ? SOCKET_LOCK_RW : SOCKET_LOCK_WRITE);
         if (errCode == ETIMEDOUT)
         {
             return -1;
@@ -1537,7 +1537,7 @@ bool Socket::sendfile(char *filename, off_t offset, size_t length)
         {
             goto _error;
         }
-        yield(SOCKET_LOCK_READ);
+        yield(SOCKET_LOCK_WRITE);
         if (errCode == ETIMEDOUT)
         {
             goto _error;
