@@ -145,7 +145,7 @@ static PHP_METHOD(swoole_coroutine_iterator, __destruct);
 static PHP_METHOD(swoole_exit_exception, getFlags);
 static PHP_METHOD(swoole_exit_exception, getStatus);
 
-static std::unordered_map<int, php_context *> defer_coros;
+static std::unordered_map<int, uint8_t> user_yield_coros;
 
 static zend_class_entry swoole_coroutine_util_ce;
 static zend_class_entry *swoole_coroutine_util_class_entry_ptr;
@@ -329,17 +329,15 @@ static PHP_METHOD(swoole_exit_exception, getStatus)
  */
 static PHP_METHOD(swoole_coroutine_util, yield)
 {
-    int cid = sw_get_current_cid();
-    if (cid < 0)
+    coroutine_t* co = coroutine_get_current();
+    if (unlikely(!co))
     {
         swoole_php_fatal_error(E_ERROR, "can not yield outside coroutine");
         RETURN_FALSE;
     }
-
-    php_context *context = (php_context *) emalloc(sizeof(php_context));
-    defer_coros[cid] = context;
-    coro_save(context);
-    coro_yield();
+    user_yield_coros[coroutine_get_current_cid()] = 1;
+    coroutine_yield(co);
+    RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_coroutine_util, set)
@@ -446,38 +444,24 @@ PHP_FUNCTION(swoole_coroutine_create)
 static PHP_METHOD(swoole_coroutine_util, resume)
 {
     long cid;
+    coroutine_t* co;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &cid) == FAILURE)
     {
         RETURN_FALSE;
     }
 
-    if (defer_coros.find(cid) == defer_coros.end())
+    if (user_yield_coros.find(cid) == user_yield_coros.end())
+    {
+        swoole_php_fatal_error(E_WARNING, "you can not resume the coroutine which is in IO operation.");
+        RETURN_FALSE;
+    }
+    else if (!(co = coroutine_get_by_id(cid)))
     {
         swoole_php_fatal_error(E_WARNING, "no coroutine can resume.");
         RETURN_FALSE;
     }
-
-    php_context *context = defer_coros[cid];
-    defer_coros.erase(cid);
-
-    zend_vm_stack origin_vm_stack = EG(vm_stack);
-    zval *origin_vm_stack_top = EG(vm_stack_top);
-    zval *origin_vm_stack_end = EG(vm_stack_end);
-
-    zval *retval = NULL;
-    zval *result;
-    SW_MAKE_STD_ZVAL(result);
-    ZVAL_BOOL(result, 1);
-    int ret = coro_resume(context, result, &retval);
-    if (ret == CORO_END && retval)
-    {
-        zval_ptr_dtor(retval);
-    }
-    zval_ptr_dtor(result);
-    efree(context);
-    EG(vm_stack) = origin_vm_stack;
-    EG(vm_stack_top) = origin_vm_stack_top;
-    EG(vm_stack_end) = origin_vm_stack_end;
+    user_yield_coros.erase(cid);
+    coroutine_resume(co);
     RETURN_TRUE;
 }
 

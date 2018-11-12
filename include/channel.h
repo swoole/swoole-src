@@ -40,8 +40,6 @@ private:
     std::list<coroutine_t *> consumer_queue;
     std::queue<void *> data_queue;
     size_t capacity;
-    uint32_t notify_producer_count;
-    uint32_t notify_consumer_count;
 
 public:
     bool closed;
@@ -94,33 +92,21 @@ public:
         coroutine_t* co;
         if (type == PRODUCER)
         {
-            if (producer_queue.size() == 0)
-            {
-                return nullptr;
-            }
             co = producer_queue.front();
             producer_queue.pop_front();
-            notify_producer_count--;
             swDebug("resume producer[%d]", coroutine_get_cid(co));
         }
         else
         {
-            if (consumer_queue.size() == 0)
-            {
-                return nullptr;
-            }
             co = consumer_queue.front();
             consumer_queue.pop_front();
-            notify_consumer_count--;
             swDebug("resume consumer[%d]", coroutine_get_cid(co));
         }
         return co;
     }
 
     Channel(size_t _capacity);
-    ~Channel();
     void yield(enum channel_op type);
-    void notify(enum channel_op type);
     void* pop(double timeout = 0);
     bool push(void *data);
     bool close();

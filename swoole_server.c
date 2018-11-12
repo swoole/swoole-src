@@ -2909,12 +2909,13 @@ PHP_METHOD(swoole_server, send)
         }
         else
         {
-            goto convert;
+            goto _convert;
         }
         SW_CHECK_RETURN(ret);
     }
 
-    convert: convert_to_long(zfd);
+    _convert:
+    convert_to_long(zfd);
     uint32_t fd = (uint32_t) Z_LVAL_P(zfd);
     //UDP
     if (swServer_is_udp(fd))

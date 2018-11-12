@@ -28,6 +28,5 @@ swoole_event::wait();
 --EXPECTF--
 pop ret:false error:-1
 sleep 1
-chan push ret:true
 pop ret:'chan-1'
-
+chan push ret:true

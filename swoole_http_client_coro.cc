@@ -1066,13 +1066,17 @@ static PHP_METHOD(swoole_http_client_coro, recv)
 {
     http_client_coro_property *hcc = (http_client_coro_property *) swoole_get_property(getThis(), 0);
     http_client *http = (http_client *) swoole_get_object(getThis());
-    double timeout = http->timeout;
+    double timeout;
 
     if (!http)
     {
         SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
         zend_update_property_long(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), SwooleG.error);
         RETURN_FALSE;
+    }
+    else
+    {
+        timeout = http->timeout;
     }
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
