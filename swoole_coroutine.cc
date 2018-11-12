@@ -252,9 +252,18 @@ static void sw_coro_func(void *arg)
     task->stack = EG(vm_stack);
     task->vm_stack_top = EG(vm_stack_top);
     task->vm_stack_end = EG(vm_stack_end);
+
     task->origin_stack = origin_vm_stack;
     task->origin_vm_stack_top = origin_vm_stack_top;
     task->origin_vm_stack_end = origin_vm_stack_end;
+
+    task->yield_execute_data = task->execute_data;
+    task->yield_stack = task->stack;
+    task->yield_vm_stack_top = task->vm_stack_top;
+    task->yield_vm_stack_end =  task->vm_stack_end;
+
+    task->current_coro_output_ptr = NULL;
+
     task->co = coroutine_get_by_id(cid);
     coroutine_set_task(task->co, (void *)task);
 
