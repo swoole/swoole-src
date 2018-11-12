@@ -127,11 +127,14 @@ int coro_init(void)
 
 static void resume_php_stack(coro_task *task)
 {
-    swTraceLog(SW_TRACE_COROUTINE,"sw_coro_resume coro id %d", task->cid);
-    /* set vm stack to global */
-    task->origin_stack = COROG.origin_vm_stack;
-    task->origin_vm_stack_top = COROG.origin_vm_stack_top;
-    task->origin_vm_stack_end = COROG.origin_vm_stack_end;
+    swTraceLog(SW_TRACE_COROUTINE,"resume_php_stack cid=%d", task->cid);
+    if (task->origin_stack != COROG.origin_vm_stack)
+    {
+        /* set vm stack to global */
+        task->origin_stack = COROG.origin_vm_stack;
+        task->origin_vm_stack_top = COROG.origin_vm_stack_top;
+        task->origin_vm_stack_end = COROG.origin_vm_stack_end;
+    }
     /* resume vm stack */
     EG(current_execute_data) = task->yield_execute_data;
     EG(vm_stack) = task->yield_stack;
@@ -142,7 +145,7 @@ static void resume_php_stack(coro_task *task)
 
 static void save_php_stack(coro_task *task)
 {
-    swTraceLog(SW_TRACE_COROUTINE,"coro_yield cid=%d", task->cid);
+    swTraceLog(SW_TRACE_COROUTINE,"save_php_stack cid=%d", task->cid);
     /* save vm stack */
     task->yield_execute_data = EG(current_execute_data);
     task->yield_stack = EG(vm_stack);
@@ -162,10 +165,8 @@ void internal_coro_resume(void *arg)
     coro_task *task = (coro_task *) arg;
     if (current_task)
     {
-        current_task->yield_execute_data = EG(current_execute_data);
-        current_task->yield_stack = EG(vm_stack);
-        current_task->yield_vm_stack_top = EG(vm_stack_top);
-        current_task->yield_vm_stack_end = EG(vm_stack_end);
+        // resume the other coroutine in this coroutine, we need to save current vm stack
+        save_php_stack(current_task);
     }
     resume_php_stack(task);
 
@@ -175,12 +176,10 @@ void internal_coro_resume(void *arg)
 void internal_coro_resume_back(void *arg)
 {
     coro_task *current_task = (coro_task *) arg;
-    if (current_task) // TODO: COROG
+    if (current_task)
     {
-        EG(current_execute_data) = current_task->execute_data;
-        EG(vm_stack) = current_task->yield_stack;
-        EG(vm_stack_top) = current_task->yield_vm_stack_top;
-        EG(vm_stack_end) = current_task->yield_vm_stack_end;
+        // when we go back here, we need resume the current coroutine vm stack
+        resume_php_stack(current_task);
     }
 }
 
@@ -258,7 +257,7 @@ static void sw_coro_func(void *arg)
     }
     call->symbol_table = NULL;
 
-    EG(current_execute_data) = NULL;
+//    EG(current_execute_data) = NULL;
     if (UNEXPECTED(func->op_array.fn_flags & ZEND_ACC_CLOSURE))
     {
         uint32_t call_info;
