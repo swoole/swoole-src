@@ -657,6 +657,10 @@ ssize_t Socket::recv(void *__buf, size_t __n)
         if (socket->ssl && socket->ssl_want_write)
         {
             events = SW_EVENT_WRITE;
+            if (!is_available(write_cid))
+            {
+                return -1;
+            }
         }
 #endif
         if (!wait_events(events))
@@ -707,6 +711,10 @@ ssize_t Socket::read(void *__buf, size_t __n)
         if (socket->ssl && socket->ssl_want_write)
         {
             events = SW_EVENT_WRITE;
+            if (!is_available(write_cid))
+            {
+                return -1;
+            }
         }
 #endif
         if (!wait_events(events))
@@ -757,6 +765,10 @@ ssize_t Socket::write(const void *__buf, size_t __n)
         if (socket->ssl && socket->ssl_want_read)
         {
             events = SW_EVENT_READ;
+            if (!is_available(read_cid))
+            {
+                return -1;
+            }
         }
 #endif
         if (!wait_events(events))
@@ -862,6 +874,10 @@ ssize_t Socket::send(const void *__buf, size_t __n)
         if (socket->ssl && socket->ssl_want_read)
         {
             events = SW_EVENT_READ;
+            if (!is_available(read_cid))
+            {
+                return -1;
+            }
         }
 #endif
         if (!wait_events(events))
