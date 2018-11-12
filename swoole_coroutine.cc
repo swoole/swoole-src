@@ -78,15 +78,14 @@ int coro_init(void)
 
 static void resume_php_stack(coro_task *task)
 {
-    COROG.current_coro = task;
-    swTraceLog(SW_TRACE_COROUTINE,"sw_coro_resume coro id %d", COROG.current_coro->cid);
+    swTraceLog(SW_TRACE_COROUTINE,"sw_coro_resume coro id %d", task->cid);
     task->state = SW_CORO_RUNNING;
-    EG(current_execute_data) = task->yield_execute_data;
     /* set vm stack to global */
     task->origin_stack = COROG.origin_vm_stack;
     task->origin_vm_stack_top = COROG.origin_vm_stack_top;
     task->origin_vm_stack_end = COROG.origin_vm_stack_end;
     /* resume vm stack */
+    EG(current_execute_data) = task->yield_execute_data;
     EG(vm_stack) = task->yield_stack;
     EG(vm_stack_top) = task->yield_vm_stack_top;
     EG(vm_stack_end) = task->yield_vm_stack_end;
@@ -245,7 +244,6 @@ static void sw_coro_func(void *arg)
     {
         swoole_call_hook(SW_GLOBAL_HOOK_ON_CORO_START, task);
     }
-    COROG.current_coro = task;
     swTraceLog(SW_TRACE_COROUTINE, "Create coro id: %d, coro total count: %d, heap size: %zu", cid, COROG.coro_num, zend_memory_usage(0));
 
     EG(current_execute_data) = task->execute_data;
@@ -393,7 +391,6 @@ void sw_coro_close()
     EG(vm_stack_end) = task->origin_vm_stack_end;
     efree(task->stack);
     COROG.coro_num--;
-    COROG.current_coro = NULL;
 
     if (OG(active))
     {
