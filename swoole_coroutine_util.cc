@@ -1408,7 +1408,7 @@ static PHP_METHOD(swoole_coroutine_iterator, __destruct)
 static PHP_METHOD(swoole_coroutine_util, listCoroutines)
 {
     object_init_ex(return_value, swoole_coroutine_iterator_class_entry_ptr);
-    coroutine_iterator *itearator = (coroutine_iterator *) swoole_get_object(getThis());
+    coroutine_iterator *itearator = (coroutine_iterator *) emalloc(sizeof(coroutine_iterator));
     bzero(itearator, sizeof(coroutine_iterator));
     swoole_set_object(return_value, itearator);
 }
