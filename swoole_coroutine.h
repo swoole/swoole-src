@@ -47,7 +47,6 @@ typedef struct _coro_task
 #ifdef SW_LOG_TRACE_OPEN
     int cid;
 #endif
-    sw_coro_state state;
     zend_execute_data *execute_data;
     zend_vm_stack stack;
     zval *vm_stack_top;

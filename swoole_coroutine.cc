@@ -79,7 +79,6 @@ int coro_init(void)
 static void resume_php_stack(coro_task *task)
 {
     swTraceLog(SW_TRACE_COROUTINE,"sw_coro_resume coro id %d", task->cid);
-    task->state = SW_CORO_RUNNING;
     /* set vm stack to global */
     task->origin_stack = COROG.origin_vm_stack;
     task->origin_vm_stack_top = COROG.origin_vm_stack_top;
@@ -94,7 +93,6 @@ static void resume_php_stack(coro_task *task)
 static void save_php_stack(coro_task *task)
 {
     swTraceLog(SW_TRACE_COROUTINE,"coro_yield coro id %d", task->cid);
-    task->state = SW_CORO_YIELD;
     /* save vm stack */
     task->yield_execute_data = EG(current_execute_data);
     task->yield_stack = EG(vm_stack);
@@ -236,7 +234,6 @@ static void sw_coro_func(void *arg)
     task->origin_stack = origin_vm_stack;
     task->origin_vm_stack_top = origin_vm_stack_top;
     task->origin_vm_stack_end = origin_vm_stack_end;
-    task->state = SW_CORO_RUNNING;
     task->co = coroutine_get_by_id(cid);
     coroutine_set_task(task->co, (void *)task);
 
