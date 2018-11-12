@@ -10,7 +10,7 @@ go(function () {
     echo "2\n"; // [#1] yield
     go(function () {
         echo "1\n"; // [#2] output: 1
-        co::sleep(0.001); // yield
+        co::fgets(fopen(__FILE__, 'r')); // yield
         // [#4] resume
         ob_start(); // to buffer
         echo "4\n";
