@@ -258,7 +258,7 @@ static void sw_coro_func(void *arg)
     }
     call->symbol_table = NULL;
 
-    EG(current_execute_data) = NULL;
+//    EG(current_execute_data) = NULL;
     if (UNEXPECTED(func->op_array.fn_flags & ZEND_ACC_CLOSURE))
     {
         uint32_t call_info;
