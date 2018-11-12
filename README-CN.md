@@ -103,7 +103,7 @@ go(function () {
     // http2
     $http2_client = new Swoole\Coroutine\Http2\Client('localhost', 9501);
     $http2_client->connect();
-    $http2_request = new swoole_http2_request;
+    $http2_request = new Swoole\Http2\Reuqest;
     $http2_request->method = 'POST';
     $http2_request->data = 'Swoole Http2';
     $http2_client->send($http2_request);
@@ -252,6 +252,14 @@ go(function () {
     echo "🎉 All right!\n";
 });
 ```
+
+### 命名空间
+
+Swoole提供了多种类命名规则以满足不同开发者的爱好
+
+1. 符合PSR规范的命名空间风格
+2. 便于键入的下划线风格
+3. 协程类短名风格
 
 ## 🔥 强大的运行时钩子
 

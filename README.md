@@ -104,7 +104,7 @@ go(function () {
     // http2
     $http2_client = new Swoole\Coroutine\Http2\Client('localhost', 9501);
     $http2_client->connect();
-    $http2_request = new swoole_http2_request;
+    $http2_request = new Swoole\Http2\Reuqest;
     $http2_request->method = 'POST';
     $http2_request->data = 'Swoole Http2';
     $http2_client->send($http2_request);
