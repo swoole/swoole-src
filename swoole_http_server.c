@@ -602,7 +602,7 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
         }
         goto free_memory;
     }
-    else if (SwooleG.serv->listen_list->open_websocket_protocol && strncmp(header_name, "upgrade", header_len) == 0 && strncasecmp(at, "websocket", length) == 0)
+    else if (strncmp(header_name, "upgrade", header_len) == 0 && strncasecmp(at, "websocket", length) == 0)
     {
         swConnection *conn = swWorker_get_connection(SwooleG.serv, ctx->fd);
         if (!conn)
@@ -610,7 +610,11 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
             swWarn("connection[%d] is closed.", ctx->fd);
             return SW_ERR;
         }
-        conn->websocket_status = WEBSOCKET_STATUS_CONNECTION;
+        swListenPort *port = (swListenPort *) SwooleG.serv->connection_list[conn->from_fd].object;
+        if (port->open_websocket_protocol)
+        {
+            conn->websocket_status = WEBSOCKET_STATUS_CONNECTION;
+        }
     }
     else if (parser->method == PHP_HTTP_POST || parser->method == PHP_HTTP_PUT || parser->method == PHP_HTTP_DELETE || parser->method == PHP_HTTP_PATCH)
     {
