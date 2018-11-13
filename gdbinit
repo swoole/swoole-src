@@ -26,9 +26,7 @@ define cbacktracelist
             printf "coroutine cid:[%d] \n",$cid
         end
         
-        if ! swCoroG.coroutines[$cid]
-           printf "corouine %d has been exited\n",  $cid
-        else
+        if swCoroG.coroutines[$cid]
            __dumpco_bt $cid
         end
         set $cid = $cid + 1
@@ -73,8 +71,6 @@ define __dumpco_bt
                 set $eg.current_execute_data = $backup
             end
         end
-    else
-        printf "corouine %d has been exited,  $cid\n"
     end
 end
 
