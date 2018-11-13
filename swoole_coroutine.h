@@ -98,8 +98,6 @@ void coro_destroy(void);
 void coro_check(void);
 
 #define sw_coro_is_in() (sw_get_current_cid() != -1)
-#define coro_save(sw_php_context) \
-        sw_coro_save(return_value, sw_php_context);
 #define coro_resume(sw_current_context, retval, coro_retval) \
         sw_coro_resume(sw_current_context, retval, *coro_retval)
 #define coro_yield() sw_coro_yield()

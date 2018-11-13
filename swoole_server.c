@@ -86,7 +86,7 @@ static void php_swoole_onManagerStart(swServer *serv);
 static void php_swoole_onManagerStop(swServer *serv);
 
 #ifdef SW_COROUTINE
-static void php_swoole_onConnect_finish(void *param);
+//static void php_swoole_onConnect_finish(void *param);
 static void php_swoole_onSendTimeout(swTimer *timer, swTimer_node *tnode);
 static int php_swoole_server_send_resume(swServer *serv, php_context *context, int fd);
 static void php_swoole_task_onTimeout(swTimer *timer, swTimer_node *tnode);
@@ -498,7 +498,7 @@ static void php_swoole_task_wait_co(swServer *serv, swEventData *req, double tim
     {
         task_co->timer = timer;
     }
-    coro_save(&task_co->context);
+    sw_coro_save(return_value, &task_co->context);
     coro_yield();
 }
 
@@ -1600,12 +1600,12 @@ static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker
 }
 
 #ifdef SW_COROUTINE
-static void php_swoole_onConnect_finish(void *param)
-{
-    swServer *serv = SwooleG.serv;
-    swTrace("onConnect finish and send confirm");
-    swServer_tcp_feedback(serv, (uint32_t) (long) param, SW_EVENT_CONFIRM);
-}
+//static void php_swoole_onConnect_finish(void *param)
+//{
+//    swServer *serv = SwooleG.serv;
+//    swTrace("onConnect finish and send confirm");
+//    swServer_tcp_feedback(serv, (uint32_t) (long) param, SW_EVENT_CONFIRM);
+//}
 #endif
 
 void php_swoole_onConnect(swServer *serv, swDataHead *info)
@@ -1614,7 +1614,6 @@ void php_swoole_onConnect(swServer *serv, swDataHead *info)
     zval *zfd;
     zval *zfrom_id;
     zval *retval = NULL;
-
 
     SW_MAKE_STD_ZVAL(zfd);
     ZVAL_LONG(zfd, info->fd);
@@ -1927,7 +1926,7 @@ void php_swoole_server_send_yield(swServer *serv, int fd, zval *zdata, zval *ret
         context->timer = NULL;
     }
     context->coro_params = *zdata;
-    coro_save(context);
+    sw_coro_save(return_value, context);
     coro_yield();
 }
 #endif
@@ -2854,7 +2853,7 @@ PHP_METHOD(swoole_server, start)
 PHP_METHOD(swoole_server, send)
 {
     int ret;
-    long fd;
+    zend_long fd;
     zval *zdata;
 
     swServer *serv = swoole_get_object(getThis());
@@ -3530,7 +3529,7 @@ PHP_METHOD(swoole_server, taskCo)
     {
         task_co->timer = timer;
     }
-    coro_save(&task_co->context);
+    sw_coro_save(return_value, &task_co->context);
     coro_yield();
 }
 #endif
