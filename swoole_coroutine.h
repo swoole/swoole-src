@@ -98,8 +98,6 @@ void coro_destroy(void);
 void coro_check(void);
 
 #define sw_coro_is_in() (sw_get_current_cid() != -1)
-#define coro_resume(sw_current_context, retval, coro_retval) \
-        sw_coro_resume(sw_current_context, retval, *coro_retval)
 #define coro_yield() sw_coro_yield()
 #define coro_use_return_value(); *(zend_uchar *) &execute_data->prev_execute_data->opline->result_type = IS_VAR;
 

@@ -514,7 +514,7 @@ static void php_swoole_task_onTimeout(swTimer *timer, swTimer_node *tnode)
     {
         zval result;
         ZVAL_FALSE(&result);
-        int ret = coro_resume(context, &result, &retval);
+        int ret = sw_coro_resume(context, &result, retval);
         if (ret == CORO_END && retval)
         {
             zval_ptr_dtor(retval);
@@ -536,7 +536,7 @@ static void php_swoole_task_onTimeout(swTimer *timer, swTimer_node *tnode)
         }
     }
 
-    int ret = coro_resume(context, result, &retval);
+    int ret = sw_coro_resume(context, result, retval);
     if (ret == CORO_END && retval)
     {
         zval_ptr_dtor(retval);
@@ -1168,7 +1168,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
                 swTimer_del(&SwooleG.timer, task_co->timer);
             }
             php_context *context = &task_co->context;
-            int ret = coro_resume(context, zdata, &retval);
+            int ret = sw_coro_resume(context, zdata, retval);
             if (ret == CORO_END && retval)
             {
                 zval_ptr_dtor(retval);
@@ -1206,7 +1206,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
                 task_co->timer = NULL;
             }
             php_context *context = &task_co->context;
-            int ret = coro_resume(context, result, &retval);
+            int ret = sw_coro_resume(context, result, retval);
             if (ret == CORO_END && retval)
             {
                 zval_ptr_dtor(retval);
@@ -1839,7 +1839,7 @@ static void php_swoole_onSendTimeout(swTimer *timer, swTimer_node *tnode)
 
     context->private_data = NULL;
 
-    int ret = coro_resume(context, result, &retval);
+    int ret = sw_coro_resume(context, result, retval);
     if (ret == CORO_END && retval)
     {
         zval_ptr_dtor(retval);
@@ -1882,7 +1882,7 @@ static int php_swoole_server_send_resume(swServer *serv, php_context *context, i
         context->timer = NULL;
     }
 
-    int ret = coro_resume(context, result, &retval);
+    int ret = sw_coro_resume(context, result, retval);
     if (ret == CORO_END && retval)
     {
         zval_ptr_dtor(retval);

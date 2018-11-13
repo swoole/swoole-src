@@ -260,7 +260,7 @@ static void swoole_pgsql_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
         PQfinish(pgsql);
     }
 
-    int ret = coro_resume(ctx, result, &retval);
+    int ret = sw_coro_resume(ctx, result, retval);
     if (ret == CORO_END && retval)
     {
         zval_ptr_dtor(retval);
@@ -338,7 +338,7 @@ static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event)
     zval return_value;
     ZVAL_RES(&return_value, zend_register_resource(pg_object->conn, le_link));
 
-    int ret = coro_resume(sw_current_context, &return_value, &retval);
+    int ret = sw_coro_resume(sw_current_context, &return_value, retval);
     if (ret == CORO_END && retval)
     {
         zval_ptr_dtor(retval);
@@ -423,7 +423,7 @@ static  int meta_data_result_parse(pg_object *pg_object)
 
     }
     php_context *sw_current_context = swoole_get_property(pg_object->object, 0);
-    int ret  = coro_resume(sw_current_context, &return_value, &retval);
+    int ret  = sw_coro_resume(sw_current_context, &return_value, retval);
     if (ret == CORO_END && retval)
     {
         zval_ptr_dtor(retval);
@@ -462,7 +462,7 @@ static  int query_result_parse(pg_object *pg_object)
 
             PQclear(pgsql_result);
             ZVAL_FALSE(&return_value);
-            ret = coro_resume(sw_current_context, &return_value,  &retval);
+            ret = sw_coro_resume(sw_current_context, &return_value, retval);
             if (ret == CORO_END && retval)
             {
                 zval_ptr_dtor(retval);
@@ -477,7 +477,7 @@ static  int query_result_parse(pg_object *pg_object)
             res = PQflush(pg_object->conn);
 
             ZVAL_RES(&return_value, zend_register_resource(pg_object, le_result));
-            ret = coro_resume(sw_current_context, &return_value,  &retval);
+            ret = sw_coro_resume(sw_current_context, &return_value, retval);
             if (ret == CORO_END && retval)
             {
                 zval_ptr_dtor(retval);
@@ -1043,7 +1043,7 @@ static int swoole_pgsql_coro_onError(swReactor *reactor, swEvent *event)
     ZVAL_BOOL(result, 0);
 
     php_context *sw_current_context = swoole_get_property(zobject, 0);
-    int ret = coro_resume(sw_current_context, result, &retval);
+    int ret = sw_coro_resume(sw_current_context, result, retval);
     zval_ptr_dtor(result);
 
     if (ret == CORO_END && retval)

@@ -214,7 +214,7 @@ static void coro_onDNSCompleted(char *domain, swDNSResolver_result *result, void
         return;
     }
 
-    int ret = coro_resume(req->context, zaddress, &retval);
+    int ret = sw_coro_resume(req->context, zaddress, retval);
     if (ret > 0)
     {
         goto free_zdata;
@@ -249,7 +249,7 @@ static void dns_timeout_coro(swTimer *timer, swTimer_node *tnode)
         ZVAL_STRING(zaddress, "");
     }
 
-    int ret = coro_resume(req->context, zaddress, &retval);
+    int ret = sw_coro_resume(req->context, zaddress, retval);
     if (ret > 0)
     {
         goto free_zdata;

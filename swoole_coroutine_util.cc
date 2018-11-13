@@ -533,7 +533,7 @@ static void aio_onReadCompleted(swAio_event *event)
     }
 
     php_context *context = (php_context *) event->object;
-    int ret = coro_resume(context, result, &retval);
+    int ret = sw_coro_resume(context, result, retval);
     if (ret == CORO_END && retval)
     {
         zval_ptr_dtor(retval);
@@ -568,7 +568,7 @@ static void aio_onFgetsCompleted(swAio_event *event)
         stream->eof = 1;
     }
 
-    int ret = coro_resume(context, result, &retval);
+    int ret = sw_coro_resume(context, result, retval);
     if (ret == CORO_END && retval)
     {
         zval_ptr_dtor(retval);
@@ -594,7 +594,7 @@ static void aio_onWriteCompleted(swAio_event *event)
     }
 
     php_context *context = (php_context *) event->object;
-    int ret = coro_resume(context, result, &retval);
+    int ret = sw_coro_resume(context, result, retval);
     if (ret == CORO_END && retval)
     {
         zval_ptr_dtor(retval);
@@ -637,7 +637,7 @@ static int co_socket_onReadable(swReactor *reactor, swEvent *event)
         sock->buf->len = n;
         ZVAL_STR(&result, sock->buf);
     }
-    int ret = coro_resume(context, &result, &retval);
+    int ret = sw_coro_resume(context, &result, retval);
     zval_ptr_dtor(&result);
     if (ret == CORO_END && retval)
     {
@@ -673,7 +673,7 @@ static int co_socket_onWritable(swReactor *reactor, swEvent *event)
     {
         ZVAL_LONG(&result, n);
     }
-    int ret = coro_resume(context, &result, &retval);
+    int ret = sw_coro_resume(context, &result, retval);
     zval_ptr_dtor(&result);
     if (ret == CORO_END && retval)
     {
@@ -1093,7 +1093,7 @@ static void coro_dns_onResolveCompleted(swAio_event *event)
         ZVAL_BOOL(result, 0);
     }
 
-    int ret = coro_resume(context, result, &retval);
+    int ret = sw_coro_resume(context, result, retval);
     if (ret == CORO_END && retval)
     {
         zval_ptr_dtor(retval);
@@ -1148,7 +1148,7 @@ static void coro_dns_onGetaddrinfoCompleted(swAio_event *event)
         SwooleG.error = req->error;
     }
 
-    int ret = coro_resume(context, result, &retval);
+    int ret = sw_coro_resume(context, result, retval);
     if (ret == CORO_END && retval)
     {
         zval_ptr_dtor(retval);
