@@ -77,9 +77,8 @@ void coroutine_set_onResume(coro_php_resume_t func);
 void coroutine_set_onResumeBack(coro_php_resume_t func);
 void coroutine_set_onClose(coro_php_close_t func);
 
-void internal_coro_yield(void *return_value);
+void internal_coro_yield(void *arg);
 void internal_coro_resume(void *arg);
-void internal_coro_resume_back(void *arg);
 
 swString* swoole_coroutine_read_file(const char *file, int lock);
 ssize_t swoole_coroutine_write_file(const char *file, char *buf, size_t length, int lock, int flags);

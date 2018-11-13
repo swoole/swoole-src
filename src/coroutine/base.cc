@@ -49,7 +49,6 @@ static struct
     struct coroutine_s* call_stack[SW_MAX_CORO_NESTING_LEVEL];
     coro_php_yield_t    onYield;  /* before php yield coro */
     coro_php_resume_t   onResume; /* before php resume coro */
-    coro_php_resume_t   onResumeBack; /* after php resume coro */
     coro_php_close_t    onClose;  /* before php close coro */
 } swCoroG = { SW_DEFAULT_C_STACK_SIZE, 0, { nullptr, },  { nullptr, }, nullptr, nullptr, nullptr };
 
@@ -174,10 +173,6 @@ void coroutine_resume(coroutine_t *co)
     {
         coroutine_release(co);
     }
-    if (swCoroG.onResumeBack)
-    {
-        swCoroG.onResumeBack(coroutine_get_current_task());
-    }
 }
 
 void coroutine_yield_naked(coroutine_t *co)
@@ -291,11 +286,6 @@ void coroutine_set_onYield(coro_php_yield_t func)
 void coroutine_set_onResume(coro_php_resume_t func)
 {
     swCoroG.onResume = func;
-}
-
-void coroutine_set_onResumeBack(coro_php_resume_t func)
-{
-    swCoroG.onResumeBack = func;
 }
 
 void coroutine_set_onClose(coro_php_close_t func)

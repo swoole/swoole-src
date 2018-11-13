@@ -1,7 +1,7 @@
 --TEST--
 swoole_coroutine: exit
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../include/skipif.inc'; skip('confirm it soon', true, SWOOLE_COLOR_RED) ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';

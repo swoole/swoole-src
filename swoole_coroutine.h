@@ -34,40 +34,42 @@ typedef enum
     SW_CORO_CONTEXT_RUNNING, SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST, SW_CORO_CONTEXT_TERM
 } php_context_state;
 
-typedef struct _php_args
-{
-    zend_fcall_info_cache *fci_cache;
-    zval **argv;
-    int argc;
-    zval *retval;
-} php_args;
-
 typedef struct _coro_task
 {
 #ifdef SW_LOG_TRACE_OPEN
     int cid;
 #endif
     zend_execute_data *execute_data;
-    zend_vm_stack stack;
+    zend_vm_stack vm_stack;
     zval *vm_stack_top;
     zval *vm_stack_end;
-
-    zend_vm_stack origin_stack;
-    zval *origin_vm_stack_top;
-    zval *origin_vm_stack_end;
-
-    zend_execute_data *yield_execute_data;
-    zend_vm_stack yield_stack;
-    zval *yield_vm_stack_top;
-    zval *yield_vm_stack_end;
-
-    zend_output_globals *current_coro_output_ptr;
-    /**
-     * user coroutine
-     */
+    zend_output_globals *output_ptr;
     coroutine_t *co;
+    struct _coro_task *origin_task;
+    struct _coro_task *yield_task;
 } coro_task;
 
+typedef struct _php_args
+{
+    zend_fcall_info_cache *fci_cache;
+    zval **argv;
+    int argc;
+    zval *retval;
+    coro_task *origin_task;
+} php_args;
+
+typedef struct _coro_global
+{
+    zend_bool active;
+    int error;
+    uint32_t coro_num;
+    uint32_t max_coro_num;
+    uint32_t peak_coro_num;
+    uint32_t stack_size;
+    coro_task task;
+} coro_global;
+
+// TODO: remove php context
 typedef struct _php_context
 {
     zval **current_coro_return_value_ptr_ptr;
@@ -86,33 +88,10 @@ typedef struct _php_context
     zend_output_globals *current_coro_output_ptr;
 } php_context;
 
-typedef struct _coro_global
-{
-    uint32_t coro_num;
-    uint32_t max_coro_num;
-    uint32_t peak_coro_num;
-    uint32_t stack_size;
-    zend_vm_stack origin_vm_stack;
-    zval *origin_vm_stack_top;
-    zval *origin_vm_stack_end;
-    zval *allocated_return_value_ptr;
-    zend_execute_data *origin_ex;
-    zend_bool active;
-    int error;
-} coro_global;
-
-typedef struct _swTimer_coro_callback
-{
-    int ms;
-    int cli_fd;
-    long *timeout_id;
-    void* data;
-} swTimer_coro_callback;
-
 extern coro_global COROG;
 
 int sw_get_current_cid();
-int coro_init(void);
+void coro_init(void);
 void coro_destroy(void);
 void coro_check(void);
 
