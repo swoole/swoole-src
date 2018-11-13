@@ -41,8 +41,6 @@ typedef struct
 } swConnectionIterator;
 
 static int php_swoole_task_id = 0;
-static int udp_server_socket;
-static int dgram_server_socket;
 
 struct
 {
@@ -1025,7 +1023,6 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
     {
         add_assoc_stringl(zaddr, "address", packet->data, packet->addr.un.path_length);
         ZVAL_STRINGL(zdata, packet->data + packet->addr.un.path_length, packet->length - packet->addr.un.path_length);
-        dgram_server_socket = req->info.from_fd;
     }
 
     if (SwooleG.enable_coroutine)
@@ -2857,10 +2854,8 @@ PHP_METHOD(swoole_server, start)
 PHP_METHOD(swoole_server, send)
 {
     int ret;
-
-    zval *zfd;
+    long fd;
     zval *zdata;
-    zend_long server_socket = -1;
 
     swServer *serv = swoole_get_object(getThis());
     if (serv->gs->start == 0)
@@ -2869,11 +2864,9 @@ PHP_METHOD(swoole_server, send)
         RETURN_FALSE;
     }
 
-    ZEND_PARSE_PARAMETERS_START(2, 3)
-        Z_PARAM_ZVAL(zfd)
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_LONG(fd)
         Z_PARAM_ZVAL(zdata)
-        Z_PARAM_OPTIONAL
-        Z_PARAM_LONG(server_socket)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     char *data;
@@ -2885,71 +2878,15 @@ PHP_METHOD(swoole_server, send)
         RETURN_FALSE;
     }
 
-    if (serv->have_udp_sock && Z_TYPE_P(zfd) == IS_STRING)
+    ret = swServer_tcp_send(serv, fd, data, length);
+    if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_BUFFER_OVERFLOW && serv->send_yield)
     {
-        if (server_socket == -1)
-        {
-            server_socket = dgram_server_socket;
-        }
-        //UDP IPv6
-        if (strchr(Z_STRVAL_P(zfd), ':'))
-        {
-            php_swoole_udp_t udp_info;
-            memcpy(&udp_info, &server_socket, sizeof(udp_info));
-            ret = swSocket_udp_sendto6(udp_info.from_fd, Z_STRVAL_P(zfd), udp_info.port, data, length);
-        }
-        //UNIX DGRAM
-        else if (Z_STRVAL_P(zfd)[0] == '/')
-        {
-            struct sockaddr_un addr_un;
-            memcpy(addr_un.sun_path, Z_STRVAL_P(zfd), Z_STRLEN_P(zfd));
-            addr_un.sun_family = AF_UNIX;
-            addr_un.sun_path[Z_STRLEN_P(zfd)] = 0;
-            ret = swSocket_sendto_blocking(server_socket, data, length, 0, (struct sockaddr *) &addr_un, sizeof(addr_un));
-        }
-        else
-        {
-            goto _convert;
-        }
-        SW_CHECK_RETURN(ret);
+        zval_add_ref(zdata);
+        php_swoole_server_send_yield(serv, fd, zdata, return_value);
     }
-
-    _convert:
-    convert_to_long(zfd);
-    uint32_t fd = (uint32_t) Z_LVAL_P(zfd);
-    //UDP
-    if (swServer_is_udp(fd))
-    {
-        if (server_socket == -1)
-        {
-            server_socket = udp_server_socket;
-        }
-
-        php_swoole_udp_t udp_info;
-        memcpy(&udp_info, &server_socket, sizeof(udp_info));
-
-        struct sockaddr_in addr_in;
-        addr_in.sin_family = AF_INET;
-        addr_in.sin_port = htons(udp_info.port);
-        addr_in.sin_addr.s_addr = fd;
-        ret = swSocket_sendto_blocking(udp_info.from_fd, data, length, 0, (struct sockaddr *) &addr_in, sizeof(addr_in));
-        SW_CHECK_RETURN(ret);
-    }
-    //TCP
     else
     {
-        ret = swServer_tcp_send(serv, fd, data, length);
-#ifdef SW_COROUTINE
-        if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_BUFFER_OVERFLOW && serv->send_yield)
-        {
-            zval_add_ref(zdata);
-            php_swoole_server_send_yield(serv, fd, zdata, return_value);
-        }
-        else
-#endif
-        {
-            SW_CHECK_RETURN(ret);
-        }
+        SW_CHECK_RETURN(ret);
     }
 }
 
