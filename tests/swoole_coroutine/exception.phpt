@@ -25,11 +25,21 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-Fatal error: Uncaught Exception: whoops in %s:%d
+Fatal error: Uncaught Exception: whoops in %s/tests/swoole_coroutine/exception.php:15
 Stack trace:
-#0 {main}
-  thrown in %s on line %d
-[%s]	ERROR	zm_deactivate_swoole (ERROR 503): Fatal error: Uncaught Exception: whoops in %s:%d
+#0 [internal function]: {closure}(Object(Swoole\Http\Request), Object(Swoole\Http\Response))
+#1 %s/tests/swoole_coroutine/exception.php(17): Swoole\Server->start()
+#2 %s/tests/include/functions.php(635): {closure}()
+#3 %s/tests/include/functions.php(713): ProcessManager->runChildFunc()
+#4 %s/tests/swoole_coroutine/exception.php(20): ProcessManager->run()
+#5 {main}
+  thrown in %s/tests/swoole_coroutine/exception.php on line 15
+[%s]	ERROR	zm_deactivate_swoole (ERROR 503): Fatal error: Uncaught Exception: whoops in %s/tests/swoole_coroutine/exception.php:15
 Stack trace:
-#0 {main}
-  thrown in %s on line %d.
+#0 [internal function]: {closure}(Object(Swoole\Http\Request), Object(Swoole\Http\Response))
+#1 %s/tests/swoole_coroutine/exception.php(17): Swoole\Server->start()
+#2 %s/tests/include/functions.php(635): {closure}()
+#3 %s/tests/include/functions.php(713): ProcessManager->runChildFunc()
+#4 %s/tests/swoole_coroutine/exception.php(20): ProcessManager->run()
+#5 {main}
+  thrown in %s/tests/swoole_coroutine/exception.php on line 15.

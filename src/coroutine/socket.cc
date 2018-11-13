@@ -987,41 +987,35 @@ void Socket::yield(int operation)
     }
 
     errCode = 0;
+    int ms = (int) (_timeout * 1000);
+    if (ms <= 0 || ms >= SW_TIMER_MAX_VALUE)
+    {
+        _timeout = -1;
+    }
     if (_timeout > 0)
     {
-        int ms = (int) (_timeout * 1000);
-        if (ms <= 0 || ms >= SW_TIMER_MAX_VALUE)
+        swTimer_node *timer = swTimer_add(&SwooleG.timer, ms, 0, this, socket_onTimeout);
+        if (timer)
         {
-            goto _skip_timer;
-        }
-        if (operation == SOCKET_LOCK_WRITE)
-        {
-            write_timer = swTimer_add(&SwooleG.timer, ms, 0, this, socket_onTimeout);
-            if (write_timer)
+            if (operation == SOCKET_LOCK_WRITE)
             {
+                write_timer = timer;
                 write_timer->type = SW_TIMER_TYPE_CORO_WRITE;
             }
-        }
-        else if (operation == SOCKET_LOCK_READ)
-        {
-            read_timer = swTimer_add(&SwooleG.timer, ms, 0, this, socket_onTimeout);
-            if (read_timer)
+            else if (operation == SOCKET_LOCK_READ)
             {
+                read_timer = timer;
                 read_timer->type = SW_TIMER_TYPE_CORO_READ;
             }
-        }
-        else
-        {
-            read_timer = swTimer_add(&SwooleG.timer, ms, 0, this, socket_onTimeout);
-            if (read_timer == nullptr)
+            else // if (operation == SOCKET_LOCK_RW)
             {
+                read_timer = timer;
                 read_timer->type = SW_TIMER_TYPE_CORO_ALL;
             }
         }
     }
 
     // bind read/write coroutine
-    _skip_timer:
     if (operation & SOCKET_LOCK_WRITE)
     {
         write_cid = cid;
