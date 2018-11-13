@@ -25,21 +25,20 @@ define co_backtracelist
     while $cid < COROG.coro_num + 1
         if $hit > $max
             loop_break
-        end
-        ____get_current
-        if $current_cid > 0 && $current_cid == $cid
-            color $GREEN
-            printf "coroutine cid:[%d] <-current\n",$cid
-            color_reset
-        else
-            printf "coroutine cid:[%d] \n",$cid
-        end
-        
+        end        
         if swCoroG.coroutines[$cid]
+            ____get_current
+            if $current_cid > 0 && $current_cid == $cid
+                color $GREEN
+                printf "coroutine cid:[%d] <-current\n",$cid
+                color_reset
+            else
+                printf "coroutine cid:[%d] \n",$cid
+            end
            co_dump_bt $cid
+           set $hit = $hit + 1
         end
         set $cid = $cid + 1
-        set $hit = $hit + 1
     end
 end
 
