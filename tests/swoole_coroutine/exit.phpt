@@ -1,7 +1,7 @@
 --TEST--
 swoole_coroutine: exit
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; skip('confirm it soon', true, SWOOLE_COLOR_RED) ?>
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
@@ -9,12 +9,15 @@ require __DIR__ . '/../include/bootstrap.php';
 $exit_status_list = [
     'undef',
     null,
+    true,
+    false,
     1,
     1.1,
     'exit',
     ['exit' => 'ok'],
     (object)['exit' => 'ok'],
-    STDIN
+    STDIN,
+    0
 ];
 
 function route()
@@ -69,6 +72,8 @@ for ($i = 0; $i < count($exit_status_list); $i++) {
 --EXPECTF--
 NULL
 NULL
+bool(true)
+bool(false)
 int(1)
 float(1.1)
 string(4) "exit"
