@@ -16,6 +16,7 @@
 
 #include "php_swoole.h"
 #include "socket.h"
+#include "swoole_coroutine.h"
 #include "socks5.h"
 #include "mqtt.h"
 
@@ -45,6 +46,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_coro_connect, 0, 0, 1)
     ZEND_ARG_INFO(0, host)
     ZEND_ARG_INFO(0, port)
     ZEND_ARG_INFO(0, timeout)
+    ZEND_ARG_INFO(0, sock_flag)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_coro_recv, 0, 0, 0)
@@ -254,6 +256,11 @@ bool php_swoole_client_coro_socket_free(Socket *cli)
         efree(cli->http_proxy);
         cli->http_proxy = nullptr;
     }
+    if (cli->protocol.private_data)
+    {
+        zval *zcallback = (zval *) cli->protocol.private_data;
+        sw_zval_free(zcallback);
+    }
     delete cli;
 
     return ret;
@@ -436,8 +443,7 @@ void php_swoole_client_coro_check_setting(Socket *cli, zval *zset)
     }
     else
     {
-        _open_tcp_nodelay:
-        value = 1;
+        _open_tcp_nodelay: value = 1;
         if (setsockopt(cli->socket->fd, IPPROTO_TCP, TCP_NODELAY, &value, sizeof(value)) < 0)
         {
             swSysError("setsockopt(%d, TCP_NODELAY) failed.", cli->socket->fd);
@@ -725,8 +731,7 @@ static PHP_METHOD(swoole_client_coro, connect)
     if (!cli->connect(host, port, sock_flag))
     {
         zend_update_property_long(swoole_client_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), cli->errCode);
-        swoole_php_error(E_WARNING, "connect to server[%s:%d] failed. Error: %s[%d]", host, (int )port, cli->errMsg,
-                cli->errCode);
+        swoole_php_error(E_WARNING, "connect to server[%s:%d] failed. Error: %s[%d]", host, (int )port, cli->errMsg, cli->errCode);
         RETURN_FALSE;
     }
     zend_update_property_bool(swoole_client_coro_class_entry_ptr, getThis(), ZEND_STRL("connected"), 1);
@@ -912,7 +917,7 @@ static PHP_METHOD(swoole_client_coro, recv)
     sw_coro_check_bind("client", cli->has_bound(swoole::SOCKET_LOCK_READ));
     if (timeout != 0)
     {
-        cli->setTimeout(timeout);
+        cli->set_timeout(timeout);
     }
     ssize_t retval ;
     if (cli->open_length_check || cli->open_eof_check)

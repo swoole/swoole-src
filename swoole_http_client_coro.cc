@@ -30,8 +30,8 @@ typedef struct
     Socket *socket;
     bool ssl;
     bool wait;
-    zend_bool defer;
-    zend_bool keep_alive;
+    bool defer;
+    bool keep_alive;
 
 } http_client_coro_property;
 
@@ -246,7 +246,7 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
             {
                 convert_to_double(ztmp);
                 http->timeout = (double) Z_DVAL_P(ztmp);
-                hcc->socket->setTimeout(http->timeout);
+                hcc->socket->set_timeout(http->timeout);
             }
             /**
              * keep_alive
@@ -283,6 +283,12 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
                     add_assoc_stringl_ex(zrequest_headers, ZEND_STRL("Proxy-Authorization"), _buf2, _n2);
                 }
             }
+#ifdef SW_USE_OPENSSL
+            if (hcc->ssl)
+            {
+                hcc->socket->open_ssl = true;
+            }
+#endif
             php_swoole_client_coro_check_setting(hcc->socket, zset);
         }
 
@@ -296,12 +302,6 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
         {
             zend_update_property_bool(Z_OBJCE_P(zobject), zobject, ZEND_STRL("connected"), 1);
         }
-#ifdef SW_USE_OPENSSL
-        if (hcc->ssl && !hcc->socket->ssl_handshake())
-        {
-            return SW_ERR;
-        }
-#endif
         swTraceLog(SW_TRACE_HTTP_CLIENT, "connect to server, object handle=%d, fd=%d", Z_OBJ_HANDLE_P(zobject), hcc->socket->socket->fd);
     }
 
@@ -667,7 +667,7 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
     if (zcookies && Z_TYPE_P(zcookies) == IS_ARRAY)
     {
         swString_append_ptr(http_client_buffer, ZEND_STRL("Cookie: "));
-        int n_cookie = Z_ARRVAL_P(zcookies)->nNumOfElements;
+        int n_cookie = php_swoole_array_length(zcookies);
         int i = 0;
         char *encoded_value;
 
@@ -988,7 +988,7 @@ static PHP_METHOD(swoole_http_client_coro, __construct)
         http_client_coro_property *hcc = (http_client_coro_property *) swoole_get_property(getThis(), 0);
         hcc->ssl = 1;
 #else
-        swoole_php_fatal_error(E_ERROR, "require openssl library.");
+        swoole_php_fatal_error(E_ERROR, "Need to use `--enable-openssl` to support ssl when compiling swoole.");
 #endif
     }
 
@@ -1066,13 +1066,17 @@ static PHP_METHOD(swoole_http_client_coro, recv)
 {
     http_client_coro_property *hcc = (http_client_coro_property *) swoole_get_property(getThis(), 0);
     http_client *http = (http_client *) swoole_get_object(getThis());
-    double timeout = http->timeout;
+    double timeout;
 
     if (!http)
     {
         SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
         zend_update_property_long(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), SwooleG.error);
         RETURN_FALSE;
+    }
+    else
+    {
+        timeout = http->timeout;
     }
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
@@ -1082,7 +1086,7 @@ static PHP_METHOD(swoole_http_client_coro, recv)
 
     if (timeout != 0)
     {
-        hcc->socket->setTimeout(timeout);
+        hcc->socket->set_timeout(timeout);
     }
 
     if (http->upgrade)
@@ -1176,12 +1180,12 @@ static PHP_METHOD(swoole_http_client_coro, addFile)
     }
     if (file_stat.st_size <= offset)
     {
-        swoole_php_error(E_WARNING, "parameter $offset[%ld] exceeds the file size.", offset);
+        swoole_php_error(E_WARNING, "parameter $offset[" ZEND_LONG_FMT "] exceeds the file size.", offset);
         RETURN_FALSE;
     }
     if (length > file_stat.st_size - offset)
     {
-        swoole_php_sys_error(E_WARNING, "parameter $length[%ld] exceeds the file size.", length);
+        swoole_php_sys_error(E_WARNING, "parameter $length[" ZEND_LONG_FMT "] exceeds the file size.", length);
         RETURN_FALSE;
     }
     if (length == 0)

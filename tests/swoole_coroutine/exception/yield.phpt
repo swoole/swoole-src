@@ -10,7 +10,7 @@ use Swoole\Coroutine as co;
 go(function () {
     try {
         echo "start\n";
-        co::sleep(0.5);
+        co::sleep(.001);
         echo "after sleep\n";
         throw new Exception('coro Exception');
     } catch (Exception $e) {

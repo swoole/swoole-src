@@ -30,6 +30,7 @@ enum hook_type
     SW_HOOK_UDG = 1u << 6,
     SW_HOOK_SSL = 1u << 7,
     SW_HOOK_TLS = 1u << 8,
+    SW_HOOK_BLOCKING_FUNCTION = 1u << 9,
     SW_HOOK_ALL = 0x7fffffff,
 };
 
@@ -119,6 +120,8 @@ static zend_function *ori_time_nanosleep;
 static zif_handler ori_time_nanosleep_handler;
 static zend_function *ori_time_sleep_until;
 static zif_handler ori_time_sleep_until_handler;
+static zend_function *ori_gethostbyname;
+static zif_handler ori_gethostbyname_handler;
 
 extern "C"
 {
@@ -147,6 +150,7 @@ void swoole_runtime_init(int module_number)
     SWOOLE_DEFINE(HOOK_UDG);
     SWOOLE_DEFINE(HOOK_SSL);
     SWOOLE_DEFINE(HOOK_TLS);
+    SWOOLE_DEFINE(HOOK_BLOCKING_FUNCTION);
     SWOOLE_DEFINE(HOOK_ALL);
 }
 
@@ -847,7 +851,7 @@ static php_stream *socket_create(const char *proto, size_t protolen, const char 
 
     if (FG(default_socket_timeout) > 0)
     {
-        sock->setTimeout((double) FG(default_socket_timeout));
+        sock->set_timeout((double) FG(default_socket_timeout));
     }
 
     php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t*) emalloc(sizeof(*abstract));
@@ -917,6 +921,18 @@ static PHP_METHOD(swoole_runtime, enableCoroutine)
             {
                 ori_time_sleep_until_handler =  ori_time_sleep_until->internal_function.handler;
                 ori_time_sleep_until->internal_function.handler = PHP_FN(_time_sleep_until);
+            }
+        }
+        if (flags & SW_HOOK_BLOCKING_FUNCTION)
+        {
+            /**
+             * gethostbyname
+             */
+            ori_gethostbyname = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("gethostbyname"));
+            if (ori_time_sleep_until)
+            {
+                ori_gethostbyname_handler =  ori_gethostbyname->internal_function.handler;
+                ori_gethostbyname->internal_function.handler = PHP_FN(swoole_coroutine_gethostbyname);
             }
         }
         if (flags & SW_HOOK_TCP)

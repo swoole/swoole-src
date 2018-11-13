@@ -159,6 +159,10 @@ static sw_inline ssize_t swConnection_recv(swConnection *conn, void *__buf, size
             else
             {
                 total_bytes += retval;
+                if (!(conn->nonblock || (__flags & MSG_WAITALL)))
+                {
+                    break;
+                }
             }
         }
     }

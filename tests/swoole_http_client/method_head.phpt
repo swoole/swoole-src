@@ -31,4 +31,3 @@ $cli->get('/', function ($cli)
 swoole_event::wait();
 ?>
 --EXPECT--
-

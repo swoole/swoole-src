@@ -31,7 +31,7 @@ $pm->parentFunc = function ($pid) use ($pm, $port)
 };
 
 $pm->childFunc = function () use ($pm, $port) {
-    $serv = new swoole_server("127.0.0.1", $port, SWOOLE_BASE);
+    $serv = new swoole_server('127.0.0.1', $port, SWOOLE_BASE);
     $serv->set([
         'worker_num' => 1,
         //'dispatch_mode'         => 1,

@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine: $this private access in PHP70
+swoole_coroutine: $this private access in PHP70 (EG(scope))
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

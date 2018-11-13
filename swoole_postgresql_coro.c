@@ -42,7 +42,7 @@ static int swoole_pgsql_coro_onRead(swReactor *reactor, swEvent *event);
 static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event);
 static int swoole_pgsql_coro_onError(swReactor *reactor, swEvent *event);
 int php_pgsql_result2array(PGresult *pg_result, zval *ret_array, long result_type);
-static int swoole_postgresql_coro_close(pg_object *pg_object);
+static int swoole_postgresql_coro_close(zval *zobject);
 static  int query_result_parse(pg_object *pg_object);
 static  int meta_data_result_parse(pg_object *pg_object);
 static void swoole_pgsql_coro_onTimeout(swTimer *timer, swTimer_node *tnode);
@@ -429,7 +429,6 @@ static  int meta_data_result_parse(pg_object *pg_object)
         zval_ptr_dtor(retval);
     }
     zval_ptr_dtor(&return_value);
-    zval_ptr_dtor(&elem);
     return SW_OK;
 }
 
@@ -468,7 +467,7 @@ static  int query_result_parse(pg_object *pg_object)
             {
                 zval_ptr_dtor(retval);
             }
-            swoole_postgresql_coro_close(pg_object);
+            swoole_postgresql_coro_close(pg_object->object);
             break;
         case PGRES_COMMAND_OK: /* successful command that did not return rows */
         default:
@@ -1039,7 +1038,7 @@ static int swoole_pgsql_coro_onError(swReactor *reactor, swEvent *event)
     zval *retval = NULL;
     zval *zobject  = pg_object->object;
 
-    swoole_postgresql_coro_close(pg_object);
+    swoole_postgresql_coro_close(zobject);
 
     ZVAL_BOOL(result, 0);
 
@@ -1059,28 +1058,29 @@ static PHP_METHOD(swoole_postgresql_coro, __destruct)
 {
     SW_PREVENT_USER_DESTRUCT;
 
-    pg_object *pg_object = swoole_get_object(getThis());
-    swoole_postgresql_coro_close(pg_object);
-
+    swoole_postgresql_coro_close(getThis());
 }
 
-static int swoole_postgresql_coro_close(pg_object *pg_object)
+static int swoole_postgresql_coro_close(zval *zobject)
 {
+    pg_object *pg_object = swoole_get_object(zobject);
     if (!pg_object)
     {
         swoole_php_fatal_error(E_WARNING, "object is not instanceof swoole_postgresql_coro.");
         return FAILURE;
     }
     SwooleG.main_reactor->del(SwooleG.main_reactor, pg_object->fd);
-
     swConnection *_socket = swReactor_get(SwooleG.main_reactor, pg_object->fd);
     _socket->object = NULL;
     _socket->active = 0;
     efree(pg_object);
-    if(pg_object->object)
+    swoole_set_object(zobject, NULL);
+
+    php_context *sw_current_context = swoole_get_property(zobject, 0);
+    if (sw_current_context)
     {
-        php_context *sw_current_context = swoole_get_property(pg_object->object, 0);
         efree(sw_current_context);
+        swoole_set_property(zobject, 0, NULL);
     }
 
     return SUCCESS;

@@ -729,11 +729,12 @@ void swoole_set_object(zval *zobject, void *ptr)
         swoole_objects.array = new_ptr;
         swoole_objects.size = new_size;
     }
+#ifdef ZEND_DEBUG
     else if (ptr)
     {
         assert(swoole_objects.array[handle] == NULL);
     }
-
+#endif
     swoole_objects.array[handle] = ptr;
 }
 
@@ -773,11 +774,12 @@ void swoole_set_property(zval *zobject, int property_id, void *ptr)
         swoole_objects.property_size[property_id] = new_size;
         swoole_objects.property[property_id] = new_ptr;
     }
+#ifdef ZEND_DEBUG
     else if (ptr)
     {
         assert(swoole_objects.property[property_id][handle] == NULL);
     }
-
+#endif
     swoole_objects.property[property_id][handle] = ptr;
 }
 
@@ -910,16 +912,21 @@ PHP_MINIT_FUNCTION(swoole)
 
     REGISTER_STRINGL_CONSTANT("SWOOLE_VERSION", SWOOLE_VERSION, sizeof(SWOOLE_VERSION) - 1, CONST_CS | CONST_PERSISTENT);
 
+    /**
+     * Register ERROR constants
+     */
     SWOOLE_DEFINE(ERROR_MALLOC_FAIL);
     SWOOLE_DEFINE(ERROR_SYSTEM_CALL_FAIL);
     SWOOLE_DEFINE(ERROR_PHP_FATAL_ERROR);
     SWOOLE_DEFINE(ERROR_NAME_TOO_LONG);
     SWOOLE_DEFINE(ERROR_INVALID_PARAMS);
+    SWOOLE_DEFINE(ERROR_QUEUE_FULL);
     SWOOLE_DEFINE(ERROR_FILE_NOT_EXIST);
     SWOOLE_DEFINE(ERROR_FILE_TOO_LARGE);
     SWOOLE_DEFINE(ERROR_FILE_EMPTY);
     SWOOLE_DEFINE(ERROR_DNSLOOKUP_DUPLICATE_REQUEST);
     SWOOLE_DEFINE(ERROR_DNSLOOKUP_RESOLVE_FAILED);
+    SWOOLE_DEFINE(ERROR_BAD_IPV6_ADDRESS);
     SWOOLE_DEFINE(ERROR_SESSION_CLOSED_BY_SERVER);
     SWOOLE_DEFINE(ERROR_SESSION_CLOSED_BY_CLIENT);
     SWOOLE_DEFINE(ERROR_SESSION_CLOSING);
@@ -938,19 +945,11 @@ PHP_MINIT_FUNCTION(swoole)
     SWOOLE_DEFINE(ERROR_DATA_LENGTH_TOO_LARGE);
     SWOOLE_DEFINE(ERROR_TASK_PACKAGE_TOO_BIG);
     SWOOLE_DEFINE(ERROR_TASK_DISPATCH_FAIL);
-
-    /**
-     * AIO
-     */
-    SWOOLE_DEFINE(ERROR_AIO_BAD_REQUEST);
-
-    /**
-     * Client
-     */
-    SWOOLE_DEFINE(ERROR_CLIENT_NO_CONNECTION);
-
     SWOOLE_DEFINE(ERROR_HTTP2_STREAM_ID_TOO_BIG);
     SWOOLE_DEFINE(ERROR_HTTP2_STREAM_NO_HEADER);
+    SWOOLE_DEFINE(ERROR_HTTP2_STREAM_NOT_FOUND);
+    SWOOLE_DEFINE(ERROR_AIO_BAD_REQUEST);
+    SWOOLE_DEFINE(ERROR_CLIENT_NO_CONNECTION);
     SWOOLE_DEFINE(ERROR_SOCKS5_UNSUPPORT_VERSION);
     SWOOLE_DEFINE(ERROR_SOCKS5_UNSUPPORT_METHOD);
     SWOOLE_DEFINE(ERROR_SOCKS5_AUTH_FAILED);
@@ -969,7 +968,21 @@ PHP_MINIT_FUNCTION(swoole)
     SWOOLE_DEFINE(ERROR_SERVER_PIPE_BUFFER_FULL);
     SWOOLE_DEFINE(ERROR_SERVER_NO_IDLE_WORKER);
     SWOOLE_DEFINE(ERROR_SERVER_ONLY_START_ONE);
+    SWOOLE_DEFINE(ERROR_SERVER_SEND_IN_MASTER);
     SWOOLE_DEFINE(ERROR_SERVER_WORKER_EXIT_TIMEOUT);
+    SWOOLE_DEFINE(ERROR_CO_OUT_OF_COROUTINE);
+    SWOOLE_DEFINE(ERROR_CO_HAS_BEEN_BOUND);
+    SWOOLE_DEFINE(ERROR_CO_MUTEX_DOUBLE_UNLOCK);
+    SWOOLE_DEFINE(ERROR_CO_BLOCK_OBJECT_LOCKED);
+    SWOOLE_DEFINE(ERROR_CO_BLOCK_OBJECT_WAITING);
+    SWOOLE_DEFINE(ERROR_CO_YIELD_FAILED);
+    SWOOLE_DEFINE(ERROR_CO_GETCONTEXT_FAILED);
+    SWOOLE_DEFINE(ERROR_CO_SWAPCONTEXT_FAILED);
+    SWOOLE_DEFINE(ERROR_CO_MAKECONTEXT_FAILED);
+    SWOOLE_DEFINE(ERROR_CO_IOCPINIT_FAILED);
+    SWOOLE_DEFINE(ERROR_CO_PROTECT_STACK_FAILED);
+    SWOOLE_DEFINE(ERROR_CO_STD_THREAD_LINK_ERROR);
+    SWOOLE_DEFINE(ERROR_CO_DISABLED_MULTI_THREAD);
 
     /**
      * trace log
@@ -991,6 +1004,8 @@ PHP_MINIT_FUNCTION(swoole)
     SWOOLE_DEFINE(TRACE_REDIS_CLIENT);
     SWOOLE_DEFINE(TRACE_MYSQL_CLIENT);
     SWOOLE_DEFINE(TRACE_AIO);
+    SWOOLE_DEFINE(TRACE_SSL);
+    SWOOLE_DEFINE(TRACE_NORMAL);
     REGISTER_LONG_CONSTANT("SWOOLE_TRACE_ALL", 0xffffffff, CONST_CS | CONST_PERSISTENT);
 
     /**
@@ -1090,19 +1105,15 @@ PHP_MINIT_FUNCTION(swoole)
 
     swoole_server_port_init(module_number);
     swoole_client_init(module_number);
-#ifdef SW_COROUTINE
     swoole_socket_coro_init(module_number);
     swoole_client_coro_init(module_number);
-#ifdef SW_USE_REDIS
     swoole_redis_coro_init(module_number);
-#endif
 #ifdef SW_USE_POSTGRESQL
     swoole_postgresql_coro_init(module_number);
 #endif
     swoole_mysql_coro_init(module_number);
     swoole_http_client_coro_init(module_number);
 	swoole_coroutine_util_init(module_number);
-#endif
     swoole_http_client_init(module_number);
     swoole_async_init(module_number);
     swoole_process_init(module_number);
@@ -1117,23 +1128,19 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_mysql_init(module_number);
     swoole_mmap_init(module_number);
     swoole_channel_init(module_number);
-#ifdef SW_COROUTINE
     swoole_channel_coro_init(module_number);
-#endif
     swoole_ringqueue_init(module_number);
     swoole_msgqueue_init(module_number);
 #ifdef SW_USE_HTTP2
-#ifdef SW_COROUTINE
     swoole_http2_client_coro_init(module_number);
 #endif
-#endif
-
+#if SW_USE_FAST_SERIALIZE
     swoole_serialize_init(module_number);
-    swoole_memory_pool_init(module_number);
-
-#ifdef SW_USE_REDIS
-    swoole_redis_init(module_number);
+#else
+    SWOOLE_G(fast_serialize) = 0;
 #endif
+    swoole_memory_pool_init(module_number);
+    swoole_redis_init(module_number);
     swoole_redis_server_init(module_number);
 
     if (SWOOLE_G(socket_buffer_size) > 0)
@@ -1274,9 +1281,7 @@ PHP_MINFO_FUNCTION(swoole)
 #ifdef SW_USE_HUGEPAGE
     php_info_print_table_row(2, "hugepage", "enabled");
 #endif
-#ifdef SW_USE_REDIS
     php_info_print_table_row(2, "async_redis", "enabled");
-#endif
 #ifdef SW_USE_POSTGRESQL
     php_info_print_table_row(2, "coroutine_postgresql", "enabled");
 #endif

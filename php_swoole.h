@@ -145,6 +145,10 @@ extern swoole_object_array swoole_objects;
 #endif
 #endif
 
+#if PHP_VERSION_ID < 70300
+#define SW_USE_FAST_SERIALIZE 1
+#endif
+
 #if PHP_MAJOR_VERSION < 7
 #error "require PHP version 7.0 or later."
 #endif
@@ -275,9 +279,12 @@ PHP_FUNCTION(swoole_set_process_name);
 PHP_FUNCTION(swoole_get_local_ip);
 PHP_FUNCTION(swoole_get_local_mac);
 PHP_FUNCTION(swoole_call_user_shutdown_begin);
+//---------------------------------------------------------
+//                  Coroutine API
+//---------------------------------------------------------
 PHP_FUNCTION(swoole_coroutine_create);
 PHP_FUNCTION(swoole_coroutine_exec);
-
+PHP_FUNCTION(swoole_coroutine_gethostbyname);
 //---------------------------------------------------------
 //                  swoole_server
 //---------------------------------------------------------
@@ -373,9 +380,11 @@ PHP_FUNCTION(swoole_errno);
 //---------------------------------------------------------
 //                  serialize
 //---------------------------------------------------------
+#ifdef SW_USE_FAST_SERIALIZE
 PHP_FUNCTION(swoole_serialize);
 PHP_FUNCTION(swoole_fast_serialize);
 PHP_FUNCTION(swoole_unserialize);
+#endif
 
 void swoole_destory_table(zend_resource *rsrc);
 
@@ -386,31 +395,23 @@ void swoole_runtime_init(int module_number);
 void swoole_lock_init(int module_number);
 void swoole_atomic_init(int module_number);
 void swoole_client_init(int module_number);
-#ifdef SW_COROUTINE
 void swoole_socket_coro_init(int module_number);
 void swoole_client_coro_init(int module_number);
-#ifdef SW_USE_REDIS
 void swoole_redis_coro_init(int module_number);
-#endif
 #ifdef SW_USE_POSTGRESQL
 void swoole_postgresql_coro_init (int module_number);
 #endif
 void swoole_mysql_coro_init(int module_number);
 void swoole_http_client_coro_init(int module_number);
 void swoole_coroutine_util_init(int module_number);
-#endif
 void swoole_http_client_init(int module_number);
-#ifdef SW_USE_REDIS
 void swoole_redis_init(int module_number);
-#endif
 void swoole_redis_server_init(int module_number);
 void swoole_process_init(int module_number);
 void swoole_process_pool_init(int module_number);
 void swoole_http_server_init(int module_number);
 #ifdef SW_USE_HTTP2
-#ifdef SW_COROUTINE
 void swoole_http2_client_coro_init(int module_number);
-#endif
 #endif
 void swoole_websocket_init(int module_number);
 void swoole_buffer_init(int module_number);
@@ -419,10 +420,10 @@ void swoole_mmap_init(int module_number);
 void swoole_channel_init(int module_number);
 void swoole_ringqueue_init(int module_number);
 void swoole_msgqueue_init(int module_number);
-#ifdef SW_COROUTINE
 void swoole_channel_coro_init(int module_number);
-#endif
+#ifdef SW_USE_FAST_SERIALIZE
 void swoole_serialize_init(int module_number);
+#endif
 void swoole_memory_pool_init(int module_number);
 
 int php_swoole_process_start(swWorker *process, zval *zobject);
@@ -508,9 +509,12 @@ int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swEventData *da
 int php_swoole_client_onPackage(swConnection *conn, char *data, uint32_t length);
 void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode);
 void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode);
+zend_bool php_swoole_signal_isset_handler(int signo);
 
+#ifdef SW_USE_FAST_SERIALIZE
 PHPAPI zend_string* php_swoole_serialize(zval *zvalue);
 PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, zval *zobject_args, long flag);
+#endif
 
 #ifdef SW_COROUTINE
 int php_coroutine_reactor_can_exit(swReactor *reactor);

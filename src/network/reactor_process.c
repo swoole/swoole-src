@@ -175,7 +175,6 @@ int swReactorProcess_start(swServer *serv)
      * manager process can not use signalfd
      */
     SwooleG.use_signalfd = 0;
-    SwooleG.use_timer_pipe = 0;
 
     swProcessPool_start(&serv->gs->event_workers);
     swServer_signal_init(serv);
@@ -437,7 +436,15 @@ int swReactorProcess_onClose(swReactor *reactor, swEvent *event)
     }
     if (reactor->del(reactor, fd) == 0)
     {
-        return swServer_tcp_notify(serv, conn, SW_EVENT_CLOSE);
+        if (conn->close_queued)
+        {
+            swReactorThread_close(reactor, fd);
+            return SW_OK; 
+        }
+        else 
+        {
+            return swServer_tcp_notify(serv, conn, SW_EVENT_CLOSE);
+        }
     }
     else
     {

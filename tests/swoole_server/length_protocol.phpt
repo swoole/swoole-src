@@ -33,10 +33,10 @@ class PkgServer extends TestServer
 }
 
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid)
+$pm->parentFunc = function ($pid) use ($pm)
 {
     $client = new swoole_client(SWOOLE_SOCK_TCP);
-    if (!$client->connect('127.0.0.1', 9501))
+    if (!$client->connect('127.0.0.1', $pm->getFreePort()))
     {
         exit("connect failed\n");
     }
@@ -75,7 +75,7 @@ $pm->parentFunc = function ($pid)
 };
 
 $pm->childFunc = function () use ($pm) {
-    $serv = new PkgServer(true);
+    $serv = new PkgServer($pm->getFreePort(), true);
     $serv->set([
         'worker_num' => 1,
         //'dispatch_mode'         => 1,

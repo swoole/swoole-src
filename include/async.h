@@ -34,7 +34,7 @@ enum swAioOpcode
     SW_AIO_WRITE,
     SW_AIO_GETHOSTBYNAME,
     SW_AIO_GETADDRINFO,
-    SW_AIO_STREAM_GET_LINE,
+    SW_AIO_FGETS,
     SW_AIO_READ_FILE,
     SW_AIO_WRITE_FILE,
 };
@@ -84,7 +84,7 @@ void swAio_handler_read(swAio_event *event);
 void swAio_handler_write(swAio_event *event);
 void swAio_handler_gethostbyname(swAio_event *event);
 void swAio_handler_getaddrinfo(swAio_event *event);
-void swAio_handler_stream_get_line(swAio_event *event);
+void swAio_handler_fgets(swAio_event *event);
 void swAio_handler_read_file(swAio_event *event);
 void swAio_handler_write_file(swAio_event *event);
 

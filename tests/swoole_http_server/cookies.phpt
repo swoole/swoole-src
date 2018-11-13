@@ -28,9 +28,9 @@ $cookies = array (
 );
 
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid) use ($cookies) {
+$pm->parentFunc = function ($pid) use ($pm, $cookies) {
     $client = new swoole_client(SWOOLE_SOCK_TCP);
-    if (!$client->connect('127.0.0.1', 9501, 1))
+    if (!$client->connect('127.0.0.1', $pm->getFreePort(), 1))
     {
         exit("connect failed. Error: {$client->errCode}\n");
     }
@@ -66,7 +66,7 @@ $pm->parentFunc = function ($pid) use ($cookies) {
 };
 
 $pm->childFunc = function () use ($pm) {
-    $http = new swoole_http_server("127.0.0.1", 9501, SWOOLE_BASE);
+    $http = new swoole_http_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
 
     $http->set(['log_file' => '/dev/null']);
 
@@ -75,7 +75,7 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
     });
 
-    $http->on("request", function ($request, $response) {
+    $http->on("request", function (swoole_http_request $request, swoole_http_response $response) {
         $response->end(json_encode($request->cookie));
     });
 
@@ -86,4 +86,3 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
-

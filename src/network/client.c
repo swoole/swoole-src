@@ -134,6 +134,7 @@ int swClient_create(swClient *cli, int type, int async)
     if (async)
     {
         swSetNonBlock(cli->socket->fd);
+        cli->socket->nonblock = 1;
         if (!swReactor_handle_isset(cli->reactor, SW_FD_STREAM_CLIENT))
         {
             cli->reactor->setHandle(cli->reactor, SW_FD_STREAM_CLIENT | SW_EVENT_READ, swClient_onStreamRead);
@@ -141,6 +142,10 @@ int swClient_create(swClient *cli, int type, int async)
             cli->reactor->setHandle(cli->reactor, SW_FD_STREAM_CLIENT | SW_EVENT_WRITE, swClient_onWrite);
             cli->reactor->setHandle(cli->reactor, SW_FD_STREAM_CLIENT | SW_EVENT_ERROR, swClient_onError);
         }
+    }
+    else
+    {
+        cli->socket->nonblock = 0;
     }
 
     if (swSocket_is_stream(type))

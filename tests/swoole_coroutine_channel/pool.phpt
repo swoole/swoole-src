@@ -9,74 +9,70 @@ skip_if_no_async_redis();
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-/**
- * 连接池尺寸
- */
-const POOL_SIZE = 20;
-/**
- * 并发协程数量
- */
-const CONCURRENCY = 100;
-/**
- * 每个协程的执行次数
- */
-const COUNT = 100;
-
 class RedisPool
 {
-    /**
-     * @var \Swoole\Coroutine\Channel
-     */
+    /**@var \Swoole\Coroutine\Channel */
     protected $pool;
 
     /**
      * RedisPool constructor.
-     * @param int $size 连接池的尺寸
+     * @param int $size max connections
      */
-    public function __construct($size = 100)
+    public function __construct(int $size = MAX_CONCURRENCY_LOW)
     {
-        $this->pool = new Swoole\Coroutine\Channel($size);
+        $this->pool = new \Swoole\Coroutine\Channel($size);
         for ($i = 0; $i < $size; $i++) {
             $redis = new Swoole\Coroutine\Redis();
             $res = $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
             if ($res == false) {
-                throw new RuntimeException("failed to connect redis server.");
+                throw new \RuntimeException("failed to connect redis server.");
             } else {
                 $this->put($redis);
             }
         }
     }
 
-    public function put(Swoole\Coroutine\Redis $redis)
+    public function get(): \Swoole\Coroutine\Redis
+    {
+        return $this->pool->pop();
+    }
+
+    public function put(\Swoole\Coroutine\Redis $redis)
     {
         $this->pool->push($redis);
     }
 
-    public function get(): Swoole\Coroutine\Redis
+    public function close(): void
     {
-        return $this->pool->pop();
+        $this->pool->close();
+        $this->pool = null;
     }
 }
 
 $count = 0;
-go(function () use (&$count) {
-    $pool = new RedisPool(POOL_SIZE);
-    for ($i = 0; $i < CONCURRENCY; $i++) {
-        go(function () use ($pool) {
-            for ($i = 0; $i < COUNT; $i++) {
+go(function () {
+    $pool = new RedisPool();
+    // max concurrency num is more than max connections
+    // but it's no problem, channel will help you with scheduling
+    for ($c = 0; $c < MAX_CONCURRENCY_MID; $c++) {
+        go(function () use ($pool, $c) {
+            for ($n = 0; $n < MAX_REQUESTS; $n++) {
                 $redis = $pool->get();
-                assert($redis->set("key", "value"));
-                $retval = $redis->get("key");
-                assert($retval == "value");
+                if (assert($redis->set("awesome-{$c}-{$n}", 'swoole'))) {
+                    if (assert($redis->get("awesome-{$c}-{$n}") === 'swoole')) {
+                        if (assert($redis->delete("awesome-{$c}-{$n}"))) {
+                            global $count;
+                            $count++;
+                        }
+                    }
+                }
                 $pool->put($redis);
-                global $count;
-                $count++;
             }
         });
     }
 });
 
-swoole_event::wait();
-assert($count == CONCURRENCY * COUNT);
+swoole_event_wait();
+assert($count == MAX_CONCURRENCY_MID * MAX_REQUESTS);
 ?>
 --EXPECT--

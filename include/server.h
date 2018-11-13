@@ -481,6 +481,10 @@ struct _swServer
      */
     uint32_t reload_async :1;
     /**
+     * asynchronous task worker
+     */
+    uint32_t task_async :1;
+    /**
      * slowlog
      */
     uint32_t trace_event_worker :1;

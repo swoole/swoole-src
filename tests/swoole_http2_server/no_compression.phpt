@@ -9,7 +9,7 @@ $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {
     go(function () use ($pm) {
         $domain = '127.0.0.1';
-        $cli = new Swoole\Coroutine\Http2\Client($domain, 9501, true);
+        $cli = new Swoole\Coroutine\Http2\Client($domain, $pm->getFreePort(), true);
         $cli->set([
             'timeout' => -1,
         ]);
@@ -32,7 +32,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
     swoole_event::wait();
 };
 $pm->childFunc = function () use ($pm) {
-    $http = new swoole_http_server('127.0.0.1', 9501, SWOOLE_BASE, SWOOLE_SOCK_TCP | SWOOLE_SSL);
+    $http = new swoole_http_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE, SWOOLE_SOCK_TCP | SWOOLE_SSL);
     $http->set([
         'log_file' => '/dev/null',
         'open_http2_protocol' => true,
@@ -53,4 +53,3 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
-

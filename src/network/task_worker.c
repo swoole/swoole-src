@@ -19,7 +19,7 @@
 
 static swEventData *g_current_task = NULL;
 
-static void swTaskWorker_signal_init(void);
+static void swTaskWorker_signal_init(swProcessPool *pool);
 static int swTaskWorker_onPipeReceive(swReactor *reactor, swEvent *event);
 static int swTaskWorker_loop_async(struct _swProcessPool *pool, swWorker *worker);
 
@@ -38,7 +38,7 @@ void swTaskWorker_init(swProcessPool *pool)
     /**
      * Make the task worker support asynchronous
      */
-    if (pool->ipc_mode != SW_IPC_MSGQUEUE)
+    if (serv->task_async)
     {
         pool->main_loop = swTaskWorker_loop_async;
     }
@@ -114,7 +114,7 @@ int swTaskWorker_large_pack(swEventData *task, void *data, int data_len)
     return SW_OK;
 }
 
-static void swTaskWorker_signal_init(void)
+static void swTaskWorker_signal_init(swProcessPool *pool)
 {
     swSignal_clear();
     /**
@@ -139,8 +139,6 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
     SwooleWG.id = worker_id;
     SwooleG.pid = getpid();
 
-    SwooleG.use_timer_pipe = 0;
-
     if (serv->factory_mode == SW_MODE_BASE)
     {
         swServer_close_port(serv, SW_TRUE);
@@ -149,7 +147,7 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
     /**
      * Make the task worker support asynchronous
      */
-    if (pool->ipc_mode != SW_IPC_MSGQUEUE)
+    if (serv->task_async)
     {
         SwooleG.main_reactor = sw_malloc(sizeof(swReactor));
         if (SwooleG.main_reactor == NULL)
@@ -160,13 +158,15 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
         {
             swError("[TaskWorker] create reactor failed.");
         }
+        SwooleG.enable_signalfd = 1;
     }
     else
     {
+        SwooleG.enable_signalfd = 0;
         SwooleG.main_reactor = NULL;
     }
 
-    swTaskWorker_signal_init();
+    swTaskWorker_signal_init(pool);
     swWorker_onStart(serv);
 
     swWorker *worker = swProcessPool_get_worker(pool, worker_id);

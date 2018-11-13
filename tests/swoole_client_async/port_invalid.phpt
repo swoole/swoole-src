@@ -30,4 +30,3 @@ assert(swoole_last_error() == SWOOLE_ERROR_INVALID_PARAMS);
 swoole_event::wait();
 ?>
 --EXPECT--
-

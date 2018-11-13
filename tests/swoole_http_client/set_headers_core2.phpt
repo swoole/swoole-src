@@ -11,7 +11,7 @@ $pm = new ProcessManager;
 $pm->parentFunc = function ($pid)
 {
     global $cli;
-    $cli = new \swoole_http_client("127.0.0.1", 9990);
+    $cli = new \swoole_http_client('127.0.0.1', 9990);
     $cli->on("error", function() { /*echo "ERROR";*/ swoole_event_exit(); });
     $cli->on("close", function() { /*echo "CLOSE";*/ swoole_event_exit(); });
 

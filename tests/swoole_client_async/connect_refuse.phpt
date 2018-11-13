@@ -17,7 +17,7 @@ $cli->on("receive", function(swoole_client $cli, $data) {
 $cli->on("error", function(swoole_client $cli) { echo "error\n"; });
 $cli->on("close", function(swoole_client $cli) { echo "close\n"; });
 
-$cli->connect("127.0.0.1", 65535);
+$cli->connect('127.0.0.1', 65535);
 ?>
 --EXPECT--
 error

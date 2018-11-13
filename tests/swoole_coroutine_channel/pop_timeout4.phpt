@@ -20,5 +20,5 @@ go(function () use ($c1) {
 });
 ?>
 --EXPECTF--
-chan push ret:true error:0
 pop ret:'chan-1' error:0
+chan push ret:true error:0

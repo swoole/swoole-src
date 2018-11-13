@@ -50,7 +50,7 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-[%s]	ERROR	http client has already been bound to another coroutine #%d, reading or writing of the same socket in multiple coroutines at the same time is not allowed.
+[%s]	ERROR	sw_coro_check_bind (ERROR 10002): http client has already been bound to another coroutine #%d, reading or writing of the same socket in multiple coroutines at the same time is not allowed.
 Stack trace:
 #0  Swoole\Coroutine\Http\Client->close() called at [%s:%d]
 #1  close() called at [%s:%d]

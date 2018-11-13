@@ -16,9 +16,8 @@
 
 #include "php_swoole.h"
 
-#ifdef SW_USE_REDIS
-#include <hiredis/hiredis.h>
-#include <hiredis/async.h>
+#include "thirdparty/hiredis/hiredis.h"
+#include "thirdparty/hiredis/async.h"
 
 #define SW_REDIS_COMMAND_BUFFER_SIZE   64
 #define SW_REDIS_COMMAND_KEY_SIZE      128
@@ -1010,5 +1009,3 @@ static int swoole_redis_onWrite(swReactor *reactor, swEvent *event)
     }
     return SW_OK;
 }
-
-#endif

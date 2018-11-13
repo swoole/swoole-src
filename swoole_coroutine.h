@@ -40,14 +40,13 @@ typedef struct _php_args
     zval **argv;
     int argc;
     zval *retval;
-    void *post_callback;
-    void *params;
 } php_args;
 
 typedef struct _coro_task
 {
+#ifdef SW_LOG_TRACE_OPEN
     int cid;
-    sw_coro_state state;
+#endif
     zend_execute_data *execute_data;
     zend_vm_stack stack;
     zval *vm_stack_top;
@@ -61,18 +60,12 @@ typedef struct _coro_task
     zend_vm_stack yield_stack;
     zval *yield_vm_stack_top;
     zval *yield_vm_stack_end;
-    zend_bool is_yield;
 
     zend_output_globals *current_coro_output_ptr;
     /**
      * user coroutine
      */
     coroutine_t *co;
-    zval *function;
-    time_t start_time;
-    void (*post_callback)(void *param);
-    void *post_callback_params;
-    php_args args;
 } coro_task;
 
 typedef struct _php_context
@@ -104,7 +97,6 @@ typedef struct _coro_global
     zval *origin_vm_stack_end;
     zval *allocated_return_value_ptr;
     zend_execute_data *origin_ex;
-    coro_task *current_coro;
     zend_bool active;
     int error;
 } coro_global;

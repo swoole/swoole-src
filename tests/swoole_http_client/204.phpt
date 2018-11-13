@@ -28,4 +28,3 @@ assert($cli->post($path, [], function (Swoole\Http\Client $cli) {
 
 ?>
 --EXPECT--
-

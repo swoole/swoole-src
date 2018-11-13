@@ -40,18 +40,6 @@ int swTimer_now(struct timeval *time)
     return SW_OK;
 }
 
-static sw_inline int64_t swTimer_get_relative_msec()
-{
-    struct timeval now;
-    if (swTimer_now(&now) < 0)
-    {
-        return SW_ERR;
-    }
-    int64_t msec1 = (now.tv_sec - SwooleG.timer.basetime.tv_sec) * 1000;
-    int64_t msec2 = (now.tv_usec - SwooleG.timer.basetime.tv_usec) / 1000;
-    return msec1 + msec2;
-}
-
 static int swTimer_init(long msec)
 {
     if (swTimer_now(&SwooleG.timer.basetime) < 0)
@@ -77,10 +65,11 @@ static int swTimer_init(long msec)
     SwooleG.timer._next_msec = msec;
     SwooleG.timer._next_id = 1;
     SwooleG.timer.round = 0;
+    SwooleG.timer.initialized = 1;
 
     if (SwooleG.main_reactor == NULL)
     {
-        swSystemTimer_init(msec, SwooleG.use_timer_pipe);
+        swSystemTimer_init(msec);
     }
     else
     {
@@ -96,6 +85,7 @@ void swTimer_free(swTimer *timer)
     {
         swHeap_free(timer->heap);
     }
+    timer->set(timer, -1);
 }
 
 static int swReactorTimer_init(long exec_msec)
@@ -103,7 +93,7 @@ static int swReactorTimer_init(long exec_msec)
     SwooleG.main_reactor->check_timer = SW_TRUE;
     SwooleG.main_reactor->timeout_msec = exec_msec;
     SwooleG.timer.set = swReactorTimer_set;
-    SwooleG.timer.fd = -1;
+    SwooleG.timer.initialized = 1;
     return SW_OK;
 }
 
@@ -115,7 +105,7 @@ static int swReactorTimer_set(swTimer *timer, long exec_msec)
 
 swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *data, swTimerCallback callback)
 {
-    if (unlikely(SwooleG.timer.fd == 0))
+    if (unlikely(SwooleG.timer.initialized == 0))
     {
         swTimer_init(_msec);
     }

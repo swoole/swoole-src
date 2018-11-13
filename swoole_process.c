@@ -326,6 +326,7 @@ static PHP_METHOD(swoole_process, __destruct)
     SW_PREVENT_USER_DESTRUCT;
 
     swWorker *process = swoole_get_object(getThis());
+    swoole_set_object(getThis(), NULL);
     swPipe *_pipe = process->pipe_object;
     if (_pipe)
     {
@@ -479,27 +480,20 @@ static PHP_METHOD(swoole_process, signal)
         RETURN_FALSE;
     }
 
-    if (SwooleG.serv && SwooleG.serv->gs->start)
+    if (signo < 0 || signo >= SW_SIGNO_MAX)
     {
-        if ((swIsWorker() || swIsTaskWorker()) && signo == SIGTERM)
-        {
-            swoole_php_fatal_error(E_WARNING, "unable to register SIGTERM in worker/task process.");
-            RETURN_FALSE;
-        }
-        else if (swIsManager() && (signo == SIGTERM || signo == SIGUSR1 || signo == SIGUSR2 || signo == SIGALRM))
-        {
-            swoole_php_fatal_error(E_WARNING, "unable to register SIGTERM/SIGUSR1/SIGUSR2/SIGALRM in manager process.");
-            RETURN_FALSE;
-        }
-        else if (swIsMaster() && (signo == SIGTERM || signo == SIGUSR1 || signo == SIGUSR2 || signo == SIGALRM || signo == SIGCHLD))
-        {
-            swoole_php_fatal_error(E_WARNING, "unable to register SIGTERM/SIGUSR1/SIGUSR2/SIGALRM/SIGCHLD in manager process.");
-            RETURN_FALSE;
-        }
+        swoole_php_fatal_error(E_WARNING, "invalid signal number [%ld].", signo);
+        RETURN_FALSE;
     }
 
     php_swoole_check_reactor();
-    swSignalHander handler;
+    swSignalHandler handler = swSignal_get_handler(signo);
+
+    if (handler && handler != php_swoole_onSignal)
+    {
+        swoole_php_fatal_error(E_WARNING, "This signal [%ld] processor has been registered by the system.", signo);
+        RETURN_FALSE
+    }
 
     if (callback == NULL || ZVAL_IS_NULL(callback))
     {
@@ -509,6 +503,7 @@ static PHP_METHOD(swoole_process, signal)
             swSignal_add(signo, NULL);
             SwooleG.main_reactor->defer(SwooleG.main_reactor, free_signal_callback, callback);
             signal_callback[signo] = NULL;
+            SwooleG.main_reactor->signal_listener_num--;
             RETURN_TRUE;
         }
         else
@@ -548,6 +543,10 @@ static PHP_METHOD(swoole_process, signal)
     {
         SwooleG.main_reactor->defer(SwooleG.main_reactor, free_signal_callback, signal_callback[signo]);
     }
+    else
+    {
+        SwooleG.main_reactor->signal_listener_num++;
+    }
     signal_callback[signo] = callback;
 
     /**
@@ -576,7 +575,7 @@ static PHP_METHOD(swoole_process, alarm)
         RETURN_FALSE;
     }
 
-    if (SwooleG.timer.fd != 0)
+    if (SwooleG.timer.initialized != 0)
     {
         swoole_php_fatal_error(E_WARNING, "cannot use both 'timer' and 'alarm' at the same time.");
         RETURN_FALSE;
@@ -648,6 +647,16 @@ static void php_swoole_onSignal(int signo)
     zval_ptr_dtor(zsigno);
 }
 
+zend_bool php_swoole_signal_isset_handler(int signo)
+{
+    if (signo < 0 || signo >= SW_SIGNO_MAX)
+    {
+        swoole_php_fatal_error(E_WARNING, "invalid signal number [%d].", signo);
+        return SW_FALSE;
+    }
+    return signal_callback[signo] != NULL;
+}
+
 int php_swoole_process_start(swWorker *process, zval *zobject)
 {
     process->pipe = process->pipe_worker;
@@ -695,13 +704,22 @@ int php_swoole_process_start(swWorker *process, zval *zobject)
     }
     SwooleWG.id = process->id;
 
-    if (SwooleG.timer.fd)
+    if (SwooleG.timer.initialized)
     {
         swTimer_free(&SwooleG.timer);
         bzero(&SwooleG.timer, sizeof(SwooleG.timer));
     }
 
     swSignal_clear();
+    int i;
+    for(i=0; i<SW_SIGNO_MAX; i++)
+    {
+        if (signal_callback[i])
+        {
+            sw_zval_free(signal_callback[i]);
+            signal_callback[i] = NULL;
+        }
+    }
 
     zend_update_property_long(swoole_process_class_entry_ptr, zobject, ZEND_STRL("pid"), process->pid);
     zend_update_property_long(swoole_process_class_entry_ptr, zobject, ZEND_STRL("pipe"), process->pipe_worker);
@@ -1015,11 +1033,11 @@ static PHP_METHOD(swoole_process, setaffinity)
     {
         RETURN_FALSE;
     }
-    if (Z_ARRVAL_P(array)->nNumOfElements == 0)
+    if (php_swoole_array_length(array) == 0)
     {
         RETURN_FALSE;
     }
-    if (Z_ARRVAL_P(array)->nNumOfElements > SW_CPU_NUM)
+    if (php_swoole_array_length(array) > SW_CPU_NUM)
     {
         swoole_php_fatal_error(E_WARNING, "More than the number of CPU");
         RETURN_FALSE;

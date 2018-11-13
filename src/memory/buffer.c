@@ -113,17 +113,21 @@ void swBuffer_pop_chunk(swBuffer *buffer, swBuffer_chunk *chunk)
  */
 int swBuffer_free(swBuffer *buffer)
 {
-    volatile swBuffer_chunk *chunk = buffer->head;
-    void * *will_free_chunk;  //free the point
+    swBuffer_chunk *chunk = buffer->head;
+    swBuffer_chunk *will_free_chunk;  //free the point
     while (chunk != NULL)
     {
         if (chunk->type == SW_CHUNK_DATA)
         {
             sw_free(chunk->store.ptr);
         }
-        will_free_chunk = (void *) chunk;
+        if (chunk->destroy)
+        {
+            chunk->destroy(chunk);
+        }
+        will_free_chunk = chunk;
         chunk = chunk->next;
-        sw_free(will_free_chunk);
+        sw_free((void *) will_free_chunk);
     }
     sw_free(buffer);
     return SW_OK;

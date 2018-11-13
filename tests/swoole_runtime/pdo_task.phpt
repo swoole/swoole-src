@@ -3,7 +3,7 @@ swoole_runtime: pdo in task and http response detach
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
-skip_php_version_lower_than('7.1');
+skip_if_pdo_not_support_mysql8();
 ?>
 --FILE--
 <?php
@@ -26,6 +26,7 @@ $pm->childFunc = function () use ($pm) {
     $http->set([
         'log_file' => '/dev/null',
         'task_worker_num' => 4,
+        'task_async' => true
     ]);
     $http->on('request', function (swoole_http_request $request, swoole_http_response $response) use ($http) {
         assert($response->detach());

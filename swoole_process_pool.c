@@ -415,6 +415,11 @@ static PHP_METHOD(swoole_process_pool, start)
 
     if (pool->ipc_mode > SW_IPC_NONE)
     {
+        if (pp->onMessage == NULL)
+        {
+            swoole_php_fatal_error(E_ERROR, "require onMessage callback");
+            RETURN_FALSE;
+        }
         pool->onMessage = php_swoole_process_pool_onMessage;
     }
     else
@@ -455,8 +460,12 @@ static PHP_METHOD(swoole_process_pool, getProcess)
         object_init_ex(&object, swoole_process_class_entry_ptr);
         zend_update_property_long(swoole_process_class_entry_ptr, &object, ZEND_STRL("id"), SwooleWG.id);
         zend_update_property_long(swoole_process_class_entry_ptr, &object, ZEND_STRL("pid"), getpid());
-        swoole_set_object(getThis(), worker);
+        swoole_set_object(&object, worker);
         current_process = &object;
+    }
+    else
+    {
+        Z_TRY_ADDREF_P(&object);
     }
 
     RETURN_ZVAL(current_process, 1, 0);
@@ -469,6 +478,7 @@ static PHP_METHOD(swoole_process_pool, __destruct)
     swProcessPool *pool = swoole_get_object(getThis());
     efree(pool->ptr);
     efree(pool);
+    swoole_set_object(getThis(), NULL);
 
     process_pool_property *pp = swoole_get_property(getThis(), 0);
     if (pp->onWorkerStart)
@@ -484,4 +494,5 @@ static PHP_METHOD(swoole_process_pool, __destruct)
         zval_ptr_dtor(pp->onWorkerStop);
     }
     efree(pp);
+    swoole_set_property(getThis(), 0, NULL);
 }

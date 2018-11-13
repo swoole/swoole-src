@@ -213,7 +213,7 @@ static PHP_METHOD(swoole_http2_client_coro, __construct)
         type |= SW_SOCK_SSL;
         hcc->ssl = 1;
 #else
-        swoole_php_fatal_error(E_ERROR, "require openssl library.");
+        swoole_php_fatal_error(E_ERROR, "Need to use `--enable-openssl` to support ssl when compiling swoole.");
 #endif
     }
     hcc->host = estrndup(host, host_len);

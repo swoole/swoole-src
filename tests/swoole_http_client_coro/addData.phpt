@@ -7,10 +7,10 @@ swoole_http_client_coro: addData
 require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid)
+$pm->parentFunc = function ($pid) use ($pm)
 {
-    go(function () {
-        $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', 9501);
+    go(function () use ($pm) {
+        $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
         $cli->addData(co::readFile(TEST_IMAGE), 'test.jpg', 'image/jpeg', 'test.jpg');
         $cli->post('/upload_file', array('name' => 'rango'));
         assert($cli->statusCode == 200);
@@ -32,4 +32,3 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
-

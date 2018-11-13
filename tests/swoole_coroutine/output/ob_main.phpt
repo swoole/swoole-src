@@ -10,7 +10,7 @@ echo 'aaa';
 go(function () {
     ob_start();
     echo 'bbb';
-    co::sleep(0.001);
+    co::fgets(fopen(__FILE__, 'r'));
     assert(ob_get_clean() === 'bbb');
 });
 assert(ob_get_clean() === 'aaa');

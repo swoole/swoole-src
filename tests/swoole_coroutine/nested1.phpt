@@ -8,10 +8,10 @@ require __DIR__ . '/../include/bootstrap.php';
 
 go(function () {
     echo "co[1] start\n";
-    co::sleep(1.0);
+    co::sleep(.01);
     go(function () {
         echo "co[2] start\n";
-        co::sleep(1.0);
+        co::sleep(.01);
         echo "co[2] exit\n";
     });
     echo "co[1] exit\n";

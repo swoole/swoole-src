@@ -160,7 +160,7 @@ static void swSSL_lock_callback(int mode, int type, char *file, int line)
     }
 }
 
-static void swSSL_clear_error(swConnection *conn)
+static sw_inline void swSSL_clear_error(swConnection *conn)
 {
     ERR_clear_error();
     conn->ssl_want_read = 0;
@@ -708,8 +708,6 @@ int swSSL_connect(swConnection *conn)
     if (n == 1)
     {
         conn->ssl_state = SW_SSL_STATE_READY;
-        conn->ssl_want_read = 0;
-        conn->ssl_want_write = 0;
 
 #ifdef SW_LOG_TRACE_OPEN
         const char *ssl_version = SSL_get_version(conn->ssl);
