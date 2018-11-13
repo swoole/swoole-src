@@ -780,7 +780,7 @@ ssize_t Socket::write(const void *__buf, size_t __n)
         {
             return -1;
         }
-        ssize_t retval =  ::write(socket->fd, (void *) __buf, __n);
+        retval =  ::write(socket->fd, (void *) __buf, __n);
         if (retval < 0)
         {
             if (swConnection_error(errno) == SW_WAIT)
@@ -832,6 +832,7 @@ ssize_t Socket::send_all(const void *__buf, size_t __n)
     while (true)
     {
         retval = send((char*) __buf + total_bytes, __n - total_bytes);
+        swTrace("send retval=%ld", retval);
         if (retval <= 0)
         {
             if (total_bytes == 0)
@@ -889,7 +890,7 @@ ssize_t Socket::send(const void *__buf, size_t __n)
         {
             return -1;
         }
-        ssize_t retval = swConnection_send(socket, (void *) __buf, __n, 0);
+        retval = swConnection_send(socket, (void *) __buf, __n, 0);
         if (retval < 0)
         {
             if (swConnection_error(errno) == SW_WAIT)
