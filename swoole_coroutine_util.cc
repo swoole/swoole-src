@@ -1328,7 +1328,7 @@ static PHP_METHOD(swoole_coroutine_util, getBackTrace)
             RETURN_FALSE;
         }
         zend_execute_data *ex_backup = EG(current_execute_data);
-        EG(current_execute_data) = task->yield_task->execute_data;
+        EG(current_execute_data) = task->execute_data;
         zend_fetch_debug_backtrace(return_value, 0, options, limit);
         EG(current_execute_data) = ex_backup;
     }

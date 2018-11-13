@@ -10,11 +10,13 @@ extern "C" {
 
 /* PHP 7.0 compatibility macro {{{*/
 #if PHP_VERSION_ID < 70100
-#define SW_SAVE_EG_SCOPE(_scope) zend_class_entry *_scope = EG(scope)
-#define SW_RESUME_EG_SCOPE(_scope) EG(scope) = _scope
+#define SW_DECLARE_EG_SCOPE(_scope) zend_class_entry *_scope
+#define SW_SAVE_EG_SCOPE(_scope) _scope = EG(scope)
+#define SW_SET_EG_SCOPE(_scope) EG(scope) = _scope
 #else
+#define SW_DECLARE_EG_SCOPE(_scope)
 #define SW_SAVE_EG_SCOPE(scope)
-#define SW_RESUME_EG_SCOPE(scope)
+#define SW_SET_EG_SCOPE(scope)
 #endif/*}}}*/
 
 /* PHP 7.3 compatibility macro {{{*/
@@ -46,7 +48,7 @@ typedef struct _coro_task
     zend_output_globals *output_ptr;
     coroutine_t *co;
     struct _coro_task *origin_task;
-    struct _coro_task *yield_task;
+    SW_DECLARE_EG_SCOPE(scope);
 } coro_task;
 
 typedef struct _php_args

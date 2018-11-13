@@ -281,13 +281,14 @@ void php_swoole_event_wait()
 #endif
         if (!swReactor_empty(SwooleG.main_reactor))
         {
+            SW_DECLARE_EG_SCOPE(scope);
             SW_SAVE_EG_SCOPE(scope);
             int ret = SwooleG.main_reactor->wait(SwooleG.main_reactor, NULL);
             if (ret < 0)
             {
                 swoole_php_fatal_error(E_ERROR, "reactor wait failed. Error: %s [%d]", strerror(errno), errno);
             }
-            SW_RESUME_EG_SCOPE(scope);
+            SW_SET_EG_SCOPE(scope);
         }
         if (SwooleG.timer.map)
         {

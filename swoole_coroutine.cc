@@ -45,13 +45,13 @@ static inline void sw_vm_stack_init(void)
 #define sw_vm_stack_init zend_vm_stack_init
 #endif
 
-static sw_inline coro_task* php_coro_get_current_task(coro_task *task)
+static sw_inline void php_coro_save_current_stack_to(coro_task *task)
 {
     task->execute_data = EG(current_execute_data);
     task->vm_stack = EG(vm_stack);
     task->vm_stack_top = EG(vm_stack_top);
     task->vm_stack_top = EG(vm_stack_end);
-    return task;
+    SW_SAVE_EG_SCOPE(task->scope);
 }
 
 static sw_inline coro_task* php_coro_get_current_task()
@@ -61,15 +61,17 @@ static sw_inline coro_task* php_coro_get_current_task()
     {
         task = &COROG.task;
     }
-    return php_coro_get_current_task(task);
+    php_coro_save_current_stack_to(task);
+    return task;
 }
 
-static sw_inline void php_coro_set_stack(coro_task *task)
+static sw_inline void php_coro_set_current_stack_to(coro_task *task)
 {
     EG(current_execute_data) = task->execute_data;
     EG(vm_stack) = task->vm_stack;
     EG(vm_stack_top) = task->vm_stack_top;
     EG(vm_stack_end) = task->vm_stack_end;
+    SW_SET_EG_SCOPE(task->scope);
 }
 
 static sw_inline void php_coro_task_init(int cid, coro_task *task, zend_execute_data *call, coro_task *origin_task)
@@ -82,7 +84,6 @@ static sw_inline void php_coro_task_init(int cid, coro_task *task, zend_execute_
     task->vm_stack_top = EG(vm_stack_top);
     task->vm_stack_end = EG(vm_stack_end);
     task->origin_task = origin_task;
-    task->yield_task = task;
     task->output_ptr = nullptr;
     if (cid > 0)
     {
@@ -236,9 +237,8 @@ static void php_coro_create(void *arg)
         fci_cache->called_scope, fci_cache->object
     );
 
-#if PHP_VERSION_ID < 70100
-    EG(scope) = func->common.scope;
-#endif
+    SW_SET_EG_SCOPE(func->common.scope);
+    SW_SAVE_EG_SCOPE(task->scope);
 
     for (i = 0; i < argc; ++i)
     {
@@ -279,17 +279,16 @@ static void php_coro_create(void *arg)
 static sw_inline void php_coro_yield(coro_task *task)
 {
     swTraceLog(SW_TRACE_COROUTINE,"php_coro_yield cid=%d", task->cid);
-    task->yield_task = php_coro_get_current_task(task);
-    php_coro_set_stack(task->origin_task);
+    php_coro_save_current_stack_to(task);
+    php_coro_set_current_stack_to(task->origin_task);
     php_coro_og_yield(task);
-    SW_RESUME_EG_SCOPE(task->origin_task->execute_data->func->common.scope);
 }
 
 static sw_inline void php_coro_resume(coro_task *task)
 {
     swTraceLog(SW_TRACE_COROUTINE,"php_coro_resume cid=%d", task->cid);
     task->origin_task = php_coro_get_current_task();
-    php_coro_set_stack(task->yield_task);
+    php_coro_set_current_stack_to(task);
     php_coro_og_resume(task);
 }
 
