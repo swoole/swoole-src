@@ -499,7 +499,7 @@ static void php_swoole_task_wait_co(swServer *serv, swEventData *req, double tim
         task_co->timer = timer;
     }
     sw_coro_save(return_value, &task_co->context);
-    coro_yield();
+    sw_coro_yield();
 }
 
 #ifdef SW_COROUTINE
@@ -1927,7 +1927,7 @@ void php_swoole_server_send_yield(swServer *serv, int fd, zval *zdata, zval *ret
     }
     context->coro_params = *zdata;
     sw_coro_save(return_value, context);
-    coro_yield();
+    sw_coro_yield();
 }
 #endif
 
@@ -3530,7 +3530,7 @@ PHP_METHOD(swoole_server, taskCo)
         task_co->timer = timer;
     }
     sw_coro_save(return_value, &task_co->context);
-    coro_yield();
+    sw_coro_yield();
 }
 #endif
 

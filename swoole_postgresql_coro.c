@@ -213,7 +213,7 @@ static PHP_METHOD(swoole_postgresql_coro, connect)
         pg_object->timer = swTimer_add(&SwooleG.timer, (int) (pg_object->timeout * 1000), 0, sw_current_context, swoole_pgsql_coro_onTimeout);
     }
     sw_coro_save(return_value, sw_current_context);
-    coro_yield();
+    sw_coro_yield();
 
 }
 
@@ -533,7 +533,7 @@ static PHP_METHOD(swoole_postgresql_coro, query)
             pg_object->timer = swTimer_add(&SwooleG.timer, (int) (pg_object->timeout * 1000), 0, sw_current_context, swoole_pgsql_coro_onTimeout);
         }*/
     sw_coro_save(return_value, sw_current_context);
-    coro_yield();
+    sw_coro_yield();
 }
 
 /* {{{ php_pgsql_result2array
@@ -771,7 +771,7 @@ static PHP_METHOD(swoole_postgresql_coro,metaData)
                 pg_object->timer = swTimer_add(&SwooleG.timer, (int) (pg_object->timeout * 1000), 0, sw_current_context, swoole_pg_object_coro_onTimeout);
             }*/
     sw_coro_save(return_value, sw_current_context);
-    coro_yield();
+    sw_coro_yield();
 
 }
 

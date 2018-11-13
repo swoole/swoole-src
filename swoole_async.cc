@@ -1219,6 +1219,6 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro)
         context->state = SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST;
     }
     sw_coro_save(return_value, context);
-    coro_yield();
+    sw_coro_yield();
 }
 #endif

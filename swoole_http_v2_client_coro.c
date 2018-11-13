@@ -883,7 +883,7 @@ static PHP_METHOD(swoole_http2_client_coro, recv)
     hcc->iowait = 1;
     hcc->read_cid = sw_get_current_cid();
     sw_coro_save(return_value, context);
-    coro_yield();
+    sw_coro_yield();
 }
 
 static void http2_client_onConnect(swClient *cli)
@@ -1098,7 +1098,7 @@ static PHP_METHOD(swoole_http2_client_coro, connect)
     cli->object = &context->coro_params;
     sw_coro_save(return_value, context);
     hcc->iowait = 1;
-    coro_yield();
+    sw_coro_yield();
 }
 
 static sw_inline void http2_settings_to_array(swHttp2_settings *settings, zval* zarray)

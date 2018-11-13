@@ -813,7 +813,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     }
     client->cid = sw_get_current_cid();
     sw_coro_save(return_value, context);
-    coro_yield();
+    sw_coro_yield();
 }
 
 static PHP_METHOD(swoole_mysql_coro, query)
@@ -875,7 +875,7 @@ static PHP_METHOD(swoole_mysql_coro, query)
     }
     client->cid = sw_get_current_cid();
     sw_coro_save(return_value, context);
-    coro_yield();
+    sw_coro_yield();
 }
 
 static void swoole_mysql_coro_query_transcation(const char* command, uint8_t in_transaction, zend_execute_data *execute_data, zval *return_value)
@@ -932,7 +932,7 @@ static void swoole_mysql_coro_query_transcation(const char* command, uint8_t in_
         client->cid = sw_get_current_cid();
         sw_coro_save(return_value, context);
         coro_use_return_value();
-        coro_yield();
+        sw_coro_yield();
         // resume true
         if (Z_BVAL_P(return_value))
         {
@@ -1011,7 +1011,7 @@ static PHP_METHOD(swoole_mysql_coro, recv)
     client->cid = sw_get_current_cid();
     php_context *context = (php_context *) swoole_get_property(getThis(), 0);
     sw_coro_save(return_value, context);
-    coro_yield();
+    sw_coro_yield();
 }
 
 static PHP_METHOD(swoole_mysql_coro, prepare)
@@ -1085,7 +1085,7 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
     client->suspending = 1;
     client->cid = sw_get_current_cid();
     sw_coro_save(return_value, context);
-    coro_yield();
+    sw_coro_yield();
 }
 
 static PHP_METHOD(swoole_mysql_coro_statement, execute)
@@ -1134,7 +1134,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, execute)
     client->suspending = 1;
     client->cid = sw_get_current_cid();
     sw_coro_save(return_value, context);
-    coro_yield();
+    sw_coro_yield();
 }
 
 static PHP_METHOD(swoole_mysql_coro_statement, fetch)

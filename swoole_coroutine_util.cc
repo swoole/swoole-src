@@ -710,7 +710,7 @@ static void co_socket_read(int fd, zend_long length, INTERNAL_FUNCTION_PARAMETER
     sock->context.state = SW_CORO_CONTEXT_RUNNING;
 
     sw_coro_save(return_value, &sock->context);
-    coro_yield();
+    sw_coro_yield();
 }
 
 static void co_socket_write(int fd, char* str, size_t l_str, INTERNAL_FUNCTION_PARAMETERS)
@@ -748,7 +748,7 @@ static void co_socket_write(int fd, char* str, size_t l_str, INTERNAL_FUNCTION_P
     sock->nbytes = l_str;
 
     sw_coro_save(return_value, context);
-    coro_yield();
+    sw_coro_yield();
 }
 
 static PHP_METHOD(swoole_coroutine_util, fread)
@@ -837,7 +837,7 @@ static PHP_METHOD(swoole_coroutine_util, fread)
     context->state = SW_CORO_CONTEXT_RUNNING;
 
     sw_coro_save(return_value, context);
-    coro_yield();
+    sw_coro_yield();
 }
 
 static PHP_METHOD(swoole_coroutine_util, fgets)
@@ -921,7 +921,7 @@ static PHP_METHOD(swoole_coroutine_util, fgets)
     context->state = SW_CORO_CONTEXT_RUNNING;
 
     sw_coro_save(return_value, context);
-    coro_yield();
+    sw_coro_yield();
 }
 
 static PHP_METHOD(swoole_coroutine_util, fwrite)
@@ -999,7 +999,7 @@ static PHP_METHOD(swoole_coroutine_util, fwrite)
     context->state = SW_CORO_CONTEXT_RUNNING;
 
     sw_coro_save(return_value, context);
-    coro_yield();
+    sw_coro_yield();
 }
 
 static PHP_METHOD(swoole_coroutine_util, readFile)
@@ -1227,7 +1227,7 @@ PHP_FUNCTION(swoole_coroutine_gethostbyname)
     }
 
     sw_coro_save(return_value, context);
-    coro_yield();
+    sw_coro_yield();
 }
 
 static PHP_METHOD(swoole_coroutine_util, getaddrinfo)
@@ -1302,7 +1302,7 @@ static PHP_METHOD(swoole_coroutine_util, getaddrinfo)
     }
 
     sw_coro_save(return_value, context);
-    coro_yield();
+    sw_coro_yield();
 }
 
 static PHP_METHOD(swoole_coroutine_util, getBackTrace)
