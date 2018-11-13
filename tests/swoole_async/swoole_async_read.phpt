@@ -20,5 +20,3 @@ swoole_async_read(__FILE__, function ($filename, $content) {
 ?>
 --EXPECT--
 SUCCESS
-
---CLEAN--

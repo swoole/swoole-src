@@ -108,4 +108,3 @@ chan1 pop [#8] ret:'chan1-8'
 chan1 push [#8] ret:true
 chan1 pop [#9] ret:'chan1-9'
 chan1 push [#9] ret:true
-

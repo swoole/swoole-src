@@ -42,4 +42,3 @@ swoole_event_wait();
 [Server] recv : hello-2
 [Server] recv : hello-3
 [Server] recv : hello-4
-

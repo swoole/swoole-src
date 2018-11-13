@@ -12,5 +12,3 @@ serial_read_copy(10);
 ?>
 --EXPECT--
 SUCCESS
-
---CLEAN--

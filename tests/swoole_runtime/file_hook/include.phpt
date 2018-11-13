@@ -20,4 +20,3 @@ swoole_event_wait();
 --EXPECT--
 A
 B
-
