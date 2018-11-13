@@ -51,7 +51,7 @@ static sw_inline coro_task* php_coro_get_current_task()
     coro_task *task = (coro_task *) coroutine_get_current_task();
     if (!task)
     {
-        return &COROG.task;
+        task = &COROG.task;
     }
     task->execute_data = EG(current_execute_data);
     task->vm_stack = EG(vm_stack);
