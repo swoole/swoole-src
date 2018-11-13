@@ -1167,7 +1167,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
             args[1] = zresponse_object;
 
             zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, from_fd, callback_type);
-            int ret = coro_create(cache, args, 2, &retval, NULL, NULL);
+            int ret = sw_coro_create(cache, args, 2, retval);
             if (ret < 0)
             {
                 if (ret == CORO_LIMIT)

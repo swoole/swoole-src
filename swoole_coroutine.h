@@ -98,8 +98,6 @@ void coro_destroy(void);
 void coro_check(void);
 
 #define sw_coro_is_in() (sw_get_current_cid() != -1)
-#define coro_create(op_array, argv, argc, retval, post_callback, param) \
-        sw_coro_create(op_array, argv, argc, *retval, post_callback, param)
 #define coro_save(sw_php_context) \
         sw_coro_save(return_value, sw_php_context);
 #define coro_resume(sw_current_context, retval, coro_retval) \
@@ -110,7 +108,7 @@ void coro_check(void);
 /* output globals */
 #define SWOG ((zend_output_globals *) &OG(handlers))
 
-int sw_coro_create(zend_fcall_info_cache *op_array, zval **argv, int argc, zval *retval, void *post_callback, void *param);
+int sw_coro_create(zend_fcall_info_cache *op_array, zval **argv, int argc, zval *retval);
 void sw_coro_yield();
 void sw_coro_close();
 int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_retval);

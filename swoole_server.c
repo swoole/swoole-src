@@ -861,7 +861,7 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
         args[2] = zdata;
 
         zend_fcall_info_cache *cache = php_sw_server_caches[SW_SERVER_CB_onPipeMessage];
-        int ret = coro_create(cache, args, 3, &retval, NULL, NULL);
+        int ret = sw_coro_create(cache, args, 3, retval);
         if (ret < 0)
         {
             zval_ptr_dtor(zworker_id);
@@ -928,7 +928,7 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
         args[3] = zdata;
 
         zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onReceive);
-        int ret = coro_create(cache, args, 4, &retval, NULL, NULL);
+        int ret = sw_coro_create(cache, args, 4, retval);
         if (ret < 0)
         {
             zval_ptr_dtor(zfd);
@@ -1033,7 +1033,7 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
         args[2] = zaddr;
 
         zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onPacket);
-        int ret = coro_create(cache, args, 3, &retval, NULL, NULL);
+        int ret = sw_coro_create(cache, args, 3, retval);
         if (ret < 0)
         {
             zval_ptr_dtor(zaddr);
@@ -1373,7 +1373,7 @@ static void php_swoole_onWorkerStart_coroutine(zval *zserv, zval *zworker_id)
     args[1] = zworker_id;
 
     zend_fcall_info_cache *cache = php_sw_server_caches[SW_SERVER_CB_onWorkerStart];
-    int ret = coro_create(cache, args, 2, &retval, NULL, NULL);
+    int ret = sw_coro_create(cache, args, 2, retval);
     if (ret < 0)
     {
         zval_ptr_dtor(zworker_id);
@@ -1636,11 +1636,11 @@ void php_swoole_onConnect(swServer *serv, swDataHead *info)
         }
         if (serv->enable_delay_receive)
         {
-            ret = coro_create(cache, args, 3, &retval, php_swoole_onConnect_finish, (void*) (long) info->fd);
+            ret = sw_coro_create(cache, args, 3, retval);
         }
         else
         {
-            ret = coro_create(cache, args, 3, &retval, NULL, NULL);
+            ret = sw_coro_create(cache, args, 3, retval);
         }
 
         if (ret < 0)
@@ -1735,7 +1735,7 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
             return;
         }
 
-        ret = coro_create(cache, args, 3, &retval, NULL, NULL);
+        ret = sw_coro_create(cache, args, 3, retval);
 
         zval_ptr_dtor(zfd);
         zval_ptr_dtor(zfrom_id);

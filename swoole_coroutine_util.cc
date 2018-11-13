@@ -419,8 +419,7 @@ PHP_FUNCTION(swoole_coroutine_create)
     Z_TRY_ADDREF_P(callback);
 
     zval *retval = NULL;
-    zval *args[1];
-    int cid = coro_create(func_cache, args, 0, &retval, NULL, NULL);
+    int cid = sw_coro_create(func_cache, NULL, 0, retval);
     sw_zval_free(callback);
     efree(func_cache);
     if (EG(exception))

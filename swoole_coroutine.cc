@@ -338,8 +338,7 @@ void sw_coro_check_bind(const char *name, int bind_cid)
     }
 }
 
-int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval *retval, void *post_callback,
-        void *params)
+int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval *retval)
 {
     if (unlikely(COROG.coro_num >= COROG.max_coro_num) )
     {
