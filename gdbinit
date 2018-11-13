@@ -10,13 +10,22 @@ define ____get_current
     end
 end
 
-define cbacktracelist
+define co_backtracelist
+    if $argc == 0
+        set $max = 10
+    else
+        set $max = $arg0
+    end
     if COROG.coro_num == 0
         printf "no coro running \n"
     end
     ____executor_globals
     set $cid = 1
+    set $hit = 1
     while $cid < COROG.coro_num + 1
+        if $hit > $max
+            loop_break
+        end
         ____get_current
         if $current_cid > 0 && $current_cid == $cid
             color $GREEN
@@ -27,17 +36,18 @@ define cbacktracelist
         end
         
         if swCoroG.coroutines[$cid]
-           __dumpco_bt $cid
+           co_dump_bt $cid
         end
         set $cid = $cid + 1
+        set $hit = $hit + 1
     end
 end
 
-document cbacktracelist
+document co_backtracelist
     dump all exists coroutine lists.
 end
 
-define cbacktrace
+define co_backtrace
     if COROG.coro_num == 0
         printf "no coro running \n"
     end
@@ -47,17 +57,17 @@ define cbacktrace
         color $GREEN
         printf "coroutine cid:[%d]\n",$current_co->cid
         color_reset
-        __dumpco_bt $current_co->cid
+        co_dump_bt $current_co->cid
     else   
         printf "no coroutine running\n"
     end
 end
 
-document cbacktrace
+document co_backtrace
     dump current coroutine.
 end
 
-define __dumpco_bt
+define co_dump_bt
     set $cid = $arg0
     if swCoroG.coroutines[$cid]     
         if $current_co && $cid == $current_co->cid
