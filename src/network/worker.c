@@ -467,6 +467,13 @@ void swWorker_onStart(swServer *serv)
         SwooleG.process_type = SW_PROCESS_WORKER;
     }
 
+    SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
+    if (SwooleG.memory_pool == NULL)
+    {
+        printf("[Worker] Fatal Error: global memory allocation failure.");
+        exit(1);
+    }
+
     int is_root = !geteuid();
     struct passwd *passwd = NULL;
     struct group *group = NULL;

@@ -10,45 +10,40 @@ define ____get_current
     end
 end
 
-define co_backtracelist
-    if $argc == 0
-        set $max = 10
-    else
-        set $max = $arg0
-    end
+define co_list
     if COROG.coro_num == 0
-        printf "no coro running \n"
+        printf "no coroutines running \n"
     end
     ____executor_globals
     set $cid = 1
-    set $hit = 1
     while $cid < COROG.coro_num + 1
-        if $hit > $max
-            loop_break
-        end        
         if swCoroG.coroutines[$cid]
-            ____get_current
-            if $current_cid > 0 && $current_cid == $cid
-                color $GREEN
-                printf "coroutine cid:[%d] <-current\n",$cid
-                color_reset
-            else
-                printf "coroutine cid:[%d] \n",$cid
+            printf "coroutine %d ", $cid
+            set $co = swCoroG.coroutines[$cid]
+            if $co->state == 0
+                printf "%s\n", "SW_CORO_INIT"
             end
-           co_dump_bt $cid
-           set $hit = $hit + 1
+            if $co->state == 1
+                color $RED
+                printf "%s\n", "SW_CORO_YIELD"
+                color_reset
+            end      
+            if $co->state == 2
+                color $GREEN
+                printf "%s\n", "SW_CORO_RUNNING"
+                color_reset
+            end
+            if $co->state == 3
+                printf "%s\n", "SW_CORO_END"
+            end
         end
         set $cid = $cid + 1
     end
 end
 
-document co_backtracelist
-    dump all exists coroutine lists.
-end
-
 define co_backtrace
     if COROG.coro_num == 0
-        printf "no coro running \n"
+        printf "no coroutines running \n"
     end
     ____executor_globals
     ____get_current    
@@ -56,18 +51,18 @@ define co_backtrace
         color $GREEN
         printf "coroutine cid:[%d]\n",$current_co->cid
         color_reset
-        co_dump_bt $current_co->cid
+        co_bt $current_co->cid
     else   
         printf "no coroutine running\n"
     end
 end
 
 document co_backtrace
-    dump current coroutine.
+    dump current coroutine backtrace.
 end
 
-define co_dump_bt
-    set $cid = $arg0
+define co_bt
+    set $cid = (int)$arg0
     if swCoroG.coroutines[$cid]     
         if $current_co && $cid == $current_co->cid
             dump_bt $eg.current_execute_data 
@@ -80,6 +75,8 @@ define co_dump_bt
                 set $eg.current_execute_data = $backup
             end
         end
+    else
+        printf "coroutines %d is not running\n", $cid
     end
 end
 
