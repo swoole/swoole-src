@@ -14,7 +14,6 @@ define co_list
     if COROG.coro_num == 0
         printf "no coroutines running \n"
     end
-    ____executor_globals
     set $cid = 1
     while $cid < COROG.coro_num + 1
         if swCoroG.coroutines[$cid]
