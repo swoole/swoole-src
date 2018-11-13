@@ -100,14 +100,11 @@ static void php_swoole_process_pool_onWorkerStart(swProcessPool *pool, int worke
     {
         return;
     }
+
+    php_swoole_process_clean();
     SwooleWG.id = worker_id;
     current_pool = pool;
-    if (SwooleG.main_reactor)
-    {
-        SwooleG.main_reactor->free(SwooleG.main_reactor);
-        SwooleG.main_reactor = NULL;
-        swTraceLog(SW_TRACE_PHP, "destroy reactor");
-    }
+
     if (sw_call_user_function_ex(EG(function_table), NULL, pp->onWorkerStart, &retval, 2, args, 0, NULL) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onWorkerStart handler error.");
