@@ -11,10 +11,10 @@ define ____get_current
 end
 
 define cbacktracelist
-    ____executor_globals
     if COROG.coro_num == 0
         printf "no coro running \n"
     end
+    ____executor_globals
     set $cid = 1
     while $cid < COROG.coro_num + 1
         ____get_current
@@ -29,7 +29,7 @@ define cbacktracelist
         if ! swCoroG.coroutines[$cid]
            printf "corouine %d has been exited\n",  $cid
         else
-           dumpco $cid
+           __dumpco_bt $cid
         end
         set $cid = $cid + 1
     end
@@ -40,11 +40,14 @@ document cbacktracelist
 end
 
 define cbacktrace
+    if COROG.coro_num == 0
+        printf "no coro running \n"
+    end
     ____executor_globals
-    ____get_current
+    ____get_current    
     if $current_co && $current_co->cid
         color $GREEN
-        printf "coroutine cid:[%d]\n",$cid
+        printf "coroutine cid:[%d]\n",$current_co->cid
         color_reset
         __dumpco_bt $current_co->cid
     else   
