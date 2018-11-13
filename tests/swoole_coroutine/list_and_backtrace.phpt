@@ -36,16 +36,154 @@ go(function () {
 ?>
 --EXPECTF--
 int(1)
-array(0) {
+array(2) {
+  [0]=>
+  array(2) {
+    ["function"]=>
+    string(9) "{closure}"
+    ["args"]=>
+    array(0) {
+    }
+  }
+  [1]=>
+  array(4) {
+    ["file"]=>
+    string(%d) "%s"
+    ["line"]=>
+    int(30)
+    ["function"]=>
+    string(2) "go"
+    ["args"]=>
+    array(1) {
+      [0]=>
+      object(Closure)#1 (0) {
+      }
+    }
+  }
 }
 int(2)
-array(0) {
+array(4) {
+  [0]=>
+  array(2) {
+    ["function"]=>
+    string(9) "{closure}"
+    ["args"]=>
+    array(0) {
+    }
+  }
+  [1]=>
+  array(4) {
+    ["file"]=>
+    string(%d) "%s"
+    ["line"]=>
+    int(29)
+    ["function"]=>
+    string(2) "go"
+    ["args"]=>
+    array(1) {
+      [0]=>
+      object(Closure)#2 (0) {
+      }
+    }
+  }
+  [2]=>
+  array(2) {
+    ["function"]=>
+    string(9) "{closure}"
+    ["args"]=>
+    array(0) {
+    }
+  }
+  [3]=>
+  array(4) {
+    ["file"]=>
+    string(%d) "%s"
+    ["line"]=>
+    int(30)
+    ["function"]=>
+    string(2) "go"
+    ["args"]=>
+    array(1) {
+      [0]=>
+      object(Closure)#1 (0) {
+      }
+    }
+  }
 }
 int(3)
-array(0) {
+array(6) {
+  [0]=>
+  array(2) {
+    ["function"]=>
+    string(9) "{closure}"
+    ["args"]=>
+    array(0) {
+    }
+  }
+  [1]=>
+  array(4) {
+    ["file"]=>
+    string(%d) "%s"
+    ["line"]=>
+    int(28)
+    ["function"]=>
+    string(2) "go"
+    ["args"]=>
+    array(1) {
+      [0]=>
+      object(Closure)#3 (0) {
+      }
+    }
+  }
+  [2]=>
+  array(2) {
+    ["function"]=>
+    string(9) "{closure}"
+    ["args"]=>
+    array(0) {
+    }
+  }
+  [3]=>
+  array(4) {
+    ["file"]=>
+    string(%d) "%s"
+    ["line"]=>
+    int(29)
+    ["function"]=>
+    string(2) "go"
+    ["args"]=>
+    array(1) {
+      [0]=>
+      object(Closure)#2 (0) {
+      }
+    }
+  }
+  [4]=>
+  array(2) {
+    ["function"]=>
+    string(9) "{closure}"
+    ["args"]=>
+    array(0) {
+    }
+  }
+  [5]=>
+  array(4) {
+    ["file"]=>
+    string(%d) "%s"
+    ["line"]=>
+    int(30)
+    ["function"]=>
+    string(2) "go"
+    ["args"]=>
+    array(1) {
+      [0]=>
+      object(Closure)#1 (0) {
+      }
+    }
+  }
 }
 int(4)
-array(1) {
+array(9) {
   [0]=>
   array(6) {
     ["file"]=>
@@ -64,12 +202,206 @@ array(1) {
       int(4)
     }
   }
+  [1]=>
+  array(2) {
+    ["function"]=>
+    string(9) "{closure}"
+    ["args"]=>
+    array(0) {
+    }
+  }
+  [2]=>
+  array(4) {
+    ["file"]=>
+    string(%d) "%s"
+    ["line"]=>
+    int(27)
+    ["function"]=>
+    string(2) "go"
+    ["args"]=>
+    array(1) {
+      [0]=>
+      object(Closure)#6 (1) {
+        ["static"]=>
+        array(1) {
+          ["main"]=>
+          int(4)
+        }
+      }
+    }
+  }
+  [3]=>
+  array(2) {
+    ["function"]=>
+    string(9) "{closure}"
+    ["args"]=>
+    array(0) {
+    }
+  }
+  [4]=>
+  array(4) {
+    ["file"]=>
+    string(%d) "%s"
+    ["line"]=>
+    int(28)
+    ["function"]=>
+    string(2) "go"
+    ["args"]=>
+    array(1) {
+      [0]=>
+      object(Closure)#3 (0) {
+      }
+    }
+  }
+  [5]=>
+  array(2) {
+    ["function"]=>
+    string(9) "{closure}"
+    ["args"]=>
+    array(0) {
+    }
+  }
+  [6]=>
+  array(4) {
+    ["file"]=>
+    string(%d) "%s"
+    ["line"]=>
+    int(29)
+    ["function"]=>
+    string(2) "go"
+    ["args"]=>
+    array(1) {
+      [0]=>
+      object(Closure)#2 (0) {
+      }
+    }
+  }
+  [7]=>
+  array(2) {
+    ["function"]=>
+    string(9) "{closure}"
+    ["args"]=>
+    array(0) {
+    }
+  }
+  [8]=>
+  array(4) {
+    ["file"]=>
+    string(%d) "%s"
+    ["line"]=>
+    int(30)
+    ["function"]=>
+    string(2) "go"
+    ["args"]=>
+    array(1) {
+      [0]=>
+      object(Closure)#1 (0) {
+      }
+    }
+  }
 }
 int(5)
-array(0) {
+array(8) {
+  [0]=>
+  array(2) {
+    ["function"]=>
+    string(9) "{closure}"
+    ["args"]=>
+    array(0) {
+    }
+  }
+  [1]=>
+  array(4) {
+    ["file"]=>
+    string(%d) "%s"
+    ["line"]=>
+    int(27)
+    ["function"]=>
+    string(2) "go"
+    ["args"]=>
+    array(1) {
+      [0]=>
+      object(Closure)#6 (1) {
+        ["static"]=>
+        array(1) {
+          ["main"]=>
+          int(4)
+        }
+      }
+    }
+  }
+  [2]=>
+  array(2) {
+    ["function"]=>
+    string(9) "{closure}"
+    ["args"]=>
+    array(0) {
+    }
+  }
+  [3]=>
+  array(4) {
+    ["file"]=>
+    string(%d) "%s"
+    ["line"]=>
+    int(28)
+    ["function"]=>
+    string(2) "go"
+    ["args"]=>
+    array(1) {
+      [0]=>
+      object(Closure)#3 (0) {
+      }
+    }
+  }
+  [4]=>
+  array(2) {
+    ["function"]=>
+    string(9) "{closure}"
+    ["args"]=>
+    array(0) {
+    }
+  }
+  [5]=>
+  array(4) {
+    ["file"]=>
+    string(%d) "%s"
+    ["line"]=>
+    int(29)
+    ["function"]=>
+    string(2) "go"
+    ["args"]=>
+    array(1) {
+      [0]=>
+      object(Closure)#2 (0) {
+      }
+    }
+  }
+  [6]=>
+  array(2) {
+    ["function"]=>
+    string(9) "{closure}"
+    ["args"]=>
+    array(0) {
+    }
+  }
+  [7]=>
+  array(4) {
+    ["file"]=>
+    string(%d) "%s"
+    ["line"]=>
+    int(30)
+    ["function"]=>
+    string(2) "go"
+    ["args"]=>
+    array(1) {
+      [0]=>
+      object(Closure)#1 (0) {
+      }
+    }
+  }
 }
 int(6)
-array(1) {
+array(11) {
   [0]=>
   array(6) {
     ["file"]=>
@@ -88,9 +420,134 @@ array(1) {
       float(0.001)
     }
   }
+  [1]=>
+  array(2) {
+    ["function"]=>
+    string(9) "{closure}"
+    ["args"]=>
+    array(0) {
+    }
+  }
+  [2]=>
+  array(4) {
+    ["file"]=>
+    string(%d) "%s"
+    ["line"]=>
+    int(26)
+    ["function"]=>
+    string(2) "go"
+    ["args"]=>
+    array(1) {
+      [0]=>
+      object(Closure)#10 (1) {
+        ["static"]=>
+        array(1) {
+          ["main"]=>
+          int(4)
+        }
+      }
+    }
+  }
+  [3]=>
+  array(2) {
+    ["function"]=>
+    string(9) "{closure}"
+    ["args"]=>
+    array(0) {
+    }
+  }
+  [4]=>
+  array(4) {
+    ["file"]=>
+    string(%d) "%s"
+    ["line"]=>
+    int(27)
+    ["function"]=>
+    string(2) "go"
+    ["args"]=>
+    array(1) {
+      [0]=>
+      object(Closure)#6 (1) {
+        ["static"]=>
+        array(1) {
+          ["main"]=>
+          int(4)
+        }
+      }
+    }
+  }
+  [5]=>
+  array(2) {
+    ["function"]=>
+    string(9) "{closure}"
+    ["args"]=>
+    array(0) {
+    }
+  }
+  [6]=>
+  array(4) {
+    ["file"]=>
+    string(%d) "%s"
+    ["line"]=>
+    int(28)
+    ["function"]=>
+    string(2) "go"
+    ["args"]=>
+    array(1) {
+      [0]=>
+      object(Closure)#3 (0) {
+      }
+    }
+  }
+  [7]=>
+  array(2) {
+    ["function"]=>
+    string(9) "{closure}"
+    ["args"]=>
+    array(0) {
+    }
+  }
+  [8]=>
+  array(4) {
+    ["file"]=>
+    string(%d) "%s"
+    ["line"]=>
+    int(29)
+    ["function"]=>
+    string(2) "go"
+    ["args"]=>
+    array(1) {
+      [0]=>
+      object(Closure)#2 (0) {
+      }
+    }
+  }
+  [9]=>
+  array(2) {
+    ["function"]=>
+    string(9) "{closure}"
+    ["args"]=>
+    array(0) {
+    }
+  }
+  [10]=>
+  array(4) {
+    ["file"]=>
+    string(%d) "%s"
+    ["line"]=>
+    int(30)
+    ["function"]=>
+    string(2) "go"
+    ["args"]=>
+    array(1) {
+      [0]=>
+      object(Closure)#1 (0) {
+      }
+    }
+  }
 }
 int(7)
-array(1) {
+array(11) {
   [0]=>
   array(6) {
     ["file"]=>
@@ -109,9 +566,134 @@ array(1) {
       string(%d) "%s"
     }
   }
+  [1]=>
+  array(2) {
+    ["function"]=>
+    string(9) "{closure}"
+    ["args"]=>
+    array(0) {
+    }
+  }
+  [2]=>
+  array(4) {
+    ["file"]=>
+    string(%d) "%s"
+    ["line"]=>
+    int(26)
+    ["function"]=>
+    string(2) "go"
+    ["args"]=>
+    array(1) {
+      [0]=>
+      object(Closure)#10 (1) {
+        ["static"]=>
+        array(1) {
+          ["main"]=>
+          int(4)
+        }
+      }
+    }
+  }
+  [3]=>
+  array(2) {
+    ["function"]=>
+    string(9) "{closure}"
+    ["args"]=>
+    array(0) {
+    }
+  }
+  [4]=>
+  array(4) {
+    ["file"]=>
+    string(%d) "%s"
+    ["line"]=>
+    int(27)
+    ["function"]=>
+    string(2) "go"
+    ["args"]=>
+    array(1) {
+      [0]=>
+      object(Closure)#6 (1) {
+        ["static"]=>
+        array(1) {
+          ["main"]=>
+          int(4)
+        }
+      }
+    }
+  }
+  [5]=>
+  array(2) {
+    ["function"]=>
+    string(9) "{closure}"
+    ["args"]=>
+    array(0) {
+    }
+  }
+  [6]=>
+  array(4) {
+    ["file"]=>
+    string(%d) "%s"
+    ["line"]=>
+    int(28)
+    ["function"]=>
+    string(2) "go"
+    ["args"]=>
+    array(1) {
+      [0]=>
+      object(Closure)#3 (0) {
+      }
+    }
+  }
+  [7]=>
+  array(2) {
+    ["function"]=>
+    string(9) "{closure}"
+    ["args"]=>
+    array(0) {
+    }
+  }
+  [8]=>
+  array(4) {
+    ["file"]=>
+    string(%d) "%s"
+    ["line"]=>
+    int(29)
+    ["function"]=>
+    string(2) "go"
+    ["args"]=>
+    array(1) {
+      [0]=>
+      object(Closure)#2 (0) {
+      }
+    }
+  }
+  [9]=>
+  array(2) {
+    ["function"]=>
+    string(9) "{closure}"
+    ["args"]=>
+    array(0) {
+    }
+  }
+  [10]=>
+  array(4) {
+    ["file"]=>
+    string(%d) "%s"
+    ["line"]=>
+    int(30)
+    ["function"]=>
+    string(2) "go"
+    ["args"]=>
+    array(1) {
+      [0]=>
+      object(Closure)#1 (0) {
+      }
+    }
+  }
 }
 int(8)
-array(1) {
+array(11) {
   [0]=>
   array(6) {
     ["file"]=>
@@ -130,9 +712,134 @@ array(1) {
       string(9) "localhost"
     }
   }
+  [1]=>
+  array(2) {
+    ["function"]=>
+    string(9) "{closure}"
+    ["args"]=>
+    array(0) {
+    }
+  }
+  [2]=>
+  array(4) {
+    ["file"]=>
+    string(%d) "%s"
+    ["line"]=>
+    int(26)
+    ["function"]=>
+    string(2) "go"
+    ["args"]=>
+    array(1) {
+      [0]=>
+      object(Closure)#10 (1) {
+        ["static"]=>
+        array(1) {
+          ["main"]=>
+          int(4)
+        }
+      }
+    }
+  }
+  [3]=>
+  array(2) {
+    ["function"]=>
+    string(9) "{closure}"
+    ["args"]=>
+    array(0) {
+    }
+  }
+  [4]=>
+  array(4) {
+    ["file"]=>
+    string(%d) "%s"
+    ["line"]=>
+    int(27)
+    ["function"]=>
+    string(2) "go"
+    ["args"]=>
+    array(1) {
+      [0]=>
+      object(Closure)#6 (1) {
+        ["static"]=>
+        array(1) {
+          ["main"]=>
+          int(4)
+        }
+      }
+    }
+  }
+  [5]=>
+  array(2) {
+    ["function"]=>
+    string(9) "{closure}"
+    ["args"]=>
+    array(0) {
+    }
+  }
+  [6]=>
+  array(4) {
+    ["file"]=>
+    string(%d) "%s"
+    ["line"]=>
+    int(28)
+    ["function"]=>
+    string(2) "go"
+    ["args"]=>
+    array(1) {
+      [0]=>
+      object(Closure)#3 (0) {
+      }
+    }
+  }
+  [7]=>
+  array(2) {
+    ["function"]=>
+    string(9) "{closure}"
+    ["args"]=>
+    array(0) {
+    }
+  }
+  [8]=>
+  array(4) {
+    ["file"]=>
+    string(%d) "%s"
+    ["line"]=>
+    int(29)
+    ["function"]=>
+    string(2) "go"
+    ["args"]=>
+    array(1) {
+      [0]=>
+      object(Closure)#2 (0) {
+      }
+    }
+  }
+  [9]=>
+  array(2) {
+    ["function"]=>
+    string(9) "{closure}"
+    ["args"]=>
+    array(0) {
+    }
+  }
+  [10]=>
+  array(4) {
+    ["file"]=>
+    string(%d) "%s"
+    ["line"]=>
+    int(30)
+    ["function"]=>
+    string(2) "go"
+    ["args"]=>
+    array(1) {
+      [0]=>
+      object(Closure)#1 (0) {
+      }
+    }
+  }
 }
 int(9)
-array(1) {
+array(11) {
   [0]=>
   array(6) {
     ["file"]=>
@@ -149,6 +856,131 @@ array(1) {
     array(1) {
       [0]=>
       int(4)
+    }
+  }
+  [1]=>
+  array(2) {
+    ["function"]=>
+    string(9) "{closure}"
+    ["args"]=>
+    array(0) {
+    }
+  }
+  [2]=>
+  array(4) {
+    ["file"]=>
+    string(%d) "%s"
+    ["line"]=>
+    int(26)
+    ["function"]=>
+    string(2) "go"
+    ["args"]=>
+    array(1) {
+      [0]=>
+      object(Closure)#10 (1) {
+        ["static"]=>
+        array(1) {
+          ["main"]=>
+          int(4)
+        }
+      }
+    }
+  }
+  [3]=>
+  array(2) {
+    ["function"]=>
+    string(9) "{closure}"
+    ["args"]=>
+    array(0) {
+    }
+  }
+  [4]=>
+  array(4) {
+    ["file"]=>
+    string(%d) "%s"
+    ["line"]=>
+    int(27)
+    ["function"]=>
+    string(2) "go"
+    ["args"]=>
+    array(1) {
+      [0]=>
+      object(Closure)#6 (1) {
+        ["static"]=>
+        array(1) {
+          ["main"]=>
+          int(4)
+        }
+      }
+    }
+  }
+  [5]=>
+  array(2) {
+    ["function"]=>
+    string(9) "{closure}"
+    ["args"]=>
+    array(0) {
+    }
+  }
+  [6]=>
+  array(4) {
+    ["file"]=>
+    string(%d) "%s"
+    ["line"]=>
+    int(28)
+    ["function"]=>
+    string(2) "go"
+    ["args"]=>
+    array(1) {
+      [0]=>
+      object(Closure)#3 (0) {
+      }
+    }
+  }
+  [7]=>
+  array(2) {
+    ["function"]=>
+    string(9) "{closure}"
+    ["args"]=>
+    array(0) {
+    }
+  }
+  [8]=>
+  array(4) {
+    ["file"]=>
+    string(%d) "%s"
+    ["line"]=>
+    int(29)
+    ["function"]=>
+    string(2) "go"
+    ["args"]=>
+    array(1) {
+      [0]=>
+      object(Closure)#2 (0) {
+      }
+    }
+  }
+  [9]=>
+  array(2) {
+    ["function"]=>
+    string(9) "{closure}"
+    ["args"]=>
+    array(0) {
+    }
+  }
+  [10]=>
+  array(4) {
+    ["file"]=>
+    string(%d) "%s"
+    ["line"]=>
+    int(30)
+    ["function"]=>
+    string(2) "go"
+    ["args"]=>
+    array(1) {
+      [0]=>
+      object(Closure)#1 (0) {
+      }
     }
   }
 }
