@@ -121,6 +121,8 @@ int swReactorProcess_start(swServer *serv)
         }
     }
 
+    serv->gs->event_workers.onWorkerNotFound = swManager_wait_other_worker;
+
     //task workers
     if (serv->task_worker_num > 0)
     {
@@ -128,14 +130,10 @@ int swReactorProcess_start(swServer *serv)
         {
             return SW_ERR;
         }
-
         swTaskWorker_init(&serv->gs->task_workers);
-        swProcessPool_start(&serv->gs->task_workers);
-
-        int i;
-        for (i = 0; i < serv->gs->task_workers.worker_num; i++)
+        if (swProcessPool_start(&serv->gs->task_workers) < 0)
         {
-            swProcessPool_add_worker(&serv->gs->event_workers, &serv->gs->task_workers.workers[i]);
+            return SW_ERR;
         }
     }
 
@@ -162,7 +160,6 @@ int swReactorProcess_start(swServer *serv)
             }
             swManager_spawn_user_worker(serv, user_worker->worker);
         }
-        serv->gs->event_workers.onWorkerNotFound = swManager_wait_user_worker;
     }
 
     /**

@@ -2891,7 +2891,7 @@ PHP_METHOD(swoole_server, send)
             server_socket = dgram_server_socket;
         }
         //UNIX DGRAM SOCKET
-        else if (Z_STRVAL_P(zfd)[0] == '/')
+        if (Z_STRVAL_P(zfd)[0] == '/')
         {
             struct sockaddr_un addr_un;
             memcpy(addr_un.sun_path, Z_STRVAL_P(zfd), Z_STRLEN_P(zfd));

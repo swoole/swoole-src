@@ -273,7 +273,7 @@ static int swManager_loop(swFactory *factory)
                 }
                 if (msg.worker_id >= serv->worker_num)
                 {
-                    swProcessPool_spawn(&serv->gs->task_workers, swServer_get_worker(serv, msg.worker_id));
+                    swManager_spawn_task_worker(serv, swServer_get_worker(serv, msg.worker_id));
                 }
                 else
                 {
@@ -419,13 +419,13 @@ static int swManager_loop(swFactory *factory)
                         goto _wait;
                     }
                     swManager_check_exit_status(serv, exit_worker->id, pid, status);
-                    swProcessPool_spawn(&serv->gs->task_workers, exit_worker);
+                    swManager_spawn_task_worker(serv, exit_worker);
                 }
             }
             //user process
             if (serv->user_worker_map != NULL)
             {
-                swManager_wait_user_worker(&serv->gs->event_workers, pid, status);
+                swManager_wait_other_worker(&serv->gs->event_workers, pid, status);
             }
             if (pid == reload_worker_pid)
             {
@@ -559,19 +559,25 @@ static void swManager_signal_handle(int sig)
     }
 }
 
-int swManager_wait_user_worker(swProcessPool *pool, pid_t pid, int status)
+int swManager_wait_other_worker(swProcessPool *pool, pid_t pid, int status)
 {
     swServer *serv = SwooleG.serv;
-    swWorker *exit_worker = swHashMap_find_int(serv->user_worker_map, pid);
+    swWorker *exit_worker;
+
+    exit_worker = swHashMap_find_int(serv->gs->task_workers.map, pid);
+    if (exit_worker)
+    {
+        swManager_check_exit_status(serv, exit_worker->id, pid, status);
+        return swManager_spawn_task_worker(serv, exit_worker);
+    }
+
+    exit_worker = swHashMap_find_int(serv->user_worker_map, pid);
     if (exit_worker != NULL)
     {
         swManager_check_exit_status(serv, exit_worker->id, pid, status);
         return swManager_spawn_user_worker(serv, exit_worker);
     }
-    else
-    {
-        return SW_ERR;
-    }
+    return SW_ERR;
 }
 
 void swManager_kill_user_worker(swServer *serv)
@@ -610,6 +616,11 @@ void swManager_kill_user_worker(swServer *serv)
             swSysError("waitpid(%d) failed.", user_worker->pid);
         }
     }
+}
+
+pid_t swManager_spawn_task_worker(swServer *serv, swWorker* worker)
+{
+    return swProcessPool_spawn(&serv->gs->task_workers, worker);
 }
 
 pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker)
