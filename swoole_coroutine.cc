@@ -45,7 +45,7 @@ static inline void sw_vm_stack_init(void)
 #define sw_vm_stack_init zend_vm_stack_init
 #endif
 
-static sw_inline void php_coro_save_current_stack_to(coro_task *task)
+static sw_inline void php_coro_save_vm_stack(coro_task *task)
 {
     task->execute_data = EG(current_execute_data);
     task->vm_stack = EG(vm_stack);
@@ -61,11 +61,11 @@ static sw_inline coro_task* php_coro_get_current_task()
     {
         task = &COROG.task;
     }
-    php_coro_save_current_stack_to(task);
+    php_coro_save_vm_stack(task);
     return task;
 }
 
-static sw_inline void php_coro_set_current_stack_to(coro_task *task)
+static sw_inline void php_coro_restore_vm_stack(coro_task *task)
 {
     EG(current_execute_data) = task->execute_data;
     EG(vm_stack) = task->vm_stack;
@@ -107,14 +107,14 @@ static sw_inline void php_coro_task_init(int cid, coro_task *task, zend_execute_
  *
  */
 
-static sw_inline void php_coro_og_save_current_to(coro_task *task)
+static sw_inline void php_coro_save_og(coro_task *task)
 {
     task->output_ptr = (zend_output_globals *) emalloc(sizeof(zend_output_globals));
     memcpy(task->output_ptr, SWOG, sizeof(zend_output_globals));
     php_output_activate();
 }
 
-static sw_inline void php_coro_og_current_set_to(coro_task *task)
+static sw_inline void php_coro_restore_og(coro_task *task)
 {
     memcpy(SWOG, task->output_ptr, sizeof(zend_output_globals));
     efree(task->output_ptr);
@@ -125,7 +125,7 @@ static sw_inline void php_coro_og_create(coro_task *task)
 {
     if (OG(handlers).elements)
     {
-        php_coro_og_save_current_to(task);
+        php_coro_save_og(task);
     }
     else
     {
@@ -137,7 +137,7 @@ static sw_inline void php_coro_og_yield(coro_task *task)
 {
     if (OG(handlers).elements)
     {
-        php_coro_og_save_current_to(task);
+        php_coro_save_og(task);
     }
     else
     {
@@ -145,7 +145,7 @@ static sw_inline void php_coro_og_yield(coro_task *task)
     }
     if (task->origin_task->output_ptr)
     {
-        php_coro_og_current_set_to(task->origin_task);
+        php_coro_restore_og(task->origin_task);
     }
 }
 
@@ -153,7 +153,7 @@ static sw_inline void php_coro_og_resume(coro_task *task)
 {
     if (OG(handlers).elements)
     {
-        php_coro_og_save_current_to(task->origin_task);
+        php_coro_save_og(task->origin_task);
     }
     else
     {
@@ -161,7 +161,7 @@ static sw_inline void php_coro_og_resume(coro_task *task)
     }
     if (task->output_ptr)
     {
-        php_coro_og_current_set_to(task);
+        php_coro_restore_og(task);
     }
 }
 
@@ -279,8 +279,8 @@ static void php_coro_create(void *arg)
 static sw_inline void php_coro_yield(coro_task *task)
 {
     swTraceLog(SW_TRACE_COROUTINE,"php_coro_yield cid=%d", task->cid);
-    php_coro_save_current_stack_to(task);
-    php_coro_set_current_stack_to(task->origin_task);
+    php_coro_save_vm_stack(task);
+    php_coro_restore_vm_stack(task->origin_task);
     php_coro_og_yield(task);
 }
 
@@ -288,7 +288,7 @@ static sw_inline void php_coro_resume(coro_task *task)
 {
     swTraceLog(SW_TRACE_COROUTINE,"php_coro_resume cid=%d", task->cid);
     task->origin_task = php_coro_get_current_task();
-    php_coro_set_current_stack_to(task);
+    php_coro_restore_vm_stack(task);
     php_coro_og_resume(task);
 }
 
