@@ -470,8 +470,8 @@ int mysql_handshake(mysql_connector *connector, char *buf, int len);
 int mysql_parse_auth_signature(swString *buffer, mysql_connector *connector);
 int mysql_parse_rsa(mysql_connector *connector, char *buf, int len);
 int mysql_auth_switch(mysql_connector *connector, char *buf, int len);
-int mysql_request(swString *sql, swString *buffer);
-int mysql_prepare(swString *sql, swString *buffer);
+int mysql_request_pack(swString *sql, swString *buffer);
+int mysql_prepare_pack(swString *sql, swString *buffer);
 int mysql_response(mysql_client *client);
 int mysql_is_over(mysql_client *client);
 

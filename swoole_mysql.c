@@ -398,8 +398,9 @@ void swoole_mysql_init(int module_number)
     zend_declare_class_constant_long(swoole_mysql_class_entry_ptr, ZEND_STRL("STATE_CLOSED"), SW_MYSQL_STATE_CLOSED);
 }
 
-int mysql_request(swString *sql, swString *buffer)
+int mysql_request_pack(swString *sql, swString *buffer)
 {
+    swString_clear(buffer);
     bzero(buffer->str, 5);
     //length
     mysql_pack_length(sql->length + 1, buffer->str);
@@ -409,8 +410,9 @@ int mysql_request(swString *sql, swString *buffer)
     return swString_append(buffer, sql);
 }
 
-int mysql_prepare(swString *sql, swString *buffer)
+int mysql_prepare_pack(swString *sql, swString *buffer)
 {
+    swString_clear(buffer);
     bzero(buffer->str, 5);
     //length
     mysql_pack_length(sql->length + 1, buffer->str);
@@ -2125,9 +2127,7 @@ int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callba
 
     client->cmd = SW_MYSQL_COM_QUERY;
 
-    swString_clear(mysql_request_buffer);
-
-    if (mysql_request(sql, mysql_request_buffer) < 0)
+    if (mysql_request_pack(sql, mysql_request_buffer) < 0)
     {
         return SW_ERR;
     }

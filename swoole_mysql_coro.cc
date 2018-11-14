@@ -522,7 +522,7 @@ static int swoole_mysql_coro_statement_close(mysql_statement *stmt)
     mysql_request_buffer->length += 4;
     //length
     mysql_pack_length(mysql_request_buffer->length - 4, mysql_request_buffer->str);
-    //send data, mysql-server would not reply
+    //tell sever to close the statement, mysql-server would not reply
     SwooleG.main_reactor->write(SwooleG.main_reactor, stmt->client->fd, mysql_request_buffer->str, mysql_request_buffer->length);
 
     return SW_OK;
@@ -851,8 +851,6 @@ static PHP_METHOD(swoole_mysql_coro, query)
         RETURN_FALSE;
     }
 
-    swString_clear(mysql_request_buffer);
-
     if (mysql_query(getThis(), client, &sql, NULL) < 0)
     {
         RETURN_FALSE;
@@ -1051,13 +1049,11 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
     client->cmd = SW_MYSQL_COM_STMT_PREPARE;
     client->state = SW_MYSQL_STATE_READ_START;
 
-    swString_clear(mysql_request_buffer);
-
-    if (mysql_prepare(&sql, mysql_request_buffer) < 0)
+    if (mysql_prepare_pack(&sql, mysql_request_buffer) < 0)
     {
         RETURN_FALSE;
     }
-    //send query
+    //send prepare command
     if (SwooleG.main_reactor->write(SwooleG.main_reactor, client->fd, mysql_request_buffer->str, mysql_request_buffer->length) < 0)
     {
         //connection is closed
@@ -1250,7 +1246,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, nextResult)
     }
     else
     {
-        RETURN_NULL()
+        RETURN_NULL();
     }
 }
 
