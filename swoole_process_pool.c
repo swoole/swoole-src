@@ -224,7 +224,7 @@ static PHP_METHOD(swoole_process_pool, __construct)
         RETURN_FALSE;
     }
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|ll", &worker_num, &ipc_type, &msgq_key) == FAILURE)
+    if (zend_parse_parameters_throw(ZEND_NUM_ARGS(), "l|ll", &worker_num, &ipc_type, &msgq_key) == FAILURE)
     {
         RETURN_FALSE;
     }
