@@ -188,7 +188,7 @@ static void php_swoole_process_pool_onWorkerStop(swProcessPool *pool, int worker
     }
 }
 
-static void php_swoole_process_pool_signal_hanlder(int sig)
+static void php_swoole_process_pool_signal_handler(int sig)
 {
     switch (sig)
     {
@@ -406,9 +406,9 @@ static PHP_METHOD(swoole_process_pool, start)
 
     SwooleG.use_signalfd = 0;
 
-    swSignal_add(SIGTERM, php_swoole_process_pool_signal_hanlder);
-    swSignal_add(SIGUSR1, php_swoole_process_pool_signal_hanlder);
-    swSignal_add(SIGUSR2, php_swoole_process_pool_signal_hanlder);
+    swSignal_add(SIGTERM, php_swoole_process_pool_signal_handler);
+    swSignal_add(SIGUSR1, php_swoole_process_pool_signal_handler);
+    swSignal_add(SIGUSR2, php_swoole_process_pool_signal_handler);
 
     if (pool->ipc_mode > SW_IPC_NONE)
     {
