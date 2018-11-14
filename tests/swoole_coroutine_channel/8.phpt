@@ -44,4 +44,3 @@ swoole_event::wait();
 [pop & push]3
 [pop & push]4
 [pop & push]5
-

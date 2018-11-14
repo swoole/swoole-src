@@ -43,4 +43,3 @@ swoole_event::wait();
 [read & write]3
 [read & write]4
 [read & write]5
-

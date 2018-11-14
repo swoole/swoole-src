@@ -41,4 +41,3 @@ parent_child(function ($pid)
 ?>
 --EXPECT--
 SUCCESS
-

@@ -419,8 +419,7 @@ PHP_FUNCTION(swoole_coroutine_create)
     Z_TRY_ADDREF_P(callback);
 
     zval *retval = NULL;
-    zval *args[1];
-    int cid = coro_create(func_cache, args, 0, &retval, NULL, NULL);
+    int cid = sw_coro_create(func_cache, NULL, 0, retval);
     sw_zval_free(callback);
     efree(func_cache);
     if (EG(exception))
@@ -534,7 +533,7 @@ static void aio_onReadCompleted(swAio_event *event)
     }
 
     php_context *context = (php_context *) event->object;
-    int ret = coro_resume(context, result, &retval);
+    int ret = sw_coro_resume(context, result, retval);
     if (ret == CORO_END && retval)
     {
         zval_ptr_dtor(retval);
@@ -569,7 +568,7 @@ static void aio_onFgetsCompleted(swAio_event *event)
         stream->eof = 1;
     }
 
-    int ret = coro_resume(context, result, &retval);
+    int ret = sw_coro_resume(context, result, retval);
     if (ret == CORO_END && retval)
     {
         zval_ptr_dtor(retval);
@@ -595,7 +594,7 @@ static void aio_onWriteCompleted(swAio_event *event)
     }
 
     php_context *context = (php_context *) event->object;
-    int ret = coro_resume(context, result, &retval);
+    int ret = sw_coro_resume(context, result, retval);
     if (ret == CORO_END && retval)
     {
         zval_ptr_dtor(retval);
@@ -638,7 +637,7 @@ static int co_socket_onReadable(swReactor *reactor, swEvent *event)
         sock->buf->len = n;
         ZVAL_STR(&result, sock->buf);
     }
-    int ret = coro_resume(context, &result, &retval);
+    int ret = sw_coro_resume(context, &result, retval);
     zval_ptr_dtor(&result);
     if (ret == CORO_END && retval)
     {
@@ -674,7 +673,7 @@ static int co_socket_onWritable(swReactor *reactor, swEvent *event)
     {
         ZVAL_LONG(&result, n);
     }
-    int ret = coro_resume(context, &result, &retval);
+    int ret = sw_coro_resume(context, &result, retval);
     zval_ptr_dtor(&result);
     if (ret == CORO_END && retval)
     {
@@ -710,8 +709,8 @@ static void co_socket_read(int fd, zend_long length, INTERNAL_FUNCTION_PARAMETER
 
     sock->context.state = SW_CORO_CONTEXT_RUNNING;
 
-    coro_save(&sock->context);
-    coro_yield();
+    sw_coro_save(return_value, &sock->context);
+    sw_coro_yield();
 }
 
 static void co_socket_write(int fd, char* str, size_t l_str, INTERNAL_FUNCTION_PARAMETERS)
@@ -748,8 +747,8 @@ static void co_socket_write(int fd, char* str, size_t l_str, INTERNAL_FUNCTION_P
 
     sock->nbytes = l_str;
 
-    coro_save(context);
-    coro_yield();
+    sw_coro_save(return_value, context);
+    sw_coro_yield();
 }
 
 static PHP_METHOD(swoole_coroutine_util, fread)
@@ -837,8 +836,8 @@ static PHP_METHOD(swoole_coroutine_util, fread)
 
     context->state = SW_CORO_CONTEXT_RUNNING;
 
-    coro_save(context);
-    coro_yield();
+    sw_coro_save(return_value, context);
+    sw_coro_yield();
 }
 
 static PHP_METHOD(swoole_coroutine_util, fgets)
@@ -921,8 +920,8 @@ static PHP_METHOD(swoole_coroutine_util, fgets)
     context->coro_params = *handle;
     context->state = SW_CORO_CONTEXT_RUNNING;
 
-    coro_save(context);
-    coro_yield();
+    sw_coro_save(return_value, context);
+    sw_coro_yield();
 }
 
 static PHP_METHOD(swoole_coroutine_util, fwrite)
@@ -999,8 +998,8 @@ static PHP_METHOD(swoole_coroutine_util, fwrite)
 
     context->state = SW_CORO_CONTEXT_RUNNING;
 
-    coro_save(context);
-    coro_yield();
+    sw_coro_save(return_value, context);
+    sw_coro_yield();
 }
 
 static PHP_METHOD(swoole_coroutine_util, readFile)
@@ -1094,7 +1093,7 @@ static void coro_dns_onResolveCompleted(swAio_event *event)
         ZVAL_BOOL(result, 0);
     }
 
-    int ret = coro_resume(context, result, &retval);
+    int ret = sw_coro_resume(context, result, retval);
     if (ret == CORO_END && retval)
     {
         zval_ptr_dtor(retval);
@@ -1149,7 +1148,7 @@ static void coro_dns_onGetaddrinfoCompleted(swAio_event *event)
         SwooleG.error = req->error;
     }
 
-    int ret = coro_resume(context, result, &retval);
+    int ret = sw_coro_resume(context, result, retval);
     if (ret == CORO_END && retval)
     {
         zval_ptr_dtor(retval);
@@ -1227,8 +1226,8 @@ PHP_FUNCTION(swoole_coroutine_gethostbyname)
         RETURN_FALSE;
     }
 
-    coro_save(context);
-    coro_yield();
+    sw_coro_save(return_value, context);
+    sw_coro_yield();
 }
 
 static PHP_METHOD(swoole_coroutine_util, getaddrinfo)
@@ -1302,8 +1301,8 @@ static PHP_METHOD(swoole_coroutine_util, getaddrinfo)
         RETURN_FALSE;
     }
 
-    coro_save(context);
-    coro_yield();
+    sw_coro_save(return_value, context);
+    sw_coro_yield();
 }
 
 static PHP_METHOD(swoole_coroutine_util, getBackTrace)
@@ -1328,7 +1327,7 @@ static PHP_METHOD(swoole_coroutine_util, getBackTrace)
             RETURN_FALSE;
         }
         zend_execute_data *ex_backup = EG(current_execute_data);
-        EG(current_execute_data) = task->yield_task->execute_data;
+        EG(current_execute_data) = task->execute_data;
         zend_fetch_debug_backtrace(return_value, 0, options, limit);
         EG(current_execute_data) = ex_backup;
     }

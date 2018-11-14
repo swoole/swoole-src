@@ -85,7 +85,7 @@ define __co_bt
             set $task = (coro_task *)$co->task
             if $task
                 set $backup = $eg.current_execute_data
-                dump_bt $task->yield_task->execute_data
+                dump_bt $task->execute_data
                 set $eg.current_execute_data = $backup
             end
         end

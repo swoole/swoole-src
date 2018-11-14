@@ -51,4 +51,3 @@ $pm->run();
 ?>
 --EXPECT--
 close
-

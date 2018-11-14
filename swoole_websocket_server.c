@@ -240,7 +240,7 @@ void swoole_websocket_onOpen(http_context *ctx)
             args[0] = zserv;
             args[1] = zrequest_object;
 
-            int ret = coro_create(cache, args, 2, &retval, NULL, NULL);
+            int ret = sw_coro_create(cache, args, 2, retval);
             if (ret == CORO_LIMIT)
             {
                 SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
@@ -394,7 +394,7 @@ int swoole_websocket_onMessage(swEventData *req)
         args[1] = zframe;
 
         zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onMessage);
-        int ret = coro_create(cache, args, 2, &retval, NULL, NULL);
+        int ret = sw_coro_create(cache, args, 2, retval);
         if (ret == CORO_LIMIT)
         {
             zval_ptr_dtor(zdata);

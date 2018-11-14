@@ -10,11 +10,13 @@ extern "C" {
 
 /* PHP 7.0 compatibility macro {{{*/
 #if PHP_VERSION_ID < 70100
-#define SW_SAVE_EG_SCOPE(_scope) zend_class_entry *_scope = EG(scope)
-#define SW_RESUME_EG_SCOPE(_scope) EG(scope) = _scope
+#define SW_DECLARE_EG_SCOPE(_scope) zend_class_entry *_scope
+#define SW_SAVE_EG_SCOPE(_scope) _scope = EG(scope)
+#define SW_SET_EG_SCOPE(_scope) EG(scope) = _scope
 #else
+#define SW_DECLARE_EG_SCOPE(_scope)
 #define SW_SAVE_EG_SCOPE(scope)
-#define SW_RESUME_EG_SCOPE(scope)
+#define SW_SET_EG_SCOPE(scope)
 #endif/*}}}*/
 
 /* PHP 7.3 compatibility macro {{{*/
@@ -46,7 +48,7 @@ typedef struct _coro_task
     zend_output_globals *output_ptr;
     coroutine_t *co;
     struct _coro_task *origin_task;
-    struct _coro_task *yield_task;
+    SW_DECLARE_EG_SCOPE(scope);
 } coro_task;
 
 typedef struct _php_args
@@ -96,19 +98,12 @@ void coro_destroy(void);
 void coro_check(void);
 
 #define sw_coro_is_in() (sw_get_current_cid() != -1)
-#define coro_create(op_array, argv, argc, retval, post_callback, param) \
-        sw_coro_create(op_array, argv, argc, *retval, post_callback, param)
-#define coro_save(sw_php_context) \
-        sw_coro_save(return_value, sw_php_context);
-#define coro_resume(sw_current_context, retval, coro_retval) \
-        sw_coro_resume(sw_current_context, retval, *coro_retval)
-#define coro_yield() sw_coro_yield()
 #define coro_use_return_value(); *(zend_uchar *) &execute_data->prev_execute_data->opline->result_type = IS_VAR;
 
 /* output globals */
 #define SWOG ((zend_output_globals *) &OG(handlers))
 
-int sw_coro_create(zend_fcall_info_cache *op_array, zval **argv, int argc, zval *retval, void *post_callback, void *param);
+int sw_coro_create(zend_fcall_info_cache *op_array, zval **argv, int argc, zval *retval);
 void sw_coro_yield();
 void sw_coro_close();
 int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_retval);
