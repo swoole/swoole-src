@@ -14,7 +14,6 @@ define co_list
     if COROG.coro_num == 0
         printf "no coroutines running \n"
     end
-    ____executor_globals
     set $cid = 1
     while $cid < COROG.coro_num + 1
         if swCoroG.coroutines[$cid]
@@ -41,27 +40,42 @@ define co_list
     end
 end
 
-define co_backtrace
+define co_bt
     if COROG.coro_num == 0
         printf "no coroutines running \n"
     end
     ____executor_globals
-    ____get_current    
-    if $current_co && $current_co->cid
-        color $GREEN
-        printf "coroutine cid:[%d]\n",$current_co->cid
-        color_reset
-        co_bt $current_co->cid
-    else   
-        printf "no coroutine running\n"
+    ____get_current
+    if $argc > 0
+        set $cid = (int)$arg0
+        if $current_co && $current_cid == $cid
+            color $GREEN
+            printf "coroutine cid:[%d]\n",$cid
+            color_reset
+            __co_bt $cid
+        else
+            printf "coroutine cid:[%d]\n",$cid
+            __co_bt $cid
+        end    
+    else
+        set $cid = $current_cid
+        if $current_co && $cid > 0
+            color $GREEN
+            printf "coroutine cid:[%d]\n",$cid
+            color_reset
+            __co_bt $cid
+        else
+            printf "not in coroutine\n"
+        end
     end
 end
 
-document co_backtrace
-    dump current coroutine backtrace.
+document co_bt
+    dump current coroutine or the cid backtrace.
+    useage: co_bt [cid]
 end
 
-define co_bt
+define __co_bt
     set $cid = (int)$arg0
     if swCoroG.coroutines[$cid]     
         if $current_co && $cid == $current_co->cid
@@ -71,7 +85,7 @@ define co_bt
             set $task = (coro_task *)$co->task
             if $task
                 set $backup = $eg.current_execute_data
-                dump_bt $task->yield_execute_data
+                dump_bt $task->execute_data
                 set $eg.current_execute_data = $backup
             end
         end
@@ -81,12 +95,12 @@ define co_bt
 end
 
 define co_status
-    printf "Coro stack_size: %d\n",  swCoroG.stack_size
-    printf "Coro call_stack_size: %d\n",  swCoroG.call_stack_size
-    printf "Coro active: %d\n",  COROG.active
-    printf "Coro coro_num: %d\n",  COROG.coro_num
-    printf "Coro max_coro_num: %d\n",  COROG.max_coro_num
-    printf "Coro peak_coro_num: %d\n",  COROG.peak_coro_num
+    printf "\t stack_size: %d\n",  swCoroG.stack_size
+    printf "\t call_stack_size: %d\n",  swCoroG.call_stack_size
+    printf "\t active: %d\n",  COROG.active
+    printf "\t coro_num: %d\n",  COROG.coro_num
+    printf "\t max_coro_num: %d\n",  COROG.max_coro_num
+    printf "\t peak_coro_num: %d\n",  COROG.peak_coro_num
 end
 
 define ____executor_globals
