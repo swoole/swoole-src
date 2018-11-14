@@ -45,7 +45,7 @@ static sw_inline void swServer_reactor_schedule(swServer *serv)
 #endif
 
 static int swServer_start_check(swServer *serv);
-static void swServer_signal_hanlder(int sig);
+static void swServer_signal_handler(int sig);
 static int swServer_start_proxy(swServer *serv);
 static void swServer_disable_accept(swReactor *reactor);
 
@@ -1203,17 +1203,17 @@ void swServer_signal_init(swServer *serv)
     swSignal_add(SIGHUP, NULL);
     if (serv->factory_mode == SW_MODE_PROCESS)
     {
-        swSignal_add(SIGCHLD, swServer_signal_hanlder);
+        swSignal_add(SIGCHLD, swServer_signal_handler);
     }
-    swSignal_add(SIGUSR1, swServer_signal_hanlder);
-    swSignal_add(SIGUSR2, swServer_signal_hanlder);
-    swSignal_add(SIGTERM, swServer_signal_hanlder);
+    swSignal_add(SIGUSR1, swServer_signal_handler);
+    swSignal_add(SIGUSR2, swServer_signal_handler);
+    swSignal_add(SIGTERM, swServer_signal_handler);
 #ifdef SIGRTMIN
-    swSignal_add(SIGRTMIN, swServer_signal_hanlder);
+    swSignal_add(SIGRTMIN, swServer_signal_handler);
 #endif
     swSignal_add(SIGALRM, swSystemTimer_signal_handler);
     //for test
-    swSignal_add(SIGVTALRM, swServer_signal_hanlder);
+    swSignal_add(SIGVTALRM, swServer_signal_handler);
     swServer_set_minfd(SwooleG.serv, SwooleG.signal_fd);
 }
 
@@ -1562,7 +1562,7 @@ int swServer_get_socket(swServer *serv, int port)
     return SW_ERR;
 }
 
-static void swServer_signal_hanlder(int sig)
+static void swServer_signal_handler(int sig)
 {
     swTraceLog(SW_TRACE_SERVER, "signal[%d] triggered.", sig);
 
