@@ -342,6 +342,8 @@ if test "$PHP_SWOOLE" != "no"; then
                 AC_DEFINE(HAVE_LIBPQ, 1, [have libpq])
                 AC_MSG_RESULT(libpq include success)
                 PHP_ADD_INCLUDE("${PHP_LIBPQ_DIR}/include")
+                PHP_ADD_LIBRARY_WITH_PATH(pq, "${PHP_LIBPQ_DIR}/${PHP_LIBDIR}")
+                PGSQL_INCLUDE=$PHP_LIBPQ_DIR/include
             else
                 PGSQL_SEARCH_PATHS="/usr /usr/local /usr/local/pgsql"
                 for i in $PGSQL_SEARCH_PATHS; do
