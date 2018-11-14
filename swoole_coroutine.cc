@@ -278,7 +278,7 @@ static void php_coro_create(void *arg)
 
 static sw_inline void php_coro_yield(coro_task *task)
 {
-    swTraceLog(SW_TRACE_COROUTINE,"php_coro_yield cid=%d", task->cid);
+    swTraceLog(SW_TRACE_COROUTINE,"php_coro_yield from cid=%d to cid=%d", task->cid, task->origin_task->cid);
     php_coro_save_vm_stack(task);
     php_coro_restore_vm_stack(task->origin_task);
     php_coro_og_yield(task);
@@ -286,10 +286,10 @@ static sw_inline void php_coro_yield(coro_task *task)
 
 static sw_inline void php_coro_resume(coro_task *task)
 {
-    swTraceLog(SW_TRACE_COROUTINE,"php_coro_resume cid=%d", task->cid);
     task->origin_task = php_coro_get_current_task();
     php_coro_restore_vm_stack(task);
     php_coro_og_resume(task);
+    swTraceLog(SW_TRACE_COROUTINE,"php_coro_resume from cid=%d to cid=%d", task->origin_task->cid, task->cid);
 }
 
 static sw_inline void php_coro_close(coro_task *task)
