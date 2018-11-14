@@ -32,12 +32,14 @@ struct coroutine_s
 public:
     Context ctx;
     int cid;
+    sw_coro_state state;
     void *task;
     coroutine_s(int _cid, size_t stack_size, coroutine_func_t fn, void *private_data) :
             ctx(stack_size, fn, private_data)
     {
         cid = _cid;
         task = NULL;
+        state = SW_CORO_INIT;
     }
 };
 
@@ -143,9 +145,11 @@ int coroutine_create(coroutine_func_t fn, void* args)
     coroutine_t *co = new coroutine_s(cid, swCoroG.stack_size, fn, args);
     swCoroG.coroutines[cid] = co;
     swCoroG.call_stack[swCoroG.call_stack_size++] = co;
+    co->state = SW_CORO_RUNNING;
     co->ctx.SwapIn();
     if (co->ctx.end)
     {
+        co->state = SW_CORO_END;
         coroutine_release(co);
     }
     return cid;
@@ -158,6 +162,7 @@ void coroutine_yield(coroutine_t *co)
         swCoroG.onYield(co->task);
     }
     swCoroG.call_stack_size--;
+    co->state = SW_CORO_YIELD;
     co->ctx.SwapOut();
 }
 
@@ -168,6 +173,7 @@ void coroutine_resume(coroutine_t *co)
         swCoroG.onResume(co->task);
     }
     swCoroG.call_stack[swCoroG.call_stack_size++] = co;
+    co->state = SW_CORO_RUNNING;
     co->ctx.SwapIn();
     if (co->ctx.end)
     {
@@ -178,12 +184,14 @@ void coroutine_resume(coroutine_t *co)
 void coroutine_yield_naked(coroutine_t *co)
 {
     swCoroG.call_stack_size--;
+    co->state = SW_CORO_YIELD;
     co->ctx.SwapOut();
 }
 
 void coroutine_resume_naked(coroutine_t *co)
 {
     swCoroG.call_stack[swCoroG.call_stack_size++] = co;
+    co->state = SW_CORO_RUNNING;
     co->ctx.SwapIn();
     if (co->ctx.end)
     {
@@ -193,6 +201,7 @@ void coroutine_resume_naked(coroutine_t *co)
 
 void coroutine_release(coroutine_t *co)
 {
+    co->state = SW_CORO_END;
     if (swCoroG.onClose)
     {
         swCoroG.onClose();

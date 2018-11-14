@@ -1502,20 +1502,35 @@ static PHP_METHOD(swoole_client, recv)
         {
             cli->buffer = swString_new(SW_BUFFER_SIZE_STD);
         }
+        else
+        {
+            swString_clear(cli->buffer);
+        }
 
         uint32_t header_len = protocol->package_length_offset + protocol->package_length_size;
-        ret = cli->recv(cli, cli->buffer->str, header_len, MSG_WAITALL);
-        if (ret <= 0)
-        {
-            goto check_return;
-        }
-        else if (ret != header_len)
-        {
-            ret = 0;
-            goto check_return;
-        }
 
-        buf_len = protocol->get_package_length(protocol, cli->socket, cli->buffer->str, ret);
+        while (1)
+        {
+            int retval = cli->recv(cli, cli->buffer->str + cli->buffer->length, header_len - cli->buffer->length, 0);
+            if (retval <= 0)
+            {
+                break;
+            }
+            cli->buffer->length += retval;
+            buf_len = protocol->get_package_length(protocol, cli->socket, cli->buffer->str, cli->buffer->length);
+            if (buf_len == 0)
+            {
+                continue;
+            }
+            else if (buf_len < 0)
+            {
+                break;
+            }
+            else
+            {
+                break;
+            }
+        }
 
         //error package
         if (buf_len < 0)
@@ -1532,11 +1547,15 @@ static PHP_METHOD(swoole_client, recv)
             swoole_error_log(SW_LOG_WARNING, SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "Package is too big. package_length=%d", (int )buf_len);
             RETURN_EMPTY_STRING();
         }
+        else if (buf_len == cli->buffer->length)
+        {
+            RETURN_STRINGL(cli->buffer->str, cli->buffer->length);
+        }
 
         buf = (char *) emalloc(buf_len + 1);
-        memcpy(buf, cli->buffer->str, header_len);
+        memcpy(buf, cli->buffer->str, cli->buffer->length);
         SwooleG.error = 0;
-        ret = cli->recv(cli, buf + header_len, buf_len - header_len, MSG_WAITALL);
+        ret = cli->recv(cli, buf + header_len, buf_len - cli->buffer->length, MSG_WAITALL);
         if (ret > 0)
         {
             ret += header_len;
@@ -1556,8 +1575,6 @@ static PHP_METHOD(swoole_client, recv)
         SwooleG.error = 0;
         ret = cli->recv(cli, buf, buf_len, flags);
     }
-
-    check_return:
 
     if (ret < 0)
     {

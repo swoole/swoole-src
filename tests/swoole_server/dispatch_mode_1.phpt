@@ -59,7 +59,7 @@ $pm->parentFunc = function ($pid) use ($port)
         {
 
         });
-        $cli->connect("127.0.0.1", $port, 0.1);
+        $cli->connect('127.0.0.1', $port, 0.1);
     }
     swoole_event::wait();
     swoole_process::kill($pid);
@@ -71,7 +71,7 @@ $pm->parentFunc = function ($pid) use ($port)
 
 $pm->childFunc = function () use ($pm, $port)
 {
-    $serv = new swoole_server("127.0.0.1", $port, SWOOLE_PROCESS);
+    $serv = new swoole_server('127.0.0.1', $port, SWOOLE_PROCESS);
     $serv->set(array(
         "worker_num" => WORKER_N,
         'dispatch_mode' => 1,

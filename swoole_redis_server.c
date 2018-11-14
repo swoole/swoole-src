@@ -209,7 +209,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
         args[1] = zparams;
 
         zend_fcall_info_cache *cache = func_cache_array.array[Z_LVAL_P(zindex)];
-        if (coro_create(cache, args, 2, &retval, NULL, NULL) < 0)
+        if (sw_coro_create(cache, args, 2, retval) < 0)
         {
             zval_ptr_dtor(zfd);
             zval_ptr_dtor(zdata);

@@ -482,7 +482,7 @@ static PHP_METHOD(swoole_process, signal)
 
     if (signo < 0 || signo >= SW_SIGNO_MAX)
     {
-        swoole_php_fatal_error(E_WARNING, "invalid signal number [%d].", signo);
+        swoole_php_fatal_error(E_WARNING, "invalid signal number [%ld].", signo);
         RETURN_FALSE;
     }
 
@@ -491,7 +491,7 @@ static PHP_METHOD(swoole_process, signal)
 
     if (handler && handler != php_swoole_onSignal)
     {
-        swoole_php_fatal_error(E_WARNING, "This signal [%d] processor has been registered by the system.", signo);
+        swoole_php_fatal_error(E_WARNING, "This signal [%ld] processor has been registered by the system.", signo);
         RETURN_FALSE
     }
 
@@ -575,7 +575,7 @@ static PHP_METHOD(swoole_process, alarm)
         RETURN_FALSE;
     }
 
-    if (SwooleG.timer.fd != 0)
+    if (SwooleG.timer.initialized != 0)
     {
         swoole_php_fatal_error(E_WARNING, "cannot use both 'timer' and 'alarm' at the same time.");
         RETURN_FALSE;
@@ -657,6 +657,51 @@ zend_bool php_swoole_signal_isset_handler(int signo)
     return signal_callback[signo] != NULL;
 }
 
+void php_swoole_process_clean()
+{
+    /**
+     * Close EventLoop
+     */
+    if (SwooleG.main_reactor)
+    {
+        SwooleG.main_reactor->free(SwooleG.main_reactor);
+        SwooleG.main_reactor = NULL;
+        swTraceLog(SW_TRACE_PHP, "destroy reactor");
+    }
+
+    bzero(&SwooleWG, sizeof(SwooleWG));
+    SwooleG.pid = getpid();
+
+    if (SwooleG.process_type != SW_PROCESS_USERWORKER)
+    {
+        SwooleG.process_type = 0;
+    }
+
+    SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
+    if (SwooleG.memory_pool == NULL)
+    {
+        printf("[Process] Fatal Error: global memory allocation failure.");
+        exit(1);
+    }
+
+    if (SwooleG.timer.initialized)
+    {
+        swTimer_free(&SwooleG.timer);
+        bzero(&SwooleG.timer, sizeof(SwooleG.timer));
+    }
+
+    swSignal_clear();
+    int i;
+    for (i = 0; i < SW_SIGNO_MAX; i++)
+    {
+        if (signal_callback[i])
+        {
+            sw_zval_free(signal_callback[i]);
+            signal_callback[i] = NULL;
+        }
+    }
+}
+
 int php_swoole_process_start(swWorker *process, zval *zobject)
 {
     process->pipe = process->pipe_worker;
@@ -686,40 +731,8 @@ int php_swoole_process_start(swWorker *process, zval *zobject)
         }
     }
 
-    /**
-     * Close EventLoop
-     */
-    if (SwooleG.main_reactor)
-    {
-        SwooleG.main_reactor->free(SwooleG.main_reactor);
-        SwooleG.main_reactor = NULL;
-        swTraceLog(SW_TRACE_PHP, "destroy reactor");
-    }
-
-    bzero(&SwooleWG, sizeof(SwooleWG));
-    SwooleG.pid = process->pid;
-    if (SwooleG.process_type != SW_PROCESS_USERWORKER)
-    {
-        SwooleG.process_type = 0;
-    }
+    php_swoole_process_clean();
     SwooleWG.id = process->id;
-
-    if (SwooleG.timer.fd)
-    {
-        swTimer_free(&SwooleG.timer);
-        bzero(&SwooleG.timer, sizeof(SwooleG.timer));
-    }
-
-    swSignal_clear();
-    int i;
-    for(i=0; i<SW_SIGNO_MAX; i++)
-    {
-        if (signal_callback[i])
-        {
-            sw_zval_free(signal_callback[i]);
-            signal_callback[i] = NULL;
-        }
-    }
 
     zend_update_property_long(swoole_process_class_entry_ptr, zobject, ZEND_STRL("pid"), process->pid);
     zend_update_property_long(swoole_process_class_entry_ptr, zobject, ZEND_STRL("pipe"), process->pipe_worker);

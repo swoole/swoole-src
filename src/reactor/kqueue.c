@@ -291,7 +291,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
         if (reactor->timeout_msec > 0)
         {
             t.tv_sec = reactor->timeout_msec / 1000;
-            t.tv_nsec = (reactor->timeout_msec - t.tv_sec * 1000) * 1000;
+            t.tv_nsec = (reactor->timeout_msec - t.tv_sec * 1000) * 1000 * 1000;
             t_ptr = &t;
         }
         else

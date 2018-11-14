@@ -87,7 +87,7 @@ int daemon(int nochdir, int noclose);
 
 /*----------------------------------------------------------------------------*/
 
-#define SWOOLE_VERSION "4.2.6-alpha"
+#define SWOOLE_VERSION "4.2.7"
 #define SWOOLE_BUG_REPORT \
     "A bug occurred in Swoole-v" SWOOLE_VERSION ", please report it.\n"\
     "The Swoole developers probably don't know about it,\n"\
@@ -1381,6 +1381,7 @@ static sw_inline uint64_t swoole_ntoh64(uint64_t net)
 
 int swSocket_create(int type);
 int swSocket_bind(int sock, int type, char *host, int *port);
+int swSocket_accept(int fd, swSocketAddress *sa);
 int swSocket_wait(int fd, int timeout_ms, int events);
 int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events);
 void swSocket_clean(int fd);
@@ -2034,17 +2035,15 @@ enum swTimer_type
 struct _swTimer
 {
     /*--------------signal timer--------------*/
+    uint8_t initialized;
     swHeap *heap;
     swHashMap *map;
     int num;
-    int use_pipe;
     int lasttime;
-    int fd;
     uint64_t round;
     long _next_id;
     long _current_id;
     long _next_msec;
-    swPipe pipe;
     /*-----------------for EventTimer-------------------*/
     struct timeval basetime;
     /*--------------------------------------------------*/
@@ -2062,7 +2061,7 @@ static sw_inline swTimer_node* swTimer_get(swTimer *timer, long id)
     return (swTimer_node*) swHashMap_find_int(timer->map, id);
 }
 
-int swSystemTimer_init(int msec, int use_pipe);
+int swSystemTimer_init(int msec);
 void swSystemTimer_signal_handler(int sig);
 int swSystemTimer_event_handler(swReactor *reactor, swEvent *event);
 
@@ -2150,11 +2149,6 @@ typedef struct
     uint8_t socket_dontwait :1;
     uint8_t dns_lookup_random :1;
     uint8_t use_async_resolver :1;
-
-    /**
-     * Timer used pipe
-     */
-    uint8_t use_timer_pipe :1;
 
     int error;
     int process_type;

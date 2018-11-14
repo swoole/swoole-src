@@ -19,6 +19,6 @@ go(function () use ($c1) {
     echo "chan push ret:".var_export($ret,1)." error:".$c1->errCode."\n";
 });
 ?>
---EXPECTF--
-chan push ret:true error:0
+--EXPECT--
 pop ret:'chan-1' error:0
+chan push ret:true error:0

@@ -907,9 +907,13 @@ static void redis_request(swRedisClient *redis, int argc, char **argv, size_t *a
     {
         if (redisAppendCommandArgv(redis->context, argc, (const char **) argv, (const size_t *) argvlen) == REDIS_ERR)
         {
-            zend_update_property_long(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errCode"), redis->context->err);
+            _error: zend_update_property_long(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errCode"), redis->context->err);
             zend_update_property_string(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), redis->context->errstr);
             ZVAL_FALSE(return_value);
+            if (redis->context->err == REDIS_ERR_EOF)
+            {
+                zend_update_property_bool(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("connected"), 0);
+            }
         }
         else
         {
@@ -922,9 +926,7 @@ static void redis_request(swRedisClient *redis, int argc, char **argv, size_t *a
         redisReply *reply = (redisReply *) redisCommandArgv(redis->context, argc, (const char **) argv, (const size_t *) argvlen);
         if (reply == nullptr)
         {
-            zend_update_property_long(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errCode"), SW_REDIS_ERR_OTHER);
-            zend_update_property_string(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), "redisCommandArgv() failed.");
-            ZVAL_FALSE(return_value);
+            goto _error;
         }
         else
         {

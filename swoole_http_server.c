@@ -602,7 +602,7 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
         }
         goto free_memory;
     }
-    else if (SwooleG.serv->listen_list->open_websocket_protocol && strncmp(header_name, "upgrade", header_len) == 0 && strncasecmp(at, "websocket", length) == 0)
+    else if (strncmp(header_name, "upgrade", header_len) == 0 && strncasecmp(at, "websocket", length) == 0)
     {
         swConnection *conn = swWorker_get_connection(SwooleG.serv, ctx->fd);
         if (!conn)
@@ -610,7 +610,11 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
             swWarn("connection[%d] is closed.", ctx->fd);
             return SW_ERR;
         }
-        conn->websocket_status = WEBSOCKET_STATUS_CONNECTION;
+        swListenPort *port = (swListenPort *) SwooleG.serv->connection_list[conn->from_fd].object;
+        if (port->open_websocket_protocol)
+        {
+            conn->websocket_status = WEBSOCKET_STATUS_CONNECTION;
+        }
     }
     else if (parser->method == PHP_HTTP_POST || parser->method == PHP_HTTP_PUT || parser->method == PHP_HTTP_DELETE || parser->method == PHP_HTTP_PATCH)
     {
@@ -1082,8 +1086,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
     else
     {
         zval *retval = NULL;
-        zend_bool destruct_request = 0;
-        zend_bool destruct_response = 0;
+
         zval *zrequest_object = ctx->request.zobject;
         zval *zresponse_object = ctx->response.zobject;
 
@@ -1106,8 +1109,6 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
         if (!conn)
         {
             sw_zval_free(zdata);
-            zval_ptr_dtor(zrequest_object);
-            zval_ptr_dtor(zresponse_object);
             swWarn("connection[%d] is closed.", fd);
             return SW_ERR;
         }
@@ -1138,7 +1139,6 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
             if (zcallback == NULL)
             {
                 swoole_websocket_onHandshake(port, ctx);
-                destruct_response = 1;
                 goto _free_object;
             }
             else
@@ -1156,13 +1156,9 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
             if (zcallback == NULL)
             {
                 swoole_websocket_onRequest(ctx);
-                destruct_request = destruct_response = 1;
                 goto _free_object;
             }
         }
-
-        Z_DELREF_P(zrequest_object);
-        Z_DELREF_P(zresponse_object);
 
         if (SwooleG.enable_coroutine)
         {
@@ -1171,14 +1167,14 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
             args[1] = zresponse_object;
 
             zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, from_fd, callback_type);
-            int ret = coro_create(cache, args, 2, &retval, NULL, NULL);
+            int ret = sw_coro_create(cache, args, 2, retval);
             if (ret < 0)
             {
                 if (ret == CORO_LIMIT)
                 {
                     serv->factory.end(&SwooleG.serv->factory, fd);
-                    destruct_request = destruct_response = 1;
                 }
+                goto _free_object;
             }
         }
         else
@@ -1207,14 +1203,10 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
                 conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
             }
         }
-        _free_object: if (destruct_request)
-        {
-            zval_ptr_dtor(zrequest_object);
-        }
-        if (destruct_response)
-        {
-            zval_ptr_dtor(zresponse_object);
-        }
+
+        _free_object:
+        zval_ptr_dtor(zrequest_object);
+        zval_ptr_dtor(zresponse_object);
         if (retval)
         {
             zval_ptr_dtor(retval);

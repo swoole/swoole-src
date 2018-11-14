@@ -1,3 +1,4 @@
+#!/usr/bin/env php
 <?php
 define('EMOJI_OK', '✅');
 define('EMOJI_SUCCESS', '🚀');
@@ -56,8 +57,13 @@ function swoole_success(string $content)
 
 function swoole_execute_and_check(string $command)
 {
-    echo "========== Execute Script ==========\n";
+    $basename = pathinfo(explode(' ', $command)[1], PATHINFO_FILENAME);
+    echo "[{$basename}]\n";
+    echo "===========  Execute  ==============\n";
     exec($command, $output, $return_var);
+    if (substr($output[0] ?? '', 0, 2) === '#!') {
+        array_shift($output);
+    }
     echo '> ' . implode("\n> ", $output) . "\n";
     if ($return_var != 0) {
         swoole_error("Exec {$command} failed with code {$return_var}!");

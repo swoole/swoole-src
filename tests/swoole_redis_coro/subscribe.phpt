@@ -33,4 +33,3 @@ co::create(function () {
 
 ?>
 --EXPECT--
-

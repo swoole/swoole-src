@@ -145,6 +145,10 @@ extern swoole_object_array swoole_objects;
 #endif
 #endif
 
+#if PHP_VERSION_ID < 70300
+#define SW_USE_FAST_SERIALIZE 1
+#endif
+
 #if PHP_MAJOR_VERSION < 7
 #error "require PHP version 7.0 or later."
 #endif
@@ -275,9 +279,12 @@ PHP_FUNCTION(swoole_set_process_name);
 PHP_FUNCTION(swoole_get_local_ip);
 PHP_FUNCTION(swoole_get_local_mac);
 PHP_FUNCTION(swoole_call_user_shutdown_begin);
+//---------------------------------------------------------
+//                  Coroutine API
+//---------------------------------------------------------
 PHP_FUNCTION(swoole_coroutine_create);
 PHP_FUNCTION(swoole_coroutine_exec);
-
+PHP_FUNCTION(swoole_coroutine_gethostbyname);
 //---------------------------------------------------------
 //                  swoole_server
 //---------------------------------------------------------
@@ -373,9 +380,11 @@ PHP_FUNCTION(swoole_errno);
 //---------------------------------------------------------
 //                  serialize
 //---------------------------------------------------------
+#ifdef SW_USE_FAST_SERIALIZE
 PHP_FUNCTION(swoole_serialize);
 PHP_FUNCTION(swoole_fast_serialize);
 PHP_FUNCTION(swoole_unserialize);
+#endif
 
 void swoole_destory_table(zend_resource *rsrc);
 
@@ -412,9 +421,12 @@ void swoole_channel_init(int module_number);
 void swoole_ringqueue_init(int module_number);
 void swoole_msgqueue_init(int module_number);
 void swoole_channel_coro_init(int module_number);
+#ifdef SW_USE_FAST_SERIALIZE
 void swoole_serialize_init(int module_number);
+#endif
 void swoole_memory_pool_init(int module_number);
 
+void php_swoole_process_clean();
 int php_swoole_process_start(swWorker *process, zval *zobject);
 
 void php_swoole_reactor_init();
@@ -500,8 +512,10 @@ void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode);
 void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode);
 zend_bool php_swoole_signal_isset_handler(int signo);
 
+#ifdef SW_USE_FAST_SERIALIZE
 PHPAPI zend_string* php_swoole_serialize(zval *zvalue);
 PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, zval *zobject_args, long flag);
+#endif
 
 #ifdef SW_COROUTINE
 int php_coroutine_reactor_can_exit(swReactor *reactor);

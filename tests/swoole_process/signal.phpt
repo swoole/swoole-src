@@ -46,4 +46,3 @@ swoole_event_wait();
 CHILD SIGTERM
 CHILD EXIT
 PARENT WAIT
-

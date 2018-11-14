@@ -10,11 +10,11 @@ require __DIR__ . '/functions.php';
 
 function check_source_ver(string $expect_ver, $source_file)
 {
-    static $source_ver_regex = '/(SWOOLE_VERSION +)("?)(?<ver>[\w-.]+)("?)/';
+    static $source_ver_regex = '/(SWOOLE_VERSION +)("?)(?<ver>[\w\-.]+)("?)/';
     $replaced = false;
     _check:
     $source_content = file_get_contents($source_file);
-    if (!@preg_match($source_ver_regex, $source_content, $matches)) {
+    if (!preg_match($source_ver_regex, $source_content, $matches)) {
         swoole_log(
             "Warning: Match SWOOLE_VERSION Failed, skip check!\n",
             SWOOLE_COLOR_MAGENTA
@@ -53,9 +53,9 @@ function check_source_ver(string $expect_ver, $source_file)
 }
 
 // all check
-swoole_execute_and_check('php ' . __DIR__ . '/arginfo_check.php');
-swoole_execute_and_check('php ' . __DIR__ . '/config_generator.php');
-swoole_execute_and_check('php ' . __DIR__ . '/fix_test_title.php');
+swoole_execute_and_check('php ' . __DIR__ . '/arginfo-check.php');
+swoole_execute_and_check('php ' . __DIR__ . '/config-generator.php');
+swoole_execute_and_check('php ' . __DIR__ . '/fix-tests-title.php');
 
 // prepare
 swoole_ok('Start to package...');
@@ -113,6 +113,12 @@ foreach ($file_list_raw as $file) {
                 $role = 'doc';
                 break;
             case '':
+                static $spacial_source_list = [
+                    'Makefile' => true
+                ];
+                if ($spacial_source_list[pathinfo($file, PATHINFO_BASENAME)] ?? false) {
+                    break;
+                }
                 if (substr(file_get_contents("{$root_dir}/{$file}"), 0, 2) !== '#!') {
                     $role = 'doc';
                 }

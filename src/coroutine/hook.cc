@@ -205,7 +205,7 @@ int swoole_coroutine_poll(struct pollfd *fds, nfds_t nfds, int timeout)
         goto _poll;
     }
     Socket *socket = (Socket *) conn->object;
-    socket->setTimeout((double) timeout / 1000);
+    socket->set_timeout((double) timeout / 1000);
     if (fds[0].events & POLLIN)
     {
         fds[0].revents |= POLLIN;

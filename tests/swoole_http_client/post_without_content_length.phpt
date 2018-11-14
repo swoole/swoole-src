@@ -8,9 +8,9 @@ swoole_http_client: post without content-length
 require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid)
+$pm->parentFunc = function ($pid) use ($pm)
 {
-    $cli = new swoole_http_client('127.0.0.1', 9501);
+    $cli = new swoole_http_client('127.0.0.1', $pm->getFreePort());
     $cli->on('close', function ($cli)
     {
         echo "close\n";
@@ -26,7 +26,7 @@ $pm->parentFunc = function ($pid)
 
 $pm->childFunc = function () use ($pm)
 {
-    $serv = new \swoole_server('127.0.0.1', 9501, SWOOLE_BASE, SWOOLE_SOCK_TCP);
+    $serv = new \swoole_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE, SWOOLE_SOCK_TCP);
     $serv->on('workerStart', function (\swoole_server $serv)
     {
         /**
@@ -51,4 +51,3 @@ $pm->run();
 ?>
 --EXPECT--
 close
-

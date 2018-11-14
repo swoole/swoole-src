@@ -812,8 +812,8 @@ static PHP_METHOD(swoole_mysql_coro, connect)
         connector->timer = swTimer_add(&SwooleG.timer, (int) (connector->timeout * 1000), 0, context, swoole_mysql_coro_onTimeout);
     }
     client->cid = sw_get_current_cid();
-    coro_save(context);
-    coro_yield();
+    sw_coro_save(return_value, context);
+    sw_coro_yield();
 }
 
 static PHP_METHOD(swoole_mysql_coro, query)
@@ -874,8 +874,8 @@ static PHP_METHOD(swoole_mysql_coro, query)
         RETURN_TRUE;
     }
     client->cid = sw_get_current_cid();
-    coro_save(context);
-    coro_yield();
+    sw_coro_save(return_value, context);
+    sw_coro_yield();
 }
 
 static void swoole_mysql_coro_query_transcation(const char* command, uint8_t in_transaction, zend_execute_data *execute_data, zval *return_value)
@@ -930,9 +930,9 @@ static void swoole_mysql_coro_query_transcation(const char* command, uint8_t in_
             client->timer = swTimer_add(&SwooleG.timer, (int) (timeout * 1000), 0, context, swoole_mysql_coro_onTimeout);
         }
         client->cid = sw_get_current_cid();
-        coro_save(context);
+        sw_coro_save(return_value, context);
         coro_use_return_value();
-        coro_yield();
+        sw_coro_yield();
         // resume true
         if (Z_BVAL_P(return_value))
         {
@@ -1010,8 +1010,8 @@ static PHP_METHOD(swoole_mysql_coro, recv)
     client->suspending = 1;
     client->cid = sw_get_current_cid();
     php_context *context = (php_context *) swoole_get_property(getThis(), 0);
-    coro_save(context);
-    coro_yield();
+    sw_coro_save(return_value, context);
+    sw_coro_yield();
 }
 
 static PHP_METHOD(swoole_mysql_coro, prepare)
@@ -1084,8 +1084,8 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
     }
     client->suspending = 1;
     client->cid = sw_get_current_cid();
-    coro_save(context);
-    coro_yield();
+    sw_coro_save(return_value, context);
+    sw_coro_yield();
 }
 
 static PHP_METHOD(swoole_mysql_coro_statement, execute)
@@ -1133,8 +1133,8 @@ static PHP_METHOD(swoole_mysql_coro_statement, execute)
     }
     client->suspending = 1;
     client->cid = sw_get_current_cid();
-    coro_save(context);
-    coro_yield();
+    sw_coro_save(return_value, context);
+    sw_coro_yield();
 }
 
 static PHP_METHOD(swoole_mysql_coro_statement, fetch)
@@ -1385,7 +1385,7 @@ static int swoole_mysql_coro_onError(swReactor *reactor, swEvent *event)
     client->suspending = 0;
     client->cid = 0;
     php_context *sw_current_context = (php_context *) swoole_get_property(zobject, 0);
-    int ret = coro_resume(sw_current_context, result, &retval);
+    int ret = sw_coro_resume(sw_current_context, result, retval);
     sw_zval_free(result);
 
     if (ret == CORO_END && retval)
@@ -1434,7 +1434,7 @@ static void swoole_mysql_coro_onConnect(mysql_client *client)
     client->cid = 0;
 
     php_context *sw_current_context = (php_context *) swoole_get_property(zobject, 0);
-    int ret = coro_resume(sw_current_context, result, &retval);
+    int ret = sw_coro_resume(sw_current_context, result, retval);
     zval_ptr_dtor(result);
     if (ret == CORO_END && retval)
     {
@@ -1480,7 +1480,7 @@ static void swoole_mysql_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
     client->suspending = 0;
     client->cid = 0;
 
-    int ret = coro_resume(ctx, result, &retval);
+    int ret = sw_coro_resume(ctx, result, retval);
 
     if (ret == CORO_END && retval)
     {
@@ -1799,7 +1799,7 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
             client->cid = 0;
 
             php_context *sw_current_context = (php_context *) swoole_get_property(zobject, 0);
-            ret = coro_resume(sw_current_context, result, &retval);
+            ret = sw_coro_resume(sw_current_context, result, retval);
             sw_zval_free(result);
             if (ret == CORO_END && retval)
             {
@@ -1851,7 +1851,7 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
             client->cid = 0;
 
             php_context *sw_current_context = (php_context *) swoole_get_property(zobject, 0);
-            ret = coro_resume(sw_current_context, result, &retval);
+            ret = sw_coro_resume(sw_current_context, result, retval);
             if (result)
             {
                 sw_zval_free(result);

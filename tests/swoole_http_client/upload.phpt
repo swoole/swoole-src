@@ -7,9 +7,9 @@ swoole_http_client: upload file
 require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid)
+$pm->parentFunc = function ($pid) use ($pm)
 {
-    $cli = new swoole_http_client('127.0.0.1', 9501);
+    $cli = new swoole_http_client('127.0.0.1', $pm->getFreePort());
     $cli->on('close', function ($cli)
     {
         echo "close\n";

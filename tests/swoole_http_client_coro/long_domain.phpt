@@ -37,4 +37,3 @@ go(function () {
 });
 ?>
 --EXPECT--
-

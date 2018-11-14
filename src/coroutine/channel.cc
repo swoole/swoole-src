@@ -19,22 +19,6 @@
 #include <unordered_map>
 
 using namespace swoole;
-static std::unordered_map<void *, bool> channels;
-
-static void channel_defer_callback(void *data)
-{
-    notify_msg_t *msg = (notify_msg_t*) data;
-    if (channels.find((void*) msg->chan) != channels.end())
-    {
-        coroutine_t *co = msg->chan->pop_coroutine(msg->type);
-        if (co == nullptr)
-        {
-            return;
-        }
-        coroutine_resume(co);
-    }
-    delete msg;
-}
 
 static void channel_pop_timeout(swTimer *timer, swTimer_node *tnode)
 {
@@ -49,9 +33,6 @@ Channel::Channel(size_t _capacity)
 {
     capacity = _capacity;
     closed = false;
-    notify_producer_count = 0;
-    notify_consumer_count = 0;
-    channels[(void*) this] = true;
 }
 
 void Channel::yield(enum channel_op type)
@@ -73,22 +54,6 @@ void Channel::yield(enum channel_op type)
         swDebug("consumer[%d]", coroutine_get_cid(co));
     }
     coroutine_yield(co);
-}
-
-void Channel::notify(enum channel_op type)
-{
-    notify_msg_t *msg = new notify_msg_t;
-    msg->chan = this;
-    msg->type = type;
-    if (type == PRODUCER)
-    {
-        notify_producer_count++;
-    }
-    else
-    {
-        notify_consumer_count++;
-    }
-    SwooleG.main_reactor->defer(SwooleG.main_reactor, channel_defer_callback, msg);
 }
 
 void* Channel::pop(double timeout)
@@ -118,7 +83,7 @@ void* Channel::pop(double timeout)
     {
         swTimer_del(&SwooleG.timer, msg.timer);
     }
-    if (msg.error || closed)
+    if (msg.error || closed || data_queue.size() == 0)
     {
         return nullptr;
     }
@@ -130,9 +95,10 @@ void* Channel::pop(double timeout)
     /**
      * notify producer
      */
-    if (producer_queue.size() > 0 && notify_producer_count < producer_queue.size())
+    if (producer_queue.size() > 0)
     {
-        notify(PRODUCER);
+        coroutine_t *co = pop_coroutine(PRODUCER);
+        coroutine_resume(co);
     }
     return data;
 }
@@ -159,9 +125,10 @@ bool Channel::push(void *data)
     /**
      * notify consumer
      */
-    if (consumer_queue.size() > 0 && notify_consumer_count < consumer_queue.size())
+    if (consumer_queue.size() > 0)
     {
-        notify(CONSUMER);
+        coroutine_t *co = pop_coroutine(CONSUMER);
+        coroutine_resume(co);
     }
     return true;
 }
@@ -174,18 +141,15 @@ bool Channel::close()
     }
     swDebug("closed");
     closed = true;
-    while (producer_queue.size() > 0 && notify_producer_count < producer_queue.size())
+    while (producer_queue.size() > 0)
     {
-        notify(PRODUCER);
+        coroutine_t *co = pop_coroutine(PRODUCER);
+        coroutine_resume(co);
     }
-    while (consumer_queue.size() > 0 && notify_consumer_count < consumer_queue.size())
+    while (consumer_queue.size() > 0)
     {
-        notify(CONSUMER);
+        coroutine_t *co = pop_coroutine(CONSUMER);
+        coroutine_resume(co);
     }
     return true;
-}
-
-Channel::~Channel()
-{
-    channels.erase((void*) this);
 }

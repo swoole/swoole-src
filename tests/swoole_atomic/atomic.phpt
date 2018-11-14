@@ -15,4 +15,3 @@ assert($atomic->cmpset(165, 1));
 assert(!$atomic->cmpset(1555, 0));
 ?>
 --EXPECT--
-

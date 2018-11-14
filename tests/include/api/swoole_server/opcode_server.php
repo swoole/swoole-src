@@ -2,7 +2,7 @@
 
 require_once __DIR__ . "/../../../include/bootstrap.php";
 
-// (new OpcodeServer("127.0.0.1", 9999))->start(PHP_INT_MAX);
+// (new OpcodeServer('127.0.0.1', 9999))->start(PHP_INT_MAX);
 
 $host = isset($argv[1]) ? $argv[1] : HTTP_SERVER_HOST;
 $port = isset($argv[2]) ? $argv[2] : HTTP_SERVER_PORT;

@@ -611,7 +611,7 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
             hcc->iowait = 0;
             hcc->read_cid = 0;
             php_context *context = swoole_get_property(zobject, HTTP2_CLIENT_CORO_CONTEXT);
-            int ret = coro_resume(context, zresponse, &retval);
+            int ret = sw_coro_resume(context, zresponse, retval);
             if (ret == CORO_END && retval)
             {
                 zval_ptr_dtor(retval);
@@ -882,8 +882,8 @@ static PHP_METHOD(swoole_http2_client_coro, recv)
     }
     hcc->iowait = 1;
     hcc->read_cid = sw_get_current_cid();
-    coro_save(context);
-    coro_yield();
+    sw_coro_save(return_value, context);
+    sw_coro_yield();
 }
 
 static void http2_client_onConnect(swClient *cli)
@@ -930,7 +930,7 @@ static void http2_client_onConnect(swClient *cli)
     ZVAL_BOOL(result, 1);
     zval *retval = NULL;
     php_context *context = swoole_get_property(zobject, HTTP2_CLIENT_CORO_CONTEXT);
-    ret = coro_resume(context, result, &retval);
+    ret = sw_coro_resume(context, result, retval);
     if (ret == CORO_END && retval)
     {
         zval_ptr_dtor(retval);
@@ -980,7 +980,7 @@ static void http2_client_onClose(swClient *cli)
     zval *retval = NULL;
     ZVAL_FALSE(result);
     php_context *context = swoole_get_property(zobject, HTTP2_CLIENT_CORO_CONTEXT);
-    int ret = coro_resume(context, result, &retval);
+    int ret = sw_coro_resume(context, result, retval);
     if (ret == CORO_END && retval)
     {
         zval_ptr_dtor(retval);
@@ -1005,7 +1005,7 @@ static void http2_client_onTimeout(swTimer *timer, swTimer_node *tnode)
     SW_MAKE_STD_ZVAL(result);
     ZVAL_BOOL(result, 0);
     zval *retval = NULL;
-    int ret = coro_resume(ctx, result, &retval);
+    int ret = sw_coro_resume(ctx, result, retval);
     if (ret == CORO_END && retval)
     {
         zval_ptr_dtor(retval);
@@ -1096,9 +1096,9 @@ static PHP_METHOD(swoole_http2_client_coro, connect)
 
     php_context *context = swoole_get_property(getThis(), HTTP2_CLIENT_CORO_CONTEXT);
     cli->object = &context->coro_params;
-    coro_save(context);
+    sw_coro_save(return_value, context);
     hcc->iowait = 1;
-    coro_yield();
+    sw_coro_yield();
 }
 
 static sw_inline void http2_settings_to_array(swHttp2_settings *settings, zval* zarray)

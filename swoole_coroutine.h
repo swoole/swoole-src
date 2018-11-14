@@ -10,11 +10,13 @@ extern "C" {
 
 /* PHP 7.0 compatibility macro {{{*/
 #if PHP_VERSION_ID < 70100
-#define SW_SAVE_EG_SCOPE(_scope) zend_class_entry *_scope = EG(scope)
-#define SW_RESUME_EG_SCOPE(_scope) EG(scope) = _scope
+#define SW_DECLARE_EG_SCOPE(_scope) zend_class_entry *_scope
+#define SW_SAVE_EG_SCOPE(_scope) _scope = EG(scope)
+#define SW_SET_EG_SCOPE(_scope) EG(scope) = _scope
 #else
+#define SW_DECLARE_EG_SCOPE(_scope)
 #define SW_SAVE_EG_SCOPE(scope)
-#define SW_RESUME_EG_SCOPE(scope)
+#define SW_SET_EG_SCOPE(scope)
 #endif/*}}}*/
 
 /* PHP 7.3 compatibility macro {{{*/
@@ -34,47 +36,42 @@ typedef enum
     SW_CORO_CONTEXT_RUNNING, SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST, SW_CORO_CONTEXT_TERM
 } php_context_state;
 
+typedef struct _coro_task
+{
+#ifdef SW_LOG_TRACE_OPEN
+    int cid;
+#endif
+    zend_execute_data *execute_data;
+    zend_vm_stack vm_stack;
+    zval *vm_stack_top;
+    zval *vm_stack_end;
+    zend_output_globals *output_ptr;
+    coroutine_t *co;
+    struct _coro_task *origin_task;
+    SW_DECLARE_EG_SCOPE(scope);
+} coro_task;
+
 typedef struct _php_args
 {
     zend_fcall_info_cache *fci_cache;
     zval **argv;
     int argc;
     zval *retval;
-    void *post_callback;
-    void *params;
+    coro_task *origin_task;
 } php_args;
 
-typedef struct _coro_task
+typedef struct _coro_global
 {
-    int cid;
-    sw_coro_state state;
-    zend_execute_data *execute_data;
-    zend_vm_stack stack;
-    zval *vm_stack_top;
-    zval *vm_stack_end;
+    zend_bool active;
+    int error;
+    uint32_t coro_num;
+    uint32_t max_coro_num;
+    uint32_t peak_coro_num;
+    uint32_t stack_size;
+    coro_task task;
+} coro_global;
 
-    zend_vm_stack origin_stack;
-    zval *origin_vm_stack_top;
-    zval *origin_vm_stack_end;
-
-    zend_execute_data *yield_execute_data;
-    zend_vm_stack yield_stack;
-    zval *yield_vm_stack_top;
-    zval *yield_vm_stack_end;
-    zend_bool is_yield;
-
-    zend_output_globals *current_coro_output_ptr;
-    /**
-     * user coroutine
-     */
-    coroutine_t *co;
-    zval *function;
-    time_t start_time;
-    void (*post_callback)(void *param);
-    void *post_callback_params;
-    php_args args;
-} coro_task;
-
+// TODO: remove php context
 typedef struct _php_context
 {
     zval **current_coro_return_value_ptr_ptr;
@@ -93,51 +90,20 @@ typedef struct _php_context
     zend_output_globals *current_coro_output_ptr;
 } php_context;
 
-typedef struct _coro_global
-{
-    uint32_t coro_num;
-    uint32_t max_coro_num;
-    uint32_t peak_coro_num;
-    uint32_t stack_size;
-    zend_vm_stack origin_vm_stack;
-    zval *origin_vm_stack_top;
-    zval *origin_vm_stack_end;
-    zval *allocated_return_value_ptr;
-    zend_execute_data *origin_ex;
-    coro_task *current_coro;
-    zend_bool active;
-    int error;
-} coro_global;
-
-typedef struct _swTimer_coro_callback
-{
-    int ms;
-    int cli_fd;
-    long *timeout_id;
-    void* data;
-} swTimer_coro_callback;
-
 extern coro_global COROG;
 
 int sw_get_current_cid();
-int coro_init(void);
+void coro_init(void);
 void coro_destroy(void);
 void coro_check(void);
 
 #define sw_coro_is_in() (sw_get_current_cid() != -1)
-#define coro_create(op_array, argv, argc, retval, post_callback, param) \
-        sw_coro_create(op_array, argv, argc, *retval, post_callback, param)
-#define coro_save(sw_php_context) \
-        sw_coro_save(return_value, sw_php_context);
-#define coro_resume(sw_current_context, retval, coro_retval) \
-        sw_coro_resume(sw_current_context, retval, *coro_retval)
-#define coro_yield() sw_coro_yield()
 #define coro_use_return_value(); *(zend_uchar *) &execute_data->prev_execute_data->opline->result_type = IS_VAR;
 
 /* output globals */
 #define SWOG ((zend_output_globals *) &OG(handlers))
 
-int sw_coro_create(zend_fcall_info_cache *op_array, zval **argv, int argc, zval *retval, void *post_callback, void *param);
+int sw_coro_create(zend_fcall_info_cache *op_array, zval **argv, int argc, zval *retval);
 void sw_coro_yield();
 void sw_coro_close();
 int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_retval);

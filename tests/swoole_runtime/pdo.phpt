@@ -30,7 +30,7 @@ for ($i = MAX_CONCURRENCY_LOW; $i--;) {
     go('onRequest');
 }
 swoole_event_wait();
-assert((microtime(true) - $start) < .2);
+assert((microtime(true) - $start) < .5);
 echo "DONE\n";
 ?>
 --EXPECT--

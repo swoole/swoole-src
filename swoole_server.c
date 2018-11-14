@@ -41,8 +41,6 @@ typedef struct
 } swConnectionIterator;
 
 static int php_swoole_task_id = 0;
-static int udp_server_socket;
-static int dgram_server_socket;
 
 struct
 {
@@ -88,7 +86,7 @@ static void php_swoole_onManagerStart(swServer *serv);
 static void php_swoole_onManagerStop(swServer *serv);
 
 #ifdef SW_COROUTINE
-static void php_swoole_onConnect_finish(void *param);
+//static void php_swoole_onConnect_finish(void *param);
 static void php_swoole_onSendTimeout(swTimer *timer, swTimer_node *tnode);
 static int php_swoole_server_send_resume(swServer *serv, php_context *context, int fd);
 static void php_swoole_task_onTimeout(swTimer *timer, swTimer_node *tnode);
@@ -221,7 +219,9 @@ int php_swoole_task_pack(swEventData *task, zval *data)
 {
     smart_str serialized_data = { 0 };
     php_serialize_data_t var_hash;
+#ifdef SW_USE_FAST_SERIALIZE
     zend_string *serialized_string = NULL;
+#endif
 
     task->info.type = SW_EVENT_TASK;
     //field fd save task_id
@@ -242,6 +242,7 @@ int php_swoole_task_pack(swEventData *task, zval *data)
         //serialize
         swTask_type(task) |= SW_TASK_SERIALIZE;
 
+#ifdef SW_USE_FAST_SERIALIZE
         if (SWOOLE_G(fast_serialize))
         {
             serialized_string = php_swoole_serialize(data);
@@ -249,6 +250,7 @@ int php_swoole_task_pack(swEventData *task, zval *data)
             task_data_len = serialized_string->len;
         }
         else
+#endif
         {
             PHP_VAR_SERIALIZE_INIT(var_hash);
             php_var_serialize(&serialized_data, data, &var_hash);
@@ -283,11 +285,13 @@ int php_swoole_task_pack(swEventData *task, zval *data)
         task->info.len = task_data_len;
     }
 
+#ifdef SW_USE_FAST_SERIALIZE
     if (SWOOLE_G(fast_serialize) && serialized_string)
     {
         zend_string_release(serialized_string);
     }
     else
+#endif
     {
         smart_str_free(&serialized_data);
     }
@@ -422,6 +426,7 @@ zval* php_swoole_task_unpack(swEventData *task_result)
     {
         SW_ALLOC_INIT_ZVAL(result_unserialized_data);
 
+#ifdef SW_USE_FAST_SERIALIZE
         if (SWOOLE_G(fast_serialize))
         {
             if (php_swoole_unserialize(result_data_str, result_data_len, result_unserialized_data, NULL, 0))
@@ -435,6 +440,7 @@ zval* php_swoole_task_unpack(swEventData *task_result)
             }
         }
         else
+#endif
         {
             PHP_VAR_UNSERIALIZE_INIT(var_hash);
             //unserialize success
@@ -470,9 +476,7 @@ static void php_swoole_task_wait_co(swServer *serv, swEventData *req, double tim
     swTask_type(req) |= (SW_TASK_NONBLOCK | SW_TASK_COROUTINE);
 
     swTaskCo *task_co = emalloc(sizeof(swTaskCo));
-
-    task_co->result = NULL;
-    task_co->list = NULL;
+    bzero(task_co, sizeof(swTaskCo));
     task_co->count = 1;
     task_co->context.state = SW_CORO_CONTEXT_RUNNING;
     Z_LVAL(task_co->context.coro_params) = req->info.fd;
@@ -494,8 +498,8 @@ static void php_swoole_task_wait_co(swServer *serv, swEventData *req, double tim
     {
         task_co->timer = timer;
     }
-    coro_save(&task_co->context);
-    coro_yield();
+    sw_coro_save(return_value, &task_co->context);
+    sw_coro_yield();
 }
 
 #ifdef SW_COROUTINE
@@ -510,7 +514,7 @@ static void php_swoole_task_onTimeout(swTimer *timer, swTimer_node *tnode)
     {
         zval result;
         ZVAL_FALSE(&result);
-        int ret = coro_resume(context, &result, &retval);
+        int ret = sw_coro_resume(context, &result, retval);
         if (ret == CORO_END && retval)
         {
             zval_ptr_dtor(retval);
@@ -532,7 +536,7 @@ static void php_swoole_task_onTimeout(swTimer *timer, swTimer_node *tnode)
         }
     }
 
-    int ret = coro_resume(context, result, &retval);
+    int ret = sw_coro_resume(context, result, retval);
     if (ret == CORO_END && retval)
     {
         zval_ptr_dtor(retval);
@@ -787,14 +791,16 @@ static int php_swoole_task_finish(swServer *serv, zval *data, swEventData *curre
     char *data_str;
     int data_len = 0;
     int ret;
-
+#ifdef SW_USE_FAST_SERIALIZE
     zend_string *serialized_string = NULL;
+#endif
 
     //need serialize
     if (Z_TYPE_P(data) != IS_STRING)
     {
         //serialize
         flags |= SW_TASK_SERIALIZE;
+#ifdef SW_USE_FAST_SERIALIZE
         if (SWOOLE_G(fast_serialize))
         {
             serialized_string = php_swoole_serialize(data);
@@ -802,6 +808,7 @@ static int php_swoole_task_finish(swServer *serv, zval *data, swEventData *curre
             data_len = serialized_string->len;
         }
         else
+#endif
         {
             PHP_VAR_SERIALIZE_INIT(var_hash);
             php_var_serialize(&serialized_data, data, &var_hash);
@@ -817,11 +824,14 @@ static int php_swoole_task_finish(swServer *serv, zval *data, swEventData *curre
     }
 
     ret = swTaskWorker_finish(serv, data_str, data_len, flags, current_task);
+
+#ifdef SW_USE_FAST_SERIALIZE
     if (SWOOLE_G(fast_serialize) && serialized_string)
     {
         zend_string_release(serialized_string);
     }
     else
+#endif
     {
         smart_str_free(&serialized_data);
     }
@@ -851,7 +861,7 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
         args[2] = zdata;
 
         zend_fcall_info_cache *cache = php_sw_server_caches[SW_SERVER_CB_onPipeMessage];
-        int ret = coro_create(cache, args, 3, &retval, NULL, NULL);
+        int ret = sw_coro_create(cache, args, 3, retval);
         if (ret < 0)
         {
             zval_ptr_dtor(zworker_id);
@@ -894,7 +904,6 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
 
 int php_swoole_onReceive(swServer *serv, swEventData *req)
 {
-    swFactory *factory = &serv->factory;
     zval *zserv = (zval *) serv->ptr2;
 
     zval *zfd;
@@ -902,66 +911,13 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
     zval *zdata;
     zval *retval = NULL;
 
-
-    php_swoole_udp_t udp_info;
-    swDgramPacket *packet;
-
     SW_MAKE_STD_ZVAL(zfd);
     SW_MAKE_STD_ZVAL(zfrom_id);
     SW_MAKE_STD_ZVAL(zdata);
 
-    //dgram
-    if (swEventData_is_dgram(req->info.type))
-    {
-        swoole_php_error(E_DEPRECATED, "The udp onReceive callback is deprecated, use onPacket instead.");
-
-        swString *buffer = swWorker_get_buffer(serv, req->info.from_id);
-        packet = (swDgramPacket*) buffer->str;
-
-        //udp ipv4
-        if (req->info.type == SW_EVENT_UDP)
-        {
-            udp_info.from_fd = req->info.from_fd;
-            udp_info.port = packet->port;
-            memcpy(&udp_server_socket, &udp_info, sizeof(udp_server_socket));
-            factory->last_from_id = udp_server_socket;
-            swTrace("SendTo: from_id=%d|from_fd=%d", (uint16_t) req->info.from_id, req->info.from_fd);
-            ZVAL_STRINGL(zdata, packet->data, packet->length);
-            ZVAL_LONG(zfrom_id, (long ) udp_server_socket);
-            ZVAL_LONG(zfd, (long ) packet->addr.v4.s_addr);
-        }
-        //udp ipv6
-        else if (req->info.type == SW_EVENT_UDP6)
-        {
-            udp_info.from_fd = req->info.from_fd;
-            udp_info.port = packet->port;
-            memcpy(&dgram_server_socket, &udp_info, sizeof(udp_server_socket));
-            factory->last_from_id = dgram_server_socket;
-
-            swTrace("SendTo: from_id=%d|from_fd=%d", (uint16_t) req->info.from_id, req->info.from_fd);
-
-            ZVAL_LONG(zfrom_id, (long ) dgram_server_socket);
-            char tmp[INET6_ADDRSTRLEN];
-            inet_ntop(AF_INET6, &packet->addr.v6, tmp, sizeof(tmp));
-            ZVAL_STRING(zfd, tmp);
-            ZVAL_STRINGL(zdata, packet->data, packet->length);
-        }
-        //unix dgram
-        else
-        {
-            ZVAL_STRINGL(zfd, packet->data, packet->addr.un.path_length);
-            ZVAL_STRINGL(zdata, packet->data + packet->addr.un.path_length, packet->length - packet->addr.un.path_length);
-            ZVAL_LONG(zfrom_id, (long ) req->info.from_fd);
-            dgram_server_socket = req->info.from_fd;
-        }
-    }
-    //stream
-    else
-    {
-        ZVAL_LONG(zfrom_id, (long ) req->info.from_id);
-        ZVAL_LONG(zfd, (long ) req->info.fd);
-        php_swoole_get_recv_data(zdata, req, NULL, 0);
-    }
+    ZVAL_LONG(zfrom_id, (long ) req->info.from_id);
+    ZVAL_LONG(zfd, (long ) req->info.fd);
+    php_swoole_get_recv_data(zdata, req, NULL, 0);
 
     if (SwooleG.enable_coroutine)
     {
@@ -972,7 +928,7 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
         args[3] = zdata;
 
         zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onReceive);
-        int ret = coro_create(cache, args, 4, &retval, NULL, NULL);
+        int ret = sw_coro_create(cache, args, 4, retval);
         if (ret < 0)
         {
             zval_ptr_dtor(zfd);
@@ -1067,7 +1023,6 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
     {
         add_assoc_stringl(zaddr, "address", packet->data, packet->addr.un.path_length);
         ZVAL_STRINGL(zdata, packet->data + packet->addr.un.path_length, packet->length - packet->addr.un.path_length);
-        dgram_server_socket = req->info.from_fd;
     }
 
     if (SwooleG.enable_coroutine)
@@ -1078,7 +1033,7 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
         args[2] = zaddr;
 
         zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onPacket);
-        int ret = coro_create(cache, args, 3, &retval, NULL, NULL);
+        int ret = sw_coro_create(cache, args, 3, retval);
         if (ret < 0)
         {
             zval_ptr_dtor(zaddr);
@@ -1213,7 +1168,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
                 swTimer_del(&SwooleG.timer, task_co->timer);
             }
             php_context *context = &task_co->context;
-            int ret = coro_resume(context, zdata, &retval);
+            int ret = sw_coro_resume(context, zdata, retval);
             if (ret == CORO_END && retval)
             {
                 zval_ptr_dtor(retval);
@@ -1251,7 +1206,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
                 task_co->timer = NULL;
             }
             php_context *context = &task_co->context;
-            int ret = coro_resume(context, result, &retval);
+            int ret = sw_coro_resume(context, result, retval);
             if (ret == CORO_END && retval)
             {
                 zval_ptr_dtor(retval);
@@ -1418,7 +1373,7 @@ static void php_swoole_onWorkerStart_coroutine(zval *zserv, zval *zworker_id)
     args[1] = zworker_id;
 
     zend_fcall_info_cache *cache = php_sw_server_caches[SW_SERVER_CB_onWorkerStart];
-    int ret = coro_create(cache, args, 2, &retval, NULL, NULL);
+    int ret = sw_coro_create(cache, args, 2, retval);
     if (ret < 0)
     {
         zval_ptr_dtor(zworker_id);
@@ -1645,12 +1600,12 @@ static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker
 }
 
 #ifdef SW_COROUTINE
-static void php_swoole_onConnect_finish(void *param)
-{
-    swServer *serv = SwooleG.serv;
-    swTrace("onConnect finish and send confirm");
-    swServer_tcp_feedback(serv, (uint32_t) (long) param, SW_EVENT_CONFIRM);
-}
+//static void php_swoole_onConnect_finish(void *param)
+//{
+//    swServer *serv = SwooleG.serv;
+//    swTrace("onConnect finish and send confirm");
+//    swServer_tcp_feedback(serv, (uint32_t) (long) param, SW_EVENT_CONFIRM);
+//}
 #endif
 
 void php_swoole_onConnect(swServer *serv, swDataHead *info)
@@ -1659,7 +1614,6 @@ void php_swoole_onConnect(swServer *serv, swDataHead *info)
     zval *zfd;
     zval *zfrom_id;
     zval *retval = NULL;
-
 
     SW_MAKE_STD_ZVAL(zfd);
     ZVAL_LONG(zfd, info->fd);
@@ -1681,11 +1635,11 @@ void php_swoole_onConnect(swServer *serv, swDataHead *info)
         }
         if (serv->enable_delay_receive)
         {
-            ret = coro_create(cache, args, 3, &retval, php_swoole_onConnect_finish, (void*) (long) info->fd);
+            ret = sw_coro_create(cache, args, 3, retval);
         }
         else
         {
-            ret = coro_create(cache, args, 3, &retval, NULL, NULL);
+            ret = sw_coro_create(cache, args, 3, retval);
         }
 
         if (ret < 0)
@@ -1780,7 +1734,7 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
             return;
         }
 
-        ret = coro_create(cache, args, 3, &retval, NULL, NULL);
+        ret = sw_coro_create(cache, args, 3, retval);
 
         zval_ptr_dtor(zfd);
         zval_ptr_dtor(zfrom_id);
@@ -1885,7 +1839,7 @@ static void php_swoole_onSendTimeout(swTimer *timer, swTimer_node *tnode)
 
     context->private_data = NULL;
 
-    int ret = coro_resume(context, result, &retval);
+    int ret = sw_coro_resume(context, result, retval);
     if (ret == CORO_END && retval)
     {
         zval_ptr_dtor(retval);
@@ -1928,7 +1882,7 @@ static int php_swoole_server_send_resume(swServer *serv, php_context *context, i
         context->timer = NULL;
     }
 
-    int ret = coro_resume(context, result, &retval);
+    int ret = sw_coro_resume(context, result, retval);
     if (ret == CORO_END && retval)
     {
         zval_ptr_dtor(retval);
@@ -1972,8 +1926,8 @@ void php_swoole_server_send_yield(swServer *serv, int fd, zval *zdata, zval *ret
         context->timer = NULL;
     }
     context->coro_params = *zdata;
-    coro_save(context);
-    coro_yield();
+    sw_coro_save(return_value, context);
+    sw_coro_yield();
 }
 #endif
 
@@ -2114,8 +2068,11 @@ PHP_METHOD(swoole_server, __construct)
         swListenPort *port = swServer_add_port(serv, sock_type, serv_host, serv_port);
         if (!port)
         {
-            zend_throw_exception_ex(swoole_exception_class_entry_ptr, errno, "failed to listen server port[%s:%ld]. Error: %s[%d].",
-                    serv_host, serv_port, strerror(errno), errno);
+            zend_throw_exception_ex(
+                swoole_exception_class_entry_ptr, errno,
+                "failed to listen server port[%s:" ZEND_LONG_FMT "]. Error: %s[%d].",
+                serv_host, serv_port, strerror(errno), errno
+            );
             return;
         }
     }
@@ -2396,6 +2353,12 @@ PHP_METHOD(swoole_server, set)
     {
         convert_to_boolean(v);
         serv->enable_delay_receive = Z_BVAL_P(v);
+    }
+    //task async
+    if (php_swoole_array_get_value(vht, "task_async", v))
+    {
+        convert_to_boolean(v);
+        serv->task_async = Z_BVAL_P(v);
     }
     //task_worker_num
     if (php_swoole_array_get_value(vht, "task_worker_num", v))
@@ -2890,10 +2853,8 @@ PHP_METHOD(swoole_server, start)
 PHP_METHOD(swoole_server, send)
 {
     int ret;
-
-    zval *zfd;
+    zend_long fd;
     zval *zdata;
-    zend_long server_socket = -1;
 
     swServer *serv = swoole_get_object(getThis());
     if (serv->gs->start == 0)
@@ -2902,11 +2863,9 @@ PHP_METHOD(swoole_server, send)
         RETURN_FALSE;
     }
 
-    ZEND_PARSE_PARAMETERS_START(2, 3)
-        Z_PARAM_ZVAL(zfd)
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_LONG(fd)
         Z_PARAM_ZVAL(zdata)
-        Z_PARAM_OPTIONAL
-        Z_PARAM_LONG(server_socket)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     char *data;
@@ -2918,70 +2877,15 @@ PHP_METHOD(swoole_server, send)
         RETURN_FALSE;
     }
 
-    if (serv->have_udp_sock && Z_TYPE_P(zfd) == IS_STRING)
+    ret = swServer_tcp_send(serv, fd, data, length);
+    if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_BUFFER_OVERFLOW && serv->send_yield)
     {
-        if (server_socket == -1)
-        {
-            server_socket = dgram_server_socket;
-        }
-        //UDP IPv6
-        if (strchr(Z_STRVAL_P(zfd), ':'))
-        {
-            php_swoole_udp_t udp_info;
-            memcpy(&udp_info, &server_socket, sizeof(udp_info));
-            ret = swSocket_udp_sendto6(udp_info.from_fd, Z_STRVAL_P(zfd), udp_info.port, data, length);
-        }
-        //UNIX DGRAM
-        else if (Z_STRVAL_P(zfd)[0] == '/')
-        {
-            struct sockaddr_un addr_un;
-            memcpy(addr_un.sun_path, Z_STRVAL_P(zfd), Z_STRLEN_P(zfd));
-            addr_un.sun_family = AF_UNIX;
-            addr_un.sun_path[Z_STRLEN_P(zfd)] = 0;
-            ret = swSocket_sendto_blocking(server_socket, data, length, 0, (struct sockaddr *) &addr_un, sizeof(addr_un));
-        }
-        else
-        {
-            goto convert;
-        }
-        SW_CHECK_RETURN(ret);
+        zval_add_ref(zdata);
+        php_swoole_server_send_yield(serv, fd, zdata, return_value);
     }
-
-    convert: convert_to_long(zfd);
-    uint32_t fd = (uint32_t) Z_LVAL_P(zfd);
-    //UDP
-    if (swServer_is_udp(fd))
-    {
-        if (server_socket == -1)
-        {
-            server_socket = udp_server_socket;
-        }
-
-        php_swoole_udp_t udp_info;
-        memcpy(&udp_info, &server_socket, sizeof(udp_info));
-
-        struct sockaddr_in addr_in;
-        addr_in.sin_family = AF_INET;
-        addr_in.sin_port = htons(udp_info.port);
-        addr_in.sin_addr.s_addr = fd;
-        ret = swSocket_sendto_blocking(udp_info.from_fd, data, length, 0, (struct sockaddr *) &addr_in, sizeof(addr_in));
-        SW_CHECK_RETURN(ret);
-    }
-    //TCP
     else
     {
-        ret = swServer_tcp_send(serv, fd, data, length);
-#ifdef SW_COROUTINE
-        if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_BUFFER_OVERFLOW && serv->send_yield)
-        {
-            zval_add_ref(zdata);
-            php_swoole_server_send_yield(serv, fd, zdata, return_value);
-        }
-        else
-#endif
-        {
-            SW_CHECK_RETURN(ret);
-        }
+        SW_CHECK_RETURN(ret);
     }
 }
 
@@ -3625,8 +3529,8 @@ PHP_METHOD(swoole_server, taskCo)
     {
         task_co->timer = timer;
     }
-    coro_save(&task_co->context);
-    coro_yield();
+    sw_coro_save(return_value, &task_co->context);
+    sw_coro_yield();
 }
 #endif
 
@@ -3844,63 +3748,9 @@ PHP_METHOD(swoole_server, connection_info)
     }
 
     zend_long fd = 0;
-    zend_bool ipv6_udp = 0;
 
-    //ipv6 udp
-    if (Z_TYPE_P(zfd) == IS_STRING)
-    {
-        if (is_numeric_string(Z_STRVAL_P(zfd), Z_STRLEN_P(zfd), &fd, NULL, 0))
-        {
-            ipv6_udp = 0;
-        }
-        else
-        {
-            fd = 0;
-            ipv6_udp = 1;
-        }
-    }
-    else
-    {
-        convert_to_long(zfd);
-        fd = Z_LVAL_P(zfd);
-    }
-
-    //udp
-    if (ipv6_udp || swServer_is_udp(fd))
-    {
-        array_init(return_value);
-
-        swoole_php_error(E_DEPRECATED, "The UDP connection_info is deprecated, use onPacket instead.");
-
-        if (ipv6_udp)
-        {
-            add_assoc_zval(return_value, "remote_ip", zfd);
-        }
-        else
-        {
-            struct in_addr sin_addr;
-            sin_addr.s_addr = fd;
-            add_assoc_string(return_value, "remote_ip", inet_ntoa(sin_addr));
-        }
-
-        if (from_id == 0)
-        {
-            return;
-        }
-
-        php_swoole_udp_t udp_info;
-        memcpy(&udp_info, &from_id, sizeof(udp_info));
-        //server socket
-        swConnection *from_sock = swServer_connection_get(serv, udp_info.from_fd);
-        if (from_sock)
-        {
-            add_assoc_long(return_value, "server_fd", from_sock->fd);
-            add_assoc_long(return_value, "socket_type", from_sock->socket_type);
-            add_assoc_long(return_value, "server_port", swConnection_get_port(from_sock));
-        }
-        add_assoc_long(return_value, "remote_port", udp_info.port);
-        return;
-    }
+    convert_to_long(zfd);
+    fd = Z_LVAL_P(zfd);
 
     swConnection *conn = swServer_connection_verify(serv, fd);
     if (!conn)

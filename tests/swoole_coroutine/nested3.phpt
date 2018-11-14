@@ -10,10 +10,10 @@ go(function () {
     echo "co[1] start\n";
     go(function () {
         echo "co[2] start\n";
-        co::sleep(1.0);
+        co::sleep(.01);
         echo "co[2] exit\n";
     });
-    co::sleep(2.0);
+    co::sleep(.02);
     echo "co[1] exit\n";
 });
 echo "end\n";

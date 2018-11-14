@@ -76,9 +76,10 @@ enum swErrorCode
     SW_ERROR_AIO_BAD_REQUEST   = 4001,
 
     /**
-     * Client
+     * Client & Socket
      */
     SW_ERROR_CLIENT_NO_CONNECTION = 5001,
+    SW_ERROR_SOCKET_CLOSED,
 
     SW_ERROR_SOCKS5_UNSUPPORT_VERSION = 7001,
     SW_ERROR_SOCKS5_UNSUPPORT_METHOD,

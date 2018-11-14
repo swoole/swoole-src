@@ -7,7 +7,7 @@ swoole_client_async: length protocol [async]
 require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid)
+$pm->parentFunc = function ($pid) use ($pm)
 {
     $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
     $client->set([
@@ -71,7 +71,7 @@ $pm->parentFunc = function ($pid)
         swoole_event_exit();
     });
 
-    if (!$client->connect('127.0.0.1', 9501, 0.5, 0))
+    if (!$client->connect('127.0.0.1', $pm->getFreePort(), 0.5, 0))
     {
         echo "Over flow. errno=" . $client->errCode;
         die("\n");
@@ -80,7 +80,7 @@ $pm->parentFunc = function ($pid)
 
 $pm->childFunc = function () use ($pm)
 {
-    $serv = new swoole_server("127.0.0.1", 9501, SWOOLE_BASE);
+    $serv = new swoole_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $serv->set(array(
         "worker_num" => 1,
         'send_yield' => true,

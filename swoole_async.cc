@@ -214,7 +214,7 @@ static void coro_onDNSCompleted(char *domain, swDNSResolver_result *result, void
         return;
     }
 
-    int ret = coro_resume(req->context, zaddress, &retval);
+    int ret = sw_coro_resume(req->context, zaddress, retval);
     if (ret > 0)
     {
         goto free_zdata;
@@ -249,7 +249,7 @@ static void dns_timeout_coro(swTimer *timer, swTimer_node *tnode)
         ZVAL_STRING(zaddress, "");
     }
 
-    int ret = coro_resume(req->context, zaddress, &retval);
+    int ret = sw_coro_resume(req->context, zaddress, retval);
     if (ret > 0)
     {
         goto free_zdata;
@@ -1099,6 +1099,7 @@ static int process_stream_onRead(swReactor *reactor, swEvent *event)
     {
         zval_ptr_dtor(retval);
     }
+    zval_ptr_dtor(zdata);
     zval_ptr_dtor(zstatus);
     close(ps->fd);
     efree(ps);
@@ -1217,7 +1218,7 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro)
     {
         context->state = SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST;
     }
-    coro_save(context);
-    coro_yield();
+    sw_coro_save(return_value, context);
+    sw_coro_yield();
 }
 #endif

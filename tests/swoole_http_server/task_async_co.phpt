@@ -26,7 +26,8 @@ $pm->childFunc = function () use ($pm) {
     $server = new swoole_http_server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $server->set([
         'log_file' => '/dev/null',
-        'task_worker_num' => 1
+        'task_worker_num' => 1,
+        'task_async' => true
     ]);
     $server->on('workerStart', function ($serv, $wid) use ($pm) {
         $pm->wakeup();

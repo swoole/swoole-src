@@ -23,4 +23,3 @@ Done
 --EXPECTREGEX--
 hello master
 Done.*
---CLEAN--

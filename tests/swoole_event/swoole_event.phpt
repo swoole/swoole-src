@@ -16,4 +16,3 @@ Swoole\Event::wait();
 ?>
 --EXPECT--
 tick
-

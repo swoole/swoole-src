@@ -140,8 +140,6 @@ void swoole_init(void)
     SwooleG.use_signalfd = 1;
     SwooleG.enable_signalfd = 1;
 #endif
-
-    SwooleG.use_timer_pipe = 1;
 }
 
 void swoole_clean(void)
@@ -149,7 +147,7 @@ void swoole_clean(void)
     //free the global memory
     if (SwooleG.memory_pool != NULL)
     {
-        if (SwooleG.timer.fd > 0)
+        if (SwooleG.timer.initialized)
         {
             swTimer_free(&SwooleG.timer);
         }
@@ -1221,22 +1219,43 @@ int swoole_shell_exec(char *command, pid_t *pid, uint8_t get_error_stream)
     if ((child_pid = fork()) == -1)
     {
         swSysError("fork() failed.");
+        close(fds[0]);
+        close(fds[1]);
         return SW_ERR;
     }
 
     if (child_pid == 0)
     {
         close(fds[SW_PIPE_READ]);
-        dup2(fds[SW_PIPE_WRITE], 1);
+
         if (get_error_stream)
         {
-            dup2(fds[SW_PIPE_WRITE], 2);
+            if (fds[SW_PIPE_WRITE] == fileno(stdout))
+            {
+                dup2(fds[SW_PIPE_WRITE], fileno(stderr));
+            }
+            else if (fds[SW_PIPE_WRITE] == fileno(stderr))
+            {
+                dup2(fds[SW_PIPE_WRITE], fileno(stdout));
+            }
+            else
+            {
+                dup2(fds[SW_PIPE_WRITE], fileno(stdout));
+                dup2(fds[SW_PIPE_WRITE], fileno(stderr));
+                close(fds[SW_PIPE_WRITE]);
+            }
+        }
+        else
+        {
+            if (fds[SW_PIPE_WRITE] != fileno(stdout))
+            {
+                dup2(fds[SW_PIPE_WRITE], fileno(stdout));
+                close(fds[SW_PIPE_WRITE]);
+            }
         }
 
-        //Needed so negative PIDs can kill children of /bin/sh
-        setpgid(child_pid, child_pid);
-        execl("/bin/sh", "/bin/sh", "-c", command, NULL);
-        exit(0);
+        execl("/bin/sh", "sh", "-c", command, NULL);
+        exit(127);
     }
     else
     {

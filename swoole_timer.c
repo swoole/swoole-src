@@ -90,7 +90,10 @@ long php_swoole_add_timer(int ms, zval *callback, zval *param, int persistent)
     }
     efree(func_name);
 
-    php_swoole_check_reactor();
+    if (!(SwooleG.serv && swIsTaskWorker() && SwooleG.serv->task_async == 0))
+    {
+        php_swoole_check_reactor();
+    }
 
     swTimer_callback *cb = emalloc(sizeof(swTimer_callback));
 
@@ -190,7 +193,7 @@ void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
             argc = 1;
             args[0] = cb->data;
         }
-        int ret = coro_create(cb->func_cache, args, argc, &retval, NULL, NULL);
+        int ret = sw_coro_create(cb->func_cache, args, argc, retval);
         if (CORO_LIMIT == ret)
         {
             swoole_php_fatal_error(E_WARNING, "swoole_timer: coroutine limit");
@@ -249,7 +252,7 @@ void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode)
             args[1] = cb->data;
         }
 
-        int ret = coro_create(cb->func_cache, args, argc, &retval, NULL, NULL);
+        int ret = sw_coro_create(cb->func_cache, args, argc, retval);
         if (CORO_LIMIT == ret)
         {
             swoole_php_fatal_error(E_WARNING, "swoole_timer: coroutine limit");
@@ -336,7 +339,7 @@ PHP_FUNCTION(swoole_timer_after)
 
 PHP_FUNCTION(swoole_timer_clear)
 {
-    if (!SwooleG.timer.set)
+    if (!SwooleG.timer.initialized)
     {
         swoole_php_error(E_WARNING, "no timer");
         RETURN_FALSE;

@@ -36,10 +36,10 @@ class EofServer extends TestServer
 }
 
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid)
+$pm->parentFunc = function ($pid) use ($pm)
 {
     $client = new swoole_client(SWOOLE_SOCK_TCP);
-    if (!$client->connect('127.0.0.1', 9501, 2.0))
+    if (!$client->connect('127.0.0.1', $pm->getFreePort(), 2.0))
     {
         exit("connect failed\n");
     }
@@ -78,7 +78,7 @@ $pm->parentFunc = function ($pid)
 
 $pm->childFunc = function () use ($pm)
 {
-    $serv = new EofServer();
+    $serv = new EofServer($pm->getFreePort());
     $serv->set([
         'log_file' => '/dev/null',
         'package_eof' => "\r\n\r\n",

@@ -100,14 +100,11 @@ static void php_swoole_process_pool_onWorkerStart(swProcessPool *pool, int worke
     {
         return;
     }
+
+    php_swoole_process_clean();
     SwooleWG.id = worker_id;
     current_pool = pool;
-    if (SwooleG.main_reactor)
-    {
-        SwooleG.main_reactor->free(SwooleG.main_reactor);
-        SwooleG.main_reactor = NULL;
-        swTraceLog(SW_TRACE_PHP, "destroy reactor");
-    }
+
     if (sw_call_user_function_ex(EG(function_table), NULL, pp->onWorkerStart, &retval, 2, args, 0, NULL) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onWorkerStart handler error.");
@@ -191,7 +188,7 @@ static void php_swoole_process_pool_onWorkerStop(swProcessPool *pool, int worker
     }
 }
 
-static void php_swoole_process_pool_signal_hanlder(int sig)
+static void php_swoole_process_pool_signal_handler(int sig)
 {
     switch (sig)
     {
@@ -409,12 +406,17 @@ static PHP_METHOD(swoole_process_pool, start)
 
     SwooleG.use_signalfd = 0;
 
-    swSignal_add(SIGTERM, php_swoole_process_pool_signal_hanlder);
-    swSignal_add(SIGUSR1, php_swoole_process_pool_signal_hanlder);
-    swSignal_add(SIGUSR2, php_swoole_process_pool_signal_hanlder);
+    swSignal_add(SIGTERM, php_swoole_process_pool_signal_handler);
+    swSignal_add(SIGUSR1, php_swoole_process_pool_signal_handler);
+    swSignal_add(SIGUSR2, php_swoole_process_pool_signal_handler);
 
     if (pool->ipc_mode > SW_IPC_NONE)
     {
+        if (pp->onMessage == NULL)
+        {
+            swoole_php_fatal_error(E_ERROR, "require onMessage callback");
+            RETURN_FALSE;
+        }
         pool->onMessage = php_swoole_process_pool_onMessage;
     }
     else
@@ -455,8 +457,12 @@ static PHP_METHOD(swoole_process_pool, getProcess)
         object_init_ex(&object, swoole_process_class_entry_ptr);
         zend_update_property_long(swoole_process_class_entry_ptr, &object, ZEND_STRL("id"), SwooleWG.id);
         zend_update_property_long(swoole_process_class_entry_ptr, &object, ZEND_STRL("pid"), getpid());
-        swoole_set_object(getThis(), worker);
+        swoole_set_object(&object, worker);
         current_process = &object;
+    }
+    else
+    {
+        Z_TRY_ADDREF_P(&object);
     }
 
     RETURN_ZVAL(current_process, 1, 0);
