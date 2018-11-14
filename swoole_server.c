@@ -2890,14 +2890,7 @@ PHP_METHOD(swoole_server, send)
         {
             server_socket = dgram_server_socket;
         }
-        //UDP IPv6
-        if (strchr(Z_STRVAL_P(zfd), ':'))
-        {
-            php_swoole_udp_t udp_info;
-            memcpy(&udp_info, &server_socket, sizeof(udp_info));
-            ret = swSocket_udp_sendto6(udp_info.from_fd, Z_STRVAL_P(zfd), udp_info.port, data, length);
-        }
-        //UNIX DGRAM
+        //UNIX DGRAM SOCKET
         else if (Z_STRVAL_P(zfd)[0] == '/')
         {
             struct sockaddr_un addr_un;
@@ -2905,51 +2898,28 @@ PHP_METHOD(swoole_server, send)
             addr_un.sun_family = AF_UNIX;
             addr_un.sun_path[Z_STRLEN_P(zfd)] = 0;
             ret = swSocket_sendto_blocking(server_socket, data, length, 0, (struct sockaddr *) &addr_un, sizeof(addr_un));
+            SW_CHECK_RETURN(ret);
         }
         else
         {
             goto _convert;
         }
-        SW_CHECK_RETURN(ret);
     }
 
-    _convert:
-    convert_to_long(zfd);
+    _convert: convert_to_long(zfd);
     uint32_t fd = (uint32_t) Z_LVAL_P(zfd);
-    //UDP
-    if (swServer_is_udp(fd))
+
+    ret = swServer_tcp_send(serv, fd, data, length);
+    if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_BUFFER_OVERFLOW && serv->send_yield)
     {
-        if (server_socket == -1)
-        {
-            server_socket = dgram_server_socket;
-        }
-
-        php_swoole_udp_t udp_info;
-        memcpy(&udp_info, &server_socket, sizeof(udp_info));
-
-        struct sockaddr_in addr_in;
-        addr_in.sin_family = AF_INET;
-        addr_in.sin_port = htons(udp_info.port);
-        addr_in.sin_addr.s_addr = fd;
-        ret = swSocket_sendto_blocking(udp_info.from_fd, data, length, 0, (struct sockaddr *) &addr_in, sizeof(addr_in));
-        SW_CHECK_RETURN(ret);
+        zval_add_ref(zdata);
+        php_swoole_server_send_yield(serv, fd, zdata, return_value);
     }
-    //TCP
     else
     {
-        ret = swServer_tcp_send(serv, fd, data, length);
-#ifdef SW_COROUTINE
-        if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_BUFFER_OVERFLOW && serv->send_yield)
-        {
-            zval_add_ref(zdata);
-            php_swoole_server_send_yield(serv, fd, zdata, return_value);
-        }
-        else
-#endif
-        {
-            SW_CHECK_RETURN(ret);
-        }
+        SW_CHECK_RETURN(ret);
     }
+
 }
 
 PHP_METHOD(swoole_server, sendto)
