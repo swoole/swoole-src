@@ -1,6 +1,5 @@
 --TEST--
 swoole_server: (eof protocol) recv 100k packet
-
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -73,17 +72,18 @@ $pm->parentFunc = function ($pid) use ($pm)
 
 //    echo "send ".TestServer::PKG_NUM." packet sucess, send $bytes bytes\n";
     $client->close();
-    swoole_process::kill($pid);
+    $pm->kill();
 };
 
 $pm->childFunc = function () use ($pm)
 {
-    $serv = new EofServer($pm->getFreePort());
+    $serv = new EofServer($pm->getFreePort(), true);
     $serv->set([
-        'log_file' => '/dev/null',
-        'package_eof' => "\r\n\r\n",
-        'open_eof_split' => true,
-        'worker_num' => 1,
+//        'log_file' => '/dev/null',
+        'enable_coroutine'   => false,
+        'package_eof'        => "\r\n\r\n",
+        'open_eof_split'     => true,
+        'worker_num'         => 1,
         'package_max_length' => 1024 * 1024 * 2,
     ]);
     $serv->start();

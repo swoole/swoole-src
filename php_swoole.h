@@ -74,11 +74,6 @@ BEGIN_EXTERN_C()
 #define SW_HOST_SIZE  128
 
 extern PHPAPI int php_array_merge(HashTable *dest, HashTable *src);
-typedef struct
-{
-    uint16_t port;
-    uint16_t from_fd;
-} php_swoole_udp_t;
 
 extern zend_module_entry swoole_module_entry;
 

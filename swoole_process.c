@@ -261,7 +261,7 @@ static PHP_METHOD(swoole_process, __construct)
         RETURN_FALSE;
     }
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|bl", &callback, &redirect_stdin_and_stdout, &pipe_type) == FAILURE)
+    if (zend_parse_parameters_throw(ZEND_NUM_ARGS(), "z|bl", &callback, &redirect_stdin_and_stdout, &pipe_type) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -659,31 +659,6 @@ zend_bool php_swoole_signal_isset_handler(int signo)
 
 void php_swoole_process_clean()
 {
-    /**
-     * Close EventLoop
-     */
-    if (SwooleG.main_reactor)
-    {
-        SwooleG.main_reactor->free(SwooleG.main_reactor);
-        SwooleG.main_reactor = NULL;
-        swTraceLog(SW_TRACE_PHP, "destroy reactor");
-    }
-
-    bzero(&SwooleWG, sizeof(SwooleWG));
-    SwooleG.pid = getpid();
-
-    if (SwooleG.process_type != SW_PROCESS_USERWORKER)
-    {
-        SwooleG.process_type = 0;
-    }
-
-    SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
-    if (SwooleG.memory_pool == NULL)
-    {
-        printf("[Process] Fatal Error: global memory allocation failure.");
-        exit(1);
-    }
-
     if (SwooleG.timer.initialized)
     {
         swTimer_free(&SwooleG.timer);
@@ -700,6 +675,32 @@ void php_swoole_process_clean()
             signal_callback[i] = NULL;
         }
     }
+
+    /**
+     * Close EventLoop
+     */
+    if (SwooleG.main_reactor)
+    {
+        SwooleG.main_reactor->free(SwooleG.main_reactor);
+        SwooleG.main_reactor = NULL;
+        swTraceLog(SW_TRACE_PHP, "destroy reactor");
+    }
+
+    SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
+    if (SwooleG.memory_pool == NULL)
+    {
+        printf("[Process] Fatal Error: global memory allocation failure.");
+        exit(1);
+    }
+
+    bzero(&SwooleWG, sizeof(SwooleWG));
+    SwooleG.pid = getpid();
+
+    if (SwooleG.process_type != SW_PROCESS_USERWORKER)
+    {
+        SwooleG.process_type = 0;
+    }
+
 }
 
 int php_swoole_process_start(swWorker *process, zval *zobject)

@@ -15,6 +15,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
     {
         //杀死进程
         shell_exec("ps aux | grep \"" . WORKER_PROC_NAME . "\" |grep -v grep| awk '{ print $2}' | xargs kill");
+        usleep(10000);
         //判断进程是否存在
         assert(intval(shell_exec("ps aux | grep \"" . WORKER_PROC_NAME . "\" |grep -v grep| awk '{ print $2}'")) > 0);
     }

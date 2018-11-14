@@ -41,6 +41,7 @@ typedef struct
 } swConnectionIterator;
 
 static int php_swoole_task_id = 0;
+static int dgram_server_socket;
 
 struct
 {
@@ -1001,6 +1002,8 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
     }
 
     char address[INET6_ADDRSTRLEN];
+
+    dgram_server_socket = req->info.from_fd;
 
     //udp ipv4
     if (req->info.type == SW_EVENT_UDP)
@@ -2853,8 +2856,10 @@ PHP_METHOD(swoole_server, start)
 PHP_METHOD(swoole_server, send)
 {
     int ret;
-    zend_long fd;
+
+    zval *zfd;
     zval *zdata;
+    zend_long server_socket = -1;
 
     swServer *serv = swoole_get_object(getThis());
     if (serv->gs->start == 0)
@@ -2863,9 +2868,11 @@ PHP_METHOD(swoole_server, send)
         RETURN_FALSE;
     }
 
-    ZEND_PARSE_PARAMETERS_START(2, 2)
-        Z_PARAM_LONG(fd)
+    ZEND_PARSE_PARAMETERS_START(2, 3)
+        Z_PARAM_ZVAL(zfd)
         Z_PARAM_ZVAL(zdata)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(server_socket)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     char *data;
@@ -2877,6 +2884,31 @@ PHP_METHOD(swoole_server, send)
         RETURN_FALSE;
     }
 
+    if (serv->have_udp_sock && Z_TYPE_P(zfd) == IS_STRING)
+    {
+        if (server_socket == -1)
+        {
+            server_socket = dgram_server_socket;
+        }
+        //UNIX DGRAM SOCKET
+        else if (Z_STRVAL_P(zfd)[0] == '/')
+        {
+            struct sockaddr_un addr_un;
+            memcpy(addr_un.sun_path, Z_STRVAL_P(zfd), Z_STRLEN_P(zfd));
+            addr_un.sun_family = AF_UNIX;
+            addr_un.sun_path[Z_STRLEN_P(zfd)] = 0;
+            ret = swSocket_sendto_blocking(server_socket, data, length, 0, (struct sockaddr *) &addr_un, sizeof(addr_un));
+            SW_CHECK_RETURN(ret);
+        }
+        else
+        {
+            goto _convert;
+        }
+    }
+
+    _convert: convert_to_long(zfd);
+    uint32_t fd = (uint32_t) Z_LVAL_P(zfd);
+
     ret = swServer_tcp_send(serv, fd, data, length);
     if (ret < 0 && SwooleG.error == SW_ERROR_OUTPUT_BUFFER_OVERFLOW && serv->send_yield)
     {
@@ -2887,6 +2919,7 @@ PHP_METHOD(swoole_server, send)
     {
         SW_CHECK_RETURN(ret);
     }
+
 }
 
 PHP_METHOD(swoole_server, sendto)
