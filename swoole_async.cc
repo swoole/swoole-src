@@ -1035,11 +1035,10 @@ static int process_stream_onRead(swReactor *reactor, swEvent *event)
     if (ret > 0)
     {
         ps->buffer->length += ret;
-        if (ps->buffer->length == ps->buffer->size)
+        if (ps->buffer->length == ps->buffer->size && swString_extend(ps->buffer, ps->buffer->size * 2) == 0)
         {
-            swString_extend(ps->buffer, ps->buffer->size * 2);
+            return SW_OK;
         }
-        return SW_OK;
     }
     else if (ret < 0)
     {
