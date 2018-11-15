@@ -11,8 +11,8 @@ use Swoole\Http\Response;
 
 $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
-    for ($n = MAX_REQUESTS; $n--;) {
-        assert(curlGet("http://127.0.0.1:{$pm->getFreePort()}/") . "\n", $n);
+    for ($n = 0; $n > MAX_REQUESTS; $n++) {
+        assert(curlGet("http://127.0.0.1:{$pm->getFreePort()}/") == $n);
     }
     $pm->kill();
 };

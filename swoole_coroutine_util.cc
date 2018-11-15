@@ -410,10 +410,6 @@ PHP_FUNCTION(swoole_coroutine_create)
         return;
     }
     efree(func_name);
-    if (COROG.active == 0)
-    {
-        coro_init();
-    }
     php_swoole_check_reactor();
     callback = sw_zval_dup(callback);
     Z_TRY_ADDREF_P(callback);

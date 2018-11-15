@@ -57,6 +57,14 @@ echo 'use ' . (microtime(true) - $s) . ' s';
 你可以在一个事件循环上创建多个服务：TCP，HTTP，Websocket和HTTP2，并且能轻松承载上万请求。
 
 ```php
+function tcp_pack(string $data): string
+{
+    return pack('n', strlen($data)) . $data;
+}
+function tcp_unpack(string $data): string
+{
+    return substr($data, 2, unpack('n', substr($data, 0, 2))[1]);
+}
 $tcp_options = [
     'open_length_check' => true,
     'package_length_type' => 'n',
@@ -199,7 +207,7 @@ go(function () {
     // Channel: OK! I will be responsible for scheduling.
     $channel = new Swoole\Coroutine\Channel;
     go(function () use ($channel) {
-        // Coroutine A: Ok! I will show you
+        // Coroutine A: Ok! I will show you the github addr info
         $addr_info = Co::getaddrinfo('github.com');
         $channel->push(['A', json_encode($addr_info, JSON_PRETTY_PRINT)]);
     });

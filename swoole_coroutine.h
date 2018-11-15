@@ -63,7 +63,6 @@ typedef struct _php_args
 typedef struct _coro_global
 {
     zend_bool active;
-    int error;
     uint32_t coro_num;
     uint32_t max_coro_num;
     uint32_t peak_coro_num;
