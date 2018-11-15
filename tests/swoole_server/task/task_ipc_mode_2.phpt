@@ -1,10 +1,10 @@
 --TEST--
 swoole_server: task_ipc_mode = 2
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
-require __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../../include/bootstrap.php';
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {
     echo curlGet("http://127.0.0.1:{$pm->getFreePort()}");

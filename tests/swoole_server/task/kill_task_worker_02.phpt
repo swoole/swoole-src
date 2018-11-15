@@ -2,10 +2,10 @@
 swoole_server: kill task worker [SWOOLE_PROCESS]
 
 --SKIPIF--
-<?php require __DIR__ . "/../include/skipif.inc"; ?>
+<?php require __DIR__ . "/../../include/skipif.inc"; ?>
 --FILE--
 <?php
-require __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../../include/bootstrap.php';
 
 const PROC_NAME = 'swoole_unittest_server_task_worker';
 $pm = new ProcessManager;
