@@ -1,12 +1,12 @@
 --TEST--
 swoole_server: task & finish
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
-require __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../../include/bootstrap.php';
 
-$simple_tcp_server = __DIR__ . "/../include/api/swoole_server/tcp_task_server.php";
+$simple_tcp_server = __DIR__ . "/../../include/api/swoole_server/tcp_task_server.php";
 $port = get_one_free_port();
 $closeServer = start_server($simple_tcp_server, TCP_SERVER_HOST, $port);
 

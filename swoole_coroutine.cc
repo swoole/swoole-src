@@ -45,6 +45,15 @@ static inline void sw_vm_stack_init(void)
 #define sw_vm_stack_init zend_vm_stack_init
 #endif
 
+static void sw_vm_stack_destroy(zend_vm_stack stack)
+{
+    while (stack != NULL) {
+        zend_vm_stack p = stack->prev;
+        efree(stack);
+        stack = p;
+    }
+}
+
 static sw_inline void php_coro_save_vm_stack(coro_task *task)
 {
     task->execute_data = EG(current_execute_data);
@@ -396,12 +405,7 @@ void sw_coro_close()
     }
 
     php_coro_close(task);
-    zend_vm_stack stack = task->vm_stack;
-    while (stack != NULL) {
-        zend_vm_stack p = stack->prev;
-        efree(stack);
-        stack = p;
-    }
+    sw_vm_stack_destroy(task->vm_stack);
     COROG.coro_num--;
 
     swTraceLog(

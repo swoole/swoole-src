@@ -371,12 +371,11 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_async_readfile, arginfo_swoole_async_readfile)
     PHP_FE(swoole_async_writefile, arginfo_swoole_async_writefile)
     PHP_FE(swoole_async_dns_lookup, arginfo_swoole_async_dns_lookup)
-#ifdef SW_COROUTINE
     PHP_FE(swoole_async_dns_lookup_coro, arginfo_swoole_async_dns_lookup_coro)
     PHP_FE(swoole_coroutine_create, arginfo_swoole_coroutine_create)
     PHP_FE(swoole_coroutine_exec, arginfo_swoole_coroutine_exec)
     PHP_FALIAS(go, swoole_coroutine_create, arginfo_swoole_coroutine_create)
-#endif
+    PHP_FALIAS(defer, swoole_event_defer, arginfo_swoole_event_defer)
     /*------other-----*/
     PHP_FE(swoole_client_select, arginfo_swoole_client_select)
     PHP_FALIAS(swoole_select, swoole_client_select, arginfo_swoole_client_select)
@@ -1031,6 +1030,7 @@ PHP_MINIT_FUNCTION(swoole)
     if (!SWOOLE_G(use_shortname))
     {
         zend_hash_str_del(CG(function_table), ZEND_STRL("go"));
+        zend_hash_str_del(CG(function_table), ZEND_STRL("defer"));
     }
     else
     {

@@ -172,6 +172,7 @@ protected:
         {
             swoole_error_log(SW_LOG_WARNING, SW_ERROR_CO_HAS_BEEN_BOUND, "Socket#%d has already been bound to another coroutine.", socket->fd);
             errCode = SW_ERROR_CO_HAS_BEEN_BOUND;
+            exit(255);
             return false;
         }
         if (_closed)
