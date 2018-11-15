@@ -271,6 +271,7 @@ static sw_inline void php_coro_close(coro_task *task)
 {
     php_coro_og_close(task);
     php_coro_restore_vm_stack(task->origin_task);
+    php_coro_og_yield(task);
 }
 
 void internal_coro_resume(void *arg)
