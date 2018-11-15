@@ -601,7 +601,6 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
     serv->ptr2 = sw_zval_dup(zobject);
 
 #ifdef SW_COROUTINE
-    coro_init();
     if (serv->send_yield)
     {
         send_coroutine_map = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);

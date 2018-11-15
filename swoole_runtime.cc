@@ -818,11 +818,6 @@ static php_stream *socket_create(const char *proto, size_t protolen, const char 
     php_stream *stream = NULL;
     Socket *sock;
 
-    if (unlikely(COROG.active == 0))
-    {
-        coro_init();
-    }
-
     php_swoole_check_reactor();
 
     if (strncmp(proto, "unix", protolen) == 0)

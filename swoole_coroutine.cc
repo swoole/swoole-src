@@ -50,7 +50,7 @@ static sw_inline void php_coro_save_vm_stack(coro_task *task)
     task->execute_data = EG(current_execute_data);
     task->vm_stack = EG(vm_stack);
     task->vm_stack_top = EG(vm_stack_top);
-    task->vm_stack_top = EG(vm_stack_end);
+    task->vm_stack_end = EG(vm_stack_end);
     SW_SAVE_EG_SCOPE(task->scope);
 }
 
@@ -72,29 +72,6 @@ static sw_inline void php_coro_restore_vm_stack(coro_task *task)
     EG(vm_stack_top) = task->vm_stack_top;
     EG(vm_stack_end) = task->vm_stack_end;
     SW_SET_EG_SCOPE(task->scope);
-}
-
-static sw_inline void php_coro_task_init(int cid, coro_task *task, zend_execute_data *call, coro_task *origin_task)
-{
-#ifdef SW_LOG_TRACE_OPEN
-    task->cid = cid;
-#endif
-    task->execute_data = call;
-    task->vm_stack = EG(vm_stack);
-    task->vm_stack_top = EG(vm_stack_top);
-    task->vm_stack_end = EG(vm_stack_end);
-    task->origin_task = origin_task;
-    task->output_ptr = nullptr;
-    if (cid > 0)
-    {
-        task->co = coroutine_get_by_id(cid);
-        coroutine_set_task(task->co, (void *) task);
-    }
-    else
-    {
-        // COROG.task have no C stack coroutine
-        task->co = nullptr;
-    }
 }
 
 /**
@@ -185,26 +162,8 @@ static sw_inline void php_coro_og_close(coro_task *task)
 
 void coro_init(void)
 {
-    if (zend_get_module_started("xdebug") == SUCCESS)
-    {
-        swWarn("xdebug do not support coroutine, please notice that it lead to coredump.");
-    }
-    //save init vm
-    php_coro_task_init(0, &COROG.task, EG(current_execute_data), nullptr);
-
-    COROG.coro_num = 0;
-    COROG.peak_coro_num = 0;
-    if (COROG.max_coro_num <= 0)
-    {
-        COROG.max_coro_num = DEFAULT_MAX_CORO_NUM;
-    }
-    if (COROG.stack_size <= 0)
-    {
-        COROG.stack_size = DEFAULT_STACK_SIZE;
-    }
-
-    COROG.active = 1;
-    /* set functions */
+    COROG.max_coro_num = DEFAULT_MAX_CORO_NUM;
+    COROG.stack_size = DEFAULT_STACK_SIZE;
     coroutine_set_onYield(internal_coro_yield);
     coroutine_set_onResume(internal_coro_resume);
     coroutine_set_onClose(sw_coro_close);
@@ -258,7 +217,17 @@ static void php_coro_create(void *arg)
     }
     zend_init_execute_data(call, &func->op_array, retval);
 
-    php_coro_task_init(cid, task, call, origin_task);
+#ifdef SW_LOG_TRACE_OPEN
+    task->cid = cid;
+#endif
+    task->execute_data = call;
+    task->vm_stack = EG(vm_stack);
+    task->vm_stack_top = EG(vm_stack_top);
+    task->vm_stack_end = EG(vm_stack_end);
+    task->origin_task = origin_task;
+    task->output_ptr = nullptr;
+    task->co = coroutine_get_by_id(cid);
+    coroutine_set_task(task->co, (void *) task);
 
     if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_CORO_START])
     {
@@ -340,10 +309,23 @@ void sw_coro_check_bind(const char *name, int bind_cid)
 
 int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval *retval)
 {
+    if (unlikely(COROG.active == 0))
+    {
+        if (zend_get_module_started("xdebug") == SUCCESS)
+        {
+            swWarn("xdebug do not support coroutine, please notice that it lead to coredump.");
+        }
+        COROG.active = 1;
+    }
     if (unlikely(COROG.coro_num >= COROG.max_coro_num) )
     {
         swWarn("exceed max number of coro_num %d, max_coro_num:%d", COROG.coro_num, COROG.max_coro_num);
         return CORO_LIMIT;
+    }
+
+    if (++COROG.coro_num > COROG.peak_coro_num)
+    {
+        COROG.peak_coro_num = COROG.coro_num;
     }
 
     php_args php_args;
@@ -354,13 +336,9 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     php_args.origin_task = php_coro_get_current_task();
 
     int cid = coroutine_create(php_coro_create, (void*) &php_args);
-    if (likely(cid > 0))
+    if (unlikely(cid <= 0))
     {
-        COROG.coro_num++;
-        if (COROG.coro_num > COROG.peak_coro_num)
-        {
-            COROG.peak_coro_num = COROG.coro_num;
-        }
+        COROG.coro_num--;
     }
     return cid;
 }

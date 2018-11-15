@@ -272,13 +272,6 @@ void php_swoole_event_wait()
             swSignalfd_setup(SwooleG.main_reactor);
         }
 #endif
-
-#ifdef SW_COROUTINE
-        if (COROG.active == 0)
-        {
-            coro_init();
-        }
-#endif
         if (!swReactor_empty(SwooleG.main_reactor))
         {
             SW_DECLARE_EG_SCOPE(scope);
@@ -835,13 +828,6 @@ PHP_FUNCTION(swoole_event_dispatch)
     if (SwooleG.main_reactor->check_signalfd)
     {
         swSignalfd_setup(SwooleG.main_reactor);
-    }
-#endif
-
-#ifdef SW_COROUTINE
-    if (COROG.active == 0)
-    {
-        coro_init();
     }
 #endif
 

@@ -1113,6 +1113,7 @@ PHP_MINIT_FUNCTION(swoole)
 #endif
     swoole_mysql_coro_init(module_number);
     swoole_http_client_coro_init(module_number);
+    coro_init();
 	swoole_coroutine_util_init(module_number);
     swoole_http_client_init(module_number);
     swoole_async_init(module_number);
