@@ -38,17 +38,14 @@ typedef enum
 
 typedef struct _coro_task
 {
-#ifdef SW_LOG_TRACE_OPEN
-    int cid;
-#endif
     zend_execute_data *execute_data;
     zend_vm_stack vm_stack;
     zval *vm_stack_top;
     zval *vm_stack_end;
     zend_output_globals *output_ptr;
+    SW_DECLARE_EG_SCOPE(scope);
     coroutine_t *co;
     struct _coro_task *origin_task;
-    SW_DECLARE_EG_SCOPE(scope);
 } coro_task;
 
 typedef struct _php_args
