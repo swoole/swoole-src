@@ -386,6 +386,9 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
 void sw_coro_close()
 {
     coro_task *task = (coro_task *) coroutine_get_current_task();
+#ifdef SW_LOG_TRACE_OPEN
+    int cid = coroutine_get_cid(task->co);
+#endif
 
     if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_CORO_STOP])
     {
@@ -393,16 +396,17 @@ void sw_coro_close()
     }
 
     php_coro_close(task);
-    if (task->vm_stack)
-    {
-        efree(task->vm_stack);
-        task->vm_stack = nullptr;
+    zend_vm_stack stack = task->vm_stack;
+    while (stack != NULL) {
+        zend_vm_stack p = stack->prev;
+        efree(stack);
+        stack = p;
     }
     COROG.coro_num--;
 
     swTraceLog(
         SW_TRACE_COROUTINE, "coro close cid=%d and %d remained. usage size: %zu. malloc size: %zu",
-        coroutine_get_cid(task->co), COROG.coro_num, zend_memory_usage(0), zend_memory_usage(1)
+        cid, COROG.coro_num, zend_memory_usage(0), zend_memory_usage(1)
     );
 }
 
