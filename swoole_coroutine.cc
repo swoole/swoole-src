@@ -342,7 +342,6 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
 {
     if (unlikely(COROG.coro_num >= COROG.max_coro_num) )
     {
-        COROG.error = 1;
         swWarn("exceed max number of coro_num %d, max_coro_num:%d", COROG.coro_num, COROG.max_coro_num);
         return CORO_LIMIT;
     }
@@ -354,15 +353,16 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
     php_args.retval = retval;
     php_args.origin_task = php_coro_get_current_task();
 
-    COROG.error = 0;
-    COROG.coro_num++;
-
-    if (COROG.coro_num > COROG.peak_coro_num)
+    int cid = coroutine_create(php_coro_create, (void*) &php_args);
+    if (likely(cid > 0))
     {
-        COROG.peak_coro_num = COROG.coro_num;
+        COROG.coro_num++;
+        if (COROG.coro_num > COROG.peak_coro_num)
+        {
+            COROG.peak_coro_num = COROG.coro_num;
+        }
     }
-
-    return coroutine_create(php_coro_create, (void*) &php_args);
+    return cid;
 }
 
 void sw_coro_save(zval *return_value, php_context *sw_current_context)

@@ -135,13 +135,17 @@ static inline void free_cidmap(int cid)
 
 int coroutine_create(coroutine_func_t fn, void* args)
 {
+    if (unlikely(swCoroG.call_stack_size == SW_MAX_CORO_NESTING_LEVEL))
+    {
+        swWarn("reaches the max coroutine nesting level %d", SW_MAX_CORO_NESTING_LEVEL);
+        return CORO_LIMIT;
+    }
     int cid = alloc_cidmap();
     if (unlikely(cid == -1))
     {
         swWarn("alloc_cidmap failed");
         return CORO_LIMIT;
     }
-
     coroutine_t *co = new coroutine_s(cid, swCoroG.stack_size, fn, args);
     swCoroG.coroutines[cid] = co;
     swCoroG.call_stack[swCoroG.call_stack_size++] = co;
