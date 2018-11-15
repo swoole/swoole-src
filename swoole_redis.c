@@ -336,8 +336,15 @@ static PHP_METHOD(swoole_redis, connect)
         context = redisAsyncConnect(host, (int) port);
     }
 
+    if (context == NULL)
+    {
+        swoole_php_error(E_WARNING, "redisAsyncConnect() failed.");
+        RETURN_FALSE;
+    }
+
     if (context->err)
     {
+        redisFree(context);
         swoole_php_error(E_WARNING, "failed to connect to the redis-server[%s:%d], Erorr: %s[%d]", host, (int) port, context->errstr, context->err);
         RETURN_FALSE;
     }

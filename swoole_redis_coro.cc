@@ -1706,6 +1706,7 @@ static PHP_METHOD(swoole_redis_coro, connect)
         zend_update_property_long(swoole_redis_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), context->err);
         zend_update_property_string(swoole_redis_coro_class_entry_ptr, getThis(), ZEND_STRL("errMsg"), context->errstr);
         redisFree(redis->context);
+        redis->context = NULL;
         RETURN_FALSE;
     }
 
