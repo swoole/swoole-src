@@ -357,7 +357,7 @@ void sw_coro_save(zval *return_value, php_context *sw_current_context)
     SWCC(current_vm_stack) = EG(vm_stack);
     SWCC(current_vm_stack_top) = EG(vm_stack_top);
     SWCC(current_vm_stack_end) = EG(vm_stack_end);
-    SWCC(current_task) = (coro_task *) coroutine_get_current_task();
+    SWCC(current_task) = (coro_task *) php_coro_get_current_task();
 }
 
 void sw_coro_yield()
@@ -366,7 +366,7 @@ void sw_coro_yield()
     {
         swoole_php_fatal_error(E_ERROR, "must be called in the coroutine.");
     }
-    coro_task *task = (coro_task *) coroutine_get_current_task();
+    coro_task *task = (coro_task *) php_coro_get_current_task();
     php_coro_yield(task);
     coroutine_yield_naked(task->co);
 }
@@ -395,9 +395,10 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
 
 void sw_coro_close()
 {
-    coro_task *task = (coro_task *) coroutine_get_current_task();
+    coro_task *task = (coro_task *) php_coro_get_current_task();
 #ifdef SW_LOG_TRACE_OPEN
     int cid = coroutine_get_cid(task->co);
+    int origin_cid = coroutine_get_cid(task->origin_task->co);
 #endif
 
     if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_CORO_STOP])
@@ -410,8 +411,8 @@ void sw_coro_close()
     COROG.coro_num--;
 
     swTraceLog(
-        SW_TRACE_COROUTINE, "coro close cid=%d and %d remained. usage size: %zu. malloc size: %zu",
-        cid, COROG.coro_num, zend_memory_usage(0), zend_memory_usage(1)
+        SW_TRACE_COROUTINE, "coro close cid=%d and resume to %d, %d remained. usage size: %zu. malloc size: %zu",
+        cid, origin_cid, COROG.coro_num, zend_memory_usage(0), zend_memory_usage(1)
     );
 }
 
