@@ -202,7 +202,7 @@ static int http_client_execute(zval *zobject, char *uri, size_t uri_len, zval *c
     char *func_name = NULL;
     if (!sw_zend_is_callable(callback, 0, &func_name))
     {
-        swoole_php_fatal_error(E_WARNING, "Function '%s' is not callable", func_name);
+        swoole_php_fatal_error(E_WARNING, "function '%s' is not callable", func_name);
         efree(func_name);
         return SW_ERR;
     }
@@ -1674,7 +1674,7 @@ static PHP_METHOD(swoole_http_client, on)
     char *func_name = NULL;
     if (!sw_zend_is_callable(zcallback, 0, &func_name))
     {
-        swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+        swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
         efree(func_name);
         return;
     }

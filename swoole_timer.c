@@ -83,9 +83,9 @@ long php_swoole_add_timer(int ms, zval *callback, zval *param, int persistent)
     zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
     if (!sw_zend_is_callable_ex(callback, NULL, 0, &func_name, NULL, func_cache, NULL))
     {
+        swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
         efree(func_cache);
         efree(func_name);
-        swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
         return SW_ERR;
     }
     efree(func_name);

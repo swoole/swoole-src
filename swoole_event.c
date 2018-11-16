@@ -483,7 +483,7 @@ PHP_FUNCTION(swoole_event_add)
     {
         if (!sw_zend_is_callable(cb_read, 0, &func_name))
         {
-            swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+            swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
             efree(func_name);
             RETURN_FALSE;
         }
@@ -501,7 +501,7 @@ PHP_FUNCTION(swoole_event_add)
     {
         if (!sw_zend_is_callable(cb_write, 0, &func_name))
         {
-            swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+            swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
             efree(func_name);
             RETURN_FALSE;
         }
@@ -606,7 +606,7 @@ PHP_FUNCTION(swoole_event_set)
     {
         if (!sw_zend_is_callable(cb_read, 0, &func_name))
         {
-            swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+            swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
             efree(func_name);
             RETURN_FALSE;
         }
@@ -632,7 +632,7 @@ PHP_FUNCTION(swoole_event_set)
         }
         if (!sw_zend_is_callable(cb_write, 0, &func_name))
         {
-            swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+            swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
             efree(func_name);
             RETURN_FALSE;
         }
@@ -715,7 +715,7 @@ PHP_FUNCTION(swoole_event_defer)
     char *func_name;
     if (!sw_zend_is_callable(callback, 0, &func_name))
     {
-        swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+        swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
         efree(func_name);
         RETURN_FALSE;
     }
@@ -764,7 +764,7 @@ PHP_FUNCTION(swoole_event_cycle)
     char *func_name;
     if (!sw_zend_is_callable(callback, 0, &func_name))
     {
-        swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+        swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
         efree(func_name);
         RETURN_FALSE;
     }
