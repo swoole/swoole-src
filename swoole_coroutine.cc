@@ -194,7 +194,15 @@ static void php_coro_create(void *arg)
     int cid = coroutine_get_current_cid();
     int i;
     zend_function *func;
+    zval _zobject, *zobject = nullptr;
     coro_task *task;
+
+    if (fci_cache->object)
+    {
+        zobject = &_zobject;
+        ZVAL_OBJ(zobject, fci_cache->object);
+        Z_ADDREF_P(zobject);
+    }
 
     func = fci_cache->function_handler;
     sw_vm_stack_init();
@@ -205,18 +213,24 @@ static void php_coro_create(void *arg)
 
     call = zend_vm_stack_push_call_frame(
         ZEND_CALL_TOP_FUNCTION | ZEND_CALL_ALLOCATED,
-        func, argc,
-        fci_cache->called_scope, fci_cache->object
+        func, argc, fci_cache->called_scope, fci_cache->object
     );
 
     SW_SET_EG_SCOPE(func->common.scope);
 
     for (i = 0; i < argc; ++i)
     {
-        zval *target;
-        target = ZEND_CALL_ARG(call, i + 1);
-        ZVAL_COPY(target, argv[i]);
+        zval *param;
+        zval *arg = argv[i];
+        if (Z_ISREF_P(arg) && !(func->common.fn_flags & ZEND_ACC_CALL_VIA_TRAMPOLINE))
+        {
+            /* don't separate references for __call */
+            arg = Z_REFVAL_P(arg);
+        }
+        param = ZEND_CALL_ARG(call, i + 1);
+        ZVAL_COPY(param, arg);
     }
+
     call->symbol_table = NULL;
 
     // TODO: enhancement it, separate execute data is necessary, but we lose the backtrace
@@ -226,8 +240,12 @@ static void php_coro_create(void *arg)
         uint32_t call_info;
         GC_ADDREF(ZEND_CLOSURE_OBJECT(func));
         call_info = ZEND_CALL_CLOSURE;
+        if (func->common.fn_flags & ZEND_ACC_FAKE_CLOSURE) {
+            call_info |= ZEND_CALL_FAKE_CLOSURE;
+        }
         ZEND_ADD_CALL_FLAG(call, call_info);
     }
+
     zend_init_execute_data(call, &func->op_array, retval);
     EG(current_execute_data) = call;
 
@@ -249,6 +267,11 @@ static void php_coro_create(void *arg)
     }
 
     zend_execute_ex(EG(current_execute_data));
+
+    if (zobject)
+    {
+        zval_ptr_dtor(zobject);
+    }
 
     if (EG(exception))
     {
