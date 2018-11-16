@@ -328,9 +328,9 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval
         }
         COROG.active = 1;
     }
-    if (unlikely(COROG.coro_num >= COROG.max_coro_num) )
+    if (unlikely(COROG.coro_num >= COROG.max_coro_num))
     {
-        swWarn("exceed max number of coro_num %d, max_coro_num:%d", COROG.coro_num, COROG.max_coro_num);
+        swoole_php_fatal_error(E_WARNING, "exceed max number of coroutine %d", COROG.coro_num);
         return CORO_LIMIT;
     }
 

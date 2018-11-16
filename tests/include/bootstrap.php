@@ -3,7 +3,6 @@ require_once  __DIR__ . '/config.php'; // (`once` because it may required in ski
 
 ini_set('memory_limit', '1024M');
 ini_set('swoole.aio_mode', SWOOLE_AIO_BASE); // SWOOLE_AIO_BASE, SWOOLE_AIO_LINUX
-ini_set('swoole.display_errors', 'Off');
 ini_set("assert.active", 1);
 assert_options(ASSERT_ACTIVE, 1);
 assert_options(ASSERT_WARNING, 1);

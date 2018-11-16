@@ -143,7 +143,7 @@ int coroutine_create(coroutine_func_t fn, void* args)
     int cid = alloc_cidmap();
     if (unlikely(cid == -1))
     {
-        swWarn("alloc_cidmap failed");
+        swWarn("alloc_cidmap failed, may reaches the limit of allocation %d", MAX_CORO_NUM_LIMIT);
         return CORO_LIMIT;
     }
     coroutine_t *co = new coroutine_s(cid, swCoroG.stack_size, fn, args);
