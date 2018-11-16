@@ -19,9 +19,9 @@ class TestCo
     }
 }
 
-// for ($c = MAX_CONCURRENCY; $c--;) {
+for ($c = MAX_CONCURRENCY; $c--;) {
     go([new TestCo, 'foo']);
-// }
+}
 
 ?>
 --EXPECTF--

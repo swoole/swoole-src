@@ -186,7 +186,7 @@ static void php_coro_create(void *arg)
 {
     php_args *php_arg = (php_args *) arg;
     zend_fcall_info_cache *fci_cache = php_arg->fci_cache;
-    zval **argv = php_arg->argv;
+    zval *argv = php_arg->argv;
     int argc = php_arg->argc;
     zval *retval = php_arg->retval;
     coro_task *origin_task = php_arg->origin_task;
@@ -221,7 +221,7 @@ static void php_coro_create(void *arg)
     for (i = 0; i < argc; ++i)
     {
         zval *param;
-        zval *arg = argv[i];
+        zval *arg = &argv[i];
         if (Z_ISREF_P(arg) && !(func->common.fn_flags & ZEND_ACC_CALL_VIA_TRAMPOLINE))
         {
             /* don't separate references for __call */
@@ -338,7 +338,7 @@ void sw_coro_check_bind(const char *name, int bind_cid)
     }
 }
 
-int sw_coro_create(zend_fcall_info_cache *fci_cache, zval **argv, int argc, zval *retval)
+int sw_coro_create(zend_fcall_info_cache *fci_cache, zval *argv, int argc, zval *retval)
 {
     if (unlikely(COROG.active == 0))
     {

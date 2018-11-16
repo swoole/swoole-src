@@ -1160,12 +1160,12 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
             }
         }
 
+        zval args[2];
+        args[0] = *zrequest_object;
+        args[1] = *zresponse_object;
+
         if (SwooleG.enable_coroutine)
         {
-            zval *args[2];
-            args[0] = zrequest_object;
-            args[1] = zresponse_object;
-
             zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, from_fd, callback_type);
             int ret = sw_coro_create(cache, args, 2, retval);
             if (ret < 0)
@@ -1179,10 +1179,6 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
         }
         else
         {
-            zval args[2];
-            args[0] = *zrequest_object;
-            args[1] = *zresponse_object;
-
             zend_fcall_info_cache *fci_cache = php_swoole_server_get_cache(serv, from_fd, callback_type);
             if (sw_call_user_function_fast_ex(zcallback, fci_cache, &retval, 2, args) == FAILURE)
             {

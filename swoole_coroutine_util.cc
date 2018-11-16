@@ -393,7 +393,7 @@ PHP_FUNCTION(swoole_coroutine_create)
     ZEND_PARSE_PARAMETERS_START(1, -1)
         Z_PARAM_FUNC(fci, fci_cache)
         Z_PARAM_VARIADIC('*', fci.params, fci.param_count)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (unlikely(SWOOLE_G(req_status) == PHP_SWOOLE_CALL_USER_SHUTDOWNFUNC_BEGIN))
     {
@@ -408,7 +408,7 @@ PHP_FUNCTION(swoole_coroutine_create)
     php_swoole_check_reactor();
 
     zval *retval = NULL;
-    int cid = sw_coro_create(&fci_cache, &fci.params, fci.param_count, retval);
+    int cid = sw_coro_create(&fci_cache, fci.params, fci.param_count, retval);
     if (EG(exception))
     {
         zend_exception_error(EG(exception), E_ERROR);
