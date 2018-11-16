@@ -29,7 +29,7 @@ $pm->childFunc = function () use ($pm)
 
         $chan = new chan(2);
         go(function () use ($chan) {
-            $cli = new Swoole\Coroutine\Http\Client('www.qq.com', 80);
+            $cli = new Swoole\Coroutine\Http\Client('www.qq.com', 443, true);
             $cli->set(['timeout' => 10]);
             $cli->setHeaders([
                 'Host' => "www.qq.com",

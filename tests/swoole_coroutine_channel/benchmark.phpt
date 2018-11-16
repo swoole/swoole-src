@@ -56,9 +56,6 @@ swoole_event_wait();
 var_dump($time);
 $diff = $time['channel_raw'] - $time['splQueue'];
 var_dump($diff);
-if (!IS_IN_TRAVIS) {
-    assert($diff <= 0 || $diff < $time['splQueue'] * 0.15); // faster than splQueue or 15% diff
-}
 ?>
 --EXPECTF--
 array(3) {
