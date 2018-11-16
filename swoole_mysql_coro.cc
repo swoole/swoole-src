@@ -1822,7 +1822,7 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
 
             // always check that is package complete
             // and maybe more responses has already received in buffer, we check it now.
-            if (client->cmd == SW_MYSQL_COM_STMT_EXECUTE && mysql_is_over(client) != SW_OK)
+            if ((client->cmd == SW_MYSQL_COM_STMT_EXECUTE || client->cmd == SW_MYSQL_COM_QUERY) && mysql_is_over(client) != SW_OK)
             {
                 // the **last** sever status flag shows that more results exist but we hasn't received.
                 swTraceLog(SW_TRACE_MYSQL_CLIENT, "need more");

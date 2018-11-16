@@ -478,6 +478,26 @@ int mysql_is_over(mysql_client *client);
 #ifdef SW_MYSQL_DEBUG
 void mysql_client_info(mysql_client *client);
 void mysql_column_info(mysql_field *field);
+static sw_inline void mysql_packet_dump(const char *p, size_t len, const char *title)
+{
+	unsigned int of = 0;
+
+    swDebug("+----------+------------+-------------------------------------------------------+");
+    swDebug("| P#%-6d | L%-9zu | %-10zu %42s |", p[3], mysql_uint3korr(p), len, title);
+    swDebug("+----------+------------+-----------+-----------+------------+------------------+");
+	for (of = 0; of < len; of += 16) {
+		char hex[16*3+1];
+		char str[16+1];
+		int i, hof = 0, sof = 0;
+
+		for (i = of ; i < of + 16 && i < len ; i++) {
+			hof += sprintf(hex+hof, "%02x ", p[i] & 0xff);
+			sof += sprintf(str+sof, "%c", isprint((int)p[i]) ? p[i] : '.');
+		}
+		swDebug("| %08x | %-48s| %-16s |", of, hex, str);
+	}
+	swDebug("+----------+------------+-----------+-----------+------------+------------------+");
+}
 #endif
 
 static sw_inline void mysql_pack_length(int length, char *buf)
