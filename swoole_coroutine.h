@@ -38,10 +38,10 @@ typedef enum
 
 typedef struct _coro_task
 {
-    zend_execute_data *execute_data;
-    zend_vm_stack vm_stack;
     zval *vm_stack_top;
     zval *vm_stack_end;
+    zend_vm_stack vm_stack;
+    zend_execute_data *execute_data;
     zend_output_globals *output_ptr;
     SW_DECLARE_EG_SCOPE(scope);
     coroutine_t *co;
