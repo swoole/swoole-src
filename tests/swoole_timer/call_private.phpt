@@ -15,13 +15,13 @@ class Test
 
 fork_exec(function () {
     swoole_timer_after(1, [Test::class, 'not_exist']);
-});
+}, '/dev/stdout');
 fork_exec(function () {
     swoole_timer_after(1, [Test::class, 'foo']);
-});
+}, '/dev/stdout');
 fork_exec(function () {
     swoole_timer_after(1, [new Test, 'bar']);
-});
+}, '/dev/stdout');
 
 ?>
 --EXPECTF--
