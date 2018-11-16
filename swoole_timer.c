@@ -79,7 +79,6 @@ long php_swoole_add_timer(int ms, zval *callback, zval *param, int persistent)
     }
 
     char *func_name = NULL;
-
     zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
     if (!sw_zend_is_callable_ex(callback, NULL, 0, &func_name, NULL, func_cache, NULL))
     {
@@ -180,19 +179,15 @@ void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
 
     if (SwooleG.enable_coroutine)
     {
-        zval *args[2];
-        int argc;
+        zval *args[1];
+        int argc = 0;
 
-        if (NULL == cb->data)
-        {
-            argc = 0;
-            args[0] = NULL;
-        }
-        else
+        if (cb->data)
         {
             argc = 1;
             args[0] = cb->data;
         }
+
         int ret = sw_coro_create(cb->func_cache, args, argc, retval);
         if (CORO_LIMIT == ret)
         {
