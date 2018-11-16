@@ -240,9 +240,6 @@ static void php_coro_create(void *arg)
         uint32_t call_info;
         GC_ADDREF(ZEND_CLOSURE_OBJECT(func));
         call_info = ZEND_CALL_CLOSURE;
-        if (func->common.fn_flags & ZEND_ACC_FAKE_CLOSURE) {
-            call_info |= ZEND_CALL_FAKE_CLOSURE;
-        }
         ZEND_ADD_CALL_FLAG(call, call_info);
     }
 
