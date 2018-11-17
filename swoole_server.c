@@ -1104,7 +1104,7 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
     zval_ptr_dtor(zworker_id);
     sw_zval_free(zdata);
 
-    if (retval)
+    if (retval && serv->onFinish)
     {
         if (Z_TYPE_P(retval) != IS_NULL)
         {
