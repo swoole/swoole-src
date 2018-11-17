@@ -27,6 +27,7 @@ static PHP_METHOD(swoole_mysql_coro, __destruct);
 static PHP_METHOD(swoole_mysql_coro, connect);
 static PHP_METHOD(swoole_mysql_coro, query);
 static PHP_METHOD(swoole_mysql_coro, recv);
+static PHP_METHOD(swoole_mysql_coro, nextResult);
 #ifdef SW_USE_MYSQLND
 static PHP_METHOD(swoole_mysql_coro, escape);
 #endif
@@ -115,6 +116,7 @@ static const zend_function_entry swoole_mysql_coro_methods[] =
     PHP_ME(swoole_mysql_coro, connect, arginfo_swoole_mysql_coro_connect, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_mysql_coro, query, arginfo_swoole_mysql_coro_query, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_mysql_coro, recv, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_mysql_coro, nextResult, arginfo_swoole_void, ZEND_ACC_PUBLIC)
 #ifdef SW_USE_MYSQLND
     PHP_ME(swoole_mysql_coro, escape, arginfo_swoole_mysql_coro_escape, ZEND_ACC_PUBLIC)
 #endif
@@ -876,6 +878,39 @@ static PHP_METHOD(swoole_mysql_coro, query)
     sw_coro_yield();
 }
 
+static PHP_METHOD(swoole_mysql_coro, nextResult)
+{
+    mysql_client *client = (mysql_client *) swoole_get_object(getThis());
+    if (!client)
+    {
+        RETURN_FALSE;
+    }
+
+    if (client->buffer && (size_t) client->buffer->offset < client->buffer->length)
+    {
+        client->cmd = SW_MYSQL_COM_QUERY;
+        client->state = SW_MYSQL_STATE_READ_START;
+        client->statement = nullptr;
+        zval *result = NULL;
+        if (swoole_mysql_coro_parse_response(client, &result, 1) == SW_OK)
+        {
+            swoole_mysql_coro_parse_end(client, client->buffer); // ending tidy up
+            zval _result = *result;
+            efree(result);
+            result = &_result;
+            RETURN_ZVAL(result, 0, 1);
+        }
+        else
+        {
+            RETURN_FALSE;
+        }
+    }
+    else
+    {
+        RETURN_NULL();
+    }
+}
+
 static void swoole_mysql_coro_query_transcation(const char* command, uint8_t in_transaction, zend_execute_data *execute_data, zval *return_value)
 {
     mysql_client *client = (mysql_client *) swoole_get_object(getThis());
@@ -1106,6 +1141,11 @@ static PHP_METHOD(swoole_mysql_coro_statement, execute)
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|ad", &params, &timeout) == FAILURE)
     {
         RETURN_FALSE;
+    }
+
+    if (stmt->buffer)
+    {
+        swString_clear(stmt->buffer);
     }
 
     if (swoole_mysql_coro_execute(getThis(), client, params) < 0)
@@ -1822,7 +1862,7 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
 
             // always check that is package complete
             // and maybe more responses has already received in buffer, we check it now.
-            if (client->cmd == SW_MYSQL_COM_STMT_EXECUTE && mysql_is_over(client) != SW_OK)
+            if ((client->cmd == SW_MYSQL_COM_QUERY || client->cmd == SW_MYSQL_COM_STMT_EXECUTE) && mysql_is_over(client) != SW_OK)
             {
                 // the **last** sever status flag shows that more results exist but we hasn't received.
                 swTraceLog(SW_TRACE_MYSQL_CLIENT, "need more");

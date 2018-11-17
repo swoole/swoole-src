@@ -2119,6 +2119,11 @@ int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callba
         return SW_ERR;
     }
 
+    if (client->buffer)
+    {
+        swString_clear(client->buffer);
+    }
+
     if (callback != NULL)
     {
         Z_TRY_ADDREF_P(callback);
