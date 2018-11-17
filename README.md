@@ -482,7 +482,7 @@ After compiling and installing to the system successfully, you need to add a new
 ## 💎 Frameworks & Components
 
 - [**Swoft**](https://github.com/swoft-cloud) is a modern, high-performance AOP and coroutine PHP framework.
-- [**Easyswoole**](https://github.com/swoft-cloud) is a simple, high-performance PHP framework, based on Swoole, which makes using Swoole as easy as `echo "hello world"`.
+- [**Easyswoole**](https://github.com/easy-swoole) is a simple, high-performance PHP framework, based on Swoole, which makes using Swoole as easy as `echo "hello world"`.
 - [**Saber**](https://github.com/swlib/saber) Is a human-friendly, high-performance HTTP client component that has almost everything you can imagine.
 
 ## 🛠 Develop & Discussion
