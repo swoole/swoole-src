@@ -1569,7 +1569,7 @@ static sw_inline int mysql_read_ok(mysql_client *client, char *buf, int n_buf)
 
     MYSQL_RESPONSE_BUFFER->offset += client->response.packet_length + SW_MYSQL_PACKET_HEADER_SIZE;
 
-    swTraceLog(SW_TRACE_MYSQL_CLIENT, "OK_Packet, affected_rows=%u, insert_id=%u, warnings=%u", client->response.affected_rows, client->response.insert_id, client->response.warnings);
+    swTraceLog(SW_TRACE_MYSQL_CLIENT, "OK_Packet, affected_rows=%lu, insert_id=%lu, warnings=%u", client->response.affected_rows, client->response.insert_id, client->response.warnings);
 
     return SW_OK;
 }
