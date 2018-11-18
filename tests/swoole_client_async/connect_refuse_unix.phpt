@@ -17,7 +17,8 @@ $cli->on("receive", function(swoole_client $cli, $data) {
 $cli->on("error", function(swoole_client $cli) { echo "error\n"; });
 $cli->on("close", function(swoole_client $cli) { echo "close\n"; });
 
-$cli->connect("/test.sock");
+@$cli->connect("/test.sock");
+
 swoole_event_wait();
 ?>
 --EXPECT--

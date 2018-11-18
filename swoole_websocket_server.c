@@ -234,12 +234,12 @@ void swoole_websocket_onOpen(http_context *ctx)
         zval *zrequest_object = ctx->request.zobject;
         zval *retval = NULL;
 
+        zval args[2];
+        args[0] = *zserv;
+        args[1] = *zrequest_object;
+
         if (SwooleG.enable_coroutine)
         {
-            zval *args[2];
-            args[0] = zserv;
-            args[1] = zrequest_object;
-
             int ret = sw_coro_create(cache, args, 2, retval);
             if (ret == CORO_LIMIT)
             {
@@ -249,10 +249,6 @@ void swoole_websocket_onOpen(http_context *ctx)
         }
         else
         {
-            zval args[2];
-            args[0] = *zserv;
-            args[1] = *zrequest_object;
-
             zval *zcallback = php_swoole_server_get_callback(SwooleG.serv, conn->from_fd, SW_SERVER_CB_onOpen);
             if (sw_call_user_function_fast_ex(zcallback, cache, &retval, 2, args) == FAILURE)
             {
@@ -387,12 +383,12 @@ int swoole_websocket_onMessage(swEventData *req)
     zval *zserv = (zval *) serv->ptr2;
     zval *retval = NULL;
 
+    zval args[2];
+    args[0] = *zserv;
+    args[1] = *zframe;
+
     if (SwooleG.enable_coroutine)
     {
-        zval *args[2];
-        args[0] = zserv;
-        args[1] = zframe;
-
         zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onMessage);
         int ret = sw_coro_create(cache, args, 2, retval);
         if (ret == CORO_LIMIT)
@@ -405,10 +401,6 @@ int swoole_websocket_onMessage(swEventData *req)
     }
     else
     {
-        zval args[2];
-        args[0] = *zserv;
-        args[1] = *zframe;
-
         zend_fcall_info_cache *fci_cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onMessage);
         zval *zcallback = php_swoole_server_get_callback(SwooleG.serv, req->info.from_fd, SW_SERVER_CB_onMessage);
 

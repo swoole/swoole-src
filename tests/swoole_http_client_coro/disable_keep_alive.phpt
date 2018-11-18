@@ -7,7 +7,7 @@ swoole_http_client_coro: disable keep alive
 require __DIR__ . '/../include/bootstrap.php';
 go(function () {
     $host = 'www.qq.com';
-    $cli = new \Swoole\Coroutine\Http\Client($host, 80);
+    $cli = new Swoole\Coroutine\Http\Client($host, 443, true);
     $cli->set([
         'timeout' => 10,
         'keep_alive' => false

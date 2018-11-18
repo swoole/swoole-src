@@ -79,13 +79,12 @@ long php_swoole_add_timer(int ms, zval *callback, zval *param, int persistent)
     }
 
     char *func_name = NULL;
-
     zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
     if (!sw_zend_is_callable_ex(callback, NULL, 0, &func_name, NULL, func_cache, NULL))
     {
+        swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
         efree(func_cache);
         efree(func_name);
-        swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
         return SW_ERR;
     }
     efree(func_name);
@@ -178,21 +177,17 @@ void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
     swTimer_callback *cb = tnode->data;
     zval *retval = NULL;
 
+    zval args[1];
+    int argc = 0;
+
+    if (cb->data)
+    {
+        argc = 1;
+        args[0] = *cb->data;
+    }
+
     if (SwooleG.enable_coroutine)
     {
-        zval *args[2];
-        int argc;
-
-        if (NULL == cb->data)
-        {
-            argc = 0;
-            args[0] = NULL;
-        }
-        else
-        {
-            argc = 1;
-            args[0] = cb->data;
-        }
         int ret = sw_coro_create(cb->func_cache, args, argc, retval);
         if (CORO_LIMIT == ret)
         {
@@ -202,15 +197,6 @@ void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
     }
     else
     {
-        zval args[1];
-        int argc = 0;
-
-        if (cb->data)
-        {
-            argc = 1;
-            args[0] = *cb->data;
-        }
-
         if (sw_call_user_function_ex(EG(function_table), NULL, cb->callback, &retval, argc, args, 0, NULL) == FAILURE)
         {
             swoole_php_fatal_error(E_WARNING, "swoole_timer: onTimeout handler error");
@@ -232,26 +218,24 @@ void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
 void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode)
 {
     zval *retval = NULL;
-    int argc = 1;
-
     zval *ztimer_id;
-
     swTimer_callback *cb = tnode->data;
 
     SW_MAKE_STD_ZVAL(ztimer_id);
     ZVAL_LONG(ztimer_id, tnode->id);
 
+    zval args[2];
+    int argc = 1;
+    args[0] = *ztimer_id;
+    if (cb->data)
+    {
+        argc = 2;
+        Z_TRY_ADDREF_P(cb->data);
+        args[1] = *cb->data;
+    }
+
     if (SwooleG.enable_coroutine)
     {
-        zval *args[2];
-        args[0] = ztimer_id;
-        if (cb->data)
-        {
-            argc = 2;
-            Z_TRY_ADDREF_P(cb->data);
-            args[1] = cb->data;
-        }
-
         int ret = sw_coro_create(cb->func_cache, args, argc, retval);
         if (CORO_LIMIT == ret)
         {
@@ -261,15 +245,6 @@ void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode)
     }
     else
     {
-        zval args[2];
-        args[0] = *ztimer_id;
-        if (cb->data)
-        {
-            argc = 2;
-            Z_TRY_ADDREF_P(cb->data);
-            args[1] = *cb->data;
-        }
-
         if (sw_call_user_function_ex(EG(function_table), NULL, cb->callback, &retval, argc, args, 0, NULL) == FAILURE)
         {
             swoole_php_fatal_error(E_WARNING, "swoole_timer: onTimerCallback handler error");

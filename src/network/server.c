@@ -247,11 +247,6 @@ static int swServer_start_check(swServer *serv)
             swWarn("onTask is null");
             return SW_ERR;
         }
-        if (serv->onFinish == NULL)
-        {
-            swWarn("onFinish is null");
-            return SW_ERR;
-        }
         if (serv->task_worker_num > SW_CPU_NUM * SW_MAX_WORKER_NCPU)
         {
             swWarn("serv->task_worker_num > %d, Too many processes, the system will be slow", SW_CPU_NUM * SW_MAX_WORKER_NCPU);

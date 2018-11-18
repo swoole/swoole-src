@@ -621,7 +621,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
             char *func_name = NULL;
             if (!sw_zend_is_callable(v, 0, &func_name))
             {
-                swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+                swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
                 efree(func_name);
                 return;
             }
@@ -1809,7 +1809,7 @@ static PHP_METHOD(swoole_client, on)
     zend_fcall_info_cache func_cache;
     if (!sw_zend_is_callable_ex(zcallback, NULL, 0, &func_name, NULL, &func_cache, NULL))
     {
-        swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+        swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
         efree(func_name);
         return;
     }
@@ -1924,7 +1924,7 @@ static PHP_METHOD(swoole_client, enableSSL)
         zend_fcall_info_cache func_cache;
         if (!sw_zend_is_callable_ex(zcallback, NULL, 0, &func_name, NULL, &func_cache, NULL))
         {
-            swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
+            swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
             efree(func_name);
             return;
         }

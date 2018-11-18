@@ -195,6 +195,10 @@ static int redis_onReceive(swServer *serv, swEventData *req)
     SW_MAKE_STD_ZVAL(zfd);
     ZVAL_LONG(zfd, fd);
 
+    zval args[2];
+    args[0] = *zfd;
+    args[1] = *zparams;
+
     if (SwooleG.enable_coroutine)
     {
         zval *zindex = sw_zend_read_property(swoole_redis_server_class_entry_ptr, zobject, _command, _command_len, 1);
@@ -204,9 +208,6 @@ static int redis_onReceive(swServer *serv, swEventData *req)
             swServer_tcp_send(serv, fd, err_msg, length);
             return SW_OK;
         }
-        zval *args[2];
-        args[0] = zfd;
-        args[1] = zparams;
 
         zend_fcall_info_cache *cache = func_cache_array.array[Z_LVAL_P(zindex)];
         if (sw_coro_create(cache, args, 2, retval) < 0)
@@ -219,7 +220,6 @@ static int redis_onReceive(swServer *serv, swEventData *req)
     }
     else
     {
-        zval args[2];
         zval *zcallback = sw_zend_read_property(swoole_redis_server_class_entry_ptr, zobject, _command, _command_len, 1);
         if (!zcallback || ZVAL_IS_NULL(zcallback))
         {
@@ -227,8 +227,6 @@ static int redis_onReceive(swServer *serv, swEventData *req)
             swServer_tcp_send(serv, fd, err_msg, length);
             return SW_OK;
         }
-        args[0] = *zfd;
-        args[1] = *zparams;
 
         if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL) == FAILURE)
         {

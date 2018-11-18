@@ -143,7 +143,7 @@ int coroutine_create(coroutine_func_t fn, void* args)
     int cid = alloc_cidmap();
     if (unlikely(cid == -1))
     {
-        swWarn("alloc_cidmap failed");
+        swWarn("alloc_cidmap failed, may reaches the limit of allocation %d", MAX_CORO_NUM_LIMIT);
         return CORO_LIMIT;
     }
     coroutine_t *co = new coroutine_s(cid, swCoroG.stack_size, fn, args);
@@ -260,19 +260,12 @@ void* coroutine_get_current_task()
 int coroutine_get_current_cid()
 {
     coroutine_t* co = coroutine_get_current();
-    if (likely(co))
-    {
-        return co->cid;
-    }
-    else
-    {
-        return -1;
-    }
+    return likely(co) ? co->cid : -1;
 }
 
 int coroutine_get_cid(coroutine_t *co)
 {
-    return co->cid;
+    return likely(co) ? co->cid : -1;
 }
 
 int coroutine_test_alloc_cid()

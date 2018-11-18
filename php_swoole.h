@@ -530,7 +530,7 @@ static sw_inline int php_swoole_is_callable(zval *callback)
     char *func_name = NULL;
     if (!sw_zend_is_callable(callback, 0, &func_name))
     {
-        swoole_php_fatal_error(E_WARNING, "Function '%s' is not callable", func_name);
+        swoole_php_fatal_error(E_WARNING, "function '%s' is not callable", func_name);
         efree(func_name);
         return SW_FALSE;
     }

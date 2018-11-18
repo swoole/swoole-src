@@ -387,11 +387,14 @@ static PHP_METHOD(swoole_coroutine_util, set)
 
 PHP_FUNCTION(swoole_coroutine_create)
 {
-    zval *callback;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &callback) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    zend_fcall_info fci;
+    zend_fcall_info_cache fci_cache;
+
+    ZEND_PARSE_PARAMETERS_START(1, -1)
+        Z_PARAM_FUNC(fci, fci_cache)
+        Z_PARAM_VARIADIC('*', fci.params, fci.param_count)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
     if (unlikely(SWOOLE_G(req_status) == PHP_SWOOLE_CALL_USER_SHUTDOWNFUNC_BEGIN))
     {
         zend_function *func = (zend_function *) EG(current_execute_data)->prev_execute_data->func;
@@ -401,23 +404,11 @@ PHP_FUNCTION(swoole_coroutine_create)
             RETURN_FALSE;
         }
     }
-    char *func_name = NULL;
-    zend_fcall_info_cache *func_cache = ( zend_fcall_info_cache *) emalloc(sizeof(zend_fcall_info_cache));
-    if (!sw_zend_is_callable_ex(callback, NULL, 0, &func_name, NULL, func_cache, NULL))
-    {
-        swoole_php_fatal_error(E_ERROR, "Function '%s' is not callable", func_name);
-        efree(func_name);
-        return;
-    }
-    efree(func_name);
+
     php_swoole_check_reactor();
-    callback = sw_zval_dup(callback);
-    Z_TRY_ADDREF_P(callback);
 
     zval *retval = NULL;
-    int cid = sw_coro_create(func_cache, NULL, 0, retval);
-    sw_zval_free(callback);
-    efree(func_cache);
+    int cid = sw_coro_create(&fci_cache, fci.params, fci.param_count, retval);
     if (EG(exception))
     {
         zend_exception_error(EG(exception), E_ERROR);
@@ -426,7 +417,7 @@ PHP_FUNCTION(swoole_coroutine_create)
     {
         zval_ptr_dtor(retval);
     }
-    if (cid < 0)
+    if (cid <= 0)
     {
         RETURN_FALSE;
     }

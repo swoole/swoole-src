@@ -38,23 +38,20 @@ typedef enum
 
 typedef struct _coro_task
 {
-#ifdef SW_LOG_TRACE_OPEN
-    int cid;
-#endif
-    zend_execute_data *execute_data;
-    zend_vm_stack vm_stack;
     zval *vm_stack_top;
     zval *vm_stack_end;
+    zend_vm_stack vm_stack;
+    zend_execute_data *execute_data;
     zend_output_globals *output_ptr;
+    SW_DECLARE_EG_SCOPE(scope);
     coroutine_t *co;
     struct _coro_task *origin_task;
-    SW_DECLARE_EG_SCOPE(scope);
 } coro_task;
 
 typedef struct _php_args
 {
     zend_fcall_info_cache *fci_cache;
-    zval **argv;
+    zval *argv;
     int argc;
     zval *retval;
     coro_task *origin_task;
@@ -102,7 +99,7 @@ void coro_check(void);
 /* output globals */
 #define SWOG ((zend_output_globals *) &OG(handlers))
 
-int sw_coro_create(zend_fcall_info_cache *op_array, zval **argv, int argc, zval *retval);
+int sw_coro_create(zend_fcall_info_cache *fci_cache, zval *argv, int argc, zval *retval);
 void sw_coro_yield();
 void sw_coro_close();
 int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_retval);

@@ -27,7 +27,7 @@ go(function () use ($port) {
     if (!$cli->send("hello")) {
         goto fail;
     }
-    $ret = $cli->recv();
+    $ret = @$cli->recv();
     $interval = time() - $begin;
     if ($ret !== false) {
         var_dump($ret);

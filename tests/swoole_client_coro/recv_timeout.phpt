@@ -15,7 +15,7 @@ $pm->parentFunc = function ($pid) use ($pm)
         $cli->connect('127.0.0.1', $pm->getFreePort(), -1);
         $data = str_repeat('A', 1025);
         $cli->send(pack('N', strlen($data)) . $data);
-        $retData = $cli->recv(0.5);
+        $retData = @$cli->recv(0.5);
         assert($retData == false);
         assert($cli->errCode == SOCKET_ETIMEDOUT);
     });

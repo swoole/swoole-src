@@ -14,7 +14,7 @@ go(function () {
     $ret = $cli->send("hello");
     echo "send ret:".var_export($ret,1)."\n";
 
-    $ret = $cli->recv();
+    $ret = @$cli->recv();
     echo "recv ret:".var_export($ret,1)."\n";
     assert($cli->errCode == SOCKET_ECONNREFUSED);
     $cli->close();

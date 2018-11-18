@@ -108,6 +108,10 @@ void swoole_init(void)
     else
     {
         SwooleG.max_sockets = (uint32_t) rlmt.rlim_cur;
+        if (SwooleG.max_sockets > SW_MAX_CONNECTION)
+        {
+            SwooleG.max_sockets = SW_MAX_CONNECTION;
+        }
     }
 #endif
 
