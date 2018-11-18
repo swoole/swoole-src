@@ -26,7 +26,6 @@ static PHP_METHOD(swoole_mysql_coro, __construct);
 static PHP_METHOD(swoole_mysql_coro, __destruct);
 static PHP_METHOD(swoole_mysql_coro, connect);
 static PHP_METHOD(swoole_mysql_coro, query);
-static PHP_METHOD(swoole_mysql_coro, nextResult);
 static PHP_METHOD(swoole_mysql_coro, recv);
 static PHP_METHOD(swoole_mysql_coro, nextResult);
 #ifdef SW_USE_MYSQLND
@@ -886,7 +885,7 @@ static PHP_METHOD(swoole_mysql_coro, nextResult)
     {
         RETURN_FALSE;
     }
-  
+
     if (client->buffer && (size_t) client->buffer->offset < client->buffer->length)
     {
         client->cmd = SW_MYSQL_COM_QUERY;
