@@ -393,7 +393,7 @@ static int swoole_mysql_coro_parse_response(mysql_client *client, zval **result,
     client->state = SW_MYSQL_STATE_QUERY;
 
     //OK
-    if (client->response.response_type == 0)
+    if (client->response.response_type == SW_MYSQL_PACKET_OK)
     {
         SW_ALLOC_INIT_ZVAL(*result);
         // prepare finished and create statement
@@ -422,7 +422,7 @@ static int swoole_mysql_coro_parse_response(mysql_client *client, zval **result,
         }
     }
     //ERROR
-    else if (client->response.response_type == 255)
+    else if (client->response.response_type == SW_MYSQL_PACKET_ERR)
     {
         SW_ALLOC_INIT_ZVAL(*result);
         ZVAL_FALSE(*result);
