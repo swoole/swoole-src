@@ -22,7 +22,7 @@ go(function () {
     }
 
     $baidu = createDeferCli('www.baidu.com', true);
-    $qq = createDeferCli('www.qq.com');
+    $qq = createDeferCli('www.qq.com', true);
 
     //first
     $baidu->get('/');

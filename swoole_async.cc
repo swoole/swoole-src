@@ -905,7 +905,7 @@ PHP_FUNCTION(swoole_async_set)
     if (php_swoole_array_get_value(vht, "display_errors", v))
     {
         convert_to_boolean(v);
-        SWOOLE_G(display_errors) = 0;
+        SWOOLE_G(display_errors) = Z_BVAL_P(v);
     }
     if (php_swoole_array_get_value(vht, "socket_dontwait", v))
     {

@@ -4,6 +4,7 @@ require_once __DIR__ . '/functions.php';
 /** ============== Env =============== */
 define('IS_MAC_OS', stripos(PHP_OS, 'Darwin') !== false);
 define('IS_IN_TRAVIS', file_exists('/.travisenv'));
+define('USE_VALGRIND', getenv('USE_ZEND_ALLOC') === '0');
 define('HAS_SSL', defined("SWOOLE_SSL"));
 define('HAS_ASYNC_REDIS', class_exists("swoole_redis", false));
 define('HAS_HTTP2', class_exists("swoole_http2_request", false));
@@ -51,9 +52,10 @@ define('TEST_LOG_FILE', '/tmp/swoole.log');
 define('SSL_FILE_DIR', __DIR__ . '/api/swoole_http_server/localhost-ssl');
 
 /** ============== Times ============== */
-define('MAX_CONCURRENCY', IS_IN_TRAVIS ? 64 : 256);
-define('MAX_CONCURRENCY_MID', IS_IN_TRAVIS ? 32 : 128);
-define('MAX_CONCURRENCY_LOW', IS_IN_TRAVIS ? 16 : 64);
-define('MAX_REQUESTS', IS_IN_TRAVIS ? 50 : 100);
-define('MAX_REQUESTS_LOW', IS_IN_TRAVIS ? 10 : 25);
-define('MAX_LOOPS', (IS_IN_TRAVIS ? 100 : 1000) * 1000);
+define('PRESSURE_LEVEL', USE_VALGRIND ? 1 : IS_IN_TRAVIS ? 2 : 3);
+define('MAX_CONCURRENCY', [16, 32, 64, 256][PRESSURE_LEVEL]);
+define('MAX_CONCURRENCY_MID', [8, 16, 32, 128][PRESSURE_LEVEL]);
+define('MAX_CONCURRENCY_LOW', [4, 8, 16, 64][PRESSURE_LEVEL]);
+define('MAX_REQUESTS', [12, 24, 50, 100][PRESSURE_LEVEL]);
+define('MAX_REQUESTS_LOW', [4, 8, 10, 25][PRESSURE_LEVEL]);
+define('MAX_LOOPS', [12, 24, 100, 1000][PRESSURE_LEVEL] * 1000);

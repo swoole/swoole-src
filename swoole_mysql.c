@@ -354,11 +354,6 @@ static void mysql_columns_free(mysql_client *client)
     client->response.columns = NULL;
 }
 
-#ifdef SW_MYSQL_DEBUG
-static void mysql_client_info(mysql_client *client);
-static void mysql_column_info(mysql_field *field);
-#endif
-
 static void swoole_mysql_onTimeout(swTimer *timer, swTimer_node *tnode);
 static int swoole_mysql_onRead(swReactor *reactor, swEvent *event);
 static int swoole_mysql_onWrite(swReactor *reactor, swEvent *event);
@@ -440,19 +435,20 @@ int mysql_get_result(mysql_connector *connector, char *buf, int len)
 {
     char *tmp = buf;
     int packet_length = mysql_uint3korr(tmp);
-    if (len < packet_length + 4)
+    if (len < packet_length + SW_MYSQL_PACKET_HEADER_SIZE)
     {
         return 0;
     }
     //int packet_number = tmp[3];
-    tmp += 4;
+    tmp += SW_MYSQL_PACKET_HEADER_SIZE;
 
     uint8_t opcode = *tmp;
     tmp += 1;
 
     //ERROR Packet
-    if (opcode == 0xff)
+    if (opcode == SW_MYSQL_PACKET_ERR)
     {
+        swMysqlPacketDump(tmp - 5, packet_length + SW_MYSQL_PACKET_HEADER_SIZE, "Handshake ERR_Packet");
         connector->error_code = *(uint16_t *) tmp;
         connector->error_msg = tmp + 2;
         connector->error_length = packet_length - 3;
@@ -460,6 +456,7 @@ int mysql_get_result(mysql_connector *connector, char *buf, int len)
     }
     else
     {
+        swMysqlPacketDump(tmp - 5, packet_length + SW_MYSQL_PACKET_HEADER_SIZE, "Handshake OK_Packet");
         return 1;
     }
 }
@@ -593,19 +590,21 @@ int mysql_handshake(mysql_connector *connector, char *buf, int len)
 
     request.packet_length = mysql_uint3korr(tmp);
     //continue to wait for data
-    if (len < request.packet_length + 4)
+    if (len < request.packet_length + SW_MYSQL_PACKET_HEADER_SIZE)
     {
         return 0;
     }
 
+    swMysqlPacketDump(tmp, request.packet_length + SW_MYSQL_PACKET_HEADER_SIZE, "Protocol::HandshakeV10");
+
     request.packet_number = tmp[3];
-    tmp += 4;
+    tmp += SW_MYSQL_PACKET_HEADER_SIZE;
 
     request.protocol_version = *tmp;
     tmp += 1;
 
     //ERROR Packet
-    if (request.protocol_version == 0xff)
+    if (request.protocol_version == SW_MYSQL_PACKET_ERR)
     {
         connector->error_code = *(uint16_t *) tmp;
         connector->error_msg = tmp + 2;
@@ -731,6 +730,8 @@ int mysql_handshake(mysql_connector *connector, char *buf, int len)
     mysql_pack_length(connector->packet_length, connector->buf);
     connector->buf[3] = 1;
 
+    swMysqlPacketDump(connector->buf, connector->packet_length + SW_MYSQL_PACKET_HEADER_SIZE, "Protocol::HandshakeResponse41");
+
     return next_state;
 }
 
@@ -739,7 +740,7 @@ int mysql_handshake(mysql_connector *connector, char *buf, int len)
 int mysql_auth_switch(mysql_connector *connector, char *buf, int len)
 {
     char *tmp = buf;
-    if ((uint8_t) tmp[4] != 0xfe)
+    if ((uint8_t) tmp[4] != SW_MYSQL_PACKET_EOF)
     {
         // out of the order package
         return SW_ERR;
@@ -749,12 +750,12 @@ int mysql_auth_switch(mysql_connector *connector, char *buf, int len)
 
     int packet_length = mysql_uint3korr(tmp);
     //continue to wait for data
-    if (len < packet_length + 4)
+    if (len < packet_length + SW_MYSQL_PACKET_HEADER_SIZE)
     {
         return SW_AGAIN;
     }
     int packet_number = tmp[3];
-    tmp += 4;
+    tmp += SW_MYSQL_PACKET_HEADER_SIZE;
 
     // type
     tmp += 1;
@@ -807,12 +808,15 @@ int mysql_parse_auth_signature(swString *buffer, mysql_connector *connector)
     char *tmp = buffer->str;
     int packet_length = mysql_uint3korr(tmp);
     //continue to wait for data
-    if (buffer->length < packet_length + 4)
+    if (buffer->length < packet_length + SW_MYSQL_PACKET_HEADER_SIZE)
     {
         return SW_AGAIN;
     }
+
+    swMysqlPacketDump(tmp, packet_length + SW_MYSQL_PACKET_HEADER_SIZE, "Auth");
+
     int packet_number = tmp[3];
-    tmp += 4;
+    tmp += SW_MYSQL_PACKET_HEADER_SIZE;
 
     // signature
     if ((uint8_t) tmp[0] != SW_MYSQL_AUTH_SIGNATURE)
@@ -821,7 +825,7 @@ int mysql_parse_auth_signature(swString *buffer, mysql_connector *connector)
     }
 
     // remaining length
-    buffer->offset = 4 + packet_length;
+    buffer->offset = SW_MYSQL_PACKET_HEADER_SIZE + packet_length;
     swTraceLog(SW_TRACE_MYSQL_CLIENT, "before signature remaining=%ju", (uintmax_t) (buffer->length - buffer->offset));
 
     if ((uint8_t)tmp[1] == SW_MYSQL_AUTH_SIGNATURE_FULL_AUTH_REQUIRED)
@@ -854,12 +858,12 @@ int mysql_parse_rsa(mysql_connector *connector, char *buf, int len)
 
     int packet_length = mysql_uint3korr(tmp);
     //continue to wait for data
-    if (len < packet_length + 4)
+    if (len < packet_length + SW_MYSQL_PACKET_HEADER_SIZE)
     {
         return SW_AGAIN;
     }
     int packet_number = tmp[3];
-    tmp += 4;
+    tmp += SW_MYSQL_PACKET_HEADER_SIZE;
 
     int rsa_public_key_length = packet_length;
     while (tmp[0] != 0x2d)
@@ -935,33 +939,51 @@ int mysql_parse_rsa(mysql_connector *connector, char *buf, int len)
 }
 #endif
 
-
 static int mysql_parse_prepare_result(mysql_client *client, char *buf, size_t n_buf)
 {
-    if (n_buf < 11)
+    // not COM_STMT_PREPARE_OK packet
+    if ((uint8_t) buf[4] != SW_MYSQL_PACKET_OK && client->cmd != SW_MYSQL_COM_STMT_PREPARE)
     {
         return SW_ERR;
     }
 
+    swMysqlPacketDump(buf, client->response.packet_length + SW_MYSQL_PACKET_HEADER_SIZE, "COM_STMT_PREPARE_OK_Packet");
+
+    // skip the packet header
+    buf += SW_MYSQL_PACKET_HEADER_SIZE;
+
     mysql_statement *stmt = emalloc(sizeof(mysql_statement));
+    // status (1) -- [00] OK
+    buf += 1;
+
+    // statement_id (4) -- statement-id
     stmt->id = mysql_uint4korr(buf);
     buf += 4;
+
+    // num_columns (2) -- number of columns
     stmt->field_count = mysql_uint2korr(buf);
     buf += 2;
+
+    // num_params (2) -- number of params
     stmt->unreaded_param_count = stmt->param_count = mysql_uint2korr(buf);
     buf += 2;
-    //skip 1 byte
+
+    // reserved_1 (1) -- [00] filler
     buf += 1;
+
+    // warning_count (2) -- number of warnings
     stmt->warning_count = mysql_uint2korr(buf);
     stmt->result = NULL;
     stmt->buffer = NULL;
     client->statement = stmt;
     stmt->client = client;
 
-    swTraceLog(SW_TRACE_MYSQL_CLIENT, "id=%d, field_count=%d, param_count=%d, warning_count=%d.", stmt->id, stmt->field_count, stmt->param_count,
-            stmt->warning_count);
+    MYSQL_RESPONSE_BUFFER->offset += client->response.packet_length + SW_MYSQL_PACKET_HEADER_SIZE;
 
-    return 11;
+    swTraceLog(SW_TRACE_MYSQL_CLIENT, "stmt_id=%u, field_count=%u, param_count=%u, warning_count=%u.", stmt->id, 
+            stmt->field_count, stmt->param_count, stmt->warning_count);
+
+    return SW_OK;
 }
 
 static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
@@ -1418,28 +1440,136 @@ static int mysql_decode_row_prepare(mysql_client *client, char *buf, int packet_
     return read_n + null_count;
 }
 
-static sw_inline int mysql_read_eof(mysql_client *client, char *buffer, int n_buf)
+static sw_inline int mysql_ensure_packet(char *buf, int n_buf)
 {
-    //EOF, length (3byte) + id(1byte) + 0xFE + warning(2byte) + status(2byte)
-    if (n_buf < 9)
-    {
-        client->response.wait_recv = 1;
-        return SW_ERR;
-    }
-
-    client->response.packet_length = mysql_uint3korr(buffer);
-    client->response.packet_number = buffer[3];
-
-    //not EOF packet
-    uint8_t eof = buffer[4];
-    if (eof != 0xfe)
+    if (n_buf < SW_MYSQL_PACKET_HEADER_SIZE)
     {
         return SW_ERR;
     }
 
-    client->response.warnings = mysql_uint2korr(buffer + 5);
-    client->response.status_code = mysql_uint2korr(buffer + 7);
-    MYSQL_RESPONSE_BUFFER->offset += client->response.packet_length + 4;
+    uint32_t packet_length = mysql_uint3korr(buf);
+
+    // Ensure that we've received the complete packet
+    if (n_buf < packet_length + SW_MYSQL_PACKET_HEADER_SIZE)
+    {
+        return SW_ERR;
+    }
+
+    return SW_OK;
+}
+
+static sw_inline int mysql_read_eof(mysql_client *client, char *buf, int n_buf)
+{
+    // not EOF packet
+    if ((uint8_t) buf[4] != SW_MYSQL_PACKET_EOF || client->response.packet_length > 9)
+    {
+        return SW_ERR;
+    }
+
+    swMysqlPacketDump(buf, client->response.packet_length + SW_MYSQL_PACKET_HEADER_SIZE, "EOF_Packet");
+
+    // EOF_Packet = Packet header (4 bytes) + 0xFE + warning(2byte) + status(2byte)
+
+    // skip packet header
+    buf += SW_MYSQL_PACKET_HEADER_SIZE;
+
+    // int<1>	header	[fe] EOF header
+    buf += 1;
+
+    // int<2>	warnings	number of warnings
+    client->response.warnings = mysql_uint2korr(buf);
+    buf += 2;
+
+    // int<2>	status_flags	Status Flags
+    client->response.status_code = mysql_uint2korr(buf);
+    MYSQL_RESPONSE_BUFFER->offset += client->response.packet_length + SW_MYSQL_PACKET_HEADER_SIZE;
+
+    swTraceLog(SW_TRACE_MYSQL_CLIENT, "EOF_Packet, warnings=%u, status_code=%u", client->response.warnings, client->response.status_code);
+
+    return SW_OK;
+}
+
+static sw_inline int mysql_read_err(mysql_client *client, char *buf, int n_buf)
+{
+    // not ERR packet
+    if ((uint8_t) buf[4] != SW_MYSQL_PACKET_ERR)
+    {
+        return SW_ERR;
+    }
+
+    swMysqlPacketDump(buf, client->response.packet_length + SW_MYSQL_PACKET_HEADER_SIZE, "ERR_Packet");
+
+    client->response.response_type = SW_MYSQL_PACKET_ERR;
+
+    // ERR Packet = Packet header (4 bytes) + ERR Payload
+
+    // skip packet header
+    buf += SW_MYSQL_PACKET_HEADER_SIZE;
+
+    // int<1>	header	[ff] header of the ERR packet
+    buf += 1;
+
+    // int<2>	error_code	error-code
+    client->response.error_code = mysql_uint2korr(buf);
+    buf += 2;
+
+    // string[1]	sql_state_marker	# marker of the SQL State
+    buf += 1;
+
+    // string[5]	sql_state	SQL State
+    memcpy(client->response.status_msg, buf, 5);
+    buf += 5;
+
+    // string<EOF>	error_message	human readable error message
+    client->response.server_msg = buf;
+    client->response.l_server_msg = client->response.packet_length - 9;
+    MYSQL_RESPONSE_BUFFER->offset += client->response.packet_length + SW_MYSQL_PACKET_HEADER_SIZE;
+
+    swTraceLog(SW_TRACE_MYSQL_CLIENT, "ERR_Packet, error_code=%u, status_msg=%s", client->response.error_code, client->response.status_msg);
+
+    return SW_OK;
+}
+
+static sw_inline int mysql_read_ok(mysql_client *client, char *buf, int n_buf)
+{
+    int ret;
+    char nul;
+
+    if ((uint8_t) buf[4] != SW_MYSQL_PACKET_OK || client->cmd == SW_MYSQL_COM_STMT_PREPARE)
+    {
+        return SW_ERR;
+    }
+
+    swMysqlPacketDump(buf, client->response.packet_length + SW_MYSQL_PACKET_HEADER_SIZE, "OK_Packet");
+
+    // skip packet header
+    buf += SW_MYSQL_PACKET_HEADER_SIZE;
+    n_buf -= SW_MYSQL_PACKET_HEADER_SIZE;
+
+    // int<1>	header	[00] or [fe] the OK packet header
+    buf += 1;
+    n_buf -= 1;
+
+    // int<lenenc>	affected_rows	affected rows
+    ret = mysql_length_coded_binary(buf, &client->response.affected_rows, &nul, n_buf);
+    n_buf -= ret;
+    buf += ret;
+
+    // int<lenenc>	last_insert_id	last insert-id
+    ret = mysql_length_coded_binary(buf, &client->response.insert_id, &nul, n_buf);
+    n_buf -= ret;
+    buf += ret;
+
+    // int<2>	status_flags	Status Flags
+    client->response.status_code = mysql_uint2korr(buf);
+    buf += 2;
+
+    // int<2>	warnings	number of warnings
+    client->response.warnings = mysql_uint2korr(buf);
+
+    MYSQL_RESPONSE_BUFFER->offset += client->response.packet_length + SW_MYSQL_PACKET_HEADER_SIZE;
+
+    swTraceLog(SW_TRACE_MYSQL_CLIENT, "OK_Packet, affected_rows=%lu, insert_id=%lu, warnings=%u", client->response.affected_rows, client->response.insert_id, client->response.warnings);
 
     return SW_OK;
 }
@@ -1449,31 +1579,29 @@ static sw_inline int mysql_read_params(mysql_client *client)
     while (1)
     {
         swString *buffer = MYSQL_RESPONSE_BUFFER;
-        char *t_buffer = buffer->str + buffer->offset;
+        char *p = buffer->str + buffer->offset;
         uint32_t n_buf = buffer->length - buffer->offset;
 
         swTraceLog(SW_TRACE_MYSQL_CLIENT, "n_buf=%d, length=%d.", n_buf, client->response.packet_length);
 
-        if (n_buf < 4)
+        // Ensure that we've received the complete packet
+        if (mysql_ensure_packet(p, n_buf) == SW_ERR)
         {
-            swTraceLog(SW_TRACE_MYSQL_CLIENT, "read eof [1]");
+            client->response.wait_recv = 1;
             return SW_ERR;
         }
 
+        client->response.packet_length = mysql_uint3korr(p);
+        client->response.packet_number = p[3];
+
         if (client->statement->unreaded_param_count > 0)
         {
-            //no enough data
-            if (n_buf - 4 < client->response.packet_length)
-            {
-                swTraceLog(SW_TRACE_MYSQL_CLIENT, "read eof 234234.");
-                return SW_ERR;
-            }
             // Read and ignore parameter field. Sentence from MySQL source:
             // skip parameters data: we don't support it yet
-            client->response.packet_length = mysql_uint3korr(t_buffer);
-            client->response.packet_number = t_buffer[3];
-            buffer->offset += (client->response.packet_length + 4);
+            buffer->offset += (client->response.packet_length + SW_MYSQL_PACKET_HEADER_SIZE);
             client->statement->unreaded_param_count--;
+
+            swMysqlPacketDump(p, client->response.packet_length + SW_MYSQL_PACKET_HEADER_SIZE, "Protocol::ParameterDefinition");
 
             swTraceLog(SW_TRACE_MYSQL_CLIENT, "read param, count=%d.", client->statement->unreaded_param_count);
 
@@ -1481,9 +1609,7 @@ static sw_inline int mysql_read_params(mysql_client *client)
         }
         else
         {
-            swTraceLog(SW_TRACE_MYSQL_CLIENT, "read eof [2]");
-
-            if (mysql_read_eof(client, t_buffer, n_buf) == 0)
+            if (mysql_read_eof(client, p, n_buf) == 0)
             {
                 return SW_OK;
             }
@@ -1498,7 +1624,7 @@ static sw_inline int mysql_read_params(mysql_client *client)
 static sw_inline int mysql_read_rows(mysql_client *client)
 {
     swString *buffer = MYSQL_RESPONSE_BUFFER;
-    char *t_buffer = buffer->str + buffer->offset;
+    char *p = buffer->str + buffer->offset;
     uint32_t n_buf = buffer->length - buffer->offset;
     int ret;
 
@@ -1507,13 +1633,28 @@ static sw_inline int mysql_read_rows(mysql_client *client)
     //RecordSet parse
     while (n_buf > 0)
     {
-        if (n_buf < 4)
+        // Ensure that we've received the complete packet
+        if (mysql_ensure_packet(p, n_buf) == SW_ERR)
         {
             client->response.wait_recv = 1;
             return SW_ERR;
         }
+
+        client->response.packet_length = mysql_uint3korr(p);
+        client->response.packet_number = p[3];
+
         //RecordSet end
-        else if (mysql_read_eof(client, t_buffer, n_buf) == SW_OK)
+        if (mysql_read_eof(client, p, n_buf) == SW_OK)
+        {
+            if (client->response.columns)
+            {
+                mysql_columns_free(client);
+            }
+            return SW_OK;
+        }
+        // ERR Instead of EOF
+        // @see: https://dev.mysql.com/doc/internals/en/err-instead-of-eof.html
+        else if (mysql_read_err(client, p, n_buf) == SW_OK)
         {
             if (client->response.columns)
             {
@@ -1522,28 +1663,21 @@ static sw_inline int mysql_read_rows(mysql_client *client)
             return SW_OK;
         }
 
-        client->response.packet_length = mysql_uint3korr(t_buffer);
-        client->response.packet_number = t_buffer[3];
-        t_buffer += 4;
-        n_buf -= 4;
-
         swTraceLog(SW_TRACE_MYSQL_CLIENT, "record size=%d", client->response.packet_length);
-
-        //no enough data
-        if (n_buf < client->response.packet_length)
-        {
-            client->response.wait_recv = 1;
-            return SW_ERR;
-        }
 
         if (client->cmd == SW_MYSQL_COM_STMT_EXECUTE)
         {
-            ret = mysql_decode_row_prepare(client, t_buffer, client->response.packet_length);
+            // ProtocolBinary::ResultsetRow
+            swMysqlPacketDump(p, client->response.packet_length + SW_MYSQL_PACKET_HEADER_SIZE, "ProtocolBinary::ResultsetRow");
+
+            ret = mysql_decode_row_prepare(client, p + SW_MYSQL_PACKET_HEADER_SIZE, client->response.packet_length);
         }
         else
         {
-            //decode
-            ret = mysql_decode_row(client, t_buffer, client->response.packet_length);
+            // ProtocolText::ResultsetRow
+            swMysqlPacketDump(p, client->response.packet_length + SW_MYSQL_PACKET_HEADER_SIZE, "ProtocolText::ResultsetRow");
+
+            ret = mysql_decode_row(client, p + SW_MYSQL_PACKET_HEADER_SIZE, client->response.packet_length);
         }
 
         if (ret < 0)
@@ -1553,9 +1687,9 @@ static sw_inline int mysql_read_rows(mysql_client *client)
 
         //next row
         client->response.num_row++;
-        t_buffer += client->response.packet_length;
-        n_buf -= client->response.packet_length;
-        buffer->offset += client->response.packet_length + 4;
+        p += client->response.packet_length + SW_MYSQL_PACKET_HEADER_SIZE;
+        n_buf -= client->response.packet_length + SW_MYSQL_PACKET_HEADER_SIZE;
+        buffer->offset += client->response.packet_length + SW_MYSQL_PACKET_HEADER_SIZE;
     }
 
     return SW_ERR;
@@ -1762,7 +1896,7 @@ static int mysql_decode_field(char *buf, int len, mysql_field *col)
 static int mysql_read_columns(mysql_client *client)
 {
     swString *buffer = MYSQL_RESPONSE_BUFFER;
-    char *t_buffer = buffer->str + buffer->offset;
+    char *p = buffer->str + buffer->offset;
     uint32_t n_buf = buffer->length - buffer->offset;
     int ret;
 
@@ -1770,29 +1904,28 @@ static int mysql_read_columns(mysql_client *client)
     {
         swTraceLog(SW_TRACE_MYSQL_CLIENT, "index_index_column=%ld, n_buf=%d.", client->response.index_column, n_buf);
 
-        if (n_buf < 4)
+        // Ensure that we've received the complete packet
+        if (mysql_ensure_packet(p, n_buf) == SW_ERR)
         {
+            client->response.wait_recv = 1;
             return SW_ERR;
         }
 
-        client->response.packet_length = mysql_uint3korr(t_buffer);
+        client->response.packet_length = mysql_uint3korr(p);
+        client->response.packet_number = p[3];
 
-        //no enough data
-        if (n_buf - 4 < client->response.packet_length)
-        {
-            return SW_ERR;
-        }
+        swMysqlPacketDump(p, client->response.packet_length + SW_MYSQL_PACKET_HEADER_SIZE, "Protocol::ColumnDefinition");
 
-        client->response.packet_number = t_buffer[3];
-        t_buffer += 4;
-        n_buf -= 4;
+        // skip the packet header
+        p += SW_MYSQL_PACKET_HEADER_SIZE;
+        n_buf -= SW_MYSQL_PACKET_HEADER_SIZE;
 
-        ret = mysql_decode_field(t_buffer, client->response.packet_length, &client->response.columns[client->response.index_column]);
+        ret = mysql_decode_field(p, client->response.packet_length, &client->response.columns[client->response.index_column]);
         if (ret > 0)
         {
-            t_buffer += client->response.packet_length;
+            p += client->response.packet_length;
             n_buf -= client->response.packet_length;
-            buffer->offset += (client->response.packet_length + 4);
+            buffer->offset += (client->response.packet_length + SW_MYSQL_PACKET_HEADER_SIZE);
         }
         else
         {
@@ -1801,13 +1934,23 @@ static int mysql_read_columns(mysql_client *client)
         }
     }
 
-    if (mysql_read_eof(client, t_buffer, n_buf) < 0)
+    // Ensure that we've received the complete EOF_Packet
+    if (mysql_ensure_packet(p, n_buf) == SW_ERR)
+    {
+        client->response.wait_recv = 1;
+        return SW_ERR;
+    }
+
+    client->response.packet_length = mysql_uint3korr(p);
+    client->response.packet_number = p[3];
+
+    if (mysql_read_eof(client, p, n_buf) < 0)
     {
         return SW_ERR;
     }
 
-    t_buffer += 9;
-    n_buf -= 9;
+    p += client->response.packet_length + SW_MYSQL_PACKET_HEADER_SIZE;
+    n_buf -= client->response.packet_length + SW_MYSQL_PACKET_HEADER_SIZE;
 
     if (client->cmd != SW_MYSQL_COM_STMT_PREPARE)
     {
@@ -1820,7 +1963,7 @@ static int mysql_read_columns(mysql_client *client)
         }
     }
 
-    buffer->offset += t_buffer - (buffer->str + buffer->offset);
+    buffer->offset += p - (buffer->str + buffer->offset);
 
     return SW_OK;
 }
@@ -1842,26 +1985,26 @@ int mysql_is_over(mysql_client *client)
         }
         package_len = mysql_uint3korr(p); // parse package length
         // add header
-        p += 4;
-        remaining_size -= 4;
+        p += SW_MYSQL_PACKET_HEADER_SIZE;
+        remaining_size -= SW_MYSQL_PACKET_HEADER_SIZE;
         if (unlikely(remaining_size < package_len)) // package is incomplete
         {
             break;
         }
 
-        client->check_offset += (4 + package_len); // add header length + package length
+        client->check_offset += (SW_MYSQL_PACKET_HEADER_SIZE + package_len); // add header length + package length
         if (client->check_offset >= buffer->length) // if false: more packages exist, skip the current one
         {
             switch ((uint8_t) p[0])
             {
-            case 0xfe: // eof
+            case SW_MYSQL_PACKET_EOF: // eof
             {
                 // +type +warning
                 p += 3;
                 swTraceLog(SW_TRACE_MYSQL_CLIENT, "meet eof and flag=%d", mysql_uint2korr(p));
                 goto _check_flag;
             }
-            case 0x00: // ok
+            case SW_MYSQL_PACKET_OK: // ok
             {
                 ulong_t val = 0;
                 char nul;
@@ -1890,7 +2033,7 @@ int mysql_is_over(mysql_client *client)
                 }
                 break;
             }
-            case 0xff: // response type = error
+            case SW_MYSQL_PACKET_ERR: // response type = error
             {
                 goto _over;
             }
@@ -1914,133 +2057,85 @@ int mysql_response(mysql_client *client)
 {
     swString *buffer = MYSQL_RESPONSE_BUFFER;
 
-    char *p = buffer->str + buffer->offset;
+    char *p;
     int ret;
     char nul;
-    size_t n_buf = buffer->length - buffer->offset;
+    size_t n_buf;
 
-    while (n_buf > 0)
+    while ((n_buf = buffer->length - buffer->offset) > 0)
     {
+        p = buffer->str + buffer->offset;
         swTraceLog(SW_TRACE_MYSQL_CLIENT, "client->state=%d, n_buf=%zu.", client->state, n_buf);
 
         switch (client->state)
         {
         case SW_MYSQL_STATE_READ_START:
-            if (buffer->length - buffer->offset < 5)
+            // Ensure that we've received the complete packet
+            if (mysql_ensure_packet(p, n_buf) == SW_ERR)
             {
                 client->response.wait_recv = 1;
                 return SW_ERR;
             }
+
             client->response.packet_length = mysql_uint3korr(p);
             client->response.packet_number = p[3];
-            p += 4;
-            n_buf -= 4;
-
-            if (n_buf < client->response.packet_length)
-            {
-                client->response.wait_recv = 1;
-                return SW_ERR;
-            }
-
-            client->response.response_type = p[0];
-            p ++;
-            n_buf --;
+            client->response.response_type = p[4];
 
             /* error */
-            if (client->response.response_type == 0xff)
+            if (mysql_read_err(client, p, n_buf) == SW_OK)
             {
-                client->response.error_code = mysql_uint2korr(p);
-                /* status flag 1byte (#), skip.. */
-                memcpy(client->response.status_msg, p + 3, 5);
-                client->response.server_msg = p + 8;
-                /**
-                 * int<1> header  [ff] header of the ERR packet
-                 * int<2>  error_code  error-code
-                 * if capabilities & CLIENT_PROTOCOL_41 {
-                 *  string[1] sql_state_marker    # marker of the SQL State
-                 *  string[5] sql_state   SQL State
-                 * }
-                 */
-                client->response.l_server_msg = client->response.packet_length - 9;
                 client->state = SW_MYSQL_STATE_READ_END;
                 return SW_OK;
             }
             /* eof */
-            else if (client->response.response_type == 0xfe)
+            else if (mysql_read_eof(client, p, n_buf) == SW_OK)
             {
-                client->response.warnings = mysql_uint2korr(p);
-                client->response.status_code = mysql_uint2korr(p + 2);
                 client->state = SW_MYSQL_STATE_READ_END;
                 return SW_OK;
             }
             /* ok */
-            else if (client->response.response_type == 0)
+            else if (mysql_read_ok(client, p, n_buf) == SW_OK)
             {
-                if (client->cmd == SW_MYSQL_COM_STMT_PREPARE)
-                {
-                    ret = mysql_parse_prepare_result(client, p, n_buf);
-                    if (ret < 0)
-                    {
-                        return SW_ERR;
-                    }
-                    else
-                    {
-                        p += ret;
-                        n_buf -= ret;
-                        buffer->offset += (5 + ret);
-                        client->response.num_column = client->statement->field_count;
-                        if (client->response.num_column > 0)
-                        {
-                            client->response.columns = ecalloc(client->response.num_column, sizeof(mysql_field));
-                        }
-                        if (client->statement->param_count > 0)
-                        {
-                            client->state = SW_MYSQL_STATE_READ_PARAM;
-                        }
-                        else
-                        {
-                            client->state = SW_MYSQL_STATE_READ_FIELD;
-                        }
-                        break;
-                    }
-                }
-                /* affected rows */
-                ret = mysql_length_coded_binary(p, &client->response.affected_rows, &nul, n_buf);
-                n_buf -= ret;
-                p += ret;
-
-                /* insert id */
-                ret = mysql_length_coded_binary(p, &client->response.insert_id, &nul, n_buf);
-                n_buf -= ret;
-                p += ret;
-
-                /* server status */
-                client->response.status_code = mysql_uint2korr(p);
-                n_buf -= 2;
-                p += 2;
-
-                /* server warnings */
-                client->response.warnings = mysql_uint2korr(p);
-
                 client->state = SW_MYSQL_STATE_READ_END;
                 return SW_OK;
+            }
+            /* COM_STMT_PREPARE_OK */
+            else if (mysql_parse_prepare_result(client, p, n_buf) == SW_OK)
+            {
+                client->response.num_column = client->statement->field_count;
+                if (client->response.num_column > 0)
+                {
+                    client->response.columns = ecalloc(client->response.num_column, sizeof(mysql_field));
+                }
+                if (client->statement->param_count > 0)
+                {
+                    client->state = SW_MYSQL_STATE_READ_PARAM;
+                }
+                else
+                {
+                    client->state = SW_MYSQL_STATE_READ_FIELD;
+                }
+                break;
             }
             /* result set */
             else
             {
+                swMysqlPacketDump(p, client->response.packet_length + SW_MYSQL_PACKET_HEADER_SIZE, "Resultset");
+
                 //Protocol::LengthEncodedInteger
-                ret = mysql_length_coded_binary(p - 1, &client->response.num_column, &nul, n_buf + 1);
+                ret = mysql_length_coded_binary(p + SW_MYSQL_PACKET_HEADER_SIZE, &client->response.num_column, &nul, n_buf - SW_MYSQL_PACKET_HEADER_SIZE);
                 if (ret < 0)
                 {
                     return SW_ERR;
                 }
-                buffer->offset += (4 + ret);
+                buffer->offset += (SW_MYSQL_PACKET_HEADER_SIZE + ret);
 
                 // easy to the safe side: but under what circumstances would num_column will be 0 in result set?
                 if (client->response.num_column > 0)
                 {
                     client->response.columns = ecalloc(client->response.num_column, sizeof(mysql_field));
                 }
+
                 client->state = SW_MYSQL_STATE_READ_FIELD;
                 break;
             }
@@ -2117,6 +2212,11 @@ int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callba
     {
         swoole_php_fatal_error(E_WARNING, "mysql client is waiting response, cannot send new sql query.");
         return SW_ERR;
+    }
+
+    if (client->buffer)
+    {
+        swString_clear(client->buffer);
     }
 
     if (callback != NULL)
@@ -3041,13 +3141,13 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
             client->state = SW_MYSQL_STATE_QUERY;
 
             //OK
-            if (client->response.response_type == 0)
+            if (client->response.response_type == SW_MYSQL_PACKET_OK)
             {
                 SW_ALLOC_INIT_ZVAL(result);
                 ZVAL_BOOL(result, 1);
             }
             //ERROR
-            else if (client->response.response_type == 255)
+            else if (client->response.response_type == SW_MYSQL_PACKET_ERR)
             {
                 SW_ALLOC_INIT_ZVAL(result);
                 ZVAL_BOOL(result, 0);

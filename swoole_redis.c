@@ -344,7 +344,7 @@ static PHP_METHOD(swoole_redis, connect)
 
     if (context->err)
     {
-        redisFree(context);
+        redisAsyncFree(context);
         swoole_php_error(E_WARNING, "failed to connect to the redis-server[%s:%d], Erorr: %s[%d]", host, (int) port, context->errstr, context->err);
         RETURN_FALSE;
     }

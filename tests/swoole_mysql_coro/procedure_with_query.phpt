@@ -1,5 +1,5 @@
 --TEST--
-swoole_mysql_coro: procedure without fetch mode
+swoole_mysql_coro: procedure without query (#2117)
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -39,15 +39,17 @@ SQL;
     $db->connect($server);
 
     if ($db->query($clear) && $db->query($procedure)) {
-        $stmt = $db->prepare('CALL reply(?)');
-        for ($n = MAX_REQUESTS; $n--;) {
-            //SWOOLE
+        for ($n = MAX_REQUESTS_LOW; $n--;) {
+            $res = $db->query('CALL reply("hello mysql!")');
+            assert(current($res[0]) === $map[0]);
+        }
+        for ($n = MAX_REQUESTS_LOW; $n--;) {
+            $res = $db->query('CALL reply("hello mysql!")');
             $_map = $map;
-            $res = $stmt->execute(['hello mysql!']);
             do {
                 assert(current($res[0]) === array_shift($_map));
-            } while ($res = $stmt->nextResult());
-            assert($stmt->affected_rows === 1, 'get the affected rows failed!');
+            } while ($res = $db->nextResult());
+            assert($db->affected_rows === 1, 'get the affected rows failed!');
             assert(empty($_map), 'there are some results lost!');
         }
     }

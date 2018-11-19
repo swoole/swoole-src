@@ -187,12 +187,12 @@ static sw_inline void http2_onRequest(http_context *ctx, int from_fd)
     SW_SEPARATE_ZVAL(zrequest_object);
     SW_SEPARATE_ZVAL(zresponse_object);
 
+    zval args[2];
+    args[0] = *zrequest_object;
+    args[1] = *zresponse_object;
+
     if (SwooleG.enable_coroutine)
     {
-        zval *args[2];
-        args[0] = zrequest_object;
-        args[1] = zresponse_object;
-
         zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, from_fd, SW_SERVER_CB_onRequest);
         int ret = sw_coro_create(cache, args, 2, retval);
         if (ret < 0)
@@ -206,10 +206,6 @@ static sw_inline void http2_onRequest(http_context *ctx, int from_fd)
     }
     else
     {
-        zval args[2];
-        args[0] = *zrequest_object;
-        args[1] = *zresponse_object;
-
         zval *zcallback = php_swoole_server_get_callback(serv, from_fd, SW_SERVER_CB_onRequest);
         zend_fcall_info_cache *fci_cache = php_swoole_server_get_cache(serv, from_fd, SW_SERVER_CB_onRequest);
         if (sw_call_user_function_fast_ex(zcallback, fci_cache, &retval, 2, args) == FAILURE)

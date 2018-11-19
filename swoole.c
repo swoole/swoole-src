@@ -1412,11 +1412,10 @@ static PHP_FUNCTION(swoole_last_error)
 
 PHP_FUNCTION(swoole_cpu_num)
 {
-    long cpu_num = 1;
-    cpu_num = sysconf(_SC_NPROCESSORS_CONF);
-    if (cpu_num < 1)
+    static long cpu_num = 0;
+    if (cpu_num == 0)
     {
-        cpu_num = 1;
+        cpu_num = MAX(1, sysconf(_SC_NPROCESSORS_CONF));
     }
     RETURN_LONG(cpu_num);
 }
