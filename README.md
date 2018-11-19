@@ -12,7 +12,7 @@ Swoole
 
 ![](./mascot.png)
 
-**Swoole is an event-driven asynchronous & coroutine-based concurrency networking communication engine with high performance written in C and C++ for PHP.**
+**Swoole is a high performance event-driven asynchronous & coroutine-based concurrency networking communication engine written in C and C++ for PHP.**
 
 ## ✨Event-based
 
