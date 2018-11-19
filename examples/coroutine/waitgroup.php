@@ -16,7 +16,7 @@ class WaitGroup {
     }
 
     function wait() {
-        for($i=0; $i<$this->count; $i++) {
+        while ($this->count--) {
             $this->chan->pop();
         }
     }
