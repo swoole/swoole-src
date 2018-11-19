@@ -42,29 +42,35 @@ static void signal_handler(int signo)
     if (signo == SIGCHLD)
     {
         int __stat_loc;
-        wait_task *task = nullptr;
 
-        pid_t __pid = wait(&__stat_loc);
-        if (waitpid_map.find(__pid) != waitpid_map.end())
+        while(true)
         {
-            task = waitpid_map[__pid];
-            waitpid_map.erase(__pid);
-        }
-        else if (wait_list.size() > 0)
-        {
-            task = wait_list.front();
-            wait_list.pop();
-        }
-        else
-        {
-            child_processes[__pid] = __stat_loc;
-        }
-
-        if (task)
-        {
-            task->status = __stat_loc;
-            task->pid = __pid;
-            coroutine_resume((coroutine_t *) task->co);
+            pid_t __pid = waitpid(-1, &__stat_loc, WNOHANG);
+            if (__pid < 0)
+            {
+                break;
+            }
+            wait_task *task = nullptr;
+            if (waitpid_map.find(__pid) != waitpid_map.end())
+            {
+                task = waitpid_map[__pid];
+                waitpid_map.erase(__pid);
+            }
+            else if (wait_list.size() > 0)
+            {
+                task = wait_list.front();
+                wait_list.pop();
+            }
+            else
+            {
+                child_processes[__pid] = __stat_loc;
+            }
+            if (task)
+            {
+                task->status = __stat_loc;
+                task->pid = __pid;
+                coroutine_resume((coroutine_t *) task->co);
+            }
         }
     }
 }
