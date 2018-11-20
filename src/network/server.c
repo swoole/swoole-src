@@ -218,7 +218,7 @@ static int swServer_start_check(swServer *serv)
         return SW_ERR;
     }
     //dgram
-    if (!serv->have_dgram_sock && serv->onPacket == NULL)
+    if (serv->have_dgram_sock && serv->onPacket == NULL)
     {
         swWarn("onPacket event callback must be set.");
         return SW_ERR;
