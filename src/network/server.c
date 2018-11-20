@@ -264,21 +264,24 @@ static int swServer_start_check(swServer *serv)
     {
         serv->reactor_num = serv->worker_num;
     }
-    if (SwooleG.max_sockets > 0 && serv->max_connection > SwooleG.max_sockets)
+    // max connections
+    uint32_t minimum_connection = (serv->worker_num + serv->task_worker_num) * 2 + 32;
+    if (serv->max_connection < minimum_connection)
     {
-        swWarn("serv->max_connection is exceed the maximum value[%d].", SwooleG.max_sockets);
         serv->max_connection = SwooleG.max_sockets;
+        swWarn("serv->max_connection must be bigger than %u, it's reset to %u", minimum_connection, SwooleG.max_sockets);
     }
-    if (serv->max_connection < (serv->worker_num + serv->task_worker_num) * 2 + 32)
+    else if (SwooleG.max_sockets > 0 && serv->max_connection > SwooleG.max_sockets)
     {
-        swWarn("serv->max_connection is too small.");
         serv->max_connection = SwooleG.max_sockets;
+        swWarn("serv->max_connection is exceed the maximum value, it's reset to %u.", SwooleG.max_sockets);
     }
-    if (serv->max_connection > SW_SESSION_LIST_SIZE)
+    else if (serv->max_connection > SW_SESSION_LIST_SIZE)
     {
-        swWarn("serv->max_connection is exceed the SW_SESSION_LIST_SIZE[%d].", SW_SESSION_LIST_SIZE);
         serv->max_connection = SW_SESSION_LIST_SIZE;
+        swWarn("serv->max_connection is exceed the SW_SESSION_LIST_SIZE, it's reset to %u.", SW_SESSION_LIST_SIZE);
     }
+    // package max length
     swListenPort *ls;
     LL_FOREACH(serv->listen_list, ls)
     {
@@ -797,7 +800,7 @@ void swServer_init(swServer *serv)
     serv->dispatch_mode = SW_DISPATCH_FDMOD;
 
     serv->worker_num = SW_CPU_NUM;
-    serv->max_connection = SwooleG.max_sockets < SW_SESSION_LIST_SIZE ? SwooleG.max_sockets : SW_SESSION_LIST_SIZE;
+    serv->max_connection = MIN(SW_MAX_CONNECTION, SwooleG.max_sockets);
 
     serv->max_request = 0;
     serv->max_wait_time = SW_WORKER_MAX_WAIT_TIME;

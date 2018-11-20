@@ -72,6 +72,7 @@ $pm->parentFunc = function ($pid) use ($pm)
 
 //    echo "send ".TestServer::PKG_NUM." packet sucess, send $bytes bytes\n";
     $client->close();
+    usleep(1);
     $pm->kill();
 };
 

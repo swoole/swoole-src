@@ -1,5 +1,7 @@
 #!/usr/bin/env php
 <?php
+require __DIR__ . '/functions.php';
+
 // generate ERROR constants
 $swoole_c = __DIR__ . '/../swoole.c';
 $swoole_c_content = file_get_contents($swoole_c);

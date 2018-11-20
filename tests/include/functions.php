@@ -68,6 +68,14 @@ function curlGet($url, $gzip = true)
     return $output;
 }
 
+function content_hook_replace(string $content, array $kv_map): string
+{
+    foreach ($kv_map as $key => $val) {
+        $content = str_replace("{{{$key}}}", $val, $content);
+    }
+    return $content;
+}
+
 function tcp_type_length(string $type = 'n'): int
 {
     static $map = [

@@ -2199,7 +2199,7 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "reactor_num", v))
     {
         convert_to_long(v);
-        serv->reactor_num = (int) Z_LVAL_P(v);
+        serv->reactor_num = (uint16_t) Z_LVAL_P(v);
         if (serv->reactor_num <= 0)
         {
             serv->reactor_num = SwooleG.cpu_num;
@@ -2209,7 +2209,7 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "worker_num", v))
     {
         convert_to_long(v);
-        serv->worker_num = (int) Z_LVAL_P(v);
+        serv->worker_num = (uint16_t) Z_LVAL_P(v);
         if (serv->worker_num <= 0)
         {
             serv->worker_num = SwooleG.cpu_num;
@@ -2230,7 +2230,7 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "max_coro_num", v) || php_swoole_array_get_value(vht, "max_coroutine", v))
     {
         convert_to_long(v);
-        COROG.max_coro_num = (int) Z_LVAL_P(v);
+        COROG.max_coro_num = (uint32_t) Z_LVAL_P(v);
         if (COROG.max_coro_num <= 0)
         {
             COROG.max_coro_num = SW_DEFAULT_MAX_CORO_NUM;
@@ -2255,7 +2255,7 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "dispatch_mode", v))
     {
         convert_to_long(v);
-        serv->dispatch_mode = (int) Z_LVAL_P(v);
+        serv->dispatch_mode = (uint8_t) Z_LVAL_P(v);
     }
     //dispatch function
     if (php_swoole_array_get_value(vht, "dispatch_func", v))
@@ -2302,7 +2302,7 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "log_level", v))
     {
         convert_to_long(v);
-        SwooleG.log_level = (int) Z_LVAL_P(v);
+        SwooleG.log_level = (uint8_t) Z_LVAL_P(v);
     }
     /**
      * for dispatch_mode = 1/3
@@ -2310,7 +2310,7 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "discard_timeout_request", v))
     {
         convert_to_boolean(v);
-        serv->discard_timeout_request = Z_BVAL_P(v);
+        serv->discard_timeout_request = (uint32_t) Z_BVAL_P(v);
     }
     //onConnect/onClose event
     if (php_swoole_array_get_value(vht, "enable_unsafe_event", v))
@@ -2334,7 +2334,7 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "task_worker_num", v))
     {
         convert_to_long(v);
-        serv->task_worker_num = (int) Z_LVAL_P(v);
+        serv->task_worker_num = (uint16_t) Z_LVAL_P(v);
         if (task_callbacks == NULL)
         {
             task_callbacks = swHashMap_new(1024, NULL);
@@ -2375,7 +2375,7 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "task_ipc_mode", v))
     {
         convert_to_long(v);
-        serv->task_ipc_mode = (int) Z_LVAL_P(v);
+        serv->task_ipc_mode = (uint8_t) Z_LVAL_P(v);
     }
     /**
      * Temporary file directory for task_worker
@@ -2399,25 +2399,25 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "task_max_request", v))
     {
         convert_to_long(v);
-        serv->task_max_request = (int) Z_LVAL_P(v);
+        serv->task_max_request = (uint16_t) Z_LVAL_P(v);
     }
     //max_connection
     if (php_swoole_array_get_value(vht, "max_connection", v) || php_swoole_array_get_value(vht, "max_conn", v))
     {
         convert_to_long(v);
-        serv->max_connection = (int) Z_LVAL_P(v);
+        serv->max_connection = (uint32_t) Z_LVAL_P(v);
     }
     //heartbeat_check_interval
     if (php_swoole_array_get_value(vht, "heartbeat_check_interval", v))
     {
         convert_to_long(v);
-        serv->heartbeat_check_interval = (int) Z_LVAL_P(v);
+        serv->heartbeat_check_interval = (uint16_t) Z_LVAL_P(v);
     }
     //heartbeat idle time
     if (php_swoole_array_get_value(vht, "heartbeat_idle_time", v))
     {
         convert_to_long(v);
-        serv->heartbeat_idle_time = (int) Z_LVAL_P(v);
+        serv->heartbeat_idle_time = (uint16_t) Z_LVAL_P(v);
 
         if (serv->heartbeat_check_interval > serv->heartbeat_idle_time)
         {
@@ -2433,7 +2433,7 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "max_request", v))
     {
         convert_to_long(v);
-        serv->max_request = (int) Z_LVAL_P(v);
+        serv->max_request = (uint32_t) Z_LVAL_P(v);
     }
     //reload async
     if (php_swoole_array_get_value(vht, "reload_async", v))
@@ -2557,7 +2557,7 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "buffer_input_size", v))
     {
         convert_to_long(v);
-        serv->buffer_input_size = (int) Z_LVAL_P(v);
+        serv->buffer_input_size = (uint32_t) Z_LVAL_P(v);
     }
     /**
      * buffer output size
@@ -2565,13 +2565,13 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "buffer_output_size", v))
     {
         convert_to_long(v);
-        serv->buffer_output_size = (int) Z_LVAL_P(v);
+        serv->buffer_output_size = (uint32_t) Z_LVAL_P(v);
     }
     //message queue key
     if (php_swoole_array_get_value(vht, "message_queue_key", v))
     {
         convert_to_long(v);
-        serv->message_queue_key = (int) Z_LVAL_P(v);
+        serv->message_queue_key = (uint64_t) Z_LVAL_P(v);
     }
 
     zval *retval = NULL;

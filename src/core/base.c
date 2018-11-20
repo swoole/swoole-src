@@ -96,22 +96,17 @@ void swoole_init(void)
     swMutex_create(&SwooleGS->lock_2, 1);
     swMutex_create(&SwooleG.lock, 0);
 
-#ifdef _WIN32
     SwooleG.max_sockets = 1024;
-#else
+#ifndef _WIN32
     struct rlimit rlmt;
     if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0)
     {
         swWarn("getrlimit() failed. Error: %s[%d]", strerror(errno), errno);
-        SwooleG.max_sockets = 1024;
     }
     else
     {
-        SwooleG.max_sockets = (uint32_t) rlmt.rlim_cur;
-        if (SwooleG.max_sockets > SW_MAX_CONNECTION)
-        {
-            SwooleG.max_sockets = SW_MAX_CONNECTION;
-        }
+        SwooleG.max_sockets = MAX((uint32_t) rlmt.rlim_cur, 1024);
+        SwooleG.max_sockets = MIN((uint32_t) rlmt.rlim_cur, SW_SESSION_LIST_SIZE);
     }
 #endif
 
