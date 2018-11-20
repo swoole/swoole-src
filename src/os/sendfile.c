@@ -22,7 +22,6 @@
 
 int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size)
 {
-    off_t sent_bytes = 0;
     int ret;
 
 #ifdef __MACH__
@@ -47,18 +46,13 @@ int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size)
     *offset += size;
     if (ret == -1)
     {
-        if (errno == EAGAIN)
-        {
-            *offset += sent_bytes;
-            return sent_bytes;
-        }
-        else if (errno == EINTR)
+        if (errno == EINTR)
         {
             goto do_sendfile;
         }
         else
         {
-            return SW_ERR;
+            return ret;
         }
     }
     else if (ret == 0)
