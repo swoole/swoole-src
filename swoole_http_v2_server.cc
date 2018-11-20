@@ -869,7 +869,7 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
                 size_t n = multipart_parser_execute(multipart_parser, buffer->str, buffer->length);
                 if (n != (size_t) length)
                 {
-                    swoole_php_fatal_error(E_WARNING, "parse multipart body failed.");
+                    swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_INVALID_REQUEST, "parse multipart body failed, n=%zu.", n);
                 }
             }
             http2_onRequest(ctx, from_fd);
