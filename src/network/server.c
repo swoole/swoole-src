@@ -211,20 +211,17 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 
 static int swServer_start_check(swServer *serv)
 {
-    if (serv->onReceive == NULL && serv->onPacket == NULL)
-    {
-        swWarn("onReceive and onPacket event callback must be set.");
-        return SW_ERR;
-    }
-    if (serv->have_tcp_sock && serv->onReceive == NULL)
+    //stream
+    if (serv->have_stream_sock && serv->onReceive == NULL)
     {
         swWarn("onReceive event callback must be set.");
         return SW_ERR;
     }
-    //UDP
-    if (!serv->onPacket)
+    //dgram
+    if (!serv->have_dgram_sock && serv->onPacket == NULL)
     {
-        serv->onPacket = serv->onReceive;
+        swWarn("onPacket event callback must be set.");
+        return SW_ERR;
     }
     //disable notice when use SW_DISPATCH_ROUND and SW_DISPATCH_QUEUE
     if (serv->factory_mode == SW_MODE_PROCESS)
@@ -1418,7 +1415,7 @@ int swserver_add_systemd_socket(swServer *serv)
 
         if (swSocket_is_dgram(ls->type))
         {
-            serv->have_udp_sock = 1;
+            serv->have_dgram_sock = 1;
             serv->dgram_port_num++;
             if (ls->type == SW_SOCK_UDP)
             {
@@ -1431,7 +1428,7 @@ int swserver_add_systemd_socket(swServer *serv)
         }
         else
         {
-            serv->have_tcp_sock = 1;
+            serv->have_stream_sock = 1;
         }
 
         LL_APPEND(serv->listen_list, ls);
@@ -1514,7 +1511,7 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port)
 
     if (swSocket_is_dgram(ls->type))
     {
-        serv->have_udp_sock = 1;
+        serv->have_dgram_sock = 1;
         serv->dgram_port_num++;
         if (ls->type == SW_SOCK_UDP)
         {
@@ -1527,7 +1524,7 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port)
     }
     else
     {
-        serv->have_tcp_sock = 1;
+        serv->have_stream_sock = 1;
     }
 
     LL_APPEND(serv->listen_list, ls);

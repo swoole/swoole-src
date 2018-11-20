@@ -1264,7 +1264,7 @@ static int swReactorThread_loop(swThreadParam *param)
     reactor->setHandle(reactor, SW_FD_PIPE | SW_EVENT_WRITE, swReactorThread_onPipeWrite);
 
     //listen UDP
-    if (serv->have_udp_sock == 1)
+    if (serv->have_dgram_sock == 1)
     {
         swListenPort *ls;
         LL_FOREACH(serv->listen_list, ls)
