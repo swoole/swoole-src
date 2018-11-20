@@ -241,7 +241,7 @@ void swoole_websocket_onOpen(http_context *ctx)
         if (SwooleG.enable_coroutine)
         {
             int ret = sw_coro_create(fci_cache, 2, args, retval);
-            if (ret == CORO_LIMIT)
+            if (ret < 0)
             {
                 SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
                 return;
@@ -390,7 +390,7 @@ int swoole_websocket_onMessage(swEventData *req)
     if (SwooleG.enable_coroutine)
     {
         int ret = sw_coro_create(fci_cache, 2, args, retval);
-        if (ret == CORO_LIMIT)
+        if (ret < 0)
         {
             zval_ptr_dtor(zdata);
             zval_ptr_dtor(zframe);

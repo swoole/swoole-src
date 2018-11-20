@@ -864,7 +864,7 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
         {
             zval_ptr_dtor(zworker_id);
             sw_zval_free(zdata);
-            if (ret == CORO_LIMIT)
+            if (ret < 0)
             {
                 swWarn("Failed to handle onPipeMessage. Coroutine limited");
             }
@@ -925,7 +925,7 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
             zval_ptr_dtor(zfd);
             zval_ptr_dtor(zfrom_id);
             zval_ptr_dtor(zdata);
-            if (ret == CORO_LIMIT)
+            if (ret < 0)
             {
                 serv->factory.end(&SwooleG.serv->factory, req->info.fd);
             }
@@ -1344,7 +1344,7 @@ static void php_swoole_onWorkerStart_coroutine(zval *zserv, zval *zworker_id)
     if (ret < 0)
     {
         zval_ptr_dtor(zworker_id);
-        if (ret == CORO_LIMIT)
+        if (ret < 0)
         {
             swWarn("Failed to handle onWorkerStart. Coroutine limited.");
         }

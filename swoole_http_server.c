@@ -1161,7 +1161,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
             int ret = sw_coro_create(fci_cache, 2, args, retval);
             if (ret < 0)
             {
-                if (ret == CORO_LIMIT)
+                if (ret < 0)
                 {
                     serv->factory.end(&SwooleG.serv->factory, fd);
                 }

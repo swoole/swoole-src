@@ -197,7 +197,7 @@ static sw_inline void http2_onRequest(http_context *ctx, int from_fd)
         int ret = sw_coro_create(fci_cache, 2, args, retval);
         if (ret < 0)
         {
-            if (ret == CORO_LIMIT)
+            if (ret < 0)
             {
                 serv->factory.end(&SwooleG.serv->factory, fd);
             }
