@@ -8,7 +8,8 @@ require __DIR__ . '/../include/bootstrap.php';
 
 go(function () {
     $cli = new Swoole\Coroutine\Http\Client('www.cust.edu.cn', 80);
-    file_put_contents('/tmp/test.jpg', str_repeat(openssl_random_pseudo_bytes(1024), 1024 * 5));
+    $content = str_repeat(openssl_random_pseudo_bytes(1024), 1024 * (IS_IN_TRAVIS ? 1 : 5));
+    file_put_contents('/tmp/test.jpg', $content);
     $cli->addFile('/tmp/test.jpg', 'test.jpg');
     $ret = $cli->post('/', ['name' => 'rango']);
     assert($ret);
