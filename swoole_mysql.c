@@ -673,6 +673,9 @@ int mysql_handshake(mysql_connector *connector, char *buf, int len)
     memcpy(tmp, &value, sizeof(value));
     tmp += 4;
 
+    swTraceLog(SW_TRACE_MYSQL_CLIENT, "Server protocol=%d, version=%s, capabilites=0x%08x, status=%u, Client capabilites=0x%08x", 
+        request.protocol_version, request.server_version, request.capability_flags, request.status_flags, value);
+
     //max-packet size
     value = 300;
     memcpy(tmp, &value, sizeof(value));
@@ -942,7 +945,7 @@ int mysql_parse_rsa(mysql_connector *connector, char *buf, int len)
 static int mysql_parse_prepare_result(mysql_client *client, char *buf, size_t n_buf)
 {
     // not COM_STMT_PREPARE_OK packet
-    if ((uint8_t) buf[4] != SW_MYSQL_PACKET_OK && client->cmd != SW_MYSQL_COM_STMT_PREPARE)
+    if ((uint8_t) buf[4] != SW_MYSQL_PACKET_OK || client->cmd != SW_MYSQL_COM_STMT_PREPARE || client->response.packet_length < 12)
     {
         return SW_ERR;
     }
@@ -1569,7 +1572,8 @@ static sw_inline int mysql_read_ok(mysql_client *client, char *buf, int n_buf)
 
     MYSQL_RESPONSE_BUFFER->offset += client->response.packet_length + SW_MYSQL_PACKET_HEADER_SIZE;
 
-    swTraceLog(SW_TRACE_MYSQL_CLIENT, "OK_Packet, affected_rows=%lu, insert_id=%lu, warnings=%u", client->response.affected_rows, client->response.insert_id, client->response.warnings);
+    swTraceLog(SW_TRACE_MYSQL_CLIENT, "OK_Packet, affected_rows=%lu, insert_id=%lu, status_flags=%u, warnings=%u", 
+        client->response.affected_rows, client->response.insert_id, client->response.status_code, client->response.warnings);
 
     return SW_OK;
 }
