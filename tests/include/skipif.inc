@@ -71,7 +71,7 @@ function skip_if_no_http2()
 function skip_if_darwin()
 {
     if (stripos(PHP_OS, 'Darwin') !== false) {
-        skip("no darwin");
+        skip("not support on darwin");
     }
 }
 

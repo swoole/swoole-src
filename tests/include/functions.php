@@ -36,6 +36,11 @@ function get_one_free_port()
     return $port;
 }
 
+function array_random(array $array)
+{
+    return $array[mt_rand(0, count($array) - 1)];
+}
+
 function httpCoroGet(string $uri)
 {
     $url_info = parse_url($uri);

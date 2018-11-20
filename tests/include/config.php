@@ -10,6 +10,8 @@ define('HAS_ASYNC_REDIS', class_exists("swoole_redis", false));
 define('HAS_HTTP2', class_exists("swoole_http2_request", false));
 
 /** ============ Servers ============ */
+define('SERVER_MODE_RANDOM', array_random([SWOOLE_BASE, SWOOLE_PROCESS]));
+
 define('TCP_SERVER_HOST', '127.0.0.1');
 define('TCP_SERVER_PORT', 9001);
 
@@ -18,7 +20,7 @@ define('HTTP_SERVER_PORT', 9002);
 define('WEBSOCKET_SERVER_HOST', '127.0.0.1');
 define('WEBSOCKET_SERVER_PORT', 9003);
 
-define('UNIXSOCK_SERVER_PATH', __DIR__ . '/unix-sock-test.sock');
+define('UNIXSOCK_PATH', '/tmp/unix-sock-test.sock');
 
 define('UDP_SERVER_HOST', '127.0.0.1');
 define('UDP_SERVER_PORT', '9003');
