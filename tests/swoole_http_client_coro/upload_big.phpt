@@ -16,6 +16,7 @@ go(function () {
     assert($cli->statusCode === 200);
     assert(strpos($cli->body, 'cust.edu.cn') !== false);
     $cli->close();
+    @unlink('/tmp/test.jpg');
 });
 
 ?>
