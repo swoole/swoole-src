@@ -338,7 +338,7 @@ void sw_coro_check_bind(const char *name, int bind_cid)
     }
 }
 
-int sw_coro_create(zend_fcall_info_cache *fci_cache, zval *argv, int argc, zval *retval)
+int sw_coro_create(zend_fcall_info_cache *fci_cache, int argc, zval *argv, zval *retval)
 {
     if (unlikely(COROG.active == 0))
     {

@@ -408,7 +408,7 @@ PHP_FUNCTION(swoole_coroutine_create)
     php_swoole_check_reactor();
 
     zval *retval = NULL;
-    int cid = sw_coro_create(&fci_cache, fci.params, fci.param_count, retval);
+    int cid = sw_coro_create(&fci_cache, fci.param_count, fci.params, retval);
     if (EG(exception))
     {
         zend_exception_error(EG(exception), E_ERROR);

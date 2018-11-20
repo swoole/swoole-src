@@ -188,7 +188,7 @@ void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
 
     if (SwooleG.enable_coroutine)
     {
-        int ret = sw_coro_create(cb->func_cache, args, argc, retval);
+        int ret = sw_coro_create(cb->func_cache, argc, args, retval);
         if (CORO_LIMIT == ret)
         {
             swoole_php_fatal_error(E_WARNING, "swoole_timer: coroutine limit");
@@ -236,7 +236,7 @@ void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode)
 
     if (SwooleG.enable_coroutine)
     {
-        int ret = sw_coro_create(cb->func_cache, args, argc, retval);
+        int ret = sw_coro_create(cb->func_cache, argc, args, retval);
         if (CORO_LIMIT == ret)
         {
             swoole_php_fatal_error(E_WARNING, "swoole_timer: coroutine limit");
