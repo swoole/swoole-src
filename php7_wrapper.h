@@ -92,7 +92,14 @@ static sw_inline int sw_call_user_function_fast_ex(zval *function_name, zend_fca
     fci.symbol_table = NULL;
 #endif
     fci.object = NULL;
-    ZVAL_COPY_VALUE(&fci.function_name, function_name);
+    if (!fci_cache || !fci_cache->function_handler)
+    {
+        ZVAL_COPY_VALUE(&fci.function_name, function_name);
+    }
+    else
+    {
+        ZVAL_UNDEF(&fci.function_name);
+    }
     fci.retval = *retval_ptr_ptr;
     fci.param_count = param_count;
     fci.params = params;
@@ -192,10 +199,10 @@ static sw_inline int sw_zend_is_callable(zval *cb, int a, char **name)
     return ret;
 }
 
-static inline int sw_zend_is_callable_ex(zval *zcallable, zval *zobject, uint check_flags, char **callable_name, int *callable_name_len, zend_fcall_info_cache *fcc, char **error)
+static inline int sw_zend_is_callable_ex(zval *zcallable, zval *zobject, uint check_flags, char **callable_name, int *callable_name_len, zend_fcall_info_cache *fci_cache, char **error)
 {
     zend_string *key = NULL;
-    int ret = zend_is_callable_ex(zcallable, NULL, check_flags, &key, fcc, error);
+    int ret = zend_is_callable_ex(zcallable, NULL, check_flags, &key, fci_cache, error);
     char *tmp = estrndup(key->val, key->len);
     zend_string_release(key);
     *callable_name = tmp;

@@ -111,48 +111,42 @@ static inline zend_bool php_swoole_server_isset_callback(swListenPort *port, int
 zval* php_swoole_server_get_callback(swServer *serv, int server_fd, int event_type)
 {
     swListenPort *port = (swListenPort *) serv->connection_list[server_fd].object;
-    if (!port)
+    swoole_server_port_property *property;
+    zval *callback;
+
+    if (unlikely(!port))
     {
         swWarn("invalid server_fd[%d].", server_fd);
         return NULL;
     }
-    swoole_server_port_property *property = (swoole_server_port_property *) port->ptr;
-    if (!property)
-    {
-        goto _primary_port;
-    }
-    zval *callback = property->callbacks[event_type];
-    if (!callback)
-    {
-        _primary_port: return server_port_list.primary_port->callbacks[event_type];
-    }
-    else
+    if ((property = (swoole_server_port_property *) port->ptr) && (callback = property->callbacks[event_type]))
     {
         return callback;
     }
+    else
+    {
+        return server_port_list.primary_port->callbacks[event_type];
+    }
 }
 
-zend_fcall_info_cache* php_swoole_server_get_cache(swServer *serv, int server_fd, int event_type)
+zend_fcall_info_cache* php_swoole_server_get_fci_cache(swServer *serv, int server_fd, int event_type)
 {
     swListenPort *port = (swListenPort *) serv->connection_list[server_fd].object;
-    if (!port)
+    swoole_server_port_property *property;
+    zend_fcall_info_cache* fci_cache;
+
+    if (unlikely(!port))
     {
         swWarn("invalid server_fd[%d].", server_fd);
         return NULL;
     }
-    swoole_server_port_property *property = (swoole_server_port_property *) port->ptr;
-    if (!property)
+    if ((property = (swoole_server_port_property *) port->ptr) && (fci_cache = property->caches[event_type]))
     {
-        goto _primary_port;
-    }
-    zend_fcall_info_cache* cache = property->caches[event_type];
-    if (!cache)
-    {
-        _primary_port: return server_port_list.primary_port->caches[event_type];
+        return fci_cache;
     }
     else
     {
-        return cache;
+        return server_port_list.primary_port->caches[event_type];
     }
 }
 
@@ -855,6 +849,9 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
         return;
     }
 
+    swTrace("PipeMessage: fd=%d|len=%d|from_id=%d|data=%s\n", req->info.fd, req->info.len, req->info.from_id, req->data);
+
+    zend_fcall_info_cache *fci_cache = php_sw_server_caches[SW_SERVER_CB_onPipeMessage];
     zval args[3];
     args[0] = *zserv;
     args[1] = *zworker_id;
@@ -862,8 +859,7 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
 
     if (SwooleG.enable_coroutine)
     {
-        zend_fcall_info_cache *cache = php_sw_server_caches[SW_SERVER_CB_onPipeMessage];
-        int ret = sw_coro_create(cache, args, 3, retval);
+        int ret = sw_coro_create(fci_cache, args, 3, retval);
         if (ret < 0)
         {
             zval_ptr_dtor(zworker_id);
@@ -877,9 +873,7 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
     }
     else
     {
-        swTrace("PipeMessage: fd=%d|len=%d|from_id=%d|data=%s\n", req->info.fd, req->info.len, req->info.from_id, req->data);
-
-        if (sw_call_user_function_fast_ex(php_sw_server_callbacks[SW_SERVER_CB_onPipeMessage], php_sw_server_caches[SW_SERVER_CB_onPipeMessage], &retval, 3, args) == FAILURE)
+        if (sw_call_user_function_fast_ex(NULL, fci_cache, &retval, 3, args) == FAILURE)
         {
             swoole_php_fatal_error(E_WARNING, "onPipeMessage handler error.");
         }
@@ -922,10 +916,10 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
     args[2] = *zfrom_id;
     args[3] = *zdata;
 
+    zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, req->info.from_fd, SW_SERVER_CB_onReceive);
     if (SwooleG.enable_coroutine)
     {
-        zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onReceive);
-        int ret = sw_coro_create(cache, args, 4, retval);
+        int ret = sw_coro_create(fci_cache, args, 4, retval);
         if (ret < 0)
         {
             zval_ptr_dtor(zfd);
@@ -940,15 +934,7 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
     }
     else
     {
-        zval *callback = php_swoole_server_get_callback(serv, req->info.from_fd, SW_SERVER_CB_onReceive);
-        if (callback == NULL || ZVAL_IS_NULL(callback))
-        {
-            swoole_php_fatal_error(E_WARNING, "onReceive callback is null.");
-            return SW_OK;
-        }
-
-        zend_fcall_info_cache *fci_cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onReceive);
-        if (sw_call_user_function_fast_ex(callback, fci_cache, &retval, 4, args) == FAILURE)
+        if (sw_call_user_function_fast_ex(NULL, fci_cache, &retval, 4, args) == FAILURE)
         {
             swoole_php_fatal_error(E_WARNING, "onReceive handler error.");
         }
@@ -1018,6 +1004,7 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
         ZVAL_STRINGL(zdata, packet->data + packet->addr.un.path_length, packet->length - packet->addr.un.path_length);
     }
 
+    zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, req->info.from_fd, SW_SERVER_CB_onPacket);
     zval args[3];
     args[0] = *zserv;
     args[1] = *zdata;
@@ -1025,8 +1012,7 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
 
     if (SwooleG.enable_coroutine)
     {
-        zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onPacket);
-        int ret = sw_coro_create(cache, args, 3, retval);
+        int ret = sw_coro_create(fci_cache, args, 3, retval);
         if (ret < 0)
         {
             zval_ptr_dtor(zaddr);
@@ -1036,14 +1022,7 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
     }
     else
     {
-        zval *callback = php_swoole_server_get_callback(serv, req->info.from_fd, SW_SERVER_CB_onPacket);
-        if (callback == NULL || ZVAL_IS_NULL(callback))
-        {
-            swoole_php_fatal_error(E_WARNING, "onPacket callback is null.");
-            return SW_OK;
-        }
-
-        if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL) == FAILURE)
+        if (sw_call_user_function_fast_ex(NULL, fci_cache, &retval, 3, args) == FAILURE)
         {
             swoole_php_fatal_error(E_WARNING, "onPacket handler error.");
         }
@@ -1092,7 +1071,7 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
     args[3] = *zdata;
 
     zend_fcall_info_cache *fci_cache = php_sw_server_caches[SW_SERVER_CB_onTask];
-    if (sw_call_user_function_fast_ex(php_sw_server_callbacks[SW_SERVER_CB_onTask], fci_cache, &retval, 4, args) == FAILURE)
+    if (sw_call_user_function_fast_ex(NULL, fci_cache, &retval, 4, args) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onTask handler error.");
     }
@@ -1609,20 +1588,21 @@ void php_swoole_onConnect(swServer *serv, swDataHead *info)
     SW_MAKE_STD_ZVAL(zfrom_id);
     ZVAL_LONG(zfrom_id, info->from_id);
 
+    zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, info->from_fd, SW_SERVER_CB_onConnect);
     zval args[3];
     args[0] = *zserv;
     args[1] = *zfd;
     args[2] = *zfrom_id;
 
+    if (fci_cache == NULL)
+    {
+        return;
+    }
+
     if (SwooleG.enable_coroutine)
     {
-        zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, info->from_fd, SW_SERVER_CB_onConnect);
-        if (cache == NULL) {
-            return;
-        }
-
         // FIXME: php_swoole_onConnect_finish with info->fd
-        if (sw_coro_create(cache, args, 3, retval) < 0)
+        if (sw_coro_create(fci_cache, args, 3, retval) < 0)
         {
             zval_ptr_dtor(zfd);
             zval_ptr_dtor(zfrom_id);
@@ -1631,13 +1611,7 @@ void php_swoole_onConnect(swServer *serv, swDataHead *info)
     }
     else
     {
-        zval *callback = php_swoole_server_get_callback(serv, info->from_fd, SW_SERVER_CB_onConnect);
-        if (callback == NULL || ZVAL_IS_NULL(callback))
-        {
-            return;
-        }
-
-        if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL) == FAILURE)
+        if (sw_call_user_function_fast_ex(NULL, fci_cache, &retval, 3, args) == FAILURE)
         {
             swoole_php_error(E_WARNING, "onConnect handler error.");
         }
@@ -1694,6 +1668,12 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
     SW_MAKE_STD_ZVAL(zfrom_id);
     ZVAL_LONG(zfrom_id, info->from_id);
 
+    zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, info->from_fd, SW_SERVER_CB_onClose);
+    if (fci_cache == NULL)
+    {
+        return;
+    }
+
     zval args[3];
     args[0] = *zserv;
     args[1] = *zfd;
@@ -1701,19 +1681,9 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
 
     if (SwooleG.enable_coroutine)
     {
-        int ret;
-
-        zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, info->from_fd, SW_SERVER_CB_onClose);
-        if (cache == NULL)
-        {
-            return;
-        }
-
-        ret = sw_coro_create(cache, args, 3, retval);
-
+        int ret = sw_coro_create(fci_cache, args, 3, retval);
         zval_ptr_dtor(zfd);
         zval_ptr_dtor(zfrom_id);
-
         if (ret < 0)
         {
             return;
@@ -1721,12 +1691,7 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
     }
     else
     {
-        zval *callback = php_swoole_server_get_callback(serv, info->from_fd, SW_SERVER_CB_onClose);
-        if (callback == NULL)
-        {
-            return;
-        }
-        if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL) == FAILURE)
+        if (sw_call_user_function_fast_ex(NULL, fci_cache, &retval, 3, args) == FAILURE)
         {
             swoole_php_error(E_WARNING, "onClose handler error.");
         }
@@ -1749,8 +1714,8 @@ void php_swoole_onBufferFull(swServer *serv, swDataHead *info)
     zval args[2];
     zval *retval = NULL;
 
-    zval *callback = php_swoole_server_get_callback(serv, info->from_fd, SW_SERVER_CB_onBufferFull);
-    if (!callback)
+    zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, info->from_fd, SW_SERVER_CB_onBufferFull);
+    if (!fci_cache)
     {
         return;
     }
@@ -1761,8 +1726,7 @@ void php_swoole_onBufferFull(swServer *serv, swDataHead *info)
     args[0] = *zserv;
     args[1] = *zfd;
 
-    zend_fcall_info_cache *fci_cache = php_swoole_server_get_cache(serv, info->from_fd, SW_SERVER_CB_onBufferFull);
-    if (sw_call_user_function_fast_ex(callback, fci_cache, &retval, 2, args) == FAILURE)
+    if (sw_call_user_function_fast_ex(NULL, fci_cache, &retval, 2, args) == FAILURE)
     {
         swoole_php_error(E_WARNING, "onBufferFull handler error.");
     }
@@ -1906,11 +1870,10 @@ void php_swoole_onBufferEmpty(swServer *serv, swDataHead *info)
 
     zval *zserv = (zval *) serv->ptr2;
     zval *zfd;
+    zend_fcall_info_cache *fci_cache;
     zval args[2];
     zval *retval = NULL;
-    zval *callback;
 
-#ifdef SW_COROUTINE
     if (serv->send_yield == 0)
     {
         goto _callback;
@@ -1942,13 +1905,10 @@ void php_swoole_onBufferEmpty(swServer *serv, swDataHead *info)
             }
         }
     }
-#endif
 
-#ifdef SW_COROUTINE
     _callback:
-#endif
-    callback = php_swoole_server_get_callback(serv, info->from_fd, SW_SERVER_CB_onBufferEmpty);
-    if (!callback)
+    fci_cache = php_swoole_server_get_fci_cache(serv, info->from_fd, SW_SERVER_CB_onBufferEmpty);
+    if (!fci_cache)
     {
         return;
     }
@@ -1959,8 +1919,7 @@ void php_swoole_onBufferEmpty(swServer *serv, swDataHead *info)
     args[0] = *zserv;
     args[1] = *zfd;
 
-    zend_fcall_info_cache *fci_cache = php_swoole_server_get_cache(serv, info->from_fd, SW_SERVER_CB_onBufferEmpty);
-    if (sw_call_user_function_fast_ex(callback, fci_cache, &retval, 2, args) == FAILURE)
+    if (sw_call_user_function_fast_ex(NULL, fci_cache, &retval, 2, args) == FAILURE)
     {
         swoole_php_error(E_WARNING, "onBufferEmpty handler error.");
     }

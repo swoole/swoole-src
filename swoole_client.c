@@ -154,14 +154,14 @@ static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_cli
         return;
     }
 
-    if (callback == NULL || ZVAL_IS_NULL(callback))
+    if (!fci_cache)
     {
         swoole_php_fatal_error(E_WARNING, "object have not %s callback.", callback_name);
         return;
     }
 
     args[0] = *zobject;
-    if (sw_call_user_function_fast_ex(callback, fci_cache, &retval, 1, args) == FAILURE)
+    if (sw_call_user_function_fast_ex(NULL, fci_cache, &retval, 1, args) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "%s handler error.", callback_name);
         return;
@@ -336,7 +336,7 @@ void swoole_client_init(int module_number)
 static void client_onReceive(swClient *cli, char *data, uint32_t length)
 {
     zval *zobject = (zval *) cli->object;
-    zval *zcallback = NULL;
+    zend_fcall_info_cache *fci_cache;
     zval args[2];
     zval *retval;
 
@@ -348,14 +348,13 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
     args[1] = *zdata;
 
     client_callback *cb = (client_callback *) swoole_get_property(zobject, 0);
-    zcallback = cb->onReceive;
-    if (zcallback == NULL || ZVAL_IS_NULL(zcallback))
+    fci_cache = &cb->cache_onReceive;
+    if (!fci_cache)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_client object has no 'onReceive' callback function.");
         goto free_zdata;
     }
-
-    if (sw_call_user_function_fast_ex(zcallback, &cb->cache_onReceive, &retval, 2, args) == FAILURE)
+    if (sw_call_user_function_fast_ex(NULL, &cb->cache_onReceive, &retval, 2, args) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onReactorCallback handler error");
         goto free_zdata;

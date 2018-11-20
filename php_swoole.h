@@ -486,7 +486,7 @@ php_socket *swoole_convert_to_socket(int sock);
 #endif
 
 zval* php_swoole_server_get_callback(swServer *serv, int server_fd, int event_type);
-zend_fcall_info_cache* php_swoole_server_get_cache(swServer *serv, int server_fd, int event_type);
+zend_fcall_info_cache* php_swoole_server_get_fci_cache(swServer *serv, int server_fd, int event_type);
 void php_swoole_server_before_start(swServer *serv, zval *zobject);
 void php_swoole_http_server_before_start(swServer *serv, zval *zobject);
 void php_swoole_server_send_yield(swServer *serv, int fd, zval *zdata, zval *return_value);

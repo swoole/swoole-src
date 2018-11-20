@@ -1124,31 +1124,28 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
         }
         add_assoc_string(zserver, "server_software", SW_HTTP_SERVER_SOFTWARE);
 
-        int callback_type = SW_SERVER_CB_onRequest;
-        zval *zcallback = NULL;
+        // begin to check and call registerd callback
+
+        zend_fcall_info_cache *fci_cache = NULL;
 
         if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)
         {
-            //websocket handshake
-            zcallback = php_swoole_server_get_callback(serv, from_fd, SW_SERVER_CB_onHandShake);
-            if (zcallback == NULL)
+            fci_cache = php_swoole_server_get_fci_cache(serv, from_fd, SW_SERVER_CB_onHandShake);
+            if (fci_cache == NULL)
             {
                 swoole_websocket_onHandshake(port, ctx);
                 goto _free_object;
             }
             else
             {
-                callback_type = SW_SERVER_CB_onHandShake;
                 conn->websocket_status = WEBSOCKET_STATUS_HANDSHAKE;
                 ctx->upgrade = 1;
             }
         }
         else
         {
-            callback_type = SW_SERVER_CB_onRequest;
-            zcallback = php_swoole_server_get_callback(serv, from_fd, SW_SERVER_CB_onRequest);
-            //no have onRequest callback
-            if (zcallback == NULL)
+            fci_cache = php_swoole_server_get_fci_cache(serv, from_fd, SW_SERVER_CB_onRequest);
+            if (fci_cache == NULL)
             {
                 swoole_websocket_onRequest(ctx);
                 goto _free_object;
@@ -1161,8 +1158,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
 
         if (SwooleG.enable_coroutine)
         {
-            zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, from_fd, callback_type);
-            int ret = sw_coro_create(cache, args, 2, retval);
+            int ret = sw_coro_create(fci_cache, args, 2, retval);
             if (ret < 0)
             {
                 if (ret == CORO_LIMIT)
@@ -1174,8 +1170,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
         }
         else
         {
-            zend_fcall_info_cache *fci_cache = php_swoole_server_get_cache(serv, from_fd, callback_type);
-            if (sw_call_user_function_fast_ex(zcallback, fci_cache, &retval, 2, args) == FAILURE)
+            if (sw_call_user_function_fast_ex(NULL, fci_cache, &retval, 2, args) == FAILURE)
             {
                 swoole_php_error(E_WARNING, "onRequest handler error");
             }

@@ -226,8 +226,8 @@ void swoole_websocket_onOpen(http_context *ctx)
         return;
     }
 
-    zend_fcall_info_cache *cache = php_swoole_server_get_cache(SwooleG.serv, conn->from_fd, SW_SERVER_CB_onOpen);
-    if (cache)
+    zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(SwooleG.serv, conn->from_fd, SW_SERVER_CB_onOpen);
+    if (fci_cache)
     {
         swServer *serv = SwooleG.serv;
         zval *zserv = (zval *) serv->ptr2;
@@ -240,7 +240,7 @@ void swoole_websocket_onOpen(http_context *ctx)
 
         if (SwooleG.enable_coroutine)
         {
-            int ret = sw_coro_create(cache, args, 2, retval);
+            int ret = sw_coro_create(fci_cache, args, 2, retval);
             if (ret == CORO_LIMIT)
             {
                 SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
@@ -249,8 +249,7 @@ void swoole_websocket_onOpen(http_context *ctx)
         }
         else
         {
-            zval *zcallback = php_swoole_server_get_callback(SwooleG.serv, conn->from_fd, SW_SERVER_CB_onOpen);
-            if (sw_call_user_function_fast_ex(zcallback, cache, &retval, 2, args) == FAILURE)
+            if (sw_call_user_function_fast_ex(NULL, fci_cache, &retval, 2, args) == FAILURE)
             {
                 swoole_php_error(E_WARNING, "onOpen handler error");
             }
@@ -383,14 +382,14 @@ int swoole_websocket_onMessage(swEventData *req)
     zval *zserv = (zval *) serv->ptr2;
     zval *retval = NULL;
 
+    zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, req->info.from_fd, SW_SERVER_CB_onMessage);
     zval args[2];
     args[0] = *zserv;
     args[1] = *zframe;
 
     if (SwooleG.enable_coroutine)
     {
-        zend_fcall_info_cache *cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onMessage);
-        int ret = sw_coro_create(cache, args, 2, retval);
+        int ret = sw_coro_create(fci_cache, args, 2, retval);
         if (ret == CORO_LIMIT)
         {
             zval_ptr_dtor(zdata);
@@ -401,10 +400,7 @@ int swoole_websocket_onMessage(swEventData *req)
     }
     else
     {
-        zend_fcall_info_cache *fci_cache = php_swoole_server_get_cache(serv, req->info.from_fd, SW_SERVER_CB_onMessage);
-        zval *zcallback = php_swoole_server_get_callback(SwooleG.serv, req->info.from_fd, SW_SERVER_CB_onMessage);
-
-        if (sw_call_user_function_fast_ex(zcallback, fci_cache, &retval, 2, args) == FAILURE)
+        if (sw_call_user_function_fast_ex(NULL, fci_cache, &retval, 2, args) == FAILURE)
         {
             swoole_php_error(E_WARNING, "onMessage handler error");
         }
