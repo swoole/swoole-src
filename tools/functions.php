@@ -79,6 +79,14 @@ function scan_dir(string $dir, callable $filter = null): array
     return array_values($filter ? array_filter($files, $filter) : $files);
 }
 
+function file_size(string $filename, int $decimals = 2)
+{
+    $bytes = filesize($filename);
+    $sz = 'BKMGTP';
+    $factor = (int)floor((strlen($bytes) - 1) / 3);
+    return sprintf("%.{$decimals}f", $bytes / pow(1024, $factor)) . $sz{$factor};
+}
+
 function swoole_git_files(): array
 {
     $root = SWOOLE_SOURCE_ROOT;

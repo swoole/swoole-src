@@ -155,8 +155,10 @@ if (preg_match('/Warning/i', $package)) {
     swoole_log("{$warn}\n", SWOOLE_COLOR_MAGENTA);
 }
 // check package status
-if (!preg_match('/Package swoole-[\d.]+\.tgz done/', $package)) {
+if (!preg_match('/Package (?<filename>swoole-[\d.]+\.tgz) done/', $package, $matches)) {
     swoole_error($package);
 } else {
-    swoole_success($package);
+    $file_name = $matches['filename'];
+    $file_size = file_size("{$root_dir}/{$file_name}");
+    swoole_success("Package {$file_name} ({$file_size}) done");
 }

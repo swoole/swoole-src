@@ -146,6 +146,7 @@
             <file role="doc" name="examples/coroutine/coro_sleep.php" />
             <file role="doc" name="examples/coroutine/coro_stackless.php" />
             <file role="doc" name="examples/coroutine/coro_util.php" />
+            <file role="doc" name="examples/coroutine/csp.php" />
             <file role="doc" name="examples/coroutine/defer_client.php" />
             <file role="doc" name="examples/coroutine/enable_coroutine.php" />
             <file role="doc" name="examples/coroutine/exception/empty.php" />
@@ -213,6 +214,7 @@
             <file role="doc" name="examples/coroutine/util/resume001.php" />
             <file role="doc" name="examples/coroutine/util/resume002.php" />
             <file role="doc" name="examples/coroutine/util/resume003.php" />
+            <file role="doc" name="examples/coroutine/waitgroup.php" />
             <file role="doc" name="examples/coroutine/websocket.php" />
             <file role="doc" name="examples/coroutine/websocket_client.php" />
             <file role="doc" name="examples/db_pool.php" />
