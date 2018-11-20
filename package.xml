@@ -387,7 +387,6 @@
             <file role="doc" name="examples/task/task_queue.php" />
             <file role="doc" name="examples/task/task_stream.php" />
             <file role="doc" name="examples/test.jpg" />
-            <file role="doc" name="examples/test_big.jpg" />
             <file role="doc" name="examples/test_buffer.php" />
             <file role="doc" name="examples/test_server.c" />
             <file role="doc" name="examples/timer/after.php" />
@@ -1020,6 +1019,7 @@
             <file role="test" name="tests/swoole_mysql/transaction_rollback.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/aborted_clients.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/bug_0814.phpt" />
+            <file role="test" name="tests/swoole_mysql_coro/err_instead_of_eof.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/fetch.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/fetch_mode.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/fetch_mode_twice.phpt" />
@@ -1034,6 +1034,7 @@
             <file role="test" name="tests/swoole_mysql_coro/procedure_in_fetch.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/procedure_single.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/procedure_with_query.phpt" />
+            <file role="test" name="tests/swoole_mysql_coro/procedure_with_query_and_prepare.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/query.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/query_timeout.phpt" />
             <file role="test" name="tests/swoole_mysql_coro/readonly.phpt" />
@@ -1338,6 +1339,7 @@
             <file role="src" name="tools/get-ip-info.php" />
             <file role="src" name="tools/pecl-package.php" />
             <file role="src" name="tools/send-http-data.php" />
+            <file role="src" name="tools/show-big-files.php" />
             <file role="src" name="travis/.gitignore" />
             <file role="doc" name="travis/README.md" />
             <file role="src" name="travis/debug/swoole_table_implements.php" />
