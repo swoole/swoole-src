@@ -687,6 +687,13 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
     {
         zport_object = server_port_list.zobjects[i];
         port = swoole_get_object(zport_object);
+
+        if (swSocket_is_dgram(port->type) && !php_swoole_server_isset_callback(port, SW_SERVER_CB_onPacket))
+        {
+            swoole_php_fatal_error(E_ERROR, "require onPacket callback");
+            return;
+        }
+
         if (port->open_websocket_protocol || port->open_http_protocol)
         {
             find_http_port = SW_TRUE;
@@ -706,11 +713,6 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
         }
         else if (!port->open_redis_protocol)
         {
-            if (swSocket_is_dgram(port->type) && !php_swoole_server_isset_callback(port, SW_SERVER_CB_onPacket))
-            {
-                swoole_php_fatal_error(E_ERROR, "require onPacket callback");
-                return;
-            }
             if (swSocket_is_stream(port->type) && !php_swoole_server_isset_callback(port, SW_SERVER_CB_onReceive))
             {
                 swoole_php_fatal_error(E_ERROR, "require onReceive callback");
@@ -2849,7 +2851,7 @@ PHP_METHOD(swoole_server, send)
         RETURN_FALSE;
     }
 
-    if (serv->have_udp_sock && Z_TYPE_P(zfd) == IS_STRING)
+    if (serv->have_dgram_sock && Z_TYPE_P(zfd) == IS_STRING)
     {
         if (server_socket == -1)
         {

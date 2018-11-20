@@ -66,7 +66,7 @@ int swReactorProcess_start(swServer *serv)
     }
 
     //listen TCP
-    if (serv->have_tcp_sock == 1)
+    if (serv->have_stream_sock == 1)
     {
         LL_FOREACH(serv->listen_list, ls)
         {

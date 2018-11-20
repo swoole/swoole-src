@@ -1020,11 +1020,6 @@ static int http_request_message_complete(swoole_http_parser *parser)
 
 int php_swoole_http_onReceive(swServer *serv, swEventData *req)
 {
-    if (swEventData_is_dgram(req->info.type))
-    {
-        return php_swoole_onReceive(serv, req);
-    }
-
     int fd = req->info.fd;
     int from_fd = req->info.from_fd;
 

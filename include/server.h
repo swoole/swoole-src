@@ -437,13 +437,13 @@ struct _swServer
      */
     uint32_t daemonize :1;
     /**
-     * have udp listen socket
+     * have dgram socket
      */
-    uint32_t have_udp_sock :1;
+    uint32_t have_dgram_sock :1;
     /**
-     * have tcp listen socket
+     * have stream socket
      */
-    uint32_t have_tcp_sock :1;
+    uint32_t have_stream_sock :1;
     /**
      * open cpu affinity setting
      */
