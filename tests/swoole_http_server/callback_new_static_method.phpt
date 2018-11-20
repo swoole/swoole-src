@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_server: http servercallback
+swoole_http_server: http server callback use static method
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -10,7 +10,7 @@ $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     for ($i = MAX_CONCURRENCY_LOW; $i--;) {
         go(function () use ($pm) {
-            $cli = new \Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
+            $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
             for ($i = MAX_REQUESTS_LOW; $i--;) {
                 assert($cli->get('/'));
                 assert($cli->statusCode === 200);
@@ -26,7 +26,9 @@ $pm->childFunc = function () use ($pm) {
 
     class TestCo
     {
-        public function foo(swoole_http_request $request, swoole_http_response $response)
+        private static $test = '';
+
+        public static function foo(swoole_http_request $request, swoole_http_response $response)
         {
             co::sleep(0.001);
             $cid = go(function () use ($response) {
@@ -34,7 +36,7 @@ $pm->childFunc = function () use ($pm) {
                 $response->end('Hello Swoole!');
             });
             co::resume($cid);
-            echo @$this->test;
+            echo self::$test;
         }
     }
 
@@ -43,7 +45,7 @@ $pm->childFunc = function () use ($pm) {
         'worker_num' => 1,
         'log_file' => '/dev/null'
     ]);
-    $http->on('request', [new TestCo, 'foo']);
+    $http->on('request', [TestCo::class, 'foo']);
     $http->start();
 };
 
