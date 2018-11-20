@@ -1081,6 +1081,11 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
         RETURN_FALSE;
     }
 
+    if (client->buffer)
+    {
+        swString_clear(client->buffer);
+    }
+
     client->cmd = SW_MYSQL_COM_STMT_PREPARE;
     client->state = SW_MYSQL_STATE_READ_START;
 
