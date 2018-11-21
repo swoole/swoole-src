@@ -866,7 +866,7 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
             sw_zval_free(zdata);
             if (ret < 0)
             {
-                swWarn("Failed to handle onPipeMessage. Coroutine limited");
+                swWarn("Failed to handle onPipeMessage, create coroutine failed.");
             }
             return;
         }
@@ -1346,7 +1346,7 @@ static void php_swoole_onWorkerStart_coroutine(zval *zserv, zval *zworker_id)
         zval_ptr_dtor(zworker_id);
         if (ret < 0)
         {
-            swWarn("Failed to handle onWorkerStart. Coroutine limited.");
+            swWarn("Failed to handle onWorkerStart, create coroutine failed.");
         }
         return;
     }

@@ -16,7 +16,7 @@ for ($c = SWOOLE_DEFAULT_MAX_CORO_NUM + 1; $c--;) {
 var_dump(co::stats());
 ?>
 --EXPECTF--
-Warning: go(): exceed max number of coroutine 3000 in %s/tests/swoole_coroutine/max_num.php on line 9
+Warning: go(): exceed max number of coroutine 3000. in %s/tests/swoole_coroutine/max_num.php on line 9
 array(3) {
   ["stack_size"]=>
   int(8192)

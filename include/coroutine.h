@@ -29,9 +29,8 @@ extern "C"
 #define MAX_CORO_NUM_LIMIT   0x80000
 
 #define CORO_END 0
-#define CORO_YIELD 1
 #define CORO_LIMIT -1
-#define CORO_SAVE 3
+#define CORO_INVALID -2
 
 typedef struct coroutine_s coroutine_t;
 typedef void (*coroutine_func_t)(void*);
