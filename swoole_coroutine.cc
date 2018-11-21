@@ -431,8 +431,8 @@ void sw_coro_close()
 {
     coro_task *task = (coro_task *) php_coro_get_current_task();
 #ifdef SW_LOG_TRACE_OPEN
-    int cid = coroutine_get_cid(task->co);
-    int origin_cid = coroutine_get_cid(task->origin_task->co);
+    long cid = coroutine_get_cid(task->co);
+    long origin_cid = coroutine_get_cid(task->origin_task->co);
 #endif
 
     if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_CORO_STOP])
