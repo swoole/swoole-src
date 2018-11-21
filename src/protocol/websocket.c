@@ -18,7 +18,6 @@
 #include "server.h"
 #include "websocket.h"
 #include "connection.h"
-#include "php_swoole.h"
 
 /*  The following is websocket data frame:
  +-+-+-+-+-------+-+-------------+-------------------------------+
@@ -198,7 +197,7 @@ int swWebSocket_pack_close_frame(swString *buffer, int code, char* reason, size_
 {
     if (unlikely(length > SW_WEBSOCKET_CLOSE_REASON_MAX_LEN))
     {
-        swoole_php_fatal_error(E_WARNING, "the max length of close reason is %d.", SW_WEBSOCKET_CLOSE_REASON_MAX_LEN);
+        swWarn("the max length of close reason is %d.", SW_WEBSOCKET_CLOSE_REASON_MAX_LEN);
         return SW_ERR;
     }
 
