@@ -1,10 +1,7 @@
 --TEST--
 swoole_mysql: select 1
 --SKIPIF--
-<?php
-require __DIR__ . '/../include/skipif.inc';
-skip_if_in_docker('onClose event lost');
-?>
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
