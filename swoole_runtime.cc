@@ -841,13 +841,14 @@ static php_stream *socket_create(const char *proto, size_t protolen, const char 
 #endif
     else
     {
-        swoole_php_fatal_error(E_WARNING, "new Socket() failed. Error: %s [%d]", strerror(errno), errno);
         sock = new Socket(SW_SOCK_TCP);
     }
 
-    if (sock->socket == nullptr)
+    if (unlikely(sock->socket == nullptr))
     {
-        _failed: delete sock;
+        _failed:
+        delete sock;
+        swoole_php_fatal_error(E_WARNING, "new Socket() failed. Error: %s [%d]", strerror(errno), errno);
         return NULL;
     }
 

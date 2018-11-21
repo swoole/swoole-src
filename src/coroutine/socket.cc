@@ -1209,14 +1209,15 @@ Socket* Socket::accept()
     }
     if (conn < 0)
     {
-        _error:
         errCode = errno;
         return nullptr;
     }
     Socket *client_sock = new Socket(conn, this);
-    if (client_sock->get_fd() < 0)
+    if (unlikely(client_sock->socket == nullptr))
     {
-        goto _error;
+        errCode = errno;
+        delete client_sock;
+        return nullptr;
     }
     memcpy(&client_sock->socket->info.addr, &client_addr.addr, client_addr.len);
 #ifdef SW_USE_OPENSSL

@@ -103,7 +103,7 @@ static PHP_METHOD(swoole_client_coro, getpeername);
 static PHP_METHOD(swoole_client_coro, close);
 
 static void client_coro_check_ssl_setting(Socket *cli, zval *zset);
-static Socket* client_coro_new(zval *object, int port = 0);
+static Socket* client_coro_new(zval *zobject, int port = 0);
 bool php_swoole_client_coro_socket_free(Socket *cli);
 void php_swoole_client_coro_check_setting(Socket *cli, zval *zset);
 
@@ -177,11 +177,11 @@ static sw_inline Socket* client_get_ptr(zval *zobject)
     }
 }
 
-static Socket* client_coro_new(zval *object, int port)
+static Socket* client_coro_new(zval *zobject, int port)
 {
     zval *ztype;
 
-    ztype = sw_zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("type"), 0);
+    ztype = sw_zend_read_property(Z_OBJCE_P(zobject), zobject, ZEND_STRL("type"), 0);
 
     if (ztype == NULL || ZVAL_IS_NULL(ztype))
     {
@@ -197,14 +197,15 @@ static Socket* client_coro_new(zval *object, int port)
     }
 
     Socket *cli = new Socket((enum swSocket_type) type);
-    if (cli->socket == nullptr)
+    if (unlikely(cli->socket == nullptr))
     {
+        delete cli;
         swoole_php_fatal_error(E_WARNING, "new Socket() failed. Error: %s [%d]", strerror(errno), errno);
-        zend_update_property_long(Z_OBJCE_P(object), object, ZEND_STRL("errCode"), errno);
+        zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("errCode"), errno);
         return NULL;
     }
 
-    zend_update_property_long(Z_OBJCE_P(object), object, ZEND_STRL("sock"), cli->socket->fd);
+    zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("sock"), cli->socket->fd);
 
 #ifdef SW_USE_OPENSSL
     if (type & SW_SOCK_SSL)
