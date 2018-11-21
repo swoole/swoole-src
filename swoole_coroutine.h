@@ -88,7 +88,7 @@ typedef struct _php_context
 
 extern coro_global COROG;
 
-int sw_get_current_cid();
+long sw_get_current_cid();
 void coro_init(void);
 void coro_destroy(void);
 void coro_check(void);

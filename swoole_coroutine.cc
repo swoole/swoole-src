@@ -191,7 +191,7 @@ static void php_coro_create(void *arg)
     zval *retval = php_arg->retval;
     coro_task *origin_task = php_arg->origin_task;
 
-    int cid = coroutine_get_current_cid();
+    long cid = coroutine_get_current_cid();
     int i;
     zend_function *func;
     zval _zobject, *zobject = nullptr;
@@ -431,8 +431,8 @@ void sw_coro_close()
 {
     coro_task *task = (coro_task *) php_coro_get_current_task();
 #ifdef SW_LOG_TRACE_OPEN
-    int cid = coroutine_get_cid(task->co);
-    int origin_cid = coroutine_get_cid(task->origin_task->co);
+    long cid = coroutine_get_cid(task->co);
+    long origin_cid = coroutine_get_cid(task->origin_task->co);
 #endif
 
     if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_CORO_STOP])
@@ -450,7 +450,7 @@ void sw_coro_close()
     );
 }
 
-int sw_get_current_cid()
+long sw_get_current_cid()
 {
     if (unlikely(COROG.active == 0))
     {

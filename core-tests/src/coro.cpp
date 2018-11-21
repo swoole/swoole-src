@@ -4,14 +4,14 @@ using namespace swoole;
 
 static void coro1(void *arg)
 {
-    int cid = coroutine_get_current_cid();
+    long cid = coroutine_get_current_cid();
     coroutine_t *co = coroutine_get_by_id(cid);
     coroutine_yield(co);
 }
 
 TEST(coroutine, create)
 {
-    int cid = coroutine_create(coro1, NULL);
+    long cid = coroutine_create(coro1, NULL);
     ASSERT_GT(cid, 0);
     coroutine_resume(coroutine_get_by_id(cid));
 }
@@ -26,7 +26,7 @@ static void coro2(void *arg)
 
 TEST(coroutine, socket_connect_refused)
 {
-    int cid = coroutine_create(coro2, NULL);
+    long cid = coroutine_create(coro2, NULL);
     if (cid < 0)
     {
         return;
@@ -63,7 +63,7 @@ static void coro4(void *arg)
 
 TEST(coroutine, socket_connect_with_dns)
 {
-    int cid = coroutine_create(coro4, NULL);
+    long cid = coroutine_create(coro4, NULL);
     if (cid < 0)
     {
         return;
@@ -85,7 +85,7 @@ static void coro5(void *arg)
 
 TEST(coroutine, socket_recv_success)
 {
-    int cid = coroutine_create(coro5, NULL);
+    long cid = coroutine_create(coro5, NULL);
     if (cid < 0)
     {
         return;
@@ -107,7 +107,7 @@ static void coro6(void *arg)
 
 TEST(coroutine, socket_recv_fail)
 {
-    int cid = coroutine_create(coro6, NULL);
+    long cid = coroutine_create(coro6, NULL);
     if (cid < 0)
     {
         return;
@@ -183,49 +183,3 @@ TEST(coroutine, socket_resolve)
     SwooleG.main_reactor->wait(SwooleG.main_reactor, nullptr);
 }
 
-#define CID_ALLOC_PRINT  0
-
-TEST(coroutine, cid_alloc)
-{
-    //alloc [1] full
-    for (int i = 0; i < 65536 * 8; i++)
-    {
-        int cid = coroutine_test_alloc_cid();
-        ASSERT_GT(cid, 0);
-#if CID_ALLOC_PRINT
-        if (i % 1000 == 0)
-        {
-            printf("cid=%d\n", cid);
-        }
-#endif
-    }
-    //limit
-    {
-        int cid = coroutine_test_alloc_cid();
-        ASSERT_EQ(cid, CORO_LIMIT);
-    }
-    //free
-    for (int i = 1; i < 65536; i++)
-    {
-        int cid = i * 7;
-        coroutine_test_free_cid(cid);
-#if CID_ALLOC_PRINT
-        if (i % 1000 == 0)
-        {
-            printf("free cid=%d\n", cid);
-        }
-#endif
-    }
-    //alloc [2]
-    for (int i = 0; i < 65536 / 2; i++)
-    {
-        int cid = coroutine_test_alloc_cid();
-        ASSERT_GT(cid, 0);
-#if CID_ALLOC_PRINT
-        if (i % 1000 == 0)
-        {
-            printf("cid=%d\n", cid);
-        }
-#endif
-    }
-}

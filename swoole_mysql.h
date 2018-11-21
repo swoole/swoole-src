@@ -361,7 +361,7 @@ typedef struct _mysql_client
     zend_bool suspending;
     mysql_io_status iowait;
     zval *result;
-    int cid;
+    long cid;
 #endif
     uint8_t state;
     uint32_t switch_check :1; /* check if server request auth switch */

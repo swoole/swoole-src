@@ -1,5 +1,8 @@
 #include "tests.h"
 
+#include <map>
+#include <unordered_map>
+
 typedef struct
 {
     int fd;
@@ -81,5 +84,45 @@ TEST(hashmap, integer)
     for (i = 0; i < 10; i++)
     {
         free(lists[i]);
+    }
+}
+
+TEST(stl_hashmap, integer_32)
+{
+    std::unordered_map<int, int> m;
+    for (int i = 0; i < 10000000; i++)
+    {
+        m[i] = i;
+    }
+}
+
+TEST(stl_hashmap, integer_64)
+{
+    std::unordered_map<long, long> m;
+    double s = swoole_microtime();
+    for (int i = 0; i < 10000000; i++)
+    {
+        m[i] = i;
+    }
+    printf("cost %f s\n", swoole_microtime() - s);
+}
+
+TEST(stl_map, integer_32)
+{
+    std::map<int, int> m;
+    double s = swoole_microtime();
+    for (int i = 0; i < 10000000; i++)
+    {
+        m[i] = i;
+    }
+    printf("cost %f s\n", swoole_microtime() - s);
+}
+
+TEST(stl_map, integer_64)
+{
+    std::map<long, long> m;
+    for (int i = 0; i < 10000000; i++)
+    {
+        m[i] = i;
     }
 }

@@ -50,7 +50,7 @@ void coro_yield();
 void coro_handle_timeout();
 
 /* basic api */
-int coroutine_create(coroutine_func_t func, void* args);
+long coroutine_create(coroutine_func_t func, void* args);
 void coroutine_resume(coroutine_t *co);
 void coroutine_yield(coroutine_t *co);
 void coroutine_resume_naked(coroutine_t *co);
@@ -59,16 +59,13 @@ void coroutine_release(coroutine_t *co);
 /* co task */
 void coroutine_set_task(coroutine_t *co, void *ptr);
 void* coroutine_get_current_task();
-void* coroutine_get_task_by_cid(int cid);
+void* coroutine_get_task_by_cid(long cid);
 /* get coroutine */
 coroutine_t* coroutine_get_current();
-coroutine_t *coroutine_get_by_id(int cid);
+coroutine_t *coroutine_get_by_id(long cid);
 /* get cid */
-int coroutine_get_cid(coroutine_t *co);
-int coroutine_get_current_cid();
-/* cid api */
-int coroutine_test_alloc_cid();
-void coroutine_test_free_cid(int cid);
+long coroutine_get_cid(coroutine_t *co);
+long coroutine_get_current_cid();
 void coroutine_set_stack_size(int stack_size);
 /* callback */
 void coroutine_set_onYield(coro_php_yield_t func);

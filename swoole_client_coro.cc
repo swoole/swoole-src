@@ -197,9 +197,9 @@ static Socket* client_coro_new(zval *object, int port)
     }
 
     Socket *cli = new Socket((enum swSocket_type) type);
-    if (!cli)
+    if (cli->socket == nullptr)
     {
-        swoole_php_fatal_error(E_WARNING, "new Client() failed. Error: %s [%d]", strerror(errno), errno);
+        swoole_php_fatal_error(E_WARNING, "new Socket() failed. Error: %s [%d]", strerror(errno), errno);
         zend_update_property_long(Z_OBJCE_P(object), object, ZEND_STRL("errCode"), errno);
         return NULL;
     }
