@@ -28,7 +28,7 @@ go(function () {
         assert(strpos($exception->getMessage(), 'Serialization') === 0);
     }
     try {
-        $hcc = new \Swoole\Coroutine\Client(SWOOLE_TCP);
+        $hcc = new \Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
         serialize($hcc);
         assert(false);
     } catch (\Exception $exception) {
