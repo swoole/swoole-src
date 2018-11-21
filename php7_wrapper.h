@@ -39,8 +39,7 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
     }
     else
     {
-        char buf[MAX_LENGTH_OF_LONG + 1];
-        memset((char *) buf, 0, MAX_LENGTH_OF_LONG + 1);
+        char buf[MAX_LENGTH_OF_LONG + 1] = {0};
         sprintf((char *) buf, ZEND_ULONG_FMT, value);
         return add_assoc_string(arg, key, buf);
     }

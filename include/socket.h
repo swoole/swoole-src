@@ -166,14 +166,13 @@ protected:
         return true;
     }
 
-    inline bool is_available(int cid)
+    inline bool is_available(long cid)
     {
         if (cid)
         {
-            swoole_error_log(SW_LOG_WARNING, SW_ERROR_CO_HAS_BEEN_BOUND, "Socket#%d has already been bound to another coroutine.", socket->fd);
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_CO_HAS_BEEN_BOUND, "Socket#%d has already been bound to another coroutine %ld.", socket->fd, cid);
             errCode = SW_ERROR_CO_HAS_BEEN_BOUND;
             exit(255);
-            return false;
         }
         if (_closed)
         {
@@ -194,8 +193,8 @@ public:
     std::string bind_address;
     int bind_port;
     int _port;
-    int read_cid;
-    int write_cid;
+    long read_cid;
+    long write_cid;
     swTimer_node *read_timer;
     swTimer_node *write_timer;
     swConnection *socket = nullptr;

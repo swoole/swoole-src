@@ -188,7 +188,7 @@ void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
 
     if (SwooleG.enable_coroutine)
     {
-        int ret = sw_coro_create(cb->func_cache, argc, args, retval);
+        long ret = sw_coro_create(cb->func_cache, argc, args, retval);
         if (ret < 0)
         {
             swoole_php_fatal_error(E_WARNING, "swoole timer onTimeout failed, create coroutine failed.");
@@ -236,7 +236,7 @@ void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode)
 
     if (SwooleG.enable_coroutine)
     {
-        int ret = sw_coro_create(cb->func_cache, argc, args, retval);
+        long ret = sw_coro_create(cb->func_cache, argc, args, retval);
         if (ret < 0)
         {
             swoole_php_fatal_error(E_WARNING, "swoole timer onInterval failed, create coroutine failed.");

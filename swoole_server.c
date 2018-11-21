@@ -859,7 +859,7 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
 
     if (SwooleG.enable_coroutine)
     {
-        int ret = sw_coro_create(fci_cache, 3, args, retval);
+        long ret = sw_coro_create(fci_cache, 3, args, retval);
         if (ret < 0)
         {
             zval_ptr_dtor(zworker_id);
@@ -919,7 +919,7 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
     zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, req->info.from_fd, SW_SERVER_CB_onReceive);
     if (SwooleG.enable_coroutine)
     {
-        int ret = sw_coro_create(fci_cache, 4, args, retval);
+        long ret = sw_coro_create(fci_cache, 4, args, retval);
         if (ret < 0)
         {
             zval_ptr_dtor(zfd);
@@ -1012,7 +1012,7 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
 
     if (SwooleG.enable_coroutine)
     {
-        int ret = sw_coro_create(fci_cache, 3, args, retval);
+        long ret = sw_coro_create(fci_cache, 3, args, retval);
         if (ret < 0)
         {
             zval_ptr_dtor(zaddr);
@@ -1340,7 +1340,7 @@ static void php_swoole_onWorkerStart_coroutine(zval *zserv, zval *zworker_id)
     args[1] = *zworker_id;
 
     zend_fcall_info_cache *cache = php_sw_server_caches[SW_SERVER_CB_onWorkerStart];
-    int ret = sw_coro_create(cache, 2, args, retval);
+    long ret = sw_coro_create(cache, 2, args, retval);
     if (ret < 0)
     {
         zval_ptr_dtor(zworker_id);
@@ -1681,7 +1681,7 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
 
     if (SwooleG.enable_coroutine)
     {
-        int ret = sw_coro_create(fci_cache, 3, args, retval);
+        long ret = sw_coro_create(fci_cache, 3, args, retval);
         zval_ptr_dtor(zfd);
         zval_ptr_dtor(zfrom_id);
         if (ret < 0)

@@ -1158,7 +1158,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
 
         if (SwooleG.enable_coroutine)
         {
-            int ret = sw_coro_create(fci_cache, 2, args, retval);
+            long ret = sw_coro_create(fci_cache, 2, args, retval);
             if (ret < 0)
             {
                 if (ret < 0)

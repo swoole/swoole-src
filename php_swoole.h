@@ -513,7 +513,7 @@ PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, 
 
 #ifdef SW_COROUTINE
 int php_coroutine_reactor_can_exit(swReactor *reactor);
-void sw_coro_check_bind(const char *name, int bind_cid);
+void sw_coro_check_bind(const char *name, long bind_cid);
 #endif
 
 #ifdef SW_USE_OPENSSL

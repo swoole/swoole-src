@@ -42,9 +42,9 @@ typedef struct
 
 typedef struct
 {
-    int current_cid;
-    int index;
-    int count;
+    long current_cid;
+    uint64_t index;
+    uint64_t count;
 } coroutine_iterator;
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_void, 0, 0, 0)
@@ -408,7 +408,7 @@ PHP_FUNCTION(swoole_coroutine_create)
     php_swoole_check_reactor();
 
     zval *retval = NULL;
-    int cid = sw_coro_create(&fci_cache, fci.param_count, fci.params, retval);
+    long cid = sw_coro_create(&fci_cache, fci.param_count, fci.params, retval);
     if (EG(exception))
     {
         zend_exception_error(EG(exception), E_ERROR);
@@ -417,13 +417,13 @@ PHP_FUNCTION(swoole_coroutine_create)
     {
         zval_ptr_dtor(retval);
     }
-    if (cid <= 0)
+    if (likely(cid > 0))
     {
-        RETURN_FALSE;
+        RETURN_LONG(cid);
     }
     else
     {
-        RETURN_LONG(cid);
+        RETURN_FALSE;
     }
 }
 
@@ -1330,8 +1330,9 @@ static PHP_METHOD(swoole_coroutine_iterator, rewind)
 static PHP_METHOD(swoole_coroutine_iterator, valid)
 {
     coroutine_iterator *itearator = (coroutine_iterator *) swoole_get_object(getThis());
-    int cid = itearator->current_cid;
+    long cid = itearator->current_cid;
 
+    // FIXME: new coroutine mode
     for (; itearator->count > 0 && cid < MAX_CORO_NUM_LIMIT + 1; cid++)
     {
         if (coroutine_get_by_id(cid))

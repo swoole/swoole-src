@@ -37,21 +37,20 @@ Channel::Channel(size_t _capacity)
 
 void Channel::yield(enum channel_op type)
 {
-    int _cid = coroutine_get_current_cid();
-    if (_cid == -1)
+    coroutine_t *co = coroutine_get_current();
+    if (unlikely(!co))
     {
         swError("Channel::yield() must be called in the coroutine.");
     }
-    coroutine_t *co = coroutine_get_by_id(_cid);
     if (type == PRODUCER)
     {
         producer_queue.push_back(co);
-        swTraceLog(SW_TRACE_CHANNEL, "producer cid=%d", coroutine_get_cid(co));
+        swTraceLog(SW_TRACE_CHANNEL, "producer cid=%ld", coroutine_get_cid(co));
     }
     else
     {
         consumer_queue.push_back(co);
-        swTraceLog(SW_TRACE_CHANNEL, "consumer cid=%d", coroutine_get_cid(co));
+        swTraceLog(SW_TRACE_CHANNEL, "consumer cid=%ld", coroutine_get_cid(co));
     }
     coroutine_yield(co);
 }
@@ -71,7 +70,7 @@ void* Channel::pop(double timeout)
         {
             int msec = (int) (timeout * 1000);
             msg.chan = this;
-            msg.co = coroutine_get_by_id(coroutine_get_current_cid());
+            msg.co = coroutine_get_current();
             msg.timer = swTimer_add(&SwooleG.timer, msec, 0, &msg, channel_operation_timeout);
         }
 
@@ -117,7 +116,7 @@ bool Channel::push(void *data, double timeout)
         {
             int msec = (int) (timeout * 1000);
             msg.chan = this;
-            msg.co = coroutine_get_by_id(coroutine_get_current_cid());
+            msg.co = coroutine_get_current();
             msg.timer = swTimer_add(&SwooleG.timer, msec, 0, &msg, channel_operation_timeout);
         }
 

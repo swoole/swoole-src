@@ -191,7 +191,6 @@ static void php_coro_create(void *arg)
     zval *retval = php_arg->retval;
     coro_task *origin_task = php_arg->origin_task;
 
-    long cid = coroutine_get_current_cid();
     int i;
     zend_function *func;
     zval _zobject, *zobject = nullptr;
@@ -248,14 +247,14 @@ static void php_coro_create(void *arg)
 
     php_coro_save_vm_stack(task);
     task->output_ptr = nullptr;
-    task->co = coroutine_get_by_id(cid);
+    task->co = coroutine_get_current();
     coroutine_set_task(task->co, (void *) task);
     task->origin_task = origin_task;
     php_coro_og_create(origin_task);
 
     swTraceLog(
         SW_TRACE_COROUTINE, "Create coro id: %d, origin cid: %d, coro total count: %d, heap size: %zu",
-        cid, coroutine_get_cid(task->origin_task->co), COROG.coro_num, zend_memory_usage(0)
+        coroutine_get_cid(task->co), coroutine_get_cid(task->origin_task->co), COROG.coro_num, zend_memory_usage(0)
     );
 
     if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_CORO_START])
@@ -322,7 +321,7 @@ void coro_destroy(void)
 {
 }
 
-void sw_coro_check_bind(const char *name, int bind_cid)
+void sw_coro_check_bind(const char *name, long bind_cid)
 {
     if (unlikely(bind_cid > 0))
     {
@@ -338,7 +337,7 @@ void sw_coro_check_bind(const char *name, int bind_cid)
     }
 }
 
-int sw_coro_create(zend_fcall_info_cache *fci_cache, int argc, zval *argv, zval *retval)
+long sw_coro_create(zend_fcall_info_cache *fci_cache, int argc, zval *argv, zval *retval)
 {
     if (unlikely(COROG.active == 0))
     {
@@ -376,7 +375,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, int argc, zval *argv, zval 
     php_args.retval = retval;
     php_args.origin_task = php_coro_get_current_task();
 
-    int cid = coroutine_create(php_coro_create, (void*) &php_args);
+    long cid = coroutine_create(php_coro_create, (void*) &php_args);
     if (unlikely(cid <= 0))
     {
         COROG.coro_num--;

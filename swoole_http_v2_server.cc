@@ -194,7 +194,7 @@ static sw_inline void http2_onRequest(http_context *ctx, int from_fd)
 
     if (SwooleG.enable_coroutine)
     {
-        int ret = sw_coro_create(fci_cache, 2, args, retval);
+        long ret = sw_coro_create(fci_cache, 2, args, retval);
         if (ret < 0)
         {
             if (ret < 0)

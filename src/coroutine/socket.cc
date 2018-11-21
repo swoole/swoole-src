@@ -943,9 +943,8 @@ ssize_t Socket::sendmsg(const struct msghdr *msg, int flags)
 
 ssize_t Socket::recvmsg(struct msghdr *msg, int flags)
 {
-    if (read_cid)
+    if (!is_available(read_cid))
     {
-        swWarn("socket has already been bound to another coroutine #%d.", read_cid);
         return -1;
     }
     ssize_t retval = ::recvmsg(socket->fd, msg, flags);
@@ -980,8 +979,10 @@ ssize_t Socket::recvmsg(struct msghdr *msg, int flags)
 
 void Socket::yield(int operation)
 {
-    int cid = coroutine_get_current_cid();
-    if (unlikely(cid == -1))
+    coroutine_t *co = coroutine_get_current();
+    int cid = coroutine_get_cid(co);
+
+    if (unlikely(!co))
     {
         swError("Socket::yield() must be called in the coroutine.");
     }
@@ -1026,7 +1027,7 @@ void Socket::yield(int operation)
     }
     //=== yield ===
 
-    coroutine_yield(coroutine_get_by_id(cid));
+    coroutine_yield(co);
 
     //=== resume ===
     if (operation & SOCKET_LOCK_WRITE)
@@ -1053,7 +1054,7 @@ void Socket::yield(int operation)
 
 void Socket::resume(int operation)
 {
-    int cid = 0;
+    long cid = 0;
     if (operation & SOCKET_LOCK_READ)
     {
         cid = read_cid;

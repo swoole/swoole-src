@@ -60,9 +60,9 @@ typedef struct _php_args
 typedef struct _coro_global
 {
     zend_bool active;
-    uint32_t coro_num;
-    uint32_t max_coro_num;
-    uint32_t peak_coro_num;
+    uint64_t coro_num;
+    uint64_t max_coro_num;
+    uint64_t peak_coro_num;
     uint32_t stack_size;
     coro_task task;
 } coro_global;
@@ -99,7 +99,7 @@ void coro_check(void);
 /* output globals */
 #define SWOG ((zend_output_globals *) &OG(handlers))
 
-int sw_coro_create(zend_fcall_info_cache *fci_cache, int argc, zval *argv, zval *retval);
+long sw_coro_create(zend_fcall_info_cache *fci_cache, int argc, zval *argv, zval *retval);
 void sw_coro_yield();
 void sw_coro_close();
 int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_retval);

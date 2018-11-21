@@ -45,7 +45,7 @@ static void coro3(void *arg)
 
 TEST(coroutine, socket_connect_timeout)
 {
-    int cid = coroutine_create(coro3, NULL);
+    long cid = coroutine_create(coro3, NULL);
     if (cid < 0)
     {
         return;
