@@ -243,6 +243,12 @@ typedef enum
     PHP_SWOOLE_RSHUTDOWN_END,
 } php_swoole_req_status;
 //---------------------------------------------------------
+typedef struct
+{
+    zval _callback;
+    zval *callback;
+} php_defer_callback;
+//---------------------------------------------------------
 #define php_swoole_socktype(type)           (type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP) & (~SW_SOCK_SSL))
 #define php_swoole_array_length(array)      zend_hash_num_elements(Z_ARRVAL_P(array))
 
@@ -280,6 +286,7 @@ PHP_FUNCTION(swoole_call_user_shutdown_begin);
 PHP_FUNCTION(swoole_coroutine_create);
 PHP_FUNCTION(swoole_coroutine_exec);
 PHP_FUNCTION(swoole_coroutine_gethostbyname);
+PHP_FUNCTION(swoole_coroutine_defer);
 //---------------------------------------------------------
 //                  swoole_server
 //---------------------------------------------------------
@@ -505,6 +512,7 @@ int php_swoole_client_onPackage(swConnection *conn, char *data, uint32_t length)
 void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode);
 void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode);
 zend_bool php_swoole_signal_isset_handler(int signo);
+void php_swoole_event_onDefer(void *_cb);
 
 #ifdef SW_USE_FAST_SERIALIZE
 PHPAPI zend_string* php_swoole_serialize(zval *zvalue);

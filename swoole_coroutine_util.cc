@@ -90,6 +90,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_gethostbyname, 0, 0, 1)
     ZEND_ARG_INFO(0, family)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_defer, 0, 0, 1)
+    ZEND_ARG_INFO(0, callback)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_getaddrinfo, 0, 0, 1)
     ZEND_ARG_INFO(0, hostname)
     ZEND_ARG_INFO(0, family)
@@ -166,6 +170,7 @@ static const zend_function_entry swoole_coroutine_util_methods[] =
     ZEND_FENTRY(create, ZEND_FN(swoole_coroutine_create), arginfo_swoole_coroutine_create, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(exec, ZEND_FN(swoole_coroutine_exec), arginfo_swoole_coroutine_exec, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(gethostbyname, ZEND_FN(swoole_coroutine_gethostbyname), arginfo_swoole_coroutine_gethostbyname, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(defer, ZEND_FN(swoole_coroutine_defer), arginfo_swoole_coroutine_defer, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, set, arginfo_swoole_coroutine_set, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, yield, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_MALIAS(swoole_coroutine_util, suspend, yield, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -1496,4 +1501,31 @@ PHP_FUNCTION(swoole_coroutine_exec)
     }
 
     swString_free(buffer);
+}
+
+PHP_FUNCTION(swoole_coroutine_defer)
+{
+    coro_check();
+
+    zval *callback;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &callback) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
+
+    char *func_name;
+    if (!sw_zend_is_callable(callback, 0, &func_name))
+    {
+        swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
+        efree(func_name);
+        RETURN_FALSE;
+    }
+    efree(func_name);
+
+    php_defer_callback *defer = (php_defer_callback *) emalloc(sizeof(php_defer_callback));
+    defer->callback = &defer->_callback;
+    memcpy(defer->callback, callback, sizeof(zval));
+    Z_TRY_ADDREF_P(callback);
+
+    coroutine_add_defer_task(coroutine_get_current(), php_swoole_event_onDefer, defer);
 }
