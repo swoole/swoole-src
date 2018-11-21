@@ -34,16 +34,9 @@ typedef struct
     zval *socket;
 } php_reactor_fd;
 
-typedef struct
-{
-    zval _callback;
-    zval *callback;
-} php_defer_callback;
-
 static int php_swoole_event_onRead(swReactor *reactor, swEvent *event);
 static int php_swoole_event_onWrite(swReactor *reactor, swEvent *event);
 static int php_swoole_event_onError(swReactor *reactor, swEvent *event);
-static void php_swoole_event_onDefer(void *_cb);
 static void php_swoole_event_onEndCallback(void *_cb);
 
 static void free_event_callback(void* data)
@@ -155,7 +148,7 @@ static int php_swoole_event_onError(swReactor *reactor, swEvent *event)
     return SW_OK;
 }
 
-static void php_swoole_event_onDefer(void *_cb)
+void php_swoole_event_onDefer(void *_cb)
 {
     php_defer_callback *defer = _cb;
 
