@@ -353,7 +353,7 @@ long sw_coro_create(zend_fcall_info_cache *fci_cache, int argc, zval *argv, zval
     }
     if (unlikely(COROG.coro_num >= COROG.max_coro_num))
     {
-        swoole_php_fatal_error(E_WARNING, "exceed max number of coroutine %d.", COROG.coro_num);
+        swoole_php_fatal_error(E_WARNING, "exceed max number of coroutine %u.", COROG.coro_num);
         return CORO_LIMIT;
     }
     if (unlikely(!fci_cache || !fci_cache->function_handler))
