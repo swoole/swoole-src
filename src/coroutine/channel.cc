@@ -81,7 +81,7 @@ void* Channel::pop(double timeout)
         {
             swTimer_del(&SwooleG.timer, msg.timer);
         }
-        if (msg.error || closed || is_empty())
+        if (is_empty() || closed || msg.error)
         {
             return nullptr;
         }
@@ -102,16 +102,32 @@ void* Channel::pop(double timeout)
     return data;
 }
 
-bool Channel::push(void *data)
+bool Channel::push(void *data, double timeout)
 {
     if (closed)
     {
         return false;
     }
+    timeout_msg_t msg;
+    msg.error = false;
+    msg.timer = NULL;
     if (is_full() || producer_queue.size() > 0)
     {
+        if (timeout > 0)
+        {
+            int msec = (int) (timeout * 1000);
+            msg.chan = this;
+            msg.co = coroutine_get_by_id(coroutine_get_current_cid());
+            msg.timer = swTimer_add(&SwooleG.timer, msec, 0, &msg, channel_pop_timeout);
+        }
+
         yield(PRODUCER);
-        if (closed)
+
+        if (msg.timer)
+        {
+            swTimer_del(&SwooleG.timer, msg.timer);
+        }
+        if (is_full() || closed || msg.error)
         {
             return false;
         }

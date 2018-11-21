@@ -94,13 +94,13 @@ public:
         {
             co = producer_queue.front();
             producer_queue.pop_front();
-            swDebug("resume producer[%d]", coroutine_get_cid(co));
+            swTraceLog(SW_TRACE_CHANNEL, "resume producer cid=%d", coroutine_get_cid(co));
         }
         else
         {
             co = consumer_queue.front();
             consumer_queue.pop_front();
-            swDebug("resume consumer[%d]", coroutine_get_cid(co));
+            swTraceLog(SW_TRACE_CHANNEL, "resume consumer cid=%d", coroutine_get_cid(co));
         }
         return co;
     }
@@ -108,7 +108,7 @@ public:
     Channel(size_t _capacity);
     void yield(enum channel_op type);
     void* pop(double timeout = 0);
-    bool push(void *data);
+    bool push(void *data, double timeout);
     bool close();
 };
 
