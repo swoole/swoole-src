@@ -344,14 +344,24 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, int argc, zval *argv, zval 
     {
         if (zend_get_module_started("xdebug") == SUCCESS)
         {
-            swWarn("xdebug do not support coroutine, please notice that it lead to coredump.");
+            swoole_php_fatal_error(E_WARNING, "Using Xdebug in coroutines is extremely dangerous, please notice that it may lead to coredump!");
         }
         COROG.active = 1;
     }
     if (unlikely(COROG.coro_num >= COROG.max_coro_num))
     {
-        swoole_php_fatal_error(E_WARNING, "exceed max number of coroutine %d", COROG.coro_num);
+        swoole_php_fatal_error(E_WARNING, "exceed max number of coroutine %d.", COROG.coro_num);
         return CORO_LIMIT;
+    }
+    if (unlikely(!fci_cache || !fci_cache->function_handler))
+    {
+        swoole_php_fatal_error(E_ERROR, "invalid function call info cache.");
+        return CORO_INVALID;
+    }
+    if (unlikely(fci_cache->function_handler->type != ZEND_USER_FUNCTION))
+    {
+        swoole_php_fatal_error(E_ERROR, "invalid function type %u.", fci_cache->function_handler->type);
+        return CORO_INVALID;
     }
 
     if (++COROG.coro_num > COROG.peak_coro_num)

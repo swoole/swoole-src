@@ -1,10 +1,7 @@
 --TEST--
 swoole_server: dispatch_mode = 3
 --SKIPIF--
-<?php
-require __DIR__ . '/../include/skipif.inc';
-skip_if_in_docker('unknown reason in docker');
-?>
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
@@ -66,8 +63,8 @@ $pm->parentFunc = function ($pid) use ($port)
     }
     swoole_event::wait();
     swoole_process::kill($pid);
-    assert($stats[10] < 500);
-    assert($stats[5] < 500);
+    assert($stats[10] < 1000);
+    assert($stats[5] < 1000);
 };
 
 $pm->childFunc = function () use ($pm, $port)

@@ -1,21 +1,17 @@
 --TEST--
 swoole_process: write in worker
 --SKIPIF--
-<?php
-require __DIR__ . '/../include/skipif.inc';
-skip_if_in_docker('unknown reason');
-?>
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-
-$pm = new \ProcessManager;
+$pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
     $serv = new \swoole_server('127.0.0.1', $pm->getFreePort());
-    $process = new \swoole_process(function (swoole_process $process) use ($serv) {
+    $process = new \swoole_process(function (swoole_process $process) use ($pm, $serv) {
         sleep(1);
         echo "process start\n";
         for ($i = 0; $i < 1024; $i++) {
@@ -23,7 +19,7 @@ $pm->childFunc = function () use ($pm) {
             assert(strlen($data) == 8192);
         }
         echo "process end\n";
-        $serv->shutdown();
+        $pm->wakeup();
     });
     $serv->set([
         "worker_num" => 1,

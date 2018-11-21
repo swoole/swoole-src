@@ -413,6 +413,7 @@ enum swTraceType
     SW_TRACE_AIO              = 1u << 18,
     SW_TRACE_SSL              = 1u << 19,
     SW_TRACE_NORMAL           = 1u << 20,
+    SW_TRACE_CHANNEL          = 1u << 21,
 };
 
 #ifdef SW_LOG_TRACE_OPEN

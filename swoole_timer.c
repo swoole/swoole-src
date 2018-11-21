@@ -189,9 +189,9 @@ void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
     if (SwooleG.enable_coroutine)
     {
         int ret = sw_coro_create(cb->func_cache, argc, args, retval);
-        if (CORO_LIMIT == ret)
+        if (ret < 0)
         {
-            swoole_php_fatal_error(E_WARNING, "swoole_timer: coroutine limit");
+            swoole_php_fatal_error(E_WARNING, "swoole timer onTimeout failed, create coroutine failed.");
             return;
         }
     }
@@ -237,9 +237,9 @@ void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode)
     if (SwooleG.enable_coroutine)
     {
         int ret = sw_coro_create(cb->func_cache, argc, args, retval);
-        if (CORO_LIMIT == ret)
+        if (ret < 0)
         {
-            swoole_php_fatal_error(E_WARNING, "swoole_timer: coroutine limit");
+            swoole_php_fatal_error(E_WARNING, "swoole timer onInterval failed, create coroutine failed.");
             return;
         }
     }
@@ -247,7 +247,7 @@ void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode)
     {
         if (sw_call_user_function_ex(EG(function_table), NULL, cb->callback, &retval, argc, args, 0, NULL) == FAILURE)
         {
-            swoole_php_fatal_error(E_WARNING, "swoole_timer: onTimerCallback handler error");
+            swoole_php_fatal_error(E_WARNING, "swoole timer onInterval handler error.");
             return;
         }
     }

@@ -94,7 +94,7 @@ void swoole_channel_coro_init(int module_number)
 
 static PHP_METHOD(swoole_channel_coro, __construct)
 {
-    zend_long capacity = 0;
+    zend_long capacity = 1;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &capacity) == FAILURE)
     {
@@ -142,19 +142,23 @@ static PHP_METHOD(swoole_channel_coro, push)
     }
 
     zval *zdata;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &zdata) == FAILURE)
+    double timeout = -1;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|d", &zdata, &timeout) == FAILURE)
     {
         RETURN_FALSE;
     }
 
     Z_TRY_ADDREF_P(zdata);
-    if (chan->push(sw_zval_dup(zdata)))
+    zdata = sw_zval_dup(zdata);
+    if (chan->push(zdata, timeout))
     {
         RETURN_TRUE;
     }
     else
     {
+        zend_update_property_long(swoole_channel_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), chan->closed ? SW_CHANNEL_CLOSED : SW_CHANNEL_TIMEOUT);
         Z_TRY_DELREF_P(zdata);
+        efree(zdata);
         RETURN_FALSE;
     }
 }

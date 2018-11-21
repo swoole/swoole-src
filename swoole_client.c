@@ -22,15 +22,6 @@
 
 typedef struct
 {
-    zval *onConnect;
-    zval *onReceive;
-    zval *onClose;
-    zval *onError;
-    zval *onBufferFull;
-    zval *onBufferEmpty;
-#ifdef SW_USE_OPENSSL
-    zval *onSSLReady;
-#endif
     zend_fcall_info_cache cache_onConnect;
     zend_fcall_info_cache cache_onReceive;
     zend_fcall_info_cache cache_onClose;
@@ -40,18 +31,7 @@ typedef struct
 #ifdef SW_USE_OPENSSL
     zend_fcall_info_cache cache_onSSLReady;
 #endif
-
     zval _object;
-    zval _onConnect;
-    zval _onReceive;
-    zval _onClose;
-    zval _onError;
-    zval _onBufferFull;
-    zval _onBufferEmpty;
-#ifdef SW_USE_OPENSSL
-    zval _onSSLReady;
-#endif
-
 } client_callback;
 
 enum client_property
@@ -105,7 +85,6 @@ static void client_onBufferEmpty(swClient *cli);
 
 static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_client_callback_type type)
 {
-    zval *callback = NULL;
     zval *retval = NULL;
     zval args[1];
 
@@ -117,33 +96,27 @@ static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_cli
     switch(type)
     {
     case SW_CLIENT_CB_onConnect:
-        callback = cb->onConnect;
         callback_name = "onConnect";
         fci_cache = &cb->cache_onConnect;
         break;
     case SW_CLIENT_CB_onError:
-        callback = cb->onError;
         callback_name = "onError";
         fci_cache = &cb->cache_onError;
         break;
     case SW_CLIENT_CB_onClose:
-        callback = cb->onClose;
         callback_name = "onClose";
         fci_cache = &cb->cache_onClose;
         break;
     case SW_CLIENT_CB_onBufferFull:
-        callback = cb->onBufferFull;
         callback_name = "onBufferFull";
         fci_cache = &cb->cache_onBufferFull;
         break;
     case SW_CLIENT_CB_onBufferEmpty:
-        callback = cb->onBufferEmpty;
         callback_name = "onBufferEmpty";
         fci_cache = &cb->cache_onBufferEmpty;
         break;
 #ifdef SW_USE_OPENSSL
     case SW_CLIENT_CB_onSSLReady:
-        callback = cb->onSSLReady;
         callback_name = "onSSLReady";
         fci_cache = &cb->cache_onSSLReady;
         break;
@@ -309,14 +282,14 @@ void swoole_client_init(int module_number)
     /**
      * event callback
      */
-    zend_declare_property_null(swoole_client_class_entry_ptr, ZEND_STRL("onConnect"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_client_class_entry_ptr, ZEND_STRL("onError"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_client_class_entry_ptr, ZEND_STRL("onReceive"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_client_class_entry_ptr, ZEND_STRL("onClose"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_client_class_entry_ptr, ZEND_STRL("onBufferFull"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_client_class_entry_ptr, ZEND_STRL("onBufferEmpty"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_client_class_entry_ptr, ZEND_STRL("onConnect"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_client_class_entry_ptr, ZEND_STRL("onError"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_client_class_entry_ptr, ZEND_STRL("onReceive"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_client_class_entry_ptr, ZEND_STRL("onClose"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_client_class_entry_ptr, ZEND_STRL("onBufferFull"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_client_class_entry_ptr, ZEND_STRL("onBufferEmpty"), ZEND_ACC_PRIVATE);
 #ifdef SW_USE_OPENSSL
-    zend_declare_property_null(swoole_client_class_entry_ptr, ZEND_STRL("onSSLReady"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_client_class_entry_ptr, ZEND_STRL("onSSLReady"), ZEND_ACC_PRIVATE);
 #endif
 
     php_sw_long_connections = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
@@ -386,7 +359,7 @@ static void client_onConnect(swClient *cli)
     else
     {
         client_callback *cb = (client_callback *) swoole_get_property(zobject, 0);
-        if (!cb || !cb->onReceive)
+        if (!cb || !cb->cache_onReceive.function_handler)
         {
             swoole_php_fatal_error(E_ERROR, "has no 'onReceive' callback function.");
         }
@@ -502,30 +475,6 @@ void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset)
     }
 }
 #endif
-
-int php_swoole_client_isset_callback(zval *zobject, int type)
-{
-    client_callback *cb = (client_callback *) swoole_get_property(zobject, client_property_callback);
-    switch (type)
-    {
-    case SW_CLIENT_CB_onConnect:
-        return cb->onConnect != NULL;
-    case SW_CLIENT_CB_onError:
-        return cb->onError != NULL;
-    case SW_CLIENT_CB_onClose:
-        return cb->onClose != NULL;
-    case SW_CLIENT_CB_onBufferFull:
-        return cb->onBufferFull != NULL;
-    case SW_CLIENT_CB_onBufferEmpty:
-        return cb->onBufferEmpty != NULL;
-#ifdef SW_USE_OPENSSL
-    case SW_CLIENT_CB_onSSLReady:
-        return cb->onSSLReady != NULL;
-#endif
-    default:
-        return SW_FALSE;
-    }
-}
 
 void php_swoole_client_check_setting(swClient *cli, zval *zset)
 {
@@ -1159,17 +1108,17 @@ static PHP_METHOD(swoole_client, connect)
 
         if (swSocket_is_stream(cli->type))
         {
-            if (!cb->onConnect)
+            if (!cb->cache_onConnect.function_handler)
             {
                 swoole_php_fatal_error(E_ERROR, "no 'onConnect' callback function.");
                 RETURN_FALSE;
             }
-            if (!cb->onError)
+            if (!cb->cache_onError.function_handler)
             {
                 swoole_php_fatal_error(E_ERROR, "no 'onError' callback function.");
                 RETURN_FALSE;
             }
-            if (!cb->onClose)
+            if (!cb->cache_onClose.function_handler)
             {
                 swoole_php_fatal_error(E_ERROR, "no 'onClose' callback function.");
                 RETURN_FALSE;
@@ -1179,31 +1128,31 @@ static PHP_METHOD(swoole_client, connect)
             cli->onError = client_onError;
             cli->onReceive = client_onReceive;
             cli->reactor_fdtype = PHP_SWOOLE_FD_STREAM_CLIENT;
-            if (cb->onBufferFull)
+            if (cb->cache_onBufferFull.function_handler)
             {
                 cli->onBufferFull = client_onBufferFull;
             }
-            if (cb->onBufferEmpty)
+            if (cb->cache_onBufferEmpty.function_handler)
             {
                 cli->onBufferEmpty = client_onBufferEmpty;
             }
         }
         else
         {
-            if (!cb || !cb->onReceive)
+            if (!cb || !cb->cache_onReceive.function_handler)
             {
                 swoole_php_fatal_error(E_ERROR, "no 'onReceive' callback function.");
                 RETURN_FALSE;
             }
-            if (cb->onConnect)
+            if (cb->cache_onConnect.function_handler)
             {
                 cli->onConnect = client_onConnect;
             }
-            if (cb->onClose)
+            if (cb->cache_onClose.function_handler)
             {
                 cli->onClose = client_onClose;
             }
-            if (cb->onError)
+            if (cb->cache_onError.function_handler)
             {
                 cli->onError = client_onError;
             }
@@ -1815,43 +1764,31 @@ static PHP_METHOD(swoole_client, on)
     if (strncasecmp("connect", cb_name, cb_name_len) == 0)
     {
         zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("onConnect"), zcallback);
-        cb->onConnect = sw_zend_read_property(swoole_client_class_entry_ptr,  getThis(), ZEND_STRL("onConnect"), 0);
-        sw_copy_to_stack(cb->onConnect, cb->_onConnect);
         cb->cache_onConnect = func_cache;
     }
     else if (strncasecmp("receive", cb_name, cb_name_len) == 0)
     {
         zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("onReceive"), zcallback);
-        cb->onReceive = sw_zend_read_property(swoole_client_class_entry_ptr,  getThis(), ZEND_STRL("onReceive"), 0);
-        sw_copy_to_stack(cb->onReceive, cb->_onReceive);
         cb->cache_onReceive = func_cache;
     }
     else if (strncasecmp("close", cb_name, cb_name_len) == 0)
     {
         zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("onClose"), zcallback);
-        cb->onClose = sw_zend_read_property(swoole_client_class_entry_ptr,  getThis(), ZEND_STRL("onClose"), 0);
-        sw_copy_to_stack(cb->onClose, cb->_onClose);
         cb->cache_onClose = func_cache;
     }
     else if (strncasecmp("error", cb_name, cb_name_len) == 0)
     {
         zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("onError"), zcallback);
-        cb->onError = sw_zend_read_property(swoole_client_class_entry_ptr,  getThis(), ZEND_STRL("onError"), 0);
-        sw_copy_to_stack(cb->onError, cb->_onError);
         cb->cache_onError = func_cache;
     }
     else if (strncasecmp("bufferFull", cb_name, cb_name_len) == 0)
     {
         zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("onBufferFull"), zcallback);
-        cb->onBufferFull = sw_zend_read_property(swoole_client_class_entry_ptr,  getThis(), ZEND_STRL("onBufferFull"), 0);
-        sw_copy_to_stack(cb->onBufferFull, cb->_onBufferFull);
         cb->cache_onBufferFull = func_cache;
     }
     else if (strncasecmp("bufferEmpty", cb_name, cb_name_len) == 0)
     {
         zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("onBufferEmpty"), zcallback);
-        cb->onBufferEmpty = sw_zend_read_property(swoole_client_class_entry_ptr,  getThis(), ZEND_STRL("onBufferEmpty"), 0);
-        sw_copy_to_stack(cb->onBufferEmpty, cb->_onBufferEmpty);
         cb->cache_onBufferEmpty = func_cache;
     }
     else
@@ -1934,8 +1871,6 @@ static PHP_METHOD(swoole_client, enableSSL)
             RETURN_FALSE;
         }
         zend_update_property(swoole_client_class_entry_ptr, getThis(), ZEND_STRL("onSSLReady"), zcallback);
-        cb->onSSLReady = sw_zend_read_property(swoole_client_class_entry_ptr,  getThis(), ZEND_STRL("onSSLReady"), 0);
-        sw_copy_to_stack(cb->onSSLReady, cb->_onSSLReady);
         cb->cache_onSSLReady = func_cache;
         cli->ssl_wait_handshake = 1;
         cli->socket->ssl_state = SW_SSL_STATE_WAIT_STREAM;
