@@ -50,6 +50,7 @@ int swoole_coroutine_socket(int domain, int type, int protocol)
     Socket *sock = new Socket(sock_type);
     if (sock->socket == nullptr)
     {
+        delete sock;
         return -1;
     }
     return sock->socket->fd;
