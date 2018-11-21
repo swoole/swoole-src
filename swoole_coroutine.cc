@@ -344,7 +344,7 @@ int sw_coro_create(zend_fcall_info_cache *fci_cache, int argc, zval *argv, zval 
     {
         if (zend_get_module_started("xdebug") == SUCCESS)
         {
-            swWarn("xdebug do not support coroutine, please notice that it lead to coredump.");
+            swoole_php_fatal_error(E_WARNING, "Using Xdebug in coroutines is extremely dangerous, please notice that it may lead to coredump!");
         }
         COROG.active = 1;
     }
