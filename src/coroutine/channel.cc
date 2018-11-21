@@ -20,7 +20,7 @@
 
 using namespace swoole;
 
-static void channel_pop_timeout(swTimer *timer, swTimer_node *tnode)
+static void channel_operation_timeout(swTimer *timer, swTimer_node *tnode)
 {
     timeout_msg_t *msg = (timeout_msg_t *) tnode->data;
     msg->error = true;
@@ -72,7 +72,7 @@ void* Channel::pop(double timeout)
             int msec = (int) (timeout * 1000);
             msg.chan = this;
             msg.co = coroutine_get_by_id(coroutine_get_current_cid());
-            msg.timer = swTimer_add(&SwooleG.timer, msec, 0, &msg, channel_pop_timeout);
+            msg.timer = swTimer_add(&SwooleG.timer, msec, 0, &msg, channel_operation_timeout);
         }
 
         yield(CONSUMER);
@@ -81,7 +81,7 @@ void* Channel::pop(double timeout)
         {
             swTimer_del(&SwooleG.timer, msg.timer);
         }
-        if (is_empty() || closed || msg.error)
+        if (msg.error || closed)
         {
             return nullptr;
         }
@@ -118,7 +118,7 @@ bool Channel::push(void *data, double timeout)
             int msec = (int) (timeout * 1000);
             msg.chan = this;
             msg.co = coroutine_get_by_id(coroutine_get_current_cid());
-            msg.timer = swTimer_add(&SwooleG.timer, msec, 0, &msg, channel_pop_timeout);
+            msg.timer = swTimer_add(&SwooleG.timer, msec, 0, &msg, channel_operation_timeout);
         }
 
         yield(PRODUCER);
@@ -127,7 +127,7 @@ bool Channel::push(void *data, double timeout)
         {
             swTimer_del(&SwooleG.timer, msg.timer);
         }
-        if (is_full() || closed || msg.error)
+        if (msg.error || closed)
         {
             return false;
         }
