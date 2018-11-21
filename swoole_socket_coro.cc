@@ -196,6 +196,12 @@ static PHP_METHOD(swoole_socket_coro, __construct)
 
     socket_coro *sock = (socket_coro *) Z_SOCKET_CORO_OBJ_P(getThis()) ;
     sock->socket = new Socket(get_socket_type(domain, type, protocol));
+    if (sock->socket->socket == nullptr)
+    {
+        zend_throw_exception_ex(swoole_socket_coro_exception_class_entry_ptr, errno,
+                "new Socket() failed. Error: %s [%d]", strerror(errno), errno);
+        RETURN_FALSE;
+    }
     sock->domain = domain;
     sock->object = *getThis();
 }

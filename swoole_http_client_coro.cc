@@ -233,6 +233,11 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
     if (!hcc->socket)
     {
         hcc->socket = new Socket(SW_SOCK_TCP);
+        if (hcc->socket->socket == nullptr)
+        {
+            swoole_php_fatal_error(E_WARNING, "new Socket() failed. Error: %s [%d]", strerror(errno), errno);
+            return SW_ERR;
+        }
         zval *ztmp;
         HashTable *vht;
         zval *zset = sw_zend_read_property(Z_OBJCE_P(zobject), zobject, ZEND_STRL("setting"), 1);

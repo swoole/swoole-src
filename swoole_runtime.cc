@@ -841,7 +841,14 @@ static php_stream *socket_create(const char *proto, size_t protolen, const char 
 #endif
     else
     {
+        swoole_php_fatal_error(E_WARNING, "new Socket() failed. Error: %s [%d]", strerror(errno), errno);
         sock = new Socket(SW_SOCK_TCP);
+    }
+
+    if (sock->socket == nullptr)
+    {
+        _failed: delete sock;
+        return NULL;
     }
 
     if (FG(default_socket_timeout) > 0)
@@ -860,8 +867,7 @@ static php_stream *socket_create(const char *proto, size_t protolen, const char 
 
     if (stream == NULL)
     {
-        delete sock;
-        return NULL;
+        goto _failed;
     }
     return stream;
 }
