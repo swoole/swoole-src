@@ -31,7 +31,6 @@ typedef struct
 #ifdef SW_USE_OPENSSL
     zval *onSSLReady;
 #endif
-
     zend_fcall_info_cache cache_onConnect;
     zend_fcall_info_cache cache_onReceive;
     zend_fcall_info_cache cache_onClose;
@@ -106,7 +105,6 @@ static void client_onBufferEmpty(swClient *cli);
 
 static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_client_callback_type type)
 {
-
     zval *callback = NULL;
     zval *retval = NULL;
     zval args[1];

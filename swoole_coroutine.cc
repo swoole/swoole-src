@@ -191,7 +191,7 @@ static void php_coro_create(void *arg)
     zval *retval = php_arg->retval;
     coro_task *origin_task = php_arg->origin_task;
 
-    int cid = coroutine_get_current_cid();
+    long cid = coroutine_get_current_cid();
     int i;
     zend_function *func;
     zval _zobject, *zobject = nullptr;
@@ -440,7 +440,7 @@ void sw_coro_close()
     );
 }
 
-int sw_get_current_cid()
+long sw_get_current_cid()
 {
     if (unlikely(COROG.active == 0))
     {
