@@ -368,7 +368,7 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
     int ret;
     char *ip_address = NULL;
 
-    if (sock->get_fd() < 0)
+    if (unlikely(sock->socket == nullptr))
     {
         return -1;
     }
