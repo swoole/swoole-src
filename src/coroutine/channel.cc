@@ -62,11 +62,11 @@ void* Channel::pop(double timeout)
     {
         return nullptr;
     }
-    timeout_msg_t msg;
-    msg.error = false;
-    msg.timer = NULL;
     if (is_empty() || consumer_queue.size() > 0)
     {
+        timeout_msg_t msg;
+        msg.error = false;
+        msg.timer = NULL;
         if (timeout > 0)
         {
             int msec = (int) (timeout * 1000);
@@ -108,11 +108,11 @@ bool Channel::push(void *data, double timeout)
     {
         return false;
     }
-    timeout_msg_t msg;
-    msg.error = false;
-    msg.timer = NULL;
     if (is_full() || producer_queue.size() > 0)
     {
+        timeout_msg_t msg;
+        msg.error = false;
+        msg.timer = NULL;
         if (timeout > 0)
         {
             int msec = (int) (timeout * 1000);
