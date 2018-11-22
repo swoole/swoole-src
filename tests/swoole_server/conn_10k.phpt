@@ -18,35 +18,47 @@ $pm->parentFunc = function () use ($pm) {
                 $client = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
                 $client_map["{$c}.{$n}"] = $client;
                 if ($client->connect('127.0.0.1', $pm->getFreePort(), -1)) {
-                    if (++$count === MAX_CONCURRENCY_MID * MAX_REQUESTS) {
-                        var_dump($count);
-                        echo "DONE\n";
-                        $client_map = [];
-                        $pm->kill();
+                    if (assert($client->recv() === 'Hello Swoole!')) {
+                        if (++$count === MAX_CONCURRENCY_MID * MAX_REQUESTS) {
+                            var_dump($count);
+                            echo "DONE\n";
+                            $client_map = [];
+                            $pm->kill();
+                        }
+                        continue;
                     }
+                } else {
+                    echo "ERROR\n";
+                    $pm->kill();
+                    exit;
                 }
             }
         });
     }
+    register_shutdown_function(function () {
+        global $client_map;
+        foreach ($client_map as $client) {
+            $client->close();
+        }
+    });
 };
 $pm->childFunc = function () use ($pm) {
-    $serv = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
-    $serv->set([
+    $server = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
+    $server->set([
         "worker_num" => swoole_cpu_num() * 2,
         'log_file' => '/dev/null',
         'max_connection' => MAX_CONCURRENCY_MID * MAX_REQUESTS
     ]);
-    $serv->on("WorkerStart", function (Swoole\Server $serv) use ($pm) {
+    $server->on("WorkerStart", function (Swoole\Server $serv) use ($pm) {
         $pm->wakeup();
     });
-    $serv->on('connect', function () {
+    $server->on('connect', function (Swoole\Server $server, int $fd) {
         global $count;
         $count++;
+        $server->send($fd, 'Hello Swoole!');
     });
-    $serv->on('receive', function (Swoole\Server $serv, $fd, $rid, $data) {
-
-    });
-    $serv->start();
+    $server->on('receive', function (Swoole\Server $serv, $fd, $rid, $data) { });
+    $server->start();
 };
 $pm->childFirst();
 $pm->run();

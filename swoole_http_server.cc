@@ -559,7 +559,7 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
         _c++;
         i++;
     }
-    if (j < length)
+    if (j < (off_t) length)
     {
         vlen = i - j;
         if (klen >= SW_HTTP_COOKIE_KEYLEN)
@@ -728,7 +728,7 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
     if (strncasecmp(headername, "content-disposition", header_len) == 0)
     {
         //not form data
-        if (swoole_strnpos((char *) at, length, ZEND_STRL("form-data;")) < 0)
+        if (swoole_strnpos((char *) at, length, ZEND_STRL((char *)"form-data;")) < 0)
         {
             return SW_OK;
         }
@@ -820,7 +820,7 @@ static int multipart_body_on_data(multipart_parser* p, const char *at, size_t le
         return 0;
     }
     int n = fwrite(at, sizeof(char), length, (FILE *) p->fp);
-    if (n != length)
+    if (n != (off_t) length)
     {
         zval *multipart_header = ctx->current_multipart_header;
         add_assoc_long(multipart_header, "error", HTTP_UPLOAD_ERR_CANT_WRITE);
@@ -1755,7 +1755,7 @@ static void http_build_header(http_context *ctx, zval *zobject, swString *respon
     }
     if (!(header_flag & HTTP_HEADER_DATE))
     {
-        date_str = sw_php_format_date(ZEND_STRL(SW_HTTP_DATE_FORMAT), serv->gs->now, 0);
+        date_str = sw_php_format_date(ZEND_STRL((char *)SW_HTTP_DATE_FORMAT), serv->gs->now, 0);
         n = snprintf(buf, l_buf, "Date: %s\r\n", date_str);
         swString_append_ptr(response, buf, n);
         efree(date_str);
@@ -1826,7 +1826,7 @@ void php_zlib_free(voidpf opaque, voidpf address)
 void swoole_http_get_compression_method(http_context *ctx, const char *accept_encoding, size_t length)
 {
 #ifdef SW_HAVE_BROTLI
-    if (swoole_strnpos((char *) accept_encoding, length, ZEND_STRL("br")) >= 0)
+    if (swoole_strnpos((char *) accept_encoding, length, ZEND_STRL((char *)"br")) >= 0)
     {
         ctx->enable_compression = 1;
         ctx->compression_level = SwooleG.serv->http_compression_level;
@@ -1834,13 +1834,13 @@ void swoole_http_get_compression_method(http_context *ctx, const char *accept_en
     }
     else
 #endif
-    if (swoole_strnpos((char *) accept_encoding, length, ZEND_STRL("gzip")) >= 0)
+    if (swoole_strnpos((char *) accept_encoding, length, ZEND_STRL((char *)"gzip")) >= 0)
     {
         ctx->enable_compression = 1;
         ctx->compression_level = SwooleG.serv->http_compression_level;
         ctx->compression_method = HTTP_COMPRESS_GZIP;
     }
-    else if (swoole_strnpos((char *) accept_encoding, length, ZEND_STRL("deflate")) >= 0)
+    else if (swoole_strnpos((char *) accept_encoding, length, ZEND_STRL((char *)"deflate")) >= 0)
     {
         ctx->enable_compression = 1;
         ctx->compression_level = SwooleG.serv->http_compression_level;
@@ -2255,7 +2255,7 @@ static PHP_METHOD(swoole_http_response, cookie)
 
     if (value && value_len == 0)
     {
-        dt = sw_php_format_date("D, d-M-Y H:i:s T", sizeof("D, d-M-Y H:i:s T") - 1, 1, 0);
+        dt = sw_php_format_date(ZEND_STRL((char *)"D, d-M-Y H:i:s T"), 1, 0);
         snprintf(cookie, len + 100, "%s=deleted; expires=%s", name, dt);
         efree(dt);
     }
@@ -2265,7 +2265,7 @@ static PHP_METHOD(swoole_http_response, cookie)
         if (expires > 0)
         {
             strlcat(cookie, "; expires=", len + 100);
-            dt = sw_php_format_date("D, d-M-Y H:i:s T", sizeof("D, d-M-Y H:i:s T") - 1, expires, 0);
+            dt = sw_php_format_date(ZEND_STRL((char *)"D, d-M-Y H:i:s T"), expires, 0);
             const char *p = (const char *) zend_memrchr(dt, '-', strlen(dt));
             if (!p || *(p + 5) != ' ')
             {
@@ -2365,7 +2365,7 @@ static PHP_METHOD(swoole_http_response, rawcookie)
 
     if (value && value_len == 0)
     {
-        dt = sw_php_format_date("D, d-M-Y H:i:s T", sizeof("D, d-M-Y H:i:s T") - 1, 1, 0);
+        dt = sw_php_format_date(ZEND_STRL((char *)"D, d-M-Y H:i:s T"), 1, 0);
         snprintf(cookie, len + 100, "%s=deleted; expires=%s", name, dt);
         efree(dt);
     }
@@ -2375,7 +2375,7 @@ static PHP_METHOD(swoole_http_response, rawcookie)
         if (expires > 0)
         {
             strlcat(cookie, "; expires=", len + 100);
-            dt = sw_php_format_date("D, d-M-Y H:i:s T", sizeof("D, d-M-Y H:i:s T") - 1, expires, 0);
+            dt = sw_php_format_date(ZEND_STRL((char *)"D, d-M-Y H:i:s T"), expires, 0);
             const char *p = (const char *) zend_memrchr(dt, '-', strlen(dt));
             if (!p || *(p + 5) != ' ')
             {

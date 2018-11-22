@@ -256,7 +256,7 @@ static void php_coro_create(void *arg)
     php_coro_og_create(origin_task);
 
     swTraceLog(
-        SW_TRACE_COROUTINE, "Create coro id: %d, origin cid: %d, coro total count: %d, heap size: %zu",
+        SW_TRACE_COROUTINE, "Create coro id: %ld, origin cid: %ld, coro total count: %" PRIu64 ", heap size: %zu",
         coroutine_get_cid(task->co), coroutine_get_cid(task->origin_task->co), COROG.coro_num, zend_memory_usage(0)
     );
 
@@ -294,7 +294,7 @@ static void php_coro_create(void *arg)
 
 static sw_inline void php_coro_yield(coro_task *task)
 {
-    swTraceLog(SW_TRACE_COROUTINE,"php_coro_yield from cid=%d to cid=%d", coroutine_get_cid(task->co), coroutine_get_cid(task->origin_task->co));
+    swTraceLog(SW_TRACE_COROUTINE,"php_coro_yield from cid=%ld to cid=%ld", coroutine_get_cid(task->co), coroutine_get_cid(task->origin_task->co));
     php_coro_save_vm_stack(task);
     php_coro_restore_vm_stack(task->origin_task);
     php_coro_og_yield(task);
@@ -305,7 +305,7 @@ static sw_inline void php_coro_resume(coro_task *task)
     task->origin_task = php_coro_get_current_task();
     php_coro_restore_vm_stack(task);
     php_coro_og_resume(task);
-    swTraceLog(SW_TRACE_COROUTINE,"php_coro_resume from cid=%d to cid=%d", coroutine_get_cid(task->origin_task->co), coroutine_get_cid(task->co));
+    swTraceLog(SW_TRACE_COROUTINE,"php_coro_resume from cid=%ld to cid=%ld", coroutine_get_cid(task->origin_task->co), coroutine_get_cid(task->co));
 }
 
 static sw_inline void php_coro_close(coro_task *task)
@@ -342,7 +342,7 @@ void sw_coro_check_bind(const char *name, long bind_cid)
         sw_get_debug_print_backtrace(buffer, DEBUG_BACKTRACE_IGNORE_ARGS, 3);
         swoole_error_log(
             SW_LOG_ERROR, SW_ERROR_CO_HAS_BEEN_BOUND,
-            "%s has already been bound to another coroutine #%d, "
+            "%s has already been bound to another coroutine #%ld, "
             "reading or writing of the same socket in multiple coroutines at the same time is not allowed.\n"
             "%.*s", name, bind_cid, (int) buffer->length, buffer->str
         );
@@ -362,7 +362,7 @@ long sw_coro_create(zend_fcall_info_cache *fci_cache, int argc, zval *argv, zval
     }
     if (unlikely(COROG.coro_num >= COROG.max_coro_num))
     {
-        swoole_php_fatal_error(E_WARNING, "exceed max number of coroutine %d.", COROG.coro_num);
+        swoole_php_fatal_error(E_WARNING, "exceed max number of coroutine %" PRIu64 ".", COROG.coro_num);
         return CORO_LIMIT;
     }
     if (unlikely(!fci_cache || !fci_cache->function_handler))
@@ -447,7 +447,7 @@ void sw_coro_close()
     COROG.coro_num--;
 
     swTraceLog(
-        SW_TRACE_COROUTINE, "coro close cid=%d and resume to %d, %d remained. usage size: %zu. malloc size: %zu",
+        SW_TRACE_COROUTINE, "coro close cid=%ld and resume to %ld, %" PRIu64 " remained. usage size: %zu. malloc size: %zu",
         cid, origin_cid, COROG.coro_num, zend_memory_usage(0), zend_memory_usage(1)
     );
 }

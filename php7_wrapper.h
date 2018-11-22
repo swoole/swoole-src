@@ -79,6 +79,23 @@ static sw_inline int sw_call_user_function_ex(HashTable *function_table, zval* o
     return call_user_function_ex(function_table, object_p, function_name, &_retval, param_count, param_count ? params : NULL, no_separation, ymbol_table);
 }
 
+static sw_inline int sw_call_user_function_anyway(zval *object_p, zval *function_name, zval **retval_ptr_ptr, uint32_t param_count, zval params[], int no_separation)
+{
+    static zval _retval;
+    *retval_ptr_ptr = &_retval;
+    zend_object* exception = EG(exception);
+    if (exception)
+    {
+        EG(exception) = NULL;
+    }
+    int ret = call_user_function_ex(NULL, object_p, function_name, &_retval, param_count, param_count ? params : NULL, no_separation, NULL);
+    if (exception)
+    {
+        EG(exception) = exception;
+    }
+    return ret;
+}
+
 static sw_inline int sw_call_user_function_fast_ex(zval *function_name, zend_fcall_info_cache *fci_cache, zval **retval_ptr_ptr, uint32_t param_count, zval *params)
 {
     static zval _retval;
