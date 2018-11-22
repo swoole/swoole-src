@@ -27,10 +27,6 @@
 #endif
 #endif
 
-#ifdef SW_COROUTINE
-#include "coroutine.h"
-#endif
-
 static void swReactor_onTimeout_and_Finish(swReactor *reactor);
 static void swReactor_onTimeout(swReactor *reactor);
 static void swReactor_onFinish(swReactor *reactor);

@@ -149,7 +149,7 @@ static PHP_METHOD(swoole_coroutine_iterator, __destruct);
 static PHP_METHOD(swoole_exit_exception, getFlags);
 static PHP_METHOD(swoole_exit_exception, getStatus);
 
-static std::unordered_map<int, uint8_t> user_yield_coros;
+static std::unordered_map<int, Coroutine *> user_yield_coros;
 
 static zend_class_entry swoole_coroutine_util_ce;
 static zend_class_entry *swoole_coroutine_util_class_entry_ptr;
@@ -160,10 +160,7 @@ static zend_class_entry *swoole_coroutine_iterator_class_entry_ptr;
 static zend_class_entry swoole_exit_exception_ce;
 static zend_class_entry *swoole_exit_exception_class_entry_ptr;
 
-extern "C"
-{
-int swoole_coroutine_statvfs(const char *path, struct statvfs *buf);
-}
+extern int swoole_coroutine_statvfs(const char *path, struct statvfs *buf);
 
 static const zend_function_entry swoole_coroutine_util_methods[] =
 {
@@ -336,14 +333,14 @@ static PHP_METHOD(swoole_exit_exception, getStatus)
  */
 static PHP_METHOD(swoole_coroutine_util, yield)
 {
-    coroutine_t* co = coroutine_get_current();
+    Coroutine* co = coroutine_get_current();
     if (unlikely(!co))
     {
         swoole_php_fatal_error(E_ERROR, "can not yield outside coroutine");
         RETURN_FALSE;
     }
-    user_yield_coros[coroutine_get_current_cid()] = 1;
-    coroutine_yield(co);
+    user_yield_coros[co->cid] = co;
+    co->yield();
     RETURN_TRUE;
 }
 
@@ -437,24 +434,21 @@ PHP_FUNCTION(swoole_coroutine_create)
 static PHP_METHOD(swoole_coroutine_util, resume)
 {
     long cid;
-    coroutine_t* co;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &cid) == FAILURE)
     {
         RETURN_FALSE;
     }
 
-    if (user_yield_coros.find(cid) == user_yield_coros.end())
+    std::unordered_map<int, Coroutine *>::iterator _i_co = user_yield_coros.find(cid);
+    if (_i_co == user_yield_coros.end())
     {
         swoole_php_fatal_error(E_WARNING, "you can not resume the coroutine which is in IO operation.");
         RETURN_FALSE;
     }
-    else if (!(co = coroutine_get_by_id(cid)))
-    {
-        swoole_php_fatal_error(E_WARNING, "no coroutine can resume.");
-        RETURN_FALSE;
-    }
+
+    Coroutine* co = _i_co->second;
     user_yield_coros.erase(cid);
-    coroutine_resume(co);
+    co->resume();
     RETURN_TRUE;
 }
 
@@ -505,8 +499,7 @@ static PHP_METHOD(swoole_coroutine_util, sleep)
     }
 
     php_swoole_check_reactor();
-
-    swoole_coroutine_sleep(seconds);
+    Coroutine::sleep(seconds);
     RETURN_TRUE;
 }
 
@@ -1012,7 +1005,7 @@ static PHP_METHOD(swoole_coroutine_util, readFile)
 
     php_swoole_check_aio();
 
-    swString *result = swoole_coroutine_read_file(filename, flags & LOCK_EX);
+    swString *result = Coroutine::read_file(filename, flags & LOCK_EX);
     if (result == NULL)
     {
         RETURN_FALSE;
@@ -1041,12 +1034,6 @@ static PHP_METHOD(swoole_coroutine_util, writeFile)
         Z_PARAM_LONG(flags)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    swAio_event ev;
-    bzero(&ev, sizeof(swAio_event));
-
-    ev.nbytes = l_data;
-    ev.buf = data;
-
     int _flags = O_CREAT | O_WRONLY;
     if (flags & PHP_FILE_APPEND)
     {
@@ -1057,7 +1044,7 @@ static PHP_METHOD(swoole_coroutine_util, writeFile)
         _flags |= O_TRUNC;
     }
 
-    ssize_t retval = swoole_coroutine_write_file(filename, data, l_data, flags & LOCK_EX, _flags);
+    ssize_t retval = Coroutine::write_file(filename, data, l_data, flags & LOCK_EX, _flags);
     if (retval < 0)
     {
         RETURN_FALSE
@@ -1529,5 +1516,5 @@ PHP_FUNCTION(swoole_coroutine_defer)
     memcpy(defer->callback, callback, sizeof(zval));
     Z_TRY_ADDREF_P(callback);
 
-    coroutine_add_defer_task(coroutine_get_current(), php_swoole_event_onDefer, defer);
+    sw_coro_add_defer_task(php_swoole_event_onDefer, defer);
 }

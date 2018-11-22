@@ -26,7 +26,7 @@ static void channel_operation_timeout(swTimer *timer, swTimer_node *tnode)
     msg->error = true;
     msg->timer = nullptr;
     msg->chan->remove(msg->co);
-    coroutine_resume(msg->co);
+    msg->co->resume();
 }
 
 Channel::Channel(size_t _capacity)
@@ -37,7 +37,7 @@ Channel::Channel(size_t _capacity)
 
 void Channel::yield(enum channel_op type)
 {
-    coroutine_t *co = coroutine_get_current();
+    Coroutine *co = coroutine_get_current();
     if (unlikely(!co))
     {
         swError("Channel::yield() must be called in the coroutine.");
@@ -52,7 +52,7 @@ void Channel::yield(enum channel_op type)
         consumer_queue.push_back(co);
         swTraceLog(SW_TRACE_CHANNEL, "consumer cid=%ld", coroutine_get_cid(co));
     }
-    coroutine_yield(co);
+    co->yield();
 }
 
 void* Channel::pop(double timeout)
@@ -95,8 +95,8 @@ void* Channel::pop(double timeout)
      */
     if (producer_queue.size() > 0)
     {
-        coroutine_t *co = pop_coroutine(PRODUCER);
-        coroutine_resume(co);
+        Coroutine *co = pop_coroutine(PRODUCER);
+        co->resume();
     }
     return data;
 }
@@ -141,8 +141,8 @@ bool Channel::push(void *data, double timeout)
      */
     if (consumer_queue.size() > 0)
     {
-        coroutine_t *co = pop_coroutine(CONSUMER);
-        coroutine_resume(co);
+        Coroutine *co = pop_coroutine(CONSUMER);
+        co->resume();
     }
     return true;
 }
@@ -157,13 +157,13 @@ bool Channel::close()
     closed = true;
     while (producer_queue.size() > 0)
     {
-        coroutine_t *co = pop_coroutine(PRODUCER);
-        coroutine_resume(co);
+        Coroutine *co = pop_coroutine(PRODUCER);
+        co->resume();
     }
     while (consumer_queue.size() > 0)
     {
-        coroutine_t *co = pop_coroutine(CONSUMER);
-        coroutine_resume(co);
+        Coroutine *co = pop_coroutine(CONSUMER);
+        co->resume();
     }
     return true;
 }

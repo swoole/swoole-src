@@ -14,15 +14,10 @@
   +----------------------------------------------------------------------+
 */
 
-#ifndef SW_COROUTINE_H_
-#define SW_COROUTINE_H_
+#pragma once
 
 #include "swoole.h"
-
-#ifdef __cplusplus
-extern "C"
-{
-#endif
+#include "context.h"
 
 #define DEFAULT_MAX_CORO_NUM 3000
 #define DEFAULT_STACK_SIZE   8192
@@ -32,41 +27,67 @@ extern "C"
 #define CORO_LIMIT -1
 #define CORO_INVALID -2
 
-typedef struct coroutine_s coroutine_t;
-typedef void (*coroutine_func_t)(void*);
-
-typedef void (*coro_php_create_t)();
-typedef void (*coro_php_yield_t)(void*);
-typedef void (*coro_php_resume_t)(void*);
-typedef void (*coro_php_close_t)();
 
 typedef enum
 {
     SW_CORO_INIT = 0, SW_CORO_YIELD, SW_CORO_RUNNING, SW_CORO_END,
 } sw_coro_state;
 
+typedef void (*coro_php_create_t)();
+typedef void (*coro_php_yield_t)(void*);
+typedef void (*coro_php_resume_t)(void*);
+typedef void (*coro_php_close_t)();
 
-void coro_yield();
-void coro_handle_timeout();
+namespace swoole
+{
+class Coroutine
+{
+public:
+    swoole::Context ctx;
+    long cid;
+    sw_coro_state state;
+    void *task;
 
-/* basic api */
-long coroutine_create(coroutine_func_t func, void* args);
-void coroutine_resume(coroutine_t *co);
-void coroutine_yield(coroutine_t *co);
-void coroutine_resume_naked(coroutine_t *co);
-void coroutine_yield_naked(coroutine_t *co);
-void coroutine_release(coroutine_t *co);
+    Coroutine(long _cid, size_t stack_size, coroutine_func_t fn, void *private_data) :
+            ctx(stack_size, fn, private_data)
+    {
+        cid = _cid;
+        task = nullptr;
+        state = SW_CORO_INIT;
+    }
+
+    void resume();
+    void yield();
+
+    void resume_naked();
+    void yield_naked();
+
+    void release();
+
+    inline void set_task(void *_task)
+    {
+        task = _task;
+    }
+
+    inline long get_cid()
+    {
+        return cid;
+    }
+
+    static long create(coroutine_func_t fn, void* args);
+    static int sleep(double sec);
+    static swString* read_file(const char *file, int lock);
+    static ssize_t write_file(const char *file, char *buf, size_t length, int lock, int flags);
+};
+}
 /* co task */
-void coroutine_set_task(coroutine_t *co, void *ptr);
 void* coroutine_get_current_task();
 void* coroutine_get_task_by_cid(long cid);
-void coroutine_add_defer_task(coroutine_t *co, swCallback cb, void *data);
-void coroutine_do_defer_task(coroutine_t *co);
 /* get coroutine */
-coroutine_t* coroutine_get_current();
-coroutine_t *coroutine_get_by_id(long cid);
+swoole::Coroutine* coroutine_get_current();
+swoole::Coroutine* coroutine_get_by_id(long cid);
 /* get cid */
-long coroutine_get_cid(coroutine_t *co);
+long coroutine_get_cid(swoole::Coroutine *co);
 long coroutine_get_current_cid();
 void coroutine_set_stack_size(int stack_size);
 /* callback */
@@ -78,10 +99,3 @@ void coroutine_set_onClose(coro_php_close_t func);
 void internal_coro_yield(void *arg);
 void internal_coro_resume(void *arg);
 
-swString* swoole_coroutine_read_file(const char *file, int lock);
-ssize_t swoole_coroutine_write_file(const char *file, char *buf, size_t length, int lock, int flags);
-
-#ifdef __cplusplus
-}  /* end extern "C" */
-#endif
-#endif

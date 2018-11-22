@@ -35,6 +35,7 @@ go(function () {
     assert(co::getuid() === 1);
     echo "1\n";
 });
+swoole_event_wait();
 ?>
 --EXPECT--
 1

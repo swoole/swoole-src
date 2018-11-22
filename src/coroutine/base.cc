@@ -15,7 +15,7 @@
 */
 
 #include "coroutine.h"
-#include "context.h"
+#include "async.h"
 
 #include <stack>
 #include <unordered_map>
@@ -23,37 +23,20 @@
 
 using namespace swoole;
 
-struct coroutine_s
-{
-public:
-    Context ctx;
-    long cid;
-    sw_coro_state state;
-    void *task;
-
-    coroutine_s(long _cid, size_t stack_size, coroutine_func_t fn, void *private_data) :
-            ctx(stack_size, fn, private_data)
-    {
-        cid = _cid;
-        task = nullptr;
-        state = SW_CORO_INIT;
-    }
-};
-
 static struct
 {
     int                 stack_size;
     int                 call_stack_size;
     long                last_cid;
-    struct coroutine_s* call_stack[SW_MAX_CORO_NESTING_LEVEL];
+    Coroutine*          call_stack[SW_MAX_CORO_NESTING_LEVEL];
     coro_php_yield_t    onYield;  /* before php yield coro */
     coro_php_resume_t   onResume; /* before php resume coro */
     coro_php_close_t    onClose;  /* before php close coro */
 } swCoroG = { SW_DEFAULT_C_STACK_SIZE, 0, 1, { nullptr, }, nullptr, nullptr, nullptr };
 
-static std::unordered_map<long, coroutine_s*> coroutines;
+static std::unordered_map<long, Coroutine*> coroutines;
 
-long coroutine_create(coroutine_func_t fn, void* args)
+long Coroutine::create(coroutine_func_t fn, void* args)
 {
     if (unlikely(swCoroG.call_stack_size == SW_MAX_CORO_NESTING_LEVEL))
     {
@@ -61,7 +44,7 @@ long coroutine_create(coroutine_func_t fn, void* args)
         return CORO_LIMIT;
     }
     long cid = swCoroG.last_cid++;
-    coroutine_t *co = new coroutine_s(cid, swCoroG.stack_size, fn, args);
+    Coroutine *co = new Coroutine(cid, swCoroG.stack_size, fn, args);
     coroutines[cid] = co;
     swCoroG.call_stack[swCoroG.call_stack_size++] = co;
     co->state = SW_CORO_RUNNING;
@@ -69,75 +52,70 @@ long coroutine_create(coroutine_func_t fn, void* args)
     if (co->ctx.end)
     {
         co->state = SW_CORO_END;
-        coroutine_release(co);
+        co->release();
     }
     return cid;
 }
 
-void coroutine_yield(coroutine_t *co)
+void Coroutine::yield()
 {
     if (swCoroG.onYield)
     {
-        swCoroG.onYield(co->task);
+        swCoroG.onYield(task);
     }
     swCoroG.call_stack_size--;
-    co->state = SW_CORO_YIELD;
-    co->ctx.SwapOut();
+    state = SW_CORO_YIELD;
+    ctx.SwapOut();
 }
 
-void coroutine_resume(coroutine_t *co)
+void Coroutine::resume()
 {
     if (swCoroG.onResume)
     {
-        swCoroG.onResume(co->task);
+        swCoroG.onResume(task);
     }
-    swCoroG.call_stack[swCoroG.call_stack_size++] = co;
-    co->state = SW_CORO_RUNNING;
-    co->ctx.SwapIn();
-    if (co->ctx.end)
+    swCoroG.call_stack[swCoroG.call_stack_size++] = this;
+    state = SW_CORO_RUNNING;
+    ctx.SwapIn();
+    if (ctx.end)
     {
-        coroutine_release(co);
+        release();
     }
 }
 
-void coroutine_yield_naked(coroutine_t *co)
+void Coroutine::yield_naked()
 {
     swCoroG.call_stack_size--;
-    co->state = SW_CORO_YIELD;
-    co->ctx.SwapOut();
+    state = SW_CORO_YIELD;
+    ctx.SwapOut();
 }
 
-void coroutine_resume_naked(coroutine_t *co)
+void Coroutine::resume_naked()
 {
-    swCoroG.call_stack[swCoroG.call_stack_size++] = co;
-    co->state = SW_CORO_RUNNING;
-    co->ctx.SwapIn();
-    if (co->ctx.end)
+    swCoroG.call_stack[swCoroG.call_stack_size++] = this;
+    state = SW_CORO_RUNNING;
+    ctx.SwapIn();
+    if (ctx.end)
     {
-        coroutine_release(co);
+        release();
     }
 }
 
-void coroutine_release(coroutine_t *co)
+void Coroutine::release()
 {
-    co->state = SW_CORO_END;
+    state = SW_CORO_END;
     if (swCoroG.onClose)
     {
         swCoroG.onClose();
     }
     swCoroG.call_stack_size--;
-    coroutines.erase(co->cid);
-    delete co;
-}
-
-void coroutine_set_task(coroutine_t *co, void *task)
-{
-    co->task = task;
+    coroutines.erase(cid);
+    delete this;
 }
 
 void* coroutine_get_task_by_cid(long cid)
 {
-    coroutine_t *co = coroutine_get_by_id(cid);
+    Coroutine *co = coroutine_get_by_id(cid);
     if (co == nullptr)
     {
         return nullptr;
@@ -148,9 +126,9 @@ void* coroutine_get_task_by_cid(long cid)
     }
 }
 
-coroutine_t* coroutine_get_by_id(long cid)
+Coroutine* coroutine_get_by_id(long cid)
 {
-    std::unordered_map<long, coroutine_s*>::iterator i = coroutines.find(cid);
+    std::unordered_map<long, Coroutine*>::iterator i = coroutines.find(cid);
     if (i == coroutines.end())
     {
         return nullptr;
@@ -161,14 +139,14 @@ coroutine_t* coroutine_get_by_id(long cid)
     }
 }
 
-coroutine_t* coroutine_get_current()
+Coroutine* coroutine_get_current()
 {
     return likely(swCoroG.call_stack_size > 0) ? swCoroG.call_stack[swCoroG.call_stack_size - 1] : nullptr;
 }
 
 void* coroutine_get_current_task()
 {
-    coroutine_t* co = coroutine_get_current();
+    Coroutine* co = coroutine_get_current();
     if (co == nullptr)
     {
         return nullptr;
@@ -181,12 +159,7 @@ void* coroutine_get_current_task()
 
 long coroutine_get_current_cid()
 {
-    coroutine_t* co = coroutine_get_current();
-    return likely(co) ? co->cid : -1;
-}
-
-long coroutine_get_cid(coroutine_t *co)
-{
+    Coroutine* co = coroutine_get_current();
     return likely(co) ? co->cid : -1;
 }
 

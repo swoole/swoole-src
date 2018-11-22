@@ -37,7 +37,7 @@ struct coro_task
     zend_execute_data *execute_data;
     zend_output_globals *output_ptr;
     SW_DECLARE_EG_SCOPE (scope);
-    coroutine_t *co;
+    swoole::Coroutine *co;
     std::stack<defer_task *> *defer_tasks;
     coro_task *origin_task;
 };
@@ -83,6 +83,8 @@ struct php_context
 extern coro_global COROG;
 
 long sw_get_current_cid();
+void sw_coro_add_defer_task(swCallback cb, void *data);
+
 void coro_init(void);
 void coro_check(void);
 
@@ -99,4 +101,4 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
 void sw_coro_save(zval *return_value, php_context *sw_php_context);
 void sw_coro_set_stack_size(int stack_size);
 
-extern int swoole_coroutine_sleep(double msec);
+
