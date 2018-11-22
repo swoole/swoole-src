@@ -184,17 +184,22 @@ void coro_init(void)
 
 static void php_coro_create(void *arg)
 {
+    int i;
     php_args *php_arg = (php_args *) arg;
     zend_fcall_info_cache *fci_cache = php_arg->fci_cache;
+    zend_function *func = fci_cache->function_handler;
     zval *argv = php_arg->argv;
     int argc = php_arg->argc;
     zval *retval = php_arg->retval;
-    coro_task *origin_task = php_arg->origin_task;
-
-    int i;
-    zend_function *func;
-    zval _zobject, *zobject = nullptr;
     coro_task *task;
+    coro_task *origin_task = php_arg->origin_task;
+    zend_execute_data *call;
+    zval _zobject, *zobject = nullptr;
+
+    if (++COROG.coro_num > COROG.peak_coro_num)
+    {
+        COROG.peak_coro_num = COROG.coro_num;
+    }
 
     if (fci_cache->object)
     {
@@ -203,13 +208,10 @@ static void php_coro_create(void *arg)
         Z_ADDREF_P(zobject);
     }
 
-    func = fci_cache->function_handler;
     sw_vm_stack_init();
-    zend_execute_data *call = (zend_execute_data *) (EG(vm_stack_top));
-
+    call = (zend_execute_data *) (EG(vm_stack_top));
     task = (coro_task *) EG(vm_stack_top);
     EG(vm_stack_top) = (zval *) ((char *) call + TASK_SLOT * sizeof(zval));
-
     call = zend_vm_stack_push_call_frame(
         ZEND_CALL_TOP_FUNCTION | ZEND_CALL_ALLOCATED,
         func, argc, fci_cache->called_scope, fci_cache->object
@@ -365,11 +367,6 @@ long sw_coro_create(zend_fcall_info_cache *fci_cache, int argc, zval *argv, zval
         return CORO_INVALID;
     }
 
-    if (++COROG.coro_num > COROG.peak_coro_num)
-    {
-        COROG.peak_coro_num = COROG.coro_num;
-    }
-
     php_args php_args;
     php_args.fci_cache = fci_cache;
     php_args.argv = argv;
@@ -377,12 +374,7 @@ long sw_coro_create(zend_fcall_info_cache *fci_cache, int argc, zval *argv, zval
     php_args.retval = retval;
     php_args.origin_task = php_coro_get_current_task();
 
-    long cid = coroutine_create(php_coro_create, (void*) &php_args);
-    if (unlikely(cid <= 0))
-    {
-        COROG.coro_num--;
-    }
-    return cid;
+    return coroutine_create(php_coro_create, (void*) &php_args);
 }
 
 void sw_coro_save(zval *return_value, php_context *sw_current_context)
