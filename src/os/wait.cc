@@ -20,10 +20,11 @@
 #include <unordered_map>
 
 using namespace std;
+using namespace swoole;
 
 struct wait_task
 {
-    coroutine_t *co;
+    Coroutine *co;
     pid_t pid;
     int status;
 };
@@ -33,9 +34,6 @@ static unordered_map<int, int> child_processes;
 static queue<wait_task *> wait_list;
 
 bool signal_init = false;
-
-extern "C"
-{
 
 static void signal_handler(int signo)
 {
@@ -69,11 +67,14 @@ static void signal_handler(int signo)
             {
                 task->status = __stat_loc;
                 task->pid = __pid;
-                coroutine_resume((coroutine_t *) task->co);
+                task->co->resume();
             }
         }
     }
 }
+
+extern "C"
+{
 
 void swoole_coroutine_signal_init()
 {
@@ -106,7 +107,7 @@ pid_t swoole_coroutine_waitpid(pid_t __pid, int *__stat_loc, int __options)
     wait_task task;
     task.co = coroutine_get_current();;
     waitpid_map[__pid] = &task;
-    coroutine_yield(task.co);
+    task.co->yield();
     *__stat_loc = task.status;
 
     return task.pid;
@@ -132,7 +133,7 @@ pid_t swoole_coroutine_wait(int *__stat_loc)
     wait_task task;
     task.co = coroutine_get_current();;
     waitpid_map[__pid] = &task;
-    coroutine_yield(task.co);
+    task.co->yield();
     *__stat_loc = task.status;
 
     return task.pid;

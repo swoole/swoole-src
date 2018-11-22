@@ -32,9 +32,7 @@ typedef struct _swTimer_callback
     zval* data;
     zval _callback;
     zval _data;
-#ifdef SW_COROUTINE
     zend_fcall_info_cache *func_cache;
-#endif
     int interval;
     int type;
 } swTimer_callback;
@@ -51,7 +49,7 @@ void php_swoole_clear_all_timer()
     //kill user process
     while (1)
     {
-        swTimer_node *tnode = swHashMap_each_int(SwooleG.timer.map, &timer_id);
+        swTimer_node *tnode = (swTimer_node *) swHashMap_each_int(SwooleG.timer.map, &timer_id);
         if (tnode == NULL)
         {
             break;
@@ -79,7 +77,7 @@ long php_swoole_add_timer(int ms, zval *callback, zval *param, int persistent)
     }
 
     char *func_name = NULL;
-    zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
+    zend_fcall_info_cache *func_cache = (zend_fcall_info_cache *) emalloc(sizeof(zend_fcall_info_cache));
     if (!sw_zend_is_callable_ex(callback, NULL, 0, &func_name, NULL, func_cache, NULL))
     {
         swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
@@ -94,7 +92,7 @@ long php_swoole_add_timer(int ms, zval *callback, zval *param, int persistent)
         php_swoole_check_reactor();
     }
 
-    swTimer_callback *cb = emalloc(sizeof(swTimer_callback));
+    swTimer_callback *cb = (swTimer_callback *) emalloc(sizeof(swTimer_callback));
 
     cb->data = &cb->_data;
     cb->callback = &cb->_callback;
@@ -151,7 +149,7 @@ long php_swoole_add_timer(int ms, zval *callback, zval *param, int persistent)
 
 static int php_swoole_del_timer(swTimer_node *tnode)
 {
-    swTimer_callback *cb = tnode->data;
+    swTimer_callback *cb = (swTimer_callback *) tnode->data;
     if (!cb)
     {
         return SW_ERR;
@@ -174,7 +172,7 @@ static int php_swoole_del_timer(swTimer_node *tnode)
 
 void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
 {
-    swTimer_callback *cb = tnode->data;
+    swTimer_callback *cb = (swTimer_callback *) tnode->data;
     zval *retval = NULL;
 
     zval args[1];
@@ -219,7 +217,7 @@ void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode)
 {
     zval *retval = NULL;
     zval *ztimer_id;
-    swTimer_callback *cb = tnode->data;
+    swTimer_callback *cb = (swTimer_callback *) tnode->data;
 
     SW_MAKE_STD_ZVAL(ztimer_id);
     ZVAL_LONG(ztimer_id, tnode->id);

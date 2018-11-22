@@ -17,9 +17,6 @@
  */
 
 #include "php_swoole.h"
-#ifdef SW_COROUTINE
-#include "swoole_coroutine.h"
-#endif
 
 typedef struct
 {

@@ -13,8 +13,10 @@
   | Author: Zhenyu Wu  <936321732@qq.com>                                |
   +----------------------------------------------------------------------+
  */
+#ifndef SWOOLE_POSTGRESQL_H_
+#define SWOOLE_POSTGRESQL_H_
 
-#include <libpq-fe.h>
+#include <postgresql/libpq-fe.h>
 
 typedef enum
 {
@@ -34,8 +36,8 @@ typedef struct _php_pgsql_object {
     swTimer_node *timer;
 } pg_object;
 
-
-
 #define PGSQL_ASSOC           1<<0
 #define PGSQL_NUM             1<<1
 #define PGSQL_BOTH            (PGSQL_ASSOC|PGSQL_NUM)
+
+#endif

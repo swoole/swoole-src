@@ -99,7 +99,7 @@ static PHP_METHOD(swoole_server_port, __destruct)
 {
     SW_PREVENT_USER_DESTRUCT;
 
-    swoole_server_port_property *property = swoole_get_property(getThis(), 0);
+    swoole_server_port_property *property = (swoole_server_port_property *) swoole_get_property(getThis(), 0);
 
     int j;
     for (j = 0; j < PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM; j++)
@@ -129,8 +129,8 @@ static PHP_METHOD(swoole_server_port, set)
     php_swoole_array_separate(zset);
     vht = Z_ARRVAL_P(zset);
 
-    swListenPort *port = swoole_get_object(getThis());
-    swoole_server_port_property *property = swoole_get_property(getThis(), 0);
+    swListenPort *port = (swListenPort *) swoole_get_object(getThis());
+    swoole_server_port_property *property = (swoole_server_port_property *) swoole_get_property(getThis(), 0);
 
     if (port == NULL || property == NULL)
     {
@@ -346,7 +346,7 @@ static PHP_METHOD(swoole_server_port, set)
         {
             if (Z_TYPE_P(v) == IS_STRING)
             {
-                swProtocol_length_function func = swoole_get_function(Z_STRVAL_P(v), Z_STRLEN_P(v));
+                swProtocol_length_function func = (swProtocol_length_function) swoole_get_function(Z_STRVAL_P(v), Z_STRLEN_P(v));
                 if (func != NULL)
                 {
                     port->protocol.get_package_length = func;
@@ -529,7 +529,7 @@ static PHP_METHOD(swoole_server_port, on)
     size_t len, i;
     zval *cb;
 
-    swoole_server_port_property *property = swoole_get_property(getThis(), 0);
+    swoole_server_port_property *property = (swoole_server_port_property *) swoole_get_property(getThis(), 0);
     swServer *serv = property->serv;
     if (serv->gs->start > 0)
     {
@@ -543,7 +543,7 @@ static PHP_METHOD(swoole_server_port, on)
     }
 
     char *func_name = NULL;
-    zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
+    zend_fcall_info_cache *func_cache = (zend_fcall_info_cache *) emalloc(sizeof(zend_fcall_info_cache));
     if (!sw_zend_is_callable_ex(cb, NULL, 0, &func_name, NULL, func_cache, NULL))
     {
         swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
@@ -552,7 +552,7 @@ static PHP_METHOD(swoole_server_port, on)
     }
     efree(func_name);
 
-    char *callback_name[PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM] = {
+    const char *callback_name[PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM] = {
         "Connect",
         "Receive",
         "Close",
@@ -623,7 +623,7 @@ static PHP_METHOD(swoole_server_port, on)
 #ifdef SWOOLE_SOCKETS_SUPPORT
 static PHP_METHOD(swoole_server_port, getSocket)
 {
-    swListenPort *port = swoole_get_object(getThis());
+    swListenPort *port = (swListenPort *) swoole_get_object(getThis());
     php_socket *socket_object = swoole_convert_to_socket(port->sock);
     if (!socket_object)
     {

@@ -17,7 +17,6 @@
 #endif
 
 #include "swoole.h"
-#include "coroutine.h"
 #include "error.h"
 
 #if __linux__
@@ -27,6 +26,8 @@
 #ifdef USE_VALGRIND
 #include <valgrind/valgrind.h>
 #endif
+
+typedef void (*coroutine_func_t)(void*);
 
 namespace swoole
 {

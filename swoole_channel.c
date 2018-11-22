@@ -18,7 +18,6 @@
 
 
 #include "php_swoole.h"
-#include "swoole_coroutine.h"
 
 static PHP_METHOD(swoole_channel, __construct);
 static PHP_METHOD(swoole_channel, __destruct);

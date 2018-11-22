@@ -16,9 +16,9 @@
  */
 
 #include "php_swoole.h"
-
-#ifdef SW_COROUTINE
 #include "swoole_coroutine.h"
+
+using namespace swoole;
 
 #define TASK_SLOT \
     ((int)((ZEND_MM_ALIGNED_SIZE(sizeof(coro_task)) + ZEND_MM_ALIGNED_SIZE(sizeof(zval)) - 1) / ZEND_MM_ALIGNED_SIZE(sizeof(zval))))
@@ -47,7 +47,8 @@ static inline void sw_vm_stack_init(void)
 
 static void sw_vm_stack_destroy(zend_vm_stack stack)
 {
-    while (stack != NULL) {
+    while (stack != NULL)
+    {
         zend_vm_stack p = stack->prev;
         efree(stack);
         stack = p;
@@ -92,7 +93,6 @@ static sw_inline void php_coro_restore_vm_stack(coro_task *task)
  * close: current_task
  *
  */
-
 static sw_inline void php_coro_save_og(coro_task *task)
 {
     task->output_ptr = (zend_output_globals *) emalloc(sizeof(zend_output_globals));
@@ -250,8 +250,9 @@ static void php_coro_create(void *arg)
     php_coro_save_vm_stack(task);
     task->output_ptr = nullptr;
     task->co = coroutine_get_current();
-    coroutine_set_task(task->co, (void *) task);
+    task->co->set_task((void *) task);
     task->origin_task = origin_task;
+    task->defer_tasks = nullptr;
     php_coro_og_create(origin_task);
 
     swTraceLog(
@@ -266,7 +267,19 @@ static void php_coro_create(void *arg)
 
     zend_execute_ex(EG(current_execute_data));
 
-    coroutine_do_defer_tasks(task->co);
+    if (task->defer_tasks)
+    {
+        std::stack<defer_task *> *tasks = task->defer_tasks;
+        while (tasks->size() > 0)
+        {
+            defer_task *task = tasks->top();
+            tasks->pop();
+            task->callback(task->data);
+            delete task;
+        }
+        delete task->defer_tasks;
+        task->defer_tasks = nullptr;
+    }
 
     if (zobject)
     {
@@ -321,10 +334,6 @@ void coro_check(void)
     }
 }
 
-void coro_destroy(void)
-{
-}
-
 void sw_coro_check_bind(const char *name, long bind_cid)
 {
     if (unlikely(bind_cid > 0))
@@ -374,7 +383,7 @@ long sw_coro_create(zend_fcall_info_cache *fci_cache, int argc, zval *argv, zval
     php_args.retval = retval;
     php_args.origin_task = php_coro_get_current_task();
 
-    return coroutine_create(php_coro_create, (void*) &php_args);
+    return Coroutine::create(php_coro_create, (void*) &php_args);
 }
 
 void sw_coro_save(zval *return_value, php_context *sw_current_context)
@@ -384,7 +393,7 @@ void sw_coro_save(zval *return_value, php_context *sw_current_context)
     SWCC(current_vm_stack) = EG(vm_stack);
     SWCC(current_vm_stack_top) = EG(vm_stack_top);
     SWCC(current_vm_stack_end) = EG(vm_stack_end);
-    SWCC(current_task) = (coro_task *) php_coro_get_current_task();
+    SWCC(current_task) = php_coro_get_current_task();
 }
 
 void sw_coro_yield()
@@ -393,9 +402,9 @@ void sw_coro_yield()
     {
         swoole_php_fatal_error(E_ERROR, "must be called in the coroutine.");
     }
-    coro_task *task = (coro_task *) php_coro_get_current_task();
+    coro_task *task = php_coro_get_current_task();
     php_coro_yield(task);
-    coroutine_yield_naked(task->co);
+    task->co->yield_naked();
 }
 
 int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_retval)
@@ -407,7 +416,7 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
         ZVAL_COPY(SWCC(current_coro_return_value_ptr), retval);
     }
 
-    coroutine_resume_naked(task->co);
+    task->co->resume_naked();
 
     if (unlikely(EG(exception)))
     {
@@ -460,4 +469,13 @@ void sw_coro_set_stack_size(int stack_size)
     coroutine_set_stack_size(stack_size);
 }
 
-#endif
+void sw_coro_add_defer_task(swCallback cb, void *data)
+{
+    coro_task *task = php_coro_get_current_task();
+    if (task->defer_tasks == nullptr)
+    {
+        task->defer_tasks = new std::stack<defer_task *>;
+    }
+    task->defer_tasks->push(new defer_task(cb, data));
+}
+

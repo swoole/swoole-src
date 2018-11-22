@@ -1,5 +1,5 @@
 #include "socket.h"
-#include "context.h"
+#include "coroutine.h"
 #include "async.h"
 #include "buffer.h"
 
@@ -979,14 +979,13 @@ ssize_t Socket::recvmsg(struct msghdr *msg, int flags)
 
 void Socket::yield(int operation)
 {
-    coroutine_t *co = coroutine_get_current();
-    int cid = coroutine_get_cid(co);
-
+    Coroutine *co = coroutine_get_current();
     if (unlikely(!co))
     {
         swError("Socket::yield() must be called in the coroutine.");
     }
 
+    int cid = co->get_cid();
     errCode = 0;
     int ms = (int) (_timeout * 1000);
     if (ms <= 0 || ms >= SW_TIMER_MAX_VALUE)
@@ -1026,9 +1025,7 @@ void Socket::yield(int operation)
         read_cid = cid;
     }
     //=== yield ===
-
-    coroutine_yield(co);
-
+    co->yield();
     //=== resume ===
     if (operation & SOCKET_LOCK_WRITE)
     {
@@ -1067,7 +1064,7 @@ void Socket::resume(int operation)
     {
         assert(0);
     }
-    coroutine_resume(coroutine_get_by_id(cid));
+    coroutine_get_by_id(cid)->resume();
 }
 
 bool Socket::bind(std::string address, int port)

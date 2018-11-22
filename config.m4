@@ -487,9 +487,9 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_event.c \
         swoole_http_client.c \
         swoole_http_client_coro.cc \
-        swoole_http_server.c \
+        swoole_http_server.cc \
         swoole_http_v2_client.c \
-        swoole_http_v2_client_coro.c \
+        swoole_http_v2_client_coro.cc \
         swoole_http_v2_server.cc \
         swoole_lock.c \
         swoole_memory_pool.c \
@@ -497,22 +497,22 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_msgqueue.c \
         swoole_mysql.c \
         swoole_mysql_coro.cc \
-        swoole_postgresql_coro.c \
+        swoole_postgresql_coro.cc \
         swoole_process.c \
         swoole_process_pool.c \
         swoole_redis.c \
         swoole_redis_coro.cc \
-        swoole_redis_server.c \
+        swoole_redis_server.cc \
         swoole_ringqueue.c \
         swoole_runtime.cc \
         swoole_serialize.c \
-        swoole_server.c \
-        swoole_server_port.c \
+        swoole_server.cc \
+        swoole_server_port.cc \
         swoole_socket_coro.cc \
         swoole_table.c \
-        swoole_timer.c \
+        swoole_timer.cc \
         swoole_trace.c \
-        swoole_websocket_server.c"
+        swoole_websocket_server.cc"
 
     swoole_source_file="$swoole_source_file \
     thirdparty/swoole_http_parser.c \

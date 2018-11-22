@@ -22,10 +22,6 @@
 #include <ifaddrs.h>
 #include <sys/ioctl.h>
 
-#ifdef SW_COROUTINE
-#include "swoole_coroutine.h"
-#endif
-
 ZEND_DECLARE_MODULE_GLOBALS(swoole)
 
 extern sapi_module_struct sapi_module;
@@ -1121,7 +1117,6 @@ PHP_MINIT_FUNCTION(swoole)
 #endif
     swoole_mysql_coro_init(module_number);
     swoole_http_client_coro_init(module_number);
-    coro_init();
 	swoole_coroutine_util_init(module_number);
     swoole_http_client_init(module_number);
     swoole_async_init(module_number);
@@ -1360,10 +1355,6 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
     }
 
     SwooleWG.reactor_wait_onexit = 0;
-
-#ifdef SW_COROUTINE
-    coro_destroy();
-#endif
     SWOOLE_G(req_status) = PHP_SWOOLE_RSHUTDOWN_END;
     return SUCCESS;
 }

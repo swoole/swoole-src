@@ -1048,7 +1048,7 @@ static PHP_FUNCTION(_sleep)
     if (num >= 0.001 && sw_coro_is_in())
     {
         php_swoole_check_reactor();
-        RETURN_LONG(swoole_coroutine_sleep((double) num) < 0 ? num : 0);
+        RETURN_LONG(Coroutine::sleep((double ) num) < 0 ? num : 0);
     }
     else
     {
@@ -1073,7 +1073,7 @@ static PHP_FUNCTION(_usleep)
     if (_time >= 0.001 && sw_coro_is_in())
     {
         php_swoole_check_reactor();
-        swoole_coroutine_sleep((double) num / 1000000);
+        Coroutine::sleep((double) num / 1000000);
     }
     else
     {
@@ -1103,7 +1103,7 @@ static PHP_FUNCTION(_time_nanosleep)
     if (_time >= 0.001 && sw_coro_is_in())
     {
         php_swoole_check_reactor();
-        swoole_coroutine_sleep(_time);
+        Coroutine::sleep(_time);
     }
     else
     {
@@ -1162,7 +1162,7 @@ static PHP_FUNCTION(_time_sleep_until)
     if (_time >= 0.001 && sw_coro_is_in())
     {
         php_swoole_check_reactor();
-        swoole_coroutine_sleep(_time);
+        Coroutine::sleep(_time);
     }
     else
     {

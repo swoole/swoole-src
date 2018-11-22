@@ -36,7 +36,7 @@ extern "C"
 {
 struct aio_task
 {
-    coroutine_t *co;
+    Coroutine *co;
     swAio_event *event;
 };
 
@@ -299,7 +299,7 @@ static void aio_onCompleted(swAio_event *event)
     swAio_event *ev = (swAio_event *) event->req;
     ev->ret = event->ret;
     errno = event->error;
-    coroutine_resume((coroutine_t *) event->object);
+    ((Coroutine *) event->object)->resume();
 }
 
 static void aio_onReadFileCompleted(swAio_event *event)
@@ -308,7 +308,7 @@ static void aio_onReadFileCompleted(swAio_event *event)
     task->event->buf = event->buf;
     task->event->nbytes = event->ret;
     task->event->error = event->error;
-    coroutine_resume((coroutine_t *) task->co);
+    ((Coroutine *) task->co)->resume();
 }
 
 static void aio_onWriteFileCompleted(swAio_event *event)
@@ -316,12 +316,7 @@ static void aio_onWriteFileCompleted(swAio_event *event)
     aio_task *task = (aio_task *) event->object;
     task->event->ret = event->ret;
     task->event->error = event->error;
-    coroutine_resume((coroutine_t *) task->co);
-}
-
-static void sleep_timeout(swTimer *timer, swTimer_node *tnode)
-{
-    coroutine_resume((coroutine_t *) tnode->data);
+    ((Coroutine *) task->co)->resume();
 }
 
 int swoole_coroutine_open(const char *pathname, int flags, mode_t mode)
@@ -346,7 +341,7 @@ int swoole_coroutine_open(const char *pathname, int flags, mode_t mode)
     {
         return SW_ERR;
     }
-    coroutine_yield((coroutine_t *) ev.object);
+    ((Coroutine *) ev.object)->yield();
     return ev.ret;
 }
 
@@ -379,7 +374,7 @@ ssize_t swoole_coroutine_read(int fd, void *buf, size_t count)
     {
         return SW_ERR;
     }
-    coroutine_yield((coroutine_t *) ev.object);
+    ((Coroutine *) ev.object)->yield();
     return ev.ret;
 }
 
@@ -412,7 +407,7 @@ ssize_t swoole_coroutine_write(int fd, const void *buf, size_t count)
     {
         return SW_ERR;
     }
-    coroutine_yield((coroutine_t *) ev.object);
+    ((Coroutine *) ev.object)->yield();
     return ev.ret;
 }
 
@@ -438,7 +433,7 @@ off_t swoole_coroutine_lseek(int fd, off_t offset, int whence)
     {
         return SW_ERR;
     }
-    coroutine_yield((coroutine_t *) ev.object);
+    ((Coroutine *) ev.object)->yield();
     return ev.ret;
 }
 
@@ -463,7 +458,7 @@ int swoole_coroutine_fstat(int fd, struct stat *statbuf)
     {
         return SW_ERR;
     }
-    coroutine_yield((coroutine_t *) ev.object);
+    ((Coroutine *) ev.object)->yield();
     return ev.ret;
 }
 
@@ -487,7 +482,7 @@ int swoole_coroutine_unlink(const char *pathname)
     {
         return SW_ERR;
     }
-    coroutine_yield((coroutine_t *) ev.object);
+    ((Coroutine *) ev.object)->yield();
     return ev.ret;
 }
 
@@ -512,7 +507,7 @@ int swoole_coroutine_statvfs(const char *path, struct statvfs *buf)
     {
         return SW_ERR;
     }
-    coroutine_yield((coroutine_t *) ev.object);
+    ((Coroutine *) ev.object)->yield();
     return ev.ret;
 }
 
@@ -537,7 +532,7 @@ int swoole_coroutine_mkdir(const char *pathname, mode_t mode)
     {
         return SW_ERR;
     }
-    coroutine_yield((coroutine_t *) ev.object);
+    ((Coroutine *) ev.object)->yield();
     return ev.ret;
 }
 
@@ -561,7 +556,7 @@ int swoole_coroutine_rmdir(const char *pathname)
     {
         return SW_ERR;
     }
-    coroutine_yield((coroutine_t *) ev.object);
+    ((Coroutine *) ev.object)->yield();
     return ev.ret;
 }
 
@@ -586,7 +581,7 @@ int swoole_coroutine_rename(const char *oldpath, const char *newpath)
     {
         return SW_ERR;
     }
-    coroutine_yield((coroutine_t *) ev.object);
+    ((Coroutine *) ev.object)->yield();
     return ev.ret;
 }
 
@@ -611,19 +606,8 @@ int swoole_coroutine_access(const char *pathname, int mode)
     {
         return SW_ERR;
     }
-    coroutine_yield((coroutine_t *) ev.object);
+    ((Coroutine *) ev.object)->yield();
     return ev.ret;
-}
-
-int swoole_coroutine_sleep(double sec)
-{
-    coroutine_t* co = coroutine_get_current();
-    if (swTimer_add(&SwooleG.timer, sec * 1000, 0, co, sleep_timeout) == NULL)
-    {
-        return -1;
-    }
-    coroutine_yield(co);
-    return 0;
 }
 
 int swoole_coroutine_flock(int fd, int operation)
@@ -647,11 +631,27 @@ int swoole_coroutine_flock(int fd, int operation)
     {
         return SW_ERR;
     }
-    coroutine_yield((coroutine_t *) ev.object);
+    ((Coroutine *) ev.object)->yield();
     return ev.ret;
 }
 
-swString* swoole_coroutine_read_file(const char *file, int lock)
+static void sleep_timeout(swTimer *timer, swTimer_node *tnode)
+{
+    ((Coroutine *) tnode->data)->resume();
+}
+
+int Coroutine::sleep(double sec)
+{
+    Coroutine* co = coroutine_get_current();
+    if (swTimer_add(&SwooleG.timer, sec * 1000, 0, co, sleep_timeout) == NULL)
+    {
+        return -1;
+    }
+    co->yield();
+    return 0;
+}
+
+swString* Coroutine::read_file(const char *file, int lock)
 {
     aio_task task;
 
@@ -673,7 +673,7 @@ swString* swoole_coroutine_read_file(const char *file, int lock)
     {
         return NULL;
     }
-    coroutine_yield(task.co);
+    task.co->yield();
     if (ev.error == 0)
     {
         swString *str = (swString *) sw_malloc(sizeof(swString));
@@ -688,7 +688,7 @@ swString* swoole_coroutine_read_file(const char *file, int lock)
     }
 }
 
-ssize_t swoole_coroutine_write_file(const char *file, char *buf, size_t length, int lock, int flags)
+ssize_t Coroutine::write_file(const char *file, char *buf, size_t length, int lock, int flags)
 {
     aio_task task;
 
@@ -713,7 +713,7 @@ ssize_t swoole_coroutine_write_file(const char *file, char *buf, size_t length, 
     {
         return -1;
     }
-    coroutine_yield(task.co);
+    task.co->yield();
     if (ev.error != 0)
     {
         SwooleG.error = ev.error;

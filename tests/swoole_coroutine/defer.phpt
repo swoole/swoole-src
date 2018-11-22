@@ -61,6 +61,7 @@ go(function () {
         echo "3\n";
     });
 });
+swoole_event_wait();
 ?>
 --EXPECT--
 0

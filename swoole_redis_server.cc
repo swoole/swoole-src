@@ -84,11 +84,6 @@ void swoole_redis_server_init(int module_number)
 
 static int redis_onReceive(swServer *serv, swEventData *req)
 {
-    if (swEventData_is_dgram(req->info.type))
-    {
-        return php_swoole_onReceive(serv, req);
-    }
-
     int fd = req->info.fd;
     swConnection *conn = swWorker_get_connection(SwooleG.serv, fd);
     if (!conn)
@@ -97,13 +92,12 @@ static int redis_onReceive(swServer *serv, swEventData *req)
         return SW_ERR;
     }
 
-    swListenPort *port = serv->connection_list[req->info.from_fd].object;
+    swListenPort *port = (swListenPort *) serv->connection_list[req->info.from_fd].object;
     //other server port
     if (!port->open_redis_protocol)
     {
         return php_swoole_onReceive(serv, req);
     }
-
 
     zval *zdata;
     SW_MAKE_STD_ZVAL(zdata);
@@ -188,7 +182,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
     int _command_len = snprintf(_command, sizeof(_command), "_handler_%*s", command_len, command);
     php_strtolower(_command, _command_len);
 
-    zval *zobject = serv->ptr2;
+    zval *zobject = (zval *) serv->ptr2;
     char err_msg[256];
 
     zval *zfd;
@@ -257,7 +251,7 @@ static PHP_METHOD(swoole_redis_server, start)
 {
     int ret;
 
-    swServer *serv = swoole_get_object(getThis());
+    swServer *serv = (swServer *) swoole_get_object(getThis());
     if (serv->gs->start > 0)
     {
         swoole_php_error(E_WARNING, "Server is running. Unable to execute swoole_server::start.");
@@ -329,18 +323,14 @@ static PHP_METHOD(swoole_redis_server, setHandler)
 
 #ifdef PHP_SWOOLE_CHECK_CALLBACK
     char *func_name = NULL;
-#ifdef SW_COROUTINE
     if (func_cache_array.array == NULL)
     {
-        func_cache_array.array = ecalloc(32, sizeof(zend_fcall_info_cache *));
+        func_cache_array.array = (zend_fcall_info_cache **) ecalloc(32, sizeof(zend_fcall_info_cache *));
         func_cache_array.size = 32;
         func_cache_array.count = 0;
     }
-    zend_fcall_info_cache *func_cache = emalloc(sizeof(zend_fcall_info_cache));
+    zend_fcall_info_cache *func_cache = (zend_fcall_info_cache *) emalloc(sizeof(zend_fcall_info_cache));
     if (!sw_zend_is_callable_ex(zcallback, NULL, 0, &func_name, NULL, func_cache, NULL))
-#else
-    if (!sw_zend_is_callable(zcallback, 0, &func_name))
-#endif
     {
         swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
         efree(func_name);
@@ -352,21 +342,18 @@ static PHP_METHOD(swoole_redis_server, setHandler)
     char _command[SW_REDIS_MAX_COMMAND_SIZE];
     int length = snprintf(_command, sizeof(_command), "_handler_%s", command);
     php_strtolower(_command, length);
-#ifdef SW_COROUTINE
+
     int func_cache_index = func_cache_array.count;
     func_cache_array.array[func_cache_index] = func_cache;
     func_cache_array.count++;
     if (func_cache_array.count == func_cache_array.size)
     {
         func_cache_array.size *= 2;
-        func_cache_array.array = ecalloc(func_cache_array.size, sizeof(zend_fcall_info_cache *));
+        func_cache_array.array = (zend_fcall_info_cache **) ecalloc(func_cache_array.size, sizeof(zend_fcall_info_cache *));
     }
     Z_TRY_ADDREF_P(zcallback);
     zend_update_property_long(swoole_redis_server_class_entry_ptr, getThis(), _command, length, func_cache_index);
-#else
-    php_strtolower(_command, length);
-    zend_update_property(swoole_redis_server_class_entry_ptr, getThis(), _command, length, zcallback);
-#endif
+
     RETURN_TRUE;
 }
 

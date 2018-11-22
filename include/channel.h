@@ -28,7 +28,7 @@ struct notify_msg_t
 struct timeout_msg_t
 {
     Channel *chan;
-    coroutine_t *co;
+    Coroutine *co;
     bool error;
     swTimer_node *timer;
 };
@@ -36,8 +36,8 @@ struct timeout_msg_t
 class Channel
 {
 private:
-    std::list<coroutine_t *> producer_queue;
-    std::list<coroutine_t *> consumer_queue;
+    std::list<Coroutine *> producer_queue;
+    std::list<Coroutine *> consumer_queue;
     std::queue<void *> data_queue;
     size_t capacity;
 
@@ -68,7 +68,7 @@ public:
         return producer_queue.size();
     }
 
-    inline void remove(coroutine_t *co)
+    inline void remove(Coroutine *co)
     {
         consumer_queue.remove(co);
     }
@@ -87,9 +87,9 @@ public:
         return data;
     }
 
-    inline coroutine_t* pop_coroutine(enum channel_op type)
+    inline Coroutine* pop_coroutine(enum channel_op type)
     {
-        coroutine_t* co;
+        Coroutine* co;
         if (type == PRODUCER)
         {
             co = producer_queue.front();
