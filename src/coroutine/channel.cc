@@ -45,12 +45,12 @@ void Channel::yield(enum channel_op type)
     if (type == PRODUCER)
     {
         producer_queue.push_back(co);
-        swTraceLog(SW_TRACE_CHANNEL, "producer cid=%ld", coroutine_get_cid(co));
+        swTraceLog(SW_TRACE_CHANNEL, "producer cid=%ld", co->get_cid());
     }
     else
     {
         consumer_queue.push_back(co);
-        swTraceLog(SW_TRACE_CHANNEL, "consumer cid=%ld", coroutine_get_cid(co));
+        swTraceLog(SW_TRACE_CHANNEL, "consumer cid=%ld", co->get_cid());
     }
     co->yield();
 }
