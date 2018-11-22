@@ -1104,7 +1104,6 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
         return SW_ERR;
     }
 
-#ifdef SW_COROUTINE
     if (swTask_type(req) & SW_TASK_COROUTINE)
     {
         int task_id = req->info.fd;
@@ -1113,7 +1112,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
         if (_i_task_co == task_coroutine_map.end())
         {
             swoole_php_fatal_error(E_WARNING, "task[%d] has expired.", task_id);
-            fail: sw_zval_free(zdata);
+            _fail: sw_zval_free(zdata);
             return SW_OK;
         }
         swTaskCo *task_co = _i_task_co->second;
@@ -1136,7 +1135,8 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
             return SW_OK;
         }
         //Server->taskCo
-        uint32_t i, task_index = -1;
+        uint32_t i;
+        int task_index = -1;
         zval *result = task_co->result;
         for (i = 0; i < task_co->count; i++)
         {
@@ -1149,7 +1149,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
         if (task_index < 0)
         {
             swoole_php_fatal_error(E_WARNING, "task[%d] is invalid.", task_id);
-            goto fail;
+            goto _fail;
         }
         add_index_zval(result, task_index, zdata);
         efree(zdata);
@@ -1173,7 +1173,6 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
         }
         return SW_OK;
     }
-#endif
 
     args[0] = *zserv;
     args[1] = *ztask_id;
