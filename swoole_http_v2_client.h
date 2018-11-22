@@ -27,9 +27,11 @@
 
 #ifdef SW_HAVE_ZLIB
 #include <zlib.h>
+BEGIN_EXTERN_C()
 extern voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size);
 extern void php_zlib_free(voidpf opaque, voidpf address);
 extern int http_response_uncompress(z_stream *stream, swString *buffer, char *body, int length);
+END_EXTERN_C()
 #endif
 
 typedef struct

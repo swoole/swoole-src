@@ -32,10 +32,12 @@ static int http_client_send_http_request(zval *zobject);
 static int http_client_execute(zval *zobject, char *uri, size_t uri_len, zval *callback);
 
 #ifdef SW_HAVE_ZLIB
-int http_response_uncompress(z_stream *stream, swString *buffer, char *body, int length);
 static void http_init_gzip_stream(http_client *);
+BEGIN_EXTERN_C()
 extern voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size);
 extern void php_zlib_free(voidpf opaque, voidpf address);
+extern int http_response_uncompress(z_stream *stream, swString *buffer, char *body, int length);
+END_EXTERN_C()
 #endif
 
 static const swoole_http_parser_settings http_parser_settings =
