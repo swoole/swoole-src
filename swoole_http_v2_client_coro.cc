@@ -261,6 +261,7 @@ static sw_inline int http2_client_close(swClient *cli)
 static ssize_t http2_client_build_header(zval *zobject, zval *req, char *buffer)
 {
     char *date_str = NULL;
+    int i;
     int index = 0;
     int find_host = 0;
 
@@ -342,13 +343,6 @@ static ssize_t http2_client_build_header(zval *zobject, zval *req, char *buffer)
 
     ssize_t rv;
     size_t buflen;
-    size_t i;
-    size_t sum = 0;
-
-    for (i = 0; i < index; ++i)
-    {
-        sum += nv[i].namelen + nv[i].valuelen;
-    }
 
     buflen = nghttp2_hd_deflate_bound(hcc->deflater, nv, index);
     if (buflen > hcc->remote_settings.max_header_list_size)

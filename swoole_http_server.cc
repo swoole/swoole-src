@@ -559,7 +559,7 @@ static void http_parse_cookie(zval *array, const char *at, size_t length)
         _c++;
         i++;
     }
-    if (j < length)
+    if (j < (off_t) length)
     {
         vlen = i - j;
         if (klen >= SW_HTTP_COOKIE_KEYLEN)
@@ -820,7 +820,7 @@ static int multipart_body_on_data(multipart_parser* p, const char *at, size_t le
         return 0;
     }
     int n = fwrite(at, sizeof(char), length, (FILE *) p->fp);
-    if (n != length)
+    if (n != (off_t) length)
     {
         zval *multipart_header = ctx->current_multipart_header;
         add_assoc_long(multipart_header, "error", HTTP_UPLOAD_ERR_CANT_WRITE);

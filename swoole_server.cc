@@ -56,7 +56,7 @@ typedef struct
 {
     php_context context;
     int *list;
-    int count;
+    uint32_t count;
     zval *result;
     swTimer_node *timer;
 } swTaskCo;
@@ -260,7 +260,7 @@ int php_swoole_task_pack(swEventData *task, zval *data)
         task_data_len = Z_STRLEN_P(data);
     }
 
-    if (task_data_len >= SW_IPC_MAX_SIZE - sizeof(task->info))
+    if (task_data_len >= (int)(SW_IPC_MAX_SIZE - sizeof(task->info)))
     {
         if (swTaskWorker_large_pack(task, task_data_str, task_data_len) < 0)
         {
@@ -291,7 +291,7 @@ int php_swoole_task_pack(swEventData *task, zval *data)
 void php_swoole_get_recv_data(zval *zdata, swEventData *req, char *header, uint32_t header_length)
 {
     char *data_ptr = NULL;
-    int data_len;
+    uint32_t data_len;
 
 #ifdef SW_USE_RINGBUFFER
     swPackage package;
@@ -514,7 +514,7 @@ static void php_swoole_task_onTimeout(swTimer *timer, swTimer_node *tnode)
         return;
     }
 
-    int i;
+    uint32_t i;
     zval *result = task_co->result;
 
     for (i = 0; i < task_co->count; i++)
@@ -837,7 +837,7 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
         return;
     }
 
-    swTrace("PipeMessage: fd=%d|len=%d|from_id=%d|data=%s\n", req->info.fd, req->info.len, req->info.from_id, req->data);
+    swTrace("PipeMessage: fd=%d|len=%d|from_id=%d|data=%.*s\n", req->info.fd, req->info.len, req->info.from_id, req->info.len, req->data);
 
     zend_fcall_info_cache *fci_cache = php_sw_server_caches[SW_SERVER_CB_onPipeMessage];
     zval args[3];
@@ -1136,7 +1136,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
             return SW_OK;
         }
         //Server->taskCo
-        int i, task_index = -1;
+        uint32_t i, task_index = -1;
         zval *result = task_co->result;
         for (i = 0; i < task_co->count; i++)
         {
@@ -3336,7 +3336,7 @@ PHP_METHOD(swoole_server, taskWaitMulti)
 
     swEventData *result;
     zval *zdata;
-    int j;
+    uint32_t j;
 
     do
     {
@@ -3345,7 +3345,7 @@ PHP_METHOD(swoole_server, taskWaitMulti)
         zdata = php_swoole_task_unpack(result);
         if (zdata == NULL)
         {
-            goto next;
+            goto _next;
         }
         for (j = 0; j < php_swoole_array_length(tasks); j++)
         {
@@ -3356,9 +3356,9 @@ PHP_METHOD(swoole_server, taskWaitMulti)
         }
         add_index_zval(return_value, j, zdata);
         efree(zdata);
-        next: content->offset += sizeof(swDataHead) + result->info.len;
-    }
-    while(content->offset < content->length);
+        _next:
+        content->offset += sizeof(swDataHead) + result->info.len;
+    } while (content->offset < 0 || (size_t) content->offset < content->length);
     //free memory
     swString_free(content);
     //delete tmp file
@@ -3388,7 +3388,7 @@ PHP_METHOD(swoole_server, taskCo)
     int dst_worker_id = -1;
     int task_id;
     int i = 0;
-    int n_task = php_swoole_array_length(tasks);
+    uint32_t n_task = php_swoole_array_length(tasks);
 
     if (n_task >= SW_MAX_CONCURRENT_TASK)
     {
@@ -4032,7 +4032,7 @@ PHP_METHOD(swoole_connection_iterator, valid)
                 continue;
             }
 #endif
-            if (itearator->port && conn->from_fd != itearator->port->sock)
+            if (itearator->port && (itearator->port->sock < 0 || conn->from_fd != (uint32_t) itearator->port->sock))
             {
                 continue;
             }
