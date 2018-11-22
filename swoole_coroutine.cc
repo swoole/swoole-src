@@ -266,7 +266,7 @@ static void php_coro_create(void *arg)
 
     zend_execute_ex(EG(current_execute_data));
 
-    coroutine_do_defer_task(task->co);
+    coroutine_do_defer_tasks(task->co);
 
     if (zobject)
     {

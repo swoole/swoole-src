@@ -61,7 +61,7 @@ void coroutine_set_task(coroutine_t *co, void *ptr);
 void* coroutine_get_current_task();
 void* coroutine_get_task_by_cid(long cid);
 void coroutine_add_defer_task(coroutine_t *co, swCallback cb, void *data);
-void coroutine_do_defer_task(coroutine_t *co);
+void coroutine_do_defer_tasks(coroutine_t *co);
 /* get coroutine */
 coroutine_t* coroutine_get_current();
 coroutine_t *coroutine_get_by_id(long cid);

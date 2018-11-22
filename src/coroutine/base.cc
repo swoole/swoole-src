@@ -158,7 +158,7 @@ void coroutine_add_defer_task(coroutine_t *co, swCallback cb, void *data)
     co->defer_tasks->push(new defer_task(cb, data));
 }
 
-void coroutine_do_defer_task(coroutine_t *co)
+void coroutine_do_defer_tasks(coroutine_t *co)
 {
     if (co->defer_tasks)
     {
