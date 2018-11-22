@@ -27,11 +27,11 @@ static PHP_METHOD(swoole_postgresql_coro, query);
 static PHP_METHOD(swoole_postgresql_coro, fetchAll);
 static PHP_METHOD(swoole_postgresql_coro, affectedRows);
 static PHP_METHOD(swoole_postgresql_coro, numRows);
-static PHP_METHOD(swoole_postgresql_coro,metaData);
-static PHP_METHOD(swoole_postgresql_coro,fetchObject);
-static PHP_METHOD(swoole_postgresql_coro,fetchAssoc);
-static PHP_METHOD(swoole_postgresql_coro,fetchArray);
-static PHP_METHOD(swoole_postgresql_coro,fetchRow);
+static PHP_METHOD(swoole_postgresql_coro, metaData);
+static PHP_METHOD(swoole_postgresql_coro, fetchObject);
+static PHP_METHOD(swoole_postgresql_coro, fetchAssoc);
+static PHP_METHOD(swoole_postgresql_coro, fetchArray);
+static PHP_METHOD(swoole_postgresql_coro, fetchRow);
 
 static void php_pgsql_fetch_hash(INTERNAL_FUNCTION_PARAMETERS, zend_long result_type, int into_object);
 
@@ -621,7 +621,7 @@ static PHP_METHOD(swoole_postgresql_coro, fetchAll)
     }
 }
 
-static PHP_METHOD(swoole_postgresql_coro,affectedRows)
+static PHP_METHOD(swoole_postgresql_coro, affectedRows)
 {
     zval *result;
     PGresult *pgsql_result;
@@ -642,7 +642,7 @@ static PHP_METHOD(swoole_postgresql_coro,affectedRows)
 
 
 //query's num
-static PHP_METHOD(swoole_postgresql_coro,numRows)
+static PHP_METHOD(swoole_postgresql_coro, numRows)
 {
     zval *result;
     PGresult *pgsql_result;
@@ -661,7 +661,7 @@ static PHP_METHOD(swoole_postgresql_coro,numRows)
     RETVAL_LONG(PQntuples(pgsql_result));
 }
 
-static PHP_METHOD(swoole_postgresql_coro,metaData)
+static PHP_METHOD(swoole_postgresql_coro, metaData)
 {
 
     char *table_name;
@@ -707,7 +707,7 @@ static PHP_METHOD(swoole_postgresql_coro,metaData)
     {
         /* Default schema */
         tmp_name2 = tmp_name;
-        tmp_name = "public";
+        tmp_name = (char *) "public";
     }
 
     if (extended)
@@ -977,7 +977,7 @@ static void php_pgsql_fetch_hash(INTERNAL_FUNCTION_PARAMETERS, zend_long result_
 
 /* {{{ proto array fetchRow(resource result [, int row [, int result_type]])
    Get a row as an enumerated array */
-static PHP_METHOD(swoole_postgresql_coro,fetchRow)
+static PHP_METHOD(swoole_postgresql_coro, fetchRow)
 {
     php_pgsql_fetch_hash(INTERNAL_FUNCTION_PARAM_PASSTHRU, PGSQL_NUM, 0);
 }
@@ -985,7 +985,7 @@ static PHP_METHOD(swoole_postgresql_coro,fetchRow)
 
 /* {{{ proto array fetchAssoc(resource result [, int row])
    Fetch a row as an assoc array */
-static PHP_METHOD(swoole_postgresql_coro,fetchAssoc)
+static PHP_METHOD(swoole_postgresql_coro, fetchAssoc)
 {
     /* pg_fetch_assoc() is added from PHP 4.3.0. It should raise error, when
        there is 3rd parameter */
@@ -997,7 +997,7 @@ static PHP_METHOD(swoole_postgresql_coro,fetchAssoc)
 
 /* {{{ proto array fetchArray(resource result [, int row [, int result_type]])
    Fetch a row as an array */
-static PHP_METHOD(swoole_postgresql_coro,fetchArray)
+static PHP_METHOD(swoole_postgresql_coro, fetchArray)
 {
     php_pgsql_fetch_hash(INTERNAL_FUNCTION_PARAM_PASSTHRU, PGSQL_BOTH, 0);
 }
@@ -1005,7 +1005,7 @@ static PHP_METHOD(swoole_postgresql_coro,fetchArray)
 
 /* {{{ proto object fetchObject(resource result [, int row [, string class_name [, NULL|array ctor_params]]])
    Fetch a row as an object */
-static PHP_METHOD(swoole_postgresql_coro,fetchObject)
+static PHP_METHOD(swoole_postgresql_coro, fetchObject)
 {
     /* fetchObject() allowed result_type used to be. 3rd parameter
        must be allowed for compatibility */

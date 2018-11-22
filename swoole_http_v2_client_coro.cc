@@ -899,7 +899,7 @@ static void http2_client_onConnect(swClient *cli)
     zend_update_property_long(swoole_http2_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), 0);
     zend_update_property_string(swoole_http2_client_coro_class_entry_ptr, zobject, ZEND_STRL("errMsg"), "");
 
-    cli->send(cli, ZEND_STRL(SW_HTTP2_PRI_STRING), 0);
+    cli->send(cli, ZEND_STRL((char *)SW_HTTP2_PRI_STRING), 0);
     cli->open_length_check = 1;
     cli->protocol.get_package_length = swHttp2_get_frame_length;
     cli->protocol.package_length_size = SW_HTTP2_FRAME_HEADER_SIZE;
@@ -1253,7 +1253,7 @@ static PHP_METHOD(swoole_http2_client_coro, goaway)
     *(uint32_t*) (frame + SW_HTTP2_FRAME_HEADER_SIZE) = htonl(hcc->last_stream_id);
     *(uint32_t*) (frame + SW_HTTP2_FRAME_HEADER_SIZE + 4) = htonl(error_code);
     memcpy(frame + SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_GOAWAY_SIZE, debug_data, debug_data_len);
-    swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN"] Send: last-sid=%d, error-code=%d", swHttp2_get_type(SW_HTTP2_TYPE_GOAWAY), hcc->last_stream_id, error_code);
+    swTraceLog(SW_TRACE_HTTP2, "[" SW_ECHO_GREEN "] Send: last-sid=%d, error-code=%d", swHttp2_get_type(SW_HTTP2_TYPE_GOAWAY), hcc->last_stream_id, error_code);
 
     ret = cli->send(cli, frame, length, 0);
     efree(frame);

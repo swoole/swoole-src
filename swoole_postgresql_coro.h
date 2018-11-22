@@ -16,7 +16,7 @@
 #ifndef SWOOLE_POSTGRESQL_H_
 #define SWOOLE_POSTGRESQL_H_
 
-#include <postgresql/libpq-fe.h>
+#include <libpq-fe.h>
 
 typedef enum
 {
