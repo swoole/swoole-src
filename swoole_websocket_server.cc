@@ -16,16 +16,17 @@
 
 #include "php_swoole.h"
 #include "swoole_http.h"
-#ifdef SW_COROUTINE
 #include "swoole_coroutine.h"
-#endif
 
+extern "C"
+{
 #include <ext/standard/url.h>
 #include <ext/standard/sha1.h>
 #include <ext/standard/php_var.h>
 #include <ext/standard/php_string.h>
 #include <ext/date/php_date.h>
 #include <main/php_variables.h>
+}
 
 #include "websocket.h"
 #include "connection.h"
@@ -271,16 +272,16 @@ void swoole_websocket_onOpen(http_context *ctx)
  */
 void swoole_websocket_onRequest(http_context *ctx)
 {
-    char *bad_request =
+    const char *bad_request =
             "HTTP/1.1 400 Bad Request\r\n"
             "Connection: close\r\n"
             "Content-Type: text/html; charset=UTF-8\r\n"
             "Cache-Control: must-revalidate,no-cache,no-store\r\n"
             "Content-Length: 83\r\n"
-            "Server: "SW_HTTP_SERVER_SOFTWARE"\r\n\r\n"
+            "Server: " SW_HTTP_SERVER_SOFTWARE "\r\n\r\n"
             "<html><body><h2>HTTP 400 Bad Request</h2><hr><i>Powered by Swoole</i></body></html>";
 
-    swServer_tcp_send(SwooleG.serv, ctx->fd, bad_request, strlen(bad_request));
+    swServer_tcp_send(SwooleG.serv, ctx->fd, (char *) bad_request, strlen(bad_request));
     ctx->end = 1;
     swServer_tcp_close(SwooleG.serv, ctx->fd, 0);
     swoole_http_context_free(ctx);
@@ -327,14 +328,14 @@ static int websocket_handshake(swListenPort *port, http_context *ctx)
     n = snprintf(_buf, sizeof(_buf), "Sec-WebSocket-Accept: %*s\r\n", n, encoded_str);
 
     swString_append_ptr(swoole_http_buffer, _buf, n);
-    swString_append_ptr(swoole_http_buffer, ZEND_STRL("Sec-WebSocket-Version: "SW_WEBSOCKET_VERSION"\r\n"));
+    swString_append_ptr(swoole_http_buffer, ZEND_STRL("Sec-WebSocket-Version: " SW_WEBSOCKET_VERSION "\r\n"));
     if (port->websocket_subprotocol)
     {
         swString_append_ptr(swoole_http_buffer, ZEND_STRL("Sec-WebSocket-Protocol: "));
         swString_append_ptr(swoole_http_buffer, port->websocket_subprotocol, port->websocket_subprotocol_length);
         swString_append_ptr(swoole_http_buffer, ZEND_STRL("\r\n"));
     }
-    swString_append_ptr(swoole_http_buffer, ZEND_STRL("Server: "SW_WEBSOCKET_SERVER_SOFTWARE"\r\n\r\n"));
+    swString_append_ptr(swoole_http_buffer, ZEND_STRL("Server: " SW_WEBSOCKET_SERVER_SOFTWARE "\r\n\r\n"));
 
     swTrace("websocket header len:%ld\n%s \n", swoole_http_buffer->length, swoole_http_buffer->str);
 
@@ -649,7 +650,7 @@ static PHP_METHOD(swoole_websocket_server, exist)
 {
     zend_long fd;
 
-    swServer *serv = swoole_get_object(getThis());
+    swServer *serv = (swServer *) swoole_get_object(getThis());
     if (serv->gs->start == 0)
     {
         php_error_docref(NULL, E_WARNING, "the server is not running.");
@@ -674,7 +675,7 @@ static PHP_METHOD(swoole_websocket_server, exist)
     swConnection *server_sock = swServer_connection_get(serv, conn->from_fd);
     if (server_sock)
     {
-        swListenPort *port = server_sock->object;
+        swListenPort *port = (swListenPort *) server_sock->object;
         //not websocket port
         if (port && !port->open_websocket_protocol)
         {
@@ -693,7 +694,7 @@ static PHP_METHOD(swoole_websocket_server, isEstablished)
 {
     zend_long fd;
 
-    swServer *serv = swoole_get_object(getThis());
+    swServer *serv = (swServer *) swoole_get_object(getThis());
     if (serv->gs->start == 0)
     {
         php_error_docref(NULL, E_WARNING, "the server is not running.");

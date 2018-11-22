@@ -147,6 +147,7 @@
             <file role="doc" name="examples/coroutine/coro_stackless.php" />
             <file role="doc" name="examples/coroutine/coro_util.php" />
             <file role="doc" name="examples/coroutine/csp.php" />
+            <file role="doc" name="examples/coroutine/defer.php" />
             <file role="doc" name="examples/coroutine/defer_client.php" />
             <file role="doc" name="examples/coroutine/enable_coroutine.php" />
             <file role="doc" name="examples/coroutine/exception/empty.php" />
@@ -546,7 +547,7 @@
             <file role="src" name="swoole_http_client.c" />
             <file role="src" name="swoole_http_client.h" />
             <file role="src" name="swoole_http_client_coro.cc" />
-            <file role="src" name="swoole_http_server.c" />
+            <file role="src" name="swoole_http_server.cc" />
             <file role="src" name="swoole_http_v2_client.c" />
             <file role="src" name="swoole_http_v2_client.h" />
             <file role="src" name="swoole_http_v2_client_coro.c" />
@@ -564,18 +565,18 @@
             <file role="src" name="swoole_process_pool.c" />
             <file role="src" name="swoole_redis.c" />
             <file role="src" name="swoole_redis_coro.cc" />
-            <file role="src" name="swoole_redis_server.c" />
+            <file role="src" name="swoole_redis_server.cc" />
             <file role="src" name="swoole_ringqueue.c" />
             <file role="src" name="swoole_runtime.cc" />
             <file role="src" name="swoole_serialize.c" />
             <file role="src" name="swoole_serialize.h" />
-            <file role="src" name="swoole_server.c" />
-            <file role="src" name="swoole_server_port.c" />
+            <file role="src" name="swoole_server.cc" />
+            <file role="src" name="swoole_server_port.cc" />
             <file role="src" name="swoole_socket_coro.cc" />
             <file role="src" name="swoole_table.c" />
             <file role="src" name="swoole_timer.c" />
             <file role="src" name="swoole_trace.c" />
-            <file role="src" name="swoole_websocket_server.c" />
+            <file role="src" name="swoole_websocket_server.cc" />
             <file role="test" name="tests/CONTRIBUTION" />
             <file role="test" name="tests/README.md" />
             <file role="test" name="tests/clean" />
@@ -767,7 +768,6 @@
             <file role="test" name="tests/swoole_client_sync/udp_client_sendto.phpt" />
             <file role="test" name="tests/swoole_coroutine/call_user_func_array.phpt" />
             <file role="test" name="tests/swoole_coroutine/callback.phpt" />
-            <file role="test" name="tests/swoole_coroutine/cidmap_max.phpt" />
             <file role="test" name="tests/swoole_coroutine/co_with_args.phpt" />
             <file role="test" name="tests/swoole_coroutine/coro_stats.phpt" />
             <file role="test" name="tests/swoole_coroutine/current.phpt" />
@@ -837,6 +837,7 @@
             <file role="test" name="tests/swoole_coroutine_channel/pop_timeout6.phpt" />
             <file role="test" name="tests/swoole_coroutine_channel/pop_timeout7.phpt" />
             <file role="test" name="tests/swoole_coroutine_channel/pop_timeout8.phpt" />
+            <file role="test" name="tests/swoole_coroutine_channel/push_timeout.phpt" />
             <file role="test" name="tests/swoole_coroutine_channel/type.phpt" />
             <file role="test" name="tests/swoole_coroutine_util/dns_lookup.phpt" />
             <file role="test" name="tests/swoole_coroutine_util/exec.phpt" />
@@ -957,7 +958,9 @@
             <file role="test" name="tests/swoole_http_client_coro/websocket_bug_01.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/websocket_bug_02.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/websocket_timeout.phpt" />
-            <file role="test" name="tests/swoole_http_server/callback.phpt" />
+            <file role="test" name="tests/swoole_http_server/callback_new_obj_method.phpt" />
+            <file role="test" name="tests/swoole_http_server/callback_new_static_method.phpt" />
+            <file role="test" name="tests/swoole_http_server/callback_string.phpt" />
             <file role="test" name="tests/swoole_http_server/chunk.phpt" />
             <file role="test" name="tests/swoole_http_server/co_switching.phpt" />
             <file role="test" name="tests/swoole_http_server/compression.phpt" />
@@ -966,7 +969,6 @@
             <file role="test" name="tests/swoole_http_server/disable_coroutine.phpt" />
             <file role="test" name="tests/swoole_http_server/enable_coroutine.phpt" />
             <file role="test" name="tests/swoole_http_server/form_data_with_charset.phpt" />
-            <file role="test" name="tests/swoole_http_server/httpdata" />
             <file role="test" name="tests/swoole_http_server/illegal_operation_in_task.phpt" />
             <file role="test" name="tests/swoole_http_server/large_url.phpt" />
             <file role="test" name="tests/swoole_http_server/mixed_server.phpt" />
@@ -977,6 +979,7 @@
             <file role="test" name="tests/swoole_http_server/sendfile.phpt" />
             <file role="test" name="tests/swoole_http_server/static_handler.phpt" />
             <file role="test" name="tests/swoole_http_server/task_async_co.phpt" />
+            <file role="test" name="tests/swoole_http_server/unixsocket.phpt" />
             <file role="test" name="tests/swoole_http_server/unset_response_header.phpt" />
             <file role="test" name="tests/swoole_http_server/upload.phpt" />
             <file role="test" name="tests/swoole_http_server/uploadFile.phpt" />
