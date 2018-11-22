@@ -488,7 +488,6 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_http_client.c \
         swoole_http_client_coro.cc \
         swoole_http_server.cc \
-        swoole_http_v2_client.c \
         swoole_http_v2_client_coro.cc \
         swoole_http_v2_server.cc \
         swoole_lock.c \

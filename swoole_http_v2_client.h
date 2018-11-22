@@ -94,8 +94,6 @@ static sw_inline void http2_client_init_gzip_stream(http2_client_stream *stream)
 }
 #endif
 
-int http2_client_parse_header(http2_client_property *hcc, http2_client_stream *stream , int flags, char *in, size_t inlen);
-
 static sw_inline void http2_client_send_setting(swClient *cli, swHttp2_settings  *settings)
 {
     uint16_t id = 0;
@@ -157,7 +155,5 @@ static sw_inline void http2_add_header(nghttp2_nv *headers, const char *k, int k
 
     swTrace("k=%s, len=%d, v=%s, len=%d", k, kl, v, vl);
 }
-
-void http2_add_cookie(nghttp2_nv *nv, int *index, zval *cookies);
 
 #endif
