@@ -23,18 +23,6 @@
 
 using namespace swoole;
 
-struct defer_task
-{
-    swCallback callback;
-    void *data;
-
-    defer_task(swCallback _callback, void *_data):
-        callback(_callback), data(_data)
-    {
-
-    }
-};
-
 struct coroutine_s
 {
 public:
@@ -42,14 +30,12 @@ public:
     long cid;
     sw_coro_state state;
     void *task;
-    std::stack<defer_task *> *defer_tasks;
 
     coroutine_s(long _cid, size_t stack_size, coroutine_func_t fn, void *private_data) :
             ctx(stack_size, fn, private_data)
     {
         cid = _cid;
         task = nullptr;
-        defer_tasks = nullptr;
         state = SW_CORO_INIT;
     }
 };
@@ -147,32 +133,6 @@ void coroutine_release(coroutine_t *co)
 void coroutine_set_task(coroutine_t *co, void *task)
 {
     co->task = task;
-}
-
-void coroutine_add_defer_task(coroutine_t *co, swCallback cb, void *data)
-{
-    if (co->defer_tasks == nullptr)
-    {
-        co->defer_tasks = new std::stack<defer_task *>;
-    }
-    co->defer_tasks->push(new defer_task(cb, data));
-}
-
-void coroutine_do_defer_task(coroutine_t *co)
-{
-    if (co->defer_tasks)
-    {
-        std::stack<defer_task *> *tasks = co->defer_tasks;
-        while (tasks->size() > 0)
-        {
-            defer_task *task = tasks->top();
-            tasks->pop();
-            task->callback(task->data);
-            delete task;
-        }
-        delete co->defer_tasks;
-        co->defer_tasks = nullptr;
-    }
 }
 
 void* coroutine_get_task_by_cid(long cid)

@@ -279,6 +279,8 @@ static int coro_exit_handler(zend_execute_data *execute_data)
 
 void swoole_coroutine_util_init(int module_number)
 {
+    coro_init();
+
     SWOOLE_INIT_CLASS_ENTRY(swoole_coroutine_util_ce, "swoole_coroutine", "Swoole\\Coroutine", swoole_coroutine_util_methods);
     swoole_coroutine_util_class_entry_ptr = zend_register_internal_class(&swoole_coroutine_util_ce);
 

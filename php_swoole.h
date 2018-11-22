@@ -645,6 +645,17 @@ extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
             _real_arg = ZEND_CALL_ARG(execute_data, 0);
 #endif
 
+/* PHP 7.0 compatibility macro {{{*/
+#if PHP_VERSION_ID < 70100
+#define SW_DECLARE_EG_SCOPE(_scope) zend_class_entry *_scope
+#define SW_SAVE_EG_SCOPE(_scope) _scope = EG(scope)
+#define SW_SET_EG_SCOPE(_scope) EG(scope) = _scope
+#else
+#define SW_DECLARE_EG_SCOPE(_scope)
+#define SW_SAVE_EG_SCOPE(scope)
+#define SW_SET_EG_SCOPE(scope)
+#endif/*}}}*/
+
 /* PHP 7.3 forward compatibility */
 #ifndef GC_SET_REFCOUNT
 # define GC_SET_REFCOUNT(p, rc) do { \
@@ -660,6 +671,15 @@ extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
 # define GC_UNPROTECT_RECURSION(p) \
 	ZEND_HASH_DEC_APPLY_COUNT(p)
 #endif
+
+/* PHP 7.3 compatibility macro {{{*/
+#ifndef ZEND_CLOSURE_OBJECT
+# define ZEND_CLOSURE_OBJECT(func) (zend_object*)func->op_array.prototype
+#endif
+#ifndef GC_ADDREF
+# define GC_ADDREF(ref) ++GC_REFCOUNT(ref)
+# define GC_DELREF(ref) --GC_REFCOUNT(ref)
+#endif/*}}}*/
 
 #ifndef ZEND_HASH_APPLY_PROTECTION
 # define ZEND_HASH_APPLY_PROTECTION(p) 1

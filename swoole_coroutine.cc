@@ -17,7 +17,6 @@
 
 #include "php_swoole.h"
 
-#ifdef SW_COROUTINE
 #include "swoole_coroutine.h"
 
 #define TASK_SLOT \
@@ -47,7 +46,8 @@ static inline void sw_vm_stack_init(void)
 
 static void sw_vm_stack_destroy(zend_vm_stack stack)
 {
-    while (stack != NULL) {
+    while (stack != NULL)
+    {
         zend_vm_stack p = stack->prev;
         efree(stack);
         stack = p;
@@ -92,7 +92,6 @@ static sw_inline void php_coro_restore_vm_stack(coro_task *task)
  * close: current_task
  *
  */
-
 static sw_inline void php_coro_save_og(coro_task *task)
 {
     task->output_ptr = (zend_output_globals *) emalloc(sizeof(zend_output_globals));
@@ -266,7 +265,19 @@ static void php_coro_create(void *arg)
 
     zend_execute_ex(EG(current_execute_data));
 
-    coroutine_do_defer_task(task->co);
+    if (task->defer_tasks)
+    {
+        std::stack<defer_task *> *tasks = task->defer_tasks;
+        while (tasks->size() > 0)
+        {
+            defer_task *task = tasks->top();
+            tasks->pop();
+            task->callback(task->data);
+            delete task;
+        }
+        delete task->defer_tasks;
+        task->defer_tasks = nullptr;
+    }
 
     if (zobject)
     {
@@ -319,10 +330,6 @@ void coro_check(void)
     {
         swoole_php_fatal_error(E_ERROR, "must be called in the coroutine.");
     }
-}
-
-void coro_destroy(void)
-{
 }
 
 void sw_coro_check_bind(const char *name, long bind_cid)
@@ -384,7 +391,7 @@ void sw_coro_save(zval *return_value, php_context *sw_current_context)
     SWCC(current_vm_stack) = EG(vm_stack);
     SWCC(current_vm_stack_top) = EG(vm_stack_top);
     SWCC(current_vm_stack_end) = EG(vm_stack_end);
-    SWCC(current_task) = (coro_task *) php_coro_get_current_task();
+    SWCC(current_task) = php_coro_get_current_task();
 }
 
 void sw_coro_yield()
@@ -393,7 +400,7 @@ void sw_coro_yield()
     {
         swoole_php_fatal_error(E_ERROR, "must be called in the coroutine.");
     }
-    coro_task *task = (coro_task *) php_coro_get_current_task();
+    coro_task *task = php_coro_get_current_task();
     php_coro_yield(task);
     coroutine_yield_naked(task->co);
 }
@@ -460,4 +467,13 @@ void sw_coro_set_stack_size(int stack_size)
     coroutine_set_stack_size(stack_size);
 }
 
-#endif
+void sw_coro_add_defer_task(swCallback cb, void *data)
+{
+    coro_task *task = php_coro_get_current_task();
+    if (task->defer_tasks == nullptr)
+    {
+        task->defer_tasks = new std::stack<defer_task *>;
+    }
+    task->defer_tasks->push(new defer_task(cb, data));
+}
+

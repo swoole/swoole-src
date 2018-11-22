@@ -55,7 +55,6 @@ typedef struct
 
 typedef struct
 {
-
     char *host;
     size_t host_len;
     int port;
@@ -63,12 +62,10 @@ typedef struct
     double timeout;
     zval *object;
 
-#ifdef SW_COROUTINE
     int read_cid;
     // int write_cid; // useless temporarily
     uint8_t iowait;
     swClient *client;
-#endif
 
     nghttp2_hd_inflater *inflater;
     nghttp2_hd_deflater *deflater;
@@ -137,20 +134,20 @@ static sw_inline void http2_client_send_setting(swClient *cli, swHttp2_settings 
     memcpy(p, &value, sizeof(value));
     p += 4;
 
-    swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_GREEN"]\t[length=%d]", swHttp2_get_type(SW_HTTP2_TYPE_SETTINGS), 18);
+    swTraceLog(SW_TRACE_HTTP2, "[" SW_ECHO_GREEN "]\t[length=%d]", swHttp2_get_type(SW_HTTP2_TYPE_SETTINGS), 18);
     cli->send(cli, frame, SW_HTTP2_FRAME_HEADER_SIZE + 18, 0);
 }
 
 static sw_inline void http2_client_send_window_update(swClient *cli, int stream_id, uint32_t size)
 {
     char frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_WINDOW_UPDATE_SIZE];
-    swTraceLog(SW_TRACE_HTTP2, "["SW_ECHO_YELLOW"] stream_id=%d, size=%d", "WINDOW_UPDATE", stream_id, size);
+    swTraceLog(SW_TRACE_HTTP2, "[" SW_ECHO_YELLOW "] stream_id=%d, size=%d", "WINDOW_UPDATE", stream_id, size);
     *(uint32_t*) ((char *)frame + SW_HTTP2_FRAME_HEADER_SIZE) = htonl(size);
     swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_WINDOW_UPDATE, SW_HTTP2_WINDOW_UPDATE_SIZE, 0, stream_id);
     cli->send(cli, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_WINDOW_UPDATE_SIZE, 0);
 }
 
-static sw_inline void http2_add_header(nghttp2_nv *headers, char *k, int kl, char *v, int vl)
+static sw_inline void http2_add_header(nghttp2_nv *headers, const char *k, int kl, const char *v, int vl)
 {
     k = zend_str_tolower_dup(k, kl); // auto to lower
     headers->name = (uchar*) k;
