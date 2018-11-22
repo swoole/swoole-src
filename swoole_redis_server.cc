@@ -20,7 +20,9 @@
 #ifdef SW_COROUTINE
 #include "swoole_coroutine.h"
 #endif
+BEGIN_EXTERN_C()
 #include "ext/standard/php_string.h"
+END_EXTERN_C()
 
 static zend_class_entry swoole_redis_server_ce;
 static zend_class_entry *swoole_redis_server_class_entry_ptr;
