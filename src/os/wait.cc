@@ -44,7 +44,7 @@ static void signal_handler(int signo)
         while(true)
         {
             pid_t __pid = waitpid(-1, &__stat_loc, WNOHANG);
-            if (__pid < 0)
+            if (__pid <= 0)
             {
                 break;
             }

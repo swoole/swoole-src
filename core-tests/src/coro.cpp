@@ -5,15 +5,15 @@ using namespace swoole;
 static void coro1(void *arg)
 {
     long cid = coroutine_get_current_cid();
-    coroutine_t *co = coroutine_get_by_id(cid);
-    coroutine_yield(co);
+    Coroutine *co = coroutine_get_by_id(cid);
+    co->yield();
 }
 
 TEST(coroutine, create)
 {
-    long cid = coroutine_create(coro1, NULL);
+    long cid = Coroutine::create(coro1, NULL);
     ASSERT_GT(cid, 0);
-    coroutine_resume(coroutine_get_by_id(cid));
+    coroutine_get_by_id(cid)->resume();
 }
 
 static void coro2(void *arg)
@@ -26,7 +26,7 @@ static void coro2(void *arg)
 
 TEST(coroutine, socket_connect_refused)
 {
-    long cid = coroutine_create(coro2, NULL);
+    long cid = Coroutine::create(coro2, NULL);
     if (cid < 0)
     {
         return;
@@ -45,7 +45,7 @@ static void coro3(void *arg)
 
 TEST(coroutine, socket_connect_timeout)
 {
-    long cid = coroutine_create(coro3, NULL);
+    long cid = Coroutine::create(coro3, NULL);
     if (cid < 0)
     {
         return;
@@ -63,7 +63,7 @@ static void coro4(void *arg)
 
 TEST(coroutine, socket_connect_with_dns)
 {
-    long cid = coroutine_create(coro4, NULL);
+    long cid = Coroutine::create(coro4, NULL);
     if (cid < 0)
     {
         return;
@@ -85,7 +85,7 @@ static void coro5(void *arg)
 
 TEST(coroutine, socket_recv_success)
 {
-    long cid = coroutine_create(coro5, NULL);
+    long cid = Coroutine::create(coro5, NULL);
     if (cid < 0)
     {
         return;
@@ -107,7 +107,7 @@ static void coro6(void *arg)
 
 TEST(coroutine, socket_recv_fail)
 {
-    long cid = coroutine_create(coro6, NULL);
+    long cid = Coroutine::create(coro6, NULL);
     if (cid < 0)
     {
         return;
@@ -165,8 +165,8 @@ static void coro8(void *arg)
 
 TEST(coroutine, socket_accept)
 {
-    coroutine_create(coro7, NULL);
-    coroutine_create(coro8, NULL);
+    Coroutine::create(coro7, NULL);
+    Coroutine::create(coro8, NULL);
     SwooleG.main_reactor->wait(SwooleG.main_reactor, nullptr);
 }
 
@@ -179,7 +179,7 @@ static void coro9(void *arg)
 
 TEST(coroutine, socket_resolve)
 {
-    coroutine_create(coro9, NULL);
+    Coroutine::create(coro9, NULL);
     SwooleG.main_reactor->wait(SwooleG.main_reactor, nullptr);
 }
 

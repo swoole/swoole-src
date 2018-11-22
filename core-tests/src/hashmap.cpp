@@ -90,7 +90,7 @@ TEST(hashmap, integer)
 TEST(stl_hashmap, integer_32)
 {
     std::unordered_map<int, int> m;
-    for (int i = 0; i < 10000000; i++)
+    for (int i = 0; i < 1000000; i++)
     {
         m[i] = i;
     }
@@ -100,7 +100,7 @@ TEST(stl_hashmap, integer_64)
 {
     std::unordered_map<long, long> m;
     double s = swoole_microtime();
-    for (int i = 0; i < 10000000; i++)
+    for (int i = 0; i < 1000000; i++)
     {
         m[i] = i;
     }
@@ -111,7 +111,7 @@ TEST(stl_map, integer_32)
 {
     std::map<int, int> m;
     double s = swoole_microtime();
-    for (int i = 0; i < 10000000; i++)
+    for (int i = 0; i < 1000000; i++)
     {
         m[i] = i;
     }
@@ -121,7 +121,7 @@ TEST(stl_map, integer_32)
 TEST(stl_map, integer_64)
 {
     std::map<long, long> m;
-    for (int i = 0; i < 10000000; i++)
+    for (int i = 0; i < 1000000; i++)
     {
         m[i] = i;
     }
