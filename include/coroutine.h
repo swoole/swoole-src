@@ -19,6 +19,9 @@
 #include "swoole.h"
 #include "context.h"
 
+#include <string>
+#include <unordered_map>
+
 #define DEFAULT_MAX_CORO_NUM 3000
 #define DEFAULT_STACK_SIZE   8192
 #define MAX_CORO_NUM_LIMIT   0x80000
@@ -26,7 +29,6 @@
 #define CORO_END 0
 #define CORO_LIMIT -1
 #define CORO_INVALID -2
-
 
 typedef enum
 {
@@ -98,4 +100,6 @@ void coroutine_set_onClose(coro_php_close_t func);
 
 void internal_coro_yield(void *arg);
 void internal_coro_resume(void *arg);
+
+std::unordered_map<long, swoole::Coroutine*>* coroutine_get_map();
 

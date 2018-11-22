@@ -42,9 +42,9 @@ typedef struct
 
 typedef struct
 {
-    long current_cid;
-    uint64_t index;
-    uint64_t count;
+    std::unordered_map<long, Coroutine*> *_map;
+    std::unordered_map<long, Coroutine*>::iterator _cursor;
+    int index;
 } coroutine_iterator;
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_void, 0, 0, 0)
@@ -1317,39 +1317,28 @@ static PHP_METHOD(swoole_coroutine_util, getBackTrace)
 static PHP_METHOD(swoole_coroutine_iterator, rewind)
 {
     coroutine_iterator *itearator = (coroutine_iterator *) swoole_get_object(getThis());
-    bzero(itearator, sizeof(coroutine_iterator));
-    itearator->count = COROG.coro_num;
+    itearator->_cursor = itearator->_map->begin();
+    itearator->index = 0;
 }
 
 static PHP_METHOD(swoole_coroutine_iterator, valid)
 {
     coroutine_iterator *itearator = (coroutine_iterator *) swoole_get_object(getThis());
-    long cid = itearator->current_cid;
-
-    // FIXME: new coroutine mode
-    for (; itearator->count > 0 && cid < MAX_CORO_NUM_LIMIT + 1; cid++)
-    {
-        if (coroutine_get_by_id(cid))
-        {
-            itearator->current_cid = cid;
-            itearator->index++;
-            itearator->count--;
-            RETURN_TRUE;
-        }
-    }
-    RETURN_FALSE;
+    RETURN_BOOL(itearator->_cursor != itearator->_map->end());
 }
 
 static PHP_METHOD(swoole_coroutine_iterator, current)
 {
     coroutine_iterator *itearator = (coroutine_iterator *) swoole_get_object(getThis());
-    RETURN_LONG(itearator->current_cid);
+    Coroutine *co = itearator->_cursor->second;
+    RETURN_LONG(co->cid);
 }
 
 static PHP_METHOD(swoole_coroutine_iterator, next)
 {
     coroutine_iterator *itearator = (coroutine_iterator *) swoole_get_object(getThis());
-    itearator->current_cid++;
+    itearator->_cursor++;
+    itearator->index++;
 }
 
 PHP_METHOD(swoole_coroutine_iterator, key)
@@ -1375,6 +1364,7 @@ static PHP_METHOD(swoole_coroutine_util, listCoroutines)
     object_init_ex(return_value, swoole_coroutine_iterator_class_entry_ptr);
     coroutine_iterator *itearator = (coroutine_iterator *) emalloc(sizeof(coroutine_iterator));
     bzero(itearator, sizeof(coroutine_iterator));
+    itearator->_map = coroutine_get_map();
     swoole_set_object(return_value, itearator);
 }
 

@@ -17,10 +17,6 @@
 #include "coroutine.h"
 #include "async.h"
 
-#include <stack>
-#include <unordered_map>
-#include <string>
-
 using namespace swoole;
 
 static struct
@@ -155,6 +151,11 @@ void* coroutine_get_current_task()
     {
         return co->task;
     }
+}
+
+std::unordered_map<long, Coroutine*>* coroutine_get_map()
+{
+    return &coroutines;
 }
 
 long coroutine_get_current_cid()
