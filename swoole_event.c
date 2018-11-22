@@ -126,7 +126,6 @@ static int php_swoole_event_onWrite(swReactor *reactor, swEvent *event)
 
 static int php_swoole_event_onError(swReactor *reactor, swEvent *event)
 {
-
     int error;
     socklen_t len = sizeof(error);
 
@@ -151,11 +150,11 @@ static int php_swoole_event_onError(swReactor *reactor, swEvent *event)
 void php_swoole_event_onDefer(void *_cb)
 {
     php_defer_callback *defer = _cb;
-
     zval *retval;
-    if (sw_call_user_function_ex(EG(function_table), NULL, defer->callback, &retval, 0, NULL, 0, NULL) == FAILURE)
+
+    if (sw_call_user_function_anyway(NULL, defer->callback, &retval, 0, NULL, 0) == FAILURE)
     {
-        swoole_php_fatal_error(E_WARNING, "swoole_event: defer handler error");
+        swoole_php_fatal_error(E_WARNING, "defer callback handler error.");
         return;
     }
     if (EG(exception))
@@ -173,11 +172,11 @@ void php_swoole_event_onDefer(void *_cb)
 static void php_swoole_event_onEndCallback(void *_cb)
 {
     php_defer_callback *defer = _cb;
-
     zval *retval;
+
     if (sw_call_user_function_ex(EG(function_table), NULL, defer->callback, &retval, 0, NULL, 0, NULL) == FAILURE)
     {
-        swoole_php_fatal_error(E_WARNING, "swoole_event: defer handler error");
+        swoole_php_fatal_error(E_WARNING, "swoole_event: cycle callback handler error.");
         return;
     }
     if (EG(exception))
