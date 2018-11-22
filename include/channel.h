@@ -94,13 +94,13 @@ public:
         {
             co = producer_queue.front();
             producer_queue.pop_front();
-            swTraceLog(SW_TRACE_CHANNEL, "resume producer cid=%ld", coroutine_get_cid(co));
+            swTraceLog(SW_TRACE_CHANNEL, "resume producer cid=%ld", co->get_cid());
         }
         else
         {
             co = consumer_queue.front();
             consumer_queue.pop_front();
-            swTraceLog(SW_TRACE_CHANNEL, "resume consumer cid=%ld", coroutine_get_cid(co));
+            swTraceLog(SW_TRACE_CHANNEL, "resume consumer cid=%ld", co->get_cid());
         }
         return co;
     }

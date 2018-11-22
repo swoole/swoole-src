@@ -89,7 +89,6 @@ void* coroutine_get_task_by_cid(long cid);
 swoole::Coroutine* coroutine_get_current();
 swoole::Coroutine* coroutine_get_by_id(long cid);
 /* get cid */
-long coroutine_get_cid(swoole::Coroutine *co);
 long coroutine_get_current_cid();
 void coroutine_set_stack_size(int stack_size);
 /* callback */
