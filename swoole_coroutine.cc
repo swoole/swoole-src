@@ -45,6 +45,43 @@ static inline void sw_vm_stack_init(void)
 #define sw_vm_stack_init zend_vm_stack_init
 #endif
 
+static void php_coro_swap(coro_task *task, zend_fcall_info_cache *fci_cache)
+{
+    zval *zcid;
+    zval *retval = NULL;
+    zval args[1];
+    SW_MAKE_STD_ZVAL(zcid);
+    ZVAL_LONG(zcid, task->co->get_cid());
+    args[0] = *zcid;
+    if (sw_call_user_function_fast_ex(NULL, fci_cache, &retval, 1, args) == FAILURE)
+	{
+	  swoole_php_fatal_error(E_WARNING, "onSwapIn handler error.");
+	}
+
+    if (EG(exception))
+    {
+        zend_exception_error(EG(exception), E_ERROR);
+    }
+    zval_ptr_dtor(zcid);
+    if (retval != NULL)
+    {
+        zval_ptr_dtor(retval);
+    }
+}
+static void php_coro_onSwapIn(coro_task *task)
+{
+    if (COROG.swapin.initialized) {
+        php_coro_swap(task, &COROG.swapin);
+    }
+}
+
+static void php_coro_onSwapOut(coro_task *task)
+{
+	if (COROG.swapout.initialized) {
+		php_coro_swap(task, &COROG.swapout);
+	}
+}
+
 static void sw_vm_stack_destroy(zend_vm_stack stack)
 {
     while (stack != NULL)
@@ -173,14 +210,51 @@ static sw_inline void php_coro_og_close(coro_task *task)
     }
 }
 
+static sw_inline void php_coro_try_mark_cb()
+{
+    if (COROG.swapin.initialized)
+    {
+        Z_ADDREF_P(&COROG.swapin_cb);
+    }
+
+    if (COROG.swapout.initialized)
+    {
+        Z_ADDREF_P(&COROG.swapout_cb);
+    }
+}
+
+static sw_inline void php_coro_try_clean_cb()
+{
+    if (COROG.swapin.initialized)
+    {
+        Z_TRY_DELREF(COROG.swapin_cb);
+        if (GC_REFCOUNT(Z_COUNTED_P(&COROG.swapin_cb)) == 1)
+        {
+            zval_ptr_dtor(&COROG.swapin_cb);
+        }
+    }
+
+    if (COROG.swapout.initialized)
+    {
+        Z_TRY_DELREF(COROG.swapout_cb);
+        if (GC_REFCOUNT(Z_COUNTED_P(&COROG.swapout_cb)) == 1)
+        {
+            zval_ptr_dtor(&COROG.swapout_cb);
+        }
+    }
+}
+
 void coro_init(void)
 {
     COROG.max_coro_num = DEFAULT_MAX_CORO_NUM;
     COROG.stack_size = DEFAULT_STACK_SIZE;
+    memset(&COROG.swapin,0,sizeof(COROG.swapin));
+    memset(&COROG.swapout,0,sizeof(COROG.swapout));
     coroutine_set_onYield(internal_coro_yield);
     coroutine_set_onResume(internal_coro_resume);
     coroutine_set_onClose(sw_coro_close);
 }
+
 
 static void php_coro_create(void *arg)
 {
@@ -200,6 +274,8 @@ static void php_coro_create(void *arg)
     {
         COROG.peak_coro_num = COROG.coro_num;
     }
+
+    php_coro_try_mark_cb();
 
     if (fci_cache->object)
     {
@@ -259,7 +335,7 @@ static void php_coro_create(void *arg)
         SW_TRACE_COROUTINE, "Create coro id: %ld, origin cid: %ld, coro total count: %" PRIu64 ", heap size: %zu",
         task->co->get_cid(), task->origin_task->co->get_cid(), COROG.coro_num, zend_memory_usage(0)
     );
-
+    php_coro_onSwapIn(task);
     if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_CORO_START])
     {
         swoole_call_hook(SW_GLOBAL_HOOK_ON_CORO_START, task);
@@ -295,6 +371,7 @@ static void php_coro_create(void *arg)
 static sw_inline void php_coro_yield(coro_task *task)
 {
     swTraceLog(SW_TRACE_COROUTINE,"php_coro_yield from cid=%ld to cid=%ld", task->co->get_cid(), task->origin_task->co->get_cid());
+    php_coro_onSwapOut(task);
     php_coro_save_vm_stack(task);
     php_coro_restore_vm_stack(task->origin_task);
     php_coro_og_yield(task);
@@ -302,6 +379,7 @@ static sw_inline void php_coro_yield(coro_task *task)
 
 static sw_inline void php_coro_resume(coro_task *task)
 {
+    php_coro_onSwapIn(task);
     task->origin_task = php_coro_get_current_task();
     php_coro_restore_vm_stack(task);
     php_coro_og_resume(task);
@@ -310,8 +388,10 @@ static sw_inline void php_coro_resume(coro_task *task)
 
 static sw_inline void php_coro_close(coro_task *task)
 {
+    php_coro_onSwapOut(task);
     php_coro_og_close(task);
     php_coro_restore_vm_stack(task->origin_task);
+    php_coro_try_clean_cb();
 }
 
 void internal_coro_resume(void *arg)
@@ -441,7 +521,6 @@ void sw_coro_close()
     {
         swoole_call_hook(SW_GLOBAL_HOOK_ON_CORO_STOP, task);
     }
-
     php_coro_close(task);
     sw_vm_stack_destroy(task->vm_stack);
     COROG.coro_num--;
@@ -478,4 +557,3 @@ void sw_coro_add_defer_task(swCallback cb, void *data)
     }
     task->defer_tasks->push(new defer_task(cb, data));
 }
-

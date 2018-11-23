@@ -59,6 +59,10 @@ struct coro_global
     uint64_t peak_coro_num;
     uint32_t stack_size;
     coro_task task;
+    zend_fcall_info_cache swapin;
+    zend_fcall_info_cache swapout;
+    zval swapin_cb;
+    zval swapout_cb;
 };
 
 // TODO: remove php context
@@ -100,5 +104,3 @@ void sw_coro_close();
 int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_retval);
 void sw_coro_save(zval *return_value, php_context *sw_php_context);
 void sw_coro_set_stack_size(int stack_size);
-
-
