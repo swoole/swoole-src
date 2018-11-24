@@ -285,6 +285,7 @@ static int coro_exit_handler(zend_execute_data *execute_data)
 void swoole_coroutine_util_init(int module_number)
 {
     coro_init();
+    swoole_register_rshutdown_function((swCallback) coro_destroy, 0);
 
     SWOOLE_INIT_CLASS_ENTRY(swoole_coroutine_util_ce, "swoole_coroutine", "Swoole\\Coroutine", swoole_coroutine_util_methods);
     swoole_coroutine_util_class_entry_ptr = zend_register_internal_class(&swoole_coroutine_util_ce);
@@ -399,30 +400,44 @@ static PHP_METHOD(swoole_coroutine_util, set)
 
 static PHP_METHOD(swoole_coroutine_util, onSwap)
 {
-    zend_fcall_info fci;
-    zend_fcall_info_cache fci_cache;
-    zval _zobject, *zobject = &_zobject;
+    zval *zcallback;
+    zend_fcall_info_cache fci_cache = empty_fcall_info_cache;
 
-    ZEND_PARSE_PARAMETERS_START(1, -1)
-        Z_PARAM_FUNC(fci, fci_cache)
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ZVAL(zcallback)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (COROG.onSwap)
+    if (!zend_is_callable_ex(zcallback, NULL, 0, NULL, &fci_cache, NULL))
     {
+        swoole_php_fatal_error(E_ERROR, "register coroutine onSwap callback failed.");
+        RETURN_FALSE;
+    }
+
+    if (COROG.onSwap.object)
+    {
+        zval _zobject, *zobject = &_zobject;
         ZVAL_OBJ(zobject, COROG.onSwap.object);
         zval_ptr_dtor(zobject);
+        if (COROG.onSwap.fci_cache.object)
+        {
+            ZVAL_OBJ(zobject, COROG.onSwap.fci_cache.object);
+            zval_ptr_dtor(zobject);
+        }
     }
-    COROG.onSwap = fci_cache;
-    ZVAL_OBJ(zobject, fci_cache.object);
-    Z_ADDREF_P(zobject);
-
-    RETURN_FALSE;
+    COROG.onSwap.object = Z_OBJ_P(zcallback);
+    Z_ADDREF_P(zcallback);
+    COROG.onSwap.fci_cache = fci_cache;
+    if (fci_cache.object)
+    {
+        GC_ADDREF(fci_cache.object);
+    }
+    RETURN_TRUE;
 }
 
 PHP_FUNCTION(swoole_coroutine_create)
 {
-    zend_fcall_info fci;
-    zend_fcall_info_cache fci_cache;
+    zend_fcall_info fci = empty_fcall_info;
+    zend_fcall_info_cache fci_cache = empty_fcall_info_cache;
 
     ZEND_PARSE_PARAMETERS_START(1, -1)
         Z_PARAM_FUNC(fci, fci_cache)
@@ -432,7 +447,7 @@ PHP_FUNCTION(swoole_coroutine_create)
     if (unlikely(SWOOLE_G(req_status) == PHP_SWOOLE_CALL_USER_SHUTDOWNFUNC_BEGIN))
     {
         zend_function *func = (zend_function *) EG(current_execute_data)->prev_execute_data->func;
-        if (memcmp(ZSTR_VAL(func->common.function_name), ZEND_STRS("__destruct")) == 0)
+        if (unlikely(memcmp(ZSTR_VAL(func->common.function_name), ZEND_STRS("__destruct")) == 0))
         {
             swoole_php_fatal_error(E_ERROR, "can not use coroutine in __destruct after php_request_shutdown");
             RETURN_FALSE;

@@ -43,7 +43,6 @@ long Coroutine::create(coroutine_func_t fn, void* args)
     Coroutine *co = new Coroutine(cid, swCoroG.stack_size, fn, args);
     coroutines[cid] = co;
     swCoroG.call_stack[swCoroG.call_stack_size++] = co;
-    co->state = SW_CORO_RUNNING;
     co->ctx.SwapIn();
     if (co->ctx.end)
     {
@@ -55,23 +54,23 @@ long Coroutine::create(coroutine_func_t fn, void* args)
 
 void Coroutine::yield()
 {
+    state = SW_CORO_YIELD;
     if (swCoroG.onYield)
     {
         swCoroG.onYield(task);
     }
     swCoroG.call_stack_size--;
-    state = SW_CORO_YIELD;
     ctx.SwapOut();
 }
 
 void Coroutine::resume()
 {
+    state = SW_CORO_RUNNING;
     if (swCoroG.onResume)
     {
         swCoroG.onResume(task);
     }
     swCoroG.call_stack[swCoroG.call_stack_size++] = this;
-    state = SW_CORO_RUNNING;
     ctx.SwapIn();
     if (ctx.end)
     {
@@ -81,15 +80,15 @@ void Coroutine::resume()
 
 void Coroutine::yield_naked()
 {
-    swCoroG.call_stack_size--;
     state = SW_CORO_YIELD;
+    swCoroG.call_stack_size--;
     ctx.SwapOut();
 }
 
 void Coroutine::resume_naked()
 {
-    swCoroG.call_stack[swCoroG.call_stack_size++] = this;
     state = SW_CORO_RUNNING;
+    swCoroG.call_stack[swCoroG.call_stack_size++] = this;
     ctx.SwapIn();
     if (ctx.end)
     {

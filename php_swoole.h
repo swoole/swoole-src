@@ -407,6 +407,7 @@ void swoole_postgresql_coro_init (int module_number);
 void swoole_mysql_coro_init(int module_number);
 void swoole_http_client_coro_init(int module_number);
 void swoole_coroutine_util_init(int module_number);
+void swoole_coroutine_util_destroy();
 void swoole_http_client_init(int module_number);
 void swoole_redis_init(int module_number);
 void swoole_redis_server_init(int module_number);

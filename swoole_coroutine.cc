@@ -44,16 +44,13 @@ static sw_inline void php_vm_stack_init(void)
 #define sw_vm_stack_init zend_vm_stack_init
 #endif
 
-static sw_inline void php_coro_onSwap(coro_task *task, zend_fcall_info_cache *fci_cache)
+static void php_coro_onSwap(coro_task *task, zend_fcall_info_cache *fci_cache)
 {
-    zval args[3], _zstate, _zcid, _zorigin_cid, *retval = NULL;
-    ZVAL_LONG(&_zstate, task->co->state);
-    ZVAL_LONG(&_zcid, task->co->get_cid());
-    ZVAL_LONG(&_zorigin_cid, task->origin_task->co->get_cid());
-    args[0] = _zstate;
-    args[1] = _zcid;
-    args[2] = _zorigin_cid;
-    if (sw_call_user_function_fast_ex(NULL, fci_cache, &retval, 1, args) == FAILURE)
+    zval args[3], *zstate = &args[0], *zcid = &args[1], *zorigin_cid = &args[2], *retval = NULL;
+    ZVAL_LONG(zstate, task->co->state);
+    ZVAL_LONG(zcid, coroutine_get_cid(task->co));
+    ZVAL_LONG(zorigin_cid, coroutine_get_cid(task->origin_task->co));
+    if (sw_call_user_function_fast_ex(NULL, fci_cache, &retval, 3, args) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onSwap handler error.");
     }
@@ -64,6 +61,14 @@ static sw_inline void php_coro_onSwap(coro_task *task, zend_fcall_info_cache *fc
     if (retval != NULL)
     {
         zval_ptr_dtor(retval);
+    }
+}
+
+static sw_inline void php_coro_global_onSwap(coro_task *task)
+{
+    if (COROG.onSwap.fci_cache.function_handler)
+    {
+        php_coro_onSwap(task, &COROG.onSwap.fci_cache);
     }
 }
 
@@ -204,6 +209,21 @@ void coro_init(void)
     coroutine_set_onClose(sw_coro_close);
 }
 
+void coro_destroy(void *data)
+{
+    if (COROG.onSwap.object)
+    {
+        zval _zobject, *zobject = &_zobject;
+        ZVAL_OBJ(zobject, COROG.onSwap.object);
+        zval_ptr_dtor(zobject);
+        if (COROG.onSwap.fci_cache.object)
+        {
+            ZVAL_OBJ(zobject, COROG.onSwap.fci_cache.object);
+            zval_ptr_dtor(zobject);
+        }
+    }
+}
+
 static void php_coro_create(void *arg)
 {
     int i;
@@ -287,7 +307,7 @@ static void php_coro_create(void *arg)
         swoole_call_hook(SW_GLOBAL_HOOK_ON_CORO_START, task);
     }
 
-    php_coro_onSwap(task, &COROG.onSwap);
+    php_coro_global_onSwap(task);
 
     zend_execute_ex(EG(current_execute_data));
 
@@ -319,7 +339,7 @@ static void php_coro_create(void *arg)
 static sw_inline void php_coro_yield(coro_task *task)
 {
     swTraceLog(SW_TRACE_COROUTINE,"php_coro_yield from cid=%ld to cid=%ld", coroutine_get_cid(task->co), coroutine_get_cid(task->origin_task->co));
-    php_coro_onSwap(task, &COROG.onSwap);
+    php_coro_global_onSwap(task);
     php_coro_save_vm_stack(task);
     php_coro_restore_vm_stack(task->origin_task);
     php_coro_og_yield(task);
@@ -330,13 +350,13 @@ static sw_inline void php_coro_resume(coro_task *task)
     task->origin_task = php_coro_get_current_task();
     php_coro_restore_vm_stack(task);
     php_coro_og_resume(task);
-    php_coro_onSwap(task, &COROG.onSwap);
+    php_coro_global_onSwap(task);
     swTraceLog(SW_TRACE_COROUTINE,"php_coro_resume from cid=%ld to cid=%ld", coroutine_get_cid(task->origin_task->co), coroutine_get_cid(task->co));
 }
 
 static sw_inline void php_coro_close(coro_task *task)
 {
-    php_coro_onSwap(task, &COROG.onSwap);
+    php_coro_global_onSwap(task);
     php_coro_og_close(task);
     php_coro_restore_vm_stack(task->origin_task);
 }

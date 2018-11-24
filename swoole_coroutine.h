@@ -59,7 +59,10 @@ struct coro_global
     uint64_t peak_coro_num;
     uint32_t stack_size;
     coro_task task;
-    zend_fcall_info_cache onSwap;
+    struct {
+        zend_object *object;
+        zend_fcall_info_cache fci_cache;
+    } onSwap;
 };
 
 // TODO: remove php context
@@ -87,6 +90,7 @@ long sw_get_current_cid();
 void sw_coro_add_defer_task(swCallback cb, void *data);
 
 void coro_init(void);
+void coro_destroy(void *data);
 void coro_check(void);
 
 #define sw_coro_is_in() (sw_get_current_cid() != -1)
