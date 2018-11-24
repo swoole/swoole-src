@@ -13,7 +13,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
         $cli->set(['timeout' => 10]);
         assert($cli->connect());
 
-        $req = new swoole_http2_request;
+        $req = new Swoole\Http2\Request;
         $req->method = 'POST';
         $req->path = '/';
         $req->headers = [
@@ -22,11 +22,13 @@ $pm->parentFunc = function ($pid) use ($pm) {
             'Accept' => 'text/html,application/xhtml+xml,application/xml',
             'Accept-encoding' => 'gzip'
         ];
-        $req->data = openssl_random_pseudo_bytes(65535 + mt_rand(0, 65535));
-        assert($cli->send($req));
-        $res = $cli->recv();
-        assert($res->statusCode === 200);
-        assert(md5($req->data) === md5($res->data));
+        for ($n = MAX_REQUESTS; $n--;) {
+            $req->data = openssl_random_pseudo_bytes(65535 + mt_rand(0, 65535));
+            assert($cli->send($req));
+            $res = $cli->recv();
+            assert($res->statusCode === 200);
+            assert(md5($req->data) === md5($res->data));
+        }
         $pm->kill();
     });
     swoole_event::wait();

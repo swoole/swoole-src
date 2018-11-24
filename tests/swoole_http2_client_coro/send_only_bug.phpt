@@ -13,7 +13,7 @@ go(function () {
         'ssl_host_name' => $domain
     ]);
     $cli->connect();
-    $req = new swoole_http2_request;
+    $req = new Swoole\Http2\Request;
     $req->path = '/';
     $req->headers = [
         'host' => $domain,

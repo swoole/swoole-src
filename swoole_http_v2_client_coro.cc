@@ -459,34 +459,30 @@ static ssize_t http2_client_build_header(zval *zobject, zval *req, char *buffer)
         http2_client_add_cookie(nv, &index, zcookies);
     }
 
-    ssize_t rv;
-    size_t buflen;
-
-    buflen = nghttp2_hd_deflate_bound(hcc->deflater, nv, index);
+    ssize_t rv = SW_ERR;;
+    size_t buflen = nghttp2_hd_deflate_bound(hcc->deflater, nv, index);
     if (buflen > hcc->remote_settings.max_header_list_size)
     {
         swoole_php_error(E_WARNING, "header cannot bigger than remote max_header_list_size %u.", hcc->remote_settings.max_header_list_size);
-        efree(nv);
-        return SW_ERR;
+        goto _error;
     }
     rv = nghttp2_hd_deflate_hd(hcc->deflater, (uchar *) buffer, buflen, nv, index);
     if (rv < 0)
     {
         swoole_php_error(E_WARNING, "nghttp2_hd_deflate_hd() failed with error: %s\n", nghttp2_strerror((int ) rv));
-        efree(nv);
-        return SW_ERR;
+        goto _error;
     }
 
+    _error:
     for (i = 0; i < index; ++i)
     {
         efree(nv[i].name); // free lower header name copy
     }
-    efree(nv);
-
     if (date_str)
     {
         efree(date_str);
     }
+    efree(nv);
 
     return rv;
 }
@@ -536,7 +532,7 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
                     int ret = nghttp2_hd_deflate_change_table_size(hcc->deflater, value);
                     if (ret != 0)
                     {
-                        swoole_php_error(E_WARNING, "nghttp2_hd_inflate_change_table_size failed with error: %s[%d]\n", nghttp2_strerror(ret), ret);
+                        swoole_php_error(E_WARNING, "nghttp2_hd_inflate_change_table_size() failed with error: %s[%d]\n", nghttp2_strerror(ret), ret);
                         http2_client_close(cli);
                         return;
                     }
@@ -556,7 +552,17 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
                 swTraceLog(SW_TRACE_HTTP2, "setting: max_frame_size=%u.", value);
                 break;
             case SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE:
-                hcc->remote_settings.max_header_list_size = value;
+                if (value != hcc->remote_settings.max_header_list_size)
+                {
+                    hcc->remote_settings.max_header_list_size = value;
+                    int ret = nghttp2_hd_inflate_change_table_size(hcc->inflater, value);
+                    if (ret != 0)
+                    {
+                        swoole_php_error(E_WARNING, "nghttp2_hd_inflate_change_table_size() failed with error: %s[%d]\n", nghttp2_strerror(ret), ret);
+                        http2_client_close(cli);
+                        return;
+                    }
+                }
                 swTraceLog(SW_TRACE_HTTP2, "setting: max_header_list_size=%u.", value);
                 break;
             default:

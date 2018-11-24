@@ -146,25 +146,23 @@ static int http_build_trailer(http_context *ctx, uchar *buffer)
             ret = nghttp2_hd_deflate_new(&deflater, SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE);
             if (ret != 0)
             {
-                swoole_php_error(E_WARNING, "nghttp2_hd_deflate_init failed with error: %s\n", nghttp2_strerror(ret));
+                swoole_php_error(E_WARNING, "nghttp2_hd_deflate_init() failed with error: %s\n", nghttp2_strerror(ret));
                 return SW_ERR;
             }
             client->deflater = deflater;
         }
 
         buflen = nghttp2_hd_deflate_bound(deflater, nv, index);
+        if (buflen > SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE)
+        {
+            swoole_php_error(E_WARNING, "header cannot bigger than remote max_header_list_size %u.", SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE);
+            efree(nv);
+            return SW_ERR;
+        }
         rv = nghttp2_hd_deflate_hd(deflater, (uchar *) buffer, buflen, nv, index);
         if (rv < 0)
         {
             swoole_php_error(E_WARNING, "nghttp2_hd_deflate_hd() failed with error: %s\n", nghttp2_strerror((int ) rv));
-            efree(nv);
-            return SW_ERR;
-        }
-
-        ret = nghttp2_hd_deflate_change_table_size(deflater, SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE);
-        if (ret != 0)
-        {
-            swoole_php_error(E_WARNING, "nghttp2_hd_deflate_change_table_size failed with error: %s\n", nghttp2_strerror(ret));
             efree(nv);
             return SW_ERR;
         }
@@ -344,32 +342,39 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
 
     ctx->send_header = 1;
 
-    ssize_t rv;
+    ssize_t rv = SW_ERR;
     size_t buflen;
-    nghttp2_hd_deflater *deflater;
-    ret = nghttp2_hd_deflate_new(&deflater, SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE);
-    if (ret != 0)
+    http2_session *client = http2_sessions[ctx->fd];
+    nghttp2_hd_deflater *deflater = client->deflater;
+    if (!deflater)
     {
-        swoole_php_error(E_WARNING, "nghttp2_hd_deflate_init failed with error: %s\n", nghttp2_strerror(ret));
-        efree(nv);
-        return SW_ERR;
+        ret = nghttp2_hd_deflate_new(&deflater, SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE);
+        if (ret != 0)
+        {
+            swoole_php_error(E_WARNING, "nghttp2_hd_deflate_init() failed with error: %s\n", nghttp2_strerror(ret));
+            goto _error;
+        }
+        client->deflater = deflater;
     }
 
     buflen = nghttp2_hd_deflate_bound(deflater, nv, index);
+    if (buflen > SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE)
+    {
+        swoole_php_error(E_WARNING, "header cannot bigger than remote max_header_list_size %u.", SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE);
+        goto _error;
+    }
     rv = nghttp2_hd_deflate_hd(deflater, (uchar *) buffer, buflen, nv, index);
     if (rv < 0)
     {
         swoole_php_error(E_WARNING, "nghttp2_hd_deflate_hd() failed with error: %s\n", nghttp2_strerror((int ) rv));
-        efree(nv);
-        return SW_ERR;
+        goto _error;
     }
 
+    _error:
     if (date_str)
     {
         efree(date_str);
     }
-
-    nghttp2_hd_deflate_del(deflater);
     efree(nv);
 
     return rv;
@@ -393,6 +398,11 @@ int swoole_http2_do_response(http_context *ctx, swString *body)
 #endif
 
     ret = http2_build_header(ctx, (uchar *) header_buffer, body->length);
+    if (ret < 0)
+    {
+        return SW_ERR;
+    }
+
     swString_clear(swoole_http_buffer);
 
     /**
@@ -667,11 +677,6 @@ static int http2_parse_header(http2_session *client, http_context *ctx, int flag
         }
     }
 
-    rv = nghttp2_hd_inflate_change_table_size(inflater, SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE);
-    if (rv != 0)
-    {
-        return rv;
-    }
     return SW_OK;
 }
 
