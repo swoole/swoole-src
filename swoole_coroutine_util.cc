@@ -313,6 +313,7 @@ void swoole_coroutine_util_init(int module_number)
 
     SWOOLE_DEFINE(DEFAULT_MAX_CORO_NUM);
     SWOOLE_DEFINE(MAX_CORO_NUM_LIMIT);
+    SWOOLE_DEFINE(MAX_CORO_NESTING_LEVEL);
 
     //prohibit exit in coroutine
     INIT_CLASS_ENTRY(swoole_exit_exception_ce, "Swoole\\ExitException", swoole_exit_exception_methods);

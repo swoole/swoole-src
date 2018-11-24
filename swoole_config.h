@@ -32,7 +32,6 @@
 #define SW_MAX_LISTEN_PORT         60000
 #define SW_MAX_CONNECTION          10000
 #define SW_MAX_CONCURRENT_TASK     1024
-#define SW_MAX_CORO_NESTING_LEVEL  128
 #define SW_STACK_BUFFER_SIZE       65536
 
 #ifdef HAVE_MALLOC_TRIM
@@ -269,7 +268,8 @@
 #define SW_DEFAULT_MAX_CORO_NUM          3000
 #define SW_DEFAULT_STACK_SIZE            8192
 #define SW_DEFAULT_C_STACK_SIZE          (1024 * 1024 * 2)
-#define SW_MAX_CORO_NUM_LIMIT            0x80000
+#define SW_MAX_CORO_NUM_LIMIT            9223372036854775807LL
+#define SW_MAX_CORO_NESTING_LEVEL        128
 
 #ifdef SW_DEBUG
 #ifndef SW_LOG_TRACE_OPEN
