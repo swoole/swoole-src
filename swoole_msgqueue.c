@@ -22,7 +22,7 @@ static PHP_METHOD(swoole_msgqueue, push);
 static PHP_METHOD(swoole_msgqueue, pop);
 static PHP_METHOD(swoole_msgqueue, setBlocking);
 static PHP_METHOD(swoole_msgqueue, stats);
-static PHP_METHOD(swoole_msgqueue, destory);
+static PHP_METHOD(swoole_msgqueue, destroy);
 
 static zend_class_entry swoole_msgqueue_ce;
 zend_class_entry *swoole_msgqueue_class_entry_ptr;
@@ -55,7 +55,7 @@ static const zend_function_entry swoole_msgqueue_methods[] =
     PHP_ME(swoole_msgqueue, pop, arginfo_swoole_msgqueue_pop, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_msgqueue, setBlocking, arginfo_swoole_msgqueue_setBlocking, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_msgqueue, stats, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_msgqueue, destory, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_msgqueue, destroy, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
@@ -169,7 +169,7 @@ static PHP_METHOD(swoole_msgqueue, stats)
     }
 }
 
-static PHP_METHOD(swoole_msgqueue, destory)
+static PHP_METHOD(swoole_msgqueue, destroy)
 {
     swMsgQueue *queue = swoole_get_object(getThis());
     SW_CHECK_RETURN(swMsgQueue_free(queue));

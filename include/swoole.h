@@ -1758,7 +1758,7 @@ int swReactor_setHandle(swReactor *, int, swReactor_handle);
 int swReactor_empty(swReactor *reactor);
 
 void swReactor_defer_task_create(swReactor *reactor);
-void swReactor_defer_task_destory(swReactor *reactor);
+void swReactor_defer_task_destroy(swReactor *reactor);
 
 static sw_inline swConnection* swReactor_get(swReactor *reactor, int fd)
 {

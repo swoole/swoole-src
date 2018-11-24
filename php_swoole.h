@@ -389,7 +389,7 @@ PHP_FUNCTION(swoole_fast_serialize);
 PHP_FUNCTION(swoole_unserialize);
 #endif
 
-void swoole_destory_table(zend_resource *rsrc);
+void swoole_destroy_table(zend_resource *rsrc);
 
 void swoole_server_port_init(int module_number);
 void swoole_async_init(int module_number);

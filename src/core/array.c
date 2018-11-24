@@ -47,7 +47,7 @@ swArray *swArray_new(int page_size, size_t item_size)
 }
 
 /**
- * Destory the array
+ * Destroy the array
  */
 void swArray_free(swArray *array)
 {

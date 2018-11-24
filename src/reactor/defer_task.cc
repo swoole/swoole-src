@@ -43,7 +43,7 @@ void swReactor_defer_task_create(swReactor *reactor)
     reactor->do_defer_tasks = do_defer_tasks;
 }
 
-void swReactor_defer_task_destory(swReactor *reactor)
+void swReactor_defer_task_destroy(swReactor *reactor)
 {
     list<defer_task *> *tasks = (list<defer_task *> *) reactor->defer_tasks;
     delete tasks;

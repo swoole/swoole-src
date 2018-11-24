@@ -13,7 +13,7 @@ co::onSwap(function (int $state, int $cid, int $origin_cid) {
             $cid1 = $origin_cid;
             $cid2 = $cid;
             break;
-        case SWOOLE_CORO_WATING:
+        case SWOOLE_CORO_WAITING:
             $state = 'yield';
             $cid1 = $cid;
             $cid2 = $origin_cid;
