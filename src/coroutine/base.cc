@@ -118,7 +118,7 @@ void* coroutine_get_task_by_cid(long cid)
     }
     else
     {
-        return co->task;
+        return co->get_task();
     }
 }
 
@@ -149,7 +149,7 @@ void* coroutine_get_current_task()
     }
     else
     {
-        return co->task;
+        return co->get_task();
     }
 }
 
@@ -161,7 +161,7 @@ std::unordered_map<long, Coroutine*>* coroutine_get_map()
 long coroutine_get_current_cid()
 {
     Coroutine* co = coroutine_get_current();
-    return likely(co) ? co->cid : -1;
+    return likely(co) ? co->get_cid() : -1;
 }
 
 void coroutine_set_onYield(coro_php_yield_t func)

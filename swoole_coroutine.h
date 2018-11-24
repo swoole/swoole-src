@@ -59,6 +59,7 @@ struct coro_global
     uint64_t peak_coro_num;
     uint32_t stack_size;
     coro_task task;
+    zend_fcall_info_cache onSwap;
 };
 
 // TODO: remove php context

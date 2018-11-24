@@ -54,6 +54,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_set, 0, 0, 1)
     ZEND_ARG_INFO(0, options)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_onswap, 0, 0, 1)
+    ZEND_ARG_INFO(0, callback)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_create, 0, 0, 1)
     ZEND_ARG_INFO(0, func)
 ZEND_END_ARG_INFO()
@@ -123,6 +127,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_getBackTrace, 0, 0, 1)
 ZEND_END_ARG_INFO()
 
 static PHP_METHOD(swoole_coroutine_util, set);
+static PHP_METHOD(swoole_coroutine_util, onSwap);
 static PHP_METHOD(swoole_coroutine_util, yield);
 static PHP_METHOD(swoole_coroutine_util, resume);
 static PHP_METHOD(swoole_coroutine_util, stats);
@@ -171,6 +176,7 @@ static const zend_function_entry swoole_coroutine_util_methods[] =
     ZEND_FENTRY(gethostbyname, ZEND_FN(swoole_coroutine_gethostbyname), arginfo_swoole_coroutine_gethostbyname, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(defer, ZEND_FN(swoole_coroutine_defer), arginfo_swoole_coroutine_defer, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, set, arginfo_swoole_coroutine_set, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_util, onSwap, arginfo_swoole_coroutine_onswap, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, yield, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_MALIAS(swoole_coroutine_util, suspend, yield, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, resume, arginfo_swoole_coroutine_resume, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -341,7 +347,7 @@ static PHP_METHOD(swoole_coroutine_util, yield)
         swoole_php_fatal_error(E_ERROR, "can not yield outside coroutine");
         RETURN_FALSE;
     }
-    user_yield_coros[co->cid] = co;
+    user_yield_coros[co->get_cid()] = co;
     co->yield();
     RETURN_TRUE;
 }
@@ -389,6 +395,28 @@ static PHP_METHOD(swoole_coroutine_util, set)
         SwooleG.trace_flags = (int32_t) Z_LVAL_P(v);
     }
     zval_ptr_dtor(zset);
+}
+
+static PHP_METHOD(swoole_coroutine_util, onSwap)
+{
+    zend_fcall_info fci;
+    zend_fcall_info_cache fci_cache;
+    zval _zobject, *zobject = &_zobject;
+
+    ZEND_PARSE_PARAMETERS_START(1, -1)
+        Z_PARAM_FUNC(fci, fci_cache)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    if (COROG.onSwap)
+    {
+        ZVAL_OBJ(zobject, COROG.onSwap.object);
+        zval_ptr_dtor(zobject);
+    }
+    COROG.onSwap = fci_cache;
+    ZVAL_OBJ(zobject, fci_cache.object);
+    Z_ADDREF_P(zobject);
+
+    RETURN_FALSE;
 }
 
 PHP_FUNCTION(swoole_coroutine_create)
@@ -1333,7 +1361,7 @@ static PHP_METHOD(swoole_coroutine_iterator, current)
 {
     coroutine_iterator *itearator = (coroutine_iterator *) swoole_get_object(getThis());
     Coroutine *co = itearator->_cursor->second;
-    RETURN_LONG(co->cid);
+    RETURN_LONG(co->get_cid());
 }
 
 static PHP_METHOD(swoole_coroutine_iterator, next)
