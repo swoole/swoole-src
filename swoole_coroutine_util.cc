@@ -341,7 +341,7 @@ static PHP_METHOD(swoole_coroutine_util, yield)
         swoole_php_fatal_error(E_ERROR, "can not yield outside coroutine");
         RETURN_FALSE;
     }
-    user_yield_coros[co->cid] = co;
+    user_yield_coros[co->get_cid()] = co;
     co->yield();
     RETURN_TRUE;
 }
@@ -1333,7 +1333,7 @@ static PHP_METHOD(swoole_coroutine_iterator, current)
 {
     coroutine_iterator *itearator = (coroutine_iterator *) swoole_get_object(getThis());
     Coroutine *co = itearator->_cursor->second;
-    RETURN_LONG(co->cid);
+    RETURN_LONG(co->get_cid());
 }
 
 static PHP_METHOD(swoole_coroutine_iterator, next)

@@ -257,7 +257,7 @@ static void php_coro_create(void *arg)
 
     swTraceLog(
         SW_TRACE_COROUTINE, "Create coro id: %ld, origin cid: %ld, coro total count: %" PRIu64 ", heap size: %zu",
-        task->co->get_cid(), task->origin_task->co->get_cid(), COROG.coro_num, zend_memory_usage(0)
+        coroutine_get_cid(task->co), coroutine_get_cid(task->origin_task->co), COROG.coro_num, zend_memory_usage(0)
     );
 
     if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_CORO_START])
@@ -294,7 +294,7 @@ static void php_coro_create(void *arg)
 
 static sw_inline void php_coro_yield(coro_task *task)
 {
-    swTraceLog(SW_TRACE_COROUTINE,"php_coro_yield from cid=%ld to cid=%ld", task->co->get_cid(), task->origin_task->co->get_cid());
+    swTraceLog(SW_TRACE_COROUTINE,"php_coro_yield from cid=%ld to cid=%ld", coroutine_get_cid(task->co), coroutine_get_cid(task->origin_task->co));
     php_coro_save_vm_stack(task);
     php_coro_restore_vm_stack(task->origin_task);
     php_coro_og_yield(task);
@@ -305,7 +305,7 @@ static sw_inline void php_coro_resume(coro_task *task)
     task->origin_task = php_coro_get_current_task();
     php_coro_restore_vm_stack(task);
     php_coro_og_resume(task);
-    swTraceLog(SW_TRACE_COROUTINE,"php_coro_resume from cid=%ld to cid=%ld", task->origin_task->co->get_cid(), task->co->get_cid());
+    swTraceLog(SW_TRACE_COROUTINE,"php_coro_resume from cid=%ld to cid=%ld", coroutine_get_cid(task->origin_task->co), coroutine_get_cid(task->co));
 }
 
 static sw_inline void php_coro_close(coro_task *task)

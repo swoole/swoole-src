@@ -44,11 +44,13 @@ namespace swoole
 {
 class Coroutine
 {
-public:
-    swoole::Context ctx;
+private:
     long cid;
-    sw_coro_state state;
     void *task;
+    swoole::Context ctx;
+
+public:
+    sw_coro_state state;
 
     Coroutine(long _cid, size_t stack_size, coroutine_func_t fn, void *private_data) :
             ctx(stack_size, fn, private_data)
@@ -76,6 +78,11 @@ public:
         return cid;
     }
 
+    inline void* get_task()
+    {
+        return task;
+    }
+
     static long create(coroutine_func_t fn, void* args);
     static int sleep(double sec);
     static swString* read_file(const char *file, int lock);
@@ -96,6 +103,11 @@ void coroutine_set_onYield(coro_php_yield_t func);
 void coroutine_set_onResume(coro_php_resume_t func);
 void coroutine_set_onResumeBack(coro_php_resume_t func);
 void coroutine_set_onClose(coro_php_close_t func);
+
+inline static long coroutine_get_cid(swoole::Coroutine* co)
+{
+    return co ? co->get_cid() : -1;
+}
 
 void internal_coro_yield(void *arg);
 void internal_coro_resume(void *arg);
