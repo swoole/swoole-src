@@ -119,7 +119,7 @@ static int http_build_trailer(http_context *ctx, uchar *buffer)
 
     if (nv_size > 0)
     {
-        nghttp2_nv nv[nv_size];
+        nghttp2_nv *nv = (nghttp2_nv *) ecalloc(sizeof(nghttp2_nv), nv_size);
         HashTable *ht = Z_ARRVAL_P(ztrailer);
         zval *value = NULL;
         char *key = NULL;
@@ -157,6 +157,7 @@ static int http_build_trailer(http_context *ctx, uchar *buffer)
         if (rv < 0)
         {
             swoole_php_error(E_WARNING, "nghttp2_hd_deflate_hd() failed with error: %s\n", nghttp2_strerror((int ) rv));
+            efree(nv);
             return SW_ERR;
         }
 
@@ -164,8 +165,11 @@ static int http_build_trailer(http_context *ctx, uchar *buffer)
         if (ret != 0)
         {
             swoole_php_error(E_WARNING, "nghttp2_hd_deflate_change_table_size failed with error: %s\n", nghttp2_strerror(ret));
+            efree(nv);
             return SW_ERR;
         }
+
+        efree(nv);
 
         return rv;
     }
@@ -230,7 +234,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
     int ret;
     size_t index = 0;
     zval *zheader = sw_zend_read_property(swoole_http_response_class_entry_ptr, ctx->response.zobject, ZEND_STRL("header"), 1);
-    nghttp2_nv nv[8 + (ZVAL_IS_ARRAY(zheader) ? php_swoole_array_length(zheader) : 0)];
+    nghttp2_nv *nv = (nghttp2_nv *) ecalloc(sizeof(nghttp2_nv), 8 + (ZVAL_IS_ARRAY(zheader) ? php_swoole_array_length(zheader) : 0));
 
     assert(ctx->send_header == 0);
 
@@ -342,20 +346,13 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
 
     ssize_t rv;
     size_t buflen;
-    size_t i;
-    size_t sum = 0;
-
     nghttp2_hd_deflater *deflater;
     ret = nghttp2_hd_deflate_new(&deflater, SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE);
     if (ret != 0)
     {
         swoole_php_error(E_WARNING, "nghttp2_hd_deflate_init failed with error: %s\n", nghttp2_strerror(ret));
+        efree(nv);
         return SW_ERR;
-    }
-
-    for (i = 0; i < index; ++i)
-    {
-        sum += nv[i].namelen + nv[i].valuelen;
     }
 
     buflen = nghttp2_hd_deflate_bound(deflater, nv, index);
@@ -363,6 +360,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
     if (rv < 0)
     {
         swoole_php_error(E_WARNING, "nghttp2_hd_deflate_hd() failed with error: %s\n", nghttp2_strerror((int ) rv));
+        efree(nv);
         return SW_ERR;
     }
 
@@ -372,6 +370,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
     }
 
     nghttp2_hd_deflate_del(deflater);
+    efree(nv);
 
     return rv;
 }
