@@ -140,6 +140,10 @@ static PHP_METHOD(swoole_channel_coro, push)
         zend_update_property_long(swoole_channel_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), SW_CHANNEL_CLOSED);
         RETURN_FALSE;
     }
+    else
+    {
+        zend_update_property_long(swoole_channel_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), SW_CHANNEL_OK);
+    }
 
     zval *zdata;
     double timeout = -1;
@@ -172,6 +176,10 @@ static PHP_METHOD(swoole_channel_coro, pop)
     {
         zend_update_property_long(swoole_channel_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), SW_CHANNEL_CLOSED);
         RETURN_FALSE;
+    }
+    else
+    {
+        zend_update_property_long(swoole_channel_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), SW_CHANNEL_OK);
     }
 
     double timeout = -1;
