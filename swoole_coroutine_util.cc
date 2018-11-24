@@ -54,10 +54,6 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_set, 0, 0, 1)
     ZEND_ARG_INFO(0, options)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_onswap, 0, 0, 1)
-    ZEND_ARG_INFO(0, callback)
-ZEND_END_ARG_INFO()
-
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_create, 0, 0, 1)
     ZEND_ARG_INFO(0, func)
 ZEND_END_ARG_INFO()
@@ -127,7 +123,6 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_getBackTrace, 0, 0, 1)
 ZEND_END_ARG_INFO()
 
 static PHP_METHOD(swoole_coroutine_util, set);
-static PHP_METHOD(swoole_coroutine_util, onSwap);
 static PHP_METHOD(swoole_coroutine_util, yield);
 static PHP_METHOD(swoole_coroutine_util, resume);
 static PHP_METHOD(swoole_coroutine_util, stats);
@@ -176,7 +171,6 @@ static const zend_function_entry swoole_coroutine_util_methods[] =
     ZEND_FENTRY(gethostbyname, ZEND_FN(swoole_coroutine_gethostbyname), arginfo_swoole_coroutine_gethostbyname, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(defer, ZEND_FN(swoole_coroutine_defer), arginfo_swoole_coroutine_defer, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, set, arginfo_swoole_coroutine_set, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_coroutine_util, onSwap, arginfo_swoole_coroutine_onswap, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, yield, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_MALIAS(swoole_coroutine_util, suspend, yield, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, resume, arginfo_swoole_coroutine_resume, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -285,7 +279,6 @@ static int coro_exit_handler(zend_execute_data *execute_data)
 void swoole_coroutine_util_init(int module_number)
 {
     coro_init();
-    swoole_register_rshutdown_function((swCallback) coro_destroy, 0);
 
     SWOOLE_INIT_CLASS_ENTRY(swoole_coroutine_util_ce, "swoole_coroutine", "Swoole\\Coroutine", swoole_coroutine_util_methods);
     swoole_coroutine_util_class_entry_ptr = zend_register_internal_class(&swoole_coroutine_util_ce);
@@ -401,42 +394,6 @@ static PHP_METHOD(swoole_coroutine_util, set)
         SwooleG.trace_flags = (int32_t) Z_LVAL_P(v);
     }
     zval_ptr_dtor(zset);
-}
-
-static PHP_METHOD(swoole_coroutine_util, onSwap)
-{
-    zval *zcallback;
-    zend_fcall_info_cache fci_cache = empty_fcall_info_cache;
-
-    ZEND_PARSE_PARAMETERS_START(1, 1)
-        Z_PARAM_ZVAL(zcallback)
-    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
-
-    if (!zend_is_callable_ex(zcallback, NULL, 0, NULL, &fci_cache, NULL))
-    {
-        swoole_php_fatal_error(E_ERROR, "register coroutine onSwap callback failed.");
-        RETURN_FALSE;
-    }
-
-    if (COROG.onSwap.object)
-    {
-        zval _zobject, *zobject = &_zobject;
-        ZVAL_OBJ(zobject, COROG.onSwap.object);
-        zval_ptr_dtor(zobject);
-        if (COROG.onSwap.fci_cache.object)
-        {
-            ZVAL_OBJ(zobject, COROG.onSwap.fci_cache.object);
-            zval_ptr_dtor(zobject);
-        }
-    }
-    COROG.onSwap.object = Z_OBJ_P(zcallback);
-    Z_ADDREF_P(zcallback);
-    COROG.onSwap.fci_cache = fci_cache;
-    if (fci_cache.object)
-    {
-        GC_ADDREF(fci_cache.object);
-    }
-    RETURN_TRUE;
 }
 
 PHP_FUNCTION(swoole_coroutine_create)
