@@ -898,7 +898,7 @@ static int http2_client_send_data(http2_client_property *hcc, uint32_t stream_id
 {
     swClient *cli = hcc->client;
 
-    char buffer[8192];
+    char buffer[SW_HTTP2_FRAME_HEADER_SIZE];
     http2_client_stream *stream = http2_client_stream_get(hcc, stream_id);
     if (stream == NULL || stream->type != SW_HTTP2_STREAM_PIPELINE)
     {
@@ -1012,7 +1012,7 @@ static void http2_client_onConnect(swClient *cli)
     zend_update_property_long(swoole_http2_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), 0);
     zend_update_property_string(swoole_http2_client_coro_class_entry_ptr, zobject, ZEND_STRL("errMsg"), "");
 
-    cli->send(cli, ZEND_STRL((char *)SW_HTTP2_PRI_STRING), 0);
+    cli->send(cli, (char *) ZEND_STRL(SW_HTTP2_PRI_STRING), 0);
     cli->open_length_check = 1;
     cli->protocol.get_package_length = swHttp2_get_frame_length;
     cli->protocol.package_length_size = SW_HTTP2_FRAME_HEADER_SIZE;
@@ -1069,7 +1069,7 @@ static void http2_client_onClose(swClient *cli)
     // hcc->write_cid = 0;
     if (hcc->streams)
     {
-        delete hcc->streams;
+        swHashMap_free(hcc->streams);
         hcc->streams = NULL;
     }
     if (hcc->inflater)
@@ -1342,6 +1342,7 @@ static PHP_METHOD(swoole_http2_client_coro, goaway)
     http2_client_property *hcc = (http2_client_property *) swoole_get_property(getThis(), HTTP2_CLIENT_CORO_PROPERTY);
     swClient *cli = hcc->client;
     int ret;
+    char* frame;
     uint8_t error_code = SW_HTTP2_ERROR_NO_ERROR;
     char* debug_data = NULL;
     long  debug_data_len = 0;
@@ -1360,7 +1361,7 @@ static PHP_METHOD(swoole_http2_client_coro, goaway)
     }
 
     size_t length = SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_GOAWAY_SIZE + debug_data_len;
-    char *frame = (char *) emalloc(length);
+    frame = (char *) emalloc(length);
     bzero(frame, length);
     swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_GOAWAY, SW_HTTP2_GOAWAY_SIZE + debug_data_len, error_code, 0);
     *(uint32_t*) (frame + SW_HTTP2_FRAME_HEADER_SIZE) = htonl(hcc->last_stream_id);

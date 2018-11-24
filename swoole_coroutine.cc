@@ -41,7 +41,7 @@ static sw_inline void php_vm_stack_init(void)
     EG(vm_stack_end) = EG(vm_stack)->end;
 }
 #else
-#define sw_vm_stack_init zend_vm_stack_init
+#define php_vm_stack_init zend_vm_stack_init
 #endif
 
 static void php_coro_onSwap(coro_task *task, zend_fcall_info_cache *fci_cache)
@@ -299,7 +299,7 @@ static void php_coro_create(void *arg)
 
     swTraceLog(
         SW_TRACE_COROUTINE, "Create coro id: %ld, origin cid: %ld, coro total count: %" PRIu64 ", heap size: %zu",
-        task->co->get_cid(), task->origin_task->co->get_cid(), COROG.coro_num, zend_memory_usage(0)
+        coroutine_get_cid(task->co), coroutine_get_cid(task->origin_task->co), COROG.coro_num, zend_memory_usage(0)
     );
 
     if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_CORO_START])

@@ -23,4 +23,4 @@ function woo(int $current_deep, $target_deep)
 woo(1, 128 + 1);
 ?>
 --EXPECTF--
-[%s]	WARNING	coroutine_create: reaches the max coroutine nesting level 128
+[%s]	WARNING	create: reaches the max coroutine nesting level 128
