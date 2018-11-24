@@ -68,7 +68,11 @@ void swoole_init(void)
 
     SwooleG.pid = getpid();
 
+#ifdef __MACH__
+    SwooleG.socket_buffer_size = 256 * 1024;
+#else
     SwooleG.socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
+#endif
 
 #ifdef SW_DEBUG
     SwooleG.log_level = 0;

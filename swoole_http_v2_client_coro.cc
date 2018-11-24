@@ -383,15 +383,14 @@ static ssize_t http2_client_build_header(zval *zobject, zval *req, char *buffer)
     int i;
     int index = 0;
     int find_host = 0;
+    zval *zmethod = sw_zend_read_property(swoole_http2_request_class_entry_ptr, req, ZEND_STRL("method"), 0);
+    zval *zpath = sw_zend_read_property(swoole_http2_request_class_entry_ptr, req, ZEND_STRL("path"), 0);
+    zval *zheaders = sw_zend_read_property(swoole_http2_request_class_entry_ptr, req, ZEND_STRL("headers"), 0);
+    zval *zcookies = sw_zend_read_property(swoole_http2_request_class_entry_ptr, req, ZEND_STRL("cookies"), 0);
+    nghttp2_nv nv[8 + (ZVAL_IS_ARRAY(zheaders) ? php_swoole_array_length(zheaders) : 0)];
 
-    zval *zmethod = sw_zend_read_property(swoole_http2_request_class_entry_ptr, req, ZEND_STRL("method"), 1);
-    zval *zpath = sw_zend_read_property(swoole_http2_request_class_entry_ptr, req, ZEND_STRL("path"), 1);
-    zval *zheaders = sw_zend_read_property(swoole_http2_request_class_entry_ptr, req, ZEND_STRL("headers"), 1);
-    zval *zcookies = sw_zend_read_property(swoole_http2_request_class_entry_ptr, req, ZEND_STRL("cookies"), 1);
-
-    nghttp2_nv nv[1024];
     http2_client_property *hcc = (http2_client_property *) swoole_get_property(zobject, HTTP2_CLIENT_CORO_PROPERTY);
-    if (ZVAL_IS_NULL(zmethod) || Z_TYPE_P(zmethod) != IS_STRING || Z_STRLEN_P(zmethod) == 0)
+    if (Z_TYPE_P(zmethod) != IS_STRING || Z_STRLEN_P(zmethod) == 0)
     {
         http2_add_header(&nv[index++], ZEND_STRL(":method"), ZEND_STRL("GET"));
     }
@@ -399,7 +398,7 @@ static ssize_t http2_client_build_header(zval *zobject, zval *req, char *buffer)
     {
         http2_add_header(&nv[index++], ZEND_STRL(":method"), Z_STRVAL_P(zmethod), Z_STRLEN_P(zmethod));
     }
-    if (ZVAL_IS_NULL(zpath) || Z_TYPE_P(zpath) != IS_STRING || Z_STRLEN_P(zpath) == 0)
+    if (Z_TYPE_P(zpath) != IS_STRING || Z_STRLEN_P(zpath) == 0)
     {
         http2_add_header(&nv[index++], ZEND_STRL(":path"), "/", 1);
     }
@@ -418,7 +417,7 @@ static ssize_t http2_client_build_header(zval *zobject, zval *req, char *buffer)
     //Host
     index++;
 
-    if (zheaders && Z_TYPE_P(zheaders) == IS_ARRAY)
+    if (Z_TYPE_P(zheaders) == IS_ARRAY)
     {
         HashTable *ht = Z_ARRVAL_P(zheaders);
         zval *value = NULL;
@@ -455,7 +454,7 @@ static ssize_t http2_client_build_header(zval *zobject, zval *req, char *buffer)
     }
 
     //http cookies
-    if (zcookies && Z_TYPE_P(zcookies) == IS_ARRAY)
+    if (Z_TYPE_P(zcookies) == IS_ARRAY)
     {
         http2_client_add_cookie(nv, &index, zcookies);
     }
@@ -466,7 +465,7 @@ static ssize_t http2_client_build_header(zval *zobject, zval *req, char *buffer)
     buflen = nghttp2_hd_deflate_bound(hcc->deflater, nv, index);
     if (buflen > hcc->remote_settings.max_header_list_size)
     {
-        swoole_php_error(E_WARNING, "header cannot bigger than remote max_header_list_size %u.", hcc->remote_settings.header_table_size);
+        swoole_php_error(E_WARNING, "header cannot bigger than remote max_header_list_size %u.", hcc->remote_settings.max_header_list_size);
         return SW_ERR;
     }
     rv = nghttp2_hd_deflate_hd(hcc->deflater, (uchar *) buffer, buflen, nv, index);

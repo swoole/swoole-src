@@ -63,7 +63,7 @@ function skip_if_no_async_redis()
 
 function skip_if_no_http2()
 {
-    if (!class_exists("swoole_http2_reqeust", false)) {
+    if (!class_exists("swoole_http2_request", false)) {
         skip('no http2');
     }
 }

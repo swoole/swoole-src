@@ -113,12 +113,13 @@ static sw_inline void http2_add_header(nghttp2_nv *headers, const char *k, int k
 static int http_build_trailer(http_context *ctx, uchar *buffer)
 {
     int ret;
-    nghttp2_nv nv[128];
     size_t index = 0;
+    zval *ztrailer = sw_zend_read_property(swoole_http_response_class_entry_ptr, ctx->response.zobject, ZEND_STRL("trailer"), 0);
+    uint32_t nv_size = ZVAL_IS_ARRAY(ztrailer) ? php_swoole_array_length(ztrailer) : 0;
 
-    zval *ztrailer = sw_zend_read_property(swoole_http_response_class_entry_ptr, ctx->response.zobject, ZEND_STRL("trailer"), 1);
-    if (ZVAL_IS_ARRAY(ztrailer))
+    if (nv_size > 0)
     {
+        nghttp2_nv nv[nv_size];
         HashTable *ht = Z_ARRVAL_P(ztrailer);
         zval *value = NULL;
         char *key = NULL;
@@ -134,47 +135,42 @@ static int http_build_trailer(http_context *ctx, uchar *buffer)
             (void) type;
         }
         SW_HASHTABLE_FOREACH_END();
-    }
 
-    ssize_t rv;
-    size_t buflen;
-    size_t i;
-    size_t sum = 0;
-    http2_session *client = http2_sessions[ctx->fd];
-    nghttp2_hd_deflater *deflater = client->deflater;
+        ssize_t rv;
+        size_t buflen;
+        http2_session *client = http2_sessions[ctx->fd];
+        nghttp2_hd_deflater *deflater = client->deflater;
 
-    if (!deflater)
-    {
-        ret = nghttp2_hd_deflate_new(&deflater, SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE);
-        if (ret != 0)
+        if (!deflater)
         {
-            swoole_php_error(E_WARNING, "nghttp2_hd_deflate_init failed with error: %s\n", nghttp2_strerror(ret));
+            ret = nghttp2_hd_deflate_new(&deflater, SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE);
+            if (ret != 0)
+            {
+                swoole_php_error(E_WARNING, "nghttp2_hd_deflate_init failed with error: %s\n", nghttp2_strerror(ret));
+                return SW_ERR;
+            }
+            client->deflater = deflater;
+        }
+
+        buflen = nghttp2_hd_deflate_bound(deflater, nv, index);
+        rv = nghttp2_hd_deflate_hd(deflater, (uchar *) buffer, buflen, nv, index);
+        if (rv < 0)
+        {
+            swoole_php_error(E_WARNING, "nghttp2_hd_deflate_hd() failed with error: %s\n", nghttp2_strerror((int ) rv));
             return SW_ERR;
         }
-        client->deflater = deflater;
+
+        ret = nghttp2_hd_deflate_change_table_size(deflater, SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE);
+        if (ret != 0)
+        {
+            swoole_php_error(E_WARNING, "nghttp2_hd_deflate_change_table_size failed with error: %s\n", nghttp2_strerror(ret));
+            return SW_ERR;
+        }
+
+        return rv;
     }
 
-    for (i = 0; i < index; ++i)
-    {
-        sum += nv[i].namelen + nv[i].valuelen;
-    }
-
-    buflen = nghttp2_hd_deflate_bound(deflater, nv, index);
-    rv = nghttp2_hd_deflate_hd(deflater, (uchar *) buffer, buflen, nv, index);
-    if (rv < 0)
-    {
-        swoole_php_error(E_WARNING, "nghttp2_hd_deflate_hd() failed with error: %s\n", nghttp2_strerror((int ) rv));
-        return SW_ERR;
-    }
-
-    ret = nghttp2_hd_deflate_change_table_size(deflater, SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE);
-    if (ret != 0)
-    {
-        swoole_php_error(E_WARNING, "nghttp2_hd_deflate_change_table_size failed with error: %s\n", nghttp2_strerror(ret));
-        return SW_ERR;
-    }
-
-    return rv;
+    return SW_OK;
 }
 
 static sw_inline void http2_onRequest(http_context *ctx, int from_fd)
@@ -233,7 +229,8 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
     char intbuf[2][16];
     int ret;
     size_t index = 0;
-    nghttp2_nv nv[128];
+    zval *zheader = sw_zend_read_property(swoole_http_response_class_entry_ptr, ctx->response.zobject, ZEND_STRL("header"), 1);
+    nghttp2_nv nv[8 + (ZVAL_IS_ARRAY(zheader) ? php_swoole_array_length(zheader) : 0)];
 
     assert(ctx->send_header == 0);
 
@@ -246,11 +243,9 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
     http2_add_header(&nv[index++], ZEND_STRL(":status"), intbuf[0], ret);
 
     // headers
-    zval *zheader = sw_zend_read_property(swoole_http_response_class_entry_ptr, ctx->response.zobject, ZEND_STRL("header"), 1);
     if (ZVAL_IS_ARRAY(zheader))
     {
         uint32_t header_flag = 0x0;
-
         HashTable *ht = Z_ARRVAL_P(zheader);
         zval *value = NULL;
         char *key = NULL;
@@ -278,6 +273,10 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
             else if (strncmp(key, "content-type", keylen) == 0)
             {
                 header_flag |= HTTP_HEADER_CONTENT_TYPE;
+            }
+            if (ZVAL_IS_NULL(value))
+            {
+                continue;
             }
             http2_add_header(&nv[index++], key, keylen, Z_STRVAL_P(value), Z_STRLEN_P(value));
         }

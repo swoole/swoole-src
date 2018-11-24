@@ -1152,10 +1152,6 @@ PHP_MINIT_FUNCTION(swoole)
         SwooleG.socket_buffer_size = SWOOLE_G(socket_buffer_size);
     }
 
-#ifdef __MACH__
-    SwooleG.socket_buffer_size = 256 * 1024;
-#endif
-
     //default 60s
     SwooleG.dns_cache_refresh_time = 60;
 
