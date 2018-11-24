@@ -24,7 +24,7 @@ define co_list
             end
             if $co->state == 1
                 color $RED
-                printf "%s\n", "SW_CORO_YIELD"
+                printf "%s\n", "SW_CORO_WAITING"
                 color_reset
             end      
             if $co->state == 2

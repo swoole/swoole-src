@@ -32,7 +32,7 @@
 
 typedef enum
 {
-    SW_CORO_INIT = 0, SW_CORO_YIELD, SW_CORO_RUNNING, SW_CORO_END,
+    SW_CORO_INIT = 0, SW_CORO_WAITING, SW_CORO_RUNNING, SW_CORO_END,
 } sw_coro_state;
 
 typedef void (*coro_php_create_t)();

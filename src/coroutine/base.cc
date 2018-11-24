@@ -54,7 +54,7 @@ long Coroutine::create(coroutine_func_t fn, void* args)
 
 void Coroutine::yield()
 {
-    state = SW_CORO_YIELD;
+    state = SW_CORO_WAITING;
     if (swCoroG.onYield)
     {
         swCoroG.onYield(task);
@@ -80,7 +80,7 @@ void Coroutine::resume()
 
 void Coroutine::yield_naked()
 {
-    state = SW_CORO_YIELD;
+    state = SW_CORO_WAITING;
     swCoroG.call_stack_size--;
     ctx.SwapOut();
 }
