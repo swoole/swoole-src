@@ -52,7 +52,11 @@
 
 #define SW_SOCKET_OVERFLOW_WAIT    100
 #define SW_SOCKET_MAX_DEFAULT      65536
-#define SW_SOCKET_BUFFER_SIZE      (8*1024*1024)
+#ifdef __MACH__
+#define SW_SOCKET_BUFFER_SIZE      262144
+#else
+#define SW_SOCKET_BUFFER_SIZE      8388608
+#endif
 #define SW_SYSTEMD_FDS_START       3
 
 #define SW_GLOBAL_MEMORY_PAGESIZE  (1024*1024*2) //全局内存的分页
@@ -76,7 +80,7 @@
 //#define SW_CLIENT_SOCKET_WAIT
 
 //!!!Don't modify.----------------------------------------------------------
-#if __MACH__
+#ifdef __MACH__
 #define SW_IPC_MAX_SIZE            2048  //MacOS
 #else
 #define SW_IPC_MAX_SIZE            8192  //for IPC, dgram and message-queue max size
@@ -240,7 +244,7 @@
 #define SW_HTTP2_MAX_MAX_FRAME_SIZE            ((1u << 14))
 #define SW_HTTP2_MAX_WINDOW_SIZE               ((1u << 31) - 1)
 #define SW_HTTP2_DEFAULT_WINDOW_SIZE           65535
-#define SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE  (SW_SOCKET_BUFFER_SIZE / 2)
+#define SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE  SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE
 #define SW_HTTP2_MAX_MAX_HEADER_LIST_SIZE      UINT32_MAX
 
 #define SW_HTTP_CLIENT_USERAGENT         "swoole-http-client"

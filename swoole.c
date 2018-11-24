@@ -490,9 +490,7 @@ static const zend_function_entry swoole_async_methods[] =
     ZEND_FENTRY(readFile, ZEND_FN(swoole_async_readfile), arginfo_swoole_async_readfile, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(writeFile, ZEND_FN(swoole_async_writefile), arginfo_swoole_async_writefile, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(dnsLookup, ZEND_FN(swoole_async_dns_lookup), arginfo_swoole_async_dns_lookup, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-#ifdef SW_COROUTINE
     ZEND_FENTRY(dnsLookupCoro, ZEND_FN(swoole_async_dns_lookup_coro), arginfo_swoole_async_dns_lookup_coro, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-#endif
     ZEND_FENTRY(set, ZEND_FN(swoole_async_set), arginfo_swoole_async_set, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_async, exec, arginfo_swoole_async_exec, ZEND_ACC_PUBLIC| ZEND_ACC_STATIC)
     PHP_FE_END
@@ -575,7 +573,7 @@ STD_PHP_INI_ENTRY("swoole.fast_serialize", "Off", PHP_INI_ALL, OnUpdateBool, fas
 /**
  * Unix socket buffer size
  */
-STD_PHP_INI_ENTRY("swoole.unixsock_buffer_size", "8388608", PHP_INI_ALL, OnUpdateLong, socket_buffer_size, zend_swoole_globals, swoole_globals)
+STD_PHP_INI_ENTRY("swoole.unixsock_buffer_size", ZEND_TOSTR(SW_SOCKET_BUFFER_SIZE), PHP_INI_ALL, OnUpdateLong, socket_buffer_size, zend_swoole_globals, swoole_globals)
 PHP_INI_END()
 
 static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
@@ -1147,14 +1145,10 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_redis_init(module_number);
     swoole_redis_server_init(module_number);
 
-    if (SWOOLE_G(socket_buffer_size) > 0)
-    {
-        SwooleG.socket_buffer_size = SWOOLE_G(socket_buffer_size);
-    }
+    SwooleG.socket_buffer_size = SWOOLE_G(socket_buffer_size);
 
     //default 60s
     SwooleG.dns_cache_refresh_time = 60;
-
 
     if (SWOOLE_G(aio_thread_num) > 0)
     {
