@@ -54,6 +54,14 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_set, 0, 0, 1)
     ZEND_ARG_INFO(0, options)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_onswapin, 0, 0, 1)
+    ZEND_ARG_INFO(0, callback)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_onswapout, 0, 0, 1)
+    ZEND_ARG_INFO(0, callback)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_create, 0, 0, 1)
     ZEND_ARG_INFO(0, func)
 ZEND_END_ARG_INFO()
@@ -122,6 +130,8 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_getBackTrace, 0, 0, 1)
     ZEND_ARG_INFO(0, limit)
 ZEND_END_ARG_INFO()
 
+static PHP_METHOD(swoole_coroutine_util, onSwapIn);
+static PHP_METHOD(swoole_coroutine_util, onSwapOut);
 static PHP_METHOD(swoole_coroutine_util, set);
 static PHP_METHOD(swoole_coroutine_util, yield);
 static PHP_METHOD(swoole_coroutine_util, resume);
@@ -170,6 +180,8 @@ static const zend_function_entry swoole_coroutine_util_methods[] =
     ZEND_FENTRY(exec, ZEND_FN(swoole_coroutine_exec), arginfo_swoole_coroutine_exec, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(gethostbyname, ZEND_FN(swoole_coroutine_gethostbyname), arginfo_swoole_coroutine_gethostbyname, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(defer, ZEND_FN(swoole_coroutine_defer), arginfo_swoole_coroutine_defer, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_util, onSwapIn, arginfo_swoole_coroutine_onswapin, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_util, onSwapOut, arginfo_swoole_coroutine_onswapout, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, set, arginfo_swoole_coroutine_set, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_util, yield, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_MALIAS(swoole_coroutine_util, suspend, yield, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -344,6 +356,69 @@ static PHP_METHOD(swoole_coroutine_util, yield)
     user_yield_coros[co->get_cid()] = co;
     co->yield();
     RETURN_TRUE;
+}
+
+static PHP_METHOD(swoole_coroutine_util, onSwapIn)
+{
+    if (unlikely(COROG.active == 1))
+    {
+        swoole_php_fatal_error(E_WARNING,
+                "coroutine is running. unable to register callback function");
+        RETURN_FALSE
+    }
+    if (!COROG.swapin.initialized)
+    {
+        zval *cb;
+        if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &cb) == FAILURE)
+        {
+            RETURN_FALSE
+            ;
+        }
+        ZVAL_COPY(&COROG.swapin_cb, cb);
+        char *func_name = NULL;
+        if (!sw_zend_is_callable_ex(&COROG.swapin_cb, NULL, 0, &func_name, NULL,
+                &COROG.swapin, NULL))
+        {
+            swoole_php_fatal_error(E_ERROR, "function '%s' is not callable",
+                    func_name);
+            efree(func_name);
+            return;
+        }
+        efree(func_name);
+        RETURN_TRUE;
+    }
+    RETURN_FALSE;
+}
+
+static PHP_METHOD(swoole_coroutine_util, onSwapOut)
+{
+    if (unlikely(COROG.active == 1))
+    {
+        swoole_php_fatal_error(E_WARNING,
+                "coroutine is running. unable to register callback function");
+        RETURN_FALSE
+    }
+    if (!COROG.swapout.initialized)
+    {
+        zval *cb;
+        if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &cb) == FAILURE)
+        {
+            RETURN_FALSE;
+        }
+        ZVAL_COPY(&COROG.swapout_cb, cb);
+        char *func_name = NULL;
+        if (!sw_zend_is_callable_ex(&COROG.swapout_cb, NULL, 0, &func_name, NULL,
+                &COROG.swapout, NULL))
+        {
+            swoole_php_fatal_error(E_ERROR, "function '%s' is not callable",
+                    func_name);
+            efree(func_name);
+            return;
+        }
+        efree(func_name);
+        RETURN_TRUE;
+    }
+    RETURN_FALSE;
 }
 
 static PHP_METHOD(swoole_coroutine_util, set)
