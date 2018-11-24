@@ -564,19 +564,26 @@ int swManager_wait_other_worker(swProcessPool *pool, pid_t pid, int status)
     swServer *serv = SwooleG.serv;
     swWorker *exit_worker;
 
-    exit_worker = swHashMap_find_int(serv->gs->task_workers.map, pid);
-    if (exit_worker)
+    if (serv->gs->task_workers.map)
     {
-        swManager_check_exit_status(serv, exit_worker->id, pid, status);
-        return swManager_spawn_task_worker(serv, exit_worker);
+        exit_worker = swHashMap_find_int(serv->gs->task_workers.map, pid);
+        if (exit_worker)
+        {
+            swManager_check_exit_status(serv, exit_worker->id, pid, status);
+            return swManager_spawn_task_worker(serv, exit_worker);
+        }
     }
 
-    exit_worker = swHashMap_find_int(serv->user_worker_map, pid);
-    if (exit_worker != NULL)
+    if (serv->user_worker_map)
     {
-        swManager_check_exit_status(serv, exit_worker->id, pid, status);
-        return swManager_spawn_user_worker(serv, exit_worker);
+        exit_worker = swHashMap_find_int(serv->user_worker_map, pid);
+        if (exit_worker != NULL)
+        {
+            swManager_check_exit_status(serv, exit_worker->id, pid, status);
+            return swManager_spawn_user_worker(serv, exit_worker);
+        }
     }
+
     return SW_ERR;
 }
 
