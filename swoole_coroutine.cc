@@ -26,7 +26,7 @@ using namespace swoole;
 coro_global COROG;
 
 #if PHP_VERSION_ID >= 70200
-static inline void php_vm_stack_init(void)
+static sw_inline void php_vm_stack_init(void)
 {
     uint32_t size = COROG.stack_size;
     zend_vm_stack page = (zend_vm_stack) emalloc(size);
@@ -44,7 +44,7 @@ static inline void php_vm_stack_init(void)
 #define sw_vm_stack_init zend_vm_stack_init
 #endif
 
-static void php_coro_onSwap(coro_task *task, zend_fcall_info_cache *fci_cache)
+static sw_inline void php_coro_onSwap(coro_task *task, zend_fcall_info_cache *fci_cache)
 {
     zval args[3], _zstate, _zcid, _zorigin_cid, *retval = NULL;
     ZVAL_LONG(&_zstate, task->co->state);
@@ -67,7 +67,7 @@ static void php_coro_onSwap(coro_task *task, zend_fcall_info_cache *fci_cache)
     }
 }
 
-static void php_vm_stack_destroy(zend_vm_stack stack)
+static sw_inline void php_vm_stack_destroy(zend_vm_stack stack)
 {
     while (stack != NULL)
     {
@@ -279,7 +279,7 @@ static void php_coro_create(void *arg)
 
     swTraceLog(
         SW_TRACE_COROUTINE, "Create coro id: %ld, origin cid: %ld, coro total count: %" PRIu64 ", heap size: %zu",
-        coroutine_get_cid(task->co), coroutine_get_cid(task->origin_task->co), COROG.coro_num, zend_memory_usage(0)
+        task->co->get_cid(), task->origin_task->co->get_cid(), COROG.coro_num, zend_memory_usage(0)
     );
 
     if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_CORO_START])
@@ -318,12 +318,8 @@ static void php_coro_create(void *arg)
 
 static sw_inline void php_coro_yield(coro_task *task)
 {
-<<<<<<< Updated upstream
     swTraceLog(SW_TRACE_COROUTINE,"php_coro_yield from cid=%ld to cid=%ld", coroutine_get_cid(task->co), coroutine_get_cid(task->origin_task->co));
-=======
-    swTraceLog(SW_TRACE_COROUTINE,"php_coro_yield from cid=%ld to cid=%ld", task->co->get_cid(), task->origin_task->co->get_cid());
     php_coro_onSwap(task, &COROG.onSwap);
->>>>>>> Stashed changes
     php_coro_save_vm_stack(task);
     php_coro_restore_vm_stack(task->origin_task);
     php_coro_og_yield(task);
@@ -334,12 +330,8 @@ static sw_inline void php_coro_resume(coro_task *task)
     task->origin_task = php_coro_get_current_task();
     php_coro_restore_vm_stack(task);
     php_coro_og_resume(task);
-<<<<<<< Updated upstream
-    swTraceLog(SW_TRACE_COROUTINE,"php_coro_resume from cid=%ld to cid=%ld", coroutine_get_cid(task->origin_task->co), coroutine_get_cid(task->co));
-=======
     php_coro_onSwap(task, &COROG.onSwap);
-    swTraceLog(SW_TRACE_COROUTINE,"php_coro_resume from cid=%ld to cid=%ld", task->origin_task->co->get_cid(), task->co->get_cid());
->>>>>>> Stashed changes
+    swTraceLog(SW_TRACE_COROUTINE,"php_coro_resume from cid=%ld to cid=%ld", coroutine_get_cid(task->origin_task->co), coroutine_get_cid(task->co));
 }
 
 static sw_inline void php_coro_close(coro_task *task)
