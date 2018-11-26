@@ -818,13 +818,14 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
     case SW_HTTP2_TYPE_DATA:
     {
         swHttp2FrameTraceLog(recv, "data");
-        if (client->streams.find(stream_id) == client->streams.end())
+        auto stream_iterator = client->streams.find(stream_id);
+        if (stream_iterator == client->streams.end())
         {
             zval_ptr_dtor(zdata);
             swoole_error_log(SW_LOG_WARNING, SW_ERROR_HTTP2_STREAM_NOT_FOUND, "http2 stream#%d not found.", stream_id);
             return SW_ERR;
         }
-        stream = client->streams[stream_id];
+        stream = stream_iterator->second;
         ctx = stream->ctx;
 
         zrequest_object = ctx->request.zobject;
@@ -940,11 +941,12 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
 
 void swoole_http2_free(swConnection *conn)
 {
-    if (http2_sessions.find(conn->session_id) == http2_sessions.end())
+    auto session_iterator = http2_sessions.find(conn->session_id);
+    if (session_iterator == http2_sessions.end())
     {
         return;
     }
-    http2_session *client = http2_sessions[conn->session_id];
+    http2_session *client = session_iterator->second;
     http2_sessions.erase(conn->session_id);
     delete client;
 }

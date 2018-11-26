@@ -56,6 +56,7 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_create, 0, 0, 1)
     ZEND_ARG_INFO(0, func)
+    ZEND_ARG_VARIADIC_INFO(0, params)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_exec, 0, 0, 1)
@@ -446,14 +447,14 @@ static PHP_METHOD(swoole_coroutine_util, resume)
         RETURN_FALSE;
     }
 
-    std::unordered_map<int, Coroutine *>::iterator _i_co = user_yield_coros.find(cid);
-    if (_i_co == user_yield_coros.end())
+    auto coroutine_iterator = user_yield_coros.find(cid);
+    if (coroutine_iterator == user_yield_coros.end())
     {
         swoole_php_fatal_error(E_WARNING, "you can not resume the coroutine which is in IO operation.");
         RETURN_FALSE;
     }
 
-    Coroutine* co = _i_co->second;
+    Coroutine* co = coroutine_iterator->second;
     user_yield_coros.erase(cid);
     co->resume();
     RETURN_TRUE;

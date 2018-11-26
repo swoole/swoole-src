@@ -1107,15 +1107,15 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
     if (swTask_type(req) & SW_TASK_COROUTINE)
     {
         int task_id = req->info.fd;
-        auto _i_task_co = task_coroutine_map.find(task_id);
+        auto task_co_iterator = task_coroutine_map.find(task_id);
 
-        if (_i_task_co == task_coroutine_map.end())
+        if (task_co_iterator == task_coroutine_map.end())
         {
             swoole_php_fatal_error(E_WARNING, "task[%d] has expired.", task_id);
             _fail: sw_zval_free(zdata);
             return SW_OK;
         }
-        swTaskCo *task_co = _i_task_co->second;
+        swTaskCo *task_co = task_co_iterator->second;
         //Server->taskwait
         if (task_co->list == NULL)
         {
@@ -1181,14 +1181,14 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
     zval *callback = NULL;
     if (swTask_type(req) & SW_TASK_CALLBACK)
     {
-        auto _i_callback = task_callbacks.find(req->info.fd);
-        if (_i_callback == task_callbacks.end())
+        auto callback_iterator = task_callbacks.find(req->info.fd);
+        if (callback_iterator == task_callbacks.end())
         {
             swTask_type(req) = swTask_type(req) & (~SW_TASK_CALLBACK);
         }
         else
         {
-            callback = _i_callback->second;
+            callback = callback_iterator->second;
         }
     }
     if (callback == NULL)
@@ -1824,16 +1824,16 @@ static int php_swoole_server_send_resume(swServer *serv, php_context *context, i
 void php_swoole_server_send_yield(swServer *serv, int fd, zval *zdata, zval *return_value)
 {
     list<php_context *> *coros_list;
-    unordered_map<int, list<php_context *> *>::iterator _i_coros_list = send_coroutine_map.find(fd);
+    auto coroutine_iterator = send_coroutine_map.find(fd);
 
-    if (_i_coros_list == send_coroutine_map.end())
+    if (coroutine_iterator == send_coroutine_map.end())
     {
         coros_list = new list<php_context *>;
         send_coroutine_map[fd] = coros_list;
     }
     else
     {
-        coros_list = _i_coros_list->second;
+        coros_list = coroutine_iterator->second;
     }
 
     php_context *context = (php_context *) emalloc(sizeof(php_context));
