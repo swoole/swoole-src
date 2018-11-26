@@ -36,10 +36,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2018-11-19</date>
-    <time>18:30:00</time>
+    <date>2018-11-26</date>
+    <time>14:30:00</time>
     <version>
-        <release>4.2.8</release>
+        <release>4.2.9</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -48,14 +48,19 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        + Better PHP stack coroutine switcher and Channel implementation
-        + GDB Debugging Tool for Coroutine
-        * MySQL Module Optimization (#2124)
-        * Postgre Module Optimization (#2069)
-        * Fixed bugs in MySQL client using Stored Procedure (#2117)
-        * Fixed HTTP client large file upload BUG
-        * Fixed bug in the wait process of `co::exec`
-        * Coroutine nesting detection
+        + Add Coroutine defer feature
+        * Fixed max_connection can not be bigger than 10k bug (#2134)
+        * Fixed prepare bug after query 'CALL' (#2132)
+        * Fixed sendfile EAGAIN bug in MacOS (60023b7)
+        * Improve onReceive/onPacket callback check
+        * Use fast call info cache always
+        * Remove cidmap, cid will never be reused again
+        * Fixed socket construct failed core dump
+        * Fixed process wait bug
+        * Fixed swServer_signal_handler (#2145)
+        * Fixed typo on Swoole\\MsgQueue::destroy
+        * Fixed http2 huge headers bug
+        * Fixed hiredis error msg buffer overflow (#2149)
     </notes>
     <contents>
         <dir name="/">
@@ -885,6 +890,7 @@
             <file role="test" name="tests/swoole_http2_client_coro/wrong_headers.phpt" />
             <file role="test" name="tests/swoole_http2_server/big_data.phpt" />
             <file role="test" name="tests/swoole_http2_server/compression.phpt" />
+            <file role="test" name="tests/swoole_http2_server/huge_headers.phpt" />
             <file role="test" name="tests/swoole_http2_server/nghttp2_big_data.phpt" />
             <file role="test" name="tests/swoole_http2_server/no_compression.phpt" />
             <file role="test" name="tests/swoole_http_client/204.phpt" />
@@ -1106,7 +1112,6 @@
             <file role="test" name="tests/swoole_runtime/file_hook/read.phpt" />
             <file role="test" name="tests/swoole_runtime/gethostbyname.phpt" />
             <file role="test" name="tests/swoole_runtime/pdo.phpt" />
-            <file role="test" name="tests/swoole_runtime/pdo_task.phpt" />
             <file role="test" name="tests/swoole_runtime/sento.phpt" />
             <file role="test" name="tests/swoole_runtime/sleep.phpt" />
             <file role="test" name="tests/swoole_runtime/ssl_client.phpt" />
@@ -1162,6 +1167,8 @@
             <file role="test" name="tests/swoole_server/heartbeat.phpt" />
             <file role="test" name="tests/swoole_server/heartbeat_true.phpt" />
             <file role="test" name="tests/swoole_server/heartbeat_with_base.phpt" />
+            <file role="test" name="tests/swoole_server/kill_user_process_01.phpt" />
+            <file role="test" name="tests/swoole_server/kill_user_process_02.phpt" />
             <file role="test" name="tests/swoole_server/kill_worker_01.phpt" />
             <file role="test" name="tests/swoole_server/kill_worker_02.phpt" />
             <file role="test" name="tests/swoole_server/length_protocol.phpt" />
@@ -1186,6 +1193,7 @@
             <file role="test" name="tests/swoole_server/task/kill_01.phpt" />
             <file role="test" name="tests/swoole_server/task/kill_02.phpt" />
             <file role="test" name="tests/swoole_server/task/kill_task_worker_02.phpt" />
+            <file role="test" name="tests/swoole_server/task/task_async.phpt" />
             <file role="test" name="tests/swoole_server/task/task_callback.phpt" />
             <file role="test" name="tests/swoole_server/task/task_co.phpt" />
             <file role="test" name="tests/swoole_server/task/task_ipc_mode_2.phpt" />
