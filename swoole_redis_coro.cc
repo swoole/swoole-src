@@ -4159,7 +4159,8 @@ static void swoole_redis_coro_parse_result(swRedisClient *redis, zval* return_va
             {
                 redis->context->err = SW_REDIS_ERR_OTHER;
             }
-            memcpy(redis->context->errstr, reply->str, strlen(reply->str));
+            size_t str_len = strlen(reply->str);
+            memcpy(redis->context->errstr, reply->str, MIN(str_len, sizeof(redis->context->errstr)-1));
         }
         zend_update_property_long(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errCode"), redis->context->err);
         zend_update_property_string(swoole_redis_coro_class_entry_ptr, redis->object, ZEND_STRL("errMsg"), redis->context->errstr);
