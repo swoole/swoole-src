@@ -1186,7 +1186,10 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
         {
             swTask_type(req) = swTask_type(req) & (~SW_TASK_CALLBACK);
         }
-        callback = _i_callback->second;
+        else
+        {
+            callback = _i_callback->second;
+        }
     }
     if (callback == NULL)
     {
