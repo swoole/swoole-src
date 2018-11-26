@@ -444,7 +444,8 @@ static sw_inline void php_swoole_check_reactor()
 }
 
 void php_swoole_check_aio();
-void php_swoole_at_shutdown(char *function);
+void php_swoole_register_shutdown_function(char *function);
+void php_swoole_register_shutdown_function_prepend(char *function);
 void php_swoole_event_init();
 void php_swoole_event_wait();
 void php_swoole_event_exit();

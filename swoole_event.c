@@ -225,7 +225,7 @@ void php_swoole_reactor_init()
         SwooleWG.reactor_wait_onexit = 1;
         SwooleWG.reactor_ready = 0;
         //only client side
-        php_swoole_at_shutdown("swoole_event_wait");
+        php_swoole_register_shutdown_function_prepend("swoole_event_wait");
     }
 
     SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_USER | SW_EVENT_READ, php_swoole_event_onRead);

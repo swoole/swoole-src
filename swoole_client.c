@@ -753,21 +753,6 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
 #endif
 }
 
-void php_swoole_at_shutdown(char *function)
-{
-    php_shutdown_function_entry shutdown_function_entry;
-    shutdown_function_entry.arg_count = 1;
-    shutdown_function_entry.arguments = (zval *) safe_emalloc(sizeof(zval), 1, 0);
-    ZVAL_STRING(&shutdown_function_entry.arguments[0], function);
-
-    if (!register_user_shutdown_function(function, ZSTR_LEN(Z_STR(shutdown_function_entry.arguments[0])), &shutdown_function_entry))
-    {
-        zval_ptr_dtor(&shutdown_function_entry.arguments[0]);
-        efree(shutdown_function_entry.arguments);
-        swoole_php_fatal_error(E_WARNING, "Unable to register shutdown function [%s]",function);
-    }
-}
-
 void php_swoole_client_free(zval *zobject, swClient *cli)
 {
     if (cli->timer)
