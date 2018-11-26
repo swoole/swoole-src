@@ -123,14 +123,14 @@ void* coroutine_get_task_by_cid(long cid)
 
 Coroutine* coroutine_get_by_id(long cid)
 {
-    std::unordered_map<long, Coroutine*>::iterator i = coroutines.find(cid);
-    if (i == coroutines.end())
+    auto coroutine_iterator = coroutines.find(cid);
+    if (coroutine_iterator == coroutines.end())
     {
         return nullptr;
     }
     else
     {
-        return i->second;
+        return coroutine_iterator->second;
     }
 }
 

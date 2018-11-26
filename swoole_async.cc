@@ -187,7 +187,8 @@ static void coro_onDNSCompleted(char *domain, swDNSResolver_result *result, void
 
     std::string key(Z_STRVAL_P(req->domain), Z_STRLEN_P(req->domain));
     dns_cache *cache;
-    if (request_cache_map.find(key) == request_cache_map.end())
+    auto cache_iterator = request_cache_map.find(key);
+    if (cache_iterator == request_cache_map.end())
     {
         cache = (dns_cache *) emalloc(sizeof(dns_cache));
         request_cache_map[key] = cache;
@@ -195,7 +196,7 @@ static void coro_onDNSCompleted(char *domain, swDNSResolver_result *result, void
     }
     else
     {
-        cache = request_cache_map[key];
+        cache = cache_iterator->second;
     }
 
     swString_write_ptr(cache->zaddress, 0, Z_STRVAL_P(zaddress), Z_STRLEN_P(zaddress));
@@ -595,7 +596,8 @@ PHP_FUNCTION(swoole_async_write)
 
     int fd;
     std::string key(Z_STRVAL_P(filename), Z_STRLEN_P(filename));
-    if (open_files.find(key) == open_files.end())
+    auto file_iterator = open_files.find(key);
+    if (file_iterator == open_files.end())
     {
         int open_flag = O_WRONLY | O_CREAT;
         if (offset < 0)
@@ -612,7 +614,7 @@ PHP_FUNCTION(swoole_async_write)
     }
     else
     {
-        fd = open_files[key];
+        fd = file_iterator->second;
     }
 
     if (offset < 0)

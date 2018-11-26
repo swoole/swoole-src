@@ -2,12 +2,12 @@
 swoole_runtime: pdo in task and http response detach
 --SKIPIF--
 <?php
-require __DIR__ . '/../include/skipif.inc';
+require __DIR__ . '/../../include/skipif.inc';
 skip_if_pdo_not_support_mysql8();
 ?>
 --FILE--
 <?php
-require __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../../include/bootstrap.php';
 Swoole\Runtime::enableCoroutine();
 $pm = new ProcessManager;
 $pm->parentFunc = function (int $pid) use ($pm) {
@@ -33,10 +33,10 @@ $pm->childFunc = function () use ($pm) {
         if (mt_rand(0, 1)) {
             $http->task($response->fd);
         } else {
-            $http->task($response->fd, -1, function ($server, $taskId, $fd) {
-                var_dump($fd);
+            $http->task($response->fd, -1, function ($server, $taskId, $data) {
+                list($fd, $data) = $data;
                 $response = swoole_http_response::create($fd);
-                $response->end('Hello Swoole!');
+                $response->end($data);
             });
         }
     });
