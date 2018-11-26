@@ -235,7 +235,7 @@ static void php_coro_create(void *arg)
 
     // TODO: enhancement it, separate execute data is necessary, but we lose the backtrace
     EG(current_execute_data) = NULL;
-    if (UNEXPECTED(func->op_array.fn_flags & ZEND_ACC_CLOSURE))
+    if (func->op_array.fn_flags & ZEND_ACC_CLOSURE)
     {
         uint32_t call_info;
         GC_ADDREF(ZEND_CLOSURE_OBJECT(func));
