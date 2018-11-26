@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_server: http unix-socket
+swoole_http_client_coro: http unix-socket
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
@@ -11,13 +11,10 @@ $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     for ($c = MAX_CONCURRENCY; $c--;) {
         go(function () use ($pm) {
-            $client = new Swoole\Coroutine\Client(SWOOLE_UNIX_STREAM);
-            assert($client->connect(UNIXSOCK_PATH, 0, -1));
+            $client = new Swoole\Coroutine\Http\Client('unix:' . str_repeat('/', mt_rand(0, 2)) . UNIXSOCK_PATH);
             for ($n = MAX_REQUESTS; $n--;) {
-                $client->send("GET / HTTP/1.1\r\n\r\n");
-                list($headers, $body) = explode("\r\n\r\n", @$client->recv());
-                assert(count(explode("\n", $headers)) >= 5);
-                assert($body === 'Hello Swoole!');
+                assert($client->get('/'));
+                assert($client->body === 'Hello Swoole!');
             }
         });
     }

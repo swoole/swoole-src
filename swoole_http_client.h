@@ -119,6 +119,9 @@ typedef struct
     char *host;
     size_t host_len;
     long port;
+#ifdef SW_USE_OPENSSL
+    uint8_t ssl;
+#endif
     double timeout;
     char* uri;
     size_t uri_len;

@@ -781,13 +781,11 @@ static uint32_t http2_client_send_request(zval *zobject, zval *req)
     zval *zpost_data = sw_zend_read_property(swoole_http2_request_class_entry_ptr, req, ZEND_STRL("data"), 1);
     zval *zpipeline = sw_zend_read_property(swoole_http2_request_class_entry_ptr, req, ZEND_STRL("pipeline"), 1);
 
-    if (!ZVAL_IS_NULL(zpost_data))
+    if (Z_TYPE_P(zpost_data) == IS_ARRAY)
     {
-        if (Z_TYPE_P(zpost_data) == IS_ARRAY)
-        {
-            add_assoc_stringl_ex(zheaders, ZEND_STRL("content-type"), ZEND_STRL("application/x-www-form-urlencoded"));
-        }
+        add_assoc_stringl_ex(zheaders, ZEND_STRL("content-type"), ZEND_STRL("application/x-www-form-urlencoded"));
     }
+
     /**
      * send header
      */

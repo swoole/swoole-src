@@ -416,6 +416,7 @@ void swoole_http_client_init(int module_number)
     zend_declare_property_long(swoole_http_client_class_entry_ptr, ZEND_STRL("statusCode"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_client_class_entry_ptr, ZEND_STRL("host"), ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_http_client_class_entry_ptr, ZEND_STRL("port"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_bool(swoole_http_client_class_entry_ptr, ZEND_STRL("ssl"), 0, ZEND_ACC_PUBLIC);
 
     zend_declare_property_null(swoole_http_client_class_entry_ptr, ZEND_STRL("requestMethod"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_client_class_entry_ptr, ZEND_STRL("requestHeaders"), ZEND_ACC_PUBLIC);
@@ -1324,6 +1325,12 @@ http_client* http_client_create(zval *zobject)
     convert_to_long(ztmp);
     http->port = Z_LVAL_P(ztmp);
 
+#ifdef SW_USE_OPENSSL
+    ztmp = sw_zend_read_property(Z_OBJCE_P(zobject), zobject, ZEND_STRL("ssl"), 0);
+    convert_to_boolean(ztmp);
+    http->ssl = Z_BVAL_P(ztmp);
+#endif
+
     http->timeout = SW_CLIENT_DEFAULT_TIMEOUT;
     http->keep_alive = 1;
     http->state = HTTP_CLIENT_STATE_READY;
@@ -1361,6 +1368,7 @@ static PHP_METHOD(swoole_http_client, __construct)
 
     zend_update_property_stringl(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("host"), host, host_len);
     zend_update_property_long(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("port"), port);
+    zend_update_property_bool(swoole_http_client_class_entry_ptr, getThis(), ZEND_STRL("ssl"), ssl);
 
     //init
     swoole_set_object(getThis(), NULL);

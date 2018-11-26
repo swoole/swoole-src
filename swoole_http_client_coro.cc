@@ -28,11 +28,8 @@ using namespace swoole;
 typedef struct
 {
     Socket *socket;
-    bool ssl;
     bool wait;
     bool defer;
-    bool keep_alive;
-
 } http_client_coro_property;
 
 extern swString *http_client_buffer;
@@ -165,8 +162,6 @@ zend_class_entry swoole_http_client_coro_ce;
 zend_class_entry *swoole_http_client_coro_class_entry_ptr;
 static zend_object_handlers swoole_http_client_coro_handlers;
 
-extern zend_class_entry *swoole_websocket_frame_class_entry_ptr;
-
 static PHP_METHOD(swoole_http_client_coro, __construct);
 static PHP_METHOD(swoole_http_client_coro, __destruct);
 static PHP_METHOD(swoole_http_client_coro, set);
@@ -232,17 +227,19 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
 
     if (!hcc->socket)
     {
-        hcc->socket = new Socket(SW_SOCK_TCP);
+        std::string addr = std::string(http->host, http->host_len);
+        enum swSocket_type sock_type = get_socket_type_from_uri(addr, 1);
+        hcc->socket = new Socket(sock_type);
         if (unlikely(hcc->socket->socket == nullptr))
         {
             delete hcc->socket;
             swoole_php_fatal_error(E_WARNING, "new Socket() failed. Error: %s [%d]", strerror(errno), errno);
-            zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("errCode"), errno);
+            zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), errno);
             return SW_ERR;
         }
         zval *ztmp;
         HashTable *vht;
-        zval *zset = sw_zend_read_property(Z_OBJCE_P(zobject), zobject, ZEND_STRL("setting"), 1);
+        zval *zset = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("setting"), 0);
         if (zset && ZVAL_IS_ARRAY(zset))
         {
             vht = Z_ARRVAL_P(zset);
@@ -265,7 +262,7 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
             }
             if (hcc->socket->http_proxy)
             {
-                zval *zrequest_headers = sw_zend_read_property(Z_OBJCE_P(zobject), zobject, ZEND_STRL("requestHeaders"), 1);
+                zval *zrequest_headers = sw_zend_read_property(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("requestHeaders"), 0);
                 if (zrequest_headers == NULL || Z_TYPE_P(zrequest_headers) != IS_ARRAY)
                 {
                     swoole_php_fatal_error (E_WARNING, "http proxy must set Host");
@@ -291,7 +288,7 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
                 }
             }
 #ifdef SW_USE_OPENSSL
-            if (hcc->ssl)
+            if (http->ssl)
             {
                 hcc->socket->open_ssl = true;
             }
@@ -299,15 +296,15 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
             php_swoole_client_coro_check_setting(hcc->socket, zset);
         }
 
-        if (!hcc->socket->connect(std::string(http->host, http->host_len), http->port))
+        if (!hcc->socket->connect(addr, http->port))
         {
-            zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("errCode"), hcc->socket->errCode);
-            zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_CONNECT_TIMEOUT);
+            zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("errCode"), hcc->socket->errCode);
+            zend_update_property_long(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_CONNECT_TIMEOUT);
             return SW_ERR;
         }
         else
         {
-            zend_update_property_bool(Z_OBJCE_P(zobject), zobject, ZEND_STRL("connected"), 1);
+            zend_update_property_bool(swoole_http_client_coro_class_entry_ptr, zobject, ZEND_STRL("connected"), 1);
         }
         swTraceLog(SW_TRACE_HTTP_CLIENT, "connect to server, object handle=%d, fd=%d", Z_OBJ_HANDLE_P(zobject), hcc->socket->socket->fd);
     }
@@ -411,6 +408,7 @@ void swoole_http_client_coro_init(int module_number)
     // client info
     zend_declare_property_string(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("host"), "", ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("port"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_bool(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("ssl"), 0, ZEND_ACC_PUBLIC);
 
     // request properties
     zend_declare_property_null(swoole_http_client_coro_class_entry_ptr, ZEND_STRL("requestMethod"), ZEND_ACC_PUBLIC);
@@ -988,16 +986,13 @@ static PHP_METHOD(swoole_http_client_coro, __construct)
 
     zend_update_property_stringl(swoole_http_client_coro_class_entry_ptr, getThis(), ZEND_STRL("host"), host, host_len);
     zend_update_property_long(swoole_http_client_coro_class_entry_ptr,getThis(), ZEND_STRL("port"), port);
-
+    zend_update_property_bool(swoole_http_client_coro_class_entry_ptr,getThis(), ZEND_STRL("ssl"), ssl);
+#ifndef SW_USE_OPENSSL
     if (ssl)
     {
-#ifdef SW_USE_OPENSSL
-        http_client_coro_property *hcc = (http_client_coro_property *) swoole_get_property(getThis(), 0);
-        hcc->ssl = 1;
-#else
         swoole_php_fatal_error(E_ERROR, "Need to use `--enable-openssl` to support ssl when compiling swoole.");
-#endif
     }
+#endif
 
     swTraceLog(SW_TRACE_HTTP_CLIENT, "ctor, object handle=%d.", Z_OBJ_HANDLE_P(getThis()));
 }
