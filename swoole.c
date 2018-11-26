@@ -1344,7 +1344,7 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
     SWOOLE_G(req_status) = PHP_SWOOLE_RSHUTDOWN_BEGIN;
     swoole_call_rshutdown_function(NULL);
     //clear pipe buffer
-    if (swIsWorker())
+    if (SwooleG.serv && swIsWorker())
     {
         swWorker_clean();
     }

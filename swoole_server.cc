@@ -1935,10 +1935,10 @@ PHP_METHOD(swoole_server, __construct)
         RETURN_FALSE;
     }
 
-    if (SwooleG.main_reactor != NULL)
+    if (SwooleG.main_reactor)
     {
-        swoole_php_fatal_error(E_ERROR, "eventLoop has already been created. unable to create swoole_server.");
-        RETURN_FALSE;
+        SwooleG.origin_main_reactor = SwooleG.main_reactor;
+        SwooleG.main_reactor = NULL;
     }
 
     if (SwooleG.serv != NULL)
@@ -2032,9 +2032,8 @@ PHP_METHOD(swoole_server, __construct)
 
 PHP_METHOD(swoole_server, __destruct)
 {
-#if SW_DEBUG_SERVER_DESTRUCT
     int i;
-    for (i = 0; i < PHP_SERVER_CALLBACK_NUM; i++)
+    for (i = 0; i < PHP_SWOOLE_SERVER_CALLBACK_NUM; i++)
     {
         if (php_sw_server_caches[i])
         {
@@ -2042,7 +2041,6 @@ PHP_METHOD(swoole_server, __destruct)
             php_sw_server_caches[i] = NULL;
         }
     }
-
     zval *port_object;
     for (i = 0; i < server_port_list.num; i++)
     {
@@ -2053,7 +2051,6 @@ PHP_METHOD(swoole_server, __destruct)
 
     efree(server_port_list.zports);
     server_port_list.zports = NULL;
-#endif
 }
 
 PHP_METHOD(swoole_server, set)
@@ -2708,16 +2705,7 @@ PHP_METHOD(swoole_server, start)
     serv->onReceive = php_swoole_onReceive;
     if (is_websocket_server(zobject) || is_http_server(zobject))
     {
-        zval *zsetting = sw_zend_read_property(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("setting"), 1 TSRMLS_CC);
-        if (zsetting == NULL || ZVAL_IS_NULL(zsetting))
-        {
-            SW_ALLOC_INIT_ZVAL(zsetting);
-            array_init(zsetting);
-#ifdef HT_ALLOW_COW_VIOLATION
-            HT_ALLOW_COW_VIOLATION(Z_ARRVAL_P(zsetting));
-#endif
-            zend_update_property(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("setting"), zsetting TSRMLS_CC);
-        }
+        zval *zsetting = sw_zend_read_property_array(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("setting"), 1 TSRMLS_CC);
         add_assoc_bool(zsetting, "open_http_protocol", 1);
         add_assoc_bool(zsetting, "open_mqtt_protocol", 0);
         add_assoc_bool(zsetting, "open_eof_check", 0);
@@ -2747,6 +2735,16 @@ PHP_METHOD(swoole_server, start)
     php_swoole_server_before_start(serv, zobject);
 
     ret = swServer_start(serv);
+    /**
+     * recovery
+     */
+    if (SwooleG.origin_main_reactor)
+    {
+        SwooleG.main_reactor = SwooleG.origin_main_reactor;
+        SwooleG.origin_main_reactor = NULL;
+        SwooleG.serv = NULL;
+        SwooleWG.worker = NULL;
+    }
     if (ret < 0)
     {
         swoole_php_fatal_error(E_ERROR, "failed to start server. Error: %s", sw_error);

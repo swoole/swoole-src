@@ -398,7 +398,8 @@ static int swServer_start_proxy(swServer *serv)
     /**
      * 1 second timer, update serv->gs->now
      */
-    if (swTimer_add(&SwooleG.timer, 1000, 1, serv, swServer_master_onTimer) == NULL)
+    swTimer_node *update_timer;
+    if ((update_timer = swTimer_add(&SwooleG.timer, 1000, 1, serv, swServer_master_onTimer)) == NULL)
     {
         return SW_ERR;
     }
@@ -408,7 +409,14 @@ static int swServer_start_proxy(swServer *serv)
         serv->onStart(serv);
     }
 
-    return main_reactor->wait(main_reactor, NULL);
+    int retval = main_reactor->wait(main_reactor, NULL);
+
+    if (update_timer)
+    {
+        swTimer_del(&SwooleG.timer, update_timer);
+    }
+
+    return retval;
 }
 
 void swServer_store_listen_socket(swServer *serv)

@@ -216,9 +216,7 @@ void php_swoole_reactor_init()
             return;
         }
 
-#ifdef SW_COROUTINE
         SwooleG.main_reactor->can_exit = php_coroutine_reactor_can_exit;
-#endif
 
         //client, swoole_event_exit will set swoole_running = 0
         SwooleWG.in_client = 1;
