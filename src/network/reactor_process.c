@@ -366,7 +366,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     //set protocol function point
     swReactorThread_set_protocol(serv, reactor);
 
-    swTimer_node *heartbeat_timer, *update_timer;
+    swTimer_node *heartbeat_timer = NULL, *update_timer;
 
     /**
      * 1 second timer, update serv->gs->now
