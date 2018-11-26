@@ -366,10 +366,12 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     //set protocol function point
     swReactorThread_set_protocol(serv, reactor);
 
+    swTimer_node *heartbeat_timer, *update_timer;
+
     /**
      * 1 second timer, update serv->gs->now
      */
-    if (swTimer_add(&SwooleG.timer, 1000, 1, serv, swServer_master_onTimer) == NULL)
+    if ((update_timer = swTimer_add(&SwooleG.timer, 1000, 1, serv, swServer_master_onTimer)) == NULL)
     {
         return SW_ERR;
     }
@@ -395,13 +397,14 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
      */
     if (serv->heartbeat_check_interval > 0)
     {
-        if (swTimer_add(&SwooleG.timer, serv->heartbeat_check_interval * 1000, 1, reactor, swReactorProcess_onTimeout) == NULL)
+        heartbeat_timer = swTimer_add(&SwooleG.timer, serv->heartbeat_check_interval * 1000, 1, reactor, swReactorProcess_onTimeout);
+        if (heartbeat_timer == NULL)
         {
             return SW_ERR;
         }
     }
 
-    reactor->wait(reactor, NULL);
+    int retval = reactor->wait(reactor, NULL);
 
     /**
      * call internal serv hooks
@@ -414,12 +417,22 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
         swServer_call_hook(serv, SW_SERVER_HOOK_WORKER_CLOSE, hook_args);
     }
 
+    if (heartbeat_timer)
+    {
+        swTimer_del(&SwooleG.timer, heartbeat_timer);
+    }
+
+    if (update_timer)
+    {
+        swTimer_del(&SwooleG.timer, update_timer);
+    }
+
     if (serv->onWorkerStop)
     {
         serv->onWorkerStop(serv, worker->id);
     }
 
-    return SW_OK;
+    return retval;
 }
 
 int swReactorProcess_onClose(swReactor *reactor, swEvent *event)

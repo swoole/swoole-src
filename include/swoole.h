@@ -2191,6 +2191,7 @@ typedef struct
 
     swMemoryPool *memory_pool;
     swReactor *main_reactor;
+    swReactor *origin_main_reactor;
 
     char *task_tmpdir;
     uint16_t task_tmpdir_len;
