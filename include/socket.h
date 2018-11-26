@@ -106,7 +106,7 @@ public:
 #endif
 
 protected:
-    inline void init()
+    inline void init_members()
     {
         read_cid = 0;
         write_cid = 0;
@@ -145,6 +145,41 @@ protected:
 #endif
     }
 
+    inline void init_sock_type(enum swSocket_type _type)
+    {
+        type = _type;
+        switch (type)
+        {
+        case SW_SOCK_TCP6:
+            _sock_domain = AF_INET6;
+            _sock_type = SOCK_STREAM;
+            break;
+        case SW_SOCK_UNIX_STREAM:
+            _sock_domain = AF_UNIX;
+            _sock_type = SOCK_STREAM;
+            break;
+        case SW_SOCK_UDP:
+            _sock_domain = AF_INET;
+            _sock_type = SOCK_DGRAM;
+            break;
+        case SW_SOCK_UDP6:
+            _sock_domain = AF_INET6;
+            _sock_type = SOCK_DGRAM;
+            break;
+        case SW_SOCK_UNIX_DGRAM:
+            _sock_domain = AF_UNIX;
+            _sock_type = SOCK_DGRAM;
+            break;
+        case SW_SOCK_TCP:
+        default:
+            _sock_domain = AF_INET;
+            _sock_type = SOCK_STREAM;
+            break;
+        }
+    }
+
+    inline void init_sock(int _fd);
+
     inline bool wait_events(int events)
     {
         if (socket->events == 0)
@@ -170,7 +205,7 @@ protected:
     {
         if (cid)
         {
-            swoole_error_log(SW_LOG_WARNING, SW_ERROR_CO_HAS_BEEN_BOUND, "Socket#%d has already been bound to another coroutine %ld.", socket->fd, cid);
+            swoole_error_log(SW_LOG_ERROR, SW_ERROR_CO_HAS_BEEN_BOUND, "Socket#%d has already been bound to another coroutine %ld.", socket->fd, cid);
             errCode = SW_ERROR_CO_HAS_BEEN_BOUND;
             exit(255);
         }
@@ -243,6 +278,27 @@ static inline enum swSocket_type get_socket_type(int domain, int type, int proto
     else if (domain == AF_UNIX)
     {
         return type == SOCK_STREAM ? SW_SOCK_UNIX_STREAM : SW_SOCK_UNIX_DGRAM;
+    }
+    else
+    {
+        return SW_SOCK_TCP;
+    }
+}
+
+static inline enum swSocket_type get_socket_type_from_uri(std::string &uri, bool convert_to_addr = 0)
+{
+    if (uri.find("unix:/") == 0)
+    {
+        if (convert_to_addr)
+        {
+            uri = uri.substr(sizeof("unix:") - 1);
+            uri.erase(0, uri.find_first_not_of('/') - 1);
+        }
+        return SW_SOCK_UNIX_STREAM;
+    }
+    else if (uri.find_first_of(':') == 0)
+    {
+        return SW_SOCK_TCP6;
     }
     else
     {

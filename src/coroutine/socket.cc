@@ -254,53 +254,9 @@ static inline int socket_connect(int fd, const struct sockaddr *addr, socklen_t 
     return retval;
 }
 
-Socket::Socket(enum swSocket_type _type)
+
+void Socket::init_sock(int _fd)
 {
-    type = _type;
-    switch (type)
-    {
-    case SW_SOCK_TCP6:
-        _sock_domain = AF_INET6;
-        _sock_type = SOCK_STREAM;
-        break;
-    case SW_SOCK_UNIX_STREAM:
-        _sock_domain = AF_UNIX;
-        _sock_type = SOCK_STREAM;
-        break;
-    case SW_SOCK_UDP:
-        _sock_domain = AF_INET;
-        _sock_type = SOCK_DGRAM;
-        break;
-    case SW_SOCK_UDP6:
-        _sock_domain = AF_INET6;
-        _sock_type = SOCK_DGRAM;
-        break;
-    case SW_SOCK_UNIX_DGRAM:
-        _sock_domain = AF_UNIX;
-        _sock_type = SOCK_DGRAM;
-        break;
-    case SW_SOCK_TCP:
-    default:
-        _sock_domain = AF_INET;
-        _sock_type = SOCK_STREAM;
-        break;
-    }
-
-    init();
-
-#ifdef SOCK_CLOEXEC
-    int sockfd = ::socket(_sock_domain, _sock_type | SOCK_CLOEXEC, 0);
-#else
-    int sockfd = ::socket(_sock_domain, _sock_type, 0);
-#endif
-
-    if (sockfd < 0)
-    {
-        swWarn("Socket construct failed. Error: %s[%d]", strerror(errno), errno);
-        _closed = true;
-        return;
-    }
-
     if (swIsMaster() && SwooleTG.type == SW_THREAD_REACTOR)
     {
         reactor = SwooleTG.reactor;
@@ -310,10 +266,9 @@ Socket::Socket(enum swSocket_type _type)
         reactor = SwooleG.main_reactor;
     }
 
-    socket = swReactor_get(reactor, sockfd);
-
+    socket = swReactor_get(reactor, _fd);
     bzero(socket, sizeof(swConnection));
-    socket->fd = sockfd;
+    socket->fd = _fd;
     socket->object = this;
     socket->socket_type = type;
     socket->removed = 1;
@@ -327,80 +282,45 @@ Socket::Socket(enum swSocket_type _type)
     }
 }
 
+Socket::Socket(enum swSocket_type _type)
+{
+    init_members();
+    init_sock_type(_type);
+#ifdef SOCK_CLOEXEC
+    int _fd = ::socket(_sock_domain, _sock_type | SOCK_CLOEXEC, 0);
+#else
+    int _fd = ::socket(_sock_domain, _sock_type, 0);
+#endif
+    if (unlikely(_fd < 0))
+    {
+        swWarn("Socket construct failed. Error: %s[%d]", strerror(errno), errno);
+        _closed = true;
+        return;
+    }
+    init_sock(_fd);
+}
+
+Socket::Socket(int _fd, enum swSocket_type _type)
+{
+    init_members();
+    init_sock_type(_type);
+    init_sock(_fd);
+}
+
 Socket::Socket(int _fd, Socket *server_sock)
 {
-    reactor = server_sock->reactor;
+    init_members();
 
+    _sock_domain = server_sock->_sock_domain;
+    _sock_type = server_sock->_sock_type;
+
+    reactor = server_sock->reactor;
     socket = swReactor_get(reactor, _fd);
     bzero(socket, sizeof(swConnection));
     socket->fd = _fd;
     socket->object = this;
     socket->socket_type = server_sock->type;
     socket->removed = 1;
-
-    _sock_domain = server_sock->_sock_domain;
-    _sock_type = server_sock->_sock_type;
-    init();
-}
-
-Socket::Socket(int _fd, enum swSocket_type _type)
-{
-    type = _type;
-    switch (type)
-    {
-    case SW_SOCK_TCP6:
-        _sock_domain = AF_INET6;
-        _sock_type = SOCK_STREAM;
-        break;
-    case SW_SOCK_UNIX_STREAM:
-        _sock_domain = AF_UNIX;
-        _sock_type = SOCK_STREAM;
-        break;
-    case SW_SOCK_UDP:
-        _sock_domain = AF_INET;
-        _sock_type = SOCK_DGRAM;
-        break;
-    case SW_SOCK_UDP6:
-        _sock_domain = AF_INET6;
-        _sock_type = SOCK_DGRAM;
-        break;
-    case SW_SOCK_UNIX_DGRAM:
-        _sock_domain = AF_UNIX;
-        _sock_type = SOCK_DGRAM;
-        break;
-    case SW_SOCK_TCP:
-    default:
-        _sock_domain = AF_INET;
-        _sock_type = SOCK_STREAM;
-        break;
-    }
-
-    init();
-
-    if (swIsMaster() && SwooleTG.type == SW_THREAD_REACTOR)
-    {
-        reactor = SwooleTG.reactor;
-    }
-    else
-    {
-        reactor = SwooleG.main_reactor;
-    }
-
-    socket = swReactor_get(reactor, _fd);
-
-    bzero(socket, sizeof(swConnection));
-    socket->fd = _fd;
-    socket->object = this;
-    socket->socket_type = type;
-    socket->removed = 1;
-
-    swSetNonBlock(socket->fd);
-    if (!swReactor_handle_isset(reactor, SW_FD_CORO_SOCKET))
-    {
-        reactor->setHandle(reactor, SW_FD_CORO_SOCKET | SW_EVENT_READ, socket_onRead);
-        reactor->setHandle(reactor, SW_FD_CORO_SOCKET | SW_EVENT_WRITE, socket_onWrite);
-        reactor->setHandle(reactor, SW_FD_CORO_SOCKET | SW_EVENT_ERROR, socket_onRead);
-    }
 }
 
 bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen)
