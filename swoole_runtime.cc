@@ -153,12 +153,23 @@ void swoole_runtime_init(int module_number)
     SWOOLE_DEFINE(HOOK_ALL);
 }
 
-static auto block_io_functions =
-{ "sleep", "usleep", "time_nanosleep", "time_sleep_until", "file_get_contents", "curl_init", "stream_select",
-        "socket_select", "gethostbyname", };
+static auto block_io_functions = {
+    "sleep",
+    "usleep",
+    "time_nanosleep",
+    "time_sleep_until",
+    "file_get_contents",
+    "curl_init",
+    "stream_select",
+    "socket_select",
+    "gethostbyname",
+};
 
-static auto block_io_classes =
-{ "redis", "mysqli", };
+static auto block_io_classes = {
+    "redis", "pdo", "mysqli",
+};
+
+static bool enable_strict_mode = false;
 
 static PHP_METHOD(swoole_runtime, enableStrictMode)
 {
@@ -810,12 +821,54 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
     return 0;
 }
 
-static php_stream *socket_create(const char *proto, size_t protolen, const char *resourcename, size_t resourcenamelen,
-        const char *persistent_id, int options, int flags, struct timeval *timeout, php_stream_context *context
-        STREAMS_DC)
+static php_stream *php_socket_create(
+    const char *proto, size_t protolen, const char *resourcename, size_t resourcenamelen,
+    const char *persistent_id, int options, int flags, struct timeval *timeout, php_stream_context *context
+    STREAMS_DC
+)
+{
+    php_stream_transport_factory ori_call;
+
+    if (strncmp(proto, "unix", protolen) == 0)
+    {
+        ori_call = ori_factory._unix;
+    }
+    else if (strncmp(proto, "udp", protolen) == 0)
+    {
+        ori_call = ori_factory.udp;
+    }
+    else if (strncmp(proto, "udg", protolen) == 0)
+    {
+        ori_call = ori_factory.udg;
+    }
+    else if (strncmp(proto, "ssl", protolen) == 0)
+    {
+        ori_call = ori_factory.ssl;
+    }
+    else if (strncmp(proto, "tls", protolen) == 0)
+    {
+        ori_call = ori_factory.tls;
+    }
+    else
+    {
+        ori_call = ori_factory.tcp;
+    }
+    return ori_call(proto, protolen, resourcename, resourcenamelen, persistent_id, options, flags, timeout, context STREAMS_CC);
+}
+
+static php_stream *socket_create(
+    const char *proto, size_t protolen, const char *resourcename, size_t resourcenamelen,
+    const char *persistent_id, int options, int flags, struct timeval *timeout, php_stream_context *context
+    STREAMS_DC
+)
 {
     php_stream *stream = NULL;
     Socket *sock;
+
+    if (unlikely(SwooleG.main_reactor == nullptr || !coroutine_get_current()))
+    {
+        return php_socket_create(proto, protolen, resourcename, resourcenamelen, persistent_id, options, flags, timeout, context STREAMS_CC);
+    }
 
     php_swoole_check_reactor();
 
@@ -832,7 +885,7 @@ static php_stream *socket_create(const char *proto, size_t protolen, const char 
         sock = new Socket(SW_SOCK_UNIX_DGRAM);
     }
 #ifdef SW_USE_OPENSSL
-    else if (strncmp(proto, "ssl", protolen) == 0)
+    else if (strncmp(proto, "ssl", protolen) == 0 || strncmp(proto, "tls", protolen) == 0)
     {
         sock = new Socket(SW_SOCK_TCP);
         sock->open_ssl = true;
@@ -884,6 +937,10 @@ static PHP_METHOD(swoole_runtime, enableCoroutine)
 
     if (enable)
     {
+        if (unlikely(enable_strict_mode))
+        {
+            swoole_php_fatal_error(E_ERROR, "unable to enable the coroutine mode after you enable the strict mode.");
+        }
         if (hook_init)
         {
             RETURN_FALSE;
@@ -926,11 +983,8 @@ static PHP_METHOD(swoole_runtime, enableCoroutine)
         }
         if (flags & SW_HOOK_BLOCKING_FUNCTION)
         {
-            /**
-             * gethostbyname
-             */
             ori_gethostbyname = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("gethostbyname"));
-            if (ori_time_sleep_until)
+            if (ori_gethostbyname)
             {
                 ori_gethostbyname_handler =  ori_gethostbyname->internal_function.handler;
                 ori_gethostbyname->internal_function.handler = PHP_FN(swoole_coroutine_gethostbyname);
@@ -981,25 +1035,28 @@ static PHP_METHOD(swoole_runtime, enableCoroutine)
         }
         if (hook_flags & SW_HOOK_SLEEP)
         {
-            ori_sleep = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("sleep"));
             if (ori_sleep)
             {
                 ori_sleep->internal_function.handler = ori_sleep_handler;
             }
-            ori_usleep = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("usleep"));
             if (ori_usleep)
             {
                 ori_usleep->internal_function.handler = ori_usleep_handler;
             }
-            ori_time_nanosleep = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("time_nanosleep"));
             if (ori_time_nanosleep)
             {
                 ori_time_nanosleep->internal_function.handler = ori_time_nanosleep_handler;
             }
-            ori_time_sleep_until = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("time_sleep_until"));
             if (ori_time_sleep_until)
             {
                 ori_time_sleep_until->internal_function.handler = ori_time_sleep_until_handler;
+            }
+        }
+        if (flags & SW_HOOK_BLOCKING_FUNCTION)
+        {
+            if (ori_gethostbyname)
+            {
+                ori_gethostbyname->internal_function.handler = ori_gethostbyname_handler;
             }
         }
         if (flags & SW_HOOK_TCP)

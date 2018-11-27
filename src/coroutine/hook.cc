@@ -42,7 +42,7 @@ struct aio_task
 
 int swoole_coroutine_socket(int domain, int type, int protocol)
 {
-    if (SwooleG.main_reactor == nullptr || coroutine_get_current_cid() == -1)
+    if (unlikely(SwooleG.main_reactor == nullptr || !coroutine_get_current()))
     {
         return socket(domain, type, protocol);
     }
@@ -58,7 +58,7 @@ int swoole_coroutine_socket(int domain, int type, int protocol)
 
 ssize_t swoole_coroutine_send(int sockfd, const void *buf, size_t len, int flags)
 {
-    if (SwooleG.main_reactor == nullptr || coroutine_get_current_cid() == -1)
+    if (unlikely(SwooleG.main_reactor == nullptr || !coroutine_get_current()))
     {
         _no_coro: return ::send(sockfd, buf, len, flags);
     }
@@ -83,7 +83,7 @@ ssize_t swoole_coroutine_send(int sockfd, const void *buf, size_t len, int flags
 
 ssize_t swoole_coroutine_sendmsg(int sockfd, const struct msghdr *msg, int flags)
 {
-    if (SwooleG.main_reactor == nullptr || coroutine_get_current_cid() == -1)
+    if (unlikely(SwooleG.main_reactor == nullptr || !coroutine_get_current()))
     {
         _no_coro: return ::sendmsg(sockfd, msg, flags);
     }
@@ -108,7 +108,7 @@ ssize_t swoole_coroutine_sendmsg(int sockfd, const struct msghdr *msg, int flags
 
 ssize_t swoole_coroutine_recvmsg(int sockfd, struct msghdr *msg, int flags)
 {
-    if (SwooleG.main_reactor == nullptr || coroutine_get_current_cid() == -1)
+    if (unlikely(SwooleG.main_reactor == nullptr || !coroutine_get_current()))
     {
         _no_coro: return ::recvmsg(sockfd, msg, flags);
     }
@@ -133,7 +133,7 @@ ssize_t swoole_coroutine_recvmsg(int sockfd, struct msghdr *msg, int flags)
 
 ssize_t swoole_coroutine_recv(int sockfd, void *buf, size_t len, int flags)
 {
-    if (SwooleG.main_reactor == nullptr || coroutine_get_current_cid() == -1)
+    if (unlikely(SwooleG.main_reactor == nullptr || !coroutine_get_current()))
     {
         _no_coro: return ::recv(sockfd, buf, len, flags);
     }
@@ -158,7 +158,7 @@ ssize_t swoole_coroutine_recv(int sockfd, void *buf, size_t len, int flags)
 
 int swoole_coroutine_close(int fd)
 {
-    if (SwooleG.main_reactor == nullptr || coroutine_get_current_cid() == -1)
+    if (unlikely(SwooleG.main_reactor == nullptr || !coroutine_get_current()))
     {
         _no_coro: return close(fd);
     }
@@ -176,7 +176,7 @@ int swoole_coroutine_close(int fd)
 
 int swoole_coroutine_connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
 {
-    if (SwooleG.main_reactor == nullptr || coroutine_get_current_cid() == -1)
+    if (unlikely(SwooleG.main_reactor == nullptr || !coroutine_get_current()))
     {
         _no_coro: return connect(sockfd, addr, addrlen);
     }
@@ -200,7 +200,7 @@ int swoole_coroutine_connect(int sockfd, const struct sockaddr *addr, socklen_t 
 
 int swoole_coroutine_poll(struct pollfd *fds, nfds_t nfds, int timeout)
 {
-    if (SwooleG.main_reactor == nullptr || coroutine_get_current_cid() == -1 || nfds != 1)
+    if (unlikely(SwooleG.main_reactor == nullptr || !coroutine_get_current() || nfds != 1))
     {
         _poll: return poll(fds, nfds, timeout);
     }
@@ -321,7 +321,7 @@ static void aio_onWriteFileCompleted(swAio_event *event)
 
 int swoole_coroutine_open(const char *pathname, int flags, mode_t mode)
 {
-    if (SwooleG.main_reactor == nullptr || coroutine_get_current_cid() == -1)
+    if (unlikely(SwooleG.main_reactor == nullptr || !coroutine_get_current()))
     {
         return open(pathname, flags, mode);
     }
@@ -347,7 +347,7 @@ int swoole_coroutine_open(const char *pathname, int flags, mode_t mode)
 
 ssize_t swoole_coroutine_read(int fd, void *buf, size_t count)
 {
-    if (SwooleG.main_reactor == nullptr || coroutine_get_current_cid() == -1)
+    if (unlikely(SwooleG.main_reactor == nullptr || !coroutine_get_current()))
     {
         return read(fd, buf, count);
     }
@@ -380,7 +380,7 @@ ssize_t swoole_coroutine_read(int fd, void *buf, size_t count)
 
 ssize_t swoole_coroutine_write(int fd, const void *buf, size_t count)
 {
-    if (SwooleG.main_reactor == nullptr || coroutine_get_current_cid() == -1)
+    if (unlikely(SwooleG.main_reactor == nullptr || !coroutine_get_current()))
     {
         return write(fd, buf, count);
     }
@@ -413,7 +413,7 @@ ssize_t swoole_coroutine_write(int fd, const void *buf, size_t count)
 
 off_t swoole_coroutine_lseek(int fd, off_t offset, int whence)
 {
-    if (SwooleG.main_reactor == nullptr || coroutine_get_current_cid() == -1)
+    if (unlikely(SwooleG.main_reactor == nullptr || !coroutine_get_current()))
     {
         return lseek(fd, offset, whence);
     }
@@ -439,7 +439,7 @@ off_t swoole_coroutine_lseek(int fd, off_t offset, int whence)
 
 int swoole_coroutine_fstat(int fd, struct stat *statbuf)
 {
-    if (SwooleG.main_reactor == nullptr || coroutine_get_current_cid() == -1)
+    if (unlikely(SwooleG.main_reactor == nullptr || !coroutine_get_current()))
     {
         return fstat(fd, statbuf);
     }
@@ -464,7 +464,7 @@ int swoole_coroutine_fstat(int fd, struct stat *statbuf)
 
 int swoole_coroutine_unlink(const char *pathname)
 {
-    if (SwooleG.main_reactor == nullptr || coroutine_get_current_cid() == -1)
+    if (unlikely(SwooleG.main_reactor == nullptr || !coroutine_get_current()))
     {
         return unlink(pathname);
     }
@@ -488,7 +488,7 @@ int swoole_coroutine_unlink(const char *pathname)
 
 int swoole_coroutine_statvfs(const char *path, struct statvfs *buf)
 {
-    if (SwooleG.main_reactor == nullptr || coroutine_get_current_cid() == -1)
+    if (unlikely(SwooleG.main_reactor == nullptr || !coroutine_get_current()))
     {
         return statvfs(path, buf);
     }
@@ -513,7 +513,7 @@ int swoole_coroutine_statvfs(const char *path, struct statvfs *buf)
 
 int swoole_coroutine_mkdir(const char *pathname, mode_t mode)
 {
-    if (SwooleG.main_reactor == nullptr || coroutine_get_current_cid() == -1)
+    if (unlikely(SwooleG.main_reactor == nullptr || !coroutine_get_current()))
     {
         return mkdir(pathname, mode);
     }
@@ -538,7 +538,7 @@ int swoole_coroutine_mkdir(const char *pathname, mode_t mode)
 
 int swoole_coroutine_rmdir(const char *pathname)
 {
-    if (SwooleG.main_reactor == nullptr || coroutine_get_current_cid() == -1)
+    if (unlikely(SwooleG.main_reactor == nullptr || !coroutine_get_current()))
     {
         return rmdir(pathname);
     }
@@ -562,7 +562,7 @@ int swoole_coroutine_rmdir(const char *pathname)
 
 int swoole_coroutine_rename(const char *oldpath, const char *newpath)
 {
-    if (SwooleG.main_reactor == nullptr || coroutine_get_current_cid() == -1)
+    if (unlikely(SwooleG.main_reactor == nullptr || !coroutine_get_current()))
     {
         return rename(oldpath, newpath);
     }
@@ -587,7 +587,7 @@ int swoole_coroutine_rename(const char *oldpath, const char *newpath)
 
 int swoole_coroutine_access(const char *pathname, int mode)
 {
-    if (SwooleG.main_reactor == nullptr || coroutine_get_current_cid() == -1)
+    if (unlikely(SwooleG.main_reactor == nullptr || !coroutine_get_current()))
     {
         return access(pathname, mode);
     }
@@ -612,7 +612,7 @@ int swoole_coroutine_access(const char *pathname, int mode)
 
 int swoole_coroutine_flock(int fd, int operation)
 {
-    if (SwooleG.main_reactor == nullptr || coroutine_get_current_cid() == -1)
+    if (unlikely(SwooleG.main_reactor == nullptr || !coroutine_get_current()))
     {
         return flock(fd, operation);
     }
@@ -738,7 +738,7 @@ static void handler_readdir(swAio_event *event)
 
 DIR *swoole_coroutine_opendir(const char *name)
 {
-    if (SwooleG.main_reactor == nullptr || coroutine_get_current_cid() == -1)
+    if (unlikely(SwooleG.main_reactor == nullptr || !coroutine_get_current()))
     {
         return opendir(name);
     }
@@ -762,7 +762,7 @@ DIR *swoole_coroutine_opendir(const char *name)
 
 struct dirent *swoole_coroutine_readdir(DIR *dirp)
 {
-    if (SwooleG.main_reactor == nullptr || coroutine_get_current_cid() == -1)
+    if (unlikely(SwooleG.main_reactor == nullptr || !coroutine_get_current()))
     {
         return readdir(dirp);
     }
