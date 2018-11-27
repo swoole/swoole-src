@@ -347,7 +347,9 @@ static int swServer_start_proxy(swServer *serv)
     /**
      * create reactor thread
      */
+    php_printf("main_reactor start  before 2222222222\n");
     ret = swReactorThread_start(serv, main_reactor);
+    php_printf("main_reactor start  after 3333333333\n");
     if (ret < 0)
     {
         swWarn("ReactorThread start failed");
@@ -409,6 +411,8 @@ static int swServer_start_proxy(swServer *serv)
     {
         serv->onStart(serv);
     }
+
+    php_printf("reactor 8888888888\n");
 
     return main_reactor->wait(main_reactor, NULL);
 }
@@ -671,6 +675,8 @@ int swServer_start(swServer *serv)
     SwooleGS->master_pid = getpid();
     SwooleGS->now = SwooleStats->start_time = time(NULL);
 
+    php_printf("swServer_start, %d, %d\n", SwooleGS->master_pid, serv->dispatch_mode);
+
     if (serv->dispatch_mode == SW_DISPATCH_STREAM)
     {
         serv->stream_socket = swoole_string_format(64, "/tmp/swoole.%d.sock", SwooleGS->master_pid);
@@ -755,13 +761,17 @@ int swServer_start(swServer *serv)
         }
     }
 
+    php_printf("swServer_start, 22222222, %d\n", serv->factory_mode);
+
     //factory start
     if (factory->start(factory) < 0)
     {
+        php_printf("swServer_start, aaaaaaaaaa\n");
         return SW_ERR;
     }
     //signal Init
     swServer_signal_init(serv);
+    php_printf("swServer_start, 33333333333, %d\n", serv->factory_mode);
 
     //write PID file
     if (serv->pid_file)
@@ -775,8 +785,10 @@ int swServer_start(swServer *serv)
     }
     else
     {
+    php_printf("swServer_start, 4444444444, %d\n", serv->factory_mode);
         ret = swServer_start_proxy(serv);
     }
+    php_printf("swServer_start, 999999999999999, %d\n", serv->factory_mode);
     swServer_free(serv);
     SwooleGS->start = 0;
     //remove PID file

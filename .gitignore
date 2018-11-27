@@ -79,3 +79,6 @@ cmake-build-debug/
 /swoole_server.cbp
 /.vscode
 /configure.ac
+*.swo
+*.swp
+tags

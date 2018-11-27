@@ -2689,6 +2689,8 @@ PHP_METHOD(swoole_server, start)
     zval *zobject = getThis();
     int ret;
 
+    php_printf("swoole_server, start, 111111111\n");
+
     if (SwooleGS->start > 0)
     {
         swoole_php_fatal_error(E_WARNING, "server is running. unable to execute swoole_server->start.");
@@ -4122,6 +4124,7 @@ PHP_METHOD(swoole_server, stop)
     }
     RETURN_TRUE;
 }
+
 
 #ifdef HAVE_PCRE
 
