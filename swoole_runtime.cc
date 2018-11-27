@@ -105,6 +105,7 @@ static struct
     nullptr,
 #ifdef SW_USE_OPENSSL
     nullptr,
+    nullptr,
 #endif
 };
 
@@ -841,6 +842,7 @@ static php_stream *php_socket_create(
     {
         ori_call = ori_factory.udg;
     }
+#ifdef SW_USE_OPENSSL
     else if (strncmp(proto, "ssl", protolen) == 0)
     {
         ori_call = ori_factory.ssl;
@@ -849,6 +851,7 @@ static php_stream *php_socket_create(
     {
         ori_call = ori_factory.tls;
     }
+#endif
     else
     {
         ori_call = ori_factory.tcp;

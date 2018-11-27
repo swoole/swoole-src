@@ -586,13 +586,9 @@ extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
     INIT_CLASS_ENTRY(ce, namespaceName, methods); \
     ce##_ptr = zend_register_internal_class_ex(&ce, parent_ce_ptr); \
     if (snake_name) { \
-        char *p = (char *) snake_name; \
-        assert(strchr(p, '_') != NULL); \
         SWOOLE_CLASS_ALIAS(snake_name, ce##_ptr); \
     } \
     if (shortName && SWOOLE_G(use_shortname)) { \
-        char *p = (char *) shortName; \
-        assert(p[0] == 'C' && p[1] == 'o'); \
         SWOOLE_CLASS_ALIAS(shortName, ce##_ptr); \
     }
 
