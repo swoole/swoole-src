@@ -222,6 +222,29 @@ static sw_inline int sw_zend_is_callable_ex(zval *zcallable, zval *zobject, uint
     return ret;
 }
 
+static sw_inline int sw_zend_register_class_alias(const char *name, size_t name_len, zend_class_entry *ce)
+{
+    zend_string *_name;
+    if (name[0] == '\\')
+    {
+        _name = zend_string_init(name, name_len, 1);
+        zend_str_tolower_copy(ZSTR_VAL(_name), name + 1, name_len - 1);
+    }
+    else
+    {
+        _name = zend_string_init(name, name_len, 1);
+        zend_str_tolower_copy(ZSTR_VAL(_name), name, name_len);
+    }
+
+    zend_string *_interned_name = zend_new_interned_string(_name);
+
+#if PHP_VERSION_ID >= 70300
+    return zend_register_class_alias_ex(_interned_name->val, _interned_name->len, ce, 1);
+#else
+    return zend_register_class_alias_ex(_interned_name->val, _interned_name->len, ce);
+#endif
+}
+
 static sw_inline char* sw_http_build_query(zval *zdata, size_t *length, smart_str *formstr)
 {
     if (php_url_encode_hash_ex(HASH_OF(zdata), formstr, NULL, 0, NULL, 0, NULL, 0, NULL, NULL, (int) PHP_QUERY_RFC1738) == FAILURE)

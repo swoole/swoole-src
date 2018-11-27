@@ -591,12 +591,7 @@ extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
     if (shortName && SWOOLE_G(use_shortname)) { \
         SWOOLE_CLASS_ALIAS(shortName, ce##_ptr); \
     }
-
-#if PHP_VERSION_ID >= 70300
-#define SWOOLE_CLASS_ALIAS(name, ce_ptr) zend_register_class_alias_ex(ZEND_STRL(name), ce_ptr, 1);
-#else
-#define SWOOLE_CLASS_ALIAS(name, ce_ptr) zend_register_class_alias_ex(ZEND_STRL(name), ce_ptr);
-#endif
+#define SWOOLE_CLASS_ALIAS(name, ce_ptr) sw_zend_register_class_alias(ZEND_STRL(name), ce_ptr);
 
 /* PHP 7 patches */
 // Fixed in php-7.0.28, php-7.1.15RC1, php-7.2.3RC1 (https://github.com/php/php-src/commit/e88e83d3e5c33fcd76f08b23e1a2e4e8dc98ce41)
