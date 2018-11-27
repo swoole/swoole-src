@@ -53,7 +53,7 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
 
 #define SW_HASHTABLE_FOREACH_END()                 } ZEND_HASH_FOREACH_END();
 
-static inline char* sw_php_format_date(char *format, size_t format_len, time_t ts, int localtime)
+static sw_inline char* sw_php_format_date(char *format, size_t format_len, time_t ts, int localtime)
 {
     zend_string *time = php_format_date(format, format_len, ts, localtime);
     char *return_str = estrndup(time->val, time->len);
@@ -181,8 +181,7 @@ static sw_inline zval* sw_zend_read_property(zend_class_entry *class_ptr, zval *
 
 static sw_inline zval* sw_zend_read_property_not_null(zend_class_entry *class_ptr, zval *obj, const char *s, int len, int silent)
 {
-    zval rv;
-    zval *property = zend_read_property(class_ptr, obj, s, len, silent, &rv);
+    zval rv, *property = zend_read_property(class_ptr, obj, s, len, silent, &rv);
     return ZVAL_IS_NULL(property) ? NULL : property;
 }
 
@@ -225,7 +224,7 @@ static sw_inline int sw_zend_is_callable_ex(zval *zcallable, zval *zobject, uint
     return ret;
 }
 
-static inline int sw_zend_register_class_alias(const char *name, zend_class_entry *ce)
+static sw_inline int sw_zend_register_class_alias(const char *name, zend_class_entry *ce)
 {
     int name_len = strlen(name);
     zend_string *_name;
