@@ -17,6 +17,7 @@
 #pragma once
 
 #include "swoole.h"
+#include "coroutine.h"
 #include "connection.h"
 #include "socks5.h"
 #include <string>
@@ -62,15 +63,15 @@ public:
     ssize_t recvfrom(void *__buf, size_t __n);
     ssize_t recvfrom(void *__buf, size_t __n, struct sockaddr *_addr, socklen_t *_socklen);
 
-    inline int has_bound(socket_lock_operation type)
+    inline long has_bound(socket_lock_operation type)
     {
-        if ((type & SOCKET_LOCK_READ) && read_cid)
+        if ((type & SOCKET_LOCK_READ) && read_co)
         {
-            return read_cid;
+            return read_co->get_cid();
         }
-        else if ((type & SOCKET_LOCK_WRITE) && write_cid)
+        else if ((type & SOCKET_LOCK_WRITE) && write_co)
         {
-            return write_cid;
+            return write_co->get_cid();
         }
         return 0;
     }
@@ -108,8 +109,8 @@ public:
 protected:
     inline void init_members()
     {
-        read_cid = 0;
-        write_cid = 0;
+        read_co = nullptr;
+        write_co = nullptr;
         _timeout = 0;
         _port = 0;
         errCode = 0;
@@ -201,18 +202,24 @@ protected:
         return true;
     }
 
-    inline bool is_available(long cid)
+    inline bool is_available(socket_lock_operation type)
     {
-        if (cid)
+        long cid = has_bound(type);
+        if (unlikely(cid))
         {
-            swoole_error_log(SW_LOG_ERROR, SW_ERROR_CO_HAS_BEEN_BOUND, "Socket#%d has already been bound to another coroutine %ld.", socket->fd, cid);
+            swoole_error_log(
+                SW_LOG_ERROR, SW_ERROR_CO_HAS_BEEN_BOUND,
+                "Socket#%d has already been bound to another coroutine#%ld, "
+                "reading or writing of the same socket in multiple coroutines at the same time is not allowed.\n",
+                socket->fd, cid
+            );
             errCode = SW_ERROR_CO_HAS_BEEN_BOUND;
             exit(255);
         }
-        if (_closed)
+        if (unlikely(_closed))
         {
             errCode = SW_ERROR_SOCKET_CLOSED;
-            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKET_CLOSED, "Socket#%d has already been closed.", socket->fd);
+            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKET_CLOSED, "Socket#%d belongs to coroutine#%ld has already been closed.", socket->fd, cid);
             return false;
         }
         return true;
@@ -228,8 +235,8 @@ public:
     std::string bind_address;
     int bind_port;
     int _port;
-    long read_cid;
-    long write_cid;
+    Coroutine* read_co;
+    Coroutine* write_co;
     swTimer_node *read_timer;
     swTimer_node *write_timer;
     swConnection *socket = nullptr;

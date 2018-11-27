@@ -325,7 +325,7 @@ Socket::Socket(int _fd, Socket *server_sock)
 
 bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen)
 {
-    if (!is_available(read_cid || write_cid))
+    if (unlikely(!is_available(SOCKET_LOCK_RW)))
     {
         return false;
     }
@@ -361,7 +361,7 @@ bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen)
 
 bool Socket::connect(string host, int port, int flags)
 {
-    if (!is_available(read_cid || write_cid))
+    if (unlikely(!is_available(SOCKET_LOCK_RW)))
     {
         return false;
     }
@@ -545,7 +545,7 @@ static int socket_onWrite(swReactor *reactor, swEvent *event)
 
 ssize_t Socket::peek(void *__buf, size_t __n)
 {
-    if (!is_available(read_cid))
+    if (unlikely(!is_available(SOCKET_LOCK_READ)))
     {
         return -1;
     }
@@ -554,7 +554,7 @@ ssize_t Socket::peek(void *__buf, size_t __n)
 
 ssize_t Socket::recv(void *__buf, size_t __n)
 {
-    if (!is_available(read_cid))
+    if (unlikely(!is_available(SOCKET_LOCK_READ)))
     {
         return -1;
     }
@@ -577,7 +577,7 @@ ssize_t Socket::recv(void *__buf, size_t __n)
         if (socket->ssl && socket->ssl_want_write)
         {
             events = SW_EVENT_WRITE;
-            if (!is_available(write_cid))
+            if (unlikely(!is_available(SOCKET_LOCK_WRITE)))
             {
                 return -1;
             }
@@ -608,7 +608,7 @@ ssize_t Socket::recv(void *__buf, size_t __n)
 
 ssize_t Socket::read(void *__buf, size_t __n)
 {
-    if (!is_available(read_cid))
+    if (unlikely(!is_available(SOCKET_LOCK_READ)))
     {
         return -1;
     }
@@ -631,7 +631,7 @@ ssize_t Socket::read(void *__buf, size_t __n)
         if (socket->ssl && socket->ssl_want_write)
         {
             events = SW_EVENT_WRITE;
-            if (!is_available(write_cid))
+            if (unlikely(!is_available(SOCKET_LOCK_WRITE)))
             {
                 return -1;
             }
@@ -662,7 +662,7 @@ ssize_t Socket::read(void *__buf, size_t __n)
 
 ssize_t Socket::write(const void *__buf, size_t __n)
 {
-    if (!is_available(write_cid))
+    if (unlikely(!is_available(SOCKET_LOCK_WRITE)))
     {
         return -1;
     }
@@ -685,7 +685,7 @@ ssize_t Socket::write(const void *__buf, size_t __n)
         if (socket->ssl && socket->ssl_want_read)
         {
             events = SW_EVENT_READ;
-            if (!is_available(read_cid))
+            if (unlikely(!is_available(SOCKET_LOCK_READ)))
             {
                 return -1;
             }
@@ -717,7 +717,7 @@ ssize_t Socket::write(const void *__buf, size_t __n)
 
 ssize_t Socket::recv_all(void *__buf, size_t __n)
 {
-    if (!is_available(read_cid))
+    if (unlikely(!is_available(SOCKET_LOCK_READ)))
     {
         return -1;
     }
@@ -744,7 +744,7 @@ ssize_t Socket::recv_all(void *__buf, size_t __n)
 
 ssize_t Socket::send_all(const void *__buf, size_t __n)
 {
-    if (!is_available(write_cid))
+    if (unlikely(!is_available(SOCKET_LOCK_WRITE)))
     {
         return -1;
     }
@@ -772,7 +772,7 @@ ssize_t Socket::send_all(const void *__buf, size_t __n)
 
 ssize_t Socket::send(const void *__buf, size_t __n)
 {
-    if (!is_available(write_cid))
+    if (unlikely(!is_available(SOCKET_LOCK_WRITE)))
     {
         return -1;
     }
@@ -795,7 +795,7 @@ ssize_t Socket::send(const void *__buf, size_t __n)
         if (socket->ssl && socket->ssl_want_read)
         {
             events = SW_EVENT_READ;
-            if (!is_available(read_cid))
+            if (unlikely(!is_available(SOCKET_LOCK_READ)))
             {
                 return -1;
             }
@@ -827,7 +827,7 @@ ssize_t Socket::send(const void *__buf, size_t __n)
 
 ssize_t Socket::sendmsg(const struct msghdr *msg, int flags)
 {
-    if (!is_available(write_cid))
+    if (unlikely(!is_available(SOCKET_LOCK_WRITE)))
     {
         return -1;
     }
@@ -863,7 +863,7 @@ ssize_t Socket::sendmsg(const struct msghdr *msg, int flags)
 
 ssize_t Socket::recvmsg(struct msghdr *msg, int flags)
 {
-    if (!is_available(read_cid))
+    if (unlikely(!is_available(SOCKET_LOCK_READ)))
     {
         return -1;
     }
@@ -905,7 +905,6 @@ void Socket::yield(int operation)
         swError("Socket::yield() must be called in the coroutine.");
     }
 
-    int cid = co->get_cid();
     errCode = 0;
     int ms = (int) (_timeout * 1000);
     if (ms <= 0 || ms >= SW_TIMER_MAX_VALUE)
@@ -936,24 +935,24 @@ void Socket::yield(int operation)
     }
 
     // bind read/write coroutine
-    if (operation & SOCKET_LOCK_WRITE)
-    {
-        write_cid = cid;
-    }
     if (operation & SOCKET_LOCK_READ)
     {
-        read_cid = cid;
+        read_co = co;
+    }
+    if (operation & SOCKET_LOCK_WRITE)
+    {
+        write_co = co;
     }
     //=== yield ===
     co->yield();
     //=== resume ===
     if (operation & SOCKET_LOCK_WRITE)
     {
-        write_cid = 0;
+        write_co = nullptr;
     }
     if (operation & SOCKET_LOCK_READ)
     {
-        read_cid = 0;
+        read_co = nullptr;
     }
 
     //=== clear timer ===
@@ -971,25 +970,26 @@ void Socket::yield(int operation)
 
 void Socket::resume(int operation)
 {
-    long cid = 0;
+    Coroutine *co;
     if (operation & SOCKET_LOCK_READ)
     {
-        cid = read_cid;
+        co = read_co;
     }
     else if (operation & SOCKET_LOCK_WRITE)
     {
-        cid = write_cid;
+        co = write_co;
     }
     else
     {
+        co = nullptr;
         assert(0);
     }
-    coroutine_get_by_id(cid)->resume();
+    co->resume();
 }
 
 bool Socket::bind(std::string address, int port)
 {
-    if (!is_available(read_cid))
+    if (unlikely(!is_available(SOCKET_LOCK_READ)))
     {
         return false;
     }
@@ -1075,7 +1075,7 @@ bool Socket::bind(std::string address, int port)
 
 bool Socket::listen(int backlog)
 {
-    if (!is_available(read_cid || write_cid))
+    if (unlikely(!is_available(SOCKET_LOCK_RW)))
     {
         return false;
     }
@@ -1105,7 +1105,7 @@ bool Socket::listen(int backlog)
 
 Socket* Socket::accept()
 {
-    if (!is_available(read_cid || write_cid))
+    if (unlikely(!is_available(SOCKET_LOCK_RW)))
     {
         return nullptr;
     }
@@ -1156,7 +1156,7 @@ Socket* Socket::accept()
 
 string Socket::resolve(string domain_name)
 {
-    if (!is_available(read_cid || write_cid))
+    if (unlikely(!is_available(SOCKET_LOCK_RW)))
     {
         return "";
     }
@@ -1220,7 +1220,7 @@ string Socket::resolve(string domain_name)
 
 bool Socket::shutdown(int __how)
 {
-    if (!is_available(read_cid || write_cid))
+    if (unlikely(!is_available(SOCKET_LOCK_RW)))
     {
         return false;
     }
@@ -1253,7 +1253,7 @@ bool Socket::shutdown(int __how)
 
 bool Socket::close()
 {
-    if (!is_available(read_cid || write_cid))
+    if (unlikely(!is_available(SOCKET_LOCK_RW)))
     {
         return false;
     }
@@ -1273,7 +1273,7 @@ bool Socket::close()
 #ifdef SW_USE_OPENSSL
 bool Socket::ssl_handshake()
 {
-    if (!is_available(read_cid || write_cid))
+    if (unlikely(!is_available(SOCKET_LOCK_RW)))
     {
         return -1;
     }
@@ -1386,7 +1386,7 @@ bool Socket::ssl_accept()
 
 int Socket::ssl_verify(bool allow_self_signed)
 {
-    if (!is_available(read_cid || write_cid))
+    if (unlikely(!is_available(SOCKET_LOCK_RW)))
     {
         return -1;
     }
@@ -1404,7 +1404,7 @@ int Socket::ssl_verify(bool allow_self_signed)
 
 bool Socket::sendfile(char *filename, off_t offset, size_t length)
 {
-    if (!is_available(write_cid))
+    if (unlikely(!is_available(SOCKET_LOCK_WRITE)))
     {
         return false;
     }
@@ -1479,7 +1479,7 @@ bool Socket::sendfile(char *filename, off_t offset, size_t length)
 
 ssize_t Socket::sendto(char *address, int port, char *data, int len)
 {
-    if (!is_available(write_cid))
+    if (unlikely(!is_available(SOCKET_LOCK_WRITE)))
     {
         return -1;
     }
@@ -1500,7 +1500,7 @@ ssize_t Socket::sendto(char *address, int port, char *data, int len)
 
 ssize_t Socket::recvfrom(void *__buf, size_t __n)
 {
-    if (!is_available(read_cid))
+    if (unlikely(!is_available(SOCKET_LOCK_READ)))
     {
         return -1;
     }
@@ -1510,7 +1510,7 @@ ssize_t Socket::recvfrom(void *__buf, size_t __n)
 
 ssize_t Socket::recvfrom(void *__buf, size_t __n, struct sockaddr* _addr, socklen_t *_socklen)
 {
-    if (!is_available(read_cid))
+    if (unlikely(!is_available(SOCKET_LOCK_READ)))
     {
         return -1;
     }
@@ -1552,7 +1552,7 @@ ssize_t Socket::recvfrom(void *__buf, size_t __n, struct sockaddr* _addr, sockle
  */
 ssize_t Socket::recv_packet()
 {
-    if (!is_available(read_cid))
+    if (unlikely(!is_available(SOCKET_LOCK_READ)))
     {
         return -1;
     }
