@@ -255,15 +255,15 @@ typedef struct
 
 #define SW_LONG_CONNECTION_KEY_LEN          64
 
-extern zend_class_entry *swoole_process_class_entry_ptr;
-extern zend_class_entry *swoole_client_class_entry_ptr;
-extern zend_class_entry *swoole_server_class_entry_ptr;
-extern zend_class_entry *swoole_connection_iterator_class_entry_ptr;
-extern zend_class_entry *swoole_buffer_class_entry_ptr;
-extern zend_class_entry *swoole_http_server_class_entry_ptr;
-extern zend_class_entry *swoole_websocket_server_class_entry_ptr;
-extern zend_class_entry *swoole_server_port_class_entry_ptr;
-extern zend_class_entry *swoole_exception_class_entry_ptr;
+extern zend_class_entry *swoole_process_ce_ptr;
+extern zend_class_entry *swoole_client_ce_ptr;
+extern zend_class_entry *swoole_server_ce_ptr;
+extern zend_class_entry *swoole_connection_iterator_ce_ptr;
+extern zend_class_entry *swoole_buffer_ce_ptr;
+extern zend_class_entry *swoole_http_server_ce_ptr;
+extern zend_class_entry *swoole_websocket_server_ce_ptr;
+extern zend_class_entry *swoole_server_port_ce_ptr;
+extern zend_class_entry *swoole_exception_ce_ptr;
 
 extern zval *php_sw_server_callbacks[PHP_SWOOLE_SERVER_CALLBACK_NUM];
 extern zend_fcall_info_cache *php_sw_server_caches[PHP_SWOOLE_SERVER_CALLBACK_NUM];
@@ -582,19 +582,25 @@ extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
 #define SWOOLE_RAW_DEFINE(constant)    REGISTER_LONG_CONSTANT(#constant, constant, CONST_CS | CONST_PERSISTENT)
 #define SWOOLE_DEFINE(constant)    REGISTER_LONG_CONSTANT("SWOOLE_"#constant, SW_##constant, CONST_CS | CONST_PERSISTENT)
 
-#define SWOOLE_INIT_CLASS_ENTRY(ce, name, name_ns, methods) \
-    if (SWOOLE_G(use_namespace)) { \
-        INIT_CLASS_ENTRY(ce, name_ns, methods); \
-    } else { \
-        INIT_CLASS_ENTRY(ce, name, methods); \
+#define SWOOLE_INIT_CLASS_ENTRY(ce, namespaceName, snake_name, shortName, methods, parent_ce_ptr) \
+    INIT_CLASS_ENTRY(ce, namespaceName, methods); \
+    ce##_ptr = zend_register_internal_class_ex(&ce, parent_ce_ptr); \
+    if (snake_name) { \
+        char *p = (char *) snake_name; \
+        assert(strchr(p, '_') != NULL); \
+        SWOOLE_CLASS_ALIAS(snake_name, ce##_ptr); \
+    } \
+    if (shortName && SWOOLE_G(use_shortname)) { \
+        char *p = (char *) shortName; \
+        assert(p[0] == 'C' && p[1] == 'o'); \
+        SWOOLE_CLASS_ALIAS(shortName, ce##_ptr); \
     }
 
-#define SWOOLE_CLASS_ALIAS(name, name_ns) \
-    if (SWOOLE_G(use_namespace)) { \
-        sw_zend_register_class_alias(#name, name##_class_entry_ptr);\
-    } else { \
-        sw_zend_register_class_alias(name_ns, name##_class_entry_ptr);\
-    }
+#if PHP_VERSION_ID >= 70300
+#define SWOOLE_CLASS_ALIAS(name, ce_ptr) zend_register_class_alias_ex(ZEND_STRL(name), ce_ptr, 1);
+#else
+#define SWOOLE_CLASS_ALIAS(name, ce_ptr) zend_register_class_alias_ex(ZEND_STRL(name), ce_ptr);
+#endif
 
 /* PHP 7 patches */
 // Fixed in php-7.0.28, php-7.1.15RC1, php-7.2.3RC1 (https://github.com/php/php-src/commit/e88e83d3e5c33fcd76f08b23e1a2e4e8dc98ce41)

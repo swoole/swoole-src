@@ -63,7 +63,8 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_runtime_enableCoroutine, 0, 0, 0)
     ZEND_ARG_INFO(0, flags)
 ZEND_END_ARG_INFO()
 
-static zend_class_entry *ce;
+static zend_class_entry swoole_runtime_ce;
+static zend_class_entry *swoole_runtime_ce_ptr;
 
 static php_stream_ops socket_ops
 {
@@ -138,9 +139,7 @@ static const zend_function_entry swoole_runtime_methods[] =
 
 void swoole_runtime_init(int module_number)
 {
-    static zend_class_entry _ce;
-    INIT_CLASS_ENTRY(_ce, "Swoole\\Runtime", swoole_runtime_methods);
-    ce = zend_register_internal_class(&_ce);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_runtime_ce, "Swoole\\Runtime", "swoole_runtime", NULL, swoole_runtime_methods, NULL);
 
     SWOOLE_DEFINE(HOOK_FILE);
     SWOOLE_DEFINE(HOOK_SLEEP);

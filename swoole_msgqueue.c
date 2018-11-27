@@ -25,7 +25,7 @@ static PHP_METHOD(swoole_msgqueue, stats);
 static PHP_METHOD(swoole_msgqueue, destroy);
 
 static zend_class_entry swoole_msgqueue_ce;
-zend_class_entry *swoole_msgqueue_class_entry_ptr;
+zend_class_entry *swoole_msgqueue_ce_ptr;
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_msgqueue_construct, 0, 0, 1)
     ZEND_ARG_INFO(0, len)
@@ -61,9 +61,7 @@ static const zend_function_entry swoole_msgqueue_methods[] =
 
 void swoole_msgqueue_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_msgqueue_ce, "swoole_msgqueue", "Swoole\\MsgQueue", swoole_msgqueue_methods);
-    swoole_msgqueue_class_entry_ptr = zend_register_internal_class(&swoole_msgqueue_ce);
-    SWOOLE_CLASS_ALIAS(swoole_msgqueue, "Swoole\\MsgQueue");
+    SWOOLE_INIT_CLASS_ENTRY(swoole_msgqueue_ce, "Swoole\\MsgQueue", "swoole_msgqueue", NULL, swoole_msgqueue_methods, NULL);
 }
 
 static PHP_METHOD(swoole_msgqueue, __construct)
@@ -79,12 +77,12 @@ static PHP_METHOD(swoole_msgqueue, __construct)
     swMsgQueue *queue = emalloc(sizeof(swMsgQueue));
     if (queue == NULL)
     {
-        zend_throw_exception(swoole_exception_class_entry_ptr, "failed to create MsgQueue.", SW_ERROR_MALLOC_FAIL);
+        zend_throw_exception(swoole_exception_ce_ptr, "failed to create MsgQueue.", SW_ERROR_MALLOC_FAIL);
         RETURN_FALSE;
     }
     if (swMsgQueue_create(queue, 1, key, perms))
     {
-        zend_throw_exception(swoole_exception_class_entry_ptr, "failed to init MsgQueue.", SW_ERROR_MALLOC_FAIL);
+        zend_throw_exception(swoole_exception_ce_ptr, "failed to init MsgQueue.", SW_ERROR_MALLOC_FAIL);
         RETURN_FALSE;
     }
     swoole_set_object(getThis(), queue);

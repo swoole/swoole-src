@@ -88,7 +88,7 @@ void sw_coro_add_defer_task(swCallback cb, void *data);
 void coro_init(void);
 void coro_check(void);
 
-#define sw_coro_is_in() (sw_get_current_cid() != -1)
+#define sw_coro_is_in() (likely(COROG.active && coroutine_get_current()))
 #define coro_use_return_value(); *(zend_uchar *) &execute_data->prev_execute_data->opline->result_type = IS_VAR;
 
 /* output globals */

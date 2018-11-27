@@ -25,7 +25,7 @@ BEGIN_EXTERN_C()
 END_EXTERN_C()
 
 static zend_class_entry swoole_redis_server_ce;
-static zend_class_entry *swoole_redis_server_class_entry_ptr;
+static zend_class_entry *swoole_redis_server_ce_ptr;
 
 static swString *format_buffer;
 #ifdef SW_COROUTINE
@@ -66,22 +66,15 @@ const zend_function_entry swoole_redis_server_methods[] =
 
 void swoole_redis_server_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_redis_server_ce, "swoole_redis_server", "Swoole\\Redis\\Server", swoole_redis_server_methods);
-    swoole_redis_server_class_entry_ptr = sw_zend_register_internal_class_ex(&swoole_redis_server_ce, swoole_server_class_entry_ptr, "swoole_server");
-    SWOOLE_CLASS_ALIAS(swoole_redis_server, "Swoole\\Redis\\Server");
+    SWOOLE_INIT_CLASS_ENTRY(swoole_redis_server_ce, "Swoole\\Redis\\Server", "swoole_redis_server", "Co\\Redis\\Server", swoole_redis_server_methods, swoole_server_ce_ptr);
 
-    if (SWOOLE_G(use_shortname))
-    {
-        sw_zend_register_class_alias("Co\\Redis\\Server", swoole_redis_server_class_entry_ptr);
-    }
-
-    zend_declare_class_constant_long(swoole_redis_server_class_entry_ptr, ZEND_STRL("NIL"), SW_REDIS_REPLY_NIL);
-    zend_declare_class_constant_long(swoole_redis_server_class_entry_ptr, ZEND_STRL("ERROR"), SW_REDIS_REPLY_ERROR);
-    zend_declare_class_constant_long(swoole_redis_server_class_entry_ptr, ZEND_STRL("STATUS"), SW_REDIS_REPLY_STATUS);
-    zend_declare_class_constant_long(swoole_redis_server_class_entry_ptr, ZEND_STRL("INT"), SW_REDIS_REPLY_INT);
-    zend_declare_class_constant_long(swoole_redis_server_class_entry_ptr, ZEND_STRL("STRING"), SW_REDIS_REPLY_STRING);
-    zend_declare_class_constant_long(swoole_redis_server_class_entry_ptr, ZEND_STRL("SET"), SW_REDIS_REPLY_SET);
-    zend_declare_class_constant_long(swoole_redis_server_class_entry_ptr, ZEND_STRL("MAP"), SW_REDIS_REPLY_MAP);
+    zend_declare_class_constant_long(swoole_redis_server_ce_ptr, ZEND_STRL("NIL"), SW_REDIS_REPLY_NIL);
+    zend_declare_class_constant_long(swoole_redis_server_ce_ptr, ZEND_STRL("ERROR"), SW_REDIS_REPLY_ERROR);
+    zend_declare_class_constant_long(swoole_redis_server_ce_ptr, ZEND_STRL("STATUS"), SW_REDIS_REPLY_STATUS);
+    zend_declare_class_constant_long(swoole_redis_server_ce_ptr, ZEND_STRL("INT"), SW_REDIS_REPLY_INT);
+    zend_declare_class_constant_long(swoole_redis_server_ce_ptr, ZEND_STRL("STRING"), SW_REDIS_REPLY_STRING);
+    zend_declare_class_constant_long(swoole_redis_server_ce_ptr, ZEND_STRL("SET"), SW_REDIS_REPLY_SET);
+    zend_declare_class_constant_long(swoole_redis_server_ce_ptr, ZEND_STRL("MAP"), SW_REDIS_REPLY_MAP);
 }
 
 static int redis_onReceive(swServer *serv, swEventData *req)
@@ -197,7 +190,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
 
     if (SwooleG.enable_coroutine)
     {
-        zval *zindex = sw_zend_read_property(swoole_redis_server_class_entry_ptr, zobject, _command, _command_len, 1);
+        zval *zindex = sw_zend_read_property(swoole_redis_server_ce_ptr, zobject, _command, _command_len, 1);
         if (!zindex || ZVAL_IS_NULL(zindex))
         {
             length = snprintf(err_msg, sizeof(err_msg), "-ERR unknown command '%*s'\r\n", command_len, command);
@@ -216,7 +209,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
     }
     else
     {
-        zval *zcallback = sw_zend_read_property(swoole_redis_server_class_entry_ptr, zobject, _command, _command_len, 1);
+        zval *zcallback = sw_zend_read_property(swoole_redis_server_ce_ptr, zobject, _command, _command_len, 1);
         if (!zcallback || ZVAL_IS_NULL(zcallback))
         {
             length = snprintf(err_msg, sizeof(err_msg), "-ERR unknown command '%*s'\r\n", command_len, command);
@@ -271,12 +264,12 @@ static PHP_METHOD(swoole_redis_server, start)
         RETURN_FALSE;
     }
 
-    zval *zsetting = sw_zend_read_property(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("setting"), 1);
+    zval *zsetting = sw_zend_read_property(swoole_server_ce_ptr, getThis(), ZEND_STRL("setting"), 1);
     if (zsetting == NULL || ZVAL_IS_NULL(zsetting))
     {
         SW_ALLOC_INIT_ZVAL(zsetting);
         array_init(zsetting);
-        zend_update_property(swoole_server_class_entry_ptr, getThis(), ZEND_STRL("setting"), zsetting);
+        zend_update_property(swoole_server_ce_ptr, getThis(), ZEND_STRL("setting"), zsetting);
     }
 
 #ifdef HT_ALLOW_COW_VIOLATION
@@ -354,7 +347,7 @@ static PHP_METHOD(swoole_redis_server, setHandler)
         func_cache_array.array = (zend_fcall_info_cache **) ecalloc(func_cache_array.size, sizeof(zend_fcall_info_cache *));
     }
     Z_TRY_ADDREF_P(zcallback);
-    zend_update_property_long(swoole_redis_server_class_entry_ptr, getThis(), _command, length, func_cache_index);
+    zend_update_property_long(swoole_redis_server_ce_ptr, getThis(), _command, length, func_cache_index);
 
     RETURN_TRUE;
 }

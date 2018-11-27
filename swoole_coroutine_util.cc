@@ -153,13 +153,13 @@ static PHP_METHOD(swoole_exit_exception, getStatus);
 static std::unordered_map<int, Coroutine *> user_yield_coros;
 
 static zend_class_entry swoole_coroutine_util_ce;
-static zend_class_entry *swoole_coroutine_util_class_entry_ptr;
+static zend_class_entry *swoole_coroutine_util_ce_ptr;
 
 static zend_class_entry swoole_coroutine_iterator_ce;
-static zend_class_entry *swoole_coroutine_iterator_class_entry_ptr;
+static zend_class_entry *swoole_coroutine_iterator_ce_ptr;
 
 static zend_class_entry swoole_exit_exception_ce;
-static zend_class_entry *swoole_exit_exception_class_entry_ptr;
+static zend_class_entry *swoole_exit_exception_ce_ptr;
 
 BEGIN_EXTERN_C()
 extern int swoole_coroutine_statvfs(const char *path, struct statvfs *buf);
@@ -267,11 +267,11 @@ static int coro_exit_handler(zend_execute_data *execute_data)
             exit_status = &_exit_status;
             ZVAL_NULL(exit_status);
         }
-        obj = zend_throw_error_exception(swoole_exit_exception_class_entry_ptr, "swoole exit.", 0, E_ERROR);
+        obj = zend_throw_error_exception(swoole_exit_exception_ce_ptr, "swoole exit.", 0, E_ERROR);
         ZVAL_OBJ(&ex, obj);
-        zend_update_property_long(swoole_exit_exception_class_entry_ptr, &ex, ZEND_STRL("flags"), flags);
+        zend_update_property_long(swoole_exit_exception_ce_ptr, &ex, ZEND_STRL("flags"), flags);
         Z_TRY_ADDREF_P(exit_status);
-        zend_update_property(swoole_exit_exception_class_entry_ptr, &ex, ZEND_STRL("status"), exit_status);
+        zend_update_property(swoole_exit_exception_ce_ptr, &ex, ZEND_STRL("status"), exit_status);
     }
 
     return ZEND_USER_OPCODE_DISPATCH;
@@ -281,29 +281,13 @@ void swoole_coroutine_util_init(int module_number)
 {
     coro_init();
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_coroutine_util_ce, "swoole_coroutine", "Swoole\\Coroutine", swoole_coroutine_util_methods);
-    swoole_coroutine_util_class_entry_ptr = zend_register_internal_class(&swoole_coroutine_util_ce);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_coroutine_util_ce, "Swoole\\Coroutine", "swoole_coroutine", "Co", swoole_coroutine_util_methods, NULL);
 
-    INIT_CLASS_ENTRY(swoole_coroutine_iterator_ce, "Swoole\\Coroutine\\Iterator", iterator_methods);
-    swoole_coroutine_iterator_class_entry_ptr = zend_register_internal_class(&swoole_coroutine_iterator_ce);
-    zend_class_implements(swoole_coroutine_iterator_class_entry_ptr, 1, zend_ce_iterator);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_coroutine_iterator_ce, "Swoole\\Coroutine\\Iterator", NULL, "Co\\Iterator", iterator_methods, NULL);
+    zend_class_implements(swoole_coroutine_iterator_ce_ptr, 1, zend_ce_iterator);
 #ifdef SW_HAVE_COUNTABLE
-    zend_class_implements(swoole_coroutine_iterator_class_entry_ptr, 1, zend_ce_countable);
+    zend_class_implements(swoole_coroutine_iterator_ce_ptr, 1, zend_ce_countable);
 #endif
-
-    if (SWOOLE_G(use_namespace))
-    {
-        sw_zend_register_class_alias("swoole_coroutine", swoole_coroutine_util_class_entry_ptr);
-    }
-    else
-    {
-        sw_zend_register_class_alias("Swoole\\Coroutine", swoole_coroutine_util_class_entry_ptr);
-    }
-
-    if (SWOOLE_G(use_shortname))
-    {
-        sw_zend_register_class_alias("Co", swoole_coroutine_util_class_entry_ptr);
-    }
 
     SWOOLE_DEFINE(DEFAULT_MAX_CORO_NUM);
     SWOOLE_DEFINE(MAX_CORO_NUM_LIMIT);
@@ -314,8 +298,8 @@ void swoole_coroutine_util_init(int module_number)
     SWOOLE_DEFINE(CORO_END);
 
     //prohibit exit in coroutine
-    INIT_CLASS_ENTRY(swoole_exit_exception_ce, "Swoole\\ExitException", swoole_exit_exception_methods);
-    swoole_exit_exception_class_entry_ptr = zend_register_internal_class_ex(&swoole_exit_exception_ce, zend_exception_get_default());
+    SWOOLE_INIT_CLASS_ENTRY(swoole_exit_exception_ce, "Swoole\\ExitException", NULL, NULL, swoole_exit_exception_methods, zend_exception_get_default());
+
     SWOOLE_DEFINE(EXIT_IN_COROUTINE);
     SWOOLE_DEFINE(EXIT_IN_SERVER);
 
@@ -1369,7 +1353,7 @@ static PHP_METHOD(swoole_coroutine_iterator, __destruct)
 
 static PHP_METHOD(swoole_coroutine_util, listCoroutines)
 {
-    object_init_ex(return_value, swoole_coroutine_iterator_class_entry_ptr);
+    object_init_ex(return_value, swoole_coroutine_iterator_ce_ptr);
     coroutine_iterator *itearator = (coroutine_iterator *) emalloc(sizeof(coroutine_iterator));
     bzero(itearator, sizeof(coroutine_iterator));
     itearator->_map = coroutine_get_map();

@@ -69,7 +69,7 @@ $pm->childFunc = function () use ($pm) {
         $server->after(PING_LOOP * PING_INTERVAL, function () use ($pm, $server, $timer_id) {
             $server->clearTimer($timer_id);
             foreach ($server->connections as $fd) {
-                $server->push($fd, new swoole_websocket_close_frame);
+                $server->push($fd, new swoole_websocket_closeframe);
             }
         });
         $pm->wakeup();

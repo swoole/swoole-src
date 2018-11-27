@@ -338,11 +338,11 @@ int swoole_convert_to_fd(zval *zfd)
     else if (Z_TYPE_P(zfd) == IS_OBJECT)
     {
         zval *zsock = NULL;
-        if (instanceof_function(Z_OBJCE_P(zfd), swoole_client_class_entry_ptr))
+        if (instanceof_function(Z_OBJCE_P(zfd), swoole_client_ce_ptr))
         {
             zsock = sw_zend_read_property(Z_OBJCE_P(zfd), zfd, ZEND_STRL("sock"), 0);
         }
-        else if (instanceof_function(Z_OBJCE_P(zfd), swoole_process_class_entry_ptr))
+        else if (instanceof_function(Z_OBJCE_P(zfd), swoole_process_ce_ptr))
         {
             zsock = sw_zend_read_property(Z_OBJCE_P(zfd), zfd, ZEND_STRL("pipe"), 0);
         }

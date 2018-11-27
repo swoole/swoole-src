@@ -19,10 +19,10 @@
 #include "include/table.h"
 
 static zend_class_entry swoole_table_ce;
-static zend_class_entry *swoole_table_class_entry_ptr;
+static zend_class_entry *swoole_table_ce_ptr;
 
 static zend_class_entry swoole_table_row_ce;
-static zend_class_entry *swoole_table_row_class_entry_ptr;
+static zend_class_entry *swoole_table_row_ce_ptr;
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -251,27 +251,23 @@ static inline void php_swoole_table_get_field_value(swTable *table, swTableRow *
 
 void swoole_table_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_table_ce, "swoole_table", "Swoole\\Table", swoole_table_methods);
-    swoole_table_class_entry_ptr = zend_register_internal_class(&swoole_table_ce);
-    swoole_table_class_entry_ptr->serialize = zend_class_serialize_deny;
-    swoole_table_class_entry_ptr->unserialize = zend_class_unserialize_deny;
-    SWOOLE_CLASS_ALIAS(swoole_table, "Swoole\\Table");
-    zend_class_implements(swoole_table_class_entry_ptr, 2, zend_ce_iterator, zend_ce_arrayaccess);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_table_ce, "Swoole\\Table", "swoole_table", NULL, swoole_table_methods, NULL);
+    swoole_table_ce_ptr->serialize = zend_class_serialize_deny;
+    swoole_table_ce_ptr->unserialize = zend_class_unserialize_deny;
+    zend_class_implements(swoole_table_ce_ptr, 2, zend_ce_iterator, zend_ce_arrayaccess);
 #ifdef SW_HAVE_COUNTABLE
-    zend_class_implements(swoole_table_class_entry_ptr, 1, zend_ce_countable);
+    zend_class_implements(swoole_table_ce_ptr, 1, zend_ce_countable);
 #endif
 
-    zend_declare_class_constant_long(swoole_table_class_entry_ptr, ZEND_STRL("TYPE_INT"), SW_TABLE_INT);
-    zend_declare_class_constant_long(swoole_table_class_entry_ptr, ZEND_STRL("TYPE_STRING"), SW_TABLE_STRING);
-    zend_declare_class_constant_long(swoole_table_class_entry_ptr, ZEND_STRL("TYPE_FLOAT"), SW_TABLE_FLOAT);
+    zend_declare_class_constant_long(swoole_table_ce_ptr, ZEND_STRL("TYPE_INT"), SW_TABLE_INT);
+    zend_declare_class_constant_long(swoole_table_ce_ptr, ZEND_STRL("TYPE_STRING"), SW_TABLE_STRING);
+    zend_declare_class_constant_long(swoole_table_ce_ptr, ZEND_STRL("TYPE_FLOAT"), SW_TABLE_FLOAT);
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_table_row_ce, "swoole_table_row", "Swoole\\Table\\Row", swoole_table_row_methods);
-    swoole_table_row_class_entry_ptr = zend_register_internal_class(&swoole_table_row_ce);
-    SWOOLE_CLASS_ALIAS(swoole_table_row, "Swoole\\Table\\Row");
-    zend_class_implements(swoole_table_row_class_entry_ptr, 1, zend_ce_arrayaccess);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_table_row_ce, "Swoole\\Table\\Row", "swoole_table_row", NULL, swoole_table_row_methods, NULL);
+    zend_class_implements(swoole_table_row_ce_ptr, 1, zend_ce_arrayaccess);
 
-    zend_declare_property_null(swoole_table_row_class_entry_ptr, ZEND_STRL("key"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_table_row_class_entry_ptr, ZEND_STRL("value"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_table_row_ce_ptr, ZEND_STRL("key"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_table_row_ce_ptr, ZEND_STRL("value"), ZEND_ACC_PUBLIC);
 }
 
 void swoole_table_column_free(swTableColumn *col)
@@ -292,7 +288,7 @@ PHP_METHOD(swoole_table, __construct)
     swTable *table = swTable_new(table_size, conflict_proportion);
     if (table == NULL)
     {
-        zend_throw_exception(swoole_exception_class_entry_ptr, "global memory allocation failure.", SW_ERROR_MALLOC_FAIL);
+        zend_throw_exception(swoole_exception_ce_ptr, "global memory allocation failure.", SW_ERROR_MALLOC_FAIL);
         RETURN_FALSE;
     }
     swoole_set_object(getThis(), table);
@@ -342,8 +338,8 @@ static PHP_METHOD(swoole_table, create)
         swoole_php_fatal_error(E_ERROR, "unable to allocate memory.");
         RETURN_FALSE;
     }
-    zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("size"), table->size);
-    zend_update_property_long(swoole_buffer_class_entry_ptr, getThis(), ZEND_STRL("memorySize"), table->memory_size);
+    zend_update_property_long(swoole_buffer_ce_ptr, getThis(), ZEND_STRL("size"), table->size);
+    zend_update_property_long(swoole_buffer_ce_ptr, getThis(), ZEND_STRL("memorySize"), table->memory_size);
     RETURN_TRUE;
 }
 
@@ -656,9 +652,9 @@ static PHP_METHOD(swoole_table, offsetGet)
     }
     swTableRow_unlock(_rowlock);
 
-    object_init_ex(return_value, swoole_table_row_class_entry_ptr);
-    zend_update_property(swoole_table_row_class_entry_ptr, return_value, ZEND_STRL("value"), value);
-    zend_update_property_stringl(swoole_table_row_class_entry_ptr, return_value, ZEND_STRL("key"), key, keylen);
+    object_init_ex(return_value, swoole_table_row_ce_ptr);
+    zend_update_property(swoole_table_row_ce_ptr, return_value, ZEND_STRL("value"), value);
+    zend_update_property_stringl(swoole_table_row_ce_ptr, return_value, ZEND_STRL("key"), key, keylen);
     zval_ptr_dtor(value);
     swoole_set_object(return_value, table);
 }
@@ -837,7 +833,7 @@ static PHP_METHOD(swoole_table_row, offsetExists)
         RETURN_FALSE;
     }
 
-    zval *zprop_value = sw_zend_read_property(swoole_table_row_class_entry_ptr, getThis(), ZEND_STRL("value"), 0);
+    zval *zprop_value = sw_zend_read_property(swoole_table_row_ce_ptr, getThis(), ZEND_STRL("value"), 0);
     RETURN_BOOL(zend_hash_str_exists(Z_ARRVAL_P(zprop_value), key, keylen));
 }
 
@@ -851,7 +847,7 @@ static PHP_METHOD(swoole_table_row, offsetGet)
         RETURN_FALSE;
     }
 
-    zval *zprop_value = sw_zend_read_property(swoole_table_row_class_entry_ptr, getThis(), ZEND_STRL("value"), 0);
+    zval *zprop_value = sw_zend_read_property(swoole_table_row_ce_ptr, getThis(), ZEND_STRL("value"), 0);
     zval *retval;
     if (!(retval = zend_hash_str_find(Z_ARRVAL_P(zprop_value), key, keylen)))
     {
@@ -878,7 +874,7 @@ static PHP_METHOD(swoole_table_row, offsetSet)
         RETURN_FALSE;
     }
 
-    zval *zprop_key = sw_zend_read_property(swoole_table_row_class_entry_ptr, getThis(), ZEND_STRL("key"), 0);
+    zval *zprop_key = sw_zend_read_property(swoole_table_row_ce_ptr, getThis(), ZEND_STRL("key"), 0);
 
     swTableRow *_rowlock = NULL;
     swTableRow *row = swTableRow_set(table, Z_STRVAL_P(zprop_key), Z_STRLEN_P(zprop_key), &_rowlock);
@@ -914,7 +910,7 @@ static PHP_METHOD(swoole_table_row, offsetSet)
     }
     swTableRow_unlock(_rowlock);
 
-    zval *zprop_value = sw_zend_read_property(swoole_table_row_class_entry_ptr, getThis(), ZEND_STRL("value"), 0);
+    zval *zprop_value = sw_zend_read_property(swoole_table_row_ce_ptr, getThis(), ZEND_STRL("value"), 0);
     Z_TRY_ADDREF_P(value);
     add_assoc_zval_ex(zprop_value, key, keylen, value);
 

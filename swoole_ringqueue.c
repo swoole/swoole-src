@@ -28,7 +28,7 @@ static PHP_METHOD(swoole_ringqueue, isFull);
 static PHP_METHOD(swoole_ringqueue, isEmpty);
 
 static zend_class_entry swoole_ringqueue_ce;
-zend_class_entry *swoole_ringqueue_class_entry_ptr;
+zend_class_entry *swoole_ringqueue_ce_ptr;
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_ringqueue_construct, 0, 0, 1)
     ZEND_ARG_INFO(0, len)
@@ -55,9 +55,7 @@ static const zend_function_entry swoole_ringqueue_methods[] =
 
 void swoole_ringqueue_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_ringqueue_ce, "swoole_ringqueue", "Swoole\\RingQueue", swoole_ringqueue_methods);
-    swoole_ringqueue_class_entry_ptr = zend_register_internal_class(&swoole_ringqueue_ce);
-    SWOOLE_CLASS_ALIAS(swoole_ringqueue, "Swoole\\RingQueue");
+    SWOOLE_INIT_CLASS_ENTRY(swoole_ringqueue_ce, "Swoole\\RingQueue", "swoole_ringqueue", NULL, swoole_ringqueue_methods, NULL);
 }
 
 static PHP_METHOD(swoole_ringqueue, __construct)
@@ -77,12 +75,12 @@ static PHP_METHOD(swoole_ringqueue, __construct)
     swRingQueue *queue = emalloc(sizeof(swRingQueue));
     if (queue == NULL)
     {
-        zend_throw_exception(swoole_exception_class_entry_ptr, "failed to create ringqueue.", SW_ERROR_MALLOC_FAIL);
+        zend_throw_exception(swoole_exception_ce_ptr, "failed to create ringqueue.", SW_ERROR_MALLOC_FAIL);
         RETURN_FALSE;
     }
     if (swRingQueue_init(queue, len))
     {
-        zend_throw_exception(swoole_exception_class_entry_ptr, "failed to init ringqueue.", SW_ERROR_MALLOC_FAIL);
+        zend_throw_exception(swoole_exception_ce_ptr, "failed to init ringqueue.", SW_ERROR_MALLOC_FAIL);
         RETURN_FALSE;
     }
     swoole_set_object(getThis(), queue);

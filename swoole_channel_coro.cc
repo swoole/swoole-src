@@ -36,7 +36,7 @@ static PHP_METHOD(swoole_channel_coro, isEmpty);
 static PHP_METHOD(swoole_channel_coro, isFull);
 
 static zend_class_entry swoole_channel_coro_ce;
-static zend_class_entry *swoole_channel_coro_class_entry_ptr;
+static zend_class_entry *swoole_channel_coro_ce_ptr;
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_channel_coro_construct, 0, 0, 0)
     ZEND_ARG_INFO(0, size)
@@ -76,16 +76,14 @@ enum swChannelErrorCode
 
 void swoole_channel_coro_init(int module_number)
 {
-    INIT_CLASS_ENTRY(swoole_channel_coro_ce, "Swoole\\Coroutine\\Channel", swoole_channel_coro_methods);
-    swoole_channel_coro_class_entry_ptr = zend_register_internal_class(&swoole_channel_coro_ce);
-
+    SWOOLE_INIT_CLASS_ENTRY(swoole_channel_coro_ce, "Swoole\\Coroutine\\Channel", NULL, "Co\\Chan", swoole_channel_coro_methods, NULL);
     if (SWOOLE_G(use_shortname))
     {
-        sw_zend_register_class_alias("chan", swoole_channel_coro_class_entry_ptr);
+        SWOOLE_CLASS_ALIAS("Chan", swoole_channel_coro_ce_ptr);
     }
 
-    zend_declare_property_long(swoole_channel_coro_class_entry_ptr, ZEND_STRL("capacity"), 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_long(swoole_channel_coro_class_entry_ptr, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_channel_coro_ce_ptr, ZEND_STRL("capacity"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_channel_coro_ce_ptr, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
 
     SWOOLE_DEFINE(CHANNEL_OK);
     SWOOLE_DEFINE(CHANNEL_TIMEOUT);
@@ -108,7 +106,7 @@ static PHP_METHOD(swoole_channel_coro, __construct)
     php_swoole_check_reactor();
 
     Channel *chan = new Channel(capacity);
-    zend_update_property_long(swoole_channel_coro_class_entry_ptr, getThis(), ZEND_STRL("capacity"), capacity);
+    zend_update_property_long(swoole_channel_coro_ce_ptr, getThis(), ZEND_STRL("capacity"), capacity);
 
     swoole_set_object(getThis(), chan);
 }
@@ -137,12 +135,12 @@ static PHP_METHOD(swoole_channel_coro, push)
     Channel *chan = (Channel *) swoole_get_object(getThis());
     if (chan->closed)
     {
-        zend_update_property_long(swoole_channel_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), SW_CHANNEL_CLOSED);
+        zend_update_property_long(swoole_channel_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), SW_CHANNEL_CLOSED);
         RETURN_FALSE;
     }
     else
     {
-        zend_update_property_long(swoole_channel_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), SW_CHANNEL_OK);
+        zend_update_property_long(swoole_channel_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), SW_CHANNEL_OK);
     }
 
     zval *zdata;
@@ -160,7 +158,7 @@ static PHP_METHOD(swoole_channel_coro, push)
     }
     else
     {
-        zend_update_property_long(swoole_channel_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), chan->closed ? SW_CHANNEL_CLOSED : SW_CHANNEL_TIMEOUT);
+        zend_update_property_long(swoole_channel_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), chan->closed ? SW_CHANNEL_CLOSED : SW_CHANNEL_TIMEOUT);
         Z_TRY_DELREF_P(zdata);
         efree(zdata);
         RETURN_FALSE;
@@ -174,12 +172,12 @@ static PHP_METHOD(swoole_channel_coro, pop)
     Channel *chan = (Channel *) swoole_get_object(getThis());
     if (chan->closed)
     {
-        zend_update_property_long(swoole_channel_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), SW_CHANNEL_CLOSED);
+        zend_update_property_long(swoole_channel_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), SW_CHANNEL_CLOSED);
         RETURN_FALSE;
     }
     else
     {
-        zend_update_property_long(swoole_channel_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), SW_CHANNEL_OK);
+        zend_update_property_long(swoole_channel_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), SW_CHANNEL_OK);
     }
 
     double timeout = -1;
@@ -195,7 +193,7 @@ static PHP_METHOD(swoole_channel_coro, pop)
     }
     else
     {
-        zend_update_property_long(swoole_channel_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), chan->closed ? SW_CHANNEL_CLOSED : SW_CHANNEL_TIMEOUT);
+        zend_update_property_long(swoole_channel_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), chan->closed ? SW_CHANNEL_CLOSED : SW_CHANNEL_TIMEOUT);
         RETURN_FALSE;
     }
 }

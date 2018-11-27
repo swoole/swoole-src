@@ -17,13 +17,13 @@ $pm->parentFunc = function (int $pid) use ($pm) {
                 assert($ret);
                 $code = mt_rand(0, 5000);
                 $reason = md5($code);
-                $close_frame = new swoole_websocket_close_frame;
+                $close_frame = new swoole_websocket_closeframe;
                 $close_frame->code = $code;
                 $close_frame->reason = $reason;
                 $cli->push($close_frame);
                 // recv the last close frame
                 $frame = $cli->recv();
-                assert($frame instanceof swoole_websocket_close_frame);
+                assert($frame instanceof swoole_websocket_closeframe);
                 assert($frame->opcode = WEBSOCKET_OPCODE_CLOSE);
                 assert(md5($frame->code) === $frame->reason);
                 // connection closed
@@ -46,7 +46,7 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
     });
     $serv->on('Message', function (swoole_websocket_server $serv, swoole_websocket_frame $frame) {
-        assert($frame instanceof swoole_websocket_close_frame);
+        assert($frame instanceof swoole_websocket_closeframe);
         assert($frame->opcode = WEBSOCKET_OPCODE_CLOSE);
         if (mt_rand(0, 1)) {
             $serv->push($frame->fd, $frame);

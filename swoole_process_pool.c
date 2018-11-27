@@ -71,15 +71,13 @@ typedef struct
 } process_pool_property;
 
 static zend_class_entry swoole_process_pool_ce;
-static zend_class_entry *swoole_process_pool_class_entry_ptr;
+static zend_class_entry *swoole_process_pool_ce_ptr;
 static swProcessPool *current_pool;
 static zval *current_process = NULL;
 
 void swoole_process_pool_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_process_pool_ce, "swoole_process_pool", "Swoole\\Process\\Pool", swoole_process_pool_methods);
-    swoole_process_pool_class_entry_ptr = zend_register_internal_class(&swoole_process_pool_ce);
-    SWOOLE_CLASS_ALIAS(swoole_process_pool, "Swoole\\Process\\Pool");
+    SWOOLE_INIT_CLASS_ENTRY(swoole_process_pool_ce, "Swoole\\Process\\Pool", "swoole_process_pool", NULL, swoole_process_pool_methods, NULL);
 }
 
 static void php_swoole_process_pool_onWorkerStart(swProcessPool *pool, int worker_id)
@@ -231,14 +229,14 @@ static PHP_METHOD(swoole_process_pool, __construct)
 
     if (worker_num <= 0)
     {
-        zend_throw_exception_ex(swoole_exception_class_entry_ptr, errno, "invalid worker_num");
+        zend_throw_exception_ex(swoole_exception_ce_ptr, errno, "invalid worker_num");
         RETURN_FALSE;
     }
 
     swProcessPool *pool = emalloc(sizeof(swProcessPool));
     if (swProcessPool_create(pool, worker_num, 0, (key_t) msgq_key, ipc_type) < 0)
     {
-        zend_throw_exception_ex(swoole_exception_class_entry_ptr, errno, "failed to create process pool");
+        zend_throw_exception_ex(swoole_exception_ce_ptr, errno, "failed to create process pool");
         RETURN_FALSE;
     }
 
@@ -246,7 +244,7 @@ static PHP_METHOD(swoole_process_pool, __construct)
     {
         if (swProcessPool_set_protocol(pool, 0, SW_BUFFER_INPUT_SIZE) < 0)
         {
-            zend_throw_exception_ex(swoole_exception_class_entry_ptr, errno, "failed to create process pool");
+            zend_throw_exception_ex(swoole_exception_ce_ptr, errno, "failed to create process pool");
             RETURN_FALSE;
         }
     }
@@ -454,9 +452,9 @@ static PHP_METHOD(swoole_process_pool, getProcess)
     if (current_process == NULL)
     {
         swWorker *worker = &current_pool->workers[SwooleWG.id];
-        object_init_ex(&object, swoole_process_class_entry_ptr);
-        zend_update_property_long(swoole_process_class_entry_ptr, &object, ZEND_STRL("id"), SwooleWG.id);
-        zend_update_property_long(swoole_process_class_entry_ptr, &object, ZEND_STRL("pid"), getpid());
+        object_init_ex(&object, swoole_process_ce_ptr);
+        zend_update_property_long(swoole_process_ce_ptr, &object, ZEND_STRL("id"), SwooleWG.id);
+        zend_update_property_long(swoole_process_ce_ptr, &object, ZEND_STRL("pid"), getpid());
         swoole_set_object(&object, worker);
         current_process = &object;
     }

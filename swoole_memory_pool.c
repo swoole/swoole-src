@@ -36,8 +36,10 @@ static PHP_METHOD(swoole_memory_pool_slice, __destruct);
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
-zend_class_entry *ce;
-zend_class_entry *ce_slice;
+static zend_class_entry swoole_memory_pool_ce;
+static zend_class_entry *swoole_memory_pool_ce_ptr;
+static zend_class_entry swoole_memory_pool_slice_ce;
+static zend_class_entry *swoole_memory_pool_slice_ce_ptr;
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_memory_pool_construct, 0, 0, 2)
     ZEND_ARG_INFO(0, size)
@@ -97,19 +99,15 @@ static const zend_function_entry swoole_memory_pool_slice_methods[] =
 
 void swoole_memory_pool_init(int module_number)
 {
-    static zend_class_entry _ce;
-    INIT_CLASS_ENTRY(_ce, "Swoole\\Memory\\Pool", swoole_memory_pool_methods);
-    ce = zend_register_internal_class(&_ce);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_memory_pool_ce, "Swoole\\Memory\\Pool", "swoole_memory_pool", NULL, swoole_memory_pool_methods, NULL);
 
-    static zend_class_entry _ce_slice;
-    INIT_CLASS_ENTRY(_ce_slice, "Swoole\\Memory\\Pool\\Slice", swoole_memory_pool_slice_methods);
-    ce_slice = zend_register_internal_class(&_ce_slice);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_memory_pool_slice_ce, "Swoole\\Memory\\Pool\\Slice", "swoole_memory_pool_slice", NULL, swoole_memory_pool_slice_methods, NULL);
 
-    zend_declare_class_constant_long(ce, ZEND_STRL("TYPE_RING"), memory_pool_type_ring);
-    zend_declare_class_constant_long(ce, ZEND_STRL("TYPE_GLOBAL"), memory_pool_type_global);
-    zend_declare_class_constant_long(ce, ZEND_STRL("TYPE_FIXED"), memory_pool_type_fixed);
-    zend_declare_class_constant_long(ce, ZEND_STRL("TYPE_MALLOC"), memory_pool_type_malloc);
-    zend_declare_class_constant_long(ce, ZEND_STRL("TYPE_EMALLOC"), memory_pool_type_emalloc);
+    zend_declare_class_constant_long(swoole_memory_pool_ce_ptr, ZEND_STRL("TYPE_RING"), memory_pool_type_ring);
+    zend_declare_class_constant_long(swoole_memory_pool_ce_ptr, ZEND_STRL("TYPE_GLOBAL"), memory_pool_type_global);
+    zend_declare_class_constant_long(swoole_memory_pool_ce_ptr, ZEND_STRL("TYPE_FIXED"), memory_pool_type_fixed);
+    zend_declare_class_constant_long(swoole_memory_pool_ce_ptr, ZEND_STRL("TYPE_MALLOC"), memory_pool_type_malloc);
+    zend_declare_class_constant_long(swoole_memory_pool_ce_ptr, ZEND_STRL("TYPE_EMALLOC"), memory_pool_type_emalloc);
 }
 
 static PHP_METHOD(swoole_memory_pool, __construct)
@@ -131,7 +129,7 @@ static PHP_METHOD(swoole_memory_pool, __construct)
         void *memory = (shared == 1) ? sw_shm_malloc(size) : sw_malloc(size);
         if (memory == NULL)
         {
-            zend_throw_exception(swoole_exception_class_entry_ptr, "malloc failed.", SW_ERROR_MALLOC_FAIL);
+            zend_throw_exception(swoole_exception_ce_ptr, "malloc failed.", SW_ERROR_MALLOC_FAIL);
             RETURN_FALSE;
         }
         pool = swFixedPool_new2(slice_size, memory, size);
@@ -150,7 +148,7 @@ static PHP_METHOD(swoole_memory_pool, __construct)
     }
     else
     {
-        zend_throw_exception(swoole_exception_class_entry_ptr, "unknown memory pool type.", SW_ERROR_INVALID_PARAMS);
+        zend_throw_exception(swoole_exception_ce_ptr, "unknown memory pool type.", SW_ERROR_INVALID_PARAMS);
         RETURN_FALSE;
     }
 
@@ -165,7 +163,7 @@ static PHP_METHOD(swoole_memory_pool, __construct)
     }
     if (mp == NULL)
     {
-        zend_throw_exception(swoole_exception_class_entry_ptr, "malloc failed.", SW_ERROR_MALLOC_FAIL);
+        zend_throw_exception(swoole_exception_ce_ptr, "malloc failed.", SW_ERROR_MALLOC_FAIL);
         RETURN_FALSE;
     }
 
@@ -192,7 +190,7 @@ static PHP_METHOD(swoole_memory_pool, alloc)
 
     if (mp->type != memory_pool_type_fixed && size <= 0)
     {
-        zend_throw_exception(swoole_exception_class_entry_ptr, "invalid size.", SW_ERROR_INVALID_PARAMS);
+        zend_throw_exception(swoole_exception_ce_ptr, "invalid size.", SW_ERROR_INVALID_PARAMS);
         RETURN_FALSE;
     }
 
@@ -216,7 +214,7 @@ static PHP_METHOD(swoole_memory_pool, alloc)
     }
 
     MemorySlice *info = (MemorySlice *) emalloc(sizeof(MemorySlice));
-    object_init_ex(return_value, ce_slice);
+    object_init_ex(return_value, swoole_memory_pool_slice_ce_ptr);
     info->pool = mp;
     info->size = size;
     info->memory = memory;

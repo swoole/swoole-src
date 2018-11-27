@@ -100,14 +100,14 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_statement_nextResult, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
 static zend_class_entry swoole_mysql_coro_ce;
-static zend_class_entry *swoole_mysql_coro_class_entry_ptr;
+static zend_class_entry *swoole_mysql_coro_ce_ptr;
 static zend_object_handlers swoole_mysql_coro_handlers;
 
 static zend_class_entry swoole_mysql_coro_exception_ce;
-static zend_class_entry *swoole_mysql_coro_exception_class_entry_ptr;
+static zend_class_entry *swoole_mysql_coro_exception_ce_ptr;
 
 static zend_class_entry swoole_mysql_coro_statement_ce;
-static zend_class_entry *swoole_mysql_coro_statement_class_entry_ptr;
+static zend_class_entry *swoole_mysql_coro_statement_ce_ptr;
 
 static const zend_function_entry swoole_mysql_coro_methods[] =
 {
@@ -168,44 +168,33 @@ static zend_object *swoole_mysql_coro_create(zend_class_entry *ce)
 
 void swoole_mysql_coro_init(int module_number)
 {
-    INIT_CLASS_ENTRY(swoole_mysql_coro_ce, "Swoole\\Coroutine\\MySQL", swoole_mysql_coro_methods);
-    swoole_mysql_coro_class_entry_ptr = zend_register_internal_class(&swoole_mysql_coro_ce);
-    swoole_mysql_coro_class_entry_ptr->create_object = swoole_mysql_coro_create;
-    swoole_mysql_coro_class_entry_ptr->serialize = zend_class_serialize_deny;
-    swoole_mysql_coro_class_entry_ptr->unserialize = zend_class_unserialize_deny;
+    SWOOLE_INIT_CLASS_ENTRY(swoole_mysql_coro_ce, "Swoole\\Coroutine\\MySQL", NULL, "Co\\MySQL", swoole_mysql_coro_methods, NULL);
+    swoole_mysql_coro_ce_ptr->create_object = swoole_mysql_coro_create;
+    swoole_mysql_coro_ce_ptr->serialize = zend_class_serialize_deny;
+    swoole_mysql_coro_ce_ptr->unserialize = zend_class_unserialize_deny;
     memcpy(&swoole_mysql_coro_handlers, zend_get_std_object_handlers(), sizeof(swoole_mysql_coro_handlers));
     swoole_mysql_coro_handlers.free_obj = swoole_mysql_coro_free_storage;
 
-    INIT_CLASS_ENTRY(swoole_mysql_coro_statement_ce, "Swoole\\Coroutine\\MySQL\\Statement", swoole_mysql_coro_statement_methods);
-    swoole_mysql_coro_statement_class_entry_ptr = zend_register_internal_class(&swoole_mysql_coro_statement_ce);
-    swoole_mysql_coro_statement_class_entry_ptr->serialize = zend_class_serialize_deny;
-    swoole_mysql_coro_statement_class_entry_ptr->unserialize = zend_class_unserialize_deny;
+    SWOOLE_INIT_CLASS_ENTRY(swoole_mysql_coro_statement_ce, "Swoole\\Coroutine\\MySQL\\Statement", NULL, "Co\\MySQL\\Statement", swoole_mysql_coro_statement_methods, NULL);
+    swoole_mysql_coro_statement_ce_ptr->serialize = zend_class_serialize_deny;
+    swoole_mysql_coro_statement_ce_ptr->unserialize = zend_class_unserialize_deny;
 
-    INIT_CLASS_ENTRY(swoole_mysql_coro_exception_ce, "Swoole\\Coroutine\\MySQL\\Exception", NULL);
-    swoole_mysql_coro_exception_class_entry_ptr = sw_zend_register_internal_class_ex(&swoole_mysql_coro_exception_ce, zend_exception_get_default(), NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_mysql_coro_exception_ce, "Swoole\\Coroutine\\MySQL\\Exception", NULL, "Co\\MySQL\\Exception", NULL, zend_exception_get_default());
 
-    /** ============================================= ALIAS ================================================**/
-    if (SWOOLE_G(use_shortname))
-    {
-        sw_zend_register_class_alias("Co\\MySQL", swoole_mysql_coro_class_entry_ptr);
-        sw_zend_register_class_alias("Co\\MySQL\\Statement", swoole_mysql_coro_statement_class_entry_ptr);
-        sw_zend_register_class_alias("Co\\MySQL\\Exception", swoole_mysql_coro_exception_class_entry_ptr);
-    }
-    /** ============================================= DECLARES =============================================**/
-    zend_declare_property_string(swoole_mysql_coro_class_entry_ptr, ZEND_STRL("serverInfo"), "", ZEND_ACC_PRIVATE);
-    zend_declare_property_long(swoole_mysql_coro_class_entry_ptr, ZEND_STRL("sock"), 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_bool(swoole_mysql_coro_class_entry_ptr, ZEND_STRL("connected"), 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_string(swoole_mysql_coro_class_entry_ptr, ZEND_STRL("connect_error"), "", ZEND_ACC_PUBLIC);
-    zend_declare_property_long(swoole_mysql_coro_class_entry_ptr, ZEND_STRL("connect_errno"), 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_long(swoole_mysql_coro_class_entry_ptr, ZEND_STRL("affected_rows"), 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_long(swoole_mysql_coro_class_entry_ptr, ZEND_STRL("insert_id"), 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_string(swoole_mysql_coro_class_entry_ptr, ZEND_STRL("error"), "", ZEND_ACC_PUBLIC);
-    zend_declare_property_long(swoole_mysql_coro_class_entry_ptr, ZEND_STRL("errno"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_string(swoole_mysql_coro_ce_ptr, ZEND_STRL("serverInfo"), "", ZEND_ACC_PRIVATE);
+    zend_declare_property_long(swoole_mysql_coro_ce_ptr, ZEND_STRL("sock"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_bool(swoole_mysql_coro_ce_ptr, ZEND_STRL("connected"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_string(swoole_mysql_coro_ce_ptr, ZEND_STRL("connect_error"), "", ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_mysql_coro_ce_ptr, ZEND_STRL("connect_errno"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_mysql_coro_ce_ptr, ZEND_STRL("affected_rows"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_mysql_coro_ce_ptr, ZEND_STRL("insert_id"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_string(swoole_mysql_coro_ce_ptr, ZEND_STRL("error"), "", ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_mysql_coro_ce_ptr, ZEND_STRL("errno"), 0, ZEND_ACC_PUBLIC);
 
-    zend_declare_property_long(swoole_mysql_coro_statement_class_entry_ptr, ZEND_STRL("affected_rows"), 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_long(swoole_mysql_coro_statement_class_entry_ptr, ZEND_STRL("insert_id"), 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_string(swoole_mysql_coro_statement_class_entry_ptr, ZEND_STRL("error"), "", ZEND_ACC_PUBLIC);
-    zend_declare_property_long(swoole_mysql_coro_statement_class_entry_ptr, ZEND_STRL("errno"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_mysql_coro_statement_ce_ptr, ZEND_STRL("affected_rows"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_mysql_coro_statement_ce_ptr, ZEND_STRL("insert_id"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_string(swoole_mysql_coro_statement_ce_ptr, ZEND_STRL("error"), "", ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_mysql_coro_statement_ce_ptr, ZEND_STRL("errno"), 0, ZEND_ACC_PUBLIC);
 }
 
 int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callback);
@@ -352,9 +341,9 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
         //connection is closed
         if (swConnection_error(errno) == SW_CLOSE)
         {
-            zend_update_property_bool(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("connected"), 0);
-            zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("errno"), 2013);
-            zend_update_property_string(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("error"), "Lost connection to MySQL server during query");
+            zend_update_property_bool(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("connected"), 0);
+            zend_update_property_long(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("errno"), 2013);
+            zend_update_property_string(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("error"), "Lost connection to MySQL server during query");
         }
         return SW_ERR;
     }
@@ -377,16 +366,16 @@ static int swoole_mysql_coro_parse_response(mysql_client *client, zval **result,
     //remove from eventloop
     //reactor->del(reactor, event->fd);
 
-    zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("affected_rows"),
+    zend_update_property_long(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("affected_rows"),
             client->response.affected_rows);
-    zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("insert_id"),
+    zend_update_property_long(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("insert_id"),
             client->response.insert_id);
 
     if (client->cmd == SW_MYSQL_COM_STMT_EXECUTE)
     {
-        zend_update_property_long(swoole_mysql_coro_statement_class_entry_ptr, client->statement->object,
+        zend_update_property_long(swoole_mysql_coro_statement_ce_ptr, client->statement->object,
                 ZEND_STRL("affected_rows"), client->response.affected_rows);
-        zend_update_property_long(swoole_mysql_coro_statement_class_entry_ptr, client->statement->object,
+        zend_update_property_long(swoole_mysql_coro_statement_ce_ptr, client->statement->object,
                 ZEND_STRL("insert_id"), client->response.insert_id);
     }
 
@@ -404,7 +393,7 @@ static int swoole_mysql_coro_parse_response(mysql_client *client, zval **result,
                 client->statement_list = swLinkedList_new(0, NULL);
             }
             swLinkedList_append(client->statement_list, client->statement);
-            object_init_ex(*result, swoole_mysql_coro_statement_class_entry_ptr);
+            object_init_ex(*result, swoole_mysql_coro_statement_ce_ptr);
             swoole_set_object(*result, client->statement);
             client->statement->object = sw_zval_dup(*result);
         }
@@ -427,16 +416,16 @@ static int swoole_mysql_coro_parse_response(mysql_client *client, zval **result,
         SW_ALLOC_INIT_ZVAL(*result);
         ZVAL_FALSE(*result);
 
-        zend_update_property_stringl(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("error"),
+        zend_update_property_stringl(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("error"),
                 client->response.server_msg, client->response.l_server_msg);
-        zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("errno"),
+        zend_update_property_long(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("errno"),
                 client->response.error_code);
 
         if (client->cmd == SW_MYSQL_COM_STMT_EXECUTE)
         {
-            zend_update_property_stringl(swoole_mysql_coro_statement_class_entry_ptr, client->statement->object,
+            zend_update_property_stringl(swoole_mysql_coro_statement_ce_ptr, client->statement->object,
                     ZEND_STRL("error"), client->response.server_msg, client->response.l_server_msg);
-            zend_update_property_long(swoole_mysql_coro_statement_class_entry_ptr, client->statement->object,
+            zend_update_property_long(swoole_mysql_coro_statement_ce_ptr, client->statement->object,
                     ZEND_STRL("errno"), client->response.error_code);
         }
     }
@@ -556,7 +545,7 @@ static int swoole_mysql_coro_close(zval *zobject)
         SwooleG.main_reactor->write(SwooleG.main_reactor, client->fd, mysql_request_buffer->str, mysql_request_buffer->length);
     }
 
-    zend_update_property_bool(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("connected"), 0);
+    zend_update_property_bool(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("connected"), 0);
     SwooleG.main_reactor->del(SwooleG.main_reactor, client->fd);
 
     swConnection *_socket = swReactor_get(SwooleG.main_reactor, client->fd);
@@ -635,7 +624,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     }
     else
     {
-        zend_throw_exception(swoole_mysql_coro_exception_class_entry_ptr, "HOST parameter is required.", 11);
+        zend_throw_exception(swoole_mysql_coro_exception_ce_ptr, "HOST parameter is required.", 11);
         zval_ptr_dtor(server_info);
         RETURN_FALSE;
     }
@@ -656,7 +645,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     }
     else
     {
-        zend_throw_exception(swoole_mysql_coro_exception_class_entry_ptr, "USER parameter is required.", 11);
+        zend_throw_exception(swoole_mysql_coro_exception_ce_ptr, "USER parameter is required.", 11);
         zval_ptr_dtor(server_info);
         RETURN_FALSE;
     }
@@ -668,7 +657,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     }
     else
     {
-        zend_throw_exception(swoole_mysql_coro_exception_class_entry_ptr, "PASSWORD parameter is required.", 11);
+        zend_throw_exception(swoole_mysql_coro_exception_ce_ptr, "PASSWORD parameter is required.", 11);
         zval_ptr_dtor(server_info);
         RETURN_FALSE;
     }
@@ -680,7 +669,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     }
     else
     {
-        zend_throw_exception(swoole_mysql_coro_exception_class_entry_ptr, "DATABASE parameter is required.", 11);
+        zend_throw_exception(swoole_mysql_coro_exception_ce_ptr, "DATABASE parameter is required.", 11);
         zval_ptr_dtor(server_info);
         RETURN_FALSE;
     }
@@ -700,7 +689,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
         if (connector->character_set < 0)
         {
             snprintf(buf, sizeof(buf), "unknown charset [%s].", Z_STRVAL_P(value));
-            zend_throw_exception(swoole_mysql_coro_exception_class_entry_ptr, buf, 11);
+            zend_throw_exception(swoole_mysql_coro_exception_ce_ptr, buf, 11);
             zval_ptr_dtor(server_info);
             RETURN_FALSE;
         }
@@ -748,8 +737,8 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     {
         swoole_php_fatal_error(E_WARNING, "swClient_create() failed. Error: %s [%d]", strerror(errno), errno);
         _failed:
-        zend_update_property_string(swoole_mysql_coro_class_entry_ptr, getThis(), ZEND_STRL("connect_error"), strerror(errno));
-        zend_update_property_long(swoole_mysql_coro_class_entry_ptr, getThis(), ZEND_STRL("connect_errno"), errno);
+        zend_update_property_string(swoole_mysql_coro_ce_ptr, getThis(), ZEND_STRL("connect_error"), strerror(errno));
+        zend_update_property_long(swoole_mysql_coro_ce_ptr, getThis(), ZEND_STRL("connect_errno"), errno);
         efree(cli);
         zval_ptr_dtor(server_info);
         RETURN_FALSE;
@@ -778,9 +767,9 @@ static PHP_METHOD(swoole_mysql_coro, connect)
         goto _failed;
     }
 
-    zend_update_property(swoole_mysql_coro_class_entry_ptr, getThis(), ZEND_STRL("serverInfo"), server_info);
+    zend_update_property(swoole_mysql_coro_ce_ptr, getThis(), ZEND_STRL("serverInfo"), server_info);
     zval_ptr_dtor(server_info);
-    zend_update_property_long(swoole_mysql_coro_class_entry_ptr, getThis(), ZEND_STRL("sock"), cli->socket->fd);
+    zend_update_property_long(swoole_mysql_coro_ce_ptr, getThis(), ZEND_STRL("sock"), cli->socket->fd);
 
     if (!client->buffer)
     {
@@ -827,7 +816,7 @@ static PHP_METHOD(swoole_mysql_coro, query)
     if (!client || client->state == SW_MYSQL_STATE_CLOSED)
     {
         SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
-        zend_update_property_long(swoole_mysql_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), SwooleG.error);
+        zend_update_property_long(swoole_mysql_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), SwooleG.error);
         swoole_php_fatal_error(E_WARNING, "The MySQL connection is not established.");
         RETURN_FALSE;
     }
@@ -933,13 +922,13 @@ static void swoole_mysql_coro_query_transcation(const char* command, uint8_t in_
 
     if (in_transaction && client->transaction)
     {
-        zend_throw_exception(swoole_mysql_coro_exception_class_entry_ptr, "There is already an active transaction.", 21);
+        zend_throw_exception(swoole_mysql_coro_exception_ce_ptr, "There is already an active transaction.", 21);
         RETURN_FALSE;
     }
 
     if (!in_transaction && !client->transaction)
     {
-        zend_throw_exception(swoole_mysql_coro_exception_class_entry_ptr, "There is no active transaction.", 22);
+        zend_throw_exception(swoole_mysql_coro_exception_ce_ptr, "There is no active transaction.", 22);
         RETURN_FALSE;
     }
 
@@ -1056,7 +1045,7 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
     if (!client || client->state == SW_MYSQL_STATE_CLOSED)
     {
         SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
-        zend_update_property_long(swoole_mysql_coro_class_entry_ptr, getThis(), ZEND_STRL("errCode"), SwooleG.error);
+        zend_update_property_long(swoole_mysql_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), SwooleG.error);
         swoole_php_fatal_error(E_WARNING, "The MySQL connection is not established.");
         RETURN_FALSE;
     }
@@ -1100,9 +1089,9 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
         if (swConnection_error(errno) == SW_CLOSE)
         {
             zval *zobject = getThis();
-            zend_update_property_bool(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("connected"), 0);
-            zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("errno"), 2013);
-            zend_update_property_string(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("error"), "Lost connection to MySQL server during query");
+            zend_update_property_bool(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("connected"), 0);
+            zend_update_property_long(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("errno"), 2013);
+            zend_update_property_string(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("error"), "Lost connection to MySQL server during query");
         }
         RETURN_FALSE;
     }
@@ -1415,8 +1404,8 @@ static int swoole_mysql_coro_onError(swReactor *reactor, swEvent *event)
     swoole_mysql_coro_close(zobject);
 
     SW_ALLOC_INIT_ZVAL(result);
-    zend_update_property_string(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("connect_error"), "EPOLLERR/EPOLLHUP/EPOLLRDHUP happen!");
-    zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("connect_errno"), 104);
+    zend_update_property_string(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("connect_error"), "EPOLLERR/EPOLLHUP/EPOLLRDHUP happen!");
+    zend_update_property_long(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("connect_errno"), 104);
     ZVAL_BOOL(result, 0);
     if (client->defer && !client->suspending)
     {
@@ -1456,8 +1445,8 @@ static void swoole_mysql_coro_onConnect(mysql_client *client)
 
     if (client->connector.error_code > 0)
     {
-        zend_update_property_stringl(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("connect_error"), client->connector.error_msg, client->connector.error_length);
-        zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("connect_errno"), client->connector.error_code);
+        zend_update_property_stringl(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("connect_error"), client->connector.error_msg, client->connector.error_length);
+        zend_update_property_long(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("connect_errno"), client->connector.error_code);
 
         ZVAL_BOOL(result, 0);
 
@@ -1467,7 +1456,7 @@ static void swoole_mysql_coro_onConnect(mysql_client *client)
     {
         client->state = SW_MYSQL_STATE_QUERY;
         client->iowait = SW_MYSQL_CORO_STATUS_READY;
-        zend_update_property_bool(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("connected"), 1);
+        zend_update_property_bool(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("connected"), 1);
         client->connected = 1;
         ZVAL_BOOL(result, 1);
     }
@@ -1499,14 +1488,14 @@ static void swoole_mysql_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
 
     if (client->iowait == SW_MYSQL_CORO_STATUS_CLOSED)
     {
-        zend_update_property_string(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("error"), "connect timeout");
+        zend_update_property_string(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("error"), "connect timeout");
     }
     else
     {
-        zend_update_property_string(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("error"), "query timeout");
+        zend_update_property_string(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("error"), "query timeout");
     }
 
-    zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("errno"), ETIMEDOUT);
+    zend_update_property_long(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("errno"), ETIMEDOUT);
 
     //timeout close conncttion
     client->timer = NULL;
@@ -1813,13 +1802,13 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
             }
 
 
-            zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("connect_errno"), 111);
-            zend_update_property_string(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("connect_error"), "connection close by peer");
+            zend_update_property_long(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("connect_errno"), 111);
+            zend_update_property_string(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("connect_error"), "connection close by peer");
             if (client->connected)
             {
                 client->connected = 0;
-                zend_update_property_long(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("errno"), 2006);
-                zend_update_property_string(swoole_mysql_coro_class_entry_ptr, zobject, ZEND_STRL("error"), "MySQL server has gone away");
+                zend_update_property_long(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("errno"), 2006);
+                zend_update_property_string(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("error"), "MySQL server has gone away");
             }
             swoole_mysql_coro_close(zobject);
 

@@ -134,8 +134,6 @@ static sw_inline int sw_call_user_function_fast_ex(zval *function_name, zend_fca
         (rsrc = (rsrc_type) zend_fetch_resource(Z_RES_P(*passed_id), resource_type_name, resource_type))
 #define SW_ZEND_REGISTER_RESOURCE(return_value, result, le_result)  ZVAL_RES(return_value,zend_register_resource(result, le_result))
 
-#define sw_zend_register_internal_class_ex(entry,parent_ptr,str)    zend_register_internal_class_ex(entry,parent_ptr)
-
 #define sw_zend_call_method_with_0_params(obj, ptr, what, method, retval) \
     zval __retval;\
     zend_call_method_with_0_params(*obj, ptr, what, method, &__retval);\
@@ -222,30 +220,6 @@ static sw_inline int sw_zend_is_callable_ex(zval *zcallable, zval *zobject, uint
     zend_string_release(key);
     *callable_name = tmp;
     return ret;
-}
-
-static sw_inline int sw_zend_register_class_alias(const char *name, zend_class_entry *ce)
-{
-    int name_len = strlen(name);
-    zend_string *_name;
-    if (name[0] == '\\')
-    {
-        _name = zend_string_init(name, name_len, 1);
-        zend_str_tolower_copy(ZSTR_VAL(_name), name + 1, name_len - 1);
-    }
-    else
-    {
-        _name = zend_string_init(name, strlen(name), 1);
-        zend_str_tolower_copy(ZSTR_VAL(_name), name, name_len);
-    }
-
-    zend_string *_interned_name = zend_new_interned_string(_name);
-
-#if PHP_VERSION_ID >= 70300
-    return zend_register_class_alias_ex(_interned_name->val, _interned_name->len, ce, 1);
-#else
-    return zend_register_class_alias_ex(_interned_name->val, _interned_name->len, ce);
-#endif
 }
 
 static sw_inline char* sw_http_build_query(zval *zdata, size_t *length, smart_str *formstr)
