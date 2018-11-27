@@ -287,7 +287,7 @@ static inline enum swSocket_type get_socket_type(int domain, int type, int proto
 
 static inline enum swSocket_type get_socket_type_from_uri(std::string &uri, bool convert_to_addr = 0)
 {
-    if (uri.find("unix:/") == 0)
+    if (uri.compare(0, 6, "unix:/", 0, 6) == 0)
     {
         if (convert_to_addr)
         {
@@ -296,7 +296,7 @@ static inline enum swSocket_type get_socket_type_from_uri(std::string &uri, bool
         }
         return SW_SOCK_UNIX_STREAM;
     }
-    else if (uri.find_first_of(':') == 0)
+    else if (uri.find(':') != std::string::npos)
     {
         return SW_SOCK_TCP6;
     }
