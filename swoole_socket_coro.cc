@@ -138,10 +138,12 @@ static inline socket_coro * swoole_socket_coro_fetch_object(zend_object *obj)
 static void swoole_socket_coro_free_storage(zend_object *object)
 {
     socket_coro *sock = (socket_coro *) swoole_socket_coro_fetch_object(object);
+#ifdef SWOOLE_SOCKETS_SUPPORT
     if (sock->resource)
     {
         sw_zval_free(sock->resource);
     }
+#endif
     delete sock->socket;
     zend_object_std_dtor(&sock->std);
 }
