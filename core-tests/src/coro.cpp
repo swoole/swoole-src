@@ -11,7 +11,7 @@ static void coro1(void *arg)
 
 TEST(coroutine, create)
 {
-    long cid = Coroutine::create(coro1, NULL);
+    long cid = Coroutine::create(coro1);
     ASSERT_GT(cid, 0);
     coroutine_get_by_id(cid)->resume();
 }
@@ -26,7 +26,7 @@ static void coro2(void *arg)
 
 TEST(coroutine, socket_connect_refused)
 {
-    long cid = Coroutine::create(coro2, NULL);
+    long cid = Coroutine::create(coro2);
     if (cid < 0)
     {
         return;
@@ -63,7 +63,7 @@ static void coro4(void *arg)
 
 TEST(coroutine, socket_connect_with_dns)
 {
-    long cid = Coroutine::create(coro4, NULL);
+    long cid = Coroutine::create(coro4);
     if (cid < 0)
     {
         return;
@@ -85,7 +85,7 @@ static void coro5(void *arg)
 
 TEST(coroutine, socket_recv_success)
 {
-    long cid = Coroutine::create(coro5, NULL);
+    long cid = Coroutine::create(coro5);
     if (cid < 0)
     {
         return;
@@ -107,7 +107,7 @@ static void coro6(void *arg)
 
 TEST(coroutine, socket_recv_fail)
 {
-    long cid = Coroutine::create(coro6, NULL);
+    long cid = Coroutine::create(coro6);
     if (cid < 0)
     {
         return;
@@ -165,8 +165,8 @@ static void coro8(void *arg)
 
 TEST(coroutine, socket_accept)
 {
-    Coroutine::create(coro7, NULL);
-    Coroutine::create(coro8, NULL);
+    Coroutine::create(coro7);
+    Coroutine::create(coro8);
     SwooleG.main_reactor->wait(SwooleG.main_reactor, nullptr);
 }
 
@@ -179,7 +179,7 @@ static void coro9(void *arg)
 
 TEST(coroutine, socket_resolve)
 {
-    Coroutine::create(coro9, NULL);
+    Coroutine::create(coro9);
     SwooleG.main_reactor->wait(SwooleG.main_reactor, nullptr);
 }
 
