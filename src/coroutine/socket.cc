@@ -1265,6 +1265,10 @@ bool Socket::close()
     {
         return false;
     }
+    if (!shutdown())
+    {
+        return false;
+    }
     _closed = true;
     socket->closed = 1;
     return true;
