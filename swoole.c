@@ -699,9 +699,8 @@ static sw_inline uint32_t swoole_get_new_size(uint32_t old_size, int handle)
     return new_size;
 }
 
-void swoole_set_object(zval *zobject, void *ptr)
+void swoole_set_object_by_handle(uint32_t handle, void *ptr)
 {
-    int handle = Z_OBJ_HANDLE_P(zobject);
     assert(handle < SWOOLE_OBJECT_MAX);
 
     if (unlikely(handle >= swoole_objects.size))
@@ -731,9 +730,8 @@ void swoole_set_object(zval *zobject, void *ptr)
     swoole_objects.array[handle] = ptr;
 }
 
-void swoole_set_property(zval *zobject, int property_id, void *ptr)
+void swoole_set_property_by_handle(uint32_t handle, int property_id, void *ptr)
 {
-    int handle = Z_OBJ_HANDLE_P(zobject);
     assert(handle < SWOOLE_OBJECT_MAX);
 
     if (unlikely(handle >= swoole_objects.property_size[property_id]))

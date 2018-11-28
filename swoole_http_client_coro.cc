@@ -357,9 +357,9 @@ static void swoole_http_client_coro_free_storage(zend_object *object)
     ZVAL_OBJ(zobject, object);
 
     http_client_coro_close(zobject);
-    http_client_coro_property *hcc = (http_client_coro_property *) swoole_get_property(zobject, 0);
+    http_client_coro_property *hcc = (http_client_coro_property *) swoole_get_property_by_handle(object->handle, 0);
     efree(hcc);
-    swoole_set_property(zobject, 0, NULL);
+    swoole_set_property_by_handle(object->handle, 0, NULL);
 
     // dtor object
     zend_object_std_dtor(object);

@@ -466,25 +466,44 @@ void php_swoole_sha1(const char *str, int _len, unsigned char *digest);
 int php_swoole_task_pack(swEventData *task, zval *data);
 zval* php_swoole_task_unpack(swEventData *task_result);
 
-static sw_inline void* swoole_get_object(zval *zobject)
+static sw_inline void* swoole_get_object_by_handle(uint32_t handle)
 {
-    uint32_t handle = Z_OBJ_HANDLE_P(zobject);
     assert(handle < swoole_objects.size);
     return swoole_objects.array[handle];
 }
 
-static sw_inline void* swoole_get_property(zval *zobject, int property_id)
+static sw_inline void* swoole_get_property_by_handle(uint32_t handle, int property_id)
 {
-    uint32_t handle = Z_OBJ_HANDLE_P(zobject);
-    if (handle >= swoole_objects.property_size[property_id])
+    if (unlikely(handle >= swoole_objects.property_size[property_id]))
     {
         return NULL;
     }
     return swoole_objects.property[property_id][handle];
 }
 
-void swoole_set_object(zval *zobject, void *ptr);
-void swoole_set_property(zval *zobject, int property_id, void *ptr);
+static sw_inline void* swoole_get_object(zval *zobject)
+{
+    return swoole_get_object_by_handle(Z_OBJ_HANDLE_P(zobject));
+}
+
+static sw_inline void* swoole_get_property(zval *zobject, int property_id)
+{
+    return swoole_get_property_by_handle(Z_OBJ_HANDLE_P(zobject), property_id);
+}
+
+void swoole_set_object_by_handle(uint32_t handle, void *ptr);
+void swoole_set_property_by_handle(uint32_t handle, int property_id, void *ptr);
+
+static sw_inline void* swoole_set_object(zval *zobject, void *ptr)
+{
+    return swoole_set_object_by_handle(Z_OBJ_HANDLE_P(zobject), ptr);
+}
+
+static sw_inline void* swoole_set_property(zval *zobject, int property_id, void *ptr)
+{
+    return swoole_set_property_by_handle(Z_OBJ_HANDLE_P(zobject), property_id, ptr);
+}
+
 int swoole_convert_to_fd(zval *zfd);
 int swoole_convert_to_fd_ex(zval *zfd, int *async);
 int swoole_register_rshutdown_function(swCallback func, int push_back);

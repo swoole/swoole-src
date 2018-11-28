@@ -158,10 +158,7 @@ static zend_object *swoole_mysql_coro_create(zend_class_entry *ce)
 
     mysql_client *client = (mysql_client *) emalloc(sizeof(mysql_client));
     bzero(client, sizeof(mysql_client));
-
-    zval _zobject, *zobject = &_zobject;
-    ZVAL_OBJ(zobject, object);
-    swoole_set_object(zobject, client);
+    swoole_set_object_by_handle(object->handle, client);
 
     return object;
 }
@@ -1367,10 +1364,11 @@ static PHP_METHOD(swoole_mysql_coro, close)
 static void swoole_mysql_coro_free_storage(zend_object *object)
 {
     // as __destruct
+    uint32_t handle = object->handle;
     zval _zobject, *zobject = &_zobject;
     ZVAL_OBJ(zobject, object);
 
-    mysql_client *client = (mysql_client *) swoole_get_object(zobject);
+    mysql_client *client = (mysql_client *) swoole_get_object_by_handle(handle);
     if (client)
     {
         if (client->state != SW_MYSQL_STATE_CLOSED && client->cli)
@@ -1382,14 +1380,14 @@ static void swoole_mysql_coro_free_storage(zend_object *object)
             swString_free(client->buffer);
         }
         efree(client);
-        swoole_set_object(zobject, NULL);
+        swoole_set_object_by_handle(handle, NULL);
     }
 
-    php_context *context = (php_context *) swoole_get_property(zobject, 0);
+    php_context *context = (php_context *) swoole_get_property_by_handle(handle, 0);
     if (context)
     {
         efree(context);
-        swoole_set_property(zobject, 0, NULL);
+        swoole_set_property_by_handle(handle, 0, NULL);
     }
 
     zend_object_std_dtor(object);
