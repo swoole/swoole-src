@@ -494,14 +494,14 @@ static sw_inline void* swoole_get_property(zval *zobject, int property_id)
 void swoole_set_object_by_handle(uint32_t handle, void *ptr);
 void swoole_set_property_by_handle(uint32_t handle, int property_id, void *ptr);
 
-static sw_inline void* swoole_set_object(zval *zobject, void *ptr)
+static sw_inline void swoole_set_object(zval *zobject, void *ptr)
 {
-    return swoole_set_object_by_handle(Z_OBJ_HANDLE_P(zobject), ptr);
+    swoole_set_object_by_handle(Z_OBJ_HANDLE_P(zobject), ptr);
 }
 
-static sw_inline void* swoole_set_property(zval *zobject, int property_id, void *ptr)
+static sw_inline void swoole_set_property(zval *zobject, int property_id, void *ptr)
 {
-    return swoole_set_property_by_handle(Z_OBJ_HANDLE_P(zobject), property_id, ptr);
+    swoole_set_property_by_handle(Z_OBJ_HANDLE_P(zobject), property_id, ptr);
 }
 
 int swoole_convert_to_fd(zval *zfd);
