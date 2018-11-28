@@ -56,10 +56,13 @@ static sw_inline void php_vm_stack_destroy(zend_vm_stack stack)
 
 static sw_inline void php_coro_save_vm_stack(coro_task *task)
 {
-    task->execute_data = EG(current_execute_data);
-    task->vm_stack = EG(vm_stack);
     task->vm_stack_top = EG(vm_stack_top);
     task->vm_stack_end = EG(vm_stack_end);
+    task->vm_stack = EG(vm_stack);
+    task->execute_data = EG(current_execute_data);
+    task->error_handling = EG(error_handling);
+    task->exception_class = EG(exception_class);
+    task->exception = EG(exception);
     SW_SAVE_EG_SCOPE(task->scope);
 }
 
@@ -76,10 +79,13 @@ static sw_inline coro_task* php_coro_get_current_task()
 
 static sw_inline void php_coro_restore_vm_stack(coro_task *task)
 {
-    EG(current_execute_data) = task->execute_data;
-    EG(vm_stack) = task->vm_stack;
     EG(vm_stack_top) = task->vm_stack_top;
     EG(vm_stack_end) = task->vm_stack_end;
+    EG(vm_stack) = task->vm_stack;
+    EG(current_execute_data) = task->execute_data;
+    EG(error_handling) = task->error_handling;
+    EG(exception_class) = task->exception_class;
+    EG(exception) = task->exception;
     SW_SET_EG_SCOPE(task->scope);
 }
 
@@ -245,6 +251,9 @@ static void php_coro_create(void *arg)
 
     zend_init_execute_data(call, &func->op_array, retval);
     EG(current_execute_data) = call;
+    EG(error_handling) = EH_NORMAL;
+    EG(exception_class) = NULL;
+    EG(exception) = NULL;
 
     php_coro_save_vm_stack(task);
     task->output_ptr = nullptr;
