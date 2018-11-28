@@ -83,7 +83,7 @@ public:
         return task;
     }
 
-    static long create(coroutine_func_t fn, void* args);
+    static long create(coroutine_func_t fn, void* args = nullptr);
     static int sleep(double sec);
     static swString* read_file(const char *file, int lock);
     static ssize_t write_file(const char *file, char *buf, size_t length, int lock, int flags);
