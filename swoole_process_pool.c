@@ -72,12 +72,13 @@ typedef struct
 
 static zend_class_entry swoole_process_pool_ce;
 static zend_class_entry *swoole_process_pool_ce_ptr;
+static zend_object_handlers swoole_process_pool_handlers;
 static swProcessPool *current_pool;
 static zval *current_process = NULL;
 
 void swoole_process_pool_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_process_pool_ce, "Swoole\\Process\\Pool", "swoole_process_pool", NULL, swoole_process_pool_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_process_pool, "Swoole\\Process\\Pool", "swoole_process_pool", NULL, swoole_process_pool_methods, NULL);
 }
 
 static void php_swoole_process_pool_onWorkerStart(swProcessPool *pool, int worker_id)

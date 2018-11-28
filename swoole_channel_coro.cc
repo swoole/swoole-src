@@ -37,6 +37,7 @@ static PHP_METHOD(swoole_channel_coro, isFull);
 
 static zend_class_entry swoole_channel_coro_ce;
 static zend_class_entry *swoole_channel_coro_ce_ptr;
+static zend_object_handlers swoole_channel_coro_handlers;
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_channel_coro_construct, 0, 0, 0)
     ZEND_ARG_INFO(0, size)
@@ -76,10 +77,10 @@ enum swChannelErrorCode
 
 void swoole_channel_coro_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_channel_coro_ce, "Swoole\\Coroutine\\Channel", NULL, "Co\\Chan", swoole_channel_coro_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_channel_coro, "Swoole\\Coroutine\\Channel", NULL, "Co\\Chan", swoole_channel_coro_methods, NULL);
     if (SWOOLE_G(use_shortname))
     {
-        SWOOLE_CLASS_ALIAS("Chan", swoole_channel_coro_ce_ptr);
+        SWOOLE_CLASS_ALIAS("Chan", swoole_channel_coro);
     }
 
     zend_declare_property_long(swoole_channel_coro_ce_ptr, ZEND_STRL("capacity"), 0, ZEND_ACC_PUBLIC);

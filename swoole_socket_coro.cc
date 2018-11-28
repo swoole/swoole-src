@@ -31,6 +31,7 @@ static zend_object_handlers swoole_socket_coro_handlers;
 
 static zend_class_entry swoole_socket_coro_exception_ce;
 static zend_class_entry *swoole_socket_coro_exception_ce_ptr;
+static zend_object_handlers swoole_socket_coro_exception_handlers;
 
 typedef struct
 {
@@ -159,7 +160,7 @@ static zend_object *swoole_socket_coro_create(zend_class_entry *ce)
 
 void swoole_socket_coro_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_socket_coro_ce, "Swoole\\Coroutine\\Socket", NULL, "Co\\Socket", swoole_socket_coro_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_socket_coro, "Swoole\\Coroutine\\Socket", NULL, "Co\\Socket", swoole_socket_coro_methods, NULL);
 
     swoole_socket_coro_ce_ptr->ce_flags |= ZEND_ACC_FINAL;
     swoole_socket_coro_ce_ptr->create_object = swoole_socket_coro_create;
@@ -172,7 +173,7 @@ void swoole_socket_coro_init(int module_number)
     swoole_socket_coro_handlers.clone_obj = NULL;
     swoole_socket_coro_handlers.offset = XtOffsetOf(socket_coro, std);
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_socket_coro_exception_ce, "Swoole\\Coroutine\\Socket\\Exception", NULL, "Co\\Socket\\Exception", NULL, zend_exception_get_default());
+    SWOOLE_INIT_CLASS_ENTRY(swoole_socket_coro_exception, "Swoole\\Coroutine\\Socket\\Exception", NULL, "Co\\Socket\\Exception", NULL, zend_exception_get_default());
 }
 
 static PHP_METHOD(swoole_socket_coro, __construct)

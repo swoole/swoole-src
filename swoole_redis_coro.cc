@@ -65,6 +65,7 @@ enum swRedisError
 
 static zend_class_entry swoole_redis_coro_ce;
 static zend_class_entry *swoole_redis_coro_ce_ptr;
+static zend_object_handlers swoole_redis_coro_handlers;
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_connect, 0, 0, 2)
     ZEND_ARG_INFO(0, host)
@@ -1574,7 +1575,7 @@ static const zend_function_entry swoole_redis_coro_methods[] =
 
 void swoole_redis_coro_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_redis_coro_ce, "Swoole\\Coroutine\\Redis", NULL, "Co\\Redis", swoole_redis_coro_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_redis_coro, "Swoole\\Coroutine\\Redis", NULL, "Co\\Redis", swoole_redis_coro_methods, NULL);
     swoole_redis_coro_ce_ptr->serialize = zend_class_serialize_deny;
     swoole_redis_coro_ce_ptr->unserialize = zend_class_unserialize_deny;
 

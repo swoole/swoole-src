@@ -28,6 +28,7 @@ static PHP_METHOD(swoole_lock, destroy);
 
 static zend_class_entry swoole_lock_ce;
 static zend_class_entry *swoole_lock_ce_ptr;
+static zend_object_handlers swoole_lock_handlers;
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -57,7 +58,7 @@ static const zend_function_entry swoole_lock_methods[] =
 
 void swoole_lock_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_lock_ce, "Swoole\\Lock", "swoole_lock", NULL, swoole_lock_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_lock, "Swoole\\Lock", "swoole_lock", NULL, swoole_lock_methods, NULL);
 
     zend_declare_class_constant_long(swoole_lock_ce_ptr, ZEND_STRL("FILELOCK"), SW_FILELOCK);
     zend_declare_class_constant_long(swoole_lock_ce_ptr, ZEND_STRL("MUTEX"), SW_MUTEX);

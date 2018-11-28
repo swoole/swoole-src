@@ -502,21 +502,27 @@ php_vmstat_t php_vmstat;
 
 zend_class_entry swoole_server_ce;
 zend_class_entry *swoole_server_ce_ptr;
+static zend_object_handlers swoole_server_handlers;
 
 zend_class_entry swoole_connection_iterator_ce;
 zend_class_entry *swoole_connection_iterator_ce_ptr;
+static zend_object_handlers swoole_connection_iterator_handlers;
 
 static zend_class_entry swoole_timer_ce;
 static zend_class_entry *swoole_timer_ce_ptr;
+static zend_object_handlers swoole_timer_handlers;
 
 static zend_class_entry swoole_event_ce;
 static zend_class_entry *swoole_event_ce_ptr;
+static zend_object_handlers swoole_event_handlers;
 
 static zend_class_entry swoole_async_ce;
 static zend_class_entry *swoole_async_ce_ptr;
+static zend_object_handlers swoole_async_handlers;
 
 zend_class_entry swoole_exception_ce;
 zend_class_entry *swoole_exception_ce_ptr;
+static zend_object_handlers swoole_exception_handlers;
 
 zend_module_entry swoole_module_entry =
 {
@@ -1049,7 +1055,7 @@ PHP_MINIT_FUNCTION(swoole)
     SWOOLE_DEFINE(IPC_UNIXSOCK);
     SWOOLE_DEFINE(IPC_SOCKET);
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_server_ce, "Swoole\\Server", "swoole_server", "Co\\Server", swoole_server_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_server, "Swoole\\Server", "swoole_server", "Co\\Server", swoole_server_methods, NULL);
     swoole_server_ce_ptr->serialize = zend_class_serialize_deny;
     swoole_server_ce_ptr->unserialize = zend_class_unserialize_deny;
 
@@ -1090,19 +1096,19 @@ PHP_MINIT_FUNCTION(swoole)
     zend_declare_property_bool(swoole_server_ce_ptr, ZEND_STRL("taskworker"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_server_ce_ptr, ZEND_STRL("worker_pid"), 0, ZEND_ACC_PUBLIC);
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_timer_ce, "Swoole\\Timer", "swoole_timer", NULL, swoole_timer_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_timer, "Swoole\\Timer", "swoole_timer", NULL, swoole_timer_methods, NULL);
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_event_ce, "Swoole\\Event", "swoole_event", NULL, swoole_event_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_event, "Swoole\\Event", "swoole_event", NULL, swoole_event_methods, NULL);
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_async_ce, "Swoole\\Async", "swoole_async", NULL, swoole_async_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_async, "Swoole\\Async", "swoole_async", NULL, swoole_async_methods, NULL);
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_connection_iterator_ce, "Swoole\\Connection\\Iterator", "swoole_connection_iterator", NULL,  swoole_connection_iterator_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_connection_iterator, "Swoole\\Connection\\Iterator", "swoole_connection_iterator", NULL,  swoole_connection_iterator_methods, NULL);
     zend_class_implements(swoole_connection_iterator_ce_ptr, 2, zend_ce_iterator, zend_ce_arrayaccess);
 #ifdef SW_HAVE_COUNTABLE
     zend_class_implements(swoole_connection_iterator_ce_ptr, 1, zend_ce_countable);
 #endif
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_exception_ce, "Swoole\\Exception", "swoole_exception", NULL, NULL, zend_exception_get_default());
+    SWOOLE_INIT_CLASS_ENTRY(swoole_exception, "Swoole\\Exception", "swoole_exception", NULL, NULL, zend_exception_get_default());
 
     //swoole init
     swoole_init();

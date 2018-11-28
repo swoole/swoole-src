@@ -263,10 +263,11 @@ static swHashMap *php_sw_long_connections;
 
 zend_class_entry swoole_client_ce;
 zend_class_entry *swoole_client_ce_ptr;
+static zend_object_handlers swoole_client_handlers;
 
 void swoole_client_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_client_ce, "Swoole\\Client", "swoole_client", NULL, swoole_client_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_client, "Swoole\\Client", "swoole_client", NULL, swoole_client_methods, NULL);
     swoole_client_ce_ptr->serialize = zend_class_serialize_deny;
     swoole_client_ce_ptr->unserialize = zend_class_unserialize_deny;
 

@@ -56,6 +56,7 @@ static const swoole_http_parser_settings http_parser_settings =
 
 static zend_class_entry swoole_http_client_ce;
 static zend_class_entry *swoole_http_client_ce_ptr;
+static zend_object_handlers swoole_http_client_handlers;
 
 static PHP_METHOD(swoole_http_client, __construct);
 static PHP_METHOD(swoole_http_client, __destruct);
@@ -407,7 +408,7 @@ static int http_client_execute(zval *zobject, char *uri, size_t uri_len, zval *c
 
 void swoole_http_client_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_http_client_ce, "Swoole\\Http\\Client", "swoole_http_client", NULL, swoole_http_client_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_http_client, "Swoole\\Http\\Client", "swoole_http_client", NULL, swoole_http_client_methods, NULL);
 
     zend_declare_property_long(swoole_http_client_ce_ptr, ZEND_STRL("type"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_http_client_ce_ptr, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);

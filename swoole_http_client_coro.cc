@@ -386,7 +386,7 @@ static zend_object *swoole_http_client_coro_create(zend_class_entry *ce)
 
 void swoole_http_client_coro_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_http_client_coro_ce, "Swoole\\Coroutine\\Http\\Client", NULL, "Co\\Http\\Client", swoole_http_client_coro_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_http_client_coro, "Swoole\\Coroutine\\Http\\Client", NULL, "Co\\Http\\Client", swoole_http_client_coro_methods, NULL);
     swoole_http_client_coro_ce_ptr->create_object = swoole_http_client_coro_create;
     swoole_http_client_coro_ce_ptr->serialize = zend_class_serialize_deny;
     swoole_http_client_coro_ce_ptr->unserialize = zend_class_unserialize_deny;

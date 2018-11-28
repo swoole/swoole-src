@@ -105,9 +105,11 @@ static zend_object_handlers swoole_mysql_coro_handlers;
 
 static zend_class_entry swoole_mysql_coro_exception_ce;
 static zend_class_entry *swoole_mysql_coro_exception_ce_ptr;
+static zend_object_handlers swoole_mysql_coro_exception_handlers;
 
 static zend_class_entry swoole_mysql_coro_statement_ce;
 static zend_class_entry *swoole_mysql_coro_statement_ce_ptr;
+static zend_object_handlers swoole_mysql_coro_statement_handlers;
 
 static const zend_function_entry swoole_mysql_coro_methods[] =
 {
@@ -165,18 +167,18 @@ static zend_object *swoole_mysql_coro_create(zend_class_entry *ce)
 
 void swoole_mysql_coro_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_mysql_coro_ce, "Swoole\\Coroutine\\MySQL", NULL, "Co\\MySQL", swoole_mysql_coro_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_mysql_coro, "Swoole\\Coroutine\\MySQL", NULL, "Co\\MySQL", swoole_mysql_coro_methods, NULL);
     swoole_mysql_coro_ce_ptr->create_object = swoole_mysql_coro_create;
     swoole_mysql_coro_ce_ptr->serialize = zend_class_serialize_deny;
     swoole_mysql_coro_ce_ptr->unserialize = zend_class_unserialize_deny;
     memcpy(&swoole_mysql_coro_handlers, zend_get_std_object_handlers(), sizeof(swoole_mysql_coro_handlers));
     swoole_mysql_coro_handlers.free_obj = swoole_mysql_coro_free_storage;
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_mysql_coro_statement_ce, "Swoole\\Coroutine\\MySQL\\Statement", NULL, "Co\\MySQL\\Statement", swoole_mysql_coro_statement_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_mysql_coro_statement, "Swoole\\Coroutine\\MySQL\\Statement", NULL, "Co\\MySQL\\Statement", swoole_mysql_coro_statement_methods, NULL);
     swoole_mysql_coro_statement_ce_ptr->serialize = zend_class_serialize_deny;
     swoole_mysql_coro_statement_ce_ptr->unserialize = zend_class_unserialize_deny;
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_mysql_coro_exception_ce, "Swoole\\Coroutine\\MySQL\\Exception", NULL, "Co\\MySQL\\Exception", NULL, zend_exception_get_default());
+    SWOOLE_INIT_CLASS_ENTRY(swoole_mysql_coro_exception, "Swoole\\Coroutine\\MySQL\\Exception", NULL, "Co\\MySQL\\Exception", NULL, zend_exception_get_default());
 
     zend_declare_property_string(swoole_mysql_coro_ce_ptr, ZEND_STRL("serverInfo"), "", ZEND_ACC_PRIVATE);
     zend_declare_property_long(swoole_mysql_coro_ce_ptr, ZEND_STRL("sock"), 0, ZEND_ACC_PUBLIC);

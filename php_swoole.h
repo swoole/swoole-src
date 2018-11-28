@@ -601,16 +601,17 @@ extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
 #define SWOOLE_RAW_DEFINE(constant)    REGISTER_LONG_CONSTANT(#constant, constant, CONST_CS | CONST_PERSISTENT)
 #define SWOOLE_DEFINE(constant)    REGISTER_LONG_CONSTANT("SWOOLE_"#constant, SW_##constant, CONST_CS | CONST_PERSISTENT)
 
-#define SWOOLE_INIT_CLASS_ENTRY(ce, namespaceName, snake_name, shortName, methods, parent_ce_ptr) \
-    INIT_CLASS_ENTRY(ce, namespaceName, methods); \
-    ce##_ptr = zend_register_internal_class_ex(&ce, parent_ce_ptr); \
+#define SWOOLE_INIT_CLASS_ENTRY(module, namespaceName, snake_name, shortName, methods, parent_ce_ptr) \
+    INIT_CLASS_ENTRY(module##_ce, namespaceName, methods); \
+    module##_ce_ptr = zend_register_internal_class_ex(&module##_ce, parent_ce_ptr); \
     if (snake_name) { \
-        SWOOLE_CLASS_ALIAS(snake_name, ce##_ptr); \
+        SWOOLE_CLASS_ALIAS(snake_name, module); \
     } \
     if (shortName && SWOOLE_G(use_shortname)) { \
-        SWOOLE_CLASS_ALIAS(shortName, ce##_ptr); \
-    }
-#define SWOOLE_CLASS_ALIAS(name, ce_ptr) sw_zend_register_class_alias(ZEND_STRL(name), ce_ptr);
+        SWOOLE_CLASS_ALIAS(shortName, module); \
+    } \
+    memcpy(&module##_handlers, zend_get_std_object_handlers(), sizeof(module##_handlers));
+#define SWOOLE_CLASS_ALIAS(name, module) sw_zend_register_class_alias(ZEND_STRL(name), module##_ce_ptr);
 
 /* PHP 7 patches */
 // Fixed in php-7.0.28, php-7.1.15RC1, php-7.2.3RC1 (https://github.com/php/php-src/commit/e88e83d3e5c33fcd76f08b23e1a2e4e8dc98ce41)

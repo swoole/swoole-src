@@ -106,6 +106,7 @@ static void swoole_redis_event_Cleanup(void *privdata);
 
 static zend_class_entry swoole_redis_ce;
 static zend_class_entry *swoole_redis_ce_ptr;
+static zend_object_handlers swoole_redis_handlers;
 
 static const zend_function_entry swoole_redis_methods[] =
 {
@@ -172,7 +173,7 @@ static sw_inline void redis_execute_connect_callback(swRedisClient *redis, int s
 
 void swoole_redis_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_redis_ce, "Swoole\\Redis", "swoole_redis", NULL, swoole_redis_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_redis, "Swoole\\Redis", "swoole_redis", NULL, swoole_redis_methods, NULL);
 
     zend_declare_property_null(swoole_redis_ce_ptr, ZEND_STRL("onConnect"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_redis_ce_ptr, ZEND_STRL("onClose"), ZEND_ACC_PUBLIC);

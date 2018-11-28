@@ -26,6 +26,7 @@ static PHP_METHOD(swoole_msgqueue, destroy);
 
 static zend_class_entry swoole_msgqueue_ce;
 zend_class_entry *swoole_msgqueue_ce_ptr;
+static zend_object_handlers swoole_msgqueue_handlers;
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_msgqueue_construct, 0, 0, 1)
     ZEND_ARG_INFO(0, len)
@@ -61,7 +62,7 @@ static const zend_function_entry swoole_msgqueue_methods[] =
 
 void swoole_msgqueue_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_msgqueue_ce, "Swoole\\MsgQueue", "swoole_msgqueue", NULL, swoole_msgqueue_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_msgqueue, "Swoole\\MsgQueue", "swoole_msgqueue", NULL, swoole_msgqueue_methods, NULL);
 }
 
 static PHP_METHOD(swoole_msgqueue, __construct)

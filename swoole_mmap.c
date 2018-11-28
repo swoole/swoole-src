@@ -34,6 +34,7 @@ static PHP_METHOD(swoole_mmap, open);
 
 static zend_class_entry swoole_mmap_ce;
 zend_class_entry *swoole_mmap_ce_ptr;
+static zend_object_handlers swoole_mmap_handlers;
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mmap_open, 0, 0, 1)
     ZEND_ARG_INFO(0, filename)
@@ -146,7 +147,7 @@ static int mmap_stream_close(php_stream *stream, int close_handle)
 
 void swoole_mmap_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_mmap_ce, "Swoole\\Mmap", "swoole_mmap", NULL, swoole_mmap_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_mmap, "Swoole\\Mmap", "swoole_mmap", NULL, swoole_mmap_methods, NULL);
 }
 
 static PHP_METHOD(swoole_mmap, open)

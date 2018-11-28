@@ -154,12 +154,15 @@ static std::unordered_map<int, Coroutine *> user_yield_coros;
 
 static zend_class_entry swoole_coroutine_util_ce;
 static zend_class_entry *swoole_coroutine_util_ce_ptr;
+static zend_object_handlers swoole_coroutine_util_handlers;
 
 static zend_class_entry swoole_coroutine_iterator_ce;
 static zend_class_entry *swoole_coroutine_iterator_ce_ptr;
+static zend_object_handlers swoole_coroutine_iterator_handlers;
 
 static zend_class_entry swoole_exit_exception_ce;
 static zend_class_entry *swoole_exit_exception_ce_ptr;
+static zend_object_handlers swoole_exit_exception_handlers;
 
 BEGIN_EXTERN_C()
 extern int swoole_coroutine_statvfs(const char *path, struct statvfs *buf);
@@ -281,9 +284,9 @@ void swoole_coroutine_util_init(int module_number)
 {
     coro_init();
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_coroutine_util_ce, "Swoole\\Coroutine", "swoole_coroutine", "Co", swoole_coroutine_util_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_coroutine_util, "Swoole\\Coroutine", "swoole_coroutine", "Co", swoole_coroutine_util_methods, NULL);
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_coroutine_iterator_ce, "Swoole\\Coroutine\\Iterator", NULL, "Co\\Iterator", iterator_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_coroutine_iterator, "Swoole\\Coroutine\\Iterator", NULL, "Co\\Iterator", iterator_methods, NULL);
     zend_class_implements(swoole_coroutine_iterator_ce_ptr, 1, zend_ce_iterator);
 #ifdef SW_HAVE_COUNTABLE
     zend_class_implements(swoole_coroutine_iterator_ce_ptr, 1, zend_ce_countable);
@@ -298,7 +301,7 @@ void swoole_coroutine_util_init(int module_number)
     SWOOLE_DEFINE(CORO_END);
 
     //prohibit exit in coroutine
-    SWOOLE_INIT_CLASS_ENTRY(swoole_exit_exception_ce, "Swoole\\ExitException", NULL, NULL, swoole_exit_exception_methods, zend_exception_get_default());
+    SWOOLE_INIT_CLASS_ENTRY(swoole_exit_exception, "Swoole\\ExitException", NULL, NULL, swoole_exit_exception_methods, zend_exception_get_default());
 
     SWOOLE_DEFINE(EXIT_IN_COROUTINE);
     SWOOLE_DEFINE(EXIT_IN_SERVER);
