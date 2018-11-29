@@ -466,25 +466,44 @@ void php_swoole_sha1(const char *str, int _len, unsigned char *digest);
 int php_swoole_task_pack(swEventData *task, zval *data);
 zval* php_swoole_task_unpack(swEventData *task_result);
 
-static sw_inline void* swoole_get_object(zval *zobject)
+static sw_inline void* swoole_get_object_by_handle(uint32_t handle)
 {
-    uint32_t handle = Z_OBJ_HANDLE_P(zobject);
     assert(handle < swoole_objects.size);
     return swoole_objects.array[handle];
 }
 
-static sw_inline void* swoole_get_property(zval *zobject, int property_id)
+static sw_inline void* swoole_get_property_by_handle(uint32_t handle, int property_id)
 {
-    uint32_t handle = Z_OBJ_HANDLE_P(zobject);
-    if (handle >= swoole_objects.property_size[property_id])
+    if (unlikely(handle >= swoole_objects.property_size[property_id]))
     {
         return NULL;
     }
     return swoole_objects.property[property_id][handle];
 }
 
-void swoole_set_object(zval *zobject, void *ptr);
-void swoole_set_property(zval *zobject, int property_id, void *ptr);
+static sw_inline void* swoole_get_object(zval *zobject)
+{
+    return swoole_get_object_by_handle(Z_OBJ_HANDLE_P(zobject));
+}
+
+static sw_inline void* swoole_get_property(zval *zobject, int property_id)
+{
+    return swoole_get_property_by_handle(Z_OBJ_HANDLE_P(zobject), property_id);
+}
+
+void swoole_set_object_by_handle(uint32_t handle, void *ptr);
+void swoole_set_property_by_handle(uint32_t handle, int property_id, void *ptr);
+
+static sw_inline void swoole_set_object(zval *zobject, void *ptr)
+{
+    swoole_set_object_by_handle(Z_OBJ_HANDLE_P(zobject), ptr);
+}
+
+static sw_inline void swoole_set_property(zval *zobject, int property_id, void *ptr)
+{
+    swoole_set_property_by_handle(Z_OBJ_HANDLE_P(zobject), property_id, ptr);
+}
+
 int swoole_convert_to_fd(zval *zfd);
 int swoole_convert_to_fd_ex(zval *zfd, int *async);
 int swoole_register_rshutdown_function(swCallback func, int push_back);
@@ -582,16 +601,17 @@ extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
 #define SWOOLE_RAW_DEFINE(constant)    REGISTER_LONG_CONSTANT(#constant, constant, CONST_CS | CONST_PERSISTENT)
 #define SWOOLE_DEFINE(constant)    REGISTER_LONG_CONSTANT("SWOOLE_"#constant, SW_##constant, CONST_CS | CONST_PERSISTENT)
 
-#define SWOOLE_INIT_CLASS_ENTRY(ce, namespaceName, snake_name, shortName, methods, parent_ce_ptr) \
-    INIT_CLASS_ENTRY(ce, namespaceName, methods); \
-    ce##_ptr = zend_register_internal_class_ex(&ce, parent_ce_ptr); \
+#define SWOOLE_INIT_CLASS_ENTRY(module, namespaceName, snake_name, shortName, methods, parent_ce_ptr) \
+    INIT_CLASS_ENTRY(module##_ce, namespaceName, methods); \
+    module##_ce_ptr = zend_register_internal_class_ex(&module##_ce, parent_ce_ptr); \
     if (snake_name) { \
-        SWOOLE_CLASS_ALIAS(snake_name, ce##_ptr); \
+        SWOOLE_CLASS_ALIAS(snake_name, module); \
     } \
     if (shortName && SWOOLE_G(use_shortname)) { \
-        SWOOLE_CLASS_ALIAS(shortName, ce##_ptr); \
-    }
-#define SWOOLE_CLASS_ALIAS(name, ce_ptr) sw_zend_register_class_alias(ZEND_STRL(name), ce_ptr);
+        SWOOLE_CLASS_ALIAS(shortName, module); \
+    } \
+    memcpy(&module##_handlers, zend_get_std_object_handlers(), sizeof(module##_handlers));
+#define SWOOLE_CLASS_ALIAS(name, module) sw_zend_register_class_alias(ZEND_STRL(name), module##_ce_ptr);
 
 /* PHP 7 patches */
 // Fixed in php-7.0.28, php-7.1.15RC1, php-7.2.3RC1 (https://github.com/php/php-src/commit/e88e83d3e5c33fcd76f08b23e1a2e4e8dc98ce41)

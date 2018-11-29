@@ -20,9 +20,11 @@
 
 static zend_class_entry swoole_table_ce;
 static zend_class_entry *swoole_table_ce_ptr;
+static zend_object_handlers swoole_table_handlers;
 
 static zend_class_entry swoole_table_row_ce;
 static zend_class_entry *swoole_table_row_ce_ptr;
+static zend_object_handlers swoole_table_row_handlers;
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -251,7 +253,7 @@ static inline void php_swoole_table_get_field_value(swTable *table, swTableRow *
 
 void swoole_table_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_table_ce, "Swoole\\Table", "swoole_table", NULL, swoole_table_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_table, "Swoole\\Table", "swoole_table", NULL, swoole_table_methods, NULL);
     swoole_table_ce_ptr->serialize = zend_class_serialize_deny;
     swoole_table_ce_ptr->unserialize = zend_class_unserialize_deny;
     zend_class_implements(swoole_table_ce_ptr, 2, zend_ce_iterator, zend_ce_arrayaccess);
@@ -263,7 +265,7 @@ void swoole_table_init(int module_number)
     zend_declare_class_constant_long(swoole_table_ce_ptr, ZEND_STRL("TYPE_STRING"), SW_TABLE_STRING);
     zend_declare_class_constant_long(swoole_table_ce_ptr, ZEND_STRL("TYPE_FLOAT"), SW_TABLE_FLOAT);
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_table_row_ce, "Swoole\\Table\\Row", "swoole_table_row", NULL, swoole_table_row_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_table_row, "Swoole\\Table\\Row", "swoole_table_row", NULL, swoole_table_row_methods, NULL);
     zend_class_implements(swoole_table_row_ce_ptr, 1, zend_ce_arrayaccess);
 
     zend_declare_property_null(swoole_table_row_ce_ptr, ZEND_STRL("key"), ZEND_ACC_PUBLIC);

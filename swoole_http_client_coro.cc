@@ -357,9 +357,9 @@ static void swoole_http_client_coro_free_storage(zend_object *object)
     ZVAL_OBJ(zobject, object);
 
     http_client_coro_close(zobject);
-    http_client_coro_property *hcc = (http_client_coro_property *) swoole_get_property(zobject, 0);
+    http_client_coro_property *hcc = (http_client_coro_property *) swoole_get_property_by_handle(object->handle, 0);
     efree(hcc);
-    swoole_set_property(zobject, 0, NULL);
+    swoole_set_property_by_handle(object->handle, 0, NULL);
 
     // dtor object
     zend_object_std_dtor(object);
@@ -386,7 +386,7 @@ static zend_object *swoole_http_client_coro_create(zend_class_entry *ce)
 
 void swoole_http_client_coro_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_http_client_coro_ce, "Swoole\\Coroutine\\Http\\Client", NULL, "Co\\Http\\Client", swoole_http_client_coro_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_http_client_coro, "Swoole\\Coroutine\\Http\\Client", NULL, "Co\\Http\\Client", swoole_http_client_coro_methods, NULL);
     swoole_http_client_coro_ce_ptr->create_object = swoole_http_client_coro_create;
     swoole_http_client_coro_ce_ptr->serialize = zend_class_serialize_deny;
     swoole_http_client_coro_ce_ptr->unserialize = zend_class_unserialize_deny;

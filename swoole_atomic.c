@@ -111,9 +111,11 @@ ZEND_END_ARG_INFO()
 
 static zend_class_entry swoole_atomic_ce;
 zend_class_entry *swoole_atomic_ce_ptr;
+static zend_object_handlers swoole_atomic_handlers;
 
 static zend_class_entry swoole_atomic_long_ce;
 zend_class_entry *swoole_atomic_long_ce_ptr;
+static zend_object_handlers swoole_atomic_long_handlers;
 
 static const zend_function_entry swoole_atomic_methods[] =
 {
@@ -141,11 +143,11 @@ static const zend_function_entry swoole_atomic_long_methods[] =
 
 void swoole_atomic_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_atomic_ce, "Swoole\\Atomic", "swoole_atomic", NULL, swoole_atomic_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_atomic, "Swoole\\Atomic", "swoole_atomic", NULL, swoole_atomic_methods, NULL);
     swoole_atomic_ce_ptr->serialize = zend_class_serialize_deny;
     swoole_atomic_ce_ptr->unserialize = zend_class_unserialize_deny;
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_atomic_long_ce, "Swoole\\Atomic\\Long", "swoole_atomic_long", NULL, swoole_atomic_long_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_atomic_long, "Swoole\\Atomic\\Long", "swoole_atomic_long", NULL, swoole_atomic_long_methods, NULL);
     swoole_atomic_long_ce_ptr->serialize = zend_class_serialize_deny;
     swoole_atomic_long_ce_ptr->unserialize = zend_class_unserialize_deny;
 }

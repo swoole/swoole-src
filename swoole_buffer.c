@@ -75,10 +75,11 @@ static const zend_function_entry swoole_buffer_methods[] =
 
 zend_class_entry swoole_buffer_ce;
 zend_class_entry *swoole_buffer_ce_ptr;
+static zend_object_handlers swoole_buffer_handlers;
 
 void swoole_buffer_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_buffer_ce, "Swoole\\Buffer", "swoole_buffer", NULL, swoole_buffer_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_buffer, "Swoole\\Buffer", "swoole_buffer", NULL, swoole_buffer_methods, NULL);
     swoole_buffer_ce_ptr->serialize = zend_class_serialize_deny;
     swoole_buffer_ce_ptr->unserialize = zend_class_unserialize_deny;
 }

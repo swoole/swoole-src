@@ -1791,8 +1791,7 @@ Socket::~Socket()
         {
             sw_free(ssl_option.capath);
         }
-        ssl_option =
-        {   0};
+        ssl_option = {0};
         ssl_context = nullptr;
     }
 #endif

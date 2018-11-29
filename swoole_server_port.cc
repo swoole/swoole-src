@@ -22,6 +22,7 @@
 
 zend_class_entry swoole_server_port_ce;
 zend_class_entry *swoole_server_port_ce_ptr;
+static zend_object_handlers swoole_server_port_handlers;
 
 static PHP_METHOD(swoole_server_port, __construct);
 static PHP_METHOD(swoole_server_port, __destruct);
@@ -58,7 +59,7 @@ const zend_function_entry swoole_server_port_methods[] =
 
 void swoole_server_port_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_server_port_ce, "Swoole\\Server\\Port", "swoole_server_port", "Co\\Server\\Port", swoole_server_port_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_server_port, "Swoole\\Server\\Port", "swoole_server_port", "Co\\Server\\Port", swoole_server_port_methods, NULL);
     swoole_server_port_ce_ptr->serialize = zend_class_serialize_deny;
     swoole_server_port_ce_ptr->unserialize = zend_class_unserialize_deny;
 

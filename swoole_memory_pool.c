@@ -38,8 +38,10 @@ ZEND_END_ARG_INFO()
 
 static zend_class_entry swoole_memory_pool_ce;
 static zend_class_entry *swoole_memory_pool_ce_ptr;
+static zend_object_handlers swoole_memory_pool_handlers;
 static zend_class_entry swoole_memory_pool_slice_ce;
 static zend_class_entry *swoole_memory_pool_slice_ce_ptr;
+static zend_object_handlers swoole_memory_pool_slice_handlers;
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_memory_pool_construct, 0, 0, 2)
     ZEND_ARG_INFO(0, size)
@@ -99,9 +101,9 @@ static const zend_function_entry swoole_memory_pool_slice_methods[] =
 
 void swoole_memory_pool_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_memory_pool_ce, "Swoole\\Memory\\Pool", "swoole_memory_pool", NULL, swoole_memory_pool_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_memory_pool, "Swoole\\Memory\\Pool", "swoole_memory_pool", NULL, swoole_memory_pool_methods, NULL);
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_memory_pool_slice_ce, "Swoole\\Memory\\Pool\\Slice", "swoole_memory_pool_slice", NULL, swoole_memory_pool_slice_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_memory_pool_slice, "Swoole\\Memory\\Pool\\Slice", "swoole_memory_pool_slice", NULL, swoole_memory_pool_slice_methods, NULL);
 
     zend_declare_class_constant_long(swoole_memory_pool_ce_ptr, ZEND_STRL("TYPE_RING"), memory_pool_type_ring);
     zend_declare_class_constant_long(swoole_memory_pool_ce_ptr, ZEND_STRL("TYPE_GLOBAL"), memory_pool_type_global);

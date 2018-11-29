@@ -23,12 +23,15 @@
 
 static zend_class_entry swoole_http2_client_coro_ce;
 static zend_class_entry *swoole_http2_client_coro_ce_ptr;
+static zend_object_handlers swoole_http2_client_coro_handlers;
 
 static zend_class_entry swoole_http2_request_ce;
 static zend_class_entry *swoole_http2_request_ce_ptr;
+static zend_object_handlers swoole_http2_request_handlers;
 
 static zend_class_entry swoole_http2_response_ce;
 zend_class_entry *swoole_http2_response_ce_ptr;
+static zend_object_handlers swoole_http2_response_handlers;
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -118,11 +121,11 @@ static const zend_function_entry swoole_http2_client_methods[] =
 
 void swoole_http2_client_coro_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_http2_client_coro_ce, "Swoole\\Coroutine\\Http2\\Client", NULL, "Co\\Http2\\Client", swoole_http2_client_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_http2_client_coro, "Swoole\\Coroutine\\Http2\\Client", NULL, "Co\\Http2\\Client", swoole_http2_client_methods, NULL);
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_http2_request_ce, "Swoole\\Http2\\Request", "swoole_http2_request", NULL, NULL, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_http2_request, "Swoole\\Http2\\Request", "swoole_http2_request", NULL, NULL, NULL);
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_http2_response_ce, "Swoole\\Http2\\Response", "swoole_http2_response", NULL, NULL, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_http2_response, "Swoole\\Http2\\Response", "swoole_http2_response", NULL, NULL, NULL);
 
     zend_declare_property_long(swoole_http2_client_coro_ce_ptr, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_http2_client_coro_ce_ptr, ZEND_STRL("errMsg"), 0, ZEND_ACC_PUBLIC);

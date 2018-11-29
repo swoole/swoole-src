@@ -26,6 +26,7 @@ END_EXTERN_C()
 
 static zend_class_entry swoole_redis_server_ce;
 static zend_class_entry *swoole_redis_server_ce_ptr;
+static zend_object_handlers swoole_redis_server_handlers;
 
 static swString *format_buffer;
 #ifdef SW_COROUTINE
@@ -66,7 +67,7 @@ const zend_function_entry swoole_redis_server_methods[] =
 
 void swoole_redis_server_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_redis_server_ce, "Swoole\\Redis\\Server", "swoole_redis_server", "Co\\Redis\\Server", swoole_redis_server_methods, swoole_server_ce_ptr);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_redis_server, "Swoole\\Redis\\Server", "swoole_redis_server", "Co\\Redis\\Server", swoole_redis_server_methods, swoole_server_ce_ptr);
 
     zend_declare_class_constant_long(swoole_redis_server_ce_ptr, ZEND_STRL("NIL"), SW_REDIS_REPLY_NIL);
     zend_declare_class_constant_long(swoole_redis_server_ce_ptr, ZEND_STRL("ERROR"), SW_REDIS_REPLY_ERROR);

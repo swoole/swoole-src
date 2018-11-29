@@ -117,12 +117,13 @@ static const zend_function_entry swoole_postgresql_coro_methods[] =
 
 static zend_class_entry swoole_postgresql_coro_ce;
 static zend_class_entry *swoole_postgresql_coro_ce_ptr;
+static zend_object_handlers swoole_postgresql_coro_handlers;
 static int le_result;
 
 void swoole_postgresql_coro_init(int module_number)
 {
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_postgresql_coro_ce, "Swoole\\Coroutine\\PostgreSQL", NULL, "Co\\PostgreSQL", swoole_postgresql_coro_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_postgresql_coro, "Swoole\\Coroutine\\PostgreSQL", NULL, "Co\\PostgreSQL", swoole_postgresql_coro_methods, NULL);
     le_result = zend_register_list_destructors_ex(_free_result, NULL, "pgsql result", module_number);
     zend_declare_property_null(swoole_postgresql_coro_ce_ptr, "error", 5, ZEND_ACC_PUBLIC);
 

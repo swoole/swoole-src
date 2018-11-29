@@ -35,12 +35,15 @@ extern "C"
 
 static zend_class_entry swoole_websocket_server_ce;
 zend_class_entry *swoole_websocket_server_ce_ptr;
+static zend_object_handlers swoole_websocket_server_handlers;
 
 static zend_class_entry swoole_websocket_frame_ce;
 zend_class_entry *swoole_websocket_frame_ce_ptr;
+static zend_object_handlers swoole_websocket_frame_handlers;
 
 static zend_class_entry swoole_websocket_closeframe_ce;
 static zend_class_entry *swoole_websocket_closeframe_ce_ptr;
+static zend_object_handlers swoole_websocket_closeframe_handlers;
 
 static int websocket_handshake(swListenPort *, http_context *);
 
@@ -444,9 +447,9 @@ int swoole_websocket_onHandshake(swListenPort *port, http_context *ctx)
 
 void swoole_websocket_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_websocket_server_ce, "Swoole\\WebSocket\\Server", "swoole_websocket_server", "Co\\WebSocket\\Server", swoole_websocket_server_methods, swoole_http_server_ce_ptr);
-    SWOOLE_INIT_CLASS_ENTRY(swoole_websocket_frame_ce, "Swoole\\WebSocket\\Frame", "swoole_websocket_frame", "Co\\WebSocket\\Frame", swoole_websocket_frame_methods, NULL);
-    SWOOLE_INIT_CLASS_ENTRY(swoole_websocket_closeframe_ce, "Swoole\\WebSocket\\CloseFrame", "swoole_websocket_closeframe", "Co\\WebSocket\\CloseFrame", NULL, swoole_websocket_frame_ce_ptr);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_websocket_server, "Swoole\\WebSocket\\Server", "swoole_websocket_server", "Co\\WebSocket\\Server", swoole_websocket_server_methods, swoole_http_server_ce_ptr);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_websocket_frame, "Swoole\\WebSocket\\Frame", "swoole_websocket_frame", "Co\\WebSocket\\Frame", swoole_websocket_frame_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_websocket_closeframe, "Swoole\\WebSocket\\CloseFrame", "swoole_websocket_closeframe", "Co\\WebSocket\\CloseFrame", NULL, swoole_websocket_frame_ce_ptr);
 
     zend_declare_property_long(swoole_websocket_frame_ce_ptr, ZEND_STRL("fd"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_string(swoole_websocket_frame_ce_ptr, ZEND_STRL("data"), "", ZEND_ACC_PUBLIC);

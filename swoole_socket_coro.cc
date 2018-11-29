@@ -31,10 +31,10 @@ static zend_object_handlers swoole_socket_coro_handlers;
 
 static zend_class_entry swoole_socket_coro_exception_ce;
 static zend_class_entry *swoole_socket_coro_exception_ce_ptr;
+static zend_object_handlers swoole_socket_coro_exception_handlers;
 
 typedef struct
 {
-    zval object;
     Socket *socket;
     int domain;
 #ifdef SWOOLE_SOCKETS_SUPPORT
@@ -128,17 +128,22 @@ static const zend_function_entry swoole_socket_coro_methods[] =
     PHP_FE_END
 };
 
-static inline socket_coro * sw_socket_coro_fetch_object(zend_object *obj)
+static inline socket_coro * swoole_socket_coro_fetch_object(zend_object *obj)
 {
     return (socket_coro *) ((char *) obj - XtOffsetOf(socket_coro, std));
 }
 
-#define Z_SOCKET_CORO_OBJ_P(zv) sw_socket_coro_fetch_object(Z_OBJ_P(zv))
-
+#define Z_SOCKET_CORO_OBJ_P(zv) swoole_socket_coro_fetch_object(Z_OBJ_P(zv))
 
 static void swoole_socket_coro_free_storage(zend_object *object)
 {
-    socket_coro *sock = (socket_coro *) sw_socket_coro_fetch_object(object);
+    socket_coro *sock = (socket_coro *) swoole_socket_coro_fetch_object(object);
+#ifdef SWOOLE_SOCKETS_SUPPORT
+    if (sock->resource)
+    {
+        sw_zval_free(sock->resource);
+    }
+#endif
     delete sock->socket;
     zend_object_std_dtor(&sock->std);
 }
@@ -157,7 +162,7 @@ static zend_object *swoole_socket_coro_create(zend_class_entry *ce)
 
 void swoole_socket_coro_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_socket_coro_ce, "Swoole\\Coroutine\\Socket", NULL, "Co\\Socket", swoole_socket_coro_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_socket_coro, "Swoole\\Coroutine\\Socket", NULL, "Co\\Socket", swoole_socket_coro_methods, NULL);
 
     swoole_socket_coro_ce_ptr->ce_flags |= ZEND_ACC_FINAL;
     swoole_socket_coro_ce_ptr->create_object = swoole_socket_coro_create;
@@ -170,7 +175,7 @@ void swoole_socket_coro_init(int module_number)
     swoole_socket_coro_handlers.clone_obj = NULL;
     swoole_socket_coro_handlers.offset = XtOffsetOf(socket_coro, std);
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_socket_coro_exception_ce, "Swoole\\Coroutine\\Socket\\Exception", NULL, "Co\\Socket\\Exception", NULL, zend_exception_get_default());
+    SWOOLE_INIT_CLASS_ENTRY(swoole_socket_coro_exception, "Swoole\\Coroutine\\Socket\\Exception", NULL, "Co\\Socket\\Exception", NULL, zend_exception_get_default());
 }
 
 static PHP_METHOD(swoole_socket_coro, __construct)
@@ -197,7 +202,6 @@ static PHP_METHOD(swoole_socket_coro, __construct)
         RETURN_FALSE;
     }
     sock->domain = domain;
-    sock->object = *getThis();
 }
 
 static PHP_METHOD(swoole_socket_coro, bind)
@@ -257,7 +261,7 @@ static PHP_METHOD(swoole_socket_coro, accept)
     if (conn)
     {
         zend_object *client = swoole_socket_coro_create(swoole_socket_coro_ce_ptr);
-        socket_coro *client_sock = (socket_coro *) sw_socket_coro_fetch_object(client);
+        socket_coro *client_sock = (socket_coro *) swoole_socket_coro_fetch_object(client);
         client_sock->socket = conn;
         ZVAL_OBJ(return_value, &client_sock->std);
     }

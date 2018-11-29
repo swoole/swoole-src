@@ -28,6 +28,7 @@ static PHP_METHOD(swoole_channel, stats);
 
 static zend_class_entry swoole_channel_ce;
 zend_class_entry *swoole_channel_ce_ptr;
+static zend_object_handlers swoole_channel_handlers;
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_channel_construct, 0, 0, 1)
     ZEND_ARG_INFO(0, size)
@@ -53,7 +54,7 @@ static const zend_function_entry swoole_channel_methods[] =
 
 void swoole_channel_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_channel_ce, "Swoole\\Channel", "swoole_channel", NULL, swoole_channel_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_channel, "Swoole\\Channel", "swoole_channel", NULL, swoole_channel_methods, NULL);
 }
 
 static PHP_METHOD(swoole_channel, __construct)

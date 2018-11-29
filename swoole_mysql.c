@@ -45,9 +45,11 @@ static PHP_METHOD(swoole_mysql, on);
 
 static zend_class_entry swoole_mysql_ce;
 static zend_class_entry *swoole_mysql_ce_ptr;
+static zend_object_handlers swoole_mysql_handlers;
 
 static zend_class_entry swoole_mysql_exception_ce;
 static zend_class_entry *swoole_mysql_exception_ce_ptr;
+static zend_object_handlers swoole_mysql_exception_handlers;
 
 #define UTF8_MB4 "utf8mb4"
 #define UTF8_MB3 "utf8"
@@ -362,9 +364,9 @@ static void swoole_mysql_onConnect(mysql_client *client);
 
 void swoole_mysql_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_mysql_ce, "Swoole\\MySQL", "swoole_mysql", NULL, swoole_mysql_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_mysql, "Swoole\\MySQL", "swoole_mysql", NULL, swoole_mysql_methods, NULL);
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_mysql_exception_ce, "Swoole\\MySQL\\Exception", "swoole_mysql_exception", NULL, NULL, zend_exception_get_default());
+    SWOOLE_INIT_CLASS_ENTRY(swoole_mysql_exception, "Swoole\\MySQL\\Exception", "swoole_mysql_exception", NULL, NULL, zend_exception_get_default());
 
     zend_declare_property_null(swoole_mysql_ce_ptr, ZEND_STRL("serverInfo"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_mysql_ce_ptr, ZEND_STRL("sock"), ZEND_ACC_PUBLIC);

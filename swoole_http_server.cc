@@ -82,12 +82,15 @@ enum http_upload_errno
 
 zend_class_entry swoole_http_server_ce;
 zend_class_entry *swoole_http_server_ce_ptr;
+static zend_object_handlers swoole_http_server_handlers;
 
 zend_class_entry swoole_http_response_ce;
 zend_class_entry *swoole_http_response_ce_ptr;
+static zend_object_handlers swoole_http_response_handlers;
 
 zend_class_entry swoole_http_request_ce;
 zend_class_entry *swoole_http_request_ce_ptr;
+static zend_object_handlers swoole_http_request_handlers;
 
 static int http_request_on_path(swoole_http_parser *parser, const char *at, size_t length);
 static int http_request_on_query_string(swoole_http_parser *parser, const char *at, size_t length);
@@ -1223,7 +1226,7 @@ void php_swoole_http_onClose(swServer *serv, swDataHead *ev)
 
 void swoole_http_server_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_http_server_ce, "Swoole\\Http\\Server", "swoole_http_server", "Co\\Http\\Server", NULL, swoole_server_ce_ptr);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_http_server, "Swoole\\Http\\Server", "swoole_http_server", "Co\\Http\\Server", NULL, swoole_server_ce_ptr);
     swoole_http_server_ce_ptr->serialize = zend_class_serialize_deny;
     swoole_http_server_ce_ptr->unserialize = zend_class_unserialize_deny;
 
@@ -1231,7 +1234,7 @@ void swoole_http_server_init(int module_number)
     zend_declare_property_null(swoole_http_server_ce_ptr, ZEND_STRL("onHandshake"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_server_ce_ptr, ZEND_STRL("setting"), ZEND_ACC_PUBLIC);
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_http_request_ce, "Swoole\\Http\\Request", "swoole_http_request", "Co\\Http\\Request", swoole_http_request_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_http_request, "Swoole\\Http\\Request", "swoole_http_request", "Co\\Http\\Request", swoole_http_request_methods, NULL);
     swoole_http_request_ce_ptr->serialize = zend_class_serialize_deny;
     swoole_http_request_ce_ptr->unserialize = zend_class_unserialize_deny;
 
@@ -1248,7 +1251,7 @@ void swoole_http_server_init(int module_number)
     zend_declare_property_null(swoole_http_request_ce_ptr, ZEND_STRL("post"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_request_ce_ptr, ZEND_STRL("tmpfiles"), ZEND_ACC_PUBLIC);
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_http_response_ce, "Swoole\\Http\\Response", "swoole_http_response", "Co\\Http\\Response", swoole_http_response_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_http_response, "Swoole\\Http\\Response", "swoole_http_response", "Co\\Http\\Response", swoole_http_response_methods, NULL);
     swoole_http_response_ce_ptr->serialize = zend_class_serialize_deny;
     swoole_http_response_ce_ptr->unserialize = zend_class_unserialize_deny;
 

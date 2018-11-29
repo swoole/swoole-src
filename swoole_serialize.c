@@ -51,6 +51,7 @@ static const zend_function_entry swoole_serialize_methods[] = {
 
 zend_class_entry swoole_serialize_ce;
 zend_class_entry *swoole_serialize_ce_ptr;
+static zend_object_handlers swoole_serialize_handlers;
 
 #define SWOOLE_SERI_EOF "EOF"
 #define CHECK_STEP if(buffer>unseri_buffer_end){ php_error_docref(NULL, E_ERROR, "illegal unserialize data"); return NULL;}
@@ -60,7 +61,7 @@ void *unseri_buffer_end = NULL;
 
 void swoole_serialize_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_serialize_ce, "Swoole\\Serialize", "swoole_serialize", NULL, swoole_serialize_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_serialize, "Swoole\\Serialize", "swoole_serialize", NULL, swoole_serialize_methods, NULL);
 
     //    ZVAL_STRING(&swSeriaG.sleep_fname, "__sleep");
     zend_string *zstr_sleep = zend_string_init("__sleep", sizeof ("__sleep") - 1, 1);

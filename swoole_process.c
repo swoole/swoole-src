@@ -57,6 +57,7 @@ static uint32_t php_swoole_worker_round_id = 0;
 static zval *signal_callback[SW_SIGNO_MAX];
 static zend_class_entry swoole_process_ce;
 zend_class_entry *swoole_process_ce_ptr;
+static zend_object_handlers swoole_process_handlers;
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_construct, 0, 0, 1)
     ZEND_ARG_INFO(0, callback)
@@ -171,7 +172,7 @@ static const zend_function_entry swoole_process_methods[] =
 
 void swoole_process_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_process_ce, "Swoole\\Process", "swoole_process", NULL, swoole_process_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_process, "Swoole\\Process", "swoole_process", NULL, swoole_process_methods, NULL);
 
     zend_declare_class_constant_long(swoole_process_ce_ptr, ZEND_STRL("IPC_NOWAIT"), MSGQUEUE_NOWAIT);
     zend_declare_class_constant_long(swoole_process_ce_ptr, ZEND_STRL("PIPE_MASTER"), SW_PIPE_CLOSE_MASTER);

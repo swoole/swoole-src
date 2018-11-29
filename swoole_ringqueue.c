@@ -29,6 +29,7 @@ static PHP_METHOD(swoole_ringqueue, isEmpty);
 
 static zend_class_entry swoole_ringqueue_ce;
 zend_class_entry *swoole_ringqueue_ce_ptr;
+static zend_object_handlers swoole_ringqueue_handlers;
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_ringqueue_construct, 0, 0, 1)
     ZEND_ARG_INFO(0, len)
@@ -55,7 +56,7 @@ static const zend_function_entry swoole_ringqueue_methods[] =
 
 void swoole_ringqueue_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_ringqueue_ce, "Swoole\\RingQueue", "swoole_ringqueue", NULL, swoole_ringqueue_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_ringqueue, "Swoole\\RingQueue", "swoole_ringqueue", NULL, swoole_ringqueue_methods, NULL);
 }
 
 static PHP_METHOD(swoole_ringqueue, __construct)
