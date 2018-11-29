@@ -442,8 +442,6 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
 
 void swWorker_onStart(swServer *serv)
 {
-    swWorker *worker;
-
     if (SwooleWG.id >= serv->worker_num)
     {
         SwooleG.process_type = SW_PROCESS_TASKWORKER;
@@ -515,7 +513,7 @@ void swWorker_onStart(swServer *serv)
     int i;
     for (i = 0; i < serv->worker_num + serv->task_worker_num; i++)
     {
-        worker = swServer_get_worker(serv, i);
+        swWorker *worker = swServer_get_worker(serv, i);
         if (SwooleWG.id == i)
         {
             continue;
