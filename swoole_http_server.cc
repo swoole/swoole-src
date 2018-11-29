@@ -475,11 +475,6 @@ static int http_request_on_query_string(swoole_http_parser *parser, const char *
 static int http_request_on_header_field(swoole_http_parser *parser, const char *at, size_t length)
 {
     http_context *ctx = (http_context *) parser->data;
-    if (ctx->current_header_name_allocated)
-    {
-        efree(ctx->current_header_name);
-        ctx->current_header_name_allocated = 0;
-    }
     ctx->current_header_name = (char *) at;
     ctx->current_header_name_len = length;
     return 0;
@@ -608,7 +603,8 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
             swoole_http_server_array_init(cookie, request);
             http_parse_cookie(zcookie, at, length);
         }
-        goto free_memory;
+        efree(header_name);
+        return 0;
     }
     else if (strncmp(header_name, "upgrade", header_len) == 0 && strncasecmp(at, "websocket", length) == 0)
     {
@@ -673,14 +669,8 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
     }
 #endif
 
-    add_assoc_stringl_ex(header, header_name, ctx->current_header_name_len, (char *) at, length);
+    add_assoc_stringl_ex(header, header_name, header_len, (char *) at, length);
 
-    free_memory:
-    if (ctx->current_header_name_allocated)
-    {
-        efree(ctx->current_header_name);
-        ctx->current_header_name_allocated = 0;
-    }
     efree(header_name);
 
     return 0;
@@ -689,11 +679,6 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
 static int http_request_on_headers_complete(swoole_http_parser *parser)
 {
     http_context *ctx = (http_context *) parser->data;
-    if (ctx->current_header_name_allocated)
-    {
-        efree(ctx->current_header_name);
-        ctx->current_header_name_allocated = 0;
-    }
     ctx->current_header_name = NULL;
 
     return 0;
@@ -800,11 +785,6 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
         add_assoc_stringl(ctx->current_multipart_header, "type", (char * ) at, length);
     }
 
-    if (ctx->current_header_name_allocated)
-    {
-        efree(ctx->current_header_name);
-        ctx->current_header_name_allocated = 0;
-    }
     efree(headername);
 
     return 0;
@@ -1014,7 +994,6 @@ static int http_request_message_complete(swoole_http_parser *parser)
             break;
         }
     }
-    ctx->request_read = 1;
 
     if (ctx->mt_parser)
     {
@@ -1226,17 +1205,17 @@ void php_swoole_http_onClose(swServer *serv, swDataHead *ev)
 
 void swoole_http_server_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_http_server, "Swoole\\Http\\Server", "swoole_http_server", "Co\\Http\\Server", NULL, swoole_server_ce_ptr);
-    swoole_http_server_ce_ptr->serialize = zend_class_serialize_deny;
-    swoole_http_server_ce_ptr->unserialize = zend_class_unserialize_deny;
+    SWOOLE_INIT_CLASS_ENTRY(swoole_http_server, "Swoole\\Http\\Server", "swoole_http_server", NULL, NULL, swoole_server_ce_ptr);
+    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_http_server, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SWOOLE_SET_CLASS_CLONEABLE(swoole_http_server, zend_class_clone_deny);
 
     zend_declare_property_null(swoole_http_server_ce_ptr, ZEND_STRL("onRequest"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_server_ce_ptr, ZEND_STRL("onHandshake"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_server_ce_ptr, ZEND_STRL("setting"), ZEND_ACC_PUBLIC);
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_http_request, "Swoole\\Http\\Request", "swoole_http_request", "Co\\Http\\Request", swoole_http_request_methods, NULL);
-    swoole_http_request_ce_ptr->serialize = zend_class_serialize_deny;
-    swoole_http_request_ce_ptr->unserialize = zend_class_unserialize_deny;
+    SWOOLE_INIT_CLASS_ENTRY(swoole_http_request, "Swoole\\Http\\Request", "swoole_http_request", NULL, swoole_http_request_methods, NULL);
+    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_http_request, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SWOOLE_SET_CLASS_CLONEABLE(swoole_http_request, zend_class_clone_deny);
 
     zend_declare_property_long(swoole_http_request_ce_ptr, ZEND_STRL("fd"), 0, ZEND_ACC_PUBLIC);
 #ifdef SW_USE_HTTP2
@@ -1251,9 +1230,9 @@ void swoole_http_server_init(int module_number)
     zend_declare_property_null(swoole_http_request_ce_ptr, ZEND_STRL("post"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_request_ce_ptr, ZEND_STRL("tmpfiles"), ZEND_ACC_PUBLIC);
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_http_response, "Swoole\\Http\\Response", "swoole_http_response", "Co\\Http\\Response", swoole_http_response_methods, NULL);
-    swoole_http_response_ce_ptr->serialize = zend_class_serialize_deny;
-    swoole_http_response_ce_ptr->unserialize = zend_class_unserialize_deny;
+    SWOOLE_INIT_CLASS_ENTRY(swoole_http_response, "Swoole\\Http\\Response", "swoole_http_response", NULL, swoole_http_response_methods, NULL);
+    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_http_response, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SWOOLE_SET_CLASS_CLONEABLE(swoole_http_response, zend_class_clone_deny);
 
     zend_declare_property_long(swoole_http_response_ce_ptr, ZEND_STRL("fd"), 0,  ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_response_ce_ptr, ZEND_STRL("header"), ZEND_ACC_PUBLIC);

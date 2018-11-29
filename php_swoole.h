@@ -610,8 +610,20 @@ extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
     if (shortName && SWOOLE_G(use_shortname)) { \
         SWOOLE_CLASS_ALIAS(shortName, module); \
     } \
-    memcpy(&module##_handlers, zend_get_std_object_handlers(), sizeof(module##_handlers));
+    memcpy(&module##_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 #define SWOOLE_CLASS_ALIAS(name, module) sw_zend_register_class_alias(ZEND_STRL(name), module##_ce_ptr);
+#define SWOOLE_SET_CLASS_SERIALIZABLE(module, _serialize, _unserialize) \
+    module##_ce_ptr->serialize = _serialize; \
+    module##_ce_ptr->unserialize = _unserialize;
+#define zend_class_clone_deny NULL
+#define SWOOLE_SET_CLASS_CLONEABLE(module, _clone_obj) \
+    module##_handlers.clone_obj = _clone_obj;
+#define SWOOLE_SET_CLASS_CREATE_AND_FREE(module, _create_object, _free_obj) \
+        module##_ce_ptr->create_object = _create_object; \
+        module##_handlers.free_obj = _free_obj;
+#define SWOOLE_SET_CLASS_CUSTOM_OBJECT(module, _create_object, _free_obj, _struct, _std) \
+        SWOOLE_SET_CLASS_CREATE_AND_FREE(module, _create_object, _free_obj); \
+        module##_handlers.offset = XtOffsetOf(_struct, _std);
 
 /* PHP 7 patches */
 // Fixed in php-7.0.28, php-7.1.15RC1, php-7.2.3RC1 (https://github.com/php/php-src/commit/e88e83d3e5c33fcd76f08b23e1a2e4e8dc98ce41)

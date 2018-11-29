@@ -114,10 +114,6 @@ typedef struct
     uint32_t upgrade :1;
     uint32_t detached :1;
 
-    uint32_t request_read :1;
-    uint32_t current_header_name_allocated :1;
-    uint32_t content_sender_initialized :1;
-
 #ifdef SW_HAVE_ZLIB
     int8_t compression_level;
     int8_t compression_method;
@@ -138,7 +134,6 @@ typedef struct
     char *current_input_name;
     char *current_form_data_name;
     size_t current_form_data_name_len;
-    char *current_form_data_value;
     zval *current_multipart_header;
 
 } http_context;

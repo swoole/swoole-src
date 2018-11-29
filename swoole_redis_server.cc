@@ -67,7 +67,9 @@ const zend_function_entry swoole_redis_server_methods[] =
 
 void swoole_redis_server_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_redis_server, "Swoole\\Redis\\Server", "swoole_redis_server", "Co\\Redis\\Server", swoole_redis_server_methods, swoole_server_ce_ptr);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_redis_server, "Swoole\\Redis\\Server", "swoole_redis_server", NULL, swoole_redis_server_methods, swoole_server_ce_ptr);
+    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_redis_server, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SWOOLE_SET_CLASS_CLONEABLE(swoole_redis_server, zend_class_clone_deny);
 
     zend_declare_class_constant_long(swoole_redis_server_ce_ptr, ZEND_STRL("NIL"), SW_REDIS_REPLY_NIL);
     zend_declare_class_constant_long(swoole_redis_server_ce_ptr, ZEND_STRL("ERROR"), SW_REDIS_REPLY_ERROR);

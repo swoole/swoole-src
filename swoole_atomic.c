@@ -144,12 +144,12 @@ static const zend_function_entry swoole_atomic_long_methods[] =
 void swoole_atomic_init(int module_number)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_atomic, "Swoole\\Atomic", "swoole_atomic", NULL, swoole_atomic_methods, NULL);
-    swoole_atomic_ce_ptr->serialize = zend_class_serialize_deny;
-    swoole_atomic_ce_ptr->unserialize = zend_class_unserialize_deny;
+    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_atomic, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SWOOLE_SET_CLASS_CLONEABLE(swoole_atomic, zend_class_clone_deny);
 
     SWOOLE_INIT_CLASS_ENTRY(swoole_atomic_long, "Swoole\\Atomic\\Long", "swoole_atomic_long", NULL, swoole_atomic_long_methods, NULL);
-    swoole_atomic_long_ce_ptr->serialize = zend_class_serialize_deny;
-    swoole_atomic_long_ce_ptr->unserialize = zend_class_unserialize_deny;
+    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_atomic_long, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SWOOLE_SET_CLASS_CLONEABLE(swoole_atomic_long, zend_class_clone_deny);
 }
 
 PHP_METHOD(swoole_atomic, __construct)

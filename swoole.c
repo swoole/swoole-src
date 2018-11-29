@@ -1055,9 +1055,9 @@ PHP_MINIT_FUNCTION(swoole)
     SWOOLE_DEFINE(IPC_UNIXSOCK);
     SWOOLE_DEFINE(IPC_SOCKET);
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_server, "Swoole\\Server", "swoole_server", "Co\\Server", swoole_server_methods, NULL);
-    swoole_server_ce_ptr->serialize = zend_class_serialize_deny;
-    swoole_server_ce_ptr->unserialize = zend_class_unserialize_deny;
+    SWOOLE_INIT_CLASS_ENTRY(swoole_server, "Swoole\\Server", "swoole_server", NULL, swoole_server_methods, NULL);
+    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_server, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SWOOLE_SET_CLASS_CLONEABLE(swoole_server, zend_class_clone_deny);
 
     if (!SWOOLE_G(use_shortname))
     {
@@ -1097,12 +1097,20 @@ PHP_MINIT_FUNCTION(swoole)
     zend_declare_property_long(swoole_server_ce_ptr, ZEND_STRL("worker_pid"), 0, ZEND_ACC_PUBLIC);
 
     SWOOLE_INIT_CLASS_ENTRY(swoole_timer, "Swoole\\Timer", "swoole_timer", NULL, swoole_timer_methods, NULL);
+    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_timer, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SWOOLE_SET_CLASS_CLONEABLE(swoole_timer, zend_class_clone_deny);
 
     SWOOLE_INIT_CLASS_ENTRY(swoole_event, "Swoole\\Event", "swoole_event", NULL, swoole_event_methods, NULL);
+    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_event, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SWOOLE_SET_CLASS_CLONEABLE(swoole_event, zend_class_clone_deny);
 
     SWOOLE_INIT_CLASS_ENTRY(swoole_async, "Swoole\\Async", "swoole_async", NULL, swoole_async_methods, NULL);
+    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_async, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SWOOLE_SET_CLASS_CLONEABLE(swoole_async, zend_class_clone_deny);
 
     SWOOLE_INIT_CLASS_ENTRY(swoole_connection_iterator, "Swoole\\Connection\\Iterator", "swoole_connection_iterator", NULL,  swoole_connection_iterator_methods, NULL);
+    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_connection_iterator, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SWOOLE_SET_CLASS_CLONEABLE(swoole_connection_iterator, zend_class_clone_deny);
     zend_class_implements(swoole_connection_iterator_ce_ptr, 2, zend_ce_iterator, zend_ce_arrayaccess);
 #ifdef SW_HAVE_COUNTABLE
     zend_class_implements(swoole_connection_iterator_ce_ptr, 1, zend_ce_countable);

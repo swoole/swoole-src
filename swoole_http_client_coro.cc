@@ -351,7 +351,7 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
     }
 }
 
-static void swoole_http_client_coro_free_storage(zend_object *object)
+static void swoole_http_client_coro_free_object(zend_object *object)
 {
     zval _zobject, *zobject = &_zobject;
     ZVAL_OBJ(zobject, object);
@@ -365,19 +365,16 @@ static void swoole_http_client_coro_free_storage(zend_object *object)
     zend_object_std_dtor(object);
 }
 
-static zend_object *swoole_http_client_coro_create(zend_class_entry *ce)
+static zend_object *swoole_http_client_coro_create_object(zend_class_entry *ce)
 {
     zend_object *object;
     object = zend_objects_new(ce);
     object->handlers = &swoole_http_client_coro_handlers;
     object_properties_init(object, ce);
 
-    zval _zobject, *zobject = &_zobject;
-    ZVAL_OBJ(zobject, object);
-
     http_client_coro_property *hcc = (http_client_coro_property*) emalloc(sizeof(http_client_coro_property));
     bzero(hcc, sizeof(http_client_coro_property));
-    swoole_set_property(zobject, 0, hcc);
+    swoole_set_property_by_handle(object->handle, 0, hcc);
 
     php_swoole_check_reactor();
 
@@ -387,11 +384,9 @@ static zend_object *swoole_http_client_coro_create(zend_class_entry *ce)
 void swoole_http_client_coro_init(int module_number)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_http_client_coro, "Swoole\\Coroutine\\Http\\Client", NULL, "Co\\Http\\Client", swoole_http_client_coro_methods, NULL);
-    swoole_http_client_coro_ce_ptr->create_object = swoole_http_client_coro_create;
-    swoole_http_client_coro_ce_ptr->serialize = zend_class_serialize_deny;
-    swoole_http_client_coro_ce_ptr->unserialize = zend_class_unserialize_deny;
-    memcpy(&swoole_http_client_coro_handlers, zend_get_std_object_handlers(), sizeof(swoole_http_client_coro_handlers));
-    swoole_http_client_coro_handlers.free_obj = swoole_http_client_coro_free_storage;
+    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_http_client_coro, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SWOOLE_SET_CLASS_CLONEABLE(swoole_http_client_coro, zend_class_clone_deny);
+    SWOOLE_SET_CLASS_CREATE_AND_FREE(swoole_http_client_coro, swoole_http_client_coro_create_object, swoole_http_client_coro_free_object);
 
     // client status
     zend_declare_property_long(swoole_http_client_coro_ce_ptr, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
