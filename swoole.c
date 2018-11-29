@@ -500,11 +500,11 @@ static const zend_function_entry swoole_async_methods[] =
 php_vmstat_t php_vmstat;
 #endif
 
-zend_class_entry swoole_server_ce;
+static zend_class_entry swoole_server_ce;
 zend_class_entry *swoole_server_ce_ptr;
 static zend_object_handlers swoole_server_handlers;
 
-zend_class_entry swoole_connection_iterator_ce;
+static zend_class_entry swoole_connection_iterator_ce;
 zend_class_entry *swoole_connection_iterator_ce_ptr;
 static zend_object_handlers swoole_connection_iterator_handlers;
 
@@ -520,7 +520,7 @@ static zend_class_entry swoole_async_ce;
 static zend_class_entry *swoole_async_ce_ptr;
 static zend_object_handlers swoole_async_handlers;
 
-zend_class_entry swoole_exception_ce;
+static zend_class_entry swoole_exception_ce;
 zend_class_entry *swoole_exception_ce_ptr;
 static zend_object_handlers swoole_exception_handlers;
 

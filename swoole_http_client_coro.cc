@@ -158,7 +158,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_push, 0, 0, 1)
     ZEND_ARG_INFO(0, finish)
 ZEND_END_ARG_INFO()
 
-zend_class_entry swoole_http_client_coro_ce;
+static zend_class_entry swoole_http_client_coro_ce;
 zend_class_entry *swoole_http_client_coro_ce_ptr;
 static zend_object_handlers swoole_http_client_coro_handlers;
 

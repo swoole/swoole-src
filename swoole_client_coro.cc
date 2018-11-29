@@ -134,7 +134,7 @@ static const zend_function_entry swoole_client_coro_methods[] =
     PHP_FE_END
 };
 
-zend_class_entry swoole_client_coro_ce;
+static zend_class_entry swoole_client_coro_ce;
 zend_class_entry *swoole_client_coro_ce_ptr;
 static zend_object_handlers swoole_client_coro_handlers;
 
