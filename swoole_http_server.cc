@@ -475,11 +475,6 @@ static int http_request_on_query_string(swoole_http_parser *parser, const char *
 static int http_request_on_header_field(swoole_http_parser *parser, const char *at, size_t length)
 {
     http_context *ctx = (http_context *) parser->data;
-    if (ctx->current_header_name_allocated)
-    {
-        efree(ctx->current_header_name);
-        ctx->current_header_name_allocated = 0;
-    }
     ctx->current_header_name = (char *) at;
     ctx->current_header_name_len = length;
     return 0;
@@ -608,7 +603,8 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
             swoole_http_server_array_init(cookie, request);
             http_parse_cookie(zcookie, at, length);
         }
-        goto free_memory;
+        efree(header_name);
+        return 0;
     }
     else if (strncmp(header_name, "upgrade", header_len) == 0 && strncasecmp(at, "websocket", length) == 0)
     {
@@ -673,14 +669,8 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
     }
 #endif
 
-    add_assoc_stringl_ex(header, header_name, ctx->current_header_name_len, (char *) at, length);
+    add_assoc_stringl_ex(header, header_name, header_len, (char *) at, length);
 
-    free_memory:
-    if (ctx->current_header_name_allocated)
-    {
-        efree(ctx->current_header_name);
-        ctx->current_header_name_allocated = 0;
-    }
     efree(header_name);
 
     return 0;
@@ -689,11 +679,6 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
 static int http_request_on_headers_complete(swoole_http_parser *parser)
 {
     http_context *ctx = (http_context *) parser->data;
-    if (ctx->current_header_name_allocated)
-    {
-        efree(ctx->current_header_name);
-        ctx->current_header_name_allocated = 0;
-    }
     ctx->current_header_name = NULL;
 
     return 0;
@@ -800,11 +785,6 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
         add_assoc_stringl(ctx->current_multipart_header, "type", (char * ) at, length);
     }
 
-    if (ctx->current_header_name_allocated)
-    {
-        efree(ctx->current_header_name);
-        ctx->current_header_name_allocated = 0;
-    }
     efree(headername);
 
     return 0;
@@ -1014,7 +994,6 @@ static int http_request_message_complete(swoole_http_parser *parser)
             break;
         }
     }
-    ctx->request_read = 1;
 
     if (ctx->mt_parser)
     {
