@@ -641,6 +641,10 @@ extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
 #define SWOOLE_SET_CLASS_CLONEABLE(module, _clone_obj) \
     module##_handlers.clone_obj = _clone_obj;
 
+#define zend_class_unset_property_deny NULL
+#define SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(module, _unset_property) \
+    module##_handlers.unset_property = _unset_property;
+
 #define SWOOLE_SET_CLASS_CREATE_AND_FREE(module, _create_object, _free_obj) \
     module##_ce_ptr->create_object = _create_object; \
     module##_handlers.free_obj = _free_obj;

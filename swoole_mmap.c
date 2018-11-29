@@ -150,6 +150,7 @@ void swoole_mmap_init(int module_number)
     SWOOLE_INIT_CLASS_ENTRY(swoole_mmap, "Swoole\\Mmap", "swoole_mmap", NULL, swoole_mmap_methods);
     SWOOLE_SET_CLASS_SERIALIZABLE(swoole_mmap, zend_class_serialize_deny, zend_class_unserialize_deny);
     SWOOLE_SET_CLASS_CLONEABLE(swoole_mmap, zend_class_clone_deny);
+    SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_mmap, zend_class_unset_property_deny);
 }
 
 static PHP_METHOD(swoole_mmap, open)

@@ -82,6 +82,7 @@ void swoole_buffer_init(int module_number)
     SWOOLE_INIT_CLASS_ENTRY(swoole_buffer, "Swoole\\Buffer", "swoole_buffer", NULL, swoole_buffer_methods);
     SWOOLE_SET_CLASS_SERIALIZABLE(swoole_buffer, zend_class_serialize_deny, zend_class_unserialize_deny);
     SWOOLE_SET_CLASS_CLONEABLE(swoole_buffer, zend_class_clone_deny);
+    SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_buffer, zend_class_unset_property_deny);
 }
 
 static void swoole_buffer_recycle(swString *buffer)

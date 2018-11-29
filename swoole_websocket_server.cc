@@ -450,6 +450,8 @@ void swoole_websocket_init(int module_number)
     SWOOLE_INIT_CLASS_ENTRY_EX(swoole_websocket_server, "Swoole\\WebSocket\\Server", "swoole_websocket_server", NULL, swoole_websocket_server_methods, swoole_http_server);
     SWOOLE_SET_CLASS_SERIALIZABLE(swoole_websocket_server, zend_class_serialize_deny, zend_class_unserialize_deny);
     SWOOLE_SET_CLASS_CLONEABLE(swoole_websocket_server, zend_class_clone_deny);
+    SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_websocket_server, zend_class_unset_property_deny);
+
     SWOOLE_INIT_CLASS_ENTRY(swoole_websocket_frame, "Swoole\\WebSocket\\Frame", "swoole_websocket_frame", NULL, swoole_websocket_frame_methods);
     SWOOLE_INIT_CLASS_ENTRY_EX(swoole_websocket_closeframe, "Swoole\\WebSocket\\CloseFrame", "swoole_websocket_closeframe", NULL, NULL, swoole_websocket_frame);
 

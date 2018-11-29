@@ -386,6 +386,7 @@ void swoole_http_client_coro_init(int module_number)
     SWOOLE_INIT_CLASS_ENTRY(swoole_http_client_coro, "Swoole\\Coroutine\\Http\\Client", NULL, "Co\\Http\\Client", swoole_http_client_coro_methods);
     SWOOLE_SET_CLASS_SERIALIZABLE(swoole_http_client_coro, zend_class_serialize_deny, zend_class_unserialize_deny);
     SWOOLE_SET_CLASS_CLONEABLE(swoole_http_client_coro, zend_class_clone_deny);
+    SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_client_coro, zend_class_unset_property_deny);
     SWOOLE_SET_CLASS_CREATE_AND_FREE(swoole_http_client_coro, swoole_http_client_coro_create_object, swoole_http_client_coro_free_object);
 
     // client status
