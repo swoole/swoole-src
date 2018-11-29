@@ -60,8 +60,8 @@ const zend_function_entry swoole_server_port_methods[] =
 void swoole_server_port_init(int module_number)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_server_port, "Swoole\\Server\\Port", "swoole_server_port", "Co\\Server\\Port", swoole_server_port_methods, NULL);
-    swoole_server_port_ce_ptr->serialize = zend_class_serialize_deny;
-    swoole_server_port_ce_ptr->unserialize = zend_class_unserialize_deny;
+    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_server_port, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SWOOLE_SET_CLASS_CLONEABLE(swoole_server_port, zend_class_clone_deny);
 
     zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onConnect"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("onReceive"), ZEND_ACC_PUBLIC);

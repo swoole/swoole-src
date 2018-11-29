@@ -285,8 +285,12 @@ void swoole_coroutine_util_init(int module_number)
     coro_init();
 
     SWOOLE_INIT_CLASS_ENTRY(swoole_coroutine_util, "Swoole\\Coroutine", "swoole_coroutine", "Co", swoole_coroutine_util_methods, NULL);
+    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_coroutine_util, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SWOOLE_SET_CLASS_CLONEABLE(swoole_coroutine_util, zend_class_clone_deny);
 
     SWOOLE_INIT_CLASS_ENTRY(swoole_coroutine_iterator, "Swoole\\Coroutine\\Iterator", NULL, "Co\\Iterator", iterator_methods, NULL);
+    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_coroutine_iterator, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SWOOLE_SET_CLASS_CLONEABLE(swoole_coroutine_iterator, zend_class_clone_deny);
     zend_class_implements(swoole_coroutine_iterator_ce_ptr, 1, zend_ce_iterator);
 #ifdef SW_HAVE_COUNTABLE
     zend_class_implements(swoole_coroutine_iterator_ce_ptr, 1, zend_ce_countable);

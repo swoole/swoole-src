@@ -78,6 +78,8 @@ enum swChannelErrorCode
 void swoole_channel_coro_init(int module_number)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_channel_coro, "Swoole\\Coroutine\\Channel", NULL, "Co\\Chan", swoole_channel_coro_methods, NULL);
+    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_channel_coro, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SWOOLE_SET_CLASS_CLONEABLE(swoole_channel_coro, zend_class_clone_deny);
     if (SWOOLE_G(use_shortname))
     {
         SWOOLE_CLASS_ALIAS("Chan", swoole_channel_coro);

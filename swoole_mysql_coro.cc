@@ -148,8 +148,8 @@ static int swoole_mysql_coro_onError(swReactor *reactor, swEvent *event);
 static void swoole_mysql_coro_onConnect(mysql_client *client);
 static void swoole_mysql_coro_onTimeout(swTimer *timer, swTimer_node *tnode);
 
-static void swoole_mysql_coro_free_storage(zend_object *object);
-static zend_object *swoole_mysql_coro_create(zend_class_entry *ce)
+static void swoole_mysql_coro_free_object(zend_object *object);
+static zend_object *swoole_mysql_coro_create_object(zend_class_entry *ce)
 {
     zend_object *object;
     object = zend_objects_new(ce);
@@ -168,17 +168,17 @@ static zend_object *swoole_mysql_coro_create(zend_class_entry *ce)
 void swoole_mysql_coro_init(int module_number)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_mysql_coro, "Swoole\\Coroutine\\MySQL", NULL, "Co\\MySQL", swoole_mysql_coro_methods, NULL);
-    swoole_mysql_coro_ce_ptr->create_object = swoole_mysql_coro_create;
-    swoole_mysql_coro_ce_ptr->serialize = zend_class_serialize_deny;
-    swoole_mysql_coro_ce_ptr->unserialize = zend_class_unserialize_deny;
-    memcpy(&swoole_mysql_coro_handlers, zend_get_std_object_handlers(), sizeof(swoole_mysql_coro_handlers));
-    swoole_mysql_coro_handlers.free_obj = swoole_mysql_coro_free_storage;
+    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_mysql_coro, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SWOOLE_SET_CLASS_CLONEABLE(swoole_mysql_coro, zend_class_clone_deny);
+    SWOOLE_SET_CLASS_CREATE_AND_FREE(swoole_mysql_coro, swoole_mysql_coro_create_object, swoole_mysql_coro_free_object);
 
     SWOOLE_INIT_CLASS_ENTRY(swoole_mysql_coro_statement, "Swoole\\Coroutine\\MySQL\\Statement", NULL, "Co\\MySQL\\Statement", swoole_mysql_coro_statement_methods, NULL);
-    swoole_mysql_coro_statement_ce_ptr->serialize = zend_class_serialize_deny;
-    swoole_mysql_coro_statement_ce_ptr->unserialize = zend_class_unserialize_deny;
+    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_mysql_coro_statement, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SWOOLE_SET_CLASS_CLONEABLE(swoole_mysql_coro_statement, zend_class_clone_deny);
 
     SWOOLE_INIT_CLASS_ENTRY(swoole_mysql_coro_exception, "Swoole\\Coroutine\\MySQL\\Exception", NULL, "Co\\MySQL\\Exception", NULL, zend_exception_get_default());
+    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_mysql_coro_exception, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SWOOLE_SET_CLASS_CLONEABLE(swoole_mysql_coro_exception, zend_class_clone_deny);
 
     zend_declare_property_string(swoole_mysql_coro_ce_ptr, ZEND_STRL("serverInfo"), "", ZEND_ACC_PRIVATE);
     zend_declare_property_long(swoole_mysql_coro_ce_ptr, ZEND_STRL("sock"), 0, ZEND_ACC_PUBLIC);
@@ -1363,7 +1363,7 @@ static PHP_METHOD(swoole_mysql_coro, close)
     RETURN_TRUE;
 }
 
-static void swoole_mysql_coro_free_storage(zend_object *object)
+static void swoole_mysql_coro_free_object(zend_object *object)
 {
     // as __destruct
     uint32_t handle = object->handle;

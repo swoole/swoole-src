@@ -79,6 +79,8 @@ static zval *current_process = NULL;
 void swoole_process_pool_init(int module_number)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_process_pool, "Swoole\\Process\\Pool", "swoole_process_pool", NULL, swoole_process_pool_methods, NULL);
+    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_process_pool, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SWOOLE_SET_CLASS_CLONEABLE(swoole_process_pool, zend_class_clone_deny);
 }
 
 static void php_swoole_process_pool_onWorkerStart(swProcessPool *pool, int worker_id)

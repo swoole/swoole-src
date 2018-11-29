@@ -173,6 +173,8 @@ static const zend_function_entry swoole_process_methods[] =
 void swoole_process_init(int module_number)
 {
     SWOOLE_INIT_CLASS_ENTRY(swoole_process, "Swoole\\Process", "swoole_process", NULL, swoole_process_methods, NULL);
+    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_process, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SWOOLE_SET_CLASS_CLONEABLE(swoole_process, zend_class_clone_deny);
 
     zend_declare_class_constant_long(swoole_process_ce_ptr, ZEND_STRL("IPC_NOWAIT"), MSGQUEUE_NOWAIT);
     zend_declare_class_constant_long(swoole_process_ce_ptr, ZEND_STRL("PIPE_MASTER"), SW_PIPE_CLOSE_MASTER);

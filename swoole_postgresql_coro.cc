@@ -124,6 +124,8 @@ void swoole_postgresql_coro_init(int module_number)
 {
 
     SWOOLE_INIT_CLASS_ENTRY(swoole_postgresql_coro, "Swoole\\Coroutine\\PostgreSQL", NULL, "Co\\PostgreSQL", swoole_postgresql_coro_methods, NULL);
+    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_postgresql_coro, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SWOOLE_SET_CLASS_CLONEABLE(swoole_postgresql_coro, zend_class_clone_deny);
     le_result = zend_register_list_destructors_ex(_free_result, NULL, "pgsql result", module_number);
     zend_declare_property_null(swoole_postgresql_coro_ce_ptr, "error", 5, ZEND_ACC_PUBLIC);
 
