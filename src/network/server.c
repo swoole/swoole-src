@@ -536,6 +536,9 @@ int swServer_create_task_worker(swServer *serv)
     return SW_OK;
 }
 
+/**
+ * [Worker]
+ */
 int swServer_worker_init(swServer *serv, swWorker *worker)
 {
 #ifdef HAVE_CPU_AFFINITY
@@ -738,6 +741,8 @@ int swServer_start(swServer *serv)
     for (i = 0; i < serv->worker_num; i++)
     {
         serv->gs->event_workers.workers[i].pool = &serv->gs->event_workers;
+        serv->gs->event_workers.workers[i].id = i;
+        serv->gs->event_workers.workers[i].type = SW_PROCESS_WORKER;
     }
 
 #ifdef SW_USE_RINGBUFFER

@@ -508,8 +508,6 @@ void swWorker_onStart(swServer *serv)
         }
     }
 
-    SwooleWG.worker = swServer_get_worker(serv, SwooleWG.id);
-
     int i;
     for (i = 0; i < serv->worker_num + serv->task_worker_num; i++)
     {
@@ -528,6 +526,7 @@ void swWorker_onStart(swServer *serv)
         }
     }
 
+    SwooleWG.worker = swServer_get_worker(serv, SwooleWG.id);
     SwooleWG.worker->status = SW_WORKER_IDLE;
     sw_shm_protect(serv->session_list, PROT_READ);
 
@@ -701,7 +700,7 @@ void swWorker_clean(void)
 }
 
 /**
- * worker main loop
+ * main loop [Worker]
  */
 int swWorker_loop(swFactory *factory, int worker_id)
 {
