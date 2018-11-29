@@ -267,7 +267,7 @@ static zend_object_handlers swoole_client_handlers;
 
 void swoole_client_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_client, "Swoole\\Client", "swoole_client", NULL, swoole_client_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_client, "Swoole\\Client", "swoole_client", NULL, swoole_client_methods);
     SWOOLE_SET_CLASS_SERIALIZABLE(swoole_client, zend_class_serialize_deny, zend_class_unserialize_deny);
     SWOOLE_SET_CLASS_CLONEABLE(swoole_client, zend_class_clone_deny);
 

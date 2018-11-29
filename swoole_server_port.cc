@@ -59,7 +59,7 @@ const zend_function_entry swoole_server_port_methods[] =
 
 void swoole_server_port_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_server_port, "Swoole\\Server\\Port", "swoole_server_port", NULL, swoole_server_port_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_server_port, "Swoole\\Server\\Port", "swoole_server_port", NULL, swoole_server_port_methods);
     SWOOLE_SET_CLASS_SERIALIZABLE(swoole_server_port, zend_class_serialize_deny, zend_class_unserialize_deny);
     SWOOLE_SET_CLASS_CLONEABLE(swoole_server_port, zend_class_clone_deny);
 

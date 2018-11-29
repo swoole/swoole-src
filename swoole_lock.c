@@ -58,7 +58,7 @@ static const zend_function_entry swoole_lock_methods[] =
 
 void swoole_lock_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_lock, "Swoole\\Lock", "swoole_lock", NULL, swoole_lock_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_lock, "Swoole\\Lock", "swoole_lock", NULL, swoole_lock_methods);
     SWOOLE_SET_CLASS_SERIALIZABLE(swoole_lock, zend_class_serialize_deny, zend_class_unserialize_deny);
     SWOOLE_SET_CLASS_CLONEABLE(swoole_lock, zend_class_clone_deny);
 

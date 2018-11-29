@@ -253,7 +253,7 @@ static inline void php_swoole_table_get_field_value(swTable *table, swTableRow *
 
 void swoole_table_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_table, "Swoole\\Table", "swoole_table", NULL, swoole_table_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_table, "Swoole\\Table", "swoole_table", NULL, swoole_table_methods);
     SWOOLE_SET_CLASS_SERIALIZABLE(swoole_table, zend_class_serialize_deny, zend_class_unserialize_deny);
     SWOOLE_SET_CLASS_CLONEABLE(swoole_table, zend_class_clone_deny);
     zend_class_implements(swoole_table_ce_ptr, 2, zend_ce_iterator, zend_ce_arrayaccess);
@@ -265,7 +265,7 @@ void swoole_table_init(int module_number)
     zend_declare_class_constant_long(swoole_table_ce_ptr, ZEND_STRL("TYPE_STRING"), SW_TABLE_STRING);
     zend_declare_class_constant_long(swoole_table_ce_ptr, ZEND_STRL("TYPE_FLOAT"), SW_TABLE_FLOAT);
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_table_row, "Swoole\\Table\\Row", "swoole_table_row", NULL, swoole_table_row_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_table_row, "Swoole\\Table\\Row", "swoole_table_row", NULL, swoole_table_row_methods);
     SWOOLE_SET_CLASS_SERIALIZABLE(swoole_table_row, zend_class_serialize_deny, zend_class_unserialize_deny);
     SWOOLE_SET_CLASS_CLONEABLE(swoole_table_row, zend_class_clone_deny);
     zend_class_implements(swoole_table_row_ce_ptr, 1, zend_ce_arrayaccess);

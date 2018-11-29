@@ -172,7 +172,7 @@ static const zend_function_entry swoole_process_methods[] =
 
 void swoole_process_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_process, "Swoole\\Process", "swoole_process", NULL, swoole_process_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_process, "Swoole\\Process", "swoole_process", NULL, swoole_process_methods);
     SWOOLE_SET_CLASS_SERIALIZABLE(swoole_process, zend_class_serialize_deny, zend_class_unserialize_deny);
     SWOOLE_SET_CLASS_CLONEABLE(swoole_process, zend_class_clone_deny);
 

@@ -79,7 +79,7 @@ static zend_object_handlers swoole_buffer_handlers;
 
 void swoole_buffer_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_buffer, "Swoole\\Buffer", "swoole_buffer", NULL, swoole_buffer_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_buffer, "Swoole\\Buffer", "swoole_buffer", NULL, swoole_buffer_methods);
     SWOOLE_SET_CLASS_SERIALIZABLE(swoole_buffer, zend_class_serialize_deny, zend_class_unserialize_deny);
     SWOOLE_SET_CLASS_CLONEABLE(swoole_buffer, zend_class_clone_deny);
 }

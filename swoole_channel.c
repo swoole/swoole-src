@@ -54,7 +54,7 @@ static const zend_function_entry swoole_channel_methods[] =
 
 void swoole_channel_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_channel, "Swoole\\Channel", "swoole_channel", NULL, swoole_channel_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_channel, "Swoole\\Channel", "swoole_channel", NULL, swoole_channel_methods);
     SWOOLE_SET_CLASS_SERIALIZABLE(swoole_channel, zend_class_serialize_deny, zend_class_unserialize_deny);
     SWOOLE_SET_CLASS_CLONEABLE(swoole_channel, zend_class_clone_deny);
 }

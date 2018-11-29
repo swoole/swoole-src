@@ -173,7 +173,7 @@ static sw_inline void redis_execute_connect_callback(swRedisClient *redis, int s
 
 void swoole_redis_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_redis, "Swoole\\Redis", "swoole_redis", NULL, swoole_redis_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_redis, "Swoole\\Redis", "swoole_redis", NULL, swoole_redis_methods);
     SWOOLE_SET_CLASS_SERIALIZABLE(swoole_redis, zend_class_serialize_deny, zend_class_unserialize_deny);
     SWOOLE_SET_CLASS_CLONEABLE(swoole_redis, zend_class_clone_deny);
 

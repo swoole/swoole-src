@@ -61,7 +61,7 @@ void *unseri_buffer_end = NULL;
 
 void swoole_serialize_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_serialize, "Swoole\\Serialize", "swoole_serialize", NULL, swoole_serialize_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_serialize, "Swoole\\Serialize", "swoole_serialize", NULL, swoole_serialize_methods);
     SWOOLE_SET_CLASS_SERIALIZABLE(swoole_serialize, zend_class_serialize_deny, zend_class_unserialize_deny);
     SWOOLE_SET_CLASS_CLONEABLE(swoole_serialize, zend_class_clone_deny);
 
