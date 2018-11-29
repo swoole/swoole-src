@@ -376,21 +376,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
         return SW_ERR;
     }
 
-    /**
-     * call internal serv hooks
-     */
-    if (SwooleG.serv->hooks[SW_SERVER_HOOK_WORKER_START])
-    {
-        void *hook_args[2];
-        hook_args[0] = serv;
-        hook_args[1] = (void *)(uintptr_t)SwooleWG.id;
-        swServer_call_hook(serv, SW_SERVER_HOOK_WORKER_START, hook_args);
-    }
-
-    if (serv->onWorkerStart)
-    {
-        serv->onWorkerStart(serv, worker->id);
-    }
+    swServer_worker_start(serv, worker);
 
     /**
      * for heartbeat check

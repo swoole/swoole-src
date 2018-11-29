@@ -20,10 +20,10 @@ swoole_unittest_fork(function() {
         "worker_num" => 1,
         'task_max_request' => 200,
         'task_worker_num' => 4,
-        'log_file' => '/dev/null',
+        'log_file' => TEST_LOG_FILE,
     ]);
 
-    $serv->on("WorkerStart", function (\swoole_server $serv)
+    $serv->on("WorkerStart", function (\swoole_server $serv, $worker_id)
     {
         if (!$serv->taskworker) {
             for($i = 0; $i< N; $i++) {

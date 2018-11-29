@@ -596,6 +596,26 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
     return SW_OK;
 }
 
+void swServer_worker_start(swServer *serv, swWorker *worker)
+{
+    void *hook_args[2];
+    hook_args[0] = serv;
+    hook_args[1] = (void *) (uintptr_t) worker->id;
+
+    if (SwooleG.hooks[SW_GLOBAL_HOOK_BEFORE_WORKER_START])
+    {
+        swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_WORKER_START, hook_args);
+    }
+    if (SwooleG.serv->hooks[SW_SERVER_HOOK_WORKER_START])
+    {
+        swServer_call_hook(serv, SW_SERVER_HOOK_WORKER_START, hook_args);
+    }
+    if (serv->onWorkerStart)
+    {
+        serv->onWorkerStart(serv, worker->id);
+    }
+}
+
 void swServer_reopen_log_file(swServer *serv)
 {
     if (!SwooleG.log_file)

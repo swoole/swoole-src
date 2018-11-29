@@ -40,7 +40,7 @@ public:
     ~Socket();
     bool connect(std::string host, int port, int flags = 0);
     bool connect(const struct sockaddr *addr, socklen_t addrlen);
-    bool shutdown(int how);
+    bool shutdown(int how = SHUT_RDWR);
     bool close();
     ssize_t send(const void *__buf, size_t __n);
     ssize_t sendmsg(const struct msghdr *msg, int flags);
