@@ -1055,7 +1055,7 @@ PHP_MINIT_FUNCTION(swoole)
     SWOOLE_DEFINE(IPC_UNIXSOCK);
     SWOOLE_DEFINE(IPC_SOCKET);
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_server, "Swoole\\Server", "swoole_server", "Co\\Server", swoole_server_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_server, "Swoole\\Server", "swoole_server", NULL, swoole_server_methods, NULL);
     SWOOLE_SET_CLASS_SERIALIZABLE(swoole_server, zend_class_serialize_deny, zend_class_unserialize_deny);
     SWOOLE_SET_CLASS_CLONEABLE(swoole_server, zend_class_clone_deny);
 

@@ -447,11 +447,11 @@ int swoole_websocket_onHandshake(swListenPort *port, http_context *ctx)
 
 void swoole_websocket_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_websocket_server, "Swoole\\WebSocket\\Server", "swoole_websocket_server", "Co\\WebSocket\\Server", swoole_websocket_server_methods, swoole_http_server_ce_ptr);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_websocket_server, "Swoole\\WebSocket\\Server", "swoole_websocket_server", NULL, swoole_websocket_server_methods, swoole_http_server_ce_ptr);
     SWOOLE_SET_CLASS_SERIALIZABLE(swoole_websocket_server, zend_class_serialize_deny, zend_class_unserialize_deny);
     SWOOLE_SET_CLASS_CLONEABLE(swoole_websocket_server, zend_class_clone_deny);
-    SWOOLE_INIT_CLASS_ENTRY(swoole_websocket_frame, "Swoole\\WebSocket\\Frame", "swoole_websocket_frame", "Co\\WebSocket\\Frame", swoole_websocket_frame_methods, NULL);
-    SWOOLE_INIT_CLASS_ENTRY(swoole_websocket_closeframe, "Swoole\\WebSocket\\CloseFrame", "swoole_websocket_closeframe", "Co\\WebSocket\\CloseFrame", NULL, swoole_websocket_frame_ce_ptr);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_websocket_frame, "Swoole\\WebSocket\\Frame", "swoole_websocket_frame", NULL, swoole_websocket_frame_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_websocket_closeframe, "Swoole\\WebSocket\\CloseFrame", "swoole_websocket_closeframe", NULL, NULL, swoole_websocket_frame_ce_ptr);
 
     zend_declare_property_long(swoole_websocket_frame_ce_ptr, ZEND_STRL("fd"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_string(swoole_websocket_frame_ce_ptr, ZEND_STRL("data"), "", ZEND_ACC_PUBLIC);

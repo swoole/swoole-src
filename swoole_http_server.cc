@@ -1205,7 +1205,7 @@ void php_swoole_http_onClose(swServer *serv, swDataHead *ev)
 
 void swoole_http_server_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_http_server, "Swoole\\Http\\Server", "swoole_http_server", "Co\\Http\\Server", NULL, swoole_server_ce_ptr);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_http_server, "Swoole\\Http\\Server", "swoole_http_server", NULL, NULL, swoole_server_ce_ptr);
     SWOOLE_SET_CLASS_SERIALIZABLE(swoole_http_server, zend_class_serialize_deny, zend_class_unserialize_deny);
     SWOOLE_SET_CLASS_CLONEABLE(swoole_http_server, zend_class_clone_deny);
 
@@ -1213,7 +1213,7 @@ void swoole_http_server_init(int module_number)
     zend_declare_property_null(swoole_http_server_ce_ptr, ZEND_STRL("onHandshake"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_server_ce_ptr, ZEND_STRL("setting"), ZEND_ACC_PUBLIC);
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_http_request, "Swoole\\Http\\Request", "swoole_http_request", "Co\\Http\\Request", swoole_http_request_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_http_request, "Swoole\\Http\\Request", "swoole_http_request", NULL, swoole_http_request_methods, NULL);
     SWOOLE_SET_CLASS_SERIALIZABLE(swoole_http_request, zend_class_serialize_deny, zend_class_unserialize_deny);
     SWOOLE_SET_CLASS_CLONEABLE(swoole_http_request, zend_class_clone_deny);
 
@@ -1230,7 +1230,7 @@ void swoole_http_server_init(int module_number)
     zend_declare_property_null(swoole_http_request_ce_ptr, ZEND_STRL("post"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_request_ce_ptr, ZEND_STRL("tmpfiles"), ZEND_ACC_PUBLIC);
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_http_response, "Swoole\\Http\\Response", "swoole_http_response", "Co\\Http\\Response", swoole_http_response_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_http_response, "Swoole\\Http\\Response", "swoole_http_response", NULL, swoole_http_response_methods, NULL);
     SWOOLE_SET_CLASS_SERIALIZABLE(swoole_http_response, zend_class_serialize_deny, zend_class_unserialize_deny);
     SWOOLE_SET_CLASS_CLONEABLE(swoole_http_response, zend_class_clone_deny);
 
