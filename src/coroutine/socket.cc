@@ -12,6 +12,7 @@ using namespace std;
 
 static int socket_onRead(swReactor *reactor, swEvent *event);
 static int socket_onWrite(swReactor *reactor, swEvent *event);
+static int socket_onError(swReactor *reactor, swEvent *event);
 static void socket_onTimeout(swTimer *timer, swTimer_node *tnode);
 static void socket_onResolveCompleted(swAio_event *event);
 
@@ -278,7 +279,7 @@ void Socket::init_sock(int _fd)
     {
         reactor->setHandle(reactor, SW_FD_CORO_SOCKET | SW_EVENT_READ, socket_onRead);
         reactor->setHandle(reactor, SW_FD_CORO_SOCKET | SW_EVENT_WRITE, socket_onWrite);
-        reactor->setHandle(reactor, SW_FD_CORO_SOCKET | SW_EVENT_ERROR, socket_onRead);
+        reactor->setHandle(reactor, SW_FD_CORO_SOCKET | SW_EVENT_ERROR, socket_onError);
     }
 }
 
@@ -540,6 +541,22 @@ static int socket_onWrite(swReactor *reactor, swEvent *event)
     Socket *sock = (Socket *) event->socket->object;
     swReactor_remove_write_event(reactor, event->fd);
     sock->resume(SOCKET_LOCK_WRITE);
+    return SW_OK;
+}
+
+static int socket_onError(swReactor *reactor, swEvent *event)
+{
+    Socket *sock = (Socket *) event->socket->object;
+    if (event->socket->events & SW_EVENT_READ)
+    {
+        swReactor_remove_read_event(reactor, event->fd);
+        sock->resume(SOCKET_LOCK_READ);
+    }
+    if (event->socket->events & SW_EVENT_WRITE)
+    {
+        swReactor_remove_write_event(reactor, event->fd);
+        sock->resume(SOCKET_LOCK_WRITE);
+    }
     return SW_OK;
 }
 
