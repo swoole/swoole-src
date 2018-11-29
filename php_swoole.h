@@ -610,7 +610,7 @@ extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
     if (shortName && SWOOLE_G(use_shortname)) { \
         SWOOLE_CLASS_ALIAS(shortName, module); \
     } \
-    memcpy(&module##_handlers, zend_get_std_object_handlers(), sizeof(module##_handlers));
+    memcpy(&module##_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 #define SWOOLE_CLASS_ALIAS(name, module) sw_zend_register_class_alias(ZEND_STRL(name), module##_ce_ptr);
 #define SWOOLE_SET_CLASS_SERIALIZABLE(module, _serialize, _unserialize) \
     module##_ce_ptr->serialize = _serialize; \
