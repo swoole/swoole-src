@@ -173,7 +173,7 @@ static int php_swoole_del_timer(swTimer_node *tnode)
 void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
 {
     swTimer_callback *cb = (swTimer_callback *) tnode->data;
-    zval *retval = NULL;
+    zval _retval, *retval = &_retval;
 
     zval args[1];
     int argc = 0;
@@ -215,7 +215,7 @@ void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
 
 void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode)
 {
-    zval *retval = NULL;
+    zval _retval, *retval = &_retval;
     zval *ztimer_id;
     swTimer_callback *cb = (swTimer_callback *) tnode->data;
 

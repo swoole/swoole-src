@@ -147,9 +147,9 @@ static int php_swoole_event_onError(swReactor *reactor, swEvent *event)
 void php_swoole_event_onDefer(void *_cb)
 {
     php_defer_callback *defer = _cb;
-    zval *retval = NULL;
+    zval _retval, *retval = &_retval;
 
-    if (sw_call_user_function_anyway(NULL, defer->callback, &retval, 0, NULL, 0) == FAILURE)
+    if (sw_call_user_function_anyway(NULL, defer->callback, retval, 0, NULL, 0) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "defer callback handler error.");
         return;

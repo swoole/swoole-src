@@ -412,7 +412,7 @@ PHP_FUNCTION(swoole_coroutine_create)
 
     php_swoole_check_reactor();
 
-    zval *retval = NULL;
+    zval _retval, *retval = &_retval;
     long cid = sw_coro_create(&fci_cache, fci.param_count, fci.params, retval);
     if (EG(exception))
     {

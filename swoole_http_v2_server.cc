@@ -177,7 +177,7 @@ static int http_build_trailer(http_context *ctx, uchar *buffer)
 
 static sw_inline void http2_onRequest(http_context *ctx, int from_fd)
 {
-    zval *retval = NULL;
+    zval _retval, *retval = &_retval;
     swServer *serv = SwooleG.serv;
     int fd = ctx->fd;
     zval *zrequest_object = ctx->request.zobject;
@@ -204,7 +204,7 @@ static sw_inline void http2_onRequest(http_context *ctx, int from_fd)
     }
     else
     {
-        if (sw_call_user_function_fast_ex(NULL, fci_cache, &retval, 2, args) == FAILURE)
+        if (sw_call_user_function_fast_ex(NULL, fci_cache, retval, 2, args) == FAILURE)
         {
             swoole_php_error(E_WARNING, "Http2 onRequest handler error");
         }

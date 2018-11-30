@@ -201,6 +201,8 @@ static void php_coro_create(void *arg)
     zend_execute_data *call;
     zval _zobject, *zobject = nullptr;
 
+    ZEND_ASSERT(retval);
+
     if (++COROG.coro_num > COROG.peak_coro_num)
     {
         COROG.peak_coro_num = COROG.coro_num;
@@ -274,11 +276,13 @@ static void php_coro_create(void *arg)
 
     if (EXPECTED(func->type == ZEND_USER_FUNCTION))
     {
+        ZVAL_UNDEF(retval);
         zend_init_execute_data(call, &func->op_array, retval);
         zend_execute_ex(EG(current_execute_data));
     }
     else /* ZEND_INTERNAL_FUNCTION */
     {
+        ZVAL_NULL(retval);
         call->prev_execute_data = NULL;
         call->return_value = NULL; /* this is not a constructor call */
         func->internal_function.handler(call, retval);

@@ -1057,7 +1057,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
     }
     else
     {
-        zval *retval = NULL;
+        zval _retval, *retval = &_retval;
 
         zval *zrequest_object = ctx->request.zobject;
         zval *zresponse_object = ctx->response.zobject;
@@ -1147,7 +1147,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
         }
         else
         {
-            if (sw_call_user_function_fast_ex(NULL, fci_cache, &retval, 2, args) == FAILURE)
+            if (sw_call_user_function_fast_ex(NULL, fci_cache, retval, 2, args) == FAILURE)
             {
                 swoole_php_error(E_WARNING, "onRequest handler error");
             }

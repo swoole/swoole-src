@@ -85,7 +85,7 @@ static void client_onBufferEmpty(swClient *cli);
 
 static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_client_callback_type type)
 {
-    zval *retval = NULL;
+    zval _retval, *retval = &_retval;
     zval args[1];
 
     client_callback *cb = (client_callback *) swoole_get_property(zobject, client_property_callback);
@@ -132,7 +132,7 @@ static sw_inline void client_execute_callback(zval *zobject, enum php_swoole_cli
     }
 
     args[0] = *zobject;
-    if (sw_call_user_function_fast_ex(NULL, fci_cache, &retval, 1, args) == FAILURE)
+    if (sw_call_user_function_fast_ex(NULL, fci_cache, retval, 1, args) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "%s handler error.", callback_name);
         return;
@@ -309,7 +309,7 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
     zval *zobject = (zval *) cli->object;
     zend_fcall_info_cache *fci_cache;
     zval args[2];
-    zval *retval = NULL;
+    zval _retval, *retval = &_retval;
 
     zval *zdata;
     SW_MAKE_STD_ZVAL(zdata);
@@ -325,7 +325,7 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
         swoole_php_fatal_error(E_WARNING, "swoole_client object has no 'onReceive' callback function.");
         goto free_zdata;
     }
-    if (sw_call_user_function_fast_ex(NULL, &cb->cache_onReceive, &retval, 2, args) == FAILURE)
+    if (sw_call_user_function_fast_ex(NULL, &cb->cache_onReceive, retval, 2, args) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "onReactorCallback handler error");
         goto free_zdata;

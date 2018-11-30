@@ -110,7 +110,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
     SW_MAKE_STD_ZVAL(zparams);
     array_init(zparams);
 
-    zval *retval = NULL;
+    zval _retval, *retval = &_retval;
 
     int state = SW_REDIS_RECEIVE_TOTAL_LINE;
     int add_param = 0;
