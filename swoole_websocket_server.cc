@@ -352,7 +352,7 @@ static int websocket_handshake(swListenPort *port, http_context *ctx)
     return swServer_tcp_send(SwooleG.serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length);
 }
 
-int swoole_websocket_onMessage(swEventData *req)
+int swoole_websocket_onMessage(swServer *serv, swEventData *req)
 {
     int fd = req->info.fd;
     zend_bool finish = 0;
@@ -382,7 +382,6 @@ int swoole_websocket_onMessage(swEventData *req)
     php_swoole_websocket_construct_frame(zframe, opcode, Z_STRVAL_P(zdata), Z_STRLEN_P(zdata), finish);
     zend_update_property_long(swoole_websocket_frame_ce_ptr, zframe, ZEND_STRL("fd"), fd);
 
-    swServer *serv = SwooleG.serv;
     zval *zserv = (zval *) serv->ptr2;
     zval _retval, *retval = &_retval;
 

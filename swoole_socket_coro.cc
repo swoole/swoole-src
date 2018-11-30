@@ -445,9 +445,10 @@ static PHP_METHOD(swoole_socket_coro, getsockname)
 
     swSocketAddress info;
     memset(&info, 0, sizeof(info));
+    info.len = sizeof(info.addr);
     char addr_str[INET6_ADDRSTRLEN + 1];
 
-    if (getsockname(sock->socket->get_fd(), (struct sockaddr *) &info.addr.inet_v4, &info.len) != 0)
+    if (getsockname(sock->socket->get_fd(), (struct sockaddr *) &info.addr, &info.len) != 0)
     {
         zend_update_property_long(swoole_socket_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), errno);
         RETURN_FALSE;

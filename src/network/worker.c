@@ -543,7 +543,7 @@ void swWorker_onStop(swServer *serv)
 
 void swWorker_stop(swWorker *worker)
 {
-    swServer *serv = SwooleG.serv;
+    swServer *serv = (swServer *) worker->pool->ptr;
     worker->status = SW_WORKER_BUSY;
 
     /**
@@ -604,7 +604,7 @@ void swWorker_stop(swWorker *worker)
     msg.worker_id = SwooleWG.id;
 
     //send message to manager
-    if (swChannel_push(SwooleG.serv->message_box, &msg, sizeof(msg)) < 0)
+    if (swChannel_push(serv->message_box, &msg, sizeof(msg)) < 0)
     {
         SwooleG.running = 0;
     }
@@ -628,7 +628,9 @@ static void swWorker_onTimeout(swTimer *timer, swTimer_node *tnode)
 
 void swWorker_try_to_exit()
 {
-    swServer *serv = SwooleG.serv;
+    swWorker *worker = SwooleWG.worker;
+    swServer *serv = (swServer *) worker->pool->ptr;
+
     int expect_event_num = SwooleG.use_signalfd ? 1 : 0;
 
     if (SwooleAIO.init && SwooleAIO.task_num == 0)
@@ -679,12 +681,11 @@ void swWorker_try_to_exit()
 void swWorker_clean(void)
 {
     int i;
-    swServer *serv = SwooleG.serv;
-    swWorker *worker;
+    swServer *serv = (swServer *) SwooleWG.worker->pool->ptr;
 
     for (i = 0; i < serv->worker_num + serv->task_worker_num; i++)
     {
-        worker = swServer_get_worker(serv, i);
+        swWorker *worker = swServer_get_worker(serv, i);
         if (SwooleG.main_reactor)
         {
             if (worker->pipe_worker)

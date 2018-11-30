@@ -142,7 +142,7 @@ typedef struct
 /**
  * WebSocket
  */
-int swoole_websocket_onMessage(swEventData *);
+int swoole_websocket_onMessage(swServer *serv, swEventData *);
 int swoole_websocket_onHandshake(swListenPort *port, http_context *);
 void swoole_websocket_onOpen(http_context *);
 void swoole_websocket_onRequest(http_context *);

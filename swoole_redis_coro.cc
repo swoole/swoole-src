@@ -3857,6 +3857,11 @@ static PHP_METHOD(swoole_redis_coro, pSubscribe)
     }
     else
     {
+        if (redis->context->err == REDIS_ERR_EOF)
+        {
+            zend_update_property_bool(swoole_redis_coro_ce_ptr, getThis(), ZEND_STRL("connected"), 0);
+        }
+        zend_update_property_long(swoole_redis_coro_ce_ptr,getThis(), ZEND_STRL("errCode"), redis->context->err);
         RETURN_FALSE;
     }
 }
@@ -3908,6 +3913,11 @@ static PHP_METHOD(swoole_redis_coro, subscribe)
     }
     else
     {
+        if (redis->context->err == REDIS_ERR_EOF)
+        {
+            zend_update_property_bool(swoole_redis_coro_ce_ptr, redis->object, ZEND_STRL("connected"), 0);
+        }
+        zend_update_property_long(swoole_redis_coro_ce_ptr,getThis(), ZEND_STRL("errCode"), redis->context->err);
         RETURN_FALSE;
     }
 }
