@@ -573,6 +573,8 @@ static sw_inline int php_swoole_is_callable(zval *callback)
     }
 }
 
+void php_swoole_class_unset_property_deny(zval *zobject, zval *member, void **cache_slot);
+
 #define php_swoole_array_get_value(ht, str, v)     ((v = zend_hash_str_find(ht, str, sizeof(str)-1)) && !ZVAL_IS_NULL(v))
 #define php_swoole_array_separate(arr)       zval *_new_##arr;\
     SW_MAKE_STD_ZVAL(_new_##arr);\
@@ -641,7 +643,7 @@ extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
 #define SWOOLE_SET_CLASS_CLONEABLE(module, _clone_obj) \
     module##_handlers.clone_obj = _clone_obj;
 
-#define zend_class_unset_property_deny NULL
+#define zend_class_unset_property_deny php_swoole_class_unset_property_deny
 #define SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(module, _unset_property) \
     module##_handlers.unset_property = _unset_property;
 
