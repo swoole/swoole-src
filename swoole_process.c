@@ -108,6 +108,7 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_useQueue, 0, 0, 0)
     ZEND_ARG_INFO(0, key)
     ZEND_ARG_INFO(0, mode)
+    ZEND_ARG_INFO(0, capacity)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_write, 0, 0, 1)
@@ -376,8 +377,9 @@ static PHP_METHOD(swoole_process, useQueue)
 {
     long msgkey = 0;
     long mode = 2;
+    long capacity = -1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|ll", &msgkey, &mode) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|lll", &msgkey, &mode, &capacity) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -398,6 +400,10 @@ static PHP_METHOD(swoole_process, useQueue)
     {
         swMsgQueue_set_blocking(queue, 0);
         mode = mode & (~MSGQUEUE_NOWAIT);
+    }
+    if (capacity > 0)
+    {
+        swMsgQueue_set_capacity(queue, capacity);
     }
     process->queue = queue;
     process->ipc_mode = mode;
