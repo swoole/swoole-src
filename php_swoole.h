@@ -258,12 +258,15 @@ typedef struct
 extern zend_class_entry *swoole_process_ce_ptr;
 extern zend_class_entry *swoole_client_ce_ptr;
 extern zend_class_entry *swoole_server_ce_ptr;
+extern zend_object_handlers swoole_server_handlers;
 extern zend_class_entry *swoole_connection_iterator_ce_ptr;
 extern zend_class_entry *swoole_buffer_ce_ptr;
 extern zend_class_entry *swoole_http_server_ce_ptr;
+extern zend_object_handlers swoole_http_server_handlers;
 extern zend_class_entry *swoole_websocket_server_ce_ptr;
 extern zend_class_entry *swoole_server_port_ce_ptr;
 extern zend_class_entry *swoole_exception_ce_ptr;
+extern zend_object_handlers swoole_exception_handlers;
 
 extern zval *php_sw_server_callbacks[PHP_SWOOLE_SERVER_CALLBACK_NUM];
 extern zend_fcall_info_cache *php_sw_server_caches[PHP_SWOOLE_SERVER_CALLBACK_NUM];
@@ -570,6 +573,8 @@ static sw_inline int php_swoole_is_callable(zval *callback)
     }
 }
 
+void php_swoole_class_unset_property_deny(zval *zobject, zval *member, void **cache_slot);
+
 #define php_swoole_array_get_value(ht, str, v)     ((v = zend_hash_str_find(ht, str, sizeof(str)-1)) && !ZVAL_IS_NULL(v))
 #define php_swoole_array_separate(arr)       zval *_new_##arr;\
     SW_MAKE_STD_ZVAL(_new_##arr);\
@@ -601,7 +606,9 @@ extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
 #define SWOOLE_RAW_DEFINE(constant)    REGISTER_LONG_CONSTANT(#constant, constant, CONST_CS | CONST_PERSISTENT)
 #define SWOOLE_DEFINE(constant)    REGISTER_LONG_CONSTANT("SWOOLE_"#constant, SW_##constant, CONST_CS | CONST_PERSISTENT)
 
-#define SWOOLE_INIT_CLASS_ENTRY(module, namespaceName, snake_name, shortName, methods, parent_ce_ptr) \
+/* PHP 7 class declaration macros */
+
+#define SWOOLE_INIT_CLASS_ENTRY_PRE(module, namespaceName, snake_name, shortName, methods, parent_ce_ptr) \
     INIT_CLASS_ENTRY(module##_ce, namespaceName, methods); \
     module##_ce_ptr = zend_register_internal_class_ex(&module##_ce, parent_ce_ptr); \
     if (snake_name) { \
@@ -609,21 +616,44 @@ extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
     } \
     if (shortName && SWOOLE_G(use_shortname)) { \
         SWOOLE_CLASS_ALIAS(shortName, module); \
-    } \
+    }
+
+#define SWOOLE_INIT_CLASS_ENTRY(module, namespaceName, snake_name, shortName, methods) \
+    SWOOLE_INIT_CLASS_ENTRY_PRE(module, namespaceName, snake_name, shortName, methods, NULL); \
     memcpy(&module##_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
-#define SWOOLE_CLASS_ALIAS(name, module) sw_zend_register_class_alias(ZEND_STRL(name), module##_ce_ptr);
+
+#define SWOOLE_INIT_CLASS_ENTRY_EX(module, namespaceName, snake_name, shortName, methods, parent_module) \
+    SWOOLE_INIT_CLASS_ENTRY_PRE(module, namespaceName, snake_name, shortName, methods, parent_module##_ce_ptr); \
+    memcpy(&module##_handlers, &parent_module##_handlers, sizeof(zend_object_handlers));
+
+#define SWOOLE_INIT_EXCEPTION_CLASS_ENTRY(module, namespaceName, snake_name, shortName, methods) \
+    INIT_CLASS_ENTRY(module##_ce, namespaceName, methods); \
+    SWOOLE_INIT_CLASS_ENTRY_PRE(module, namespaceName, snake_name, shortName, methods, zend_exception_get_default()); \
+    memcpy(&module##_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers)); \
+    SWOOLE_SET_CLASS_CLONEABLE(module, zend_class_clone_deny);
+
+#define SWOOLE_CLASS_ALIAS(name, module) \
+    sw_zend_register_class_alias(ZEND_STRL(name), module##_ce_ptr);
+
 #define SWOOLE_SET_CLASS_SERIALIZABLE(module, _serialize, _unserialize) \
     module##_ce_ptr->serialize = _serialize; \
     module##_ce_ptr->unserialize = _unserialize;
+
 #define zend_class_clone_deny NULL
 #define SWOOLE_SET_CLASS_CLONEABLE(module, _clone_obj) \
     module##_handlers.clone_obj = _clone_obj;
+
+#define zend_class_unset_property_deny php_swoole_class_unset_property_deny
+#define SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(module, _unset_property) \
+    module##_handlers.unset_property = _unset_property;
+
 #define SWOOLE_SET_CLASS_CREATE_AND_FREE(module, _create_object, _free_obj) \
-        module##_ce_ptr->create_object = _create_object; \
-        module##_handlers.free_obj = _free_obj;
+    module##_ce_ptr->create_object = _create_object; \
+    module##_handlers.free_obj = _free_obj;
+
 #define SWOOLE_SET_CLASS_CUSTOM_OBJECT(module, _create_object, _free_obj, _struct, _std) \
-        SWOOLE_SET_CLASS_CREATE_AND_FREE(module, _create_object, _free_obj); \
-        module##_handlers.offset = XtOffsetOf(_struct, _std);
+    SWOOLE_SET_CLASS_CREATE_AND_FREE(module, _create_object, _free_obj); \
+    module##_handlers.offset = XtOffsetOf(_struct, _std);
 
 /* PHP 7 patches */
 // Fixed in php-7.0.28, php-7.1.15RC1, php-7.2.3RC1 (https://github.com/php/php-src/commit/e88e83d3e5c33fcd76f08b23e1a2e4e8dc98ce41)

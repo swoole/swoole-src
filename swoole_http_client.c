@@ -408,9 +408,10 @@ static int http_client_execute(zval *zobject, char *uri, size_t uri_len, zval *c
 
 void swoole_http_client_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_http_client, "Swoole\\Http\\Client", "swoole_http_client", NULL, swoole_http_client_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_http_client, "Swoole\\Http\\Client", "swoole_http_client", NULL, swoole_http_client_methods);
     SWOOLE_SET_CLASS_SERIALIZABLE(swoole_http_client, zend_class_serialize_deny, zend_class_unserialize_deny);
     SWOOLE_SET_CLASS_CLONEABLE(swoole_http_client, zend_class_clone_deny);
+    SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_client, zend_class_unset_property_deny);
 
     zend_declare_property_long(swoole_http_client_ce_ptr, ZEND_STRL("type"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_http_client_ce_ptr, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);

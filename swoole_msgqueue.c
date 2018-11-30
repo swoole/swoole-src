@@ -62,9 +62,10 @@ static const zend_function_entry swoole_msgqueue_methods[] =
 
 void swoole_msgqueue_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_msgqueue, "Swoole\\MsgQueue", "swoole_msgqueue", NULL, swoole_msgqueue_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_msgqueue, "Swoole\\MsgQueue", "swoole_msgqueue", NULL, swoole_msgqueue_methods);
     SWOOLE_SET_CLASS_SERIALIZABLE(swoole_msgqueue, zend_class_serialize_deny, zend_class_unserialize_deny);
     SWOOLE_SET_CLASS_CLONEABLE(swoole_msgqueue, zend_class_clone_deny);
+    SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_msgqueue, zend_class_unset_property_deny);
 }
 
 static PHP_METHOD(swoole_msgqueue, __construct)

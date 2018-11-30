@@ -35,11 +35,11 @@ struct coro_task
     zval *vm_stack_end;
     zend_vm_stack vm_stack;
     zend_execute_data *execute_data;
-    zend_error_handling_t  error_handling;
-    zend_class_entry      *exception_class;
+    zend_error_handling_t error_handling;
+    zend_class_entry *exception_class;
     zend_object *exception;
     zend_output_globals *output_ptr;
-    SW_DECLARE_EG_SCOPE (scope);
+    SW_DECLARE_EG_SCOPE(scope);
     swoole::Coroutine *co;
     std::stack<defer_task *> *defer_tasks;
     coro_task *origin_task;

@@ -174,13 +174,8 @@ int swoole_http2_do_response(http_context *ctx, swString *body);
 void swoole_http2_free(swConnection *conn);
 #endif
 
-extern zend_class_entry swoole_http_server_ce;
 extern zend_class_entry *swoole_http_server_ce_ptr;
-
-extern zend_class_entry swoole_http_response_ce;
 extern zend_class_entry *swoole_http_response_ce_ptr;
-
-extern zend_class_entry swoole_http_request_ce;
 extern zend_class_entry *swoole_http_request_ce_ptr;
 
 extern swString *swoole_http_buffer;

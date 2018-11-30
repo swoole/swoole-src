@@ -80,15 +80,15 @@ enum http_upload_errno
     HTTP_UPLOAD_ERR_CANT_WRITE,
 };
 
-zend_class_entry swoole_http_server_ce;
+static zend_class_entry swoole_http_server_ce;
 zend_class_entry *swoole_http_server_ce_ptr;
-static zend_object_handlers swoole_http_server_handlers;
+zend_object_handlers swoole_http_server_handlers;
 
-zend_class_entry swoole_http_response_ce;
+static zend_class_entry swoole_http_response_ce;
 zend_class_entry *swoole_http_response_ce_ptr;
 static zend_object_handlers swoole_http_response_handlers;
 
-zend_class_entry swoole_http_request_ce;
+static zend_class_entry swoole_http_request_ce;
 zend_class_entry *swoole_http_request_ce_ptr;
 static zend_object_handlers swoole_http_request_handlers;
 
@@ -594,15 +594,8 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
     if (strncmp(header_name, "cookie", header_len) == 0)
     {
         zval *zcookie;
-        if (length >= SW_HTTP_COOKIE_VALLEN)
-        {
-            swWarn("cookie is too large.");
-        }
-        else
-        {
-            swoole_http_server_array_init(cookie, request);
-            http_parse_cookie(zcookie, at, length);
-        }
+        swoole_http_server_array_init(cookie, request);
+        http_parse_cookie(zcookie, at, length);
         efree(header_name);
         return 0;
     }
@@ -1044,7 +1037,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
     SW_ALLOC_INIT_ZVAL(zdata);
     php_swoole_get_recv_data(zdata, req, NULL, 0);
 
-    swTrace("httpRequest %d bytes:\n---------------------------------------\n%s\n", (int)Z_STRLEN_P(zdata), Z_STRVAL_P(zdata));
+    swTrace("http request from %d with %d bytes: <<EOF\n%.*s\nEOF", fd, (int)Z_STRLEN_P(zdata), (int)Z_STRLEN_P(zdata), Z_STRVAL_P(zdata));
 
 #ifdef SW_USE_PICOHTTPPARSER
     long n = http_fast_parse(parser, Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
@@ -1205,17 +1198,19 @@ void php_swoole_http_onClose(swServer *serv, swDataHead *ev)
 
 void swoole_http_server_init(int module_number)
 {
-    SWOOLE_INIT_CLASS_ENTRY(swoole_http_server, "Swoole\\Http\\Server", "swoole_http_server", NULL, NULL, swoole_server_ce_ptr);
+    SWOOLE_INIT_CLASS_ENTRY_EX(swoole_http_server, "Swoole\\Http\\Server", "swoole_http_server", NULL, NULL, swoole_server);
     SWOOLE_SET_CLASS_SERIALIZABLE(swoole_http_server, zend_class_serialize_deny, zend_class_unserialize_deny);
     SWOOLE_SET_CLASS_CLONEABLE(swoole_http_server, zend_class_clone_deny);
+    SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_server, zend_class_unset_property_deny);
 
     zend_declare_property_null(swoole_http_server_ce_ptr, ZEND_STRL("onRequest"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_server_ce_ptr, ZEND_STRL("onHandshake"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_server_ce_ptr, ZEND_STRL("setting"), ZEND_ACC_PUBLIC);
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_http_request, "Swoole\\Http\\Request", "swoole_http_request", NULL, swoole_http_request_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_http_request, "Swoole\\Http\\Request", "swoole_http_request", NULL, swoole_http_request_methods);
     SWOOLE_SET_CLASS_SERIALIZABLE(swoole_http_request, zend_class_serialize_deny, zend_class_unserialize_deny);
     SWOOLE_SET_CLASS_CLONEABLE(swoole_http_request, zend_class_clone_deny);
+    SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_request, zend_class_unset_property_deny);
 
     zend_declare_property_long(swoole_http_request_ce_ptr, ZEND_STRL("fd"), 0, ZEND_ACC_PUBLIC);
 #ifdef SW_USE_HTTP2
@@ -1230,9 +1225,10 @@ void swoole_http_server_init(int module_number)
     zend_declare_property_null(swoole_http_request_ce_ptr, ZEND_STRL("post"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_request_ce_ptr, ZEND_STRL("tmpfiles"), ZEND_ACC_PUBLIC);
 
-    SWOOLE_INIT_CLASS_ENTRY(swoole_http_response, "Swoole\\Http\\Response", "swoole_http_response", NULL, swoole_http_response_methods, NULL);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_http_response, "Swoole\\Http\\Response", "swoole_http_response", NULL, swoole_http_response_methods);
     SWOOLE_SET_CLASS_SERIALIZABLE(swoole_http_response, zend_class_serialize_deny, zend_class_unserialize_deny);
     SWOOLE_SET_CLASS_CLONEABLE(swoole_http_response, zend_class_clone_deny);
+    SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_response, zend_class_unset_property_deny);
 
     zend_declare_property_long(swoole_http_response_ce_ptr, ZEND_STRL("fd"), 0,  ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_response_ce_ptr, ZEND_STRL("header"), ZEND_ACC_PUBLIC);
