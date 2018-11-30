@@ -64,8 +64,9 @@ char sw_error[SW_ERROR_MSG_SIZE];
 static void swServer_disable_accept(swReactor *reactor)
 {
     swListenPort *ls;
+    swServer *serv = reactor->ptr;
 
-    LL_FOREACH(SwooleG.serv->listen_list, ls)
+    LL_FOREACH(serv->listen_list, ls)
     {
         //UDP
         if (ls->type == SW_SOCK_UDP || ls->type == SW_SOCK_UDP6 || ls->type == SW_SOCK_UNIX_DGRAM)
@@ -79,8 +80,9 @@ static void swServer_disable_accept(swReactor *reactor)
 void swServer_enable_accept(swReactor *reactor)
 {
     swListenPort *ls;
+    swServer *serv = reactor->ptr;
 
-    LL_FOREACH(SwooleG.serv->listen_list, ls)
+    LL_FOREACH(serv->listen_list, ls)
     {
         //UDP
         if (ls->type == SW_SOCK_UDP || ls->type == SW_SOCK_UDP6 || ls->type == SW_SOCK_UNIX_DGRAM)
@@ -441,7 +443,7 @@ void swServer_store_listen_socket(swServer *serv)
             }
             else if (ls->type == SW_SOCK_UDP6)
             {
-                SwooleG.serv->udp_socket_ipv6 = sockfd;
+                serv->udp_socket_ipv6 = sockfd;
                 serv->connection_list[sockfd].info.addr.inet_v6.sin6_port = htons(ls->port);
             }
         }
@@ -609,7 +611,7 @@ void swServer_worker_start(swServer *serv, swWorker *worker)
     {
         swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_WORKER_START, hook_args);
     }
-    if (SwooleG.serv->hooks[SW_SERVER_HOOK_WORKER_START])
+    if (serv->hooks[SW_SERVER_HOOK_WORKER_START])
     {
         swServer_call_hook(serv, SW_SERVER_HOOK_WORKER_START, hook_args);
     }
@@ -733,6 +735,7 @@ int swServer_start(swServer *serv)
     /**
      * store to swProcessPool object
      */
+    serv->gs->event_workers.ptr = serv;
     serv->gs->event_workers.workers = serv->workers;
     serv->gs->event_workers.worker_num = serv->worker_num;
     serv->gs->event_workers.use_msgqueue = 0;

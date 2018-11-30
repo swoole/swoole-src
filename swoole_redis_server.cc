@@ -84,7 +84,7 @@ void swoole_redis_server_init(int module_number)
 static int redis_onReceive(swServer *serv, swEventData *req)
 {
     int fd = req->info.fd;
-    swConnection *conn = swWorker_get_connection(SwooleG.serv, fd);
+    swConnection *conn = swWorker_get_connection(serv, fd);
     if (!conn)
     {
         swWarn("connection[%d] is closed.", fd);

@@ -1002,7 +1002,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
     int fd = req->info.fd;
     int from_fd = req->info.from_fd;
 
-    swConnection *conn = swServer_connection_verify_no_ssl(SwooleG.serv, fd);
+    swConnection *conn = swServer_connection_verify_no_ssl(serv, fd);
     if (!conn)
     {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "connection[%d] is closed.", fd);
@@ -1018,7 +1018,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
     //websocket client
     if (conn->websocket_status == WEBSOCKET_STATUS_ACTIVE)
     {
-        return swoole_websocket_onMessage(req);
+        return swoole_websocket_onMessage(serv, req);
     }
 #ifdef SW_USE_HTTP2
     if (conn->http2_stream)
@@ -1052,7 +1052,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
         swWarn("swoole_http_parser_execute failed.");
         if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)
         {
-            return swServer_tcp_close(SwooleG.serv, fd, 1);
+            return swServer_tcp_close(serv, fd, 1);
         }
     }
     else
@@ -1140,7 +1140,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
             {
                 if (ret < 0)
                 {
-                    serv->factory.end(&SwooleG.serv->factory, fd);
+                    swServer_tcp_close(serv, fd, 0);
                 }
                 goto _free_object;
             }
@@ -1182,7 +1182,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
 void php_swoole_http_onClose(swServer *serv, swDataHead *ev)
 {
     int fd = ev->fd;
-    swConnection *conn = swWorker_get_connection(SwooleG.serv, fd);
+    swConnection *conn = swWorker_get_connection(serv, fd);
     if (!conn)
     {
         return;

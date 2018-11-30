@@ -83,7 +83,7 @@ int swManager_start(swFactory *factory)
             }
             if (serv->task_ipc_mode == SW_TASK_IPC_UNIXSOCK)
             {
-                swServer_store_pipe_fd(SwooleG.serv, worker->pipe_object);
+                swServer_store_pipe_fd(serv, worker->pipe_object);
             }
         }
     }
@@ -560,7 +560,7 @@ static void swManager_signal_handle(int sig)
 
 int swManager_wait_other_worker(swProcessPool *pool, pid_t pid, int status)
 {
-    swServer *serv = SwooleG.serv;
+    swServer *serv = (swServer *) pool->ptr;
     swWorker *exit_worker;
 
     if (serv->gs->task_workers.map)
