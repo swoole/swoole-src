@@ -66,7 +66,7 @@ static void free_callback(void* data)
 
 static int php_swoole_event_onRead(swReactor *reactor, swEvent *event)
 {
-    zval *retval;
+    zval *retval = NULL;
     zval args[1];
     php_reactor_fd *fd = event->socket->object;
 
@@ -83,7 +83,7 @@ static int php_swoole_event_onRead(swReactor *reactor, swEvent *event)
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
-    if (retval != NULL)
+    if (retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -92,7 +92,7 @@ static int php_swoole_event_onRead(swReactor *reactor, swEvent *event)
 
 static int php_swoole_event_onWrite(swReactor *reactor, swEvent *event)
 {
-    zval *retval;
+    zval *retval = NULL;
     zval args[1];
     php_reactor_fd *fd = event->socket->object;
 
@@ -114,7 +114,7 @@ static int php_swoole_event_onWrite(swReactor *reactor, swEvent *event)
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
-    if (retval != NULL)
+    if (retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -147,7 +147,7 @@ static int php_swoole_event_onError(swReactor *reactor, swEvent *event)
 void php_swoole_event_onDefer(void *_cb)
 {
     php_defer_callback *defer = _cb;
-    zval *retval;
+    zval *retval = NULL;
 
     if (sw_call_user_function_anyway(NULL, defer->callback, &retval, 0, NULL, 0) == FAILURE)
     {
@@ -158,7 +158,7 @@ void php_swoole_event_onDefer(void *_cb)
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
-    if (retval != NULL)
+    if (retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -169,7 +169,7 @@ void php_swoole_event_onDefer(void *_cb)
 static void php_swoole_event_onEndCallback(void *_cb)
 {
     php_defer_callback *defer = _cb;
-    zval *retval;
+    zval *retval = NULL;
 
     if (sw_call_user_function_ex(EG(function_table), NULL, defer->callback, &retval, 0, NULL, 0, NULL) == FAILURE)
     {
@@ -180,7 +180,7 @@ static void php_swoole_event_onEndCallback(void *_cb)
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
-    if (retval != NULL)
+    if (retval)
     {
         zval_ptr_dtor(retval);
     }

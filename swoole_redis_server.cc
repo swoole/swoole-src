@@ -232,7 +232,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
         zend_exception_error(EG(exception), E_ERROR);
     }
     //free the callback return value
-    if (retval != NULL)
+    if (retval)
     {
         if (Z_TYPE_P(retval) == IS_STRING)
         {

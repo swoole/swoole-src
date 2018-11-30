@@ -2843,7 +2843,7 @@ static void swoole_mysql_onConnect(mysql_client *client)
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
-    if (retval != NULL)
+    if (retval)
     {
         zval_ptr_dtor(retval);
     }

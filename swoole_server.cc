@@ -658,7 +658,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
         {
             Z_TRY_ADDREF_P(zport_object);
             sw_zend_call_method_with_1_params(&zport_object, swoole_server_port_ce_ptr, NULL, "set", &retval, zsetting);
-            if (retval != NULL)
+            if (retval)
             {
                 zval_ptr_dtor(retval);
             }
@@ -875,7 +875,7 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
     zval_ptr_dtor(zworker_id);
     sw_zval_free(zdata);
 
-    if (retval != NULL)
+    if (retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -935,7 +935,7 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
     zval_ptr_dtor(zfd);
     zval_ptr_dtor(zfrom_id);
     zval_ptr_dtor(zdata);
-    if (retval != NULL)
+    if (retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -1022,7 +1022,7 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
     }
     zval_ptr_dtor(zaddr);
     zval_ptr_dtor(zdata);
-    if (retval != NULL)
+    if (retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -1205,7 +1205,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
     }
     zval_ptr_dtor(ztask_id);
     sw_zval_free(zdata);
-    if (retval != NULL)
+    if (retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -1240,7 +1240,7 @@ static void php_swoole_onStart(swServer *serv)
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
-    if (retval != NULL)
+    if (retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -1269,7 +1269,7 @@ static void php_swoole_onManagerStart(swServer *serv)
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
-    if (retval != NULL)
+    if (retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -1291,7 +1291,7 @@ static void php_swoole_onManagerStop(swServer *serv)
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
-    if (retval != NULL)
+    if (retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -1317,7 +1317,7 @@ static void php_swoole_onShutdown(swServer *serv)
         {
             zend_exception_error(EG(exception), E_ERROR);
         }
-        if (retval != NULL)
+        if (retval)
         {
             zval_ptr_dtor(retval);
         }
@@ -1464,7 +1464,7 @@ static void php_swoole_onWorkerStop(swServer *serv, int worker_id)
         zend_exception_error(EG(exception), E_ERROR);
     }
     zval_ptr_dtor(zworker_id);
-    if (retval != NULL)
+    if (retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -1493,7 +1493,7 @@ static void php_swoole_onWorkerExit(swServer *serv, int worker_id)
         zend_exception_error(EG(exception), E_ERROR);
     }
     zval_ptr_dtor(zworker_id);
-    if (retval != NULL)
+    if (retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -1552,7 +1552,7 @@ static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker
     zval_ptr_dtor(zexit_code);
     zval_ptr_dtor(zsigno);
 
-    if (retval != NULL)
+    if (retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -1616,7 +1616,7 @@ void php_swoole_onConnect(swServer *serv, swDataHead *info)
 
     zval_ptr_dtor(zfd);
     zval_ptr_dtor(zfrom_id);
-    if (retval != NULL)
+    if (retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -1694,7 +1694,7 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
-    if (retval != NULL)
+    if (retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -1728,7 +1728,7 @@ void php_swoole_onBufferFull(swServer *serv, swDataHead *info)
         zend_exception_error(EG(exception), E_ERROR);
     }
     zval_ptr_dtor(zfd);
-    if (retval != NULL)
+    if (retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -1914,7 +1914,7 @@ void php_swoole_onBufferEmpty(swServer *serv, swDataHead *info)
         zend_exception_error(EG(exception), E_ERROR);
     }
     zval_ptr_dtor(zfd);
-    if (retval != NULL)
+    if (retval)
     {
         zval_ptr_dtor(retval);
     }

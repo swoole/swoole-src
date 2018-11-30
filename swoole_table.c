@@ -854,7 +854,7 @@ static PHP_METHOD(swoole_table_row, offsetGet)
     }
 
     zval *zprop_value = sw_zend_read_property(swoole_table_row_ce_ptr, getThis(), ZEND_STRL("value"), 0);
-    zval *retval;
+    zval *retval = NULL;
     if (!(retval = zend_hash_str_find(Z_ARRVAL_P(zprop_value), key, keylen)))
     {
         RETURN_FALSE;

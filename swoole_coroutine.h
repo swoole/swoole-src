@@ -50,7 +50,7 @@ struct php_args
     zend_fcall_info_cache *fci_cache;
     zval *argv;
     int argc;
-    zval *retval;
+    zval *retval = NULL;
     coro_task *origin_task;
 };
 

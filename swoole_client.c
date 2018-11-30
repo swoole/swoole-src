@@ -309,7 +309,7 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
     zval *zobject = (zval *) cli->object;
     zend_fcall_info_cache *fci_cache;
     zval args[2];
-    zval *retval;
+    zval *retval = NULL;
 
     zval *zdata;
     SW_MAKE_STD_ZVAL(zdata);
@@ -334,7 +334,7 @@ static void client_onReceive(swClient *cli, char *data, uint32_t length)
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
-    if (retval != NULL)
+    if (retval)
     {
         zval_ptr_dtor(retval);
     }

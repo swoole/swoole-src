@@ -625,7 +625,7 @@ ssize_t php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *d
         goto error;
     }
     zval_ptr_dtor(zdata);
-    if (retval != NULL)
+    if (retval)
     {
         convert_to_long(retval);
         int length = Z_LVAL_P(retval);
@@ -678,7 +678,7 @@ int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swEventData *da
     zval_ptr_dtor(zfd);
     zval_ptr_dtor(ztype);
     zval_ptr_dtor(zdata);
-    if (retval != NULL)
+    if (retval)
     {
         convert_to_long(retval);
         int worker_id = (int) Z_LVAL_P(retval);
@@ -1518,7 +1518,7 @@ PHP_FUNCTION(swoole_set_process_name)
         size = SwooleG.pagesize;
     }
 
-    zval *retval;
+    zval *retval = NULL;
     zval args[1];
     args[0] = *name;
 

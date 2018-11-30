@@ -163,7 +163,7 @@ static sw_inline void redis_execute_connect_callback(swRedisClient *redis, int s
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
-    if (retval != NULL)
+    if (retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -825,7 +825,7 @@ static void swoole_redis_onResult(redisAsyncContext *c, void *r, void *privdata)
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
-    if (retval != NULL)
+    if (retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -886,7 +886,7 @@ void swoole_redis_onClose(const redisAsyncContext *c, int status)
     zval *zcallback = sw_zend_read_property(swoole_redis_ce_ptr, redis->object, ZEND_STRL("onClose"), 1);
     if (zcallback && !ZVAL_IS_NULL(zcallback))
     {
-        zval *retval;
+        zval *retval = NULL;
         zval args[1];
         args[0] = *redis->object;
         if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 1, args, 0, NULL) != SUCCESS)
@@ -897,7 +897,7 @@ void swoole_redis_onClose(const redisAsyncContext *c, int status)
         {
             zend_exception_error(EG(exception), E_ERROR);
         }
-        if (retval != NULL)
+        if (retval)
         {
             zval_ptr_dtor(retval);
         }
@@ -935,7 +935,7 @@ static int swoole_redis_onError(swReactor *reactor, swEvent *event)
         {
             zend_exception_error(EG(exception), E_ERROR);
         }
-        if (retval != NULL)
+        if (retval)
         {
             zval_ptr_dtor(retval);
         }

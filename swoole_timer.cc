@@ -254,7 +254,7 @@ void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode)
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
-    if (retval != NULL)
+    if (retval)
     {
         zval_ptr_dtor(retval);
     }

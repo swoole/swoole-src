@@ -517,7 +517,7 @@ static void http_client_execute_callback(zval *zobject, enum php_swoole_client_c
         zend_exception_error(EG(exception), E_ERROR);
     }
     //free the callback return value
-    if (retval != NULL)
+    if (retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -550,7 +550,7 @@ static int http_client_onMessage(swConnection *conn, char *data, uint32_t length
     swClient *cli = conn->object;
     zval *zobject = cli->object;
     zval args[2];
-    zval *retval;
+    zval *retval = NULL;
 
     zval *zframe;
     SW_MAKE_STD_ZVAL(zframe);
@@ -570,7 +570,7 @@ static int http_client_onMessage(swConnection *conn, char *data, uint32_t length
         zend_exception_error(EG(exception), E_ERROR);
     }
     //free the callback return value
-    if (retval != NULL)
+    if (retval)
     {
         zval_ptr_dtor(retval);
     }

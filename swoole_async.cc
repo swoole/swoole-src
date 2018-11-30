@@ -221,7 +221,7 @@ static void coro_onDNSCompleted(char *domain, swDNSResolver_result *result, void
         goto free_zdata;
     }
 
-    if (retval != NULL)
+    if (retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -256,7 +256,7 @@ static void dns_timeout_coro(swTimer *timer, swTimer_node *tnode)
         goto free_zdata;
     }
 
-    if (retval != NULL)
+    if (retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -406,7 +406,7 @@ static void aio_onFileCompleted(swAio_event *event)
     }
     else if(file_req->type == SW_AIO_WRITE)
     {
-        if (retval != NULL && !ZVAL_IS_NULL(retval) && !Z_BVAL_P(retval))
+        if (retval && !ZVAL_IS_NULL(retval) && !Z_BVAL_P(retval))
         {
             open_files.erase(std::string(Z_STRVAL_P(file_req->filename), Z_STRLEN_P(file_req->filename)));
             goto close_file;
@@ -418,7 +418,7 @@ static void aio_onFileCompleted(swAio_event *event)
     }
     else
     {
-        if ((retval != NULL && !ZVAL_IS_NULL(retval) && !Z_BVAL_P(retval)) || isEOF)
+        if ((retval && !ZVAL_IS_NULL(retval) && !Z_BVAL_P(retval)) || isEOF)
         {
             goto close_file;
         }
@@ -1096,7 +1096,7 @@ static int process_stream_onRead(swReactor *reactor, swEvent *event)
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
-    if (retval != NULL)
+    if (retval)
     {
         zval_ptr_dtor(retval);
     }

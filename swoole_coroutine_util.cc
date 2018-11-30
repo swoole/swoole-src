@@ -418,7 +418,7 @@ PHP_FUNCTION(swoole_coroutine_create)
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
-    if (retval != NULL)
+    if (retval)
     {
         zval_ptr_dtor(retval);
     }
