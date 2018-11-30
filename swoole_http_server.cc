@@ -594,15 +594,8 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
     if (strncmp(header_name, "cookie", header_len) == 0)
     {
         zval *zcookie;
-        if (length >= SW_HTTP_COOKIE_VALLEN)
-        {
-            swWarn("cookie is too large.");
-        }
-        else
-        {
-            swoole_http_server_array_init(cookie, request);
-            http_parse_cookie(zcookie, at, length);
-        }
+        swoole_http_server_array_init(cookie, request);
+        http_parse_cookie(zcookie, at, length);
         efree(header_name);
         return 0;
     }
@@ -1044,7 +1037,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
     SW_ALLOC_INIT_ZVAL(zdata);
     php_swoole_get_recv_data(zdata, req, NULL, 0);
 
-    swTrace("httpRequest %d bytes:\n---------------------------------------\n%s\n", (int)Z_STRLEN_P(zdata), Z_STRVAL_P(zdata));
+    swTrace("http request from %d with %d bytes: <<EOF\n%.*s\nEOF", fd, (int)Z_STRLEN_P(zdata), (int)Z_STRLEN_P(zdata), Z_STRVAL_P(zdata));
 
 #ifdef SW_USE_PICOHTTPPARSER
     long n = http_fast_parse(parser, Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
