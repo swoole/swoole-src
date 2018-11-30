@@ -512,7 +512,7 @@ static void http_client_execute_callback(zval *zobject, enum php_swoole_client_c
     {
         swoole_php_fatal_error(E_WARNING, "swoole_http_client->%s handler error.", callback_name);
     }
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
@@ -565,7 +565,7 @@ static int http_client_onMessage(swConnection *conn, char *data, uint32_t length
     {
         swoole_php_fatal_error(E_ERROR, "swoole_http_client->onMessage: onClose handler error");
     }
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
@@ -648,7 +648,7 @@ static void http_client_onResponseException(zval *zobject)
     {
         swoole_php_fatal_error(E_WARNING, "onResponse handler error");
     }
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
@@ -756,7 +756,7 @@ static void http_client_onReceive(swClient *cli, char *data, uint32_t length)
     {
         swoole_php_fatal_error(E_WARNING, "onReactorCallback handler error");
     }
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }

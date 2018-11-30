@@ -111,7 +111,7 @@ static void php_swoole_process_pool_onWorkerStart(swProcessPool *pool, int worke
     {
         swoole_php_fatal_error(E_WARNING, "onWorkerStart handler error.");
     }
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
@@ -146,7 +146,7 @@ static void php_swoole_process_pool_onMessage(swProcessPool *pool, char *data, u
     {
         swoole_php_fatal_error(E_WARNING, "onMessage handler error.");
     }
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
@@ -180,7 +180,7 @@ static void php_swoole_process_pool_onWorkerStop(swProcessPool *pool, int worker
     {
         swoole_php_fatal_error(E_WARNING, "onWorkerStop handler error.");
     }
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }

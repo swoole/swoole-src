@@ -1153,7 +1153,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
             }
         }
 
-        if (EG(exception))
+        if (UNEXPECTED(EG(exception)))
         {
             zend_exception_error(EG(exception), E_ERROR);
         }

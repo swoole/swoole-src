@@ -867,7 +867,7 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
         }
     }
 
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
@@ -928,7 +928,7 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
         }
     }
 
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
@@ -1016,7 +1016,7 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
         }
     }
 
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
@@ -1064,7 +1064,7 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
         swoole_php_fatal_error(E_WARNING, "onTask handler error.");
     }
 
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
@@ -1199,7 +1199,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
     {
         swoole_php_fatal_error(E_WARNING, "onFinish handler error.");
     }
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
@@ -1236,7 +1236,7 @@ static void php_swoole_onStart(swServer *serv)
     {
         swoole_php_fatal_error(E_WARNING, "onStart handler error.");
     }
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
@@ -1265,7 +1265,7 @@ static void php_swoole_onManagerStart(swServer *serv)
     {
         swoole_php_fatal_error(E_WARNING, "onManagerStart handler error.");
     }
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
@@ -1287,7 +1287,7 @@ static void php_swoole_onManagerStop(swServer *serv)
     {
         swoole_php_fatal_error(E_WARNING, "onManagerStop handler error.");
     }
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
@@ -1313,7 +1313,7 @@ static void php_swoole_onShutdown(swServer *serv)
         {
             swoole_php_fatal_error(E_WARNING, "onShutdown handler error.");
         }
-        if (EG(exception))
+        if (UNEXPECTED(EG(exception)))
         {
             zend_exception_error(EG(exception), E_ERROR);
         }
@@ -1344,7 +1344,7 @@ static void php_swoole_onWorkerStart_coroutine(zval *zserv, zval *zworker_id)
         return;
     }
 
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
@@ -1367,7 +1367,7 @@ static void php_swoole_onWorkerStart_callback(zval *zserv, zval *zworker_id)
         swoole_php_fatal_error(E_WARNING, "onWorkerStart handler error.");
     }
 
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
@@ -1459,7 +1459,7 @@ static void php_swoole_onWorkerStop(swServer *serv, int worker_id)
     {
         swoole_php_fatal_error(E_WARNING, "onWorkerStop handler error.");
     }
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
@@ -1488,7 +1488,7 @@ static void php_swoole_onWorkerExit(swServer *serv, int worker_id)
     {
         swoole_php_fatal_error(E_WARNING, "onWorkerStop handler error.");
     }
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
@@ -1542,7 +1542,7 @@ static void php_swoole_onWorkerError(swServer *serv, int worker_id, pid_t worker
         swoole_php_fatal_error(E_WARNING, "onWorkerError handler error.");
     }
 
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
@@ -1609,7 +1609,7 @@ void php_swoole_onConnect(swServer *serv, swDataHead *info)
         }
     }
 
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
@@ -1690,7 +1690,7 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
         }
     }
 
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
@@ -1723,7 +1723,7 @@ void php_swoole_onBufferFull(swServer *serv, swDataHead *info)
     {
         swoole_php_error(E_WARNING, "onBufferFull handler error.");
     }
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
@@ -1909,7 +1909,7 @@ void php_swoole_onBufferEmpty(swServer *serv, swDataHead *info)
     {
         swoole_php_error(E_WARNING, "onBufferEmpty handler error.");
     }
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }

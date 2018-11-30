@@ -210,7 +210,7 @@ static sw_inline void http2_onRequest(http_context *ctx, int from_fd)
         }
     }
 
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }

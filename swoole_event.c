@@ -79,7 +79,7 @@ static int php_swoole_event_onRead(swReactor *reactor, swEvent *event)
         SwooleG.main_reactor->del(SwooleG.main_reactor, event->fd);
         return SW_ERR;
     }
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
@@ -110,7 +110,7 @@ static int php_swoole_event_onWrite(swReactor *reactor, swEvent *event)
         SwooleG.main_reactor->del(SwooleG.main_reactor, event->fd);
         return SW_ERR;
     }
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
@@ -154,7 +154,7 @@ void php_swoole_event_onDefer(void *_cb)
         swoole_php_fatal_error(E_WARNING, "defer callback handler error.");
         return;
     }
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
@@ -176,7 +176,7 @@ static void php_swoole_event_onEndCallback(void *_cb)
         swoole_php_fatal_error(E_WARNING, "swoole_event: cycle callback handler error.");
         return;
     }
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }

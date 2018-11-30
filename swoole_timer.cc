@@ -202,7 +202,7 @@ void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
         }
     }
 
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
@@ -250,7 +250,7 @@ void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode)
         }
     }
 
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }

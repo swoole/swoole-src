@@ -2708,7 +2708,7 @@ static PHP_METHOD(swoole_mysql, close)
         {
             swoole_php_fatal_error(E_WARNING, "swoole_mysql onClose callback error.");
         }
-        if (EG(exception))
+        if (UNEXPECTED(EG(exception)))
         {
             zend_exception_error(EG(exception), E_ERROR);
         }
@@ -2839,7 +2839,7 @@ static void swoole_mysql_onConnect(mysql_client *client)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_mysql onConnect handler error.");
     }
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
@@ -3172,7 +3172,7 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
                 swoole_php_fatal_error(E_WARNING, "swoole_async_mysql callback[2] handler error.");
                 reactor->del(SwooleG.main_reactor, event->fd);
             }
-            if (EG(exception))
+            if (UNEXPECTED(EG(exception)))
             {
                 zend_exception_error(EG(exception), E_ERROR);
             }

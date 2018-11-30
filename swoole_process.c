@@ -638,7 +638,7 @@ static void php_swoole_onSignal(int signo)
     {
         swoole_php_fatal_error(E_WARNING, "user_signal handler error");
     }
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
@@ -758,7 +758,7 @@ int php_swoole_process_start(swWorker *process, zval *zobject)
         swoole_php_fatal_error(E_ERROR, "callback function error");
         return SW_ERR;
     }
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }

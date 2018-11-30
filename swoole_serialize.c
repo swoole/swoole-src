@@ -1132,7 +1132,7 @@ static void swoole_serialize_object(seriaString *buffer, zval *obj, size_t start
         zval retval;
         if (call_user_function_ex(NULL, obj, &swSeriaG.sleep_fname, &retval, 0, 0, 1, NULL) == SUCCESS)
         {
-            if (EG(exception))
+            if (UNEXPECTED(EG(exception)))
             {
                 zval_dtor(&retval);
                 return;

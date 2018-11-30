@@ -259,7 +259,7 @@ void swoole_websocket_onOpen(http_context *ctx)
             }
         }
 
-        if (EG(exception))
+        if (UNEXPECTED(EG(exception)))
         {
             zend_exception_error(EG(exception), E_ERROR);
         }
@@ -410,7 +410,7 @@ int swoole_websocket_onMessage(swEventData *req)
         }
     }
 
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }

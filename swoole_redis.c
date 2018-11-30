@@ -159,7 +159,7 @@ static sw_inline void redis_execute_connect_callback(swRedisClient *redis, int s
     {
         swoole_php_fatal_error(E_WARNING, "swoole_async_redis connect_callback handler error.");
     }
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
@@ -821,7 +821,7 @@ static void swoole_redis_onResult(redisAsyncContext *c, void *r, void *privdata)
     {
         swoole_php_fatal_error(E_WARNING, "swoole_redis callback[%s] handler error.", callback_type);
     }
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
@@ -893,7 +893,7 @@ void swoole_redis_onClose(const redisAsyncContext *c, int status)
         {
             swoole_php_fatal_error(E_WARNING, "swoole_async_redis close_callback handler error.");
         }
-        if (EG(exception))
+        if (UNEXPECTED(EG(exception)))
         {
             zend_exception_error(EG(exception), E_ERROR);
         }
@@ -931,7 +931,7 @@ static int swoole_redis_onError(swReactor *reactor, swEvent *event)
         {
             swoole_php_fatal_error(E_WARNING, "swoole_async_redis connect_callback handler error.");
         }
-        if (EG(exception))
+        if (UNEXPECTED(EG(exception)))
         {
             zend_exception_error(EG(exception), E_ERROR);
         }

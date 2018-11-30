@@ -144,7 +144,7 @@ static void php_swoole_dns_callback(char *domain, swDNSResolver_result *result, 
         swoole_php_fatal_error(E_WARNING, "swoole_asyns_dns_lookup handler error.");
         return;
     }
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
@@ -302,7 +302,7 @@ static void aio_onDNSCompleted(swAio_event *event)
         swoole_php_fatal_error(E_WARNING, "swoole_async: onAsyncComplete handler error");
         return;
     }
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
@@ -391,7 +391,7 @@ static void aio_onFileCompleted(swAio_event *event)
             swoole_php_fatal_error(E_WARNING, "swoole_async: onAsyncComplete handler error");
             return;
         }
-        if (EG(exception))
+        if (UNEXPECTED(EG(exception)))
         {
             zend_exception_error(EG(exception), E_ERROR);
         }
@@ -1092,7 +1092,7 @@ static int process_stream_onRead(swReactor *reactor, swEvent *event)
     }
     sw_zval_free(zcallback);
 
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }

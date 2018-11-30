@@ -619,7 +619,7 @@ ssize_t php_swoole_length_func(swProtocol *protocol, swConnection *conn, char *d
         swoole_php_fatal_error(E_WARNING, "length function handler error.");
         goto error;
     }
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
         goto error;
@@ -670,7 +670,7 @@ int php_swoole_dispatch_func(swServer *serv, swConnection *conn, swEventData *da
         swoole_php_fatal_error(E_WARNING, "dispatch function handler error.");
         goto error;
     }
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
         goto error;
@@ -1530,7 +1530,7 @@ PHP_FUNCTION(swoole_set_process_name)
     {
         return;
     }
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }

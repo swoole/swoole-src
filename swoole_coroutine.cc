@@ -287,6 +287,10 @@ static void php_coro_create(void *arg)
         call->return_value = NULL; /* this is not a constructor call */
         func->internal_function.handler(call, retval);
         zend_vm_stack_free_args(call);
+        if (UNEXPECTED(EG(exception))) {
+            zval_ptr_dtor(retval);
+            ZVAL_UNDEF(retval);
+        }
     }
 
     if (task->defer_tasks)
@@ -308,7 +312,7 @@ static void php_coro_create(void *arg)
         zval_ptr_dtor(zobject);
     }
 
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }

@@ -414,7 +414,7 @@ PHP_FUNCTION(swoole_coroutine_create)
 
     zval _retval, *retval = &_retval;
     long cid = sw_coro_create(&fci_cache, fci.param_count, fci.params, retval);
-    if (EG(exception))
+    if (UNEXPECTED(EG(exception)))
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
