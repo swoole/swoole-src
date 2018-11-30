@@ -249,7 +249,6 @@ static void php_coro_create(void *arg)
         ZEND_ADD_CALL_FLAG(call, call_info);
     }
 
-    zend_init_execute_data(call, &func->op_array, retval);
     EG(current_execute_data) = call;
     EG(error_handling) = EH_NORMAL;
     EG(exception_class) = NULL;
@@ -273,7 +272,18 @@ static void php_coro_create(void *arg)
         swoole_call_hook(SW_GLOBAL_HOOK_ON_CORO_START, task);
     }
 
-    zend_execute_ex(EG(current_execute_data));
+    if (EXPECTED(func->type == ZEND_USER_FUNCTION))
+    {
+        zend_init_execute_data(call, &func->op_array, retval);
+        zend_execute_ex(EG(current_execute_data));
+    }
+    else /* ZEND_INTERNAL_FUNCTION */
+    {
+        call->prev_execute_data = NULL;
+        call->return_value = NULL; /* this is not a constructor call */
+        func->internal_function.handler(call, retval);
+        zend_vm_stack_free_args(call);
+    }
 
     if (task->defer_tasks)
     {
@@ -360,6 +370,7 @@ void sw_coro_check_bind(const char *name, long bind_cid)
 
 long sw_coro_create(zend_fcall_info_cache *fci_cache, int argc, zval *argv, zval *retval)
 {
+    zend_uchar type;
     if (unlikely(COROG.active == 0))
     {
         if (zend_get_module_started("xdebug") == SUCCESS)
@@ -378,7 +389,8 @@ long sw_coro_create(zend_fcall_info_cache *fci_cache, int argc, zval *argv, zval
         swoole_php_fatal_error(E_ERROR, "invalid function call info cache.");
         return CORO_INVALID;
     }
-    if (unlikely(fci_cache->function_handler->type != ZEND_USER_FUNCTION))
+    type = fci_cache->function_handler->type;
+    if (unlikely(type != ZEND_USER_FUNCTION && type != ZEND_INTERNAL_FUNCTION))
     {
         swoole_php_fatal_error(E_ERROR, "invalid function type %u.", fci_cache->function_handler->type);
         return CORO_INVALID;
