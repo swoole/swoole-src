@@ -140,7 +140,6 @@ int swManager_start(swFactory *factory)
          */
         for (i = 0; i < serv->worker_num; i++)
         {
-            //close(worker_pipes[i].pipes[0]);
             pid = swManager_spawn_worker(factory, i);
             if (pid < 0)
             {
