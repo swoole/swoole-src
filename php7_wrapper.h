@@ -121,12 +121,10 @@ static sw_inline int sw_call_user_function_fast_ex(zval *function_name, zend_fca
     return zend_call_function(&fci, fci_cache);
 }
 
-static sw_inline zval* sw_malloc_zval()
-{
-    return emalloc(sizeof(zval));
-}
+#define SW_MAKE_STD_ZVAL(p) zval _##p; p = &(_##p); ZVAL_NULL(p)
 
-#define SW_MAKE_STD_ZVAL(p)             zval _##p; p = &(_##p); bzero(p, sizeof(zval))
+// do not use sw_copy_to_stack(return_value, foo);
+#define sw_copy_to_stack(ptr, val) val = *(zval *) ptr, ptr = &val
 
 #define SW_ZEND_FETCH_RESOURCE_NO_RETURN(rsrc, rsrc_type, passed_id, default_id, resource_type_name, resource_type)        \
         (rsrc = (rsrc_type) zend_fetch_resource(Z_RES_P(*passed_id), resource_type_name, resource_type))
@@ -150,10 +148,10 @@ static sw_inline zval* sw_malloc_zval()
     if (ZVAL_IS_NULL(&__retval)) *(retval) = NULL;\
     else *(retval) = &__retval;
 
-// do not use sw_copy_to_stack(return_value, foo);
-#define sw_copy_to_stack(a, b)                {zval *__tmp = (zval *) a;\
-    a = &b;\
-    memcpy(a, __tmp, sizeof(zval));}
+static sw_inline zval* sw_malloc_zval()
+{
+    return (zval *) emalloc(sizeof(zval));
+}
 
 static sw_inline zval* sw_zval_dup(zval *val)
 {
