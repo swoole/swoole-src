@@ -180,10 +180,8 @@ static sw_inline void http2_onRequest(http_context *ctx, int from_fd)
     zval _retval, *retval = &_retval;
     swServer *serv = SwooleG.serv;
     int fd = ctx->fd;
-    zval *zrequest_object = ctx->request.zobject;
-    zval *zresponse_object = ctx->response.zobject;
-    SW_SEPARATE_ZVAL(zrequest_object);
-    SW_SEPARATE_ZVAL(zresponse_object);
+    zval _zrequest_object = *ctx->request.zobject, *zrequest_object = &_zrequest_object;
+    zval _zresponse_object = *ctx->response.zobject, *zresponse_object = &_zresponse_object;
 
     zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, from_fd, SW_SERVER_CB_onRequest);
     zval args[2];

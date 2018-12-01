@@ -127,7 +127,6 @@ static sw_inline zval* sw_malloc_zval()
 }
 
 #define SW_MAKE_STD_ZVAL(p)             zval _##p; p = &(_##p); bzero(p, sizeof(zval))
-#define SW_SEPARATE_ZVAL(p)             zval _##p; memcpy(&_##p, p, sizeof(_##p)); p = &_##p
 
 #define SW_ZEND_FETCH_RESOURCE_NO_RETURN(rsrc, rsrc_type, passed_id, default_id, resource_type_name, resource_type)        \
         (rsrc = (rsrc_type) zend_fetch_resource(Z_RES_P(*passed_id), resource_type_name, resource_type))
