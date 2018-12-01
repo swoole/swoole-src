@@ -121,11 +121,13 @@ static sw_inline int sw_call_user_function_fast_ex(zval *function_name, zend_fca
     return zend_call_function(&fci, fci_cache);
 }
 
-#define SW_MAKE_STD_ZVAL(p)             zval _stack_zval_##p; p = &(_stack_zval_##p); bzero(p, sizeof(zval))
-#define SW_ALLOC_INIT_ZVAL(p)           do{p = (zval *)emalloc(sizeof(zval)); bzero(p, sizeof(zval));}while(0)
-#define SW_SEPARATE_ZVAL(p)             zval _##p;\
-    memcpy(&_##p, p, sizeof(_##p));\
-    p = &_##p
+static sw_inline zval* sw_malloc_zval()
+{
+    return emalloc(sizeof(zval));
+}
+
+#define SW_MAKE_STD_ZVAL(p)             zval _##p; p = &(_##p); bzero(p, sizeof(zval))
+#define SW_SEPARATE_ZVAL(p)             zval _##p; memcpy(&_##p, p, sizeof(_##p)); p = &_##p
 
 #define SW_ZEND_FETCH_RESOURCE_NO_RETURN(rsrc, rsrc_type, passed_id, default_id, resource_type_name, resource_type)        \
         (rsrc = (rsrc_type) zend_fetch_resource(Z_RES_P(*passed_id), resource_type_name, resource_type))
@@ -156,8 +158,7 @@ static sw_inline int sw_call_user_function_fast_ex(zval *function_name, zend_fca
 
 static sw_inline zval* sw_zval_dup(zval *val)
 {
-    zval *dup;
-    SW_ALLOC_INIT_ZVAL(dup);
+    zval *dup = sw_malloc_zval();
     memcpy(dup, val, sizeof(zval));
     return dup;
 }

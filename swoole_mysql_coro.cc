@@ -386,7 +386,7 @@ static int swoole_mysql_coro_parse_response(mysql_client *client, zval **result,
     //OK
     if (client->response.response_type == SW_MYSQL_PACKET_OK)
     {
-        SW_ALLOC_INIT_ZVAL(*result);
+        *result = sw_malloc_zval();
         // prepare finished and create statement
         if (client->cmd == SW_MYSQL_COM_STMT_PREPARE)
         {
@@ -415,7 +415,7 @@ static int swoole_mysql_coro_parse_response(mysql_client *client, zval **result,
     //ERROR
     else if (client->response.response_type == SW_MYSQL_PACKET_ERR)
     {
-        SW_ALLOC_INIT_ZVAL(*result);
+        *result = sw_malloc_zval();
         ZVAL_FALSE(*result);
 
         zend_update_property_stringl(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("error"),
@@ -446,7 +446,7 @@ static int swoole_mysql_coro_parse_response(mysql_client *client, zval **result,
             client->statement->result = client->response.result_array;
             client->response.result_array = NULL;
             // return true (success)]
-            SW_ALLOC_INIT_ZVAL(*result);
+            *result = sw_malloc_zval();
             ZVAL_TRUE(*result);
         }
         else
@@ -1400,13 +1400,12 @@ static void swoole_mysql_coro_free_object(zend_object *object)
 
 static int swoole_mysql_coro_onError(swReactor *reactor, swEvent *event)
 {
-    zval *retval = NULL, *result;
+    zval *retval = NULL, *result = sw_malloc_zval();;
     mysql_client *client = (mysql_client *) event->socket->object;
     zval *zobject = client->object;
 
     swoole_mysql_coro_close(zobject);
 
-    SW_ALLOC_INIT_ZVAL(result);
     zend_update_property_string(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("connect_error"), "EPOLLERR/EPOLLHUP/EPOLLRDHUP happen!");
     zend_update_property_long(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("connect_errno"), 104);
     ZVAL_BOOL(result, 0);
@@ -1477,15 +1476,13 @@ static void swoole_mysql_coro_onConnect(mysql_client *client)
 
 static void swoole_mysql_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
 {
-    zval *result;
+    zval *result = sw_malloc_zval();;
     zval *retval = NULL;
-
     php_context *ctx = (php_context *) tnode->data;
-
-    SW_ALLOC_INIT_ZVAL(result);
-    ZVAL_BOOL(result, 0);
     zval _zobject = ctx->coro_params;
     zval *zobject = & _zobject;
+
+    ZVAL_BOOL(result, 0);
 
     mysql_client *client = (mysql_client *) swoole_get_object(zobject);
 
@@ -1820,7 +1817,7 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
                 return SW_OK;
             }
 
-            SW_ALLOC_INIT_ZVAL(result);
+            result = sw_malloc_zval();
             ZVAL_BOOL(result, 0);
             if (client->defer && !client->suspending)
             {

@@ -268,14 +268,7 @@ static PHP_METHOD(swoole_redis_server, start)
         RETURN_FALSE;
     }
 
-    zval *zsetting = sw_zend_read_property(swoole_server_ce_ptr, getThis(), ZEND_STRL("setting"), 1);
-    if (zsetting == NULL || ZVAL_IS_NULL(zsetting))
-    {
-        SW_ALLOC_INIT_ZVAL(zsetting);
-        array_init(zsetting);
-        zend_update_property(swoole_server_ce_ptr, getThis(), ZEND_STRL("setting"), zsetting);
-    }
-
+    zval *zsetting = sw_zend_read_property_array(swoole_server_ce_ptr, getThis(), ZEND_STRL("setting"), 1);
 #ifdef HT_ALLOW_COW_VIOLATION
     HT_ALLOW_COW_VIOLATION(Z_ARRVAL_P(zsetting));
 #endif

@@ -414,7 +414,7 @@ zval* php_swoole_task_unpack(swEventData *task_result)
 
     if (swTask_type(task_result) & SW_TASK_SERIALIZE)
     {
-        SW_ALLOC_INIT_ZVAL(result_unserialized_data);
+        result_unserialized_data = sw_malloc_zval();
 
 #ifdef SW_USE_FAST_SERIALIZE
         if (SWOOLE_G(fast_serialize))
@@ -425,7 +425,7 @@ zval* php_swoole_task_unpack(swEventData *task_result)
             }
             else
             {
-                SW_ALLOC_INIT_ZVAL(result_data);
+                result_data = sw_malloc_zval();
                 ZVAL_STRINGL(result_data, result_data_str, result_data_len);
             }
         }
@@ -447,7 +447,7 @@ zval* php_swoole_task_unpack(swEventData *task_result)
             //failed
             else
             {
-                SW_ALLOC_INIT_ZVAL(result_data);
+                result_data = sw_malloc_zval();
                 ZVAL_STRINGL(result_data, result_data_str, result_data_len);
             }
             PHP_VAR_UNSERIALIZE_DESTROY(var_hash);
@@ -455,7 +455,7 @@ zval* php_swoole_task_unpack(swEventData *task_result)
     }
     else
     {
-        SW_ALLOC_INIT_ZVAL(result_data);
+        result_data = sw_malloc_zval();
         ZVAL_STRINGL(result_data, result_data_str, result_data_len);
     }
     return result_data;
@@ -539,7 +539,7 @@ static void php_swoole_task_onTimeout(swTimer *timer, swTimer_node *tnode)
 static zval* php_swoole_server_add_port(swServer *serv, swListenPort *port)
 {
     zval *port_object;
-    SW_ALLOC_INIT_ZVAL(port_object);
+    port_object = sw_malloc_zval();
     object_init_ex(port_object, swoole_server_port_ce_ptr);
     server_port_list.zobjects[server_port_list.num++] = port_object;
 
@@ -602,16 +602,10 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
      */
     zend_update_property_long(swoole_server_ce_ptr, zobject, ZEND_STRL("master_pid"), getpid());
 
-    zval *zsetting = sw_zend_read_property(swoole_server_ce_ptr, zobject, ZEND_STRL("setting"), 1);
-    if (zsetting == NULL || ZVAL_IS_NULL(zsetting))
-    {
-        SW_ALLOC_INIT_ZVAL(zsetting);
-        array_init(zsetting);
+    zval *zsetting = sw_zend_read_property_array(swoole_server_ce_ptr, zobject, ZEND_STRL("setting"), 1);
 #ifdef HT_ALLOW_COW_VIOLATION
-        HT_ALLOW_COW_VIOLATION(Z_ARRVAL_P(zsetting));
+    HT_ALLOW_COW_VIOLATION(Z_ARRVAL_P(zsetting));
 #endif
-        zend_update_property(swoole_server_ce_ptr, zobject, ZEND_STRL("setting"), zsetting);
-    }
 
     if (!zend_hash_str_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("worker_num")))
     {
@@ -2010,8 +2004,7 @@ PHP_METHOD(swoole_server, __construct)
     zend_update_property_long(swoole_server_ce_ptr, server_object, ZEND_STRL("type"), sock_type);
     swoole_set_object(server_object, serv);
 
-    zval *ports;
-    SW_ALLOC_INIT_ZVAL(ports);
+    zval *ports = sw_malloc_zval();
     array_init(ports);
     server_port_list.zports = ports;
 
@@ -3414,8 +3407,7 @@ PHP_METHOD(swoole_server, taskCo)
         RETURN_FALSE;
     }
 
-    zval *result;
-    SW_ALLOC_INIT_ZVAL(result);
+    zval *result = sw_malloc_zval();
     array_init(result);
 
     SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(tasks), task)

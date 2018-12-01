@@ -1003,8 +1003,7 @@ static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
     //char mem;
 
     zval *result_array = client->response.result_array;
-    zval *row_array = NULL;
-    SW_ALLOC_INIT_ZVAL(row_array);
+    zval *row_array = sw_malloc_zval();
     array_init(row_array);
 
     swTraceLog(SW_TRACE_MYSQL_CLIENT, "mysql_decode_row begin, num_column=%ld, packet_len=%d.", client->response.num_column, packet_len);
@@ -1264,8 +1263,7 @@ static int mysql_decode_row_prepare(mysql_client *client, char *buf, int packet_
     mysql_row row;
 
     zval *result_array = client->response.result_array;
-    zval *row_array = NULL;
-    SW_ALLOC_INIT_ZVAL(row_array);
+    zval *row_array = sw_malloc_zval();
     array_init(row_array);
 
     swTraceLog(SW_TRACE_MYSQL_CLIENT, "mysql_decode_row begin, num_column=%ld, packet_len=%d.", client->response.num_column, packet_len);
@@ -1960,7 +1958,7 @@ static int mysql_read_columns(mysql_client *client)
         zval *result_array = client->response.result_array;
         if (!result_array)
         {
-            SW_ALLOC_INIT_ZVAL(result_array);
+            result_array = sw_malloc_zval();;
             array_init(result_array);
             client->response.result_array = result_array;
         }
@@ -3146,13 +3144,13 @@ static int swoole_mysql_onRead(swReactor *reactor, swEvent *event)
             //OK
             if (client->response.response_type == SW_MYSQL_PACKET_OK)
             {
-                SW_ALLOC_INIT_ZVAL(result);
+                result = sw_malloc_zval();
                 ZVAL_BOOL(result, 1);
             }
             //ERROR
             else if (client->response.response_type == SW_MYSQL_PACKET_ERR)
             {
-                SW_ALLOC_INIT_ZVAL(result);
+                result = sw_malloc_zval();
                 ZVAL_BOOL(result, 0);
 
                 zend_update_property_stringl(swoole_mysql_ce_ptr, zobject, ZEND_STRL("error"), client->response.server_msg, client->response.l_server_msg);

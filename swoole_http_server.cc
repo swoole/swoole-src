@@ -752,8 +752,7 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
             }
             ctx->current_input_name = estrndup(tmp, value_len);
 
-            zval *multipart_header = NULL;
-            SW_ALLOC_INIT_ZVAL(multipart_header);
+            zval *multipart_header = sw_malloc_zval();
             array_init(multipart_header);
 
             add_assoc_string(multipart_header, "name", "");
@@ -1033,8 +1032,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
 
     parser->data = ctx;
 
-    zval *zdata;
-    SW_ALLOC_INIT_ZVAL(zdata);
+    zval *zdata = sw_malloc_zval();
     php_swoole_get_recv_data(zdata, req, NULL, 0);
 
     swTrace("http request from %d with %d bytes: <<EOF\n%.*s\nEOF", fd, (int)Z_STRLEN_P(zdata), (int)Z_STRLEN_P(zdata), Z_STRVAL_P(zdata));
