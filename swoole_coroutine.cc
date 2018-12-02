@@ -239,8 +239,6 @@ static void php_coro_create(void *arg)
 
     call->symbol_table = NULL;
 
-    // TODO: enhancement it, separate execute data is necessary, but we lose the backtrace
-    EG(current_execute_data) = NULL;
     if (func->op_array.fn_flags & ZEND_ACC_CLOSURE)
     {
         uint32_t call_info;
@@ -275,7 +273,9 @@ static void php_coro_create(void *arg)
     if (EXPECTED(func->type == ZEND_USER_FUNCTION))
     {
         ZVAL_UNDEF(retval);
-        zend_init_execute_data(call, &func->op_array, retval);
+        // TODO: enhancement it, separate execute data is necessary, but we lose the backtrace
+        EG(current_execute_data) = NULL;
+        zend_init_func_execute_data(call, &func->op_array, retval);
         zend_execute_ex(EG(current_execute_data));
     }
     else /* ZEND_INTERNAL_FUNCTION */
