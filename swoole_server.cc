@@ -820,7 +820,6 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
 {
     zval *zserv = (zval *) serv->ptr2;
     zval *zworker_id;
-    zval _retval, *retval = &_retval;
 
     SW_MAKE_STD_ZVAL(zworker_id);
     ZVAL_LONG(zworker_id, (long) req->info.from_id);
@@ -841,38 +840,22 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
 
     if (SwooleG.enable_coroutine)
     {
-        long ret = sw_coro_create(fci_cache, 3, args, retval);
-        if (ret < 0)
+        if (sw_coro_create(fci_cache, 3, args) < 0)
         {
-            zval_ptr_dtor(zworker_id);
-            sw_zval_free(zdata);
-            if (ret < 0)
-            {
-                swWarn("Failed to handle onPipeMessage, create coroutine failed.");
-            }
-            return;
+            swoole_php_fatal_error(E_WARNING, "create onPipeMessage coroutine error.");
         }
     }
     else
     {
+        zval _retval, *retval = &_retval;
         if (sw_call_user_function_fast_ex(NULL, fci_cache, retval, 3, args) == FAILURE)
         {
             swoole_php_fatal_error(E_WARNING, "onPipeMessage handler error.");
         }
-    }
-
-    if (UNEXPECTED(EG(exception)))
-    {
-        zend_exception_error(EG(exception), E_ERROR);
-    }
-
-    zval_ptr_dtor(zworker_id);
-    sw_zval_free(zdata);
-
-    if (retval)
-    {
         zval_ptr_dtor(retval);
     }
+
+    sw_zval_free(zdata);
 }
 
 int php_swoole_onReceive(swServer *serv, swEventData *req)
@@ -882,7 +865,6 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
     zval *zfd;
     zval *zfrom_id;
     zval *zdata;
-    zval _retval, *retval = &_retval;
 
     SW_MAKE_STD_ZVAL(zfd);
     SW_MAKE_STD_ZVAL(zfrom_id);
@@ -901,38 +883,26 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
     zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, req->info.from_fd, SW_SERVER_CB_onReceive);
     if (SwooleG.enable_coroutine)
     {
-        long ret = sw_coro_create(fci_cache, 4, args, retval);
-        if (ret < 0)
+        if (sw_coro_create(fci_cache, 4, args) < 0)
         {
-            zval_ptr_dtor(zfd);
-            zval_ptr_dtor(zfrom_id);
-            zval_ptr_dtor(zdata);
-            if (ret < 0)
-            {
-                serv->factory.end(&SwooleG.serv->factory, req->info.fd);
-            }
-            return SW_OK;
+            swoole_php_error(E_WARNING, "create onReceive coroutine error.");
+            serv->factory.end(&SwooleG.serv->factory, req->info.fd);
         }
     }
     else
     {
+        zval _retval, *retval = &_retval;
         if (sw_call_user_function_fast_ex(NULL, fci_cache, retval, 4, args) == FAILURE)
         {
-            swoole_php_fatal_error(E_WARNING, "onReceive handler error.");
+            swoole_php_error(E_WARNING, "onReceive handler error.");
         }
+        zval_ptr_dtor(retval);
     }
 
-    if (UNEXPECTED(EG(exception)))
-    {
-        zend_exception_error(EG(exception), E_ERROR);
-    }
     zval_ptr_dtor(zfd);
     zval_ptr_dtor(zfrom_id);
     zval_ptr_dtor(zdata);
-    if (retval)
-    {
-        zval_ptr_dtor(retval);
-    }
+
     return SW_OK;
 }
 
@@ -941,7 +911,6 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
     zval *zserv = (zval *) serv->ptr2;
     zval *zdata;
     zval *zaddr;
-    zval _retval, *retval = &_retval;
     swDgramPacket *packet;
 
 
@@ -994,32 +963,24 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
 
     if (SwooleG.enable_coroutine)
     {
-        long ret = sw_coro_create(fci_cache, 3, args, retval);
-        if (ret < 0)
+        if (sw_coro_create(fci_cache, 3, args) < 0)
         {
-            zval_ptr_dtor(zaddr);
-            zval_ptr_dtor(zdata);
-            return SW_OK;
+            swoole_php_fatal_error(E_WARNING, "create onPacket coroutine error.");
         }
     }
     else
     {
+        zval _retval, *retval = &_retval;
         if (sw_call_user_function_fast_ex(NULL, fci_cache, retval, 3, args) == FAILURE)
         {
             swoole_php_fatal_error(E_WARNING, "onPacket handler error.");
         }
-    }
-
-    if (UNEXPECTED(EG(exception)))
-    {
-        zend_exception_error(EG(exception), E_ERROR);
-    }
-    zval_ptr_dtor(zaddr);
-    zval_ptr_dtor(zdata);
-    if (retval)
-    {
         zval_ptr_dtor(retval);
     }
+
+    zval_ptr_dtor(zaddr);
+    zval_ptr_dtor(zdata);
+
     return SW_OK;
 }
 
@@ -1321,30 +1282,13 @@ static void php_swoole_onShutdown(swServer *serv)
 
 static void php_swoole_onWorkerStart_coroutine(zval *zserv, zval *zworker_id)
 {
-    zval _retval, *retval = &_retval;
     zval args[2];
     args[0] = *zserv;
     args[1] = *zworker_id;
-
     zend_fcall_info_cache *cache = php_sw_server_caches[SW_SERVER_CB_onWorkerStart];
-    long ret = sw_coro_create(cache, 2, args, retval);
-    if (ret < 0)
+    if (sw_coro_create(cache, 2, args) < 0)
     {
-        zval_ptr_dtor(zworker_id);
-        if (ret < 0)
-        {
-            swWarn("Failed to handle onWorkerStart, create coroutine failed.");
-        }
-        return;
-    }
-
-    if (UNEXPECTED(EG(exception)))
-    {
-        zend_exception_error(EG(exception), E_ERROR);
-    }
-    if (retval)
-    {
-        zval_ptr_dtor(retval);
+        swWarn("create onWorkerStart coroutine error.");
     }
 }
 
@@ -1566,7 +1510,6 @@ void php_swoole_onConnect(swServer *serv, swDataHead *info)
     zval *zserv = (zval *) serv->ptr2;
     zval *zfd;
     zval *zfrom_id;
-    zval _retval, *retval = &_retval;
 
     SW_MAKE_STD_ZVAL(zfd);
     ZVAL_LONG(zfd, info->fd);
@@ -1588,32 +1531,23 @@ void php_swoole_onConnect(swServer *serv, swDataHead *info)
     if (SwooleG.enable_coroutine)
     {
         // FIXME: php_swoole_onConnect_finish with info->fd
-        if (sw_coro_create(fci_cache, 3, args, retval) < 0)
+        if (sw_coro_create(fci_cache, 3, args) < 0)
         {
-            zval_ptr_dtor(zfd);
-            zval_ptr_dtor(zfrom_id);
-            return;
+            swoole_php_error(E_WARNING, "create onConnect coroutine error.");
         }
     }
     else
     {
+        zval _retval, *retval = &_retval;
         if (sw_call_user_function_fast_ex(NULL, fci_cache, retval, 3, args) == FAILURE)
         {
             swoole_php_error(E_WARNING, "onConnect handler error.");
         }
-    }
-
-    if (UNEXPECTED(EG(exception)))
-    {
-        zend_exception_error(EG(exception), E_ERROR);
+        zval_ptr_dtor(retval);
     }
 
     zval_ptr_dtor(zfd);
     zval_ptr_dtor(zfrom_id);
-    if (retval)
-    {
-        zval_ptr_dtor(retval);
-    }
 }
 
 void php_swoole_onClose(swServer *serv, swDataHead *info)
@@ -1621,7 +1555,6 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
     zval *zserv = (zval *) serv->ptr2;
     zval *zfd;
     zval *zfrom_id;
-    zval _retval, *retval = &_retval;
 
     if (SwooleG.enable_coroutine && serv->send_yield)
     {
@@ -1668,28 +1601,18 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
 
     if (SwooleG.enable_coroutine)
     {
-        long ret = sw_coro_create(fci_cache, 3, args, retval);
-        zval_ptr_dtor(zfd);
-        zval_ptr_dtor(zfrom_id);
-        if (ret < 0)
+        if (sw_coro_create(fci_cache, 3, args) < 0)
         {
-            return;
+            swoole_php_error(E_WARNING, "create onClose coroutine error.");
         }
     }
     else
     {
+        zval _retval, *retval = &_retval;
         if (sw_call_user_function_fast_ex(NULL, fci_cache, retval, 3, args) == FAILURE)
         {
             swoole_php_error(E_WARNING, "onClose handler error.");
         }
-    }
-
-    if (UNEXPECTED(EG(exception)))
-    {
-        zend_exception_error(EG(exception), E_ERROR);
-    }
-    if (retval)
-    {
         zval_ptr_dtor(retval);
     }
 }

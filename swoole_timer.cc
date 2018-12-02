@@ -173,8 +173,6 @@ static int php_swoole_del_timer(swTimer_node *tnode)
 void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
 {
     swTimer_callback *cb = (swTimer_callback *) tnode->data;
-    zval _retval, *retval = &_retval;
-
     zval args[1];
     int argc = 0;
 
@@ -186,36 +184,26 @@ void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
 
     if (SwooleG.enable_coroutine)
     {
-        long ret = sw_coro_create(cb->func_cache, argc, args, retval);
-        if (ret < 0)
+        if (sw_coro_create(cb->func_cache, argc, args) < 0)
         {
-            swoole_php_fatal_error(E_WARNING, "swoole timer onTimeout failed, create coroutine failed.");
-            return;
+            swoole_php_fatal_error(E_WARNING, "create onTimer coroutine error.");
         }
     }
     else
     {
-        if (sw_call_user_function_ex(EG(function_table), NULL, cb->callback, &retval, argc, args, 0, NULL) == FAILURE)
+        zval _retval, *retval = &_retval;
+        if (sw_call_user_function_fast_ex(NULL, cb->func_cache, retval, argc, args) == FAILURE)
         {
-            swoole_php_fatal_error(E_WARNING, "swoole_timer: onTimeout handler error");
-            return;
+            swoole_php_fatal_error(E_WARNING, "onTimeout handler error.");
         }
-    }
-
-    if (UNEXPECTED(EG(exception)))
-    {
-        zend_exception_error(EG(exception), E_ERROR);
-    }
-    if (retval)
-    {
         zval_ptr_dtor(retval);
     }
+
     php_swoole_del_timer(tnode);
 }
 
 void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode)
 {
-    zval _retval, *retval = &_retval;
     zval *ztimer_id;
     swTimer_callback *cb = (swTimer_callback *) tnode->data;
 
@@ -234,31 +222,21 @@ void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode)
 
     if (SwooleG.enable_coroutine)
     {
-        long ret = sw_coro_create(cb->func_cache, argc, args, retval);
-        if (ret < 0)
+        if (sw_coro_create(cb->func_cache, argc, args) < 0)
         {
-            swoole_php_fatal_error(E_WARNING, "swoole timer onInterval failed, create coroutine failed.");
+            swoole_php_fatal_error(E_WARNING, "create onInterval coroutine error.");
             return;
         }
     }
     else
     {
-        if (sw_call_user_function_ex(EG(function_table), NULL, cb->callback, &retval, argc, args, 0, NULL) == FAILURE)
+        zval _retval, *retval = &_retval;
+        if (sw_call_user_function_fast_ex(NULL, cb->func_cache, retval, argc, args) == FAILURE)
         {
-            swoole_php_fatal_error(E_WARNING, "swoole timer onInterval handler error.");
-            return;
+            swoole_php_fatal_error(E_WARNING, "onInterval handler error.");
         }
-    }
-
-    if (UNEXPECTED(EG(exception)))
-    {
-        zend_exception_error(EG(exception), E_ERROR);
-    }
-    if (retval)
-    {
         zval_ptr_dtor(retval);
     }
-    zval_ptr_dtor(ztimer_id);
 
     if (tnode->remove)
     {

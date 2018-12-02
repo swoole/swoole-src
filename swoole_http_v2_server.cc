@@ -177,7 +177,6 @@ static int http_build_trailer(http_context *ctx, uchar *buffer)
 
 static sw_inline void http2_onRequest(http_context *ctx, int from_fd)
 {
-    zval _retval, *retval = &_retval;
     swServer *serv = SwooleG.serv;
     int fd = ctx->fd;
     zval _zrequest_object = *ctx->request.zobject, *zrequest_object = &_zrequest_object;
@@ -190,36 +189,24 @@ static sw_inline void http2_onRequest(http_context *ctx, int from_fd)
 
     if (SwooleG.enable_coroutine)
     {
-        long ret = sw_coro_create(fci_cache, 2, args, retval);
-        if (ret < 0)
+        if (sw_coro_create(fci_cache, 2, args) < 0)
         {
-            if (ret < 0)
-            {
-                serv->factory.end(&SwooleG.serv->factory, fd);
-            }
-            goto _free_object;
+            swoole_php_error(E_WARNING, "create Http2 onRequest coroutine error.");
+            serv->factory.end(&SwooleG.serv->factory, fd);
         }
     }
     else
     {
+        zval _retval, *retval = &_retval;
         if (sw_call_user_function_fast_ex(NULL, fci_cache, retval, 2, args) == FAILURE)
         {
-            swoole_php_error(E_WARNING, "Http2 onRequest handler error");
+            swoole_php_error(E_WARNING, "Http2 onRequest handler error.");
         }
-    }
-
-    if (UNEXPECTED(EG(exception)))
-    {
-        zend_exception_error(EG(exception), E_ERROR);
-    }
-
-    _free_object:
-    zval_ptr_dtor(zrequest_object);
-    zval_ptr_dtor(zresponse_object);
-    if (retval)
-    {
         zval_ptr_dtor(retval);
     }
+
+    zval_ptr_dtor(zrequest_object);
+    zval_ptr_dtor(zresponse_object);
 }
 
 static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_length)

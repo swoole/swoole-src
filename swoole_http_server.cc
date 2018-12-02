@@ -1055,7 +1055,6 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
     }
     else
     {
-        zval _retval, *retval = &_retval;
         zval _zrequest_object = *ctx->request.zobject, *zrequest_object = &_zrequest_object;
         zval _zresponse_object = *ctx->response.zobject, *zresponse_object = &_zresponse_object;
 
@@ -1127,47 +1126,38 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
         args[0] = *zrequest_object;
         args[1] = *zresponse_object;
 
-        if (SwooleG.enable_coroutine)
+        if (SwooleG.enable_coroutine && conn->websocket_status != WEBSOCKET_STATUS_HANDSHAKE)
         {
-            long ret = sw_coro_create(fci_cache, 2, args, retval);
-            if (ret < 0)
+            if (sw_coro_create(fci_cache, 2, args) < 0)
             {
-                if (ret < 0)
-                {
-                    swServer_tcp_close(serv, fd, 0);
-                }
-                goto _free_object;
+                swoole_php_error(E_WARNING, "create Http onRequest coroutine error.");
+                swServer_tcp_close(serv, fd, 0);
             }
         }
         else
         {
+            zval _retval, *retval = &_retval;
             if (sw_call_user_function_fast_ex(NULL, fci_cache, retval, 2, args) == FAILURE)
             {
-                swoole_php_error(E_WARNING, "onRequest handler error");
+                swoole_php_error(E_WARNING, "Http onRequest handler error.");
             }
-        }
-
-        if (UNEXPECTED(EG(exception)))
-        {
-            zend_exception_error(EG(exception), E_ERROR);
-        }
-        //websocket user handshake
-        if (conn->websocket_status == WEBSOCKET_STATUS_HANDSHAKE)
-        {
-            //handshake success
-            if (retval && Z_BVAL_P(retval))
+            else
             {
-                conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
+                //websocket user handshake
+                if (conn->websocket_status == WEBSOCKET_STATUS_HANDSHAKE)
+                {
+                    //handshake success
+                    if (Z_BVAL_P(retval))
+                    {
+                        conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
+                    }
+                }
             }
+            zval_ptr_dtor(retval);
         }
-
         _free_object:
         zval_ptr_dtor(zrequest_object);
         zval_ptr_dtor(zresponse_object);
-        if (retval)
-        {
-            zval_ptr_dtor(retval);
-        }
     }
 
     return SW_OK;

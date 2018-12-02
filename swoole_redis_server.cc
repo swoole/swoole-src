@@ -110,8 +110,6 @@ static int redis_onReceive(swServer *serv, swEventData *req)
     SW_MAKE_STD_ZVAL(zparams);
     array_init(zparams);
 
-    zval _retval, *retval = &_retval;
-
     int state = SW_REDIS_RECEIVE_TOTAL_LINE;
     int add_param = 0;
     char *command = NULL;
@@ -192,57 +190,40 @@ static int redis_onReceive(swServer *serv, swEventData *req)
     args[0] = *zfd;
     args[1] = *zparams;
 
+    zval *zindex = sw_zend_read_property(swoole_redis_server_ce_ptr, zobject, _command, _command_len, 1);
+    if (!zindex || ZVAL_IS_NULL(zindex))
+    {
+        length = snprintf(err_msg, sizeof(err_msg), "-ERR unknown command '%*s'\r\n", command_len, command);
+        swServer_tcp_send(serv, fd, err_msg, length);
+        return SW_OK;
+    }
+    zend_fcall_info_cache *fci_cache = func_cache_array.array[Z_LVAL_P(zindex)];
+
     if (SwooleG.enable_coroutine)
     {
-        zval *zindex = sw_zend_read_property(swoole_redis_server_ce_ptr, zobject, _command, _command_len, 1);
-        if (!zindex || ZVAL_IS_NULL(zindex))
+        if (sw_coro_create(fci_cache, 2, args) < 0)
         {
-            length = snprintf(err_msg, sizeof(err_msg), "-ERR unknown command '%*s'\r\n", command_len, command);
-            swServer_tcp_send(serv, fd, err_msg, length);
-            return SW_OK;
-        }
-
-        zend_fcall_info_cache *cache = func_cache_array.array[Z_LVAL_P(zindex)];
-        if (sw_coro_create(cache, 2, args, retval) < 0)
-        {
-            zval_ptr_dtor(zfd);
-            zval_ptr_dtor(zdata);
-            zval_ptr_dtor(zparams);
-            return SW_OK;
+            swoole_php_error(E_WARNING, "create redis server onReceive coroutine error.");
         }
     }
     else
     {
-        zval *zcallback = sw_zend_read_property(swoole_redis_server_ce_ptr, zobject, _command, _command_len, 1);
-        if (!zcallback || ZVAL_IS_NULL(zcallback))
+        zval _retval, *retval = &_retval;
+        if (sw_call_user_function_fast_ex(NULL, fci_cache, retval, 2, args) == FAILURE)
         {
-            length = snprintf(err_msg, sizeof(err_msg), "-ERR unknown command '%*s'\r\n", command_len, command);
-            swServer_tcp_send(serv, fd, err_msg, length);
-            return SW_OK;
+            swoole_php_error(E_WARNING, "redis server command '%*s' handler error.", command_len, command);
         }
-
-        if (sw_call_user_function_ex(EG(function_table), NULL, zcallback, &retval, 2, args, 0, NULL) == FAILURE)
-        {
-            swoole_php_error(E_WARNING, "command handler error.");
-        }
-    }
-
-    if (UNEXPECTED(EG(exception)))
-    {
-        zend_exception_error(EG(exception), E_ERROR);
-    }
-    //free the callback return value
-    if (retval)
-    {
         if (Z_TYPE_P(retval) == IS_STRING)
         {
             serv->send(serv, fd, Z_STRVAL_P(retval), Z_STRLEN_P(retval));
         }
         zval_ptr_dtor(retval);
     }
+
     zval_ptr_dtor(zfd);
     zval_ptr_dtor(zdata);
     zval_ptr_dtor(zparams);
+
     return SW_OK;
 }
 

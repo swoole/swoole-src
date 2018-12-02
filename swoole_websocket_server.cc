@@ -236,7 +236,6 @@ void swoole_websocket_onOpen(http_context *ctx)
         swServer *serv = SwooleG.serv;
         zval *zserv = (zval *) serv->ptr2;
         zval *zrequest_object = ctx->request.zobject;
-        zval _retval, *retval = &_retval;
 
         zval args[2];
         args[0] = *zserv;
@@ -244,27 +243,20 @@ void swoole_websocket_onOpen(http_context *ctx)
 
         if (SwooleG.enable_coroutine)
         {
-            long ret = sw_coro_create(fci_cache, 2, args, retval);
-            if (ret < 0)
+            if (sw_coro_create(fci_cache, 2, args) < 0)
             {
+                swoole_php_error(E_WARNING, "create onOpen coroutine error.");
                 SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
                 return;
             }
         }
         else
         {
+            zval _retval, *retval = &_retval;
             if (sw_call_user_function_fast_ex(NULL, fci_cache, retval, 2, args) == FAILURE)
             {
-                swoole_php_error(E_WARNING, "onOpen handler error");
+                swoole_php_error(E_WARNING, "onOpen handler error.");
             }
-        }
-
-        if (UNEXPECTED(EG(exception)))
-        {
-            zend_exception_error(EG(exception), E_ERROR);
-        }
-        if (retval)
-        {
             zval_ptr_dtor(retval);
         }
     }
@@ -382,43 +374,32 @@ int swoole_websocket_onMessage(swServer *serv, swEventData *req)
     php_swoole_websocket_construct_frame(zframe, opcode, Z_STRVAL_P(zdata), Z_STRLEN_P(zdata), finish);
     zend_update_property_long(swoole_websocket_frame_ce_ptr, zframe, ZEND_STRL("fd"), fd);
 
-    zval *zserv = (zval *) serv->ptr2;
-    zval _retval, *retval = &_retval;
-
     zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, req->info.from_fd, SW_SERVER_CB_onMessage);
     zval args[2];
-    args[0] = *zserv;
+    args[0] = *(zval *) serv->ptr2; // zserver
     args[1] = *zframe;
 
     if (SwooleG.enable_coroutine)
     {
-        long ret = sw_coro_create(fci_cache, 2, args, retval);
-        if (ret < 0)
+        if (sw_coro_create(fci_cache, 2, args) < 0)
         {
-            zval_ptr_dtor(zdata);
-            zval_ptr_dtor(zframe);
+            swoole_php_error(E_WARNING, "create onMessage coroutine error.");
             SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
-            return SW_OK;
         }
     }
     else
     {
+        zval _retval, *retval = &_retval;
         if (sw_call_user_function_fast_ex(NULL, fci_cache, retval, 2, args) == FAILURE)
         {
-            swoole_php_error(E_WARNING, "onMessage handler error");
+            swoole_php_error(E_WARNING, "onMessage handler error.");
         }
-    }
-
-    if (UNEXPECTED(EG(exception)))
-    {
-        zend_exception_error(EG(exception), E_ERROR);
-    }
-    if (retval)
-    {
         zval_ptr_dtor(retval);
     }
+
     zval_ptr_dtor(zdata);
     zval_ptr_dtor(zframe);
+
     return SW_OK;
 }
 

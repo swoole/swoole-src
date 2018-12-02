@@ -195,13 +195,11 @@ static void php_coro_create(void *arg)
     zend_function *func = fci_cache->function_handler;
     zval *argv = php_arg->argv;
     int argc = php_arg->argc;
-    zval *retval = php_arg->retval;
     coro_task *task;
     coro_task *origin_task = php_arg->origin_task;
     zend_execute_data *call;
     zval _zobject, *zobject = nullptr;
-
-    ZEND_ASSERT(retval);
+    zval _retval, *retval = &_retval;
 
     if (++COROG.coro_num > COROG.peak_coro_num)
     {
@@ -287,10 +285,6 @@ static void php_coro_create(void *arg)
         call->return_value = NULL; /* this is not a constructor call */
         func->internal_function.handler(call, retval);
         zend_vm_stack_free_args(call);
-        if (UNEXPECTED(EG(exception))) {
-            zval_ptr_dtor(retval);
-            ZVAL_UNDEF(retval);
-        }
     }
 
     if (task->defer_tasks)
@@ -306,6 +300,8 @@ static void php_coro_create(void *arg)
         delete task->defer_tasks;
         task->defer_tasks = nullptr;
     }
+
+    zval_ptr_dtor(retval);
 
     if (zobject)
     {
@@ -376,7 +372,7 @@ void sw_coro_check_bind(const char *name, long bind_cid)
     }
 }
 
-long sw_coro_create(zend_fcall_info_cache *fci_cache, int argc, zval *argv, zval *retval)
+long sw_coro_create(zend_fcall_info_cache *fci_cache, int argc, zval *argv)
 {
     zend_uchar type;
     if (unlikely(COROG.active == 0))
@@ -408,7 +404,6 @@ long sw_coro_create(zend_fcall_info_cache *fci_cache, int argc, zval *argv, zval
     php_args.fci_cache = fci_cache;
     php_args.argv = argv;
     php_args.argc = argc;
-    php_args.retval = retval;
     php_args.origin_task = php_coro_get_current_task();
 
     return Coroutine::create(php_coro_create, (void*) &php_args);
