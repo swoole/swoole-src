@@ -28,13 +28,14 @@ enum swoole_timer_type
 
 typedef struct _swTimer_callback
 {
+    int type;
+    int interval;
     zval* callback;
+    zend_fcall_info_cache *fci_cache;
     zval* data;
     zval _callback;
+    zend_fcall_info_cache _fci_cache;
     zval _data;
-    zend_fcall_info_cache *func_cache;
-    int interval;
-    int type;
 } swTimer_callback;
 
 static int php_swoole_del_timer(swTimer_node *tnode);
@@ -76,44 +77,31 @@ long php_swoole_add_timer(int ms, zval *callback, zval *param, int persistent)
         return SW_ERR;
     }
 
-    char *func_name = NULL;
-    zend_fcall_info_cache *func_cache = (zend_fcall_info_cache *) emalloc(sizeof(zend_fcall_info_cache));
-    if (!sw_zend_is_callable_ex(callback, NULL, 0, &func_name, NULL, func_cache, NULL))
-    {
-        swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
-        efree(func_cache);
-        efree(func_name);
-        return SW_ERR;
-    }
-    efree(func_name);
-
     if (!(SwooleG.serv && swIsTaskWorker() && SwooleG.serv->task_async == 0))
     {
         php_swoole_check_reactor();
     }
 
     swTimer_callback *cb = (swTimer_callback *) emalloc(sizeof(swTimer_callback));
+    char *func_name = NULL;
+    if (!sw_zend_is_callable_ex(callback, NULL, 0, &func_name, NULL, &cb->_fci_cache, NULL))
+    {
+        swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
+        return SW_ERR;
+    }
+    efree(func_name);
 
-    cb->data = &cb->_data;
+    cb->_callback = *callback;
     cb->callback = &cb->_callback;
-    memcpy(cb->callback, callback, sizeof(zval));
+    cb->fci_cache = &cb->_fci_cache;
     if (param)
     {
-        memcpy(cb->data, param, sizeof(zval));
+        cb->_data = *param;
+        cb->data = &cb->_data;
     }
     else
     {
         cb->data = NULL;
-    }
-
-
-    if (SwooleG.enable_coroutine)
-    {
-        cb->func_cache = func_cache;
-    }
-    else
-    {
-        efree(func_cache);
     }
 
     swTimerCallback timer_func;
@@ -162,10 +150,6 @@ static int php_swoole_del_timer(swTimer_node *tnode)
     {
         zval_ptr_dtor(cb->data);
     }
-    if (SwooleG.enable_coroutine && cb->func_cache)
-    {
-        efree(cb->func_cache);
-    }
     efree(cb);
     return SW_OK;
 }
@@ -184,7 +168,7 @@ void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
 
     if (SwooleG.enable_coroutine)
     {
-        if (sw_coro_create(cb->func_cache, argc, args) < 0)
+        if (sw_coro_create(cb->fci_cache, argc, args) < 0)
         {
             swoole_php_fatal_error(E_WARNING, "create onTimer coroutine error.");
         }
@@ -192,7 +176,7 @@ void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
     else
     {
         zval _retval, *retval = &_retval;
-        if (sw_call_user_function_fast_ex(NULL, cb->func_cache, retval, argc, args) == FAILURE)
+        if (sw_call_user_function_fast_ex(NULL, cb->fci_cache, retval, argc, args) == FAILURE)
         {
             swoole_php_fatal_error(E_WARNING, "onTimeout handler error.");
         }
@@ -222,7 +206,7 @@ void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode)
 
     if (SwooleG.enable_coroutine)
     {
-        if (sw_coro_create(cb->func_cache, argc, args) < 0)
+        if (sw_coro_create(cb->fci_cache, argc, args) < 0)
         {
             swoole_php_fatal_error(E_WARNING, "create onInterval coroutine error.");
             return;
@@ -231,7 +215,7 @@ void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode)
     else
     {
         zval _retval, *retval = &_retval;
-        if (sw_call_user_function_fast_ex(NULL, cb->func_cache, retval, argc, args) == FAILURE)
+        if (sw_call_user_function_fast_ex(NULL, cb->fci_cache, retval, argc, args) == FAILURE)
         {
             swoole_php_fatal_error(E_WARNING, "onInterval handler error.");
         }
