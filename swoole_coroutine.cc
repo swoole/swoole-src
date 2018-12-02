@@ -275,7 +275,11 @@ static void php_coro_create(void *arg)
         ZVAL_UNDEF(retval);
         // TODO: enhancement it, separate execute data is necessary, but we lose the backtrace
         EG(current_execute_data) = NULL;
+#if PHP_VERSION_ID >= 70200
         zend_init_func_execute_data(call, &func->op_array, retval);
+#else
+        zend_init_execute_data(call, &func->op_array, retval);
+#endif
         zend_execute_ex(EG(current_execute_data));
     }
     else /* ZEND_INTERNAL_FUNCTION */
