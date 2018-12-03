@@ -273,6 +273,7 @@ void Socket::init_sock(int _fd)
     socket->object = this;
     socket->socket_type = type;
     socket->removed = 1;
+    socket->fdtype = SW_FD_CORO_SOCKET;
 
     swSetNonBlock(socket->fd);
     if (!swReactor_handle_isset(reactor, SW_FD_CORO_SOCKET))
@@ -322,6 +323,7 @@ Socket::Socket(int _fd, Socket *server_sock)
     socket->object = this;
     socket->socket_type = server_sock->type;
     socket->removed = 1;
+    socket->fdtype = SW_FD_CORO_SOCKET;
 }
 
 bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen)
