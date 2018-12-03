@@ -908,7 +908,8 @@ static void redis_request(swRedisClient *redis, int argc, char **argv, size_t *a
     {
         if (redisAppendCommandArgv(redis->context, argc, (const char **) argv, (const size_t *) argvlen) == REDIS_ERR)
         {
-            _error: zend_update_property_long(swoole_redis_coro_ce_ptr, redis->object, ZEND_STRL("errCode"), redis->context->err);
+            _error:
+            zend_update_property_long(swoole_redis_coro_ce_ptr, redis->object, ZEND_STRL("errCode"), redis->context->err);
             zend_update_property_string(swoole_redis_coro_ce_ptr, redis->object, ZEND_STRL("errMsg"), redis->context->errstr);
             ZVAL_FALSE(return_value);
             if (redis->context->err == REDIS_ERR_EOF)
@@ -962,12 +963,12 @@ static sw_inline void sw_redis_command_var_key(INTERNAL_FUNCTION_PARAMETERS, con
     if(argc < min_argc) {
         RETURN_FALSE;
     }
+    SW_REDIS_COMMAND_CHECK
     SW_REDIS_COMMAND_ALLOC_ARGS_ARR
     if(argc == 0 || zend_get_parameters_array(ht, argc, z_args) == FAILURE) {
         efree(z_args);
         RETURN_FALSE;
     }
-    SW_REDIS_COMMAND_CHECK
     zend_bool single_array = 0;
     if(has_timeout == 0) {
         single_array = argc==1 && SW_REDIS_COMMAND_ARGS_TYPE(z_args[0])==IS_ARRAY;
@@ -1051,13 +1052,12 @@ static inline void sw_redis_command_key(INTERNAL_FUNCTION_PARAMETERS, const char
 static sw_inline void sw_redis_command_key_var_val(INTERNAL_FUNCTION_PARAMETERS, const char *cmd, int cmd_len)
 {
     int argc = ZEND_NUM_ARGS();
-
     // We at least need a key and one value
     if (argc < 2)
     {
         RETURN_FALSE;
     }
-
+    SW_REDIS_COMMAND_CHECK
     // Make sure we at least have a key, and we can get other args
     SW_REDIS_COMMAND_ALLOC_ARGS_ARR
     if (zend_get_parameters_array(ht, argc, z_args) == FAILURE)
@@ -1065,8 +1065,6 @@ static sw_inline void sw_redis_command_key_var_val(INTERNAL_FUNCTION_PARAMETERS,
         efree(z_args);
         RETURN_FALSE;
     }
-
-    SW_REDIS_COMMAND_CHECK
 
     int i = 0, j;
     argc++;
@@ -2113,12 +2111,12 @@ static PHP_METHOD(swoole_redis_coro, hSetNx)
 static PHP_METHOD(swoole_redis_coro, hDel)
 {
     int argc = ZEND_NUM_ARGS();
+    SW_REDIS_COMMAND_CHECK
     SW_REDIS_COMMAND_ALLOC_ARGS_ARR
     if(argc < 2 || zend_get_parameters_array(ht, argc, z_args) == FAILURE) {
         efree(z_args);
         RETURN_FALSE;
     }
-    SW_REDIS_COMMAND_CHECK
     argc++;
     int i = 0, j;
     SW_REDIS_COMMAND_ALLOC_ARGV
@@ -2322,14 +2320,13 @@ static PHP_METHOD(swoole_redis_coro, bRPopLPush)
 static PHP_METHOD(swoole_redis_coro, blPop)
 {
     int argc = ZEND_NUM_ARGS();
-
+    SW_REDIS_COMMAND_CHECK
     SW_REDIS_COMMAND_ALLOC_ARGS_ARR
     if(zend_get_parameters_array(ht, argc, z_args) == FAILURE || argc < 1)
     {
         efree(z_args);
         return;
     }
-    SW_REDIS_COMMAND_CHECK
 
     zend_bool single_array = 0;
     if (argc == 2 && SW_REDIS_COMMAND_ARGS_TYPE(z_args[0]) == IS_ARRAY)
@@ -2375,14 +2372,13 @@ static PHP_METHOD(swoole_redis_coro, blPop)
 static PHP_METHOD(swoole_redis_coro, brPop)
 {
     int argc = ZEND_NUM_ARGS();
-
+    SW_REDIS_COMMAND_CHECK
     SW_REDIS_COMMAND_ALLOC_ARGS_ARR
     if(zend_get_parameters_array(ht, argc, z_args) == FAILURE || argc < 1)
     {
         efree(z_args);
         return;
     }
-    SW_REDIS_COMMAND_CHECK
 
     zend_bool single_array = 0;
     if (argc == 2 && SW_REDIS_COMMAND_ARGS_TYPE(z_args[0]) == IS_ARRAY)
@@ -2577,7 +2573,7 @@ static PHP_METHOD(swoole_redis_coro, pfadd)
 static PHP_METHOD(swoole_redis_coro, pfcount)
 {
     int argc = ZEND_NUM_ARGS();
-
+    SW_REDIS_COMMAND_CHECK
     SW_REDIS_COMMAND_ALLOC_ARGS_ARR
     if(zend_get_parameters_array(ht, argc, z_args) == FAILURE || argc != 1)
     {
@@ -2592,7 +2588,6 @@ static PHP_METHOD(swoole_redis_coro, pfcount)
         single_array = 1;
     }
 
-    SW_REDIS_COMMAND_CHECK
     argc += 1;
     int i = 0;
     SW_REDIS_COMMAND_ALLOC_ARGV
@@ -3346,7 +3341,7 @@ static PHP_METHOD(swoole_redis_coro, zIncrBy)
 static PHP_METHOD(swoole_redis_coro, zAdd)
 {
     int argc = ZEND_NUM_ARGS();
-
+    SW_REDIS_COMMAND_CHECK
     SW_REDIS_COMMAND_ALLOC_ARGS_ARR
     if (zend_get_parameters_array(ht, argc, z_args) == FAILURE)
     {
@@ -3363,7 +3358,6 @@ static PHP_METHOD(swoole_redis_coro, zAdd)
         efree(z_args);
         RETURN_FALSE;
     }
-    SW_REDIS_COMMAND_CHECK
 
     int i = 0, j, k, valid_params;
     valid_params = argc - 1;
@@ -3745,7 +3739,7 @@ static PHP_METHOD(swoole_redis_coro, bitCount)
 static PHP_METHOD(swoole_redis_coro, bitOp)
 {
     int argc = ZEND_NUM_ARGS();
-
+    SW_REDIS_COMMAND_CHECK
     SW_REDIS_COMMAND_ALLOC_ARGS_ARR
     if(zend_get_parameters_array(ht, argc, z_args) == FAILURE ||
        argc < 3 || SW_REDIS_COMMAND_ARGS_TYPE(z_args[0]) != IS_STRING)
@@ -3753,8 +3747,6 @@ static PHP_METHOD(swoole_redis_coro, bitOp)
         efree(z_args);
         return;
     }
-
-    SW_REDIS_COMMAND_CHECK
 
     int j, i = 0;
     argc++;
@@ -4066,7 +4058,7 @@ static PHP_METHOD(swoole_redis_coro, script)
     {
         RETURN_FALSE
     }
-
+    SW_REDIS_COMMAND_CHECK
     SW_REDIS_COMMAND_ALLOC_ARGS_ARR
     if (zend_get_parameters_array(ht, argc, z_args) == FAILURE || SW_REDIS_COMMAND_ARGS_TYPE(z_args[0]) != IS_STRING)
     {
@@ -4074,7 +4066,6 @@ static PHP_METHOD(swoole_redis_coro, script)
         RETURN_FALSE;
     }
 
-    SW_REDIS_COMMAND_CHECK
     int i = 0;
     if (!strcasecmp(SW_REDIS_COMMAND_ARGS_STRVAL(z_args[0]), "flush")
             || !strcasecmp(SW_REDIS_COMMAND_ARGS_STRVAL(z_args[0]), "kill"))
