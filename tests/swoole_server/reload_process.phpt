@@ -5,26 +5,25 @@ swoole_server: unregistered signal
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-trigger_error('SWOOLE_BASE not support reload task workers.', E_USER_NOTICE);
-$worker_num = swoole_cpu_num() * 2;
+$worker_num = $task_worker_num = swoole_cpu_num() * 2;
 $counter = [
     'worker' => new Swoole\Atomic(),
     'task_worker' => new Swoole\Atomic()
 ];
 $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
-    global $counter, $worker_num;
+    global $counter, $worker_num, $task_worker_num;
     while (!file_exists(TEST_PID_FILE)) {
         usleep(100 * 1000);
     }
     $pid = file_get_contents(TEST_PID_FILE);
-    $random = mt_rand(1, 12);
+    $random = mt_rand(1, 4);
     usleep(100 * 1000);
     for ($n = $random; $n--;) {
         Swoole\Process::kill($pid, SIGUSR1);
         usleep(100 * 1000);
-        // Swoole\Process::kill($pid, SIGUSR2);
-        // usleep(100 * 1000);
+        Swoole\Process::kill($pid, SIGUSR2);
+        usleep(100 * 1000);
     }
 
     /**@var $counter Swoole\Atomic[] */
@@ -32,8 +31,9 @@ $pm->parentFunc = function () use ($pm) {
     $expect = $random * $worker_num;
     assert($total === $expect, "[worker reload {$total} but expect {$expect}]");
 
-    // $total = $counter['task_worker']->get() - 1;
-    // assert($total === $random * 2, "[task worker reload {$total} but expect {$random}]");
+    $total = $counter['task_worker']->get() - $task_worker_num;
+    $expect = $random * $task_worker_num * 2;
+    assert($total === $expect, "[task worker reload {$total} but expect {$expect}]");
 
     $log = file_get_contents(TEST_LOG_FILE);
     $log = trim(preg_replace('/.+?\s+?NOTICE\s+?.+/', '', $log));
@@ -42,15 +42,15 @@ $pm->parentFunc = function () use ($pm) {
     echo "DONE\n";
 };
 $pm->childFunc = function () use ($pm) {
-    global $worker_num;
+    global $worker_num, $task_worker_num;
     @unlink(TEST_LOG_FILE);
     @unlink(TEST_PID_FILE);
-    $server = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
+    $server = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $server->set([
         'log_file' => TEST_LOG_FILE,
         'pid_file' => TEST_PID_FILE,
-        'worker_num' => $worker_num
-        // 'task_worker_num' => 1
+        'worker_num' => $worker_num,
+        'task_worker_num' => $task_worker_num
     ]);
     $server->on('Start', function () use ($pm) {
         $pm->wakeup();
@@ -62,12 +62,11 @@ $pm->childFunc = function () use ($pm) {
         $atomic->add(1);
     });
     $server->on('Receive', function (Swoole\Server $server, $fd, $reactor_id, $data) { });
-    // $server->on('Task', function () { });
+    $server->on('Task', function () { });
     $server->start();
 };
 $pm->childFirst();
 $pm->run();
 ?>
---EXPECTF--
-Notice: SWOOLE_BASE not support reload task workers. in %s on line %d
+--EXPECT--
 DONE

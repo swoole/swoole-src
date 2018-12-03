@@ -310,7 +310,7 @@ static int swManager_loop(swFactory *factory)
             //reload task & event workers
             else if (ManagerProcess.reload_all_worker == 1)
             {
-                swNotice("Server is reloading now.");
+                swNotice("Server is reloading all workers now.");
                 if (reload_init == 0)
                 {
                     reload_init = 1;
@@ -351,7 +351,7 @@ static int swManager_loop(swFactory *factory)
                     swWarn("cannot reload task workers, task workers is not started.");
                     continue;
                 }
-                swNotice("Server is reloading now.");
+                swNotice("Server is reloading task workers now.");
                 if (reload_init == 0)
                 {
                     memcpy(reload_workers, serv->gs->task_workers.workers, sizeof(swWorker) * serv->task_worker_num);
