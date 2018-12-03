@@ -149,7 +149,7 @@ void swSignal_callback(int signo)
     swSignalHandler callback = signals[signo].handler;
     if (!callback)
     {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_UNREGISTERED_SIGNAL, "signal[%d] callback is null.", signo);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_UNREGISTERED_SIGNAL, SW_UNREGISTERED_SIGNAL_FMT, strsignal(signo));
         return;
     }
     callback(signo);
@@ -292,7 +292,7 @@ static int swSignalfd_onSignal(swReactor *reactor, swEvent *event)
         }
         else
         {
-            swoole_error_log(SW_LOG_WARNING, SW_ERROR_UNREGISTERED_SIGNAL, "signal[%d] callback is null.", siginfo.ssi_signo);
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_UNREGISTERED_SIGNAL, SW_UNREGISTERED_SIGNAL_FMT, strsignal(siginfo.ssi_signo));
         }
     }
 

@@ -209,6 +209,7 @@
 #define SW_STRING_BUFFER_GARBAGE_RATIO   4
 
 #define SW_SIGNO_MAX                     128
+#define SW_UNREGISTERED_SIGNAL_FMT       "Unable to find callback function for signal %s."
 
 #define SW_DNS_HOST_BUFFER_SIZE          16
 #define SW_DNS_SERVER_PORT               53

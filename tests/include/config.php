@@ -50,6 +50,7 @@ define('SOCKS5_PROXY_PORT', IS_MAC_OS ? 1086 : 1080);
 define('SOURCE_ROOT_PATH', __DIR__ . '/../../');
 define('TEST_IMAGE', __DIR__ . '/../../examples/test.jpg');
 define('TEST_LOG_FILE', '/tmp/swoole.log');
+define('TEST_PID_FILE', '/tmp/swoole.pid');
 define('SSL_FILE_DIR', __DIR__ . '/api/swoole_http_server/localhost-ssl');
 
 /** ============== Times ============== */

@@ -374,7 +374,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
                         }
                         else
                         {
-                            swoole_error_log(SW_LOG_WARNING, SW_ERROR_UNREGISTERED_SIGNAL, "signal[%d] callback is null.", sw_signal->signo);
+                            swoole_error_log(SW_LOG_WARNING, SW_ERROR_UNREGISTERED_SIGNAL, SW_UNREGISTERED_SIGNAL_FMT, strsignal(sw_signal->signo));
                         }
                     }
                 }
