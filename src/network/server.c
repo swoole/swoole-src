@@ -243,7 +243,7 @@ static int swServer_start_check(swServer *serv)
     {
         if (serv->onTask == NULL)
         {
-            swWarn("onTask is null");
+            swWarn("onTask event callback must be set.");
             return SW_ERR;
         }
         if (serv->task_worker_num > SW_CPU_NUM * SW_MAX_WORKER_NCPU)
