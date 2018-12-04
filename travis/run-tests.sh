@@ -50,7 +50,8 @@ do
     do
         if [ "`cat failed.list | grep "phpt"`" ]; then
             sleep ${i}
-            echo "\n😮 Retry failed tests #${i}...\n"
+            echo "\n😮 Retry failed tests #${i}:\n"
+            cat failed.list
             retry_failures
         else
             exit 0

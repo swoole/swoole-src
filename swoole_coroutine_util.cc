@@ -375,7 +375,7 @@ static PHP_METHOD(swoole_coroutine_util, set)
     }
     if (php_swoole_array_get_value(vht, "socket_timeout", v))
     {
-        convert_to_long(v);
+        convert_to_double(v);
         COROG.socket_timeout = (double) Z_DVAL_P(v);
     }
     if (php_swoole_array_get_value(vht, "log_level", v))

@@ -53,13 +53,13 @@ fi
 
 set -e
 
-echo "\n✅ Prepare for files...\n"
+echo "\n📖 Prepare for files...\n"
 prepare_files
 
-echo "✅ Start docker containers...\n"
+echo "📦 Start docker containers...\n"
 docker-compose up -d && docker ps
 
-echo "\n✅ Run tests in docker...\n"
+echo "\n⏳ Run tests in docker...\n"
 run_tests_in_docker "swoole-alpine"
 run_tests_in_docker "swoole"
 
