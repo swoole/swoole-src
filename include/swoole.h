@@ -1456,6 +1456,7 @@ void swSignal_callback(int signo);
 swSignalHandler swSignal_get_handler(int signo);
 void swSignal_clear(void);
 void swSignal_none(void);
+char* swSignal_str(int sig, char *buf, size_t buflen);
 
 #ifdef HAVE_SIGNALFD
 void swSignalfd_init();

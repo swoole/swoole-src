@@ -17,7 +17,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
 };
 $pm->childFunc = function () use ($pm) {
     @unlink(TEST_LOG_FILE);
-    $server = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
+    $server = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SERVER_MODE_RANDOM);
     $server->set([
         'log_file' => TEST_LOG_FILE,
         'pid_file' => TEST_PID_FILE
@@ -30,4 +30,4 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-[%s]	WARNING	swSignal_callback (ERROR 706): Unable to find callback function for signal %s
+[%s]	WARNING	%s (ERROR 706): Unable to find callback function for signal Broken pipe: 13.
