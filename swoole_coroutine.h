@@ -60,6 +60,7 @@ struct coro_global
     uint64_t max_coro_num;
     uint64_t peak_coro_num;
     uint32_t stack_size;
+    uint32_t socket_timeout;
     coro_task task;
 };
 

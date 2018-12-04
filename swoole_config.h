@@ -65,9 +65,6 @@
 #define SW_MAX_WORKER_NCPU         1000 // n * cpu_num
 #define SW_MAX_REQUEST             5000          //最大请求包数
 
-#define SW_CORO_SCHEDUER_TIMEOUT   100           //协程强制超时回调的单位时间 100ms
-//#define SW_CONNECTION_LIST_EXPAND  (4096*2)  //动态扩容的数量
-
 #define SW_HOST_MAXSIZE            104  // Linux has 108 UNIX_PATH_MAX, but BSD/MacOS limit is only 104
 
 //#define SW_DEBUG                 //debug
@@ -258,14 +255,32 @@
 #define SW_WEBSOCKET_KEY_LENGTH          16
 #define SW_WEBSOCKET_QUEUE_SIZE          16
 
+/**
+ * Http Client
+ */
+#define SW_HTTP_CONNECT_TIMEOUT          1.0
+
+/**
+ * MySQL Client
+ */
 #define SW_MYSQL_QUERY_INIT_SIZE         8192
 #define SW_MYSQL_DEFAULT_PORT            3306
 #define SW_MYSQL_CONNECT_TIMEOUT         1.0
 #define SW_MYSQL_DEFAULT_CHARSET         33  //0x21, utf8_general_ci
 
+/**
+ * Redis Client
+ */
 #define SW_REDIS_CONNECT_TIMEOUT         1.0
-#define SW_PGSQL_CONNECT_TIMEOUT         3.0
 
+/**
+ * PGSQL Client
+ */
+#define SW_PGSQL_CONNECT_TIMEOUT         1.0
+
+/**
+ * Timer
+ */
 #define SW_TIMER_MAX_VALUE               86400000
 
 /**

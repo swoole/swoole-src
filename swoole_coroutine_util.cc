@@ -361,14 +361,10 @@ static PHP_METHOD(swoole_coroutine_util, set)
     if (php_swoole_array_get_value(vht, "max_coroutine", v))
     {
         convert_to_long(v);
-        COROG.max_coro_num = (int) Z_LVAL_P(v);
+        COROG.max_coro_num = (uint64_t) Z_LVAL_P(v);
         if (COROG.max_coro_num <= 0)
         {
-            COROG.max_coro_num = DEFAULT_MAX_CORO_NUM;
-        }
-        else if (COROG.max_coro_num >= MAX_CORO_NUM_LIMIT)
-        {
-            COROG.max_coro_num = MAX_CORO_NUM_LIMIT;
+            COROG.max_coro_num = SW_DEFAULT_MAX_CORO_NUM;
         }
     }
     if (php_swoole_array_get_value(vht, "stack_size", v))
@@ -376,6 +372,11 @@ static PHP_METHOD(swoole_coroutine_util, set)
         convert_to_long(v);
         COROG.stack_size = (uint32_t) Z_LVAL_P(v);
         sw_coro_set_stack_size(COROG.stack_size);
+    }
+    if (php_swoole_array_get_value(vht, "socket_timeout", v))
+    {
+        convert_to_long(v);
+        COROG.socket_timeout = (uint32_t) Z_LVAL_P(v);
     }
     if (php_swoole_array_get_value(vht, "log_level", v))
     {

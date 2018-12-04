@@ -221,6 +221,7 @@ static PHP_METHOD(swoole_http2_client_coro, __construct)
     hcc->host = estrndup(host, host_len);
     hcc->host_len = host_len;
     hcc->port = port;
+    hcc->timeout = COROG.socket_timeout;
     swoole_set_property(getThis(), HTTP2_CLIENT_CORO_PROPERTY, hcc);
 
     php_context *context = (php_context *) emalloc(sizeof(php_context));
