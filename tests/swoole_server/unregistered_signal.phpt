@@ -30,4 +30,4 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-[%s]	WARNING	swSignal_callback (ERROR 706): Unable to find callback function for signal Broken pipe: 13.
+[%s]	WARNING	swSignal_callback (ERROR 706): Unable to find callback function for signal %s
