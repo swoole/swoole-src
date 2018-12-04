@@ -420,6 +420,7 @@ enum swTraceType
     SW_TRACE_SSL              = 1u << 19,
     SW_TRACE_NORMAL           = 1u << 20,
     SW_TRACE_CHANNEL          = 1u << 21,
+    SW_TRACE_TIMER            = 1u << 22,
 };
 
 #ifdef SW_LOG_TRACE_OPEN
@@ -2046,7 +2047,7 @@ struct _swTimer
     uint8_t initialized;
     swHeap *heap;
     swHashMap *map;
-    int num;
+    uint32_t num;
     int lasttime;
     uint64_t round;
     long _next_id;
