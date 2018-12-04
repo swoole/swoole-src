@@ -34,12 +34,12 @@
 #define SW_REDIS_COMMAND_BUFFER_SIZE   64
 #define SW_BITOP_MIN_OFFSET 0
 #define SW_BITOP_MAX_OFFSET 4294967295
-#define SW_REDIS_NOT_FOUND 0
-#define SW_REDIS_STRING    1
-#define SW_REDIS_SET       2
-#define SW_REDIS_LIST      3
-#define SW_REDIS_ZSET      4
-#define SW_REDIS_HASH      5
+#define SW_REDIS_TYPE_NOT_FOUND 0
+#define SW_REDIS_TYPE_STRING    1
+#define SW_REDIS_TYPE_SET       2
+#define SW_REDIS_TYPE_LIST      3
+#define SW_REDIS_TYPE_ZSET      4
+#define SW_REDIS_TYPE_HASH      5
 /* the same errCode define with hiredis */
 enum swRedisError
 {
@@ -1599,14 +1599,24 @@ void swoole_redis_coro_init(int module_number)
     zend_declare_property_long(swoole_redis_coro_ce_ptr, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_string(swoole_redis_coro_ce_ptr, ZEND_STRL("errMsg"), "", ZEND_ACC_PUBLIC);
 
-    REGISTER_LONG_CONSTANT("SWOOLE_REDIS_MODE_MULTI", SW_REDIS_MODE_MULTI, CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("SWOOLE_REDIS_MODE_PIPELINE", SW_REDIS_MODE_PIPELINE, CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("SWOOLE_REDIS_TYPE_NOT_FOUND", SW_REDIS_NOT_FOUND, CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("SWOOLE_REDIS_TYPE_STRING", SW_REDIS_STRING, CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("SWOOLE_REDIS_TYPE_SET", SW_REDIS_SET, CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("SWOOLE_REDIS_TYPE_LIST", SW_REDIS_LIST, CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("SWOOLE_REDIS_TYPE_ZSET", SW_REDIS_ZSET, CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("SWOOLE_REDIS_TYPE_HASH", SW_REDIS_HASH, CONST_CS | CONST_PERSISTENT);
+    SWOOLE_DEFINE(REDIS_MODE_MULTI);
+    SWOOLE_DEFINE(REDIS_MODE_PIPELINE);
+
+    SWOOLE_DEFINE(REDIS_TYPE_NOT_FOUND);
+    SWOOLE_DEFINE(REDIS_TYPE_STRING);
+    SWOOLE_DEFINE(REDIS_TYPE_SET);
+    SWOOLE_DEFINE(REDIS_TYPE_LIST);
+    SWOOLE_DEFINE(REDIS_TYPE_ZSET);
+    SWOOLE_DEFINE(REDIS_TYPE_HASH);
+
+    SWOOLE_DEFINE(REDIS_ERR_IO);
+    SWOOLE_DEFINE(REDIS_ERR_OTHER);
+    SWOOLE_DEFINE(REDIS_ERR_EOF);
+    SWOOLE_DEFINE(REDIS_ERR_PROTOCOL);
+    SWOOLE_DEFINE(REDIS_ERR_OOM);
+    SWOOLE_DEFINE(REDIS_ERR_CLOSED);
+    SWOOLE_DEFINE(REDIS_ERR_NOAUTH);
+    SWOOLE_DEFINE(REDIS_ERR_ALLOC);
 }
 
 static PHP_METHOD(swoole_redis_coro, __construct)
@@ -4179,27 +4189,27 @@ static void swoole_redis_coro_parse_result(swRedisClient *redis, zval* return_va
                 long l;
                 if (strncmp(reply->str, "string", 6) == 0)
                 {
-                    l = SW_REDIS_STRING;
+                    l = SW_REDIS_TYPE_STRING;
                 }
                 else if (strncmp(reply->str, "set", 3) == 0)
                 {
-                    l = SW_REDIS_SET;
+                    l = SW_REDIS_TYPE_SET;
                 }
                 else if (strncmp(reply->str, "list", 4) == 0)
                 {
-                    l = SW_REDIS_LIST;
+                    l = SW_REDIS_TYPE_LIST;
                 }
                 else if (strncmp(reply->str, "zset", 4) == 0)
                 {
-                    l = SW_REDIS_ZSET;
+                    l = SW_REDIS_TYPE_ZSET;
                 }
                 else if (strncmp(reply->str, "hash", 4) == 0)
                 {
-                    l = SW_REDIS_HASH;
+                    l = SW_REDIS_TYPE_HASH;
                 }
                 else
                 {
-                    l = SW_REDIS_NOT_FOUND;
+                    l = SW_REDIS_TYPE_NOT_FOUND;
                 }
                 ZVAL_LONG(return_value, l);
             }
