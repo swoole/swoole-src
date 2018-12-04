@@ -87,7 +87,12 @@ int daemon(int nochdir, int noclose);
 
 /*----------------------------------------------------------------------------*/
 
-#define SWOOLE_VERSION "4.2.10-beta"
+#define SWOOLE_MAJOR_VERSION      4
+#define SWOOLE_MINOR_VERSION      2
+#define SWOOLE_RELEASE_VERSION    10
+#define SWOOLE_EXTRA_VERSION      "beta"
+#define SWOOLE_VERSION            "4.2.10-beta"
+#define SWOOLE_VERSION_ID         40210
 #define SWOOLE_BUG_REPORT \
     "A bug occurred in Swoole-v" SWOOLE_VERSION ", please report it.\n"\
     "The Swoole developers probably don't know about it,\n"\

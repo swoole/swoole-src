@@ -8,6 +8,7 @@
 
 require __DIR__ . '/functions.php';
 
+// TODO: update
 function check_source_ver(string $expect_ver, $source_file)
 {
     static $source_ver_regex = '/(SWOOLE_VERSION +)("?)(?<ver>[\w\-.]+)("?)/';
