@@ -506,6 +506,7 @@ static void socket_onResolveCompleted(swAio_event *event)
 static void socket_onTimeout(swTimer *timer, swTimer_node *tnode)
 {
     Socket *sock = (Socket *) tnode->data;
+    errno = ETIMEDOUT;
     sock->errCode = ETIMEDOUT;
     swDebug("socket[%d] timeout", sock->socket->fd);
     int operation;
@@ -935,15 +936,15 @@ void Socket::yield(int operation)
         swTimer_node *timer = swTimer_add(&SwooleG.timer, ms, 0, this, socket_onTimeout);
         if (timer)
         {
-            if (operation == SOCKET_LOCK_WRITE)
-            {
-                write_timer = timer;
-                write_timer->type = SW_TIMER_TYPE_CORO_WRITE;
-            }
-            else if (operation == SOCKET_LOCK_READ)
+            if (operation == SOCKET_LOCK_READ)
             {
                 read_timer = timer;
                 read_timer->type = SW_TIMER_TYPE_CORO_READ;
+            }
+            else if (operation == SOCKET_LOCK_WRITE)
+            {
+                write_timer = timer;
+                write_timer->type = SW_TIMER_TYPE_CORO_WRITE;
             }
             else // if (operation == SOCKET_LOCK_RW)
             {

@@ -87,7 +87,7 @@ int daemon(int nochdir, int noclose);
 
 /*----------------------------------------------------------------------------*/
 
-#define SWOOLE_VERSION "4.2.10-alpha"
+#define SWOOLE_VERSION "4.2.10-beta"
 #define SWOOLE_BUG_REPORT \
     "A bug occurred in Swoole-v" SWOOLE_VERSION ", please report it.\n"\
     "The Swoole developers probably don't know about it,\n"\
@@ -187,6 +187,11 @@ typedef unsigned long ulong_t;
 #define MIN(A, B)              ((A) < (B) ? (A) : (B))
 #endif
 
+#ifdef SW_DEBUG
+#define SW_ASSERT(e)           assert(e)
+#else
+#define SW_ASSERT(e)
+#endif
 #define SW_STRS(s)             s, sizeof(s)
 #define SW_STRL(s)             s, sizeof(s)-1
 #define SW_START_SLEEP         usleep(100000)  //sleep 1s,wait fork and pthread_create
