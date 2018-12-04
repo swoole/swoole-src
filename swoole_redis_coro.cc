@@ -919,9 +919,24 @@ static bool swoole_redis_coro_close(zval *zobject)
 
 static void redis_request(swRedisClient *redis, int argc, char **argv, size_t *argvlen, zval *return_value)
 {
+    redisReply *reply = nullptr;
+    // must clear err before request
+    redis->context->err = 0;
     if (redis->defer)
     {
         if (redisAppendCommandArgv(redis->context, argc, (const char **) argv, (const size_t *) argvlen) == REDIS_ERR)
+        {
+            goto _error;
+        }
+        else
+        {
+            ZVAL_TRUE(return_value);
+        }
+    }
+    else
+    {
+        reply = (redisReply *) redisCommandArgv(redis->context, argc, (const char **) argv, (const size_t *) argvlen);
+        if (reply == nullptr)
         {
             _error:
             zend_update_property_long(swoole_redis_coro_ce_ptr, redis->object, ZEND_STRL("errCode"), SW_REDIS_CONVERT_ERR(redis->context->err));
@@ -934,24 +949,10 @@ static void redis_request(swRedisClient *redis, int argc, char **argv, size_t *a
         }
         else
         {
-            ZVAL_TRUE(return_value);
-            redis->context->err = 0;
-        }
-    }
-    else
-    {
-        redisReply *reply = (redisReply *) redisCommandArgv(redis->context, argc, (const char **) argv, (const size_t *) argvlen);
-        if (reply == nullptr)
-        {
-            goto _error;
-        }
-        else
-        {
             zend_update_property_long(swoole_redis_coro_ce_ptr, redis->object, ZEND_STRL("errCode"), 0);
             zend_update_property_string(swoole_redis_coro_ce_ptr, redis->object, ZEND_STRL("errMsg"), "");
             swoole_redis_coro_parse_result(redis, return_value, reply);
             freeReplyObject(reply);
-            redis->context->err = 0;
         }
     }
     int i;
