@@ -43,14 +43,14 @@
 /* the same errCode define with hiredis */
 enum swRedisError
 {
-    SW_REDIS_ERR_IO = 1,     /* Error in read or write */
-    SW_REDIS_ERR_OTHER = 2,  /* Everything else... */
-    SW_REDIS_ERR_EOF = 3,    /* End of file */
-    SW_REDIS_ERR_PROTOCOL = 4, /* Protocol error */
-    SW_REDIS_ERR_OOM = 5,  /* Out of memory */
-    SW_REDIS_ERR_CLOSED = 6, /* Closed */
-    SW_REDIS_ERR_NOAUTH = 7, /* Authentication required */
-    SW_REDIS_ERR_ALLOC = 8,
+    SW_REDIS_ERR_IO = -1,     /* Error in read or write */
+    SW_REDIS_ERR_OTHER = -2,  /* Everything else... */
+    SW_REDIS_ERR_EOF = -3,    /* End of file */
+    SW_REDIS_ERR_PROTOCOL = -4, /* Protocol error */
+    SW_REDIS_ERR_OOM = -5,  /* Out of memory */
+    SW_REDIS_ERR_CLOSED = -6, /* Closed */
+    SW_REDIS_ERR_NOAUTH = -7, /* Authentication required */
+    SW_REDIS_ERR_ALLOC = -8,
 };
 
 /* Extended SET argument detection */
@@ -807,6 +807,8 @@ ZEND_END_ARG_INFO()
 #define IS_EX_PX_ARG(a) (IS_EX_ARG(a) || IS_PX_ARG(a))
 #define IS_NX_XX_ARG(a) (IS_NX_ARG(a) || IS_XX_ARG(a))
 
+#define SW_REDIS_CONVERT_ERR(err) (err == -SW_REDIS_ERR_IO ? errno : err)
+
 #define SW_REDIS_COMMAND_CHECK \
     coro_check();\
     swRedisClient *redis = (swRedisClient *) swoole_get_object(getThis()); \
@@ -922,7 +924,7 @@ static void redis_request(swRedisClient *redis, int argc, char **argv, size_t *a
         if (redisAppendCommandArgv(redis->context, argc, (const char **) argv, (const size_t *) argvlen) == REDIS_ERR)
         {
             _error:
-            zend_update_property_long(swoole_redis_coro_ce_ptr, redis->object, ZEND_STRL("errCode"), redis->context->err);
+            zend_update_property_long(swoole_redis_coro_ce_ptr, redis->object, ZEND_STRL("errCode"), SW_REDIS_CONVERT_ERR(redis->context->err));
             zend_update_property_string(swoole_redis_coro_ce_ptr, redis->object, ZEND_STRL("errMsg"), redis->context->errstr);
             ZVAL_FALSE(return_value);
             if (redis->context->err == REDIS_ERR_EOF)
@@ -1720,7 +1722,7 @@ static PHP_METHOD(swoole_redis_coro, connect)
 
     if (context->err)
     {
-        zend_update_property_long(swoole_redis_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), context->err);
+        zend_update_property_long(swoole_redis_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), SW_REDIS_CONVERT_ERR(redis->context->err));
         zend_update_property_string(swoole_redis_coro_ce_ptr, getThis(), ZEND_STRL("errMsg"), context->errstr);
         redisFree(redis->context);
         redis->context = NULL;
@@ -3866,7 +3868,7 @@ static PHP_METHOD(swoole_redis_coro, pSubscribe)
         {
             swoole_redis_coro_close(getThis());
         }
-        zend_update_property_long(swoole_redis_coro_ce_ptr,getThis(), ZEND_STRL("errCode"), redis->context->err);
+        zend_update_property_long(swoole_redis_coro_ce_ptr,getThis(), ZEND_STRL("errCode"), SW_REDIS_CONVERT_ERR(redis->context->err));
         RETURN_FALSE;
     }
 }
@@ -3922,7 +3924,7 @@ static PHP_METHOD(swoole_redis_coro, subscribe)
         {
             swoole_redis_coro_close(getThis());
         }
-        zend_update_property_long(swoole_redis_coro_ce_ptr,getThis(), ZEND_STRL("errCode"), redis->context->err);
+        zend_update_property_long(swoole_redis_coro_ce_ptr,getThis(), ZEND_STRL("errCode"), SW_REDIS_CONVERT_ERR(redis->context->err));
         RETURN_FALSE;
     }
 }
@@ -4172,7 +4174,7 @@ static void swoole_redis_coro_parse_result(swRedisClient *redis, zval* return_va
             size_t str_len = strlen(reply->str);
             memcpy(redis->context->errstr, reply->str, MIN(str_len, sizeof(redis->context->errstr)-1));
         }
-        zend_update_property_long(swoole_redis_coro_ce_ptr, redis->object, ZEND_STRL("errCode"), redis->context->err);
+        zend_update_property_long(swoole_redis_coro_ce_ptr, redis->object, ZEND_STRL("errCode"), SW_REDIS_CONVERT_ERR(redis->context->err));
         zend_update_property_string(swoole_redis_coro_ce_ptr, redis->object, ZEND_STRL("errMsg"), redis->context->errstr);
         break;
 
@@ -4220,7 +4222,7 @@ static void swoole_redis_coro_parse_result(swRedisClient *redis, zval* return_va
         }
         else
         {
-            zend_update_property_long(swoole_redis_coro_ce_ptr, redis->object, ZEND_STRL("errCode"), redis->context->err);
+            zend_update_property_long(swoole_redis_coro_ce_ptr, redis->object, ZEND_STRL("errCode"), SW_REDIS_CONVERT_ERR(redis->context->err));
             zend_update_property_string(swoole_redis_coro_ce_ptr, redis->object, ZEND_STRL("errMsg"), redis->context->errstr);
         }
         break;
