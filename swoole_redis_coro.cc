@@ -902,6 +902,19 @@ enum {SW_REDIS_MODE_MULTI, SW_REDIS_MODE_PIPELINE};
 
 static void swoole_redis_coro_parse_result(swRedisClient *redis, zval* return_value, redisReply* reply);
 
+static bool swoole_redis_coro_close(zval *zobject)
+{
+    swRedisClient *redis = (swRedisClient *) swoole_get_object(zobject);
+    zend_update_property_bool(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("connected"), 0);
+    if (!redis || !redis->context)
+    {
+        return false;
+    }
+    redisFree(redis->context);
+    redis->context = NULL;
+    return true;
+}
+
 static void redis_request(swRedisClient *redis, int argc, char **argv, size_t *argvlen, zval *return_value)
 {
     if (redis->defer)
@@ -914,7 +927,7 @@ static void redis_request(swRedisClient *redis, int argc, char **argv, size_t *a
             ZVAL_FALSE(return_value);
             if (redis->context->err == REDIS_ERR_EOF)
             {
-                zend_update_property_bool(swoole_redis_coro_ce_ptr, redis->object, ZEND_STRL("connected"), 0);
+                swoole_redis_coro_close(redis->object);
             }
         }
         else
@@ -1762,17 +1775,7 @@ static PHP_METHOD(swoole_redis_coro, recv)
 
 static PHP_METHOD(swoole_redis_coro, close)
 {
-    swRedisClient *redis = (swRedisClient *) swoole_get_object(getThis());
-    if (!redis || !redis->context)
-    {
-        RETURN_FALSE;
-    }
-
-    redisFree(redis->context);
-    redis->context = NULL;
-    zend_update_property_bool(swoole_redis_coro_ce_ptr, getThis(), ZEND_STRL("connected"), 0);
-
-    RETURN_TRUE;
+    SW_CHECK_RETURN(swoole_redis_coro_close(getThis()) ? SW_OK : SW_ERR);
 }
 
 static PHP_METHOD(swoole_redis_coro, __destruct)
@@ -3851,7 +3854,7 @@ static PHP_METHOD(swoole_redis_coro, pSubscribe)
     {
         if (redis->context->err == REDIS_ERR_EOF)
         {
-            zend_update_property_bool(swoole_redis_coro_ce_ptr, getThis(), ZEND_STRL("connected"), 0);
+            swoole_redis_coro_close(getThis());
         }
         zend_update_property_long(swoole_redis_coro_ce_ptr,getThis(), ZEND_STRL("errCode"), redis->context->err);
         RETURN_FALSE;
@@ -3907,7 +3910,7 @@ static PHP_METHOD(swoole_redis_coro, subscribe)
     {
         if (redis->context->err == REDIS_ERR_EOF)
         {
-            zend_update_property_bool(swoole_redis_coro_ce_ptr, redis->object, ZEND_STRL("connected"), 0);
+            swoole_redis_coro_close(getThis());
         }
         zend_update_property_long(swoole_redis_coro_ce_ptr,getThis(), ZEND_STRL("errCode"), redis->context->err);
         RETURN_FALSE;
