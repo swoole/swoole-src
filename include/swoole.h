@@ -1519,9 +1519,9 @@ struct _swReactor
      */
     swArray *socket_array;
 
-    swReactor_handle handle[SW_MAX_FDTYPE];        //默认事件
-    swReactor_handle write_handle[SW_MAX_FDTYPE];  //扩展事件1(一般为写事件)
-    swReactor_handle error_handle[SW_MAX_FDTYPE];  //扩展事件2(一般为错误事件,如socket关闭)
+    swReactor_handle handle[SW_MAX_FDTYPE];        // default event
+    swReactor_handle write_handle[SW_MAX_FDTYPE];  // ext event 1 (maybe writable event)
+    swReactor_handle error_handle[SW_MAX_FDTYPE];  // ext event 2 (error event, maybe socket closed)
 
     int (*add)(swReactor *, int fd, int fdtype);
     int (*set)(swReactor *, int fd, int fdtype);

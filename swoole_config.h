@@ -40,11 +40,9 @@
 
 #define SW_MALLOC_TRIM_INTERVAL    1
 #define SW_MALLOC_TRIM_PAD         0
-#define SW_USE_EVENT_TIMER
-#define SW_USE_MONOTONIC_TIME
-//#define SW_USE_RINGBUFFER
+#define SW_USE_EVENT_TIMER         1
+#define SW_USE_MONOTONIC_TIME      1
 
-//#define SW_DEBUG_REMOTE_OPEN
 #define SW_DEBUG_SERVER_HOST       "127.0.0.1"
 #define SW_DEBUG_SERVER_PORT       9999
 
@@ -59,22 +57,17 @@
 #endif
 #define SW_SYSTEMD_FDS_START       3
 
-#define SW_GLOBAL_MEMORY_PAGESIZE  (1024*1024*2) //全局内存的分页
+#define SW_GLOBAL_MEMORY_PAGESIZE  (1024*1024*2) // global memory page
 
-#define SW_MAX_THREAD_NCPU         4 // n * cpu_num
+#define SW_MAX_THREAD_NCPU         4    // n * cpu_num
 #define SW_MAX_WORKER_NCPU         1000 // n * cpu_num
-#define SW_MAX_REQUEST             5000          //最大请求包数
 
 #define SW_HOST_MAXSIZE            104  // Linux has 108 UNIX_PATH_MAX, but BSD/MacOS limit is only 104
 
-//#define SW_DEBUG                 //debug
 #define SW_LOG_NO_SRCINFO          //no source info
-//#define SW_BUFFER_SIZE           65495 //65535 - 28 - 12(UDP最大包 - 包头 - 3个INT)
 #define SW_CLIENT_BUFFER_SIZE      65536
-//#define SW_CLIENT_RECV_AGAIN
 #define SW_CLIENT_DEFAULT_TIMEOUT  0.5
 #define SW_CLIENT_MAX_PORT         65535
-//#define SW_CLIENT_SOCKET_WAIT
 
 //!!!Don't modify.----------------------------------------------------------
 #ifdef __MACH__
@@ -99,7 +92,7 @@
 #define SW_SENDFILE_MAXLEN         4194304
 
 #define SW_HASHMAP_KEY_MAXLEN      256
-#define SW_HASHMAP_INIT_BUCKET_N   32  //hashmap初始化时创建32大小的桶
+#define SW_HASHMAP_INIT_BUCKET_N   32  // hashmap bucket num (default value for init)
 
 #define SW_DATA_EOF                "\r\n\r\n"
 #define SW_DATA_EOF_MAXLEN         8
@@ -112,22 +105,15 @@
 #define SW_AIO_EVENT_NUM                 128
 #define SW_AIO_DEFAULT_CHUNK_SIZE        65536
 #define SW_AIO_MAX_CHUNK_SIZE            1*1024*1024
-//#define SW_AIO_THREAD_USE_CHANNEL
 #define SW_AIO_MAX_EVENTS                128
 #define SW_AIO_HANDLER_MAX_SIZE          8
-//#define SW_THREADPOOL_USE_CHANNEL
 #define SW_THREADPOOL_QUEUE_LEN          10000
 #define SW_IP_MAX_LENGTH                 46
 
-//#define SW_USE_SOCKET_LINGER
-
-#define SW_WORKER_WAIT_TIMEOUT     1000
-//#define SW_WORKER_RECV_AGAIN
+#define SW_WORKER_WAIT_TIMEOUT           1000
 
 #define SW_WORKER_USE_SIGNALFD
-#define SW_WORKER_MAX_WAIT_TIME          30           //最大等待时间
-
-//#define SW_WORKER_SEND_CHUNK
+#define SW_WORKER_MAX_WAIT_TIME          30
 
 #define SW_REACTOR_SCHEDULE              2
 #define SW_REACTOR_MAXEVENTS             4096
@@ -137,23 +123,26 @@
 #define SW_MSGMAX                        65536
 
 /**
- * 最大Reactor线程数量，默认会启动CPU核数的线程数
- * 如果超过8核，默认启动8个线程
+ * The maximum number of Reactor threads
+ * the number of the CPU cores threads will be started by default
+ * number 8 is the maximum
  */
 #define SW_REACTOR_MAX_THREAD            8
 
 /**
- * 循环从管道中读取数据，有助于缓解管道缓存塞满问题，降低进程间通信的压力
+ * Loops read data from the pipeline,
+ * helping to alleviate pipeline cache congestion
+ * reduce the pressure of interprocess communication
  */
-#define SW_REACTOR_RECV_AGAIN
-#define SW_REACTOR_SYNC_SEND            //direct send
+#define SW_REACTOR_RECV_AGAIN            1
+#define SW_REACTOR_SYNC_SEND             1    // direct send
 
-#define SW_RINGQUEUE_LEN                 1024           //RingQueue队列长度
-
-//#define SW_USE_RINGQUEUE_TS            1     //使用线程安全版本的RingQueue
-#define SW_RINGBUFFER_FREE_N_MAX         4     //when free_n > MAX, execute collect
+/**
+ * RINGBUFFER
+ */
+#define SW_RINGQUEUE_LEN                 1024           // RingQueue队列长度
+#define SW_RINGBUFFER_FREE_N_MAX         4     // when free_n > MAX, execute collect
 #define SW_RINGBUFFER_WARNING            100
-//#define SW_RINGBUFFER_DEBUG
 
 /**
  * ringbuffer memory pool size
@@ -166,12 +155,14 @@
 #define SW_BACKLOG                       512
 
 /**
- * 是否循环accept，可以一次性处理完全部的listen队列，用于大量并发连接的场景
+ * Whether to cycle accept
+ * you can process the full listen queue in one time
+ * for a large number of concurrent connections
  */
 #define SW_ACCEPT_AGAIN                  1
 
 /**
- * 一次循环的最大accept次数
+ * max accept times for single time
  */
 #define SW_ACCEPT_MAX_COUNT              64
 
@@ -179,7 +170,7 @@
 #define SW_TCP_KEEPIDLE                  3600 //1 hour
 #define SW_TCP_KEEPINTERVAL              60
 
-#define SW_USE_EVENTFD                   //是否使用eventfd来做消息通知，需要Linux 2.6.22以上版本才会支持
+#define SW_USE_EVENTFD                   1 // Whether to use eventfd for message notification, Linux 2.6.22 or later is required to support
 
 #define SW_TASK_TMP_FILE                 "/tmp/swoole.task.XXXXXX"
 #define SW_TASK_TMPDIR_SIZE              128
