@@ -1474,29 +1474,38 @@ PHP_FUNCTION(swoole_coroutine_exec)
     swString_free(buffer);
 }
 
+static void coro_onDefer(void *data)
+{
+    php_defer_fci *defer_fci = (php_defer_fci *) data;
+    zval _retval, *retval = &_retval;
+
+    defer_fci->fci.retval = retval;
+    sw_fci_cache_discard(&defer_fci->fci_cache);
+    if (sw_call_function_anyway(&defer_fci->fci, &defer_fci->fci_cache) == FAILURE)
+    {
+        swoole_php_fatal_error(E_WARNING, "defer callback handler error.");
+        return;
+    }
+    zval_ptr_dtor(retval);
+    efree(defer_fci);
+}
+
 PHP_FUNCTION(swoole_coroutine_defer)
 {
+    zend_fcall_info fci = empty_fcall_info;
+    zend_fcall_info_cache fci_cache = empty_fcall_info_cache;
+    php_defer_fci *defer_fci;
+
     coro_check();
 
-    zval *callback;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &callback) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, -1)
+        Z_PARAM_FUNC(fci, fci_cache)
+        Z_PARAM_VARIADIC('*', fci.params, fci.param_count)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    char *func_name;
-    if (!sw_zend_is_callable(callback, 0, &func_name))
-    {
-        swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
-        efree(func_name);
-        RETURN_FALSE;
-    }
-    efree(func_name);
-
-    php_defer_callback *defer = (php_defer_callback *) emalloc(sizeof(php_defer_callback));
-    defer->callback = &defer->_callback;
-    memcpy(defer->callback, callback, sizeof(zval));
-    Z_TRY_ADDREF_P(callback);
-
-    sw_coro_add_defer_task(php_swoole_event_onDefer, defer);
+    defer_fci = (php_defer_fci *) emalloc(sizeof(php_defer_fci));
+    defer_fci->fci = fci;
+    defer_fci->fci_cache = fci_cache;
+    sw_fci_cache_persist(&defer_fci->fci_cache);
+    sw_coro_add_defer_task(coro_onDefer, defer_fci);
 }

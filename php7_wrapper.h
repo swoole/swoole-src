@@ -79,22 +79,6 @@ static sw_inline int sw_call_user_function_ex(HashTable *function_table, zval* o
     return call_user_function_ex(function_table, object_p, function_name, &_retval, param_count, param_count ? params : NULL, no_separation, ymbol_table);
 }
 
-static sw_inline int sw_call_user_function_anyway(zval *object_p, zval *function_name, zval *retval, uint32_t param_count, zval params[], int no_separation)
-{
-    zend_object* exception = EG(exception);
-    ZEND_ASSERT(retval);
-    if (exception)
-    {
-        EG(exception) = NULL;
-    }
-    int ret = call_user_function_ex(NULL, object_p, function_name, retval, param_count, param_count ? params : NULL, no_separation, NULL);
-    if (exception)
-    {
-        EG(exception) = exception;
-    }
-    return ret;
-}
-
 static sw_inline int sw_call_user_function_fast_ex(zval *function_name, zend_fcall_info_cache *fci_cache, zval *retval, uint32_t param_count, zval *params)
 {
     zend_fcall_info fci;
@@ -119,6 +103,48 @@ static sw_inline int sw_call_user_function_fast_ex(zval *function_name, zend_fca
     fci.no_separation = 0;
 
     return zend_call_function(&fci, fci_cache);
+}
+
+static sw_inline int sw_call_function_anyway(zend_fcall_info *fci, zend_fcall_info_cache *fci_cache)
+{
+    zend_object* exception = EG(exception);
+    ZEND_ASSERT(fci->retval);
+    if (exception)
+    {
+        EG(exception) = NULL;
+    }
+    int ret = zend_call_function(fci, fci_cache);
+    if (exception)
+    {
+        EG(exception) = exception;
+    }
+    return ret;
+}
+
+static sw_inline void sw_fci_cache_persist(zend_fcall_info_cache *fci_cache)
+{
+    if (fci_cache->object)
+    {
+        GC_ADDREF(fci_cache->object);
+    }
+    if (fci_cache->function_handler->op_array.fn_flags & ZEND_ACC_CLOSURE)
+    {
+        GC_ADDREF(ZEND_CLOSURE_OBJECT(fci_cache->function_handler));
+    }
+}
+
+static sw_inline void sw_fci_cache_discard(zend_fcall_info_cache *fci_cache)
+{
+    if (fci_cache->object)
+    {
+        ZEND_ASSERT(GC_REFCOUNT(fci_cache->object) != 1);
+        GC_DELREF(fci_cache->object);
+    }
+    if (fci_cache->function_handler->op_array.fn_flags & ZEND_ACC_CLOSURE)
+    {
+        ZEND_ASSERT(GC_REFCOUNT(ZEND_CLOSURE_OBJECT(fci_cache->function_handler)) != 1);
+        GC_DELREF(ZEND_CLOSURE_OBJECT(fci_cache->function_handler));
+    }
 }
 
 #define SW_MAKE_STD_ZVAL(p) zval _##p; p = &(_##p); ZVAL_NULL(p)

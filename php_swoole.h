@@ -249,6 +249,12 @@ typedef struct
     zval _callback;
     zval *callback;
 } php_defer_callback;
+
+typedef struct
+{
+    zend_fcall_info fci;
+    zend_fcall_info_cache fci_cache;
+} php_defer_fci;
 //---------------------------------------------------------
 #define php_swoole_socktype(type)           (type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP) & (~SW_SOCK_SSL))
 #define php_swoole_array_length(array)      zend_hash_num_elements(Z_ARRVAL_P(array))
