@@ -455,7 +455,6 @@ void php_swoole_event_init();
 void php_swoole_event_wait();
 void php_swoole_event_exit();
 long php_swoole_add_timer(int ms, zval *callback, zval *param, int persistent);
-void php_swoole_clear_all_timer();
 void php_swoole_register_callback(swServer *serv);
 void php_swoole_trace_check(void *arg);
 void php_swoole_client_free(zval *zobject, swClient *cli);

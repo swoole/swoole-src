@@ -270,10 +270,6 @@ void php_swoole_event_wait()
             }
             SW_SET_EG_SCOPE(scope);
         }
-        if (SwooleG.timer.map)
-        {
-            php_swoole_clear_all_timer();
-        }
         SwooleWG.reactor_exit = 1;
     }
 }

@@ -374,11 +374,8 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
                         }
                         else
                         {
-                            char buf[32];
-                            swoole_error_log(
-                                SW_LOG_WARNING, SW_ERROR_UNREGISTERED_SIGNAL,
-                                SW_UNREGISTERED_SIGNAL_FMT, swSignal_str(sw_signal->signo, SW_STRS(buf))
-                            );
+                            swoole_error_log(SW_LOG_WARNING, SW_ERROR_UNREGISTERED_SIGNAL, SW_UNREGISTERED_SIGNAL_FMT,
+                                    swSignal_str(sw_signal->signo));
                         }
                     }
                 }

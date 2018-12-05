@@ -21,9 +21,9 @@ $pm->parentFunc = function () use ($pm) {
     usleep(100 * 1000);
     for ($n = $random; $n--;) {
         Swoole\Process::kill($pid, SIGUSR1);
-        usleep(100 * 1000);
+        usleep(500 * 1000);
         Swoole\Process::kill($pid, SIGUSR2);
-        usleep(100 * 1000);
+        usleep(500 * 1000);
     }
 
     /**@var $counter Swoole\Atomic[] */
@@ -54,7 +54,7 @@ $pm->childFunc = function () use ($pm) {
         'worker_num' => $worker_num,
         'task_worker_num' => $task_worker_num
     ]);
-    $server->on('Start', function () use ($pm) {
+    $server->on('ManagerStart', function () use ($pm) {
         $pm->wakeup();
     });
     $server->on('WorkerStart', function (Swoole\Server $server, int $worker_id) use ($pm) {
