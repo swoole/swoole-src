@@ -1480,13 +1480,13 @@ static void coro_onDefer(void *data)
     zval _retval, *retval = &_retval;
 
     defer_fci->fci.retval = retval;
-    sw_fci_cache_discard(&defer_fci->fci_cache);
     if (sw_call_function_anyway(&defer_fci->fci, &defer_fci->fci_cache) == FAILURE)
     {
         swoole_php_fatal_error(E_WARNING, "defer callback handler error.");
         return;
     }
     zval_ptr_dtor(retval);
+    sw_fci_cache_discard(&defer_fci->fci_cache);
     efree(defer_fci);
 }
 
