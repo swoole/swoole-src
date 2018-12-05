@@ -385,6 +385,7 @@ long sw_coro_create(zend_fcall_info_cache *fci_cache, int argc, zval *argv)
         {
             swoole_php_fatal_error(E_WARNING, "Using Xdebug in coroutines is extremely dangerous, please notice that it may lead to coredump!");
         }
+        sw_enable_coroutine_hook(SW_HOOK_ALL);
         COROG.active = 1;
     }
     if (unlikely(COROG.coro_num >= COROG.max_coro_num))

@@ -17,6 +17,20 @@ typedef enum
     SW_CORO_CONTEXT_TERM
 } php_context_state;
 
+enum sw_coro_hook_type
+{
+    SW_HOOK_FILE = 1u << 1,
+    SW_HOOK_SLEEP = 1u << 2,
+    SW_HOOK_TCP = 1u << 3,
+    SW_HOOK_UDP = 1u << 4,
+    SW_HOOK_UNIX = 1u << 5,
+    SW_HOOK_UDG = 1u << 6,
+    SW_HOOK_SSL = 1u << 7,
+    SW_HOOK_TLS = 1u << 8,
+    SW_HOOK_BLOCKING_FUNCTION = 1u << 9,
+    SW_HOOK_ALL = 0x7fffffff,
+};
+
 struct defer_task
 {
     swCallback callback;
@@ -103,4 +117,5 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
 void sw_coro_save(zval *return_value, php_context *sw_php_context);
 void sw_coro_set_stack_size(int stack_size);
 
-
+bool sw_enable_coroutine_hook(int flags);
+bool sw_disable_coroutine_hook();
