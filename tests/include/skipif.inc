@@ -54,10 +54,11 @@ function skip_if_no_ssl()
     }
 }
 
-function skip_if_no_async_redis()
+function skip_if_no_redis_unix_socket()
 {
-    if (!class_exists("swoole_redis", false)) {
-        skip('no async redis');
+    require_once __DIR__ . '/config.php';
+    if (!file_exists(REDIS_SERVER_PATH)) {
+        skip('cannot found redis server unix socket on ' . REDIS_SERVER_PATH);
     }
 }
 
@@ -148,9 +149,7 @@ function skip_deprecated()
 (function () {
     if (preg_match('#\/(swoole_[^\/]+)\/#', $_SERVER['SCRIPT_FILENAME'], $dir)) {
         $dir = $dir[1];
-        if (stripos($dir, 'redis') !== false) {
-            skip_if_no_async_redis();
-        } elseif (stripos($dir, 'http2') !== false) {
+        if (stripos($dir, 'http2') !== false) {
             skip_if_no_http2();
         }
         skip_php_version_lower_than('7.0');

@@ -34,9 +34,9 @@ go(
         $redis->connect('127.0.0.1', $port);
         for ($i = 0; $i < N; $i++) {
             $val = $redis->psubscribe(['test.*']);
-            assert($val == false);
-            assert($redis->connected == false);
-            assert($redis->errCode == 3);
+            assert($val === false);
+            assert($redis->connected === false);
+            assert($redis->errCode === ($i === 0 ? SWOOLE_REDIS_ERR_EOF : SWOOLE_REDIS_ERR_CLOSED));
         }
         $redis->close();
     }

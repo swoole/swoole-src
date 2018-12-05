@@ -34,23 +34,23 @@
 #define SW_REDIS_COMMAND_BUFFER_SIZE   64
 #define SW_BITOP_MIN_OFFSET 0
 #define SW_BITOP_MAX_OFFSET 4294967295
-#define SW_REDIS_NOT_FOUND 0
-#define SW_REDIS_STRING    1
-#define SW_REDIS_SET       2
-#define SW_REDIS_LIST      3
-#define SW_REDIS_ZSET      4
-#define SW_REDIS_HASH      5
+#define SW_REDIS_TYPE_NOT_FOUND 0
+#define SW_REDIS_TYPE_STRING    1
+#define SW_REDIS_TYPE_SET       2
+#define SW_REDIS_TYPE_LIST      3
+#define SW_REDIS_TYPE_ZSET      4
+#define SW_REDIS_TYPE_HASH      5
 /* the same errCode define with hiredis */
 enum swRedisError
 {
-    SW_REDIS_ERR_IO = 1,     /* Error in read or write */
-    SW_REDIS_ERR_OTHER = 2,  /* Everything else... */
-    SW_REDIS_ERR_EOF = 3,    /* End of file */
-    SW_REDIS_ERR_PROTOCOL = 4, /* Protocol error */
-    SW_REDIS_ERR_OOM = 5,  /* Out of memory */
-    SW_REDIS_ERR_CLOSED = 6, /* Closed */
-    SW_REDIS_ERR_NOAUTH = 7, /* Authentication required */
-    SW_REDIS_ERR_ALLOC = 8,
+    SW_REDIS_ERR_IO = -1,     /* Error in read or write */
+    SW_REDIS_ERR_OTHER = -2,  /* Everything else... */
+    SW_REDIS_ERR_EOF = -3,    /* End of file */
+    SW_REDIS_ERR_PROTOCOL = -4, /* Protocol error */
+    SW_REDIS_ERR_OOM = -5,  /* Out of memory */
+    SW_REDIS_ERR_CLOSED = -6, /* Closed */
+    SW_REDIS_ERR_NOAUTH = -7, /* Authentication required */
+    SW_REDIS_ERR_ALLOC = -8,
 };
 
 /* Extended SET argument detection */
@@ -807,6 +807,8 @@ ZEND_END_ARG_INFO()
 #define IS_EX_PX_ARG(a) (IS_EX_ARG(a) || IS_PX_ARG(a))
 #define IS_NX_XX_ARG(a) (IS_NX_ARG(a) || IS_XX_ARG(a))
 
+#define SW_REDIS_CONVERT_ERR(err) ((err>0?-err:err) == SW_REDIS_ERR_IO ? errno : (err>0?-err:err))
+
 #define SW_REDIS_COMMAND_CHECK \
     coro_check();\
     swRedisClient *redis = (swRedisClient *) swoole_get_object(getThis()); \
@@ -902,32 +904,49 @@ enum {SW_REDIS_MODE_MULTI, SW_REDIS_MODE_PIPELINE};
 
 static void swoole_redis_coro_parse_result(swRedisClient *redis, zval* return_value, redisReply* reply);
 
+static bool swoole_redis_coro_close(zval *zobject)
+{
+    swRedisClient *redis = (swRedisClient *) swoole_get_object(zobject);
+    swTraceLog(SW_TRACE_REDIS_CLIENT, "redis connection closed, fd=%d", redis->context->fd);
+    zend_update_property_bool(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("connected"), 0);
+    if (!redis || !redis->context)
+    {
+        return false;
+    }
+    redisFree(redis->context);
+    redis->context = NULL;
+    return true;
+}
+
 static void redis_request(swRedisClient *redis, int argc, char **argv, size_t *argvlen, zval *return_value)
 {
+    redisReply *reply = nullptr;
+    // must clear err before request
+    redis->context->err = 0;
     if (redis->defer)
     {
         if (redisAppendCommandArgv(redis->context, argc, (const char **) argv, (const size_t *) argvlen) == REDIS_ERR)
         {
-            _error: zend_update_property_long(swoole_redis_coro_ce_ptr, redis->object, ZEND_STRL("errCode"), redis->context->err);
-            zend_update_property_string(swoole_redis_coro_ce_ptr, redis->object, ZEND_STRL("errMsg"), redis->context->errstr);
-            ZVAL_FALSE(return_value);
-            if (redis->context->err == REDIS_ERR_EOF)
-            {
-                zend_update_property_bool(swoole_redis_coro_ce_ptr, redis->object, ZEND_STRL("connected"), 0);
-            }
+            goto _error;
         }
         else
         {
             ZVAL_TRUE(return_value);
-            redis->context->err = 0;
         }
     }
     else
     {
-        redisReply *reply = (redisReply *) redisCommandArgv(redis->context, argc, (const char **) argv, (const size_t *) argvlen);
+        reply = (redisReply *) redisCommandArgv(redis->context, argc, (const char **) argv, (const size_t *) argvlen);
         if (reply == nullptr)
         {
-            goto _error;
+            _error:
+            zend_update_property_long(swoole_redis_coro_ce_ptr, redis->object, ZEND_STRL("errCode"), SW_REDIS_CONVERT_ERR(redis->context->err));
+            zend_update_property_string(swoole_redis_coro_ce_ptr, redis->object, ZEND_STRL("errMsg"), redis->context->errstr);
+            ZVAL_FALSE(return_value);
+            if (redis->context->err == REDIS_ERR_EOF)
+            {
+                swoole_redis_coro_close(redis->object);
+            }
         }
         else
         {
@@ -935,7 +954,6 @@ static void redis_request(swRedisClient *redis, int argc, char **argv, size_t *a
             zend_update_property_string(swoole_redis_coro_ce_ptr, redis->object, ZEND_STRL("errMsg"), "");
             swoole_redis_coro_parse_result(redis, return_value, reply);
             freeReplyObject(reply);
-            redis->context->err = 0;
         }
     }
     int i;
@@ -962,12 +980,12 @@ static sw_inline void sw_redis_command_var_key(INTERNAL_FUNCTION_PARAMETERS, con
     if(argc < min_argc) {
         RETURN_FALSE;
     }
+    SW_REDIS_COMMAND_CHECK
     SW_REDIS_COMMAND_ALLOC_ARGS_ARR
     if(argc == 0 || zend_get_parameters_array(ht, argc, z_args) == FAILURE) {
         efree(z_args);
         RETURN_FALSE;
     }
-    SW_REDIS_COMMAND_CHECK
     zend_bool single_array = 0;
     if(has_timeout == 0) {
         single_array = argc==1 && SW_REDIS_COMMAND_ARGS_TYPE(z_args[0])==IS_ARRAY;
@@ -1051,13 +1069,12 @@ static inline void sw_redis_command_key(INTERNAL_FUNCTION_PARAMETERS, const char
 static sw_inline void sw_redis_command_key_var_val(INTERNAL_FUNCTION_PARAMETERS, const char *cmd, int cmd_len)
 {
     int argc = ZEND_NUM_ARGS();
-
     // We at least need a key and one value
     if (argc < 2)
     {
         RETURN_FALSE;
     }
-
+    SW_REDIS_COMMAND_CHECK
     // Make sure we at least have a key, and we can get other args
     SW_REDIS_COMMAND_ALLOC_ARGS_ARR
     if (zend_get_parameters_array(ht, argc, z_args) == FAILURE)
@@ -1065,8 +1082,6 @@ static sw_inline void sw_redis_command_key_var_val(INTERNAL_FUNCTION_PARAMETERS,
         efree(z_args);
         RETURN_FALSE;
     }
-
-    SW_REDIS_COMMAND_CHECK
 
     int i = 0, j;
     argc++;
@@ -1588,14 +1603,24 @@ void swoole_redis_coro_init(int module_number)
     zend_declare_property_long(swoole_redis_coro_ce_ptr, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_string(swoole_redis_coro_ce_ptr, ZEND_STRL("errMsg"), "", ZEND_ACC_PUBLIC);
 
-    REGISTER_LONG_CONSTANT("SWOOLE_REDIS_MODE_MULTI", SW_REDIS_MODE_MULTI, CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("SWOOLE_REDIS_MODE_PIPELINE", SW_REDIS_MODE_PIPELINE, CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("SWOOLE_REDIS_TYPE_NOT_FOUND", SW_REDIS_NOT_FOUND, CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("SWOOLE_REDIS_TYPE_STRING", SW_REDIS_STRING, CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("SWOOLE_REDIS_TYPE_SET", SW_REDIS_SET, CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("SWOOLE_REDIS_TYPE_LIST", SW_REDIS_LIST, CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("SWOOLE_REDIS_TYPE_ZSET", SW_REDIS_ZSET, CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("SWOOLE_REDIS_TYPE_HASH", SW_REDIS_HASH, CONST_CS | CONST_PERSISTENT);
+    SWOOLE_DEFINE(REDIS_MODE_MULTI);
+    SWOOLE_DEFINE(REDIS_MODE_PIPELINE);
+
+    SWOOLE_DEFINE(REDIS_TYPE_NOT_FOUND);
+    SWOOLE_DEFINE(REDIS_TYPE_STRING);
+    SWOOLE_DEFINE(REDIS_TYPE_SET);
+    SWOOLE_DEFINE(REDIS_TYPE_LIST);
+    SWOOLE_DEFINE(REDIS_TYPE_ZSET);
+    SWOOLE_DEFINE(REDIS_TYPE_HASH);
+
+    SWOOLE_DEFINE(REDIS_ERR_IO);
+    SWOOLE_DEFINE(REDIS_ERR_OTHER);
+    SWOOLE_DEFINE(REDIS_ERR_EOF);
+    SWOOLE_DEFINE(REDIS_ERR_PROTOCOL);
+    SWOOLE_DEFINE(REDIS_ERR_OOM);
+    SWOOLE_DEFINE(REDIS_ERR_CLOSED);
+    SWOOLE_DEFINE(REDIS_ERR_NOAUTH);
+    SWOOLE_DEFINE(REDIS_ERR_ALLOC);
 }
 
 static PHP_METHOD(swoole_redis_coro, __construct)
@@ -1699,21 +1724,18 @@ static PHP_METHOD(swoole_redis_coro, connect)
 
     if (context->err)
     {
-        zend_update_property_long(swoole_redis_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), context->err);
+        zend_update_property_long(swoole_redis_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), SW_REDIS_CONVERT_ERR(context->err));
         zend_update_property_string(swoole_redis_coro_ce_ptr, getThis(), ZEND_STRL("errMsg"), context->errstr);
-        redisFree(redis->context);
-        redis->context = NULL;
         RETURN_FALSE;
     }
 
     swSetNonBlock(context->fd);
-
-    zend_update_property_long(swoole_redis_coro_ce_ptr, getThis(), ZEND_STRL("sock"), context->fd);
-    zend_update_property_bool(swoole_redis_coro_ce_ptr, getThis(), ZEND_STRL("connected"), 1);
     redis->context = context;
 
     zend_update_property_string(swoole_redis_coro_ce_ptr, getThis(), ZEND_STRL("host"), host);
     zend_update_property_long(swoole_redis_coro_ce_ptr, getThis(), ZEND_STRL("port"), port);
+    zend_update_property_long(swoole_redis_coro_ce_ptr, getThis(), ZEND_STRL("sock"), context->fd);
+    zend_update_property_bool(swoole_redis_coro_ce_ptr, getThis(), ZEND_STRL("connected"), 1);
 
     RETURN_TRUE;
 }
@@ -1742,7 +1764,7 @@ static PHP_METHOD(swoole_redis_coro, setDefer)
 
 static PHP_METHOD(swoole_redis_coro, recv)
 {
-    swRedisClient *redis = (swRedisClient *) swoole_get_object(getThis());
+    SW_REDIS_COMMAND_CHECK
 
     if (!redis->defer)
     {
@@ -1764,17 +1786,7 @@ static PHP_METHOD(swoole_redis_coro, recv)
 
 static PHP_METHOD(swoole_redis_coro, close)
 {
-    swRedisClient *redis = (swRedisClient *) swoole_get_object(getThis());
-    if (!redis || !redis->context)
-    {
-        RETURN_FALSE;
-    }
-
-    redisFree(redis->context);
-    redis->context = NULL;
-    zend_update_property_bool(swoole_redis_coro_ce_ptr, getThis(), ZEND_STRL("connected"), 0);
-
-    RETURN_TRUE;
+    SW_CHECK_RETURN(swoole_redis_coro_close(getThis()) ? SW_OK : SW_ERR);
 }
 
 static PHP_METHOD(swoole_redis_coro, __destruct)
@@ -1790,15 +1802,7 @@ static PHP_METHOD(swoole_redis_coro, __destruct)
     }
     if (redis->context)
     {
-        swTraceLog(SW_TRACE_REDIS_CLIENT, "close connection, fd=%d", redis->context->fd);
-
-        zval *retval = NULL;
-        zval *zobject = getThis();
-        sw_zend_call_method_with_0_params(&zobject, swoole_redis_coro_ce_ptr, NULL, "close", &retval);
-        if (retval)
-        {
-            zval_ptr_dtor(retval);
-        }
+        swoole_redis_coro_close(getThis());
     }
     swoole_set_object(getThis(), NULL);
     efree(redis);
@@ -2113,12 +2117,12 @@ static PHP_METHOD(swoole_redis_coro, hSetNx)
 static PHP_METHOD(swoole_redis_coro, hDel)
 {
     int argc = ZEND_NUM_ARGS();
+    SW_REDIS_COMMAND_CHECK
     SW_REDIS_COMMAND_ALLOC_ARGS_ARR
     if(argc < 2 || zend_get_parameters_array(ht, argc, z_args) == FAILURE) {
         efree(z_args);
         RETURN_FALSE;
     }
-    SW_REDIS_COMMAND_CHECK
     argc++;
     int i = 0, j;
     SW_REDIS_COMMAND_ALLOC_ARGV
@@ -2322,14 +2326,13 @@ static PHP_METHOD(swoole_redis_coro, bRPopLPush)
 static PHP_METHOD(swoole_redis_coro, blPop)
 {
     int argc = ZEND_NUM_ARGS();
-
+    SW_REDIS_COMMAND_CHECK
     SW_REDIS_COMMAND_ALLOC_ARGS_ARR
     if(zend_get_parameters_array(ht, argc, z_args) == FAILURE || argc < 1)
     {
         efree(z_args);
         return;
     }
-    SW_REDIS_COMMAND_CHECK
 
     zend_bool single_array = 0;
     if (argc == 2 && SW_REDIS_COMMAND_ARGS_TYPE(z_args[0]) == IS_ARRAY)
@@ -2375,14 +2378,13 @@ static PHP_METHOD(swoole_redis_coro, blPop)
 static PHP_METHOD(swoole_redis_coro, brPop)
 {
     int argc = ZEND_NUM_ARGS();
-
+    SW_REDIS_COMMAND_CHECK
     SW_REDIS_COMMAND_ALLOC_ARGS_ARR
     if(zend_get_parameters_array(ht, argc, z_args) == FAILURE || argc < 1)
     {
         efree(z_args);
         return;
     }
-    SW_REDIS_COMMAND_CHECK
 
     zend_bool single_array = 0;
     if (argc == 2 && SW_REDIS_COMMAND_ARGS_TYPE(z_args[0]) == IS_ARRAY)
@@ -2577,7 +2579,7 @@ static PHP_METHOD(swoole_redis_coro, pfadd)
 static PHP_METHOD(swoole_redis_coro, pfcount)
 {
     int argc = ZEND_NUM_ARGS();
-
+    SW_REDIS_COMMAND_CHECK
     SW_REDIS_COMMAND_ALLOC_ARGS_ARR
     if(zend_get_parameters_array(ht, argc, z_args) == FAILURE || argc != 1)
     {
@@ -2592,7 +2594,6 @@ static PHP_METHOD(swoole_redis_coro, pfcount)
         single_array = 1;
     }
 
-    SW_REDIS_COMMAND_CHECK
     argc += 1;
     int i = 0;
     SW_REDIS_COMMAND_ALLOC_ARGV
@@ -3346,7 +3347,7 @@ static PHP_METHOD(swoole_redis_coro, zIncrBy)
 static PHP_METHOD(swoole_redis_coro, zAdd)
 {
     int argc = ZEND_NUM_ARGS();
-
+    SW_REDIS_COMMAND_CHECK
     SW_REDIS_COMMAND_ALLOC_ARGS_ARR
     if (zend_get_parameters_array(ht, argc, z_args) == FAILURE)
     {
@@ -3363,7 +3364,6 @@ static PHP_METHOD(swoole_redis_coro, zAdd)
         efree(z_args);
         RETURN_FALSE;
     }
-    SW_REDIS_COMMAND_CHECK
 
     int i = 0, j, k, valid_params;
     valid_params = argc - 1;
@@ -3745,7 +3745,7 @@ static PHP_METHOD(swoole_redis_coro, bitCount)
 static PHP_METHOD(swoole_redis_coro, bitOp)
 {
     int argc = ZEND_NUM_ARGS();
-
+    SW_REDIS_COMMAND_CHECK
     SW_REDIS_COMMAND_ALLOC_ARGS_ARR
     if(zend_get_parameters_array(ht, argc, z_args) == FAILURE ||
        argc < 3 || SW_REDIS_COMMAND_ARGS_TYPE(z_args[0]) != IS_STRING)
@@ -3753,8 +3753,6 @@ static PHP_METHOD(swoole_redis_coro, bitOp)
         efree(z_args);
         return;
     }
-
-    SW_REDIS_COMMAND_CHECK
 
     int j, i = 0;
     argc++;
@@ -3859,9 +3857,9 @@ static PHP_METHOD(swoole_redis_coro, pSubscribe)
     {
         if (redis->context->err == REDIS_ERR_EOF)
         {
-            zend_update_property_bool(swoole_redis_coro_ce_ptr, getThis(), ZEND_STRL("connected"), 0);
+            swoole_redis_coro_close(getThis());
         }
-        zend_update_property_long(swoole_redis_coro_ce_ptr,getThis(), ZEND_STRL("errCode"), redis->context->err);
+        zend_update_property_long(swoole_redis_coro_ce_ptr,getThis(), ZEND_STRL("errCode"), SW_REDIS_CONVERT_ERR(redis->context->err));
         RETURN_FALSE;
     }
 }
@@ -3915,9 +3913,9 @@ static PHP_METHOD(swoole_redis_coro, subscribe)
     {
         if (redis->context->err == REDIS_ERR_EOF)
         {
-            zend_update_property_bool(swoole_redis_coro_ce_ptr, redis->object, ZEND_STRL("connected"), 0);
+            swoole_redis_coro_close(getThis());
         }
-        zend_update_property_long(swoole_redis_coro_ce_ptr,getThis(), ZEND_STRL("errCode"), redis->context->err);
+        zend_update_property_long(swoole_redis_coro_ce_ptr,getThis(), ZEND_STRL("errCode"), SW_REDIS_CONVERT_ERR(redis->context->err));
         RETURN_FALSE;
     }
 }
@@ -4066,7 +4064,7 @@ static PHP_METHOD(swoole_redis_coro, script)
     {
         RETURN_FALSE
     }
-
+    SW_REDIS_COMMAND_CHECK
     SW_REDIS_COMMAND_ALLOC_ARGS_ARR
     if (zend_get_parameters_array(ht, argc, z_args) == FAILURE || SW_REDIS_COMMAND_ARGS_TYPE(z_args[0]) != IS_STRING)
     {
@@ -4074,7 +4072,6 @@ static PHP_METHOD(swoole_redis_coro, script)
         RETURN_FALSE;
     }
 
-    SW_REDIS_COMMAND_CHECK
     int i = 0;
     if (!strcasecmp(SW_REDIS_COMMAND_ARGS_STRVAL(z_args[0]), "flush")
             || !strcasecmp(SW_REDIS_COMMAND_ARGS_STRVAL(z_args[0]), "kill"))
@@ -4168,7 +4165,7 @@ static void swoole_redis_coro_parse_result(swRedisClient *redis, zval* return_va
             size_t str_len = strlen(reply->str);
             memcpy(redis->context->errstr, reply->str, MIN(str_len, sizeof(redis->context->errstr)-1));
         }
-        zend_update_property_long(swoole_redis_coro_ce_ptr, redis->object, ZEND_STRL("errCode"), redis->context->err);
+        zend_update_property_long(swoole_redis_coro_ce_ptr, redis->object, ZEND_STRL("errCode"), SW_REDIS_CONVERT_ERR(redis->context->err));
         zend_update_property_string(swoole_redis_coro_ce_ptr, redis->object, ZEND_STRL("errMsg"), redis->context->errstr);
         break;
 
@@ -4185,27 +4182,27 @@ static void swoole_redis_coro_parse_result(swRedisClient *redis, zval* return_va
                 long l;
                 if (strncmp(reply->str, "string", 6) == 0)
                 {
-                    l = SW_REDIS_STRING;
+                    l = SW_REDIS_TYPE_STRING;
                 }
                 else if (strncmp(reply->str, "set", 3) == 0)
                 {
-                    l = SW_REDIS_SET;
+                    l = SW_REDIS_TYPE_SET;
                 }
                 else if (strncmp(reply->str, "list", 4) == 0)
                 {
-                    l = SW_REDIS_LIST;
+                    l = SW_REDIS_TYPE_LIST;
                 }
                 else if (strncmp(reply->str, "zset", 4) == 0)
                 {
-                    l = SW_REDIS_ZSET;
+                    l = SW_REDIS_TYPE_ZSET;
                 }
                 else if (strncmp(reply->str, "hash", 4) == 0)
                 {
-                    l = SW_REDIS_HASH;
+                    l = SW_REDIS_TYPE_HASH;
                 }
                 else
                 {
-                    l = SW_REDIS_NOT_FOUND;
+                    l = SW_REDIS_TYPE_NOT_FOUND;
                 }
                 ZVAL_LONG(return_value, l);
             }
@@ -4216,7 +4213,7 @@ static void swoole_redis_coro_parse_result(swRedisClient *redis, zval* return_va
         }
         else
         {
-            zend_update_property_long(swoole_redis_coro_ce_ptr, redis->object, ZEND_STRL("errCode"), redis->context->err);
+            zend_update_property_long(swoole_redis_coro_ce_ptr, redis->object, ZEND_STRL("errCode"), SW_REDIS_CONVERT_ERR(redis->context->err));
             zend_update_property_string(swoole_redis_coro_ce_ptr, redis->object, ZEND_STRL("errMsg"), redis->context->errstr);
         }
         break;

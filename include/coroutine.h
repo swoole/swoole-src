@@ -22,17 +22,20 @@
 #include <string>
 #include <unordered_map>
 
-#define DEFAULT_MAX_CORO_NUM 3000
-#define DEFAULT_STACK_SIZE   8192
-#define MAX_CORO_NUM_LIMIT   0x80000
+#define SW_DEFAULT_MAX_CORO_NUM      3000
+#define SW_DEFAULT_STACK_SIZE        8192
+#define SW_DEFAULT_SOCKET_TIMEOUT    -1
 
-#define CORO_END 0
-#define CORO_LIMIT -1
-#define CORO_INVALID -2
+#define CORO_END         0
+#define CORO_LIMIT      -1
+#define CORO_INVALID    -2
 
 typedef enum
 {
-    SW_CORO_INIT = 0, SW_CORO_WAITING, SW_CORO_RUNNING, SW_CORO_END,
+    SW_CORO_INIT = 0,
+    SW_CORO_WAITING,
+    SW_CORO_RUNNING,
+    SW_CORO_END,
 } sw_coro_state;
 
 typedef void (*coro_php_create_t)();

@@ -180,8 +180,9 @@ static sw_inline void php_coro_og_close(coro_task *task)
 
 void coro_init(void)
 {
-    COROG.max_coro_num = DEFAULT_MAX_CORO_NUM;
-    COROG.stack_size = DEFAULT_STACK_SIZE;
+    COROG.max_coro_num = SW_DEFAULT_MAX_CORO_NUM;
+    COROG.stack_size = SW_DEFAULT_STACK_SIZE;
+    COROG.socket_timeout = SW_DEFAULT_SOCKET_TIMEOUT;
     coroutine_set_onYield(internal_coro_yield);
     coroutine_set_onResume(internal_coro_resume);
     coroutine_set_onClose(sw_coro_close);
@@ -446,7 +447,7 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
 
     task->co->resume_naked();
 
-    if (unlikely(EG(exception)))
+    if (UNEXPECTED(EG(exception)))
     {
         if (retval)
         {

@@ -1126,7 +1126,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
         args[0] = *zrequest_object;
         args[1] = *zresponse_object;
 
-        if (SwooleG.enable_coroutine && conn->websocket_status != WEBSOCKET_STATUS_HANDSHAKE)
+        if (SwooleG.enable_coroutine)
         {
             if (sw_coro_create(fci_cache, 2, args) < 0)
             {
@@ -1140,18 +1140,6 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
             if (sw_call_user_function_fast_ex(NULL, fci_cache, retval, 2, args) == FAILURE)
             {
                 swoole_php_error(E_WARNING, "Http onRequest handler error.");
-            }
-            else
-            {
-                //websocket user handshake
-                if (conn->websocket_status == WEBSOCKET_STATUS_HANDSHAKE)
-                {
-                    //handshake success
-                    if (Z_BVAL_P(retval))
-                    {
-                        conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
-                    }
-                }
             }
             zval_ptr_dtor(retval);
         }
@@ -2605,7 +2593,10 @@ static PHP_METHOD(swoole_http_response, __destruct)
         }
         else
         {
-            context->response.status = 500;
+            if (context->response.status == 0)
+            {
+                context->response.status = 500;
+            }
 
             zval *zobject = getThis();
             zval *retval = NULL;

@@ -223,6 +223,7 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
     if (!http)
     {
         http = http_client_create(zobject);
+        http->timeout = COROG.socket_timeout;
     }
 
     if (!hcc->socket)
@@ -296,6 +297,7 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
             php_swoole_client_coro_check_setting(hcc->socket, zset);
         }
 
+        hcc->socket->set_timeout(SW_HTTP_CONNECT_TIMEOUT, true);
         if (!hcc->socket->connect(addr, http->port))
         {
             zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), hcc->socket->errCode);

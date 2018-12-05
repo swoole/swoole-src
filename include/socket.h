@@ -76,9 +76,21 @@ public:
         return 0;
     }
 
-    inline void set_timeout(double timeout)
+    inline void set_timeout(double timeout, bool temp = false)
     {
-        _timeout = timeout;
+        if (temp)
+        {
+            _timeout_temp = timeout;
+        }
+        else
+        {
+            _timeout = timeout;
+        }
+    }
+
+    inline void set_timeout(struct timeval *timeout)
+    {
+        set_timeout((double) timeout->tv_sec + ((double) timeout->tv_usec / 1000 / 1000));
     }
 
     inline swString* get_buffer()
@@ -88,11 +100,6 @@ public:
             buffer = swString_new(SW_BUFFER_SIZE_STD);
         }
         return buffer;
-    }
-
-    inline void set_timeout(struct timeval *timeout)
-    {
-        set_timeout((double) timeout->tv_sec + ((double) timeout->tv_usec / 1000 / 1000));
     }
 
     inline int get_fd()
@@ -112,6 +119,7 @@ protected:
         read_co = nullptr;
         write_co = nullptr;
         _timeout = 0;
+        _timeout_temp = 0;
         _port = 0;
         errCode = 0;
         errMsg = nullptr;
@@ -244,6 +252,7 @@ public:
     int _sock_type;
     int _sock_domain;
     double _timeout;
+    double _timeout_temp;
     int _backlog;
     bool _closed;
     int errCode;

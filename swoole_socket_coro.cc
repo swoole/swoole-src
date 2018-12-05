@@ -248,7 +248,7 @@ static PHP_METHOD(swoole_socket_coro, listen)
 
 static PHP_METHOD(swoole_socket_coro, accept)
 {
-    double timeout = -1;
+    double timeout = COROG.socket_timeout;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
@@ -280,7 +280,7 @@ static PHP_METHOD(swoole_socket_coro, recv)
     coro_check();
 
     zend_long length = SW_BUFFER_SIZE_BIG;
-    double timeout = -1;
+    double timeout = COROG.socket_timeout;
 
     ZEND_PARSE_PARAMETERS_START(0, 2)
         Z_PARAM_OPTIONAL
@@ -320,7 +320,7 @@ static PHP_METHOD(swoole_socket_coro, recv)
 static PHP_METHOD(swoole_socket_coro, recvfrom)
 {
     zval *peername;
-    double timeout = -1;
+    double timeout = COROG.socket_timeout;
 
     ZEND_PARSE_PARAMETERS_START(1, 2)
         Z_PARAM_ZVAL_EX(peername, 0, 1)
@@ -371,7 +371,7 @@ static PHP_METHOD(swoole_socket_coro, recvfrom)
 
 static PHP_METHOD(swoole_socket_coro, send)
 {
-    double timeout = -1;
+    double timeout = COROG.socket_timeout;
     char *data;
     size_t l_data;
 

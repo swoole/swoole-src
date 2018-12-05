@@ -43,6 +43,17 @@ static int _lock = 0;
 
 static void swSignal_async_handler(int signo);
 
+char* swSignal_str(int sig, char *buf, size_t buflen)
+{
+    snprintf(buf, buflen, "%s", strsignal(sig));
+    if (strchr(buf, ':') == 0)
+    {
+        size_t len = strlen(buf);
+        snprintf(buf + len, buflen - len, ": %d", sig);
+    }
+    return buf;
+}
+
 /**
  * clear all singal
  */
@@ -149,7 +160,11 @@ void swSignal_callback(int signo)
     swSignalHandler callback = signals[signo].handler;
     if (!callback)
     {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_UNREGISTERED_SIGNAL, SW_UNREGISTERED_SIGNAL_FMT, strsignal(signo));
+        char buf[32];
+        swoole_error_log(
+            SW_LOG_WARNING, SW_ERROR_UNREGISTERED_SIGNAL,
+            SW_UNREGISTERED_SIGNAL_FMT, swSignal_str(signo, SW_STRS(buf))
+        );
         return;
     }
     callback(signo);
@@ -292,13 +307,16 @@ static int swSignalfd_onSignal(swReactor *reactor, swEvent *event)
         }
         else
         {
-            swoole_error_log(SW_LOG_WARNING, SW_ERROR_UNREGISTERED_SIGNAL, SW_UNREGISTERED_SIGNAL_FMT, strsignal(siginfo.ssi_signo));
+            char buf[32];
+            swoole_error_log(
+                SW_LOG_WARNING, SW_ERROR_UNREGISTERED_SIGNAL,
+                SW_UNREGISTERED_SIGNAL_FMT, swSignal_str(siginfo.ssi_signo, SW_STRS(buf))
+            );
         }
     }
 
     return SW_OK;
 }
-
 #endif
 
 #ifdef HAVE_KQUEUE

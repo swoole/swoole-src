@@ -506,6 +506,7 @@ static void socket_onResolveCompleted(swAio_event *event)
 static void socket_onTimeout(swTimer *timer, swTimer_node *tnode)
 {
     Socket *sock = (Socket *) tnode->data;
+    errno = ETIMEDOUT;
     sock->errCode = ETIMEDOUT;
     swDebug("socket[%d] timeout", sock->socket->fd);
     int operation;
@@ -919,31 +920,33 @@ ssize_t Socket::recvmsg(struct msghdr *msg, int flags)
 void Socket::yield(int operation)
 {
     Coroutine *co = coroutine_get_current();
+    double timeout = _timeout_temp ? _timeout_temp : _timeout;
+
     if (unlikely(!co))
     {
         swError("Socket::yield() must be called in the coroutine.");
     }
 
     errCode = 0;
-    int ms = (int) (_timeout * 1000);
+    int ms = (int) (timeout * 1000);
     if (ms <= 0 || ms >= SW_TIMER_MAX_VALUE)
     {
-        _timeout = -1;
+        timeout = -1;
     }
-    if (_timeout > 0)
+    if (timeout > 0)
     {
         swTimer_node *timer = swTimer_add(&SwooleG.timer, ms, 0, this, socket_onTimeout);
         if (timer)
         {
-            if (operation == SOCKET_LOCK_WRITE)
-            {
-                write_timer = timer;
-                write_timer->type = SW_TIMER_TYPE_CORO_WRITE;
-            }
-            else if (operation == SOCKET_LOCK_READ)
+            if (operation == SOCKET_LOCK_READ)
             {
                 read_timer = timer;
                 read_timer->type = SW_TIMER_TYPE_CORO_READ;
+            }
+            else if (operation == SOCKET_LOCK_WRITE)
+            {
+                write_timer = timer;
+                write_timer->type = SW_TIMER_TYPE_CORO_WRITE;
             }
             else // if (operation == SOCKET_LOCK_RW)
             {
@@ -984,6 +987,10 @@ void Socket::yield(int operation)
     {
         swTimer_del(&SwooleG.timer, write_timer);
         write_timer = nullptr;
+    }
+    if (_timeout_temp)
+    {
+        _timeout_temp = 0;
     }
 }
 
@@ -1219,10 +1226,8 @@ string Socket::resolve(string domain_name)
     /**
      * cannot timeout
      */
-    double tmp_timeout = _timeout;
-    _timeout = -1;
+    set_timeout(-1, true);
     yield(SOCKET_LOCK_RW);
-    _timeout = tmp_timeout;
 
     if (errCode == SW_ERROR_DNSLOOKUP_RESOLVE_FAILED)
     {

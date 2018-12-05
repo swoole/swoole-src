@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: unregistered signal
+swoole_server: reload in process mode
 --SKIPIF--
 <?php require __DIR__ . "/../include/skipif.inc"; ?>
 --FILE--
@@ -37,7 +37,9 @@ $pm->parentFunc = function () use ($pm) {
 
     $log = file_get_contents(TEST_LOG_FILE);
     $log = trim(preg_replace('/.+?\s+?NOTICE\s+?.+/', '', $log));
-    assert(empty($log));
+    if (!assert(empty($log))){
+        var_dump($log);
+    }
     $pm->kill();
     echo "DONE\n";
 };

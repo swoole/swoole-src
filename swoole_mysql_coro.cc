@@ -831,7 +831,7 @@ static PHP_METHOD(swoole_mysql_coro, query)
 
     sw_coro_check_bind("mysql client", client->cid);
 
-    double timeout = -1;
+    double timeout = COROG.socket_timeout;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|d", &sql.str, &sql.length, &timeout) == FAILURE)
     {
@@ -943,7 +943,7 @@ static void swoole_mysql_coro_query_transcation(const char* command, uint8_t in_
     }
     else
     {
-        double timeout = -1;
+        double timeout = COROG.socket_timeout;
         if (zend_parse_parameters(ZEND_NUM_ARGS(), "|d", &timeout) == FAILURE)
         {
             RETURN_FALSE;
@@ -1060,7 +1060,7 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
 
     sw_coro_check_bind("mysql client", client->cid);
 
-    double timeout = -1;
+    double timeout = COROG.socket_timeout;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|d", &sql.str, &sql.length, &timeout) == FAILURE)
     {
@@ -1132,7 +1132,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, execute)
         RETURN_FALSE;
     }
 
-    double timeout = -1;
+    double timeout = COROG.socket_timeout;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|ad", &params, &timeout) == FAILURE)
     {

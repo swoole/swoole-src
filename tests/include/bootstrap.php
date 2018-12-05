@@ -1,5 +1,5 @@
 <?php
-require_once  __DIR__ . '/config.php'; // (`once` because it may required in skip when we run phpt)
+require_once __DIR__ . '/config.php'; // (`once` because it may required in skip when we run phpt)
 
 error_reporting(E_ALL);
 ini_set('memory_limit', '1024M');
@@ -16,6 +16,10 @@ swoole_async_set([
     'thread_num' => 1,
     'disable_dns_cache' => true,
     'dns_lookup_random' => true,
+]);
+
+co::set([
+    'socket_timeout' => 1
 ]);
 
 if (empty(getenv('SWOOLE_DEBUG'))) {

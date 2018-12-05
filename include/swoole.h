@@ -87,7 +87,12 @@ int daemon(int nochdir, int noclose);
 
 /*----------------------------------------------------------------------------*/
 
-#define SWOOLE_VERSION "4.2.10-alpha"
+#define SWOOLE_MAJOR_VERSION      4
+#define SWOOLE_MINOR_VERSION      2
+#define SWOOLE_RELEASE_VERSION    10
+#define SWOOLE_EXTRA_VERSION      "beta"
+#define SWOOLE_VERSION            "4.2.10-beta"
+#define SWOOLE_VERSION_ID         40210
 #define SWOOLE_BUG_REPORT \
     "A bug occurred in Swoole-v" SWOOLE_VERSION ", please report it.\n"\
     "The Swoole developers probably don't know about it,\n"\
@@ -187,6 +192,11 @@ typedef unsigned long ulong_t;
 #define MIN(A, B)              ((A) < (B) ? (A) : (B))
 #endif
 
+#ifdef SW_DEBUG
+#define SW_ASSERT(e)           assert(e)
+#else
+#define SW_ASSERT(e)
+#endif
 #define SW_STRS(s)             s, sizeof(s)
 #define SW_STRL(s)             s, sizeof(s)-1
 #define SW_START_SLEEP         usleep(100000)  //sleep 1s,wait fork and pthread_create
@@ -415,6 +425,7 @@ enum swTraceType
     SW_TRACE_SSL              = 1u << 19,
     SW_TRACE_NORMAL           = 1u << 20,
     SW_TRACE_CHANNEL          = 1u << 21,
+    SW_TRACE_TIMER            = 1u << 22,
 };
 
 #ifdef SW_LOG_TRACE_OPEN
@@ -1445,6 +1456,7 @@ void swSignal_callback(int signo);
 swSignalHandler swSignal_get_handler(int signo);
 void swSignal_clear(void);
 void swSignal_none(void);
+char* swSignal_str(int sig, char *buf, size_t buflen);
 
 #ifdef HAVE_SIGNALFD
 void swSignalfd_init();
@@ -1513,9 +1525,9 @@ struct _swReactor
      */
     swArray *socket_array;
 
-    swReactor_handle handle[SW_MAX_FDTYPE];        //默认事件
-    swReactor_handle write_handle[SW_MAX_FDTYPE];  //扩展事件1(一般为写事件)
-    swReactor_handle error_handle[SW_MAX_FDTYPE];  //扩展事件2(一般为错误事件,如socket关闭)
+    swReactor_handle handle[SW_MAX_FDTYPE];        // default event
+    swReactor_handle write_handle[SW_MAX_FDTYPE];  // ext event 1 (maybe writable event)
+    swReactor_handle error_handle[SW_MAX_FDTYPE];  // ext event 2 (error event, maybe socket closed)
 
     int (*add)(swReactor *, int fd, int fdtype);
     int (*set)(swReactor *, int fd, int fdtype);
@@ -2041,7 +2053,7 @@ struct _swTimer
     uint8_t initialized;
     swHeap *heap;
     swHashMap *map;
-    int num;
+    uint32_t num;
     int lasttime;
     uint64_t round;
     long _next_id;
