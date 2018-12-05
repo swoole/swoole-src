@@ -4137,12 +4137,8 @@ static PHP_METHOD(swoole_redis_coro, script)
 
 static void swoole_redis_coro_parse_result(swRedisClient *redis, zval* return_value, redisReply* reply)
 {
-    zval *val;
     int j;
-
-    zval _val;
-    val = &_val;
-    bzero(val, sizeof(zval));
+    zval _val, *val = &_val;
 
     switch (reply->type)
     {
