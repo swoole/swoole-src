@@ -1363,6 +1363,11 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
         return;
     }
 
+    if (swIsTaskWorker() && serv->task_async == 0)
+    {
+        SwooleG.enable_coroutine = 0;
+    }
+
     if (SwooleG.enable_coroutine && worker_id < serv->worker_num)
     {
         php_swoole_onWorkerStart_coroutine(zserv, zworker_id);
