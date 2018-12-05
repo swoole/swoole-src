@@ -1366,6 +1366,7 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
     if (swIsTaskWorker() && serv->task_async == 0)
     {
         SwooleG.enable_coroutine = 0;
+        sw_disable_coroutine_hook();
     }
 
     if (SwooleG.enable_coroutine && worker_id < serv->worker_num)
