@@ -1234,11 +1234,12 @@ PHP_MINFO_FUNCTION(swoole)
 #ifdef SW_LOG_TRACE_OPEN
     php_info_print_table_row(2, "trace_log", "enabled");
 #endif
-#if USE_BOOST_CONTEXT
+#ifdef SW_NO_USE_ASM_CONTEXT
+#ifdef HAVE_BOOST_CONTEXT
     php_info_print_table_row(2, "boost.context", "enabled");
-#endif
-#if USE_UCONTEXT
+#else
     php_info_print_table_row(2, "ucontext", "enabled");
+#endif
 #endif
 #ifdef HAVE_EPOLL
     php_info_print_table_row(2, "epoll", "enabled");
