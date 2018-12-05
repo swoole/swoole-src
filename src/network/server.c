@@ -1628,7 +1628,7 @@ static void swServer_signal_handler(int sig)
         pid = waitpid(-1, &status, WNOHANG);
         if (pid > 0 && pid == serv->gs->manager_pid)
         {
-            swWarn("Fatal Error: manager process exit. status=%d, signal=%d.", WEXITSTATUS(status), WTERMSIG(status));
+            swWarn("Fatal Error: manager process exit. status=%d, signal=[%s].", WEXITSTATUS(status), swSignal_str(WTERMSIG(status)));
         }
         break;
         /**
