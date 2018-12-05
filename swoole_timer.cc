@@ -40,30 +40,6 @@ typedef struct _swTimer_callback
 
 static int php_swoole_del_timer(swTimer_node *tnode);
 
-void php_swoole_clear_all_timer()
-{
-    if (!SwooleG.timer.map)
-    {
-        return;
-    }
-    uint64_t timer_id;
-    //kill user process
-    while (1)
-    {
-        swTimer_node *tnode = (swTimer_node *) swHashMap_each_int(SwooleG.timer.map, &timer_id);
-        if (tnode == NULL)
-        {
-            break;
-        }
-        if (tnode->type != SW_TIMER_TYPE_PHP)
-        {
-            continue;
-        }
-        php_swoole_del_timer(tnode);
-        swTimer_del(&SwooleG.timer, tnode);
-    }
-}
-
 long php_swoole_add_timer(int ms, zval *callback, zval *param, int persistent)
 {
     if (ms > SW_TIMER_MAX_VALUE)
