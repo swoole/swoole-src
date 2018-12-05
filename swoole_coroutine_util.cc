@@ -411,8 +411,6 @@ PHP_FUNCTION(swoole_coroutine_create)
         }
     }
 
-    php_swoole_check_reactor();
-
     long cid = sw_coro_create(&fci_cache, fci.param_count, fci.params);
     if (likely(cid > 0))
     {
