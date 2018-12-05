@@ -40,13 +40,8 @@ typedef struct _swTimer_callback
 
 static int php_swoole_del_timer(swTimer_node *tnode);
 
-long php_swoole_add_timer(int ms, zval *callback, zval *param, int persistent)
+long php_swoole_add_timer(long ms, zval *callback, zval *param, int persistent)
 {
-    if (ms > SW_TIMER_MAX_VALUE)
-    {
-        swoole_php_fatal_error(E_WARNING, "The given parameters is too big.");
-        return SW_ERR;
-    }
     if (ms <= 0)
     {
         swoole_php_fatal_error(E_WARNING, "Timer must be greater than 0");

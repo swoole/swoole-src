@@ -103,16 +103,16 @@ static int swReactorTimer_set(swTimer *timer, long exec_msec)
     return SW_OK;
 }
 
-swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *data, swTimerCallback callback)
+swTimer_node* swTimer_add(swTimer *timer, long _msec, int interval, void *data, swTimerCallback callback)
 {
     if (unlikely(SwooleG.timer.initialized == 0))
     {
         swTimer_init(_msec);
     }
 
-    if (unlikely(_msec <= 0 || _msec > INT_MAX))
+    if (unlikely(_msec <= 0))
     {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "_msec value[%d] is invalid.", _msec);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "_msec value[%ld] is invalid.", _msec);
         return NULL;
     }
 

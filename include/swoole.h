@@ -2031,7 +2031,7 @@ struct _swTimer_node
     void *data;
     swTimerCallback callback;
     int64_t exec_msec;
-    uint32_t interval;
+    int64_t interval;
     uint64_t round;
     long id;
     int type;                 //0 normal node 1 node for client_coro
@@ -2065,7 +2065,7 @@ struct _swTimer
     int (*set)(swTimer *timer, long exec_msec);
 };
 
-swTimer_node* swTimer_add(swTimer *timer, int _msec, int interval, void *data, swTimerCallback callback);
+swTimer_node* swTimer_add(swTimer *timer, long _msec, int interval, void *data, swTimerCallback callback);
 int swTimer_del(swTimer *timer, swTimer_node *node);
 void swTimer_free(swTimer *timer);
 int swTimer_select(swTimer *timer);
