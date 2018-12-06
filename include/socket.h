@@ -111,6 +111,13 @@ public:
         return write_buffer;
     }
 
+    inline void copy_to_write_buffer(const void *__buf, size_t __n)
+    {
+        get_write_buffer();
+        swString_clear(write_buffer);
+        swString_append_ptr(write_buffer, (const char *) __buf, __n);
+    }
+
     inline int get_fd()
     {
         return socket ? socket->fd : -1;
