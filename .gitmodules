@@ -7,3 +7,6 @@
 [submodule "thirdparty/jemalloc"]
 	path = thirdparty/jemalloc
 	url = https://github.com/jemalloc/jemalloc.git
+[submodule "thirdparty/quicly"]
+	path = thirdparty/quicly
+	url = https://github.com/h2o/quicly.git
