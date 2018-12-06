@@ -38,8 +38,10 @@ swString *swString_new(size_t size)
 
 void swString_print(swString *str)
 {
-    printf("String[length=%d,size=%d,offset=%d]=%s\n", (int) str->length, (int) str->size, (int) str->offset,
-            str->str);
+    printf(
+        "String[length=%d,size=%d,offset=%d]=%s\n",
+        (int) str->length, (int) str->size, (int) str->offset, str->str
+    );
 }
 
 swString *swString_dup2(swString *src)
@@ -106,13 +108,12 @@ int swString_append_int(swString *str, int value)
             return SW_ERR;
         }
     }
-
     memcpy(str->str + str->length, buf, s_len);
     str->length += s_len;
     return SW_OK;
 }
 
-int swString_append_ptr(swString *str, const char *append_str, int length)
+int swString_append_ptr(swString *str, const char *append_str, size_t length)
 {
     int new_size = str->length + length;
     if (new_size > str->size)
@@ -137,18 +138,12 @@ int swString_write(swString *str, off_t offset, swString *write_str)
             return SW_ERR;
         }
     }
-
     memcpy(str->str + offset, write_str->str, write_str->length);
-
-    if (new_length > str->length)
-    {
-        str->length = new_length;
-    }
-
+    str->length = new_length;
     return SW_OK;
 }
 
-int swString_write_ptr(swString *str, off_t offset, char *write_str, int length)
+int swString_write_ptr(swString *str, off_t offset, char *write_str, size_t length)
 {
     int new_length = offset + length;
     if (new_length > str->size)
@@ -158,14 +153,8 @@ int swString_write_ptr(swString *str, off_t offset, char *write_str, int length)
             return SW_ERR;
         }
     }
-
     memcpy(str->str + offset, write_str, length);
-
-    if (new_length > str->length)
-    {
-        str->length = new_length;
-    }
-
+    str->length = new_length;
     return SW_OK;
 }
 
