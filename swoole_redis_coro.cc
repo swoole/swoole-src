@@ -65,6 +65,7 @@ enum swRedisOption
     SW_REDIS_OPT_FAILOVER = 5,
     SW_REDIS_OPT_TCP_KEEPALIVE = 6,
     SW_REDIS_OPT_COMPRESSION = 7,
+    SW_REDIS_OPT_CONNECT_TIMEOUT = 8,
 };
 
 /* Extended SET argument detection */
@@ -965,7 +966,7 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
     {
         if (redis->host.compare(host) == 0 && redis->port == port)
         {
-            return false;
+            return true;
         }
         else
         {
@@ -1026,6 +1027,8 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
     socket->set_timeout(redis->timeout);
     zend_update_property_bool(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("connected"), 1);
     zend_update_property_long(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("sock"), context->fd);
+    zend_update_property_long(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("errCode"), 0);
+    zend_update_property_string(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), "");
     return true;
 }
 
@@ -1738,6 +1741,7 @@ void swoole_redis_coro_init(int module_number)
     // just support timeout and serialize
     SWOOLE_DEFINE(REDIS_OPT_READ_TIMEOUT);
     SWOOLE_DEFINE(REDIS_OPT_SERIALIZER);
+    SWOOLE_DEFINE(REDIS_OPT_CONNECT_TIMEOUT);
 }
 
 static PHP_METHOD(swoole_redis_coro, __construct)
@@ -1837,6 +1841,14 @@ static PHP_METHOD(swoole_redis_coro, setOption)
 
     switch (zname)
     {
+    case SW_REDIS_OPT_CONNECT_TIMEOUT:
+        convert_to_double(zvalue);
+        redis->connect_timeout = (double) Z_DVAL_P(zvalue);
+        if (redis->connect_timeout <= 0)
+        {
+            redis->connect_timeout = ZEND_LONG_MAX;
+        }
+        break;
     case SW_REDIS_OPT_READ_TIMEOUT:
         convert_to_double(zvalue);
         redis->timeout = (double) Z_DVAL_P(zvalue);
