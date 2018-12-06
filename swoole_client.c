@@ -1033,9 +1033,9 @@ static PHP_METHOD(swoole_client, connect)
         Z_PARAM_LONG(sock_flag)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (host_len <= 0)
+    if (host_len == 0)
     {
-        swoole_php_fatal_error(E_WARNING, "The host is empty.");
+        swoole_php_fatal_error(E_ERROR, "The host is empty.");
         RETURN_FALSE;
     }
 

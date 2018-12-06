@@ -138,7 +138,7 @@ static sw_inline socket_coro * swoole_get_socket_coro(zval *zobject)
     socket_coro *sock = swoole_socket_coro_fetch_object(Z_OBJ_P(zobject));
     if (UNEXPECTED(!sock->socket))
     {
-        swoole_php_fatal_error(E_ERROR, "you must call Socket construct first.");
+        swoole_php_fatal_error(E_ERROR, "you must call Socket constructor first.");
     }
     return sock;
 }
