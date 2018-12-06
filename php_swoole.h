@@ -825,8 +825,13 @@ static sw_inline int sw_zend_register_class_alias(const char *name, size_t name_
 
 static sw_inline zval* sw_zend_read_property(zend_class_entry *class_ptr, zval *obj, const char *s, int len, int silent)
 {
-    zval rv;
-    return zend_read_property(class_ptr, obj, s, len, silent, &rv);
+    zval rv, *property = zend_read_property(class_ptr, obj, s, len, silent, &rv);
+    if (UNEXPECTED(property == &EG(uninitialized_zval)))
+    {
+        zend_update_property_null(class_ptr, obj, s, len);
+        return zend_read_property(class_ptr, obj, s, len, silent, &rv);
+    }
+    return property;
 }
 
 static sw_inline zval* sw_zend_read_property_not_null(zend_class_entry *class_ptr, zval *obj, const char *s, int len, int silent)
@@ -845,7 +850,7 @@ static sw_inline zval* sw_zend_read_property_array(zend_class_entry *class_ptr, 
         zend_update_property(class_ptr, obj, s, len, &temp_array);
         zval_ptr_dtor(&temp_array);
         // NOTICE: if user unset the property, zend_read_property will return uninitialized_zval instead of NULL pointer
-        if (unlikely(property == &EG(uninitialized_zval)))
+        if (UNEXPECTED(property == &EG(uninitialized_zval)))
         {
             property = zend_read_property(class_ptr, obj, s, len, silent, &rv);
         }
