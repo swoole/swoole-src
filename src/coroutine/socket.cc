@@ -715,7 +715,7 @@ ssize_t Socket::write(const void *__buf, size_t __n)
         {
             return -1;
         }
-        copy_to_write_buffer(write_buffer, __buf, __n);
+        copy_to_write_buffer(__buf, __n);
         yield(events == SW_EVENT_READ ? SOCKET_LOCK_RW : SOCKET_LOCK_WRITE);
         if (errCode == ETIMEDOUT)
         {
@@ -826,7 +826,7 @@ ssize_t Socket::send(const void *__buf, size_t __n)
         {
             return -1;
         }
-        copy_to_write_buffer(write_buffer, __buf, __n);
+        copy_to_write_buffer(__buf, __n);
         yield(events == SW_EVENT_READ ? SOCKET_LOCK_RW : SOCKET_LOCK_WRITE);
         if (errCode == ETIMEDOUT)
         {

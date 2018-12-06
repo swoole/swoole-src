@@ -739,9 +739,9 @@ swString *swString_dup2(swString *src);
 void swString_print(swString *str);
 void swString_free(swString *str);
 int swString_append(swString *str, swString *append_str);
-int swString_append_ptr(swString *str, const char *append_str, int length);
+int swString_append_ptr(swString *str, const char *append_str, size_t length);
 int swString_write(swString *str, off_t offset, swString *write_str);
-int swString_write_ptr(swString *str, off_t offset, char *write_str, int length);
+int swString_write_ptr(swString *str, off_t offset, char *write_str, size_t length);
 int swString_extend(swString *str, size_t new_size);
 char* swString_alloc(swString *str, size_t __size);
 
