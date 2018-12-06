@@ -33,7 +33,7 @@ $pm->childFunc = function () use ($pm)
         $redis = new Swoole\Coroutine\Redis();
         $res = $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
         $res2 = @$redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
-        assert($res2 == false);
+        assert($res2 == true);
         if (!$res)
         {
             fail:
