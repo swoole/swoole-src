@@ -519,7 +519,7 @@ static PHP_METHOD(swoole_socket_coro, connect)
     char *host;
     size_t l_host;
     zend_long port = 0;
-    double timeout = SW_CLIENT_DEFAULT_TIMEOUT;
+    double timeout = SW_CLIENT_CONNECT_TIMEOUT;
 
     ZEND_PARSE_PARAMETERS_START(1, 3)
         Z_PARAM_STRING(host, l_host)

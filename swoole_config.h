@@ -66,7 +66,7 @@
 
 #define SW_LOG_NO_SRCINFO          //no source info
 #define SW_CLIENT_BUFFER_SIZE      65536
-#define SW_CLIENT_DEFAULT_TIMEOUT  0.5
+#define SW_CLIENT_CONNECT_TIMEOUT  0.5
 #define SW_CLIENT_MAX_PORT         65535
 
 //!!!Don't modify.----------------------------------------------------------

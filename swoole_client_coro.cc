@@ -690,7 +690,7 @@ static PHP_METHOD(swoole_client_coro, connect)
     zend_long port = 0, sock_flag = 0;
     char *host = NULL;
     size_t host_len;
-    double timeout = SW_CLIENT_DEFAULT_TIMEOUT;
+    double timeout = SW_CLIENT_CONNECT_TIMEOUT;
 
     ZEND_PARSE_PARAMETERS_START(1, 4)
         Z_PARAM_STRING(host, host_len)
@@ -902,7 +902,7 @@ static PHP_METHOD(swoole_client_coro, sendfile)
 
 static PHP_METHOD(swoole_client_coro, recv)
 {
-    double timeout = 0;
+    double timeout = COROG.socket_timeout;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
@@ -915,10 +915,7 @@ static PHP_METHOD(swoole_client_coro, recv)
         RETURN_FALSE;
     }
     sw_coro_check_bind("client", cli->has_bound(swoole::SOCKET_LOCK_READ));
-    if (timeout != 0)
-    {
-        cli->set_timeout(timeout);
-    }
+    cli->set_timeout(timeout);
     ssize_t retval ;
     if (cli->open_length_check || cli->open_eof_check)
     {
