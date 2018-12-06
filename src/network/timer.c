@@ -163,7 +163,7 @@ swTimer_node* swTimer_add(swTimer *timer, long _msec, int interval, void *data, 
         return NULL;
     }
     timer->num++;
-    swTraceLog(SW_TRACE_TIMER, "id=%ld, exec_msec=%" PRId64 ", msec=%d, round=%" PRIu64 ", exist=%u", tnode->id, tnode->exec_msec, _msec, tnode->round, timer->num);
+    swTraceLog(SW_TRACE_TIMER, "id=%ld, exec_msec=%" PRId64 ", msec=%ld, round=%" PRIu64 ", exist=%u", tnode->id, tnode->exec_msec, _msec, tnode->round, timer->num);
     return tnode;
 }
 
