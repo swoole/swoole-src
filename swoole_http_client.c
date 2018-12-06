@@ -1687,7 +1687,6 @@ static PHP_METHOD(swoole_http_client, on)
     if (!sw_zend_is_callable(zcallback, 0, &func_name))
     {
         swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
-        efree(func_name);
         return;
     }
     efree(func_name);

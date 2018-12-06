@@ -467,7 +467,6 @@ PHP_FUNCTION(swoole_event_add)
         if (!sw_zend_is_callable(cb_read, 0, &func_name))
         {
             swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
-            efree(func_name);
             RETURN_FALSE;
         }
         efree(func_name);
@@ -485,7 +484,6 @@ PHP_FUNCTION(swoole_event_add)
         if (!sw_zend_is_callable(cb_write, 0, &func_name))
         {
             swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
-            efree(func_name);
             RETURN_FALSE;
         }
         efree(func_name);
@@ -590,7 +588,6 @@ PHP_FUNCTION(swoole_event_set)
         if (!sw_zend_is_callable(cb_read, 0, &func_name))
         {
             swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
-            efree(func_name);
             RETURN_FALSE;
         }
         else
@@ -616,7 +613,6 @@ PHP_FUNCTION(swoole_event_set)
         if (!sw_zend_is_callable(cb_write, 0, &func_name))
         {
             swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
-            efree(func_name);
             RETURN_FALSE;
         }
         else
@@ -699,7 +695,6 @@ PHP_FUNCTION(swoole_event_defer)
     if (!sw_zend_is_callable(callback, 0, &func_name))
     {
         swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
-        efree(func_name);
         RETURN_FALSE;
     }
     efree(func_name);
@@ -748,7 +743,6 @@ PHP_FUNCTION(swoole_event_cycle)
     if (!sw_zend_is_callable(callback, 0, &func_name))
     {
         swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
-        efree(func_name);
         RETURN_FALSE;
     }
     efree(func_name);

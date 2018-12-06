@@ -355,7 +355,6 @@ void php_swoole_client_coro_check_setting(Socket *cli, zval *zset)
             if (!sw_zend_is_callable(v, 0, &func_name))
             {
                 swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
-                efree(func_name);
                 return;
             }
             efree(func_name);

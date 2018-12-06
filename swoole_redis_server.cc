@@ -306,7 +306,6 @@ static PHP_METHOD(swoole_redis_server, setHandler)
     if (!sw_zend_is_callable_ex(zcallback, NULL, 0, &func_name, NULL, func_cache, NULL))
     {
         swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
-        efree(func_name);
         return;
     }
     efree(func_name);

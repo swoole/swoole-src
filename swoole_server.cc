@@ -2137,7 +2137,6 @@ PHP_METHOD(swoole_server, set)
             if (!sw_zend_is_callable(v, 0, &func_name))
             {
                 swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
-                efree(func_name);
                 return;
             }
             efree(func_name);
@@ -2465,7 +2464,6 @@ PHP_METHOD(swoole_server, on)
     if (!sw_zend_is_callable_ex(cb, NULL, 0, &func_name, NULL, func_cache, NULL))
     {
         swoole_php_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
-        efree(func_name);
         return;
     }
     efree(func_name);
