@@ -426,7 +426,7 @@ static int http_client_coro_recv_response(zval *zobject, http_client_coro_proper
 
     sw_coro_check_bind("http client", hcc->socket->has_bound(swoole::SOCKET_LOCK_READ));
 
-    buffer = hcc->socket->get_buffer();
+    buffer = hcc->socket->get_read_buffer();
     while (http->completed == 0)
     {
         retval = hcc->socket->recv(buffer->str, buffer->size);
@@ -1099,7 +1099,7 @@ static PHP_METHOD(swoole_http_client_coro, recv)
         {
             swString msg;
             msg.length = retval;
-            msg.str = hcc->socket->get_buffer()->str;
+            msg.str = hcc->socket->get_read_buffer()->str;
             php_swoole_websocket_frame_unpack(&msg, return_value);
             return;
         }

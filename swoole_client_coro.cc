@@ -925,7 +925,7 @@ static PHP_METHOD(swoole_client_coro, recv)
         retval = cli->recv_packet();
         if (retval > 0)
         {
-            RETVAL_STRINGL(cli->buffer->str, retval);
+            RETVAL_STRINGL(cli->read_buffer->str, retval);
         }
     }
     else

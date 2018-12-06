@@ -93,13 +93,22 @@ public:
         set_timeout((double) timeout->tv_sec + ((double) timeout->tv_usec / 1000 / 1000));
     }
 
-    inline swString* get_buffer()
+    inline swString* get_read_buffer()
     {
-        if (unlikely(buffer == nullptr))
+        if (unlikely(read_buffer == nullptr))
         {
-            buffer = swString_new(SW_BUFFER_SIZE_STD);
+            read_buffer = swString_new(SW_BUFFER_SIZE_STD);
         }
-        return buffer;
+        return read_buffer;
+    }
+
+    inline swString* get_write_buffer()
+    {
+        if (unlikely(write_buffer == nullptr))
+        {
+            write_buffer = swString_new(SW_BUFFER_SIZE_STD);
+        }
+        return write_buffer;
     }
 
     inline int get_fd()
@@ -138,7 +147,8 @@ protected:
         socks5_proxy = nullptr;
         http_proxy = nullptr;
 
-        buffer = nullptr;
+        read_buffer = nullptr;
+        write_buffer = nullptr;
         protocol = {0};
         bind_address_info = {{}, 0};
 
@@ -267,7 +277,8 @@ public:
     uint32_t open_eof_check :1;
 
     swProtocol protocol;
-    swString *buffer;
+    swString *read_buffer;
+    swString *write_buffer;
     swSocketAddress bind_address_info;
 
     struct _swSocks5 *socks5_proxy;

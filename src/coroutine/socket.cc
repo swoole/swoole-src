@@ -1585,22 +1585,22 @@ ssize_t Socket::recv_packet()
         return -1;
     }
 
-    get_buffer();
+    get_read_buffer();
     ssize_t buf_len = SW_BUFFER_SIZE_STD;
     ssize_t retval;
 
     if (open_length_check)
     {
         //unprocessed data
-        if (buffer->offset > 0)
+        if (read_buffer->offset > 0)
         {
-            memmove(buffer->str, buffer->str + buffer->offset, buffer->length);
-            buffer->offset = 0;
+            memmove(read_buffer->str, read_buffer->str + read_buffer->offset, read_buffer->length);
+            read_buffer->offset = 0;
         }
         uint32_t header_len = protocol.package_length_offset + protocol.package_length_size;
-        if (buffer->length > 0)
+        if (read_buffer->length > 0)
         {
-            if (buffer->length < header_len)
+            if (read_buffer->length < header_len)
             {
                 goto _recv_header;
             }
@@ -1610,18 +1610,18 @@ ssize_t Socket::recv_packet()
             }
         }
 
-        _recv_header: retval = recv(buffer->str + buffer->length, header_len - buffer->length);
+        _recv_header: retval = recv(read_buffer->str + read_buffer->length, header_len - read_buffer->length);
         if (retval <= 0)
         {
             return 0;
         }
         else
         {
-            buffer->length += retval;
+            read_buffer->length += retval;
         }
 
-        _get_length: buf_len = protocol.get_package_length(&protocol, socket, buffer->str, (uint32_t) buffer->length);
-        swDebug("packet_len=%ld, length=%ld", buf_len, buffer->length);
+        _get_length: buf_len = protocol.get_package_length(&protocol, socket, read_buffer->str, (uint32_t) read_buffer->length);
+        swDebug("packet_len=%ld, length=%ld", buf_len, read_buffer->length);
         //error package
         if (buf_len < 0)
         {
@@ -1635,7 +1635,7 @@ ssize_t Socket::recv_packet()
         //empty package
         else if (buf_len == header_len)
         {
-            buffer->length = 0;
+            read_buffer->length = 0;
             return header_len;
         }
         else if (buf_len > protocol.package_max_length)
@@ -1644,39 +1644,39 @@ ssize_t Socket::recv_packet()
             return 0;
         }
 
-        if ((size_t) buf_len == buffer->length)
+        if ((size_t) buf_len == read_buffer->length)
         {
-            buffer->length = 0;
+            read_buffer->length = 0;
             return buf_len;
         }
-        else if ((size_t) buf_len < buffer->length)
+        else if ((size_t) buf_len < read_buffer->length)
         {
             //unprocessed data
-            buffer->length -= buf_len;
-            buffer->offset = buf_len;
+            read_buffer->length -= buf_len;
+            read_buffer->offset = buf_len;
             return buf_len;
         }
 
-        if ((size_t) buf_len > buffer->size)
+        if ((size_t) buf_len > read_buffer->size)
         {
-            if (swString_extend(buffer, buf_len) < 0)
+            if (swString_extend(read_buffer, buf_len) < 0)
             {
-                buffer->length = 0;
+                read_buffer->length = 0;
                 return -1;
             }
         }
 
-        retval = recv_all(buffer->str + buffer->length, buf_len - buffer->length);
+        retval = recv_all(read_buffer->str + read_buffer->length, buf_len - read_buffer->length);
         if (retval > 0)
         {
-            buffer->length += retval;
-            if (buffer->length != (size_t) buf_len)
+            read_buffer->length += retval;
+            if (read_buffer->length != (size_t) buf_len)
             {
                 retval = 0;
             }
             else
             {
-                buffer->length = 0;
+                read_buffer->length = 0;
                 return buf_len;
             }
         }
@@ -1686,15 +1686,15 @@ ssize_t Socket::recv_packet()
         int eof = -1;
         char *buf;
 
-        if (buffer->length > 0)
+        if (read_buffer->length > 0)
         {
             goto find_eof;
         }
 
         while (1)
         {
-            buf = buffer->str + buffer->length;
-            buf_len = buffer->size - buffer->length;
+            buf = read_buffer->str + read_buffer->length;
+            buf_len = read_buffer->size - read_buffer->length;
 
             if (buf_len > SW_BUFFER_SIZE_BIG)
             {
@@ -1704,64 +1704,64 @@ ssize_t Socket::recv_packet()
             retval = recv(buf, buf_len);
             if (retval < 0)
             {
-                buffer->length = 0;
+                read_buffer->length = 0;
                 return -1;
             }
             else if (retval == 0)
             {
-                buffer->length = 0;
+                read_buffer->length = 0;
                 return 0;
             }
 
-            buffer->length += retval;
+            read_buffer->length += retval;
 
-            if (buffer->length < protocol.package_eof_len)
+            if (read_buffer->length < protocol.package_eof_len)
             {
                 continue;
             }
 
-            find_eof: eof = swoole_strnpos(buffer->str, buffer->length, protocol.package_eof, protocol.package_eof_len);
+            find_eof: eof = swoole_strnpos(read_buffer->str, read_buffer->length, protocol.package_eof, protocol.package_eof_len);
             if (eof >= 0)
             {
                 eof += protocol.package_eof_len;
-                if (buffer->length > (uint32_t) eof)
+                if (read_buffer->length > (uint32_t) eof)
                 {
-                    buffer->length -= eof;
-                    memmove(buffer->str, buffer->str + eof, buffer->length);
+                    read_buffer->length -= eof;
+                    memmove(read_buffer->str, read_buffer->str + eof, read_buffer->length);
                 }
                 else
                 {
-                    buffer->length = 0;
+                    read_buffer->length = 0;
                 }
                 return eof;
             }
             else
             {
-                if (buffer->length == protocol.package_max_length)
+                if (read_buffer->length == protocol.package_max_length)
                 {
                     swWarn("no package eof");
-                    buffer->length = 0;
+                    read_buffer->length = 0;
                     return -1;
                 }
-                else if (buffer->length == buffer->size)
+                else if (read_buffer->length == read_buffer->size)
                 {
-                    if (buffer->size < protocol.package_max_length)
+                    if (read_buffer->size < protocol.package_max_length)
                     {
-                        size_t new_size = buffer->size * 2;
+                        size_t new_size = read_buffer->size * 2;
                         if (new_size > protocol.package_max_length)
                         {
                             new_size = protocol.package_max_length;
                         }
-                        if (swString_extend(buffer, new_size) < 0)
+                        if (swString_extend(read_buffer, new_size) < 0)
                         {
-                            buffer->length = 0;
+                            read_buffer->length = 0;
                             return -1;
                         }
                     }
                 }
             }
         }
-        buffer->length = 0;
+        read_buffer->length = 0;
     }
     else
     {
@@ -1834,9 +1834,9 @@ Socket::~Socket()
         swBuffer_free(socket->in_buffer);
         socket->in_buffer = NULL;
     }
-    if (buffer)
+    if (read_buffer)
     {
-        swString_free(buffer);
+        swString_free(read_buffer);
     }
     int fd = socket->fd;
     if (socket->removed == 0)
