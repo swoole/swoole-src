@@ -252,18 +252,23 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
         if (zset && ZVAL_IS_ARRAY(zset))
         {
             vht = Z_ARRVAL_P(zset);
-            if (php_swoole_array_get_value(vht, "connect_timeout", ztmp))
-            {
-                convert_to_double(ztmp);
-                http->connect_timeout = (double) Z_DVAL_P(ztmp);
-            }
             /**
              * timeout
              */
             if (php_swoole_array_get_value(vht, "timeout", ztmp))
             {
                 convert_to_double(ztmp);
+                // backward compatibility
+                http->connect_timeout = (double) Z_DVAL_P(ztmp);
                 http->timeout = (double) Z_DVAL_P(ztmp);
+            }
+            /**
+             * connect timeout
+             */
+            if (php_swoole_array_get_value(vht, "connect_timeout", ztmp))
+            {
+                convert_to_double(ztmp);
+                http->connect_timeout = (double) Z_DVAL_P(ztmp);
             }
             /**
              * keep_alive
@@ -314,10 +319,10 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
         }
         else
         {
+            swTraceLog(SW_TRACE_HTTP_CLIENT, "connect to server, object handle=%d, fd=%d", Z_OBJ_HANDLE_P(zobject), hcc->socket->socket->fd);
             hcc->socket->set_timeout(http->timeout);
             zend_update_property_bool(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("connected"), 1);
         }
-        swTraceLog(SW_TRACE_HTTP_CLIENT, "connect to server, object handle=%d, fd=%d", Z_OBJ_HANDLE_P(zobject), hcc->socket->socket->fd);
     }
 
     // prepare before send a request
