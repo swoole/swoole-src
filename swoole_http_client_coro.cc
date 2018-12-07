@@ -240,6 +240,12 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
             zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), strerror(errno));
             return SW_ERR;
         }
+#ifdef SW_USE_OPENSSL
+        if (http->ssl)
+        {
+            hcc->socket->open_ssl = true;
+        }
+#endif
         zval *ztmp;
         HashTable *vht;
         zval *zset = sw_zend_read_property(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("setting"), 0);
@@ -294,15 +300,8 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
                     add_assoc_stringl_ex(zrequest_headers, ZEND_STRL("Proxy-Authorization"), _buf2, _n2);
                 }
             }
-#ifdef SW_USE_OPENSSL
-            if (http->ssl)
-            {
-                hcc->socket->open_ssl = true;
-            }
-#endif
             php_swoole_client_coro_check_setting(hcc->socket, zset);
         }
-
         hcc->socket->set_timeout(http->connect_timeout, true);
         if (!hcc->socket->connect(addr, http->port))
         {
