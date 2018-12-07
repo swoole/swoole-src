@@ -438,7 +438,7 @@ static PHP_METHOD(swoole_server_port, set)
             convert_to_string(v);
             if (access(Z_STRVAL_P(v), R_OK) < 0)
             {
-                swoole_php_fatal_error(E_ERROR, "ssl cert file[%s] not found.", port->ssl_option.cert_file);
+                swoole_php_fatal_error(E_ERROR, "ssl_client_cert_file[%s] not found.", Z_STRVAL_P(v));
                 return;
             }
             if (port->ssl_option.client_cert_file)
