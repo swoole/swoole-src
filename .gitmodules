@@ -9,4 +9,4 @@
 	url = https://github.com/jemalloc/jemalloc.git
 [submodule "thirdparty/quicly"]
 	path = thirdparty/quicly
-	url = https://github.com/h2o/quicly.git
+	url = https://github.com/windrunner414/quicly.git
