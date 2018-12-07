@@ -200,6 +200,7 @@ static void coro_onDNSCompleted(char *domain, swDNSResolver_result *result, void
     }
 
     swString_write_ptr(cache->zaddress, 0, Z_STRVAL_P(zaddress), Z_STRLEN_P(zaddress));
+    cache->zaddress->str[Z_STRLEN_P(zaddress)] = '\0';
 
     cache->update_time = swTimer_get_absolute_msec() + (int64_t) (SwooleG.dns_cache_refresh_time * 1000);
 
