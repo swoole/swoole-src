@@ -224,6 +224,7 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
     {
         http = http_client_create(zobject);
         http->timeout = COROG.socket_timeout;
+        http->connect_timeout = SW_HTTP_CONNECT_TIMEOUT;
     }
 
     if (!hcc->socket)
@@ -245,6 +246,11 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
         if (zset && ZVAL_IS_ARRAY(zset))
         {
             vht = Z_ARRVAL_P(zset);
+            if (php_swoole_array_get_value(vht, "connect_timeout", ztmp))
+            {
+                convert_to_double(ztmp);
+                http->connect_timeout = (double) Z_DVAL_P(ztmp);
+            }
             /**
              * timeout
              */
@@ -252,7 +258,6 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
             {
                 convert_to_double(ztmp);
                 http->timeout = (double) Z_DVAL_P(ztmp);
-                hcc->socket->set_timeout(http->timeout);
             }
             /**
              * keep_alive
@@ -298,7 +303,7 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
             php_swoole_client_coro_check_setting(hcc->socket, zset);
         }
 
-        hcc->socket->set_timeout(SW_HTTP_CONNECT_TIMEOUT, true);
+        hcc->socket->set_timeout(http->connect_timeout, true);
         if (!hcc->socket->connect(addr, http->port))
         {
             zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), hcc->socket->errCode);
@@ -310,6 +315,7 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
         }
         else
         {
+            hcc->socket->set_timeout(http->timeout);
             zend_update_property_bool(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("connected"), 1);
         }
         swTraceLog(SW_TRACE_HTTP_CLIENT, "connect to server, object handle=%d, fd=%d", Z_OBJ_HANDLE_P(zobject), hcc->socket->socket->fd);
@@ -345,18 +351,25 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
     zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("downloadOffset"), 0);
     if (hcc->defer)
     {
+        // defer can not support auto retry, if failed, just return false
         return ret;
     }
     if (ret == SW_OK)
     {
+        // send ok then read data
         ret = http_client_coro_recv_response(zobject, hcc, http);
     }
     if (ret != SW_OK && !hcc->socket && !hcc->internal_failed)
     {
-        // connection closed, auto reconnect and retry again
+        // send or read failed, connection is closed, auto reconnect and retry again (just once)
+        hcc->internal_failed = true;
         ret = http_client_coro_execute(zobject, hcc, uri, uri_len);
     }
-    hcc->internal_failed = (ret != SW_OK);
+    if (ret == SW_OK)
+    {
+        // if everything is ok, set it false
+        hcc->internal_failed = false;
+    }
 
     return ret;
 }
@@ -1089,11 +1102,7 @@ static PHP_METHOD(swoole_http_client_coro, recv)
         Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (timeout != 0)
-    {
-        hcc->socket->set_timeout(timeout);
-    }
-
+    hcc->socket->set_timeout(timeout, true);
     if (http->upgrade)
     {
         ssize_t retval = hcc->socket->recv_packet();

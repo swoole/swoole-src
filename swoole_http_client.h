@@ -122,6 +122,7 @@ typedef struct
 #ifdef SW_USE_OPENSSL
     uint8_t ssl;
 #endif
+    double connect_timeout;
     double timeout;
     char* uri;
     size_t uri_len;
