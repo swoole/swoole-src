@@ -33,6 +33,10 @@ extern "C" {
 #define _GNU_SOURCE
 #endif
 
+#ifdef SW_USE_QUIC
+#include "quicly.h"
+#endif
+
 /*--- C standard library ---*/
 #include <assert.h>
 #include <ctype.h>
@@ -460,17 +464,6 @@ typedef unsigned char uchar;
 typedef void (*swDestructor)(void *data);
 typedef void (*swCallback)(void *data);
 
-typedef struct
-{
-    uint32_t id;
-    uint32_t fd :24;
-    uint32_t reactor_id :8;
-#ifdef SW_USE_QUIC
-    int8_t is_quic;
-    swQuic_stream *quic_stream;
-#endif
-} swSession;
-
 typedef struct _swString
 {
     size_t length;
@@ -670,27 +663,6 @@ typedef struct _swConnection
 
 } swConnection;
 
-#ifdef SW_USE_QUIC
-typedef struct
-{
-    quicly_conn_t *conn;
-    sw_atomic_t from_fd;
-    swReactor *reactor;
-    time_t last_time;
-    swHashMap *stream_list;
-#ifdef SW_BUFFER_RECV_TIME
-    double last_time_usec;
-#endif
-} swQuic_connection;
-
-typedef struct
-{
-    uint32_t session_id;
-    quicly_stream_t *stream;
-    swQuic_connection *swQuic;
-} swQuic_stream;
-#endif
-
 typedef struct _swProtocol
 {
     /* one package: eof check */
@@ -789,6 +761,41 @@ static sw_inline int swString_extend_align(swString *str, size_t _new_size)
 #define swString_length(s) (s->length)
 #define swString_ptr(s) (s->str)
 //------------------------------Base--------------------------------
+
+typedef struct _swReactor swReactor;
+
+#ifdef SW_USE_QUIC
+typedef struct
+{
+    quicly_conn_t *conn;
+    sw_atomic_t from_fd;
+    swReactor *reactor;
+    time_t last_time;
+    swHashMap *stream_list;
+#ifdef SW_BUFFER_RECV_TIME
+    double last_time_usec;
+#endif
+} swQuic_connection;
+
+typedef struct
+{
+    uint32_t session_id;
+    quicly_stream_t *stream;
+    swQuic_connection *swQuic;
+} swQuic_stream;
+#endif
+
+typedef struct
+{
+    uint32_t id;
+    uint32_t fd :24;
+    uint32_t reactor_id :8;
+#ifdef SW_USE_QUIC
+    int8_t is_quic;
+    swQuic_stream *quic_stream;
+#endif
+} swSession;
+
 typedef struct _swDataHead
 {
     int fd;
@@ -870,7 +877,6 @@ typedef struct
 typedef void * (*swThreadStartFunc)(void *);
 typedef int (*swHandle)(swEventData *buf);
 typedef void (*swSignalHandler)(int);
-typedef struct _swReactor swReactor;
 
 typedef int (*swReactor_handle)(swReactor *reactor, swEvent *event);
 //------------------Pipe--------------------

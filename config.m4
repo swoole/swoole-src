@@ -45,7 +45,10 @@ PHP_ARG_WITH(openssl_dir, dir of openssl,
 [  --with-openssl-dir[=DIR]    Include OpenSSL support (requires OpenSSL >= 0.9.6)], no, no)
 
 PHP_ARG_WITH(quic_dir, dir of quicly,
-[  --with-quicly-dir[=DIR]     Include quicly support], no, no)
+[  --with-quic-dir[=DIR]     Include quicly support], no, no)
+
+PHP_ARG_WITH(picotls_dir, dir of picotls,
+[  --with-picotls-dir[=DIR]    Include picotls support], no, no)
 
 PHP_ARG_WITH(nghttp2_dir, dir of nghttp2,
 [  --with-nghttp2-dir[=DIR]    Include nghttp2 support], no, no)
@@ -317,9 +320,14 @@ if test "$PHP_SWOOLE" != "no"; then
 
         if test "$PHP_QUIC_DIR" != "no"; then
             PHP_ADD_INCLUDE("${PHP_QUIC_DIR}/include")
-        else
-            AC_CHECK_LIB(quicly, quicly_decode_packet)
+            PHP_ADD_LIBRARY_WITH_PATH(quicly, "${PHP_QUIC_DIR}")
         fi
+
+        PHP_ADD_LIBRARY(quicly, 1, SWOOLE_SHARED_LIBADD)
+    fi
+
+    if test "$PHP_PICOTLS_DIR" != "no"; then
+        PHP_ADD_INCLUDE("${PHP_PICOTLS_DIR}/include")
     fi
 
     if test "$PHP_PHPX_DIR" != "no"; then

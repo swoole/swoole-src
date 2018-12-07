@@ -19,11 +19,6 @@
 #include "client.h"
 #include "websocket.h"
 
-#ifdef SW_USE_QUIC
-#include "quicly.h"
-#include "hashmap.h"
-#endif
-
 static int swReactorThread_loop(swThreadParam *param);
 static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev);
 static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev);
