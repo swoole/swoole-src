@@ -1407,7 +1407,7 @@ static int swoole_mysql_coro_onError(swReactor *reactor, swEvent *event)
     swoole_mysql_coro_close(zobject);
 
     zend_update_property_string(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("connect_error"), "EPOLLERR/EPOLLHUP/EPOLLRDHUP happen!");
-    zend_update_property_long(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("connect_errno"), 104);
+    zend_update_property_long(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("connect_errno"), ECONNRESET);
     ZVAL_BOOL(result, 0);
     if (client->defer && !client->suspending)
     {
