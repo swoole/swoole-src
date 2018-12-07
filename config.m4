@@ -316,6 +316,7 @@ if test "$PHP_SWOOLE" != "no"; then
         AC_DEFINE(SW_USE_QUIC, 1, [enable quic support])
 
         PHP_ADD_INCLUDE("${PHP_QUIC_DIR}/include")
+        PHP_ADD_INCLUDE("${PHP_QUIC_DIR}/deps/picotls/include")
         PHP_ADD_LIBRARY_WITH_PATH(quicly, "${PHP_QUIC_DIR}")
         PHP_ADD_LIBRARY(quicly, 1, SWOOLE_SHARED_LIBADD)
     fi

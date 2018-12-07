@@ -291,8 +291,7 @@ static int swReactorThread_onQuicPackage(swReactor *reactor, swEvent *event)
 #ifdef SW_BUFFER_RECV_TIME
                     swQuic->last_time_usec = swoole_microtime();
 #endif
-                    quicly_cid_t *cid = &quic_pkt.cid.dest;
-                    swHashMap_add(serv->quic_connections, (char *)cid->cid, cid->len, swQuic);
+                    swHashMap_add(serv->quic_connections, (char *)quic_pkt.cid.dest.base, quic_pkt.cid.dest.len, swQuic);
                 }
                 else
                 {
