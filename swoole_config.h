@@ -267,7 +267,7 @@
 /**
  * PGSQL Client
  */
-#define SW_PGSQL_CONNECT_TIMEOUT         1.0
+#define SW_PGSQL_CONNECT_TIMEOUT         3.0
 
 /**
  * Timer
