@@ -649,7 +649,7 @@ if test "$PHP_SWOOLE" != "no"; then
         PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/picohttpparser])
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/picohttpparser)
     fi
-    
+
     if test "$PHP_QUIC" != "no" || test "$PHP_QUIC_DIR" != "no"; then
         AC_DEFINE(SW_USE_QUIC, 1, [enable quic support])
 
