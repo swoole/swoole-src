@@ -31,13 +31,22 @@
 #endif
 
 #ifdef HAVE_KQUEUE
-
+#ifdef SW_USE_QUIC
+#define FETCH_EVENT() \
+    memcpy(&fd_, &(object->events[i].udata), sizeof(fd_)); \
+    event.fd = fd_.fd; \
+    event.from_id = reactor->id; \
+    event.type = fd_.fdtype; \
+    event.socket = swReactor_get(reactor, event.fd); \
+    event.is_quic = 0
+#else
 #define FETCH_EVENT() \
     memcpy(&fd_, &(object->events[i].udata), sizeof(fd_)); \
     event.fd = fd_.fd; \
     event.from_id = reactor->id; \
     event.type = fd_.fdtype; \
     event.socket = swReactor_get(reactor, event.fd)
+#endif
 
 typedef struct swReactorKqueue_s swReactorKqueue;
 typedef struct _swFd

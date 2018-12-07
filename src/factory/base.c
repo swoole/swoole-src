@@ -69,6 +69,22 @@ int swFactory_dispatch(swFactory *factory, swDispatchData *task)
 int swFactory_notify(swFactory *factory, swDataHead *info)
 {
     swServer *serv = factory->ptr;
+#ifdef SW_USE_QUIC
+    if (info->is_quic)
+    {
+        swQuic_stream *quic_stream = info->quic_stream;
+        if (quic_stream == NULL)
+        {
+            swWarn("dispatch[type=%d] failed, quic stream#%d is not active.", info->type, quic_stream->session_id);
+            return SW_ERR;
+        }
+
+        info->fd = quic_stream->session_id;
+        return swWorker_onTask(factory, (swEventData *) info);
+    }
+    else
+    {
+#endif
     swConnection *conn = swServer_connection_get(serv, info->fd);
     if (conn == NULL || conn->active == 0)
     {
@@ -85,6 +101,9 @@ int swFactory_notify(swFactory *factory, swDataHead *info)
     info->fd = conn->session_id;
     info->from_fd = conn->from_fd;
     return swWorker_onTask(factory, (swEventData *) info);
+#ifdef SW_USE_QUIC
+    }
+#endif
 }
 
 int swFactory_end(swFactory *factory, int fd)
@@ -97,6 +116,10 @@ int swFactory_end(swFactory *factory, int fd)
     _send.info.fd = fd;
     _send.info.len = 0;
     _send.info.type = SW_EVENT_CLOSE;
+#if SW_USE_QUIC
+    _send.info.is_quic = 0;
+    info.is_quic = 0;
+#endif
 
     swConnection *conn = swWorker_get_connection(serv, fd);
     if (conn == NULL || conn->active == 0)

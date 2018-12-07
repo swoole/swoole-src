@@ -250,6 +250,9 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
             event.from_id = reactor_id;
             event.type = events[i].data.u64 >> 32;
             event.socket = swReactor_get(reactor, event.fd);
+#ifdef SW_USE_QUIC
+            event.is_quic = 0;
+#endif
 
             //read
             if ((events[i].events & EPOLLIN) && !event.socket->removed)

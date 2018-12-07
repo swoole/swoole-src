@@ -21,6 +21,25 @@
 #include "mqtt.h"
 #include "redis.h"
 
+#ifdef SW_USE_QUIC
+#include "quicly.h"
+#include "../deps/picotls/t/util.h"
+
+static ptls_context_t tlsctx = {ptls_openssl_random_bytes,
+                                &ptls_get_time,
+                                ptls_openssl_key_exchanges,
+                                ptls_openssl_cipher_suites,
+                                {NULL},
+                                NULL,
+                                NULL,
+                                NULL,
+                                NULL,
+                                0,
+                                0,
+                                NULL,
+                                1};
+#endif
+
 static int swPort_onRead_raw(swReactor *reactor, swListenPort *lp, swEvent *event);
 static int swPort_onRead_check_length(swReactor *reactor, swListenPort *lp, swEvent *event);
 static int swPort_onRead_check_eof(swReactor *reactor, swListenPort *lp, swEvent *event);
@@ -51,6 +70,16 @@ void swPort_init(swListenPort *port)
     char eof[] = SW_DATA_EOF;
     port->protocol.package_eof_len = sizeof(SW_DATA_EOF) - 1;
     memcpy(port->protocol.package_eof, eof, port->protocol.package_eof_len);
+
+#ifdef SW_USE_QUIC
+    port->quic_ctx = quicly_default_context;
+    port->quic_ctx.tls = &tlsctx;
+    port->quic_ctx.on_stream_open = swQuic_on_stream_open;
+    port->quic_ctx.on_conn_close = swQuic_on_conn_close;
+
+    setup_session_cache(port->quic_ctx.tls);
+    quicly_amend_ptls_context(port->quic_ctx.tls);
+#endif
 }
 
 #ifdef SW_USE_OPENSSL
@@ -227,9 +256,24 @@ static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *ev
 {
     int n;
     swDispatchData task;
-    swConnection *conn =  event->socket;
+    swConnection *conn = NULL;
 
+#ifdef SW_USE_QUIC
+    if (event->is_quic)
+    {
+        n = event->quic_buf.len;
+        task.data.data = event->quic_buf.base;
+    }
+    else
+    {
+        conn = event->socket;
+        n = swConnection_recv(conn, task.data.data, SW_BUFFER_SIZE, 0);
+    }
+#else
+    conn = event->socket;
     n = swConnection_recv(conn, task.data.data, SW_BUFFER_SIZE, 0);
+#endif
+
     if (n < 0)
     {
         switch (swConnection_error(errno))
@@ -252,11 +296,25 @@ static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *ev
     else
     {
         task.data.info.fd = event->fd;
+#ifdef SW_USE_QUIC
+        task.data.info.quic_stream = event->quic_stream;
+#endif
         task.data.info.from_id = event->from_id;
         task.data.info.len = n;
         task.data.info.type = SW_EVENT_TCP;
         task.target_worker_id = -1;
+#ifdef SW_USE_QUIC
+        if (event->is_quic)
+        {
+            return swReactorThread_dispatch_quic(event->quic_stream, task.data.data, task.data.info.len);
+        }
+        else
+        {
+            return swReactorThread_dispatch(conn, task.data.data, task.data.info.len);
+        }
+#else
         return swReactorThread_dispatch(conn, task.data.data, task.data.info.len);
+#endif
     }
     return SW_OK;
 }

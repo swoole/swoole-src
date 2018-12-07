@@ -19,6 +19,11 @@
 #include "client.h"
 #include "websocket.h"
 
+#ifdef SW_USE_QUIC
+#include "quicly.h"
+#include "hashmap.h"
+#endif
+
 static int swReactorThread_loop(swThreadParam *param);
 static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev);
 static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev);
@@ -145,6 +150,188 @@ static void swReactorThread_onStreamResponse(swStream *stream, char *data, uint3
     swReactorThread_send(&response);
 }
 
+#ifdef SW_USE_QUIC
+static int swQuic_on_receive(quicly_stream_t *stream)
+{
+    if (stream->sendbuf.eos != UINT64_MAX) return 0;
+    ptls_iovec_t buf = quicly_recvbuf_get(&stream->recvbuf);
+
+    quicly_conn_t *conn = &stream->conn;
+    quicly_cid_t *cid = &conn->super.host.cid;
+
+    swServer *serv = SwooleG.serv;
+    swQuic_connection *swQuic = NULL;
+    swQuic = (swQuic_connection *) swHashMap_find(serv->quic_connections, cid->cid, cid->len);
+    if (swQuic == NULL) return 0;
+    sw_atomic_t from_fd = swQuic->from_fd;
+
+    if (from_fd == 0) return 0;
+
+    swListenPort *port = (swListenPort *) serv->connection_list[from_fd].object;
+    swEvent event;
+    event->socket = NULL;
+    event->type = SW_EVENT_READ;
+    event->from_fd = from_fd;
+    event->fd = 0;
+    event->is_quic = 1;
+    event->quic_stream = swQuic_stream;
+    event->quic_buf = &buf;
+    port->onRead(swQuic->reactor, port, &event);
+    return 0;
+}
+
+static int swQuic_on_stream_open(quicly_stream_t *stream)
+{
+    swQuic_connection *swQuic = NULL;
+
+    quicly_conn_t *conn = &stream->conn;
+    quicly_cid_t *cid = &conn->super.host.cid;
+
+    swServer *serv = SwooleG.serv;
+
+    swQuic = (swQuic_connection *) swHashMap_find(serv->quic_connections, cid->cid, cid->len);
+    if (swQuic == NULL) return 0;
+
+    (swQuic_stream *) swQuic_stream = (swQuic_stream *) sw_malloc(sizeof(swQuic_stream));
+    swQuic_stream->stream = stream;
+
+    swSession *session;
+    sw_spinlock(&serv->gs->spinlock);
+    int i;
+    uint32_t session_id = serv->gs->session_round;
+    //get session id
+    for (i = 0; i < serv->max_connection; i++)
+    {
+        session_id++;
+        //SwooleGS->session_round just has 24 bits size;
+        if (unlikely(session_id == 1 << 24))
+        {
+            session_id = 1;
+        }
+        session = swServer_get_session(serv, session_id);
+        //vacancy
+        if (session->fd == 0)
+        {
+            session->fd = 1;
+            session->is_quic = 1;
+            session->quic_stream = swQuic_stream;
+            session->id = session_id;
+            session->reactor_id = swQuic->reactor->id;
+            break;
+        }
+    }
+    serv->gs->session_round = session_id;
+    sw_spinlock_release(&serv->gs->spinlock);
+    swQuic_stream->session_id = session_id;
+
+    swHashMap_add(swQuic->stream_list, &stream->stream_id, sizeof(&stream->stream_id), swQuic_stream);
+
+    stream->on_update = swQuic_on_receive;
+
+    if (serv->onConnect)
+    {
+        swServer_quic_notify(serv, swQuic_stream, SW_EVENT_CONNECT);
+    }
+
+    return 0;
+}
+
+static void swQuic_on_conn_close(quicly_conn_t *conn, uint16_t code, const uint64_t *frame_type, const char *reason, size_t reason_len)
+{
+
+}
+
+static int swReactorThread_onQuicPackage(swReactor *reactor, swEvent *event)
+{
+    int fd = event->fd;
+    int ret;
+
+    swServer *serv = SwooleG.serv;
+    swListenPort *port = (swListenPort *) serv->connection_list[fd].object;
+    quicly_context_t ctx = port->quic_ctx;
+
+    swSocketAddress info;
+    info.len = sizeof(info.addr);
+
+    char packet[SW_BUFFER_SIZE_UDP];
+    do_recvfrom:
+    ret = recvfrom(fd, packet, SW_BUFFER_SIZE_UDP, 0, (struct sockaddr *) &info.addr, &info.len);
+
+    if (ret > 0)
+    {
+        size_t off = 0;
+        while (off != ret)
+        {
+            quicly_decoded_packet_t quic_pkt;
+            size_t plen = quicly_decode_packet(&quic_pkt, packet + off, ret - off, 8);
+
+            if (plen == SIZE_MAX) break;
+            quicly_conn_t *conn = NULL;
+            swQuic_connection *swQuic = NULL;
+
+            swQuic = (swQuic_connection *) swHashMap_find(serv->quic_connections, quic_pkt.cid.dest.base, quic_pkt.cid.dest.len);
+            if (swQuic != NULL)
+            {
+                swQuic->reactor = reactor;
+                conn = swQuic->conn;
+                swQuic->last_time = serv->gs->now;
+#ifdef SW_BUFFER_RECV_TIME
+                swQuic->last_time_usec = swoole_microtime();
+#endif
+            }
+
+            if (conn == NULL)
+            {
+                int accept_ret = quicly_accept(&conn, &ctx, (struct sockaddr *) &info.addr, info.len, NULL, &quic_pkt);
+                if (accept_ret == 0)
+                {
+                    swQuic = (swQuic_connection *) sw_malloc(sizeof(swQuic_connection));
+                    swQuic->conn = conn;
+                    swQuic->from_fd = fd;
+                    swQuic->reactor = reactor;
+                    swQuic->last_time = serv->gs->now;
+                    swQuic->stream_list = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
+#ifdef SW_BUFFER_RECV_TIME
+                    swQuic->last_time_usec = swoole_microtime();
+#endif
+                    quicly_cid_t *cid = &conn->super.host.cid;
+                    swHashMap_add(serv->quic_connections, cid->cid, cid->len, swQuic);
+                }
+                else
+                {
+                    if (accept_ret == QUICLY_ERROR_VERSION_NEGOTIATION) {
+                        quicly_datagram_t *rp =
+                                quicly_send_version_negotiation(&ctx, (struct sockaddr *) &info.addr, info.len, quic_pkt.cid.src, quic_pkt.cid.dest);
+                        sendto(fd, rp->data.base, rp->data.len, 0, &p->sa, p->salen);
+                    }
+                }
+            }
+            else
+            {
+                quicly_receive(conn, &quic_pkt);
+            }
+
+            off += plen;
+        }
+
+        goto do_recvfrom;
+    }
+    else
+    {
+        if (errno == EAGAIN)
+        {
+            return SW_OK;
+        }
+        else
+        {
+            swSysError("recvfrom(%d) failed.", fd);
+        }
+    }
+
+    return ret;
+}
+#endif
+
 /**
  * for udp
  */
@@ -155,6 +342,14 @@ static int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
 
     swServer *serv = SwooleG.serv;
     swConnection *server_sock = &serv->connection_list[fd];
+
+#ifdef SW_USE_QUIC
+    if (swSocket_is_quic(server_sock->socket_type))
+    {
+        return swReactorThread_onQuicPackage(reactor, event);
+    }
+#endif
+
     swDispatchData task;
     swSocketAddress info;
     swDgramPacket pkt;
@@ -1149,7 +1344,11 @@ int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr)
     swListenPort *ls;
     LL_FOREACH(serv->listen_list, ls)
     {
-        if (ls->type == SW_SOCK_UDP || ls->type == SW_SOCK_UDP6 || ls->type == SW_SOCK_UNIX_DGRAM)
+#ifdef SW_USE_QUIC
+        if (swSocket_is_dgram(ls->type) || swSocket_is_quic(ls->type))
+#else
+        if (swSocket_is_dgram(ls->type))
+#endif
         {
             continue;
         }
@@ -1269,7 +1468,11 @@ static int swReactorThread_loop(swThreadParam *param)
         swListenPort *ls;
         LL_FOREACH(serv->listen_list, ls)
         {
-            if (ls->type == SW_SOCK_UDP || ls->type == SW_SOCK_UDP6 || ls->type == SW_SOCK_UNIX_DGRAM)
+#ifdef SW_USE_QUIC
+            if (swSocket_is_dgram(ls->type) || swSocket_is_quic(ls->type))
+#else
+            if (swSocket_is_dgram(ls->type))
+#endif
             {
                 if (ls->sock % serv->reactor_num != reactor_id)
                 {
@@ -1375,6 +1578,13 @@ static int swReactorThread_loop(swThreadParam *param)
     pthread_exit(0);
     return SW_OK;
 }
+
+#ifdef SW_USE_QUIC
+int swReactorThread_dispatch_quic(swQuic_stream *quic_stream, char *data, uint32_t length)
+{
+
+}
+#endif
 
 /**
  * dispatch request data [only data frame]

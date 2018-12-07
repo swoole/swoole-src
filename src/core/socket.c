@@ -323,10 +323,16 @@ int swSocket_create(int type)
         _domain = PF_INET6;
         _type = SOCK_STREAM;
         break;
+#ifdef SW_USE_QUIC
+    case SW_SOCK_QUIC:
+#endif
     case SW_SOCK_UDP:
         _domain = PF_INET;
         _type = SOCK_DGRAM;
         break;
+#ifdef SW_USE_QUIC
+    case SW_SOCK_QUIC6:
+#endif
     case SW_SOCK_UDP6:
         _domain = PF_INET6;
         _type = SOCK_DGRAM;

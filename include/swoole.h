@@ -325,6 +325,10 @@ enum swSocket_type
     SW_SOCK_UDP6         =  4,
     SW_SOCK_UNIX_DGRAM   =  5,  //unix sock dgram
     SW_SOCK_UNIX_STREAM  =  6,  //unix sock stream
+#ifdef SW_USE_QUIC
+    SW_SOCK_QUIC         =  7,
+    SW_SOCK_QUIC6        =  8,
+#endif
 };
 
 #define SW_SOCK_SSL            (1u << 9)
@@ -461,6 +465,10 @@ typedef struct
     uint32_t id;
     uint32_t fd :24;
     uint32_t reactor_id :8;
+#ifdef SW_USE_QUIC
+    int8_t is_quic;
+    swQuic_stream *quic_stream;
+#endif
 } swSession;
 
 typedef struct _swString
@@ -662,6 +670,27 @@ typedef struct _swConnection
 
 } swConnection;
 
+#ifdef SW_USE_QUIC
+typedef struct
+{
+    quicly_conn_t *conn;
+    sw_atomic_t from_fd;
+    swReactor *reactor;
+    time_t last_time;
+    swHashMap *stream_list;
+#ifdef SW_BUFFER_RECV_TIME
+    double last_time_usec;
+#endif
+} swQuic_connection;
+
+typedef struct
+{
+    uint32_t session_id;
+    quicly_stream_t *stream;
+    swQuic_connection *swQuic;
+} swQuic_stream;
+#endif
+
 typedef struct _swProtocol
 {
     /* one package: eof check */
@@ -771,6 +800,10 @@ typedef struct _swDataHead
 #ifdef SW_BUFFER_RECV_TIME
     double time;
 #endif
+#ifdef SW_USE_QUIC
+    int8_t is_quic;
+    swQuic_stream *quic_stream;
+#endif
 } swDataHead;
 
 typedef struct _swEvent
@@ -779,6 +812,11 @@ typedef struct _swEvent
     int16_t from_id;
     uint8_t type;
     swConnection *socket;
+#ifdef SW_USE_QUIC
+    int8_t is_quic;
+    swQuic_stream *quic_stream;
+    ptls_iovec_t *quic_buf;
+#endif
 } swEvent;
 
 typedef struct _swEventData
@@ -1338,8 +1376,19 @@ static sw_inline int swSocket_is_dgram(uint8_t type)
 
 static sw_inline int swSocket_is_stream(uint8_t type)
 {
+#ifdef SW_USE_QUIC
+    return (type == SW_SOCK_TCP || type == SW_SOCK_TCP6 || type == SW_SOCK_UNIX_STREAM || type == SW_SOCK_QUIC || type == SW_SOCK_QUIC6);
+#else
     return (type == SW_SOCK_TCP || type == SW_SOCK_TCP6 || type == SW_SOCK_UNIX_STREAM);
+#endif
 }
+
+#ifdef SW_USE_QUIC
+static sw_inline int swSocket_is_quic(uint8_t type)
+{
+    return (type == SW_SOCK_QUIC || type == SW_SOCK_QUIC6);
+}
+#endif
 
 #ifdef SW_USE_IOCTL
 #define swSetNonBlock(sock)   swoole_ioctl_set_block(sock, 1)
@@ -2287,6 +2336,10 @@ static sw_inline int64_t swTimer_get_absolute_msec()
     int64_t msec2 = (now.tv_usec) / 1000;
     return msec1 + msec2;
 }
+
+#ifdef SW_USE_QUIC
+
+#endif
 
 #ifdef __cplusplus
 }

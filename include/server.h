@@ -175,6 +175,10 @@ typedef struct _swListenPort
     pthread_t thread_id;
     char host[SW_HOST_MAXSIZE];
 
+#ifdef SW_USE_QUIC
+    quicly_context_t quic_ctx;
+#endif
+
     /**
      * check data eof
      */
@@ -552,6 +556,10 @@ struct _swServer
     swConnection *connection_list;
     swSession *session_list;
 
+#ifdef SW_USE_QUIC
+    swHashMap *quic_connections;
+#endif
+
     /**
      * temporary directory for HTTP uploaded file.
      */
@@ -680,6 +688,11 @@ void swServer_call_hook(swServer *serv, enum swServer_hook_type type, void *arg)
 int swServer_create(swServer *serv);
 int swServer_free(swServer *serv);
 int swServer_shutdown(swServer *serv);
+
+#ifdef SW_USE_QUIC
+static int swQuic_on_stream_open(quicly_stream_t *stream);
+static void swQuic_on_conn_close(quicly_conn_t *conn, uint16_t code, const uint64_t *frame_type, const char *reason, size_t reason_len);
+#endif
 
 static sw_inline swString *swServer_get_buffer(swServer *serv, int fd)
 {
@@ -1063,6 +1076,9 @@ void swReactorThread_free(swServer *serv);
 int swReactorThread_close(swReactor *reactor, int fd);
 int swReactorThread_onClose(swReactor *reactor, swEvent *event);
 int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length);
+#ifdef SW_USE_QUIC
+int swReactorThread_dispatch_quic(swQuic_stream *quic_stream, char *data, uint32_t length);
+#endif
 int swReactorThread_send(swSendData *_send);
 int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id);
 

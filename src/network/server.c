@@ -22,6 +22,11 @@
 #include "connection.h"
 #include <spawn.h>
 #include <sys/stat.h>
+
+#ifdef SW_USE_QUIC
+#include "hashmap.h"
+#endif
+
 #if __APPLE__
 #undef daemon
 extern int daemon(int, int);
@@ -307,8 +312,8 @@ static int swServer_start_check(swServer *serv)
 }
 
 /**
- * proxy模式
- * 在单独的n个线程中接受维持TCP连接
+ * proxy mode
+ * accept tcp connections in some separate threads
  */
 static int swServer_start_proxy(swServer *serv)
 {
@@ -338,7 +343,11 @@ static int swServer_start_proxy(swServer *serv)
     swListenPort *ls;
     LL_FOREACH(serv->listen_list, ls)
     {
+#ifdef SW_USE_QUIC
+        if (swSocket_is_dgram(ls->type) || swSocket_is_quic(ls->type))
+#else
         if (swSocket_is_dgram(ls->type))
+#endif
         {
             continue;
         }
@@ -856,6 +865,10 @@ void swServer_init(swServer *serv)
 
     serv->task_ipc_mode = SW_TASK_IPC_UNIXSOCK;
 
+#ifdef SW_USE_QUIC
+    serv->quic_connections = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
+#endif
+
     /**
      * alloc shared memory
      */
@@ -1108,8 +1121,26 @@ int swServer_tcp_notify(swServer *serv, swConnection *conn, int event)
     notify_event.fd = conn->fd;
     notify_event.from_fd = conn->from_fd;
     notify_event.len = 0;
+#if SW_USE_QUIC
+    notify_event.is_quic = 0;
+#endif
     return serv->factory.notify(&serv->factory, &notify_event);
 }
+
+#ifdef SW_USE_QUIC
+int swServer_quic_notify(swServer *serv, swQuic_stream *stream, int event)
+{
+    swDataHead notify_event;
+    notify_event.type = event;
+    notify_event.from_id = stream->swQuic->reactor->id;
+    notify_event.fd = 0;
+    notify_event.from_fd = stream->swQuic->from_fd;
+    notify_event.len = 0;
+    notify_event.is_quic = 1;
+    notify_event.quic_stream = stream;
+    return serv->factory.notify(&serv->factory, &notify_event);
+}
+#endif
 
 int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename, uint32_t filename_length, off_t offset, size_t length)
 {
@@ -1219,6 +1250,9 @@ int swServer_tcp_close(swServer *serv, int fd, int reset)
         ev.type = SW_EVENT_CLOSE;
         ev.fd = fd;
         ev.from_id = conn->from_id;
+#if SW_USE_QUIC
+        ev.is_quic = 0;
+#endif
         ret = swWorker_send2worker(worker, &ev, sizeof(ev), SW_PIPE_MASTER);
     }
     else
@@ -1443,7 +1477,11 @@ int swserver_add_systemd_socket(swServer *serv)
         }
 
         //dgram socket, setting socket buffer size
+#ifdef SW_USE_QUIC
+        if (swSocket_is_dgram(ls->type) || swSocket_is_quic(ls->type))
+#else
         if (swSocket_is_dgram(ls->type))
+#endif
         {
             setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &ls->socket_buffer_size, sizeof(int));
             setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &ls->socket_buffer_size, sizeof(int));
@@ -1510,7 +1548,11 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port)
     if (type & SW_SOCK_SSL)
     {
         type = type & (~SW_SOCK_SSL);
+#ifdef SW_USE_QUIC
+        if (swSocket_is_stream(type) && !swSocket_is_quic(type))
+#else
         if (swSocket_is_stream(type))
+#endif
         {
             ls->type = type;
             ls->ssl = 1;
@@ -1539,7 +1581,11 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port)
         return NULL;
     }
     //dgram socket, setting socket buffer size
+#ifdef SW_USE_QUIC
+    if (swSocket_is_dgram(ls->type) || swSocket_is_quic(ls->type))
+#else
     if (swSocket_is_dgram(ls->type))
+#endif
     {
         setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &ls->socket_buffer_size, sizeof(int));
         setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &ls->socket_buffer_size, sizeof(int));
@@ -1552,6 +1598,7 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port)
     {
         serv->have_dgram_sock = 1;
         serv->dgram_port_num++;
+
         if (ls->type == SW_SOCK_UDP)
         {
             serv->udp_socket_ipv4 = sock;

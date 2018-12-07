@@ -70,7 +70,11 @@ int swReactorProcess_start(swServer *serv)
     {
         LL_FOREACH(serv->listen_list, ls)
         {
+#ifdef SW_USE_QUIC
+            if (swSocket_is_dgram(ls->type) || swSocket_is_quic(ls->type))
+#else
             if (swSocket_is_dgram(ls->type))
+#endif
             {
                 continue;
             }
@@ -291,7 +295,11 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 
     LL_FOREACH(serv->listen_list, ls)
     {
+#ifdef SW_USE_QUIC
+        fdtype = (swSocket_is_dgram(ls->type) || swSocket_is_quic(ls->type)) ? SW_FD_UDP : SW_FD_LISTEN;
+#else
         fdtype = swSocket_is_dgram(ls->type) ? SW_FD_UDP : SW_FD_LISTEN;
+#endif
 #ifdef HAVE_REUSEPORT
         if (fdtype == SW_FD_LISTEN && SwooleG.reuse_port)
         {
@@ -602,7 +610,11 @@ static int swReactorProcess_reuse_port(swListenPort *ls)
         return SW_ERR;
     }
     //stream socket, set nonblock
+#ifdef SW_USE_QUIC
+    if (swSocket_is_stream(ls->type) && !swSocket_is_quic(ls->type))
+#else
     if (swSocket_is_stream(ls->type))
+#endif
     {
         swSetNonBlock(sock);
     }

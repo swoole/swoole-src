@@ -153,6 +153,21 @@ static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
 
     if (swEventData_is_stream(task->data.info.type))
     {
+#ifdef SW_USE_QUIC
+        if (task->data.info.is_quic)
+        {
+            swQuic_stream *quic_stream = task->data.info.quic_stream;
+            if (quic_stream == NULL)
+            {
+                swWarn("dispatch[type=%d] failed, quic stream#%d is not active.", task->data.info.type, quic_stream->session_id);
+                return SW_ERR;
+            }
+
+            task->data.info.fd = quic_stream->session_id;
+        }
+        else
+        {
+#endif
         swConnection *conn = swServer_connection_get(serv, fd);
         if (conn == NULL || conn->active == 0)
         {
@@ -171,6 +186,9 @@ static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
         //converted fd to session_id
         task->data.info.fd = conn->session_id;
         task->data.info.from_fd = conn->from_fd;
+#ifdef SW_USE_QUIC
+        }
+#endif
     }
 
     return swReactorThread_send2worker((void *) &(task->data), send_len, target_worker_id);
@@ -295,6 +313,10 @@ static int swFactoryProcess_end(swFactory *factory, int fd)
     _send.info.fd = fd;
     _send.info.len = 0;
     _send.info.type = SW_EVENT_CLOSE;
+#if SW_USE_QUIC
+    _send.info.is_quic = 0;
+    info.is_quic = 0;
+#endif
 
     swConnection *conn = swWorker_get_connection(serv, fd);
     if (conn == NULL || conn->active == 0)

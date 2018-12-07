@@ -29,6 +29,9 @@ PHP_ARG_ENABLE(openssl, enable openssl support,
 PHP_ARG_ENABLE(http2, enable http2.0 support,
 [  --enable-http2            Use http2.0?], no, no)
 
+PHP_ARG_ENABLE(quic, enable quic transport protocol support,
+[  --enable-quic             Use quic?], no, no)
+
 PHP_ARG_ENABLE(swoole, swoole support,
 [  --enable-swoole           Enable swoole support], [enable_swoole="yes"])
 
@@ -40,6 +43,9 @@ PHP_ARG_ENABLE(coroutine-postgresql, enable coroutine postgresql support,
 
 PHP_ARG_WITH(openssl_dir, dir of openssl,
 [  --with-openssl-dir[=DIR]    Include OpenSSL support (requires OpenSSL >= 0.9.6)], no, no)
+
+PHP_ARG_WITH(quic_dir, dir of quicly,
+[  --with-quicly-dir[=DIR]     Include quicly support], no, no)
 
 PHP_ARG_WITH(nghttp2_dir, dir of nghttp2,
 [  --with-nghttp2-dir[=DIR]    Include nghttp2 support], no, no)
@@ -304,6 +310,16 @@ if test "$PHP_SWOOLE" != "no"; then
         AC_DEFINE(SW_USE_OPENSSL, 1, [enable openssl support])
         PHP_ADD_LIBRARY(ssl, 1, SWOOLE_SHARED_LIBADD)
         PHP_ADD_LIBRARY(crypto, 1, SWOOLE_SHARED_LIBADD)
+    fi
+
+    if test "$PHP_QUIC" != "no" || test "$PHP_QUIC_DIR" != "no"; then
+        AC_DEFINE(SW_USE_QUIC, 1, [enable quic support])
+
+        if test "$PHP_QUIC_DIR" != "no"; then
+            PHP_ADD_INCLUDE("${PHP_QUIC_DIR}/include")
+        else
+            AC_CHECK_LIB(quicly, quicly_decode_packet)
+        fi
     fi
 
     if test "$PHP_PHPX_DIR" != "no"; then

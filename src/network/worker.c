@@ -387,6 +387,10 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         break;
 
     case SW_EVENT_CONNECT:
+#ifdef SW_USE_QUIC
+        if (!task->info.is_quic)
+        {
+#endif
 #ifdef SW_USE_OPENSSL
         //SSL client certificate
         if (task->info.len > 0)
@@ -394,6 +398,9 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
             conn = swServer_connection_verify_no_ssl(serv, task->info.fd);
             conn->ssl_client_cert.str = sw_strndup(task->data, task->info.len);
             conn->ssl_client_cert.size = conn->ssl_client_cert.length = task->info.len;
+        }
+#endif
+#ifdef SW_USE_QUIC
         }
 #endif
         if (serv->onConnect)
