@@ -718,7 +718,6 @@ static PHP_METHOD(swoole_client_coro, connect)
     {
         RETURN_FALSE;
     }
-    cli->set_timeout(timeout);
     swoole_set_object(getThis(), cli);
 
     zval *zset = sw_zend_read_property(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("setting"), 1);
@@ -728,6 +727,7 @@ static PHP_METHOD(swoole_client_coro, connect)
     }
 
     sw_coro_check_bind("client", cli->has_bound(swoole::SOCKET_LOCK_RW));
+    cli->set_timeout(timeout);
     if (!cli->connect(host, port, sock_flag))
     {
         zend_update_property_long(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), cli->errCode);
@@ -812,7 +812,7 @@ static PHP_METHOD(swoole_client_coro, sendto)
 static PHP_METHOD(swoole_client_coro, recvfrom)
 {
     zend_long length;
-    zval *port, *address;
+    zval *address, *port;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "lz/|z/", &length, &address, &port) == FAILURE)
     {

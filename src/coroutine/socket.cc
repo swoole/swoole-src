@@ -335,14 +335,10 @@ bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen)
     int retval = socket_connect(socket->fd, addr, addrlen);
     if (retval == -1)
     {
-        if (errno != EINPROGRESS)
+        if (errno != EINPROGRESS || !wait_events(SW_EVENT_WRITE))
         {
-            _error: errCode = errno;
+            errCode = errno;
             return false;
-        }
-        if (!wait_events(SW_EVENT_WRITE))
-        {
-            goto _error;
         }
         yield(SOCKET_LOCK_RW);
         //Connection has timed out
