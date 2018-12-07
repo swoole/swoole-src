@@ -423,7 +423,7 @@ bool Socket::connect(string host, int port, int flags)
             }
             else
             {
-                socket->info.len = sizeof( socket->info.addr.inet_v4);
+                socket->info.len = sizeof(socket->info.addr.inet_v4);
                 _target_addr = (struct sockaddr *) &socket->info.addr.inet_v4;
                 break;
             }
