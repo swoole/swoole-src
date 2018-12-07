@@ -312,6 +312,14 @@ if test "$PHP_SWOOLE" != "no"; then
         PHP_ADD_LIBRARY(crypto, 1, SWOOLE_SHARED_LIBADD)
     fi
 
+    if test "$PHP_QUIC" != "no" && test "$PHP_QUIC_DIR" != "no"; then
+        AC_DEFINE(SW_USE_QUIC, 1, [enable quic support])
+
+        PHP_ADD_INCLUDE("${PHP_QUIC_DIR}/include")
+        PHP_ADD_LIBRARY_WITH_PATH(quicly, "${PHP_QUIC_DIR}")
+        PHP_ADD_LIBRARY(quicly, 1, SWOOLE_SHARED_LIBADD)
+    fi
+
     if test "$PHP_PHPX_DIR" != "no"; then
         PHP_ADD_INCLUDE("${PHP_PHPX_DIR}/include")
         PHP_ADD_LIBRARY_WITH_PATH(phpx, "${PHP_PHPX_DIR}/${PHP_LIBDIR}")
@@ -528,35 +536,6 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_source_file="$swoole_source_file thirdparty/picohttpparser/picohttpparser.c"
     fi
 
-    if test "$PHP_QUIC" != "no" || test "$PHP_QUIC_DIR" != "no"; then
-        swoole_source_file=" \
-            thirdparty/quicly/deps/picotls/lib/openssl.c \
-            thirdparty/quicly/deps/picotls/lib/pembase64.c \
-            thirdparty/quicly/deps/picotls/lib/picotls.c \
-            thirdparty/quicly/deps/dcc/cc.c \
-            thirdparty/quicly/deps/dcc/cc_cubic.c \
-            thirdparty/quicly/deps/dcc/cc_newreno.c \
-            thirdparty/quicly/lib/ack.c \
-            thirdparty/quicly/lib/buffer.c \
-            thirdparty/quicly/lib/frame.c \
-            thirdparty/quicly/lib/loss.c \
-            thirdparty/quicly/lib/maxsender.c \
-            thirdparty/quicly/lib/quicly.c \
-            thirdparty/quicly/lib/ranges.c \
-            thirdparty/quicly/lib/recvbuf.c \
-            thirdparty/quicly/lib/sendbuf.c \
-            thirdparty/quicly/deps/picotest/picotest.c \
-            thirdparty/quicly/t/ack.c \
-            thirdparty/quicly/t/frame.c \
-            thirdparty/quicly/t/maxsender.c \
-            thirdparty/quicly/t/loss.c \
-            thirdparty/quicly/t/ranges.c \
-            thirdparty/quicly/t/simple.c \
-            thirdparty/quicly/t/stream-concurrency.c \
-            thirdparty/quicly/t/test.c \
-            $swoole_source_file"
-    fi
-
     PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/hiredis])
     
     swoole_source_file="$swoole_source_file \
@@ -648,29 +627,6 @@ if test "$PHP_SWOOLE" != "no"; then
     if test "$PHP_PICOHTTPPARSER" = "yes"; then
         PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/picohttpparser])
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/picohttpparser)
-    fi
-
-    if test "$PHP_QUIC" != "no" || test "$PHP_QUIC_DIR" != "no"; then
-        AC_DEFINE(SW_USE_QUIC, 1, [enable quic support])
-
-        PHP_ADD_INCLUDE("$ext_srcdir/thirdparty/quicly/include")
-        PHP_ADD_INCLUDE("$ext_srcdir/thirdparty/quicly/deps/dcc")
-        PHP_ADD_INCLUDE("$ext_srcdir/thirdparty/quicly/deps/klib")
-        PHP_ADD_INCLUDE("$ext_srcdir/thirdparty/quicly/deps/picotls/include")
-        PHP_ADD_INCLUDE("$ext_srcdir/thirdparty/quicly/deps/picotest")
-        PHP_ADD_BUILD_DIR("$ext_srcdir/thirdparty/quicly/deps/picotls/lib")
-        PHP_ADD_BUILD_DIR("$ext_srcdir/thirdparty/quicly/deps/dcc")
-        PHP_ADD_BUILD_DIR("$ext_srcdir/thirdparty/quicly/lib")
-        PHP_ADD_BUILD_DIR("$ext_srcdir/thirdparty/quicly/deps/picotest")
-        PHP_ADD_BUILD_DIR("$ext_srcdir/thirdparty/quicly/t")
-
-        dnl libquicly static library has some problem, don't use it
-
-        dnl if test "$PHP_QUIC_DIR" != "no"; then
-            dnl PHP_ADD_LIBRARY_WITH_PATH(quicly, "${PHP_QUIC_DIR}")
-        dnl fi
-
-        dnl PHP_ADD_LIBRARY(quicly, 1, SWOOLE_SHARED_LIBADD)
     fi
 
     PHP_ADD_BUILD_DIR($ext_builddir/src/core)
