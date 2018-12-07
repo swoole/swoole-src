@@ -150,9 +150,7 @@ static int swQuic_on_receive(quicly_stream_t *stream)
 {
     if (stream->sendbuf.eos != UINT64_MAX) return 0;
     ptls_iovec_t buf = quicly_recvbuf_get(&stream->recvbuf);
-
-    quicly_conn_t *conn = stream->conn;
-    quicly_cid_t *cid = &conn->super.host.cid;
+    quicly_cid_t *cid = stream->host_cid;
 
     swServer *serv = SwooleG.serv;
     swQuic_connection *swQuic = NULL;
@@ -184,9 +182,7 @@ int swQuic_on_stream_open(quicly_stream_t *stream)
 {
     swQuic_connection *swQuic = NULL;
     swQuic_stream *quic_stream = NULL;
-
-    quicly_conn_t *conn = stream->conn;
-    quicly_cid_t *cid = &conn->super.host.cid;
+    quicly_cid_t *cid = stream->host_cid;
 
     swServer *serv = SwooleG.serv;
 
@@ -295,7 +291,7 @@ static int swReactorThread_onQuicPackage(swReactor *reactor, swEvent *event)
 #ifdef SW_BUFFER_RECV_TIME
                     swQuic->last_time_usec = swoole_microtime();
 #endif
-                    quicly_cid_t *cid = &conn->super.host.cid;
+                    quicly_cid_t *cid = &quic_pkt.cid.dest;
                     swHashMap_add(serv->quic_connections, (char *)cid->cid, cid->len, swQuic);
                 }
                 else

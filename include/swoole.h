@@ -35,7 +35,6 @@ extern "C" {
 
 #ifdef SW_USE_QUIC
 #include "quicly.h"
-#include "quicly/ack.h"
 #endif
 
 /*--- C standard library ---*/
