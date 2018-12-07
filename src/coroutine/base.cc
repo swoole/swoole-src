@@ -19,18 +19,7 @@
 
 using namespace swoole;
 
-static struct
-{
-    int                 stack_size;
-    int                 call_stack_size;
-    long                last_cid;
-    Coroutine*          call_stack[SW_MAX_CORO_NESTING_LEVEL];
-    coro_php_yield_t    onYield;  /* before php yield coro */
-    coro_php_resume_t   onResume; /* before php resume coro */
-    coro_php_close_t    onClose;  /* before php close coro */
-} swCoroG = { SW_DEFAULT_C_STACK_SIZE, 0, 1, { nullptr, }, nullptr, nullptr, nullptr };
-
-static std::unordered_map<long, Coroutine*> coroutines;
+CoroutineG swCoroG;
 
 long Coroutine::create(coroutine_func_t fn, void* args)
 {
@@ -41,7 +30,7 @@ long Coroutine::create(coroutine_func_t fn, void* args)
     }
     long cid = swCoroG.last_cid++;
     Coroutine *co = new Coroutine(cid, swCoroG.stack_size, fn, args);
-    coroutines[cid] = co;
+    swCoroG.coroutines[cid] = co;
     swCoroG.call_stack[swCoroG.call_stack_size++] = co;
     co->ctx.SwapIn();
     if (co->ctx.end)
@@ -104,7 +93,7 @@ void Coroutine::release()
         swCoroG.onClose();
     }
     swCoroG.call_stack_size--;
-    coroutines.erase(cid);
+    swCoroG.coroutines.erase(cid);
     delete this;
 }
 
@@ -123,8 +112,8 @@ void* coroutine_get_task_by_cid(long cid)
 
 Coroutine* coroutine_get_by_id(long cid)
 {
-    auto coroutine_iterator = coroutines.find(cid);
-    if (coroutine_iterator == coroutines.end())
+    auto coroutine_iterator = swCoroG.coroutines.find(cid);
+    if (coroutine_iterator == swCoroG.coroutines.end())
     {
         return nullptr;
     }
@@ -139,6 +128,29 @@ Coroutine* coroutine_get_current()
     return likely(swCoroG.call_stack_size > 0) ? swCoroG.call_stack[swCoroG.call_stack_size - 1] : nullptr;
 }
 
+void coroutine_print_list()
+{
+    for (auto i = swCoroG.coroutines.begin(); i != swCoroG.coroutines.end(); i++)
+    {
+        const char *state;
+        switch(i->second->state){
+        case SW_CORO_INIT:
+            state = "[INIT]";
+            break;
+        case SW_CORO_WAITING:
+            state = "[WAITING]";
+            break;
+        case SW_CORO_RUNNING:
+            state = "[RUNNING]";
+            break;
+        case SW_CORO_END:
+            state = "[END]";
+            break;
+        }
+        printf("Coroutine\t%ld\t%s\n", i->first, state);
+    }
+}
+
 void* coroutine_get_current_task()
 {
     Coroutine* co = coroutine_get_current();
@@ -150,11 +162,6 @@ void* coroutine_get_current_task()
     {
         return co->get_task();
     }
-}
-
-std::unordered_map<long, Coroutine*>* coroutine_get_map()
-{
-    return &coroutines;
 }
 
 long coroutine_get_current_cid()

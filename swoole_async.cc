@@ -55,8 +55,8 @@ typedef struct
 
 typedef struct
 {
-    swString *zaddress;
-    int64_t  update_time;
+    char address[16];
+    time_t update_time;
 } dns_cache;
 
 typedef struct
@@ -191,15 +191,16 @@ static void coro_onDNSCompleted(char *domain, swDNSResolver_result *result, void
     if (cache_iterator == request_cache_map.end())
     {
         cache = (dns_cache *) emalloc(sizeof(dns_cache));
+        bzero(cache, sizeof(dns_cache));
         request_cache_map[key] = cache;
-        cache->zaddress = swString_new(20);
     }
     else
     {
         cache = cache_iterator->second;
     }
 
-    swString_write_ptr(cache->zaddress, 0, Z_STRVAL_P(zaddress), Z_STRLEN_P(zaddress));
+    memcpy(cache->address, Z_STRVAL_P(zaddress), Z_STRLEN_P(zaddress));
+    cache->address[Z_STRLEN_P(zaddress)] = '\0';
 
     cache->update_time = swTimer_get_absolute_msec() + (int64_t) (SwooleG.dns_cache_refresh_time * 1000);
 
@@ -243,7 +244,7 @@ static void dns_timeout_coro(swTimer *timer, swTimer_node *tnode)
     dns_cache *cache = request_cache_map[std::string(Z_STRVAL_P(req->domain), Z_STRLEN_P(req->domain))];
     if (cache != NULL && cache->update_time > swTimer_get_absolute_msec())
     {
-        ZVAL_STRINGL(zaddress, (*cache->zaddress).str, (*cache->zaddress).length);
+        ZVAL_STRING(zaddress, cache->address);
     }
     else
     {
@@ -1166,7 +1167,7 @@ PHP_METHOD(swoole_async, exec)
 PHP_FUNCTION(swoole_async_dns_lookup_coro)
 {
     zval *domain;
-    double timeout = SW_CLIENT_DEFAULT_TIMEOUT;
+    double timeout = SW_CLIENT_CONNECT_TIMEOUT;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|d", &domain, &timeout) == FAILURE)
     {
         RETURN_FALSE;
@@ -1193,7 +1194,7 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro)
         cache = request_cache_map[key];
         if (cache->update_time > swTimer_get_absolute_msec())
         {
-            RETURN_STRINGL((*cache->zaddress).str, (*cache->zaddress).length);
+            RETURN_STRING(cache->address);
         }
     }
 

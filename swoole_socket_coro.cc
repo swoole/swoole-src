@@ -138,7 +138,7 @@ static sw_inline socket_coro * swoole_get_socket_coro(zval *zobject)
     socket_coro *sock = swoole_socket_coro_fetch_object(Z_OBJ_P(zobject));
     if (UNEXPECTED(!sock->socket))
     {
-        swoole_php_fatal_error(E_ERROR, "you must call Socket construct first.");
+        swoole_php_fatal_error(E_ERROR, "you must call Socket constructor first.");
     }
     return sock;
 }
@@ -519,7 +519,7 @@ static PHP_METHOD(swoole_socket_coro, connect)
     char *host;
     size_t l_host;
     zend_long port = 0;
-    double timeout = SW_CLIENT_DEFAULT_TIMEOUT;
+    double timeout = SW_CLIENT_CONNECT_TIMEOUT;
 
     ZEND_PARSE_PARAMETERS_START(1, 3)
         Z_PARAM_STRING(host, l_host)

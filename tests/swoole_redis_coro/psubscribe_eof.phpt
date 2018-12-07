@@ -19,9 +19,11 @@ go(
     function () use ($sock)
     {
         $sock->listen();
-        $client = $sock->accept();
-        if ($client) {
-            $client->close();
+        for ($i = 0; $i < N; $i++) {
+            $client = $sock->accept();
+            if ($client) {
+                $client->close();
+            }
         }
         $sock->close();
     }
@@ -36,7 +38,7 @@ go(
             $val = $redis->psubscribe(['test.*']);
             assert($val === false);
             assert($redis->connected === false);
-            assert($redis->errCode === ($i === 0 ? SWOOLE_REDIS_ERR_EOF : SWOOLE_REDIS_ERR_CLOSED));
+            assert($redis->errCode === SWOOLE_REDIS_ERR_EOF);
         }
         $redis->close();
     }

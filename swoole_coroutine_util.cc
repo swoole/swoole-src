@@ -42,7 +42,6 @@ typedef struct
 
 typedef struct
 {
-    std::unordered_map<long, Coroutine*> *_map;
     std::unordered_map<long, Coroutine*>::iterator _cursor;
     int index;
 } coroutine_iterator;
@@ -1309,14 +1308,14 @@ static PHP_METHOD(swoole_coroutine_util, getBackTrace)
 static PHP_METHOD(swoole_coroutine_iterator, rewind)
 {
     coroutine_iterator *itearator = (coroutine_iterator *) swoole_get_object(getThis());
-    itearator->_cursor = itearator->_map->begin();
+    itearator->_cursor = swCoroG.coroutines.begin();
     itearator->index = 0;
 }
 
 static PHP_METHOD(swoole_coroutine_iterator, valid)
 {
     coroutine_iterator *itearator = (coroutine_iterator *) swoole_get_object(getThis());
-    RETURN_BOOL(itearator->_cursor != itearator->_map->end());
+    RETURN_BOOL(itearator->_cursor != swCoroG.coroutines.end());
 }
 
 static PHP_METHOD(swoole_coroutine_iterator, current)
@@ -1356,7 +1355,6 @@ static PHP_METHOD(swoole_coroutine_util, listCoroutines)
     object_init_ex(return_value, swoole_coroutine_iterator_ce_ptr);
     coroutine_iterator *itearator = (coroutine_iterator *) emalloc(sizeof(coroutine_iterator));
     bzero(itearator, sizeof(coroutine_iterator));
-    itearator->_map = coroutine_get_map();
     swoole_set_object(return_value, itearator);
 }
 

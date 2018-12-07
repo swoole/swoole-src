@@ -1333,7 +1333,7 @@ http_client* http_client_create(zval *zobject)
     http->ssl = Z_BVAL_P(ztmp);
 #endif
 
-    http->timeout = SW_CLIENT_DEFAULT_TIMEOUT;
+    http->timeout = SW_CLIENT_CONNECT_TIMEOUT;
     http->keep_alive = 1;
     http->state = HTTP_CLIENT_STATE_READY;
     http->object = zobject;
