@@ -151,44 +151,50 @@ static int swQuic_on_receive(quicly_stream_t *stream)
     if (stream->sendbuf.eos != UINT64_MAX) return 0;
     ptls_iovec_t buf = quicly_recvbuf_get(&stream->recvbuf);
 
-    quicly_conn_t *conn = &stream->conn;
+    quicly_conn_t *conn = stream->conn;
     quicly_cid_t *cid = &conn->super.host.cid;
 
     swServer *serv = SwooleG.serv;
     swQuic_connection *swQuic = NULL;
-    swQuic = (swQuic_connection *) swHashMap_find(serv->quic_connections, cid->cid, cid->len);
-    if (swQuic == NULL) return 0;
-    sw_atomic_t from_fd = swQuic->from_fd;
+    swQuic_stream *quic_stream = NULL;
 
+    swQuic = (swQuic_connection *) swHashMap_find(serv->quic_connections, (char *)cid->cid, cid->len);
+    if (swQuic == NULL) return 0;
+
+    quic_stream = (swQuic_stream *) swHashMap_find_int(swQuic->stream_list, stream->stream_id);
+    if (quic_stream == NULL) return 0;
+
+    sw_atomic_t from_fd = swQuic->from_fd;
     if (from_fd == 0) return 0;
 
     swListenPort *port = (swListenPort *) serv->connection_list[from_fd].object;
     swEvent event;
-    event->socket = NULL;
-    event->type = SW_EVENT_READ;
-    event->from_fd = from_fd;
-    event->fd = 0;
-    event->is_quic = 1;
-    event->quic_stream = swQuic_stream;
-    event->quic_buf = &buf;
+    event.fd = 0;
+    event.from_id = swQuic->reactor->id;
+    event.type = SW_EVENT_TCP;
+    event.socket = NULL;
+    event.is_quic = 1;
+    event.quic_stream = quic_stream;
+    event.quic_buf = &buf;
     port->onRead(swQuic->reactor, port, &event);
     return 0;
 }
 
-static int swQuic_on_stream_open(quicly_stream_t *stream)
+int swQuic_on_stream_open(quicly_stream_t *stream)
 {
     swQuic_connection *swQuic = NULL;
+    swQuic_stream *quic_stream = NULL;
 
-    quicly_conn_t *conn = &stream->conn;
+    quicly_conn_t *conn = stream->conn;
     quicly_cid_t *cid = &conn->super.host.cid;
 
     swServer *serv = SwooleG.serv;
 
-    swQuic = (swQuic_connection *) swHashMap_find(serv->quic_connections, cid->cid, cid->len);
+    swQuic = (swQuic_connection *) swHashMap_find(serv->quic_connections, (char *)cid->cid, cid->len);
     if (swQuic == NULL) return 0;
 
-    (swQuic_stream *) swQuic_stream = (swQuic_stream *) sw_malloc(sizeof(swQuic_stream));
-    swQuic_stream->stream = stream;
+    quic_stream = (swQuic_stream *) sw_malloc(sizeof(swQuic_stream));
+    quic_stream->stream = stream;
 
     swSession *session;
     sw_spinlock(&serv->gs->spinlock);
@@ -209,7 +215,7 @@ static int swQuic_on_stream_open(quicly_stream_t *stream)
         {
             session->fd = 1;
             session->is_quic = 1;
-            session->quic_stream = swQuic_stream;
+            session->quic_stream = quic_stream;
             session->id = session_id;
             session->reactor_id = swQuic->reactor->id;
             break;
@@ -217,21 +223,21 @@ static int swQuic_on_stream_open(quicly_stream_t *stream)
     }
     serv->gs->session_round = session_id;
     sw_spinlock_release(&serv->gs->spinlock);
-    swQuic_stream->session_id = session_id;
+    quic_stream->session_id = session_id;
 
-    swHashMap_add(swQuic->stream_list, &stream->stream_id, sizeof(&stream->stream_id), swQuic_stream);
+    swHashMap_add_int(swQuic->stream_list, stream->stream_id, quic_stream);
 
     stream->on_update = swQuic_on_receive;
 
     if (serv->onConnect)
     {
-        swServer_quic_notify(serv, swQuic_stream, SW_EVENT_CONNECT);
+        swServer_quic_notify(serv, quic_stream, SW_EVENT_CONNECT);
     }
 
     return 0;
 }
 
-static void swQuic_on_conn_close(quicly_conn_t *conn, uint16_t code, const uint64_t *frame_type, const char *reason, size_t reason_len)
+void swQuic_on_conn_close(quicly_conn_t *conn, uint16_t code, const uint64_t *frame_type, const char *reason, size_t reason_len)
 {
 
 }
@@ -248,7 +254,7 @@ static int swReactorThread_onQuicPackage(swReactor *reactor, swEvent *event)
     swSocketAddress info;
     info.len = sizeof(info.addr);
 
-    char packet[SW_BUFFER_SIZE_UDP];
+    uint8_t packet[SW_BUFFER_SIZE_UDP];
     do_recvfrom:
     ret = recvfrom(fd, packet, SW_BUFFER_SIZE_UDP, 0, (struct sockaddr *) &info.addr, &info.len);
 
@@ -264,7 +270,7 @@ static int swReactorThread_onQuicPackage(swReactor *reactor, swEvent *event)
             quicly_conn_t *conn = NULL;
             swQuic_connection *swQuic = NULL;
 
-            swQuic = (swQuic_connection *) swHashMap_find(serv->quic_connections, quic_pkt.cid.dest.base, quic_pkt.cid.dest.len);
+            swQuic = (swQuic_connection *) swHashMap_find(serv->quic_connections, (char *)quic_pkt.cid.dest.base, quic_pkt.cid.dest.len);
             if (swQuic != NULL)
             {
                 swQuic->reactor = reactor;
@@ -290,14 +296,14 @@ static int swReactorThread_onQuicPackage(swReactor *reactor, swEvent *event)
                     swQuic->last_time_usec = swoole_microtime();
 #endif
                     quicly_cid_t *cid = &conn->super.host.cid;
-                    swHashMap_add(serv->quic_connections, cid->cid, cid->len, swQuic);
+                    swHashMap_add(serv->quic_connections, (char *)cid->cid, cid->len, swQuic);
                 }
                 else
                 {
                     if (accept_ret == QUICLY_ERROR_VERSION_NEGOTIATION) {
                         quicly_datagram_t *rp =
                                 quicly_send_version_negotiation(&ctx, (struct sockaddr *) &info.addr, info.len, quic_pkt.cid.src, quic_pkt.cid.dest);
-                        sendto(fd, rp->data.base, rp->data.len, 0, &p->sa, p->salen);
+                        sendto(fd, rp->data.base, rp->data.len, 0, &rp->sa, rp->salen);
                     }
                 }
             }
@@ -1577,7 +1583,7 @@ static int swReactorThread_loop(swThreadParam *param)
 #ifdef SW_USE_QUIC
 int swReactorThread_dispatch_quic(swQuic_stream *quic_stream, char *data, uint32_t length)
 {
-
+    return SW_OK;
 }
 #endif
 

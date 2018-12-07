@@ -690,8 +690,8 @@ int swServer_free(swServer *serv);
 int swServer_shutdown(swServer *serv);
 
 #ifdef SW_USE_QUIC
-static int swQuic_on_stream_open(quicly_stream_t *stream);
-static void swQuic_on_conn_close(quicly_conn_t *conn, uint16_t code, const uint64_t *frame_type, const char *reason, size_t reason_len);
+int swQuic_on_stream_open(quicly_stream_t *stream);
+void swQuic_on_conn_close(quicly_conn_t *conn, uint16_t code, const uint64_t *frame_type, const char *reason, size_t reason_len);
 #endif
 
 static sw_inline swString *swServer_get_buffer(swServer *serv, int fd)
@@ -733,6 +733,9 @@ int swServer_tcp_close(swServer *serv, int fd, int reset);
 int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename, uint32_t filename_length, off_t offset, size_t length);
 int swServer_tcp_notify(swServer *serv, swConnection *conn, int event);
 int swServer_tcp_feedback(swServer *serv, int fd, int event);
+#ifdef SW_USE_QUIC
+int swServer_quic_notify(swServer *serv, swQuic_stream *stream, int event);
+#endif
 
 //UDP, UDP必然超过0x1000000
 //原因：IPv4的第4字节最小为1,而这里的conn_fd是网络字节序

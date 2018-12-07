@@ -256,13 +256,13 @@ static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *ev
 {
     int n;
     swDispatchData task;
-    swConnection *conn = NULL;
+    swConnection *conn;
 
 #ifdef SW_USE_QUIC
     if (event->is_quic)
     {
-        n = event->quic_buf.len;
-        task.data.data = event->quic_buf.base;
+        conn = NULL;
+        n = event->quic_buf->len;
     }
     else
     {
@@ -306,7 +306,7 @@ static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *ev
 #ifdef SW_USE_QUIC
         if (event->is_quic)
         {
-            return swReactorThread_dispatch_quic(event->quic_stream, task.data.data, task.data.info.len);
+            return swReactorThread_dispatch_quic(event->quic_stream, (char *)event->quic_buf->base, event->quic_buf->len);
         }
         else
         {
