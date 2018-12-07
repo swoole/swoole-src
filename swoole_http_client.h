@@ -46,7 +46,7 @@ enum http_client_state
 
 enum http_client_error_status_code
 {
-    HTTP_CLIENT_ESTATUS_CONNECT_TIMEOUT = -1,
+    HTTP_CLIENT_ESTATUS_CONNECT_FAILED = -1,
     HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT = -2,
     HTTP_CLIENT_ESTATUS_SERVER_RESET = -3,
 };
