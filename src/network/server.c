@@ -219,7 +219,11 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
 static int swServer_start_check(swServer *serv)
 {
     //stream
+#ifdef SW_USE_QUIC
+    if ((serv->have_stream_sock || serv->have_quic_sock) && serv->onReceive == NULL)
+#else
     if (serv->have_stream_sock && serv->onReceive == NULL)
+#endif
     {
         swWarn("onReceive event callback must be set.");
         return SW_ERR;
@@ -444,13 +448,25 @@ void swServer_store_listen_socket(swServer *serv)
         //save listen_host object
         serv->connection_list[sockfd].object = ls;
 
+#ifdef SW_USE_QUIC
+        if (swSocket_is_dgram(ls->type) || swSocket_is_quic(ls->type))
+#else
         if (swSocket_is_dgram(ls->type))
+#endif
         {
+#ifdef SW_USE_QUIC
+            if (ls->type == SW_SOCK_UDP || ls->type == SW_SOCK_QUIC)
+#else
             if (ls->type == SW_SOCK_UDP)
+#endif
             {
                 serv->connection_list[sockfd].info.addr.inet_v4.sin_port = htons(ls->port);
             }
+#ifdef SW_USE_QUIC
+            else if (ls->type == SW_SOCK_UDP6 || ls->type == SW_SOCK_QUIC6)
+#else
             else if (ls->type == SW_SOCK_UDP6)
+#endif
             {
                 serv->udp_socket_ipv6 = sockfd;
                 serv->connection_list[sockfd].info.addr.inet_v6.sin6_port = htons(ls->port);
@@ -1503,6 +1519,21 @@ int swserver_add_systemd_socket(swServer *serv)
                 serv->udp_socket_ipv6 = sock;
             }
         }
+#ifdef SW_USE_QUIC
+        else if (swSocket_is_quic(ls->type))
+        {
+            serv->have_quic_sock = 1;
+            serv->dgram_port_num++;
+            if (ls->type == SW_SOCK_QUIC)
+            {
+                serv->udp_socket_ipv4 = sock;
+            }
+            else if (ls->type == SW_SOCK_QUIC6)
+            {
+                serv->udp_socket_ipv6 = sock;
+            }
+        }
+#endif
         else
         {
             serv->have_stream_sock = 1;
@@ -1608,6 +1639,21 @@ swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port)
             serv->udp_socket_ipv6 = sock;
         }
     }
+#ifdef SW_USE_QUIC
+    else if (swSocket_is_quic(ls->type))
+    {
+        serv->have_quic_sock = 1;
+        serv->dgram_port_num++;
+        if (ls->type == SW_SOCK_QUIC)
+        {
+            serv->udp_socket_ipv4 = sock;
+        }
+        else if (ls->type == SW_SOCK_QUIC6)
+        {
+            serv->udp_socket_ipv6 = sock;
+        }
+    }
+#endif
     else
     {
         serv->have_stream_sock = 1;

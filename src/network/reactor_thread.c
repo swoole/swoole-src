@@ -1524,7 +1524,11 @@ static int swReactorThread_loop(swThreadParam *param)
     reactor->setHandle(reactor, SW_FD_PIPE | SW_EVENT_WRITE, swReactorThread_onPipeWrite);
 
     //listen UDP
+#ifdef SW_USE_QUIC
+    if (serv->have_dgram_sock == 1 || serv->have_quic_sock == 1)
+#else
     if (serv->have_dgram_sock == 1)
+#endif
     {
         swListenPort *ls;
         LL_FOREACH(serv->listen_list, ls)
@@ -1539,7 +1543,11 @@ static int swReactorThread_loop(swThreadParam *param)
                 {
                     continue;
                 }
+#ifdef SW_USE_QUIC
+                if (ls->type == SW_SOCK_UDP || ls->type == SW_SOCK_QUIC)
+#else
                 if (ls->type == SW_SOCK_UDP)
+#endif
                 {
                     serv->connection_list[ls->sock].info.addr.inet_v4.sin_port = htons(ls->port);
                 }

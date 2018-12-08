@@ -448,6 +448,12 @@ struct _swServer
      * have stream socket
      */
     uint32_t have_stream_sock :1;
+#ifdef SW_USE_QUIC
+    /**
+     * have quic socket
+     */
+     uint32_t have_quic_sock :1;
+#endif
     /**
      * open cpu affinity setting
      */

@@ -791,7 +791,7 @@ typedef struct
     uint32_t fd :24;
     uint32_t reactor_id :8;
 #ifdef SW_USE_QUIC
-    int8_t is_quic;
+    int8_t is_quic :1;
     swQuic_stream *quic_stream;
 #endif
 } swSession;
@@ -808,7 +808,7 @@ typedef struct _swDataHead
     double time;
 #endif
 #ifdef SW_USE_QUIC
-    int8_t is_quic;
+    int8_t is_quic :1;
     swQuic_stream *quic_stream;
 #endif
 } swDataHead;
@@ -820,7 +820,7 @@ typedef struct _swEvent
     uint8_t type;
     swConnection *socket;
 #ifdef SW_USE_QUIC
-    int8_t is_quic;
+    int8_t is_quic :1;
     swQuic_stream *quic_stream;
     ptls_iovec_t *quic_buf;
 #endif
