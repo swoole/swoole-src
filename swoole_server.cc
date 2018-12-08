@@ -2260,6 +2260,34 @@ PHP_METHOD(swoole_server, set)
         convert_to_long(v);
         serv->max_connection = (uint32_t) Z_LVAL_P(v);
     }
+#ifdef SW_USE_QUIC
+    if (php_swoole_array_get_value(vht, "quic_ssl_crt", v))
+    {
+        convert_to_string(v);
+        if (Z_STRLEN_P(v) + 1 > SW_QUIC_SSL_CRT_MAX_LEN)
+        {
+            swoole_php_fatal_error(E_ERROR, "quic_ssl_crt length too long (must be less then %d)", SW_QUIC_SSL_CRT_MAX_LEN);
+            return;
+        }
+        else
+        {
+            memcpy(serv->quic_ssl_crt, Z_STRVAL_P(v), Z_STRLEN_P(v));
+        }
+    }
+    if (php_swoole_array_get_value(vht, "quic_ssl_key", v))
+    {
+        convert_to_string(v);
+        if (Z_STRLEN_P(v) + 1 > SW_QUIC_SSL_KEY_MAX_LEN)
+        {
+            swoole_php_fatal_error(E_ERROR, "quic_ssl_key length too long (must be less then %d)", SW_QUIC_SSL_KEY_MAX_LEN);
+            return;
+        }
+        else
+        {
+            memcpy(serv->quic_ssl_key, Z_STRVAL_P(v), Z_STRLEN_P(v));
+        }
+    }
+#endif
     //heartbeat_check_interval
     if (php_swoole_array_get_value(vht, "heartbeat_check_interval", v))
     {

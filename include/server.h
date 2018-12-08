@@ -35,6 +35,11 @@ extern "C" {
 #define SW_HEARTBEAT_IDLE          0   //心跳存活最大时间
 #define SW_HEARTBEAT_CHECK         0   //心跳定时侦测时间
 
+#ifdef SW_USE_QUIC
+#define SW_QUIC_SSL_CRT_MAX_LEN    128
+#define SW_QUIC_SSL_KEY_MAX_LEN    128
+#endif
+
 enum swEventType
 {
     //networking socket
@@ -177,6 +182,8 @@ typedef struct _swListenPort
 
 #ifdef SW_USE_QUIC
     quicly_context_t quic_ctx;
+    char quic_ssl_crt[SW_QUIC_SSL_CRT_MAX_LEN];
+    char quic_ssl_key[SW_QUIC_SSL_KEY_MAX_LEN];
 #endif
 
     /**
@@ -415,6 +422,11 @@ struct _swServer
      * max connection num
      */
     uint32_t max_connection;
+
+#ifdef SW_USE_QUIC
+    char quic_ssl_crt[SW_QUIC_SSL_CRT_MAX_LEN];
+    char quic_ssl_key[SW_QUIC_SSL_KEY_MAX_LEN];
+#endif
 
     /**
      * worker process max request

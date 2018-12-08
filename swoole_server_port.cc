@@ -150,6 +150,34 @@ static PHP_METHOD(swoole_server_port, set)
             port->socket_buffer_size = SW_MAX_INT;
         }
     }
+#ifdef SW_USE_QUIC
+    if (php_swoole_array_get_value(vht, "quic_ssl_crt", v))
+    {
+        convert_to_string(v);
+        if (Z_STRLEN_P(v) + 1 > SW_QUIC_SSL_CRT_MAX_LEN)
+        {
+            swoole_php_fatal_error(E_ERROR, "quic_ssl_crt length too long (must be less then %d)", SW_QUIC_SSL_CRT_MAX_LEN);
+            return;
+        }
+        else
+        {
+            memcpy(port->quic_ssl_crt, Z_STRVAL_P(v), Z_STRLEN_P(v));
+        }
+    }
+    if (php_swoole_array_get_value(vht, "quic_ssl_key", v))
+    {
+        convert_to_string(v);
+        if (Z_STRLEN_P(v) + 1 > SW_QUIC_SSL_KEY_MAX_LEN)
+        {
+            swoole_php_fatal_error(E_ERROR, "quic_ssl_key length too long (must be less then %d)", SW_QUIC_SSL_KEY_MAX_LEN);
+            return;
+        }
+        else
+        {
+            memcpy(port->quic_ssl_key, Z_STRVAL_P(v), Z_STRLEN_P(v));
+        }
+    }
+#endif
     /**
      * !!! Don't set this option, for tests only.
      */
