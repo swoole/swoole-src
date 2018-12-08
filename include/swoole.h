@@ -779,7 +779,7 @@ typedef struct
 
 typedef struct
 {
-    uint32_t session_id;
+    uint32_t session_id :24;
     quicly_stream_t *stream;
     swQuic_connection *swQuic;
 } swQuic_stream;

@@ -394,7 +394,11 @@ int swSocket_bind(int sock, int type, char *host, int *port)
     //IPv6
     else
 #endif
+#ifdef SW_USE_QUIC
+    if (type == SW_SOCK_UDP6 || type == SW_SOCK_TCP6 || type == SW_SOCK_QUIC6)
+#else
 	if (type > SW_SOCK_UDP)
+#endif
     {
         bzero(&addr_in6, sizeof(addr_in6));
         inet_pton(AF_INET6, host, &(addr_in6.sin6_addr));

@@ -79,6 +79,10 @@ void swPort_init(swListenPort *port)
 
     setup_session_cache(port->quic_ctx.tls);
     quicly_amend_ptls_context(port->quic_ctx.tls);
+
+    //TODO: move these settings to server/port setting
+    load_certificate_chain(port->quic_ctx.tls, "server.crt");
+    load_private_key(port->quic_ctx.tls, "server.key");
 #endif
 }
 

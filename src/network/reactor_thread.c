@@ -191,6 +191,7 @@ int swQuic_on_stream_open(quicly_stream_t *stream)
 
     quic_stream = (swQuic_stream *) sw_malloc(sizeof(swQuic_stream));
     quic_stream->stream = stream;
+    quic_stream->swQuic = swQuic;
 
     swSession *session;
     sw_spinlock(&serv->gs->spinlock);
@@ -236,6 +237,67 @@ int swQuic_on_stream_open(quicly_stream_t *stream)
 void swQuic_on_conn_close(quicly_conn_t *conn, uint16_t code, const uint64_t *frame_type, const char *reason, size_t reason_len)
 {
 
+}
+
+static int swQuic_send_pending(int fd, quicly_conn_t *conn)
+{
+    quicly_datagram_t *packets[16];
+    size_t num_packets, i;
+    swListenPort *port = (swListenPort *) SwooleG.serv->connection_list[fd].object;
+    quicly_context_t ctx = port->quic_ctx;
+    int ret;
+
+    do
+    {
+        num_packets = sizeof(packets) / sizeof(packets[0]);
+        if ((ret = quicly_send(conn, packets, &num_packets)) == 0 || ret == QUICLY_ERROR_CONNECTION_CLOSED)
+        {
+            for (i = 0; i != num_packets; ++i)
+            {
+                sendto(fd, packets[i]->data.base, packets[i]->data.len, 0, &packets[i]->sa, packets[i]->salen);
+                quicly_default_free_packet(&ctx, packets[i]);
+            }
+        }
+        else
+        {
+            swWarn("quicly_send error");
+        }
+    } while (num_packets != 0);
+
+    return 0;
+}
+
+static void swQuic_on_timeout(swTimer *timer, swTimer_node *tnode)
+{
+    swQuic_connection *swQuic = (swQuic_connection *) tnode->data;
+    quicly_conn_t *conn = swQuic->conn;
+    swListenPort *port = (swListenPort *) SwooleG.serv->connection_list[swQuic->from_fd].object;
+    quicly_context_t ctx = port->quic_ctx;
+    long msec = quicly_get_first_timeout(conn) - ctx.now(&ctx);
+
+    if (msec > 0)
+    {
+        swTimer_add(timer, msec, 0, swQuic, swQuic_on_timeout);
+        return;
+    }
+
+    swQuic_send_pending(swQuic->from_fd, conn);
+    long timeout_at = quicly_get_first_timeout(conn);
+
+    if (timeout_at == INT64_MAX)
+    {
+        return;
+    }
+
+    msec = timeout_at - ctx.now(&ctx);
+
+    if (msec <= 0)
+    {
+        swQuic_on_timeout(timer, tnode);
+        return;
+    }
+
+    swTimer_add(timer, msec, 0, swQuic, swQuic_on_timeout);
 }
 
 static int swReactorThread_onQuicPackage(swReactor *reactor, swEvent *event)
@@ -292,6 +354,9 @@ static int swReactorThread_onQuicPackage(swReactor *reactor, swEvent *event)
                     swQuic->last_time_usec = swoole_microtime();
 #endif
                     swHashMap_add(serv->quic_connections, (char *)quic_pkt.cid.dest.base, quic_pkt.cid.dest.len, swQuic);
+                    swTimer_node tnode;
+                    tnode.data = swQuic;
+                    swQuic_on_timeout(&SwooleG.timer, &tnode);
                 }
                 else
                 {

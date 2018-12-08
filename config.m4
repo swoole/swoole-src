@@ -537,6 +537,14 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_source_file="$swoole_source_file thirdparty/picohttpparser/picohttpparser.c"
     fi
 
+    dnl need link picotls, use the thirdparty path, must git submodule update
+    if test "$PHP_QUIC" != "no" && test "$PHP_QUIC_DIR" != "no"; then
+        swoole_source_file="$swoole_source_file \
+            thirdparty/quicly/deps/picotls/lib/openssl.c \
+            thirdparty/quicly/deps/picotls/lib/pembase64.c \
+            thirdparty/quicly/deps/picotls/lib/picotls.c"
+    fi
+
     PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/hiredis])
     
     swoole_source_file="$swoole_source_file \
