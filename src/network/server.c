@@ -25,6 +25,7 @@
 
 #ifdef SW_USE_QUIC
 #include "hashmap.h"
+#include "../deps/picotls/t/util.h"
 #endif
 
 #if __APPLE__
