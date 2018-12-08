@@ -98,6 +98,9 @@ static sw_inline int swReactorThread_verify_ssl_state(swReactor *reactor, swList
                     task.data.info.type = SW_EVENT_CONNECT;
                     task.data.info.from_id = conn->from_id;
                     task.data.info.len = ret;
+#ifdef SW_USE_QUIC
+                    task.data.info.is_quic = 0;
+#endif
                     factory->dispatch(factory, &task);
                     goto delay_receive;
                 }
@@ -131,6 +134,15 @@ static sw_inline int swReactorThread_verify_ssl_state(swReactor *reactor, swList
 static void swReactorThread_onStreamResponse(swStream *stream, char *data, uint32_t length)
 {
     swSendData response;
+#ifdef SW_USE_QUIC
+    swQuic_stream *quic_stream = swServer_quic_stream_verify(SwooleG.serv, stream->session_id);
+    if (quic_stream != NULL)
+    {
+        response.info.fd = quic_stream->session_id;
+    }
+    else
+    {
+#endif
     swConnection *conn = swServer_connection_verify(SwooleG.serv, stream->session_id);
     if (!conn)
     {
@@ -138,6 +150,9 @@ static void swReactorThread_onStreamResponse(swStream *stream, char *data, uint3
         return;
     }
     response.info.fd = conn->session_id;
+#ifdef SW_USE_QUIC
+    }
+#endif
     response.info.type = SW_EVENT_TCP;
     response.info.len = 0;
     response.length = length;
@@ -150,6 +165,7 @@ static int swQuic_on_receive(quicly_stream_t *stream)
 {
     if (stream->sendbuf.eos != UINT64_MAX) return 0;
     ptls_iovec_t buf = quicly_recvbuf_get(&stream->recvbuf);
+    if (buf.len <= 0) return 0;
     quicly_cid_t *cid = stream->host_cid;
 
     swServer *serv = SwooleG.serv;
@@ -164,6 +180,11 @@ static int swQuic_on_receive(quicly_stream_t *stream)
 
     sw_atomic_t from_fd = swQuic->from_fd;
     if (from_fd == 0) return 0;
+
+    quic_stream->last_time = serv->gs->now;
+#ifdef SW_BUFFER_RECV_TIME
+    quic_stream->last_time_usec = swoole_microtime();
+#endif
 
     swListenPort *port = (swListenPort *) serv->connection_list[from_fd].object;
     swEvent event;
@@ -190,8 +211,13 @@ int swQuic_on_stream_open(quicly_stream_t *stream)
     if (swQuic == NULL) return 0;
 
     quic_stream = (swQuic_stream *) sw_malloc(sizeof(swQuic_stream));
+    bzero(quic_stream, sizeof(swQuic_stream));
     quic_stream->stream = stream;
     quic_stream->swQuic = swQuic;
+    quic_stream->last_time = serv->gs->now;
+#ifdef SW_BUFFER_RECV_TIME
+    quic_stream->last_time_usec = swoole_microtime();
+#endif
 
     swSession *session;
     sw_spinlock(&serv->gs->spinlock);
@@ -273,7 +299,15 @@ static void swQuic_on_timeout(swTimer *timer, swTimer_node *tnode)
     quicly_conn_t *conn = swQuic->conn;
     swListenPort *port = (swListenPort *) SwooleG.serv->connection_list[swQuic->from_fd].object;
     quicly_context_t ctx = port->quic_ctx;
-    long msec = quicly_get_first_timeout(conn) - ctx.now(&ctx);
+
+    long timeout_at = quicly_get_first_timeout(conn);
+
+    if (timeout_at == INT64_MAX)
+    {
+        return;
+    }
+
+    long msec = timeout_at - ctx.now(&ctx);
 
     if (msec > 0)
     {
@@ -282,7 +316,7 @@ static void swQuic_on_timeout(swTimer *timer, swTimer_node *tnode)
     }
 
     swQuic_send_pending(swQuic->from_fd, conn);
-    long timeout_at = quicly_get_first_timeout(conn);
+    timeout_at = quicly_get_first_timeout(conn);
 
     if (timeout_at == INT64_MAX)
     {
@@ -370,6 +404,9 @@ static int swReactorThread_onQuicPackage(swReactor *reactor, swEvent *event)
             else
             {
                 quicly_receive(conn, &quic_pkt);
+                swTimer_node tnode;
+                tnode.data = swQuic;
+                swQuic_on_timeout(&SwooleG.timer, &tnode);
             }
 
             off += plen;
@@ -422,6 +459,9 @@ static int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
     task.data.info.from_id = SwooleTG.id;
 #ifdef SW_BUFFER_RECV_TIME
     task.data.info.time = swoole_microtime();
+#endif
+#ifdef SW_USE_QUIC
+    task.data.info.is_quic = 0;
 #endif
 
     int socket_type = server_sock->socket_type;
@@ -652,6 +692,7 @@ int swReactorThread_close(swReactor *reactor, int fd)
  */
 int swReactorThread_onClose(swReactor *reactor, swEvent *event)
 {
+    // TODO: implement QUIC onclose
     swServer *serv = reactor->ptr;
     if (serv->factory_mode == SW_MODE_BASE)
     {
@@ -855,6 +896,25 @@ int swReactorThread_send(swSendData *_send)
     void *_send_data = _send->data;
     uint32_t _send_length = _send->length;
 
+    swReactor *reactor;
+
+#ifdef SW_USE_QUIC
+    swQuic_stream *quic_stream = swServer_quic_stream_verify(serv, session_id);
+    if (quic_stream != NULL)
+    {
+        // TODO: wait
+        if (serv->factory_mode == SW_MODE_BASE)
+        {
+            reactor = &(serv->reactor_threads[0].reactor);
+        }
+        else
+        {
+            reactor = quic_stream->swQuic->reactor;
+        }
+    }
+    else
+    {
+#endif
     swConnection *conn;
     if (_send->info.type != SW_EVENT_CLOSE)
     {
@@ -878,7 +938,6 @@ int swReactorThread_send(swSendData *_send)
     }
 
     int fd = conn->fd;
-    swReactor *reactor;
 
     if (serv->factory_mode == SW_MODE_BASE)
     {
@@ -1074,6 +1133,9 @@ int swReactorThread_send(swSendData *_send)
     {
         goto close_fd;
     }
+#ifdef SW_USE_QUIC
+    }
+#endif
 
     return SW_OK;
 }
@@ -1651,6 +1713,121 @@ static int swReactorThread_loop(swThreadParam *param)
 #ifdef SW_USE_QUIC
 int swReactorThread_dispatch_quic(swQuic_stream *quic_stream, char *data, uint32_t length)
 {
+    swFactory *factory = SwooleG.factory;
+    swServer *serv = factory->ptr;
+    swDispatchData task;
+
+    task.data.info.from_fd = quic_stream->swQuic->from_fd;
+    task.data.info.from_id = quic_stream->swQuic->reactor->id;
+#ifdef SW_BUFFER_RECV_TIME
+    task.data.info.time = quic_stream->last_time_usec;
+#endif
+    task.data.info.is_quic = 1;
+    task.data.info.quic_stream = quic_stream;
+
+    if (serv->dispatch_mode == SW_DISPATCH_STREAM)
+    {
+        swStream *stream = swStream_new(serv->stream_socket, 0, SW_SOCK_UNIX_STREAM);
+        if (stream == NULL)
+        {
+            return SW_ERR;
+        }
+        stream->response = swReactorThread_onStreamResponse;
+        stream->session_id = quic_stream->session_id;
+        swListenPort *port = (swListenPort *) serv->connection_list[quic_stream->swQuic->from_fd].object;
+        swStream_set_max_length(stream, port->protocol.package_max_length);
+
+        task.data.info.fd = quic_stream->session_id;
+        task.data.info.type = SW_EVENT_PACKAGE_END;
+        task.data.info.len = 0;
+
+        if (swStream_send(stream, (char*) &task.data.info, sizeof(task.data.info)) < 0)
+        {
+            return SW_ERR;
+        }
+        if (swStream_send(stream, data, length) < 0)
+        {
+            stream->cancel = 1;
+            return SW_ERR;
+        }
+        return SW_OK;
+    }
+
+    task.data.info.fd = quic_stream->session_id;
+
+    swTrace("send string package, size=%ld bytes.", (long)length);
+
+#ifdef SW_USE_RINGBUFFER
+    swServer *serv = SwooleG.serv;
+    swReactorThread *thread = swServer_get_thread(serv, SwooleTG.id);
+
+    swPackage package;
+    package.length = length;
+    package.data = swReactorThread_alloc(thread, package.length);
+
+    task.data.info.type = SW_EVENT_PACKAGE;
+    task.data.info.len = sizeof(package);
+
+    memcpy(package.data, data, package.length);
+    memcpy(task.data.data, &package, sizeof(package));
+
+    task.target_worker_id = swServer_worker_schedule(serv, quic_stream->session_id, &task.data);
+
+    //dispatch failed, free the memory.
+    if (factory->dispatch(factory, &task) < 0)
+    {
+        thread->buffer_input->free(thread->buffer_input, package.data);
+    }
+    else
+    {
+        return SW_OK;
+    }
+#else
+
+    task.data.info.type = SW_EVENT_PACKAGE_START;
+    task.target_worker_id = -1;
+
+    /**
+     * lock target
+     */
+    SwooleTG.factory_lock_target = 1;
+
+    size_t send_n = length;
+    size_t offset = 0;
+
+    while (send_n > 0)
+    {
+        if (send_n > SW_BUFFER_SIZE)
+        {
+            task.data.info.len = SW_BUFFER_SIZE;
+        }
+        else
+        {
+            task.data.info.type = SW_EVENT_PACKAGE_END;
+            task.data.info.len = send_n;
+        }
+
+        task.data.info.fd = quic_stream->session_id;
+        memcpy(task.data.data, data + offset, task.data.info.len);
+
+        send_n -= task.data.info.len;
+        offset += task.data.info.len;
+
+        swTrace("dispatch, type=%d|len=%d", task.data.info.type, task.data.info.len);
+
+        if (factory->dispatch(factory, &task) < 0)
+        {
+            break;
+        }
+    }
+
+    /**
+     * unlock
+     */
+    SwooleTG.factory_target_worker = -1;
+    SwooleTG.factory_lock_target = 0;
+
+#endif
     return SW_OK;
 }
 #endif
@@ -1668,6 +1845,9 @@ int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
     task.data.info.from_id = conn->from_id;
 #ifdef SW_BUFFER_RECV_TIME
     task.data.info.time = conn->last_time_usec;
+#endif
+#ifdef SW_USE_QUIC
+    task.data.info.is_quic = 0;
 #endif
 
     if (serv->dispatch_mode == SW_DISPATCH_STREAM)

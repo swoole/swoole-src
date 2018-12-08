@@ -300,7 +300,15 @@ static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *ev
     {
         task.data.info.fd = event->fd;
 #ifdef SW_USE_QUIC
-        task.data.info.quic_stream = event->quic_stream;
+        if (event->is_quic)
+        {
+            task.data.info.is_quic = 1;
+            task.data.info.quic_stream = event->quic_stream;
+        }
+        else
+        {
+            task.data.info.is_quic = 0;
+        }
 #endif
         task.data.info.from_id = event->from_id;
         task.data.info.len = n;
@@ -344,13 +352,54 @@ static int swPort_onRead_check_length(swReactor *reactor, swListenPort *port, sw
     return SW_OK;
 }
 
+#ifdef SW_USE_QUIC
+static int swPort_onRead_check_length_quic(swReactor *reactor, swListenPort *port, swEvent *event)
+{
+    //TODO:wait implement
+    swServer *serv = reactor->ptr;
+    swQuic_stream *quic_stream = event->quic_stream;
+    swProtocol *protocol = &port->protocol;
+
+    return SW_OK;
+}
+#endif
+
 /**
  * For Http Protocol
  */
 static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *event)
 {
-    swConnection *conn = event->socket;
     swServer *serv = reactor->ptr;
+    swConnection *conn = NULL;
+#ifdef SW_USE_QUIC
+    swQuic_stream *quic_stream = NULL;
+
+    if (event->is_quic)
+    {
+        quic_stream = event->quic_stream;
+
+        if (quic_stream->websocket_status >= WEBSOCKET_STATUS_HANDSHAKE)
+        {
+            if (quic_stream->http_upgrade == 0)
+            {
+                swHttpRequest_free_quic(quic_stream);
+                quic_stream->websocket_status = WEBSOCKET_STATUS_ACTIVE;
+                quic_stream->http_upgrade = 1;
+            }
+            return swPort_onRead_check_length_quic(reactor, port, event); // TODO: implement quic length check
+        }
+
+#ifdef SW_USE_HTTP2
+        if (quic_stream->http2_stream)
+        {
+            _parse_frame: return swPort_onRead_check_length_quic(reactor, port, event);
+        }
+#endif
+    }
+    else
+    {
+#endif
+    conn = event->socket;
 
     if (conn->websocket_status >= WEBSOCKET_STATUS_HANDSHAKE)
     {
@@ -369,7 +418,9 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
         _parse_frame: return swPort_onRead_check_length(reactor, port, event);
     }
 #endif
-
+#ifdef SW_USE_QUIC
+    }
+#endif
     int n = 0;
     char *buf;
     int buf_len;
@@ -378,6 +429,23 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
     swProtocol *protocol = &port->protocol;
 
     //new http request
+#ifdef SW_USE_QUIC
+    if (event->is_quic)
+    {
+        if (quic_stream->object == NULL)
+        {
+            request = sw_malloc(sizeof(swHttpRequest));
+            bzero(request, sizeof(swHttpRequest));
+            quic_stream->object = request;
+        }
+        else
+        {
+            request = (swHttpRequest *) quic_stream->object;
+        }
+    }
+    else
+    {
+#endif
     if (conn->object == NULL)
     {
         request = sw_malloc(sizeof(swHttpRequest));
@@ -388,25 +456,60 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
     {
         request = (swHttpRequest *) conn->object;
     }
+#ifdef SW_USE_QUIC
+    }
+#endif
 
     if (!request->buffer)
     {
+#ifdef SW_USE_QUIC
+        if (event->is_quic)
+        {
+            request->buffer = swString_new(event->quic_buf->len);
+        }
+        else
+        {
+            request->buffer = swString_new(SW_HTTP_HEADER_MAX_SIZE);
+        }
+#else
         request->buffer = swString_new(SW_HTTP_HEADER_MAX_SIZE);
+#endif
         //alloc memory failed.
         if (!request->buffer)
         {
-            swReactorThread_onClose(reactor, event);
+            swReactorThread_onClose(reactor, event); // TODO: implement QUIC onclose
             return SW_ERR;
         }
     }
+#ifdef SW_USE_QUIC
+    else if (event->is_quic)
+    {
+        if (swString_extend(request->buffer, request->buffer->size + event->quic_buf->len) < 0)
+        {
+            goto close_fd;
+        }
+    }
+#endif
 
     swString *buffer = request->buffer;
 
+#ifdef SW_USE_QUIC
+    if (event->is_quic)
+    {
+        n = event->quic_buf->len;
+        memcpy(buffer->str, event->quic_buf->base, n);
+    }
+    else
+    {
+#endif
     recv_data:
     buf = buffer->str + buffer->length;
     buf_len = buffer->size - buffer->length;
 
     n = swConnection_recv(conn, buf, buf_len, 0);
+#ifdef SW_USE_QUIC
+    }
+#endif
     if (n < 0)
     {
         switch (swConnection_error(errno))
@@ -424,8 +527,22 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
     else if (n == 0)
     {
         close_fd:
+#ifdef SW_USE_QUIC
+        if (event->is_quic)
+        {
+            swHttpRequest_free_quic(quic_stream);
+            swReactorThread_onClose(reactor, event);
+            //TODO:QUIC ONCLOSE
+        }
+        else
+        {
+            swHttpRequest_free(conn);
+            swReactorThread_onClose(reactor, event);
+        }
+#else
         swHttpRequest_free(conn);
         swReactorThread_onClose(reactor, event);
+#endif
         return SW_OK;
     }
     else
@@ -434,7 +551,11 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
 
         if (request->method == 0 && swHttpRequest_get_protocol(request) < 0)
         {
+#ifdef SW_USE_QUIC
+            if ((event->is_quic && request->excepted == 0) || (request->excepted == 0 && request->buffer->length < SW_HTTP_HEADER_MAX_SIZE))
+#else
             if (request->excepted == 0 && request->buffer->length < SW_HTTP_HEADER_MAX_SIZE)
+#endif
             {
                 return SW_OK;
             }
@@ -442,6 +563,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
 #ifdef SW_HTTP_BAD_REQUEST_TIP
             if (swConnection_send(conn, SW_STRL(SW_HTTP_BAD_REQUEST_TIP), 0) < 0)
             {
+                //TODO:quic
                 swSysError("send() failed.");
             }
 #endif
@@ -454,6 +576,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
             goto close_fd;
         }
 #ifdef SW_USE_HTTP2
+        //TODO:quic
         else if (request->method == HTTP_PRI)
         {
             conn->http2_stream = 1;
@@ -479,14 +602,29 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
         {
             if (swHttpRequest_get_header_length(request) < 0)
             {
+#ifdef SW_USE_QUIC
+                if ((event->is_quic && buffer->length >= SW_HTTP_HEADER_MAX_SIZE) || (!event->is_quic && buffer->size == buffer->length))
+#else
                 if (buffer->size == buffer->length)
+#endif
                 {
                     swWarn("[2]http header is too long.");
                     goto close_fd;
                 }
                 else
                 {
+#ifdef SW_USE_QUIC
+                    if (event->is_quic)
+                    {
+                        return SW_OK;
+                    }
+                    else
+                    {
+                        goto recv_data;
+                    }
+#else
                     goto recv_data;
+#endif
                 }
             }
         }
@@ -501,6 +639,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
                 /* the request is really no body */
                 if (buffer->length == request->header_length)
                 {
+                    //TODO:QUIC
                     /**
                      * send static file content directly in the reactor thread
                      */
@@ -514,7 +653,11 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
                     swHttpRequest_free(conn);
                     return SW_OK;
                 }
+#ifdef SW_USE_QUIC
+                else if ((event->is_quic && buffer->length >= SW_HTTP_HEADER_MAX_SIZE) || (!event->is_quic && buffer->size == buffer->length))
+#else
                 else if (buffer->size == buffer->length)
+#endif
                 {
                     swWarn("[0]http header is too long.");
                     goto close_fd;
@@ -522,7 +665,18 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
                 /* wait more data */
                 else
                 {
+#ifdef SW_USE_QUIC
+                    if (event->is_quic)
+                    {
+                        return SW_OK;
+                    }
+                    else
+                    {
+                        goto recv_data;
+                    }
+#else
                     goto recv_data;
+#endif
                 }
             }
             else if (request->content_length > (protocol->package_max_length - request->header_length))
@@ -547,12 +701,26 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
 
         if (buffer->length == request_size)
         {
+#ifdef SW_USE_QUIC
+            if (event->is_quic)
+            {
+                swReactorThread_dispatch_quic(quic_stream, buffer->str, buffer->length);
+                swHttpRequest_free_quic(quic_stream);
+            }
+            else
+            {
+                swReactorThread_dispatch(conn, buffer->str, buffer->length);
+                swHttpRequest_free(conn);
+            }
+#else
             swReactorThread_dispatch(conn, buffer->str, buffer->length);
             swHttpRequest_free(conn);
+#endif
         }
         else
         {
 #ifdef SW_HTTP_100_CONTINUE
+            //TODO:QUIC
             //Expect: 100-continue
             if (swHttpRequest_has_expect_header(request))
             {
@@ -584,7 +752,18 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
                         request->content_length, buffer->length, request->header_length);
             }
 #endif
+#ifdef SW_USE_QUIC
+            if (event->is_quic)
+            {
+                return SW_OK;
+            }
+            else
+            {
+                goto recv_data;
+            }
+#else
             goto recv_data;
+#endif
         }
     }
     return SW_OK;

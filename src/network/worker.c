@@ -123,6 +123,14 @@ static sw_inline int swWorker_discard_data(swServer *serv, swEventData *task)
 {
     int session_id = task->info.fd;
     //check connection
+#ifdef SW_USE_QUIC
+    if (task->info.is_quic)
+    {
+        return SW_FALSE;
+    }
+    else
+    {
+#endif
     swConnection *conn = swServer_connection_verify(serv, session_id);
     if (conn == NULL)
     {
@@ -143,6 +151,9 @@ static sw_inline int swWorker_discard_data(swServer *serv, swEventData *task)
             return SW_FALSE;
         }
     }
+#ifdef SW_USE_QUIC
+    }
+#endif
     discard_data:
 #ifdef SW_USE_RINGBUFFER
     if (task->info.type == SW_EVENT_PACKAGE)

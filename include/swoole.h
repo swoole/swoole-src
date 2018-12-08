@@ -782,6 +782,16 @@ typedef struct
     uint32_t session_id :24;
     quicly_stream_t *stream;
     swQuic_connection *swQuic;
+
+    void *object;
+    uint8_t websocket_status;
+    uint8_t http_upgrade;
+    uint8_t http2_stream;
+
+    time_t last_time;
+#ifdef SW_BUFFER_RECV_TIME
+    double last_time_usec;
+#endif
 } swQuic_stream;
 #endif
 

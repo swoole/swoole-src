@@ -248,6 +248,24 @@ void swHttpRequest_free(swConnection *conn)
     conn->object = NULL;
 }
 
+#ifdef SW_USE_QUIC
+void swHttpRequest_free_quic(swQuic_stream *quic_stream)
+{
+    swHttpRequest *request = quic_stream->object;
+    if (!request)
+    {
+        return;
+    }
+    if (request->buffer)
+    {
+        swString_free(request->buffer);
+    }
+    bzero(request, sizeof(swHttpRequest));
+    sw_free(request);
+    quic_stream->object = NULL;
+}
+#endif
+
 /**
  * simple get headers info
  * @return content-length exist

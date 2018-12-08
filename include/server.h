@@ -928,6 +928,15 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swEventDat
     //Using the IP touch access to hash
     else if (serv->dispatch_mode == SW_DISPATCH_IPMOD)
     {
+#ifdef SW_USE_QUIC
+        if (data->info.is_quic)
+        {
+            //TODO: swQuic_connection save ip, port to support this mode, now use fd
+            key = fd;
+        }
+        else
+        {
+#endif
         swConnection *conn = swServer_connection_get(serv, fd);
         //UDP
         if (conn == NULL)
@@ -950,9 +959,21 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swEventDat
             key = conn->info.addr.inet_v6.sin6_addr.s6_addr32[3];
 #endif
         }
+#ifdef SW_USE_QUIC
+        }
+#endif
     }
     else if (serv->dispatch_mode == SW_DISPATCH_UIDMOD)
     {
+#ifdef SW_USE_QUIC
+        if (data->info.is_quic)
+        {
+            //TODO:support uid
+            key = fd;
+        }
+        else
+        {
+#endif
         swConnection *conn = swServer_connection_get(serv, fd);
         if (conn == NULL || conn->uid == 0)
         {
@@ -962,11 +983,27 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swEventDat
         {
             key = conn->uid;
         }
+#ifdef SW_USE_QUIC
+        }
+#endif
     }
     //schedule by dispatch function
     else if (serv->dispatch_mode == SW_DISPATCH_USERFUNC)
     {
+#ifdef SW_USE_QUIC
+        if (data->info.is_quic)
+        {
+            swConnection swConn;
+            swConn.session_id = data->info.quic_stream->session_id;
+            return serv->dispatch_func(serv, &swConn, data);
+        }
+        else
+        {
+            return serv->dispatch_func(serv, swServer_connection_get(serv, fd), data);
+        }
+#else
         return serv->dispatch_func(serv, swServer_connection_get(serv, fd), data);
+#endif
     }
     //Preemptive distribution
     else
@@ -1038,6 +1075,21 @@ static sw_inline swConnection *swServer_connection_verify_no_ssl(swServer *serv,
     }
     return conn;
 }
+
+#ifdef SW_USE_QUIC
+static sw_inline swQuic_stream *swServer_quic_stream_verify(swServer *serv, int session_id)
+{
+    swSession *session = swServer_get_session(serv, session_id);
+    if (session->is_quic)
+    {
+        return session->quic_stream;
+    }
+    else
+    {
+        return NULL;
+    }
+}
+#endif
 
 static sw_inline swConnection *swServer_connection_verify(swServer *serv, int session_id)
 {

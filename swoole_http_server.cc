@@ -1000,13 +1000,34 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
 {
     int fd = req->info.fd;
     int from_fd = req->info.from_fd;
+    swConnection *conn = NULL;
 
-    swConnection *conn = swServer_connection_verify_no_ssl(serv, fd);
+#ifdef SW_USE_QUIC
+    swQuic_stream quic_stream;
+
+    if (req->info.is_quic)
+    {
+        if (serv->factory_mode == SW_MODE_PROCESS)
+        {
+
+        }
+        else
+        {
+            quic_stream = &req->info.quic_stream;
+        }
+    }
+    else
+    {
+#endif
+    conn = swServer_connection_verify_no_ssl(serv, fd);
     if (!conn)
     {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "connection[%d] is closed.", fd);
         return SW_ERR;
     }
+#ifdef SW_USE_QUIC
+    }
+#endif
 
     swListenPort *port = (swListenPort *) serv->connection_list[from_fd].object;
     //other server port
@@ -1015,15 +1036,39 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
         return php_swoole_onReceive(serv, req);
     }
     //websocket client
+#ifdef SW_USE_QUIC
+    if ((req->info.is_quic && quic_stream.websocket_status == WEBSOCKET_STATUS_ACTIVE)
+        || (!req->info.is_quic && conn->websocket_status == WEBSOCKET_STATUS_ACTIVE))
+#else
     if (conn->websocket_status == WEBSOCKET_STATUS_ACTIVE)
+#endif
     {
         return swoole_websocket_onMessage(serv, req);
     }
+
 #ifdef SW_USE_HTTP2
+#ifdef SW_USE_QUIC
+    if (req->info.is_quic)
+    {
+        if (quic_stream.http2_stream)
+        {
+            // TODO:QUIC HTTP2
+            // return swoole_http2_onFrame_quic(quic_stream, req);
+        }
+    }
+    else
+    {
+        if (conn->http2_stream)
+        {
+            return swoole_http2_onFrame(conn, req);
+        }
+    }
+#else
     if (conn->http2_stream)
     {
         return swoole_http2_onFrame(conn, req);
     }
+#endif
 #endif
 
     http_context *ctx = swoole_http_context_new(fd);
@@ -1048,10 +1093,28 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
     {
         sw_zval_free(zdata);
         swWarn("swoole_http_parser_execute failed.");
+#ifdef SW_USE_QUIC
+        if (req->info.is_quic)
+        {
+            if (quic_stream.websocket_status == WEBSOCKET_STATUS_CONNECTION)
+            {
+                // TODO:CLOSE
+                // return swServer_quic_stream_close(serv, fd, 1);
+            }
+        }
+        else
+        {
+            if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)
+            {
+                return swServer_tcp_close(serv, fd, 1);
+            }
+        }
+#else
         if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)
         {
             return swServer_tcp_close(serv, fd, 1);
         }
+#endif
     }
     else
     {
@@ -1070,6 +1133,10 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
         double now_float = swoole_microtime();
         add_assoc_double_ex(zserver, ZEND_STRL("request_time_float"), now_float);
 
+#ifdef SW_USE_QUIC
+        if (!req->info.is_quic)
+        {
+#endif
         swConnection *conn = swWorker_get_connection(serv, fd);
         if (!conn)
         {
@@ -1077,13 +1144,29 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
             swWarn("connection[%d] is closed.", fd);
             return SW_ERR;
         }
+#ifdef SW_USE_QUIC
+        }
+#endif
 
         swoole_set_property(zrequest_object, 0, zdata);
 
+#ifdef SW_USE_QUIC
+        if (req->info.is_quic)
+        {
+            //TODO:quic stream save ip and port
+            add_assoc_long(zserver, "server_port", swConnection_get_port(&SwooleG.serv->connection_list[from_fd]));
+            add_assoc_long(zserver, "master_time", quic_stream.last_time);
+        }
+        else
+        {
+#endif
         add_assoc_long(zserver, "server_port", swConnection_get_port(&SwooleG.serv->connection_list[conn->from_fd]));
         add_assoc_long(zserver, "remote_port", swConnection_get_port(conn));
         add_assoc_string(zserver, "remote_addr", swConnection_get_ip(conn));
         add_assoc_long(zserver, "master_time", conn->last_time);
+#ifdef SW_USE_QUIC
+        }
+#endif
         if (ctx->request.version == 101)
         {
             add_assoc_string(zserver, "server_protocol", "HTTP/1.1");
@@ -1098,7 +1181,12 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
 
         zend_fcall_info_cache *fci_cache = NULL;
 
+#ifdef SW_USE_QUIC
+        if ((req->info.is_quic && quic_stream.websocket_status == WEBSOCKET_STATUS_CONNECTION)
+            || (!req->info.is_quic && conn->websocket_status == WEBSOCKET_STATUS_CONNECTION))
+#else
         if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)
+#endif
         {
             fci_cache = php_swoole_server_get_fci_cache(serv, from_fd, SW_SERVER_CB_onHandShake);
             if (fci_cache == NULL)
@@ -1108,7 +1196,18 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
             }
             else
             {
+#ifdef SW_USE_QUIC
+                if (req->info.is_quic)
+                {
+                    quic_stream.websocket_status = WEBSOCKET_STATUS_HANDSHAKE;
+                }
+                else
+                {
+                    conn->websocket_status = WEBSOCKET_STATUS_HANDSHAKE;
+                }
+#else
                 conn->websocket_status = WEBSOCKET_STATUS_HANDSHAKE;
+#endif
                 ctx->upgrade = 1;
             }
         }
@@ -1131,7 +1230,19 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
             if (sw_coro_create(fci_cache, 2, args) < 0)
             {
                 swoole_php_error(E_WARNING, "create Http onRequest coroutine error.");
+#ifdef SW_USE_QUIC
+                if (req->info.is_quic)
+                {
+                    // TODO: CLOSE
+                    // swServer_quic_stream_close(serv, fd, 0);
+                }
+                else
+                {
+                    swServer_tcp_close(serv, fd, 0);
+                }
+#else
                 swServer_tcp_close(serv, fd, 0);
+#endif
             }
         }
         else

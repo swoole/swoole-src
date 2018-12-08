@@ -267,6 +267,7 @@ void swoole_websocket_onOpen(http_context *ctx)
  */
 void swoole_websocket_onRequest(http_context *ctx)
 {
+    //TODO quic
     const char *bad_request =
             "HTTP/1.1 400 Bad Request\r\n"
             "Connection: close\r\n"
@@ -409,6 +410,7 @@ int swoole_websocket_onHandshake(swListenPort *port, http_context *ctx)
     int ret = websocket_handshake(port, ctx);
     if (ret == SW_ERR)
     {
+        //TODO:quic
         swServer_tcp_close(SwooleG.serv, fd, 1);
     }
     else

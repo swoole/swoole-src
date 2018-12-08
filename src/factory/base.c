@@ -46,6 +46,16 @@ int swFactory_dispatch(swFactory *factory, swDispatchData *task)
 
     if (swEventData_is_stream(task->data.info.type))
     {
+#ifdef SW_USE_QUIC
+        if (task->data.info.is_quic)
+        {
+            swQuic_stream *quic_stream = task->data.info.quic_stream;
+            task->data.info.fd = quic_stream->session_id;
+            task->data.info.from_fd = quic_stream->swQuic->from_fd;
+        }
+        else
+        {
+#endif
         swConnection *conn = swServer_connection_get(serv, task->data.info.fd);
         if (conn == NULL || conn->active == 0)
         {
@@ -62,6 +72,9 @@ int swFactory_dispatch(swFactory *factory, swDispatchData *task)
         //converted fd to session_id
         task->data.info.fd = conn->session_id;
         task->data.info.from_fd = conn->from_fd;
+#ifdef SW_USE_QUIC
+        }
+#endif
     }
     return swWorker_onTask(factory, &task->data);
 }
