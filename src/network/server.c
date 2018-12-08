@@ -303,18 +303,26 @@ static int swServer_start_check(swServer *serv)
 #ifdef SW_USE_QUIC
         if (swSocket_is_quic(ls->type))
         {
-            ls->quic_ssl_crt = strlen(ls->quic_ssl_crt) ? ls->quic_ssl_crt : serv->quic_ssl_crt;
             if (strlen(ls->quic_ssl_crt) == 0)
             {
-                swError("quic server must set quic_ssl_crt");
-                return SW_ERR;
+                if (strlen(serv->quic_ssl_crt) == 0)
+                {
+                    swError("quic server must set quic_ssl_crt");
+                    return SW_ERR;
+                }
+
+                memcpy(ls->quic_ssl_crt, serv->quic_ssl_crt, sizeof(serv->quic_ssl_crt));
             }
 
-            ls->quic_ssl_key = strlen(ls->quic_ssl_key) ? ls->quic_ssl_key : serv->quic_ssl_key;
             if (strlen(ls->quic_ssl_key) == 0)
             {
-                swError("quic server must set quic_ssl_key");
-                return SW_ERR;
+                if (strlen(serv->quic_ssl_key) == 0)
+                {
+                    swError("quic server must set quic_ssl_key");
+                    return SW_ERR;
+                }
+
+                memcpy(ls->quic_ssl_key, serv->quic_ssl_key, sizeof(serv->quic_ssl_key));
             }
 
             load_certificate_chain(ls->quic_ctx.tls, ls->quic_ssl_crt);
