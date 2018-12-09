@@ -316,7 +316,7 @@ static void php_coro_create(void *arg)
 
     if (UNEXPECTED(EG(exception)))
     {
-        EG(bailout) = NULL;
+        EG(bailout) = NULL; // TODO: the better way
         zend_exception_error(EG(exception), E_ERROR);
     }
 }

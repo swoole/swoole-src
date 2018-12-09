@@ -31,8 +31,8 @@ go(function () use ($cid, $port) {
     $ret = $redis->connect(REDIS_SERVER_HOST, $port);
     assert($ret);
     assert($redis->connected);
-    assert($redis->errCode === 0);
-    assert($redis->errMsg === '');
+    assert($redis->errCode === 0, $redis->errCode);
+    assert($redis->errMsg === '', $redis->errMsg);
     co::sleep(0.001);
     co::resume($cid);
 });
