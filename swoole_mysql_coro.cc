@@ -682,7 +682,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     }
     else
     {
-        connector->timeout = SW_MYSQL_CONNECT_TIMEOUT;
+        connector->timeout = COROG.socket_connect_timeout;
     }
     if (php_swoole_array_get_value(_ht, "charset", value))
     {

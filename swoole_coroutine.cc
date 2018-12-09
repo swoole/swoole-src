@@ -182,6 +182,7 @@ void coro_init(void)
 {
     COROG.max_coro_num = SW_DEFAULT_MAX_CORO_NUM;
     COROG.stack_size = SW_DEFAULT_STACK_SIZE;
+    COROG.socket_connect_timeout = SW_DEFAULT_SOCKET_CONNECT_TIMEOUT;
     COROG.socket_timeout = SW_DEFAULT_SOCKET_TIMEOUT;
     coroutine_set_onYield(internal_coro_yield);
     coroutine_set_onResume(internal_coro_resume);

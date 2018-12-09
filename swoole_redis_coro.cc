@@ -1767,7 +1767,7 @@ static PHP_METHOD(swoole_redis_coro, __construct)
 
     swoole_set_object(getThis(), redis);
 
-    redis->connect_timeout = SW_REDIS_CONNECT_TIMEOUT;
+    redis->connect_timeout = COROG.socket_timeout;
     redis->timeout = COROG.socket_timeout;
 
     if (zset && ZVAL_IS_ARRAY(zset))

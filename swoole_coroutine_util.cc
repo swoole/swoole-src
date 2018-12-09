@@ -373,6 +373,11 @@ static PHP_METHOD(swoole_coroutine_util, set)
         COROG.stack_size = (uint32_t) Z_LVAL_P(v);
         sw_coro_set_stack_size(COROG.stack_size);
     }
+    if (php_swoole_array_get_value(vht, "socket_connect_timeout", v))
+    {
+        convert_to_double(v);
+        COROG.socket_connect_timeout = (double) Z_DVAL_P(v);
+    }
     if (php_swoole_array_get_value(vht, "socket_timeout", v))
     {
         convert_to_double(v);
