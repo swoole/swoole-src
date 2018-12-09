@@ -1298,10 +1298,12 @@ bool Socket::close()
     }
     if (read_co)
     {
+        swReactor_remove_read_event(reactor, get_fd());
         resume(SOCKET_LOCK_READ);
     }
     if (write_co)
     {
+        swReactor_remove_read_event(reactor, get_fd());
         resume(SOCKET_LOCK_WRITE);
     }
     _closed = true;
