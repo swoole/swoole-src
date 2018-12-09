@@ -270,11 +270,6 @@
 #define SW_PGSQL_CONNECT_TIMEOUT         3.0
 
 /**
- * Timer
- */
-#define SW_TIMER_MAX_VALUE               86400000
-
-/**
  * Coroutine
  */
 #define SW_DEFAULT_MAX_CORO_NUM          3000

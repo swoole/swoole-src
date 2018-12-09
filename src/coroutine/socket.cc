@@ -940,7 +940,7 @@ void Socket::yield(int operation)
 
     errCode = 0;
     int ms = (int) (timeout * 1000);
-    if (ms <= 0 || ms >= SW_TIMER_MAX_VALUE)
+    if (ms <= 0)
     {
         timeout = -1;
     }
