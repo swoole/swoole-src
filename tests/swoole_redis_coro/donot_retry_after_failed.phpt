@@ -13,14 +13,14 @@ $port = $info['port'];
 
 $cid = go(function () use ($sock) {
     $sock->listen();
-    $sock->accept(0.001);
+    $sock->accept();
     co::yield();
     $sock->close();
 });
 
 go(function () use ($cid, $port) {
     $redis = new Swoole\Coroutine\Redis();
-    $ret = $redis->connect(REDIS_SERVER_HOST, 65535);
+    $ret = $redis->connect('127.0.0.1', 65535);
     assert(!$ret);
     assert($redis->errCode === SOCKET_ECONNREFUSED);
     for ($n = MAX_REQUESTS; $n--;) {
@@ -28,7 +28,7 @@ go(function () use ($cid, $port) {
         assert(!$ret);
         assert($redis->errCode === SWOOLE_REDIS_ERR_CLOSED);
     }
-    $ret = $redis->connect(REDIS_SERVER_HOST, $port);
+    $ret = $redis->connect('127.0.0.1', $port);
     assert($ret);
     assert($redis->connected);
     assert($redis->errCode === 0, $redis->errCode);

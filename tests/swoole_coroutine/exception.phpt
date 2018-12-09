@@ -29,4 +29,3 @@ Fatal error: Uncaught Exception: whoops in %s/tests/swoole_coroutine/exception.p
 Stack trace:
 #0 {main}
   thrown in %s/tests/swoole_coroutine/exception.php on line 15
-%s/main/main.c(1248) : Bailed out without a bailout address!
