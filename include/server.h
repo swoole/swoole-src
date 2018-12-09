@@ -575,7 +575,12 @@ struct _swServer
     swSession *session_list;
 
 #ifdef SW_USE_QUIC
-    swHashMap *quic_connections;
+    uint32_t quic_max_connection;
+    swQuic_stream *quic_stream_list;
+
+    swHashMap *quic_connection_map;
+    uint32_t quic_fd_now :24;
+    sw_atomic_t quic_fd_lock;
 #endif
 
     /**
@@ -911,6 +916,77 @@ static sw_inline swWorker* swServer_get_worker(swServer *serv, uint16_t worker_i
     return NULL;
 }
 
+#ifdef SW_USE_QUIC
+static sw_inline swQuic_stream* swServer_quic_stream_get(swServer *serv, uint32_t fd)
+{
+    if (fd < 1 || fd >= serv->quic_max_connection)
+    {
+        return NULL;
+    }
+    else
+    {
+        return &serv->quic_stream_list[fd];
+    }
+}
+
+static sw_inline swQuic_stream* swServer_quic_stream_verify(swServer *serv, uint32_t session_id)
+{
+    swSession *session = swServer_get_session(serv, session_id);
+    if (session->is_quic)
+    {
+        swQuic_stream *quic_stream = swServer_quic_stream_get(serv, session->fd);
+        if (quic_stream->quic_fd == 0)
+        {
+            return NULL;
+        }
+        else
+        {
+            return quic_stream;
+        }
+    }
+    else
+    {
+        return NULL;
+    }
+}
+
+static sw_inline uint32_t swQuic_get_fd(swServer *serv)
+{
+    sw_spinlock(&serv->quic_fd_lock);
+    uint32_t i;
+    uint8_t ok = 0;
+    uint32_t fd = serv->quic_fd_now;
+    for (i = 1; i < serv->quic_max_connection; ++i)
+    {
+        ++fd;
+
+        if (unlikely(fd >= serv->quic_max_connection))
+        {
+            fd = 1;
+        }
+
+        swQuic_stream *quic_stream = &serv->quic_stream_list[fd];
+        if (quic_stream->quic_fd == 0)
+        {
+            quic_stream->quic_fd = serv->quic_max_connection;
+            ok = 1;
+            break;
+        }
+    }
+    serv->quic_fd_now = fd;
+    sw_spinlock_release(&serv->quic_fd_lock);
+
+    if (ok)
+    {
+        return fd;
+    }
+    else
+    {
+        return serv->quic_max_connection; // max connection num is reached
+    }
+}
+#endif
+
 static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swEventData *data)
 {
     uint32_t key;
@@ -994,7 +1070,7 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swEventDat
         if (data->info.is_quic)
         {
             swConnection swConn;
-            swConn.session_id = data->info.quic_stream->session_id;
+            swConn.session_id = (swServer_quic_stream_get(serv, fd))->session_id;
             return serv->dispatch_func(serv, &swConn, data);
         }
         else
@@ -1075,21 +1151,6 @@ static sw_inline swConnection *swServer_connection_verify_no_ssl(swServer *serv,
     }
     return conn;
 }
-
-#ifdef SW_USE_QUIC
-static sw_inline swQuic_stream *swServer_quic_stream_verify(swServer *serv, int session_id)
-{
-    swSession *session = swServer_get_session(serv, session_id);
-    if (session->is_quic)
-    {
-        return session->quic_stream;
-    }
-    else
-    {
-        return NULL;
-    }
-}
-#endif
 
 static sw_inline swConnection *swServer_connection_verify(swServer *serv, int session_id)
 {

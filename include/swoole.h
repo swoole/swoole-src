@@ -771,7 +771,7 @@ typedef struct
     sw_atomic_t from_fd;
     swReactor *reactor;
     time_t last_time;
-    swHashMap *stream_list;
+    swHashMap *stream_map;
 #ifdef SW_BUFFER_RECV_TIME
     double last_time_usec;
 #endif
@@ -779,6 +779,7 @@ typedef struct
 
 typedef struct
 {
+    uint32_t quic_fd :24;
     uint32_t session_id :24;
     quicly_stream_t *stream;
     swQuic_connection *swQuic;
@@ -802,7 +803,6 @@ typedef struct
     uint32_t reactor_id :8;
 #ifdef SW_USE_QUIC
     int8_t is_quic :1;
-    swQuic_stream *quic_stream;
 #endif
 } swSession;
 
@@ -819,7 +819,6 @@ typedef struct _swDataHead
 #endif
 #ifdef SW_USE_QUIC
     int8_t is_quic :1;
-    swQuic_stream *quic_stream;
 #endif
 } swDataHead;
 
@@ -831,7 +830,6 @@ typedef struct _swEvent
     swConnection *socket;
 #ifdef SW_USE_QUIC
     int8_t is_quic :1;
-    swQuic_stream *quic_stream;
     ptls_iovec_t *quic_buf;
 #endif
 } swEvent;

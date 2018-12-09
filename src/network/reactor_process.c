@@ -43,6 +43,14 @@ int swReactorProcess_create(swServer *serv)
         swSysError("calloc[2](%d) failed.", (int )(serv->max_connection * sizeof(swConnection)));
         return SW_ERR;
     }
+#ifdef SW_USE_QUIC
+    serv->quic_stream_list = sw_calloc(serv->quic_max_connection, sizeof(swQuic_stream));
+    if (serv->quic_stream_list == NULL)
+    {
+        swSysError("calloc[2](%d) failed.", (int )(serv->quic_max_connection * sizeof(swQuic_stream)));
+        return SW_ERR;
+    }
+#endif
     //create factry object
     if (swFactory_create(&(serv->factory)) < 0)
     {

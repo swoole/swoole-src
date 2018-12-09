@@ -49,7 +49,7 @@ int swFactory_dispatch(swFactory *factory, swDispatchData *task)
 #ifdef SW_USE_QUIC
         if (task->data.info.is_quic)
         {
-            swQuic_stream *quic_stream = task->data.info.quic_stream;
+            swQuic_stream *quic_stream = swServer_quic_stream_get(serv, task->data.info.fd);
             task->data.info.fd = quic_stream->session_id;
             task->data.info.from_fd = quic_stream->swQuic->from_fd;
         }
@@ -85,8 +85,8 @@ int swFactory_notify(swFactory *factory, swDataHead *info)
 #ifdef SW_USE_QUIC
     if (info->is_quic)
     {
-        swQuic_stream *quic_stream = info->quic_stream;
-        if (quic_stream == NULL)
+        swQuic_stream *quic_stream = swServer_quic_stream_get(serv, info->fd);
+        if (quic_stream == NULL || quic_stream->quic_fd == 0)
         {
             swWarn("dispatch[type=%d] failed, quic stream#%d is not active.", info->type, quic_stream->session_id);
             return SW_ERR;

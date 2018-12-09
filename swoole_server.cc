@@ -2261,6 +2261,12 @@ PHP_METHOD(swoole_server, set)
         serv->max_connection = (uint32_t) Z_LVAL_P(v);
     }
 #ifdef SW_USE_QUIC
+    if (php_swoole_array_get_value(vht, "quic_max_connection", v))
+    {
+        // it's stream num limit, not conn
+        convert_to_long(v);
+        serv->quic_max_connection = (uint32_t) Z_LVAL_P(v);
+    }
     if (php_swoole_array_get_value(vht, "quic_ssl_crt", v))
     {
         convert_to_string(v);

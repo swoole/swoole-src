@@ -303,7 +303,6 @@ static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *ev
         if (event->is_quic)
         {
             task.data.info.is_quic = 1;
-            task.data.info.quic_stream = event->quic_stream;
         }
         else
         {
@@ -317,7 +316,7 @@ static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *ev
 #ifdef SW_USE_QUIC
         if (event->is_quic)
         {
-            return swReactorThread_dispatch_quic(event->quic_stream, (char *)event->quic_buf->base, event->quic_buf->len);
+            return swReactorThread_dispatch_quic(swServer_quic_stream_get(reactor->ptr, event->fd), (char *)event->quic_buf->base, event->quic_buf->len);
         }
         else
         {
@@ -357,7 +356,7 @@ static int swPort_onRead_check_length_quic(swReactor *reactor, swListenPort *por
 {
     //TODO:wait implement
     swServer *serv = reactor->ptr;
-    swQuic_stream *quic_stream = event->quic_stream;
+    swQuic_stream *quic_stream = swServer_quic_stream_verify(serv, event->fd);
     swProtocol *protocol = &port->protocol;
 
     return SW_OK;
@@ -376,7 +375,11 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
 
     if (event->is_quic)
     {
-        quic_stream = event->quic_stream;
+        quic_stream = swServer_quic_stream_get(serv, event->fd);
+        if (quic_stream == NULL || quic_stream->quic_fd == 0)
+        {
+            return SW_ERR;
+        }
 
         if (quic_stream->websocket_status >= WEBSOCKET_STATUS_HANDSHAKE)
         {

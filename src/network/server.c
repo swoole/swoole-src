@@ -293,6 +293,14 @@ static int swServer_start_check(swServer *serv)
         serv->max_connection = SW_SESSION_LIST_SIZE;
         swWarn("serv->max_connection is exceed the SW_SESSION_LIST_SIZE, it's reset to %u.", SW_SESSION_LIST_SIZE);
     }
+#ifdef SW_USE_QUIC
+    else if ((serv->quic_max_connection + serv->max_connection) > SW_SESSION_LIST_SIZE)
+    {
+        serv->quic_max_connection = SW_SESSION_LIST_SIZE / 2;
+        serv->max_connection = SW_SESSION_LIST_SIZE / 2;
+        swWarn("serv->quic_max_connection + serv->max_connection is exceed the SW_SESSION_LIST_SIZE, it's reset to %u.", SW_SESSION_LIST_SIZE / 2);
+    }
+#endif
     // package max length
     swListenPort *ls;
     LL_FOREACH(serv->listen_list, ls)
@@ -912,7 +920,8 @@ void swServer_init(swServer *serv)
     serv->task_ipc_mode = SW_TASK_IPC_UNIXSOCK;
 
 #ifdef SW_USE_QUIC
-    serv->quic_connections = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
+    serv->quic_connection_map = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
+    serv->quic_max_connection = MIN(SW_MAX_CONNECTION, SwooleG.max_sockets);
 #endif
 
     /**
@@ -1179,11 +1188,10 @@ int swServer_quic_notify(swServer *serv, swQuic_stream *stream, int event)
     swDataHead notify_event;
     notify_event.type = event;
     notify_event.from_id = stream->swQuic->reactor->id;
-    notify_event.fd = 0;
+    notify_event.fd = stream->quic_fd;
     notify_event.from_fd = stream->swQuic->from_fd;
     notify_event.len = 0;
     notify_event.is_quic = 1;
-    notify_event.quic_stream = stream;
     return serv->factory.notify(&serv->factory, &notify_event);
 }
 #endif

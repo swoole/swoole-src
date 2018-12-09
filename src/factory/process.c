@@ -156,8 +156,8 @@ static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
 #ifdef SW_USE_QUIC
         if (task->data.info.is_quic)
         {
-            swQuic_stream *quic_stream = task->data.info.quic_stream;
-            if (quic_stream == NULL)
+            swQuic_stream *quic_stream = swServer_quic_stream_get(serv, fd);
+            if (quic_stream == NULL || quic_stream->quic_fd == 0)
             {
                 swWarn("dispatch[type=%d] failed, quic stream#%d is not active.", task->data.info.type, quic_stream->session_id);
                 return SW_ERR;
