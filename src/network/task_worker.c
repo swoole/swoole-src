@@ -273,6 +273,9 @@ static int swTaskWorker_loop_async(swProcessPool *pool, swWorker *worker)
 int swTaskWorker_finish(swServer *serv, char *data, int data_len, int flags, swEventData *current_task)
 {
     swEventData buf;
+#ifdef SW_USE_QUIC
+    buf.is_quic = 0;
+#endif
     if (serv->task_worker_num < 1)
     {
         swWarn("cannot use task/finish, because no set serv->task_worker_num.");

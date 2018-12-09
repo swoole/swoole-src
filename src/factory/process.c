@@ -203,7 +203,21 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     swServer *serv = factory->ptr;
     int session_id = resp->info.fd;
 
-    swConnection *conn;
+    swConnection *conn = NULL;
+#ifdef SW_USE_QUIC
+    swQuic_stream *quic_stream = NULL;
+    if (resp->info.is_quic)
+    {
+        quic_stream = swServer_quic_stream_verify(serv, session_id);
+        if (quic_stream == NULL)
+        {
+            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "connection[fd=%d] does not exists.", session_id);
+            return SW_ERR;
+        }
+    }
+    else
+    {
+#endif
     if (resp->info.type != SW_EVENT_CLOSE)
     {
         conn = swServer_connection_verify(serv, session_id);
@@ -235,10 +249,16 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
         }
         return SW_ERR;
     }
+#ifdef SW_USE_QUIC
+    }
+#endif
 
     swEventData ev_data;
     ev_data.info.fd = session_id;
     ev_data.info.type = resp->info.type;
+#ifdef SW_USE_QUIC
+    ev_data.info.is_quic = resp->info.is_quic;
+#endif
     swWorker *worker = swServer_get_worker(serv, SwooleWG.id);
 
     /**
@@ -254,7 +274,11 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
         //worker process
         if (SwooleG.main_reactor)
         {
+#ifdef SW_USE_QUIC
+            int _pipe_fd = swWorker_get_send_pipe(serv, session_id, resp->info.from_id);
+#else
             int _pipe_fd = swWorker_get_send_pipe(serv, session_id, conn->from_id);
+#endif
             swConnection *_pipe_socket = swReactor_get(SwooleG.main_reactor, _pipe_fd);
 
             //cannot use send_shm
@@ -291,7 +315,11 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
         ev_data.info.from_fd = SW_RESPONSE_SMALL;
     }
 
+#ifdef SW_USE_QUIC
+    send_to_reactor_thread: ev_data.info.from_id = resp->info.from_id;
+#else
     send_to_reactor_thread: ev_data.info.from_id = conn->from_id;
+#endif
     sendn = ev_data.info.len + sizeof(resp->info);
 
     swTrace("[Worker] send: sendn=%d|type=%d|content=<<EOF\n%.*s\nEOF", sendn, resp->info.type, resp->length > 0 ? resp->length : resp->info.len, resp->data);

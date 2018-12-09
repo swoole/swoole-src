@@ -213,6 +213,10 @@ int php_swoole_task_pack(swEventData *task, zval *data)
     zend_string *serialized_string = NULL;
 #endif
 
+#ifdef SW_USE_QUIC
+    task->info.is_quic = 0;
+#endif
+
     task->info.type = SW_EVENT_TASK;
     //field fd save task_id
     task->info.fd = php_swoole_task_id++;

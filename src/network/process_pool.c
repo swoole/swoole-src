@@ -424,6 +424,10 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
         swEventData buf;
     } out;
 
+#ifdef SW_USE_QUIC
+    out.buf.info.is_quic = 0;
+#endif
+
     int n = 0, ret, worker_task_always = 0;
     int task_n = swProcessPool_get_max_request(pool);
     if (task_n <= 0)
