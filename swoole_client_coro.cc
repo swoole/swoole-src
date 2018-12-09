@@ -216,6 +216,10 @@ static Socket* client_coro_new(zval *zobject, int port)
 bool php_swoole_client_coro_socket_free(Socket *cli)
 {
     bool ret = cli->close();
+    if (!ret)
+    {
+        return false;
+    }
     //TODO: move to Socket method, we should not manage it externally
     //socks5 proxy config
     if (cli->socks5_proxy)
@@ -1129,7 +1133,6 @@ static PHP_METHOD(swoole_client_coro, close)
     }
 #endif
 
-    sw_coro_check_bind("client", cli->has_bound(swoole::SOCKET_LOCK_RW));
     int ret = php_swoole_client_coro_socket_free(cli) ? SW_OK : SW_ERR;
     swoole_set_object(zobject, NULL);
 

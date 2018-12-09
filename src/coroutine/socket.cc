@@ -1255,10 +1255,6 @@ string Socket::resolve(string domain_name)
 
 bool Socket::shutdown(int __how)
 {
-    if (unlikely(!is_available(SOCKET_LOCK_RW)))
-    {
-        return false;
-    }
     if (__how == SHUT_RD && !shutdown_read)
     {
         if (::shutdown(socket->fd, SHUT_RD) == 0)
@@ -1288,10 +1284,6 @@ bool Socket::shutdown(int __how)
 
 bool Socket::close()
 {
-    if (unlikely(!is_available(SOCKET_LOCK_RW)))
-    {
-        return false;
-    }
     if (_closed)
     {
         return false;
@@ -1303,6 +1295,14 @@ bool Socket::close()
     if (!shutdown())
     {
         return false;
+    }
+    if (read_co)
+    {
+        resume(SOCKET_LOCK_READ);
+    }
+    if (write_co)
+    {
+        resume(SOCKET_LOCK_WRITE);
     }
     _closed = true;
     socket->closed = 1;
