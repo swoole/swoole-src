@@ -1003,6 +1003,7 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
     {
         zend_update_property_long(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("errCode"), SW_REDIS_ERR_ALLOC);
         zend_update_property_string(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), "cannot allocate redis context.");
+        redis->internal_connect_failed = 1;
         return false;
     }
     if (context->err)
@@ -1021,6 +1022,7 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
         zend_update_property_long(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("errCode"), SW_REDIS_ERR_OTHER);
         zend_update_property_string(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), "Can not found the connection.");
         swoole_redis_coro_close(zobject);
+        redis->internal_connect_failed = 1;
         return false;
     }
     Socket *socket = (Socket *) conn->object;
@@ -1767,17 +1769,16 @@ static PHP_METHOD(swoole_redis_coro, __construct)
 
     swoole_set_object(getThis(), redis);
 
-    redis->connect_timeout = COROG.socket_timeout;
+    redis->connect_timeout = COROG.socket_connect_timeout;
     redis->timeout = COROG.socket_timeout;
 
     if (zset && ZVAL_IS_ARRAY(zset))
     {
+        HashTable *vht;
+        zval *ztmp;
         php_swoole_array_separate(zset);
         zend_update_property(swoole_redis_coro_ce_ptr, getThis(), ZEND_STRL("setting"), zset);
         zval_ptr_dtor(zset);
-
-        HashTable *vht;
-        zval *ztmp;
         vht = Z_ARRVAL_P(zset);
         /**
          * timeout
@@ -1787,12 +1788,24 @@ static PHP_METHOD(swoole_redis_coro, __construct)
             convert_to_double(ztmp);
             // For backward compatibility
             redis->timeout = (double) Z_DVAL_P(ztmp);
-            if (redis->timeout <= 0)
-            {
-                redis->timeout = ZEND_LONG_MAX;
-            }
             redis->connect_timeout = redis->timeout;
         }
+        /**
+         * connect timeout
+         */
+        if (php_swoole_array_get_value(vht, "connect_timeout", ztmp))
+        {
+            convert_to_double(ztmp);
+            redis->connect_timeout = (double) Z_DVAL_P(ztmp);
+        }
+    }
+    if (redis->timeout <= 0)
+    {
+        redis->timeout = ZEND_LONG_MAX;
+    }
+    if (redis->connect_timeout <= 0)
+    {
+        redis->connect_timeout = ZEND_LONG_MAX;
     }
 }
 
