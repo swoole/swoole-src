@@ -199,7 +199,6 @@ static int http_client_coro_close(zval *zobject)
     http_client_coro_property *hcc = (http_client_coro_property *) swoole_get_property(zobject, 0);
     if (hcc->socket)
     {
-        sw_coro_check_bind("http client", hcc->socket->has_bound(swoole::SOCKET_LOCK_RW));
         ret1 = php_swoole_client_coro_socket_free(hcc->socket);
         hcc->socket = nullptr;
         ret2 = http_client_free(zobject);
