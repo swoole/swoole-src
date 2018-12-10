@@ -598,7 +598,6 @@ static PHP_METHOD(swoole_mysql_coro, __destruct)
 static PHP_METHOD(swoole_mysql_coro, connect)
 {
     zval *server_info;
-    char buf[2048];
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
         Z_PARAM_ARRAY(server_info)
@@ -690,6 +689,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
         connector->character_set = mysql_get_charset(Z_STRVAL_P(value));
         if (connector->character_set < 0)
         {
+            char buf[64];
             snprintf(buf, sizeof(buf), "unknown charset [%s].", Z_STRVAL_P(value));
             zend_throw_exception(swoole_mysql_coro_exception_ce_ptr, buf, 11);
             zval_ptr_dtor(server_info);
