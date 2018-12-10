@@ -7,7 +7,7 @@ swoole_client_coro: timeout of udp client
 require __DIR__ . '/../include/bootstrap.php';
 $port = get_one_free_port();
 
-go(function () use ($port) {
+$cid = go(function () use ($port) {
     $socket = new Swoole\Coroutine\Socket(AF_INET, SOCK_DGRAM, 0);
     $socket->bind('127.0.0.1', $port);
     $peer = null;
@@ -16,25 +16,39 @@ go(function () use ($port) {
 });
 
 go(function () use ($port) {
+    co::set([
+        'socket_connect_timeout' => 0.5,
+        'socket_timeout' => 0.1
+    ]);
+
     $cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_UDP);
-    $begin = time();
-    $timeout_sec = 2;
-    if (!$cli->connect('127.0.0.1', $port, $timeout_sec)) {
-        fail:
-        echo "ERROR\n";
+    if (!assert($cli->connect('127.0.0.1', $port))) {
         return;
     }
-    if (!$cli->send("hello")) {
-        goto fail;
-    }
+
+    assert($cli->send("hello"));
+
+    // default timeout
+    $s = microtime(true);
     $ret = @$cli->recv();
-    $interval = time() - $begin;
-    if ($ret !== false) {
-        var_dump($ret);
-    }
-    if ($interval < $timeout_sec) {
-        goto fail;
-    }
+    $s = microtime(true) - $s;
+    assert($s > 0.08 && $s < 0.12, $s);
+    assert(!$ret, var_dump_return($ret));
+
+    // custom timeout
+    $s = microtime(true);
+    $ret = @$cli->recv(0.5);
+    $s = microtime(true) - $s;
+    assert($s > 0.45 && $s < 0.55, $s);
+    assert(!$ret, var_dump_return($ret));
+
+    // default timeout
+    $s = microtime(true);
+    $ret = @$cli->recv();
+    $s = microtime(true) - $s;
+    assert($s > 0.08 && $s < 0.12, $s);
+    assert(!$ret, var_dump_return($ret));
+
     $cli->close();
     echo "TIMEOUT\n";
 });

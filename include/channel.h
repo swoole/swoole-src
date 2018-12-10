@@ -107,7 +107,7 @@ public:
 
     Channel(size_t _capacity = 1);
     void yield(enum channel_op type);
-    void* pop(double timeout = 0);
+    void* pop(double timeout = -1);
     bool push(void *data, double timeout);
     bool close();
 };

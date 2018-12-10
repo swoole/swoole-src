@@ -223,8 +223,8 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
     if (!http)
     {
         http = http_client_create(zobject);
+        http->connect_timeout = COROG.socket_connect_timeout;
         http->timeout = COROG.socket_timeout;
-        http->connect_timeout = SW_HTTP_CONNECT_TIMEOUT;
     }
 
     if (!hcc->socket)
@@ -249,7 +249,7 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
         zval *ztmp;
         HashTable *vht;
         zval *zset = sw_zend_read_property(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("setting"), 0);
-        if (zset && ZVAL_IS_ARRAY(zset))
+        if (ZVAL_IS_ARRAY(zset))
         {
             vht = Z_ARRVAL_P(zset);
             /**
@@ -278,20 +278,10 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
                 convert_to_boolean(ztmp);
                 http->keep_alive = Z_BVAL_P(ztmp);
             }
+            php_swoole_client_coro_check_setting(hcc->socket, zset);
             if (hcc->socket->http_proxy)
             {
                 zval *zrequest_headers = sw_zend_read_property(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("requestHeaders"), 0);
-                if (zrequest_headers == NULL || Z_TYPE_P(zrequest_headers) != IS_ARRAY)
-                {
-                    swoole_php_fatal_error (E_WARNING, "http proxy must set Host");
-                    return SW_ERR;
-                }
-                zval *value;
-                if (!(value = zend_hash_str_find(Z_ARRVAL_P(zrequest_headers), ZEND_STRL("Host"))))
-                {
-                    swoole_php_fatal_error (E_WARNING, "http proxy must set Host");
-                    return SW_ERR;
-                }
                 if (hcc->socket->http_proxy->password)
                 {
                     char _buf1[128];
@@ -305,7 +295,6 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
                     add_assoc_stringl_ex(zrequest_headers, ZEND_STRL("Proxy-Authorization"), _buf2, _n2);
                 }
             }
-            php_swoole_client_coro_check_setting(hcc->socket, zset);
         }
         hcc->socket->set_timeout(http->connect_timeout, true);
         if (!hcc->socket->connect(addr, http->port))
