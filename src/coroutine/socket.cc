@@ -347,6 +347,13 @@ bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen)
             errMsg = strerror(errCode);
             return false;
         }
+        //Connection is closed
+        if (_closed)
+        {
+            errCode = ECONNABORTED;
+            errMsg = strerror(errCode);
+            return false;
+        }
         socklen_t len = sizeof(errCode);
         if (getsockopt(socket->fd, SOL_SOCKET, SO_ERROR, &errCode, &len) < 0 || errCode != 0)
         {
@@ -1292,10 +1299,13 @@ bool Socket::close()
     {
         return false;
     }
-    if (!shutdown())
+    if (socket->active && !shutdown())
     {
         return false;
     }
+    _closed = true;
+    socket->active = 0;
+    socket->closed = 1;
     if (read_co)
     {
         swReactor_remove_read_event(reactor, get_fd());
@@ -1306,8 +1316,6 @@ bool Socket::close()
         swReactor_remove_read_event(reactor, get_fd());
         resume(SOCKET_LOCK_WRITE);
     }
-    _closed = true;
-    socket->closed = 1;
     return true;
 }
 

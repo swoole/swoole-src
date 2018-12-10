@@ -113,6 +113,11 @@ struct CoroutineG
         onResume = nullptr;
         onClose = nullptr;
     }
+
+    inline size_t count()
+    {
+        return coroutines.size();
+    }
 };
 }
 
