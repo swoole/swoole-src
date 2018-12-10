@@ -2967,7 +2967,7 @@ PHP_METHOD(swoole_server, stats)
     }
 
 #ifdef SW_COROUTINE
-    add_assoc_long_ex(return_value, ZEND_STRL("coroutine_num"), COROG.coro_num);
+    add_assoc_long_ex(return_value, ZEND_STRL("coroutine_num"), swCoroG.count());
 #endif
 }
 
