@@ -4,6 +4,8 @@ $client = new swoole_client(SWOOLE_SOCK_TCP | SWOOLE_SSL);
 $client->set(array(
     'ssl_cert_file' => __DIR__.'/ca/client-cert.pem',
     'ssl_key_file' => __DIR__.'/ca/client-key.pem',
+//     'ssl_cert_file' => __DIR__.'/ca/client.crt',
+//     'ssl_key_file' => __DIR__.'/ca/client.key',
     'ssl_allow_self_signed' => true,
     'ssl_verify_peer' => true,
 
