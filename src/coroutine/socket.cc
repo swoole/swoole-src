@@ -307,6 +307,7 @@ Socket::Socket(int _fd, enum swSocket_type _type)
     init_members();
     init_sock_type(_type);
     init_sock(_fd);
+    socket->active = 1;
 }
 
 Socket::Socket(int _fd, Socket *server_sock)
@@ -323,6 +324,7 @@ Socket::Socket(int _fd, Socket *server_sock)
     socket->object = this;
     socket->socket_type = server_sock->type;
     socket->removed = 1;
+    socket->active = 1;
     socket->fdtype = SW_FD_CORO_SOCKET;
 }
 
