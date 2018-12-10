@@ -205,6 +205,7 @@ static PHP_METHOD(swoole_socket_coro, __construct)
         RETURN_FALSE;
     }
     sock->domain = domain;
+    sock->socket->set_timeout(COROG.socket_timeout);
 }
 
 static PHP_METHOD(swoole_socket_coro, bind)
@@ -256,10 +257,8 @@ static PHP_METHOD(swoole_socket_coro, accept)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     socket_coro *sock = swoole_get_socket_coro(getThis());
-    if (timeout != 0)
-    {
-        sock->socket->set_timeout(timeout);
-    }
+
+    sock->socket->set_timeout(timeout, true);
     Socket *conn = sock->socket->accept();
     if (conn)
     {
@@ -294,8 +293,8 @@ static PHP_METHOD(swoole_socket_coro, recv)
     }
 
     socket_coro *sock = swoole_get_socket_coro(getThis());
-    sock->socket->set_timeout(timeout);
 
+    sock->socket->set_timeout(timeout, true);
     zend_string *buf = zend_string_alloc(length, 0);
     ssize_t bytes = sock->socket->recv(ZSTR_VAL(buf), length);
     if (bytes < 0)
@@ -329,9 +328,9 @@ static PHP_METHOD(swoole_socket_coro, recvfrom)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     socket_coro *sock = swoole_get_socket_coro(getThis());
-    sock->socket->set_timeout(timeout);
 
     zend_string *buf = zend_string_alloc(SW_BUFFER_SIZE_BIG, 0);
+    sock->socket->set_timeout(timeout, true);
     ssize_t bytes = sock->socket->recvfrom(ZSTR_VAL(buf), SW_BUFFER_SIZE_BIG);
     if (bytes < 0)
     {
@@ -382,6 +381,8 @@ static PHP_METHOD(swoole_socket_coro, send)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     socket_coro *sock = swoole_get_socket_coro(getThis());
+
+    sock->socket->set_timeout(timeout, true);
     ssize_t retval = sock->socket->send(data, l_data);
     if (retval < 0)
     {
@@ -519,7 +520,7 @@ static PHP_METHOD(swoole_socket_coro, connect)
     char *host;
     size_t l_host;
     zend_long port = 0;
-    double timeout = SW_CLIENT_CONNECT_TIMEOUT;
+    double timeout = COROG.socket_connect_timeout;
 
     ZEND_PARSE_PARAMETERS_START(1, 3)
         Z_PARAM_STRING(host, l_host)
@@ -541,7 +542,8 @@ static PHP_METHOD(swoole_socket_coro, connect)
             RETURN_FALSE;
         }
     }
-    sock->socket->set_timeout(timeout);
+
+    sock->socket->set_timeout(timeout, true);
     if (sock->socket->connect(std::string(host, l_host), port))
     {
         RETURN_TRUE;

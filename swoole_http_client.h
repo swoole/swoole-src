@@ -46,7 +46,7 @@ enum http_client_state
 
 enum http_client_error_status_code
 {
-    HTTP_CLIENT_ESTATUS_CONNECT_TIMEOUT = -1,
+    HTTP_CLIENT_ESTATUS_CONNECT_FAILED = -1,
     HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT = -2,
     HTTP_CLIENT_ESTATUS_SERVER_RESET = -3,
 };
@@ -122,6 +122,7 @@ typedef struct
 #ifdef SW_USE_OPENSSL
     uint8_t ssl;
 #endif
+    double connect_timeout;
     double timeout;
     char* uri;
     size_t uri_len;

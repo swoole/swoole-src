@@ -78,6 +78,10 @@ public:
 
     inline void set_timeout(double timeout, bool temp = false)
     {
+        if (timeout == 0)
+        {
+            return;
+        }
         if (temp)
         {
             _timeout_temp = timeout;

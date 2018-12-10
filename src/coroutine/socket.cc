@@ -335,14 +335,10 @@ bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen)
     int retval = socket_connect(socket->fd, addr, addrlen);
     if (retval == -1)
     {
-        if (errno != EINPROGRESS)
+        if (errno != EINPROGRESS || !wait_events(SW_EVENT_WRITE))
         {
-            _error: errCode = errno;
+            errCode = errno;
             return false;
-        }
-        if (!wait_events(SW_EVENT_WRITE))
-        {
-            goto _error;
         }
         yield(SOCKET_LOCK_RW);
         //Connection has timed out
@@ -427,7 +423,7 @@ bool Socket::connect(string host, int port, int flags)
             }
             else
             {
-                socket->info.len = sizeof( socket->info.addr.inet_v4);
+                socket->info.len = sizeof(socket->info.addr.inet_v4);
                 _target_addr = (struct sockaddr *) &socket->info.addr.inet_v4;
                 break;
             }
@@ -944,7 +940,7 @@ void Socket::yield(int operation)
 
     errCode = 0;
     int ms = (int) (timeout * 1000);
-    if (ms <= 0 || ms >= SW_TIMER_MAX_VALUE)
+    if (ms <= 0)
     {
         timeout = -1;
     }
@@ -1259,10 +1255,6 @@ string Socket::resolve(string domain_name)
 
 bool Socket::shutdown(int __how)
 {
-    if (unlikely(!is_available(SOCKET_LOCK_RW)))
-    {
-        return false;
-    }
     if (__how == SHUT_RD && !shutdown_read)
     {
         if (::shutdown(socket->fd, SHUT_RD) == 0)
@@ -1292,10 +1284,6 @@ bool Socket::shutdown(int __how)
 
 bool Socket::close()
 {
-    if (unlikely(!is_available(SOCKET_LOCK_RW)))
-    {
-        return false;
-    }
     if (_closed)
     {
         return false;
@@ -1307,6 +1295,16 @@ bool Socket::close()
     if (!shutdown())
     {
         return false;
+    }
+    if (read_co)
+    {
+        swReactor_remove_read_event(reactor, get_fd());
+        resume(SOCKET_LOCK_READ);
+    }
+    if (write_co)
+    {
+        swReactor_remove_read_event(reactor, get_fd());
+        resume(SOCKET_LOCK_WRITE);
     }
     _closed = true;
     socket->closed = 1;

@@ -29,7 +29,3 @@ Fatal error: Uncaught Exception: whoops in %s/tests/swoole_coroutine/exception.p
 Stack trace:
 #0 {main}
   thrown in %s/tests/swoole_coroutine/exception.php on line 15
-[%s]	ERROR	zm_deactivate_swoole (ERROR 503): Fatal error: Uncaught Exception: whoops in %s/tests/swoole_coroutine/exception.php:15
-Stack trace:
-#0 {main}
-  thrown in %s/tests/swoole_coroutine/exception.php on line 15.

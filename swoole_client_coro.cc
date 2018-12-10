@@ -210,12 +210,18 @@ static Socket* client_coro_new(zval *zobject, int port)
     }
 #endif
 
+    swoole_set_object(zobject, cli);
+
     return cli;
 }
 
 bool php_swoole_client_coro_socket_free(Socket *cli)
 {
     bool ret = cli->close();
+    if (!ret)
+    {
+        return false;
+    }
     //TODO: move to Socket method, we should not manage it externally
     //socks5 proxy config
     if (cli->socks5_proxy)
@@ -690,7 +696,7 @@ static PHP_METHOD(swoole_client_coro, connect)
     zend_long port = 0, sock_flag = 0;
     char *host = NULL;
     size_t host_len;
-    double timeout = SW_CLIENT_CONNECT_TIMEOUT;
+    double timeout = COROG.socket_connect_timeout;
 
     ZEND_PARSE_PARAMETERS_START(1, 4)
         Z_PARAM_STRING(host, host_len)
@@ -718,8 +724,6 @@ static PHP_METHOD(swoole_client_coro, connect)
     {
         RETURN_FALSE;
     }
-    cli->set_timeout(timeout);
-    swoole_set_object(getThis(), cli);
 
     zval *zset = sw_zend_read_property(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("setting"), 1);
     if (zset && ZVAL_IS_ARRAY(zset))
@@ -728,6 +732,7 @@ static PHP_METHOD(swoole_client_coro, connect)
     }
 
     sw_coro_check_bind("client", cli->has_bound(swoole::SOCKET_LOCK_RW));
+    cli->set_timeout(timeout, true);
     if (!cli->connect(host, port, sock_flag))
     {
         zend_update_property_long(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), cli->errCode);
@@ -742,9 +747,12 @@ static PHP_METHOD(swoole_client_coro, send)
 {
     char *data;
     size_t data_len;
+    double timeout = COROG.socket_timeout;
 
-    ZEND_PARSE_PARAMETERS_START(1, 1)
+    ZEND_PARSE_PARAMETERS_START(1, 2)
         Z_PARAM_STRING(data, data_len)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (data_len <= 0)
@@ -762,6 +770,7 @@ static PHP_METHOD(swoole_client_coro, send)
     //clear errno
     SwooleG.error = 0;
     sw_coro_check_bind("client", cli->has_bound(swoole::SOCKET_LOCK_WRITE));
+    cli->set_timeout(timeout, true);
     int ret = cli->send_all(data, data_len);
     if (ret < 0)
     {
@@ -803,7 +812,6 @@ static PHP_METHOD(swoole_client_coro, sendto)
             RETURN_FALSE;
         }
         cli->socket->active = 1;
-        swoole_set_object(getThis(), cli);
     }
     sw_coro_check_bind("client", cli->has_bound(swoole::SOCKET_LOCK_WRITE));
     SW_CHECK_RETURN(cli->sendto(ip, port, data, len));
@@ -812,7 +820,7 @@ static PHP_METHOD(swoole_client_coro, sendto)
 static PHP_METHOD(swoole_client_coro, recvfrom)
 {
     zend_long length;
-    zval *port, *address;
+    zval *address, *port;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "lz/|z/", &length, &address, &port) == FAILURE)
     {
@@ -834,11 +842,11 @@ static PHP_METHOD(swoole_client_coro, recvfrom)
             RETURN_FALSE;
         }
         cli->socket->active = 1;
-        swoole_set_object(getThis(), cli);
     }
 
     zend_string *retval = zend_string_alloc(length + 1, 0);
     sw_coro_check_bind("client", cli->has_bound(swoole::SOCKET_LOCK_READ));
+    // cli->set_timeout(timeout, true); TODO
     ssize_t n_bytes = cli->recvfrom(retval->val, length);
     if (n_bytes < 0)
     {
@@ -915,7 +923,7 @@ static PHP_METHOD(swoole_client_coro, recv)
         RETURN_FALSE;
     }
     sw_coro_check_bind("client", cli->has_bound(swoole::SOCKET_LOCK_READ));
-    cli->set_timeout(timeout);
+    cli->set_timeout(timeout, true);
     ssize_t retval ;
     if (cli->open_length_check || cli->open_eof_check)
     {
@@ -973,7 +981,6 @@ static PHP_METHOD(swoole_client_coro, peek)
     SwooleG.error = 0;
     buf = (char *) emalloc(buf_len + 1);
     ret = cli->peek(buf, buf_len);
-
     if (ret < 0)
     {
         SwooleG.error = errno;
@@ -1129,7 +1136,6 @@ static PHP_METHOD(swoole_client_coro, close)
     }
 #endif
 
-    sw_coro_check_bind("client", cli->has_bound(swoole::SOCKET_LOCK_RW));
     int ret = php_swoole_client_coro_socket_free(cli) ? SW_OK : SW_ERR;
     swoole_set_object(zobject, NULL);
 
@@ -1155,8 +1161,8 @@ static PHP_METHOD(swoole_client_coro, enableSSL)
         RETURN_FALSE;
     }
     cli->open_ssl = true;
-    zval *zset = sw_zend_read_property(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("setting"), 1);
-    if (zset && ZVAL_IS_ARRAY(zset))
+    zval *zset = sw_zend_read_property(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("setting"), 0);
+    if (ZVAL_IS_ARRAY(zset))
     {
         client_coro_check_ssl_setting(cli, zset);
     }

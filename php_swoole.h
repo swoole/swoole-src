@@ -713,8 +713,10 @@ static sw_inline void sw_zval_free(zval *val)
 
 //----------------------------------Constant API------------------------------------
 
-#define SWOOLE_RAW_DEFINE(constant)    REGISTER_LONG_CONSTANT(#constant, constant, CONST_CS | CONST_PERSISTENT)
-#define SWOOLE_DEFINE(constant)    REGISTER_LONG_CONSTANT("SWOOLE_"#constant, SW_##constant, CONST_CS | CONST_PERSISTENT)
+#define SWOOLE_DEFINE(constant)              REGISTER_LONG_CONSTANT("SWOOLE_"#constant, SW_##constant, CONST_CS | CONST_PERSISTENT)
+#define SWOOLE_DEFINE_NS(constant)           REGISTER_LONG_CONSTANT("SWOOLE_"#constant, constant, CONST_CS | CONST_PERSISTENT)
+#define SWOOLE_RAW_DEFINE(constant)          REGISTER_LONG_CONSTANT(#constant, constant, CONST_CS | CONST_PERSISTENT)
+#define SWOOLE_RAW_DEFINE_EX(name, value)    REGISTER_LONG_CONSTANT(name, value, CONST_CS | CONST_PERSISTENT)
 
 //----------------------------------Array API------------------------------------
 

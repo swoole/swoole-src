@@ -682,7 +682,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     }
     else
     {
-        connector->timeout = SW_MYSQL_CONNECT_TIMEOUT;
+        connector->timeout = COROG.socket_connect_timeout;
     }
     if (php_swoole_array_get_value(_ht, "charset", value))
     {
@@ -1407,7 +1407,7 @@ static int swoole_mysql_coro_onError(swReactor *reactor, swEvent *event)
     swoole_mysql_coro_close(zobject);
 
     zend_update_property_string(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("connect_error"), "EPOLLERR/EPOLLHUP/EPOLLRDHUP happen!");
-    zend_update_property_long(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("connect_errno"), 104);
+    zend_update_property_long(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("connect_errno"), ECONNRESET);
     ZVAL_BOOL(result, 0);
     if (client->defer && !client->suspending)
     {
