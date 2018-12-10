@@ -90,10 +90,10 @@ static sw_inline int swReactorThread_verify_ssl_state(swReactor *reactor, swList
                 {
                     goto no_client_cert;
                 }
-                else if (port->ssl_option.verify_peer)
+                else
                 {
-                    int verify_ret = swSSL_verify(conn, port->ssl_option.allow_self_signed);
-                    if (verify_ret == 0)
+                    if (!port->ssl_option.verify_peer ||
+                            (port->ssl_option.verify_peer && swSSL_verify(conn, port->ssl_option.allow_self_signed) == 0))
                     {
                         swFactory *factory = &SwooleG.serv->factory;
                         task.target_worker_id = -1;
@@ -103,9 +103,7 @@ static sw_inline int swReactorThread_verify_ssl_state(swReactor *reactor, swList
                         task.data.info.len = ret;
                         factory->dispatch(factory, &task);
                         goto delay_receive;
-                    }
-                    else
-                    {
+                    } else {
                         return SW_ERR;
                     }
                 }
