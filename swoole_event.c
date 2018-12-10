@@ -271,8 +271,8 @@ void php_swoole_event_wait()
             SW_SET_EG_SCOPE(scope);
         }
         SwooleWG.reactor_exit = 1;
-        zend_bailout();
-        exit(0);
+        SwooleG.running = 0;
+        SwooleG.main_reactor->running = 0;
     }
 }
 
