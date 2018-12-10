@@ -233,7 +233,7 @@ static int coro_exit_handler(zend_execute_data *execute_data)
     {
         flags |= SW_EXIT_IN_SERVER;
     }
-    if (flags == SW_EXIT_IN_COROUTINE && COROG.coro_num == 1)
+    if (flags == SW_EXIT_IN_COROUTINE && swCoroG.count() == 1)
     {
         php_swoole_event_exit();
     }
@@ -447,7 +447,7 @@ static PHP_METHOD(swoole_coroutine_util, stats)
 {
     array_init(return_value);
     add_assoc_long_ex(return_value, ZEND_STRL("stack_size"), COROG.stack_size);
-    add_assoc_long_ex(return_value, ZEND_STRL("coroutine_num"), COROG.coro_num);
+    add_assoc_long_ex(return_value, ZEND_STRL("coroutine_num"), swCoroG.count());
     add_assoc_long_ex(return_value, ZEND_STRL("coroutine_peak_num"), COROG.peak_coro_num);
 }
 
@@ -458,7 +458,7 @@ static PHP_METHOD(swoole_coroutine_util, getCid)
 
 int php_coroutine_reactor_can_exit(swReactor *reactor)
 {
-    return COROG.coro_num == 0;
+    return swCoroG.count() == 0;
 }
 
 static PHP_METHOD(swoole_coroutine_util, sleep)
@@ -1340,7 +1340,7 @@ PHP_METHOD(swoole_coroutine_iterator, key)
 
 static PHP_METHOD(swoole_coroutine_iterator, count)
 {
-    RETURN_LONG(COROG.coro_num);
+    RETURN_LONG(swCoroG.count());
 }
 
 static PHP_METHOD(swoole_coroutine_iterator, __destruct)
