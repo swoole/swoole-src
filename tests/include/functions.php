@@ -644,14 +644,22 @@ class ProcessManager
         return $this->freePorts[$index];
     }
 
-    function initRandomData($size, $len = 32): void
+    /**
+     * @param $size
+     * @param int $len
+     */
+    function initRandomData($size, $len = 32)
     {
         for ($n = $size; $n--;) {
             $this->randomData[] = get_safe_random($len);
         }
     }
 
-    function getRandomData($index = null): string
+    /**
+     * @param null $index
+     * @return mixed
+     */
+    function getRandomData($index = null)
     {
         if (!empty($this->randomData)) {
             return $index === null ? array_shift($this->randomData) : $this->randomData[$index];
