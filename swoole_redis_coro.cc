@@ -56,18 +56,6 @@ enum swRedisError
     SW_REDIS_ERR_ALLOC = -8,
 };
 
-enum swRedisOption
-{
-    SW_REDIS_OPT_SERIALIZER = 1,
-    SW_REDIS_OPT_PREFIX = 2,
-    SW_REDIS_OPT_READ_TIMEOUT = 3,
-    SW_REDIS_OPT_SCAN = 4,
-    SW_REDIS_OPT_FAILOVER = 5,
-    SW_REDIS_OPT_TCP_KEEPALIVE = 6,
-    SW_REDIS_OPT_COMPRESSION = 7,
-    SW_REDIS_OPT_CONNECT_TIMEOUT = 8,
-};
-
 /* Extended SET argument detection */
 #define IS_EX_ARG(a) \
     ((a[0]=='e' || a[0]=='E') && (a[1]=='x' || a[1]=='X') && a[2]=='\0')
@@ -92,9 +80,8 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_connect, 0, 0, 1)
     ZEND_ARG_INFO(0, serialize)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_setOption, 0, 0, 2)
-    ZEND_ARG_INFO(0, name)
-    ZEND_ARG_INFO(0, value)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_setOptions, 0, 0, 1)
+    ZEND_ARG_INFO(0, options)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_void, 0, 0, 0)
@@ -1407,7 +1394,7 @@ static sw_inline void sw_redis_command_key_str_str(INTERNAL_FUNCTION_PARAMETERS,
 static PHP_METHOD(swoole_redis_coro, __construct);
 static PHP_METHOD(swoole_redis_coro, __destruct);
 static PHP_METHOD(swoole_redis_coro, connect);
-static PHP_METHOD(swoole_redis_coro, setOption);
+static PHP_METHOD(swoole_redis_coro, setOptions);
 static PHP_METHOD(swoole_redis_coro, setDefer);
 static PHP_METHOD(swoole_redis_coro, getDefer);
 static PHP_METHOD(swoole_redis_coro, recv);
@@ -1548,7 +1535,7 @@ static const zend_function_entry swoole_redis_coro_methods[] =
     PHP_ME(swoole_redis_coro, __construct, arginfo_swoole_redis_coro_construct, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, __destruct, arginfo_swoole_redis_coro_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, connect, arginfo_swoole_redis_coro_connect, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_redis_coro, setOption, arginfo_swoole_redis_coro_setOption, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, setOptions, arginfo_swoole_redis_coro_setOptions, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, setDefer, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, getDefer, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, recv, NULL, ZEND_ACC_PUBLIC)
@@ -1739,11 +1726,6 @@ void swoole_redis_coro_init(int module_number)
     SWOOLE_DEFINE(REDIS_ERR_CLOSED);
     SWOOLE_DEFINE(REDIS_ERR_NOAUTH);
     SWOOLE_DEFINE(REDIS_ERR_ALLOC);
-
-    // just support timeout and serialize
-    SWOOLE_DEFINE(REDIS_OPT_READ_TIMEOUT);
-    SWOOLE_DEFINE(REDIS_OPT_SERIALIZER);
-    SWOOLE_DEFINE(REDIS_OPT_CONNECT_TIMEOUT);
 }
 
 static PHP_METHOD(swoole_redis_coro, __construct)
@@ -1841,30 +1823,31 @@ static PHP_METHOD(swoole_redis_coro, connect)
     }
 }
 
-static PHP_METHOD(swoole_redis_coro, setOption)
+static PHP_METHOD(swoole_redis_coro, setOptions)
 {
     swRedisClient *redis = swoole_get_redis_client(getThis());
-    zend_long zname;
-    zval *zvalue;
+    zval *zoptions;
 
-    ZEND_PARSE_PARAMETERS_START(2, 2)
-        Z_PARAM_LONG(zname)
-        Z_PARAM_ZVAL(zvalue)
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ARRAY(zoptions)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    switch (zname)
+    HashTable *vht = Z_ARRVAL_P(zoptions);
+    zval *v;
+
+    if (php_swoole_array_get_value(vht, "connect_timeout", v))
     {
-    case SW_REDIS_OPT_CONNECT_TIMEOUT:
-        convert_to_double(zvalue);
-        redis->connect_timeout = (double) Z_DVAL_P(zvalue);
+        convert_to_double(v);
+        redis->connect_timeout = (double) Z_DVAL_P(v);
         if (redis->connect_timeout <= 0)
         {
             redis->connect_timeout = ZEND_LONG_MAX;
         }
-        break;
-    case SW_REDIS_OPT_READ_TIMEOUT:
-        convert_to_double(zvalue);
-        redis->timeout = (double) Z_DVAL_P(zvalue);
+    }
+    if (php_swoole_array_get_value(vht, "timeout", v))
+    {
+        convert_to_double(v);
+        redis->timeout = (double) Z_DVAL_P(v);
         if (redis->timeout <= 0)
         {
             redis->timeout = ZEND_LONG_MAX;
@@ -1878,13 +1861,11 @@ static PHP_METHOD(swoole_redis_coro, setOption)
                 socket->set_timeout(redis->timeout);
             }
         }
-        break;
-    case SW_REDIS_OPT_SERIALIZER:
-        convert_to_boolean(zvalue);
-        redis->serialize = Z_BVAL_P(zvalue);
-        break;
-    default:
-        swoole_php_error(E_WARNING, "unknown options " ZEND_LONG_FMT ".", zname);
+    }
+    if (php_swoole_array_get_value(vht, "serialize", v))
+    {
+        convert_to_boolean(v);
+        redis->serialize = Z_BVAL_P(v);
     }
 
     RETURN_TRUE;

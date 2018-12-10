@@ -1,12 +1,10 @@
 --TEST--
 swoole_redis_coro: redis psubscribe
 --SKIPIF--
-<?php require __DIR__.'/../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require __DIR__.'/../include/bootstrap.php';
-
-use Swoole\Coroutine as co;
+require __DIR__ . '/../include/bootstrap.php';
 
 const N = 100;
 
@@ -16,8 +14,7 @@ $info = $sock->getsockname();
 $port = $info['port'];
 
 go(
-    function () use ($sock)
-    {
+    function () use ($sock) {
         $sock->listen();
         for ($i = 0; $i < N; $i++) {
             $client = $sock->accept();
@@ -30,9 +27,8 @@ go(
 );
 
 go(
-    function () use ($port)
-    {
-        $redis = new co\Redis();
+    function () use ($port) {
+        $redis = new Swoole\Coroutine\Redis();
         $redis->connect('127.0.0.1', $port);
         for ($i = 0; $i < N; $i++) {
             $val = $redis->psubscribe(['test.*']);

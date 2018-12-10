@@ -11,7 +11,7 @@ go(function () {
     $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
 
     // read time out
-    $redis->setOption(SWOOLE_REDIS_OPT_READ_TIMEOUT, 0.001);
+    $redis->setOptions(['timeout' => 0.001]);
     $s = microtime(true);
     $ret = $redis->brpoplpush('test', 'test2', 1);
     $s = microtime(true) - $s;
@@ -19,7 +19,7 @@ go(function () {
     assert(!$ret);
 
     // read ok (after internal auto connect)
-    $redis->setOption(SWOOLE_REDIS_OPT_READ_TIMEOUT, 1);
+    $redis->setOptions(['timeout' => 1]);
     $ret = $redis->set('foo', 'bar');
     assert($ret);
     assert($redis->errCode === 0);
@@ -28,7 +28,7 @@ go(function () {
     assert(!$redis->connected);
 
     // connect timeout
-    $redis->setOption(SWOOLE_REDIS_OPT_CONNECT_TIMEOUT, 0.001);
+    $redis->setOptions(['connect_timeout' => 0.001]);
     $redis->connect('www.google.com', 80);
     assert($redis->errCode === SOCKET_ETIMEDOUT);
 });
