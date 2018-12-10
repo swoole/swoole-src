@@ -432,6 +432,16 @@ static PHP_METHOD(swoole_server_port, set)
             convert_to_long(v);
             port->ssl_option.method = (int) Z_LVAL_P(v);
         }
+        if (php_swoole_array_get_value(vht, "ssl_verify_peer", v))
+        {
+            convert_to_boolean(v);
+            port->ssl_option.verify_peer = Z_BVAL_P(v);
+        }
+        if (php_swoole_array_get_value(vht, "ssl_allow_self_signed", v))
+        {
+            convert_to_boolean(v);
+            port->ssl_option.allow_self_signed = Z_BVAL_P(v);
+        }
         //verify client cert
         if (php_swoole_array_get_value(vht, "ssl_client_cert_file", v))
         {
