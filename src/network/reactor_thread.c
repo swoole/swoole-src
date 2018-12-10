@@ -82,15 +82,15 @@ static sw_inline int swReactorThread_verify_ssl_state(swReactor *reactor, swList
         int ret = swSSL_accept(conn);
         if (ret == SW_READY)
         {
-            if (port->ssl_option.verify_peer && port->ssl_option.client_cert_file)
+            if (port->ssl_option.client_cert_file)
             {
                 swDispatchData task;
                 ret = swSSL_get_client_certificate(conn->ssl, task.data.data, sizeof(task.data.data));
                 if (ret < 0)
                 {
-                    return SW_ERR;
+                    goto no_client_cert;
                 }
-                else
+                else if (port->ssl_option.verify_peer)
                 {
                     int verify_ret = swSSL_verify(conn, port->ssl_option.allow_self_signed);
                     if (verify_ret == 0)
@@ -110,6 +110,7 @@ static sw_inline int swReactorThread_verify_ssl_state(swReactor *reactor, swList
                     }
                 }
             }
+            no_client_cert:
             if (SwooleG.serv->onConnect)
             {
                 swServer_tcp_notify(SwooleG.serv, conn, SW_EVENT_CONNECT);
