@@ -670,11 +670,13 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
             return;
         }
 
+#ifdef SW_USE_OPENSSL
         if (port->ssl_option.verify_peer && !port->ssl_option.client_cert_file)
         {
             swoole_php_fatal_error(E_ERROR, "server open verify peer require client_cert_file config");
             return;
         }
+#endif
 
         if (port->open_websocket_protocol || port->open_http_protocol)
         {

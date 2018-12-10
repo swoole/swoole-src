@@ -350,7 +350,7 @@ bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen)
         //Connection is closed
         if (_closed)
         {
-            errCode = ECONNABORTED;
+            errCode = errno = ECONNABORTED;
             errMsg = strerror(errCode);
             return false;
         }
