@@ -999,13 +999,16 @@ static int http_request_message_complete(swoole_http_parser *parser)
 int php_swoole_http_onReceive(swServer *serv, swEventData *req)
 {
     int fd = req->info.fd;
+#ifdef SW_USE_QUIC
+    int socket_fd = (swServer_get_session(serv, fd))->fd;
+#endif
     int from_fd = req->info.from_fd;
     swConnection *conn = NULL;
 
 #ifdef SW_USE_QUIC
     swQuic_stream *quic_stream = NULL;
 
-    if (req->info.is_quic)
+    if (isQuic(socket_fd))
     {
         quic_stream = swServer_quic_stream_verify(serv, fd);
         if (quic_stream == NULL)
@@ -1035,8 +1038,8 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
     }
     //websocket client
 #ifdef SW_USE_QUIC
-    if ((req->info.is_quic && quic_stream->websocket_status == WEBSOCKET_STATUS_ACTIVE)
-        || (!req->info.is_quic && conn->websocket_status == WEBSOCKET_STATUS_ACTIVE))
+    if ((isQuic(socket_fd) && quic_stream->websocket_status == WEBSOCKET_STATUS_ACTIVE)
+        || (!isQuic(socket_fd) && conn->websocket_status == WEBSOCKET_STATUS_ACTIVE))
 #else
     if (conn->websocket_status == WEBSOCKET_STATUS_ACTIVE)
 #endif
@@ -1046,7 +1049,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
 
 #ifdef SW_USE_HTTP2
 #ifdef SW_USE_QUIC
-    if (req->info.is_quic)
+    if (isQuic(socket_fd))
     {
         if (quic_stream->http2_stream)
         {
@@ -1092,7 +1095,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
         sw_zval_free(zdata);
         swWarn("swoole_http_parser_execute failed.");
 #ifdef SW_USE_QUIC
-        if (req->info.is_quic)
+        if (isQuic(socket_fd))
         {
             if (quic_stream->websocket_status == WEBSOCKET_STATUS_CONNECTION)
             {
@@ -1132,7 +1135,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
         add_assoc_double_ex(zserver, ZEND_STRL("request_time_float"), now_float);
 
 #ifdef SW_USE_QUIC
-        if (req->info.is_quic)
+        if (isQuic(socket_fd))
         {
             swQuic_stream *quic_stream = swServer_quic_stream_verify(serv, fd);
             if (quic_stream == NULL)
@@ -1159,7 +1162,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
         swoole_set_property(zrequest_object, 0, zdata);
 
 #ifdef SW_USE_QUIC
-        if (req->info.is_quic)
+        if (isQuic(socket_fd))
         {
             //TODO:quic stream save ip and port
             add_assoc_long(zserver, "server_port", swConnection_get_port(&SwooleG.serv->connection_list[from_fd]));
@@ -1190,8 +1193,8 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
         zend_fcall_info_cache *fci_cache = NULL;
 
 #ifdef SW_USE_QUIC
-        if ((req->info.is_quic && quic_stream->websocket_status == WEBSOCKET_STATUS_CONNECTION)
-            || (!req->info.is_quic && conn->websocket_status == WEBSOCKET_STATUS_CONNECTION))
+        if ((isQuic(socket_fd) && quic_stream->websocket_status == WEBSOCKET_STATUS_CONNECTION)
+            || (!isQuic(socket_fd) && conn->websocket_status == WEBSOCKET_STATUS_CONNECTION))
 #else
         if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)
 #endif
@@ -1205,7 +1208,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
             else
             {
 #ifdef SW_USE_QUIC
-                if (req->info.is_quic)
+                if (isQuic(socket_fd))
                 {
                     quic_stream->websocket_status = WEBSOCKET_STATUS_HANDSHAKE;
                 }
@@ -1239,7 +1242,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
             {
                 swoole_php_error(E_WARNING, "create Http onRequest coroutine error.");
 #ifdef SW_USE_QUIC
-                if (req->info.is_quic)
+                if (isQuic(socket_fd))
                 {
                     // TODO: CLOSE
                     // swServer_quic_stream_close(serv, fd, 0);

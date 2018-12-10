@@ -580,6 +580,8 @@ struct _swServer
 
     swHashMap *quic_connection_map;
     uint32_t quic_fd_now :24;
+    uint32_t quic_fd_min :24;
+    uint32_t quic_fd_max :24;
     sw_atomic_t quic_fd_lock;
 #endif
 
@@ -917,36 +919,37 @@ static sw_inline swWorker* swServer_get_worker(swServer *serv, uint16_t worker_i
 }
 
 #ifdef SW_USE_QUIC
+#define isQuic(FD) ((FD) >= SwooleG.serv->quic_fd_min && (FD) <= SwooleG.serv->quic_fd_max)
+#define session_isQuic(SESSION_ID) (isQuic((swServer_get_session(SwooleG.serv, (SESSION_ID)))->fd))
+
 static sw_inline swQuic_stream* swServer_quic_stream_get(swServer *serv, uint32_t fd)
 {
-    if (fd < 1 || fd >= serv->quic_max_connection)
+    if (!isQuic(fd))
     {
         return NULL;
     }
     else
     {
-        return &serv->quic_stream_list[fd];
+        return &serv->quic_stream_list[fd - serv->quic_fd_min];
     }
 }
 
 static sw_inline swQuic_stream* swServer_quic_stream_verify(swServer *serv, uint32_t session_id)
 {
     swSession *session = swServer_get_session(serv, session_id);
-    if (session->is_quic)
+    if (session == NULL)
     {
-        swQuic_stream *quic_stream = swServer_quic_stream_get(serv, session->fd);
-        if (quic_stream->quic_fd == 0)
-        {
-            return NULL;
-        }
-        else
-        {
-            return quic_stream;
-        }
+        return NULL;
+    }
+
+    swQuic_stream *quic_stream = swServer_quic_stream_get(serv, session->fd);
+    if (quic_stream == NULL || !isQuic(quic_stream->quic_fd))
+    {
+        return NULL;
     }
     else
     {
-        return NULL;
+        return quic_stream;
     }
 }
 
@@ -956,19 +959,19 @@ static sw_inline uint32_t swQuic_get_fd(swServer *serv)
     uint32_t i;
     uint8_t ok = 0;
     uint32_t fd = serv->quic_fd_now;
-    for (i = 1; i < serv->quic_max_connection; ++i)
+    for (i = 0; i < serv->quic_max_connection; ++i)
     {
         ++fd;
 
-        if (unlikely(fd >= serv->quic_max_connection))
+        if (unlikely(fd > serv->quic_fd_max))
         {
-            fd = 1;
+            fd = serv->quic_fd_min;
         }
 
-        swQuic_stream *quic_stream = &serv->quic_stream_list[fd];
+        swQuic_stream *quic_stream = &serv->quic_stream_list[fd - serv->quic_fd_min];
         if (quic_stream->quic_fd == 0)
         {
-            quic_stream->quic_fd = serv->quic_max_connection;
+            quic_stream->quic_fd = 1;
             ok = 1;
             break;
         }
@@ -982,7 +985,7 @@ static sw_inline uint32_t swQuic_get_fd(swServer *serv)
     }
     else
     {
-        return serv->quic_max_connection; // max connection num is reached
+        return 0;
     }
 }
 #endif
@@ -1005,7 +1008,7 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swEventDat
     else if (serv->dispatch_mode == SW_DISPATCH_IPMOD)
     {
 #ifdef SW_USE_QUIC
-        if (data->info.is_quic)
+        if (isQuic(fd))
         {
             //TODO: swQuic_connection save ip, port to support this mode, now use fd
             key = fd;
@@ -1042,7 +1045,7 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swEventDat
     else if (serv->dispatch_mode == SW_DISPATCH_UIDMOD)
     {
 #ifdef SW_USE_QUIC
-        if (data->info.is_quic)
+        if (isQuic(fd))
         {
             //TODO:support uid
             key = fd;
@@ -1067,7 +1070,7 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swEventDat
     else if (serv->dispatch_mode == SW_DISPATCH_USERFUNC)
     {
 #ifdef SW_USE_QUIC
-        if (data->info.is_quic)
+        if (isQuic(fd))
         {
             swConnection swConn;
             swConn.session_id = (swServer_quic_stream_get(serv, fd))->session_id;

@@ -240,9 +240,6 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
                 event.from_id = reactor->id;
                 event.type = object->fds[i].fdtype;
                 event.socket = swReactor_get(reactor, event.fd);
-#ifdef SW_USE_QUIC
-                event.is_quic = 0;
-#endif
 
                 swTrace("Event: fd=%d|from_id=%d|type=%d", event.fd, reactor->id, object->fds[i].fdtype);
                 //in

@@ -124,7 +124,7 @@ static sw_inline int swWorker_discard_data(swServer *serv, swEventData *task)
     int session_id = task->info.fd;
     //check connection
 #ifdef SW_USE_QUIC
-    if (task->info.is_quic)
+    if (session_isQuic(session_id))
     {
         return SW_FALSE;
     }
@@ -399,7 +399,7 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
 
     case SW_EVENT_CONNECT:
 #ifdef SW_USE_QUIC
-        if (!task->info.is_quic)
+        if (!session_isQuic(task->info.fd))
         {
 #endif
 #ifdef SW_USE_OPENSSL

@@ -784,6 +784,9 @@ typedef struct
     quicly_stream_t *stream;
     swQuic_connection *swQuic;
 
+    int from_fd;
+    int from_id;
+
     void *object;
     uint8_t websocket_status;
     uint8_t http_upgrade;
@@ -801,9 +804,6 @@ typedef struct
     uint32_t id;
     uint32_t fd :24;
     uint32_t reactor_id :8;
-#ifdef SW_USE_QUIC
-    int8_t is_quic :1;
-#endif
 } swSession;
 
 typedef struct _swDataHead
@@ -817,9 +817,6 @@ typedef struct _swDataHead
 #ifdef SW_BUFFER_RECV_TIME
     double time;
 #endif
-#ifdef SW_USE_QUIC
-    int8_t is_quic :1;
-#endif
 } swDataHead;
 
 typedef struct _swEvent
@@ -829,7 +826,6 @@ typedef struct _swEvent
     uint8_t type;
     swConnection *socket;
 #ifdef SW_USE_QUIC
-    int8_t is_quic :1;
     ptls_iovec_t *quic_buf;
 #endif
 } swEvent;

@@ -300,6 +300,10 @@ static int swServer_start_check(swServer *serv)
         serv->max_connection = SW_SESSION_LIST_SIZE / 2;
         swWarn("serv->quic_max_connection + serv->max_connection is exceed the SW_SESSION_LIST_SIZE, it's reset to %u.", SW_SESSION_LIST_SIZE / 2);
     }
+
+    serv->quic_fd_min = serv->max_connection;
+    serv->quic_fd_max = serv->quic_fd_min + serv->quic_max_connection - 1;
+    serv->quic_fd_now = serv->quic_fd_min - 1;
 #endif
     // package max length
     swListenPort *ls;
@@ -1176,9 +1180,6 @@ int swServer_tcp_notify(swServer *serv, swConnection *conn, int event)
     notify_event.fd = conn->fd;
     notify_event.from_fd = conn->from_fd;
     notify_event.len = 0;
-#if SW_USE_QUIC
-    notify_event.is_quic = 0;
-#endif
     return serv->factory.notify(&serv->factory, &notify_event);
 }
 
@@ -1191,7 +1192,6 @@ int swServer_quic_notify(swServer *serv, swQuic_stream *stream, int event)
     notify_event.fd = stream->quic_fd;
     notify_event.from_fd = stream->swQuic->from_fd;
     notify_event.len = 0;
-    notify_event.is_quic = 1;
     return serv->factory.notify(&serv->factory, &notify_event);
 }
 #endif
@@ -1304,9 +1304,6 @@ int swServer_tcp_close(swServer *serv, int fd, int reset)
         ev.type = SW_EVENT_CLOSE;
         ev.fd = fd;
         ev.from_id = conn->from_id;
-#if SW_USE_QUIC
-        ev.is_quic = 0;
-#endif
         ret = swWorker_send2worker(worker, &ev, sizeof(ev), SW_PIPE_MASTER);
     }
     else

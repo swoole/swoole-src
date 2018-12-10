@@ -154,10 +154,10 @@ static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
     if (swEventData_is_stream(task->data.info.type))
     {
 #ifdef SW_USE_QUIC
-        if (task->data.info.is_quic)
+        if (isQuic(task->data.info.fd))
         {
             swQuic_stream *quic_stream = swServer_quic_stream_get(serv, fd);
-            if (quic_stream == NULL || quic_stream->quic_fd == 0)
+            if (quic_stream == NULL || quic_stream->quic_fd < serv->quic_fd_min)
             {
                 swWarn("dispatch[type=%d] failed, quic stream#%d is not active.", task->data.info.type, quic_stream->session_id);
                 return SW_ERR;
@@ -205,15 +205,12 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
 
     swConnection *conn = NULL;
 #ifdef SW_USE_QUIC
-    swQuic_stream *quic_stream = NULL;
-    if (resp->info.is_quic)
+    int conn_from_id = 0;
+
+    swQuic_stream *quic_stream = swServer_quic_stream_verify(serv, session_id);
+    if (quic_stream != NULL)
     {
-        quic_stream = swServer_quic_stream_verify(serv, session_id);
-        if (quic_stream == NULL)
-        {
-            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "connection[fd=%d] does not exists.", session_id);
-            return SW_ERR;
-        }
+        conn_from_id = quic_stream->from_id;
     }
     else
     {
@@ -250,15 +247,13 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
         return SW_ERR;
     }
 #ifdef SW_USE_QUIC
+    conn_from_id = conn->from_id;
     }
 #endif
 
     swEventData ev_data;
     ev_data.info.fd = session_id;
     ev_data.info.type = resp->info.type;
-#ifdef SW_USE_QUIC
-    ev_data.info.is_quic = resp->info.is_quic;
-#endif
     swWorker *worker = swServer_get_worker(serv, SwooleWG.id);
 
     /**
@@ -275,7 +270,7 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
         if (SwooleG.main_reactor)
         {
 #ifdef SW_USE_QUIC
-            int _pipe_fd = swWorker_get_send_pipe(serv, session_id, resp->info.from_id);
+            int _pipe_fd = swWorker_get_send_pipe(serv, session_id, conn_from_id);
 #else
             int _pipe_fd = swWorker_get_send_pipe(serv, session_id, conn->from_id);
 #endif
@@ -316,7 +311,7 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     }
 
 #ifdef SW_USE_QUIC
-    send_to_reactor_thread: ev_data.info.from_id = resp->info.from_id;
+    send_to_reactor_thread: ev_data.info.from_id = conn_from_id;
 #else
     send_to_reactor_thread: ev_data.info.from_id = conn->from_id;
 #endif
@@ -341,10 +336,6 @@ static int swFactoryProcess_end(swFactory *factory, int fd)
     _send.info.fd = fd;
     _send.info.len = 0;
     _send.info.type = SW_EVENT_CLOSE;
-#if SW_USE_QUIC
-    _send.info.is_quic = 0;
-    info.is_quic = 0;
-#endif
 
     swConnection *conn = swWorker_get_connection(serv, fd);
     if (conn == NULL || conn->active == 0)

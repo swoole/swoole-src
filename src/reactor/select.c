@@ -240,9 +240,6 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
                 event.from_id = reactor->id;
                 event.type = swReactor_fdtype(ev->fdtype);
                 event.socket = swReactor_get(reactor, event.fd);
-#ifdef SW_USE_QUIC
-                event.is_quic = 0;
-#endif
 
                 //read
                 if (SW_FD_ISSET(event.fd, &(object->rfds)) && !event.socket->removed)

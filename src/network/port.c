@@ -262,7 +262,7 @@ static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *ev
     swConnection *conn;
 
 #ifdef SW_USE_QUIC
-    if (event->is_quic)
+    if (isQuic(event->fd))
     {
         conn = NULL;
         n = event->quic_buf->len;
@@ -299,22 +299,12 @@ static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *ev
     else
     {
         task.data.info.fd = event->fd;
-#ifdef SW_USE_QUIC
-        if (event->is_quic)
-        {
-            task.data.info.is_quic = 1;
-        }
-        else
-        {
-            task.data.info.is_quic = 0;
-        }
-#endif
         task.data.info.from_id = event->from_id;
         task.data.info.len = n;
         task.data.info.type = SW_EVENT_TCP;
         task.target_worker_id = -1;
 #ifdef SW_USE_QUIC
-        if (event->is_quic)
+        if (isQuic(event->fd))
         {
             return swReactorThread_dispatch_quic(swServer_quic_stream_get(reactor->ptr, event->fd), (char *)event->quic_buf->base, event->quic_buf->len);
         }
@@ -373,7 +363,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
 #ifdef SW_USE_QUIC
     swQuic_stream *quic_stream = NULL;
 
-    if (event->is_quic)
+    if (isQuic(event->fd))
     {
         quic_stream = swServer_quic_stream_get(serv, event->fd);
         if (quic_stream == NULL || quic_stream->quic_fd == 0)
@@ -433,7 +423,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
 
     //new http request
 #ifdef SW_USE_QUIC
-    if (event->is_quic)
+    if (isQuic(event->fd))
     {
         if (quic_stream->object == NULL)
         {
@@ -466,7 +456,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
     if (!request->buffer)
     {
 #ifdef SW_USE_QUIC
-        if (event->is_quic)
+        if (isQuic(event->fd))
         {
             request->buffer = swString_new(event->quic_buf->len);
         }
@@ -485,7 +475,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
         }
     }
 #ifdef SW_USE_QUIC
-    else if (event->is_quic)
+    else if (isQuic(event->fd))
     {
         if (swString_extend(request->buffer, request->buffer->size + event->quic_buf->len) < 0)
         {
@@ -497,7 +487,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
     swString *buffer = request->buffer;
 
 #ifdef SW_USE_QUIC
-    if (event->is_quic)
+    if (isQuic(event->fd))
     {
         n = event->quic_buf->len;
         memcpy(buffer->str, event->quic_buf->base, n);
@@ -531,7 +521,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
     {
         close_fd:
 #ifdef SW_USE_QUIC
-        if (event->is_quic)
+        if (isQuic(event->fd))
         {
             swHttpRequest_free_quic(quic_stream);
             swReactorThread_onClose(reactor, event);
@@ -555,7 +545,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
         if (request->method == 0 && swHttpRequest_get_protocol(request) < 0)
         {
 #ifdef SW_USE_QUIC
-            if ((event->is_quic && request->excepted == 0) || (request->excepted == 0 && request->buffer->length < SW_HTTP_HEADER_MAX_SIZE))
+            if ((isQuic(event->fd) && request->excepted == 0) || (request->excepted == 0 && request->buffer->length < SW_HTTP_HEADER_MAX_SIZE))
 #else
             if (request->excepted == 0 && request->buffer->length < SW_HTTP_HEADER_MAX_SIZE)
 #endif
@@ -606,7 +596,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
             if (swHttpRequest_get_header_length(request) < 0)
             {
 #ifdef SW_USE_QUIC
-                if ((event->is_quic && buffer->length >= SW_HTTP_HEADER_MAX_SIZE) || (!event->is_quic && buffer->size == buffer->length))
+                if ((isQuic(event->fd) && buffer->length >= SW_HTTP_HEADER_MAX_SIZE) || (!isQuic(event->fd) && buffer->size == buffer->length))
 #else
                 if (buffer->size == buffer->length)
 #endif
@@ -617,7 +607,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
                 else
                 {
 #ifdef SW_USE_QUIC
-                    if (event->is_quic)
+                    if (isQuic(event->fd))
                     {
                         return SW_OK;
                     }
@@ -657,7 +647,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
                     return SW_OK;
                 }
 #ifdef SW_USE_QUIC
-                else if ((event->is_quic && buffer->length >= SW_HTTP_HEADER_MAX_SIZE) || (!event->is_quic && buffer->size == buffer->length))
+                else if ((isQuic(event->fd) && buffer->length >= SW_HTTP_HEADER_MAX_SIZE) || (!isQuic(event->fd) && buffer->size == buffer->length))
 #else
                 else if (buffer->size == buffer->length)
 #endif
@@ -669,7 +659,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
                 else
                 {
 #ifdef SW_USE_QUIC
-                    if (event->is_quic)
+                    if (isQuic(event->fd))
                     {
                         return SW_OK;
                     }
@@ -705,7 +695,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
         if (buffer->length == request_size)
         {
 #ifdef SW_USE_QUIC
-            if (event->is_quic)
+            if (isQuic(event->fd))
             {
                 swReactorThread_dispatch_quic(quic_stream, buffer->str, buffer->length);
                 swHttpRequest_free_quic(quic_stream);
@@ -756,7 +746,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
             }
 #endif
 #ifdef SW_USE_QUIC
-            if (event->is_quic)
+            if (isQuic(event->fd))
             {
                 return SW_OK;
             }
