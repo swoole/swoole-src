@@ -32,7 +32,7 @@ go(function () {
     $real_connect_time = microtime(true) - $real_connect_time;
     assert($fake_connect_time < $real_connect_time);
     assert(!$redis->get('foo'));
-    assert($redis->errCode === SWOOLE_REDIS_ERR_PROTOCOL);
+    assert($redis->errType === SWOOLE_REDIS_ERR_PROTOCOL);
 });
 swoole_event_wait();
 echo "DONE\n";
