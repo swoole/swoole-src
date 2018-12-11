@@ -280,7 +280,6 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
             php_swoole_client_coro_check_setting(hcc->socket, zset);
             if (hcc->socket->http_proxy)
             {
-                zval *zrequest_headers = sw_zend_read_property(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("requestHeaders"), 0);
                 if (hcc->socket->http_proxy->password)
                 {
                     char _buf1[128];
@@ -289,9 +288,9 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
                             hcc->socket->http_proxy->user, hcc->socket->http_proxy->l_password,
                             hcc->socket->http_proxy->password);
                     zend_string *str = php_base64_encode((const unsigned char *) _buf1, _n1);
-                    int _n2 = snprintf(_buf2, sizeof(_buf2), "Basic %*s", (int)str->len, str->val);
+                    snprintf(_buf2, sizeof(_buf2), "Basic %*s", (int)str->len, str->val);
+                    snprintf(hcc->socket->http_proxy->buf, sizeof(hcc->socket->http_proxy->buf), "Proxy-Authorization:Basic %*s", (int)str->len, str->val);
                     zend_string_free(str);
-                    add_assoc_stringl_ex(zrequest_headers, ZEND_STRL("Proxy-Authorization"), _buf2, _n2);
                 }
             }
         }
