@@ -701,7 +701,6 @@ ssize_t Socket::write(const void *__buf, size_t __n)
         return -1;
     }
 
-    bool copied = false;
     while (true)
     {
         int events = SW_EVENT_WRITE;
@@ -719,17 +718,13 @@ ssize_t Socket::write(const void *__buf, size_t __n)
         {
             return -1;
         }
-        if (!copied)
-        {
-            copy_to_write_buffer(__buf, __n);
-            copied = true;
-        }
+        copy_to_write_buffer(&__buf, __n);
         yield(events == SW_EVENT_READ ? SOCKET_LOCK_RW : SOCKET_LOCK_WRITE);
         if (errCode == ETIMEDOUT)
         {
             return -1;
         }
-        retval =  ::write(socket->fd, (void *) write_buffer->str, __n);
+        retval =  ::write(socket->fd, (void *) __buf, __n);
         if (retval < 0)
         {
             if (swConnection_error(errno) == SW_WAIT)
@@ -817,7 +812,6 @@ ssize_t Socket::send(const void *__buf, size_t __n)
         return -1;
     }
 
-    bool copied = false;
     while (true)
     {
         int events = SW_EVENT_WRITE;
@@ -835,17 +829,13 @@ ssize_t Socket::send(const void *__buf, size_t __n)
         {
             return -1;
         }
-        if (!copied)
-        {
-            copy_to_write_buffer(__buf, __n);
-            copied = true;
-        }
+        copy_to_write_buffer(&__buf, __n);
         yield(events == SW_EVENT_READ ? SOCKET_LOCK_RW : SOCKET_LOCK_WRITE);
         if (errCode == ETIMEDOUT)
         {
             return -1;
         }
-        retval = swConnection_send(socket, (void *) write_buffer->str, __n, 0);
+        retval = swConnection_send(socket, (void *) __buf, __n, 0);
         if (retval < 0)
         {
             if (swConnection_error(errno) == SW_WAIT)
