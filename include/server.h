@@ -670,7 +670,7 @@ int swServer_onFinish2(swFactory *factory, swSendData *resp);
 void swServer_init(swServer *serv);
 void swServer_signal_init(swServer *serv);
 int swServer_start(swServer *serv);
-swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port);
+swListenPort* swServer_add_port(swServer *serv, int type, const char *host, int port);
 void swServer_close_port(swServer *serv, enum swBool_type only_stream_port);
 int swServer_add_worker(swServer *serv, swWorker *worker);
 int swserver_add_systemd_socket(swServer *serv);

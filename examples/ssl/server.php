@@ -21,6 +21,7 @@ $serv->set(array(
 $serv->on('connect', function (swoole_server $serv, $fd, $from_id){
 	echo "[#".posix_getpid()."]\tClient@[$fd:$from_id]: Connect.\n";
     $info = $serv->getClientInfo($fd);
+    var_dump($info);
 });
 
 $serv->on('receive', function (swoole_server $serv, $fd, $from_id, $data) {

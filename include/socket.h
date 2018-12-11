@@ -24,12 +24,6 @@
 
 namespace swoole
 {
-enum socket_lock_operation
-{
-    SOCKET_LOCK_READ = 1U << 1,
-    SOCKET_LOCK_WRITE = 1U << 2,
-    SOCKET_LOCK_RW = SOCKET_LOCK_READ | SOCKET_LOCK_WRITE
-};
 
 class Socket
 {
@@ -53,8 +47,6 @@ public:
     ssize_t send_all(const void *__buf, size_t __n);
     ssize_t recv_packet();
     Socket* accept();
-    void resume(int operation);
-    void yield(int operation);
     bool bind(std::string address, int port = 0);
     std::string resolve(std::string host);
     bool listen(int backlog = 0);
@@ -63,17 +55,23 @@ public:
     ssize_t recvfrom(void *__buf, size_t __n);
     ssize_t recvfrom(void *__buf, size_t __n, struct sockaddr *_addr, socklen_t *_socklen);
 
-    inline long has_bound(socket_lock_operation type)
+    void yield();
+
+    inline void resume()
     {
-        if ((type & SOCKET_LOCK_READ) && read_co)
+        bind_co->resume();
+    }
+
+    inline long has_bound()
+    {
+        if (bind_co)
         {
-            return read_co->get_cid();
+            return bind_co->get_cid();
         }
-        else if ((type & SOCKET_LOCK_WRITE) && write_co)
+        else
         {
-            return write_co->get_cid();
+            return 0;
         }
-        return 0;
     }
 
     inline void set_timeout(double timeout, bool temp = false)
@@ -139,15 +137,13 @@ public:
 protected:
     inline void init_members()
     {
-        read_co = nullptr;
-        write_co = nullptr;
+        bind_co = nullptr;
         _timeout = 0;
         _timeout_temp = 0;
         _port = 0;
         errCode = 0;
         errMsg = nullptr;
-        read_timer = nullptr;
-        write_timer = nullptr;
+        _timer = nullptr;
         bind_port = 0;
         _backlog = 0;
         _closed = false;
@@ -213,30 +209,19 @@ protected:
 
     inline void init_sock(int _fd);
 
-    inline bool wait_events(int events)
+    inline bool wait_event(int event)
     {
-        if (socket->events == 0)
+        if (reactor->add(reactor, socket->fd, SW_FD_CORO_SOCKET | event) < 0)
         {
-            if (reactor->add(reactor, socket->fd, SW_FD_CORO_SOCKET | events) < 0)
-            {
-                errCode = errno;
-                return false;
-            }
-        }
-        else
-        {
-            if (reactor->set(reactor, socket->fd, SW_FD_CORO_SOCKET | socket->events | events) < 0)
-            {
-                errCode = errno;
-                return false;
-            }
+            errCode = errno;
+            return false;
         }
         return true;
     }
 
-    inline bool is_available(socket_lock_operation type)
+    inline bool is_available()
     {
-        long cid = has_bound(type);
+        long cid = has_bound();
         if (unlikely(cid))
         {
             swoole_error_log(
@@ -267,10 +252,8 @@ public:
     std::string bind_address;
     int bind_port;
     int _port;
-    Coroutine* read_co;
-    Coroutine* write_co;
-    swTimer_node *read_timer;
-    swTimer_node *write_timer;
+    Coroutine* bind_co;
+    swTimer_node *_timer;
     swConnection *socket = nullptr;
     enum swSocket_type type;
     int _sock_type;
