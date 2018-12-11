@@ -343,17 +343,20 @@ static void mysql_client_free(mysql_client *client, zval* zobject)
 
 static void mysql_columns_free(mysql_client *client)
 {
-    int i;
-    for (i = 0; i < client->response.num_column; i++)
+    if (client->response.columns)
     {
-        if (client->response.columns[i].buffer)
+        int i;
+        for (i = 0; i < client->response.num_column; i++)
         {
-            efree(client->response.columns[i].buffer);
-            client->response.columns[i].buffer = NULL;
+            if (client->response.columns[i].buffer)
+            {
+                efree(client->response.columns[i].buffer);
+                client->response.columns[i].buffer = NULL;
+            }
         }
+        efree(client->response.columns);
+        client->response.columns = NULL;
     }
-    efree(client->response.columns);
-    client->response.columns = NULL;
 }
 
 static void swoole_mysql_onTimeout(swTimer *timer, swTimer_node *tnode);
@@ -1461,7 +1464,7 @@ static sw_inline int mysql_ensure_packet(char *buf, int n_buf)
 static sw_inline int mysql_read_eof(mysql_client *client, char *buf, int n_buf)
 {
     // not EOF packet
-    if ((uint8_t) buf[4] != SW_MYSQL_PACKET_EOF || client->response.packet_length > 9)
+    if ((uint8_t) buf[4] != SW_MYSQL_PACKET_EOF || client->response.packet_length > SW_MYSQL_PACKET_EOF_MAX_SIZE)
     {
         return SW_ERR;
     }
@@ -1569,8 +1572,10 @@ static sw_inline int mysql_read_ok(mysql_client *client, char *buf, int n_buf)
 
     MYSQL_RESPONSE_BUFFER->offset += client->response.packet_length + SW_MYSQL_PACKET_HEADER_SIZE;
 
-    swTraceLog(SW_TRACE_MYSQL_CLIENT, "OK_Packet, affected_rows=%lu, insert_id=%lu, status_flags=%u, warnings=%u", 
-        client->response.affected_rows, client->response.insert_id, client->response.status_code, client->response.warnings);
+    swTraceLog(
+        SW_TRACE_MYSQL_CLIENT, "OK_Packet, affected_rows=%lu, insert_id=%lu, status_flags=%u, warnings=%u",
+        client->response.affected_rows, client->response.insert_id, client->response.status_code, client->response.warnings
+    );
 
     return SW_OK;
 }
@@ -1588,8 +1593,7 @@ static sw_inline int mysql_read_params(mysql_client *client)
         // Ensure that we've received the complete packet
         if (mysql_ensure_packet(p, n_buf) == SW_ERR)
         {
-            client->response.wait_recv = 1;
-            return SW_ERR;
+            return SW_AGAIN;
         }
 
         client->response.packet_length = mysql_uint3korr(p);
@@ -1610,14 +1614,7 @@ static sw_inline int mysql_read_params(mysql_client *client)
         }
         else
         {
-            if (mysql_read_eof(client, p, n_buf) == 0)
-            {
-                return SW_OK;
-            }
-            else
-            {
-                return SW_ERR;
-            }
+            return mysql_read_eof(client, p, n_buf);
         }
     }
 }
@@ -1637,8 +1634,7 @@ static sw_inline int mysql_read_rows(mysql_client *client)
         // Ensure that we've received the complete packet
         if (mysql_ensure_packet(p, n_buf) == SW_ERR)
         {
-            client->response.wait_recv = 1;
-            return SW_ERR;
+            return SW_AGAIN;
         }
 
         client->response.packet_length = mysql_uint3korr(p);
@@ -1647,20 +1643,14 @@ static sw_inline int mysql_read_rows(mysql_client *client)
         //RecordSet end
         if (mysql_read_eof(client, p, n_buf) == SW_OK)
         {
-            if (client->response.columns)
-            {
-                mysql_columns_free(client);
-            }
+            mysql_columns_free(client);
             return SW_OK;
         }
         // ERR Instead of EOF
         // @see: https://dev.mysql.com/doc/internals/en/err-instead-of-eof.html
         else if (mysql_read_err(client, p, n_buf) == SW_OK)
         {
-            if (client->response.columns)
-            {
-                mysql_columns_free(client);
-            }
+            mysql_columns_free(client);
             return SW_OK;
         }
 
@@ -1908,8 +1898,7 @@ static int mysql_read_columns(mysql_client *client)
         // Ensure that we've received the complete packet
         if (mysql_ensure_packet(p, n_buf) == SW_ERR)
         {
-            client->response.wait_recv = 1;
-            return SW_ERR;
+            return SW_AGAIN;
         }
 
         client->response.packet_length = mysql_uint3korr(p);
@@ -1938,14 +1927,13 @@ static int mysql_read_columns(mysql_client *client)
     // Ensure that we've received the complete EOF_Packet
     if (mysql_ensure_packet(p, n_buf) == SW_ERR)
     {
-        client->response.wait_recv = 1;
-        return SW_ERR;
+        return SW_AGAIN;
     }
 
     client->response.packet_length = mysql_uint3korr(p);
     client->response.packet_number = p[3];
 
-    if (mysql_read_eof(client, p, n_buf) < 0)
+    if (mysql_read_eof(client, p, n_buf) != SW_OK)
     {
         return SW_ERR;
     }
@@ -2028,7 +2016,6 @@ int mysql_is_over(mysql_client *client)
                 if ((mysql_uint2korr(p) & SW_MYSQL_SERVER_MORE_RESULTS_EXISTS) == 0)
                 {
                     _over:
-                    client->response.wait_recv = 0;
                     client->check_offset = 0;
                     return SW_OK;
                 }
@@ -2049,7 +2036,6 @@ int mysql_is_over(mysql_client *client)
         }
     }
 
-    client->response.wait_recv = 2;
     return SW_AGAIN;
 }
 
@@ -2073,9 +2059,8 @@ int mysql_response(mysql_client *client)
         case SW_MYSQL_STATE_READ_START:
             // Ensure that we've received the complete packet
             if (mysql_ensure_packet(p, n_buf) == SW_ERR)
-            {
-                client->response.wait_recv = 1;
-                return SW_ERR;
+            {;
+                return SW_AGAIN;
             }
 
             client->response.packet_length = mysql_uint3korr(p);
@@ -2112,9 +2097,13 @@ int mysql_response(mysql_client *client)
                 {
                     client->state = SW_MYSQL_STATE_READ_PARAM;
                 }
-                else
+                else if (client->statement->field_count > 0)
                 {
                     client->state = SW_MYSQL_STATE_READ_FIELD;
+                }
+                else
+                {
+                    return SW_OK;
                 }
                 break;
             }
@@ -2141,10 +2130,11 @@ int mysql_response(mysql_client *client)
                 break;
             }
 
+        /* data of fields */
         case SW_MYSQL_STATE_READ_FIELD:
-            if (mysql_read_columns(client) < 0)
+            if ((ret = mysql_read_columns(client)) < 0)
             {
-                return SW_ERR;
+                return ret;
             }
             else
             {
@@ -2157,10 +2147,11 @@ int mysql_response(mysql_client *client)
                 break;
             }
 
+        /* data of rows */
         case SW_MYSQL_STATE_READ_ROW:
-            if (mysql_read_rows(client) < 0)
+            if ((ret = mysql_read_rows(client)) < 0)
             {
-                return SW_ERR;
+                return ret;
             }
             else
             {
@@ -2168,10 +2159,11 @@ int mysql_response(mysql_client *client)
                 return SW_OK;
             }
 
+        /* prepare statment params */
         case SW_MYSQL_STATE_READ_PARAM:
-            if (mysql_read_params(client) < 0)
+            if ((ret = mysql_read_params(client)) < 0)
             {
-                return SW_ERR;
+                return ret;
             }
             else if (client->statement->field_count > 0)
             {
@@ -2189,7 +2181,7 @@ int mysql_response(mysql_client *client)
         }
     }
 
-    return SW_OK;
+    return SW_AGAIN;
 }
 
 int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callback)
@@ -2255,17 +2247,20 @@ int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callba
 
 void mysql_client_info(mysql_client *client)
 {
-    printf("\n"SW_START_LINE"\nmysql_client\nbuffer->offset=%ld\nbuffer->length=%ld\nstatus=%d\n"
-            "packet_length=%d\npacket_number=%d\n"
-            "insert_id=%d\naffected_rows=%d\n"
-            "warnings=%d\n"SW_END_LINE, client->buffer->offset, client->buffer->length, client->response.status_code,
-            client->response.packet_length, client->response.packet_number,
-            client->response.insert_id, client->response.affected_rows,
-            client->response.warnings);
-    int i;
-
+    printf("\n" SW_START_LINE
+        "\nmysql_client\nbuffer->offset=%jd\nbuffer->length=%ju\nstatus=%u\n"
+        "packet_length=%u\npacket_number=%u\n"
+        "insert_id=%lu\naffected_rows=%lu\n"
+        "warnings=%u\n" SW_END_LINE,
+        (intmax_t) client->buffer->offset, (uintmax_t) client->buffer->length,
+        client->response.status_code,
+        client->response.packet_length, client->response.packet_number,
+        client->response.insert_id, client->response.affected_rows,
+        client->response.warnings
+    );
     if (client->response.num_column)
     {
+        int i;
         for (i = 0; i < client->response.num_column; i++)
         {
             mysql_column_info(&client->response.columns[i]);
@@ -2275,15 +2270,16 @@ void mysql_client_info(mysql_client *client)
 
 void mysql_column_info(mysql_field *field)
 {
-    printf("\n"SW_START_LINE"\nname=%s, table=%s, db=%s\n"
-            "name_length=%d, table_length=%d, db_length=%d\n"
-            "catalog=%s, default_value=%s\n"
-            "length=%ld, type=%d\n"SW_END_LINE,
-            field->name, field->table, field->db,
-            field->name_length, field->table_length, field->db_length,
-            field->catalog, field->def,
-            field->length, field->type
-           );
+    printf("\n" SW_START_LINE
+        "\nname=%s, table=%s, db=%s\n"
+        "name_length=%d, table_length=%d, db_length=%d\n"
+        "catalog=%s, default_value=%s\n"
+        "length=%ld, type=%d\n" SW_END_LINE,
+        field->name, field->table, field->db,
+        field->name_length, field->table_length, field->db_length,
+        field->catalog, field->def,
+        field->length, field->type
+   );
 }
 
 #endif
