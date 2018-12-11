@@ -285,9 +285,9 @@ static int http_client_coro_execute(zval *zobject, http_client_coro_property *hc
                 {
                     char _buf1[128];
                     char _buf2[256];
-                    int _n1 = snprintf(_buf1, sizeof(_buf1), "%*s:%*s", http->cli->http_proxy->l_user,
-                            http->cli->http_proxy->user, http->cli->http_proxy->l_password,
-                            http->cli->http_proxy->password);
+                    int _n1 = snprintf(_buf1, sizeof(_buf1), "%*s:%*s", hcc->socket->http_proxy->l_user,
+                            hcc->socket->http_proxy->user, hcc->socket->http_proxy->l_password,
+                            hcc->socket->http_proxy->password);
                     zend_string *str = php_base64_encode((const unsigned char *) _buf1, _n1);
                     int _n2 = snprintf(_buf2, sizeof(_buf2), "Basic %*s", (int)str->len, str->val);
                     zend_string_free(str);
