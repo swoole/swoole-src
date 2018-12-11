@@ -1962,22 +1962,31 @@ int mysql_is_over(mysql_client *client)
 {
     swString *buffer = MYSQL_RESPONSE_BUFFER;
     char *p;
-    off_t remaining_size = buffer->length - client->check_offset; // remaining buffer size
+    off_t remaining_size;
     uint32_t package_len;
 
+    if (buffer->length < client->want_length)
+    {
+        swTraceLog(SW_TRACE_MYSQL_CLIENT, "want=%ju, but only=%ju", (uintmax_t) client->want_length, (intmax_t) buffer->length);
+        return SW_AGAIN;
+    }
+    remaining_size = buffer->length - client->check_offset; // remaining buffer size
     while (remaining_size > 0) // if false: have already check all of the data
     {
+        swTraceLog(SW_TRACE_MYSQL_CLIENT, "check package from %jd, remaining=%jd", (intmax_t) client->check_offset, (intmax_t) remaining_size);
         p = buffer->str + client->check_offset; // where to start checking now
-        if (unlikely(buffer->length < client->check_offset + 5))
+        if (unlikely(buffer->length < client->check_offset + SW_MYSQL_PACKET_HEADER_SIZE))
         {
+            client->want_length = client->check_offset + SW_MYSQL_PACKET_HEADER_SIZE;
             break; // header incomplete
         }
         package_len = mysql_uint3korr(p); // parse package length
         // add header
         p += SW_MYSQL_PACKET_HEADER_SIZE;
         remaining_size -= SW_MYSQL_PACKET_HEADER_SIZE;
-        if (unlikely(remaining_size < package_len)) // package is incomplete
+        if (remaining_size < package_len) // package is incomplete
         {
+            client->want_length = client->check_offset + SW_MYSQL_PACKET_HEADER_SIZE + package_len;
             break;
         }
 
@@ -2016,6 +2025,8 @@ int mysql_is_over(mysql_client *client)
                 if ((mysql_uint2korr(p) & SW_MYSQL_SERVER_MORE_RESULTS_EXISTS) == 0)
                 {
                     _over:
+                    swTraceLog(SW_TRACE_MYSQL_CLIENT, "package over on=%jd", (intmax_t) client->check_offset);
+                    client->want_length = 0;
                     client->check_offset = 0;
                     return SW_OK;
                 }
