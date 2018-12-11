@@ -442,7 +442,7 @@ static int http_client_coro_recv_response(zval *zobject, http_client_coro_proper
     swString *buffer;
     ssize_t total_bytes = 0, retval = 0;
 
-    sw_coro_check_bind("http client", hcc->socket->has_bound(swoole::SOCKET_LOCK_READ));
+    sw_coro_check_bind("http client", hcc->socket->has_bound());
 
     buffer = hcc->socket->get_read_buffer();
     while (http->completed == 0)
@@ -520,7 +520,7 @@ static int http_client_coro_send_request(zval *zobject, http_client_coro_propert
     //clear buffer
     swString_clear(http_client_buffer);
     // check coro bind
-    sw_coro_check_bind("http client", hcc->socket->has_bound(swoole::SOCKET_LOCK_WRITE));
+    sw_coro_check_bind("http client", hcc->socket->has_bound());
 
     zmethod = sw_zend_read_property_not_null(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("requestMethod"), 1);
     zheaders = sw_zend_read_property(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("requestHeaders"), 1);
@@ -1443,7 +1443,7 @@ static PHP_METHOD(swoole_http_client_coro, push)
     }
 
     http_client_coro_property *hcc = (http_client_coro_property *) swoole_get_property(getThis(), 0);
-    sw_coro_check_bind("http client", hcc->socket->has_bound(swoole::SOCKET_LOCK_WRITE));
+    sw_coro_check_bind("http client", hcc->socket->has_bound());
     if (hcc->socket->send(http_client_buffer->str, http_client_buffer->length) < 0)
     {
         SwooleG.error = hcc->socket->errCode;
