@@ -92,8 +92,8 @@ static sw_inline int swReactorThread_verify_ssl_state(swReactor *reactor, swList
                 }
                 else
                 {
-                    if (!port->ssl_option.verify_peer || (port->ssl_option.verify_peer
-                            && swSSL_verify(conn, port->ssl_option.allow_self_signed) == 0)) {
+                    if (!port->ssl_option.verify_peer || swSSL_verify(conn, port->ssl_option.allow_self_signed) == SW_OK)
+                    {
                         swFactory *factory = &SwooleG.serv->factory;
                         task.target_worker_id = -1;
                         task.data.info.fd = conn->fd;

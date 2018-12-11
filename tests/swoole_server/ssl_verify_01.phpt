@@ -21,12 +21,12 @@ $pm->parentFunc = function ($pid) use ($pm) {
     $client->send("hello world");
     assert($client->recv() == "Swoole hello world");
     $pm->kill();
+    echo "DONE\n";
 };
 
 $pm->childFunc = function () use ($pm) {
     $serv = new swoole_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE, SWOOLE_SOCK_TCP | SWOOLE_SSL);
     $serv->set([
-        'log_file' => '/dev/null',
         'ssl_cert_file' => dirname(__DIR__) . '/include/api/ssl-ca/server-cert.pem',
         'ssl_key_file' => dirname(__DIR__) . '/include/api/ssl-ca/server-key.pem',
         'ssl_verify_peer' => true,
@@ -46,3 +46,4 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
+DONE
