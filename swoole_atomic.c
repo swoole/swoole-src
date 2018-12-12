@@ -246,9 +246,10 @@ PHP_METHOD(swoole_atomic, wait)
     SW_CHECK_RETURN(swoole_futex_wait(atomic, timeout));
 #else
     timeout = timeout <= 0 ? SW_MAX_INT : timeout;
+    sw_atomic_long_t i = sw_atomic_add_fetch(atomic, 1);
     while (timeout > 0)
     {
-        if (sw_atomic_cmp_set(atomic, 1, 0))
+        if (*atomic < i)
         {
             RETURN_TRUE;
         }
@@ -274,7 +275,7 @@ PHP_METHOD(swoole_atomic, wakeup)
 #ifdef HAVE_FUTEX
     SW_CHECK_RETURN(swoole_futex_wakeup(atomic, (int ) n));
 #else
-    *atomic = 1;
+    sw_atomic_fetch_sub(atomic, n);
 #endif
 }
 
