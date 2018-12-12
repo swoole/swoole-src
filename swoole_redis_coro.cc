@@ -1043,9 +1043,6 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
     socket->set_timeout(redis->timeout);
     zend_update_property_bool(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("connected"), 1);
     zend_update_property_long(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("sock"), context->fd);
-    zend_update_property_long(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("errType"), 0);
-    zend_update_property_long(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("errCode"), 0);
-    zend_update_property_string(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), "");
     return true;
 }
 
@@ -1074,12 +1071,14 @@ static void redis_request(swRedisClient *redis, int argc, char **argv, size_t *a
         if (reply == nullptr)
         {
             _error:
+            // if operation is timeout, do not retry, just reconnect.
+            bool is_timeout = (redis->context->err == SW_REDIS_ERR_IO && errno == ETIMEDOUT);
             zend_update_property_long(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("errType"), redis->context->err);
             zend_update_property_long(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("errCode"), sw_redis_convert_err(redis->context->err));
             zend_update_property_string(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("errMsg"), redis->context->errstr);
             ZVAL_FALSE(return_value);
             swoole_redis_coro_close(redis->zobject);
-            if (!retry && !redis->internal_connect_failed && swoole_redis_coro_connect(redis))
+            if (!retry && swoole_redis_coro_connect(redis) && !is_timeout)
             {
                 return redis_request(redis, argc, argv, argvlen, return_value, true);
             }
@@ -1848,6 +1847,11 @@ static PHP_METHOD(swoole_redis_coro, connect)
 
     if ((fd = swoole_redis_coro_connect(redis)) > 0)
     {
+        // clear the error code only when the developer manually tries to connect successfully
+        // if the kernel retries automatically, keep silent.
+        zend_update_property_long(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("errType"), 0);
+        zend_update_property_long(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("errCode"), 0);
+        zend_update_property_string(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), "");
         RETURN_TRUE;
     }
     else
