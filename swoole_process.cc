@@ -269,7 +269,7 @@ static PHP_METHOD(swoole_process, __construct)
     }
     efree(func_name);
 
-    swWorker *process = emalloc(sizeof(swWorker));
+    swWorker *process = (swWorker *) emalloc(sizeof(swWorker));
     bzero(process, sizeof(swWorker));
 
     int base = 1;
@@ -296,7 +296,7 @@ static PHP_METHOD(swoole_process, __construct)
 
     if (pipe_type > 0)
     {
-        swPipe *_pipe = emalloc(sizeof(swPipe));
+        swPipe *_pipe = (swPipe *) emalloc(sizeof(swPipe));
         int socket_type = pipe_type == 1 ? SOCK_STREAM : SOCK_DGRAM;
         if (swPipeUnsock_create(_pipe, 1, socket_type) < 0)
         {
@@ -319,7 +319,7 @@ static PHP_METHOD(swoole_process, __destruct)
 {
     SW_PREVENT_USER_DESTRUCT;
 
-    swWorker *process = swoole_get_object(getThis());
+    swWorker *process = (swWorker *) swoole_get_object(getThis());
     swoole_set_object(getThis(), NULL);
     swPipe *_pipe = process->pipe_object;
     if (_pipe)
@@ -375,14 +375,14 @@ static PHP_METHOD(swoole_process, useQueue)
         RETURN_FALSE;
     }
 
-    swWorker *process = swoole_get_object(getThis());
+    swWorker *process = (swWorker *) swoole_get_object(getThis());
 
     if (msgkey <= 0)
     {
         msgkey = ftok(zend_get_executed_filename(), 1);
     }
 
-    swMsgQueue *queue = emalloc(sizeof(swMsgQueue));
+    swMsgQueue *queue = (swMsgQueue *) emalloc(sizeof(swMsgQueue));
     if (swMsgQueue_create(queue, 1, msgkey, 0) < 0)
     {
         RETURN_FALSE;
@@ -405,7 +405,7 @@ static PHP_METHOD(swoole_process, useQueue)
 
 static PHP_METHOD(swoole_process, statQueue)
 {
-    swWorker *process = swoole_get_object(getThis());
+    swWorker *process = (swWorker *) swoole_get_object(getThis());
     if (!process->queue)
     {
         swoole_php_fatal_error(E_WARNING, "no queue, can't get stats of the queue.");
@@ -428,7 +428,7 @@ static PHP_METHOD(swoole_process, statQueue)
 
 static PHP_METHOD(swoole_process, freeQueue)
 {
-    swWorker *process = swoole_get_object(getThis());
+    swWorker *process = (swWorker *) swoole_get_object(getThis());
     if (process->queue && swMsgQueue_free(process->queue) == SW_OK)
     {
         efree(process->queue);
@@ -699,7 +699,6 @@ void php_swoole_process_clean()
     {
         SwooleG.process_type = 0;
     }
-
 }
 
 int php_swoole_process_start(swWorker *process, zval *zobject)
@@ -733,6 +732,7 @@ int php_swoole_process_start(swWorker *process, zval *zobject)
 
     php_swoole_process_clean();
     SwooleWG.id = process->id;
+    SwooleWG.worker = process;
 
     zend_update_property_long(swoole_process_ce_ptr, zobject, ZEND_STRL("pid"), process->pid);
     zend_update_property_long(swoole_process_ce_ptr, zobject, ZEND_STRL("pipe"), process->pipe_worker);
@@ -776,7 +776,7 @@ int php_swoole_process_start(swWorker *process, zval *zobject)
 
 static PHP_METHOD(swoole_process, start)
 {
-    swWorker *process = swoole_get_object(getThis());
+    swWorker *process = (swWorker *) swoole_get_object(getThis());
 
     if (process->pid > 0 && kill(process->pid, 0) == 0)
     {
@@ -819,7 +819,7 @@ static PHP_METHOD(swoole_process, read)
         buf_size = 65536;
     }
 
-    swWorker *process = swoole_get_object(getThis());
+    swWorker *process = (swWorker *) swoole_get_object(getThis());
 
     if (process->pipe == 0)
     {
@@ -827,7 +827,7 @@ static PHP_METHOD(swoole_process, read)
         RETURN_FALSE;
     }
 
-    char *buf = emalloc(buf_size + 1);
+    char *buf = (char *) emalloc(buf_size + 1);
     int ret = read(process->pipe, buf, buf_size);;
     if (ret < 0)
     {
@@ -859,7 +859,7 @@ static PHP_METHOD(swoole_process, write)
         RETURN_FALSE;
     }
 
-    swWorker *process = swoole_get_object(getThis());
+    swWorker *process = (swWorker *) swoole_get_object(getThis());
     if (process->pipe == 0)
     {
         swoole_php_fatal_error(E_WARNING, "no pipe, can not write into pipe.");
@@ -921,7 +921,7 @@ static PHP_METHOD(swoole_process, push)
         RETURN_FALSE;
     }
 
-    swWorker *process = swoole_get_object(getThis());
+    swWorker *process = (swWorker *) swoole_get_object(getThis());
 
     if (!process->queue)
     {
@@ -953,7 +953,7 @@ static PHP_METHOD(swoole_process, pop)
         maxsize = SW_MSGMAX;
     }
 
-    swWorker *process = swoole_get_object(getThis());
+    swWorker *process = (swWorker *) swoole_get_object(getThis());
     if (!process->queue)
     {
         swoole_php_fatal_error(E_WARNING, "no msgqueue, can not use pop()");
@@ -1001,7 +1001,7 @@ static PHP_METHOD(swoole_process, exec)
     }
 
     int exec_argc = php_swoole_array_length(args);
-    char **exec_args = emalloc(sizeof(char*) * (exec_argc + 2));
+    char **exec_args = (char **) emalloc(sizeof(char*) * (exec_argc + 2));
 
     zval *value = NULL;
     exec_args[0] = sw_strdup(execfile);
@@ -1093,7 +1093,7 @@ static PHP_METHOD(swoole_process, exit)
         RETURN_FALSE;
     }
 
-    swWorker *process = swoole_get_object(getThis());
+    swWorker *process = (swWorker *) swoole_get_object(getThis());
 
     if (getpid() != process->pid)
     {
@@ -1129,7 +1129,7 @@ static PHP_METHOD(swoole_process, close)
         RETURN_FALSE;
     }
 
-    swWorker *process = swoole_get_object(getThis());
+    swWorker *process = (swWorker *) swoole_get_object(getThis());
     if (process->pipe == 0)
     {
         swoole_php_fatal_error(E_WARNING, "no pipe, can not close the pipe.");
@@ -1171,7 +1171,7 @@ static PHP_METHOD(swoole_process, setTimeout)
         RETURN_FALSE;
     }
 
-    swWorker *process = swoole_get_object(getThis());
+    swWorker *process = (swWorker *) swoole_get_object(getThis());
     if (process->pipe == 0)
     {
         swoole_php_fatal_error(E_WARNING, "no pipe, can not setTimeout the pipe.");
@@ -1188,7 +1188,7 @@ static PHP_METHOD(swoole_process, setBlocking)
         RETURN_FALSE;
     }
 
-    swWorker *process = swoole_get_object(getThis());
+    swWorker *process = (swWorker *) swoole_get_object(getThis());
     if (process->pipe == 0)
     {
         swoole_php_fatal_error(E_WARNING, "no pipe, can not setBlocking the pipe.");
