@@ -18,6 +18,8 @@
 #include "php_streams.h"
 #include "php_network.h"
 
+#include "swoole_coroutine.h"
+
 static PHP_METHOD(swoole_process, __construct);
 static PHP_METHOD(swoole_process, __destruct);
 static PHP_METHOD(swoole_process, useQueue);
@@ -781,6 +783,12 @@ static PHP_METHOD(swoole_process, start)
     if (process->pid > 0 && kill(process->pid, 0) == 0)
     {
         swoole_php_fatal_error(E_WARNING, "process has already been started.");
+        RETURN_FALSE;
+    }
+
+    if (sw_coro_is_in())
+    {
+        swoole_php_fatal_error(E_ERROR, "must be forked outside the coroutine.");
         RETURN_FALSE;
     }
 
