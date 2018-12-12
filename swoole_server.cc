@@ -509,8 +509,8 @@ static void php_swoole_task_onTimeout(swTimer *timer, swTimer_node *tnode)
         {
             zval_ptr_dtor(retval);
         }
-        efree(task_co);
         task_coroutine_map.erase(Z_LVAL(context->coro_params));
+        efree(task_co);
         return;
     }
 
@@ -742,9 +742,6 @@ void php_swoole_register_callback(swServer *serv)
     if (php_sw_server_callbacks[SW_SERVER_CB_onTask] != NULL)
     {
         serv->onTask = php_swoole_onTask;
-    }
-    if (php_sw_server_callbacks[SW_SERVER_CB_onFinish] != NULL)
-    {
         serv->onFinish = php_swoole_onFinish;
     }
     if (php_sw_server_callbacks[SW_SERVER_CB_onWorkerError] != NULL)
@@ -1036,12 +1033,9 @@ static int php_swoole_onTask(swServer *serv, swEventData *req)
     zval_ptr_dtor(zworker_id);
     sw_zval_free(zdata);
 
-    if (retval && serv->onFinish)
+    if (retval && Z_TYPE_P(retval) != IS_NULL)
     {
-        if (Z_TYPE_P(retval) != IS_NULL)
-        {
-            php_swoole_task_finish(serv, retval, req);
-        }
+        php_swoole_task_finish(serv, retval, req);
         zval_ptr_dtor(retval);
     }
 
@@ -1093,7 +1087,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
                 zval_ptr_dtor(retval);
             }
             efree(task_co);
-            efree(zdata);
+            sw_zval_free(zdata);
             task_coroutine_map.erase(task_id);
             return SW_OK;
         }
@@ -1157,6 +1151,12 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
     if (callback == NULL)
     {
         callback = php_sw_server_callbacks[SW_SERVER_CB_onFinish];
+        if (callback == NULL)
+        {
+            sw_zval_free(zdata);
+            swoole_php_fatal_error(E_WARNING, "require onFinish callback.");
+            return SW_ERR;
+        }
     }
     if (sw_call_user_function_ex(EG(function_table), NULL, callback, &retval, 3, args, 0, NULL) == FAILURE)
     {
@@ -1166,7 +1166,6 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
     {
         zend_exception_error(EG(exception), E_ERROR);
     }
-    zval_ptr_dtor(ztask_id);
     sw_zval_free(zdata);
     if (retval)
     {
