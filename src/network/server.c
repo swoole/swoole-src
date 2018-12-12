@@ -17,8 +17,6 @@
 #include "server.h"
 #include "http.h"
 #include "connection.h"
-#include <spawn.h>
-#include <sys/stat.h>
 
 static int swServer_start_check(swServer *serv);
 static void swServer_signal_handler(int sig);
