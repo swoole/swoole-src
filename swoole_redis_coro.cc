@@ -872,8 +872,6 @@ ZEND_END_ARG_INFO()
 typedef struct
 {
     redisContext *context;
-    std::string host;
-    uint16_t port;
     double connect_timeout;
     double timeout;
     zend_bool serialize;
@@ -975,7 +973,13 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
 
     if (redis->context)
     {
-        if (redis->host.compare(host) == 0 && redis->port == port)
+        if (redis->context->connection_type == REDIS_CONN_TCP && strcmp(redis->context->tcp.host, host) == 0
+                && redis->context->tcp.port == port)
+        {
+            return true;
+        }
+        else if (redis->context->connection_type == REDIS_CONN_UNIX
+                && strcmp(redis->context->unix_sock.path, host) == 0)
         {
             return true;
         }
@@ -1007,8 +1011,6 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
     }
 
     redis->context = context;
-    redis->host = std::string(host, host_len);
-    redis->port = port;
 
     if (!context)
     {
