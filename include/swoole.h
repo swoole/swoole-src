@@ -397,10 +397,7 @@ exit(1)
     swLog_put(level, sw_error);\
     SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}}while(0)
 
-#ifdef SW_DEBUG_REMOTE_OPEN
-#define swDebug(str,...) int __debug_log_n = snprintf(sw_error, SW_ERROR_MSG_SIZE, str, ##__VA_ARGS__);\
-write(SwooleG.debug_fd, sw_error, __debug_log_n);
-#elif defined(SW_DEBUG)
+#ifdef SW_DEBUG
 #define swDebug(str,...) if (SW_LOG_DEBUG >= SwooleG.log_level){\
     SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
     snprintf(sw_error, SW_ERROR_MSG_SIZE, "%s(:%d): " str, __func__, __LINE__, ##__VA_ARGS__);\
@@ -1315,7 +1312,6 @@ int swoole_tmpfile(char *filename);
 swString* swoole_file_get_contents(char *filename);
 int swoole_file_put_contents(char *filename, char *content, size_t length);
 long swoole_file_size(char *filename);
-void swoole_open_remote_debug(void);
 char *swoole_dec2hex(int value, int base);
 int swoole_version_compare(const char *version1, const char *version2);
 #ifdef HAVE_EXECINFO
@@ -2164,7 +2160,6 @@ typedef struct
     int signal_fd;
     int log_fd;
     int null_fd;
-    int debug_fd;
 
     /**
      * worker(worker and task_worker) process chroot / user / group

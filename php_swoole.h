@@ -99,13 +99,7 @@ typedef struct
     uint32_t property_size[SWOOLE_PROPERTY_MAX];
 } swoole_object_array;
 
-#ifdef ZTS
-#include "TSRM.h"
-extern void ***sw_thread_ctx;
-extern __thread swoole_object_array swoole_objects;
-#else
 extern swoole_object_array swoole_objects;
-#endif
 
 // Solaris doesn't have PTRACE_ATTACH
 #if defined(HAVE_PTRACE) && defined(__sun)
