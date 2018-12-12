@@ -26,7 +26,7 @@ go(function () use ($cid, $port) {
     for ($n = MAX_REQUESTS; $n--;) {
         $ret = $redis->get('foo');
         assert(!$ret);
-        assert($redis->errCode === SWOOLE_REDIS_ERR_CLOSED);
+        assert($redis->errType === SWOOLE_REDIS_ERR_CLOSED);
     }
     $ret = $redis->connect('127.0.0.1', $port);
     assert($ret);

@@ -113,11 +113,14 @@ public:
         return write_buffer;
     }
 
-    inline void copy_to_write_buffer(const void *__buf, size_t __n)
+    inline void copy_to_write_buffer(const void **__buf, size_t __n)
     {
-        get_write_buffer();
-        swString_clear(write_buffer);
-        swString_append_ptr(write_buffer, (const char *) __buf, __n);
+        if (*__buf != get_write_buffer()->str)
+        {
+            swString_clear(write_buffer);
+            swString_append_ptr(write_buffer, (const char *) *__buf, __n);
+            *__buf = write_buffer->str;
+        }
     }
 
     inline int get_fd()
@@ -306,7 +309,7 @@ static inline enum swSocket_type get_socket_type(int domain, int type, int proto
     }
 }
 
-static inline enum swSocket_type get_socket_type_from_uri(std::string &uri, bool convert_to_addr = 0)
+static inline enum swSocket_type get_socket_type_from_uri(std::string &uri, bool convert_to_addr = false)
 {
     if (uri.compare(0, 6, "unix:/", 0, 6) == 0)
     {

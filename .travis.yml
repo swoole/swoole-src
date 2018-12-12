@@ -43,6 +43,7 @@ addons:
 
 # compile
 before_script:
+  - date
   - env
   - uname -a
   - ulimit -a

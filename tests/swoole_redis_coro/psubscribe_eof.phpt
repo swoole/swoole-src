@@ -5,40 +5,30 @@ swoole_redis_coro: redis psubscribe
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-
-const N = 100;
-
 $sock = new Swoole\Coroutine\Socket(AF_INET, SOCK_STREAM, 0);
 $sock->bind('127.0.0.1');
 $info = $sock->getsockname();
 $port = $info['port'];
-
-go(
-    function () use ($sock) {
-        $sock->listen();
-        for ($i = 0; $i < N; $i++) {
-            $client = $sock->accept();
-            if ($client) {
-                $client->close();
-            }
-        }
-        $sock->close();
+go(function () use ($sock) {
+    $sock->listen();
+    while ($client = $sock->accept(-1)) {
+        $client->close();
     }
-);
-
-go(
-    function () use ($port) {
-        $redis = new Swoole\Coroutine\Redis();
-        $redis->connect('127.0.0.1', $port);
-        for ($i = 0; $i < N; $i++) {
-            $val = $redis->psubscribe(['test.*']);
-            assert($val === false);
-            assert($redis->connected === false);
-            assert($redis->errCode === SWOOLE_REDIS_ERR_EOF);
-        }
-        $redis->close();
+    echo "DONE\n";
+});
+go(function () use ($sock, $port) {
+    $redis = new Swoole\Coroutine\Redis();
+    $redis->connect('127.0.0.1', $port);
+    for ($i = 0; $i < MAX_REQUESTS; $i++) {
+        $val = $redis->psubscribe(['test.*']);
+        assert($val === false);
+        assert($redis->connected === false);
+        assert($redis->errType === SWOOLE_REDIS_ERR_EOF);
     }
-);
+    $redis->close();
+    $sock->close();
+});
 swoole_event_wait();
 ?>
 --EXPECT--
+DONE

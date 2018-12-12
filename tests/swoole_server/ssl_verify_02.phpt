@@ -18,7 +18,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
         exit("connect failed\n");
     }
     $client->send("hello world");
-    $client->recv();
+    usleep(100 * 1000);
     $pm->kill();
 };
 
@@ -44,6 +44,5 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-%SswSSL_verify (ERROR 1012): Could not verify peer: code:10 certificate has expired
+[%s]	NOTICE	swSSL_verify (ERROR 1012): Could not verify peer: code:10 certificate has expired
 
-Warning: Swoole\Client::recv(): recv() failed. Error: Connection reset by peer [104]%S

@@ -5,7 +5,6 @@ swoole_redis_coro: redis client timeout
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-Co::set(['socket_timeout' => -1]);
 go(function () {
     $redis = new Swoole\Coroutine\Redis(['timeout' => 0.5]);
     $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
@@ -15,18 +14,17 @@ go(function () {
     assert(!$res);
     assert($redis->errCode === SOCKET_ETIMEDOUT);
     $s = microtime(true) - $s;
-    assert($s > 0.45 && $s < 0.55);
+    assert($s > 0.45 * 2 && $s < 0.55 * 2); // would retry
 
     $s = microtime(true);
     $res = $redis->brpoplpush('test', 'test2', 3);
     assert(!$res);
     assert($redis->errCode === SOCKET_ETIMEDOUT);
     $s = microtime(true) - $s;
-    assert($s > 0.45 && $s < 0.55);
+    assert($s > 0.45 * 2 && $s < 0.55 * 2); // would retry
 
-    // no timeout
-    $redis = new Swoole\Coroutine\Redis();
-    $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
+    // right way: no timeout
+    $redis->setOptions(['timeout' => -1]);
 
     $s = microtime(true);
     $res = $redis->blpop(['test', 'test2'], 1);
