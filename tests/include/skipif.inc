@@ -54,6 +54,16 @@ function skip_if_no_ssl()
     }
 }
 
+function skip_if_openssl_version_lower_than($version = '1.0.0')
+{
+    skip_if_no_ssl();
+    $exist = preg_match('/openssl => openssl ([^ ]+)/i', `php --ri swoole`, $match);
+    assert($exist);
+    if (version_compare($match[1], $version, '<')) {
+        skip("openssl version {$match[1]} is lower than {$version}");
+    }
+}
+
 function skip_if_no_redis_unix_socket()
 {
     require_once __DIR__ . '/config.php';
