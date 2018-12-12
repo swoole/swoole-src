@@ -828,15 +828,6 @@ typedef struct
     char filename[0];
 } swSendFile_request;
 
-//------------------TimeWheel--------------------
-typedef struct
-{
-    uint16_t current;
-    uint16_t size;
-    swHashMap **wheel;
-
-} swTimeWheel;
-
 typedef void * (*swThreadStartFunc)(void *);
 typedef int (*swHandle)(swEventData *buf);
 typedef void (*swSignalHandler)(int);
@@ -2087,14 +2078,6 @@ static sw_inline swTimer_node* swTimer_get(swTimer *timer, long id)
 int swSystemTimer_init(int msec);
 void swSystemTimer_signal_handler(int sig);
 int swSystemTimer_event_handler(swReactor *reactor, swEvent *event);
-
-swTimeWheel* swTimeWheel_new(uint16_t size);
-void swTimeWheel_free(swTimeWheel *tw);
-void swTimeWheel_forward(swTimeWheel *tw, swReactor *reactor);
-void swTimeWheel_add(swTimeWheel *tw, swConnection *conn);
-void swTimeWheel_update(swTimeWheel *tw, swConnection *conn);
-void swTimeWheel_remove(swTimeWheel *tw, swConnection *conn);
-#define swTimeWheel_new_index(tw)   (tw->current == 0 ? tw->size - 1 : tw->current - 1)
 //--------------------------------------------------------------
 //Share Memory
 typedef struct

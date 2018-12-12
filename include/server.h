@@ -87,12 +87,6 @@ enum swTaskIPCMode
     SW_TASK_IPC_STREAM      = 4,
 };
 
-enum swCloseType
-{
-    SW_CLOSE_PASSIVE = 32,
-    SW_CLOSE_INITIATIVE,
-};
-
 enum swResponseType
 {
     SW_RESPONSE_SMALL = 0,
@@ -121,12 +115,6 @@ enum swTaskType
     SW_TASK_COROUTINE  = 32, //coroutine
     SW_TASK_PEEK       = 64, //peek
 };
-
-typedef struct _swUdpFd
-{
-    struct sockaddr addr;
-    int sock;
-} swUdpFd;
 
 typedef struct _swReactorThread
 {
@@ -295,14 +283,6 @@ typedef struct _swFactoryProcess
 {
     swPipe *pipes;
 } swFactoryProcess;
-
-typedef struct _swRequest
-{
-    int fd;
-    uint8_t type;
-    uint8_t status;
-    void *object;
-} swRequest;
 
 typedef int (*swServer_dispatch_function)(swServer *, swConnection *, swEventData *);
 
@@ -630,19 +610,6 @@ struct _swServer
     int (*close)(swServer *serv, int fd, int reset);
     int (*dispatch_func)(swServer *, swConnection *, swEventData *);
 };
-
-typedef struct _swSocketLocal
-{
-	socklen_t len;
-	char file[0];
-} swSocketLocal;
-
-typedef struct _swPackage
-{
-    void *data;
-    uint32_t length;
-    uint32_t id;
-} swPackage;
 
 typedef struct
 {
