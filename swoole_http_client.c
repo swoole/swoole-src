@@ -180,6 +180,7 @@ void http_client_clear_response_properties(zval *zobject)
     zval *zattr;
     zend_class_entry *ce = Z_OBJCE_P(zobject);
     zend_update_property_long(ce, zobject, ZEND_STRL("errCode"), 0);
+    zend_update_property_string(ce, zobject, ZEND_STRL("errMsg"), "");
     zend_update_property_long(ce, zobject, ZEND_STRL("statusCode"), 0);
     zattr = sw_zend_read_property(ce, zobject, ZEND_STRL("headers"), 1);
     if (Z_TYPE_P(zattr) == IS_ARRAY)
@@ -415,6 +416,7 @@ void swoole_http_client_init(int module_number)
 
     zend_declare_property_long(swoole_http_client_ce_ptr, ZEND_STRL("type"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_http_client_ce_ptr, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_string(swoole_http_client_ce_ptr, ZEND_STRL("errMsg"), "", ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_http_client_ce_ptr, ZEND_STRL("statusCode"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_client_ce_ptr, ZEND_STRL("host"), ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_http_client_ce_ptr, ZEND_STRL("port"), 0, ZEND_ACC_PUBLIC);
@@ -487,7 +489,7 @@ static void http_client_execute_callback(zval *zobject, enum php_swoole_client_c
         int error_code;
         if (type == SW_CLIENT_CB_onError)
         {
-            error_code = HTTP_CLIENT_ESTATUS_CONNECT_TIMEOUT;
+            error_code = HTTP_CLIENT_ESTATUS_CONNECT_FAILED;
         }
         else if (hcc->error_flag & HTTP_CLIENT_EFLAG_TIMEOUT)
         {
@@ -1333,7 +1335,7 @@ http_client* http_client_create(zval *zobject)
     http->ssl = Z_BVAL_P(ztmp);
 #endif
 
-    http->timeout = SW_CLIENT_DEFAULT_TIMEOUT;
+    http->timeout = SW_CLIENT_CONNECT_TIMEOUT;
     http->keep_alive = 1;
     http->state = HTTP_CLIENT_STATE_READY;
     http->object = zobject;

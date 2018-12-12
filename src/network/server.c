@@ -1477,7 +1477,7 @@ int swserver_add_systemd_socket(swServer *serv)
     return count;
 }
 
-swListenPort* swServer_add_port(swServer *serv, int type, char *host, int port)
+swListenPort* swServer_add_port(swServer *serv, int type, const char *host, int port)
 {
     if (serv->listen_port_num >= SW_MAX_LISTEN_PORT)
     {

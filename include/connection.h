@@ -176,12 +176,7 @@ static sw_inline ssize_t swConnection_recv(swConnection *conn, void *__buf, size
     {
         goto _recv;
     }
-    else
-    {
-        goto _return;
-    }
 
-    _return:
 #ifdef SW_DEBUG
     if (total_bytes > 0)
     {

@@ -1023,7 +1023,7 @@ static PHP_METHOD(swoole_client, connect)
     zend_long port = 0, sock_flag = 0;
     char *host = NULL;
     size_t host_len;
-    double timeout = SW_CLIENT_DEFAULT_TIMEOUT;
+    double timeout = SW_CLIENT_CONNECT_TIMEOUT;
 
     ZEND_PARSE_PARAMETERS_START(1, 4)
         Z_PARAM_STRING(host, host_len)
@@ -1033,9 +1033,9 @@ static PHP_METHOD(swoole_client, connect)
         Z_PARAM_LONG(sock_flag)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (host_len <= 0)
+    if (host_len == 0)
     {
-        swoole_php_fatal_error(E_WARNING, "The host is empty.");
+        swoole_php_fatal_error(E_ERROR, "The host is empty.");
         RETURN_FALSE;
     }
 
@@ -1970,7 +1970,7 @@ PHP_FUNCTION(swoole_client_select)
 #ifdef PHP_SWOOLE_CLIENT_USE_POLL
     zval *r_array, *w_array, *e_array;
     int retval, index = 0;
-    double timeout = SW_CLIENT_DEFAULT_TIMEOUT;
+    double timeout = SW_CLIENT_CONNECT_TIMEOUT;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "a!a!a!|d", &r_array, &w_array, &e_array, &timeout) == FAILURE)
     {
@@ -2028,7 +2028,7 @@ PHP_FUNCTION(swoole_client_select)
 
     int max_fd = 0;
     int    retval, sets = 0;
-    double timeout = SW_CLIENT_DEFAULT_TIMEOUT;
+    double timeout = SW_CLIENT_CONNECT_TIMEOUT;
     struct timeval timeo;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "a!a!a!|d", &r_array, &w_array, &e_array, &timeout) == FAILURE)

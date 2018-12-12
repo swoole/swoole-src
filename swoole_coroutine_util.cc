@@ -42,7 +42,6 @@ typedef struct
 
 typedef struct
 {
-    std::unordered_map<long, Coroutine*> *_map;
     std::unordered_map<long, Coroutine*>::iterator _cursor;
     int index;
 } coroutine_iterator;
@@ -234,7 +233,7 @@ static int coro_exit_handler(zend_execute_data *execute_data)
     {
         flags |= SW_EXIT_IN_SERVER;
     }
-    if (flags == SW_EXIT_IN_COROUTINE && COROG.coro_num == 1)
+    if (flags == SW_EXIT_IN_COROUTINE && swCoroG.count() == 1)
     {
         php_swoole_event_exit();
     }
@@ -374,6 +373,11 @@ static PHP_METHOD(swoole_coroutine_util, set)
         COROG.stack_size = (uint32_t) Z_LVAL_P(v);
         sw_coro_set_stack_size(COROG.stack_size);
     }
+    if (php_swoole_array_get_value(vht, "socket_connect_timeout", v))
+    {
+        convert_to_double(v);
+        COROG.socket_connect_timeout = (double) Z_DVAL_P(v);
+    }
     if (php_swoole_array_get_value(vht, "socket_timeout", v))
     {
         convert_to_double(v);
@@ -448,7 +452,7 @@ static PHP_METHOD(swoole_coroutine_util, stats)
 {
     array_init(return_value);
     add_assoc_long_ex(return_value, ZEND_STRL("stack_size"), COROG.stack_size);
-    add_assoc_long_ex(return_value, ZEND_STRL("coroutine_num"), COROG.coro_num);
+    add_assoc_long_ex(return_value, ZEND_STRL("coroutine_num"), swCoroG.count());
     add_assoc_long_ex(return_value, ZEND_STRL("coroutine_peak_num"), COROG.peak_coro_num);
 }
 
@@ -459,7 +463,7 @@ static PHP_METHOD(swoole_coroutine_util, getCid)
 
 int php_coroutine_reactor_can_exit(swReactor *reactor)
 {
-    return COROG.coro_num == 0;
+    return swCoroG.count() == 0;
 }
 
 static PHP_METHOD(swoole_coroutine_util, sleep)
@@ -477,11 +481,6 @@ static PHP_METHOD(swoole_coroutine_util, sleep)
     if (SwooleG.serv && swIsMaster())
     {
         swoole_php_fatal_error(E_WARNING, "cannot use timer in master process.");
-        return;
-    }
-    if (ms > SW_TIMER_MAX_VALUE)
-    {
-        swoole_php_fatal_error(E_WARNING, "The given parameters is too big.");
         return;
     }
     if (ms <= 0)
@@ -1309,14 +1308,14 @@ static PHP_METHOD(swoole_coroutine_util, getBackTrace)
 static PHP_METHOD(swoole_coroutine_iterator, rewind)
 {
     coroutine_iterator *itearator = (coroutine_iterator *) swoole_get_object(getThis());
-    itearator->_cursor = itearator->_map->begin();
+    itearator->_cursor = swCoroG.coroutines.begin();
     itearator->index = 0;
 }
 
 static PHP_METHOD(swoole_coroutine_iterator, valid)
 {
     coroutine_iterator *itearator = (coroutine_iterator *) swoole_get_object(getThis());
-    RETURN_BOOL(itearator->_cursor != itearator->_map->end());
+    RETURN_BOOL(itearator->_cursor != swCoroG.coroutines.end());
 }
 
 static PHP_METHOD(swoole_coroutine_iterator, current)
@@ -1341,7 +1340,7 @@ PHP_METHOD(swoole_coroutine_iterator, key)
 
 static PHP_METHOD(swoole_coroutine_iterator, count)
 {
-    RETURN_LONG(COROG.coro_num);
+    RETURN_LONG(swCoroG.count());
 }
 
 static PHP_METHOD(swoole_coroutine_iterator, __destruct)
@@ -1356,7 +1355,6 @@ static PHP_METHOD(swoole_coroutine_util, listCoroutines)
     object_init_ex(return_value, swoole_coroutine_iterator_ce_ptr);
     coroutine_iterator *itearator = (coroutine_iterator *) emalloc(sizeof(coroutine_iterator));
     bzero(itearator, sizeof(coroutine_iterator));
-    itearator->_map = coroutine_get_map();
     swoole_set_object(return_value, itearator);
 }
 

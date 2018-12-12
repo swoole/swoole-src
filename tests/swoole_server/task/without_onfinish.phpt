@@ -30,7 +30,7 @@ $pm->childFunc = function () use ($pm) {
     $http->on('task', function ($a, $b, $c, string $fd) {
         $response = swoole_http_response::create($fd);
         $response->end('Hello Swoole!');
-        return 'no on finish?';
+        return null; // no on finish?
     });
     $http->start();
 };

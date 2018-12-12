@@ -66,14 +66,14 @@
 
 #define SW_LOG_NO_SRCINFO          //no source info
 #define SW_CLIENT_BUFFER_SIZE      65536
-#define SW_CLIENT_DEFAULT_TIMEOUT  0.5
+#define SW_CLIENT_CONNECT_TIMEOUT  0.5
 #define SW_CLIENT_MAX_PORT         65535
 
 //!!!Don't modify.----------------------------------------------------------
 #ifdef __MACH__
-#define SW_IPC_MAX_SIZE            2048  //MacOS
+#define SW_IPC_MAX_SIZE            2048  // MacOS
 #else
-#define SW_IPC_MAX_SIZE            8192  //for IPC, dgram and message-queue max size
+#define SW_IPC_MAX_SIZE            8192  // for IPC, dgram and message-queue max size
 #endif
 
 #ifdef SW_USE_RINGBUFFER
@@ -140,7 +140,7 @@
 /**
  * RINGBUFFER
  */
-#define SW_RINGQUEUE_LEN                 1024           // RingQueue队列长度
+#define SW_RINGQUEUE_LEN                 1024
 #define SW_RINGBUFFER_FREE_N_MAX         4     // when free_n > MAX, execute collect
 #define SW_RINGBUFFER_WARNING            100
 
@@ -167,7 +167,7 @@
 #define SW_ACCEPT_MAX_COUNT              64
 
 #define SW_TCP_KEEPCOUNT                 5
-#define SW_TCP_KEEPIDLE                  3600 //1 hour
+#define SW_TCP_KEEPIDLE                  3600 // 1 hour
 #define SW_TCP_KEEPINTERVAL              60
 
 #define SW_USE_EVENTFD                   1 // Whether to use eventfd for message notification, Linux 2.6.22 or later is required to support
@@ -247,17 +247,11 @@
 #define SW_WEBSOCKET_QUEUE_SIZE          16
 
 /**
- * Http Client
- */
-#define SW_HTTP_CONNECT_TIMEOUT          1.0
-
-/**
  * MySQL Client
  */
-#define SW_MYSQL_QUERY_INIT_SIZE         8192
 #define SW_MYSQL_DEFAULT_PORT            3306
 #define SW_MYSQL_CONNECT_TIMEOUT         1.0
-#define SW_MYSQL_DEFAULT_CHARSET         33  //0x21, utf8_general_ci
+#define SW_MYSQL_DEFAULT_CHARSET         33  // 0x21, utf8_general_ci
 
 /**
  * Redis Client
@@ -267,12 +261,7 @@
 /**
  * PGSQL Client
  */
-#define SW_PGSQL_CONNECT_TIMEOUT         1.0
-
-/**
- * Timer
- */
-#define SW_TIMER_MAX_VALUE               86400000
+#define SW_PGSQL_CONNECT_TIMEOUT         3.0
 
 /**
  * Coroutine

@@ -586,13 +586,21 @@ int swSSL_verify(swConnection *conn, int allow_self_signed)
         }
         else
         {
+            swoole_error_log(
+                SW_LOG_NOTICE, SW_ERROR_SSL_VEFIRY_FAILED,
+                "self signed certificate from fd#%d is not allowed",
+                conn->fd
+            );
             return SW_ERR;
         }
     default:
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SSL_VEFIRY_FAILED, "Could not verify peer: code:%d %s", err, X509_verify_cert_error_string(err));
-        return SW_ERR;
+        break;
     }
-
+    swoole_error_log(
+        SW_LOG_NOTICE, SW_ERROR_SSL_VEFIRY_FAILED,
+        "could not verify peer from fd#%d with error#%d: %s",
+        conn->fd, err, X509_verify_cert_error_string(err)
+    );
     return SW_ERR;
 }
 

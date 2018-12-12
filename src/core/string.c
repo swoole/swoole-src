@@ -139,7 +139,10 @@ int swString_write(swString *str, off_t offset, swString *write_str)
         }
     }
     memcpy(str->str + offset, write_str->str, write_str->length);
-    str->length = new_length;
+    if (new_length > str->length)
+    {
+        str->length = new_length;
+    }
     return SW_OK;
 }
 
@@ -154,7 +157,10 @@ int swString_write_ptr(swString *str, off_t offset, char *write_str, size_t leng
         }
     }
     memcpy(str->str + offset, write_str, length);
-    str->length = new_length;
+    if (new_length > str->length)
+    {
+        str->length = new_length;
+    }
     return SW_OK;
 }
 

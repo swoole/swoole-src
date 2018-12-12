@@ -587,6 +587,7 @@ class ProcessManager
     protected $atomic;
     protected $alone = false;
     protected $freePorts = [];
+    protected $randomData = [];
 
     public $parentFunc;
     public $childFunc;
@@ -641,6 +642,30 @@ class ProcessManager
     function getFreePort(int $index = 0)
     {
         return $this->freePorts[$index];
+    }
+
+    /**
+     * @param $size
+     * @param int $len
+     */
+    function initRandomData($size, $len = 32)
+    {
+        for ($n = $size; $n--;) {
+            $this->randomData[] = get_safe_random($len);
+        }
+    }
+
+    /**
+     * @param null $index
+     * @return mixed
+     */
+    function getRandomData($index = null)
+    {
+        if (!empty($this->randomData)) {
+            return $index === null ? array_shift($this->randomData) : $this->randomData[$index];
+        } else {
+            throw new \RuntimeException('Out of the bound');
+        }
     }
 
     function runChildFunc()

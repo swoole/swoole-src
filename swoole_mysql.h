@@ -339,7 +339,6 @@ typedef struct
     ulong_t num_column;
     ulong_t index_column;
     uint32_t num_row;
-    uint8_t wait_recv;
     uint8_t response_type;
     uint32_t packet_length :24;
     uint32_t packet_number :8;
@@ -385,6 +384,7 @@ typedef struct _mysql_client
     zval _object;
     zval _onClose;
 
+    size_t want_length;
     off_t check_offset;
     mysql_response_t response; /* single response */
 
@@ -417,6 +417,7 @@ typedef struct _mysql_client
 
 /* int<3>	payload_length + int<1>	sequence_id */
 #define SW_MYSQL_PACKET_HEADER_SIZE  4
+#define SW_MYSQL_PACKET_EOF_MAX_SIZE 9
 
 #define mysql_uint2korr(A)  (uint16_t) (((uint16_t) ((zend_uchar) (A)[0])) +\
                                ((uint16_t) ((zend_uchar) (A)[1]) << 8))

@@ -240,7 +240,6 @@ static int swReactorProcess_onPipeRead(swReactor *reactor, swEvent *event)
 static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 {
     swServer *serv = pool->ptr;
-    swReactor *reactor = &(serv->reactor_threads[0].reactor);
 
     SwooleG.process_type = SW_PROCESS_WORKER;
     SwooleG.pid = getpid();
@@ -281,9 +280,18 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     }
 
     //create reactor
-    if (swReactor_create(reactor, SW_REACTOR_MAXEVENTS) < 0)
+    swReactor *reactor;
+    if (!SwooleG.main_reactor)
     {
-        return SW_ERR;
+        reactor = &(serv->reactor_threads[0].reactor);
+        if (swReactor_create(reactor, SW_REACTOR_MAXEVENTS) < 0)
+        {
+            return SW_ERR;
+        }
+    }
+    else
+    {
+        reactor = SwooleG.main_reactor;
     }
 
     swListenPort *ls;

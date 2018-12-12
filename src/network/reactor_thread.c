@@ -92,14 +92,21 @@ static sw_inline int swReactorThread_verify_ssl_state(swReactor *reactor, swList
                 }
                 else
                 {
-                    swFactory *factory = &SwooleG.serv->factory;
-                    task.target_worker_id = -1;
-                    task.data.info.fd = conn->fd;
-                    task.data.info.type = SW_EVENT_CONNECT;
-                    task.data.info.from_id = conn->from_id;
-                    task.data.info.len = ret;
-                    factory->dispatch(factory, &task);
-                    goto delay_receive;
+                    if (!port->ssl_option.verify_peer || swSSL_verify(conn, port->ssl_option.allow_self_signed) == SW_OK)
+                    {
+                        swFactory *factory = &SwooleG.serv->factory;
+                        task.target_worker_id = -1;
+                        task.data.info.fd = conn->fd;
+                        task.data.info.type = SW_EVENT_CONNECT;
+                        task.data.info.from_id = conn->from_id;
+                        task.data.info.len = ret;
+                        factory->dispatch(factory, &task);
+                        goto delay_receive;
+                    }
+                    else
+                    {
+                        return SW_ERR;
+                    }
                 }
             }
             no_client_cert:

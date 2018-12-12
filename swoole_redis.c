@@ -315,9 +315,9 @@ static PHP_METHOD(swoole_redis, connect)
         RETURN_FALSE;
     }
 
-    if (host_len <= 0)
+    if (host_len == 0)
     {
-        swoole_php_error(E_WARNING, "redis server host is empty.");
+        swoole_php_error(E_ERROR, "redis server host is empty.");
         RETURN_FALSE;
     }
 

@@ -70,10 +70,10 @@ struct php_args
 struct coro_global
 {
     zend_bool active;
-    uint64_t coro_num;
     uint64_t max_coro_num;
     uint64_t peak_coro_num;
     uint32_t stack_size;
+    double socket_connect_timeout;
     double socket_timeout;
     coro_task task;
 };
