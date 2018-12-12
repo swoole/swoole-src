@@ -973,13 +973,18 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
 
     if (redis->context)
     {
-        if (redis->context->connection_type == REDIS_CONN_TCP && strcmp(redis->context->tcp.host, host) == 0
-                && redis->context->tcp.port == port)
+        context = redis->context;
+        if (
+            context->connection_type == REDIS_CONN_TCP &&
+            strcmp(context->tcp.host, host) == 0 && context->tcp.port == port
+        )
         {
             return true;
         }
-        else if (redis->context->connection_type == REDIS_CONN_UNIX
-                && strcmp(redis->context->unix_sock.path, host) == 0)
+        else if (
+            context->connection_type == REDIS_CONN_UNIX &&
+            (strstr(host, context->unix_sock.path) - host) + strlen(context->unix_sock.path) == host_len
+        )
         {
             return true;
         }
@@ -998,7 +1003,7 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
     }
     if (strncasecmp(host, ZEND_STRL("unix:/")) == 0)
     {
-        context = redisConnectUnixWithTimeout(host + 5, tv);
+        context = redisConnectUnixWithTimeout(host + 5 + strspn(host + 5, "/") - 1, tv);
     }
     else
     {
