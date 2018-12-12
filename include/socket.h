@@ -119,7 +119,7 @@ public:
         {
             swString_clear(write_buffer);
             swString_append_ptr(write_buffer, (const char *) *__buf, __n);
-            *__buf = write_buffer;
+            *__buf = write_buffer->str;
         }
     }
 

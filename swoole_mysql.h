@@ -384,6 +384,7 @@ typedef struct _mysql_client
     zval _object;
     zval _onClose;
 
+    size_t want_length;
     off_t check_offset;
     mysql_response_t response; /* single response */
 

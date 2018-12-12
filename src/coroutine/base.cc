@@ -146,6 +146,9 @@ void coroutine_print_list()
         case SW_CORO_END:
             state = "[END]";
             break;
+        default:
+            assert(0);
+            return;
         }
         printf("Coroutine\t%ld\t%s\n", i->first, state);
     }

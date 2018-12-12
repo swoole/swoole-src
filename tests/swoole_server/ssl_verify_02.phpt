@@ -1,7 +1,10 @@
 --TEST--
 swoole_server: ssl server verify client failed
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_openssl_version_lower_than('1.1.0');
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
@@ -18,6 +21,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
         exit("connect failed\n");
     }
     $client->send("hello world");
+    usleep(100 * 1000);
     $pm->kill();
 };
 
@@ -43,4 +47,5 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-%SswSSL_verify (ERROR 1012): Could not verify peer: code:10 certificate has expired
+[%s]	NOTICE	swSSL_verify (ERROR 1012): Could not verify peer: code:10 certificate has expired
+

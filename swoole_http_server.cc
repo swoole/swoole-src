@@ -755,9 +755,9 @@ static int multipart_body_on_header_value(multipart_parser* p, const char *at, s
             zval *multipart_header = sw_malloc_zval();
             array_init(multipart_header);
 
-            add_assoc_string(multipart_header, "name", "");
-            add_assoc_string(multipart_header, "type", "");
-            add_assoc_string(multipart_header, "tmp_name", "");
+            add_assoc_string(multipart_header, "name", (char *) "");
+            add_assoc_string(multipart_header, "type", (char *) "");
+            add_assoc_string(multipart_header, "tmp_name", (char *) "");
             add_assoc_long(multipart_header, "error", HTTP_UPLOAD_ERR_OK);
             add_assoc_long(multipart_header, "size", 0);
 
@@ -1084,18 +1084,10 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
         add_assoc_long(zserver, "remote_port", swConnection_get_port(conn));
         add_assoc_string(zserver, "remote_addr", swConnection_get_ip(conn));
         add_assoc_long(zserver, "master_time", conn->last_time);
-        if (ctx->request.version == 101)
-        {
-            add_assoc_string(zserver, "server_protocol", "HTTP/1.1");
-        }
-        else
-        {
-            add_assoc_string(zserver, "server_protocol", "HTTP/1.0");
-        }
-        add_assoc_string(zserver, "server_software", SW_HTTP_SERVER_SOFTWARE);
+        add_assoc_string(zserver, "server_protocol", (char *) (ctx->request.version == 101 ? "HTTP/1.1" : "HTTP/1.0"));
+        add_assoc_string(zserver, "server_software", (char *) SW_HTTP_SERVER_SOFTWARE);
 
         // begin to check and call registerd callback
-
         zend_fcall_info_cache *fci_cache = NULL;
 
         if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)

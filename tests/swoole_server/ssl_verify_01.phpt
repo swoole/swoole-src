@@ -1,7 +1,10 @@
 --TEST--
 swoole_server: ssl server verify client success
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_openssl_version_lower_than('1.1.0');
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
@@ -21,12 +24,12 @@ $pm->parentFunc = function ($pid) use ($pm) {
     $client->send("hello world");
     assert($client->recv() == "Swoole hello world");
     $pm->kill();
+    echo "DONE\n";
 };
 
 $pm->childFunc = function () use ($pm) {
     $serv = new swoole_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE, SWOOLE_SOCK_TCP | SWOOLE_SSL);
     $serv->set([
-        'log_file' => '/dev/null',
         'ssl_cert_file' => dirname(__DIR__) . '/include/api/ssl-ca/server-cert.pem',
         'ssl_key_file' => dirname(__DIR__) . '/include/api/ssl-ca/server-key.pem',
         'ssl_verify_peer' => true,
@@ -46,3 +49,4 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
+DONE

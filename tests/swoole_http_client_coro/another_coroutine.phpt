@@ -10,9 +10,9 @@ require __DIR__ . '/../include/bootstrap.php';
 $pm = new ProcessManager;
 $pm->parentFunc = function (int $pid) use ($pm) {
     $process = new swoole_process(function (swoole_process $worker) use ($pm) {
-        function close(Swoole\Coroutine\Http\Client $client)
+        function get(Swoole\Coroutine\Http\Client $client)
         {
-            $client->close();
+            $client->get('/');
         }
 
         $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
@@ -20,7 +20,7 @@ $pm->parentFunc = function (int $pid) use ($pm) {
             (function () use ($cli) {
                 (function () use ($cli) {
                     co::sleep(0.001);
-                    close($cli);
+                    get($cli);
                 })();
             })();
         });
@@ -52,6 +52,6 @@ $pm->run();
 --EXPECTF--
 [%s]	ERROR	sw_coro_check_bind (ERROR 10002): http client has already been bound to another coroutine#%d, reading or writing of the same socket in multiple coroutines at the same time is not allowed.
 Stack trace:
-#0  Swoole\Coroutine\Http\Client->close() called at [%s:%d]
-#1  close() called at [%s:%d]
+#0  Swoole\Coroutine\Http\Client->get() called at [%s:%d]
+#1  get() called at [%s:%d]
 #2  {closure}() called at [%s:%d]

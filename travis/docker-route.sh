@@ -7,6 +7,7 @@ cd ${__DIR__} && pwd
 ls -al / && echo ""
 
 # show system info
+date && echo ""
 uname -a && echo ""
 
 # show php info
