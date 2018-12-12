@@ -13,36 +13,12 @@
   | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
   +----------------------------------------------------------------------+
 */
-#if __APPLE__
-// Fix warning: 'daemon' is deprecated: first deprecated in macOS 10.5 - Use posix_spawn APIs instead. [-Wdeprecated-declarations]
-#define daemon yes_we_know_that_daemon_is_deprecated_in_os_x_10_5_thankyou
-#endif
+
 #include "server.h"
 #include "http.h"
 #include "connection.h"
 #include <spawn.h>
 #include <sys/stat.h>
-#if __APPLE__
-#undef daemon
-extern int daemon(int, int);
-#endif
-
-#if SW_REACTOR_SCHEDULE == 3
-static sw_inline void swServer_reactor_schedule(swServer *serv)
-{
-    //以第1个为基准进行排序，取出最小值
-    int i, event_num = serv->reactor_threads[0].reactor.event_num;
-    serv->reactor_next_i = 0;
-    for (i = 1; i < serv->reactor_num; i++)
-    {
-        if (serv->reactor_threads[i].reactor.event_num < event_num)
-        {
-            serv->reactor_next_i = i;
-            event_num = serv->reactor_threads[i].reactor.event_num;
-        }
-    }
-}
-#endif
 
 static int swServer_start_check(swServer *serv);
 static void swServer_signal_handler(int sig);
@@ -113,7 +89,6 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
     swServer *serv = reactor->ptr;
     swReactor *sub_reactor;
     swSocketAddress client_addr;
-    socklen_t client_addrlen = sizeof(client_addr);
     swListenPort *listen_host = serv->connection_list[event->fd].object;
 
     int new_fd = 0, reactor_id = 0, i;
@@ -121,11 +96,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
     //SW_ACCEPT_AGAIN
     for (i = 0; i < SW_ACCEPT_MAX_COUNT; i++)
     {
-#ifdef HAVE_ACCEPT4
-        new_fd = accept4(event->fd, (struct sockaddr *) &client_addr, &client_addrlen, SOCK_NONBLOCK | SOCK_CLOEXEC);
-#else
-        new_fd = accept(event->fd, (struct sockaddr *) &client_addr, &client_addrlen);
-#endif
+        new_fd = swSocket_accept(event->fd, &client_addr);
         if (new_fd < 0)
         {
             switch (errno)
@@ -144,12 +115,6 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
                 return SW_OK;
             }
         }
-#ifndef HAVE_ACCEPT4
-        else
-        {
-            swoole_fcntl_set_option(new_fd, 1, 1);
-        }
-#endif
 
         swTrace("[Master] Accept new connection. maxfd=%d|reactor_id=%d|conn=%d", swServer_get_maxfd(serv), reactor->id, new_fd);
 
@@ -748,17 +713,6 @@ int swServer_start(swServer *serv)
         serv->gs->event_workers.workers[i].type = SW_PROCESS_WORKER;
     }
 
-#ifdef SW_USE_RINGBUFFER
-    for (i = 0; i < serv->reactor_num; i++)
-    {
-        serv->reactor_threads[i].buffer_input = swRingBuffer_new(SwooleG.serv->buffer_input_size, 1);
-        if (!serv->reactor_threads[i].buffer_input)
-        {
-            return SW_ERR;
-        }
-    }
-#endif
-
     /*
      * For swoole_server->taskwait, create notify pipe and result shared memory.
      */
@@ -881,7 +835,6 @@ int swServer_create(swServer *serv)
         return SW_ERR;
     }
 
-    SwooleG.factory = &serv->factory;
     serv->factory.ptr = serv;
     /**
      * init current time

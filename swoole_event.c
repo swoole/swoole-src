@@ -270,6 +270,7 @@ void php_swoole_event_wait()
             }
             SW_SET_EG_SCOPE(scope);
         }
+        php_swoole_clear_all_timer();
         SwooleWG.reactor_exit = 1;
         SwooleG.running = 0;
         SwooleG.main_reactor->running = 0;

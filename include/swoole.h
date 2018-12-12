@@ -81,6 +81,13 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #endif
 #endif
 
+#if __APPLE__
+// Fix warning: 'daemon' is deprecated: first deprecated in macOS 10.5 - Use posix_spawn APIs instead. [-Wdeprecated-declarations]
+#define daemon yes_we_know_that_daemon_is_deprecated_in_os_x_10_5_thankyou
+#undef daemon
+extern int daemon(int, int);
+#endif
+
 #ifndef HAVE_DAEMON
 int daemon(int nochdir, int noclose);
 #endif
@@ -2201,7 +2208,6 @@ typedef struct
     uint32_t socket_buffer_size;
 
     swServer *serv;
-    swFactory *factory;
 
     swMemoryPool *memory_pool;
     swReactor *main_reactor;

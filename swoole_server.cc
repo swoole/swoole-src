@@ -293,23 +293,12 @@ void php_swoole_get_recv_data(zval *zdata, swEventData *req, char *header, uint3
     char *data_ptr = NULL;
     uint32_t data_len;
 
-#ifdef SW_USE_RINGBUFFER
-    swPackage package;
-    if (req->info.type == SW_EVENT_PACKAGE)
-    {
-        memcpy(&package, req->data, sizeof (package));
-
-        data_ptr = package.data;
-        data_len = package.length;
-    }
-#else
     if (req->info.type == SW_EVENT_PACKAGE_END)
     {
         swString *worker_buffer = swWorker_get_buffer(SwooleG.serv, req->info.from_id);
         data_ptr = worker_buffer->str;
         data_len = worker_buffer->length;
     }
-#endif
     else
     {
         data_ptr = req->data;
@@ -329,14 +318,6 @@ void php_swoole_get_recv_data(zval *zdata, swEventData *req, char *header, uint3
     {
         memcpy(header, data_ptr, header_length);
     }
-
-#ifdef SW_USE_RINGBUFFER
-    if (req->info.type == SW_EVENT_PACKAGE)
-    {
-        swReactorThread *thread = swServer_get_thread(SwooleG.serv, req->info.from_id);
-        thread->buffer_input->free(thread->buffer_input, data_ptr);
-    }
-#endif
 }
 
 size_t php_swoole_get_send_data(zval *zdata, char **str)

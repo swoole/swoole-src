@@ -22,56 +22,10 @@
 static int swReactorThread_loop(swThreadParam *param);
 static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev);
 static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev);
-
 static int swReactorThread_onRead(swReactor *reactor, swEvent *ev);
 static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev);
 static int swReactorThread_onPackage(swReactor *reactor, swEvent *event);
 static void swReactorThread_onStreamResponse(swStream *stream, char *data, uint32_t length);
-
-#if 0
-static int swReactorThread_dispatch_array_buffer(swReactorThread *thread, swConnection *conn);
-#endif
-
-#ifdef SW_USE_RINGBUFFER
-static sw_inline void swReactorThread_yield(swReactorThread *thread)
-{
-    swEvent event;
-    swServer *serv = SwooleG.serv;
-    int i;
-    for (i = 0; i < serv->reactor_pipe_num; i++)
-    {
-        event.fd = thread->pipe_read_list[i];
-        swReactorThread_onPipeReceive(&thread->reactor, &event);
-    }
-    swYield();
-}
-
-static sw_inline void* swReactorThread_alloc(swReactorThread *thread, uint32_t size)
-{
-    void *ptr = NULL;
-    int try_count = 0;
-
-    while (1)
-    {
-        ptr = thread->buffer_input->alloc(thread->buffer_input, size);
-        if (ptr == NULL)
-        {
-            if (try_count > SW_RINGBUFFER_WARNING)
-            {
-                swWarn("memory pool is full. Wait memory collect. alloc(%d)", size);
-                usleep(1000);
-                try_count = 0;
-            }
-            try_count++;
-            swReactorThread_yield(thread);
-            continue;
-        }
-        break;
-    }
-    //debug("%p\n", ptr);
-    return ptr;
-}
-#endif
 
 #ifdef SW_USE_OPENSSL
 static sw_inline int swReactorThread_verify_ssl_state(swReactor *reactor, swListenPort *port, swConnection *conn)
@@ -437,11 +391,11 @@ int swReactorThread_onClose(swReactor *reactor, swEvent *event)
         if (conn->close_queued)
         {
             swReactorThread_close(reactor, fd);
-            return SW_OK; 
+            return SW_OK;
         }
         else
         {
-            return SwooleG.factory->notify(SwooleG.factory, &notify_ev);
+            return serv->factory.notify(&serv->factory, &notify_ev);
         }
     }
     else
@@ -858,12 +812,6 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
             conn = swServer_connection_verify(serv, send_data->info.fd);
             if (conn)
             {
-#ifdef SW_USE_RINGBUFFER
-                swReactorThread *thread = swServer_get_thread(SwooleG.serv, SwooleTG.id);
-                swPackage package;
-                memcpy(&package, send_data->data, sizeof(package));
-                thread->buffer_input->free(thread->buffer_input, package.data);
-#endif
                 if (conn->closed)
                 {
                     swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED_BY_SERVER, "Session#%d is closed by server.", send_data->info.fd);
@@ -1303,21 +1251,9 @@ static int swReactorThread_loop(swThreadParam *param)
     swReactorThread_set_protocol(serv, reactor);
 
     int i = 0, pipe_fd;
-#ifdef SW_USE_RINGBUFFER
-    int j = 0;
-#endif
 
     if (serv->factory_mode == SW_MODE_PROCESS)
     {
-#ifdef SW_USE_RINGBUFFER
-        thread->pipe_read_list = sw_calloc(serv->reactor_pipe_num, sizeof(int));
-        if (thread->pipe_read_list == NULL)
-        {
-            swSysError("thread->buffer_pipe create failed");
-            return SW_ERR;
-        }
-#endif
-
         for (i = 0; i < serv->worker_num; i++)
         {
             if (i % serv->reactor_num == reactor_id)
@@ -1358,11 +1294,6 @@ static int swReactorThread_loop(swThreadParam *param)
                     break;
                 }
                 swMutex_create(serv->connection_list[pipe_fd].object, 0);
-
-#ifdef SW_USE_RINGBUFFER
-                thread->pipe_read_list[j] = pipe_fd;
-                j++;
-#endif
             }
         }
     }
@@ -1388,8 +1319,7 @@ static int swReactorThread_loop(swThreadParam *param)
  */
 int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
 {
-    swFactory *factory = SwooleG.factory;
-    swServer *serv = factory->ptr;
+    swServer *serv = SwooleG.serv;
     swDispatchData task;
 
     task.data.info.from_fd = conn->from_fd;
@@ -1430,32 +1360,6 @@ int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
 
     swTrace("send string package, size=%ld bytes.", (long)length);
 
-#ifdef SW_USE_RINGBUFFER
-    swServer *serv = SwooleG.serv;
-    swReactorThread *thread = swServer_get_thread(serv, SwooleTG.id);
-
-    swPackage package;
-    package.length = length;
-    package.data = swReactorThread_alloc(thread, package.length);
-
-    task.data.info.type = SW_EVENT_PACKAGE;
-    task.data.info.len = sizeof(package);
-
-    memcpy(package.data, data, package.length);
-    memcpy(task.data.data, &package, sizeof(package));
-
-    task.target_worker_id = swServer_worker_schedule(serv, conn->fd, &task.data);
-
-    //dispatch failed, free the memory.
-    if (factory->dispatch(factory, &task) < 0)
-    {
-        thread->buffer_input->free(thread->buffer_input, package.data);
-    }
-    else
-    {
-        return SW_OK;
-    }
-#else
 
     task.data.info.type = SW_EVENT_PACKAGE_START;
     task.target_worker_id = -1;
@@ -1488,7 +1392,7 @@ int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
 
         swTrace("dispatch, type=%d|len=%d", task.data.info.type, task.data.info.len);
 
-        if (factory->dispatch(factory, &task) < 0)
+        if (serv->factory.dispatch(&serv->factory, &task) < 0)
         {
             break;
         }
@@ -1500,7 +1404,6 @@ int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length)
     SwooleTG.factory_target_worker = -1;
     SwooleTG.factory_lock_target = 0;
 
-#endif
     return SW_OK;
 }
 
@@ -1539,8 +1442,5 @@ void swReactorThread_free(swServer *serv)
         {
             swSysError("pthread_join(%ld) failed.", (long ) thread->thread_id);
         }
-#ifdef SW_USE_RINGBUFFER
-        thread->buffer_input->destroy(thread->buffer_input);
-#endif
     }
 }

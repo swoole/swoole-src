@@ -132,11 +132,7 @@ typedef struct _swReactorThread
 {
     pthread_t thread_id;
     swReactor reactor;
-    swUdpFd *udp_addrs;
     swMemoryPool *buffer_input;
-#ifdef SW_USE_RINGBUFFER
-    int *pipe_read_list;
-#endif
     swLock lock;
     int notify_pipe;
 } swReactorThread;

@@ -1283,9 +1283,6 @@ PHP_MINFO_FUNCTION(swoole)
     php_info_print_table_row(2, "http2", "enabled");
 #endif
 #endif
-#ifdef SW_USE_RINGBUFFER
-    php_info_print_table_row(2, "ringbuffer", "enabled");
-#endif
 #ifdef HAVE_PCRE
     php_info_print_table_row(2, "pcre", "enabled");
 #endif
