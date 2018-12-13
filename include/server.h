@@ -1020,7 +1020,7 @@ static sw_inline int swWorker_get_send_pipe(swServer *serv, int session_id, int 
 }
 
 int swReactorThread_create(swServer *serv);
-int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr);
+int swReactorThread_start(swServer *serv);
 void swReactorThread_set_protocol(swServer *serv, swReactor *reactor);
 void swReactorThread_free(swServer *serv);
 int swReactorThread_close(swReactor *reactor, int fd);

@@ -20,11 +20,7 @@
 
 static int swServer_start_check(swServer *serv);
 static void swServer_signal_handler(int sig);
-static int swServer_start_proxy(swServer *serv);
 static void swServer_disable_accept(swReactor *reactor);
-
-static void swHeartbeatThread_start(swServer *serv);
-static void swHeartbeatThread_loop(swThreadParam *param);
 
 static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, int fd, int from_fd, int reactor_id);
 
@@ -267,121 +263,6 @@ static int swServer_start_check(swServer *serv)
 #endif
 
     return SW_OK;
-}
-
-/**
- * proxy模式
- * 在单独的n个线程中接受维持TCP连接
- */
-static int swServer_start_proxy(swServer *serv)
-{
-    int ret;
-    swReactor *main_reactor = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swReactor));
-
-    ret = swReactor_create(main_reactor, SW_REACTOR_MAXEVENTS);
-    if (ret < 0)
-    {
-        swWarn("Reactor create failed");
-        return SW_ERR;
-    }
-
-    main_reactor->thread = 1;
-    main_reactor->socket_list = serv->connection_list;
-    main_reactor->disable_accept = 0;
-    main_reactor->enable_accept = swServer_enable_accept;
-
-#ifdef HAVE_SIGNALFD
-    if (SwooleG.use_signalfd)
-    {
-        swSignalfd_setup(main_reactor);
-    }
-#endif
-
-    //set listen socket options
-    swListenPort *ls;
-    LL_FOREACH(serv->listen_list, ls)
-    {
-        if (swSocket_is_dgram(ls->type))
-        {
-            continue;
-        }
-        if (swPort_listen(ls) < 0)
-        {
-            return SW_ERR;
-        }
-    }
-
-    if (serv->stream_fd > 0)
-    {
-        close(serv->stream_fd);
-    }
-
-    /**
-     * create reactor thread
-     */
-    ret = swReactorThread_start(serv, main_reactor);
-    if (ret < 0)
-    {
-        swWarn("ReactorThread start failed");
-        return SW_ERR;
-    }
-
-    /**
-     * heartbeat thread
-     */
-    if (serv->heartbeat_check_interval >= 1 && serv->heartbeat_check_interval <= serv->heartbeat_idle_time)
-    {
-        swTrace("hb timer start, time: %d live time:%d", serv->heartbeat_check_interval, serv->heartbeat_idle_time);
-        swHeartbeatThread_start(serv);
-    }
-
-    /**
-     * master thread loop
-     */
-    SwooleTG.type = SW_THREAD_MASTER;
-    SwooleTG.factory_target_worker = -1;
-    SwooleTG.factory_lock_target = 0;
-    SwooleTG.id = serv->reactor_num;
-    SwooleTG.update_time = 1;
-
-    SwooleG.main_reactor = main_reactor;
-    SwooleG.pid = getpid();
-    SwooleG.process_type = SW_PROCESS_MASTER;
-
-    /**
-     * set a special id
-     */
-    main_reactor->id = serv->reactor_num;
-    main_reactor->ptr = serv;
-    main_reactor->setHandle(main_reactor, SW_FD_LISTEN, swServer_master_onAccept);
-
-    if (serv->hooks[SW_SERVER_HOOK_MASTER_START])
-    {
-        swServer_call_hook(serv, SW_SERVER_HOOK_MASTER_START, serv);
-    }
-
-    /**
-     * 1 second timer, update serv->gs->now
-     */
-    swTimer_node *update_timer;
-    if ((update_timer = swTimer_add(&SwooleG.timer, 1000, 1, serv, swServer_master_onTimer)) == NULL)
-    {
-        return SW_ERR;
-    }
-
-    if (serv->onStart != NULL)
-    {
-        serv->onStart(serv);
-    }
-
-    int retval = main_reactor->wait(main_reactor, NULL);
-
-    if (update_timer)
-    {
-        swTimer_del(&SwooleG.timer, update_timer);
-    }
-
-    return retval;
 }
 
 void swServer_store_listen_socket(swServer *serv)
@@ -780,7 +661,7 @@ int swServer_start(swServer *serv)
     }
     else
     {
-        ret = swServer_start_proxy(serv);
+        ret = swReactorThread_start(serv);
     }
     swServer_free(serv);
     serv->gs->start = 0;
@@ -1646,96 +1527,6 @@ static void swServer_signal_handler(int sig)
 #endif
         break;
     }
-}
-
-static void swHeartbeatThread_start(swServer *serv)
-{
-    swThreadParam *param;
-    pthread_t thread_id;
-    param = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swThreadParam));
-    if (param == NULL)
-    {
-        swError("heartbeat_param malloc fail\n");
-        return;
-    }
-
-    param->object = serv;
-    param->pti = 0;
-
-    if (pthread_create(&thread_id, NULL, (void * (*)(void *)) swHeartbeatThread_loop, (void *) param) < 0)
-    {
-        swWarn("pthread_create[hbcheck] fail");
-    }
-    serv->heartbeat_pidt = thread_id;
-}
-
-static void swHeartbeatThread_loop(swThreadParam *param)
-{
-    swSignal_none();
-
-    swServer *serv = param->object;
-    swConnection *conn;
-    swReactor *reactor;
-
-    int fd;
-    int serv_max_fd;
-    int serv_min_fd;
-    int checktime;
-
-    SwooleTG.type = SW_THREAD_HEARTBEAT;
-    SwooleTG.id = serv->reactor_num;
-
-    while (SwooleG.running)
-    {
-        serv_max_fd = swServer_get_maxfd(serv);
-        serv_min_fd = swServer_get_minfd(serv);
-
-        checktime = (int) time(NULL) - serv->heartbeat_idle_time;
-
-        for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
-        {
-            swTrace("check fd=%d", fd);
-            conn = swServer_connection_get(serv, fd);
-
-            if (conn != NULL && conn->active == 1 && conn->closed == 0 && conn->fdtype == SW_FD_TCP)
-            {
-                if (conn->protect || conn->last_time > checktime)
-                {
-                    continue;
-                }
-
-                conn->close_force = 1;
-                conn->close_notify = 1;
-
-                if (serv->factory_mode != SW_MODE_PROCESS)
-                {
-                    if (serv->factory_mode == SW_MODE_BASE)
-                    {
-                        reactor = SwooleG.main_reactor;
-                    }
-                    else
-                    {
-                        reactor = &serv->reactor_threads[conn->from_id].reactor;
-                    }
-                }
-                else
-                {
-                    reactor = &serv->reactor_threads[conn->from_id].reactor;
-                }
-                //notify to reactor thread
-                if (conn->removed)
-                {
-                    swServer_tcp_notify(serv, conn, SW_EVENT_CLOSE);
-                }
-                else
-                {
-                    reactor->set(reactor, fd, SW_FD_TCP | SW_EVENT_WRITE);
-                }
-            }
-        }
-        sleep(serv->heartbeat_check_interval);
-    }
-    pthread_exit(0);
 }
 
 /**
