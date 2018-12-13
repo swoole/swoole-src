@@ -32,7 +32,7 @@ static const char *method_strings[] =
 int swHttp_get_method(const char *method_str, int method_len)
 {
     int i;
-    for (i = 0; i < HTTP_PRI; i++)
+    for (i = 0; i < SW_HTTP_PRI; i++)
     {
         if (strncasecmp(method_strings[i], method_str, method_len) == 0)
         {
@@ -44,7 +44,7 @@ int swHttp_get_method(const char *method_str, int method_len)
 
 const char* swHttp_get_method_string(int method)
 {
-    if (method < 0 || method > HTTP_PRI)
+    if (method < 0 || method > SW_HTTP_PRI)
     {
         return NULL;
     }
@@ -67,91 +67,91 @@ int swHttpRequest_get_protocol(swHttpRequest *request)
     //http method
     if (memcmp(buf, "GET", 3) == 0)
     {
-        request->method = HTTP_GET;
+        request->method = SW_HTTP_GET;
         request->offset = 4;
         buf += 4;
     }
     else if (memcmp(buf, "POST", 4) == 0)
     {
-        request->method = HTTP_POST;
+        request->method = SW_HTTP_POST;
         request->offset = 5;
         buf += 5;
     }
     else if (memcmp(buf, "PUT", 3) == 0)
     {
-        request->method = HTTP_PUT;
+        request->method = SW_HTTP_PUT;
         request->offset = 4;
         buf += 4;
     }
     else if (memcmp(buf, "PATCH", 5) == 0)
     {
-        request->method = HTTP_PATCH;
+        request->method = SW_HTTP_PATCH;
         request->offset = 6;
         buf += 6;
     }
     else if (memcmp(buf, "DELETE", 6) == 0)
     {
-        request->method = HTTP_DELETE;
+        request->method = SW_HTTP_DELETE;
         request->offset = 7;
         buf += 7;
     }
     else if (memcmp(buf, "HEAD", 4) == 0)
     {
-        request->method = HTTP_HEAD;
+        request->method = SW_HTTP_HEAD;
         request->offset = 5;
         buf += 5;
     }
     else if (memcmp(buf, "OPTIONS", 7) == 0)
     {
-        request->method = HTTP_OPTIONS;
+        request->method = SW_HTTP_OPTIONS;
         request->offset = 8;
         buf += 8;
     }
     else if (memcmp(buf, "COPY", 4) == 0)
     {
-        request->method = HTTP_COPY;
+        request->method = SW_HTTP_COPY;
         request->offset = 5;
         buf += 5;
     }
     else if (memcmp(buf, "LOCK", 4) == 0)
     {
-        request->method = HTTP_LOCK;
+        request->method = SW_HTTP_LOCK;
         request->offset = 5;
         buf += 5;
     }
     else if (memcmp(buf, "MKCOL", 5) == 0)
     {
-        request->method = HTTP_MKCOL;
+        request->method = SW_HTTP_MKCOL;
         request->offset = 4;
         buf += 4;
     }
     else if (memcmp(buf, "MOVE", 4) == 0)
     {
-        request->method = HTTP_MOVE;
+        request->method = SW_HTTP_MOVE;
         request->offset = 5;
         buf += 5;
     }
     else if (memcmp(buf, "PROPFIND", 8) == 0)
     {
-        request->method = HTTP_PROPFIND;
+        request->method = SW_HTTP_PROPFIND;
         request->offset = 9;
         buf += 9;
     }
     else if (memcmp(buf, "PROPPATCH", 9) == 0)
     {
-        request->method = HTTP_PROPPATCH;
+        request->method = SW_HTTP_PROPPATCH;
         request->offset = 10;
         buf += 10;
     }
     else if (memcmp(buf, "UNLOCK", 6) == 0)
     {
-        request->method = HTTP_UNLOCK;
+        request->method = SW_HTTP_UNLOCK;
         request->offset = 7;
         buf += 7;
     }
     else if (memcmp(buf, "REPORT", 6) == 0)
     {
-        request->method = HTTP_REPORT;
+        request->method = SW_HTTP_REPORT;
         request->offset = 7;
         buf += 7;
     }
@@ -159,7 +159,7 @@ int swHttpRequest_get_protocol(swHttpRequest *request)
     //HTTP2 Connection Preface
     else if (memcmp(buf, "PRI", 3) == 0)
     {
-        request->method = HTTP_PRI;
+        request->method = SW_HTTP_PRI;
         if (memcmp(buf, SW_HTTP2_PRI_STRING, sizeof(SW_HTTP2_PRI_STRING) - 1) == 0)
         {
             request->buffer->offset = sizeof(SW_HTTP2_PRI_STRING) - 1;
@@ -211,12 +211,12 @@ int swHttpRequest_get_protocol(swHttpRequest *request)
             }
             if (memcmp(p, "HTTP/1.1", 8) == 0)
             {
-                request->version = HTTP_VERSION_11;
+                request->version = SW_HTTP_VERSION_11;
                 goto end;
             }
             else if (memcmp(p, "HTTP/1.0", 8) == 0)
             {
-                request->version = HTTP_VERSION_10;
+                request->version = SW_HTTP_VERSION_10;
                 goto end;
             }
             else

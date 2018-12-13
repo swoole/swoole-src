@@ -387,13 +387,13 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
             goto close_fd;
         }
 
-        if (request->method > HTTP_PRI)
+        if (request->method > SW_HTTP_PRI)
         {
             swWarn("method no support");
             goto close_fd;
         }
 #ifdef SW_USE_HTTP2
-        else if (request->method == HTTP_PRI)
+        else if (request->method == SW_HTTP_PRI)
         {
             conn->http2_stream = 1;
             swHttp2_send_setting_frame(protocol, conn);
