@@ -3743,17 +3743,7 @@ PHP_METHOD(swoole_server, sendwait)
         RETURN_FALSE;
     }
 
-    //UDP
-    if (swServer_is_udp(fd))
-    {
-        swoole_php_fatal_error(E_WARNING, "can't sendwait.");
-        RETURN_FALSE;
-    }
-    //TCP
-    else
-    {
-        SW_CHECK_RETURN(swServer_tcp_sendwait(serv, fd, data, length));
-    }
+    SW_CHECK_RETURN(swServer_tcp_sendwait(serv, fd, data, length));
 }
 
 PHP_METHOD(swoole_server, exist)

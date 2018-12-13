@@ -962,7 +962,7 @@ int swServer_tcp_notify(swServer *serv, swConnection *conn, int event)
 
 int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename, uint32_t filename_length, off_t offset, size_t length)
 {
-    if (session_id <= 0 || session_id > SW_MAX_SOCKET_ID)
+    if (session_id <= 0 || session_id > SW_MAX_SESSION_ID)
     {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_INVALID_ID, "invalid fd[%d].", session_id);
         return SW_ERR;

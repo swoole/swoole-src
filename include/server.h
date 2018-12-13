@@ -684,10 +684,7 @@ int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename, uint32
 int swServer_tcp_notify(swServer *serv, swConnection *conn, int event);
 int swServer_tcp_feedback(swServer *serv, int fd, int event);
 
-//UDP, UDP必然超过0x1000000
-//原因：IPv4的第4字节最小为1,而这里的conn_fd是网络字节序
-#define SW_MAX_SOCKET_ID             0x1000000
-#define swServer_is_udp(fd)          ((uint32_t) fd > SW_MAX_SOCKET_ID)
+#define SW_MAX_SESSION_ID             0x1000000
 
 static sw_inline int swEventData_is_dgram(uint8_t type)
 {
