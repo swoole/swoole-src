@@ -171,7 +171,7 @@ static int swWorker_onStreamAccept(swReactor *reactor, swEvent *event)
 static int swWorker_onStreamRead(swReactor *reactor, swEvent *event)
 {
     swConnection *conn = event->socket;
-    swServer *serv = SwooleG.serv;
+    swServer *serv = (swServer *) reactor->ptr;
     swProtocol *protocol = &serv->stream_protocol;
     swString *buffer;
 
@@ -205,7 +205,7 @@ static int swWorker_onStreamRead(swReactor *reactor, swEvent *event)
 static int swWorker_onStreamClose(swReactor *reactor, swEvent *event)
 {
     swConnection *conn = event->socket;
-    swServer *serv = SwooleG.serv;
+    swServer *serv = (swServer *) reactor->ptr;
 
     swString_clear(conn->recv_buffer);
     swLinkedList_append(serv->buffer_pool, conn->recv_buffer);
