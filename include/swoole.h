@@ -81,6 +81,14 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #endif
 #endif
 
+#if __APPLE__
+// Fix warning: 'daemon' is deprecated: first deprecated in macOS 10.5 - Use posix_spawn APIs instead. [-Wdeprecated-declarations]
+#define daemon yes_we_know_that_daemon_is_deprecated_in_os_x_10_5_thankyou
+#include <spawn.h>
+#undef daemon
+extern int daemon(int, int);
+#endif
+
 #ifndef HAVE_DAEMON
 int daemon(int nochdir, int noclose);
 #endif
@@ -389,10 +397,7 @@ exit(1)
     swLog_put(level, sw_error);\
     SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}}while(0)
 
-#ifdef SW_DEBUG_REMOTE_OPEN
-#define swDebug(str,...) int __debug_log_n = snprintf(sw_error, SW_ERROR_MSG_SIZE, str, ##__VA_ARGS__);\
-write(SwooleG.debug_fd, sw_error, __debug_log_n);
-#elif defined(SW_DEBUG)
+#ifdef SW_DEBUG
 #define swDebug(str,...) if (SW_LOG_DEBUG >= SwooleG.log_level){\
     SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
     snprintf(sw_error, SW_ERROR_MSG_SIZE, "%s(:%d): " str, __func__, __LINE__, ##__VA_ARGS__);\
@@ -690,7 +695,7 @@ typedef ssize_t (*swProtocol_length_function)(struct _swProtocol *, swConnection
 uint32_t swoole_utf8_decode(u_char **p, size_t n);
 size_t swoole_utf8_length(u_char *p, size_t n);
 void swoole_random_string(char *buf, size_t size);
-char* swoole_get_mime_type(char *file);
+const char* swoole_get_mime_type(const char *file);
 
 static sw_inline char *swoole_strlchr(char *p, char *last, char c)
 {
@@ -819,15 +824,6 @@ typedef struct
     size_t length;
     char filename[0];
 } swSendFile_request;
-
-//------------------TimeWheel--------------------
-typedef struct
-{
-    uint16_t current;
-    uint16_t size;
-    swHashMap **wheel;
-
-} swTimeWheel;
 
 typedef void * (*swThreadStartFunc)(void *);
 typedef int (*swHandle)(swEventData *buf);
@@ -1316,7 +1312,6 @@ int swoole_tmpfile(char *filename);
 swString* swoole_file_get_contents(char *filename);
 int swoole_file_put_contents(char *filename, char *content, size_t length);
 long swoole_file_size(char *filename);
-void swoole_open_remote_debug(void);
 char *swoole_dec2hex(int value, int base);
 int swoole_version_compare(const char *version1, const char *version2);
 #ifdef HAVE_EXECINFO
@@ -2079,14 +2074,6 @@ static sw_inline swTimer_node* swTimer_get(swTimer *timer, long id)
 int swSystemTimer_init(int msec);
 void swSystemTimer_signal_handler(int sig);
 int swSystemTimer_event_handler(swReactor *reactor, swEvent *event);
-
-swTimeWheel* swTimeWheel_new(uint16_t size);
-void swTimeWheel_free(swTimeWheel *tw);
-void swTimeWheel_forward(swTimeWheel *tw, swReactor *reactor);
-void swTimeWheel_add(swTimeWheel *tw, swConnection *conn);
-void swTimeWheel_update(swTimeWheel *tw, swConnection *conn);
-void swTimeWheel_remove(swTimeWheel *tw, swConnection *conn);
-#define swTimeWheel_new_index(tw)   (tw->current == 0 ? tw->size - 1 : tw->current - 1)
 //--------------------------------------------------------------
 //Share Memory
 typedef struct
@@ -2173,7 +2160,6 @@ typedef struct
     int signal_fd;
     int log_fd;
     int null_fd;
-    int debug_fd;
 
     /**
      * worker(worker and task_worker) process chroot / user / group
@@ -2201,7 +2187,6 @@ typedef struct
     uint32_t socket_buffer_size;
 
     swServer *serv;
-    swFactory *factory;
 
     swMemoryPool *memory_pool;
     swReactor *main_reactor;

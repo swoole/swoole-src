@@ -88,6 +88,11 @@ extern zend_module_entry swoole_module_entry;
 #	define PHP_SWOOLE_API
 #endif
 
+#ifdef __APPLE__
+#define SIOCGIFHWADDR SIOCGIFCONF
+#define ifr_hwaddr ifr_addr
+#endif
+
 #define SWOOLE_PROPERTY_MAX     32
 #define SWOOLE_OBJECT_MAX       10000000
 
@@ -99,13 +104,7 @@ typedef struct
     uint32_t property_size[SWOOLE_PROPERTY_MAX];
 } swoole_object_array;
 
-#ifdef ZTS
-#include "TSRM.h"
-extern void ***sw_thread_ctx;
-extern __thread swoole_object_array swoole_objects;
-#else
 extern swoole_object_array swoole_objects;
-#endif
 
 // Solaris doesn't have PTRACE_ATTACH
 #if defined(HAVE_PTRACE) && defined(__sun)
@@ -455,6 +454,7 @@ void php_swoole_event_init();
 void php_swoole_event_wait();
 void php_swoole_event_exit();
 long php_swoole_add_timer(long ms, zval *callback, zval *param, int persistent);
+void php_swoole_clear_all_timer();
 void php_swoole_register_callback(swServer *serv);
 void php_swoole_trace_check(void *arg);
 void php_swoole_client_free(zval *zobject, swClient *cli);

@@ -861,12 +861,7 @@ void swoole_call_rshutdown_function(void *arg)
     }
 }
 
-#ifdef ZTS
-__thread swoole_object_array swoole_objects;
-void ***sw_thread_ctx;
-#else
 swoole_object_array swoole_objects;
-#endif
 
 /* {{{ PHP_MINIT_FUNCTION
  */
@@ -1283,9 +1278,6 @@ PHP_MINFO_FUNCTION(swoole)
     php_info_print_table_row(2, "http2", "enabled");
 #endif
 #endif
-#ifdef SW_USE_RINGBUFFER
-    php_info_print_table_row(2, "ringbuffer", "enabled");
-#endif
 #ifdef HAVE_PCRE
     php_info_print_table_row(2, "pcre", "enabled");
 #endif
@@ -1330,19 +1322,7 @@ PHP_RINIT_FUNCTION(swoole)
 {
     SWOOLE_G(req_status) = PHP_SWOOLE_RINIT_BEGIN;
     php_swoole_register_shutdown_function("swoole_call_user_shutdown_begin");
-    //running
     SwooleG.running = 1;
-
-#ifdef ZTS
-    if (sw_thread_ctx == NULL)
-    {
-        TSRMLS_SET_CTX(sw_thread_ctx);
-    }
-#endif
-
-#ifdef SW_DEBUG_REMOTE_OPEN
-    swoole_open_remote_debug();
-#endif
     SWOOLE_G(req_status) = PHP_SWOOLE_RINIT_END;
     return SUCCESS;
 }

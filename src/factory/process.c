@@ -122,7 +122,6 @@ static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
 
     if (task->target_worker_id < 0)
     {
-#ifndef SW_USE_RINGBUFFER
         if (SwooleTG.factory_lock_target)
         {
             if (SwooleTG.factory_target_worker < 0)
@@ -136,7 +135,6 @@ static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
             }
         }
         else
-#endif
         {
             target_worker_id = swServer_worker_schedule(serv, fd, &task->data);
         }

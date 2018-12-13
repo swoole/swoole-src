@@ -14,14 +14,14 @@ go(function () {
     assert(!$res);
     assert($redis->errCode === SOCKET_ETIMEDOUT);
     $s = microtime(true) - $s;
-    assert($s > 0.45 * 2 && $s < 0.55 * 2); // would retry
+    assert($s > 0.45 && $s < 0.55); // would not retry after timeout
 
     $s = microtime(true);
     $res = $redis->brpoplpush('test', 'test2', 3);
     assert(!$res);
     assert($redis->errCode === SOCKET_ETIMEDOUT);
     $s = microtime(true) - $s;
-    assert($s > 0.45 * 2 && $s < 0.55 * 2); // would retry
+    assert($s > 0.45 && $s < 0.55); // would not retry after timeout
 
     // right way: no timeout
     $redis->setOptions(['timeout' => -1]);

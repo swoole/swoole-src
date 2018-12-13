@@ -497,7 +497,7 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_mysql.c \
         swoole_mysql_coro.cc \
         swoole_postgresql_coro.cc \
-        swoole_process.c \
+        swoole_process.cc \
         swoole_process_pool.c \
         swoole_redis.c \
         swoole_redis_coro.cc \

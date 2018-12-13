@@ -144,17 +144,6 @@ static sw_inline int swWorker_discard_data(swServer *serv, swEventData *task)
         }
     }
     discard_data:
-#ifdef SW_USE_RINGBUFFER
-    if (task->info.type == SW_EVENT_PACKAGE)
-    {
-        swPackage package;
-        memcpy(&package, task->data, sizeof(package));
-        swReactorThread *thread = swServer_get_thread(SwooleG.serv, task->info.from_id);
-        thread->buffer_input->free(thread->buffer_input, package.data);
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_DISCARD_TIMEOUT_DATA, "[1]received the wrong data[%d bytes] from socket#%d", package.length, session_id);
-    }
-    else
-#endif
     {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_DISCARD_TIMEOUT_DATA, "[1]received the wrong data[%d bytes] from socket#%d", task->info.len, session_id);
     }
@@ -163,15 +152,9 @@ static sw_inline int swWorker_discard_data(swServer *serv, swEventData *task)
 
 static int swWorker_onStreamAccept(swReactor *reactor, swEvent *event)
 {
-    int fd = 0;
     swSocketAddress client_addr;
-    socklen_t client_addrlen = sizeof(client_addr);
+    int fd =  swSocket_accept(event->fd, &client_addr);
 
-#ifdef HAVE_ACCEPT4
-    fd = accept4(event->fd, (struct sockaddr *) &client_addr, &client_addrlen, SOCK_NONBLOCK | SOCK_CLOEXEC);
-#else
-    fd = accept(event->fd, (struct sockaddr *) &client_addr, &client_addrlen);
-#endif
     if (fd < 0)
     {
         switch (errno)
@@ -185,12 +168,6 @@ static int swWorker_onStreamAccept(swReactor *reactor, swEvent *event)
             return SW_OK;
         }
     }
-#ifndef HAVE_ACCEPT4
-    else
-    {
-        swoole_fcntl_set_option(fd, 1, 1);
-    }
-#endif
 
     swConnection *conn = swReactor_get(reactor, fd);
     bzero(conn, sizeof(swConnection));
