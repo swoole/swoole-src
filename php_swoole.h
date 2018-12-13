@@ -88,6 +88,11 @@ extern zend_module_entry swoole_module_entry;
 #	define PHP_SWOOLE_API
 #endif
 
+#ifdef __APPLE__
+#define SIOCGIFHWADDR SIOCGIFCONF
+#define ifr_hwaddr ifr_addr
+#endif
+
 #define SWOOLE_PROPERTY_MAX     32
 #define SWOOLE_OBJECT_MAX       10000000
 
