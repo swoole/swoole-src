@@ -925,11 +925,6 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swEventDat
 void swServer_worker_onStart(swServer *serv);
 void swServer_worker_onStop(swServer *serv);
 
-void swServer_set_callback(swServer *serv, int type, void *callback);
-void swServer_set_callback_onReceive(swServer *serv, int (*callback)(swServer *, char *, int, int, int));
-void swServer_set_callback_onConnect(swServer *serv, void (*callback)(swServer *, int, int));
-void swServer_set_callback_onClose(swServer *serv, void (*callback)(swServer *, int, int));
-
 int swWorker_onTask(swFactory *factory, swEventData *task);
 void swWorker_stop(swWorker *worker);
 
