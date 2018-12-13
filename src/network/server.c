@@ -739,14 +739,12 @@ int swServer_create(swServer *serv)
      */
     swServer_update_time(serv);
 
-#ifdef SW_REACTOR_USE_SESSION
     serv->session_list = sw_shm_calloc(SW_SESSION_LIST_SIZE, sizeof(swSession));
     if (serv->session_list == NULL)
     {
         swError("sw_shm_calloc(%ld) for session_list failed", SW_SESSION_LIST_SIZE * sizeof(swSession));
         return SW_ERR;
     }
-#endif
 
     if (serv->factory_mode == SW_MODE_BASE)
     {
@@ -1592,7 +1590,6 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
     }
 #endif
 
-#ifdef SW_REACTOR_USE_SESSION
     swSession *session;
     sw_spinlock(&serv->gs->spinlock);
     int i;
@@ -1619,7 +1616,6 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, i
     serv->gs->session_round = session_id;
     sw_spinlock_release(&serv->gs->spinlock);
     connection->session_id = session_id;
-#endif
 
     return connection;
 }
