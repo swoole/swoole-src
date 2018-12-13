@@ -3029,11 +3029,7 @@ PHP_METHOD(swoole_server, heartbeat)
             {
                 serv->factory.end(&serv->factory, fd);
             }
-#ifdef SW_REACTOR_USE_SESSION
             add_next_index_long(return_value, conn->session_id);
-#else
-            add_next_index_long(return_value, fd);
-#endif
         }
     }
 }
@@ -3672,7 +3668,6 @@ PHP_METHOD(swoole_server, connection_list)
     {
         start_fd = swServer_get_minfd(serv);
     }
-#ifdef SW_REACTOR_USE_SESSION
     else
     {
         swConnection *conn = swWorker_get_connection(serv, start_fd);
@@ -3682,9 +3677,7 @@ PHP_METHOD(swoole_server, connection_list)
         }
         start_fd = conn->fd;
     }
-#endif
 
-    //达到最大，表示已经取完了
     if ((int) start_fd >= serv_max_fd)
     {
         RETURN_FALSE;
@@ -3707,11 +3700,7 @@ PHP_METHOD(swoole_server, connection_list)
                 continue;
             }
 #endif
-#ifdef SW_REACTOR_USE_SESSION
             add_next_index_long(return_value, conn->session_id);
-#else
-            add_next_index_long(return_value, fd);
-#endif
             find_count--;
         }
         //finish fetch
@@ -3754,17 +3743,7 @@ PHP_METHOD(swoole_server, sendwait)
         RETURN_FALSE;
     }
 
-    //UDP
-    if (swServer_is_udp(fd))
-    {
-        swoole_php_fatal_error(E_WARNING, "can't sendwait.");
-        RETURN_FALSE;
-    }
-    //TCP
-    else
-    {
-        SW_CHECK_RETURN(swServer_tcp_sendwait(serv, fd, data, length));
-    }
+    SW_CHECK_RETURN(swServer_tcp_sendwait(serv, fd, data, length));
 }
 
 PHP_METHOD(swoole_server, exist)

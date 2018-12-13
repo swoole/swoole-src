@@ -121,11 +121,9 @@ int swReactorProcess_start(swServer *serv)
         return swReactorProcess_loop(&serv->gs->event_workers, &serv->gs->event_workers.workers[0]);
     }
 
-    swWorker *worker;
     for (i = 0; i < serv->worker_num; i++)
     {
-        worker = &serv->gs->event_workers.workers[i];
-        if (swWorker_create(worker) < 0)
+        if (swServer_worker_create(serv, &serv->gs->event_workers.workers[i]) < 0)
         {
             return SW_ERR;
         }
@@ -403,7 +401,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     /**
      * call internal serv hooks
      */
-    if (SwooleG.serv->hooks[SW_SERVER_HOOK_WORKER_CLOSE])
+    if (serv->hooks[SW_SERVER_HOOK_WORKER_CLOSE])
     {
         void *hook_args[2];
         hook_args[0] = serv;
@@ -433,7 +431,7 @@ int swReactorProcess_onClose(swReactor *reactor, swEvent *event)
 {
     int fd = event->fd;
     swServer *serv = reactor->ptr;
-    swConnection *conn = swServer_connection_get(SwooleG.serv, fd);
+    swConnection *conn = swServer_connection_get(serv, fd);
     if (conn == NULL || conn->active == 0)
     {
         return SW_ERR;
@@ -470,7 +468,7 @@ static int swReactorProcess_send2worker(int pipe_fd, void *data, int length)
 
 static int swReactorProcess_send2client(swFactory *factory, swSendData *_send)
 {
-    swServer *serv = SwooleG.serv;
+    swServer *serv = (swServer *) factory->ptr;
     int session_id = _send->info.fd;
     if (_send->length == 0)
     {

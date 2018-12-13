@@ -40,13 +40,7 @@
 
 #define SW_MALLOC_TRIM_INTERVAL    1
 #define SW_MALLOC_TRIM_PAD         0
-#define SW_USE_EVENT_TIMER         1
 #define SW_USE_MONOTONIC_TIME      1
-
-#define SW_DEBUG_SERVER_HOST       "127.0.0.1"
-#define SW_DEBUG_SERVER_PORT       9999
-
-#define SW_DEBUG_SERVER_DESTRUCT   0
 
 #define SW_SOCKET_OVERFLOW_WAIT    100
 #define SW_SOCKET_MAX_DEFAULT      65536
@@ -97,10 +91,10 @@
 
 #define SW_AIO_THREAD_NUM_DEFAULT        2
 #define SW_AIO_THREAD_NUM_MAX            32
-#define SW_AIO_MAX_FILESIZE              4194304  //4M
+#define SW_AIO_MAX_FILESIZE              (4*1024*1024)
 #define SW_AIO_EVENT_NUM                 128
 #define SW_AIO_DEFAULT_CHUNK_SIZE        65536
-#define SW_AIO_MAX_CHUNK_SIZE            1*1024*1024
+#define SW_AIO_MAX_CHUNK_SIZE            (1*1024*1024)
 #define SW_AIO_MAX_EVENTS                128
 #define SW_AIO_HANDLER_MAX_SIZE          8
 #define SW_THREADPOOL_QUEUE_LEN          10000
@@ -111,10 +105,8 @@
 #define SW_WORKER_USE_SIGNALFD
 #define SW_WORKER_MAX_WAIT_TIME          30
 
-#define SW_REACTOR_SCHEDULE              2
 #define SW_REACTOR_MAXEVENTS             4096
-#define SW_REACTOR_USE_SESSION
-#define SW_SESSION_LIST_SIZE             (1024*1024)
+#define SW_SESSION_LIST_SIZE             (1*1024*1024)
 
 #define SW_MSGMAX                        65536
 
@@ -143,10 +135,9 @@
 /**
  * ringbuffer memory pool size
  */
-#define SW_BUFFER_OUTPUT_SIZE            (1024*1024*2)
-#define SW_BUFFER_INPUT_SIZE             (1024*1024*2)
+#define SW_BUFFER_OUTPUT_SIZE            (2*1024*1024)
+#define SW_BUFFER_INPUT_SIZE             (2*1024*1024)
 #define SW_BUFFER_MIN_SIZE               65536
-#define SW_PIPE_BUFFER_SIZE              (1024*1024*32)
 
 #define SW_BACKLOG                       512
 

@@ -1202,7 +1202,7 @@ static PHP_METHOD(swoole_http_client_coro, addFile)
     }
     if (type == NULL)
     {
-        type = swoole_get_mime_type(path);
+        type = (char*) swoole_get_mime_type(path);
         l_type = strlen(type);
     }
     if (filename == NULL)
