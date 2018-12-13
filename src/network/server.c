@@ -982,11 +982,11 @@ int swServer_tcp_feedback(swServer *serv, int fd, int event)
 
     if (serv->factory_mode == SW_MODE_PROCESS)
     {
-        return swWorker_send2reactor((swEventData *) &_send.info, sizeof(_send.info), fd);
+        return swWorker_send2reactor(serv, (swEventData *) &_send.info, sizeof(_send.info), fd);
     }
     else
     {
-        return swReactorThread_send(&_send);
+        return swReactorThread_send(serv, &_send);
     }
 }
 

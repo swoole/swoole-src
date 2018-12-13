@@ -160,7 +160,7 @@ int swFactory_finish(swFactory *factory, swSendData *resp)
     {
         resp->length = resp->info.len;
     }
-    if (swReactorThread_send(resp) < 0)
+    if (swReactorThread_send(factory->ptr, resp) < 0)
     {
         return SW_ERR;
     }

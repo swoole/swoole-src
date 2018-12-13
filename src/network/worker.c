@@ -765,10 +765,9 @@ int swWorker_loop(swFactory *factory, int worker_id)
 /**
  * Send data to ReactorThread
  */
-int swWorker_send2reactor(swEventData *ev_data, size_t sendn, int session_id)
+int swWorker_send2reactor(swServer *serv, swEventData *ev_data, size_t sendn, int session_id)
 {
     int ret;
-    swServer *serv = SwooleG.serv;
     int _pipe_fd = swWorker_get_send_pipe(serv, session_id, ev_data->info.from_id);
 
     if (SwooleG.main_reactor)

@@ -117,7 +117,7 @@ static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
 {
     uint32_t send_len = sizeof(task->data.info) + task->data.info.len;
     int target_worker_id;
-    swServer *serv = SwooleG.serv;
+    swServer *serv = (swServer *) factory->ptr;
     int fd = task->data.info.fd;
 
     if (task->target_worker_id < 0)
@@ -171,7 +171,7 @@ static int swFactoryProcess_dispatch(swFactory *factory, swDispatchData *task)
         task->data.info.from_fd = conn->from_fd;
     }
 
-    return swReactorThread_send2worker((void *) &(task->data), send_len, target_worker_id);
+    return swReactorThread_send2worker(serv, (void *) &(task->data), send_len, target_worker_id);
 }
 
 /**
@@ -275,7 +275,7 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     sendn = ev_data.info.len + sizeof(resp->info);
 
     swTrace("[Worker] send: sendn=%d|type=%d|content=<<EOF\n%.*s\nEOF", sendn, resp->info.type, resp->length > 0 ? resp->length : resp->info.len, resp->data);
-    ret = swWorker_send2reactor(&ev_data, sendn, session_id);
+    ret = swWorker_send2reactor(serv, &ev_data, sendn, session_id);
     if (ret < 0)
     {
         swWarn("sendto to reactor failed. Error: %s [%d]", strerror(errno), errno);

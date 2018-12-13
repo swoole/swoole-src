@@ -48,7 +48,7 @@ static sw_inline int swReactorThread_verify_ssl_state(swReactor *reactor, swList
                 {
                     if (!port->ssl_option.verify_peer || swSSL_verify(conn, port->ssl_option.allow_self_signed) == SW_OK)
                     {
-                        swFactory *factory = &SwooleG.serv->factory;
+                        swFactory *factory = &serv->factory;
                         task.target_worker_id = -1;
                         task.data.info.fd = conn->fd;
                         task.data.info.type = SW_EVENT_CONNECT;
@@ -64,9 +64,9 @@ static sw_inline int swReactorThread_verify_ssl_state(swReactor *reactor, swList
                 }
             }
             no_client_cert:
-            if (SwooleG.serv->onConnect)
+            if (serv->onConnect)
             {
-                swServer_tcp_notify(SwooleG.serv, conn, SW_EVENT_CONNECT);
+                swServer_tcp_notify(serv, conn, SW_EVENT_CONNECT);
             }
             delay_receive:
             if (serv->enable_delay_receive)
@@ -103,7 +103,7 @@ static void swReactorThread_onStreamResponse(swStream *stream, char *data, uint3
     response.info.len = 0;
     response.length = length;
     response.data = data;
-    swReactorThread_send(&response);
+    swReactorThread_send(SwooleG.serv, &response);
 }
 
 /**
@@ -269,7 +269,7 @@ static int swReactorThread_onPackage(swReactor *reactor, swEvent *event)
  */
 int swReactorThread_close(swReactor *reactor, int fd)
 {
-    swServer *serv = SwooleG.serv;
+    swServer *serv = (swServer *) reactor->ptr;
     swConnection *conn = swServer_connection_get(serv, fd);
     if (conn == NULL)
     {
@@ -376,7 +376,7 @@ int swReactorThread_onClose(swReactor *reactor, swEvent *event)
 
     swTraceLog(SW_TRACE_CLOSE, "client[fd=%d] close the connection.", fd);
 
-    swConnection *conn = swServer_connection_get(SwooleG.serv, fd);
+    swConnection *conn = swServer_connection_get(serv, fd);
     if (conn == NULL || conn->active == 0)
     {
         return SW_ERR;
@@ -413,6 +413,8 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
     swEventData resp;
     swSendData _send;
 
+    swServer *serv = reactor->ptr;
+
     swPackage_response pkg_resp;
     swWorker *worker;
 
@@ -429,13 +431,13 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
             {
                 _send.data = resp.data;
                 _send.length = resp.info.len;
-                swReactorThread_send(&_send);
+                swReactorThread_send(serv, &_send);
             }
             //use send shm
             else if (_send.info.from_fd == SW_RESPONSE_SHM)
             {
                 memcpy(&pkg_resp, resp.data, sizeof(pkg_resp));
-                worker = swServer_get_worker(SwooleG.serv, pkg_resp.worker_id);
+                worker = swServer_get_worker(serv, pkg_resp.worker_id);
 
                 _send.data = worker->send_shm;
                 _send.length = pkg_resp.length;
@@ -451,7 +453,7 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
                 memcpy(&pkg_header, _send.data + 4, sizeof(pkg_header));
                 swWarn("fd=%d, worker=%d, index=%d, serid=%d", _send.info.fd, pkg_header.worker, pkg_header.index, pkg_header.serid);
 #endif
-                swReactorThread_send(&_send);
+                swReactorThread_send(serv, &_send);
                 worker->lock.unlock(&worker->lock);
             }
             //use tmp file
@@ -464,7 +466,7 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
                 }
                 _send.data = data->str;
                 _send.length = data->length;
-                swReactorThread_send(&_send);
+                swReactorThread_send(serv, &_send);
             }
             //reactor thread exit
             else if (_send.info.from_fd == SW_RESPONSE_EXIT)
@@ -492,10 +494,8 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev)
     return SW_OK;
 }
 
-int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
+int swReactorThread_send2worker(swServer *serv, void *data, int len, uint16_t target_worker_id)
 {
-    swServer *serv = SwooleG.serv;
-
     assert(target_worker_id < serv->worker_num);
 
     int ret = -1;
@@ -553,9 +553,8 @@ int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id)
 /**
  * send to client or append to out_buffer
  */
-int swReactorThread_send(swSendData *_send)
+int swReactorThread_send(swServer *serv, swSendData *_send)
 {
-    swServer *serv = SwooleG.serv;
     uint32_t session_id = _send->info.fd;
     void *_send_data = _send->data;
     uint32_t _send_length = _send->length;
