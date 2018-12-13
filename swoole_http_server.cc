@@ -1619,6 +1619,7 @@ static void http_build_header(http_context *ctx, zval *zobject, swString *respon
 
         SW_HASHTABLE_FOREACH_START2(ht, key, keylen, type, value)
         {
+            // TODO: numeric key name neccessary?
             if (!key)
             {
                 break;
