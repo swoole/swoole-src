@@ -69,12 +69,10 @@ static int swFactoryProcess_start(swFactory *factory)
 {
     int i;
     swServer *serv = factory->ptr;
-    swWorker *worker;
 
     for (i = 0; i < serv->worker_num; i++)
     {
-        worker = swServer_get_worker(serv, i);
-        if (swWorker_create(worker) < 0)
+        if (swServer_worker_create(serv, swServer_get_worker(serv, i)) < 0)
         {
             return SW_ERR;
         }
@@ -82,13 +80,14 @@ static int swFactoryProcess_start(swFactory *factory)
 
     serv->reactor_pipe_num = serv->worker_num / serv->reactor_num;
 
-    //必须先启动manager进程组，否则会带线程fork
+    /**
+     * The manager process must be started first, otherwise it will have a thread fork
+     */
     if (swManager_start(factory) < 0)
     {
         swWarn("swFactoryProcess_manager_start failed.");
         return SW_ERR;
     }
-    //主进程需要设置为直写模式
     factory->finish = swFactory_finish;
     return SW_OK;
 }

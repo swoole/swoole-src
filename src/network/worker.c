@@ -29,22 +29,6 @@ static int swWorker_onStreamRead(swReactor *reactor, swEvent *event);
 static int swWorker_onStreamPackage(swConnection *conn, char *data, uint32_t length);
 static int swWorker_onStreamClose(swReactor *reactor, swEvent *event);
 
-int swWorker_create(swWorker *worker)
-{
-    /**
-     * Create shared memory storage
-     */
-    worker->send_shm = sw_shm_malloc(SwooleG.serv->buffer_output_size);
-    if (worker->send_shm == NULL)
-    {
-        swWarn("malloc for worker->store failed.");
-        return SW_ERR;
-    }
-    swMutex_create(&worker->lock, 1);
-
-    return SW_OK;
-}
-
 void swWorker_free(swWorker *worker)
 {
     if (worker->send_shm)

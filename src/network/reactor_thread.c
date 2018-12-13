@@ -842,7 +842,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
     //remove EPOLLOUT event
     if (swBuffer_empty(buffer))
     {
-        if (SwooleG.serv->connection_list[ev->fd].from_id == SwooleTG.id)
+        if (serv->connection_list[ev->fd].from_id == SwooleTG.id)
         {
             ret = reactor->set(reactor, ev->fd, SW_FD_PIPE | SW_EVENT_READ);
         }
@@ -913,7 +913,7 @@ static int swReactorThread_onRead(swReactor *reactor, swEvent *event)
 static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 {
     int ret;
-    swServer *serv = SwooleG.serv;
+    swServer *serv = (swServer *) reactor->ptr;
     swBuffer_chunk *chunk;
     int fd = ev->fd;
 
@@ -1136,9 +1136,9 @@ int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr)
  */
 static int swReactorThread_loop(swThreadParam *param)
 {
-    swServer *serv = SwooleG.serv;
-    int ret;
+    swServer *serv = param->object;
     int reactor_id = param->pti;
+    int ret;
 
     pthread_t thread_id = pthread_self();
 

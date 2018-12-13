@@ -26,7 +26,7 @@ static int swPort_onRead_check_length(swReactor *reactor, swListenPort *lp, swEv
 static int swPort_onRead_check_eof(swReactor *reactor, swListenPort *lp, swEvent *event);
 static int swPort_onRead_http(swReactor *reactor, swListenPort *lp, swEvent *event);
 static int swPort_onRead_redis(swReactor *reactor, swListenPort *lp, swEvent *event);
-static int swPort_http_static_handler(swHttpRequest *request, swConnection *conn);
+static int swPort_http_static_handler(swServer *serv, swHttpRequest *request, swConnection *conn);
 
 void swPort_init(swListenPort *port)
 {
@@ -443,7 +443,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
                     /**
                      * send static file content directly in the reactor thread
                      */
-                    if (!(serv->enable_static_handler && swPort_http_static_handler(request, conn)))
+                    if (!(serv->enable_static_handler && swPort_http_static_handler(serv, request, conn)))
                     {
                         /**
                          * dynamic request, dispatch to worker
@@ -596,9 +596,8 @@ void swPort_free(swListenPort *port)
     }
 }
 
-int swPort_http_static_handler(swHttpRequest *request, swConnection *conn)
+static int swPort_http_static_handler(swServer *serv, swHttpRequest *request, swConnection *conn)
 {
-    swServer *serv = SwooleG.serv;
     char *url = request->buffer->str + request->url_offset;
     char *params = memchr(url, '?', request->url_length);
 
