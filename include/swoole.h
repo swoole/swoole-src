@@ -695,7 +695,7 @@ typedef ssize_t (*swProtocol_length_function)(struct _swProtocol *, swConnection
 uint32_t swoole_utf8_decode(u_char **p, size_t n);
 size_t swoole_utf8_length(u_char *p, size_t n);
 void swoole_random_string(char *buf, size_t size);
-char* swoole_get_mime_type(char *file);
+const char* swoole_get_mime_type(const char *file);
 
 static sw_inline char *swoole_strlchr(char *p, char *last, char c)
 {

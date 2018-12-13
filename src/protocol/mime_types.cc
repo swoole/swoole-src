@@ -16,6 +16,8 @@
  +----------------------------------------------------------------------+
  */
 
+#include "swoole.h"
+
 #include <iostream>
 #include <unordered_map>
 #include <string>
@@ -385,15 +387,14 @@ std::unordered_map<std::string, std::string> mime_map({
     { "7z", "application/x-7z-compressed" }
 });
 
-extern "C" const char* swoole_get_mime_type(char *filename);
-const char* swoole_get_mime_type(char *filename)
+const char* swoole_get_mime_type(const char *filename)
 {
     std::string filename_s(filename);
     std::string suffix = filename_s.substr(filename_s.find_last_of('.') + 1);
-
-    if (mime_map.find(suffix) != mime_map.end())
+    auto i = mime_map.find(suffix);
+    if (i != mime_map.end())
     {
-        return mime_map[suffix].c_str();
+        return i->second.c_str();
     }
     return "application/octet-stream";
 }
