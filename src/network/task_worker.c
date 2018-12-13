@@ -21,7 +21,7 @@ static swEventData *g_current_task = NULL;
 
 static void swTaskWorker_signal_init(swProcessPool *pool);
 static int swTaskWorker_onPipeReceive(swReactor *reactor, swEvent *event);
-static int swTaskWorker_loop_async(struct _swProcessPool *pool, swWorker *worker);
+static int swTaskWorker_loop_async(swProcessPool *pool, swWorker *worker);
 
 /**
  * after pool->create, before pool->start
