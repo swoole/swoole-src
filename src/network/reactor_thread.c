@@ -1051,14 +1051,7 @@ int swReactorThread_create(swServer *serv)
     /**
      * alloc the memory for connection_list
      */
-    if (serv->factory_mode == SW_MODE_PROCESS)
-    {
-        serv->connection_list = sw_shm_calloc(serv->max_connection, sizeof(swConnection));
-    }
-    else
-    {
-        serv->connection_list = sw_calloc(serv->max_connection, sizeof(swConnection));
-    }
+    serv->connection_list = sw_shm_calloc(serv->max_connection, sizeof(swConnection));
     if (serv->connection_list == NULL)
     {
         swError("calloc[1] failed");
@@ -1066,19 +1059,12 @@ int swReactorThread_create(swServer *serv)
     }
 
     //create factry object
-    if (serv->factory_mode == SW_MODE_PROCESS)
+    if (serv->worker_num < 1)
     {
-        if (serv->worker_num < 1)
-        {
-            swError("Fatal Error: serv->worker_num < 1");
-            return SW_ERR;
-        }
-        ret = swFactoryProcess_create(&(serv->factory), serv->worker_num);
+        swError("Fatal Error: serv->worker_num < 1");
+        return SW_ERR;
     }
-    else
-    {
-        ret = swFactory_create(&(serv->factory));
-    }
+    ret = swFactoryProcess_create(&(serv->factory), serv->worker_num);
 
     if (ret < 0)
     {
