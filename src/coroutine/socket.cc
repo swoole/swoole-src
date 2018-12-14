@@ -164,8 +164,27 @@ bool Socket::socks5_handshake()
 bool Socket::http_proxy_handshake()
 {
     //CONNECT
-    int n = snprintf(http_proxy->buf, sizeof(http_proxy->buf), "CONNECT %*s:%d HTTP/1.1\r\n\r\n",
-            http_proxy->l_target_host, http_proxy->target_host, http_proxy->target_port);
+    int n;
+    if (http_proxy->password)
+    {
+        if (strlen(http_proxy->buf) > 0) 
+        {
+            char _authBuf[600];
+            snprintf(_authBuf, sizeof(_authBuf), "CONNECT %*s:%d HTTP/1.1\r\n%s\r\n\r\n",
+                http_proxy->l_target_host, http_proxy->target_host, http_proxy->target_port, http_proxy->buf);
+            n = snprintf(http_proxy->buf, sizeof(http_proxy->buf), "%s", _authBuf);
+        }
+        else
+        {
+            n = snprintf(http_proxy->buf, sizeof(http_proxy->buf), "CONNECT %*s:%d HTTP/1.1\r\n\r\n",
+                    http_proxy->l_target_host, http_proxy->target_host, http_proxy->target_port);
+        }
+    }
+    else
+    {
+        n = snprintf(http_proxy->buf, sizeof(http_proxy->buf), "CONNECT %*s:%d HTTP/1.1\r\n\r\n",
+                    http_proxy->l_target_host, http_proxy->target_host, http_proxy->target_port);
+    }
     if (send(http_proxy->buf, n) <= 0)
     {
         return false;
