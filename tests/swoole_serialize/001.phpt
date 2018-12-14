@@ -2,14 +2,13 @@
 swoole_serialize: Check for null serialisation
 --SKIPIF--
 <?php
-require __DIR__ . "/../include/skipif.inc";
-if (!class_exists("swoole_serialize", false))
-{
-    echo "skip";
-}
+require __DIR__ . '/../include/skipif.inc';
+skip_if_class_not_exist('swoole_serialize');
 ?>
 --FILE--
 <?php
+require __DIR__ . '/../include/bootstrap.php';
+
   class Obj {
         var $a;
         var $b;

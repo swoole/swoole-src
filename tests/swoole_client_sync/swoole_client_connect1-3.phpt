@@ -1,25 +1,18 @@
 --TEST--
-swoole_client sync: connect 1 - 3 nonblocking connect & select
+swoole_client_sync: connect 1 - 3 nonblocking connect & select
 
 --SKIPIF--
-<?php require  __DIR__ . "/../include/skipif.inc"; ?>
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
-
+<?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
+require __DIR__ . '/../include/bootstrap.php';
+
 /**
 
  * Time: 上午10:06
  */
-require_once __DIR__ . "/../include/swoole.inc";
 
 killself_in_syncmode(1000, SIGTERM);
-
 
 $cli = new \swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
 $r = $cli->connect(IP_BAIDU, 80, 1);
@@ -33,6 +26,5 @@ assert(count($r) === 0);
 $cli->close();
 echo "SUCCESS";
 ?>
-
 --EXPECT--
 SUCCESS

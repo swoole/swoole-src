@@ -1,16 +1,10 @@
 --TEST--
 swoole_process: push
 --SKIPIF--
-<?php require __DIR__ . "/../include/skipif.inc"; ?>
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
-
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
+require __DIR__ . '/../include/bootstrap.php';
 
 //$proc = new \swoole_process(swoole_function() {});
 //$proc->useQueue();
@@ -20,7 +14,6 @@ assert.quiet_eval=0
 // $r = $proc->push(str_repeat("\0", 1024 * 1024 * 8));
 // assert($r === false);
 //$proc->freeQueue();
-
 
 $proc = new \swoole_process(function() {});
 $proc->useQueue();

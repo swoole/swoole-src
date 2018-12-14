@@ -1,17 +1,12 @@
 --TEST--
-swoole_table key-value operate
+swoole_table: key-value operate
 
 --SKIPIF--
-<?php require  __DIR__ . "/../include/skipif.inc"; ?>
-
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
+<?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
+require __DIR__ . '/../include/bootstrap.php';
+
 $table = new swoole_table(65536);
 
 $table->column('id', swoole_table::TYPE_INT);
@@ -90,6 +85,5 @@ if ($table->exist('test_key'))
 }
 echo "SUCCESS";
 ?>
-
 --EXPECT--
 SUCCESS

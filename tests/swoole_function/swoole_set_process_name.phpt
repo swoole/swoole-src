@@ -1,19 +1,14 @@
 --TEST--
-swoole_set_process_name
+swoole_function: set process name
 
 --SKIPIF--
-<?php require  __DIR__ . "/../include/skipif.inc"; ?>
-<?php require  __DIR__ . "/../inc/skipifDarwin.inc"; ?>
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
-
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_darwin();
+?>
 --FILE--
 <?php
-require_once __DIR__ . "/../include/swoole.inc";
+require __DIR__ . '/../include/bootstrap.php';
 
 $name = "SWOOLE_PROCESS_TEST_" . rand(1, 100);
 swoole_set_process_name($name);
@@ -22,6 +17,5 @@ assert($count == 1);
 echo "SUCCESS";
 
 ?>
-
 --EXPECT--
 SUCCESS

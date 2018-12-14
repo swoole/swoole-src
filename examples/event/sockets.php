@@ -6,19 +6,19 @@
 $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP) or die("Unable to create socket\n");
 
 socket_set_nonblock($socket) or die("Unable to set nonblock on socket\n");
-  
+
 function socket_onRead($socket)
 {
 	static $i = 0;
-	
+
 	echo socket_read($socket, 8192)."\n";
 	$i ++;
-	if ($i > 10) 
+	if ($i > 10)
 	{
 		echo "finish\n";
 		swoole_event_del($socket);
 		socket_close($socket);
-	} 
+	}
 	else
 	{
 		sleep(1);

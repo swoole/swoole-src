@@ -1,31 +1,22 @@
 --TEST--
 swoole_server: pid_file
 --SKIPIF--
-<?php require __DIR__ . "/../include/skipif.inc"; ?>
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
-
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . "/../include/swoole.inc";
+require __DIR__ . '/../include/bootstrap.php';
 const PID_FILE = __DIR__.'/test.pid';
-$port = 9508;
-
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid) use ($port)
+$pm->parentFunc = function ($pid)
 {
     assert(is_file(PID_FILE));
     swoole_process::kill($pid);
 };
 
-$pm->childFunc = function () use ($pm, $port)
+$pm->childFunc = function () use ($pm)
 {
     ini_set('swoole.display_errors', 'Off');
-    $serv = new swoole_server("127.0.0.1", $port);
+    $serv = new swoole_server('127.0.0.1', $pm->getFreePort());
     $serv->set(array(
         "worker_num" => 1,
         'pid_file' => PID_FILE,
@@ -47,6 +38,4 @@ $pm->run();
 clearstatcache();
 assert(!is_file(PID_FILE));
 ?>
-
 --EXPECT--
-

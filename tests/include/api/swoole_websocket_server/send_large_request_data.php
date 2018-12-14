@@ -6,14 +6,22 @@ require "websocket_client.php";
 function send_large_request_data($host, $port)
 {
     $client = new WebSocketClient($host, $port);
-    $client->connect();
+    if (!$client->connect())
+    {
+        echo "send failed, errCode={$client->errCode}\n";
+        return false;
+    }
 
     $data = str_repeat("data", 40000);
     for ($i = 0; $i < 100; $i++)
     {
-        $client->send($data);
+        if (!$client->send($data))
+        {
+            echo "send failed, errCode={$client->errCode}\n";
+            return false;
+        }
         $response = $client->recv();
         assert($response == "SUCCESS", "response failed");
     }
-
+    return true;
 }

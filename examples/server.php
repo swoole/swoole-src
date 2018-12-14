@@ -90,6 +90,13 @@ $process2 = new swoole_process(function ($worker) use ($serv) {
 }, false);
 
 //$serv->addprocess($process2);
+
+$serv->addProcess(new swoole_process(function ($worker) use ($serv) {
+    swoole\async::exec('ls /', function ($retval) {
+        var_dump($retval);
+    });
+}, false));
+
 $serv->set(G::$config);
 $serv->set(['reactor_num' => 4]);
 
@@ -122,7 +129,7 @@ function forkChildInWorker() {
 	$process = new swoole_process( function (swoole_process $worker) use ($serv) {
 // 		$serv = new swoole_server( "0.0.0.0", 9503 );
 // 		$serv->set(array(
-// 				'worker_num' => 1 
+// 				'worker_num' => 1
 // 		));
 // 		$serv->on ( 'receive', function (swoole_server $serv, $fd, $from_id, $data) {
 // 			$serv->send ( $fd, "Swoole: " . $data );
@@ -141,7 +148,7 @@ function forkChildInWorker() {
 }
 
 function processRename(swoole_server $serv, $worker_id) {
-	
+
 	global $argv;
 	if ( $serv->taskworker)
 	{
@@ -159,7 +166,7 @@ function processRename(swoole_server $serv, $worker_id) {
 }
 
 function setTimerInWorker(swoole_server $serv, $worker_id) {
-	
+
 	if ($worker_id == 0) {
 		echo "Start: ".microtime(true)."\n";
 		//$serv->addtimer(3000);
@@ -579,4 +586,3 @@ $serv->on('ManagerStart', function($serv) {
     swoole_set_process_name("php {$argv[0]}: manager");
 });
 $serv->start();
-

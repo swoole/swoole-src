@@ -1,9 +1,16 @@
 --TEST--
 swoole_process: exec
 --SKIPIF--
-<?php require __DIR__ . "/../include/skipif.inc"; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+if (!@file_exists('/usr/bin/python')) {
+    exit('skip if no python');
+}
+?>
 --FILE--
 <?php
+require __DIR__ . '/../include/bootstrap.php';
+
 $process = new swoole_process('python_process', true);
 $pid = $process->start();
 
@@ -19,4 +26,3 @@ Done
 --EXPECTREGEX--
 Python: Hello World
 Done.*
---CLEAN--

@@ -1,5 +1,5 @@
 <?php
-
+require_once dirname(dirname(__DIR__)).'/bootstrap.php';
 
 class TcpServer
 {
@@ -10,11 +10,11 @@ class TcpServer
 
     public function __construct()
     {
-        $this->swooleServer = new \swoole_server("127.0.0.1", 9001, SWOOLE_PROCESS, SWOOLE_SOCK_TCP);
+        $this->swooleServer = new \swoole_server('127.0.0.1', 9001, SWOOLE_PROCESS, SWOOLE_SOCK_TCP);
         $this->swooleServer->set([
             // "buffer_output_size" => 1024 * 1024 * 1024, // 输出限制
 
-            'log_file' => __DIR__ . '/swoole.log',
+            'log_file' => TEST_LOG_FILE,
             'max_connection'    => 10240,
             'pipe_buffer_size'  => 1024 * 1024 * 1024,
 

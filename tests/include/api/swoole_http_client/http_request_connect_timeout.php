@@ -4,7 +4,7 @@ $httpClient->set(['timeout' => 1]);
 
 $httpClient->get("/", function ($client)
 {
-    assert($client->errCode == 110);
+    assert($client->errCode == SOCKET_ETIMEDOUT);
     assert($client->statusCode == -1);
     assert(!$client->body);
 });

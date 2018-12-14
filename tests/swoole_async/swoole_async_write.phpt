@@ -2,17 +2,10 @@
 swoole_async: swoole_async_write
 
 --SKIPIF--
-<?php require  __DIR__ . "/../include/skipif.inc"; ?>
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
-
+<?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . "/../include/swoole.inc";
+require __DIR__ . '/../include/bootstrap.php';
 
 $tmpFile = __DIR__.'/tmpFile';
 
@@ -28,7 +21,6 @@ for ($i = 0; $i < 10; $i++)
     $data .= $chunk;
     $offset += $size;
 }
-
 
 for ($i = 0; $i < 5; $i++)
 {
@@ -49,7 +41,6 @@ swoole_event::wait();
 assert(md5($data) == md5_file($tmpFile));
 unlink($tmpFile);
 ?>
-
 --EXPECT--
 SUCCESS
 SUCCESS

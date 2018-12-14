@@ -20,6 +20,8 @@
 static inline void swRbtree_left_rotate(swRbtree_node **root, swRbtree_node *sentinel, swRbtree_node *node);
 static inline void swRbtree_right_rotate(swRbtree_node **root, swRbtree_node *sentinel, swRbtree_node *node);
 static inline void swRbtree_insert_value(swRbtree_node *temp, swRbtree_node *node, swRbtree_node *sentinel);
+static void swRbtree_delete_node(swRbtree *tree, swRbtree_node *node);
+static swRbtree_node* swRbtree_find_node(swRbtree *tree, uint32_t key);
 
 void swRbtree_insert_value(swRbtree_node *temp, swRbtree_node *node, swRbtree_node *sentinel)
 {
@@ -119,13 +121,24 @@ void swRbtree_insert(swRbtree *tree, uint32_t key, void *value)
     swRbtree_black(*root);
 }
 
-void swRbtree_delete(swRbtree *tree, uint32_t key)
+int swRbtree_delete(swRbtree *tree, uint32_t key)
+{
+    swRbtree_node *node = swRbtree_find_node(tree, key);
+    if (node == NULL)
+    {
+        return -1;
+    }
+    else
+    {
+        swRbtree_delete_node(tree, node);
+        return 0;
+    }
+}
+
+static void swRbtree_delete_node(swRbtree *tree, swRbtree_node *node)
 {
     uint32_t red;
-    swRbtree_node find_node;
-    swRbtree_node **root, *sentinel, *subst, *temp, *w;
-    swRbtree_node *node = &find_node;
-    node->key = key;
+    swRbtree_node **root, *subst, *sentinel, *temp, *w;
 
     root = (swRbtree_node **) &tree->root;
     sentinel = tree->sentinel;
@@ -371,7 +384,7 @@ static inline void swRbtree_right_rotate(swRbtree_node **root, swRbtree_node *se
     node->parent = temp;
 }
 
-void *swRbtree_find(swRbtree *tree, uint32_t key)
+static swRbtree_node* swRbtree_find_node(swRbtree *tree, uint32_t key)
 {
     swRbtree_node *tmp = tree->root;
     swRbtree_node *sentinel = tree->sentinel;
@@ -382,9 +395,22 @@ void *swRbtree_find(swRbtree *tree, uint32_t key)
             tmp = (key < tmp->key) ? tmp->left : tmp->right;
             continue;
         }
-        return tmp->value;
+        return tmp;
     }
     return NULL;
+}
+
+void *swRbtree_find(swRbtree *tree, uint32_t key)
+{
+    swRbtree_node *node = swRbtree_find_node(tree, key);
+    if (node)
+    {
+        return node->value;
+    }
+    else
+    {
+        return NULL;
+    }
 }
 
 swRbtree* swRbtree_new()

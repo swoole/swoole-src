@@ -1,16 +1,10 @@
 --TEST--
 swoole_process: signal
 --SKIPIF--
-<?php require __DIR__ . "/../include/skipif.inc"; ?>
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
-
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
+require __DIR__ . '/../include/bootstrap.php';
 
 //父进程中先设置信号
 swoole_process::signal(SIGCHLD, function ()
@@ -28,7 +22,6 @@ swoole_process::signal(SIGTERM, function () {
     echo "PARENT SIGTERM\n";
     swoole_event_exit();
 });
-
 
 $pid = (new \swoole_process(function ()
 {
@@ -53,4 +46,3 @@ swoole_event_wait();
 CHILD SIGTERM
 CHILD EXIT
 PARENT WAIT
-

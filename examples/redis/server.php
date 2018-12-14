@@ -19,7 +19,7 @@ $server->setHandler('GET', function ($fd, $data) use ($server) {
     {
         return Server::format(Server::ERROR, "ERR wrong number of arguments for 'GET' command");
     }
-        
+
     $key = $data[0];
     if (empty($server->data[$key]))
     {
@@ -121,4 +121,3 @@ $server->on('WorkerStart', function ($server) {
 });
 
 $server->start();
-

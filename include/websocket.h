@@ -32,6 +32,9 @@ extern "C"
 #define SW_WEBSOCKET_EXT16_MAX_LEN 0xFFFF
 #define SW_WEBSOCKET_EXT64_LENGTH 0x7F
 #define SW_WEBSOCKET_MASKED(frm) (frm->header.MASK)
+#define SW_WEBSOCKET_CLOSE_CODE_LEN         2
+#define SW_WEBSOCKET_CLOSE_REASON_MAX_LEN   125
+#define SW_WEBSOCKET_OPCODE_MAX  WEBSOCKET_OPCODE_PONG
 
 #define FRAME_SET_FIN(BYTE) (((BYTE) & 0x01) << 7)
 #define FRAME_SET_OPCODE(BYTE) ((BYTE) & 0x0F)
@@ -43,6 +46,7 @@ enum swWebsocketStatus
     WEBSOCKET_STATUS_CONNECTION = 1,
     WEBSOCKET_STATUS_HANDSHAKE = 2,
     WEBSOCKET_STATUS_ACTIVE = 3,
+    WEBSOCKET_STATUS_CLOSING    = 4,
 };
 
 typedef struct
@@ -68,10 +72,10 @@ typedef struct
 
 enum swWebsocketCode
 {
-    WEBSOCKET_OPCODE_CONTINUATION_FRAME = 0x0,
-    WEBSOCKET_OPCODE_TEXT_FRAME = 0x1,
-    WEBSOCKET_OPCODE_BINARY_FRAME = 0x2,
-    WEBSOCKET_OPCODE_CONNECTION_CLOSE = 0x8,
+    WEBSOCKET_OPCODE_CONTINUATION = 0x0,
+    WEBSOCKET_OPCODE_TEXT = 0x1,
+    WEBSOCKET_OPCODE_BINARY = 0x2,
+    WEBSOCKET_OPCODE_CLOSE = 0x8,
     WEBSOCKET_OPCODE_PING = 0x9,
     WEBSOCKET_OPCODE_PONG = 0xa,
 
@@ -90,9 +94,10 @@ enum swWebsocketCode
     WEBSOCKET_VERSION = 13,
 };
 
-int swWebSocket_get_package_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
-void swWebSocket_encode(swString *buffer, char *data, size_t length, char opcode, int finish, int mask);
+ssize_t swWebSocket_get_package_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t length);
+void swWebSocket_encode(swString *buffer, char *data, size_t length, char opcode, uint8_t finish, uint8_t mask);
 void swWebSocket_decode(swWebSocket_frame *frame, swString *data);
+int swWebSocket_pack_close_frame(swString *buffer, int code, char* reason, size_t length, uint8_t mask);
 void swWebSocket_print_frame(swWebSocket_frame *frame);
 int swWebSocket_dispatch_frame(swConnection *conn, char *data, uint32_t length);
 

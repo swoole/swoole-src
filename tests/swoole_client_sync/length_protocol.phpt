@@ -1,20 +1,13 @@
 --TEST--
-swoole_client: length protocol [sync]
+swoole_client_sync: length protocol [sync]
 --SKIPIF--
-<?php require __DIR__ . "/../include/skipif.inc"; ?>
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
-
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . "/../include/swoole.inc";
-
+require __DIR__ . '/../include/bootstrap.php';
+$port = get_one_free_port();
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid)
+$pm->parentFunc = function ($pid) use ($port)
 {
     $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
     $client->set([
@@ -24,7 +17,7 @@ $pm->parentFunc = function ($pid)
         'package_length_offset' => 0,
         'package_body_offset' => 4,
     ]);
-    if (!$client->connect('127.0.0.1', 9501, 0.5, 0))
+    if (!$client->connect('127.0.0.1', $port, 0.5, 0))
     {
         echo "Over flow. errno=" . $client->errCode;
         die("\n");
@@ -62,12 +55,14 @@ $pm->parentFunc = function ($pid)
     swoole_process::kill($pid);
 };
 
-$pm->childFunc = function () use ($pm)
+$pm->childFunc = function () use ($pm, $port)
 {
-    $serv = new swoole_server("127.0.0.1", 9501, SWOOLE_BASE);
+    $serv = new swoole_server('127.0.0.1', $port, SWOOLE_BASE);
     $serv->set(array(
-        "worker_num" => 1,
-        'log_file' => '/dev/null',
+      'package_max_length' => 1024 * 1024 * 2, //2M
+      'socket_buffer_size' => 256 * 1024 * 1024,
+      "worker_num" => 1,
+      'log_file' => '/tmp/swoole.log',
     ));
     $serv->on("WorkerStart", function (\swoole_server $serv)  use ($pm)
     {

@@ -1,15 +1,11 @@
 --TEST--
 swoole_atomic: wakeup & wait
 --SKIPIF--
-<?php require __DIR__ . "/../include/skipif.inc"; ?>
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
+require __DIR__ . '/../include/bootstrap.php';
+
 $atomic = new swoole_atomic;
 const N = 4;
 
@@ -35,7 +31,6 @@ for ($i = 0; $i < 4; $i++)
     $status = swoole_process::wait();
 }
 ?>
-
 --EXPECT--
 Master OK
 Child OK

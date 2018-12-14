@@ -98,6 +98,12 @@ function no_chunk(swoole_http_request $request, swoole_http_response $response)
         $response->end();
         return;
     }
+    if ($request->server['request_uri'] == '/save')
+    {
+        file_put_contents(__DIR__.'/httpdata', $request->getData());
+        $response->end('hello');
+        return;
+    }
 //    else
 //    {
         //var_dump($request->post);
@@ -131,6 +137,7 @@ function no_chunk(swoole_http_request $request, swoole_http_response $response)
     {
         $output .= "<h2>POST:</h2>".dump($request->post);
     }
+    var_dump($request->post);
     //$response->header('X-Server', 'Swoole');
     //unset($request, $response);
 //    swoole_timer_after(2000, function() use ( $response) {
@@ -181,7 +188,18 @@ function no_chunk(swoole_http_request $request, swoole_http_response $response)
     }
 }
 
-$http->on('request', 'no_chunk');
+$http->on('request', function ($req, $resp) {
+    $uri = $req->server['request_uri'];
+    if ($uri == '/favicon.ico') {
+    	$resp->status(404);
+        $resp->end();
+    }
+	elseif ($uri == '/chunk') {
+    	chunk($req, $resp);
+    } else {
+    	no_chunk($req, $resp);
+    }
+});
 
 $http->on('finish', function ()
 {

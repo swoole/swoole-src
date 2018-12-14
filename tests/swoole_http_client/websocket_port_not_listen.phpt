@@ -1,10 +1,10 @@
 --TEST--
 swoole_http_client: failure of websocket client handshake
 --SKIPIF--
-<?php require  __DIR__ . "/../include/skipif.inc"; ?>
+<?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . "/../include/swoole.inc";
+require __DIR__ . '/../include/bootstrap.php';
 
 $cli = new swoole_http_client('127.0.0.1', 9999);
 $cli->count = 0;

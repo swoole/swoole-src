@@ -24,7 +24,7 @@ class Server
     }
 
     private static function https(){
-        //--enable-openssl 
+        //--enable-openssl
         for($i=0;$i<2;$i++){
             $cli = new Swoole\Coroutine\Http\Client('0.0.0.0',443,TRUE );
             $cli->set([ 'timeout' => 1]);
@@ -62,9 +62,9 @@ class Server
     }
 
     private static function multihttp(){
-        
+
         error_log(__LINE__.'---------- begin --- multi --------------'.PHP_EOL,3,'/tmp/markyuan');
-        
+
         $cliAA= new Swoole\Coroutine\Http\Client('0.0.0.0', 9510);
         $cliAA->set(['timeout' => 1]);
         $cliAA->setHeaders([
@@ -102,8 +102,8 @@ class Server
         error_log(__LINE__.'---------- end --- multi --------------'.PHP_EOL,3,'/tmp/markyuan');
     }
 
-    
-    
+
+
     private static function tcp(){
         for($i=0;$i<2;$i++){
             $tcp_cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
@@ -130,7 +130,7 @@ private static function tcpmulti(){
         $cliAA = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
         $cliBB = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
         $retAA = $cliAA ->connect("0.0.0.0", 9511);
-        $retBB = $cliBB ->connect("0.0.0.0", 9511);       
+        $retBB = $cliBB ->connect("0.0.0.0", 9511);
         $retAA = $cliAA ->send('test for the coro');
         $retBB = $cliBB ->send('test for the coro');
         $retAA = $cliAA->recv();
@@ -160,6 +160,3 @@ private static function tcpmulti(){
 $server = new Server();
 
 $server->run();
-
-
-

@@ -1,19 +1,11 @@
 --TEST--
-swoole_client: udp sync client send & recv
+swoole_client_sync: udp sync client send & recv
 
 --SKIPIF--
-<?php require __DIR__ . "/../include/skipif.inc"; ?>
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
-
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-
-require_once __DIR__ . "/../include/swoole.inc";
+require __DIR__ . '/../include/bootstrap.php';
 
 $simple_tcp_server = __DIR__ . "/../include/api/swoole_server/simple_udp_server.php";
 start_server($simple_tcp_server, UDP_SERVER_HOST, UDP_SERVER_PORT);
@@ -29,7 +21,6 @@ echo "FromServer:$message\n";
 echo "SUCCESS";
 
 ?>
-
 --EXPECTF--
 FromServer:UdpSendto
 SUCCESS

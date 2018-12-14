@@ -1,21 +1,23 @@
 --TEST--
 swoole_http_client: timeout
 --SKIPIF--
-<?php require __DIR__ . "/../include/skipif.inc"; ?>
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . "/../include/swoole.inc";
+require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid)
+$pm->initFreePorts(2);
+
+$pm->parentFunc = function ($pid) use ($pm)
 {
-    echo file_get_contents("http://127.0.0.1:9501/");
+    echo file_get_contents("http://127.0.0.1:{$pm->getFreePort(0)}/");
     swoole_process::kill($pid);
 };
 
 $pm->childFunc = function () use ($pm)
 {
-    $http = new swoole_http_server("127.0.0.1", 9501, SWOOLE_BASE);
+    $http = new swoole_http_server('127.0.0.1', $pm->getFreePort(0), SWOOLE_BASE);
     $http->set(array(
         'worker_num' => 2,
         'task_worker_num' => 2,
@@ -32,7 +34,7 @@ $pm->childFunc = function () use ($pm)
             $pm->wakeup();
         }
     });
-    $http->on('request', function ($request, swoole_http_response $response)
+    $http->on('request', function ($request, swoole_http_response $response) use ($pm)
     {
         $route = $request->server['request_uri'];
         if ($route == '/info')
@@ -42,7 +44,7 @@ $pm->childFunc = function () use ($pm)
         }
         else
         {
-            $cli = new swoole_http_client('192.0.0.1', 9502);
+            $cli = new swoole_http_client('192.0.0.1', $pm->getFreePort(1));
             $cli->setHeaders(array('User-Agent' => "swoole"));
             $cli->on('close', function ($cli) use ($response)
             {
@@ -85,4 +87,3 @@ Done
 error
 error
 Done.*
---CLEAN--

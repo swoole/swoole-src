@@ -38,4 +38,3 @@ $stmt2->fetch();
 
 var_dump($id, $name);
 //$stmt2->close();
-

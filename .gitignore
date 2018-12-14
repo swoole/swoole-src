@@ -8,7 +8,7 @@
 *.so
 *.loT
 *.pid
-Debug/*
+/Debug/*
 modules/*
 /.deps
 /.libs/
@@ -32,7 +32,6 @@ modules/*
 /config.status
 /config.sub
 /configure
-/configure.in
 /Makefile.fragments
 /Makefile.global
 /Makefile.objects
@@ -74,8 +73,18 @@ tests/.idea
 /tests/*/*.diff
 /tests/*/*.out
 /tests/*/*.exp
+/tests/*/*.mem
 /tests/*/*.php
 cmake-build-debug/
-/swoole_server.cbp
+*.cbp
 /.vscode
+/.vs
+/configure.in
 /configure.ac
+/core-tests/CMakeCache.txt
+/core-tests/CMakeFiles/
+/core-tests/Makefile
+/core-tests/bin/
+/core-tests/cmake_install.cmake
+/tools/vendor
+/tools/composer.lock

@@ -73,9 +73,6 @@ class TcpServer
             "buffer_output_size" => 1024 * 1024 * 1024, // 输出限制
             "max_connection" => 10240,
             "pipe_buffer_size" => 1024 * 1024 * 1024,
-
-
-            // 'log_file' => __DIR__ . '/manager_process_exit.log',
             'daemonize' => 0,
             'worker_num' => 2,
             'max_request' => 100000,

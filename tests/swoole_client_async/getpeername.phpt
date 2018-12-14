@@ -1,17 +1,11 @@
 --TEST--
-swoole_client: getsockpeername
+swoole_client_async: getsockpeername
 
 --SKIPIF--
-<?php require  __DIR__ . "/../include/skipif.inc"; ?>
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
+<?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . "/../include/swoole.inc";
+require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid)
@@ -62,6 +56,5 @@ $pm->childFunc = function () use ($pm)
 $pm->childFirst();
 $pm->run();
 ?>
-
 --EXPECT--
 SUCCESS

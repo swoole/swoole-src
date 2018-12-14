@@ -1,5 +1,5 @@
 <?php
-$serv = new \swoole_server('127.0.0.1', 9501, SWOOLE_BASE, SWOOLE_SOCK_TCP);
+$serv = new \swoole_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE, SWOOLE_SOCK_TCP);
 $serv->set([
 //            'log_file' => __DIR__ . '/simple_server.log',
     'dispatch_mode' => 2,

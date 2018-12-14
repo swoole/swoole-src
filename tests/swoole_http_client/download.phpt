@@ -1,15 +1,15 @@
 --TEST--
 swoole_http_client: download file
 --SKIPIF--
-<?php require  __DIR__ . "/../include/skipif.inc"; ?>
+<?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . "/../include/swoole.inc";
+require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid)
+$pm->parentFunc = function ($pid) use ($pm)
 {
-    $cli = new swoole_http_client('127.0.0.1', 9501);
+    $cli = new swoole_http_client('127.0.0.1', $pm->getFreePort());
     $cli->on('close', function ($cli)
     {
         echo "close\n";
@@ -22,8 +22,11 @@ $pm->parentFunc = function ($pid)
     {
         assert($cli->statusCode == 200);
         assert(md5_file($cli->downloadFile) == md5_file(TEST_IMAGE));
-        $cli->close();
         unlink(__DIR__ . '/tmpfile');
+        $cli->get('/get?foo=bar', function ($cli) {
+            echo "{$cli->body}\n";
+            $cli->close();
+        });
     });
     swoole_event::wait();
     swoole_process::kill($pid);
@@ -38,4 +41,5 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
+{"foo":"bar"}
 close

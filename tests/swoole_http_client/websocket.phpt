@@ -1,15 +1,20 @@
 --TEST--
 swoole_http_client: websocket client send 128 messages
 --SKIPIF--
-<?php require  __DIR__ . "/../include/skipif.inc"; ?>
+<?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . "/../include/swoole.inc";
+require __DIR__ . '/../include/bootstrap.php';
 const N = 128;
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid)
+$pm->parentFunc = function ($pid) use ($pm)
 {
-    $cli = new swoole_http_client('127.0.0.1', 9501);
+    $cli = new swoole_http_client('127.0.0.1', $pm->getFreePort());
+    if (IS_MAC_OS) {
+        $cli->set([
+            'socket_buffer_size' => 2 * 1024 * 1024
+        ]);
+    }
     $cli->count = 0;
     $cli->on('close', function ($cli)
     {
@@ -41,7 +46,7 @@ $pm->parentFunc = function ($pid)
 
 $pm->childFunc = function () use ($pm)
 {
-    $serv = new swoole_websocket_server("127.0.0.1", 9501);
+    $serv = new swoole_websocket_server('127.0.0.1', $pm->getFreePort());
     $serv->set(['log_file' => '/dev/null']);
     $serv->count = 0;
     $serv->on('Open', function ($swoole_server, $req)

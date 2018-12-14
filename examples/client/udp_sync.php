@@ -8,5 +8,3 @@ for ($i = 0; $i < 100; $i++)
     echo $client->recv()."\n";
     sleep(1);
 }
-
-

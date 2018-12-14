@@ -1,22 +1,23 @@
 --TEST--
-swoole_serialize: Object test, __wakeup
+swoole_serialize: Object test, stdclass
 --SKIPIF--
 <?php
-require __DIR__ . "/../include/skipif.inc";
-if (!class_exists("swoole_serialize", false))
-{
-    echo "skip";
-}
+require __DIR__ . '/../include/skipif.inc';
+skip_if_class_not_exist('swoole_serialize');
 ?>
 --FILE--
 <?php
+require __DIR__ . '/../include/bootstrap.php';
+
+ini_set("display_errors", "Off");
 function test($variable, $test) {
-    $unserialized = swoole_serialize::unpack($variable, UNSERIALIZE_OBJECT_TO_STDCLASS);
+ $serialized = swoole_serialize::pack($variable);
+    $unserialized = swoole_serialize::unpack($serialized, UNSERIALIZE_OBJECT_TO_STDCLASS);
 
     echo UNSERIALIZE_OBJECT_TO_STDCLASS, PHP_EOL;
-     
+
     var_dump($unserialized);
-    echo $test || get_class($unserialized) == "stdClass" ? 'OK' : 'ERROR' || get_class($unserialized->sub) == "stdClass" ? 'OK' : 'ERROR', PHP_EOL;
+    echo get_class($unserialized->sub) == "stdClass" ? 'OK' : 'ERROR', PHP_EOL;
 }
 
 class Obj {
@@ -33,11 +34,12 @@ $o->sub = new subObj();
 test($o, true);
 ?>
 --EXPECTF--
-object
-object(Obj)#%d (2) {
-  ["a"]=>
-  int(1)
-  ["b"]=>
-  int(3)
+2
+object(stdClass)#4 (1) {
+  ["sub"]=>
+  object(stdClass)#3 (1) {
+    ["b"]=>
+    string(3) "sub"
+  }
 }
 OK

@@ -2,14 +2,12 @@
 swoole_serialize: Check for simple string serialization
 --SKIPIF--
 <?php
-require __DIR__ . "/../include/skipif.inc";
-if (!class_exists("swoole_serialize", false))
-{
-    echo "skip";
-}
+require __DIR__ . '/../include/skipif.inc';
+skip_if_class_not_exist('swoole_serialize');
 ?>
 --FILE--
 <?php
+require __DIR__ . '/../include/bootstrap.php';
 
 function test($type, $variable) {
     $serialized = swoole_serialize::pack($variable);

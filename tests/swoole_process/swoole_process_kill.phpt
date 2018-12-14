@@ -1,16 +1,10 @@
 --TEST--
 swoole_process: kill
 --SKIPIF--
-<?php require __DIR__ . "/../include/skipif.inc"; ?>
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
-
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
+require __DIR__ . '/../include/bootstrap.php';
 
 $proc = new \swoole_process(function() {
     sleep(PHP_INT_MAX);

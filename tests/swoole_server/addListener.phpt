@@ -1,17 +1,10 @@
 --TEST--
-swoole_server:
+swoole_server: addlistener
 --SKIPIF--
-<?php require __DIR__ . "/../include/skipif.inc"; ?>
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
-
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . "/../include/swoole.inc";
+require __DIR__ . '/../include/bootstrap.php';
 
 $simple_tcp_server = __DIR__ . "/../include/api/swoole_server/opcode_server.php";
 

@@ -3,7 +3,7 @@
  * make test_server
  * ./bin/test_server
  */
-#include "Server.h"
+#include "server.h"
 
 int my_onPacket(swServer *serv, swEventData *req);
 int my_onReceive(swServer *serv, swEventData *req);
@@ -31,7 +31,7 @@ int main(int argc, char **argv)
     //serv.open_cpu_affinity = 1;
     //serv.open_tcp_nodelay = 1;
     //serv.daemonize = 1;
-//	memcpy(serv.log_file, SW_STRL("/tmp/swoole.log")); //日志
+//	memcpy(serv.log_file, SW_STRS("/tmp/swoole.log")); //日志
 
     serv.dispatch_mode = 2;
 //	serv.open_tcp_keepalive = 1;
@@ -65,7 +65,7 @@ int main(int argc, char **argv)
     port->open_eof_check = 0;
     //config
     port->backlog = 128;
-    memcpy(port->protocol.package_eof, SW_STRL("\r\n\r\n") - 1);  //开启eof检测，启用buffer区
+    memcpy(port->protocol.package_eof, SW_STRL("\r\n\r\n"));  //开启eof检测，启用buffer区
 
     swServer_add_port(&serv, SW_SOCK_UDP, "0.0.0.0", 9502);
     swServer_add_port(&serv, SW_SOCK_TCP6, "::", 9503);

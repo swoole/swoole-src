@@ -2,16 +2,11 @@
 swoole_table: iterator
 
 --SKIPIF--
-<?php require  __DIR__ . "/../include/skipif.inc"; ?>
-
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
+<?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
+require __DIR__ . '/../include/bootstrap.php';
+
 $table = new swoole_table(65536);
 
 $table->column('id', swoole_table::TYPE_INT);
@@ -40,6 +35,5 @@ if (implode('', $_key) == 'hello_worldtest_key' and  array_sum($_num) == 399.66 
 }
 
 ?>
-
 --EXPECT--
 SUCCESS

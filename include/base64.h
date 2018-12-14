@@ -17,6 +17,11 @@
 #ifndef SW_BASE64_H__
 #define SW_BASE64_H__
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 enum
 {
     BASE64_OK = 0, BASE64_INVALID
@@ -27,5 +32,9 @@ enum
 
 int swBase64_encode(unsigned char *in, int inlen, char *out);
 int swBase64_decode(char *in, int inlen, unsigned char *out);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* SW_BASE64_H__ */
