@@ -236,6 +236,7 @@ static sw_inline ssize_t swConnection_send(swConnection *conn, void *__buf, size
 static sw_inline ssize_t swConnection_peek(swConnection *conn, void *__buf, size_t __n, int __flags)
 {
     int retval;
+    __flags |= MSG_PEEK;
     _peek:
 #ifdef SW_USE_OPENSSL
     if (conn->ssl)
@@ -245,7 +246,7 @@ static sw_inline ssize_t swConnection_peek(swConnection *conn, void *__buf, size
     else
 #endif
     {
-        retval = recv(conn->fd, __buf, __n, __flags | MSG_PEEK);
+        retval = recv(conn->fd, __buf, __n, __flags);
     }
 
     if (retval < 0 && errno == EINTR)
