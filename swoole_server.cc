@@ -872,7 +872,7 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
         if (sw_coro_create(fci_cache, 4, args) < 0)
         {
             swoole_php_error(E_WARNING, "create onReceive coroutine error.");
-            serv->factory.end(&SwooleG.serv->factory, req->info.fd);
+            serv->close(serv, req->info.fd, 0);
         }
     }
     else
@@ -3029,11 +3029,7 @@ PHP_METHOD(swoole_server, heartbeat)
             {
                 serv->factory.end(&serv->factory, fd);
             }
-#ifdef SW_REACTOR_USE_SESSION
             add_next_index_long(return_value, conn->session_id);
-#else
-            add_next_index_long(return_value, fd);
-#endif
         }
     }
 }
@@ -3672,7 +3668,6 @@ PHP_METHOD(swoole_server, connection_list)
     {
         start_fd = swServer_get_minfd(serv);
     }
-#ifdef SW_REACTOR_USE_SESSION
     else
     {
         swConnection *conn = swWorker_get_connection(serv, start_fd);
@@ -3682,9 +3677,7 @@ PHP_METHOD(swoole_server, connection_list)
         }
         start_fd = conn->fd;
     }
-#endif
 
-    //达到最大，表示已经取完了
     if ((int) start_fd >= serv_max_fd)
     {
         RETURN_FALSE;
@@ -3707,11 +3700,7 @@ PHP_METHOD(swoole_server, connection_list)
                 continue;
             }
 #endif
-#ifdef SW_REACTOR_USE_SESSION
             add_next_index_long(return_value, conn->session_id);
-#else
-            add_next_index_long(return_value, fd);
-#endif
             find_count--;
         }
         //finish fetch
@@ -3754,17 +3743,7 @@ PHP_METHOD(swoole_server, sendwait)
         RETURN_FALSE;
     }
 
-    //UDP
-    if (swServer_is_udp(fd))
-    {
-        swoole_php_fatal_error(E_WARNING, "can't sendwait.");
-        RETURN_FALSE;
-    }
-    //TCP
-    else
-    {
-        SW_CHECK_RETURN(swServer_tcp_sendwait(serv, fd, data, length));
-    }
+    SW_CHECK_RETURN(swServer_tcp_sendwait(serv, fd, data, length));
 }
 
 PHP_METHOD(swoole_server, exist)
@@ -3898,7 +3877,7 @@ PHP_METHOD(swoole_server, stop)
     }
     else
     {
-        swWorker *worker = swServer_get_worker(SwooleG.serv, worker_id);
+        swWorker *worker = swServer_get_worker(serv, worker_id);
         if (worker == NULL)
         {
             RETURN_FALSE;
@@ -3917,7 +3896,7 @@ PHP_METHOD(swoole_server, stop)
 PHP_METHOD(swoole_connection_iterator, rewind)
 {
     swConnectionIterator *itearator = (swConnectionIterator *) swoole_get_object(getThis());
-    itearator->current_fd = swServer_get_minfd(SwooleG.serv);
+    itearator->current_fd = swServer_get_minfd(itearator->serv);
 }
 
 PHP_METHOD(swoole_connection_iterator, valid)
@@ -3929,7 +3908,7 @@ PHP_METHOD(swoole_connection_iterator, valid)
     int max_fd = swServer_get_maxfd(itearator->serv);
     for (; fd <= max_fd; fd++)
     {
-        conn = &SwooleG.serv->connection_list[fd];
+        conn = &itearator->serv->connection_list[fd];
 
         if (conn->active && !conn->closed)
         {
@@ -3986,7 +3965,8 @@ PHP_METHOD(swoole_connection_iterator, count)
 
 PHP_METHOD(swoole_connection_iterator, offsetExists)
 {
-    zval *zobject = (zval *) SwooleG.serv->ptr2;
+    swConnectionIterator *i = (swConnectionIterator *) swoole_get_object(getThis());
+    zval *zobject = (zval *) i->serv->ptr2;
     zval *retval = NULL;
     zval *zfd;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &zfd) == FAILURE)
@@ -4003,7 +3983,8 @@ PHP_METHOD(swoole_connection_iterator, offsetExists)
 
 PHP_METHOD(swoole_connection_iterator, offsetGet)
 {
-    zval *zobject = (zval *) SwooleG.serv->ptr2;
+    swConnectionIterator *i = (swConnectionIterator *) swoole_get_object(getThis());
+    zval *zobject = (zval *) i->serv->ptr2;
     zval *retval = NULL;
     zval *zfd;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &zfd) == FAILURE)

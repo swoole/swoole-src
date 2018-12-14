@@ -1080,7 +1080,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
 
         swoole_set_property(zrequest_object, 0, zdata);
 
-        add_assoc_long(zserver, "server_port", swConnection_get_port(&SwooleG.serv->connection_list[conn->from_fd]));
+        add_assoc_long(zserver, "server_port", swConnection_get_port(&serv->connection_list[conn->from_fd]));
         add_assoc_long(zserver, "remote_port", swConnection_get_port(conn));
         add_assoc_string(zserver, "remote_addr", swConnection_get_ip(conn));
         add_assoc_long(zserver, "master_time", conn->last_time);
@@ -1095,7 +1095,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
             fci_cache = php_swoole_server_get_fci_cache(serv, from_fd, SW_SERVER_CB_onHandShake);
             if (fci_cache == NULL)
             {
-                swoole_websocket_onHandshake(port, ctx);
+                swoole_websocket_onHandshake(serv, port, ctx);
                 goto _free_object;
             }
             else
@@ -1619,6 +1619,7 @@ static void http_build_header(http_context *ctx, zval *zobject, swString *respon
 
         SW_HASHTABLE_FOREACH_START2(ht, key, keylen, type, value)
         {
+            // TODO: numeric key name neccessary?
             if (!key)
             {
                 break;

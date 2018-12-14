@@ -664,10 +664,10 @@ class ProcessManager
      * @param null $index
      * @return mixed
      */
-    function getRandomData($index = null)
+    function getRandomData()
     {
         if (!empty($this->randomData)) {
-            return $index === null ? array_shift($this->randomData) : $this->randomData[$index];
+            return array_shift($this->randomData);
         } else {
             throw new \RuntimeException('Out of the bound');
         }

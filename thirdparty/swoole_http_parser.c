@@ -1135,6 +1135,12 @@ size_t swoole_http_parser_execute (swoole_http_parser *parser,
           break;
         }
 
+        // WARNING: Swoole changes!
+        // header name allow all normal chars (else will lead to error)
+        if (normal_url_char[(unsigned char)ch])
+        {
+            break;
+        }
         goto error;
       }
 

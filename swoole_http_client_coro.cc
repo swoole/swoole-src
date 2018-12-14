@@ -203,6 +203,7 @@ static int http_client_coro_close(zval *zobject)
         hcc->socket = nullptr;
         ret2 = http_client_free(zobject);
     }
+    hcc->wait = false;
 
     return (ret1 && ret2) ? SW_OK : SW_ERR;
 }
@@ -453,6 +454,14 @@ static int http_client_coro_recv_response(zval *zobject, http_client_coro_proper
             total_bytes += retval;
             parsed_n = swoole_http_parser_execute(&http->parser, &http_parser_settings, buffer->str, retval);
             swTraceLog(SW_TRACE_HTTP_CLIENT, "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d.", parsed_n, retval, total_bytes, http->completed);
+            if (unlikely(http->parser.state == s_dead && !http->completed))
+            {
+                // parse error
+                zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), EPROTO);
+                zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), strerror(EPROTO));
+                http_client_coro_close(zobject);
+                return SW_ERR;
+            }
             if (parsed_n >= 0)
             {
                 continue;
@@ -463,19 +472,22 @@ static int http_client_coro_recv_response(zval *zobject, http_client_coro_proper
             http_client_parser_on_message_complete(&http->parser);
             break;
         }
-        hcc->wait = false;
-        zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), hcc->socket->errCode);
-        zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), strerror(hcc->socket->errCode));
-        if (hcc->socket->errCode == ETIMEDOUT)
-        {
-            zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT);
-        }
         else
         {
-            zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_SERVER_RESET);
+            // IO error
+            zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), hcc->socket->errCode);
+            zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), strerror(hcc->socket->errCode));
+            if (hcc->socket->errCode == ETIMEDOUT)
+            {
+                zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT);
+            }
+            else
+            {
+                zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_SERVER_RESET);
+            }
+            http_client_coro_close(zobject);
+            return SW_ERR;
         }
-        http_client_coro_close(zobject);
-        return SW_ERR;
     }
     /**
      * TODO: Sec-WebSocket-Accept check

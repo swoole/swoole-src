@@ -625,7 +625,7 @@ typedef struct
 
 int swServer_master_onAccept(swReactor *reactor, swEvent *event);
 void swServer_master_onTimer(swTimer *timer, swTimer_node *tnode);
-void swServer_update_time(swServer *serv);
+int swServer_master_send(swServer *serv, swSendData *_send);
 
 int swServer_onFinish(swFactory *factory, swSendData *resp);
 int swServer_onFinish2(swFactory *factory, swSendData *resp);
@@ -684,10 +684,7 @@ int swServer_tcp_sendfile(swServer *serv, int session_id, char *filename, uint32
 int swServer_tcp_notify(swServer *serv, swConnection *conn, int event);
 int swServer_tcp_feedback(swServer *serv, int fd, int event);
 
-//UDP, UDP必然超过0x1000000
-//原因：IPv4的第4字节最小为1,而这里的conn_fd是网络字节序
-#define SW_MAX_SOCKET_ID             0x1000000
-#define swServer_is_udp(fd)          ((uint32_t) fd > SW_MAX_SOCKET_ID)
+#define SW_MAX_SESSION_ID             0x1000000
 
 static sw_inline int swEventData_is_dgram(uint8_t type)
 {
@@ -730,6 +727,7 @@ void swServer_store_listen_socket(swServer *serv);
 
 int swServer_get_manager_pid(swServer *serv);
 int swServer_get_socket(swServer *serv, int port);
+int swServer_worker_create(swServer *serv, swWorker *worker);
 int swServer_worker_init(swServer *serv, swWorker *worker);
 void swServer_worker_start(swServer *serv, swWorker *worker);
 swString** swServer_create_worker_buffer(swServer *serv);
@@ -737,7 +735,7 @@ int swServer_create_task_worker(swServer *serv);
 void swServer_enable_accept(swReactor *reactor);
 void swServer_reopen_log_file(swServer *serv);
 
-void swTaskWorker_init(swProcessPool *pool);
+void swTaskWorker_init(swServer *serv);
 int swTaskWorker_onTask(swProcessPool *pool, swEventData *task);
 int swTaskWorker_onFinish(swReactor *reactor, swEvent *event);
 void swTaskWorker_onStart(swProcessPool *pool, int worker_id);
@@ -924,12 +922,6 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swEventDat
 void swServer_worker_onStart(swServer *serv);
 void swServer_worker_onStop(swServer *serv);
 
-void swServer_set_callback(swServer *serv, int type, void *callback);
-void swServer_set_callback_onReceive(swServer *serv, int (*callback)(swServer *, char *, int, int, int));
-void swServer_set_callback_onConnect(swServer *serv, void (*callback)(swServer *, int, int));
-void swServer_set_callback_onClose(swServer *serv, void (*callback)(swServer *, int, int));
-
-int swWorker_create(swWorker *worker);
 int swWorker_onTask(swFactory *factory, swEventData *task);
 void swWorker_stop(swWorker *worker);
 
@@ -999,7 +991,7 @@ void swWorker_onStart(swServer *serv);
 void swWorker_onStop(swServer *serv);
 void swWorker_try_to_exit();
 int swWorker_loop(swFactory *factory, int worker_pti);
-int swWorker_send2reactor(swEventData *ev_data, size_t sendn, int fd);
+int swWorker_send2reactor(swServer *serv, swEventData *ev_data, size_t sendn, int fd);
 int swWorker_send2worker(swWorker *dst_worker, void *buf, int n, int flag);
 void swWorker_signal_handler(int signo);
 void swWorker_signal_init(void);
@@ -1020,18 +1012,15 @@ static sw_inline int swWorker_get_send_pipe(swServer *serv, int session_id, int 
 }
 
 int swReactorThread_create(swServer *serv);
-int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr);
+int swReactorThread_start(swServer *serv);
 void swReactorThread_set_protocol(swServer *serv, swReactor *reactor);
 void swReactorThread_free(swServer *serv);
 int swReactorThread_close(swReactor *reactor, int fd);
-int swReactorThread_onClose(swReactor *reactor, swEvent *event);
 int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length);
-int swReactorThread_send(swSendData *_send);
-int swReactorThread_send2worker(void *data, int len, uint16_t target_worker_id);
+int swReactorThread_send2worker(swServer *serv, void *data, int len, uint16_t target_worker_id);
 
 int swReactorProcess_create(swServer *serv);
 int swReactorProcess_start(swServer *serv);
-int swReactorProcess_onClose(swReactor *reactor, swEvent *event);
 
 int swManager_start(swFactory *factory);
 pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker);

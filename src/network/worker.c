@@ -29,22 +29,6 @@ static int swWorker_onStreamRead(swReactor *reactor, swEvent *event);
 static int swWorker_onStreamPackage(swConnection *conn, char *data, uint32_t length);
 static int swWorker_onStreamClose(swReactor *reactor, swEvent *event);
 
-int swWorker_create(swWorker *worker)
-{
-    /**
-     * Create shared memory storage
-     */
-    worker->send_shm = sw_shm_malloc(SwooleG.serv->buffer_output_size);
-    if (worker->send_shm == NULL)
-    {
-        swWarn("malloc for worker->store failed.");
-        return SW_ERR;
-    }
-    swMutex_create(&worker->lock, 1);
-
-    return SW_OK;
-}
-
 void swWorker_free(swWorker *worker)
 {
     if (worker->send_shm)
@@ -187,7 +171,7 @@ static int swWorker_onStreamAccept(swReactor *reactor, swEvent *event)
 static int swWorker_onStreamRead(swReactor *reactor, swEvent *event)
 {
     swConnection *conn = event->socket;
-    swServer *serv = SwooleG.serv;
+    swServer *serv = (swServer *) reactor->ptr;
     swProtocol *protocol = &serv->stream_protocol;
     swString *buffer;
 
@@ -221,7 +205,7 @@ static int swWorker_onStreamRead(swReactor *reactor, swEvent *event)
 static int swWorker_onStreamClose(swReactor *reactor, swEvent *event)
 {
     swConnection *conn = event->socket;
-    swServer *serv = SwooleG.serv;
+    swServer *serv = (swServer *) reactor->ptr;
 
     swString_clear(conn->recv_buffer);
     swLinkedList_append(serv->buffer_pool, conn->recv_buffer);
@@ -765,10 +749,9 @@ int swWorker_loop(swFactory *factory, int worker_id)
 /**
  * Send data to ReactorThread
  */
-int swWorker_send2reactor(swEventData *ev_data, size_t sendn, int session_id)
+int swWorker_send2reactor(swServer *serv, swEventData *ev_data, size_t sendn, int session_id)
 {
     int ret;
-    swServer *serv = SwooleG.serv;
     int _pipe_fd = swWorker_get_send_pipe(serv, session_id, ev_data->info.from_id);
 
     if (SwooleG.main_reactor)

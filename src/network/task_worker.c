@@ -21,14 +21,14 @@ static swEventData *g_current_task = NULL;
 
 static void swTaskWorker_signal_init(swProcessPool *pool);
 static int swTaskWorker_onPipeReceive(swReactor *reactor, swEvent *event);
-static int swTaskWorker_loop_async(struct _swProcessPool *pool, swWorker *worker);
+static int swTaskWorker_loop_async(swProcessPool *pool, swWorker *worker);
 
 /**
  * after pool->create, before pool->start
  */
-void swTaskWorker_init(swProcessPool *pool)
+void swTaskWorker_init(swServer *serv)
 {
-    swServer *serv = SwooleG.serv;
+    swProcessPool *pool = &serv->gs->task_workers;
     pool->ptr = serv;
     pool->onTask = swTaskWorker_onTask;
     pool->onWorkerStart = swTaskWorker_onStart;

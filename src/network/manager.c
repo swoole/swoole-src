@@ -69,15 +69,13 @@ int swManager_start(swFactory *factory)
         {
             return SW_ERR;
         }
-
-        swProcessPool *pool = &serv->gs->task_workers;
-        swTaskWorker_init(pool);
+        swTaskWorker_init(serv);
 
         swWorker *worker;
         for (i = 0; i < serv->task_worker_num; i++)
         {
-            worker = &pool->workers[i];
-            if (swWorker_create(worker) < 0)
+            worker = &serv->gs->task_workers.workers[i];
+            if (swServer_worker_create(serv, worker) < 0)
             {
                 return SW_ERR;
             }
@@ -102,7 +100,7 @@ int swManager_start(swFactory *factory)
         LL_FOREACH(serv->user_worker_list, user_worker)
         {
             memcpy(&serv->user_workers[i], user_worker->worker, sizeof(swWorker));
-            if (swWorker_create(&serv->user_workers[i]) < 0)
+            if (swServer_worker_create(serv, &serv->user_workers[i]) < 0)
             {
                 return SW_ERR;
             }
