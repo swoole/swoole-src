@@ -152,6 +152,9 @@ static auto block_io_functions = {
     "file_get_contents",
     "curl_init",
     "stream_select",
+    "stream_create",
+    "pcntl_fork",
+    "popen"
     "socket_select",
     "gethostbyname",
 };
