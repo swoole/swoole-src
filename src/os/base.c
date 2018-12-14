@@ -104,8 +104,7 @@ void swAio_free(void)
     SwooleAIO.init = 0;
 }
 
-#ifndef HAVE_DAEMON
-int daemon(int nochdir, int noclose)
+int swoole_daemon(int nochdir, int noclose)
 {
     pid_t pid;
 
@@ -151,7 +150,6 @@ int daemon(int nochdir, int noclose)
     }
     return 0;
 }
-#endif
 
 static int swAio_onCompleted(swReactor *reactor, swEvent *event)
 {
