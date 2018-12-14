@@ -872,7 +872,7 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
         if (sw_coro_create(fci_cache, 4, args) < 0)
         {
             swoole_php_error(E_WARNING, "create onReceive coroutine error.");
-            serv->factory.end(&SwooleG.serv->factory, req->info.fd);
+            serv->close(serv, req->info.fd, 0);
         }
     }
     else
@@ -3896,7 +3896,7 @@ PHP_METHOD(swoole_server, stop)
 PHP_METHOD(swoole_connection_iterator, rewind)
 {
     swConnectionIterator *itearator = (swConnectionIterator *) swoole_get_object(getThis());
-    itearator->current_fd = swServer_get_minfd(SwooleG.serv);
+    itearator->current_fd = swServer_get_minfd(itearator->serv);
 }
 
 PHP_METHOD(swoole_connection_iterator, valid)
@@ -3908,7 +3908,7 @@ PHP_METHOD(swoole_connection_iterator, valid)
     int max_fd = swServer_get_maxfd(itearator->serv);
     for (; fd <= max_fd; fd++)
     {
-        conn = &SwooleG.serv->connection_list[fd];
+        conn = &itearator->serv->connection_list[fd];
 
         if (conn->active && !conn->closed)
         {
@@ -3965,7 +3965,8 @@ PHP_METHOD(swoole_connection_iterator, count)
 
 PHP_METHOD(swoole_connection_iterator, offsetExists)
 {
-    zval *zobject = (zval *) SwooleG.serv->ptr2;
+    swConnectionIterator *i = (swConnectionIterator *) swoole_get_object(getThis());
+    zval *zobject = (zval *) i->serv->ptr2;
     zval *retval = NULL;
     zval *zfd;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &zfd) == FAILURE)
@@ -3982,7 +3983,8 @@ PHP_METHOD(swoole_connection_iterator, offsetExists)
 
 PHP_METHOD(swoole_connection_iterator, offsetGet)
 {
-    zval *zobject = (zval *) SwooleG.serv->ptr2;
+    swConnectionIterator *i = (swConnectionIterator *) swoole_get_object(getThis());
+    zval *zobject = (zval *) i->serv->ptr2;
     zval *retval = NULL;
     zval *zfd;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &zfd) == FAILURE)

@@ -192,7 +192,7 @@ static sw_inline void http2_onRequest(http_context *ctx, int from_fd)
         if (sw_coro_create(fci_cache, 2, args) < 0)
         {
             swoole_php_error(E_WARNING, "create Http2 onRequest coroutine error.");
-            serv->factory.end(&SwooleG.serv->factory, fd);
+            serv->factory.end(&serv->factory, fd);
         }
     }
     else
