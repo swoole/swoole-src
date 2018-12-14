@@ -529,8 +529,7 @@ if test "$PHP_SWOOLE" != "no"; then
         thirdparty/hiredis/hiredis.c \
         thirdparty/hiredis/net.c \
         thirdparty/hiredis/read.c \
-        thirdparty/hiredis/sds.c \
-        thirdparty/hiredis/test.c"
+        thirdparty/hiredis/sds.c"
 
     SW_NO_USE_ASM_CONTEXT="no"
     SW_ASM_DIR="thirdparty/boost/asm/"
