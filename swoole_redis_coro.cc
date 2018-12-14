@@ -1058,7 +1058,7 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
 static sw_inline bool swoole_redis_coro_keep_alive(swRedisClient *redis)
 {
     Socket *socket;
-    if (!redis->context || !(socket = swoole_redis_coro_get_socket(redis->context)) || !socket->is_connect())
+    if (!redis->context || !(socket = swoole_redis_coro_get_socket(redis->context)) || !socket->check_liveness())
     {
         swoole_redis_coro_close(redis);
         return swoole_redis_coro_connect(redis);

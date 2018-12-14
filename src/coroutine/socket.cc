@@ -525,7 +525,7 @@ static int socket_event_callback(swReactor *reactor, swEvent *event)
     return SW_OK;
 }
 
-bool Socket::is_connect()
+bool Socket::check_liveness()
 {
     if (!socket || !socket->active || socket->closed || _closed)
     {
@@ -535,7 +535,7 @@ bool Socket::is_connect()
     {
         static char buf;
         errno = 0;
-        int ret = ::recv(socket->fd, &buf, sizeof(buf), MSG_PEEK);
+        int ret = swConnection_peek(socket, &buf, sizeof(buf), 0);
         if (ret == 0 || (ret > 0 && swConnection_error(errno) != SW_WAIT)) {
             return false;
         }

@@ -243,12 +243,10 @@ static sw_inline ssize_t swConnection_peek(swConnection *conn, void *__buf, size
         retval = SSL_peek(conn->ssl, __buf, __n);
     }
     else
+#endif
     {
         retval = recv(conn->fd, __buf, __n, __flags | MSG_PEEK);
     }
-#else
-    retval = recv(conn->fd, __buf, __n, __flags);
-#endif
 
     if (retval < 0 && errno == EINTR)
     {

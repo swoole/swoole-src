@@ -36,7 +36,7 @@ public:
     bool connect(const struct sockaddr *addr, socklen_t addrlen);
     bool shutdown(int how = SHUT_RDWR);
     bool close();
-    bool is_connect();
+    bool check_liveness();
     ssize_t peek(void *__buf, size_t __n);
     ssize_t recv(void *__buf, size_t __n);
     ssize_t read(void *__buf, size_t __n);
