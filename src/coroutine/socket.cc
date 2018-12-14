@@ -525,9 +525,27 @@ static int socket_event_callback(swReactor *reactor, swEvent *event)
     return SW_OK;
 }
 
+bool Socket::is_connect()
+{
+    if (!socket || !socket->active || socket->closed || _closed)
+    {
+        return false;
+    }
+    else
+    {
+        static char buf;
+        errno = 0;
+        int ret = ::recv(socket->fd, &buf, sizeof(buf), MSG_PEEK);
+        if (ret == 0 || (ret > 0 && swConnection_error(errno) != SW_WAIT)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 ssize_t Socket::peek(void *__buf, size_t __n)
 {
-    if (unlikely(!is_available()))
+    if (unlikely(!is_available(true)))
     {
         return -1;
     }

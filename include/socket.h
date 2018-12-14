@@ -36,12 +36,13 @@ public:
     bool connect(const struct sockaddr *addr, socklen_t addrlen);
     bool shutdown(int how = SHUT_RDWR);
     bool close();
-    ssize_t send(const void *__buf, size_t __n);
-    ssize_t sendmsg(const struct msghdr *msg, int flags);
+    bool is_connect();
     ssize_t peek(void *__buf, size_t __n);
     ssize_t recv(void *__buf, size_t __n);
     ssize_t read(void *__buf, size_t __n);
     ssize_t write(const void *__buf, size_t __n);
+    ssize_t send(const void *__buf, size_t __n);
+    ssize_t sendmsg(const struct msghdr *msg, int flags);
     ssize_t recvmsg(struct msghdr *msg, int flags);
     ssize_t recv_all(void *__buf, size_t __n);
     ssize_t send_all(const void *__buf, size_t __n);
@@ -219,19 +220,22 @@ protected:
         return true;
     }
 
-    inline bool is_available()
+    inline bool is_available(bool allow_cross_co = false)
     {
         long cid = has_bound();
-        if (unlikely(cid))
+        if (allow_cross_co)
         {
-            swoole_error_log(
-                SW_LOG_ERROR, SW_ERROR_CO_HAS_BEEN_BOUND,
-                "Socket#%d has already been bound to another coroutine#%ld, "
-                "reading or writing of the same socket in multiple coroutines at the same time is not allowed.\n",
-                socket->fd, cid
-            );
-            errCode = SW_ERROR_CO_HAS_BEEN_BOUND;
-            exit(255);
+            if (unlikely(cid))
+            {
+                swoole_error_log(
+                    SW_LOG_ERROR, SW_ERROR_CO_HAS_BEEN_BOUND,
+                    "Socket#%d has already been bound to another coroutine#%ld, "
+                    "reading or writing of the same socket in multiple coroutines at the same time is not allowed.\n",
+                    socket->fd, cid
+                );
+                errCode = SW_ERROR_CO_HAS_BEEN_BOUND;
+                exit(255);
+            }
         }
         if (unlikely(_closed))
         {
