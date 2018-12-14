@@ -10,7 +10,6 @@
 inline void coro_test_wait()
 {
     SwooleG.main_reactor->wait(SwooleG.main_reactor, nullptr);
-    SwooleG.main_reactor->running = 1;
 }
 
 inline void coro_test_create(coroutine_func_t fn, void *arg = nullptr)
