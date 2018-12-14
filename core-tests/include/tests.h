@@ -7,23 +7,31 @@
 #include "socket.h"
 #include <gtest/gtest.h>
 
-#define CORO_TEST_START(NAME) \
-    bool (NAME) = false; \
-    if (Coroutine::create([](void *arg) \
-    {
+inline void coro_test_wait()
+{
+    SwooleG.main_reactor->wait(SwooleG.main_reactor, nullptr);
+    SwooleG.main_reactor->running = 1;
+}
 
-#define CORO_TEST_END(NAME) \
-        *(bool *)arg = true; \
-    }, &(NAME)) < 0) \
-    { \
-        return; \
+inline void coro_test_create(coroutine_func_t fn, void *arg = nullptr)
+{
+    long cid = swoole::Coroutine::create(fn, arg);
+    ASSERT_GT(cid, 0);
+}
+
+inline void coro_test(coroutine_func_t fn, void *arg = nullptr)
+{
+    coro_test_create(fn, arg);
+    coro_test_wait();
+}
+
+inline void coro_test(coroutine_func_t *fns, size_t num, void **args = nullptr)
+{
+    size_t i;
+    for (i = 0; i < num; ++i)
+    {
+        coro_test_create(fns[i], args == nullptr ? nullptr : args[i]);
     }
 
-#define CORO_TEST_WAIT(NAME) \
-    SwooleG.main_reactor->once = 1; \
-    while (!(NAME)) \
-    { \
-        SwooleG.main_reactor->wait(SwooleG.main_reactor, nullptr); \
-        SwooleG.main_reactor->running = 1; \
-    } \
-    SwooleG.main_reactor->once = 0;
+    coro_test_wait();
+}
