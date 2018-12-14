@@ -731,7 +731,7 @@ static int swPort_http_static_handler(swServer *serv, swHttpRequest *request, sw
                     SW_HTTP_SERVER_SOFTWARE
             );
             response.data = header_buffer;
-            swReactorThread_send(serv, &response);
+            swServer_master_send(serv, &response);
             goto _finish;
         }
     }
@@ -763,7 +763,7 @@ static int swPort_http_static_handler(swServer *serv, swHttpRequest *request, sw
         conn->tcp_nopush = 1;
     }
 #endif
-    swReactorThread_send(serv, &response);
+    swServer_master_send(serv, &response);
 
     buffer.offset = 0;
     buffer.length = file_stat.st_size;
@@ -772,7 +772,7 @@ static int swPort_http_static_handler(swServer *serv, swHttpRequest *request, sw
     response.length = response.info.len = sizeof(swSendFile_request) + buffer.length + 1;
     response.data = (void*) &buffer;
 
-    swReactorThread_send(serv, &response);
+    swServer_master_send(serv, &response);
 
     _finish:
     if (!request->keep_alive)
@@ -780,7 +780,7 @@ static int swPort_http_static_handler(swServer *serv, swHttpRequest *request, sw
         response.info.type = SW_EVENT_CLOSE;
         response.length = 0;
         response.data = NULL;
-        swReactorThread_send(serv, &response);
+        swServer_master_send(serv, &response);
     }
 
     return SW_TRUE;

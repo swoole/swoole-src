@@ -136,7 +136,7 @@ int swReactorProcess_start(swServer *serv)
         {
             return SW_ERR;
         }
-        swTaskWorker_init(&serv->gs->task_workers);
+        swTaskWorker_init(serv);
         if (swProcessPool_start(&serv->gs->task_workers) < 0)
         {
             return SW_ERR;
