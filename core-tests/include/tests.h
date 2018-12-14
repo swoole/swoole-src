@@ -20,10 +20,10 @@
     }
 
 #define CORO_TEST_WAIT(NAME) \
+    SwooleG.main_reactor->once = 1; \
     while (!(NAME)) \
     { \
-        SwooleG.main_reactor->once = 1; \
         SwooleG.main_reactor->wait(SwooleG.main_reactor, nullptr); \
-        SwooleG.main_reactor->once = 0; \
         SwooleG.main_reactor->running = 1; \
-    }
+    } \
+    SwooleG.main_reactor->once = 0;
