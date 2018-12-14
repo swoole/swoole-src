@@ -1016,13 +1016,11 @@ int swReactorThread_start(swServer *serv);
 void swReactorThread_set_protocol(swServer *serv, swReactor *reactor);
 void swReactorThread_free(swServer *serv);
 int swReactorThread_close(swReactor *reactor, int fd);
-int swReactorThread_onClose(swReactor *reactor, swEvent *event);
 int swReactorThread_dispatch(swConnection *conn, char *data, uint32_t length);
 int swReactorThread_send2worker(swServer *serv, void *data, int len, uint16_t target_worker_id);
 
 int swReactorProcess_create(swServer *serv);
 int swReactorProcess_start(swServer *serv);
-int swReactorProcess_onClose(swReactor *reactor, swEvent *event);
 
 int swManager_start(swFactory *factory);
 pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker);

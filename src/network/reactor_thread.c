@@ -25,6 +25,7 @@ static int swReactorThread_onPipeReceive(swReactor *reactor, swEvent *ev);
 static int swReactorThread_onRead(swReactor *reactor, swEvent *ev);
 static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev);
 static int swReactorThread_onPackage(swReactor *reactor, swEvent *event);
+static int swReactorThread_onClose(swReactor *reactor, swEvent *event);
 static void swReactorThread_onStreamResponse(swStream *stream, char *data, uint32_t length);
 
 static void swHeartbeatThread_start(swServer *serv);
@@ -358,14 +359,9 @@ int swReactorThread_close(swReactor *reactor, int fd)
 /**
  * close the connection
  */
-int swReactorThread_onClose(swReactor *reactor, swEvent *event)
+static int swReactorThread_onClose(swReactor *reactor, swEvent *event)
 {
     swServer *serv = reactor->ptr;
-    if (serv->factory_mode == SW_MODE_BASE)
-    {
-        return swReactorProcess_onClose(reactor, event);
-    }
-
     int fd = event->fd;
     swDataHead notify_ev;
     bzero(&notify_ev, sizeof(notify_ev));

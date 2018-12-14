@@ -18,6 +18,7 @@
 
 static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker);
 static int swReactorProcess_onPipeRead(swReactor *reactor, swEvent *event);
+static int swReactorProcess_onClose(swReactor *reactor, swEvent *event);
 static int swReactorProcess_send2client(swFactory *, swSendData *);
 static int swReactorProcess_send2worker(int, void *, int);
 static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode);
@@ -427,7 +428,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     return retval;
 }
 
-int swReactorProcess_onClose(swReactor *reactor, swEvent *event)
+static int swReactorProcess_onClose(swReactor *reactor, swEvent *event)
 {
     int fd = event->fd;
     swServer *serv = reactor->ptr;
