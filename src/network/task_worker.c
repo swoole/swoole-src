@@ -26,9 +26,9 @@ static int swTaskWorker_loop_async(swProcessPool *pool, swWorker *worker);
 /**
  * after pool->create, before pool->start
  */
-void swTaskWorker_init(swProcessPool *pool)
+void swTaskWorker_init(swServer *serv)
 {
-    swServer *serv = SwooleG.serv;
+    swProcessPool *pool = &serv->gs->task_workers;
     pool->ptr = serv;
     pool->onTask = swTaskWorker_onTask;
     pool->onWorkerStart = swTaskWorker_onStart;

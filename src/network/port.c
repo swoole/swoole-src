@@ -246,7 +246,7 @@ static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *ev
     }
     else if (n == 0)
     {
-        close_fd: swReactorThread_onClose(reactor, event);
+        close_fd: swReactor_getHandle(reactor, 0, SW_FD_CLOSE)(reactor, event);
         return SW_OK;
     }
     else
@@ -277,7 +277,7 @@ static int swPort_onRead_check_length(swReactor *reactor, swListenPort *port, sw
     if (swProtocol_recv_check_length(protocol, conn, buffer) < 0)
     {
         swTrace("Close Event.FD=%d|From=%d", event->fd, event->from_id);
-        swReactorThread_onClose(reactor, event);
+        swReactor_getHandle(reactor, 0, SW_FD_CLOSE)(reactor, event);
     }
 
     return SW_OK;
@@ -334,7 +334,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
         //alloc memory failed.
         if (!request->buffer)
         {
-            swReactorThread_onClose(reactor, event);
+            swReactor_getHandle(reactor, 0, SW_FD_CLOSE)(reactor, event);
             return SW_ERR;
         }
     }
@@ -364,7 +364,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
     {
         close_fd:
         swHttpRequest_free(conn);
-        swReactorThread_onClose(reactor, event);
+        swReactor_getHandle(reactor, 0, SW_FD_CLOSE)(reactor, event);
         return SW_OK;
     }
     else
@@ -543,7 +543,7 @@ static int swPort_onRead_redis(swReactor *reactor, swListenPort *port, swEvent *
 
     if (swRedis_recv(protocol, conn, buffer) < 0)
     {
-        swReactorThread_onClose(reactor, event);
+        swReactor_getHandle(reactor, 0, SW_FD_CLOSE)(reactor, event);
     }
 
     return SW_OK;
@@ -563,7 +563,7 @@ static int swPort_onRead_check_eof(swReactor *reactor, swListenPort *port, swEve
 
     if (swProtocol_recv_check_eof(protocol, conn, buffer) < 0)
     {
-        swReactorThread_onClose(reactor, event);
+        swReactor_getHandle(reactor, 0, SW_FD_CLOSE)(reactor, event);
     }
 
     return SW_OK;
@@ -731,7 +731,7 @@ static int swPort_http_static_handler(swServer *serv, swHttpRequest *request, sw
                     SW_HTTP_SERVER_SOFTWARE
             );
             response.data = header_buffer;
-            swReactorThread_send(serv, &response);
+            swServer_master_send(serv, &response);
             goto _finish;
         }
     }
@@ -763,7 +763,7 @@ static int swPort_http_static_handler(swServer *serv, swHttpRequest *request, sw
         conn->tcp_nopush = 1;
     }
 #endif
-    swReactorThread_send(serv, &response);
+    swServer_master_send(serv, &response);
 
     buffer.offset = 0;
     buffer.length = file_stat.st_size;
@@ -772,7 +772,7 @@ static int swPort_http_static_handler(swServer *serv, swHttpRequest *request, sw
     response.length = response.info.len = sizeof(swSendFile_request) + buffer.length + 1;
     response.data = (void*) &buffer;
 
-    swReactorThread_send(serv, &response);
+    swServer_master_send(serv, &response);
 
     _finish:
     if (!request->keep_alive)
@@ -780,7 +780,7 @@ static int swPort_http_static_handler(swServer *serv, swHttpRequest *request, sw
         response.info.type = SW_EVENT_CLOSE;
         response.length = 0;
         response.data = NULL;
-        swReactorThread_send(serv, &response);
+        swServer_master_send(serv, &response);
     }
 
     return SW_TRUE;

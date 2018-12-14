@@ -69,14 +69,12 @@ int swManager_start(swFactory *factory)
         {
             return SW_ERR;
         }
-
-        swProcessPool *pool = &serv->gs->task_workers;
-        swTaskWorker_init(pool);
+        swTaskWorker_init(serv);
 
         swWorker *worker;
         for (i = 0; i < serv->task_worker_num; i++)
         {
-            worker = &pool->workers[i];
+            worker = &serv->gs->task_workers.workers[i];
             if (swServer_worker_create(serv, worker) < 0)
             {
                 return SW_ERR;
