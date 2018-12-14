@@ -1,5 +1,5 @@
 --TEST--
-swoole_redis_coro: auto reconnect and retry after server side close the connection
+swoole_redis_coro: disable retry
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -14,18 +14,16 @@ $pm->parentFunc = function () use ($pm) {
         $redis = new Swoole\Coroutine\Redis;
         $ret = $redis->connect('127.0.0.1', $pm->getFreePort());
         assert($ret);
-        for ($n = MAX_REQUESTS; $n--;) {
-            $ret = $redis->set('random_val', $random = get_safe_random(128));
-            assert($ret);
-            $ret = $redis->get('random_val');
-            assert($ret && $ret === $random);
-        }
         $redis->setOptions(['retry' => false]);
         for ($n = MAX_REQUESTS; $n--;) {
             $ret = $redis->set('random_val', $random = get_safe_random(128));
             assert($ret);
             $ret = $redis->get('random_val');
-            assert($ret && $ret === $random);
+            if ($n % 2) {
+                assert($ret === $random);
+            } else {
+                assert(!$ret);
+            }
         }
         $pm->kill();
         echo "DONE\n";
@@ -38,16 +36,20 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
     });
     $server->setHandler('GET', function ($fd, $data) use ($server) {
+        static $rid = 0;
         if (count($data) == 0) {
-            return Server::format(Server::ERROR, "ERR wrong number of arguments for 'GET' command");
+            $server->send($fd, Server::format(Server::ERROR, "ERR wrong number of arguments for 'GET' command"));
         }
         $key = $data[0];
-        if (empty($server->data[$key])) {
-            $server->send($fd, Server::format(Server::NIL));
+        if ($rid++ % 2) {
+            $server->close($fd);
         } else {
-            $server->send($fd, Server::format(Server::STRING, $server->data[$key]));
+            if (empty($server->data[$key])) {
+                $server->send($fd, Server::format(Server::NIL));
+            } else {
+                $server->send($fd, Server::format(Server::STRING, $server->data[$key]));
+            }
         }
-        $server->close($fd);
     });
     $server->setHandler('SET', function ($fd, $data) use ($server) {
         if (count($data) < 2) {
