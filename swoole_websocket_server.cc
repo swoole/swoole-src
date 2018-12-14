@@ -218,47 +218,47 @@ int php_swoole_websocket_frame_pack(swString *buffer, zval *zdata, zend_bool opc
     return SW_OK;
 }
 
-
-void swoole_websocket_onOpen(http_context *ctx)
+void swoole_websocket_onOpen(swServer *serv, http_context *ctx)
 {
     int fd = ctx->fd;
 
-    swConnection *conn = swWorker_get_connection(SwooleG.serv, fd);
+    swConnection *conn = swWorker_get_connection(serv, fd);
     if (!conn)
     {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "session[%d] is closed.", fd);
         return;
     }
 
-    zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(SwooleG.serv, conn->from_fd, SW_SERVER_CB_onOpen);
-    if (fci_cache)
+    zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, conn->from_fd, SW_SERVER_CB_onOpen);
+    if (!fci_cache)
     {
-        swServer *serv = SwooleG.serv;
-        zval *zserv = (zval *) serv->ptr2;
-        zval *zrequest_object = ctx->request.zobject;
+        return;
+    }
 
-        zval args[2];
-        args[0] = *zserv;
-        args[1] = *zrequest_object;
+    zval *zserv = (zval *) serv->ptr2;
+    zval *zrequest_object = ctx->request.zobject;
 
-        if (SwooleG.enable_coroutine)
+    zval args[2];
+    args[0] = *zserv;
+    args[1] = *zrequest_object;
+
+    if (SwooleG.enable_coroutine)
+    {
+        if (sw_coro_create(fci_cache, 2, args) < 0)
         {
-            if (sw_coro_create(fci_cache, 2, args) < 0)
-            {
-                swoole_php_error(E_WARNING, "create onOpen coroutine error.");
-                SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);
-                return;
-            }
+            swoole_php_error(E_WARNING, "create onOpen coroutine error.");
+            serv->close(serv, fd, 0);
+            return;
         }
-        else
+    }
+    else
+    {
+        zval _retval, *retval = &_retval;
+        if (sw_call_user_function_fast_ex(NULL, fci_cache, retval, 2, args) == FAILURE)
         {
-            zval _retval, *retval = &_retval;
-            if (sw_call_user_function_fast_ex(NULL, fci_cache, retval, 2, args) == FAILURE)
-            {
-                swoole_php_error(E_WARNING, "onOpen handler error.");
-            }
-            zval_ptr_dtor(retval);
+            swoole_php_error(E_WARNING, "onOpen handler error.");
         }
+        zval_ptr_dtor(retval);
     }
 }
 
@@ -290,7 +290,7 @@ void php_swoole_sha1(const char *str, int _len, unsigned char *digest)
     PHP_SHA1Final(digest, &context);
 }
 
-static int websocket_handshake(swListenPort *port, http_context *ctx)
+static int websocket_handshake(swServer *serv, swListenPort *port, http_context *ctx)
 {
     zval *header = ctx->request.zheader;
     HashTable *ht = Z_ARRVAL_P(header);
@@ -334,14 +334,14 @@ static int websocket_handshake(swListenPort *port, http_context *ctx)
 
     swTrace("websocket header len:%ld\n%s \n", swoole_http_buffer->length, swoole_http_buffer->str);
 
-    swConnection *conn = swWorker_get_connection(SwooleG.serv, ctx->fd);
+    swConnection *conn = swWorker_get_connection(serv, ctx->fd);
     if (!conn)
     {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "session[%d] is closed.", ctx->fd);
         return SW_ERR;
     }
     conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
-    return swServer_tcp_send(SwooleG.serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length);
+    return serv->send(serv, ctx->fd, swoole_http_buffer->str, swoole_http_buffer->length);
 }
 
 int swoole_websocket_onMessage(swServer *serv, swEventData *req)
@@ -403,17 +403,17 @@ int swoole_websocket_onMessage(swServer *serv, swEventData *req)
     return SW_OK;
 }
 
-int swoole_websocket_onHandshake(swListenPort *port, http_context *ctx)
+int swoole_websocket_onHandshake(swServer *serv, swListenPort *port, http_context *ctx)
 {
     int fd = ctx->fd;
-    int ret = websocket_handshake(port, ctx);
+    int ret = websocket_handshake(serv, port, ctx);
     if (ret == SW_ERR)
     {
-        swServer_tcp_close(SwooleG.serv, fd, 1);
+        swServer_tcp_close(serv, fd, 1);
     }
     else
     {
-        swoole_websocket_onOpen(ctx);
+        swoole_websocket_onOpen(serv, ctx);
     }
 
     //free client data

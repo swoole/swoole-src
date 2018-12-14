@@ -3877,7 +3877,7 @@ PHP_METHOD(swoole_server, stop)
     }
     else
     {
-        swWorker *worker = swServer_get_worker(SwooleG.serv, worker_id);
+        swWorker *worker = swServer_get_worker(serv, worker_id);
         if (worker == NULL)
         {
             RETURN_FALSE;

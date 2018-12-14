@@ -1095,7 +1095,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
             fci_cache = php_swoole_server_get_fci_cache(serv, from_fd, SW_SERVER_CB_onHandShake);
             if (fci_cache == NULL)
             {
-                swoole_websocket_onHandshake(port, ctx);
+                swoole_websocket_onHandshake(serv, port, ctx);
                 goto _free_object;
             }
             else
