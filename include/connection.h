@@ -244,7 +244,7 @@ static sw_inline ssize_t swConnection_peek(swConnection *conn, void *__buf, size
     }
     else
     {
-        retval = recv(conn->fd, __buf, __n, __flags);
+        retval = recv(conn->fd, __buf, __n, __flags | MSG_PEEK);
     }
 #else
     retval = recv(conn->fd, __buf, __n, __flags);

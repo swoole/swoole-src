@@ -143,7 +143,15 @@ ssize_t swoole_coroutine_recv(int sockfd, void *buf, size_t len, int flags)
         goto _no_coro;
     }
     Socket *socket = (Socket *) conn->object;
-    ssize_t retval = socket->recv(buf, len);
+    ssize_t retval;
+    if (flags & MSG_PEEK)
+    {
+        retval = socket->peek(buf, len);
+    }
+    else
+    {
+        retval = socket->recv(buf, len);
+    }
     if (retval < 0)
     {
         errno = socket->errCode;
