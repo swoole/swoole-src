@@ -1757,6 +1757,13 @@ static sw_inline int swReactor_events(int fdtype)
 
 int swReactor_create(swReactor *reactor, int max_event);
 int swReactor_setHandle(swReactor *, int, swReactor_handle);
+
+static inline void swReactor_before_wait(swReactor *reactor)
+{
+    reactor->running = 1;
+    reactor->start = 1;
+}
+
 int swReactor_empty(swReactor *reactor);
 
 void swReactor_defer_task_create(swReactor *reactor);
