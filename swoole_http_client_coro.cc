@@ -105,7 +105,7 @@ namespace swoole
         zval _zobject;
         zval *zobject = &_zobject;
 
-        PHPHttpClient(zval* zobject, std::string _host, zend_long _port, zend_bool _ssl);
+        PHPHttpClient(zval* zobject, std::string host, zend_long port = 80, zend_bool ssl = false);
 
         private:
 #ifdef SW_HAVE_ZLIB
@@ -411,27 +411,40 @@ static int http_parser_on_message_complete(swoole_http_parser *parser)
     }
 }
 
-PHPHttpClient::PHPHttpClient(zval* zobject, std::string _host, zend_long _port, zend_bool _ssl)
+PHPHttpClient::PHPHttpClient(zval* zobject, std::string host, zend_long port, zend_bool ssl)
 {
-    host = _host;
+    // check host
     if (host.length() == 0)
     {
         swoole_php_fatal_error(E_ERROR, "host is empty.");
         return;
     }
-    port = _port;
-    ssl = _ssl;
-#ifndef SW_USE_OPENSSL
+    this->host = this->addr = host;
+
+    // parse addr and sock_type
+    sock_type = get_socket_type_from_uri(addr, true);
+
+    // checo port
+    if (sock_type == SW_SOCK_TCP || sock_type == SW_SOCK_TCP6)
+    {
+        if (port <= 0 || port > SW_CLIENT_MAX_PORT)
+        {
+            swoole_php_fatal_error(E_ERROR, "The port " ZEND_LONG_FMT " is invaild.", port);
+            return;
+        }
+    }
+    this->port = port;
+
+    // check ssl
+#ifdef SW_USE_OPENSSL
+    this->ssl = ssl;
+#else
     if (ssl)
     {
         swoole_php_fatal_error(E_ERROR, "need to use `--enable-openssl` to support ssl when compiling swoole.");
         return;
     }
 #endif
-
-    // convert to addr and parse sock_type
-    addr = host;
-    sock_type = get_socket_type_from_uri(addr, true);
 
     // init http response parser
     swoole_http_parser_init(&parser, PHP_HTTP_RESPONSE);
@@ -817,7 +830,7 @@ bool PHPHttpClient::send()
         }
         size_t proxy_uri_len = uri.length() + _host_len + strlen(pre) + 10;
         char *proxy_uri = (char*) emalloc(proxy_uri_len);
-        proxy_uri_len = snprintf(proxy_uri, proxy_uri_len, "%s%s:%ld%s", pre, _host, port, uri.c_str());
+        proxy_uri_len = snprintf(proxy_uri, proxy_uri_len, "%s%s:%u%s", pre, _host, port, uri.c_str());
         uri = std::string(proxy_uri, proxy_uri_len);
         efree(proxy_uri);
     }
