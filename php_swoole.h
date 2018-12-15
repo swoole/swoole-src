@@ -116,9 +116,9 @@ extern swoole_object_array swoole_objects;
 	zend_update_property_long(NULL, getThis(), SW_STRL("errCode"), s);\
 	RETURN_FALSE;}
 
-#define swoole_php_error(level, fmt_str, ...)   if (SWOOLE_G(display_errors)) php_error_docref(NULL, level, fmt_str, ##__VA_ARGS__)
-#define swoole_php_fatal_error(level, fmt_str, ...)   php_error_docref(NULL, level, fmt_str, ##__VA_ARGS__)
-#define swoole_php_sys_error(level, fmt_str, ...)  if (SWOOLE_G(display_errors)) php_error_docref(NULL, level, fmt_str" Error: %s[%d].", ##__VA_ARGS__, strerror(errno), errno)
+#define swoole_php_fatal_error(level, fmt_str, ...) php_error_docref(NULL, level, (const char *) fmt_str, ##__VA_ARGS__)
+#define swoole_php_error(level, fmt_str, ...)       if (SWOOLE_G(display_errors)) swoole_php_fatal_error(level, fmt_str, ##__VA_ARGS__)
+#define swoole_php_sys_error(level, fmt_str, ...)   if (SWOOLE_G(display_errors)) swoole_php_error(level, fmt_str " Error: %s[%d].", ##__VA_ARGS__, strerror(errno), errno)
 
 #ifdef SW_USE_OPENSSL
 #ifndef HAVE_OPENSSL

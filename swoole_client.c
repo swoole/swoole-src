@@ -943,6 +943,7 @@ static PHP_METHOD(swoole_client, __construct)
 
     if (async == 1)
     {
+        swoole_php_fatal_error(E_DEPRECATED, "async APIs will be removed in Swoole-v4.3.0, you should be using the coroutine APIs instead.");
         type |= SW_FLAG_ASYNC;
     }
 
