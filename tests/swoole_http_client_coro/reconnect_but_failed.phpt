@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_client_coro: do not retry after failed
+swoole_http_client_coro: reconnect but failed
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -12,19 +12,23 @@ $pm->parentFunc = function () use ($pm) {
         $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
         $cli->set(['timeout' => 1]);
 
-        // retry every time
         $retry_time = microtime(true);
         for ($n = MAX_REQUESTS; $n--;) {
-            assert($cli->get('/'));
-            assert($cli->body === $pm->getRandomData());
+            $ret = $cli->get('/');
+            assert($ret == !($n % 2));
+            if ($ret) {
+                assert($cli->body === $pm->getRandomData());
+            }
         }
         $retry_time = microtime(true) - $retry_time;
 
         $pm->kill();
         usleep(1000);
 
-        // just retry once
         $failed_time = microtime(true);
+        assert(!$cli->get('/'));
+        assert($cli->errCode === SOCKET_ECONNRESET);
+        assert($cli->statusCode === SWOOLE_HTTP_CLIENT_ESTATUS_SERVER_RESET);
         for ($n = MAX_REQUESTS; $n--;) {
             assert(!$cli->get('/'));
             assert($cli->errCode === SOCKET_ECONNREFUSED);
@@ -32,7 +36,8 @@ $pm->parentFunc = function () use ($pm) {
         }
         $failed_time = microtime(true) - $failed_time;
 
-        assert($retry_time > $failed_time * 2);
+        phpt_var_dump($failed_time, $retry_time);
+        assert($failed_time < $retry_time);
     });
     swoole_event_wait();
     echo "OK\n";
@@ -49,10 +54,9 @@ $pm->childFunc = function () use ($pm) {
     $server->on('request', function (swoole_http_request $request, swoole_http_response $response) use ($pm, $server) {
         static $i = 0;
         $i++;
-        if ($i % 2 === 1) {
+        if ($i % 2) {
             $server->close($request->fd);
         } else {
-            co::sleep(0.1 / MAX_REQUESTS);
             $response->end($pm->getRandomData());
         }
     });

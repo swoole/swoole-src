@@ -46,6 +46,14 @@ function array_random(array $array)
     return $array[mt_rand(0, count($array) - 1)];
 }
 
+function phpt_var_dump(...$args)
+{
+    global $argv;
+    if (substr($argv[0], -5) === '.phpt') {
+        var_dump(...$args);
+    }
+}
+
 function httpCoroGet(string $uri)
 {
     $url_info = parse_url($uri);
@@ -649,10 +657,6 @@ class ProcessManager
         return $this->freePorts[$index];
     }
 
-    /**
-     * @param $size
-     * @param int $len
-     */
     function initRandomData($size, $len = 32)
     {
         for ($n = $size; $n--;) {
@@ -660,11 +664,7 @@ class ProcessManager
         }
     }
 
-    /**
-     * @param null $index
-     * @return mixed
-     */
-    function getRandomData()
+    function getRandomData($index = null): string
     {
         if (!empty($this->randomData)) {
             return array_shift($this->randomData);

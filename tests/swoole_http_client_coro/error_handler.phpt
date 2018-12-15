@@ -12,7 +12,6 @@ $pm->parentFunc = function () use ($pm) {
         $cli_map = [];
         for ($c = MAX_CONCURRENCY_MID; $c--;) {
             $cli_map[] = $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
-            $cli->set(['timeout' => -1]);
             $cli->setDefer(true);
             $cli->get('/');
         }
@@ -22,34 +21,23 @@ $pm->parentFunc = function () use ($pm) {
         }
 
         $pm->kill();
-        usleep(1000);
+        $pm->wait();
 
-        // will get connection is reset by peer
+        // disable reconnect so we will get the first reason (conn was closed by server side)
         foreach ($cli_map as $cli) {
-            $cli->get('/');
-        }
-        foreach ($cli_map as $cli) {
-            assert(!$cli->recv());
+            $cli->set(['reconnect' => false]);
+            $cli->setDefer(false);
+            assert(!$cli->get('/'));
             assert($cli->statusCode === SWOOLE_HTTP_CLIENT_ESTATUS_SERVER_RESET);
             assert($cli->errCode === SOCKET_ECONNRESET);
         }
 
-        // if developer not hold the error and try again, he will get `connection is not available` error here.
+        // when we enable reconnect, we will get connect error
         foreach ($cli_map as $cli) {
-            assert(!$cli->get('/'));
-        }
-        foreach ($cli_map as $cli) {
-            assert(!$cli->recv());
-            assert($cli->statusCode === SWOOLE_HTTP_CLIENT_ESTATUS_SERVER_RESET);
-            assert($cli->errCode === SWOOLE_ERROR_CLIENT_NO_CONNECTION);
-        }
-
-        // set defer to false, it will auto retry
-        foreach ($cli_map as $cli) {
-            $cli->setDefer(false);
+            $cli->set(['reconnect' => true]);
             assert(!$cli->get('/'));
             assert($cli->statusCode === SWOOLE_HTTP_CLIENT_ESTATUS_CONNECT_FAILED);
-            assert($cli->errCode === SOCKET_ECONNREFUSED, swoole_strerror($cli->errCode));
+            assert($cli->errCode === SOCKET_ECONNREFUSED);
         }
     });
     swoole_event_wait();
@@ -72,6 +60,12 @@ $pm->childFunc = function () use ($pm) {
         } else {
             $server->close($request->fd);
         }
+    });
+    $server->on('shutdown', function (swoole_http_server $server) use ($pm) {
+        foreach ($server->connections as $fd) {
+            $server->close($fd);
+        }
+        $pm->wakeup();
     });
     $server->start();
 };

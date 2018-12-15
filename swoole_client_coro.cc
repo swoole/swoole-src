@@ -217,11 +217,7 @@ static Socket* client_coro_new(zval *zobject, int port)
 
 bool php_swoole_client_coro_socket_free(Socket *cli)
 {
-    bool ret = cli->close();
-    if (!ret)
-    {
-        return false;
-    }
+    bool ret;
     //TODO: move to Socket method, we should not manage it externally
     //socks5 proxy config
     if (cli->socks5_proxy)
@@ -263,7 +259,9 @@ bool php_swoole_client_coro_socket_free(Socket *cli)
     {
         zval *zcallback = (zval *) cli->protocol.private_data;
         sw_zval_free(zcallback);
+        cli->protocol.private_data = nullptr;
     }
+    ret = cli->close();
     delete cli;
 
     return ret;
