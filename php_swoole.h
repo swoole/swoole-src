@@ -111,7 +111,6 @@ extern swoole_object_array swoole_objects;
 #undef HAVE_PTRACE
 #endif
 
-//#define SW_USE_PHP        1
 #define SW_CHECK_RETURN(s)         if(s<0){RETURN_FALSE;}else{RETURN_TRUE;}
 #define SW_LOCK_CHECK_RETURN(s)    if(s==0){RETURN_TRUE;}else{\
 	zend_update_property_long(NULL, getThis(), SW_STRL("errCode"), s);\

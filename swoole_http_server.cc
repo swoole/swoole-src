@@ -243,14 +243,6 @@ static inline long http_fast_parse(swoole_http_parser *parser, char *data, size_
 }
 #endif
 
-#ifdef SW_HAVE_ZLIB
-extern "C"
-{
-voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size);
-void php_zlib_free(voidpf opaque, voidpf address);
-}
-#endif
-
 static PHP_METHOD(swoole_http_request, getData);
 static PHP_METHOD(swoole_http_request, rawcontent);
 static PHP_METHOD(swoole_http_request, __destruct);
@@ -1741,16 +1733,6 @@ static void http_build_header(http_context *ctx, zval *zobject, swString *respon
 }
 
 #ifdef SW_HAVE_ZLIB
-voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size)
-{
-    return (voidpf) safe_emalloc(items, size, 0);
-}
-
-void php_zlib_free(voidpf opaque, voidpf address)
-{
-    efree((void* )address);
-}
-
 void swoole_http_get_compression_method(http_context *ctx, const char *accept_encoding, size_t length)
 {
 #ifdef SW_HAVE_BROTLI
