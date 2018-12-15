@@ -19,6 +19,8 @@ $pm->parentFunc = function () use ($pm) {
         $ret = $redis->get('random_val');
         assert($ret and $ret === $random);
         $pm->kill();
+        assert(!$redis->get('random_val'));
+        assert($redis->errCode === SOCKET_ECONNRESET);
         for ($n = MAX_REQUESTS; $n--;) {
             assert(!$redis->set('random_val', get_safe_random(128)));
             assert($redis->errCode === SOCKET_ECONNREFUSED);

@@ -1,5 +1,5 @@
 --TEST--
-swoole_redis_coro: auto reconnect and retry after server side close the connection
+swoole_redis_coro: auto reconnect after server side close the connection
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -20,12 +20,12 @@ $pm->parentFunc = function () use ($pm) {
             $ret = $redis->get('random_val');
             assert($ret && $ret === $random);
         }
-        $redis->setOptions(['retry' => false]);
+        $redis->setOptions(['reconnect' => false]);
         for ($n = MAX_REQUESTS; $n--;) {
             $ret = $redis->set('random_val', $random = get_safe_random(128));
-            assert($ret);
+            assert($n === MAX_REQUESTS ? $ret : !$ret);
             $ret = $redis->get('random_val');
-            assert($ret && $ret === $random);
+            assert($n === MAX_REQUESTS ? ($ret && $ret === $random) : !$ret);
         }
         $pm->kill();
         echo "DONE\n";

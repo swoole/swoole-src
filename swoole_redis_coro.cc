@@ -872,8 +872,8 @@ typedef struct
     double timeout;
     zend_bool serialize;
     zend_bool defer;
-    zend_bool internal_connect_failed;
-    zend_bool retry;
+    uint8_t reconnect_interval;
+    uint8_t reconnected_count;
     zval *zobject;
     zval _zobject;
 } swRedisClient;
@@ -924,14 +924,14 @@ static sw_inline int sw_redis_convert_err(int err)
     }
 }
 
-static bool swoole_redis_coro_close(swRedisClient *redis)
+static sw_inline bool swoole_redis_coro_close(swRedisClient *redis)
 {
-    zend_update_property_bool(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("connected"), 0);
     if (!redis->context)
     {
         return false;
     }
     swTraceLog(SW_TRACE_REDIS_CLIENT, "redis connection closed, fd=%d", redis->context->fd);
+    zend_update_property_bool(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("connected"), 0);
     redisFree(redis->context);
     redis->context = NULL;
     return true;
@@ -947,19 +947,12 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
 {
     zval *zobject = redis->zobject;
     redisContext *context;
+    Socket *socket;
     zval *zhost, *zport;
     char *host;
     size_t host_len;
     zend_long port;
     struct timeval tv;
-
-    if (redis->internal_connect_failed)
-    {
-        zend_update_property_long(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("errType"), SW_REDIS_ERR_CLOSED);
-        // Notice: do not update errCode
-        zend_update_property_string(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), "connection is not available.");
-        return false;
-    }
 
     zhost = sw_zend_read_property(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("host"), 0);
     zport = sw_zend_read_property(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("port"), 0);
@@ -1025,7 +1018,6 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
         zend_update_property_long(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("errType"), SW_REDIS_ERR_ALLOC);
         zend_update_property_long(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("errCode"), sw_redis_convert_err(SW_REDIS_ERR_ALLOC));
         zend_update_property_string(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), "cannot allocate redis context.");
-        redis->internal_connect_failed = 1;
         return false;
     }
     if (context->err)
@@ -1034,34 +1026,48 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
         zend_update_property_long(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("errCode"), sw_redis_convert_err(context->err));
         zend_update_property_string(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), context->errstr);
         swoole_redis_coro_close(redis);
-        redis->internal_connect_failed = 1;
         return false;
     }
-
-    swSetNonBlock(context->fd);
-    Socket *socket = swoole_redis_coro_get_socket(context);
-    if (!socket)
+    if (!(socket = swoole_redis_coro_get_socket(context)))
     {
         zend_update_property_long(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("errType"), SW_REDIS_ERR_OTHER);
         zend_update_property_long(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("errCode"), sw_redis_convert_err(SW_REDIS_ERR_OTHER));
         zend_update_property_string(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), "Can not found the connection.");
         swoole_redis_coro_close(redis);
-        redis->internal_connect_failed = 1;
         return false;
     }
+
+    swSetNonBlock(context->fd);
+    redis->reconnected_count = 0;
     socket->set_timeout(redis->timeout);
     zend_update_property_bool(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("connected"), 1);
     zend_update_property_long(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("sock"), context->fd);
     return true;
 }
 
-static sw_inline bool swoole_redis_coro_keep_alive(swRedisClient *redis)
+static sw_inline bool swoole_redis_coro_keep_liveness(swRedisClient *redis)
 {
-    Socket *socket;
+    Socket *socket = nullptr;
     if (!redis->context || !(socket = swoole_redis_coro_get_socket(redis->context)) || !socket->check_liveness())
     {
+        if (socket)
+        {
+            zend_update_property_long(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("errType"), SW_REDIS_ERR_CLOSED);
+            zend_update_property_long(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("errCode"), socket->errCode);
+            zend_update_property_string(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("errMsg"), strerror(socket->errCode));
+        }
         swoole_redis_coro_close(redis);
-        return swoole_redis_coro_connect(redis);
+        for (; redis->reconnected_count < redis->reconnect_interval; redis->reconnected_count++)
+        {
+            if (swoole_redis_coro_connect(redis))
+            {
+                return true;
+            }
+        }
+        zend_update_property_long(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("errType"), SW_REDIS_ERR_CLOSED);
+        // Notice: do not update errCode
+        zend_update_property_string(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("errMsg"), "connection is not available.");
+        return false;
     }
     return true;
 }
@@ -1069,7 +1075,7 @@ static sw_inline bool swoole_redis_coro_keep_alive(swRedisClient *redis)
 static void redis_request(swRedisClient *redis, int argc, char **argv, size_t *argvlen, zval *return_value, bool retry = false)
 {
     redisReply *reply = nullptr;
-    if (!swoole_redis_coro_keep_alive(redis))
+    if (!swoole_redis_coro_keep_liveness(redis))
     {
         ZVAL_FALSE(return_value);
     }
@@ -1097,17 +1103,11 @@ static void redis_request(swRedisClient *redis, int argc, char **argv, size_t *a
             if (reply == nullptr)
             {
                 _error:
-                // if operation is timeout, do not retry, just reconnect.
-                bool is_timeout = (redis->context->err == SW_REDIS_ERR_IO && errno == ETIMEDOUT);
                 zend_update_property_long(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("errType"), redis->context->err);
                 zend_update_property_long(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("errCode"), sw_redis_convert_err(redis->context->err));
                 zend_update_property_string(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("errMsg"), redis->context->errstr);
                 ZVAL_FALSE(return_value);
                 swoole_redis_coro_close(redis);
-                if (redis->retry && !retry && swoole_redis_coro_connect(redis) && !is_timeout)
-                {
-                    return redis_request(redis, argc, argv, argvlen, return_value, true);
-                }
             }
             else
             {
@@ -1790,21 +1790,21 @@ void swoole_redis_coro_init(int module_number)
 static void swoole_redis_coro_set_options(swRedisClient *redis, zval* zoptions, bool backward_compatibility = false)
 {
     HashTable *vht = Z_ARRVAL_P(zoptions);
-    zval *v;
+    zval *ztmp;
 
-    if (php_swoole_array_get_value(vht, "connect_timeout", v))
+    if (php_swoole_array_get_value(vht, "connect_timeout", ztmp))
     {
-        convert_to_double(v);
-        redis->connect_timeout = (double) Z_DVAL_P(v);
+        convert_to_double(ztmp);
+        redis->connect_timeout = (double) Z_DVAL_P(ztmp);
         if (redis->connect_timeout <= 0)
         {
             redis->connect_timeout = ZEND_LONG_MAX;
         }
     }
-    if (php_swoole_array_get_value(vht, "timeout", v))
+    if (php_swoole_array_get_value(vht, "timeout", ztmp))
     {
-        convert_to_double(v);
-        redis->timeout = (double) Z_DVAL_P(v);
+        convert_to_double(ztmp);
+        redis->timeout = (double) Z_DVAL_P(ztmp);
         if (redis->timeout <= 0)
         {
             redis->timeout = ZEND_LONG_MAX;
@@ -1822,15 +1822,15 @@ static void swoole_redis_coro_set_options(swRedisClient *redis, zval* zoptions, 
             }
         }
     }
-    if (php_swoole_array_get_value(vht, "serialize", v))
+    if (php_swoole_array_get_value(vht, "serialize", ztmp))
     {
-        convert_to_boolean(v);
-        redis->serialize = Z_BVAL_P(v);
+        convert_to_boolean(ztmp);
+        redis->serialize = Z_BVAL_P(ztmp);
     }
-    if (php_swoole_array_get_value(vht, "retry", v))
+    if (php_swoole_array_get_value(vht, "reconnect", ztmp))
     {
-        convert_to_boolean(v);
-        redis->retry = Z_BVAL_P(v);
+        convert_to_long(ztmp);
+        redis->reconnect_interval = (uint8_t) MIN(Z_LVAL_P(ztmp), UINT8_MAX);
     }
 }
 
@@ -1859,7 +1859,7 @@ static PHP_METHOD(swoole_redis_coro, __construct)
 
     redis->connect_timeout = COROG.socket_connect_timeout;
     redis->timeout = COROG.socket_timeout;
-    redis->retry = 1;
+    redis->reconnect_interval = 1;
 
     if (zset && ZVAL_IS_ARRAY(zset))
     {
@@ -1890,7 +1890,6 @@ static PHP_METHOD(swoole_redis_coro, connect)
     zend_update_property_string(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("host"), host);
     zend_update_property_long(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("port"), port);
     redis->serialize = serialize;
-    redis->internal_connect_failed = 0;
 
     if ((fd = swoole_redis_coro_connect(redis)) > 0)
     {
