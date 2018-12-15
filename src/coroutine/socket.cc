@@ -294,7 +294,6 @@ Socket::Socket(enum swSocket_type _type)
     if (unlikely(_fd < 0))
     {
         swWarn("Socket construct failed. Error: %s[%d]", strerror(errno), errno);
-        _closed = true;
         return;
     }
     init_sock(_fd);
@@ -348,7 +347,7 @@ bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen)
             return false;
         }
         //Connection is closed
-        if (_closed)
+        if (socket->closed)
         {
             errCode = errno = ECONNABORTED;
             errMsg = strerror(errCode);
@@ -525,9 +524,14 @@ static int socket_event_callback(swReactor *reactor, swEvent *event)
     return SW_OK;
 }
 
+bool Socket::is_connect()
+{
+    return socket->active && !socket->closed;
+}
+
 bool Socket::check_liveness()
 {
-    if (!socket || !socket->active || socket->closed || _closed)
+    if (!is_connect())
     {
         return false;
     }
@@ -536,7 +540,8 @@ bool Socket::check_liveness()
         static char buf;
         errno = 0;
         int ret = swConnection_peek(socket, &buf, sizeof(buf), 0);
-        if (ret == 0 || (ret > 0 && swConnection_error(errno) != SW_WAIT)) {
+        if (ret == 0 || (ret < 0 && swConnection_error(errno) != SW_WAIT)) {
+            errCode = errno ? errno : ECONNRESET;
             return false;
         }
     }
@@ -1194,26 +1199,23 @@ bool Socket::shutdown(int __how)
             return true;
         }
     }
+    errCode = errno;
+    errMsg = strerror(errno);
     return false;
 }
 
 bool Socket::close()
 {
-    if (_closed)
+    // TODO: waiting on review
+    if (!socket->closed)
     {
-        return false;
+        socket->closed = 1;
     }
-    if (socket == NULL || socket->closed)
+    if (socket->active)
     {
-        return false;
+        shutdown();
+        socket->active = 0;
     }
-    if (socket->active && !shutdown())
-    {
-        return false;
-    }
-    _closed = true;
-    socket->active = 0;
-    socket->closed = 1;
     if (bind_co)
     {
         reactor->del(reactor, socket->fd);

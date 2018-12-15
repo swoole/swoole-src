@@ -36,6 +36,7 @@ public:
     bool connect(const struct sockaddr *addr, socklen_t addrlen);
     bool shutdown(int how = SHUT_RDWR);
     bool close();
+    bool is_connect();
     bool check_liveness();
     ssize_t peek(void *__buf, size_t __n);
     ssize_t recv(void *__buf, size_t __n);
@@ -147,7 +148,6 @@ protected:
         _timer = nullptr;
         bind_port = 0;
         _backlog = 0;
-        _closed = false;
 
         http2 = 0;
         shutdown_read = 0;
@@ -237,7 +237,7 @@ protected:
                 exit(255);
             }
         }
-        if (unlikely(_closed))
+        if (unlikely(socket->closed))
         {
             errCode = SW_ERROR_SOCKET_CLOSED;
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKET_CLOSED, "Socket#%d belongs to coroutine#%ld has already been closed.", socket->fd, cid);
