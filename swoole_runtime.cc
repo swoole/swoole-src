@@ -154,7 +154,7 @@ static auto block_io_functions = {
     "stream_select",
     "stream_create",
     "pcntl_fork",
-    "popen"
+    "popen",
     "socket_select",
     "gethostbyname",
 };
