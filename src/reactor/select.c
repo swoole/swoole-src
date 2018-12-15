@@ -175,7 +175,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
         }
     }
 
-    reactor->start = 1;
+    swReactor_before_wait(reactor);
 
     while (reactor->running > 0)
     {

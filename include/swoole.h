@@ -82,15 +82,7 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #endif
 
 #if __APPLE__
-// Fix warning: 'daemon' is deprecated: first deprecated in macOS 10.5 - Use posix_spawn APIs instead. [-Wdeprecated-declarations]
-#define daemon yes_we_know_that_daemon_is_deprecated_in_os_x_10_5_thankyou
-#include <spawn.h>
-#undef daemon
-extern int daemon(int, int);
-#endif
-
-#ifndef HAVE_DAEMON
-int daemon(int nochdir, int noclose);
+#define  daemon(nochdir, noclose)    swoole_daemon(nochdir, noclose)
 #endif
 
 /*----------------------------------------------------------------------------*/
@@ -1351,6 +1343,7 @@ void swoole_rtrim(char *str, int len);
 void swoole_redirect_stdout(int new_fd);
 #ifndef _WIN32
 int swoole_shell_exec(char *command, pid_t *pid, uint8_t get_error_stream);
+int swoole_daemon(int nochdir, int noclose);
 #endif
 SW_API int swoole_add_function(const char *name, void* func);
 SW_API void* swoole_get_function(char *name, uint32_t length);
@@ -1764,6 +1757,13 @@ static sw_inline int swReactor_events(int fdtype)
 
 int swReactor_create(swReactor *reactor, int max_event);
 int swReactor_setHandle(swReactor *, int, swReactor_handle);
+
+static inline void swReactor_before_wait(swReactor *reactor)
+{
+    reactor->running = 1;
+    reactor->start = 1;
+}
+
 int swReactor_empty(swReactor *reactor);
 
 void swReactor_defer_task_create(swReactor *reactor);
