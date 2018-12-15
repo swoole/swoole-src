@@ -169,7 +169,7 @@ bool Socket::http_proxy_handshake()
     {
         if (strlen(http_proxy->buf) > 0) 
         {
-            char _authBuf[600];
+            char _authBuf[700];
             snprintf(_authBuf, sizeof(_authBuf), "CONNECT %*s:%d HTTP/1.1\r\n%s\r\n\r\n",
                 http_proxy->l_target_host, http_proxy->target_host, http_proxy->target_port, http_proxy->buf);
             n = snprintf(http_proxy->buf, sizeof(http_proxy->buf), "%s", _authBuf);
