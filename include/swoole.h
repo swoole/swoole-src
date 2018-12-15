@@ -207,6 +207,8 @@ typedef unsigned long ulong_t;
 #endif
 #define SW_STRS(s)             s, sizeof(s)
 #define SW_STRL(s)             s, sizeof(s)-1
+#define SW_STRINGL(s)          s->str, s->length
+#define SW_STRINGS(s)          s->str, s->size
 #define SW_START_SLEEP         usleep(100000)  //sleep 1s,wait fork and pthread_create
 
 #ifdef SW_USE_JEMALLOC
