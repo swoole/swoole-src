@@ -16,24 +16,18 @@ TEST(coroutine, create)
 
 TEST(coroutine, socket_connect_refused)
 {
-    long cid = Coroutine::create([](void *arg)
+    coro_test([](void *arg)
     {
         Socket sock(SW_SOCK_TCP);
         bool retval = sock.connect("127.0.0.1", 9801, 0.5);
         ASSERT_EQ(retval, false);
         ASSERT_EQ(sock.errCode, ECONNREFUSED);
     });
-
-    if (cid < 0)
-    {
-        return;
-    }
-    SwooleG.main_reactor->wait(SwooleG.main_reactor, nullptr);
 }
 
 TEST(coroutine, socket_connect_timeout)
 {
-    long cid = Coroutine::create([](void *arg)
+    coro_test([](void *arg)
     {
         Socket sock(SW_SOCK_TCP);
         sock.set_timeout(0.5);
@@ -41,32 +35,22 @@ TEST(coroutine, socket_connect_timeout)
         ASSERT_EQ(retval, false);
         ASSERT_EQ(sock.errCode, ETIMEDOUT);
     });
-    if (cid < 0)
-    {
-        return;
-    }
-    SwooleG.main_reactor->wait(SwooleG.main_reactor, nullptr);
 }
 
 TEST(coroutine, socket_connect_with_dns)
 {
-    long cid = Coroutine::create([](void *arg)
+    coro_test([](void *arg)
     {
         Socket sock(SW_SOCK_TCP);
         bool retval = sock.connect("www.baidu.com", 80, 0.5);
         ASSERT_EQ(retval, true);
         ASSERT_EQ(sock.errCode, 0);
     });
-    if (cid < 0)
-    {
-        return;
-    }
-    SwooleG.main_reactor->wait(SwooleG.main_reactor, nullptr);
 }
 
 TEST(coroutine, socket_recv_success)
 {
-    long cid = Coroutine::create([](void *arg)
+    coro_test([](void *arg)
     {
         Socket sock(SW_SOCK_TCP);
         bool retval = sock.connect("127.0.0.1", 9501, -1);
@@ -77,16 +61,11 @@ TEST(coroutine, socket_recv_success)
         int n = sock.recv(buf, sizeof(buf));
         ASSERT_EQ(strcmp(buf, "hello world\n"), 0);
     });
-    if (cid < 0)
-    {
-        return;
-    }
-    SwooleG.main_reactor->wait(SwooleG.main_reactor, nullptr);
 }
 
 TEST(coroutine, socket_recv_fail)
 {
-    long cid = Coroutine::create([](void *arg)
+    coro_test([](void *arg)
     {
         Socket sock(SW_SOCK_TCP);
         bool retval = sock.connect("127.0.0.1", 9501, -1);
@@ -97,11 +76,6 @@ TEST(coroutine, socket_recv_fail)
         int n = sock.recv(buf, sizeof(buf));
         ASSERT_EQ(n, 0);
     });
-    if (cid < 0)
-    {
-        return;
-    }
-    SwooleG.main_reactor->wait(SwooleG.main_reactor, nullptr);
 }
 
 TEST(coroutine, socket_bind_success)
@@ -129,10 +103,11 @@ TEST(coroutine, socket_listen)
 
 TEST(coroutine, socket_accept)
 {
+    coroutine_func_t fns[2];
     /**
      * Accept
      */
-    Coroutine::create([](void *arg)
+    fns[0] = [](void *arg)
     {
         Socket sock(SW_SOCK_TCP);
         bool retval = sock.bind("127.0.0.1", 9909);
@@ -141,29 +116,29 @@ TEST(coroutine, socket_accept)
 
         Socket *conn = sock.accept();
         ASSERT_NE(conn, nullptr);
-    });
+    };
 
     /**
      * Connect
      */
-    Coroutine::create([](void *arg)
+    fns[1] = [](void *arg)
     {
         Socket sock(SW_SOCK_TCP);
         bool retval = sock.connect("127.0.0.1", 9909, -1);
         ASSERT_EQ(retval, true);
         ASSERT_EQ(sock.errCode, 0);
-    });
-    SwooleG.main_reactor->wait(SwooleG.main_reactor, nullptr);
+    };
+
+    coro_test(fns, 2);
 }
 
 TEST(coroutine, socket_resolve)
 {
-    Coroutine::create([](void *arg)
+    coro_test([](void *arg)
     {
         Socket sock(SW_SOCK_TCP);
-        auto retval = sock.resolve("www.qq.com");
-        ASSERT_EQ(retval, "180.163.26.39");
+        auto retval = sock.resolve("www.swoole.com");
+        ASSERT_EQ(retval, "47.244.108.17");
     });
-    SwooleG.main_reactor->wait(SwooleG.main_reactor, nullptr);
 }
 
