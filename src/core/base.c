@@ -1204,7 +1204,7 @@ SW_API void swoole_call_hook(enum swGlobal_hook_type type, void *arg)
     }
 }
 
-int swoole_shell_exec(char *command, pid_t *pid, uint8_t get_error_stream)
+int swoole_shell_exec(const char *command, pid_t *pid, uint8_t get_error_stream)
 {
     pid_t child_pid;
     int fds[2];
