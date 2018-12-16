@@ -29,7 +29,7 @@ retry_failures()
 
     # and retry
     ./start.sh \
-    --set-timeout 30 \
+    --set-timeout $1 \
     --show-slow 1000 \
     --show-diff \
     -w failed.list \
@@ -46,13 +46,13 @@ do
     -w failed.list \
     "./swoole_${dir}"
 
-    for i in 1 2 3 4 5
+    for i in 1 2 3
     do
         if [ "`cat failed.list | grep "phpt"`" ]; then
             sleep ${i}
             echo "\n😮 Retry failed tests #${i}:\n"
             cat failed.list
-            retry_failures
+            retry_failures "`echo | expr ${i} \* 10`"
         else
             exit 0
         fi

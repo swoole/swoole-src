@@ -5,6 +5,7 @@ swoole_mysql_coro: transaction
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
+error_reporting(E_DEPRECATED);
 go(function () {
     $db = new Swoole\Coroutine\Mysql;
     $server = [
@@ -46,16 +47,8 @@ go(function () {
 --EXPECTF--
 Deprecated: Swoole\Coroutine\MySQL::%s(): %s. in %s on line %d
 
-Warning: assert(): assert(!$db->%s()) failed in %s on line %d
+Deprecated: Swoole\Coroutine\MySQL::%s(): %s. in %s on line %d
 
 Deprecated: Swoole\Coroutine\MySQL::%s(): %s. in %s on line %d
 
-Warning: assert(): assert(!$db->%s()) failed in %s on line %d
-
 Deprecated: Swoole\Coroutine\MySQL::%s(): %s. in %s on line %d
-
-Warning: assert(): assert(!$db->%s()) failed in %s on line %d
-
-Deprecated: Swoole\Coroutine\MySQL::%s(): %s. in %s on line %d
-
-Warning: assert(): assert(!$db->%s()) failed in %s on line %d

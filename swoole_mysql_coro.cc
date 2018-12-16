@@ -942,8 +942,12 @@ static void swoole_mysql_coro_query_transcation(const char* command, uint8_t in_
     // to make sure they know what they are doing
     if (unlikely(client->defer))
     {
-        swoole_php_fatal_error(E_DEPRECATED, "you should not use defer to handle transaction, if you want, please use `query` instead.");
-        client->defer = 0;
+        swoole_php_fatal_error(
+            E_DEPRECATED,
+            "you should not use defer to handle transaction, "
+            "if you want, please use `query` instead."
+        );
+        RETURN_FALSE;
     }
 
     if (in_transaction && client->transaction)
