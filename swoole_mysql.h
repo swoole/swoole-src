@@ -342,7 +342,7 @@ typedef struct
     uint8_t response_type;
     uint32_t packet_length :24;
     uint32_t packet_number :8;
-    uint32_t error_code;
+    int32_t  error_code;
     uint32_t warnings;
     uint16_t status_code;
     char status_msg[6];

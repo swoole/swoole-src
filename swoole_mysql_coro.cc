@@ -367,9 +367,26 @@ static int swoole_mysql_coro_parse_response(mysql_client *client, zval **result,
         {
             return SW_AGAIN;
         }
-        else
+        else // handler error
         {
-            return ret; // TODO: return error instead of timeout?
+            static const char* errmsg = "mysql response packet parse error.";
+            client->response.response_type = SW_MYSQL_PACKET_ERR;
+            client->response.error_code = ret;
+            client->response.server_msg = (char *) errmsg;
+            client->response.l_server_msg = strlen(errmsg);
+            if (client->response.result_array)
+            {
+                sw_zval_free(client->response.result_array);
+                client->response.result_array = nullptr;
+            }
+            if (client->cmd == SW_MYSQL_COM_STMT_EXECUTE)
+            {
+                if (client->statement && client->statement->result)
+                {
+                    sw_zval_free(client->statement->result);
+                    client->statement->result = NULL;
+                }
+            }
         }
     }
 
@@ -479,7 +496,7 @@ static int swoole_mysql_coro_parse_response(mysql_client *client, zval **result,
         }
     }
 
-    return SW_OK;
+    return ret;
 }
 
 static void swoole_mysql_coro_parse_end(mysql_client *client, swString *buffer)
@@ -1882,12 +1899,12 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
                 return SW_OK;
             }
 
-            if (swoole_mysql_coro_parse_response(client, &result, 0) != SW_OK)
+            ret = swoole_mysql_coro_parse_response(client, &result, 0);
+            if (ret == SW_AGAIN)
             {
                 return SW_OK; // parse error or need again
             }
             swoole_mysql_coro_parse_end(client, buffer); // ending tidy up
-
 
             if (client->defer && !client->suspending)
             {

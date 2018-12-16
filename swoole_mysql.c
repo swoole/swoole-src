@@ -1018,13 +1018,17 @@ static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
         tmp_len = mysql_length_coded_binary(&buf[read_n], &len, &nul, packet_len - read_n);
         if (tmp_len == -1)
         {
-            return -SW_MYSQL_ERR_BAD_LCB;
+            swWarn("mysql response parse error: bad lcb, tmp_len=%d", tmp_len);
+            read_n = -SW_MYSQL_ERR_BAD_LCB;
+            goto _error;
         }
 
         read_n += tmp_len;
         if (read_n + len > packet_len)
         {
-            return -SW_MYSQL_ERR_LEN_OVER_BUFFER;
+            swWarn("mysql response parse error: length over buffer, read_n=%d, len=%lu, packet_len=%u", read_n, len, packet_len);
+            read_n = -SW_MYSQL_ERR_LEN_OVER_BUFFER;
+            goto _error;
         }
 
         field = &client->response.columns[i];
@@ -1079,7 +1083,8 @@ static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
                     row.uint = strtoul(value_buffer, &error, 10);
                     if (*error != '\0')
                     {
-                        return -SW_MYSQL_ERR_CONVLONG;
+                        read_n = -SW_MYSQL_ERR_CONVLONG;
+                        goto _error;
                     }
                     add_assoc_long(row_array, field->name, row.uint);
                 }
@@ -1088,7 +1093,8 @@ static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
                     row.sint = strtol(value_buffer, &error, 10);
                     if (*error != '\0')
                     {
-                        return -SW_MYSQL_ERR_CONVLONG;
+                        read_n = -SW_MYSQL_ERR_CONVLONG;
+                        goto _error;
                     }
                     add_assoc_long(row_array, field->name, row.sint);
                 }
@@ -1106,7 +1112,8 @@ static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
                 {
                     row.ubigint = strtoull(value_buffer, &error, 10);
                     if (*error != '\0') {
-                        return -SW_MYSQL_ERR_CONVLONGLONG;
+                        read_n = -SW_MYSQL_ERR_CONVLONGLONG;
+                        goto _error;
                     }
                     if (unlikely(row.ubigint > ZEND_LONG_MAX))
                     {
@@ -1118,7 +1125,8 @@ static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
                 {
                     row.sbigint = strtoll(value_buffer, &error, 10);
                     if (*error != '\0') {
-                        return -SW_MYSQL_ERR_CONVLONGLONG;
+                        read_n = -SW_MYSQL_ERR_CONVLONGLONG;
+                        goto _error;
                     }
                     add_assoc_long(row_array, field->name, row.sbigint);
                 }
@@ -1135,7 +1143,8 @@ static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
                 value_buffer[len] = 0;
                 row.mdouble = strtod(value_buffer, &error);
                 if (*error != '\0') {
-                    return -SW_MYSQL_ERR_CONVFLOAT;
+                    read_n = -SW_MYSQL_ERR_CONVFLOAT;
+                    goto _error;
                 }
                 add_assoc_double(row_array, field->name, row.mdouble);
             }
@@ -1151,7 +1160,8 @@ static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
                 value_buffer[len] = 0;
                 row.mdouble = strtod(value_buffer, &error);
                 if (*error != '\0') {
-                    return -SW_MYSQL_ERR_CONVDOUBLE;
+                    read_n = -SW_MYSQL_ERR_CONVDOUBLE;
+                    goto _error;
                 }
                 add_assoc_double(row_array, field->name, row.mdouble);
             }
@@ -1163,17 +1173,18 @@ static int mysql_decode_row(mysql_client *client, char *buf, int packet_len)
 
         default:
             swWarn("unknown field type[%d].", field->type);
-            return -1;
+            _error:
+            zval_ptr_dtor(row_array);
+            efree(row_array);
+            read_n = SW_ERR;
+            return read_n;
         }
         read_n += len;
     }
 
     add_next_index_zval(result_array, row_array);
 
-    if (row_array)
-    {
-        efree(row_array);
-    }
+    efree(row_array);
 
     return read_n;
 }
@@ -1334,7 +1345,9 @@ static int mysql_decode_row_prepare(mysql_client *client, char *buf, int packet_
             tmp_len = mysql_length_coded_binary(&buf[read_n], &len, &nul, packet_len - read_n);
             if (tmp_len == -1)
             {
-                return -SW_MYSQL_ERR_BAD_LCB;
+                swWarn("mysql response parse error: bad lcb, tmp_len=%d", tmp_len);
+                read_n = -SW_MYSQL_ERR_BAD_LCB;
+                goto _error;
             }
             read_n += tmp_len;
             add_assoc_stringl(row_array, field->name, buf + read_n, len);
@@ -1428,17 +1441,18 @@ static int mysql_decode_row_prepare(mysql_client *client, char *buf, int packet_
 
         default:
             swWarn("unknown field type[%d].", field->type);
-            return -1;
+            _error:
+            zval_ptr_dtor(row_array);
+            efree(row_array);
+            read_n = SW_ERR;
+            return read_n;
         }
         read_n += len;
     }
 
     add_next_index_zval(result_array, row_array);
 
-    if (row_array)
-    {
-        efree(row_array);
-    }
+    efree(row_array);
 
     return read_n + null_count;
 }
@@ -1673,6 +1687,7 @@ static sw_inline int mysql_read_rows(mysql_client *client)
 
         if (ret < 0)
         {
+            mysql_columns_free(client);
             break;
         }
 
@@ -1683,7 +1698,7 @@ static sw_inline int mysql_read_rows(mysql_client *client)
         buffer->offset += client->response.packet_length + SW_MYSQL_PACKET_HEADER_SIZE;
     }
 
-    return SW_ERR;
+    return ret;
 }
 
 static int mysql_decode_field(char *buf, int len, mysql_field *col)
