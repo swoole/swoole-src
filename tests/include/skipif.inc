@@ -93,6 +93,11 @@ function skip_if_no_process_affinity()
     }
 }
 
+function skip_if_in_valgrind(string $reason = 'valgrind is too slow')
+{
+    skip($reason, getenv('USE_ZEND_ALLOC') === '0');
+}
+
 function skip_if_in_travis(string $reason = 'not support in travis')
 {
     skip($reason, file_exists('/.travisenv'));
