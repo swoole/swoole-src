@@ -759,7 +759,7 @@ int mysql_auth_switch(mysql_connector *connector, char *buf, int len)
     char *tmp = buf;
     if ((uint8_t) tmp[4] != SW_MYSQL_PACKET_EOF)
     {
-        // out of the order package
+        // out of the order packet
         return SW_ERR;
     }
 
@@ -803,7 +803,7 @@ int mysql_auth_switch(mysql_connector *connector, char *buf, int len)
     char auth_plugin_data[20];
     memcpy((char *)auth_plugin_data, tmp, 20);
 
-    // create auth switch response package
+    // create auth switch response packet
     connector->packet_length += mysql_auth_encrypt_dispatch(
             (char *) (connector->buf + 4),
             auth_plugin_name,
@@ -812,9 +812,9 @@ int mysql_auth_switch(mysql_connector *connector, char *buf, int len)
             auth_plugin_data,
             &next_state
     );
-    // 3 for package length
+    // 3 for packet length
     mysql_pack_length(connector->packet_length, connector->buf);
-    // 1 package num
+    // 1 packet num
     connector->buf[3] = packet_number + 1;
 
     return next_state;
@@ -850,7 +850,7 @@ int mysql_parse_auth_signature(swString *buffer, mysql_connector *connector)
         // create RSA prepared response
         connector->packet_length = 1;
         memset(connector->buf, 0, 512);
-        // 3 for package length
+        // 3 for packet length
         mysql_pack_length(connector->packet_length, connector->buf);
         // 1 packet number
         connector->buf[3] = packet_number + 1;
@@ -947,7 +947,7 @@ int mysql_parse_rsa(mysql_connector *connector, char *buf, int len)
     memcpy((char *)connector->buf + 4, (char *)encrypt_msg, rsa_len); // copy rsa to buf
     connector->packet_length = rsa_len;
 
-    // 3 for package length
+    // 3 for packet length
     mysql_pack_length(connector->packet_length, connector->buf);
     // 1 packet number
     connector->buf[3] = packet_number + 1;
@@ -1019,13 +1019,13 @@ static zend_string* mysql_decode_big_data(mysql_big_data_info *mbdi)
         char *read_p, *write_p;
         read_p = mbdi->read_p;
         write_p = ZSTR_VAL(zstring);
-        // copy the remaining data of the current package
+        // copy the remaining data of the current packet
         write_s = mbdi->currrent_packet_remaining_size;
         memcpy(write_p, read_p, write_s);
         read_p += write_s;
         write_p += write_s;
         write_n += write_s;
-        while (write_n < mbdi->len) // copy the next... package
+        while (write_n < mbdi->len) // copy the next... packet
         {
             uint32_t _packet_len = mysql_uint3korr(read_p);
             mbdi->ext_packet_len += _packet_len;
@@ -1041,7 +1041,7 @@ static zend_string* mysql_decode_big_data(mysql_big_data_info *mbdi)
     }
 }
 
-static ssize_t mysql_decode_row(mysql_client *client, char *buf, uint64_t packet_len, size_t n_buf)
+static ssize_t mysql_decode_row(mysql_client *client, char *buf, uint64_t packet_length, size_t n_buf)
 {
     int i;
     int tmp_len;
@@ -1058,13 +1058,13 @@ static ssize_t mysql_decode_row(mysql_client *client, char *buf, uint64_t packet
     bzero(&row, sizeof(row));
     array_init(row_array);
 
-    swTraceLog(SW_TRACE_MYSQL_CLIENT, "mysql_decode_row begin, num_column=%ld, packet_len=%u.", client->response.num_column, packet_len);
+    swTraceLog(SW_TRACE_MYSQL_CLIENT, "mysql_decode_row begin, num_column=%ld, packet_length=%u.", client->response.num_column, packet_length);
 
     mysql_field *field = NULL;
 
     for (i = 0; i < client->response.num_column; i++)
     {
-        tmp_len = mysql_length_coded_binary(&buf[read_n], &len, &nul, packet_len - read_n);
+        tmp_len = mysql_length_coded_binary(&buf[read_n], &len, &nul, packet_length - read_n);
         if (tmp_len == -1)
         {
             swWarn("mysql response parse error: bad lcb, tmp_len=%d", tmp_len);
@@ -1073,14 +1073,14 @@ static ssize_t mysql_decode_row(mysql_client *client, char *buf, uint64_t packet
         }
         read_n += tmp_len;
 
-        // WARNING: data may be longer than single package (0x00fffff => 16M)
-        if (unlikely(len > packet_len - read_n))
+        // WARNING: data may be longer than single packet (0x00fffff => 16M)
+        if (unlikely(len > packet_length - read_n))
         {
-            mysql_big_data_info mbdi = { len, n_buf - read_n, packet_len - read_n, buf + read_n, 0, 0 };
+            mysql_big_data_info mbdi = { len, n_buf - read_n, packet_length - read_n, buf + read_n, 0, 0 };
             if ((zstring = mysql_decode_big_data(&mbdi)))
             {
                 read_n += mbdi.ext_header_len;
-                packet_len += mbdi.ext_header_len + mbdi.ext_packet_len;
+                packet_length += mbdi.ext_header_len + mbdi.ext_packet_len;
             }
             else
             {
@@ -1325,7 +1325,7 @@ static void mysql_decode_year(char *buf, char *result)
     snprintf(result, DATETIME_MAX_SIZE, "%04d", y);
 }
 
-static ssize_t mysql_decode_row_prepare(mysql_client *client, char *buf, uint64_t packet_len, size_t n_buf)
+static ssize_t mysql_decode_row_prepare(mysql_client *client, char *buf, uint64_t packet_length, size_t n_buf)
 {
     int i;
     int tmp_len;
@@ -1335,7 +1335,7 @@ static ssize_t mysql_decode_row_prepare(mysql_client *client, char *buf, uint64_
 
     unsigned int null_count = ((client->response.num_column + 9) / 8) + 1;
     buf += null_count;
-    packet_len -= null_count;
+    packet_length -= null_count;
 
     swTraceLog(SW_TRACE_MYSQL_CLIENT, "null_count=%u", null_count);
 
@@ -1346,7 +1346,7 @@ static ssize_t mysql_decode_row_prepare(mysql_client *client, char *buf, uint64_
     zval *row_array = sw_malloc_zval();
     array_init(row_array);
 
-    swTraceLog(SW_TRACE_MYSQL_CLIENT, "mysql_decode_row begin, num_column=%ld, packet_len=%d.", client->response.num_column, packet_len);
+    swTraceLog(SW_TRACE_MYSQL_CLIENT, "mysql_decode_row begin, num_column=%ld, packet_length=%d.", client->response.num_column, packet_length);
 
     mysql_field *field = NULL;
     for (i = 0; i < client->response.num_column; i++)
@@ -1408,7 +1408,7 @@ static ssize_t mysql_decode_row_prepare(mysql_client *client, char *buf, uint64_
         case SW_MYSQL_TYPE_VAR_STRING:
         case SW_MYSQL_TYPE_VARCHAR:
         case SW_MYSQL_TYPE_NEWDATE:
-            tmp_len = mysql_length_coded_binary(&buf[read_n], &len, &nul, packet_len - read_n);
+            tmp_len = mysql_length_coded_binary(&buf[read_n], &len, &nul, packet_length - read_n);
             if (tmp_len == -1)
             {
                 swWarn("mysql response parse error: bad lcb, tmp_len=%d", tmp_len);
@@ -1416,18 +1416,18 @@ static ssize_t mysql_decode_row_prepare(mysql_client *client, char *buf, uint64_
                 goto _error;
             }
             read_n += tmp_len;
-            // WARNING: data may be longer than single package (0x00fffff => 16M)
-            if (unlikely(len > packet_len - read_n))
+            // WARNING: data may be longer than single packet (0x00fffff => 16M)
+            if (unlikely(len > packet_length - read_n))
             {
                 zend_string *zstring;
-                mysql_big_data_info mbdi = { len, n_buf - read_n, packet_len - read_n, buf + read_n, 0, 0 };
+                mysql_big_data_info mbdi = { len, n_buf - read_n, packet_length - read_n, buf + read_n, 0, 0 };
                 if ((zstring = mysql_decode_big_data(&mbdi)))
                 {
                     zval _zdata, *zdata = &_zdata;
                     ZVAL_STR(zdata, zstring);
                     add_assoc_zval(row_array, field->name, zdata);
                     read_n += mbdi.ext_header_len;
-                    packet_len += mbdi.ext_header_len + mbdi.ext_packet_len;
+                    packet_length += mbdi.ext_header_len + mbdi.ext_packet_len;
                 }
                 else
                 {
@@ -1722,7 +1722,7 @@ static sw_inline int mysql_read_params(mysql_client *client)
 }
 
 /**
- * @var char*    p      => package beginning point
+ * @var char*    p      => packet beginning point
  * @var size_t   n_buf  => remaining buffer length
  * @var ssize_t  read_n => already read buffer len
  */
@@ -1763,6 +1763,9 @@ static sw_inline int mysql_read_rows(mysql_client *client)
 
         swTraceLog(SW_TRACE_MYSQL_CLIENT, "record size=%d", client->response.packet_length);
 
+        // ProtocolBinary::ResultsetRow
+        swMysqlPacketDump(p, SW_MYSQL_PACKET_HEADER_SIZE + client->response.packet_length , "ProtocolBinary::ResultsetRow");
+
         // to packege body
         p += SW_MYSQL_PACKET_HEADER_SIZE;
         n_buf -= SW_MYSQL_PACKET_HEADER_SIZE;
@@ -1770,16 +1773,12 @@ static sw_inline int mysql_read_rows(mysql_client *client)
 
         if (client->cmd == SW_MYSQL_COM_STMT_EXECUTE)
         {
-            // ProtocolBinary::ResultsetRow
-            swMysqlPacketDump(p, client->response.packet_length + SW_MYSQL_PACKET_HEADER_SIZE, "ProtocolBinary::ResultsetRow");
-
+            // for execute
             read_n = mysql_decode_row_prepare(client, p, client->response.packet_length, n_buf);
         }
         else
         {
-            // ProtocolText::ResultsetRow
-            swMysqlPacketDump(p, client->response.packet_length + SW_MYSQL_PACKET_HEADER_SIZE, "ProtocolText::ResultsetRow");
-
+            // for query
             read_n = mysql_decode_row(client, p, client->response.packet_length, n_buf);
         }
 
@@ -2058,20 +2057,17 @@ static int mysql_read_columns(mysql_client *client)
         return SW_ERR;
     }
 
-    p += client->response.packet_length + SW_MYSQL_PACKET_HEADER_SIZE;
-    n_buf -= client->response.packet_length + SW_MYSQL_PACKET_HEADER_SIZE;
-
     if (client->cmd != SW_MYSQL_COM_STMT_PREPARE)
     {
-        zval *result_array = client->response.result_array;
-        if (!result_array)
+        if (!client->response.result_array)
         {
-            result_array = sw_malloc_zval();;
-            array_init(result_array);
-            client->response.result_array = result_array;
+            client->response.result_array = sw_malloc_zval();;
+            array_init(client->response.result_array);
         }
     }
 
+    p += client->response.packet_length + SW_MYSQL_PACKET_HEADER_SIZE;
+    n_buf -= client->response.packet_length + SW_MYSQL_PACKET_HEADER_SIZE;
     buffer->offset += p - (buffer->str + buffer->offset);
 
     return SW_OK;
@@ -2083,7 +2079,7 @@ int mysql_is_over(mysql_client *client)
     swString *buffer = MYSQL_RESPONSE_BUFFER;
     char *p;
     off_t remaining_size;
-    uint32_t package_len;
+    uint32_t packet_length;
 
     if (buffer->length < client->want_length)
     {
@@ -2093,25 +2089,25 @@ int mysql_is_over(mysql_client *client)
     remaining_size = buffer->length - client->check_offset; // remaining buffer size
     while (remaining_size > 0) // if false: have already check all of the data
     {
-        swTraceLog(SW_TRACE_MYSQL_CLIENT, "check package from %jd, remaining=%jd", (intmax_t) client->check_offset, (intmax_t) remaining_size);
+        swTraceLog(SW_TRACE_MYSQL_CLIENT, "check packet from %jd, remaining=%jd", (intmax_t) client->check_offset, (intmax_t) remaining_size);
         p = buffer->str + client->check_offset; // where to start checking now
         if (unlikely(buffer->length < client->check_offset + SW_MYSQL_PACKET_HEADER_SIZE))
         {
             client->want_length = client->check_offset + SW_MYSQL_PACKET_HEADER_SIZE;
             break; // header incomplete
         }
-        package_len = mysql_uint3korr(p); // parse package length
+        packet_length = mysql_uint3korr(p); // parse packet length
         // add header
         p += SW_MYSQL_PACKET_HEADER_SIZE;
         remaining_size -= SW_MYSQL_PACKET_HEADER_SIZE;
-        if (remaining_size < package_len) // package is incomplete
+        if (remaining_size < packet_length) // packet is incomplete
         {
-            client->want_length = client->check_offset + SW_MYSQL_PACKET_HEADER_SIZE + package_len;
+            client->want_length = client->check_offset + SW_MYSQL_PACKET_HEADER_SIZE + packet_length;
             break;
         }
 
-        client->check_offset += (SW_MYSQL_PACKET_HEADER_SIZE + package_len); // add header length + package length
-        if (client->check_offset >= buffer->length) // if false: more packages exist, skip the current one
+        client->check_offset += (SW_MYSQL_PACKET_HEADER_SIZE + packet_length); // add header length + packet length
+        if (client->check_offset >= buffer->length) // if false: more packets exist, skip the current one
         {
             switch ((uint8_t) p[0])
             {
@@ -2145,7 +2141,7 @@ int mysql_is_over(mysql_client *client)
                 if ((mysql_uint2korr(p) & SW_MYSQL_SERVER_MORE_RESULTS_EXISTS) == 0)
                 {
                     _over:
-                    swTraceLog(SW_TRACE_MYSQL_CLIENT, "package over on=%jd", (intmax_t) client->check_offset);
+                    swTraceLog(SW_TRACE_MYSQL_CLIENT, "packet over on=%jd", (intmax_t) client->check_offset);
                     client->want_length = 0;
                     client->check_offset = 0;
                     return SW_OK;
@@ -2160,7 +2156,7 @@ int mysql_is_over(mysql_client *client)
         }
 
         // not complete and without remaining data
-        remaining_size -= package_len;
+        remaining_size -= packet_length;
         if (remaining_size <= 0)
         {
             break; // again
@@ -2190,7 +2186,7 @@ int mysql_response(mysql_client *client)
         case SW_MYSQL_STATE_READ_START:
             // Ensure that we've received the complete packet
             if (mysql_ensure_packet(p, n_buf) == SW_ERR)
-            {;
+            {
                 return SW_AGAIN;
             }
 
@@ -3086,7 +3082,7 @@ static int swoole_mysql_onHandShake(mysql_client *client)
             }
             else
             {
-                // clear for the new package
+                // clear for the new packet
                 swString_clear(buffer);
                 // mysql_handshake will return the next state flag
                 client->handshake = ret;
@@ -3105,7 +3101,7 @@ static int swoole_mysql_onHandShake(mysql_client *client)
         case SW_AGAIN:
             return SW_OK;
         case SW_ERR:
-            // not the switch package, go to the next
+            // not the switch packet, go to the next
             goto _again;
         default:
             ret = next_state;
@@ -3134,7 +3130,7 @@ static int swoole_mysql_onHandShake(mysql_client *client)
         }
         }
 
-        // may be more packages
+        // may be more packets
         if (buffer->offset < buffer->length)
         {
             goto _again;

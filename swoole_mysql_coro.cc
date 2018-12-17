@@ -538,7 +538,7 @@ static int swoole_mysql_coro_statement_free(mysql_statement *stmt)
 
 static int swoole_mysql_coro_statement_close(mysql_statement *stmt)
 {
-    // WARNING: it's wrong operation, we send the close statement package silently, don't change any property in the client!
+    // WARNING: it's wrong operation, we send the close statement packet silently, don't change any property in the client!
     // stmt->client->cmd = SW_MYSQL_COM_STMT_CLOSE;
 
     // call mysql-server to destruct this statement
@@ -1663,7 +1663,7 @@ static int swoole_mysql_coro_onHandShake(mysql_client *client)
             }
             else
             {
-                // clear for the new package
+                // clear for the new packet
                 swString_clear(buffer);
                 // mysql_handshake will return the next state flag
                 client->handshake = ret;
@@ -1682,7 +1682,7 @@ static int swoole_mysql_coro_onHandShake(mysql_client *client)
         case SW_AGAIN:
             return SW_OK;
         case SW_ERR:
-            // not the switch package, go to the next
+            // not the switch packet, go to the next
             goto _again;
         default:
             ret = next_state;
@@ -1711,7 +1711,7 @@ static int swoole_mysql_coro_onHandShake(mysql_client *client)
         }
         }
 
-        // may be more packages
+        // may be more packets
         if ((size_t) buffer->offset < buffer->length)
         {
             goto _again;
@@ -1890,7 +1890,7 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
 
             _parse_response:
 
-            // always check that is package complete
+            // always check that is packet complete
             // and maybe more responses has already received in buffer, we check it now.
             if ((client->cmd == SW_MYSQL_COM_QUERY || client->cmd == SW_MYSQL_COM_STMT_EXECUTE) && mysql_is_over(client) != SW_OK)
             {
