@@ -510,7 +510,7 @@ static void socket_timer_callback(swTimer *timer, swTimer_node *tnode)
     Socket *sock = (Socket *) tnode->data;
     errno = ETIMEDOUT;
     sock->errCode = ETIMEDOUT;
-    swDebug("socket[%d] timeout", sock->socket->fd);
+    swTraceLog(SW_TRACE_SOCKET, "socket[%d] timeout", sock->socket->fd);
     sock->reactor->del(sock->reactor, sock->socket->fd);
     sock->_timer = NULL;
     sock->resume();
@@ -758,7 +758,7 @@ ssize_t Socket::send_all(const void *__buf, size_t __n)
     while (true)
     {
         retval = send((char*) __buf + total_bytes, __n - total_bytes);
-        swTrace("send retval=%ld", retval);
+        swTraceLog(SW_TRACE_SOCKET, "send retval=%ld", retval);
         if (retval <= 0)
         {
             if (total_bytes == 0)
@@ -1543,7 +1543,7 @@ ssize_t Socket::recv_packet()
         }
 
         _get_length: buf_len = protocol.get_package_length(&protocol, socket, read_buffer->str, (uint32_t) read_buffer->length);
-        swDebug("packet_len=%ld, length=%ld", buf_len, read_buffer->length);
+        swTraceLog(SW_TRACE_SOCKET, "packet_len=%ld, length=%ld", buf_len, read_buffer->length);
         //error package
         if (buf_len < 0)
         {

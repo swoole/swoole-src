@@ -184,7 +184,7 @@ static sw_inline ssize_t swConnection_recv(swConnection *conn, void *__buf, size
     }
 #endif
 
-    swDebug("recv %ld/%ld bytes, errno=%d", total_bytes, __n, errno);
+    swTraceLog(SW_TRACE_SOCKET, "recv %ld/%ld bytes, errno=%d", total_bytes, __n, errno);
 
     return total_bytes;
 }

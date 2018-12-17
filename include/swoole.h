@@ -433,6 +433,7 @@ enum swTraceType
     SW_TRACE_NORMAL           = 1u << 20,
     SW_TRACE_CHANNEL          = 1u << 21,
     SW_TRACE_TIMER            = 1u << 22,
+    SW_TRACE_SOCKET           = 1u << 23,
 };
 
 #ifdef SW_LOG_TRACE_OPEN
