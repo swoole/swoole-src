@@ -586,6 +586,7 @@ static int swoole_mysql_coro_close(zval *zobject)
         mysql_request_buffer->length = 5;
         mysql_pack_length(mysql_request_buffer->length - 4, mysql_request_buffer->str);
         SwooleG.main_reactor->write(SwooleG.main_reactor, client->fd, mysql_request_buffer->str, mysql_request_buffer->length);
+        client->connected = 0;
     }
 
     zend_update_property_bool(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("connected"), 0);
@@ -905,6 +906,7 @@ static PHP_METHOD(swoole_mysql_coro, query)
         client->iowait = SW_MYSQL_CORO_STATUS_WAIT;
         RETURN_TRUE;
     }
+    client->suspending = 1;
     client->cid = sw_get_current_cid();
     sw_coro_save(return_value, context);
     sw_coro_yield();
@@ -1821,7 +1823,7 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
                     swSysError("Read from socket[%d] failed.", event->fd);
                     return SW_ERR;
                 case SW_CLOSE:
-                    goto close_fd;
+                    goto _close_fd;
                 case SW_WAIT:
                     return SW_OK;
                 default:
@@ -1831,7 +1833,7 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
         }
         else if (ret == 0)
         {
-            close_fd:
+            _close_fd:
             if (client->state == SW_MYSQL_STATE_READ_END)
             {
                 goto _parse_response;
@@ -1846,6 +1848,8 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
                 zend_update_property_long(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("errno"), 2006);
                 zend_update_property_string(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("error"), "MySQL server has gone away");
             }
+
+            _active_close:
             swoole_mysql_coro_close(zobject);
 
             if (!client->cid)
@@ -1912,6 +1916,12 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
                 client->result = result;
                 return SW_OK;
             }
+
+            if (!client->cid)
+            {
+                goto _active_close; // error
+            }
+
             client->suspending = 0;
             client->iowait = SW_MYSQL_CORO_STATUS_READY;
             client->cid = 0;

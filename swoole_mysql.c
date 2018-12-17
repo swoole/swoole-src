@@ -1010,6 +1010,7 @@ static zend_string* mysql_decode_big_data(mysql_big_data_info *mbdi)
     mbdi->ext_header_len = SW_MYSQL_PACKET_HEADER_SIZE * (((mbdi->len - mbdi->currrent_packet_remaining_size) / SW_MYSQL_MAX_PACKET_BODY_SIZE) + 1);
     if (mbdi->ext_header_len + mbdi->len > mbdi->remaining_size)
     {
+        swTraceLog(SW_TRACE_MYSQL_CLIENT, "big packet need %lu, but only %lu", mbdi->ext_header_len + mbdi->len, mbdi->remaining_size);
         return NULL;
     }
     else
@@ -1241,10 +1242,10 @@ static ssize_t mysql_decode_row(mysql_client *client, char *buf, uint64_t packet
 
         default:
             swWarn("unknown field type[%d].", field->type);
+            read_n = SW_ERR;
             _error:
             zval_ptr_dtor(row_array);
             efree(row_array);
-            read_n = SW_ERR;
             return read_n;
         }
         read_n += len;
@@ -1356,7 +1357,7 @@ static ssize_t mysql_decode_row_prepare(mysql_client *client, char *buf, uint64_
         /* to check Null-Bitmap @see https://dev.mysql.com/doc/internals/en/null-bitmap.html */
         if (((buf - null_count + 1)[((i + 2) / 8)] & (0x01 << ((i + 2) % 8))) != 0)
         {
-            swTraceLog(SW_TRACE_MYSQL_CLIENT, "value: %s is null ,flag2", field->name);
+            swTraceLog(SW_TRACE_MYSQL_CLIENT, "%s is null", field->name);
             add_assoc_null(row_array, field->name);
             continue;
         }
@@ -1530,10 +1531,10 @@ static ssize_t mysql_decode_row_prepare(mysql_client *client, char *buf, uint64_
 
         default:
             swWarn("unknown field type[%d].", field->type);
+            read_n = SW_ERR;
             _error:
             zval_ptr_dtor(row_array);
             efree(row_array);
-            read_n = SW_ERR;
             return read_n;
         }
         read_n += len;
@@ -1764,40 +1765,46 @@ static sw_inline int mysql_read_rows(mysql_client *client)
 
         swTraceLog(SW_TRACE_MYSQL_CLIENT, "record size=%d", client->response.packet_length);
 
-        // ProtocolBinary::ResultsetRow
-        swMysqlPacketDump(p, SW_MYSQL_PACKET_HEADER_SIZE + client->response.packet_length , "ProtocolBinary::ResultsetRow");
+        // ProtocolBinary::ResultSetRow
+        swMysqlPacketDump(p, SW_MYSQL_PACKET_HEADER_SIZE + client->response.packet_length , "ProtocolBinary::ResultSetRow");
 
-        // to packege body
-        p += SW_MYSQL_PACKET_HEADER_SIZE;
-        n_buf -= SW_MYSQL_PACKET_HEADER_SIZE;
-        buffer->offset += SW_MYSQL_PACKET_HEADER_SIZE;
 
         if (client->cmd == SW_MYSQL_COM_STMT_EXECUTE)
         {
             // for execute
-            read_n = mysql_decode_row_prepare(client, p, client->response.packet_length, n_buf);
+            read_n = mysql_decode_row_prepare(
+                client,
+                p + SW_MYSQL_PACKET_HEADER_SIZE,
+                client->response.packet_length,
+                n_buf - SW_MYSQL_PACKET_HEADER_SIZE
+            );
         }
         else
         {
             // for query
-            read_n = mysql_decode_row(client, p, client->response.packet_length, n_buf);
+            read_n = mysql_decode_row(
+                client,
+                p + SW_MYSQL_PACKET_HEADER_SIZE,
+                client->response.packet_length,
+                n_buf - SW_MYSQL_PACKET_HEADER_SIZE
+            );
         }
 
-        if (read_n < 0)
+        if (unlikely(read_n < 0))
         {
             // TODO: handle all decode error here
             if (read_n == SW_AGAIN)
             {
-                swWarn("mysql packet is incomplete.");
+                return SW_AGAIN;
             }
             mysql_columns_free(client);
             return read_n;
         }
 
         // next row
-        p += read_n;
-        n_buf -= read_n;
-        buffer->offset += read_n;
+        p += SW_MYSQL_PACKET_HEADER_SIZE + read_n;
+        n_buf -= SW_MYSQL_PACKET_HEADER_SIZE + read_n;
+        buffer->offset += SW_MYSQL_PACKET_HEADER_SIZE + read_n;
         client->response.num_row++;
     }
 
@@ -2084,7 +2091,7 @@ int mysql_is_over(mysql_client *client)
 
     if (buffer->length < client->want_length)
     {
-        swTraceLog(SW_TRACE_MYSQL_CLIENT, "want=%ju, but only=%ju", (uintmax_t) client->want_length, (intmax_t) buffer->length);
+        swTraceLog(SW_TRACE_MYSQL_CLIENT, "want=%ju, but only=%ju", (uintmax_t) client->want_length, (uintmax_t) buffer->length);
         return SW_AGAIN;
     }
     remaining_size = buffer->length - client->check_offset; // remaining buffer size
@@ -2110,13 +2117,14 @@ int mysql_is_over(mysql_client *client)
         client->check_offset += (SW_MYSQL_PACKET_HEADER_SIZE + packet_length); // add header length + packet length
         if (client->check_offset >= buffer->length) // if false: more packets exist, skip the current one
         {
+            swTraceLog(SW_TRACE_MYSQL_CLIENT, "check the last packet, length=%u", packet_length);
             switch ((uint8_t) p[0])
             {
             case SW_MYSQL_PACKET_EOF: // eof
             {
                 // +type +warning
                 p += 3;
-                swTraceLog(SW_TRACE_MYSQL_CLIENT, "meet eof and flag=%d", mysql_uint2korr(p));
+                swTraceLog(SW_TRACE_MYSQL_CLIENT, "meet eof packet and flag=%d", mysql_uint2korr(p));
                 goto _check_flag;
             }
             case SW_MYSQL_PACKET_OK: // ok
@@ -2138,6 +2146,7 @@ int mysql_is_over(mysql_client *client)
                 p += retcode;
                 temp_remaining_len -= retcode;
 
+                swTraceLog(SW_TRACE_MYSQL_CLIENT, "meet ok packet");
                 _check_flag:
                 if ((mysql_uint2korr(p) & SW_MYSQL_SERVER_MORE_RESULTS_EXISTS) == 0)
                 {
@@ -2151,6 +2160,7 @@ int mysql_is_over(mysql_client *client)
             }
             case SW_MYSQL_PACKET_ERR: // response type = error
             {
+                swTraceLog(SW_TRACE_MYSQL_CLIENT, "meet error packet");
                 goto _over;
             }
             }
@@ -2238,7 +2248,7 @@ int mysql_response(mysql_client *client)
             /* result set */
             else
             {
-                swMysqlPacketDump(p, SW_MYSQL_PACKET_HEADER_SIZE + client->response.packet_length, "Resultset");
+                swMysqlPacketDump(p, SW_MYSQL_PACKET_HEADER_SIZE + client->response.packet_length, "ResultSet");
 
                 //Protocol::LengthEncodedInteger
                 ret = mysql_length_coded_binary(p + SW_MYSQL_PACKET_HEADER_SIZE, &client->response.num_column, &nul, n_buf - SW_MYSQL_PACKET_HEADER_SIZE);
@@ -2247,6 +2257,8 @@ int mysql_response(mysql_client *client)
                     return SW_ERR;
                 }
                 buffer->offset += (SW_MYSQL_PACKET_HEADER_SIZE + ret);
+
+                swTraceLog(SW_TRACE_MYSQL_CLIENT, "ResultSet_Packet: num_of_fields=%lu.", client->response.num_column);
 
                 // easy to the safe side: but under what circumstances would num_column will be 0 in result set?
                 if (client->response.num_column > 0)
