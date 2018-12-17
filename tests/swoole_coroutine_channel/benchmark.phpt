@@ -15,7 +15,7 @@ for ($i = MAX_LOOPS; $i--;) {
 }
 $i = MAX_LOOPS;
 while (!$queue->isEmpty()) {
-    assert((--$i) === $queue->shift());
+    assert((--$i) === $queue->dequeue());
 }
 $time['splQueue'] = microtime(true) - $time['splQueue'];
 
@@ -24,11 +24,11 @@ go(function () use (&$time) {
     $time['channel_raw'] = microtime(true);
     $chan = new Chan(MAX_LOOPS);
     for ($i = MAX_LOOPS; $i--;) {
-        $chan->enqueue($i);
+        $chan->push($i);
     }
     $i = MAX_LOOPS;
     while (!$chan->isEmpty()) {
-        assert((--$i) === $chan->dequeue());
+        assert((--$i) === $chan->pop());
     }
     $time['channel_raw'] = microtime(true) - $time['channel_raw'];
 });
@@ -39,13 +39,13 @@ go(function () use (&$time, $chan) {
     co::sleep(0.1);
     $time['channel_scheduler'] = microtime(true);
     for ($i = MAX_LOOPS; $i--;) {
-        $chan->enqueue($i);
+        $chan->push($i);
     }
-    $chan->enqueue(false);
+    $chan->push(false);
 });
 go(function () use (&$time, $chan) {
     $i = MAX_LOOPS;
-    while (($ret = $chan->dequeue()) !== false) {
+    while (($ret = $chan->pop()) !== false) {
         assert((--$i) === $ret);
     }
     $time['channel_scheduler'] = microtime(true) - $time['channel_scheduler'];
