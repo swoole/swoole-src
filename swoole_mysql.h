@@ -106,12 +106,15 @@ enum mysql_read_state
 
 enum mysql_error_code
 {
+    // FIXME: if it should be bigger than SW_ABORT?
+    // may be in conflict with SW_xxx err code.
     SW_MYSQL_ERR_PROTOCOL_ERROR = 1,
     SW_MYSQL_ERR_BUFFER_OVERSIZE,
     SW_MYSQL_ERR_PACKET_CORRUPT,
     SW_MYSQL_ERR_WANT_READ,
     SW_MYSQL_ERR_WANT_WRITE,
     SW_MYSQL_ERR_UNKNOWN_ERROR,
+
     SW_MYSQL_ERR_MYSQL_ERROR,
     SW_MYSQL_ERR_SERVER_LOST,
     SW_MYSQL_ERR_BAD_PORT,
@@ -416,8 +419,10 @@ typedef struct _mysql_client
 #define SW_MYSQL_PACKET_ERR  0xff
 
 /* int<3>	payload_length + int<1>	sequence_id */
-#define SW_MYSQL_PACKET_HEADER_SIZE  4
-#define SW_MYSQL_PACKET_EOF_MAX_SIZE 9
+#define SW_MYSQL_PACKET_HEADER_SIZE   4
+#define SW_MYSQL_PACKET_EOF_MAX_SIZE  9
+#define SW_MYSQL_MAX_PACKET_BODY_SIZE 0x00ffffff
+#define SW_MYSQL_MAX_PACKET_SIZE      (SW_MYSQL_PACKET_HEADER_SIZE + SW_MYSQL_MAX_PACKET_BODY_SIZE)
 
 #define mysql_uint2korr(A)  (uint16_t) (((uint16_t) ((zend_uchar) (A)[0])) +\
                                ((uint16_t) ((zend_uchar) (A)[1]) << 8))
@@ -516,7 +521,7 @@ static sw_inline void mysql_pack_length(int length, char *buf)
     buf[0] = length;
 }
 
-static sw_inline int mysql_lcb_ll(char *m, ulong_t *r, char *nul, int len)
+static sw_inline int mysql_lcb_ll(char *m, ulong_t *r, char *nul, uint64_t len)
 {
     if (len < 1)
     {
@@ -589,7 +594,7 @@ static sw_inline int mysql_write_lcb(char *p, long val)
     }
 }
 
-static sw_inline int mysql_length_coded_binary(char *m, ulong_t *r, char *nul, int len)
+static sw_inline int mysql_length_coded_binary(char *m, ulong_t *r, char *nul, uint64_t len)
 {
     ulong_t val = 0;
     int retcode = mysql_lcb_ll(m, &val, nul, len);
