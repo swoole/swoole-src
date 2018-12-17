@@ -1394,7 +1394,7 @@ bool Socket::sendfile(char *filename, off_t offset, size_t length)
         else
 #endif
         {
-            n = swoole_sendfile(socket->fd, file_fd, &offset, sendn);
+            n = ::swoole_sendfile(socket->fd, file_fd, &offset, sendn);
         }
         if (n > 0)
         {
