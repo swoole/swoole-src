@@ -13,22 +13,23 @@ co::set([
     'socket_timeout' => -1
 ]);
 go(function () {
-    $pdo = new PDO(
-        "mysql:host=" . MYSQL_SERVER_HOST . ";dbname=" . MYSQL_SERVER_DB . ";charset=utf8",
-        MYSQL_SERVER_USER, MYSQL_SERVER_PWD
-    );
-    $mysql_query = new Swoole\Coroutine\Mysql;
-    $mysql_prepare = new Swoole\Coroutine\Mysql;
-    $server = [
+    $mysql = new Swoole\Coroutine\Mysql;
+    $mysql_server = [
         'host' => MYSQL_SERVER_HOST,
         'user' => MYSQL_SERVER_USER,
         'password' => MYSQL_SERVER_PWD,
         'database' => MYSQL_SERVER_DB
     ];
-    $mysql_query->connect($server);
-    $mysql_prepare->connect($server);
-    @$mysql_query->query('DROP TABLE `firmware`');
-    $ret = $mysql_query->query(<<<SQL
+    // set max_allowed_packet
+    $mysql->connect($mysql_server);
+    if (!$mysql->query('set global max_allowed_packet = 100 * 1024 * 1024')) {
+        exit('unable to set max_allowed_packet to 100M.');
+    }
+    // reconnect and we can see changes
+    $mysql->close();
+    $mysql->connect($mysql_server);
+    @$mysql->query('DROP TABLE `firmware`');
+    $ret = $mysql->query(<<<SQL
 CREATE TABLE `firmware` (
   `fid`  int(11) NOT NULL AUTO_INCREMENT,
   `firmware` longtext NOT NULL,
@@ -41,18 +42,25 @@ SQL
     if (!$ret) {
         exit('unable to create table.');
     }
-    $max_allowed_packet = $mysql_query->query('show VARIABLES like \'max_allowed_packet\'');
+    $max_allowed_packet = $mysql->query('show VARIABLES like \'max_allowed_packet\'');
     $max_allowed_packet = $max_allowed_packet[0]['Value'] / 1024 / 1024;
     phpt_var_dump("max_allowed_packet: {$max_allowed_packet}M");
-    if ($max_allowed_packet < 16) {
-        exit('max_allowed_packet is too small.');
-    }
     if (IS_IN_TRAVIS) {
-        $max_allowed_packet = min($max_allowed_packet, 36);
+        $max_allowed_packet = 36;
+    } else {
+        $max_allowed_packet = 64;
     }
+    $pdo = new PDO(
+        "mysql:host=" . MYSQL_SERVER_HOST . ";dbname=" . MYSQL_SERVER_DB . ";charset=utf8",
+        MYSQL_SERVER_USER, MYSQL_SERVER_PWD
+    );
+    $mysql_query = new Swoole\Coroutine\Mysql;
+    $mysql_prepare = new Swoole\Coroutine\Mysql;
+    $mysql_query->connect($mysql_server);
+    $mysql_prepare->connect($mysql_server);
     for ($fid = 1; $fid <= $max_allowed_packet / 10; $fid++) {
         $random_size = 2 << mt_rand(2, 9);
-        $text_size = min($fid * 10 + mt_rand(0, 9), $max_allowed_packet - 1) * 1024 * 1024; // 1xM ~ 5xM
+        $text_size = min($fid * 10 + mt_rand(1, 9), $max_allowed_packet) * 1024 * 1024; // 1xM ~ 5xM
         $firmware = str_repeat(get_safe_random($random_size), $text_size / $random_size);
         $f_md5 = md5($firmware);
         $f_remark = get_safe_random();
