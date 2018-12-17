@@ -613,19 +613,20 @@ void PHPHttpClient::set(zval *zset = nullptr)
         php_swoole_client_coro_check_setting(socket, zsettings);
         if (socket->http_proxy)
         {
-            zval *zrequest_headers = sw_zend_read_property(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("requestHeaders"), 0);
             if (socket->http_proxy->password)
             {
-                char _buf1[128];
-                char _buf2[256];
-                int _n1 = snprintf(_buf1, sizeof(_buf1), "%*s:%*s",
+                char _buf1[256];
+                int _n1 = snprintf(
+                    _buf1, sizeof(_buf1), "%*s:%*s",
                     socket->http_proxy->l_user, socket->http_proxy->user,
                     socket->http_proxy->l_password, socket->http_proxy->password
                 );
                 zend_string *str = php_base64_encode((const unsigned char *) _buf1, _n1);
-                int _n2 = snprintf(_buf2, sizeof(_buf2), "Basic %*s", (int)str->len, str->val);
+                snprintf(
+                    socket->http_proxy->buf, sizeof(socket->http_proxy->buf),
+                    "Proxy-Authorization:Basic %*s", (int)str->len, str->val
+                );
                 zend_string_free(str);
-                add_assoc_stringl_ex(zrequest_headers, ZEND_STRL("Proxy-Authorization"), _buf2, _n2);
             }
         }
     }
