@@ -521,7 +521,7 @@ static sw_inline void mysql_pack_length(int length, char *buf)
     buf[0] = length;
 }
 
-static sw_inline int mysql_lcb_ll(char *m, ulong_t *r, char *nul, uint64_t len)
+static sw_inline int mysql_length_coded_binary(char *m, ulong_t *r, char *nul, uint64_t len)
 {
     if (len < 1)
     {
@@ -592,14 +592,6 @@ static sw_inline int mysql_write_lcb(char *p, long val)
         mysql_int8store(p, val);
         return 9;
     }
-}
-
-static sw_inline int mysql_length_coded_binary(char *m, ulong_t *r, char *nul, uint64_t len)
-{
-    ulong_t val = 0;
-    int retcode = mysql_lcb_ll(m, &val, nul, len);
-    *r = val;
-    return retcode;
 }
 
 int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callback);

@@ -2129,11 +2129,11 @@ int mysql_is_over(mysql_client *client)
                 p++;
                 temp_remaining_len--;
 
-                retcode = mysql_lcb_ll(p, &val, &nul, temp_remaining_len); // affect rows
+                retcode = mysql_length_coded_binary(p, &val, &nul, temp_remaining_len); // affect rows
                 p += retcode;
                 temp_remaining_len -= retcode;
 
-                retcode = mysql_lcb_ll(p, &val, &nul, temp_remaining_len); // insert id
+                retcode = mysql_length_coded_binary(p, &val, &nul, temp_remaining_len); // insert id
                 p += retcode;
                 temp_remaining_len -= retcode;
 
