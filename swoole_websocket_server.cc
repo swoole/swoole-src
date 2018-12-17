@@ -20,12 +20,12 @@
 
 extern "C"
 {
-#include <ext/standard/url.h>
-#include <ext/standard/sha1.h>
-#include <ext/standard/php_var.h>
-#include <ext/standard/php_string.h>
-#include <ext/date/php_date.h>
-#include <main/php_variables.h>
+#include "ext/standard/url.h"
+#include "ext/standard/sha1.h"
+#include "ext/standard/php_var.h"
+#include "ext/standard/php_string.h"
+#include "ext/date/php_date.h"
+#include "main/php_variables.h"
 }
 
 #include "websocket.h"

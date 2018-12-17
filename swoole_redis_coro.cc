@@ -21,7 +21,7 @@
 #include "thirdparty/hiredis/hiredis.h"
 #include "thirdparty/hiredis/async.h"
 
-#include <ext/standard/php_var.h>
+#include "ext/standard/php_var.h"
 
 using namespace swoole;
 
