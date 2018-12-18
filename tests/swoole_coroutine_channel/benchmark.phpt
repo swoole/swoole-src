@@ -11,11 +11,11 @@ $time = [];
 $time['splQueue'] = microtime(true);
 $queue = new SplQueue;
 for ($i = MAX_LOOPS; $i--;) {
-    $queue->push($i);
+    $queue->enqueue($i);
 }
 $i = MAX_LOOPS;
 while (!$queue->isEmpty()) {
-    assert((--$i) === $queue->shift());
+    assert((--$i) === $queue->dequeue());
 }
 $time['splQueue'] = microtime(true) - $time['splQueue'];
 
