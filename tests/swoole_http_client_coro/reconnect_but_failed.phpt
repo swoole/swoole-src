@@ -12,7 +12,6 @@ $pm->parentFunc = function () use ($pm) {
         $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
         $cli->set(['timeout' => 1]);
 
-        $retry_time = microtime(true);
         for ($n = MAX_REQUESTS; $n--;) {
             $ret = $cli->get('/');
             assert($ret == !($n % 2));
@@ -20,12 +19,10 @@ $pm->parentFunc = function () use ($pm) {
                 assert($cli->body === $pm->getRandomData());
             }
         }
-        $retry_time = microtime(true) - $retry_time;
 
         $pm->kill();
         usleep(1000);
 
-        $failed_time = microtime(true);
         assert(!$cli->get('/'));
         assert($cli->errCode === SOCKET_ECONNRESET);
         assert($cli->statusCode === SWOOLE_HTTP_CLIENT_ESTATUS_SERVER_RESET);
@@ -34,10 +31,6 @@ $pm->parentFunc = function () use ($pm) {
             assert($cli->errCode === SOCKET_ECONNREFUSED);
             assert($cli->statusCode === SWOOLE_HTTP_CLIENT_ESTATUS_CONNECT_FAILED);
         }
-        $failed_time = microtime(true) - $failed_time;
-
-        phpt_var_dump($failed_time, $retry_time);
-        assert($failed_time < $retry_time);
     });
     swoole_event_wait();
     echo "OK\n";

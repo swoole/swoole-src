@@ -2171,9 +2171,9 @@ typedef struct
     char *user;
     char *group;
 
-    uint8_t log_level;
+    uint32_t log_level;
     char *log_file;
-    int trace_flags;
+    uint32_t trace_flags;
 
     uint16_t cpu_num;
 

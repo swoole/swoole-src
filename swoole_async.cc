@@ -902,8 +902,10 @@ PHP_FUNCTION(swoole_async_set)
     }
     if (php_swoole_array_get_value(vht, "log_level", v))
     {
+        zend_long level;
         convert_to_long(v);
-        SwooleG.log_level = Z_LVAL_P(v);
+        level = Z_LVAL_P(v);
+        SwooleG.log_level = (uint32_t) (level < 0 ? UINT32_MAX : level);
     }
     if (php_swoole_array_get_value(vht, "display_errors", v))
     {
