@@ -657,7 +657,7 @@ bool PHPHttpClient::connect()
         if (!socket->connect(addr, port))
         {
             zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), socket->errCode);
-            zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), strerror(socket->errCode));
+            zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), socket->errMsg);
             zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_CONNECT_FAILED);
             close();
             return false;
@@ -689,7 +689,7 @@ bool PHPHttpClient::keep_liveness()
         if (socket)
         {
             zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), socket->errCode);
-            zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), strerror(socket->errCode));
+            zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), socket->errMsg);
             zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_SERVER_RESET);
         }
         close();
@@ -1276,7 +1276,7 @@ bool PHPHttpClient::recv(double timeout)
         {
             // IO error
             zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), socket->errCode);
-            zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), strerror(socket->errCode));
+            zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), socket->errMsg);
             if (socket->errCode == ETIMEDOUT)
             {
                 zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT);
@@ -1339,7 +1339,7 @@ void PHPHttpClient::recv(zval *zframe, double timeout)
     if (retval <= 0)
     {
         zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), socket->errCode);
-        zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), strerror(socket->errCode));
+        zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), socket->errMsg);
         zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_SERVER_RESET);
         if (socket->errCode != ETIMEDOUT)
         {

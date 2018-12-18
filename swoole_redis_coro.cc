@@ -1054,7 +1054,7 @@ static sw_inline bool swoole_redis_coro_keep_liveness(swRedisClient *redis)
         {
             zend_update_property_long(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("errType"), SW_REDIS_ERR_CLOSED);
             zend_update_property_long(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("errCode"), socket->errCode);
-            zend_update_property_string(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("errMsg"), strerror(socket->errCode));
+            zend_update_property_string(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("errMsg"), socket->errMsg);
         }
         swoole_redis_coro_close(redis);
         for (; redis->reconnected_count < redis->reconnect_interval; redis->reconnected_count++)
