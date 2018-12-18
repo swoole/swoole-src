@@ -421,10 +421,6 @@ long sw_coro_create(zend_fcall_info_cache *fci_cache, int argc, zval *argv)
 void sw_coro_save(zval *return_value, php_context *sw_current_context)
 {
     SWCC(current_coro_return_value_ptr) = return_value;
-    SWCC(current_execute_data) = EG(current_execute_data);
-    SWCC(current_vm_stack) = EG(vm_stack);
-    SWCC(current_vm_stack_top) = EG(vm_stack_top);
-    SWCC(current_vm_stack_end) = EG(vm_stack_end);
     SWCC(current_task) = php_coro_get_current_task();
 }
 
