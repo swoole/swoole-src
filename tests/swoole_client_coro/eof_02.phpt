@@ -19,14 +19,14 @@ class MyPool
 
     public function put($mysql)
     {
-        $this->pool->push($mysql);
+        $this->pool->enqueue($mysql);
     }
 
     public function get()
     {
         //有空闲连接
         if (count($this->pool) > 0) {
-            return $this->pool->pop();
+            return $this->pool->dequeue();
         }
 
         $client = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP | SWOOLE_KEEP);
