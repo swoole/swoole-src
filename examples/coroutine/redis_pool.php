@@ -11,13 +11,13 @@ $server->on('Request', function($request, $response) use(&$count, $pool) {
             $response->end("redis connect fail!");
             return;
         }
-        $pool->push($redis);
+        $pool->enqueue($redis);
     }
-    $redis = $pool->pop();
+    $redis = $pool->dequeue();
     $count ++;
     $ret = $redis->set('key', 'value');
     $response->end("swoole response is ok, count = $count, result=" . var_export($ret, true));
-    $pool->push($redis);
+    $pool->enqueue($redis);
 });
 
 $server->start();

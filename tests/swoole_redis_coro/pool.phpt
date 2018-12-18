@@ -48,10 +48,10 @@ $pm->childFunc = function () use ($pm)
                 return;
             }
             $count++;
-            $pool->push($redis);
+            $pool->enqueue($redis);
         }
 
-        $redis = $pool->pop();
+        $redis = $pool->dequeue();
         $ret = $redis->set('key', 'value');
         if ($ret)
         {
@@ -61,7 +61,7 @@ $pm->childFunc = function () use ($pm)
         {
             goto fail;
         }
-        $pool->push($redis);
+        $pool->enqueue($redis);
 
     });
 
