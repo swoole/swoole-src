@@ -13,15 +13,29 @@ define('SWOOLE_COLOR_MAGENTA', 5);
 define('SWOOLE_COLOR_CYAN', 6);
 define('SWOOLE_COLOR_WHITE', 7);
 
-function space(int $length): string
+$_space = function(int $length = 4): string
 {
     return str_repeat(' ', $length);
+};
+
+function space(...$args): string
+{
+    global $_space;
+    return $_space(...$args);
 }
 
 function swoole_log(string $content, int $color = 0)
 {
     echo ($color ? "\033[3{$color}m{$content}\033[0m" : $content) . "\n";
+}
 
+function swoole_check(bool $is_ok, string $output)
+{
+    if ($is_ok) {
+        swoole_ok("{$output} OK!");
+    } else {
+        swoole_error("{$output} Failed!");
+    }
 }
 
 function swoole_warn(string ...$args)

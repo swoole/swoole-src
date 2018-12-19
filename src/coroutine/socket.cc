@@ -355,30 +355,29 @@ bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen)
     {
         if (errno != EINPROGRESS || !wait_event(SW_EVENT_WRITE))
         {
-            errCode = errno;
+            set_err(errno);
             return false;
         }
         yield();
         //Connection has timed out
         if (errCode == ETIMEDOUT)
         {
-            errMsg = strerror(errCode);
             return false;
         }
         //Connection is closed
         if (socket->closed)
         {
-            errCode = errno = ECONNABORTED;
-            errMsg = strerror(errCode);
+            set_err(ECONNABORTED);
             return false;
         }
         socklen_t len = sizeof(errCode);
         if (getsockopt(socket->fd, SOL_SOCKET, SO_ERROR, &errCode, &len) < 0 || errCode != 0)
         {
-            errMsg = strerror(errCode);
+            set_err(errCode);
             return false;
         }
     }
+    set_err(0);
     socket->active = 1;
     return true;
 }
@@ -519,7 +518,7 @@ static void socket_dns_callback(swAio_event *event)
     Socket *sock = (Socket *) event->object;
     if (event->error != 0)
     {
-        sock->errCode = SW_ERROR_DNSLOOKUP_RESOLVE_FAILED;
+        sock->set_err(event->error, hstrerror(event->error));
     }
     sock->resume();
 }
@@ -527,9 +526,8 @@ static void socket_dns_callback(swAio_event *event)
 static void socket_timer_callback(swTimer *timer, swTimer_node *tnode)
 {
     Socket *sock = (Socket *) tnode->data;
-    errno = ETIMEDOUT;
-    sock->errCode = ETIMEDOUT;
     swTraceLog(SW_TRACE_SOCKET, "socket[%d] timeout", sock->socket->fd);
+    sock->set_err(ETIMEDOUT);
     sock->reactor->del(sock->reactor, sock->socket->fd);
     sock->_timer = NULL;
     sock->resume();
@@ -552,6 +550,7 @@ bool Socket::check_liveness()
 {
     if (!is_connect())
     {
+        set_err(ECONNRESET);
         return false;
     }
     else
@@ -560,10 +559,11 @@ bool Socket::check_liveness()
         errno = 0;
         int ret = swConnection_peek(socket, &buf, sizeof(buf), 0);
         if (ret == 0 || (ret < 0 && swConnection_error(errno) != SW_WAIT)) {
-            errCode = errno ? errno : ECONNRESET;
+            set_err(errno ? errno : ECONNRESET);
             return false;
         }
     }
+    set_err(0);
     return true;
 }
 
@@ -573,7 +573,9 @@ ssize_t Socket::peek(void *__buf, size_t __n)
     {
         return -1;
     }
-    return swConnection_peek(socket, __buf, __n, 0);
+    ssize_t retval = swConnection_peek(socket, __buf, __n, 0);
+    set_err(retval < 0 ? errno : 0);
+    return retval;
 }
 
 ssize_t Socket::recv(void *__buf, size_t __n)
@@ -583,50 +585,15 @@ ssize_t Socket::recv(void *__buf, size_t __n)
         return -1;
     }
     ssize_t retval = swConnection_recv(socket, __buf, __n, 0);
-    if (retval >= 0)
+    while (retval < 0 && swConnection_error(errno) == SW_WAIT)
     {
-        return retval;
-    }
-
-    if (swConnection_error(errno) != SW_WAIT)
-    {
-        errCode = errno;
-        return -1;
-    }
-
-    while (true)
-    {
-        int event = SW_EVENT_READ;
-#ifdef SW_USE_OPENSSL
-        if (socket->ssl && socket->ssl_want_write)
-        {
-            event = SW_EVENT_WRITE;
-            if (unlikely(!is_available()))
-            {
-                return -1;
-            }
-        }
-#endif
-        if (!wait_event(event))
-        {
-            return -1;
-        }
-        yield();
-        if (errCode == ETIMEDOUT)
+        if (!wait_readable())
         {
             return -1;
         }
         retval = swConnection_recv(socket, __buf, __n, 0);
-        if (retval < 0)
-        {
-            if (swConnection_error(errno) == SW_WAIT)
-            {
-                continue;
-            }
-            errCode = errno;
-        }
-        break;
     }
+    set_err(retval < 0 ? errno : 0);
     return retval;
 }
 
@@ -637,50 +604,15 @@ ssize_t Socket::read(void *__buf, size_t __n)
         return -1;
     }
     ssize_t retval = ::read(socket->fd, __buf, __n);
-    if (retval >= 0)
+    while (retval < 0 && swConnection_error(errno) == SW_WAIT)
     {
-        return retval;
-    }
-
-    if (swConnection_error(errno) != SW_WAIT)
-    {
-        errCode = errno;
-        return -1;
-    }
-
-    while (true)
-    {
-        int event = SW_EVENT_READ;
-#ifdef SW_USE_OPENSSL
-        if (socket->ssl && socket->ssl_want_write)
-        {
-            event = SW_EVENT_WRITE;
-            if (unlikely(!is_available()))
-            {
-                return -1;
-            }
-        }
-#endif
-        if (!wait_event(event))
-        {
-            return -1;
-        }
-        yield();
-        if (errCode == ETIMEDOUT)
+        if (!wait_readable())
         {
             return -1;
         }
         retval = ::read(socket->fd, __buf, __n);
-        if (retval < 0)
-        {
-            if (swConnection_error(errno) == SW_WAIT)
-            {
-                continue;
-            }
-            errCode = errno;
-        }
-        break;
     }
+    set_err(retval < 0 ? errno : 0);
     return retval;
 }
 
@@ -691,52 +623,15 @@ ssize_t Socket::write(const void *__buf, size_t __n)
         return -1;
     }
     ssize_t retval = ::write(socket->fd, (void *) __buf, __n);
-    if (retval >= 0)
+    while (retval < 0 && swConnection_error(errno) == SW_WAIT)
     {
-        return retval;
-    }
-
-    if (swConnection_error(errno) != SW_WAIT)
-    {
-        errCode = errno;
-        return -1;
-    }
-
-    while (true)
-    {
-        int event = SW_EVENT_WRITE;
-#ifdef SW_USE_OPENSSL
-        if (socket->ssl && socket->ssl_want_read)
-        {
-            event = SW_EVENT_READ;
-            if (unlikely(!is_available()))
-            {
-                return -1;
-            }
-        }
-#endif
-        if (!wait_event(event))
-        {
-            return -1;
-        }
-        copy_to_write_buffer(&__buf, __n);
-        yield();
-        if (errCode == ETIMEDOUT)
+        if (!wait_writeable(&__buf, __n))
         {
             return -1;
         }
         retval =  ::write(socket->fd, (void *) __buf, __n);
-        if (retval < 0)
-        {
-            if (swConnection_error(errno) == SW_WAIT)
-            {
-                continue;
-            }
-            errCode = errno;
-        }
-        break;
     }
-
+    set_err(retval < 0 ? errno : 0);
     return retval;
 }
 
@@ -777,7 +672,6 @@ ssize_t Socket::send_all(const void *__buf, size_t __n)
     while (true)
     {
         retval = send((char*) __buf + total_bytes, __n - total_bytes);
-        swTraceLog(SW_TRACE_SOCKET, "send retval=%ld", retval);
         if (retval <= 0)
         {
             if (total_bytes == 0)
@@ -802,52 +696,15 @@ ssize_t Socket::send(const void *__buf, size_t __n)
         return -1;
     }
     ssize_t retval = swConnection_send(socket, (void *) __buf, __n, 0);
-    if (retval >= 0)
+    while (retval < 0 && swConnection_error(errno) == SW_WAIT)
     {
-        return retval;
-    }
-
-    if (swConnection_error(errno) != SW_WAIT)
-    {
-        errCode = errno;
-        return -1;
-    }
-
-    while (true)
-    {
-        int event = SW_EVENT_WRITE;
-#ifdef SW_USE_OPENSSL
-        if (socket->ssl && socket->ssl_want_read)
-        {
-            event = SW_EVENT_READ;
-            if (unlikely(!is_available()))
-            {
-                return -1;
-            }
-        }
-#endif
-        if (!wait_event(event))
-        {
-            return -1;
-        }
-        copy_to_write_buffer(&__buf, __n);
-        yield();
-        if (errCode == ETIMEDOUT)
+        if (!wait_writeable(&__buf, __n))
         {
             return -1;
         }
         retval = swConnection_send(socket, (void *) __buf, __n, 0);
-        if (retval < 0)
-        {
-            if (swConnection_error(errno) == SW_WAIT)
-            {
-                continue;
-            }
-            errCode = errno;
-        }
-        break;
     }
-
+    set_err(retval < 0 ? errno : 0);
     return retval;
 }
 
@@ -861,31 +718,20 @@ ssize_t Socket::sendmsg(const struct msghdr *msg, int flags)
         return -1;
     }
     ssize_t retval = ::sendmsg(socket->fd, msg, flags);
-    if (retval >= 0)
+    if (retval < 0 && swConnection_error(errno) == SW_WAIT)
     {
-        return retval;
+        if (!wait_event(SW_EVENT_WRITE))
+        {
+            return -1;
+        }
+        yield();
+        if (errCode == ETIMEDOUT)
+        {
+            return -1;
+        }
+        retval = ::sendmsg(socket->fd, msg, flags);
     }
-
-    if (swConnection_error(errno) != SW_WAIT)
-    {
-        errCode = errno;
-        return -1;
-    }
-
-    if (!wait_event(SW_EVENT_WRITE))
-    {
-        return -1;
-    }
-    yield();
-    if (errCode == ETIMEDOUT)
-    {
-        return -1;
-    }
-    retval = ::sendmsg(socket->fd, msg, flags);
-    if (retval < 0)
-    {
-        errCode = errno;
-    }
+    set_err(retval < 0 ? errno : 0);
     return retval;
 }
 
@@ -896,31 +742,20 @@ ssize_t Socket::recvmsg(struct msghdr *msg, int flags)
         return -1;
     }
     ssize_t retval = ::recvmsg(socket->fd, msg, flags);
-    if (retval >= 0)
+    if (retval < 0 && swConnection_error(errno) == SW_WAIT)
     {
-        return retval;
+        if (!wait_event(SW_EVENT_READ))
+        {
+            return -1;
+        }
+        yield();
+        if (errCode == ETIMEDOUT)
+        {
+            return -1;
+        }
+        retval = ::recvmsg(socket->fd, msg, flags);
     }
-
-    if (swConnection_error(errno) != SW_WAIT)
-    {
-        errCode = errno;
-        return -1;
-    }
-
-    if (!wait_event(SW_EVENT_READ))
-    {
-        return -1;
-    }
-    yield();
-    if (errCode == ETIMEDOUT)
-    {
-        return -1;
-    }
-    retval = ::recvmsg(socket->fd, msg, flags);
-    if (retval < 0)
-    {
-        errCode = errno;
-    }
+    set_err(retval < 0 ? errno : 0);
     return retval;
 }
 
@@ -934,7 +769,7 @@ void Socket::yield()
         swError("Socket::yield() must be called in the coroutine.");
     }
 
-    errCode = 0;
+    set_err(0);
     int ms = (int) (timeout * 1000);
     if (ms <= 0)
     {
@@ -1037,12 +872,13 @@ bool Socket::bind(std::string address, int port)
         break;
     }
     default:
+        set_err(EINVAL);
         return false;
     }
 
     if (retval != 0)
     {
-        errCode = errno;
+        set_err(errno);
         return false;
     }
 
@@ -1062,7 +898,7 @@ bool Socket::listen(int backlog)
     _backlog = backlog;
     if (::listen(socket->fd, backlog) != 0)
     {
-        errCode = errno;
+        set_err(errno);
         return false;
     }
 #ifdef SW_USE_OPENSSL
@@ -1102,13 +938,13 @@ Socket* Socket::accept()
     }
     if (conn < 0)
     {
-        errCode = errno;
+        set_err(errno);
         return nullptr;
     }
     Socket *client_sock = new Socket(conn, this);
     if (unlikely(client_sock->socket == nullptr))
     {
-        errCode = errno;
+        set_err(errno);
         delete client_sock;
         return nullptr;
     }
@@ -1150,7 +986,7 @@ string Socket::resolve(string domain_name)
     ev.buf = sw_malloc(ev.nbytes);
     if (!ev.buf)
     {
-        errCode = errno;
+        set_err(errno);
         return "";
     }
 
@@ -1169,19 +1005,17 @@ string Socket::resolve(string domain_name)
 
     if (swAio_dispatch(&ev) < 0)
     {
-        errCode = SwooleG.error;
+        set_err(SwooleG.error);
         sw_free(ev.buf);
         return "";
     }
-    /**
-     * cannot timeout
-     */
+
+    /** cannot timeout */
     set_timeout(-1, true);
     yield();
 
     if (errCode == SW_ERROR_DNSLOOKUP_RESOLVE_FAILED)
     {
-        errMsg = hstrerror(ev.error);
         return "";
     }
     else
@@ -1218,8 +1052,7 @@ bool Socket::shutdown(int __how)
             return true;
         }
     }
-    errCode = errno;
-    errMsg = strerror(errno);
+    set_err(errno);
     return false;
 }
 
@@ -1295,18 +1128,12 @@ bool Socket::ssl_handshake()
         int retval = swSSL_connect(socket);
         if (retval < 0)
         {
-            errCode = SwooleG.error;
+            set_err(SwooleG.error);
             return false;
         }
         if (socket->ssl_state == SW_SSL_STATE_WAIT_STREAM)
         {
-            int events = socket->ssl_want_write ? SW_EVENT_WRITE : SW_EVENT_READ;
-            if (!wait_event(events))
-            {
-                return false;
-            }
-            yield();
-            if (errCode == ETIMEDOUT)
+            if (!wait_readable())
             {
                 return false;
             }
@@ -1341,14 +1168,9 @@ bool Socket::ssl_accept()
         {
             return true;
         }
-        if (!wait_event(socket->ssl_want_write ? SW_EVENT_WRITE : SW_EVENT_READ))
+        if (!wait_readable())
         {
-            return false;
-        }
-        yield();
-        if (errCode == ETIMEDOUT)
-        {
-            return false;
+            return -1;
         }
     }
 }
@@ -1428,7 +1250,8 @@ bool Socket::sendfile(char *filename, off_t offset, size_t length)
         else if (errno != EAGAIN)
         {
             swSysError("sendfile(%d, %s) failed.", socket->fd, filename);
-            _error: errCode = errno;
+            _error:
+            set_err(errno);
             ::close(file_fd);
             return false;
         }
@@ -1483,36 +1306,25 @@ ssize_t Socket::recvfrom(void *__buf, size_t __n, struct sockaddr* _addr, sockle
     {
         return -1;
     }
-    ssize_t retval;
-    _recv: retval = ::recvfrom(socket->fd, __buf, __n, 0, _addr, _socklen);
-    if (retval < 0)
+    ssize_t retval = ::recvfrom(socket->fd, __buf, __n, 0, _addr, _socklen);
+    while (retval < 0 && errno == EINTR)
     {
-        if (errno == EINTR)
-        {
-            goto _recv;
-        }
-        else if (swConnection_error(errno) == SW_WAIT)
-        {
-            if (!wait_event(SW_EVENT_READ))
-            {
-                return -1;
-            }
-            yield();
-            if (errCode == ETIMEDOUT)
-            {
-                return -1;
-            }
-            retval = ::recvfrom(socket->fd, __buf, __n, 0, _addr, _socklen);
-            if (retval < 0)
-            {
-                errCode = errno;
-            }
-        }
-        else
-        {
-            errCode = errno;
-        }
+        retval = ::recvfrom(socket->fd, __buf, __n, 0, _addr, _socklen);
     }
+    if (retval < 0 && swConnection_error(errno) == SW_WAIT)
+    {
+        if (!wait_event(SW_EVENT_READ))
+        {
+            return -1;
+        }
+        yield();
+        if (errCode == ETIMEDOUT)
+        {
+            return -1;
+        }
+        retval = ::recvfrom(socket->fd, __buf, __n, 0, _addr, _socklen);
+    }
+    set_err(retval < 0 ? errno : 0);
     return retval;
 }
 

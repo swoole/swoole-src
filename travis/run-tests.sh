@@ -21,44 +21,33 @@ do
     fi
 done
 
-# run tests
-retry_failures()
+# run tests @params($1=list_file, $2=timeout)
+run_tests()
 {
-    # replace \n to space
-    failed_list="`tr '\n' ' ' < failed.list`"
-
-    # and retry
     ./start.sh \
-    --set-timeout $1 \
+    --set-timeout ${2} \
     --show-slow 1000 \
     --show-diff \
-    -w failed.list \
-    "${failed_list}"
+    -w ${1} \
+    "`tr '\n' ' ' < ${1}`"
 }
 
-# it need too much time, so we can only run the part of these
-for dir in "*"
+for dir in "swoole_*"
 do
-    ./start.sh \
-    --set-timeout 10 \
-    --show-slow 1000 \
-    --show-diff \
-    -w failed.list \
-    "./swoole_${dir}"
-
-    for i in 1 2 3
+    echo "${dir}" > tests.list
+    for i in 1 2 3 4 5
     do
-        if [ "`cat failed.list | grep "phpt"`" ]; then
-            sleep ${i}
-            echo "\n😮 Retry failed tests #${i}:\n"
-            cat failed.list
-            retry_failures "`echo | expr ${i} \* 10`"
+        if [ "`cat tests.list`" ]; then
+            if [ ${i} -gt "1" ]; then
+                sleep ${i}
+                echo "\n😮 Retry failed tests#${i}:\n"
+            fi
+            run_tests tests.list "`echo | expr ${i} \* 10`"
         else
-            exit 0
+            break
         fi
     done
-
-    if [ "`cat failed.list | grep "phpt"`" ]; then
+    if [ "`cat tests.list`" ]; then
         exit 255
     fi
 done
