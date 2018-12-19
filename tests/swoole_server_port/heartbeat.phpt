@@ -41,7 +41,7 @@ $pm->parentFunc = function ($pid) use ($pm)
             if ($data != 'ok') {
                 echo "ERROR\n";
             }
-            co::sleep(4);
+            co::sleep(2);
         }
         co::sleep(3);
         $cli->send('hello');
@@ -69,10 +69,10 @@ $pm->childFunc = function () use ($pm)
     });
 
     $port2 = $server->listen('127.0.0.1', $pm->getFreePort(1), SWOOLE_SOCK_TCP);
-    $port2->set([
-        'heartbeat_check_interval' => 1,
-        'heartbeat_idle_time' => 5
-    ]);
+    // $port2->set([
+        // 'heartbeat_check_interval' => 1,
+        // 'heartbeat_idle_time' => 5
+    // ]);
     $port2->on('receive', function ($server, $fd, $reactorId, $data) {
         $server->send($fd, 'ok');
     });
