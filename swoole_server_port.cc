@@ -78,7 +78,7 @@ void swoole_server_port_init(int module_number)
     zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("host"), ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_server_port_ce_ptr, ZEND_STRL("port"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_server_port_ce_ptr, ZEND_STRL("type"), 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_long(swoole_server_port_ce_ptr, ZEND_STRL("sock"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_server_port_ce_ptr, ZEND_STRL("sock"), -1, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("setting"), ZEND_ACC_PUBLIC);
 
     zend_declare_property_null(swoole_server_port_ce_ptr, ZEND_STRL("connections"), ZEND_ACC_PUBLIC);

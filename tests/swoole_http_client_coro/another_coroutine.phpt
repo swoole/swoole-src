@@ -38,11 +38,10 @@ $pm->childFunc = function () use ($pm) {
     $server->set(['log_file' => '/dev/null']);
     $server->on('workerStart', function (swoole_http_server $server) use ($pm) {
         $pm->wakeup();
-        co::sleep(0.5);
-        $server->shutdown();
     });
     $server->on('request', function (swoole_http_request $request, swoole_http_response $response) use ($pm, $server) {
         co::sleep(0.1);
+        $server->shutdown();
     });
     $server->start();
 };

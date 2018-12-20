@@ -273,7 +273,7 @@ void swoole_client_init(int module_number)
     SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_client, zend_class_unset_property_deny);
 
     zend_declare_property_long(swoole_client_ce_ptr, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_long(swoole_client_ce_ptr, ZEND_STRL("sock"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_client_ce_ptr, ZEND_STRL("sock"), -1, ZEND_ACC_PUBLIC);
     zend_declare_property_bool(swoole_client_ce_ptr, ZEND_STRL("reuse"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_client_ce_ptr, ZEND_STRL("reuseCount"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_client_ce_ptr, ZEND_STRL("type"), 0, ZEND_ACC_PUBLIC);
@@ -665,10 +665,13 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
     else
     {
         _open_tcp_nodelay:
-        value = 1;
-        if (setsockopt(cli->socket->fd, IPPROTO_TCP, TCP_NODELAY, &value, sizeof(value)) < 0)
+        if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6)
         {
-            swSysError("setsockopt(%d, TCP_NODELAY) failed.", cli->socket->fd);
+            value = 1;
+            if (setsockopt(cli->socket->fd, IPPROTO_TCP, TCP_NODELAY, &value, sizeof(value)) < 0)
+            {
+                swSysError("setsockopt(%d, TCP_NODELAY) failed.", cli->socket->fd);
+            }
         }
     }
     /**
@@ -943,6 +946,7 @@ static PHP_METHOD(swoole_client, __construct)
 
     if (async == 1)
     {
+        swoole_php_fatal_error(E_DEPRECATED, "async APIs will be removed in Swoole-v4.3.0, you should be using the coroutine APIs instead.");
         type |= SW_FLAG_ASYNC;
     }
 

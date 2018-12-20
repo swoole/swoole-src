@@ -37,6 +37,7 @@ $pm->parentFunc = function () use ($pm) {
         }
         $failed_time = microtime(true) - $failed_time;
 
+        phpt_var_dump($retry_time, $failed_time);
         assert($retry_time > $failed_time * 2);
     });
     swoole_event_wait();

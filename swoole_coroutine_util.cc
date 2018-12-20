@@ -376,22 +376,30 @@ static PHP_METHOD(swoole_coroutine_util, set)
     if (php_swoole_array_get_value(vht, "socket_connect_timeout", v))
     {
         convert_to_double(v);
-        COROG.socket_connect_timeout = (double) Z_DVAL_P(v);
+        if (Z_DVAL_P(v))
+        {
+            COROG.socket_connect_timeout = (double) Z_DVAL_P(v);
+        }
     }
     if (php_swoole_array_get_value(vht, "socket_timeout", v))
     {
         convert_to_double(v);
-        COROG.socket_timeout = (double) Z_DVAL_P(v);
+        if (Z_DVAL_P(v))
+        {
+            COROG.socket_timeout = (double) Z_DVAL_P(v);
+        }
     }
     if (php_swoole_array_get_value(vht, "log_level", v))
     {
+        zend_long level;
         convert_to_long(v);
-        SwooleG.log_level = (int32_t) Z_LVAL_P(v);
+        level = Z_LVAL_P(v);
+        SwooleG.log_level = (uint32_t) (level < 0 ? UINT32_MAX : level);
     }
     if (php_swoole_array_get_value(vht, "trace_flags", v))
     {
         convert_to_long(v);
-        SwooleG.trace_flags = (int32_t) Z_LVAL_P(v);
+        SwooleG.trace_flags = (uint32_t) MAX(0, Z_LVAL_P(v));
     }
     zval_ptr_dtor(zset);
 }

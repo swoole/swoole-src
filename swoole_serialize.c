@@ -1558,6 +1558,8 @@ static PHP_METHOD(swoole_serialize, pack)
     zval *zvalue;
     size_t is_fast = 0;
 
+    swoole_php_fatal_error(E_DEPRECATED, "swoole serialize will be removed, you should be using the php serialize instead.");
+
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|l", &zvalue, &is_fast) == FAILURE)
     {
         RETURN_FALSE;
@@ -1574,6 +1576,8 @@ static PHP_METHOD(swoole_serialize, unpack)
     size_t arg_len;
     zval *args = NULL; //for object
     long flag = 0;
+
+    swoole_php_fatal_error(E_DEPRECATED, "swoole serialize will be removed, you should be using the php serialize instead.");
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|la", &buffer, &arg_len, &flag, &args) == FAILURE)
     {

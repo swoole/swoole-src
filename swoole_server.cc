@@ -2035,7 +2035,7 @@ PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "trace_flags", v))
     {
         convert_to_long(v);
-        SwooleG.trace_flags = (int32_t) Z_LVAL_P(v);
+        SwooleG.trace_flags = (uint32_t) MAX(0, Z_LVAL_P(v));
     }
     //pid file
     if (php_swoole_array_get_value(vht, "pid_file", v))
@@ -2152,8 +2152,10 @@ PHP_METHOD(swoole_server, set)
     //log_level
     if (php_swoole_array_get_value(vht, "log_level", v))
     {
+        zend_long level;
         convert_to_long(v);
-        SwooleG.log_level = (uint8_t) Z_LVAL_P(v);
+        level = Z_LVAL_P(v);
+        SwooleG.log_level = (uint32_t) (level < 0 ? UINT32_MAX : level);
     }
     /**
      * for dispatch_mode = 1/3

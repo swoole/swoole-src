@@ -184,7 +184,7 @@ static sw_inline ssize_t swConnection_recv(swConnection *conn, void *__buf, size
     }
 #endif
 
-    swDebug("recv %ld/%ld bytes, errno=%d", total_bytes, __n, errno);
+    swTraceLog(SW_TRACE_SOCKET, "recv %ld/%ld bytes, errno=%d", total_bytes, __n, errno);
 
     return total_bytes;
 }
@@ -244,12 +244,10 @@ static sw_inline ssize_t swConnection_peek(swConnection *conn, void *__buf, size
         retval = SSL_peek(conn->ssl, __buf, __n);
     }
     else
+#endif
     {
         retval = recv(conn->fd, __buf, __n, __flags);
     }
-#else
-    retval = recv(conn->fd, __buf, __n, __flags);
-#endif
 
     if (retval < 0 && errno == EINTR)
     {

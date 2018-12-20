@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/config.php'; // (`once` because it may required in skip when we run phpt)
 
-error_reporting(E_ALL);
+error_reporting(E_ALL ^ E_DEPRECATED);
 ini_set('memory_limit', '1024M');
 ini_set('swoole.aio_mode', SWOOLE_AIO_BASE); // SWOOLE_AIO_BASE, SWOOLE_AIO_LINUX
 ini_set("assert.active", 1);
@@ -19,7 +19,7 @@ swoole_async_set([
 ]);
 
 co::set([
-    'socket_timeout' => 1
+    'socket_timeout' => 5
 ]);
 
 if (empty(getenv('SWOOLE_DEBUG'))) {

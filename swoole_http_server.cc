@@ -20,18 +20,18 @@
 
 extern "C"
 {
-#include <ext/standard/url.h>
-#include <ext/standard/sha1.h>
-#include <ext/standard/php_var.h>
-#include <ext/standard/php_string.h>
-#include <ext/standard/php_math.h>
-#include <ext/standard/php_array.h>
-#include <ext/date/php_date.h>
-#include <ext/standard/md5.h>
+#include "ext/standard/url.h"
+#include "ext/standard/sha1.h"
+#include "ext/standard/php_var.h"
+#include "ext/standard/php_string.h"
+#include "ext/standard/php_math.h"
+#include "ext/standard/php_array.h"
+#include "ext/date/php_date.h"
+#include "ext/standard/md5.h"
 }
 
-#include <main/rfc1867.h>
-#include <main/php_variables.h>
+#include "main/rfc1867.h"
+#include "main/php_variables.h"
 
 #include "websocket.h"
 #include "connection.h"
@@ -240,14 +240,6 @@ static inline long http_fast_parse(swoole_http_parser *parser, char *data, size_
     }
     http_request_on_headers_complete(parser);
     return SW_OK;
-}
-#endif
-
-#ifdef SW_HAVE_ZLIB
-extern "C"
-{
-voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size);
-void php_zlib_free(voidpf opaque, voidpf address);
 }
 #endif
 
@@ -1741,16 +1733,6 @@ static void http_build_header(http_context *ctx, zval *zobject, swString *respon
 }
 
 #ifdef SW_HAVE_ZLIB
-voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size)
-{
-    return (voidpf) safe_emalloc(items, size, 0);
-}
-
-void php_zlib_free(voidpf opaque, voidpf address)
-{
-    efree((void* )address);
-}
-
 void swoole_http_get_compression_method(http_context *ctx, const char *accept_encoding, size_t length)
 {
 #ifdef SW_HAVE_BROTLI

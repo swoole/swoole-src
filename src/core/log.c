@@ -73,6 +73,9 @@ void swLog_put(int level, char *cnt)
     t = time(NULL);
     p = localtime(&t);
     snprintf(date_str, SW_LOG_DATE_STRLEN, "%d-%02d-%02d %02d:%02d:%02d", p->tm_year + 1900, p->tm_mon + 1, p->tm_mday, p->tm_hour, p->tm_min, p->tm_sec);
+#if 0
+    snprintf(date_str + strlen(date_str), SW_LOG_DATE_STRLEN - strlen(date_str), " <%lf> ", swoole_microtime());
+#endif
 
     char process_flag = '@';
     int process_id = 0;

@@ -81,20 +81,12 @@ struct coro_global
 // TODO: remove php context
 struct php_context
 {
-    zval **current_coro_return_value_ptr_ptr;
-    zval *current_coro_return_value_ptr;
+    php_context_state state;
     zval coro_params;
+    zval *current_coro_return_value_ptr;
     void *private_data;
     swTimer_node *timer;
-    zval **current_eg_return_value_ptr_ptr;
-    zend_execute_data *current_execute_data;
-    zval *current_vm_stack_top;
-    zval *current_vm_stack_end;
-    zval *allocated_return_value_ptr;
     coro_task *current_task;
-    zend_vm_stack current_vm_stack;
-    php_context_state state;
-    zend_output_globals *current_coro_output_ptr;
 };
 
 extern coro_global COROG;

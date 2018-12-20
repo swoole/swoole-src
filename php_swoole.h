@@ -111,15 +111,14 @@ extern swoole_object_array swoole_objects;
 #undef HAVE_PTRACE
 #endif
 
-//#define SW_USE_PHP        1
 #define SW_CHECK_RETURN(s)         if(s<0){RETURN_FALSE;}else{RETURN_TRUE;}
 #define SW_LOCK_CHECK_RETURN(s)    if(s==0){RETURN_TRUE;}else{\
 	zend_update_property_long(NULL, getThis(), SW_STRL("errCode"), s);\
 	RETURN_FALSE;}
 
-#define swoole_php_error(level, fmt_str, ...)   if (SWOOLE_G(display_errors)) php_error_docref(NULL, level, fmt_str, ##__VA_ARGS__)
-#define swoole_php_fatal_error(level, fmt_str, ...)   php_error_docref(NULL, level, fmt_str, ##__VA_ARGS__)
-#define swoole_php_sys_error(level, fmt_str, ...)  if (SWOOLE_G(display_errors)) php_error_docref(NULL, level, fmt_str" Error: %s[%d].", ##__VA_ARGS__, strerror(errno), errno)
+#define swoole_php_fatal_error(level, fmt_str, ...) php_error_docref(NULL, level, (const char *) fmt_str, ##__VA_ARGS__)
+#define swoole_php_error(level, fmt_str, ...)       if (SWOOLE_G(display_errors)) swoole_php_fatal_error(level, fmt_str, ##__VA_ARGS__)
+#define swoole_php_sys_error(level, fmt_str, ...)   if (SWOOLE_G(display_errors)) swoole_php_error(level, fmt_str " Error: %s[%d].", ##__VA_ARGS__, strerror(errno), errno)
 
 #ifdef SW_USE_OPENSSL
 #ifndef HAVE_OPENSSL
@@ -578,6 +577,17 @@ extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
 #endif
 
 /* PHP 7 compatibility patches */
+
+// Fixed C++ warning (https://github.com/php/php-src/commit/ec31924cd68df4f5591664d487baaba0d01b1daf)
+#if PHP_VERSION_ID < 70200
+#define sw_zend_bailout() _sw_zend_bailout(__FILE__, __LINE__)
+static sw_inline void _sw_zend_bailout(const char *filename, uint32_t lineno)
+{
+    _zend_bailout((char *)filename, lineno);
+}
+#else
+#define sw_zend_bailout() zend_bailout()
+#endif
 
 // Fixed in php-7.0.28, php-7.1.15RC1, php-7.2.3RC1 (https://github.com/php/php-src/commit/e88e83d3e5c33fcd76f08b23e1a2e4e8dc98ce41)
 #if PHP_MAJOR_VERSION == 7 && ((PHP_MINOR_VERSION == 0 && PHP_RELEASE_VERSION < 28) || (PHP_MINOR_VERSION == 1 && PHP_RELEASE_VERSION < 15) || (PHP_MINOR_VERSION == 2 && PHP_RELEASE_VERSION < 3))

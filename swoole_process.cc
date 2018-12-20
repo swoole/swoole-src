@@ -772,7 +772,7 @@ int php_swoole_process_start(swWorker *process, zval *zobject)
     }
     SwooleG.running = 0;
 
-    zend_bailout();
+    sw_zend_bailout();
     return SW_OK;
 }
 
@@ -1121,7 +1121,7 @@ static PHP_METHOD(swoole_process, exit)
 
     if (ret_code == 0)
     {
-        zend_bailout();
+        sw_zend_bailout();
     }
     else
     {

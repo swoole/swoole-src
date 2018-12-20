@@ -146,7 +146,7 @@ void swoole_client_coro_init(int module_number)
     SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_client_coro, zend_class_unset_property_deny);
 
     zend_declare_property_long(swoole_client_coro_ce_ptr, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_long(swoole_client_coro_ce_ptr, ZEND_STRL("sock"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_client_coro_ce_ptr, ZEND_STRL("sock"), -1, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_client_coro_ce_ptr, ZEND_STRL("type"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_client_coro_ce_ptr, ZEND_STRL("setting"), ZEND_ACC_PUBLIC);
     zend_declare_property_bool(swoole_client_coro_ce_ptr, ZEND_STRL("connected"), 0, ZEND_ACC_PUBLIC);
@@ -217,11 +217,7 @@ static Socket* client_coro_new(zval *zobject, int port)
 
 bool php_swoole_client_coro_socket_free(Socket *cli)
 {
-    bool ret = cli->close();
-    if (!ret)
-    {
-        return false;
-    }
+    bool ret;
     //TODO: move to Socket method, we should not manage it externally
     //socks5 proxy config
     if (cli->socks5_proxy)
@@ -263,7 +259,9 @@ bool php_swoole_client_coro_socket_free(Socket *cli)
     {
         zval *zcallback = (zval *) cli->protocol.private_data;
         sw_zval_free(zcallback);
+        cli->protocol.private_data = nullptr;
     }
+    ret = cli->close();
     delete cli;
 
     return ret;
@@ -446,7 +444,7 @@ void php_swoole_client_coro_check_setting(Socket *cli, zval *zset)
     else
     {
         _open_tcp_nodelay:
-        if (cli->type == SW_SOCK_TCP)
+        if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6)
         {
             value = 1;
             if (setsockopt(cli->socket->fd, IPPROTO_TCP, TCP_NODELAY, &value, sizeof(value)) < 0)

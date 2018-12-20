@@ -134,6 +134,7 @@ enum swErrorCode
     SW_ERROR_CO_DISABLED_MULTI_THREAD,
 };
 
+const char* swstrerror(enum swErrorCode code);
 void swoole_throw_error(enum swErrorCode code);
 
 #endif /* SW_ERRNO_H_ */

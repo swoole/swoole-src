@@ -18,6 +18,100 @@
 #include "php_swoole.h"
 #include "swoole_http_client.h"
 
+typedef struct
+{
+    zval *onConnect;
+    zval *onError;
+    zval *onClose;
+    zval *onMessage;
+    zval *onResponse;
+
+    zval _object;
+    zval _request_body;
+    zval _request_header;
+    zval _request_upload_files;
+    zval _download_file;
+    zval _cookies;
+    zval _onConnect;
+    zval _onError;
+    zval _onClose;
+    zval _onMessage;
+
+    zval *cookies;
+    zval *request_header;
+    zval *request_body;
+    zval *request_upload_files;
+    zval *download_file;
+    off_t download_offset;
+    char *request_method;
+    int callback_index;
+
+    uint8_t error_flag;
+    uint8_t shutdown;
+
+#ifdef SW_COROUTINE
+    zend_bool defer; //0 normal 1 wait for receive
+    zend_bool defer_result;//0
+    zend_bool defer_chunk_status;// 0 1 now use rango http->complete
+    zend_bool send_yield;
+    http_client_defer_state defer_status;
+    long cid;
+    /**
+     * for websocket
+     */
+    swLinkedList *message_queue;
+#endif
+
+} http_client_property;
+
+typedef struct
+{
+    swClient *cli;
+    char *host;
+    size_t host_len;
+    long port;
+#ifdef SW_USE_OPENSSL
+    uint8_t ssl;
+#endif
+    double connect_timeout;
+    double timeout;
+    char* uri;
+    size_t uri_len;
+
+    swTimer_node *timer;
+
+    char *tmp_header_field_name;
+    int tmp_header_field_name_len;
+
+#ifdef SW_HAVE_ZLIB
+    z_stream gzip_stream;
+    swString *gzip_buffer;
+#endif
+
+    /**
+     * download page
+     */
+    int file_fd;
+
+    swoole_http_parser parser;
+
+    zval _object;
+    zval *object;
+    swString *body;
+
+    uint8_t state;       //0 wait 1 ready 2 busy
+    uint8_t keep_alive;  //0 no 1 keep
+    uint8_t upgrade;     //if upgrade successfully
+    uint8_t gzip;
+    uint8_t chunked;     //Transfer-Encoding: chunked
+    uint8_t completed;
+    uint8_t websocket_mask;
+    uint8_t download;    //save http response to file
+    uint8_t header_completed;
+    int8_t method;
+
+} http_client;
+
 swString *http_client_buffer;
 
 static void http_client_onReceive(swClient *cli, char *data, uint32_t length);
@@ -32,13 +126,24 @@ static int http_client_send_http_request(zval *zobject);
 static int http_client_execute(zval *zobject, char *uri, size_t uri_len, zval *callback);
 
 #ifdef SW_HAVE_ZLIB
-static void http_init_gzip_stream(http_client *);
 BEGIN_EXTERN_C()
-extern voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size);
-extern void php_zlib_free(voidpf opaque, voidpf address);
+static void http_init_gzip_stream(http_client*);
 extern int http_response_uncompress(z_stream *stream, swString *buffer, char *body, int length);
 END_EXTERN_C()
 #endif
+
+static void http_client_clear_response_properties(zval *zobject);
+static int http_client_parser_on_header_field(swoole_http_parser *parser, const char *at, size_t length);
+static int http_client_parser_on_header_value(swoole_http_parser *parser, const char *at, size_t length);
+static int http_client_parser_on_body(swoole_http_parser *parser, const char *at, size_t length);
+static int http_client_parser_on_headers_complete(swoole_http_parser *parser);
+static int http_client_parser_on_message_complete(swoole_http_parser *parser);
+
+static http_client* http_client_create(zval *zobject);
+static void http_client_clear(http_client *http);
+static int http_client_check_keep(http_client *http);
+static void http_client_reset(http_client *http);
+static uint8_t http_client_free(zval *zobject);
 
 static const swoole_http_parser_settings http_parser_settings =
 {
@@ -175,7 +280,7 @@ static const zend_function_entry swoole_http_client_methods[] =
     PHP_FE_END
 };
 
-void http_client_clear_response_properties(zval *zobject)
+static void http_client_clear_response_properties(zval *zobject)
 {
     zval *zattr;
     zend_class_entry *ce = Z_OBJCE_P(zobject);
@@ -1213,7 +1318,7 @@ static int http_client_send_http_request(zval *zobject)
     return ret;
 }
 
-void http_client_clear(http_client *http)
+static void http_client_clear(http_client *http)
 {
     // clear timeout timer
     if (http->timer)
@@ -1245,7 +1350,7 @@ void http_client_clear(http_client *http)
 #endif
 }
 
-int http_client_check_keep(http_client *http)
+static int http_client_check_keep(http_client *http)
 {
     // not keep_alive, try close it actively, and it will destroy the http_client
     if (http->keep_alive == 0 && http->state != HTTP_CLIENT_STATE_WAIT_CLOSE && !http->upgrade)
@@ -1265,7 +1370,7 @@ int http_client_check_keep(http_client *http)
     }
 }
 
-void http_client_reset(http_client *http)
+static void http_client_reset(http_client *http)
 {
     // reset attributes
     http->completed = 0;
@@ -1273,7 +1378,7 @@ void http_client_reset(http_client *http)
     http->state = HTTP_CLIENT_STATE_READY;
 }
 
-uint8_t http_client_free(zval *zobject)
+static uint8_t http_client_free(zval *zobject)
 {
     http_client *http = swoole_get_object(zobject);
     if (!http)
@@ -1307,7 +1412,7 @@ uint8_t http_client_free(zval *zobject)
     return 1;
 }
 
-http_client* http_client_create(zval *zobject)
+static http_client* http_client_create(zval *zobject)
 {
     zval *ztmp;
     http_client *http;
@@ -1352,6 +1457,8 @@ static PHP_METHOD(swoole_http_client, __construct)
     size_t host_len;
     long port = 80;
     zend_bool ssl = SW_FALSE;
+
+    swoole_php_fatal_error(E_DEPRECATED, "async APIs will be removed in Swoole-v4.3.0, you should be using the coroutine APIs instead.");
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|lb", &host, &host_len, &port, &ssl) == FAILURE)
     {
@@ -1730,7 +1837,7 @@ static PHP_METHOD(swoole_http_client, on)
 /**
  * Http Parser Callback
  */
-int http_client_parser_on_header_field(swoole_http_parser *parser, const char *at, size_t length)
+static int http_client_parser_on_header_field(swoole_http_parser *parser, const char *at, size_t length)
 {
     http_client* http = (http_client*) parser->data;
     http->tmp_header_field_name = (char *) at;
@@ -1738,7 +1845,7 @@ int http_client_parser_on_header_field(swoole_http_parser *parser, const char *a
     return 0;
 }
 
-int http_client_parser_on_header_value(swoole_http_parser *parser, const char *at, size_t length)
+static int http_client_parser_on_header_value(swoole_http_parser *parser, const char *at, size_t length)
 {
     http_client* http = (http_client*) parser->data;
     zval* zobject = (zval*) http->object;
@@ -1870,7 +1977,7 @@ int http_response_uncompress(z_stream *stream, swString *buffer, char *body, int
 }
 #endif
 
-int http_client_parser_on_body(swoole_http_parser *parser, const char *at, size_t length)
+static int http_client_parser_on_body(swoole_http_parser *parser, const char *at, size_t length)
 {
     http_client* http = (http_client*) parser->data;
     if (swString_append_ptr(http->body, at, length) < 0)
@@ -1909,7 +2016,7 @@ enum flags
     F_CONNECTION_CLOSE = 1 << 2,
 };
 
-int http_client_parser_on_headers_complete(swoole_http_parser *parser)
+static int http_client_parser_on_headers_complete(swoole_http_parser *parser)
 {
     http_client* http = (http_client*) parser->data;
     //no content-length
@@ -1925,7 +2032,7 @@ int http_client_parser_on_headers_complete(swoole_http_parser *parser)
     return 0;
 }
 
-int http_client_parser_on_message_complete(swoole_http_parser *parser)
+static int http_client_parser_on_message_complete(swoole_http_parser *parser)
 {
     http_client* http = (http_client*) parser->data;
     zval* zobject = (zval*) http->object;

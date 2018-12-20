@@ -21,7 +21,8 @@
 #include "swoole_coroutine.h"
 
 #include "http2.h"
-#include <main/php_variables.h>
+#include "main/php_variables.h"
+
 #include <unordered_map>
 
 extern swString *swoole_http_buffer;

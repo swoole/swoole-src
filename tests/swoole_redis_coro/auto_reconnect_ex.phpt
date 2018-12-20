@@ -1,5 +1,5 @@
 --TEST--
-swoole_redis_coro: do not retry after server down
+swoole_redis_coro: auto reconnect after server side close the connection
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -14,25 +14,27 @@ $pm->parentFunc = function () use ($pm) {
         $redis = new Swoole\Coroutine\Redis;
         $ret = $redis->connect('127.0.0.1', $pm->getFreePort());
         assert($ret);
-        $ret = $redis->set('random_val', $random = get_safe_random(128));
-        assert($ret);
-        $ret = $redis->get('random_val');
-        assert($ret and $ret === $random);
-        $pm->kill();
-        assert(!$redis->get('random_val'));
-        assert($redis->errCode === SOCKET_ECONNRESET);
         for ($n = MAX_REQUESTS; $n--;) {
-            assert(!$redis->set('random_val', get_safe_random(128)));
-            assert($redis->errCode === SOCKET_ECONNREFUSED);
-            assert(!$redis->get('random_val'));
-            assert($redis->errCode === SOCKET_ECONNREFUSED);
+            $ret = $redis->set('random_val', $random = get_safe_random(128));
+            assert($ret);
+            $ret = $redis->get('random_val');
+            assert($ret && $ret === $random);
         }
+        $redis->setOptions(['reconnect' => false]);
+        for ($n = MAX_REQUESTS; $n--;) {
+            $ret = $redis->set('random_val', $random = get_safe_random(128));
+            assert($n === MAX_REQUESTS ? $ret : !$ret);
+            $ret = $redis->get('random_val');
+            assert($n === MAX_REQUESTS ? ($ret && $ret === $random) : !$ret);
+        }
+        $pm->kill();
+        echo "DONE\n";
     });
 };
 $pm->childFunc = function () use ($pm) {
     $server = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $server->data = [];
-    $server->on('workerStart', function ($server) use ($pm) {
+    $server->on('WorkerStart', function ($server) use ($pm) {
         $pm->wakeup();
     });
     $server->setHandler('GET', function ($fd, $data) use ($server) {
@@ -45,6 +47,7 @@ $pm->childFunc = function () use ($pm) {
         } else {
             $server->send($fd, Server::format(Server::STRING, $server->data[$key]));
         }
+        $server->close($fd);
     });
     $server->setHandler('SET', function ($fd, $data) use ($server) {
         if (count($data) < 2) {
@@ -60,3 +63,4 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
+DONE

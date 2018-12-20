@@ -19,7 +19,7 @@ $pm = new ProcessManager;
 $pm->parentFunc = function (int $pid) use ($pm, $data_list) {
     $clients = [];
     for ($c = MAX_CONCURRENCY_LOW; $c--;) {
-        $cli = new swoole_http_client('127.0.0.1', $pm->getFreePort());
+        $cli = @new swoole_http_client('127.0.0.1', $pm->getFreePort());
         $cli->set(['timeout' => -1]);
         global $data_list;
         $cli->data_list = $data_list;

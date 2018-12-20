@@ -728,7 +728,7 @@ void swoole_set_object_by_handle(uint32_t handle, void *ptr)
         void *old_ptr = swoole_objects.array;
         void *new_ptr = NULL;
 
-        new_ptr = realloc(old_ptr, sizeof(void*) * new_size);
+        new_ptr = sw_realloc(old_ptr, sizeof(void*) * new_size);
         if (!new_ptr)
         {
             swoole_php_fatal_error(E_ERROR, "malloc(%d) failed.", (int )(new_size * sizeof(void *)));
@@ -762,13 +762,13 @@ void swoole_set_property_by_handle(uint32_t handle, int property_id, void *ptr)
         if (old_size == 0)
         {
             new_size = 65536;
-            new_ptr = calloc(new_size, sizeof(void *));
+            new_ptr = sw_calloc(new_size, sizeof(void *));
         }
         else
         {
             new_size = swoole_get_new_size(old_size, handle);
             old_ptr = swoole_objects.property[property_id];
-            new_ptr = realloc(old_ptr, new_size * sizeof(void *));
+            new_ptr = sw_realloc(old_ptr, new_size * sizeof(void *));
         }
         if (new_ptr == NULL)
         {
@@ -837,11 +837,9 @@ void php_swoole_register_shutdown_function_prepend(char *function)
     }
     BG(user_shutdown_function_names) = NULL;
     php_swoole_register_shutdown_function(function);
-    zend_try {
-        old_user_shutdown_function_names->pDestructor = php_swoole_old_shutdown_function_move;
-        zend_hash_destroy(old_user_shutdown_function_names);
-        FREE_HASHTABLE(old_user_shutdown_function_names);
-    } zend_end_try();
+    old_user_shutdown_function_names->pDestructor = php_swoole_old_shutdown_function_move;
+    zend_hash_destroy(old_user_shutdown_function_names);
+    FREE_HASHTABLE(old_user_shutdown_function_names);
 }
 
 void swoole_call_rshutdown_function(void *arg)
@@ -1045,6 +1043,9 @@ PHP_MINIT_FUNCTION(swoole)
     SWOOLE_DEFINE(TRACE_AIO);
     SWOOLE_DEFINE(TRACE_SSL);
     SWOOLE_DEFINE(TRACE_NORMAL);
+    SWOOLE_DEFINE(TRACE_CHANNEL);
+    SWOOLE_DEFINE(TRACE_TIMER);
+    SWOOLE_DEFINE(TRACE_SOCKET);
     REGISTER_LONG_CONSTANT("SWOOLE_TRACE_ALL", 0xffffffff, CONST_CS | CONST_PERSISTENT);
 
     /**
@@ -1195,7 +1196,7 @@ PHP_MINIT_FUNCTION(swoole)
     }
 
     swoole_objects.size = 65536;
-    swoole_objects.array = calloc(swoole_objects.size, sizeof(void*));
+    swoole_objects.array = sw_calloc(swoole_objects.size, sizeof(void*));
 
     return SUCCESS;
 }
