@@ -142,7 +142,7 @@ public:
         }
         else
 #endif
-        if (!wait_event(SW_EVENT_WRITE))
+        if (unlikely(!wait_event(SW_EVENT_WRITE)))
         {
             return false;
         }
