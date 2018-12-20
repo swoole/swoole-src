@@ -68,6 +68,13 @@ void* Channel::pop(double timeout)
     {
         return nullptr;
     }
+
+    if (capacity == 0 && !producer_queue.empty())
+    {
+        Coroutine *co = pop_coroutine(PRODUCER);
+        co->resume();
+    }
+
     if (is_empty() || !consumer_queue.empty())
     {
         timeout_msg_t msg;
@@ -101,7 +108,7 @@ void* Channel::pop(double timeout)
     /**
      * notify producer
      */
-    if (!producer_queue.empty())
+    if (capacity > 0 && !producer_queue.empty())
     {
         Coroutine *co = pop_coroutine(PRODUCER);
         co->resume();
@@ -115,29 +122,33 @@ bool Channel::push(void *data, double timeout)
     {
         return false;
     }
-    if (is_full() || !producer_queue.empty())
+
+    if (!(capacity == 0 && !consumer_queue.empty()))
     {
-        timeout_msg_t msg;
-        msg.error = false;
-        msg.timer = NULL;
-        if (timeout > 0)
+        if (is_full() || !producer_queue.empty())
         {
-            int msec = (int) (timeout * 1000);
-            msg.chan = this;
-            msg.type = PRODUCER;
-            msg.co = coroutine_get_current();
-            msg.timer = swTimer_add(&SwooleG.timer, msec, 0, &msg, channel_operation_timeout);
-        }
+            timeout_msg_t msg;
+            msg.error = false;
+            msg.timer = NULL;
+            if (timeout > 0)
+            {
+                int msec = (int) (timeout * 1000);
+                msg.chan = this;
+                msg.type = PRODUCER;
+                msg.co = coroutine_get_current();
+                msg.timer = swTimer_add(&SwooleG.timer, msec, 0, &msg, channel_operation_timeout);
+            }
 
-        yield(PRODUCER);
+            yield(PRODUCER);
 
-        if (msg.timer)
-        {
-            swTimer_del(&SwooleG.timer, msg.timer);
-        }
-        if (msg.error || closed)
-        {
-            return false;
+            if (msg.timer)
+            {
+                swTimer_del(&SwooleG.timer, msg.timer);
+            }
+            if (msg.error || closed)
+            {
+                return false;
+            }
         }
     }
     /**
