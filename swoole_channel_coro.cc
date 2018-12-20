@@ -150,9 +150,9 @@ static PHP_METHOD(swoole_channel_coro, __construct)
     {
         RETURN_FALSE;
     }
-    if (capacity <= 0)
+    if (capacity < 0)
     {
-        capacity = 1;
+        capacity = 0;
     }
 
     php_swoole_check_reactor();
