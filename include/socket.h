@@ -28,6 +28,47 @@ namespace swoole
 class Socket
 {
 public:
+    swReactor *reactor;
+    std::string _host;
+    std::string bind_address;
+    int bind_port;
+    int _port;
+    Coroutine* bind_co;
+    swTimer_node *_timer;
+    swConnection *socket = nullptr;
+    enum swSocket_type type;
+    int _sock_type;
+    int _sock_domain;
+    double _timeout;
+    double _timeout_temp;
+    int _backlog;
+    bool _closed;
+    int errCode;
+    const char *errMsg;
+    uint32_t http2 :1;
+    uint32_t shutdown_read :1;
+    uint32_t shutdown_write :1;
+    /**
+     * one package: length check
+     */
+    uint32_t open_length_check :1;
+    uint32_t open_eof_check :1;
+
+    swProtocol protocol;
+    swString *read_buffer;
+    swString *write_buffer;
+    swSocketAddress bind_address_info;
+
+    struct _swSocks5 *socks5_proxy;
+    struct _http_proxy* http_proxy;
+
+#ifdef SW_USE_OPENSSL
+    bool open_ssl;
+    bool ssl_wait_handshake;
+    SSL_CTX *ssl_context;
+    swSSL_option ssl_option;
+#endif
+
     Socket(enum swSocket_type type);
     Socket(int _fd, Socket *sock);
     Socket(int _fd, enum swSocket_type _type);
@@ -56,12 +97,58 @@ public:
     ssize_t sendto(char *address, int port, char *data, int len);
     ssize_t recvfrom(void *__buf, size_t __n);
     ssize_t recvfrom(void *__buf, size_t __n, struct sockaddr *_addr, socklen_t *_socklen);
+#ifdef SW_USE_OPENSSL
+    bool ssl_handshake();
+    int ssl_verify(bool allow_self_signed);
+    bool ssl_accept();
+#endif
 
     void yield();
 
     inline void resume()
     {
         bind_co->resume();
+    }
+
+    inline bool wait_readable()
+    {
+#ifdef SW_USE_OPENSSL
+        if (socket->ssl && socket->ssl_want_write)
+        {
+            if (unlikely(!is_available() || !wait_event(SW_EVENT_WRITE)))
+            {
+                return false;
+            }
+        }
+        else
+#endif
+        if (unlikely(!wait_event(SW_EVENT_READ)))
+        {
+            return false;
+        }
+        yield();
+        return errCode != ETIMEDOUT;
+    }
+
+    inline bool wait_writeable(const void **__buf, size_t __n)
+    {
+#ifdef SW_USE_OPENSSL
+        if (socket->ssl && socket->ssl_want_read)
+        {
+            if (unlikely(!is_available() || !wait_event(SW_EVENT_READ)))
+            {
+                return false;
+            }
+        }
+        else
+#endif
+        if (unlikely(!wait_event(SW_EVENT_WRITE)))
+        {
+            return false;
+        }
+        copy_to_write_buffer(__buf, __n);
+        yield();
+        return errCode != ETIMEDOUT;
     }
 
     inline long has_bound()
@@ -74,6 +161,29 @@ public:
         {
             return 0;
         }
+    }
+
+    inline int get_fd()
+    {
+        return socket ? socket->fd : -1;
+    }
+
+    inline void set_err(int e)
+    {
+        errCode = errno = e;
+        errMsg = e ? strerror(e) : "";
+    }
+
+    inline void set_err(int e, const char *s)
+    {
+        errCode = errno = e;
+        errMsg = s;
+    }
+
+    inline void set_err(enum swErrorCode e)
+    {
+        errCode = errno = e;
+        errMsg = swstrerror(e);
     }
 
     inline void set_timeout(double timeout, bool temp = false)
@@ -125,18 +235,10 @@ public:
         }
     }
 
-    inline int get_fd()
-    {
-        return socket ? socket->fd : -1;
-    }
-
-#ifdef SW_USE_OPENSSL
-    bool ssl_handshake();
-    int ssl_verify(bool allow_self_signed);
-    bool ssl_accept();
-#endif
-
 protected:
+    bool socks5_handshake();
+    bool http_proxy_handshake();
+
     inline void init_members()
     {
         bind_co = nullptr;
@@ -214,7 +316,7 @@ protected:
     {
         if (reactor->add(reactor, socket->fd, SW_FD_CORO_SOCKET | event) < 0)
         {
-            errCode = errno;
+            set_err(errno);
             return false;
         }
         return true;
@@ -223,74 +325,25 @@ protected:
     inline bool is_available(bool allow_cross_co = false)
     {
         long cid = has_bound();
-        if (allow_cross_co)
+        if (unlikely(!allow_cross_co && cid))
         {
-            if (unlikely(cid))
-            {
-                swoole_error_log(
-                    SW_LOG_ERROR, SW_ERROR_CO_HAS_BEEN_BOUND,
-                    "Socket#%d has already been bound to another coroutine#%ld, "
-                    "reading or writing of the same socket in multiple coroutines at the same time is not allowed.\n",
-                    socket->fd, cid
-                );
-                errCode = SW_ERROR_CO_HAS_BEEN_BOUND;
-                exit(255);
-            }
+            swoole_error_log(
+                SW_LOG_ERROR, SW_ERROR_CO_HAS_BEEN_BOUND,
+                "Socket#%d has already been bound to another coroutine#%ld, "
+                "reading or writing of the same socket in multiple coroutines at the same time is not allowed.\n",
+                socket->fd, cid
+            );
+            set_err(SW_ERROR_CO_HAS_BEEN_BOUND);
+            exit(255);
         }
         if (unlikely(socket->closed))
         {
-            errCode = SW_ERROR_SOCKET_CLOSED;
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKET_CLOSED, "Socket#%d belongs to coroutine#%ld has already been closed.", socket->fd, cid);
+            set_err(ECONNRESET);
             return false;
         }
         return true;
     }
-
-    bool socks5_handshake();
-    bool http_proxy_handshake();
-
-public:
-
-    swReactor *reactor;
-    std::string _host;
-    std::string bind_address;
-    int bind_port;
-    int _port;
-    Coroutine* bind_co;
-    swTimer_node *_timer;
-    swConnection *socket = nullptr;
-    enum swSocket_type type;
-    int _sock_type;
-    int _sock_domain;
-    double _timeout;
-    double _timeout_temp;
-    int _backlog;
-    bool _closed;
-    int errCode;
-    const char *errMsg;
-    uint32_t http2 :1;
-    uint32_t shutdown_read :1;
-    uint32_t shutdown_write :1;
-    /**
-     * one package: length check
-     */
-    uint32_t open_length_check :1;
-    uint32_t open_eof_check :1;
-
-    swProtocol protocol;
-    swString *read_buffer;
-    swString *write_buffer;
-    swSocketAddress bind_address_info;
-
-    struct _swSocks5 *socks5_proxy;
-    struct _http_proxy* http_proxy;
-
-#ifdef SW_USE_OPENSSL
-    bool open_ssl;
-    bool ssl_wait_handshake;
-    SSL_CTX *ssl_context;
-    swSSL_option ssl_option;
-#endif
 };
 
 static inline enum swSocket_type get_socket_type(int domain, int type, int protocol)

@@ -71,12 +71,10 @@ ssize_t swoole_coroutine_send(int sockfd, const void *buf, size_t len, int flags
     ssize_t retval = socket->send(buf, len);
     if (retval < 0)
     {
-        errno = socket->errCode;
         return -1;
     }
     else
     {
-        errno = 0;
         return retval;
     }
 }
@@ -96,12 +94,10 @@ ssize_t swoole_coroutine_sendmsg(int sockfd, const struct msghdr *msg, int flags
     ssize_t retval = socket->sendmsg(msg, flags);
     if (retval < 0)
     {
-        errno = socket->errCode;
         return -1;
     }
     else
     {
-        errno = 0;
         return retval;
     }
 }
@@ -121,12 +117,10 @@ ssize_t swoole_coroutine_recvmsg(int sockfd, struct msghdr *msg, int flags)
     ssize_t retval = socket->recvmsg(msg, flags);
     if (retval < 0)
     {
-        errno = socket->errCode;
         return -1;
     }
     else
     {
-        errno = 0;
         return retval;
     }
 }
@@ -154,12 +148,10 @@ ssize_t swoole_coroutine_recv(int sockfd, void *buf, size_t len, int flags)
     }
     if (retval < 0)
     {
-        errno = socket->errCode;
         return -1;
     }
     else
     {
-        errno = 0;
         return retval;
     }
 }
@@ -196,12 +188,10 @@ int swoole_coroutine_connect(int sockfd, const struct sockaddr *addr, socklen_t 
     Socket *socket = (Socket *) conn->object;
     if (socket->connect(addr, addrlen) == false)
     {
-        errno = socket->errCode;
         return -1;
     }
     else
     {
-        errno = 0;
         return 0;
     }
 }

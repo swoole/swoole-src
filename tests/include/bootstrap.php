@@ -19,7 +19,7 @@ swoole_async_set([
 ]);
 
 co::set([
-    'socket_timeout' => 1
+    'socket_timeout' => 5
 ]);
 
 if (empty(getenv('SWOOLE_DEBUG'))) {

@@ -388,7 +388,7 @@ void swoole_mysql_init(int module_number)
     SWOOLE_INIT_CLASS_ENTRY_EX(swoole_mysql_exception, "Swoole\\MySQL\\Exception", "swoole_mysql_exception", NULL, NULL, swoole_exception);
 
     zend_declare_property_null(swoole_mysql_ce_ptr, ZEND_STRL("serverInfo"), ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_mysql_ce_ptr, ZEND_STRL("sock"), ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_mysql_ce_ptr, ZEND_STRL("sock"), -1, ZEND_ACC_PUBLIC);
     zend_declare_property_bool(swoole_mysql_ce_ptr, ZEND_STRL("connected"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_mysql_ce_ptr, ZEND_STRL("errno"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_mysql_ce_ptr, ZEND_STRL("connect_errno"), 0, ZEND_ACC_PUBLIC);

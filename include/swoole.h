@@ -199,10 +199,14 @@ typedef unsigned long ulong_t;
 #endif
 #define SW_STRS(s)             s, sizeof(s)
 #define SW_STRL(s)             s, sizeof(s)-1
-#define SW_STRINGL(s)          s->str, s->length
-#define SW_STRINGS(s)          s->str, s->size
 #define SW_START_SLEEP         usleep(100000)  //sleep 1s,wait fork and pthread_create
 
+#ifdef SW_USE_EMALLOC
+#define sw_malloc              emalloc
+#define sw_free                efree
+#define sw_calloc              ecalloc
+#define sw_realloc             erealloc
+#else
 #ifdef SW_USE_JEMALLOC
 #include <jemalloc/jemalloc.h>
 #define sw_malloc              je_malloc
@@ -215,6 +219,9 @@ typedef unsigned long ulong_t;
 #define sw_calloc              calloc
 #define sw_realloc             realloc
 #endif
+
+#define SW_MEM_ALIGNED_SIZE(size)               SW_MM_ALIGNED_SIZE_EX(size, 8)
+#define SW_MEM_ALIGNED_SIZE_EX(size, alignment) (((size) + ((alignment) - 1LL)) & ~((alignment) - 1LL))
 
 static sw_inline char* swoole_strdup(const char *s)
 {
@@ -710,6 +717,22 @@ static sw_inline size_t swoole_size_align(size_t size, int pagesize)
     return size + (pagesize - (size % pagesize));
 }
 
+#define SW_STRINGL(s)      s->str, s->length
+#define SW_STRINGS(s)      s->str, s->size
+#define SW_STRINGCVL(s)    s->str + s->offset, s->length - s->offset
+
+swString *swString_new(size_t size);
+swString *swString_dup(const char *src_str, int length);
+swString *swString_dup2(swString *src);
+
+void swString_print(swString *str);
+int swString_append(swString *str, swString *append_str);
+int swString_append_ptr(swString *str, const char *append_str, size_t length);
+int swString_write(swString *str, off_t offset, swString *write_str);
+int swString_write_ptr(swString *str, off_t offset, char *write_str, size_t length);
+int swString_extend(swString *str, size_t new_size);
+char* swString_alloc(swString *str, size_t __size);
+
 static sw_inline void swString_clear(swString *str)
 {
     str->length = 0;
@@ -722,31 +745,6 @@ static sw_inline void swString_free(swString *str)
     sw_free(str);
 }
 
-static sw_inline size_t swString_length(swString *str)
-{
-    return str->length;
-}
-
-static sw_inline size_t swString_size(swString *str)
-{
-    return str->size;
-}
-
-swString *swString_new(size_t size);
-swString *swString_dup(const char *src_str, int length);
-swString *swString_dup2(swString *src);
-
-void swString_print(swString *str);
-void swString_free(swString *str);
-int swString_append(swString *str, swString *append_str);
-int swString_append_ptr(swString *str, const char *append_str, size_t length);
-int swString_write(swString *str, off_t offset, swString *write_str);
-int swString_write_ptr(swString *str, off_t offset, char *write_str, size_t length);
-int swString_extend(swString *str, size_t new_size);
-char* swString_alloc(swString *str, size_t __size);
-
-#define SWSTRING_CURRENT_VL(buffer) buffer->str + buffer->offset, buffer->length - buffer->offset
-
 static sw_inline int swString_extend_align(swString *str, size_t _new_size)
 {
     size_t align_size = str->size * 2;
@@ -757,8 +755,6 @@ static sw_inline int swString_extend_align(swString *str, size_t _new_size)
     return swString_extend(str, align_size);
 }
 
-#define swString_length(s) (s->length)
-#define swString_ptr(s) (s->str)
 //------------------------------Base--------------------------------
 typedef struct _swDataHead
 {

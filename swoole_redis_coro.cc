@@ -1054,7 +1054,7 @@ static sw_inline bool swoole_redis_coro_keep_liveness(swRedisClient *redis)
         {
             zend_update_property_long(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("errType"), SW_REDIS_ERR_CLOSED);
             zend_update_property_long(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("errCode"), socket->errCode);
-            zend_update_property_string(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("errMsg"), strerror(socket->errCode));
+            zend_update_property_string(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("errMsg"), socket->errMsg);
         }
         swoole_redis_coro_close(redis);
         for (; redis->reconnected_count < redis->reconnect_interval; redis->reconnected_count++)
@@ -1761,7 +1761,7 @@ void swoole_redis_coro_init(int module_number)
     zend_declare_property_string(swoole_redis_coro_ce_ptr, ZEND_STRL("host"), "", ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_redis_coro_ce_ptr, ZEND_STRL("port"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_redis_coro_ce_ptr, ZEND_STRL("setting"), ZEND_ACC_PUBLIC);
-    zend_declare_property_long(swoole_redis_coro_ce_ptr, ZEND_STRL("sock"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_redis_coro_ce_ptr, ZEND_STRL("sock"), -1, ZEND_ACC_PUBLIC);
     zend_declare_property_bool(swoole_redis_coro_ce_ptr, ZEND_STRL("connected"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_redis_coro_ce_ptr, ZEND_STRL("errType"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_redis_coro_ce_ptr, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
