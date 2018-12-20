@@ -16,7 +16,7 @@ go(function () {
         echo "finally.\n";
     }
 });
-    echo "end\n";
+echo "end\n";
 
 ?>
 --EXPECT--

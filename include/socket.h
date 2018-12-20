@@ -207,6 +207,23 @@ public:
         set_timeout((double) timeout->tv_sec + ((double) timeout->tv_usec / 1000 / 1000));
     }
 
+    inline bool set_tcp_nodelay(int value)
+    {
+        if (!(type == SW_SOCK_TCP || type == SW_SOCK_TCP6))
+        {
+            return false;
+        }
+        if (setsockopt(get_fd(), IPPROTO_TCP, TCP_NODELAY, &value, sizeof(value)) < 0)
+        {
+            swSysError("setsockopt(%d, TCP_NODELAY) failed.", get_fd());
+            return false;
+        }
+        else
+        {
+            return true;
+        }
+    }
+
     inline swString* get_read_buffer()
     {
         if (unlikely(read_buffer == nullptr))
