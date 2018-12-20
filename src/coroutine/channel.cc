@@ -25,7 +25,14 @@ static void channel_operation_timeout(swTimer *timer, swTimer_node *tnode)
     timeout_msg_t *msg = (timeout_msg_t *) tnode->data;
     msg->error = true;
     msg->timer = nullptr;
-    msg->chan->remove(msg->co);
+    if (msg->type == CONSUMER)
+    {
+        msg->chan->consumer_remove(msg->co);
+    }
+    else
+    {
+        msg->chan->producer_remove(msg->co);
+    }
     msg->co->resume();
 }
 
@@ -61,7 +68,7 @@ void* Channel::pop(double timeout)
     {
         return nullptr;
     }
-    if (is_empty() || consumer_queue.size() > 0)
+    if (is_empty() || !consumer_queue.empty())
     {
         timeout_msg_t msg;
         msg.error = false;
@@ -70,6 +77,7 @@ void* Channel::pop(double timeout)
         {
             int msec = (int) (timeout * 1000);
             msg.chan = this;
+            msg.type = CONSUMER;
             msg.co = coroutine_get_current();
             msg.timer = swTimer_add(&SwooleG.timer, msec, 0, &msg, channel_operation_timeout);
         }
@@ -93,7 +101,7 @@ void* Channel::pop(double timeout)
     /**
      * notify producer
      */
-    if (producer_queue.size() > 0)
+    if (!producer_queue.empty())
     {
         Coroutine *co = pop_coroutine(PRODUCER);
         co->resume();
@@ -107,7 +115,7 @@ bool Channel::push(void *data, double timeout)
     {
         return false;
     }
-    if (is_full() || producer_queue.size() > 0)
+    if (is_full() || !producer_queue.empty())
     {
         timeout_msg_t msg;
         msg.error = false;
@@ -116,6 +124,7 @@ bool Channel::push(void *data, double timeout)
         {
             int msec = (int) (timeout * 1000);
             msg.chan = this;
+            msg.type = PRODUCER;
             msg.co = coroutine_get_current();
             msg.timer = swTimer_add(&SwooleG.timer, msec, 0, &msg, channel_operation_timeout);
         }
@@ -139,7 +148,7 @@ bool Channel::push(void *data, double timeout)
     /**
      * notify consumer
      */
-    if (consumer_queue.size() > 0)
+    if (!consumer_queue.empty())
     {
         Coroutine *co = pop_coroutine(CONSUMER);
         co->resume();
@@ -155,12 +164,12 @@ bool Channel::close()
     }
     swTraceLog(SW_TRACE_CHANNEL, "channel closed");
     closed = true;
-    while (producer_queue.size() > 0)
+    while (!producer_queue.empty())
     {
         Coroutine *co = pop_coroutine(PRODUCER);
         co->resume();
     }
-    while (consumer_queue.size() > 0)
+    while (!consumer_queue.empty())
     {
         Coroutine *co = pop_coroutine(CONSUMER);
         co->resume();
