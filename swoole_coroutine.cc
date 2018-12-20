@@ -263,8 +263,8 @@ static void php_coro_create(void *arg)
     php_coro_og_create(origin_task);
 
     swTraceLog(
-        SW_TRACE_COROUTINE, "Create coro id: %ld, origin cid: %ld, coro total count: %" PRIu64 ", heap size: %zu",
-        coroutine_get_cid(task->co), coroutine_get_cid(task->origin_task->co), swCoroG.count(), zend_memory_usage(0)
+        SW_TRACE_COROUTINE, "Create coro id: %ld, origin cid: %ld, coro total count: %zu, heap size: %zu",
+        coroutine_get_cid(task->co), coroutine_get_cid(task->origin_task->co), (uintmax_t) swCoroG.count(), (uintmax_t) zend_memory_usage(0)
     );
 
     if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_CORO_START])
@@ -393,7 +393,7 @@ long sw_coro_create(zend_fcall_info_cache *fci_cache, int argc, zval *argv)
     }
     if (unlikely(swCoroG.count() >= COROG.max_coro_num))
     {
-        swoole_php_fatal_error(E_WARNING, "exceed max number of coroutine %" PRIu64 ".", swCoroG.count());
+        swoole_php_fatal_error(E_WARNING, "exceed max number of coroutine %zu.", (uintmax_t) swCoroG.count());
         return CORO_LIMIT;
     }
     if (unlikely(!fci_cache || !fci_cache->function_handler))
@@ -473,8 +473,8 @@ void sw_coro_close()
     php_vm_stack_destroy(task->vm_stack);
 
     swTraceLog(
-        SW_TRACE_COROUTINE, "coro close cid=%ld and resume to %ld, %" PRIu64 " remained. usage size: %zu. malloc size: %zu",
-        cid, origin_cid, swCoroG.count(), zend_memory_usage(0), zend_memory_usage(1)
+        SW_TRACE_COROUTINE, "coro close cid=%ld and resume to %ld, %zu remained. usage size: %zu. malloc size: %zu",
+        cid, origin_cid, (uintmax_t) swCoroG.count(), (uintmax_t) zend_memory_usage(0), (uintmax_t) zend_memory_usage(1)
     );
 }
 

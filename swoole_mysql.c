@@ -71,7 +71,7 @@ typedef struct _mysql_big_data_info {
     char *read_p; // where to start reading data
     // for result:
     uint32_t ext_header_len; // extra packet header length
-    uint64_t ext_packet_len; // extra packet length (body only)
+    uint32_t ext_packet_len; // extra packet length (body only)
 } mysql_big_data_info;
 
 static const mysql_charset swoole_mysql_charsets[] =
@@ -1043,7 +1043,7 @@ static zend_string* mysql_decode_big_data(mysql_big_data_info *mbdi)
     }
 }
 
-static ssize_t mysql_decode_row(mysql_client *client, char *buf, uint64_t packet_length, size_t n_buf)
+static ssize_t mysql_decode_row(mysql_client *client, char *buf, uint32_t packet_length, size_t n_buf)
 {
     int i;
     int tmp_len;
@@ -1327,7 +1327,7 @@ static void mysql_decode_year(char *buf, char *result)
     snprintf(result, DATETIME_MAX_SIZE, "%04d", y);
 }
 
-static ssize_t mysql_decode_row_prepare(mysql_client *client, char *buf, uint64_t packet_length, size_t n_buf)
+static ssize_t mysql_decode_row_prepare(mysql_client *client, char *buf, uint32_t packet_length, size_t n_buf)
 {
     int i;
     int tmp_len;
@@ -1348,7 +1348,7 @@ static ssize_t mysql_decode_row_prepare(mysql_client *client, char *buf, uint64_
     zval *row_array = sw_malloc_zval();
     array_init(row_array);
 
-    swTraceLog(SW_TRACE_MYSQL_CLIENT, "mysql_decode_row begin, num_column=%ld, packet_length=%d.", client->response.num_column, packet_length);
+    swTraceLog(SW_TRACE_MYSQL_CLIENT, "mysql_decode_row begin, num_column=%ld, packet_length=%u.", client->response.num_column, packet_length);
 
     mysql_field *field = NULL;
     for (i = 0; i < client->response.num_column; i++)
@@ -1692,7 +1692,7 @@ static sw_inline int mysql_read_params(mysql_client *client)
         char *p = buffer->str + buffer->offset;
         size_t n_buf = buffer->length - buffer->offset;
 
-        swTraceLog(SW_TRACE_MYSQL_CLIENT, "n_buf=%d, length=%d.", n_buf, client->response.packet_length);
+        swTraceLog(SW_TRACE_MYSQL_CLIENT, "n_buf=%zu, length=%u.", (uintmax_t) n_buf, client->response.packet_length);
 
         // Ensure that we've received the complete packet
         if (mysql_ensure_packet(p, n_buf) == SW_ERR)
@@ -2019,7 +2019,7 @@ static int mysql_read_columns(mysql_client *client)
 
     for (; client->response.index_column < client->response.num_column; client->response.index_column++)
     {
-        swTraceLog(SW_TRACE_MYSQL_CLIENT, "index_index_column=%ld, n_buf=%d.", client->response.index_column, n_buf);
+        swTraceLog(SW_TRACE_MYSQL_CLIENT, "index_index_column=%ld, n_buf=%zu.", client->response.index_column, (uintmax_t) n_buf);
 
         // Ensure that we've received the complete packet
         if (mysql_ensure_packet(p, n_buf) == SW_ERR)

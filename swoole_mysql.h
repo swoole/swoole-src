@@ -524,7 +524,7 @@ static sw_inline void mysql_pack_length(int length, char *buf)
     buf[0] = length;
 }
 
-static sw_inline int mysql_length_coded_binary(char *m, ulong_t *r, char *nul, uint64_t len)
+static sw_inline int mysql_length_coded_binary(char *m, ulong_t *r, char *nul, uint32_t len)
 {
     if (len < 1)
     {
