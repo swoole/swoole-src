@@ -380,10 +380,10 @@ enum swWorker_status
     SwooleGS->lock_2.unlock(&SwooleGS->lock_2);}
 
 #define swError(str,...)       SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
-snprintf(sw_error, SW_ERROR_MSG_SIZE, str, ##__VA_ARGS__);\
-swLog_put(SW_LOG_ERROR, sw_error);\
-SwooleGS->lock_2.unlock(&SwooleGS->lock_2);\
-exit(1)
+    snprintf(sw_error, SW_ERROR_MSG_SIZE, str, ##__VA_ARGS__);\
+    swLog_put(SW_LOG_ERROR, sw_error);\
+    SwooleGS->lock_2.unlock(&SwooleGS->lock_2);\
+    exit(1)
 
 #define swSysError(str,...) SwooleGS->lock_2.lock(&SwooleGS->lock_2);\
     snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): " str " Error: %s[%d].",__func__,__LINE__,##__VA_ARGS__,strerror(errno),errno);\

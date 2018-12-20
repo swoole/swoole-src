@@ -1482,7 +1482,6 @@ int swserver_add_systemd_socket(swServer *serv)
         }
 
         swPort_init(ls);
-        bzero(ls->host, SW_HOST_MAXSIZE);
 
         switch (sock_family)
         {
@@ -1519,12 +1518,14 @@ int swserver_add_systemd_socket(swServer *serv)
         case AF_UNIX:
             ls->type = sock_type == SOCK_STREAM ? SW_SOCK_UNIX_STREAM : SW_SOCK_UNIX_DGRAM;
             ls->port = 0;
-            strncpy(ls->host, address.addr.un.sun_path, SW_HOST_MAXSIZE - 1);
+            strncpy(ls->host, address.addr.un.sun_path, SW_HOST_MAXSIZE);
             break;
         default:
             swWarn("Unknown socket type[%d].", sock_type);
             break;
         }
+
+        ls->host[SW_HOST_MAXSIZE - 1] = 0;
 
         //dgram socket, setting socket buffer size
         if (swSocket_is_dgram(ls->type))
@@ -1575,7 +1576,7 @@ swListenPort* swServer_add_port(swServer *serv, int type, const char *host, int 
     }
     if (strlen(host) + 1  > SW_HOST_MAXSIZE)
     {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_NAME_TOO_LONG, "address '%s' exceeds %d characters limit", host, SW_HOST_MAXSIZE - 1);
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_NAME_TOO_LONG, "address '%s' exceeds %ld characters limit", host, SW_HOST_MAXSIZE - 1);
         return NULL;
     }
 
@@ -1589,7 +1590,8 @@ swListenPort* swServer_add_port(swServer *serv, int type, const char *host, int 
     swPort_init(ls);
     ls->type = type;
     ls->port = port;
-    strncpy(ls->host, host, strlen(host) + 1);
+    strncpy(ls->host, host, SW_HOST_MAXSIZE - 1);
+    ls->host[SW_HOST_MAXSIZE - 1] = 0;
 
     if (type & SW_SOCK_SSL)
     {

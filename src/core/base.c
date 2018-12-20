@@ -231,7 +231,7 @@ int swoole_mkdir_recursive(const char *dir)
         swWarn("mkdir(%s) failed. Path exceeds the limit of %d characters.", dir, PATH_MAX - 1);
         return -1;
     }
-    strncpy(tmp, dir, len + 1);
+    strncpy(tmp, dir, PATH_MAX);
 
     if (dir[len - 1] != '/')
     {

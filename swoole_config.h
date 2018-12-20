@@ -27,7 +27,7 @@
 
 #define SW_MAX_FDTYPE              32   //32 kinds of event
 #define SW_MAX_HOOK_TYPE           32
-#define SW_ERROR_MSG_SIZE          1024
+#define SW_ERROR_MSG_SIZE          8192
 #define SW_MAX_FILE_CONTENT        (64*1024*1024) //for swoole_file_get_contents
 #define SW_MAX_LISTEN_PORT         60000
 #define SW_MAX_CONNECTION          10000
@@ -56,7 +56,7 @@
 #define SW_MAX_THREAD_NCPU         4    // n * cpu_num
 #define SW_MAX_WORKER_NCPU         1000 // n * cpu_num
 
-#define SW_HOST_MAXSIZE            104  // Linux has 108 UNIX_PATH_MAX, but BSD/MacOS limit is only 104
+#define SW_HOST_MAXSIZE            sizeof(((struct sockaddr_un *)NULL)->sun_path)  // Linux has 108 UNIX_PATH_MAX, but BSD/MacOS limit is only 104
 
 #define SW_LOG_NO_SRCINFO          //no source info
 #define SW_CLIENT_BUFFER_SIZE      65536
