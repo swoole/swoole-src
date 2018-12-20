@@ -391,6 +391,9 @@ typedef struct _mysql_client
     off_t check_offset;
     mysql_response_t response; /* single response */
 
+    // for stored procedure
+    zval* tmp_result;
+
 } mysql_client;
 
 #define mysql_request_buffer (SwooleTG.buffer_stack)
