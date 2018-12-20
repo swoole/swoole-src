@@ -28,6 +28,7 @@ struct notify_msg_t
 struct timeout_msg_t
 {
     Channel *chan;
+    enum channel_op type;
     Coroutine *co;
     bool error;
     swTimer_node *timer;
@@ -68,9 +69,14 @@ public:
         return producer_queue.size();
     }
 
-    inline void remove(Coroutine *co)
+    inline void consumer_remove(Coroutine *co)
     {
         consumer_queue.remove(co);
+    }
+
+    inline void producer_remove(Coroutine *co)
+    {
+        producer_queue.remove(co);
     }
 
     /**
