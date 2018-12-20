@@ -9,7 +9,7 @@ Co::set(['socket_timeout' => -1]);
 function test(string $host, int $port = 0)
 {
     $redis = new Swoole\Coroutine\Redis();
-    assert($redis->sock === 0);
+    assert($redis->sock === -1);
 
     $real_connect_time = microtime(true);
     $ret = $redis->connect($host, $port);
