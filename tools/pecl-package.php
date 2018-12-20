@@ -8,7 +8,6 @@
 
 require __DIR__ . '/functions.php';
 
-// TODO: update
 function check_source_ver(string $expect_ver, $source_file)
 {
     static $source_ver_regex = '/(SWOOLE_VERSION +)("?)(?<ver>[\w\-.]+)("?)/';
@@ -22,7 +21,30 @@ function check_source_ver(string $expect_ver, $source_file)
         );
         return;
     }
+
     $source_ver = $matches['ver'];
+
+    // auto fixed sub version values
+    if (strpos($source_content, 'SWOOLE_MAJOR_VERSION') !== false) {
+        list($major, $minor, $release, $extra) = preg_split('/[.-]/', $source_ver, 4);
+        $source_content = preg_replace(
+            '/^(\#define[ ]+SWOOLE_VERSION_ID[ ]+)\d+$/m',
+            '${1}' . sprintf('%d%02d%02d', $major, $minor, $release),
+            $source_content
+        );
+        (function (&$source_content, $replacements) {
+            foreach ($replacements as $replacement) {
+                $regex = '/^(\#define[ ]+SWOOLE_' . $replacement[0] . '_VERSION[ ]+' . (is_numeric($replacement[1]) ? ')\d+()$' : '")[^"]*("$)') . '/m';
+                $source_content = preg_replace(
+                    $regex, '${1}' . $replacement[1] . '${2}',
+                    $source_content,
+                    1
+                );
+            }
+        })($source_content, [['MAJOR', $major], ['MINOR', $minor], ['RELEASE', $release], ['EXTRA', $extra]]);
+        file_put_contents($source_file, $source_content);
+    }
+
     if (!preg_match('/^\d+?\.\d+?\.\d+?$/', $source_ver)) {
         $is_release_ver = false;
         swoole_warn("SWOOLE_VERSION v{$source_ver} is not a release version number in {$source_file}.");
@@ -34,10 +56,17 @@ function check_source_ver(string $expect_ver, $source_file)
         case -1: // <
             {
                 if ($replaced) {
+                    _replaced_error:
                     swoole_error("Fix version number failed in {$source_file}");
                 }
                 swoole_warn("SWOOLE_VERSION v{$source_ver} will be replaced to v{$expect_ver} in {$source_file}.");
-                $source_content = preg_replace($source_ver_regex, '$1${2}' . $expect_ver . '$4', $source_content, 1);
+                $source_content = preg_replace(
+                    $source_ver_regex, '$1${2}' . $expect_ver . '$4',
+                    $source_content, 1, $replaced
+                );
+                if (!$replaced) {
+                    goto _replaced_error;
+                }
                 file_put_contents($source_file, $source_content);
                 $replaced = true;
                 goto _check;
