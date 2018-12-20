@@ -3158,7 +3158,7 @@ static int swoole_mysql_onHandShake(mysql_client *client)
     {
         // encode by RSA
 #ifdef SW_MYSQL_RSA_SUPPORT
-        switch (mysql_parse_rsa(connector, SWSTRING_CURRENT_VL(buffer)))
+        switch (mysql_parse_rsa(connector, SW_STRINGCVL(buffer)))
         {
         case SW_AGAIN:
             return SW_OK;
@@ -3179,7 +3179,7 @@ static int swoole_mysql_onHandShake(mysql_client *client)
     }
     default:
     {
-        ret = mysql_get_result(connector, SWSTRING_CURRENT_VL(buffer));
+        ret = mysql_get_result(connector, SW_STRINGCVL(buffer));
         if (ret < 0)
         {
             _error:
