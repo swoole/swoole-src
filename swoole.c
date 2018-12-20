@@ -837,11 +837,9 @@ void php_swoole_register_shutdown_function_prepend(char *function)
     }
     BG(user_shutdown_function_names) = NULL;
     php_swoole_register_shutdown_function(function);
-    zend_try {
-        old_user_shutdown_function_names->pDestructor = php_swoole_old_shutdown_function_move;
-        zend_hash_destroy(old_user_shutdown_function_names);
-        FREE_HASHTABLE(old_user_shutdown_function_names);
-    } zend_end_try();
+    old_user_shutdown_function_names->pDestructor = php_swoole_old_shutdown_function_move;
+    zend_hash_destroy(old_user_shutdown_function_names);
+    FREE_HASHTABLE(old_user_shutdown_function_names);
 }
 
 void swoole_call_rshutdown_function(void *arg)
