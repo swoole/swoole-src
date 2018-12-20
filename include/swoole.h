@@ -201,6 +201,12 @@ typedef unsigned long ulong_t;
 #define SW_STRL(s)             s, sizeof(s)-1
 #define SW_START_SLEEP         usleep(100000)  //sleep 1s,wait fork and pthread_create
 
+#ifdef SW_USE_EMALLOC
+#define sw_malloc              emalloc
+#define sw_free                efree
+#define sw_calloc              ecalloc
+#define sw_realloc             erealloc
+#else
 #ifdef SW_USE_JEMALLOC
 #include <jemalloc/jemalloc.h>
 #define sw_malloc              je_malloc
@@ -213,6 +219,9 @@ typedef unsigned long ulong_t;
 #define sw_calloc              calloc
 #define sw_realloc             realloc
 #endif
+
+#define SW_MEM_ALIGNED_SIZE(size)               SW_MM_ALIGNED_SIZE_EX(size, 8)
+#define SW_MEM_ALIGNED_SIZE_EX(size, alignment) (((size) + ((alignment) - 1LL)) & ~((alignment) - 1LL))
 
 static sw_inline char* swoole_strdup(const char *s)
 {
