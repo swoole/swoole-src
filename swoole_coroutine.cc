@@ -451,7 +451,6 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
         {
             zval_ptr_dtor(retval);
         }
-        EG(bailout) = NULL;
         zend_exception_error(EG(exception), E_ERROR);
     }
     return CORO_END;
