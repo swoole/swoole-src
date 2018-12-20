@@ -436,23 +436,13 @@ void php_swoole_client_coro_check_setting(Socket *cli, zval *zset)
     if (php_swoole_array_get_value(vht, "open_tcp_nodelay", v))
     {
         convert_to_boolean(v);
-        if (Z_BVAL_P(v))
-        {
-            goto _open_tcp_nodelay;
-        }
+        cli->set_tcp_nodelay(Z_BVAL_P(v));
     }
     else
     {
-        _open_tcp_nodelay:
-        if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6)
-        {
-            value = 1;
-            if (setsockopt(cli->socket->fd, IPPROTO_TCP, TCP_NODELAY, &value, sizeof(value)) < 0)
-            {
-                swSysError("setsockopt(%d, TCP_NODELAY) failed.", cli->socket->fd);
-            }
-        }
+        cli->set_tcp_nodelay(1);
     }
+
     /**
      * socks5 proxy
      */

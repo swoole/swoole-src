@@ -1894,19 +1894,33 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
 
             _parse_response:
 
-            // always check that is packet complete
-            // and maybe more responses has already received in buffer, we check it now.
-            if ((client->cmd == SW_MYSQL_COM_QUERY || client->cmd == SW_MYSQL_COM_STMT_EXECUTE) && mysql_is_over(client) != SW_OK)
+            if (client->tmp_result)
             {
-                // the **last** sever status flag shows that more results exist but we hasn't received.
-                swTraceLog(SW_TRACE_MYSQL_CLIENT, "need more");
-                return SW_OK;
+                _check_over:
+                // maybe more responses has already received in buffer, we check it now.
+                if (mysql_is_over(client) != SW_OK)
+                {
+                    // the **last** sever status flag shows that more results exist but we hasn't received.
+                    return SW_OK;
+                }
+                else
+                {
+                    result = client->tmp_result;
+                    client->tmp_result = NULL;
+                }
             }
-
-            ret = swoole_mysql_coro_parse_response(client, &result, 0);
-            if (ret == SW_AGAIN)
+            else
             {
-                return SW_OK; // parse error or need again
+                ret = swoole_mysql_coro_parse_response(client, &result, 0);
+                if (ret == SW_AGAIN)
+                {
+                    return SW_OK; // parse error or need again
+                }
+                if (client->response.status_code & SW_MYSQL_SERVER_MORE_RESULTS_EXISTS)
+                {
+                    client->tmp_result = result;
+                    goto _check_over;
+                }
             }
             swoole_mysql_coro_parse_end(client, buffer); // ending tidy up
 
