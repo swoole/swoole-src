@@ -1187,7 +1187,7 @@ static sw_inline int32_t swoole_unpack(char type, void *data)
      * unsigned short (always 32 bit, little endian byte order)
      */
     case 'v':
-        return swoole_swap_endian16(ntohs(*((uint16_t *) data)));
+        return ntohs(swoole_swap_endian16(*((uint16_t *) data)));
 
     /*-------------------------32bit-----------------------------*/
     /**
@@ -1209,7 +1209,7 @@ static sw_inline int32_t swoole_unpack(char type, void *data)
      * unsigned short (always 32 bit, little endian byte order)
      */
     case 'V':
-        return swoole_swap_endian32(ntohl(*((uint32_t *) data)));
+        return ntohl(swoole_swap_endian32(*((uint32_t *) data)));
 
     default:
         return *((uint32_t *) data);
