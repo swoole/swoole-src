@@ -15,7 +15,7 @@ $server->on('receive', function ($server, $fd, $rid, $data) {
     echo $data;
     $server->shutdown();
 });
-$server->on('workerStart', function ($server, $wid) use ($type) {
+$server->on('workerStart', function ($server, $wid) use ($type, $port) {
     if ($wid == 0) {
         $cli = new swoole_client(SWOOLE_TCP);
         $cli->connect("127.0.0.1", $port);
