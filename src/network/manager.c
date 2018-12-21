@@ -220,6 +220,8 @@ static int swManager_loop(swFactory *factory)
     int status;
 
     SwooleG.use_signalfd = 0;
+    SwooleG.main_reactor = NULL;
+    SwooleG.enable_coroutine = 0;
 
     memset(&ManagerProcess, 0, sizeof(ManagerProcess));
 
@@ -254,8 +256,6 @@ static int swManager_loop(swFactory *factory)
     swSignal_add(SIGRTMIN, swManager_signal_handler);
 #endif
     //swSignal_add(SIGINT, swManager_signal_handler);
-
-    SwooleG.main_reactor = NULL;
 
     if (serv->manager_alarm > 0)
     {

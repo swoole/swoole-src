@@ -72,9 +72,16 @@ long php_swoole_add_timer(long ms, zval *callback, zval *param, int persistent)
         return SW_ERR;
     }
 
-    if (!(SwooleG.serv && swIsTaskWorker() && SwooleG.serv->task_async == 0))
+    if (SwooleG.serv)
     {
-        php_swoole_check_reactor();
+        if (swIsTaskWorker() && SwooleG.serv->task_async == 1)
+        {
+            goto _create_reactor;
+        }
+    }
+    else
+    {
+        _create_reactor: php_swoole_check_reactor();
     }
 
     swTimer_callback *cb = (swTimer_callback *) emalloc(sizeof(swTimer_callback));
@@ -179,6 +186,11 @@ void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
     }
 
     php_swoole_del_timer(tnode);
+
+    if (UNEXPECTED(EG(exception)))
+    {
+        zend_exception_error(EG(exception), E_ERROR);
+    }
 }
 
 void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode)
@@ -220,6 +232,11 @@ void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode)
     if (tnode->remove)
     {
         php_swoole_del_timer(tnode);
+    }
+
+    if (UNEXPECTED(EG(exception)))
+    {
+        zend_exception_error(EG(exception), E_ERROR);
     }
 }
 
