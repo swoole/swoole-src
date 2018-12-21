@@ -1535,14 +1535,14 @@ static void swoole_mysql_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
 
     if (client->iowait == SW_MYSQL_CORO_STATUS_CLOSED)
     {
-        zend_update_property_string(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("error"), "connect timeout");
+        zend_update_property_string(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("connect_error"), "connect timeout");
+        zend_update_property_long(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("connect_errno"), ETIMEDOUT);
     }
     else
     {
         zend_update_property_string(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("error"), "query timeout");
+        zend_update_property_long(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("errno"), ETIMEDOUT);
     }
-
-    zend_update_property_long(swoole_mysql_coro_ce_ptr, zobject, ZEND_STRL("errno"), ETIMEDOUT);
 
     //timeout close conncttion
     client->timer = NULL;
