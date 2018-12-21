@@ -292,61 +292,7 @@ PHP_FUNCTION(swoole_coroutine_exec);
 PHP_FUNCTION(swoole_coroutine_gethostbyname);
 PHP_FUNCTION(swoole_coroutine_defer);
 //---------------------------------------------------------
-//                  swoole_server
-//---------------------------------------------------------
-PHP_METHOD(swoole_server, __construct);
-PHP_METHOD(swoole_server, __destruct);
-PHP_METHOD(swoole_server, set);
-PHP_METHOD(swoole_server, on);
-PHP_METHOD(swoole_server, listen);
-PHP_METHOD(swoole_server, sendMessage);
-PHP_METHOD(swoole_server, addProcess);
-PHP_METHOD(swoole_server, start);
-PHP_METHOD(swoole_server, stop);
-PHP_METHOD(swoole_server, send);
-PHP_METHOD(swoole_server, sendfile);
-PHP_METHOD(swoole_server, stats);
-PHP_METHOD(swoole_server, bind);
-PHP_METHOD(swoole_server, sendto);
-PHP_METHOD(swoole_server, sendwait);
-PHP_METHOD(swoole_server, exist);
-PHP_METHOD(swoole_server, protect);
-PHP_METHOD(swoole_server, close);
-PHP_METHOD(swoole_server, confirm);
-PHP_METHOD(swoole_server, pause);
-PHP_METHOD(swoole_server, resume);
-PHP_METHOD(swoole_server, task);
-PHP_METHOD(swoole_server, taskwait);
-PHP_METHOD(swoole_server, taskWaitMulti);
-PHP_METHOD(swoole_server, taskCo);
-PHP_METHOD(swoole_server, finish);
-PHP_METHOD(swoole_server, reload);
-PHP_METHOD(swoole_server, shutdown);
-PHP_METHOD(swoole_server, getLastError);
-PHP_METHOD(swoole_server, heartbeat);
-PHP_METHOD(swoole_server, connection_list);
-PHP_METHOD(swoole_server, connection_info);
-#ifdef SW_BUFFER_RECV_TIME
-PHP_METHOD(swoole_server, getReceivedTime);
-#endif
-
-PHP_METHOD(swoole_connection_iterator, count);
-PHP_METHOD(swoole_connection_iterator, rewind);
-PHP_METHOD(swoole_connection_iterator, next);
-PHP_METHOD(swoole_connection_iterator, current);
-PHP_METHOD(swoole_connection_iterator, key);
-PHP_METHOD(swoole_connection_iterator, valid);
-PHP_METHOD(swoole_connection_iterator, offsetExists);
-PHP_METHOD(swoole_connection_iterator, offsetGet);
-PHP_METHOD(swoole_connection_iterator, offsetSet);
-PHP_METHOD(swoole_connection_iterator, offsetUnset);
-PHP_METHOD(swoole_connection_iterator, __destruct);
-
-#ifdef SWOOLE_SOCKETS_SUPPORT
-PHP_METHOD(swoole_server, getSocket);
-#endif
-//---------------------------------------------------------
-//                  swoole_event
+//                  event
 //---------------------------------------------------------
 PHP_FUNCTION(swoole_event_add);
 PHP_FUNCTION(swoole_event_set);
@@ -360,7 +306,7 @@ PHP_FUNCTION(swoole_event_dispatch);
 PHP_FUNCTION(swoole_event_isset);
 PHP_FUNCTION(swoole_client_select);
 //---------------------------------------------------------
-//                  swoole_async
+//                  async
 //---------------------------------------------------------
 PHP_FUNCTION(swoole_async_read);
 PHP_FUNCTION(swoole_async_write);
@@ -372,17 +318,18 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro);
 PHP_FUNCTION(swoole_async_set);
 PHP_METHOD(swoole_async, exec);
 //---------------------------------------------------------
-//                  swoole_timer
+//                  timer
 //---------------------------------------------------------
 PHP_FUNCTION(swoole_timer_after);
 PHP_FUNCTION(swoole_timer_tick);
 PHP_FUNCTION(swoole_timer_exists);
 PHP_FUNCTION(swoole_timer_clear);
 //---------------------------------------------------------
-//                  other
+//                  error
 //---------------------------------------------------------
 PHP_FUNCTION(swoole_strerror);
 PHP_FUNCTION(swoole_errno);
+PHP_FUNCTION(swoole_last_error);
 //---------------------------------------------------------
 //                  serialize
 //---------------------------------------------------------
@@ -394,6 +341,7 @@ PHP_FUNCTION(swoole_unserialize);
 
 void swoole_destroy_table(zend_resource *rsrc);
 
+void swoole_server_init(int module_number);
 void swoole_server_port_init(int module_number);
 void swoole_async_init(int module_number);
 void swoole_table_init(int module_number);
