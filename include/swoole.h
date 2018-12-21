@@ -42,6 +42,7 @@ extern "C" {
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <endian.h>
 #ifdef __sun
 #include <strings.h>
 #endif
@@ -1182,12 +1183,20 @@ static sw_inline int32_t swoole_unpack(char type, void *data)
      * unsigned short (always 16 bit, big endian byte order)
      */
     case 'n':
-        return ntohs(*((uint16_t *) data));
+#if BYTE_ORDER == LITTLE_ENDIAN
+        return swoole_swap_endian16(*((uint16_t *) data));
+#else
+        return *((uint16_t *) data);
+#endif
     /**
      * unsigned short (always 32 bit, little endian byte order)
      */
     case 'v':
-        return ntohs(swoole_swap_endian16(*((uint16_t *) data)));
+#if BYTE_ORDER == BIG_ENDIAN
+        return swoole_swap_endian16(*((uint16_t *) data));
+#else
+        return *((uint16_t *) data);
+#endif
 
     /*-------------------------32bit-----------------------------*/
     /**
@@ -1204,12 +1213,20 @@ static sw_inline int32_t swoole_unpack(char type, void *data)
      * unsigned long (always 32 bit, big endian byte order)
      */
     case 'N':
-        return ntohl(*((uint32_t *) data));
+#if BYTE_ORDER == LITTLE_ENDIAN
+        return swoole_swap_endian32(*((uint32_t *) data));
+#else
+        return *((uint32_t *) data);
+#endif
     /**
      * unsigned short (always 32 bit, little endian byte order)
      */
     case 'V':
-        return ntohl(swoole_swap_endian32(*((uint32_t *) data)));
+#if BYTE_ORDER == BIG_ENDIAN
+        return swoole_swap_endian32(*((uint32_t *) data));
+#else
+        return *((uint32_t *) data);
+#endif
 
     default:
         return *((uint32_t *) data);
