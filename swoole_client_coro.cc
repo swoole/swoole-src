@@ -15,7 +15,6 @@
 */
 
 #include "php_swoole.h"
-#include "socket.h"
 #include "swoole_coroutine.h"
 #include "socks5.h"
 #include "mqtt.h"
@@ -105,7 +104,6 @@ static PHP_METHOD(swoole_client_coro, close);
 static void client_coro_check_ssl_setting(Socket *cli, zval *zset);
 static Socket* client_coro_new(zval *zobject, int port = 0);
 bool php_swoole_client_coro_socket_free(Socket *cli);
-void php_swoole_client_coro_check_setting(Socket *cli, zval *zset);
 
 static const zend_function_entry swoole_client_coro_methods[] =
 {
@@ -267,7 +265,7 @@ bool php_swoole_client_coro_socket_free(Socket *cli)
     return ret;
 }
 
-void php_swoole_client_coro_check_setting(Socket *cli, zval *zset)
+void sw_coro_client_set(Socket *cli, zval *zset)
 {
     HashTable *vht;
     zval *v;
@@ -716,7 +714,7 @@ static PHP_METHOD(swoole_client_coro, connect)
     zval *zset = sw_zend_read_property(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("setting"), 1);
     if (zset && ZVAL_IS_ARRAY(zset))
     {
-        php_swoole_client_coro_check_setting(cli, zset);
+        sw_coro_client_set(cli, zset);
     }
 
     sw_coro_check_bind("client", cli->has_bound());

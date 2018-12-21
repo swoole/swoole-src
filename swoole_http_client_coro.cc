@@ -18,17 +18,14 @@
 
 #include "php_swoole.h"
 
-#ifdef SW_COROUTINE
 #include "swoole_http_client.h"
 #include "swoole_coroutine.h"
 #include "coroutine_c_api.h"
-#include "socket.h"
 
 using namespace swoole;
 
 extern swString *http_client_buffer;
 
-extern void php_swoole_client_coro_check_setting(Socket *cli, zval *zset);
 extern bool php_swoole_client_coro_socket_free(Socket *cli);
 
 static int http_parser_on_header_field(swoole_http_parser *parser, const char *at, size_t length);
@@ -610,7 +607,7 @@ void PHPHttpClient::set(zval *zset = nullptr)
     {
         SW_ASSERT(socket);
         // will be set after create socket and before connect
-        php_swoole_client_coro_check_setting(socket, zsettings);
+        sw_coro_client_set(socket, zsettings);
         if (socket->http_proxy)
         {
             if (socket->http_proxy->password)
@@ -1926,4 +1923,3 @@ static PHP_METHOD(swoole_http_client_coro, close)
 
     RETURN_BOOL(phc->close());
 }
-#endif
