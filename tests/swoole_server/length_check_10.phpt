@@ -18,7 +18,7 @@ $server->on('receive', function ($server, $fd, $rid, $data) {
 $server->on('workerStart', function ($server, $wid) use ($type) {
     if ($wid == 0) {
         $cli = new swoole_client(SWOOLE_TCP);
-        $cli->connect("127.0.0.1", 9501);
+        $cli->connect("127.0.0.1", $port);
         $cli->send(pack($type, 5) . 'hello!');
     }
 });
