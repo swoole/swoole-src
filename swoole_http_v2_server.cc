@@ -27,77 +27,74 @@
 
 extern swString *swoole_http_buffer;
 
-namespace swoole
+class http2_stream
 {
-    class http2_stream
+    public:
+    http_context* ctx;
+    // uint8_t priority; // useless now
+    uint32_t stream_id;
+    // flow control
+    uint32_t send_window;
+    uint32_t recv_window;
+
+    http2_stream(int _fd, uint32_t _stream_id)
     {
-        public:
-        http_context* ctx;
-        // uint8_t priority; // useless now
-        uint32_t stream_id;
-        // flow control
-        uint32_t send_window;
-        uint32_t recv_window;
+        ctx = swoole_http_context_new(_fd);
+        ctx->stream = (void *) this;
+        stream_id = _stream_id;
+        send_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
+        recv_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
+    }
 
-        http2_stream(int _fd, uint32_t _stream_id)
-        {
-            ctx = swoole_http_context_new(_fd);
-            ctx->stream = (void *) this;
-            stream_id = _stream_id;
-            send_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
-            recv_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
-        }
-
-        ~http2_stream()
-        {
-            swoole_http_context_free(ctx);
-        }
-    };
-
-    class http2_session
+    ~http2_stream()
     {
-        public:
-        int fd;
-        std::unordered_map<int, http2_stream*> streams;
+        swoole_http_context_free(ctx);
+    }
+};
 
-        nghttp2_hd_inflater *inflater;
-        nghttp2_hd_deflater *deflater;
+class http2_session
+{
+    public:
+    int fd;
+    std::unordered_map<int, http2_stream*> streams;
 
-        // flow control
-        uint32_t send_window;
-        uint32_t recv_window;
-        uint32_t max_concurrent_streams;
-        uint32_t max_frame_size;
+    nghttp2_hd_inflater *inflater;
+    nghttp2_hd_deflater *deflater;
 
-        http2_session(int _fd)
+    // flow control
+    uint32_t send_window;
+    uint32_t recv_window;
+    uint32_t max_concurrent_streams;
+    uint32_t max_frame_size;
+
+    http2_session(int _fd)
+    {
+        fd = _fd;
+        send_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
+        recv_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
+        max_concurrent_streams = SW_HTTP2_MAX_MAX_CONCURRENT_STREAMS;
+        max_frame_size = SW_HTTP2_MAX_MAX_FRAME_SIZE;
+        deflater = nullptr;
+        inflater = nullptr;
+    }
+
+    ~http2_session()
+    {
+        if (inflater)
         {
-            fd = _fd;
-            send_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
-            recv_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
-            max_concurrent_streams = SW_HTTP2_MAX_MAX_CONCURRENT_STREAMS;
-            max_frame_size = SW_HTTP2_MAX_MAX_FRAME_SIZE;
-            deflater = nullptr;
-            inflater = nullptr;
+            nghttp2_hd_inflate_del(inflater);
+        }
+        if (deflater)
+        {
+            nghttp2_hd_deflate_del(deflater);
         }
 
-        ~http2_session()
+        for(std::unordered_map<int, http2_stream*>::iterator iter = streams.begin(); iter != streams.end(); iter++)
         {
-            if (inflater)
-            {
-                nghttp2_hd_inflate_del(inflater);
-            }
-            if (deflater)
-            {
-                nghttp2_hd_deflate_del(deflater);
-            }
-
-            for(std::unordered_map<int, http2_stream*>::iterator iter = streams.begin(); iter != streams.end(); iter++)
-            {
-                delete iter->second;
-            }
+            delete iter->second;
         }
-    };
-}
+    }
+};
 
 using namespace swoole;
 
