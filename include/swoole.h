@@ -1189,7 +1189,7 @@ static sw_inline int32_t swoole_unpack(char type, void *data)
         return *((uint16_t *) data);
 #endif
     /**
-     * unsigned short (always 32 bit, little endian byte order)
+     * unsigned short (always 16 bit, little endian byte order)
      */
     case 'v':
 #if BYTE_ORDER == BIG_ENDIAN
