@@ -30,9 +30,13 @@ $pm->childFunc = function () use ($pm)
     $process2 = new swoole_process(function ($worker) use ($serv) {
         global $argv;
         swoole_set_process_name(WORKER_PROC_NAME);
+        swoole_process::signal(SIGTERM, function () {
+            swoole_event_exit();
+        });
         swoole_timer_after(200000, function ($interval) use ($worker, $serv) {
             echo "OK\n";
         });
+        $pm->wakeup();
     }, false);
     $serv->addProcess($process2);
     $serv->set(["worker_num" => 2, 'log_file' => '/dev/null',]);
