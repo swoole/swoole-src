@@ -757,9 +757,15 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
 #define SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(module, _unset_property) \
     module##_handlers.unset_property = _unset_property;
 
-#define SWOOLE_SET_CLASS_CREATE_AND_FREE(module, _create_object, _free_obj) \
-    module##_ce_ptr->create_object = _create_object; \
+#define SWOOLE_SET_CLASS_CREATE(module, _create_object) \
+    module##_ce_ptr->create_object = _create_object;
+
+#define SWOOLE_SET_CLASS_FREE(module, _free_obj) \
     module##_handlers.free_obj = _free_obj;
+
+#define SWOOLE_SET_CLASS_CREATE_AND_FREE(module, _create_object, _free_obj) \
+    SWOOLE_SET_CLASS_CREATE(module, _create_object); \
+    SWOOLE_SET_CLASS_FREE(module, _free_obj);
 
 #define SWOOLE_SET_CLASS_CUSTOM_OBJECT(module, _create_object, _free_obj, _struct, _std) \
     SWOOLE_SET_CLASS_CREATE_AND_FREE(module, _create_object, _free_obj); \
