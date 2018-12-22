@@ -2,15 +2,9 @@
 swoole_server: send message [02]
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 $pm = new ProcessManager;
 
 $pm->parentFunc = function ($pid) use ($pm)
@@ -21,7 +15,7 @@ $pm->parentFunc = function ($pid) use ($pm)
         'open_eof_check' => true,
         'open_eof_split' => true,
     ]);
-    if (!$client->connect('127.0.0.1', 9501))
+    if (!$client->connect('127.0.0.1', $pm->getFreePort()))
     {
         exit("connect failed\n");
     }
@@ -43,7 +37,7 @@ $pm->parentFunc = function ($pid) use ($pm)
 
 $pm->childFunc = function () use ($pm)
 {
-    $serv = new swoole_server("127.0.0.1", 9501, SWOOLE_PROCESS, SWOOLE_SOCK_TCP );
+    $serv = new swoole_server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS, SWOOLE_SOCK_TCP );
     $serv->set([
         'log_file' => '/dev/null',
         'worker_num' => 4,
@@ -98,7 +92,6 @@ $pm->childFunc = function () use ($pm)
 
     $serv->start();
 };
-
 
 $pm->childFirst();
 $pm->run();

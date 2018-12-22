@@ -4,7 +4,7 @@ swoole_http2_client_coro: http2 headers auto to lower
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 go(function () {
     $domain = 'www.swoole.com';
     $cli = new Swoole\Coroutine\Http2\Client($domain, 443, true);
@@ -14,7 +14,7 @@ go(function () {
     ]);
     $cli->connect();
 
-    $req = new swoole_http2_request;
+    $req = new Swoole\Http2\Request;
     $req->path = '/';
     // auto to-lower
     $req->headers = [
@@ -23,10 +23,16 @@ go(function () {
         'Accept' => 'text/html,application/xhtml+xml,application/xml',
         'Accept-encoding' => 'gzip',
     ];
-    assert($cli->send($req));
-    $response = $cli->recv();
-    echo $response->statusCode;
+    for ($n = 5; $n--;) {
+        assert($cli->send($req));
+        $response = $cli->recv();
+        echo "{$response->statusCode}\n";
+    }
 });
 ?>
 --EXPECT--
+200
+200
+200
+200
 200

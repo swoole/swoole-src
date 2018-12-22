@@ -3,22 +3,15 @@ swoole_http_client: request timeout
 
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
-
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new ProcessManager;
 
-$pm->parentFunc = function ($pid)
+$pm->parentFunc = function ($pid) use ($pm)
 {
-    $cli = new swoole_http_client("127.0.0.1", 9502);
+    $cli = new swoole_http_client('127.0.0.1', $pm->getFreePort());
     $cli->get('/', function ($c) {
         assert($c->statusCode == -2);
         assert($c->body == "");
@@ -28,7 +21,7 @@ $pm->parentFunc = function ($pid)
 
 $pm->childFunc = function () use ($pm)
 {
-    $serv = new Swoole\Server("127.0.0.1", 9502, SWOOLE_BASE);
+    $serv = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $serv->set(array(
         'worker_num' => 1,
         'log_file' => '/dev/null',
@@ -52,5 +45,4 @@ $pm->childFunc = function () use ($pm)
 $pm->childFirst();
 $pm->run();
 ?>
-
 --EXPECT--

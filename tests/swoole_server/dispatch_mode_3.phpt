@@ -1,19 +1,10 @@
 --TEST--
 swoole_server: dispatch_mode = 3
 --SKIPIF--
-<?php
-require __DIR__ . '/../include/skipif.inc';
-skip_if_in_docker('unknown reason in docker');
-?>
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 const REQ_N = 10000;
 const CLIENT_N = 16;
 const WORKER_N = 16;
@@ -68,17 +59,17 @@ $pm->parentFunc = function ($pid) use ($port)
         {
 
         });
-        $cli->connect("127.0.0.1", $port, 0.1);
+        $cli->connect('127.0.0.1', $port, 0.1);
     }
     swoole_event::wait();
     swoole_process::kill($pid);
-    assert($stats[10] < 500);
-    assert($stats[5] < 500);
+    assert($stats[10] < 1000);
+    assert($stats[5] < 1000);
 };
 
 $pm->childFunc = function () use ($pm, $port)
 {
-    $serv = new swoole_server("127.0.0.1", $port, SWOOLE_PROCESS);
+    $serv = new swoole_server('127.0.0.1', $port, SWOOLE_PROCESS);
     $serv->set(array(
         "worker_num" => WORKER_N,
         'dispatch_mode' => 3,

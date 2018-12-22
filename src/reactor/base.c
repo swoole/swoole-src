@@ -27,15 +27,10 @@
 #endif
 #endif
 
-#ifdef SW_COROUTINE
-#include "coroutine.h"
-#endif
-
 static void swReactor_onTimeout_and_Finish(swReactor *reactor);
 static void swReactor_onTimeout(swReactor *reactor);
 static void swReactor_onFinish(swReactor *reactor);
 static void swReactor_onBegin(swReactor *reactor);
-static int swReactor_defer(swReactor *reactor, swCallback callback, void *data);
 
 int swReactor_create(swReactor *reactor, int max_event)
 {
@@ -60,8 +55,8 @@ int swReactor_create(swReactor *reactor, int max_event)
     reactor->onTimeout = swReactor_onTimeout;
 
     reactor->write = swReactor_write;
-    reactor->defer = swReactor_defer;
     reactor->close = swReactor_close;
+    swReactor_defer_task_create(reactor);
 
     reactor->socket_array = swArray_new(1024, sizeof(swConnection));
     if (!reactor->socket_array)
@@ -104,38 +99,6 @@ int swReactor_setHandle(swReactor *reactor, int _fdtype, swReactor_handle handle
     return SW_OK;
 }
 
-static void swReactor_defer_timer_callback(swTimer *timer, swTimer_node *tnode)
-{
-    swDefer_callback *cb = (swDefer_callback *) tnode->data;
-    cb->callback(cb->data);
-    sw_free(cb);
-}
-
-static int swReactor_defer(swReactor *reactor, swCallback callback, void *data)
-{
-    swDefer_callback *cb = sw_malloc(sizeof(swDefer_callback));
-    if (!cb)
-    {
-        swWarn("malloc(%ld) failed.", sizeof(swDefer_callback));
-        return SW_ERR;
-    }
-    cb->callback = callback;
-    cb->data = data;
-    if (unlikely(reactor->start == 0))
-    {
-        if (unlikely(SwooleG.timer.fd == 0))
-        {
-            swTimer_init(1);
-        }
-        SwooleG.timer.add(&SwooleG.timer, 1, 0, cb, swReactor_defer_timer_callback);
-    }
-    else
-    {
-        LL_APPEND(reactor->defer_tasks, cb);
-    }
-    return SW_OK;
-}
-
 int swReactor_empty(swReactor *reactor)
 {
     //timer
@@ -144,14 +107,20 @@ int swReactor_empty(swReactor *reactor)
         return SW_FALSE;
     }
 
+    int event_num = reactor->event_num;
     int empty = SW_FALSE;
-    //thread pool
-    if (SwooleAIO.init && reactor->event_num == 1 && SwooleAIO.task_num == 0)
+    //aio thread pool
+    if (SwooleAIO.init && SwooleAIO.task_num == 0)
     {
-        empty = SW_TRUE;
+        event_num--;
+    }
+    //signalfd
+    if (swReactor_handle_isset(reactor, SW_FD_SIGNAL) && reactor->signal_listener_num == 0)
+    {
+        event_num--;
     }
     //no event
-    else if (reactor->event_num == 0)
+    if (event_num == 0)
     {
         empty = SW_TRUE;
     }
@@ -174,21 +143,7 @@ static void swReactor_onTimeout_and_Finish(swReactor *reactor)
         swTimer_select(&SwooleG.timer);
     }
     //defer tasks
-    do
-    {
-        swDefer_callback *defer_tasks = reactor->defer_tasks;
-        swDefer_callback *cb, *tmp;
-        reactor->defer_tasks = NULL;
-        LL_FOREACH(defer_tasks, cb)
-        {
-            cb->callback(cb->data);
-        }
-        LL_FOREACH_SAFE(defer_tasks, cb, tmp)
-        {
-            sw_free(cb);
-        }
-    } while (reactor->defer_tasks);
-
+    reactor->do_defer_tasks(reactor);
     //callback at the end
     if (reactor->idle_task.callback)
     {
@@ -437,21 +392,7 @@ int swReactor_onWrite(swReactor *reactor, swEvent *ev)
     //remove EPOLLOUT event
     if (swBuffer_empty(buffer))
     {
-        if (socket->events & SW_EVENT_READ)
-        {
-            socket->events &= (~SW_EVENT_WRITE);
-            if (reactor->set(reactor, fd, socket->fdtype | socket->events) < 0)
-            {
-                swSysError("reactor->set(%d, SW_EVENT_READ) failed.", fd);
-            }
-        }
-        else
-        {
-            if (reactor->del(reactor, fd) < 0)
-            {
-                swSysError("reactor->del(%d) failed.", fd);
-            }
-        }
+        swReactor_remove_write_event(reactor, fd);
     }
 
     return SW_OK;
@@ -462,7 +403,7 @@ int swReactor_wait_write_buffer(swReactor *reactor, int fd)
     swConnection *conn = swReactor_get(reactor, fd);
     swEvent event;
 
-    if (conn->out_buffer)
+    if (!swBuffer_empty(conn->out_buffer))
     {
         swSetBlock(fd);
         event.fd = fd;

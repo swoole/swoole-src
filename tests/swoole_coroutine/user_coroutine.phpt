@@ -3,12 +3,11 @@ swoole_coroutine: user coroutine
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
-skip_if_in_docker('foreign network dns error');
+skip_if_in_travis('foreign network dns error');
 ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/lib/curl.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Coroutine\Http\Client as HttpClient;
 
@@ -23,7 +22,7 @@ $pm->parentFunc = function ($pid) use ($port)
 
 $pm->childFunc = function () use ($pm, $port)
 {
-    $http = new swoole_http_server("127.0.0.1", $port, SWOOLE_BASE);
+    $http = new swoole_http_server('127.0.0.1', $port, SWOOLE_BASE);
     $http->set(array(
         'log_file' => '/dev/null'
     ));
@@ -69,4 +68,3 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
-

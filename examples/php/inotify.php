@@ -11,4 +11,3 @@ while (true)
     $events = inotify_read($fd);
     print_r($events);
 }
-

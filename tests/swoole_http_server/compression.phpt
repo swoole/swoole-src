@@ -4,20 +4,19 @@ swoole_http_server: http_compression
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/lib/curl.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid)
+$pm->parentFunc = function ($pid) use ($pm)
 {
-    $data = curlGet("http://127.0.0.1:9501/");
+    $data = curlGet("http://127.0.0.1:{$pm->getFreePort()}/");
     assert(md5_file(__DIR__ . '/../../README.md') == md5($data));
     swoole_process::kill($pid);
 };
 
 $pm->childFunc = function () use ($pm)
 {
-    $http = new swoole_http_server("127.0.0.1", 9501, SWOOLE_BASE, SWOOLE_SOCK_TCP);
+    $http = new swoole_http_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE, SWOOLE_SOCK_TCP);
 
     $http->set([
         'http_gzip_level' => 9,
@@ -40,4 +39,3 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTREGEX--
-

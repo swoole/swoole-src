@@ -2,16 +2,9 @@
 swoole_process: redirect
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
-
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 $proc = new \swoole_process(function(\swoole_process $proc) {
     echo "SUCCESS";
@@ -20,7 +13,6 @@ $proc = new \swoole_process(function(\swoole_process $proc) {
 $proc->start();
 $r = $proc->read();
 echo "READ: $r~";
-
 
 \swoole_process::wait(true);
 ?>

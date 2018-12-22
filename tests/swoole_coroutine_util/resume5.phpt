@@ -4,7 +4,7 @@ swoole_coroutine_util: user yield and resume4
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Coroutine as co;
 
@@ -21,13 +21,13 @@ go(function () {
     co::yield();
     echo "after yield\n";
 });
-echo "main \n";
+echo "main\n";
 
 ?>
 --EXPECTF--
 start to create coro
 coro 2
 before yield
-main 
+main
 resume
 after yield

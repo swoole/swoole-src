@@ -188,7 +188,18 @@ function no_chunk(swoole_http_request $request, swoole_http_response $response)
     }
 }
 
-$http->on('request', 'no_chunk');
+$http->on('request', function ($req, $resp) {
+    $uri = $req->server['request_uri'];
+    if ($uri == '/favicon.ico') {
+    	$resp->status(404);
+        $resp->end();
+    }
+	elseif ($uri == '/chunk') {
+    	chunk($req, $resp);
+    } else {
+    	no_chunk($req, $resp);
+    }
+});
 
 $http->on('finish', function ()
 {

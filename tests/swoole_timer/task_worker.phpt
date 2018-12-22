@@ -2,24 +2,15 @@
 swoole_timer: call after in Task-Worker
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
-
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
-$port = 9508;
-
+require __DIR__ . '/../include/bootstrap.php';
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid) use ($port, $pm)
+$pm->parentFunc = function ($pid) use ($pm)
 {
     $cli = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
     $cli->set(['open_eof_check' => true, "package_eof" => "\r\n\r\n"]);
-    $cli->connect("127.0.0.1", $port, 5) or die("ERROR");
+    $cli->connect('127.0.0.1', $pm->getFreePort(), 5) or die("ERROR");
 
     $cli->send("task-01") or die("ERROR");
     for ($i = 0; $i < 5; $i++)
@@ -29,13 +20,13 @@ $pm->parentFunc = function ($pid) use ($port, $pm)
     $pm->kill();
 };
 
-$pm->childFunc = function () use ($pm, $port)
+$pm->childFunc = function () use ($pm)
 {
     ini_set('swoole.display_errors', 'Off');
-    $serv = new swoole_server("127.0.0.1", $port);
+    $serv = new swoole_server('127.0.0.1', $pm->getFreePort());
     $serv->set(array(
         "worker_num" => 1,
-        'task_worker_num' => 2,
+        'task_worker_num' => 1,
         'log_file' => '/dev/null',
     ));
     $serv->on("WorkerStart", function (\swoole_server $serv)  use ($pm)
@@ -78,7 +69,6 @@ $pm->childFunc = function () use ($pm, $port)
 $pm->childFirst();
 $pm->run();
 ?>
-
 --EXPECT--
 500
 500[2]

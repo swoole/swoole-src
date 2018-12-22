@@ -1,6 +1,6 @@
 Please answer these questions before submitting your issue. Thanks!
 
-1. What did you do? If possible, provide a recipe for reproducing the error.
+1. What did you do? If possible, provide a simple script for reproducing the error.
 
 
 
@@ -12,17 +12,10 @@ Please answer these questions before submitting your issue. Thanks!
 
 
 
-4. What version of Swoole are you using (`php --ri swoole`)?
+4. What version of Swoole are you using (show your `php --ri swoole`)?
 
 
 
-
-5. What is your machine environment used (including version of kernel & php & gcc) ? 
-
-
-
-6. If you are using ssl, what is your openssl version?
-
-
+5. What is your machine environment used (including version of kernel & php & gcc) ?
 
 

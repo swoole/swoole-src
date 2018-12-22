@@ -4,7 +4,7 @@ swoole_coroutine_util: exec
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 go(function () {
     $data = co::exec('md5sum ' . TEST_IMAGE);

@@ -53,7 +53,7 @@ class TestHttpServer {
 	 */
 	public function onRequest($request, $response){
 
-		
+
 		//$udp_cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_UDP);
 		$tcp_cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
 
@@ -80,7 +80,7 @@ class TestHttpServer {
 		else{
 			error_log(" tcp cli timeout \n",3, '/data/log/udp_timeout.log');
 		}
-		
+
 		$response ->end(" swoole response is ok");
 	}
 
@@ -92,7 +92,7 @@ class TestHttpServer {
 	 * @return [type]          [description]
 	 */
 	public function onClose($server, $fd, $from_id){
-		
+
 		//echo " on close fd = $fd from_id = $from_id \n";
 	}
 
@@ -115,12 +115,8 @@ $setting = array(
 		'reactor_num' => 4,     //亲核
 		'daemonize' => 1,       //守护进程
 		'backlog' => 128,
-		'log_file' => '/data/log/test_http_server.log', 
+		'log_file' => '/data/log/test_http_server.log',
 );
 $th = new TestHttpServer();
 $th ->set($setting);
 $th ->start();
-
-
-
-

@@ -134,6 +134,7 @@ int swClient_create(swClient *cli, int type, int async)
     if (async)
     {
         swSetNonBlock(cli->socket->fd);
+        cli->socket->nonblock = 1;
         if (!swReactor_handle_isset(cli->reactor, SW_FD_STREAM_CLIENT))
         {
             cli->reactor->setHandle(cli->reactor, SW_FD_STREAM_CLIENT | SW_EVENT_READ, swClient_onStreamRead);
@@ -141,6 +142,10 @@ int swClient_create(swClient *cli, int type, int async)
             cli->reactor->setHandle(cli->reactor, SW_FD_STREAM_CLIENT | SW_EVENT_WRITE, swClient_onWrite);
             cli->reactor->setHandle(cli->reactor, SW_FD_STREAM_CLIENT | SW_EVENT_ERROR, swClient_onError);
         }
+    }
+    else
+    {
+        cli->socket->nonblock = 0;
     }
 
     if (swSocket_is_stream(type))
@@ -395,6 +400,7 @@ static int swClient_inet_addr(swClient *cli, char *host, int port)
             return SW_OK;
         }
     }
+#ifndef _WIN32
     else if (cli->type == SW_SOCK_UNIX_STREAM || cli->type == SW_SOCK_UNIX_DGRAM)
     {
         cli->server_addr.addr.un.sun_family = AF_UNIX;
@@ -403,6 +409,7 @@ static int swClient_inet_addr(swClient *cli, char *host, int port)
         cli->server_addr.len = sizeof(cli->server_addr.addr.un.sun_path);
         return SW_OK;
     }
+#endif
     else
     {
         return SW_ERR;
@@ -504,10 +511,12 @@ static int swClient_close(swClient *cli)
         swString_free(cli->buffer);
         cli->buffer = NULL;
     }
+#ifndef _WIN32
     if (cli->type == SW_SOCK_UNIX_DGRAM)
     {
         unlink(cli->socket->info.addr.un.sun_path);
     }
+#endif
     if (cli->async)
     {
         //remove from reactor
@@ -752,13 +761,19 @@ static int swClient_tcp_connect_async(swClient *cli, char *host, int port, doubl
         }
         if (timeout > 0)
         {
-            if (SwooleG.timer.fd == 0)
-            {
-                swTimer_init((int) (timeout * 1000));
-            }
-            cli->timer = SwooleG.timer.add(&SwooleG.timer, (int) (timeout * 1000), 0, cli, swClient_onTimeout);
+            cli->timer = swTimer_add(&SwooleG.timer, (int) (timeout * 1000), 0, cli, swClient_onTimeout);
         }
         return SW_OK;
+    }
+    else
+    {
+        cli->socket->active = 0;
+        cli->socket->removed = 1;
+        cli->close(cli);
+        if (cli->onError)
+        {
+            cli->onError(cli);
+        }
     }
 
     return ret;
@@ -955,6 +970,7 @@ static int swClient_udp_connect(swClient *cli, char *host, int port, double time
         swSocket_set_timeout(cli->socket->fd, timeout);
     }
 
+#ifndef _WIN32
     if (cli->type == SW_SOCK_UNIX_DGRAM)
     {
         struct sockaddr_un* client_addr = &cli->socket->info.addr.un;
@@ -968,6 +984,8 @@ static int swClient_udp_connect(swClient *cli, char *host, int port, double time
             return SW_ERR;
         }
     }
+#endif
+
     if (udp_connect != 1)
     {
         goto connect_ok;
@@ -993,9 +1011,13 @@ static int swClient_udp_connect(swClient *cli, char *host, int port, double time
     }
     else
     {
-        swSysError("connect() failed.");
         cli->socket->active = 0;
         cli->socket->removed = 1;
+        cli->close(cli);
+        if (cli->async && cli->onError)
+        {
+            cli->onError(cli);
+        }
         return SW_ERR;
     }
 }
@@ -1542,18 +1564,3 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
     return SW_OK;
 }
 
-void swoole_open_remote_debug(void)
-{
-    swClient debug_client;
-    swClient_create(&debug_client, SW_SOCK_UDP, 0);
-
-    if (debug_client.connect(&debug_client, SW_DEBUG_SERVER_HOST, SW_DEBUG_SERVER_PORT, -1, 1) < 0)
-    {
-        swWarn("connect to remote_debug_server[%s:%d] failed.", SW_DEBUG_SERVER_HOST, SW_DEBUG_SERVER_PORT);
-        SwooleG.debug_fd = 1;
-    }
-    else
-    {
-        SwooleG.debug_fd = debug_client.socket->fd;
-    }
-}

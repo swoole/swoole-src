@@ -94,9 +94,9 @@ class TcpServer
         //echo "swoole_server receive data: $data\n";
         $recv_len = strlen($data);
         debug_log("receive: len $recv_len");
-		
+
 	    //$swooleServer->send($fd, RandStr::gen($recv_len, RandStr::ALL));
-		
+
  		$filename = __DIR__ . "/testsendfile.txt";
 		$swooleServer->sendfile($fd, $filename);
 	}

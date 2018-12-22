@@ -4,8 +4,7 @@ swoole_redis_coro: redis multi and exec
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/lib/curl.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 go(function () {
     $redis = new \Swoole\Coroutine\Redis();
@@ -14,8 +13,7 @@ go(function () {
 
     assert($redis->hmset('u:i:1', ['a' => 'hello', 'b' => 'world']));
     assert($redis->hmset('u:i:2', ['a' => 'rango', 'b' => 'swoole']));
-    assert($redis->multi(SWOOLE_REDIS_MODE_PIPELINE));
-    //$redis->multi(SWOOLE_REDIS_MODE_PIPELINE);
+    assert($redis->multi());
     $redis->hmget('u:i:1', array('a', 'b'));
     $redis->hmget('u:i:2', array('a', 'b'));
 
@@ -25,7 +23,8 @@ go(function () {
     assert($rs[0][1] == 'world');
     assert($rs[1][0] == 'rango');
     assert($rs[1][1] == 'swoole');
+    echo "DONE\n";
 });
 ?>
 --EXPECT--
-
+DONE

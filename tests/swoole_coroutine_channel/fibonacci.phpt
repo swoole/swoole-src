@@ -6,7 +6,7 @@ exit("skip for select");
  ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 $c1 = new chan();
 $c2 = new chan();
@@ -41,7 +41,7 @@ go(function () use ($c1, $c2, $num) {
         echo "fibonacci @$i $ret\n";
     }
     $c2->push(1);
-});    
+});
 fibonacci($c1, $c2);
 ?>
 --EXPECT--

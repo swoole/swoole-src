@@ -28,7 +28,8 @@ struct notify_msg_t
 struct timeout_msg_t
 {
     Channel *chan;
-    coroutine_t *co;
+    enum channel_op type;
+    Coroutine *co;
     bool error;
     swTimer_node *timer;
 };
@@ -36,12 +37,10 @@ struct timeout_msg_t
 class Channel
 {
 private:
-    std::list<coroutine_t *> producer_queue;
-    std::list<coroutine_t *> consumer_queue;
+    std::list<Coroutine *> producer_queue;
+    std::list<Coroutine *> consumer_queue;
     std::queue<void *> data_queue;
     size_t capacity;
-    uint32_t notify_producer_count;
-    uint32_t notify_consumer_count;
 
 public:
     bool closed;
@@ -70,9 +69,14 @@ public:
         return producer_queue.size();
     }
 
-    inline void remove(coroutine_t *co)
+    inline void consumer_remove(Coroutine *co)
     {
         consumer_queue.remove(co);
+    }
+
+    inline void producer_remove(Coroutine *co)
+    {
+        producer_queue.remove(co);
     }
 
     /**
@@ -80,41 +84,38 @@ public:
      */
     inline void* pop_data()
     {
-        void *data = data_queue.front();
-        if (data)
+        if (data_queue.size() == 0)
         {
-            data_queue.pop();
+            return nullptr;
         }
+        void *data = data_queue.front();
+        data_queue.pop();
         return data;
     }
 
-    inline coroutine_t* pop_coroutine(enum channel_op type)
+    inline Coroutine* pop_coroutine(enum channel_op type)
     {
-        coroutine_t* co;
+        Coroutine* co;
         if (type == PRODUCER)
         {
             co = producer_queue.front();
             producer_queue.pop_front();
-            notify_producer_count--;
-            swDebug("resume producer[%d]", coroutine_get_cid(co));
+            swTraceLog(SW_TRACE_CHANNEL, "resume producer cid=%ld", co->get_cid());
         }
         else
         {
             co = consumer_queue.front();
             consumer_queue.pop_front();
-            notify_consumer_count--;
-            swDebug("resume consumer[%d]", coroutine_get_cid(co));
+            swTraceLog(SW_TRACE_CHANNEL, "resume consumer cid=%ld", co->get_cid());
         }
         return co;
     }
 
-    Channel(size_t _capacity);
+    Channel(size_t _capacity = 1);
     void yield(enum channel_op type);
-    void notify(enum channel_op type);
-    void* pop(double timeout = 0);
-    bool push(void *data);
+    void* pop(double timeout = -1);
+    bool push(void *data, double timeout);
     bool close();
 };
 
 };
-

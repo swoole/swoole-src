@@ -160,6 +160,13 @@ static void swSSL_lock_callback(int mode, int type, char *file, int line)
     }
 }
 
+static sw_inline void swSSL_clear_error(swConnection *conn)
+{
+    ERR_clear_error();
+    conn->ssl_want_read = 0;
+    conn->ssl_want_write = 0;
+}
+
 #if OPENSSL_VERSION_NUMBER >= OPENSSL_VERSION_1_0_0
 static void MAYBE_UNUSED swSSL_id_callback(CRYPTO_THREADID * id)
 {
@@ -579,13 +586,21 @@ int swSSL_verify(swConnection *conn, int allow_self_signed)
         }
         else
         {
+            swoole_error_log(
+                SW_LOG_NOTICE, SW_ERROR_SSL_VEFIRY_FAILED,
+                "self signed certificate from fd#%d is not allowed",
+                conn->fd
+            );
             return SW_ERR;
         }
     default:
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SSL_VEFIRY_FAILED, "Could not verify peer: code:%d %s", err, X509_verify_cert_error_string(err));
-        return SW_ERR;
+        break;
     }
-
+    swoole_error_log(
+        SW_LOG_NOTICE, SW_ERROR_SSL_VEFIRY_FAILED,
+        "could not verify peer from fd#%d with error#%d: %s",
+        conn->fd, err, X509_verify_cert_error_string(err)
+    );
     return SW_ERR;
 }
 
@@ -639,6 +654,8 @@ int swSSL_get_client_certificate(SSL *ssl, char *buffer, size_t length)
 
 int swSSL_accept(swConnection *conn)
 {
+    swSSL_clear_error(conn);
+
     int n = SSL_do_handshake(conn->ssl);
     /**
      * The TLS/SSL handshake was successfully completed
@@ -693,12 +710,12 @@ int swSSL_accept(swConnection *conn)
 
 int swSSL_connect(swConnection *conn)
 {
+    swSSL_clear_error(conn);
+
     int n = SSL_connect(conn->ssl);
     if (n == 1)
     {
         conn->ssl_state = SW_SSL_STATE_READY;
-        conn->ssl_want_read = 0;
-        conn->ssl_want_write = 0;
 
 #ifdef SW_LOG_TRACE_OPEN
         const char *ssl_version = SSL_get_version(conn->ssl);
@@ -887,12 +904,14 @@ static sw_inline void swSSL_connection_error(swConnection *conn)
         break;
 #endif
 
-    swoole_error_log(level, SW_ERROR_SSL_BAD_PROTOCOL, "SSL connection[%s:%d] protocol error[%d].",
+    swoole_error_log(level, SW_ERROR_SSL_BAD_PROTOCOL, "SSL connection#%d[%s:%d] protocol error[%d].", conn->session_id,
             swConnection_get_ip(conn), swConnection_get_port(conn), reason);
 }
 
 ssize_t swSSL_recv(swConnection *conn, void *__buf, size_t __n)
 {
+    swSSL_clear_error(conn);
+
     int n = SSL_read(conn->ssl, __buf, __n);
     if (n < 0)
     {
@@ -926,6 +945,8 @@ ssize_t swSSL_recv(swConnection *conn, void *__buf, size_t __n)
 
 ssize_t swSSL_send(swConnection *conn, void *__buf, size_t __n)
 {
+    swSSL_clear_error(conn);
+
     int n = SSL_write(conn->ssl, __buf, __n);
     if (n < 0)
     {
@@ -959,6 +980,8 @@ ssize_t swSSL_send(swConnection *conn, void *__buf, size_t __n)
 
 int swSSL_create(swConnection *conn, SSL_CTX* ssl_context, int flags)
 {
+    swSSL_clear_error(conn);
+
     SSL *ssl = SSL_new(ssl_context);
     if (ssl == NULL)
     {
@@ -986,10 +1009,7 @@ int swSSL_create(swConnection *conn, SSL_CTX* ssl_context, int flags)
 
 void swSSL_free_context(SSL_CTX* ssl_context)
 {
-    if (ssl_context)
-    {
-        SSL_CTX_free(ssl_context);
-    }
+    SSL_CTX_free(ssl_context);
 }
 
 #ifndef OPENSSL_NO_RSA

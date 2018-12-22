@@ -4,7 +4,7 @@ swoole_coroutine_channel: pop timeout 8
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 $c1 = new chan();
 
@@ -18,12 +18,12 @@ class T {
 
     function __destruct()
     {
-        go(function(){            
+        go(function(){
             echo "__destruct\n";
-            $ret = $this->c->pop(0.5); 
+            $ret = $this->c->pop(0.5);
             echo "pop ret:".var_export($ret,1)." error:".$this->c->errCode."\n";
         });
- 
+
     }
 }
 $t = new T();

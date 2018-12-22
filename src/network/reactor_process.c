@@ -18,6 +18,7 @@
 
 static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker);
 static int swReactorProcess_onPipeRead(swReactor *reactor, swEvent *event);
+static int swReactorProcess_onClose(swReactor *reactor, swEvent *event);
 static int swReactorProcess_send2client(swFactory *, swSendData *);
 static int swReactorProcess_send2worker(int, void *, int);
 static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode);
@@ -66,7 +67,7 @@ int swReactorProcess_start(swServer *serv)
     }
 
     //listen TCP
-    if (serv->have_tcp_sock == 1)
+    if (serv->have_stream_sock == 1)
     {
         LL_FOREACH(serv->listen_list, ls)
         {
@@ -98,25 +99,32 @@ int swReactorProcess_start(swServer *serv)
         return SW_ERR;
     }
 
+    /**
+     * store to swProcessPool object
+     */
     serv->gs->event_workers.ptr = serv;
+    serv->gs->event_workers.worker_num = serv->worker_num;
+    serv->gs->event_workers.use_msgqueue = 0;
     serv->gs->event_workers.main_loop = swReactorProcess_loop;
-    serv->gs->event_workers.type = SW_PROCESS_WORKER;
-    serv->gs->event_workers.run_worker_num = serv->worker_num;
+    serv->gs->event_workers.onWorkerNotFound = swManager_wait_other_worker;
+
+    int i;
+    for (i = 0; i < serv->worker_num; i++)
+    {
+        serv->gs->event_workers.workers[i].pool = &serv->gs->event_workers;
+        serv->gs->event_workers.workers[i].id = i;
+        serv->gs->event_workers.workers[i].type = SW_PROCESS_WORKER;
+    }
 
     //no worker
     if (serv->worker_num == 1 && serv->task_worker_num == 0 && serv->max_request == 0 && serv->user_worker_list == NULL)
     {
-        swWorker single_worker;
-        bzero(&single_worker, sizeof(single_worker));
-        return swReactorProcess_loop(&serv->gs->event_workers, &single_worker);
+        return swReactorProcess_loop(&serv->gs->event_workers, &serv->gs->event_workers.workers[0]);
     }
 
-    swWorker *worker;
-    int i;
     for (i = 0; i < serv->worker_num; i++)
     {
-        worker = &serv->gs->event_workers.workers[i];
-        if (swWorker_create(worker) < 0)
+        if (swServer_worker_create(serv, &serv->gs->event_workers.workers[i]) < 0)
         {
             return SW_ERR;
         }
@@ -129,14 +137,10 @@ int swReactorProcess_start(swServer *serv)
         {
             return SW_ERR;
         }
-
-        swTaskWorker_init(&serv->gs->task_workers);
-        swProcessPool_start(&serv->gs->task_workers);
-
-        int i;
-        for (i = 0; i < serv->gs->task_workers.worker_num; i++)
+        swTaskWorker_init(serv);
+        if (swProcessPool_start(&serv->gs->task_workers) < 0)
         {
-            swProcessPool_add_worker(&serv->gs->event_workers, &serv->gs->task_workers.workers[i]);
+            return SW_ERR;
         }
     }
 
@@ -145,6 +149,12 @@ int swReactorProcess_start(swServer *serv)
      */
     if (serv->user_worker_list)
     {
+        serv->user_workers = sw_malloc(serv->user_worker_num * sizeof(swWorker));
+        if (serv->user_workers == NULL)
+        {
+            swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "gmalloc[server->user_workers] failed.");
+            return SW_ERR;
+        }
         swUserWorker_node *user_worker;
         LL_FOREACH(serv->user_worker_list, user_worker)
         {
@@ -157,7 +167,6 @@ int swReactorProcess_start(swServer *serv)
             }
             swManager_spawn_user_worker(serv, user_worker->worker);
         }
-        serv->gs->event_workers.onWorkerNotFound = swManager_wait_user_worker;
     }
 
     /**
@@ -170,10 +179,9 @@ int swReactorProcess_start(swServer *serv)
      * manager process can not use signalfd
      */
     SwooleG.use_signalfd = 0;
-    SwooleG.use_timer_pipe = 0;
-    swServer_signal_init(serv);
 
     swProcessPool_start(&serv->gs->event_workers);
+    swServer_signal_init(serv);
     swProcessPool_wait(&serv->gs->event_workers);
     swProcessPool_shutdown(&serv->gs->event_workers);
 
@@ -231,7 +239,6 @@ static int swReactorProcess_onPipeRead(swReactor *reactor, swEvent *event)
 static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 {
     swServer *serv = pool->ptr;
-    swReactor *reactor = &(serv->reactor_threads[0].reactor);
 
     SwooleG.process_type = SW_PROCESS_WORKER;
     SwooleG.pid = getpid();
@@ -252,7 +259,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 
     swServer_worker_init(serv, worker);
 
-    int n_buffer = serv->worker_num + serv->task_worker_num;
+    int n_buffer = serv->worker_num + serv->task_worker_num + serv->user_worker_num;
     SwooleWG.buffer_output = sw_malloc(sizeof(swString*) * n_buffer);
     if (SwooleWG.buffer_output == NULL)
     {
@@ -272,9 +279,18 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     }
 
     //create reactor
-    if (swReactor_create(reactor, SW_REACTOR_MAXEVENTS) < 0)
+    swReactor *reactor;
+    if (!SwooleG.main_reactor)
     {
-        return SW_ERR;
+        reactor = &(serv->reactor_threads[0].reactor);
+        if (swReactor_create(reactor, SW_REACTOR_MAXEVENTS) < 0)
+        {
+            return SW_ERR;
+        }
+    }
+    else
+    {
+        reactor = SwooleG.main_reactor;
     }
 
     swListenPort *ls;
@@ -299,14 +315,6 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 
     reactor->id = worker->id;
     reactor->ptr = serv;
-
-#ifdef SW_USE_RINGBUFFER
-    serv->reactor_threads[0].buffer_input = swMalloc_new();
-    if (serv->reactor_threads[0].buffer_input == NULL)
-    {
-        return SW_ERR;
-    }
-#endif
 
 #ifdef HAVE_SIGNALFD
     if (SwooleG.use_signalfd)
@@ -365,54 +373,36 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     //set protocol function point
     swReactorThread_set_protocol(serv, reactor);
 
-    /**
-     * init timer
-     */
-    if (swTimer_init(1000) < 0)
-    {
-        return SW_ERR;
-    }
+    swTimer_node *heartbeat_timer = NULL, *update_timer;
+
     /**
      * 1 second timer, update serv->gs->now
      */
-    if (SwooleG.timer.add(&SwooleG.timer, 1000, 1, serv, swServer_master_onTimer) == NULL)
+    if ((update_timer = swTimer_add(&SwooleG.timer, 1000, 1, serv, swServer_master_onTimer)) == NULL)
     {
         return SW_ERR;
     }
 
-    /**
-     * call internal serv hooks
-     */
-    if (SwooleG.serv->hooks[SW_SERVER_HOOK_WORKER_START])
-    {
-        void *hook_args[2];
-        hook_args[0] = serv;
-        hook_args[1] = (void *)(uintptr_t)SwooleWG.id;
-        swServer_call_hook(serv, SW_SERVER_HOOK_WORKER_START, hook_args);
-    }
-
-    if (serv->onWorkerStart)
-    {
-        serv->onWorkerStart(serv, worker->id);
-    }
+    swServer_worker_start(serv, worker);
 
     /**
      * for heartbeat check
      */
     if (serv->heartbeat_check_interval > 0)
     {
-        if (SwooleG.timer.add(&SwooleG.timer, serv->heartbeat_check_interval * 1000, 1, reactor, swReactorProcess_onTimeout) == NULL)
+        heartbeat_timer = swTimer_add(&SwooleG.timer, serv->heartbeat_check_interval * 1000, 1, reactor, swReactorProcess_onTimeout);
+        if (heartbeat_timer == NULL)
         {
             return SW_ERR;
         }
     }
 
-    reactor->wait(reactor, NULL);
+    int retval = reactor->wait(reactor, NULL);
 
     /**
      * call internal serv hooks
      */
-    if (SwooleG.serv->hooks[SW_SERVER_HOOK_WORKER_CLOSE])
+    if (serv->hooks[SW_SERVER_HOOK_WORKER_CLOSE])
     {
         void *hook_args[2];
         hook_args[0] = serv;
@@ -420,26 +410,44 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
         swServer_call_hook(serv, SW_SERVER_HOOK_WORKER_CLOSE, hook_args);
     }
 
+    if (heartbeat_timer)
+    {
+        swTimer_del(&SwooleG.timer, heartbeat_timer);
+    }
+
+    if (update_timer)
+    {
+        swTimer_del(&SwooleG.timer, update_timer);
+    }
+
     if (serv->onWorkerStop)
     {
         serv->onWorkerStop(serv, worker->id);
     }
 
-    return SW_OK;
+    return retval;
 }
 
-int swReactorProcess_onClose(swReactor *reactor, swEvent *event)
+static int swReactorProcess_onClose(swReactor *reactor, swEvent *event)
 {
     int fd = event->fd;
     swServer *serv = reactor->ptr;
-    swConnection *conn = swServer_connection_get(SwooleG.serv, fd);
+    swConnection *conn = swServer_connection_get(serv, fd);
     if (conn == NULL || conn->active == 0)
     {
         return SW_ERR;
     }
     if (reactor->del(reactor, fd) == 0)
     {
-        return swServer_tcp_notify(serv, conn, SW_EVENT_CLOSE);
+        if (conn->close_queued)
+        {
+            swReactorThread_close(reactor, fd);
+            return SW_OK; 
+        }
+        else 
+        {
+            return swServer_tcp_notify(serv, conn, SW_EVENT_CLOSE);
+        }
     }
     else
     {
@@ -449,7 +457,7 @@ int swReactorProcess_onClose(swReactor *reactor, swEvent *event)
 
 static int swReactorProcess_send2worker(int pipe_fd, void *data, int length)
 {
-    if (swIsTaskWorker())
+    if (!SwooleG.main_reactor)
     {
         return swSocket_write_blocking(pipe_fd, data, length);
     }
@@ -461,7 +469,7 @@ static int swReactorProcess_send2worker(int pipe_fd, void *data, int length)
 
 static int swReactorProcess_send2client(swFactory *factory, swSendData *_send)
 {
-    swServer *serv = SwooleG.serv;
+    swServer *serv = (swServer *) factory->ptr;
     int session_id = _send->info.fd;
     if (_send->length == 0)
     {

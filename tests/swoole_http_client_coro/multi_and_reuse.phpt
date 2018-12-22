@@ -4,7 +4,7 @@ swoole_http_client_coro: reuse defer client
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 go(function () {
     function createDeferCli(string $host, bool $ssl = false): Swoole\Coroutine\Http\Client
     {
@@ -22,7 +22,7 @@ go(function () {
     }
 
     $baidu = createDeferCli('www.baidu.com', true);
-    $qq = createDeferCli('www.qq.com');
+    $qq = createDeferCli('www.qq.com', true);
 
     //first
     $baidu->get('/');

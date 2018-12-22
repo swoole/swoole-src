@@ -1,5 +1,10 @@
 <?php
-$http = new swoole_http_server("127.0.0.1", 9501, SWOOLE_BASE);
+/**
+ * @var $pm \ProcessManager
+ */
+global $pm;
+
+$http = new swoole_http_server("127.0.0.1", $pm->getFreePort(), SWOOLE_BASE);
 $http->set(array(
     'log_file' => '/dev/null',
     "http_parse_post" => 1,
@@ -16,7 +21,7 @@ $http->on("WorkerStart", function (\swoole_server $serv)
         $pm->wakeup();
     }
 });
-$http->on('request', function ($request, swoole_http_response $response)
+$http->on('request', function ($request, swoole_http_response $response) use ($pm)
 {
     $route = $request->server['request_uri'];
     if ($route == '/info')
@@ -63,7 +68,7 @@ $http->on('request', function ($request, swoole_http_response $response)
     }
     else
     {
-        $cli = new swoole_http_client('127.0.0.1', 9501);
+        $cli = new swoole_http_client('127.0.0.1', $pm->getFreePort());
         $cli->set(array(
             'timeout' => 0.3,
         ));

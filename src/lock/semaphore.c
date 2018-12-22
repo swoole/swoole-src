@@ -15,6 +15,8 @@
 */
 
 #include "swoole.h"
+
+#ifdef SEM_UNDO
 #include <sys/sem.h>
 
 static int swSem_lock(swLock *lock);
@@ -66,3 +68,4 @@ static int swSem_free(swLock *lock)
 {
     return semctl(lock->object.sem.semid, 0, IPC_RMID);
 }
+#endif

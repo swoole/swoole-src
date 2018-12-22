@@ -4,7 +4,7 @@ swoole_coroutine: current stats
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 assert(Co::stats()['coroutine_num'] === 0);
 assert(Co::stats()['coroutine_peak_num'] === 0);

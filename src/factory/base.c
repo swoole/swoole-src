@@ -148,6 +148,7 @@ int swFactory_end(swFactory *factory, int fd)
         {
             swBuffer_chunk *chunk = swBuffer_new_chunk(conn->out_buffer, SW_CHUNK_CLOSE, 0);
             chunk->store.data.val1 = _send.info.type;
+            conn->close_queued = 1;
             return SW_OK;
         }
     }
@@ -159,7 +160,7 @@ int swFactory_finish(swFactory *factory, swSendData *resp)
     {
         resp->length = resp->info.len;
     }
-    if (swReactorThread_send(resp) < 0)
+    if (swServer_master_send(factory->ptr, resp) < 0)
     {
         return SW_ERR;
     }

@@ -35,6 +35,7 @@ enum swErrorCode
     SW_ERROR_DNSLOOKUP_DUPLICATE_REQUEST,
     SW_ERROR_DNSLOOKUP_RESOLVE_FAILED,
     SW_ERROR_BAD_IPV6_ADDRESS,
+    SW_ERROR_UNREGISTERED_SIGNAL,
 
     /**
      * connection error
@@ -76,9 +77,10 @@ enum swErrorCode
     SW_ERROR_AIO_BAD_REQUEST   = 4001,
 
     /**
-     * Client
+     * Client & Socket
      */
     SW_ERROR_CLIENT_NO_CONNECTION = 5001,
+    SW_ERROR_SOCKET_CLOSED,
 
     SW_ERROR_SOCKS5_UNSUPPORT_VERSION = 7001,
     SW_ERROR_SOCKS5_UNSUPPORT_METHOD,
@@ -103,9 +105,9 @@ enum swErrorCode
     SW_ERROR_SERVER_TOO_MANY_LISTEN_PORT,
     SW_ERROR_SERVER_PIPE_BUFFER_FULL,
     SW_ERROR_SERVER_NO_IDLE_WORKER,
-
     SW_ERROR_SERVER_ONLY_START_ONE,
     SW_ERROR_SERVER_SEND_IN_MASTER,
+    SW_ERROR_SERVER_INVALID_REQUEST,
 
     /**
      * Process exit timeout, forced to end.
@@ -115,7 +117,10 @@ enum swErrorCode
     /**
      * Coroutine
      */
-    SW_ERROR_CO_MUTEX_DOUBLE_UNLOCK = 10001,
+    SW_ERROR_CO_OUT_OF_COROUTINE = 10001,
+    SW_ERROR_CO_HAS_BEEN_BOUND,
+
+    SW_ERROR_CO_MUTEX_DOUBLE_UNLOCK,
     SW_ERROR_CO_BLOCK_OBJECT_LOCKED,
     SW_ERROR_CO_BLOCK_OBJECT_WAITING,
     SW_ERROR_CO_YIELD_FAILED,
@@ -127,11 +132,9 @@ enum swErrorCode
     SW_ERROR_CO_PROTECT_STACK_FAILED,
     SW_ERROR_CO_STD_THREAD_LINK_ERROR,
     SW_ERROR_CO_DISABLED_MULTI_THREAD,
-
-    SW_ERROR_CO_OUT_OF_COROUTINE,
-
 };
 
+const char* swstrerror(enum swErrorCode code);
 void swoole_throw_error(enum swErrorCode code);
 
 #endif /* SW_ERRNO_H_ */

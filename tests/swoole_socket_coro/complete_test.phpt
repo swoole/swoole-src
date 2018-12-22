@@ -4,7 +4,7 @@ swoole_socket_coro: complete test server&&client&&timeout(millisecond)
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 $pm = new ProcessManager;
 $port = get_one_free_port();
 $pm->parentFunc = function ($pid) use ($pm, $port) {

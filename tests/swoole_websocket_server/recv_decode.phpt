@@ -4,7 +4,7 @@ swoole_websocket_server: websocket server full test
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 $data_list = [];
 for ($i = MAX_REQUESTS; $i--;) {
     $rand = openssl_random_pseudo_bytes(mt_rand(1, 128000));
@@ -45,7 +45,7 @@ $pm->parentFunc = function (int $pid) use ($pm, $data_list) {
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
-    $serv = new swoole_websocket_server('127.0.0.1', $pm->getFreePort(), mt_rand(0, 1) ? SWOOLE_BASE : SWOOLE_PROCESS);
+    $serv = new swoole_websocket_server('127.0.0.1', $pm->getFreePort(), SERVER_MODE_RANDOM);
     $serv->set([
         // 'worker_num' => 1,
         'log_file' => '/dev/null'

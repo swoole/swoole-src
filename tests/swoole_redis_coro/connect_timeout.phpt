@@ -1,16 +1,10 @@
 --TEST--
 swoole_redis_coro: connect twice
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc';
-if (!class_exists("Swoole\\Coroutine\\Redis", false))
-{
-    exit("SKIP");
-}
-?>
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/lib/curl.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 //Co::set(['log_level' => SWOOLE_LOG_TRACE, 'trace_flags' => SWOOLE_TRACE_ALL]);
 
@@ -20,7 +14,7 @@ go(function () {
     $redis->connect('192.0.0.1', 6379);
     echo "close [1]\n";
     assert($redis->connected === false);
-    $redis->close();
+    assert($redis->close() === false);
 });
 
 swoole_event::wait();

@@ -4,7 +4,7 @@ swoole_coroutine: coro not inline function
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Coroutine as co;
 
@@ -16,7 +16,7 @@ co::create(function () {
 function test()
 {
     echo "start func\n";
-    co::sleep(0.5);
+    co::sleep(0.001);
     echo "end func\n";
     return "return func params\n";
 }

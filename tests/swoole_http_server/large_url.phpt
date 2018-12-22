@@ -3,24 +3,17 @@ swoole_http_server: large url
 
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/lib/curl.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid) {
+$pm->parentFunc = function ($pid) use ($pm) {
     $client = new swoole_client(SWOOLE_SOCK_TCP);
     $client->set(array(
         'open_tcp_nodelay' => true,
     ));
-    if (!$client->connect('127.0.0.1', 9501, 1))
+    if (!$client->connect('127.0.0.1', $pm->getFreePort(), 1))
     {
         exit("connect failed. Error: {$client->errCode}\n");
     }
@@ -50,7 +43,7 @@ $pm->parentFunc = function ($pid) {
 };
 
 $pm->childFunc = function () use ($pm) {
-    $http = new swoole_http_server("127.0.0.1", 9501, SWOOLE_BASE);
+    $http = new swoole_http_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
 
     $http->set(['log_file' => '/dev/null']);
 
@@ -59,7 +52,7 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
     });
 
-    $http->on("request", function ($request, $response) {
+    $http->on("request", function (swoole_http_request $request, swoole_http_response $response) {
         $response->header("Content-Type", "text/plain");
         $response->end(strlen($request->get['a']));
     });
@@ -71,4 +64,3 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
-

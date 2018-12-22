@@ -7,4 +7,3 @@ $r = $db->escape_string("abc'efg\r\n");
 var_dump($r);
 
 //$res = $db->query("show databases");
-

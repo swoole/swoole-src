@@ -46,6 +46,7 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
         return SW_ERR;
     }
 
+#ifndef _WIN32
     if (ipc_mode == SW_IPC_MSGQUEUE)
     {
         pool->use_msgqueue = 1;
@@ -62,17 +63,6 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
         {
             return SW_ERR;
         }
-    }
-    else if (ipc_mode == SW_IPC_SOCKET)
-    {
-        pool->use_socket = 1;
-        pool->stream = sw_malloc(sizeof(swStreamInfo));
-        if (pool->stream == NULL)
-        {
-            swWarn("malloc[2] failed.");
-            return SW_ERR;
-        }
-        bzero(pool->stream, sizeof(swStreamInfo));
     }
     else if (ipc_mode == SW_IPC_UNIXSOCK)
     {
@@ -97,6 +87,19 @@ int swProcessPool_create(swProcessPool *pool, int worker_num, int max_request, k
             pool->workers[i].pipe_object = pipe;
         }
     }
+	else
+#endif
+	if (ipc_mode == SW_IPC_SOCKET)
+	{
+		pool->use_socket = 1;
+		pool->stream = sw_malloc(sizeof(swStreamInfo));
+		if (pool->stream == NULL)
+		{
+			swWarn("malloc[2] failed.");
+			return SW_ERR;
+		}
+		bzero(pool->stream, sizeof(swStreamInfo));
+	}
     else
     {
         ipc_mode = SW_IPC_NONE;
@@ -171,7 +174,6 @@ int swProcessPool_start(swProcessPool *pool)
 
     int i;
     pool->started = 1;
-    pool->run_worker_num = pool->worker_num;
 
     for (i = 0; i < pool->worker_num; i++)
     {
@@ -195,11 +197,10 @@ static sw_inline int swProcessPool_schedule(swProcessPool *pool)
     }
 
     int i, target_worker_id = 0;
-    int run_worker_num = pool->run_worker_num;
 
-    for (i = 0; i < run_worker_num + 1; i++)
+    for (i = 0; i < pool->worker_num + 1; i++)
     {
-        target_worker_id = sw_atomic_fetch_add(&pool->round_id, 1) % run_worker_num;
+        target_worker_id = sw_atomic_fetch_add(&pool->round_id, 1) % pool->worker_num;
         if (pool->workers[target_worker_id].status == SW_WORKER_IDLE)
         {
             break;
@@ -322,7 +323,7 @@ void swProcessPool_shutdown(swProcessPool *pool)
 
 	swSignal_none();
     //concurrent kill
-    for (i = 0; i < pool->run_worker_num; i++)
+    for (i = 0; i < pool->worker_num; i++)
     {
         worker = &pool->workers[i];
         if (swKill(worker->pid, SIGTERM) < 0)
@@ -331,7 +332,7 @@ void swProcessPool_shutdown(swProcessPool *pool)
             continue;
         }
     }
-    for (i = 0; i < pool->run_worker_num; i++)
+    for (i = 0; i < pool->worker_num; i++)
     {
         worker = &pool->workers[i];
         if (swWaitpid(worker->pid, &status, 0) < 0)
@@ -393,6 +394,28 @@ pid_t swProcessPool_spawn(swProcessPool *pool, swWorker *worker)
     return pid;
 }
 
+int swProcessPool_get_max_request(swProcessPool *pool)
+{
+    int task_n;
+    if (pool->max_request < 1)
+    {
+        return -1;
+    }
+    else
+    {
+        task_n = pool->max_request;
+        if (pool->max_request > 10)
+        {
+            int n = swoole_system_random(1, pool->max_request / 2);
+            if (n > 0)
+            {
+                task_n += n;
+            }
+        }
+    }
+    return task_n;
+}
+
 static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
 {
     struct
@@ -401,25 +424,12 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
         swEventData buf;
     } out;
 
-    int n = 0, ret;
-    int task_n, worker_task_always = 0;
-
-    if (pool->max_request < 1)
+    int n = 0, ret, worker_task_always = 0;
+    int task_n = swProcessPool_get_max_request(pool);
+    if (task_n <= 0)
     {
-        task_n = 1;
         worker_task_always = 1;
-    }
-    else
-    {
-        task_n = pool->max_request;
-        if (pool->max_request > 10)
-        {
-            n = swoole_system_random(1, pool->max_request / 2);
-            if (n > 0)
-            {
-                task_n += n;
-            }
-        }
+        task_n = 1;
     }
 
     /**
@@ -582,6 +592,7 @@ static int swProcessPool_worker_loop_ex(swProcessPool *pool, swWorker *worker)
                 break;
             }
             data = outbuf->mdata;
+            outbuf->mtype = 0;
         }
         else if (pool->use_socket)
         {
@@ -740,7 +751,11 @@ int swProcessPool_wait(swProcessPool *pool)
             }
             if (!WIFEXITED(status))
             {
-                swWarn("worker#%d abnormal exit, status=%d, signal=%d", exit_worker->id, WEXITSTATUS(status),  WTERMSIG(status));
+                swWarn(
+                    "worker#%d abnormal exit, status=%d, signal=%d" "%s",
+                    exit_worker->id, WEXITSTATUS(status),  WTERMSIG(status),
+                    WTERMSIG(status) == SIGSEGV ? "\n" SWOOLE_BUG_REPORT : ""
+                );
             }
             new_pid = swProcessPool_spawn(pool, exit_worker);
             if (new_pid < 0)
@@ -825,4 +840,3 @@ static void swProcessPool_free(swProcessPool *pool)
         swHashMap_free(pool->map);
     }
 }
-

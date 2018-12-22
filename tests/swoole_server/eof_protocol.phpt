@@ -1,18 +1,11 @@
 --TEST--
 swoole_server: (eof protocol) recv 100k packet
-
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/api/swoole_server/TestServer.php';
+require __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/api/swoole_server/TestServer.php';
 
 class EofServer extends TestServer
 {
@@ -42,10 +35,10 @@ class EofServer extends TestServer
 }
 
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid)
+$pm->parentFunc = function ($pid) use ($pm)
 {
     $client = new swoole_client(SWOOLE_SOCK_TCP);
-    if (!$client->connect('127.0.0.1', 9501, 2.0))
+    if (!$client->connect('127.0.0.1', $pm->getFreePort(), 2.0))
     {
         exit("connect failed\n");
     }
@@ -79,17 +72,19 @@ $pm->parentFunc = function ($pid)
 
 //    echo "send ".TestServer::PKG_NUM." packet sucess, send $bytes bytes\n";
     $client->close();
-    swoole_process::kill($pid);
+    usleep(1);
+    $pm->kill();
 };
 
 $pm->childFunc = function () use ($pm)
 {
-    $serv = new EofServer();
+    $serv = new EofServer($pm->getFreePort(), true);
     $serv->set([
-        'log_file' => '/dev/null',
-        'package_eof' => "\r\n\r\n",
-        'open_eof_split' => true,
-        'worker_num' => 1,
+//        'log_file' => '/dev/null',
+        'enable_coroutine'   => false,
+        'package_eof'        => "\r\n\r\n",
+        'open_eof_split'     => true,
+        'worker_num'         => 1,
         'package_max_length' => 1024 * 1024 * 2,
     ]);
     $serv->start();
@@ -99,6 +94,6 @@ $pm->childFirst();
 //$pm->runParentFunc();
 $pm->run();
 ?>
---EXPECTF--
+--EXPECTREGEX--
 end
-Total count=100000, bytes=%d
+Total count=100000?, bytes=\d+

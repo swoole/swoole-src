@@ -4,12 +4,12 @@ swoole_coroutine_channel: coroutine wait
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new ProcessManager;
 
 $pm->parentFunc = function ($pid) use ($pm) {
-    $data = curlGet('http://127.0.0.1:9503/');
+    $data = curlGet("http://127.0.0.1:{$pm->getFreePort()}/");
     assert(!empty($data));
     $json = json_decode($data, true);
     assert(is_array($json));
@@ -20,7 +20,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
 
 $pm->childFunc = function () use ($pm)
 {
-    $serv = new \swoole_http_server("127.0.0.1", 9503, SWOOLE_BASE);
+    $serv = new \swoole_http_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
 //    $serv->set(["worker_num" => 1, 'log_file' => '/dev/null',]);
     $serv->on("WorkerStart", function (\swoole_server $serv, $worker_id) use ($pm) {
         $pm->wakeup();
@@ -29,7 +29,7 @@ $pm->childFunc = function () use ($pm)
 
         $chan = new chan(2);
         go(function () use ($chan) {
-            $cli = new Swoole\Coroutine\Http\Client('www.qq.com', 80);
+            $cli = new Swoole\Coroutine\Http\Client('www.qq.com', 443, true);
             $cli->set(['timeout' => 10]);
             $cli->setHeaders([
                 'Host' => "www.qq.com",
@@ -82,4 +82,3 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
-

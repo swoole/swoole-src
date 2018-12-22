@@ -18,9 +18,12 @@
 #include "atomic.h"
 
 #include <stdarg.h>
+
+#ifndef _WIN32
 #include <sys/stat.h>
 #include <sys/resource.h>
 #include <sys/ioctl.h>
+#endif
 
 #ifdef HAVE_EXECINFO
 #include <execinfo.h>
@@ -34,7 +37,6 @@ SwooleGS_t *SwooleGS;
 
 void swoole_init(void)
 {
-    struct rlimit rlmt;
     if (SwooleG.running)
     {
         return;
@@ -49,10 +51,22 @@ void swoole_init(void)
     sw_errno = 0;
 
     SwooleG.log_fd = STDOUT_FILENO;
+
+#ifdef _WIN32
+    SYSTEM_INFO info;
+    GetSystemInfo(&info);
+    SwooleG.cpu_num =  info.dwNumberOfProcessors;
+    SwooleG.pagesize = info.dwPageSize;
+#else
     SwooleG.cpu_num = sysconf(_SC_NPROCESSORS_ONLN);
     SwooleG.pagesize = getpagesize();
+    //get system uname
+    uname(&SwooleG.uname);
+    //random seed
+    srandom(time(NULL));
+#endif
+
     SwooleG.pid = getpid();
-    SwooleG.socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
 
 #ifdef SW_DEBUG
     SwooleG.log_level = 0;
@@ -60,12 +74,6 @@ void swoole_init(void)
 #else
     SwooleG.log_level = SW_LOG_INFO;
 #endif
-
-    //get system uname
-    uname(&SwooleG.uname);
-
-    //random seed
-    srandom(time(NULL));
 
     //init global shared memory
     SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
@@ -86,15 +94,19 @@ void swoole_init(void)
     swMutex_create(&SwooleGS->lock_2, 1);
     swMutex_create(&SwooleG.lock, 0);
 
+    SwooleG.max_sockets = 1024;
+#ifndef _WIN32
+    struct rlimit rlmt;
     if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0)
     {
         swWarn("getrlimit() failed. Error: %s[%d]", strerror(errno), errno);
-        SwooleG.max_sockets = 1024;
     }
     else
     {
-        SwooleG.max_sockets = (uint32_t) rlmt.rlim_cur;
+        SwooleG.max_sockets = MAX((uint32_t) rlmt.rlim_cur, 1024);
+        SwooleG.max_sockets = MIN((uint32_t) rlmt.rlim_cur, SW_SESSION_LIST_SIZE);
     }
+#endif
 
     SwooleTG.buffer_stack = swString_new(SW_STACK_BUFFER_SIZE);
     if (SwooleTG.buffer_stack == NULL)
@@ -125,8 +137,6 @@ void swoole_init(void)
     SwooleG.use_signalfd = 1;
     SwooleG.enable_signalfd = 1;
 #endif
-
-    SwooleG.use_timer_pipe = 1;
 }
 
 void swoole_clean(void)
@@ -134,7 +144,7 @@ void swoole_clean(void)
     //free the global memory
     if (SwooleG.memory_pool != NULL)
     {
-        if (SwooleG.timer.fd > 0)
+        if (SwooleG.timer.initialized)
         {
             swTimer_free(&SwooleG.timer);
         }
@@ -221,7 +231,7 @@ int swoole_mkdir_recursive(const char *dir)
         swWarn("mkdir(%s) failed. Path exceeds the limit of %d characters.", dir, PATH_MAX - 1);
         return -1;
     }
-    strncpy(tmp, dir, len + 1);
+    strncpy(tmp, dir, PATH_MAX);
 
     if (dir[len - 1] != '/')
     {
@@ -336,7 +346,7 @@ int swoole_sync_writefile(int fd, void *data, int len)
         n = write(fd, data, towrite);
         if (n > 0)
         {
-            data += n;
+            data = (char*) data + n;
             count -= n;
             written += n;
         }
@@ -418,7 +428,7 @@ void swoole_redirect_stdout(int new_fd)
     }
 }
 
-int swoole_version_compare(char *version1, char *version2)
+int swoole_version_compare(const char *version1, const char *version2)
 {
     int result = 0;
 
@@ -665,7 +675,7 @@ int swoole_sync_readfile(int fd, void *buf, int len)
         n = read(fd, buf, toread);
         if (n > 0)
         {
-            buf += n;
+            buf = (char *) buf + n;
             count -= n;
             readn += n;
         }
@@ -684,6 +694,34 @@ int swoole_sync_readfile(int fd, void *buf, int len)
         }
     }
     return readn;
+}
+
+swString* swoole_sync_readfile_eof(int fd)
+{
+    int n = 0;
+    swString *data = swString_new(SW_BUFFER_SIZE_STD);
+    if (data == NULL)
+    {
+        return data;
+    }
+
+    while (1)
+    {
+        n = read(fd, data->str + data->length, data->size - data->length);
+        if (n <= 0)
+        {
+            return data;
+        }
+        else
+        {
+            if (swString_extend(data, data->size * 2) < 0)
+            {
+                return data;
+            }
+            data->length += n;
+        }
+    }
+    return data;
 }
 
 /**
@@ -1084,10 +1122,10 @@ int swoole_getaddrinfo(swRequest_getaddrinfo *req)
         switch (ptr->ai_family)
         {
         case AF_INET:
-            memcpy(buffer + (i * sizeof(struct sockaddr_in)), ptr->ai_addr, sizeof(struct sockaddr_in));
+            memcpy((char *) buffer + (i * sizeof(struct sockaddr_in)), ptr->ai_addr, sizeof(struct sockaddr_in));
             break;
         case AF_INET6:
-            memcpy(buffer + (i * sizeof(struct sockaddr_in6)), ptr->ai_addr, sizeof(struct sockaddr_in6));
+            memcpy((char *) buffer + (i * sizeof(struct sockaddr_in6)), ptr->ai_addr, sizeof(struct sockaddr_in6));
             break;
         default:
             swWarn("unknown socket family[%d].", ptr->ai_family);
@@ -1166,7 +1204,7 @@ SW_API void swoole_call_hook(enum swGlobal_hook_type type, void *arg)
     }
 }
 
-int swoole_shell_exec(char *command, pid_t *pid)
+int swoole_shell_exec(const char *command, pid_t *pid, uint8_t get_error_stream)
 {
     pid_t child_pid;
     int fds[2];
@@ -1178,18 +1216,43 @@ int swoole_shell_exec(char *command, pid_t *pid)
     if ((child_pid = fork()) == -1)
     {
         swSysError("fork() failed.");
+        close(fds[0]);
+        close(fds[1]);
         return SW_ERR;
     }
 
     if (child_pid == 0)
     {
         close(fds[SW_PIPE_READ]);
-        dup2(fds[SW_PIPE_WRITE], 1);
 
-        //Needed so negative PIDs can kill children of /bin/sh
-        setpgid(child_pid, child_pid);
-        execl("/bin/sh", "/bin/sh", "-c", command, NULL);
-        exit(0);
+        if (get_error_stream)
+        {
+            if (fds[SW_PIPE_WRITE] == fileno(stdout))
+            {
+                dup2(fds[SW_PIPE_WRITE], fileno(stderr));
+            }
+            else if (fds[SW_PIPE_WRITE] == fileno(stderr))
+            {
+                dup2(fds[SW_PIPE_WRITE], fileno(stdout));
+            }
+            else
+            {
+                dup2(fds[SW_PIPE_WRITE], fileno(stdout));
+                dup2(fds[SW_PIPE_WRITE], fileno(stderr));
+                close(fds[SW_PIPE_WRITE]);
+            }
+        }
+        else
+        {
+            if (fds[SW_PIPE_WRITE] != fileno(stdout))
+            {
+                dup2(fds[SW_PIPE_WRITE], fileno(stdout));
+                close(fds[SW_PIPE_WRITE]);
+            }
+        }
+
+        execl("/bin/sh", "sh", "-c", command, NULL);
+        exit(127);
     }
     else
     {

@@ -2,16 +2,9 @@
 swoole_server: get client info
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
-
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 /**
 
@@ -44,7 +37,7 @@ makeTcpClient(TCP_SERVER_HOST, $port, function(\swoole_client $cli) {
     ["remote_port"]=>
     int(49758)
     ["remote_ip"]=>
-    string(9) "127.0.0.1"
+    string(9) '127.0.0.1'
     ["from_id"]=>
     int(1)
     ["connect_time"]=>

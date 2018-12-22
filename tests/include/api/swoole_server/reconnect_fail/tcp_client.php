@@ -13,7 +13,7 @@ function reconn() {
     });
     $cli->on("error", function(swoole_client $cli) { echo "error\n"; });
     $cli->on("close", function(swoole_client $cli) { echo "close\n"; reconn(); });
-    $cli->connect("127.0.0.1", 9001);
+    $cli->connect('127.0.0.1', 9001);
 }
 
 reconn();

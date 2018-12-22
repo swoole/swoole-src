@@ -3,20 +3,12 @@ swoole_client_async: swoole_client connect & send & close
 
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
-
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 $simple_tcp_server = __DIR__ . "/../include/api/swoole_server/simple_server.php";
 start_server($simple_tcp_server, TCP_SERVER_HOST, TCP_SERVER_PORT);
-
 
 suicide(5000);
 
@@ -49,8 +41,6 @@ $cli->on("close", function(swoole_client $cli) {
 
 $cli->connect(TCP_SERVER_HOST, TCP_SERVER_PORT, 0.2);
 
-
 ?>
-
 --EXPECT--
 SUCCESS

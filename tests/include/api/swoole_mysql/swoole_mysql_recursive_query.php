@@ -9,7 +9,8 @@ function query($swoole_mysql, $dep = 0)
     $swoole_mysql->query($sql, function(\swoole_mysql $swoole_mysql, $result) use($dep) {
     //    echo ".\n";
         if ($dep > 20) {
-            fprintf(STDERR, "SUCCESS\n");
+            echo"SUCCESS\n";
+            $swoole_mysql->close();
             swoole_event_exit();
         } else {
             if ($swoole_mysql->errno !== 0) {
@@ -26,7 +27,6 @@ $swoole_mysql = new \swoole_mysql();
 $swoole_mysql->on("close", function() {
    echo "closed\n";
 });
-
 
 $swoole_mysql->conn_timeout = swoole_timer_after(1000, function() {
     echo "connecte timeout\n\n\n";

@@ -4,7 +4,7 @@ swoole_process: push
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 $process = new swoole_process(function(swoole_process $worker) {
 
@@ -23,4 +23,3 @@ $process->push("hello worker\n");
 ?>
 --EXPECTREGEX--
 hello worker
---CLEAN--

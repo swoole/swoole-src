@@ -115,4 +115,3 @@ static swPoolstr *bigger_filter = NULL;
 #endif
 
 #endif	/* SERIALIZE_H */
-

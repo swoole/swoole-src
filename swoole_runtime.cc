@@ -20,19 +20,6 @@
 #include <unordered_map>
 #include <initializer_list>
 
-enum hook_type
-{
-    SW_HOOK_FILE = 1u << 1,
-    SW_HOOK_SLEEP = 1u << 2,
-    SW_HOOK_TCP = 1u << 3,
-    SW_HOOK_UDP = 1u << 4,
-    SW_HOOK_UNIX = 1u << 5,
-    SW_HOOK_UDG = 1u << 6,
-    SW_HOOK_SSL = 1u << 7,
-    SW_HOOK_TLS = 1u << 8,
-    SW_HOOK_ALL = 0x7fffffff,
-};
-
 using namespace swoole;
 using namespace std;
 
@@ -62,7 +49,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_runtime_enableCoroutine, 0, 0, 0)
     ZEND_ARG_INFO(0, flags)
 ZEND_END_ARG_INFO()
 
-static zend_class_entry *ce;
+static zend_class_entry swoole_runtime_ce;
+static zend_class_entry *swoole_runtime_ce_ptr;
+static zend_object_handlers swoole_runtime_handlers;
+
 static php_stream_ops socket_ops
 {
     socket_write,
@@ -75,6 +65,13 @@ static php_stream_ops socket_ops
     socket_stat,
     socket_set_option,
 };
+
+typedef struct
+{
+    php_netstream_data_t stream;
+    Socket *socket;
+} php_swoole_netstream_data_t;
+
 static bool hook_init = false;
 static int hook_flags;
 
@@ -82,26 +79,38 @@ static struct
 {
     php_stream_transport_factory tcp;
     php_stream_transport_factory udp;
-    php_stream_transport_factory unix;
+    php_stream_transport_factory _unix;
     php_stream_transport_factory udg;
 #ifdef SW_USE_OPENSSL
     php_stream_transport_factory ssl;
     php_stream_transport_factory tls;
 #endif
-} ori_factory =
-{ nullptr, nullptr, nullptr, nullptr,
+} ori_factory = {
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
 #ifdef SW_USE_OPENSSL
-        nullptr,
+    nullptr,
+    nullptr,
 #endif
-        };
+};
 
 static php_stream_wrapper ori_php_plain_files_wrapper;
-static php_stream_ops ori_php_stream_stdio_ops;
 
+#if PHP_VERSION_ID < 70200
+typedef void (*zif_handler)(INTERNAL_FUNCTION_PARAMETERS);
+#endif
 static zend_function *ori_sleep;
+static zif_handler ori_sleep_handler;
 static zend_function *ori_usleep;
+static zif_handler ori_usleep_handler;
 static zend_function *ori_time_nanosleep;
+static zif_handler ori_time_nanosleep_handler;
 static zend_function *ori_time_sleep_until;
+static zif_handler ori_time_sleep_until_handler;
+static zend_function *ori_gethostbyname;
+static zif_handler ori_gethostbyname_handler;
 
 extern "C"
 {
@@ -116,19 +125,45 @@ static const zend_function_entry swoole_runtime_methods[] =
     PHP_FE_END
 };
 
-void swoole_runtime_init(int module_number TSRMLS_DC)
+void swoole_runtime_init(int module_number)
 {
-    static zend_class_entry _ce;
-    INIT_CLASS_ENTRY(_ce, "Swoole\\Runtime", swoole_runtime_methods);
-    ce = zend_register_internal_class(&_ce TSRMLS_CC);
+    SWOOLE_INIT_CLASS_ENTRY(swoole_runtime, "Swoole\\Runtime", "swoole_runtime", NULL, swoole_runtime_methods);
+    SWOOLE_SET_CLASS_SERIALIZABLE(swoole_runtime, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SWOOLE_SET_CLASS_CLONEABLE(swoole_runtime, zend_class_clone_deny);
+    SWOOLE_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_runtime, zend_class_unset_property_deny);
+
+    SWOOLE_DEFINE(HOOK_FILE);
+    SWOOLE_DEFINE(HOOK_SLEEP);
+    SWOOLE_DEFINE(HOOK_TCP);
+    SWOOLE_DEFINE(HOOK_UDP);
+    SWOOLE_DEFINE(HOOK_UNIX);
+    SWOOLE_DEFINE(HOOK_UDG);
+    SWOOLE_DEFINE(HOOK_SSL);
+    SWOOLE_DEFINE(HOOK_TLS);
+    SWOOLE_DEFINE(HOOK_BLOCKING_FUNCTION);
+    SWOOLE_DEFINE(HOOK_ALL);
 }
 
-static auto block_io_functions =
-{ "sleep", "usleep", "time_nanosleep", "time_sleep_until", "file_get_contents", "curl_init", "stream_select",
-        "socket_select", "gethostbyname", };
+static auto block_io_functions = {
+    "sleep",
+    "usleep",
+    "time_nanosleep",
+    "time_sleep_until",
+    "file_get_contents",
+    "curl_init",
+    "stream_select",
+    "stream_create",
+    "pcntl_fork",
+    "popen",
+    "socket_select",
+    "gethostbyname",
+};
 
-static auto block_io_classes =
-{ "redis", "mysqli", };
+static auto block_io_classes = {
+    "redis", "pdo", "mysqli",
+};
+
+static bool enable_strict_mode = false;
 
 static PHP_METHOD(swoole_runtime, enableStrictMode)
 {
@@ -193,7 +228,8 @@ static inline char *parse_ip_address_ex(const char *str, size_t str_len, int *po
 
 static size_t socket_write(php_stream *stream, const char *buf, size_t count)
 {
-    Socket *sock = (Socket*) stream->abstract;
+    php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) stream->abstract;
+    Socket *sock = (Socket*) abstract->socket;
     int didwrite;
     if (!sock)
     {
@@ -227,7 +263,8 @@ static size_t socket_write(php_stream *stream, const char *buf, size_t count)
 
 static size_t socket_read(php_stream *stream, char *buf, size_t count)
 {
-    Socket *sock = (Socket*) stream->abstract;
+    php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) stream->abstract;
+    Socket *sock = (Socket*) abstract->socket;
     ssize_t nr_bytes = 0;
 
     if (!sock)
@@ -258,8 +295,10 @@ static int socket_flush(php_stream *stream)
 
 static int socket_close(php_stream *stream, int close_handle)
 {
-    Socket *sock = (Socket*) stream->abstract;
+    php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) stream->abstract;
+    Socket *sock = (Socket*) abstract->socket;
     delete sock;
+    efree(abstract);
     return 0;
 }
 
@@ -284,7 +323,8 @@ enum
 
 static int socket_cast(php_stream *stream, int castas, void **ret)
 {
-    Socket *sock = (Socket*) stream->abstract;
+    php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) stream->abstract;
+    Socket *sock = (Socket*) abstract->socket;
     if (!sock)
     {
         return FAILURE;
@@ -316,7 +356,8 @@ static int socket_cast(php_stream *stream, int castas, void **ret)
 
 static int socket_stat(php_stream *stream, php_stream_statbuf *ssb)
 {
-    Socket *sock = (Socket*) stream->abstract;
+    php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) stream->abstract;
+    Socket *sock = (Socket*) abstract->socket;
     if (!sock)
     {
         return FAILURE;
@@ -330,6 +371,11 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
     int portno = 0;
     int ret;
     char *ip_address = NULL;
+
+    if (unlikely(sock->socket == nullptr))
+    {
+        return -1;
+    }
 
     if (sock->type == SW_SOCK_TCP || sock->type == SW_SOCK_TCP6 || sock->type == SW_SOCK_UDP || sock->type == SW_SOCK_UDP6)
     {
@@ -357,6 +403,10 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
     if (sock->connect(host, portno) == false)
     {
         xparam->outputs.error_code = sock->errCode;
+        if (sock->errMsg)
+        {
+            xparam->outputs.error_text = zend_string_init(sock->errMsg, strlen(sock->errMsg), 0);
+        }
         ret = -1;
     }
     else
@@ -450,7 +500,12 @@ static inline int socket_accept(php_stream *stream, Socket *sock, php_stream_xpo
             setsockopt(clisock->get_fd(), IPPROTO_TCP, TCP_NODELAY, (char*) &tcp_nodelay, sizeof(tcp_nodelay));
         }
 #endif
-        xparam->outputs.client = php_stream_alloc_rel(stream->ops, (void* )clisock, NULL, "r+");
+        php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t*) emalloc(sizeof(*abstract));
+        memset(abstract, 0, sizeof(*abstract));
+
+        abstract->socket = clisock;
+
+        xparam->outputs.client = php_stream_alloc_rel(stream->ops, (void* )abstract, NULL, "r+");
         if (xparam->outputs.client)
         {
             xparam->outputs.client->ctx = stream->ctx;
@@ -679,7 +734,8 @@ static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_
 
 static int socket_set_option(php_stream *stream, int option, int value, void *ptrparam)
 {
-    Socket *sock = (Socket*) stream->abstract;
+    php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) stream->abstract;
+    Socket *sock = (Socket*) abstract->socket;
     switch (option)
     {
     case PHP_STREAM_OPTION_XPORT_API:
@@ -759,16 +815,55 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
     return 0;
 }
 
-static php_stream *socket_create(const char *proto, size_t protolen, const char *resourcename, size_t resourcenamelen,
-        const char *persistent_id, int options, int flags, struct timeval *timeout, php_stream_context *context
-        STREAMS_DC)
+static php_stream *php_socket_create(
+    const char *proto, size_t protolen, const char *resourcename, size_t resourcenamelen,
+    const char *persistent_id, int options, int flags, struct timeval *timeout, php_stream_context *context
+    STREAMS_DC
+)
+{
+    php_stream_transport_factory ori_call;
+
+    if (strncmp(proto, "unix", protolen) == 0)
+    {
+        ori_call = ori_factory._unix;
+    }
+    else if (strncmp(proto, "udp", protolen) == 0)
+    {
+        ori_call = ori_factory.udp;
+    }
+    else if (strncmp(proto, "udg", protolen) == 0)
+    {
+        ori_call = ori_factory.udg;
+    }
+#ifdef SW_USE_OPENSSL
+    else if (strncmp(proto, "ssl", protolen) == 0)
+    {
+        ori_call = ori_factory.ssl;
+    }
+    else if (strncmp(proto, "tls", protolen) == 0)
+    {
+        ori_call = ori_factory.tls;
+    }
+#endif
+    else
+    {
+        ori_call = ori_factory.tcp;
+    }
+    return ori_call(proto, protolen, resourcename, resourcenamelen, persistent_id, options, flags, timeout, context STREAMS_CC);
+}
+
+static php_stream *socket_create(
+    const char *proto, size_t protolen, const char *resourcename, size_t resourcenamelen,
+    const char *persistent_id, int options, int flags, struct timeval *timeout, php_stream_context *context
+    STREAMS_DC
+)
 {
     php_stream *stream = NULL;
     Socket *sock;
 
-    if (unlikely(COROG.active == 0))
+    if (unlikely(SwooleG.main_reactor == nullptr || !coroutine_get_current()))
     {
-        coro_init(TSRMLS_C);
+        return php_socket_create(proto, protolen, resourcename, resourcenamelen, persistent_id, options, flags, timeout, context STREAMS_CC);
     }
 
     php_swoole_check_reactor();
@@ -786,7 +881,7 @@ static php_stream *socket_create(const char *proto, size_t protolen, const char 
         sock = new Socket(SW_SOCK_UNIX_DGRAM);
     }
 #ifdef SW_USE_OPENSSL
-    else if (strncmp(proto, "ssl", protolen) == 0)
+    else if (strncmp(proto, "ssl", protolen) == 0 || strncmp(proto, "tls", protolen) == 0)
     {
         sock = new Socket(SW_SOCK_TCP);
         sock->open_ssl = true;
@@ -797,15 +892,188 @@ static php_stream *socket_create(const char *proto, size_t protolen, const char 
         sock = new Socket(SW_SOCK_TCP);
     }
 
-    sock->setTimeout((double) FG(default_socket_timeout));
-    stream = php_stream_alloc_rel(&socket_ops, sock, persistent_id, "r+");
+    if (unlikely(sock->socket == nullptr))
+    {
+        _failed:
+        delete sock;
+        swoole_php_fatal_error(E_WARNING, "new Socket() failed. Error: %s [%d]", strerror(errno), errno);
+        return NULL;
+    }
+
+    if (FG(default_socket_timeout) > 0)
+    {
+        sock->set_timeout((double) FG(default_socket_timeout));
+    }
+
+    php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t*) emalloc(sizeof(*abstract));
+    memset(abstract, 0, sizeof(*abstract));
+
+    abstract->socket = sock;
+    abstract->stream.timeout.tv_sec = FG(default_socket_timeout);
+    abstract->stream.socket = sock->get_fd();
+
+    stream = php_stream_alloc_rel(&socket_ops, abstract, persistent_id, "r+");
 
     if (stream == NULL)
     {
-        delete sock;
-        return NULL;
+        goto _failed;
     }
     return stream;
+}
+
+bool sw_enable_coroutine_hook(int flags)
+{
+    if (unlikely(enable_strict_mode))
+    {
+        swoole_php_fatal_error(E_ERROR, "unable to enable the coroutine mode after you enable the strict mode.");
+    }
+    if (hook_init)
+    {
+        return false;
+    }
+    hook_flags = flags;
+    hook_init = true;
+    HashTable *xport_hash = php_stream_xport_get_hash();
+
+    if (flags & SW_HOOK_FILE)
+    {
+        memcpy((void*) &ori_php_plain_files_wrapper, &php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
+        memcpy((void*) &php_plain_files_wrapper, &sw_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
+    }
+    if (flags & SW_HOOK_SLEEP)
+    {
+        ori_sleep = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("sleep"));
+        if (ori_sleep)
+        {
+            ori_sleep_handler =  ori_sleep->internal_function.handler;
+            ori_sleep->internal_function.handler = PHP_FN(_sleep);
+        }
+        ori_usleep = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("usleep"));
+        if (ori_usleep)
+        {
+            ori_usleep_handler =  ori_usleep->internal_function.handler;
+            ori_usleep->internal_function.handler = PHP_FN(_usleep);
+        }
+        ori_time_nanosleep = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("time_nanosleep"));
+        if (ori_time_nanosleep)
+        {
+            ori_time_nanosleep_handler =  ori_time_nanosleep->internal_function.handler;
+            ori_time_nanosleep->internal_function.handler = PHP_FN(_time_nanosleep);
+        }
+        ori_time_sleep_until = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("time_sleep_until"));
+        if (ori_time_sleep_until)
+        {
+            ori_time_sleep_until_handler =  ori_time_sleep_until->internal_function.handler;
+            ori_time_sleep_until->internal_function.handler = PHP_FN(_time_sleep_until);
+        }
+    }
+    if (flags & SW_HOOK_BLOCKING_FUNCTION)
+    {
+        ori_gethostbyname = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("gethostbyname"));
+        if (ori_gethostbyname)
+        {
+            ori_gethostbyname_handler =  ori_gethostbyname->internal_function.handler;
+            ori_gethostbyname->internal_function.handler = PHP_FN(swoole_coroutine_gethostbyname);
+        }
+    }
+    if (flags & SW_HOOK_TCP)
+    {
+        ori_factory.tcp = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("tcp"));
+        php_stream_xport_register("tcp", socket_create);
+    }
+    if (flags & SW_HOOK_UNIX)
+    {
+        ori_factory._unix = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("unix"));
+        php_stream_xport_register("unix", socket_create);
+    }
+    if (flags & SW_HOOK_UDG)
+    {
+        ori_factory._unix = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("udg"));
+        php_stream_xport_register("udg", socket_create);
+    }
+    if (flags & SW_HOOK_UDP)
+    {
+        ori_factory._unix = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("udp"));
+        php_stream_xport_register("udp", socket_create);
+    }
+#ifdef SW_USE_OPENSSL
+    if (flags & SW_HOOK_SSL)
+    {
+        ori_factory.ssl = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("ssl"));
+        php_stream_xport_register("ssl", socket_create);
+    }
+    if (flags & SW_HOOK_TLS)
+    {
+        ori_factory.tls = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("tls"));
+        php_stream_xport_register("tls", socket_create);
+    }
+#endif
+    return true;
+}
+
+bool sw_disable_coroutine_hook()
+{
+    if (!hook_init)
+    {
+        return false;
+    }
+    if (hook_flags & SW_HOOK_FILE)
+    {
+        memcpy((void*) &php_plain_files_wrapper, &ori_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
+    }
+    if (hook_flags & SW_HOOK_SLEEP)
+    {
+        if (ori_sleep)
+        {
+            ori_sleep->internal_function.handler = ori_sleep_handler;
+        }
+        if (ori_usleep)
+        {
+            ori_usleep->internal_function.handler = ori_usleep_handler;
+        }
+        if (ori_time_nanosleep)
+        {
+            ori_time_nanosleep->internal_function.handler = ori_time_nanosleep_handler;
+        }
+        if (ori_time_sleep_until)
+        {
+            ori_time_sleep_until->internal_function.handler = ori_time_sleep_until_handler;
+        }
+    }
+    if (hook_flags & SW_HOOK_BLOCKING_FUNCTION)
+    {
+        if (ori_gethostbyname)
+        {
+            ori_gethostbyname->internal_function.handler = ori_gethostbyname_handler;
+        }
+    }
+    if (hook_flags & SW_HOOK_TCP)
+    {
+        php_stream_xport_register("tcp", ori_factory.tcp);
+    }
+    if (hook_flags & SW_HOOK_UNIX)
+    {
+        php_stream_xport_register("unix", ori_factory._unix);
+    }
+    if (hook_flags & SW_HOOK_UDP)
+    {
+        php_stream_xport_register("udp", ori_factory.udp);
+    }
+    if (hook_flags & SW_HOOK_UDG)
+    {
+        php_stream_xport_register("udg", ori_factory.udg);
+    }
+#ifdef SW_USE_OPENSSL
+    if (hook_flags & SW_HOOK_SSL)
+    {
+        php_stream_xport_register("ssl", ori_factory.ssl);
+    }
+    if (hook_flags & SW_HOOK_TLS)
+    {
+        php_stream_xport_register("tls", ori_factory.tls);
+    }
+#endif
+    return true;
 }
 
 static PHP_METHOD(swoole_runtime, enableCoroutine)
@@ -813,7 +1081,7 @@ static PHP_METHOD(swoole_runtime, enableCoroutine)
     zend_bool enable = 1;
     zend_long flags = SW_HOOK_ALL;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS()TSRMLS_CC, "|bl", &enable, &flags) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|bl", &enable, &flags) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -824,62 +1092,7 @@ static PHP_METHOD(swoole_runtime, enableCoroutine)
         {
             RETURN_FALSE;
         }
-        hook_flags = flags;
-        hook_init = true;
-        HashTable *xport_hash = php_stream_xport_get_hash();
-
-        if (flags & SW_HOOK_FILE)
-        {
-            memcpy((void*) &ori_php_plain_files_wrapper, &php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
-            memcpy((void*) &php_plain_files_wrapper, &sw_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
-            memcpy((void*) &ori_php_stream_stdio_ops, &php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
-            memcpy((void*) &php_stream_stdio_ops, &sw_php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
-        }
-        if (flags & SW_HOOK_SLEEP)
-        {
-            ori_sleep = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("sleep"));
-            ori_usleep = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("usleep"));
-            ori_sleep->internal_function.handler = PHP_FN(_sleep);
-            ori_usleep->internal_function.handler = PHP_FN(_usleep);
-#ifdef HAVE_NANOSLEEP
-            ori_time_nanosleep = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("time_nanosleep"));
-            ori_time_sleep_until = (zend_function *) zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("time_sleep_until"));
-            ori_time_nanosleep->internal_function.handler = PHP_FN(_time_nanosleep);
-            ori_time_sleep_until->internal_function.handler = PHP_FN(_time_sleep_until);
-#endif
-        }
-        if (flags & SW_HOOK_TCP)
-        {
-            ori_factory.tcp = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("tcp"));
-            php_stream_xport_register("tcp", socket_create);
-        }
-        if (flags & SW_HOOK_UNIX)
-        {
-            ori_factory.unix = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("unix"));
-            php_stream_xport_register("unix", socket_create);
-        }
-        if (flags & SW_HOOK_UDG)
-        {
-            ori_factory.unix = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("udg"));
-            php_stream_xport_register("udg", socket_create);
-        }
-        if (flags & SW_HOOK_UDP)
-        {
-            ori_factory.unix = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("udp"));
-            php_stream_xport_register("udp", socket_create);
-        }
-#ifdef SW_USE_OPENSSL
-        if (flags & SW_HOOK_SSL)
-        {
-            ori_factory.ssl = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("ssl"));
-            php_stream_xport_register("ssl", socket_create);
-        }
-        if (flags & SW_HOOK_TLS)
-        {
-            ori_factory.tls = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("tls"));
-            php_stream_xport_register("tls", socket_create);
-        }
-#endif
+        sw_enable_coroutine_hook(flags);
     }
     else
     {
@@ -887,37 +1100,7 @@ static PHP_METHOD(swoole_runtime, enableCoroutine)
         {
             RETURN_FALSE;
         }
-        if (hook_flags & SW_HOOK_FILE)
-        {
-            memcpy((void*) &php_plain_files_wrapper, &ori_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
-            memcpy((void*) &php_stream_stdio_ops, &ori_php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
-        }
-        if (flags & SW_HOOK_TCP)
-        {
-            php_stream_xport_register("tcp", ori_factory.tcp);
-        }
-        if (flags & SW_HOOK_UNIX)
-        {
-            php_stream_xport_register("unix", ori_factory.unix);
-        }
-        if (flags & SW_HOOK_UDP)
-        {
-            php_stream_xport_register("udp", ori_factory.udp);
-        }
-        if (flags & SW_HOOK_UDG)
-        {
-            php_stream_xport_register("udg", ori_factory.udg);
-        }
-#ifdef SW_USE_OPENSSL
-        if (flags & SW_HOOK_SSL)
-        {
-            php_stream_xport_register("ssl", ori_factory.ssl);
-        }
-        if (flags & SW_HOOK_TLS)
-        {
-            php_stream_xport_register("tls", ori_factory.tls);
-        }
-#endif
+        sw_disable_coroutine_hook();
     }
 }
 
@@ -933,10 +1116,16 @@ static PHP_FUNCTION(_sleep)
         php_error_docref(NULL, E_WARNING, "Number of seconds must be greater than or equal to 0");
         RETURN_FALSE;
     }
-    php_swoole_check_reactor();
-    php_swoole_check_timer(num * 1000);
-    swoole_coroutine_sleep((double) num);
-    RETURN_LONG(num);
+
+    if (num >= 0.001 && sw_coro_is_in())
+    {
+        php_swoole_check_reactor();
+        RETURN_LONG(Coroutine::sleep((double ) num) < 0 ? num : 0);
+    }
+    else
+    {
+        RETURN_LONG(php_sleep(num));
+    }
 }
 
 static PHP_FUNCTION(_usleep)
@@ -951,9 +1140,17 @@ static PHP_FUNCTION(_usleep)
         php_error_docref(NULL, E_WARNING, "Number of seconds must be greater than or equal to 0");
         RETURN_FALSE;
     }
-    php_swoole_check_reactor();
-    php_swoole_check_timer(num / 1000);
-    swoole_coroutine_sleep((double) num / 1000000);
+    double _time = (double) num / 1000000;
+
+    if (_time >= 0.001 && sw_coro_is_in())
+    {
+        php_swoole_check_reactor();
+        Coroutine::sleep((double) num / 1000000);
+    }
+    else
+    {
+        usleep((unsigned int)num);
+    }
 }
 
 static PHP_FUNCTION(_time_nanosleep)
@@ -961,7 +1158,7 @@ static PHP_FUNCTION(_time_nanosleep)
     zend_long tv_sec, tv_nsec;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "ll", &tv_sec, &tv_nsec) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     if (tv_sec < 0)
@@ -975,22 +1172,32 @@ static PHP_FUNCTION(_time_nanosleep)
         RETURN_FALSE;
     }
     double _time = (double) tv_sec + (double) tv_nsec / 1000000000.00;
-    if (_time >= 0.001)
+    if (_time >= 0.001 && sw_coro_is_in())
     {
         php_swoole_check_reactor();
-        php_swoole_check_timer(_time * 1000);
-        swoole_coroutine_sleep(_time);
+        Coroutine::sleep(_time);
     }
     else
-#ifndef HAVE_NANOSLEEP
     {
-        RETURN_FALSE;
+        struct timespec php_req, php_rem;
+        php_req.tv_sec = (time_t) tv_sec;
+        php_req.tv_nsec = (long) tv_nsec;
+
+        if (nanosleep(&php_req, &php_rem) == 0)
+        {
+            RETURN_TRUE;
+        }
+        else if (errno == EINTR)
+        {
+            array_init(return_value);
+            add_assoc_long_ex(return_value, "seconds", sizeof("seconds") - 1, php_rem.tv_sec);
+            add_assoc_long_ex(return_value, "nanoseconds", sizeof("nanoseconds") - 1, php_rem.tv_nsec);
+        }
+        else if (errno == EINVAL)
+        {
+            swoole_php_error(E_WARNING, "nanoseconds was not in the range 0 to 999 999 999 or seconds was negative");
+        }
     }
-#else
-    {
-        PHP_FN(time_nanosleep)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
-    }
-#endif
 }
 
 static PHP_FUNCTION(_time_sleep_until)
@@ -1001,7 +1208,7 @@ static PHP_FUNCTION(_time_sleep_until)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "d", &d_ts) == FAILURE)
     {
-        return;
+        RETURN_FALSE;
     }
 
     if (gettimeofday((struct timeval *) &tm, NULL) != 0)
@@ -1024,17 +1231,13 @@ static PHP_FUNCTION(_time_sleep_until)
     php_req.tv_nsec = (long) ((c_ts - php_req.tv_sec) * 1000000000.00);
 
     double _time = (double) php_req.tv_sec + (double) php_req.tv_nsec / 1000000000.00;
-    if (_time >= 0.001)
+    if (_time >= 0.001 && sw_coro_is_in())
     {
         php_swoole_check_reactor();
-        php_swoole_check_timer(_time * 1000);
-        swoole_coroutine_sleep(_time);
+        Coroutine::sleep(_time);
     }
     else
     {
-#ifndef HAVE_NANOSLEEP
-        RETURN_FALSE;
-#else
         while (nanosleep(&php_req, &php_rem))
         {
             if (errno == EINTR)
@@ -1047,7 +1250,6 @@ static PHP_FUNCTION(_time_sleep_until)
                 RETURN_FALSE;
             }
         }
-#endif
     }
     RETURN_TRUE;
 }

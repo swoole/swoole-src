@@ -4,7 +4,7 @@ swoole_coroutine_channel: push and pop
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 use Swoole\Coroutine as co;
 
 $chan = new co\Channel(2);
@@ -39,4 +39,3 @@ int(6)
 int(7)
 int(8)
 int(9)
-

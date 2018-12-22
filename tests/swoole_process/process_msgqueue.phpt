@@ -4,7 +4,7 @@ swoole_process: sysv msgqueue
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 function callback_function(swoole_process $worker){}
 
@@ -30,4 +30,3 @@ Done
 --EXPECTREGEX--
 Success
 Done.*
---CLEAN--

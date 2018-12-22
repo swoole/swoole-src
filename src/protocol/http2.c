@@ -32,7 +32,7 @@ int swHttp2_send_setting_frame(swProtocol *protocol, swConnection *conn)
 
     id = htons(SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS);
     memcpy(p, &id, sizeof(id));
-    value = htonl(SW_HTTP2_MAX_CONCURRENT_STREAMS);
+    value = htonl(SW_HTTP2_MAX_MAX_CONCURRENT_STREAMS);
     memcpy(p + 2, &value, sizeof(value));
     p += SW_HTTP2_SETTING_OPTION_SIZE;
 
@@ -44,7 +44,7 @@ int swHttp2_send_setting_frame(swProtocol *protocol, swConnection *conn)
 
     id = htons(SW_HTTP2_SETTINGS_MAX_FRAME_SIZE);
     memcpy(p, &id, sizeof(id));
-    value = htonl(SW_HTTP2_MAX_FRAME_SIZE);
+    value = htonl(SW_HTTP2_MAX_MAX_FRAME_SIZE);
     memcpy(p + 2, &value, sizeof(value));
 
     return swConnection_send(conn, setting_frame, sizeof(setting_frame), 0);
@@ -61,7 +61,7 @@ int swHttp2_send_setting_frame(swProtocol *protocol, swConnection *conn)
  |                   Frame Payload (0...)                      ...
  +---------------------------------------------------------------+
  */
-int swHttp2_get_frame_length(swProtocol *protocol, swConnection *conn, char *buf, uint32_t length)
+ssize_t swHttp2_get_frame_length(swProtocol *protocol, swConnection *conn, char *buf, uint32_t length)
 {
     if (length < SW_HTTP2_FRAME_HEADER_SIZE)
     {

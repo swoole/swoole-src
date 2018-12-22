@@ -1,3 +1,4 @@
+dnl $Id$
 dnl config.m4 for extension swoole
 
 dnl  +----------------------------------------------------------------------+
@@ -15,55 +16,52 @@ dnl  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
 dnl  +----------------------------------------------------------------------+
 
 PHP_ARG_ENABLE(debug-log, whether to enable debug log,
-[  --enable-debug-log   Enable swoole debug log], no, no)
+[  --enable-debug-log        Enable swoole debug log], no, no)
 
 PHP_ARG_ENABLE(trace-log, Whether to enable trace log,
-[  --enable-trace-log   Enable swoole trace log], no, no)
+[  --enable-trace-log        Enable swoole trace log], no, no)
 
 PHP_ARG_ENABLE(sockets, enable sockets support,
-[  --enable-sockets        Do you have sockets extension?], no, no)
+[  --enable-sockets          Do you have sockets extension?], no, no)
 
-PHP_ARG_ENABLE(async_redis, enable async_redis support,
-[  --enable-async-redis    Do you have hiredis?], no, no)
+PHP_ARG_ENABLE(openssl, enable openssl support,
+[  --enable-openssl          Use openssl?], no, no)
+
+PHP_ARG_ENABLE(http2, enable http2.0 support,
+[  --enable-http2            Use http2.0?], no, no)
+
+PHP_ARG_ENABLE(swoole, swoole support,
+[  --enable-swoole           Enable swoole support], [enable_swoole="yes"])
+
+PHP_ARG_ENABLE(mysqlnd, enable mysqlnd support,
+[  --enable-mysqlnd          Do you have mysqlnd?], no, no)
 
 PHP_ARG_ENABLE(coroutine-postgresql, enable coroutine postgresql support,
 [  --enable-coroutine-postgresql    Do you install postgresql?], no, no)
 
-PHP_ARG_ENABLE(openssl, enable openssl support,
-[  --enable-openssl        Use openssl?], no, no)
-
-PHP_ARG_ENABLE(http2, enable http2.0 support,
-[  --enable-http2          Use http2.0?], no, no)
-
-PHP_ARG_ENABLE(thread, enable thread support,
-[  --enable-thread         Experimental: Use thread?], no, no)
-
-PHP_ARG_ENABLE(hugepage, enable hugepage support,
-[  --enable-hugepage       Experimental: Use hugepage?], no, no)
-
-PHP_ARG_ENABLE(swoole, swoole support,
-[  --enable-swoole         Enable swoole support], [enable_swoole="yes"])
-
-PHP_ARG_WITH(libpq_dir, for libpq support,
-[  --with-libpq-dir[=DIR]    Include libpq support (requires libpq >= 9.5)], no, no)
-
-PHP_ARG_WITH(openssl_dir, for OpenSSL support,
+PHP_ARG_WITH(openssl_dir, dir of openssl,
 [  --with-openssl-dir[=DIR]    Include OpenSSL support (requires OpenSSL >= 0.9.6)], no, no)
 
-PHP_ARG_WITH(phpx_dir, for PHP-X support,
-[  --with-phpx-dir[=DIR]    Include PHP-X support], no, no)
+PHP_ARG_WITH(nghttp2_dir, dir of nghttp2,
+[  --with-nghttp2-dir[=DIR]    Include nghttp2 support], no, no)
 
-PHP_ARG_WITH(jemalloc_dir, for jemalloc support,
-[  --with-jemalloc-dir[=DIR]    Include jemalloc support], no, no)
+PHP_ARG_WITH(phpx_dir, dir of php-x,
+[  --with-phpx-dir[=DIR]       Include PHP-X support], no, no)
 
-PHP_ARG_ENABLE(mysqlnd, enable mysqlnd support,
-[  --enable-mysqlnd       Do you have mysqlnd?], no, no)
+PHP_ARG_WITH(jemalloc_dir, dir of jemalloc,
+[  --with-jemalloc-dir[=DIR]   Include jemalloc support], no, no)
+
+PHP_ARG_WITH(libpq_dir, dir of libpq,
+[  --with-libpq-dir[=DIR]      Include libpq support (requires libpq >= 9.5)], no, no)
+
+PHP_ARG_ENABLE(hugepage, enable hugepage support,
+[  --enable-hugepage         Experimental: Use hugepage?], no, no)
 
 PHP_ARG_ENABLE(asan, whether to enable asan,
-[  --enable-asan      Enable asan], no, no)
+[  --enable-asan             Enable asan], no, no)
 
 PHP_ARG_ENABLE(picohttpparser, enable picohttpparser support,
-[  --enable-picohttpparser     Experimental: Do you have picohttpparser?], no, no)
+[  --enable-picohttpparser   Experimental: Do you have picohttpparser?], no, no)
 
 AC_DEFUN([SWOOLE_HAVE_PHP_EXT], [
     extname=$1
@@ -219,11 +217,44 @@ AC_CANONICAL_HOST
 
 if test "$PHP_SWOOLE" != "no"; then
 
+    AC_CHECK_LIB(c, accept4, AC_DEFINE(HAVE_ACCEPT4, 1, [have accept4]))
+    AC_CHECK_LIB(c, signalfd, AC_DEFINE(HAVE_SIGNALFD, 1, [have signalfd]))
+    AC_CHECK_LIB(c, eventfd, AC_DEFINE(HAVE_EVENTFD, 1, [have eventfd]))
+    AC_CHECK_LIB(c, epoll_create, AC_DEFINE(HAVE_EPOLL, 1, [have epoll]))
+    AC_CHECK_LIB(c, poll, AC_DEFINE(HAVE_POLL, 1, [have poll]))
+    AC_CHECK_LIB(c, sendfile, AC_DEFINE(HAVE_SENDFILE, 1, [have sendfile]))
+    AC_CHECK_LIB(c, kqueue, AC_DEFINE(HAVE_KQUEUE, 1, [have kqueue]))
+    AC_CHECK_LIB(c, backtrace, AC_DEFINE(HAVE_EXECINFO, 1, [have execinfo]))
+    AC_CHECK_LIB(c, daemon, AC_DEFINE(HAVE_DAEMON, 1, [have daemon]))
+    AC_CHECK_LIB(c, mkostemp, AC_DEFINE(HAVE_MKOSTEMP, 1, [have mkostemp]))
+    AC_CHECK_LIB(c, inotify_init, AC_DEFINE(HAVE_INOTIFY, 1, [have inotify]))
+    AC_CHECK_LIB(c, malloc_trim, AC_DEFINE(HAVE_MALLOC_TRIM, 1, [have malloc_trim]))
+    AC_CHECK_LIB(c, inotify_init1, AC_DEFINE(HAVE_INOTIFY_INIT1, 1, [have inotify_init1]))
+    AC_CHECK_LIB(c, gethostbyname2_r, AC_DEFINE(HAVE_GETHOSTBYNAME2_R, 1, [have gethostbyname2_r]))
+    AC_CHECK_LIB(c, ptrace, AC_DEFINE(HAVE_PTRACE, 1, [have ptrace]))
+    AC_CHECK_LIB(pthread, pthread_rwlock_init, AC_DEFINE(HAVE_RWLOCK, 1, [have pthread_rwlock_init]))
+    AC_CHECK_LIB(pthread, pthread_spin_lock, AC_DEFINE(HAVE_SPINLOCK, 1, [have pthread_spin_lock]))
+    AC_CHECK_LIB(pthread, pthread_mutex_timedlock, AC_DEFINE(HAVE_MUTEX_TIMEDLOCK, 1, [have pthread_mutex_timedlock]))
+    AC_CHECK_LIB(pthread, pthread_barrier_init, AC_DEFINE(HAVE_PTHREAD_BARRIER, 1, [have pthread_barrier_init]))
+    AC_CHECK_LIB(pcre, pcre_compile, AC_DEFINE(HAVE_PCRE, 1, [have pcre]))
+    AC_CHECK_LIB(pq, PQconnectdb, AC_DEFINE(HAVE_POSTGRESQL, 1, [have postgresql]))
+    AC_CHECK_LIB(nghttp2, nghttp2_hd_inflate_new, AC_DEFINE(HAVE_NGHTTP2, 1, [have nghttp2]))
+
+    AC_CHECK_LIB(brotlienc, BrotliEncoderCreateInstance, [
+        AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli])
+        PHP_ADD_LIBRARY(brotlienc, 1, SWOOLE_SHARED_LIBADD)
+    ])
+
+    AC_CHECK_LIB(z, gzgets, [
+        AC_DEFINE(SW_HAVE_ZLIB, 1, [have zlib])
+        PHP_ADD_LIBRARY(z, 1, SWOOLE_SHARED_LIBADD)
+    ])
+
     PHP_ADD_LIBRARY(pthread)
     PHP_SUBST(SWOOLE_SHARED_LIBADD)
 
     AC_ARG_ENABLE(debug,
-        [--enable-debug,  compile with debug symbols],
+        [  --enable-debug,         compile with debug symbols],
         [PHP_DEBUG=$enableval],
         [PHP_DEBUG=0]
     )
@@ -257,10 +288,6 @@ if test "$PHP_SWOOLE" != "no"; then
         AC_DEFINE(HAVE_SOCKETS, 1, [whether sockets extension is enabled])
 
         PHP_ADD_EXTENSION_DEP(swoole, sockets, true)
-    fi
-
-    if test "$PHP_HTTP2" = "yes"; then
-        AC_DEFINE(SW_USE_HTTP2, 1, [enable http2.0 support])
     fi
 
     if test "$PHP_HUGEPAGE" = "yes"; then
@@ -329,9 +356,18 @@ if test "$PHP_SWOOLE" != "no"; then
 
     PHP_ADD_LIBRARY(pthread, 1, SWOOLE_SHARED_LIBADD)
 
-    if test "$PHP_ASYNC_REDIS" = "yes"; then
-        AC_DEFINE(SW_USE_REDIS, 1, [enable async-redis support])
-        PHP_ADD_LIBRARY(hiredis, 1, SWOOLE_SHARED_LIBADD)
+    if test "$PHP_HTTP2" = "yes" || test "$PHP_NGHTTP2_DIR" != "no"; then
+	    if test "$PHP_NGHTTP2_DIR" != "no"; then
+	        PHP_ADD_INCLUDE("${PHP_NGHTTP2_DIR}/include")
+	        PHP_ADD_LIBRARY_WITH_PATH(nghttp2, "${PHP_NGHTTP2_DIR}/${PHP_LIBDIR}")
+	    fi
+        AC_DEFINE(SW_USE_HTTP2, 1, [enable HTTP2 support])
+        PHP_ADD_LIBRARY(nghttp2, 1, SWOOLE_SHARED_LIBADD)
+    fi
+
+    if test "$PHP_MYSQLND" = "yes"; then
+        PHP_ADD_EXTENSION_DEP(mysqli, mysqlnd)
+        AC_DEFINE(SW_USE_MYSQLND, 1, [use mysqlnd])
     fi
 
     if test "$PHP_COROUTINE_POSTGRESQL" = "yes"; then
@@ -340,6 +376,8 @@ if test "$PHP_SWOOLE" != "no"; then
                 AC_DEFINE(HAVE_LIBPQ, 1, [have libpq])
                 AC_MSG_RESULT(libpq include success)
                 PHP_ADD_INCLUDE("${PHP_LIBPQ_DIR}/include")
+                PHP_ADD_LIBRARY_WITH_PATH(pq, "${PHP_LIBPQ_DIR}/${PHP_LIBDIR}")
+                PGSQL_INCLUDE=$PHP_LIBPQ_DIR/include
             else
                 PGSQL_SEARCH_PATHS="/usr /usr/local /usr/local/pgsql"
                 for i in $PGSQL_SEARCH_PATHS; do
@@ -361,166 +399,138 @@ if test "$PHP_SWOOLE" != "no"; then
         fi
     fi
 
-    if test "$PHP_HTTP2" = "yes"; then
-        PHP_ADD_LIBRARY(nghttp2, 1, SWOOLE_SHARED_LIBADD)
-    fi
-
-    if test "$PHP_MYSQLND" = "yes"; then
-        PHP_ADD_EXTENSION_DEP(mysqli, mysqlnd)
-        AC_DEFINE(SW_USE_MYSQLND, 1, [use mysqlnd])
-    fi
-
-    AC_CHECK_LIB(c, accept4, AC_DEFINE(HAVE_ACCEPT4, 1, [have accept4]))
-    AC_CHECK_LIB(c, signalfd, AC_DEFINE(HAVE_SIGNALFD, 1, [have signalfd]))
-    AC_CHECK_LIB(c, eventfd, AC_DEFINE(HAVE_EVENTFD, 1, [have eventfd]))
-    AC_CHECK_LIB(c, epoll_create, AC_DEFINE(HAVE_EPOLL, 1, [have epoll]))
-    AC_CHECK_LIB(c, poll, AC_DEFINE(HAVE_POLL, 1, [have poll]))
-    AC_CHECK_LIB(c, sendfile, AC_DEFINE(HAVE_SENDFILE, 1, [have sendfile]))
-    AC_CHECK_LIB(c, kqueue, AC_DEFINE(HAVE_KQUEUE, 1, [have kqueue]))
-    AC_CHECK_LIB(c, backtrace, AC_DEFINE(HAVE_EXECINFO, 1, [have execinfo]))
-    AC_CHECK_LIB(c, daemon, AC_DEFINE(HAVE_DAEMON, 1, [have daemon]))
-    AC_CHECK_LIB(c, mkostemp, AC_DEFINE(HAVE_MKOSTEMP, 1, [have mkostemp]))
-    AC_CHECK_LIB(c, inotify_init, AC_DEFINE(HAVE_INOTIFY, 1, [have inotify]))
-    AC_CHECK_LIB(c, malloc_trim, AC_DEFINE(HAVE_MALLOC_TRIM, 1, [have malloc_trim]))
-    AC_CHECK_LIB(c, inotify_init1, AC_DEFINE(HAVE_INOTIFY_INIT1, 1, [have inotify_init1]))
-    AC_CHECK_LIB(c, gethostbyname2_r, AC_DEFINE(HAVE_GETHOSTBYNAME2_R, 1, [have gethostbyname2_r]))
-    AC_CHECK_LIB(c, ptrace, AC_DEFINE(HAVE_PTRACE, 1, [have ptrace]))
-    AC_CHECK_LIB(pthread, pthread_rwlock_init, AC_DEFINE(HAVE_RWLOCK, 1, [have pthread_rwlock_init]))
-    AC_CHECK_LIB(pthread, pthread_spin_lock, AC_DEFINE(HAVE_SPINLOCK, 1, [have pthread_spin_lock]))
-    AC_CHECK_LIB(pthread, pthread_mutex_timedlock, AC_DEFINE(HAVE_MUTEX_TIMEDLOCK, 1, [have pthread_mutex_timedlock]))
-    AC_CHECK_LIB(pthread, pthread_barrier_init, AC_DEFINE(HAVE_PTHREAD_BARRIER, 1, [have pthread_barrier_init]))
-    AC_CHECK_LIB(pcre, pcre_compile, AC_DEFINE(HAVE_PCRE, 1, [have pcre]))
-    AC_CHECK_LIB(hiredis, redisConnect, AC_DEFINE(HAVE_HIREDIS, 1, [have hiredis]))
-    AC_CHECK_LIB(pq, PQconnectdb, AC_DEFINE(HAVE_POSTGRESQL, 1, [have postgresql]))
-    AC_CHECK_LIB(nghttp2, nghttp2_hd_inflate_new, AC_DEFINE(HAVE_NGHTTP2, 1, [have nghttp2]))
-
-    AC_CHECK_LIB(brotlienc, BrotliEncoderCreateInstance, [
-        AC_DEFINE(SW_HAVE_BROTLI, 1, [have brotli])
-        PHP_ADD_LIBRARY(brotlienc, 1, SWOOLE_SHARED_LIBADD)
-    ])
-
-    AC_CHECK_LIB(z, gzgets, [
-        AC_DEFINE(SW_HAVE_ZLIB, 1, [have zlib])
-        PHP_ADD_LIBRARY(z, 1, SWOOLE_SHARED_LIBADD)
-    ])
-
-    swoole_source_file="swoole.c \
-        swoole_server.c \
-        swoole_server_port.c \
-        swoole_atomic.c \
-        swoole_lock.c \
-        swoole_client.c \
-        swoole_client_coro.cc \
-        swoole_coroutine.cc \
-        swoole_coroutine_util.c \
-        swoole_event.c \
-        swoole_socket_coro.cc \
-        swoole_timer.c \
-        swoole_async.c \
-        swoole_process.c \
-        swoole_process_pool.c \
-        swoole_serialize.c \
-        swoole_buffer.c \
-        swoole_table.c \
-        swoole_http_server.c \
-        swoole_http_v2_server.cc \
-        swoole_http_v2_client.c \
-        swoole_http_v2_client_coro.c \
-        swoole_websocket_server.c \
-        swoole_http_client.c \
-        swoole_http_client_coro.cc \
-        swoole_mysql.c \
-        swoole_mysql_coro.cc \
-        swoole_postgresql_coro.c \
-        swoole_redis.c \
-        swoole_redis_coro.c \
-        swoole_redis_server.c \
-        swoole_mmap.c \
-        swoole_channel.c \
-        swoole_channel_coro.cc \
-        swoole_ringqueue.c \
-        swoole_msgqueue.c \
-        swoole_trace.c \
-        swoole_runtime.cc \
-        swoole_memory_pool.c \
-        thirdparty/swoole_http_parser.c \
-        thirdparty/multipart_parser.c \
-        src/core/base.c \
-        src/core/log.c \
-        src/core/hashmap.c \
-        src/core/ring_queue.c \
-        src/core/channel.c \
-        src/core/string.c \
+    swoole_source_file=" \
         src/core/array.c \
-        src/core/socket.c \
-        src/core/list.c \
-        src/core/heap.c \
+        src/core/base.c \
+        src/core/channel.c \
         src/core/error.cc \
+        src/core/hashmap.c \
+        src/core/heap.c \
+        src/core/list.c \
+        src/core/log.c \
+        src/core/rbtree.c \
+        src/core/ring_queue.c \
+        src/core/socket.c \
+        src/core/string.c \
         src/coroutine/base.cc \
         src/coroutine/boost.cc \
-        src/coroutine/context.cc \
-        src/coroutine/ucontext.cc \
-        src/coroutine/socket.cc \
         src/coroutine/channel.cc \
-    	src/coroutine/hook.cc \
-        src/memory/shared_memory.c \
-        src/memory/global_memory.c \
-        src/memory/ring_buffer.c \
-        src/memory/fixed_pool.c \
-        src/memory/malloc.c \
-        src/memory/table.c \
-        src/memory/buffer.c \
+        src/coroutine/context.cc \
+        src/coroutine/hook.cc \
+        src/coroutine/socket.cc \
+        src/coroutine/ucontext.cc \
         src/factory/base.c \
-        src/factory/thread.c \
         src/factory/process.c \
-        src/reactor/base.c \
-        src/reactor/select.c \
-        src/reactor/poll.c \
-        src/reactor/epoll.c \
-        src/reactor/kqueue.c \
-        src/pipe/base.c \
-        src/pipe/eventfd.c \
-        src/pipe/unix_socket.c \
-        src/lock/semaphore.c \
+        src/lock/atomic.c \
+        src/lock/cond.c \
+        src/lock/file_lock.c \
         src/lock/mutex.c \
         src/lock/rw_lock.c \
+        src/lock/semaphore.c \
         src/lock/spin_lock.c \
-        src/lock/file_lock.c \
-        src/lock/cond.c \
-        src/network/server.c \
-        src/network/task_worker.c \
+        src/memory/buffer.c \
+        src/memory/fixed_pool.c \
+        src/memory/global_memory.c \
+        src/memory/malloc.c \
+        src/memory/ring_buffer.c \
+        src/memory/shared_memory.c \
+        src/memory/table.c \
         src/network/client.c \
         src/network/connection.c \
-        src/network/process_pool.c \
-        src/network/thread_pool.c \
-        src/network/reactor_thread.c \
-        src/network/reactor_process.c \
-        src/network/manager.c \
-        src/network/worker.c \
-        src/network/timer.c \
-        src/network/port.c \
         src/network/dns.c \
+        src/network/manager.c \
+        src/network/port.c \
+        src/network/process_pool.c \
+        src/network/reactor_process.c \
+        src/network/reactor_thread.c \
+        src/network/server.c \
         src/network/stream.c \
+        src/network/task_worker.c \
+        src/network/thread_pool.c \
+        src/network/timer.c \
+        src/network/worker.c \
         src/os/base.c \
         src/os/msg_queue.c \
         src/os/sendfile.c \
         src/os/signal.c \
         src/os/timer.c \
+        src/os/wait.cc \
+        src/pipe/base.c \
+        src/pipe/eventfd.c \
+        src/pipe/unix_socket.c \
         src/protocol/base.c \
-        src/protocol/ssl.c \
+        src/protocol/base64.c \
         src/protocol/http.c \
         src/protocol/http2.c \
-        src/protocol/websocket.c \
+        src/protocol/mime_types.cc \
         src/protocol/mqtt.c \
-        src/protocol/socks5.c \
-        src/protocol/mime_types.c \
         src/protocol/redis.c \
-        src/protocol/base64.c"
+        src/protocol/sha1.c \
+        src/protocol/socks5.c \
+        src/protocol/ssl.c \
+        src/protocol/websocket.c \
+        src/reactor/base.c \
+        src/reactor/defer_task.cc \
+        src/reactor/epoll.c \
+        src/reactor/kqueue.c \
+        src/reactor/poll.c \
+        src/reactor/select.c \
+        swoole.c \
+        swoole_async.cc \
+        swoole_atomic.c \
+        swoole_buffer.c \
+        swoole_channel.c \
+        swoole_channel_coro.cc \
+        swoole_client.c \
+        swoole_client_coro.cc \
+        swoole_coroutine.cc \
+        swoole_coroutine_util.cc \
+        swoole_event.c \
+        swoole_http_client.c \
+        swoole_http_client_coro.cc \
+        swoole_http_server.cc \
+        swoole_http_v2_client_coro.cc \
+        swoole_http_v2_server.cc \
+        swoole_lock.c \
+        swoole_memory_pool.c \
+        swoole_mmap.c \
+        swoole_msgqueue.c \
+        swoole_mysql.c \
+        swoole_mysql_coro.cc \
+        swoole_postgresql_coro.cc \
+        swoole_process.cc \
+        swoole_process_pool.c \
+        swoole_redis.c \
+        swoole_redis_coro.cc \
+        swoole_redis_server.cc \
+        swoole_ringqueue.c \
+        swoole_runtime.cc \
+        swoole_serialize.c \
+        swoole_server.cc \
+        swoole_server_port.cc \
+        swoole_socket_coro.cc \
+        swoole_table.c \
+        swoole_timer.cc \
+        swoole_trace.c \
+        swoole_websocket_server.cc"
+
+    swoole_source_file="$swoole_source_file \
+    thirdparty/swoole_http_parser.c \
+    thirdparty/multipart_parser.c"
 
     if test "$PHP_PICOHTTPPARSER" = "yes"; then
         AC_DEFINE(SW_USE_PICOHTTPPARSER, 1, [enable picohttpparser support])
         swoole_source_file="$swoole_source_file thirdparty/picohttpparser/picohttpparser.c"
     fi
+
+    PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/hiredis])
+    
+    swoole_source_file="$swoole_source_file \
+        thirdparty/hiredis/async.c \
+        thirdparty/hiredis/hiredis.c \
+        thirdparty/hiredis/net.c \
+        thirdparty/hiredis/read.c \
+        thirdparty/hiredis/sds.c"
 
     SW_NO_USE_ASM_CONTEXT="no"
     SW_ASM_DIR="thirdparty/boost/asm/"
@@ -582,7 +592,8 @@ if test "$PHP_SWOOLE" != "no"; then
     fi
 
     if test "$SW_NO_USE_ASM_CONTEXT" = 'no'; then
-         swoole_source_file="$swoole_source_file ${SW_ASM_DIR}make_${SW_CONTEXT_ASM_FILE} \
+        swoole_source_file="$swoole_source_file \
+            ${SW_ASM_DIR}make_${SW_CONTEXT_ASM_FILE} \
             ${SW_ASM_DIR}jump_${SW_CONTEXT_ASM_FILE} "
     elif test "$SW_HAVE_BOOST_CONTEXT" = 'yes'; then
          LDFLAGS="$LDFLAGS -lboost_context"
@@ -614,7 +625,7 @@ if test "$PHP_SWOOLE" != "no"; then
     PHP_ADD_BUILD_DIR($ext_builddir/src/network)
     PHP_ADD_BUILD_DIR($ext_builddir/src/protocol)
     PHP_ADD_BUILD_DIR($ext_builddir/src/coroutine)
-    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty)
+    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/hiredis)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/boost)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/boost/asm)
 fi

@@ -4,8 +4,7 @@ swoole_client_coro: tcp client with eof [02]
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/lib/curl.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new ProcessManager;
 
@@ -20,14 +19,14 @@ class MyPool
 
     public function put($mysql)
     {
-        $this->pool->push($mysql);
+        $this->pool->enqueue($mysql);
     }
 
     public function get()
     {
         //有空闲连接
         if (count($this->pool) > 0) {
-            return $this->pool->pop();
+            return $this->pool->dequeue();
         }
 
         $client = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP | SWOOLE_KEEP);

@@ -16,6 +16,8 @@
 
 #include "swoole.h"
 
+#ifdef F_WRLCK
+
 static int swFileLock_lock_rd(swLock *lock);
 static int swFileLock_lock_rw(swLock *lock);
 static int swFileLock_unlock(swLock *lock);
@@ -71,3 +73,5 @@ static int swFileLock_free(swLock *lock)
 {
     return close(lock->object.filelock.fd);
 }
+
+#endif

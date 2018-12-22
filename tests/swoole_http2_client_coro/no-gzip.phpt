@@ -3,11 +3,11 @@ swoole_http2_client_coro: http2 without gzip and recv big data (window-update)
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
-skip_if_in_docker('travis network');
+skip_if_in_travis('travis network');
 ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 go(function () {
     $domain = 'www.zhihu.com';
     $cli = new Swoole\Coroutine\Http2\Client($domain, 443, true);
@@ -17,7 +17,7 @@ go(function () {
     ]);
     $cli->connect();
 
-    $req = new swoole_http2_request;
+    $req = new Swoole\Http2\Request;
     $req->path = '/signup?next=/';
     $req->headers = [
         'Host' => $domain,

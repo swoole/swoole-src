@@ -27,4 +27,3 @@ if ($count < 20)
 {
     goto do_connect;
 }
-

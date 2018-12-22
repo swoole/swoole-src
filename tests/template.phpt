@@ -4,6 +4,15 @@
 <?php require __DIR__ . '{{dir_deep}}/include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '{{dir_deep}}/include/bootstrap.php';
+require __DIR__ . '{{dir_deep}}/include/bootstrap.php';
+$pm = new ProcessManager;
+$pm->parentFunc = function () use ($pm) {
+
+};
+$pm->childFunc = function () use ($pm) {
+
+};
+$pm->childFirst();
+$pm->run();
 ?>
 --EXPECT--

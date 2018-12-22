@@ -4,8 +4,8 @@ swoole_websocket_server: websocket server send and recv close frame full test
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
-include __DIR__ . "/../include/lib/class.websocket_client.php";
+require __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/lib/class.websocket_client.php';
 $pm = new ProcessManager;
 $pm->parentFunc = function (int $pid) use ($pm) {
     for ($c = MAX_CONCURRENCY_LOW; $c--;) {
@@ -17,13 +17,13 @@ $pm->parentFunc = function (int $pid) use ($pm) {
                 assert($ret);
                 $code = mt_rand(0, 5000);
                 $reason = md5($code);
-                $close_frame = new swoole_websocket_close_frame;
+                $close_frame = new swoole_websocket_closeframe;
                 $close_frame->code = $code;
                 $close_frame->reason = $reason;
                 $cli->push($close_frame);
                 // recv the last close frame
                 $frame = $cli->recv();
-                assert($frame instanceof swoole_websocket_close_frame);
+                assert($frame instanceof swoole_websocket_closeframe);
                 assert($frame->opcode = WEBSOCKET_OPCODE_CLOSE);
                 assert(md5($frame->code) === $frame->reason);
                 // connection closed
@@ -37,7 +37,7 @@ $pm->parentFunc = function (int $pid) use ($pm) {
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
-    $serv = new swoole_websocket_server('127.0.0.1', $pm->getFreePort(), mt_rand(0, 1) ? SWOOLE_BASE : SWOOLE_PROCESS);
+    $serv = new swoole_websocket_server('127.0.0.1', $pm->getFreePort(), SERVER_MODE_RANDOM);
     $serv->set([
         // 'worker_num' => 1,
         'log_file' => '/dev/null'
@@ -46,7 +46,7 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
     });
     $serv->on('Message', function (swoole_websocket_server $serv, swoole_websocket_frame $frame) {
-        assert($frame instanceof swoole_websocket_close_frame);
+        assert($frame instanceof swoole_websocket_closeframe);
         assert($frame->opcode = WEBSOCKET_OPCODE_CLOSE);
         if (mt_rand(0, 1)) {
             $serv->push($frame->fd, $frame);

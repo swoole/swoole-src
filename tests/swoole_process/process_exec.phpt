@@ -9,7 +9,7 @@ if (!@file_exists('/usr/bin/python')) {
 ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 $process = new swoole_process('python_process', true);
 $pid = $process->start();
@@ -26,4 +26,3 @@ Done
 --EXPECTREGEX--
 Python: Hello World
 Done.*
---CLEAN--

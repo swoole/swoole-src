@@ -4,15 +4,14 @@ swoole_redis_coro: redis client
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/lib/curl.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid)
+$pm->parentFunc = function ($pid) use ($pm)
 {
-    echo curlGet("http://127.0.0.1:9501/");
-    echo curlGet("http://127.0.0.1:9501/");
-    echo curlGet("http://127.0.0.1:9501/");
+    echo curlGet("http://127.0.0.1:{$pm->getFreePort()}/");
+    echo curlGet("http://127.0.0.1:{$pm->getFreePort()}/");
+    echo curlGet("http://127.0.0.1:{$pm->getFreePort()}/");
     swoole_process::kill($pid);
 };
 
@@ -21,7 +20,7 @@ $pool = new SplQueue();
 
 $pm->childFunc = function () use ($pm)
 {
-    $http = new swoole_http_server("127.0.0.1", 9501, SWOOLE_BASE);
+    $http = new swoole_http_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $http->set(array(
         'log_file' => '/dev/null'
     ));
@@ -49,10 +48,10 @@ $pm->childFunc = function () use ($pm)
                 return;
             }
             $count++;
-            $pool->push($redis);
+            $pool->enqueue($redis);
         }
 
-        $redis = $pool->pop();
+        $redis = $pool->dequeue();
         $ret = $redis->set('key', 'value');
         if ($ret)
         {
@@ -62,7 +61,7 @@ $pm->childFunc = function () use ($pm)
         {
             goto fail;
         }
-        $pool->push($redis);
+        $pool->enqueue($redis);
 
     });
 

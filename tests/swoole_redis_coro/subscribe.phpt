@@ -1,33 +1,25 @@
 --TEST--
 swoole_redis_coro: redis subscribe
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc';
-?>
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/lib/curl.php';
+require __DIR__ . '/../include/bootstrap.php';
 
-use Swoole\Coroutine as co;
-
-const N = 100;
-
-co::create(function () {
-    $redis = new co\Redis();
+go(function () {
+    $redis = new Co\Redis();
     $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
-    for ($i = 0; $i < N; $i++)
-    {
+    for ($i = 0; $i < MAX_REQUESTS; $i++) {
         $val = $redis->subscribe(['test']);
         assert($val and count($val) > 1);
     }
     $redis->close();
 });
 
-co::create(function () {
-    $redis = new co\redis;
+go(function () {
+    $redis = new Co\redis;
     $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
-    for ($i = 0; $i < N; $i++)
-    {
+    for ($i = 0; $i < MAX_REQUESTS; $i++) {
         $ret = $redis->publish('test', 'hello-' . $i);
         assert($ret);
     }
@@ -35,4 +27,3 @@ co::create(function () {
 
 ?>
 --EXPECT--
-

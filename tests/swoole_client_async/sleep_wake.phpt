@@ -3,19 +3,12 @@ swoole_client_async: swoole_client sleep & sleep
 
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
-
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid)
+$pm->parentFunc = function ($pid) use ($pm)
 {
     $cli = new \swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
 
@@ -47,7 +40,7 @@ $pm->parentFunc = function ($pid)
         echo "SUCCESS";
     });
 
-    $cli->connect('127.0.0.1', 9501, 0.1);
+    $cli->connect('127.0.0.1', $pm->getFreePort(), 0.1);
     swoole_event::wait();
     swoole_process::kill($pid);
 };
@@ -60,6 +53,5 @@ $pm->childFunc = function () use ($pm)
 $pm->childFirst();
 $pm->run();
 ?>
-
 --EXPECT--
 SUCCESS

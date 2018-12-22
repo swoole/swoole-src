@@ -17,7 +17,6 @@
 #endif
 
 #include "swoole.h"
-#include "coroutine.h"
 #include "error.h"
 
 #if __linux__
@@ -27,6 +26,8 @@
 #ifdef USE_VALGRIND
 #include <valgrind/valgrind.h>
 #endif
+
+typedef void (*coroutine_func_t)(void*);
 
 namespace swoole
 {
@@ -44,7 +45,7 @@ static bool protect_stack(void *top, size_t stack_size, uint32_t page)
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_CO_PROTECT_STACK_FAILED, "getpagesize() failed.");
         return false;
     }
-
+#ifdef PROT_NONE
     void *protect_page_addr = ((size_t) top & 0xfff) ? (void*) (((size_t) top & ~(size_t) 0xfff) + 0x1000) : top;
     if (-1 == mprotect(protect_page_addr, SwooleG.pagesize * page, PROT_NONE))
     {
@@ -57,10 +58,12 @@ static bool protect_stack(void *top, size_t stack_size, uint32_t page)
         swDebug("origin_addr:%p, align_addr:%p, page_size:%d, protect_page:%u", top, protect_page_addr, page, SwooleG.pagesize);
         return true;
     }
+#endif
 }
 static bool unprotect_stack(void *top, uint32_t page)
 {
     void *protect_page_addr = ((size_t) top & 0xfff) ? (void*) (((size_t) top & ~(size_t) 0xfff) + 0x1000) : top;
+#ifdef PROT_READ
     if (-1 == mprotect(protect_page_addr, SwooleG.pagesize * page, PROT_READ | PROT_WRITE))
     {
         swSysError("mprotect() failed: origin_addr:%p, align_addr:%p, page_size:%d, protect_page:%u.", top,
@@ -72,6 +75,7 @@ static bool unprotect_stack(void *top, uint32_t page)
         swDebug("origin_addr:%p, align_addr:%p, page_size:%d, protect_page:%u.", top, protect_page_addr, page, SwooleG.pagesize);
         return true;
     }
+#endif
 }
 class Context
 {
@@ -106,4 +110,3 @@ private:
 };
 //namespace end
 }
-

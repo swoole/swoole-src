@@ -4,7 +4,7 @@ swoole_http2_client_coro: send only without recv and use sleep
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 go(function () {
     $domain = 'www.zhihu.com';
     $cli = new Swoole\Coroutine\Http2\Client($domain, 443, true);
@@ -13,7 +13,7 @@ go(function () {
         'ssl_host_name' => $domain
     ]);
     $cli->connect();
-    $req = new swoole_http2_request;
+    $req = new Swoole\Http2\Request;
     $req->path = '/';
     $req->headers = [
         'host' => $domain,

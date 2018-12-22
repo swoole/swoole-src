@@ -280,7 +280,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
         }
     }
 
-    reactor->start = 1;
+    swReactor_before_wait(reactor);
 
     while (reactor->running > 0)
     {
@@ -291,7 +291,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
         if (reactor->timeout_msec > 0)
         {
             t.tv_sec = reactor->timeout_msec / 1000;
-            t.tv_nsec = (reactor->timeout_msec - t.tv_sec * 1000) * 1000;
+            t.tv_nsec = (reactor->timeout_msec - t.tv_sec * 1000) * 1000 * 1000;
             t_ptr = &t;
         }
         else
@@ -362,19 +362,20 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
                 {
                     struct
                     {
-                        swSignalHander callback;
+                        swSignalHandler handler;
                         uint16_t signo;
                         uint16_t active;
                     } *sw_signal = object->events[i].udata;
                     if (sw_signal->active)
                     {
-                        if (sw_signal->callback)
+                        if (sw_signal->handler)
                         {
-                            sw_signal->callback(sw_signal->signo);
+                            sw_signal->handler(sw_signal->signo);
                         }
                         else
                         {
-                            swWarn("signal[%d] callback is null.", sw_signal->signo);
+                            swoole_error_log(SW_LOG_WARNING, SW_ERROR_UNREGISTERED_SIGNAL, SW_UNREGISTERED_SIGNAL_FMT,
+                                    swSignal_str(sw_signal->signo));
                         }
                     }
                 }

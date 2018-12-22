@@ -22,16 +22,17 @@
 /**
  * return the package total length
  */
-int swProtocol_get_package_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t size)
+ssize_t swProtocol_get_package_length(swProtocol *protocol, swConnection *conn, char *data, uint32_t size)
 {
     uint16_t length_offset = protocol->package_length_offset;
+    uint8_t package_length_size = protocol->get_package_length_size ? protocol->get_package_length_size(conn) : protocol->package_length_size;
     int32_t body_length;
     /**
      * no have length field, wait more data
      */
-    if (size < length_offset + protocol->package_length_size)
+    if (size < length_offset + package_length_size)
     {
-        protocol->real_header_length = length_offset + protocol->package_length_size;
+        protocol->real_header_length = length_offset + package_length_size;
         return 0;
     }
     body_length = swoole_unpack(protocol->package_length_type, data + length_offset);
@@ -55,7 +56,11 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swCon
 #endif
 
     int eof_pos;
-    if (buffer->length - buffer->offset < protocol->package_eof_len)
+    _find_eof: if (buffer->length < protocol->package_eof_len)
+    {
+        return SW_CONTINUE;
+    }
+    else if (buffer->length - buffer->offset < protocol->package_eof_len)
     {
         eof_pos = -1;
     }
@@ -91,45 +96,24 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swCon
         char *remaining_data = buffer->str + length;
         swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[5] count=%d, remaining_length=%d", count, remaining_length);
 
-        while (1)
+        if (remaining_length > 0)
         {
-            if (remaining_length < protocol->package_eof_len)
-            {
-                goto wait_more_data;
-            }
-            eof_pos = swoole_strnpos(remaining_data, remaining_length, protocol->package_eof, protocol->package_eof_len);
-            if (eof_pos < 0)
-            {
-                wait_more_data:
-                swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[1] count=%d, remaining_length=%d, length=%d", count, remaining_length, length);
-                memmove(buffer->str, remaining_data, remaining_length);
-                buffer->length = remaining_length;
-                buffer->offset = 0;
+            memmove(buffer->str, remaining_data, remaining_length);
+            buffer->length = remaining_length;
+            buffer->offset = 0;
+            goto _find_eof;
+        }
+        else
+        {
 #ifdef SW_USE_OPENSSL
-                if (conn->ssl)
-                {
-                    return SW_CONTINUE;
-                }
-                else
-#endif
-                {
-                    return SW_OK;
-                }
+            if (conn->ssl)
+            {
+                return SW_CONTINUE;
             }
             else
+#endif
             {
-                length = eof_pos + protocol->package_eof_len;
-                if (protocol->onPackage(conn, remaining_data, length) < 0)
-                {
-                    return SW_CLOSE;
-                }
-                if (conn->removed)
-                {
-                    return SW_OK;
-                }
-                swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[2] count=%d, remaining_length=%d, length=%d", count, remaining_length, length);
-                remaining_data += length;
-                remaining_length -= length;
+                return SW_OK;
             }
         }
     }
@@ -151,6 +135,7 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swCon
 int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swString *buffer)
 {
     int package_length;
+    uint8_t package_length_size = protocol->get_package_length_size ? protocol->get_package_length_size(conn) : protocol->package_length_size;
     uint32_t recv_size;
 
     if (conn->skip_recv)
@@ -170,7 +155,7 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
     }
     else
     {
-        recv_size = protocol->package_length_offset + protocol->package_length_size;
+        recv_size = protocol->package_length_offset + package_length_size;
     }
 
     int n = swConnection_recv(conn, buffer->str + buffer->length, recv_size, 0);

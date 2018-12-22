@@ -4,7 +4,7 @@ swoole_http2_client_coro: http2 error and dead wait
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 go(function () {
     $domain = 'www.zhihu.com';
     $cli = new Swoole\Coroutine\Http2\Client($domain, 443, true);
@@ -14,7 +14,7 @@ go(function () {
     ]);
     $cli->connect();
 
-    $req = new swoole_http2_request;
+    $req = new Swoole\Http2\Request;
     $req->path = '/terms/privacy';
     $req->headers = [
         'Host' => $domain,
@@ -30,7 +30,7 @@ go(function () {
     $stream_map = [];
     $responses_headers_count_map = [];
     $i = 0;
-    while (true) {
+    while ($cli->connected) {
         $response = $cli->recv(0.1); // it's for the test, you should make timeout bigger
         if ($response) {
             echo "$response->statusCode\n";

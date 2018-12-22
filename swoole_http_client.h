@@ -46,7 +46,7 @@ enum http_client_state
 
 enum http_client_error_status_code
 {
-    HTTP_CLIENT_ESTATUS_CONNECT_TIMEOUT = -1,
+    HTTP_CLIENT_ESTATUS_CONNECT_FAILED = -1,
     HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT = -2,
     HTTP_CLIENT_ESTATUS_SERVER_RESET = -3,
 };
@@ -67,108 +67,6 @@ typedef enum
 } http_client_defer_state;
 #endif
 
-typedef struct
-{
-    zval *onConnect;
-    zval *onError;
-    zval *onClose;
-    zval *onMessage;
-    zval *onResponse;
-
-    zval _object;
-    zval _request_body;
-    zval _request_header;
-    zval _request_upload_files;
-    zval _download_file;
-    zval _cookies;
-    zval _onConnect;
-    zval _onError;
-    zval _onClose;
-    zval _onMessage;
-
-    zval *cookies;
-    zval *request_header;
-    zval *request_body;
-    zval *request_upload_files;
-    zval *download_file;
-    off_t download_offset;
-    char *request_method;
-    int callback_index;
-
-    uint8_t error_flag;
-    uint8_t shutdown;
-
-#ifdef SW_COROUTINE
-    zend_bool defer; //0 normal 1 wait for receive
-    zend_bool defer_result;//0
-    zend_bool defer_chunk_status;// 0 1 now use rango http->complete
-    zend_bool send_yield;
-    http_client_defer_state defer_status;
-    int cid;
-    /**
-     * for websocket
-     */
-    swLinkedList *message_queue;
-#endif
-
-} http_client_property;
-
-typedef struct
-{
-    swClient *cli;
-    char *host;
-    zend_size_t host_len;
-    long port;
-    double timeout;
-    char* uri;
-    zend_size_t uri_len;
-
-    swTimer_node *timer;
-
-    char *tmp_header_field_name;
-    int tmp_header_field_name_len;
-
-#ifdef SW_HAVE_ZLIB
-    z_stream gzip_stream;
-    swString *gzip_buffer;
-#endif
-
-    /**
-     * download page
-     */
-    int file_fd;
-
-    swoole_http_parser parser;
-
-    zval _object;
-    zval *object;
-    swString *body;
-
-    uint8_t state;       //0 wait 1 ready 2 busy
-    uint8_t keep_alive;  //0 no 1 keep
-    uint8_t upgrade;     //if upgrade successfully
-    uint8_t gzip;
-    uint8_t chunked;     //Transfer-Encoding: chunked
-    uint8_t completed;
-    uint8_t websocket_mask;
-    uint8_t download;    //save http response to file
-    uint8_t header_completed;
-    int8_t method;
-
-} http_client;
-
-void http_client_clear_response_properties(zval *zobject TSRMLS_DC);
-int http_client_parser_on_header_field(swoole_http_parser *parser, const char *at, size_t length);
-int http_client_parser_on_header_value(swoole_http_parser *parser, const char *at, size_t length);
-int http_client_parser_on_body(swoole_http_parser *parser, const char *at, size_t length);
-int http_client_parser_on_headers_complete(swoole_http_parser *parser);
-int http_client_parser_on_message_complete(swoole_http_parser *parser);
-
-http_client* http_client_create(zval *object TSRMLS_DC);
-void http_client_clear(http_client *http);
-int http_client_check_keep(http_client *http);
-void http_client_reset(http_client *http);
-void http_client_free(zval *object TSRMLS_DC);
 
 static sw_inline void http_client_create_token(int length, char *buf)
 {
@@ -182,7 +80,7 @@ static sw_inline void http_client_create_token(int length, char *buf)
     buf[length] = '\0';
 }
 
-static sw_inline int http_client_check_data(zval *data TSRMLS_DC)
+static sw_inline int http_client_check_data(zval *data)
 {
     if (Z_TYPE_P(data) != IS_ARRAY && Z_TYPE_P(data) != IS_STRING)
     {
@@ -200,7 +98,7 @@ static sw_inline int http_client_check_data(zval *data TSRMLS_DC)
     return SW_OK;
 }
 
-static sw_inline void http_client_swString_append_headers(swString* swStr, const char* key, zend_size_t key_len, const char* data, zend_size_t data_len)
+static sw_inline void http_client_swString_append_headers(swString* swStr, const char* key, size_t key_len, const char* data, size_t data_len)
 {
     swString_append_ptr(swStr, (char *)key, key_len);
     swString_append_ptr(swStr, (char *)ZEND_STRL(": "));

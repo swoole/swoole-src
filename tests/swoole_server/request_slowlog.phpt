@@ -2,25 +2,16 @@
 swoole_server: slowlog
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
---INI--
-assert.active=1
-assert.warning=1
-assert.bail=0
-assert.quiet_eval=0
-
-
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
-//$port = get_one_free_port();
+require __DIR__ . '/../include/bootstrap.php';
 
-$port = 9501;
 $pm = new ProcessManager;
 
-$pm->parentFunc = function ($pid) use ($port, $pm)
+$pm->parentFunc = function ($pid) use ($pm)
 {
     $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC); //同步阻塞
-    if (!$client->connect('127.0.0.1', $port, 3))
+    if (!$client->connect('127.0.0.1', $pm->getFreePort(), 3))
     {
         exit("connect failed\n");
     }
@@ -30,9 +21,9 @@ $pm->parentFunc = function ($pid) use ($port, $pm)
     $pm->kill();
 };
 
-$pm->childFunc = function () use ($pm, $port)
+$pm->childFunc = function () use ($pm)
 {
-    $serv = new swoole_server("127.0.0.1", $port);
+    $serv = new swoole_server('127.0.0.1', $pm->getFreePort());
     $serv->set([
         'worker_num' => 1,
         'task_worker_num' => 1,

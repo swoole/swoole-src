@@ -4,7 +4,7 @@ swoole_coroutine: coro invoke
 <?php require  __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../../include/bootstrap.php';
+require __DIR__ . '/../../include/bootstrap.php';
 
 use Swoole\Coroutine as co;
 co::create(function() {
@@ -14,7 +14,7 @@ co::create(function() {
 });
 function foo() {
    echo "func start\n";
-   co::sleep(0.5);
+   co::sleep(.001);
    echo "func end\n";
 }
 echo "main end\n";

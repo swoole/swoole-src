@@ -18,9 +18,6 @@
 #include "server.h"
 #include "websocket.h"
 #include "connection.h"
-#include "php_swoole.h"
-
-#include <sys/time.h>
 
 /*  The following is websocket data frame:
  +-+-+-+-+-------+-+-------------+-------------------------------+
@@ -44,7 +41,7 @@
  +---------------------------------------------------------------+
  */
 
-int swWebSocket_get_package_length(swProtocol *protocol, swConnection *conn, char *buf, uint32_t length)
+ssize_t swWebSocket_get_package_length(swProtocol *protocol, swConnection *conn, char *buf, uint32_t length)
 {
     //need more data
     if (length < SW_WEBSOCKET_HEADER_LEN)
@@ -55,7 +52,7 @@ int swWebSocket_get_package_length(swProtocol *protocol, swConnection *conn, cha
     char mask = (buf[1] >> 7) & 0x1;
     //0-125
     uint64_t payload_length = buf[1] & 0x7f;
-    int header_length = SW_WEBSOCKET_HEADER_LEN;
+	ssize_t header_length = SW_WEBSOCKET_HEADER_LEN;
     buf += SW_WEBSOCKET_HEADER_LEN;
 
     //uint16_t, 2byte
@@ -139,8 +136,10 @@ void swWebSocket_encode(swString *buffer, char *data, size_t length, char opcode
             char *_mask_data = SW_WEBSOCKET_MASK_DATA;
             swString_append_ptr(buffer, _mask_data, SW_WEBSOCKET_MASK_LEN);
 
-            char *_data = buffer->str + buffer->length;
+            size_t offset = buffer->length;
+            // Warn: buffer may be extended, string pointer will change
             swString_append_ptr(buffer, data, length);
+            char *_data = buffer->str + offset;
 
             int i;
             for (i = 0; i < length; i++)
@@ -198,7 +197,7 @@ int swWebSocket_pack_close_frame(swString *buffer, int code, char* reason, size_
 {
     if (unlikely(length > SW_WEBSOCKET_CLOSE_REASON_MAX_LEN))
     {
-        swoole_php_fatal_error(E_WARNING, "the max length of close reason is %d.", SW_WEBSOCKET_CLOSE_REASON_MAX_LEN);
+        swWarn("the max length of close reason is %d.", SW_WEBSOCKET_CLOSE_REASON_MAX_LEN);
         return SW_ERR;
     }
 

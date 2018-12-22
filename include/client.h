@@ -55,7 +55,7 @@ struct _http_proxy
     char *target_host;
     int l_target_host;
     int target_port;
-    char buf[600];
+    char buf[512];
 };
 
 typedef struct _swClient

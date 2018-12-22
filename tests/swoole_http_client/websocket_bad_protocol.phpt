@@ -4,12 +4,12 @@ swoole_http_client: websocket client with bad protocol
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 const N = 128;
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid)
+$pm->parentFunc = function ($pid) use ($pm)
 {
-    $cli = new swoole_http_client('127.0.0.1', 9501);
+    $cli = new swoole_http_client('127.0.0.1', $pm->getFreePort());
     $cli->count = 0;
     $cli->on('close', function ($cli)
     {
@@ -33,7 +33,7 @@ $pm->parentFunc = function ($pid)
 
 $pm->childFunc = function () use ($pm)
 {
-    $serv = new swoole_server("127.0.0.1", 9501);
+    $serv = new swoole_server('127.0.0.1', $pm->getFreePort());
     $serv->set(['log_file' => '/dev/null']);
     $serv->on('Receive', function ($serv, $fd, $rid, $data)
     {
@@ -47,4 +47,3 @@ $pm->run();
 ?>
 --EXPECT--
 close
-

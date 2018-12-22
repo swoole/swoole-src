@@ -4,15 +4,14 @@ swoole_http_client_coro: http GET without Content-Length header
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
-require_once __DIR__ . '/../include/lib/curl.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Coroutine as co;
 
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {
     co::create(function () use ($pm) {
-        $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', 9501);
+        $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
         $cli->set([
             'timeout' => 10
         ]);
@@ -32,7 +31,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
 
 $pm->childFunc = function () use ($pm)
 {
-    $serv = new swoole_server('127.0.0.1', 9501, SWOOLE_BASE);
+    $serv = new swoole_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $serv->set(array(
         'log_file' => '/dev/null'
     ));

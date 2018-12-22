@@ -3,14 +3,11 @@ swoole_serialize: Array test
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
-if (!class_exists("swoole_serialize", false))
-{
-    echo "skip";
-}
+skip_if_class_not_exist('swoole_serialize');
 ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 function test($type, $variable, $test) {
     $serialized = swoole_serialize::pack($variable);

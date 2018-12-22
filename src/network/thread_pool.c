@@ -42,7 +42,7 @@ int swThreadPool_create(swThreadPool *pool, int thread_num)
         return SW_ERR;
     }
 #else
-    int size = SwooleG.max_sockets >= SW_THREADPOOL_QUEUE_LEN ? SwooleG.max_sockets + 1 : SW_THREADPOOL_QUEUE_LEN;
+    int size = MAX(SwooleG.max_sockets + 1, SW_THREADPOOL_QUEUE_LEN);
     if (swRingQueue_init(&pool->queue, size) < 0)
     {
         return SW_ERR;
@@ -185,4 +185,3 @@ static void* swThreadPool_loop(void *arg)
     pthread_exit(NULL);
     return NULL;
 }
-

@@ -137,7 +137,7 @@ int swConnection_buffer_send(swConnection *conn)
         return SW_OK;
     }
 
-    ret = swConnection_send(conn, chunk->store.ptr + chunk->offset, sendn, 0);
+    ret = swConnection_send(conn, (char*) chunk->store.ptr + chunk->offset, sendn, 0);
     if (ret < 0)
     {
         switch (swConnection_error(errno))
@@ -197,10 +197,12 @@ char* swConnection_get_ip(swConnection *conn)
             return tmp_address;
         }
     }
+#ifndef _WIN32
     else if (conn->socket_type == SW_SOCK_UNIX_STREAM || conn->socket_type == SW_SOCK_UNIX_DGRAM)
     {
         return conn->info.addr.un.sun_path;
     }
+#endif
     return "unknown";
 }
 

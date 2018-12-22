@@ -15,8 +15,6 @@ php:
 
 matrix:
   fast_finish: true
-#  allow_failures:
-#    - php: nightly
 
 notifications:
   email: team@swoole.com
@@ -45,6 +43,7 @@ addons:
 
 # compile
 before_script:
+  - date
   - env
   - uname -a
   - ulimit -a
@@ -53,9 +52,8 @@ before_script:
   - pwd
   - echo "`git log -20 --pretty --oneline`"
   - echo "`git log -10 --stat --pretty --oneline`"
-  - ./travis/pecl.sh
-  - ./travis/compile.sh
-  - cat ~/.phpenv/versions/$(phpenv version-name)/etc/php.ini
+  - ./travis/pecl-install.sh
+  - ./travis/simple-compile.sh
   - php --ri swoole
 
 script:

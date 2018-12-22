@@ -4,7 +4,7 @@ swoole_coroutine_channel: push with sleep
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 $chan = new chan(1);
 
 go(function () use ($chan) {
@@ -36,9 +36,6 @@ swoole_event_wait();
 --EXPECT--
 coro1 start
 coro2 start
-coro2 end
-coro3 start
-master end
 array(3) {
   [0]=>
   int(2)
@@ -47,7 +44,9 @@ array(3) {
   [2]=>
   int(2)
 }
-coro3 end
+coro2 end
+coro3 start
 string(10) "hello word"
 pop over!
-
+coro3 end
+master end

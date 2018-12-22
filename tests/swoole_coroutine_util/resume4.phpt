@@ -4,13 +4,13 @@ swoole_coroutine_util: user yield and resume4
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Coroutine as co;
 co::yield();
 $id = go(function(){
     $id = co::getUid();
-    echo "start coro $id\n";    
+    echo "start coro $id\n";
     co::yield();
     echo "resume coro $id\n";
 });

@@ -25,14 +25,22 @@ typedef struct
     uint8_t reload_all_worker;
     uint8_t reload_task_worker;
     uint8_t read_message;
-    uint8_t alarm;
 
 } swManagerProcess;
 
 static int swManager_loop(swFactory *factory);
-static void swManager_signal_handle(int sig);
+static void swManager_signal_handler(int sig);
 static pid_t swManager_spawn_worker(swFactory *factory, int worker_id);
 static void swManager_check_exit_status(swServer *serv, int worker_id, pid_t pid, int status);
+
+static void swManager_onTimer(swTimer *timer, swTimer_node *tnode)
+{
+    swServer *serv = (swServer *) tnode->data;
+    if (serv->hooks[SW_SERVER_HOOK_MANAGER_TIMER])
+    {
+        swServer_call_hook(serv, SW_SERVER_HOOK_MANAGER_TIMER, serv);
+    }
+}
 
 static swManagerProcess ManagerProcess;
 
@@ -51,7 +59,6 @@ int swManager_start(swFactory *factory)
         return SW_ERR;
     }
 
-    //worker进程的pipes
     for (i = 0; i < serv->worker_num; i++)
     {
         if (swPipeUnsock_create(&object->pipes[i], 1, SOCK_DGRAM) < 0)
@@ -70,21 +77,19 @@ int swManager_start(swFactory *factory)
         {
             return SW_ERR;
         }
-
-        swProcessPool *pool = &serv->gs->task_workers;
-        swTaskWorker_init(pool);
+        swTaskWorker_init(serv);
 
         swWorker *worker;
         for (i = 0; i < serv->task_worker_num; i++)
         {
-            worker = &pool->workers[i];
-            if (swWorker_create(worker) < 0)
+            worker = &serv->gs->task_workers.workers[i];
+            if (swServer_worker_create(serv, worker) < 0)
             {
                 return SW_ERR;
             }
             if (serv->task_ipc_mode == SW_TASK_IPC_UNIXSOCK)
             {
-                swServer_store_pipe_fd(SwooleG.serv, worker->pipe_object);
+                swServer_store_pipe_fd(serv, worker->pipe_object);
             }
         }
     }
@@ -103,7 +108,7 @@ int swManager_start(swFactory *factory)
         LL_FOREACH(serv->user_worker_list, user_worker)
         {
             memcpy(&serv->user_workers[i], user_worker->worker, sizeof(swWorker));
-            if (swWorker_create(&serv->user_workers[i]) < 0)
+            if (swServer_worker_create(serv, &serv->user_workers[i]) < 0)
             {
                 return SW_ERR;
             }
@@ -128,8 +133,7 @@ int swManager_start(swFactory *factory)
         {
             return SW_OK;
         }
-        swServer_close_listen_port(serv);
-
+        swServer_close_port(serv, SW_TRUE);
         /**
          * create task worker process
          */
@@ -142,7 +146,6 @@ int swManager_start(swFactory *factory)
          */
         for (i = 0; i < serv->worker_num; i++)
         {
-            //close(worker_pipes[i].pipes[0]);
             pid = swManager_spawn_worker(factory, i);
             if (pid < 0)
             {
@@ -193,7 +196,11 @@ static void swManager_check_exit_status(swServer *serv, int worker_id, pid_t pid
 {
     if (status != 0)
     {
-        swWarn("worker#%d abnormal exit, status=%d, signal=%d", worker_id, WEXITSTATUS(status), WTERMSIG(status));
+        swWarn(
+            "worker#%d abnormal exit, status=%d, signal=%d" "%s",
+            worker_id, WEXITSTATUS(status), WTERMSIG(status),
+            WTERMSIG(status) == SIGSEGV ? "\n" SWOOLE_BUG_REPORT : ""
+        );
         if (serv->onWorkerError != NULL)
         {
             serv->onWorkerError(serv, worker_id, pid, WEXITSTATUS(status), WTERMSIG(status));
@@ -213,6 +220,8 @@ static int swManager_loop(swFactory *factory)
     int status;
 
     SwooleG.use_signalfd = 0;
+    SwooleG.main_reactor = NULL;
+    SwooleG.enable_coroutine = 0;
 
     memset(&ManagerProcess, 0, sizeof(ManagerProcess));
 
@@ -239,22 +248,19 @@ static int swManager_loop(swFactory *factory)
 
     //for reload
     swSignal_add(SIGHUP, NULL);
-    swSignal_add(SIGTERM, swManager_signal_handle);
-    swSignal_add(SIGUSR1, swManager_signal_handle);
-    swSignal_add(SIGUSR2, swManager_signal_handle);
-    swSignal_add(SIGIO, swManager_signal_handle);
+    swSignal_add(SIGTERM, swManager_signal_handler);
+    swSignal_add(SIGUSR1, swManager_signal_handler);
+    swSignal_add(SIGUSR2, swManager_signal_handler);
+    swSignal_add(SIGIO, swManager_signal_handler);
 #ifdef SIGRTMIN
-    swSignal_add(SIGRTMIN, swManager_signal_handle);
+    swSignal_add(SIGRTMIN, swManager_signal_handler);
 #endif
-    //swSignal_add(SIGINT, swManager_signal_handle);
+    //swSignal_add(SIGINT, swManager_signal_handler);
 
     if (serv->manager_alarm > 0)
     {
-        alarm(serv->manager_alarm);
-        swSignal_add(SIGALRM, swManager_signal_handle);
+        swTimer_add(&SwooleG.timer, serv->manager_alarm * 1000, 1, serv, swManager_onTimer);
     }
-
-    SwooleG.main_reactor = NULL;
 
     while (SwooleG.running > 0)
     {
@@ -269,28 +275,30 @@ static int swManager_loop(swFactory *factory)
                 {
                     continue;
                 }
-                pid_t new_pid = swManager_spawn_worker(factory, msg.worker_id);
-                if (new_pid > 0)
+                if (msg.worker_id >= serv->worker_num)
                 {
-                    serv->workers[msg.worker_id].pid = new_pid;
+                    swManager_spawn_task_worker(serv, swServer_get_worker(serv, msg.worker_id));
+                }
+                else
+                {
+                    pid_t new_pid = swManager_spawn_worker(factory, msg.worker_id);
+                    if (new_pid > 0)
+                    {
+                        serv->workers[msg.worker_id].pid = new_pid;
+                    }
                 }
             }
             ManagerProcess.read_message = 0;
         }
 
+        if (SwooleG.signal_alarm == 1)
+        {
+            SwooleG.signal_alarm = 0;
+            swTimer_select(&SwooleG.timer);
+        }
+
         if (pid < 0)
         {
-            if (ManagerProcess.alarm == 1)
-            {
-                ManagerProcess.alarm = 0;
-                alarm(serv->manager_alarm);
-
-                if (serv->hooks[SW_SERVER_HOOK_MANAGER_TIMER])
-                {
-                    swServer_call_hook(serv, SW_SERVER_HOOK_MANAGER_TIMER, serv);
-                }
-            }
-
             if (ManagerProcess.reloading == 0)
             {
                 error: if (errno != EINTR)
@@ -302,7 +310,7 @@ static int swManager_loop(swFactory *factory)
             //reload task & event workers
             else if (ManagerProcess.reload_all_worker == 1)
             {
-                swNotice("Server is reloading now.");
+                swNotice("Server is reloading all workers now.");
                 if (reload_init == 0)
                 {
                     reload_init = 1;
@@ -343,7 +351,7 @@ static int swManager_loop(swFactory *factory)
                     swWarn("cannot reload task workers, task workers is not started.");
                     continue;
                 }
-                swNotice("Server is reloading now.");
+                swNotice("Server is reloading task workers now.");
                 if (reload_init == 0)
                 {
                     memcpy(reload_workers, serv->gs->task_workers.workers, sizeof(swWorker) * serv->task_worker_num);
@@ -410,13 +418,13 @@ static int swManager_loop(swFactory *factory)
                         goto _wait;
                     }
                     swManager_check_exit_status(serv, exit_worker->id, pid, status);
-                    swProcessPool_spawn(&serv->gs->task_workers, exit_worker);
+                    swManager_spawn_task_worker(serv, exit_worker);
                 }
             }
             //user process
             if (serv->user_worker_map != NULL)
             {
-                swManager_wait_user_worker(&serv->gs->event_workers, pid, status);
+                swManager_wait_other_worker(&serv->gs->event_workers, pid, status);
             }
             if (pid == reload_worker_pid)
             {
@@ -506,7 +514,7 @@ static pid_t swManager_spawn_worker(swFactory *factory, int worker_id)
     }
 }
 
-static void swManager_signal_handle(int sig)
+static void swManager_signal_handler(int sig)
 {
     switch (sig)
     {
@@ -537,7 +545,7 @@ static void swManager_signal_handle(int sig)
         ManagerProcess.read_message = 1;
         break;
     case SIGALRM:
-        ManagerProcess.alarm = 1;
+        SwooleG.signal_alarm = 1;
         break;
     default:
 #ifdef SIGRTMIN
@@ -550,19 +558,32 @@ static void swManager_signal_handle(int sig)
     }
 }
 
-int swManager_wait_user_worker(swProcessPool *pool, pid_t pid, int status)
+int swManager_wait_other_worker(swProcessPool *pool, pid_t pid, int status)
 {
-    swServer *serv = SwooleG.serv;
-    swWorker *exit_worker = swHashMap_find_int(serv->user_worker_map, pid);
-    if (exit_worker != NULL)
+    swServer *serv = (swServer *) pool->ptr;
+    swWorker *exit_worker;
+
+    if (serv->gs->task_workers.map)
     {
-        swManager_check_exit_status(serv, exit_worker->id, pid, status);
-        return swManager_spawn_user_worker(serv, exit_worker);
+        exit_worker = swHashMap_find_int(serv->gs->task_workers.map, pid);
+        if (exit_worker)
+        {
+            swManager_check_exit_status(serv, exit_worker->id, pid, status);
+            return swManager_spawn_task_worker(serv, exit_worker);
+        }
     }
-    else
+
+    if (serv->user_worker_map)
     {
-        return SW_ERR;
+        exit_worker = swHashMap_find_int(serv->user_worker_map, pid);
+        if (exit_worker != NULL)
+        {
+            swManager_check_exit_status(serv, exit_worker->id, pid, status);
+            return swManager_spawn_user_worker(serv, exit_worker);
+        }
     }
+
+    return SW_ERR;
 }
 
 void swManager_kill_user_worker(swServer *serv)
@@ -603,6 +624,11 @@ void swManager_kill_user_worker(swServer *serv)
     }
 }
 
+pid_t swManager_spawn_task_worker(swServer *serv, swWorker* worker)
+{
+    return swProcessPool_spawn(&serv->gs->task_workers, worker);
+}
+
 pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker)
 {
     pid_t pid = fork();
@@ -620,7 +646,7 @@ pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker)
         SwooleWG.id = worker->id;
         worker->pid = getpid();
         //close tcp listen socket
-        if (serv->factory_mode == SW_MODE_SINGLE)
+        if (serv->factory_mode == SW_MODE_BASE)
         {
             swServer_close_port(serv, SW_TRUE);
         }
@@ -634,7 +660,11 @@ pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker)
         {
             swHashMap_del_int(serv->user_worker_map, worker->pid);
         }
-        worker->pid = pid;
+        /**
+         * worker: local memory
+         * serv->user_workers: shared memory
+         */
+        swServer_get_worker(serv, worker->id)->pid = worker->pid = pid;
         swHashMap_add_int(serv->user_worker_map, pid, worker);
         return pid;
     }

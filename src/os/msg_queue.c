@@ -15,6 +15,8 @@
 */
 
 #include "swoole.h"
+
+#ifndef _WIN32
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
@@ -125,3 +127,21 @@ int swMsgQueue_stat(swMsgQueue *q, int *queue_num, int *queue_bytes)
         return -1;
     }
 }
+
+int swMsgQueue_set_capacity(swMsgQueue *q, int queue_bytes)
+{
+    struct msqid_ds __stat;
+    if (msgctl(q->msg_id, IPC_STAT, &__stat) != 0)
+    {
+        return -1;
+    }
+    __stat.msg_qbytes = queue_bytes;
+    if (msgctl(q->msg_id, IPC_SET, &__stat))
+    {
+        swSysError("msgctl(msqid=%d, IPC_SET, msg_qbytes=%d) failed.", q->msg_id, queue_bytes);
+        return -1;
+    }
+    return 0;
+}
+
+#endif

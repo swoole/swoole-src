@@ -11,7 +11,7 @@ foreach(range(1, 100) as $i) {
     });
 }
 
-go(function () use ($cid) {
+go(function () {
     while(true) {
         co::sleep(3);
         $coros = Co::listCoroutines();

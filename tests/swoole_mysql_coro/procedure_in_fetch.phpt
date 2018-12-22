@@ -4,7 +4,7 @@ swoole_mysql_coro: procedure in fetch mode
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require_once __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 go(function () {
     $db = new Swoole\Coroutine\Mysql;
     $server = [
@@ -52,7 +52,7 @@ SQL;
         assert(empty($_map), 'there are some results lost!');
 
         //PDO
-        !extension_loaded('PDO') && exit;
+        !extension_loaded('PDO') && exit("DONE\n");
         $_map = $map;
         try {
             $pdo = new PDO(
@@ -71,7 +71,9 @@ SQL;
         } catch (\PDOException $e) {
             assert($e->getCode() === 2054); // not support auth plugin
         }
+        echo "DONE\n";
     }
 });
 ?>
 --EXPECT--
+DONE
