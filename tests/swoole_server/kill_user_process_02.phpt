@@ -27,7 +27,7 @@ $pm->childFunc = function () use ($pm)
 //    $serv->set(
 //        ['log_file' => TEST_LOG_FILE,]
 //    );
-    $process2 = new swoole_process(function ($worker) use ($serv) {
+    $process2 = new swoole_process(function ($worker) use ($serv, $pm) {
         global $argv;
         swoole_set_process_name(WORKER_PROC_NAME);
         swoole_process::signal(SIGTERM, function () {
