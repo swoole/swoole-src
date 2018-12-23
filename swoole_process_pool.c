@@ -275,10 +275,10 @@ static PHP_METHOD(swoole_process_pool, on)
         RETURN_FALSE;
     }
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &name, &l_name, &callback) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_STRING(name, l_name)
+        Z_PARAM_ZVAL(callback)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (!php_swoole_is_callable(callback))
     {
@@ -347,10 +347,12 @@ static PHP_METHOD(swoole_process_pool, listen)
         RETURN_FALSE;
     }
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|ll", &host, &l_host, &port, &backlog) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 3)
+        Z_PARAM_STRING(host, l_host)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(port)
+        Z_PARAM_LONG(backlog)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (pool->ipc_mode != SW_IPC_SOCKET)
     {
@@ -377,10 +379,9 @@ static PHP_METHOD(swoole_process_pool, write)
     char *data;
     size_t length;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &data, &length) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_STRING(data, length)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     swProcessPool *pool = swoole_get_object(getThis());
     if (pool->ipc_mode != SW_IPC_SOCKET)

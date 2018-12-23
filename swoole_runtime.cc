@@ -1081,10 +1081,11 @@ static PHP_METHOD(swoole_runtime, enableCoroutine)
     zend_bool enable = 1;
     zend_long flags = SW_HOOK_ALL;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|bl", &enable, &flags) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(0, 2)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_BOOL(enable)
+        Z_PARAM_LONG(flags)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (enable)
     {
@@ -1107,10 +1108,9 @@ static PHP_METHOD(swoole_runtime, enableCoroutine)
 static PHP_FUNCTION(_sleep)
 {
     zend_long num;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &num) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_LONG(num)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     if (num < 0)
     {
         php_error_docref(NULL, E_WARNING, "Number of seconds must be greater than or equal to 0");
@@ -1131,10 +1131,9 @@ static PHP_FUNCTION(_sleep)
 static PHP_FUNCTION(_usleep)
 {
     zend_long num;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &num) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_LONG(num)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     if (num < 0)
     {
         php_error_docref(NULL, E_WARNING, "Number of seconds must be greater than or equal to 0");
@@ -1156,10 +1155,10 @@ static PHP_FUNCTION(_usleep)
 static PHP_FUNCTION(_time_nanosleep)
 {
     zend_long tv_sec, tv_nsec;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "ll", &tv_sec, &tv_nsec) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_LONG(tv_sec)
+        Z_PARAM_LONG(tv_nsec)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (tv_sec < 0)
     {
@@ -1206,10 +1205,9 @@ static PHP_FUNCTION(_time_sleep_until)
     struct timeval tm;
     struct timespec php_req, php_rem;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "d", &d_ts) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_DOUBLE(d_ts)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (gettimeofday((struct timeval *) &tm, NULL) != 0)
     {

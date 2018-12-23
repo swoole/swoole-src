@@ -341,10 +341,10 @@ static PHP_METHOD(swoole_process, wait)
     int status;
     zend_bool blocking = 1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|b", &blocking) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_BOOL(blocking)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     int options = 0;
     if (!blocking)
@@ -372,10 +372,12 @@ static PHP_METHOD(swoole_process, useQueue)
     long mode = 2;
     long capacity = -1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|lll", &msgkey, &mode, &capacity) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(0, 3)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(msgkey)
+        Z_PARAM_LONG(mode)
+        Z_PARAM_LONG(capacity)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     swWorker *process = (swWorker *) swoole_get_object(getThis());
 
@@ -448,10 +450,11 @@ static PHP_METHOD(swoole_process, kill)
     long pid;
     long sig = SIGTERM;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|l", &pid, &sig) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_LONG(pid)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(sig)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     int ret = kill((int) pid, (int) sig);
     if (ret < 0)
@@ -470,10 +473,10 @@ static PHP_METHOD(swoole_process, signal)
     zval *callback = NULL;
     long signo = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "lz", &signo, &callback) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_LONG(signo)
+        Z_PARAM_ZVAL(callback)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (!SWOOLE_G(cli))
     {
@@ -565,10 +568,11 @@ static PHP_METHOD(swoole_process, alarm)
     long usec = 0;
     long type = ITIMER_REAL;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|l", &usec, &type) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_LONG(usec)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(type)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (!SWOOLE_G(cli))
     {
@@ -817,10 +821,10 @@ static PHP_METHOD(swoole_process, read)
 {
     long buf_size = 8192;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &buf_size) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(buf_size)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (buf_size > 65536)
     {
@@ -856,10 +860,9 @@ static PHP_METHOD(swoole_process, write)
     char *data = NULL;
     size_t data_len = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &data, &data_len) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_STRING(data, data_len)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (data_len < 1)
     {
@@ -913,10 +916,9 @@ static PHP_METHOD(swoole_process, push)
         char data[SW_MSGMAX];
     } message;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &data, &length) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_STRING(data, length)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (length <= 0)
     {
@@ -951,10 +953,10 @@ static PHP_METHOD(swoole_process, pop)
 {
     long maxsize = SW_MSGMAX;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &maxsize) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(maxsize)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (maxsize > SW_MSGMAX || maxsize <= 0)
     {
@@ -997,10 +999,10 @@ static PHP_METHOD(swoole_process, exec)
     size_t execfile_len = 0;
     zval *args;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sa", &execfile, &execfile_len, &args) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_STRING(execfile, execfile_len)
+        Z_PARAM_ARRAY(args)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (execfile_len < 1)
     {
@@ -1039,10 +1041,11 @@ static PHP_METHOD(swoole_process, daemon)
     zend_bool nochdir = 1;
     zend_bool noclose = 1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|bb", &nochdir, &noclose) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(0, 2)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_BOOL(nochdir)
+        Z_PARAM_BOOL(noclose)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     RETURN_BOOL(daemon(nochdir, noclose) == 0);
 }
 
@@ -1050,10 +1053,9 @@ static PHP_METHOD(swoole_process, daemon)
 static PHP_METHOD(swoole_process, setaffinity)
 {
     zval *array;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "a", &array) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ARRAY(array)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     if (php_swoole_array_length(array) == 0)
     {
         RETURN_FALSE;
@@ -1096,10 +1098,10 @@ static PHP_METHOD(swoole_process, exit)
 {
     long ret_code = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &ret_code) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(ret_code)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     swWorker *process = (swWorker *) swoole_get_object(getThis());
 
@@ -1132,10 +1134,10 @@ static PHP_METHOD(swoole_process, exit)
 static PHP_METHOD(swoole_process, close)
 {
     long which = 0;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &which) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(which)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     swWorker *process = (swWorker *) swoole_get_object(getThis());
     if (process->pipe == 0)
@@ -1174,10 +1176,9 @@ static PHP_METHOD(swoole_process, close)
 static PHP_METHOD(swoole_process, setTimeout)
 {
     double seconds;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "d", &seconds) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_DOUBLE(seconds)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     swWorker *process = (swWorker *) swoole_get_object(getThis());
     if (process->pipe == 0)
@@ -1191,10 +1192,9 @@ static PHP_METHOD(swoole_process, setTimeout)
 static PHP_METHOD(swoole_process, setBlocking)
 {
     zend_bool blocking;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "b", &blocking) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_BOOL(blocking)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     swWorker *process = (swWorker *) swoole_get_object(getThis());
     if (process->pipe == 0)

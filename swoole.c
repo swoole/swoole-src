@@ -1148,10 +1148,11 @@ PHP_FUNCTION(swoole_strerror)
     char error_msg[256] = {0};
     long error_type = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|l", &swoole_errno, &error_type) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_LONG(swoole_errno)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(error_type)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     if (error_type == 1)
     {
         snprintf(error_msg, sizeof(error_msg) - 1, "%s", gai_strerror(swoole_errno));
@@ -1174,11 +1175,10 @@ PHP_FUNCTION(swoole_strerror)
 PHP_FUNCTION(swoole_get_mime_type)
 {
     char *filename;
-    zend_long filename_len;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &filename, &filename_len) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    size_t filename_len;
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_STRING(filename, filename_len)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     RETURN_STRING(swoole_get_mime_type(filename));
 }
 
@@ -1197,10 +1197,11 @@ PHP_FUNCTION(swoole_set_process_name)
     zval *name;
     long size = 128;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|l", &name, &size) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_ZVAL(name)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(size)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (Z_STRLEN_P(name) == 0)
     {

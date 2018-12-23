@@ -2440,10 +2440,10 @@ static PHP_METHOD(swoole_mysql, connect)
     zval *callback;
     char buf[2048];
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "az", &server_info, &callback) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_ARRAY(server_info)
+        Z_PARAM_ZVAL(callback)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     mysql_client *client = swoole_get_object(getThis());
     if (client->cli)
@@ -2632,10 +2632,10 @@ static PHP_METHOD(swoole_mysql, query)
     swString sql;
     bzero(&sql, sizeof(sql));
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &sql.str, &sql.length, &callback) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_STRING(sql.str, sql.length)
+        Z_PARAM_ZVAL(callback)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (!php_swoole_is_callable(callback))
     {
@@ -2661,10 +2661,9 @@ static PHP_METHOD(swoole_mysql, query)
 static PHP_METHOD(swoole_mysql, begin)
 {
     zval *callback;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &callback) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ZVAL(callback)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (!php_swoole_is_callable(callback))
     {
@@ -2700,10 +2699,9 @@ static PHP_METHOD(swoole_mysql, begin)
 static PHP_METHOD(swoole_mysql, commit)
 {
     zval *callback;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &callback) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ZVAL(callback)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (!php_swoole_is_callable(callback))
     {
@@ -2739,10 +2737,9 @@ static PHP_METHOD(swoole_mysql, commit)
 static PHP_METHOD(swoole_mysql, rollback)
 {
     zval *callback;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &callback) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ZVAL(callback)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (!php_swoole_is_callable(callback))
     {
@@ -2867,10 +2864,10 @@ static PHP_METHOD(swoole_mysql, on)
     size_t len;
     zval *cb;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &name, &len, &cb) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_STRING(name, len)
+        Z_PARAM_ZVAL(cb)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     mysql_client *client = swoole_get_object(getThis());
     if (!client)
@@ -3344,10 +3341,11 @@ static PHP_METHOD(swoole_mysql, escape)
     bzero(&str, sizeof(str));
     long flags;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|l", &str.str, &str.length, &flags) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_STRING(str.str, str.length)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(flags)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (str.length <= 0)
     {

@@ -286,10 +286,11 @@ PHP_METHOD(swoole_table, __construct)
     long table_size;
     double conflict_proportion = SW_TABLE_CONFLICT_PROPORTION;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|d", &table_size, &conflict_proportion) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_LONG(table_size)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_DOUBLE(conflict_proportion)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     swTable *table = swTable_new(table_size, conflict_proportion);
     if (table == NULL)
@@ -307,10 +308,12 @@ PHP_METHOD(swoole_table, column)
     long type;
     long size = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sl|l", &name, &len, &type, &size) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 3)
+        Z_PARAM_STRING(name, len)
+        Z_PARAM_LONG(type)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(size)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     if (type == SW_TABLE_STRING && size < 1)
     {
         swoole_php_fatal_error(E_WARNING, "the length of string type values has to be more than zero.");
@@ -368,10 +371,10 @@ static PHP_METHOD(swoole_table, set)
     char *key;
     size_t keylen;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sa", &key, &keylen, &array) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_STRING(key, keylen)
+        Z_PARAM_ARRAY(array)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     swTable *table = swoole_get_object(getThis());
     if (!table->memory)
@@ -438,10 +441,12 @@ static PHP_METHOD(swoole_table, incr)
     size_t col_len;
     zval* incrby = NULL;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "ss|z", &key, &key_len, &col, &col_len, &incrby) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 3)
+        Z_PARAM_STRING(key, key_len)
+        Z_PARAM_STRING(col, col_len)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_ZVAL(incrby)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     swTableRow *_rowlock = NULL;
     swTable *table = swoole_get_object(getThis());
@@ -516,10 +521,12 @@ static PHP_METHOD(swoole_table, decr)
     size_t col_len;
     zval *decrby = NULL;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "ss|z", &key, &key_len, &col, &col_len, &decrby) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 3)
+        Z_PARAM_STRING(key, key_len)
+        Z_PARAM_STRING(col, col_len)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_ZVAL(decrby)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     swTableRow *_rowlock = NULL;
     swTable *table = swoole_get_object(getThis());
@@ -594,10 +601,11 @@ static PHP_METHOD(swoole_table, get)
     char *field = NULL;
     size_t field_len = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|s", &key, &keylen, &field, &field_len) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_STRING(key, keylen)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_STRING(field, field_len)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     swTableRow *_rowlock = NULL;
     swTable *table = swoole_get_object(getThis());
@@ -631,10 +639,11 @@ static PHP_METHOD(swoole_table, offsetGet)
     char *field = NULL;
     size_t field_len = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|s", &key, &keylen, &field, &field_len) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_STRING(key, keylen)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_STRING(field, field_len)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     swTableRow *_rowlock = NULL;
     swTable *table = swoole_get_object(getThis());
@@ -670,10 +679,9 @@ static PHP_METHOD(swoole_table, exist)
     char *key;
     size_t keylen;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &key, &keylen) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_STRING(key, keylen)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     swTable *table = swoole_get_object(getThis());
     if (!table->memory)
@@ -705,10 +713,9 @@ static PHP_METHOD(swoole_table, del)
     char *key;
     size_t keylen;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &key, &keylen) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_STRING(key, keylen)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     swTable *table = swoole_get_object(getThis());
     if (!table->memory)
@@ -731,10 +738,10 @@ static PHP_METHOD(swoole_table, count)
 
     long mode = COUNT_NORMAL;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &mode) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(mode)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     swTable *table = swoole_get_object(getThis());
     if (!table->memory)
@@ -834,10 +841,9 @@ static PHP_METHOD(swoole_table_row, offsetExists)
     char *key;
     size_t keylen;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &key, &keylen) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_STRING(key, keylen)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     zval *zprop_value = sw_zend_read_property(swoole_table_row_ce_ptr, getThis(), ZEND_STRL("value"), 0);
     RETURN_BOOL(zend_hash_str_exists(Z_ARRVAL_P(zprop_value), key, keylen));
@@ -848,10 +854,9 @@ static PHP_METHOD(swoole_table_row, offsetGet)
     char *key;
     size_t keylen;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &key, &keylen) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_STRING(key, keylen)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     zval *zprop_value = sw_zend_read_property(swoole_table_row_ce_ptr, getThis(), ZEND_STRL("value"), 0);
     zval *retval = NULL;
@@ -868,10 +873,10 @@ static PHP_METHOD(swoole_table_row, offsetSet)
     char *key;
     size_t keylen;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &key, &keylen, &value) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_STRING(key, keylen)
+        Z_PARAM_ZVAL(value)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     swTable *table = swoole_get_object(getThis());
     if (table == NULL || table->memory == NULL)

@@ -73,10 +73,11 @@ static PHP_METHOD(swoole_msgqueue, __construct)
     long key;
     long perms = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|l", &key, &perms) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_LONG(key)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(perms)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     swMsgQueue *queue = emalloc(sizeof(swMsgQueue));
     if (queue == NULL)
@@ -107,10 +108,11 @@ static PHP_METHOD(swoole_msgqueue, push)
     size_t length;
     long type = 1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|l", &data, &length, &type) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_STRING(data, length)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(type)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     swQueue_data *in = (swQueue_data *) emalloc(length + sizeof(long) + 1);
     in->mtype = type;
@@ -127,10 +129,10 @@ static PHP_METHOD(swoole_msgqueue, pop)
     long type = 1;
     swQueue_data out;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &type) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(type)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     swMsgQueue *queue = swoole_get_object(getThis());
     out.mtype = type;
@@ -147,10 +149,9 @@ static PHP_METHOD(swoole_msgqueue, setBlocking)
     swMsgQueue *queue = swoole_get_object(getThis());
     zend_bool blocking;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "b", &blocking) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_BOOL(blocking)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     swMsgQueue_set_blocking(queue, blocking);
 }
 

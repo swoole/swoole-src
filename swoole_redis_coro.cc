@@ -1213,10 +1213,9 @@ static inline void sw_redis_command_key(INTERNAL_FUNCTION_PARAMETERS, const char
 {
     char *key;
     size_t key_len;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &key, &key_len) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_STRING(key, key_len)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     SW_REDIS_COMMAND_CHECK
     int i = 0;
     size_t argvlen[2];
@@ -1265,10 +1264,11 @@ static sw_inline void sw_redis_command_key_long_val(INTERNAL_FUNCTION_PARAMETERS
     size_t key_len;
     long l_val;
     zval *z_value;
-    if(zend_parse_parameters(ZEND_NUM_ARGS(), "slz", &key, &key_len, &l_val, &z_value) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(3, 3)
+        Z_PARAM_STRING(key, key_len)
+        Z_PARAM_LONG(l_val)
+        Z_PARAM_ZVAL(z_value)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     SW_REDIS_COMMAND_CHECK
     int i = 0;
     size_t argvlen[4];
@@ -1288,10 +1288,11 @@ static sw_inline void sw_redis_command_key_long_str(INTERNAL_FUNCTION_PARAMETERS
     char *key, *val;
     size_t key_len, val_len;
     long l_val;
-    if(zend_parse_parameters(ZEND_NUM_ARGS(), "sls", &key, &key_len, &l_val, &val, &val_len)==FAILURE)
-    {
-        return;
-    }
+    ZEND_PARSE_PARAMETERS_START(3, 3)
+        Z_PARAM_STRING(key, key_len)
+        Z_PARAM_LONG(l_val)
+        Z_PARAM_STRING(val, val_len)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     SW_REDIS_COMMAND_CHECK
     int i = 0;
     size_t argvlen[4];
@@ -1311,10 +1312,10 @@ static sw_inline void sw_redis_command_key_long(INTERNAL_FUNCTION_PARAMETERS, co
     char *key;
     size_t key_len;
     long l_val;
-    if(zend_parse_parameters(ZEND_NUM_ARGS(), "sl", &key, &key_len, &l_val)==FAILURE)
-    {
-        return;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_STRING(key, key_len)
+        Z_PARAM_LONG(l_val)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     SW_REDIS_COMMAND_CHECK
     int i = 0;
     size_t argvlen[3];
@@ -1333,10 +1334,11 @@ static sw_inline void sw_redis_command_key_long_long(INTERNAL_FUNCTION_PARAMETER
     char *key;
     size_t key_len;
     long l1_val, l2_val;
-    if(zend_parse_parameters(ZEND_NUM_ARGS(), "sll", &key, &key_len, &l1_val, &l2_val)==FAILURE)
-    {
-        return;
-    }
+    ZEND_PARSE_PARAMETERS_START(3, 3)
+        Z_PARAM_STRING(key, key_len)
+        Z_PARAM_LONG(l1_val)
+        Z_PARAM_LONG(l2_val)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     SW_REDIS_COMMAND_CHECK
     int i = 0;
     size_t argvlen[4];
@@ -1357,10 +1359,10 @@ static sw_inline void sw_redis_command_key_dbl(INTERNAL_FUNCTION_PARAMETERS, con
     char *key;
     size_t key_len;
     double d_val;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sd", &key, &key_len, &d_val) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_STRING(key, key_len)
+        Z_PARAM_DOUBLE(d_val)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     SW_REDIS_COMMAND_CHECK
     int i =0;
     size_t argvlen[3];
@@ -1378,10 +1380,10 @@ static sw_inline void sw_redis_command_key_key(INTERNAL_FUNCTION_PARAMETERS, con
 {
     char *key1, *key2;
     size_t key1_len, key2_len;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "ss", &key1, &key1_len, &key2, &key2_len) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_STRING(key1, key1_len)
+        Z_PARAM_STRING(key2, key2_len)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     SW_REDIS_COMMAND_CHECK
     int i =0;
     size_t argvlen[3];
@@ -1398,10 +1400,10 @@ static sw_inline void sw_redis_command_key_val(INTERNAL_FUNCTION_PARAMETERS, con
     char *key;
     size_t key_len;
     zval *z_value;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &key, &key_len, &z_value) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_STRING(key, key_len)
+        Z_PARAM_ZVAL(z_value)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     SW_REDIS_COMMAND_CHECK
     int i =0;
     size_t argvlen[3];
@@ -1416,10 +1418,10 @@ static sw_inline void sw_redis_command_key_str(INTERNAL_FUNCTION_PARAMETERS, con
 {
     char *key, *val;
     size_t key_len, val_len;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "ss", &key, &key_len, &val, &val_len) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_STRING(key, key_len)
+        Z_PARAM_STRING(val, val_len)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     SW_REDIS_COMMAND_CHECK
     int i =0;
     size_t argvlen[3];
@@ -1434,10 +1436,11 @@ static sw_inline void sw_redis_command_key_str_str(INTERNAL_FUNCTION_PARAMETERS,
 {
     char *key, *val1, *val2;
     size_t key_len, val1_len, val2_len;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sss", &key, &key_len, &val1, &val1_len, &val2, &val2_len) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(3, 3)
+        Z_PARAM_STRING(key, key_len)
+        Z_PARAM_STRING(val1, val1_len)
+        Z_PARAM_STRING(val2, val2_len)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     SW_REDIS_COMMAND_CHECK
     int i =0;
     size_t argvlen[4];
@@ -1837,10 +1840,10 @@ static void swoole_redis_coro_set_options(swRedisClient *redis, zval* zoptions, 
 static PHP_METHOD(swoole_redis_coro, __construct)
 {
     zval *zset = NULL;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|z", &zset) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_ZVAL(zset)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     swRedisClient *redis = (swRedisClient *) swoole_get_object(getThis());
     if (redis)
@@ -1882,10 +1885,12 @@ static PHP_METHOD(swoole_redis_coro, connect)
 
     coro_check();
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|lb", &host, &host_len, &port, &serialize) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 3)
+        Z_PARAM_STRING(host, host_len)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(port)
+        Z_PARAM_BOOL(serialize)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     zend_update_property_string(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("host"), host);
     zend_update_property_long(swoole_redis_coro_ce_ptr, zobject, ZEND_STRL("port"), port);
@@ -1931,10 +1936,10 @@ static PHP_METHOD(swoole_redis_coro, setDefer)
 {
     zend_bool defer = 1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|b", &defer) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_BOOL(defer)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     swRedisClient *redis = swoole_get_redis_client(getThis());
     redis->defer = defer;
@@ -1994,10 +1999,12 @@ static PHP_METHOD(swoole_redis_coro, set)
     zval *z_value, *z_opts = NULL;
     long expire = -1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz|z", &key, &key_len, &z_value, &z_opts) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 3)
+        Z_PARAM_STRING(key, key_len)
+        Z_PARAM_ZVAL(z_value)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_ZVAL(z_opts)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     SW_REDIS_COMMAND_CHECK
 
@@ -2112,10 +2119,11 @@ static PHP_METHOD(swoole_redis_coro, setBit)
     long offset;
     zend_bool val;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "slb", &key, &key_len, &offset, &val) == FAILURE)
-    {
-        return;
-    }
+    ZEND_PARSE_PARAMETERS_START(3, 3)
+        Z_PARAM_STRING(key, key_len)
+        Z_PARAM_LONG(offset)
+        Z_PARAM_BOOL(val)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     // Validate our offset
     if(offset < SW_BITOP_MIN_OFFSET || offset >SW_BITOP_MAX_OFFSET) {
@@ -2180,10 +2188,9 @@ static PHP_METHOD(swoole_redis_coro, get)
 static PHP_METHOD(swoole_redis_coro, mGet)
 {
     zval *z_args;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "a", &z_args) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ARRAY(z_args)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     int argc;
     argc = zend_hash_num_elements(Z_ARRVAL_P(z_args));
     if (argc == 0)
@@ -2212,10 +2219,11 @@ static PHP_METHOD(swoole_redis_coro, hSet)
     size_t key_len, field_len;
     zval *z_val;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "ssz", &key, &key_len, &field, &field_len, &z_val) == FAILURE)
-    {
-        return;
-    }
+    ZEND_PARSE_PARAMETERS_START(3, 3)
+        Z_PARAM_STRING(key, key_len)
+        Z_PARAM_STRING(field, field_len)
+        Z_PARAM_ZVAL(z_val)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     SW_REDIS_COMMAND_CHECK
     int i = 0;
     size_t argvlen[4];
@@ -2234,10 +2242,10 @@ static PHP_METHOD(swoole_redis_coro, hMSet)
     size_t key_len, argc;
     zval *z_arr;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sa", &key, &key_len, &z_arr) == FAILURE)
-    {
-        return;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_STRING(key, key_len)
+        Z_PARAM_ARRAY(z_arr)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     if ((argc = zend_hash_num_elements(Z_ARRVAL_P(z_arr))) == 0)
     {
         RETURN_FALSE;
@@ -2277,10 +2285,11 @@ static PHP_METHOD(swoole_redis_coro, hSetNx)
     size_t key_len, field_len;
     zval *z_val;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "ssz", &key, &key_len, &field, &field_len, &z_val) == FAILURE)
-    {
-        return;
-    }
+    ZEND_PARSE_PARAMETERS_START(3, 3)
+        Z_PARAM_STRING(key, key_len)
+        Z_PARAM_STRING(field, field_len)
+        Z_PARAM_ZVAL(z_val)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     SW_REDIS_COMMAND_CHECK
     int i = 0;
     size_t argvlen[4];
@@ -2361,10 +2370,9 @@ static PHP_METHOD(swoole_redis_coro, sInterStore)
 static PHP_METHOD(swoole_redis_coro, mSet)
 {
     zval *z_args;
-    if(zend_parse_parameters(ZEND_NUM_ARGS(), "a", &z_args) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ARRAY(z_args)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     int argc;
     argc = zend_hash_num_elements(Z_ARRVAL_P(z_args));
     if (argc == 0)
@@ -2405,10 +2413,9 @@ static PHP_METHOD(swoole_redis_coro, mSet)
 static PHP_METHOD(swoole_redis_coro, mSetNx)
 {
     zval *z_args;
-    if(zend_parse_parameters(ZEND_NUM_ARGS(), "a", &z_args)==FAILURE)
-    {
-        return;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ARRAY(z_args)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     int argc;
     argc = zend_hash_num_elements(Z_ARRVAL_P(z_args));
     if (argc == 0)
@@ -2474,11 +2481,11 @@ static PHP_METHOD(swoole_redis_coro, bRPopLPush)
     size_t key1_len, key2_len;
     long timeout;
 
-    if(zend_parse_parameters(ZEND_NUM_ARGS(), "ssl", &key1, &key1_len,
-                             &key2, &key2_len, &timeout) == FAILURE)
-    {
-        return;
-    }
+    ZEND_PARSE_PARAMETERS_START(3, 3)
+        Z_PARAM_STRING(key1, key1_len)
+        Z_PARAM_STRING(key2, key2_len)
+        Z_PARAM_LONG(timeout)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     SW_REDIS_COMMAND_CHECK
     int argc, i = 0;
     argc = timeout < 0 ? 3 : 4;
@@ -2638,11 +2645,11 @@ static PHP_METHOD(swoole_redis_coro, sRandMember)
     size_t key_len;
     long count;
 
-    if(zend_parse_parameters(ZEND_NUM_ARGS(), "s|l", &key, &key_len,
-                             &count) == FAILURE)
-    {
-        return;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_STRING(key, key_len)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(count)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     SW_REDIS_COMMAND_CHECK
 
     int i = 0, argc, buf_len;
@@ -2731,11 +2738,10 @@ static PHP_METHOD(swoole_redis_coro, pfadd)
     size_t key_len, argc;
     zval *z_arr;
 
-    if(zend_parse_parameters(ZEND_NUM_ARGS(), "sa", &key, &key_len,
-                             &z_arr)==FAILURE)
-    {
-        return;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_STRING(key, key_len)
+        Z_PARAM_ARRAY(z_arr)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     if((argc = zend_hash_num_elements(Z_ARRVAL_P(z_arr))) == 0) {
         RETURN_FALSE;
     }
@@ -2805,11 +2811,10 @@ static PHP_METHOD(swoole_redis_coro, pfmerge)
     size_t key_len, argc;
     zval *z_arr;
 
-    if(zend_parse_parameters(ZEND_NUM_ARGS(), "sa", &key, &key_len,
-                             &z_arr)==FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_STRING(key, key_len)
+        Z_PARAM_ARRAY(z_arr)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     if((argc = zend_hash_num_elements(Z_ARRVAL_P(z_arr))) == 0) {
         RETURN_FALSE;
     }
@@ -2839,10 +2844,9 @@ static PHP_METHOD(swoole_redis_coro, auth)
 {
     char *pw;
     size_t pw_len;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &pw, &pw_len) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_STRING(pw, pw_len)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     SW_REDIS_COMMAND_CHECK
     int i = 0;
     size_t argvlen[2];
@@ -2949,10 +2953,13 @@ static PHP_METHOD(swoole_redis_coro, zRange)
     long start, end;
     zend_bool ws = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sll|b", &key, &key_len, &start, &end, &ws) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(3, 4)
+        Z_PARAM_STRING(key, key_len)
+        Z_PARAM_LONG(start)
+        Z_PARAM_LONG(end)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_BOOL(ws)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     SW_REDIS_COMMAND_CHECK
 
     int i = 0, argc;
@@ -2986,10 +2993,13 @@ static PHP_METHOD(swoole_redis_coro, zRevRange)
     long start, end;
     zend_bool ws = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sll|b", &key, &key_len, &start, &end, &ws) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(3, 4)
+        Z_PARAM_STRING(key, key_len)
+        Z_PARAM_LONG(start)
+        Z_PARAM_LONG(end)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_BOOL(ws)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     SW_REDIS_COMMAND_CHECK
 
     int i = 0, argc;
@@ -3024,11 +3034,13 @@ static PHP_METHOD(swoole_redis_coro, zUnion)
     HashTable *ht_keys, *ht_weights=NULL;
     size_t argc = 2, agg_op_len=0, keys_count;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sa|a!s", &key, &key_len, &z_keys, &z_weights, &agg_op, &agg_op_len)
-            == FAILURE)
-    {
-        return;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 4)
+        Z_PARAM_STRING(key, key_len)
+        Z_PARAM_ARRAY(z_keys)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_ARRAY_EX(z_weights, 1, 0)
+        Z_PARAM_STRING(agg_op, agg_op_len)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     ht_keys = Z_ARRVAL_P(z_keys);
 
@@ -3143,11 +3155,13 @@ static PHP_METHOD(swoole_redis_coro, zInter)
     HashTable *ht_keys, *ht_weights=NULL;
     size_t argc = 2, agg_op_len=0, keys_count;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sa|a!s", &key, &key_len, &z_keys, &z_weights, &agg_op, &agg_op_len)
-            == FAILURE)
-    {
-        return;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 4)
+        Z_PARAM_STRING(key, key_len)
+        Z_PARAM_ARRAY(z_keys)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_ARRAY_EX(z_weights, 1, 0)
+        Z_PARAM_STRING(agg_op, agg_op_len)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     ht_keys = Z_ARRVAL_P(z_keys);
 
@@ -3268,11 +3282,14 @@ static PHP_METHOD(swoole_redis_coro, zRangeByLex)
         RETURN_FALSE;
     }
 
-    if (zend_parse_parameters(argc, "sss|ll", &key, &key_len, &min, &min_len, &max, &max_len, &offset, &count)
-            == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(3, 5)
+        Z_PARAM_STRING(key, key_len)
+        Z_PARAM_STRING(min, min_len)
+        Z_PARAM_STRING(max, max_len)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(offset)
+        Z_PARAM_LONG(count)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     /* min and max must start with '(' or '[', or be either '-' or '+' */
     if (min_len < 1 || max_len < 1
@@ -3322,11 +3339,14 @@ static PHP_METHOD(swoole_redis_coro, zRevRangeByLex)
         RETURN_FALSE;
     }
 
-    if (zend_parse_parameters(argc, "sss|ll", &key, &key_len, &min, &min_len, &max, &max_len, &offset, &count)
-            == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(3, 5)
+        Z_PARAM_STRING(key, key_len)
+        Z_PARAM_STRING(min, min_len)
+        Z_PARAM_STRING(max, max_len)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(offset)
+        Z_PARAM_LONG(count)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     /* min and max must start with '(' or '[', or be either '-' or '+' */
     if (min_len < 1 || max_len < 1
@@ -3372,11 +3392,13 @@ static PHP_METHOD(swoole_redis_coro, zRangeByScore)
     zend_bool withscores = 0, has_limit = 0;
     HashTable *ht_opt;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sss|a", &key, &key_len, &start, &start_len, &end, &end_len,
-            &z_opt) == FAILURE)
-    {
-        return;
-    }
+    ZEND_PARSE_PARAMETERS_START(3, 4)
+        Z_PARAM_STRING(key, key_len)
+        Z_PARAM_STRING(start, start_len)
+        Z_PARAM_STRING(end, end_len)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_ARRAY(z_opt)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     SW_REDIS_COMMAND_CHECK
 
     int argc = 4, i = 0;
@@ -3445,11 +3467,13 @@ static PHP_METHOD(swoole_redis_coro, zRevRangeByScore)
     zend_bool withscores = 0, has_limit = 0;
     HashTable *ht_opt;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sss|a", &key, &key_len, &start, &start_len, &end, &end_len,
-            &z_opt) == FAILURE)
-    {
-        return;
-    }
+    ZEND_PARSE_PARAMETERS_START(3, 4)
+        Z_PARAM_STRING(key, key_len)
+        Z_PARAM_STRING(start, start_len)
+        Z_PARAM_STRING(end, end_len)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_ARRAY(z_opt)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     SW_REDIS_COMMAND_CHECK
 
     int argc = 4, i = 0;
@@ -3514,10 +3538,11 @@ static PHP_METHOD(swoole_redis_coro, zIncrBy)
     double incrby;
     zval *z_val;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sdz", &key, &key_len, &incrby, &z_val) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(3, 3)
+        Z_PARAM_STRING(key, key_len)
+        Z_PARAM_DOUBLE(incrby)
+        Z_PARAM_ZVAL(z_val)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     SW_REDIS_COMMAND_CHECK;
 
@@ -3636,11 +3661,10 @@ static PHP_METHOD(swoole_redis_coro, hMGet)
     size_t argc, key_len;
     HashTable *ht_chan;
 
-    if(zend_parse_parameters(ZEND_NUM_ARGS(), "sa", &key, &key_len,
-                             &z_arr)==FAILURE)
-    {
-        return;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_STRING(key, key_len)
+        Z_PARAM_ARRAY(z_arr)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     ht_chan = Z_ARRVAL_P(z_arr);
 
@@ -3696,11 +3720,11 @@ static PHP_METHOD(swoole_redis_coro, hIncrBy)
     size_t key_len, mem_len;
     long byval;
 
-    if(zend_parse_parameters(ZEND_NUM_ARGS(), "ssl", &key, &key_len,
-                             &mem, &mem_len, &byval)==FAILURE)
-    {
-        return;
-    }
+    ZEND_PARSE_PARAMETERS_START(3, 3)
+        Z_PARAM_STRING(key, key_len)
+        Z_PARAM_STRING(mem, mem_len)
+        Z_PARAM_LONG(byval)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     SW_REDIS_COMMAND_CHECK
 
     int i = 0;
@@ -3724,11 +3748,11 @@ static PHP_METHOD(swoole_redis_coro, hIncrByFloat)
     size_t key_len, mem_len;
     double byval;
 
-    if(zend_parse_parameters(ZEND_NUM_ARGS(), "ssd", &key, &key_len,
-                             &mem, &mem_len, &byval)==FAILURE)
-    {
-        return;
-    }
+    ZEND_PARSE_PARAMETERS_START(3, 3)
+        Z_PARAM_STRING(key, key_len)
+        Z_PARAM_STRING(mem, mem_len)
+        Z_PARAM_DOUBLE(byval)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     SW_REDIS_COMMAND_CHECK
 
     int i = 0;
@@ -3772,11 +3796,12 @@ static PHP_METHOD(swoole_redis_coro, lInsert)
     size_t key_len, pos_len;
     zval *z_val, *z_pivot;
 
-    if(zend_parse_parameters(ZEND_NUM_ARGS(), "sszz", &key, &key_len,
-                             &pos, &pos_len, &z_pivot, &z_val) == FAILURE)
-    {
-        return;
-    }
+    ZEND_PARSE_PARAMETERS_START(4, 4)
+        Z_PARAM_STRING(key, key_len)
+        Z_PARAM_STRING(pos, pos_len)
+        Z_PARAM_ZVAL(z_pivot)
+        Z_PARAM_ZVAL(z_val)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (strncasecmp(pos, "after", 5) && strncasecmp(pos, "before", 6)) {
         swoole_php_error(E_WARNING, "Position must be either 'BEFORE' or 'AFTER'");
@@ -3832,9 +3857,9 @@ static PHP_METHOD(swoole_redis_coro, select)
 {
     long db_number;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &db_number) == FAILURE) {
-        return;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_LONG(db_number)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     SW_REDIS_COMMAND_CHECK
 
     int i = 0;
@@ -3870,11 +3895,12 @@ static PHP_METHOD(swoole_redis_coro, lRem)
     long count = 0;
     zval *z_val;
 
-    if(zend_parse_parameters(ZEND_NUM_ARGS(), "sz|l", &key, &key_len,
-                             &z_val, &count) == FAILURE)
-    {
-        return;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 3)
+        Z_PARAM_STRING(key, key_len)
+        Z_PARAM_ZVAL(z_val)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(count)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     SW_REDIS_COMMAND_CHECK
 
     int i = 0;
@@ -3908,11 +3934,12 @@ static PHP_METHOD(swoole_redis_coro, bitCount)
     size_t key_len;
     long start = 0, end = -1;
 
-    if(zend_parse_parameters(ZEND_NUM_ARGS(), "s|ll", &key, &key_len,
-                             &start, &end)==FAILURE)
-    {
-        return;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 3)
+        Z_PARAM_STRING(key, key_len)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(start)
+        Z_PARAM_LONG(end)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     SW_REDIS_COMMAND_CHECK
 
@@ -3966,11 +3993,11 @@ static PHP_METHOD(swoole_redis_coro, sMove)
     size_t src_len, dst_len;
     zval *z_val;
 
-    if(zend_parse_parameters(ZEND_NUM_ARGS(), "ssz", &src, &src_len,
-                             &dst, &dst_len, &z_val) == FAILURE)
-    {
-        return;
-    }
+    ZEND_PARSE_PARAMETERS_START(3, 3)
+        Z_PARAM_STRING(src, src_len)
+        Z_PARAM_STRING(dst, dst_len)
+        Z_PARAM_ZVAL(z_val)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     SW_REDIS_COMMAND_CHECK
 
     int i = 0;
@@ -4001,10 +4028,9 @@ static PHP_METHOD(swoole_redis_coro, zDelete)
 static PHP_METHOD(swoole_redis_coro, pSubscribe)
 {
     zval *z_arr;
-    if(zend_parse_parameters(ZEND_NUM_ARGS(), "a", &z_arr) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ARRAY(z_arr)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     SW_REDIS_COMMAND_CHECK
     if (redis->defer)
@@ -4060,10 +4086,9 @@ static PHP_METHOD(swoole_redis_coro, pSubscribe)
 static PHP_METHOD(swoole_redis_coro, subscribe)
 {
     zval *z_arr;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "a", &z_arr) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ARRAY(z_arr)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     SW_REDIS_COMMAND_CHECK
     if (redis->defer)
@@ -4131,10 +4156,9 @@ static PHP_METHOD(swoole_redis_coro, request)
     SW_REDIS_COMMAND_CHECK
 
     zval *params = NULL;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &params) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ZVAL(params)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     int argc = zend_hash_num_elements(Z_ARRVAL_P(params));
     int i = 0;
@@ -4165,10 +4189,12 @@ static PHP_METHOD(swoole_redis_coro, eval)
     zval *params = NULL;
     long keys_num = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|al", &script, &script_len, &params, &keys_num) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 3)
+        Z_PARAM_STRING(script, script_len)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_ARRAY(params)
+        Z_PARAM_LONG(keys_num)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     HashTable *params_ht = NULL;
     uint32_t params_num = 0;
@@ -4211,10 +4237,12 @@ static PHP_METHOD(swoole_redis_coro, evalSha)
     size_t sha_len;
     zval *params = NULL;
     long keys_num = 0;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|al", &sha, &sha_len, &params, &keys_num) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 3)
+        Z_PARAM_STRING(sha, sha_len)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_ARRAY(params)
+        Z_PARAM_LONG(keys_num)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     HashTable *params_ht = NULL;
     uint32_t params_num = 0;

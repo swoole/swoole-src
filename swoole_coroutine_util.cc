@@ -351,10 +351,9 @@ static PHP_METHOD(swoole_coroutine_util, set)
     HashTable *vht = NULL;
     zval *v;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &zset) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ZVAL(zset)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     php_swoole_array_separate(zset);
     vht = Z_ARRVAL_P(zset);
@@ -438,10 +437,9 @@ PHP_FUNCTION(swoole_coroutine_create)
 static PHP_METHOD(swoole_coroutine_util, resume)
 {
     long cid;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &cid) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_LONG(cid)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     auto coroutine_iterator = user_yield_coros.find(cid);
     if (coroutine_iterator == user_yield_coros.end())
@@ -479,10 +477,9 @@ static PHP_METHOD(swoole_coroutine_util, sleep)
     coro_check();
 
     double seconds;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "d", & seconds) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_DOUBLE( seconds)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     int ms = (int) (seconds * 1000);
 
@@ -1152,10 +1149,11 @@ PHP_FUNCTION(swoole_coroutine_gethostbyname)
     size_t l_domain_name;
     long family = AF_INET;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|l", &domain_name, &l_domain_name, &family) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_STRING(domain_name, l_domain_name)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(family)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (l_domain_name <= 0)
     {
@@ -1222,11 +1220,14 @@ static PHP_METHOD(swoole_coroutine_util, getaddrinfo)
     char *service = NULL;
     size_t l_service = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|llls", &hostname, &l_hostname, &family, socktype, &protocol,
-            &hostname, &l_hostname) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 5)
+        Z_PARAM_STRING(hostname, l_hostname)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(family)
+        Z_PARAM_LONG(socktype)
+        Z_PARAM_LONG(protocol)
+        Z_PARAM_STRING(hostname, l_hostname)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (l_hostname <= 0)
     {
@@ -1291,10 +1292,9 @@ static PHP_METHOD(swoole_coroutine_util, getBackTrace)
     zend_long options = DEBUG_BACKTRACE_PROVIDE_OBJECT;
     zend_long limit = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|ll", &cid) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 3)
+        Z_PARAM_LONG(cid)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     if (cid == sw_get_current_cid())
     {
         zend_fetch_debug_backtrace(return_value, 0, options, limit);
@@ -1400,10 +1400,11 @@ PHP_FUNCTION(swoole_coroutine_exec)
     size_t command_len;
     zend_bool get_error_stream = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|b", &command, &command_len, &get_error_stream) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_STRING(command, command_len)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_BOOL(get_error_stream)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (php_swoole_signal_isset_handler(SIGCHLD))
     {

@@ -202,10 +202,10 @@ static PHP_METHOD(swoole_redis, __construct)
 
     swoole_php_fatal_error(E_DEPRECATED, "async APIs will be removed in Swoole-v4.3.0, you should be using the coroutine APIs instead.");
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|z", &zset) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_ZVAL(zset)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     swRedisClient *redis = emalloc(sizeof(swRedisClient));
     bzero(redis, sizeof(swRedisClient));
@@ -274,10 +274,10 @@ static PHP_METHOD(swoole_redis, on)
     size_t len;
     zval *cb;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &name, &len, &cb) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_STRING(name, len)
+        Z_PARAM_ZVAL(cb)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     swRedisClient *redis = swoole_get_object(getThis());
     if (redis->context != NULL)
@@ -313,10 +313,11 @@ static PHP_METHOD(swoole_redis, connect)
     long port;
     zval *callback;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "slz", &host, &host_len, &port, &callback) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(3, 3)
+        Z_PARAM_STRING(host, host_len)
+        Z_PARAM_LONG(port)
+        Z_PARAM_ZVAL(callback)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (host_len == 0)
     {
@@ -473,10 +474,10 @@ static PHP_METHOD(swoole_redis, __call)
     char *command;
     size_t command_len;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &command, &command_len, &params) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_STRING(command, command_len)
+        Z_PARAM_ZVAL(params)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (Z_TYPE_P(params) != IS_ARRAY)
     {

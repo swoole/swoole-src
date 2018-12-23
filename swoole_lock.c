@@ -92,10 +92,11 @@ static PHP_METHOD(swoole_lock, __construct)
     size_t filelock_len = 0;
     int ret;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|ls", &type, &filelock, &filelock_len) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(0, 2)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(type)
+        Z_PARAM_STRING(filelock, filelock_len)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     swLock *lock = SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swLock));
     if (lock == NULL)
@@ -170,10 +171,9 @@ static PHP_METHOD(swoole_lock, lockwait)
 {
     double timeout = 1.0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "d", &timeout) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_DOUBLE(timeout)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     swLock *lock = swoole_get_object(getThis());
     if (lock->type != SW_MUTEX)
     {
