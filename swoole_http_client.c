@@ -1607,9 +1607,9 @@ static PHP_METHOD(swoole_http_client, addFile)
     char *name;
     size_t l_name;
     char *type = NULL;
-    size_t l_type;
+    size_t l_type = 0;
     char *filename = NULL;
-    size_t l_filename;
+    size_t l_filename = 0;
     long offset = 0;
     long length = 0;
 
