@@ -1350,10 +1350,9 @@ static PHP_METHOD(swoole_http2_client_coro, goaway)
     swClient *cli = hcc->client;
     int ret;
     char* frame;
-    long error_code;
+    long err_code = SW_HTTP2_ERROR_NO_ERROR;
     char* debug_data = NULL;
     size_t debug_data_len = 0;
-    // error_code = SW_HTTP2_ERROR_NO_ERROR;
 
     if (!hcc->streams)
     {
@@ -1365,16 +1364,16 @@ static PHP_METHOD(swoole_http2_client_coro, goaway)
 
     ZEND_PARSE_PARAMETERS_START(0, 2)
         Z_PARAM_OPTIONAL
-        Z_PARAM_LONG(error_code)
+        Z_PARAM_LONG(err_code)
         Z_PARAM_STRING(debug_data, debug_data_len)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     size_t length = SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_GOAWAY_SIZE + debug_data_len;
     frame = (char *) emalloc(length);
     bzero(frame, length);
-    swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_GOAWAY, SW_HTTP2_GOAWAY_SIZE + debug_data_len, (uint8_t) error_code, 0);
+    swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_GOAWAY, SW_HTTP2_GOAWAY_SIZE + debug_data_len, (uint8_t) err_code, 0);
     *(uint32_t*) (frame + SW_HTTP2_FRAME_HEADER_SIZE) = htonl(hcc->last_stream_id);
-    *(uint32_t*) (frame + SW_HTTP2_FRAME_HEADER_SIZE + 4) = htonl((uint8_t) error_code);
+    *(uint32_t*) (frame + SW_HTTP2_FRAME_HEADER_SIZE + 4) = htonl(err_code);
     memcpy(frame + SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_GOAWAY_SIZE, debug_data, debug_data_len);
     swTraceLog(SW_TRACE_HTTP2, "[" SW_ECHO_GREEN "] Send: last-sid=%d, error-code=%d", swHttp2_get_type(SW_HTTP2_TYPE_GOAWAY), hcc->last_stream_id, error_code);
 
