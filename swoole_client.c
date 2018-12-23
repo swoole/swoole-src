@@ -1977,9 +1977,9 @@ PHP_FUNCTION(swoole_client_select)
     double timeout = SW_CLIENT_CONNECT_TIMEOUT;
 
     ZEND_PARSE_PARAMETERS_START(3, 4)
-        Z_PARAM_ARRAY_EX(r_array, 1, 0)
-        Z_PARAM_ARRAY_EX(w_array, 1, 0)
-        Z_PARAM_ARRAY_EX(e_array, 1, 0)
+        Z_PARAM_ARRAY_EX2(r_array, 1, 1, 0)
+        Z_PARAM_ARRAY_EX2(w_array, 1, 1, 0)
+        Z_PARAM_ARRAY_EX2(e_array, 1, 1, 0)
         Z_PARAM_OPTIONAL
         Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
@@ -2039,9 +2039,9 @@ PHP_FUNCTION(swoole_client_select)
     struct timeval timeo;
 
     ZEND_PARSE_PARAMETERS_START(3, 4)
-        Z_PARAM_ARRAY_EX(r_array, 1, 0)
-        Z_PARAM_ARRAY_EX(w_array, 1, 0)
-        Z_PARAM_ARRAY_EX(e_array, 1, 0)
+        Z_PARAM_ARRAY_EX2(r_array, 1, 1, 0)
+        Z_PARAM_ARRAY_EX2(w_array, 1, 1, 0)
+        Z_PARAM_ARRAY_EX2(e_array, 1, 1, 0)
         Z_PARAM_OPTIONAL
         Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
