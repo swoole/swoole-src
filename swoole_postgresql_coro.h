@@ -21,7 +21,8 @@
 typedef enum
 {
     NORMAL_QUERY,
-    META_DATA
+    META_DATA,
+    PREPARE
 } query_type;
 
 typedef struct _php_pgsql_object {
