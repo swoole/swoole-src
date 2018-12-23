@@ -195,10 +195,12 @@ static PHP_METHOD(swoole_http2_client_coro, __construct)
     long port = 80;
     zend_bool ssl = SW_FALSE;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|lb", &host, &host_len, &port, &ssl) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 3)
+        Z_PARAM_STRING(host, host_len)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(port)
+        Z_PARAM_BOOL(ssl)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (host_len <= 0)
     {
@@ -236,10 +238,9 @@ static PHP_METHOD(swoole_http2_client_coro, __construct)
 static PHP_METHOD(swoole_http2_client_coro, set)
 {
     zval *zset;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &zset) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ZVAL(zset)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     if (Z_TYPE_P(zset) != IS_ARRAY)
     {
         RETURN_FALSE;
@@ -956,10 +957,9 @@ static PHP_METHOD(swoole_http2_client_coro, send)
         swoole_php_error(E_WARNING, "client is not connected to server.");
         RETURN_FALSE;
     }
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &request) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ZVAL(request)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     if (Z_TYPE_P(request) != IS_OBJECT || !instanceof_function(Z_OBJCE_P(request), swoole_http2_request_ce_ptr))
     {
         swoole_php_fatal_error(E_ERROR, "object is not instanceof swoole_http2_request.");
@@ -992,10 +992,10 @@ static PHP_METHOD(swoole_http2_client_coro, recv)
     sw_coro_check_bind("http2 client", hcc->read_cid);
 
     double timeout = hcc->timeout;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|d", &timeout) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_DOUBLE(timeout)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     php_context *context = (php_context *) swoole_get_property(getThis(), HTTP2_CLIENT_CORO_CONTEXT);
     if (timeout > 0)
@@ -1239,10 +1239,10 @@ static PHP_METHOD(swoole_http2_client_coro, stats)
     zval _zarray, *zarray = &_zarray;
     swString key;
     bzero(&key, sizeof(key));
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|s", &key.str, &key.length) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_STRING(key.str, key.length)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     if (key.length > 0)
     {
         if (strcmp(key.str, "current_stream_id") == 0)
@@ -1284,10 +1284,9 @@ static PHP_METHOD(swoole_http2_client_coro, stats)
 static PHP_METHOD(swoole_http2_client_coro, isStreamExist)
 {
     zend_long stream_id = 0;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &stream_id) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_LONG(stream_id)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     if (stream_id < 0)
     {
         RETURN_FALSE;
@@ -1327,10 +1326,12 @@ static PHP_METHOD(swoole_http2_client_coro, write)
     long stream_id;
     zval *data;
     zend_bool end = 0;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "lz|b", &stream_id, &data, &end) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 3)
+        Z_PARAM_LONG(stream_id)
+        Z_PARAM_ZVAL(data)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_BOOL(end)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     SW_CHECK_RETURN(http2_client_send_data(hcc, stream_id, data, end));
 }
 
@@ -1361,10 +1362,11 @@ static PHP_METHOD(swoole_http2_client_coro, goaway)
         RETURN_FALSE;
     }
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|ls", &error_code, &debug_data, &debug_data_len) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(0, 2)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(error_code)
+        Z_PARAM_STRING(debug_data, debug_data_len)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     size_t length = SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_GOAWAY_SIZE + debug_data_len;
     frame = (char *) emalloc(length);

@@ -160,10 +160,12 @@ static PHP_METHOD(swoole_mmap, open)
     long offset = 0;
     long size = -1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|ll", &filename, &l_filename, &size, &offset) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 3)
+        Z_PARAM_STRING(filename, l_filename)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(size)
+        Z_PARAM_LONG(offset)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (l_filename <= 0)
     {

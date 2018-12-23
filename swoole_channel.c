@@ -64,10 +64,9 @@ static PHP_METHOD(swoole_channel, __construct)
 {
     long size;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &size) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_LONG(size)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (size < SW_BUFFER_SIZE_STD)
     {
@@ -95,10 +94,9 @@ static PHP_METHOD(swoole_channel, push)
     swChannel *chan = swoole_get_object(getThis());
     zval *zdata;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &zdata) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ZVAL(zdata)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     swEventData buf;
     if (php_swoole_task_pack(&buf, zdata) < 0)

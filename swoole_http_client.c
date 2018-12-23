@@ -1460,10 +1460,12 @@ static PHP_METHOD(swoole_http_client, __construct)
 
     swoole_php_fatal_error(E_DEPRECATED, "async APIs will be removed in Swoole-v4.3.0, you should be using the coroutine APIs instead.");
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|lb", &host, &host_len, &port, &ssl) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 3)
+        Z_PARAM_STRING(host, host_len)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(port)
+        Z_PARAM_BOOL(ssl)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (host_len <= 0)
     {
@@ -1536,10 +1538,9 @@ static PHP_METHOD(swoole_http_client, __destruct)
 static PHP_METHOD(swoole_http_client, set)
 {
     zval *zset;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &zset) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ZVAL(zset)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     if (Z_TYPE_P(zset) != IS_ARRAY)
     {
         RETURN_FALSE;
@@ -1554,10 +1555,9 @@ static PHP_METHOD(swoole_http_client, set)
 static PHP_METHOD(swoole_http_client, setHeaders)
 {
     zval *headers;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &headers) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ZVAL(headers)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     zval *zheaders = sw_zend_read_property_array(swoole_http_client_ce_ptr, getThis(), ZEND_STRL("requestHeaders"), 1);
     php_array_merge(Z_ARRVAL_P(zheaders), Z_ARRVAL_P(headers));
@@ -1568,10 +1568,9 @@ static PHP_METHOD(swoole_http_client, setHeaders)
 static PHP_METHOD(swoole_http_client, setCookies)
 {
     zval *cookies;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &cookies) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ZVAL(cookies)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     zval *zcookies = sw_zend_read_property_array(swoole_http_client_ce_ptr, getThis(), ZEND_STRL("cookies"), 1);
     php_array_merge(Z_ARRVAL_P(zcookies), Z_ARRVAL_P(cookies));
@@ -1582,10 +1581,9 @@ static PHP_METHOD(swoole_http_client, setCookies)
 static PHP_METHOD(swoole_http_client, setData)
 {
     zval *data;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &data) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ZVAL(data)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     if (http_client_check_data(data) < 0)
     {
         RETURN_FALSE;
@@ -1615,11 +1613,15 @@ static PHP_METHOD(swoole_http_client, addFile)
     long offset = 0;
     long length = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "ss|ssll", &path, &l_path, &name, &l_name, &type, &l_type,
-            &filename, &l_filename, &offset, &length) == FAILURE)
-    {
-        return;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 6)
+        Z_PARAM_STRING(path, l_path)
+        Z_PARAM_STRING(name, l_name)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_STRING(type, l_type)
+        Z_PARAM_STRING(filename, l_filename)
+        Z_PARAM_LONG(offset)
+        Z_PARAM_LONG(length)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     if (offset < 0)
     {
         offset = 0;
@@ -1705,10 +1707,9 @@ static PHP_METHOD(swoole_http_client, setMethod)
 {
     char *method;
     size_t length = 0;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &method, &length) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_STRING(method, length)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     int http_method = swHttp_get_method(method, length + 1);
     if (length == 0 || http_method < 0)
@@ -1786,10 +1787,10 @@ static PHP_METHOD(swoole_http_client, on)
     size_t cb_name_len;
     zval *zcallback;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &cb_name, &cb_name_len, &zcallback) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_STRING(cb_name, cb_name_len)
+        Z_PARAM_ZVAL(zcallback)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
 #ifdef PHP_SWOOLE_CHECK_CALLBACK
     char *func_name = NULL;
@@ -2086,10 +2087,10 @@ static PHP_METHOD(swoole_http_client, execute)
     size_t uri_len = 0;
     zval *finish_cb;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &uri, &uri_len, &finish_cb) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_STRING(uri, uri_len)
+        Z_PARAM_ZVAL(finish_cb)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     http_client_property *hcc = swoole_get_property(getThis(), 0);
     if (hcc->shutdown)
     {
@@ -2107,10 +2108,10 @@ static PHP_METHOD(swoole_http_client, get)
     size_t uri_len = 0;
     zval *finish_cb;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &uri, &uri_len, &finish_cb) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_STRING(uri, uri_len)
+        Z_PARAM_ZVAL(finish_cb)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     http_client_property *hcc = swoole_get_property(getThis(), 0);
     if (hcc->shutdown)
     {
@@ -2130,10 +2131,13 @@ static PHP_METHOD(swoole_http_client, download)
     zval *download_file;
     off_t offset = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "szz|l", &uri, &uri_len, &download_file, &finish_cb, &offset) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(3, 4)
+        Z_PARAM_STRING(uri, uri_len)
+        Z_PARAM_ZVAL(download_file)
+        Z_PARAM_ZVAL(finish_cb)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(offset)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     http_client_property *hcc = swoole_get_property(getThis(), 0);
     if (hcc->shutdown)
@@ -2157,10 +2161,11 @@ static PHP_METHOD(swoole_http_client, post)
     zval *callback;
     zval *data;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "szz", &uri, &uri_len, &data, &callback) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(3, 3)
+        Z_PARAM_STRING(uri, uri_len)
+        Z_PARAM_ZVAL(data)
+        Z_PARAM_ZVAL(callback)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     if (http_client_check_data(data) < 0)
     {
         RETURN_FALSE;
@@ -2192,10 +2197,10 @@ static PHP_METHOD(swoole_http_client, upgrade)
     size_t uri_len = 0;
     zval *finish_cb;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &uri, &uri_len, &finish_cb) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_STRING(uri, uri_len)
+        Z_PARAM_ZVAL(finish_cb)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     http_client_property *hcc = swoole_get_property(getThis(), 0);
     if (hcc->shutdown)
@@ -2231,10 +2236,12 @@ static PHP_METHOD(swoole_http_client, push)
     zend_long opcode = WEBSOCKET_OPCODE_TEXT;
     zend_bool fin = 1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|lb", &zdata, &opcode, &fin) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 3)
+        Z_PARAM_ZVAL(zdata)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(opcode)
+        Z_PARAM_BOOL(fin)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (unlikely(opcode > SW_WEBSOCKET_OPCODE_MAX))
     {

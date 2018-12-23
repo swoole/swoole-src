@@ -474,10 +474,13 @@ PHP_FUNCTION(swoole_async_read)
     long offset = 0;
     int open_flag = O_RDONLY;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "zz|ll", &filename, &callback, &buf_size, &offset) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 4)
+        Z_PARAM_ZVAL(filename)
+        Z_PARAM_ZVAL(callback)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(buf_size)
+        Z_PARAM_LONG(offset)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (offset < 0)
     {
@@ -577,10 +580,13 @@ PHP_FUNCTION(swoole_async_write)
     size_t fcnt_len = 0;
     off_t offset = -1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "zs|lz", &filename, &fcnt, &fcnt_len, &offset, &callback) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 4)
+        Z_PARAM_ZVAL(filename)
+        Z_PARAM_STRING(fcnt, fcnt_len)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(offset)
+        Z_PARAM_ZVAL(callback)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     if (fcnt_len <= 0)
     {
         RETURN_FALSE;
@@ -677,10 +683,10 @@ PHP_FUNCTION(swoole_async_readfile)
     zval *filename;
 
     int open_flag = O_RDONLY;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "zz", &filename, &callback) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_ZVAL(filename)
+        Z_PARAM_ZVAL(callback)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     convert_to_string(filename);
 
     int fd = open(Z_STRVAL_P(filename), open_flag, 0644);
@@ -766,10 +772,13 @@ PHP_FUNCTION(swoole_async_writefile)
     size_t fcnt_len;
     long flags = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "zs|zl", &filename, &fcnt, &fcnt_len, &callback, &flags) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 4)
+        Z_PARAM_ZVAL(filename)
+        Z_PARAM_STRING(fcnt, fcnt_len)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_ZVAL(callback)
+        Z_PARAM_LONG(flags)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     int open_flag = O_CREAT | O_WRONLY;
     if (flags & PHP_FILE_APPEND)
     {
@@ -956,10 +965,10 @@ PHP_FUNCTION(swoole_async_dns_lookup)
     zval *domain;
     zval *cb;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "zz", &domain, &cb) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_ZVAL(domain)
+        Z_PARAM_ZVAL(cb)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (Z_TYPE_P(domain) != IS_STRING)
     {
@@ -1117,10 +1126,10 @@ PHP_METHOD(swoole_async, exec)
     size_t command_len;
     zval *callback;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &command, &command_len, &callback) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_STRING(command, command_len)
+        Z_PARAM_ZVAL(callback)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     php_swoole_check_reactor();
     if (!swReactor_handle_isset(SwooleG.main_reactor, PHP_SWOOLE_FD_PROCESS_STREAM))
@@ -1170,10 +1179,11 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro)
 {
     zval *domain;
     double timeout = COROG.socket_connect_timeout;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|d", &domain, &timeout) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_ZVAL(domain)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_DOUBLE(timeout)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     coro_check();
     if (Z_TYPE_P(domain) != IS_STRING)
     {

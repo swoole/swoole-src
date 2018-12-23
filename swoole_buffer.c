@@ -107,10 +107,10 @@ static PHP_METHOD(swoole_buffer, __construct)
 {
     long size = SW_STRING_BUFFER_DEFAULT;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &size) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(size)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (size < 1)
     {
@@ -152,10 +152,9 @@ static PHP_METHOD(swoole_buffer, append)
     swString str;
     bzero(&str, sizeof(str));
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &str.str, &str.length) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_STRING(str.str, str.length)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     if (str.length < 1)
     {
         php_error_docref(NULL, E_WARNING, "string empty.");
@@ -192,10 +191,12 @@ static PHP_METHOD(swoole_buffer, substr)
     long length = -1;
     zend_bool remove = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|lb", &offset, &length, &remove) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 3)
+        Z_PARAM_LONG(offset)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(length)
+        Z_PARAM_BOOL(remove)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     swString *buffer = swoole_get_object(getThis());
 
     if (remove && !(offset == 0 && length <= buffer->length))
@@ -242,10 +243,10 @@ static PHP_METHOD(swoole_buffer, write)
 
     bzero(&str, sizeof(str));
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "ls", &offset, &str.str, &str.length) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_LONG(offset)
+        Z_PARAM_STRING(str.str, str.length)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (str.length < 1)
     {
@@ -295,10 +296,10 @@ static PHP_METHOD(swoole_buffer, read)
     long offset;
     long length;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "ll", &offset, &length) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_LONG(offset)
+        Z_PARAM_LONG(length)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     swString *buffer = swoole_get_object(getThis());
 
@@ -326,10 +327,9 @@ static PHP_METHOD(swoole_buffer, expand)
 {
     long size = -1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &size) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_LONG(size)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     swString *buffer = swoole_get_object(getThis());
 

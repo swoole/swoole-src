@@ -66,10 +66,9 @@ static PHP_METHOD(swoole_ringqueue, __construct)
 {
     long len;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &len) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_LONG(len)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (len < 0)
     {
@@ -104,10 +103,9 @@ static PHP_METHOD(swoole_ringqueue, push)
     swRingQueue *queue = swoole_get_object(getThis());
     zval *zdata;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &zdata) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ZVAL(zdata)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     zdata = sw_zval_dup(zdata);
     if (swRingQueue_push(queue, zdata) < 0)

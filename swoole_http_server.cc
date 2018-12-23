@@ -1472,10 +1472,9 @@ static PHP_METHOD(swoole_http_request, __destruct)
 static PHP_METHOD(swoole_http_response, write)
 {
     zval *zdata;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &zdata) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ZVAL(zdata)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     http_context *ctx = http_get_context(getThis(), 0);
     if (!ctx)
@@ -2028,10 +2027,12 @@ static PHP_METHOD(swoole_http_response, sendfile)
     long offset = 0;
     long length = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|ll", &filename, &filename_length, &offset, &length) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 3)
+        Z_PARAM_STRING(filename, filename_length)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(offset)
+        Z_PARAM_LONG(length)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     if (filename_length <= 0)
     {
         swoole_php_error(E_WARNING, "file name is empty.");
@@ -2418,10 +2419,12 @@ static PHP_METHOD(swoole_http_response, trailer)
     size_t klen, vlen;
     zend_bool ucwords = 1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "ss|b", &k, &klen, &v, &vlen, &ucwords) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 3)
+        Z_PARAM_STRING(k, klen)
+        Z_PARAM_STRING(v, vlen)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_BOOL(ucwords)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     http_context *ctx = http_get_context(getThis(), 0);
     if (!ctx)

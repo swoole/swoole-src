@@ -283,10 +283,10 @@ static PHP_METHOD(swoole_redis_server, setHandler)
     size_t command_len;
     zval *zcallback;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &command, &command_len, &zcallback) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_STRING(command, command_len)
+        Z_PARAM_ZVAL(zcallback)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (command_len <= 0 || command_len >= SW_REDIS_MAX_COMMAND_SIZE)
     {
@@ -334,10 +334,11 @@ static PHP_METHOD(swoole_redis_server, format)
     long type;
     zval *value = NULL;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|z", &type, &value) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_LONG(type)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_ZVAL(value)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     char message[256];
     int length;

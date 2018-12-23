@@ -792,10 +792,13 @@ static void php_pgsql_fetch_hash(INTERNAL_FUNCTION_PARAMETERS, zend_long result_
     {
         zend_string *class_name = NULL;
 
-        if (zend_parse_parameters(ZEND_NUM_ARGS(), "r|z!Sz", &result, &zrow, &class_name, &ctor_params) == FAILURE)
-        {
-            RETURN_FALSE;
-        }
+        ZEND_PARSE_PARAMETERS_START(1, 5)
+            Z_PARAM_RESOURCE(result)
+            Z_PARAM_OPTIONAL
+            Z_PARAM_ZVAL_EX(zrow, 1, 0)
+            Z_PARAM_STR(class_name)
+            Z_PARAM_ZVAL(ctor_params)
+        ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
         if (!class_name)
         {
             ce = zend_standard_class_def;
@@ -811,10 +814,12 @@ static void php_pgsql_fetch_hash(INTERNAL_FUNCTION_PARAMETERS, zend_long result_
     }
     else
     {
-        if (zend_parse_parameters(ZEND_NUM_ARGS(), "r|z!l", &result, &zrow, &result_type) == FAILURE)
-        {
-            RETURN_FALSE;
-        }
+        ZEND_PARSE_PARAMETERS_START(1, 4)
+            Z_PARAM_RESOURCE(result)
+            Z_PARAM_OPTIONAL
+            Z_PARAM_ZVAL_EX(zrow, 1, 0)
+            Z_PARAM_LONG(result_type)
+        ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     }
     if (zrow == NULL)
     {

@@ -938,11 +938,12 @@ static PHP_METHOD(swoole_client, __construct)
     char *id = NULL;
     size_t len = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|ls", &type, &async, &id, &len) == FAILURE)
-    {
-        swoole_php_fatal_error(E_ERROR, "socket type param is required.");
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 3)
+        Z_PARAM_LONG(type)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(async)
+        Z_PARAM_STRING(id, len)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (async == 1)
     {
@@ -1007,10 +1008,9 @@ static PHP_METHOD(swoole_client, __destruct)
 static PHP_METHOD(swoole_client, set)
 {
     zval *zset;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &zset) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ZVAL(zset)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     if (Z_TYPE_P(zset) != IS_ARRAY)
     {
         RETURN_FALSE;
@@ -1228,10 +1228,11 @@ static PHP_METHOD(swoole_client, sendto)
     char *data;
     size_t len;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sls", &ip, &ip_len, &port, &data, &len) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(3, 3)
+        Z_PARAM_STRING(ip, ip_len)
+        Z_PARAM_LONG(port)
+        Z_PARAM_STRING(data, len)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (len <= 0)
     {
@@ -1275,10 +1276,12 @@ static PHP_METHOD(swoole_client, sendfile)
     long offset = 0;
     long length = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|ll", &file, &file_len, &offset, &length) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 3)
+        Z_PARAM_STRING(file, file_len)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(offset)
+        Z_PARAM_LONG(length)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     if (file_len <= 0)
     {
         swoole_php_fatal_error(E_WARNING, "file to send is empty.");
@@ -1713,10 +1716,10 @@ static PHP_METHOD(swoole_client, on)
     size_t cb_name_len;
     zval *zcallback;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz", &cb_name, &cb_name_len, &zcallback) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_STRING(cb_name, cb_name_len)
+        Z_PARAM_ZVAL(zcallback)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     zval *ztype = sw_zend_read_property(swoole_client_ce_ptr, getThis(), ZEND_STRL("type"), 0);
     if (ztype == NULL || ZVAL_IS_NULL(ztype))
@@ -1837,10 +1840,9 @@ static PHP_METHOD(swoole_client, enableSSL)
     if (cli->async)
     {
         zval *zcallback;
-        if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &zcallback) == FAILURE)
-        {
-            RETURN_FALSE;
-        }
+        ZEND_PARSE_PARAMETERS_START(1, 1)
+            Z_PARAM_ZVAL(zcallback)
+        ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
         char *func_name = NULL;
         zend_fcall_info_cache func_cache;
         if (!sw_zend_is_callable_ex(zcallback, NULL, 0, &func_name, NULL, &func_cache, NULL))
@@ -1908,10 +1910,10 @@ static PHP_METHOD(swoole_client, verifyPeerCert)
         RETURN_FALSE;
     }
     zend_bool allow_self_signed = 0;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|b", &allow_self_signed) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_BOOL(allow_self_signed)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     SW_CHECK_RETURN(swClient_ssl_verify(cli, allow_self_signed));
 }
 #endif
@@ -1924,10 +1926,9 @@ static PHP_METHOD(swoole_client, pipe)
         RETURN_FALSE;
     }
     zval *write_socket;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &write_socket) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ZVAL(write_socket)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     int fd;
     int flags = 0;
@@ -1962,10 +1963,9 @@ static PHP_METHOD(swoole_client, shutdown)
         RETURN_FALSE;
     }
     long __how;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &__how) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_LONG(__how)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     SW_CHECK_RETURN(swClient_shutdown(cli, __how));
 }
 
@@ -1976,10 +1976,13 @@ PHP_FUNCTION(swoole_client_select)
     int retval, index = 0;
     double timeout = SW_CLIENT_CONNECT_TIMEOUT;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "a!a!a!|d", &r_array, &w_array, &e_array, &timeout) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(6, 7)
+        Z_PARAM_ARRAY_EX(r_array, 1, 0)
+        Z_PARAM_ARRAY_EX(w_array, 1, 0)
+        Z_PARAM_ARRAY_EX(e_array, 1, 0)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_DOUBLE(timeout)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     int maxevents = MAX(MAX(php_swoole_array_length(r_array), php_swoole_array_length(w_array)),
             php_swoole_array_length(e_array));
@@ -2035,10 +2038,13 @@ PHP_FUNCTION(swoole_client_select)
     double timeout = SW_CLIENT_CONNECT_TIMEOUT;
     struct timeval timeo;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "a!a!a!|d", &r_array, &w_array, &e_array, &timeout) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(6, 7)
+        Z_PARAM_ARRAY_EX(r_array, 1, 0)
+        Z_PARAM_ARRAY_EX(w_array, 1, 0)
+        Z_PARAM_ARRAY_EX(e_array, 1, 0)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_DOUBLE(timeout)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     FD_ZERO(&rfds);
     FD_ZERO(&wfds);

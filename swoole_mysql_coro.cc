@@ -875,10 +875,11 @@ static PHP_METHOD(swoole_mysql_coro, query)
 
     double timeout = COROG.socket_timeout;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|d", &sql.str, &sql.length, &timeout) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_STRING(sql.str, sql.length)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_DOUBLE(timeout)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (sql.length <= 0)
     {
@@ -991,10 +992,10 @@ static void swoole_mysql_coro_query_transcation(const char* command, uint8_t in_
     else
     {
         double timeout = COROG.socket_timeout;
-        if (zend_parse_parameters(ZEND_NUM_ARGS(), "|d", &timeout) == FAILURE)
-        {
-            RETURN_FALSE;
-        }
+        ZEND_PARSE_PARAMETERS_START(0, 1)
+            Z_PARAM_OPTIONAL
+            Z_PARAM_DOUBLE(timeout)
+        ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
         php_context *context = (php_context *) swoole_get_property(getThis(), 0);
         if (timeout > 0)
         {
@@ -1036,10 +1037,10 @@ static PHP_METHOD(swoole_mysql_coro, getDefer)
 static PHP_METHOD(swoole_mysql_coro, setDefer)
 {
     zend_bool defer = 1;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|b", &defer) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_BOOL(defer)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     mysql_client *client = (mysql_client *) swoole_get_object(getThis());
     if (client->iowait > SW_MYSQL_CORO_STATUS_READY)
@@ -1109,10 +1110,11 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
 
     double timeout = COROG.socket_timeout;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|d", &sql.str, &sql.length, &timeout) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_STRING(sql.str, sql.length)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_DOUBLE(timeout)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     if (sql.length <= 0)
     {
         swoole_php_fatal_error(E_WARNING, "Query is empty.");
@@ -1181,10 +1183,11 @@ static PHP_METHOD(swoole_mysql_coro_statement, execute)
 
     double timeout = COROG.socket_timeout;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|ad", &params, &timeout) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(0, 2)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_ARRAY(params)
+        Z_PARAM_DOUBLE(timeout)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (stmt->buffer)
     {
@@ -1355,10 +1358,11 @@ static PHP_METHOD(swoole_mysql_coro, escape)
     bzero(&str, sizeof(str));
     long flags;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|l", &str.str, &str.length, &flags) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_STRING(str.str, str.length)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(flags)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (str.length <= 0)
     {

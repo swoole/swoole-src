@@ -617,11 +617,9 @@ static PHP_METHOD(swoole_client_coro, __construct)
 {
     long type = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|ls", &type) == FAILURE)
-    {
-        swoole_php_fatal_error(E_ERROR, "socket type param is required.");
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 3)
+        Z_PARAM_LONG(type)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     int client_type = php_swoole_socktype(type);
     if (client_type < SW_SOCK_TCP || client_type > SW_SOCK_UNIX_STREAM)
@@ -662,10 +660,9 @@ static PHP_METHOD(swoole_client_coro, __destruct)
 static PHP_METHOD(swoole_client_coro, set)
 {
     zval *zset;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &zset) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ZVAL(zset)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     if (Z_TYPE_P(zset) != IS_ARRAY)
     {
         RETURN_FALSE;
@@ -778,10 +775,11 @@ static PHP_METHOD(swoole_client_coro, sendto)
     char *data;
     size_t len;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sls", &ip, &ip_len, &port, &data, &len) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(3, 3)
+        Z_PARAM_STRING(ip, ip_len)
+        Z_PARAM_LONG(port)
+        Z_PARAM_STRING(data, len)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (len <= 0)
     {
@@ -808,10 +806,12 @@ static PHP_METHOD(swoole_client_coro, recvfrom)
     zend_long length;
     zval *address, *port;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "lz/|z/", &length, &address, &port) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(3, 5)
+        Z_PARAM_LONG(length)
+        Z_PARAM_ZVAL_EX(address, 0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_ZVAL_EX(port, 0, 1)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (length <= 0)
     {
@@ -856,10 +856,12 @@ static PHP_METHOD(swoole_client_coro, sendfile)
     long offset = 0;
     long length = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|ll", &file, &file_len, &offset, &length) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 3)
+        Z_PARAM_STRING(file, file_len)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(offset)
+        Z_PARAM_LONG(length)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     if (file_len <= 0)
     {
         swoole_php_fatal_error(E_WARNING, "file to send is empty.");
@@ -1194,10 +1196,10 @@ static PHP_METHOD(swoole_client_coro, verifyPeerCert)
         RETURN_FALSE;
     }
     zend_bool allow_self_signed = 0;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|b", &allow_self_signed) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_BOOL(allow_self_signed)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
     SW_CHECK_RETURN(cli->ssl_verify(allow_self_signed));
 }
 #endif
