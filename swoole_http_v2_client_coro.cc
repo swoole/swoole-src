@@ -1350,9 +1350,9 @@ static PHP_METHOD(swoole_http2_client_coro, goaway)
     swClient *cli = hcc->client;
     int ret;
     char* frame;
-    uint8_t error_code = SW_HTTP2_ERROR_NO_ERROR;
+    long error_code = SW_HTTP2_ERROR_NO_ERROR;
     char* debug_data = NULL;
-    long  debug_data_len = 0;
+    size_t debug_data_len = 0;
 
     if (!hcc->streams)
     {
@@ -1371,9 +1371,9 @@ static PHP_METHOD(swoole_http2_client_coro, goaway)
     size_t length = SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_GOAWAY_SIZE + debug_data_len;
     frame = (char *) emalloc(length);
     bzero(frame, length);
-    swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_GOAWAY, SW_HTTP2_GOAWAY_SIZE + debug_data_len, error_code, 0);
+    swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_GOAWAY, SW_HTTP2_GOAWAY_SIZE + debug_data_len, (uint8_t) error_code, 0);
     *(uint32_t*) (frame + SW_HTTP2_FRAME_HEADER_SIZE) = htonl(hcc->last_stream_id);
-    *(uint32_t*) (frame + SW_HTTP2_FRAME_HEADER_SIZE + 4) = htonl(error_code);
+    *(uint32_t*) (frame + SW_HTTP2_FRAME_HEADER_SIZE + 4) = htonl((uint8_t) error_code);
     memcpy(frame + SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_GOAWAY_SIZE, debug_data, debug_data_len);
     swTraceLog(SW_TRACE_HTTP2, "[" SW_ECHO_GREEN "] Send: last-sid=%d, error-code=%d", swHttp2_get_type(SW_HTTP2_TYPE_GOAWAY), hcc->last_stream_id, error_code);
 
