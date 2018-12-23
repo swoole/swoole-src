@@ -1556,7 +1556,7 @@ PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, 
 static PHP_METHOD(swoole_serialize, pack)
 {
     zval *zvalue;
-    size_t is_fast = 0;
+    long is_fast = 0;
 
     swoole_php_fatal_error(E_DEPRECATED, "swoole serialize will be removed, you should be using the php serialize instead.");
 

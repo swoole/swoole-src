@@ -88,7 +88,7 @@ void swoole_lock_init(int module_number)
 static PHP_METHOD(swoole_lock, __construct)
 {
     long type = SW_MUTEX;
-    char *filelock;
+    char *filelock = NULL;
     size_t filelock_len = 0;
     int ret;
 
