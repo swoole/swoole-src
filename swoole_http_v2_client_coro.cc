@@ -1350,9 +1350,10 @@ static PHP_METHOD(swoole_http2_client_coro, goaway)
     swClient *cli = hcc->client;
     int ret;
     char* frame;
-    zend_long error_code = SW_HTTP2_ERROR_NO_ERROR;
+    long error_code;
     char* debug_data = NULL;
     size_t debug_data_len = 0;
+    // error_code = SW_HTTP2_ERROR_NO_ERROR;
 
     if (!hcc->streams)
     {
