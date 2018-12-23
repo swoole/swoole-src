@@ -1976,6 +1976,7 @@ PHP_FUNCTION(swoole_client_select)
     int retval, index = 0;
     double timeout = SW_CLIENT_CONNECT_TIMEOUT;
 
+#ifdef Z_PARAM_ARRAY_EX2
     ZEND_PARSE_PARAMETERS_START(3, 4)
         Z_PARAM_ARRAY_EX2(r_array, 1, 1, 0)
         Z_PARAM_ARRAY_EX2(w_array, 1, 1, 0)
@@ -1983,6 +1984,15 @@ PHP_FUNCTION(swoole_client_select)
         Z_PARAM_OPTIONAL
         Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+#else
+    ZEND_PARSE_PARAMETERS_START(3, 4)
+        Z_PARAM_ARRAY_EX(r_array, 1, 0)
+        Z_PARAM_ARRAY_EX(w_array, 1, 0)
+        Z_PARAM_ARRAY_EX(e_array, 1, 0)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_DOUBLE(timeout)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+#endif
 
     int maxevents = MAX(MAX(php_swoole_array_length(r_array), php_swoole_array_length(w_array)),
             php_swoole_array_length(e_array));
@@ -2038,6 +2048,7 @@ PHP_FUNCTION(swoole_client_select)
     double timeout = SW_CLIENT_CONNECT_TIMEOUT;
     struct timeval timeo;
 
+#ifdef Z_PARAM_ARRAY_EX2
     ZEND_PARSE_PARAMETERS_START(3, 4)
         Z_PARAM_ARRAY_EX2(r_array, 1, 1, 0)
         Z_PARAM_ARRAY_EX2(w_array, 1, 1, 0)
@@ -2045,6 +2056,15 @@ PHP_FUNCTION(swoole_client_select)
         Z_PARAM_OPTIONAL
         Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+#else
+    ZEND_PARSE_PARAMETERS_START(3, 4)
+        Z_PARAM_ARRAY_EX(r_array, 1, 0)
+        Z_PARAM_ARRAY_EX(w_array, 1, 0)
+        Z_PARAM_ARRAY_EX(e_array, 1, 0)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_DOUBLE(timeout)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+#endif
 
     FD_ZERO(&rfds);
     FD_ZERO(&wfds);
