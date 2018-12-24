@@ -461,6 +461,10 @@ struct _swServer
      */
     uint32_t task_async :1;
     /**
+     * enable coroutine in task worker
+     */
+    uint32_t task_enable_coroutine :1;
+    /**
      * slowlog
      */
     uint32_t trace_event_worker :1;

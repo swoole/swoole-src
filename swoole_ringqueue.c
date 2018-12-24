@@ -12,7 +12,7 @@
  | to obtain it through the world-wide-web, please send a note to       |
  | license@swoole.com so we can mail you a copy immediately.            |
  +----------------------------------------------------------------------+
- | Author: Xinyu Zhu  <xyzhu1120@gmail.com>                        |
+ | Author: Xinyu Zhu  <xyzhu1120@gmail.com>                             |
  +----------------------------------------------------------------------+
  */
 

@@ -25,14 +25,22 @@ typedef struct
     uint8_t reload_all_worker;
     uint8_t reload_task_worker;
     uint8_t read_message;
-    uint8_t alarm;
 
 } swManagerProcess;
 
 static int swManager_loop(swFactory *factory);
-static void swManager_signal_handle(int sig);
+static void swManager_signal_handler(int sig);
 static pid_t swManager_spawn_worker(swFactory *factory, int worker_id);
 static void swManager_check_exit_status(swServer *serv, int worker_id, pid_t pid, int status);
+
+static void swManager_onTimer(swTimer *timer, swTimer_node *tnode)
+{
+    swServer *serv = (swServer *) tnode->data;
+    if (serv->hooks[SW_SERVER_HOOK_MANAGER_TIMER])
+    {
+        swServer_call_hook(serv, SW_SERVER_HOOK_MANAGER_TIMER, serv);
+    }
+}
 
 static swManagerProcess ManagerProcess;
 
@@ -212,6 +220,8 @@ static int swManager_loop(swFactory *factory)
     int status;
 
     SwooleG.use_signalfd = 0;
+    SwooleG.main_reactor = NULL;
+    SwooleG.enable_coroutine = 0;
 
     memset(&ManagerProcess, 0, sizeof(ManagerProcess));
 
@@ -238,22 +248,19 @@ static int swManager_loop(swFactory *factory)
 
     //for reload
     swSignal_add(SIGHUP, NULL);
-    swSignal_add(SIGTERM, swManager_signal_handle);
-    swSignal_add(SIGUSR1, swManager_signal_handle);
-    swSignal_add(SIGUSR2, swManager_signal_handle);
-    swSignal_add(SIGIO, swManager_signal_handle);
+    swSignal_add(SIGTERM, swManager_signal_handler);
+    swSignal_add(SIGUSR1, swManager_signal_handler);
+    swSignal_add(SIGUSR2, swManager_signal_handler);
+    swSignal_add(SIGIO, swManager_signal_handler);
 #ifdef SIGRTMIN
-    swSignal_add(SIGRTMIN, swManager_signal_handle);
+    swSignal_add(SIGRTMIN, swManager_signal_handler);
 #endif
-    //swSignal_add(SIGINT, swManager_signal_handle);
+    //swSignal_add(SIGINT, swManager_signal_handler);
 
     if (serv->manager_alarm > 0)
     {
-        alarm(serv->manager_alarm);
-        swSignal_add(SIGALRM, swManager_signal_handle);
+        swTimer_add(&SwooleG.timer, serv->manager_alarm * 1000, 1, serv, swManager_onTimer);
     }
-
-    SwooleG.main_reactor = NULL;
 
     while (SwooleG.running > 0)
     {
@@ -284,19 +291,14 @@ static int swManager_loop(swFactory *factory)
             ManagerProcess.read_message = 0;
         }
 
+        if (SwooleG.signal_alarm == 1)
+        {
+            SwooleG.signal_alarm = 0;
+            swTimer_select(&SwooleG.timer);
+        }
+
         if (pid < 0)
         {
-            if (ManagerProcess.alarm == 1)
-            {
-                ManagerProcess.alarm = 0;
-                alarm(serv->manager_alarm);
-
-                if (serv->hooks[SW_SERVER_HOOK_MANAGER_TIMER])
-                {
-                    swServer_call_hook(serv, SW_SERVER_HOOK_MANAGER_TIMER, serv);
-                }
-            }
-
             if (ManagerProcess.reloading == 0)
             {
                 error: if (errno != EINTR)
@@ -512,7 +514,7 @@ static pid_t swManager_spawn_worker(swFactory *factory, int worker_id)
     }
 }
 
-static void swManager_signal_handle(int sig)
+static void swManager_signal_handler(int sig)
 {
     switch (sig)
     {
@@ -543,7 +545,7 @@ static void swManager_signal_handle(int sig)
         ManagerProcess.read_message = 1;
         break;
     case SIGALRM:
-        ManagerProcess.alarm = 1;
+        SwooleG.signal_alarm = 1;
         break;
     default:
 #ifdef SIGRTMIN

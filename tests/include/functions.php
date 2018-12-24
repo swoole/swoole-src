@@ -602,6 +602,11 @@ class ProcessManager
     protected $freePorts = [];
     protected $randomData = [];
 
+    /**
+     * 默认等待1秒
+     */
+    protected $waitTimeout = 1.0;
+
     public $parentFunc;
     public $childFunc;
     public $async = false;
@@ -635,10 +640,15 @@ class ProcessManager
         $this->childFunc = $func;
     }
 
+    public function setWaitTimeout($value='')
+    {
+        $this->waitTimeout = $value;
+    }
+
     //等待信息
     function wait()
     {
-        $this->atomic->wait();
+        $this->atomic->wait($this->waitTimeout);
     }
 
     //唤醒等待的进程
