@@ -673,19 +673,19 @@ static PHP_METHOD(swoole_client_coro, __destruct)
 
 static PHP_METHOD(swoole_client_coro, set)
 {
-    zval *zset;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &zset) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
-    if (Z_TYPE_P(zset) != IS_ARRAY)
-    {
-        RETURN_FALSE;
-    }
+    Socket *cli = client_get_ptr(getThis());
+    zval *zset, *zsetting;
 
-    zval *zsetting = sw_zend_read_property_array(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("setting"), 1);
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ARRAY(zset)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    zsetting = sw_zend_read_property_array(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("setting"), 1);
     php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
-
+    if (cli)
+    {
+        sw_coro_client_set(cli, zset);
+    }
     RETURN_TRUE;
 }
 
