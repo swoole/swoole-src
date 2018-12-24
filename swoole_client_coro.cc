@@ -221,7 +221,6 @@ static bool client_coro_close(zval *zobject)
 
     if (!cli)
     {
-        swoole_php_fatal_error(E_WARNING, "client is not connected to the server.");
         return false;
     }
 #ifdef SWOOLE_SOCKETS_SUPPORT
@@ -695,14 +694,13 @@ static PHP_METHOD(swoole_client_coro, connect)
     zend_long port = 0, sock_flag = 0;
     char *host = NULL;
     size_t host_len;
-    double timeout = COROG.socket_connect_timeout;
-    zend_bool has_timeout = 0;
+    double timeout = 0;
 
     ZEND_PARSE_PARAMETERS_START(1, 4)
         Z_PARAM_STRING(host, host_len)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(port)
-        Z_PARAM_DOUBLE_EX(timeout, has_timeout, 0 ,0)
+        Z_PARAM_DOUBLE(timeout)
         Z_PARAM_LONG(sock_flag)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
@@ -732,7 +730,7 @@ static PHP_METHOD(swoole_client_coro, connect)
     }
 
     sw_coro_check_bind("client", cli->has_bound());
-    cli->set_timeout(timeout, true);
+    cli->set_timeout(timeout == 0 ? COROG.socket_connect_timeout : timeout, true);
     if (!cli->connect(host, port, sock_flag))
     {
         swoole_php_error(E_WARNING, "connect to server[%s:%d] failed. Error: %s[%d]", host, (int )port, cli->errMsg, cli->errCode);
@@ -742,7 +740,7 @@ static PHP_METHOD(swoole_client_coro, connect)
     }
     else
     {
-        cli->set_timeout(has_timeout ? timeout : COROG.socket_timeout);
+        cli->set_timeout(timeout == 0 ? COROG.socket_timeout : timeout);
         zend_update_property_bool(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("connected"), 1);
         RETURN_TRUE;
     }
