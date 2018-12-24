@@ -1160,6 +1160,10 @@ PHP_FUNCTION(swoole_strerror)
     {
         snprintf(error_msg, sizeof(error_msg) - 1, "%s", hstrerror(swoole_errno));
     }
+    else if (error_type == 9)
+    {
+        snprintf(error_msg, sizeof(error_msg) - 1, "%s", swstrerror(swoole_errno));
+    }
     else
     {
         snprintf(error_msg, sizeof(error_msg) - 1, "%s", strerror(swoole_errno));
