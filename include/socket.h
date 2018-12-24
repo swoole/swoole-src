@@ -28,45 +28,41 @@ namespace swoole
 class Socket
 {
 public:
-    swReactor *reactor;
+    swReactor *reactor = nullptr;
     std::string _host;
+    int _port = 0;
     std::string bind_address;
-    int bind_port;
-    int _port;
-    Coroutine* bind_co;
-    swTimer_node *_timer;
+    int bind_port = 0;
+    Coroutine* bind_co = nullptr;
+    swTimer_node *_timer = nullptr;
     swConnection *socket = nullptr;
     enum swSocket_type type;
-    int _sock_type;
-    int _sock_domain;
-    double _timeout;
-    double _timeout_temp;
-    int _backlog;
-    bool _closed;
-    int errCode;
-    const char *errMsg;
-    uint32_t http2 :1;
-    uint32_t shutdown_read :1;
-    uint32_t shutdown_write :1;
-    /**
-     * one package: length check
-     */
-    uint32_t open_length_check :1;
-    uint32_t open_eof_check :1;
+    int _sock_type = 0;
+    int _sock_domain = 0;
+    double _timeout = -1;
+    double _timeout_temp = 0;
+    int _backlog = SW_BACKLOG;
+    int errCode = 0;
+    const char *errMsg = "";
+    bool shutdown_read = false;
+    bool shutdown_write = false;
+    bool open_length_check = false;
+    bool open_eof_check = false;
+    bool http2 = false;
 
-    swProtocol protocol;
-    swString *read_buffer;
-    swString *write_buffer;
-    swSocketAddress bind_address_info;
+    swProtocol protocol = {0};
+    swString *read_buffer = nullptr;
+    swString *write_buffer = nullptr;
+    swSocketAddress bind_address_info = {{}, 0};
 
-    struct _swSocks5 *socks5_proxy;
-    struct _http_proxy* http_proxy;
+    struct _swSocks5 *socks5_proxy = nullptr;
+    struct _http_proxy* http_proxy = nullptr;
 
 #ifdef SW_USE_OPENSSL
-    bool open_ssl;
-    bool ssl_wait_handshake;
-    SSL_CTX *ssl_context;
-    swSSL_option ssl_option;
+    bool open_ssl = false;
+    bool ssl_wait_handshake = false;
+    SSL_CTX *ssl_context = nullptr;
+    swSSL_option ssl_option = {0};
 #endif
 
     Socket(enum swSocket_type type);
@@ -258,40 +254,10 @@ protected:
 
     inline void init_members()
     {
-        bind_co = nullptr;
-        _timeout = 0;
-        _timeout_temp = 0;
-        _port = 0;
-        errCode = 0;
-        errMsg = nullptr;
-        _timer = nullptr;
-        bind_port = 0;
-        _backlog = 0;
-
-        http2 = 0;
-        shutdown_read = 0;
-        shutdown_write = 0;
-        open_length_check = 0;
-        open_eof_check = 0;
-
-        socks5_proxy = nullptr;
-        http_proxy = nullptr;
-
-        read_buffer = nullptr;
-        write_buffer = nullptr;
-        protocol = {0};
-        bind_address_info = {{}, 0};
-
         protocol.package_length_type = 'N';
         protocol.package_length_size = 4;
         protocol.package_body_offset = 0;
         protocol.package_max_length = SW_BUFFER_INPUT_SIZE;
-
-#ifdef SW_USE_OPENSSL
-        open_ssl = false;
-        ssl_context = NULL;
-        ssl_option = {0};
-#endif
     }
 
     inline void init_sock_type(enum swSocket_type _type)

@@ -769,17 +769,14 @@ void Socket::yield()
         swError("Socket::yield() must be called in the coroutine.");
     }
 
+    //=== clear err ===
     set_err(0);
-    int ms = (int) (timeout * 1000);
-    if (ms <= 0)
-    {
-        timeout = -1;
-    }
-    if (timeout > 0)
+    //=== add timer ===
+    long ms = (long) (timeout * 1000);
+    if (ms > 0)
     {
         _timer = swTimer_add(&SwooleG.timer, ms, 0, this, socket_timer_callback);
     }
-
     //=== bind coroutine ===
     bind_co = co;
     //=== yield ===
@@ -792,10 +789,7 @@ void Socket::yield()
         swTimer_del(&SwooleG.timer, _timer);
         _timer = nullptr;
     }
-    if (_timeout_temp)
-    {
-        _timeout_temp = 0;
-    }
+    _timeout_temp = 0;
 }
 
 bool Socket::bind(std::string address, int port)
