@@ -2,6 +2,7 @@
 #include "coroutine.h"
 #include "async.h"
 #include "buffer.h"
+#include "lru_cache.h"
 
 #include <string>
 #include <iostream>
@@ -9,6 +10,16 @@
 
 using namespace swoole;
 using namespace std;
+
+typedef struct
+{
+    time_t update_time = 0;
+    string address;
+} dns_cache_node;
+static LRUCache dns_cache(1000, [](void *val)
+{
+    delete (dns_cache_node *) val;
+});
 
 static int socket_event_callback(swReactor *reactor, swEvent *event);
 static void socket_timer_callback(swTimer *timer, swTimer_node *tnode);
@@ -959,6 +970,14 @@ string Socket::resolve(string domain_name)
         return "";
     }
 
+    string cache_key(sock_domain == AF_INET ? "4_" : "6_");
+    cache_key.append(domain_name);
+    auto cache = (dns_cache_node *) dns_cache.get(cache_key);
+    if (cache && (cache->update_time + (int64_t) (SwooleG.dns_cache_refresh_time * 1000)) > swTimer_get_absolute_msec())
+    {
+        return cache->address;
+    }
+
     swAio_event ev;
     bzero(&ev, sizeof(swAio_event));
     if (domain_name.size() < SW_IP_MAX_LENGTH)
@@ -1010,6 +1029,10 @@ string Socket::resolve(string domain_name)
     {
         string addr((char *) ev.buf);
         sw_free(ev.buf);
+        cache = new dns_cache_node;
+        cache->update_time = swTimer_get_absolute_msec();
+        cache->address = addr;
+        dns_cache.set(cache_key, cache);
         return addr;
     }
 }

@@ -401,6 +401,11 @@ static PHP_METHOD(swoole_coroutine_util, set)
         convert_to_long(v);
         SwooleG.trace_flags = (uint32_t) MAX(0, Z_LVAL_P(v));
     }
+    if (php_swoole_array_get_value(vht, "dns_cache_refresh_time", v))
+    {
+        convert_to_double(v);
+        SwooleG.dns_cache_refresh_time = Z_DVAL_P(v);
+    }
     zval_ptr_dtor(zset);
 }
 
