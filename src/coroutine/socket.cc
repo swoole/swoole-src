@@ -770,10 +770,9 @@ void Socket::yield()
     //=== clear err ===
     set_err(0);
     //=== add timer ===
-    long ms = (long) (_timeout * 1000);
-    if (ms > 0)
+    if (timeout > 0)
     {
-        timer = swTimer_add(&SwooleG.timer, ms, 0, this, socket_timer_callback);
+        timer = swTimer_add(&SwooleG.timer, (long) (timeout * 1000), 0, this, socket_timer_callback);
     }
     //=== bind coroutine ===
     bind_co = co;

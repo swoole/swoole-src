@@ -39,7 +39,7 @@ public:
     enum swSocket_type type;
     int sock_type = 0;
     int sock_domain = 0;
-    double _timeout = -1;
+    double timeout = -1;
     int backlog = 0;
     int errCode = 0;
     const char *errMsg = "";
@@ -183,16 +183,16 @@ public:
 
     inline double get_timeout()
     {
-        return _timeout;
+        return timeout;
     }
 
-    inline void set_timeout(double timeout, bool temp = false)
+    inline void set_timeout(double timeout)
     {
         if (timeout == 0)
         {
             return;
         }
-        _timeout = timeout;
+        this->timeout = timeout;
     }
 
     inline void set_timeout(struct timeval *timeout)
