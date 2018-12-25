@@ -255,6 +255,7 @@ static void php_coro_create(void *arg)
     EG(error_handling) = EH_NORMAL;
     EG(exception_class) = NULL;
     EG(exception) = NULL;
+    EG(bailout) = NULL;
 
     php_coro_save_vm_stack(task);
     task->output_ptr = nullptr;
