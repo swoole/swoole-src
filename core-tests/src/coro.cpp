@@ -37,17 +37,6 @@ TEST(coroutine, socket_connect_timeout)
     });
 }
 
-TEST(coroutine, socket_connect_with_dns)
-{
-    coro_test([](void *arg)
-    {
-        Socket sock(SW_SOCK_TCP);
-        bool retval = sock.connect("www.baidu.com", 80, 0.5);
-        ASSERT_EQ(retval, true);
-        ASSERT_EQ(sock.errCode, 0);
-    });
-}
-
 TEST(coroutine, socket_resolve_with_cache)
 {
     coro_test([](void *arg)
@@ -68,7 +57,7 @@ TEST(coroutine, socket_resolve_without_cache)
 {
     coro_test([](void *arg)
     {
-        SwooleG.dns_cache_refresh_time = 60;
+        SwooleG.dns_cache_refresh_time = 0;
 
         Socket sock(SW_SOCK_TCP);
         std::string addr1 = sock.resolve("www.baidu.com");
@@ -101,6 +90,19 @@ TEST(coroutine, socket_resolve_cache_inet4_and_inet6)
 
         ASSERT_EQ(addr1, addr3);
         ASSERT_EQ(addr2, addr4);
+    });
+}
+
+TEST(coroutine, socket_connect_with_dns)
+{
+    coro_test([](void *arg)
+    {
+        SwooleG.dns_cache_refresh_time = 0;
+
+        Socket sock(SW_SOCK_TCP);
+        bool retval = sock.connect("www.baidu.com", 80, 0.5);
+        ASSERT_EQ(retval, true);
+        ASSERT_EQ(sock.errCode, 0);
     });
 }
 
