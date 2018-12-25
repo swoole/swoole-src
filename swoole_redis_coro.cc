@@ -2018,7 +2018,7 @@ static PHP_METHOD(swoole_redis_coro, set)
         ZEND_HASH_FOREACH_KEY_VAL(kt, idx, zkey, v)
         {
             /* Detect PX or EX argument and validate timeout */
-            if (zkey && IS_EX_PX_ARG(zkey->val))
+            if (!exp_type && zkey && IS_EX_PX_ARG(zkey->val))
             {
                 /* Set expire type */
                 exp_type = zkey->val;
@@ -2036,11 +2036,11 @@ static PHP_METHOD(swoole_redis_coro, set)
                 /* Expiry can't be set < 1 */
                 if (expire < 1)
                 {
-                    RETURN_FALSE
+                    RETURN_FALSE;
                 }
                 argc += 2;
             }
-            else if (Z_TYPE_P(v) == IS_STRING && IS_NX_XX_ARG(Z_STRVAL_P(v)))
+            else if (!set_type && Z_TYPE_P(v) == IS_STRING && IS_NX_XX_ARG(Z_STRVAL_P(v)))
             {
                 argc += 1;
                 set_type = Z_STRVAL_P(v);
@@ -2053,9 +2053,11 @@ static PHP_METHOD(swoole_redis_coro, set)
     {
         /* Grab expiry and fail if it's < 1 */
         expire = Z_LVAL_P(z_opts);
+        /* Expiry can't be set < 1 */
         if (expire < 1)
-            RETURN_FALSE
-        ;
+        {
+            RETURN_FALSE;
+        }
         argc += 1;
     }
 
