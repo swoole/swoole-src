@@ -37,10 +37,10 @@ public:
     swTimer_node *timer = nullptr;
     swConnection *socket = nullptr;
     enum swSocket_type type;
-    int _sock_type = 0;
-    int _sock_domain = 0;
+    int sock_type = 0;
+    int sock_domain = 0;
     double _timeout = -1;
-    int _backlog = SW_BACKLOG;
+    int backlog = 0;
     int errCode = 0;
     const char *errMsg = "";
     bool shutdown_read = false;
@@ -263,29 +263,29 @@ protected:
         switch (type)
         {
         case SW_SOCK_TCP6:
-            _sock_domain = AF_INET6;
-            _sock_type = SOCK_STREAM;
+            sock_domain = AF_INET6;
+            sock_type = SOCK_STREAM;
             break;
         case SW_SOCK_UNIX_STREAM:
-            _sock_domain = AF_UNIX;
-            _sock_type = SOCK_STREAM;
+            sock_domain = AF_UNIX;
+            sock_type = SOCK_STREAM;
             break;
         case SW_SOCK_UDP:
-            _sock_domain = AF_INET;
-            _sock_type = SOCK_DGRAM;
+            sock_domain = AF_INET;
+            sock_type = SOCK_DGRAM;
             break;
         case SW_SOCK_UDP6:
-            _sock_domain = AF_INET6;
-            _sock_type = SOCK_DGRAM;
+            sock_domain = AF_INET6;
+            sock_type = SOCK_DGRAM;
             break;
         case SW_SOCK_UNIX_DGRAM:
-            _sock_domain = AF_UNIX;
-            _sock_type = SOCK_DGRAM;
+            sock_domain = AF_UNIX;
+            sock_type = SOCK_DGRAM;
             break;
         case SW_SOCK_TCP:
         default:
-            _sock_domain = AF_INET;
-            _sock_type = SOCK_STREAM;
+            sock_domain = AF_INET;
+            sock_type = SOCK_STREAM;
             break;
         }
     }

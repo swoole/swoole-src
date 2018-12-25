@@ -306,9 +306,9 @@ Socket::Socket(enum swSocket_type _type)
     init_members();
     init_sock_type(_type);
 #ifdef SOCK_CLOEXEC
-    int _fd = ::socket(_sock_domain, _sock_type | SOCK_CLOEXEC, 0);
+    int _fd = ::socket(sock_domain, sock_type | SOCK_CLOEXEC, 0);
 #else
-    int _fd = ::socket(_sock_domain, _sock_type, 0);
+    int _fd = ::socket(sock_domain, sock_type, 0);
 #endif
     if (unlikely(_fd < 0))
     {
@@ -330,8 +330,8 @@ Socket::Socket(int _fd, Socket *server_sock)
 {
     init_members();
 
-    _sock_domain = server_sock->_sock_domain;
-    _sock_type = server_sock->_sock_type;
+    sock_domain = server_sock->sock_domain;
+    sock_type = server_sock->sock_type;
 
     reactor = server_sock->reactor;
     socket = swReactor_get(reactor, _fd);
@@ -410,7 +410,7 @@ bool Socket::connect(string host, int port, int flags)
         port = http_proxy->proxy_port;
     }
 
-    if (_sock_domain == AF_INET6 || _sock_domain == AF_INET)
+    if (sock_domain == AF_INET6 || sock_domain == AF_INET)
     {
         if (port == -1)
         {
@@ -431,7 +431,7 @@ bool Socket::connect(string host, int port, int flags)
 
     for (int i = 0; i < 2; i++)
     {
-        if (_sock_domain == AF_INET)
+        if (sock_domain == AF_INET)
         {
             socket->info.addr.inet_v4.sin_family = AF_INET;
             socket->info.addr.inet_v4.sin_port = htons(port);
@@ -452,7 +452,7 @@ bool Socket::connect(string host, int port, int flags)
                 break;
             }
         }
-        else if (_sock_domain == AF_INET6)
+        else if (sock_domain == AF_INET6)
         {
             socket->info.addr.inet_v6.sin6_family = AF_INET6;
             socket->info.addr.inet_v6.sin6_port = htons(port);
@@ -473,7 +473,7 @@ bool Socket::connect(string host, int port, int flags)
                 break;
             }
         }
-        else if (_sock_domain == AF_UNIX)
+        else if (sock_domain == AF_UNIX)
         {
             if (_host.size() >= sizeof(socket->info.addr.un.sun_path))
             {
@@ -818,7 +818,7 @@ bool Socket::bind(std::string address, int port)
 #endif
 
     int retval;
-    switch (_sock_domain)
+    switch (sock_domain)
     {
     case AF_UNIX:
     {
@@ -882,12 +882,8 @@ bool Socket::listen(int backlog)
     {
         return false;
     }
-    if (backlog <= 0)
-    {
-        backlog = SW_BACKLOG;
-    }
-    _backlog = backlog;
-    if (::listen(socket->fd, backlog) != 0)
+    this->backlog = backlog <= 0 ? SW_BACKLOG : backlog;
+    if (::listen(socket->fd, this->backlog) != 0)
     {
         set_err(errno);
         return false;
@@ -983,7 +979,7 @@ string Socket::resolve(string domain_name)
 
     memcpy(ev.buf, domain_name.c_str(), domain_name.size());
     ((char *) ev.buf)[domain_name.size()] = 0;
-    ev.flags = _sock_domain;
+    ev.flags = sock_domain;
     ev.type = SW_AIO_GETHOSTBYNAME;
     ev.object = this;
     ev.handler = swAio_handler_gethostbyname;
@@ -1535,11 +1531,11 @@ Socket::~Socket()
     {
         swString_free(write_buffer);
     }
-    if (_sock_domain == AF_UNIX && bind_address.size() > 0)
+    if (sock_domain == AF_UNIX && bind_address.size() > 0)
     {
         unlink(bind_address_info.addr.un.sun_path);
     }
-    if (_sock_type == SW_SOCK_UNIX_DGRAM)
+    if (sock_type == SW_SOCK_UNIX_DGRAM)
     {
         unlink(socket->info.addr.un.sun_path);
     }
