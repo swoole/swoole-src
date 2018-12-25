@@ -123,4 +123,4 @@ bool sw_disable_coroutine_hook();
 /**
  * Coroutine Client
  */
-void sw_coro_client_set(swoole::Socket *cli, zval *zset);
+void sw_coro_socket_set(swoole::Socket *cli, zval *zset);

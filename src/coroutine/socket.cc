@@ -762,8 +762,6 @@ ssize_t Socket::recvmsg(struct msghdr *msg, int flags)
 void Socket::yield()
 {
     Coroutine *co = coroutine_get_current();
-    double timeout = _timeout_temp ? _timeout_temp : _timeout;
-
     if (unlikely(!co))
     {
         swError("Socket::yield() must be called in the coroutine.");
@@ -772,7 +770,7 @@ void Socket::yield()
     //=== clear err ===
     set_err(0);
     //=== add timer ===
-    long ms = (long) (timeout * 1000);
+    long ms = (long) (_timeout * 1000);
     if (ms > 0)
     {
         _timer = swTimer_add(&SwooleG.timer, ms, 0, this, socket_timer_callback);
@@ -789,7 +787,6 @@ void Socket::yield()
         swTimer_del(&SwooleG.timer, _timer);
         _timer = nullptr;
     }
-    _timeout_temp = 0;
 }
 
 bool Socket::bind(std::string address, int port)
@@ -1005,8 +1002,10 @@ string Socket::resolve(string domain_name)
     }
 
     /** cannot timeout */
-    set_timeout(-1, true);
+    double persistent_timeout = get_timeout();
+    set_timeout(-1);
     yield();
+    set_timeout(persistent_timeout);
 
     if (errCode == SW_ERROR_DNSLOOKUP_RESOLVE_FAILED)
     {
@@ -1520,13 +1519,27 @@ ssize_t Socket::recv_packet()
 
 Socket::~Socket()
 {
+    int fd;
     if (socket == nullptr)
     {
+        // construct failed
         return;
+    }
+    if (read_buffer)
+    {
+        swString_free(read_buffer);
+    }
+    if (write_buffer)
+    {
+        swString_free(write_buffer);
     }
     if (_sock_domain == AF_UNIX && bind_address.size() > 0)
     {
         unlink(bind_address_info.addr.un.sun_path);
+    }
+    if (_sock_type == SW_SOCK_UNIX_DGRAM)
+    {
+        unlink(socket->info.addr.un.sun_path);
     }
 #ifdef SW_USE_OPENSSL
     if (socket->ssl)
@@ -1562,30 +1575,17 @@ Socket::~Socket()
         {
             sw_free(ssl_option.capath);
         }
-        ssl_option = {0};
-        ssl_context = nullptr;
     }
 #endif
-    if (_sock_type == SW_SOCK_UNIX_DGRAM)
-    {
-        unlink(socket->info.addr.un.sun_path);
-    }
-
-    if (socket->out_buffer)
-    {
-        swBuffer_free(socket->out_buffer);
-        socket->out_buffer = NULL;
-    }
     if (socket->in_buffer)
     {
         swBuffer_free(socket->in_buffer);
-        socket->in_buffer = NULL;
     }
-    if (read_buffer)
+    if (socket->out_buffer)
     {
-        swString_free(read_buffer);
+        swBuffer_free(socket->out_buffer);
     }
-    int fd = socket->fd;
+    fd = socket->fd;
     if (socket->removed == 0)
     {
         reactor->del(reactor, fd);

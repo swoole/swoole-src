@@ -40,7 +40,6 @@ public:
     int _sock_type = 0;
     int _sock_domain = 0;
     double _timeout = -1;
-    double _timeout_temp = 0;
     int _backlog = SW_BACKLOG;
     int errCode = 0;
     const char *errMsg = "";
@@ -182,20 +181,18 @@ public:
         errMsg = swstrerror(e);
     }
 
+    inline double get_timeout()
+    {
+        return _timeout;
+    }
+
     inline void set_timeout(double timeout, bool temp = false)
     {
         if (timeout == 0)
         {
             return;
         }
-        if (temp)
-        {
-            _timeout_temp = timeout;
-        }
-        else
-        {
-            _timeout = timeout;
-        }
+        _timeout = timeout;
     }
 
     inline void set_timeout(struct timeval *timeout)

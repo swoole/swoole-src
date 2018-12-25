@@ -101,7 +101,7 @@ static PHP_METHOD(swoole_client_coro, getsockname);
 static PHP_METHOD(swoole_client_coro, getpeername);
 static PHP_METHOD(swoole_client_coro, close);
 
-static void client_coro_check_ssl_setting(Socket *cli, zval *zset);
+static void sw_coro_socket_set_ssl(Socket *cli, zval *zset);
 static Socket* client_coro_new(zval *zobject, int port = 0);
 bool php_swoole_client_coro_socket_free(Socket *cli);
 
@@ -288,7 +288,7 @@ bool php_swoole_client_coro_socket_free(Socket *cli)
     return ret;
 }
 
-void sw_coro_client_set(Socket *cli, zval *zset)
+void sw_coro_socket_set(Socket *cli, zval *zset)
 {
     HashTable *vht;
     zval *v;
@@ -550,13 +550,13 @@ void sw_coro_client_set(Socket *cli, zval *zset)
 #ifdef SW_USE_OPENSSL
     if (cli->open_ssl)
     {
-        client_coro_check_ssl_setting(cli, zset);
+        sw_coro_socket_set_ssl(cli, zset);
     }
 #endif
 }
 
 #ifdef SW_USE_OPENSSL
-static void client_coro_check_ssl_setting(Socket *cli, zval *zset)
+static void sw_coro_socket_set_ssl(Socket *cli, zval *zset)
 {
     HashTable *vht = Z_ARRVAL_P(zset);
     zval *v;
@@ -684,7 +684,7 @@ static PHP_METHOD(swoole_client_coro, set)
     php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
     if (cli)
     {
-        sw_coro_client_set(cli, zset);
+        sw_coro_socket_set(cli, zset);
     }
     RETURN_TRUE;
 }
@@ -726,11 +726,11 @@ static PHP_METHOD(swoole_client_coro, connect)
     zval *zset = sw_zend_read_property(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("setting"), 1);
     if (zset && ZVAL_IS_ARRAY(zset))
     {
-        sw_coro_client_set(cli, zset);
+        sw_coro_socket_set(cli, zset);
     }
 
     sw_coro_check_bind("client", cli->has_bound());
-    cli->set_timeout(timeout == 0 ? COROG.socket_connect_timeout : timeout, true);
+    cli->set_timeout(timeout == 0 ? COROG.socket_connect_timeout : timeout);
     if (!cli->connect(host, port, sock_flag))
     {
         swoole_php_error(E_WARNING, "connect to server[%s:%d] failed. Error: %s[%d]", host, (int )port, cli->errMsg, cli->errCode);
@@ -773,8 +773,10 @@ static PHP_METHOD(swoole_client_coro, send)
     //clear errno
     SwooleG.error = 0;
     sw_coro_check_bind("client", cli->has_bound());
-    cli->set_timeout(timeout, true);
+    double persistent_timeout = cli->get_timeout();
+    cli->set_timeout(timeout);
     int ret = cli->send_all(data, data_len);
+    cli->set_timeout(persistent_timeout);
     if (ret < 0)
     {
         swoole_php_sys_error(E_WARNING, "failed to send(%d) %zd bytes.", cli->socket->fd, data_len);
@@ -926,11 +928,13 @@ static PHP_METHOD(swoole_client_coro, recv)
         RETURN_FALSE;
     }
     sw_coro_check_bind("client", cli->has_bound());
-    cli->set_timeout(timeout, true);
+    double persistent_timeout = cli->get_timeout();
+    cli->set_timeout(timeout);
     ssize_t retval ;
     if (cli->open_length_check || cli->open_eof_check)
     {
         retval = cli->recv_packet();
+        cli->set_timeout(persistent_timeout);
         if (retval > 0)
         {
             RETVAL_STRINGL(cli->read_buffer->str, retval);
@@ -940,6 +944,7 @@ static PHP_METHOD(swoole_client_coro, recv)
     {
         zend_string *result = zend_string_alloc(SW_PHP_CLIENT_BUFFER_SIZE - sizeof(zend_string), 0);
         retval = cli->recv(result->val, SW_PHP_CLIENT_BUFFER_SIZE - sizeof(zend_string));
+        cli->set_timeout(persistent_timeout);
         if (retval > 0)
         {
             result->val[retval] = 0;
@@ -1144,7 +1149,7 @@ static PHP_METHOD(swoole_client_coro, enableSSL)
     zval *zset = sw_zend_read_property(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("setting"), 0);
     if (ZVAL_IS_ARRAY(zset))
     {
-        client_coro_check_ssl_setting(cli, zset);
+        sw_coro_socket_set_ssl(cli, zset);
     }
     sw_coro_check_bind("client", cli->has_bound());
     if (cli->ssl_handshake() == false)
