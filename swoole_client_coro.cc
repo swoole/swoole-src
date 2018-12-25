@@ -155,7 +155,7 @@ void swoole_client_coro_init(int module_number)
     zend_declare_class_constant_long(swoole_client_coro_ce_ptr, ZEND_STRL("MSG_WAITALL"), MSG_WAITALL);
 }
 
-static sw_inline Socket* client_get_ptr(zval *zobject)
+static sw_inline Socket* client_get_ptr(zval *zobject, bool silent = false)
 {
     Socket *cli = (Socket *) swoole_get_object(zobject);
     if (cli && cli->socket && cli->socket->active == 1)
@@ -164,10 +164,13 @@ static sw_inline Socket* client_get_ptr(zval *zobject)
     }
     else
     {
-        SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
-        zend_update_property_long(swoole_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error);
-        swoole_php_error(E_WARNING, "client is not connected to server.");
-        return NULL;
+        if (!silent)
+        {
+            SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
+            zend_update_property_long(swoole_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), SwooleG.error);
+            swoole_php_error(E_WARNING, "client is not connected to server.");
+        }
+        return nullptr;
     }
 }
 
@@ -673,7 +676,7 @@ static PHP_METHOD(swoole_client_coro, __destruct)
 
 static PHP_METHOD(swoole_client_coro, set)
 {
-    Socket *cli = client_get_ptr(getThis());
+    Socket *cli = client_get_ptr(getThis(), true);
     zval *zset, *zsetting;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
