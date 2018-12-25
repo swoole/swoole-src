@@ -2198,6 +2198,7 @@ typedef struct
     char *dns_server_v4;
     char *dns_server_v6;
     double dns_cache_refresh_time;
+    size_t dns_cache_capacity;
 
     swLock lock;
     swHashMap *functions;

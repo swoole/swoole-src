@@ -6,9 +6,63 @@
 #include <string>
 #include <iostream>
 #include <sys/stat.h>
+#include <list>
 
 using namespace swoole;
 using namespace std;
+
+typedef struct
+{
+    time_t update_time;
+    string address;
+} dns_cache;
+unordered_map<string, list<pair<string, dns_cache*>>::iterator> dns_cache_map;
+list<pair<string, dns_cache*>> dns_cache_list;
+
+static sw_inline string get_dns_cache(const string &key)
+{
+    auto iter = dns_cache_map.find(key);
+    if (iter == dns_cache_map.end())
+    {
+        return "";
+    }
+
+    if (unlikely(iter->second->second->update_time < swTimer_get_absolute_msec()))
+    {
+        return "";
+    }
+
+    dns_cache_list.splice(dns_cache_list.begin(), dns_cache_list, iter->second);
+    return iter->second->second->address;
+}
+
+static sw_inline void set_dns_cache(const string &key, const string &val)
+{
+    time_t update_time = swTimer_get_absolute_msec() + (int64_t) (SwooleG.dns_cache_refresh_time * 1000);
+
+    auto iter = dns_cache_map.find(key);
+    if (iter != dns_cache_map.end())
+    {
+        iter->second->second->address = val;
+        iter->second->second->update_time = update_time;
+        return;
+    }
+
+    while (dns_cache_list.size() >= SwooleG.dns_cache_capacity)
+    {
+        auto del = dns_cache_list.back();
+        dns_cache_map.erase(del.first);
+        delete del.second;
+        dns_cache_list.pop_back();
+    }
+
+    auto cache = new dns_cache;
+    cache->address = val;
+    cache->update_time = update_time;
+
+    dns_cache_list.emplace_front(key, cache);
+    dns_cache_map[key] = dns_cache_list.begin();
+}
 
 static int socket_event_callback(swReactor *reactor, swEvent *event);
 static void socket_timer_callback(swTimer *timer, swTimer_node *tnode);
@@ -973,6 +1027,12 @@ string Socket::resolve(string domain_name)
         return "";
     }
 
+    auto cache_address = get_dns_cache(domain_name);
+    if (!cache_address.empty())
+    {
+        return cache_address;
+    }
+
     swAio_event ev;
     bzero(&ev, sizeof(swAio_event));
     if (domain_name.size() < SW_IP_MAX_LENGTH)
@@ -1022,6 +1082,7 @@ string Socket::resolve(string domain_name)
     {
         string addr((char *) ev.buf);
         sw_free(ev.buf);
+        set_dns_cache(domain_name, addr);
         return addr;
     }
 }

@@ -896,6 +896,7 @@ PHP_MINIT_FUNCTION(swoole)
 
     //default 60s
     SwooleG.dns_cache_refresh_time = 60;
+    SwooleG.dns_cache_capacity = 500;
 
     if (SWOOLE_G(aio_thread_num) > 0)
     {
