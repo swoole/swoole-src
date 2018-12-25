@@ -40,6 +40,13 @@ function skip_php_version_between($a, $b)
     }
 }
 
+function skip_if_not_debug_version()
+{
+    if (!SWOOLE_DEBUG) {
+        skip('only in swoole debug version');
+    }
+}
+
 function skip_if_class_not_exist(string $class_name)
 {
     if (!class_exists($class_name, false)) {

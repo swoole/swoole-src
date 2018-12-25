@@ -826,7 +826,7 @@ static void php_swoole_task_wait_co(swServer *serv, swEventData *req, double tim
         task_coroutine_map[req->info.fd] = task_co;
     }
 
-    int ms = (int) (timeout * 1000);
+    long ms = (long) (timeout * 1000);
     swTimer_node *timer = swTimer_add(&SwooleG.timer, ms, 0, task_co, php_swoole_task_onTimeout);
     if (timer)
     {
@@ -2115,7 +2115,7 @@ void php_swoole_server_send_yield(swServer *serv, int fd, zval *zdata, zval *ret
     if (serv->send_timeout > 0)
     {
         context->private_data = (void*) (long) fd;
-        context->timer = swTimer_add(&SwooleG.timer, (int) (serv->send_timeout * 1000), 0, context, php_swoole_onSendTimeout);
+        context->timer = swTimer_add(&SwooleG.timer, (long) (serv->send_timeout * 1000), 0, context, php_swoole_onSendTimeout);
     }
     else
     {
@@ -3737,7 +3737,7 @@ static PHP_METHOD(swoole_server, taskCo)
         RETURN_FALSE;
     }
 
-    int ms = (int) (timeout * 1000);
+    long ms = (long) (timeout * 1000);
 
     task_co->result = result;
     task_co->list = list;

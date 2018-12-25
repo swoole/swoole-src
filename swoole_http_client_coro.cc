@@ -604,7 +604,7 @@ void http_client::set(zval *zset = nullptr)
     {
         SW_ASSERT(socket);
         // will be set after create socket and before connect
-        sw_coro_client_set(socket, zsettings);
+        sw_coro_socket_set(socket, zsettings);
         if (socket->http_proxy)
         {
             if (socket->http_proxy->password)
@@ -647,7 +647,7 @@ bool http_client::connect()
         set();
 
         // connect
-        socket->set_timeout(connect_timeout, true);
+        socket->set_timeout(connect_timeout);
         if (!socket->connect(addr, port))
         {
             zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), socket->errCode);
@@ -1241,8 +1241,10 @@ bool http_client::recv(double timeout)
     buffer = socket->get_read_buffer();
     while (completed == 0)
     {
-        socket->set_timeout(timeout, true);
+        double persistent_timeout = socket->get_timeout();
+        socket->set_timeout(timeout);
         retval = socket->recv(buffer->str, buffer->size);
+        socket->set_timeout(persistent_timeout);
         if (retval > 0)
         {
             total_bytes += retval;
@@ -1328,8 +1330,10 @@ void http_client::recv(zval *zframe, double timeout)
         zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_SERVER_RESET);
         return;
     }
-    socket->set_timeout(timeout, true);
+    double persistent_timeout = socket->get_timeout();
+    socket->set_timeout(timeout);
     ssize_t retval = socket->recv_packet();
+    socket->set_timeout(persistent_timeout);
     if (retval <= 0)
     {
         zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), socket->errCode);

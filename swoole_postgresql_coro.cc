@@ -204,7 +204,7 @@ static PHP_METHOD(swoole_postgresql_coro, connect)
 
     if (object->timeout > 0)
     {
-        object->timer = swTimer_add(&SwooleG.timer, (int) (object->timeout * 1000), 0, context, swoole_pgsql_coro_onTimeout);
+        object->timer = swTimer_add(&SwooleG.timer, (long) (object->timeout * 1000), 0, context, swoole_pgsql_coro_onTimeout);
     }
     sw_coro_save(return_value, context);
     sw_coro_yield();

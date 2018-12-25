@@ -19,9 +19,7 @@
 
 #if defined(HAVE_CONFIG_H) && !defined(COMPILE_DL_SWOOLE)
 #include "config.h"
-#endif
-
-#ifdef SW_STATIC_COMPILATION
+#elif defined(PHP_ATOM_INC) || defined(ZEND_SIGNALS)
 #include "php_config.h"
 #endif
 
@@ -2015,6 +2013,9 @@ int swProtocol_recv_check_length(swProtocol *protocol, swConnection *conn, swStr
 int swProtocol_recv_check_eof(swProtocol *protocol, swConnection *conn, swString *buffer);
 
 //--------------------------------timer------------------------------
+#define SW_TIMER_MAX_MS  LONG_MAX
+#define SW_TIMER_MAX_SEC (LONG_MAX / 1000)
+
 typedef struct _swTimer swTimer;
 typedef struct _swTimer_node swTimer_node;
 

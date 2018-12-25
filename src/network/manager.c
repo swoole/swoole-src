@@ -259,7 +259,7 @@ static int swManager_loop(swFactory *factory)
 
     if (serv->manager_alarm > 0)
     {
-        swTimer_add(&SwooleG.timer, serv->manager_alarm * 1000, 1, serv, swManager_onTimer);
+        swTimer_add(&SwooleG.timer, (long) (serv->manager_alarm * 1000), 1, serv, swManager_onTimer);
     }
 
     while (SwooleG.running > 0)
