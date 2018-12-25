@@ -9,7 +9,7 @@ require __DIR__ . '/../include/skipif.inc';
 require __DIR__ . '/../include/bootstrap.php';
 
 go(function () {
-    $cli = new Swoole\Coroutine\Http\Client('login.wx.qq.com', 99, true);
+    $cli = new Swoole\Coroutine\Http\Client('140.207.135.104', 99, true);
     $cli->setHeaders([
         'Host' => "login.wx.qq.com",
         "User-Agent" => 'Chrome/49.0.2587.3',
