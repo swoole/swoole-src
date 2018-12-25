@@ -13,7 +13,7 @@ using namespace std;
 
 typedef struct
 {
-    time_t update_time;
+    time_t update_time = 0;
     string address;
 } dns_cache;
 unordered_map<string, list<pair<string, dns_cache*>>::iterator> dns_cache_map;
@@ -32,7 +32,8 @@ static sw_inline string get_dns_cache(const string &key)
         return "";
     }
 
-    if (unlikely(iter->second->second->update_time < swTimer_get_absolute_msec()))
+    time_t refresh_time = iter->second->second->update_time + (int64_t) (SwooleG.dns_cache_refresh_time * 1000);
+    if (unlikely(refresh_time < swTimer_get_absolute_msec()))
     {
         return "";
     }
@@ -48,7 +49,7 @@ static sw_inline void set_dns_cache(const string &key, const string &val)
         return;
     }
 
-    time_t update_time = swTimer_get_absolute_msec() + (int64_t) (SwooleG.dns_cache_refresh_time * 1000);
+    time_t update_time = swTimer_get_absolute_msec();
 
     auto iter = dns_cache_map.find(key);
     if (iter != dns_cache_map.end())

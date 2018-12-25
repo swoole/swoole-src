@@ -48,6 +48,40 @@ TEST(coroutine, socket_connect_with_dns)
     });
 }
 
+TEST(coroutine, socket_resolve_with_cache)
+{
+    coro_test([](void *arg)
+    {
+        SwooleG.dns_cache_capacity = 10;
+        SwooleG.dns_cache_refresh_time = 60;
+
+        Socket sock(SW_SOCK_TCP);
+        std::string addr1 = sock.resolve("www.baidu.com");
+        std::string addr2 = sock.resolve("www.baidu.com");
+
+        ASSERT_STRNE(addr1.c_str(), "");
+        ASSERT_STRNE(addr2.c_str(), "");
+        ASSERT_STREQ(addr1.c_str(), addr2.c_str());
+    });
+}
+
+TEST(coroutine, socket_resolve_without_cache)
+{
+    coro_test([](void *arg)
+    {
+        SwooleG.dns_cache_capacity = 0;
+        SwooleG.dns_cache_refresh_time = 60;
+
+        Socket sock(SW_SOCK_TCP);
+        std::string addr1 = sock.resolve("www.baidu.com");
+        std::string addr2 = sock.resolve("www.baidu.com");
+
+        ASSERT_STRNE(addr1.c_str(), "");
+        ASSERT_STRNE(addr2.c_str(), "");
+        ASSERT_STRNE(addr1.c_str(), addr2.c_str());
+    });
+}
+
 TEST(coroutine, socket_recv_success)
 {
     coro_test([](void *arg)
