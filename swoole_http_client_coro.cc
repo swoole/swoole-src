@@ -647,7 +647,7 @@ bool http_client::connect()
         set();
 
         // connect
-        socket->set_timeout(connect_timeout, true);
+        socket->set_timeout(connect_timeout);
         if (!socket->connect(addr, port))
         {
             zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), socket->errCode);
