@@ -63,6 +63,7 @@ static sw_inline void php_coro_save_vm_stack(coro_task *task)
     task->error_handling = EG(error_handling);
     task->exception_class = EG(exception_class);
     task->exception = EG(exception);
+    task->bailout = EG(bailout);
     SW_SAVE_EG_SCOPE(task->scope);
 }
 
@@ -86,6 +87,7 @@ static sw_inline void php_coro_restore_vm_stack(coro_task *task)
     EG(error_handling) = task->error_handling;
     EG(exception_class) = task->exception_class;
     EG(exception) = task->exception;
+    EG(bailout) = task->bailout;
     SW_SET_EG_SCOPE(task->scope);
 }
 
@@ -253,6 +255,7 @@ static void php_coro_create(void *arg)
     EG(error_handling) = EH_NORMAL;
     EG(exception_class) = NULL;
     EG(exception) = NULL;
+    EG(bailout) = NULL;
 
     php_coro_save_vm_stack(task);
     task->output_ptr = nullptr;

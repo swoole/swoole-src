@@ -53,6 +53,7 @@ struct coro_task
     zend_error_handling_t error_handling;
     zend_class_entry *exception_class;
     zend_object *exception;
+    JMP_BUF *bailout;
     zend_output_globals *output_ptr;
     SW_DECLARE_EG_SCOPE(scope);
     swoole::Coroutine *co;
