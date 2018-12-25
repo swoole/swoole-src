@@ -529,7 +529,7 @@ static void socket_timer_callback(swTimer *timer, swTimer_node *tnode)
     swTraceLog(SW_TRACE_SOCKET, "socket[%d] timeout", sock->socket->fd);
     sock->set_err(ETIMEDOUT);
     sock->reactor->del(sock->reactor, sock->socket->fd);
-    sock->_timer = NULL;
+    sock->timer = NULL;
     sock->resume();
 }
 
@@ -773,7 +773,7 @@ void Socket::yield()
     long ms = (long) (_timeout * 1000);
     if (ms > 0)
     {
-        _timer = swTimer_add(&SwooleG.timer, ms, 0, this, socket_timer_callback);
+        timer = swTimer_add(&SwooleG.timer, ms, 0, this, socket_timer_callback);
     }
     //=== bind coroutine ===
     bind_co = co;
@@ -782,10 +782,10 @@ void Socket::yield()
     //=== resume ===
     bind_co = nullptr;
     //=== clear timer ===
-    if (_timer)
+    if (timer)
     {
-        swTimer_del(&SwooleG.timer, _timer);
-        _timer = nullptr;
+        swTimer_del(&SwooleG.timer, timer);
+        timer = nullptr;
     }
 }
 
@@ -1356,7 +1356,8 @@ ssize_t Socket::recv_packet()
             }
         }
 
-        _recv_header: retval = recv(read_buffer->str + read_buffer->length, header_len - read_buffer->length);
+        _recv_header:
+        retval = recv(read_buffer->str + read_buffer->length, header_len - read_buffer->length);
         if (retval <= 0)
         {
             return 0;
@@ -1366,7 +1367,8 @@ ssize_t Socket::recv_packet()
             read_buffer->length += retval;
         }
 
-        _get_length: buf_len = protocol.get_package_length(&protocol, socket, read_buffer->str, (uint32_t) read_buffer->length);
+        _get_length:
+        buf_len = protocol.get_package_length(&protocol, socket, read_buffer->str, (uint32_t) read_buffer->length);
         swTraceLog(SW_TRACE_SOCKET, "packet_len=%ld, length=%ld", buf_len, read_buffer->length);
         //error package
         if (buf_len < 0)

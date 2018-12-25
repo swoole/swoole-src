@@ -34,7 +34,7 @@ public:
     std::string bind_address;
     int bind_port = 0;
     Coroutine* bind_co = nullptr;
-    swTimer_node *_timer = nullptr;
+    swTimer_node *timer = nullptr;
     swConnection *socket = nullptr;
     enum swSocket_type type;
     int _sock_type = 0;
