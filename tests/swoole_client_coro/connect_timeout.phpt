@@ -12,13 +12,13 @@ go(function () {
     ]);
     $cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
     $s = microtime(true);
-    assert(!@$cli->connect('1.1.1.1', 443));
+    assert(!@$cli->connect('login.wx.qq.com', 1));
     assert($cli->errCode = SOCKET_ETIMEDOUT);
     $s = microtime(true) - $s;
     phpt_var_dump($s);
     assert(approximate($s, 0.1));
     $s = microtime(true);
-    assert(!@$cli->connect('1.1.1.1', 443, $random_timeout = mt_rand(100, 1000) / 1000));
+    assert(!@$cli->connect('login.wx.qq.com', 1, $random_timeout = mt_rand(100, 1000) / 1000));
     assert($cli->errCode = SOCKET_ETIMEDOUT);
     $s = microtime(true) - $s;
     phpt_var_dump($s);

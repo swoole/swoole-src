@@ -77,7 +77,7 @@ static void dns_timeout_coro(swTimer *timer, swTimer_node *tnode);
 
 static void php_swoole_file_request_free(void *data);
 
-static std::unordered_map<std::string, int> open_files;
+static std::unordered_map<std::string, int> open_write_files;
 static std::unordered_map<std::string, dns_cache*> request_cache_map;
 
 static void php_swoole_file_request_free(void *data)
@@ -402,6 +402,7 @@ static void aio_onFileCompleted(swAio_event *event)
     if (file_req->once == 1)
     {
         close_file:
+        swTraceLog(SW_TRACE_AIO, "close file fd#%d", event->fd);
         close(event->fd);
         php_swoole_file_request_free(file_req);
     }
@@ -409,7 +410,7 @@ static void aio_onFileCompleted(swAio_event *event)
     {
         if (retval && !ZVAL_IS_NULL(retval) && !Z_BVAL_P(retval))
         {
-            open_files.erase(std::string(Z_STRVAL_P(file_req->filename), Z_STRLEN_P(file_req->filename)));
+            open_write_files.erase(std::string(Z_STRVAL_P(file_req->filename), Z_STRLEN_P(file_req->filename)));
             goto close_file;
         }
         else
@@ -597,8 +598,8 @@ PHP_FUNCTION(swoole_async_write)
 
     int fd;
     std::string key(Z_STRVAL_P(filename), Z_STRLEN_P(filename));
-    auto file_iterator = open_files.find(key);
-    if (file_iterator == open_files.end())
+    auto file_iterator = open_write_files.find(key);
+    if (file_iterator == open_write_files.end())
     {
         int open_flag = O_WRONLY | O_CREAT;
         if (offset < 0)
@@ -611,11 +612,13 @@ PHP_FUNCTION(swoole_async_write)
             swoole_php_fatal_error(E_WARNING, "open(%s, %d) failed. Error: %s[%d]", Z_STRVAL_P(filename), open_flag, strerror(errno), errno);
             RETURN_FALSE;
         }
-        open_files[key] = fd;
+        swTraceLog(SW_TRACE_AIO, "open write file fd#%d", fd);
+        open_write_files[key] = fd;
     }
     else
     {
         fd = file_iterator->second;
+        swTraceLog(SW_TRACE_AIO, "reuse write file fd#%d", fd);
     }
 
     if (offset < 0)
@@ -1217,7 +1220,7 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro)
         SW_CHECK_RETURN(ret);
     }
     //add timeout
-    req->timer = swTimer_add(&SwooleG.timer, (int) (timeout * 1000), 0, context, dns_timeout_coro);
+    req->timer = swTimer_add(&SwooleG.timer, (long) (timeout * 1000), 0, context, dns_timeout_coro);
     if (req->timer)
     {
         context->state = SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST;

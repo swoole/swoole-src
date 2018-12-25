@@ -390,7 +390,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
      */
     if (serv->heartbeat_check_interval > 0)
     {
-        heartbeat_timer = swTimer_add(&SwooleG.timer, serv->heartbeat_check_interval * 1000, 1, reactor, swReactorProcess_onTimeout);
+        heartbeat_timer = swTimer_add(&SwooleG.timer, (long) (serv->heartbeat_check_interval * 1000), 1, reactor, swReactorProcess_onTimeout);
         if (heartbeat_timer == NULL)
         {
             return SW_ERR;

@@ -6,8 +6,6 @@ swoole_redis_coro: connect twice
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-//Co::set(['log_level' => SWOOLE_LOG_TRACE, 'trace_flags' => SWOOLE_TRACE_ALL]);
-
 go(function () {
     $redis = new Swoole\Coroutine\Redis(['timeout' => 0.5]);
     echo "connect [1]\n";

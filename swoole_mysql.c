@@ -2592,7 +2592,7 @@ static PHP_METHOD(swoole_mysql, connect)
     {
         if (connector->timeout > 0)
         {
-            cli->timer = swTimer_add(&SwooleG.timer, (int) (connector->timeout * 1000), 0, client, swoole_mysql_onTimeout);
+            cli->timer = swTimer_add(&SwooleG.timer, (long) (connector->timeout * 1000), 0, client, swoole_mysql_onTimeout);
             cli->timeout = connector->timeout;
         }
         if (SwooleG.main_reactor->add(SwooleG.main_reactor, cli->socket->fd, PHP_SWOOLE_FD_MYSQL | SW_EVENT_WRITE) < 0)

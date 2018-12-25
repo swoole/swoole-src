@@ -641,7 +641,7 @@ static void sleep_timeout(swTimer *timer, swTimer_node *tnode)
 int Coroutine::sleep(double sec)
 {
     Coroutine* co = coroutine_get_current();
-    if (swTimer_add(&SwooleG.timer, sec * 1000, 0, co, sleep_timeout) == NULL)
+    if (swTimer_add(&SwooleG.timer, (long) (sec * 1000), 0, co, sleep_timeout) == NULL)
     {
         return -1;
     }
