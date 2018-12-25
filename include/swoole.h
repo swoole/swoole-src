@@ -19,9 +19,7 @@
 
 #if defined(HAVE_CONFIG_H) && !defined(COMPILE_DL_SWOOLE)
 #include "config.h"
-#endif
-
-#ifdef SW_STATIC_COMPILATION
+#elif defined(PHP_ATOM_INC) || defined(ZEND_SIGNALS)
 #include "php_config.h"
 #endif
 
