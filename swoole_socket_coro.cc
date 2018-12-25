@@ -188,6 +188,7 @@ static PHP_METHOD(swoole_socket_coro, __construct)
     ZEND_PARSE_PARAMETERS_START(2, 3)
         Z_PARAM_LONG(domain)
         Z_PARAM_LONG(type)
+        Z_PARAM_OPTIONAL
         Z_PARAM_LONG(protocol)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
