@@ -21,6 +21,11 @@ list<pair<string, dns_cache*>> dns_cache_list;
 
 static sw_inline string get_dns_cache(const string &key)
 {
+    if (SwooleG.dns_cache_capacity == 0)
+    {
+        return "";
+    }
+
     auto iter = dns_cache_map.find(key);
     if (iter == dns_cache_map.end())
     {
@@ -38,6 +43,11 @@ static sw_inline string get_dns_cache(const string &key)
 
 static sw_inline void set_dns_cache(const string &key, const string &val)
 {
+    if (SwooleG.dns_cache_capacity == 0)
+    {
+        return;
+    }
+
     time_t update_time = swTimer_get_absolute_msec() + (int64_t) (SwooleG.dns_cache_refresh_time * 1000);
 
     auto iter = dns_cache_map.find(key);
@@ -45,15 +55,19 @@ static sw_inline void set_dns_cache(const string &key, const string &val)
     {
         iter->second->second->address = val;
         iter->second->second->update_time = update_time;
+        dns_cache_list.splice(dns_cache_list.begin(), dns_cache_list, iter->second);
         return;
     }
 
-    while (dns_cache_list.size() >= SwooleG.dns_cache_capacity)
+    if (SwooleG.dns_cache_capacity > 0)
     {
-        auto del = dns_cache_list.back();
-        dns_cache_map.erase(del.first);
-        delete del.second;
-        dns_cache_list.pop_back();
+        while (dns_cache_list.size() >= SwooleG.dns_cache_capacity)
+        {
+            auto del = dns_cache_list.back();
+            dns_cache_map.erase(del.first);
+            delete del.second;
+            dns_cache_list.pop_back();
+        }
     }
 
     auto cache = new dns_cache;
