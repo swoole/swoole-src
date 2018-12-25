@@ -407,18 +407,22 @@ static void aio_onFileCompleted(swAio_event *event)
     if (file_req->once == 1)
     {
         close_file:
-        if (--(*file_req->refcount) == 0)
+        if (file_req->refcount)
         {
-            swTraceLog(SW_TRACE_AIO, "close file fd#%d", event->fd);
-            if(file_req->type == SW_AIO_WRITE)
+            if (--(*file_req->refcount) == 0)
             {
+                swTraceLog(SW_TRACE_AIO, "close file fd#%d", event->fd);
                 open_write_files.erase(std::string(Z_STRVAL_P(file_req->filename), Z_STRLEN_P(file_req->filename)));
+                close(event->fd);
             }
-            close(event->fd);
+            else
+            {
+                swTraceLog(SW_TRACE_AIO, "delref file fd#%d, refcount=%u", event->fd, *file_req->refcount);
+            }
         }
         else
         {
-            swTraceLog(SW_TRACE_AIO, "delref file fd#%d, refcount=%u", event->fd, *file_req->refcount);
+            close(event->fd);
         }
         php_swoole_file_request_free(file_req);
     }
@@ -433,7 +437,7 @@ static void aio_onFileCompleted(swAio_event *event)
             php_swoole_file_request_free(file_req);
         }
     }
-    else
+    else // if(file_req->type == SW_AIO_READ)
     {
         if ((retval && !ZVAL_IS_NULL(retval) && !Z_BVAL_P(retval)) || isEOF)
         {
@@ -553,6 +557,7 @@ PHP_FUNCTION(swoole_async_read)
     req->callback = callback;
     Z_TRY_ADDREF_P(callback);
     sw_copy_to_stack(req->callback, req->_callback);
+    req->refcount = nullptr;
     req->content = (char*) fcnt;
     req->once = 0;
     req->type = SW_AIO_READ;
@@ -746,7 +751,7 @@ PHP_FUNCTION(swoole_async_readfile)
     req->callback = callback;
     Z_TRY_ADDREF_P(callback);
     sw_copy_to_stack(req->callback, req->_callback);
-
+    req->refcount = nullptr;
     req->content = (char *) emalloc(length);
     req->once = 1;
     req->type = SW_AIO_READ;
@@ -842,7 +847,7 @@ PHP_FUNCTION(swoole_async_writefile)
     {
         req->callback = NULL;
     }
-
+    req->refcount = nullptr;
     req->type = SW_AIO_WRITE;
     req->content = wt_cnt;
     req->once = 1;
