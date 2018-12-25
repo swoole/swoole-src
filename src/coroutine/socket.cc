@@ -1028,7 +1028,7 @@ string Socket::resolve(string domain_name)
         return "";
     }
 
-    string cache_key(_sock_domain == AF_INET ? "4_" : "6_");
+    string cache_key(sock_domain == AF_INET ? "4_" : "6_");
     cache_key.append(domain_name);
 
     auto cache_address = get_dns_cache(cache_key);
