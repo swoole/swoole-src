@@ -34,7 +34,7 @@ typedef struct
     zval _filename;
     zval *callback;
     zval *filename;
-    int fd;
+    uint32_t *refcount;
     off_t offset;
     uint16_t type;
     uint8_t once;
@@ -77,7 +77,12 @@ static void dns_timeout_coro(swTimer *timer, swTimer_node *tnode);
 
 static void php_swoole_file_request_free(void *data);
 
-static std::unordered_map<std::string, int> open_write_files;
+typedef struct
+{
+    int fd;
+    uint32_t refcount;
+} open_file;
+static std::unordered_map<std::string, open_file> open_write_files;
 static std::unordered_map<std::string, dns_cache*> request_cache_map;
 
 static void php_swoole_file_request_free(void *data)
@@ -402,15 +407,25 @@ static void aio_onFileCompleted(swAio_event *event)
     if (file_req->once == 1)
     {
         close_file:
-        swTraceLog(SW_TRACE_AIO, "close file fd#%d", event->fd);
-        close(event->fd);
+        if (--(*file_req->refcount) == 0)
+        {
+            swTraceLog(SW_TRACE_AIO, "close file fd#%d", event->fd);
+            if(file_req->type == SW_AIO_WRITE)
+            {
+                open_write_files.erase(std::string(Z_STRVAL_P(file_req->filename), Z_STRLEN_P(file_req->filename)));
+            }
+            close(event->fd);
+        }
+        else
+        {
+            swTraceLog(SW_TRACE_AIO, "delref file fd#%d, refcount=%u", event->fd, *file_req->refcount);
+        }
         php_swoole_file_request_free(file_req);
     }
     else if(file_req->type == SW_AIO_WRITE)
     {
         if (retval && !ZVAL_IS_NULL(retval) && !Z_BVAL_P(retval))
         {
-            open_write_files.erase(std::string(Z_STRVAL_P(file_req->filename), Z_STRLEN_P(file_req->filename)));
             goto close_file;
         }
         else
@@ -525,7 +540,6 @@ PHP_FUNCTION(swoole_async_read)
     }
 
     file_request *req = (file_request *) emalloc(sizeof(file_request));
-    req->fd = fd;
 
     req->filename = filename;
     Z_TRY_ADDREF_P(filename);
@@ -596,6 +610,13 @@ PHP_FUNCTION(swoole_async_write)
 
     convert_to_string(filename);
 
+    if (offset < 0)
+    {
+        offset = 0;
+    }
+
+    file_request *req = (file_request *) emalloc(sizeof(file_request));
+
     int fd;
     std::string key(Z_STRVAL_P(filename), Z_STRLEN_P(filename));
     auto file_iterator = open_write_files.find(key);
@@ -613,22 +634,18 @@ PHP_FUNCTION(swoole_async_write)
             RETURN_FALSE;
         }
         swTraceLog(SW_TRACE_AIO, "open write file fd#%d", fd);
-        open_write_files[key] = fd;
+        open_write_files[key] = {fd, 1};
+        req->refcount = &open_write_files[key].refcount;
     }
     else
     {
-        fd = file_iterator->second;
+        fd = file_iterator->second.fd;
+        file_iterator->second.refcount++;
+        req->refcount = &file_iterator->second.refcount;
         swTraceLog(SW_TRACE_AIO, "reuse write file fd#%d", fd);
     }
 
-    if (offset < 0)
-    {
-        offset = 0;
-    }
-
-    file_request *req = (file_request *) emalloc(sizeof(file_request));
     char *wt_cnt = (char *) emalloc(fcnt_len);
-    req->fd = fd;
     req->content = wt_cnt;
     req->once = 0;
     req->type = SW_AIO_WRITE;
@@ -721,7 +738,6 @@ PHP_FUNCTION(swoole_async_readfile)
 
     size_t length = file_stat.st_size;
     file_request *req = (file_request *) emalloc(sizeof(file_request));
-    req->fd = fd;
 
     req->filename = filename;
     Z_TRY_ADDREF_P(filename);
@@ -827,7 +843,6 @@ PHP_FUNCTION(swoole_async_writefile)
         req->callback = NULL;
     }
 
-    req->fd = fd;
     req->type = SW_AIO_WRITE;
     req->content = wt_cnt;
     req->once = 1;
