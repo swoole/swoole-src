@@ -574,8 +574,9 @@ void swWorker_stop(swWorker *worker)
         kill(serv->gs->manager_pid, SIGIO);
     }
 
-    try_to_exit: SwooleWG.wait_exit = 1;
-    swTimer_add(&SwooleG.timer, serv->max_wait_time * 1000, 0, NULL, swWorker_onTimeout);
+    try_to_exit:
+    SwooleWG.wait_exit = 1;
+    swTimer_add(&SwooleG.timer, (long) (serv->max_wait_time * 1000), 0, NULL, swWorker_onTimeout);
 
     swWorker_try_to_exit();
 }

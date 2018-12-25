@@ -844,7 +844,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
 
     if (connector->timeout > 0)
     {
-        connector->timer = swTimer_add(&SwooleG.timer, (int) (connector->timeout * 1000), 0, context, swoole_mysql_coro_onTimeout);
+        connector->timer = swTimer_add(&SwooleG.timer, (long) (connector->timeout * 1000), 0, context, swoole_mysql_coro_onTimeout);
     }
     client->cid = sw_get_current_cid();
     sw_coro_save(return_value, context);
@@ -895,7 +895,7 @@ static PHP_METHOD(swoole_mysql_coro, query)
     php_context *context = (php_context *) swoole_get_property(getThis(), 0);
     if (timeout > 0)
     {
-        client->timer = swTimer_add(&SwooleG.timer, (int) (timeout * 1000), 0, context, swoole_mysql_coro_onTimeout);
+        client->timer = swTimer_add(&SwooleG.timer, (long) (timeout * 1000), 0, context, swoole_mysql_coro_onTimeout);
         if (client->timer && client->defer)
         {
             context->state = SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST;
@@ -998,7 +998,7 @@ static void swoole_mysql_coro_query_transcation(const char* command, uint8_t in_
         php_context *context = (php_context *) swoole_get_property(getThis(), 0);
         if (timeout > 0)
         {
-            client->timer = swTimer_add(&SwooleG.timer, (int) (timeout * 1000), 0, context, swoole_mysql_coro_onTimeout);
+            client->timer = swTimer_add(&SwooleG.timer, (long) (timeout * 1000), 0, context, swoole_mysql_coro_onTimeout);
         }
         client->cid = sw_get_current_cid();
         sw_coro_save(return_value, context);
@@ -1154,7 +1154,7 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
     php_context *context = (php_context *) swoole_get_property(getThis(), 0);
     if (timeout > 0)
     {
-        client->timer = swTimer_add(&SwooleG.timer, (int) (timeout * 1000), 0, context, swoole_mysql_coro_onTimeout);
+        client->timer = swTimer_add(&SwooleG.timer, (long) (timeout * 1000), 0, context, swoole_mysql_coro_onTimeout);
     }
     client->suspending = 1;
     client->cid = sw_get_current_cid();
@@ -1199,7 +1199,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, execute)
     php_context *context = (php_context *) swoole_get_property(client->object, 0);
     if (timeout > 0)
     {
-        client->timer = swTimer_add(&SwooleG.timer, (int) (timeout * 1000), 0, context, swoole_mysql_coro_onTimeout);
+        client->timer = swTimer_add(&SwooleG.timer, (long) (timeout * 1000), 0, context, swoole_mysql_coro_onTimeout);
         if (client->timer && client->defer)
         {
             context->state = SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST;

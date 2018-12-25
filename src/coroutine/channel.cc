@@ -75,7 +75,7 @@ void* Channel::pop(double timeout)
         msg.timer = NULL;
         if (timeout > 0)
         {
-            int msec = (int) (timeout * 1000);
+            long msec = (long) (timeout * 1000);
             msg.chan = this;
             msg.type = CONSUMER;
             msg.co = coroutine_get_current();
@@ -122,7 +122,7 @@ bool Channel::push(void *data, double timeout)
         msg.timer = NULL;
         if (timeout > 0)
         {
-            int msec = (int) (timeout * 1000);
+            long msec = (long) (timeout * 1000);
             msg.chan = this;
             msg.type = PRODUCER;
             msg.co = coroutine_get_current();

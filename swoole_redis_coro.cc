@@ -1798,20 +1798,20 @@ static void swoole_redis_coro_set_options(swRedisClient *redis, zval* zoptions, 
         redis->connect_timeout = (double) Z_DVAL_P(ztmp);
         if (redis->connect_timeout <= 0)
         {
-            redis->connect_timeout = ZEND_LONG_MAX;
+            redis->connect_timeout = SW_TIMER_MAX_SEC;
         }
     }
     if (php_swoole_array_get_value(vht, "timeout", ztmp))
     {
         convert_to_double(ztmp);
         redis->timeout = (double) Z_DVAL_P(ztmp);
-        if (redis->timeout <= 0)
-        {
-            redis->timeout = ZEND_LONG_MAX;
-        }
         if (backward_compatibility)
         {
             redis->connect_timeout = redis->timeout;
+            if (redis->connect_timeout <= 0)
+            {
+                redis->connect_timeout = SW_TIMER_MAX_SEC;
+            }
         }
         if (redis->context)
         {
