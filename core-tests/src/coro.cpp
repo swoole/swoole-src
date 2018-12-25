@@ -59,9 +59,9 @@ TEST(coroutine, socket_resolve_with_cache)
         std::string addr1 = sock.resolve("www.baidu.com");
         std::string addr2 = sock.resolve("www.baidu.com");
 
-        ASSERT_STRNE(addr1.c_str(), "");
-        ASSERT_STRNE(addr2.c_str(), "");
-        ASSERT_STREQ(addr1.c_str(), addr2.c_str());
+        ASSERT_NE(addr1, "");
+        ASSERT_NE(addr2, "");
+        ASSERT_EQ(addr1, addr2);
     });
 }
 
@@ -76,9 +76,34 @@ TEST(coroutine, socket_resolve_without_cache)
         std::string addr1 = sock.resolve("www.baidu.com");
         std::string addr2 = sock.resolve("www.baidu.com");
 
-        ASSERT_STRNE(addr1.c_str(), "");
-        ASSERT_STRNE(addr2.c_str(), "");
-        ASSERT_STRNE(addr1.c_str(), addr2.c_str());
+        ASSERT_NE(addr1, "");
+        ASSERT_NE(addr2, "");
+        ASSERT_NE(addr1, addr2);
+    });
+}
+
+TEST(coroutine, socket_resolve_cache_inet4_and_inet6)
+{
+    coro_test([](void *arg)
+    {
+        SwooleG.dns_cache_capacity = 10;
+        SwooleG.dns_cache_refresh_time = 60;
+
+        Socket sock(SW_SOCK_TCP);
+        std::string addr1 = sock.resolve("ipv6.sjtu.edu.cn");
+        Socket sock2(SW_SOCK_TCP6);
+        std::string addr2 = sock2.resolve("ipv6.sjtu.edu.cn");
+
+        ASSERT_NE(addr1, "");
+        ASSERT_NE(addr2, "");
+        ASSERT_EQ(addr1.find(":"), addr1.npos);
+        ASSERT_NE(addr2.find(":"), addr2.npos);
+
+        std::string addr3 = sock.resolve("ipv6.sjtu.edu.cn");
+        std::string addr4 = sock2.resolve("ipv6.sjtu.edu.cn");
+
+        ASSERT_EQ(addr1, addr3);
+        ASSERT_EQ(addr2, addr4);
     });
 }
 
@@ -165,14 +190,3 @@ TEST(coroutine, socket_accept)
 
     coro_test(fns, 2);
 }
-
-TEST(coroutine, socket_resolve)
-{
-    coro_test([](void *arg)
-    {
-        Socket sock(SW_SOCK_TCP);
-        auto retval = sock.resolve("www.swoole.com");
-        ASSERT_EQ(retval, "47.244.108.17");
-    });
-}
-

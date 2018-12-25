@@ -1042,7 +1042,10 @@ string Socket::resolve(string domain_name)
         return "";
     }
 
-    auto cache_address = get_dns_cache(domain_name);
+    string cache_key(_sock_domain == AF_INET ? "4_" : "6_");
+    cache_key.append(domain_name);
+
+    auto cache_address = get_dns_cache(cache_key);
     if (!cache_address.empty())
     {
         return cache_address;
@@ -1097,7 +1100,7 @@ string Socket::resolve(string domain_name)
     {
         string addr((char *) ev.buf);
         sw_free(ev.buf);
-        set_dns_cache(domain_name, addr);
+        set_dns_cache(cache_key, addr);
         return addr;
     }
 }
