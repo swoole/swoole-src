@@ -38,7 +38,11 @@ function get_one_free_port()
 
 function approximate($actual, $expect, float $ratio = 0.1): bool
 {
-    return $actual * (1 - $ratio) < $expect && $actual * (1 + $ratio) > $expect;
+    $ret = $actual * (1 - $ratio) < $expect && $actual * (1 + $ratio) > $expect;
+    if (!$ret) {
+        trigger_error("approximate: expect {$expect}, but got {$actual}\n", E_USER_WARNING);
+    }
+    return $ret;
 }
 
 function array_random(array $array)
