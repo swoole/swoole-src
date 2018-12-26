@@ -28,7 +28,7 @@ coro_global COROG;
 #if PHP_VERSION_ID >= 70200
 static sw_inline void php_vm_stack_init(void)
 {
-    uint32_t size = COROG.stack_size;
+    uint32_t size = SW_DEFAULT_STACK_SIZE;
     zend_vm_stack page = (zend_vm_stack) emalloc(size);
 
     page->top = ZEND_VM_STACK_ELEMENTS(page);
@@ -39,6 +39,9 @@ static sw_inline void php_vm_stack_init(void)
     EG(vm_stack)->top++;
     EG(vm_stack_top) = EG(vm_stack)->top;
     EG(vm_stack_end) = EG(vm_stack)->end;
+#if PHP_VERSION_ID >= 70300
+    EG(vm_stack_page_size) = size;
+#endif
 }
 #else
 #define php_vm_stack_init zend_vm_stack_init
@@ -54,43 +57,6 @@ static sw_inline void php_vm_stack_destroy(zend_vm_stack stack)
     }
 }
 
-static sw_inline void php_coro_save_vm_stack(coro_task *task)
-{
-    task->vm_stack_top = EG(vm_stack_top);
-    task->vm_stack_end = EG(vm_stack_end);
-    task->vm_stack = EG(vm_stack);
-    task->execute_data = EG(current_execute_data);
-    task->error_handling = EG(error_handling);
-    task->exception_class = EG(exception_class);
-    task->exception = EG(exception);
-    task->bailout = EG(bailout);
-    SW_SAVE_EG_SCOPE(task->scope);
-}
-
-static sw_inline coro_task* php_coro_get_current_task()
-{
-    coro_task *task = (coro_task *) coroutine_get_current_task();
-    if (!task)
-    {
-        task = &COROG.task;
-    }
-    php_coro_save_vm_stack(task);
-    return task;
-}
-
-static sw_inline void php_coro_restore_vm_stack(coro_task *task)
-{
-    EG(vm_stack_top) = task->vm_stack_top;
-    EG(vm_stack_end) = task->vm_stack_end;
-    EG(vm_stack) = task->vm_stack;
-    EG(current_execute_data) = task->execute_data;
-    EG(error_handling) = task->error_handling;
-    EG(exception_class) = task->exception_class;
-    EG(exception) = task->exception;
-    EG(bailout) = task->bailout;
-    SW_SET_EG_SCOPE(task->scope);
-}
-
 /**
  * The meaning of the task argument in coro switch functions
  *
@@ -102,93 +68,82 @@ static sw_inline void php_coro_restore_vm_stack(coro_task *task)
  */
 static sw_inline void php_coro_save_og(coro_task *task)
 {
-    task->output_ptr = (zend_output_globals *) emalloc(sizeof(zend_output_globals));
-    memcpy(task->output_ptr, SWOG, sizeof(zend_output_globals));
-    php_output_activate();
+    if (OG(handlers).elements)
+    {
+        task->output_ptr = (zend_output_globals *) emalloc(sizeof(zend_output_globals));
+        memcpy(task->output_ptr, SWOG, sizeof(zend_output_globals));
+        php_output_activate();
+    }
+    else
+    {
+        task->output_ptr = NULL;
+    }
 }
 
 static sw_inline void php_coro_restore_og(coro_task *task)
 {
-    memcpy(SWOG, task->output_ptr, sizeof(zend_output_globals));
-    efree(task->output_ptr);
-    task->output_ptr = NULL;
-}
-
-static sw_inline void php_coro_og_create(coro_task *task)
-{
-    if (OG(handlers).elements)
-    {
-        php_coro_save_og(task);
-    }
-    else
-    {
-        task->output_ptr = NULL;
-    }
-}
-
-static sw_inline void php_coro_og_yield(coro_task *task)
-{
-    if (OG(handlers).elements)
-    {
-        php_coro_save_og(task);
-    }
-    else
-    {
-        task->output_ptr = NULL;
-    }
-    if (task->origin_task->output_ptr)
-    {
-        php_coro_restore_og(task->origin_task);
-    }
-}
-
-static sw_inline void php_coro_og_resume(coro_task *task)
-{
-    if (OG(handlers).elements)
-    {
-        php_coro_save_og(task->origin_task);
-    }
-    else
-    {
-        task->origin_task->output_ptr = NULL;
-    }
     if (task->output_ptr)
     {
-        php_coro_restore_og(task);
-    }
-}
-
-static sw_inline void php_coro_og_close(coro_task *task)
-{
-    if (OG(handlers).elements)
-    {
-        if (OG(active))
-        {
-            php_output_end_all();
-        }
-        php_output_deactivate();
-        php_output_activate();
-    }
-    if (task->output_ptr)
-    {
+        memcpy(SWOG, task->output_ptr, sizeof(zend_output_globals));
         efree(task->output_ptr);
-        task->output_ptr = nullptr;
-    }
-    if (task->origin_task->output_ptr)
-    {
-        php_coro_restore_og(task->origin_task);
+        task->output_ptr = NULL;
     }
 }
 
-void coro_init(void)
+static sw_inline void php_coro_save_vm_stack(coro_task *task)
 {
-    COROG.max_coro_num = SW_DEFAULT_MAX_CORO_NUM;
-    COROG.stack_size = SW_DEFAULT_STACK_SIZE;
-    COROG.socket_connect_timeout = SW_DEFAULT_SOCKET_CONNECT_TIMEOUT;
-    COROG.socket_timeout = SW_DEFAULT_SOCKET_TIMEOUT;
-    coroutine_set_onYield(internal_coro_yield);
-    coroutine_set_onResume(internal_coro_resume);
-    coroutine_set_onClose(sw_coro_close);
+    task->bailout = EG(bailout);
+    task->vm_stack_top = EG(vm_stack_top);
+    task->vm_stack_end = EG(vm_stack_end);
+    task->vm_stack = EG(vm_stack);
+#if PHP_VERSION_ID >= 70300
+    task->vm_stack_page_size = EG(vm_stack_page_size);
+#endif
+    task->execute_data = EG(current_execute_data);
+    task->error_handling = EG(error_handling);
+    task->exception_class = EG(exception_class);
+    task->exception = EG(exception);
+    SW_SAVE_EG_SCOPE(task->scope);
+}
+
+/**
+ * add_defer
+ */
+static sw_inline coro_task* php_coro_get_current_task()
+{
+    coro_task *task = (coro_task *) coroutine_get_current_task();
+    if (!task)
+    {
+        task = &COROG.task;
+    }
+    return task;
+}
+
+/**
+ * create & resume ^ close
+ */
+static sw_inline coro_task* php_coro_get_and_save_current_task()
+{
+    coro_task *task = php_coro_get_current_task();
+    php_coro_save_vm_stack(task);
+    php_coro_save_og(task);
+    return task;
+}
+
+static sw_inline void php_coro_restore_vm_stack(coro_task *task)
+{
+    EG(bailout) = task->bailout;
+    EG(vm_stack_top) = task->vm_stack_top;
+    EG(vm_stack_end) = task->vm_stack_end;
+    EG(vm_stack) = task->vm_stack;
+#if PHP_VERSION_ID >= 70300
+    EG(vm_stack_page_size) = task->vm_stack_page_size;
+#endif
+    EG(current_execute_data) = task->execute_data;
+    EG(error_handling) = task->error_handling;
+    EG(exception_class) = task->exception_class;
+    EG(exception) = task->exception;
+    SW_SET_EG_SCOPE(task->scope);
 }
 
 static void php_coro_create(void *arg)
@@ -251,19 +206,18 @@ static void php_coro_create(void *arg)
         ZEND_ADD_CALL_FLAG(call, call_info);
     }
 
+    EG(bailout) = NULL;
     EG(current_execute_data) = call;
     EG(error_handling) = EH_NORMAL;
     EG(exception_class) = NULL;
     EG(exception) = NULL;
-    EG(bailout) = NULL;
 
     php_coro_save_vm_stack(task);
-    task->output_ptr = nullptr;
+    task->output_ptr = NULL;
     task->co = coroutine_get_current();
     task->co->set_task((void *) task);
     task->origin_task = origin_task;
     task->defer_tasks = nullptr;
-    php_coro_og_create(origin_task);
 
     swTraceLog(
         SW_TRACE_COROUTINE, "Create coro id: %ld, origin cid: %ld, coro total count: %zu, heap size: %zu",
@@ -327,21 +281,32 @@ static sw_inline void php_coro_yield(coro_task *task)
 {
     swTraceLog(SW_TRACE_COROUTINE,"php_coro_yield from cid=%ld to cid=%ld", coroutine_get_cid(task->co), coroutine_get_cid(task->origin_task->co));
     php_coro_save_vm_stack(task);
+    php_coro_save_og(task);
     php_coro_restore_vm_stack(task->origin_task);
-    php_coro_og_yield(task);
+    php_coro_restore_og(task->origin_task);
 }
 
 static sw_inline void php_coro_resume(coro_task *task)
 {
-    task->origin_task = php_coro_get_current_task();
+    task->origin_task = php_coro_get_and_save_current_task();
     php_coro_restore_vm_stack(task);
-    php_coro_og_resume(task);
+    php_coro_restore_og(task);
     swTraceLog(SW_TRACE_COROUTINE,"php_coro_resume from cid=%ld to cid=%ld", coroutine_get_cid(task->origin_task->co), coroutine_get_cid(task->co));
 }
 
 static sw_inline void php_coro_close(coro_task *task)
 {
-    php_coro_og_close(task);
+    if (OG(handlers).elements)
+    {
+        if (OG(active))
+        {
+            php_output_end_all();
+        }
+        php_output_deactivate();
+        php_output_activate();
+    }
+    php_vm_stack_destroy(EG(vm_stack));
+    php_coro_restore_og(task->origin_task);
     php_coro_restore_vm_stack(task->origin_task);
 }
 
@@ -355,6 +320,16 @@ static void internal_coro_yield(void *arg)
 {
     coro_task *task = (coro_task *) arg;
     php_coro_yield(task);
+}
+
+void coro_init(void)
+{
+    COROG.max_coro_num = SW_DEFAULT_MAX_CORO_NUM;
+    COROG.socket_connect_timeout = SW_DEFAULT_SOCKET_CONNECT_TIMEOUT;
+    COROG.socket_timeout = SW_DEFAULT_SOCKET_TIMEOUT;
+    coroutine_set_onYield(internal_coro_yield);
+    coroutine_set_onResume(internal_coro_resume);
+    coroutine_set_onClose(sw_coro_close);
 }
 
 void coro_check(void)
@@ -415,7 +390,7 @@ long sw_coro_create(zend_fcall_info_cache *fci_cache, int argc, zval *argv)
     php_args.fci_cache = fci_cache;
     php_args.argv = argv;
     php_args.argc = argc;
-    php_args.origin_task = php_coro_get_current_task();
+    php_args.origin_task = php_coro_get_and_save_current_task();
 
     return Coroutine::create(php_coro_create, (void*) &php_args);
 }
@@ -441,23 +416,13 @@ int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_ret
     {
         ZVAL_COPY(SWCC(current_coro_return_value_ptr), retval);
     }
-
     task->co->resume_naked();
-
-    if (UNEXPECTED(EG(exception)))
-    {
-        if (retval)
-        {
-            zval_ptr_dtor(retval);
-        }
-        zend_exception_error(EG(exception), E_ERROR);
-    }
     return CORO_END;
 }
 
-void sw_coro_close()
+void sw_coro_close(void *arg)
 {
-    coro_task *task = (coro_task *) php_coro_get_current_task();
+    coro_task *task = (coro_task *) arg;
 #ifdef SW_LOG_TRACE_OPEN
     long cid = coroutine_get_cid(task->co);
     long origin_cid = coroutine_get_cid(task->origin_task->co);
@@ -469,11 +434,10 @@ void sw_coro_close()
     }
 
     php_coro_close(task);
-    php_vm_stack_destroy(task->vm_stack);
 
     swTraceLog(
         SW_TRACE_COROUTINE, "coro close cid=%ld and resume to %ld, %zu remained. usage size: %zu. malloc size: %zu",
-        cid, origin_cid, (uintmax_t) swCoroG.count(), (uintmax_t) zend_memory_usage(0), (uintmax_t) zend_memory_usage(1)
+        cid, origin_cid, (uintmax_t) swCoroG.count() - 1, (uintmax_t) zend_memory_usage(0), (uintmax_t) zend_memory_usage(1)
     );
 }
 

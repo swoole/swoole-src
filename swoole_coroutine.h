@@ -46,14 +46,15 @@ struct defer_task
 
 struct coro_task
 {
+    JMP_BUF *bailout;
     zval *vm_stack_top;
     zval *vm_stack_end;
     zend_vm_stack vm_stack;
+    size_t vm_stack_page_size;
     zend_execute_data *execute_data;
     zend_error_handling_t error_handling;
     zend_class_entry *exception_class;
     zend_object *exception;
-    JMP_BUF *bailout;
     zend_output_globals *output_ptr;
     SW_DECLARE_EG_SCOPE(scope);
     swoole::Coroutine *co;
@@ -74,7 +75,6 @@ struct coro_global
     zend_bool active;
     uint64_t max_coro_num;
     uint64_t peak_coro_num;
-    uint32_t stack_size;
     double socket_connect_timeout;
     double socket_timeout;
     coro_task task;
@@ -109,10 +109,9 @@ void coro_check(void);
  * Scheduler
  */
 long sw_coro_create(zend_fcall_info_cache *fci_cache, int argc, zval *argv);
-void sw_coro_yield();
-void sw_coro_close();
+void sw_coro_yield(zval *return_value, php_context *sw_php_context);
 int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_retval);
-void sw_coro_save(zval *return_value, php_context *sw_php_context);
+void sw_coro_close(void *task);
 void sw_coro_set_stack_size(int stack_size);
 
 /**

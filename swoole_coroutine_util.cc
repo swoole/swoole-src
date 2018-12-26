@@ -370,8 +370,7 @@ static PHP_METHOD(swoole_coroutine_util, set)
     if (php_swoole_array_get_value(vht, "stack_size", v))
     {
         convert_to_long(v);
-        COROG.stack_size = (uint32_t) Z_LVAL_P(v);
-        sw_coro_set_stack_size(COROG.stack_size);
+        sw_coro_set_stack_size((uint32_t) Z_LVAL_P(v));
     }
     if (php_swoole_array_get_value(vht, "socket_connect_timeout", v))
     {
@@ -459,7 +458,7 @@ static PHP_METHOD(swoole_coroutine_util, resume)
 static PHP_METHOD(swoole_coroutine_util, stats)
 {
     array_init(return_value);
-    add_assoc_long_ex(return_value, ZEND_STRL("stack_size"), COROG.stack_size);
+    add_assoc_long_ex(return_value, ZEND_STRL("stack_size"), swCoroG.stack_size);
     add_assoc_long_ex(return_value, ZEND_STRL("coroutine_num"), swCoroG.count());
     add_assoc_long_ex(return_value, ZEND_STRL("coroutine_peak_num"), COROG.peak_coro_num);
 }
