@@ -54,7 +54,7 @@ static void signal_handler(int signo)
                 task = waitpid_map[__pid];
                 waitpid_map.erase(__pid);
             }
-            else if (wait_list.size() > 0)
+            else if (!wait_list.empty())
             {
                 task = wait_list.front();
                 wait_list.pop();
@@ -121,7 +121,7 @@ pid_t swoole_coroutine_wait(int *__stat_loc)
     }
 
     pid_t __pid;
-    if (child_processes.size() > 0)
+    if (!child_processes.empty())
     {
         unordered_map<int, int>::iterator i = child_processes.begin();
         __pid = i->first;

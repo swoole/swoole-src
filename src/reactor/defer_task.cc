@@ -52,7 +52,7 @@ void swReactor_defer_task_destroy(swReactor *reactor)
 static void do_defer_tasks(swReactor *reactor)
 {
     list<defer_task *> *tasks = (list<defer_task *> *) reactor->defer_tasks;
-    while (tasks->size() > 0)
+    while (!tasks->empty())
     {
         defer_task *task = tasks->front();
         tasks->pop_front();

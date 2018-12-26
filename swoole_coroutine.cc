@@ -300,7 +300,7 @@ void PHPCoroutine::create_func(void *arg)
     if (task->defer_tasks)
     {
         std::stack<defer_task *> *tasks = task->defer_tasks;
-        while (tasks->size() > 0)
+        while (!tasks->empty())
         {
             defer_task *task = tasks->top();
             tasks->pop();
