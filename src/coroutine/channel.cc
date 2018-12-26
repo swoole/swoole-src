@@ -44,7 +44,7 @@ Channel::Channel(size_t _capacity)
 
 void Channel::yield(enum channel_op type)
 {
-    Coroutine *co = coroutine_get_current();
+    Coroutine *co = Coroutine::get_current();
     if (unlikely(!co))
     {
         swError("Channel::yield() must be called in the coroutine.");
@@ -78,7 +78,7 @@ void* Channel::pop(double timeout)
             long msec = (long) (timeout * 1000);
             msg.chan = this;
             msg.type = CONSUMER;
-            msg.co = coroutine_get_current();
+            msg.co = Coroutine::get_current();
             msg.timer = swTimer_add(&SwooleG.timer, msec, 0, &msg, channel_operation_timeout);
         }
 
@@ -125,7 +125,7 @@ bool Channel::push(void *data, double timeout)
             long msec = (long) (timeout * 1000);
             msg.chan = this;
             msg.type = PRODUCER;
-            msg.co = coroutine_get_current();
+            msg.co = Coroutine::get_current();
             msg.timer = swTimer_add(&SwooleG.timer, msec, 0, &msg, channel_operation_timeout);
         }
 

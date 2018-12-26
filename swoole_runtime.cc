@@ -861,7 +861,7 @@ static php_stream *socket_create(
     php_stream *stream = NULL;
     Socket *sock;
 
-    if (unlikely(SwooleG.main_reactor == nullptr || !coroutine_get_current()))
+    if (unlikely(SwooleG.main_reactor == nullptr || !Coroutine::get_current()))
     {
         return php_socket_create(proto, protolen, resourcename, resourcenamelen, persistent_id, options, flags, timeout, context STREAMS_CC);
     }

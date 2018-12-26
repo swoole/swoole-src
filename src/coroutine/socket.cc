@@ -767,7 +767,7 @@ ssize_t Socket::recvmsg(struct msghdr *msg, int flags)
 
 void Socket::yield()
 {
-    Coroutine *co = coroutine_get_current();
+    Coroutine *co = Coroutine::get_current();
     if (unlikely(!co))
     {
         swError("Socket::yield() must be called in the coroutine.");

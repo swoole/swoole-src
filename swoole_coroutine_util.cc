@@ -233,7 +233,7 @@ static int coro_exit_handler(zend_execute_data *execute_data)
     {
         flags |= SW_EXIT_IN_SERVER;
     }
-    if (flags == SW_EXIT_IN_COROUTINE && swCoroG.count() == 1)
+    if (flags == SW_EXIT_IN_COROUTINE && Coroutine::count() == 1)
     {
         php_swoole_event_exit();
     }
@@ -304,7 +304,7 @@ void swoole_coroutine_util_init(int module_number)
     SWOOLE_DEFINE(CORO_INIT);
     SWOOLE_DEFINE(CORO_WAITING);
     SWOOLE_DEFINE(CORO_RUNNING);
-    SWOOLE_DEFINE(SW_CORO_ERR_END);
+    SWOOLE_DEFINE(CORO_END);
 
     //prohibit exit in coroutine
     SWOOLE_INIT_CLASS_ENTRY_EX(swoole_exit_exception, "Swoole\\ExitException", NULL, NULL, swoole_exit_exception_methods, swoole_exception);
@@ -334,7 +334,7 @@ static PHP_METHOD(swoole_exit_exception, getStatus)
  */
 static PHP_METHOD(swoole_coroutine_util, yield)
 {
-    Coroutine* co = coroutine_get_current();
+    Coroutine* co = Coroutine::get_current();
     if (unlikely(!co))
     {
         swoole_php_fatal_error(E_ERROR, "can not yield outside coroutine");
@@ -359,19 +359,17 @@ static PHP_METHOD(swoole_coroutine_util, set)
     vht = Z_ARRVAL_P(zset);
     if (php_swoole_array_get_value(vht, "max_coroutine", v))
     {
+        zend_long max_num;
         convert_to_long(v);
-        PHPCoroutine::max_coro_num = (uint64_t) Z_LVAL_P(v);
-        if (PHPCoroutine::max_coro_num <= 0)
-        {
-            PHPCoroutine::max_coro_num = SW_DEFAULT_MAX_CORO_NUM;
-        }
+        max_num = Z_LVAL_P(v);
+        PHPCoroutine::set_max_num(max_num <= 0 ? SW_DEFAULT_MAX_CORO_NUM : max_num);
     }
     if (php_swoole_array_get_value(vht, "c_stack_size", v) || php_swoole_array_get_value(vht, "stack_size", v))
     {
         zend_long c_stack_size;
         convert_to_long(v);
         c_stack_size = Z_LVAL_P(v);
-        PHPCoroutine::set_c_stack_size((uint32_t) c_stack_size);
+        Coroutine::set_stack_size((uint32_t) c_stack_size);
     }
     if (php_swoole_array_get_value(vht, "socket_connect_timeout", v))
     {
@@ -459,9 +457,9 @@ static PHP_METHOD(swoole_coroutine_util, resume)
 static PHP_METHOD(swoole_coroutine_util, stats)
 {
     array_init(return_value);
-    add_assoc_long_ex(return_value, ZEND_STRL("stack_size"), swCoroG.stack_size);
-    add_assoc_long_ex(return_value, ZEND_STRL("coroutine_num"), swCoroG.count());
-    add_assoc_long_ex(return_value, ZEND_STRL("coroutine_peak_num"), PHPCoroutine::peak_coro_num);
+    add_assoc_long_ex(return_value, ZEND_STRL("stack_size"), Coroutine::get_stack_size());
+    add_assoc_long_ex(return_value, ZEND_STRL("coroutine_num"), Coroutine::count());
+    add_assoc_long_ex(return_value, ZEND_STRL("coroutine_peak_num"), PHPCoroutine::get_peak_num());
 }
 
 static PHP_METHOD(swoole_coroutine_util, getCid)
@@ -471,7 +469,7 @@ static PHP_METHOD(swoole_coroutine_util, getCid)
 
 int php_coroutine_reactor_can_exit(swReactor *reactor)
 {
-    return swCoroG.count() == 0;
+    return Coroutine::count() == 0;
 }
 
 static PHP_METHOD(swoole_coroutine_util, sleep)
@@ -1294,7 +1292,7 @@ static PHP_METHOD(swoole_coroutine_util, getBackTrace)
     }
     else
     {
-        php_coro_task *task = (php_coro_task *) coroutine_get_task_by_cid(cid);
+        php_coro_task *task = (php_coro_task *) Coroutine::get_task_by_cid(cid);
         if (task == NULL)
         {
             RETURN_FALSE;
@@ -1309,14 +1307,14 @@ static PHP_METHOD(swoole_coroutine_util, getBackTrace)
 static PHP_METHOD(swoole_coroutine_iterator, rewind)
 {
     coroutine_iterator *itearator = (coroutine_iterator *) swoole_get_object(getThis());
-    itearator->_cursor = swCoroG.coroutines.begin();
+    itearator->_cursor = Coroutine::coroutines.begin();
     itearator->index = 0;
 }
 
 static PHP_METHOD(swoole_coroutine_iterator, valid)
 {
     coroutine_iterator *itearator = (coroutine_iterator *) swoole_get_object(getThis());
-    RETURN_BOOL(itearator->_cursor != swCoroG.coroutines.end());
+    RETURN_BOOL(itearator->_cursor != Coroutine::coroutines.end());
 }
 
 static PHP_METHOD(swoole_coroutine_iterator, current)
@@ -1341,7 +1339,7 @@ PHP_METHOD(swoole_coroutine_iterator, key)
 
 static PHP_METHOD(swoole_coroutine_iterator, count)
 {
-    RETURN_LONG(swCoroG.count());
+    RETURN_LONG(Coroutine::count());
 }
 
 static PHP_METHOD(swoole_coroutine_iterator, __destruct)

@@ -23,8 +23,8 @@ using namespace swoole;
 #define PHP_CORO_TASK_SLOT ((int)((ZEND_MM_ALIGNED_SIZE(sizeof(php_coro_task)) + ZEND_MM_ALIGNED_SIZE(sizeof(zval)) - 1) / ZEND_MM_ALIGNED_SIZE(sizeof(zval))))
 
 bool PHPCoroutine::active = false;
-uint64_t PHPCoroutine::max_coro_num = SW_DEFAULT_MAX_CORO_NUM;
-uint64_t PHPCoroutine::peak_coro_num = 0;
+uint64_t PHPCoroutine::max_num = SW_DEFAULT_MAX_CORO_NUM;
+uint64_t PHPCoroutine::peak_num = 0;
 double PHPCoroutine::socket_connect_timeout = SW_DEFAULT_SOCKET_CONNECT_TIMEOUT;
 double PHPCoroutine::socket_timeout = SW_DEFAULT_SOCKET_TIMEOUT;
 php_coro_task PHPCoroutine::main_task = {0};
@@ -128,7 +128,7 @@ inline void PHPCoroutine::restore_og(php_coro_task *task)
 
 sw_inline php_coro_task* PHPCoroutine::get_current_task()
 {
-    php_coro_task *task = (php_coro_task *) coroutine_get_current_task();
+    php_coro_task *task = (php_coro_task *) Coroutine::get_current_task();
     if (!task)
     {
         task = &PHPCoroutine::main_task;
@@ -150,7 +150,7 @@ sw_inline php_coro_task* PHPCoroutine::get_and_save_current_task()
 void PHPCoroutine::on_yield(void *arg)
 {
     php_coro_task *task = (php_coro_task *) arg;
-    swTraceLog(SW_TRACE_COROUTINE,"php_coro_yield from cid=%ld to cid=%ld", coroutine_get_cid(task->co), coroutine_get_cid(task->origin_task->co));
+    swTraceLog(SW_TRACE_COROUTINE,"php_coro_yield from cid=%ld to cid=%ld", Coroutine::get_cid(task->co), Coroutine::get_cid(task->origin_task->co));
     PHPCoroutine::save_vm_stack(task);
     PHPCoroutine::save_og(task);
     PHPCoroutine::restore_vm_stack(task->origin_task);
@@ -163,15 +163,16 @@ void PHPCoroutine::on_resume(void *arg)
     task->origin_task = PHPCoroutine::get_and_save_current_task();
     PHPCoroutine::restore_vm_stack(task);
     PHPCoroutine::restore_og(task);
-    swTraceLog(SW_TRACE_COROUTINE,"php_coro_resume from cid=%ld to cid=%ld", coroutine_get_cid(task->origin_task->co), coroutine_get_cid(task->co));
+    swTraceLog(SW_TRACE_COROUTINE,"php_coro_resume from cid=%ld to cid=%ld", Coroutine::get_cid(task->origin_task->co), Coroutine::get_cid(task->co));
 }
 
 void PHPCoroutine::on_close(void *arg)
 {
     php_coro_task *task = (php_coro_task *) arg;
+    php_coro_task *origin_task = task->origin_task;
 #ifdef SW_LOG_TRACE_OPEN
-    long cid = coroutine_get_cid(task->co);
-    long origin_cid = coroutine_get_cid(task->origin_task->co);
+    long cid = Coroutine::get_cid(task->co);
+    long origin_cid = Coroutine::get_cid(task->origin_task->co);
 #endif
 
     if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_CORO_STOP])
@@ -189,12 +190,12 @@ void PHPCoroutine::on_close(void *arg)
         php_output_activate();
     }
     PHPCoroutine::vm_stack_destroy(EG(vm_stack));
-    PHPCoroutine::restore_og(task->origin_task);
-    PHPCoroutine::restore_vm_stack(task->origin_task);
+    PHPCoroutine::restore_og(origin_task);
+    PHPCoroutine::restore_vm_stack(origin_task);
 
     swTraceLog(
         SW_TRACE_COROUTINE, "coro close cid=%ld and resume to %ld, %zu remained. usage size: %zu. malloc size: %zu",
-        cid, origin_cid, (uintmax_t) swCoroG.count() - 1, (uintmax_t) zend_memory_usage(0), (uintmax_t) zend_memory_usage(1)
+        cid, origin_cid, (uintmax_t) Coroutine::count() - 1, (uintmax_t) zend_memory_usage(0), (uintmax_t) zend_memory_usage(1)
     );
 }
 
@@ -212,9 +213,9 @@ void PHPCoroutine::create_func(void *arg)
     zval _zobject, *zobject = nullptr;
     zval _retval, *retval = &_retval;
 
-    if (swCoroG.count() > PHPCoroutine::peak_coro_num)
+    if (Coroutine::count() > PHPCoroutine::peak_num)
     {
-        PHPCoroutine::peak_coro_num = swCoroG.count();
+        PHPCoroutine::peak_num = Coroutine::count();
     }
 
     if (fci_cache->object)
@@ -266,14 +267,14 @@ void PHPCoroutine::create_func(void *arg)
 
     PHPCoroutine::save_vm_stack(task);
     task->output_ptr = NULL;
-    task->co = coroutine_get_current();
+    task->co = Coroutine::get_current();
     task->co->set_task((void *) task);
     task->origin_task = origin_task;
     task->defer_tasks = nullptr;
 
     swTraceLog(
         SW_TRACE_COROUTINE, "Create coro id: %ld, origin cid: %ld, coro total count: %zu, heap size: %zu",
-        coroutine_get_cid(task->co), coroutine_get_cid(task->origin_task->co), (uintmax_t) swCoroG.count(), (uintmax_t) zend_memory_usage(0)
+        Coroutine::get_cid(task->co), Coroutine::get_cid(task->origin_task->co), (uintmax_t) Coroutine::count(), (uintmax_t) zend_memory_usage(0)
     );
 
     if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_CORO_START])
@@ -342,9 +343,9 @@ long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval 
         // PHPCoroutine::enable_hook(SW_HOOK_ALL); // TODO: enable it in version 4.3.0
         PHPCoroutine::active = 1;
     }
-    if (unlikely(swCoroG.count() >= PHPCoroutine::max_coro_num))
+    if (unlikely(Coroutine::count() >= PHPCoroutine::max_num))
     {
-        swoole_php_fatal_error(E_WARNING, "exceed max number of coroutine %zu.", (uintmax_t) swCoroG.count());
+        swoole_php_fatal_error(E_WARNING, "exceed max number of coroutine %zu.", (uintmax_t) Coroutine::count());
         return SW_CORO_ERR_LIMIT;
     }
     if (unlikely(!fci_cache || !fci_cache->function_handler))

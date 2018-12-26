@@ -1165,7 +1165,7 @@ bool http_client::send()
     swTraceLog(
         SW_TRACE_HTTP_CLIENT,
         "to [%s:%u%s] by fd#%d in cid#%ld with [%zu] bytes: <<EOF\n%.*s\nEOF",
-        host.c_str(), port, uri.c_str(), socket->get_fd(), coroutine_get_current_cid(),
+        host.c_str(), port, uri.c_str(), socket->get_fd(), Coroutine::get_current_cid(),
         http_client_buffer->length, (int) http_client_buffer->length, http_client_buffer->str
     );
 

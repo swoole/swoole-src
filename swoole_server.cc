@@ -2443,16 +2443,10 @@ static PHP_METHOD(swoole_server, set)
     }
     if (php_swoole_array_get_value(vht, "max_coro_num", v) || php_swoole_array_get_value(vht, "max_coroutine", v))
     {
+        zend_long max_num;
         convert_to_long(v);
-        PHPCoroutine::max_coro_num = (uint32_t) Z_LVAL_P(v);
-        if (PHPCoroutine::max_coro_num <= 0)
-        {
-            PHPCoroutine::max_coro_num = SW_DEFAULT_MAX_CORO_NUM;
-        }
-        else if (PHPCoroutine::max_coro_num >= SW_MAX_CORO_NUM_LIMIT)
-        {
-            PHPCoroutine::max_coro_num = SW_MAX_CORO_NUM_LIMIT;
-        }
+        max_num = Z_LVAL_P(v);
+        PHPCoroutine::set_max_num(max_num <= 0 ? SW_DEFAULT_MAX_CORO_NUM : max_num);
     }
     if (php_swoole_array_get_value(vht, "send_yield", v))
     {
@@ -3338,7 +3332,7 @@ static PHP_METHOD(swoole_server, stats)
     }
 
 #ifdef SW_COROUTINE
-    add_assoc_long_ex(return_value, ZEND_STRL("coroutine_num"), swCoroG.count());
+    add_assoc_long_ex(return_value, ZEND_STRL("coroutine_num"), Coroutine::count());
 #endif
 }
 

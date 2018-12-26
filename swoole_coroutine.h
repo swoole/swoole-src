@@ -89,15 +89,12 @@ namespace swoole
 {
 class PHPCoroutine
 {
-public:
-    static bool active;;
-    static uint64_t max_coro_num;
-    static uint64_t peak_coro_num;
-    static double socket_connect_timeout;
-    static double socket_timeout;
+private:
+    static bool active;
+    static uint64_t max_num;
+    static uint64_t peak_num;
     static php_coro_task main_task;
 
-private:
     static inline void vm_stack_init(void);
     static inline void vm_stack_destroy(zend_vm_stack stack);
     static inline void save_vm_stack(php_coro_task *task);
@@ -112,6 +109,9 @@ private:
     static void create_func(void *arg);
 
 public:
+    static double socket_connect_timeout;
+    static double socket_timeout;
+
     static long create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv);
     static void defer(swCallback cb, void *data);
 
@@ -127,24 +127,34 @@ public:
 
     static void init()
     {
-        coroutine_set_onYield(on_yield);
-        coroutine_set_onResume(on_resume);
-        coroutine_set_onClose(on_close);
+        Coroutine::set_on_yield(on_yield);
+        Coroutine::set_on_resume(on_resume);
+        Coroutine::set_on_close(on_close);
     }
 
     static bool is_in()
     {
-        return active && coroutine_get_current();
+        return active && Coroutine::get_current();
     }
 
     static long get_cid()
     {
-        return unlikely(PHPCoroutine::active == 0) ? -1 : coroutine_get_current_cid();
+        return likely(active) ? Coroutine::get_current_cid() : -1;
     }
 
-    static void set_c_stack_size(size_t stack_size)
+    static uint64_t get_max_num()
     {
-        coroutine_set_stack_size(stack_size);
+        return max_num;
+    }
+
+    static void set_max_num(uint64_t n)
+    {
+        max_num = n;
+    }
+
+    static uint64_t get_peak_num()
+    {
+        return peak_num;
     }
 
 };
