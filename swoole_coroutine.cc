@@ -46,8 +46,10 @@ inline void PHPCoroutine::vm_stack_init(void)
 #endif
 }
 
-inline void PHPCoroutine::vm_stack_destroy(zend_vm_stack stack)
+inline void PHPCoroutine::vm_stack_destroy(void)
 {
+    zend_vm_stack stack = EG(vm_stack);
+
     while (stack != NULL)
     {
         zend_vm_stack p = stack->prev;
@@ -184,7 +186,7 @@ void PHPCoroutine::on_close(void *arg)
         php_output_deactivate();
         php_output_activate();
     }
-    PHPCoroutine::vm_stack_destroy(EG(vm_stack));
+    PHPCoroutine::vm_stack_destroy();
     PHPCoroutine::restore_og(origin_task);
     PHPCoroutine::restore_vm_stack(origin_task);
 

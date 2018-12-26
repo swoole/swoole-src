@@ -95,7 +95,7 @@ private:
     static php_coro_task main_task;
 
     static inline void vm_stack_init(void);
-    static inline void vm_stack_destroy(zend_vm_stack stack);
+    static inline void vm_stack_destroy(void);
     static inline void save_vm_stack(php_coro_task *task);
     static inline void restore_vm_stack(php_coro_task *task);
     static inline void save_og(php_coro_task *task);
