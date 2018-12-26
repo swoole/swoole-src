@@ -92,7 +92,6 @@ class PHPCoroutine
 private:
     static bool active;
     static uint64_t max_num;
-    static uint64_t peak_num;
     static php_coro_task main_task;
 
     static inline void vm_stack_init(void);
@@ -151,12 +150,6 @@ public:
     {
         max_num = n;
     }
-
-    static uint64_t get_peak_num()
-    {
-        return peak_num;
-    }
-
 };
 }
 

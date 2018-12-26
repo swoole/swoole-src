@@ -24,7 +24,6 @@ using namespace swoole;
 
 bool PHPCoroutine::active = false;
 uint64_t PHPCoroutine::max_num = SW_DEFAULT_MAX_CORO_NUM;
-uint64_t PHPCoroutine::peak_num = 0;
 double PHPCoroutine::socket_connect_timeout = SW_DEFAULT_SOCKET_CONNECT_TIMEOUT;
 double PHPCoroutine::socket_timeout = SW_DEFAULT_SOCKET_TIMEOUT;
 php_coro_task PHPCoroutine::main_task = {0};
@@ -212,11 +211,6 @@ void PHPCoroutine::create_func(void *arg)
     zend_execute_data *call;
     zval _zobject, *zobject = nullptr;
     zval _retval, *retval = &_retval;
-
-    if (Coroutine::count() > PHPCoroutine::peak_num)
-    {
-        PHPCoroutine::peak_num = Coroutine::count();
-    }
 
     if (fci_cache->object)
     {

@@ -23,6 +23,7 @@ size_t Coroutine::stack_size = SW_DEFAULT_C_STACK_SIZE;
 size_t Coroutine::call_stack_size = 0;
 Coroutine* Coroutine::call_stack[SW_MAX_CORO_NESTING_LEVEL];
 long Coroutine::last_cid = 0;
+uint64_t Coroutine::peak_num = 0;
 coro_php_yield_t  Coroutine::on_yield = nullptr;
 coro_php_resume_t Coroutine::on_resume = nullptr;
 coro_php_close_t  Coroutine::on_close = nullptr;

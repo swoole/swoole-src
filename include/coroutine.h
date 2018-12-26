@@ -64,6 +64,10 @@ private:
         cid = ++last_cid;
         call_stack[Coroutine::call_stack_size++] = this;
         coroutines[cid] = this;
+        if (Coroutine::count() > Coroutine::peak_num)
+        {
+            Coroutine::peak_num = Coroutine::count();
+        }
     }
 
     inline long run()
@@ -111,6 +115,7 @@ private:
     static size_t call_stack_size;
     static Coroutine* call_stack[SW_MAX_CORO_NESTING_LEVEL];
     static long last_cid;
+    static uint64_t peak_num;
     static coro_php_yield_t  on_yield;  /* before php yield coro */
     static coro_php_resume_t on_resume; /* before php resume coro */
     static coro_php_close_t  on_close;  /* before php close coro */
@@ -141,7 +146,7 @@ public:
 
     static inline void set_stack_size(size_t stack_size)
     {
-        Coroutine::stack_size = SW_MEM_ALIGNED_SIZE_EX(MAX(stack_size, SW_CORO_MAX_STACK_SIZE), SW_CORO_STACK_ALIGNED_SIZE);
+        Coroutine::stack_size = SW_MEM_ALIGNED_SIZE_EX(MIN(stack_size, SW_CORO_MAX_STACK_SIZE), SW_CORO_STACK_ALIGNED_SIZE);
     }
 
 #ifdef SW_LOG_TRACE_OPEN
@@ -159,6 +164,11 @@ public:
     static inline size_t count()
     {
         return coroutines.size();
+    }
+
+    static uint64_t get_peak_num()
+    {
+        return peak_num;
     }
 };
 }

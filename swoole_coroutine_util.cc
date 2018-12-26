@@ -369,7 +369,7 @@ static PHP_METHOD(swoole_coroutine_util, set)
         zend_long c_stack_size;
         convert_to_long(v);
         c_stack_size = Z_LVAL_P(v);
-        Coroutine::set_stack_size((uint32_t) c_stack_size);
+        Coroutine::set_stack_size(c_stack_size);
     }
     if (php_swoole_array_get_value(vht, "socket_connect_timeout", v))
     {
@@ -457,9 +457,9 @@ static PHP_METHOD(swoole_coroutine_util, resume)
 static PHP_METHOD(swoole_coroutine_util, stats)
 {
     array_init(return_value);
-    add_assoc_long_ex(return_value, ZEND_STRL("stack_size"), Coroutine::get_stack_size());
+    add_assoc_long_ex(return_value, ZEND_STRL("c_stack_size"), Coroutine::get_stack_size());
     add_assoc_long_ex(return_value, ZEND_STRL("coroutine_num"), Coroutine::count());
-    add_assoc_long_ex(return_value, ZEND_STRL("coroutine_peak_num"), PHPCoroutine::get_peak_num());
+    add_assoc_long_ex(return_value, ZEND_STRL("coroutine_peak_num"), Coroutine::get_peak_num());
 }
 
 static PHP_METHOD(swoole_coroutine_util, getCid)
