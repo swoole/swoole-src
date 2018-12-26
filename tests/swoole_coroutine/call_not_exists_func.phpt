@@ -30,7 +30,4 @@ Fatal error: Uncaught Error: Call to undefined function none() in %s/tests/swool
 Stack trace:
 #0 {main}
   thrown in %s/tests/swoole_coroutine/call_not_exists_func.php on line 11
-%s
-Stack trace:
-#0 {main}
-  thrown in %s/tests/swoole_coroutine/call_not_exists_func.php on line 11.
+

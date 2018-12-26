@@ -13,7 +13,7 @@ go(function () {
     $cli = new Swoole\Coroutine\Http\Client($domain, 443, true);
     // $cli->setHeaders(['Host' => $domain]); // without host header it can also work well
     $cli->set([
-        'timeout' => 5,
+        'timeout' => 30,
         'http_proxy_host' => HTTP_PROXY_HOST,
         'http_proxy_port' => HTTP_PROXY_PORT
     ]);

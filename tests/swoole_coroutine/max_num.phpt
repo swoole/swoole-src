@@ -18,8 +18,8 @@ var_dump(co::stats());
 --EXPECTF--
 Warning: go(): exceed max number of coroutine 3000. in %s/tests/swoole_coroutine/max_num.php on line 9
 array(3) {
-  ["stack_size"]=>
-  int(8192)
+  ["c_stack_size"]=>
+  int(2097152)
   ["coroutine_num"]=>
   int(3000)
   ["coroutine_peak_num"]=>
