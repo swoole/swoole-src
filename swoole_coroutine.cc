@@ -28,7 +28,6 @@ double PHPCoroutine::socket_connect_timeout = SW_DEFAULT_SOCKET_CONNECT_TIMEOUT;
 double PHPCoroutine::socket_timeout = SW_DEFAULT_SOCKET_TIMEOUT;
 php_coro_task PHPCoroutine::main_task = {0};
 
-#if PHP_VERSION_ID >= 70200
 inline void PHPCoroutine::vm_stack_init(void)
 {
     uint32_t size = SW_DEFAULT_PHP_STACK_PAGE_SIZE;
@@ -46,9 +45,6 @@ inline void PHPCoroutine::vm_stack_init(void)
     EG(vm_stack_page_size) = size;
 #endif
 }
-#else
-#define PHPCoroutine::vm_stack_init zend_vm_stack_init
-#endif
 
 inline void PHPCoroutine::vm_stack_destroy(zend_vm_stack stack)
 {
