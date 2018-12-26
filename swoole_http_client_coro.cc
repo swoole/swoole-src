@@ -600,29 +600,9 @@ void http_client::set(zval *zset = nullptr)
             websocket_mask = Z_BVAL_P(ztmp);
         }
     }
-    else
+    if (socket)
     {
-        SW_ASSERT(socket);
-        // will be set after create socket and before connect
-        sw_coro_socket_set(socket, zsettings);
-        if (socket->http_proxy)
-        {
-            if (socket->http_proxy->password)
-            {
-                char _buf1[256];
-                int _n1 = snprintf(
-                    _buf1, sizeof(_buf1), "%*s:%*s",
-                    socket->http_proxy->l_user, socket->http_proxy->user,
-                    socket->http_proxy->l_password, socket->http_proxy->password
-                );
-                zend_string *str = php_base64_encode((const unsigned char *) _buf1, _n1);
-                snprintf(
-                    socket->http_proxy->buf, sizeof(socket->http_proxy->buf),
-                    "Proxy-Authorization:Basic %*s", (int)str->len, str->val
-                );
-                zend_string_free(str);
-            }
-        }
+        sw_coro_socket_set(socket, zset ? zset : zsettings);
     }
 }
 

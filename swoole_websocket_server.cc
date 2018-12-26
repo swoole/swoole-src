@@ -307,20 +307,17 @@ static int websocket_handshake(swServer *serv, swListenPort *port, http_context 
     swString_append_ptr(swoole_http_buffer, ZEND_STRL("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"));
 
     int n;
-    char sec_websocket_accept[128];
-    memcpy(sec_websocket_accept, Z_STRVAL_P(pData), Z_STRLEN_P(pData));
-    memcpy(sec_websocket_accept + Z_STRLEN_P(pData), SW_WEBSOCKET_GUID, sizeof(SW_WEBSOCKET_GUID) - 1);
-
-    char sha1_str[20];
-    bzero(sha1_str, sizeof(sha1_str));
-    php_swoole_sha1(sec_websocket_accept, Z_STRLEN_P(pData) + sizeof(SW_WEBSOCKET_GUID) - 1, (unsigned char *) sha1_str);
-
-    char encoded_str[50];
-    bzero(encoded_str, sizeof(encoded_str));
-    n = swBase64_encode((unsigned char *) sha1_str, sizeof(sha1_str), encoded_str);
-
     char _buf[128];
-    n = snprintf(_buf, sizeof(_buf), "Sec-WebSocket-Accept: %*s\r\n", n, encoded_str);
+    char sha1_str[20];
+    char encoded_str[50];
+    // sec_websocket_accept
+    memcpy(_buf, Z_STRVAL_P(pData), Z_STRLEN_P(pData));
+    memcpy(_buf + Z_STRLEN_P(pData), SW_WEBSOCKET_GUID, sizeof(SW_WEBSOCKET_GUID) - 1);
+    // sha1 sec_websocket_accept
+    php_swoole_sha1(_buf, Z_STRLEN_P(pData) + sizeof(SW_WEBSOCKET_GUID) - 1, (unsigned char *) sha1_str);
+    // base64
+    n = swBase64_encode((unsigned char *) sha1_str, sizeof(sha1_str), encoded_str);
+    n = snprintf(_buf, sizeof(_buf), "Sec-WebSocket-Accept: %.*s\r\n", n, encoded_str);
 
     swString_append_ptr(swoole_http_buffer, _buf, n);
     swString_append_ptr(swoole_http_buffer, ZEND_STRL("Sec-WebSocket-Version: " SW_WEBSOCKET_VERSION "\r\n"));
