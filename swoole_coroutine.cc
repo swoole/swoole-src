@@ -345,13 +345,13 @@ static sw_inline void php_coro_close(coro_task *task)
     php_coro_restore_vm_stack(task->origin_task);
 }
 
-void internal_coro_resume(void *arg)
+static void internal_coro_resume(void *arg)
 {
     coro_task *task = (coro_task *) arg;
     php_coro_resume(task);
 }
 
-void internal_coro_yield(void *arg)
+static void internal_coro_yield(void *arg)
 {
     coro_task *task = (coro_task *) arg;
     php_coro_yield(task);
@@ -420,19 +420,15 @@ long sw_coro_create(zend_fcall_info_cache *fci_cache, int argc, zval *argv)
     return Coroutine::create(php_coro_create, (void*) &php_args);
 }
 
-void sw_coro_save(zval *return_value, php_context *sw_current_context)
-{
-    SWCC(current_coro_return_value_ptr) = return_value;
-    SWCC(current_task) = php_coro_get_current_task();
-}
-
-void sw_coro_yield()
+void sw_coro_yield(zval *return_value, php_context *sw_current_context)
 {
     if (unlikely(!sw_coro_is_in()))
     {
         swoole_php_fatal_error(E_ERROR, "must be called in the coroutine.");
     }
     coro_task *task = php_coro_get_current_task();
+    SWCC(current_coro_return_value_ptr) = return_value;
+    SWCC(current_task) = task;
     php_coro_yield(task);
     task->co->yield_naked();
 }

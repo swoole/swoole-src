@@ -42,7 +42,7 @@ typedef enum
 typedef void (*coro_php_create_t)();
 typedef void (*coro_php_yield_t)(void*);
 typedef void (*coro_php_resume_t)(void*);
-typedef void (*coro_php_close_t)();
+typedef void (*coro_php_close_t)(void*);
 
 namespace swoole
 {
@@ -141,8 +141,5 @@ inline static long coroutine_get_cid(swoole::Coroutine* co)
 {
     return co ? co->get_cid() : -1;
 }
-
-void internal_coro_yield(void *arg);
-void internal_coro_resume(void *arg);
 
 extern swoole::CoroutineG swCoroG;

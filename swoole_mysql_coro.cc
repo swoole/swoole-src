@@ -847,8 +847,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
         connector->timer = swTimer_add(&SwooleG.timer, (long) (connector->timeout * 1000), 0, context, swoole_mysql_coro_onTimeout);
     }
     client->cid = sw_get_current_cid();
-    sw_coro_save(return_value, context);
-    sw_coro_yield();
+    sw_coro_yield(return_value, context);
 }
 
 static PHP_METHOD(swoole_mysql_coro, query)
@@ -908,8 +907,7 @@ static PHP_METHOD(swoole_mysql_coro, query)
     }
     client->suspending = 1;
     client->cid = sw_get_current_cid();
-    sw_coro_save(return_value, context);
-    sw_coro_yield();
+    sw_coro_yield(return_value, context);
 }
 
 static PHP_METHOD(swoole_mysql_coro, nextResult)
@@ -1001,9 +999,8 @@ static void swoole_mysql_coro_query_transcation(const char* command, uint8_t in_
             client->timer = swTimer_add(&SwooleG.timer, (long) (timeout * 1000), 0, context, swoole_mysql_coro_onTimeout);
         }
         client->cid = sw_get_current_cid();
-        sw_coro_save(return_value, context);
         coro_use_return_value();
-        sw_coro_yield();
+        sw_coro_yield(return_value, context);
         // resume true
         if (Z_BVAL_P(return_value))
         {
@@ -1081,8 +1078,7 @@ static PHP_METHOD(swoole_mysql_coro, recv)
     client->suspending = 1;
     client->cid = sw_get_current_cid();
     php_context *context = (php_context *) swoole_get_property(getThis(), 0);
-    sw_coro_save(return_value, context);
-    sw_coro_yield();
+    sw_coro_yield(return_value, context);
 }
 
 static PHP_METHOD(swoole_mysql_coro, prepare)
@@ -1158,8 +1154,7 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
     }
     client->suspending = 1;
     client->cid = sw_get_current_cid();
-    sw_coro_save(return_value, context);
-    sw_coro_yield();
+    sw_coro_yield(return_value, context);
 }
 
 static PHP_METHOD(swoole_mysql_coro_statement, execute)
@@ -1212,8 +1207,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, execute)
     }
     client->suspending = 1;
     client->cid = sw_get_current_cid();
-    sw_coro_save(return_value, context);
-    sw_coro_yield();
+    sw_coro_yield(return_value, context);
 }
 
 static PHP_METHOD(swoole_mysql_coro_statement, fetch)

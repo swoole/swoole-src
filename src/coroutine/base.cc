@@ -90,7 +90,7 @@ void Coroutine::release()
     state = SW_CORO_END;
     if (swCoroG.onClose)
     {
-        swCoroG.onClose();
+        swCoroG.onClose(task);
     }
     swCoroG.call_stack_size--;
     swCoroG.coroutines.erase(cid);
