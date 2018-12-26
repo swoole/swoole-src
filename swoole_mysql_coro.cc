@@ -271,7 +271,7 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
     if (param_count != 0)
     {
        //null bitmap
-       char *null_start = p;
+       size_t null_start_offset = p - mysql_request_buffer->str;
        unsigned int map_size = (param_count + 7) / 8;
        memset(p, 0, map_size);
        p += map_size;
@@ -282,7 +282,7 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
        p += 1;
        mysql_request_buffer->length += 1;
 
-       char *type_start = p;
+       size_t type_start_offset = p - mysql_request_buffer->str;
        p += param_count * 2;
        mysql_request_buffer->length += param_count * 2;
 
@@ -291,12 +291,12 @@ static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *
        {
             if (ZVAL_IS_NULL(value))
             {
-                *(null_start + (index / 8)) |= (1UL << (index % 8));
-                mysql_int2store(type_start + (index * 2), SW_MYSQL_TYPE_NULL);
+                *((mysql_request_buffer->str + null_start_offset) + (index / 8)) |= (1UL << (index % 8));
+                mysql_int2store((mysql_request_buffer->str + type_start_offset) + (index * 2), SW_MYSQL_TYPE_NULL);
             }
             else
             {
-                mysql_int2store(type_start + (index * 2), SW_MYSQL_TYPE_VAR_STRING);
+                mysql_int2store((mysql_request_buffer->str + type_start_offset) + (index * 2), SW_MYSQL_TYPE_VAR_STRING);
                 ZVAL_DUP(&_value, value);
                 value = &_value;
                 convert_to_string(value);
