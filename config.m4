@@ -523,8 +523,6 @@ if test "$PHP_SWOOLE" != "no"; then
         swoole_source_file="$swoole_source_file thirdparty/picohttpparser/picohttpparser.c"
     fi
 
-    PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/hiredis])
-    
     swoole_source_file="$swoole_source_file \
         thirdparty/hiredis/async.c \
         thirdparty/hiredis/hiredis.c \
@@ -603,6 +601,8 @@ if test "$PHP_SWOOLE" != "no"; then
 
     PHP_ADD_INCLUDE([$ext_srcdir])
     PHP_ADD_INCLUDE([$ext_srcdir/include])
+
+    PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/hiredis])
 
     PHP_INSTALL_HEADERS([ext/swoole], [*.h config.h include/*.h])
 
