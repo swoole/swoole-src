@@ -22,9 +22,13 @@
 #include <string>
 #include <unordered_map>
 
-#define CORO_END         0
-#define CORO_LIMIT      -1
-#define CORO_INVALID    -2
+// TODO: remove it
+typedef enum
+{
+    SW_CORO_ERR_END = 0,
+    SW_CORO_ERR_LIMIT = -1,
+    SW_CORO_ERR_INVALID = -2,
+} sw_coro_error;
 
 typedef enum
 {

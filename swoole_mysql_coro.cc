@@ -1464,7 +1464,7 @@ static int swoole_mysql_coro_onError(swReactor *reactor, swEvent *event)
     int ret = PHPCoroutine::resume_m(sw_current_context, result, retval);
     sw_zval_free(result);
 
-    if (ret == CORO_END && retval)
+    if (ret == SW_CORO_ERR_END && retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -1512,7 +1512,7 @@ static void swoole_mysql_coro_onConnect(mysql_client *client)
     php_coro_context *sw_current_context = (php_coro_context *) swoole_get_property(zobject, 0);
     int ret = PHPCoroutine::resume_m(sw_current_context, result, retval);
     zval_ptr_dtor(result);
-    if (ret == CORO_END && retval)
+    if (ret == SW_CORO_ERR_END && retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -1556,7 +1556,7 @@ static void swoole_mysql_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
 
     int ret = PHPCoroutine::resume_m(ctx, result, retval);
 
-    if (ret == CORO_END && retval)
+    if (ret == SW_CORO_ERR_END && retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -1868,7 +1868,7 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
             php_coro_context *sw_current_context = (php_coro_context *) swoole_get_property(zobject, 0);
             ret = PHPCoroutine::resume_m(sw_current_context, result, retval);
             sw_zval_free(result);
-            if (ret == CORO_END && retval)
+            if (ret == SW_CORO_ERR_END && retval)
             {
                 zval_ptr_dtor(retval);
             }
@@ -1943,7 +1943,7 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
             {
                 sw_zval_free(result);
             }
-            if (ret == CORO_END && retval)
+            if (ret == SW_CORO_ERR_END && retval)
             {
                 zval_ptr_dtor(retval);
             }

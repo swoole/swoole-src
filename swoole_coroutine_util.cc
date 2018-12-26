@@ -304,7 +304,7 @@ void swoole_coroutine_util_init(int module_number)
     SWOOLE_DEFINE(CORO_INIT);
     SWOOLE_DEFINE(CORO_WAITING);
     SWOOLE_DEFINE(CORO_RUNNING);
-    SWOOLE_DEFINE(CORO_END);
+    SWOOLE_DEFINE(SW_CORO_ERR_END);
 
     //prohibit exit in coroutine
     SWOOLE_INIT_CLASS_ENTRY_EX(swoole_exit_exception, "Swoole\\ExitException", NULL, NULL, swoole_exit_exception_methods, swoole_exception);
@@ -520,7 +520,7 @@ static void aio_onReadCompleted(swAio_event *event)
 
     php_coro_context *context = (php_coro_context *) event->object;
     int ret = PHPCoroutine::resume_m(context, result, retval);
-    if (ret == CORO_END && retval)
+    if (ret == SW_CORO_ERR_END && retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -555,7 +555,7 @@ static void aio_onFgetsCompleted(swAio_event *event)
     }
 
     int ret = PHPCoroutine::resume_m(context, result, retval);
-    if (ret == CORO_END && retval)
+    if (ret == SW_CORO_ERR_END && retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -581,7 +581,7 @@ static void aio_onWriteCompleted(swAio_event *event)
 
     php_coro_context *context = (php_coro_context *) event->object;
     int ret = PHPCoroutine::resume_m(context, result, retval);
-    if (ret == CORO_END && retval)
+    if (ret == SW_CORO_ERR_END && retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -625,7 +625,7 @@ static int co_socket_onReadable(swReactor *reactor, swEvent *event)
     }
     int ret = PHPCoroutine::resume_m(context, &result, retval);
     zval_ptr_dtor(&result);
-    if (ret == CORO_END && retval)
+    if (ret == SW_CORO_ERR_END && retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -661,7 +661,7 @@ static int co_socket_onWritable(swReactor *reactor, swEvent *event)
     }
     int ret = PHPCoroutine::resume_m(context, &result, retval);
     zval_ptr_dtor(&result);
-    if (ret == CORO_END && retval)
+    if (ret == SW_CORO_ERR_END && retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -1069,7 +1069,7 @@ static void coro_dns_onResolveCompleted(swAio_event *event)
     }
 
     int ret = PHPCoroutine::resume_m(context, result, retval);
-    if (ret == CORO_END && retval)
+    if (ret == SW_CORO_ERR_END && retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -1124,7 +1124,7 @@ static void coro_dns_onGetaddrinfoCompleted(swAio_event *event)
     }
 
     int ret = PHPCoroutine::resume_m(context, result, retval);
-    if (ret == CORO_END && retval)
+    if (ret == SW_CORO_ERR_END && retval)
     {
         zval_ptr_dtor(retval);
     }

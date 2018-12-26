@@ -256,7 +256,7 @@ static void swoole_pgsql_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
 
     zend_update_property_string(swoole_postgresql_coro_ce_ptr, zobject, "error", 5, "ontimeout");
     int ret = PHPCoroutine::resume_m(ctx, result, retval);
-    if (ret == CORO_END && retval)
+    if (ret == SW_CORO_ERR_END && retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -342,7 +342,7 @@ static int swoole_pgsql_coro_onWrite(swReactor *reactor, swEvent *event)
     }
 
     int ret = PHPCoroutine::resume_m(context, &return_value, retval);
-    if (ret == CORO_END && retval)
+    if (ret == SW_CORO_ERR_END && retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -428,7 +428,7 @@ static  int meta_data_result_parse(pg_object *object)
     php_coro_context *context = (php_coro_context *) swoole_get_property(object->object, 0);
     zend_update_property_null(swoole_postgresql_coro_ce_ptr, object->object, "error", 5);
     int ret = PHPCoroutine::resume_m(context, &return_value, retval);
-    if (ret == CORO_END && retval)
+    if (ret == SW_CORO_ERR_END && retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -465,7 +465,7 @@ static  int query_result_parse(pg_object *object)
             ZVAL_FALSE(&return_value);
             zend_update_property_string(swoole_postgresql_coro_ce_ptr, object->object, "error", 5, err_msg);
             ret = PHPCoroutine::resume_m(context, &return_value, retval);
-            if (ret == CORO_END && retval)
+            if (ret == SW_CORO_ERR_END && retval)
             {
                 zval_ptr_dtor(retval);
             }
@@ -480,7 +480,7 @@ static  int query_result_parse(pg_object *object)
             ZVAL_RES(&return_value, zend_register_resource(object, le_result));
             zend_update_property_null(swoole_postgresql_coro_ce_ptr, object->object, "error", 5);
             ret = PHPCoroutine::resume_m(context, &return_value, retval);
-            if (ret == CORO_END && retval)
+            if (ret == SW_CORO_ERR_END && retval)
             {
                 zval_ptr_dtor(retval);
             }
@@ -1029,7 +1029,7 @@ static int swoole_pgsql_coro_onError(swReactor *reactor, swEvent *event)
     int ret = PHPCoroutine::resume_m(context, result, retval);
     zval_ptr_dtor(result);
 
-    if (ret == CORO_END && retval)
+    if (ret == SW_CORO_ERR_END && retval)
     {
         zval_ptr_dtor(retval);
     }

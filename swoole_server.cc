@@ -849,7 +849,7 @@ static void php_swoole_task_onTimeout(swTimer *timer, swTimer_node *tnode)
         zval result;
         ZVAL_FALSE(&result);
         int ret = PHPCoroutine::resume_m(context, &result, retval);
-        if (ret == CORO_END && retval)
+        if (ret == SW_CORO_ERR_END && retval)
         {
             zval_ptr_dtor(retval);
         }
@@ -871,7 +871,7 @@ static void php_swoole_task_onTimeout(swTimer *timer, swTimer_node *tnode)
     }
 
     int ret = PHPCoroutine::resume_m(context, result, retval);
-    if (ret == CORO_END && retval)
+    if (ret == SW_CORO_ERR_END && retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -1426,7 +1426,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
             }
             php_coro_context *context = &task_co->context;
             int ret = PHPCoroutine::resume_m(context, zdata, retval);
-            if (ret == CORO_END && retval)
+            if (ret == SW_CORO_ERR_END && retval)
             {
                 zval_ptr_dtor(retval);
             }
@@ -1465,7 +1465,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
             }
             php_coro_context *context = &task_co->context;
             int ret = PHPCoroutine::resume_m(context, result, retval);
-            if (ret == CORO_END && retval)
+            if (ret == SW_CORO_ERR_END && retval)
             {
                 zval_ptr_dtor(retval);
             }
@@ -2042,7 +2042,7 @@ static void php_swoole_onSendTimeout(swTimer *timer, swTimer_node *tnode)
     context->private_data = NULL;
 
     int ret = PHPCoroutine::resume_m(context, result, retval);
-    if (ret == CORO_END && retval)
+    if (ret == SW_CORO_ERR_END && retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -2085,7 +2085,7 @@ static int php_swoole_server_send_resume(swServer *serv, php_coro_context *conte
     }
 
     int ret = PHPCoroutine::resume_m(context, result, retval);
-    if (ret == CORO_END && retval)
+    if (ret == SW_CORO_ERR_END && retval)
     {
         zval_ptr_dtor(retval);
     }

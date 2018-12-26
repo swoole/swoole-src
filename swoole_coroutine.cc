@@ -345,18 +345,18 @@ long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval 
     if (unlikely(swCoroG.count() >= PHPCoroutine::max_coro_num))
     {
         swoole_php_fatal_error(E_WARNING, "exceed max number of coroutine %zu.", (uintmax_t) swCoroG.count());
-        return CORO_LIMIT;
+        return SW_CORO_ERR_LIMIT;
     }
     if (unlikely(!fci_cache || !fci_cache->function_handler))
     {
         swoole_php_fatal_error(E_ERROR, "invalid function call info cache.");
-        return CORO_INVALID;
+        return SW_CORO_ERR_INVALID;
     }
     type = fci_cache->function_handler->type;
     if (unlikely(type != ZEND_USER_FUNCTION && type != ZEND_INTERNAL_FUNCTION))
     {
         swoole_php_fatal_error(E_ERROR, "invalid function type %u.", fci_cache->function_handler->type);
-        return CORO_INVALID;
+        return SW_CORO_ERR_INVALID;
     }
 
     php_coro_args php_coro_args;
@@ -425,5 +425,5 @@ int PHPCoroutine::resume_m(php_coro_context *sw_current_context, zval *retval, z
         ZVAL_COPY(sw_current_context->current_coro_return_value_ptr, retval);
     }
     task->co->resume_naked();
-    return CORO_END;
+    return SW_CORO_ERR_END;
 }
