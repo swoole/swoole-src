@@ -8,25 +8,25 @@ require __DIR__ . '/../include/bootstrap.php';
 echo "default 2M\n";
 var_dump(co::stats());
 co::set(['c_stack_size' => 1024 * 1024]);
-for ($n = MAX_REQUESTS; $n--;) {
+for ($n = 100; $n--;) {
     go(function () { co::sleep(0.001); });
 }
 echo "1M\n";
 var_dump(co::stats());
 co::set(['c_stack_size' => 1]); // will be aligned
-for ($n = MAX_REQUESTS; $n--;) {
+for ($n = 100; $n--;) {
     go(function () { co::sleep(0.001); });
 }
 echo "4K\n";
 var_dump(co::stats());
 co::set(['c_stack_size' => 1024 * 1024 * 1024]); // will be limit
-for ($n = MAX_REQUESTS; $n--;) {
+for ($n = 100; $n--;) {
     go(function () { co::sleep(0.001); });
 }
 echo "16M\n";
 var_dump(co::stats());
 co::set(['c_stack_size' => -1]); // will be limit
-for ($n = MAX_REQUESTS; $n--;) {
+for ($n = 100; $n--;) {
     go(function () { co::sleep(0.001); });
 }
 echo "16M\n";

@@ -1,5 +1,5 @@
 --TEST--
-swoole_redis_coro: use unixsocket
+swoole_redis_coro: redis lock
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -7,7 +7,7 @@ swoole_redis_coro: use unixsocket
 require __DIR__ . '/../include/bootstrap.php';
 go(function () {
     $redis = new Co\Redis();
-    $redis->connect('127.0.0.1', 6379);
+    $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
     $redis->delete('lock');
     $ret = $redis->set('lock', 1, ['nx', 'ex' => 1, 'px' => 1000]); // px will be ignored
     assert($ret);
