@@ -33,6 +33,8 @@ extern "C"
 #include "base64.h"
 #include "thirdparty/swoole_http_parser.h"
 
+using namespace swoole;
+
 static zend_class_entry swoole_websocket_server_ce;
 zend_class_entry *swoole_websocket_server_ce_ptr;
 static zend_object_handlers swoole_websocket_server_handlers;
@@ -244,7 +246,7 @@ void swoole_websocket_onOpen(swServer *serv, http_context *ctx)
 
     if (SwooleG.enable_coroutine)
     {
-        if (sw_coro_create(fci_cache, 2, args) < 0)
+        if (PHPCoroutine::create(fci_cache, 2, args) < 0)
         {
             swoole_php_error(E_WARNING, "create onOpen coroutine error.");
             serv->close(serv, fd, 0);
@@ -378,7 +380,7 @@ int swoole_websocket_onMessage(swServer *serv, swEventData *req)
 
     if (SwooleG.enable_coroutine)
     {
-        if (sw_coro_create(fci_cache, 2, args) < 0)
+        if (PHPCoroutine::create(fci_cache, 2, args) < 0)
         {
             swoole_php_error(E_WARNING, "create onMessage coroutine error.");
             SwooleG.serv->factory.end(&SwooleG.serv->factory, fd);

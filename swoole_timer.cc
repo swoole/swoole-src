@@ -21,6 +21,8 @@
 #include "swoole_coroutine.h"
 #endif
 
+using namespace swoole;
+
 enum swoole_timer_type
 {
     SW_TIMER_TICK, SW_TIMER_AFTER,
@@ -170,7 +172,7 @@ void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
 
     if (SwooleG.enable_coroutine)
     {
-        if (sw_coro_create(cb->fci_cache, argc, args) < 0)
+        if (PHPCoroutine::create(cb->fci_cache, argc, args) < 0)
         {
             swoole_php_fatal_error(E_WARNING, "create onTimer coroutine error.");
         }
@@ -213,7 +215,7 @@ void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode)
 
     if (SwooleG.enable_coroutine)
     {
-        if (sw_coro_create(cb->fci_cache, argc, args) < 0)
+        if (PHPCoroutine::create(cb->fci_cache, argc, args) < 0)
         {
             swoole_php_fatal_error(E_WARNING, "create onInterval coroutine error.");
             return;

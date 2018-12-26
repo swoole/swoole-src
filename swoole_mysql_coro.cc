@@ -22,6 +22,8 @@
 #include "swoole_coroutine.h"
 #include "swoole_mysql.h"
 
+using namespace swoole;
+
 static PHP_METHOD(swoole_mysql_coro, __construct);
 static PHP_METHOD(swoole_mysql_coro, __destruct);
 static PHP_METHOD(swoole_mysql_coro, connect);
@@ -156,7 +158,7 @@ static zend_object *swoole_mysql_coro_create_object(zend_class_entry *ce)
     object->handlers = &swoole_mysql_coro_handlers;
     object_properties_init(object, ce);
 
-    coro_check();
+    PHPCoroutine::check();
 
     mysql_client *client = (mysql_client *) emalloc(sizeof(mysql_client));
     bzero(client, sizeof(mysql_client));
@@ -204,7 +206,7 @@ int mysql_query(zval *zobject, mysql_client *client, swString *sql, zval *callba
 static int swoole_mysql_coro_execute(zval *zobject, mysql_client *client, zval *params)
 {
 
-    sw_coro_check_bind("mysql client", client->cid);
+    PHPCoroutine::check_bind("mysql client", client->cid);
 
     if (!client->cli)
     {
@@ -723,7 +725,7 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     }
     else
     {
-        connector->timeout = COROG.socket_connect_timeout;
+        connector->timeout = PHPCoroutine::socket_connect_timeout;
     }
     if (php_swoole_array_get_value(_ht, "charset", value))
     {
@@ -833,10 +835,10 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     _socket->object = client;
     _socket->active = 0;
 
-    php_context *context = (php_context *) swoole_get_property(getThis(), 0);
+    php_coro_context *context = (php_coro_context *) swoole_get_property(getThis(), 0);
     if (!context)
     {
-        context = (php_context *) emalloc(sizeof(php_context));
+        context = (php_coro_context *) emalloc(sizeof(php_coro_context));
         swoole_set_property(getThis(), 0, context);
     }
     context->state = SW_CORO_CONTEXT_RUNNING;
@@ -846,8 +848,8 @@ static PHP_METHOD(swoole_mysql_coro, connect)
     {
         connector->timer = swTimer_add(&SwooleG.timer, (long) (connector->timeout * 1000), 0, context, swoole_mysql_coro_onTimeout);
     }
-    client->cid = sw_get_current_cid();
-    sw_coro_yield(return_value, context);
+    client->cid = PHPCoroutine::get_cid();
+    PHPCoroutine::yield_m(return_value, context);
 }
 
 static PHP_METHOD(swoole_mysql_coro, query)
@@ -870,9 +872,9 @@ static PHP_METHOD(swoole_mysql_coro, query)
         RETURN_FALSE;
     }
 
-    sw_coro_check_bind("mysql client", client->cid);
+    PHPCoroutine::check_bind("mysql client", client->cid);
 
-    double timeout = COROG.socket_timeout;
+    double timeout = PHPCoroutine::socket_timeout;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|d", &sql.str, &sql.length, &timeout) == FAILURE)
     {
@@ -891,7 +893,7 @@ static PHP_METHOD(swoole_mysql_coro, query)
     }
 
     client->state = SW_MYSQL_STATE_READ_START;
-    php_context *context = (php_context *) swoole_get_property(getThis(), 0);
+    php_coro_context *context = (php_coro_context *) swoole_get_property(getThis(), 0);
     if (timeout > 0)
     {
         client->timer = swTimer_add(&SwooleG.timer, (long) (timeout * 1000), 0, context, swoole_mysql_coro_onTimeout);
@@ -906,8 +908,8 @@ static PHP_METHOD(swoole_mysql_coro, query)
         RETURN_TRUE;
     }
     client->suspending = 1;
-    client->cid = sw_get_current_cid();
-    sw_coro_yield(return_value, context);
+    client->cid = PHPCoroutine::get_cid();
+    PHPCoroutine::yield_m(return_value, context);
 }
 
 static PHP_METHOD(swoole_mysql_coro, nextResult)
@@ -952,7 +954,7 @@ static void swoole_mysql_coro_query_transcation(const char* command, uint8_t in_
         RETURN_FALSE;
     }
 
-    sw_coro_check_bind("mysql client", client->cid);
+    PHPCoroutine::check_bind("mysql client", client->cid);
 
     // we deny the dangerous operation of transaction
     // if developers need use defer to begin transaction, they can use query("begin/commit/rollback") with defer
@@ -988,19 +990,20 @@ static void swoole_mysql_coro_query_transcation(const char* command, uint8_t in_
     }
     else
     {
-        double timeout = COROG.socket_timeout;
+        double timeout = PHPCoroutine::socket_timeout;
         if (zend_parse_parameters(ZEND_NUM_ARGS(), "|d", &timeout) == FAILURE)
         {
             RETURN_FALSE;
         }
-        php_context *context = (php_context *) swoole_get_property(getThis(), 0);
+        php_coro_context *context = (php_coro_context *) swoole_get_property(getThis(), 0);
         if (timeout > 0)
         {
             client->timer = swTimer_add(&SwooleG.timer, (long) (timeout * 1000), 0, context, swoole_mysql_coro_onTimeout);
         }
-        client->cid = sw_get_current_cid();
-        coro_use_return_value();
-        sw_coro_yield(return_value, context);
+        client->cid = PHPCoroutine::get_cid();
+        // coro_use_return_value
+        *(zend_uchar *) &execute_data->prev_execute_data->opline->result_type = IS_VAR;
+        PHPCoroutine::yield_m(return_value, context);
         // resume true
         if (Z_BVAL_P(return_value))
         {
@@ -1057,7 +1060,7 @@ static PHP_METHOD(swoole_mysql_coro, recv)
         RETURN_FALSE;
     }
 
-    sw_coro_check_bind("mysql client", client->cid);
+    PHPCoroutine::check_bind("mysql client", client->cid);
 
     if (client->iowait == SW_MYSQL_CORO_STATUS_DONE)
     {
@@ -1076,9 +1079,9 @@ static PHP_METHOD(swoole_mysql_coro, recv)
     }
 
     client->suspending = 1;
-    client->cid = sw_get_current_cid();
-    php_context *context = (php_context *) swoole_get_property(getThis(), 0);
-    sw_coro_yield(return_value, context);
+    client->cid = PHPCoroutine::get_cid();
+    php_coro_context *context = (php_coro_context *) swoole_get_property(getThis(), 0);
+    PHPCoroutine::yield_m(return_value, context);
 }
 
 static PHP_METHOD(swoole_mysql_coro, prepare)
@@ -1101,9 +1104,9 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
         RETURN_FALSE;
     }
 
-    sw_coro_check_bind("mysql client", client->cid);
+    PHPCoroutine::check_bind("mysql client", client->cid);
 
-    double timeout = COROG.socket_timeout;
+    double timeout = PHPCoroutine::socket_timeout;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|d", &sql.str, &sql.length, &timeout) == FAILURE)
     {
@@ -1147,14 +1150,14 @@ static PHP_METHOD(swoole_mysql_coro, prepare)
         RETURN_TRUE;
     }
 
-    php_context *context = (php_context *) swoole_get_property(getThis(), 0);
+    php_coro_context *context = (php_coro_context *) swoole_get_property(getThis(), 0);
     if (timeout > 0)
     {
         client->timer = swTimer_add(&SwooleG.timer, (long) (timeout * 1000), 0, context, swoole_mysql_coro_onTimeout);
     }
     client->suspending = 1;
-    client->cid = sw_get_current_cid();
-    sw_coro_yield(return_value, context);
+    client->cid = PHPCoroutine::get_cid();
+    PHPCoroutine::yield_m(return_value, context);
 }
 
 static PHP_METHOD(swoole_mysql_coro_statement, execute)
@@ -1174,7 +1177,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, execute)
         RETURN_FALSE;
     }
 
-    double timeout = COROG.socket_timeout;
+    double timeout = PHPCoroutine::socket_timeout;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|ad", &params, &timeout) == FAILURE)
     {
@@ -1191,7 +1194,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, execute)
         RETURN_FALSE;
     }
 
-    php_context *context = (php_context *) swoole_get_property(client->object, 0);
+    php_coro_context *context = (php_coro_context *) swoole_get_property(client->object, 0);
     if (timeout > 0)
     {
         client->timer = swTimer_add(&SwooleG.timer, (long) (timeout * 1000), 0, context, swoole_mysql_coro_onTimeout);
@@ -1206,8 +1209,8 @@ static PHP_METHOD(swoole_mysql_coro_statement, execute)
         RETURN_TRUE;
     }
     client->suspending = 1;
-    client->cid = sw_get_current_cid();
-    sw_coro_yield(return_value, context);
+    client->cid = PHPCoroutine::get_cid();
+    PHPCoroutine::yield_m(return_value, context);
 }
 
 static PHP_METHOD(swoole_mysql_coro_statement, fetch)
@@ -1429,7 +1432,7 @@ static void swoole_mysql_coro_free_object(zend_object *object)
         swoole_set_object_by_handle(handle, NULL);
     }
 
-    php_context *context = (php_context *) swoole_get_property_by_handle(handle, 0);
+    php_coro_context *context = (php_coro_context *) swoole_get_property_by_handle(handle, 0);
     if (context)
     {
         efree(context);
@@ -1457,8 +1460,8 @@ static int swoole_mysql_coro_onError(swReactor *reactor, swEvent *event)
     }
     client->suspending = 0;
     client->cid = 0;
-    php_context *sw_current_context = (php_context *) swoole_get_property(zobject, 0);
-    int ret = sw_coro_resume(sw_current_context, result, retval);
+    php_coro_context *sw_current_context = (php_coro_context *) swoole_get_property(zobject, 0);
+    int ret = PHPCoroutine::resume_m(sw_current_context, result, retval);
     sw_zval_free(result);
 
     if (ret == CORO_END && retval)
@@ -1506,8 +1509,8 @@ static void swoole_mysql_coro_onConnect(mysql_client *client)
 
     client->cid = 0;
 
-    php_context *sw_current_context = (php_context *) swoole_get_property(zobject, 0);
-    int ret = sw_coro_resume(sw_current_context, result, retval);
+    php_coro_context *sw_current_context = (php_coro_context *) swoole_get_property(zobject, 0);
+    int ret = PHPCoroutine::resume_m(sw_current_context, result, retval);
     zval_ptr_dtor(result);
     if (ret == CORO_END && retval)
     {
@@ -1519,7 +1522,7 @@ static void swoole_mysql_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
 {
     zval *result = sw_malloc_zval();;
     zval *retval = NULL;
-    php_context *ctx = (php_context *) tnode->data;
+    php_coro_context *ctx = (php_coro_context *) tnode->data;
     zval _zobject = ctx->coro_params;
     zval *zobject = & _zobject;
 
@@ -1551,7 +1554,7 @@ static void swoole_mysql_coro_onTimeout(swTimer *timer, swTimer_node *tnode)
     client->suspending = 0;
     client->cid = 0;
 
-    int ret = sw_coro_resume(ctx, result, retval);
+    int ret = PHPCoroutine::resume_m(ctx, result, retval);
 
     if (ret == CORO_END && retval)
     {
@@ -1862,8 +1865,8 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
             client->suspending = 0;
             client->cid = 0;
 
-            php_context *sw_current_context = (php_context *) swoole_get_property(zobject, 0);
-            ret = sw_coro_resume(sw_current_context, result, retval);
+            php_coro_context *sw_current_context = (php_coro_context *) swoole_get_property(zobject, 0);
+            ret = PHPCoroutine::resume_m(sw_current_context, result, retval);
             sw_zval_free(result);
             if (ret == CORO_END && retval)
             {
@@ -1934,8 +1937,8 @@ static int swoole_mysql_coro_onRead(swReactor *reactor, swEvent *event)
             client->iowait = SW_MYSQL_CORO_STATUS_READY;
             client->cid = 0;
 
-            php_context *sw_current_context = (php_context *) swoole_get_property(zobject, 0);
-            ret = sw_coro_resume(sw_current_context, result, retval);
+            php_coro_context *sw_current_context = (php_coro_context *) swoole_get_property(zobject, 0);
+            ret = PHPCoroutine::resume_m(sw_current_context, result, retval);
             if (result)
             {
                 sw_zval_free(result);

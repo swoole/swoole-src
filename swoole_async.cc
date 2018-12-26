@@ -28,6 +28,8 @@
 #include <string>
 #include <unordered_map>
 
+using namespace swoole;
+
 typedef struct
 {
     zval _callback;
@@ -48,7 +50,7 @@ typedef struct
     zval _domain;
     zval *callback;
     zval *domain;
-    php_context *context;
+    php_coro_context *context;
     uint8_t useless;
     swTimer_node *timer;
 } dns_request;
@@ -221,7 +223,7 @@ static void coro_onDNSCompleted(char *domain, swDNSResolver_result *result, void
         return;
     }
 
-    int ret = sw_coro_resume(req->context, zaddress, retval);
+    int ret = PHPCoroutine::resume_m(req->context, zaddress, retval);
     if (ret > 0)
     {
         goto free_zdata;
@@ -241,7 +243,7 @@ static void dns_timeout_coro(swTimer *timer, swTimer_node *tnode)
 {
     zval *retval = NULL;
     zval *zaddress;
-    php_context *cxt = (php_context *) tnode->data;
+    php_coro_context *cxt = (php_coro_context *) tnode->data;
     dns_request *req = (dns_request *) cxt->coro_params.value.ptr;
 
     SW_MAKE_STD_ZVAL(zaddress);
@@ -256,7 +258,7 @@ static void dns_timeout_coro(swTimer *timer, swTimer_node *tnode)
         ZVAL_STRING(zaddress, "");
     }
 
-    int ret = sw_coro_resume(req->context, zaddress, retval);
+    int ret = PHPCoroutine::resume_m(req->context, zaddress, retval);
     if (ret > 0)
     {
         goto free_zdata;
@@ -1192,12 +1194,12 @@ PHP_METHOD(swoole_async, exec)
 PHP_FUNCTION(swoole_async_dns_lookup_coro)
 {
     zval *domain;
-    double timeout = COROG.socket_connect_timeout;
+    double timeout = PHPCoroutine::socket_connect_timeout;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|d", &domain, &timeout) == FAILURE)
     {
         RETURN_FALSE;
     }
-    coro_check();
+    PHPCoroutine::check();
     if (Z_TYPE_P(domain) != IS_STRING)
     {
         swoole_php_fatal_error(E_WARNING, "invalid domain name.");
@@ -1228,7 +1230,7 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro)
     sw_copy_to_stack(req->domain, req->_domain);
     req->useless = 0;
 
-    php_context *context = (php_context *) emalloc(sizeof(php_context));
+    php_coro_context *context = (php_coro_context *) emalloc(sizeof(php_coro_context));
     context->state = SW_CORO_CONTEXT_RUNNING;
     context->coro_params.value.ptr = (void *) req;
     req->context = context;
@@ -1245,6 +1247,6 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro)
     {
         context->state = SW_CORO_CONTEXT_IN_DELAYED_TIMEOUT_LIST;
     }
-    sw_coro_yield(return_value, context);
+    PHPCoroutine::yield_m(return_value, context);
 }
 #endif

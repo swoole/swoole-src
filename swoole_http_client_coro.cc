@@ -67,8 +67,8 @@ class http_client
 #ifdef SW_USE_OPENSSL
     uint8_t ssl = false;
 #endif
-    double connect_timeout = COROG.socket_connect_timeout;
-    double timeout = COROG.socket_timeout;
+    double connect_timeout = PHPCoroutine::socket_connect_timeout;
+    double timeout = PHPCoroutine::socket_timeout;
     int8_t method = SW_HTTP_GET;       // method
     std::string uri;
 
@@ -547,7 +547,7 @@ void http_client::check_bind()
 {
     if (socket)
     {
-        sw_coro_check_bind("http client", socket->has_bound());
+        PHPCoroutine::check_bind("http client", socket->has_bound());
     }
 }
 

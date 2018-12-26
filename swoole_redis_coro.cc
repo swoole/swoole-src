@@ -816,7 +816,7 @@ ZEND_END_ARG_INFO()
 #define IS_NX_XX_ARG(a) (IS_NX_ARG(a) || IS_XX_ARG(a))
 
 #define SW_REDIS_COMMAND_CHECK \
-    coro_check(); \
+    PHPCoroutine::check(); \
     swRedisClient *redis = (swRedisClient *) swoole_get_redis_client(getThis());
 
 #define SW_REDIS_COMMAND_ARGV_FILL(str, str_len) \
@@ -1857,8 +1857,8 @@ static PHP_METHOD(swoole_redis_coro, __construct)
 
     swoole_set_object(getThis(), redis);
 
-    redis->connect_timeout = COROG.socket_connect_timeout;
-    redis->timeout = COROG.socket_timeout;
+    redis->connect_timeout = PHPCoroutine::socket_connect_timeout;
+    redis->timeout = PHPCoroutine::socket_timeout;
     redis->reconnect_interval = 1;
 
     if (zset && ZVAL_IS_ARRAY(zset))
@@ -1880,7 +1880,7 @@ static PHP_METHOD(swoole_redis_coro, connect)
     zend_bool serialize = 0;
     int fd = 0;
 
-    coro_check();
+    PHPCoroutine::check();
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|lb", &host, &host_len, &port, &serialize) == FAILURE)
     {

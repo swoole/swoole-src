@@ -7,9 +7,13 @@
 
 #include <stack>
 
-#define SW_EX_CV_NUM(ex, n) (((zval ***)(((char *)(ex)) + ZEND_MM_ALIGNED_SIZE(sizeof(zend_execute_data)))) + n)
-#define SW_EX_CV(var) (*SW_EX_CV_NUM(execute_data, var))
+#define SW_DEFAULT_MAX_CORO_NUM              3000
+#define SW_DEFAULT_PHP_STACK_PAGE_SIZE       8192
 
+#define SW_DEFAULT_SOCKET_CONNECT_TIMEOUT    1
+#define SW_DEFAULT_SOCKET_TIMEOUT            -1
+
+#define SWOG ((zend_output_globals *) &OG(handlers))
 
 typedef enum
 {
@@ -44,7 +48,7 @@ struct defer_task
     }
 };
 
-struct coro_task
+struct php_coro_task
 {
     JMP_BUF *bailout;
     zval *vm_stack_top;
@@ -59,68 +63,94 @@ struct coro_task
     SW_DECLARE_EG_SCOPE(scope);
     swoole::Coroutine *co;
     std::stack<defer_task *> *defer_tasks;
-    coro_task *origin_task;
+    php_coro_task *origin_task;
 };
 
-struct php_args
+struct php_coro_args
 {
     zend_fcall_info_cache *fci_cache;
     zval *argv;
-    int argc;
-    coro_task *origin_task;
+    uint32_t argc;
+    php_coro_task *origin_task;
 };
 
-struct coro_global
-{
-    zend_bool active;
-    uint64_t max_coro_num;
-    uint64_t peak_coro_num;
-    double socket_connect_timeout;
-    double socket_timeout;
-    coro_task task;
-};
-
-// TODO: remove php context
-struct php_context
+// TODO: remove php coro context
+struct php_coro_context
 {
     php_context_state state;
     zval coro_params;
     zval *current_coro_return_value_ptr;
     void *private_data;
     swTimer_node *timer;
-    coro_task *current_task;
+    php_coro_task *current_task;
 };
 
-extern coro_global COROG;
+namespace swoole
+{
+class PHPCoroutine
+{
+public:
+    static bool active;;
+    static uint64_t max_coro_num;
+    static uint64_t peak_coro_num;
+    static double socket_connect_timeout;
+    static double socket_timeout;
+    static php_coro_task main_task;
 
-long sw_get_current_cid();
-void sw_coro_add_defer_task(swCallback cb, void *data);
+private:
+    static inline void vm_stack_init(void);
+    static inline void vm_stack_destroy(zend_vm_stack stack);
+    static inline void save_vm_stack(php_coro_task *task);
+    static inline void restore_vm_stack(php_coro_task *task);
+    static inline void save_og(php_coro_task *task);
+    static inline void restore_og(php_coro_task *task);
+    static inline php_coro_task* get_current_task();
+    static inline php_coro_task* get_and_save_current_task();
+    static void on_yield(void *arg);
+    static void on_resume(void *arg);
+    static void on_close(void *arg);
+    static void create_func(void *arg);
 
-void coro_init(void);
-void coro_check(void);
+public:
+    static long create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv);
+    static void defer(swCallback cb, void *data);
 
-#define sw_coro_is_in() (likely(COROG.active && coroutine_get_current()))
-#define coro_use_return_value(); *(zend_uchar *) &execute_data->prev_execute_data->opline->result_type = IS_VAR;
+    static void check();
+    static void check_bind(const char *name, long bind_cid);
 
-/* output globals */
-#define SWOG ((zend_output_globals *) &OG(handlers))
+    static bool enable_hook(int flags);
+    static bool disable_hook();
+
+    // TODO: remove old coro APIs (Manual)
+    static void yield_m(zval *return_value, php_coro_context *sw_php_context);
+    static int resume_m(php_coro_context *sw_current_context, zval *retval, zval *coro_retval);
+
+    static void init()
+    {
+        coroutine_set_onYield(on_yield);
+        coroutine_set_onResume(on_resume);
+        coroutine_set_onClose(on_close);
+    }
+
+    static bool is_in()
+    {
+        return active && coroutine_get_current();
+    }
+
+    static long get_cid()
+    {
+        return unlikely(PHPCoroutine::active == 0) ? -1 : coroutine_get_current_cid();
+    }
+
+    static void set_c_stack_size(size_t stack_size)
+    {
+        coroutine_set_stack_size(stack_size);
+    }
+
+};
+}
 
 /**
- * Scheduler
- */
-long sw_coro_create(zend_fcall_info_cache *fci_cache, int argc, zval *argv);
-void sw_coro_yield(zval *return_value, php_context *sw_php_context);
-int sw_coro_resume(php_context *sw_current_context, zval *retval, zval *coro_retval);
-void sw_coro_close(void *task);
-void sw_coro_set_stack_size(int stack_size);
-
-/**
- * Hook
- */
-bool sw_enable_coroutine_hook(int flags);
-bool sw_disable_coroutine_hook();
-
-/**
- * Coroutine Client
+ * TODO: move to php socket
  */
 void sw_coro_socket_set(swoole::Socket *cli, zval *zset);
