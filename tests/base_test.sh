@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 ./start.sh \
+$@ \
 swoole_atomic \
 swoole_buffer \
 swoole_event \

@@ -29,7 +29,7 @@ inline void coro_test(coroutine_func_t *fns, size_t num, void **args = nullptr)
     size_t i;
     for (i = 0; i < num; ++i)
     {
-        coro_test_create(fns[i], args == nullptr ? nullptr : args[i]);
+        coro_test_create(fns[i], args ? args[i] : nullptr);
     }
 
     coro_test_wait();

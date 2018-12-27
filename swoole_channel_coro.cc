@@ -167,7 +167,7 @@ static PHP_METHOD(swoole_channel_coro, push)
     PHPCoroutine::check();
 
     Channel *chan = swoole_get_channel(getThis());
-    if (chan->closed)
+    if (chan->is_closed())
     {
         zend_update_property_long(swoole_channel_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), SW_CHANNEL_CLOSED);
         RETURN_FALSE;
@@ -192,7 +192,7 @@ static PHP_METHOD(swoole_channel_coro, push)
     }
     else
     {
-        zend_update_property_long(swoole_channel_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), chan->closed ? SW_CHANNEL_CLOSED : SW_CHANNEL_TIMEOUT);
+        zend_update_property_long(swoole_channel_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), chan->is_closed() ? SW_CHANNEL_CLOSED : SW_CHANNEL_TIMEOUT);
         Z_TRY_DELREF_P(zdata);
         efree(zdata);
         RETURN_FALSE;
@@ -204,7 +204,7 @@ static PHP_METHOD(swoole_channel_coro, pop)
     PHPCoroutine::check();
 
     Channel *chan = swoole_get_channel(getThis());
-    if (chan->closed)
+    if (chan->is_closed())
     {
         zend_update_property_long(swoole_channel_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), SW_CHANNEL_CLOSED);
         RETURN_FALSE;
@@ -227,7 +227,7 @@ static PHP_METHOD(swoole_channel_coro, pop)
     }
     else
     {
-        zend_update_property_long(swoole_channel_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), chan->closed ? SW_CHANNEL_CLOSED : SW_CHANNEL_TIMEOUT);
+        zend_update_property_long(swoole_channel_coro_ce_ptr, getThis(), ZEND_STRL("errCode"), chan->is_closed() ? SW_CHANNEL_CLOSED : SW_CHANNEL_TIMEOUT);
         RETURN_FALSE;
     }
 }

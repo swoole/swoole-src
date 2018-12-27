@@ -11,8 +11,23 @@
 using namespace swoole;
 using namespace std;
 
-static int socket_event_callback(swReactor *reactor, swEvent *event);
-static void socket_timer_callback(swTimer *timer, swTimer_node *tnode);
+void Socket::timer_callback(swTimer *timer, swTimer_node *tnode)
+{
+    Socket *sock = (Socket *) tnode->data;
+    swTraceLog(SW_TRACE_SOCKET, "socket[%d] timeout", sock->socket->fd);
+    sock->set_err(ETIMEDOUT);
+    sock->reactor->del(sock->reactor, sock->socket->fd);
+    sock->timer = NULL;
+    sock->resume();
+}
+
+int Socket::event_callback(swReactor *reactor, swEvent *event)
+{
+    Socket *sock = (Socket *) event->socket->object;
+    sock->reactor->del(sock->reactor, event->fd);
+    sock->resume();
+    return SW_OK;
+}
 
 bool Socket::socks5_handshake()
 {
@@ -277,6 +292,20 @@ static inline int socket_connect(int fd, const struct sockaddr *addr, socklen_t 
     return retval;
 }
 
+void Socket::init_sock()
+{
+#ifdef SOCK_CLOEXEC
+    int _fd = ::socket(sock_domain, sock_type | SOCK_CLOEXEC, sock_protocol);
+#else
+    int _fd = ::socket(sock_domain, sock_type, sock_protocol);
+#endif
+    if (unlikely(_fd < 0))
+    {
+        swWarn("Socket construct failed. Error: %s[%d]", strerror(errno), errno);
+        return;
+    }
+    init_sock(_fd);
+}
 
 void Socket::init_sock(int _fd)
 {
@@ -300,27 +329,25 @@ void Socket::init_sock(int _fd)
     swSetNonBlock(socket->fd);
     if (!swReactor_handle_isset(reactor, SW_FD_CORO_SOCKET))
     {
-        reactor->setHandle(reactor, SW_FD_CORO_SOCKET | SW_EVENT_READ, socket_event_callback);
-        reactor->setHandle(reactor, SW_FD_CORO_SOCKET | SW_EVENT_WRITE, socket_event_callback);
-        reactor->setHandle(reactor, SW_FD_CORO_SOCKET | SW_EVENT_ERROR, socket_event_callback);
+        reactor->setHandle(reactor, SW_FD_CORO_SOCKET | SW_EVENT_READ, event_callback);
+        reactor->setHandle(reactor, SW_FD_CORO_SOCKET | SW_EVENT_WRITE, event_callback);
+        reactor->setHandle(reactor, SW_FD_CORO_SOCKET | SW_EVENT_ERROR, event_callback);
     }
+}
+
+Socket::Socket(int _domain, int _type, int _protocol) :
+        sock_domain(_domain), sock_type(_type), sock_protocol(_protocol)
+{
+    init_members();
+    type = get_type(_domain, _type, _protocol);
+    init_sock();
 }
 
 Socket::Socket(enum swSocket_type _type)
 {
     init_members();
     init_sock_type(_type);
-#ifdef SOCK_CLOEXEC
-    int _fd = ::socket(sock_domain, sock_type | SOCK_CLOEXEC, 0);
-#else
-    int _fd = ::socket(sock_domain, sock_type, 0);
-#endif
-    if (unlikely(_fd < 0))
-    {
-        swWarn("Socket construct failed. Error: %s[%d]", strerror(errno), errno);
-        return;
-    }
-    init_sock(_fd);
+    init_sock();
 }
 
 Socket::Socket(int _fd, enum swSocket_type _type)
@@ -349,7 +376,7 @@ Socket::Socket(int _fd, Socket *server_sock)
     socket->fdtype = SW_FD_CORO_SOCKET;
 }
 
-void Socket::set_timer(timer_level_types _timer_level, double _timeout)
+void Socket::set_timer(timer_levels _timer_level, double _timeout)
 {
     if (_timeout == 0)
     {
@@ -358,11 +385,11 @@ void Socket::set_timer(timer_level_types _timer_level, double _timeout)
     if (!timer && _timeout > 0)
     {
         timer_level = _timer_level;
-        timer = swTimer_add(&SwooleG.timer, (long) (_timeout * 1000), 0, this, socket_timer_callback);
+        timer = swTimer_add(&SwooleG.timer, (long) (_timeout * 1000), 0, this, timer_callback);
     }
 }
 
-void Socket::del_timer(timer_level_types _timer_level)
+void Socket::del_timer(timer_levels _timer_level)
 {
     if (timer && _timer_level == timer_level)
     {
@@ -540,24 +567,6 @@ bool Socket::connect(string _host, int _port, int flags)
     return true;
 }
 
-static void socket_timer_callback(swTimer *timer, swTimer_node *tnode)
-{
-    Socket *sock = (Socket *) tnode->data;
-    swTraceLog(SW_TRACE_SOCKET, "socket[%d] timeout", sock->socket->fd);
-    sock->set_err(ETIMEDOUT);
-    sock->reactor->del(sock->reactor, sock->socket->fd);
-    sock->timer = NULL;
-    sock->resume();
-}
-
-static int socket_event_callback(swReactor *reactor, swEvent *event)
-{
-    Socket *sock = (Socket *) event->socket->object;
-    sock->reactor->del(sock->reactor, event->fd);
-    sock->resume();
-    return SW_OK;
-}
-
 bool Socket::is_connect()
 {
     return socket->active && !socket->closed;
@@ -586,10 +595,6 @@ bool Socket::check_liveness()
 
 ssize_t Socket::peek(void *__buf, size_t __n)
 {
-    if (unlikely(!is_available(true)))
-    {
-        return -1;
-    }
     ssize_t retval = swConnection_peek(socket, __buf, __n, 0);
     set_err(retval < 0 ? errno : 0);
     return retval;
@@ -654,14 +659,14 @@ ssize_t Socket::write(const void *__buf, size_t __n)
 
 ssize_t Socket::recv_all(void *__buf, size_t __n)
 {
+    ssize_t retval, total_bytes = 0;
     if (unlikely(!is_available()))
     {
         return -1;
     }
-    ssize_t retval, total_bytes = 0;
+    set_timer(TIMER_LV_MULTI);
     while (true)
     {
-        set_timer(SW_SOCKET_TIMER_LV_MULTI);
         retval = recv((char*) __buf + total_bytes, __n - total_bytes);
         if (retval <= 0)
         {
@@ -677,20 +682,20 @@ ssize_t Socket::recv_all(void *__buf, size_t __n)
             break;
         }
     }
-    del_timer(SW_SOCKET_TIMER_LV_MULTI);
+    del_timer(TIMER_LV_MULTI);
     return total_bytes;
 }
 
 ssize_t Socket::send_all(const void *__buf, size_t __n)
 {
+    ssize_t retval, total_bytes = 0;
     if (unlikely(!is_available()))
     {
         return -1;
     }
-    ssize_t retval, total_bytes = 0;
+    set_timer(TIMER_LV_MULTI);
     while (true)
     {
-        set_timer(SW_SOCKET_TIMER_LV_MULTI);
         retval = send((char*) __buf + total_bytes, __n - total_bytes);
         if (retval <= 0)
         {
@@ -706,7 +711,7 @@ ssize_t Socket::send_all(const void *__buf, size_t __n)
             break;
         }
     }
-    del_timer(SW_SOCKET_TIMER_LV_MULTI);
+    del_timer(TIMER_LV_MULTI);
     return total_bytes;
 }
 
@@ -768,23 +773,6 @@ ssize_t Socket::recvmsg(struct msghdr *msg, int flags)
     }
     set_err(retval < 0 ? errno : 0);
     return retval;
-}
-
-void Socket::yield()
-{
-    Coroutine *co = Coroutine::get_current();
-    if (unlikely(!co))
-    {
-        swError("Socket::yield() must be called in the coroutine.");
-    }
-
-    set_err(0);
-
-    set_timer();
-    bind_co = co;
-    co->yield();
-    bind_co = nullptr;
-    del_timer();
 }
 
 bool Socket::bind(std::string address, int port)
@@ -924,6 +912,7 @@ Socket* Socket::accept()
     Socket *client_sock = new Socket(conn, this);
     if (unlikely(client_sock->socket == nullptr))
     {
+        swWarn("new Socket() failed. Error: %s [%d]", strerror(errno), errno);
         set_err(errno);
         delete client_sock;
         return nullptr;
@@ -988,7 +977,7 @@ bool Socket::close()
         shutdown();
         socket->active = 0;
     }
-    if (bind_co)
+    if (coroutine)
     {
         reactor->del(reactor, socket->fd);
         resume();
@@ -1144,6 +1133,7 @@ bool Socket::sendfile(char *filename, off_t offset, size_t length)
     }
 
     int n, sendn;
+    set_timer(TIMER_LV_MULTI);
     while ((size_t) offset < length)
     {
         sendn = (length - offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : length - offset;
@@ -1180,6 +1170,7 @@ bool Socket::sendfile(char *filename, off_t offset, size_t length)
             return false;
         }
     }
+    del_timer(TIMER_LV_MULTI);
     ::close(file_fd);
     return true;
 }

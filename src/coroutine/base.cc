@@ -130,14 +130,7 @@ Coroutine* Coroutine::get_by_cid(long cid)
 void* Coroutine::get_task_by_cid(long cid)
 {
     Coroutine *co = Coroutine::get_by_cid(cid);
-    if (co == nullptr)
-    {
-        return nullptr;
-    }
-    else
-    {
-        return co->get_task();
-    }
+    return likely(co) ? co->get_task() : nullptr;
 }
 
 void Coroutine::print_list()

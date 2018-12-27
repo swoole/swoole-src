@@ -52,8 +52,7 @@ class http_client
 {
     private:
     Socket* socket = nullptr;
-    std::string addr = "";
-    enum swSocket_type sock_type = SW_SOCK_TCP;
+    swSocket_type socket_type = SW_SOCK_TCP;
 
     public:
     /* states */
@@ -62,7 +61,7 @@ class http_client
     bool defer = false;
 
     /* request info */
-    std::string host = "";
+    std::string host = "127.0.0.1";
     uint16_t port = 80;
 #ifdef SW_USE_OPENSSL
     uint8_t ssl = false;
@@ -413,13 +412,21 @@ http_client::http_client(zval* zobject, std::string host, zend_long port, zend_b
         swoole_php_fatal_error(E_ERROR, "host is empty.");
         return;
     }
-    this->host = this->addr = host;
-
-    // parse addr and sock_type
-    sock_type = get_socket_type_from_uri(addr, true);
-
-    // checo port
-    if (sock_type == SW_SOCK_TCP || sock_type == SW_SOCK_TCP6)
+    if (host.compare(0, 6, "unix:/", 0, 6) == 0)
+    {
+        host = host.substr(sizeof("unix:") - 1);
+        host.erase(0, host.find_first_not_of('/') - 1);
+        socket_type = SW_SOCK_UNIX_STREAM;
+    }
+    else if (host.find(':') != std::string::npos)
+    {
+        socket_type = SW_SOCK_TCP6;
+    }
+    else
+    {
+        socket_type = SW_SOCK_TCP;
+    }
+    if (socket_type == SW_SOCK_TCP || socket_type == SW_SOCK_TCP6)
     {
         if (port <= 0 || port > SW_CLIENT_MAX_PORT)
         {
@@ -427,9 +434,8 @@ http_client::http_client(zval* zobject, std::string host, zend_long port, zend_b
             return;
         }
     }
+    this->host = host;
     this->port = port;
-
-    // check ssl
 #ifdef SW_USE_OPENSSL
     this->ssl = ssl;
 #else
@@ -610,14 +616,14 @@ bool http_client::connect()
 {
     if (!socket)
     {
-        socket = new Socket(sock_type);
+        socket = new Socket(socket_type);
         if (unlikely(socket->socket == nullptr))
         {
-            delete socket;
-            socket = nullptr;
             swoole_php_fatal_error(E_WARNING, "new Socket() failed. Error: %s [%d]", strerror(errno), errno);
             zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), errno);
             zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), strerror(errno));
+            delete socket;
+            socket = nullptr;
             return false;
         }
 #ifdef SW_USE_OPENSSL
@@ -628,7 +634,7 @@ bool http_client::connect()
 
         // connect
         socket->set_timeout(connect_timeout);
-        if (!socket->connect(addr, port))
+        if (!socket->connect(host, port))
         {
             zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), socket->errCode);
             zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), socket->errMsg);
@@ -1219,7 +1225,7 @@ bool http_client::recv(double timeout)
     }
 
     buffer = socket->get_read_buffer();
-    socket->set_timer(Socket::SW_SOCKET_TIMER_LV_GLOBAL, timeout);
+    socket->set_timer(Socket::TIMER_LV_GLOBAL, timeout);
     while (completed == 0)
     {
         retval = socket->recv(buffer->str, buffer->size);
@@ -1247,7 +1253,7 @@ bool http_client::recv(double timeout)
         {
             _error:
             // IO error
-            socket->del_timer(Socket::SW_SOCKET_TIMER_LV_GLOBAL);
+            socket->del_timer(Socket::TIMER_LV_GLOBAL);
             zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), socket->errCode);
             zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), socket->errMsg);
             if (socket->errCode == ETIMEDOUT)
@@ -1262,7 +1268,7 @@ bool http_client::recv(double timeout)
             return false;
         }
     }
-    socket->del_timer(Socket::SW_SOCKET_TIMER_LV_GLOBAL);
+    socket->del_timer(Socket::TIMER_LV_GLOBAL);
 
     /**
      * TODO: Sec-WebSocket-Accept check
@@ -1309,10 +1315,10 @@ void http_client::recv(zval *zframe, double timeout)
         zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_SERVER_RESET);
         return;
     }
-    double persistent_timeout = socket->get_timeout();
-    socket->set_timeout(timeout);
+
+    socket->set_timer(Socket::TIMER_LV_GLOBAL, timeout);
     ssize_t retval = socket->recv_packet();
-    socket->set_timeout(persistent_timeout);
+    socket->del_timer(Socket::TIMER_LV_GLOBAL);
     if (retval <= 0)
     {
         zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), socket->errCode);

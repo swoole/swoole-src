@@ -195,14 +195,15 @@ static PHP_METHOD(swoole_socket_coro, __construct)
     php_swoole_check_reactor();
 
     socket_coro *sock = (socket_coro *) swoole_socket_coro_fetch_object(Z_OBJ_P(getThis()));
-    sock->socket = new Socket(get_socket_type(domain, type, protocol));
+    sock->socket = new Socket((int)domain, (int)type, (int)protocol);
     if (unlikely(sock->socket->socket == nullptr))
     {
-        delete sock->socket;
         zend_throw_exception_ex(
             swoole_socket_coro_exception_ce_ptr, errno,
             "new Socket() failed. Error: %s [%d]", strerror(errno), errno
         );
+        delete sock->socket;
+        sock->socket = nullptr;
         RETURN_FALSE;
     }
     sock->domain = domain;

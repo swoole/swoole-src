@@ -196,9 +196,9 @@ static Socket* client_coro_new(zval *zobject, int port)
     Socket *cli = new Socket((enum swSocket_type) type);
     if (unlikely(cli->socket == nullptr))
     {
-        delete cli;
         swoole_php_fatal_error(E_WARNING, "new Socket() failed. Error: %s [%d]", strerror(errno), errno);
         zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("errCode"), errno);
+        delete cli;
         return NULL;
     }
 
@@ -934,9 +934,9 @@ static PHP_METHOD(swoole_client_coro, recv)
     ssize_t retval ;
     if (cli->open_length_check || cli->open_eof_check)
     {
-        cli->set_timer(Socket::SW_SOCKET_TIMER_LV_GLOBAL, timeout);
+        cli->set_timer(Socket::TIMER_LV_GLOBAL, timeout);
         retval = cli->recv_packet();
-        cli->del_timer(Socket::SW_SOCKET_TIMER_LV_GLOBAL);
+        cli->del_timer(Socket::TIMER_LV_GLOBAL);
         if (retval > 0)
         {
             RETVAL_STRINGL(cli->read_buffer->str, retval);

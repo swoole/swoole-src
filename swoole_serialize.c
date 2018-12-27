@@ -1117,8 +1117,9 @@ static void swoole_serialize_object(seriaString *buffer, zval *obj, size_t start
         return;
     }
     if (name->len > 0xffff)
-    {//so long?
+    {
         zend_throw_exception_ex(NULL, 0, "the object name is too long.");
+        return;
     }
     else
     {
