@@ -14,19 +14,18 @@ namespace swoole
  */
 class LRUCache
 {
-    private:
-    typedef std::pair<time_t, std::shared_ptr<void>> cache_node_t;
+private:
+    typedef std::pair<uint64_t, std::shared_ptr<void>> cache_node_t;
     typedef std::list<std::pair<std::string, cache_node_t>> cache_list_t;
 
     std::unordered_map<std::string, cache_list_t::iterator> cache_map;
     cache_list_t cache_list;
     size_t cache_capacity;
-    int64_t cache_expire;
-    public:
-    LRUCache(size_t capacity, double expire)
+
+public:
+    explicit LRUCache(size_t capacity)
     {
         cache_capacity = capacity;
-        cache_expire = (int64_t) (expire * 1000);
     }
 
     inline std::shared_ptr<void> get(const std::string &key)
@@ -37,7 +36,7 @@ class LRUCache
             return nullptr;
         }
 
-        if (cache_expire > 0 && (iter->second->second.first + cache_expire) < swTimer_get_absolute_msec())
+        if (iter->second->second.first < swTimer_get_absolute_msec())
         {
             return nullptr;
         }
@@ -46,12 +45,23 @@ class LRUCache
         return iter->second->second.second; // iter -> list::iter -> cache_node_t -> value
     }
 
-    inline void set(const std::string &key, std::shared_ptr<void> val)
+    inline void set(const std::string &key, std::shared_ptr<void> val, double expire = 0)
     {
+        uint64_t expire_time;
+
+        if (expire <= 0)
+        {
+            expire_time = UINT64_MAX;
+        }
+        else
+        {
+            expire_time = swTimer_get_absolute_msec() + (uint64_t) (expire * 1000);
+        }
+
         auto iter = cache_map.find(key);
         if (iter != cache_map.end())
         {
-            iter->second->second.first = swTimer_get_absolute_msec();
+            iter->second->second.first = expire_time;
             iter->second->second.second = val;
             cache_list.splice(cache_list.begin(), cache_list, iter->second);
             return;
@@ -65,7 +75,7 @@ class LRUCache
             cache_list.pop_back();
         }
 
-        cache_list.emplace_front(key, cache_node_t{swTimer_get_absolute_msec(), val});
+        cache_list.emplace_front(key, cache_node_t{expire_time, val});
         cache_map[key] = cache_list.begin();
     }
 

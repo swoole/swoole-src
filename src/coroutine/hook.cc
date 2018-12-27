@@ -32,6 +32,10 @@
 using namespace swoole;
 using namespace std;
 
+size_t Coroutine::dns_cache_capacity = 1000;
+double Coroutine::dns_cache_expire = 60;
+LRUCache *Coroutine::dns_cache = nullptr;
+
 extern "C"
 {
 struct aio_task
@@ -729,6 +733,24 @@ ssize_t Coroutine::write_file(const char *file, char *buf, size_t length, int lo
 
 string Coroutine::gethostbyname(const string &hostname, int domain, float timeout)
 {
+    if (Coroutine::dns_cache == nullptr && Coroutine::dns_cache_capacity != 0)
+    {
+        Coroutine::dns_cache = new LRUCache(Coroutine::dns_cache_capacity);
+    }
+
+    string cache_key;
+    if (Coroutine::dns_cache)
+    {
+        cache_key.append(domain == AF_INET ? "4_" : "6_");
+        cache_key.append(hostname);
+        auto cache = Coroutine::dns_cache->get(cache_key);
+
+        if (cache)
+        {
+            return *(string *)cache.get();
+        }
+    }
+
     swAio_event ev;
     aio_task task;
 
@@ -780,6 +802,12 @@ string Coroutine::gethostbyname(const string &hostname, int domain, float timeou
     {
         string addr((char *) ev.buf);
         sw_free(ev.buf);
+
+        if (Coroutine::dns_cache)
+        {
+            Coroutine::dns_cache->set(cache_key, std::make_shared<string>(addr), Coroutine::dns_cache_expire);
+        }
+
         return addr;
     }
 }
