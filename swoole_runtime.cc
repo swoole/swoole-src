@@ -895,8 +895,8 @@ static php_stream *socket_create(
     if (unlikely(sock->socket == nullptr))
     {
         _failed:
-        delete sock;
         swoole_php_fatal_error(E_WARNING, "new Socket() failed. Error: %s [%d]", strerror(errno), errno);
+        delete sock;
         return NULL;
     }
 

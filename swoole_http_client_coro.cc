@@ -52,8 +52,6 @@ class http_client
 {
     private:
     Socket* socket = nullptr;
-    std::string addr = "";
-    enum swSocket_type sock_type = SW_SOCK_TCP;
 
     public:
     /* states */
@@ -62,7 +60,7 @@ class http_client
     bool defer = false;
 
     /* request info */
-    std::string host = "";
+    std::string host = "127.0.0.1";
     uint16_t port = 80;
 #ifdef SW_USE_OPENSSL
     uint8_t ssl = false;
@@ -413,22 +411,8 @@ http_client::http_client(zval* zobject, std::string host, zend_long port, zend_b
         swoole_php_fatal_error(E_ERROR, "host is empty.");
         return;
     }
-    this->host = this->addr = host;
-
-    // parse addr and sock_type
-    sock_type = get_socket_type_from_uri(addr, true);
-
-    // checo port
-    if (sock_type == SW_SOCK_TCP || sock_type == SW_SOCK_TCP6)
-    {
-        if (port <= 0 || port > SW_CLIENT_MAX_PORT)
-        {
-            swoole_php_fatal_error(E_ERROR, "The port " ZEND_LONG_FMT " is invaild.", port);
-            return;
-        }
-    }
+    this->host = host;
     this->port = port;
-
     // check ssl
 #ifdef SW_USE_OPENSSL
     this->ssl = ssl;
@@ -610,14 +594,14 @@ bool http_client::connect()
 {
     if (!socket)
     {
-        socket = new Socket(sock_type);
+        socket = new Socket(host, port);
         if (unlikely(socket->socket == nullptr))
         {
-            delete socket;
-            socket = nullptr;
             swoole_php_fatal_error(E_WARNING, "new Socket() failed. Error: %s [%d]", strerror(errno), errno);
             zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), errno);
             zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), strerror(errno));
+            delete socket;
+            socket = nullptr;
             return false;
         }
 #ifdef SW_USE_OPENSSL
@@ -628,7 +612,7 @@ bool http_client::connect()
 
         // connect
         socket->set_timeout(connect_timeout);
-        if (!socket->connect(addr, port))
+        if (!socket->connect())
         {
             zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), socket->errCode);
             zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), socket->errMsg);

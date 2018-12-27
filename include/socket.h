@@ -27,12 +27,6 @@ namespace swoole
 class Socket
 {
 public:
-    swReactor *reactor = nullptr;
-    std::string host;
-    int port = 0;
-    std::string bind_address;
-    int bind_port = 0;
-    Coroutine* bind_co = nullptr;
     enum timer_levels
     {
         TIMER_LV_NORMAL,
@@ -40,15 +34,16 @@ public:
         TIMER_LV_PACKET,
         TIMER_LV_GLOBAL
     };
-    timer_levels timer_level = TIMER_LV_NORMAL;
-    swTimer_node *timer = nullptr;
+
     swConnection *socket = nullptr;
     enum swSocket_type type;
-    int sock_type = 0;
     int sock_domain = 0;
+    int sock_type = 0;
+    int sock_protocol = 0;
     int backlog = 0;
     int errCode = 0;
     const char *errMsg = "";
+
     bool open_length_check = false;
     bool open_eof_check = false;
     bool http2 = false;
@@ -66,13 +61,15 @@ public:
     swSSL_option ssl_option = {0};
 #endif
 
-    Socket(enum swSocket_type type);
+    Socket(int domain = AF_INET, int type = SOCK_STREAM, int protocol = 0);
+    Socket(enum swSocket_type type = SW_SOCK_TCP);
+    Socket(std::string uri, int port = 0);
     Socket(int _fd, Socket *sock);
     Socket(int _fd, enum swSocket_type _type);
     ~Socket();
     void set_timer(timer_levels _timer_level = TIMER_LV_NORMAL, double _timeout = 0);
     void del_timer(timer_levels _timer_level = TIMER_LV_NORMAL);
-    bool connect(std::string _host, int _port, int flags = 0);
+    bool connect(std::string _host = "", int _port = 0, int flags = 0);
     bool connect(const struct sockaddr *addr, socklen_t addrlen);
     bool shutdown(int how = SHUT_RDWR);
     bool close();
@@ -101,19 +98,29 @@ public:
     bool ssl_accept();
 #endif
 
+    static inline enum swSocket_type get_type(int domain, int type, int protocol)
+    {
+        switch (domain)
+        {
+        case AF_INET:
+            return type == SOCK_STREAM ? SW_SOCK_TCP : SW_SOCK_UDP;
+        case AF_INET6:
+            return type == SOCK_STREAM ? SW_SOCK_TCP6 : SW_SOCK_UDP6;
+        case AF_UNIX:
+            return type == SOCK_STREAM ? SW_SOCK_UNIX_STREAM : SW_SOCK_UNIX_DGRAM;
+        default:
+            return SW_SOCK_TCP;
+        }
+    }
+
     inline int get_fd()
     {
         return socket ? socket->fd : -1;
     }
 
-    inline void resume()
-    {
-        bind_co->resume();
-    }
-
     inline long has_bound()
     {
-        return bind_co ? bind_co->get_cid() : 0;
+        return coroutine ? coroutine->get_cid() : 0;
     }
 
     inline void set_err(int e)
@@ -186,17 +193,48 @@ public:
     }
 
 protected:
+    Coroutine* coroutine = nullptr;
+    swReactor *reactor = nullptr;
+
+    std::string host;
+    int port = 0;
+    std::string bind_address;
+    int bind_port = 0;
+    timer_levels timer_level = TIMER_LV_NORMAL;
+    swTimer_node *timer = nullptr;
     double timeout = -1;
+
     bool shutdown_read = false;
     bool shutdown_write = false;
 #ifdef SW_USE_OPENSSL
     SSL_CTX *ssl_context = nullptr;
 #endif
 
-    void yield();
+    static void timer_callback(swTimer *timer, swTimer_node *tnode);
+    static int event_callback(swReactor *reactor, swEvent *event);
 
     bool socks5_handshake();
     bool http_proxy_handshake();
+
+    inline void yield()
+    {
+        Coroutine *co = Coroutine::get_current();
+        if (unlikely(!co))
+        {
+            swError("Socket::yield() must be called in the coroutine.");
+        }
+        set_err(0);
+        set_timer();
+        coroutine = co;
+        co->yield();
+        coroutine = nullptr;
+        del_timer();
+    }
+
+    inline void resume()
+    {
+        coroutine->resume();
+    }
 
     inline void init_members()
     {
@@ -238,6 +276,8 @@ protected:
             break;
         }
     }
+
+    inline void init_sock();
 
     inline void init_sock(int _fd);
 
@@ -340,46 +380,4 @@ protected:
         return !should_be_break();
     }
 };
-
-static inline enum swSocket_type get_socket_type(int domain, int type, int protocol)
-{
-    if (domain == AF_INET)
-    {
-        return type == SOCK_STREAM ? SW_SOCK_TCP : SW_SOCK_UDP;
-    }
-    else if (domain == AF_INET6)
-    {
-        return type == SOCK_STREAM ? SW_SOCK_TCP6 : SW_SOCK_UDP6;
-    }
-    else if (domain == AF_UNIX)
-    {
-        return type == SOCK_STREAM ? SW_SOCK_UNIX_STREAM : SW_SOCK_UNIX_DGRAM;
-    }
-    else
-    {
-        return SW_SOCK_TCP;
-    }
-}
-
-static inline enum swSocket_type get_socket_type_from_uri(std::string &uri, bool convert_to_addr = false)
-{
-    if (uri.compare(0, 6, "unix:/", 0, 6) == 0)
-    {
-        if (convert_to_addr)
-        {
-            uri = uri.substr(sizeof("unix:") - 1);
-            uri.erase(0, uri.find_first_not_of('/') - 1);
-        }
-        return SW_SOCK_UNIX_STREAM;
-    }
-    else if (uri.find(':') != std::string::npos)
-    {
-        return SW_SOCK_TCP6;
-    }
-    else
-    {
-        return SW_SOCK_TCP;
-    }
-}
-
 };
