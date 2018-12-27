@@ -1,24 +1,69 @@
 --TEST--
-swoole_coroutine: gethostbyname
+swoole_coroutine: gethostbyname and dns cache
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-
 go(function () {
-    $ip1 = co::gethostbyname('www.baidu.com');
-    assert(!empty($ip1));
-    assert($ip1 == co::gethostbyname('www.baidu.com'));
-    swoole_clear_dns_cache();
-    $ip2 = co::gethostbyname('www.baidu.com');
-    assert(!empty($ip2));
+    $regex = '/^(?:[\d]{1,3}\.){3}[\d]{1,3}$/';
+    $map = IS_IN_TRAVIS ? [
+        'www.google.com' => null,
+        'www.youtube.com' => null,
+        'www.facebook.com' => null,
+        'www.amazon.com' => null
+    ] : [
+        'www.baidu.com' => null,
+        'www.taobao.com' => null,
+        'www.qq.com' => null,
+        'www.swoole.com' => null
+    ];
 
-    for ($i = MAX_REQUESTS; $i--;) {
-        go(function() {
-            assert(!empty(co::gethostbyname('www.baidu.com')));
+    $cache_time = microtime(true);
+    for ($n = MAX_CONCURRENCY; $n--;) {
+        foreach ($map as $host => &$ip) {
+            $_ip = co::gethostbyname($host);
+            if (empty($ip)) {
+                $ip = $_ip;
+                assert(preg_match($regex, $ip));
+            } else {
+                assert($ip === $_ip);
+            }
+        }
+    }
+    $cache_time = microtime(true) - $cache_time;
+    phpt_var_dump($map);
+
+    $no_cache_time = microtime(true);
+    for ($n = MAX_CONCURRENCY; $n--;) {
+        swoole_clear_dns_cache();
+        $ip = co::gethostbyname(array_rand($map));
+        assert(preg_match($regex, $ip));
+    }
+    $no_cache_time = microtime(true) - $no_cache_time;
+
+    $chan = new Chan(MAX_CONCURRENCY_MID);
+    $no_cache_multi_time = microtime(true);
+    for ($c = MAX_CONCURRENCY; $c--;) {
+        go(function () use ($map, $regex, $chan) {
+            swoole_clear_dns_cache();
+            $ip = co::gethostbyname(array_rand($map));
+            $chan->push(assert(preg_match($regex, $ip)));
         });
     }
+    for ($c = MAX_CONCURRENCY_MID; $c--;) {
+        $chan->pop();
+    }
+    $no_cache_multi_time = microtime(true) - $no_cache_multi_time;
+
+    phpt_var_dump($cache_time, $no_cache_time, $no_cache_multi_time);
+    assert($cache_time < $no_cache_time);
+    assert($cache_time < $no_cache_multi_time);
+    assert($no_cache_multi_time < $no_cache_time);
+    echo co::gethostbyname('m.cust.edu.cn') . "\n";
 });
+swoole_event_wait();
 ?>
 --EXPECTF--
+210.47.1.47
