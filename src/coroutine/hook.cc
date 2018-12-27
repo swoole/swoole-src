@@ -37,19 +37,19 @@ static size_t dns_cache_capacity = 1000;
 static time_t dns_cache_expire = 60;
 static LRUCache *dns_cache = nullptr;
 
-void set_dns_cache_expire(time_t expire)
+void swoole::set_dns_cache_expire(time_t expire)
 {
     dns_cache_expire = expire;
 }
 
-void set_dns_cache_capacity(size_t capacity)
+void swoole::set_dns_cache_capacity(size_t capacity)
 {
     dns_cache_capacity = capacity;
     delete dns_cache;
     dns_cache = nullptr;
 }
 
-void clear_dns_cache()
+void swoole::clear_dns_cache()
 {
     dns_cache->clear();
 }
