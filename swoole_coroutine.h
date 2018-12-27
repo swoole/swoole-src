@@ -89,24 +89,6 @@ namespace swoole
 {
 class PHPCoroutine
 {
-protected:
-    static bool active;
-    static uint64_t max_num;
-    static php_coro_task main_task;
-
-    static inline void vm_stack_init(void);
-    static inline void vm_stack_destroy(void);
-    static inline void save_vm_stack(php_coro_task *task);
-    static inline void restore_vm_stack(php_coro_task *task);
-    static inline void save_og(php_coro_task *task);
-    static inline void restore_og(php_coro_task *task);
-    static inline php_coro_task* get_current_task();
-    static inline php_coro_task* get_and_save_current_task();
-    static void on_yield(void *arg);
-    static void on_resume(void *arg);
-    static void on_close(void *arg);
-    static void create_func(void *arg);
-
 public:
     static double socket_connect_timeout;
     static double socket_timeout;
@@ -150,6 +132,24 @@ public:
     {
         max_num = n;
     }
+
+protected:
+    static bool active;
+    static uint64_t max_num;
+    static php_coro_task main_task;
+
+    static inline void vm_stack_init(void);
+    static inline void vm_stack_destroy(void);
+    static inline void save_vm_stack(php_coro_task *task);
+    static inline void restore_vm_stack(php_coro_task *task);
+    static inline void save_og(php_coro_task *task);
+    static inline void restore_og(php_coro_task *task);
+    static inline php_coro_task* get_current_task();
+    static inline php_coro_task* get_and_save_current_task();
+    static void on_yield(void *arg);
+    static void on_resume(void *arg);
+    static void on_close(void *arg);
+    static void create_func(void *arg);
 };
 }
 

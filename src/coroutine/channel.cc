@@ -20,9 +20,9 @@
 
 using namespace swoole;
 
-static void channel_operation_timeout(swTimer *timer, swTimer_node *tnode)
+void Channel::timer_callback(swTimer *timer, swTimer_node *tnode)
 {
-    timeout_msg_t *msg = (timeout_msg_t *) tnode->data;
+    timer_msg_t *msg = (timer_msg_t *) tnode->data;
     msg->error = true;
     msg->timer = nullptr;
     if (msg->type == CONSUMER)
@@ -36,13 +36,7 @@ static void channel_operation_timeout(swTimer *timer, swTimer_node *tnode)
     msg->co->resume();
 }
 
-Channel::Channel(size_t _capacity)
-{
-    capacity = _capacity;
-    closed = false;
-}
-
-void Channel::yield(enum channel_op type)
+void Channel::yield(enum opcode type)
 {
     Coroutine *co = Coroutine::get_current();
     if (unlikely(!co))
@@ -70,7 +64,7 @@ void* Channel::pop(double timeout)
     }
     if (is_empty() || !consumer_queue.empty())
     {
-        timeout_msg_t msg;
+        timer_msg_t msg;
         msg.error = false;
         msg.timer = NULL;
         if (timeout > 0)
@@ -79,7 +73,7 @@ void* Channel::pop(double timeout)
             msg.chan = this;
             msg.type = CONSUMER;
             msg.co = Coroutine::get_current();
-            msg.timer = swTimer_add(&SwooleG.timer, msec, 0, &msg, channel_operation_timeout);
+            msg.timer = swTimer_add(&SwooleG.timer, msec, 0, &msg, timer_callback);
         }
 
         yield(CONSUMER);
@@ -117,7 +111,7 @@ bool Channel::push(void *data, double timeout)
     }
     if (is_full() || !producer_queue.empty())
     {
-        timeout_msg_t msg;
+        timer_msg_t msg;
         msg.error = false;
         msg.timer = NULL;
         if (timeout > 0)
@@ -126,7 +120,7 @@ bool Channel::push(void *data, double timeout)
             msg.chan = this;
             msg.type = PRODUCER;
             msg.co = Coroutine::get_current();
-            msg.timer = swTimer_add(&SwooleG.timer, msec, 0, &msg, channel_operation_timeout);
+            msg.timer = swTimer_add(&SwooleG.timer, msec, 0, &msg, timer_callback);
         }
 
         yield(PRODUCER);
