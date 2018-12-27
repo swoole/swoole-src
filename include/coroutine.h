@@ -46,12 +46,12 @@ typedef void (*coro_php_yield_t)(void*);
 typedef void (*coro_php_resume_t)(void*);
 typedef void (*coro_php_close_t)(void*);
 
+namespace swoole
+{
 void set_dns_cache_expire(time_t expire);
 void set_dns_cache_capacity(size_t capacity);
 void clear_dns_cache();
 
-namespace swoole
-{
 class Coroutine
 {
 public:
