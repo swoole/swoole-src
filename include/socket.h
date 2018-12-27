@@ -258,7 +258,7 @@ protected:
         }
         if (unlikely(socket->closed))
         {
-            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKET_CLOSED, "Socket#%d belongs to coroutine#%ld has already been closed.", socket->fd, cid);
+            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKET_CLOSED, "Socket#%d belongs to coroutine#%ld has already been closed.", socket->fd, Coroutine::get_current_cid());
             set_err(ECONNRESET);
             return false;
         }

@@ -1568,5 +1568,6 @@ Socket::~Socket()
     }
     bzero(socket, sizeof(swConnection));
     socket->removed = 1;
+    socket->closed = 1;
     ::close(fd);
 }
