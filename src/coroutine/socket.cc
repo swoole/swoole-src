@@ -12,7 +12,6 @@ using namespace std;
 
 static int socket_event_callback(swReactor *reactor, swEvent *event);
 static void socket_timer_callback(swTimer *timer, swTimer_node *tnode);
-static void socket_dns_callback(swAio_event *event);
 
 bool Socket::socks5_handshake()
 {
@@ -438,9 +437,10 @@ bool Socket::connect(string host, int port, int flags)
 
             if (!inet_pton(AF_INET, _host.c_str(), & socket->info.addr.inet_v4.sin_addr))
             {
-                _host = resolve(_host);
-                if (_host.size() == 0)
+                _host = Coroutine::gethostbyname(_host, AF_INET);
+                if (_host.empty())
                 {
+                    set_err(SwooleG.error);
                     return false;
                 }
                 continue;
@@ -459,9 +459,10 @@ bool Socket::connect(string host, int port, int flags)
 
             if (!inet_pton(AF_INET6, _host.c_str(), &socket->info.addr.inet_v6.sin6_addr))
             {
-                _host = resolve(_host);
-                if (_host.size() == 0)
+                _host = Coroutine::gethostbyname(_host, AF_INET6);
+                if (_host.empty())
                 {
+                    set_err(SwooleG.error);
                     return false;
                 }
                 continue;
@@ -511,16 +512,6 @@ bool Socket::connect(string host, int port, int flags)
     }
 #endif
     return true;
-}
-
-static void socket_dns_callback(swAio_event *event)
-{
-    Socket *sock = (Socket *) event->object;
-    if (event->error != 0)
-    {
-        sock->set_err(event->error, hstrerror(event->error));
-    }
-    sock->resume();
 }
 
 static void socket_timer_callback(swTimer *timer, swTimer_node *tnode)
@@ -950,68 +941,6 @@ Socket* Socket::accept()
     }
 #endif
     return client_sock;
-}
-
-string Socket::resolve(string domain_name)
-{
-    if (unlikely(!is_available()))
-    {
-        return "";
-    }
-
-    swAio_event ev;
-    bzero(&ev, sizeof(swAio_event));
-    if (domain_name.size() < SW_IP_MAX_LENGTH)
-    {
-        ev.nbytes = SW_IP_MAX_LENGTH + 1;
-    }
-    else
-    {
-        ev.nbytes = domain_name.size() + 1;
-    }
-    ev.buf = sw_malloc(ev.nbytes);
-    if (!ev.buf)
-    {
-        set_err(errno);
-        return "";
-    }
-
-    memcpy(ev.buf, domain_name.c_str(), domain_name.size());
-    ((char *) ev.buf)[domain_name.size()] = 0;
-    ev.flags = sock_domain;
-    ev.type = SW_AIO_GETHOSTBYNAME;
-    ev.object = this;
-    ev.handler = swAio_handler_gethostbyname;
-    ev.callback = socket_dns_callback;
-
-    if (SwooleAIO.init == 0)
-    {
-        swAio_init();
-    }
-
-    if (swAio_dispatch(&ev) < 0)
-    {
-        set_err(SwooleG.error);
-        sw_free(ev.buf);
-        return "";
-    }
-
-    /** cannot timeout */
-    double persistent_timeout = get_timeout();
-    set_timeout(-1);
-    yield();
-    set_timeout(persistent_timeout);
-
-    if (errCode == SW_ERROR_DNSLOOKUP_RESOLVE_FAILED)
-    {
-        return "";
-    }
-    else
-    {
-        string addr((char *) ev.buf);
-        sw_free(ev.buf);
-        return addr;
-    }
 }
 
 bool Socket::shutdown(int __how)
@@ -1530,7 +1459,7 @@ Socket::~Socket()
     {
         swString_free(write_buffer);
     }
-    if (sock_domain == AF_UNIX && bind_address.size() > 0)
+    if (sock_domain == AF_UNIX && !bind_address.empty())
     {
         unlink(bind_address_info.addr.un.sun_path);
     }

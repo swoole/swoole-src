@@ -91,6 +91,7 @@ public:
     static int sleep(double sec);
     static swString* read_file(const char *file, int lock);
     static ssize_t write_file(const char *file, char *buf, size_t length, int lock, int flags);
+    static std::string gethostbyname(const std::string &hostname, int domain, float timeout = -1);
 };
 
 struct CoroutineG

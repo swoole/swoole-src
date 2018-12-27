@@ -27,6 +27,7 @@
 #include <sys/file.h>
 #include <sys/statvfs.h>
 
+#include <string>
 #include <unordered_map>
 
 using namespace swoole;
@@ -1169,45 +1170,15 @@ PHP_FUNCTION(swoole_coroutine_gethostbyname)
         RETURN_FALSE;
     }
 
-    swAio_event ev;
-    bzero(&ev, sizeof(swAio_event));
-
-    if (l_domain_name < SW_IP_MAX_LENGTH)
+    std::string address = Coroutine::gethostbyname(std::string(domain_name, l_domain_name), family);
+    if (address.empty())
     {
-        ev.nbytes = SW_IP_MAX_LENGTH;
+        RETURN_FALSE;
     }
     else
     {
-        ev.nbytes = l_domain_name + 1;
+        RETURN_STRINGL(address.c_str(), address.size());
     }
-
-    ev.buf = emalloc(ev.nbytes);
-    if (!ev.buf)
-    {
-        swWarn("malloc failed.");
-        RETURN_FALSE;
-    }
-
-    php_context *context = (php_context *) emalloc(sizeof(php_context));
-
-    memcpy(ev.buf, domain_name, l_domain_name);
-    ((char *) ev.buf)[l_domain_name] = 0;
-    ev.flags = family;
-    ev.type = SW_AIO_GETHOSTBYNAME;
-    ev.object = context;
-    ev.handler = swAio_handler_gethostbyname;
-    ev.callback = coro_dns_onResolveCompleted;
-
-    php_swoole_check_aio();
-
-    if (swAio_dispatch(&ev) < 0)
-    {
-        efree(ev.buf);
-        RETURN_FALSE;
-    }
-
-    sw_coro_save(return_value, context);
-    sw_coro_yield();
 }
 
 static PHP_METHOD(swoole_coroutine_util, getaddrinfo)

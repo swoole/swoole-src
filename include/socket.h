@@ -86,7 +86,6 @@ public:
     ssize_t recv_packet();
     Socket* accept();
     bool bind(std::string address, int port = 0);
-    std::string resolve(std::string host);
     bool listen(int backlog = 0);
     bool sendfile(char *filename, off_t offset, size_t length);
     ssize_t sendto(char *address, int port, char *data, int len);
