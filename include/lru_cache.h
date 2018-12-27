@@ -4,8 +4,7 @@
 #include <list>
 #include <utility>
 #include <memory>
-
-#include "swoole.h"
+#include <time.h>
 
 namespace swoole
 {
@@ -15,7 +14,7 @@ namespace swoole
 class LRUCache
 {
 private:
-    typedef std::pair<uint64_t, std::shared_ptr<void>> cache_node_t;
+    typedef std::pair<time_t, std::shared_ptr<void>> cache_node_t;
     typedef std::list<std::pair<std::string, cache_node_t>> cache_list_t;
 
     std::unordered_map<std::string, cache_list_t::iterator> cache_map;
@@ -36,7 +35,7 @@ public:
             return nullptr;
         }
 
-        if (iter->second->second.first < swTimer_get_absolute_msec())
+        if (iter->second->second.first < time(nullptr) && iter->second->second.first > 0)
         {
             return nullptr;
         }
@@ -45,17 +44,17 @@ public:
         return iter->second->second.second; // iter -> list::iter -> cache_node_t -> value
     }
 
-    inline void set(const std::string &key, std::shared_ptr<void> val, double expire = 0)
+    inline void set(const std::string &key, std::shared_ptr<void> val, time_t expire = 0)
     {
-        uint64_t expire_time;
+        time_t expire_time;
 
         if (expire <= 0)
         {
-            expire_time = UINT64_MAX;
+            expire_time = 0;
         }
         else
         {
-            expire_time = swTimer_get_absolute_msec() + (uint64_t) (expire * 1000);
+            expire_time = time(nullptr) + expire;
         }
 
         auto iter = cache_map.find(key);
