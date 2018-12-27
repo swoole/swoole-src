@@ -1219,7 +1219,7 @@ bool http_client::recv(double timeout)
     }
 
     buffer = socket->get_read_buffer();
-    socket->set_timer(Socket::SW_SOCKET_TIMER_LV_GLOBAL, timeout);
+    socket->set_timer(Socket::TIMER_LV_GLOBAL, timeout);
     while (completed == 0)
     {
         retval = socket->recv(buffer->str, buffer->size);
@@ -1247,7 +1247,7 @@ bool http_client::recv(double timeout)
         {
             _error:
             // IO error
-            socket->del_timer(Socket::SW_SOCKET_TIMER_LV_GLOBAL);
+            socket->del_timer(Socket::TIMER_LV_GLOBAL);
             zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), socket->errCode);
             zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), socket->errMsg);
             if (socket->errCode == ETIMEDOUT)
@@ -1262,7 +1262,7 @@ bool http_client::recv(double timeout)
             return false;
         }
     }
-    socket->del_timer(Socket::SW_SOCKET_TIMER_LV_GLOBAL);
+    socket->del_timer(Socket::TIMER_LV_GLOBAL);
 
     /**
      * TODO: Sec-WebSocket-Accept check

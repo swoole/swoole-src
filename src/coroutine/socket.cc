@@ -349,7 +349,7 @@ Socket::Socket(int _fd, Socket *server_sock)
     socket->fdtype = SW_FD_CORO_SOCKET;
 }
 
-void Socket::set_timer(timer_level_types _timer_level, double _timeout)
+void Socket::set_timer(timer_levels _timer_level, double _timeout)
 {
     if (_timeout == 0)
     {
@@ -362,7 +362,7 @@ void Socket::set_timer(timer_level_types _timer_level, double _timeout)
     }
 }
 
-void Socket::del_timer(timer_level_types _timer_level)
+void Socket::del_timer(timer_levels _timer_level)
 {
     if (timer && _timer_level == timer_level)
     {
@@ -661,7 +661,7 @@ ssize_t Socket::recv_all(void *__buf, size_t __n)
     ssize_t retval, total_bytes = 0;
     while (true)
     {
-        set_timer(SW_SOCKET_TIMER_LV_MULTI);
+        set_timer(TIMER_LV_MULTI);
         retval = recv((char*) __buf + total_bytes, __n - total_bytes);
         if (retval <= 0)
         {
@@ -677,7 +677,7 @@ ssize_t Socket::recv_all(void *__buf, size_t __n)
             break;
         }
     }
-    del_timer(SW_SOCKET_TIMER_LV_MULTI);
+    del_timer(TIMER_LV_MULTI);
     return total_bytes;
 }
 
@@ -690,7 +690,7 @@ ssize_t Socket::send_all(const void *__buf, size_t __n)
     ssize_t retval, total_bytes = 0;
     while (true)
     {
-        set_timer(SW_SOCKET_TIMER_LV_MULTI);
+        set_timer(TIMER_LV_MULTI);
         retval = send((char*) __buf + total_bytes, __n - total_bytes);
         if (retval <= 0)
         {
@@ -706,7 +706,7 @@ ssize_t Socket::send_all(const void *__buf, size_t __n)
             break;
         }
     }
-    del_timer(SW_SOCKET_TIMER_LV_MULTI);
+    del_timer(TIMER_LV_MULTI);
     return total_bytes;
 }
 

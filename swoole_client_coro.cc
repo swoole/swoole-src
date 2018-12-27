@@ -934,9 +934,9 @@ static PHP_METHOD(swoole_client_coro, recv)
     ssize_t retval ;
     if (cli->open_length_check || cli->open_eof_check)
     {
-        cli->set_timer(Socket::SW_SOCKET_TIMER_LV_GLOBAL, timeout);
+        cli->set_timer(Socket::TIMER_LV_GLOBAL, timeout);
         retval = cli->recv_packet();
-        cli->del_timer(Socket::SW_SOCKET_TIMER_LV_GLOBAL);
+        cli->del_timer(Socket::TIMER_LV_GLOBAL);
         if (retval > 0)
         {
             RETVAL_STRINGL(cli->read_buffer->str, retval);
