@@ -113,14 +113,7 @@ public:
 
     inline long has_bound()
     {
-        if (bind_co)
-        {
-            return bind_co->get_cid();
-        }
-        else
-        {
-            return 0;
-        }
+        return bind_co ? bind_co->get_cid() : 0;
     }
 
     inline void set_err(int e)
@@ -171,15 +164,12 @@ public:
             swSysError("setsockopt(%d, TCP_NODELAY) failed.", get_fd());
             return false;
         }
-        else
-        {
-            return true;
-        }
+        return true;
     }
 
     inline swString* get_read_buffer()
     {
-        if (unlikely(read_buffer == nullptr))
+        if (unlikely(!read_buffer))
         {
             read_buffer = swString_new(SW_BUFFER_SIZE_STD);
         }
@@ -188,7 +178,7 @@ public:
 
     inline swString* get_write_buffer()
     {
-        if (unlikely(write_buffer == nullptr))
+        if (unlikely(!write_buffer))
         {
             write_buffer = swString_new(SW_BUFFER_SIZE_STD);
         }

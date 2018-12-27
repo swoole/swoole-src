@@ -50,7 +50,7 @@ namespace swoole
 {
 class Coroutine
 {
-private:
+protected:
     sw_coro_state state = SW_CORO_INIT;
     long cid;
     void *task = nullptr;
@@ -108,7 +108,7 @@ public:
         task = _task;
     }
 
-private:
+protected:
     static size_t stack_size;
     static size_t call_stack_size;
     static Coroutine* call_stack[SW_MAX_CORO_NESTING_LEVEL];

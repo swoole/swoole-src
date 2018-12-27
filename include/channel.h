@@ -36,7 +36,7 @@ struct timeout_msg_t
 
 class Channel
 {
-private:
+protected:
     std::list<Coroutine *> producer_queue;
     std::list<Coroutine *> consumer_queue;
     std::queue<void *> data_queue;

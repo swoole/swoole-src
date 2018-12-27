@@ -89,7 +89,7 @@ namespace swoole
 {
 class PHPCoroutine
 {
-private:
+protected:
     static bool active;
     static uint64_t max_num;
     static php_coro_task main_task;
