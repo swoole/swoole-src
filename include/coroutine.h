@@ -103,9 +103,9 @@ public:
         return stack_size;
     }
 
-    static inline void set_stack_size(size_t stack_size)
+    static inline void set_stack_size(size_t size)
     {
-        stack_size = SW_MEM_ALIGNED_SIZE_EX(MIN(stack_size, SW_CORO_MAX_STACK_SIZE), SW_CORO_STACK_ALIGNED_SIZE);
+        stack_size = SW_MEM_ALIGNED_SIZE_EX(MIN(size, SW_CORO_MAX_STACK_SIZE), SW_CORO_STACK_ALIGNED_SIZE);
     }
 
 #ifdef SW_LOG_TRACE_OPEN
