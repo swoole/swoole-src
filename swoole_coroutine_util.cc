@@ -404,14 +404,19 @@ static PHP_METHOD(swoole_coroutine_util, set)
     if (php_swoole_array_get_value(vht, "dns_cache_expire", v))
     {
         convert_to_long(v);
-        Coroutine::set_dns_cache_expire((time_t) Z_LVAL_P(v));
+        set_dns_cache_expire((time_t) Z_LVAL_P(v));
     }
     if (php_swoole_array_get_value(vht, "dns_cache_capacity", v))
     {
         convert_to_long(v);
-        Coroutine::set_dns_cache_capacity((size_t) Z_LVAL_P(v));
+        set_dns_cache_capacity((size_t) Z_LVAL_P(v));
     }
     zval_ptr_dtor(zset);
+}
+
+PHP_FUNCTION(swoole_clear_dns_cache)
+{
+    clear_dns_cache();
 }
 
 PHP_FUNCTION(swoole_coroutine_create)

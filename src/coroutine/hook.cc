@@ -17,6 +17,7 @@
 #include "socket.h"
 #include "async.h"
 #include "coroutine.h"
+#include "lru_cache.h"
 
 #ifndef _WIN32
 
@@ -32,9 +33,26 @@
 using namespace swoole;
 using namespace std;
 
-size_t Coroutine::dns_cache_capacity = 1000;
-time_t Coroutine::dns_cache_expire = 60;
-LRUCache *Coroutine::dns_cache = nullptr;
+static size_t dns_cache_capacity = 1000;
+static time_t dns_cache_expire = 60;
+static LRUCache *dns_cache = nullptr;
+
+void set_dns_cache_expire(time_t expire)
+{
+    dns_cache_expire = expire;
+}
+
+void set_dns_cache_capacity(size_t capacity)
+{
+    dns_cache_capacity = capacity;
+    delete dns_cache;
+    dns_cache = nullptr;
+}
+
+void clear_dns_cache()
+{
+    dns_cache->clear();
+}
 
 extern "C"
 {
@@ -733,17 +751,17 @@ ssize_t Coroutine::write_file(const char *file, char *buf, size_t length, int lo
 
 string Coroutine::gethostbyname(const string &hostname, int domain, float timeout)
 {
-    if (Coroutine::dns_cache == nullptr && Coroutine::dns_cache_capacity != 0)
+    if (dns_cache == nullptr && dns_cache_capacity != 0)
     {
-        Coroutine::dns_cache = new LRUCache(Coroutine::dns_cache_capacity);
+        dns_cache = new LRUCache(dns_cache_capacity);
     }
 
     string cache_key;
-    if (Coroutine::dns_cache)
+    if (dns_cache)
     {
         cache_key.append(domain == AF_INET ? "4_" : "6_");
         cache_key.append(hostname);
-        auto cache = Coroutine::dns_cache->get(cache_key);
+        auto cache = dns_cache->get(cache_key);
 
         if (cache)
         {
@@ -800,10 +818,10 @@ string Coroutine::gethostbyname(const string &hostname, int domain, float timeou
     }
     else
     {
-        if (Coroutine::dns_cache)
+        if (dns_cache)
         {
             string *addr = new string((char *) ev.buf);
-            Coroutine::dns_cache->set(cache_key, shared_ptr<string>(addr), Coroutine::dns_cache_expire);
+            dns_cache->set(cache_key, shared_ptr<string>(addr), dns_cache_expire);
             sw_free(ev.buf);
             return *addr;
         }

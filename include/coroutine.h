@@ -18,7 +18,6 @@
 
 #include "swoole.h"
 #include "context.h"
-#include "lru_cache.h"
 
 #include <string>
 #include <unordered_map>
@@ -46,6 +45,10 @@ typedef void (*coro_php_create_t)();
 typedef void (*coro_php_yield_t)(void*);
 typedef void (*coro_php_resume_t)(void*);
 typedef void (*coro_php_close_t)(void*);
+
+void set_dns_cache_expire(time_t expire);
+void set_dns_cache_capacity(size_t capacity);
+void clear_dns_cache();
 
 namespace swoole
 {
@@ -119,10 +122,6 @@ private:
     static coro_php_resume_t on_resume; /* before php resume coro */
     static coro_php_close_t  on_close;  /* before php close coro */
 
-    static LRUCache *dns_cache;
-    static size_t dns_cache_capacity;
-    static time_t dns_cache_expire;
-
 public:
     static std::unordered_map<long, Coroutine*> coroutines;
 
@@ -173,18 +172,6 @@ public:
     static uint64_t get_peak_num()
     {
         return peak_num;
-    }
-
-    static inline void set_dns_cache_expire(time_t expire)
-    {
-        dns_cache_expire = expire;
-    }
-
-    static inline void set_dns_cache_capacity(size_t capacity)
-    {
-        dns_cache_capacity = capacity;
-        delete dns_cache;
-        dns_cache = nullptr;
     }
 };
 }
