@@ -1219,12 +1219,10 @@ bool http_client::recv(double timeout)
     }
 
     buffer = socket->get_read_buffer();
+    socket->set_timer(Socket::SW_SOCKET_TIMER_LV_GLOBAL, timeout);
     while (completed == 0)
     {
-        double persistent_timeout = socket->get_timeout();
-        socket->set_timeout(timeout);
         retval = socket->recv(buffer->str, buffer->size);
-        socket->set_timeout(persistent_timeout);
         if (retval > 0)
         {
             total_bytes += retval;
@@ -1232,11 +1230,8 @@ bool http_client::recv(double timeout)
             swTraceLog(SW_TRACE_HTTP_CLIENT, "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d.", parsed_n, retval, total_bytes, completed);
             if (unlikely(parser.state == s_dead && !completed))
             {
-                // parse error
-                zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), EPROTO);
-                zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), strerror(EPROTO));
-                close();
-                return SW_ERR;
+                socket->set_err(EPROTO);
+                goto _error;
             }
             if (parsed_n >= 0)
             {
@@ -1250,7 +1245,9 @@ bool http_client::recv(double timeout)
         }
         else
         {
+            _error:
             // IO error
+            socket->del_timer(Socket::SW_SOCKET_TIMER_LV_GLOBAL);
             zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), socket->errCode);
             zend_update_property_string(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errMsg"), socket->errMsg);
             if (socket->errCode == ETIMEDOUT)
@@ -1265,6 +1262,8 @@ bool http_client::recv(double timeout)
             return false;
         }
     }
+    socket->del_timer(Socket::SW_SOCKET_TIMER_LV_GLOBAL);
+
     /**
      * TODO: Sec-WebSocket-Accept check
      */

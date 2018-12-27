@@ -200,21 +200,18 @@ void PHPCoroutine::create_func(void *arg)
 {
     int i;
     php_coro_args *php_arg = (php_coro_args *) arg;
-    zend_fcall_info_cache *fci_cache = php_arg->fci_cache;
-    zend_function *func = fci_cache->function_handler;
+    zend_fcall_info_cache fci_cache = *php_arg->fci_cache;
+    zend_function *func = fci_cache.function_handler;
     zval *argv = php_arg->argv;
     int argc = php_arg->argc;
     php_coro_task *task;
     php_coro_task *origin_task = php_arg->origin_task;
     zend_execute_data *call;
-    zval _zobject, *zobject = nullptr;
     zval _retval, *retval = &_retval;
 
-    if (fci_cache->object)
+    if (fci_cache.object)
     {
-        zobject = &_zobject;
-        ZVAL_OBJ(zobject, fci_cache->object);
-        Z_ADDREF_P(zobject);
+        GC_ADDREF(fci_cache.object);
     }
 
     PHPCoroutine::vm_stack_init();
@@ -223,7 +220,7 @@ void PHPCoroutine::create_func(void *arg)
     EG(vm_stack_top) = (zval *) ((char *) call + PHP_CORO_TASK_SLOT * sizeof(zval));
     call = zend_vm_stack_push_call_frame(
         ZEND_CALL_TOP_FUNCTION | ZEND_CALL_ALLOCATED,
-        func, argc, fci_cache->called_scope, fci_cache->object
+        func, argc, fci_cache.called_scope, fci_cache.object
     );
 
     SW_SET_EG_SCOPE(func->common.scope);
@@ -311,9 +308,9 @@ void PHPCoroutine::create_func(void *arg)
 
     zval_ptr_dtor(retval);
 
-    if (zobject)
+    if (fci_cache.object)
     {
-        zval_ptr_dtor(zobject);
+        OBJ_RELEASE(fci_cache.object);
     }
 
     if (UNEXPECTED(EG(exception)))

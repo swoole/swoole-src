@@ -946,16 +946,13 @@ static sw_inline void sw_fci_cache_persist(zend_fcall_info_cache *fci_cache)
 
 static sw_inline void sw_fci_cache_discard(zend_fcall_info_cache *fci_cache)
 {
-    zval _zobject, *zobject = &_zobject;
     if (fci_cache->object)
     {
-        ZVAL_OBJ(zobject, fci_cache->object);
-        zval_ptr_dtor(zobject);
+        OBJ_RELEASE(fci_cache->object);
     }
     if (fci_cache->function_handler->op_array.fn_flags & ZEND_ACC_CLOSURE)
     {
-        ZVAL_OBJ(zobject, ZEND_CLOSURE_OBJECT(fci_cache->function_handler));
-        zval_ptr_dtor(zobject);
+        OBJ_RELEASE(ZEND_CLOSURE_OBJECT(fci_cache->function_handler));
     }
 }
 

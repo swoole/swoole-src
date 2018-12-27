@@ -42,6 +42,7 @@ do
                 sleep ${i}
                 echo "\n😮 Retry failed tests#${i}:\n"
             fi
+            cat tests.list
             run_tests tests.list "`echo | expr ${i} \* 10`"
         else
             break

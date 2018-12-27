@@ -931,13 +931,12 @@ static PHP_METHOD(swoole_client_coro, recv)
         RETURN_FALSE;
     }
     PHPCoroutine::check_bind("client", cli->has_bound());
-    double persistent_timeout = cli->get_timeout();
-    cli->set_timeout(timeout);
     ssize_t retval ;
     if (cli->open_length_check || cli->open_eof_check)
     {
+        cli->set_timer(Socket::SW_SOCKET_TIMER_LV_GLOBAL, timeout);
         retval = cli->recv_packet();
-        cli->set_timeout(persistent_timeout);
+        cli->del_timer(Socket::SW_SOCKET_TIMER_LV_GLOBAL);
         if (retval > 0)
         {
             RETVAL_STRINGL(cli->read_buffer->str, retval);
@@ -946,6 +945,8 @@ static PHP_METHOD(swoole_client_coro, recv)
     else
     {
         zend_string *result = zend_string_alloc(SW_PHP_CLIENT_BUFFER_SIZE - sizeof(zend_string), 0);
+        double persistent_timeout = cli->get_timeout();
+        cli->set_timeout(timeout);
         retval = cli->recv(result->val, SW_PHP_CLIENT_BUFFER_SIZE - sizeof(zend_string));
         cli->set_timeout(persistent_timeout);
         if (retval > 0)
