@@ -670,6 +670,7 @@ ssize_t Socket::recv_all(void *__buf, size_t __n)
     ssize_t retval, total_bytes = 0;
     while (true)
     {
+        set_timer(SW_SOCKET_TIMER_LV_MULTI);
         retval = recv((char*) __buf + total_bytes, __n - total_bytes);
         if (retval <= 0)
         {
@@ -685,6 +686,7 @@ ssize_t Socket::recv_all(void *__buf, size_t __n)
             break;
         }
     }
+    del_timer(SW_SOCKET_TIMER_LV_MULTI);
     return total_bytes;
 }
 
@@ -697,6 +699,7 @@ ssize_t Socket::send_all(const void *__buf, size_t __n)
     ssize_t retval, total_bytes = 0;
     while (true)
     {
+        set_timer(SW_SOCKET_TIMER_LV_MULTI);
         retval = send((char*) __buf + total_bytes, __n - total_bytes);
         if (retval <= 0)
         {
@@ -712,6 +715,7 @@ ssize_t Socket::send_all(const void *__buf, size_t __n)
             break;
         }
     }
+    del_timer(SW_SOCKET_TIMER_LV_MULTI);
     return total_bytes;
 }
 
@@ -744,7 +748,7 @@ ssize_t Socket::sendmsg(const struct msghdr *msg, int flags)
         return -1;
     }
     ssize_t retval = ::sendmsg(socket->fd, msg, flags);
-    if (retval < 0 && swConnection_error(errno) == SW_WAIT)
+    while (retval < 0 && swConnection_error(errno) == SW_WAIT)
     {
         if (!wait_writeable())
         {
@@ -763,7 +767,7 @@ ssize_t Socket::recvmsg(struct msghdr *msg, int flags)
         return -1;
     }
     ssize_t retval = ::recvmsg(socket->fd, msg, flags);
-    if (retval < 0 && swConnection_error(errno) == SW_WAIT)
+    while (retval < 0 && swConnection_error(errno) == SW_WAIT)
     {
         if (!wait_readable())
         {
@@ -1293,7 +1297,7 @@ ssize_t Socket::recvfrom(void *__buf, size_t __n, struct sockaddr* _addr, sockle
     {
         retval = ::recvfrom(socket->fd, __buf, __n, 0, _addr, _socklen);
     }
-    if (retval < 0 && swConnection_error(errno) == SW_WAIT)
+    while (retval < 0 && swConnection_error(errno) == SW_WAIT)
     {
         if (!wait_readable())
         {

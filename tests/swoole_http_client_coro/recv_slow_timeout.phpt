@@ -6,11 +6,6 @@ swoole_http_client_coro: recv_all data from slow server
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-Co::set([
-    'log_level' => SWOOLE_LOG_DEBUG,
-    'trace_flags' => SWOOLE_TRACE_ALL ^ SWOOLE_TRACE_EVENT,
-]);
-
 $content = str_repeat(openssl_random_pseudo_bytes(1024), 1024 * (IS_IN_TRAVIS ? 1 : 5));
 file_put_contents('/tmp/test.jpg', $content);
 
@@ -26,11 +21,12 @@ $pm->parentFunc = function ($pid) use ($pm) {
         if (assert(!$ret)) {
             assert($cli->errCode === SOCKET_ETIMEDOUT);
             assert($cli->statusCode === SWOOLE_HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT);
-            assert(approximate(1, $s, 0.5));
+            assert(approximate(1, $s));
         }
         $cli->close();
         @unlink('/tmp/test.jpg');
         $pm->kill();
+        echo "DONE\n";
     });
 };
 
@@ -58,8 +54,6 @@ $pm->childFunc = function () use ($pm) {
                     $client->send($data{$n});
                     usleep(10 * 1000);
                 }
-                $client->close();
-                $server->close();
             });
         }
     });
@@ -69,3 +63,4 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
+DONE
