@@ -317,6 +317,14 @@ static void aio_onWriteFileCompleted(swAio_event *event)
     ((Coroutine *) task->co)->resume();
 }
 
+static void aio_onDNSCompleted(swAio_event *event)
+{
+    aio_task *task = (aio_task *) event->object;
+    task->event->ret = event->ret;
+    task->event->error = event->error;
+    ((Coroutine *) task->co)->resume();
+}
+
 int swoole_coroutine_open(const char *pathname, int flags, mode_t mode)
 {
     if (unlikely(SwooleG.main_reactor == nullptr || !Coroutine::get_current()))
@@ -717,6 +725,63 @@ ssize_t Coroutine::write_file(const char *file, char *buf, size_t length, int lo
         SwooleG.error = ev.error;
     }
     return ev.ret;
+}
+
+string Coroutine::gethostbyname(const string &hostname, int domain, float timeout)
+{
+    swAio_event ev;
+    aio_task task;
+
+    bzero(&ev, sizeof(swAio_event));
+    if (hostname.size() < SW_IP_MAX_LENGTH)
+    {
+        ev.nbytes = SW_IP_MAX_LENGTH + 1;
+    }
+    else
+    {
+        ev.nbytes = hostname.size() + 1;
+    }
+    ev.buf = sw_malloc(ev.nbytes);
+    if (!ev.buf)
+    {
+        return "";
+    }
+
+    task.co = Coroutine::get_current();
+    task.event = &ev;
+
+    memcpy(ev.buf, hostname.c_str(), hostname.size());
+    ((char *) ev.buf)[hostname.size()] = 0;
+    ev.flags = domain;
+    ev.type = SW_AIO_GETHOSTBYNAME;
+    ev.object = (void*) &task;
+    ev.handler = swAio_handler_gethostbyname;
+    ev.callback = aio_onDNSCompleted;
+
+    if (SwooleAIO.init == 0)
+    {
+        swAio_init();
+    }
+
+    if (swAio_dispatch(&ev) < 0)
+    {
+        sw_free(ev.buf);
+        return "";
+    }
+
+    task.co->yield();
+
+    if (ev.ret == -1)
+    {
+        SwooleG.error = ev.error;
+        return "";
+    }
+    else
+    {
+        string addr((char *) ev.buf);
+        sw_free(ev.buf);
+        return addr;
+    }
 }
 
 #if 0
