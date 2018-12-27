@@ -350,6 +350,28 @@ Socket::Socket(int _fd, Socket *server_sock)
     socket->fdtype = SW_FD_CORO_SOCKET;
 }
 
+void Socket::set_timer(timer_level_types _timer_level, double _timeout)
+{
+    if (_timeout == 0)
+    {
+        _timeout = timeout;
+    }
+    if (!timer && _timeout > 0)
+    {
+        timer_level = _timer_level;
+        timer = swTimer_add(&SwooleG.timer, (long) (_timeout * 1000), 0, this, socket_timer_callback);
+    }
+}
+
+void Socket::del_timer(timer_level_types _timer_level)
+{
+    if (timer && _timer_level == timer_level)
+    {
+        swTimer_del(&SwooleG.timer, timer);
+        timer = nullptr;
+    }
+}
+
 bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen)
 {
     if (unlikely(!is_available()))
@@ -761,25 +783,13 @@ void Socket::yield()
         swError("Socket::yield() must be called in the coroutine.");
     }
 
-    //=== clear err ===
     set_err(0);
-    //=== add timer ===
-    if (timeout > 0)
-    {
-        timer = swTimer_add(&SwooleG.timer, (long) (timeout * 1000), 0, this, socket_timer_callback);
-    }
-    //=== bind coroutine ===
+
+    set_timer();
     bind_co = co;
-    //=== yield ===
     co->yield();
-    //=== resume ===
     bind_co = nullptr;
-    //=== clear timer ===
-    if (timer)
-    {
-        swTimer_del(&SwooleG.timer, timer);
-        timer = nullptr;
-    }
+    del_timer();
 }
 
 bool Socket::bind(std::string address, int port)

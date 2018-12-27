@@ -24,7 +24,6 @@
 
 namespace swoole
 {
-
 class Socket
 {
 public:
@@ -34,6 +33,14 @@ public:
     std::string bind_address;
     int bind_port = 0;
     Coroutine* bind_co = nullptr;
+    enum timer_level_types
+    {
+        SW_SOCKET_TIMER_LV_NORMAL,
+        SW_SOCKET_TIMER_LV_MULTI,
+        SW_SOCKET_TIMER_LV_PACKET,
+        SW_SOCKET_TIMER_LV_GLOBAL
+    };
+    timer_level_types timer_level = SW_SOCKET_TIMER_LV_NORMAL;
     swTimer_node *timer = nullptr;
     swConnection *socket = nullptr;
     enum swSocket_type type;
@@ -63,6 +70,8 @@ public:
     Socket(int _fd, Socket *sock);
     Socket(int _fd, enum swSocket_type _type);
     ~Socket();
+    void set_timer(timer_level_types _timer_level = SW_SOCKET_TIMER_LV_NORMAL, double _timeout = 0);
+    void del_timer(timer_level_types _timer_level = SW_SOCKET_TIMER_LV_NORMAL);
     bool connect(std::string _host, int _port, int flags = 0);
     bool connect(const struct sockaddr *addr, socklen_t addrlen);
     bool shutdown(int how = SHUT_RDWR);
@@ -196,6 +205,7 @@ protected:
 #endif
 
     void yield();
+
     bool socks5_handshake();
     bool http_proxy_handshake();
 
@@ -340,7 +350,6 @@ protected:
         yield();
         return !should_be_break();
     }
-
 };
 
 static inline enum swSocket_type get_socket_type(int domain, int type, int protocol)
