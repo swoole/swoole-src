@@ -33,7 +33,7 @@ using namespace swoole;
 using namespace std;
 
 size_t Coroutine::dns_cache_capacity = 1000;
-double Coroutine::dns_cache_expire = 60;
+time_t Coroutine::dns_cache_expire = 60;
 LRUCache *Coroutine::dns_cache = nullptr;
 
 extern "C"

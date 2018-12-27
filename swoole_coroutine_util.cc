@@ -403,11 +403,8 @@ static PHP_METHOD(swoole_coroutine_util, set)
     }
     if (php_swoole_array_get_value(vht, "dns_cache_expire", v))
     {
-        convert_to_double(v);
-        if (Z_DVAL_P(v))
-        {
-            Coroutine::set_dns_cache_expire((double) Z_DVAL_P(v));
-        }
+        convert_to_long(v);
+        Coroutine::set_dns_cache_expire((time_t) Z_LVAL_P(v));
     }
     if (php_swoole_array_get_value(vht, "dns_cache_capacity", v))
     {

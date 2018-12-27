@@ -121,7 +121,7 @@ private:
 
     static LRUCache *dns_cache;
     static size_t dns_cache_capacity;
-    static double dns_cache_expire;
+    static time_t dns_cache_expire;
 
 public:
     static std::unordered_map<long, Coroutine*> coroutines;
@@ -175,7 +175,7 @@ public:
         return peak_num;
     }
 
-    static inline void set_dns_cache_expire(double expire)
+    static inline void set_dns_cache_expire(time_t expire)
     {
         dns_cache_expire = expire;
     }
