@@ -17,6 +17,7 @@
 #include "socket.h"
 #include "async.h"
 #include "coroutine.h"
+#include "lru_cache.h"
 
 #ifndef _WIN32
 
@@ -31,6 +32,27 @@
 
 using namespace swoole;
 using namespace std;
+
+static size_t dns_cache_capacity = 1000;
+static time_t dns_cache_expire = 60;
+static LRUCache *dns_cache = nullptr;
+
+void set_dns_cache_expire(time_t expire)
+{
+    dns_cache_expire = expire;
+}
+
+void set_dns_cache_capacity(size_t capacity)
+{
+    dns_cache_capacity = capacity;
+    delete dns_cache;
+    dns_cache = nullptr;
+}
+
+void clear_dns_cache()
+{
+    dns_cache->clear();
+}
 
 extern "C"
 {
@@ -728,6 +750,24 @@ ssize_t Coroutine::write_file(const char *file, char *buf, size_t length, int lo
 
 string Coroutine::gethostbyname(const string &hostname, int domain, float timeout)
 {
+    if (dns_cache == nullptr && dns_cache_capacity != 0)
+    {
+        dns_cache = new LRUCache(dns_cache_capacity);
+    }
+
+    string cache_key;
+    if (dns_cache)
+    {
+        cache_key.append(domain == AF_INET ? "4_" : "6_");
+        cache_key.append(hostname);
+        auto cache = dns_cache->get(cache_key);
+
+        if (cache)
+        {
+            return *(string *)cache.get();
+        }
+    }
+
     swAio_event ev;
     aio_task task;
 
@@ -777,6 +817,14 @@ string Coroutine::gethostbyname(const string &hostname, int domain, float timeou
     }
     else
     {
+        if (dns_cache)
+        {
+            string *addr = new string((char *) ev.buf);
+            dns_cache->set(cache_key, shared_ptr<string>(addr), dns_cache_expire);
+            sw_free(ev.buf);
+            return *addr;
+        }
+
         string addr((char *) ev.buf);
         sw_free(ev.buf);
         return addr;

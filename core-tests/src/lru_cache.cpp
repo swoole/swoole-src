@@ -4,7 +4,7 @@
 using namespace swoole;
 using namespace std;
 
-LRUCache cache(2, 60);
+LRUCache cache(2);
 
 int dtor_num = 0;
 class lru_cache_test_class
