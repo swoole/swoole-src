@@ -350,29 +350,6 @@ Socket::Socket(enum swSocket_type _type)
     init_sock();
 }
 
-Socket::Socket(string _host, int _port)
-{
-    init_members();
-    if (_host.compare(0, 6, "unix:/", 0, 6) == 0)
-    {
-        _host = _host.substr(sizeof("unix:") - 1);
-        _host.erase(0, _host.find_first_not_of('/') - 1);
-        type = SW_SOCK_UNIX_STREAM;
-    }
-    else if (_host.find(':') != std::string::npos)
-    {
-        type = SW_SOCK_TCP6;
-    }
-    else
-    {
-        type = SW_SOCK_TCP;
-    }
-    init_sock_type(type);
-    host = _host;
-    port = _port;
-    init_sock();
-}
-
 Socket::Socket(int _fd, enum swSocket_type _type)
 {
     init_members();
@@ -462,19 +439,6 @@ bool Socket::connect(string _host, int _port, int flags)
     if (unlikely(!is_available()))
     {
         return false;
-    }
-
-    if (_host.empty())
-    {
-        if (host.empty())
-        {
-            return false;
-        }
-        _host = host;
-    }
-    if (!_port)
-    {
-        _port = port;
     }
 
     if (socks5_proxy)
