@@ -1293,10 +1293,10 @@ void http_client::recv(zval *zframe, double timeout)
         zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("statusCode"), HTTP_CLIENT_ESTATUS_SERVER_RESET);
         return;
     }
-    double persistent_timeout = socket->get_timeout();
-    socket->set_timeout(timeout);
+
+    socket->set_timer(Socket::TIMER_LV_GLOBAL, timeout);
     ssize_t retval = socket->recv_packet();
-    socket->set_timeout(persistent_timeout);
+    socket->del_timer(Socket::TIMER_LV_GLOBAL);
     if (retval <= 0)
     {
         zend_update_property_long(swoole_http_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), socket->errCode);

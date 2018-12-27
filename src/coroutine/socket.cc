@@ -699,14 +699,14 @@ ssize_t Socket::write(const void *__buf, size_t __n)
 
 ssize_t Socket::recv_all(void *__buf, size_t __n)
 {
+    ssize_t retval, total_bytes = 0;
     if (unlikely(!is_available()))
     {
         return -1;
     }
-    ssize_t retval, total_bytes = 0;
+    set_timer(TIMER_LV_MULTI);
     while (true)
     {
-        set_timer(TIMER_LV_MULTI);
         retval = recv((char*) __buf + total_bytes, __n - total_bytes);
         if (retval <= 0)
         {
@@ -728,14 +728,14 @@ ssize_t Socket::recv_all(void *__buf, size_t __n)
 
 ssize_t Socket::send_all(const void *__buf, size_t __n)
 {
+    ssize_t retval, total_bytes = 0;
     if (unlikely(!is_available()))
     {
         return -1;
     }
-    ssize_t retval, total_bytes = 0;
+    set_timer(TIMER_LV_MULTI);
     while (true)
     {
-        set_timer(TIMER_LV_MULTI);
         retval = send((char*) __buf + total_bytes, __n - total_bytes);
         if (retval <= 0)
         {
@@ -1173,6 +1173,7 @@ bool Socket::sendfile(char *filename, off_t offset, size_t length)
     }
 
     int n, sendn;
+    set_timer(TIMER_LV_MULTI);
     while ((size_t) offset < length)
     {
         sendn = (length - offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : length - offset;
@@ -1209,6 +1210,7 @@ bool Socket::sendfile(char *filename, off_t offset, size_t length)
             return false;
         }
     }
+    del_timer(TIMER_LV_MULTI);
     ::close(file_fd);
     return true;
 }
