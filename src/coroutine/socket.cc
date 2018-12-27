@@ -359,14 +359,12 @@ bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen)
     int retval = socket_connect(socket->fd, addr, addrlen);
     if (retval == -1)
     {
-        if (errno != EINPROGRESS || !wait_event(SW_EVENT_WRITE))
+        if (errno != EINPROGRESS)
         {
             set_err(errno);
             return false;
         }
-        yield();
-        //Connection has timed out
-        if (errCode == ETIMEDOUT)
+        if (!wait_writeable())
         {
             return false;
         }
@@ -726,12 +724,7 @@ ssize_t Socket::sendmsg(const struct msghdr *msg, int flags)
     ssize_t retval = ::sendmsg(socket->fd, msg, flags);
     if (retval < 0 && swConnection_error(errno) == SW_WAIT)
     {
-        if (!wait_event(SW_EVENT_WRITE))
-        {
-            return -1;
-        }
-        yield();
-        if (errCode == ETIMEDOUT)
+        if (!wait_writeable())
         {
             return -1;
         }
@@ -750,12 +743,7 @@ ssize_t Socket::recvmsg(struct msghdr *msg, int flags)
     ssize_t retval = ::recvmsg(socket->fd, msg, flags);
     if (retval < 0 && swConnection_error(errno) == SW_WAIT)
     {
-        if (!wait_event(SW_EVENT_READ))
-        {
-            return -1;
-        }
-        yield();
-        if (errCode == ETIMEDOUT)
+        if (!wait_readable())
         {
             return -1;
         }
@@ -917,12 +905,7 @@ Socket* Socket::accept()
     int conn = swSocket_accept(socket->fd, &client_addr);
     if (conn < 0 && errno == EAGAIN)
     {
-        if (!wait_event(SW_EVENT_READ))
-        {
-            return nullptr;
-        }
-        yield();
-        if (errCode == ETIMEDOUT)
+        if (!wait_readable())
         {
             return nullptr;
         }
@@ -1008,7 +991,7 @@ string Socket::resolve(string domain_name)
     yield();
     set_timeout(persistent_timeout);
 
-    if (errCode == SW_ERROR_DNSLOOKUP_RESOLVE_FAILED)
+    if (errCode == SW_ERROR_DNSLOOKUP_RESOLVE_FAILED || should_be_break())
     {
         return "";
     }
@@ -1026,7 +1009,7 @@ bool Socket::shutdown(int __how)
     {
         if (::shutdown(socket->fd, SHUT_RD) == 0)
         {
-            shutdown_read = 1;
+            shutdown_read = true;
             return true;
         }
     }
@@ -1034,7 +1017,7 @@ bool Socket::shutdown(int __how)
     {
         if (::shutdown(socket->fd, SHUT_WR) == 0)
         {
-            shutdown_write = 1;
+            shutdown_write = true;
             return true;
         }
     }
@@ -1042,7 +1025,7 @@ bool Socket::shutdown(int __how)
     {
         if (::shutdown(socket->fd, SHUT_RDWR) == 0)
         {
-            shutdown_read = shutdown_write = 1;
+            shutdown_read = shutdown_write = true;
             return true;
         }
     }
@@ -1244,19 +1227,14 @@ bool Socket::sendfile(char *filename, off_t offset, size_t length)
         else if (errno != EAGAIN)
         {
             swSysError("sendfile(%d, %s) failed.", socket->fd, filename);
-            _error:
             set_err(errno);
             ::close(file_fd);
             return false;
         }
-        if (!wait_event(SW_EVENT_WRITE))
+        if (!wait_writeable())
         {
-            goto _error;
-        }
-        yield();
-        if (errCode == ETIMEDOUT)
-        {
-            goto _error;
+            ::close(file_fd);
+            return false;
         }
     }
     ::close(file_fd);
@@ -1307,12 +1285,7 @@ ssize_t Socket::recvfrom(void *__buf, size_t __n, struct sockaddr* _addr, sockle
     }
     if (retval < 0 && swConnection_error(errno) == SW_WAIT)
     {
-        if (!wait_event(SW_EVENT_READ))
-        {
-            return -1;
-        }
-        yield();
-        if (errCode == ETIMEDOUT)
+        if (!wait_readable())
         {
             return -1;
         }

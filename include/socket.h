@@ -39,12 +39,9 @@ public:
     enum swSocket_type type;
     int sock_type = 0;
     int sock_domain = 0;
-    double timeout = -1;
     int backlog = 0;
     int errCode = 0;
     const char *errMsg = "";
-    bool shutdown_read = false;
-    bool shutdown_write = false;
     bool open_length_check = false;
     bool open_eof_check = false;
     bool http2 = false;
@@ -59,8 +56,6 @@ public:
 
 #ifdef SW_USE_OPENSSL
     bool open_ssl = false;
-    bool ssl_wait_handshake = false;
-    SSL_CTX *ssl_context = nullptr;
     swSSL_option ssl_option = {0};
 #endif
 
@@ -98,52 +93,14 @@ public:
     bool ssl_accept();
 #endif
 
-    void yield();
+    inline int get_fd()
+    {
+        return socket ? socket->fd : -1;
+    }
 
     inline void resume()
     {
         bind_co->resume();
-    }
-
-    inline bool wait_readable()
-    {
-#ifdef SW_USE_OPENSSL
-        if (socket->ssl && socket->ssl_want_write)
-        {
-            if (unlikely(!is_available() || !wait_event(SW_EVENT_WRITE)))
-            {
-                return false;
-            }
-        }
-        else
-#endif
-        if (unlikely(!wait_event(SW_EVENT_READ)))
-        {
-            return false;
-        }
-        yield();
-        return errCode != ETIMEDOUT;
-    }
-
-    inline bool wait_writeable(const void **__buf, size_t __n)
-    {
-#ifdef SW_USE_OPENSSL
-        if (socket->ssl && socket->ssl_want_read)
-        {
-            if (unlikely(!is_available() || !wait_event(SW_EVENT_READ)))
-            {
-                return false;
-            }
-        }
-        else
-#endif
-        if (unlikely(!wait_event(SW_EVENT_WRITE)))
-        {
-            return false;
-        }
-        copy_to_write_buffer(__buf, __n);
-        yield();
-        return errCode != ETIMEDOUT;
     }
 
     inline long has_bound()
@@ -156,11 +113,6 @@ public:
         {
             return 0;
         }
-    }
-
-    inline int get_fd()
-    {
-        return socket ? socket->fd : -1;
     }
 
     inline void set_err(int e)
@@ -235,17 +187,15 @@ public:
         return write_buffer;
     }
 
-    inline void copy_to_write_buffer(const void **__buf, size_t __n)
-    {
-        if (*__buf != get_write_buffer()->str)
-        {
-            swString_clear(write_buffer);
-            swString_append_ptr(write_buffer, (const char *) *__buf, __n);
-            *__buf = write_buffer->str;
-        }
-    }
-
 protected:
+    double timeout = -1;
+    bool shutdown_read = false;
+    bool shutdown_write = false;
+#ifdef SW_USE_OPENSSL
+    SSL_CTX *ssl_context = nullptr;
+#endif
+
+    void yield();
     bool socks5_handshake();
     bool http_proxy_handshake();
 
@@ -292,16 +242,6 @@ protected:
 
     inline void init_sock(int _fd);
 
-    inline bool wait_event(int event)
-    {
-        if (reactor->add(reactor, socket->fd, SW_FD_CORO_SOCKET | event) < 0)
-        {
-            set_err(errno);
-            return false;
-        }
-        return true;
-    }
-
     inline bool is_available(bool allow_cross_co = false)
     {
         long cid = has_bound();
@@ -324,6 +264,83 @@ protected:
         }
         return true;
     }
+
+    inline bool should_be_break()
+    {
+        switch (errCode)
+        {
+        case ETIMEDOUT:
+        case ECANCELED:
+            return true;
+        default:
+            return false;
+        }
+    }
+
+    inline bool wait_event(int event)
+    {
+        if (reactor->add(reactor, socket->fd, SW_FD_CORO_SOCKET | event) < 0)
+        {
+            set_err(errno);
+            return false;
+        }
+        return true;
+    }
+
+    inline bool wait_readable()
+    {
+#ifdef SW_USE_OPENSSL
+        if (socket->ssl && socket->ssl_want_write)
+        {
+            if (unlikely(!is_available() || !wait_event(SW_EVENT_WRITE)))
+            {
+                return false;
+            }
+        }
+        else
+#endif
+        if (unlikely(!wait_event(SW_EVENT_READ)))
+        {
+            return false;
+        }
+        yield();
+        return !should_be_break();
+    }
+
+    inline void copy_to_write_buffer(const void **__buf, size_t __n)
+    {
+        if (*__buf != get_write_buffer()->str)
+        {
+            swString_clear(write_buffer);
+            swString_append_ptr(write_buffer, (const char *) *__buf, __n);
+            *__buf = write_buffer->str;
+        }
+    }
+
+    inline bool wait_writeable(const void **__buf = nullptr, size_t __n = 0)
+    {
+#ifdef SW_USE_OPENSSL
+        if (socket->ssl && socket->ssl_want_read)
+        {
+            if (unlikely(!is_available() || !wait_event(SW_EVENT_READ)))
+            {
+                return false;
+            }
+        }
+        else
+#endif
+        if (unlikely(!wait_event(SW_EVENT_WRITE)))
+        {
+            return false;
+        }
+        if (__n > 0)
+        {
+            copy_to_write_buffer(__buf, __n);
+        }
+        yield();
+        return !should_be_break();
+    }
+
 };
 
 static inline enum swSocket_type get_socket_type(int domain, int type, int protocol)
