@@ -52,7 +52,7 @@ TEST(coroutine, socket_resolve_with_cache)
 {
     coro_test([](void *arg)
     {
-        Coroutine::set_dns_cache_capacity(10);
+        set_dns_cache_capacity(10);
 
         std::string addr1 = Coroutine::gethostbyname("www.baidu.com", AF_INET);
         std::string addr2 = Coroutine::gethostbyname("www.baidu.com", AF_INET);
@@ -67,7 +67,7 @@ TEST(coroutine, socket_resolve_without_cache)
 {
     coro_test([](void *arg)
     {
-        Coroutine::set_dns_cache_capacity(0);
+        set_dns_cache_capacity(0);
 
         std::string addr1 = Coroutine::gethostbyname("www.baidu.com", AF_INET);
         std::string addr2 = Coroutine::gethostbyname("www.baidu.com", AF_INET);
@@ -82,7 +82,7 @@ TEST(coroutine, socket_resolve_cache_inet4_and_inet6)
 {
     coro_test([](void *arg)
     {
-        Coroutine::set_dns_cache_capacity(10);
+        set_dns_cache_capacity(10);
 
         std::string addr1 = Coroutine::gethostbyname("ipv6.sjtu.edu.cn", AF_INET);
         std::string addr2 = Coroutine::gethostbyname("ipv6.sjtu.edu.cn", AF_INET6);
