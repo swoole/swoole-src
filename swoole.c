@@ -593,9 +593,18 @@ void php_swoole_register_shutdown_function_prepend(char *function)
     }
     BG(user_shutdown_function_names) = NULL;
     php_swoole_register_shutdown_function(function);
-    old_user_shutdown_function_names->pDestructor = php_swoole_old_shutdown_function_move;
-    zend_hash_destroy(old_user_shutdown_function_names);
-    FREE_HASHTABLE(old_user_shutdown_function_names);
+
+#ifdef SW_CORO_ZEND_TRY
+    zend_try
+#endif
+    {
+        old_user_shutdown_function_names->pDestructor = php_swoole_old_shutdown_function_move;
+        zend_hash_destroy(old_user_shutdown_function_names);
+        FREE_HASHTABLE(old_user_shutdown_function_names);
+    }
+#ifdef SW_CORO_ZEND_TRY
+    zend_end_try();
+#endif
 }
 
 void swoole_call_rshutdown_function(void *arg)
