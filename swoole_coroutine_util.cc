@@ -151,8 +151,6 @@ static PHP_METHOD(swoole_coroutine_iterator, __destruct);
 static PHP_METHOD(swoole_exit_exception, getFlags);
 static PHP_METHOD(swoole_exit_exception, getStatus);
 
-static PHP_FUNCTION(swoole_clear_dns_cache);
-
 static unordered_map<int, Coroutine *> user_yield_coros;
 
 static zend_class_entry swoole_coroutine_util_ce;
@@ -213,12 +211,6 @@ static const zend_function_entry swoole_exit_exception_methods[] =
 {
     PHP_ME(swoole_exit_exception, getFlags, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_exit_exception, getStatus, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC)
-    PHP_FE_END
-};
-
-static const zend_function_entry swoole_coroutine_util_functions[] =
-{
-    PHP_FE(swoole_clear_dns_cache, arginfo_swoole_coroutine_void)
     PHP_FE_END
 };
 

@@ -284,6 +284,7 @@ PHP_FUNCTION(swoole_set_process_name);
 PHP_FUNCTION(swoole_get_local_ip);
 PHP_FUNCTION(swoole_get_local_mac);
 PHP_FUNCTION(swoole_call_user_shutdown_begin);
+PHP_FUNCTION(swoole_clear_dns_cache);
 //---------------------------------------------------------
 //                  Coroutine API
 //---------------------------------------------------------
