@@ -44,7 +44,7 @@ public:
         return iter->second->second.second; // iter -> list::iter -> cache_node_t -> value
     }
 
-    inline void set(const std::string &key, std::shared_ptr<void> val, time_t expire = 0)
+    inline void set(const std::string &key, const std::shared_ptr<void> &val, time_t expire = 0)
     {
         time_t expire_time;
 
