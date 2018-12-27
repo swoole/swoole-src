@@ -22,8 +22,10 @@ go(function () {
     assert($cli->errCode = SOCKET_ETIMEDOUT);
     $s = microtime(true) - $s;
     phpt_var_dump($s);
-    assert(approximate($s, $random_timeout));
+    assert(approximate($random_timeout, $s));
+    echo "DONE\n";
 });
 
 ?>
 --EXPECT--
+DONE
