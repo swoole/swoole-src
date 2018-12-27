@@ -22,8 +22,6 @@
 #include <string>
 #include <unordered_map>
 
-using namespace swoole;
-
 #define SW_CORO_STACK_ALIGNED_SIZE (4 * 1024)
 #define SW_CORO_MAX_STACK_SIZE     (16 * 1024 * 1024)
 
