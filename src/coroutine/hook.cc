@@ -800,15 +800,15 @@ string Coroutine::gethostbyname(const string &hostname, int domain, float timeou
     }
     else
     {
-        string addr((char *) ev.buf);
+        string *addr = new string((char *) ev.buf);
         sw_free(ev.buf);
 
         if (Coroutine::dns_cache)
         {
-            Coroutine::dns_cache->set(cache_key, std::make_shared<string>(addr), Coroutine::dns_cache_expire);
+            Coroutine::dns_cache->set(cache_key, std::shared_ptr<string>(addr), Coroutine::dns_cache_expire);
         }
 
-        return addr;
+        return *addr;
     }
 }
 
