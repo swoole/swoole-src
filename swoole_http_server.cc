@@ -53,6 +53,8 @@ extern "C"
 #include "thirdparty/picohttpparser/picohttpparser.h"
 #endif
 
+using namespace swoole;
+
 swString *swoole_http_buffer;
 #ifdef SW_HAVE_ZLIB
 swString *swoole_zlib_buffer;
@@ -1112,7 +1114,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
 
         if (SwooleG.enable_coroutine)
         {
-            if (sw_coro_create(fci_cache, 2, args) < 0)
+            if (PHPCoroutine::create(fci_cache, 2, args) < 0)
             {
                 swoole_php_error(E_WARNING, "create Http onRequest coroutine error.");
                 swServer_tcp_close(serv, fd, 0);

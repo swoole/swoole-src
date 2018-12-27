@@ -19,87 +19,117 @@
 
 using namespace swoole;
 
-CoroutineG swCoroG;
+size_t Coroutine::stack_size = SW_DEFAULT_C_STACK_SIZE;
+size_t Coroutine::call_stack_size = 0;
+Coroutine* Coroutine::call_stack[SW_MAX_CORO_NESTING_LEVEL];
+long Coroutine::last_cid = 0;
+uint64_t Coroutine::peak_num = 0;
+coro_php_yield_t  Coroutine::on_yield = nullptr;
+coro_php_resume_t Coroutine::on_resume = nullptr;
+coro_php_close_t  Coroutine::on_close = nullptr;
+
+std::unordered_map<long, Coroutine*> Coroutine::coroutines;
 
 long Coroutine::create(coroutine_func_t fn, void* args)
 {
-    if (unlikely(swCoroG.call_stack_size == SW_MAX_CORO_NESTING_LEVEL))
+    if (unlikely(Coroutine::call_stack_size == SW_MAX_CORO_NESTING_LEVEL))
     {
         swWarn("reaches the max coroutine nesting level %d", SW_MAX_CORO_NESTING_LEVEL);
-        return CORO_LIMIT;
+        return SW_CORO_ERR_LIMIT;
     }
-    long cid = swCoroG.last_cid++;
-    Coroutine *co = new Coroutine(cid, swCoroG.stack_size, fn, args);
-    swCoroG.coroutines[cid] = co;
-    swCoroG.call_stack[swCoroG.call_stack_size++] = co;
-    co->ctx.SwapIn();
-    if (co->ctx.end)
-    {
-        co->state = SW_CORO_END;
-        co->release();
-    }
-    return cid;
+    Coroutine *co = new Coroutine(fn, args);
+    return co->run();
 }
 
 void Coroutine::yield()
 {
     state = SW_CORO_WAITING;
-    if (swCoroG.onYield)
+    if (Coroutine::on_yield)
     {
-        swCoroG.onYield(task);
+        Coroutine::on_yield(task);
     }
-    swCoroG.call_stack_size--;
+    Coroutine::call_stack_size--;
     ctx.SwapOut();
 }
 
 void Coroutine::resume()
 {
     state = SW_CORO_RUNNING;
-    if (swCoroG.onResume)
+    if (Coroutine::on_resume)
     {
-        swCoroG.onResume(task);
+        Coroutine::on_resume(task);
     }
-    swCoroG.call_stack[swCoroG.call_stack_size++] = this;
+    Coroutine::call_stack[Coroutine::call_stack_size++] = this;
     ctx.SwapIn();
     if (ctx.end)
     {
-        release();
+        close();
     }
 }
 
 void Coroutine::yield_naked()
 {
     state = SW_CORO_WAITING;
-    swCoroG.call_stack_size--;
+    Coroutine::call_stack_size--;
     ctx.SwapOut();
 }
 
 void Coroutine::resume_naked()
 {
     state = SW_CORO_RUNNING;
-    swCoroG.call_stack[swCoroG.call_stack_size++] = this;
+    Coroutine::call_stack[Coroutine::call_stack_size++] = this;
     ctx.SwapIn();
     if (ctx.end)
     {
-        release();
+        close();
     }
 }
 
-void Coroutine::release()
+void Coroutine::close()
 {
     state = SW_CORO_END;
-    if (swCoroG.onClose)
+    if (Coroutine::on_close)
     {
-        swCoroG.onClose();
+        Coroutine::on_close(task);
     }
-    swCoroG.call_stack_size--;
-    swCoroG.coroutines.erase(cid);
+    Coroutine::call_stack_size--;
+    Coroutine::coroutines.erase(cid);
     delete this;
 }
 
-void* coroutine_get_task_by_cid(long cid)
+Coroutine* Coroutine::get_current()
 {
-    Coroutine *co = coroutine_get_by_id(cid);
+    return likely(Coroutine::call_stack_size > 0) ? Coroutine::call_stack[Coroutine::call_stack_size - 1] : nullptr;
+}
+
+void* Coroutine::get_current_task()
+{
+    Coroutine* co = Coroutine::get_current();
+    return likely(co) ? co->get_task() : nullptr;
+}
+
+long Coroutine::get_current_cid()
+{
+    Coroutine* co = Coroutine::get_current();
+    return likely(co) ? co->get_cid() : -1;
+}
+
+Coroutine* Coroutine::get_by_cid(long cid)
+{
+    auto coroutine_iterator = Coroutine::coroutines.find(cid);
+    if (coroutine_iterator == Coroutine::coroutines.end())
+    {
+        return nullptr;
+    }
+    else
+    {
+        return coroutine_iterator->second;
+    }
+}
+
+void* Coroutine::get_task_by_cid(long cid)
+{
+    Coroutine *co = Coroutine::get_by_cid(cid);
     if (co == nullptr)
     {
         return nullptr;
@@ -110,27 +140,9 @@ void* coroutine_get_task_by_cid(long cid)
     }
 }
 
-Coroutine* coroutine_get_by_id(long cid)
+void Coroutine::print_list()
 {
-    auto coroutine_iterator = swCoroG.coroutines.find(cid);
-    if (coroutine_iterator == swCoroG.coroutines.end())
-    {
-        return nullptr;
-    }
-    else
-    {
-        return coroutine_iterator->second;
-    }
-}
-
-Coroutine* coroutine_get_current()
-{
-    return likely(swCoroG.call_stack_size > 0) ? swCoroG.call_stack[swCoroG.call_stack_size - 1] : nullptr;
-}
-
-void coroutine_print_list()
-{
-    for (auto i = swCoroG.coroutines.begin(); i != swCoroG.coroutines.end(); i++)
+    for (auto i = Coroutine::coroutines.begin(); i != Coroutine::coroutines.end(); i++)
     {
         const char *state;
         switch(i->second->state){
@@ -154,41 +166,18 @@ void coroutine_print_list()
     }
 }
 
-void* coroutine_get_current_task()
+void Coroutine::set_on_yield(coro_php_yield_t func)
 {
-    Coroutine* co = coroutine_get_current();
-    if (co == nullptr)
-    {
-        return nullptr;
-    }
-    else
-    {
-        return co->get_task();
-    }
+    Coroutine::on_yield = func;
 }
 
-long coroutine_get_current_cid()
+void Coroutine::set_on_resume(coro_php_resume_t func)
 {
-    Coroutine* co = coroutine_get_current();
-    return likely(co) ? co->get_cid() : -1;
+    Coroutine::on_resume = func;
 }
 
-void coroutine_set_onYield(coro_php_yield_t func)
+void Coroutine::set_on_close(coro_php_close_t func)
 {
-    swCoroG.onYield = func;
-}
 
-void coroutine_set_onResume(coro_php_resume_t func)
-{
-    swCoroG.onResume = func;
-}
-
-void coroutine_set_onClose(coro_php_close_t func)
-{
-    swCoroG.onClose = func;
-}
-
-void coroutine_set_stack_size(int stack_size)
-{
-    swCoroG.stack_size = stack_size;
+    Coroutine::on_close = func;
 }

@@ -29,6 +29,7 @@
 #include <list>
 
 using namespace std;
+using namespace swoole;
 
 typedef struct
 {
@@ -54,7 +55,7 @@ struct
 
 typedef struct
 {
-    php_context context;
+    php_coro_context context;
     int *list;
     uint32_t count;
     zval *result;
@@ -67,7 +68,7 @@ zend_fcall_info_cache *php_sw_server_caches[PHP_SWOOLE_SERVER_CALLBACK_NUM];
 
 static unordered_map<int, zval*> task_callbacks;
 static unordered_map<int, swTaskCo*> task_coroutine_map;
-static unordered_map<int, list<php_context *> *> send_coroutine_map;
+static unordered_map<int, list<php_coro_context *> *> send_coroutine_map;
 
 // arginfo server
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
@@ -400,7 +401,7 @@ static void php_swoole_onManagerStop(swServer *serv);
 
 //static void php_swoole_onConnect_finish(void *param);
 static void php_swoole_onSendTimeout(swTimer *timer, swTimer_node *tnode);
-static int php_swoole_server_send_resume(swServer *serv, php_context *context, int fd);
+static int php_swoole_server_send_resume(swServer *serv, php_coro_context *context, int fd);
 static void php_swoole_task_onTimeout(swTimer *timer, swTimer_node *tnode);
 
 static zval* php_swoole_server_add_port(swServer *serv, swListenPort *port);
@@ -832,15 +833,14 @@ static void php_swoole_task_wait_co(swServer *serv, swEventData *req, double tim
     {
         task_co->timer = timer;
     }
-    sw_coro_save(return_value, &task_co->context);
-    sw_coro_yield();
+    PHPCoroutine::yield_m(return_value, &task_co->context);
 }
 
 #ifdef SW_COROUTINE
 static void php_swoole_task_onTimeout(swTimer *timer, swTimer_node *tnode)
 {
     swTaskCo *task_co = (swTaskCo *) tnode->data;
-    php_context *context = &task_co->context;
+    php_coro_context *context = &task_co->context;
     zval *retval = NULL;
 
     //Server->taskwait, single task
@@ -848,8 +848,8 @@ static void php_swoole_task_onTimeout(swTimer *timer, swTimer_node *tnode)
     {
         zval result;
         ZVAL_FALSE(&result);
-        int ret = sw_coro_resume(context, &result, retval);
-        if (ret == CORO_END && retval)
+        int ret = PHPCoroutine::resume_m(context, &result, retval);
+        if (ret == SW_CORO_ERR_END && retval)
         {
             zval_ptr_dtor(retval);
         }
@@ -870,8 +870,8 @@ static void php_swoole_task_onTimeout(swTimer *timer, swTimer_node *tnode)
         }
     }
 
-    int ret = sw_coro_resume(context, result, retval);
-    if (ret == CORO_END && retval)
+    int ret = PHPCoroutine::resume_m(context, result, retval);
+    if (ret == SW_CORO_ERR_END && retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -1189,7 +1189,7 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req)
 
     if (SwooleG.enable_coroutine)
     {
-        if (sw_coro_create(fci_cache, 3, args) < 0)
+        if (PHPCoroutine::create(fci_cache, 3, args) < 0)
         {
             swoole_php_fatal_error(E_WARNING, "create onPipeMessage coroutine error.");
         }
@@ -1232,7 +1232,7 @@ int php_swoole_onReceive(swServer *serv, swEventData *req)
     zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, req->info.from_fd, SW_SERVER_CB_onReceive);
     if (SwooleG.enable_coroutine)
     {
-        if (sw_coro_create(fci_cache, 4, args) < 0)
+        if (PHPCoroutine::create(fci_cache, 4, args) < 0)
         {
             swoole_php_error(E_WARNING, "create onReceive coroutine error.");
             serv->close(serv, req->info.fd, 0);
@@ -1312,7 +1312,7 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
 
     if (SwooleG.enable_coroutine)
     {
-        if (sw_coro_create(fci_cache, 3, args) < 0)
+        if (PHPCoroutine::create(fci_cache, 3, args) < 0)
         {
             swoole_php_fatal_error(E_WARNING, "create onPacket coroutine error.");
         }
@@ -1424,9 +1424,9 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
             {
                 swTimer_del(&SwooleG.timer, task_co->timer);
             }
-            php_context *context = &task_co->context;
-            int ret = sw_coro_resume(context, zdata, retval);
-            if (ret == CORO_END && retval)
+            php_coro_context *context = &task_co->context;
+            int ret = PHPCoroutine::resume_m(context, zdata, retval);
+            if (ret == SW_CORO_ERR_END && retval)
             {
                 zval_ptr_dtor(retval);
             }
@@ -1463,9 +1463,9 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
                 swTimer_del(&SwooleG.timer, task_co->timer);
                 task_co->timer = NULL;
             }
-            php_context *context = &task_co->context;
-            int ret = sw_coro_resume(context, result, retval);
-            if (ret == CORO_END && retval)
+            php_coro_context *context = &task_co->context;
+            int ret = PHPCoroutine::resume_m(context, result, retval);
+            if (ret == SW_CORO_ERR_END && retval)
             {
                 zval_ptr_dtor(retval);
             }
@@ -1637,7 +1637,7 @@ static void php_swoole_onWorkerStart_coroutine(zval *zserv, zval *zworker_id)
     args[0] = *zserv;
     args[1] = *zworker_id;
     zend_fcall_info_cache *cache = php_sw_server_caches[SW_SERVER_CB_onWorkerStart];
-    if (sw_coro_create(cache, 2, args) < 0)
+    if (PHPCoroutine::create(cache, 2, args) < 0)
     {
         swWarn("create onWorkerStart coroutine error.");
     }
@@ -1717,7 +1717,7 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
     if (swIsTaskWorker() && serv->task_async == 0)
     {
         SwooleG.enable_coroutine = 0;
-        sw_disable_coroutine_hook();
+        PHPCoroutine::disable_hook();
     }
 
     if (SwooleG.enable_coroutine && worker_id < serv->worker_num)
@@ -1888,7 +1888,7 @@ void php_swoole_onConnect(swServer *serv, swDataHead *info)
     if (SwooleG.enable_coroutine)
     {
         // FIXME: php_swoole_onConnect_finish with info->fd
-        if (sw_coro_create(fci_cache, 3, args) < 0)
+        if (PHPCoroutine::create(fci_cache, 3, args) < 0)
         {
             swoole_php_error(E_WARNING, "create onConnect coroutine error.");
         }
@@ -1915,17 +1915,17 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
 
     if (SwooleG.enable_coroutine && serv->send_yield)
     {
-        unordered_map<int, list<php_context *> *>::iterator _i_coros_list = send_coroutine_map.find(info->fd);
+        unordered_map<int, list<php_coro_context *> *>::iterator _i_coros_list = send_coroutine_map.find(info->fd);
         if (_i_coros_list != send_coroutine_map.end())
         {
-            list<php_context *> *coros_list = _i_coros_list->second;
+            list<php_coro_context *> *coros_list = _i_coros_list->second;
             if (coros_list->size() == 0)
             {
                 swoole_php_fatal_error(E_WARNING, "nothing can resume.");
             }
             else
             {
-                php_context *context = coros_list->front();
+                php_coro_context *context = coros_list->front();
                 coros_list->pop_front();
                 SwooleG.error = ECONNRESET;
                 zval_ptr_dtor(&context->coro_params);
@@ -1958,7 +1958,7 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
 
     if (SwooleG.enable_coroutine)
     {
-        if (sw_coro_create(fci_cache, 3, args) < 0)
+        if (PHPCoroutine::create(fci_cache, 3, args) < 0)
         {
             swoole_php_error(E_WARNING, "create onClose coroutine error.");
         }
@@ -2010,7 +2010,7 @@ void php_swoole_onBufferFull(swServer *serv, swDataHead *info)
 
 static void php_swoole_onSendTimeout(swTimer *timer, swTimer_node *tnode)
 {
-    php_context *context = (php_context *) tnode->data;
+    php_coro_context *context = (php_coro_context *) tnode->data;
     zval *zdata = &context->coro_params;
     zval *result;
     zval *retval = NULL;
@@ -2021,10 +2021,10 @@ static void php_swoole_onSendTimeout(swTimer *timer, swTimer_node *tnode)
 
     int fd = (int) (long) context->private_data;
 
-    unordered_map<int, list<php_context *> *>::iterator _i_coros_list = send_coroutine_map.find(fd);
+    unordered_map<int, list<php_coro_context *> *>::iterator _i_coros_list = send_coroutine_map.find(fd);
     if (_i_coros_list != send_coroutine_map.end())
     {
-        list<php_context *> *coros_list = _i_coros_list->second;
+        list<php_coro_context *> *coros_list = _i_coros_list->second;
         coros_list->remove(context);
         //free memory
         if (coros_list->size() == 0)
@@ -2041,8 +2041,8 @@ static void php_swoole_onSendTimeout(swTimer *timer, swTimer_node *tnode)
 
     context->private_data = NULL;
 
-    int ret = sw_coro_resume(context, result, retval);
-    if (ret == CORO_END && retval)
+    int ret = PHPCoroutine::resume_m(context, result, retval);
+    if (ret == SW_CORO_ERR_END && retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -2051,7 +2051,7 @@ static void php_swoole_onSendTimeout(swTimer *timer, swTimer_node *tnode)
     efree(context);
 }
 
-static int php_swoole_server_send_resume(swServer *serv, php_context *context, int fd)
+static int php_swoole_server_send_resume(swServer *serv, php_coro_context *context, int fd)
 {
     char *data;
     zval *zdata = &context->coro_params;
@@ -2084,8 +2084,8 @@ static int php_swoole_server_send_resume(swServer *serv, php_context *context, i
         context->timer = NULL;
     }
 
-    int ret = sw_coro_resume(context, result, retval);
-    if (ret == CORO_END && retval)
+    int ret = PHPCoroutine::resume_m(context, result, retval);
+    if (ret == SW_CORO_ERR_END && retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -2097,12 +2097,12 @@ static int php_swoole_server_send_resume(swServer *serv, php_context *context, i
 
 void php_swoole_server_send_yield(swServer *serv, int fd, zval *zdata, zval *return_value)
 {
-    list<php_context *> *coros_list;
+    list<php_coro_context *> *coros_list;
     auto coroutine_iterator = send_coroutine_map.find(fd);
 
     if (coroutine_iterator == send_coroutine_map.end())
     {
-        coros_list = new list<php_context *>;
+        coros_list = new list<php_coro_context *>;
         send_coroutine_map[fd] = coros_list;
     }
     else
@@ -2110,7 +2110,7 @@ void php_swoole_server_send_yield(swServer *serv, int fd, zval *zdata, zval *ret
         coros_list = coroutine_iterator->second;
     }
 
-    php_context *context = (php_context *) emalloc(sizeof(php_context));
+    php_coro_context *context = (php_coro_context *) emalloc(sizeof(php_coro_context));
     coros_list->push_back(context);
     if (serv->send_timeout > 0)
     {
@@ -2122,8 +2122,7 @@ void php_swoole_server_send_yield(swServer *serv, int fd, zval *zdata, zval *ret
         context->timer = NULL;
     }
     context->coro_params = *zdata;
-    sw_coro_save(return_value, context);
-    sw_coro_yield();
+    PHPCoroutine::yield_m(return_value, context);
 }
 
 void php_swoole_onBufferEmpty(swServer *serv, swDataHead *info)
@@ -2140,16 +2139,16 @@ void php_swoole_onBufferEmpty(swServer *serv, swDataHead *info)
     }
     else
     {
-        unordered_map<int, list<php_context *> *>::iterator _i_coros_list = send_coroutine_map.find(info->fd);
+        unordered_map<int, list<php_coro_context *> *>::iterator _i_coros_list = send_coroutine_map.find(info->fd);
         if (_i_coros_list != send_coroutine_map.end())
         {
-            list<php_context *> *coros_list = _i_coros_list->second;
+            list<php_coro_context *> *coros_list = _i_coros_list->second;
             if (coros_list->size() == 0)
             {
                 swoole_php_fatal_error(E_WARNING, "nothing can resume.");
                 goto _callback;
             }
-            php_context *context = coros_list->front();
+            php_coro_context *context = coros_list->front();
             //resume coroutine
             if (php_swoole_server_send_resume(serv, context, info->fd) == SW_AGAIN)
             {
@@ -2444,16 +2443,10 @@ static PHP_METHOD(swoole_server, set)
     }
     if (php_swoole_array_get_value(vht, "max_coro_num", v) || php_swoole_array_get_value(vht, "max_coroutine", v))
     {
+        zend_long max_num;
         convert_to_long(v);
-        COROG.max_coro_num = (uint32_t) Z_LVAL_P(v);
-        if (COROG.max_coro_num <= 0)
-        {
-            COROG.max_coro_num = SW_DEFAULT_MAX_CORO_NUM;
-        }
-        else if (COROG.max_coro_num >= SW_MAX_CORO_NUM_LIMIT)
-        {
-            COROG.max_coro_num = SW_MAX_CORO_NUM_LIMIT;
-        }
+        max_num = Z_LVAL_P(v);
+        PHPCoroutine::set_max_num(max_num <= 0 ? SW_DEFAULT_MAX_CORO_NUM : max_num);
     }
     if (php_swoole_array_get_value(vht, "send_yield", v))
     {
@@ -3339,7 +3332,7 @@ static PHP_METHOD(swoole_server, stats)
     }
 
 #ifdef SW_COROUTINE
-    add_assoc_long_ex(return_value, ZEND_STRL("coroutine_num"), swCoroG.count());
+    add_assoc_long_ex(return_value, ZEND_STRL("coroutine_num"), Coroutine::count());
 #endif
 }
 
@@ -3451,7 +3444,7 @@ static PHP_METHOD(swoole_server, taskwait)
     int _dst_worker_id = (int) dst_worker_id;
 
     //coroutine
-    if (sw_get_current_cid() >= 0)
+    if (PHPCoroutine::get_cid() >= 0)
     {
         php_swoole_task_wait_co(serv, &buf, timeout, _dst_worker_id, INTERNAL_FUNCTION_PARAM_PASSTHRU);
         return;
@@ -3749,8 +3742,7 @@ static PHP_METHOD(swoole_server, taskCo)
     {
         task_co->timer = timer;
     }
-    sw_coro_save(return_value, &task_co->context);
-    sw_coro_yield();
+    PHPCoroutine::yield_m(return_value, &task_co->context);
 }
 #endif
 

@@ -31,7 +31,7 @@ $pm->parentFunc = function ($pid) use ($pm)
         assert($client->send($header));
         assert($client->send($_postBody));
 
-        $data = $client->recv();
+        $data = $client->recv(5);
         assert($data == "HTTP/1.1 200 OK\r\n\r\n");
         $client->close();
     });

@@ -93,7 +93,7 @@ void swoole_coroutine_signal_init()
 
 pid_t swoole_coroutine_waitpid(pid_t __pid, int *__stat_loc, int __options)
 {
-    if (unlikely(SwooleG.main_reactor == nullptr || !coroutine_get_current() || (__options & WNOHANG)))
+    if (unlikely(SwooleG.main_reactor == nullptr || !Coroutine::get_current() || (__options & WNOHANG)))
     {
         return waitpid(__pid, __stat_loc, __options);
     }
@@ -105,7 +105,7 @@ pid_t swoole_coroutine_waitpid(pid_t __pid, int *__stat_loc, int __options)
     }
 
     wait_task task;
-    task.co = coroutine_get_current();;
+    task.co = Coroutine::get_current();;
     waitpid_map[__pid] = &task;
     task.co->yield();
     *__stat_loc = task.status;
@@ -115,7 +115,7 @@ pid_t swoole_coroutine_waitpid(pid_t __pid, int *__stat_loc, int __options)
 
 pid_t swoole_coroutine_wait(int *__stat_loc)
 {
-    if (unlikely(SwooleG.main_reactor == nullptr || !coroutine_get_current()))
+    if (unlikely(SwooleG.main_reactor == nullptr || !Coroutine::get_current()))
     {
         return wait( __stat_loc);
     }
@@ -131,7 +131,7 @@ pid_t swoole_coroutine_wait(int *__stat_loc)
     }
 
     wait_task task;
-    task.co = coroutine_get_current();;
+    task.co = Coroutine::get_current();;
     waitpid_map[__pid] = &task;
     task.co->yield();
     *__stat_loc = task.status;

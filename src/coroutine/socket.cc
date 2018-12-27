@@ -2,6 +2,7 @@
 #include "coroutine.h"
 #include "async.h"
 #include "buffer.h"
+#include "base64.h"
 
 #include <string>
 #include <iostream>
@@ -166,24 +167,29 @@ bool Socket::http_proxy_handshake()
     int n;
     if (http_proxy->password)
     {
-        if (strlen(http_proxy->buf) > 0) 
-        {
-            char _authBuf[700];
-            snprintf(_authBuf, sizeof(_authBuf), "CONNECT %*s:%d HTTP/1.1\r\n%s\r\n\r\n",
-                http_proxy->l_target_host, http_proxy->target_host, http_proxy->target_port, http_proxy->buf);
-            n = snprintf(http_proxy->buf, sizeof(http_proxy->buf), "%s", _authBuf);
-        }
-        else
-        {
-            n = snprintf(http_proxy->buf, sizeof(http_proxy->buf), "CONNECT %*s:%d HTTP/1.1\r\n\r\n",
-                    http_proxy->l_target_host, http_proxy->target_host, http_proxy->target_port);
-        }
+        char auth_buf[256];
+        char encode_buf[512];
+        n = snprintf(
+            auth_buf, sizeof(auth_buf), "%*s:%*s",
+            http_proxy->l_user, http_proxy->user,
+            http_proxy->l_password, http_proxy->password
+        );
+        swBase64_encode((unsigned char *) auth_buf, n, encode_buf);
+        n = snprintf(
+            http_proxy->buf, sizeof(http_proxy->buf),
+            "CONNECT %*s:%d HTTP/1.1\r\nProxy-Authorization:Basic %s\r\n\r\n",
+            http_proxy->l_target_host, http_proxy->target_host, http_proxy->target_port, encode_buf
+        );
     }
     else
     {
-        n = snprintf(http_proxy->buf, sizeof(http_proxy->buf), "CONNECT %*s:%d HTTP/1.1\r\n\r\n",
-                    http_proxy->l_target_host, http_proxy->target_host, http_proxy->target_port);
+        n = snprintf(
+            http_proxy->buf, sizeof(http_proxy->buf),
+            "CONNECT %*s:%d HTTP/1.1\r\n\r\n",
+            http_proxy->l_target_host, http_proxy->target_host, http_proxy->target_port
+        );
     }
+
     if (send(http_proxy->buf, n) <= 0)
     {
         return false;
@@ -752,7 +758,7 @@ ssize_t Socket::recvmsg(struct msghdr *msg, int flags)
 
 void Socket::yield()
 {
-    Coroutine *co = coroutine_get_current();
+    Coroutine *co = Coroutine::get_current();
     if (unlikely(!co))
     {
         swError("Socket::yield() must be called in the coroutine.");

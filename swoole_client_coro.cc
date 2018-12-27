@@ -732,8 +732,8 @@ static PHP_METHOD(swoole_client_coro, connect)
         sw_coro_socket_set(cli, zset);
     }
 
-    sw_coro_check_bind("client", cli->has_bound());
-    cli->set_timeout(timeout == 0 ? COROG.socket_connect_timeout : timeout);
+    PHPCoroutine::check_bind("client", cli->has_bound());
+    cli->set_timeout(timeout == 0 ? PHPCoroutine::socket_connect_timeout : timeout);
     if (!cli->connect(host, port, sock_flag))
     {
         swoole_php_error(E_WARNING, "connect to server[%s:%d] failed. Error: %s[%d]", host, (int )port, cli->errMsg, cli->errCode);
@@ -743,7 +743,7 @@ static PHP_METHOD(swoole_client_coro, connect)
     }
     else
     {
-        cli->set_timeout(timeout == 0 ? COROG.socket_timeout : timeout);
+        cli->set_timeout(timeout == 0 ? PHPCoroutine::socket_timeout : timeout);
         zend_update_property_bool(swoole_client_coro_ce_ptr, getThis(), ZEND_STRL("connected"), 1);
         RETURN_TRUE;
     }
@@ -775,7 +775,7 @@ static PHP_METHOD(swoole_client_coro, send)
 
     //clear errno
     SwooleG.error = 0;
-    sw_coro_check_bind("client", cli->has_bound());
+    PHPCoroutine::check_bind("client", cli->has_bound());
     double persistent_timeout = cli->get_timeout();
     cli->set_timeout(timeout);
     int ret = cli->send_all(data, data_len);
@@ -821,7 +821,7 @@ static PHP_METHOD(swoole_client_coro, sendto)
         }
         cli->socket->active = 1;
     }
-    sw_coro_check_bind("client", cli->has_bound());
+    PHPCoroutine::check_bind("client", cli->has_bound());
     SW_CHECK_RETURN(cli->sendto(ip, port, data, len));
 }
 
@@ -853,7 +853,7 @@ static PHP_METHOD(swoole_client_coro, recvfrom)
     }
 
     zend_string *retval = zend_string_alloc(length + 1, 0);
-    sw_coro_check_bind("client", cli->has_bound());
+    PHPCoroutine::check_bind("client", cli->has_bound());
     // cli->set_timeout(timeout, true); TODO
     ssize_t n_bytes = cli->recvfrom(retval->val, length);
     if (n_bytes < 0)
@@ -901,7 +901,7 @@ static PHP_METHOD(swoole_client_coro, sendfile)
     }
     //clear errno
     SwooleG.error = 0;
-    sw_coro_check_bind("client", cli->has_bound());
+    PHPCoroutine::check_bind("client", cli->has_bound());
     int ret = cli->sendfile(file, offset, length);
     if (ret < 0)
     {
@@ -930,7 +930,7 @@ static PHP_METHOD(swoole_client_coro, recv)
     {
         RETURN_FALSE;
     }
-    sw_coro_check_bind("client", cli->has_bound());
+    PHPCoroutine::check_bind("client", cli->has_bound());
     double persistent_timeout = cli->get_timeout();
     cli->set_timeout(timeout);
     ssize_t retval ;
@@ -1154,7 +1154,7 @@ static PHP_METHOD(swoole_client_coro, enableSSL)
     {
         sw_coro_socket_set_ssl(cli, zset);
     }
-    sw_coro_check_bind("client", cli->has_bound());
+    PHPCoroutine::check_bind("client", cli->has_bound());
     if (cli->ssl_handshake() == false)
     {
         RETURN_FALSE;

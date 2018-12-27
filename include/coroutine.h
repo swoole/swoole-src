@@ -22,14 +22,18 @@
 #include <string>
 #include <unordered_map>
 
-#define SW_DEFAULT_MAX_CORO_NUM              3000
-#define SW_DEFAULT_STACK_SIZE                8192
-#define SW_DEFAULT_SOCKET_CONNECT_TIMEOUT    1
-#define SW_DEFAULT_SOCKET_TIMEOUT            -1
+using namespace swoole;
 
-#define CORO_END         0
-#define CORO_LIMIT      -1
-#define CORO_INVALID    -2
+#define SW_CORO_STACK_ALIGNED_SIZE (4 * 1024)
+#define SW_CORO_MAX_STACK_SIZE     (16 * 1024 * 1024)
+
+// TODO: remove it
+typedef enum
+{
+    SW_CORO_ERR_END = 0,
+    SW_CORO_ERR_LIMIT = -1,
+    SW_CORO_ERR_INVALID = -2,
+} sw_coro_error;
 
 typedef enum
 {
@@ -42,39 +46,53 @@ typedef enum
 typedef void (*coro_php_create_t)();
 typedef void (*coro_php_yield_t)(void*);
 typedef void (*coro_php_resume_t)(void*);
-typedef void (*coro_php_close_t)();
+typedef void (*coro_php_close_t)(void*);
 
 namespace swoole
 {
 class Coroutine
 {
 private:
+    sw_coro_state state = SW_CORO_INIT;
     long cid;
-    void *task;
-    swoole::Context ctx;
+    void *task = nullptr;
+    Context ctx;
 
-public:
-    sw_coro_state state;
-
-    Coroutine(long _cid, size_t stack_size, coroutine_func_t fn, void *private_data) :
+    Coroutine(coroutine_func_t fn, void *private_data) :
             ctx(stack_size, fn, private_data)
     {
-        cid = _cid;
-        task = nullptr;
-        state = SW_CORO_INIT;
+        cid = ++last_cid;
+        call_stack[Coroutine::call_stack_size++] = this;
+        coroutines[cid] = this;
+        if (Coroutine::count() > Coroutine::peak_num)
+        {
+            Coroutine::peak_num = Coroutine::count();
+        }
     }
 
+    inline long run()
+    {
+        long cid = this->cid;
+        ctx.SwapIn();
+        if (ctx.end)
+        {
+            close();
+        }
+        return cid;
+    }
+
+public:
     void resume();
     void yield();
 
     void resume_naked();
     void yield_naked();
 
-    void release();
+    void close();
 
-    inline void set_task(void *_task)
+    inline sw_coro_state get_state()
     {
-        task = _task;
+        return state;
     }
 
     inline long get_cid()
@@ -87,6 +105,31 @@ public:
         return task;
     }
 
+    inline void set_task(void *_task)
+    {
+        task = _task;
+    }
+
+private:
+    static size_t stack_size;
+    static size_t call_stack_size;
+    static Coroutine* call_stack[SW_MAX_CORO_NESTING_LEVEL];
+    static long last_cid;
+    static uint64_t peak_num;
+    static coro_php_yield_t  on_yield;  /* before php yield coro */
+    static coro_php_resume_t on_resume; /* before php resume coro */
+    static coro_php_close_t  on_close;  /* before php close coro */
+
+public:
+    static std::unordered_map<long, Coroutine*> coroutines;
+
+    static Coroutine* get_current();
+    static void* get_current_task();
+    static long get_current_cid();
+    static Coroutine* get_by_cid(long cid);
+    static void* get_task_by_cid(long cid);
+    static void print_list();
+
     static long create(coroutine_func_t fn, void* args = nullptr);
     static int sleep(double sec);
     static swString* read_file(const char *file, int lock);
@@ -94,56 +137,40 @@ public:
     static std::string gethostbyname(const std::string &hostname, int domain, float timeout = -1);
 };
 
-struct CoroutineG
-{
-    int stack_size;
-    int call_stack_size;
-    long last_cid;
-    Coroutine* call_stack[SW_MAX_CORO_NESTING_LEVEL];
-    coro_php_yield_t onYield; /* before php yield coro */
-    coro_php_resume_t onResume; /* before php resume coro */
-    coro_php_close_t onClose; /* before php close coro */
-    std::unordered_map<long, Coroutine*> coroutines;
+    static void set_on_yield(coro_php_yield_t func);
+    static void set_on_resume(coro_php_resume_t func);
+    static void set_on_close(coro_php_close_t func);
 
-    CoroutineG()
+    static inline size_t get_stack_size()
     {
-        stack_size = SW_DEFAULT_C_STACK_SIZE;
-        call_stack_size = 0;
-        last_cid = 1;
-        onYield = nullptr;
-        onResume = nullptr;
-        onClose = nullptr;
+        return Coroutine::stack_size;
     }
 
-    inline size_t count()
+    static inline void set_stack_size(size_t stack_size)
+    {
+        Coroutine::stack_size = SW_MEM_ALIGNED_SIZE_EX(MIN(stack_size, SW_CORO_MAX_STACK_SIZE), SW_CORO_STACK_ALIGNED_SIZE);
+    }
+
+#ifdef SW_LOG_TRACE_OPEN
+    static inline long get_cid(Coroutine* co)
+    {
+        return co ? co->get_cid() : -1;
+    }
+#endif
+
+    static inline long get_last_cid()
+    {
+        return Coroutine::last_cid;
+    }
+
+    static inline size_t count()
     {
         return coroutines.size();
     }
+
+    static uint64_t get_peak_num()
+    {
+        return peak_num;
+    }
 };
 }
-
-/* co task */
-void* coroutine_get_current_task();
-void* coroutine_get_task_by_cid(long cid);
-/* get coroutine */
-swoole::Coroutine* coroutine_get_current();
-swoole::Coroutine* coroutine_get_by_id(long cid);
-/* get cid */
-long coroutine_get_current_cid();
-void coroutine_set_stack_size(int stack_size);
-/* callback */
-void coroutine_set_onYield(coro_php_yield_t func);
-void coroutine_set_onResume(coro_php_resume_t func);
-void coroutine_set_onResumeBack(coro_php_resume_t func);
-void coroutine_set_onClose(coro_php_close_t func);
-void coroutine_print_list();
-
-inline static long coroutine_get_cid(swoole::Coroutine* co)
-{
-    return co ? co->get_cid() : -1;
-}
-
-void internal_coro_yield(void *arg);
-void internal_coro_resume(void *arg);
-
-extern swoole::CoroutineG swCoroG;

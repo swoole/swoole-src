@@ -816,7 +816,7 @@ ZEND_END_ARG_INFO()
 #define IS_NX_XX_ARG(a) (IS_NX_ARG(a) || IS_XX_ARG(a))
 
 #define SW_REDIS_COMMAND_CHECK \
-    coro_check(); \
+    PHPCoroutine::check(); \
     swRedisClient *redis = (swRedisClient *) swoole_get_redis_client(getThis());
 
 #define SW_REDIS_COMMAND_ARGV_FILL(str, str_len) \
@@ -1857,8 +1857,8 @@ static PHP_METHOD(swoole_redis_coro, __construct)
 
     swoole_set_object(getThis(), redis);
 
-    redis->connect_timeout = COROG.socket_connect_timeout;
-    redis->timeout = COROG.socket_timeout;
+    redis->connect_timeout = PHPCoroutine::socket_connect_timeout;
+    redis->timeout = PHPCoroutine::socket_timeout;
     redis->reconnect_interval = 1;
 
     if (zset && ZVAL_IS_ARRAY(zset))
@@ -1880,7 +1880,7 @@ static PHP_METHOD(swoole_redis_coro, connect)
     zend_bool serialize = 0;
     int fd = 0;
 
-    coro_check();
+    PHPCoroutine::check();
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|lb", &host, &host_len, &port, &serialize) == FAILURE)
     {
@@ -2018,7 +2018,7 @@ static PHP_METHOD(swoole_redis_coro, set)
         ZEND_HASH_FOREACH_KEY_VAL(kt, idx, zkey, v)
         {
             /* Detect PX or EX argument and validate timeout */
-            if (zkey && IS_EX_PX_ARG(zkey->val))
+            if (!exp_type && zkey && IS_EX_PX_ARG(zkey->val))
             {
                 /* Set expire type */
                 exp_type = zkey->val;
@@ -2036,11 +2036,11 @@ static PHP_METHOD(swoole_redis_coro, set)
                 /* Expiry can't be set < 1 */
                 if (expire < 1)
                 {
-                    RETURN_FALSE
+                    RETURN_FALSE;
                 }
                 argc += 2;
             }
-            else if (Z_TYPE_P(v) == IS_STRING && IS_NX_XX_ARG(Z_STRVAL_P(v)))
+            else if (!set_type && Z_TYPE_P(v) == IS_STRING && IS_NX_XX_ARG(Z_STRVAL_P(v)))
             {
                 argc += 1;
                 set_type = Z_STRVAL_P(v);
@@ -2053,9 +2053,11 @@ static PHP_METHOD(swoole_redis_coro, set)
     {
         /* Grab expiry and fail if it's < 1 */
         expire = Z_LVAL_P(z_opts);
+        /* Expiry can't be set < 1 */
         if (expire < 1)
-            RETURN_FALSE
-        ;
+        {
+            RETURN_FALSE;
+        }
         argc += 1;
     }
 

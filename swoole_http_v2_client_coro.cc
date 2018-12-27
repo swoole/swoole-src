@@ -21,6 +21,8 @@
 #include "swoole_coroutine.h"
 #include "swoole_http_v2_client.h"
 
+using namespace swoole;
+
 static zend_class_entry swoole_http2_client_coro_ce;
 static zend_class_entry *swoole_http2_client_coro_ce_ptr;
 static zend_object_handlers swoole_http2_client_coro_handlers;
@@ -221,10 +223,10 @@ static PHP_METHOD(swoole_http2_client_coro, __construct)
     hcc->host = estrndup(host, host_len);
     hcc->host_len = host_len;
     hcc->port = port;
-    hcc->timeout = COROG.socket_timeout;
+    hcc->timeout = PHPCoroutine::socket_timeout;
     swoole_set_property(getThis(), HTTP2_CLIENT_CORO_PROPERTY, hcc);
 
-    php_context *context = (php_context *) emalloc(sizeof(php_context));
+    php_coro_context *context = (php_coro_context *) emalloc(sizeof(php_coro_context));
     context->coro_params = *getThis();
     swoole_set_property(getThis(), HTTP2_CLIENT_CORO_CONTEXT, context);
 
@@ -734,9 +736,9 @@ static void http2_client_onReceive(swClient *cli, char *buf, uint32_t _length)
         {
             hcc->iowait = 0;
             hcc->read_cid = 0;
-            php_context *context = (php_context *) swoole_get_property(zobject, HTTP2_CLIENT_CORO_CONTEXT);
-            int ret = sw_coro_resume(context, zresponse, retval);
-            if (ret == CORO_END && retval)
+            php_coro_context *context = (php_coro_context *) swoole_get_property(zobject, HTTP2_CLIENT_CORO_CONTEXT);
+            int ret = PHPCoroutine::resume_m(context, zresponse, retval);
+            if (ret == SW_CORO_ERR_END && retval)
             {
                 zval_ptr_dtor(retval);
             }
@@ -989,7 +991,7 @@ static PHP_METHOD(swoole_http2_client_coro, recv)
         RETURN_FALSE;
     }
 
-    sw_coro_check_bind("http2 client", hcc->read_cid);
+    PHPCoroutine::check_bind("http2 client", hcc->read_cid);
 
     double timeout = hcc->timeout;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|d", &timeout) == FAILURE)
@@ -997,15 +999,14 @@ static PHP_METHOD(swoole_http2_client_coro, recv)
         RETURN_FALSE;
     }
 
-    php_context *context = (php_context *) swoole_get_property(getThis(), HTTP2_CLIENT_CORO_CONTEXT);
+    php_coro_context *context = (php_coro_context *) swoole_get_property(getThis(), HTTP2_CLIENT_CORO_CONTEXT);
     if (timeout > 0)
     {
         cli->timer = swTimer_add(&SwooleG.timer, (long) (timeout * 1000), 0, context, http2_client_onTimeout);
     }
     hcc->iowait = 1;
-    hcc->read_cid = sw_get_current_cid();
-    sw_coro_save(return_value, context);
-    sw_coro_yield();
+    hcc->read_cid = PHPCoroutine::get_cid();
+    PHPCoroutine::yield_m(return_value, context);
 }
 
 static void http2_client_onConnect(swClient *cli)
@@ -1051,9 +1052,9 @@ static void http2_client_onConnect(swClient *cli)
     SW_MAKE_STD_ZVAL(result);
     ZVAL_BOOL(result, 1);
     zval *retval = NULL;
-    php_context *context = (php_context *) swoole_get_property(zobject, HTTP2_CLIENT_CORO_CONTEXT);
-    ret = sw_coro_resume(context, result, retval);
-    if (ret == CORO_END && retval)
+    php_coro_context *context = (php_coro_context *) swoole_get_property(zobject, HTTP2_CLIENT_CORO_CONTEXT);
+    ret = PHPCoroutine::resume_m(context, result, retval);
+    if (ret == SW_CORO_ERR_END && retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -1101,9 +1102,9 @@ static void http2_client_onClose(swClient *cli)
     zval *result = &_result;
     zval *retval = NULL;
     ZVAL_FALSE(result);
-    php_context *context = (php_context *) swoole_get_property(zobject, HTTP2_CLIENT_CORO_CONTEXT);
-    int ret = sw_coro_resume(context, result, retval);
-    if (ret == CORO_END && retval)
+    php_coro_context *context = (php_coro_context *) swoole_get_property(zobject, HTTP2_CLIENT_CORO_CONTEXT);
+    int ret = PHPCoroutine::resume_m(context, result, retval);
+    if (ret == SW_CORO_ERR_END && retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -1111,7 +1112,7 @@ static void http2_client_onClose(swClient *cli)
 
 static void http2_client_onTimeout(swTimer *timer, swTimer_node *tnode)
 {
-    php_context *ctx = (php_context *) tnode->data;
+    php_coro_context *ctx = (php_coro_context *) tnode->data;
     zval _zobject = ctx->coro_params;
     zval *zobject = &_zobject;
     zend_update_property_long(swoole_http2_client_coro_ce_ptr, zobject, ZEND_STRL("errCode"), ETIMEDOUT);
@@ -1127,8 +1128,8 @@ static void http2_client_onTimeout(swTimer *timer, swTimer_node *tnode)
     SW_MAKE_STD_ZVAL(result);
     ZVAL_BOOL(result, 0);
     zval *retval = NULL;
-    int ret = sw_coro_resume(ctx, result, retval);
-    if (ret == CORO_END && retval)
+    int ret = PHPCoroutine::resume_m(ctx, result, retval);
+    if (ret == SW_CORO_ERR_END && retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -1152,7 +1153,7 @@ static PHP_METHOD(swoole_http2_client_coro, __destruct)
         swoole_set_property(zobject, HTTP2_CLIENT_CORO_PROPERTY, NULL);
     }
 
-    php_context *context = (php_context *) swoole_get_property(zobject, HTTP2_CLIENT_CORO_CONTEXT);
+    php_coro_context *context = (php_coro_context *) swoole_get_property(zobject, HTTP2_CLIENT_CORO_CONTEXT);
     swoole_set_property(zobject, HTTP2_CLIENT_CORO_CONTEXT, NULL);
     efree(context);
 }
@@ -1216,11 +1217,10 @@ static PHP_METHOD(swoole_http2_client_coro, connect)
         RETURN_FALSE;
     }
 
-    php_context *context = (php_context *) swoole_get_property(getThis(), HTTP2_CLIENT_CORO_CONTEXT);
+    php_coro_context *context = (php_coro_context *) swoole_get_property(getThis(), HTTP2_CLIENT_CORO_CONTEXT);
     cli->object = &context->coro_params;
-    sw_coro_save(return_value, context);
     hcc->iowait = 1;
-    sw_coro_yield();
+    PHPCoroutine::yield_m(return_value, context);
 }
 
 static sw_inline void http2_settings_to_array(swHttp2_settings *settings, zval* zarray)

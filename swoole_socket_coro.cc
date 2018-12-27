@@ -206,7 +206,7 @@ static PHP_METHOD(swoole_socket_coro, __construct)
         RETURN_FALSE;
     }
     sock->domain = domain;
-    sock->socket->set_timeout(COROG.socket_timeout);
+    sock->socket->set_timeout(PHPCoroutine::socket_timeout);
 }
 
 static PHP_METHOD(swoole_socket_coro, bind)
@@ -250,7 +250,7 @@ static PHP_METHOD(swoole_socket_coro, listen)
 
 static PHP_METHOD(swoole_socket_coro, accept)
 {
-    double timeout = COROG.socket_timeout;
+    double timeout = PHPCoroutine::socket_timeout;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
@@ -279,10 +279,8 @@ static PHP_METHOD(swoole_socket_coro, accept)
 
 static PHP_METHOD(swoole_socket_coro, recv)
 {
-    coro_check();
-
     zend_long length = SW_BUFFER_SIZE_BIG;
-    double timeout = COROG.socket_timeout;
+    double timeout = PHPCoroutine::socket_timeout;
 
     ZEND_PARSE_PARAMETERS_START(0, 2)
         Z_PARAM_OPTIONAL
@@ -324,7 +322,7 @@ static PHP_METHOD(swoole_socket_coro, recv)
 static PHP_METHOD(swoole_socket_coro, recvfrom)
 {
     zval *peername;
-    double timeout = COROG.socket_timeout;
+    double timeout = PHPCoroutine::socket_timeout;
 
     ZEND_PARSE_PARAMETERS_START(1, 2)
         Z_PARAM_ZVAL_EX(peername, 0, 1)
@@ -377,7 +375,7 @@ static PHP_METHOD(swoole_socket_coro, recvfrom)
 
 static PHP_METHOD(swoole_socket_coro, send)
 {
-    double timeout = COROG.socket_timeout;
+    double timeout = PHPCoroutine::socket_timeout;
     char *data;
     size_t l_data;
 
@@ -433,8 +431,6 @@ static PHP_METHOD(swoole_socket_coro, sendto)
 
 static PHP_METHOD(swoole_socket_coro, close)
 {
-    coro_check();
-
     socket_coro *sock = swoole_get_socket_coro(getThis());
 
     if (!sock->socket->close())
@@ -523,13 +519,11 @@ static PHP_METHOD(swoole_socket_coro, getpeername)
 
 static PHP_METHOD(swoole_socket_coro, connect)
 {
-    coro_check();
-
     socket_coro *sock = swoole_get_socket_coro(getThis());
     char *host;
     size_t l_host;
     zend_long port = 0;
-    double timeout = COROG.socket_connect_timeout;
+    double timeout = PHPCoroutine::socket_connect_timeout;
 
     ZEND_PARSE_PARAMETERS_START(1, 3)
         Z_PARAM_STRING(host, l_host)
@@ -554,7 +548,7 @@ static PHP_METHOD(swoole_socket_coro, connect)
 
     sock->socket->set_timeout(timeout);
     bool ret = sock->socket->connect(std::string(host, l_host), port);
-    sock->socket->set_timeout(COROG.socket_timeout);
+    sock->socket->set_timeout(PHPCoroutine::socket_timeout);
     RETURN_BOOL(ret);
 }
 

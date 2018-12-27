@@ -494,7 +494,6 @@ PHPAPI int php_swoole_unserialize(void *buffer, size_t len, zval *return_value, 
 
 #ifdef SW_COROUTINE
 int php_coroutine_reactor_can_exit(swReactor *reactor);
-void sw_coro_check_bind(const char *name, long bind_cid);
 #endif
 
 #ifdef SW_USE_OPENSSL
@@ -590,6 +589,9 @@ static sw_inline void _sw_zend_bailout(const char *filename, uint32_t lineno)
 
 /* PHP 7.0 compatibility macro {{{*/
 #if PHP_VERSION_ID < 70100
+// Fixed typo error in (https://github.com/php/php-src/commit/4c9e4caab40c5a1b3c8a52ad06c21175d091c3e4)
+#define ZEND_VM_STACK_ELEMENTS ZEND_VM_STACK_ELEMETS
+// Fixed >= 7.2 by using (EG(fake_scope))
 #define SW_DECLARE_EG_SCOPE(_scope) zend_class_entry *_scope
 #define SW_SAVE_EG_SCOPE(_scope) _scope = EG(scope)
 #define SW_SET_EG_SCOPE(_scope) EG(scope) = _scope
@@ -599,34 +601,34 @@ static sw_inline void _sw_zend_bailout(const char *filename, uint32_t lineno)
 #define SW_SET_EG_SCOPE(scope)
 #endif/*}}}*/
 
-/* PHP 7.3 forward compatibility */
+/* PHP 7.3 compatibility macro {{{*/
 #ifndef GC_SET_REFCOUNT
 # define GC_SET_REFCOUNT(p, rc) do { \
 		GC_REFCOUNT(p) = rc; \
 	} while (0)
 #endif
 
+#ifndef GC_ADDREF
+#define GC_ADDREF(ref) ++GC_REFCOUNT(ref)
+#define GC_DELREF(ref) --GC_REFCOUNT(ref)
+#endif
+
 #ifndef GC_IS_RECURSIVE
-# define GC_IS_RECURSIVE(p) \
+#define GC_IS_RECURSIVE(p) \
 	(ZEND_HASH_GET_APPLY_COUNT(p) > 1)
-# define GC_PROTECT_RECURSION(p) \
+#define GC_PROTECT_RECURSION(p) \
 	ZEND_HASH_INC_APPLY_COUNT(p)
-# define GC_UNPROTECT_RECURSION(p) \
+#define GC_UNPROTECT_RECURSION(p) \
 	ZEND_HASH_DEC_APPLY_COUNT(p)
 #endif
 
-/* PHP 7.3 compatibility macro {{{*/
 #ifndef ZEND_CLOSURE_OBJECT
-# define ZEND_CLOSURE_OBJECT(func) (zend_object*)func->op_array.prototype
+#define ZEND_CLOSURE_OBJECT(func) (zend_object*)func->op_array.prototype
 #endif
-#ifndef GC_ADDREF
-# define GC_ADDREF(ref) ++GC_REFCOUNT(ref)
-# define GC_DELREF(ref) --GC_REFCOUNT(ref)
-#endif/*}}}*/
 
 #ifndef ZEND_HASH_APPLY_PROTECTION
-# define ZEND_HASH_APPLY_PROTECTION(p) 1
-#endif
+#define ZEND_HASH_APPLY_PROTECTION(p) 1
+#endif/*}}}*/
 
 /* PHP 7 wrapper functions / macros */
 

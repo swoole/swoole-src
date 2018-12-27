@@ -1,8 +1,8 @@
 define ____get_current
-    if swCoroG.call_stack_size > 0
-        set $current_co = (coroutine_t*)swCoroG.call_stack[swCoroG.call_stack_size - 1]
+    if Coroutine::call_stack_size > 0
+        set $current_co = (coroutine_t*)Coroutine::call_stack[Coroutine::call_stack_size - 1]
         set $current_cid = $current_co->cid
-        set $current_task = (coro_task *)$current_co->task
+        set $current_task = (php_coro_task *)$current_co->task
     else
         set $current_co = null
         set $current_cid = -1
@@ -11,14 +11,14 @@ define ____get_current
 end
 
 define co_list
-    if COROG.coro_num == 0
+    if PHPCoroutine::coro_num == 0
         printf "no coroutines running \n"
     end
     set $cid = 1
-    while $cid < COROG.coro_num + 1
-        if swCoroG.coroutines[$cid]
+    while $cid < PHPCoroutine::coro_num + 1
+        if Coroutine::coroutines[$cid]
             printf "coroutine %d ", $cid
-            set $co = swCoroG.coroutines[$cid]
+            set $co = Coroutine::coroutines[$cid]
             if $co->state == 0
                 printf "%s\n", "SW_CORO_INIT"
             end
@@ -41,7 +41,7 @@ define co_list
 end
 
 define co_bt
-    if COROG.coro_num == 0
+    if PHPCoroutine::coro_num == 0
         printf "no coroutines running \n"
     end
     ____executor_globals
@@ -77,12 +77,12 @@ end
 
 define __co_bt
     set $cid = (int)$arg0
-    if swCoroG.coroutines[$cid]     
+    if Coroutine::coroutines[$cid]
         if $current_co && $cid == $current_co->cid
             dump_bt $eg.current_execute_data 
         else   
-            set $co = (coroutine_t *)swCoroG.coroutines[$cid]
-            set $task = (coro_task *)$co->task
+            set $co = (coroutine_t *)Coroutine::coroutines[$cid]
+            set $task = (php_coro_task *)$co->task
             if $task
                 set $backup = $eg.current_execute_data
                 dump_bt $task->execute_data
@@ -95,12 +95,12 @@ define __co_bt
 end
 
 define co_status
-    printf "\t stack_size: %d\n",  swCoroG.stack_size
-    printf "\t call_stack_size: %d\n",  swCoroG.call_stack_size
-    printf "\t active: %d\n",  COROG.active
-    printf "\t coro_num: %d\n",  COROG.coro_num
-    printf "\t max_coro_num: %d\n",  COROG.max_coro_num
-    printf "\t peak_coro_num: %d\n",  COROG.peak_coro_num
+    printf "\t c_stack_size: %d\n",  Coroutine::stack_size
+    printf "\t call_stack_size: %d\n",  Coroutine::call_stack_size
+    printf "\t active: %d\n",  PHPCoroutine::active
+    printf "\t coro_num: %d\n",  PHPCoroutine::coro_num
+    printf "\t max_coro_num: %d\n",  PHPCoroutine::max_coro_num
+    printf "\t peak_coro_num: %d\n",  PHPCoroutine::peak_coro_num
 end
 
 define ____executor_globals

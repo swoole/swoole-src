@@ -20,6 +20,8 @@
 
 #include "swoole_coroutine.h"
 
+using namespace swoole;
+
 static PHP_METHOD(swoole_process, __construct);
 static PHP_METHOD(swoole_process, __destruct);
 static PHP_METHOD(swoole_process, useQueue);
@@ -786,7 +788,7 @@ static PHP_METHOD(swoole_process, start)
         RETURN_FALSE;
     }
 
-    if (sw_coro_is_in())
+    if (PHPCoroutine::is_in())
     {
         swoole_php_fatal_error(E_ERROR, "must be forked outside the coroutine.");
         RETURN_FALSE;

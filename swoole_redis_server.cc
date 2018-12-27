@@ -24,6 +24,8 @@ BEGIN_EXTERN_C()
 #include "ext/standard/php_string.h"
 END_EXTERN_C()
 
+using namespace swoole;
+
 static zend_class_entry swoole_redis_server_ce;
 static zend_class_entry *swoole_redis_server_ce_ptr;
 static zend_object_handlers swoole_redis_server_handlers;
@@ -201,7 +203,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
 
     if (SwooleG.enable_coroutine)
     {
-        if (sw_coro_create(fci_cache, 2, args) < 0)
+        if (PHPCoroutine::create(fci_cache, 2, args) < 0)
         {
             swoole_php_error(E_WARNING, "create redis server onReceive coroutine error.");
         }

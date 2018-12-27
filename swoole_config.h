@@ -166,8 +166,6 @@
 
 #define SW_TABLE_CONFLICT_PROPORTION     0.2 //20%
 #define SW_TABLE_KEY_SIZE                64
-//#define SW_TABLE_USE_PHP_HASH
-//#define SW_TABLE_DEBUG
 #define SW_TABLE_USE_SPINLOCK            1
 
 #define SW_SSL_BUFFER_SIZE               16384
@@ -253,9 +251,7 @@
 /**
  * Coroutine
  */
-#define SW_DEFAULT_MAX_CORO_NUM          3000
-#define SW_DEFAULT_STACK_SIZE            8192
-#define SW_DEFAULT_C_STACK_SIZE          (1024 * 1024 * 2)
+#define SW_DEFAULT_C_STACK_SIZE          (2 *1024 * 1024)
 #define SW_MAX_CORO_NUM_LIMIT            9223372036854775807LL
 #define SW_MAX_CORO_NESTING_LEVEL        128
 

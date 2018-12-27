@@ -67,8 +67,8 @@ class http_client
 #ifdef SW_USE_OPENSSL
     uint8_t ssl = false;
 #endif
-    double connect_timeout = COROG.socket_connect_timeout;
-    double timeout = COROG.socket_timeout;
+    double connect_timeout = PHPCoroutine::socket_connect_timeout;
+    double timeout = PHPCoroutine::socket_timeout;
     int8_t method = SW_HTTP_GET;       // method
     std::string uri;
 
@@ -547,7 +547,7 @@ void http_client::check_bind()
 {
     if (socket)
     {
-        sw_coro_check_bind("http client", socket->has_bound());
+        PHPCoroutine::check_bind("http client", socket->has_bound());
     }
 }
 
@@ -600,29 +600,9 @@ void http_client::set(zval *zset = nullptr)
             websocket_mask = Z_BVAL_P(ztmp);
         }
     }
-    else
+    if (socket)
     {
-        SW_ASSERT(socket);
-        // will be set after create socket and before connect
-        sw_coro_socket_set(socket, zsettings);
-        if (socket->http_proxy)
-        {
-            if (socket->http_proxy->password)
-            {
-                char _buf1[256];
-                int _n1 = snprintf(
-                    _buf1, sizeof(_buf1), "%*s:%*s",
-                    socket->http_proxy->l_user, socket->http_proxy->user,
-                    socket->http_proxy->l_password, socket->http_proxy->password
-                );
-                zend_string *str = php_base64_encode((const unsigned char *) _buf1, _n1);
-                snprintf(
-                    socket->http_proxy->buf, sizeof(socket->http_proxy->buf),
-                    "Proxy-Authorization:Basic %*s", (int)str->len, str->val
-                );
-                zend_string_free(str);
-            }
-        }
+        sw_coro_socket_set(socket, zset ? zset : zsettings);
     }
 }
 
@@ -1185,7 +1165,7 @@ bool http_client::send()
     swTraceLog(
         SW_TRACE_HTTP_CLIENT,
         "to [%s:%u%s] by fd#%d in cid#%ld with [%zu] bytes: <<EOF\n%.*s\nEOF",
-        host.c_str(), port, uri.c_str(), socket->get_fd(), coroutine_get_current_cid(),
+        host.c_str(), port, uri.c_str(), socket->get_fd(), Coroutine::get_current_cid(),
         http_client_buffer->length, (int) http_client_buffer->length, http_client_buffer->str
     );
 

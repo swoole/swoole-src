@@ -1,7 +1,10 @@
 --TEST--
 swoole_process: sysv msgqueue capacity
 --SKIPIF--
-<?php require __DIR__.'/../include/skipif.inc'; ?>
+<?php
+require __DIR__.'/../include/skipif.inc';
+skip_if_darwin();
+?>
 --FILE--
 <?php
 require __DIR__.'/../include/bootstrap.php';
