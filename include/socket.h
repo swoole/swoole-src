@@ -123,6 +123,22 @@ public:
         return coroutine ? coroutine->get_cid() : 0;
     }
 
+    inline void check_bind()
+    {
+        long cid = has_bound();
+        if (unlikely(cid))
+        {
+            swoole_error_log(
+                SW_LOG_ERROR, SW_ERROR_CO_HAS_BEEN_BOUND,
+                "Socket#%d has already been bound to another coroutine#%ld, "
+                "reading or writing of the same socket in multiple coroutines at the same time is not allowed.\n",
+                socket->fd, cid
+            );
+            set_err(SW_ERROR_CO_HAS_BEEN_BOUND);
+            exit(255);
+        }
+    }
+
     inline void set_err(int e)
     {
         errCode = errno = e;
@@ -281,20 +297,9 @@ protected:
 
     inline void init_sock(int _fd);
 
-    inline bool is_available(bool allow_cross_co = false)
+    inline bool is_available()
     {
-        long cid = has_bound();
-        if (unlikely(!allow_cross_co && cid))
-        {
-            swoole_error_log(
-                SW_LOG_ERROR, SW_ERROR_CO_HAS_BEEN_BOUND,
-                "Socket#%d has already been bound to another coroutine#%ld, "
-                "reading or writing of the same socket in multiple coroutines at the same time is not allowed.\n",
-                socket->fd, cid
-            );
-            set_err(SW_ERROR_CO_HAS_BEEN_BOUND);
-            exit(255);
-        }
+        check_bind();
         if (unlikely(socket->closed))
         {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKET_CLOSED, "Socket#%d belongs to coroutine#%ld has already been closed.", socket->fd, Coroutine::get_current_cid());

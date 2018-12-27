@@ -631,10 +631,6 @@ bool Socket::check_liveness()
 
 ssize_t Socket::peek(void *__buf, size_t __n)
 {
-    if (unlikely(!is_available(true)))
-    {
-        return -1;
-    }
     ssize_t retval = swConnection_peek(socket, __buf, __n, 0);
     set_err(retval < 0 ? errno : 0);
     return retval;
