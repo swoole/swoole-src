@@ -135,7 +135,6 @@ public:
     static swString* read_file(const char *file, int lock);
     static ssize_t write_file(const char *file, char *buf, size_t length, int lock, int flags);
     static std::string gethostbyname(const std::string &hostname, int domain, float timeout = -1);
-};
 
     static void set_on_yield(coro_php_yield_t func);
     static void set_on_resume(coro_php_resume_t func);

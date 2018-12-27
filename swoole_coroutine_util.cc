@@ -27,9 +27,11 @@
 #include <sys/file.h>
 #include <sys/statvfs.h>
 
+#include <string>
 #include <unordered_map>
 
 using namespace swoole;
+using namespace std;
 
 typedef struct
 {
@@ -42,7 +44,7 @@ typedef struct
 
 typedef struct
 {
-    std::unordered_map<long, Coroutine*>::iterator _cursor;
+    unordered_map<long, Coroutine*>::iterator _cursor;
     int index;
 } coroutine_iterator;
 
@@ -149,7 +151,7 @@ static PHP_METHOD(swoole_coroutine_iterator, __destruct);
 static PHP_METHOD(swoole_exit_exception, getFlags);
 static PHP_METHOD(swoole_exit_exception, getStatus);
 
-static std::unordered_map<int, Coroutine *> user_yield_coros;
+static unordered_map<int, Coroutine *> user_yield_coros;
 
 static zend_class_entry swoole_coroutine_util_ce;
 static zend_class_entry *swoole_coroutine_util_ce_ptr;
@@ -1162,44 +1164,15 @@ PHP_FUNCTION(swoole_coroutine_gethostbyname)
         RETURN_FALSE;
     }
 
-    swAio_event ev;
-    bzero(&ev, sizeof(swAio_event));
-
-    if (l_domain_name < SW_IP_MAX_LENGTH)
+    string address = Coroutine::gethostbyname(string(domain_name, l_domain_name), family);
+    if (address.empty())
     {
-        ev.nbytes = SW_IP_MAX_LENGTH;
+        RETURN_FALSE;
     }
     else
     {
-        ev.nbytes = l_domain_name + 1;
+        RETURN_STRINGL(address.c_str(), address.length());
     }
-
-    ev.buf = emalloc(ev.nbytes);
-    if (!ev.buf)
-    {
-        swWarn("malloc failed.");
-        RETURN_FALSE;
-    }
-
-    php_coro_context *context = (php_coro_context *) emalloc(sizeof(php_coro_context));
-
-    memcpy(ev.buf, domain_name, l_domain_name);
-    ((char *) ev.buf)[l_domain_name] = 0;
-    ev.flags = family;
-    ev.type = SW_AIO_GETHOSTBYNAME;
-    ev.object = context;
-    ev.handler = swAio_handler_gethostbyname;
-    ev.callback = coro_dns_onResolveCompleted;
-
-    php_swoole_check_aio();
-
-    if (swAio_dispatch(&ev) < 0)
-    {
-        efree(ev.buf);
-        RETURN_FALSE;
-    }
-
-    PHPCoroutine::yield_m(return_value, context);
 }
 
 static PHP_METHOD(swoole_coroutine_util, getaddrinfo)

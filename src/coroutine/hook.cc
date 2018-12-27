@@ -747,7 +747,7 @@ string Coroutine::gethostbyname(const string &hostname, int domain, float timeou
         return "";
     }
 
-    task.co = coroutine_get_current();
+    task.co = Coroutine::get_current();
     task.event = &ev;
 
     memcpy(ev.buf, hostname.c_str(), hostname.size());
