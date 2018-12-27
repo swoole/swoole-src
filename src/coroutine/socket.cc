@@ -388,7 +388,7 @@ bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen)
     return true;
 }
 
-bool Socket::connect(string host, int port, int flags)
+bool Socket::connect(string _host, int _port, int flags)
 {
     if (unlikely(!is_available()))
     {
@@ -398,40 +398,40 @@ bool Socket::connect(string host, int port, int flags)
     if (socks5_proxy)
     {
         //enable socks5 proxy
-        socks5_proxy->target_host = sw_strndup((char *) host.c_str(), host.size());
-        socks5_proxy->l_target_host = host.size();
-        socks5_proxy->target_port = port;
+        socks5_proxy->target_host = sw_strndup((char *) _host.c_str(), _host.size());
+        socks5_proxy->l_target_host = _host.size();
+        socks5_proxy->target_port = _port;
 
-        host = socks5_proxy->host;
-        port = socks5_proxy->port;
+        _host = socks5_proxy->host;
+        _port = socks5_proxy->port;
     }
     else if (http_proxy)
     {
         //enable http proxy
-        http_proxy->target_host = sw_strndup((char *) host.c_str(), host.size());
-        http_proxy->l_target_host = host.size();
-        http_proxy->target_port = port;
+        http_proxy->target_host = sw_strndup((char *) _host.c_str(), _host.size());
+        http_proxy->l_target_host = _host.size();
+        http_proxy->target_port = _port;
 
-        host = http_proxy->proxy_host;
-        port = http_proxy->proxy_port;
+        _host = http_proxy->proxy_host;
+        _port = http_proxy->proxy_port;
     }
 
     if (sock_domain == AF_INET6 || sock_domain == AF_INET)
     {
-        if (port == -1)
+        if (_port == -1)
         {
             swWarn("Socket of type AF_INET/AF_INET6 requires port argument");
             return false;
         }
-        else if (port == 0 || port >= 65536)
+        else if (_port == 0 || _port >= 65536)
         {
-            swWarn("Invalid port argument[%d]", port);
+            swWarn("Invalid port argument[%d]", _port);
             return false;
         }
     }
 
-    _host = host;
-    _port = port;
+    host = _host;
+    port = _port;
 
     struct sockaddr *_target_addr = nullptr;
 
@@ -440,12 +440,12 @@ bool Socket::connect(string host, int port, int flags)
         if (sock_domain == AF_INET)
         {
             socket->info.addr.inet_v4.sin_family = AF_INET;
-            socket->info.addr.inet_v4.sin_port = htons(port);
+            socket->info.addr.inet_v4.sin_port = htons(_port);
 
-            if (!inet_pton(AF_INET, _host.c_str(), & socket->info.addr.inet_v4.sin_addr))
+            if (!inet_pton(AF_INET, host.c_str(), & socket->info.addr.inet_v4.sin_addr))
             {
-                _host = resolve(_host);
-                if (_host.size() == 0)
+                host = resolve(host);
+                if (host.size() == 0)
                 {
                     return false;
                 }
@@ -461,12 +461,12 @@ bool Socket::connect(string host, int port, int flags)
         else if (sock_domain == AF_INET6)
         {
             socket->info.addr.inet_v6.sin6_family = AF_INET6;
-            socket->info.addr.inet_v6.sin6_port = htons(port);
+            socket->info.addr.inet_v6.sin6_port = htons(_port);
 
-            if (!inet_pton(AF_INET6, _host.c_str(), &socket->info.addr.inet_v6.sin6_addr))
+            if (!inet_pton(AF_INET6, host.c_str(), &socket->info.addr.inet_v6.sin6_addr))
             {
-                _host = resolve(_host);
-                if (_host.size() == 0)
+                host = resolve(host);
+                if (host.size() == 0)
                 {
                     return false;
                 }
@@ -481,13 +481,13 @@ bool Socket::connect(string host, int port, int flags)
         }
         else if (sock_domain == AF_UNIX)
         {
-            if (_host.size() >= sizeof(socket->info.addr.un.sun_path))
+            if (host.size() >= sizeof(socket->info.addr.un.sun_path))
             {
                 return false;
             }
             socket->info.addr.un.sun_family = AF_UNIX;
-            memcpy(&socket->info.addr.un.sun_path, _host.c_str(), _host.size());
-            socket->info.len = (socklen_t) (offsetof(struct sockaddr_un, sun_path) + _host.size());
+            memcpy(&socket->info.addr.un.sun_path, host.c_str(), host.size());
+            socket->info.len = (socklen_t) (offsetof(struct sockaddr_un, sun_path) + host.size());
             _target_addr = (struct sockaddr *) &socket->info.addr.un;
             break;
         }

@@ -29,8 +29,8 @@ class Socket
 {
 public:
     swReactor *reactor = nullptr;
-    std::string _host;
-    int _port = 0;
+    std::string host;
+    int port = 0;
     std::string bind_address;
     int bind_port = 0;
     Coroutine* bind_co = nullptr;
@@ -68,7 +68,7 @@ public:
     Socket(int _fd, Socket *sock);
     Socket(int _fd, enum swSocket_type _type);
     ~Socket();
-    bool connect(std::string host, int port, int flags = 0);
+    bool connect(std::string _host, int _port, int flags = 0);
     bool connect(const struct sockaddr *addr, socklen_t addrlen);
     bool shutdown(int how = SHUT_RDWR);
     bool close();
