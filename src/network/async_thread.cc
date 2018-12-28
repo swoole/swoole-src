@@ -186,6 +186,14 @@ private:
 
         thread *_thread = new thread([this, flag]()
         {
+            SwooleTG.buffer_stack = swString_new(SW_STACK_BUFFER_SIZE);
+            if (SwooleTG.buffer_stack == nullptr)
+            {
+                return;
+            }
+
+            swSignal_none();
+
             atomic<bool> &_flag = *flag;
             async_event *event;
             _accept: event = queue.pop();

@@ -445,6 +445,7 @@ static void aio_onFileCompleted(swAio_event *event)
         else
         {
             swAio_event ev;
+            ev.canceled = 0;
             ev.fd = event->fd;
             ev.buf = event->buf;
             ev.type = SW_AIO_READ;
@@ -454,7 +455,7 @@ static void aio_onFileCompleted(swAio_event *event)
             ev.object = file_req;
             ev.handler = swAio_handler_read;
             ev.callback = aio_onFileCompleted;
-            
+
             int ret = swAio_dispatch(&ev);
             if (ret < 0)
             {
@@ -557,6 +558,7 @@ PHP_FUNCTION(swoole_async_read)
     req->offset = offset;
 
     swAio_event ev;
+    ev.canceled = 0;
     ev.fd = fd;
     ev.buf = fcnt;
     ev.type = SW_AIO_READ;
@@ -665,6 +667,7 @@ PHP_FUNCTION(swoole_async_write)
     memcpy(wt_cnt, fcnt, fcnt_len);
 
     swAio_event ev;
+    ev.canceled = 0;
     ev.fd = fd;
     ev.buf = wt_cnt;
     ev.type = SW_AIO_WRITE;
@@ -750,6 +753,7 @@ PHP_FUNCTION(swoole_async_readfile)
     req->offset = 0;
 
     swAio_event ev;
+    ev.canceled = 0;
     ev.fd = fd;
     ev.buf = req->content;
     ev.type = SW_AIO_READ;
@@ -847,6 +851,7 @@ PHP_FUNCTION(swoole_async_writefile)
     memcpy(wt_cnt, fcnt, fcnt_len);
 
     swAio_event ev;
+    ev.canceled = 0;
     ev.fd = fd;
     ev.buf = wt_cnt;
     ev.type = SW_AIO_WRITE;
@@ -913,6 +918,16 @@ PHP_FUNCTION(swoole_async_set)
         convert_to_long(v);
         level = Z_LVAL_P(v);
         SwooleG.log_level = (uint32_t) (level < 0 ? UINT32_MAX : level);
+    }
+    if (php_swoole_array_get_value(vht, "thread_num", v) || php_swoole_array_get_value(vht, "min_thread_num", v))
+    {
+        convert_to_long(v);
+        SwooleAIO.max_thread_count = SwooleAIO.min_thread_count = Z_LVAL_P(v);
+    }
+    if (php_swoole_array_get_value(vht, "max_thread_num", v))
+    {
+        convert_to_long(v);
+        SwooleAIO.max_thread_count = Z_LVAL_P(v);
     }
     if (php_swoole_array_get_value(vht, "display_errors", v))
     {
@@ -1021,6 +1036,7 @@ PHP_FUNCTION(swoole_async_dns_lookup)
     memcpy(buf, Z_STRVAL_P(domain), Z_STRLEN_P(domain));
 
     swAio_event ev;
+    ev.canceled = 0;
     ev.fd = 0;
     ev.buf = buf;
     ev.type = SW_AIO_WRITE;
