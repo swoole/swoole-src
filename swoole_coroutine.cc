@@ -294,7 +294,7 @@ void PHPCoroutine::create_func(void *arg)
         ZVAL_NULL(retval);
         call->prev_execute_data = NULL;
         call->return_value = NULL; /* this is not a constructor call */
-        func->internal_function.handler(call, retval);
+        execute_internal(call, retval);
         zend_vm_stack_free_args(call);
     }
 

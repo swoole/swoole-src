@@ -36,10 +36,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2018-12-20</date>
+    <date>2018-12-28</date>
     <time>21:00:00</time>
     <version>
-        <release>4.2.10</release>
+        <release>4.2.11</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -48,35 +48,20 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        + Refactor Coroutine Http Client, developers no longer need to care if the connection is broken unless the network is abnormal  (auto reconncet)
-        + The coroutine switch adds some operations, Because PDO changes the global error handler at IO request time
-        + Support for creating coroutines using internal C functions
-        + Allow closed sockets across coroutines
-        + Improve server-side SSL certificate verification
-        + Enhanced coroutine iterators and stack traces
-        * swoole_event_wait is always in the first place in the shutdown function list (#2144)
-        * Unset properties of built-in objects are not allowed, otherwise coredump may be raised
-        * For most built-in classes, clone and serialization are not allowed.
-        * Enhanced coroutine redis, now it can use setOption to adjust the configuration after connecting and auto-reconnect like phpredis
-        * Fixed task wait memory leak
-        * Fixed epoll error core dump when waiting for writable event on coroutine socket
-        * Unified coroutine socket timeout (see: https://wiki.swoole.com/wiki/page/p-socket_timeout.html)
-        * More friendly warning info
-        * Fixed the enable coroutine bug in the task process
-        * Fixed defer function not executed when meet exception
-        * Fixed an bug about the global buffer was not copied when the write yield
-        * Fixed Http proxy (#2195) (#2205)
-        * Fixed Channel push timeout bug (#2226)
-        * Fixed Http Client websocket mask (#2206)
-        * Fixed atomic wait in MacOS (#2198)
-        * Fxied MySQL client recv huge data more than the max length of a single package (#2208) (57fc849) (76179fa)
-        * Fixed swoole_get_local_mac not supported on macOS (#2199)
-        * Fixed php_http_parser bug when meet the wrong header name (5e91557)
-        * The default sock property value is -1 (0 is STDIN)
-        - Remove the short name of Co\Server, This name is reserved for future coroutine services
-        - All asynchronous classes are marked as deprecated
-        - Remove Timer maximum time limit
-        - It is not allowed to fork a process in a coroutine
+        + Support Timer in manager processes
+        + Added DNS cache to improve the connection speed of external network services, default TTL60s, capacity 1000 (#2250)
+        + When swoole_strerror the second param is 9, it will convert the swoole-specific error code into the text
+        * Fixed the problem that the connection timeout does not take effect after the client triggers the DNS query. It may cause the coroutine to hang for a long time and connection resource occupation, please update the affected version
+        (v4.2.10) as soon as possible
+        * Restore Co\Client backward compatibility, connect timeout parameter will change the default timeout of the client
+        * Fixed the problem that the change does not take place immediately when the client calls the `set` method after the connection
+        * Fixed the problem that the error code was not updated after the MySQL handshake failed (#2234)
+        * Fixed a memory error caused by buffer expansion when MySQL executed a large amount of data (e3c5a28)
+        * Fixed static compilation problem (#2230)
+        * Async write files to increase the reference count to prevent premature shutdown (028ddf4)
+        * Fixed Redis Client use illegal parameter would lead to coredump (5af9f3d)
+        * Fixed the bug that `stack_size` set by `Co::set` is set to the page size of the PHP stack. It is recommended to use the configuration name of `c_stack_size`. Please do not set it without knowing. If your application has C extension hook to zend_execute, you need to pay special attention to setting the C stack, or you don't need to set it
+        - Remove `enable-debug-log` from PECL compilation configure option, kernel debug logs must be compiled manually to enable
     </notes>
     <contents>
         <dir name="/">
@@ -118,6 +103,7 @@
             <file role="src" name="core-tests/src/coro.cpp" />
             <file role="src" name="core-tests/src/hashmap.cpp" />
             <file role="src" name="core-tests/src/heap.cpp" />
+            <file role="src" name="core-tests/src/lru_cache.cpp" />
             <file role="src" name="core-tests/src/main.cpp" />
             <file role="src" name="core-tests/src/pipe.cpp" />
             <file role="src" name="core-tests/src/rbtree.cpp" />
@@ -365,6 +351,7 @@
             <file role="doc" name="examples/server/ip_dispatch.php" />
             <file role="doc" name="examples/server/listen_1k_port.php" />
             <file role="doc" name="examples/server/local_listener.php" />
+            <file role="doc" name="examples/server/manager_timer.php" />
             <file role="doc" name="examples/server/multi_instance.php" />
             <file role="doc" name="examples/server/pipe_message.php" />
             <file role="doc" name="examples/server/reload_aysnc.php" />
@@ -464,6 +451,7 @@
             <file role="src" name="include/http.h" />
             <file role="src" name="include/http2.h" />
             <file role="src" name="include/list.h" />
+            <file role="src" name="include/lru_cache.h" />
             <file role="src" name="include/mqtt.h" />
             <file role="src" name="include/rbtree.h" />
             <file role="doc" name="include/readme" />
@@ -610,8 +598,8 @@
             <file role="src" name="swoole_websocket_server.cc" />
             <file role="test" name="tests/CONTRIBUTION" />
             <file role="test" name="tests/README.md" />
+            <file role="test" name="tests/base_test.sh" />
             <file role="test" name="tests/clean" />
-            <file role="test" name="tests/coro_test.sh" />
             <file role="test" name="tests/include/api/http_server.php" />
             <file role="test" name="tests/include/api/ssl-ca/ca-cert.pem" />
             <file role="test" name="tests/include/api/ssl-ca/ca-key.pem" />
@@ -733,11 +721,14 @@
             <file role="test" name="tests/swoole_async/aio1.phpt" />
             <file role="test" name="tests/swoole_async/aio2.phpt" />
             <file role="test" name="tests/swoole_async/aio3.phpt" />
+            <file role="test" name="tests/swoole_async/close.phpt" />
             <file role="test" name="tests/swoole_async/exec.phpt" />
+            <file role="test" name="tests/swoole_async/fd.phpt" />
             <file role="test" name="tests/swoole_async/parallel_read_copy_10m_file_with_1m_chunk.phpt" />
             <file role="test" name="tests/swoole_async/parallel_read_copy_10m_file_with_512k_chunk.phpt" />
             <file role="test" name="tests/swoole_async/readfile.phpt" />
             <file role="test" name="tests/swoole_async/recursive_write.phpt" />
+            <file role="test" name="tests/swoole_async/ref.phpt" />
             <file role="test" name="tests/swoole_async/serial_read_copy_10m_file.phpt" />
             <file role="test" name="tests/swoole_async/swoole_async_dns_lookup.phpt" />
             <file role="test" name="tests/swoole_async/swoole_async_read.phpt" />
@@ -778,6 +769,8 @@
             <file role="test" name="tests/swoole_client_coro/close.phpt" />
             <file role="test" name="tests/swoole_client_coro/close_in_other_co.phpt" />
             <file role="test" name="tests/swoole_client_coro/close_resume.phpt" />
+            <file role="test" name="tests/swoole_client_coro/connect_timeout.phpt" />
+            <file role="test" name="tests/swoole_client_coro/connect_with_dns.phpt" />
             <file role="test" name="tests/swoole_client_coro/eof.phpt" />
             <file role="test" name="tests/swoole_client_coro/eof_02.phpt" />
             <file role="test" name="tests/swoole_client_coro/length_01.phpt" />
@@ -785,6 +778,7 @@
             <file role="test" name="tests/swoole_client_coro/length_03.phpt" />
             <file role="test" name="tests/swoole_client_coro/length_protocol_func.phpt" />
             <file role="test" name="tests/swoole_client_coro/recv_timeout.phpt" />
+            <file role="test" name="tests/swoole_client_coro/recv_timeout2.phpt" />
             <file role="test" name="tests/swoole_client_coro/recvfrom.phpt" />
             <file role="test" name="tests/swoole_client_coro/send_big.phpt" />
             <file role="test" name="tests/swoole_client_coro/sendfile.phpt" />
@@ -809,10 +803,12 @@
             <file role="test" name="tests/swoole_client_sync/swoole_client_send_recv.phpt" />
             <file role="test" name="tests/swoole_client_sync/swoole_client_sync_send_recv.phpt" />
             <file role="test" name="tests/swoole_client_sync/udp_client_sendto.phpt" />
+            <file role="test" name="tests/swoole_coroutine/c_stack_size.phpt" />
             <file role="test" name="tests/swoole_coroutine/call_not_exists_func.phpt" />
             <file role="test" name="tests/swoole_coroutine/call_user_func_array.phpt" />
             <file role="test" name="tests/swoole_coroutine/call_user_func_array2.phpt" />
             <file role="test" name="tests/swoole_coroutine/callback.phpt" />
+            <file role="test" name="tests/swoole_coroutine/cid.phpt" />
             <file role="test" name="tests/swoole_coroutine/co_with_args.phpt" />
             <file role="test" name="tests/swoole_coroutine/coro_stats.phpt" />
             <file role="test" name="tests/swoole_coroutine/current.phpt" />
@@ -836,6 +832,7 @@
             <file role="test" name="tests/swoole_coroutine/forbidden_case/array_map.phpt" />
             <file role="test" name="tests/swoole_coroutine/forbidden_case/call_user.phpt" />
             <file role="test" name="tests/swoole_coroutine/forbidden_case/invoke.phpt" />
+            <file role="test" name="tests/swoole_coroutine/gethostbyname.phpt" />
             <file role="test" name="tests/swoole_coroutine/list_and_backtrace.phpt" />
             <file role="test" name="tests/swoole_coroutine/max_num.phpt" />
             <file role="test" name="tests/swoole_coroutine/nested1.phpt" />
@@ -844,6 +841,7 @@
             <file role="test" name="tests/swoole_coroutine/nested_empty.phpt" />
             <file role="test" name="tests/swoole_coroutine/nested_uid.phpt" />
             <file role="test" name="tests/swoole_coroutine/no_inline_func.phpt" />
+            <file role="test" name="tests/swoole_coroutine/output/create.phpt" />
             <file role="test" name="tests/swoole_coroutine/output/in_nested_co.phpt" />
             <file role="test" name="tests/swoole_coroutine/output/ob_main.phpt" />
             <file role="test" name="tests/swoole_coroutine/output/output_control.phpt" />
@@ -998,6 +996,7 @@
             <file role="test" name="tests/swoole_http_client_coro/another_coroutine.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/auto_reconnect.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/buffer.phpt" />
+            <file role="test" name="tests/swoole_http_client_coro/connect_timeout.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/defer.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/defer_02.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/disable_keep_alive.phpt" />
@@ -1016,6 +1015,7 @@
             <file role="test" name="tests/swoole_http_client_coro/multi_and_reuse.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/parser.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/reconnect_but_failed.phpt" />
+            <file role="test" name="tests/swoole_http_client_coro/recv_slow_timeout.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/socks5_proxy.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/ssl.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/ssl_host_name.phpt" />
@@ -1171,6 +1171,7 @@
             <file role="test" name="tests/swoole_redis_coro/donot_retry_after_failed.phpt" />
             <file role="test" name="tests/swoole_redis_coro/donoy_retry_after_server_down.phpt" />
             <file role="test" name="tests/swoole_redis_coro/err.phpt" />
+            <file role="test" name="tests/swoole_redis_coro/lock.phpt" />
             <file role="test" name="tests/swoole_redis_coro/multi_exec.phpt" />
             <file role="test" name="tests/swoole_redis_coro/pool.phpt" />
             <file role="test" name="tests/swoole_redis_coro/psubscribe.phpt" />
@@ -1184,6 +1185,7 @@
             <file role="test" name="tests/swoole_runtime/accept.phpt" />
             <file role="test" name="tests/swoole_runtime/accept_timeout.phpt" />
             <file role="test" name="tests/swoole_runtime/block.phpt" />
+            <file role="test" name="tests/swoole_runtime/destruct.phpt" />
             <file role="test" name="tests/swoole_runtime/enable_crypto.phpt" />
             <file role="test" name="tests/swoole_runtime/file_hook/a.inc" />
             <file role="test" name="tests/swoole_runtime/file_hook/b.inc" />
@@ -1192,6 +1194,7 @@
             <file role="test" name="tests/swoole_runtime/file_hook/read.phpt" />
             <file role="test" name="tests/swoole_runtime/gethostbyname.phpt" />
             <file role="test" name="tests/swoole_runtime/pdo.phpt" />
+            <file role="test" name="tests/swoole_runtime/persistent.phpt" />
             <file role="test" name="tests/swoole_runtime/sento.phpt" />
             <file role="test" name="tests/swoole_runtime/sleep.phpt" />
             <file role="test" name="tests/swoole_runtime/ssl_client.phpt" />
@@ -1314,6 +1317,8 @@
             <file role="test" name="tests/swoole_timer/callback_bug_with_array.phpt" />
             <file role="test" name="tests/swoole_timer/enable_coroutine.phpt" />
             <file role="test" name="tests/swoole_timer/greater_than_0.phpt" />
+            <file role="test" name="tests/swoole_timer/manager.phpt" />
+            <file role="test" name="tests/swoole_timer/master.phpt" />
             <file role="test" name="tests/swoole_timer/next_round.phpt" />
             <file role="test" name="tests/swoole_timer/swoole_timer_after.phpt" />
             <file role="test" name="tests/swoole_timer/task_worker.phpt" />
@@ -1470,6 +1475,5 @@
         <configureoption default="no" name="enable-http2" prompt="enable http2 support?" />
         <configureoption default="no" name="enable-mysqlnd" prompt="enable mysqlnd support?" />
         <configureoption default="no" name="enable-coroutine-postgresql" prompt="enable postgresql coroutine client support?" />
-        <configureoption default="no" name="enable-debug-log" prompt="enable kernel debug/trace log? (it will degrade performance)" />
     </extsrcrelease>
 </package>
