@@ -490,7 +490,7 @@ bool Socket::connect(string _host, int _port, int flags)
 
             if (!inet_pton(AF_INET, host.c_str(), & socket->info.addr.inet_v4.sin_addr))
             {
-                host = Coroutine::gethostbyname(host, AF_INET);
+                host = Coroutine::gethostbyname(host, AF_INET, timeout);
                 if (host.empty())
                 {
                     set_err(SwooleG.error);
@@ -512,7 +512,7 @@ bool Socket::connect(string _host, int _port, int flags)
 
             if (!inet_pton(AF_INET6, host.c_str(), &socket->info.addr.inet_v6.sin6_addr))
             {
-                host = Coroutine::gethostbyname(host, AF_INET6);
+                host = Coroutine::gethostbyname(host, AF_INET6, timeout);
                 if (host.empty())
                 {
                     set_err(SwooleG.error);
