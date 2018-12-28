@@ -12,6 +12,9 @@ services:
     depends_on:
       - mysql
       - redis
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     command: tail -f /etc/group
   swoole-alpine:
     container_name: "swoole-alpine"
@@ -25,6 +28,9 @@ services:
     depends_on:
       - mysql
       - redis
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     command: tail -f /etc/group
   mysql:
     container_name: "mysql"

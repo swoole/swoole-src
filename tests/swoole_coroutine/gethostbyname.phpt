@@ -20,20 +20,25 @@ go(function () {
         'www.swoole.com' => null
     ];
 
-    $cache_time = microtime(true);
+    $first_time = microtime(true);
     for ($n = MAX_CONCURRENCY; $n--;) {
         foreach ($map as $host => &$ip) {
+            $ip = co::gethostbyname($host);
+            assert(preg_match($regex, $ip));
+        }
+    }
+    unset($ip);
+    $first_time = microtime(true) - $first_time;
+    phpt_var_dump($map);
+
+    $cache_time = microtime(true);
+    for ($n = MAX_CONCURRENCY; $n--;) {
+        foreach ($map as $host => $ip) {
             $_ip = co::gethostbyname($host);
-            if (empty($ip)) {
-                $ip = $_ip;
-                assert(preg_match($regex, $ip));
-            } else {
-                assert($ip === $_ip);
-            }
+            assert($ip === $_ip);
         }
     }
     $cache_time = microtime(true) - $cache_time;
-    phpt_var_dump($map);
 
     $no_cache_time = microtime(true);
     for ($n = MAX_CONCURRENCY; $n--;) {
@@ -57,7 +62,9 @@ go(function () {
     }
     $no_cache_multi_time = microtime(true) - $no_cache_multi_time;
 
-    phpt_var_dump($cache_time, $no_cache_time, $no_cache_multi_time);
+    phpt_var_dump($first_time, $cache_time, $no_cache_time, $no_cache_multi_time);
+    assert($cache_time < 0.01);
+    assert($cache_time < $first_time);
     assert($cache_time < $no_cache_time);
     assert($cache_time < $no_cache_multi_time);
     assert($no_cache_multi_time < $no_cache_time);
