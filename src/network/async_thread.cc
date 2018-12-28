@@ -172,7 +172,7 @@ public:
         *_event = *ev;
 
         schedule();
-        _event->task_id = current_task_id++;
+        ev->task_id = _event->task_id = current_task_id++;
         queue.push(_event);
         _cv.notify_one();
         return true;
