@@ -7,8 +7,6 @@ swoole_async: linux native aio read
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-swoole_async::set(array('aio_mode' => SWOOLE_AIO_LINUX));
-
 $data = '';
 swoole_async_read(TEST_IMAGE, function ($filename, $content) use (&$data)
 {

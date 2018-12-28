@@ -7,7 +7,6 @@ swoole_async: linux native aio write
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 const N = 10;
-swoole_async::set(array('aio_mode' => SWOOLE_AIO_LINUX));
 
 $data = '';
 $count = 0;

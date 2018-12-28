@@ -454,7 +454,7 @@ static void aio_onFileCompleted(swAio_event *event)
             ev.object = file_req;
             ev.handler = swAio_handler_read;
             ev.callback = aio_onFileCompleted;
-
+            
             int ret = swAio_dispatch(&ev);
             if (ret < 0)
             {
@@ -567,6 +567,7 @@ PHP_FUNCTION(swoole_async_read)
     ev.handler = swAio_handler_read;
     ev.callback = aio_onFileCompleted;
 
+    php_swoole_check_reactor();
     int ret = swAio_dispatch(&ev);
     if (ret == SW_ERR)
     {
@@ -674,6 +675,7 @@ PHP_FUNCTION(swoole_async_write)
     ev.handler = swAio_handler_write;
     ev.callback = aio_onFileCompleted;
 
+    php_swoole_check_reactor();
     int ret = swAio_dispatch(&ev);
     if (ret == SW_ERR)
     {
@@ -758,6 +760,7 @@ PHP_FUNCTION(swoole_async_readfile)
     ev.handler = swAio_handler_read;
     ev.callback = aio_onFileCompleted;
 
+    php_swoole_check_reactor();
     int ret = swAio_dispatch(&ev);
     if (ret == SW_ERR)
     {
@@ -854,6 +857,7 @@ PHP_FUNCTION(swoole_async_writefile)
     ev.handler = swAio_handler_write;
     ev.callback = aio_onFileCompleted;
 
+    php_swoole_check_reactor();
     int ret = swAio_dispatch(&ev);
     if (ret == SW_ERR)
     {
@@ -1027,6 +1031,8 @@ PHP_FUNCTION(swoole_async_dns_lookup)
     ev.req = req;
     ev.handler = swAio_handler_gethostbyname;
     ev.callback = aio_onDNSCompleted;
+
+    php_swoole_check_reactor();
     SW_CHECK_RETURN(swAio_dispatch(&ev));
 }
 
