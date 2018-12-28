@@ -812,12 +812,6 @@ string Coroutine::gethostbyname(const string &hostname, int domain, double timeo
     ev.callback = aio_onDNSCompleted;
 
     swAio_event *event = swAio_dispatch2(&ev);
-    if (event == nullptr)
-    {
-        sw_free(ev.buf);
-        return "";
-    }
-
     swTimer_node* timer = nullptr;
     if (timeout > 0)
     {
