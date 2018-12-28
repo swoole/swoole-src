@@ -1470,6 +1470,5 @@
         <configureoption default="no" name="enable-http2" prompt="enable http2 support?" />
         <configureoption default="no" name="enable-mysqlnd" prompt="enable mysqlnd support?" />
         <configureoption default="no" name="enable-coroutine-postgresql" prompt="enable postgresql coroutine client support?" />
-        <configureoption default="no" name="enable-debug-log" prompt="enable kernel debug/trace log? (it will degrade performance)" />
     </extsrcrelease>
 </package>
