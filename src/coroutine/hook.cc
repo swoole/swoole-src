@@ -797,11 +797,6 @@ string Coroutine::gethostbyname(const string &hostname, int domain, float timeou
     ev.handler = swAio_handler_gethostbyname;
     ev.callback = aio_onDNSCompleted;
 
-    if (SwooleAIO.init == 0)
-    {
-        swAio_init();
-    }
-
     if (swAio_dispatch(&ev) < 0)
     {
         sw_free(ev.buf);

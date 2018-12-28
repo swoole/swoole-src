@@ -694,11 +694,6 @@ static int swClient_tcp_connect_async(swClient *cli, char *host, int port, doubl
 
     if (cli->wait_dns)
     {
-        if (SwooleAIO.init == 0)
-        {
-            swAio_init();
-        }
-
         swAio_event ev;
         bzero(&ev, sizeof(swAio_event));
 

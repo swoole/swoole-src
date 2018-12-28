@@ -822,8 +822,6 @@ static PHP_METHOD(swoole_coroutine_util, fread)
     ev.fd = fd;
     ev.offset = _seek;
 
-    php_swoole_check_aio();
-
     swTrace("fd=%d, offset=%jd, length=%ld", fd, (intmax_t) ev.offset, ev.nbytes);
 
     int ret = swAio_dispatch(&ev);
@@ -904,8 +902,6 @@ static PHP_METHOD(swoole_coroutine_util, fgets)
     ev.fd = fd;
     ev.req = (void *) file;
 
-    php_swoole_check_aio();
-
     swTrace("fd=%d, offset=%jd, length=%ld", fd, (intmax_t) ev.offset, ev.nbytes);
 
     int ret = swAio_dispatch(&ev);
@@ -982,8 +978,6 @@ static PHP_METHOD(swoole_coroutine_util, fwrite)
     ev.fd = fd;
     ev.offset = _seek;
 
-    php_swoole_check_aio();
-
     swTrace("fd=%d, offset=%jd, length=%ld", fd, (intmax_t) ev.offset, ev.nbytes);
 
     int ret = swAio_dispatch(&ev);
@@ -1011,8 +1005,6 @@ static PHP_METHOD(swoole_coroutine_util, readFile)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(flags)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
-
-    php_swoole_check_aio();
 
     swString *result = Coroutine::read_file(filename, flags & LOCK_EX);
     if (result == NULL)
@@ -1252,8 +1244,6 @@ static PHP_METHOD(swoole_coroutine_util, getaddrinfo)
     {
         req->result = ecalloc(SW_DNS_HOST_BUFFER_SIZE, sizeof(struct sockaddr_in6));
     }
-
-    php_swoole_check_aio();
 
     if (swAio_dispatch(&ev) < 0)
     {

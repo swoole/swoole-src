@@ -504,7 +504,6 @@ void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset);
 void php_swoole_class_unset_property_deny(zval *zobject, zval *member, void **cache_slot);
 
 ZEND_BEGIN_MODULE_GLOBALS(swoole)
-    long aio_thread_num;
     zend_bool display_errors;
     zend_bool cli;
     zend_bool use_namespace;

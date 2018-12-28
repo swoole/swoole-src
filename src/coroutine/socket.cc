@@ -651,7 +651,7 @@ ssize_t Socket::write(const void *__buf, size_t __n)
         {
             return -1;
         }
-        retval =  ::write(socket->fd, (void *) __buf, __n);
+        retval = ::write(socket->fd, (void *) __buf, __n);
     }
     set_err(retval < 0 ? errno : 0);
     return retval;
