@@ -63,25 +63,6 @@ private:
 class async_thread_pool
 {
 public:
-    static int event_callback(swReactor *reactor, swEvent *_event)
-    {
-        int i;
-        async_event *events[SW_AIO_EVENT_NUM];
-        ssize_t n = read(_event->fd, events, sizeof(async_event*) * SW_AIO_EVENT_NUM);
-        if (n < 0)
-        {
-            swWarn("read() failed. Error: %s[%d]", strerror(errno), errno);
-            return SW_ERR;
-        }
-        for (i = 0; i < n / (int) sizeof(async_event*); i++)
-        {
-            events[i]->callback(events[i]);
-            SwooleAIO.task_num--;
-            sw_free(events[i]);
-        }
-        return SW_OK;
-    }
-
     async_thread_pool(int _min_threads, int _max_threads)
     {
         n_waiting = 0;
@@ -97,7 +78,27 @@ public:
         _pipe_read = _aio_pipe.getFd(&_aio_pipe, 0);
         _pipe_write = _aio_pipe.getFd(&_aio_pipe, 1);
 
-        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_AIO, event_callback);
+        SwooleG.main_reactor->setHandle(SwooleG.main_reactor, SW_FD_AIO, [] (swReactor *reactor, swEvent *_event)
+        {
+            int i;
+            async_event *events[SW_AIO_EVENT_NUM];
+            ssize_t n = read(_event->fd, events, sizeof(async_event*) * SW_AIO_EVENT_NUM);
+            if (n < 0)
+            {
+                swWarn("read() failed. Error: %s[%d]", strerror(errno), errno);
+                return SW_ERR;
+            }
+            for (i = 0; i < n / (int) sizeof(async_event*); i++)
+            {
+                if (!events[i]->canceled)
+                {
+                    events[i]->callback(events[i]);
+                }
+                SwooleAIO.task_num--;
+                delete events[i];
+            }
+            return SW_OK;
+        });
         SwooleG.main_reactor->add(SwooleG.main_reactor, _pipe_read, SW_FD_AIO);
     }
 
@@ -166,16 +167,15 @@ public:
         return true;
     }
 
-    bool dispatch(async_event *ev)
+    async_event* dispatch(const async_event *request)
     {
-        async_event *_event = new async_event;
-        *_event = *ev;
-
+        async_event *_event_copy = new async_event;
+        *_event_copy = *request;
         schedule();
-        ev->task_id = _event->task_id = current_task_id++;
-        queue.push(_event);
+        _event_copy->task_id = current_task_id++;
+        queue.push(_event_copy);
         _cv.notify_one();
-        return true;
+        return _event_copy;
     }
 
 private:
@@ -191,13 +191,22 @@ private:
             _accept: event = queue.pop();
             if (event)
             {
-                if (event->handler == NULL)
+                if (unlikely(event->handler == NULL))
                 {
                     event->error = SW_ERROR_AIO_BAD_REQUEST;
                     event->ret = -1;
                     goto _error;
                 }
-                event->handler(event);
+                else if (unlikely(event->canceled))
+                {
+                    event->error = SW_ERROR_AIO_BAD_REQUEST;
+                    event->ret = -1;
+                    goto _error;
+                }
+                else
+                {
+                    event->handler(event);
+                }
 
                 swTrace("aio_thread ok. ret=%d, error=%d", async_event->ret, async_event->error);
 
@@ -298,27 +307,30 @@ static int swAio_init(void)
 
     pool = new async_thread_pool(SwooleAIO.min_thread_count, SwooleAIO.min_thread_count);
     pool->start();
-
     SwooleAIO.init = 1;
 
     return SW_OK;
 }
 
-int swAio_dispatch(swAio_event *_event)
+int swAio_dispatch(const swAio_event *request)
 {
-    if (unlikely(SwooleAIO.init == 0))
+    if (unlikely(!SwooleAIO.init))
     {
         swAio_init();
     }
-    if (!pool->dispatch(_event))
+    SwooleAIO.task_num++;
+    async_event *event = pool->dispatch(request);
+    return event->task_id;
+}
+
+swAio_event* swAio_dispatch2(const swAio_event *request)
+{
+    if (unlikely(!SwooleAIO.init))
     {
-        return SW_ERR;
+        swAio_init();
     }
-    else
-    {
-        SwooleAIO.task_num++;
-        return _event->task_id;
-    }
+    SwooleAIO.task_num++;
+    return pool->dispatch(request);
 }
 
 void swAio_free(void)

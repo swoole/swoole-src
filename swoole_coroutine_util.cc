@@ -1153,8 +1153,9 @@ PHP_FUNCTION(swoole_coroutine_gethostbyname)
     char *domain_name;
     size_t l_domain_name;
     long family = AF_INET;
+    double timeout = 1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|l", &domain_name, &l_domain_name, &family) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|ld", &domain_name, &l_domain_name, &family, &timeout) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -1171,7 +1172,7 @@ PHP_FUNCTION(swoole_coroutine_gethostbyname)
         RETURN_FALSE;
     }
 
-    string address = Coroutine::gethostbyname(string(domain_name, l_domain_name), family);
+    string address = Coroutine::gethostbyname(string(domain_name, l_domain_name), family, timeout);
     if (address.empty())
     {
         RETURN_FALSE;

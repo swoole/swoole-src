@@ -51,6 +51,7 @@ typedef struct _swAio_event
     int task_id;
     uint8_t type;
     uint8_t lock;
+    uint8_t canceled;
     uint16_t flags;
     off_t offset;
     size_t nbytes;
@@ -77,7 +78,9 @@ typedef struct
 extern swAsyncIO SwooleAIO;
 
 void swAio_free(void);
-int swAio_dispatch(swAio_event *_event);
+int swAio_dispatch(const swAio_event *request);
+swAio_event* swAio_dispatch2(const swAio_event *request);
+int swAio_cancel(int task_id);
 
 void swAio_handler_read(swAio_event *event);
 void swAio_handler_write(swAio_event *event);
