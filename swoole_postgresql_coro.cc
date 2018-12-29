@@ -385,7 +385,6 @@ static int swoole_pgsql_coro_onRead(swReactor *reactor, swEvent *event)
             break;
         case PREPARE:
             prepare_result_parse(object);
-            //prepare_result_parse(object);
             break;
     }
 
