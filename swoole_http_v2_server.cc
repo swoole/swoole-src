@@ -259,11 +259,11 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
             {
                 header_flag |= HTTP_HEADER_CONTENT_TYPE;
             }
-            if (ZVAL_IS_NULL(value))
+            if (!ZVAL_IS_NULL(value))
             {
-                continue;
+                convert_to_string(value);
+                http2_add_header(&nv[index++], key, keylen, Z_STRVAL_P(value), Z_STRLEN_P(value));
             }
-            http2_add_header(&nv[index++], key, keylen, Z_STRVAL_P(value), Z_STRLEN_P(value));
         }
         SW_HASHTABLE_FOREACH_END();
         (void)type;

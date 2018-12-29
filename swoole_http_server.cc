@@ -1642,8 +1642,12 @@ static void http_build_header(http_context *ctx, zval *zobject, swString *respon
             {
                 header_flag |= HTTP_HEADER_TRANSFER_ENCODING;
             }
-            n = snprintf(buf, l_buf, "%*s: %*s\r\n", keylen - 1, key, (int)Z_STRLEN_P(value), Z_STRVAL_P(value));
-            swString_append_ptr(response, buf, n);
+            if (!ZVAL_IS_NULL(value))
+            {
+                convert_to_string(value);
+                n = snprintf(buf, l_buf, "%*s: %*s\r\n", keylen - 1, key, (int)Z_STRLEN_P(value), Z_STRVAL_P(value));
+                swString_append_ptr(response, buf, n);
+            }
         }
         SW_HASHTABLE_FOREACH_END();
         (void)type;
