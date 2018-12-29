@@ -1648,6 +1648,10 @@ static void http_build_header(http_context *ctx, zval *zobject, swString *respon
         (void)type;
     }
 
+    if (!(header_flag & HTTP_HEADER_SERVER))
+    {
+        swString_append_ptr(response, ZEND_STRL("Server: " SW_HTTP_SERVER_SOFTWARE "\r\n"));
+    }
     //websocket protocol
     if (ctx->upgrade == 1)
     {
