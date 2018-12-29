@@ -7,8 +7,6 @@ swoole_async: linux native aio readfile & writefile
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-swoole_async::set(array('aio_mode' => SWOOLE_AIO_LINUX));
-
 swoole_async_readfile(TEST_IMAGE, function ($filename, $content)
 {
     assert(md5_file($filename) == md5($content));

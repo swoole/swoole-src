@@ -340,9 +340,23 @@ static void aio_onWriteFileCompleted(swAio_event *event)
 
 static void aio_onDNSCompleted(swAio_event *event)
 {
+    if (event->canceled)
+    {
+        return;
+    }
     aio_task *task = (aio_task *) event->object;
     task->event->ret = event->ret;
     task->event->error = event->error;
+    ((Coroutine *) task->co)->resume();
+}
+
+static void aio_onDNSTimeout(swTimer *timer, swTimer_node *tnode)
+{
+    swAio_event *event = (swAio_event *) tnode->data;
+    event->canceled = 1;
+    aio_task *task = (aio_task *) event->object;
+    task->event->ret = -1;
+    task->event->error = SW_ERROR_DNSLOOKUP_RESOLVE_TIMEOUT;
     ((Coroutine *) task->co)->resume();
 }
 
@@ -748,7 +762,7 @@ ssize_t Coroutine::write_file(const char *file, char *buf, size_t length, int lo
     return ev.ret;
 }
 
-string Coroutine::gethostbyname(const string &hostname, int domain, float timeout)
+string Coroutine::gethostbyname(const string &hostname, int domain, double timeout)
 {
     if (dns_cache == nullptr && dns_cache_capacity != 0)
     {
@@ -769,7 +783,7 @@ string Coroutine::gethostbyname(const string &hostname, int domain, float timeou
     }
 
     swAio_event ev;
-    aio_task task;
+    aio_task task ;
 
     bzero(&ev, sizeof(swAio_event));
     if (hostname.size() < SW_IP_MAX_LENGTH)
@@ -797,18 +811,17 @@ string Coroutine::gethostbyname(const string &hostname, int domain, float timeou
     ev.handler = swAio_handler_gethostbyname;
     ev.callback = aio_onDNSCompleted;
 
-    if (SwooleAIO.init == 0)
+    swAio_event *event = swAio_dispatch2(&ev);
+    swTimer_node* timer = nullptr;
+    if (timeout > 0)
     {
-        swAio_init();
+        timer = swTimer_add(&SwooleG.timer, (long) (timeout * 1000), 0, event, aio_onDNSTimeout);
     }
-
-    if (swAio_dispatch(&ev) < 0)
-    {
-        sw_free(ev.buf);
-        return "";
-    }
-
     task.co->yield();
+    if (timer)
+    {
+        swTimer_del(&SwooleG.timer, timer);
+    }
 
     if (ev.ret == -1)
     {

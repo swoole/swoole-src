@@ -314,10 +314,6 @@ PHP_INI_BEGIN()
  */
 STD_PHP_INI_ENTRY("swoole.enable_coroutine", "On", PHP_INI_ALL, OnUpdateBool, enable_coroutine, zend_swoole_globals, swoole_globals)
 /**
- * aio thread
- */
-STD_PHP_INI_ENTRY("swoole.aio_thread_num", "2", PHP_INI_ALL, OnUpdateLong, aio_thread_num, zend_swoole_globals, swoole_globals)
-/**
  * display error
  */
 STD_PHP_INI_ENTRY("swoole.display_errors", "On", PHP_INI_ALL, OnUpdateBool, display_errors, zend_swoole_globals, swoole_globals)
@@ -338,7 +334,6 @@ PHP_INI_END()
 static void php_swoole_init_globals(zend_swoole_globals *swoole_globals)
 {
     swoole_globals->enable_coroutine = 1;
-    swoole_globals->aio_thread_num = SW_AIO_THREAD_NUM_DEFAULT;
     swoole_globals->socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
     swoole_globals->display_errors = 1;
     swoole_globals->use_shortname = 1;
@@ -735,6 +730,7 @@ PHP_MINIT_FUNCTION(swoole)
     SWOOLE_DEFINE(ERROR_FILE_EMPTY);
     SWOOLE_DEFINE(ERROR_DNSLOOKUP_DUPLICATE_REQUEST);
     SWOOLE_DEFINE(ERROR_DNSLOOKUP_RESOLVE_FAILED);
+    SWOOLE_DEFINE(ERROR_DNSLOOKUP_RESOLVE_TIMEOUT);
     SWOOLE_DEFINE(ERROR_BAD_IPV6_ADDRESS);
     SWOOLE_DEFINE(ERROR_UNREGISTERED_SIGNAL);
     SWOOLE_DEFINE(ERROR_SESSION_CLOSED_BY_SERVER);
@@ -759,6 +755,7 @@ PHP_MINIT_FUNCTION(swoole)
     SWOOLE_DEFINE(ERROR_HTTP2_STREAM_NO_HEADER);
     SWOOLE_DEFINE(ERROR_HTTP2_STREAM_NOT_FOUND);
     SWOOLE_DEFINE(ERROR_AIO_BAD_REQUEST);
+    SWOOLE_DEFINE(ERROR_AIO_CANCELED);
     SWOOLE_DEFINE(ERROR_CLIENT_NO_CONNECTION);
     SWOOLE_DEFINE(ERROR_SOCKET_CLOSED);
     SWOOLE_DEFINE(ERROR_SOCKS5_UNSUPPORT_VERSION);
@@ -913,18 +910,7 @@ PHP_MINIT_FUNCTION(swoole)
     swoole_redis_server_init(module_number);
 
     SwooleG.socket_buffer_size = SWOOLE_G(socket_buffer_size);
-
-    //default 60s
     SwooleG.dns_cache_refresh_time = 60;
-
-    if (SWOOLE_G(aio_thread_num) > 0)
-    {
-        if (SWOOLE_G(aio_thread_num) > SW_AIO_THREAD_NUM_MAX)
-        {
-            SWOOLE_G(aio_thread_num) = SW_AIO_THREAD_NUM_MAX;
-        }
-        SwooleAIO.thread_num = SWOOLE_G(aio_thread_num);
-    }
 
     swoole_objects.size = 65536;
     swoole_objects.array = sw_calloc(swoole_objects.size, sizeof(void*));

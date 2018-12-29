@@ -102,18 +102,8 @@ static void php_swoole_file_request_free(void *data)
 void swoole_async_init(int module_number)
 {
     bzero(&SwooleAIO, sizeof(SwooleAIO));
-
-    REGISTER_LONG_CONSTANT("SWOOLE_AIO_BASE", 0, CONST_CS | CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("SWOOLE_AIO_LINUX", 0, CONST_CS | CONST_PERSISTENT);
-}
-
-void php_swoole_check_aio()
-{
-    if (unlikely(SwooleAIO.init == 0))
-    {
-        php_swoole_check_reactor();
-        swAio_init();
-    }
+    SwooleAIO.min_thread_count = SW_AIO_THREAD_MIN_NUM;
+    SwooleAIO.max_thread_count = SW_AIO_THREAD_MAX_NUM;
 }
 
 static void php_swoole_dns_callback(char *domain, swDNSResolver_result *result, void *data)
@@ -455,6 +445,7 @@ static void aio_onFileCompleted(swAio_event *event)
         else
         {
             swAio_event ev;
+            ev.canceled = 0;
             ev.fd = event->fd;
             ev.buf = event->buf;
             ev.type = SW_AIO_READ;
@@ -566,9 +557,8 @@ PHP_FUNCTION(swoole_async_read)
     req->length = buf_size;
     req->offset = offset;
 
-    php_swoole_check_aio();
-
     swAio_event ev;
+    ev.canceled = 0;
     ev.fd = fd;
     ev.buf = fcnt;
     ev.type = SW_AIO_READ;
@@ -579,6 +569,7 @@ PHP_FUNCTION(swoole_async_read)
     ev.handler = swAio_handler_read;
     ev.callback = aio_onFileCompleted;
 
+    php_swoole_check_reactor();
     int ret = swAio_dispatch(&ev);
     if (ret == SW_ERR)
     {
@@ -674,9 +665,9 @@ PHP_FUNCTION(swoole_async_write)
     }
 
     memcpy(wt_cnt, fcnt, fcnt_len);
-    php_swoole_check_aio();
 
     swAio_event ev;
+    ev.canceled = 0;
     ev.fd = fd;
     ev.buf = wt_cnt;
     ev.type = SW_AIO_WRITE;
@@ -687,6 +678,7 @@ PHP_FUNCTION(swoole_async_write)
     ev.handler = swAio_handler_write;
     ev.callback = aio_onFileCompleted;
 
+    php_swoole_check_reactor();
     int ret = swAio_dispatch(&ev);
     if (ret == SW_ERR)
     {
@@ -760,9 +752,8 @@ PHP_FUNCTION(swoole_async_readfile)
     req->length = length;
     req->offset = 0;
 
-    php_swoole_check_aio();
-
     swAio_event ev;
+    ev.canceled = 0;
     ev.fd = fd;
     ev.buf = req->content;
     ev.type = SW_AIO_READ;
@@ -773,6 +764,7 @@ PHP_FUNCTION(swoole_async_readfile)
     ev.handler = swAio_handler_read;
     ev.callback = aio_onFileCompleted;
 
+    php_swoole_check_reactor();
     int ret = swAio_dispatch(&ev);
     if (ret == SW_ERR)
     {
@@ -858,9 +850,8 @@ PHP_FUNCTION(swoole_async_writefile)
 
     memcpy(wt_cnt, fcnt, fcnt_len);
 
-    php_swoole_check_aio();
-
     swAio_event ev;
+    ev.canceled = 0;
     ev.fd = fd;
     ev.buf = wt_cnt;
     ev.type = SW_AIO_WRITE;
@@ -871,6 +862,7 @@ PHP_FUNCTION(swoole_async_writefile)
     ev.handler = swAio_handler_write;
     ev.callback = aio_onFileCompleted;
 
+    php_swoole_check_reactor();
     int ret = swAio_dispatch(&ev);
     if (ret == SW_ERR)
     {
@@ -901,11 +893,6 @@ PHP_FUNCTION(swoole_async_set)
     php_swoole_array_separate(zset);
 
     vht = Z_ARRVAL_P(zset);
-    if (php_swoole_array_get_value(vht, "thread_num", v))
-    {
-        convert_to_long(v);
-        SwooleAIO.thread_num = (uint8_t) Z_LVAL_P(v);
-    }
     if (php_swoole_array_get_value(vht, "enable_signalfd", v))
     {
         convert_to_boolean(v);
@@ -931,6 +918,16 @@ PHP_FUNCTION(swoole_async_set)
         convert_to_long(v);
         level = Z_LVAL_P(v);
         SwooleG.log_level = (uint32_t) (level < 0 ? UINT32_MAX : level);
+    }
+    if (php_swoole_array_get_value(vht, "thread_num", v) || php_swoole_array_get_value(vht, "min_thread_num", v))
+    {
+        convert_to_long(v);
+        SwooleAIO.max_thread_count = SwooleAIO.min_thread_count = Z_LVAL_P(v);
+    }
+    if (php_swoole_array_get_value(vht, "max_thread_num", v))
+    {
+        convert_to_long(v);
+        SwooleAIO.max_thread_count = Z_LVAL_P(v);
     }
     if (php_swoole_array_get_value(vht, "display_errors", v))
     {
@@ -1021,8 +1018,6 @@ PHP_FUNCTION(swoole_async_dns_lookup)
         SW_CHECK_RETURN(swDNSResolver_request(Z_STRVAL_P(domain), php_swoole_dns_callback, (void *) req));
     }
 
-    php_swoole_check_aio();
-
     /**
      * Use thread pool
      */
@@ -1039,9 +1034,9 @@ PHP_FUNCTION(swoole_async_dns_lookup)
     void *buf = emalloc(buf_size);
     bzero(buf, buf_size);
     memcpy(buf, Z_STRVAL_P(domain), Z_STRLEN_P(domain));
-    php_swoole_check_aio();
 
     swAio_event ev;
+    ev.canceled = 0;
     ev.fd = 0;
     ev.buf = buf;
     ev.type = SW_AIO_WRITE;
@@ -1052,6 +1047,8 @@ PHP_FUNCTION(swoole_async_dns_lookup)
     ev.req = req;
     ev.handler = swAio_handler_gethostbyname;
     ev.callback = aio_onDNSCompleted;
+
+    php_swoole_check_reactor();
     SW_CHECK_RETURN(swAio_dispatch(&ev));
 }
 
