@@ -268,10 +268,6 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
         SW_HASHTABLE_FOREACH_END();
         (void)type;
 
-        if (!(header_flag & HTTP_HEADER_SERVER))
-        {
-            http2_add_header(&nv[index++], ZEND_STRL("server"), ZEND_STRL(SW_HTTP_SERVER_SOFTWARE));
-        }
         if (!(header_flag & HTTP_HEADER_DATE))
         {
             date_str = sw_php_format_date((char *)ZEND_STRL(SW_HTTP_DATE_FORMAT), serv->gs->now, 0);
@@ -284,7 +280,6 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
     }
     else
     {
-        http2_add_header(&nv[index++], ZEND_STRL("server"), ZEND_STRL(SW_HTTP_SERVER_SOFTWARE));
         http2_add_header(&nv[index++], ZEND_STRL("content-type"), ZEND_STRL("text/html"));
         date_str = sw_php_format_date((char *)ZEND_STRL(SW_HTTP_DATE_FORMAT), serv->gs->now, 0);
         http2_add_header(&nv[index++], ZEND_STRL("date"), date_str, strlen(date_str));
@@ -779,7 +774,6 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
             add_assoc_long(zserver, "remote_port", swConnection_get_port(conn));
             add_assoc_string(zserver, "remote_addr", swConnection_get_ip(conn));
             add_assoc_string(zserver, "server_protocol", (char *) "HTTP/2");
-            add_assoc_string(zserver, "server_software", (char *) SW_HTTP_SERVER_SOFTWARE);
         }
         else
         {

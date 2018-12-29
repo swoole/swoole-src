@@ -723,8 +723,7 @@ static int swPort_http_static_handler(swServer *serv, swHttpRequest *request, sw
                     "HTTP/1.1 304 Not Modified\r\n"
                     "%s"
                     "Date: %s\r\n"
-                    "Last-Modified: %s\r\n"
-                    "Server: %s\r\n\r\n",
+                    "Last-Modified: %s\r\n",
                     request->keep_alive ? "Connection: keep-alive\r\n" : "",
                     date_,
                     date_last_modified,
@@ -742,14 +741,13 @@ static int swPort_http_static_handler(swServer *serv, swHttpRequest *request, sw
             "Content-Length: %ld\r\n"
             "Content-Type: %s\r\n"
             "Date: %s\r\n"
-            "Last-Modified: %s\r\n"
-            "Server: %s\r\n\r\n",
+            "Last-Modified: %s\r\n",
             request->keep_alive ? "Connection: keep-alive\r\n" : "",
             (long) file_stat.st_size,
             swoole_get_mime_type(buffer.filename),
             date_,
-            date_last_modified,
-            SW_HTTP_SERVER_SOFTWARE);
+            date_last_modified
+     );
 
     response.data = header_buffer;
 
