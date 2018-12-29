@@ -39,6 +39,9 @@ PHP_ARG_ENABLE(mysqlnd, enable mysqlnd support,
 PHP_ARG_ENABLE(coroutine-postgresql, enable coroutine postgresql support,
 [  --enable-coroutine-postgresql    Do you install postgresql?], no, no)
 
+PHP_ARG_ENABLE(cares, enable c-ares support,
+[  --enable-cares            Use cares?], no, no)
+
 PHP_ARG_WITH(openssl_dir, dir of openssl,
 [  --with-openssl-dir[=DIR]    Include OpenSSL support (requires OpenSSL >= 0.9.6)], no, no)
 
@@ -238,7 +241,6 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(pthread, pthread_barrier_init, AC_DEFINE(HAVE_PTHREAD_BARRIER, 1, [have pthread_barrier_init]))
     AC_CHECK_LIB(pcre, pcre_compile, AC_DEFINE(HAVE_PCRE, 1, [have pcre]))
     AC_CHECK_LIB(pq, PQconnectdb, AC_DEFINE(HAVE_POSTGRESQL, 1, [have postgresql]))
-    AC_CHECK_LIB(cares, ares_library_init, AC_DEFINE(HAVE_CARES, 1, [have c-ares]))
     AC_CHECK_LIB(nghttp2, nghttp2_hd_inflate_new, AC_DEFINE(HAVE_NGHTTP2, 1, [have nghttp2]))
 
     AC_CHECK_LIB(brotlienc, BrotliEncoderCreateInstance, [
@@ -311,6 +313,13 @@ if test "$PHP_SWOOLE" != "no"; then
       [cygwin*], [SW_OS="CYGWIN"],
       [mingw*], [SW_OS="MINGW"],
       [linux*], [SW_OS="LINUX"],
+      [openbsd*], [SW_OS="OPENBSD"],
+      [freebsd*], [SW_OS="FREEBSD"],
+      [netbsd*], [SW_OS="NETBSD"],
+      [android*], [SW_OS="ANDROID"],
+      [sunos4*], [SW_OS="SUNOS"],
+      [solaris*], [SW_OS="SOLARIS"],
+      [aix*], [SW_OS="AIX"],
       []
     )
 
@@ -598,12 +607,100 @@ if test "$PHP_SWOOLE" != "no"; then
          LDFLAGS="$LDFLAGS -lboost_context"
     fi
 
+    if test "$PHP_CARES" != "no"; then
+        AC_DEFINE(SW_USE_CARES, 1, [enable c-ares support])
+
+        swoole_source_file="$swoole_source_file \
+            thirdparty/c-ares/src/ares__close_sockets.c \
+            thirdparty/c-ares/src/ares__get_hostent.c \
+            thirdparty/c-ares/src/ares__read_line.c \
+            thirdparty/c-ares/src/ares__timeval.c \
+            thirdparty/c-ares/src/ares_android.c \
+            thirdparty/c-ares/src/ares_cancel.c \
+            thirdparty/c-ares/src/ares_create_query.c \
+            thirdparty/c-ares/src/ares_data.c \
+            thirdparty/c-ares/src/ares_destroy.c \
+            thirdparty/c-ares/src/ares_expand_name.c \
+            thirdparty/c-ares/src/ares_expand_string.c \
+            thirdparty/c-ares/src/ares_fds.c \
+            thirdparty/c-ares/src/ares_free_hostent.c \
+            thirdparty/c-ares/src/ares_free_string.c \
+            thirdparty/c-ares/src/ares_getenv.c \
+            thirdparty/c-ares/src/ares_gethostbyaddr.c \
+            thirdparty/c-ares/src/ares_gethostbyname.c \
+            thirdparty/c-ares/src/ares_getnameinfo.c \
+            thirdparty/c-ares/src/ares_getopt.c \
+            thirdparty/c-ares/src/ares_getsock.c \
+            thirdparty/c-ares/src/ares_init.c \
+            thirdparty/c-ares/src/ares_library_init.c \
+            thirdparty/c-ares/src/ares_llist.c \
+            thirdparty/c-ares/src/ares_mkquery.c \
+            thirdparty/c-ares/src/ares_nowarn.c \
+            thirdparty/c-ares/src/ares_options.c \
+            thirdparty/c-ares/src/ares_parse_a_reply.c \
+            thirdparty/c-ares/src/ares_parse_aaaa_reply.c \
+            thirdparty/c-ares/src/ares_parse_mx_reply.c \
+            thirdparty/c-ares/src/ares_parse_naptr_reply.c \
+            thirdparty/c-ares/src/ares_parse_ns_reply.c \
+            thirdparty/c-ares/src/ares_parse_ptr_reply.c \
+            thirdparty/c-ares/src/ares_parse_soa_reply.c \
+            thirdparty/c-ares/src/ares_parse_srv_reply.c \
+            thirdparty/c-ares/src/ares_parse_txt_reply.c \
+            thirdparty/c-ares/src/ares_platform.c \
+            thirdparty/c-ares/src/ares_process.c \
+            thirdparty/c-ares/src/ares_query.c \
+            thirdparty/c-ares/src/ares_search.c \
+            thirdparty/c-ares/src/ares_send.c \
+            thirdparty/c-ares/src/ares_strcasecmp.c \
+            thirdparty/c-ares/src/ares_strdup.c \
+            thirdparty/c-ares/src/ares_strerror.c \
+            thirdparty/c-ares/src/ares_strsplit.c \
+            thirdparty/c-ares/src/ares_timeout.c \
+            thirdparty/c-ares/src/ares_version.c \
+            thirdparty/c-ares/src/ares_writev.c \
+            thirdparty/c-ares/src/ares_bitncmp.c \
+            thirdparty/c-ares/src/inet_net_pton.c \
+            thirdparty/c-ares/src/inet_ntop.c \
+            thirdparty/c-ares/src/windows_port.c"
+    fi
+
     PHP_NEW_EXTENSION(swoole, $swoole_source_file, $ext_shared,,, cxx)
 
     PHP_ADD_INCLUDE([$ext_srcdir])
     PHP_ADD_INCLUDE([$ext_srcdir/include])
 
     PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/hiredis])
+
+    if test "$PHP_CARES" != "no"; then
+        PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/c-ares/include])
+        PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/c-ares/src])
+
+        if test "$SW_OS" = "LINUX"; then
+            PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/c-ares/config/linux])
+        elif test "$SW_OS" = "MAC"; then
+            PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/c-ares/config/darwin])
+        elif test "$SW_OS" = "CYGWIN"; then
+            PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/c-ares/config/cygwin])
+        elif test "$SW_OS" = "FREEBSD"; then
+            PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/c-ares/config/freebsd])
+        elif test "$SW_OS" = "OPENBSD"; then
+            PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/c-ares/config/openbsd])
+        elif test "$SW_OS" = "NETBSD"; then
+            PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/c-ares/config/netbsd])
+        elif test "$SW_OS" = "AIX"; then
+            PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/c-ares/config/aix])
+        elif test "$SW_OS" = "SUNOS"; then
+            PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/c-ares/config/sunos])
+        elif test "$SW_OS" = "SOLARIS"; then
+            PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/c-ares/config/sunos])
+        elif test "$SW_OS" = "ANDROID"; then
+            PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/c-ares/config/android])
+        dnl elif test "$SW_OS" = "MINGW"; then
+            dnl windows, nothing to do now
+        dnl else
+            dnl PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/c-ares/config/linux])
+        fi
+    fi
 
     PHP_INSTALL_HEADERS([ext/swoole], [*.h config.h include/*.h])
 

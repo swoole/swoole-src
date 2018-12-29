@@ -19,6 +19,10 @@
 #include "coroutine.h"
 #include "lru_cache.h"
 
+#ifdef SW_USE_CARES
+#include "ares.h"
+#endif
+
 #ifndef _WIN32
 
 #include <sys/file.h>
@@ -748,6 +752,211 @@ ssize_t Coroutine::write_file(const char *file, char *buf, size_t length, int lo
     return ev.ret;
 }
 
+#ifdef SW_USE_CARES
+typedef struct
+{
+    ares_channel channel;
+    bool finish;
+    string result;
+} ares_dns_task;
+
+static void ares_dns_callback(void *arg, int status, int timeouts, struct hostent* hptr)
+{
+    Coroutine *co = (Coroutine *) arg;
+    auto task = (ares_dns_task *) co->get_task();
+
+    if (status == ARES_SUCCESS)
+    {
+        char *pptr = *hptr->h_addr_list;
+        if (pptr)
+        {
+            char addr[INET6_ADDRSTRLEN];
+            inet_ntop(hptr->h_addrtype, pptr, addr, INET6_ADDRSTRLEN);
+            task->result.append(addr);
+        }
+    }
+
+    task->finish = true;
+    co->resume();
+}
+
+static int ares_event_callback(swReactor *reactor, swEvent *event)
+{
+    auto co = (Coroutine *) event->socket->object;
+    auto task = (ares_dns_task *) co->get_task();
+
+    if (event->type == SW_EVENT_READ)
+    {
+        ares_process_fd(task->channel, event->fd, ARES_SOCKET_BAD);
+    }
+    else if (event->type == SW_EVENT_WRITE)
+    {
+        ares_process_fd(task->channel, ARES_SOCKET_BAD, event->fd);
+    }
+    else
+    {
+        return SW_OK;
+    }
+
+    if (!task->finish)
+    {
+        co->resume();
+    }
+
+    return SW_OK;
+}
+
+string Coroutine::gethostbyname(const string &hostname, int domain, double timeout)
+{
+    auto reactor = SwooleG.main_reactor;
+    if (unlikely(!reactor))
+    {
+        return "";
+    }
+
+    if (dns_cache == nullptr && dns_cache_capacity != 0)
+    {
+        dns_cache = new LRUCache(dns_cache_capacity);
+    }
+
+    string cache_key;
+    if (dns_cache)
+    {
+        cache_key.append(domain == AF_INET ? "4_" : "6_");
+        cache_key.append(hostname);
+        auto cache = dns_cache->get(cache_key);
+
+        if (cache)
+        {
+            return *(string *)cache.get();
+        }
+    }
+
+    ares_dns_task task;
+    auto channel = task->channel;
+    if (ares_init(&channel) != ARES_SUCCESS)
+    {
+        return "";
+    }
+
+    ares_gethostbyname(channel, hostname.c_str(), domain, ares_dns_callback, (void *) coroutine_get_current());
+    string addr;
+    int bitmap;
+    ares_socket_t sock[ARES_GETSOCK_MAXNUM];
+
+    if (unlikely(!swReactor_handle_isset(reactor, SW_FD_ARES)))
+    {
+        reactor->setHandle(reactor, SW_FD_ARES | SW_EVENT_READ, ares_event_callback);
+        reactor->setHandle(reactor, SW_FD_ARES | SW_EVENT_WRITE, ares_event_callback);
+        reactor->setHandle(reactor, SW_FD_ARES | SW_EVENT_ERROR, ares_event_callback);
+    }
+
+    Coroutine *co = Coroutine::get_current();
+    co->set_task(task);
+
+    ares_socket_t read_sock[ARES_GETSOCK_MAXNUM];
+    ares_socket_t write_sock[ARES_GETSOCK_MAXNUM];
+    for (int i = 0; i < ARES_GETSOCK_MAXNUM; ++i)
+    {
+        read_sock[i] = ARES_SOCKET_BAD;
+        write_sock[i] = ARES_SOCKET_BAD;
+    }
+
+    for (;;)
+    {
+        bitmap = ares_getsock(channel, sock, ARES_GETSOCK_MAXNUM);
+        if (bitmap == 0)
+        {
+            break;
+        }
+
+        for (int i = 0; i < ARES_GETSOCK_MAXNUM; ++i)
+        {
+            if (ARES_GETSOCK_WRITEABLE(bitmap, i))
+            {
+                // if it's writeable, it must be readable too.
+                if (unlikely(reactor->add(reactor, sock[i], SW_FD_CORO_DNS | SW_EVENT_READ | SW_EVENT_WRITE) < 0))
+                {
+                    set_err(errno);
+                    goto complete;
+                }
+
+                read_sock[i] = sock[i];
+                write_sock[i] = sock[i];
+
+                auto sw_conn = swReactor_get(reactor, sock[i]);
+                if (sw_conn->object != co || sw_conn->removed)
+                {
+                    bzero(sw_conn, sizeof(swConnection));
+                    sw_conn->fd = sock[i];
+                    sw_conn->object = co;
+                    sw_conn->socket_type = SW_SOCK_TCP;
+                    sw_conn->removed = 0;
+                    sw_conn->fdtype = SW_FD_CORO_DNS;
+                }
+            }
+            else if (ARES_GETSOCK_READABLE(bitmap, i))
+            {
+                // only readable
+                if (unlikely(reactor->add(reactor, sock[i], SW_FD_CORO_DNS | SW_EVENT_READ) < 0))
+                {
+                    set_err(errno);
+                    goto complete;
+                }
+
+                read_sock[i] = sock[i];
+
+                auto sw_conn = swReactor_get(reactor, sock[i]);
+                if (sw_conn->object != co || sw_conn->removed)
+                {
+                    bzero(sw_conn, sizeof(swConnection));
+                    sw_conn->fd = sock[i];
+                    sw_conn->object = co;
+                    sw_conn->socket_type = SW_SOCK_UDP;
+                    sw_conn->removed = 0;
+                    sw_conn->fdtype = SW_FD_CORO_DNS;
+                }
+            }
+            else
+            {
+                // don't have more socket
+                break;
+            }
+        }
+
+        yield();
+        for (int i = 0; i < ARES_GETSOCK_MAXNUM; ++i)
+        {
+            if (write_sock[i] != ARES_SOCKET_BAD)
+            {
+                reactor->del(reactor, write_sock[i]);
+                read_sock[i] = ARES_SOCKET_BAD;
+                write_sock[i] = ARES_SOCKET_BAD;
+            }
+            else if (read_sock[i] != ARES_SOCKET_BAD)
+            {
+                reactor->del(reactor, read_sock[i]);
+                read_sock[i] = ARES_SOCKET_BAD;
+            }
+        }
+
+        if (task->finish)
+        {
+            break;
+        }
+    }
+
+complete:
+    ares_destroy(channel);
+
+    if (dns_cache && !task->result.empty())
+    {
+        dns_cache->set(cache_key, make_shared<string>(task.result), dns_cache_expire);
+    }
+
+    return task.result;
+}
+#else
 string Coroutine::gethostbyname(const string &hostname, int domain, float timeout)
 {
     if (dns_cache == nullptr && dns_cache_capacity != 0)
@@ -830,6 +1039,7 @@ string Coroutine::gethostbyname(const string &hostname, int domain, float timeou
         return addr;
     }
 }
+#endif
 
 #if 0
 static void handler_opendir(swAio_event *event)
