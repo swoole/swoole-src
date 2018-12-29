@@ -259,11 +259,11 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
             {
                 header_flag |= HTTP_HEADER_CONTENT_TYPE;
             }
-            if (ZVAL_IS_NULL(value))
+            if (!ZVAL_IS_NULL(value))
             {
-                continue;
+                convert_to_string(value);
+                http2_add_header(&nv[index++], key, keylen, Z_STRVAL_P(value), Z_STRLEN_P(value));
             }
-            http2_add_header(&nv[index++], key, keylen, Z_STRVAL_P(value), Z_STRLEN_P(value));
         }
         SW_HASHTABLE_FOREACH_END();
         (void)type;
@@ -779,7 +779,6 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
             add_assoc_long(zserver, "remote_port", swConnection_get_port(conn));
             add_assoc_string(zserver, "remote_addr", swConnection_get_ip(conn));
             add_assoc_string(zserver, "server_protocol", (char *) "HTTP/2");
-            add_assoc_string(zserver, "server_software", (char *) SW_HTTP_SERVER_SOFTWARE);
         }
         else
         {

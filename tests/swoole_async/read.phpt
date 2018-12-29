@@ -1,6 +1,5 @@
 --TEST--
 swoole_async: swoole_async_read
-
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -17,6 +16,7 @@ swoole_async_read(__FILE__, function ($filename, $content) {
         return true;
     }
 }, 8192);
+swoole_event_wait();
 ?>
 --EXPECT--
 SUCCESS

@@ -68,6 +68,7 @@ static int php_stdiop_seek(php_stream *stream, zend_off_t offset, int whence, ze
 static int php_stdiop_set_option(php_stream *stream, int option, int value, void *ptrparam);
 static int php_stdiop_cast(php_stream *stream, int castas, void **ret);
 
+static void php_stream_mode_sanitize_fdopen_fopencookie(php_stream *stream, char *result);
 static php_stream *_sw_php_stream_fopen_from_fd_int(int fd, const char *mode, const char *persistent_id STREAMS_DC);
 static php_stream *_sw_php_stream_fopen_from_fd(int fd, const char *mode, const char *persistent_id STREAMS_DC);
 
@@ -424,63 +425,68 @@ static int php_stdiop_seek(php_stream *stream, zend_off_t offset, int whence, ze
 
 static int php_stdiop_cast(php_stream *stream, int castas, void **ret)
 {
-    return FAILURE;
-#if 0
-	php_socket_t fd;
-	php_stdio_stream_data *data = (php_stdio_stream_data*) stream->abstract;
+    php_socket_t fd;
+    php_stdio_stream_data *data = (php_stdio_stream_data*) stream->abstract;
 
-	assert(data != NULL);
+    assert(data != NULL);
 
-	/* as soon as someone touches the stdio layer, buffering may ensue,
-	 * so we need to stop using the fd directly in that case */
+    /* as soon as someone touches the stdio layer, buffering may ensue,
+     * so we need to stop using the fd directly in that case */
 
-	switch (castas)	{
-		case PHP_STREAM_AS_STDIO:
-			if (ret) {
+    switch (castas)
+    {
+    case PHP_STREAM_AS_STDIO:
+        if (ret)
+        {
+            if (data->file == NULL)
+            {
+                /* we were opened as a plain file descriptor, so we
+                 * need fdopen now */
+                char fixed_mode[5];
+                php_stream_mode_sanitize_fdopen_fopencookie(stream, fixed_mode);
+                data->file = fdopen(data->fd, fixed_mode);
+                if (data->file == NULL)
+                {
+                    return FAILURE;
+                }
+            }
 
-				if (data->file == NULL) {
-					/* we were opened as a plain file descriptor, so we
-					 * need fdopen now */
-					char fixed_mode[5];
-					php_stream_mode_sanitize_fdopen_fopencookie(stream, fixed_mode);
-					data->file = fdopen(data->fd, fixed_mode);
-					if (data->file == NULL) {
-						return FAILURE;
-					}
-				}
+            *(FILE**) ret = data->file;
+            data->fd = SOCK_ERR;
+        }
+        return SUCCESS;
 
-				*(FILE**)ret = data->file;
-				data->fd = SOCK_ERR;
-			}
-			return SUCCESS;
+    case PHP_STREAM_AS_FD_FOR_SELECT:
+        PHP_STDIOP_GET_FD(fd, data);
+        if (SOCK_ERR == fd)
+        {
+            return FAILURE;
+        }
+        if (ret)
+        {
+            *(php_socket_t *) ret = fd;
+        }
+        return SUCCESS;
 
-		case PHP_STREAM_AS_FD_FOR_SELECT:
-			PHP_STDIOP_GET_FD(fd, data);
-			if (SOCK_ERR == fd) {
-				return FAILURE;
-			}
-			if (ret) {
-				*(php_socket_t *)ret = fd;
-			}
-			return SUCCESS;
+    case PHP_STREAM_AS_FD:
+        PHP_STDIOP_GET_FD(fd, data);
 
-		case PHP_STREAM_AS_FD:
-			PHP_STDIOP_GET_FD(fd, data);
-
-			if (SOCK_ERR == fd) {
-				return FAILURE;
-			}
-			if (data->file) {
-				fflush(data->file);
-			}
-			if (ret) {
-				*(php_socket_t *)ret = fd;
-			}
-			return SUCCESS;
-		default:
-			return FAILURE;
-	}
-#endif
+        if (SOCK_ERR == fd)
+        {
+            return FAILURE;
+        }
+        if (data->file)
+        {
+            fflush(data->file);
+        }
+        if (ret)
+        {
+            *(php_socket_t *) ret = fd;
+        }
+        return SUCCESS;
+    default:
+        return FAILURE;
+    }
 }
 
 static int php_stdiop_stat(php_stream *stream, php_stream_statbuf *ssb)
@@ -1338,6 +1344,52 @@ static php_stream *_sw_php_stream_fopen_from_fd(int fd, const char *mode, const 
     }
 
     return stream;
+}
+
+static void php_stream_mode_sanitize_fdopen_fopencookie(php_stream *stream, char *result)
+{
+    /* replace modes not supported by fdopen and fopencookie, but supported
+     * by PHP's fread(), so that their calls won't fail */
+    const char *cur_mode = stream->mode;
+    int has_plus = 0, has_bin = 0, i, res_curs = 0;
+
+    if (cur_mode[0] == 'r' || cur_mode[0] == 'w' || cur_mode[0] == 'a')
+    {
+        result[res_curs++] = cur_mode[0];
+    }
+    else
+    {
+        /* assume cur_mode[0] is 'c' or 'x'; substitute by 'w', which should not
+         * truncate anything in fdopen/fopencookie */
+        result[res_curs++] = 'w';
+
+        /* x is allowed (at least by glibc & compat), but not as the 1st mode
+         * as in PHP and in any case is (at best) ignored by fdopen and fopencookie */
+    }
+
+    /* assume current mode has at most length 4 (e.g. wbn+) */
+    for (i = 1; i < 4 && cur_mode[i] != '\0'; i++)
+    {
+        if (cur_mode[i] == 'b')
+        {
+            has_bin = 1;
+        }
+        else if (cur_mode[i] == '+')
+        {
+            has_plus = 1;
+        }
+        /* ignore 'n', 't' or other stuff */
+    }
+
+    if (has_bin)
+    {
+        result[res_curs++] = 'b';
+    }
+    if (has_plus)
+    {
+        result[res_curs++] = '+';
+    }
+    result[res_curs] = '\0';
 }
 
 static php_stream_wrapper_ops wrapper_ops = {
