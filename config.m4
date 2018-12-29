@@ -659,7 +659,7 @@ if test "$PHP_SWOOLE" != "no"; then
             thirdparty/c-ares/src/ares_timeout.c \
             thirdparty/c-ares/src/ares_version.c \
             thirdparty/c-ares/src/ares_writev.c \
-            thirdparty/c-ares/src/ares_bitncmp.c \
+            thirdparty/c-ares/src/bitncmp.c \
             thirdparty/c-ares/src/inet_net_pton.c \
             thirdparty/c-ares/src/inet_ntop.c \
             thirdparty/c-ares/src/windows_port.c"

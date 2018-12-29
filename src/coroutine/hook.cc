@@ -767,17 +767,42 @@ ssize_t Coroutine::write_file(const char *file, char *buf, size_t length, int lo
 }
 
 #ifdef SW_USE_CARES
-typedef struct
+struct _ares_dns_task
 {
     ares_channel channel;
     bool finish;
+    bool timeout;
     string result;
-} ares_dns_task;
+    Coroutine *co;
+
+    _ares_dns_task()
+    {
+        finish = false;
+        timeout = false;
+        co = nullptr;
+
+        if (ares_init(&channel) != ARES_SUCCESS)
+        {
+            finish = true;
+        }
+    }
+
+    ~_ares_dns_task()
+    {
+        ares_destroy(channel);
+    }
+};
+typedef _ares_dns_task ares_dns_task;
 
 static void ares_dns_callback(void *arg, int status, int timeouts, struct hostent* hptr)
 {
-    Coroutine *co = (Coroutine *) arg;
-    auto task = (ares_dns_task *) co->get_task();
+    auto task = (ares_dns_task *) arg;
+    auto co = task->co;
+
+    if (task->finish)
+    {
+        return;
+    }
 
     if (status == ARES_SUCCESS)
     {
@@ -788,35 +813,66 @@ static void ares_dns_callback(void *arg, int status, int timeouts, struct hosten
             inet_ntop(hptr->h_addrtype, pptr, addr, INET6_ADDRSTRLEN);
             task->result.append(addr);
         }
+        else
+        {
+            SwooleG.error = SW_ERROR_DNSLOOKUP_RESOLVE_FAILED;
+        }
+    }
+    else if (!task->timeout)
+    {
+        SwooleG.error = SW_ERROR_DNSLOOKUP_RESOLVE_FAILED;
     }
 
     task->finish = true;
     co->resume();
 }
 
-static int ares_event_callback(swReactor *reactor, swEvent *event)
+static void ares_dns_timeout(swTimer *timer, swTimer_node *tnode)
 {
-    auto co = (Coroutine *) event->socket->object;
-    auto task = (ares_dns_task *) co->get_task();
+    auto task = (ares_dns_task *) tnode->data;
+    task->timeout = true;
+    SwooleG.error = SW_ERROR_DNSLOOKUP_RESOLVE_TIMEOUT;
+    delete task;
+}
 
-    if (event->type == SW_EVENT_READ)
-    {
-        ares_process_fd(task->channel, event->fd, ARES_SOCKET_BAD);
-    }
-    else if (event->type == SW_EVENT_WRITE)
-    {
-        ares_process_fd(task->channel, ARES_SOCKET_BAD, event->fd);
-    }
-    else
-    {
-        return SW_OK;
-    }
+static int ares_event_read(swReactor *reactor, swEvent *event)
+{
+    auto task = (ares_dns_task *) event->socket->object;
+    auto co = task->co;
 
+    ares_process_fd(task->channel, event->fd, ARES_SOCKET_BAD);
     if (!task->finish)
     {
         co->resume();
     }
+    else
+    {
+        delete task;
+    }
 
+    return SW_OK;
+}
+
+static int ares_event_write(swReactor *reactor, swEvent *event)
+{
+    auto task = (ares_dns_task *) event->socket->object;
+    auto co = task->co;
+
+    ares_process_fd(task->channel, ARES_SOCKET_BAD, event->fd);
+    if (!task->finish)
+    {
+        co->resume();
+    }
+    else
+    {
+        delete task;
+    }
+
+    return SW_OK;
+}
+
+static int ares_event_error(swReactor *reactor, swEvent *event)
+{
     return SW_OK;
 }
 
@@ -846,34 +902,39 @@ string Coroutine::gethostbyname(const string &hostname, int domain, double timeo
         }
     }
 
-    ares_dns_task task;
+    auto task = new ares_dns_task();
     auto channel = task->channel;
-    if (ares_init(&channel) != ARES_SUCCESS)
+    if (task->finish)
     {
+        error:
+        delete task;
         return "";
     }
 
-    ares_gethostbyname(channel, hostname.c_str(), domain, ares_dns_callback, (void *) coroutine_get_current());
-    string addr;
+    Coroutine *co = Coroutine::get_current();
+    task->co = co;
+
+    swTimer_node* timer = nullptr;
+    if (timeout > 0)
+    {
+        timer = swTimer_add(&SwooleG.timer, (long) (timeout * 1000), 0, task, ares_dns_timeout);
+    }
+
+    ares_gethostbyname(channel, hostname.c_str(), domain, ares_dns_callback, task);
     int bitmap;
     ares_socket_t sock[ARES_GETSOCK_MAXNUM];
 
     if (unlikely(!swReactor_handle_isset(reactor, SW_FD_ARES)))
     {
-        reactor->setHandle(reactor, SW_FD_ARES | SW_EVENT_READ, ares_event_callback);
-        reactor->setHandle(reactor, SW_FD_ARES | SW_EVENT_WRITE, ares_event_callback);
-        reactor->setHandle(reactor, SW_FD_ARES | SW_EVENT_ERROR, ares_event_callback);
+        reactor->setHandle(reactor, SW_FD_ARES | SW_EVENT_READ, ares_event_read);
+        reactor->setHandle(reactor, SW_FD_ARES | SW_EVENT_WRITE, ares_event_write);
+        reactor->setHandle(reactor, SW_FD_ARES | SW_EVENT_ERROR, ares_event_error);
     }
 
-    Coroutine *co = Coroutine::get_current();
-    co->set_task(task);
-
-    ares_socket_t read_sock[ARES_GETSOCK_MAXNUM];
-    ares_socket_t write_sock[ARES_GETSOCK_MAXNUM];
+    ares_socket_t active_sock[ARES_GETSOCK_MAXNUM];
     for (int i = 0; i < ARES_GETSOCK_MAXNUM; ++i)
     {
-        read_sock[i] = ARES_SOCKET_BAD;
-        write_sock[i] = ARES_SOCKET_BAD;
+        active_sock[i] = ARES_SOCKET_BAD;
     }
 
     for (;;)
@@ -886,50 +947,31 @@ string Coroutine::gethostbyname(const string &hostname, int domain, double timeo
 
         for (int i = 0; i < ARES_GETSOCK_MAXNUM; ++i)
         {
-            if (ARES_GETSOCK_WRITEABLE(bitmap, i))
+            if (ARES_GETSOCK_WRITABLE(bitmap, i))
             {
                 // if it's writeable, it must be readable too.
-                if (unlikely(reactor->add(reactor, sock[i], SW_FD_CORO_DNS | SW_EVENT_READ | SW_EVENT_WRITE) < 0))
+                if (unlikely(reactor->add(reactor, sock[i], SW_FD_ARES | SW_EVENT_READ | SW_EVENT_WRITE) < 0))
                 {
-                    set_err(errno);
-                    goto complete;
+                    goto error;
                 }
 
-                read_sock[i] = sock[i];
-                write_sock[i] = sock[i];
-
+                active_sock[i] = sock[i];
                 auto sw_conn = swReactor_get(reactor, sock[i]);
-                if (sw_conn->object != co || sw_conn->removed)
-                {
-                    bzero(sw_conn, sizeof(swConnection));
-                    sw_conn->fd = sock[i];
-                    sw_conn->object = co;
-                    sw_conn->socket_type = SW_SOCK_TCP;
-                    sw_conn->removed = 0;
-                    sw_conn->fdtype = SW_FD_CORO_DNS;
-                }
+                sw_conn->object = task;
+                sw_conn->removed = 0;
             }
             else if (ARES_GETSOCK_READABLE(bitmap, i))
             {
                 // only readable
-                if (unlikely(reactor->add(reactor, sock[i], SW_FD_CORO_DNS | SW_EVENT_READ) < 0))
+                if (unlikely(reactor->add(reactor, sock[i], SW_FD_ARES | SW_EVENT_READ) < 0))
                 {
-                    set_err(errno);
-                    goto complete;
+                    goto error;
                 }
 
-                read_sock[i] = sock[i];
-
+                active_sock[i] = sock[i];
                 auto sw_conn = swReactor_get(reactor, sock[i]);
-                if (sw_conn->object != co || sw_conn->removed)
-                {
-                    bzero(sw_conn, sizeof(swConnection));
-                    sw_conn->fd = sock[i];
-                    sw_conn->object = co;
-                    sw_conn->socket_type = SW_SOCK_UDP;
-                    sw_conn->removed = 0;
-                    sw_conn->fdtype = SW_FD_CORO_DNS;
-                }
+                sw_conn->object = task;
+                sw_conn->removed = 0;
             }
             else
             {
@@ -938,19 +980,14 @@ string Coroutine::gethostbyname(const string &hostname, int domain, double timeo
             }
         }
 
-        yield();
+        co->yield();
         for (int i = 0; i < ARES_GETSOCK_MAXNUM; ++i)
         {
-            if (write_sock[i] != ARES_SOCKET_BAD)
+            if (active_sock[i] != ARES_SOCKET_BAD)
             {
-                reactor->del(reactor, write_sock[i]);
-                read_sock[i] = ARES_SOCKET_BAD;
-                write_sock[i] = ARES_SOCKET_BAD;
-            }
-            else if (read_sock[i] != ARES_SOCKET_BAD)
-            {
-                reactor->del(reactor, read_sock[i]);
-                read_sock[i] = ARES_SOCKET_BAD;
+                swReactor_get(reactor, active_sock[i])->removed = 1;
+                reactor->del(reactor, active_sock[i]);
+                active_sock[i] = ARES_SOCKET_BAD;
             }
         }
 
@@ -960,15 +997,17 @@ string Coroutine::gethostbyname(const string &hostname, int domain, double timeo
         }
     }
 
-complete:
-    ares_destroy(channel);
+    if (timer)
+    {
+        swTimer_del(&SwooleG.timer, timer);
+    }
 
     if (dns_cache && !task->result.empty())
     {
-        dns_cache->set(cache_key, make_shared<string>(task.result), dns_cache_expire);
+        dns_cache->set(cache_key, make_shared<string>(task->result), dns_cache_expire);
     }
 
-    return task.result;
+    return task->result;
 }
 #else
 string Coroutine::gethostbyname(const string &hostname, int domain, double timeout)
@@ -992,7 +1031,7 @@ string Coroutine::gethostbyname(const string &hostname, int domain, double timeo
     }
 
     swAio_event ev;
-    aio_task task ;
+    aio_task task;
 
     bzero(&ev, sizeof(swAio_event));
     if (hostname.size() < SW_IP_MAX_LENGTH)
