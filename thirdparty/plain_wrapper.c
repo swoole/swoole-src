@@ -1351,14 +1351,14 @@ static void php_stream_mode_sanitize_fdopen_fopencookie(php_stream *stream, char
     /* replace modes not supported by fdopen and fopencookie, but supported
      * by PHP's fread(), so that their calls won't fail */
     const char *cur_mode = stream->mode;
-    int         has_plus = 0,
-                has_bin  = 0,
-                i,
-                res_curs = 0;
+    int has_plus = 0, has_bin = 0, i, res_curs = 0;
 
-    if (cur_mode[0] == 'r' || cur_mode[0] == 'w' || cur_mode[0] == 'a') {
+    if (cur_mode[0] == 'r' || cur_mode[0] == 'w' || cur_mode[0] == 'a')
+    {
         result[res_curs++] = cur_mode[0];
-    } else {
+    }
+    else
+    {
         /* assume cur_mode[0] is 'c' or 'x'; substitute by 'w', which should not
          * truncate anything in fdopen/fopencookie */
         result[res_curs++] = 'w';
@@ -1368,22 +1368,27 @@ static void php_stream_mode_sanitize_fdopen_fopencookie(php_stream *stream, char
     }
 
     /* assume current mode has at most length 4 (e.g. wbn+) */
-    for (i = 1; i < 4 && cur_mode[i] != '\0'; i++) {
-        if (cur_mode[i] == 'b') {
+    for (i = 1; i < 4 && cur_mode[i] != '\0'; i++)
+    {
+        if (cur_mode[i] == 'b')
+        {
             has_bin = 1;
-        } else if (cur_mode[i] == '+') {
+        }
+        else if (cur_mode[i] == '+')
+        {
             has_plus = 1;
         }
         /* ignore 'n', 't' or other stuff */
     }
 
-    if (has_bin) {
+    if (has_bin)
+    {
         result[res_curs++] = 'b';
     }
-    if (has_plus) {
+    if (has_plus)
+    {
         result[res_curs++] = '+';
     }
-
     result[res_curs] = '\0';
 }
 
