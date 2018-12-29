@@ -1079,7 +1079,6 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
         add_assoc_string(zserver, "remote_addr", swConnection_get_ip(conn));
         add_assoc_long(zserver, "master_time", conn->last_time);
         add_assoc_string(zserver, "server_protocol", (char *) (ctx->request.version == 101 ? "HTTP/1.1" : "HTTP/1.0"));
-        add_assoc_string(zserver, "server_software", (char *) SW_HTTP_SERVER_SOFTWARE);
 
         // begin to check and call registerd callback
         zend_fcall_info_cache *fci_cache = NULL;

@@ -779,7 +779,6 @@ int swoole_http2_onFrame(swConnection *conn, swEventData *req)
             add_assoc_long(zserver, "remote_port", swConnection_get_port(conn));
             add_assoc_string(zserver, "remote_addr", swConnection_get_ip(conn));
             add_assoc_string(zserver, "server_protocol", (char *) "HTTP/2");
-            add_assoc_string(zserver, "server_software", (char *) SW_HTTP_SERVER_SOFTWARE);
         }
         else
         {
