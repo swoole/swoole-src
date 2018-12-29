@@ -24,8 +24,8 @@ static PHP_METHOD(swoole_postgresql_coro, __construct);
 static PHP_METHOD(swoole_postgresql_coro, __destruct);
 static PHP_METHOD(swoole_postgresql_coro, connect);
 static PHP_METHOD(swoole_postgresql_coro, query);
-static PHP_METHOD(swoole_postgresql_coro, pgPrepare);
-static PHP_METHOD(swoole_postgresql_coro, pgExecute);
+static PHP_METHOD(swoole_postgresql_coro, prepare);
+static PHP_METHOD(swoole_postgresql_coro, execute);
 static PHP_METHOD(swoole_postgresql_coro, fetchAll);
 static PHP_METHOD(swoole_postgresql_coro, affectedRows);
 static PHP_METHOD(swoole_postgresql_coro, numRows);
@@ -117,8 +117,8 @@ static const zend_function_entry swoole_postgresql_coro_methods[] =
     PHP_ME(swoole_postgresql_coro, __construct, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_postgresql_coro, connect, arginfo_pg_connect, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_postgresql_coro, query, arginfo_pg_query, ZEND_ACC_PUBLIC )
-    PHP_ME(swoole_postgresql_coro, pgPrepare, arginfo_pg_send_prepare, ZEND_ACC_PUBLIC )
-    PHP_ME(swoole_postgresql_coro, pgExecute, arginfo_pg_send_execute, ZEND_ACC_PUBLIC )
+    PHP_ME(swoole_postgresql_coro, prepare, arginfo_pg_send_prepare, ZEND_ACC_PUBLIC )
+    PHP_ME(swoole_postgresql_coro, execute, arginfo_pg_send_execute, ZEND_ACC_PUBLIC )
     PHP_ME(swoole_postgresql_coro, fetchAll, arginfo_pg_fetch_all, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_postgresql_coro, affectedRows, arginfo_pg_affected_rows, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_postgresql_coro, numRows, arginfo_pg_num_rows, ZEND_ACC_PUBLIC)
@@ -586,7 +586,7 @@ static PHP_METHOD(swoole_postgresql_coro, query)
     sw_coro_yield();
 }
 
-static PHP_METHOD(swoole_postgresql_coro, pgPrepare)
+static PHP_METHOD(swoole_postgresql_coro, prepare)
 {
     zval *query, *stmtname;
     PGconn *pgsql;
@@ -643,7 +643,7 @@ static PHP_METHOD(swoole_postgresql_coro, pgPrepare)
     sw_coro_yield();
 }
 
-static PHP_METHOD(swoole_postgresql_coro, pgExecute)
+static PHP_METHOD(swoole_postgresql_coro, execute)
 {
 
     zval *pv_param_arr, *tmp;
