@@ -90,6 +90,7 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_gethostbyname, 0, 0, 1)
     ZEND_ARG_INFO(0, domain_name)
     ZEND_ARG_INFO(0, family)
+    ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_defer, 0, 0, 1)
@@ -1153,7 +1154,7 @@ PHP_FUNCTION(swoole_coroutine_gethostbyname)
     char *domain_name;
     size_t l_domain_name;
     long family = AF_INET;
-    double timeout = 1;
+    double timeout = -1;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|ld", &domain_name, &l_domain_name, &family, &timeout) == FAILURE)
     {
