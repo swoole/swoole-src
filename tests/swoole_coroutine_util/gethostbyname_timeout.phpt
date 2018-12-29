@@ -9,7 +9,7 @@ require __DIR__ . '/../include/bootstrap.php';
 use Swoole\Coroutine as co;
 
 co::create(function () {
-    $result = Co::gethostbyname("wwww.xxxx.cccn.xer", AF_INET, 0.01);
+    $result = Co::gethostbyname("wwww.xxxx.cccn.xer", AF_INET, 0.005);
     assert($result == false);
     assert(swoole_last_error() == SWOOLE_ERROR_DNSLOOKUP_RESOLVE_TIMEOUT);
     co::sleep(0.1);
