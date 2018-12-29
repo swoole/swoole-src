@@ -90,6 +90,7 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_gethostbyname, 0, 0, 1)
     ZEND_ARG_INFO(0, domain_name)
     ZEND_ARG_INFO(0, family)
+    ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_defer, 0, 0, 1)
@@ -822,8 +823,6 @@ static PHP_METHOD(swoole_coroutine_util, fread)
     ev.fd = fd;
     ev.offset = _seek;
 
-    php_swoole_check_aio();
-
     swTrace("fd=%d, offset=%jd, length=%ld", fd, (intmax_t) ev.offset, ev.nbytes);
 
     int ret = swAio_dispatch(&ev);
@@ -904,8 +903,6 @@ static PHP_METHOD(swoole_coroutine_util, fgets)
     ev.fd = fd;
     ev.req = (void *) file;
 
-    php_swoole_check_aio();
-
     swTrace("fd=%d, offset=%jd, length=%ld", fd, (intmax_t) ev.offset, ev.nbytes);
 
     int ret = swAio_dispatch(&ev);
@@ -982,8 +979,6 @@ static PHP_METHOD(swoole_coroutine_util, fwrite)
     ev.fd = fd;
     ev.offset = _seek;
 
-    php_swoole_check_aio();
-
     swTrace("fd=%d, offset=%jd, length=%ld", fd, (intmax_t) ev.offset, ev.nbytes);
 
     int ret = swAio_dispatch(&ev);
@@ -1011,8 +1006,6 @@ static PHP_METHOD(swoole_coroutine_util, readFile)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(flags)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
-
-    php_swoole_check_aio();
 
     swString *result = Coroutine::read_file(filename, flags & LOCK_EX);
     if (result == NULL)
@@ -1161,8 +1154,9 @@ PHP_FUNCTION(swoole_coroutine_gethostbyname)
     char *domain_name;
     size_t l_domain_name;
     long family = AF_INET;
+    double timeout = -1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|l", &domain_name, &l_domain_name, &family) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|ld", &domain_name, &l_domain_name, &family, &timeout) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -1179,7 +1173,7 @@ PHP_FUNCTION(swoole_coroutine_gethostbyname)
         RETURN_FALSE;
     }
 
-    string address = Coroutine::gethostbyname(string(domain_name, l_domain_name), family);
+    string address = Coroutine::gethostbyname(string(domain_name, l_domain_name), family, timeout);
     if (address.empty())
     {
         RETURN_FALSE;
@@ -1252,8 +1246,6 @@ static PHP_METHOD(swoole_coroutine_util, getaddrinfo)
     {
         req->result = ecalloc(SW_DNS_HOST_BUFFER_SIZE, sizeof(struct sockaddr_in6));
     }
-
-    php_swoole_check_aio();
 
     if (swAio_dispatch(&ev) < 0)
     {

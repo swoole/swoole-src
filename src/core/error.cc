@@ -59,6 +59,8 @@ const char* swstrerror(enum swErrorCode code)
         return "dnslookup duplicate request";
     case SW_ERROR_DNSLOOKUP_RESOLVE_FAILED:
         return "dnslookup resolve failed";
+    case SW_ERROR_DNSLOOKUP_RESOLVE_TIMEOUT:
+        return "dnslookup resolve timeout";
     case SW_ERROR_BAD_IPV6_ADDRESS:
         return "bad ipv6 address";
     case SW_ERROR_UNREGISTERED_SIGNAL:
@@ -107,6 +109,8 @@ const char* swstrerror(enum swErrorCode code)
         return "http2 stream not found";
     case SW_ERROR_AIO_BAD_REQUEST:
         return "aio bad request";
+    case SW_ERROR_AIO_CANCELED:
+        return "aio canceled";
     case SW_ERROR_CLIENT_NO_CONNECTION:
         return "client no connection";
     case SW_ERROR_SOCKET_CLOSED:

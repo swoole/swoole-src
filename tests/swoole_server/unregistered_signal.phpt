@@ -30,4 +30,4 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-[%s]	WARNING	%s (ERROR 706): Unable to find callback function for signal Broken pipe: 13.
+[%s]	WARNING	%s (ERROR 707): Unable to find callback function for signal Broken pipe: 13.

@@ -8,7 +8,6 @@ swoole_async: swoole_async_set
 require __DIR__ . '/../include/bootstrap.php';
 
 swoole_async_set([
-    "aio_mode" => 1,
     "thread_num" => 1,
     "enable_signalfd" => true,
     "socket_buffer_size" => 0,

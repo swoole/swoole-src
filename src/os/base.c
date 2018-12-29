@@ -31,6 +31,7 @@ struct flock lock;
     lock.l_type = (cmd), fcntl(fildes, F_SETLK, &lock)
 #endif
 
+#if 0
 swAsyncIO SwooleAIO;
 
 static int swAio_onTask(swThreadPool *pool, void *task, int task_len);
@@ -89,6 +90,95 @@ int swAio_init(void)
     return SW_OK;
 }
 
+static int swAio_onCompleted(swReactor *reactor, swEvent *event)
+{
+    int i;
+    swAio_event *events[SW_AIO_EVENT_NUM];
+    int n = read(event->fd, events, sizeof(swAio_event*) * SW_AIO_EVENT_NUM);
+    if (n < 0)
+    {
+        swWarn("read() failed. Error: %s[%d]", strerror(errno), errno);
+        return SW_ERR;
+    }
+    for (i = 0; i < n / sizeof(swAio_event*); i++)
+    {
+        events[i]->callback(events[i]);
+        SwooleAIO.task_num--;
+        sw_free(events[i]);
+    }
+    return SW_OK;
+}
+
+
+static int swAio_onTask(swThreadPool *pool, void *task, int task_len)
+{
+    swAio_event *event = task;
+    if (event->handler == NULL)
+    {
+        event->error = SW_ERROR_AIO_BAD_REQUEST;
+        event->ret = -1;
+        goto _error;
+    }
+
+    event->handler(event);
+
+    swTrace("aio_thread ok. ret=%d, error=%d", event->ret, event->error);
+
+    _error: do
+    {
+        SwooleAIO.lock.lock(&SwooleAIO.lock);
+        int ret = write(_pipe_write, &task, sizeof(task));
+        SwooleAIO.lock.unlock(&SwooleAIO.lock);
+        if (ret < 0)
+        {
+            if (errno == EAGAIN)
+            {
+                swYield();
+                continue;
+            }
+            else if (errno == EINTR)
+            {
+                continue;
+            }
+            else
+            {
+                swSysError("sendto swoole_aio_pipe_write failed.");
+            }
+        }
+        break;
+    } while (1);
+
+    return SW_OK;
+}
+
+int swAio_dispatch(swAio_event *_event)
+{
+    if (SwooleAIO.init == 0)
+    {
+        swAio_init();
+    }
+
+    _event->task_id = SwooleAIO.current_id++;
+
+    swAio_event *event = (swAio_event *) sw_malloc(sizeof(swAio_event));
+    if (event == NULL)
+    {
+        swWarn("malloc failed.");
+        return SW_ERR;
+    }
+    memcpy(event, _event, sizeof(swAio_event));
+
+    if (swThreadPool_dispatch(&pool, event, sizeof(event)) < 0)
+    {
+        return SW_ERR;
+    }
+    else
+    {
+        SwooleAIO.task_num++;
+        return _event->task_id;
+    }
+}
+
 void swAio_free(void)
 {
     if (!SwooleAIO.init)
@@ -103,6 +193,7 @@ void swAio_free(void)
     _aio_pipe.close(&_aio_pipe);
     SwooleAIO.init = 0;
 }
+#endif
 
 int swoole_daemon(int nochdir, int noclose)
 {
@@ -149,25 +240,6 @@ int swoole_daemon(int nochdir, int noclose)
         return -1;
     }
     return 0;
-}
-
-static int swAio_onCompleted(swReactor *reactor, swEvent *event)
-{
-    int i;
-    swAio_event *events[SW_AIO_EVENT_NUM];
-    int n = read(event->fd, events, sizeof(swAio_event*) * SW_AIO_EVENT_NUM);
-    if (n < 0)
-    {
-        swWarn("read() failed. Error: %s[%d]", strerror(errno), errno);
-        return SW_ERR;
-    }
-    for (i = 0; i < n / sizeof(swAio_event*); i++)
-    {
-        events[i]->callback(events[i]);
-        SwooleAIO.task_num--;
-        sw_free(events[i]);
-    }
-    return SW_OK;
 }
 
 void swAio_handler_read(swAio_event *event)
@@ -414,71 +486,3 @@ void swAio_handler_getaddrinfo(swAio_event *event)
     event->error = req->error;
 }
 
-static int swAio_onTask(swThreadPool *pool, void *task, int task_len)
-{
-    swAio_event *event = task;
-    if (event->handler == NULL)
-    {
-        event->error = SW_ERROR_AIO_BAD_REQUEST;
-        event->ret = -1;
-        goto _error;
-    }
-
-    event->handler(event);
-
-    swTrace("aio_thread ok. ret=%d, error=%d", event->ret, event->error);
-
-    _error: do
-    {
-        SwooleAIO.lock.lock(&SwooleAIO.lock);
-        int ret = write(_pipe_write, &task, sizeof(task));
-        SwooleAIO.lock.unlock(&SwooleAIO.lock);
-        if (ret < 0)
-        {
-            if (errno == EAGAIN)
-            {
-                swYield();
-                continue;
-            }
-            else if (errno == EINTR)
-            {
-                continue;
-            }
-            else
-            {
-                swSysError("sendto swoole_aio_pipe_write failed.");
-            }
-        }
-        break;
-    } while (1);
-
-    return SW_OK;
-}
-
-int swAio_dispatch(swAio_event *_event)
-{
-    if (SwooleAIO.init == 0)
-    {
-        swAio_init();
-    }
-
-    _event->task_id = SwooleAIO.current_id++;
-
-    swAio_event *event = (swAio_event *) sw_malloc(sizeof(swAio_event));
-    if (event == NULL)
-    {
-        swWarn("malloc failed.");
-        return SW_ERR;
-    }
-    memcpy(event, _event, sizeof(swAio_event));
-
-    if (swThreadPool_dispatch(&pool, event, sizeof(event)) < 0)
-    {
-        return SW_ERR;
-    }
-    else
-    {
-        SwooleAIO.task_num++;
-        return _event->task_id;
-    }
-}
