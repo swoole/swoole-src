@@ -59,5 +59,3 @@
 # define EMSGSIZE WSAEMSGSIZE
 #endif
 
-void php_stream_mode_sanitize_fdopen_fopencookie(php_stream *stream, char *result);
-
