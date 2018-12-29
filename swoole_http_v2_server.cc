@@ -268,6 +268,10 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
         SW_HASHTABLE_FOREACH_END();
         (void)type;
 
+        if (!(header_flag & HTTP_HEADER_SERVER))
+        {
+            http2_add_header(&nv[index++], ZEND_STRL("server"), ZEND_STRL(SW_HTTP_SERVER_SOFTWARE));
+        }
         if (!(header_flag & HTTP_HEADER_DATE))
         {
             date_str = sw_php_format_date((char *)ZEND_STRL(SW_HTTP_DATE_FORMAT), serv->gs->now, 0);
@@ -280,6 +284,7 @@ static int http2_build_header(http_context *ctx, uchar *buffer, size_t body_leng
     }
     else
     {
+        http2_add_header(&nv[index++], ZEND_STRL("server"), ZEND_STRL(SW_HTTP_SERVER_SOFTWARE));
         http2_add_header(&nv[index++], ZEND_STRL("content-type"), ZEND_STRL("text/html"));
         date_str = sw_php_format_date((char *)ZEND_STRL(SW_HTTP_DATE_FORMAT), serv->gs->now, 0);
         http2_add_header(&nv[index++], ZEND_STRL("date"), date_str, strlen(date_str));
