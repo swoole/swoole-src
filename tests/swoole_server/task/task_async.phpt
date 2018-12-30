@@ -26,7 +26,7 @@ $pm->childFunc = function () use ($pm) {
     $http->set([
         'log_file' => '/dev/null',
         'task_worker_num' => 4,
-        'task_async' => true
+        'task_enable_coroutine' => true
     ]);
     $http->on('request', function (swoole_http_request $request, swoole_http_response $response) use ($http) {
         assert($response->detach());
@@ -40,22 +40,20 @@ $pm->childFunc = function () use ($pm) {
             });
         }
     });
-    $http->on('task', function (swoole_http_server $server, $taskId, $srcWorkerId, $fd) {
+    $http->on('task', function (swoole_http_server $server, $task) {
+        $fd = $task->data;
         if (mt_rand(0, 1)) {
-            return [$fd, 'Hello Swoole!'];
+            $task->finish([$fd, 'Hello Swoole!']);
         } else {
             $response = swoole_http_response::create($fd);
-            go(function () use ($response) {
-                $pdo = new PDO(
-                    "mysql:host=" . MYSQL_SERVER_HOST . ";dbname=" . MYSQL_SERVER_DB . ";charset=utf8",
-                    MYSQL_SERVER_USER, MYSQL_SERVER_PWD
-                );
-                $stmt = $pdo->query('SELECT "Hello Swoole!"');
-                assert($stmt->execute());
-                $ret = $stmt->fetchAll(PDO::FETCH_COLUMN)[0];
-                $response->end($ret);
-            });
-            return null;
+            $pdo = new PDO(
+                "mysql:host=" . MYSQL_SERVER_HOST . ";dbname=" . MYSQL_SERVER_DB . ";charset=utf8",
+                MYSQL_SERVER_USER, MYSQL_SERVER_PWD
+            );
+            $stmt = $pdo->query('SELECT "Hello Swoole!"');
+            assert($stmt->execute());
+            $ret = $stmt->fetchAll(PDO::FETCH_COLUMN)[0];
+            $response->end($ret);
         }
     });
     $http->on('finish', function ($server, $taskId, $data) {
