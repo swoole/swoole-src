@@ -2546,7 +2546,7 @@ static PHP_METHOD(swoole_server, set)
     if (php_swoole_array_get_value(vht, "enable_coroutine", v))
     {
         convert_to_boolean(v);
-        SwooleG.enable_coroutine = Z_BVAL_P(v);
+        serv->enable_coroutine = SwooleG.enable_coroutine = Z_BVAL_P(v);
     }
     if (php_swoole_array_get_value(vht, "max_coro_num", v) || php_swoole_array_get_value(vht, "max_coroutine", v))
     {

@@ -472,6 +472,10 @@ struct _swServer
      * yield coroutine when the output buffer is full
      */
     uint32_t send_yield :1;
+    /**
+     * enable coroutine
+     */
+    uint32_t enable_coroutine :1;
 
     /**
      *  heartbeat check time

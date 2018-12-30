@@ -709,6 +709,8 @@ void swServer_init(swServer *serv)
 
     serv->task_ipc_mode = SW_TASK_IPC_UNIXSOCK;
 
+    serv->enable_coroutine = 1;
+
     /**
      * alloc shared memory
      */

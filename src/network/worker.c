@@ -412,6 +412,11 @@ void swWorker_onStart(swServer *serv)
         SwooleG.process_type = SW_PROCESS_WORKER;
     }
 
+    if (serv->enable_coroutine)
+    {
+        SwooleG.enable_coroutine = 1;
+    }
+
     SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
     if (SwooleG.memory_pool == NULL)
     {
