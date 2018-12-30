@@ -770,6 +770,7 @@ ssize_t Coroutine::write_file(const char *file, char *buf, size_t length, int lo
 struct _ares_dns_task
 {
     ares_channel channel;
+    ares_options options;
     bool finish;
     string result;
     Coroutine *co;
@@ -778,8 +779,9 @@ struct _ares_dns_task
     {
         finish = false;
         co = nullptr;
+        options.flags = ARES_FLAG_STAYOPEN; // don't close socket in end_query.
 
-        if (ares_init(&channel) != ARES_SUCCESS)
+        if (ares_init_options(&channel, &options, ARES_OPT_FLAGS) != ARES_SUCCESS)
         {
             finish = true;
         }
@@ -963,11 +965,6 @@ string Coroutine::gethostbyname(const string &hostname, int domain, double timeo
 
         co->yield();
 
-        if (task.finish)
-        {
-            break;
-        }
-
         for (int i = 0; i < ARES_GETSOCK_MAXNUM; ++i)
         {
             if (active_sock[i] != ARES_SOCKET_BAD)
@@ -980,6 +977,11 @@ string Coroutine::gethostbyname(const string &hostname, int domain, double timeo
             {
                 break;
             }
+        }
+
+        if (task.finish)
+        {
+            break;
         }
     }
 
