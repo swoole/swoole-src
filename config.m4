@@ -39,6 +39,12 @@ PHP_ARG_ENABLE(mysqlnd, enable mysqlnd support,
 PHP_ARG_ENABLE(coroutine-postgresql, enable coroutine postgresql support,
 [  --enable-coroutine-postgresql    Do you install postgresql?], no, no)
 
+PHP_ARG_ENABLE(cares, enable c-ares support,
+[  --enable-cares            Use cares?], no, no)
+
+PHP_ARG_WITH(cares_dir, dir of c-ares,
+[  --with-cares-dir[=DIR]      Include c-ares support], no, no)
+
 PHP_ARG_WITH(openssl_dir, dir of openssl,
 [  --with-openssl-dir[=DIR]    Include OpenSSL support (requires OpenSSL >= 0.9.6)], no, no)
 
@@ -451,6 +457,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/network/timer.c \
         src/network/worker.c \
         src/network/async_thread.cc \
+        src/network/cares.cc \
         src/os/base.c \
         src/os/msg_queue.c \
         src/os/sendfile.c \
@@ -597,6 +604,16 @@ if test "$PHP_SWOOLE" != "no"; then
             ${SW_ASM_DIR}jump_${SW_CONTEXT_ASM_FILE} "
     elif test "$SW_HAVE_BOOST_CONTEXT" = 'yes'; then
          LDFLAGS="$LDFLAGS -lboost_context"
+    fi
+
+    if test "$PHP_CARES" != "no" || test "$PHP_CARES_DIR" != "no"; then
+        if test "$PHP_CARES_DIR" != "no"; then
+            PHP_ADD_LIBRARY_WITH_PATH(cares, "$PHP_CARES_DIR/lib")
+            PHP_ADD_INCLUDE([$PHP_CARES_DIR])
+        fi
+
+        AC_DEFINE(SW_USE_CARES, 1, [enable c-ares support])
+        PHP_ADD_LIBRARY(cares, 1, SWOOLE_SHARED_LIBADD)
     fi
 
     PHP_NEW_EXTENSION(swoole, $swoole_source_file, $ext_shared,,, cxx)

@@ -23,6 +23,13 @@ add_definitions(-DHAVE_CONFIG_H)
 INCLUDE_DIRECTORIES(BEFORE ./include ./include/wrapper ./ /usr/local/php/include /usr/local/php/include/Zend /usr/local/php/include/main)
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 
+option(USE_CARES "use cares" OFF)
+if(USE_CARES)
+    add_definitions(-DSW_USE_CARES)
+    include_directories($ENV{CARES_DIR}/)
+    link_libraries($ENV{CARES_DIR}/lib/libcares.so)
+endif(USE_CARES)
+
 #shared library
 add_library(shared SHARED ${SRC_LIST})
 set_target_properties(shared PROPERTIES OUTPUT_NAME "swoole" VERSION ${SWOOLE_VERSION})
