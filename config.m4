@@ -426,6 +426,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/coroutine/boost.cc \
         src/coroutine/channel.cc \
         src/coroutine/context.cc \
+        src/coroutine/dns_resolver.cc \
         src/coroutine/hook.cc \
         src/coroutine/socket.cc \
         src/coroutine/ucontext.cc \
