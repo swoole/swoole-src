@@ -21,6 +21,7 @@
 #include "socket.h"
 #include "coroutine_c_api.h"
 #include "async.h"
+#include "dns_resolver.h"
 #include "zend_builtin_functions.h"
 #include "ext/standard/file.h"
 
@@ -411,6 +412,14 @@ static PHP_METHOD(swoole_coroutine_util, set)
     {
         convert_to_long(v);
         set_dns_cache_capacity((size_t) Z_LVAL_P(v));
+    }
+    if (php_swoole_array_get_value(vht, "dns_resolve_timeout", v))
+    {
+        convert_to_double(v);
+        if (Z_DVAL_P(v))
+        {
+            DNSResolver::resolve_timeout = (double) Z_DVAL_P(v);
+        }
     }
     zval_ptr_dtor(zset);
 }
