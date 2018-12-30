@@ -284,8 +284,9 @@ enum swFd_type
     SW_FD_INOTIFY         = 13, //server socket
     SW_FD_CHAN_PIPE       = 14, //channel pipe
     SW_FD_USER            = 15, //SW_FD_USER or SW_FD_USER+n: for custom event
-    SW_FD_STREAM_CLIENT   = 16, //swClient stream
-    SW_FD_DGRAM_CLIENT    = 17, //swClient dgram
+    SW_FD_ARES            = 16, //c-ares
+    SW_FD_STREAM_CLIENT   = 17, //swClient stream
+    SW_FD_DGRAM_CLIENT    = 18, //swClient dgram
 };
 
 enum swBool_type
