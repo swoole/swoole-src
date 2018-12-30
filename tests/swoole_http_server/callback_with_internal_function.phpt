@@ -41,7 +41,7 @@ object(Swoole\Http\Request)#9 (10) {
     string(4) "gzip"
   }
   ["server"]=>
-  array(11) {
+  array(10) {
     ["request_method"]=>
     string(3) "GET"
     ["request_uri"]=>
@@ -62,8 +62,6 @@ object(Swoole\Http\Request)#9 (10) {
     int(%d)
     ["server_protocol"]=>
     string(8) "HTTP/1.1"
-    ["server_software"]=>
-    string(18) "swoole-http-server"
   }
   ["request"]=>
   NULL

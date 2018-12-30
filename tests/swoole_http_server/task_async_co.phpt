@@ -27,7 +27,7 @@ $pm->childFunc = function () use ($pm) {
     $server->set([
         'log_file' => '/dev/null',
         'task_worker_num' => 1,
-        'task_async' => true
+        'task_enable_coroutine' => true
     ]);
     $server->on('workerStart', function ($serv, $wid) use ($pm) {
         $pm->wakeup();
@@ -56,12 +56,11 @@ $pm->childFunc = function () use ($pm) {
                 }
         }
     });
-    $server->on('task', function (swoole_http_server $server, int $task_id, int $worker_id, string $n) use ($pm) {
-        go(function () use ($pm, $server, $n) {
-            $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
-            $cli->get("/random?n={$n}");
-            $server->finish([$n, $cli->body]);
-        });
+    $server->on('task', function (swoole_http_server $server, $task) use ($pm) {
+        $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
+        $n = $task->data;
+        $cli->get("/random?n={$n}");
+        $server->finish([$n, $cli->body]);
     });
     $server->on('finish', function () { });
     $server->start();
