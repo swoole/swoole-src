@@ -55,7 +55,6 @@ static ares_ssize_t asendv(ares_socket_t sock, const struct iovec *vector, int c
 struct _ares_dns_task
 {
     ares_channel channel;
-    ares_options options;
     ares_socket_functions sock_func;
     bool finish;
     string result;
@@ -65,14 +64,13 @@ struct _ares_dns_task
     {
         finish = false;
         co = nullptr;
-        options.flags = ARES_FLAG_STAYOPEN; // don't close socket in end_query.
         sock_func.asocket = asocket;
         sock_func.aclose = aclose;
         sock_func.aconnect = aconnect;
         sock_func.arecvfrom = arecvfrom;
         sock_func.asendv = asendv;
 
-        if (unlikely(ares_init_options(&channel, &options, ARES_OPT_FLAGS) != ARES_SUCCESS))
+        if (unlikely(ares_init(&channel) != ARES_SUCCESS))
         {
             finish = true;
         }
