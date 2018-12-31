@@ -25,7 +25,6 @@ static ares_socket_t asocket(int af, int type, int protocol, void *data)
     }
 
     auto sock = swReactor_get(SwooleG.main_reactor, fd);
-    sock->removed = 0;
     sock->fd = fd;
     sock->object = data;
     return fd;
@@ -33,9 +32,7 @@ static ares_socket_t asocket(int af, int type, int protocol, void *data)
 
 static int aclose(ares_socket_t sock, void *data)
 {
-    swReactor_get(SwooleG.main_reactor, sock)->removed = 1;
     SwooleG.main_reactor->del(SwooleG.main_reactor, sock);
-
     return close(sock);
 }
 
