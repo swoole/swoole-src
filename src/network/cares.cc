@@ -186,6 +186,6 @@ string CAres::resolve(const std::string &hostname, int domain, double timeout)
         swTimer_del(&SwooleG.timer, timer);
     }
 
-    return task.result;
+    return move(task.result);
 }
 #endif
