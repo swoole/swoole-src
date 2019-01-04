@@ -171,6 +171,47 @@ void Coroutine::set_on_resume(coro_php_resume_t func)
 
 void Coroutine::set_on_close(coro_php_close_t func)
 {
-
     Coroutine::on_close = func;
+}
+
+/**
+ * for gdb
+ */
+static std::unordered_map<long, Coroutine*>::iterator _gdb_iterator;
+
+void swoole_coro_iterator_reset()
+{
+    _gdb_iterator = Coroutine::coroutines.begin();
+}
+
+Coroutine* swoole_coro_iterator_each()
+{
+    if (_gdb_iterator == Coroutine::coroutines.end())
+    {
+        return nullptr;
+    }
+    else
+    {
+        Coroutine *co = _gdb_iterator->second;
+        _gdb_iterator++;
+        return co;
+    }
+}
+
+Coroutine* swoole_coro_get(long cid)
+{
+    auto i = Coroutine::coroutines.find(cid);
+    if (i == Coroutine::coroutines.end())
+    {
+        return nullptr;
+    }
+    else
+    {
+        return i->second;
+    }
+}
+
+size_t swoole_coro_count()
+{
+    return Coroutine::coroutines.size();
 }

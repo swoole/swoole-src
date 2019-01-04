@@ -1452,6 +1452,7 @@ static sw_inline void sw_redis_command_key_str_str(INTERNAL_FUNCTION_PARAMETERS,
 static PHP_METHOD(swoole_redis_coro, __construct);
 static PHP_METHOD(swoole_redis_coro, __destruct);
 static PHP_METHOD(swoole_redis_coro, connect);
+static PHP_METHOD(swoole_redis_coro, getOptions);
 static PHP_METHOD(swoole_redis_coro, setOptions);
 static PHP_METHOD(swoole_redis_coro, setDefer);
 static PHP_METHOD(swoole_redis_coro, getDefer);
@@ -1593,6 +1594,7 @@ static const zend_function_entry swoole_redis_coro_methods[] =
     PHP_ME(swoole_redis_coro, __construct, arginfo_swoole_redis_coro_construct, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, __destruct, arginfo_swoole_redis_coro_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, connect, arginfo_swoole_redis_coro_connect, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, getOptions, arginfo_swoole_redis_coro_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, setOptions, arginfo_swoole_redis_coro_setOptions, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, setDefer, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, getDefer, NULL, ZEND_ACC_PUBLIC)
@@ -1789,8 +1791,11 @@ void swoole_redis_coro_init(int module_number)
 
 static void swoole_redis_coro_set_options(swRedisClient *redis, zval* zoptions, bool backward_compatibility = false)
 {
+    zval *zsettings = sw_zend_read_property_array(swoole_redis_coro_ce_ptr, redis->zobject, ZEND_STRL("setting"), 1);
     HashTable *vht = Z_ARRVAL_P(zoptions);
     zval *ztmp;
+
+    php_array_merge(Z_ARRVAL_P(zsettings), vht);
 
     if (php_swoole_array_get_value(vht, "connect_timeout", ztmp))
     {
@@ -1837,10 +1842,11 @@ static void swoole_redis_coro_set_options(swRedisClient *redis, zval* zoptions, 
 static PHP_METHOD(swoole_redis_coro, __construct)
 {
     zval *zset = NULL;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|z", &zset) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_ARRAY(zset)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     swRedisClient *redis = (swRedisClient *) swoole_get_object(getThis());
     if (redis)
@@ -1861,11 +1867,10 @@ static PHP_METHOD(swoole_redis_coro, __construct)
     redis->timeout = PHPCoroutine::socket_timeout;
     redis->reconnect_interval = 1;
 
-    if (zset && ZVAL_IS_ARRAY(zset))
+    if (zset)
     {
         php_swoole_array_separate(zset);
-        zend_update_property(swoole_redis_coro_ce_ptr, getThis(), ZEND_STRL("setting"), zset);
-        zval_ptr_dtor(zset);
+        Z_DELREF_P(zset);
         swoole_redis_coro_set_options(redis, zset);
     }
 }
@@ -1903,6 +1908,11 @@ static PHP_METHOD(swoole_redis_coro, connect)
     {
         RETURN_FALSE;
     }
+}
+
+static PHP_METHOD(swoole_redis_coro, getOptions)
+{
+    RETURN_ZVAL(sw_zend_read_property_array(swoole_redis_coro_ce_ptr, getThis(), ZEND_STRL("setting"), 1), 0, 0);
 }
 
 static PHP_METHOD(swoole_redis_coro, setOptions)
