@@ -3211,11 +3211,12 @@ static PHP_METHOD(swoole_server, send)
 static PHP_METHOD(swoole_server, sendto)
 {
     char *ip;
-    char *data;
-    size_t len, ip_len;
-
+    size_t ip_len;
     zend_long port;
+    char *data;
+    size_t len;
     zend_long server_socket = -1;
+
     zend_bool ipv6 = 0;
 
     swServer *serv = (swServer *) swoole_get_object(getThis());
@@ -3278,8 +3279,8 @@ static PHP_METHOD(swoole_server, sendfile)
 
     char *filename;
     long fd;
-    long offset = 0;
-    long length = 0;
+    zend_long offset = 0;
+    zend_long length = 0;
 
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (serv->gs->start == 0)
@@ -3304,8 +3305,8 @@ static PHP_METHOD(swoole_server, sendfile)
 
 static PHP_METHOD(swoole_server, close)
 {
-    zend_bool reset = SW_FALSE;
     zend_long fd;
+    zend_bool reset = SW_FALSE;
 
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (serv->gs->start == 0)
@@ -3516,9 +3517,8 @@ static PHP_METHOD(swoole_server, taskwait)
 {
     swEventData buf;
     zval *data;
-
     double timeout = SW_TASKWAIT_TIMEOUT;
-    long dst_worker_id = -1;
+    zend_long dst_worker_id = -1;
 
     swServer *serv = (swServer *) swoole_get_object(getThis());
     if (serv->gs->start == 0)
@@ -4062,10 +4062,9 @@ static PHP_METHOD(swoole_server, getSocket)
 static PHP_METHOD(swoole_server, connection_info)
 {
     zval *zobject = getThis();
-
+    zend_long fd;
+    zend_long from_id = -1;
     zend_bool noCheckConnection = 0;
-    zval *zfd;
-    long from_id = -1;
 
     swServer *serv = (swServer *) swoole_get_object(zobject);
     if (serv->gs->start == 0)
@@ -4074,15 +4073,10 @@ static PHP_METHOD(swoole_server, connection_info)
         RETURN_FALSE;
     }
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|lb", &zfd, &from_id, &noCheckConnection) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|lb", &fd, &from_id, &noCheckConnection) == FAILURE)
     {
         RETURN_FALSE;
     }
-
-    zend_long fd = 0;
-
-    convert_to_long(zfd);
-    fd = Z_LVAL_P(zfd);
 
     swConnection *conn = swServer_connection_verify(serv, fd);
     if (!conn)

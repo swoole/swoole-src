@@ -1152,9 +1152,9 @@ PHP_FUNCTION(swoole_cpu_num)
 
 PHP_FUNCTION(swoole_strerror)
 {
-    long swoole_errno = 0;
+    zend_long swoole_errno = 0;
+    zend_long error_type = 0;
     char error_msg[256] = {0};
-    long error_type = 0;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|l", &swoole_errno, &error_type) == FAILURE)
     {

@@ -70,8 +70,8 @@ void swoole_msgqueue_init(int module_number)
 
 static PHP_METHOD(swoole_msgqueue, __construct)
 {
-    long key;
-    long perms = 0;
+    zend_long key;
+    zend_long perms = 0;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|l", &key, &perms) == FAILURE)
     {
@@ -105,7 +105,7 @@ static PHP_METHOD(swoole_msgqueue, push)
 {
     char *data;
     size_t length;
-    long type = 1;
+    zend_long type = 1;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|l", &data, &length, &type) == FAILURE)
     {

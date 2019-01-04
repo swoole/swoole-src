@@ -1834,8 +1834,8 @@ static PHP_METHOD(swoole_http_client_coro, post)
 static PHP_METHOD(swoole_http_client_coro, download)
 {
     http_client* phc = swoole_get_phc(getThis());
-    char *uri = NULL;
-    size_t uri_len = 0;
+    char *uri;
+    size_t uri_len;
     zval *download_file;
     zend_long offset = 0;
 
@@ -1868,7 +1868,7 @@ static PHP_METHOD(swoole_http_client_coro, upgrade)
 static PHP_METHOD(swoole_http_client_coro, push)
 {
     http_client* phc = swoole_get_phc(getThis());
-    zval *zdata = NULL;
+    zval *zdata;
     zend_long opcode = WEBSOCKET_OPCODE_TEXT;
     zend_bool fin = 1;
 

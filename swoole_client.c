@@ -933,8 +933,8 @@ swClient* php_swoole_client_new(zval *zobject, char *host, int host_len, int por
 
 static PHP_METHOD(swoole_client, __construct)
 {
-    long async = 0;
-    long type = 0;
+    zend_long type = 0;
+    zend_long async = 0;
     char *id = NULL;
     size_t len = 0;
 
@@ -1024,10 +1024,11 @@ static PHP_METHOD(swoole_client, set)
 
 static PHP_METHOD(swoole_client, connect)
 {
-    zend_long port = 0, sock_flag = 0;
-    char *host = NULL;
+    char *host;
     size_t host_len;
+    zend_long port = 0;
     double timeout = SW_CLIENT_CONNECT_TIMEOUT;
+    zend_long sock_flag = 0;
 
     ZEND_PARSE_PARAMETERS_START(1, 4)
         Z_PARAM_STRING(host, host_len)
@@ -1272,8 +1273,8 @@ static PHP_METHOD(swoole_client, sendfile)
 {
     char *file;
     size_t file_len;
-    long offset = 0;
-    long length = 0;
+    zend_long offset = 0;
+    zend_long length = 0;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|ll", &file, &file_len, &offset, &length) == FAILURE)
     {
@@ -2031,7 +2032,7 @@ PHP_FUNCTION(swoole_client_select)
     fd_set rfds, wfds, efds;
 
     int max_fd = 0;
-    int    retval, sets = 0;
+    int retval, sets = 0;
     double timeout = SW_CLIENT_CONNECT_TIMEOUT;
     struct timeval timeo;
 

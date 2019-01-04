@@ -2030,8 +2030,8 @@ static PHP_METHOD(swoole_http_response, sendfile)
 {
     char *filename;
     size_t filename_length;
-    long offset = 0;
-    long length = 0;
+    zend_long offset = 0;
+    zend_long length = 0;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|ll", &filename, &filename_length, &offset, &length) == FAILURE)
     {
@@ -2132,7 +2132,6 @@ static PHP_METHOD(swoole_http_response, cookie)
     {
         RETURN_FALSE;
     }
-
     zval *zresponse_object = ctx->response.zobject;
     zval *zcookie = sw_zend_read_property(swoole_http_response_ce_ptr, zresponse_object, ZEND_STRL("cookie"), 1);
     if (!ZVAL_IS_ARRAY(zcookie))

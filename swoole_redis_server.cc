@@ -333,7 +333,7 @@ static PHP_METHOD(swoole_redis_server, setHandler)
 
 static PHP_METHOD(swoole_redis_server, format)
 {
-    long type;
+    zend_long type;
     zval *value = NULL;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|z", &type, &value) == FAILURE)

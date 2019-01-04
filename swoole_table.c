@@ -283,7 +283,7 @@ void swoole_table_column_free(swTableColumn *col)
 
 PHP_METHOD(swoole_table, __construct)
 {
-    long table_size;
+    zend_long table_size;
     double conflict_proportion = SW_TABLE_CONFLICT_PROPORTION;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|d", &table_size, &conflict_proportion) == FAILURE)
@@ -590,7 +590,6 @@ static PHP_METHOD(swoole_table, get)
 {
     char *key;
     size_t keylen;
-
     char *field = NULL;
     size_t field_len = 0;
 
@@ -627,7 +626,6 @@ static PHP_METHOD(swoole_table, offsetGet)
 {
     char *key;
     size_t keylen;
-
     char *field = NULL;
     size_t field_len = 0;
 

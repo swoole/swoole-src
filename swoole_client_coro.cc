@@ -641,7 +641,7 @@ static void sw_coro_socket_set_ssl(Socket *cli, zval *zset)
 
 static PHP_METHOD(swoole_client_coro, __construct)
 {
-    long type = 0;
+    zend_long type = 0;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|ls", &type) == FAILURE)
     {
@@ -694,10 +694,11 @@ static PHP_METHOD(swoole_client_coro, set)
 
 static PHP_METHOD(swoole_client_coro, connect)
 {
-    zend_long port = 0, sock_flag = 0;
-    char *host = NULL;
+    char *host;
     size_t host_len;
+    zend_long port = 0;
     double timeout = 0;
+    zend_long sock_flag = 0;
 
     ZEND_PARSE_PARAMETERS_START(1, 4)
         Z_PARAM_STRING(host, host_len)
@@ -866,7 +867,10 @@ static PHP_METHOD(swoole_client_coro, recvfrom)
         ZSTR_LEN(retval) = n_bytes;
         ZSTR_VAL(retval)[ZSTR_LEN(retval)] = '\0';
         ZVAL_STRING(address, swConnection_get_ip(cli->socket));
-        ZVAL_LONG(port, swConnection_get_port(cli->socket));
+        if (port)
+        {
+            ZVAL_LONG(port, swConnection_get_port(cli->socket));
+        }
         RETURN_STR(retval);
     }
 }
@@ -875,8 +879,8 @@ static PHP_METHOD(swoole_client_coro, sendfile)
 {
     char *file;
     size_t file_len;
-    long offset = 0;
-    long length = 0;
+    zend_long offset = 0;
+    zend_long length = 0;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|ll", &file, &file_len, &offset, &length) == FAILURE)
     {

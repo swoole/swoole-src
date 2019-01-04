@@ -244,7 +244,7 @@ void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode)
 
 PHP_FUNCTION(swoole_timer_tick)
 {
-    long after_ms;
+    zend_long after_ms;
     zval *callback;
     zval *param = NULL;
 
