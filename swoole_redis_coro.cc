@@ -1841,6 +1841,8 @@ static void swoole_redis_coro_set_options(swRedisClient *redis, zval* zoptions, 
 
 static PHP_METHOD(swoole_redis_coro, __construct)
 {
+    swRedisClient *redis = (swRedisClient *) swoole_get_object(getThis());
+    zval *zsettings = sw_zend_read_property_array(swoole_redis_coro_ce_ptr, getThis(), ZEND_STRL("setting"), 1);
     zval *zset = NULL;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
@@ -1848,7 +1850,6 @@ static PHP_METHOD(swoole_redis_coro, __construct)
         Z_PARAM_ARRAY(zset)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    swRedisClient *redis = (swRedisClient *) swoole_get_object(getThis());
     if (redis)
     {
         swoole_php_fatal_error(E_ERROR, "constructor can only be called once.");
@@ -1867,10 +1868,13 @@ static PHP_METHOD(swoole_redis_coro, __construct)
     redis->timeout = PHPCoroutine::socket_timeout;
     redis->reconnect_interval = 1;
 
+    add_assoc_double(zsettings, "connect_timeout", redis->connect_timeout);
+    add_assoc_double(zsettings, "timeout", redis->timeout);
+    add_assoc_bool(zsettings, "serialize", redis->serialize);
+    add_assoc_long(zsettings, "reconnect", redis->reconnect_interval);
+
     if (zset)
     {
-        php_swoole_array_separate(zset);
-        Z_DELREF_P(zset);
         swoole_redis_coro_set_options(redis, zset);
     }
 }
@@ -1912,7 +1916,7 @@ static PHP_METHOD(swoole_redis_coro, connect)
 
 static PHP_METHOD(swoole_redis_coro, getOptions)
 {
-    RETURN_ZVAL(sw_zend_read_property_array(swoole_redis_coro_ce_ptr, getThis(), ZEND_STRL("setting"), 1), 0, 0);
+    RETURN_ZVAL(sw_zend_read_property_array(swoole_redis_coro_ce_ptr, getThis(), ZEND_STRL("setting"), 1), 1, 0);
 }
 
 static PHP_METHOD(swoole_redis_coro, setOptions)
