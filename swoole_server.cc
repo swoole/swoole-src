@@ -4063,8 +4063,8 @@ static PHP_METHOD(swoole_server, connection_info)
 {
     zval *zobject = getThis();
     zend_long fd;
-    zend_long from_id = -1;
-    zend_bool noCheckConnection = 0;
+    zend_long reactor_id = -1;
+    zend_bool dont_check_connection = 0;
 
     swServer *serv = (swServer *) swoole_get_object(zobject);
     if (serv->gs->start == 0)
@@ -4073,7 +4073,7 @@ static PHP_METHOD(swoole_server, connection_info)
         RETURN_FALSE;
     }
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|lb", &fd, &from_id, &noCheckConnection) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|lb", &fd, &reactor_id, &dont_check_connection) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -4084,7 +4084,7 @@ static PHP_METHOD(swoole_server, connection_info)
         RETURN_FALSE;
     }
     //connection is closed
-    if (conn->active == 0 && !noCheckConnection)
+    if (conn->active == 0 && !dont_check_connection)
     {
         RETURN_FALSE;
     }
