@@ -329,7 +329,7 @@ static PHP_METHOD(swoole_exit_exception, getFlags)
 
 static PHP_METHOD(swoole_exit_exception, getStatus)
 {
-    RETURN_ZVAL(sw_zend_read_property(Z_OBJCE_P(getThis()), getThis(), ZEND_STRL("status"), 1), 0, 0);
+    RETURN_ZVAL(sw_zend_read_property(Z_OBJCE_P(getThis()), getThis(), ZEND_STRL("status"), 1), 1, 0);
 }
 
 /*
