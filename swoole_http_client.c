@@ -1653,12 +1653,12 @@ static PHP_METHOD(swoole_http_client, addFile)
     {
         length = file_stat.st_size - offset;
     }
-    if (type == NULL)
+    if (l_type <= 0)
     {
         type = (char*) swoole_get_mime_type(path);
         l_type = strlen(type);
     }
-    if (filename == NULL)
+    if (l_filename <= 0)
     {
         char *dot = strrchr(path, '/');
         if (dot == NULL)
