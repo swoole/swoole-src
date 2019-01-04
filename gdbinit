@@ -64,12 +64,12 @@ define __co_bt
 end
 
 define co_status
-    printf "\t c_stack_size: %d\n",  Coroutine::stack_size
-    printf "\t call_stack_size: %d\n",  Coroutine::call_stack_size
-    printf "\t active: %d\n",  swoole::PHPCoroutine::active
-    printf "\t coro_num: %d\n",  swoole::PHPCoroutine::coro_num
-    printf "\t max_coro_num: %d\n",  swoole::PHPCoroutine::max_coro_num
-    printf "\t peak_coro_num: %d\n",  swoole::PHPCoroutine::peak_coro_num
+    printf "\t c_stack_size: %d\n",  'swoole::Coroutine::stack_size'
+    printf "\t call_stack_size: %d\n",  'swoole::Coroutine::call_stack_size'
+    printf "\t active: %d\n",  'swoole::PHPCoroutine::active'
+    printf "\t coro_num: %d\n",  swoole_coro_count()
+    printf "\t max_coro_num: %d\n",  'swoole::PHPCoroutine::max_num'
+    printf "\t peak_coro_num: %d\n",  'swoole::Coroutine::peak_num'
 end
 
 define ____executor_globals
