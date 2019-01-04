@@ -1,24 +1,11 @@
-define ____get_current
-    if Coroutine::call_stack_size > 0
-        set $current_co = (coroutine_t*)Coroutine::call_stack[Coroutine::call_stack_size - 1]
-        set $current_cid = $current_co->cid
-        set $current_task = (php_coro_task *)$current_co->task
-    else
-        set $current_co = null
-        set $current_cid = -1
-        set $current_task = null
-    end
-end
-
 define co_list
-    if PHPCoroutine::coro_num == 0
-        printf "no coroutines running \n"
-    end
-    set $cid = 1
-    while $cid < PHPCoroutine::coro_num + 1
-        if Coroutine::coroutines[$cid]
-            printf "coroutine %d ", $cid
-            set $co = Coroutine::coroutines[$cid]
+    call swoole_coro_iterator_reset()
+    set $running = 1
+    while $running
+        set $co = swoole_coro_iterator_each()
+        
+        if $co
+            printf "coroutine %d ", $co->get_cid()
             if $co->state == 0
                 printf "%s\n", "SW_CORO_INIT"
             end
@@ -36,38 +23,24 @@ define co_list
                 printf "%s\n", "SW_CORO_END"
             end
         end
-        set $cid = $cid + 1
+
+        set $running = 0
     end
 end
 
 define co_bt
-    if PHPCoroutine::coro_num == 0
-        printf "no coroutines running \n"
+    if swoole_coro_count() == 0
+        printf "no coroutines running\n"
     end
     ____executor_globals
-    ____get_current
     if $argc > 0
         set $cid = (int)$arg0
-        if $current_co && $current_cid == $cid
-            color $GREEN
-            printf "coroutine cid:[%d]\n",$cid
-            color_reset
-            __co_bt $cid
-        else
-            printf "coroutine cid:[%d]\n",$cid
-            __co_bt $cid
-        end    
     else
-        set $cid = $current_cid
-        if $current_co && $cid > 0
-            color $GREEN
-            printf "coroutine cid:[%d]\n",$cid
-            color_reset
-            __co_bt $cid
-        else
-            printf "not in coroutine\n"
-        end
+        set $cid = 'swoole::Coroutine::get_current_cid'()
     end
+    
+    printf "coroutine cid:[%d]\n",$cid
+    __co_bt $cid
 end
 
 document co_bt
@@ -77,30 +50,26 @@ end
 
 define __co_bt
     set $cid = (int)$arg0
-    if Coroutine::coroutines[$cid]
-        if $current_co && $cid == $current_co->cid
-            dump_bt $eg.current_execute_data 
-        else   
-            set $co = (coroutine_t *)Coroutine::coroutines[$cid]
-            set $task = (php_coro_task *)$co->task
-            if $task
-                set $backup = $eg.current_execute_data
-                dump_bt $task->execute_data
-                set $eg.current_execute_data = $backup
-            end
+    set $co = swoole_coro_get($cid)
+    if $co
+        set $task = (php_coro_task *)$co->task
+        if $task
+            set $backup = $eg.current_execute_data
+            dump_bt $task->execute_data
+            set $eg.current_execute_data = $backup
         end
     else
-        printf "coroutines %d is not running\n", $cid
+        printf "coroutines %d not found\n", $cid
     end
 end
 
 define co_status
     printf "\t c_stack_size: %d\n",  Coroutine::stack_size
     printf "\t call_stack_size: %d\n",  Coroutine::call_stack_size
-    printf "\t active: %d\n",  PHPCoroutine::active
-    printf "\t coro_num: %d\n",  PHPCoroutine::coro_num
-    printf "\t max_coro_num: %d\n",  PHPCoroutine::max_coro_num
-    printf "\t peak_coro_num: %d\n",  PHPCoroutine::peak_coro_num
+    printf "\t active: %d\n",  swoole::PHPCoroutine::active
+    printf "\t coro_num: %d\n",  swoole::PHPCoroutine::coro_num
+    printf "\t max_coro_num: %d\n",  swoole::PHPCoroutine::max_coro_num
+    printf "\t peak_coro_num: %d\n",  swoole::PHPCoroutine::peak_coro_num
 end
 
 define ____executor_globals
