@@ -85,6 +85,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_setOptions, 0, 0, 1)
     ZEND_ARG_INFO(0, options)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_getOption, 0, 0, 1)
+    ZEND_ARG_INFO(0, name)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_coro_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
@@ -1453,6 +1457,7 @@ static PHP_METHOD(swoole_redis_coro, __construct);
 static PHP_METHOD(swoole_redis_coro, __destruct);
 static PHP_METHOD(swoole_redis_coro, connect);
 static PHP_METHOD(swoole_redis_coro, setOptions);
+static PHP_METHOD(swoole_redis_coro, getOption);
 static PHP_METHOD(swoole_redis_coro, setDefer);
 static PHP_METHOD(swoole_redis_coro, getDefer);
 static PHP_METHOD(swoole_redis_coro, recv);
@@ -1594,6 +1599,7 @@ static const zend_function_entry swoole_redis_coro_methods[] =
     PHP_ME(swoole_redis_coro, __destruct, arginfo_swoole_redis_coro_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, connect, arginfo_swoole_redis_coro_connect, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, setOptions, arginfo_swoole_redis_coro_setOptions, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_coro, getOption, arginfo_swoole_redis_coro_getOption, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, setDefer, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, getDefer, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_coro, recv, NULL, ZEND_ACC_PUBLIC)
@@ -1918,6 +1924,39 @@ static PHP_METHOD(swoole_redis_coro, setOptions)
     swoole_redis_coro_set_options(redis, zoptions);
 
     RETURN_TRUE;
+}
+
+static PHP_METHOD(swoole_redis_coro, getOption)
+{
+    char *name = NULL;
+    size_t name_len;
+
+    swRedisClient *redis = swoole_get_redis_client(getThis());
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_STRING(name, name_len)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    if(0 == strcmp(name, "connect_timeout"))
+    {
+        RETURN_DOUBLE(redis->connect_timeout);
+    }
+    else if(0 == strcmp(name, "timeout"))
+    {
+        RETURN_DOUBLE(redis->timeout);
+    }
+    else if(0 == strcmp(name, "serialize"))
+    {
+        RETURN_BOOL(redis->serialize);
+    }
+    else if(0 == strcmp(name, "reconnect"))
+    {
+        RETURN_LONG(redis->reconnect_interval);
+    }
+    else
+    {
+        RETURN_FALSE;
+    }
 }
 
 static PHP_METHOD(swoole_redis_coro, getDefer)
