@@ -1821,7 +1821,7 @@ static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
         return;
     }
 
-    if (swIsTaskWorker() && serv->task_async == 0)
+    if (swIsTaskWorker() && !serv->task_enable_coroutine)
     {
         SwooleG.enable_coroutine = 0;
         PHPCoroutine::disable_hook();
@@ -2651,7 +2651,6 @@ static PHP_METHOD(swoole_server, set)
                 swoole_php_fatal_error(E_ERROR, "server->enable_coroutine must be true.");
                 return;
             }
-            serv->task_async = 1;
             serv->task_enable_coroutine = 1;
         }
         else

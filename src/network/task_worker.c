@@ -38,7 +38,7 @@ void swTaskWorker_init(swServer *serv)
     /**
      * Make the task worker support asynchronous
      */
-    if (serv->task_async)
+    if (serv->task_enable_coroutine)
     {
         pool->main_loop = swTaskWorker_loop_async;
     }
@@ -147,7 +147,7 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
     /**
      * Make the task worker support asynchronous
      */
-    if (serv->task_async)
+    if (serv->task_enable_coroutine)
     {
         SwooleG.main_reactor = sw_malloc(sizeof(swReactor));
         if (SwooleG.main_reactor == NULL)
