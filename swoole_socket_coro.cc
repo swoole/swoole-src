@@ -376,9 +376,9 @@ static PHP_METHOD(swoole_socket_coro, recvfrom)
 
 static PHP_METHOD(swoole_socket_coro, send)
 {
-    double timeout = PHPCoroutine::socket_timeout;
     char *data;
     size_t l_data;
+    double timeout = PHPCoroutine::socket_timeout;
 
     ZEND_PARSE_PARAMETERS_START(1, 2)
         Z_PARAM_STRING(data, l_data)

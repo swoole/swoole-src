@@ -997,11 +997,11 @@ static PHP_METHOD(swoole_coroutine_util, readFile)
 {
     PHPCoroutine::check();
 
-    char *filename = NULL;
-    size_t l_filename = 0;
+    char *filename;
+    size_t l_filename;
     zend_long flags = 0;
 
-    ZEND_PARSE_PARAMETERS_START(1, 1)
+    ZEND_PARSE_PARAMETERS_START(1, 2)
         Z_PARAM_STRING(filename, l_filename)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(flags)
@@ -1023,10 +1023,10 @@ static PHP_METHOD(swoole_coroutine_util, writeFile)
 {
     PHPCoroutine::check();
 
-    char *filename = NULL;
-    size_t l_filename = 0;
-    char *data = NULL;
-    size_t l_data = 0;
+    char *filename;
+    size_t l_filename;
+    char *data;
+    size_t l_data;
     zend_long flags = 0;
 
     ZEND_PARSE_PARAMETERS_START(2, 3)
@@ -1153,7 +1153,7 @@ PHP_FUNCTION(swoole_coroutine_gethostbyname)
 
     char *domain_name;
     size_t l_domain_name;
-    long family = AF_INET;
+    zend_long family = AF_INET;
     double timeout = -1;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|ld", &domain_name, &l_domain_name, &family, &timeout) == FAILURE)
@@ -1161,7 +1161,7 @@ PHP_FUNCTION(swoole_coroutine_gethostbyname)
         RETURN_FALSE;
     }
 
-    if (l_domain_name <= 0)
+    if (l_domain_name == 0)
     {
         swoole_php_fatal_error(E_WARNING, "domain name is empty.");
         RETURN_FALSE;
@@ -1190,9 +1190,9 @@ static PHP_METHOD(swoole_coroutine_util, getaddrinfo)
 
     char *hostname;
     size_t l_hostname;
-    long family = AF_INET;
-    long socktype = SOCK_STREAM;
-    long protocol = IPPROTO_TCP;
+    zend_long family = AF_INET;
+    zend_long socktype = SOCK_STREAM;
+    zend_long protocol = IPPROTO_TCP;
     char *service = NULL;
     size_t l_service = 0;
 
@@ -1202,7 +1202,7 @@ static PHP_METHOD(swoole_coroutine_util, getaddrinfo)
         RETURN_FALSE;
     }
 
-    if (l_hostname <= 0)
+    if (l_hostname == 0)
     {
         swoole_php_fatal_error(E_WARNING, "hostname is empty.");
         RETURN_FALSE;
@@ -1233,7 +1233,7 @@ static PHP_METHOD(swoole_coroutine_util, getaddrinfo)
     req->socktype = socktype;
     req->protocol = protocol;
 
-    if (service)
+    if (l_service > 0)
     {
         req->service = estrndup(service, l_service);
     }
@@ -1262,7 +1262,7 @@ static PHP_METHOD(swoole_coroutine_util, getBackTrace)
     zend_long options = DEBUG_BACKTRACE_PROVIDE_OBJECT;
     zend_long limit = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|ll", &cid) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|ll", &cid, &options, &limit) == FAILURE)
     {
         RETURN_FALSE;
     }

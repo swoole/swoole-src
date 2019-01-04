@@ -25,13 +25,13 @@
 #define CPINLINE sw_inline
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_serialize_pack, 0, 0, 1)
-ZEND_ARG_INFO(0, data)
-ZEND_ARG_INFO(0, flag)
+    ZEND_ARG_INFO(0, data)
+    ZEND_ARG_INFO(0, flag)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_serialize_unpack, 0, 0, 1)
-ZEND_ARG_INFO(0, string)
-ZEND_ARG_INFO(0, args)
+    ZEND_ARG_INFO(0, string)
+    ZEND_ARG_INFO(0, flag)
 ZEND_END_ARG_INFO()
 
 static void swoole_serialize_object(seriaString *buffer, zval *zvalue, size_t start);
@@ -1573,18 +1573,18 @@ static PHP_METHOD(swoole_serialize, pack)
 
 static PHP_METHOD(swoole_serialize, unpack)
 {
-    char *buffer = NULL;
-    size_t arg_len;
+    char *buffer;
+    size_t buffer_len;
+    zend_long flag = 0;
     zval *args = NULL; //for object
-    long flag = 0;
 
     swoole_php_fatal_error(E_DEPRECATED, "swoole serialize will be removed, you should be using the php serialize instead.");
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|la", &buffer, &arg_len, &flag, &args) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|la", &buffer, &buffer_len, &flag, &args) == FAILURE)
     {
         RETURN_FALSE;
     }
-    if (!php_swoole_unserialize(buffer, arg_len, return_value, args, flag))
+    if (!php_swoole_unserialize(buffer, buffer_len, return_value, args, flag))
     {
         RETURN_FALSE;
     }

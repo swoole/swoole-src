@@ -481,10 +481,10 @@ static void aio_onFileCompleted(swAio_event *event)
 
 PHP_FUNCTION(swoole_async_read)
 {
-    zval *callback;
     zval *filename;
-    long buf_size = SW_AIO_DEFAULT_CHUNK_SIZE;
-    long offset = 0;
+    zval *callback;
+    zend_long buf_size = SW_AIO_DEFAULT_CHUNK_SIZE;
+    zend_long offset = 0;
     int open_flag = O_RDONLY;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "zz|ll", &filename, &callback, &buf_size, &offset) == FAILURE)
@@ -583,12 +583,11 @@ PHP_FUNCTION(swoole_async_read)
 
 PHP_FUNCTION(swoole_async_write)
 {
-    zval *callback = NULL;
     zval *filename;
-
     char *fcnt;
-    size_t fcnt_len = 0;
+    size_t fcnt_len;
     off_t offset = -1;
+    zval *callback = NULL;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "zs|lz", &filename, &fcnt, &fcnt_len, &offset, &callback) == FAILURE)
     {
@@ -778,11 +777,11 @@ PHP_FUNCTION(swoole_async_readfile)
 
 PHP_FUNCTION(swoole_async_writefile)
 {
-    zval *callback = NULL;
     zval *filename;
     char *fcnt;
     size_t fcnt_len;
-    long flags = 0;
+    zval *callback = NULL;
+    zend_long flags = 0;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "zs|zl", &filename, &fcnt, &fcnt_len, &callback, &flags) == FAILURE)
     {

@@ -209,9 +209,9 @@ static void php_swoole_process_pool_signal_handler(int sig)
 
 static PHP_METHOD(swoole_process_pool, __construct)
 {
-    long worker_num;
-    long ipc_type = SW_IPC_NONE;
-    long msgq_key = 0;
+    zend_long worker_num;
+    zend_long ipc_type = SW_IPC_NONE;
+    zend_long msgq_key = 0;
 
     //only cli env
     if (!SWOOLE_G(cli))
@@ -336,8 +336,8 @@ static PHP_METHOD(swoole_process_pool, listen)
 {
     char *host;
     size_t l_host;
-    long port;
-    long backlog = 2048;
+    zend_long port = 0;
+    zend_long backlog = 2048;
 
     swProcessPool *pool = swoole_get_object(getThis());
 

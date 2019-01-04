@@ -157,15 +157,15 @@ static PHP_METHOD(swoole_mmap, open)
 {
     char *filename;
     size_t l_filename;
-    long offset = 0;
-    long size = -1;
+    zend_long size = -1;
+    zend_long offset = 0;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|ll", &filename, &l_filename, &size, &offset) == FAILURE)
     {
         RETURN_FALSE;
     }
 
-    if (l_filename <= 0)
+    if (l_filename == 0)
     {
         swoole_php_fatal_error(E_WARNING, "file name is required.");
         RETURN_FALSE;
