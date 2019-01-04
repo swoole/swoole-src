@@ -462,10 +462,8 @@ int swTableRow_del(swTable *table, char *key, int keylen)
         {
             tmp = tmp->next;
             row->next = tmp->next;
-            size_t tmp_keylen = strlen(tmp->key);
-            memcpy(row->key, tmp->key, tmp_keylen);
+            memcpy(row->key, tmp->key, strlen(tmp->key) + 1);
             memcpy(row->data, tmp->data, table->item_size);
-            row->key[tmp_keylen] = '\0';
         }
         if (prev)
         {
