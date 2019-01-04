@@ -594,7 +594,7 @@ PHP_FUNCTION(swoole_async_write)
     {
         RETURN_FALSE;
     }
-    if (fcnt_len <= 0)
+    if (fcnt_len == 0)
     {
         RETURN_FALSE;
     }
@@ -797,7 +797,7 @@ PHP_FUNCTION(swoole_async_writefile)
     {
         open_flag |= O_TRUNC;
     }
-    if (fcnt_len <= 0)
+    if (fcnt_len == 0)
     {
         RETURN_FALSE;
     }

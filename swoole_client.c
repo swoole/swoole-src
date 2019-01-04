@@ -1193,7 +1193,7 @@ static PHP_METHOD(swoole_client, send)
         Z_PARAM_LONG(flags)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (data_len <= 0)
+    if (data_len == 0)
     {
         swoole_php_fatal_error(E_WARNING, "data to send is empty.");
         RETURN_FALSE;
@@ -1233,7 +1233,7 @@ static PHP_METHOD(swoole_client, sendto)
         RETURN_FALSE;
     }
 
-    if (len <= 0)
+    if (len == 0)
     {
         swoole_php_error(E_WARNING, "data to send is empty.");
         RETURN_FALSE;
@@ -1279,7 +1279,7 @@ static PHP_METHOD(swoole_client, sendfile)
     {
         RETURN_FALSE;
     }
-    if (file_len <= 0)
+    if (file_len == 0)
     {
         swoole_php_fatal_error(E_WARNING, "file to send is empty.");
         RETURN_FALSE;

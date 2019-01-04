@@ -302,7 +302,7 @@ static void http_client_clear_response_properties(zval *zobject)
 
 static int http_client_execute(zval *zobject, char *uri, size_t uri_len, zval *callback)
 {
-    if (uri_len <= 0)
+    if (uri_len == 0)
     {
         swoole_php_fatal_error(E_WARNING, "path is empty.");
         return SW_ERR;
@@ -1465,7 +1465,7 @@ static PHP_METHOD(swoole_http_client, __construct)
         RETURN_FALSE;
     }
 
-    if (host_len <= 0)
+    if (host_len == 0)
     {
         swoole_php_fatal_error(E_ERROR, "host is empty.");
         RETURN_FALSE;

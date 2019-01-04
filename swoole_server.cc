@@ -3233,7 +3233,7 @@ static PHP_METHOD(swoole_server, sendto)
         Z_PARAM_LONG(server_socket)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (len <= 0)
+    if (len == 0)
     {
         swoole_php_fatal_error(E_WARNING, "data is empty.");
         RETURN_FALSE;

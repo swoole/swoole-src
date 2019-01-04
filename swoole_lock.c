@@ -112,7 +112,7 @@ static PHP_METHOD(swoole_lock, __construct)
         break;
 #endif
     case SW_FILELOCK:
-        if (filelock_len <= 0)
+        if (filelock_len == 0)
         {
             zend_throw_exception(swoole_exception_ce_ptr, "filelock requires file name of the lock.", SW_ERROR_INVALID_PARAMS);
             RETURN_FALSE;

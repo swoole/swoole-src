@@ -871,7 +871,6 @@ static PHP_METHOD(swoole_postgresql_coro, numRows)
 
 static PHP_METHOD(swoole_postgresql_coro, metaData)
 {
-
     char *table_name;
     size_t table_name_len;
     zend_bool extended=0;
@@ -883,8 +882,7 @@ static PHP_METHOD(swoole_postgresql_coro, metaData)
     smart_str querystr = {0};
     size_t new_len;
 
-
-    ZEND_PARSE_PARAMETERS_START(1,1)
+    ZEND_PARSE_PARAMETERS_START(1, 1)
         Z_PARAM_STRING(table_name, table_name_len)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
@@ -897,7 +895,7 @@ static PHP_METHOD(swoole_postgresql_coro, metaData)
         PQclear(pg_result);
     }
 
-    if (!*table_name)
+    if (table_name_len == 0)
     {
         php_error_docref(NULL, E_WARNING, "The table name must be specified");
         RETURN_FALSE;

@@ -202,7 +202,7 @@ static PHP_METHOD(swoole_http2_client_coro, __construct)
         RETURN_FALSE;
     }
 
-    if (host_len <= 0)
+    if (host_len == 0)
     {
         zend_throw_exception(swoole_exception_ce_ptr, "host is empty.", SW_ERROR_INVALID_PARAMS);
         RETURN_FALSE;

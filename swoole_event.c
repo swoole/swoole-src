@@ -535,7 +535,7 @@ PHP_FUNCTION(swoole_event_write)
         RETURN_FALSE;
     }
 
-    if (len <= 0)
+    if (len == 0)
     {
         swoole_php_fatal_error(E_WARNING, "data empty.");
         RETURN_FALSE;
