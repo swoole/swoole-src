@@ -44,18 +44,21 @@ void PHPCoroutine::interrupt(zend_execute_data *execute_data)
     {
         orig_interrupt_function(execute_data);
     }
-    if (unlikely(!PHPCoroutine::is_in()))
-    {
-        swoole_php_fatal_error(E_ERROR, "must be called in the coroutine.");
-    }
     php_coro_task *task = PHPCoroutine::get_current_task();
-    task->jumpnz_times ++;
-    if (task->interrupt == 0 && task->jumpnz_times > 10)
+    if (task && task->co)
     {
-        task->interrupt = 1;
-        PHPCoroutine::on_yield(task);
-        Coroutine::push_interrupt();
-        task->co->yield_naked();
+        if (unlikely(!PHPCoroutine::is_in()))
+        {
+            swoole_php_fatal_error(E_ERROR, "must be called in the coroutine.");
+        }
+        task->jumpnz_times++;
+        if (task->interrupt == 0 && task->jumpnz_times > 10)
+        {
+            task->interrupt = 1;
+            PHPCoroutine::on_yield(task);
+            Coroutine::push_interrupt();
+            task->co->yield_naked();
+        }
     }
 }
 
