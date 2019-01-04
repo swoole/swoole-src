@@ -1706,12 +1706,12 @@ static PHP_METHOD(swoole_http_client_coro, addFile)
     {
         length = file_stat.st_size - offset;
     }
-    if (type == NULL)
+    if (l_type <= 0)
     {
         type = (char *) swoole_get_mime_type(path);
         l_type = strlen(type);
     }
-    if (filename == NULL)
+    if (l_filename <= 0)
     {
         char *dot = strrchr(path, '/');
         if (dot == NULL)
@@ -1760,12 +1760,12 @@ static PHP_METHOD(swoole_http_client_coro, addData)
         Z_PARAM_STRING(filename, l_filename)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (type == NULL)
+    if (l_type <= 0)
     {
         type = (char *) "application/octet-stream";
         l_type = strlen(type);
     }
-    if (filename == NULL)
+    if (l_filename <= 0)
     {
         filename = name;
         l_filename = l_name;

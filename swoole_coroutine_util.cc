@@ -1196,8 +1196,8 @@ static PHP_METHOD(swoole_coroutine_util, getaddrinfo)
     char *service = NULL;
     size_t l_service = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|llls", &hostname, &l_hostname, &family, socktype, &protocol,
-            &hostname, &l_hostname) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|llls", &hostname, &l_hostname, &family, &socktype, &protocol,
+            &service, &l_service) == FAILURE)
     {
         RETURN_FALSE;
     }

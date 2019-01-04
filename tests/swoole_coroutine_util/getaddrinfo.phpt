@@ -9,7 +9,7 @@ require __DIR__ . '/../include/bootstrap.php';
 use Swoole\Coroutine as co;
 
 co::create(function () {
-    $ip = co::getaddrinfo('www.baidu.com');
+    $ip = co::getaddrinfo('www.baidu.com', AF_INET, SOCK_STREAM, SOL_TCP, 'http');
     assert(!empty($ip) and is_array($ip));
 });
 ?>
