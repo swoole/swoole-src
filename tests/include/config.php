@@ -48,6 +48,7 @@ define('REDIS_SERVER_HOST', IS_IN_TRAVIS ? 'redis' : '127.0.0.1');
 define('REDIS_SERVER_PORT', 6379);
 
 /** =============== IP ================ */
+define('IP_REGEX', '/^(?:[\d]{1,3}\.){3}[\d]{1,3}$/');
 define('IP_BAIDU', '180.97.33.107');
 
 /** ============= Proxy ============== */

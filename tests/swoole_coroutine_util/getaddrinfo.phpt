@@ -5,12 +5,14 @@ swoole_coroutine_util: getaddrinfo
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-
-use Swoole\Coroutine as co;
-
-co::create(function () {
-    $ip = co::getaddrinfo('www.baidu.com', AF_INET, SOCK_STREAM, SOL_TCP, 'http');
-    assert(!empty($ip) and is_array($ip));
+go(function () {
+    $ip_list = Co::getaddrinfo('www.baidu.com', AF_INET, SOCK_STREAM, SOL_TCP, 'http');
+    assert(!empty($ip_list) and is_array($ip_list));
+    foreach ($ip_list as $ip) {
+        assert(preg_match(IP_REGEX, $ip));
+    }
+    echo "DONE\n";
 });
 ?>
 --EXPECT--
+DONE
