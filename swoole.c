@@ -1197,54 +1197,19 @@ PHP_FUNCTION(swoole_errno)
 
 PHP_FUNCTION(swoole_set_process_name)
 {
-    // MacOS doesn't support 'cli_set_process_title'
 #ifdef __MACH__
-    php_error_docref(NULL, E_WARNING, "swoole_set_process_name is not supported on MacOS.");
-    return;
-#endif
-    zval *name;
-    long size = 128;
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|l", &name, &size) == FAILURE)
+    // MacOS doesn't support 'cli_set_process_title'
+    swoole_php_fatal_error(E_WARNING, "swoole_set_process_name is not supported on MacOS.");
+    RETURN_FALSE;
+#else
+    zend_function *cli_set_process_title =  zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("cli_set_process_title"));
+    if (!cli_set_process_title)
     {
+        swoole_php_fatal_error(E_WARNING, "swoole_set_process_name only support in CLI mode.");
         RETURN_FALSE;
     }
-
-    if (Z_STRLEN_P(name) == 0)
-    {
-        return;
-    }
-    else if (Z_STRLEN_P(name) > 127)
-    {
-        php_error_docref(NULL, E_WARNING, "process name is too long, the max length is 127");
-    }
-
-    if (size > SwooleG.pagesize)
-    {
-        size = SwooleG.pagesize;
-    }
-
-    zval *retval = NULL;
-    zval args[1];
-    args[0] = *name;
-
-    zval *function;
-    SW_MAKE_STD_ZVAL(function);
-    ZVAL_STRING(function, "cli_set_process_title");
-
-    if (sw_call_user_function_ex(EG(function_table), NULL, function, &retval, 1, args, 0, NULL) == FAILURE)
-    {
-        return;
-    }
-    if (UNEXPECTED(EG(exception)))
-    {
-        zend_exception_error(EG(exception), E_ERROR);
-    }
-    zval_ptr_dtor(function);
-    if (retval)
-    {
-        zval_ptr_dtor(retval);
-    }
+    cli_set_process_title->internal_function.handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+#endif
 }
 
 PHP_FUNCTION(swoole_get_local_ip)
