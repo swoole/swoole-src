@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: addProcess
+swoole_server: addProcess with event wait
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -23,6 +23,7 @@ $pm->childFunc = function () use ($pm) {
             swoole_timer_tick(100, function (int $id) use (&$i) {
                 global $pm;
                 if (++$i === 10) {
+                    usleep(100 * 1000);
                     swoole_timer_clear($id);
                     $pm->wakeup();
                 }
