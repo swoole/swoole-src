@@ -1001,7 +1001,7 @@ static PHP_METHOD(swoole_coroutine_util, readFile)
     size_t l_filename = 0;
     zend_long flags = 0;
 
-    ZEND_PARSE_PARAMETERS_START(1, 1)
+    ZEND_PARSE_PARAMETERS_START(1, 2)
         Z_PARAM_STRING(filename, l_filename)
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(flags)
