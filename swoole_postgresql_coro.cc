@@ -525,14 +525,14 @@ static  int prepare_result_parse(pg_object *object)
     int ret;
     zval *retval = NULL;
     zval return_value;
-    php_context *context = (php_context *) swoole_get_property(object->object, 0);
+    php_coro_context *context = (php_coro_context *) swoole_get_property(object->object, 0);
 
     /* Wait to finish sending buffer */
     //res = PQflush(object->conn);
     ZVAL_TRUE(&return_value);
-    ret = sw_coro_resume(context, &return_value, retval);
+    ret = PHPCoroutine::resume_m(context, &return_value, retval);
 
-    if (ret == CORO_END && retval)
+    if (ret == SW_CORO_END && retval)
     {
         zval_ptr_dtor(retval);
     }
@@ -628,7 +628,7 @@ static PHP_METHOD(swoole_postgresql_coro, prepare)
     }
 
 
-    php_context *context = (php_context *) swoole_get_property(getThis(), 0);
+    php_coro_context *context = (php_coro_context *) swoole_get_property(getThis(), 0);
     context->state = SW_CORO_CONTEXT_RUNNING;
     context->coro_params = *getThis();
 
@@ -638,8 +638,7 @@ static PHP_METHOD(swoole_postgresql_coro, prepare)
         {
             pg_object->timer = swTimer_add(&SwooleG.timer, (int) (pg_object->timeout * 1000), 0, sw_current_context, swoole_pgsql_coro_onTimeout);
         }*/
-    sw_coro_save(return_value, context);
-    sw_coro_yield();
+    PHPCoroutine::yield_m(return_value, context);
 }
 
 static PHP_METHOD(swoole_postgresql_coro, execute)
@@ -720,7 +719,7 @@ static PHP_METHOD(swoole_postgresql_coro, execute)
         }
     }
 
-    php_context *context = (php_context *) swoole_get_property(getThis(), 0);
+    php_coro_context *context = (php_coro_context *) swoole_get_property(getThis(), 0);
     context->state = SW_CORO_CONTEXT_RUNNING;
     context->coro_params = *getThis();
 
@@ -730,8 +729,7 @@ static PHP_METHOD(swoole_postgresql_coro, execute)
         {
             pg_object->timer = swTimer_add(&SwooleG.timer, (int) (pg_object->timeout * 1000), 0, sw_current_context, swoole_pgsql_coro_onTimeout);
         }*/
-    sw_coro_save(return_value, context);
-    sw_coro_yield();
+    PHPCoroutine::yield_m(return_value, context);
 
 }
 

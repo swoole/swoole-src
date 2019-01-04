@@ -216,7 +216,7 @@ private:
                     event->handler(event);
                 }
 
-                swTrace("aio_thread ok. ret=%d, error=%d", async_event->ret, async_event->error);
+                swTrace("aio_thread ok. ret=%d, error=%d", event->ret, event->error);
 
                 _error: while (1)
                 {
