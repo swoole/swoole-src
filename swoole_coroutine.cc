@@ -22,11 +22,54 @@ using namespace swoole;
 
 #define PHP_CORO_TASK_SLOT ((int)((ZEND_MM_ALIGNED_SIZE(sizeof(php_coro_task)) + ZEND_MM_ALIGNED_SIZE(sizeof(zval)) - 1) / ZEND_MM_ALIGNED_SIZE(sizeof(zval))))
 
+static void (*orig_interrupt_function)(zend_execute_data *execute_data);
+
 bool PHPCoroutine::active = false;
 uint64_t PHPCoroutine::max_num = SW_DEFAULT_MAX_CORO_NUM;
 double PHPCoroutine::socket_connect_timeout = SW_DEFAULT_SOCKET_CONNECT_TIMEOUT;
 double PHPCoroutine::socket_timeout = SW_DEFAULT_SOCKET_TIMEOUT;
 php_coro_task PHPCoroutine::main_task = {0};
+
+static user_opcode_handler_t ori_jumpnz_handler = NULL;
+
+static int coro_jumpnz_handler(zend_execute_data *execute_data)
+{
+    EG(vm_interrupt) = 1;
+    return ZEND_USER_OPCODE_DISPATCH;
+}
+
+void PHPCoroutine::interrupt(zend_execute_data *execute_data)
+{
+    if (orig_interrupt_function)
+    {
+        orig_interrupt_function(execute_data);
+    }
+    if (unlikely(!PHPCoroutine::is_in()))
+    {
+        swoole_php_fatal_error(E_ERROR, "must be called in the coroutine.");
+    }
+    php_coro_task *task = PHPCoroutine::get_current_task();
+    task->jumpnz_times ++;
+    if (task->interrupt == 0 && task->jumpnz_times > 10)
+    {
+        task->interrupt = 1;
+        PHPCoroutine::on_yield(task);
+        Coroutine::push_interrupt();
+        task->co->yield_naked();
+    }
+}
+
+void PHPCoroutine::init()
+{
+    Coroutine::set_on_yield(on_yield);
+    Coroutine::set_on_resume(on_resume);
+    Coroutine::set_on_close(on_close);
+
+    orig_interrupt_function = zend_interrupt_function;
+    zend_interrupt_function = PHPCoroutine::interrupt;
+    ori_jumpnz_handler = zend_get_user_opcode_handler(ZEND_JMPNZ);
+    zend_set_user_opcode_handler(ZEND_JMPNZ, coro_jumpnz_handler);
+}
 
 inline void PHPCoroutine::vm_stack_init(void)
 {
@@ -266,6 +309,8 @@ void PHPCoroutine::create_func(void *arg)
     task->co->set_task((void *) task);
     task->origin_task = origin_task;
     task->defer_tasks = nullptr;
+    task->interrupt = 0;
+    task->jumpnz_times = 0;
 
     swTraceLog(
         SW_TRACE_COROUTINE, "Create coro id: %ld, origin cid: %ld, coro total count: %zu, heap size: %zu",

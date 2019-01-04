@@ -21,6 +21,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <queue>
 
 #define SW_CORO_STACK_ALIGNED_SIZE (4 * 1024)
 #define SW_CORO_MAX_STACK_SIZE     (16 * 1024 * 1024)
@@ -82,6 +83,11 @@ public:
     {
         task = _task;
     }
+
+    static std::queue<Coroutine *> interrupt_coroutines;
+    static void push_interrupt();
+    static Coroutine* pop_interrupt();
+    static void clear_interrupt();
 
     static std::unordered_map<long, Coroutine*> coroutines;
 

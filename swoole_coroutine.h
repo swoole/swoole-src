@@ -51,6 +51,8 @@ struct defer_task
 struct php_coro_task
 {
     JMP_BUF *bailout;
+    uint32_t jumpnz_times;
+    zend_bool interrupt;
     zval *vm_stack_top;
     zval *vm_stack_end;
     zend_vm_stack vm_stack;
@@ -93,6 +95,8 @@ public:
     static double socket_connect_timeout;
     static double socket_timeout;
 
+    static void init();
+    static void interrupt(zend_execute_data *execute_data);
     static long create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv);
     static void defer(swCallback cb, void *data);
 
@@ -105,13 +109,6 @@ public:
     // TODO: remove old coro APIs (Manual)
     static void yield_m(zval *return_value, php_coro_context *sw_php_context);
     static int resume_m(php_coro_context *sw_current_context, zval *retval, zval *coro_retval);
-
-    static void init()
-    {
-        Coroutine::set_on_yield(on_yield);
-        Coroutine::set_on_resume(on_resume);
-        Coroutine::set_on_close(on_close);
-    }
 
     static bool is_in()
     {
