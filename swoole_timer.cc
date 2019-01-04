@@ -80,6 +80,10 @@ long php_swoole_add_timer(long ms, zval *callback, zval *param, int persistent)
         {
             goto _create_reactor;
         }
+        if (swIsUserWorker())
+        {
+            goto _create_reactor;
+        }
     }
     else
     {
