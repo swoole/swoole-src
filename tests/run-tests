@@ -534,6 +534,7 @@ foreach($cfgtypes as $type) {
 
 // swoole patch: show diff by default
 $cfg['show']['diff'] = true;
+$cfg['show']['mem'] = true;
 
 if (getenv('TEST_PHP_ARGS')) {
 
