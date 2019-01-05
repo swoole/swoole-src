@@ -937,7 +937,7 @@ PHP_MINFO_FUNCTION(swoole)
     char buf[64];
     php_info_print_table_start();
     php_info_print_table_header(2, "Swoole", "enabled");
-    php_info_print_table_row(2, "Author", "Swoole Team[email: team@swoole.com]");
+    php_info_print_table_row(2, "Author", "Swoole Team <team@swoole.com>");
     php_info_print_table_row(2, "Version", SWOOLE_VERSION);
     snprintf(buf, sizeof(buf), "%s %s", __DATE__, __TIME__);
     php_info_print_table_row(2, "Built", buf);
