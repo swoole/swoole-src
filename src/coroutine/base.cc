@@ -29,7 +29,6 @@ coro_php_resume_t Coroutine::on_resume = nullptr;
 coro_php_close_t  Coroutine::on_close = nullptr;
 
 std::unordered_map<long, Coroutine*> Coroutine::coroutines;
-std::queue<Coroutine *> Coroutine::interrupt_coroutines;
 
 long Coroutine::create(coroutine_func_t fn, void* args)
 {
@@ -95,11 +94,6 @@ void Coroutine::close()
     }
     Coroutine::call_stack_size--;
     Coroutine::coroutines.erase(cid);
-    Coroutine* co = Coroutine::pop_interrupt();
-    if (co && !co->ctx.end)
-    {
-        co->resume();
-    }
     delete this;
 }
 
@@ -137,34 +131,6 @@ void* Coroutine::get_task_by_cid(long cid)
 {
     Coroutine *co = Coroutine::get_by_cid(cid);
     return likely(co) ? co->get_task() : nullptr;
-}
-
-void Coroutine::push_interrupt()
-{
-    Coroutine* co = Coroutine::get_current();
-    if (co)
-    {
-        Coroutine::interrupt_coroutines.push(co);
-    }
-}
-
-Coroutine* Coroutine::pop_interrupt()
-{
-    if (!Coroutine::interrupt_coroutines.empty())
-    {
-        Coroutine* co = Coroutine::interrupt_coroutines.front();
-        Coroutine::interrupt_coroutines.pop();
-        return likely(co) ? co : nullptr;
-    }
-    return nullptr;
-}
-
-void Coroutine::clear_interrupt()
-{
-    while (!Coroutine::interrupt_coroutines.empty())
-    {
-        Coroutine::interrupt_coroutines.pop();
-    }
 }
 
 void Coroutine::print_list()

@@ -38,6 +38,15 @@ static int coro_jumpnz_handler(zend_execute_data *execute_data)
     return ZEND_USER_OPCODE_DISPATCH;
 }
 
+static void interrupt_callback(void *data)
+{
+    Coroutine *co = (Coroutine *)data;
+    if (co && !co->is_end())
+    {
+        co->resume();
+    }
+}
+
 void PHPCoroutine::interrupt(zend_execute_data *execute_data)
 {
     if (orig_interrupt_function)
@@ -56,7 +65,7 @@ void PHPCoroutine::interrupt(zend_execute_data *execute_data)
         {
             task->interrupt = 1;
             PHPCoroutine::on_yield(task);
-            Coroutine::push_interrupt();
+            SwooleG.main_reactor->defer(SwooleG.main_reactor, interrupt_callback, (void *)task->co);
             task->co->yield_naked();
         }
     }

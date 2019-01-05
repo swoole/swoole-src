@@ -79,16 +79,15 @@ public:
         return task;
     }
 
+    inline bool is_end()
+    {
+        return ctx.end;
+    }
+
     inline void set_task(void *_task)
     {
         task = _task;
     }
-
-    static std::queue<Coroutine *> interrupt_coroutines;
-    static void push_interrupt();
-    static Coroutine* pop_interrupt();
-    static void clear_interrupt();
-
     static std::unordered_map<long, Coroutine*> coroutines;
 
     static Coroutine* get_current();
