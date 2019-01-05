@@ -184,7 +184,7 @@ int swoole_coroutine_close(int fd)
         _no_coro: return close(fd);
     }
     swConnection *conn = swReactor_get(SwooleG.main_reactor, fd);
-    if (conn == nullptr || conn->object == nullptr || conn->fdtype != SW_FD_CORO_SOCKET)
+    if (conn == nullptr)
     {
         goto _no_coro;
     }
