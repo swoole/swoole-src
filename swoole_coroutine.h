@@ -51,8 +51,6 @@ struct defer_task
 struct php_coro_task
 {
     JMP_BUF *bailout;
-    uint32_t jumpnz_times;
-    zend_bool interrupt;
     zval *vm_stack_top;
     zval *vm_stack_end;
     zend_vm_stack vm_stack;

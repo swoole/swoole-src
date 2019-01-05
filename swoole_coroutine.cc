@@ -60,10 +60,8 @@ void PHPCoroutine::interrupt(zend_execute_data *execute_data)
         {
             swoole_php_fatal_error(E_ERROR, "must be called in the coroutine.");
         }
-        task->jumpnz_times++;
-        if (task->interrupt == 0 && task->jumpnz_times > 10)
+        if (task->co->is_schedulable())
         {
-            task->interrupt = 1;
             PHPCoroutine::on_yield(task);
             SwooleG.main_reactor->defer(SwooleG.main_reactor, interrupt_callback, (void *)task->co);
             task->co->yield_naked();
@@ -321,9 +319,6 @@ void PHPCoroutine::create_func(void *arg)
     task->co->set_task((void *) task);
     task->origin_task = origin_task;
     task->defer_tasks = nullptr;
-    task->interrupt = 0;
-    task->jumpnz_times = 0;
-
     swTraceLog(
         SW_TRACE_COROUTINE, "Create coro id: %ld, origin cid: %ld, coro total count: %zu, heap size: %zu",
         Coroutine::get_cid(task->co), Coroutine::get_cid(task->origin_task->co), (uintmax_t) Coroutine::count(), (uintmax_t) zend_memory_usage(0)
