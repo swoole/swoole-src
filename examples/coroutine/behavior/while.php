@@ -6,7 +6,7 @@ go(function () {
     echo "coro start\n";
     $x = 5;
     $i = 0;
-    while($x) {
+    while(!0) {
         $i ++;
         sleep(0.1);
     }
