@@ -250,11 +250,14 @@ private:
             else
             {
                 unique_lock<mutex> lock(_mutex);
-                ++n_waiting;
-                _cv.wait(lock);
-                --n_waiting;
+                if (running)
+                {
+                    ++n_waiting;
+                    _cv.wait(lock);
+                    --n_waiting;
+                }
             }
-            if (running )
+            if (running)
             {
                 goto _accept;
             }
