@@ -26,7 +26,7 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-object(Swoole\Http\Request)#9 (10) {
+object(Swoole\Http\Request)#%d (10) {
   ["fd"]=>
   int(1)
   ["streamId"]=>
@@ -76,7 +76,7 @@ object(Swoole\Http\Request)#9 (10) {
   ["tmpfiles"]=>
   NULL
 }
-object(Swoole\Http\Response)#10 (4) {
+object(Swoole\Http\Response)#%d (4) {
   ["fd"]=>
   int(1)
   ["header"]=>
