@@ -47,8 +47,6 @@ static zend_class_entry swoole_websocket_closeframe_ce;
 static zend_class_entry *swoole_websocket_closeframe_ce_ptr;
 static zend_object_handlers swoole_websocket_closeframe_handlers;
 
-static int websocket_handshake(swListenPort *, http_context *);
-
 static PHP_METHOD(swoole_websocket_server, push);
 static PHP_METHOD(swoole_websocket_server, exist);
 static PHP_METHOD(swoole_websocket_server, isEstablished);
