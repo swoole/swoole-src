@@ -17,8 +17,43 @@ fi
 if [ -z "${TEST_PHP_EXECUTABLE}" ]; then
     export TEST_PHP_EXECUTABLE=`which php`
 fi
-glob='swoole_*'
-[ -z "$1" ] || glob="$@"
+if [ -z "$1" ]; then
+    glob="swoole_*"
+elif [ "$1"x == "base"x ]; then
+    _args=("$@")
+    unset _args["0"]
+    _args_str=""
+    for i in ${_args[@]};
+        do _args_str="${_args_str}${i}"
+    done
+    glob="${_args_str}
+    swoole_atomic \
+    swoole_buffer \
+    swoole_event \
+    swoole_function \
+    swoole_global \
+    swoole_lock \
+    swoole_memory_pool \
+    swoole_process \
+    swoole_process_pool \
+    swoole_table \
+    \
+    swoole_coroutine \
+    swoole_coroutine_util \
+    swoole_coroutine_channel \
+    swoole_client_coro \
+    swoole_http_client_coro \
+    swoole_http2_client_coro \
+    swoole_server \
+    swoole_http_server \
+    swoole_mysql_coro \
+    swoole_redis_coro \
+    swoole_redis_server \
+    swoole_socket_coro \
+    swoole_runtime"
+else
+    glob="$@"
+fi
 ${TEST_PHP_EXECUTABLE} -d "memory_limit=1024m" ${__DIR__}/run-tests ${glob}
 
 # after tests

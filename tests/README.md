@@ -5,6 +5,15 @@ Run these tests to make certain that the swoole extension you installed can work
 ## How to run
 1. just run `./start.sh`
 2. or use`./start.sh ./swoole_*` command to run a part of the tests
+3. or use `./start.sh base` command to run base tests
+
+## Defaults
+
+| Config    | Enable   |
+| --------- | -------- |
+| show-diff | yes      |
+| show-mem  | yes      |
+| show-slow | 1000(ms) |
 
 ## Log files
 
@@ -15,7 +24,6 @@ Run these tests to make certain that the swoole extension you installed can work
 | exp    | expect output                                 |
 | log    | all above                                     |
 | php    | php temp script file                          |
-
 
 ## Clean
 Run `./clean` to remove all of the tests log files.
