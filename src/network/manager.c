@@ -58,6 +58,10 @@ static void swManager_killTimeout(swTimer *timer, swTimer_node *tnode)
         if (i >= ManagerProcess.reload_worker_i)
         {
             reload_worker_pid = ManagerProcess.reload_workers[i].pid;
+            if (kill(reload_worker_pid, 0 == -1))
+            {
+                continue;
+            }
             if (kill(reload_worker_pid, SIGKILL) < 0)
             {
                 swSysError("kill(%d, SIGKILL) [%d] failed.", ManagerProcess.reload_workers[i].pid, i);
@@ -68,6 +72,7 @@ static void swManager_killTimeout(swTimer *timer, swTimer_node *tnode)
             }
         }
     }
+    errno = 0;
     ManagerProcess.reload_worker_i = 0;
     ManagerProcess.reload_init = 0;
 }
@@ -324,7 +329,7 @@ static int swManager_loop(swFactory *factory)
         {
             if (ManagerProcess.reloading == 0)
             {
-                error: if (errno != EINTR)
+                error: if (errno > 0 && errno != EINTR)
                 {
                     swSysError("wait() failed.");
                 }

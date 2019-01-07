@@ -366,7 +366,7 @@ int swServer_create_task_worker(swServer *serv)
         ipc_mode = SW_IPC_UNIXSOCK;
     }
 
-    if (swProcessPool_create(&serv->gs->task_workers, serv->task_worker_num, serv->task_max_request, key, ipc_mode) < 0)
+    if (swProcessPool_create(&serv->gs->task_workers, serv->task_worker_num, serv->task_max_request, serv->max_wait_time, key, ipc_mode) < 0)
     {
         swWarn("[Master] create task_workers failed.");
         return SW_ERR;
