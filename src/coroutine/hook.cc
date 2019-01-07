@@ -51,7 +51,10 @@ void swoole::set_dns_cache_capacity(size_t capacity)
 
 void swoole::clear_dns_cache()
 {
-    dns_cache->clear();
+    if (dns_cache)
+    {
+        dns_cache->clear();
+    }
 }
 
 extern "C"
