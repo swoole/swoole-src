@@ -17,6 +17,11 @@
  +----------------------------------------------------------------------+
  */
 
+function clear_php()
+{
+    `ps -A | grep php | grep -v phpstorm | grep -v 'run-tests' | awk '{print $1}' | xargs kill -9 > /dev/null 2>&1`;
+}
+
 function get_one_free_port()
 {
     $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
@@ -663,7 +668,11 @@ class ProcessManager
 
     function runParentFunc($pid = 0)
     {
-        return call_user_func($this->parentFunc, $pid);
+        if (!$this->parentFunc) {
+            return (function () { $this->kill(); })($pid);
+        } else {
+            return call_user_func($this->parentFunc, $pid);
+        }
     }
 
     function getFreePort(int $index = 0)
