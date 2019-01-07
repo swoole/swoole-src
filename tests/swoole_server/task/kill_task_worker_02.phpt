@@ -2,7 +2,7 @@
 swoole_server: kill task worker [SWOOLE_PROCESS]
 --SKIPIF--
 <?php
-require __DIR__ . '/../include/skipif.inc';
+require __DIR__ . '/../../include/skipif.inc';
 skip_if_darwin();
 ?>
 --FILE--
