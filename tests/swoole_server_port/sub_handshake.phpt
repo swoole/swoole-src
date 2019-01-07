@@ -82,7 +82,7 @@ object(Swoole\WebSocket\Frame)#%d (4) {
   ["finish"]=>
   bool(true)
 }
-object(Swoole\WebSocket\Frame)%d (4) {
+object(Swoole\WebSocket\Frame)#%d (4) {
   ["fd"]=>
   int(0)
   ["data"]=>
