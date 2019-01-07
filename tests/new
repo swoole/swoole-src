@@ -34,7 +34,7 @@ if (empty($argv[1])) {
     error_filename:
     exit(
         swoole_color("Please enter the correct file name or path! e.g.:", SWOOLE_COLOR_RED) .
-        swoole_color("\n\"./new.sh ./swoole_coroutine\"\n", SWOOLE_COLOR_MAGENTA)
+        swoole_color("\n\"./new ./swoole_coroutine\"\n", SWOOLE_COLOR_MAGENTA)
     );
 }
 

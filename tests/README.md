@@ -29,9 +29,9 @@ Run these tests to make certain that the swoole extension you installed can work
 Run `./clean` to remove all of the tests log files.
 
 ## Contribute the test script
-Run `./new.sh [test-script-filename]`
+Run `./new [test-script-filename]`
 
-E.g. : `./new.sh ./swoole-coroutine/co_sleep.phpt`
+E.g. : `./new ./swoole-coroutine/co_sleep.phpt`
 
 It will generate the test script file and auto open on your ide (MacOS only).
 

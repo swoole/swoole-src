@@ -17,14 +17,15 @@ fi
 if [ -z "${TEST_PHP_EXECUTABLE}" ]; then
     export TEST_PHP_EXECUTABLE=`which php`
 fi
-if [ -z "$1" ]; then
+if [ -z "${1}" ]; then
     glob="swoole_*"
-elif [ "$1"x == "base"x ]; then
+elif [ "${1}"x == "base"x ]; then
     _args=("$@")
     unset _args["0"]
     _args_str=""
     for i in ${_args[@]};
-        do _args_str="${_args_str}${i}"
+    do
+        _args_str="${_args_str} ${i}"
     done
     glob="${_args_str}
     swoole_atomic \
@@ -54,7 +55,8 @@ elif [ "$1"x == "base"x ]; then
 else
     glob="$@"
 fi
-${TEST_PHP_EXECUTABLE} -d "memory_limit=1024m" ${__DIR__}/run-tests ${glob}
+
+PHPT=1 ${TEST_PHP_EXECUTABLE} -d "memory_limit=1024m" ${__DIR__}/run-tests ${glob}
 
 # after tests
 clear_php
