@@ -512,7 +512,7 @@ void swoole_set_property_by_handle(uint32_t handle, int property_id, void *ptr)
 
         if (old_size == 0)
         {
-            new_size = 65536;
+            new_size = handle < SWOOLE_OBJECT_DEFAULT ? SWOOLE_OBJECT_DEFAULT : swoole_get_new_size(SWOOLE_OBJECT_DEFAULT, handle);
             new_ptr = sw_calloc(new_size, sizeof(void *));
         }
         else
@@ -912,7 +912,7 @@ PHP_MINIT_FUNCTION(swoole)
     SwooleG.socket_buffer_size = SWOOLE_G(socket_buffer_size);
     SwooleG.dns_cache_refresh_time = 60;
 
-    swoole_objects.size = 65536;
+    swoole_objects.size = SWOOLE_OBJECT_DEFAULT;
     swoole_objects.array = sw_calloc(swoole_objects.size, sizeof(void*));
 
     return SUCCESS;
