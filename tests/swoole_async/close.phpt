@@ -15,6 +15,7 @@ Co::set([
 file_put_contents(TEST_LOG_FILE, '');
 swoole_async_write(TEST_LOG_FILE, $content[] = get_safe_random(), -1);
 swoole_async_write(TEST_LOG_FILE, $content[] = get_safe_random(), -1);
+// return false bug can not close fd anymore
 swoole_async_write(TEST_LOG_FILE, $content[] = get_safe_random(), -1, function () { return false; });
 swoole_event_wait();
 $real_content = file_get_contents(TEST_LOG_FILE);
@@ -25,4 +26,4 @@ assert($real_content === implode('', $content));
 [%s]	TRACE	zif_swoole_async_write(:%d): open write file fd#%d
 [%s]	TRACE	zif_swoole_async_write(:%d): reuse write file fd#%d
 [%s]	TRACE	zif_swoole_async_write(:%d): reuse write file fd#%d
-[%s]	TRACE	aio_onFileCompleted(:%d): close file fd#%d
+[%s]	TRACE	aio_onFileCompleted(:412): delref file fd#%d, refcount=%d
