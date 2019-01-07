@@ -624,49 +624,49 @@ class ProcessManager
     protected $childStatus;
     protected $parentFirst = false;
 
-    function __construct()
+    public function __construct()
     {
-        $this->atomic = new swoole_atomic(0);
+        $this->atomic = new Swoole\Atomic(0);
     }
 
-    function setParent(callable $func)
+    public function setParent(callable $func)
     {
         $this->parentFunc = $func;
     }
 
-    function parentFirst()
+    public function parentFirst()
     {
         $this->parentFirst = true;
     }
 
-    function childFirst()
+    public function childFirst()
     {
         $this->parentFirst = false;
     }
 
-    function setChild(callable $func)
+    public function setChild(callable $func)
     {
         $this->childFunc = $func;
     }
 
-    public function setWaitTimeout($value='')
+    public function setWaitTimeout($value = '')
     {
         $this->waitTimeout = $value;
     }
 
     //等待信息
-    function wait()
+    public function wait()
     {
         $this->atomic->wait($this->waitTimeout);
     }
 
     //唤醒等待的进程
-    function wakeup()
+    public function wakeup()
     {
         $this->atomic->wakeup();
     }
 
-    function runParentFunc($pid = 0)
+    public function runParentFunc($pid = 0)
     {
         if (!$this->parentFunc) {
             return (function () { $this->kill(); })($pid);
@@ -675,19 +675,19 @@ class ProcessManager
         }
     }
 
-    function getFreePort(int $index = 0)
+    public function getFreePort(int $index = 0)
     {
         return $this->freePorts[$index];
     }
 
-    function initRandomData($size, $len = 32)
+    public function initRandomData($size, $len = 32)
     {
         for ($n = $size; $n--;) {
             $this->randomData[] = get_safe_random($len);
         }
     }
 
-    function getRandomData($index = null): string
+    public function getRandomData($index = null): string
     {
         if (!empty($this->randomData)) {
             return array_shift($this->randomData);
@@ -696,41 +696,22 @@ class ProcessManager
         }
     }
 
-    function runChildFunc()
+    public function runChildFunc()
     {
         return call_user_func($this->childFunc);
-    }
-
-    function fork($func)
-    {
-        $pid = pcntl_fork();
-        if ($pid > 0)
-        {
-            return $pid;
-        }
-        elseif ($pid < 0)
-        {
-            return false;
-        }
-        else
-        {
-            call_user_func($func);
-            exit;
-        }
     }
 
     /**
      * 杀死子进程
      */
-    function kill()
+    public function kill()
     {
-        if (!$this->alone && $this->childPid)
-        {
+        if (!$this->alone && $this->childPid) {
             swoole_process::kill($this->childPid);
         }
     }
 
-    function initFreePorts(int $num = 1)
+    public function initFreePorts(int $num = 1)
     {
         if (empty($this->freePorts)) {
             for ($i = $num; $i--;) {
@@ -739,68 +720,52 @@ class ProcessManager
         }
     }
 
-    function run()
+    public function run()
     {
         global $argv, $argc;
-        if ($argc > 1)
-        {
-            if ($argv[1] == 'child')
-            {
+        if ($argc > 1) {
+            if ($argv[1] == 'child') {
                 $this->freePorts = [9501];
                 $this->alone = true;
                 return $this->runChildFunc();
-            }
-            elseif ($argv[1] == 'parent')
-            {
+            } elseif ($argv[1] == 'parent') {
                 $this->freePorts = [9501];
                 $this->alone = true;
                 return $this->runParentFunc();
             }
         }
         $this->initFreePorts();
-        $pid = pcntl_fork();
-        if ($this->parentFirst)
-        {
-            $this->atomic->set(0);
-        }
-        if ($pid < 0)
-        {
-            echo "ERROR";
-            exit;
-        }
-        //子进程
-        elseif ($pid === 0)
-        {
-            //等待父进程
-            if ($this->parentFirst)
-            {
+        $childProcess = new Swoole\Process(function () {
+            if ($this->parentFirst) {
                 $this->wait();
             }
             $this->runChildFunc();
             exit;
+        });
+        $childProcess->start();
+        if ($this->parentFirst) {
+            $this->atomic->set(0);
         }
-        //父进程
-        else
-        {
-            $this->childPid = $pid;
-            //子进程优先运行，父进程进入等待状态
-            if (!$this->parentFirst)
-            {
-                $this->wait();
-            }
-            $this->runParentFunc($pid);
-            // if ($this->async)
-            // {
-            swoole_event_wait();
-            // }
-            pcntl_waitpid($pid, $status);
-            $this->childStatus = $status;
+        if (!$childProcess) {
+            exit("ERROR: CAN NOT CREATE PROCESS\n");
         }
+        // child process first, parent wait
+        if (!$this->parentFirst) {
+            $this->wait();
+        }
+        $this->runParentFunc($this->childPid = $childProcess->pid);
+        Swoole\Event::wait();
+        $waitInfo = Swoole\Process::wait(true);
+        $this->childStatus = $waitInfo['code'];
+        return true;
     }
 
-    function expectExitCode($code = 0)
+    public function expectExitCode($code = 0)
     {
-        assert(pcntl_wexitstatus($this->childStatus) == $code);
+        if (!is_array($code)) {
+            $code = [$code];
+        }
+        assert(in_array($this->childStatus, $code));
     }
 }
 
