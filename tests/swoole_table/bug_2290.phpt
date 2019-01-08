@@ -1,5 +1,5 @@
 --TEST--
-swoole_table: bug_2263
+swoole_table: bug_2290
 
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
