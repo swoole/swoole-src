@@ -302,7 +302,7 @@ static void http_client_clear_response_properties(zval *zobject)
 
 static int http_client_execute(zval *zobject, char *uri, size_t uri_len, zval *callback)
 {
-    if (uri_len <= 0)
+    if (uri_len == 0)
     {
         swoole_php_fatal_error(E_WARNING, "path is empty.");
         return SW_ERR;
@@ -1455,7 +1455,7 @@ static PHP_METHOD(swoole_http_client, __construct)
 {
     char *host;
     size_t host_len;
-    long port = 80;
+    zend_long port = 80;
     zend_bool ssl = SW_FALSE;
 
     swoole_php_fatal_error(E_DEPRECATED, "async APIs will be removed in Swoole-v4.3.0, you should be using the coroutine APIs instead.");
@@ -1465,7 +1465,7 @@ static PHP_METHOD(swoole_http_client, __construct)
         RETURN_FALSE;
     }
 
-    if (host_len <= 0)
+    if (host_len == 0)
     {
         swoole_php_fatal_error(E_ERROR, "host is empty.");
         RETURN_FALSE;
@@ -1609,11 +1609,11 @@ static PHP_METHOD(swoole_http_client, addFile)
     char *name;
     size_t l_name;
     char *type = NULL;
-    size_t l_type;
+    size_t l_type = 0;
     char *filename = NULL;
-    size_t l_filename;
-    long offset = 0;
-    long length = 0;
+    size_t l_filename = 0;
+    zend_long offset = 0;
+    zend_long length = 0;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "ss|ssll", &path, &l_path, &name, &l_name, &type, &l_type,
             &filename, &l_filename, &offset, &length) == FAILURE)
@@ -1653,12 +1653,12 @@ static PHP_METHOD(swoole_http_client, addFile)
     {
         length = file_stat.st_size - offset;
     }
-    if (type == NULL)
+    if (l_type == 0)
     {
         type = (char*) swoole_get_mime_type(path);
         l_type = strlen(type);
     }
-    if (filename == NULL)
+    if (l_filename == 0)
     {
         char *dot = strrchr(path, '/');
         if (dot == NULL)
@@ -2124,11 +2124,11 @@ static PHP_METHOD(swoole_http_client, get)
 static PHP_METHOD(swoole_http_client, download)
 {
     int ret;
-    char *uri = NULL;
-    size_t uri_len = 0;
+    char *uri;
+    size_t uri_len;
     zval *finish_cb;
     zval *download_file;
-    off_t offset = 0;
+    zend_long offset = 0;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "szz|l", &uri, &uri_len, &download_file, &finish_cb, &offset) == FAILURE)
     {

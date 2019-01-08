@@ -196,9 +196,9 @@ void php_swoole_reactor_init()
 
     if (SwooleG.serv)
     {
-        if (swIsTaskWorker() && SwooleG.serv->task_async == 0)
+        if (swIsTaskWorker() && !SwooleG.serv->task_enable_coroutine)
         {
-            swoole_php_fatal_error(E_ERROR, "Unable to use async-io in task processes, please set `task_async` to true.");
+            swoole_php_fatal_error(E_ERROR, "Unable to use async-io in task processes, please set `task_enable_coroutine` to true.");
             return;
         }
         if (swIsManager())
@@ -439,11 +439,11 @@ php_socket* swoole_convert_to_socket(int sock)
 
 PHP_FUNCTION(swoole_event_add)
 {
+    zval *zfd;
     zval *cb_read = NULL;
     zval *cb_write = NULL;
-    zval *zfd;
+    zend_long event_flag = 0;
     char *func_name = NULL;
-    long event_flag = 0;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|zzl", &zfd, &cb_read, &cb_write, &event_flag) == FAILURE)
     {
@@ -535,7 +535,7 @@ PHP_FUNCTION(swoole_event_write)
         RETURN_FALSE;
     }
 
-    if (len <= 0)
+    if (len == 0)
     {
         swoole_php_fatal_error(E_WARNING, "data empty.");
         RETURN_FALSE;
@@ -561,12 +561,12 @@ PHP_FUNCTION(swoole_event_write)
 
 PHP_FUNCTION(swoole_event_set)
 {
+    zval *zfd;
     zval *cb_read = NULL;
     zval *cb_write = NULL;
-    zval *zfd;
-
+    zend_long event_flag = 0;
     char *func_name = NULL;
-    long event_flag = 0;
+
     if (!SwooleG.main_reactor)
     {
         swoole_php_fatal_error(E_WARNING, "reactor no ready, cannot swoole_event_set.");
@@ -837,7 +837,7 @@ PHP_FUNCTION(swoole_event_isset)
     }
 
     zval *zfd;
-    long events = SW_EVENT_READ | SW_EVENT_WRITE;
+    zend_long events = SW_EVENT_READ | SW_EVENT_WRITE;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|l", &zfd, &events) == FAILURE)
     {

@@ -1350,7 +1350,7 @@ static PHP_METHOD(swoole_mysql_coro, escape)
 {
     swString str;
     bzero(&str, sizeof(str));
-    long flags;
+    zend_long flags = 0;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|l", &str.str, &str.length, &flags) == FAILURE)
     {

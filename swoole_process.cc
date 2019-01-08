@@ -237,9 +237,9 @@ void swoole_process_init(int module_number)
 
 static PHP_METHOD(swoole_process, __construct)
 {
-    zend_bool redirect_stdin_and_stdout = 0;
-    long pipe_type = 2;
     zval *callback;
+    zend_bool redirect_stdin_and_stdout = 0;
+    zend_long pipe_type = 2;
 
     //only cli env
     if (!SWOOLE_G(cli))
@@ -447,8 +447,8 @@ static PHP_METHOD(swoole_process, freeQueue)
 
 static PHP_METHOD(swoole_process, kill)
 {
-    long pid;
-    long sig = SIGTERM;
+    zend_long pid;
+    zend_long sig = SIGTERM;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|l", &pid, &sig) == FAILURE)
     {
@@ -564,8 +564,8 @@ static PHP_METHOD(swoole_process, signal)
 
 static PHP_METHOD(swoole_process, alarm)
 {
-    long usec = 0;
-    long type = ITIMER_REAL;
+    zend_long usec;
+    zend_long type = ITIMER_REAL;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|l", &usec, &type) == FAILURE)
     {

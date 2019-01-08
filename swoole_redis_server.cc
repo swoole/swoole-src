@@ -290,7 +290,7 @@ static PHP_METHOD(swoole_redis_server, setHandler)
         RETURN_FALSE;
     }
 
-    if (command_len <= 0 || command_len >= SW_REDIS_MAX_COMMAND_SIZE)
+    if (command_len == 0 || command_len >= SW_REDIS_MAX_COMMAND_SIZE)
     {
         swoole_php_fatal_error(E_ERROR, "invalid command.");
         RETURN_FALSE;
@@ -333,7 +333,7 @@ static PHP_METHOD(swoole_redis_server, setHandler)
 
 static PHP_METHOD(swoole_redis_server, format)
 {
-    long type;
+    zend_long type;
     zval *value = NULL;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|z", &type, &value) == FAILURE)
@@ -461,7 +461,7 @@ static PHP_METHOD(swoole_redis_server, format)
         int keytype;
 
         SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(value), key, keylen, keytype, item)
-            if (key == NULL || keylen <= 0)
+            if (key == NULL || keylen == 0)
             {
                 continue;
             }

@@ -74,16 +74,10 @@ long php_swoole_add_timer(long ms, zval *callback, zval *param, int persistent)
         return SW_ERR;
     }
 
-    if (SwooleG.serv)
+    // no server || task process with async mode || user worker
+    if (!SwooleG.serv || (SwooleG.serv && ((swIsTaskWorker() && SwooleG.serv->task_enable_coroutine) || swIsUserWorker())))
     {
-        if (swIsTaskWorker() && SwooleG.serv->task_async == 1)
-        {
-            goto _create_reactor;
-        }
-    }
-    else
-    {
-        _create_reactor: php_swoole_check_reactor();
+        php_swoole_check_reactor();
     }
 
     swTimer_callback *cb = (swTimer_callback *) emalloc(sizeof(swTimer_callback));
@@ -244,7 +238,7 @@ void php_swoole_onInterval(swTimer *timer, swTimer_node *tnode)
 
 PHP_FUNCTION(swoole_timer_tick)
 {
-    long after_ms;
+    zend_long after_ms;
     zval *callback;
     zval *param = NULL;
 
