@@ -41,8 +41,11 @@ function get_one_free_port()
     return $port;
 }
 
-function approximate($expect, $actual, float $ratio = 0.1): bool
+function time_approximate($expect, $actual, float $ratio = 0.1): bool
 {
+    if (USE_VALGRIND) {
+        return true;
+    }
     $ret = $actual * (1 - $ratio) < $expect && $actual * (1 + $ratio) > $expect;
     if (!$ret) {
         trigger_error("approximate: expect {$expect}, but got {$actual}\n", E_USER_WARNING);

@@ -15,7 +15,7 @@ go(function () {
     $s = microtime(true);
     $ret = $redis->brpoplpush('test', 'test2', 1);
     $s = microtime(true) - $s;
-    assert(round($s, 2) == 0);
+    time_approximate(0.001, $s, 1);
     assert(!$ret);
 
     // read ok (after internal auto connect)

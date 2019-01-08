@@ -21,7 +21,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
         if (assert(!$ret)) {
             assert($cli->errCode === SOCKET_ETIMEDOUT);
             assert($cli->statusCode === SWOOLE_HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT);
-            assert(approximate(1, $s));
+            assert(time_approximate(1, $s));
         }
         $cli->close();
         @unlink('/tmp/test.jpg');

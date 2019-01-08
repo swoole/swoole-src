@@ -2716,8 +2716,11 @@ function show_result($result, $tested, $tested_file, $extra = '', $temp_filename
             $color = SWOOLE_COLOR_GREEN;
             break;
         case 'LEAK':
-        case 'BORK':
+            $result = 'ERROR';
             $color = SWOOLE_COLOR_MAGENTA;
+            break;
+        case 'BORK':
+            $color = SWOOLE_COLOR_BLUE;
             break;
         case 'SKIP':
             $color = SWOOLE_COLOR_YELLOW;
