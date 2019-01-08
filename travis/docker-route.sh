@@ -4,7 +4,7 @@ __DIR__=$(cd "$(dirname "$0")";pwd)
 
 # show dir info
 cd ${__DIR__} && pwd
-ls -al / && echo ""
+ls -al ../ && echo ""
 
 # show system info
 date && echo ""

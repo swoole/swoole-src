@@ -33,7 +33,9 @@ run_tests()
 touch tests.list
 trap "rm -f tests.list; echo ''; echo '⌛ Done on '`date "+%Y-%m-%d %H:%M:%S"`;" EXIT
 
-if [ "`git symbolic-ref --short -q HEAD`" = "valgrind" ]; then
+branch="`cat ../.git/HEAD | rev | cut -d '/' -f1 | rev`"
+echo "\n🌵️️ Current branch is ${branch}\n"
+if [ "${branch}" = "valgrind" ]; then
     dir="base"
     options="-m"
 else
